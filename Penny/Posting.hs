@@ -15,7 +15,7 @@ newtype Qty = Qty { unQty :: Decimal }
 newtype Commodity = Commodity { unCommodity :: Text }
                  deriving (Eq)
 
-data PriceDesc = Unit | Total
+data PriceDesc = UnitPrice | TotalPrice
 
 data Price = Price { priceDesc :: PriceDesc
                    , priceAmt :: Amount }
