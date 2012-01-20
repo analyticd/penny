@@ -6,6 +6,7 @@ module Penny.Transaction (
   morePostings ) where
 
 import Penny.Posting
+import Penny.Qty
 import Control.Monad.Exception.Synchronous
 
 -- | All the Postings in a Transaction:
@@ -48,17 +49,35 @@ toValue p = Value dc a where
     (Just pr) -> case priceDesc pr of
       TotalPrice -> priceAmt pr
       UnitPrice -> let
-        q = (unQty . qty . amount . entry $ p)
-            * (unQty . qty . priceAmt $ pr)
+        q = (qty . amount . entry $ p)
+            `mult` (qty . priceAmt $ pr)
         c = commodity . priceAmt $ pr
-        in Amount (Qty q) c
+        in Amount q c
 
 addValue :: Exceptional Error Total
             -> Value
             -> Exceptional Error Total
 addValue e v = case e of
-  (Exception err) -> err
+  (Exception err) -> Exception err
   (Success t) ->
-    if totCommodity t /= (commodity . valueAmt $ v)
+    if totCommodity t /= (commodity . valueAmount $ v)
     then Exception $ DifferentCommodityError t v
-    else Success $ Total (totCommodity t) (
+    else let c = totCommodity t
+             q = qty . valueAmount $ v
+             (dr, cr) = case valueDrCr v of
+               Debit -> ((debits t) `add` q, credits t)
+               Credit -> (debits t, (credits t) `add` q)
+         in Success $ Total c dr cr
+
+total :: Posting -> Posting -> [Posting] -> Total
+total = undefined
+
+toTotal :: Posting -> Total
+toTotal p = Total c dr cr where
+  a = qty . valueAmount . toValue $ p
+  c = case price p of
+    Nothing -> commodity . amount . entry $ p
+    (Just pr) -> commodity . priceAmt $ pr
+  (dr, cr) = case drCr . entry $ p of
+    Debit -> (a, zero)
+    Credit -> (zero, a)

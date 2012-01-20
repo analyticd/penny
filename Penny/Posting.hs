@@ -2,17 +2,15 @@
 
 module Penny.Posting where
 
-import Data.Decimal ( Decimal )
+import Penny.Qty
 import Data.Text ( Text )
 import Data.Time.Clock ( UTCTime )
 import Data.Tree ( Tree )
+import qualified Penny.TextNonEmpty as NE
 
 data DrCr = Debit | Credit
 
-newtype Qty = Qty { unQty :: Decimal }
-              deriving (Eq)
-
-newtype Commodity = Commodity { unCommodity :: Text }
+newtype Commodity = Commodity { unCommodity :: NE.TextNonEmpty }
                  deriving (Eq)
 
 data PriceDesc = UnitPrice | TotalPrice
@@ -62,12 +60,14 @@ data Posting =
 data NonEmptyList a = NonEmptyList { first :: a
                                    , rest :: [a] }
 
-data Sibling = Sibling { thisSibling :: Posting
-                       , otherSiblings :: NonEmptyList Posting }
+data Sibling m =
+  Sibling { thisSibling :: MetaBox Posting m
+          , otherSiblings :: NonEmptyList (MetaBox Posting m) }
 
-data Label = Label { labelName :: SubAccountName
-                   , labelSiblings :: NonEmptyList Sibling }
+data Label m = Label { labelName :: SubAccountName
+                     , labelSiblings :: NonEmptyList (Sibling m) }
 
-newtype Trees = Trees { unTrees :: [Tree Label] }
+newtype Trees m = Trees { unTrees :: [Tree (Label m)] }
 
-
+data MetaBox p m = MetaBox { payload :: p
+                           , metadata :: m }
