@@ -60,14 +60,12 @@ data Posting =
 data NonEmptyList a = NonEmptyList { first :: a
                                    , rest :: [a] }
 
-data Sibling m =
-  Sibling { thisSibling :: MetaBox Posting m
-          , otherSiblings :: NonEmptyList (MetaBox Posting m) }
+data Sibling =
+  Sibling { thisSibling :: Posting
+          , otherSiblings :: NonEmptyList Posting }
 
-data Label m = Label { labelName :: SubAccountName
-                     , labelSiblings :: NonEmptyList (Sibling m) }
+data Label = Label { labelName :: SubAccountName
+                   , labelSiblings :: NonEmptyList Sibling }
 
-newtype Trees m = Trees { unTrees :: [Tree (Label m)] }
+newtype Trees = Trees { unTrees :: [Tree Label] }
 
-data MetaBox p m = MetaBox { payload :: p
-                           , metadata :: m }
