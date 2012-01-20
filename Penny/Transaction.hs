@@ -21,14 +21,18 @@ data Transaction = Transaction { posting1 :: Posting
                                , morePostings :: [Posting] }
 
 data Error = DifferentDatesError
-           | UnbalancedError
+           | UnbalancedError Total
            | DifferentCommodityError Total Value
 
 postingsToTransaction :: Posting
                          -> Posting
                          -> [Posting]
                          -> Exceptional Error Transaction
-postingsToTransaction = undefined
+postingsToTransaction p1 p2 ps = do
+  t <- totalPostings p1 p2 ps
+  if isBalanced t
+    then return (Transaction p1 p2 ps)
+    else throw $ UnbalancedError t
 
 -- | The value of a posting conceptually is the entry multiplied by
 -- the price or, if there is no price, simply the entry.
@@ -40,6 +44,9 @@ data Value = Value { valueDrCr :: DrCr
 data Total = Total { totCommodity :: Commodity
                    , debits :: Qty
                    , credits :: Qty }
+
+isBalanced :: Total -> Bool
+isBalanced t = debits t == credits t
 
 toValue :: Posting -> Value
 toValue p = Value dc a where
@@ -69,8 +76,9 @@ addValue e v = case e of
                Credit -> (debits t, (credits t) `add` q)
          in Success $ Total c dr cr
 
-total :: Posting -> Posting -> [Posting] -> Total
-total = undefined
+totalPostings :: Posting -> Posting -> [Posting] -> Exceptional Error Total
+totalPostings p1 p2 ps = foldl addValue i (map toValue ps) where
+  i = addValue (return . toTotal $ p1) (toValue p2)
 
 toTotal :: Posting -> Total
 toTotal p = Total c dr cr where
