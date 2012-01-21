@@ -173,7 +173,8 @@ sumSubmap ::
 sumSubmap (NestedMap top) =
   if M.null top
   then mempty
-  else mconcat . M.elems . M.map (\(_, m) -> sumSubmap m) $ top
+  else mconcat . map fst . M.elems $ top
+  --else mconcat . M.elems . M.map (\(_, m) -> sumSubmap m) $ top
 
 -- For testing
 map1, map2, map3, map4 :: NestedMap Int String
