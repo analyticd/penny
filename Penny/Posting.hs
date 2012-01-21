@@ -31,7 +31,7 @@ data Cleared = Cleared | NotCleared
 newtype Number = Number { unNumber :: Text }
                  deriving (Eq)
 
-newtype SubAccountName = SubAccountName { unSubAccountName :: Text }
+newtype SubAccountName = SubAccountName { unSubAccountName :: NE.TextNonEmpty }
                     deriving Eq
 
 newtype Account = Account { unAccount :: [SubAccountName] }
