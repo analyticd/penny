@@ -142,40 +142,39 @@ cumulativeTotals (NestedMap m) =
     l' = mappend l . mconcat . 
 -}
 
-cumulativeTotals ::
+totalMap ::
   (Monoid l)
   => NestedMap k l
-  -> (l, NestedMap k l)
-cumulativeTotals (NestedMap m) =
+  -> l
+totalMap (NestedMap m) =
   if M.null m
-  then (mempty, NestedMap M.empty)
-  else let
-    m' = M.map totalTuple m
-    l' = mconcat . map fst . M.elems $ m'
-    in (l', NestedMap m')
+  then mempty
+  else mconcat . map totalTuple . M.elems $ m
 
 totalTuple ::
   (Monoid l)
   => (l, NestedMap k l)
-  -> (l, NestedMap k l)
-totalTuple (l, (NestedMap m)) =
-  if M.null m
-  then (l, (NestedMap M.empty))
-  else let
-    l' = mappend l . sumSubmap $ (NestedMap m)
-    m' = snd . cumulativeTotals $ (NestedMap m)
-    in (l', m')
+  -> l
+totalTuple (l, (NestedMap top)) =
+  if M.null top
+  then l
+  else mappend l (totalMap (NestedMap top))
 
-sumSubmap ::
+remapWithTotals ::
   (Monoid l)
   => NestedMap k l
-  -> l
-sumSubmap (NestedMap top) =
+  -> NestedMap k l
+remapWithTotals (NestedMap top) =
   if M.null top
-  then mempty
-  else mconcat . map fst . M.elems $ top
-  --else mconcat . M.elems . M.map (\(_, m) -> sumSubmap m) $ top
-
+  then NestedMap M.empty
+  else NestedMap $ M.map f top where
+    f a@(l, m) = (totalTuple a, remapWithTotals m)
+{-
+totalTuple (l, (NestedMap top)) =
+  if M.null top
+  then (l, NestedMap M.empty)
+  else (l, mappend l (totalMap (NestedMap top))
+-}
 -- For testing
 map1, map2, map3, map4 :: NestedMap Int String
 map1 = NestedMap M.empty
