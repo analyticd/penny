@@ -112,36 +112,6 @@ prune (NestedMap m) (p:ps) = let
   m'' = M.map (\(l, im) -> (l, prune im ps)) m'
   in NestedMap m''
 
-{-
-cumulativeTotals ::
-  (Monoid l)
-  => NestedMap k l
-  -> NestedMap k l
-cumulativeTotals (NestedMap top) = let
-  levelTot (l, (NestedMap m)) =
-    if M.null m
-    then (l, (NestedMap M.empty))
-    else let
-      l' = mappend l . mconcat . map levelTot . M.elems $ m
-      m' = cumulativeTotals (NestedMap m)
-      in (l', m')
-  in NestedMap (M.map levelTot top)
--}
-
-{-
-cumulativeTotals ::
-  (Monoid l)
-  => NestedMap k l
-  -> (l, NestedMap k l)
-cumulativeTotals (NestedMap m) =
-  if M.null m
-  then (mempty, NestedMap M.empty)
-  else let
-    (l', subs) = M.map cumulativeTotals m
-    subTotal = 
-    l' = mappend l . mconcat . 
--}
-
 totalMap ::
   (Monoid l)
   => NestedMap k l
@@ -169,12 +139,13 @@ remapWithTotals (NestedMap top) =
   then NestedMap M.empty
   else NestedMap $ M.map f top where
     f a@(l, m) = (totalTuple a, remapWithTotals m)
-{-
-totalTuple (l, (NestedMap top)) =
-  if M.null top
-  then (l, NestedMap M.empty)
-  else (l, mappend l (totalMap (NestedMap top))
--}
+
+cumulativeTotal ::
+  (Monoid l)
+  => NestedMap k l
+  -> (l, NestedMap k l)
+cumulativeTotal m = (totalMap m, remapWithTotals m)
+
 -- For testing
 map1, map2, map3, map4 :: NestedMap Int String
 map1 = NestedMap M.empty
