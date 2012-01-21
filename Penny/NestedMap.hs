@@ -10,6 +10,7 @@ module Penny.NestedMap (
 
 import Data.Map ( Map )
 import qualified Data.Map as M
+import Data.Monoid
 
 data NestedMap k l =
   NestedMap { unNestedMap :: Map k (l, NestedMap k l) }
@@ -110,6 +111,69 @@ prune (NestedMap m) (p:ps) = let
   m' = M.filterWithKey (\k _ -> p k) m
   m'' = M.map (\(l, im) -> (l, prune im ps)) m'
   in NestedMap m''
+
+{-
+cumulativeTotals ::
+  (Monoid l)
+  => NestedMap k l
+  -> NestedMap k l
+cumulativeTotals (NestedMap top) = let
+  levelTot (l, (NestedMap m)) =
+    if M.null m
+    then (l, (NestedMap M.empty))
+    else let
+      l' = mappend l . mconcat . map levelTot . M.elems $ m
+      m' = cumulativeTotals (NestedMap m)
+      in (l', m')
+  in NestedMap (M.map levelTot top)
+-}
+
+{-
+cumulativeTotals ::
+  (Monoid l)
+  => NestedMap k l
+  -> (l, NestedMap k l)
+cumulativeTotals (NestedMap m) =
+  if M.null m
+  then (mempty, NestedMap M.empty)
+  else let
+    (l', subs) = M.map cumulativeTotals m
+    subTotal = 
+    l' = mappend l . mconcat . 
+-}
+
+cumulativeTotals ::
+  (Monoid l)
+  => NestedMap k l
+  -> (l, NestedMap k l)
+cumulativeTotals (NestedMap m) =
+  if M.null m
+  then (mempty, NestedMap M.empty)
+  else let
+    m' = M.map totalTuple m
+    l' = mconcat . map fst . M.elems $ m'
+    in (l', NestedMap m')
+
+totalTuple ::
+  (Monoid l)
+  => (l, NestedMap k l)
+  -> (l, NestedMap k l)
+totalTuple (l, (NestedMap m)) =
+  if M.null m
+  then (l, (NestedMap M.empty))
+  else let
+    l' = mappend l . sumSubmap $ (NestedMap m)
+    m' = snd . cumulativeTotals $ (NestedMap m)
+    in (l', m')
+
+sumSubmap ::
+  (Monoid l)
+  => NestedMap k l
+  -> l
+sumSubmap (NestedMap top) =
+  if M.null top
+  then mempty
+  else mconcat . M.elems . M.map (\(_, m) -> sumSubmap m) $ top
 
 -- For testing
 map1, map2, map3, map4 :: NestedMap Int String

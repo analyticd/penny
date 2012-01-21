@@ -7,6 +7,7 @@ import Data.Text ( Text )
 import Data.Time.Clock ( UTCTime )
 import qualified Penny.TextNonEmpty as NE
 import Penny.Groups.FamilyMember
+import Penny.Groups.AtLeast1
 
 data DrCr = Debit | Credit deriving Eq
 
@@ -32,9 +33,9 @@ newtype Number = Number { unNumber :: Text }
                  deriving (Eq)
 
 newtype SubAccountName = SubAccountName { unSubAccountName :: NE.TextNonEmpty }
-                    deriving Eq
+                    deriving (Eq, Ord)
 
-newtype Account = Account { unAccount :: [SubAccountName] }
+newtype Account = Account { unAccount :: AtLeast1 SubAccountName }
 
 newtype TagName = TagName { unTagName :: Text }
                   deriving Eq

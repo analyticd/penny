@@ -4,6 +4,7 @@ import Data.Map ( Map )
 import qualified Data.Map as M
 import Penny.Posting
 import qualified Penny.Qty as Q
+import Data.Monoid
 
 newtype Total = Total (Map Commodity (DrCr, Q.Qty))
 
@@ -21,3 +22,9 @@ addAmount (Total m) p = Total $ M.alter f c m where
         in (newDrCr, newQ)
     in if q' == Q.zero then Nothing else Just new
 
+addTotals :: Total -> Total -> Total
+addTotals = undefined
+
+instance Monoid Total where
+  mempty = Total M.empty
+  mappend = addTotals
