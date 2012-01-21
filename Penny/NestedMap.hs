@@ -6,7 +6,8 @@ module Penny.NestedMap (
   modifyLabel,
   deepModifyLabel,
   deepRelabel,
-  prune) where
+  prune,
+  cumulativeTotal) where
 
 import Data.Map ( Map )
 import qualified Data.Map as M
@@ -140,6 +141,9 @@ remapWithTotals (NestedMap top) =
   else NestedMap $ M.map f top where
     f a@(l, m) = (totalTuple a, remapWithTotals m)
 
+-- | Leaves all keys of the map and submaps the same. Changes each
+-- label to reflect the total of that label and of all the submaps
+-- accompanying the label.
 cumulativeTotal ::
   (Monoid l)
   => NestedMap k l

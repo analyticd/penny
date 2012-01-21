@@ -46,18 +46,7 @@ newtype AccountTotalsCumulative =
   AccountTotalsCumulative {
     unAccountTotalsCumulative :: NestedMap SubAccountName Total }
 
-{-
-accountTotalsCumulative ::
-  AccountTotalsOneLevel
-  -> AccountTotalsCumulative
-accountTotalsCumulative (AccountTotalsOneLevel top) = let
-  totalLevel (l, (NestedMap m)) =
-    if M.null m
-    then (l, M.empty)
-    else mappend l
-         . mconcat
-         . map totalLevel
-         . M.elems
-         $ m
-  in undefined
--}
+accountTotalsCumulative :: AccountTotalsOneLevel
+                           -> AccountTotalsCumulative
+accountTotalsCumulative (AccountTotalsOneLevel m) =
+  AccountTotalsCumulative . snd . cumulativeTotal $ m
