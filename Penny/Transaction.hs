@@ -1,13 +1,14 @@
 module Penny.Transaction (
   Transaction,
-  Error(..),
-  posting1,
-  posting2,
-  morePostings ) where
+  Error(..), 
+  transaction, 
+  siblings ) where
 
 import Penny.Posting
 import Penny.Qty
 import Control.Monad.Exception.Synchronous
+import Penny.Groups.AtLeast2
+import Penny.Groups.FamilyMember
 
 -- | All the Postings in a Transaction:
 --
@@ -16,22 +17,22 @@ import Control.Monad.Exception.Synchronous
 -- * Must have the same Commodity for the Amount in the Value.
 --
 -- * Must produce a Total whose debits and credits are equal.
-data Transaction = Transaction { posting1 :: Posting
-                               , posting2 :: Posting
-                               , morePostings :: [Posting] }
+newtype Transaction = Transaction (AtLeast2 Posting)
 
 data Error = DifferentDatesError
            | UnbalancedError Total
            | DifferentCommodityError Total Value
 
-postingsToTransaction :: Posting
-                         -> Posting
-                         -> [Posting]
-                         -> Exceptional Error Transaction
-postingsToTransaction p1 p2 ps = do
+-- | Get the Postings from a Transaction, with information on the
+-- sibling Postings.
+postingFamily :: Transaction -> [FamilyMember Posting]
+postingFamily (Transaction ps) = family ps
+
+transaction :: AtLeast2 Posting -> Exceptional Error Transaction
+transaction a@(AtLeast2 p1 p2 ps) = do
   t <- totalPostings p1 p2 ps
   if isBalanced t
-    then return (Transaction p1 p2 ps)
+    then return (Transaction a)
     else throw $ UnbalancedError t
 
 -- | The value of a posting conceptually is the entry multiplied by

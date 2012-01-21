@@ -5,13 +5,13 @@ module Penny.Posting where
 import Penny.Qty
 import Data.Text ( Text )
 import Data.Time.Clock ( UTCTime )
-import Data.Tree ( Tree )
 import qualified Penny.TextNonEmpty as NE
+import Penny.Groups.FamilyMember
 
-data DrCr = Debit | Credit
+data DrCr = Debit | Credit deriving Eq
 
 newtype Commodity = Commodity { unCommodity :: NE.TextNonEmpty }
-                 deriving (Eq)
+                 deriving (Eq, Ord)
 
 data PriceDesc = UnitPrice | TotalPrice
 
@@ -56,16 +56,4 @@ data Posting =
           , price :: Maybe Price
           , tags :: Tags
           , comment :: Maybe Comment }
-
-data NonEmptyList a = NonEmptyList { first :: a
-                                   , rest :: [a] }
-
-data Sibling =
-  Sibling { thisSibling :: Posting
-          , otherSiblings :: NonEmptyList Posting }
-
-data Label = Label { labelName :: SubAccountName
-                   , labelSiblings :: NonEmptyList Sibling }
-
-newtype Trees = Trees { unTrees :: [Tree Label] }
 

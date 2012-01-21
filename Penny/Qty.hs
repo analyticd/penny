@@ -3,12 +3,15 @@
 module Penny.Qty (
   Qty, unQty, partialNewQty,
   newQty, add, subt, mult,
-  zero) where
+  zero, difference) where
 
 import Data.Decimal
 
 newtype Qty = Qty Decimal
               deriving (Eq, Ord, Show)
+
+difference :: Qty -> Qty -> Qty
+difference (Qty q1) (Qty q2) = Qty (abs $ q1 - q2)
 
 -- | Unwrap a Qty to get the underlying Decimal. This Decimal will
 -- always be at least zero.
