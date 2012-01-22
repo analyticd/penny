@@ -107,11 +107,11 @@ deepRelabel m ls = deepModifyLabel m ls' where
 prune ::
   (Ord k)
   => NestedMap k l
-  -> [(k -> Bool)]
+  -> [(k -> (l, NestedMap k l) -> Bool)]
   -> NestedMap k l
 prune m [] = m
 prune (NestedMap m) (p:ps) = let
-  m' = M.filterWithKey (\k _ -> p k) m
+  m' = M.filterWithKey (\k v -> p k v) m
   m'' = M.map (\(l, im) -> (l, prune im ps)) m'
   in NestedMap m''
 
