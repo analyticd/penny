@@ -7,7 +7,9 @@ module Penny.NestedMap (
   deepModifyLabel,
   deepRelabel,
   prune,
-  cumulativeTotal) where
+  cumulativeTotal,
+  traverse,
+  traverseWithTrail ) where
 
 import Data.Map ( Map )
 import qualified Data.Map as M
@@ -155,24 +157,7 @@ traverse ::
   => (k -> l -> m a)
   -> NestedMap k l
   -> m (NestedMap k a)
-traverse f (NestedMap m) =
-  if M.null m
-  then return $ NestedMap M.empty
-  else do
-    let ps = M.assocs m
-    mls <- mapM (traversePair f) ps
-    let ps' = zip (M.keys m) mls
-    return (NestedMap (M.fromList ps'))
-
-traversePair ::
-  (Monad m, Ord k)
-  => (k -> l -> m a)
-  -> (k, (l, NestedMap k l))
-  -> m (a, NestedMap k a)
-traversePair f (k, (l, m)) = do
-  a <- f k l
-  m' <- traverse f m
-  return (a, m')
+traverse f m = traverseWithTrail (\_ -> f) m
 
 traverseWithTrail ::
   (Monad m, Ord k)
