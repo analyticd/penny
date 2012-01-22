@@ -101,21 +101,6 @@ deepRelabel ::
 deepRelabel m ls = deepModifyLabel m ls' where
   ls' = map (\(k, l) -> (k, const l)) ls
 
--- | Descends through the NestedMap and selects keys that match the
--- predicate given. Non-matching keys are discarded. Keys that are
--- below the level of the total length of the list are preserved if
--- their parents were preserved.
-prune ::
-  (Ord k)
-  => NestedMap k l
-  -> [(k -> (l, NestedMap k l) -> Bool)]
-  -> NestedMap k l
-prune m [] = m
-prune (NestedMap m) (p:ps) = let
-  m' = M.filterWithKey (\k v -> p k v) m
-  m'' = M.map (\(l, im) -> (l, prune im ps)) m'
-  in NestedMap m''
-
 totalMap ::
   (Monoid l)
   => NestedMap k l
