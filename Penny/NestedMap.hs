@@ -174,6 +174,39 @@ traversePair f (k, (l, m)) = do
   m' <- traverse f m
   return (a, m')
 
+traverseWithTrail ::
+  (Monad m, Ord k)
+  => ( [(k, l)] -> k -> l -> m a )
+  -> NestedMap k l
+  -> m (NestedMap k a)
+traverseWithTrail f = traverseWithTrail' f []
+
+traverseWithTrail' ::
+  (Monad m, Ord k)
+  => ([(k, l)] -> k -> l -> m a)
+  -> [(k, l)]
+  -> NestedMap k l
+  -> m (NestedMap k a)
+traverseWithTrail' f ts (NestedMap m) =
+  if M.null m
+  then return $ NestedMap M.empty
+  else do
+    let ps = M.assocs m
+    mls <- mapM (traversePairWithTrail f ts) ps
+    let ps' = zip (M.keys m) mls
+    return (NestedMap (M.fromList ps'))
+
+traversePairWithTrail ::
+  (Monad m, Ord k)
+  => ( [(k, l)] -> k -> l -> m a )
+  -> [(k, l)]
+  -> (k, (l, NestedMap k l))
+  -> m (a, NestedMap k a)
+traversePairWithTrail f ls (k, (l, m)) = do
+  a <- f ls k l
+  m' <- traverseWithTrail' f ((k, l):ls) m
+  return (a, m')
+
 -- For testing
 map1, map2, map3, map4 :: NestedMap Int String
 map1 = NestedMap M.empty
