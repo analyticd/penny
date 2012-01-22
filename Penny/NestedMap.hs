@@ -13,7 +13,7 @@ module Penny.NestedMap (
 
 import Data.Map ( Map )
 import qualified Data.Map as M
-import Data.Monoid
+import Data.Monoid ( Monoid, mconcat, mappend, mempty )
 
 data NestedMap k l =
   NestedMap { unNestedMap :: Map k (l, NestedMap k l) }
