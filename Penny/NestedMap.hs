@@ -150,6 +150,30 @@ cumulativeTotal ::
   -> (l, NestedMap k l)
 cumulativeTotal m = (totalMap m, remapWithTotals m)
 
+traverse ::
+  (Monad m, Ord k)
+  => (k -> l -> m a)
+  -> NestedMap k l
+  -> m (NestedMap k a)
+traverse f (NestedMap m) =
+  if M.null m
+  then return $ NestedMap M.empty
+  else do
+    let ps = M.assocs m
+    mls <- mapM (traversePair f) ps
+    let ps' = zip (M.keys m) mls
+    return (NestedMap (M.fromList ps'))
+
+traversePair ::
+  (Monad m, Ord k)
+  => (k -> l -> m a)
+  -> (k, (l, NestedMap k l))
+  -> m (a, NestedMap k a)
+traversePair f (k, (l, m)) = do
+  a <- f k l
+  m' <- traverse f m
+  return (a, m')
+
 -- For testing
 map1, map2, map3, map4 :: NestedMap Int String
 map1 = NestedMap M.empty
@@ -158,5 +182,12 @@ map3 = deepRelabel map2 [(6, "what"), (77, "zeke"), (888, "foo")]
 map4 = deepModifyLabel map3
        [ (6, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "new"))
        , (77, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "more new")) ]
-  
-  
+printer :: Int -> String -> IO ()
+printer i s = do
+  putStrLn (show i)
+  putStrLn s
+
+showMap4 :: IO ()
+showMap4 = do
+  _ <- traverse printer map4
+  return ()
