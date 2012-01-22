@@ -7,20 +7,22 @@ import qualified Penny.Groups.AtLeast1 as A1
 import Penny.Total
 import qualified Data.Map as M
 import Data.Monoid
+import Penny.Transaction
+import Penny.Groups.FamilyMember
 
 newtype Accounts =
-  Accounts { unAccounts :: NestedMap SubAccountName [Posting] }
+  Accounts { unAccounts :: NestedMap SubAccountName [FamilyMember Posting] }
 
-prependPosting :: Posting -> Maybe [Posting] -> [Posting]
+prependPosting :: FamilyMember Posting -> Maybe [FamilyMember Posting] -> [FamilyMember Posting]
 prependPosting p = maybe [p] (p:)
 
-preservePostings :: Maybe [Posting] -> [Posting]
+preservePostings :: Maybe [FamilyMember Posting] -> [FamilyMember Posting]
 preservePostings mp = fromMaybe [] mp
 
-addPostingToAccounts :: Posting -> Accounts -> Accounts
+addPostingToAccounts :: FamilyMember Posting -> Accounts -> Accounts
 addPostingToAccounts p (Accounts m) = Accounts m' where
   m' = deepModifyLabel m fs
-  a = unAccount . account $ p
+  a = unAccount . account . member $ p
   fs = case A1.rest a of
     [] -> [(A1.first a, prependPosting p)]
     ss -> let
@@ -29,7 +31,7 @@ addPostingToAccounts p (Accounts m) = Accounts m' where
       mfs = map (\an -> (an, preservePostings)) (init ss)
       in ff: ( mfs ++ (lf:[]))
 
-accounts :: [Posting] -> Accounts
+accounts :: [FamilyMember Posting] -> Accounts
 accounts = foldr addPostingToAccounts (Accounts empty)
 
 newtype AccountTotalsOneLevel =
@@ -38,7 +40,7 @@ newtype AccountTotalsOneLevel =
 
 accountTotalsOneLevel :: Accounts -> AccountTotalsOneLevel
 accountTotalsOneLevel (Accounts m) = let
-  m' = fmap toTotal m
+  m' = fmap toTotal . fmap (map member) $ m
   toTotal = foldl addAmount (Total M.empty)
   in AccountTotalsOneLevel m'
 
