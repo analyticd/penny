@@ -154,21 +154,21 @@ cumulativeTotal m = (totalMap m, remapWithTotals m)
 
 traverse ::
   (Monad m, Ord k)
-  => (k -> l -> m a)
+  => (k -> l -> NestedMap k l -> m a)
   -> NestedMap k l
   -> m (NestedMap k a)
 traverse f m = traverseWithTrail (\_ -> f) m
 
 traverseWithTrail ::
   (Monad m, Ord k)
-  => ( [(k, l)] -> k -> l -> m a )
+  => ( [(k, l)] -> k -> l -> NestedMap k l -> m a )
   -> NestedMap k l
   -> m (NestedMap k a)
 traverseWithTrail f = traverseWithTrail' f []
 
 traverseWithTrail' ::
   (Monad m, Ord k)
-  => ([(k, l)] -> k -> l -> m a)
+  => ([(k, l)] -> k -> l -> NestedMap k l -> m a)
   -> [(k, l)]
   -> NestedMap k l
   -> m (NestedMap k a)
@@ -183,12 +183,12 @@ traverseWithTrail' f ts (NestedMap m) =
 
 traversePairWithTrail ::
   (Monad m, Ord k)
-  => ( [(k, l)] -> k -> l -> m a )
+  => ( [(k, l)] -> k -> l -> NestedMap k l -> m a )
   -> [(k, l)]
   -> (k, (l, NestedMap k l))
   -> m (a, NestedMap k a)
 traversePairWithTrail f ls (k, (l, m)) = do
-  a <- f ls k l
+  a <- f ls k l m
   m' <- traverseWithTrail' f ((k, l):ls) m
   return (a, m')
 
@@ -200,13 +200,14 @@ map3 = deepRelabel map2 [(6, "what"), (77, "zeke"), (888, "foo")]
 map4 = deepModifyLabel map3
        [ (6, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "new"))
        , (77, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "more new")) ]
-printer :: Int -> String -> IO ()
-printer i s = do
+
+printer :: Int -> String -> a -> IO ()
+printer i s _ = do
   putStrLn (show i)
   putStrLn s
 
-printerWithTrail :: [(Int, String)] -> Int -> String -> IO ()
-printerWithTrail ps n str = do
+printerWithTrail :: [(Int, String)] -> Int -> String -> a -> IO ()
+printerWithTrail ps n str _ = do
   let printer (i, s) = putStr ("(" ++ show i ++ ", " ++ s ++ ") ")
   mapM_ printer . reverse $ ps
   printer (n, str)
