@@ -220,7 +220,19 @@ printer i s = do
   putStrLn (show i)
   putStrLn s
 
+printerWithTrail :: [(Int, String)] -> Int -> String -> IO ()
+printerWithTrail ps n str = do
+  let printer (i, s) = putStr ("(" ++ show i ++ ", " ++ s ++ ") ")
+  mapM_ printer . reverse $ ps
+  printer (n, str)
+  putStrLn ""
+
 showMap4 :: IO ()
 showMap4 = do
   _ <- traverse printer map4
+  return ()
+
+showMapWithTrail :: IO ()
+showMapWithTrail = do
+  _ <- traverseWithTrail printerWithTrail map4
   return ()
