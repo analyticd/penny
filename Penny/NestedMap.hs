@@ -3,10 +3,6 @@ module Penny.NestedMap (
   unNestedMap,
   empty,
   relabel,
-  modifyLabel,
-  deepModifyLabel,
-  deepRelabel,
-  prune,
   cumulativeTotal,
   traverse,
   traverseWithTrail ) where
@@ -29,37 +25,10 @@ instance Functor (NestedMap k) where
 empty :: NestedMap k l
 empty = NestedMap (M.empty)
 
--- | Inserts a new label in the top level of a NestedMap. Any existing
--- label at the given key is obliterated and replaced with the given
--- label. If the given key does not already exist, it is created. If
--- the given key already exists, then the existing NestedMaps nested
--- within are not changed. If the given key does not already exist, an
--- empty NestedMap becomes the children for the label.
-relabel :: (Ord k) => NestedMap k l -> k -> l -> NestedMap k l
-relabel m k l = modifyLabel m k (const l)
-
--- | Modifies a label in the top level of a NestedMap. The given
--- function is applied to Nothing if the key does not exist, or to
--- Just v if the key does exist. The given function returns the new
--- value for the label. If the given key already exists, then the
--- existing NestedMaps nested within that key are not changed. If the
--- given key does not already exist, an empty NestedMap becomes the
--- children for the label.
-modifyLabel ::
-  (Ord k)
-  => NestedMap k l
-  -> k
-  -> (Maybe l -> l)
-  -> NestedMap k l
-modifyLabel (NestedMap m) k g = NestedMap n where
-  n = M.alter f k m
-  f Nothing = Just (g Nothing, NestedMap M.empty)
-  f (Just (oldL, oldM)) = Just (g (Just oldL), oldM)
-
--- | Helper function for deepModifyLabel. For a given key and function
+-- | Helper function for relabel. For a given key and function
 -- that modifies the label, return the new submap to insert into the
 -- given map. Does not actually insert the submap though. That way,
--- deepModifyLabel can then modify the returned submap before
+-- relabel can then modify the returned submap before
 -- inserting it into the mother map with the given label.
 newSubmap ::
   (Ord k)
@@ -79,27 +48,16 @@ newSubmap (NestedMap m) k g = (newL, NestedMap newM) where
 -- already does exist, then preserves the existing submap and applies
 -- the given label modification function to (Just oldlabel) to
 -- determine the new label.
-deepModifyLabel ::
+relabel ::
   (Ord k)
   => NestedMap k l
   -> [(k, (Maybe l -> l))]
   -> NestedMap k l
-deepModifyLabel m [] = m
-deepModifyLabel (NestedMap m) ((k, f):vs) = let
+relabel m [] = m
+relabel (NestedMap m) ((k, f):vs) = let
   (newL, newM) = newSubmap (NestedMap m) k f
-  newM' = deepModifyLabel newM vs
+  newM' = relabel newM vs
   in NestedMap $ M.insert k (newL, newM') m
-
--- | Similar to deepModifyLabel, but instead of granting the option of
--- modifying existing labels, the existing label is replaced with the
--- new label.
-deepRelabel ::
-  (Ord k)
-  => NestedMap k l
-  -> [(k, l)]
-  -> NestedMap k l
-deepRelabel m ls = deepModifyLabel m ls' where
-  ls' = map (\(k, l) -> (k, const l)) ls
 
 totalMap ::
   (Monoid l)
@@ -186,11 +144,14 @@ traversePairWithTrail f ls (k, (l, m)) = do
       return (Just (a, m'))
 
 -- For testing
+new :: (k, l) -> (k, (Maybe l -> l))
+new (k, l) = (k, const l)
+
 map1, map2, map3, map4 :: NestedMap Int String
 map1 = NestedMap M.empty
-map2 = deepRelabel map1 [(5, "hello"), (66, "goodbye"), (777, "yeah")]
-map3 = deepRelabel map2 [(6, "what"), (77, "zeke"), (888, "foo")]
-map4 = deepModifyLabel map3
+map2 = relabel map1 [new (5, "hello"), new (66, "goodbye"), new (777, "yeah")]
+map3 = relabel map2 [new (6, "what"), new (77, "zeke"), new (888, "foo")]
+map4 = relabel map3
        [ (6, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "new"))
        , (77, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "more new")) ]
 

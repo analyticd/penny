@@ -17,11 +17,11 @@ prependPosting :: FamilyMember Posting -> Maybe [FamilyMember Posting] -> [Famil
 prependPosting p = maybe [p] (p:)
 
 preservePostings :: Maybe [FamilyMember Posting] -> [FamilyMember Posting]
-preservePostings mp = fromMaybe [] mp
+preservePostings = fromMaybe []
 
 addPostingToAccounts :: FamilyMember Posting -> Accounts -> Accounts
 addPostingToAccounts p (Accounts m) = Accounts m' where
-  m' = deepModifyLabel m fs
+  m' = relabel m fs
   a = unAccount . account . member $ p
   fs = case A1.rest a of
     [] -> [(A1.first a, prependPosting p)]
@@ -40,8 +40,7 @@ newtype AccountTotalsOneLevel =
 
 accountTotalsOneLevel :: Accounts -> AccountTotalsOneLevel
 accountTotalsOneLevel (Accounts m) = let
-  m' = fmap toTotal . fmap (map member) $ m
-  toTotal = foldl addAmount (Total M.empty)
+  m' = fmap (mconcat . map total . map member) m
   in AccountTotalsOneLevel m'
 
 newtype AccountTotalsCumulative =
