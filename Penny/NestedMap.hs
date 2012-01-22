@@ -14,6 +14,7 @@ module Penny.NestedMap (
 import Data.Map ( Map )
 import qualified Data.Map as M
 import Data.Monoid ( Monoid, mconcat, mappend, mempty )
+import Data.Maybe ( isJust )
 
 data NestedMap k l =
   NestedMap { unNestedMap :: Map k (l, NestedMap k l) }
@@ -154,21 +155,21 @@ cumulativeTotal m = (totalMap m, remapWithTotals m)
 
 traverse ::
   (Monad m, Ord k)
-  => (k -> l -> NestedMap k l -> m a)
+  => (k -> l -> NestedMap k l -> m (Maybe a))
   -> NestedMap k l
   -> m (NestedMap k a)
 traverse f m = traverseWithTrail (\_ -> f) m
 
 traverseWithTrail ::
   (Monad m, Ord k)
-  => ( [(k, l)] -> k -> l -> NestedMap k l -> m a )
+  => ( [(k, l)] -> k -> l -> NestedMap k l -> m (Maybe a) )
   -> NestedMap k l
   -> m (NestedMap k a)
 traverseWithTrail f = traverseWithTrail' f []
 
 traverseWithTrail' ::
   (Monad m, Ord k)
-  => ([(k, l)] -> k -> l -> NestedMap k l -> m a)
+  => ([(k, l)] -> k -> l -> NestedMap k l -> m (Maybe a))
   -> [(k, l)]
   -> NestedMap k l
   -> m (NestedMap k a)
@@ -177,20 +178,27 @@ traverseWithTrail' f ts (NestedMap m) =
   then return $ NestedMap M.empty
   else do
     let ps = M.assocs m
-    mls <- mapM (traversePairWithTrail f ts) ps
-    let ps' = zip (M.keys m) mls
-    return (NestedMap (M.fromList ps'))
+    mlsMaybes <- mapM (traversePairWithTrail f ts) ps
+    let ps' = zip (M.keys m) mlsMaybes
+        folder (k, ma) rs = case ma of
+          (Just r) -> (k, r):rs
+          Nothing -> rs
+        ps'' = foldr folder [] ps'
+    return (NestedMap (M.fromList ps''))
 
 traversePairWithTrail ::
   (Monad m, Ord k)
-  => ( [(k, l)] -> k -> l -> NestedMap k l -> m a )
+  => ( [(k, l)] -> k -> l -> NestedMap k l -> m (Maybe a) )
   -> [(k, l)]
   -> (k, (l, NestedMap k l))
-  -> m (a, NestedMap k a)
+  -> m (Maybe (a, NestedMap k a))
 traversePairWithTrail f ls (k, (l, m)) = do
-  a <- f ls k l m
-  m' <- traverseWithTrail' f ((k, l):ls) m
-  return (a, m')
+  ma <- f ls k l m
+  case ma of
+    Nothing -> return Nothing
+    (Just a) -> do
+      m' <- traverseWithTrail' f ((k, l):ls) m
+      return (Just (a, m'))
 
 -- For testing
 map1, map2, map3, map4 :: NestedMap Int String
@@ -201,17 +209,19 @@ map4 = deepModifyLabel map3
        [ (6, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "new"))
        , (77, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "more new")) ]
 
-printer :: Int -> String -> a -> IO ()
+printer :: Int -> String -> a -> IO (Maybe ())
 printer i s _ = do
   putStrLn (show i)
   putStrLn s
+  return $ Just ()
 
-printerWithTrail :: [(Int, String)] -> Int -> String -> a -> IO ()
+printerWithTrail :: [(Int, String)] -> Int -> String -> a -> IO (Maybe ())
 printerWithTrail ps n str _ = do
   let printer (i, s) = putStr ("(" ++ show i ++ ", " ++ s ++ ") ")
   mapM_ printer . reverse $ ps
   printer (n, str)
   putStrLn ""
+  return $ Just ()
 
 showMap4 :: IO ()
 showMap4 = do
