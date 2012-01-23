@@ -22,7 +22,7 @@ data Price = Price { priceDesc :: PriceDesc
 data Amount = Amount { qty :: Qty
                      , commodity :: Commodity }
 
-newtype Payee = Payee { unPayee :: Text }
+newtype Payee = Payee { unPayee :: NE.TextNonEmpty }
                 deriving (Eq)
 
 newtype DateTime = DateTime { unDateTime :: UTCTime }
@@ -37,7 +37,7 @@ newtype SubAccountName = SubAccountName { unSubAccountName :: NE.TextNonEmpty }
 
 newtype Account = Account { unAccount :: AtLeast1 SubAccountName }
 
-newtype TagName = TagName { unTagName :: Text }
+newtype TagName = TagName { unTagName :: NE.TextNonEmpty }
                   deriving Eq
 
 newtype Tags = Tags { unTags :: [TagName] }
