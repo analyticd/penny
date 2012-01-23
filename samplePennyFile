@@ -1,0 +1,48 @@
+-- These are single line comments,
+-- the parser IGNORES these. Parser also ignores
+-- blank lines (those with only a newline, or with
+-- only a whitespace and newlines.)
+
+{- This is a multiline comment.
+   It is also the only way to have a comment that
+   terminates in the middle of a line. The parser
+   IGNORES these.
+-}
+
+{- Comment terminating in the middle of a line -}
+
+; This is a transaction memo.
+2012/01/01 Payee Name
+    Assets:Checking                 Cr $5.00
+    Expenses:Food
+
+-- Lines with a posting start with at least one space. At least
+-- two spaces separate the account name and the DrCr.
+-- Account names can have one embedded space at a time (never
+-- immediately following or preceding the colon).
+
+-- Tags are only one word. They begin with a hash.
+-- To indicate a transaction is cleared, insert an asterisk.
+
+2012/01/02 * (302) Another Payee
+    Liabilities:Credit Card             Cr $5.00
+    Expenses:Car #gas #trips
+
+; This transaction has a posting with a different payee.
+; The last posting has a memo. It must be indented farther than the
+; line its posting is on.
+2012/01/03 Flathead
+    <Luvapet Vet> Expenses:Pet    Dr $10.00
+    Assets:Checking               Cr $5.00
+    * (2313) Liabilities:Credit Card       Cr $5.00
+       This interest rate is too high
+
+-- You can have commas in amounts. The commas are ignored.
+-- (The digit grouping character and the radix point
+-- character are configurable.)
+-- Commodity names may be before or after the commodity amount.
+-- They can be separated from the amount by one optional space.
+
+2012/01/05 Stockbroker
+    Assets:Brokerage              Dr 1,000 LUV @ $2.00
+    Assets:Current:Checking       Cr $ 2,000.00

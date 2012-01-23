@@ -19,6 +19,7 @@ help = unlines [
   "",
   "Pattern matching",
   "----------------",
+  "",
   "-a pattern, --account pattern",
   "  Pattern must match colon-separated account name",
   "--accounts patterns",
@@ -110,7 +111,7 @@ help = unlines [
   "  postingMemo, transactionMemo",
   "",
   "  Ascending order by default; for descending order,",
-  "  prefix key name with a colon.",
+  "  capitalize the name of the key.",
   "",
   "Reports",
   "-------",
@@ -121,6 +122,12 @@ help = unlines [
   "Options affecting how reports are shown",
   "---------------------------------------",
   "",
+  "All reports",
+  "-----------",
+  "",
+  "--color",
+  "  Use helpful colors"
+  "",
   "Register report only",
   "--------------------",
   "",
@@ -129,6 +136,12 @@ help = unlines [
   "--head n",
   "  Show only the first n postings",
   "--tail n",
-  "  Show only the last n postings"
+  "  Show only the last n postings",
+  "",
+  "Balance report only",
+  "-------------------",
+  "",
+  "--depth n",
+  "  Show accounts only to this depth"
   
   ]
