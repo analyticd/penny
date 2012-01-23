@@ -126,7 +126,7 @@ help = unlines [
   "-----------",
   "",
   "--color",
-  "  Use helpful colors"
+  "  Use helpful colors",
   "",
   "Register report only",
   "--------------------",

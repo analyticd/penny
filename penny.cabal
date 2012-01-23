@@ -1,0 +1,45 @@
+Name: penny
+Version: 0.1.0.0
+Cabal-version: >=1.8
+Build-Type: Simple
+License: MIT
+Copyright: 2012 Omari Norman.
+author: Omari Norman
+maintainer: omari@smileystation.com
+stability: Experimental
+homepage: http://www.github.com/massysett/penny
+bug-reports: omari@smileystation.com
+Category: Console
+License-File: LICENSE
+synopsis: Accounting system
+
+description: Accounting system
+
+source-repository head
+    type: git
+    location: git://github.com/massysett/penny.git
+
+Library
+    Build-depends:
+        base ==4.*,
+        text ==0.11.*,
+        explicit-exception ==0.1.*,
+        containers ==0.4.*,
+        QuickCheck ==2.4.*,
+        transformers == 0.2.*,
+        time ==1.2.*,
+        Decimal-Omari ==0.3.0.0
+        
+    Exposed-modules:
+        Penny.Accounts,
+        Penny.Groups.AtLeast1,
+        Penny.Groups.AtLeast2,
+        Penny.Help,
+        Penny.NestedMap,
+        Penny.Posting,
+        Penny.Qty,
+        Penny.TextNonEmpty,
+        Penny.Total,
+        Penny.Transaction
+
+    ghc-options: -Wall
