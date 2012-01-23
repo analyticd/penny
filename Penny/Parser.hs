@@ -1,16 +1,31 @@
 module Penny.Parser where
 
-import Text.Parsec
-import Text.Parsec.Text
+import Text.Parsec (
+  try, (<|>), anyChar, string, manyTill, satisfy,
+  char, notFollowedBy, many, skipMany, optional,
+  option, digit, getState, putState )
+import Text.Parsec.Text ( GenParser )
 
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
 import qualified Data.Char as Char
 import Control.Monad ( void, liftM )
 import Data.Text ( pack, empty )
+import Data.Time.LocalTime ( TimeZone )
+import qualified Data.Map as M
+import Data.Map ( Map )
 
 import qualified Penny.Posting as P
 import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ) )
+import Penny.Qty ( Qty, partialNewQty )
+import qualified Penny.Reports as R
+
+data State = State { stRadix :: Char
+                   , stSeparator :: Char
+                   , stTz :: TimeZone
+                   , formats :: Map P.Commodity R.CommodityFmt }
+
+type Parser = GenParser State
 
 multiline :: Parser ()
 multiline = let
@@ -107,12 +122,6 @@ priceDesc = do
   void $ char '@'
   option P.UnitPrice (char '@' >> return P.TotalPrice)
 
-{-
-payeeChar :: Parser Char
-payeeChar = let
-  notSpc = 
--}
-
 payeeChar :: Parser Char
 payeeChar = let
   spc = do
@@ -130,10 +139,44 @@ payee = do
   rs <- liftM pack (many payeeChar)
   return . P.Payee $ TextNonEmpty c rs
 
+qtyDigit :: Parser Char
+qtyDigit = do
+  separator <- liftM stSeparator getState
+  digit <|> (char separator >> digit)
 
-{-
-isPayeeChar :: Char -> Bool
-isPayeeChar c = not (banned c) && allowed c where
-  banned c = c `elem` bads
-  bads = ['\t', '\n', '\r', '\f', '\v', '{', '}']
--}
+radix :: Parser Char
+radix = do
+  r <- liftM stRadix getState
+  return '.'
+
+qty :: Parser Qty
+qty = let
+  digitRun = do
+    c <- digit
+    cs <- many qtyDigit
+    return (c : cs)
+  withPoint = do
+    l <- digitRun
+    p <- radix
+    r <- digitRun
+    return (l ++ (p : r))
+  withoutPoint = digitRun
+  in do
+    s <- try withPoint <|> withoutPoint
+    let d = read s
+    return $ partialNewQty d
+
+commoditySpcQty :: Parser P.Amount
+commoditySpcQty = do
+  c <- commoditySymbol <|> commodityLong
+  void $ char ' '
+  q <- qty
+  let fmt = R.CommodityFmt R.CommodityOnLeft R.SpaceBetween
+  s <- getState
+  let m = formats s
+      m' = M.insert c fmt m
+      s' = s { formats = m' }
+  putState s'
+  return $ P.Amount q c
+
+  
