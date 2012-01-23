@@ -3,8 +3,9 @@ module Penny.Parser where
 import Text.Parsec (
   try, (<|>), anyChar, string, manyTill, satisfy,
   char, notFollowedBy, many, skipMany, optional,
-  option, digit, getState, putState )
-import Text.Parsec.Text ( GenParser )
+  option, digit, getState, putState, choice,
+  optionMaybe )
+import Text.Parsec.Text ( Parser )
 
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
 import qualified Data.Char as Char
@@ -13,6 +14,7 @@ import Data.Text ( pack, empty )
 import Data.Time.LocalTime ( TimeZone )
 import qualified Data.Map as M
 import Data.Map ( Map )
+import Control.Applicative ((<*>), pure)
 
 import qualified Penny.Posting as P
 import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
@@ -20,12 +22,8 @@ import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ) )
 import Penny.Qty ( Qty, partialNewQty )
 import qualified Penny.Reports as R
 
-data State = State { stRadix :: Char
-                   , stSeparator :: Char
-                   , stTz :: TimeZone
-                   , formats :: Map P.Commodity R.CommodityFmt }
-
-type Parser = GenParser State
+newtype Radix = Radix { unRadix :: Char }
+newtype Separator = Separator { unSeparator :: Char }
 
 multiline :: Parser ()
 multiline = let
@@ -139,25 +137,21 @@ payee = do
   rs <- liftM pack (many payeeChar)
   return . P.Payee $ TextNonEmpty c rs
 
-qtyDigit :: Parser Char
-qtyDigit = do
-  separator <- liftM stSeparator getState
-  digit <|> (char separator >> digit)
+qtyDigit :: Separator -> Parser Char
+qtyDigit (Separator separator) = digit <|> (char separator >> digit)
 
-radix :: Parser Char
-radix = do
-  r <- liftM stRadix getState
-  return '.'
+radix :: Radix -> Parser Char
+radix (Radix r) = char r >> return '.'
 
-qty :: Parser Qty
-qty = let
+qty :: Radix -> Separator -> Parser Qty
+qty rdx sep = let
   digitRun = do
     c <- digit
-    cs <- many qtyDigit
+    cs <- many (qtyDigit sep)
     return (c : cs)
   withPoint = do
     l <- digitRun
-    p <- radix
+    p <- radix rdx
     r <- digitRun
     return (l ++ (p : r))
   withoutPoint = digitRun
@@ -166,17 +160,88 @@ qty = let
     let d = read s
     return $ partialNewQty d
 
-commoditySpcQty :: Parser P.Amount
-commoditySpcQty = do
+commoditySpaceQty ::
+  Radix
+  -> Separator
+  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+commoditySpaceQty rdx sep = do
   c <- commoditySymbol <|> commodityLong
   void $ char ' '
-  q <- qty
+  q <- qty rdx sep
   let fmt = R.CommodityFmt R.CommodityOnLeft R.SpaceBetween
-  s <- getState
-  let m = formats s
-      m' = M.insert c fmt m
-      s' = s { formats = m' }
-  putState s'
-  return $ P.Amount q c
+  return (P.Amount q c, (c, fmt))
 
-  
+commodityQty ::
+  Radix
+  -> Separator
+  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+commodityQty rdx sep = do
+  c <- commoditySymbol
+  q <- qty rdx sep
+  let fmt = R.CommodityFmt R.CommodityOnLeft R.NoSpaceBetween
+  return (P.Amount q c, (c, fmt))
+
+qtyCommodity ::
+  Radix
+  -> Separator
+  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+qtyCommodity rdx sep = do
+  q <- qty rdx sep
+  c <- commoditySymbol
+  let fmt = R.CommodityFmt R.CommodityOnRight R.NoSpaceBetween
+  return (P.Amount q c, (c, fmt))
+
+qtySpaceCommodity ::
+  Radix
+  -> Separator
+  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+qtySpaceCommodity rdx sep = do
+  q <- qty rdx sep
+  void $ char ' '
+  c <- commoditySymbol <|> commodityLong
+  let fmt = R.CommodityFmt R.CommodityOnRight R.SpaceBetween
+  return (P.Amount q c, (c, fmt))
+
+amount ::
+  Radix
+  -> Separator
+  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+amount rdx sep =
+  choice
+  . map try
+  $ [commoditySpaceQty, commodityQty,
+     qtyCommodity, qtySpaceCommodity]
+  <*> pure rdx
+  <*> pure sep
+
+price ::
+  Radix
+  -> Separator
+  -> Parser (P.Price, (P.Commodity, R.CommodityFmt))
+price rdx sep = do
+  pd <- priceDesc
+  optional $ char ' '
+  (am, cp) <- amount rdx sep
+  let p = P.Price pd am
+  return (p, cp)
+
+-- Format for dates is:
+-- 2011/01/22 or 2011-01-22
+-- followed by a time spec:
+-- 16:42 -0400
+-- or HMS:
+-- 16:42:45 -0400
+-- You can omit the time zone spec, in which case
+-- the parser assumes the time is local to the timezone that is
+-- passed in to the function (generally this will be the local time
+-- the machine is in.)
+
+digits1or2 :: Parser String
+digits1or2 = do
+  d1 <- digit
+  d2 <- optionMaybe digit
+  let r = case d2 of
+        Nothing -> d1:[]
+        (Just d) -> d1:d:[]
+  return r
+
