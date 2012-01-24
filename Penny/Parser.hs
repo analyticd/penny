@@ -5,7 +5,7 @@ import Text.Parsec (
   char, notFollowedBy, many, skipMany, optional,
   option, digit, getState, putState, choice,
   optionMaybe, lookAhead, many1, Column, sourceColumn,
-  getParserState)
+  getParserState, noneOf, statePos )
 import Text.Parsec.Text ( Parser )
 
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
@@ -90,9 +90,8 @@ firstTag = tag
 -- restriction? Does not seem to be necessary.)
 nextTag :: Parser P.TagName
 nextTag =
-  skipMany multiline
-  >> char ' '
-  >> skipMany (multiline <|> void (char ' '))
+  char ' '
+  >> skipMany (char ' ')
   >> tag
 
 tags :: Parser P.Tags
@@ -130,6 +129,8 @@ priceDesc = do
   void $ char '@'
   option P.UnitPrice (char '@' >> return P.TotalPrice)
 
+-- BROKEN will not handle comments properly. The p function will parse
+-- dashes.
 transactionPayeeChar :: Parser Char
 transactionPayeeChar = let
   spc = do
@@ -360,7 +361,8 @@ postingPayee = do
 oneLineComment :: Parser ()  
 oneLineComment = do
   void $ try (string "--")
-  void $ manyTill (satisfy (/= '\n')) (char '\n')
+  void $ manyTill (satisfy (/= '\n'))
+    (lookAhead (char '\n'))
 
 transactionMemoLine :: Parser String
 transactionMemoLine = do
@@ -374,18 +376,43 @@ transactionMemo = do
   (c:cs) <- liftM concat $ many1 transactionMemoLine
   return . P.TransactionMemo $ TextNonEmpty c (pack cs)
 
-postingMemo ::
+postingMemoChar :: Parser Char
+postingMemoChar = most <|> try dash where
+  most = noneOf "\n\t-{"
+  dash = do
+    void $ char '-'
+    notFollowedBy (char '-')
+    return '-'
+  
+postingMemoLine ::
   Column
   -- ^ Column that the posting line started at
-
-  -> Parser P.PostingMemo
-
-postingMemo aboveCol = do
+  -> Parser String
+postingMemoLine aboveCol = do
   st <- getParserState
-  let currCol = sourceColumn st
+  let currCol = sourceColumn . statePos $ st
   when (currCol <= aboveCol) $
-    fail "memo line is not indented farther than corresponding "
+    fail $ "memo line is not indented farther than corresponding "
     ++ "posting line"
-  
+  c <- postingMemoChar
+  cs <- manyTill postingMemoChar (char '\n')
+  optional oneLineComment
+  return (c : (cs ++ "\n"))
 
+postingMemo ::
+  Column
+  -> Parser P.PostingMemo
+postingMemo col = do
+  (c:cs) <- liftM concat (many1 (postingMemoLine col))
+  return . P.PostingMemo $ TextNonEmpty c (pack cs)
 
+entry ::
+  Radix
+  -> Separator
+  -> Parser (P.Entry, (P.Commodity, R.CommodityFmt))
+entry rad sep = do
+  dc <- drCr
+  void $ many1 (char ' ')
+  (am, p) <- amount rad sep
+  let e = P.Entry dc am
+  return (e, p)
