@@ -29,7 +29,7 @@ newtype DateTime = DateTime { unDateTime :: UTCTime }
 
 data Cleared = Cleared | NotCleared
 
-newtype Number = Number { unNumber :: Text }
+newtype Number = Number { unNumber :: NE.TextNonEmpty }
                  deriving (Eq)
 
 newtype SubAccountName = SubAccountName { unSubAccountName :: NE.TextNonEmpty }
@@ -42,7 +42,11 @@ newtype TagName = TagName { unTagName :: NE.TextNonEmpty }
 
 newtype Tags = Tags { unTags :: [TagName] }
 
-newtype Comment = Comment { unComment :: Text }
+newtype PostingMemo =
+  PostingMemo { unPostingMemo :: NE.TextNonEmpty }
+
+newtype TransactionMemo =
+  TransactionMemo { unTransactionMemo :: NE.TextNonEmpty }
 
 data Entry = Entry { drCr :: DrCr
                    , amount :: Amount }
@@ -56,5 +60,7 @@ data Posting =
           , entry :: Entry
           , price :: Maybe Price
           , tags :: Tags
-          , comment :: Maybe Comment }
+          , transactionMemo :: Maybe TransactionMemo
+          , postingMemo :: Maybe PostingMemo }
+
 

@@ -32,7 +32,7 @@
 ; The last posting has a memo. It must be indented farther than the
 ; line its posting is on.
 2012/01/03 Flathead
-    <Luvapet Vet> Expenses:Pet    Dr $10.00
+    * (905) <Luvapet Vet> Expenses:Pet    Dr $10.00
     Assets:Checking               Cr $5.00
     * (2313) Liabilities:Credit Card       Cr $5.00
        This interest rate is too high

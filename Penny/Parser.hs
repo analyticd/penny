@@ -4,17 +4,25 @@ import Text.Parsec (
   try, (<|>), anyChar, string, manyTill, satisfy,
   char, notFollowedBy, many, skipMany, optional,
   option, digit, getState, putState, choice,
-  optionMaybe )
+  optionMaybe, lookAhead, many1, Column, sourceColumn,
+  getParserState)
 import Text.Parsec.Text ( Parser )
 
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
 import qualified Data.Char as Char
-import Control.Monad ( void, liftM )
-import Data.Text ( pack, empty )
+import Control.Monad ( void, liftM, replicateM, when )
+import Data.Text ( pack, empty, snoc )
 import Data.Time.LocalTime ( TimeZone )
 import qualified Data.Map as M
 import Data.Map ( Map )
 import Control.Applicative ((<*>), pure)
+import Data.Time.Calendar ( Day, fromGregorianValid )
+import Data.Time.LocalTime ( TimeZone, minutesToTimeZone,
+                             TimeOfDay, makeTimeOfDayValid,
+                             localTimeToUTC, midnight,
+                             LocalTime ( LocalTime ) )
+import Data.Time.Clock ( UTCTime )
+import Data.Fixed ( Pico )
 
 import qualified Penny.Posting as P
 import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
@@ -24,6 +32,8 @@ import qualified Penny.Reports as R
 
 newtype Radix = Radix { unRadix :: Char }
 newtype Separator = Separator { unSeparator :: Char }
+newtype DefaultTimeZone =
+  DefaultTimeZone { unDefaultTimeZone :: TimeZone }
 
 multiline :: Parser ()
 multiline = let
@@ -120,8 +130,8 @@ priceDesc = do
   void $ char '@'
   option P.UnitPrice (char '@' >> return P.TotalPrice)
 
-payeeChar :: Parser Char
-payeeChar = let
+transactionPayeeChar :: Parser Char
+transactionPayeeChar = let
   spc = do
     void $ char ' '
     notFollowedBy (void (char ' ') <|> (void (try (string "--")))
@@ -131,10 +141,10 @@ payeeChar = let
         || isPunctuation c || isSymbol c
   in satisfy p <|> try spc
 
-payee :: Parser P.Payee
-payee = do
-  c <- payeeChar
-  rs <- liftM pack (many payeeChar)
+transactionPayee :: Parser P.Payee
+transactionPayee = do
+  c <- transactionPayeeChar
+  rs <- liftM pack (many transactionPayeeChar)
   return . P.Payee $ TextNonEmpty c rs
 
 qtyDigit :: Separator -> Parser Char
@@ -244,4 +254,138 @@ digits1or2 = do
         Nothing -> d1:[]
         (Just d) -> d1:d:[]
   return r
+
+monthOrDayNum :: Parser Int
+monthOrDayNum = do
+  i <- digits1or2
+  return $ read i
+
+year :: Parser Integer
+year = do
+  i <- replicateM 4 digit
+  return $ read i
+
+day :: Parser Day
+day = do
+  let slash = void $ char '/' <|> char '-'
+  y <- year
+  slash
+  m <- monthOrDayNum
+  slash
+  d <- monthOrDayNum
+  case fromGregorianValid y m d of
+    Nothing -> fail "invalid date"
+    (Just da) -> return da
+  
+hoursMins :: Parser (Int, Int)
+hoursMins = do
+  h <- digits1or2
+  void $ char ':'
+  m <- replicateM 2 digit
+  return (read h, read m)
+
+secs :: Parser Pico
+secs = do
+  void $ char ':'
+  s <- replicateM 2 digit
+  return (fromIntegral . read $ s)
+
+timeOfDay :: Parser TimeOfDay
+timeOfDay = do
+  (h, m) <- hoursMins
+  s <- option (fromIntegral 0) secs
+  case makeTimeOfDayValid h m s of
+    Nothing -> fail "invalid time of day"
+    (Just tod) -> return tod
+
+sign :: Parser (Int -> Int)
+sign = let
+  pos = char '+' >> return id
+  neg = char '-' >> return negate
+  in pos <|> neg
+
+timeZone :: Parser TimeZone
+timeZone = do
+  s <- sign
+  hh <- replicateM 2 digit
+  mm <- replicateM 2 digit
+  let hr = read hh
+      mi = read mm
+      mins = s (hr * 60 + mi)
+      zone = minutesToTimeZone mins
+  return zone
+
+dateTime ::
+  DefaultTimeZone
+  -> Parser P.DateTime
+dateTime (DefaultTimeZone dtz) = do
+  d <- day
+  maybeTime <- optionMaybe (try (char ' ' >> timeOfDay))
+  (tod, tz) <- case maybeTime of
+    Nothing -> return (midnight, dtz)
+    (Just t) -> do
+      maybeTz <- optionMaybe (try (char ' ' >> timeZone))
+      case maybeTz of
+        (Just zone) -> return (t, zone)
+        Nothing -> return (t, dtz)
+  let local = LocalTime d tod
+      utc = localTimeToUTC tz local
+  return $ P.DateTime utc
+
+cleared :: Parser P.Cleared
+cleared = let
+  clear = do
+    void $ char '*'
+    lookAhead $ char ' '
+    return P.Cleared
+  in option P.NotCleared (try clear)
+
+number :: Parser P.Number
+number = do
+  void $ char '('
+  let p l =  isLetter l || isNumber l
+  c <- satisfy p
+  cs <- manyTill (satisfy p) (char ')')
+  return . P.Number $ TextNonEmpty c (pack cs)
+
+postingPayee :: Parser P.Payee
+postingPayee = do
+  void $ char '<'
+  let p c = notElem c "<>" && (isLetter c || isNumber c
+            || isPunctuation c || isSymbol c || c == ' ')
+  c <- satisfy p
+  cs <- manyTill (satisfy p) (char '>')
+  return . P.Payee $ TextNonEmpty c (pack cs)
+
+oneLineComment :: Parser ()  
+oneLineComment = do
+  void $ try (string "--")
+  void $ manyTill (satisfy (/= '\n')) (char '\n')
+
+transactionMemoLine :: Parser String
+transactionMemoLine = do
+  void $ char ';'
+  cs <- many1 (satisfy (/= '\n'))
+  void $ char '\n'
+  return (cs ++ "\n")
+
+transactionMemo :: Parser P.TransactionMemo
+transactionMemo = do
+  (c:cs) <- liftM concat $ many1 transactionMemoLine
+  return . P.TransactionMemo $ TextNonEmpty c (pack cs)
+
+postingMemo ::
+  Column
+  -- ^ Column that the posting line started at
+
+  -> Parser P.PostingMemo
+
+postingMemo aboveCol = do
+  st <- getParserState
+  let currCol = sourceColumn st
+  when (currCol <= aboveCol) $
+    fail "memo line is not indented farther than corresponding "
+    ++ "posting line"
+  
+
 
