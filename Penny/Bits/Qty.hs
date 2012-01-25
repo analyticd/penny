@@ -1,11 +1,9 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
-module Penny.Qty (
+module Penny.Bits.Qty (
   Qty, unQty, partialNewQty,
   newQty, add, subt, mult,
   zero, difference) where
 
-import Data.Decimal
+import Data.Decimal ( DecimalRaw ( Decimal ), Decimal )
 
 newtype Qty = Qty Decimal
               deriving (Eq, Ord, Show)
