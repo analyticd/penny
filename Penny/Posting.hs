@@ -157,3 +157,40 @@ toParent pa = P.Parent { P.dateTime = UParent.dateTime pa
                        , P.payee = UParent.payee pa
                        , P.memo = UParent.memo pa }
 
+{-
+-- | You can flip monad transformers - here for historical interest
+inferFlip ::
+  UParent.Parent
+  -> UPosting.Posting
+  -> St.StateT (Maybe E.Entry) (Exceptional Error) Posting
+inferFlip pa po = do
+  case UPosting.cost po of
+    UPosting.Blank -> do
+      st <- St.get
+      case st of
+        Nothing -> lift $ throw CouldNotInferError
+        (Just e) -> do
+          St.put Nothing
+          return $ toPosting pa po e Nothing 
+    (UPosting.EntryOnly en) ->
+      return $ toPosting pa po en Nothing
+    (UPosting.EntryPrice en cpu to) -> let
+      pr = Price.priceOnly to cpu en
+      in return $ toPosting pa po en (Just pr)
+
+-- | You can flip monad transformers - here for historical interest
+runInferFlip ::
+  UParent.Parent
+  -> Maybe E.Entry
+  -> AtLeast2 UPosting.Posting
+  -> Exceptional Error (AtLeast2 Posting)
+runInferFlip pa me pos = do
+  let monErr = St.runStateT k me
+      k = Tr.mapM (_inferFlip pa) pos
+  case monErr of
+    (Exception e) -> throw e
+    (Success (a2, finalSt)) -> case finalSt of
+      Nothing -> return a2
+      (Just _) -> throw UnbalancedError
+-}  
+
