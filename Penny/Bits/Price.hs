@@ -26,9 +26,17 @@ newtype CountPerUnit = CountPerUnit { unCountPerUnit :: Q.Qty }
 data Value = Value { drCr :: E.DrCr
                    , amount :: A.Amount }
 
-price :: From -> To -> CountPerUnit -> E.Entry -> (Price, Value)
-price f t c e = (p, v) where
+price ::
+  To -- ^ Converting TO this commodity (often a currency)
+  
+  -> CountPerUnit -- ^ How many of the @To@ commodity equals ONE from
+                  -- commodity?
+  
+  -> E.Entry -- ^ The commodity and quantity we're converting FROM
+  
+  -> (Price, Value)
+price t c e = (p, v) where
   q' = (unCountPerUnit c) `mult` (A.qty . E.amount $ e)  
   a = A.Amount q' (unTo t)
   v = Value (E.drCr e) a
-  p = Price f t c
+  p = Price (From (A.commodity . E.amount $ e)) t c
