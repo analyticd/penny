@@ -49,6 +49,12 @@ data Error = UnbalancedError
 postingFamily :: Transaction -> [FamilyMember Posting]
 postingFamily (Transaction ps) = family ps
 
+-- | Makes transactions.
+--
+-- Step 1. Make sure there is at most 1 posting to infer. If more than
+-- one, throw.
+--
+-- Step 2. Compute balance of all 
 transaction ::
   UParent.Parent
   -> UPosting.Posting
