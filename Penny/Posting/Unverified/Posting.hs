@@ -1,11 +1,13 @@
 module Penny.Posting.Unverified.Posting where
 
 import qualified Penny.Bits as B
+import qualified Penny.Bits.Entry as E
+import qualified Penny.Bits.Price as P
 
 data Cost =
   Blank
-  | EntryOnly B.Entry
-  | EntryPrice B.Entry B.Price
+  | EntryOnly E.Entry
+  | EntryPrice E.Entry P.Price
 
 data Posting =
   Posting { payee :: B.Payee
@@ -14,5 +16,6 @@ data Posting =
           , account :: B.Account
           , cost :: Cost
           , tags :: B.Tags
+          , uid :: Maybe B.Uid
           , memo :: Maybe B.Memo }
 

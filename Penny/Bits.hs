@@ -18,6 +18,9 @@ data Cleared = Cleared | NotCleared
 newtype Number = Number { unNumber :: NE.TextNonEmpty }
                  deriving (Eq)
 
+newtype Uid = Uid { unUid :: NE.TextNonEmpty }
+              deriving Eq
+
 newtype SubAccountName =
   SubAccountName { unSubAccountName :: NE.TextNonEmpty }
   deriving (Eq, Ord)
