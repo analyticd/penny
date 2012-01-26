@@ -1,4 +1,11 @@
-module Penny.Posting where
+module Penny.Posting (
+  Posting(..),
+  Transaction,
+  unTransaction,
+  transaction,
+  Error ( UnbalancedError, TooManyInferError,
+          CouldNotInferError),
+  postingFamily) where
 
 import qualified Penny.Bits as B
 import qualified Penny.Bits.Qty as Q
@@ -94,15 +101,12 @@ infer pa po = do
         Nothing -> Ex.throwT CouldNotInferError
         (Just e) -> do
           lift (St.put Nothing)
-          let po' = toPosting pa po e Nothing 
-          return po'
-    (UPosting.EntryOnly en) -> do
-      let po' = toPosting pa po en Nothing
-      return po'
-    (UPosting.EntryPrice en cpu to) -> do
-      let po' = toPosting pa po en (Just pr)
-          pr = Price.priceOnly to cpu en
-      return po'
+          return $ toPosting pa po e Nothing 
+    (UPosting.EntryOnly en) ->
+      return $ toPosting pa po en Nothing
+    (UPosting.EntryPrice en cpu to) -> let
+      pr = Price.priceOnly to cpu en
+      in return $ toPosting pa po en (Just pr)
       
 runInfer ::
   UParent.Parent
