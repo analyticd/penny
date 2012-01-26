@@ -4,6 +4,7 @@ import qualified Penny.Groups.AtLeast1 as A1
 import Penny.Groups.FamilyMember ( FamilyMember ( FamilyMember ) )
 import qualified Penny.Groups.FamilyMember as F
 import qualified Data.Foldable as Foldable
+import qualified Data.Traversable as T
 
 data AtLeast2 a = AtLeast2 { first :: a
                            , second :: a
@@ -15,6 +16,11 @@ instance Functor AtLeast2 where
 
 instance Foldable.Foldable AtLeast2 where
   foldr g b (AtLeast2 f s rs) = g f (g s (foldr g b rs))
+
+instance T.Traversable AtLeast2 where
+  -- traverse :: Applicative f => (a -> f b) -> t a -> f (t b)
+  traverse g a2@(AtLeast2 f s rs) =
+    
 
 family :: AtLeast2 a -> [FamilyMember a]
 family a = f : s : rs where
