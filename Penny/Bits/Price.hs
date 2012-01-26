@@ -26,6 +26,9 @@ newtype CountPerUnit = CountPerUnit { unCountPerUnit :: Q.Qty }
 data Value = Value { drCr :: E.DrCr
                    , amount :: A.Amount }
 
+entryToValue :: E.Entry -> Value
+entryToValue (E.Entry dc a) = Value dc a
+
 price ::
   To -- ^ Converting TO this commodity (often a currency)
   

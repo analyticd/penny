@@ -7,7 +7,7 @@ import qualified Penny.Bits.Price as P
 data Cost =
   Blank
   | EntryOnly E.Entry
-  | EntryPrice E.Entry P.Price
+  | EntryPrice E.Entry P.CountPerUnit P.To
 
 data Posting =
   Posting { payee :: B.Payee

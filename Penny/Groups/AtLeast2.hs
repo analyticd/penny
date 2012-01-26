@@ -3,12 +3,17 @@ module Penny.Groups.AtLeast2 where
 import qualified Penny.Groups.AtLeast1 as A1
 import Penny.Groups.FamilyMember ( FamilyMember ( FamilyMember ) )
 import qualified Penny.Groups.FamilyMember as F
-import Data.List
 
 data AtLeast2 a = AtLeast2 { first :: a
                            , second :: a
                            , rest :: [a] }
                   deriving Show
+
+instance Functor AtLeast2 where
+  fmap g (AtLeast2 f s rs) = AtLeast2 (g f) (g s) (map g rs)
+
+toList :: AtLeast2 a -> [a]
+toList (AtLeast2 f s rs) = (f:s:rs)
 
 family :: AtLeast2 a -> [FamilyMember a]
 family a = f : s : rs where

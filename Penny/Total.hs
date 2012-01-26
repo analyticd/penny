@@ -12,11 +12,24 @@ import qualified Penny.Bits.Amount as A
 
 newtype Total = Total (Map C.Commodity Nought)
 
-isBalanced :: Total -> Bool
-isBalanced (Total m) = M.fold f True m where
-  f _ False = False
-  f (NonZero _) _ = False
-  f Zero e = e
+data Balanced = Balanced
+              | Inferable E.Entry
+              | NotInferable
+
+isBalanced :: Total -> Balanced
+isBalanced (Total m) = M.foldrWithKey f Balanced m where
+  f c n b = case n of
+    Zero -> b
+    (NonZero col) -> case b of
+      Balanced -> let
+        e = E.Entry dc a
+        dc = case drCr col of
+          E.Debit -> E.Credit
+          E.Credit -> E.Debit
+        q = qty col
+        a = A.Amount q c
+        in Inferable e
+      _ -> NotInferable
 
 valueToTotal :: P.Value -> Total
 valueToTotal (P.Value dc am) = Total $ M.singleton c no where
