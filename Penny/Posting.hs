@@ -14,10 +14,13 @@ import qualified Penny.Posting.Unverified.Posting as UPosting
 import Penny.Bits.Qty ( add, mult )
 import qualified Penny.Posting.Parent as P
 import Penny.Groups.AtLeast2 (
-  AtLeast2 ( AtLeast2 ), family, toList )
+  AtLeast2 ( AtLeast2 ), family )
 import Penny.Groups.FamilyMember ( FamilyMember )
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
+import qualified Data.Foldable as F
+import Data.Monoid ( mconcat )
+import Data.Maybe ( catMaybes )
 
 data Posting =
   Posting { payee :: B.Payee
@@ -68,24 +71,94 @@ transaction ::
   UParent.Parent
   -> AtLeast2 UPosting.Posting
   -> Exceptional Error Transaction
-transaction ps = undefined
+{-
+transaction pa a2 = do
+  let ni = needsInterence a2
+  infer <- case ni of
+-}
+transaction = undefined  
+    
+
+data CostData = CostData E.Entry (Maybe Price.Price) Price.Value
 
 data Cost = MustInferCost
-          | CostSupplied E.Entry (Maybe Price.Price) Price.Value
+          | CostSupplied CostData
 
 cost :: UPosting.Posting -> Cost
 cost p = case UPosting.cost p of
   UPosting.Blank -> MustInferCost
   (UPosting.EntryOnly e) ->
-    CostSupplied e Nothing (Price.entryToValue e)
+    CostSupplied (CostData e Nothing (Price.entryToValue e))
   (UPosting.EntryPrice e cpu t) ->
-    CostSupplied e (Just pr) v where
+    CostSupplied (CostData e (Just pr) v) where
       (pr, v) = Price.price t cpu e
 
 costs :: AtLeast2 UPosting.Posting
          -> AtLeast2 (UPosting.Posting, Cost)
 costs = fmap (\p -> (p, cost p))
 
-balanced :: AtLeast2 UPosting.Cost
-            -> T.Balanced
-balanced a2 = T.isBalanced . mconcat . toList . fmap toValue
+data NeedsInference = NeedsInference
+                    | NoInferenceNeeded
+                    | InferenceImpossible
+
+needsInference :: AtLeast2 UPosting.Posting
+                  -> NeedsInference
+needsInference = F.foldr f NoInferenceNeeded where
+  f p ni = case ni of
+    NoInferenceNeeded ->
+      case UPosting.cost p of
+        UPosting.Blank -> NeedsInference
+        _ -> NoInferenceNeeded
+    NeedsInference ->
+      case UPosting.cost p of
+        UPosting.Blank -> InferenceImpossible
+        _ -> NeedsInference
+    InferenceImpossible -> InferenceImpossible
+
+balanced :: [Cost] -> T.Balanced
+balanced =
+  T.isBalanced
+  . mconcat
+  . catMaybes
+  . fmap maybeTotal
+  where
+    maybeTotal c = case c of
+      MustInferCost -> Nothing
+      (CostSupplied (CostData _ _ v)) -> Just $ T.valueToTotal v
+
+data PostingWithEntry =
+  PostingWithEntry UPosting.Posting E.Entry (Maybe Price.Price)
+
+postingWithEntry ::
+  (UPosting.Posting, CostData)
+  -> PostingWithEntry
+postingWithEntry (po, (CostData en mp _)) =
+  PostingWithEntry po en mp
+
+inferPostingWithEntry ::
+  E.Entry -- ^ Infer this entry if needed
+  -> (UPosting.Posting, Cost)
+  -> PostingWithEntry
+inferPostingWithEntry e (po, c) = PostingWithEntry po e' mp where
+  (e', mp) = case c of
+    MustInferCost -> (e, Nothing)
+    (CostSupplied (CostData en mp' _)) -> (en, mp')
+
+toPosting ::
+  UParent.Parent
+  -> PostingWithEntry
+  -> Posting
+toPosting pa (PostingWithEntry po e mp) = let
+  pa' = let
+    (UParent.Parent dt c n p m) = pa
+    in P.Parent dt c n p m
+  in Posting { payee = UPosting.payee po
+             , number = UPosting.number po
+             , cleared = UPosting.cleared po
+             , account = UPosting.account po
+             , entry = e
+             , price = mp
+             , tags = UPosting.tags po
+             , memo = UPosting.memo po
+             , uid = UPosting.uid po
+             , parent = pa' }
