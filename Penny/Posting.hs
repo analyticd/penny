@@ -18,9 +18,13 @@ import Penny.Groups.AtLeast2 (
 import Penny.Groups.FamilyMember ( FamilyMember )
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
 import Data.Monoid ( mconcat )
 import Data.Maybe ( catMaybes, fromMaybe )
+import qualified Data.Traversable as Tr
+import qualified Control.Monad.Trans.State.Lazy as St
+import Control.Monad.Trans ( lift )
 
 data Posting =
   Posting { payee :: B.Payee
@@ -108,9 +112,121 @@ toHasEntry :: UPosting.Posting -> HasEntry
 toHasEntry = maybe NoEntry HasEntry . toCostData
 
 a2toCost :: AtLeast2 UPosting.Posting
-            -> Maybe CostData
-a2toCost a2 = undefined
+            -> Maybe (AtLeast2 CostData)
+a2toCost = Tr.sequenceA . fmap toCostData
 
+costsOrEntries ::
+  AtLeast2 UPosting.Posting
+  -> ((Either (AtLeast2 CostData) (AtLeast2 HasEntry)),                
+      AtLeast2 UPosting.Posting)
+costsOrEntries a2 = case a2toCost a2 of
+  (Just cd) -> (Left cd, a2)
+  Nothing -> (Right (fmap toHasEntry a2), a2)
+
+totalHasEntry ::
+  AtLeast2 HasEntry
+  -> T.Total
+totalHasEntry =
+  mconcat
+  . catMaybes
+  . F.toList
+  . fmap hasEntryToTotal
+  where
+    hasEntryToTotal he = case he of
+      NoEntry -> Nothing
+      (HasEntry (CostData _ _ v)) -> Just $ T.valueToTotal v
+
+infer ::
+  UParent.Parent
+  -> UPosting.Posting
+  -> Ex.ExceptionalT Error
+  (St.State (Maybe E.Entry)) Posting
+infer pa po = do
+  case UPosting.cost po of
+    UPosting.Blank -> do
+      st <- lift St.get
+      case st of
+        Nothing -> Ex.throwT CouldNotInferError
+        (Just e) -> do
+          lift (St.put Nothing)
+          let po' = toPosting pa po e Nothing 
+          return po'
+    (UPosting.EntryOnly en) -> do
+      let po' = toPosting pa po en Nothing
+      return po'
+    (UPosting.EntryPrice en cpu to) -> do
+      let (pr, _) = Price.price to cpu en
+          po' = toPosting pa po en (Just pr)
+      return po'
+      
+runInfer ::
+  UParent.Parent
+  -> Maybe E.Entry
+  -> AtLeast2 UPosting.Posting
+  -> Exceptional Error (AtLeast2 Posting)
+runInfer pa me pos = do
+  let (res, finalSt) = St.runState ext me
+      ext = Ex.runExceptionalT (Tr.mapM (infer pa) pos)
+  case finalSt of
+    (Just _) -> throw UnbalancedError
+    Nothing -> case res of 
+      (Exception e) -> throw e
+      (Success g) -> return g
+
+inferAll ::
+  UParent.Parent
+  -> T.Total
+  -> AtLeast2 UPosting.Posting
+  -> Exceptional Error (AtLeast2 Posting)
+inferAll pa t pos = do
+  en <- case T.isBalanced t of
+    T.Balanced -> return Nothing
+    (T.Inferable e) -> return $ Just e
+    T.NotInferable -> throw UnbalancedError
+  runInfer pa en pos
+
+toPosting :: UParent.Parent
+             -> UPosting.Posting
+             -> E.Entry
+             -> Maybe Price.Price
+             -> Posting
+toPosting pa po e pr = Posting { payee = UPosting.payee po
+                               , number = UPosting.number po
+                               , cleared = UPosting.cleared po
+                               , account = UPosting.account po
+                               , entry = e
+                               , price = Nothing
+                               , tags = UPosting.tags po
+                               , memo = UPosting.memo po
+                               , uid = UPosting.uid po
+                               , parent = toParent pa }
+
+toParent :: UParent.Parent -> P.Parent
+toParent pa = P.Parent { P.dateTime = UParent.dateTime pa
+                       , P.cleared = UParent.cleared pa
+                       , P.number = UParent.number pa
+                       , P.payee = UParent.payee pa
+                       , P.memo = UParent.memo pa }
+
+{-
+inferEntry ::
+  T.Total
+  -> AtLeast2 UPosting.Posting
+  -> Exceptional Error (AtLeast2 Posting)
+inferEntry tot a2 = let
+  f po = do
+    case UPosting.cost po of
+      UPosting.Blank -> do
+        st <- St.get
+        case st of
+          (Just en) -> do
+  
+  
+  case T.isBalanced tot of
+  (Inferable e) -> let
+    f po = do
+      
+-}
 {-
 toHasEntries ::
   AtLeast2 UPosting.Posting
