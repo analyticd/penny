@@ -58,83 +58,28 @@ postingFamily :: Transaction -> [FamilyMember Posting]
 postingFamily (Transaction ps) = family ps
 
 -- | Makes transactions.
---
--- Step 1. Make sure there is at most 1 posting to infer. If more than
--- one, throw.
---
--- Step 2. Compute value of all non-infer postings and total them.
---
--- Step 3. If there are no postings to infer, total must be
--- balanced. If not, throw.
---
--- Step 4. If there is one posting to infer, total must have a
--- non-naught balance with only one commodity. If not, throw.
---
--- Step 5. Infer the one posting (if needed) and make transaction.
 transaction ::
   UParent.Parent
   -> AtLeast2 UPosting.Posting
   -> Exceptional Error Transaction
-transaction = undefined
+transaction pa a2 = do
+  let t = totalAll a2
+  a2' <- inferAll pa t a2
+  return $ Transaction a2'
 
-data CostData = CostData E.Entry (Maybe Price.Price) Price.Value
-data HasEntry =
-  HasEntry CostData
-  | NoEntry
-
-hasEntry :: UPosting.Posting -> HasEntry
-hasEntry po = case UPosting.cost po of
-  UPosting.Blank -> NoEntry
-  (UPosting.EntryOnly e) -> let
-    v = Price.entryToValue e
-    in (HasEntry (CostData e Nothing v))
-  (UPosting.EntryPrice e cpu t) -> let
-    (p, v) = Price.price t cpu e
-    in (HasEntry (CostData e (Just p) v))
-
-{-
-toHasEntries :: AtLeast2 UPosting.Posting
-                -> AtLeast2 (UPosting.Posting, HasEntry)
-toHasEntries = fmap (\p -> (p, hasEntry p))
--}
-
-toCostData :: UPosting.Posting -> Maybe CostData
-toCostData po = case UPosting.cost po of
-  UPosting.Blank -> Nothing
-  (UPosting.EntryOnly e) -> let
-    v = Price.entryToValue e
-    in Just (CostData e Nothing v)
-  (UPosting.EntryPrice e cpu t) -> let
-    (p, v) = Price.price t cpu e
-    in Just (CostData e (Just p) v)
-
-toHasEntry :: UPosting.Posting -> HasEntry
-toHasEntry = maybe NoEntry HasEntry . toCostData
-
-a2toCost :: AtLeast2 UPosting.Posting
-            -> Maybe (AtLeast2 CostData)
-a2toCost = Tr.sequenceA . fmap toCostData
-
-costsOrEntries ::
-  AtLeast2 UPosting.Posting
-  -> ((Either (AtLeast2 CostData) (AtLeast2 HasEntry)),                
-      AtLeast2 UPosting.Posting)
-costsOrEntries a2 = case a2toCost a2 of
-  (Just cd) -> (Left cd, a2)
-  Nothing -> (Right (fmap toHasEntry a2), a2)
-
-totalHasEntry ::
-  AtLeast2 HasEntry
-  -> T.Total
-totalHasEntry =
+totalAll :: AtLeast2 UPosting.Posting
+         -> T.Total
+totalAll =
   mconcat
   . catMaybes
   . F.toList
-  . fmap hasEntryToTotal
+  . fmap toTotal
   where
-    hasEntryToTotal he = case he of
-      NoEntry -> Nothing
-      (HasEntry (CostData _ _ v)) -> Just $ T.valueToTotal v
+    toTotal po = case UPosting.cost po of
+      UPosting.Blank -> Nothing
+      (UPosting.EntryOnly e) -> Just $ T.entryToTotal e
+      (UPosting.EntryPrice e cpu t) ->
+        Just $ T.valueToTotal (Price.valueOnly t cpu e)
 
 infer ::
   UParent.Parent
@@ -155,8 +100,8 @@ infer pa po = do
       let po' = toPosting pa po en Nothing
       return po'
     (UPosting.EntryPrice en cpu to) -> do
-      let (pr, _) = Price.price to cpu en
-          po' = toPosting pa po en (Just pr)
+      let po' = toPosting pa po en (Just pr)
+          pr = Price.priceOnly to cpu en
       return po'
       
 runInfer ::
@@ -208,66 +153,3 @@ toParent pa = P.Parent { P.dateTime = UParent.dateTime pa
                        , P.payee = UParent.payee pa
                        , P.memo = UParent.memo pa }
 
-{-
-inferEntry ::
-  T.Total
-  -> AtLeast2 UPosting.Posting
-  -> Exceptional Error (AtLeast2 Posting)
-inferEntry tot a2 = let
-  f po = do
-    case UPosting.cost po of
-      UPosting.Blank -> do
-        st <- St.get
-        case st of
-          (Just en) -> do
-  
-  
-  case T.isBalanced tot of
-  (Inferable e) -> let
-    f po = do
-      
--}
-{-
-toHasEntries ::
-  AtLeast2 UPosting.Posting
-  -> Either (AtLeast2 (UPosting.Posting, HasEntry))
-  (AtLeast2 (UPosting.Posting, CostData))
-toHasEntries = let
-  g po = case UPosting.cost 
-
--}
-{-
-costDataOnly ::
-  AtLeast2 (UPosting.Posting, HasEntry)
-  -> Either (AtLeast2 (UPosting.Posting, HasEntry))
-  (AtLeast2 (UPosting.Posting, CostData))
-costDataOnly a2 = let
-  p h = case h of (HasEntry _) -> True; _ -> False
-  g (po, ha) = 
--}
-{-
-data NeedsInference = NeedsInference | NoInferenceNeeded
-
-needsInference ::
-  AtLeast2 (UPosting.Posting, HasEntry)
-  -> Exceptional Error NeedsInference
-needsInference a2 = F.foldr f i a2 where
-  i = (Success NoInferenceNeeded)
-  f (po, he) s = case s of
-    (Exception e) -> Exception e
-    (Success ni) -> case ni of
-      NeedsInference -> case he of
-        NoEntry -> Exception TooManyInferError
-        (HasEntry _) -> Success NeedsInference
-      NoInferenceNeeded -> case he of
-        NoEntry -> Success NeedsInference
-        (HasEntry _) -> Success NoInferenceNeeded
-
-toNeedsInference ::
-  AtLeast2 (UPosting.Posting, HasEntry)
-  -> Exceptional Error
-  (AtLeast2 (UPosting.Posting, HasEntry), NeedsInference)
-toNeedsInference a2 = do
-  ni <- needsInference a2
-  return (a2, ni)
--}

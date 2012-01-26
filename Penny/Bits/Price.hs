@@ -29,7 +29,7 @@ data Value = Value { drCr :: E.DrCr
 entryToValue :: E.Entry -> Value
 entryToValue (E.Entry dc a) = Value dc a
 
-price ::
+priceWithValue ::
   To -- ^ Converting TO this commodity (often a currency)
   
   -> CountPerUnit -- ^ How many of the @To@ commodity equals ONE from
@@ -38,8 +38,16 @@ price ::
   -> E.Entry -- ^ The commodity and quantity we're converting FROM
   
   -> (Price, Value)
-price t c e = (p, v) where
+priceWithValue t c e = (p, v) where
   q' = (unCountPerUnit c) `mult` (A.qty . E.amount $ e)  
   a = A.Amount q' (unTo t)
   v = Value (E.drCr e) a
   p = Price (From (A.commodity . E.amount $ e)) t c
+
+priceOnly :: To -> CountPerUnit -> E.Entry -> Price
+priceOnly t c e = Price (From (A.commodity . E.amount $ e)) t c
+
+valueOnly :: To -> CountPerUnit -> E.Entry -> Value
+valueOnly t c e = Value (E.drCr e) a where
+  q' = (unCountPerUnit c) `mult` (A.qty . E.amount $ e)  
+  a = A.Amount q' (unTo t)
