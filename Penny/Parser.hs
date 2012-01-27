@@ -332,14 +332,6 @@ dateTime (DefaultTimeZone dtz) = do
       utc = localTimeToUTC tz local
   return $ B.DateTime utc
 
-cleared :: Parser B.Cleared
-cleared = let
-  clear = do
-    void $ char '*'
-    _ <- lookAhead $ char ' '
-    return B.Cleared
-  in option B.NotCleared (try clear)
-
 number :: Parser B.Number
 number = do
   void $ char '('

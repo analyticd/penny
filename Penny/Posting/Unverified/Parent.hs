@@ -4,7 +4,7 @@ import qualified Penny.Bits as B
 
 data Parent =
   Parent { dateTime :: B.DateTime
-         , cleared :: B.Cleared
+         , flag :: Maybe B.Flag
          , number :: B.Number
          , payee :: B.Payee
          , memo :: B.Memo }

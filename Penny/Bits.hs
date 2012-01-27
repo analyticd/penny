@@ -11,7 +11,7 @@ newtype Payee = Payee { unPayee :: NE.TextNonEmpty }
 
 newtype DateTime = DateTime { unDateTime :: UTCTime }
 
-data Cleared = Cleared | NotCleared
+newtype Flag = Flag { unFlag :: Char }
 
 newtype Number = Number { unNumber :: NE.TextNonEmpty }
                  deriving (Eq)

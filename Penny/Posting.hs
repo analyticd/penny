@@ -31,7 +31,7 @@ import Control.Monad.Trans.Class ( lift )
 data Posting =
   Posting { payee :: B.Payee
           , number :: Maybe B.Number
-          , cleared :: B.Cleared
+          , flag :: Maybe B.Flag
           , account :: B.Account
           , entry :: E.Entry
           , tags :: B.Tags
@@ -119,7 +119,7 @@ toPosting :: UParent.Parent
              -> Posting
 toPosting pa po e = Posting { payee = UPosting.payee po
                             , number = UPosting.number po
-                            , cleared = UPosting.cleared po
+                            , flag = UPosting.flag po
                             , account = UPosting.account po
                             , entry = e
                             , tags = UPosting.tags po
@@ -128,7 +128,7 @@ toPosting pa po e = Posting { payee = UPosting.payee po
 
 toParent :: UParent.Parent -> P.Parent
 toParent pa = P.Parent { P.dateTime = UParent.dateTime pa
-                       , P.cleared = UParent.cleared pa
+                       , P.flag = UParent.flag pa
                        , P.number = UParent.number pa
                        , P.payee = UParent.payee pa
                        , P.memo = UParent.memo pa }

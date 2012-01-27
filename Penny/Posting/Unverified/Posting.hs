@@ -6,7 +6,7 @@ import qualified Penny.Bits.Entry as E
 data Posting =
   Posting { payee :: B.Payee
           , number :: Maybe B.Number
-          , cleared :: B.Cleared
+          , flag :: Maybe B.Flag
           , account :: B.Account
           , entry :: Maybe E.Entry
           , tags :: B.Tags
