@@ -31,11 +31,6 @@ isBalanced (Total m) = M.foldrWithKey f Balanced m where
         in Inferable e
       _ -> NotInferable
 
-valueToTotal :: P.Value -> Total
-valueToTotal (P.Value dc am) = Total $ M.singleton c no where
-  c = A.commodity am
-  no = NonZero (Column dc (A.qty am))
-
 entryToTotal :: E.Entry -> Total
 entryToTotal (E.Entry dc am) = Total $ M.singleton c no where
   c = A.commodity am

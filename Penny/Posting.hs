@@ -35,10 +35,8 @@ data Posting =
           , cleared :: B.Cleared
           , account :: B.Account
           , entry :: E.Entry
-          , price :: Maybe Price.Price
           , tags :: B.Tags
           , memo :: Maybe B.Memo
-          , uid :: Maybe B.Uid
           , parent :: P.Parent }
 
 -- | All the Postings in a Transaction:
