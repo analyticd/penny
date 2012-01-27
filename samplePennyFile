@@ -23,9 +23,12 @@
 // immediately following or preceding the colon).
 
 // Tags are only one word. They begin with a hash.
-// To indicate a transaction is cleared, insert an asterisk.
+// Transactions and postings can have an optional flag.
+// The flag can contain any character. It is wrapped in square
+// brackets. For instance, this can be used to indicate a posting
+// is cleared.
 
-2012/01/02 * (302) Another Payee
+2012/01/02 [*] (302) Another Payee
     Liabilities:Credit Card             Cr $5.00
     Expenses:Car #gas #trips
 
@@ -33,9 +36,9 @@
 ; The last posting has a memo. It must be indented farther than the
 ; line its posting is on.
 2012/01/03 Flathead
-    * (905) <Luvapet Vet> Expenses:Pet    Dr $10.00
+    [R] (905) <Luvapet Vet> Expenses:Pet    Dr $10.00
     Assets:Checking               Cr $5.00
-    * (2313) Liabilities:Credit Card       Cr $5.00
+    [*] (2313) Liabilities:Credit Card       Cr $5.00
        This interest rate is too high
 
 // You can have commas in amounts. The commas are ignored.
@@ -43,7 +46,13 @@
 // character are configurable.)
 // Commodity names may be before or after the commodity amount.
 // They can be separated from the amount by one optional space.
+// To use multiple commodities, use a trading account.
+// For this transaction, the debits and credits all add up to zero,
+// as they always must. If they do not, parsing of the ledger
+// file will fail.
 
 2012/01/05 Stockbroker
-    Assets:Brokerage              Dr 1,000 LUV @ $2.00
+    Assets:Brokerage              Dr 1,000 LUV
     Assets:Current:Checking       Cr $ 2,000.00
+    Income:Brokerage Trading Account  Cr 1,000 LUV
+    Income:Brokerage Trading Account  Dr $ 2,000.00
