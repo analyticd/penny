@@ -33,15 +33,23 @@ Library
         
     Exposed-modules:
         Penny.Accounts,
+        Penny.Bits,
+        Penny.Bits.Amount,
+        Penny.Bits.Commodity,
+        Penny.Bits.Entry,
+        Penny.Bits.Price,
         Penny.Groups.AtLeast1,
         Penny.Groups.AtLeast2,
+        Penny.Groups.FamilyMember,
         Penny.Help,
         Penny.NestedMap,
         Penny.Parser,
         Penny.Posting,
-        Penny.Qty,
+        Penny.Posting.Parent,
+        Penny.Posting.Unverified.Parent,
+        Penny.Posting.Unverified.Posting,
+        Penny.Reports,
         Penny.TextNonEmpty,
-        Penny.Total,
-        Penny.Transaction
+        Penny.Total
 
     ghc-options: -Wall

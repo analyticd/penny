@@ -8,30 +8,26 @@ module Penny.Posting (
   postingFamily) where
 
 import qualified Penny.Bits as B
-import qualified Penny.Bits.Qty as Q
 import qualified Penny.Bits.Price as Price
-import qualified Penny.Bits.Commodity as Commodity
-import qualified Penny.Bits.Amount as A
 import qualified Penny.Bits.Entry as E
 import qualified Penny.Total as T
 
 import qualified Penny.Posting.Unverified.Parent as UParent
 import qualified Penny.Posting.Unverified.Posting as UPosting
 
-import Penny.Bits.Qty ( add, mult )
 import qualified Penny.Posting.Parent as P
 import Penny.Groups.AtLeast2 (
-  AtLeast2 ( AtLeast2 ), family )
+  AtLeast2, family )
 import Penny.Groups.FamilyMember ( FamilyMember )
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
 import Data.Monoid ( mconcat )
-import Data.Maybe ( catMaybes, fromMaybe )
+import Data.Maybe ( catMaybes )
 import qualified Data.Traversable as Tr
 import qualified Control.Monad.Trans.State.Lazy as St
-import Control.Monad.Trans ( lift )
+import Control.Monad.Trans.Class ( lift )
 
 data Posting =
   Posting { payee :: B.Payee
@@ -144,7 +140,7 @@ toPosting pa po e pr = Posting { payee = UPosting.payee po
                                , cleared = UPosting.cleared po
                                , account = UPosting.account po
                                , entry = e
-                               , price = Nothing
+                               , price = pr
                                , tags = UPosting.tags po
                                , memo = UPosting.memo po
                                , uid = UPosting.uid po

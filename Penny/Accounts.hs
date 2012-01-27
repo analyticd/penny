@@ -5,15 +5,18 @@ import Penny.Posting
 import Data.Maybe ( fromMaybe )
 import qualified Penny.Groups.AtLeast1 as A1
 import Penny.Total
-import qualified Data.Map as M
 import Data.Monoid
-import Penny.Transaction
 import Penny.Groups.FamilyMember
+import Penny.Bits ( SubAccountName, unAccount )
 
 newtype Accounts =
-  Accounts { unAccounts :: NestedMap SubAccountName [FamilyMember Posting] }
+  Accounts { unAccounts :: NestedMap SubAccountName
+                           [FamilyMember Posting] }
 
-prependPosting :: FamilyMember Posting -> Maybe [FamilyMember Posting] -> [FamilyMember Posting]
+prependPosting ::
+  FamilyMember Posting
+  -> Maybe [FamilyMember Posting]
+  -> [FamilyMember Posting]
 prependPosting p = maybe [p] (p:)
 
 preservePostings :: Maybe [FamilyMember Posting] -> [FamilyMember Posting]
@@ -40,7 +43,7 @@ newtype AccountTotalsOneLevel =
 
 accountTotalsOneLevel :: Accounts -> AccountTotalsOneLevel
 accountTotalsOneLevel (Accounts m) = let
-  m' = fmap (mconcat . map total . map member) m
+  m' = fmap (mconcat . map entryToTotal . map entry . map member) m
   in AccountTotalsOneLevel m'
 
 newtype AccountTotalsCumulative =

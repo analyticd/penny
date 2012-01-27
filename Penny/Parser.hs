@@ -3,7 +3,7 @@ module Penny.Parser where
 import Text.Parsec (
   try, (<|>), anyChar, string, manyTill, satisfy,
   char, notFollowedBy, many, skipMany, optional,
-  option, digit, getState, putState, choice,
+  option, digit, choice,
   optionMaybe, lookAhead, many1, Column, sourceColumn,
   getParserState, noneOf, statePos )
 import Text.Parsec.Text ( Parser )
@@ -11,23 +11,24 @@ import Text.Parsec.Text ( Parser )
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
 import qualified Data.Char as Char
 import Control.Monad ( void, liftM, replicateM, when )
-import Data.Text ( pack, empty, snoc )
+import Data.Text ( pack, empty )
 import Data.Time.LocalTime ( TimeZone )
-import qualified Data.Map as M
-import Data.Map ( Map )
 import Control.Applicative ((<*>), pure)
 import Data.Time.Calendar ( Day, fromGregorianValid )
-import Data.Time.LocalTime ( TimeZone, minutesToTimeZone,
+import Data.Time.LocalTime ( minutesToTimeZone,
                              TimeOfDay, makeTimeOfDayValid,
                              localTimeToUTC, midnight,
                              LocalTime ( LocalTime ) )
-import Data.Time.Clock ( UTCTime )
 import Data.Fixed ( Pico )
 
-import qualified Penny.Posting as P
+import qualified Penny.Bits as B
+import qualified Penny.Bits.Entry as E
+import qualified Penny.Bits.Commodity as C
+import qualified Penny.Bits.Amount as A
+import qualified Penny.Bits.Price as Pr
 import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ) )
-import Penny.Qty ( Qty, partialNewQty )
+import Penny.Bits.Qty ( Qty, partialNewQty )
 import qualified Penny.Reports as R
 
 newtype Radix = Radix { unRadix :: Char }
@@ -51,35 +52,35 @@ subAccountChar = let
     return ' '
   in notSpc <|> try spc
 
-subAccountName :: Parser P.SubAccountName
+subAccountName :: Parser B.SubAccountName
 subAccountName = do
   c <- subAccountChar
   r <- liftM pack $ many subAccountChar
-  return . P.SubAccountName $ TextNonEmpty c r
+  return . B.SubAccountName $ TextNonEmpty c r
 
-firstSubAccount :: Parser P.SubAccountName
+firstSubAccount :: Parser B.SubAccountName
 firstSubAccount = subAccountName
 
-nextSubAccount :: Parser P.SubAccountName
+nextSubAccount :: Parser B.SubAccountName
 nextSubAccount = char ':' >> subAccountName
 
-account :: Parser P.Account
+account :: Parser B.Account
 account = do
   f <- firstSubAccount
   r <- many nextSubAccount
-  return . P.Account $ AtLeast1 f r
+  return . B.Account $ AtLeast1 f r
 
 tagChar :: Parser Char
 tagChar = satisfy (\l -> isLetter l || isNumber l)
 
-tag :: Parser P.TagName
+tag :: Parser B.TagName
 tag = do
   _ <- char '#'
   f <- tagChar
   r <- liftM pack (many tagChar)
-  return . P.TagName $ TextNonEmpty f r
+  return . B.TagName $ TextNonEmpty f r
 
-firstTag :: Parser P.TagName
+firstTag :: Parser B.TagName
 firstTag = tag
 
 -- Do not use Parsec's "space" parser for spaces. It parses any
@@ -88,46 +89,41 @@ firstTag = tag
 
 -- | Tags must be separated by at least one space. (Is this a good
 -- restriction? Does not seem to be necessary.)
-nextTag :: Parser P.TagName
+nextTag :: Parser B.TagName
 nextTag =
   char ' '
   >> skipMany (char ' ')
   >> tag
 
-tags :: Parser P.Tags
+tags :: Parser B.Tags
 tags = do
   f <- firstTag
   rs <- many (try nextTag)
-  return $ P.Tags (f : rs)
+  return $ B.Tags (f : rs)
 
-drCr :: Parser P.DrCr
+drCr :: Parser E.DrCr
 drCr = let
   dr = do
     void (char 'D')
     void (char 'r') <|> void (string "ebit")
-    return P.Debit
+    return E.Debit
   cr = do
     void (string "Cr")
     void (optional (string "edit"))
-    return P.Credit
+    return E.Credit
   in dr <|> cr
 
-commoditySymbol :: Parser P.Commodity
+commoditySymbol :: Parser C.Commodity
 commoditySymbol = do
   let p ch = Char.generalCategory ch == Char.CurrencySymbol
   c <- satisfy p
-  return . P.Commodity $ TextNonEmpty c empty
+  return . C.Commodity $ TextNonEmpty c empty
 
-commodityLong :: Parser P.Commodity
+commodityLong :: Parser C.Commodity
 commodityLong = do
   c <- satisfy isLetter
   rs <- many $ satisfy (\l -> isLetter l || isNumber l)
-  return . P.Commodity $ TextNonEmpty c (pack rs)
-
-priceDesc :: Parser P.PriceDesc
-priceDesc = do
-  void $ char '@'
-  option P.UnitPrice (char '@' >> return P.TotalPrice)
+  return . C.Commodity $ TextNonEmpty c (pack rs)
 
 -- BROKEN will not handle comments properly. The p function will parse
 -- dashes.
@@ -142,11 +138,11 @@ transactionPayeeChar = let
         || isPunctuation c || isSymbol c
   in satisfy p <|> try spc
 
-transactionPayee :: Parser P.Payee
+transactionPayee :: Parser B.Payee
 transactionPayee = do
   c <- transactionPayeeChar
   rs <- liftM pack (many transactionPayeeChar)
-  return . P.Payee $ TextNonEmpty c rs
+  return . B.Payee $ TextNonEmpty c rs
 
 qtyDigit :: Separator -> Parser Char
 qtyDigit (Separator separator) = digit <|> (char separator >> digit)
@@ -174,49 +170,49 @@ qty rdx sep = let
 commoditySpaceQty ::
   Radix
   -> Separator
-  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
 commoditySpaceQty rdx sep = do
   c <- commoditySymbol <|> commodityLong
   void $ char ' '
   q <- qty rdx sep
   let fmt = R.CommodityFmt R.CommodityOnLeft R.SpaceBetween
-  return (P.Amount q c, (c, fmt))
+  return (A.Amount q c, (c, fmt))
 
 commodityQty ::
   Radix
   -> Separator
-  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
 commodityQty rdx sep = do
   c <- commoditySymbol
   q <- qty rdx sep
   let fmt = R.CommodityFmt R.CommodityOnLeft R.NoSpaceBetween
-  return (P.Amount q c, (c, fmt))
+  return (A.Amount q c, (c, fmt))
 
 qtyCommodity ::
   Radix
   -> Separator
-  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
 qtyCommodity rdx sep = do
   q <- qty rdx sep
   c <- commoditySymbol
   let fmt = R.CommodityFmt R.CommodityOnRight R.NoSpaceBetween
-  return (P.Amount q c, (c, fmt))
+  return (A.Amount q c, (c, fmt))
 
 qtySpaceCommodity ::
   Radix
   -> Separator
-  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
 qtySpaceCommodity rdx sep = do
   q <- qty rdx sep
   void $ char ' '
   c <- commoditySymbol <|> commodityLong
   let fmt = R.CommodityFmt R.CommodityOnRight R.SpaceBetween
-  return (P.Amount q c, (c, fmt))
+  return (A.Amount q c, (c, fmt))
 
 amount ::
   Radix
   -> Separator
-  -> Parser (P.Amount, (P.Commodity, R.CommodityFmt))
+  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
 amount rdx sep =
   choice
   . map try
@@ -228,13 +224,14 @@ amount rdx sep =
 price ::
   Radix
   -> Separator
-  -> Parser (P.Price, (P.Commodity, R.CommodityFmt))
+  -> Parser (Pr.To, Pr.CountPerUnit, R.CommodityFmt)
 price rdx sep = do
-  pd <- priceDesc
+  _ <- char '@'
   optional $ char ' '
-  (am, cp) <- amount rdx sep
-  let p = P.Price pd am
-  return (p, cp)
+  (am, (_, cf)) <- amount rdx sep
+  let to = Pr.To $ A.commodity am
+      cpu = Pr.CountPerUnit $ A.qty am
+  return (to, cpu, cf)
 
 -- Format for dates is:
 -- 2011/01/22 or 2011-01-22
@@ -289,12 +286,14 @@ secs :: Parser Pico
 secs = do
   void $ char ':'
   s <- replicateM 2 digit
-  return (fromIntegral . read $ s)
+  let fi = fromIntegral :: Integer -> Pico
+  return (fi . read $ s)
 
 timeOfDay :: Parser TimeOfDay
 timeOfDay = do
   (h, m) <- hoursMins
-  s <- option (fromIntegral 0) secs
+  let fi = fromIntegral :: Int -> Pico
+  s <- option (fi 0) secs
   case makeTimeOfDayValid h m s of
     Nothing -> fail "invalid time of day"
     (Just tod) -> return tod
@@ -318,7 +317,7 @@ timeZone = do
 
 dateTime ::
   DefaultTimeZone
-  -> Parser P.DateTime
+  -> Parser B.DateTime
 dateTime (DefaultTimeZone dtz) = do
   d <- day
   maybeTime <- optionMaybe (try (char ' ' >> timeOfDay))
@@ -331,32 +330,32 @@ dateTime (DefaultTimeZone dtz) = do
         Nothing -> return (t, dtz)
   let local = LocalTime d tod
       utc = localTimeToUTC tz local
-  return $ P.DateTime utc
+  return $ B.DateTime utc
 
-cleared :: Parser P.Cleared
+cleared :: Parser B.Cleared
 cleared = let
   clear = do
     void $ char '*'
-    lookAhead $ char ' '
-    return P.Cleared
-  in option P.NotCleared (try clear)
+    _ <- lookAhead $ char ' '
+    return B.Cleared
+  in option B.NotCleared (try clear)
 
-number :: Parser P.Number
+number :: Parser B.Number
 number = do
   void $ char '('
   let p l =  isLetter l || isNumber l
   c <- satisfy p
   cs <- manyTill (satisfy p) (char ')')
-  return . P.Number $ TextNonEmpty c (pack cs)
+  return . B.Number $ TextNonEmpty c (pack cs)
 
-postingPayee :: Parser P.Payee
+postingPayee :: Parser B.Payee
 postingPayee = do
   void $ char '<'
   let p c = notElem c "<>" && (isLetter c || isNumber c
             || isPunctuation c || isSymbol c || c == ' ')
   c <- satisfy p
   cs <- manyTill (satisfy p) (char '>')
-  return . P.Payee $ TextNonEmpty c (pack cs)
+  return . B.Payee $ TextNonEmpty c (pack cs)
 
 oneLineComment :: Parser ()  
 oneLineComment = do
@@ -371,10 +370,10 @@ transactionMemoLine = do
   void $ char '\n'
   return (cs ++ "\n")
 
-transactionMemo :: Parser P.TransactionMemo
+transactionMemo :: Parser B.Memo
 transactionMemo = do
   (c:cs) <- liftM concat $ many1 transactionMemoLine
-  return . P.TransactionMemo $ TextNonEmpty c (pack cs)
+  return . B.Memo $ TextNonEmpty c (pack cs)
 
 postingMemoChar :: Parser Char
 postingMemoChar = most <|> try dash where
@@ -401,18 +400,18 @@ postingMemoLine aboveCol = do
 
 postingMemo ::
   Column
-  -> Parser P.PostingMemo
+  -> Parser B.Memo
 postingMemo col = do
   (c:cs) <- liftM concat (many1 (postingMemoLine col))
-  return . P.PostingMemo $ TextNonEmpty c (pack cs)
+  return . B.Memo $ TextNonEmpty c (pack cs)
 
 entry ::
   Radix
   -> Separator
-  -> Parser (P.Entry, (P.Commodity, R.CommodityFmt))
+  -> Parser (E.Entry, (C.Commodity, R.CommodityFmt))
 entry rad sep = do
   dc <- drCr
   void $ many1 (char ' ')
   (am, p) <- amount rad sep
-  let e = P.Entry dc am
+  let e = E.Entry dc am
   return (e, p)

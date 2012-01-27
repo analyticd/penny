@@ -10,7 +10,6 @@ module Penny.NestedMap (
 import Data.Map ( Map )
 import qualified Data.Map as M
 import Data.Monoid ( Monoid, mconcat, mappend, mempty )
-import Data.Maybe ( isJust )
 
 data NestedMap k l =
   NestedMap { unNestedMap :: Map k (l, NestedMap k l) }
@@ -85,7 +84,7 @@ remapWithTotals (NestedMap top) =
   if M.null top
   then NestedMap M.empty
   else NestedMap $ M.map f top where
-    f a@(l, m) = (totalTuple a, remapWithTotals m)
+    f a@(_, m) = (totalTuple a, remapWithTotals m)
 
 -- | Leaves all keys of the map and submaps the same. Changes each
 -- label to reflect the total of that label and of all the submaps
@@ -144,37 +143,37 @@ traversePairWithTrail f ls (k, (l, m)) = do
       return (Just (a, m'))
 
 -- For testing
-new :: (k, l) -> (k, (Maybe l -> l))
-new (k, l) = (k, const l)
+_new :: (k, l) -> (k, (Maybe l -> l))
+_new (k, l) = (k, const l)
 
-map1, map2, map3, map4 :: NestedMap Int String
-map1 = NestedMap M.empty
-map2 = relabel map1 [new (5, "hello"), new (66, "goodbye"), new (777, "yeah")]
-map3 = relabel map2 [new (6, "what"), new (77, "zeke"), new (888, "foo")]
-map4 = relabel map3
-       [ (6, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "new"))
-       , (77, (\m -> case m of Nothing -> "new"; (Just s) -> s ++ "more new")) ]
+_map1, _map2, _map3, _map4 :: NestedMap Int String
+_map1 = NestedMap M.empty
+_map2 = relabel _map1 [_new (5, "hello"), _new (66, "goodbye"), _new (777, "yeah")]
+_map3 = relabel _map2 [_new (6, "what"), _new (77, "zeke"), _new (888, "foo")]
+_map4 = relabel _map3
+       [ (6, (\m -> case m of Nothing -> "_new"; (Just s) -> s ++ "_new"))
+       , (77, (\m -> case m of Nothing -> "_new"; (Just s) -> s ++ "more _new")) ]
 
-printer :: Int -> String -> a -> IO (Maybe ())
-printer i s _ = do
+_printer :: Int -> String -> a -> IO (Maybe ())
+_printer i s _ = do
   putStrLn (show i)
   putStrLn s
   return $ Just ()
 
-printerWithTrail :: [(Int, String)] -> Int -> String -> a -> IO (Maybe ())
-printerWithTrail ps n str _ = do
-  let printer (i, s) = putStr ("(" ++ show i ++ ", " ++ s ++ ") ")
-  mapM_ printer . reverse $ ps
-  printer (n, str)
+_printerWithTrail :: [(Int, String)] -> Int -> String -> a -> IO (Maybe ())
+_printerWithTrail ps n str _ = do
+  let ptr (i, s) = putStr ("(" ++ show i ++ ", " ++ s ++ ") ")
+  mapM_ ptr . reverse $ ps
+  ptr (n, str)
   putStrLn ""
   return $ Just ()
 
-showMap4 :: IO ()
-showMap4 = do
-  _ <- traverse printer map4
+_showMap4 :: IO ()
+_showMap4 = do
+  _ <- traverse _printer _map4
   return ()
 
-showMapWithTrail :: IO ()
-showMapWithTrail = do
-  _ <- traverseWithTrail printerWithTrail map4
+_showMapWithTrail :: IO ()
+_showMapWithTrail = do
+  _ <- traverseWithTrail _printerWithTrail _map4
   return ()

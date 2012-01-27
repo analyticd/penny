@@ -1,8 +1,6 @@
 module Penny.Bits where
 
 import qualified Penny.TextNonEmpty as NE
-import qualified Penny.Bits.Qty as Q
-import qualified Penny.Bits.Amount as A
 
 import Data.Time.Clock ( UTCTime )
 import Penny.Groups.AtLeast1 ( AtLeast1 )
