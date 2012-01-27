@@ -7,7 +7,6 @@ import qualified Penny.Bits.Qty as Q
 import qualified Penny.Bits.Entry as E
 import qualified Penny.Bits.Commodity as C
 import Data.Monoid ( Monoid, mempty, mappend )
-import qualified Penny.Bits.Price as P
 import qualified Penny.Bits.Amount as A
 
 newtype Total = Total (Map C.Commodity Nought)

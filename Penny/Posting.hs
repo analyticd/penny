@@ -8,7 +8,6 @@ module Penny.Posting (
   postingFamily) where
 
 import qualified Penny.Bits as B
-import qualified Penny.Bits.Price as Price
 import qualified Penny.Bits.Entry as E
 import qualified Penny.Total as T
 
@@ -41,10 +40,6 @@ data Posting =
 
 -- | All the Postings in a Transaction:
 --
--- * May have different Commodities for the Amount in the Entry.
---
--- * Must have the same Commodity for the Amount in the Value.
---
 -- * Must produce a Total whose debits and credits are equal.
 newtype Transaction =
   Transaction { unTransaction :: AtLeast2 Posting }
@@ -74,34 +69,24 @@ totalAll =
   mconcat
   . catMaybes
   . F.toList
-  . fmap toTotal
-  where
-    toTotal po = case UPosting.cost po of
-      UPosting.Blank -> Nothing
-      (UPosting.EntryOnly e) -> Just $ T.entryToTotal e
-      (UPosting.EntryPrice e cpu t) ->
-        Just $ T.valueToTotal (Price.valueOnly t cpu e)
+  . fmap (fmap T.entryToTotal . UPosting.entry)
 
 infer ::
   UParent.Parent
   -> UPosting.Posting
   -> Ex.ExceptionalT Error
   (St.State (Maybe E.Entry)) Posting
-infer pa po = do
-  case UPosting.cost po of
-    UPosting.Blank -> do
+infer pa po =
+  case UPosting.entry po of
+    Nothing -> do
       st <- lift St.get
       case st of
         Nothing -> Ex.throwT CouldNotInferError
         (Just e) -> do
-          lift (St.put Nothing)
-          return $ toPosting pa po e Nothing 
-    (UPosting.EntryOnly en) ->
-      return $ toPosting pa po en Nothing
-    (UPosting.EntryPrice en cpu to) -> let
-      pr = Price.priceOnly to cpu en
-      in return $ toPosting pa po en (Just pr)
-      
+          lift $ St.put Nothing
+          return $ toPosting pa po e
+    (Just e) -> return $ toPosting pa po e
+          
 runInfer ::
   UParent.Parent
   -> Maybe E.Entry
@@ -131,18 +116,15 @@ inferAll pa t pos = do
 toPosting :: UParent.Parent
              -> UPosting.Posting
              -> E.Entry
-             -> Maybe Price.Price
              -> Posting
-toPosting pa po e pr = Posting { payee = UPosting.payee po
-                               , number = UPosting.number po
-                               , cleared = UPosting.cleared po
-                               , account = UPosting.account po
-                               , entry = e
-                               , price = pr
-                               , tags = UPosting.tags po
-                               , memo = UPosting.memo po
-                               , uid = UPosting.uid po
-                               , parent = toParent pa }
+toPosting pa po e = Posting { payee = UPosting.payee po
+                            , number = UPosting.number po
+                            , cleared = UPosting.cleared po
+                            , account = UPosting.account po
+                            , entry = e
+                            , tags = UPosting.tags po
+                            , memo = UPosting.memo po
+                            , parent = toParent pa }
 
 toParent :: UParent.Parent -> P.Parent
 toParent pa = P.Parent { P.dateTime = UParent.dateTime pa
