@@ -7,12 +7,18 @@ import qualified Penny.Bits.Entry as E
 import Penny.Bits.Qty ( mult )
 
 newtype From = From { unFrom :: C.Commodity }
+               deriving (Eq, Ord, Show)
+
 newtype To = To { unTo :: C.Commodity }
+             deriving (Eq, Ord, Show)
+
 newtype CountPerUnit = CountPerUnit { unCountPerUnit :: Q.Qty }
+                       deriving (Eq, Ord, Show)
 
 data Price = Price { from :: From
                    , to :: To
                    , countPerUnit :: CountPerUnit }
+             deriving (Eq, Ord, Show)
 
 convert :: Price -> A.Amount -> Maybe A.Amount
 convert p (A.Amount q c) =

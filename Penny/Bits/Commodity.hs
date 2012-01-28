@@ -6,11 +6,11 @@ import Data.Text ( empty )
 
 newtype Commodity =
   Commodity { unCommodity :: AtLeast1 SubCommodity }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 newtype SubCommodity =
   SubCommodity { unSubCommidity :: NE.TextNonEmpty }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 -- | Creates a Commodity whose name is only a single character.
 charCommodity :: Char -> Commodity

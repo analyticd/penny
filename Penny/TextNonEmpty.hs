@@ -4,7 +4,7 @@ import Data.Text ( Text )
 
 data TextNonEmpty = TextNonEmpty { first :: Char
                                  , rest :: Text }
-                    deriving (Eq, Ord)
+                    deriving (Eq, Ord, Show)
 
 
 

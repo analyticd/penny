@@ -11,4 +11,5 @@ data Posting =
           , entry :: Maybe E.Entry
           , tags :: B.Tags
           , memo :: Maybe B.Memo }
+  deriving Show
 

@@ -4,8 +4,8 @@ import Text.Parsec (
   try, (<|>), anyChar, string, manyTill, satisfy,
   char, notFollowedBy, many, skipMany, optional,
   option, digit, choice,
-  optionMaybe, many1, Column, sourceColumn,
-  getParserState, noneOf, statePos )
+  optionMaybe, many1, Column, sourceColumn, sourceLine,
+  getParserState, noneOf, statePos, Line )
 import Text.Parsec.Text ( Parser )
 
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
@@ -31,6 +31,7 @@ import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ) )
 import Penny.Bits.Qty ( Qty, partialNewQty )
 import qualified Penny.Reports as R
 import qualified Penny.Posting.Unverified.Parent as UPa
+import qualified Penny.Posting.Unverified.Posting as UPo
 
 newtype Radix = Radix { unRadix :: Char }
 newtype Separator = Separator { unSeparator :: Char }
@@ -372,10 +373,10 @@ postingMemoChar = most <|> try dash where
     return '-'
   
 postingMemoLine ::
-  Column
+  PostingFirstColumn
   -- ^ Column that the posting line started at
   -> Parser String
-postingMemoLine aboveCol = do
+postingMemoLine (PostingFirstColumn aboveCol) = do
   st <- getParserState
   let currCol = sourceColumn . statePos $ st
   when (currCol <= aboveCol) $
@@ -386,7 +387,7 @@ postingMemoLine aboveCol = do
   return (c : (cs ++ "\n"))
 
 postingMemo ::
-  Column
+  PostingFirstColumn
   -> Parser B.Memo
 postingMemo col = do
   (c:cs) <- liftM concat (many1 (postingMemoLine col))
@@ -427,3 +428,44 @@ parent dtz = do
   void $ char '\n'
   return $ UPa.Parent d f n p m
 
+data PostingFirstColumn = PostingFirstColumn Column
+                          deriving Show
+data PostingLine = PostingLine Line
+                   deriving Show
+
+data PostingData =
+  PostingData { firstColumn :: PostingFirstColumn
+              , line :: PostingLine
+              , unverified :: UPo.Posting
+              , commodity :: Maybe C.Commodity
+              , format :: Maybe R.CommodityFmt }
+  deriving Show
+
+posting :: Radix -> Separator -> Parser PostingData
+posting rad sep = do
+  void $ char ' '
+  whitespace
+  st <- getParserState
+  let col = PostingFirstColumn . sourceColumn . statePos $ st
+      lin = PostingLine . sourceLine . statePos $ st
+  f <- optionMaybe flag
+  whitespace
+  n <- optionMaybe number
+  whitespace
+  p <- optionMaybe postingPayee
+  whitespace
+  a <- account
+  whitespace
+  t <- option (B.Tags []) tags
+  whitespace
+  (e, c, fmt) <- do
+    me <- optionMaybe $ entry rad sep
+    case me of
+      (Just (e', (c', fmt'))) -> return (Just e', Just c', Just fmt')
+      Nothing -> return (Nothing, Nothing, Nothing)
+  whitespace
+  void $ char '\n'
+  m <- optionMaybe $ try (postingMemo col)
+  let pd = PostingData col lin unv c fmt
+      unv = UPo.Posting p n f a e t m
+  return pd
