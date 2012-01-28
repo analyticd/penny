@@ -10,6 +10,5 @@ data Posting =
           , account :: B.Account
           , entry :: Maybe E.Entry
           , tags :: B.Tags
-          , uid :: Maybe B.Uid
           , memo :: Maybe B.Memo }
 
