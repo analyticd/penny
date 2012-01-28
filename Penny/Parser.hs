@@ -11,7 +11,7 @@ import Text.Parsec.Text ( Parser )
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
 import qualified Data.Char as Char
 import Control.Monad ( void, liftM, replicateM, when )
-import Data.Text ( pack, empty )
+import Data.Text ( pack )
 import Data.Time.LocalTime ( TimeZone )
 import Control.Applicative ((<*>), pure)
 import Data.Time.Calendar ( Day, fromGregorianValid )
@@ -117,13 +117,21 @@ commoditySymbol :: Parser C.Commodity
 commoditySymbol = do
   let p ch = Char.generalCategory ch == Char.CurrencySymbol
   c <- satisfy p
-  return . C.Commodity $ TextNonEmpty c empty
+  return $ C.charCommodity c
+
+subCommodity :: Parser C.SubCommodity
+subCommodity = do
+  c <- satisfy isLetter
+  rs <- many $ satisfy (\l -> isLetter l || isNumber l)
+  return (C.SubCommodity (TextNonEmpty c (pack rs)))
 
 commodityLong :: Parser C.Commodity
 commodityLong = do
-  c <- satisfy isLetter
-  rs <- many $ satisfy (\l -> isLetter l || isNumber l)
-  return . C.Commodity $ TextNonEmpty c (pack rs)
+  f <- subCommodity
+  rs <- many $ do
+    _ <- char ':'
+    subCommodity
+  return (C.Commodity (AtLeast1 f rs))
 
 -- BROKEN will not handle comments properly. The p function will parse
 -- dashes.
