@@ -32,6 +32,7 @@ import qualified Penny.Bits.Entry as E
 import qualified Penny.Bits.Commodity as C
 import qualified Penny.Bits.Amount as A
 import qualified Penny.Bits.Price as Pr
+import qualified Penny.Bits.PricePoint as PP
 import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ) )
 import Penny.Groups.AtLeast2 ( AtLeast2 ( AtLeast2 ) )

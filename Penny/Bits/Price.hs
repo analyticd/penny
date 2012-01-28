@@ -1,9 +1,15 @@
-module Penny.Bits.Price where
+module Penny.Bits.Price (
+  From ( From, unFrom ),
+  To ( To, unTo ),
+  CountPerUnit ( CountPerUnit, unCountPerUnit ),
+  Price ( from, to, countPerUnit ),
+  convert,
+  price) where
 
 import qualified Penny.Bits.Amount as A
 import qualified Penny.Bits.Commodity as C
-import qualified Penny.Bits.Qty as Q
 import qualified Penny.Bits.Entry as E
+import qualified Penny.Bits.Qty as Q
 import Penny.Bits.Qty ( mult )
 
 newtype From = From { unFrom :: C.Commodity }
@@ -27,5 +33,5 @@ convert p (A.Amount q c) =
   else let q' = q `mult` (unCountPerUnit . countPerUnit $ p)
        in Just (A.Amount q' (unTo . to $ p))
 
-price :: To -> CountPerUnit -> E.Entry -> Price
+price :: From -> To -> CountPerUnit -> 
 price t c e = Price (From (A.commodity . E.amount $ e)) t c
