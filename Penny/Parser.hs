@@ -6,7 +6,7 @@ import Text.Parsec (
   option, digit, choice,
   optionMaybe, many1, Column, sourceColumn, sourceLine,
   getParserState, noneOf, statePos, Line, eof,
-  parseTest )
+  parse )
 import Text.Parsec.Text ( Parser )
 
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
@@ -24,6 +24,7 @@ import Data.Fixed ( Pico )
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
 import Data.Maybe ( catMaybes, isNothing )
+import Text.Show.Pretty (ppShow)
 
 import qualified Penny.Bits as B
 import qualified Penny.Bits.Entry as E
@@ -507,8 +508,8 @@ ledger ::
   -> Separator
   -> Parser [TransactionData]
 ledger dtz rad sep = do
-  let ignores = many $ multiline <|> oneLineComment
-                <|> void (char '\n')
+  let ignores = void (many (multiline <|> oneLineComment
+                <|> void (char '\n')))
       t = do
         trans <- transactionParser dtz rad sep
         ignores
@@ -527,4 +528,6 @@ _testParse fp = do
   let rad = Radix '.'
       sep = Separator ','
   s <- readFile fp
-  parseTest (ledger (DefaultTimeZone tz) rad sep) (pack s)
+  let o = parse (ledger (DefaultTimeZone tz) rad sep)
+          fp (pack s)
+  putStrLn (ppShow o)
