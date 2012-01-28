@@ -37,6 +37,7 @@ Library
         Penny.Bits,
         Penny.Bits.Amount,
         Penny.Bits.Commodity,
+        Penny.Bits.DateTime,
         Penny.Bits.Entry,
         Penny.Bits.Price,
         Penny.Groups.AtLeast1,

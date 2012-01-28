@@ -2,15 +2,10 @@ module Penny.Bits where
 
 import qualified Penny.TextNonEmpty as NE
 
-import Data.Time ( UTCTime )
 import Penny.Groups.AtLeast1 ( AtLeast1 )
-
 
 newtype Payee = Payee { unPayee :: NE.TextNonEmpty }
                 deriving (Eq, Show, Ord)
-
-newtype DateTime = DateTime { unDateTime :: UTCTime }
-                   deriving (Eq, Show, Ord)
 
 newtype Flag = Flag { unFlag :: Char }
                deriving (Eq, Show, Ord)

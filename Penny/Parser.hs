@@ -27,6 +27,7 @@ import Data.Maybe ( catMaybes, isNothing )
 import Text.Show.Pretty (ppShow)
 
 import qualified Penny.Bits as B
+import qualified Penny.Bits.DateTime as DT
 import qualified Penny.Bits.Entry as E
 import qualified Penny.Bits.Commodity as C
 import qualified Penny.Bits.Amount as A
@@ -321,7 +322,7 @@ timeZone = do
 
 dateTime ::
   DefaultTimeZone
-  -> Parser B.DateTime
+  -> Parser DT.DateTime
 dateTime (DefaultTimeZone dtz) = do
   d <- day
   maybeTime <- optionMaybe (try (char ' ' >> timeOfDay))
@@ -334,7 +335,7 @@ dateTime (DefaultTimeZone dtz) = do
         Nothing -> return (t, dtz)
   let local = LocalTime d tod
       utc = localTimeToUTC tz local
-  return $ B.DateTime utc
+  return $ DT.DateTime utc
 
 number :: Parser B.Number
 number = do
