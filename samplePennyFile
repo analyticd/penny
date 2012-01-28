@@ -11,6 +11,10 @@
 
 {- Comment terminating in the middle of a line -}
 
+// Comments CANNOT start on lines that contain data!
+// Comments must be on lines by themselves.
+// May change in future versions...
+
 ; This is a transaction memo.
 2012/01/01 Payee Name
     Assets:Checking                 Cr $5.00

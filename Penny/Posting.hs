@@ -29,7 +29,7 @@ import qualified Control.Monad.Trans.State.Lazy as St
 import Control.Monad.Trans.Class ( lift )
 
 data Posting =
-  Posting { payee :: B.Payee
+  Posting { payee :: Maybe B.Payee
           , number :: Maybe B.Number
           , flag :: Maybe B.Flag
           , account :: B.Account

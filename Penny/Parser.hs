@@ -4,7 +4,7 @@ import Text.Parsec (
   try, (<|>), anyChar, string, manyTill, satisfy,
   char, notFollowedBy, many, skipMany, optional,
   option, digit, choice,
-  optionMaybe, lookAhead, many1, Column, sourceColumn,
+  optionMaybe, many1, Column, sourceColumn,
   getParserState, noneOf, statePos )
 import Text.Parsec.Text ( Parser )
 
@@ -30,6 +30,7 @@ import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ) )
 import Penny.Bits.Qty ( Qty, partialNewQty )
 import qualified Penny.Reports as R
+import qualified Penny.Posting.Unverified.Parent as UPa
 
 newtype Radix = Radix { unRadix :: Char }
 newtype Separator = Separator { unSeparator :: Char }
@@ -40,7 +41,7 @@ multiline :: Parser ()
 multiline = let
   inner = try multiline <|> void anyChar
   in string "{-"
-     >> manyTill inner (try (string "-}"))
+     >> manyTill inner (try (string "-}\n"))
      >> return ()
 
 subAccountChar :: Parser Char
@@ -133,23 +134,10 @@ commodityLong = do
     subCommodity
   return (C.Commodity (AtLeast1 f rs))
 
--- BROKEN will not handle comments properly. The p function will parse
--- dashes.
-transactionPayeeChar :: Parser Char
-transactionPayeeChar = let
-  spc = do
-    void $ char ' '
-    notFollowedBy (void (char ' ') <|> (void (try (string "--")))
-                   <|> (void (try (string "{-"))))
-    return ' '
-  p c = isLetter c || isNumber c
-        || isPunctuation c || isSymbol c
-  in satisfy p <|> try spc
-
 transactionPayee :: Parser B.Payee
 transactionPayee = do
-  c <- transactionPayeeChar
-  rs <- liftM pack (many transactionPayeeChar)
+  c <- anyChar
+  rs <- liftM pack (manyTill (noneOf "\n") (char '\n'))
   return . B.Payee $ TextNonEmpty c rs
 
 qtyDigit :: Separator -> Parser Char
@@ -359,9 +347,9 @@ postingPayee = do
 
 oneLineComment :: Parser ()  
 oneLineComment = do
-  void $ try (string "--")
+  void $ try (string "//")
   void $ manyTill (satisfy (/= '\n'))
-    (lookAhead (char '\n'))
+    (char '\n')
 
 transactionMemoLine :: Parser String
 transactionMemoLine = do
@@ -395,7 +383,6 @@ postingMemoLine aboveCol = do
     ++ "posting line"
   c <- postingMemoChar
   cs <- manyTill postingMemoChar (char '\n')
-  optional oneLineComment
   return (c : (cs ++ "\n"))
 
 postingMemo ::
@@ -415,3 +402,28 @@ entry rad sep = do
   (am, p) <- amount rad sep
   let e = E.Entry dc am
   return (e, p)
+
+flag :: Parser B.Flag
+flag = do
+  void $ char '['
+  c <- anyChar
+  void $ char ']'
+  return $ B.Flag c
+
+whitespace :: Parser ()
+whitespace = void (many (char ' '))
+
+
+parent :: DefaultTimeZone -> Parser UPa.Parent
+parent dtz = do
+  m <- optionMaybe transactionMemo
+  d <- dateTime dtz
+  whitespace
+  f <- optionMaybe flag
+  whitespace
+  n <- optionMaybe number
+  whitespace
+  p <- optionMaybe transactionPayee
+  void $ char '\n'
+  return $ UPa.Parent d f n p m
+

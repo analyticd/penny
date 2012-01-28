@@ -5,6 +5,6 @@ import qualified Penny.Bits as B
 data Parent =
   Parent { dateTime :: B.DateTime
          , flag :: Maybe B.Flag
-         , number :: B.Number
-         , payee :: B.Payee
-         , memo :: B.Memo }
+         , number :: Maybe B.Number
+         , payee :: Maybe B.Payee
+         , memo :: Maybe B.Memo }

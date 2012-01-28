@@ -4,7 +4,7 @@ import qualified Penny.Bits as B
 import qualified Penny.Bits.Entry as E
 
 data Posting =
-  Posting { payee :: B.Payee
+  Posting { payee :: Maybe B.Payee
           , number :: Maybe B.Number
           , flag :: Maybe B.Flag
           , account :: B.Account
