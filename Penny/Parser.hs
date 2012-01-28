@@ -5,7 +5,7 @@ import Text.Parsec (
   char, notFollowedBy, many, skipMany, optional,
   option, digit, choice,
   optionMaybe, many1, Column, sourceColumn, sourceLine,
-  getParserState, noneOf, statePos, Line )
+  getParserState, noneOf, statePos, Line, eof )
 import Text.Parsec.Text ( Parser )
 
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
@@ -20,6 +20,9 @@ import Data.Time.LocalTime ( minutesToTimeZone,
                              localTimeToUTC, midnight,
                              LocalTime ( LocalTime ) )
 import Data.Fixed ( Pico )
+import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Foldable as F
+import Data.Maybe ( catMaybes )
 
 import qualified Penny.Bits as B
 import qualified Penny.Bits.Entry as E
@@ -28,10 +31,12 @@ import qualified Penny.Bits.Amount as A
 import qualified Penny.Bits.Price as Pr
 import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ) )
+import Penny.Groups.AtLeast2 ( AtLeast2 ( AtLeast2 ) )
 import Penny.Bits.Qty ( Qty, partialNewQty )
 import qualified Penny.Reports as R
 import qualified Penny.Posting.Unverified.Parent as UPa
 import qualified Penny.Posting.Unverified.Posting as UPo
+import qualified Penny.Posting as P
 
 newtype Radix = Radix { unRadix :: Char }
 newtype Separator = Separator { unSeparator :: Char }
@@ -349,8 +354,7 @@ postingPayee = do
 oneLineComment :: Parser ()  
 oneLineComment = do
   void $ try (string "//")
-  void $ manyTill (satisfy (/= '\n'))
-    (char '\n')
+  void $ manyTill (satisfy (/= '\n')) (char '\n')
 
 transactionMemoLine :: Parser String
 transactionMemoLine = do
@@ -364,26 +368,19 @@ transactionMemo = do
   (c:cs) <- liftM concat $ many1 transactionMemoLine
   return . B.Memo $ TextNonEmpty c (pack cs)
 
-postingMemoChar :: Parser Char
-postingMemoChar = most <|> try dash where
-  most = noneOf "\n\t-{"
-  dash = do
-    void $ char '-'
-    notFollowedBy (char '-')
-    return '-'
-  
 postingMemoLine ::
   PostingFirstColumn
   -- ^ Column that the posting line started at
   -> Parser String
 postingMemoLine (PostingFirstColumn aboveCol) = do
+  whitespace
   st <- getParserState
   let currCol = sourceColumn . statePos $ st
   when (currCol <= aboveCol) $
     fail $ "memo line is not indented farther than corresponding "
     ++ "posting line"
-  c <- postingMemoChar
-  cs <- manyTill postingMemoChar (char '\n')
+  c <- noneOf "\t\n"
+  cs <- manyTill (noneOf "\t\n") (char '\n')
   return (c : (cs ++ "\n"))
 
 postingMemo ::
@@ -469,3 +466,52 @@ posting rad sep = do
   let pd = PostingData col lin unv c fmt
       unv = UPo.Posting p n f a e t m
   return pd
+
+data TransactionData =
+  TransactionData { transaction :: P.Transaction
+                  , postingLines :: AtLeast2 PostingLine
+                  , formats :: [(C.Commodity, R.CommodityFmt)] }
+  deriving Show
+
+transactionParser ::
+  DefaultTimeZone
+  -> Radix
+  -> Separator
+  -> Parser TransactionData
+transactionParser dtz rad sep = do
+  pa <- parent dtz
+  p1 <- posting rad sep
+  p2 <- posting rad sep
+  ps <- many (try (posting rad sep))
+  let a2 = AtLeast2 p1 p2 ps
+      errXact = P.transaction pa (fmap unverified a2)
+  xact <- case errXact of
+    (Ex.Exception err) -> fail $ errorStr err
+    (Ex.Success x) -> return x
+  let lns = fmap line a2
+      fmtPairs = zip cs fs
+      cs = catMaybes . F.toList . fmap commodity $ a2
+      fs = catMaybes . F.toList . fmap format $ a2
+  return $ TransactionData xact lns fmtPairs
+
+errorStr :: P.Error -> String
+errorStr e = case e of
+  P.UnbalancedError -> "postings are not balanced"
+  P.TooManyInferError -> "too many postings with entry amounts to infer"
+  P.CouldNotInferError -> "could not infer entry for posting"
+
+ledger ::
+  DefaultTimeZone
+  -> Radix
+  -> Separator
+  -> Parser [TransactionData]
+ledger dtz rad sep = do
+  let ignores = multiline <|> oneLineComment <|> void (char '\n')
+      t = do
+        trans <- transactionParser dtz rad sep
+        ignores
+        return trans
+  ignores
+  manyTill t eof
+
+      

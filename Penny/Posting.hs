@@ -37,12 +37,14 @@ data Posting =
           , tags :: B.Tags
           , memo :: Maybe B.Memo
           , parent :: P.Parent }
+  deriving Show
 
 -- | All the Postings in a Transaction:
 --
 -- * Must produce a Total whose debits and credits are equal.
 newtype Transaction =
   Transaction { unTransaction :: AtLeast2 Posting }
+  deriving Show
   
 data Error = UnbalancedError
            | TooManyInferError

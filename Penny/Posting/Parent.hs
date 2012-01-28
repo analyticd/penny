@@ -8,3 +8,4 @@ data Parent =
          , number :: Maybe B.Number
          , payee :: Maybe B.Payee
          , memo :: Maybe B.Memo }
+  deriving Show
