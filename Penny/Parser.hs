@@ -5,7 +5,8 @@ import Text.Parsec (
   char, notFollowedBy, many, skipMany, optional,
   option, digit, choice,
   optionMaybe, many1, Column, sourceColumn, sourceLine,
-  getParserState, noneOf, statePos, Line, eof )
+  getParserState, noneOf, statePos, Line, eof,
+  parseTest )
 import Text.Parsec.Text ( Parser )
 
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
@@ -14,15 +15,15 @@ import Control.Monad ( void, liftM, replicateM, when )
 import Data.Text ( pack )
 import Data.Time.LocalTime ( TimeZone )
 import Control.Applicative ((<*>), pure)
-import Data.Time.Calendar ( Day, fromGregorianValid )
-import Data.Time.LocalTime ( minutesToTimeZone,
-                             TimeOfDay, makeTimeOfDayValid,
-                             localTimeToUTC, midnight,
-                             LocalTime ( LocalTime ) )
+import Data.Time (
+  minutesToTimeZone, TimeOfDay, makeTimeOfDayValid,
+  localTimeToUTC, midnight, LocalTime ( LocalTime ),
+  Day, fromGregorianValid, getCurrentTimeZone )
+                             
 import Data.Fixed ( Pico )
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
-import Data.Maybe ( catMaybes )
+import Data.Maybe ( catMaybes, isNothing )
 
 import qualified Penny.Bits as B
 import qualified Penny.Bits.Entry as E
@@ -422,7 +423,7 @@ parent dtz = do
   n <- optionMaybe number
   whitespace
   p <- optionMaybe transactionPayee
-  void $ char '\n'
+  when (isNothing p) (void $ char '\n')
   return $ UPa.Parent d f n p m
 
 data PostingFirstColumn = PostingFirstColumn Column
@@ -506,7 +507,8 @@ ledger ::
   -> Separator
   -> Parser [TransactionData]
 ledger dtz rad sep = do
-  let ignores = multiline <|> oneLineComment <|> void (char '\n')
+  let ignores = many $ multiline <|> oneLineComment
+                <|> void (char '\n')
       t = do
         trans <- transactionParser dtz rad sep
         ignores
@@ -515,3 +517,14 @@ ledger dtz rad sep = do
   manyTill t eof
 
       
+------------------------------------------------------------
+------------------------------------------------------------
+-- test basement - prefix functions with _
+
+_testParse :: FilePath -> IO ()
+_testParse fp = do
+  tz <- getCurrentTimeZone
+  let rad = Radix '.'
+      sep = Separator ','
+  s <- readFile fp
+  parseTest (ledger (DefaultTimeZone tz) rad sep) (pack s)
