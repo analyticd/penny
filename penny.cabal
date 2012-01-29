@@ -50,6 +50,7 @@ Library
         Penny.Parser,
         Penny.Parser.Comments.Multiline,
         Penny.Parser.Comments.SingleLine,
+        Penny.Parser.DateTime,
         Penny.Posting,
         Penny.Posting.Parent,
         Penny.Posting.Unverified.Parent,

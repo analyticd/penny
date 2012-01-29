@@ -15,12 +15,7 @@ import Control.Monad ( void, liftM, replicateM, when )
 import Data.Text ( pack )
 import Data.Time.LocalTime ( TimeZone )
 import Control.Applicative ((<*>), pure)
-import Data.Time (
-  minutesToTimeZone, TimeOfDay, makeTimeOfDayValid,
-  localTimeToUTC, midnight, LocalTime ( LocalTime ),
-  Day, fromGregorianValid, getCurrentTimeZone )
-                             
-import Data.Fixed ( Pico )
+
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
 import Data.Maybe ( catMaybes, isNothing )
@@ -44,11 +39,11 @@ import qualified Penny.Posting as P
 
 import qualified Penny.Parser.Comments.SingleLine as CS
 import qualified Penny.Parser.Comments.Multiline as CM
+import Penny.Parser.DateTime (
+  dateTime, DefaultTimeZone ( DefaultTimeZone ))
 
 newtype Radix = Radix { unRadix :: Char }
 newtype Separator = Separator { unSeparator :: Char }
-newtype DefaultTimeZone =
-  DefaultTimeZone { unDefaultTimeZone :: TimeZone }
 
 subAccountChar :: Parser Char
 subAccountChar = let
@@ -248,105 +243,6 @@ price dtz rad sep = do
     Nothing -> fail "invalid price given"
   return $ PriceData (PP.PricePoint dt pr) pair
   
-
--- Format for dates is:
--- 2011/01/22 or 2011-01-22
--- followed by a time spec:
--- 16:42 -0400
--- or HMS:
--- 16:42:45 -0400
--- You can omit the time zone spec, in which case
--- the parser assumes the time is local to the timezone that is
--- passed in to the function (generally this will be the local time
--- the machine is in.)
-
-digits1or2 :: Parser String
-digits1or2 = do
-  d1 <- digit
-  d2 <- optionMaybe digit
-  let r = case d2 of
-        Nothing -> d1:[]
-        (Just d) -> d1:d:[]
-  return r
-
-monthOrDayNum :: Parser Int
-monthOrDayNum = do
-  i <- digits1or2
-  return $ read i
-
-year :: Parser Integer
-year = do
-  i <- replicateM 4 digit
-  return $ read i
-
-day :: Parser Day
-day = do
-  let slash = void $ char '/' <|> char '-'
-  y <- year
-  slash
-  m <- monthOrDayNum
-  slash
-  d <- monthOrDayNum
-  case fromGregorianValid y m d of
-    Nothing -> fail "invalid date"
-    (Just da) -> return da
-  
-hoursMins :: Parser (Int, Int)
-hoursMins = do
-  h <- digits1or2
-  void $ char ':'
-  m <- replicateM 2 digit
-  return (read h, read m)
-
-secs :: Parser Pico
-secs = do
-  void $ char ':'
-  s <- replicateM 2 digit
-  let fi = fromIntegral :: Integer -> Pico
-  return (fi . read $ s)
-
-timeOfDay :: Parser TimeOfDay
-timeOfDay = do
-  (h, m) <- hoursMins
-  let fi = fromIntegral :: Int -> Pico
-  s <- option (fi 0) secs
-  case makeTimeOfDayValid h m s of
-    Nothing -> fail "invalid time of day"
-    (Just tod) -> return tod
-
-sign :: Parser (Int -> Int)
-sign = let
-  pos = char '+' >> return id
-  neg = char '-' >> return negate
-  in pos <|> neg
-
-timeZone :: Parser TimeZone
-timeZone = do
-  s <- sign
-  hh <- replicateM 2 digit
-  mm <- replicateM 2 digit
-  let hr = read hh
-      mi = read mm
-      mins = s (hr * 60 + mi)
-      zone = minutesToTimeZone mins
-  return zone
-
-dateTime ::
-  DefaultTimeZone
-  -> Parser DT.DateTime
-dateTime (DefaultTimeZone dtz) = do
-  d <- day
-  maybeTime <- optionMaybe (try (char ' ' >> timeOfDay))
-  (tod, tz) <- case maybeTime of
-    Nothing -> return (midnight, dtz)
-    (Just t) -> do
-      maybeTz <- optionMaybe (try (char ' ' >> timeZone))
-      case maybeTz of
-        (Just zone) -> return (t, zone)
-        Nothing -> return (t, dtz)
-  let local = LocalTime d tod
-      utc = localTimeToUTC tz local
-  return $ DT.DateTime utc
 
 number :: Parser B.Number
 number = do
@@ -554,17 +450,3 @@ ledger ::
   -> Separator
   -> Parser [ItemWithLineNumber]
 ledger dtz rad sep = manyTill (itemWithLineNumber dtz rad sep) eof
-      
-------------------------------------------------------------
-------------------------------------------------------------
--- test basement - prefix functions with _
-
-_testParse :: FilePath -> IO ()
-_testParse fp = do
-  tz <- getCurrentTimeZone
-  let rad = Radix '.'
-      sep = Separator ','
-  s <- readFile fp
-  let o = parse (ledger (DefaultTimeZone tz) rad sep)
-          fp (pack s)
-  putStrLn (ppShow o)
