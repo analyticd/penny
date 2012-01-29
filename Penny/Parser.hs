@@ -39,6 +39,10 @@ import qualified Penny.Posting as P
 
 import qualified Penny.Parser.Comments.SingleLine as CS
 import qualified Penny.Parser.Comments.Multiline as CM
+import qualified Penny.Parser.Amount as A
+import qualified Penny.Parser.Commodity as C
+import qualified Penny.Parser.Qty as Q
+
 import Penny.Parser.DateTime (
   dateTime, DefaultTimeZone ( DefaultTimeZone ))
 
@@ -118,49 +122,6 @@ transactionPayee = do
   rs <- liftM pack (manyTill (noneOf "\n") (char '\n'))
   return . B.Payee $ TextNonEmpty c rs
 
-commodityQty ::
-  Radix
-  -> Separator
-  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
-commodityQty rdx sep = do
-  c <- commoditySymbol
-  q <- qty rdx sep
-  let fmt = R.CommodityFmt R.CommodityOnLeft R.NoSpaceBetween
-  return (A.Amount q c, (c, fmt))
-
-qtyCommodity ::
-  Radix
-  -> Separator
-  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
-qtyCommodity rdx sep = do
-  q <- qty rdx sep
-  c <- commoditySymbol
-  let fmt = R.CommodityFmt R.CommodityOnRight R.NoSpaceBetween
-  return (A.Amount q c, (c, fmt))
-
-qtySpaceCommodity ::
-  Radix
-  -> Separator
-  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
-qtySpaceCommodity rdx sep = do
-  q <- qty rdx sep
-  void $ char ' '
-  c <- commoditySymbol <|> commodityLong
-  let fmt = R.CommodityFmt R.CommodityOnRight R.SpaceBetween
-  return (A.Amount q c, (c, fmt))
-
-amount ::
-  Radix
-  -> Separator
-  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
-amount rdx sep =
-  choice
-  . map try
-  $ [commoditySpaceQty, commodityQty,
-     qtyCommodity, qtySpaceCommodity]
-  <*> pure rdx
-  <*> pure sep
-
 data PriceData =
   PriceData { pricePoint :: PP.PricePoint
             , priceFormat :: (C.Commodity, R.CommodityFmt) }
@@ -168,17 +129,17 @@ data PriceData =
 
 price ::
   DefaultTimeZone
-  -> Radix
-  -> Separator
+  -> Q.Radix
+  -> Q.Separator
   -> Parser PriceData
 price dtz rad sep = do
   void $ char 'P'
   whitespace
   dt <- dateTime dtz
   whitespace
-  com <- commoditySymbol <|> commodityLong
+  com <- C.commoditySymbol <|> C.commodityLong
   whitespace
-  (amt, pair) <- amount rad sep
+  (amt, pair) <- A.amount rad sep
   let (from, to) = (Pr.From com, Pr.To (A.commodity amt))
       cpu = Pr.CountPerUnit (A.qty amt)
   pr <- case Pr.price from to cpu of
@@ -239,13 +200,13 @@ postingMemo col = do
   return . B.Memo $ TextNonEmpty c (pack cs)
 
 entry ::
-  Radix
-  -> Separator
+  Q.Radix
+  -> Q.Separator
   -> Parser (E.Entry, (C.Commodity, R.CommodityFmt))
 entry rad sep = do
   dc <- drCr
   void $ many1 (char ' ')
-  (am, p) <- amount rad sep
+  (am, p) <- A.amount rad sep
   let e = E.Entry dc am
   return (e, p)
 
@@ -286,7 +247,7 @@ data PostingData =
               , format :: Maybe R.CommodityFmt }
   deriving Show
 
-posting :: Radix -> Separator -> Parser PostingData
+posting :: Q.Radix -> Q.Separator -> Parser PostingData
 posting rad sep = do
   void $ char ' '
   whitespace
@@ -323,8 +284,8 @@ data TransactionData =
 
 transactionParser ::
   DefaultTimeZone
-  -> Radix
-  -> Separator
+  -> Q.Radix
+  -> Q.Separator
   -> Parser TransactionData
 transactionParser dtz rad sep = do
   pa <- parent dtz
@@ -365,8 +326,8 @@ data ItemWithLineNumber =
 
 itemWithLineNumber ::
   DefaultTimeZone
-  -> Radix
-  -> Separator
+  -> Q.Radix
+  -> Q.Separator
   -> Parser ItemWithLineNumber
 itemWithLineNumber dtz rad sep = do
   st <- getParserState
@@ -376,8 +337,8 @@ itemWithLineNumber dtz rad sep = do
 
 parseItem ::
   DefaultTimeZone
-  -> Radix
-  -> Separator
+  -> Q.Radix
+  -> Q.Separator
   -> Parser Item
 parseItem dtz rad sep = let
    bl = char '\n' >> return BlankLine
@@ -389,7 +350,7 @@ parseItem dtz rad sep = let
 
 ledger ::
   DefaultTimeZone
-  -> Radix
-  -> Separator
+  -> Q.Radix
+  -> Q.Separator
   -> Parser [ItemWithLineNumber]
 ledger dtz rad sep = manyTill (itemWithLineNumber dtz rad sep) eof

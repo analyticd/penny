@@ -48,6 +48,7 @@ Library
         Penny.Help,
         Penny.NestedMap,
         Penny.Parser,
+        Penny.Parser.Amount,
         Penny.Parser.Comments.Multiline,
         Penny.Parser.Comments.SingleLine,
         Penny.Parser.Commodity,
