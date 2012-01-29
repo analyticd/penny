@@ -43,40 +43,10 @@ import qualified Penny.Parser.Amount as A
 import qualified Penny.Parser.Commodity as C
 import qualified Penny.Parser.Entry as E
 import qualified Penny.Parser.Qty as Q
+import  Penny.Parser.Tags ( tags )
 
 import Penny.Parser.DateTime (
   dateTime, DefaultTimeZone ( DefaultTimeZone ))
-
-tagChar :: Parser Char
-tagChar = satisfy (\l -> isLetter l || isNumber l)
-
-tag :: Parser B.TagName
-tag = do
-  _ <- char '#'
-  f <- tagChar
-  r <- liftM pack (many tagChar)
-  return . B.TagName $ TextNonEmpty f r
-
-firstTag :: Parser B.TagName
-firstTag = tag
-
--- Do not use Parsec's "space" parser for spaces. It parses any
--- whitespace character, including tabs and newlines. Instead use char
--- ' '.
-
--- | Tags must be separated by at least one space. (Is this a good
--- restriction? Does not seem to be necessary.)
-nextTag :: Parser B.TagName
-nextTag =
-  char ' '
-  >> skipMany (char ' ')
-  >> tag
-
-tags :: Parser B.Tags
-tags = do
-  f <- firstTag
-  rs <- many (try nextTag)
-  return $ B.Tags (f : rs)
 
 transactionPayee :: Parser B.Payee
 transactionPayee = do
