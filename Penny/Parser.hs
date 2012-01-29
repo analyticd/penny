@@ -44,6 +44,7 @@ import qualified Penny.Parser.Commodity as C
 import qualified Penny.Parser.Entry as E
 import qualified Penny.Parser.Qty as Q
 import  Penny.Parser.Tags ( tags )
+import Penny.Parser.Flag ( flag )
 
 import Penny.Parser.DateTime (
   dateTime, DefaultTimeZone ( DefaultTimeZone ))
@@ -130,13 +131,6 @@ postingMemo ::
 postingMemo col = do
   (c:cs) <- liftM concat (many1 (try (postingMemoLine col)))
   return . B.Memo $ TextNonEmpty c (pack cs)
-
-flag :: Parser B.Flag
-flag = do
-  void $ char '['
-  c <- anyChar
-  void $ char ']'
-  return $ B.Flag c
 
 whitespace :: Parser ()
 whitespace = void (many (char ' '))

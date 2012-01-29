@@ -1,0 +1,69 @@
+Name: penny
+Version: 0.1.0.0
+Cabal-version: >=1.8
+Build-Type: Simple
+License: MIT
+Copyright: 2012 Omari Norman.
+author: Omari Norman
+maintainer: omari@smileystation.com
+stability: Experimental
+homepage: http://www.github.com/massysett/penny
+bug-reports: omari@smileystation.com
+Category: Console
+License-File: LICENSE
+synopsis: Accounting system
+
+description: Accounting system
+
+source-repository head
+    type: git
+    location: git://github.com/massysett/penny.git
+
+Library
+    Build-depends:
+        base ==4.*,
+        text ==0.11.*,
+        explicit-exception ==0.1.*,
+        containers ==0.4.*,
+        QuickCheck ==2.4.*,
+        transformers == 0.2.*,
+        time ==1.2.*,
+        Decimal-Omari ==0.3.0.0,
+        parsec >= 3.1.2 && < 3.2,
+        pretty-show ==1.2.*
+        
+    Exposed-modules:
+        Penny.Accounts,
+        Penny.Bits,
+        Penny.Bits.Amount,
+        Penny.Bits.Commodity,
+        Penny.Bits.DateTime,
+        Penny.Bits.Entry,
+        Penny.Bits.Price,
+        Penny.Bits.PricePoint,
+        Penny.Bits.Qty,
+        Penny.Groups.AtLeast1,
+        Penny.Groups.AtLeast2,
+        Penny.Groups.FamilyMember,
+        Penny.Help,
+        Penny.NestedMap,
+        Penny.Parser,
+        Penny.Parser.Account,
+        Penny.Parser.Amount,
+        Penny.Parser.Comments.Multiline,
+        Penny.Parser.Comments.SingleLine,
+        Penny.Parser.Commodity,
+        Penny.Parser.DateTime,
+        Penny.Parser.Entry,
+        Penny.Parser.Flag,
+        Penny.Parser.Qty,
+        Penny.Parser.Tags,
+        Penny.Posting,
+        Penny.Posting.Parent,
+        Penny.Posting.Unverified.Parent,
+        Penny.Posting.Unverified.Posting,
+        Penny.Reports,
+        Penny.TextNonEmpty,
+        Penny.Total
+
+    ghc-options: -Wall
