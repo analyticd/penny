@@ -48,6 +48,8 @@ Library
         Penny.Help,
         Penny.NestedMap,
         Penny.Parser,
+        Penny.Parser.Comments.Multiline,
+        Penny.Parser.Comments.SingleLine,
         Penny.Posting,
         Penny.Posting.Parent,
         Penny.Posting.Unverified.Parent,

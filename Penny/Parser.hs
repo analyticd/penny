@@ -12,7 +12,7 @@ import Text.Parsec.Text ( Parser )
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
 import qualified Data.Char as Char
 import Control.Monad ( void, liftM, replicateM, when )
-import Data.Text ( Text, pack )
+import Data.Text ( pack )
 import Data.Time.LocalTime ( TimeZone )
 import Control.Applicative ((<*>), pure)
 import Data.Time (
@@ -42,44 +42,13 @@ import qualified Penny.Posting.Unverified.Parent as UPa
 import qualified Penny.Posting.Unverified.Posting as UPo
 import qualified Penny.Posting as P
 
+import qualified Penny.Parser.Comments.SingleLine as CS
+import qualified Penny.Parser.Comments.Multiline as CM
+
 newtype Radix = Radix { unRadix :: Char }
 newtype Separator = Separator { unSeparator :: Char }
 newtype DefaultTimeZone =
   DefaultTimeZone { unDefaultTimeZone :: TimeZone }
-
-data Multiline = Multiline [MultilineItem]
-                 deriving Show
-                          
-data MultilineItem = MultilineText TextNonEmpty
-                     | Nested Multiline
-                     deriving Show
-
-multilineText :: Parser MultilineItem
-multilineText = let
-  mostChar = noneOf "{-"
-  brace = try $ do
-    void $ char '{'
-    notFollowedBy (char '-')
-    return '{'
-  dash = try $ do
-    void $ char '-'
-    notFollowedBy (char '}')
-    return '-'
-  in do
-    c <- mostChar <|> brace <|> dash
-    cs <- many (mostChar <|> brace <|> dash)
-    return (MultilineText (TextNonEmpty c (pack cs)))
-
-nestedMultiline :: Parser MultilineItem
-nestedMultiline = multiline >>= return . Nested
-
-multiline :: Parser Multiline
-multiline = do
-  void $ string "{-"
-  is <- many (multilineText <|> nestedMultiline)
-  void $ string "-}"
-  void $ char '\n'
-  return $ Multiline is
 
 subAccountChar :: Parser Char
 subAccountChar = let
@@ -396,16 +365,6 @@ postingPayee = do
   cs <- manyTill (satisfy p) (char '>')
   return . B.Payee $ TextNonEmpty c (pack cs)
 
-data OneLineComment = OneLineComment Text
-                      deriving Show
-
-oneLineComment :: Parser OneLineComment
-oneLineComment = do
-  void $ try (string "//")
-  cs <- many (satisfy (/= '\n'))
-  void $ char '\n'
-  return (OneLineComment (pack cs))
-
 transactionMemoLine :: Parser String
 transactionMemoLine = do
   void $ char ';'
@@ -552,8 +511,8 @@ errorStr e = case e of
 
 data Item = Transaction TransactionData
           | Price PriceData
-          | CommentMulti Multiline
-          | CommentOne OneLineComment
+          | Multiline CM.Multiline
+          | SingleLine CS.Comment
           | BlankLine
           deriving Show
 
@@ -585,8 +544,8 @@ parseItem dtz rad sep = let
    bl = char '\n' >> return BlankLine
    t = liftM Transaction $ transactionParser dtz rad sep
    p = liftM Price $ price dtz rad sep
-   cm = liftM CommentMulti multiline
-   co = liftM CommentOne oneLineComment
+   cm = liftM Multiline CM.multiline
+   co = liftM SingleLine CS.comment
    in (bl <|> t <|> p <|> cm <|> co)
 
 ledger ::
