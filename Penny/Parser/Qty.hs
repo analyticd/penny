@@ -1,4 +1,6 @@
-module Penny.Parser.Qty where
+module Penny.Parser.Qty (
+  Radix, Separator, unRadix,
+  unSeparator, qty, radixAndSeparator ) where
 
 import Text.Parsec ( char, digit, (<|>), many, try )
 import Text.Parsec.Text ( Parser )
@@ -7,6 +9,12 @@ import Penny.Bits.Qty ( Qty, partialNewQty )
 
 newtype Radix = Radix { unRadix :: Char }
 newtype Separator = Separator { unSeparator :: Char }
+
+radixAndSeparator :: Char -> Char -> (Radix, Separator)
+radixAndSeparator r s =
+  if r == s
+  then error "radix and separator must be different characters"
+  else (Radix r, Separator s)
 
 radix :: Radix -> Parser Char
 radix (Radix r) = char r >> return '.'
