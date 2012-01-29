@@ -50,19 +50,25 @@ newtype DefaultTimeZone =
 data Multiline = Multiline [MultilineItem]
                  deriving Show
                           
-data MultilineItem = MultilineText Text
+data MultilineItem = MultilineText TextNonEmpty
                      | Nested Multiline
                      deriving Show
 
 multilineText :: Parser MultilineItem
 multilineText = let
-  mostChar = satisfy (/= '{')
-  brace = do
+  mostChar = noneOf "{-"
+  brace = try $ do
     void $ char '{'
     notFollowedBy (char '-')
     return '{'
-  in many (mostChar <|> try brace)
-     >>= return . MultilineText . pack
+  dash = try $ do
+    void $ char '-'
+    notFollowedBy (char '}')
+    return '-'
+  in do
+    c <- mostChar <|> brace <|> dash
+    cs <- many (mostChar <|> brace <|> dash)
+    return (MultilineText (TextNonEmpty c (pack cs)))
 
 nestedMultiline :: Parser MultilineItem
 nestedMultiline = multiline >>= return . Nested
@@ -74,7 +80,6 @@ multiline = do
   void $ string "-}"
   void $ char '\n'
   return $ Multiline is
-    
 
 subAccountChar :: Parser Char
 subAccountChar = let
@@ -249,11 +254,16 @@ amount rdx sep =
   <*> pure rdx
   <*> pure sep
 
+data PriceData =
+  PriceData { pricePoint :: PP.PricePoint
+            , priceFormat :: (C.Commodity, R.CommodityFmt) }
+  deriving Show
+
 price ::
   DefaultTimeZone
   -> Radix
   -> Separator
-  -> Parser (PP.PricePoint, (C.Commodity, R.CommodityFmt))
+  -> Parser PriceData
 price dtz rad sep = do
   void $ char 'P'
   whitespace
@@ -267,7 +277,7 @@ price dtz rad sep = do
   pr <- case Pr.price from to cpu of
     (Just pri) -> return pri
     Nothing -> fail "invalid price given"
-  return (PP.PricePoint dt pr, pair)
+  return $ PriceData (PP.PricePoint dt pr) pair
   
 
 -- Format for dates is:
@@ -386,10 +396,15 @@ postingPayee = do
   cs <- manyTill (satisfy p) (char '>')
   return . B.Payee $ TextNonEmpty c (pack cs)
 
-oneLineComment :: Parser ()  
+data OneLineComment = OneLineComment Text
+                      deriving Show
+
+oneLineComment :: Parser OneLineComment
 oneLineComment = do
   void $ try (string "//")
-  void $ manyTill (satisfy (/= '\n')) (char '\n')
+  cs <- many (satisfy (/= '\n'))
+  void $ char '\n'
+  return (OneLineComment (pack cs))
 
 transactionMemoLine :: Parser String
 transactionMemoLine = do
@@ -536,8 +551,10 @@ errorStr e = case e of
   P.CouldNotInferError -> "could not infer entry for posting"
 
 data Item = Transaction TransactionData
-          | Price (PP.PricePoint, (C.Commodity, R.CommodityFmt))
+          | Price PriceData
           | CommentMulti Multiline
+          | CommentOne OneLineComment
+          | BlankLine
           deriving Show
 
 ledger ::
@@ -546,22 +563,12 @@ ledger ::
   -> Separator
   -> Parser [Item]
 ledger dtz rad sep = do
-  let ignores = void (many (oneLineComment
-                            <|> void (char '\n')))
-      t = do
-        trans <- transactionParser dtz rad sep
-        ignores
-        return $ Transaction trans
-      p = do
-        pr <- price dtz rad sep
-        ignores
-        return $ Price pr
-      cm = do
-        m <- multiline
-        ignores
-        return $ CommentMulti m
-  ignores
-  manyTill (t <|> p <|> cm) eof
+  let bl = char '\n' >> return BlankLine
+      t = liftM Transaction $ transactionParser dtz rad sep
+      p = liftM Price $ price dtz rad sep
+      cm = liftM CommentMulti multiline
+      co = liftM CommentOne oneLineComment
+  manyTill (bl <|> t <|> p <|> cm <|> co) eof
 
       
 ------------------------------------------------------------

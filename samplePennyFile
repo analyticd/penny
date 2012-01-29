@@ -15,27 +15,30 @@
 // This website is also excellent and is free:
 // http://www.principlesofaccounting.com/
 
-// These are single line comments,
-// the parser IGNORES these. Parser also ignores
-// blank lines (those with only a newline, or with
-// only a whitespace and newlines.)
+// As you can see, single line comments begin with
+// two slashes. 
 
 {- This is a multiline comment.
-   It is also the only way to have a comment that
-   terminates in the middle of a line. The parser
-   IGNORES these.
+   Neither single line comments nor multiline comments
+   may begin on lines that have data. They must begin
+   on lines all by themselves. They must also begin in
+   the first column. Penny's parser will fail if it encounters
+   a line that has nothing but whitespace. However,
+   a line that is solely a newline is okay.
+
+{- You can also nest multiline comments, like this. -}
+
+There must not be any trailing whitespace after the end of the
+multiline comment.
+
 -}
 
-{- Comment terminating in the middle of a line -}
-
-// Comments CANNOT start on lines that contain data!
-// Comments must be on lines by themselves.
-
-; This is a transaction memo.
+; This is a transaction memo. It is associated
+; with the transaction, and the penny program lets you
+; search their contents.
 2012/01/01 Payee Name
     Assets:Checking                 Cr $5.00
     Expenses:Food
-
 
 // Lines with a posting start with at least one space. At least
 // two spaces separate the account name and the DrCr.
@@ -163,4 +166,30 @@ P 2012/01/05 ¥ 0.6418 INR
 2012/01/28 23:30 +0000 Pacific Dispatch
     Expenses:Newspapers          Debit $1.25
     Assets:Cash                  Credit $1.25
+
+
+{- What's the difference between transaction memos, posting
+   memos, and comments? Here I will draw a distinction between
+   penny (lower case), which is the command-line executable
+   program, and the Penny parser (upper case), which is the Haskell
+   module that parses your Penny ledger file. Thus penny lower-case
+   is the binary; Penny is broader and encompasses the library
+   as well as the program.
+
+   So, the Penny parser does see and remember transaction memos,
+   posting memos, and comments. However, it does not pass
+   comments along to the rest of the penny command-line program.
+   The penny command-line program only deals with transactions
+   and postings; transactions and postings can have
+   memos associated with them.
+
+   Therefore, using the penny command-line program, you can only
+   search memos, not comments. However, the fact that the Penny
+   parser does see comments might be useful if you are going to
+   write your own Haskell code using the parser. For instance,
+   you might want to transform your Penny ledger (maybe to
+   automatically reconcile your checking account statement).
+   By writing your own code using the Penny parser, you can
+   do transformations like this while still keeping your comments
+   intact. Pretty neat. -}
 
