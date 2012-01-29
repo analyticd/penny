@@ -61,6 +61,7 @@ Library
         Penny.Parser.Parent,
         Penny.Parser.Payees.Transaction,
         Penny.Parser.Payees.Posting,
+        Penny.Parser.Posting,
         Penny.Parser.Price,
         Penny.Parser.Qty,
         Penny.Parser.Tags,

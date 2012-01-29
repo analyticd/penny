@@ -13,10 +13,10 @@ import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 data PostingFirstColumn = PostingFirstColumn Column
                           deriving Show
 
-postingMemo ::
+memo ::
   PostingFirstColumn
   -> Parser B.Memo
-postingMemo col = do
+memo col = do
   (c:cs) <- liftM concat (many1 (try (postingMemoLine col)))
   return . B.Memo $ TextNonEmpty c (pack cs)
 

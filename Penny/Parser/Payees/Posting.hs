@@ -1,4 +1,4 @@
-module Penny.Payees.Posting where
+module Penny.Parser.Payees.Posting where
 
 import Control.Monad ( void )
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol)
@@ -10,8 +10,8 @@ import Text.Parsec.Text ( Parser )
 import qualified Penny.Bits as B
 import Penny.TextNonEmpty (TextNonEmpty ( TextNonEmpty ) )
 
-postingPayee :: Parser B.Payee
-postingPayee = do
+payee :: Parser B.Payee
+payee = do
   void $ char '<'
   let p c = notElem c "<>" && (isLetter c || isNumber c
             || isPunctuation c || isSymbol c || c == ' ')
