@@ -149,7 +149,7 @@ P 2012/01/05 ¥ 0.6418 INR
 ; they are mandatory for the minutes and seconds.
 2012/01/28 09:58 King Arthur Flour
     Expenses:Food                  Dr $5.25
-      Sourdough starter!
+       Sourdough starter!
     Assets:Current:Checking
 
 ; Transaction specifying a local time zone

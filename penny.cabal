@@ -41,6 +41,7 @@ Library
         Penny.Bits.Entry,
         Penny.Bits.Price,
         Penny.Bits.PricePoint,
+        Penny.Bits.Qty,
         Penny.Groups.AtLeast1,
         Penny.Groups.AtLeast2,
         Penny.Groups.FamilyMember,

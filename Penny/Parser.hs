@@ -227,20 +227,6 @@ amount rdx sep =
   <*> pure rdx
   <*> pure sep
 
-{-
-price ::
-  Radix
-  -> Separator
-  -> Parser (Pr.To, Pr.CountPerUnit, R.CommodityFmt)
-price rdx sep = do
-  _ <- char '@'
-  optional $ char ' '
-  (am, (_, cf)) <- amount rdx sep
-  let to = Pr.To $ A.commodity am
-      cpu = Pr.CountPerUnit $ A.qty am
-  return (to, cpu, cf)
--}
-
 price ::
   DefaultTimeZone
   -> Radix
@@ -414,7 +400,7 @@ postingMemo ::
   PostingFirstColumn
   -> Parser B.Memo
 postingMemo col = do
-  (c:cs) <- liftM concat (many1 (postingMemoLine col))
+  (c:cs) <- liftM concat (many1 (try (postingMemoLine col)))
   return . B.Memo $ TextNonEmpty c (pack cs)
 
 entry ::
@@ -527,20 +513,28 @@ errorStr e = case e of
   P.TooManyInferError -> "too many postings with entry amounts to infer"
   P.CouldNotInferError -> "could not infer entry for posting"
 
+data Item = Transaction TransactionData
+          | Price (PP.PricePoint, (C.Commodity, R.CommodityFmt))
+          deriving Show
+
 ledger ::
   DefaultTimeZone
   -> Radix
   -> Separator
-  -> Parser [TransactionData]
+  -> Parser [Item]
 ledger dtz rad sep = do
   let ignores = void (many (multiline <|> oneLineComment
-                <|> void (char '\n')))
+                            <|> void (char '\n')))
       t = do
         trans <- transactionParser dtz rad sep
         ignores
-        return trans
+        return $ Transaction trans
+      p = do
+        pr <- price dtz rad sep
+        ignores
+        return $ Price pr
   ignores
-  manyTill t eof
+  manyTill (t <|> p) eof
 
       
 ------------------------------------------------------------
