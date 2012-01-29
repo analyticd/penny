@@ -79,15 +79,6 @@ price dtz rad sep = do
     (Just pri) -> return pri
     Nothing -> fail "invalid price given"
   return $ PriceData (PP.PricePoint dt pr) pair
-  
-
-number :: Parser B.Number
-number = do
-  void $ char '('
-  let p l =  isLetter l || isNumber l
-  c <- satisfy p
-  cs <- manyTill (satisfy p) (char ')')
-  return . B.Number $ TextNonEmpty c (pack cs)
 
 postingPayee :: Parser B.Payee
 postingPayee = do
