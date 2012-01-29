@@ -49,98 +49,12 @@ import Penny.Parser.Flag ( flag )
 import Penny.Parser.DateTime (
   dateTime, DefaultTimeZone ( DefaultTimeZone ))
 
-transactionPayee :: Parser B.Payee
-transactionPayee = do
-  c <- anyChar
-  rs <- liftM pack (manyTill (noneOf "\n") (char '\n'))
-  return . B.Payee $ TextNonEmpty c rs
 
-data PriceData =
-  PriceData { pricePoint :: PP.PricePoint
-            , priceFormat :: (C.Commodity, R.CommodityFmt) }
-  deriving Show
 
-price ::
-  DefaultTimeZone
-  -> Q.Radix
-  -> Q.Separator
-  -> Parser PriceData
-price dtz rad sep = do
-  void $ char 'P'
-  whitespace
-  dt <- dateTime dtz
-  whitespace
-  com <- C.commoditySymbol <|> C.commodityLong
-  whitespace
-  (amt, pair) <- A.amount rad sep
-  let (from, to) = (Pr.From com, Pr.To (A.commodity amt))
-      cpu = Pr.CountPerUnit (A.qty amt)
-  pr <- case Pr.price from to cpu of
-    (Just pri) -> return pri
-    Nothing -> fail "invalid price given"
-  return $ PriceData (PP.PricePoint dt pr) pair
-
-postingPayee :: Parser B.Payee
-postingPayee = do
-  void $ char '<'
-  let p c = notElem c "<>" && (isLetter c || isNumber c
-            || isPunctuation c || isSymbol c || c == ' ')
-  c <- satisfy p
-  cs <- manyTill (satisfy p) (char '>')
-  return . B.Payee $ TextNonEmpty c (pack cs)
-
-transactionMemoLine :: Parser String
-transactionMemoLine = do
-  void $ char ';'
-  cs <- many1 (satisfy (/= '\n'))
-  void $ char '\n'
-  return (cs ++ "\n")
-
-transactionMemo :: Parser B.Memo
-transactionMemo = do
-  (c:cs) <- liftM concat $ many1 transactionMemoLine
-  return . B.Memo $ TextNonEmpty c (pack cs)
-
-postingMemoLine ::
-  PostingFirstColumn
-  -- ^ Column that the posting line started at
-  -> Parser String
-postingMemoLine (PostingFirstColumn aboveCol) = do
-  whitespace
-  st <- getParserState
-  let currCol = sourceColumn . statePos $ st
-  when (currCol <= aboveCol) $
-    fail $ "memo line is not indented farther than corresponding "
-    ++ "posting line"
-  c <- noneOf "\t\n"
-  cs <- manyTill (noneOf "\t\n") (char '\n')
-  return (c : (cs ++ "\n"))
-
-postingMemo ::
-  PostingFirstColumn
-  -> Parser B.Memo
-postingMemo col = do
-  (c:cs) <- liftM concat (many1 (try (postingMemoLine col)))
-  return . B.Memo $ TextNonEmpty c (pack cs)
 
 whitespace :: Parser ()
 whitespace = void (many (char ' '))
 
-parent :: DefaultTimeZone -> Parser UPa.Parent
-parent dtz = do
-  m <- optionMaybe transactionMemo
-  d <- dateTime dtz
-  whitespace
-  f <- optionMaybe flag
-  whitespace
-  n <- optionMaybe number
-  whitespace
-  p <- optionMaybe transactionPayee
-  when (isNothing p) (void $ char '\n')
-  return $ UPa.Parent d f n p m
-
-data PostingFirstColumn = PostingFirstColumn Column
-                          deriving Show
 data PostingLine = PostingLine Line
                    deriving Show
 
