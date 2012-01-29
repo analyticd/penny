@@ -55,6 +55,7 @@ Library
         Penny.Parser.Commodity,
         Penny.Parser.DateTime,
         Penny.Parser.Entry,
+        Penny.Parser.Flag,
         Penny.Parser.Qty,
         Penny.Parser.Tags,
         Penny.Posting,
