@@ -227,6 +227,7 @@ amount rdx sep =
   <*> pure rdx
   <*> pure sep
 
+{-
 price ::
   Radix
   -> Separator
@@ -238,6 +239,28 @@ price rdx sep = do
   let to = Pr.To $ A.commodity am
       cpu = Pr.CountPerUnit $ A.qty am
   return (to, cpu, cf)
+-}
+
+price ::
+  DefaultTimeZone
+  -> Radix
+  -> Separator
+  -> Parser (PP.PricePoint, (C.Commodity, R.CommodityFmt))
+price dtz rad sep = do
+  void $ char 'P'
+  whitespace
+  dt <- dateTime dtz
+  whitespace
+  com <- commoditySymbol <|> commodityLong
+  whitespace
+  (amt, pair) <- amount rad sep
+  let (from, to) = (Pr.From com, Pr.To (A.commodity amt))
+      cpu = Pr.CountPerUnit (A.qty amt)
+  pr <- case Pr.price from to cpu of
+    (Just pri) -> return pri
+    Nothing -> fail "invalid price given"
+  return (PP.PricePoint dt pr, pair)
+  
 
 -- Format for dates is:
 -- 2011/01/22 or 2011-01-22

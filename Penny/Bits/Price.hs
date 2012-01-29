@@ -8,7 +8,6 @@ module Penny.Bits.Price (
 
 import qualified Penny.Bits.Amount as A
 import qualified Penny.Bits.Commodity as C
-import qualified Penny.Bits.Entry as E
 import qualified Penny.Bits.Qty as Q
 import Penny.Bits.Qty ( mult )
 
@@ -33,5 +32,9 @@ convert p (A.Amount q c) =
   else let q' = q `mult` (unCountPerUnit . countPerUnit $ p)
        in Just (A.Amount q' (unTo . to $ p))
 
-price :: From -> To -> CountPerUnit -> 
-price t c e = Price (From (A.commodity . E.amount $ e)) t c
+price :: From -> To -> CountPerUnit -> Maybe Price
+price f t cpu =
+  if unFrom f == unTo t
+  then Nothing
+  else Just $ Price f t cpu
+

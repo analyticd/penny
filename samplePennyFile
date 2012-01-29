@@ -1,3 +1,20 @@
+// Sample Penny file. Penny is a double-entry accounting
+// system. Penny uses traditional accounting terminology,
+// which means that every transaction will have "debits"
+// and "credits". In every single transaction, debits
+// must equal credits, or this file will not parse
+// and Penny will quit with an error.
+
+// Penny has no concept of negative numbers. All numbers
+// are positive or zero.
+
+// To learn double-entry accounting, pick up a used accounting
+// textbook at your favorite online used book retailer.
+// They can be had for under 10 U.S. dollars, as college
+// students cast aside old editions that are perfectly good.
+// This website is also excellent and is free:
+// http://www.principlesofaccounting.com/
+
 // These are single line comments,
 // the parser IGNORES these. Parser also ignores
 // blank lines (those with only a newline, or with
@@ -13,7 +30,6 @@
 
 // Comments CANNOT start on lines that contain data!
 // Comments must be on lines by themselves.
-// May change in future versions...
 
 ; This is a transaction memo.
 2012/01/01 Payee Name
@@ -26,13 +42,20 @@
 // Account names can have one embedded space at a time (never
 // immediately following or preceding the colon).
 
-// Tags are only one word. They begin with a hash.
+// Tags are only one word. Precede each tag with a hash.
+// Postings can have one or more "tags". These allow you to
+// classify postings by tag as well as by account. For example
+// you might take a vacation. Various postings might be scattered
+// across multiple accounts (Expenses:Food, Expenses:Gas, etc.)
+// but you can give them all a #vacation tag.
+
 // Transactions and postings can have an optional flag.
-// The flag can contain any character. It is wrapped in square
-// brackets. For instance, this can be used to indicate a posting
+// The flag is one or more letters.
+// It is wrapped in square brackets.
+// For instance, this can be used to indicate a posting
 // is cleared.
 
-2012/01/02 [*] (302) Another Payee
+2012/01/02 [*] (302) GreenGas
     Liabilities:Credit Card             Cr $5.00
     Expenses:Car #gas #trips
 
@@ -50,7 +73,10 @@
 // character are configurable.)
 // Commodity names may be before or after the commodity amount.
 // They can be separated from the amount by one optional space.
+
 // To use multiple commodities, use a trading account.
+// The best explanation of trading accounts is here:
+// http://www.mscs.dal.ca/~selinger/accounting/tutorial.html
 // For this transaction, the debits and credits all add up to zero,
 // as they always must. If they do not, parsing of the ledger
 // file will fail.
@@ -60,3 +86,81 @@
     Assets:Current:Checking       Cr $ 2,000.00
     Income:Brokerage Trading Account  Cr 1,000 LUV
     Income:Brokerage Trading Account  Dr $ 2,000.00
+
+// Prices allow you to specify how to convert one commodity
+// to another. Prices do not affect the way any of your
+// transactions are parsed. Even if you specify prices,
+// you still must ensure that the debits equal the credits
+// in every transaction; if they do not, the parser will fail.
+// Prices can be useful for some reports which use this
+// information.
+// Prices specify that ONE unit of the given commodity
+// equals the given quantity of the other commodity. Here
+// are some examples.
+
+P 2012/01/05 17:55:55 -0500 LUV $9.62
+P 2012/01/05 Gold $1738.35
+
+// Prices only work one way. For instance the first
+// price tells you how many dollars one euro is worth, and allows
+// reports to convert from euro to dollars. To convert from
+// dollars to euro, you must specify another price.
+P 2012/01/05 € $1.3207
+P 2012/01/05 $ €0.7572
+P 2012/01/05 ¥ 0.6418 INR
+
+// As the examples above show, Penny works fine with Unicode.
+// Your ledger file should be encoded in your system's default
+// encoding. On my system this is UTF-8, as it is on most
+// recent Linux systems, but some systems use other encodings.
+// I know that Slackware was recently using ISO-8859-1. Non-Unicode
+// encodings should work fine as well, as Penny will convert them
+// to Unicode internally.
+//
+// If your ledger file is encoded in your system's default
+// encoding and you still have Unicode problems,
+// it is a bug. Please report it to me.
+
+// If you have no idea what all this encoding stuff is about,
+// the first thing to remember is that there is no such thing
+// as plain text. Read this:
+// http://www.joelonsoftware.com/articles/Unicode.html
+
+// The Penny program will not change your input file. It cannot
+// change your input file as it is opened read-only.
+
+////////////////////////////////////////////////////////////
+
+// Dates - as one example with the prices suggested, dates
+// need not be just a date. They can also include a time.
+// Internally, Penny records all dates as both dates and times.
+// If you give a date but do not give a time, the time is assumed
+// to be midnight.
+// Of course you cannot have times without timezones. Penny
+// assumes each time is in the DefaultTimeZone, which you can configure
+// or which you can configure as being in whatever time zone your
+// system is set to use. Or of course you can specify the time
+// zone by specifying the number of hours and minutes the
+// time differs from UTC. To specify UTC, use +0000 or -0000.
+
+; Transaction that specifies a time. The time zone is the
+; DefaultTimeZone, which you can configure. Times must be specified
+; using 24 hour time. Leading zeroes are optional for the hours;
+; they are mandatory for the minutes and seconds.
+2012/01/28 09:58 King Arthur Flour
+    Expenses:Food                  Dr $5.25
+      Sourdough starter!
+    Assets:Current:Checking
+
+; Transaction specifying a local time zone
+2012/01/28 17:26:44 -0500 Exactamundo
+    Expenses:Amusements           Dr $400
+    Liabilities:Credit Card       Cr $300
+    Assets:Current:Checking       Cr $100
+
+; Transaction specifying UTC. Also, you can always
+; spell out "Debit" or "Credit" if you want to.
+2012/01/28 23:30 +0000 Pacific Dispatch
+    Expenses:Newspapers          Debit $1.25
+    Assets:Cash                  Credit $1.25
+
