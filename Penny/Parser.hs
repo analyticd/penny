@@ -112,42 +112,11 @@ drCr = let
     return E.Credit
   in dr <|> cr
 
-commoditySymbol :: Parser C.Commodity
-commoditySymbol = do
-  let p ch = Char.generalCategory ch == Char.CurrencySymbol
-  c <- satisfy p
-  return $ C.charCommodity c
-
-subCommodity :: Parser C.SubCommodity
-subCommodity = do
-  c <- satisfy isLetter
-  rs <- many $ satisfy (\l -> isLetter l || isNumber l)
-  return (C.SubCommodity (TextNonEmpty c (pack rs)))
-
-commodityLong :: Parser C.Commodity
-commodityLong = do
-  f <- subCommodity
-  rs <- many $ do
-    _ <- char ':'
-    subCommodity
-  return (C.Commodity (AtLeast1 f rs))
-
 transactionPayee :: Parser B.Payee
 transactionPayee = do
   c <- anyChar
   rs <- liftM pack (manyTill (noneOf "\n") (char '\n'))
   return . B.Payee $ TextNonEmpty c rs
-
-commoditySpaceQty ::
-  Radix
-  -> Separator
-  -> Parser (A.Amount, (C.Commodity, R.CommodityFmt))
-commoditySpaceQty rdx sep = do
-  c <- commoditySymbol <|> commodityLong
-  void $ char ' '
-  q <- qty rdx sep
-  let fmt = R.CommodityFmt R.CommodityOnLeft R.SpaceBetween
-  return (A.Amount q c, (c, fmt))
 
 commodityQty ::
   Radix
