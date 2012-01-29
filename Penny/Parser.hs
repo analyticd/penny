@@ -12,7 +12,7 @@ import Text.Parsec.Text ( Parser )
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol )
 import qualified Data.Char as Char
 import Control.Monad ( void, liftM, replicateM, when )
-import Data.Text ( pack )
+import Data.Text ( Text, pack )
 import Data.Time.LocalTime ( TimeZone )
 import Control.Applicative ((<*>), pure)
 import Data.Time (
@@ -47,12 +47,34 @@ newtype Separator = Separator { unSeparator :: Char }
 newtype DefaultTimeZone =
   DefaultTimeZone { unDefaultTimeZone :: TimeZone }
 
-multiline :: Parser ()
-multiline = let
-  inner = try multiline <|> void anyChar
-  in string "{-"
-     >> manyTill inner (try (string "-}\n"))
-     >> return ()
+data Multiline = Multiline [MultilineItem]
+                 deriving Show
+                          
+data MultilineItem = MultilineText Text
+                     | Nested Multiline
+                     deriving Show
+
+multilineText :: Parser MultilineItem
+multilineText = let
+  mostChar = satisfy (/= '{')
+  brace = do
+    void $ char '{'
+    notFollowedBy (char '-')
+    return '{'
+  in many (mostChar <|> try brace)
+     >>= return . MultilineText . pack
+
+nestedMultiline :: Parser MultilineItem
+nestedMultiline = multiline >>= return . Nested
+
+multiline :: Parser Multiline
+multiline = do
+  void $ string "{-"
+  is <- many (multilineText <|> nestedMultiline)
+  void $ string "-}"
+  void $ char '\n'
+  return $ Multiline is
+    
 
 subAccountChar :: Parser Char
 subAccountChar = let
@@ -515,6 +537,7 @@ errorStr e = case e of
 
 data Item = Transaction TransactionData
           | Price (PP.PricePoint, (C.Commodity, R.CommodityFmt))
+          | CommentMulti Multiline
           deriving Show
 
 ledger ::
@@ -523,7 +546,7 @@ ledger ::
   -> Separator
   -> Parser [Item]
 ledger dtz rad sep = do
-  let ignores = void (many (multiline <|> oneLineComment
+  let ignores = void (many (oneLineComment
                             <|> void (char '\n')))
       t = do
         trans <- transactionParser dtz rad sep
@@ -533,8 +556,12 @@ ledger dtz rad sep = do
         pr <- price dtz rad sep
         ignores
         return $ Price pr
+      cm = do
+        m <- multiline
+        ignores
+        return $ CommentMulti m
   ignores
-  manyTill (t <|> p) eof
+  manyTill (t <|> p <|> cm) eof
 
       
 ------------------------------------------------------------
