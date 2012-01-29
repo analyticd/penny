@@ -38,6 +38,7 @@ import qualified Penny.Posting as P
 
 import qualified Penny.Parser.Comments.SingleLine as CS
 import qualified Penny.Parser.Comments.Multiline as CM
+import Penny.Parser.Account ( account )
 import qualified Penny.Parser.Amount as A
 import qualified Penny.Parser.Commodity as C
 import qualified Penny.Parser.Entry as E
@@ -45,33 +46,6 @@ import qualified Penny.Parser.Qty as Q
 
 import Penny.Parser.DateTime (
   dateTime, DefaultTimeZone ( DefaultTimeZone ))
-
-subAccountChar :: Parser Char
-subAccountChar = let
-  notSpc = satisfy (\l -> isLetter l || isNumber l)
-  spc = do
-    void $ char ' '
-    notFollowedBy (char ' ' <|> char '#')
-    return ' '
-  in notSpc <|> try spc
-
-subAccountName :: Parser B.SubAccountName
-subAccountName = do
-  c <- subAccountChar
-  r <- liftM pack $ many subAccountChar
-  return . B.SubAccountName $ TextNonEmpty c r
-
-firstSubAccount :: Parser B.SubAccountName
-firstSubAccount = subAccountName
-
-nextSubAccount :: Parser B.SubAccountName
-nextSubAccount = char ':' >> subAccountName
-
-account :: Parser B.Account
-account = do
-  f <- firstSubAccount
-  r <- many nextSubAccount
-  return . B.Account $ AtLeast1 f r
 
 tagChar :: Parser Char
 tagChar = satisfy (\l -> isLetter l || isNumber l)
