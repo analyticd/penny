@@ -53,6 +53,7 @@ Library
         Penny.Parser.Comments.SingleLine,
         Penny.Parser.Commodity,
         Penny.Parser.DateTime,
+        Penny.Parser.Entry,
         Penny.Parser.Qty,
         Penny.Posting,
         Penny.Posting.Parent,

@@ -23,7 +23,6 @@ import Text.Show.Pretty (ppShow)
 
 import qualified Penny.Bits as B
 import qualified Penny.Bits.DateTime as DT
-import qualified Penny.Bits.Entry as E
 import qualified Penny.Bits.Commodity as C
 import qualified Penny.Bits.Amount as A
 import qualified Penny.Bits.Price as Pr
@@ -41,6 +40,7 @@ import qualified Penny.Parser.Comments.SingleLine as CS
 import qualified Penny.Parser.Comments.Multiline as CM
 import qualified Penny.Parser.Amount as A
 import qualified Penny.Parser.Commodity as C
+import qualified Penny.Parser.Entry as E
 import qualified Penny.Parser.Qty as Q
 
 import Penny.Parser.DateTime (
@@ -103,18 +103,6 @@ tags = do
   f <- firstTag
   rs <- many (try nextTag)
   return $ B.Tags (f : rs)
-
-drCr :: Parser E.DrCr
-drCr = let
-  dr = do
-    void (char 'D')
-    void (char 'r') <|> void (string "ebit")
-    return E.Debit
-  cr = do
-    void (string "Cr")
-    void (optional (string "edit"))
-    return E.Credit
-  in dr <|> cr
 
 transactionPayee :: Parser B.Payee
 transactionPayee = do
@@ -199,17 +187,6 @@ postingMemo col = do
   (c:cs) <- liftM concat (many1 (try (postingMemoLine col)))
   return . B.Memo $ TextNonEmpty c (pack cs)
 
-entry ::
-  Q.Radix
-  -> Q.Separator
-  -> Parser (E.Entry, (C.Commodity, R.CommodityFmt))
-entry rad sep = do
-  dc <- drCr
-  void $ many1 (char ' ')
-  (am, p) <- A.amount rad sep
-  let e = E.Entry dc am
-  return (e, p)
-
 flag :: Parser B.Flag
 flag = do
   void $ char '['
@@ -219,7 +196,6 @@ flag = do
 
 whitespace :: Parser ()
 whitespace = void (many (char ' '))
-
 
 parent :: DefaultTimeZone -> Parser UPa.Parent
 parent dtz = do
@@ -265,7 +241,7 @@ posting rad sep = do
   t <- option (B.Tags []) tags
   whitespace
   (e, c, fmt) <- do
-    me <- optionMaybe $ entry rad sep
+    me <- optionMaybe $ E.entry rad sep
     case me of
       (Just (e', (c', fmt'))) -> return (Just e', Just c', Just fmt')
       Nothing -> return (Nothing, Nothing, Nothing)
