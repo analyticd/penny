@@ -557,19 +557,44 @@ data Item = Transaction TransactionData
           | BlankLine
           deriving Show
 
+data ItemLineNumber = ItemLineNumber Line
+                      deriving Show
+
+data ItemWithLineNumber =
+  ItemWithLineNumber { item :: Item
+                     , lineNumber :: ItemLineNumber }
+  deriving Show
+
+itemWithLineNumber ::
+  DefaultTimeZone
+  -> Radix
+  -> Separator
+  -> Parser ItemWithLineNumber
+itemWithLineNumber dtz rad sep = do
+  st <- getParserState
+  let currLine = sourceLine . statePos $ st
+  i <- parseItem dtz rad sep
+  return $ ItemWithLineNumber i (ItemLineNumber currLine)
+
+parseItem ::
+  DefaultTimeZone
+  -> Radix
+  -> Separator
+  -> Parser Item
+parseItem dtz rad sep = let
+   bl = char '\n' >> return BlankLine
+   t = liftM Transaction $ transactionParser dtz rad sep
+   p = liftM Price $ price dtz rad sep
+   cm = liftM CommentMulti multiline
+   co = liftM CommentOne oneLineComment
+   in (bl <|> t <|> p <|> cm <|> co)
+
 ledger ::
   DefaultTimeZone
   -> Radix
   -> Separator
-  -> Parser [Item]
-ledger dtz rad sep = do
-  let bl = char '\n' >> return BlankLine
-      t = liftM Transaction $ transactionParser dtz rad sep
-      p = liftM Price $ price dtz rad sep
-      cm = liftM CommentMulti multiline
-      co = liftM CommentOne oneLineComment
-  manyTill (bl <|> t <|> p <|> cm <|> co) eof
-
+  -> Parser [ItemWithLineNumber]
+ledger dtz rad sep = manyTill (itemWithLineNumber dtz rad sep) eof
       
 ------------------------------------------------------------
 ------------------------------------------------------------

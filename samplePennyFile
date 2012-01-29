@@ -26,7 +26,10 @@
    a line that has nothing but whitespace. However,
    a line that is solely a newline is okay.
 
-{- You can also nest multiline comments, like this. -}
+{- You can also nest multiline comments, like this. However,
+any nested comments must be well-formed. You cannot have
+stray comment beginning or ending characters; this will
+cause the parser to fail. -}
 
 There must not be any trailing whitespace after the end of the
 multiline comment.
