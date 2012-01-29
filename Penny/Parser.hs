@@ -42,9 +42,6 @@ import qualified Penny.Parser.Comments.Multiline as CM
 import Penny.Parser.DateTime (
   dateTime, DefaultTimeZone ( DefaultTimeZone ))
 
-newtype Radix = Radix { unRadix :: Char }
-newtype Separator = Separator { unSeparator :: Char }
-
 subAccountChar :: Parser Char
 subAccountChar = let
   notSpc = satisfy (\l -> isLetter l || isNumber l)
@@ -140,29 +137,6 @@ transactionPayee = do
   c <- anyChar
   rs <- liftM pack (manyTill (noneOf "\n") (char '\n'))
   return . B.Payee $ TextNonEmpty c rs
-
-qtyDigit :: Separator -> Parser Char
-qtyDigit (Separator separator) = digit <|> (char separator >> digit)
-
-radix :: Radix -> Parser Char
-radix (Radix r) = char r >> return '.'
-
-qty :: Radix -> Separator -> Parser Qty
-qty rdx sep = let
-  digitRun = do
-    c <- digit
-    cs <- many (qtyDigit sep)
-    return (c : cs)
-  withPoint = do
-    l <- digitRun
-    p <- radix rdx
-    r <- digitRun
-    return (l ++ (p : r))
-  withoutPoint = digitRun
-  in do
-    s <- try withPoint <|> withoutPoint
-    let d = read s
-    return $ partialNewQty d
 
 commoditySpaceQty ::
   Radix
