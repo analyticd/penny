@@ -3,8 +3,7 @@ module Penny.Parser.DateTime where
 import Data.Time (
   minutesToTimeZone, TimeOfDay, makeTimeOfDayValid,
   localTimeToUTC, midnight, LocalTime ( LocalTime ),
-  Day, fromGregorianValid, getCurrentTimeZone, 
-  TimeZone )
+  Day, fromGregorianValid, TimeZone )
 import Text.Parsec (
   optionMaybe, char, try, digit, (<|>), option )
 import Text.Parsec.Text ( Parser )
