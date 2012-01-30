@@ -18,17 +18,24 @@ commoditySymbol = do
   c <- satisfy p
   return $ C.charCommodity c
 
-subCommodity :: Parser C.SubCommodity
-subCommodity = do
+firstSubCommodity :: Parser C.SubCommodity
+firstSubCommodity = do
   c <- satisfy isLetter
   rs <- many $ satisfy (\l -> isLetter l || isNumber l)
   return (C.SubCommodity (TextNonEmpty c (pack rs)))
 
+nextSubCommodity :: Parser C.SubCommodity
+nextSubCommodity = do
+  let p l = isLetter l || isNumber l
+  c <- satisfy p
+  rs <- many $ satisfy p
+  return (C.SubCommodity (TextNonEmpty c (pack rs)))
+
 commodityLong :: Parser C.Commodity
 commodityLong = do
-  f <- subCommodity
+  f <- firstSubCommodity
   rs <- many $ do
     _ <- char ':'
-    subCommodity
+    nextSubCommodity
   return (C.Commodity (AtLeast1 f rs))
 

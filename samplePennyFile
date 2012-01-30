@@ -115,6 +115,37 @@ P 2012/01/05 € $1.3207
 P 2012/01/05 $ €0.7572
 P 2012/01/05 ¥ 0.6418 INR
 
+; Commodities can have several components in their names,
+; just as accounts can. Subsequent parts can be viewed as
+; sub-commodities. This can be handy if different commodities
+; have something in common and you want to group them together.
+; Some reports that use prices can apply a single price to multiple
+; sub-commodities. For example, let's say you bought shares in T in
+; 2007 and in 2012. For tax purposes you want to track them separately
+; in your reports (this can matter for capital gains taxes) yet
+; shares in T have the same price whether you bought them in 2007
+; or in 2012. So you can have two different symbols, as the following
+; two transactions show:
+2007/02/01 Bought stock
+    Assets:Brokerage               Dr 100 T:2007
+      $37.75 per share
+    Assets:Checking                Cr $3775
+    Income:Brokerage Trading       Cr 100 T:2007
+    Income:Brokerage Trading       Dr $3775
+
+2012/01/12 Bought stock
+    Assets:Brokerage               Dr 100 T:2012
+      $30.12 per share
+    Assets:Checking                Cr $3012
+    Income:Brokerage Trading       Cr 100 T:2012
+    Income:Brokerage Trading       Dr $3012
+
+// and some prices to go along with the T example. Reports that use
+// prices can elect to apply the single T price both to the
+// T:2012 and the T:2007 commodities.
+P 2007/06/01 T $40.53
+P 2012/01/27 T $29.16
+
 // As the examples above show, Penny works fine with Unicode.
 // Your ledger file should be encoded in your system's default
 // encoding. On my system this is UTF-8, as it is on most
