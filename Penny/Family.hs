@@ -14,3 +14,6 @@ children (F.Family p c1 c2 cRest) = A2.AtLeast2 fc sc rc where
 
 orphans :: F.Family p c -> A2.AtLeast2 c
 orphans (F.Family _ c1 c2 cs) = A2.AtLeast2 c1 c2 cs
+
+adopt :: p -> A2.AtLeast2 c -> F.Family p c
+adopt p (A2.AtLeast2 c1 c2 cs) = F.Family p c1 c2 cs

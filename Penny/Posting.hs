@@ -10,9 +10,9 @@ module Penny.Posting (
 import qualified Penny.Bits as B
 import qualified Penny.Bits.Entry as E
 import qualified Penny.Total as T
-import Penny.Family.Family ( Family )
+import Penny.Family.Family ( Family ( Family ))
 import Penny.Family.Child ( Child )
-import Penny.Family ( children, orphans )
+import Penny.Family ( children, orphans, adopt )
 
 import qualified Penny.Posting.Unverified.Parent as UParent
 import qualified Penny.Posting.Unverified.Posting as UPosting
@@ -61,11 +61,12 @@ postingFamily (Transaction ps) = children ps
 transaction ::
   Family UParent.Parent UPosting.Posting
   -> Exceptional Error Transaction
-transaction pa f = do
+transaction f@(Family p _ _ _) = do
   let os = orphans f
-  let t = totalAll os
-  a2' <- inferAll pa t a2
-  return $ Transaction a2'
+      t = totalAll os
+      p' = toParent p
+  a2 <- inferAll os t
+  return $ Transaction (adopt p' a2)
 
 totalAll :: AtLeast2 UPosting.Posting
          -> T.Total
@@ -96,7 +97,7 @@ runInfer ::
   -> Exceptional Error (AtLeast2 Posting)
 runInfer me pos = do
   let (res, finalSt) = St.runState ext me
-      ext = Ex.runExceptionalT (Tr.mapM (infer pa) pos)
+      ext = Ex.runExceptionalT (Tr.mapM infer pos)
   case finalSt of
     (Just _) -> throw UnbalancedError
     Nothing -> case res of 
@@ -107,12 +108,12 @@ inferAll ::
   AtLeast2 UPosting.Posting
   -> T.Total
   -> Exceptional Error (AtLeast2 Posting)
-inferAll pa t pos = do
+inferAll pos t = do
   en <- case T.isBalanced t of
     T.Balanced -> return Nothing
     (T.Inferable e) -> return $ Just e
     T.NotInferable -> throw UnbalancedError
-  runInfer pa en pos
+  runInfer en pos
 
 toPosting :: UPosting.Posting
              -> E.Entry
