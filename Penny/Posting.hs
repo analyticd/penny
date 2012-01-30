@@ -18,9 +18,7 @@ import qualified Penny.Posting.Unverified.Parent as UParent
 import qualified Penny.Posting.Unverified.Posting as UPosting
 
 import qualified Penny.Posting.Parent as P
-import Penny.Groups.AtLeast2 (
-  AtLeast2, family )
-import Penny.Groups.FamilyMember ( FamilyMember )
+import Penny.Groups.AtLeast2 ( AtLeast2 )
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
 import qualified Control.Monad.Exception.Synchronous as Ex

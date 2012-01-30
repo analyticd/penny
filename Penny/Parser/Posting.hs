@@ -10,7 +10,6 @@ import Text.Parsec.Text ( Parser )
 import qualified Penny.Bits as B
 import qualified Penny.Bits.Commodity as C
 import qualified Penny.Parser.Account as Ac
-import qualified Penny.Parser.Amount as Am
 import qualified Penny.Parser.Entry as En
 import qualified Penny.Parser.Flag as Fl
 import qualified Penny.Parser.Memos.Posting as Me
@@ -24,18 +23,16 @@ import qualified Penny.Reports as R
 data PostingLine = PostingLine Line
                    deriving Show
 
-data PostingData =
-  PostingData { firstColumn :: Me.PostingFirstColumn
-              , line :: PostingLine
-              , unverified :: UPo.Posting
-              , commodity :: Maybe C.Commodity
-              , format :: Maybe R.CommodityFmt }
+data Meta =
+  Meta { firstColumn :: Me.PostingFirstColumn
+       , line :: PostingLine
+       , comFmt :: Maybe (C.Commodity, R.CommodityFmt) }
   deriving Show
 
 whitespace :: Parser ()
 whitespace = void (many1 (char ' '))
 
-posting :: Qt.Radix -> Qt.Separator -> Parser PostingData
+posting :: Qt.Radix -> Qt.Separator -> Parser (UPo.Posting, Meta)
 posting rad sep = do
   void $ char ' '
   whitespace
@@ -52,15 +49,15 @@ posting rad sep = do
   whitespace
   t <- option (B.Tags []) Ta.tags
   whitespace
-  (e, c, fmt) <- do
+  (e, maybeFmt) <- do
     me <- optionMaybe $ En.entry rad sep
     case me of
-      (Just (e', (c', fmt'))) -> return (Just e', Just c', Just fmt')
-      Nothing -> return (Nothing, Nothing, Nothing)
+      (Just (e', fmt')) -> return (Just e', Just fmt')
+      Nothing -> return (Nothing, Nothing)
   whitespace
   void $ char '\n'
   m <- optionMaybe $ try (Me.memo col)
-  let pd = PostingData col lin unv c fmt
+  let meta = Meta col lin maybeFmt
       unv = UPo.Posting p n f a e t m
-  return pd
+  return (unv, meta)
 

@@ -5,7 +5,6 @@ import Text.Parsec ( char, many1, (<|>) )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Bits.Amount as Amount
-import Penny.Bits.Commodity ( Commodity )
 import qualified Penny.Bits.Price as P
 import qualified Penny.Bits.PricePoint as PP
 import qualified Penny.Parser.Amount as A
@@ -13,7 +12,6 @@ import qualified Penny.Parser.Commodity as C
 import qualified Penny.Parser.DateTime as DT
 import qualified Penny.Parser.Price.Data as Data
 import qualified Penny.Parser.Qty as Q
-import qualified Penny.Reports as R
 
 whitespace :: Parser ()
 whitespace = void (many1 (char ' '))

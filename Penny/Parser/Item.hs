@@ -12,10 +12,10 @@ import qualified Penny.Parser.DateTime as DT
 import qualified Penny.Parser.Qty as Q
 import Penny.Parser.Price ( price )
 import qualified Penny.Parser.Price.Data as PriceData
-import Penny.Parser.Transaction ( transaction )
-import qualified Penny.Parser.Transaction.Data as TransactionData
+import Penny.Parser.Transaction ( transaction, Meta )
+import Penny.Posting ( Transaction )
 
-data Item = Transaction TransactionData.Data
+data Item = Transaction (Transaction, Meta)
           | Price PriceData.Data
           | Multiline CM.Multiline
           | SingleLine CS.Comment

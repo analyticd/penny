@@ -1,8 +1,9 @@
 module Penny.Parser.Parent where
 
-import Control.Monad ( void, when )
+import Control.Monad ( void, when, liftM )
 import Data.Maybe (isNothing)
-import Text.Parsec ( optionMaybe, many1, char )
+import Text.Parsec ( optionMaybe, many1, char, getParserState,
+                     sourceLine, statePos, Line )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Parser.DateTime as DT
@@ -15,8 +16,12 @@ import qualified Penny.Posting.Unverified.Parent as Parent
 whitespace :: Parser ()
 whitespace = void (many1 (char ' '))
 
-parent :: DT.DefaultTimeZone -> Parser Parent.Parent
+data ParentLine = ParentLine Line
+                  deriving Show
+
+parent :: DT.DefaultTimeZone -> Parser (Parent.Parent, ParentLine)
 parent dtz = do
+  line <- liftM (ParentLine . sourceLine . statePos) getParserState
   m <- optionMaybe M.memo
   d <- DT.dateTime dtz
   whitespace
@@ -26,5 +31,5 @@ parent dtz = do
   whitespace
   p <- optionMaybe Payee.payee
   when (isNothing p) (void $ char '\n')
-  return $ Parent.Parent d f n p m
+  return (Parent.Parent d f n p m, line)
 
