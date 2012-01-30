@@ -1,8 +1,6 @@
 module Penny.Parser.Commodity where
 
-import Data.Char ( generalCategory, isLetter,
-                   GeneralCategory (CurrencySymbol),
-                   isNumber, isControl, isSpace, isDigit)
+import Data.Char (isControl, isSpace, isDigit)
 import Data.Monoid ( mconcat, mappend )
 import Data.Monoid.Extra ( All (All, appAll ) )
 import Data.Text ( pack )

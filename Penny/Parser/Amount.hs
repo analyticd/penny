@@ -2,7 +2,7 @@ module Penny.Parser.Amount where
 
 import Control.Applicative ((<*>), pure )
 import Control.Monad ( void )
-import Text.Parsec ( (<|>), char, choice, try, optional, many )
+import Text.Parsec ( char, choice, try, many )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Bits.Amount as A
