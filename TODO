@@ -6,3 +6,7 @@
 * Improve parser errors
 
 * Write tests for inputs that should fail
+
+* implement lists for commodities
+
+* implement word flags
