@@ -6,7 +6,7 @@ import Text.Parsec.Text ( Parser )
 
 import Penny.Family.Family ( Family ( Family ) )
 import qualified Penny.Parser.DateTime as DT
-import Penny.Parser.Parent ( parent, ParentLine )
+import Penny.Parser.TopLine ( topLine, TopLineLine )
 import qualified Penny.Parser.Posting as Po
 import qualified Penny.Parser.Qty as Qt
 import qualified Penny.Posting as P
@@ -18,7 +18,7 @@ errorStr e = case e of
   P.CouldNotInferError -> "could not infer entry for posting"
 
 data Meta =
-  Meta { unMeta :: Family ParentLine Po.Meta }
+  Meta { unMeta :: Family TopLineLine Po.Meta }
   deriving Show
 
 transaction ::
@@ -27,7 +27,7 @@ transaction ::
   -> Qt.Separator
   -> Parser (P.Transaction, Meta)
 transaction dtz rad sep = do
-  (pa, paMeta) <- parent dtz
+  (pa, paMeta) <- topLine dtz
   (p1, p1meta) <- Po.posting rad sep
   (p2, p2meta) <- Po.posting rad sep
   psPairs <- many (try (Po.posting rad sep))

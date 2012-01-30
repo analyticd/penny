@@ -14,10 +14,10 @@ import Penny.Family.Family ( Family ( Family ))
 import Penny.Family.Child ( Child )
 import Penny.Family ( children, orphans, adopt )
 
-import qualified Penny.Posting.Unverified.Parent as UParent
+import qualified Penny.Posting.Unverified.TopLine as UTopLine
 import qualified Penny.Posting.Unverified.Posting as UPosting
 
-import qualified Penny.Posting.Parent as P
+import qualified Penny.Posting.TopLine as P
 import Penny.Groups.AtLeast2 ( AtLeast2 )
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
@@ -43,7 +43,7 @@ data Posting =
 --
 -- * Must produce a Total whose debits and credits are equal.
 newtype Transaction =
-  Transaction { unTransaction :: Family P.Parent Posting }
+  Transaction { unTransaction :: Family P.TopLine Posting }
   deriving Show
   
 data Error = UnbalancedError
@@ -52,17 +52,17 @@ data Error = UnbalancedError
 
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
-postingFamily :: Transaction -> AtLeast2 (Child P.Parent Posting)
+postingFamily :: Transaction -> AtLeast2 (Child P.TopLine Posting)
 postingFamily (Transaction ps) = children ps
 
 -- | Makes transactions.
 transaction ::
-  Family UParent.Parent UPosting.Posting
+  Family UTopLine.TopLine UPosting.Posting
   -> Exceptional Error Transaction
 transaction f@(Family p _ _ _) = do
   let os = orphans f
       t = totalAll os
-      p' = toParent p
+      p' = toTopLine p
   a2 <- inferAll os t
   return $ Transaction (adopt p' a2)
 
@@ -124,12 +124,12 @@ toPosting po e = Posting { payee = UPosting.payee po
                          , tags = UPosting.tags po
                          , memo = UPosting.memo po }
 
-toParent :: UParent.Parent -> P.Parent
-toParent pa = P.Parent { P.dateTime = UParent.dateTime pa
-                       , P.flag = UParent.flag pa
-                       , P.number = UParent.number pa
-                       , P.payee = UParent.payee pa
-                       , P.memo = UParent.memo pa }
+toTopLine :: UTopLine.TopLine -> P.TopLine
+toTopLine pa = P.TopLine { P.dateTime = UTopLine.dateTime pa
+                       , P.flag = UTopLine.flag pa
+                       , P.number = UTopLine.number pa
+                       , P.payee = UTopLine.payee pa
+                       , P.memo = UTopLine.memo pa }
 
 {-
 -- | You can flip monad transformers - here for historical interest

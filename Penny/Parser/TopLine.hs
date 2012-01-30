@@ -1,4 +1,4 @@
-module Penny.Parser.Parent where
+module Penny.Parser.TopLine where
 
 import Control.Monad ( void, when, liftM )
 import Data.Maybe (isNothing)
@@ -11,17 +11,17 @@ import qualified Penny.Parser.Memos.Transaction as M
 import qualified Penny.Parser.Flag as F
 import qualified Penny.Parser.Number as N
 import qualified Penny.Parser.Payees.Transaction as Payee
-import qualified Penny.Posting.Unverified.Parent as Parent
+import qualified Penny.Posting.Unverified.TopLine as TopLine
 
 whitespace :: Parser ()
 whitespace = void (many (char ' '))
 
-data ParentLine = ParentLine Line
+data TopLineLine = TopLineLine Line
                   deriving Show
 
-parent :: DT.DefaultTimeZone -> Parser (Parent.Parent, ParentLine)
-parent dtz = do
-  line <- liftM (ParentLine . sourceLine . statePos) getParserState
+topLine :: DT.DefaultTimeZone -> Parser (TopLine.TopLine, TopLineLine)
+topLine dtz = do
+  line <- liftM (TopLineLine . sourceLine . statePos) getParserState
   m <- optionMaybe M.memo
   d <- DT.dateTime dtz
   whitespace
@@ -31,5 +31,5 @@ parent dtz = do
   whitespace
   p <- optionMaybe Payee.payee
   when (isNothing p) (void $ char '\n')
-  return (Parent.Parent d f n p m, line)
+  return (TopLine.TopLine d f n p m, line)
 
