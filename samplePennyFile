@@ -209,6 +209,57 @@ P 2012/01/27 T $29.16
     Assets:Cash                  Credit $1.25
 
 
+// There are many different ways to write an amount. First, some
+// terminology. Some of these terms are specific to Penny; if these
+// terms are inconsistent with usual accounting terminology or if
+// they don't make sense, please let me know.
+//
+// A commodity is a thing of value you track in Penny. Typically this
+// will be a currency (like $ of €, but it can be whatever you like,
+// such as a ticker symbol or some letters to represent your house.
+
+// A quantity is a number, such as 3 or 65.2 or 33.80. Notice that
+// it does not have a commodity.
+
+// An amount is a quantity and a commodity.
+
+// An entry is an amount combined with an indication of Debit
+// or Credit.
+
+// You can write your amount in different orders, and Penny will
+// remember the order you used. Some reports might use this order.
+// Typically the last way you wrote the commodity is the one that a
+// a report will use when printing a report.
+
+// A commodity's identity is determined by the characters you use
+// when you type the commodity. Thus EUR 100 and 100 EUR mean the
+// same thing, except for the fact that they are formatted differently.
+
+// You can write commodities and quantities in one of four ways:
+//
+// * Commodity first, without a separating space. E.g. $100, F25, €59,
+// In this case the commodity name CANNOT have any digits.
+//
+// * Commodity first, with a separating space. E.g. $100, €59.
+//
+// * Commodity last, without separating space.
+//
+// * Commodity last, with separating space.
+//
+// In the last three cases, the commodity name can include digits.
+// In no case can the commodity name include whitespace characters.
+// In all cases the commodity name can use sub-commodities by
+// using colons. Here's an example. Note that the transaction balances
+// because the commodity is the same whether written before or after
+// the quantity.
+
+2012/01/30 Benny Broker
+    Assets:Brokerage                 Dr MSFT100
+    Assets:Current:Checking          Cr 2959 $
+    Income:Stock Trading Account     Cr 100 MSFT
+    Income:StockTradingAcccount      Dr $2959
+
+
 {- What's the difference between transaction memos, posting
    memos, and comments? Here I will draw a distinction between
    penny (lower case), which is the command-line executable

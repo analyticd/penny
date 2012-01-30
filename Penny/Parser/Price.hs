@@ -1,7 +1,7 @@
 module Penny.Parser.Price where
 
 import Control.Monad ( void )
-import Text.Parsec ( char, many, (<|>) )
+import Text.Parsec ( char, many )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Bits.Amount as Amount
@@ -26,7 +26,7 @@ price dtz rad sep = do
   whitespace
   dt <- DT.dateTime dtz
   whitespace
-  com <- C.commoditySymbol <|> C.commodityLong
+  com <- C.commodityWithDigits
   whitespace
   (amt, pair) <- A.amount rad sep
   let (from, to) = (P.From com, P.To (Amount.commodity amt))
