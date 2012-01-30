@@ -2,7 +2,7 @@ module Penny.Parser.Posting where
 
 import Control.Monad ( void )
 import Text.Parsec (
-  char, Line, many1, getParserState, sourceColumn,
+  char, Line, many, getParserState, sourceColumn,
   statePos, optionMaybe, option, try, sourceLine )
                      
 import Text.Parsec.Text ( Parser )
@@ -30,7 +30,7 @@ data Meta =
   deriving Show
 
 whitespace :: Parser ()
-whitespace = void (many1 (char ' '))
+whitespace = void (many (char ' '))
 
 posting :: Qt.Radix -> Qt.Separator -> Parser (UPo.Posting, Meta)
 posting rad sep = do

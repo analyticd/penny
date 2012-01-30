@@ -2,7 +2,7 @@ module Penny.Parser.Parent where
 
 import Control.Monad ( void, when, liftM )
 import Data.Maybe (isNothing)
-import Text.Parsec ( optionMaybe, many1, char, getParserState,
+import Text.Parsec ( optionMaybe, many, char, getParserState,
                      sourceLine, statePos, Line )
 import Text.Parsec.Text ( Parser )
 
@@ -14,7 +14,7 @@ import qualified Penny.Parser.Payees.Transaction as Payee
 import qualified Penny.Posting.Unverified.Parent as Parent
 
 whitespace :: Parser ()
-whitespace = void (many1 (char ' '))
+whitespace = void (many (char ' '))
 
 data ParentLine = ParentLine Line
                   deriving Show

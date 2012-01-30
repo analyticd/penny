@@ -1,7 +1,7 @@
 module Penny.Parser.Price where
 
 import Control.Monad ( void )
-import Text.Parsec ( char, many1, (<|>) )
+import Text.Parsec ( char, many, (<|>) )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Bits.Amount as Amount
@@ -14,7 +14,7 @@ import qualified Penny.Parser.Price.Data as Data
 import qualified Penny.Parser.Qty as Q
 
 whitespace :: Parser ()
-whitespace = void (many1 (char ' '))
+whitespace = void (many (char ' '))
 
 price ::
   DT.DefaultTimeZone
