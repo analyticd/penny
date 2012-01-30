@@ -11,3 +11,6 @@ children (F.Family p c1 c2 cRest) = A2.AtLeast2 fc sc rc where
   rc = map toChild rest
   rest = A2.others cRest
   toChild (c, cs) = C.Child c c1 (c2:cs) p
+
+orphans :: F.Family p c -> A2.AtLeast2 c
+orphans (F.Family _ c1 c2 cs) = A2.AtLeast2 c1 c2 cs

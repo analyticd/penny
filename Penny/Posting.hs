@@ -10,6 +10,9 @@ module Penny.Posting (
 import qualified Penny.Bits as B
 import qualified Penny.Bits.Entry as E
 import qualified Penny.Total as T
+import Penny.Family.Family ( Family )
+import Penny.Family.Child ( Child )
+import Penny.Family ( children, orphans )
 
 import qualified Penny.Posting.Unverified.Parent as UParent
 import qualified Penny.Posting.Unverified.Posting as UPosting
@@ -35,15 +38,14 @@ data Posting =
           , account :: B.Account
           , entry :: E.Entry
           , tags :: B.Tags
-          , memo :: Maybe B.Memo
-          , parent :: P.Parent }
+          , memo :: Maybe B.Memo }
   deriving Show
 
 -- | All the Postings in a Transaction:
 --
 -- * Must produce a Total whose debits and credits are equal.
 newtype Transaction =
-  Transaction { unTransaction :: AtLeast2 Posting }
+  Transaction { unTransaction :: Family P.Parent Posting }
   deriving Show
   
 data Error = UnbalancedError
@@ -52,16 +54,16 @@ data Error = UnbalancedError
 
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
-postingFamily :: Transaction -> [FamilyMember Posting]
-postingFamily (Transaction ps) = family ps
+postingFamily :: Transaction -> AtLeast2 (Child P.Parent Posting)
+postingFamily (Transaction ps) = children ps
 
 -- | Makes transactions.
 transaction ::
-  UParent.Parent
-  -> AtLeast2 UPosting.Posting
+  Family UParent.Parent UPosting.Posting
   -> Exceptional Error Transaction
-transaction pa a2 = do
-  let t = totalAll a2
+transaction pa f = do
+  let os = orphans f
+  let t = totalAll os
   a2' <- inferAll pa t a2
   return $ Transaction a2'
 
@@ -74,11 +76,10 @@ totalAll =
   . fmap (fmap T.entryToTotal . UPosting.entry)
 
 infer ::
-  UParent.Parent
-  -> UPosting.Posting
+  UPosting.Posting
   -> Ex.ExceptionalT Error
   (St.State (Maybe E.Entry)) Posting
-infer pa po =
+infer po =
   case UPosting.entry po of
     Nothing -> do
       st <- lift St.get
@@ -86,15 +87,14 @@ infer pa po =
         Nothing -> Ex.throwT CouldNotInferError
         (Just e) -> do
           lift $ St.put Nothing
-          return $ toPosting pa po e
-    (Just e) -> return $ toPosting pa po e
+          return $ toPosting po e
+    (Just e) -> return $ toPosting po e
           
 runInfer ::
-  UParent.Parent
-  -> Maybe E.Entry
+  Maybe E.Entry
   -> AtLeast2 UPosting.Posting
   -> Exceptional Error (AtLeast2 Posting)
-runInfer pa me pos = do
+runInfer me pos = do
   let (res, finalSt) = St.runState ext me
       ext = Ex.runExceptionalT (Tr.mapM (infer pa) pos)
   case finalSt of
@@ -104,9 +104,8 @@ runInfer pa me pos = do
       (Success g) -> return g
 
 inferAll ::
-  UParent.Parent
+  AtLeast2 UPosting.Posting
   -> T.Total
-  -> AtLeast2 UPosting.Posting
   -> Exceptional Error (AtLeast2 Posting)
 inferAll pa t pos = do
   en <- case T.isBalanced t of
@@ -115,18 +114,16 @@ inferAll pa t pos = do
     T.NotInferable -> throw UnbalancedError
   runInfer pa en pos
 
-toPosting :: UParent.Parent
-             -> UPosting.Posting
+toPosting :: UPosting.Posting
              -> E.Entry
              -> Posting
-toPosting pa po e = Posting { payee = UPosting.payee po
-                            , number = UPosting.number po
-                            , flag = UPosting.flag po
-                            , account = UPosting.account po
-                            , entry = e
-                            , tags = UPosting.tags po
-                            , memo = UPosting.memo po
-                            , parent = toParent pa }
+toPosting po e = Posting { payee = UPosting.payee po
+                         , number = UPosting.number po
+                         , flag = UPosting.flag po
+                         , account = UPosting.account po
+                         , entry = e
+                         , tags = UPosting.tags po
+                         , memo = UPosting.memo po }
 
 toParent :: UParent.Parent -> P.Parent
 toParent pa = P.Parent { P.dateTime = UParent.dateTime pa
