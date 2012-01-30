@@ -25,6 +25,9 @@ instance T.Traversable AtLeast2 where
     <*> g s
     <*> T.traverse g rs
 
+flatten :: AtLeast2 a -> [a]
+flatten (AtLeast2 a1 a2 as) = a1:a2:as
+
 family :: AtLeast2 a -> [FamilyMember a]
 family a = f : s : rs where
   f = FamilyMember (first a) (A1.AtLeast1 (second a) (rest a))
