@@ -36,12 +36,12 @@ errorStr e = case e of
   P.TooManyInferError -> "too many postings with entry amounts to infer"
   P.CouldNotInferError -> "could not infer entry for posting"
 
-transactionParser ::
+transaction ::
   DT.DefaultTimeZone
   -> Qt.Radix
   -> Qt.Separator
-  -> Parser Da.TransactionData
-transactionParser dtz rad sep = do
+  -> Parser Da.Data
+transaction dtz rad sep = do
   pa <- Pa.parent dtz
   p1 <- Po.posting rad sep
   p2 <- Po.posting rad sep
@@ -55,5 +55,5 @@ transactionParser dtz rad sep = do
       fmtPairs = zip cs fs
       cs = catMaybes . F.toList . fmap Po.commodity $ a2
       fs = catMaybes . F.toList . fmap Po.format $ a2
-  return $ Da.TransactionData xact lns fmtPairs
+  return $ Da.Data xact lns fmtPairs
 

@@ -6,9 +6,9 @@ import Penny.Groups.AtLeast2 ( AtLeast2 )
 import Penny.Bits.Commodity ( Commodity )
 import Penny.Reports ( CommodityFmt )
 
-data TransactionData =
-  TransactionData { transaction :: Transaction
-                  , postingLines :: AtLeast2 PostingLine
-                  , formats :: [(Commodity, CommodityFmt)] }
+data Data =
+  Data { transaction :: Transaction
+       , postingLines :: AtLeast2 PostingLine
+       , formats :: [(Commodity, CommodityFmt)] }
   deriving Show
 

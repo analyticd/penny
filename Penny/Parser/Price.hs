@@ -11,22 +11,18 @@ import qualified Penny.Bits.PricePoint as PP
 import qualified Penny.Parser.Amount as A
 import qualified Penny.Parser.Commodity as C
 import qualified Penny.Parser.DateTime as DT
+import qualified Penny.Parser.Price.Data as Data
 import qualified Penny.Parser.Qty as Q
 import qualified Penny.Reports as R
 
 whitespace :: Parser ()
 whitespace = void (many1 (char ' '))
 
-data PriceData =
-  PriceData { pricePoint :: PP.PricePoint
-            , priceFormat :: (Commodity, R.CommodityFmt) }
-  deriving Show
-
 price ::
   DT.DefaultTimeZone
   -> Q.Radix
   -> Q.Separator
-  -> Parser PriceData
+  -> Parser Data.Data
 price dtz rad sep = do
   void $ char 'P'
   whitespace
@@ -40,4 +36,4 @@ price dtz rad sep = do
   pr <- case P.price from to cpu of
     (Just pri) -> return pri
     Nothing -> fail "invalid price given"
-  return $ PriceData (PP.PricePoint dt pr) pair
+  return $ Data.Data (PP.PricePoint dt pr) pair
