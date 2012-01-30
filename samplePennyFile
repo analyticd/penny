@@ -74,6 +74,13 @@ multiline comment.
     [*] (2313) Liabilities:Credit Card       Cr $5.00
        This interest rate is too high
 
+// Flags can be more than one letter. Actually they can include
+// any character except ']'.
+2012/01/06 [Flagger] Flagged Up Transaction
+    Expenses:Flags                      Dr $200.00
+    Assets:Checking                     Cr $200.00
+
+
 // You can have commas in amounts. The commas are ignored.
 // (The digit grouping character and the radix point
 // character are configurable.)

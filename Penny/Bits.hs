@@ -7,7 +7,7 @@ import Penny.Groups.AtLeast1 ( AtLeast1 )
 newtype Payee = Payee { unPayee :: NE.TextNonEmpty }
                 deriving (Eq, Show, Ord)
 
-newtype Flag = Flag { unFlag :: Char }
+newtype Flag = Flag { unFlag :: NE.TextNonEmpty }
                deriving (Eq, Show, Ord)
 
 newtype Number = Number { unNumber :: NE.TextNonEmpty }

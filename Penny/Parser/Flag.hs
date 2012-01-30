@@ -1,15 +1,18 @@
 module Penny.Parser.Flag where
 
 import Control.Monad ( void )
-import Text.Parsec ( char, anyChar )
+import Data.Text ( pack )
+import Text.Parsec ( char, satisfy, many )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Bits as B
+import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 flag :: Parser B.Flag
 flag = do
   void $ char '['
-  c <- anyChar
+  c <- satisfy (/= ']')
+  cs <- many $ satisfy (/= ']')
   void $ char ']'
-  return $ B.Flag c
+  return $ B.Flag (TextNonEmpty c (pack cs))
 
