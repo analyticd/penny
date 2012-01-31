@@ -8,7 +8,7 @@ import Text.Parsec (
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Bits as B
-import qualified Penny.Meta.Posting as M
+import qualified Penny.Meta as M
 import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 memo :: M.Column

@@ -16,8 +16,8 @@ import qualified Penny.Parser.Number as Nu
 import qualified Penny.Parser.Payees.Posting as Pa
 import qualified Penny.Parser.Qty as Qt
 import qualified Penny.Parser.Tags as Ta
-import Penny.Meta.Posting (Meta ( Meta ) )
-import qualified Penny.Meta.Posting as M
+import Penny.Meta (Meta ( Meta ) )
+import qualified Penny.Meta as M
 import qualified Penny.Posting.Unverified.Posting as UPo
 
 whitespace :: Parser ()

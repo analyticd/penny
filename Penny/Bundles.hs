@@ -4,19 +4,17 @@ import Penny.Family.Child ( Child )
 import Penny.Family.Family ( Family )
 import qualified Penny.Family as F
 import qualified Penny.Groups.AtLeast2 as A2
-import qualified Penny.Meta.TopLine as MTL
-import qualified Penny.Meta.Posting as MP
+import qualified Penny.Meta as M
 import qualified Penny.Posting as P
 import Penny.Posting.TopLine ( TopLine )
 
-import Data.Text ( Text )
 
 data TopLineWithMeta = TopLineWithMeta { topLine :: TopLine
-                                       , line :: MTL.Line }
+                                       , line :: M.Line }
                        deriving Show
 
 data PostingWithMeta = PostingWithMeta { posting :: P.Posting
-                                       , meta :: MP.Meta }
+                                       , meta :: M.Meta }
                        deriving Show
 
 data TransactionWithMeta =
@@ -24,18 +22,15 @@ data TransactionWithMeta =
   { unTransactionWithMeta :: Family TopLineWithMeta PostingWithMeta }
   deriving Show
 
-data Filename = Filename { unFilename :: Text }
-                deriving Show
-
 data PostingRecord =
   PostingRecord
-  { filename :: Filename
+  { filename :: M.Filename
   , record :: Child TopLineWithMeta PostingWithMeta }
   deriving Show
 
 familyWithMeta ::
   P.Transaction
-  -> Family MTL.Line MP.Meta
+  -> Family M.Line M.Meta
   -> TransactionWithMeta
 familyWithMeta wt m = let
   t = P.unTransaction wt
@@ -43,7 +38,7 @@ familyWithMeta wt m = let
   in TransactionWithMeta f
 
 postingsWithMeta :: 
-  Filename
+  M.Filename
   -> TransactionWithMeta
   -> [PostingRecord]
 postingsWithMeta f (TransactionWithMeta t) =

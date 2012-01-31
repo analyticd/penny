@@ -10,8 +10,8 @@ import Penny.Parser.TopLine ( topLine )
 import qualified Penny.Parser.Posting as Po
 import qualified Penny.Parser.Qty as Qt
 import qualified Penny.Posting as P
-import qualified Penny.Meta.Posting as MP
-import Penny.Meta.TopLine (Line)
+import qualified Penny.Meta as M
+import Penny.Meta ( Line )
 
 errorStr :: P.Error -> String
 errorStr e = case e of
@@ -23,7 +23,7 @@ transaction ::
   DT.DefaultTimeZone
   -> Qt.Radix
   -> Qt.Separator
-  -> Parser (P.Transaction, Family Line MP.Meta)
+  -> Parser (P.Transaction, Family Line M.Meta)
 transaction dtz rad sep = do
   (pa, paMeta) <- topLine dtz
   (p1, p1meta) <- Po.posting rad sep

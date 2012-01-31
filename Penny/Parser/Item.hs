@@ -3,7 +3,7 @@ module Penny.Parser.Item where
 import Control.Monad ( liftM )
 import Data.Maybe ( catMaybes )
 import Text.Parsec (
-  Line, getParserState, sourceLine, statePos, 
+  getParserState, sourceLine, statePos, 
   (<|>), char)
 import Text.Parsec.Text ( Parser )
 
@@ -17,34 +17,25 @@ import Penny.Parser.Price ( price )
 import qualified Penny.Parser.Price.Data as PriceData
 import Penny.Parser.Transaction ( transaction )
 import Penny.Posting ( Transaction )
-import qualified Penny.Meta.Posting as MP
-import qualified Penny.Meta.TopLine as MT
+import qualified Penny.Meta as M
 
-data Item = Transaction (Transaction, Family MT.Line MP.Meta)
+data Item = Transaction (Transaction, Family M.Line M.Meta)
           | Price PriceData.Data
           | Multiline CM.Multiline
           | SingleLine CS.Comment
           | BlankLine
           deriving Show
 
-data ItemLineNumber = ItemLineNumber Line
-                      deriving Show
-
-data ItemWithLineNumber =
-  ItemWithLineNumber { item :: Item
-                     , lineNumber :: ItemLineNumber }
-  deriving Show
-
 itemWithLineNumber ::
   DT.DefaultTimeZone
   -> Q.Radix
   -> Q.Separator
-  -> Parser ItemWithLineNumber
+  -> Parser (M.Line, Item)
 itemWithLineNumber dtz rad sep = do
   st <- getParserState
-  let currLine = sourceLine . statePos $ st
+  let currLine = M.Line . sourceLine . statePos $ st
   i <- parseItem dtz rad sep
-  return $ ItemWithLineNumber i (ItemLineNumber currLine)
+  return (currLine, i)
 
 parseItem ::
   DT.DefaultTimeZone
@@ -59,7 +50,7 @@ parseItem dtz rad sep = let
    co = liftM SingleLine CS.comment
    in (bl <|> t <|> p <|> cm <|> co)
 
-itemToChildren :: B.Filename
+itemToChildren :: M.Filename
                   -> Item
                   -> Maybe [B.PostingRecord]
 itemToChildren f i = case i of
@@ -68,7 +59,7 @@ itemToChildren f i = case i of
   _ -> Nothing
 
 itemsToChildren ::
-  B.Filename
+  M.Filename
   -> [Item]
   -> [B.PostingRecord]
 itemsToChildren f = concat . catMaybes . map (itemToChildren f)
