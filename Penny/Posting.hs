@@ -1,5 +1,7 @@
 module Penny.Posting (
-  Posting(..),
+  Posting (
+     payee, number, flag, account, entry,
+     tags, memo ),
   Transaction,
   unTransaction,
   transaction,
