@@ -12,7 +12,7 @@ import qualified Penny.Parser.Flag as F
 import qualified Penny.Parser.Number as N
 import qualified Penny.Parser.Payees.Transaction as Payee
 import qualified Penny.Posting.Unverified.TopLine as TopLine
-import qualified Penny.Posting.Meta.TopLine as Meta
+import qualified Penny.Meta.TopLine as Meta
 
 whitespace :: Parser ()
 whitespace = void (many (char ' '))

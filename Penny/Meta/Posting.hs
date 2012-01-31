@@ -1,4 +1,4 @@
-module Penny.Posting.Meta.Posting where
+module Penny.Meta.Posting where
 
 import qualified Penny.Bits.Commodity as C
 import qualified Penny.Reports as R
