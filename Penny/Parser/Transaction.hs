@@ -10,6 +10,7 @@ import Penny.Parser.TopLine ( topLine, TopLineLine )
 import qualified Penny.Parser.Posting as Po
 import qualified Penny.Parser.Qty as Qt
 import qualified Penny.Posting as P
+import qualified Penny.Posting.Meta.Posting as M
 
 errorStr :: P.Error -> String
 errorStr e = case e of
@@ -18,7 +19,7 @@ errorStr e = case e of
   P.CouldNotInferError -> "could not infer entry for posting"
 
 data Meta =
-  Meta { unMeta :: Family TopLineLine Po.Meta }
+  Meta { unMeta :: Family TopLineLine M.Meta }
   deriving Show
 
 transaction ::

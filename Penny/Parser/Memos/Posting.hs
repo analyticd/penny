@@ -3,28 +3,25 @@ module Penny.Parser.Memos.Posting where
 import Control.Monad ( liftM, void, when )
 import Data.Text ( pack )
 import Text.Parsec (
-  Column, try, many1, char, getParserState, 
+  try, many1, char, getParserState, 
   sourceColumn, statePos, noneOf, manyTill, many )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Bits as B
+import qualified Penny.Posting.Meta.Posting as M
 import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
-data PostingFirstColumn = PostingFirstColumn Column
-                          deriving Show
-
-memo ::
-  PostingFirstColumn
-  -> Parser B.Memo
+memo :: M.Column
+        -> Parser B.Memo
 memo col = do
   (c:cs) <- liftM concat (many1 (try (postingMemoLine col)))
   return . B.Memo $ TextNonEmpty c (pack cs)
 
 postingMemoLine ::
-  PostingFirstColumn
+  M.Column
   -- ^ Column that the posting line started at
   -> Parser String
-postingMemoLine (PostingFirstColumn aboveCol) = do
+postingMemoLine (M.Column aboveCol) = do
   void (many (char ' '))
   st <- getParserState
   let currCol = sourceColumn . statePos $ st
