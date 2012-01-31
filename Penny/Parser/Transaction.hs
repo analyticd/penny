@@ -6,11 +6,12 @@ import Text.Parsec.Text ( Parser )
 
 import Penny.Family.Family ( Family ( Family ) )
 import qualified Penny.Parser.DateTime as DT
-import Penny.Parser.TopLine ( topLine, TopLineLine )
+import Penny.Parser.TopLine ( topLine )
 import qualified Penny.Parser.Posting as Po
 import qualified Penny.Parser.Qty as Qt
 import qualified Penny.Posting as P
-import qualified Penny.Posting.Meta.Posting as M
+import qualified Penny.Posting.Meta.Posting as MP
+import Penny.Posting.Meta.TopLine (Line)
 
 errorStr :: P.Error -> String
 errorStr e = case e of
@@ -19,7 +20,7 @@ errorStr e = case e of
   P.CouldNotInferError -> "could not infer entry for posting"
 
 data Meta =
-  Meta { unMeta :: Family TopLineLine M.Meta }
+  Meta { unMeta :: Family Line MP.Meta }
   deriving Show
 
 transaction ::

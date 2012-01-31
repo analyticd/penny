@@ -74,6 +74,8 @@ Library
         Penny.Parser.Tags,
         Penny.Parser.Transaction,
         Penny.Posting,
+        Penny.Posting.Meta.Posting,
+        Penny.Posting.Meta.TopLine,
         Penny.Posting.TopLine,
         Penny.Posting.Unverified.TopLine,
         Penny.Posting.Unverified.Posting,
