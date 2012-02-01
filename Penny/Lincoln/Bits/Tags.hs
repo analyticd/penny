@@ -1,6 +1,6 @@
 module Penny.Lincoln.Bits.Tags where
 
-import Penny.Lincoln.Groups.TextNonEmpty (TextNonEmpty)
+import Penny.Lincoln.TextNonEmpty (TextNonEmpty)
 
 newtype Tag = Tag { unTag :: TextNonEmpty }
                   deriving (Eq, Show, Ord)

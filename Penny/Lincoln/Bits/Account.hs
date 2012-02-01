@@ -1,12 +1,12 @@
 module Penny.Lincoln.Bits.Account where
 
-import Penny.Lincoln.Groups.TextNonEmpty (TextNonEmpty)
-import Penny.Lincoln.Groups.AtLeast1 (AtLeast1)
+import Penny.Lincoln.TextNonEmpty (TextNonEmpty)
+import Data.List.NonEmpty (NonEmpty)
 
 newtype SubAccountName =
   SubAccountName { unSubAccountName :: TextNonEmpty }
   deriving (Eq, Ord, Show)
 
-newtype Account = Account { unAccount :: AtLeast1 SubAccountName }
+newtype Account = Account { unAccount :: NonEmpty SubAccountName }
                   deriving (Eq, Show, Ord)
 

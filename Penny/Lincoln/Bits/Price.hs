@@ -9,7 +9,6 @@ module Penny.Lincoln.Bits.Price (
 import Penny.Lincoln.Bits.Amount (Amount(Amount))
 import Penny.Lincoln.Bits.Commodity (Commodity)
 import Penny.Lincoln.Bits.Qty (Qty, mult)
-import Penny.Lincoln.Bits.Qty ( mult )
 
 newtype From = From { unFrom :: Commodity }
                deriving (Eq, Ord, Show)
