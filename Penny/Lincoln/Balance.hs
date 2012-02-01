@@ -1,39 +1,37 @@
-module Penny.Total where
+module Penny.Lincoln.Balance where
 
 import Data.Map ( Map )
 import qualified Data.Map as M
-import Penny.Bits.Qty ( add, difference )
-import qualified Penny.Bits.Qty as Q
-import qualified Penny.Bits.Entry as E
-import qualified Penny.Bits.Commodity as C
 import Data.Monoid ( Monoid, mempty, mappend )
-import qualified Penny.Bits.Amount as A
 
-newtype Total = Total (Map C.Commodity Nought)
+import Penny.Lincoln.Bits (add, difference)
+import qualified Penny.Lincoln.Bits as B
+
+newtype Balance = Balance (Map B.Commodity Nought)
 
 data Balanced = Balanced
-              | Inferable E.Entry
+              | Inferable B.Entry
               | NotInferable
 
-isBalanced :: Total -> Balanced
-isBalanced (Total m) = M.foldrWithKey f Balanced m where
+isBalanced :: Balance -> Balanced
+isBalanced (Balance m) = M.foldrWithKey f Balanced m where
   f c n b = case n of
     Zero -> b
     (NonZero col) -> case b of
       Balanced -> let
-        e = E.Entry dc a
+        e = B.Entry dc a
         dc = case drCr col of
-          E.Debit -> E.Credit
-          E.Credit -> E.Debit
+          B.Debit -> B.Credit
+          B.Credit -> B.Debit
         q = qty col
-        a = A.Amount q c
+        a = B.Amount q c
         in Inferable e
       _ -> NotInferable
 
-entryToTotal :: E.Entry -> Total
-entryToTotal (E.Entry dc am) = Total $ M.singleton c no where
-  c = A.commodity am
-  no = NonZero (Column dc (A.qty am))
+entryToBalance :: B.Entry -> Balance
+entryToBalance (B.Entry dc am) = Balance $ M.singleton c no where
+  c = B.commodity am
+  no = NonZero (Column dc (B.qty am))
 
 data Nought = Zero
             | NonZero Column
@@ -56,11 +54,11 @@ instance Monoid Nought where
                 dc' = if q1 > q2 then dc1 else dc2
                 in NonZero $ Column dc' q'
 
-data Column = Column { drCr :: E.DrCr
-                     , qty :: Q.Qty }
+data Column = Column { drCr :: B.DrCr
+                     , qty :: B.Qty }
 
-instance Monoid Total where
-  mempty = Total M.empty
-  mappend (Total t1) (Total t2) =
-    Total $ M.unionWith mappend t1 t2
+instance Monoid Balance where
+  mempty = Balance M.empty
+  mappend (Balance t1) (Balance t2) =
+    Balance $ M.unionWith mappend t1 t2
 
