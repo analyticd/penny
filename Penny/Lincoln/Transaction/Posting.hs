@@ -1,4 +1,4 @@
-module Penny.Posting (
+module Penny.Lincoln.TransactionPosting (
   Posting (
      payee, number, flag, account, entry,
      tags, memo ),
