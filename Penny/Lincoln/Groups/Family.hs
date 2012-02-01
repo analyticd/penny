@@ -1,22 +1,22 @@
-module Penny.Family where
+module Penny.Lincoln.Groups.Family where
 
-import qualified Penny.Family.Family as F
-import qualified Penny.Family.Child as C
-import qualified Penny.Groups.AtLeast2 as A2
+import qualified Penny.Lincoln.Groups.Family.Family as F
+import qualified Penny.Lincoln.Groups.Family.Child as C
+import qualified Penny.Lincoln.Groups.Orphans as O
 
-children :: F.Family p c -> A2.AtLeast2 (C.Child p c)
-children (F.Family p c1 c2 cRest) = A2.AtLeast2 fc sc rc where
+children :: F.Family p c -> O.Orphans (C.Child p c)
+children (F.Family p c1 c2 cRest) = O.Orphans fc sc rc where
   fc = C.Child c1 c2 cRest p
   sc = C.Child c2 c1 cRest p
   rc = map toChild rest
-  rest = A2.others cRest
+  rest = O.others cRest
   toChild (c, cs) = C.Child c c1 (c2:cs) p
 
-orphans :: F.Family p c -> A2.AtLeast2 c
-orphans (F.Family _ c1 c2 cs) = A2.AtLeast2 c1 c2 cs
+orphans :: F.Family p c -> O.Orphans c
+orphans (F.Family _ c1 c2 cs) = O.Orphans c1 c2 cs
 
-adopt :: p -> A2.AtLeast2 c -> F.Family p c
-adopt p (A2.AtLeast2 c1 c2 cs) = F.Family p c1 c2 cs
+adopt :: p -> O.Orphans c -> F.Family p c
+adopt p (O.Orphans c1 c2 cs) = F.Family p c1 c2 cs
 
 mergeWith :: (p1 -> p2 -> p3)
              -> (c1 -> c2 -> c3)

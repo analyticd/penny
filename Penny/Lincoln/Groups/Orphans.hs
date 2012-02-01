@@ -1,7 +1,5 @@
 module Penny.Groups.AtLeast2 where
 
-import qualified Penny.Groups.AtLeast1 as A1
-import Penny.Groups.FamilyMember ( FamilyMember ( FamilyMember ) )
 import qualified Data.Foldable as Foldable
 import qualified Data.Traversable as T
 import Control.Applicative ((<*>), (<$>))
@@ -27,14 +25,6 @@ instance T.Traversable AtLeast2 where
 
 flatten :: AtLeast2 a -> [a]
 flatten (AtLeast2 a1 a2 as) = a1:a2:as
-
-family :: AtLeast2 a -> [FamilyMember a]
-family a = f : s : rs where
-  f = FamilyMember (first a) (A1.AtLeast1 (second a) (rest a))
-  s = FamilyMember (second a) (A1.AtLeast1 (first a) (rest a))
-  rs = map toMember (others . rest $ a)
-  toMember (m, as) =
-    FamilyMember m (A1.AtLeast1 (first a) ((second a):as))
 
 others :: [a] -> [(a, [a])]
 others = map yank . allIndexes
