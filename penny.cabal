@@ -32,7 +32,12 @@ Library
         parsec >= 3.1.2 && < 3.2,
         pretty-show ==1.2.*,
         monoid-extra ==0.1.*,
-        nested-map ==0.1.*
+        nested-map ==0.1.*,
+
+        -- Do not use newer versions of NonEmptyList. They do not
+        -- compile with newer versions of GHC due to dependency
+        -- problems. However this old one works fine.
+        NonEmptyList ==0.0.5
         
     Exposed-modules:
         Penny.Accounts,
