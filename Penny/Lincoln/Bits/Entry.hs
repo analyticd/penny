@@ -1,11 +1,10 @@
-module Penny.Bits.Entry where
+module Penny.Lincoln.Bits.Entry where
 
-import qualified Penny.Bits.Amount as A
-
-data DrCr = Debit | Credit deriving (Eq, Show, Ord)
+import Penny.Lincoln.Bits.Amount (Amount)
+import Penny.Lincoln.Bits.DrCr (DrCr)
 
 data Entry = Entry { drCr :: DrCr
-                   , amount :: A.Amount }
+                   , amount :: Amount }
              deriving (Eq, Show, Ord)
 
 

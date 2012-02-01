@@ -1,8 +1,8 @@
-module Penny.Bits.PricePoint where
+module Penny.Lincoln.Bits.PricePoint where
 
-import qualified Penny.Bits.Price as P
-import qualified Penny.Bits.DateTime as DT
+import Penny.Lincoln.Bits.Price (Price)
+import Penny.Lincoln.Bits.DateTime (DateTime)
 
-data PricePoint = PricePoint { dateTime :: DT.DateTime
-                             , price :: P.Price }
+data PricePoint = PricePoint { dateTime :: DateTime
+                             , price :: Price }
                   deriving (Eq, Ord, Show)

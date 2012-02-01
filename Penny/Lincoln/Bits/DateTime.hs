@@ -1,4 +1,4 @@
-module Penny.Bits.DateTime where
+module Penny.Lincoln.Bits.DateTime where
 
 import Data.Time ( UTCTime )
 

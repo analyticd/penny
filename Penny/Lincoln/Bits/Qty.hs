@@ -1,4 +1,4 @@
-module Penny.Bits.Qty (
+module Penny.Lincoln.Bits.Qty (
   Qty, unQty, partialNewQty,
   newQty, add, subt, mult,
   zero, difference) where

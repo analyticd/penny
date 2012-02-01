@@ -1,7 +1,8 @@
-module Penny.Bits.Commodity where
+module Penny.Lincoln.Bits.Commodity where
 
-import qualified Penny.TextNonEmpty as NE
-import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ))
+import Penny.Lincoln.Groups.TextNonEmpty (
+  TextNonEmpty ( TextNonEmpty ) )
+import Penny.Lincoln.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ))
 import Data.Text ( empty )
 
 newtype Commodity =
@@ -9,10 +10,10 @@ newtype Commodity =
   deriving (Eq, Ord, Show)
 
 newtype SubCommodity =
-  SubCommodity { unSubCommidity :: NE.TextNonEmpty }
+  SubCommodity { unSubCommidity :: TextNonEmpty }
   deriving (Eq, Ord, Show)
 
 -- | Creates a Commodity whose name is only a single character.
 charCommodity :: Char -> Commodity
 charCommodity c =
-  Commodity (AtLeast1 (SubCommodity (NE.TextNonEmpty c empty)) [])
+  Commodity (AtLeast1 (SubCommodity (TextNonEmpty c empty)) [])

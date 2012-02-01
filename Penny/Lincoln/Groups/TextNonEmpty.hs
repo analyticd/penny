@@ -1,4 +1,4 @@
-module Penny.TextNonEmpty where
+module Penny.Lincoln.Groups.TextNonEmpty where
 
 import Data.Text ( Text )
 

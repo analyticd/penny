@@ -1,9 +1,9 @@
-module Penny.Bits.Amount where
+module Penny.Lincoln.Bits.Amount where
 
-import qualified Penny.Bits.Qty as Q
-import Penny.Bits.Commodity ( Commodity )
+import Penny.Lincoln.Bits.Qty ( Qty )
+import Penny.Lincoln.Bits.Commodity ( Commodity )
 
-data Amount = Amount { qty :: Q.Qty
+data Amount = Amount { qty :: Qty
                      , commodity :: Commodity }
               deriving (Eq, Show, Ord)
 
