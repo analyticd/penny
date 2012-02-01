@@ -31,8 +31,8 @@ data Posting =
           , number :: Maybe B.Number
           , flag :: Maybe B.Flag
           , account :: B.Account
-          , entry :: E.Entry
           , tags :: B.Tags
+          , entry :: E.Entry
           , memo :: Maybe B.Memo }
   deriving Show
 
@@ -119,21 +119,11 @@ inferAll pos t = do
   runInfer en pos
 
 toPosting :: U.Posting
-             -> E.Entry
+             -> B.Entry
              -> Posting
-toPosting po e = Posting { payee = U.payee po
-                         , number = U.number po
-                         , flag = U.flag po
-                         , account = U.account po
-                         , entry = e
-                         , tags = U.tags po
-                         , memo = U.memo po }
+toPosting (U.Posting p n f a t _ m) e = Posting p n f a t e m
 
-toTopLine :: U..TopLine -> P.TopLine
-toTopLine pa = U.TopLine { P.dateTime = U..dateTime pa
-                       , P.flag = U..flag pa
-                       , P.number = U..number pa
-                       , P.payee = U..payee pa
-                       , P.memo = U..memo pa }
+toTopLine :: U.TopLine -> TopLine
+toTopLine (U.TopLine d f n p m) = TopLine d f n p m
 
 
