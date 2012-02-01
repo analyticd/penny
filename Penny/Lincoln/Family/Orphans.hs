@@ -1,30 +1,30 @@
-module Penny.Groups.AtLeast2 where
+module Penny.Lincoln.Family.Orphans where
 
 import qualified Data.Foldable as Foldable
 import qualified Data.Traversable as T
 import Control.Applicative ((<*>), (<$>))
 
-data AtLeast2 a = AtLeast2 { first :: a
+data Orphans a = Orphans { first :: a
                            , second :: a
                            , rest :: [a] }
                   deriving Show
 
-instance Functor AtLeast2 where
-  fmap g (AtLeast2 f s rs) = AtLeast2 (g f) (g s) (map g rs)
+instance Functor Orphans where
+  fmap g (Orphans f s rs) = Orphans (g f) (g s) (map g rs)
 
-instance Foldable.Foldable AtLeast2 where
-  foldr g b (AtLeast2 f s rs) = g f (g s (foldr g b rs))
+instance Foldable.Foldable Orphans where
+  foldr g b (Orphans f s rs) = g f (g s (foldr g b rs))
 
-instance T.Traversable AtLeast2 where
+instance T.Traversable Orphans where
   -- traverse :: Applicative f => (a -> f b) -> t a -> f (t b)
-  traverse g (AtLeast2 f s rs) =
-    AtLeast2
+  traverse g (Orphans f s rs) =
+    Orphans
     <$> g f
     <*> g s
     <*> T.traverse g rs
 
-flatten :: AtLeast2 a -> [a]
-flatten (AtLeast2 a1 a2 as) = a1:a2:as
+flatten :: Orphans a -> [a]
+flatten (Orphans a1 a2 as) = a1:a2:as
 
 others :: [a] -> [(a, [a])]
 others = map yank . allIndexes

@@ -1,8 +1,8 @@
-module Penny.Lincoln.Groups.Family where
+module Penny.Lincoln.Family where
 
-import qualified Penny.Lincoln.Groups.Family.Family as F
-import qualified Penny.Lincoln.Groups.Family.Child as C
-import qualified Penny.Lincoln.Groups.Orphans as O
+import qualified Penny.Lincoln.Family.Family as F
+import qualified Penny.Lincoln.Family.Child as C
+import qualified Penny.Lincoln.Family.Orphans as O
 
 children :: F.Family p c -> O.Orphans (C.Child p c)
 children (F.Family p c1 c2 cRest) = O.Orphans fc sc rc where

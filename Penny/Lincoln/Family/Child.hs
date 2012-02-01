@@ -1,4 +1,4 @@
-module Penny.Lincoln.Groups.Family.Child where
+module Penny.Lincoln.Family.Child where
 
 data Child p c =
   Child { this :: c

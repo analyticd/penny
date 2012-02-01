@@ -1,4 +1,4 @@
-module Penny.Lincoln.Groups.Family.Family where
+module Penny.Lincoln.Family.Family where
 
 data Family p c =
   Family { parent :: p
