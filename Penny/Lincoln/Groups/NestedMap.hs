@@ -1,4 +1,9 @@
-module Penny.NestedMap (
+-- | A nested map. The values in each NestedMap are tuples, with the
+-- first element of the tuple being a label that you select and the
+-- second value being another NestedMap. Functions are provided so you
+-- may query the map at any level or insert new labels (and,
+-- therefore, new keys) at any level.
+module Penny.Lincoln.Groups.NestedMap (
   NestedMap ( NestedMap ),
   unNestedMap,
   empty,
@@ -7,19 +12,34 @@ module Penny.NestedMap (
   traverse,
   traverseWithTrail ) where
 
+import Control.Applicative (pure, (<*>), (<$>))
 import Data.Map ( Map )
+import qualified Data.Foldable as F
+import qualified Data.Traversable as T
 import qualified Data.Map as M
 import Data.Monoid ( Monoid, mconcat, mappend, mempty )
 
 data NestedMap k l =
   NestedMap { unNestedMap :: Map k (l, NestedMap k l) }
-  deriving Show
+  deriving (Eq, Show, Ord)
 
 instance Functor (NestedMap k) where
   fmap f (NestedMap m) = let
     g (l, s) = (f l, fmap f s)
     in NestedMap $ M.map g m
 
+instance (Ord k) => F.Foldable (NestedMap k) where
+  foldMap = T.foldMapDefault
+
+instance (Ord k) => T.Traversable (NestedMap k) where
+  -- traverse :: Applicative f
+  --          => (a -> f b)
+  --          -> NestedMap k a
+  --          -> f (NestedMap k b)
+  traverse f (NestedMap m) = let
+      f' (l, m') = (,) <$> f l <*> T.traverse f m'
+      in NestedMap <$> T.traverse f' m
+                 
 -- | An empty NestedMap.
 empty :: NestedMap k l
 empty = NestedMap (M.empty)
@@ -40,13 +60,14 @@ newSubmap (NestedMap m) k g = (newL, NestedMap newM) where
     Nothing -> (g Nothing, M.empty)
     (Just (oldL, (NestedMap oldM))) -> (g (Just oldL), oldM)
 
--- | Descends through a NestedMap with successive keys in the list. At
--- any given level, if the key given does not already exist, then
--- inserts an empty submap and applies the given label modification
--- function to Nothing to determine the new label. If the given key
--- already does exist, then preserves the existing submap and applies
--- the given label modification function to (Just oldlabel) to
--- determine the new label.
+-- | Descends through a NestedMap with successive keys in the list,
+-- proceeding from left to right.. At any given level, if the key
+-- given does not already exist, then inserts an empty submap and
+-- applies the given label modification function to Nothing to
+-- determine the new label. If the given key already does exist, then
+-- preserves the existing submap and applies the given label
+-- modification function to (Just oldlabel) to determine the new
+-- label.
 relabel ::
   (Ord k)
   => NestedMap k l
@@ -58,6 +79,30 @@ relabel (NestedMap m) ((k, f):vs) = let
   newM' = relabel newM vs
   in NestedMap $ M.insert k (newL, newM') m
 
+-- | Descends through the NestedMap one level at a time, proceeding
+-- key by key from left to right through the list of keys given. At
+-- the last key, appends the given label to the labels already
+-- present; if no label is present, uses mempty and mappend to create
+-- a new label. If the list of keys is empty, does nothing.
+insert ::
+  (Ord k, Monoid l)
+  => NestedMap k l
+  -> [k]
+  -> l
+  -> NestedMap k l
+insert m [] _ = m
+insert m ks l = relabel m ts where
+  ts = firsts ++ [end]
+  firsts = map (\k -> (k, keepOld)) (init ks) where
+    keepOld mk = case mk of
+      (Just old) -> old
+      Nothing -> mempty
+  end = (key, newL) where
+    key = last ks
+    newL mk = case mk of
+      (Just old) -> old `mappend` l
+      Nothing -> mempty `mappend` l
+  
 totalMap ::
   (Monoid l)
   => NestedMap k l
@@ -87,14 +132,35 @@ remapWithTotals (NestedMap top) =
     f a@(_, m) = (totalTuple a, remapWithTotals m)
 
 -- | Leaves all keys of the map and submaps the same. Changes each
--- label to reflect the total of that label and of all the submaps
--- accompanying the label.
+-- label to reflect the total of that label and of all the labels of
+-- the maps within the NestedMap accompanying the label. Returns the
+-- total of the entire NestedMap.
 cumulativeTotal ::
   (Monoid l)
   => NestedMap k l
   -> (l, NestedMap k l)
 cumulativeTotal m = (totalMap m, remapWithTotals m)
 
+-- | Supply a function that takes a key, a label, and a
+-- NestedMap. traverse will traverse the NestedMap. For each (label,
+-- NestedMap) pair, traverse will first apply the given function to
+-- the label before descending through the NestedMap. The function is
+-- applied to the present key and label and the accompanying
+-- NestedMap. The function you supply must return a Maybe. If the
+-- result is Nothing, then the pair is deleted as a value from its
+-- parent NestedMap. If the result is (Just s), then the label of this
+-- level of the NestedMap is changed to s before descending to the
+-- next level of the NestedMap.
+--
+-- All this is done in a monad, so you can carry out arbitrary side
+-- effects such as inspecting or changing a state or doing IO. If you
+-- don't need a monad, just use Identity.
+--
+-- Thus this function can be used to inspect, modify, and prune a
+-- NestedMap.
+--
+-- For a simpler traverse that does not provide you with so much
+-- information, NestedMap is also an instance of Data.Traversable.
 traverse ::
   (Monad m, Ord k)
   => (k -> l -> NestedMap k l -> m (Maybe a))
@@ -102,6 +168,9 @@ traverse ::
   -> m (NestedMap k a)
 traverse f m = traverseWithTrail (\_ -> f) m
 
+-- | Like traverse, but the supplied function is also applied to a
+-- list that tells it about the levels of NestedMap that are parents
+-- to this NestedMap.
 traverseWithTrail ::
   (Monad m, Ord k)
   => ( [(k, l)] -> k -> l -> NestedMap k l -> m (Maybe a) )
