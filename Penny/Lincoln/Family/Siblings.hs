@@ -1,30 +1,30 @@
-module Penny.Lincoln.Family.Orphans where
+module Penny.Lincoln.Family.Siblings where
 
 import qualified Data.Foldable as Foldable
 import qualified Data.Traversable as T
 import Control.Applicative ((<*>), (<$>))
 
-data Orphans a = Orphans { first :: a
-                           , second :: a
-                           , rest :: [a] }
+data Siblings a = Siblings { first :: a
+                         , second :: a
+                         , rest :: [a] }
                   deriving Show
 
-instance Functor Orphans where
-  fmap g (Orphans f s rs) = Orphans (g f) (g s) (map g rs)
+instance Functor Siblings where
+  fmap g (Siblings f s rs) = Siblings (g f) (g s) (map g rs)
 
-instance Foldable.Foldable Orphans where
-  foldr g b (Orphans f s rs) = g f (g s (foldr g b rs))
+instance Foldable.Foldable Siblings where
+  foldr g b (Siblings f s rs) = g f (g s (foldr g b rs))
 
-instance T.Traversable Orphans where
+instance T.Traversable Siblings where
   -- traverse :: Applicative f => (a -> f b) -> t a -> f (t b)
-  traverse g (Orphans f s rs) =
-    Orphans
+  traverse g (Siblings f s rs) =
+    Siblings
     <$> g f
     <*> g s
     <*> T.traverse g rs
 
-flatten :: Orphans a -> [a]
-flatten (Orphans a1 a2 as) = a1:a2:as
+flatten :: Siblings a -> [a]
+flatten (Siblings a1 a2 as) = a1:a2:as
 
 others :: [a] -> [(a, [a])]
 others = map yank . allIndexes

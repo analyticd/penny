@@ -1,7 +1,7 @@
 module Penny.Lincoln.Family.Child where
 
 data Child p c =
-  Child { this :: c
+  Child { child :: c
         , sibling1 :: c
         , siblings :: [c]
         , parent :: p }
