@@ -14,7 +14,7 @@ import qualified Penny.Lincoln.Family.Family as F
 import qualified Penny.Lincoln.Family.Child as C
 import qualified Penny.Lincoln.Family.Siblings as S
 import qualified Penny.Lincoln.Transaction.Unverified as U
-import qualified Penny.Lincoln.Balance as B
+import qualified Penny.Lincoln.Balance as Bal
 
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
@@ -27,21 +27,21 @@ import qualified Control.Monad.Trans.State.Lazy as St
 import Control.Monad.Trans.Class ( lift )
 
 data Posting =
-  Posting { payee :: Maybe B.Payee
-          , number :: Maybe B.Number
-          , flag :: Maybe B.Flag
-          , account :: B.Account
-          , tags :: B.Tags
-          , entry :: E.Entry
-          , memo :: Maybe B.Memo }
+  Posting (Maybe B.Payee)
+          (Maybe B.Number)
+          (Maybe B.Flag)
+          B.Account
+          B.Tags
+          B.Entry
+          (Maybe B.Memo)
   deriving Show
 
 data TopLine =
-  TopLine { dateTime :: B.DateTime
-          , flag :: Maybe B.Flag
-          , number :: Maybe B.Number
-          , payee :: Maybe B.Payee
-          , memo :: Maybe B.Memo }
+  TopLine B.DateTime
+          (Maybe B.Flag)
+          (Maybe B.Number)
+          (Maybe B.Payee)
+          (Maybe B.Memo)
   deriving Show
 
 -- | All the Postings in a Transaction:
@@ -57,14 +57,14 @@ data Error = UnbalancedError
 
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
-postingFamily :: Transaction -> Siblings (Child P.TopLine Posting)
+postingFamily :: Transaction -> S.Siblings (C.Child TopLine Posting)
 postingFamily (Transaction ps) = children ps
 
 -- | Makes transactions.
 transaction ::
-  Family U.TopLine U.Posting
+  F.Family U.TopLine U.Posting
   -> Exceptional Error Transaction
-transaction f@(Family p _ _ _) = do
+transaction f@(F.Family p _ _ _) = do
   let os = orphans f
       t = totalAll os
       p' = toTopLine p
@@ -72,17 +72,17 @@ transaction f@(Family p _ _ _) = do
   return $ Transaction (adopt p' a2)
 
 totalAll :: S.Siblings U.Posting
-         -> T.Total
+         -> Bal.Balance
 totalAll =
   mconcat
   . catMaybes
   . F.toList
-  . fmap (fmap T.entryToTotal . U.entry)
+  . fmap (fmap Bal.entryToBalance . U.entry)
 
 infer ::
-  UPosting.Posting
+  U.Posting
   -> Ex.ExceptionalT Error
-  (St.State (Maybe E.Entry)) Posting
+  (St.State (Maybe B.Entry)) Posting
 infer po =
   case U.entry po of
     Nothing -> do
@@ -95,7 +95,7 @@ infer po =
     (Just e) -> return $ toPosting po e
           
 runInfer ::
-  Maybe E.Entry
+  Maybe B.Entry
   -> S.Siblings U.Posting
   -> Exceptional Error (S.Siblings Posting)
 runInfer me pos = do
@@ -108,14 +108,14 @@ runInfer me pos = do
       (Success g) -> return g
 
 inferAll ::
-  S.SiblingsPosting
-  -> T.Total
+  S.Siblings U.Posting
+  -> Bal.Balance
   -> Exceptional Error (S.Siblings Posting)
 inferAll pos t = do
-  en <- case T.isBalanced t of
-    T.Balanced -> return Nothing
-    (T.Inferable e) -> return $ Just e
-    T.NotInferable -> throw UnbalancedError
+  en <- case Bal.isBalanced t of
+    Bal.Balanced -> return Nothing
+    (Bal.Inferable e) -> return $ Just e
+    Bal.NotInferable -> throw UnbalancedError
   runInfer en pos
 
 toPosting :: U.Posting
