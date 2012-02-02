@@ -3,7 +3,7 @@ module Penny.Copper.TopLine where
 import Control.Monad ( void, when, liftM )
 import Data.Maybe (isNothing)
 import Text.Parsec ( optionMaybe, many, char, getParserState,
-                     sourceLine, statePos )
+                     sourceLine, statePos, optionMaybe )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.Meta as Meta
@@ -17,13 +17,18 @@ import qualified Penny.Lincoln.Transaction.Unverified as U
 whitespace :: Parser ()
 whitespace = void (many (char ' '))
 
-topLine :: DT.DefaultTimeZone -> Parser (U.TopLine, Meta.TopLineLine)
+topLine :: DT.DefaultTimeZone
+           -> Parser (U.TopLine, Meta.TopLineLine,
+                      (Maybe Meta.TopMemoLine))
 topLine dtz = do
+  m <- optionMaybe M.memo
+  let (mem, tml) = case m of
+        (Just (me, tm)) -> (Just me, Just tm)
+        Nothing -> (Nothing, Nothing)
   line <- liftM ( Meta.TopLineLine
                  . Meta.Line
                  . sourceLine
                  . statePos) getParserState
-  m <- optionMaybe M.memo
   d <- DT.dateTime dtz
   whitespace
   f <- optionMaybe F.flag
@@ -32,5 +37,5 @@ topLine dtz = do
   whitespace
   p <- optionMaybe Payee.payee
   when (isNothing p) (void $ char '\n')
-  return (U.TopLine d f n p m, line)
+  return (U.TopLine d f n p mem, line, tml)
 

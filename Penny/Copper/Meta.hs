@@ -47,11 +47,13 @@ instance M.MayHaveFormat PostingMeta where
   maybeFormat (PostingMeta _ f) = f
 
 data TransactionMeta =
-  TransactionMeta TopMemoLine TopLineLine M.Filename
+  TransactionMeta (Maybe TopMemoLine) TopLineLine M.Filename
   deriving Show
 
 instance M.HasMemoLine TransactionMeta where
-  memoLine (TransactionMeta (TopMemoLine l) _ _) = l
+  memoLine (TransactionMeta l _ _) = do
+    (TopMemoLine lin) <- l
+    return lin
 
 instance M.HasFilename TransactionMeta where
   filename (TransactionMeta _ _ f) = f

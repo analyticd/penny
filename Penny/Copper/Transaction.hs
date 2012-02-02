@@ -25,7 +25,8 @@ transaction ::
   -> Qt.Separator
   -> Parser (T.Transaction, Family M.TransactionMeta M.PostingMeta)
 transaction fn dtz rad sep = do
-  (pa, paMeta) <- topLine dtz
+  (pa, tll, tml) <- topLine dtz
+  let paMeta = M.TransactionMeta tml tll fn
   (p1, p1meta) <- Po.posting rad sep
   (p2, p2meta) <- Po.posting rad sep
   psPairs <- many (try (Po.posting rad sep))

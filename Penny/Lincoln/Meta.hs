@@ -22,7 +22,7 @@ newtype Filename = Filename { unFilename :: X.Text }
                    deriving Show
 
 class HasMemoLine a where
-  memoLine :: a -> Line
+  memoLine :: a -> Maybe Line
 
 class HasFilename a where
   filename :: a -> Filename
