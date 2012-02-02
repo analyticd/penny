@@ -4,8 +4,10 @@ module Penny.Lincoln.Boxes (
   posting,
   postingMeta,
   transactionBox,
-  topLineMeta) where
+  topLineMeta,
+  PriceBox(PriceBox, price, priceMeta)) where
 
+import Penny.Lincoln.Bits ( PricePoint )
 import Penny.Lincoln.Meta (TransactionMeta, unTransactionMeta)
 import Penny.Lincoln.Transaction (
   Transaction, TopLine, Posting, unTransaction)
@@ -23,6 +25,11 @@ data TransactionBox t p =
 data PostingBox t p =
   PostingBox { postingBundle :: (Child TopLine Posting)
              , metaBundle :: (Maybe (Child t p)) }
+  deriving Show
+
+data PriceBox m =
+  PriceBox { price :: PricePoint
+           , priceMeta :: Maybe m }
   deriving Show
 
 transactionBox :: Transaction
