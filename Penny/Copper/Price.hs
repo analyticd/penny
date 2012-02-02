@@ -1,17 +1,16 @@
-module Penny.Parser.Price where
+module Penny.Copper.Price where
 
 import Control.Monad ( void )
-import Text.Parsec ( char, many )
+import Text.Parsec ( char, many, getPosition, sourceLine )
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Bits.Amount as Amount
-import qualified Penny.Bits.Price as P
-import qualified Penny.Bits.PricePoint as PP
-import qualified Penny.Parser.Amount as A
-import qualified Penny.Parser.Commodity as C
-import qualified Penny.Parser.DateTime as DT
-import qualified Penny.Parser.Price.Data as Data
-import qualified Penny.Parser.Qty as Q
+import qualified Penny.Lincoln.Boxes as Box
+import qualified Penny.Lincoln.Bits as B
+import qualified Penny.Copper.Amount as A
+import qualified Penny.Copper.Commodity as C
+import qualified Penny.Copper.DateTime as DT
+import qualified Penny.Copper.Meta as M
+import qualified Penny.Copper.Qty as Q
 
 whitespace :: Parser ()
 whitespace = void (many (char ' '))
@@ -20,18 +19,21 @@ price ::
   DT.DefaultTimeZone
   -> Q.Radix
   -> Q.Separator
-  -> Parser Data.Data
+  -> Parser (Box.PriceBox M.PriceMeta)
 price dtz rad sep = do
   void $ char 'P'
+  pos <- getPosition
   whitespace
   dt <- DT.dateTime dtz
   whitespace
   com <- C.commodityWithDigits
   whitespace
-  (amt, pair) <- A.amount rad sep
-  let (from, to) = (P.From com, P.To (Amount.commodity amt))
-      cpu = P.CountPerUnit (Amount.qty amt)
-  pr <- case P.price from to cpu of
+  (amt, fmt) <- A.amount rad sep
+  let (from, to) = (B.From com, B.To (B.commodity amt))
+      cpu = B.CountPerUnit (B.qty amt)
+      lin = M.PriceLine . M.Line . sourceLine $ pos
+      meta = M.PriceMeta lin fmt
+  pr <- case B.newPrice from to cpu of
     (Just pri) -> return pri
     Nothing -> fail "invalid price given"
-  return $ Data.Data (PP.PricePoint dt pr) pair
+  return $ Box.PriceBox (B.PricePoint dt pr) (Just meta)

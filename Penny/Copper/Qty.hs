@@ -1,11 +1,11 @@
-module Penny.Parser.Qty (
+module Penny.Copper.Qty (
   Radix, Separator, unRadix,
   unSeparator, qty, radixAndSeparator ) where
 
 import Text.Parsec ( char, digit, (<|>), many, try )
 import Text.Parsec.Text ( Parser )
 
-import Penny.Bits.Qty ( Qty, partialNewQty )
+import Penny.Lincoln.Bits.Qty ( Qty, partialNewQty )
 
 newtype Radix = Radix { unRadix :: Char }
 newtype Separator = Separator { unSeparator :: Char }

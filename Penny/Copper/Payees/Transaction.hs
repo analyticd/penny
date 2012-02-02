@@ -1,12 +1,12 @@
-module Penny.Parser.Payees.Transaction where
+module Penny.Copper.Payees.Transaction where
 
 import Control.Monad ( liftM )
 import Data.Text ( pack )
 import Text.Parsec ( manyTill, anyChar, noneOf, char )
 import Text.Parsec.Text ( Parser )
 
-import Penny.Bits (Payee (Payee))
-import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
+import Penny.Lincoln.Bits (Payee (Payee))
+import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 payee :: Parser Payee
 payee = do

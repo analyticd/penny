@@ -1,4 +1,4 @@
-module Penny.Parser.Tags where
+module Penny.Copper.Tags where
 
 import Control.Monad ( liftM )
 import Data.Char ( isLetter, isNumber )
@@ -7,25 +7,25 @@ import Text.Parsec (
   char, satisfy, many, skipMany, try )
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Bits as B
-import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
+import qualified Penny.Lincoln.Bits as B
+import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 tagChar :: Parser Char
 tagChar = satisfy (\l -> isLetter l || isNumber l)
 
-tag :: Parser B.TagName
+tag :: Parser B.Tag
 tag = do
   _ <- char '#'
   f <- tagChar
   r <- liftM pack (many tagChar)
-  return . B.TagName $ TextNonEmpty f r
+  return . B.Tag $ TextNonEmpty f r
 
-firstTag :: Parser B.TagName
+firstTag :: Parser B.Tag
 firstTag = tag
 
 -- | Tags must be separated by at least one space. (Is this a good
 -- restriction? Does not seem to be necessary.)
-nextTag :: Parser B.TagName
+nextTag :: Parser B.Tag
 nextTag =
   char ' '
   >> skipMany (char ' ')

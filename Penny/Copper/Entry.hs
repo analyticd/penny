@@ -1,35 +1,33 @@
-module Penny.Parser.Entry where
+module Penny.Copper.Entry where
 
 import Control.Monad ( void )
 import Text.Parsec ( char, string, optional, (<|>), many1 )
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Bits.Commodity as C
-import qualified Penny.Bits.Entry as E
-import qualified Penny.Parser.Amount as A
-import qualified Penny.Parser.Qty as Q
-import qualified Penny.Reports as R
+import Penny.Copper.Amount (amount)
+import Penny.Copper.Qty (Radix, Separator)
+import qualified Penny.Lincoln.Bits as B
+import Penny.Lincoln.Meta (Format)
 
-
-drCr :: Parser E.DrCr
+drCr :: Parser B.DrCr
 drCr = let
   dr = do
     void (char 'D')
     void (char 'r') <|> void (string "ebit")
-    return E.Debit
+    return B.Debit
   cr = do
     void (string "Cr")
     void (optional (string "edit"))
-    return E.Credit
+    return B.Credit
   in dr <|> cr
 
 entry ::
-  Q.Radix
-  -> Q.Separator
-  -> Parser (E.Entry, (C.Commodity, R.CommodityFmt))
+  Radix
+  -> Separator
+  -> Parser (B.Entry, Format)
 entry rad sep = do
   dc <- drCr
   void $ many1 (char ' ')
-  (am, p) <- A.amount rad sep
-  let e = E.Entry dc am
+  (am, p) <- amount rad sep
+  let e = B.Entry dc am
   return (e, p)
