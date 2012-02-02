@@ -21,14 +21,20 @@ newtype Line = Line { unLine :: Int }
 newtype Filename = Filename { unFilename :: X.Text }
                    deriving Show
 
-class TopLineMeta a where
+class HasMemoLine a where
   memoLine :: a -> Line
-  topLine :: a -> Line
+
+class HasFilename a where
   filename :: a -> Filename
 
-class PostingMeta a where
+class MayHaveFormat a where
+  maybeFormat :: a -> Maybe Format
+
+class HasFormat a where
+  format :: a -> Format
+
+class HasMainLine a where
   line :: a -> Line
-  format :: a -> Maybe Format
 
 newtype TransactionMeta a b =
   TransactionMeta { unTransactionMeta :: F.Family a b }
