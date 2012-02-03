@@ -7,4 +7,3 @@ data Entry = Entry { drCr :: DrCr
                    , amount :: Amount }
              deriving (Eq, Show, Ord)
 
-

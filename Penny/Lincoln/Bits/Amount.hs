@@ -6,5 +6,3 @@ import Penny.Lincoln.Bits.Commodity ( Commodity )
 data Amount = Amount { qty :: Qty
                      , commodity :: Commodity }
               deriving (Eq, Show, Ord)
-
-

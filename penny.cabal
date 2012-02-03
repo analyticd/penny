@@ -36,6 +36,7 @@ Library
         parsec >= 3.1.2 && < 3.2,
         monoid-extra ==0.1.*,
         nestedMap ==0.1.*,
+        pretty ==1.0.*,
 
         -- Do not use newer versions of NonEmptyList. They do not
         -- compile with newer versions of GHC due to dependency
