@@ -1,18 +1,20 @@
 module Penny.Lincoln.Boxes (
   TransactionBox ( transaction, transactionMeta ),
   PostingBox ( postingBundle, metaBundle ),
+  PriceBox (PriceBox, price, priceMeta),
   posting,
   postingMeta,
   transactionBox,
-  topLineMeta) where
+  topLineMeta,
+  postingBoxes) where
 
 import Penny.Lincoln.Meta (TransactionMeta, unTransactionMeta)
+import Penny.Lincoln.Bits (PricePoint)
 import Penny.Lincoln.Transaction (
   Transaction, TopLine, Posting, unTransaction)
 import Penny.Lincoln.Family (children)
 import Penny.Lincoln.Family.Child (Child, child, parent)
 import Penny.Lincoln.Family.Siblings (flatten)
-import Penny.Lincoln.Family.Family ( Family )
 import qualified Penny.Lincoln.Family.Family as F
 
 data TransactionBox t p =
@@ -23,6 +25,11 @@ data TransactionBox t p =
 data PostingBox t p =
   PostingBox { postingBundle :: (Child TopLine Posting)
              , metaBundle :: (Maybe (Child t p)) }
+  deriving Show
+
+data PriceBox m =
+  PriceBox { price :: PricePoint
+           , priceMeta :: Maybe m }
   deriving Show
 
 transactionBox :: Transaction

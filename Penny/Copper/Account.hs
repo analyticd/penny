@@ -7,7 +7,7 @@ import Text.Parsec (
   char, satisfy, notFollowedBy, (<|>), try, many )
 import Text.Parsec.Text ( Parser )
 
-import Data.List.NonEmpty (NonEmpty, nonEmpty)
+import Data.List.NonEmpty (nonEmpty)
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 

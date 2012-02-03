@@ -9,7 +9,7 @@ import Text.Parsec ( satisfy, many, char )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Lincoln.Bits as B
-import Data.List.NonEmpty (NonEmpty, nonEmpty)
+import Data.List.NonEmpty (nonEmpty)
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 isCommodityChar :: Char -> Bool

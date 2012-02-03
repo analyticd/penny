@@ -1,4 +1,4 @@
-module Penny.Parser.Comments.SingleLine where
+module Penny.Copper.Comments.SingleLine where
 
 import Control.Monad ( void )
 import Data.Text ( Text, pack )

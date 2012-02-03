@@ -1,15 +1,14 @@
 module Main where
 
 import Control.Monad
-import Data.Time
-import Text.Parsec
+import Data.Text ( pack )
 import qualified Data.Text.IO as TIO
+import Data.Time
 import System.Environment
+import Text.Parsec
 import Text.Show.Pretty
 
-import Penny.Parser
-import Penny.Parser.DateTime
-import Penny.Parser.Qty
+import Penny.Copper
 
 main :: IO ()
 main = do
@@ -17,6 +16,7 @@ main = do
   (a:[]) <- getArgs
   f <- TIO.readFile a
   let (rad, sep) = radixAndSeparator '.' ','
-      e = parse (ledger dtz rad sep) a f
+      fn = Filename (pack a)
+      e = parse (ledger fn dtz rad sep) a f
   putStrLn $ ppShow e
 

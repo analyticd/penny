@@ -3,7 +3,6 @@ module Penny.Lincoln.Meta where
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Family.Family as F
 
-import qualified Data.Map as M
 import qualified Data.Text as X
 
 data Side = CommodityOnLeft | CommodityOnRight deriving Show

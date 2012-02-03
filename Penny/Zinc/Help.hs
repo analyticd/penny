@@ -1,4 +1,4 @@
-module Penny.Help where
+module Penny.Zinc.Help where
 
 help :: String
 help = unlines [
