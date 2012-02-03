@@ -6,7 +6,6 @@ import qualified Data.Text.IO as TIO
 import Data.Time
 import System.Environment
 import Text.Parsec
-import Text.Show.Pretty
 
 import Penny.Copper
 
@@ -18,5 +17,5 @@ main = do
   let (rad, sep) = radixAndSeparator '.' ','
       fn = Filename (pack a)
       e = parse (ledger fn dtz rad sep) a f
-  putStrLn $ ppShow e
+  putStrLn (show e)
 

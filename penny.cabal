@@ -19,6 +19,10 @@ source-repository head
     type: git
     location: git://github.com/massysett/penny.git
 
+Flag testing
+  Description: build test code and executables
+  Default: False
+
 Library
     Build-depends:
         base ==4.*,
@@ -30,7 +34,6 @@ Library
         time ==1.2.*,
         Decimal >= 0.2.2 && < 0.3,
         parsec >= 3.1.2 && < 3.2,
-        pretty-show ==1.2.*,
         monoid-extra ==0.1.*,
         nestedMap ==0.1.*,
 
@@ -91,3 +94,17 @@ Library
         Penny.Zinc.Help
 
     ghc-options: -Wall
+
+Executable copperTest
+  hs-source-dirs: testing
+  Build-depends:
+    base ==4.*,
+    text ==0.11.*,
+    time ==1.2.*,
+    parsec >=3.1.2 && < 3.2,
+    penny ==0.1.*
+  Main-is: copperTest.hs
+  GHC-Options: -Wall
+  if ! flag(testing)
+    buildable: False
+
