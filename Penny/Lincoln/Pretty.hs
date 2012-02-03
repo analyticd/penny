@@ -15,6 +15,7 @@ import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Family.Family as F
 import qualified Penny.Lincoln.Family.Child as C
 import Penny.Lincoln.Family.Siblings (Siblings(Siblings))
+import qualified Penny.Lincoln.Meta as M
 import Penny.Lincoln.TextNonEmpty(TextNonEmpty(TextNonEmpty))
 import qualified Penny.Lincoln.Transaction as T
 
@@ -169,3 +170,20 @@ instance Pretty a => Pretty (Siblings a) where
 
 instance Pretty T.Transaction where
   pretty t = text "Transaction:" <+> pretty (T.unTransaction t)
+
+instance Pretty M.Line where
+  pretty (M.Line l) = text . show $ l
+
+instance Pretty M.Side where
+  pretty M.CommodityOnLeft = text "on Left"
+  pretty M.CommodityOnRight = text "on Right"
+
+instance Pretty M.SpaceBetween where
+  pretty M.SpaceBetween = text "space between"
+  pretty M.NoSpaceBetween = text "no space between"
+
+instance Pretty M.Format where
+  pretty (M.Format c s b) = sep [pretty c, pretty s, pretty b]
+
+instance Pretty M.Filename where
+  pretty (M.Filename f) = text "Filename:" <+> text (unpack f)
