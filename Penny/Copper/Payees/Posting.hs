@@ -1,4 +1,4 @@
-module Penny.Parser.Payees.Posting where
+module Penny.Copper.Payees.Posting where
 
 import Control.Monad ( void )
 import Data.Char ( isLetter, isNumber, isPunctuation, isSymbol)
@@ -7,8 +7,8 @@ import Text.Parsec (
   char, satisfy, manyTill)
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Bits as B
-import Penny.TextNonEmpty (TextNonEmpty ( TextNonEmpty ) )
+import qualified Penny.Lincoln.Bits as B
+import Penny.Lincoln.TextNonEmpty (TextNonEmpty ( TextNonEmpty ) )
 
 payee :: Parser B.Payee
 payee = do

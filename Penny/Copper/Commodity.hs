@@ -1,4 +1,4 @@
-module Penny.Parser.Commodity where
+module Penny.Copper.Commodity where
 
 import Data.Char (
   isControl, isSpace, isDigit)
@@ -8,10 +8,9 @@ import Data.Text ( pack )
 import Text.Parsec ( satisfy, many, char )
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Bits.Commodity as C
-import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ) )
-import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
-
+import qualified Penny.Lincoln.Bits as B
+import Data.List.NonEmpty (NonEmpty, nonEmpty)
+import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 isCommodityChar :: Char -> Bool
 isCommodityChar =
@@ -23,44 +22,44 @@ isNonDigitChar = appAll (mappend f g) where
   f = All $ not . isDigit
   g = All isCommodityChar
 
-firstSubWithDigits :: Parser C.SubCommodity
+firstSubWithDigits :: Parser B.SubCommodity
 firstSubWithDigits = do
   c <- satisfy isNonDigitChar
   rs <- many $ satisfy isCommodityChar
-  return (C.SubCommodity (TextNonEmpty c (pack rs)))
+  return (B.SubCommodity (TextNonEmpty c (pack rs)))
 
-nextSubWithDigits :: Parser C.SubCommodity
+nextSubWithDigits :: Parser B.SubCommodity
 nextSubWithDigits = do
   let p = satisfy isCommodityChar
   c <- p
   rs <- many p
-  return (C.SubCommodity (TextNonEmpty c (pack rs)))
+  return (B.SubCommodity (TextNonEmpty c (pack rs)))
 
-commodityWithDigits :: Parser C.Commodity
+commodityWithDigits :: Parser B.Commodity
 commodityWithDigits = do
   f <- firstSubWithDigits
   rs <- many $ do
     _ <- char ':'
     nextSubWithDigits
-  return (C.Commodity (AtLeast1 f rs))
+  return (B.Commodity (nonEmpty f rs))
 
-firstSubNoDigits :: Parser C.SubCommodity
+firstSubNoDigits :: Parser B.SubCommodity
 firstSubNoDigits = do
   c <- satisfy isNonDigitChar
   rs <- many $ satisfy isNonDigitChar
-  return (C.SubCommodity (TextNonEmpty c (pack rs)))
+  return (B.SubCommodity (TextNonEmpty c (pack rs)))
 
-nextSubNoDigits :: Parser C.SubCommodity
+nextSubNoDigits :: Parser B.SubCommodity
 nextSubNoDigits = do
   let p = satisfy isNonDigitChar
   c <- p
   rs <- many p
-  return (C.SubCommodity (TextNonEmpty c (pack rs)))
+  return (B.SubCommodity (TextNonEmpty c (pack rs)))
 
-commodityNoDigits :: Parser C.Commodity
+commodityNoDigits :: Parser B.Commodity
 commodityNoDigits = do
   f <- firstSubNoDigits
   rs <- many $ do
     _ <- char ':'
     nextSubNoDigits
-  return (C.Commodity (AtLeast1 f rs))
+  return (B.Commodity (nonEmpty f rs))

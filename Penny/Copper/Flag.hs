@@ -1,12 +1,12 @@
-module Penny.Parser.Flag where
+module Penny.Copper.Flag where
 
 import Control.Monad ( void )
 import Data.Text ( pack )
 import Text.Parsec ( char, satisfy, many )
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Bits as B
-import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
+import qualified Penny.Lincoln.Bits as B
+import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 flag :: Parser B.Flag
 flag = do

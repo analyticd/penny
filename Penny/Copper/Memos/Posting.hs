@@ -1,4 +1,4 @@
-module Penny.Parser.Memos.Posting where
+module Penny.Copper.Memos.Posting where
 
 import Control.Monad ( liftM, void, when )
 import Data.Text ( pack )
@@ -7,9 +7,9 @@ import Text.Parsec (
   sourceColumn, statePos, noneOf, manyTill, many )
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Bits as B
-import qualified Penny.Meta as M
-import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
+import qualified Penny.Copper.Meta as M
+import qualified Penny.Lincoln.Bits as B
+import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 memo :: M.Column
         -> Parser B.Memo

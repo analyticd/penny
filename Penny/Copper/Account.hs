@@ -1,4 +1,4 @@
-module Penny.Parser.Account where
+module Penny.Copper.Account where
 
 import Control.Monad ( liftM, void )
 import Data.Char ( isLetter, isNumber )
@@ -7,9 +7,9 @@ import Text.Parsec (
   char, satisfy, notFollowedBy, (<|>), try, many )
 import Text.Parsec.Text ( Parser )
 
-import Penny.Groups.AtLeast1 ( AtLeast1 ( AtLeast1 ) )
-import qualified Penny.Bits as B
-import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
+import Data.List.NonEmpty (NonEmpty, nonEmpty)
+import qualified Penny.Lincoln.Bits as B
+import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 subAccountChar :: Parser Char
 subAccountChar = let
@@ -36,5 +36,5 @@ account :: Parser B.Account
 account = do
   f <- firstSubAccount
   r <- many nextSubAccount
-  return . B.Account $ AtLeast1 f r
+  return . B.Account $ nonEmpty f r
 

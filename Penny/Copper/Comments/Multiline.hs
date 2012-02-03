@@ -1,6 +1,6 @@
-module Penny.Parser.Comments.Multiline where
+module Penny.Copper.Comments.Multiline where
 
-import Penny.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
+import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 import Control.Monad ( void )
 import Data.Text ( pack )

@@ -1,4 +1,4 @@
-module Penny.Parser.DateTime where
+module Penny.Copper.DateTime where
 
 import Data.Time (
   minutesToTimeZone, TimeOfDay, makeTimeOfDayValid,
@@ -10,14 +10,14 @@ import Text.Parsec.Text ( Parser )
 import Control.Monad ( replicateM, void )
 import Data.Fixed ( Pico )
 
-import qualified Penny.Bits.DateTime as DT
+import qualified Penny.Lincoln.Bits as B
 
 newtype DefaultTimeZone =
   DefaultTimeZone { unDefaultTimeZone :: TimeZone }
 
 dateTime ::
   DefaultTimeZone
-  -> Parser DT.DateTime
+  -> Parser B.DateTime
 dateTime (DefaultTimeZone dtz) = do
   d <- day
   maybeTime <- optionMaybe (try (char ' ' >> timeOfDay))
@@ -30,7 +30,7 @@ dateTime (DefaultTimeZone dtz) = do
         Nothing -> return (t, dtz)
   let local = LocalTime d tod
       utc = localTimeToUTC tz local
-  return $ DT.DateTime utc
+  return $ B.DateTime utc
 
 -- Format for dates is:
 -- 2011/01/22 or 2011-01-22
