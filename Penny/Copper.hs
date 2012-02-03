@@ -35,6 +35,7 @@ ledger fn dtz rad sep = manyTill
 data Item =
   Transaction (TransactionBox TransactionMeta PostingMeta)
   | Price (PriceBox PriceMeta)
+  deriving Show
 
 parseTransactions ::
   DT.DefaultTimeZone
