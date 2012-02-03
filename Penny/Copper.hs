@@ -10,7 +10,7 @@ module Penny.Copper (
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe ( catMaybes )
-import Data.Text ( Text, unpack, pack )
+import Data.Text ( Text, unpack )
 import Text.Parsec ( manyTill, eof )
 import qualified Text.Parsec as Parsec
 import Text.Parsec.Error ( ParseError )
