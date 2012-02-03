@@ -29,20 +29,23 @@ Library
         text ==0.11.*,
         explicit-exception ==0.1.*,
         containers ==0.4.*,
-        QuickCheck ==2.4.*,
         transformers == 0.2.*,
         time ==1.2.*,
         Decimal >= 0.2.2 && < 0.3,
         parsec >= 3.1.2 && < 3.2,
         monoid-extra ==0.1.*,
         nestedMap ==0.1.*,
-        pretty ==1.0.*,
 
         -- Do not use newer versions of NonEmptyList. They do not
         -- compile with newer versions of GHC due to dependency
         -- problems. However this old one works fine.
         NonEmptyList ==0.0.5
         
+    if flag(testing)
+       Build-depends:
+         pretty ==1.0.*,
+         old-locale ==1.0.*
+
     Exposed-modules:
         --Penny.Cabin,
         Penny.Copper,
@@ -91,8 +94,12 @@ Library
         Penny.Lincoln.Meta,
         Penny.Lincoln.TextNonEmpty,
         Penny.Lincoln.Transaction,
-        Penny.Lincoln.Transaction.Unverified
+        Penny.Lincoln.Transaction.Unverified,
         Penny.Zinc.Help
+
+    if flag(testing)
+      Exposed-modules:
+        Penny.Lincoln.Pretty
 
     ghc-options: -Wall
 

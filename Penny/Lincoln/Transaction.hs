@@ -1,8 +1,8 @@
 module Penny.Lincoln.Transaction (
-  Posting,
-  TopLine,
-  Transaction,
-  unTransaction,
+  Posting(pPayee, pNumber, pFlag, pAccount, pTags,
+          pEntry, pMemo),
+  TopLine(tDateTime, tFlag, tNumber, tPayee, tMemo),
+  Transaction(unTransaction),
   transaction,
   Error ( UnbalancedError, TooManyInferError,
           CouldNotInferError),
@@ -27,21 +27,21 @@ import qualified Control.Monad.Trans.State.Lazy as St
 import Control.Monad.Trans.Class ( lift )
 
 data Posting =
-  Posting (Maybe B.Payee)
-          (Maybe B.Number)
-          (Maybe B.Flag)
-          B.Account
-          B.Tags
-          B.Entry
-          (Maybe B.Memo)
+  Posting { pPayee   :: (Maybe B.Payee)
+          , pNumber  :: (Maybe B.Number)
+          , pFlag    :: (Maybe B.Flag)
+          , pAccount :: B.Account
+          , pTags    :: B.Tags
+          , pEntry   :: B.Entry
+          , pMemo    :: (Maybe B.Memo) }
   deriving Show
 
 data TopLine =
-  TopLine B.DateTime
-          (Maybe B.Flag)
-          (Maybe B.Number)
-          (Maybe B.Payee)
-          (Maybe B.Memo)
+  TopLine { tDateTime :: B.DateTime
+          , tFlag     :: (Maybe B.Flag)
+          , tNumber   :: (Maybe B.Number)
+          , tPayee    :: (Maybe B.Payee)
+          , tMemo     :: (Maybe B.Memo) }
   deriving Show
 
 -- | All the Postings in a Transaction:
