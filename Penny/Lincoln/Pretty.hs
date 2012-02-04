@@ -1,5 +1,4 @@
-module Penny.Lincoln.Pretty (
-  Pretty(pretty)) where
+module Penny.Lincoln.Pretty where
 
 import Control.Applicative (pure, (<*>), (<$>))
 import Data.Foldable (toList)
@@ -12,6 +11,7 @@ import Text.PrettyPrint (
   ($$))
 
 import qualified Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln.Boxes as X
 import qualified Penny.Lincoln.Family.Family as F
 import qualified Penny.Lincoln.Family.Child as C
 import Penny.Lincoln.Family.Siblings (Siblings(Siblings))
@@ -187,3 +187,26 @@ instance Pretty M.Format where
 
 instance Pretty M.Filename where
   pretty (M.Filename f) = text "Filename:" <+> text (unpack f)
+
+instance (Pretty a, Pretty b)
+         => Pretty (M.TransactionMeta a b) where
+  pretty (M.TransactionMeta f) =
+    hang (text "Transaction meta") indent (pretty f)
+
+instance (Pretty t, Pretty p)
+         => Pretty (X.TransactionBox t p) where
+  pretty box = hang (text "Transaction box:") indent $
+               pretty (X.transaction box)
+               $$ maybePretty "transaction meta" (X.transactionMeta box)
+
+instance (Pretty t, Pretty p)
+         => Pretty (X.PostingBox t p) where
+  pretty box = hang (text "Posting box:") indent $
+               pretty (X.postingBundle box)
+               $$ maybePretty "posting meta" (X.metaBundle box)
+
+instance (Pretty m) => Pretty (X.PriceBox m) where
+  pretty box = hang (text "Price box:") indent $
+               pretty (X.price box)
+               $$ maybePretty "price meta" (X.priceMeta box)
+
