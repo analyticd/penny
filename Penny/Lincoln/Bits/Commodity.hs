@@ -10,7 +10,7 @@ newtype Commodity =
   deriving (Eq, Ord, Show)
 
 newtype SubCommodity =
-  SubCommodity { unSubCommidity :: TextNonEmpty }
+  SubCommodity { unSubCommodity :: TextNonEmpty }
   deriving (Eq, Ord, Show)
 
 -- | Creates a Commodity whose name is only a single character.
