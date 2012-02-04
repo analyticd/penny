@@ -9,16 +9,15 @@ import Text.Parsec
 import Text.PrettyPrint
 
 import Penny.Copper
-import Penny.Lincoln.Pretty
-import Penny.Copper.Pretty
+import Penny.Denver.Pretty
 
 main :: IO ()
 main = do
   dtz <- liftM DefaultTimeZone getCurrentTimeZone
   (a:[]) <- getArgs
   f <- TIO.readFile a
-  let (rad, sep) = radixAndSeparator '.' ','
+  let (rad, spr) = radixAndSeparator '.' ','
       fn = Filename (pack a)
-      e = parse (ledger fn dtz rad sep) a f
+      e = parse (ledger fn dtz rad spr) a f
   putStrLn (render . pretty $ e)
 

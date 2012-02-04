@@ -99,7 +99,7 @@ Library
 
     if flag(testing)
       Exposed-modules:
-        Penny.Lincoln.Pretty
+        Penny.Denver.Pretty
 
     ghc-options: -Wall
 
