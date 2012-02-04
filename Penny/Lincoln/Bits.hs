@@ -1,33 +1,50 @@
 module Penny.Lincoln.Bits (
+  -- * Accounts
   Ac.SubAccountName(SubAccountName, unSubAccountName),
   Ac.Account(Account, unAccount),
 
+  -- * Amounts
   Am.Amount(Amount, qty, commodity),
 
+  -- * Commodities
   C.Commodity(Commodity, unCommodity),
   C.SubCommodity(SubCommodity, unSubCommodity),
   C.charCommodity,
 
+  -- * DateTime
   DT.DateTime(DateTime, unDateTime),
+
+  -- * Debits and Credits
   DC.DrCr(Debit, Credit),
+  
+  -- * Entries
   E.Entry(Entry, drCr, amount),
+
+  -- * Flag
   F.Flag(Flag, unFlag),
+
+  -- * Memos
   M.Memo(Memo, unMemo),
+
+  -- * Number
   N.Number(Number, unNumber),
 
+  -- * Payee
   Pa.Payee(Payee, unPayee),
 
+  -- * Prices and price points
   Pr.From(From, unFrom), Pr.To(To, unTo),
   Pr.CountPerUnit(CountPerUnit, unCountPerUnit),
   Pr.Price(from, to, countPerUnit),
   Pr.convert, Pr.newPrice,
-
   PP.PricePoint(PricePoint, dateTime, price),
 
+  -- * Quantities
   Q.Qty, Q.unQty, Q.partialNewQty,
   Q.newQty, Q.add, Q.subt, Q.mult, Q.zero,
   Q.difference,
 
+  -- * Tags
   T.Tag(Tag, unTag),
   T.Tags(Tags, unTags)) where
 
