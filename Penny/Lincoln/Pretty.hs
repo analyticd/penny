@@ -1,10 +1,11 @@
 module Penny.Lincoln.Pretty where
 
-import Control.Applicative (pure, (<*>), (<$>))
+import Control.Applicative (pure, (<*>))
 import Data.Foldable (toList)
 import Data.Text (unpack)
 import Data.Time (formatTime)
 import System.Locale (defaultTimeLocale)
+import Text.Parsec.Error (ParseError)
 import Text.PrettyPrint (
   punctuate, char, hcat, (<>), (<+>), text, Doc,
   brackets, quotes, parens, sep, hang, vcat,
@@ -144,7 +145,7 @@ instance (Pretty p, Pretty c)
   pretty (F.Family p c1 c2 cs) =
     hang (text "Family") indent
     $ hang (text "Parent") indent (pretty p)
-    $$ vcat (map toChild (zip [1..] (c1:c2:cs)))
+    $$ vcat (map toChild (zip ([1..] :: [Int]) (c1:c2:cs)))
     where
       toChild (i, c) =
         hang (text ("Child " ++ show i)) indent $ pretty c
@@ -155,7 +156,7 @@ instance (Pretty p, Pretty c)
     hang (text "Child") indent
     $ hang (text "This child") indent (pretty t)
     $$ hang (text "Parent") indent (pretty p)
-    $$ vcat (map toSibling (zip [1..] (s:ss)))
+    $$ vcat (map toSibling (zip ([1..] :: [Int]) (s:ss)))
     where
       toSibling (i, c) =
         hang (text ("Sibling " ++ show i)) indent $ pretty c
@@ -163,7 +164,7 @@ instance (Pretty p, Pretty c)
 instance Pretty a => Pretty (Siblings a) where
   pretty (Siblings f s rs) =
     hang (text "Siblings") indent
-    $ vcat (map toSibling (zip [1..] (f:s:rs)))
+    $ vcat (map toSibling (zip ([1..] :: [Int]) (f:s:rs)))
     where
       toSibling (i, c) =
         hang (text ("Sibling " ++ show i)) indent $ pretty c
@@ -210,3 +211,10 @@ instance (Pretty m) => Pretty (X.PriceBox m) where
                pretty (X.price box)
                $$ maybePretty "price meta" (X.priceMeta box)
 
+instance (Pretty l, Pretty r)
+         => Pretty (Either l r) where
+  pretty (Left l) = text "Left" <+> pretty l
+  pretty (Right r) = text "Right" <+> pretty r
+
+instance Pretty ParseError where
+  pretty e = text "Parse error" <+> pretty (text . show $ e)

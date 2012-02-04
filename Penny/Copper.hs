@@ -1,4 +1,5 @@
 module Penny.Copper (
+  Ledger(Ledger),
   ledger,
   parseTransactions,
   Item(Transaction, Price),
@@ -23,14 +24,19 @@ import qualified Penny.Copper.Qty as Q
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Item as I
 
+data Ledger =
+  Ledger [(Line, I.Item)]
+  deriving Show
+
 ledger ::
   Filename
   -> DT.DefaultTimeZone
   -> Q.Radix
   -> Q.Separator
-  -> Parser [(Line, I.Item)]
-ledger fn dtz rad sep = manyTill
-                        (I.itemWithLineNumber fn dtz rad sep) eof
+  -> Parser Ledger
+ledger fn dtz rad sep =
+  manyTill (I.itemWithLineNumber fn dtz rad sep) eof
+  >>= return . Ledger
 
 data Item =
   Transaction (TransactionBox TransactionMeta PostingMeta)
@@ -48,7 +54,7 @@ parseTransactions dtz rad sep f@(Filename fn) t = let
   p = ledger f dtz rad sep
   in case Parsec.parse p (unpack fn) t of
     (Left e) -> Ex.Exception e
-    (Right g) -> let
+    (Right (Ledger g)) -> let
       pr (_, i) = case i of
         (I.Transaction tr) -> Just (Transaction tr)
         (I.Price price) -> Just (Price price)

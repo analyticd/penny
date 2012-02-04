@@ -113,6 +113,9 @@ Executable copperTest
     penny ==0.1.*
   Main-is: copperTest.hs
   GHC-Options: -Wall
-  if ! flag(testing)
+  if flag(testing)
+    Build-depends:
+      pretty ==1.0.*
+  else
     buildable: False
 

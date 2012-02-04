@@ -1,7 +1,7 @@
 module Penny.Copper.Pretty where
 
 import Data.Text (unpack)
-import Text.PrettyPrint (text, (<+>), hsep, hang)
+import Text.PrettyPrint (text, (<+>), hsep, hang, vcat)
 
 import Penny.Copper as C
 import qualified Penny.Copper.Meta as M
@@ -58,3 +58,12 @@ instance Pretty C.Item where
   pretty i = hang (text "Item") indent $ case i of
     (C.Transaction t) -> hang (text "Transaction") indent $ pretty t
     (C.Price pb) -> hang (text "Price box") indent $ pretty pb
+
+instance Pretty C.Ledger where
+  pretty (C.Ledger ls) =
+    hang (text "Ledger") indent $
+    vcat (map toDoc ls)
+    where
+      toDoc (l, i) = text "line no:" <+> pretty l
+                     <+> text "item:" <+> pretty i
+                         
