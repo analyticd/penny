@@ -92,6 +92,7 @@ Library
         Penny.Lincoln.Family.Family,
         Penny.Lincoln.Family.Siblings,
         Penny.Lincoln.Meta,
+        Penny.Lincoln.Predicates,
         Penny.Lincoln.Queries,
         Penny.Lincoln.TextNonEmpty,
         Penny.Lincoln.Transaction,

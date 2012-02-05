@@ -1,6 +1,6 @@
 module Penny.Lincoln.Queries where
 
-import Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Boxes ( PostingBox, postingBundle)
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Transaction as T
@@ -51,3 +51,15 @@ entry = T.pEntry . posting
 
 balance :: PostingBox t p -> Balance
 balance = entryToBalance . entry
+
+drCr :: PostingBox t p -> B.DrCr
+drCr = B.drCr . entry
+
+amount :: PostingBox t p -> B.Amount
+amount = B.amount . entry
+
+qty :: PostingBox t p -> B.Qty
+qty = B.qty . amount
+
+commodity :: PostingBox t p -> B.Commodity
+commodity = B.commodity . amount
