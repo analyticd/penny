@@ -14,19 +14,37 @@ between them.
 
 -}
 
-newtype Operand a = Operand (a -> Bool)
-
-instance Show (Operand a) where
-  show (Operand _) = "<operand>"
+newtype Operand a = Operand a
+                    deriving Show
 
 data OpType a =
-  Unary (Operand a -> Operand a)
-  | Binary (Operand a -> Operand a -> Operand a)
+  Unary (a -> a)
+  | Binary (a -> a -> a)
 
 instance Show (OpType a) where
   show (Unary _) = "<OpType unary>"
   show (Binary _) = "<OpType binary>"
 
+type Precedence = Int
+
+data Operator a = Operator Precedence (OpType a)
+                  deriving Show
+
+data InputItem a =
+  OpenParen
+  | CloseParen
+  | IINotParen (NotParen a)
+  deriving Show
+
+type NotParen a = Either (Operator a) a
+
+type OutputItem a = NotParen a
+
+
+
+--data PostfixOutput = PostfixOutput [
+
+{-
 data Operator =
   Not
   | And
@@ -104,7 +122,4 @@ applyOperator o os = case o of
       in Just ((Operand f') : xs)
          
 
-{-
-parseItem (OperandStack ds) (OperatorStack ts) (Line is) = case is of
-  [] -> applyOperators 
 -}
