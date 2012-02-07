@@ -12,18 +12,22 @@ module Penny.Zinc.Expressions (
 
   R.Operand(Operand),
 
-  I.Expression(Expression),
+  Back,
+  enqueue,
+  empty,
   evaluate) where
 
 import Penny.Zinc.Expressions.Infix as I
+import Penny.Zinc.Expressions.Queue (Back, enqueue, empty)
 import Penny.Zinc.Expressions.RPN as R
 
-evaluate :: I.Expression a -> Maybe a
+evaluate :: Back (I.Token a) -> Maybe a
 evaluate i = I.infixToRPN i >>= R.process
 
 --
 -- Testing
 --
+{-
 _expr :: I.Expression Int
 _expr = I.Expression [
   I.TokOpenParen
@@ -48,3 +52,4 @@ _mult = I.TokBinary (I.Precedence 6) I.ALeft (*)
 
 _div :: Integral a => I.Token a
 _div = I.TokBinary (I.Precedence 6) I.ALeft div
+-}
