@@ -18,8 +18,14 @@ module Penny.Zinc.Expressions.Infix (
 
 import qualified Penny.Zinc.Expressions.RPN as R
 import Penny.Zinc.Expressions.Queues
-  (Back, Front, front, View(Empty, (:<)), view, push,
+  (Back, Front, front, View(Empty, (:<)), view,
    emptyFront)
+import Penny.Zinc.Expressions.Stack (push, View((:->)))
+import qualified Penny.Zinc.Expressions.Stack as S
+import qualified Penny.Zinc.Expressions.Queues as Q
+
+
+type Stack a = S.Stack (StackVal a)
 
 newtype Precedence = Precedence Int deriving (Show, Eq, Ord)
 
@@ -56,8 +62,6 @@ instance Show (StackVal a) where
     "<binary, " ++ show p ++ ">"
   show StkOpenParen = "<OpenParen>"
 
-type Stack a = Front (StackVal a)
-
 newtype Output a = Output [R.Token a] deriving Show
 
 infixToRPN :: Back (Token a) -> Maybe (R.RPN a)
@@ -74,9 +78,9 @@ popTokens ::
   -> Stack a
   -> Output a
   -> (Stack a, Output a)
-popTokens f ss os = case view ss of
-  Empty -> noChange
-  x:<xs -> case x of
+popTokens f ss os = case S.view ss of
+  S.Empty -> noChange
+  x:->xs -> case x of
       StkOpenParen -> (ss, os)
       StkUnaryPrefix p g -> popper (R.Unary g) p
       StkBinary p g -> popper (R.Binary g) p
@@ -117,7 +121,7 @@ processToken t ss os = case t of
 processTokens ::
   Front (Token a)
   -> Maybe (Output a)
-processTokens i = processTokens' i emptyFront (Output [])
+processTokens i = processTokens' i S.empty (Output [])
 
 processTokens' ::
   Front (Token a)
@@ -134,9 +138,9 @@ popRemainingOperators ::
   Stack a
   -> Output a
   -> Maybe (Output a)
-popRemainingOperators s os = case view s of
-  Empty -> Just os
-  x:<xs -> case x of
+popRemainingOperators s os = case S.view s of
+  S.Empty -> Just os
+  x:->xs -> case x of
       StkOpenParen -> Nothing
       StkUnaryPrefix _ f -> pusher (R.Unary f)
       StkBinary _ f -> pusher (R.Binary f)
@@ -148,9 +152,9 @@ popThroughOpenParen ::
   Stack a
   -> Output a
   -> Maybe (Stack a, Output a)
-popThroughOpenParen ss os = case view ss of
-  Empty -> Nothing
-  x:<xs -> let
+popThroughOpenParen ss os = case S.view ss of
+  S.Empty -> Nothing
+  x:->xs -> let
     popper op = popThroughOpenParen xs output' where
       output' = appendToOutput (R.TokOperator op) os
     in case x of
