@@ -2,13 +2,12 @@ module Penny.Zinc.Expressions.RPN (
   Operand(Operand),
   Operator(Unary, Binary),
   Token(TokOperand, TokOperator),
-  RPN(RPN),
   process) where
 
 import Penny.Zinc.Expressions.Stack (
   Stack, push, empty, View(Empty, (:->)),
   view)
-import Penny.Zinc.Expressions.Queues (Front, View(:<))
+import Penny.Zinc.Expressions.Queues (Front, View((:<)))
 import qualified Penny.Zinc.Expressions.Queues as Q
 
 newtype Operand a = Operand a deriving Show
@@ -32,7 +31,7 @@ type Operands a = Stack (Operand a)
 
 processOperator ::
   Operator a
-  -> Operands
+  -> Operands a
   -> Maybe (Operands a)
 processOperator t ds = case t of
   (Unary f) -> case view ds of
@@ -40,9 +39,10 @@ processOperator t ds = case t of
     (Operand x) :-> xs -> return $ push (Operand (f x)) xs
   (Binary f) -> case view ds of
     Empty -> Nothing
-    _ :-> Empty -> Nothing
-    (Operand x) :-> (Operand y) :-> xs ->
-      return $ push (Operand f y x) xs
+    (Operand x) :-> dss -> case view dss of
+      (Operand y) :-> dsss ->
+        return $ push (Operand (f y x)) dsss
+      Empty -> Nothing
 
 processOperand ::
   Operand a
@@ -60,31 +60,36 @@ processToken tok s = case tok of
 
 process :: RPN a -> Maybe a
 process i = case popTokens i of
-  Just (Stack ((Operand x):[])) -> Just x
+  Just os -> case view os of
+    (Operand x) :-> oss -> case view oss of 
+      Empty -> Just x
+      _ -> Nothing
+    _ -> Nothing
   _ -> Nothing
 
 popTokens :: RPN a
-             -> Maybe (Stack a)
-popTokens i = case popTokens' i (Stack []) of
+             -> Maybe (Operands a)
+popTokens i = case popTokens' i empty of
   Nothing -> Nothing
-  (Just ((RPN is), s')) -> case is of
-    [] -> return s'
+  Just (is, s') -> case Q.view is of
+    Q.Empty -> return s'
     _ -> Nothing
 
 popTokens' :: RPN a
-             -> Stack a
-             -> Maybe (RPN a, Stack a)
-popTokens' (RPN ts) s = case ts of
-  [] -> return (RPN ts, s)
-  (x:xs) -> do
+             -> Operands a
+             -> Maybe (RPN a, Operands a)
+popTokens' ts s = case Q.view ts of
+  Q.Empty -> return (ts, s)
+  x :< xs -> do
     s' <- processToken x s
-    popTokens' (RPN xs) s'
+    popTokens' xs s'
 
 --
 -- Testing
 --
 
 -- 19
+{-
 _input :: RPN Int
 _input = RPN [ TokOperand (Operand 4)
              , TokOperand (Operand 5)
@@ -95,3 +100,4 @@ _input = RPN [ TokOperand (Operand 4)
              , TokOperator (Binary (+))
              , TokOperand (Operand 2)
              , TokOperator (Binary div) ]
+-}

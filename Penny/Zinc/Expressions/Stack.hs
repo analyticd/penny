@@ -16,6 +16,8 @@ data View t =
   | t :-> Stack t
   deriving Show
 
+infixr 5 :->
+
 view :: Stack a -> View a
 view (Stack as) = case as of
   [] -> Empty

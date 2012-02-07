@@ -19,7 +19,7 @@ module Penny.Zinc.Expressions.Infix (
 import qualified Penny.Zinc.Expressions.RPN as R
 import Penny.Zinc.Expressions.Queues
   (Back, Front, front, View(Empty, (:<)), view,
-   emptyFront, enqueue)
+   emptyFront, enqueue, emptyBack)
 import Penny.Zinc.Expressions.Stack (push, View((:->)))
 import qualified Penny.Zinc.Expressions.Stack as S
 import qualified Penny.Zinc.Expressions.Queues as Q
@@ -62,11 +62,11 @@ instance Show (StackVal a) where
     "<binary, " ++ show p ++ ">"
   show StkOpenParen = "<OpenParen>"
 
-infixToRPN :: Back (Token a) -> Maybe (R.RPN a)
+infixToRPN :: Back (Token a) -> Maybe (Front (R.Token a))
 infixToRPN i = processTokens (front i) >>= return . outputToRPNInput
 
-outputToRPNInput :: Output a -> R.RPN a
-outputToRPNInput (Output ls) = R.RPN (reverse ls)
+outputToRPNInput :: Output a -> Front (R.Token a)
+outputToRPNInput ls = front ls
 
 popTokens ::
   (Precedence -> Bool)
@@ -116,7 +116,7 @@ processToken t ss os = case t of
 processTokens ::
   Front (Token a)
   -> Maybe (Output a)
-processTokens i = processTokens' i S.empty (Output [])
+processTokens i = processTokens' i S.empty emptyBack
 
 processTokens' ::
   Front (Token a)

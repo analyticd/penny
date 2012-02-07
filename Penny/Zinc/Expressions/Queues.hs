@@ -37,5 +37,7 @@ view (Front ts) = case ts of
   [] -> Empty
   t:ts -> t :< (Front ts)
 
+infixr 5 :<
+
 push :: t -> Front t -> Front t
 push t (Front ts) = Front (t:ts)
