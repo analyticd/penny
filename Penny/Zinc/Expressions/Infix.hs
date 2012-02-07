@@ -29,6 +29,7 @@ data Token a =
   | TokCloseParen
 
 newtype Infix a = Infix [Token a]
+                  deriving Show
 
 instance (Show a) => Show (Token a) where
   show (TokOperand a) = "<operand " ++ show a ++ ">"
@@ -71,20 +72,21 @@ popTokens ::
   -> Stack a
   -> Output a
   -> (Stack a, Output a)
-popTokens f (Stack ss) os = let
-  noChange = (Stack ss, os) in
-  case ss of
-    [] -> noChange
-    x:xs -> let
-      popper tok pr = let
-        output' = appendToOutput (R.TokOperator tok) os in
+popTokens f (Stack ss) os = case ss of
+  [] -> noChange
+  x:xs -> case x of
+      StkOpenParen -> (Stack ss, os)
+      StkUnaryPrefix p g -> popper (R.Unary g) p
+      StkBinary p g -> popper (R.Binary g) p
+    where
+      popper tok pr =
         if f pr
         then popTokens f (Stack xs) output'
         else noChange
-      in case x of
-        StkOpenParen -> (Stack ss, os)
-        StkUnaryPrefix p g -> popper (R.Unary g) p
-        StkBinary p g -> popper (R.Binary g) p
+          where
+            output' = appendToOutput (R.TokOperator tok) os
+  where
+    noChange = (Stack ss, os)
 
 processToken ::
   Token a
