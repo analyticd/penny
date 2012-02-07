@@ -1,4 +1,5 @@
 module Penny.Zinc.Expressions.RPN (
+  Operand(Operand),
   Operator(Unary, Binary),
   Token(TokOperand, TokOperator),
   RPN(RPN),

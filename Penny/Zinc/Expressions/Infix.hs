@@ -21,7 +21,8 @@ newtype Precedence = Precedence Int deriving (Show, Eq, Ord)
 data Associativity = ALeft | ARight deriving Show
 
 data Token a =
-  TokUnaryPostfix (a -> a)
+  TokOperand a
+  | TokUnaryPostfix (a -> a)
   | TokUnaryPrefix Precedence (a -> a)
   | TokBinary Precedence Associativity (a -> a -> a)
   | TokOpenParen
@@ -29,7 +30,8 @@ data Token a =
 
 newtype Infix a = Infix [Token a]
 
-instance Show (Token a) where
+instance (Show a) => Show (Token a) where
+  show (TokOperand a) = "<operand " ++ show a ++ ">"
   show (TokUnaryPostfix _) = "<unary postfix>"
   show (TokUnaryPrefix (Precedence i) _) =
     "<unary prefix, precedence " ++ (show i) ++ ">"
@@ -90,6 +92,8 @@ processToken ::
   -> Output a
   -> Maybe (Stack a, Output a)
 processToken t (Stack ss) os = case t of
+  TokOperand a ->
+    Just (Stack ss, appendToOutput (R.TokOperand (R.Operand a)) os)
   TokUnaryPostfix f ->
     Just (Stack ss, appendToOutput (R.TokOperator (R.Unary f)) os)
   TokUnaryPrefix p f -> let
