@@ -15,7 +15,7 @@ data Token a =
   | TokOperator (Operator a)
   deriving Show
 
-newtype Input a = Input [Token a]
+newtype RPN a = RPN [Token a]
                   deriving Show
 
 newtype Stack a = Stack [Operand a]
@@ -49,40 +49,40 @@ processToken tok s = case tok of
   TokOperand d -> return (processOperand d s)
   TokOperator t -> processOperator t s
 
-process :: Input a -> Maybe a
+process :: RPN a -> Maybe a
 process i = case popTokens i of
   Just (Stack ((Operand x):[])) -> Just x
   _ -> Nothing
 
-popTokens :: Input a
+popTokens :: RPN a
              -> Maybe (Stack a)
 popTokens i = case popTokens' i (Stack []) of
   Nothing -> Nothing
-  (Just ((Input is), s')) -> case is of
+  (Just ((RPN is), s')) -> case is of
     [] -> return s'
     _ -> Nothing
 
-popTokens' :: Input a
+popTokens' :: RPN a
              -> Stack a
-             -> Maybe (Input a, Stack a)
-popTokens' (Input ts) s = case ts of
-  [] -> return (Input ts, s)
+             -> Maybe (RPN a, Stack a)
+popTokens' (RPN ts) s = case ts of
+  [] -> return (RPN ts, s)
   (x:xs) -> do
     s' <- processToken x s
-    popTokens' (Input xs) s'
+    popTokens' (RPN xs) s'
 
 --
 -- Testing
 --
 
 -- 19
-_input :: Input Int
-_input = Input [ TokOperand (Operand 4)
-               , TokOperand (Operand 5)
-               , TokOperand (Operand 8)
-               , TokOperator (Binary (*))
-               , TokOperand (Operand 6)
-               , TokOperator (Binary (-))
-               , TokOperator (Binary (+))
-               , TokOperand (Operand 2)
-               , TokOperator (Binary div) ]
+_input :: RPN Int
+_input = RPN [ TokOperand (Operand 4)
+             , TokOperand (Operand 5)
+             , TokOperand (Operand 8)
+             , TokOperator (Binary (*))
+             , TokOperand (Operand 6)
+             , TokOperator (Binary (-))
+             , TokOperator (Binary (+))
+             , TokOperand (Operand 2)
+             , TokOperator (Binary div) ]

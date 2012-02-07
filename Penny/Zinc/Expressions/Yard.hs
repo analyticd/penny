@@ -41,14 +41,14 @@ newtype Stack a = Stack [StackVal a] deriving Show
 
 newtype Output a = Output [R.Token a] deriving Show
 
-infixToRPN :: Infix a -> Maybe (R.Input a)
+infixToRPN :: Infix a -> Maybe (R.RPN a)
 infixToRPN i = processTokens i >>= return . outputToRPNInput
 
 appendToOutput :: R.Token a -> Output a -> Output a
 appendToOutput tok (Output ts) = Output (tok:ts)
 
-outputToRPNInput :: Output a -> R.Input a
-outputToRPNInput (Output ls) = R.Input (reverse ls)
+outputToRPNInput :: Output a -> R.RPN a
+outputToRPNInput (Output ls) = R.RPN (reverse ls)
 
 popTokens ::
   (Precedence -> Bool)
