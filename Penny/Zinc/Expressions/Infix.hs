@@ -13,13 +13,13 @@ module Penny.Zinc.Expressions.Infix (
   
   R.Operand(Operand),
   
-  Expression(Expression),
-  infixToRPN,
+  infixToRPN
   ) where
 
-import Data.Monoid (Monoid(mappend, mempty))
-
 import qualified Penny.Zinc.Expressions.RPN as R
+import Penny.Zinc.Expressions.Queues
+  (Back, Front, front, View(Empty, (:<)), view, push,
+   emptyFront)
 
 newtype Precedence = Precedence Int deriving (Show, Eq, Ord)
 
@@ -32,16 +32,6 @@ data Token a =
   | TokBinary Precedence Associativity (a -> a -> a)
   | TokOpenParen
   | TokCloseParen
-
-newtype Expression a = Expression [Token a]
-                  deriving Show
-
-singleton :: Token a -> Expression a
-singleton a = Expression [a]
-
-instance Monoid (Expression a) where
-  mempty = Expression []
-  mappend (Expression l) (Expression r) = Expression (l ++ r)
 
 instance (Show a) => Show (Token a) where
   show (TokOperand a) = "<operand " ++ show a ++ ">"
@@ -66,12 +56,12 @@ instance Show (StackVal a) where
     "<binary, " ++ show p ++ ">"
   show StkOpenParen = "<OpenParen>"
 
-newtype Stack a = Stack [StackVal a] deriving Show
+type Stack a = Front (StackVal a)
 
 newtype Output a = Output [R.Token a] deriving Show
 
-infixToRPN :: Expression a -> Maybe (R.RPN a)
-infixToRPN i = processTokens i >>= return . outputToRPNInput
+infixToRPN :: Back (Token a) -> Maybe (R.RPN a)
+infixToRPN i = processTokens (front i) >>= return . outputToRPNInput
 
 appendToOutput :: R.Token a -> Output a -> Output a
 appendToOutput tok (Output ts) = Output (tok:ts)
@@ -84,87 +74,86 @@ popTokens ::
   -> Stack a
   -> Output a
   -> (Stack a, Output a)
-popTokens f (Stack ss) os = case ss of
-  [] -> noChange
-  x:xs -> case x of
-      StkOpenParen -> (Stack ss, os)
+popTokens f ss os = case view ss of
+  Empty -> noChange
+  x:<xs -> case x of
+      StkOpenParen -> (ss, os)
       StkUnaryPrefix p g -> popper (R.Unary g) p
       StkBinary p g -> popper (R.Binary g) p
     where
       popper tok pr =
         if f pr
-        then popTokens f (Stack xs) output'
+        then popTokens f xs output'
         else noChange
           where
             output' = appendToOutput (R.TokOperator tok) os
   where
-    noChange = (Stack ss, os)
+    noChange = (ss, os)
 
 processToken ::
   Token a
   -> Stack a
   -> Output a
   -> Maybe (Stack a, Output a)
-processToken t (Stack ss) os = case t of
+processToken t ss os = case t of
   TokOperand a ->
-    Just (Stack ss, appendToOutput (R.TokOperand (R.Operand a)) os)
+    Just (ss, appendToOutput (R.TokOperand (R.Operand a)) os)
   TokUnaryPostfix f ->
-    Just (Stack ss, appendToOutput (R.TokOperator (R.Unary f)) os)
+    Just (ss, appendToOutput (R.TokOperator (R.Unary f)) os)
   TokUnaryPrefix p f -> let
     outputVal = StkUnaryPrefix p f
-    in Just (Stack (outputVal:ss), os)
+    in Just (push outputVal ss, os)
   TokBinary p a f -> let
     stackVal = StkBinary p f
-    ((Stack stack'), output') =
+    (stack', output') =
       case a of
-        ALeft -> popTokens (>= p) (Stack ss) os
-        ARight -> popTokens (> p) (Stack ss) os
-    in Just (Stack (stackVal:stack'), output')
+        ALeft -> popTokens (>= p) ss os
+        ARight -> popTokens (> p) ss os
+    in Just (push stackVal stack', output')
   TokOpenParen ->
-    Just (Stack (StkOpenParen:ss), os)
-  TokCloseParen -> popThroughOpenParen (Stack ss) os
+    Just (push StkOpenParen ss, os)
+  TokCloseParen -> popThroughOpenParen ss os
 
 processTokens ::
-  Expression a
+  Front (Token a)
   -> Maybe (Output a)
-processTokens i = processTokens' i (Stack []) (Output [])
+processTokens i = processTokens' i emptyFront (Output [])
 
 processTokens' ::
-  Expression a
+  Front (Token a)
   -> Stack a
   -> Output a
   -> Maybe (Output a)
-processTokens' (Expression is) st os = case is of
-  [] -> popRemainingOperators st os
-  t:ts -> do
+processTokens' is st os = case view is of
+  Empty -> popRemainingOperators st os
+  t:<ts -> do
     (stack', output') <- processToken t st os
-    processTokens' (Expression ts) stack' output'
+    processTokens' ts stack' output'
 
 popRemainingOperators ::
   Stack a
   -> Output a
   -> Maybe (Output a)
-popRemainingOperators (Stack ss) os = case ss of
-  [] -> Just os
-  x:xs -> case x of
+popRemainingOperators s os = case view s of
+  Empty -> Just os
+  x:<xs -> case x of
       StkOpenParen -> Nothing
       StkUnaryPrefix _ f -> pusher (R.Unary f)
       StkBinary _ f -> pusher (R.Binary f)
     where
-      pusher op = popRemainingOperators (Stack xs) output' where
+      pusher op = popRemainingOperators xs output' where
         output' = appendToOutput (R.TokOperator op) os
 
 popThroughOpenParen ::
   Stack a
   -> Output a
   -> Maybe (Stack a, Output a)
-popThroughOpenParen (Stack ss) os = case ss of
-  [] -> Nothing
-  x:xs -> let
-    popper op = popThroughOpenParen stack' output' where
+popThroughOpenParen ss os = case view ss of
+  Empty -> Nothing
+  x:<xs -> let
+    popper op = popThroughOpenParen xs output' where
       output' = appendToOutput (R.TokOperator op) os
-      stack' = Stack xs
     in case x of
       StkUnaryPrefix _ f -> popper (R.Unary f)        
       StkBinary _ f -> popper (R.Binary f)
-      StkOpenParen -> Just (Stack xs, os)
+      StkOpenParen -> Just (xs, os)
