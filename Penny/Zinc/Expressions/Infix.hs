@@ -1,4 +1,18 @@
-module Penny.Zinc.Expressions.Infix where
+module Penny.Zinc.Expressions.Infix (
+  Precedence(Precedence),
+  
+  Associativity(ALeft,
+                ARight),
+  
+  Token(TokUnaryPostfix,
+        TokUnaryPrefix,
+        TokBinary,
+        TokOpenParen,
+        TokCloseParen),
+  
+  Infix(Infix),
+  infixToRPN
+  ) where
 
 import qualified Penny.Zinc.Expressions.RPN as R
 

@@ -1,4 +1,8 @@
-module Penny.Zinc.Expressions.RPN where
+module Penny.Zinc.Expressions.RPN (
+  Operator(Unary, Binary),
+  Token(TokOperand, TokOperator),
+  RPN(RPN),
+  process) where
 
 newtype Operand a = Operand a deriving Show
 
@@ -31,7 +35,7 @@ processOperator t (Stack ds) = case t of
     ((Operand x):xs) -> return (Stack ( Operand (f x) : xs ))
   (Binary f) -> case ds of
     [] -> Nothing
-    (x:[]) -> Nothing
+    (_:[]) -> Nothing
     ((Operand x):(Operand y):xs) ->
       return (Stack(Operand (f y x) : xs))
 
