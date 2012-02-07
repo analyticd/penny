@@ -27,9 +27,9 @@ evaluate i = I.infixToRPN i >>= R.process
 --
 -- Testing
 --
-{-
-_expr :: I.Expression Int
-_expr = I.Expression [
+
+_expr :: Back (I.Token Int)
+_expr = foldl (flip enqueue) empty [
   I.TokOpenParen
   , I.TokOperand 3
   , _add
@@ -52,4 +52,4 @@ _mult = I.TokBinary (I.Precedence 6) I.ALeft (*)
 
 _div :: Integral a => I.Token a
 _div = I.TokBinary (I.Precedence 6) I.ALeft div
--}
+
