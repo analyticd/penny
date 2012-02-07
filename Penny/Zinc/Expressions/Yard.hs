@@ -13,7 +13,7 @@ data Token a =
   | TokOpenParen
   | TokCloseParen
 
-newtype Input a = Input [Token a]
+newtype Infix a = Infix [Token a]
 
 instance Show (Token a) where
   show (TokUnaryPostfix _) = "<unary postfix>"
@@ -41,7 +41,7 @@ newtype Stack a = Stack [StackVal a] deriving Show
 
 newtype Output a = Output [R.Token a] deriving Show
 
-infixToRPN :: Input a -> Maybe (R.Input a)
+infixToRPN :: Infix a -> Maybe (R.Input a)
 infixToRPN i = processTokens i >>= return . outputToRPNInput
 
 appendToOutput :: R.Token a -> Output a -> Output a
@@ -93,20 +93,20 @@ processToken t (Stack ss) os = case t of
   TokCloseParen -> popThroughOpenParen (Stack ss) os
 
 processTokens ::
-  Input a
+  Infix a
   -> Maybe (Output a)
 processTokens i = processTokens' i (Stack []) (Output [])
 
 processTokens' ::
-  Input a
+  Infix a
   -> Stack a
   -> Output a
   -> Maybe (Output a)
-processTokens' (Input is) st os = case is of
+processTokens' (Infix is) st os = case is of
   [] -> popRemainingOperators st os
   t:ts -> do
     (stack', output') <- processToken t st os
-    processTokens' (Input ts) stack' output'
+    processTokens' (Infix ts) stack' output'
 
 popRemainingOperators ::
   Stack a
