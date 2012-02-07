@@ -12,20 +12,20 @@ module Penny.Zinc.Expressions (
 
   R.Operand(Operand),
 
-  I.Infix(Infix),
+  I.Expression(Expression),
   evaluate) where
 
 import Penny.Zinc.Expressions.Infix as I
 import Penny.Zinc.Expressions.RPN as R
 
-evaluate :: I.Infix a -> Maybe a
+evaluate :: I.Expression a -> Maybe a
 evaluate i = I.infixToRPN i >>= R.process
 
 --
 -- Testing
 --
-_expr :: I.Infix Int
-_expr = I.Infix [
+_expr :: I.Expression Int
+_expr = I.Expression [
   I.TokOpenParen
   , I.TokOperand 3
   , _add

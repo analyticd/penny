@@ -13,8 +13,8 @@ module Penny.Zinc.Expressions.Infix (
   
   R.Operand(Operand),
   
-  Infix(Infix),
-  infixToRPN
+  Expression(Expression),
+  infixToRPN,
   ) where
 
 import qualified Penny.Zinc.Expressions.RPN as R
@@ -31,7 +31,7 @@ data Token a =
   | TokOpenParen
   | TokCloseParen
 
-newtype Infix a = Infix [Token a]
+newtype Expression a = Expression [Token a]
                   deriving Show
 
 instance (Show a) => Show (Token a) where
@@ -61,7 +61,7 @@ newtype Stack a = Stack [StackVal a] deriving Show
 
 newtype Output a = Output [R.Token a] deriving Show
 
-infixToRPN :: Infix a -> Maybe (R.RPN a)
+infixToRPN :: Expression a -> Maybe (R.RPN a)
 infixToRPN i = processTokens i >>= return . outputToRPNInput
 
 appendToOutput :: R.Token a -> Output a -> Output a
@@ -116,20 +116,20 @@ processToken t (Stack ss) os = case t of
   TokCloseParen -> popThroughOpenParen (Stack ss) os
 
 processTokens ::
-  Infix a
+  Expression a
   -> Maybe (Output a)
 processTokens i = processTokens' i (Stack []) (Output [])
 
 processTokens' ::
-  Infix a
+  Expression a
   -> Stack a
   -> Output a
   -> Maybe (Output a)
-processTokens' (Infix is) st os = case is of
+processTokens' (Expression is) st os = case is of
   [] -> popRemainingOperators st os
   t:ts -> do
     (stack', output') <- processToken t st os
-    processTokens' (Infix ts) stack' output'
+    processTokens' (Expression ts) stack' output'
 
 popRemainingOperators ::
   Stack a
