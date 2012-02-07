@@ -4,11 +4,14 @@ module Penny.Zinc.Expressions.Infix (
   Associativity(ALeft,
                 ARight),
   
-  Token(TokUnaryPostfix,
+  Token(TokOperand,
+        TokUnaryPostfix,
         TokUnaryPrefix,
         TokBinary,
         TokOpenParen,
         TokCloseParen),
+  
+  R.Operand(Operand),
   
   Infix(Infix),
   infixToRPN
