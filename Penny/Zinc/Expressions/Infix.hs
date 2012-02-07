@@ -17,6 +17,8 @@ module Penny.Zinc.Expressions.Infix (
   infixToRPN,
   ) where
 
+import Data.Monoid (Monoid(mappend, mempty))
+
 import qualified Penny.Zinc.Expressions.RPN as R
 
 newtype Precedence = Precedence Int deriving (Show, Eq, Ord)
@@ -33,6 +35,13 @@ data Token a =
 
 newtype Expression a = Expression [Token a]
                   deriving Show
+
+singleton :: Token a -> Expression a
+singleton a = Expression [a]
+
+instance Monoid (Expression a) where
+  mempty = Expression []
+  mappend (Expression l) (Expression r) = Expression (l ++ r)
 
 instance (Show a) => Show (Token a) where
   show (TokOperand a) = "<operand " ++ show a ++ ">"
