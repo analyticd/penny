@@ -7,8 +7,8 @@ module Penny.Zinc.Expressions.RPN (
 import Penny.Zinc.Expressions.Stack (
   Stack, push, empty, View(Empty, (:->)),
   view)
-import Penny.Zinc.Expressions.Queues (Front, View((:<)))
-import qualified Penny.Zinc.Expressions.Queues as Q
+import Penny.Zinc.Expressions.Queue (Front, View((:<)))
+import qualified Penny.Zinc.Expressions.Queue as Q
 
 newtype Operand a = Operand a deriving Show
 

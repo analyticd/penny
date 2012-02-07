@@ -1,4 +1,4 @@
-module Penny.Zinc.Expressions.Queues (
+module Penny.Zinc.Expressions.Queue (
   Back,
   empty,
   enqueue,

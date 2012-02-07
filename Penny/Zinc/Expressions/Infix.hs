@@ -17,12 +17,12 @@ module Penny.Zinc.Expressions.Infix (
   ) where
 
 import qualified Penny.Zinc.Expressions.RPN as R
-import Penny.Zinc.Expressions.Queues
-  (Back, Front, front, View(Empty, (:<)), view,
-   emptyFront, enqueue, emptyBack)
+import Penny.Zinc.Expressions.Queue
+  (Back, Front, View(Empty, (:<)), view,
+   enqueue, empty, front)
 import Penny.Zinc.Expressions.Stack (push, View((:->)))
 import qualified Penny.Zinc.Expressions.Stack as S
-import qualified Penny.Zinc.Expressions.Queues as Q
+import qualified Penny.Zinc.Expressions.Queue as Q
 
 type Stack a = S.Stack (StackVal a)
 type Output a = Back (R.Token a)
@@ -116,7 +116,7 @@ processToken t ss os = case t of
 processTokens ::
   Front (Token a)
   -> Maybe (Output a)
-processTokens i = processTokens' i S.empty emptyBack
+processTokens i = processTokens' i S.empty empty
 
 processTokens' ::
   Front (Token a)
