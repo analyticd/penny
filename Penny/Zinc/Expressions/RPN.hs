@@ -5,6 +5,12 @@ module Penny.Zinc.Expressions.RPN (
   RPN(RPN),
   process) where
 
+import Penny.Zinc.Expressions.Stack (
+  Stack, push, empty, View(Empty, (:->)),
+  view)
+import Penny.Zinc.Expressions.Queues (Front, View(:<))
+import qualified Penny.Zinc.Expressions.Queues as Q
+
 newtype Operand a = Operand a deriving Show
 
 data Operator a =
@@ -20,36 +26,34 @@ data Token a =
   | TokOperator (Operator a)
   deriving Show
 
-newtype RPN a = RPN [Token a]
-                  deriving Show
+type RPN a = Front (Token a)
 
-newtype Stack a = Stack [Operand a]
-                  deriving Show
+type Operands a = Stack (Operand a)
 
 processOperator ::
   Operator a
-  -> Stack a
-  -> Maybe (Stack a)
-processOperator t (Stack ds) = case t of
-  (Unary f) -> case ds of
-    [] -> Nothing
-    ((Operand x):xs) -> return (Stack ( Operand (f x) : xs ))
-  (Binary f) -> case ds of
-    [] -> Nothing
-    (_:[]) -> Nothing
-    ((Operand x):(Operand y):xs) ->
-      return (Stack(Operand (f y x) : xs))
+  -> Operands
+  -> Maybe (Operands a)
+processOperator t ds = case t of
+  (Unary f) -> case view ds of
+    Empty -> Nothing
+    (Operand x) :-> xs -> return $ push (Operand (f x)) xs
+  (Binary f) -> case view ds of
+    Empty -> Nothing
+    _ :-> Empty -> Nothing
+    (Operand x) :-> (Operand y) :-> xs ->
+      return $ push (Operand f y x) xs
 
 processOperand ::
   Operand a
-  -> Stack a
-  -> Stack a
-processOperand a (Stack as) = Stack (a:as)
+  -> Operands a
+  -> Operands a
+processOperand = push
 
 processToken ::
   Token a
-  -> Stack a
-  -> Maybe (Stack a)
+  -> Operands a
+  -> Maybe (Operands a)
 processToken tok s = case tok of
   TokOperand d -> return (processOperand d s)
   TokOperator t -> processOperator t s

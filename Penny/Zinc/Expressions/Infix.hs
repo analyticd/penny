@@ -19,13 +19,13 @@ module Penny.Zinc.Expressions.Infix (
 import qualified Penny.Zinc.Expressions.RPN as R
 import Penny.Zinc.Expressions.Queues
   (Back, Front, front, View(Empty, (:<)), view,
-   emptyFront)
+   emptyFront, enqueue)
 import Penny.Zinc.Expressions.Stack (push, View((:->)))
 import qualified Penny.Zinc.Expressions.Stack as S
 import qualified Penny.Zinc.Expressions.Queues as Q
 
-
 type Stack a = S.Stack (StackVal a)
+type Output a = Back (R.Token a)
 
 newtype Precedence = Precedence Int deriving (Show, Eq, Ord)
 
@@ -62,13 +62,8 @@ instance Show (StackVal a) where
     "<binary, " ++ show p ++ ">"
   show StkOpenParen = "<OpenParen>"
 
-newtype Output a = Output [R.Token a] deriving Show
-
 infixToRPN :: Back (Token a) -> Maybe (R.RPN a)
 infixToRPN i = processTokens (front i) >>= return . outputToRPNInput
-
-appendToOutput :: R.Token a -> Output a -> Output a
-appendToOutput tok (Output ts) = Output (tok:ts)
 
 outputToRPNInput :: Output a -> R.RPN a
 outputToRPNInput (Output ls) = R.RPN (reverse ls)
@@ -90,7 +85,7 @@ popTokens f ss os = case S.view ss of
         then popTokens f xs output'
         else noChange
           where
-            output' = appendToOutput (R.TokOperator tok) os
+            output' = enqueue (R.TokOperator tok) os
   where
     noChange = (ss, os)
 
@@ -101,9 +96,9 @@ processToken ::
   -> Maybe (Stack a, Output a)
 processToken t ss os = case t of
   TokOperand a ->
-    Just (ss, appendToOutput (R.TokOperand (R.Operand a)) os)
+    Just (ss, enqueue (R.TokOperand (R.Operand a)) os)
   TokUnaryPostfix f ->
-    Just (ss, appendToOutput (R.TokOperator (R.Unary f)) os)
+    Just (ss, enqueue (R.TokOperator (R.Unary f)) os)
   TokUnaryPrefix p f -> let
     outputVal = StkUnaryPrefix p f
     in Just (push outputVal ss, os)
@@ -146,7 +141,7 @@ popRemainingOperators s os = case S.view s of
       StkBinary _ f -> pusher (R.Binary f)
     where
       pusher op = popRemainingOperators xs output' where
-        output' = appendToOutput (R.TokOperator op) os
+        output' = enqueue (R.TokOperator op) os
 
 popThroughOpenParen ::
   Stack a
@@ -156,7 +151,7 @@ popThroughOpenParen ss os = case S.view ss of
   S.Empty -> Nothing
   x:->xs -> let
     popper op = popThroughOpenParen xs output' where
-      output' = appendToOutput (R.TokOperator op) os
+      output' = enqueue (R.TokOperator op) os
     in case x of
       StkUnaryPrefix _ f -> popper (R.Unary f)        
       StkBinary _ f -> popper (R.Binary f)
