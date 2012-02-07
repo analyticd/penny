@@ -97,6 +97,9 @@ Library
         Penny.Lincoln.TextNonEmpty,
         Penny.Lincoln.Transaction,
         Penny.Lincoln.Transaction.Unverified,
+        Penny.Zinc.Expressions,
+        Penny.Zinc.Expressions.Infix,
+        Penny.Zinc.Expressions.RPN,
         Penny.Zinc.Help
 
     if flag(testing)

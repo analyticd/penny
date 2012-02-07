@@ -1,4 +1,4 @@
-module Penny.Zinc.Expressions.Yard where
+module Penny.Zinc.Expressions.Infix where
 
 import qualified Penny.Zinc.Expressions.RPN as R
 
