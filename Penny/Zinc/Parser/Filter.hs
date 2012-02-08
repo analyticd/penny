@@ -2,11 +2,8 @@ module Penny.Zinc.Parser.Filter where
 
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
-import Data.Char (toUpper)
-import Data.Map (Map)
-import qualified Data.Map as M
-import Data.Monoid (mempty, mappend)
-import Data.Monoid.Extra (Orderer(Orderer, appOrderer))
+import Data.Monoid (mempty)
+import Data.Monoid.Extra (Orderer)
 import Data.Text (Text, pack, unpack)
 import System.Console.MultiArg.Combinator
   (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg)
@@ -19,9 +16,7 @@ import Text.Parsec (parse)
 import Penny.Copper.DateTime (DefaultTimeZone, dateTime)
 import Penny.Copper.Qty (Radix, Separator, qty)
 
-import Penny.Copper.Meta ( TransactionMeta, PostingMeta )
 import qualified Penny.Lincoln.Predicates as P
-import qualified Penny.Lincoln.Queries as Q
 import Penny.Lincoln.Bits (DateTime, Qty)
 import Penny.Lincoln.Boxes (PostingBox)
 import qualified Penny.Zinc.Expressions as X
@@ -283,45 +278,3 @@ exact :: State t p -> ParserE Error (State t p)
 exact = changeState "exact" Nothing f where
   f st = st { matcher = \t -> return (M.exact (sensitive st) t) }
 
---
--- Sorting
---
-ordering ::
-  (Ord r)
-  => (PostingBox t p -> r)
-  -> Orderer (PostingBox t p)
-ordering q = Orderer f where
-  f p1 p2 = compare (q p1) (q p2)
-
-flipOrder :: Orderer (PostingBox t p) -> Orderer (PostingBox t p)
-flipOrder (Orderer f) = Orderer f' where
-  f' p1 p2 = case f p1 p2 of
-    LT -> GT
-    GT -> LT
-    EQ -> EQ
-
-capitalizeFirstLetter :: String -> String
-capitalizeFirstLetter s = case s of
-  [] -> []
-  (x:xs) -> toUpper x : xs
-
-ords :: Map Text (Orderer (PostingBox t p))
-ords = M.fromList (lowers ++ uppers) where
-  uppers = map toReversed ordPairs
-  toReversed (s, f) =
-    (pack . capitalizeFirstLetter $ s, flipOrder f)
-  lowers = map toPair ordPairs
-  toPair (s, f) = (pack s, f)
-
-ordPairs :: [(String, Orderer (PostingBox t p))]
-ordPairs = 
-  [ ("payee", ordering Q.payee)
-  , ("date", ordering Q.dateTime)
-  , ("flag", ordering Q.flag)
-  , ("number", ordering Q.number)
-  , ("account", ordering Q.account)
-  , ("drCr", ordering Q.drCr)
-  , ("qty", ordering Q.qty)
-  , ("commodity", ordering Q.commodity)
-  , ("postingMemo", ordering Q.postingMemo)
-  , ("transactionMemo", ordering Q.transactionMemo) ]

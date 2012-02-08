@@ -36,5 +36,5 @@ data View t =
 view :: Front t -> View t
 view (Front ts) = case S.viewl ts of
   S.EmptyL -> Empty
-  t S.:< ts -> t :< Front ts
+  t S.:< rs -> t :< Front rs
 

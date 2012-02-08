@@ -22,7 +22,6 @@ import Penny.Zinc.Expressions.Queue
    enqueue, empty, front)
 import Penny.Zinc.Expressions.Stack (push, View((:->)))
 import qualified Penny.Zinc.Expressions.Stack as S
-import qualified Penny.Zinc.Expressions.Queue as Q
 
 type Stack a = S.Stack (StackVal a)
 type Output a = Back (R.Token a)
