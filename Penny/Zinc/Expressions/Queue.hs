@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Penny.Zinc.Expressions.Queue (
   Back,
   empty,
@@ -7,20 +8,25 @@ module Penny.Zinc.Expressions.Queue (
   View(Empty, (:<)),
   view) where
 
-data Back t = Back [t]
-            deriving Show
+import Data.Sequence ((<|))
+import qualified Data.Sequence as S
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
+
+newtype Back t = Back (S.Seq t)
+            deriving (Show, Functor, Foldable, Traversable)
 
 empty :: Back t
-empty = Back []
+empty = Back S.empty
 
 enqueue :: t -> Back t -> Back t
-enqueue t (Back ts) = Back (t:ts)
+enqueue t (Back ts) = Back $ t <| ts
 
-data Front t = Front [t]
-             deriving Show
+newtype Front t = Front (S.Seq t)
+                deriving (Show, Functor, Foldable, Traversable)
 
 front :: Back t -> Front t
-front (Back ts) = Front (reverse ts)
+front (Back ts) = Front ts
 
 data View t =
   Empty
@@ -28,9 +34,7 @@ data View t =
   deriving Show
 
 view :: Front t -> View t
-view (Front ts) = case ts of
-  [] -> Empty
-  (t:ts) -> t :< (Front ts)
+view (Front ts) = case S.viewl ts of
+  S.EmptyL -> Empty
+  t S.:< ts -> t :< Front ts
 
-push :: t -> Front t -> Front t
-push t (Front ts) = Front (t:ts)

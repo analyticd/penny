@@ -30,6 +30,8 @@ help = unlines [
   "  Pattern must match colon-separated account name",
   "--account-level num pat",
   "  Pattern must match sub account at given level",
+  "--account-any pat",
+  "  Pattern must match sub account at any level",
   "-p pattern, --payee pattern",
   "  Payee must match pattern",
   "-t pattern, --tag pattern",
