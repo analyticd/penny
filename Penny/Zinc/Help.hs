@@ -112,7 +112,7 @@ help = unlines [
   "",
   "postings, pos",
   "  Show postings in order with a running balance.",
-  "  The register report takes the same options shown",
+  "  The postings report takes the same options shown",
   "  above; however, these options affect which postings",
   "  are shown in the report. Postings not shown still affect",
   "  the running balance.",
