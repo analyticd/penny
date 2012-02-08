@@ -5,6 +5,7 @@ import Data.Text (Text, cons)
 import qualified Data.Text as X
 import Data.List.NonEmpty (NonEmpty)
 import Data.Foldable (toList)
+import Data.Maybe (isNothing)
 
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Boxes (PostingBox)
@@ -102,6 +103,9 @@ number f = matchMaybe f . Q.number
 
 flag :: (Text -> Bool) -> PostingBox t p -> Bool
 flag f = matchMaybe f . Q.flag
+
+noFlag :: PostingBox t p -> Bool
+noFlag = isNothing . Q.flag
 
 postingMemo :: (Text -> Bool) -> PostingBox t p -> Bool
 postingMemo f = matchMaybe f . Q.postingMemo
@@ -201,3 +205,12 @@ accountAny f = matchAny f . Q.account
 --
 tag :: (Text -> Bool) -> PostingBox t p -> Bool
 tag f = matchAny f . Q.tags
+
+--
+-- Debit or credit
+--
+debit :: PostingBox t p -> Bool
+debit p = Q.drCr p == B.Debit
+
+credit :: PostingBox t p -> Bool
+credit p = Q.drCr p == B.Credit
