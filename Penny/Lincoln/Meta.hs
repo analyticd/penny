@@ -20,21 +20,37 @@ newtype Line = Line { unLine :: Int }
 newtype Filename = Filename { unFilename :: X.Text }
                    deriving Show
 
-class HasMemoLine a where
-  memoLine :: a -> Maybe Line
+newtype Column = Column { unColumn :: Int }
+                 deriving (Show, Eq, Ord)
 
-class HasFilename a where
-  filename :: a -> Filename
+newtype PriceLine = PriceLine { unPriceLine :: Line }
+                    deriving Show
 
-class MayHaveFormat a where
-  maybeFormat :: a -> Maybe Format
+newtype PostingLine = PostingLine { unPostingLine :: Line }
+                      deriving Show
 
-class HasFormat a where
-  format :: a -> Format
+newtype TopMemoLine = TopMemoLine { unTopMemoLine :: Line }
+                      deriving Show
 
-class HasMainLine a where
-  line :: a -> Line
+newtype TopLineLine = TopLineLine { unTopLineLine :: Line }
+                      deriving Show
 
-newtype TransactionMeta a b =
-  TransactionMeta { unTransactionMeta :: F.Family a b }
+data PriceMeta =
+  PriceMeta { priceMetaLine :: PriceLine
+            , priceMetaFormat :: Format }
+  deriving Show
+
+data PostingMeta =
+  PostingMeta { postingLine :: Maybe PostingLine }
+  deriving Show
+
+data TopLineMeta =
+  TopLineMeta { topMemoLine :: Maybe TopMemoLine
+              , topLineLine :: Maybe TopLineLine
+              , filename :: Maybe Filename }
+  deriving Show
+
+newtype TransactionMeta =
+  TransactionMeta
+  { unTransactionMeta :: F.Family TopLineMeta PostingMeta }
   deriving Show

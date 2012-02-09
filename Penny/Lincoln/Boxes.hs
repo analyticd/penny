@@ -8,7 +8,9 @@ module Penny.Lincoln.Boxes (
   topLineMeta,
   postingBoxes) where
 
-import Penny.Lincoln.Meta (TransactionMeta, unTransactionMeta)
+import Penny.Lincoln.Meta
+  (TransactionMeta, unTransactionMeta, TopLineMeta, PostingMeta,
+   PriceMeta)
 import Penny.Lincoln.Bits (PricePoint)
 import Penny.Lincoln.Transaction (
   Transaction, TopLine, Posting, unTransaction)
@@ -17,24 +19,24 @@ import Penny.Lincoln.Family.Child (Child, child, parent)
 import Penny.Lincoln.Family.Siblings (flatten)
 import qualified Penny.Lincoln.Family.Family as F
 
-data TransactionBox t p =
+data TransactionBox =
   TransactionBox { transaction :: Transaction
-                 , transactionMeta :: (Maybe (TransactionMeta t p)) }
+                 , transactionMeta :: Maybe TransactionMeta }
   deriving Show
 
-data PostingBox t p =
-  PostingBox { postingBundle :: (Child TopLine Posting)
-             , metaBundle :: (Maybe (Child t p)) }
+data PostingBox =
+  PostingBox { postingBundle :: Child TopLine Posting
+             , metaBundle :: Maybe (Child TopLineMeta PostingMeta) }
   deriving Show
 
-data PriceBox m =
+data PriceBox =
   PriceBox { price :: PricePoint
-           , priceMeta :: Maybe m }
+           , priceMeta :: Maybe PriceMeta }
   deriving Show
 
 transactionBox :: Transaction
-                  -> Maybe (TransactionMeta t p)
-                  -> TransactionBox t p
+                  -> Maybe TransactionMeta
+                  -> TransactionBox
 transactionBox t mm = case mm of
   Nothing -> TransactionBox t Nothing
   (Just m) -> let
@@ -44,7 +46,7 @@ transactionBox t mm = case mm of
        then error "Boxes.hs: error: metadata and transaction mismatch"
        else TransactionBox t (Just m)
 
-postingBoxes :: [TransactionBox t p] -> [PostingBox t p]
+postingBoxes :: [TransactionBox] -> [PostingBox]
 postingBoxes = concatMap toBox where
   toBox (TransactionBox cTrans cMeta) = let
     cs = flatten . children . unTransaction $ cTrans
@@ -54,11 +56,11 @@ postingBoxes = concatMap toBox where
                    . children . unTransactionMeta $ mb
     in zipWith PostingBox cs metas
 
-posting :: PostingBox t p -> Posting
+posting :: PostingBox -> Posting
 posting = child . postingBundle
 
-postingMeta :: PostingBox t p -> Maybe p
+postingMeta :: PostingBox -> Maybe PostingMeta
 postingMeta b = metaBundle b >>= return . child
 
-topLineMeta :: PostingBox t p -> Maybe t
+topLineMeta :: PostingBox -> Maybe TopLineMeta
 topLineMeta b = metaBundle b >>= return . parent

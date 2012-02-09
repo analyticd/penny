@@ -13,24 +13,6 @@ module Penny.Copper.Meta (
 
 import qualified Penny.Lincoln.Meta as M
 
-newtype Column = Column { unColumn :: Int }
-                 deriving (Show, Eq, Ord)
-
-newtype PriceLine = PriceLine M.Line
-                    deriving Show
-
-newtype PostingLine = PostingLine M.Line
-                      deriving Show
-
-newtype TopMemoLine = TopMemoLine M.Line
-                      deriving Show
-
-newtype TopLineLine = TopLineLine M.Line
-                      deriving Show
-
-data PriceMeta = PriceMeta PriceLine M.Format
-                    deriving Show
-
 instance M.HasMainLine PriceMeta where
   line (PriceMeta (PriceLine l) _) = l
 
