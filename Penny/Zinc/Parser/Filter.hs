@@ -1,5 +1,6 @@
 module Penny.Zinc.Parser.Filter where
 
+import Control.Applicative ((<|>))
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
 import Data.List (intersperse, groupBy)
@@ -316,3 +317,51 @@ insertAddTokens ts = concatMap inserter grouped where
 getPredicate :: State t p -> Maybe (PostingBox t p -> Bool)
 getPredicate s = X.evaluate q where
   q = foldl (flip X.enqueue) X.empty (insertAddTokens . tokens $ s)
+
+parseToken :: DefaultTimeZone
+              -> DateTime
+              -> Radix
+              -> Separator
+              -> State t p
+              -> ParserE Error (State t p)
+parseToken dtz dt rad sep st =
+  before dtz st
+  <|> after dtz st
+  <|> onOrBefore dtz st
+  <|> onOrAfter dtz st
+  <|> dayEquals dtz st
+  <|> current dt st
+  
+  <|> account st
+  <|> accountLevel st
+  <|> accountAny st
+  <|> payee st
+  <|> tag st
+  <|> number st
+  <|> flag st
+  <|> commodity st
+  <|> commodityLevel st
+  <|> commodityAny st
+  <|> postingMemo st
+  <|> transactionMemo st
+  <|> noFlag st
+  <|> debit st
+  <|> credit st
+  
+  <|> atLeast rad sep st
+  <|> lessThan rad sep st
+  <|> equals rad sep st
+  
+  <|> caseInsensitive st
+  <|> caseSensitive st
+  <|> within st
+  <|> pcre st
+  <|> posix st
+  <|> exact st
+  
+  <|> open st
+  <|> close st
+  <|> parseAnd st
+  <|> parseOr st
+  <|> parseNot st
+
