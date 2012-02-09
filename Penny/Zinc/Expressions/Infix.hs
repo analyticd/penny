@@ -17,10 +17,10 @@ module Penny.Zinc.Expressions.Infix (
   ) where
 
 import qualified Penny.Zinc.Expressions.RPN as R
-import Penny.Zinc.Expressions.Queue
-  (Queue, View(Empty, (:>)), view, enqueue, empty )
-import Penny.Zinc.Expressions.Stack (push, View((:->)))
-import qualified Penny.Zinc.Expressions.Stack as S
+import Data.Queue
+  (Queue, View(Empty, Front), view, enqueue, empty )
+import Data.Stack (push)
+import qualified Data.Stack as S
 
 type Stack a = S.Stack (StackVal a)
 type Output a = Queue (R.Token a)
@@ -67,10 +67,10 @@ popTokens ::
   -> (Stack a, Output a)
 popTokens f ss os = case S.view ss of
   S.Empty -> noChange
-  x:->xs -> case x of
-      StkOpenParen -> (ss, os)
-      StkUnaryPrefix p g -> popper (R.Unary g) p
-      StkBinary p g -> popper (R.Binary g) p
+  S.Top xs x -> case x of
+    StkOpenParen -> (ss, os)
+    StkUnaryPrefix p g -> popper (R.Unary g) p
+    StkBinary p g -> popper (R.Binary g) p
     where
       popper tok pr =
         if f pr
@@ -117,7 +117,7 @@ processTokens' ::
   -> Maybe (Output a)
 processTokens' is st os = case view is of
   Empty -> popRemainingOperators st os
-  ts :> t -> do
+  Front ts t -> do
     (stack', output') <- processToken t st os
     processTokens' ts stack' output'
 
@@ -127,10 +127,10 @@ popRemainingOperators ::
   -> Maybe (Output a)
 popRemainingOperators s os = case S.view s of
   S.Empty -> Just os
-  x:->xs -> case x of
-      StkOpenParen -> Nothing
-      StkUnaryPrefix _ f -> pusher (R.Unary f)
-      StkBinary _ f -> pusher (R.Binary f)
+  S.Top xs x -> case x of
+    StkOpenParen -> Nothing
+    StkUnaryPrefix _ f -> pusher (R.Unary f)
+    StkBinary _ f -> pusher (R.Binary f)
     where
       pusher op = popRemainingOperators xs output' where
         output' = enqueue (R.TokOperator op) os
@@ -141,7 +141,7 @@ popThroughOpenParen ::
   -> Maybe (Stack a, Output a)
 popThroughOpenParen ss os = case S.view ss of
   S.Empty -> Nothing
-  x:->xs -> let
+  S.Top xs x -> let
     popper op = popThroughOpenParen xs output' where
       output' = enqueue (R.TokOperator op) os
     in case x of
