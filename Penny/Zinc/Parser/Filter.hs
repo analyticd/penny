@@ -324,7 +324,7 @@ parseToken :: DefaultTimeZone
               -> Separator
               -> State t p
               -> ParserE Error (State t p)
-parseToken dtz dt rad sep st =
+parseToken dtz dt rad sp st =
   before dtz st
   <|> after dtz st
   <|> onOrBefore dtz st
@@ -348,9 +348,9 @@ parseToken dtz dt rad sep st =
   <|> debit st
   <|> credit st
   
-  <|> atLeast rad sep st
-  <|> lessThan rad sep st
-  <|> equals rad sep st
+  <|> atLeast rad sp st
+  <|> lessThan rad sp st
+  <|> equals rad sp st
   
   <|> caseInsensitive st
   <|> caseSensitive st
