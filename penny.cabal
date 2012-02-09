@@ -35,7 +35,7 @@ Library
         parsec >= 3.1.2 && < 3.2,
         monoid-extra ==0.1.*,
         nestedMap ==0.1.*,
-        multiarg ==0.1.*,
+        multiarg ==0.3.*,
         matchers ==0.1.*,
 
         -- Do not use newer versions of NonEmptyList. They do not
