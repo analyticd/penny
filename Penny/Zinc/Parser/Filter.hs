@@ -8,7 +8,7 @@ import Data.Text (Text, pack, unpack)
 import System.Console.MultiArg.Combinator
   (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg)
 import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
-import qualified System.Console.MultiArg.Error as E
+import qualified System.Console.MultiArg.Error as MAE
 import System.Console.MultiArg.Prim (ParserE, throw)
 import qualified Text.Matchers.Text as M
 import Text.Parsec (parse)
@@ -21,16 +21,9 @@ import Penny.Lincoln.Bits (DateTime, Qty)
 import Penny.Lincoln.Boxes (PostingBox)
 import qualified Penny.Zinc.Expressions as X
 
-data Error = MultiArgError E.Expecting E.Saw
-             | MakeMatcherFactoryError Text
-             | DateParseError
-             | BadPatternError Text
-             | BadNumberError Text
-             | BadQtyError Text
-             deriving Show
+import Penny.Zinc.Parser.Error (Error)
+import qualified Penny.Zinc.Parser.Error as E
 
-instance E.Error Error where
-  parseErr = MultiArgError
 
 data State t p =
   State { sensitive :: M.CaseSensitive
@@ -93,7 +86,7 @@ current dt s = do
 
 parseDate :: DefaultTimeZone -> Text -> ParserE Error DateTime
 parseDate dtz t = case parse (dateTime dtz) "" t of
-  Left _ -> throw DateParseError
+  Left _ -> throw E.DateParseError
   Right d -> return d
 
 --
@@ -102,7 +95,7 @@ parseDate dtz t = case parse (dateTime dtz) "" t of
 
 getMatcher :: Text -> State t p -> ParserE Error (Text -> Bool)
 getMatcher t s = case matcher s t of
-  Exception e -> throw $ BadPatternError e
+  Exception e -> throw $ E.BadPatternError e
   Success m -> return m
 
 sep :: Text
@@ -128,11 +121,11 @@ account = sepOption "account" (Just 'A') P.account
 parseInt :: Text -> ParserE Error Int
 parseInt t = let ps = reads . unpack $ t in
   case ps of
-    [] -> throw $ BadNumberError t
+    [] -> throw $ E.BadNumberError t
     ((i, s):[]) -> if length s /= 0
-                   then throw $ BadNumberError t
+                   then throw $ E.BadNumberError t
                    else return i
-    _ -> throw $ BadNumberError t
+    _ -> throw $ E.BadNumberError t
 
 levelOption ::
   String
@@ -215,7 +208,7 @@ qtyOption str f rad sp s = do
   let lo = makeLongOpt . pack $ str
   (_, qs) <- longOneArg lo
   case parse (qty rad sp) "" qs of
-    Left _ -> throw $ BadQtyError qs
+    Left _ -> throw $ E.BadQtyError qs
     Right qt -> return $ addOperand (f qt) s
 
 atLeast ::

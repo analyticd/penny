@@ -1,13 +1,17 @@
 module Penny.Zinc.Parser.Sorter where
 
 import Data.Char (toUpper)
-import Data.Map (Map)
-import qualified Data.Map as M
+import Data.Monoid (mappend)
 import Data.Monoid.Extra (Orderer(Orderer))
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, isPrefixOf)
+import System.Console.MultiArg.Prim (ParserE, throw)
+import System.Console.MultiArg.Combinator
+import System.Console.MultiArg.Option (makeShortOpt, makeLongOpt)
 
 import Penny.Lincoln.Boxes (PostingBox)
 import qualified Penny.Lincoln.Queries as Q
+
+import Penny.Zinc.Parser.Error (Error(BadSortKeyError))
 
 ordering ::
   (Ord r)
@@ -28,8 +32,8 @@ capitalizeFirstLetter s = case s of
   [] -> []
   (x:xs) -> toUpper x : xs
 
-ords :: Map Text (Orderer (PostingBox t p))
-ords = M.fromList (lowers ++ uppers) where
+ords :: [(Text, Orderer (PostingBox t p) )]
+ords = lowers ++ uppers where
   uppers = map toReversed ordPairs
   toReversed (s, f) =
     (pack . capitalizeFirstLetter $ s, flipOrder f)
@@ -48,3 +52,16 @@ ordPairs =
   , ("commodity", ordering Q.commodity)
   , ("postingMemo", ordering Q.postingMemo)
   , ("transactionMemo", ordering Q.transactionMemo) ]
+
+sort :: Orderer (PostingBox t p)
+        -> ParserE Error (Orderer (PostingBox t p))
+sort ordIn = do
+  let lo = makeLongOpt . pack $ "sort"
+      so = makeShortOpt 's'
+  (_, arg) <- mixedOneArg lo [] [so]
+  let matches = filter (\p -> arg `isPrefixOf` (fst p)) ords
+  sorter <- case matches of
+    [] -> throw $ BadSortKeyError arg
+    x:[] -> return $ snd x
+    _ -> throw $ BadSortKeyError arg
+  return $ mappend ordIn sorter
