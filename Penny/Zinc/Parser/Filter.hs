@@ -313,5 +313,6 @@ insertAddTokens ts = concatMap inserter grouped where
     (X.TokOperand _, X.TokOperand _) -> True
     _ -> False
 
-getPredicate :: State t p -> PostingBox t p -> Bool
-getPredicate = undefined
+getPredicate :: State t p -> Maybe (PostingBox t p -> Bool)
+getPredicate s = X.evaluate q where
+  q = foldl (flip X.enqueue) X.empty (insertAddTokens . tokens $ s)
