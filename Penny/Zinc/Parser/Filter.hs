@@ -7,6 +7,7 @@ import Data.List (intersperse, groupBy)
 import Data.Monoid (mempty, mappend)
 import Data.Monoid.Extra (Any(Any), All(All),
                           appAny, appAll)
+import Data.Queue (enqueue, empty)
 import Data.Text (Text, pack, unpack)
 import System.Console.MultiArg.Combinator
   (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg)
@@ -316,7 +317,7 @@ insertAddTokens ts = concatMap inserter grouped where
 
 getPredicate :: State t p -> Maybe (PostingBox t p -> Bool)
 getPredicate s = X.evaluate q where
-  q = foldl (flip X.enqueue) X.empty (insertAddTokens . tokens $ s)
+  q = foldl (flip enqueue) empty (insertAddTokens . tokens $ s)
 
 parseToken :: DefaultTimeZone
               -> DateTime

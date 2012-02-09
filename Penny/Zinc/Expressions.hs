@@ -11,14 +11,10 @@ module Penny.Zinc.Expressions (
           TokCloseParen),
 
   R.Operand(Operand),
-
-  Queue,
-  enqueue,
-  empty,
   evaluate) where
 
 import Penny.Zinc.Expressions.Infix as I
-import Penny.Zinc.Expressions.Queue (Queue, enqueue, empty)
+import Data.Queue (Queue, enqueue, empty)
 import Penny.Zinc.Expressions.RPN as R
 
 evaluate :: Queue (I.Token a) -> Maybe a
