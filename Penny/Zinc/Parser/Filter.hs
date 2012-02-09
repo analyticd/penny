@@ -2,13 +2,14 @@ module Penny.Zinc.Parser.Filter where
 
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
-import Data.Monoid (mempty)
-import Data.Monoid.Extra (Orderer)
+import Data.List (intersperse, groupBy)
+import Data.Monoid (mempty, mappend)
+import Data.Monoid.Extra (Any(Any), All(All),
+                          appAny, appAll)
 import Data.Text (Text, pack, unpack)
 import System.Console.MultiArg.Combinator
   (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg)
 import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
-import qualified System.Console.MultiArg.Error as MAE
 import System.Console.MultiArg.Prim (ParserE, throw)
 import qualified Text.Matchers.Text as M
 import Text.Parsec (parse)
@@ -28,18 +29,18 @@ import qualified Penny.Zinc.Parser.Error as E
 data State t p =
   State { sensitive :: M.CaseSensitive
         , matcher :: Text -> Exceptional Text (Text -> Bool)
-        , tokens :: [X.Token (PostingBox t p -> Bool)]
-        , sorter :: Orderer
-                    (PostingBox t p -> PostingBox t p -> Ordering) }
+        , tokens :: [X.Token (PostingBox t p -> Bool)] }
 
 blankState :: State t p
 blankState = State { sensitive = M.Insensitive
                    , matcher = return . M.within M.Insensitive
-                   , tokens = mempty
-                   , sorter = mempty }
+                   , tokens = mempty }
+
+addToken :: X.Token (PostingBox t p -> Bool) -> State t p -> State t p
+addToken t s = s { tokens = tokens s ++ [t] }
 
 addOperand :: (PostingBox t p -> Bool) -> State t p -> State t p
-addOperand f s = s { tokens = tokens s ++ [X.TokOperand f] }
+addOperand = addToken . X.TokOperand
 
 before :: DefaultTimeZone -> State t p -> ParserE Error (State t p)
 before dtz s = do
@@ -271,3 +272,46 @@ exact :: State t p -> ParserE Error (State t p)
 exact = changeState "exact" Nothing f where
   f st = st { matcher = \t -> return (M.exact (sensitive st) t) }
 
+open :: State t p -> ParserE Error (State t p)
+open s = let lo = makeLongOpt . pack $ "open" in
+  longNoArg lo >> return (addToken X.TokOpenParen s)
+
+close :: State t p -> ParserE Error (State t p)
+close s = let lo = makeLongOpt . pack $ "open" in
+  longNoArg lo >> return (addToken X.TokCloseParen s)
+
+parseAnd :: State t p -> ParserE Error (State t p)
+parseAnd s = do
+  let lo = makeLongOpt . pack $ "and"
+  _ <- longNoArg lo
+  return (addToken tokAnd s)
+
+tokAnd :: X.Token (a -> Bool)
+tokAnd = X.TokBinary (X.Precedence 3) X.ALeft f where
+  f x y = appAll (All x `mappend` All y)
+
+parseOr :: State t p -> ParserE Error (State t p)
+parseOr s = do
+  let lo = makeLongOpt . pack $ "or"
+  _ <- longNoArg lo
+  let f x y = appAny (Any x `mappend` Any y)
+  return (addToken (X.TokBinary (X.Precedence 2) X.ALeft f) s)
+
+parseNot :: State t p -> ParserE Error (State t p)
+parseNot s = do
+  let lo = makeLongOpt . pack $ "not"
+  _ <- longNoArg lo
+  let f = (not .)
+  return (addToken (X.TokUnaryPrefix (X.Precedence 4) f) s)
+
+insertAddTokens :: [X.Token (a -> Bool)]
+                   -> [X.Token (a -> Bool)]
+insertAddTokens ts = concatMap inserter grouped where
+  inserter = intersperse tokAnd
+  grouped = groupBy f ts
+  f x y = case (x, y) of
+    (X.TokOperand _, X.TokOperand _) -> True
+    _ -> False
+
+getPredicate :: State t p -> PostingBox t p -> Bool
+getPredicate = undefined
