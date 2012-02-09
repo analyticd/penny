@@ -1,21 +1,41 @@
 module Penny.Cabin.Class where
 
+import Control.Monad.Exception.Synchronous (Exceptional)
+import Data.ByteString as BS
+import Data.Sequence (Seq)
 import Data.Text (Text)
+import System.Console.MultiArg.Prim (ParserE)
 
+import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (  PostingBox, PriceBox )
 
-class Report a where
-  help :: a -> Text
-  report ::
-    OutputDesc
-    -> Colors
-    -> [PostingBox t p]
-    -> [PriceBox m]
-    -> a
-    -> Text
+import Text.Matchers.Text (CaseSensitive)
+
+type ReportFunc t p m =
+  Context
+  -> [PostingBox t p]
+  -> [PriceBox m]
+  -> Exceptional Text (Seq Chunk)
+
+type ParseReportOpts t p m =
+  CaseSensitive
+  -> (Text -> Exceptional Text (Text -> Bool))
+  -> ParserE Text (ReportFunc t p m)
+
+data Report t p m =
+  Report { help :: Text
+         , printReport :: ParseReportOpts t p m }
 
 data OutputDesc = IsTTY | NotTTY
                 deriving Show
+
+data Context =
+  Context { radix :: Radix
+          , separator :: Separator
+          , colors :: Colors
+          , outputDesc :: OutputDesc
+          , grouping :: Grouping
+          , currentTime :: DateTime }
 
 -- | The terminal (as described using the TERM environment variable or
 -- something similar) supports at least this many colors. Remember,
@@ -25,4 +45,19 @@ data OutputDesc = IsTTY | NotTTY
 data Colors = Colors0 | Colors8 | Colors256
             deriving Show
 
+data Chunk = Control BS.ByteString
+             | Payload Text
+             deriving Show
 
+newtype Radix = Radix { unRadix :: Char }
+                deriving Show
+
+newtype Separator = Separator { unSeparator :: Char }
+                    deriving Show
+
+data LastGroup = NoMoreGroups | UseLastGrouping
+               deriving Show
+
+data Grouping =
+  Grouping { groups :: [Int]
+           , lastGroup :: LastGroup }
