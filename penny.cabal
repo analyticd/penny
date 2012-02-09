@@ -106,8 +106,6 @@ Library
         Penny.Zinc.Expressions,
         Penny.Zinc.Expressions.Infix,
         Penny.Zinc.Expressions.RPN,
-        Penny.Zinc.Expressions.Queue,
-        Penny.Zinc.Expressions.Stack,
         Penny.Zinc.Help
 
     if flag(testing)
