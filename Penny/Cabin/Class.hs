@@ -32,8 +32,10 @@ data OutputDesc = IsTTY | NotTTY
 data Context =
   Context { radix :: Radix
           , separator :: Separator
-          , colors :: Colors
+          , colors :: Maybe Colors
           , outputDesc :: OutputDesc
+          , lines :: Maybe Lines
+          , columns :: Maybe Columns
           , grouping :: Grouping
           , currentTime :: DateTime }
 
@@ -57,6 +59,12 @@ newtype Separator = Separator { unSeparator :: Char }
 
 data LastGroup = NoMoreGroups | UseLastGrouping
                deriving Show
+
+data Columns = Columns { unColumns :: Int }
+               deriving Show
+
+data Lines = Lines { unLines :: Int }
+             deriving Show
 
 data Grouping =
   Grouping { groups :: [Int]
