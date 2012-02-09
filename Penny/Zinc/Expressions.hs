@@ -12,23 +12,23 @@ module Penny.Zinc.Expressions (
 
   R.Operand(Operand),
 
-  Back,
+  Queue,
   enqueue,
   empty,
   evaluate) where
 
 import Penny.Zinc.Expressions.Infix as I
-import Penny.Zinc.Expressions.Queue (Back, enqueue, empty)
+import Penny.Zinc.Expressions.Queue (Queue, enqueue, empty)
 import Penny.Zinc.Expressions.RPN as R
 
-evaluate :: Back (I.Token a) -> Maybe a
+evaluate :: Queue (I.Token a) -> Maybe a
 evaluate i = I.infixToRPN i >>= R.process
 
 --
 -- Testing
 --
 
-_expr :: Back (I.Token Int)
+_expr :: Queue (I.Token Int)
 _expr = foldl (flip enqueue) empty [
   I.TokOpenParen
   , I.TokOperand 3

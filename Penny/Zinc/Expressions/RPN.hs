@@ -7,7 +7,7 @@ module Penny.Zinc.Expressions.RPN (
 import Penny.Zinc.Expressions.Stack (
   Stack, push, empty, View(Empty, (:->)),
   view)
-import Penny.Zinc.Expressions.Queue (Front, View((:<)))
+import Penny.Zinc.Expressions.Queue (Queue, View((:>)))
 import qualified Penny.Zinc.Expressions.Queue as Q
 
 newtype Operand a = Operand a deriving Show
@@ -25,7 +25,7 @@ data Token a =
   | TokOperator (Operator a)
   deriving Show
 
-type RPN a = Front (Token a)
+type RPN a = Queue (Token a)
 
 type Operands a = Stack (Operand a)
 
@@ -80,7 +80,7 @@ popTokens' :: RPN a
              -> Maybe (RPN a, Operands a)
 popTokens' ts s = case Q.view ts of
   Q.Empty -> return (ts, s)
-  x :< xs -> do
+  xs :> x -> do
     s' <- processToken x s
     popTokens' xs s'
 

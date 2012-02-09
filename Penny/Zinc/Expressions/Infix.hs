@@ -18,13 +18,12 @@ module Penny.Zinc.Expressions.Infix (
 
 import qualified Penny.Zinc.Expressions.RPN as R
 import Penny.Zinc.Expressions.Queue
-  (Back, Front, View(Empty, (:<)), view,
-   enqueue, empty, front)
+  (Queue, View(Empty, (:>)), view, enqueue, empty )
 import Penny.Zinc.Expressions.Stack (push, View((:->)))
 import qualified Penny.Zinc.Expressions.Stack as S
 
 type Stack a = S.Stack (StackVal a)
-type Output a = Back (R.Token a)
+type Output a = Queue (R.Token a)
 
 newtype Precedence = Precedence Int deriving (Show, Eq, Ord)
 
@@ -60,12 +59,6 @@ instance Show (StackVal a) where
   show (StkBinary p _) =
     "<binary, " ++ show p ++ ">"
   show StkOpenParen = "<OpenParen>"
-
-infixToRPN :: Back (Token a) -> Maybe (Front (R.Token a))
-infixToRPN i = processTokens (front i) >>= return . outputToRPNInput
-
-outputToRPNInput :: Output a -> Front (R.Token a)
-outputToRPNInput ls = front ls
 
 popTokens ::
   (Precedence -> Bool)
@@ -112,19 +105,19 @@ processToken t ss os = case t of
     Just (push StkOpenParen ss, os)
   TokCloseParen -> popThroughOpenParen ss os
 
-processTokens ::
-  Front (Token a)
+infixToRPN ::
+  Queue (Token a)
   -> Maybe (Output a)
-processTokens i = processTokens' i S.empty empty
+infixToRPN i = processTokens' i S.empty empty
 
 processTokens' ::
-  Front (Token a)
+  Queue (Token a)
   -> Stack a
   -> Output a
   -> Maybe (Output a)
 processTokens' is st os = case view is of
   Empty -> popRemainingOperators st os
-  t:<ts -> do
+  ts :> t -> do
     (stack', output') <- processToken t st os
     processTokens' ts stack' output'
 
