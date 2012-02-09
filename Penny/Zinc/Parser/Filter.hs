@@ -28,37 +28,37 @@ import Penny.Zinc.Parser.Error (Error)
 import qualified Penny.Zinc.Parser.Error as E
 
 
-data State t p =
+data State =
   State { sensitive :: M.CaseSensitive
         , matcher :: Text -> Exceptional Text (Text -> Bool)
-        , tokens :: [X.Token (PostingBox t p -> Bool)] }
+        , tokens :: [X.Token (PostingBox -> Bool)] }
 
-blankState :: State t p
+blankState :: State
 blankState = State { sensitive = M.Insensitive
                    , matcher = return . M.within M.Insensitive
                    , tokens = mempty }
 
-addToken :: X.Token (PostingBox t p -> Bool) -> State t p -> State t p
+addToken :: X.Token (PostingBox -> Bool) -> State -> State
 addToken t s = s { tokens = tokens s ++ [t] }
 
-addOperand :: (PostingBox t p -> Bool) -> State t p -> State t p
+addOperand :: (PostingBox -> Bool) -> State -> State
 addOperand = addToken . X.TokOperand
 
-before :: DefaultTimeZone -> State t p -> ParserE Error (State t p)
+before :: DefaultTimeZone -> State -> ParserE Error (State)
 before dtz s = do
   let lo = makeLongOpt . pack $ "before"
   (_, t) <- mixedOneArg lo [] []
   dt <- parseDate dtz t
   return $ addOperand (P.before dt) s
 
-after :: DefaultTimeZone -> State t p -> ParserE Error (State t p)
+after :: DefaultTimeZone -> State -> ParserE Error (State)
 after dtz s = do
   let lo = makeLongOpt . pack $ "after"
   (_, t) <- longOneArg lo
   d <- parseDate dtz t
   return $ addOperand (P.after d) s
 
-onOrBefore :: DefaultTimeZone -> State t p -> ParserE Error (State t p)
+onOrBefore :: DefaultTimeZone -> State -> ParserE Error (State)
 onOrBefore dtz s = do
   let lo = makeLongOpt . pack $ "on-or-before"
       so = makeShortOpt 'b'
@@ -66,7 +66,7 @@ onOrBefore dtz s = do
   d <- parseDate dtz t
   return $ addOperand (P.onOrBefore d) s
 
-onOrAfter :: DefaultTimeZone -> State t p -> ParserE Error (State t p)
+onOrAfter :: DefaultTimeZone -> State -> ParserE Error (State)
 onOrAfter dtz s = do
   let lo = makeLongOpt . pack $ "on-or-after"
       so = makeShortOpt 'a'
@@ -74,14 +74,14 @@ onOrAfter dtz s = do
   d <- parseDate dtz t
   return $ addOperand (P.onOrAfter d) s
   
-dayEquals :: DefaultTimeZone -> State t p -> ParserE Error (State t p)
+dayEquals :: DefaultTimeZone -> State -> ParserE Error (State)
 dayEquals dtz s = do
   let lo = makeLongOpt . pack $ "day-equals"
   (_, t) <- longOneArg lo
   d <- parseDate dtz t
   return $ addOperand (P.dateIs d) s
 
-current :: DateTime -> State t p -> ParserE Error (State t p)
+current :: DateTime -> State -> ParserE Error (State)
 current dt s = do
   let lo = makeLongOpt . pack $ "current"
   _ <- longNoArg lo
@@ -96,7 +96,7 @@ parseDate dtz t = case parse (dateTime dtz) "" t of
 -- Pattern matching
 --
 
-getMatcher :: Text -> State t p -> ParserE Error (Text -> Bool)
+getMatcher :: Text -> State -> ParserE Error (Text -> Bool)
 getMatcher t s = case matcher s t of
   Exception e -> throw $ E.BadPatternError e
   Success m -> return m
@@ -107,9 +107,9 @@ sep = pack ":"
 sepOption ::
   String
   -> Maybe Char
-  -> (Text -> (Text -> Bool) -> PostingBox t p -> Bool)
-  -> State t p
-  -> ParserE Error (State t p)
+  -> (Text -> (Text -> Bool) -> PostingBox -> Bool)
+  -> State
+  -> ParserE Error (State)
 sepOption str mc f s = do
   let lo = makeLongOpt . pack $ str
   (_, p) <- mixedOneArg lo [] $ case mc of
@@ -118,7 +118,7 @@ sepOption str mc f s = do
   m <- getMatcher p s
   return $ addOperand (f sep m) s
 
-account :: State t p -> ParserE Error (State t p)
+account :: State -> ParserE Error (State)
 account = sepOption "account" (Just 'A') P.account
 
 parseInt :: Text -> ParserE Error Int
@@ -132,9 +132,9 @@ parseInt t = let ps = reads . unpack $ t in
 
 levelOption ::
   String
-  -> (Int -> (Text -> Bool) -> PostingBox t p -> Bool)
-  -> State t p
-  -> ParserE Error (State t p)
+  -> (Int -> (Text -> Bool) -> PostingBox -> Bool)
+  -> State
+  -> ParserE Error (State)
 levelOption str f s = do
   let lo = makeLongOpt . pack $ str
   (_, ns, p) <- longTwoArg lo
@@ -142,21 +142,21 @@ levelOption str f s = do
   m <- getMatcher p s
   return $ addOperand (f n m) s
 
-accountLevel :: State t p -> ParserE Error (State t p)
+accountLevel :: State -> ParserE Error (State)
 accountLevel = levelOption "account-level" P.accountLevel
 
-accountAny :: State t p -> ParserE Error (State t p)
+accountAny :: State -> ParserE Error (State)
 accountAny = patternOption "account-any" Nothing P.accountAny
 
-payee :: State t p -> ParserE Error (State t p)
+payee :: State -> ParserE Error (State)
 payee = patternOption "payee" (Just 'p') P.payee
 
 patternOption ::
   String -- ^ Long option
   -> Maybe Char -- ^ Short option
-  -> ((Text -> Bool) -> PostingBox t p -> Bool) -- ^ Predicate maker
-  -> State t p
-  -> ParserE Error (State t p)
+  -> ((Text -> Bool) -> PostingBox -> Bool) -- ^ Predicate maker
+  -> State
+  -> ParserE Error (State)
 patternOption str mc f s = do
   let lo = makeLongOpt . pack $ str
   (_, p) <- mixedOneArg lo [] $ case mc of
@@ -165,48 +165,48 @@ patternOption str mc f s = do
   m <- getMatcher p s
   return $ addOperand (f m) s
 
-tag :: State t p -> ParserE Error (State t p)
+tag :: State -> ParserE Error (State)
 tag = patternOption "tag" (Just 't') P.tag
 
-number :: State t p -> ParserE Error (State t p)
+number :: State -> ParserE Error (State)
 number = patternOption "number" Nothing P.number
 
-flag :: State t p -> ParserE Error (State t p)
+flag :: State -> ParserE Error (State)
 flag = patternOption "flag" Nothing P.flag
 
-commodity :: State t p -> ParserE Error (State t p)
+commodity :: State -> ParserE Error (State)
 commodity = sepOption "commodity" Nothing P.commodity
 
-commodityLevel :: State t p -> ParserE Error (State t p)
+commodityLevel :: State -> ParserE Error (State)
 commodityLevel = levelOption "commodity-level" P.commodityLevel
 
-commodityAny :: State t p -> ParserE Error (State t p)
+commodityAny :: State -> ParserE Error (State)
 commodityAny = patternOption "commodity" Nothing P.commodityAny
 
 
-postingMemo :: State t p -> ParserE Error (State t p)
+postingMemo :: State -> ParserE Error (State)
 postingMemo = patternOption "posting-memo" Nothing P.postingMemo
 
-transactionMemo :: State t p -> ParserE Error (State t p)
+transactionMemo :: State -> ParserE Error (State)
 transactionMemo = patternOption "transaction-memo"
                   Nothing P.transactionMemo
 
-noFlag :: State t p -> ParserE Error (State t p)
+noFlag :: State -> ParserE Error (State)
 noFlag = return . addOperand P.noFlag
 
-debit :: State t p -> ParserE Error (State t p)
+debit :: State -> ParserE Error (State)
 debit = return . addOperand P.debit
 
-credit :: State t p -> ParserE Error (State t p)
+credit :: State -> ParserE Error (State)
 credit = return . addOperand P.credit
 
 qtyOption ::
   String
-  -> (Qty -> PostingBox t p -> Bool)
+  -> (Qty -> PostingBox -> Bool)
   -> Radix
   -> Separator
-  -> State t p
-  -> ParserE Error (State t p)
+  -> State
+  -> ParserE Error (State)
 qtyOption str f rad sp s = do
   let lo = makeLongOpt . pack $ str
   (_, qs) <- longOneArg lo
@@ -217,30 +217,30 @@ qtyOption str f rad sp s = do
 atLeast ::
   Radix
   -> Separator
-  -> State t p
-  -> ParserE Error (State t p)
+  -> State
+  -> ParserE Error (State)
 atLeast = qtyOption "at-least" P.greaterThanOrEqualTo
 
 lessThan ::
   Radix
   -> Separator
-  -> State t p
-  -> ParserE Error (State t p)
+  -> State
+  -> ParserE Error (State)
 lessThan = qtyOption "less-than" P.lessThan
 
 equals ::
   Radix
   -> Separator
-  -> State t p
-  -> ParserE Error (State t p)
+  -> State
+  -> ParserE Error (State)
 equals = qtyOption "equals" P.equals
 
 changeState ::
   String
   -> Maybe Char
-  -> (State t p -> State t p)
-  -> State t p
-  -> ParserE Error (State t p)
+  -> (State -> State)
+  -> State
+  -> ParserE Error (State)
 changeState str mc f s = do
   let lo = makeLongOpt . pack $ str
       so = case mc of
@@ -250,39 +250,39 @@ changeState str mc f s = do
   return $ f s
 
 
-caseInsensitive :: State t p -> ParserE Error (State t p)
+caseInsensitive :: State -> ParserE Error (State)
 caseInsensitive = changeState "case-insensitive" (Just 'i') f where
   f st = st { sensitive = M.Insensitive }
 
-caseSensitive :: State t p -> ParserE Error (State t p)
+caseSensitive :: State -> ParserE Error (State)
 caseSensitive = changeState "case-sensitive" (Just 'I') f where
   f st = st { sensitive = M.Sensitive }
 
-within :: State t p -> ParserE Error (State t p)
+within :: State -> ParserE Error (State)
 within = changeState "within" Nothing f where
   f st = st { matcher = \t -> return (M.within (sensitive st) t) }
 
-pcre :: State t p -> ParserE Error (State t p)
+pcre :: State -> ParserE Error (State)
 pcre = changeState "pcre" Nothing f where
   f st = st { matcher = M.pcre (sensitive st) }
 
-posix :: State t p -> ParserE Error (State t p)
+posix :: State -> ParserE Error (State)
 posix = changeState "posix" Nothing f where
   f st = st { matcher = M.tdfa (sensitive st) }
 
-exact :: State t p -> ParserE Error (State t p)
+exact :: State -> ParserE Error (State)
 exact = changeState "exact" Nothing f where
   f st = st { matcher = \t -> return (M.exact (sensitive st) t) }
 
-open :: State t p -> ParserE Error (State t p)
+open :: State -> ParserE Error (State)
 open s = let lo = makeLongOpt . pack $ "open" in
   longNoArg lo >> return (addToken X.TokOpenParen s)
 
-close :: State t p -> ParserE Error (State t p)
+close :: State -> ParserE Error (State)
 close s = let lo = makeLongOpt . pack $ "open" in
   longNoArg lo >> return (addToken X.TokCloseParen s)
 
-parseAnd :: State t p -> ParserE Error (State t p)
+parseAnd :: State -> ParserE Error (State)
 parseAnd s = do
   let lo = makeLongOpt . pack $ "and"
   _ <- longNoArg lo
@@ -292,14 +292,14 @@ tokAnd :: X.Token (a -> Bool)
 tokAnd = X.TokBinary (X.Precedence 3) X.ALeft f where
   f x y = appAll (All x `mappend` All y)
 
-parseOr :: State t p -> ParserE Error (State t p)
+parseOr :: State -> ParserE Error (State)
 parseOr s = do
   let lo = makeLongOpt . pack $ "or"
   _ <- longNoArg lo
   let f x y = appAny (Any x `mappend` Any y)
   return (addToken (X.TokBinary (X.Precedence 2) X.ALeft f) s)
 
-parseNot :: State t p -> ParserE Error (State t p)
+parseNot :: State -> ParserE Error (State)
 parseNot s = do
   let lo = makeLongOpt . pack $ "not"
   _ <- longNoArg lo
@@ -315,7 +315,7 @@ insertAddTokens ts = concatMap inserter grouped where
     (X.TokOperand _, X.TokOperand _) -> True
     _ -> False
 
-getPredicate :: State t p -> Maybe (PostingBox t p -> Bool)
+getPredicate :: State -> Maybe (PostingBox -> Bool)
 getPredicate s = X.evaluate q where
   q = foldl (flip enqueue) empty (insertAddTokens . tokens $ s)
 
@@ -323,8 +323,8 @@ parseToken :: DefaultTimeZone
               -> DateTime
               -> Radix
               -> Separator
-              -> State t p
-              -> ParserE Error (State t p)
+              -> State
+              -> ParserE Error (State)
 parseToken dtz dt rad sp st =
   before dtz st
   <|> after dtz st

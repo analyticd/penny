@@ -7,7 +7,7 @@ import Text.Parsec (
   sourceColumn, statePos, noneOf, manyTill, many )
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Copper.Meta as M
+import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 

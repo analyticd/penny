@@ -7,59 +7,59 @@ import qualified Penny.Lincoln.Transaction as T
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 
 
-posting :: PostingBox t p -> T.Posting
+posting :: PostingBox -> T.Posting
 posting = child . postingBundle
 
-topLine :: PostingBox t p -> T.TopLine
+topLine :: PostingBox -> T.TopLine
 topLine = parent . postingBundle
 
 best :: (T.Posting -> Maybe a)
         -> (T.TopLine -> Maybe a)
-        -> PostingBox t p
+        -> PostingBox
         -> Maybe a
 best fp ft b = case fp . posting $ b of
   (Just r) -> Just r
   Nothing -> ft . topLine $ b
 
 
-payee :: PostingBox t p -> Maybe B.Payee
+payee :: PostingBox -> Maybe B.Payee
 payee = best T.pPayee T.tPayee
 
-number :: PostingBox t p -> Maybe B.Number
+number :: PostingBox -> Maybe B.Number
 number = best T.pNumber T.tNumber
 
-flag :: PostingBox t p -> Maybe B.Flag
+flag :: PostingBox -> Maybe B.Flag
 flag = best T.pFlag T.tFlag
 
-postingMemo :: PostingBox t p -> Maybe B.Memo
+postingMemo :: PostingBox -> Maybe B.Memo
 postingMemo = T.pMemo . posting
 
-transactionMemo :: PostingBox t p -> Maybe B.Memo
+transactionMemo :: PostingBox -> Maybe B.Memo
 transactionMemo = T.tMemo . topLine
 
-dateTime :: PostingBox t p -> B.DateTime
+dateTime :: PostingBox -> B.DateTime
 dateTime = T.tDateTime . topLine
 
-account :: PostingBox t p -> B.Account
+account :: PostingBox -> B.Account
 account = T.pAccount . posting
 
-tags :: PostingBox t p -> B.Tags
+tags :: PostingBox -> B.Tags
 tags = T.pTags . posting
 
-entry :: PostingBox t p -> B.Entry
+entry :: PostingBox -> B.Entry
 entry = T.pEntry . posting
 
-balance :: PostingBox t p -> Balance
+balance :: PostingBox -> Balance
 balance = entryToBalance . entry
 
-drCr :: PostingBox t p -> B.DrCr
+drCr :: PostingBox -> B.DrCr
 drCr = B.drCr . entry
 
-amount :: PostingBox t p -> B.Amount
+amount :: PostingBox -> B.Amount
 amount = B.amount . entry
 
-qty :: PostingBox t p -> B.Qty
+qty :: PostingBox -> B.Qty
 qty = B.qty . amount
 
-commodity :: PostingBox t p -> B.Commodity
+commodity :: PostingBox -> B.Commodity
 commodity = B.commodity . amount

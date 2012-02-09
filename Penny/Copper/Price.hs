@@ -9,7 +9,7 @@ import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.DateTime as DT
-import qualified Penny.Copper.Meta as M
+import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Copper.Qty as Q
 
 whitespace :: Parser ()
@@ -19,7 +19,7 @@ price ::
   DT.DefaultTimeZone
   -> Q.Radix
   -> Q.Separator
-  -> Parser (Box.PriceBox M.PriceMeta)
+  -> Parser Box.PriceBox
 price dtz rad sep = do
   void $ char 'P'
   pos <- getPosition

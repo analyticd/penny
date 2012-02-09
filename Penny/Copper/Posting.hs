@@ -15,7 +15,7 @@ import qualified Penny.Copper.Number as Nu
 import qualified Penny.Copper.Payees.Posting as Pa
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Tags as Ta
-import qualified Penny.Copper.Meta as M
+import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
 whitespace :: Parser ()
@@ -49,5 +49,5 @@ posting rad sep = do
   void $ char '\n'
   m <- optionMaybe $ try (Me.memo col)
   let unv = U.Posting p n f a t e m
-  return (unv, M.PostingMeta lin maybeFmt)
+  return (unv, M.PostingMeta (Just lin) maybeFmt)
 

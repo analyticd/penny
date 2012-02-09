@@ -8,15 +8,15 @@ import Text.Parsec.Text ( Parser )
 import qualified Penny.Copper.Comments.Multiline as CM
 import qualified Penny.Copper.Comments.SingleLine as CS
 import qualified Penny.Copper.DateTime as DT
-import qualified Penny.Copper.Meta as M
+import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Price ( price )
 import Penny.Copper.Transaction ( transaction )
 import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
 
 
-data Item = Transaction (TransactionBox M.TransactionMeta M.PostingMeta)
-          | Price (PriceBox M.PriceMeta)
+data Item = Transaction TransactionBox
+          | Price PriceBox
           | Multiline CM.Multiline
           | SingleLine CS.Comment
           | BlankLine

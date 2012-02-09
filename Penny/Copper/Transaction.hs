@@ -8,7 +8,7 @@ import qualified Penny.Copper.DateTime as DT
 import Penny.Copper.TopLine ( topLine )
 import qualified Penny.Copper.Posting as Po
 import qualified Penny.Copper.Qty as Qt
-import qualified Penny.Copper.Meta as M
+import qualified Penny.Lincoln.Meta as M
 import Penny.Lincoln.Family.Family ( Family ( Family ) )
 import Penny.Lincoln.Meta (TransactionMeta(TransactionMeta))
 import Penny.Lincoln.Boxes (transactionBox, TransactionBox)
@@ -25,10 +25,10 @@ transaction ::
   -> DT.DefaultTimeZone
   -> Qt.Radix
   -> Qt.Separator
-  -> Parser (TransactionBox M.TransactionMeta M.PostingMeta)
+  -> Parser TransactionBox
 transaction fn dtz rad sep = do
   (pa, tll, tml) <- topLine dtz
-  let paMeta = M.TransactionMeta tml tll fn
+  let paMeta = M.TopLineMeta tml (Just tll) (Just fn)
   (p1, p1meta) <- Po.posting rad sep
   (p2, p2meta) <- Po.posting rad sep
   psPairs <- many (try (Po.posting rad sep))

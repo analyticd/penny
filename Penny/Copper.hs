@@ -18,7 +18,7 @@ import Text.Parsec.Error ( ParseError )
 import Text.Parsec.Text ( Parser )
 
 import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
-import Penny.Copper.Meta ( Line, Filename(Filename), TransactionMeta, 
+import Penny.Lincoln.Meta ( Line, Filename(Filename), TransactionMeta, 
                            PostingMeta, PriceMeta )
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Copper.DateTime as DT
@@ -39,8 +39,8 @@ ledger fn dtz rad sep =
   >>= return . Ledger
 
 data Item =
-  Transaction (TransactionBox TransactionMeta PostingMeta)
-  | Price (PriceBox PriceMeta)
+  Transaction TransactionBox
+  | Price PriceBox
   deriving Show
 
 parseTransactions ::

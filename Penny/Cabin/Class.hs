@@ -11,20 +11,20 @@ import Penny.Lincoln.Boxes (  PostingBox, PriceBox )
 
 import Text.Matchers.Text (CaseSensitive)
 
-type ReportFunc t p m =
+type ReportFunc =
   Context
-  -> [PostingBox t p]
-  -> [PriceBox m]
+  -> [PostingBox]
+  -> [PriceBox]
   -> Exceptional Text (Seq Chunk)
 
-type ParseReportOpts t p m =
+type ParseReportOpts =
   CaseSensitive
   -> (Text -> Exceptional Text (Text -> Bool))
-  -> ParserE Text (ReportFunc t p m)
+  -> ParserE Text ReportFunc
 
-data Report t p m =
+data Report =
   Report { help :: Text
-         , printReport :: ParseReportOpts t p m }
+         , printReport :: ParseReportOpts }
 
 data OutputDesc = IsTTY | NotTTY
                 deriving Show

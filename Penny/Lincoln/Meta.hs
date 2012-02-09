@@ -36,12 +36,13 @@ newtype TopLineLine = TopLineLine { unTopLineLine :: Line }
                       deriving Show
 
 data PriceMeta =
-  PriceMeta { priceMetaLine :: PriceLine
-            , priceMetaFormat :: Format }
+  PriceMeta { priceLine :: PriceLine
+            , priceFormat :: Format }
   deriving Show
 
 data PostingMeta =
-  PostingMeta { postingLine :: Maybe PostingLine }
+  PostingMeta { postingLine :: Maybe PostingLine
+              , postingFormat :: Maybe Format }
   deriving Show
 
 data TopLineMeta =

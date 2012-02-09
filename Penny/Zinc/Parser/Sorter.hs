@@ -15,12 +15,12 @@ import Penny.Zinc.Parser.Error (Error(BadSortKeyError))
 
 ordering ::
   (Ord r)
-  => (PostingBox t p -> r)
-  -> Orderer (PostingBox t p)
+  => (PostingBox -> r)
+  -> Orderer PostingBox
 ordering q = Orderer f where
   f p1 p2 = compare (q p1) (q p2)
 
-flipOrder :: Orderer (PostingBox t p) -> Orderer (PostingBox t p)
+flipOrder :: Orderer PostingBox -> Orderer PostingBox
 flipOrder (Orderer f) = Orderer f' where
   f' p1 p2 = case f p1 p2 of
     LT -> GT
@@ -32,7 +32,7 @@ capitalizeFirstLetter s = case s of
   [] -> []
   (x:xs) -> toUpper x : xs
 
-ords :: [(Text, Orderer (PostingBox t p) )]
+ords :: [(Text, Orderer PostingBox)]
 ords = lowers ++ uppers where
   uppers = map toReversed ordPairs
   toReversed (s, f) =
@@ -40,7 +40,7 @@ ords = lowers ++ uppers where
   lowers = map toPair ordPairs
   toPair (s, f) = (pack s, f)
 
-ordPairs :: [(String, Orderer (PostingBox t p))]
+ordPairs :: [(String, Orderer PostingBox)]
 ordPairs = 
   [ ("payee", ordering Q.payee)
   , ("date", ordering Q.dateTime)
@@ -53,8 +53,8 @@ ordPairs =
   , ("postingMemo", ordering Q.postingMemo)
   , ("transactionMemo", ordering Q.transactionMemo) ]
 
-sort :: Orderer (PostingBox t p)
-        -> ParserE Error (Orderer (PostingBox t p))
+sort :: Orderer PostingBox
+        -> ParserE Error (Orderer PostingBox)
 sort ordIn = do
   let lo = makeLongOpt . pack $ "sort"
       so = makeShortOpt 's'

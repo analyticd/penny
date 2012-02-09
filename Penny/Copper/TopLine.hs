@@ -6,7 +6,7 @@ import Text.Parsec ( optionMaybe, many, char, getParserState,
                      sourceLine, statePos, optionMaybe )
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Copper.Meta as Meta
+import qualified Penny.Lincoln.Meta as Meta
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Memos.Transaction as M
 import qualified Penny.Copper.Flag as F

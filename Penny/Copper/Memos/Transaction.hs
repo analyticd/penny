@@ -6,7 +6,7 @@ import Text.Parsec (
   char, many1, satisfy, sourceLine, getPosition )
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Meta (TopMemoLine(TopMemoLine), Line(Line))
+import Penny.Lincoln.Meta (TopMemoLine(TopMemoLine), Line(Line))
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 

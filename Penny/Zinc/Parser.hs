@@ -19,8 +19,8 @@ parseOption ::
   -> DateTime
   -> Radix
   -> Separator
-  -> (F.State t p, Orderer (PostingBox t p))
-  -> ParserE Error (F.State t p, Orderer (PostingBox t p))
+  -> (F.State, Orderer (PostingBox))
+  -> ParserE Error (F.State, Orderer (PostingBox))
 parseOption dtz dt rad sep (st, ord) =
   (\s -> (s, ord))    <$> F.parseToken dtz dt rad sep st
   <|> (\o -> (st, o)) <$> S.sort ord
@@ -30,9 +30,9 @@ parseOptions ::
   -> DateTime
   -> Radix
   -> Separator
-  -> (F.State t p, Orderer (PostingBox t p))
-  -> ParserE Error (F.State t p, Orderer (PostingBox t p))
+  -> (F.State, Orderer (PostingBox))
+  -> ParserE Error (F.State, Orderer (PostingBox))
 parseOptions dtz dt rad sep = feed (parseOption dtz dt rad sep)
 
-defaultState :: (F.State t p, Orderer (PostingBox t p))
+defaultState :: (F.State, Orderer (PostingBox))
 defaultState = (F.blankState, mempty)

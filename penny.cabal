@@ -63,7 +63,6 @@ Library
         Penny.Copper.Item,
         Penny.Copper.Memos.Posting,
         Penny.Copper.Memos.Transaction,
-        Penny.Copper.Meta,
         Penny.Copper.Number,
         Penny.Copper.Payees.Posting,
         Penny.Copper.Payees.Transaction,
