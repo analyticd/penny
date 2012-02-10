@@ -1,6 +1,10 @@
 module Penny.Cabin.Columns where
 
-import Data.List (maximum)
+import Data.Array (Array)
+import qualified Data.Array as A
+import Data.List (maximum, groupBy)
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as M
 import Data.Monoid (Monoid, mempty, mappend)
 import Data.Text (Text)
 import qualified Data.Text as X
@@ -9,7 +13,8 @@ import Data.Word (Word)
 import Penny.Lincoln.Balance (Balance)
 import Penny.Lincoln.Boxes (PostingBox, PriceBox)
 
-import Penny.Cabin.Class (Context, Columns)
+import Penny.Cabin.Class (Context)
+import qualified Penny.Cabin.Class as C
 
 type Calculator =
   Context
@@ -19,7 +24,7 @@ type Calculator =
   -> [Text]
 
 type CalculatorWithWidth =
-  Columns
+  C.Columns
   -> Context
   -> Balance
   -> PostingBox
@@ -30,7 +35,7 @@ data Justify = LJustify | RJustify
 
 data ColSize =
   GrowToFit Calculator
-  | Fixed Columns CalculatorWithWidth
+  | Fixed C.Columns CalculatorWithWidth
   | Variable Double CalculatorWithWidth
 
 data ColSpec =
@@ -39,33 +44,31 @@ data ColSpec =
 data TableSpec =
   TableSpec [ColSpec]
 
-data Phase1ResultItem =
-  P1Done [Text]
-  | P1Variable Double (CalculatorWithWidth)
+tableA :: [x] -> [y] -> Array (Int, Int) (x, y)
+tableA xs ys = A.array indexes ls where
+  indexes = ((0,0), (length xs - 1, length ys - 1))
+  is = A.range indexes
+  vs = [(x, y) | x <- xs, y <- ys]
+  ls = zip is vs
 
-data Phase1ResultStatus =
-  P1RWidth Word
-  | P1RVariable
+data Table x = Table [((Int, Int), x)]
 
-instance Monoid Phase1ResultStatus where
-  mempty = P1RWidth . fromIntegral $ 0
-  mappend x y = case (x, y) of
-    (P1RWidth i1, P1RWidth i2) -> P1RWidth (max i1 i2)
-    (P1RWidth i, P1RVariable) -> P1RWidth i
-    (P1RVariable, P1RWidth i) -> P1RWidth i
-    _ -> P1RVariable
+instance Functor Table where
+  fmap f (Table ls) = Table $ fmap f' ls where
+    f' (p, x) = (p, f x)
 
-status :: Phase1ResultItem -> Phase1ResultStatus
-status i = case i of
-  P1Done ls -> case ls of
-    [] -> P1RWidth $ fromIntegral 0
-    ts -> P1RWidth . maximum . map fromIntegral . map X.length $ ts
-  P1Variable d c -> P1RVariable
+table :: (x -> y -> z) -> [x] -> [y] -> Table z
+table f xs ys = Table $ zip is vs' where
+  is = A.range ((0,0), (length xs - 1, length ys - 1))
+  vs = [(x, y) | x <- xs, y <- ys]
+  vs' = map (uncurry f) vs
 
-data Phase1ResultRow =
-  Phase1ResultRow [Phase1ResultItem]
+data Columns x = Columns (IntMap (IntMap x))
 
-data Phase1Table =
-  Phase1Table [Phase1ResultRow]
+columns :: Table x -> Columns x
+columns = undefined
 
+data Rows x = Rows (IntMap (IntMap x))
 
+rows :: Columns x -> Rows x
+rows = undefined
