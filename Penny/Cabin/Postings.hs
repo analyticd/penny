@@ -18,6 +18,52 @@ import Penny.Lincoln.Queries (entry)
 
 import Penny.Cabin.Colors (Chunk)
 
+data Allocation = Allocation { unAllocation :: Double }
+                  deriving Show
+
+data ColumnWidth = ColumnWidth { unColumnWidth :: Word }
+                   deriving Show
+
+data ReportWidth = ReportWidth { unReportWidth :: Word }
+                   deriving Show
+
+data CellInfo =
+  CellInfo { cellPosting :: PostingBox
+           , cellBalance :: Balance
+           , cellRow :: RowNum
+           , cellCol :: ColNum }
+
+type PadderF = ColumnWidth -> Chunk
+
+type GrowF =
+  ReportWidth
+  -> [PriceBox]
+  -> CellInfo
+  -> (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
+
+type AllocateF =
+  ReportWidth
+  -> [PriceBox]
+  -> CellInfo
+  -> Map ColNum Expanded
+  -> (PadderF, [Chunk])
+
+data Column =
+  GrowToFit GrowF
+  | Allocate Allocation AllocateF
+
+data Columns = Columns { unColumns :: NonEmpty Column }
+
+data Queried =
+  EGrowToFit (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
+  | EAllocate Allocation
+    (Map ColNum Expanded -> (PadderF, [Chunk]))
+
+data Expanded =
+  Grown (PadderF, [Chunk])
+  | ExAllocate Allocation
+    (Map ColNum Expanded -> (PadderF, [Chunk]))
+
 balanceAccum :: Balance -> PostingBox -> (Balance, Balance)
 balanceAccum bal pb = (bal', bal') where
   bal' = bal `mappend` pstgBal
@@ -58,52 +104,6 @@ makeTable rw cols prices =
   . fmap (queried rw prices)
   . cellInfos
   . paired cols
-
-data Allocation = Allocation { unAllocation :: Double }
-                  deriving Show
-
-data ColumnWidth = ColumnWidth { unColumnWidth :: Word }
-                   deriving Show
-
-data ReportWidth = ReportWidth { unReportWidth :: Word }
-                   deriving Show
-
-type PadderF = ColumnWidth -> Chunk
-
-data CellInfo =
-  CellInfo { cellPosting :: PostingBox
-           , cellBalance :: Balance
-           , cellRow :: RowNum
-           , cellCol :: ColNum }
-
-type GrowF =
-  ReportWidth
-  -> [PriceBox]
-  -> CellInfo
-  -> (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
-
-type AllocateF =
-  ReportWidth
-  -> [PriceBox]
-  -> CellInfo
-  -> Map ColNum Expanded
-  -> (PadderF, [Chunk])
-
-data Column =
-  GrowToFit GrowF
-  | Allocate Allocation AllocateF
-
-data Columns = Columns { unColumns :: NonEmpty Column }
-
-data Queried =
-  EGrowToFit (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
-  | EAllocate Allocation
-    (Map ColNum Expanded -> (PadderF, [Chunk]))
-
-data Expanded =
-  Grown (PadderF, [Chunk])
-  | ExAllocate Allocation
-    (Map ColNum Expanded -> (PadderF, [Chunk]))
 
 paired ::
   Columns
