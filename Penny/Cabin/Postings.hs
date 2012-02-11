@@ -2,10 +2,14 @@ module Penny.Cabin.Postings where
 
 import Control.Applicative (pure, (<$>), (<*>))
 import Data.Foldable (toList)
+import qualified Data.Foldable as F
+import Data.List (zipWith)
 import Data.List.NonEmpty (NonEmpty, toNonEmpty)
 import qualified Data.List.ZipNonEmpty as ZNE
 import Data.Map (Map)
-import Data.Monoid (mempty, mappend)
+import Data.Monoid (mempty, mappend, Monoid)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as S
 import Data.Table (
   Table, table, changeColumns, RowNum, ColNum,
   changeRows)
@@ -137,3 +141,45 @@ allocate = changeRows f where
   f _ _ colMap e = case e of
     Grown cs -> cs
     ExAllocate a f -> f colMap
+
+--
+-- Filling in the lines
+--
+
+fillLines ::
+  (F.Foldable f, Monoid m)
+  => f (Seq m)
+  -> m
+fillLines fdbl = fillLines' 0 fdbl mempty
+
+fillLines' ::
+  (F.Foldable f, Monoid m)
+  => Int
+  -> f (Seq m)
+  -> m
+  -> m
+fillLines' i fdbl mLeft = case fillLine i fdbl of
+  Nothing -> mLeft
+  (Just m) -> fillLines' (succ i) fdbl (mLeft `mappend` m)
+
+fillLine ::
+  (F.Foldable f, Monoid m)
+  => Int
+  -> f (Seq m)
+  -> Maybe m
+fillLine i = F.foldlM f mempty where
+  f m s = case safeIndex s i of
+    (Just piece) -> Just $ m `mappend` piece
+    Nothing -> Nothing
+
+safeIndex :: Seq a -> Int -> Maybe a
+safeIndex s i = if i < S.length s
+                then Just $ S.index s i
+                else Nothing
+
+newtype ChunkCell = ChunkCell { unChunkCell :: [Chunk] }
+
+instance Monoid ChunkCell where
+  mempty = ChunkCell $ repeat mempty
+  mappend (ChunkCell ls) (ChunkCell rs) =
+    ChunkCell $ zipWith mappend ls rs
