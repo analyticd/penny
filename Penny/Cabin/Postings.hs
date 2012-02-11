@@ -1,7 +1,7 @@
 module Penny.Cabin.Postings where
 
 import Data.List.NonEmpty (NonEmpty, toNonEmpty)
-import Data.Table (Table, table)
+import Data.Table (Table, table, changeColumns)
 import Data.Word (Word)
 
 import Penny.Lincoln.Balance (Balance)
@@ -60,9 +60,10 @@ paired (Columns cs) pbs = case toNonEmpty pbs of
   Nothing -> Nothing
   (Just ps) -> Just $ table (,) ps cs
 
-
-
 queried :: [PriceBox] -> ((PostingBox, Balance), Column) -> Queried
 queried pr ((pb, bal), c) = case c of
   GrowToFit f -> EGrowToFit $ f bal pb pr
   Allocate a f -> EAllocate bal pb pr a f
+
+expand :: Table Queried -> Table Expanded
+expand = changeColumns f where
