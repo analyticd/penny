@@ -53,9 +53,10 @@ makeTable ::
   -> NonEmpty (PostingBox, Balance)
   -> Table (PadderF, [Chunk])
 makeTable rw cols prices =
-  allocate rw
+  allocate
   . expand
-  . fmap (queried prices)
+  . fmap (queried rw prices)
+  . cellInfos
   . paired cols
 
 data Allocation = Allocation { unAllocation :: Double }
@@ -69,19 +70,23 @@ data ReportWidth = ReportWidth { unReportWidth :: Word }
 
 type PadderF = ColumnWidth -> Chunk
 
+data CellInfo =
+  CellInfo { cellPosting :: PostingBox
+           , cellBalance :: Balance
+           , cellRow :: RowNum
+           , cellCol :: ColNum }
+
 type GrowF =
-  Balance
-  -> PostingBox
+  ReportWidth
   -> [PriceBox]
+  -> CellInfo
   -> (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
 
 type AllocateF =
-  Balance
-  -> PostingBox
+  ReportWidth
   -> [PriceBox]
-  -> ReportWidth
+  -> CellInfo
   -> Map ColNum Expanded
-  -> ColNum
   -> (PadderF, [Chunk])
 
 data Column =
@@ -90,23 +95,15 @@ data Column =
 
 data Columns = Columns { unColumns :: NonEmpty Column }
 
-{-
-1. Ask all GrowToFit cells for their ColumnWidth and function.
-2. Expand all GrowToFit cells.
-3. Grow the GrowToFit cells.
-4. For each row, compute allocation for Allocation cells; expand
-Allocation cells.
--}
-
 data Queried =
   EGrowToFit (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
   | EAllocate Allocation
-    (ReportWidth -> Map ColNum Expanded -> ColNum -> (PadderF, [Chunk]))
+    (Map ColNum Expanded -> (PadderF, [Chunk]))
 
 data Expanded =
   Grown (PadderF, [Chunk])
   | ExAllocate Allocation
-    (ReportWidth -> Map ColNum Expanded -> ColNum -> (PadderF, [Chunk]))
+    (Map ColNum Expanded -> (PadderF, [Chunk]))
 
 paired ::
   Columns
@@ -114,19 +111,29 @@ paired ::
   -> Table ((PostingBox, Balance), Column)
 paired (Columns cs) ps = table (,) ps cs
 
-queried :: [PriceBox] -> ((PostingBox, Balance), Column) -> Queried
-queried pr ((pb, bal), c) = case c of
-  GrowToFit f -> EGrowToFit $ f bal pb pr
-  Allocate a f -> EAllocate a $ f bal pb pr
+cellInfos ::
+  Table ((PostingBox, Balance), Column)
+  -> Table (CellInfo, Column)
+cellInfos = changeRows f where
+  f rn cn _ ((pb, bal), col) = (CellInfo pb bal rn cn, col)
+
+queried ::
+  ReportWidth
+  -> [PriceBox]
+  -> (CellInfo, Column)
+  -> Queried
+queried rw pbs (ci, col) = case col of
+  GrowToFit f -> EGrowToFit $ f rw pbs ci
+  Allocate a f -> EAllocate a $ f rw pbs ci
 
 expand :: Table Queried -> Table Expanded
 expand = changeColumns f where
-  f rowNum colNum rowMap q = case q of
-    EGrowToFit (w, padder, grower) -> Grown (padder, grower rowMap)
+  f _ _ rowMap q = case q of
+    EGrowToFit (_, padder, grower) -> Grown (padder, grower rowMap)
     EAllocate a f -> ExAllocate a f
 
-allocate :: ReportWidth -> Table Expanded -> Table (PadderF, [Chunk])
-allocate w = changeRows f where
-  f rowNum colNum colMap e = case e of
+allocate :: Table Expanded -> Table (PadderF, [Chunk])
+allocate = changeRows f where
+  f _ _ colMap e = case e of
     Grown cs -> cs
-    ExAllocate a f -> f w colMap colNum
+    ExAllocate a f -> f colMap
