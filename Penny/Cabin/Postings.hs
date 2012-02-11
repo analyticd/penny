@@ -40,7 +40,7 @@ postingsTable ::
   -> Columns
   -> [PriceBox]
   -> [PostingBox]
-  -> Maybe (Table [Chunk])
+  -> Maybe (Table (PadderF, [Chunk]))
 postingsTable rw cols prices pstgs = do
   nePstgs <- toNonEmpty pstgs
   return $
@@ -51,7 +51,7 @@ makeTable ::
   -> Columns
   -> [PriceBox]
   -> NonEmpty (PostingBox, Balance)
-  -> Table [Chunk]
+  -> Table (PadderF, [Chunk])
 makeTable rw cols prices =
   allocate rw
   . expand
@@ -67,11 +67,13 @@ data ColumnWidth = ColumnWidth { unColumnWidth :: Word }
 data ReportWidth = ReportWidth { unReportWidth :: Word }
                    deriving Show
 
+type PadderF = ColumnWidth -> Chunk
+
 type GrowF =
   Balance
   -> PostingBox
   -> [PriceBox]
-  -> (ColumnWidth, Map RowNum Queried -> [Chunk])
+  -> (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
 
 type AllocateF =
   Balance
@@ -80,7 +82,7 @@ type AllocateF =
   -> ReportWidth
   -> Map ColNum Expanded
   -> ColNum
-  -> [Chunk]
+  -> (PadderF, [Chunk])
 
 data Column =
   GrowToFit GrowF
@@ -97,15 +99,14 @@ Allocation cells.
 -}
 
 data Queried =
-  EGrowToFit (ColumnWidth, Map RowNum Queried -> [Chunk])
+  EGrowToFit (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
   | EAllocate Allocation
-    (ReportWidth -> Map ColNum Expanded -> ColNum -> [Chunk])
-
+    (ReportWidth -> Map ColNum Expanded -> ColNum -> (PadderF, [Chunk]))
 
 data Expanded =
-  Grown [Chunk]
+  Grown (PadderF, [Chunk])
   | ExAllocate Allocation
-    (ReportWidth -> Map ColNum Expanded -> ColNum -> [Chunk])
+    (ReportWidth -> Map ColNum Expanded -> ColNum -> (PadderF, [Chunk]))
 
 paired ::
   Columns
@@ -120,12 +121,12 @@ queried pr ((pb, bal), c) = case c of
 
 expand :: Table Queried -> Table Expanded
 expand = changeColumns f where
-  f colNum rowMap rowNum q = case q of
-    EGrowToFit (w, grower) -> Grown $ grower rowMap
+  f rowNum colNum rowMap q = case q of
+    EGrowToFit (w, padder, grower) -> Grown (padder, grower rowMap)
     EAllocate a f -> ExAllocate a f
 
-allocate :: ReportWidth -> Table Expanded -> Table [Chunk]
+allocate :: ReportWidth -> Table Expanded -> Table (PadderF, [Chunk])
 allocate w = changeRows f where
-  f rowNum colMap colNum e = case e of
+  f rowNum colNum colMap e = case e of
     Grown cs -> cs
     ExAllocate a f -> f w colMap colNum
