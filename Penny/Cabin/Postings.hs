@@ -1,7 +1,8 @@
 module Penny.Cabin.Postings where
 
 import Data.List.NonEmpty (NonEmpty, toNonEmpty)
-import Data.Table (Table, table, changeColumns)
+import Data.Map (Map)
+import Data.Table (Table, table, changeColumns, RowNum, ColNum)
 import Data.Word (Word)
 
 import Penny.Lincoln.Balance (Balance)
@@ -19,7 +20,7 @@ type GrowF =
   Balance
   -> PostingBox
   -> [PriceBox]
-  -> (ColumnWidth, ColumnWidth -> [Chunk])
+  -> (ColumnWidth, Map RowNum Queried -> [Chunk])
 
 type AllocateF =
   ColumnWidth
@@ -43,7 +44,7 @@ Allocation cells.
 -}
 
 data Queried =
-  EGrowToFit (ColumnWidth, ColumnWidth -> [Chunk])
+  EGrowToFit (ColumnWidth, Map RowNum Queried -> [Chunk])
   | EAllocate Balance PostingBox [PriceBox] Allocation
     AllocateF
 
@@ -67,3 +68,6 @@ queried pr ((pb, bal), c) = case c of
 
 expand :: Table Queried -> Table Expanded
 expand = changeColumns f where
+  f colNum rowMap rowNum q = case q of
+    EGrowToFit (w, grower) -> Grown $ grower rowMap
+    EAllocate b pb prbs a af -> ExAllocate b pb prbs a af
