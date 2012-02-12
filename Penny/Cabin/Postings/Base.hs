@@ -1,4 +1,4 @@
-module Penny.Cabin.Postings where
+module Penny.Cabin.Postings.Base where
 
 import Control.Applicative (pure, (<*>))
 import Data.Foldable (toList)
