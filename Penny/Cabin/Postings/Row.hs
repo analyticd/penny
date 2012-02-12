@@ -1,8 +1,16 @@
-module Penny.Cabin.Postings.Row where
+module Penny.Cabin.Postings.Row (
+  Padding(Padding, unPadding),
+  Cell(Cell),
+  Row,
+  toRow,
+  Rows,
+  emptyRows,
+  prependRow,
+  appendRow) where
 
 import Data.Monoid (Monoid, mempty, mappend, mconcat)
 import qualified Data.Foldable as F
-import Data.Sequence (Seq)
+import Data.Sequence (Seq, (<|), (|>))
 import qualified Data.Sequence as S
 
 import Penny.Cabin.Colors (Chunk)
@@ -39,6 +47,15 @@ padCells cs = fmap (padCell maxHeight) cs where
   maxHeight = F.maximum (fmap height cs)
 
 newtype Rows = Rows { unRows :: Seq Row }
+
+emptyRows :: Rows
+emptyRows = Rows S.empty
+
+prependRow :: Row -> Rows -> Rows
+prependRow r (Rows rs) = Rows (r <| rs)
+
+appendRow :: Row -> Rows -> Rows
+appendRow r (Rows rs) = Rows (rs |> r)
 
 instance Monoid Rows where
   mempty = Rows S.empty

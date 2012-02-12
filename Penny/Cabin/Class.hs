@@ -6,6 +6,7 @@ import Data.Sequence (Seq)
 import Data.Text (Text)
 import System.Console.MultiArg.Prim (ParserE)
 
+import Penny.Cabin.Colors (Chunk, Colors)
 import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (  PostingBox, PriceBox )
 
