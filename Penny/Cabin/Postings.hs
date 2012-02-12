@@ -1,16 +1,12 @@
 module Penny.Cabin.Postings where
 
-import Control.Applicative (pure, (<$>), (<*>))
+import Control.Applicative (pure, (<*>))
 import Data.Foldable (toList)
-import qualified Data.Foldable as F
-import Data.List (zipWith)
 import Data.List.NonEmpty (NonEmpty, toNonEmpty, unsafeToNonEmpty,
                            nonEmpty)
 import qualified Data.List.ZipNonEmpty as ZNE
 import Data.Map (Map)
 import Data.Monoid (mempty, mappend, Monoid)
-import Data.Sequence (Seq)
-import qualified Data.Sequence as S
 import Data.Table (
   Table, table, changeColumns, RowNum, ColNum,
   changeRows)
@@ -21,7 +17,6 @@ import Penny.Lincoln.Balance (Balance, entryToBalance)
 import Penny.Lincoln.Boxes (PostingBox, PriceBox)
 import Penny.Lincoln.Queries (entry)
 
-import Penny.Cabin.Colors (Chunk)
 import Penny.Cabin.Postings.Row (Cell)
 
 data Allocation = Allocation { unAllocation :: Double }
@@ -66,6 +61,16 @@ data Column =
 
 data Columns = Columns { unColumns :: NonEmpty Column }
 
+newtype RowsPerPosting =
+  RowsPerPosting { unRowsPerPosting :: Int }
+  deriving Show
+
+rowsPerPosting :: Int -> RowsPerPosting
+rowsPerPosting i =
+  if i < 1
+  then error "rowsPerPosting: must have at least 1 row per posting"
+  else RowsPerPosting i
+
 data Queried =
   EGrowToFit (ColumnWidth, Map RowNum Queried -> Cell)
   | EAllocate Allocation
@@ -85,9 +90,9 @@ balances :: NonEmpty PostingBox
             -> NonEmpty Balance
 balances = snd . mapAccumL balanceAccum mempty
 
-balanceAndPostings :: NonEmpty PostingBox
-                      -> NonEmpty PostingInfo
-balanceAndPostings pbs = 
+postingInfos :: NonEmpty PostingBox
+                -> NonEmpty PostingInfo
+postingInfos pbs = 
   ZNE.ne
   $ pure PostingInfo
   <*> ZNE.zipNe (pure PostingNum <*> (nonEmpty 0 [1..]))
@@ -98,56 +103,71 @@ postingsTable ::
   (PostingInfo -> Bool)
   -> ReportWidth
   -> Columns
+  -> RowsPerPosting
   -> [PriceBox]
   -> [PostingBox]
   -> Maybe (Table Cell)
-postingsTable p rw cols prices pstgs = do
+postingsTable p rw cols rpp prices pstgs = do
   nePstgs <- toNonEmpty pstgs
+  let pis = postingInfos nePstgs
+      filtered = filter p (toList pis)
+  neFiltered <- toNonEmpty filtered
   return $
-    makeTable rw cols prices (balanceAndPostings nePstgs)
+    makeTable rw cols rpp prices neFiltered
 
 makeTable ::
   ReportWidth
   -> Columns
+  -> RowsPerPosting
   -> [PriceBox]
   -> NonEmpty PostingInfo
   -> Table Cell
-makeTable rw cols prices =
+makeTable rw cols rpp prices =
   allocate
   . expand
   . fmap (queried rw prices)
   . cellInfos
-  . paired cols
+  . paired cols rpp
 
 paired ::
   Columns
+  -> RowsPerPosting
   -> NonEmpty PostingInfo
   -> Table (PostingInfo, Column)
-paired (Columns cs) ps = table (,) ps cs
+paired (Columns cs) rpp ps = table (,) (replicatePostings rpp ps) cs
+
+replicatePostings ::
+  RowsPerPosting
+  -> NonEmpty PostingInfo
+  -> NonEmpty PostingInfo
+replicatePostings (RowsPerPosting rpp) pis = let
+  ls = toList pis
+  expanded = concatMap (replicate rpp) ls
+  in unsafeToNonEmpty expanded
 
 cellInfos ::
   Table (PostingInfo, Column)
   -> Table (PostingInfo, CellInfo, Column)
 cellInfos = changeRows f where
-  f rn cn _ (pi, col) = (pi, (CellInfo rn cn), col)
+  f rn cn _ (pis, col) = (pis, (CellInfo rn cn), col)
 
 queried ::
   ReportWidth
   -> [PriceBox]
   -> (PostingInfo, CellInfo, Column)
   -> Queried
-queried rw pbs (pi, ci, col) = case col of
-  GrowToFit f -> EGrowToFit $ f rw pbs pi ci
-  Allocate a f -> EAllocate a $ f rw pbs pi ci
+queried rw pbs (pis, ci, col) = case col of
+  GrowToFit f -> EGrowToFit $ f rw pbs pis ci
+  Allocate a f -> EAllocate a $ f rw pbs pis ci
 
 expand :: Table Queried -> Table Expanded
 expand = changeColumns f where
   f _ _ rowMap q = case q of
     EGrowToFit (_, grower) -> Grown (grower rowMap)
-    EAllocate a f -> ExAllocate a f
+    EAllocate a g -> ExAllocate a g
 
 allocate :: Table Expanded -> Table Cell
 allocate = changeRows f where
   f _ _ colMap e = case e of
     Grown cs -> cs
-    ExAllocate a f -> f colMap
+    ExAllocate _ g -> g colMap

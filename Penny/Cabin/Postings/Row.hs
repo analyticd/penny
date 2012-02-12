@@ -14,7 +14,7 @@ module Penny.Cabin.Postings.Row (
   appendRow,
   HasChunk(chunk)) where
 
-import Data.Monoid (Monoid, mempty, mappend, mconcat)
+import Data.Monoid (Monoid, mempty, mappend)
 import qualified Data.Foldable as F
 import Data.Sequence (Seq, (<|), (|>))
 import qualified Data.Sequence as S
@@ -34,7 +34,7 @@ appendLine ch (Cell p ls) = Cell p (ls |> ch)
 prependLine :: Chunk -> Cell -> Cell
 prependLine ch (Cell p ls) = Cell p (ch <| ls)
 
-newtype Row = Row { unRow :: Seq Cell }
+newtype Row = Row (Seq Cell)
 
 emptyRow :: Row
 emptyRow = Row S.empty
@@ -60,7 +60,7 @@ padCells :: Seq Cell -> Seq Cell
 padCells cs = fmap (padCell maxHeight) cs where
   maxHeight = F.maximum (fmap height cs)
 
-newtype Rows = Rows { unRows :: Seq Row }
+newtype Rows = Rows (Seq Row)
 
 emptyRows :: Rows
 emptyRows = Rows S.empty

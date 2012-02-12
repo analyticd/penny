@@ -1,7 +1,6 @@
 module Penny.Cabin.Class where
 
 import Control.Monad.Exception.Synchronous (Exceptional)
-import Data.ByteString as BS
 import Data.Sequence (Seq)
 import Data.Text (Text)
 import System.Console.MultiArg.Prim (ParserE)

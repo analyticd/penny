@@ -1,6 +1,5 @@
 module Penny.Cabin.Colors where
 
-import qualified Data.ByteString as BS
 import Data.Monoid (Monoid, mempty, mappend)
 import qualified Data.Foldable as F
 import Data.Sequence (Seq)

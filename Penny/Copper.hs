@@ -18,8 +18,7 @@ import Text.Parsec.Error ( ParseError )
 import Text.Parsec.Text ( Parser )
 
 import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
-import Penny.Lincoln.Meta ( Line, Filename(Filename), TransactionMeta, 
-                           PostingMeta, PriceMeta )
+import Penny.Lincoln.Meta ( Line, Filename(Filename) )
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Item as I
