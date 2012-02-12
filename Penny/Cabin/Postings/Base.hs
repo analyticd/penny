@@ -1,4 +1,19 @@
-module Penny.Cabin.Postings.Base where
+module Penny.Cabin.Postings.Base (
+  Allocation(unAllocation),
+  allocation,
+  ReportWidth (ReportWidth, unReportWidth),
+  PostingNum(unPostingNum),
+  CellInfo(cellRow, cellCol),
+  PostingInfo(postingNum, balance, postingBox),
+  GrowF,
+  AllocateF,
+  Column(GrowToFit, Allocate),
+  Columns(Columns, unColumns),
+  RowsPerPosting(unRowsPerPosting),
+  rowsPerPosting,
+  Queried(EGrowToFit, EAllocate),
+  Expanded(Grown, ExAllocate),
+  postingsReport) where
 
 import Control.Applicative (pure, (<*>))
 import Data.Foldable (toList)
@@ -6,10 +21,12 @@ import Data.List.NonEmpty (NonEmpty, toNonEmpty, unsafeToNonEmpty,
                            nonEmpty)
 import qualified Data.List.ZipNonEmpty as ZNE
 import Data.Map (Map)
+import qualified Data.Map as M
 import Data.Monoid (mempty, mappend, Monoid)
 import Data.Table (
   Table, table, changeColumns, RowNum, ColNum,
   changeRows)
+import qualified Data.Table as T
 import Data.Traversable (mapAccumL)
 import Data.Word (Word)
 
@@ -17,7 +34,9 @@ import Penny.Lincoln.Balance (Balance, entryToBalance)
 import Penny.Lincoln.Boxes (PostingBox, PriceBox)
 import Penny.Lincoln.Queries (entry)
 
+import Penny.Cabin.Colors (Chunk)
 import Penny.Cabin.Postings.Row (Cell)
+import qualified Penny.Cabin.Postings.Row as R
 
 data Allocation = Allocation { unAllocation :: Double }
                   deriving Show
@@ -65,12 +84,6 @@ newtype RowsPerPosting =
   RowsPerPosting { unRowsPerPosting :: Int }
   deriving Show
 
-rowsPerPosting :: Int -> RowsPerPosting
-rowsPerPosting i =
-  if i < 1
-  then error "rowsPerPosting: must have at least 1 row per posting"
-  else RowsPerPosting i
-
 data Queried =
   EGrowToFit (ColumnWidth, Map RowNum Queried -> Cell)
   | EAllocate Allocation
@@ -80,6 +93,18 @@ data Expanded =
   Grown Cell
   | ExAllocate Allocation
     (Map ColNum Expanded -> Cell)
+
+rowsPerPosting :: Int -> RowsPerPosting
+rowsPerPosting i =
+  if i < 1
+  then error "rowsPerPosting: must have at least 1 row per posting"
+  else RowsPerPosting i
+
+allocation :: Double -> Allocation
+allocation d =
+  if d > 0
+  then Allocation d
+  else error "allocations must be greater than zero"
 
 balanceAccum :: Balance -> PostingBox -> (Balance, Balance)
 balanceAccum bal pb = (bal', bal') where
@@ -99,6 +124,32 @@ postingInfos pbs =
   <*> ZNE.zipNe (balances pbs)
   <*> ZNE.zipNe pbs
                          
+tableToChunk ::
+  Table Cell
+  -> Chunk
+tableToChunk = R.chunk . rows . rowMap . T.unRows . T.unTable
+
+rowMap :: Map T.RowNum (Map T.ColNum Cell)
+          -> Map T.RowNum R.Row
+rowMap = M.map f where
+  f = M.fold R.prependCell R.emptyRow
+
+rows :: Map T.RowNum R.Row
+        -> R.Rows
+rows = M.fold R.prependRow mempty
+
+postingsReport ::
+  (PostingInfo -> Bool)
+  -> ReportWidth
+  -> Columns
+  -> RowsPerPosting
+  -> [PriceBox]
+  -> [PostingBox]
+  -> Maybe Chunk  
+postingsReport p rw cols rpp prices pstgs =
+  postingsTable p rw cols rpp prices pstgs
+  >>= return . tableToChunk
+
 postingsTable ::
   (PostingInfo -> Bool)
   -> ReportWidth
