@@ -4,7 +4,8 @@ import Control.Applicative (pure, (<$>), (<*>))
 import Data.Foldable (toList)
 import qualified Data.Foldable as F
 import Data.List (zipWith)
-import Data.List.NonEmpty (NonEmpty, toNonEmpty)
+import Data.List.NonEmpty (NonEmpty, toNonEmpty, unsafeToNonEmpty,
+                           nonEmpty)
 import qualified Data.List.ZipNonEmpty as ZNE
 import Data.Map (Map)
 import Data.Monoid (mempty, mappend, Monoid)
@@ -32,11 +33,15 @@ data ColumnWidth = ColumnWidth { unColumnWidth :: Word }
 data ReportWidth = ReportWidth { unReportWidth :: Word }
                    deriving Show
 
+newtype PostingNum = PostingNum { unPostingNum :: Integer }
+                     deriving (Show, Eq, Ord)
+
 data CellInfo =
   CellInfo { cellPosting :: PostingBox
            , cellBalance :: Balance
            , cellRow :: RowNum
-           , cellCol :: ColNum }
+           , cellCol :: ColNum
+           , postingNum :: PostingNum }
 
 type GrowF =
   ReportWidth
@@ -77,20 +82,22 @@ balances :: NonEmpty PostingBox
 balances = snd . mapAccumL balanceAccum mempty
 
 balanceAndPostings :: NonEmpty PostingBox
-                      -> NonEmpty (PostingBox, Balance)
+                      -> NonEmpty (PostingBox, Balance, PostingNum)
 balanceAndPostings pbs = 
   ZNE.ne
-  $ pure (,)
+  $ pure (,,)
   <*> ZNE.zipNe pbs
   <*> ZNE.zipNe (balances pbs)
+  <*> ZNE.zipNe (pure PostingNum <*> (nonEmpty 0 [1..]))
                          
 postingsTable ::
-  ReportWidth
+  ((PostingBox, Balance, PostingNum) -> Bool)
+  -> ReportWidth
   -> Columns
   -> [PriceBox]
   -> [PostingBox]
   -> Maybe (Table Cell)
-postingsTable rw cols prices pstgs = do
+postingsTable p rw cols prices pstgs = do
   nePstgs <- toNonEmpty pstgs
   return $
     makeTable rw cols prices (balanceAndPostings nePstgs)
@@ -99,7 +106,7 @@ makeTable ::
   ReportWidth
   -> Columns
   -> [PriceBox]
-  -> NonEmpty (PostingBox, Balance)
+  -> NonEmpty (PostingBox, Balance, PostingNum)
   -> Table Cell
 makeTable rw cols prices =
   allocate
@@ -110,15 +117,15 @@ makeTable rw cols prices =
 
 paired ::
   Columns
-  -> NonEmpty (PostingBox, Balance)
-  -> Table ((PostingBox, Balance), Column)
+  -> NonEmpty (PostingBox, Balance, PostingNum)
+  -> Table ((PostingBox, Balance, PostingNum), Column)
 paired (Columns cs) ps = table (,) ps cs
 
 cellInfos ::
-  Table ((PostingBox, Balance), Column)
+  Table ((PostingBox, Balance, PostingNum), Column)
   -> Table (CellInfo, Column)
 cellInfos = changeRows f where
-  f rn cn _ ((pb, bal), col) = (CellInfo pb bal rn cn, col)
+  f rn cn _ ((pb, bal, num), col) = (CellInfo pb bal rn cn num, col)
 
 queried ::
   ReportWidth
