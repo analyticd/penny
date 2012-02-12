@@ -1,6 +1,9 @@
 module Penny.Cabin.Postings.Row (
   Padding(Padding, unPadding),
   Cell(Cell),
+  emptyCell,
+  appendLine,
+  prependLine,
   Row,
   emptyRow,
   prependCell,
@@ -21,6 +24,15 @@ import Penny.Cabin.Colors (Chunk)
 newtype Padding = Padding { unPadding :: Chunk }
 
 data Cell = Cell Padding (Seq Chunk) 
+
+emptyCell :: Padding -> Cell
+emptyCell p = Cell p S.empty
+
+appendLine :: Chunk -> Cell -> Cell
+appendLine ch (Cell p ls) = Cell p (ls |> ch)
+
+prependLine :: Chunk -> Cell -> Cell
+prependLine ch (Cell p ls) = Cell p (ch <| ls)
 
 newtype Row = Row { unRow :: Seq Cell }
 

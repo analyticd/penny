@@ -21,6 +21,7 @@ import Penny.Lincoln.Boxes (PostingBox, PriceBox)
 import Penny.Lincoln.Queries (entry)
 
 import Penny.Cabin.Colors (Chunk)
+import Penny.Cabin.Postings.Row (Cell)
 
 data Allocation = Allocation { unAllocation :: Double }
                   deriving Show
@@ -37,20 +38,18 @@ data CellInfo =
            , cellRow :: RowNum
            , cellCol :: ColNum }
 
-type PadderF = ColumnWidth -> Chunk
-
 type GrowF =
   ReportWidth
   -> [PriceBox]
   -> CellInfo
-  -> (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
+  -> (ColumnWidth, Map RowNum Queried -> Cell)
 
 type AllocateF =
   ReportWidth
   -> [PriceBox]
   -> CellInfo
   -> Map ColNum Expanded
-  -> (PadderF, [Chunk])
+  -> Cell
 
 data Column =
   GrowToFit GrowF
@@ -59,14 +58,14 @@ data Column =
 data Columns = Columns { unColumns :: NonEmpty Column }
 
 data Queried =
-  EGrowToFit (ColumnWidth, PadderF, Map RowNum Queried -> [Chunk])
+  EGrowToFit (ColumnWidth, Map RowNum Queried -> Cell)
   | EAllocate Allocation
-    (Map ColNum Expanded -> (PadderF, [Chunk]))
+    (Map ColNum Expanded -> Cell)
 
 data Expanded =
-  Grown (PadderF, [Chunk])
+  Grown Cell
   | ExAllocate Allocation
-    (Map ColNum Expanded -> (PadderF, [Chunk]))
+    (Map ColNum Expanded -> Cell)
 
 balanceAccum :: Balance -> PostingBox -> (Balance, Balance)
 balanceAccum bal pb = (bal', bal') where
@@ -90,7 +89,7 @@ postingsTable ::
   -> Columns
   -> [PriceBox]
   -> [PostingBox]
-  -> Maybe (Table (PadderF, [Chunk]))
+  -> Maybe (Table Cell)
 postingsTable rw cols prices pstgs = do
   nePstgs <- toNonEmpty pstgs
   return $
@@ -101,7 +100,7 @@ makeTable ::
   -> Columns
   -> [PriceBox]
   -> NonEmpty (PostingBox, Balance)
-  -> Table (PadderF, [Chunk])
+  -> Table Cell
 makeTable rw cols prices =
   allocate
   . expand
@@ -133,10 +132,10 @@ queried rw pbs (ci, col) = case col of
 expand :: Table Queried -> Table Expanded
 expand = changeColumns f where
   f _ _ rowMap q = case q of
-    EGrowToFit (_, padder, grower) -> Grown (padder, grower rowMap)
+    EGrowToFit (_, grower) -> Grown (grower rowMap)
     EAllocate a f -> ExAllocate a f
 
-allocate :: Table Expanded -> Table (PadderF, [Chunk])
+allocate :: Table Expanded -> Table Cell
 allocate = changeRows f where
   f _ _ colMap e = case e of
     Grown cs -> cs
