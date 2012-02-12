@@ -52,7 +52,7 @@ Library
     Exposed-modules:
         Penny.Cabin.Class,
         Penny.Cabin.Colors,
-        Penny.Cabin.Postings,
+        Penny.Cabin.Postings.Base,
         Penny.Cabin.Postings.Row,
         Penny.Copper,
         Penny.Copper.Account,
