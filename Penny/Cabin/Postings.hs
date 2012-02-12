@@ -37,21 +37,25 @@ newtype PostingNum = PostingNum { unPostingNum :: Integer }
                      deriving (Show, Eq, Ord)
 
 data CellInfo =
-  CellInfo { cellPosting :: PostingBox
-           , cellBalance :: Balance
-           , cellRow :: RowNum
-           , cellCol :: ColNum
-           , postingNum :: PostingNum }
+  CellInfo { cellRow :: RowNum
+           , cellCol :: ColNum }
+
+data PostingInfo =
+  PostingInfo { postingNum :: PostingNum
+              , balance :: Balance
+              , postingBox :: PostingBox }
 
 type GrowF =
   ReportWidth
   -> [PriceBox]
+  -> PostingInfo
   -> CellInfo
   -> (ColumnWidth, Map RowNum Queried -> Cell)
 
 type AllocateF =
   ReportWidth
   -> [PriceBox]
+  -> PostingInfo
   -> CellInfo
   -> Map ColNum Expanded
   -> Cell
@@ -82,16 +86,16 @@ balances :: NonEmpty PostingBox
 balances = snd . mapAccumL balanceAccum mempty
 
 balanceAndPostings :: NonEmpty PostingBox
-                      -> NonEmpty (PostingBox, Balance, PostingNum)
+                      -> NonEmpty PostingInfo
 balanceAndPostings pbs = 
   ZNE.ne
-  $ pure (,,)
-  <*> ZNE.zipNe pbs
-  <*> ZNE.zipNe (balances pbs)
+  $ pure PostingInfo
   <*> ZNE.zipNe (pure PostingNum <*> (nonEmpty 0 [1..]))
+  <*> ZNE.zipNe (balances pbs)
+  <*> ZNE.zipNe pbs
                          
 postingsTable ::
-  ((PostingBox, Balance, PostingNum) -> Bool)
+  (PostingInfo -> Bool)
   -> ReportWidth
   -> Columns
   -> [PriceBox]
@@ -106,7 +110,7 @@ makeTable ::
   ReportWidth
   -> Columns
   -> [PriceBox]
-  -> NonEmpty (PostingBox, Balance, PostingNum)
+  -> NonEmpty PostingInfo
   -> Table Cell
 makeTable rw cols prices =
   allocate
@@ -117,24 +121,24 @@ makeTable rw cols prices =
 
 paired ::
   Columns
-  -> NonEmpty (PostingBox, Balance, PostingNum)
-  -> Table ((PostingBox, Balance, PostingNum), Column)
+  -> NonEmpty PostingInfo
+  -> Table (PostingInfo, Column)
 paired (Columns cs) ps = table (,) ps cs
 
 cellInfos ::
-  Table ((PostingBox, Balance, PostingNum), Column)
-  -> Table (CellInfo, Column)
+  Table (PostingInfo, Column)
+  -> Table (PostingInfo, CellInfo, Column)
 cellInfos = changeRows f where
-  f rn cn _ ((pb, bal, num), col) = (CellInfo pb bal rn cn num, col)
+  f rn cn _ (pi, col) = (pi, (CellInfo rn cn), col)
 
 queried ::
   ReportWidth
   -> [PriceBox]
-  -> (CellInfo, Column)
+  -> (PostingInfo, CellInfo, Column)
   -> Queried
-queried rw pbs (ci, col) = case col of
-  GrowToFit f -> EGrowToFit $ f rw pbs ci
-  Allocate a f -> EAllocate a $ f rw pbs ci
+queried rw pbs (pi, ci, col) = case col of
+  GrowToFit f -> EGrowToFit $ f rw pbs pi ci
+  Allocate a f -> EAllocate a $ f rw pbs pi ci
 
 expand :: Table Queried -> Table Expanded
 expand = changeColumns f where
