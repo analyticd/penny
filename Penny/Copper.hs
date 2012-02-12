@@ -1,3 +1,4 @@
+-- | Copper - the Penny parser
 module Penny.Copper (
   Ledger(Ledger),
   ledger,

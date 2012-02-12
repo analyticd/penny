@@ -11,9 +11,134 @@ homepage: http://www.github.com/massysett/penny
 bug-reports: omari@smileystation.com
 Category: Console
 License-File: LICENSE
-synopsis: Accounting system
+synopsis: Extensible double-entry accounting system
 
-description: Accounting system
+description: Penny is a double-entry accounting system. It is inspired
+  by, but incompatible with, John Wiegley's Ledger, which is available
+  at <http://ledger-cli.org/>. Features:
+
+  .
+
+  * Penny is a double-entry accounting system. It uses traditional
+  accounting terminology, such as the terms \"Debit\" and
+  \"Credit\". If you need a refresher on the basics of double-entry
+  accounting, pick up a used accounting textbook from your favorite
+  bookseller (they can be had cheaply, for less than ten U.S. dollars
+  including shipping) or check out
+  <http://www.principlesofaccounting.com/>, a great free online text.
+
+  .
+
+  * Penny is based around "Penny.Lincoln", a core library to represent
+    transactions and postings and their components, such as their
+    amounts and whether they are debits and credits. You can use
+    Lincoln all by itself even if you don't use the other components
+    of Penny, which you may find handy if you are a Haskell
+    programmer. I wrote Penny because I wanted a precise library to
+    represent my accounting data so I could analyze it programatically
+    and verify its consistency. I wrote it in Haskell not because I
+    wanted to write something in Haskell but because Haskell is the
+    best tool for this job (I used to use the shell, combined with
+    Ledger, which is a messy combination.)
+
+  .
+
+  * Penny's command line interface, Zinc, and its reports, Cabin, give
+    you unparalleled flexibility to filter and sort postings. Each
+    posting within a transaction may have its own flags assigned
+    (e.g. to indicate whether the posting is cleared) and each posting
+    may have infinite \"tags\" assigned to it, giving you another way
+    to categorize your postings. For instance, you might have vacation
+    related postings in several different accounts, but you can give
+    them all a \"vacation\" tag.
+
+  .
+
+  * Full Unicode support. Also, you may set which characters you wish
+    to use to represent the radix point and the digit grouping
+    character in your ledger file.
+
+  .
+
+  * Penny's reports, in "Penny.Cabin", have color baked in from the
+    beginning. You do not have to use color, though, which is handy if
+    you are sending output to a file or if, well, you just don't like
+    color.
+
+  .
+
+  * Penny's reports are customizable in Haskell, giving you an easy
+    and powerful way to make your own reports without writing cryptic
+    formatting strings.
+
+  .
+
+  * Penny handles multiple commodities (for example, multiple
+    currencies, stocks and bonds, tracking other assets, etc.) in an
+    easy and transparent way that is consistent with double-entry
+    accounting principles. It embraces the philosophy outlined in this
+    tutorial on multiple commodity accounting:
+    <http://www.mscs.dal.ca/~selinger/accounting/tutorial.html>.
+
+  .
+
+  * Penny stores amounts using only integers, building from the
+    Data.Decimal library available at
+    <http://hackage.haskell.org/package/Decimal>. This ensures the
+    accuracy of your data, as using floating point values to represent
+    money is a bad idea. Here is one explanation:
+    <http://stackoverflow.com/questions/3730019/why-not-use-double-or-float-to-represent-currency>. The
+    use of integer arithmetic also makes Penny simpler internally, as
+    there is no need for arbitrary rounding to compensate for the
+    bizarre and inaccurate results that sometimes arise from the use of
+    floating-point values to represent currencies.
+
+  .
+
+  * Freely licensed under the MIT license. If you take this code,
+    improve it, lock it up and make it proprietary, and sell it,
+    AWESOME! I haven't lost anything because I still have my code and,
+    what's more, then maybe I can buy your product and not have to
+    maintain this one any more!
+
+  .
+
+  Non-features / disadvantages:
+
+  .
+
+  * Written in Haskell. Yes, I think Haskell is the best tool ever,
+    but its compiler is not as commonly installed as compilers for C
+    or C++, and non-Haskellers will probably find Penny to be more
+    difficult to install than Ledger, as the latter is written in C++.
+
+  .
+
+  * Handling commodities requires that you set up multiple accounts;
+    some might find this cumbersome.
+
+  .
+
+  * Young and not well tested yet.
+
+  .
+
+  * Unix only. Penny uses the terminfo library to know whether it has
+    a color terminal available, and it uses the Unix locale funtions
+    to determine the default characters for the radix point and digit
+    grouping character. Porting to Windows might be trivial, but I do
+    not use Windows so I am not well-suited for this task.
+
+  .
+
+  * Full Penny functionality is available without a Haskell compiler;
+    you could even use a pre-compiled binary. However, to fully
+    customize Penny, you will need a Haskell compiler installed.
+
+  .
+
+  More details about the organization of the Penny modules is
+  available by examining the top "Penny" module.
 
 source-repository head
     type: git
@@ -50,6 +175,8 @@ Library
          old-locale ==1.0.*
 
     Exposed-modules:
+        Penny,
+        Penny.Cabin,
         Penny.Cabin.Class,
         Penny.Cabin.Colors,
         Penny.Cabin.Postings.Base,
@@ -75,6 +202,7 @@ Library
         Penny.Copper.Tags,
         Penny.Copper.TopLine,
         Penny.Copper.Transaction
+        Penny.Lincoln,
         Penny.Lincoln.Balance,
         Penny.Lincoln.Bits,
         Penny.Lincoln.Bits.Account,
@@ -102,6 +230,7 @@ Library
         Penny.Lincoln.TextNonEmpty,
         Penny.Lincoln.Transaction,
         Penny.Lincoln.Transaction.Unverified,
+        Penny.Zinc,
         Penny.Zinc.Parser,
         Penny.Zinc.Parser.Error,
         Penny.Zinc.Parser.Filter,

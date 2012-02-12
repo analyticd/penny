@@ -1,15 +1,24 @@
 module Penny.Cabin.Postings.Base (
-  Allocation(unAllocation),
+  Allocation,
+  unAllocation,
   allocation,
+  ColumnWidth(ColumnWidth, unColumnWidth),
   ReportWidth (ReportWidth, unReportWidth),
-  PostingNum(unPostingNum),
-  CellInfo(cellRow, cellCol),
-  PostingInfo(postingNum, balance, postingBox),
+  PostingNum,
+  unPostingNum,
+  CellInfo,
+  cellRow,
+  cellCol,
+  PostingInfo,
+  postingNum,
+  balance,
+  postingBox,
   GrowF,
   AllocateF,
   Column(GrowToFit, Allocate),
   Columns(Columns, unColumns),
-  RowsPerPosting(unRowsPerPosting),
+  RowsPerPosting,
+  unRowsPerPosting,
   rowsPerPosting,
   Queried(EGrowToFit, EAllocate),
   Expanded(Grown, ExAllocate),
@@ -213,8 +222,8 @@ queried rw pbs (pis, ci, col) = case col of
 
 expand :: Table Queried -> Table Expanded
 expand = changeColumns f where
-  f _ _ rowMap q = case q of
-    EGrowToFit (_, grower) -> Grown (grower rowMap)
+  f _ _ rm q = case q of
+    EGrowToFit (_, grower) -> Grown (grower rm)
     EAllocate a g -> ExAllocate a g
 
 allocate :: Table Expanded -> Table Cell

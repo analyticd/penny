@@ -2,6 +2,7 @@ module Penny.Zinc.Expressions.RPN (
   Operand(Operand),
   Operator(Unary, Binary),
   Token(TokOperand, TokOperator),
+  RPN,
   process) where
 
 import Data.Stack (

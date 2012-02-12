@@ -281,5 +281,3 @@ instance Pretty Cop.Ledger where
       toDoc (l, i) = text "line no:" <+> pretty l
                      <+> text "item:" <+> pretty i
                          
-
-

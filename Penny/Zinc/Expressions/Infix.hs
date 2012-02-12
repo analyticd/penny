@@ -13,6 +13,8 @@ module Penny.Zinc.Expressions.Infix (
   
   R.Operand(Operand),
   
+  Output,
+  
   infixToRPN
   ) where
 
