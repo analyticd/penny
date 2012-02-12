@@ -180,6 +180,8 @@ Library
         Penny.Cabin.Class,
         Penny.Cabin.Colors,
         Penny.Cabin.Postings.Base,
+        Penny.Cabin.Postings.Combinator,
+        Penny.Cabin.Postings.Combinator.Allocate,
         Penny.Cabin.Postings.Row,
         Penny.Copper,
         Penny.Copper.Account,
