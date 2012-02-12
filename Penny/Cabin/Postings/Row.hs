@@ -2,11 +2,14 @@ module Penny.Cabin.Postings.Row (
   Padding(Padding, unPadding),
   Cell(Cell),
   Row,
-  toRow,
+  emptyRow,
+  prependCell,
+  appendCell,
   Rows,
   emptyRows,
   prependRow,
-  appendRow) where
+  appendRow,
+  HasChunk(chunk)) where
 
 import Data.Monoid (Monoid, mempty, mappend, mconcat)
 import qualified Data.Foldable as F
@@ -19,17 +22,16 @@ newtype Padding = Padding { unPadding :: Chunk }
 
 data Cell = Cell Padding (Seq Chunk) 
 
-data Row = Empty | Full (Seq Cell)
+newtype Row = Row { unRow :: Seq Cell }
 
-instance Monoid Row where
-  mempty = Empty
-  mappend Empty r = r
-  mappend l Empty = l
-  mappend (Full s1) (Full s2) = Full s' where
-    s' = padCells (s1 `mappend` s2)
+emptyRow :: Row
+emptyRow = Row S.empty
 
-toRow :: Cell -> Row
-toRow c = Full $ S.singleton c
+prependCell :: Cell -> Row -> Row
+prependCell c (Row cs) = Row (c <| cs) 
+
+appendCell :: Cell -> Row -> Row
+appendCell c (Row cs) = Row (cs |> c)
 
 height :: Cell -> Int
 height (Cell _ s) = S.length s
@@ -65,23 +67,17 @@ class HasChunk a where
   chunk :: a -> Chunk
 
 instance HasChunk Row where
-  chunk Empty = mempty
-  chunk (Full cells) =
-    F.foldr mappend mempty (fmap (chunk . cellToColumn) cells)
+  chunk (Row cs) = cellsToChunk cs
 
 instance HasChunk Rows where
   chunk (Rows rs) =
     F.foldr mappend mempty (fmap chunk rs)
 
-instance HasChunk Column where
-  chunk EmptyCol = mempty
-  chunk (Column seq) = F.foldl mappend mempty seq
-
-data Column = EmptyCol | Column (Seq Chunk)
-
-cellToColumn :: Cell -> Column
-cellToColumn (Cell _ cs) = Column cs
-
-instance Monoid Column where
-  mempty = EmptyCol
-  mappend (Column s1) (Column s2) = Column $ S.zipWith mappend s1 s2
+cellsToChunk :: Seq Cell -> Chunk
+cellsToChunk cells =
+  if S.null cells
+  then mempty
+  else F.foldr mappend mempty zipped where
+    zipped = F.foldr1 zipper padded
+    padded = fmap (\(Cell _ cs) -> cs) (padCells cells)
+    zipper s1 s2 = S.zipWith mappend s1 s2
