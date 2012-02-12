@@ -1,0 +1,13 @@
+Welcome to Penny, double-entry accounting.
+
+Versions that contain at least one odd number are development
+versions. They are not posted to Hackage. I try to keep the master
+branch in compilable shape. However, development versions may not pass
+all tests, and in particular they may have out of date or incomplete
+documentation.
+
+Releases consist of code of reasonable quality. All of the groups in
+their release numbers are even.
+
+Penny is licensed under the MIT license, see the LICENSE file.
+
