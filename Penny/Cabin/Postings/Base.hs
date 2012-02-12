@@ -139,7 +139,7 @@ rows :: Map T.RowNum R.Row
 rows = M.fold R.prependRow mempty
 
 postingsReport ::
-  (PostingInfo -> Bool)
+  ([PostingInfo] -> [PostingInfo])
   -> ReportWidth
   -> Columns
   -> RowsPerPosting
@@ -151,7 +151,7 @@ postingsReport p rw cols rpp prices pstgs =
   >>= return . tableToChunk
 
 postingsTable ::
-  (PostingInfo -> Bool)
+  ([PostingInfo] -> [PostingInfo])
   -> ReportWidth
   -> Columns
   -> RowsPerPosting
@@ -161,7 +161,7 @@ postingsTable ::
 postingsTable p rw cols rpp prices pstgs = do
   nePstgs <- toNonEmpty pstgs
   let pis = postingInfos nePstgs
-      filtered = filter p (toList pis)
+      filtered = p (toList pis)
   neFiltered <- toNonEmpty filtered
   return $
     makeTable rw cols rpp prices neFiltered
