@@ -1,4 +1,14 @@
-module Penny.Cabin.Colors where
+module Penny.Cabin.Colors (
+  Colors(Colors0, Colors8, Colors256),
+  Chunk,
+  Intensity(Normal, Bold),
+  ColorName(Black, Red, Green, Yellow, Blue, Magenta,
+            Cyan, White, Default),
+  Color8(Color8),
+  Color256,
+  ColorSpec(ColorSpec),
+  chunkSize,
+  text) where
 
 import Data.Monoid (Monoid, mempty, mappend)
 import qualified Data.Foldable as F
@@ -6,7 +16,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Data.Text (Text)
 import qualified Data.Text as X
-import Data.Word (Word8)
+import Data.Word (Word8, Word)
 
 -- | The terminal (as described using the TERM environment variable or
 -- something similar) supports at least this many colors. Remember,
@@ -26,7 +36,6 @@ instance Monoid Chunk where
   mempty = Chunk S.empty
   mappend (Chunk c1) (Chunk c2) = Chunk (c1 `mappend` c2)
 
-
 data Intensity = Normal | Bold
                deriving Show
 
@@ -45,16 +54,16 @@ data ColorName =
 data Color8 = Color8 ColorName Intensity
               deriving Show
 
-data Color256 = Color256 { unColor256 :: Word8 }
+data Color256 = Color256 Word8
                 deriving Show
 
 data ColorSpec = ColorSpec Color8 Color256
                  deriving Show
 
-chunkSize :: Chunk -> Int
+chunkSize :: Chunk -> Word
 chunkSize (Chunk cs) = F.foldr f 0 cs where
   f b t = case b of
-    (Payload x) -> X.length x + t
+    (Payload x) -> fromIntegral (X.length x) + t
     _ -> t
 
 single :: Bit -> Chunk
