@@ -1,15 +1,30 @@
 module Penny.Cabin.Colors (
   Colors(Colors0, Colors8, Colors256),
   Chunk,
-  Intensity(Normal, Bold),
-  ColorName(Black, Red, Green, Yellow, Blue, Magenta,
-            Cyan, White, Default),
-  Color8(Color8),
+  Color8(Black, Red, Green, Yellow, Blue, Magenta,
+         Cyan, White),
   Color256,
-  ColorSpec(ColorSpec),
-  Width(Width, unWidth),
+  color256,
+  Color(Default, Color),
+  ForeBack(ForeBack, foreground, background),
+  defaultForeBack,
+  ColorSet(ColorSet, colorSet8, colorSet256),
+  defaultColorSet,
+  TextSpec(TextSpec, colorSet, bold, underline, flash,
+           invisible, inverse),
+  Switch(Off, On),
+  Bold(Bold),
+  Underline(Underline),
+  Flash(Flash),
+  Inverse(Inverse),
+  Invisible(Invisible),
+  Width,
+  unWidth,
   chunkSize,
-  text) where
+  chunk,
+  defaultSpec,
+  color) where
+  
 
 import Data.Monoid (Monoid, mempty, mappend)
 import qualified Data.Foldable as F
@@ -31,9 +46,7 @@ import Penny.Lincoln.Classes
 data Colors = Colors0 | Colors8 | Colors256
             deriving Show
 
-data Bit = Control ColorSpec
-         | Payload Text
-         deriving Show
+data Bit = Bit TextSpec Text
 
 data Chunk = Chunk (Seq Bit)
 
@@ -41,10 +54,7 @@ instance Monoid Chunk where
   mempty = Chunk S.empty
   mappend (Chunk c1) (Chunk c2) = Chunk (c1 `mappend` c2)
 
-data Intensity = Normal | Bold
-               deriving Show
-
-data ColorName =
+data Color8 =
   Black
   | Red
   | Green
@@ -53,17 +63,45 @@ data ColorName =
   | Magenta
   | Cyan
   | White
-  | Default
   deriving Show
-
-data Color8 = Color8 ColorName Intensity
-              deriving Show
 
 data Color256 = Color256 Word8
                 deriving Show
 
-data ColorSpec = ColorSpec Color8 Color256
-                 deriving Show
+color256 :: Word8 -> Color256
+color256 w =
+  if w < 0 || w > 255
+  then error "color number out of range"
+  else Color256 w
+
+data Color a = Default | Color a
+data ForeBack a = ForeBack { foreground :: Color a
+                           , background :: Color a }
+
+defaultForeBack :: ForeBack a
+defaultForeBack = ForeBack Default Default
+
+data ColorSet = ColorSet { colorSet8 :: ForeBack Color8
+                         , colorSet256 :: ForeBack Color256 }
+
+defaultColorSet :: ColorSet
+defaultColorSet = ColorSet defaultForeBack defaultForeBack
+
+data TextSpec =
+  TextSpec { colorSet :: ColorSet
+           , bold :: Switch Bold
+           , underline :: Switch Underline
+           , flash :: Switch Flash
+           , invisible :: Switch Invisible
+           , inverse :: Switch Inverse }
+
+data Bold = Bold
+data Underline = Underline
+data Flash = Flash
+data Inverse = Inverse
+data Invisible = Invisible
+
+data Switch a = Off a | On a
 
 newtype Width = Width { unWidth :: Word }
                 deriving (Show, Eq, Ord)
@@ -88,14 +126,21 @@ instance NonNegInt Width where
 
 chunkSize :: Chunk -> Width
 chunkSize (Chunk cs) = F.foldr f zero cs where
-  f b t = case b of
-    (Payload x) -> (unsafeFromInt . X.length $ x) `add` t
-    _ -> t
+  f (Bit _ x) t = (unsafeFromInt . X.length $ x) `add` t
 
 single :: Bit -> Chunk
 single = Chunk . S.singleton
 
-text :: Color8 -> Color256 -> Text -> Chunk
-text c8 c256 t = single cspec `mappend` single tspec where
-  cspec = Control (ColorSpec c8 c256)
-  tspec = Payload t
+chunk :: TextSpec -> Text -> Chunk
+chunk ts = single . Bit ts
+
+defaultSpec :: TextSpec
+defaultSpec = TextSpec { colorSet = defaultColorSet
+                       , bold = Off Bold
+                       , underline = Off Underline
+                       , flash = Off Flash
+                       , invisible = Off Invisible
+                       , inverse = Off Inverse }
+
+color :: ColorSet -> TextSpec
+color cs = defaultSpec { colorSet = cs }
