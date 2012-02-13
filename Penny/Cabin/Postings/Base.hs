@@ -51,7 +51,7 @@ data Allocation = Allocation { unAllocation :: Double }
                   deriving Show
 
 data ColumnWidth = ColumnWidth { unColumnWidth :: Word }
-                   deriving Show
+                   deriving (Show, Eq, Ord)
 
 data ReportWidth = ReportWidth { unReportWidth :: Word }
                    deriving Show

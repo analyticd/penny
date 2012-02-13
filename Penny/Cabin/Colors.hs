@@ -39,6 +39,7 @@ data ColorName =
   | Magenta
   | Cyan
   | White
+  | Default
   deriving Show
 
 data Color8 = Color8 ColorName Intensity
