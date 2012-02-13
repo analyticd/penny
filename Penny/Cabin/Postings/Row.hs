@@ -25,6 +25,7 @@ import Data.Word (Word)
 
 import Penny.Cabin.Colors
   (Chunk, Color8, Color256, text, chunkSize, Width(Width), unWidth)
+import Penny.Lincoln.Classes (subt, toInt, zero)
 
 -- | How to justify cells. LeftJustify leaves the right side
 -- ragged. RightJustify leaves the left side ragged.
@@ -75,10 +76,10 @@ justify c8 c256 w j c = glue padding c where
     LeftJustify -> ck `mappend` pd
     RightJustify -> pd `mappend` ck
   padding = text c8 c256 t
-  t = X.pack (replicate s ' ')
-  s = if chunkSize c >= w
-      then 0
-      else fromIntegral $ (unWidth w) - (unWidth (chunkSize c))
+  t = X.pack (replicate (toInt s) ' ')
+  s = case w `subt` chunkSize c of
+    Nothing -> zero
+    (Just r) -> r
 
 newtype Height = Height Word
                  deriving Show

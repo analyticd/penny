@@ -222,6 +222,7 @@ Library
         Penny.Lincoln.Bits.Qty,
         Penny.Lincoln.Bits.Tags,
         Penny.Lincoln.Boxes,
+        Penny.Lincoln.Classes,
         Penny.Lincoln.Family,
         Penny.Lincoln.Family.Child,
         Penny.Lincoln.Family.Family,
