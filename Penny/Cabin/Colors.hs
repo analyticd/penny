@@ -7,6 +7,7 @@ module Penny.Cabin.Colors (
   Color8(Color8),
   Color256,
   ColorSpec(ColorSpec),
+  Width(Width, unWidth),
   chunkSize,
   text) where
 
@@ -60,8 +61,11 @@ data Color256 = Color256 Word8
 data ColorSpec = ColorSpec Color8 Color256
                  deriving Show
 
-chunkSize :: Chunk -> Word
-chunkSize (Chunk cs) = F.foldr f 0 cs where
+newtype Width = Width { unWidth :: Word }
+                deriving (Show, Eq, Ord)
+
+chunkSize :: Chunk -> Width
+chunkSize (Chunk cs) = Width $ F.foldr f 0 cs where
   f b t = case b of
     (Payload x) -> fromIntegral (X.length x) + t
     _ -> t

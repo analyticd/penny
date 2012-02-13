@@ -5,6 +5,7 @@ module Penny.Cabin.Postings.Row (
   emptyCell,
   appendLine,
   prependLine,
+  widestLine,
   Row,
   emptyRow,
   prependCell,
@@ -22,7 +23,8 @@ import qualified Data.Sequence as S
 import qualified Data.Text as X
 import Data.Word (Word)
 
-import Penny.Cabin.Colors (Chunk, Color8, Color256, text, chunkSize)
+import Penny.Cabin.Colors
+  (Chunk, Color8, Color256, text, chunkSize, Width(Width), unWidth)
 
 -- | How to justify cells. LeftJustify leaves the right side
 -- ragged. RightJustify leaves the left side ragged.
@@ -30,12 +32,6 @@ data Justification =
   LeftJustify
   | RightJustify
   deriving Show
-
--- | How wide to make a cell. Each line within the cell is padded so
--- it is at least this wide. Lines that are longer than this are NOT
--- chopped or truncated; they are left as is. 
-data Width = Width { unWidth :: Word }
-             deriving Show
 
 -- | A cell of text output. You tell the cell how to justify itself
 -- and how wide it is. You also tell it the background colors to
@@ -62,6 +58,9 @@ appendLine ch c = c { chunks = chunks c |> ch }
 prependLine :: Chunk -> Cell -> Cell
 prependLine ch c = c { chunks = ch <| chunks c }
 
+widestLine :: Cell -> Width
+widestLine = F.maximum . fmap chunkSize . chunks
+
 -- | A Row consists of several Cells. The Cells will be padded and
 -- justified appropriately, with the padding adjusting to accomodate
 -- other Cells in the Row.
@@ -71,13 +70,15 @@ emptyRow :: Row
 emptyRow = Row S.empty
 
 justify :: Color8 -> Color256 -> Width -> Justification -> Chunk -> Chunk
-justify c8 c256 (Width w) j c = glue padding c where
+justify c8 c256 w j c = glue padding c where
   glue pd ck = case j of
     LeftJustify -> ck `mappend` pd
     RightJustify -> pd `mappend` ck
   padding = text c8 c256 t
   t = X.pack (replicate s ' ')
-  s = if chunkSize c >= w then 0 else fromIntegral $ w - chunkSize c
+  s = if chunkSize c >= w
+      then 0
+      else fromIntegral $ (unWidth w) - (unWidth (chunkSize c))
 
 newtype Height = Height Word
                  deriving Show
