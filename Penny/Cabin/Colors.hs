@@ -33,9 +33,6 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Word (Word8)
 
-import Penny.Lincoln.Classes
-  (NonNeg, add, unsafeFromInt, zero, NonNegInt)
-import qualified Penny.Lincoln.NonNegInt as NNI
 
 -- | The terminal (as described using the TERM environment variable or
 -- something similar) supports at least this many colors. Remember,
