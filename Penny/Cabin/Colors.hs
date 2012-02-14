@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Penny.Cabin.Colors (
   Colors(Colors0, Colors8, Colors256),
   Chunk,
@@ -19,8 +18,7 @@ module Penny.Cabin.Colors (
   Flash(Flash),
   Inverse(Inverse),
   Invisible(Invisible),
-  Width,
-  unWidth,
+  Width(Width, unWidth),
   chunkSize,
   chunk,
   defaultSpec,
@@ -104,12 +102,12 @@ data Invisible = Invisible
 
 data Switch a = Off a | On a
 
-newtype Width = Width { unWidth :: NNI.T }
-                deriving (Show, Eq, Ord, NonNeg, NonNegInt)
+newtype Width = Width { unWidth :: Int }
+                deriving (Show, Eq, Ord)
 
 chunkSize :: Chunk -> Width
-chunkSize (Chunk cs) = F.foldr f zero cs where
-  f (Bit _ x) t = (unsafeFromInt . X.length $ x) `add` t
+chunkSize (Chunk cs) = F.foldr f (Width 0) cs where
+  f (Bit _ x) (Width t) = Width $ X.length x + t
 
 single :: Bit -> Chunk
 single = Chunk . S.singleton

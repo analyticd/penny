@@ -3,7 +3,7 @@ module Penny.Cabin.Postings.Base (
   unAllocation,
   allocation,
   ColumnWidth(ColumnWidth, unColumnWidth),
-  ReportWidth (ReportWidth, unReportWidth),
+  ReportWidth,
   PostingNum,
   unPostingNum,
   CellInfo,
@@ -16,7 +16,7 @@ module Penny.Cabin.Postings.Base (
   GrowF,
   AllocateF,
   Column(GrowToFit, Allocate),
-  Columns(Columns, unColumns),
+  Columns,
   RowsPerPosting,
   unRowsPerPosting,
   rowsPerPosting,
@@ -50,13 +50,13 @@ import qualified Penny.Cabin.Postings.Row as R
 data Allocation = Allocation { unAllocation :: Double }
                   deriving Show
 
-data ColumnWidth = ColumnWidth { unColumnWidth :: Word }
+newtype ColumnWidth = ColumnWidth { unColumnWidth :: Int }
                    deriving (Show, Eq, Ord)
 
-data ReportWidth = ReportWidth { unReportWidth :: Word }
-                   deriving Show
+data ReportWidth = ReportWidth { unReportWidth :: Int }
+                   deriving (Show, Eq, Ord)
 
-newtype PostingNum = PostingNum { unPostingNum :: Integer }
+newtype PostingNum = PostingNum { unPostingNum :: Int }
                      deriving (Show, Eq, Ord)
 
 data CellInfo =

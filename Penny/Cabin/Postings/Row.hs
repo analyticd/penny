@@ -23,11 +23,8 @@ import qualified Data.Sequence as S
 import qualified Data.Text as X
 
 import Penny.Cabin.Colors
-  (Chunk, TextSpec, chunkSize, Width)
+  (Chunk, TextSpec, chunkSize, Width(Width, unWidth))
 import qualified Penny.Cabin.Colors as C
-import Penny.Lincoln.Classes (subt, toInt, zero, NonNeg, NonNegInt,
-                              unsafeFromInt)
-import qualified Penny.Lincoln.NonNegInt as NonNegInt
 
 -- | How to justify cells. LeftJustify leaves the right side
 -- ragged. RightJustify leaves the left side ragged.
@@ -62,7 +59,7 @@ prependLine :: Chunk -> Cell -> Cell
 prependLine ch c = c { chunks = ch <| chunks c }
 
 widestLine :: Cell -> Width
-widestLine = F.foldr max zero . fmap chunkSize . chunks
+widestLine = F.foldr max (Width 0) . fmap chunkSize . chunks
 
 -- | A Row consists of several Cells. The Cells will be padded and
 -- justified appropriately, with the padding adjusting to accomodate
@@ -73,32 +70,32 @@ emptyRow :: Row
 emptyRow = Row S.empty
 
 justify :: TextSpec -> Width -> Justification -> Chunk -> Chunk
-justify ts w j c = glue padding c where
+justify ts wi@(Width w) j c = glue padding c where
   glue pd ck = case j of
     LeftJustify -> ck `mappend` pd
     RightJustify -> pd `mappend` ck
   padding = C.chunk ts t
-  t = X.pack (replicate (toInt s) ' ')
-  s = case w `subt` chunkSize c of
-    Nothing -> zero
-    (Just r) -> r
+  t = X.pack (replicate s ' ')
+  s = if wi > chunkSize c
+      then w - (unWidth . chunkSize $ c)
+      else 0
 
-newtype Height = Height { _unHeight :: NonNegInt.T }
-                 deriving (Show, Eq, Ord, NonNeg, NonNegInt)
+newtype Height = Height { unHeight :: Int }
+                 deriving (Show, Eq, Ord)
 
 bottomPad :: TextSpec -> Width -> Chunk
-bottomPad ts w = C.chunk ts t where
-  t = X.pack (replicate (toInt w) ' ')
+bottomPad ts (Width w) = C.chunk ts t where
+  t = X.pack (replicate w ' ')
 
 morePadding ::
   Height
   -> PaddedCell
   -> PaddedCell
 morePadding h (PaddedCell cs c) = PaddedCell cs' c where
-  cs' = if toInt h > S.length cs
+  cs' = if unHeight h > S.length cs
         then cs `mappend` pads
         else cs
-  pads = S.replicate (toInt h - S.length cs) c
+  pads = S.replicate (unHeight h - S.length cs) c
 
 justifyAll ::
   TextSpec -> Width -> Justification -> Seq Chunk -> Seq Chunk
@@ -128,7 +125,7 @@ appendCell :: Cell -> Row -> Row
 appendCell = addCell (flip (|>))
 
 height :: PaddedCell -> Height
-height (PaddedCell cs _) = unsafeFromInt (S.length cs)
+height (PaddedCell cs _) = Height (S.length cs)
 
 -- | Several rows, joined together.
 newtype Rows = Rows (Seq Row)
