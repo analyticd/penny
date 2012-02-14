@@ -1,6 +1,6 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Penny.Cabin.Postings.Row (
   Justification(LeftJustify, RightJustify),
-  Width(Width, unWidth),
   Cell,
   emptyCell,
   appendLine,
@@ -21,11 +21,13 @@ import qualified Data.Foldable as F
 import Data.Sequence (Seq, (<|), (|>), ViewL ((:<)))
 import qualified Data.Sequence as S
 import qualified Data.Text as X
-import Data.Word (Word)
 
 import Penny.Cabin.Colors
-  (Chunk, Color8, Color256, text, chunkSize, Width(Width), unWidth)
-import Penny.Lincoln.Classes (subt, toInt, zero)
+  (Chunk, TextSpec, chunkSize, Width)
+import qualified Penny.Cabin.Colors as C
+import Penny.Lincoln.Classes (subt, toInt, zero, NonNeg, NonNegInt,
+                              unsafeFromInt)
+import qualified Penny.Lincoln.NonNegInt as NonNegInt
 
 -- | How to justify cells. LeftJustify leaves the right side
 -- ragged. RightJustify leaves the left side ragged.
@@ -43,15 +45,15 @@ data Justification =
 data Cell =
   Cell { justification :: Justification
        , width :: Width
-       , padBackground :: (Color8, Color256)
+       , padSpec :: TextSpec
        , chunks :: Seq Chunk }
 
 data PaddedCell =
   PaddedCell { justifiedChunks :: Seq Chunk
              , _bottom :: Chunk }
 
-emptyCell :: Justification -> Width -> Color8 -> Color256 -> Cell
-emptyCell j w c8 c256 = Cell j w (c8, c256) S.empty
+emptyCell :: Justification -> Width -> TextSpec -> Cell
+emptyCell j w ts = Cell j w ts S.empty
 
 appendLine :: Chunk -> Cell -> Cell
 appendLine ch c = c { chunks = chunks c |> ch }
@@ -60,7 +62,7 @@ prependLine :: Chunk -> Cell -> Cell
 prependLine ch c = c { chunks = ch <| chunks c }
 
 widestLine :: Cell -> Width
-widestLine = F.maximum . fmap chunkSize . chunks
+widestLine = F.foldr max zero . fmap chunkSize . chunks
 
 -- | A Row consists of several Cells. The Cells will be padded and
 -- justified appropriately, with the padding adjusting to accomodate
@@ -70,41 +72,37 @@ newtype Row = Row (Seq PaddedCell)
 emptyRow :: Row
 emptyRow = Row S.empty
 
-justify :: Color8 -> Color256 -> Width -> Justification -> Chunk -> Chunk
-justify c8 c256 w j c = glue padding c where
+justify :: TextSpec -> Width -> Justification -> Chunk -> Chunk
+justify ts w j c = glue padding c where
   glue pd ck = case j of
     LeftJustify -> ck `mappend` pd
     RightJustify -> pd `mappend` ck
-  padding = text c8 c256 t
+  padding = C.chunk ts t
   t = X.pack (replicate (toInt s) ' ')
   s = case w `subt` chunkSize c of
     Nothing -> zero
     (Just r) -> r
 
-newtype Height = Height Word
-                 deriving Show
+newtype Height = Height { _unHeight :: NonNegInt.T }
+                 deriving (Show, Eq, Ord, NonNeg, NonNegInt)
 
-bottomPad ::
-  Color8
-  -> Color256
-  -> Width
-  -> Chunk
-bottomPad c8 c256 (Width w) = text c8 c256 t where
-  t = X.pack (replicate (fromIntegral w) ' ')
+bottomPad :: TextSpec -> Width -> Chunk
+bottomPad ts w = C.chunk ts t where
+  t = X.pack (replicate (toInt w) ' ')
 
 morePadding ::
   Height
   -> PaddedCell
   -> PaddedCell
-morePadding (Height h) (PaddedCell cs c) = PaddedCell cs' c where
-  cs' = if fromIntegral h > S.length cs
+morePadding h (PaddedCell cs c) = PaddedCell cs' c where
+  cs' = if toInt h > S.length cs
         then cs `mappend` pads
         else cs
-  pads = S.replicate (fromIntegral h - S.length cs) c
+  pads = S.replicate (toInt h - S.length cs) c
 
 justifyAll ::
-  Color8 -> Color256 -> Width -> Justification -> Seq Chunk -> Seq Chunk
-justifyAll c8 c256 w j = fmap (justify c8 c256 w j)
+  TextSpec -> Width -> Justification -> Seq Chunk -> Seq Chunk
+justifyAll ts w j = fmap (justify ts w j)
 
 addCell ::
   (PaddedCell -> Seq PaddedCell -> Seq PaddedCell)
@@ -112,15 +110,16 @@ addCell ::
   -> Row
   -> Row
 addCell glue c (Row cs) = let
-  (c8, c256) = padBackground c
-  justified = justifyAll c8 c256 (width c)
+  s = padSpec c
+  justified = justifyAll s (width c)
               (justification c) (chunks c)
-  pc = PaddedCell justified (bottomPad c8 c256 (width c))
+  pc = PaddedCell justified (bottomPad s (width c))
   in case S.viewl cs of
     S.EmptyL -> Row (S.singleton pc)
     existing :< _ -> let
-      pc' = morePadding (height existing) pc
-      in Row (glue pc' cs)
+      newHeight = max (height existing) (height pc)
+      pcs = glue pc cs
+      in Row (fmap (morePadding newHeight) pcs)
 
 prependCell :: Cell -> Row -> Row
 prependCell = addCell (<|) 
@@ -129,7 +128,7 @@ appendCell :: Cell -> Row -> Row
 appendCell = addCell (flip (|>))
 
 height :: PaddedCell -> Height
-height (PaddedCell cs _) = Height (fromIntegral (S.length cs))
+height (PaddedCell cs _) = unsafeFromInt (S.length cs)
 
 -- | Several rows, joined together.
 newtype Rows = Rows (Seq Row)

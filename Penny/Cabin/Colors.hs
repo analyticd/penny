@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Penny.Cabin.Colors (
   Colors(Colors0, Colors8, Colors256),
   Chunk,
@@ -32,11 +33,11 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Data.Text (Text)
 import qualified Data.Text as X
-import Data.Word (Word8, Word)
+import Data.Word (Word8)
 
 import Penny.Lincoln.Classes
-  (NonNegative, add, subt, mult, fromInt, unsafeFromInt, zero,
-   NonNegInt, toInt)
+  (NonNeg, add, unsafeFromInt, zero, NonNegInt)
+import qualified Penny.Lincoln.NonNegativeInt as NNI
 
 -- | The terminal (as described using the TERM environment variable or
 -- something similar) supports at least this many colors. Remember,
@@ -103,26 +104,8 @@ data Invisible = Invisible
 
 data Switch a = Off a | On a
 
-newtype Width = Width { unWidth :: Word }
-                deriving (Show, Eq, Ord)
-
-instance NonNegative Width where
-  add (Width w1) (Width w2) = Width $ w1 + w2
-  subt (Width w1) (Width w2) =
-    if w2 > w1
-    then Nothing
-    else Just (Width (w1 - w2))
-  mult (Width w1) (Width w2) = Width (w1 * w2)
-  zero = Width 0
-  fromInt f = let fi = fromIntegral f in
-    if fi < 0 then Nothing else Just (Width fi)
-  unsafeFromInt f = let fi = fromIntegral f in
-    if fi < 0
-    then error "width cannot be negative"
-    else Width fi
-
-instance NonNegInt Width where
-  toInt (Width w) = fromIntegral w
+newtype Width = Width { unWidth :: NNI.T }
+                deriving (Show, Eq, Ord, NonNeg, NonNegInt)
 
 chunkSize :: Chunk -> Width
 chunkSize (Chunk cs) = F.foldr f zero cs where
