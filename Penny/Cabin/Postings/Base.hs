@@ -72,21 +72,16 @@ type AllocateF c =
   -> Table c (Expanded c)
   -> Cell
 
-data Column c =
+data Formula c =
   GrowToFit (GrowF c)
   | Allocate Allocation (AllocateF c)
 
-data Columns c = Columns { unColumns :: NonEmpty (Column c) }
+data Columns c =
+  Columns { unColumns :: Array c (Formula c) }
 
 newtype RowsPerPosting =
   RowsPerPosting { unRowsPerPosting :: Int }
   deriving Show
-
-rowsPerPosting :: Int -> RowsPerPosting
-rowsPerPosting i =
-  if i < 1
-  then error "rowsPerPosting: must have at least 1 row per posting"
-  else RowsPerPosting i
 
 allocation :: Double -> Allocation
 allocation d =
@@ -123,3 +118,10 @@ tableToRows = foldr prependRow emptyRows
 
 tableRowToRow :: Ix c => Array c Cell -> Row
 tableRowToRow = foldr prependCell emptyRow . A.elems
+
+baseArray ::
+  Ix c
+  => [PostingBox]
+  -> Columns c
+  -> Array (c, RowNum) ((c, RowNum), PostingBox, Formula c)
+baseArray = undefined
