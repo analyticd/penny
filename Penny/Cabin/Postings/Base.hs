@@ -1,6 +1,6 @@
 module Penny.Cabin.Postings.Base where
 
-import Control.Applicative (pure, (<*>))
+import Control.Applicative (pure, (<*>), (<$>))
 import Data.Array (Array, Ix)
 import qualified Data.Array as A
 import Data.Foldable (toList)
@@ -20,7 +20,7 @@ import Penny.Lincoln.Balance (Balance, entryToBalance)
 import Penny.Lincoln.Boxes (PostingBox, PriceBox)
 import Penny.Lincoln.Queries (entry)
 
-newtype RowNum = RowNum { unRowNum :: Word }
+newtype RowNum = RowNum { unRowNum :: Int }
                  deriving (Eq, Ord, Show, A.Ix)
 
 
@@ -121,7 +121,18 @@ tableRowToRow = foldr prependCell emptyRow . A.elems
 
 baseArray ::
   Ix c
-  => [PostingBox]
+  => RowsPerPosting
+  -> [PostingBox]
   -> Columns c
-  -> Array (c, RowNum) ((c, RowNum), PostingBox, Formula c)
-baseArray = undefined
+  -> Array (c, RowNum) (PostingNum, PostingBox, Formula c)
+baseArray (RowsPerPosting rpp) ps (Columns cs) = let
+  (minC, maxC) = A.bounds cs
+  postingsAndNums = zip ps (map PostingNum [0..]) 
+  multiplied = concatMap (replicate rpp) postingsAndNums
+  (minR, maxR) = (RowNum 0, RowNum (length multiplied - 1))
+  is = A.range ((minC, minR), (maxC, maxR))
+  vs = (\fm (pb, pn) -> (pn, pb, fm))
+       <$> A.elems cs
+       <*> postingsAndNums
+  values = zip is vs
+  in A.array ((minC, minR), (maxC, maxR)) values
