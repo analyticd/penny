@@ -178,7 +178,6 @@ Library
     Exposed-modules:
         Penny,
         Penny.Cabin,
-        Penny.Cabin.ArrayHelpers,
         Penny.Cabin.Class,
         Penny.Cabin.Colors,
         Penny.Cabin.Postings.Base,

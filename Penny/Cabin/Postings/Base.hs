@@ -4,21 +4,14 @@ import Control.Applicative
   (pure, (<*>), (<$>), ZipList(ZipList, getZipList))
 import Data.Array (Array, Ix)
 import qualified Data.Array as A
-import Data.Foldable (toList)
 import qualified Data.Foldable as F
-import Data.List.NonEmpty (NonEmpty, toNonEmpty, unsafeToNonEmpty,
-                           nonEmpty)
-import qualified Data.List.ZipNonEmpty as ZNE
 import Data.Monoid (mempty, mappend, Monoid)
 import qualified  Data.Table as Ta
-import Data.Traversable (mapAccumL)
 import qualified Data.Traversable as T
-import Data.Word (Word)
 
-import qualified Penny.Cabin.ArrayHelpers as H
 import Penny.Cabin.Colors (Chunk)
 import Penny.Cabin.Postings.Row
-  (Cell, Row, Rows, emptyRow, prependCell,
+  (Cell, emptyRow, prependCell,
    emptyRows, prependRow, chunk)
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 import Penny.Lincoln.Boxes (PostingBox, PriceBox)
@@ -100,7 +93,7 @@ balanceAccum bal pb = (bal', bal') where
 
 balances :: [PostingBox]
             -> [Balance]
-balances = snd . mapAccumL balanceAccum mempty
+balances = snd . T.mapAccumL balanceAccum mempty
 
 postingInfos :: [PostingBox]
                 -> [PostingInfo]
@@ -145,23 +138,23 @@ cellInfos = fmap triple . label where
   label arr = A.array (A.bounds arr) ls where
     ls = fmap f . A.assocs $ arr
     f (i, v) = (i, (i, v))
-  triple ((c, r), (pi, f)) = (CellInfo c r, pi, f)
+  triple ((c, r), (p, f)) = (CellInfo c r, p, f)
 
 queried ::
   ReportWidth
   -> [PriceBox]
   -> (CellInfo c, PostingInfo, Formula c)
   -> (PostingInfo, Queried c)
-queried w ps (ci, pi, fmla) = (pi, q) where
+queried w ps (ci, p, fmla) = (p, q) where
   q = case fmla of
-    FGrowToFit f -> QGrowToFit $ f w ps pi ci
-    FAllocate a f -> QAllocate a $ f w ps pi ci
+    FGrowToFit f -> QGrowToFit $ f w ps p ci
+    FAllocate a f -> QAllocate a $ f w ps p ci
 
 expanded ::
   Table c (PostingInfo, Queried c)
   -> (PostingInfo, Queried c)
   -> (PostingInfo, Expanded c)
-expanded t (pi, q) = (pi, e) where
+expanded t (p, q) = (p, e) where
   e = case q of
     QGrowToFit (_, f) -> EGrown $ f t
     QAllocate a f -> EAllocate a f
@@ -170,7 +163,7 @@ allocate ::
   Table c (PostingInfo, Expanded c)
   -> (PostingInfo, Expanded c)
   -> Cell
-allocate t (pi, e) = case e of
+allocate t (_, e) = case e of
   EGrown c -> c
   EAllocate _ f -> f t
 
