@@ -1,4 +1,4 @@
-module Penny.Cabin.Postings.Row (
+module Penny.Cabin.Postings.Base.Row (
   Justification(LeftJustify, RightJustify),
   Cell,
   emptyCell,

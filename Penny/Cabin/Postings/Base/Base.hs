@@ -1,4 +1,4 @@
-module Penny.Cabin.Postings.Base where
+module Penny.Cabin.Postings.Base.Base where
 
 import Control.Applicative
   (pure, (<*>), (<$>), ZipList(ZipList, getZipList))
@@ -10,7 +10,7 @@ import qualified  Data.Table as Ta
 import qualified Data.Traversable as T
 
 import Penny.Cabin.Colors (Chunk)
-import Penny.Cabin.Postings.Row
+import Penny.Cabin.Postings.Base.Row
   (Cell, emptyRow, prependCell,
    emptyRows, prependRow, chunk)
 import Penny.Lincoln.Balance (Balance, entryToBalance)
