@@ -1,31 +1,56 @@
 module Penny.Cabin.Postings.Combinator where
 
+import Data.Array (Array, Ix)
+import qualified Data.Array as A
+import qualified Data.Foldable as F
 import Data.Map as Map
 import qualified Data.Map as M
-import qualified Data.Table as T
+import qualified Data.Table as Ta
 import Data.Text (Text)
 import qualified Data.Text as X
 
 import Penny.Cabin.Postings.Combinator.Allocate (allocate)
 import qualified Penny.Cabin.Postings.Base as B
+import qualified Penny.Cabin.Postings.Row as R
+import qualified Penny.Cabin.Colors as C
 
-{-
 -- | Calculate the widest cell in a column.
-widest :: Map T.RowNum B.Queried -> B.ColumnWidth
-widest = M.fold f (B.ColumnWidth 0) where
-  f queried cw = case queried of
-    B.EAllocate _ _ -> cw
-    B.EGrowToFit (cw', _) -> max cw' cw
+widest ::
+  Ix c
+  => B.Table c (B.PostingInfo, B.Queried c)
+  -> c
+  -> B.ColumnWidth
+widest t c = F.foldr f (B.ColumnWidth 0) col where
+  col = Ta.OneDim $ Ta.column t c
+  f (_, q) widestSoFar = case q of
+    B.QGrowToFit (cw, _) -> max cw widestSoFar
+    _ -> widestSoFar
 
--- | Insert padding characters on the right.
-justifyLeft :: Map T.RowNum B.Queried -> Text -> Text
-justifyLeft rm = X.justifyLeft n ' ' where
-  n = fromIntegral . B.unColumnWidth . widest $ rm
+lJustCell ::
+  Ix c
+  => c
+  -> C.TextSpec
+  ->  B.Table c (B.PostingInfo, B.Queried c)
+  -> R.Cell
+lJustCell = cell R.LeftJustify
+  
+rJustCell ::
+  Ix c
+  => c
+  -> C.TextSpec
+  -> B.Table c (B.PostingInfo, B.Queried c)
+  -> R.Cell
+rJustCell = cell R.RightJustify
+  
+cell ::
+  Ix c
+  => R.Justification
+  -> c
+  -> C.TextSpec
+  -> B.Table c (B.PostingInfo, B.Queried c)
+  -> R.Cell
+cell j c ts t = R.emptyCell j w ts where
+  w = C.Width . B.unColumnWidth . widest t $ c  
 
--- | Insert padding characters on the left.
-justifyRight :: Map T.RowNum B.Queried -> Text -> Text
-justifyRight rm = X.justifyRight n ' ' where
-  n = fromIntegral . B.unColumnWidth . widest $ rm
-
-
--}
+cellWidth :: R.Cell -> B.ColumnWidth
+cellWidth = B.ColumnWidth . C.unWidth . R.widestLine
