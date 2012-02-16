@@ -183,6 +183,8 @@ Library
         Penny.Cabin.Postings.Base.Base,
         Penny.Cabin.Postings.Base.Combinator,
         Penny.Cabin.Postings.Base.Row,
+        Penny.Cabin.Postings.Stock.Columns,
+        Penny.Cabin.Postings.Stock.PostingDrCr
         Penny.Copper,
         Penny.Copper.Account,
         Penny.Copper.Amount,

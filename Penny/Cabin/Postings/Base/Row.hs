@@ -1,9 +1,6 @@
 module Penny.Cabin.Postings.Base.Row (
   Justification(LeftJustify, RightJustify),
-  Cell,
-  emptyCell,
-  appendLine,
-  prependLine,
+  Cell(Cell, justification, width, padSpec, chunks),
   widestLine,
   Row,
   emptyRow,
@@ -48,17 +45,8 @@ data PaddedCell =
   PaddedCell { justifiedChunks :: Seq Chunk
              , _bottom :: Chunk }
 
-emptyCell :: Justification -> Width -> TextSpec -> Cell
-emptyCell j w ts = Cell j w ts S.empty
-
-appendLine :: Chunk -> Cell -> Cell
-appendLine ch c = c { chunks = chunks c |> ch }
-
-prependLine :: Chunk -> Cell -> Cell
-prependLine ch c = c { chunks = ch <| chunks c }
-
-widestLine :: Cell -> Width
-widestLine = F.foldr max (Width 0) . fmap chunkSize . chunks
+widestLine :: Seq Chunk -> Width
+widestLine = F.foldr max (Width 0) . fmap chunkSize
 
 -- | A Row consists of several Cells. The Cells will be padded and
 -- justified appropriately, with the padding adjusting to accomodate
