@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Penny.Cabin.Postings.Row (
   Justification(LeftJustify, RightJustify),
   Cell,
