@@ -182,7 +182,6 @@ Library
         Penny.Cabin.Colors,
         Penny.Cabin.Postings.Base.Base,
         Penny.Cabin.Postings.Base.Combinator,
-        Penny.Cabin.Postings.Base.Combinator.Allocate,
         Penny.Cabin.Postings.Base.Row,
         Penny.Copper,
         Penny.Copper.Account,

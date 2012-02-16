@@ -1,15 +1,10 @@
 module Penny.Cabin.Postings.Base.Combinator where
 
 import qualified Control.Monad.Trans.State as St
-import Data.Array (Array, Ix)
-import qualified Data.Array as A
+import Data.Array (Ix)
 import qualified Data.Foldable as F
 import Data.List.NonEmpty (NonEmpty)
-import Data.Map as Map
-import qualified Data.Map as M
 import qualified Data.Table as Ta
-import Data.Text (Text)
-import qualified Data.Text as X
 import qualified Data.Traversable as T
 import Data.Word (Word)
 
