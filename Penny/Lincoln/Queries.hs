@@ -1,9 +1,10 @@
 module Penny.Lincoln.Queries where
 
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.Boxes ( PostingBox, postingBundle)
+import Penny.Lincoln.Boxes ( PostingBox, postingBundle, metaBundle)
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Transaction as T
+import qualified Penny.Lincoln.Meta as M
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 
 
@@ -63,3 +64,24 @@ qty = B.qty . amount
 
 commodity :: PostingBox -> B.Commodity
 commodity = B.commodity . amount
+
+postingMeta :: PostingBox -> Maybe M.PostingMeta
+postingMeta pb = metaBundle pb >>= return . child
+
+postingLine :: PostingBox -> Maybe M.PostingLine
+postingLine pb = postingMeta pb >>= M.postingLine
+
+postingFormat :: PostingBox -> Maybe M.Format
+postingFormat pb = postingMeta pb >>= M.postingFormat
+
+topLineMeta :: PostingBox -> Maybe M.TopLineMeta
+topLineMeta pb = metaBundle pb >>= return . parent
+
+topMemoLine :: PostingBox -> Maybe M.TopMemoLine
+topMemoLine pb = topLineMeta pb >>= M.topMemoLine
+
+topLineLine :: PostingBox -> Maybe M.TopLineLine
+topLineLine pb = topLineMeta pb >>= M.topLineLine
+
+filename :: PostingBox -> Maybe M.Filename
+filename pb = topLineMeta pb >>= M.filename

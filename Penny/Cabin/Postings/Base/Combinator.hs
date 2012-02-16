@@ -4,6 +4,7 @@ import qualified Control.Monad.Trans.State as St
 import Data.Array (Ix)
 import qualified Data.Foldable as F
 import Data.List.NonEmpty (NonEmpty)
+import qualified Data.Sequence as Seq
 import qualified Data.Table as Ta
 import qualified Data.Traversable as T
 import Data.Word (Word)
@@ -17,18 +18,20 @@ widest ::
   Ix c
   => B.Table c (B.PostingInfo, B.Queried c)
   -> c
-  -> B.ColumnWidth
-widest t c = F.foldr f (B.ColumnWidth 0) col where
+  -> C.Width
+widest t c = F.foldr f (C.Width 0) col where
   col = Ta.OneDim $ Ta.column t c
   f (_, q) widestSoFar = case q of
-    B.QGrowToFit (cw, _) -> max cw widestSoFar
+    B.QGrowToFit (cw, _) ->
+      max (C.Width . B.unColumnWidth $ cw) widestSoFar
     _ -> widestSoFar
 
 lJustCell ::
   Ix c
   => c
   -> C.TextSpec
-  ->  B.Table c (B.PostingInfo, B.Queried c)
+  -> Seq.Seq C.Chunk
+  -> B.Table c (B.PostingInfo, B.Queried c)
   -> R.Cell
 lJustCell = cell R.LeftJustify
   
@@ -36,6 +39,7 @@ rJustCell ::
   Ix c
   => c
   -> C.TextSpec
+  -> Seq.Seq C.Chunk
   -> B.Table c (B.PostingInfo, B.Queried c)
   -> R.Cell
 rJustCell = cell R.RightJustify
@@ -45,13 +49,11 @@ cell ::
   => R.Justification
   -> c
   -> C.TextSpec
+  -> Seq.Seq C.Chunk
   -> B.Table c (B.PostingInfo, B.Queried c)
   -> R.Cell
-cell j c ts t = R.emptyCell j w ts where
-  w = C.Width . B.unColumnWidth . widest t $ c  
-
-cellWidth :: R.Cell -> B.ColumnWidth
-cellWidth = B.ColumnWidth . C.unWidth . R.widestLine
+cell j c ts ks t = R.Cell j w ts ks where
+  w = widest t c  
 
 -- | Allocate an integer evenly between the number of fractions
 -- given. The allocation is not guaranteed to be exactly proportional,
