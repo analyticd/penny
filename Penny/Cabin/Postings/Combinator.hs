@@ -9,6 +9,7 @@ import qualified Data.Text as X
 import Penny.Cabin.Postings.Combinator.Allocate (allocate)
 import qualified Penny.Cabin.Postings.Base as B
 
+{-
 -- | Calculate the widest cell in a column.
 widest :: Map T.RowNum B.Queried -> B.ColumnWidth
 widest = M.fold f (B.ColumnWidth 0) where
@@ -27,3 +28,4 @@ justifyRight rm = X.justifyRight n ' ' where
   n = fromIntegral . B.unColumnWidth . widest $ rm
 
 
+-}

@@ -1,14 +1,18 @@
 module Penny.Cabin.Postings.Base where
 
-import Control.Applicative (pure, (<*>), (<$>))
+import Control.Applicative
+  (pure, (<*>), (<$>), ZipList(ZipList, getZipList))
 import Data.Array (Array, Ix)
 import qualified Data.Array as A
 import Data.Foldable (toList)
+import qualified Data.Foldable as F
 import Data.List.NonEmpty (NonEmpty, toNonEmpty, unsafeToNonEmpty,
                            nonEmpty)
 import qualified Data.List.ZipNonEmpty as ZNE
 import Data.Monoid (mempty, mappend, Monoid)
+import qualified  Data.Table as Ta
 import Data.Traversable (mapAccumL)
+import qualified Data.Traversable as T
 import Data.Word (Word)
 
 import qualified Penny.Cabin.ArrayHelpers as H
@@ -52,29 +56,29 @@ type GrowF c =
   -> [PriceBox]
   -> PostingInfo
   -> CellInfo c
-  -> (ColumnWidth, Table c (Queried c) -> Cell)
+  -> (ColumnWidth, Table c (PostingInfo, Queried c) -> Cell)
 
 data Queried c =
-  EGrowToFit (ColumnWidth, Table c (Queried c) -> Cell)
-  | EAllocate Allocation
-    (Table c (Expanded c) -> Cell)
+  QGrowToFit (ColumnWidth, Table c (PostingInfo, Queried c) -> Cell)
+  | QAllocate Allocation
+    (Table c (PostingInfo, Expanded c) -> Cell)
 
 data Expanded c =
-  Grown Cell
-  | ExAllocate Allocation
-    (Table c (Expanded c) -> Cell)
+  EGrown Cell
+  | EAllocate Allocation
+    (Table c (PostingInfo, Expanded c) -> Cell)
 
 type AllocateF c =
   ReportWidth
   -> [PriceBox]
   -> PostingInfo
   -> CellInfo c
-  -> Table c (Expanded c)
+  -> Table c (PostingInfo, Expanded c)
   -> Cell
 
 data Formula c =
-  GrowToFit (GrowF c)
-  | Allocate Allocation (AllocateF c)
+  FGrowToFit (GrowF c)
+  | FAllocate Allocation (AllocateF c)
 
 data Columns c =
   Columns { unColumns :: Array c (Formula c) }
@@ -94,45 +98,114 @@ balanceAccum bal pb = (bal', bal') where
   bal' = bal `mappend` pstgBal
   pstgBal = entryToBalance . entry $ pb
 
-balances :: NonEmpty PostingBox
-            -> NonEmpty Balance
+balances :: [PostingBox]
+            -> [Balance]
 balances = snd . mapAccumL balanceAccum mempty
 
-postingInfos :: NonEmpty PostingBox
-                -> NonEmpty PostingInfo
+postingInfos :: [PostingBox]
+                -> [PostingInfo]
 postingInfos pbs = 
-  ZNE.ne
+  getZipList
   $ pure PostingInfo
-  <*> ZNE.zipNe (pure PostingNum <*> (nonEmpty 0 [1..]))
-  <*> ZNE.zipNe (balances pbs)
-  <*> ZNE.zipNe pbs
+  <*> ZipList (pure PostingNum <*> [0..])
+  <*> ZipList (balances pbs)
+  <*> ZipList pbs
                          
-tableToChunk :: Ix c => Table c Cell -> Chunk
-tableToChunk = chunk . tableToRows
-
-tableToRows :: Ix c => Table c Cell -> Rows
-tableToRows = foldr prependRow emptyRows
-              . map tableRowToRow
-              . A.elems
-              . H.rows
-
-tableRowToRow :: Ix c => Array c Cell -> Row
-tableRowToRow = foldr prependCell emptyRow . A.elems
+tableToChunk :: Ix c => Array (c, RowNum) Cell -> Chunk
+tableToChunk =
+  chunk
+  . F.foldr prependRow emptyRows
+  . Ta.OneDim
+  . fmap (F.foldr prependCell emptyRow . Ta.OneDim)
+  . Ta.rows
 
 baseArray ::
   Ix c
   => RowsPerPosting
-  -> [PostingBox]
+  -> [PostingInfo]
   -> Columns c
-  -> Array (c, RowNum) (PostingNum, PostingBox, Formula c)
+  -> Array (c, RowNum) (PostingInfo, Formula c)
 baseArray (RowsPerPosting rpp) ps (Columns cs) = let
   (minC, maxC) = A.bounds cs
-  postingsAndNums = zip ps (map PostingNum [0..]) 
-  multiplied = concatMap (replicate rpp) postingsAndNums
-  (minR, maxR) = (RowNum 0, RowNum (length multiplied - 1))
+  rows = concatMap (replicate rpp) ps
+  (minR, maxR) = (RowNum 0, RowNum (length rows - 1))
   is = A.range ((minC, minR), (maxC, maxR))
-  vs = (\fm (pb, pn) -> (pn, pb, fm))
-       <$> A.elems cs
-       <*> postingsAndNums
+  columns = A.elems cs
+  vs = flip (,)
+       <$> columns
+       <*> rows
   values = zip is vs
   in A.array ((minC, minR), (maxC, maxR)) values
+
+cellInfos ::
+  Ix c
+  => Array (c, RowNum) (PostingInfo, Formula c)
+  -> Array (c, RowNum) (CellInfo c, PostingInfo, Formula c)
+cellInfos = fmap triple . label where
+  label arr = A.array (A.bounds arr) ls where
+    ls = fmap f . A.assocs $ arr
+    f (i, v) = (i, (i, v))
+  triple ((c, r), (pi, f)) = (CellInfo c r, pi, f)
+
+queried ::
+  ReportWidth
+  -> [PriceBox]
+  -> (CellInfo c, PostingInfo, Formula c)
+  -> (PostingInfo, Queried c)
+queried w ps (ci, pi, fmla) = (pi, q) where
+  q = case fmla of
+    FGrowToFit f -> QGrowToFit $ f w ps pi ci
+    FAllocate a f -> QAllocate a $ f w ps pi ci
+
+expanded ::
+  Table c (PostingInfo, Queried c)
+  -> (PostingInfo, Queried c)
+  -> (PostingInfo, Expanded c)
+expanded t (pi, q) = (pi, e) where
+  e = case q of
+    QGrowToFit (_, f) -> EGrown $ f t
+    QAllocate a f -> EAllocate a f
+
+allocate ::
+  Table c (PostingInfo, Expanded c)
+  -> (PostingInfo, Expanded c)
+  -> Cell
+allocate t (pi, e) = case e of
+  EGrown c -> c
+  EAllocate _ f -> f t
+
+infosToQueried ::
+  Ix c
+  => ReportWidth
+  -> [PriceBox]
+  -> Array (c, RowNum) (CellInfo c, PostingInfo, Formula c)
+  -> Array (c, RowNum) (PostingInfo, Queried c)
+infosToQueried w ps = fmap (queried w ps)
+
+queriedToExpanded ::
+  Ix c
+  => Array (c, RowNum) (PostingInfo, Queried c)
+  -> Array (c, RowNum) (PostingInfo, Expanded c)
+queriedToExpanded a = fmap (expanded a) a
+
+expandedToCells ::
+  Ix c
+  => Array (c, RowNum) (PostingInfo, Expanded c)
+  -> Array (c, RowNum) Cell
+expandedToCells a = fmap (allocate a) a
+
+report ::
+  Ix c
+  => RowsPerPosting
+  -> [PostingInfo]
+  -> ReportWidth
+  -> [PriceBox]
+  -> Columns c
+  -> Chunk
+report rpp pis w pbs =
+  tableToChunk
+  . expandedToCells
+  . queriedToExpanded
+  . infosToQueried w pbs
+  . cellInfos
+  . baseArray rpp pis
