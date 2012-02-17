@@ -20,8 +20,11 @@ mainFormula fields c = B.FGrowToFit f where
       then (\_ _ p _ -> growFormula c p)
       else U.zeroGrowToFit
 
-spacerFormula :: C.DrCrColors -> B.Formula Columns.C
-spacerFormula c = B.FGrowToFit (\_ _ p _ -> spacer c p)
+spacerFormula :: Fields Bool -> C.DrCrColors -> B.Formula Columns.C
+spacerFormula fields c = B.FGrowToFit f where
+  f = if postingDrCr fields
+      then \_ _ p _ -> spacer c p
+      else U.zeroGrowToFit
 
 spacer:: 
   C.DrCrColors

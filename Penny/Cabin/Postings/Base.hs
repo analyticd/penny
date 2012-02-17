@@ -39,7 +39,6 @@ newtype RevPostingNum =
   RevPostingNum { unRevPostingNum :: Int }
   deriving (Show, Eq, Ord)
 
-
 newtype VisibleNum = VisibleNum { unVisibleNum :: Int }
                      deriving (Show, Eq, Ord)
 
