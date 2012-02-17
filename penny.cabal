@@ -188,6 +188,7 @@ Library
         Penny.Cabin.Postings.Stock.LineNum,
         Penny.Cabin.Postings.Stock.PostingDrCr,
         Penny.Cabin.Postings.Stock.Util,
+        Penny.Cabin.TextFormat,
         Penny.Copper,
         Penny.Copper.Account,
         Penny.Copper.Amount,
