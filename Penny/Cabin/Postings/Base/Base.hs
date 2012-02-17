@@ -2,6 +2,8 @@ module Penny.Cabin.Postings.Base.Base where
 
 import Control.Applicative
   (pure, (<*>), (<$>), ZipList(ZipList, getZipList))
+import Control.Monad (filterM)
+import qualified Control.Monad.Trans.State as St
 import Data.Array (Array, Ix)
 import qualified Data.Array as A
 import qualified Data.Foldable as F
@@ -33,6 +35,13 @@ data ReportWidth = ReportWidth { unReportWidth :: Int }
 newtype PostingNum = PostingNum { unPostingNum :: Int }
                      deriving (Show, Eq, Ord)
 
+newtype RevPostingNum =
+  RevPostingNum { unRevPostingNum :: Int }
+  deriving (Show, Eq, Ord)
+
+newtype VisibleNum = VisibleNum { unVisibleNum :: Int }
+                     deriving (Show, Eq, Ord)
+
 data CellInfo c =
   CellInfo { cellCol :: c
            , cellRow :: RowNum }
@@ -40,7 +49,9 @@ data CellInfo c =
 data PostingInfo =
   PostingInfo { postingNum :: PostingNum
               , balance :: Balance
-              , postingBox :: PostingBox }
+              , postingBox :: PostingBox 
+              , visibleNum :: VisibleNum
+              , revPostingNum :: RevPostingNum }
 
 type Table c e = Array (c, RowNum) e
 
@@ -95,15 +106,48 @@ balances :: [PostingBox]
             -> [Balance]
 balances = snd . T.mapAccumL balanceAccum mempty
 
-postingInfos :: [PostingBox]
-                -> [PostingInfo]
-postingInfos pbs = 
+postingTriples ::
+  [PostingBox]
+  -> [(PostingBox, PostingNum, Balance)]
+postingTriples pbs =
   getZipList
-  $ pure PostingInfo
-  <*> ZipList (pure PostingNum <*> [0..])
+  $ (,,)
+  <$> ZipList pbs
+  <*> ZipList (PostingNum <$> [0..])
   <*> ZipList (balances pbs)
-  <*> ZipList pbs
-                         
+
+postingQuads :: [(PostingBox, PostingNum, Balance)]
+                -> [(PostingBox, PostingNum, Balance, RevPostingNum)]
+postingQuads ls =
+  reverse
+  $ getZipList
+  $ (\(pb, pn, ba) rpn -> (pb, pn, ba, rpn))
+  <$> ZipList (reverse ls)
+  <*> ZipList (RevPostingNum <$> [0..])
+
+quadsToInfos ::
+  [(PostingBox, PostingNum, Balance, RevPostingNum)]
+  -> [PostingInfo]
+quadsToInfos ls = let
+  makeInfo (pb, pn, ba, rpn) vn = PostingInfo pn ba pb vn rpn in
+  getZipList
+  $ makeInfo
+  <$> ZipList ls
+  <*> ZipList (VisibleNum <$> [0..])
+  
+type PostingPredicate =
+  (PostingBox, PostingNum, Balance, RevPostingNum)
+   -> Bool
+
+postingInfos :: PostingPredicate
+                -> [PostingBox]
+                -> [PostingInfo]
+postingInfos pp =
+  quadsToInfos
+  . filter pp
+  . postingQuads
+  . postingTriples
+
 tableToChunk :: Ix c => Array (c, RowNum) Cell -> Chunk
 tableToChunk =
   chunk
@@ -187,7 +231,7 @@ expandedToCells ::
   -> Array (c, RowNum) Cell
 expandedToCells a = fmap (allocate a) a
 
-report ::
+makeChunk ::
   Ix c
   => RowsPerPosting
   -> [PostingInfo]
@@ -195,10 +239,22 @@ report ::
   -> [PriceBox]
   -> Columns c
   -> Chunk
-report rpp pis w pbs =
+makeChunk rpp pis w pbs =
   tableToChunk
   . expandedToCells
   . queriedToExpanded
   . infosToQueried w pbs
   . cellInfos
   . baseArray rpp pis
+
+report ::
+  Ix c
+  => RowsPerPosting
+  -> PostingPredicate
+  -> ReportWidth
+  -> Columns c
+  -> [PriceBox]
+  -> [PostingBox]
+  -> Chunk
+report rpp pp rw c prs pos = makeChunk rpp pis rw prs c where
+  pis = postingInfos pp pos
