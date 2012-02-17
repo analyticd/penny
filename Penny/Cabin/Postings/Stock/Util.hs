@@ -46,8 +46,8 @@ makeGrowingCell ::
   -> Seq.Seq X.Text
   -> (B.ColumnWidth,
       B.Table Col.C (B.PostingInfo, B.Queried Col.C) -> R.Cell)
-makeGrowingCell cellType colors p ci just seq = (cw, f) where
-  chunks = fmap (CC.chunk ts) seq
+makeGrowingCell cellType colors p ci just sq = (cw, f) where
+  chunks = fmap (CC.chunk ts) sq
   folder t maxSoFar = bigger where
     bigger = max thisCol maxSoFar
     thisCol = B.ColumnWidth . CC.unWidth . CC.chunkSize $ t

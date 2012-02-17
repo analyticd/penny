@@ -1,9 +1,7 @@
 module Penny.Cabin.Postings.Base.Base where
 
 import Control.Applicative
-  (pure, (<*>), (<$>), ZipList(ZipList, getZipList))
-import Control.Monad (filterM)
-import qualified Control.Monad.Trans.State as St
+  ((<*>), (<$>), ZipList(ZipList, getZipList))
 import Data.Array (Array, Ix)
 import qualified Data.Array as A
 import qualified Data.Foldable as F

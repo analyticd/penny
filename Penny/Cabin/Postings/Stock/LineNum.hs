@@ -1,12 +1,10 @@
 module Penny.Cabin.Postings.Stock.LineNum where
 
-import Data.Sequence (singleton)
 import qualified Data.Sequence as Seq
 import Data.Text (pack)
 import qualified Data.Text as X
 
 import qualified Penny.Cabin.Postings.Base.Base as B
-import Penny.Cabin.Postings.Base.Combinator (lJustCell)
 import qualified Penny.Cabin.Postings.Base.Row as R
 import qualified Penny.Cabin.Postings.Stock.Colors as C
 import qualified Penny.Cabin.Postings.Stock.Columns as Columns
@@ -35,11 +33,11 @@ growFormula ::
       B.Table Columns.C (B.PostingInfo, B.Queried Columns.C) -> R.Cell)
 growFormula colors p ci = let
   just = R.LeftJustify
-  seq = case Q.postingLine . B.postingBox $ p of
+  sq = case Q.postingLine . B.postingBox $ p of
     Nothing -> Seq.empty
     Just pl -> Seq.singleton
                . pack . show . M.unLine . M.unPostingLine $ pl
-  in U.makeGrowingCell U.Justified colors p ci just seq
+  in U.makeGrowingCell U.Justified colors p ci just sq
 
 spacer ::
   C.BaseColors
@@ -49,7 +47,7 @@ spacer ::
       B.Table Columns.C (B.PostingInfo, B.Queried Columns.C) -> R.Cell)
 spacer colors p ci = let
   just = R.LeftJustify
-  seq = Seq.singleton $ case Q.postingLine . B.postingBox $ p of 
+  sq = Seq.singleton $ case Q.postingLine . B.postingBox $ p of 
     Nothing -> X.empty
     (Just _) -> X.singleton ' '
-  in U.makeGrowingCell U.Justified colors p ci just seq
+  in U.makeGrowingCell U.Justified colors p ci just sq
