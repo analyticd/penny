@@ -1,6 +1,7 @@
 module Penny.Cabin.Postings.Base.Row (
   Justification(LeftJustify, RightJustify),
   Cell(Cell, justification, width, padSpec, chunks),
+  zeroCell,
   widestLine,
   Row,
   emptyRow,
@@ -44,6 +45,12 @@ data Cell =
 data PaddedCell =
   PaddedCell { justifiedChunks :: Seq Chunk
              , _bottom :: Chunk }
+
+-- | Creates a Cell that has no width. It will be padded on the bottom
+-- as necessary, but because the cell has no width and no chunks, it
+-- will never appear.
+zeroCell :: Cell
+zeroCell = Cell LeftJustify (Width 0) C.defaultSpec S.empty
 
 widestLine :: Seq Chunk -> Width
 widestLine = F.foldr max (Width 0) . fmap chunkSize

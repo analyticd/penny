@@ -7,11 +7,18 @@ import qualified Penny.Cabin.Postings.Stock.Colors as C
 import qualified Penny.Cabin.Postings.Base.Base as B
 import qualified Penny.Cabin.Postings.Base.Row as R
 import qualified Penny.Cabin.Postings.Stock.Columns as Columns
+import qualified Penny.Cabin.Postings.Stock.Util as U
+import Penny.Cabin.Postings.Stock.Columns (Fields, postingDrCr)
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
 
-mainFormula :: C.DrCrColors -> B.Formula Columns.C
-mainFormula c = B.FGrowToFit (\_ _ p _ -> growFormula c p)
+mainFormula :: Fields Bool
+               -> C.DrCrColors
+               -> B.Formula Columns.C
+mainFormula fields c = B.FGrowToFit f where 
+  f = if postingDrCr fields
+      then (\_ _ p _ -> growFormula c p)
+      else U.zeroGrowToFit
 
 spacerFormula :: C.DrCrColors -> B.Formula Columns.C
 spacerFormula c = B.FGrowToFit (\_ _ p _ -> spacer c p)
