@@ -76,3 +76,18 @@ addPartialWords l (Lines wsq) t = let
      then Lines (back |> rw)
      else addPartialWords l (Lines (back |> rw |> Words (S.empty))) rt
 
+-- | Takes a list of words and shortens it so that it fits in the
+-- space allotted. You specify the minimum length for each word, x. It
+-- will shorten the farthest left word first, until it is only x
+-- characters long; then it will shorten the next word until it is
+-- only x characters long, etc. This proceeds until all words are just
+-- x characters long. Then words are shortened to one
+-- character. Then the leftmost words are deleted as necessary.
+--
+-- Assumes that the words will be printed with a separator, which
+-- matters when lengths are calculated.
+--
+-- /This function is partial./ If applies 'error' if the space
+-- requirement is negative.
+shorten :: Int -> Words -> Words
+shorten = undefined
