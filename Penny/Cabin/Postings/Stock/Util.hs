@@ -10,8 +10,9 @@ zeroGrowToFit _ _ _ _ = (B.ColumnWidth 0, const (R.zeroCell))
 rowsPerRecord :: Int
 rowsPerRecord = 4
 
-isOffsetN :: B.PostingInfo -> B.CellInfo c -> Int -> Bool
-isOffsetN p c offset = rowNum - rowsPerRecord * visNum == offset where
+isOffset :: Int -> B.PostingInfo -> B.CellInfo c -> Bool
+isOffset offset p c = rowNum - rowsPerRecord * visNum == offset where
   rowNum = B.unRowNum . B.cellRow $ c
   visNum = B.unVisibleNum . B.visibleNum $ p
-  
+
+
