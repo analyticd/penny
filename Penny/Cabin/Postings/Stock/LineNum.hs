@@ -1,6 +1,7 @@
 module Penny.Cabin.Postings.Stock.LineNum where
 
 import Data.Sequence (singleton)
+import qualified Data.Sequence as Seq
 import Data.Text (pack)
 import qualified Data.Text as X
 
@@ -32,15 +33,13 @@ growFormula ::
   -> B.CellInfo Columns.C
   -> (B.ColumnWidth,
       B.Table Columns.C (B.PostingInfo, B.Queried Columns.C) -> R.Cell)
-growFormula colors p ci = (cw, f) where
-  t = case Q.postingLine . B.postingBox $ p of
-    Nothing -> X.empty
-    (Just pl) -> pack . show . M.unLine . M.unPostingLine $ pl
-  cw = B.ColumnWidth . X.length $ t
-  col = B.cellCol ci
-  ts = C.colors p colors
-  ks = singleton (C.chunk ts t)
-  f = lJustCell col ts ks
+growFormula colors p ci = let
+  just = R.LeftJustify
+  seq = case Q.postingLine . B.postingBox $ p of
+    Nothing -> Seq.empty
+    Just pl -> Seq.singleton
+               . pack . show . M.unLine . M.unPostingLine $ pl
+  in U.makeGrowingCell U.Justified colors p ci just seq
 
 spacer ::
   C.BaseColors
@@ -48,12 +47,9 @@ spacer ::
   -> B.CellInfo Columns.C
   -> (B.ColumnWidth,
       B.Table Columns.C (B.PostingInfo, B.Queried Columns.C) -> R.Cell)
-spacer colors p ci = (cw, f) where
-  t = case Q.postingLine . B.postingBox $ p of
+spacer colors p ci = let
+  just = R.LeftJustify
+  seq = Seq.singleton $ case Q.postingLine . B.postingBox $ p of 
     Nothing -> X.empty
     (Just _) -> X.singleton ' '
-  cw = B.ColumnWidth . X.length $ t
-  col = B.cellCol ci
-  ts = C.colors p colors
-  ks = singleton (C.chunk ts t)
-  f = lJustCell col ts ks
+  in U.makeGrowingCell U.Justified colors p ci just seq

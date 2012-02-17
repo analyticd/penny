@@ -33,7 +33,7 @@ spacer::
   -> (B.ColumnWidth,
       B.Table Columns.C (B.PostingInfo, B.Queried c) -> R.Cell)
 spacer colors p ci = pair where
-  pair = if U.isTopRow p ci
+  pair = if U.isTrancheTopRow p ci
          then full
          else (B.ColumnWidth 0, const R.zeroCell)
   full = (cw, f) where
@@ -49,7 +49,7 @@ growFormula ::
       B.Table Columns.C (B.PostingInfo, B.Queried c) -> R.Cell)
 growFormula colors p ci = pair where
   pair =
-    if U.isTopRow p ci
+    if U.isTrancheTopRow p ci
     then full
     else (B.ColumnWidth 0, const R.zeroCell)
   full = (cw, f) where
