@@ -9,14 +9,22 @@ import Penny.Cabin.Postings.Base.Combinator (lJustCell)
 import qualified Penny.Cabin.Postings.Base.Row as R
 import qualified Penny.Cabin.Postings.Stock.Colors as C
 import qualified Penny.Cabin.Postings.Stock.Columns as Columns
+import qualified Penny.Cabin.Postings.Stock.Util as U
+import Penny.Cabin.Postings.Stock.Columns (Fields, lineNum)
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Queries as Q
 
-mainFormula :: C.BaseColors -> B.Formula Columns.C
-mainFormula bc = B.FGrowToFit (\_ _ p ci -> growFormula bc p ci)
+mainFormula :: Fields Bool -> C.BaseColors -> B.Formula Columns.C
+mainFormula fds bc = B.FGrowToFit f where
+  f = if lineNum fds
+      then (\_ _ p ci -> growFormula bc p ci)
+      else U.zeroGrowToFit
 
-spacerFormula :: C.BaseColors -> B.Formula Columns.C
-spacerFormula bc = B.FGrowToFit (\_ _ p ci -> spacer bc p ci)
+spacerFormula :: Fields Bool -> C.BaseColors -> B.Formula Columns.C
+spacerFormula fds bc = B.FGrowToFit f where
+  f = if lineNum fds
+      then (\_ _ p ci -> spacer bc p ci)
+      else U.zeroGrowToFit
 
 growFormula ::
   C.BaseColors

@@ -17,40 +17,51 @@ mainFormula :: Fields Bool
                -> B.Formula Columns.C
 mainFormula fields c = B.FGrowToFit f where 
   f = if postingDrCr fields
-      then (\_ _ p _ -> growFormula c p)
+      then (\_ _ p ci -> growFormula c p ci)
       else U.zeroGrowToFit
 
 spacerFormula :: Fields Bool -> C.DrCrColors -> B.Formula Columns.C
 spacerFormula fields c = B.FGrowToFit f where
   f = if postingDrCr fields
-      then \_ _ p _ -> spacer c p
+      then \_ _ p ci -> spacer c p ci
       else U.zeroGrowToFit
 
 spacer:: 
   C.DrCrColors
   -> B.PostingInfo
+  -> B.CellInfo c
   -> (B.ColumnWidth,
       B.Table Columns.C (B.PostingInfo, B.Queried c) -> R.Cell)
-spacer colors p = (cw, f) where
-  cw = B.ColumnWidth 1
-  color = pickColor p colors
-  f _ = R.Cell R.LeftJustify (C.Width 1) color empty
+spacer colors p ci = pair where
+  pair = if U.isTopRow p ci
+         then full
+         else (B.ColumnWidth 0, const R.zeroCell)
+  full = (cw, f) where
+    cw = B.ColumnWidth 1
+    color = pickColor p colors
+    f _ = R.Cell R.LeftJustify (C.Width 1) color empty
   
 growFormula ::
   C.DrCrColors
   -> B.PostingInfo
+  -> B.CellInfo c
   -> (B.ColumnWidth,
       B.Table Columns.C (B.PostingInfo, B.Queried c) -> R.Cell)
-growFormula colors p = (cw, f) where
-  cw = B.ColumnWidth 2
-  pstg = B.postingBox p
-  dc = Q.drCr pstg
-  color = pickColor p colors
-  f _ = R.Cell R.LeftJustify (C.Width 2) color cs
-  cs = singleton (C.chunk color (pack dcTxt))
-  dcTxt = case dc of
-    Bits.Debit -> "Dr"
-    Bits.Credit -> "Cr"
+growFormula colors p ci = pair where
+  pair =
+    if U.isTopRow p ci
+    then full
+    else (B.ColumnWidth 0, const R.zeroCell)
+  full = (cw, f) where
+    cw = B.ColumnWidth 2
+    pstg = B.postingBox p
+    dc = Q.drCr pstg
+    color = pickColor p colors
+    f _ = R.Cell R.LeftJustify (C.Width 2) color cs
+    cs = singleton (C.chunk color (pack dcTxt))
+    dcTxt = case dc of
+      Bits.Debit -> "Dr"
+      Bits.Credit -> "Cr"
 
 pickColor :: B.PostingInfo -> C.DrCrColors -> C.TextSpec
 pickColor p = colorF where

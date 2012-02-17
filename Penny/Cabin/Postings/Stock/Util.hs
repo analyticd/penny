@@ -15,4 +15,5 @@ isOffset offset p c = rowNum - rowsPerRecord * visNum == offset where
   rowNum = B.unRowNum . B.cellRow $ c
   visNum = B.unVisibleNum . B.visibleNum $ p
 
-
+isTopRow :: B.PostingInfo -> B.CellInfo c -> Bool
+isTopRow = isOffset 0
