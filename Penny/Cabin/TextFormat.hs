@@ -11,13 +11,15 @@ import qualified Data.Text as X
 data Lines = Lines { unLines :: S.Seq Words } deriving Show
 data Words = Words { unWords :: S.Seq X.Text } deriving Show
 
--- | Wraps a list of words into a list of lines, where each line is a
--- given maximum number of characters long. /This function is
--- partial/. It will call 'error' if the maximum number of characters
--- per line is less than 1.
+-- | Wraps a sequence of words into a sequence of lines, where each
+-- line is no more than a given maximum number of characters long.
+--
+-- /This function is partial/. It will call 'error' if the maximum
+-- number of characters per line is less than 1.
 --
 -- An individual word will be split across multiple lines only if that
--- word is too long to fit into a single line.
+-- word is too long to fit into a single line. No hyphenation is done;
+-- the word is simply broken across two lines.
 wordWrap :: F.Foldable f => Int -> f X.Text -> Lines
 wordWrap uncheckedL = F.foldl f (Lines S.empty) where
   l = if uncheckedL < 1
@@ -53,19 +55,16 @@ addWord l (Words ws) w =
 -- Text with the part of the word that was not added (if any; if all
 -- of the word was added, return an empty Text.)
 addPartialWord :: Int -> Words -> X.Text -> (Words, X.Text)
-addPartialWord l (Words ws) t = case addWord l' (Words ws) t of
+addPartialWord l (Words ws) t = case addWord l (Words ws) t of
   (Just ws') -> (ws', X.empty)
   Nothing ->
     let maxChars = case S.length ws of
-          0 -> l'
-          x -> case l' of
+          0 -> l
+          x -> case l of
             1 -> 0
-            len -> l' - lenWords (Words ws) - 1
+            len -> l - lenWords (Words ws) - 1
         (begin, end) = X.splitAt maxChars t
     in (Words (if X.null begin then ws else ws |> begin), end)
-  where l' = if l < 0
-             then error "addPartialWord error"
-             else l
 
 addPartialWords :: Int -> Lines -> X.Text -> Lines
 addPartialWords l (Lines wsq) t = let
