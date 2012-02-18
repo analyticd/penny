@@ -193,6 +193,7 @@ Library
         Penny.Cabin.Postings.Stock.PostingDrCr,
         Penny.Cabin.Postings.Stock.TotalDrCr,
         Penny.Cabin.Postings.Stock.TotalCommodity,
+        Penny.Cabin.Postings.Stock.TotalQty,
         Penny.Cabin.Postings.Stock.Util,
         Penny.Cabin.TextFormat,
         Penny.Copper,
