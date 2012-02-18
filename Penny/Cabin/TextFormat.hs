@@ -3,10 +3,12 @@ module Penny.Cabin.TextFormat (
   Words(Words, unWords),
   wordWrap) where
 
+import qualified Control.Monad.Trans.State as St
 import qualified Data.Foldable as F
-import Data.Sequence ((|>), ViewR((:>)))
+import Data.Sequence ((|>), ViewR((:>)), ViewL((:<)))
 import qualified Data.Sequence as S
 import qualified Data.Text as X
+import qualified Data.Traversable as T
 
 data Lines = Lines { unLines :: S.Seq Words } deriving Show
 data Words = Words { unWords :: S.Seq X.Text } deriving Show
@@ -89,5 +91,74 @@ addPartialWords l (Lines wsq) t = let
 --
 -- /This function is partial./ If applies 'error' if the space
 -- requirement is negative.
-shorten :: Int -> Words -> Words
-shorten = undefined
+shorten :: Int -> Int -> Words -> Words
+shorten shortest target wsa@(Words wsq) = let
+  nToRemove = max (lenWords wsa - target) 0
+  (allWords, nLeft) = shortenUntilOne shortest nToRemove wsq
+  in stripWordsUntil target (Words allWords)
+
+-- | Shorten a word by x characters or until it is y characters long,
+-- whichever comes first. Returns the word and the number of
+-- characters removed.
+shortenUntil :: Int -> Int -> X.Text -> (X.Text, Int)
+shortenUntil by shortest t = let
+  removable = max (X.length t - shortest) 0
+  toRemove = min removable (max by 0)
+  prefix = X.length t - toRemove
+  in (X.take prefix t, toRemove)
+
+-- | Shortens a word until it is x characters long or by the number of
+-- characters indicated in the state, whichever is less. Subtracts the
+-- number of characters removed from the state.
+shortenSt :: Int -> X.Text -> St.State Int X.Text
+shortenSt shortest t = do
+  by <- St.get
+  let (r, nRemoved) = shortenUntil by shortest t
+  St.put (by - nRemoved)
+  return r
+
+-- | Shortens each word in a list, from left to right, until a
+-- particular number of characters have been reduced or until each
+-- word is x characters long, whichever happens first. Returns the new
+-- list and the number of characters that still need to be reduced.
+shortenEachInList ::
+  T.Traversable t
+  => Int -- ^ Shortest word length
+  -> Int -- ^ Total number to remove
+  -> t X.Text
+  -> (t X.Text, Int)
+shortenEachInList shortest by ts = (r, left) where
+  k = T.mapM (shortenSt shortest) ts
+  (r, left) = St.runState k by
+
+shortenUntilOne ::
+  T.Traversable t
+  => Int -- ^ Shortest word length to start with
+  -> Int -- ^ Total number of characters to remove
+  -> t X.Text
+  -> (t X.Text, Int)
+shortenUntilOne shortest by ts = let
+  r@(ts', left) = shortenEachInList shortest by ts
+  in if shortest == 1 || left == 0
+     then r
+     else shortenUntilOne (pred shortest) left ts'
+
+-- | Eliminates words until the length of the words, as indicated by
+-- lenWords, is less than or equal to the value given.
+stripWordsUntil :: Int -> Words -> Words
+stripWordsUntil i wsa@(Words ws) = case S.viewl ws of
+  S.EmptyL -> Words (S.empty)
+  (_ :< rest) ->
+    if lenWords wsa <= i
+    then wsa
+    else stripWordsUntil i (Words rest)
+
+  
+--
+-- Testing
+--
+_words :: Words
+_words = Words . S.fromList . map X.pack $ ws where 
+  ws = [ "these", "are", "fragilisticwonderfulgood",
+         "good", "", "x", "xy", "xyza",
+         "longlonglongword" ]
