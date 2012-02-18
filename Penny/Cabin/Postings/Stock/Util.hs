@@ -63,3 +63,4 @@ makeGrowingCell cellType colors p ci just sq = (cw, f) where
     Justified -> Comb.cell just col ts ks
     Overran -> const R.zeroCell
   
+-- | Makes a column width and a cell maker to use for a spacer cell.

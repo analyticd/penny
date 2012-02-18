@@ -40,9 +40,13 @@ newtype RevPostingNum =
 newtype VisibleNum = VisibleNum { unVisibleNum :: Int }
                      deriving (Show, Eq, Ord)
 
+newtype TrancheRow = TrancheRow { unTrancheNum :: Int }
+                     deriving (Show, Eq, Ord)
+
 data CellInfo c =
   CellInfo { cellCol :: c
-           , cellRow :: RowNum }
+           , cellRow :: RowNum 
+           , trancheRow :: TrancheRow }
 
 data PostingInfo =
   PostingInfo { postingNum :: PostingNum
@@ -159,14 +163,16 @@ baseArray ::
   => RowsPerPosting
   -> [PostingInfo]
   -> Columns c
-  -> Array (c, RowNum) (PostingInfo, Formula c)
+  -> Array (c, RowNum) (TrancheRow, PostingInfo, Formula c)
 baseArray (RowsPerPosting rpp) ps (Columns cs) = let
   (minC, maxC) = A.bounds cs
-  rows = concatMap (replicate rpp) ps
+  tranches = map (replicate rpp) ps
+  rows = map (\(n, p) -> (TrancheRow n, p))
+         . concat . map (zip [0..]) $ tranches
   (minR, maxR) = (RowNum 0, RowNum (length rows - 1))
   is = A.range ((minC, minR), (maxC, maxR))
   columns = A.elems cs
-  vs = flip (,)
+  vs = (\col (tr, p) -> (tr, p, col))
        <$> columns
        <*> rows
   values = zip is vs
@@ -174,13 +180,13 @@ baseArray (RowsPerPosting rpp) ps (Columns cs) = let
 
 cellInfos ::
   Ix c
-  => Array (c, RowNum) (PostingInfo, Formula c)
+  => Array (c, RowNum) (TrancheRow, PostingInfo, Formula c)
   -> Array (c, RowNum) (CellInfo c, PostingInfo, Formula c)
 cellInfos = fmap triple . label where
   label arr = A.array (A.bounds arr) ls where
     ls = fmap f . A.assocs $ arr
     f (i, v) = (i, (i, v))
-  triple ((c, r), (p, f)) = (CellInfo c r, p, f)
+  triple ((c, r), (t, p, f)) = (CellInfo c r t, p, f)
 
 queried ::
   ReportWidth

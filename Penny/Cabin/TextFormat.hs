@@ -1,7 +1,10 @@
 module Penny.Cabin.TextFormat (
   Lines(Lines, unLines),
   Words(Words, unWords),
-  wordWrap) where
+  wordWrap,
+  Target(Target, unTarget),
+  Shortest(Shortest, unShortest),
+  shorten) where
 
 import qualified Control.Monad.Trans.State as St
 import qualified Data.Foldable as F
@@ -78,6 +81,9 @@ addPartialWords l (Lines wsq) t = let
      then Lines (back |> rw)
      else addPartialWords l (Lines (back |> rw |> Words (S.empty))) rt
 
+newtype Target = Target { unTarget :: Int } deriving Show
+newtype Shortest = Shortest { unShortest :: Int } deriving Show
+
 -- | Takes a list of words and shortens it so that it fits in the
 -- space allotted. You specify the minimum length for each word, x. It
 -- will shorten the farthest left word first, until it is only x
@@ -91,11 +97,11 @@ addPartialWords l (Lines wsq) t = let
 --
 -- /This function is partial./ If applies 'error' if the space
 -- requirement is negative.
-shorten :: Int -> Int -> Words -> Words
-shorten shortest target wsa@(Words wsq) = let
-  nToRemove = max (lenWords wsa - target) 0
-  (allWords, nLeft) = shortenUntilOne shortest nToRemove wsq
-  in stripWordsUntil target (Words allWords)
+shorten :: Shortest -> Target -> Words -> Words
+shorten (Shortest s) (Target t) wsa@(Words wsq) = let
+  nToRemove = max (lenWords wsa - t) 0
+  (allWords, nLeft) = shortenUntilOne s nToRemove wsq
+  in stripWordsUntil t (Words allWords)
 
 -- | Shorten a word by x characters or until it is y characters long,
 -- whichever comes first. Returns the word and the number of
@@ -149,9 +155,9 @@ stripWordsUntil :: Int -> Words -> Words
 stripWordsUntil i wsa@(Words ws) = case S.viewl ws of
   S.EmptyL -> Words (S.empty)
   (_ :< rest) ->
-    if lenWords wsa <= i
+    if lenWords wsa <= (max i 0)
     then wsa
-    else stripWordsUntil i (Words rest)
+    else stripWordsUntil (max i 0) (Words rest)
 
   
 --
@@ -159,6 +165,6 @@ stripWordsUntil i wsa@(Words ws) = case S.viewl ws of
 --
 _words :: Words
 _words = Words . S.fromList . map X.pack $ ws where 
-  ws = [ "these", "are", "fragilisticwonderfulgood",
-         "good", "", "x", "xy", "xyza",
-         "longlonglongword" ]
+  ws = [ "these", "are", "fragilisticwonderfulgood" ]
+--         "good", "", "x", "xy", "xyza",
+--         "longlonglongword" ]
