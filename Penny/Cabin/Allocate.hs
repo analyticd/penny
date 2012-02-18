@@ -1,4 +1,8 @@
-module Penny.Cabin.Allocate where
+module Penny.Cabin.Allocate (
+  Allocation,
+  allocation,
+  unAllocation,
+  allocate) where
 
 import qualified Control.Monad.Trans.State as St
 import qualified Data.Foldable as F
