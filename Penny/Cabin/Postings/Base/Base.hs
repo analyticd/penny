@@ -9,6 +9,7 @@ import Data.Monoid (mempty, mappend, Monoid)
 import qualified  Data.Table as Ta
 import qualified Data.Traversable as T
 
+import Penny.Cabin.Allocate (Allocation)
 import Penny.Cabin.Colors (Chunk)
 import Penny.Cabin.Postings.Base.Row
   (Cell, emptyRow, prependCell,
@@ -19,10 +20,6 @@ import Penny.Lincoln.Queries (entry)
 
 newtype RowNum = RowNum { unRowNum :: Int }
                  deriving (Eq, Ord, Show, A.Ix)
-
-
-data Allocation = Allocation { unAllocation :: Double }
-                  deriving Show
 
 newtype ColumnWidth = ColumnWidth { unColumnWidth :: Int }
                    deriving (Show, Eq, Ord)
@@ -92,12 +89,6 @@ data Columns c =
 newtype RowsPerPosting =
   RowsPerPosting { unRowsPerPosting :: Int }
   deriving Show
-
-allocation :: Double -> Allocation
-allocation d =
-  if d > 0
-  then Allocation d
-  else error "allocations must be greater than zero"
 
 balanceAccum :: Balance -> PostingBox -> (Balance, Balance)
 balanceAccum bal pb = (bal', bal') where
