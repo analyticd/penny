@@ -185,6 +185,7 @@ Library
         Penny.Cabin.Postings.Base.Row,
         Penny.Cabin.Postings.Stock.Colors,
         Penny.Cabin.Postings.Stock.Columns,
+        Penny.Cabin.Postings.Stock.Date,
         Penny.Cabin.Postings.Stock.LineNum,
         Penny.Cabin.Postings.Stock.PostingDrCr,
         Penny.Cabin.Postings.Stock.Util,
