@@ -32,13 +32,9 @@ spacer::
   -> B.CellInfo Columns.C
   -> (B.ColumnWidth,
       B.Table Columns.C (B.PostingInfo, B.Queried Columns.C) -> R.Cell)
-spacer colors p ci = let
-  ntct = U.Overran
+spacer colors p ci = U.makeSpacerCell U.Overran dcColors p ci True where
   dc = Q.drCr . B.postingBox $ p
-  bc = C.drCrToBaseColors dc colors
-  just = R.LeftJustify
-  s = singleton (pack " ")
-  in U.makeGrowingCell ntct bc p ci just s
+  dcColors = C.drCrToBaseColors dc colors
 
 growFormula ::
   C.DrCrColors

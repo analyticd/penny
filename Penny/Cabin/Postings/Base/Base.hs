@@ -40,7 +40,7 @@ newtype RevPostingNum =
 newtype VisibleNum = VisibleNum { unVisibleNum :: Int }
                      deriving (Show, Eq, Ord)
 
-newtype TrancheRow = TrancheRow { unTrancheNum :: Int }
+newtype TrancheRow = TrancheRow { unTrancheRow :: Int }
                      deriving (Show, Eq, Ord)
 
 data CellInfo c =

@@ -46,8 +46,8 @@ spacer ::
   -> (B.ColumnWidth,
       B.Table Columns.C (B.PostingInfo, B.Queried Columns.C) -> R.Cell)
 spacer colors p ci = let
-  just = R.LeftJustify
-  sq = Seq.singleton $ case Q.postingLine . B.postingBox $ p of 
-    Nothing -> X.empty
-    (Just _) -> X.singleton ' '
-  in U.makeGrowingCell U.Justified colors p ci just sq
+  over = U.Justified
+  toShow = case Q.postingLine . B.postingBox $ p of
+    Nothing -> False
+    Just _ -> True
+  in U.makeSpacerCell over colors p ci toShow
