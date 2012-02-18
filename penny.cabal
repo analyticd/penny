@@ -188,6 +188,7 @@ Library
         Penny.Cabin.Postings.Stock.Date,
         Penny.Cabin.Postings.Stock.LineNum,
         Penny.Cabin.Postings.Stock.Number,
+        Penny.Cabin.Postings.Stock.PostingCommodity,
         Penny.Cabin.Postings.Stock.PostingDrCr,
         Penny.Cabin.Postings.Stock.Util,
         Penny.Cabin.TextFormat,
