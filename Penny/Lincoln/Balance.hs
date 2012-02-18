@@ -7,7 +7,7 @@ import Data.Monoid ( Monoid, mempty, mappend )
 import Penny.Lincoln.Bits (add, difference)
 import qualified Penny.Lincoln.Bits as B
 
-newtype Balance = Balance (Map B.Commodity Nought)
+newtype Balance = Balance { unBalance :: (Map B.Commodity Nought) }
 
 data Balanced = Balanced
               | Inferable B.Entry

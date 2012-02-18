@@ -19,6 +19,20 @@ isTrancheTopRow c = (B.unTrancheRow . B.trancheRow $ c) == 0
 
 data NonTopCellType = Justified | Overran
 
+makeGrowingCell ::
+  NonTopCellType
+  -> SC.BaseColors
+  -> B.PostingInfo
+  -> B.CellInfo Col.C
+  -> R.Justification
+  -> Seq.Seq X.Text
+  -> (B.ColumnWidth,
+      B.Table Col.C (B.PostingInfo, B.Queried Col.C) -> R.Cell)
+makeGrowingCell cellType colors p ci just sq = let
+  ts = SC.colors p colors
+  chunks = fmap (CC.chunk ts) sq
+  in makeColorfulGrowingCell cellType colors p ci just chunks
+
 -- | Makes a column width and a cell maker, depending upon whether the
 -- cell is in the top row of the tranche. If the cell is in the top
 -- row of the tranche, the width will be equal to the widest text
@@ -29,27 +43,26 @@ data NonTopCellType = Justified | Overran
 -- Justified, the function returns a cell that is justified depending
 -- on other cells in the column, but that is otherwise blank. For
 -- Overran, the cell has no contents and is not justified.
-makeGrowingCell ::
+makeColorfulGrowingCell ::
   NonTopCellType
   -> SC.BaseColors
   -> B.PostingInfo
   -> B.CellInfo Col.C
   -> R.Justification
-  -> Seq.Seq X.Text
+  -> Seq.Seq CC.Chunk
   -> (B.ColumnWidth,
       B.Table Col.C (B.PostingInfo, B.Queried Col.C) -> R.Cell)
-makeGrowingCell cellType colors p ci just sq = (cw, f) where
-  chunks = fmap (CC.chunk ts) sq
+makeColorfulGrowingCell cellType colors p ci just sq = (cw, f) where
   folder t maxSoFar = bigger where
     bigger = max thisCol maxSoFar
     thisCol = B.ColumnWidth . CC.unWidth . CC.chunkSize $ t
   cw = if isTrancheTopRow ci
-       then F.foldr folder (B.ColumnWidth 0) chunks
+       then F.foldr folder (B.ColumnWidth 0) sq
        else B.ColumnWidth 0
   col = B.cellCol ci
   ts = SC.colors p colors
   ks = if isTrancheTopRow ci
-       then chunks
+       then sq
        else Seq.empty
   f = case cellType of
     Justified -> Comb.cell just col ts ks
