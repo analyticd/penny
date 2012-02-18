@@ -25,8 +25,8 @@ data Words = Words { unWords :: S.Seq X.Text } deriving Show
 -- An individual word will be split across multiple lines only if that
 -- word is too long to fit into a single line. No hyphenation is done;
 -- the word is simply broken across two lines.
-wordWrap :: F.Foldable f => Int -> f X.Text -> Lines
-wordWrap uncheckedL = F.foldl f (Lines S.empty) where
+wordWrap :: Int -> Words -> Lines
+wordWrap uncheckedL (Words wsq) = F.foldl f (Lines S.empty) wsq where
   l = if uncheckedL < 1
       then error "wordWrap: length must be at least 1"
       else uncheckedL
@@ -165,6 +165,6 @@ stripWordsUntil i wsa@(Words ws) = case S.viewl ws of
 --
 _words :: Words
 _words = Words . S.fromList . map X.pack $ ws where 
-  ws = [ "these", "are", "fragilisticwonderfulgood" ]
---         "good", "", "x", "xy", "xyza",
---         "longlonglongword" ]
+  ws = [ "these", "are", "fragilisticwonderfulgood",
+         "good", "", "x", "xy", "xyza",
+         "longlonglongword" ]
