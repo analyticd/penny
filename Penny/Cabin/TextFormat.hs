@@ -63,11 +63,9 @@ addPartialWord :: Int -> Words -> X.Text -> (Words, X.Text)
 addPartialWord l (Words ws) t = case addWord l (Words ws) t of
   (Just ws') -> (ws', X.empty)
   Nothing ->
-    let maxChars = case S.length ws of
-          0 -> l
-          x -> case l of
-            1 -> 0
-            len -> l - lenWords (Words ws) - 1
+    let maxChars =
+          if S.null ws then l
+          else max 0 (l - lenWords (Words ws) - 1)
         (begin, end) = X.splitAt maxChars t
     in (Words (if X.null begin then ws else ws |> begin), end)
 
@@ -76,7 +74,7 @@ addPartialWords l (Lines wsq) t = let
   (back, ws) = case S.viewr wsq of
     S.EmptyR -> (S.empty, Words S.empty)
     (b :> x) -> (b, x)
-  r@(rw, rt) = addPartialWord l ws t
+  (rw, rt) = addPartialWord l ws t
   in if X.null rt
      then Lines (back |> rw)
      else addPartialWords l (Lines (back |> rw |> Words (S.empty))) rt
@@ -100,7 +98,7 @@ newtype Shortest = Shortest { unShortest :: Int } deriving Show
 shorten :: Shortest -> Target -> Words -> Words
 shorten (Shortest s) (Target t) wsa@(Words wsq) = let
   nToRemove = max (lenWords wsa - t) 0
-  (allWords, nLeft) = shortenUntilOne s nToRemove wsq
+  (allWords, _) = shortenUntilOne s nToRemove wsq
   in stripWordsUntil t (Words allWords)
 
 -- | Shorten a word by x characters or until it is y characters long,

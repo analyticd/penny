@@ -2,7 +2,6 @@ module Penny.Cabin.Postings.Stock.LineNum where
 
 import qualified Data.Sequence as Seq
 import Data.Text (pack)
-import qualified Data.Text as X
 
 import qualified Penny.Cabin.Postings.Base.Base as B
 import qualified Penny.Cabin.Postings.Base.Row as R

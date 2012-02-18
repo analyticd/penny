@@ -15,10 +15,8 @@ module Penny.Cabin.Postings.Base.Row (
 
 import Data.Monoid (Monoid, mempty, mappend)
 import qualified Data.Foldable as F
-import Data.Sequence (Seq, (<|), (|>), ViewL ((:<)),
-                      ViewR ((:>)))
+import Data.Sequence (Seq, (<|), (|>), ViewL ((:<)))
 import qualified Data.Sequence as S
-import Data.Text (Text)
 import qualified Data.Text as X
 
 import Penny.Cabin.Colors
