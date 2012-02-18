@@ -12,9 +12,7 @@ import qualified Penny.Cabin.Postings.Stock.Columns as Columns
 import qualified Penny.Cabin.Postings.Stock.Util as U
 import Penny.Cabin.Postings.Stock.Columns (Fields, totalQty)
 import qualified Penny.Lincoln.Balance as Bal
-import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
-import qualified Penny.Lincoln.Predicates as P
 
 mainFormula ::
   (B.PostingInfo -> X.Text)
