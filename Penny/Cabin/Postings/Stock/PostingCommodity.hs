@@ -2,7 +2,6 @@ module Penny.Cabin.Postings.Stock.PostingCommodity where
 
 import qualified Data.Sequence as Seq
 import qualified Data.Text as X
-import qualified Data.Time as T
 
 import qualified Penny.Cabin.Postings.Stock.Colors as C
 import qualified Penny.Cabin.Postings.Base.Base as B
@@ -10,7 +9,6 @@ import qualified Penny.Cabin.Postings.Base.Row as R
 import qualified Penny.Cabin.Postings.Stock.Columns as Columns
 import qualified Penny.Cabin.Postings.Stock.Util as U
 import Penny.Cabin.Postings.Stock.Columns (Fields, postingCmdty)
-import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Predicates as P
 

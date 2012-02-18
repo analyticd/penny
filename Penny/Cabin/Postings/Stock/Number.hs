@@ -2,7 +2,6 @@ module Penny.Cabin.Postings.Stock.Number where
 
 import qualified Data.Sequence as Seq
 import qualified Data.Text as X
-import qualified Data.Time as T
 
 import qualified Penny.Cabin.Postings.Stock.Colors as C
 import qualified Penny.Cabin.Postings.Base.Base as B

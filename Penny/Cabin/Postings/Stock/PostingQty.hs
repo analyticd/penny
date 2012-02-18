@@ -9,9 +9,7 @@ import qualified Penny.Cabin.Postings.Base.Row as R
 import qualified Penny.Cabin.Postings.Stock.Columns as Columns
 import qualified Penny.Cabin.Postings.Stock.Util as U
 import Penny.Cabin.Postings.Stock.Columns (Fields, postingQty)
-import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
-import qualified Penny.Lincoln.Predicates as P
 
 
 mainFormula ::
@@ -25,7 +23,7 @@ mainFormula render fields c = B.FGrowToFit f where
       else U.zeroGrowToFit
 
 spacerFormula :: Fields Bool
-                 -> C.DrCrColors
+                 -> C.BaseColors
                  -> B.Formula Columns.C
 spacerFormula fields c = B.FGrowToFit f where
   f = if postingQty fields
@@ -33,14 +31,12 @@ spacerFormula fields c = B.FGrowToFit f where
       else U.zeroGrowToFit
 
 spacer ::
-  C.DrCrColors
+  C.BaseColors
   -> B.PostingInfo
   -> B.CellInfo Columns.C
   -> (B.ColumnWidth,
       B.Table Columns.C (B.PostingInfo, B.Queried Columns.C) -> R.Cell)
-spacer colors p ci = U.makeSpacerCell U.Overran dcColors p ci True where
-  dc = Q.drCr . B.postingBox $ p
-  dcColors = C.drCrToBaseColors dc colors
+spacer colors p ci = U.makeSpacerCell U.Justified colors p ci True where
 
 growFormula ::
   (B.PostingInfo -> X.Text)
