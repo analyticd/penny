@@ -23,16 +23,16 @@
 
 <<To Array>>
 
-Array ((VisibleNum, TrancheRow), Column) PostingInfo
+Array (Column, (VisibleNum, TrancheRow)) PostingInfo
 
 <<Space Claim>>
 
-Array ((VisibleNum, TrancheRow), Column) (PostingInfo, Maybe Width)
+Array (Column, (VisibleNum, TrancheRow)) (PostingInfo, Maybe Width)
 
 <<Allocate SpaceToFit>>
 
-Array ((VisibleNum, TrancheRow), Column) (PostingInfo, Maybe Cell)
+Array (Column, (VisibleNum, TrancheRow)) (PostingInfo, Maybe Cell)
 
 <<Allocate Allocations>>
 
-Array ((VisibleNum, TrancheRow), Column) (PostingInfo, Cell)
+Array (Column, (VisibleNum, TrancheRow)) (PostingInfo, Cell)
