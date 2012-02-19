@@ -231,6 +231,7 @@ Library
         Penny.Lincoln.Family.Child,
         Penny.Lincoln.Family.Family,
         Penny.Lincoln.Family.Siblings,
+        Penny.Lincoln.HasText,
         Penny.Lincoln.Meta,
         Penny.Lincoln.Predicates,
         Penny.Lincoln.Queries,

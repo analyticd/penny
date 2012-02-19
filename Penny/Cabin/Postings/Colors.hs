@@ -8,7 +8,6 @@ module Penny.Cabin.Postings.Colors (
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Cabin.Colors as C
-import qualified Penny.Cabin.Postings.Address as A
 import qualified Penny.Cabin.Postings.Types as T
 
 data DrCrColors =
