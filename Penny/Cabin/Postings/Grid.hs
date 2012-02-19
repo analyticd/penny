@@ -93,7 +93,21 @@ toArray ls =
 
 type Index c t = (c, (T.VisibleNum, t))
 
--- Step 7 - Space claim
+-- | Step 7 - Space claim. What different cells should do at this phase:
+--
+-- * Grow to fit cells - color coded blue. These should supply a Just
+-- ClaimedWidth whose number indicates how wide their content will
+-- be. They should do this only if their respective field is showing
+-- in the final report; if the field is not showing, supply
+-- Nothing. Also, if their field has no data to show (for instance,
+-- this is a Flag field, and the posting has no flag), supply Nothing.
+--
+-- * Padding cells - these are color coded orange. They should supply
+-- a Just ClaimedWidth, but only if their respective field is showing
+-- and that field has data to show. In that circumstance, supply Just
+-- (ClaimedWidth 1). Otherwise, supply Nothing.
+--
+-- * All other cells - supply Nothing.
 type Claimer c t =
   A.Array (Index c t) T.PostingInfo
   -> Index c t
@@ -108,7 +122,28 @@ spaceClaim ::
 spaceClaim f = fmapArray g where
   g a i p = (p, f a i p)
 
--- Step 8 - Allocate GrowToFit
+-- | Step 8 - GrowToFit. What different cells should do at this phase:
+--
+-- * Grow to fit cells - these are color coded blue. These should
+-- supply their actual data, and justify themselves to be as wide as
+-- the widest cell in the column.
+--
+-- * Padding cells - these are color coded orange. These should supply
+-- a cell that is justified to be as wide as the widest cell in the
+-- column. Otherwise these cells contain no text at all (the Row
+-- module takes care of supplying the necessary bottom padding lines
+-- if they are needed.)
+--
+-- * Empty but padded cells - these are color coded yellow. Treat
+-- these exactly the same as Padding cells.
+--
+-- * Overran cells - these are color coded light green. These should
+-- supply Just 'Penny.Cabin.Row.zeroCell'.
+--
+-- * Allocated cells - these are color coded purple. These should
+-- supply Nothing.
+--
+-- * Overrunning cells - these should supply Nothing.
 type Grower c t =
   A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
   -> Index c t
@@ -123,7 +158,46 @@ growCells ::
 growCells f = fmapArray g where
   g a i (p, w) = (p, f a i (p, w))
 
--- Step 9 -- Finalize all cells
+-- | Step 9 - Allocate. What to do at this phase:
+--
+-- * GrowToFit, Padding, Empty, and Overran cells - have already
+-- supplied a cell. Pass that cell along.
+--
+-- * Allocated cells - If the field is not selected to be in the
+-- report, supply Nothing. If the field is selected, then use the
+-- minimum report width, the width of all other GrowToFit and Padding
+-- cells in the row, and the share allocated to other Allocated cells
+-- that are going to show in the report. Supply a cell that is
+-- justified to be exactly the necessary width. (The Row module will
+-- not truncate or wrap cells, so the function must take care of this
+-- on its own.)
+--
+-- * Overrunning cells - supply Nothing.
+type Allocator c t =
+  A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
+  -> Index c t
+  -> (T.PostingInfo, Maybe R.Cell)
+  -> Maybe R.Cell
+
+allocateCells ::
+  (A.Ix c, A.Ix t)
+  => Allocator c t
+  -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
+  -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
+allocateCells f = fmapArray g where
+  g a i (p, w) = (p, f a i (p, w))
+
+-- | Step 9. Finalize all cells, including overruns. What cells should
+-- do at this phase:
+--
+-- * GrowToFit, Empty but padded, padding, overran, allocated cells -
+-- these have already supplied a cell. Pass this cell along.
+--
+-- * Overrunning cells - calculate the width of the cell by using the
+-- width of the appropriate cells in the top tranche row. Supply a
+-- cell that is justified to exactly the correct width. (the Row
+-- module will not truncate or wrap cells, so the function must do
+-- this itself.)
 type Finalizer c t =
   A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
   -> Index c t
@@ -154,10 +228,11 @@ report ::
   => (T.PostingInfo -> Bool)
   -> Claimer c t
   -> Grower c t
+  -> Allocator c t
   -> Finalizer c t
   -> [B.PostingBox]
   -> Maybe C.Chunk
-report p c g f pbs =
+report p c g a f pbs =
   (toArray
    . tranches
    . addVisibleNum
@@ -169,6 +244,7 @@ report p c g f pbs =
   (return
    . R.chunk
    . finalize f
+   . allocateCells a
    . growCells g
    . spaceClaim c)
   
