@@ -193,7 +193,7 @@ allocateCells f = fmapArray g where
 -- * GrowToFit, Empty but padded, padding, overran, allocated cells -
 -- these have already supplied a cell. Pass this cell along.
 --
--- * Overrunning cells - If the corresponding report is showing,
+-- * Overrunning cells - If the corresponding field is not showing,
 -- supply 'Penny.Cabin.Row.emptyCell'. If the field is showing,
 -- calculate the width of the cell by using the width of the
 -- appropriate cells in the top tranche row. Supply a cell that is
