@@ -1,0 +1,38 @@
+[PostingBox]
+
+<<Compute balances>>
+
+[(PostingBox, Balance)]
+
+<<Number Postings>>
+
+[(PostingBox, Balance, PostingNum, RevPostingNum)]
+
+<<Filter, leaving visible postings only>>
+
+[(PostingBox, Balance, PostingNum, RevPostingNum)]
+
+<<Add VisibleNum>>
+
+[(PostingBox, Balance, PostingNum, RevPostingNum, VisibleNum)]
+
+<<Multiply into tranches>>
+
+[(PostingBox, Balance, PostingNum, RevPostingNum, VisibleNum,
+  TrancheRow)]
+
+<<To Array>>
+
+Array ((VisibleNum, TrancheRow), Column) PostingInfo
+
+<<Space Claim>>
+
+Array ((VisibleNum, TrancheRow), Column) (PostingInfo, Maybe Width)
+
+<<Allocate SpaceToFit>>
+
+Array ((VisibleNum, TrancheRow), Column) (PostingInfo, Maybe Cell)
+
+<<Allocate Allocations>>
+
+Array ((VisibleNum, TrancheRow), Column) (PostingInfo, Cell)

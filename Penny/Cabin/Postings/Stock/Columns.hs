@@ -27,7 +27,7 @@ data C =
   | STotalCommodity
   | TotalQty
   | STotalQty
-    deriving (Eq, Ord, Show, Ix)
+    deriving (Eq, Ord, Show, Ix, Bounded)
 
 data Fields a =
   Fields { lineNum :: a
