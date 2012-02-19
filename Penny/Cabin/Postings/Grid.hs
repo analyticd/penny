@@ -8,6 +8,7 @@ import Data.Monoid (mempty, mappend)
 import qualified Data.Table as Ta
 import qualified Data.Traversable as Tr
 
+import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Postings.Types as T
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Lincoln.Balance as Bal
@@ -36,7 +37,7 @@ balances ps = zip ps (snd . Tr.mapAccumL balanceAccum mempty $ ps)
 -- Step 2 - Number postings
 numberPostings ::
   [(B.PostingBox, Bal.Balance)]
-  -> [(B.PostingBox, Bal.Balance, T.PostingNum, T.RevPostingNum)]
+  -> [T.PostingInfo]
 numberPostings ls = reverse reversed where
   withPostingNums =
     getZipList
@@ -45,55 +46,46 @@ numberPostings ls = reverse reversed where
     <*> ZipList (map T.PostingNum [0..])
   reversed =
     getZipList
-    $ (\(pb, bal, pn) rpn -> (pb, bal, pn, rpn))
+    $ (\(pb, bal, pn) rpn -> T.PostingInfo pb bal pn rpn)
     <$> ZipList (reverse withPostingNums)
     <*> ZipList (map T.RevPostingNum [0..])
 
 -- Step 3 - Get visible postings only
 filterToVisible ::
-  ((B.PostingBox, Bal.Balance, T.PostingNum, T.RevPostingNum) -> Bool)
-  -> [(B.PostingBox, Bal.Balance, T.PostingNum, T.RevPostingNum)]
-  -> [(B.PostingBox, Bal.Balance, T.PostingNum, T.RevPostingNum)]
+  (T.PostingInfo -> Bool)
+  -> [T.PostingInfo]
+  -> [T.PostingInfo]
 filterToVisible b ps = filter b ps  
 
 -- Step 4 - add visible numbers
 addVisibleNum ::
-  [(B.PostingBox, Bal.Balance, T.PostingNum, T.RevPostingNum)]
-  -> [(B.PostingBox, Bal.Balance, T.PostingNum, T.RevPostingNum,
-       T.VisibleNum)]
-addVisibleNum ls =
-  getZipList
-  $ (\(pb, bal, pn, rpn) vn -> (pb, bal, pn, rpn, vn))
-  <$> ZipList ls
-  <*> ZipList (map T.VisibleNum [0..])
+  [T.PostingInfo]
+  -> [(T.PostingInfo, T.VisibleNum)]
+addVisibleNum ls = zip ls (map T.VisibleNum [0..])
 
 -- Step 5 - multiply into tranches
 tranches ::
   Bounded t
-  => [(B.PostingBox, Bal.Balance, T.PostingNum, T.RevPostingNum,
-       T.VisibleNum)]
-  -> [(B.PostingBox, Bal.Balance, T.PostingNum, T.RevPostingNum,
-       T.VisibleNum, t)]
+  => [(T.PostingInfo, T.VisibleNum)]
+  -> [(T.PostingInfo, T.VisibleNum, t)]
 tranches ls =
-  (\(pb, bal, pn, rpn, vn) t -> (pb, bal, pn, rpn, vn, t))
+  (\(p, vn) t -> (p, vn, t))
   <$> ls
   <*> [minBound, maxBound]
 
 -- Step 6 - multiply to array
 toArray ::
   (Bounded c, Bounded t, A.Ix c, A.Ix t)
-  => [(B.PostingBox, Bal.Balance, T.PostingNum, T.RevPostingNum,
-       T.VisibleNum, t)]
+  => [(T.PostingInfo, T.VisibleNum, t)]
   -> Maybe (A.Array (c, (T.VisibleNum, t)) T.PostingInfo)
 toArray ls =
   if null ls
   then Nothing
   else let
-    (_, _, _, _, maxVn, _) = last ls
+    (_, maxVn, _) = last ls
     b = ((minBound, (T.VisibleNum 0, minBound)),
          (maxBound, (maxVn, maxBound)))
-    pair c (pb, bal, pn, rpn, vn, t) =
-      ((c, (vn, t)), T.PostingInfo pb bal pn rpn)
+    pair c (p, vn, t) = ((c, (vn, t)), p)
     ps = pair
          <$> A.range (minBound, maxBound)
          <*> ls
@@ -106,28 +98,44 @@ type Claimer c t =
   A.Array (Index c t) T.PostingInfo
   -> Index c t
   -> T.PostingInfo
-  -> (T.PostingInfo, Maybe T.ClaimedWidth)
+  -> Maybe T.ClaimedWidth
 
 spaceClaim ::
   (A.Ix c, A.Ix t)
   => Claimer c t
   -> A.Array (Index c t) T.PostingInfo
   -> A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
-spaceClaim = fmapArray
+spaceClaim f = fmapArray g where
+  g a i p = (p, f a i p)
 
 -- Step 8 - Allocate GrowToFit
 type Grower c t =
   A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
   -> Index c t
   -> (T.PostingInfo, Maybe T.ClaimedWidth)
-  -> R.Cell
+  -> Maybe R.Cell
 
 growCells ::
   (A.Ix c, A.Ix t)
   => Grower c t
   -> A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
+  -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
+growCells f = fmapArray g where
+  g a i (p, w) = (p, f a i (p, w))
+
+-- Step 9 -- Finalize all cells
+type Finalizer c t =
+  A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
+  -> Index c t
+  -> (T.PostingInfo, Maybe R.Cell)
+  -> R.Cell
+
+finalize ::
+  (A.Ix c, A.Ix t)
+  => Finalizer c t
+  -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
   -> CellArray c t
-growCells f = CellArray . fmapArray f
+finalize f = CellArray . fmapArray f
 
 -- Step 9 - make chunks
 newtype CellArray c t =
@@ -140,3 +148,27 @@ instance (A.Ix c, A.Ix t) => R.HasChunk (CellArray c t) where
     toRow = F.foldr R.prependCell R.emptyRow
 
 -- Put it all together!
+
+report ::
+  (A.Ix c, A.Ix t, Bounded c, Bounded t)
+  => (T.PostingInfo -> Bool)
+  -> Claimer c t
+  -> Grower c t
+  -> Finalizer c t
+  -> [B.PostingBox]
+  -> Maybe C.Chunk
+report p c g f pbs =
+  (toArray
+   . tranches
+   . addVisibleNum
+   . filterToVisible p
+   . numberPostings
+   . balances
+   $ pbs )
+  >>=
+  (return
+   . R.chunk
+   . finalize f
+   . growCells g
+   . spaceClaim c)
+  
