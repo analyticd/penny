@@ -2,15 +2,17 @@ module Penny.Cabin.Postings.Grid where
 
 import Control.Applicative (
   (<$>), (<*>), ZipList(ZipList, getZipList))
-
 import qualified Data.Array as A
+import qualified Data.Foldable as F
 import Data.Monoid (mempty, mappend)
+import qualified Data.Table as Ta
 import qualified Data.Traversable as Tr
 
+import qualified Penny.Cabin.Postings.Types as T
+import qualified Penny.Cabin.Row as R
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Boxes as B
 import qualified Penny.Lincoln.Queries as Q
-import qualified Penny.Cabin.Postings.Types as T
 
 fmapArray ::
   A.Ix i
@@ -114,3 +116,27 @@ spaceClaim ::
 spaceClaim = fmapArray
 
 -- Step 8 - Allocate GrowToFit
+type Grower c t =
+  A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
+  -> Index c t
+  -> (T.PostingInfo, Maybe T.ClaimedWidth)
+  -> R.Cell
+
+growCells ::
+  (A.Ix c, A.Ix t)
+  => Grower c t
+  -> A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
+  -> CellArray c t
+growCells f = CellArray . fmapArray f
+
+-- Step 9 - make chunks
+newtype CellArray c t =
+  CellArray { unCellArray :: A.Array (Index c t) R.Cell }
+
+instance (A.Ix c, A.Ix t) => R.HasChunk (CellArray c t) where
+  chunk (CellArray a) = R.chunk rows where
+    rows = F.foldr R.prependRow R.emptyRows rs
+    rs = fmap toRow . Ta.OneDim . Ta.rows $ a
+    toRow = F.foldr R.prependCell R.emptyRow
+
+-- Put it all together!
