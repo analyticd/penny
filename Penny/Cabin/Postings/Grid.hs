@@ -187,17 +187,18 @@ allocateCells ::
 allocateCells f = fmapArray g where
   g a i (p, w) = (p, f a i (p, w))
 
--- | Step 9. Finalize all cells, including overruns. What cells should
+-- | Step 10. Finalize all cells, including overruns. What cells should
 -- do at this phase:
 --
 -- * GrowToFit, Empty but padded, padding, overran, allocated cells -
 -- these have already supplied a cell. Pass this cell along.
 --
--- * Overrunning cells - calculate the width of the cell by using the
--- width of the appropriate cells in the top tranche row. Supply a
--- cell that is justified to exactly the correct width. (the Row
--- module will not truncate or wrap cells, so the function must do
--- this itself.)
+-- * Overrunning cells - If the corresponding report is showing,
+-- supply 'Penny.Cabin.Row.emptyCell'. If the field is showing,
+-- calculate the width of the cell by using the width of the
+-- appropriate cells in the top tranche row. Supply a cell that is
+-- justified to exactly the correct width. (the Row module will not
+-- truncate or wrap cells, so the function must do this itself.)
 type Finalizer c t =
   A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
   -> Index c t
@@ -211,7 +212,7 @@ finalize ::
   -> CellArray c t
 finalize f = CellArray . fmapArray f
 
--- Step 9 - make chunks
+-- Step 11 - make chunks
 newtype CellArray c t =
   CellArray { unCellArray :: A.Array (Index c t) R.Cell }
 
