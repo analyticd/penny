@@ -4,6 +4,7 @@ import qualified Data.Text as X
 
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
+import qualified Penny.Cabin.Allocate as A
 import qualified Penny.Cabin.Postings.Colors as C
 import qualified Penny.Cabin.Postings.Types as T
 
