@@ -4,8 +4,10 @@ import qualified Data.Text as X
 
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Cabin.Postings.Colors as C
+import qualified Penny.Cabin.Postings.Types as T
 
 data Options =
   Options { drCrColors :: C.DrCrColors
           , baseColors :: C.BaseColors 
-          , dateFormat :: B.DateTime -> X.Text }
+          , dateFormat :: T.PostingInfo -> X.Text
+          , qtyFormat :: T.PostingInfo -> X.Text }

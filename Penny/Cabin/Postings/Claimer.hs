@@ -10,6 +10,8 @@ import qualified Data.Text as X
 import qualified Penny.Lincoln.Boxes as B
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Meta as Me
+import Penny.Lincoln.HasText (text)
+import qualified Penny.Lincoln.HasText as HT
 
 import Penny.Cabin.Postings.Address (Col, Row)
 import qualified Penny.Cabin.Postings.Address as Adr
@@ -47,8 +49,8 @@ claimLookup = foldl (flip . uncurry $ M.insert) noClaims ls where
     $ (,)
     <$> A.range ((minBound, minBound), (maxBound, maxBound))
     <*> pure noClaim
-  ls = [lineNumTop, sLineNumTop,
-        dateTop, sDateTop]
+  ls = [lineNum, sLineNum,
+        date, sDate]
 
 noClaim :: Claimer
 noClaim _ _ _ _ _ = Nothing
@@ -62,8 +64,8 @@ claimOneIf b =
   then claimOne
   else Nothing
 
-lineNumTop :: ((Col, Row), Claimer)
-lineNumTop = ((Adr.LineNum, Adr.Top), f) where
+lineNum :: ((Col, Row), Claimer)
+lineNum = ((Adr.LineNum, Adr.Top), f) where
   f flds _ _ _ p =
     ifShown F.lineNum flds $
     case Q.postingLine . T.postingBox $ p of
@@ -77,8 +79,8 @@ lineNumTop = ((Adr.LineNum, Adr.Top), f) where
         . Me.unPostingLine
         $ n
 
-sLineNumTop :: ((Col, Row), Claimer)
-sLineNumTop = ((Adr.SLineNum, Adr.Top), f) where
+sLineNum :: ((Col, Row), Claimer)
+sLineNum = ((Adr.SLineNum, Adr.Top), f) where
   f flds _ _ _ p =
     ifShown F.lineNum flds
     . claimOneIf
@@ -87,23 +89,21 @@ sLineNumTop = ((Adr.SLineNum, Adr.Top), f) where
     . T.postingBox
     $ p
 
-dateTop :: ((Col, Row), Claimer)
-dateTop = ((Adr.Date, Adr.Top), f) where
+date :: ((Col, Row), Claimer)
+date = ((Adr.Date, Adr.Top), f) where
   f flds opts _ _ p =
     ifShown F.date flds $
     Just
     . T.ClaimedWidth
     . X.length
     . O.dateFormat opts
-    . Q.dateTime
-    . T.postingBox
     $ p
 
-sDateTop :: ((Col, Row), Claimer)
-sDateTop = ((Adr.SDate, Adr.Top), f) where
+sDate :: ((Col, Row), Claimer)
+sDate = ((Adr.SDate, Adr.Top), f) where
   f flds _ _ _ _ = ifShown F.date flds claimOne
 
-{-
+
 flag :: ((Col, Row), Claimer)
 flag = ((Adr.Multi, Adr.Top), f) where
   f flds _ _ _ p =
@@ -114,7 +114,89 @@ flag = ((Adr.Multi, Adr.Top), f) where
         Just
         . T.ClaimedWidth
         . X.length
-        . -}
+        . text
+        $ flag
 
--- Need to move HasText out of Predicates, then add another phase to
--- the Grid, to allow overrunning cells to come in last.
+sFlag :: ((Col, Row), Claimer)
+sFlag = ((Adr.SMulti, Adr.Top), f) where
+  f flds _ _ _ p =
+    ifShown F.flag flds
+    . claimOneIf
+    . isJust
+    . Q.flag
+    . T.postingBox
+    $ p
+
+number :: ((Col, Row), Claimer)
+number = ((Adr.Num, Adr.Top), f) where
+  f flds _ _ _ p =
+    ifShown F.number flds $
+    case Q.number . T.postingBox $ p of
+      Nothing -> Nothing
+      (Just num) ->
+        Just
+        . T.ClaimedWidth
+        . X.length
+        . text
+        $ num
+
+sNumber :: ((Col, Row), Claimer)
+sNumber = ((Adr.SNum, Adr.Top), f) where
+  f flds _ _ _ p =
+    ifShown F.flag flds
+    . claimOneIf
+    . isJust
+    . Q.number
+    . T.postingBox
+    $ p
+
+payee :: ((Col, Row), Claimer)
+payee = ((Adr.Payee, Adr.Top), noClaim)
+
+sPayee :: ((Col, Row), Claimer)
+sPayee = ((Adr.SPayee, Adr.Top), f) where
+  f flds _ _ _ p =
+    ifShown F.payee flds
+    . claimOneIf
+    . isJust
+    . Q.payee
+    . T.postingBox
+    $ p
+
+account :: ((Col, Row), Claimer)
+account = ((Adr.Account, Adr.Top), noClaim)
+
+sAccount :: ((Col, Row), Claimer)
+sAccount = ((Adr.SAccount, Adr.Top), f) where
+  f flds _ _ _ p = ifShown F.account flds claimOne
+
+postingDrCr :: ((Col, Row), Claimer)
+postingDrCr = ((Adr.PostingDrCr, Adr.Top), f) where
+  f flds _ _ _ p = ifShown F.postingDrCr flds $
+                   Just (T.ClaimedWidth 2)
+
+sPostingDrCr :: ((Col, Row), Claimer)
+sPostingDrCr = ((Adr.SPostingDrCr, Adr.Top), f) where
+  f flds _ _ _ p =
+    ifShown F.postingDrCr flds claimOne
+
+postingCmdty :: ((Col, Row), Claimer)
+postingCmdty = ((Adr.PostingCommodity, Adr.Top), f) where
+  f flds _ _ _ p =
+    ifShown F.postingCmdty flds $
+    Just
+    . T.ClaimedWidth
+    . X.length
+    . text
+    . HT.Delimited (X.singleton ':')
+    . HT.textList
+    . Q.commodity
+    . T.postingBox
+    $ p
+
+sPostingCmdty :: ((Col, Row), Claimer)
+sPostingCmdty = ((Adr.SPostingCommodity, Adr.Top), f) where
+  f flds _ _ _ p = ifShown F.postingCmdty flds claimOne
+
+--postingDrCr :: ((Col, Row), Claimer)
+--postingDrCr = ((Adr.Posting
