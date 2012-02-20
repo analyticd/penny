@@ -11,6 +11,7 @@ import qualified Data.Table as Tb
 import qualified Data.Text as X
 
 import qualified Penny.Lincoln.Balance as Bal
+import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Meta as Me
 import qualified Penny.Lincoln.Queries as Q
 import Penny.Lincoln.HasText (text)
@@ -67,5 +68,144 @@ allocated _ _ _ _ _ = Nothing
 overrunning :: Grower
 overrunning _ _ _ _ _ = Nothing
 
+ifShown ::
+  F.Fields Bool
+  -> (F.Fields Bool -> Bool)
+  -> Col
+  -> Arr
+  -> R.Justification
+  -> C.TextSpec
+  -> Seq.Seq C.Chunk
+  -> R.Cell
+ifShown flds fn c a just ts cs = let
+  w = widest c a in
+  if fn flds
+  then R.Cell just w ts cs
+  else R.Cell just w ts Seq.empty
+
+
 lineNum :: Grower
-lineNum flds 
+lineNum flds os a (col, (vn, r)) (p, _) = Just $
+  ifShown flds F.lineNum col a R.LeftJustify ts cs where
+    ts = PC.colors vn (O.baseColors os)
+    cs = case Q.postingLine . T.postingBox $ p of
+      Nothing -> Seq.empty
+      (Just ln) -> Seq.singleton . C.chunk ts
+                   . X.pack . show . Me.unLine
+                   . Me.unPostingLine $ ln
+
+date :: Grower
+date flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.date col a R.LeftJustify ts cs where
+    ts = PC.colors vn (O.baseColors os)
+    cs = Seq.singleton . C.chunk ts . O.dateFormat os $ p
+
+surround :: Char -> Char -> X.Text -> X.Text
+surround l r t = l `X.cons` t `X.snoc` r
+
+flag :: Grower
+flag flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.date col a R.LeftJustify ts cs where
+    ts = PC.colors vn (O.baseColors os)
+    cs = case Q.flag . T.postingBox $ p of
+      Nothing -> Seq.empty
+      Just fl -> Seq.singleton
+                 . C.chunk ts
+                 . surround '[' ']'
+                 . HT.text
+                 $ fl
+number :: Grower
+number flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.number col a R.LeftJustify ts cs where
+    ts = PC.colors vn (O.baseColors os)
+    cs = case Q.number . T.postingBox $ p of
+      Nothing -> Seq.empty
+      Just fl -> Seq.singleton
+                 . C.chunk ts
+                 . surround '(' ')'
+                 . HT.text
+                 $ fl
+
+postingDrCr :: Grower
+postingDrCr flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.postingDrCr col a R.LeftJustify ts cs where
+    ts = PC.colors vn bc
+    bc = PC.drCrToBaseColors dc (O.drCrColors os)
+    dc = Q.drCr . T.postingBox $ p
+    cs = Seq.singleton
+         . C.chunk ts
+         . X.pack
+         $ case dc of
+           Bits.Debit -> "Dr"
+           Bits.Credit -> "Cr"
+
+postingCmdty :: Grower
+postingCmdty flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.postingCmdty col a R.RightJustify ts cs where
+    ts = PC.colors vn bc
+    bc = PC.drCrToBaseColors dc (O.drCrColors os)
+    dc = Q.drCr . T.postingBox $ p
+    cs = Seq.singleton
+         . C.chunk ts
+         . HT.text
+         . HT.Delimited (X.singleton ':')
+         . HT.textList
+         . Q.commodity
+         . T.postingBox
+         $ p
+
+postingQty :: Grower
+postingQty flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.postingQty col a R.RightJustify ts cs where
+    ts = PC.colors vn bc
+    bc = PC.drCrToBaseColors dc (O.drCrColors os)
+    dc = Q.drCr . T.postingBox $ p
+    cs = Seq.singleton
+         . C.chunk ts
+         . O.qtyFormat os
+         $ p
+
+totalDrCr :: Grower
+totalDrCr flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.totalDrCr col a R.LeftJustify ts cs where
+    ts = PC.colors vn bc
+    bc = PC.drCrToBaseColors dc (O.drCrColors os)
+    dc = Q.drCr . T.postingBox $ p
+    cs = fmap toChunk
+         . Seq.fromList
+         . M.elems
+         . Bal.unBalance
+         . T.balance
+         $ p
+    toChunk nou = let
+      spec = 
+        PC.colors vn
+        . PC.noughtToBaseColors (O.drCrColors os)
+        $ nou
+      txt = X.pack $ case nou of
+        Bal.Zero -> "--"
+        Bal.NonZero clm -> case Bal.drCr clm of
+          Bits.Debit -> "Dr"
+          Bits.Credit -> "Cr"
+      in C.chunk spec txt
+
+totalQty :: Grower
+totalQty flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.totalQty col a R.LeftJustify ts cs where
+    ts = PC.colors vn bc
+    bc = PC.drCrToBaseColors dc (O.drCrColors os)
+    dc = Q.drCr . T.postingBox $ p
+    cs = fmap toChunk
+         . Seq.fromList
+         . M.assocs
+         . Bal.unBalance
+         . T.balance
+         $ p
+    toChunk (com, nou) = let
+      spec = 
+        PC.colors vn
+        . PC.noughtToBaseColors (O.drCrColors os)
+        $ nou
+      txt = O.balanceFormat os com nou
+      in C.chunk spec txt
+

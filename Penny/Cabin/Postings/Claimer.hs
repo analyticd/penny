@@ -116,6 +116,7 @@ flag = ((Adr.Multi, Adr.Top), f) where
       (Just fl) ->
         Just
         . T.ClaimedWidth
+        . (+ 2)
         . X.length
         . text
         $ fl
