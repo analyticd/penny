@@ -13,3 +13,4 @@ data Options =
           , dateFormat :: T.PostingInfo -> X.Text
           , qtyFormat :: T.PostingInfo -> X.Text
           , balanceFormat :: Bits.Commodity -> Bal.Nought -> X.Text }
+

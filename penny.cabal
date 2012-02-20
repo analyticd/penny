@@ -185,6 +185,7 @@ Library
         Penny.Cabin.Postings.Claimer,
         Penny.Cabin.Postings.Grid,
         Penny.Cabin.Postings.Fields,
+        Penny.Cabin.Postings.Grower,
         Penny.Cabin.Postings.Options,
         Penny.Cabin.Postings.Types,
         Penny.Cabin.Row,
