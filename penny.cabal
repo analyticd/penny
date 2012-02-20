@@ -182,6 +182,7 @@ Library
         Penny.Cabin.Class,
         Penny.Cabin.Colors,
         Penny.Cabin.Postings.Address,
+        Penny.Cabin.Postings.Claimer,
         Penny.Cabin.Postings.Grid,
         Penny.Cabin.Postings.Fields,
         Penny.Cabin.Postings.Options,
