@@ -1,8 +1,10 @@
 module Penny.Cabin.Postings.Grower where
 
-import Control.Applicative ((<$>), (<*>), pure)
+import Control.Applicative
+  ((<$>), (<*>), pure, ZipList(ZipList, getZipList))
 import qualified Data.Array as A
 import qualified Data.Foldable as F
+import Data.List (intersperse)
 import Data.Map ((!))
 import qualified Data.Map as M
 import Data.Maybe (isJust)
@@ -28,6 +30,8 @@ import qualified Penny.Cabin.Postings.Options as O
 
 type Arr = A.Array (Col, (T.VisibleNum, Row))
            (T.PostingInfo, Maybe T.ClaimedWidth)
+
+type Address = (Col, Row)
 
 type Grower =
   F.Fields Bool
@@ -85,8 +89,8 @@ ifShown flds fn c a just ts cs = let
 
 
 lineNum :: Grower
-lineNum flds os a (col, (vn, r)) (p, _) = Just $
-  ifShown flds F.lineNum col a R.LeftJustify ts cs where
+lineNum flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.lineNum col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = case Q.postingLine . T.postingBox $ p of
       Nothing -> Seq.empty
@@ -189,6 +193,29 @@ totalDrCr flds os a (col, (vn, r)) (p, _) =
           Bits.Credit -> "Cr"
       in C.chunk spec txt
 
+totalCmdty :: Grower
+totalCmdty flds os a (col, (vn, r)) (p, _) =
+  Just $ ifShown flds F.totalCmdty col a R.RightJustify ts cs where
+    ts = PC.colors vn bc
+    bc = PC.drCrToBaseColors dc (O.drCrColors os)
+    dc = Q.drCr . T.postingBox $ p
+    cs = fmap toChunk
+         . Seq.fromList
+         . M.assocs
+         . Bal.unBalance
+         . T.balance
+         $ p
+    toChunk (com, nou) = let
+      spec =
+        PC.colors vn
+        . PC.noughtToBaseColors (O.drCrColors os)
+        $ nou
+      txt = HT.text
+            . HT.Delimited (X.singleton ':')
+            . HT.textList
+            $ com
+      in C.chunk spec txt
+
 totalQty :: Grower
 totalQty flds os a (col, (vn, r)) (p, _) =
   Just $ ifShown flds F.totalQty col a R.LeftJustify ts cs where
@@ -209,3 +236,11 @@ totalQty flds os a (col, (vn, r)) (p, _) =
       txt = O.balanceFormat os com nou
       in C.chunk spec txt
 
+topRow :: [(Address, Grower)]
+topRow = zipWith tup cols ls where
+  tup col g = ((col, Adr.Top), g)
+  cols = [minBound..maxBound]
+  ls = intersperse padding
+       [ lineNum, date, flag, number, allocated, allocated,
+         postingDrCr, postingCmdty, postingQty,
+         totalDrCr, totalCmdty, totalQty ]

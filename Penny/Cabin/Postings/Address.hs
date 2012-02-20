@@ -26,11 +26,11 @@ data Col =
   | TotalCommodity
   | STotalCommodity
   | TotalQty
-    deriving (Eq, Ord, Show, Ix, Bounded)
+    deriving (Eq, Ord, Show, Ix, Bounded, Enum)
 
 data Row =
   Top
   | Tags
   | Memo
   | Filename
-  deriving (Eq, Ord, Show, Ix, Bounded)
+  deriving (Eq, Ord, Show, Ix, Bounded, Enum)
