@@ -1,6 +1,7 @@
 module Penny.Cabin.TextFormat (
   Lines(Lines, unLines),
   Words(Words, unWords),
+  txtWords,
   wordWrap,
   Target(Target, unTarget),
   Shortest(Shortest, unShortest),
@@ -15,6 +16,10 @@ import qualified Data.Traversable as T
 
 data Lines = Lines { unLines :: S.Seq Words } deriving Show
 data Words = Words { unWords :: S.Seq X.Text } deriving Show
+
+-- | Splits a blank-separated text into words.
+txtWords :: X.Text -> Words
+txtWords = Words . S.fromList . X.words
 
 -- | Wraps a sequence of words into a sequence of lines, where each
 -- line is no more than a given maximum number of characters long.

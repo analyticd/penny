@@ -102,6 +102,10 @@ data Switch a = Off a | On a
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
 
+instance Monoid Width where
+  mempty = Width 0
+  mappend (Width w1) (Width w2) = Width $ w1 + w2
+
 chunkSize :: Chunk -> Width
 chunkSize (Chunk cs) = F.foldr f (Width 0) cs where
   f (Bit _ x) (Width t) = Width $ X.length x + t

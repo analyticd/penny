@@ -15,5 +15,8 @@ data Options =
           , qtyFormat :: T.PostingInfo -> X.Text
           , balanceFormat :: Bits.Commodity -> Bal.Nought -> X.Text
           , payeeAllocation :: A.Allocation
-          , accountAllocation :: A.Allocation }
+          , accountAllocation :: A.Allocation 
+          , width :: ReportWidth }
 
+newtype ReportWidth = ReportWidth { unReportWidth :: Int }
+                      deriving (Eq, Show, Ord)
