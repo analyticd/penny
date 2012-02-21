@@ -1,13 +1,10 @@
 module Penny.Cabin.Postings.Grower where
 
-import Control.Applicative
-  ((<$>), (<*>), pure, ZipList(ZipList, getZipList))
 import qualified Data.Array as A
 import qualified Data.Foldable as F
 import Data.List (intersperse)
 import Data.Map ((!))
 import qualified Data.Map as M
-import Data.Maybe (isJust)
 import qualified Data.Sequence as Seq
 import qualified Data.Table as Tb
 import qualified Data.Text as X
@@ -16,7 +13,6 @@ import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Meta as Me
 import qualified Penny.Lincoln.Queries as Q
-import Penny.Lincoln.HasText (text)
 import qualified Penny.Lincoln.HasText as HT
 
 import qualified Penny.Cabin.Colors as C
@@ -40,6 +36,11 @@ type Grower =
   -> (Col, (T.VisibleNum, Row))
   -> (T.PostingInfo, Maybe T.ClaimedWidth)
   -> Maybe R.Cell
+
+mainGrower :: Grower
+mainGrower flds o a (c, (vn, r)) p =
+  f flds o a (c, (vn, r)) p where
+    f = growers ! (c, r)
 
 widest :: Col -> Arr -> C.Width
 widest col arr = F.foldr f (C.Width 0) clm where
@@ -89,7 +90,7 @@ ifShown flds fn c a just ts cs = let
 
 
 lineNum :: Grower
-lineNum flds os a (col, (vn, r)) (p, _) =
+lineNum flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.lineNum col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = case Q.postingLine . T.postingBox $ p of
@@ -99,7 +100,7 @@ lineNum flds os a (col, (vn, r)) (p, _) =
                    . Me.unPostingLine $ ln
 
 date :: Grower
-date flds os a (col, (vn, r)) (p, _) =
+date flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.date col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = Seq.singleton . C.chunk ts . O.dateFormat os $ p
@@ -108,7 +109,7 @@ surround :: Char -> Char -> X.Text -> X.Text
 surround l r t = l `X.cons` t `X.snoc` r
 
 flag :: Grower
-flag flds os a (col, (vn, r)) (p, _) =
+flag flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.date col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = case Q.flag . T.postingBox $ p of
@@ -119,7 +120,7 @@ flag flds os a (col, (vn, r)) (p, _) =
                  . HT.text
                  $ fl
 number :: Grower
-number flds os a (col, (vn, r)) (p, _) =
+number flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.number col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = case Q.number . T.postingBox $ p of
@@ -131,7 +132,7 @@ number flds os a (col, (vn, r)) (p, _) =
                  $ fl
 
 postingDrCr :: Grower
-postingDrCr flds os a (col, (vn, r)) (p, _) =
+postingDrCr flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.postingDrCr col a R.LeftJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
@@ -144,7 +145,7 @@ postingDrCr flds os a (col, (vn, r)) (p, _) =
            Bits.Credit -> "Cr"
 
 postingCmdty :: Grower
-postingCmdty flds os a (col, (vn, r)) (p, _) =
+postingCmdty flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.postingCmdty col a R.RightJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
@@ -159,7 +160,7 @@ postingCmdty flds os a (col, (vn, r)) (p, _) =
          $ p
 
 postingQty :: Grower
-postingQty flds os a (col, (vn, r)) (p, _) =
+postingQty flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.postingQty col a R.RightJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
@@ -170,7 +171,7 @@ postingQty flds os a (col, (vn, r)) (p, _) =
          $ p
 
 totalDrCr :: Grower
-totalDrCr flds os a (col, (vn, r)) (p, _) =
+totalDrCr flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.totalDrCr col a R.LeftJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
@@ -194,7 +195,7 @@ totalDrCr flds os a (col, (vn, r)) (p, _) =
       in C.chunk spec txt
 
 totalCmdty :: Grower
-totalCmdty flds os a (col, (vn, r)) (p, _) =
+totalCmdty flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.totalCmdty col a R.RightJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
@@ -217,7 +218,7 @@ totalCmdty flds os a (col, (vn, r)) (p, _) =
       in C.chunk spec txt
 
 totalQty :: Grower
-totalQty flds os a (col, (vn, r)) (p, _) =
+totalQty flds os a (col, (vn, _)) (p, _) =
   Just $ ifShown flds F.totalQty col a R.LeftJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
@@ -244,3 +245,16 @@ topRow = zipWith tup cols ls where
        [ lineNum, date, flag, number, allocated, allocated,
          postingDrCr, postingCmdty, postingQty,
          totalDrCr, totalCmdty, totalQty ]
+
+otherRows :: [(Address, Grower)]
+otherRows = lEmpties ++ oruns ++ orans ++ rEmpties where
+  makeList uL lR g = zip (A.range (b, e)) (repeat g) where
+    b = (uL, Adr.Tags)
+    e = (lR, Adr.Filename)
+  lEmpties = makeList Adr.LineNum Adr.SDate emptyButPadded
+  oruns = makeList Adr.Multi Adr.Multi overrunning
+  orans = makeList Adr.SMulti Adr.PostingQty overran
+  rEmpties = makeList Adr.SPostingQty Adr.TotalQty emptyButPadded
+
+growers :: M.Map Address Grower
+growers = M.fromList (topRow ++ otherRows)

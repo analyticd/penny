@@ -13,5 +13,7 @@ data Options =
           , baseColors :: C.BaseColors 
           , dateFormat :: T.PostingInfo -> X.Text
           , qtyFormat :: T.PostingInfo -> X.Text
-          , balanceFormat :: Bits.Commodity -> Bal.Nought -> X.Text }
+          , balanceFormat :: Bits.Commodity -> Bal.Nought -> X.Text
+          , payeeAllocation :: A.Allocation
+          , accountAllocation :: A.Allocation }
 
