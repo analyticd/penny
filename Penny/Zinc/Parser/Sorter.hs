@@ -2,7 +2,6 @@ module Penny.Zinc.Parser.Sorter where
 
 import Data.Char (toUpper)
 import Data.Monoid (mappend)
-import Data.Monoid.Extra (Orderer(Orderer))
 import Data.Text (Text, pack, isPrefixOf)
 import System.Console.MultiArg.Prim (ParserE, throw)
 import System.Console.MultiArg.Combinator
@@ -13,15 +12,17 @@ import qualified Penny.Lincoln.Queries as Q
 
 import Penny.Zinc.Parser.Error (Error(BadSortKeyError))
 
+type Orderer = PostingBox -> PostingBox -> Ordering
+
 ordering ::
   (Ord r)
   => (PostingBox -> r)
-  -> Orderer PostingBox
-ordering q = Orderer f where
+  -> Orderer
+ordering q = f where
   f p1 p2 = compare (q p1) (q p2)
 
-flipOrder :: Orderer PostingBox -> Orderer PostingBox
-flipOrder (Orderer f) = Orderer f' where
+flipOrder :: Orderer -> Orderer
+flipOrder f = f' where
   f' p1 p2 = case f p1 p2 of
     LT -> GT
     GT -> LT
@@ -32,7 +33,7 @@ capitalizeFirstLetter s = case s of
   [] -> []
   (x:xs) -> toUpper x : xs
 
-ords :: [(Text, Orderer PostingBox)]
+ords :: [(Text, Orderer)]
 ords = lowers ++ uppers where
   uppers = map toReversed ordPairs
   toReversed (s, f) =
@@ -40,7 +41,7 @@ ords = lowers ++ uppers where
   lowers = map toPair ordPairs
   toPair (s, f) = (pack s, f)
 
-ordPairs :: [(String, Orderer PostingBox)]
+ordPairs :: [(String, Orderer)]
 ordPairs = 
   [ ("payee", ordering Q.payee)
   , ("date", ordering Q.dateTime)
@@ -53,8 +54,8 @@ ordPairs =
   , ("postingMemo", ordering Q.postingMemo)
   , ("transactionMemo", ordering Q.transactionMemo) ]
 
-sort :: Orderer PostingBox
-        -> ParserE Error (Orderer PostingBox)
+sort :: Orderer
+        -> ParserE Error Orderer
 sort ordIn = do
   let lo = makeLongOpt . pack $ "sort"
       so = makeShortOpt 's'
@@ -64,4 +65,4 @@ sort ordIn = do
     [] -> throw $ BadSortKeyError arg
     x:[] -> return $ snd x
     _ -> throw $ BadSortKeyError arg
-  return $ mappend ordIn sorter
+  return (\x y -> (ordIn x y) `mappend` (sorter x y))

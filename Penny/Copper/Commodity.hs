@@ -2,9 +2,8 @@ module Penny.Copper.Commodity where
 
 import Data.Char (
   isControl, isSpace, isDigit)
-import Data.Monoid ( mconcat, mappend )
-import Data.Monoid.Extra ( All (All, appAll ) )
 import Data.Text ( pack )
+import qualified Data.Traversable as T
 import Text.Parsec ( satisfy, many, char )
 import Text.Parsec.Text ( Parser )
 
@@ -13,14 +12,11 @@ import Data.List.NonEmpty (nonEmpty)
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 isCommodityChar :: Char -> Bool
-isCommodityChar =
-  appAll . mconcat . map All . map (not .)
-  $ [isControl, isSpace, (== ':')]
+isCommodityChar = and . T.sequenceA (map (not .) ps) where
+  ps = [isControl, isSpace, (== ':')]
 
 isNonDigitChar :: Char -> Bool
-isNonDigitChar = appAll (mappend f g) where
-  f = All $ not . isDigit
-  g = All isCommodityChar
+isNonDigitChar = and . T.sequenceA [not . isDigit, isCommodityChar]
 
 firstSubWithDigits :: Parser B.SubCommodity
 firstSubWithDigits = do
