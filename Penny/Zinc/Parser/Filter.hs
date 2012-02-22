@@ -4,10 +4,9 @@ import Control.Applicative ((<|>))
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
 import Data.List (intersperse, groupBy)
-import Data.Monoid (mempty)
+import Data.Monoid (mempty, mappend, All(All, getAll))
 import Data.Queue (enqueue, empty)
 import Data.Text (Text, pack, unpack)
-import qualified Data.Traversable as T
 import System.Console.MultiArg.Combinator
   (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg)
 import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
@@ -289,13 +288,13 @@ parseAnd s = do
 
 tokAnd :: X.Token (a -> Bool)
 tokAnd = X.TokBinary (X.Precedence 3) X.ALeft f where
-  f x y = and . T.sequenceA [x, y]
+  f x y = \a -> x a && y a
 
 parseOr :: State -> ParserE Error (State)
 parseOr s = do
   let lo = makeLongOpt . pack $ "or"
   _ <- longNoArg lo
-  let f x y = or . T.sequenceA [x, y]
+  let f x y = \a -> x a || y a
   return (addToken (X.TokBinary (X.Precedence 2) X.ALeft f) s)
 
 parseNot :: State -> ParserE Error (State)
