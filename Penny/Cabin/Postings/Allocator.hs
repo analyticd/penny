@@ -10,9 +10,6 @@ import qualified Data.Sequence as Seq
 import qualified Data.Table as Tb
 import qualified Data.Text as X
 
-import qualified Penny.Lincoln.Balance as Bal
-import qualified Penny.Lincoln.Bits as Bits
-import qualified Penny.Lincoln.Meta as Me
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.HasText as HT
 
@@ -46,6 +43,13 @@ newtype PayeeWidth = PayeeWidth { unPayeeWidth :: Int }
 newtype AccountWidth = AccountWidth { unAccountWidth :: Int }
                        deriving (Show, Eq, Ord)
 
+allocator :: Allocator
+allocator flds os a (col, (vn, r)) (p, mc) = case mc of
+  Just c -> Just c
+  Nothing -> case (col, r) of
+    (Adr.Payee, Adr.Top) -> payee flds os a (col, (vn, r)) (p, mc)
+    (Adr.Account, Adr.Top) -> account flds os a (col, (vn, r)) (p, mc)
+    _ -> Nothing
 
 payeeCell ::
   PayeeWidth
@@ -70,11 +74,39 @@ payeeCell (PayeeWidth pw) p ts =
       in fmap toChunk wrapped
 
 payee :: Allocator
-payee flds os a (col, (vn, r)) (p, _) =
-  case widths flds os vn a of
-    (Just pw, _) -> Just $ payeeCell pw p ts where
+payee flds os a (_, (vn, _)) (p, _) =
+  case fst $ widths flds os vn a of
+    Just pw -> Just $ payeeCell pw p ts where
       ts = PC.colors vn (O.baseColors os)
-    (Nothing, _) -> Nothing
+    Nothing -> Nothing
+
+accountCell ::
+  AccountWidth
+  -> O.Options
+  -> T.PostingInfo
+  -> C.TextSpec
+  -> R.Cell
+accountCell (AccountWidth aw) os p ts =
+  R.Cell R.LeftJustify (C.Width aw) ts $ let
+    target = TF.Target aw
+    shortest = TF.Shortest . O.subAccountLength $ os
+    a = Q.account . T.postingBox $ p
+    ws = TF.Words . Seq.fromList . HT.textList $ a
+    (TF.Words shortened) = TF.shorten shortest target ws
+    in Seq.singleton
+       . C.chunk ts
+       . X.concat
+       . intersperse (X.singleton ':')
+       . F.toList
+       $ shortened
+
+
+account :: Allocator
+account flds os a (_, (vn, _)) (p, _) =
+  case snd $ widths flds os vn a of
+    Just aw -> Just $ accountCell aw os p ts where
+      ts = PC.colors vn (O.baseColors os)
+    Nothing -> Nothing
 
 widths :: F.Fields Bool
           -> O.Options
@@ -86,14 +118,14 @@ widths flds os vn arr = (pw, aw) where
                       , ('a', O.accountAllocation os) ]
   widthTop = topRowWidth vn arr
   widthMax = maxAllocatedWidth widthTop (O.width os)
-  widths = Alo.allocate allocs
+  ws = Alo.allocate allocs
            (fromIntegral . unMaxAllocated $ widthMax)
-  payee = PayeeWidth . fromIntegral . (! 'p') $ widths
-  acct = AccountWidth . fromIntegral . (! 'a') $ widths
+  pay = PayeeWidth . fromIntegral . (! 'p') $ ws
+  acct = AccountWidth . fromIntegral . (! 'a') $ ws
   payeeAll = PayeeWidth . fromIntegral . unMaxAllocated $ widthMax
   acctAll = AccountWidth . fromIntegral . unMaxAllocated $ widthMax
   (pw, aw) = case (F.payee flds, F.account flds) of
-    (True, True) -> (Just payee, Just acct)
+    (True, True) -> (Just pay, Just acct)
     (False, False) -> (Nothing, Nothing)
     (True, False) -> (Just payeeAll, Nothing)
     (False, True) -> (Nothing, Just acctAll)

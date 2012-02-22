@@ -54,6 +54,8 @@ ordPairs =
   , ("postingMemo", ordering Q.postingMemo)
   , ("transactionMemo", ordering Q.transactionMemo) ]
 
+-- The order of the arguments to mappend is correct - the functions
+-- will run right to left, like a compose
 sort :: Orderer
         -> ParserE Error Orderer
 sort ordIn = do
@@ -65,4 +67,5 @@ sort ordIn = do
     [] -> throw $ BadSortKeyError arg
     x:[] -> return $ snd x
     _ -> throw $ BadSortKeyError arg
-  return (\x y -> (ordIn x y) `mappend` (sorter x y))
+  return $ sorter `mappend` ordIn
+

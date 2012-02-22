@@ -16,7 +16,8 @@ data Options =
           , balanceFormat :: Bits.Commodity -> Bal.Nought -> X.Text
           , payeeAllocation :: A.Allocation
           , accountAllocation :: A.Allocation 
-          , width :: ReportWidth }
+          , width :: ReportWidth
+          , subAccountLength :: Int }
 
 newtype ReportWidth = ReportWidth { unReportWidth :: Int }
                       deriving (Eq, Show, Ord)

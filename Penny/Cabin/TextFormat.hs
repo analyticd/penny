@@ -1,6 +1,7 @@
 module Penny.Cabin.TextFormat (
   Lines(Lines, unLines),
   Words(Words, unWords),
+  CharsPerLine(unCharsPerLine),
   txtWords,
   wordWrap,
   Target(Target, unTarget),
@@ -16,6 +17,8 @@ import qualified Data.Traversable as T
 
 data Lines = Lines { unLines :: S.Seq Words } deriving Show
 data Words = Words { unWords :: S.Seq X.Text } deriving Show
+newtype CharsPerLine =
+  CharsPerLine { unCharsPerLine :: Int } deriving Show
 
 -- | Splits a blank-separated text into words.
 txtWords :: X.Text -> Words
@@ -24,27 +27,27 @@ txtWords = Words . S.fromList . X.words
 -- | Wraps a sequence of words into a sequence of lines, where each
 -- line is no more than a given maximum number of characters long.
 --
--- /This function is partial/. It will call 'error' if the maximum
--- number of characters per line is less than 1.
+-- If the maximum number of characters per line is less than 1,
+-- returns a Lines that is empty.
 --
 -- An individual word will be split across multiple lines only if that
 -- word is too long to fit into a single line. No hyphenation is done;
 -- the word is simply broken across two lines.
 wordWrap :: Int -> Words -> Lines
-wordWrap uncheckedL (Words wsq) = F.foldl f (Lines S.empty) wsq where
-  l = if uncheckedL < 1
-      then error "wordWrap: length must be at least 1"
-      else uncheckedL
-  f (Lines sws) w = let
-    (back, ws) = case S.viewr sws of
-      S.EmptyR -> (S.empty, Words S.empty)
-      (b :> x) -> (b, x)
-    in case addWord l ws w of
-      (Just ws') -> Lines $ back |> ws'
-      Nothing ->
-        if X.length w > l
-        then addPartialWords l (Lines sws) w
-        else Lines (back |> ws |> (Words (S.singleton w)))
+wordWrap l (Words wsq) =
+  if l < 1
+  then Lines (S.empty)
+  else F.foldl f (Lines S.empty) wsq where
+    f (Lines sws) w = let
+      (back, ws) = case S.viewr sws of
+        S.EmptyR -> (S.empty, Words S.empty)
+        (b :> x) -> (b, x)
+      in case addWord l ws w of
+        (Just ws') -> Lines $ back |> ws'
+        Nothing ->
+          if X.length w > l
+          then addPartialWords l (Lines sws) w
+          else Lines (back |> ws |> (Words (S.singleton w)))
 
 lenWords :: Words -> Int
 lenWords (Words s) = case S.length s of
@@ -97,9 +100,6 @@ newtype Shortest = Shortest { unShortest :: Int } deriving Show
 --
 -- Assumes that the words will be printed with a separator, which
 -- matters when lengths are calculated.
---
--- /This function is partial./ If applies 'error' if the space
--- requirement is negative.
 shorten :: Shortest -> Target -> Words -> Words
 shorten (Shortest s) (Target t) wsa@(Words wsq) = let
   nToRemove = max (lenWords wsa - t) 0
