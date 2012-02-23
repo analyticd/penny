@@ -4,6 +4,8 @@ import qualified Penny.Cabin.Postings.Colors as PC
 import qualified Penny.Cabin.Colors as CC
 import qualified Penny.Cabin.Colors.Switch as S
 
+
+
 evenForeground8 :: CC.Color CC.Color8
 evenForeground8 = CC.Default
 
@@ -34,3 +36,4 @@ oddTextSpec = S.switchBackground CC.Default
 
 baseColors :: PC.BaseColors
 baseColors = PC.BaseColors evenTextSpec oddTextSpec
+

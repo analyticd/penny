@@ -6,12 +6,9 @@ module Penny.Cabin.Colors (
   Color256,
   color256,
   Color(Default, Color),
-  ForeBack(ForeBack, foreground, background),
-  defaultForeBack,
-  ColorSet(ColorSet, colorSet8, colorSet256),
-  defaultColorSet,
-  TextSpec(TextSpec, colorSet, bold, underline, flash,
+  Style(Style, foreground, background, bold, underline, flash,
            invisible, inverse),
+  TextSpec(TextSpec, style8, style256),
   Switch(Off, On),
   Bold(Bold),
   Underline(Underline),
@@ -21,8 +18,8 @@ module Penny.Cabin.Colors (
   Width(Width, unWidth),
   chunkSize,
   chunk,
-  defaultSpec,
-  color) where
+  defaultStyle,
+  defaultSpec ) where
   
 
 import Data.Monoid (Monoid, mempty, mappend)
@@ -70,25 +67,19 @@ color256 w =
   else Color256 w
 
 data Color a = Default | Color a
-data ForeBack a = ForeBack { foreground :: Color a
-                           , background :: Color a }
 
-defaultForeBack :: ForeBack a
-defaultForeBack = ForeBack Default Default
-
-data ColorSet = ColorSet { colorSet8 :: ForeBack Color8
-                         , colorSet256 :: ForeBack Color256 }
-
-defaultColorSet :: ColorSet
-defaultColorSet = ColorSet defaultForeBack defaultForeBack
+data Style a =
+  Style { foreground :: Color a
+        , background :: Color a
+        , bold :: Switch Bold
+        , underline :: Switch Underline
+        , flash :: Switch Flash
+        , invisible :: Switch Invisible
+        , inverse :: Switch Inverse }
 
 data TextSpec =
-  TextSpec { colorSet :: ColorSet
-           , bold :: Switch Bold
-           , underline :: Switch Underline
-           , flash :: Switch Flash
-           , invisible :: Switch Invisible
-           , inverse :: Switch Inverse }
+  TextSpec { style8 :: Style Color8
+           , style256 :: Style Color256 }
 
 data Bold = Bold
 data Underline = Underline
@@ -115,13 +106,16 @@ single = Chunk . S.singleton
 chunk :: TextSpec -> Text -> Chunk
 chunk ts = single . Bit ts
 
-defaultSpec :: TextSpec
-defaultSpec = TextSpec { colorSet = defaultColorSet
-                       , bold = Off Bold
-                       , underline = Off Underline
-                       , flash = Off Flash
-                       , invisible = Off Invisible
-                       , inverse = Off Inverse }
+defaultStyle :: Style a
+defaultStyle = Style { foreground = Default
+                     , background = Default
+                     , bold = Off Bold
+                     , underline = Off Underline
+                     , flash = Off Flash
+                     , invisible = Off Invisible
+                     , inverse = Off Inverse }
 
-color :: ColorSet -> TextSpec
-color cs = defaultSpec { colorSet = cs }
+defaultSpec :: TextSpec
+defaultSpec = TextSpec { style8 = defaultStyle
+                       , style256 = defaultStyle }
+
