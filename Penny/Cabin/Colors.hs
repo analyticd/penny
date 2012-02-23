@@ -33,7 +33,6 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Word (Word8)
 
-
 -- | The terminal (as described using the TERM environment variable or
 -- something similar) supports at least this many colors. Remember,
 -- just because the terminal is described this way by TERM does not
