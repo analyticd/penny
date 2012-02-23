@@ -1,19 +1,17 @@
 module Penny.Cabin.Postings.Finalizer where
 
 import qualified Data.Array as A
-import qualified Data.Foldable as F
+import qualified Data.Foldable as Fd
 import Data.List (intersperse)
-import Data.Map ((!))
-import qualified Data.Map as M
 import Data.Monoid (Monoid, mempty, mappend, mconcat)
 import qualified Data.Sequence as Seq
-import qualified Data.Table as Tb
 import qualified Data.Text as X
 
+import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.HasText as HT
+import qualified Penny.Lincoln.Meta as Me
 
-import qualified Penny.Cabin.Allocate as Alo
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.TextFormat as TF
@@ -74,8 +72,10 @@ widthFlagToPostingQty vn = rangeAdd i where
   i = ((Adr.Multi, r), (Adr.PostingQty, r))
 
 tags :: Finalizer
-tags flds os a (col, (vn, r)) (p, mc) = cell where
-  cell = R.Cell R.LeftJustify w ts cs
+tags flds os a (_, (vn, _)) (p, _) = cell where
+  cell = if F.tags flds
+         then R.Cell R.LeftJustify w ts cs
+         else R.zeroCell
   w = widthFlagToPostingQty vn a
   ts = PC.colors vn (O.baseColors os)
   cs =
@@ -90,9 +90,49 @@ tags flds os a (col, (vn, r)) (p, mc) = cell where
     . T.postingBox
     $ p
   toChunk (TF.Words ws) = C.chunk ts t where
-    t = X.concat . intersperse (X.singleton ' ') . F.toList $ ws
+    t = X.concat . intersperse (X.singleton ' ') . Fd.toList $ ws
               
-memo = undefined
-filename = undefined
-overran = undefined
+memoChunks :: C.TextSpec -> Bits.Memo -> C.Width -> Seq.Seq C.Chunk
+memoChunks ts m (C.Width w) = cs where
+  cs = fmap toChunk
+       . TF.unLines
+       . TF.wordWrap w
+       . TF.Words
+       . Seq.fromList
+       . X.words
+       . HT.text
+       $ m
+  toChunk (TF.Words ws) = C.chunk ts (X.unwords . Fd.toList $ ws)
+
+memo :: Finalizer
+memo flds os a (_, (vn, _)) (p, _) = cell where
+  cell = if F.memo flds
+         then R.Cell R.LeftJustify w ts cs
+         else R.zeroCell
+  pm = Q.postingMemo . T.postingBox $ p
+  tm = Q.transactionMemo . T.postingBox $ p
+  cs = case (pm, tm) of
+    (Nothing, Nothing) -> mempty
+    (Just pms, Nothing) -> memoChunks ts pms w
+    (Nothing, Just tms) -> memoChunks ts tms w
+    (Just pms, Just tms) ->
+      memoChunks ts pms w `mappend` memoChunks ts tms w
+  w = widthFlagToPostingQty vn a
+  ts = PC.colors vn (O.baseColors os)
+  
+filename :: Finalizer
+filename flds os a (_, (vn, _)) (p, _) = cell where
+  cell = if F.filename flds
+         then R.Cell R.LeftJustify w ts cs
+         else R.zeroCell
+  w = widthFlagToPostingQty vn a
+  toChunk n = C.chunk ts
+              . X.drop (max 0 (C.unWidth w - X.length n)) $ n
+  cs = case Q.filename . T.postingBox $ p of
+    Nothing -> Seq.empty
+    Just fn -> Seq.singleton . toChunk . Me.unFilename $ fn
+  ts = PC.colors vn (O.baseColors os)
+
+overran :: Finalizer
+overran _ _ _ _ _ = R.zeroCell
 
