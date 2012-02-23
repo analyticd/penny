@@ -37,8 +37,8 @@ type Grower =
   -> (T.PostingInfo, Maybe T.ClaimedWidth)
   -> Maybe R.Cell
 
-mainGrower :: Grower
-mainGrower flds o a (c, (vn, r)) p =
+grower :: Grower
+grower flds o a (c, (vn, r)) p =
   f flds o a (c, (vn, r)) p where
     f = growers ! (c, r)
 

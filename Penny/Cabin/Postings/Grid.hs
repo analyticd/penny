@@ -226,14 +226,14 @@ instance (A.Ix c, A.Ix t) => R.HasChunk (CellArray c t) where
 
 report ::
   (A.Ix c, A.Ix t, Bounded c, Bounded t)
-  => (T.PostingInfo -> Bool)
-  -> Claimer c t
+  => Claimer c t
   -> Grower c t
   -> Allocator c t
   -> Finalizer c t
+  -> (T.PostingInfo -> Bool)
   -> [B.PostingBox]
   -> Maybe C.Chunk
-report p c g a f pbs =
+report c g a f p pbs =
   (toArray
    . tranches
    . addVisibleNum

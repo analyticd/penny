@@ -163,6 +163,7 @@ Library
         wraptainer ==0.1.*,
         multiarg ==0.3.*,
         matchers ==0.1.*,
+        old-locale ==1.0.*,
 
         -- Do not use newer versions of NonEmptyList. They do not
         -- compile with newer versions of GHC due to dependency
@@ -188,6 +189,7 @@ Library
         Penny.Cabin.Postings.Finalizer,
         Penny.Cabin.Postings.Grower,
         Penny.Cabin.Postings.Options,
+        Penny.Cabin.Postings.Report,
         Penny.Cabin.Postings.Types,
         Penny.Cabin.Row,
         Penny.Cabin.TextFormat,
