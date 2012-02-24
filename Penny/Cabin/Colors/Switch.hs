@@ -10,8 +10,8 @@ switchForeground ::
   -> C.TextSpec
 switchForeground c8 c256 ts = ts' where
   ts' = C.TextSpec s8' s256'
-  s8' = (C.style8 ts) { C.foreground = c8 }
-  s256' = (C.style256 ts) { C.foreground = c256 }
+  s8' = (C.style8 ts) { C.foreground = C.Foreground c8 }
+  s256' = (C.style256 ts) { C.foreground = C.Foreground c256 }
 
 -- | Switch the background colors for new ones.
 switchBackground ::
@@ -21,6 +21,6 @@ switchBackground ::
   -> C.TextSpec
 switchBackground c8 c256 ts = ts' where
   ts' = C.TextSpec s8' s256'
-  s8' = (C.style8 ts) { C.background = c8 }
-  s256' = (C.style256 ts) { C.background = c256 }
+  s8' = (C.style8 ts) { C.background = C.Background c8 }
+  s256' = (C.style256 ts) { C.background = C.Background c256 }
 

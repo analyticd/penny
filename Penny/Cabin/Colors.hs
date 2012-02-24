@@ -4,15 +4,19 @@ module Penny.Cabin.Colors (
   Color,
   Color8,
   Color256,
+  Foreground(Foreground),
+  Background(Background),
   black, red, green, yellow, blue, magenta, cyan, white,
   color256,
   defaultColor,
+  autoColors,
 
   -- * Chunks
   Chunk,
   chunk,
   chunkSize,
   Width(Width, unWidth),
+  printChunk,
 
   -- * Style and TextSpec
   Style(Style, foreground, background, bold, underline, flash,
@@ -30,19 +34,22 @@ module Penny.Cabin.Colors (
   Invisible(Invisible) ) where
   
 
+import Control.Applicative (pure, (*>))
+import Data.Maybe (catMaybes)
 import Data.Monoid (Monoid, mempty, mappend)
 import qualified Data.Foldable as F
+import Data.List (intersperse)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Data.Text (Text)
 import qualified Data.Text as X
+import qualified Data.Text.IO as TIO
+import qualified Data.Traversable as T
 import Data.Word (Word8)
+import System.Environment (getEnvironment)
+import System.IO (hIsTerminalDevice, stdout)
 
--- | The terminal (as described using the TERM environment variable or
--- something similar) supports at least this many colors. Remember,
--- just because the terminal is described this way by TERM does not
--- mean that the program is actually hooked up to such a terminal
--- (output might be going to a file.)
+-- | How many colors do you want?
 data Colors = Colors0 | Colors8 | Colors256
             deriving Show
 
@@ -64,6 +71,28 @@ data Color8 =
   | Cyan
   | White
   deriving Show
+
+instance HasForegroundCode Color8 where
+  foregroundCode a = case a of
+    Black -> Code "30"
+    Red -> Code "31"
+    Green -> Code "32"
+    Yellow -> Code "33"
+    Blue -> Code "34"
+    Magenta -> Code "35"
+    Cyan -> Code "36"
+    White -> Code "37"
+
+instance HasBackgroundCode Color8 where
+  backgroundCode a = case a of
+    Black -> Code "40"
+    Red -> Code "41"
+    Green -> Code "42"
+    Yellow -> Code "43"
+    Blue -> Code "44"
+    Magenta -> Code "45"
+    Cyan -> Code "46"
+    White -> Code "47"
 
 black :: Color Color8
 black = Color Black
@@ -98,6 +127,12 @@ defaultColor = Default
 data Color256 = Color256 Word8
                 deriving Show
 
+instance HasForegroundCode Color256 where
+  foregroundCode (Color256 w) = Code $ "38;5;" ++ show w
+
+instance HasBackgroundCode Color256 where
+  backgroundCode (Color256 w) = Code $ "48;5;" ++ show w
+
 c256 :: Int -> Color256
 c256 w =
   if w < 0 || w > 255
@@ -106,26 +141,118 @@ c256 w =
 
 data Color a = Default | Color a
 
+newtype Foreground a = Foreground { unForeground :: Color a }
+newtype Background a = Background { unBackground :: Color a }
+
+colorForeground :: HasForegroundCode a => Foreground a -> Maybe Code
+colorForeground (Foreground c) = case c of
+  Default -> Nothing
+  Color col -> Just . foregroundCode $ col
+
+colorBackground :: HasBackgroundCode a => Background a -> Maybe Code
+colorBackground (Background c) = case c of
+  Default -> Nothing
+  Color col -> Just . backgroundCode $ col
+
+class HasForegroundCode c where
+  foregroundCode :: c -> Code
+
+class HasBackgroundCode c where
+  backgroundCode :: c -> Code
+
+--instance HasForegroundCode Color
 data Style a =
-  Style { foreground :: Color a
-        , background :: Color a
+  Style { foreground :: Foreground a
+        , background :: Background a
         , bold :: Switch Bold
         , underline :: Switch Underline
         , flash :: Switch Flash
         , invisible :: Switch Invisible
         , inverse :: Switch Inverse }
 
+
+styleCodes :: (HasForegroundCode a, HasBackgroundCode a)
+              => Style a -> String
+styleCodes s = controlSequence ls where
+  ls = catMaybes $
+       [Just $ onCode Reset,
+        colorForeground (foreground s),
+        colorBackground (background s),
+        codeIfOn (bold s),
+        codeIfOn (underline s),
+        codeIfOn (flash s),
+        codeIfOn (invisible s),
+        codeIfOn (inverse s)]
+
 data TextSpec =
   TextSpec { style8 :: Style Color8
            , style256 :: Style Color256 }
+
+textSpecCode :: Colors -> TextSpec -> String
+textSpecCode c ts = case c of
+  Colors0 -> ""
+  Colors8 -> styleCodes . style8 $ ts
+  Colors256 -> styleCodes . style256 $ ts
+
+printBit :: Colors -> Bit -> IO ()
+printBit c (Bit ts t) = let
+  tsStr = textSpecCode c ts
+  in putStr tsStr >> TIO.putStr t
+
+printChunk :: Colors -> Chunk -> IO ()
+printChunk c (Chunk cs) =
+  T.traverse (printBit c) cs *> printReset c
+
+autoColors :: IO Colors
+autoColors = do
+  isTerm <- hIsTerminalDevice stdout
+  if isTerm
+    then do
+    env <- getEnvironment
+    case lookup "TERM" env of
+      Nothing -> return Colors8
+      (Just t) -> if t == "xterm-256color"
+                  then return Colors256
+                  else return Colors8
+    else return Colors0
+
+class HasOnCode a where
+  onCode :: a -> Code
 
 data Bold = Bold
 data Underline = Underline
 data Flash = Flash
 data Inverse = Inverse
 data Invisible = Invisible
+data Reset = Reset
+newtype Code = Code { unCode :: String }
+
+instance HasOnCode Bold where onCode _ = Code "1"
+instance HasOnCode Underline where onCode _ = Code "4"
+instance HasOnCode Flash where onCode _ = Code "5"
+instance HasOnCode Inverse where onCode _ = Code "7"
+instance HasOnCode Invisible where onCode _ = Code "8"
+instance HasOnCode Reset where onCode _ = Code "0"
 
 data Switch a = Off a | On a
+
+printReset :: Colors -> IO ()
+printReset c = case c of
+  Colors0 -> pure ()
+  _ -> putStr . controlSequence $ [onCode Reset]
+
+codeIfOn :: HasOnCode a => Switch a -> Maybe Code
+codeIfOn s = case s of
+  Off _ -> Nothing
+  On a -> Just . onCode $ a
+
+csi :: String
+csi = toEnum 27:'[':[]
+
+controlSequence :: [Code] -> String
+controlSequence [] = ""
+controlSequence xs = csi ++ s ++ "m" where
+  s = concat . intersperse ";" . map unCode $ xs
 
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
@@ -145,8 +272,8 @@ chunk :: TextSpec -> Text -> Chunk
 chunk ts = single . Bit ts
 
 defaultStyle :: Style a
-defaultStyle = Style { foreground = Default
-                     , background = Default
+defaultStyle = Style { foreground = Foreground Default
+                     , background = Background Default
                      , bold = Off Bold
                      , underline = Off Underline
                      , flash = Off Flash

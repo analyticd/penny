@@ -233,6 +233,24 @@ equals ::
   -> ParserE Error (State)
 equals = qtyOption "equals" P.equals
 
+data Comparer = LessThan
+                | LessThanEQ
+                | Equals
+                | GreaterThan
+                | GreaterThanEQ
+                | NotEquals
+                deriving Show
+
+comp :: Ord b => Comparer -> b -> (a -> b) -> a -> Bool
+comp c b f a = let r = compare (f a) b in
+  case c of
+    LessThan -> r == LT
+    LessThanEQ -> r == LT || r == EQ
+    Equals -> r == EQ
+    GreaterThan -> r == GT
+    GreaterThanEQ -> r == GT || r == EQ
+    NotEquals -> r /= EQ
+
 changeState ::
   String
   -> Maybe Char
