@@ -4,7 +4,7 @@ import Control.Applicative ((<|>))
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
 import Data.List (intersperse, groupBy)
-import Data.Monoid (mempty, mappend, All(All, getAll))
+import Data.Monoid (mempty)
 import Data.Queue (enqueue, empty)
 import Data.Text (Text, pack, unpack)
 import System.Console.MultiArg.Combinator

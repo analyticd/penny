@@ -1,25 +1,33 @@
 module Penny.Cabin.Colors (
+  -- * Colors
   Colors(Colors0, Colors8, Colors256),
-  Chunk,
-  Color8(Black, Red, Green, Yellow, Blue, Magenta,
-         Cyan, White),
+  Color,
+  Color8,
   Color256,
+  black, red, green, yellow, blue, magenta, cyan, white,
   color256,
-  Color(Default, Color),
+  defaultColor,
+
+  -- * Chunks
+  Chunk,
+  chunk,
+  chunkSize,
+  Width(Width, unWidth),
+
+  -- * Style and TextSpec
   Style(Style, foreground, background, bold, underline, flash,
            invisible, inverse),
   TextSpec(TextSpec, style8, style256),
+  defaultStyle,
+  defaultSpec,
+
+  -- * Specific effects
   Switch(Off, On),
   Bold(Bold),
   Underline(Underline),
   Flash(Flash),
   Inverse(Inverse),
-  Invisible(Invisible),
-  Width(Width, unWidth),
-  chunkSize,
-  chunk,
-  defaultStyle,
-  defaultSpec ) where
+  Invisible(Invisible) ) where
   
 
 import Data.Monoid (Monoid, mempty, mappend)
@@ -57,14 +65,44 @@ data Color8 =
   | White
   deriving Show
 
+black :: Color Color8
+black = Color Black
+
+red :: Color Color8
+red = Color Red
+
+green :: Color Color8
+green = Color Green
+
+yellow :: Color Color8
+yellow = Color Yellow
+
+blue :: Color Color8
+blue = Color Blue
+
+magenta :: Color Color8
+magenta = Color Magenta
+
+cyan :: Color Color8
+cyan = Color Cyan
+
+white :: Color Color8
+white = Color White
+
+color256 :: Int -> Color Color256
+color256 = Color . c256
+
+defaultColor :: Color a
+defaultColor = Default
+
 data Color256 = Color256 Word8
                 deriving Show
 
-color256 :: Word8 -> Color256
-color256 w =
+c256 :: Int -> Color256
+c256 w =
   if w < 0 || w > 255
   then error "color number out of range"
-  else Color256 w
+  else Color256 (fromIntegral w)
 
 data Color a = Default | Color a
 

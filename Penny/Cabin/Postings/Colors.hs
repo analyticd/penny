@@ -2,7 +2,8 @@ module Penny.Cabin.Postings.Colors (
   colors,
   drCrToBaseColors,
   noughtToBaseColors,
-  DrCrColors(DrCrColors, evenDebit, evenCredit, oddDebit, oddCredit),
+  DrCrColors(DrCrColors, evenDebit, evenCredit, oddDebit, oddCredit,
+             evenZero, oddZero),
   BaseColors(BaseColors, evenColors, oddColors)) where
 
 import qualified Penny.Lincoln.Balance as Bal

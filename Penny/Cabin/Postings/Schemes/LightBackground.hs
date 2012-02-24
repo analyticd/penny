@@ -1,4 +1,4 @@
-module Penny.Cabin.Postings.Schemes.DarkBackground where
+module Penny.Cabin.Postings.Schemes.LightBackground where
 
 import qualified Penny.Cabin.Postings.Colors as PC
 import qualified Penny.Cabin.Colors as CC
@@ -20,7 +20,7 @@ evenTextSpec = CC.defaultSpec
 
 oddTextSpec :: CC.TextSpec
 oddTextSpec = S.switchBackground CC.defaultColor
-              (CC.color256 235) evenTextSpec
+              (CC.color256 247) evenTextSpec
               
 debit :: CC.TextSpec -> CC.TextSpec
 debit = S.switchForeground CC.magenta (CC.color256 13)

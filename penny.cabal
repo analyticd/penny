@@ -192,6 +192,7 @@ Library
         Penny.Cabin.Postings.Options,
         Penny.Cabin.Postings.Report,
         Penny.Cabin.Postings.Schemes.DarkBackground,
+        Penny.Cabin.Postings.Schemes.LightBackground,
         Penny.Cabin.Postings.Types,
         Penny.Cabin.Row,
         Penny.Cabin.TextFormat,
