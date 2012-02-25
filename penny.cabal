@@ -260,8 +260,11 @@ Library
         Penny.Lincoln.Transaction,
         Penny.Lincoln.Transaction.Unverified,
         Penny.Zinc,
-        Penny.Zinc.Parser,
-        Penny.Zinc.Help
+        Penny.Zinc.Filter,
+        Penny.Zinc.Help,
+        Penny.Zinc.Ledgers,
+        Penny.Zinc.Report
+
 
     if flag(testing)
       Exposed-modules:

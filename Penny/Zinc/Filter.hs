@@ -2,9 +2,7 @@ module Penny.Zinc.Filter where
 
 import Control.Applicative ((<|>), (<$>))
 import Control.Monad.Exception.Synchronous (Exceptional)
-import Data.List (intersperse, groupBy)
 import Data.Monoid (mempty, mappend)
-import qualified Data.Queue as Q
 import Data.Text (Text)
 import qualified Text.Matchers.Text as M
 import System.Console.MultiArg.Prim (ParserE, feed, throw)
@@ -98,12 +96,17 @@ parseOptions ::
   -> ParserE Error State
 parseOptions dtz dt rad sp = feed (parseOption dtz dt rad sp)
 
+data Result =
+  Result { resultFactory :: Text -> Exceptional Text (Text -> Bool)
+         , resultSensitive :: M.CaseSensitive
+         , resultFilter :: [PostingBox] -> [T.PostingInfo] }
+
 parseFilter ::
   DefaultTimeZone
   -> DateTime
   -> Radix
   -> Separator
-  -> ParserE Error ([PostingBox] -> [T.PostingInfo])
+  -> ParserE Error Result
 parseFilter dtz dt rad sep = do
   let st = newState
   st' <- parseOptions dtz dt rad sep st
@@ -112,4 +115,6 @@ parseFilter dtz dt rad sep = do
     Nothing -> throw E.BadExpression
   let f pbs = filter p preFilt where
         preFilt = PSq.postingInfos (orderer st') pbs
-  return f
+  return Result { resultFactory = factory st'
+                , resultSensitive = sensitive st'
+                , resultFilter = f }
