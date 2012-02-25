@@ -154,30 +154,6 @@ patternOption str mc f s = do
   m <- throwIf $ getMatcher p s
   return $ addOperand (f m) s
 
--- | Creates options that change the common state in some way.
-changeState ::
-  String
-  -- ^ Long option name
-
-  -> Maybe Char
-  -- ^ Short option name, if wanted
-
-  -> (State -> State)
-  -- ^ State transformer
-  
-  -> State
-  -- ^ Initial state
-
-  -> ParserE Error (State)
-  -- ^ Final state
-changeState str mc f s = do
-  let lo = makeLongOpt . pack $ str
-      so = case mc of
-        Nothing -> []
-        Just c -> [makeShortOpt c]
-  _ <- mixedNoArg lo [] so
-  return $ f s
-
 -- * Miscellaneous combinators
 
 -- | Throws if the function returned an Exception; otherwise, returns

@@ -11,3 +11,9 @@ their release numbers are even.
 
 Penny is licensed under the MIT license, see the LICENSE file.
 
+This code is currently alpha. No, PRE-alpha! But it is here in case
+you find it useful. Currently there are some other libraries
+I have developed for Penny's use, such as wraptainer; I have not
+yet posted this stuff to Github, but hopefully I will do so soon.
+I won't put anything on Hackage until I am sure that doing so would
+not be a huge disfavor to the world :)

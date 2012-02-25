@@ -251,6 +251,7 @@ Library
         Penny.Zinc.Parser,
         Penny.Zinc.Parser.Error,
         Penny.Zinc.Parser.Filter,
+        Penny.Zinc.Parser.Matchers,
         Penny.Zinc.Parser.Sorter,
         Penny.Zinc.Expressions,
         Penny.Zinc.Expressions.Infix,
