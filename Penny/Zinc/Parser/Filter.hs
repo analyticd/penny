@@ -191,58 +191,19 @@ throwIf ex = case ex of
 
 -- * Comparison options
 
--- | Represents comparer options given on the command line.
-data Comparer = LessThan
-                | LessThanEQ
-                | Equals
-                | GreaterThan
-                | GreaterThanEQ
-                | NotEquals
-                deriving Show
-
--- | Returns a function that compares an item against something and
--- returns True if the item is within the range specified, or False if
--- not.
-comp ::
-  Ord b
-  => Comparer 
-  -- ^ The comparison must return this to be successful
-  
-  -> b
-  -- ^ Right hand side of the comparison
-  
-  -> (a -> b)
-  -- ^ Function to convert an item to the left hand side of the
-  -- comparison
-  
-  -> a
-  -- ^ Left hand side of the comparison (before being converted by the
-  -- function above)
-  
-  -> Bool
-comp c b f a = let r = compare (f a) b in
-  case c of
-    LessThan -> r == LT
-    LessThanEQ -> r == LT || r == EQ
-    Equals -> r == EQ
-    GreaterThan -> r == GT
-    GreaterThanEQ -> r == GT || r == EQ
-    NotEquals -> r /= EQ
-
 -- | Parses comparers given on command line to internal representation
-parseComparer :: Text -> Exceptional E.Error Comparer
+parseComparer :: Text -> Exceptional E.Error P.Comparer
 parseComparer t
-  | t == pack "<" = Success LessThan
-  | t == pack "<=" = Success LessThanEQ
-  | t == pack "==" = Success Equals
-  | t == pack ">" = Success GreaterThan
-  | t == pack ">=" = Success GreaterThanEQ
-  | t == pack "/=" = Success NotEquals
+  | t == pack "<" = Success P.LessThan
+  | t == pack "<=" = Success P.LessThanEQ
+  | t == pack "==" = Success P.Equals
+  | t == pack ">" = Success P.GreaterThan
+  | t == pack ">=" = Success P.GreaterThanEQ
+  | t == pack "/=" = Success P.NotEquals
   | otherwise = Exception $ E.BadComparator t
 
 -- * Dates
 
-{-
 date :: DefaultTimeZone -> State -> ParserE Error State
 date dtz s = do
   let lo = makeLongOpt . pack $ "date"
@@ -250,49 +211,14 @@ date dtz s = do
   (_, c, d) <- mixedTwoArg lo [] [so]
   cmp <- throwIf $ parseComparer c
   dt <- throwIf $ parseDate dtz d
--}
-before :: DefaultTimeZone -> State -> ParserE Error (State)
-before dtz s = do
-  let lo = makeLongOpt . pack $ "before"
-  (_, t) <- mixedOneArg lo [] []
-  dt <- throwIf $ parseDate dtz t
-  return $ addOperand (P.before dt) s
-
-after :: DefaultTimeZone -> State -> ParserE Error (State)
-after dtz s = do
-  let lo = makeLongOpt . pack $ "after"
-  (_, t) <- longOneArg lo
-  d <- throwIf $ parseDate dtz t
-  return $ addOperand (P.after d) s
-
-onOrBefore :: DefaultTimeZone -> State -> ParserE Error (State)
-onOrBefore dtz s = do
-  let lo = makeLongOpt . pack $ "on-or-before"
-      so = makeShortOpt 'b'
-  (_, t) <- mixedOneArg lo [] [so]
-  d <- throwIf $ parseDate dtz t
-  return $ addOperand (P.onOrBefore d) s
-
-onOrAfter :: DefaultTimeZone -> State -> ParserE Error (State)
-onOrAfter dtz s = do
-  let lo = makeLongOpt . pack $ "on-or-after"
-      so = makeShortOpt 'a'
-  (_, t) <- mixedOneArg lo [] [so]
-  d <- throwIf $ parseDate dtz t
-  return $ addOperand (P.onOrAfter d) s
-  
-dayEquals :: DefaultTimeZone -> State -> ParserE Error (State)
-dayEquals dtz s = do
-  let lo = makeLongOpt . pack $ "day-equals"
-  (_, t) <- longOneArg lo
-  d <- throwIf $ parseDate dtz t
-  return $ addOperand (P.dateIs d) s
+  return $ addOperand (P.date cmp dt) s
 
 current :: DateTime -> State -> ParserE Error (State)
 current dt s = do
   let lo = makeLongOpt . pack $ "current"
+      cmp = P.LessThanEQ
   _ <- longNoArg lo
-  return $ addOperand (P.onOrBefore dt) s
+  return $ addOperand (P.date cmp dt) s
 
 parseDate :: DefaultTimeZone -> Text -> Exceptional Error DateTime
 parseDate dtz t = case parse (dateTime dtz) "" t of
@@ -376,39 +302,18 @@ credit :: State -> ParserE Error (State)
 credit = return . addOperand P.credit
 
 qtyOption ::
-  String
-  -> (Qty -> PostingBox -> Bool)
-  -> Radix
+  Radix
   -> Separator
   -> State
-  -> ParserE Error (State)
-qtyOption str f rad sp s = do
-  let lo = makeLongOpt . pack $ str
-  (_, qs) <- longOneArg lo
-  case parse (qty rad sp) "" qs of
+  -> ParserE Error State
+qtyOption rad sp s = do
+  let lo = makeLongOpt . pack $ "qty"
+  (_, cs, qs) <- longTwoArg lo
+  q <- case parse (qty rad sp) "" qs of
     Left _ -> throw $ E.BadQtyError qs
-    Right qt -> return $ addOperand (f qt) s
-
-atLeast ::
-  Radix
-  -> Separator
-  -> State
-  -> ParserE Error (State)
-atLeast = qtyOption "at-least" P.greaterThanOrEqualTo
-
-lessThan ::
-  Radix
-  -> Separator
-  -> State
-  -> ParserE Error (State)
-lessThan = qtyOption "less-than" P.lessThan
-
-equals ::
-  Radix
-  -> Separator
-  -> State
-  -> ParserE Error (State)
-equals = qtyOption "equals" P.equals
+    Right qtParsed -> return qtParsed
+  c <- throwIf $ parseComparer cs
+  return $ addOperand (P.qty c q) s
 
 -- * Matcher manipulation
 
@@ -503,11 +408,7 @@ parseToken :: DefaultTimeZone
               -> State
               -> ParserE Error (State)
 parseToken dtz dt rad sp st =
-  before dtz st
-  <|> after dtz st
-  <|> onOrBefore dtz st
-  <|> onOrAfter dtz st
-  <|> dayEquals dtz st
+  date dtz st
   <|> current dt st
   
   <|> account st
@@ -525,9 +426,7 @@ parseToken dtz dt rad sp st =
   <|> debit st
   <|> credit st
   
-  <|> atLeast rad sp st
-  <|> lessThan rad sp st
-  <|> equals rad sp st
+  <|> qtyOption rad sp st
   
   <|> caseInsensitive st
   <|> caseSensitive st

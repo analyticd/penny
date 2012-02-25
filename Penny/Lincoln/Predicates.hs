@@ -9,6 +9,8 @@ import Penny.Lincoln.HasText (HasText, text, HasTextList, textList,
                               Delimited(Delimited))
 import qualified Penny.Lincoln.Queries as Q
 
+-- * Matching helpers
+
 match :: HasText a => (Text -> Bool) -> a -> Bool
 match f = f . text
 
@@ -41,6 +43,8 @@ matchMaybeLevel i f ma = case ma of
   Nothing -> False
   (Just l) -> matchLevel i f l
 
+-- * Pattern matching fields
+
 payee :: (Text -> Bool) -> PostingBox -> Bool
 payee f = matchMaybe f . Q.payee
 
@@ -50,66 +54,73 @@ number f = matchMaybe f . Q.number
 flag :: (Text -> Bool) -> PostingBox -> Bool
 flag f = matchMaybe f . Q.flag
 
-noFlag :: PostingBox -> Bool
-noFlag = isNothing . Q.flag
-
 postingMemo :: (Text -> Bool) -> PostingBox -> Bool
 postingMemo f = matchMaybe f . Q.postingMemo
 
 transactionMemo :: (Text -> Bool) -> PostingBox -> Bool
 transactionMemo f = matchMaybe f . Q.transactionMemo
 
---
--- Date predicates
---
+-- * Flexible comparisons
 
-onOrAfter :: B.DateTime -> PostingBox -> Bool
-onOrAfter d p = Q.dateTime p >= d
+-- | A versatile way to compare things.
+data Comparer = LessThan
+                | LessThanEQ
+                | Equals
+                | GreaterThan
+                | GreaterThanEQ
+                | NotEquals
+                deriving Show
 
-onOrBefore :: B.DateTime -> PostingBox -> Bool
-onOrBefore d p = Q.dateTime p <= d
+-- | Returns a function that compares an item against something and
+-- returns True if the item is within the range specified, or False if
+-- not.
+comp ::
+  Ord b
+  => Comparer 
+  -- ^ The comparison must return this to be successful
+  
+  -> b
+  -- ^ Right hand side of the comparison
+  
+  -> (a -> b)
+  -- ^ Function to convert an item to the left hand side of the
+  -- comparison
+  
+  -> a
+  -- ^ Left hand side of the comparison (before being converted by the
+  -- function above)
+  
+  -> Bool
+comp c b f a = let r = compare (f a) b in
+  case c of
+    LessThan -> r == LT
+    LessThanEQ -> r == LT || r == EQ
+    Equals -> r == EQ
+    GreaterThan -> r == GT
+    GreaterThanEQ -> r == GT || r == EQ
+    NotEquals -> r /= EQ
 
-before :: B.DateTime -> PostingBox -> Bool
-before d p = Q.dateTime p < d
+-- * Date
 
-after :: B.DateTime -> PostingBox -> Bool
-after d p = Q.dateTime p > d
+date :: Comparer -> B.DateTime -> PostingBox -> Bool
+date c d = comp c d Q.dateTime
 
-dateIs :: B.DateTime -> PostingBox -> Bool
-dateIs d p = Q.dateTime p == d
+-- * Qty
 
---
--- Qty predicates
---
+qty :: Comparer -> B.Qty -> PostingBox -> Bool
+qty c q = comp c q Q.qty
 
-greaterThanOrEqualTo :: B.Qty -> PostingBox -> Bool
-greaterThanOrEqualTo q p = q >= Q.qty p
-
-lessThanOrEqualTo :: B.Qty -> PostingBox -> Bool
-lessThanOrEqualTo q p = q <= Q.qty p
-
-greaterThan :: B.Qty -> PostingBox -> Bool
-greaterThan q p = q > Q.qty p
-
-lessThan :: B.Qty -> PostingBox -> Bool
-lessThan q p = q < Q.qty p
-
-equals :: B.Qty -> PostingBox -> Bool
-equals q p = q == Q.qty p
-
---
--- DrCr predicates
---
-
+-- * DrCr
 drCr :: B.DrCr -> PostingBox -> Bool
 drCr dc p = dc == Q.drCr p
 
---
--- Invert
---
-invert :: (PostingBox -> Bool)
-          -> PostingBox -> Bool
-invert f = not . f
+debit :: PostingBox -> Bool
+debit p = Q.drCr p == B.Debit
+
+credit :: PostingBox -> Bool
+credit p = Q.drCr p == B.Credit
+
+-- * Matching delimited fields
 
 matchDelimited ::
   HasTextList a
@@ -118,9 +129,8 @@ matchDelimited ::
   -> a -> Bool
 matchDelimited d f = f . text . Delimited d . textList
 
---
--- Commodity
---
+-- * Commodity
+
 commodity :: Text -> (Text -> Bool) -> PostingBox -> Bool
 commodity t f = matchDelimited t f
                 . B.unCommodity
@@ -132,9 +142,8 @@ commodityLevel i f = matchLevel i f . Q.commodity
 commodityAny :: (Text -> Bool) -> PostingBox -> Bool
 commodityAny f = matchAny f . Q.commodity
 
---
--- Account
---
+
+-- * Account
 account :: Text -> (Text -> Bool) -> PostingBox -> Bool
 account t f = matchDelimited t f
                 . B.unAccount
@@ -146,17 +155,7 @@ accountLevel i f = matchLevel i f . Q.account
 accountAny :: (Text -> Bool) -> PostingBox -> Bool
 accountAny f = matchAny f . Q.account
 
---
--- Tags
---
+-- * Tags
 tag :: (Text -> Bool) -> PostingBox -> Bool
 tag f = matchAny f . Q.tags
 
---
--- Debit or credit
---
-debit :: PostingBox -> Bool
-debit p = Q.drCr p == B.Debit
-
-credit :: PostingBox -> Bool
-credit p = Q.drCr p == B.Credit
