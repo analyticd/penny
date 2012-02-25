@@ -1,23 +1,5 @@
 module Penny.Liberty.Types where
 
-import Control.Applicative ((<|>), (<$>))
-import Control.Monad.Exception.Synchronous (
-  Exceptional (Exception, Success))
-import Data.List (sortBy)
-import Data.Monoid (mempty, mappend)
-import Data.Text (Text)
-import qualified Text.Matchers.Text as M
-import System.Console.MultiArg.Prim (ParserE, feed)
-
-import qualified Penny.Liberty.Expressions as X
-import qualified Penny.Liberty.Matchers as PM
-import qualified Penny.Liberty.Operands as O
-import qualified Penny.Liberty.Operators as Oo
-import Penny.Liberty.Error (Error)
-
-import Penny.Copper.DateTime (DefaultTimeZone)
-import Penny.Copper.Qty (Radix, Separator)
-import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PostingBox)
 import Penny.Lincoln.Predicates as P
 

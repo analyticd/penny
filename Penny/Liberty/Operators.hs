@@ -1,20 +1,14 @@
 module Penny.Liberty.Operators where
 
 import Control.Applicative ((<|>))
-import Control.Monad.Exception.Synchronous (
-  Exceptional(Exception, Success))
 import Data.List (intersperse, groupBy)
-import Data.Text (Text, pack, unpack)
-import System.Console.MultiArg.Combinator
-  (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg,
-   mixedTwoArg)
-import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
-import System.Console.MultiArg.Prim (ParserE, throw)
+import Data.Text (pack)
+import System.Console.MultiArg.Combinator (longNoArg)
+import System.Console.MultiArg.Option (makeLongOpt)
+import System.Console.MultiArg.Prim (ParserE)
 
-import Penny.Copper.DateTime (DefaultTimeZone, dateTime)
 import qualified Penny.Liberty.Expressions as X
 import Penny.Liberty.Error (Error)
-import qualified Penny.Liberty.Error as E
 
 -- | Open parentheses
 open :: ParserE Error (X.Token a)

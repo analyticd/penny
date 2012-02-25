@@ -1,9 +1,8 @@
 module Penny.Zinc.Parser where
 
 import Control.Applicative ((<|>), (<$>))
-import Control.Monad.Exception.Synchronous (
-  Exceptional (Exception, Success))
-import Data.List (sortBy, intersperse, groupBy)
+import Control.Monad.Exception.Synchronous (Exceptional)
+import Data.List (intersperse, groupBy)
 import Data.Monoid (mempty, mappend)
 import qualified Data.Queue as Q
 import Data.Text (Text)
@@ -65,7 +64,7 @@ wrapMatcher st = mkSt <$> PM.parser cOld mOld where
   
 wrapOrderer :: State -> ParserE Error State
 wrapOrderer st = mkSt <$> S.sort where
-  mkSt or = st { orderer = or `mappend` (orderer st) }
+  mkSt o = st { orderer = o `mappend` (orderer st) }
 
 wrapSeq :: State -> ParserE Error State
 wrapSeq st = mkSt <$> PSq.parser where

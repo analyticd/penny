@@ -23,23 +23,18 @@ module Penny.Liberty.Operands where
 import Control.Applicative ((<|>))
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
-import Data.List (intersperse, groupBy)
-import Data.Monoid (mempty)
-import Data.Queue (enqueue, empty)
 import Data.Text (Text, pack, unpack)
 import System.Console.MultiArg.Combinator
-  (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg,
-   mixedTwoArg)
+  (mixedOneArg, longNoArg, longTwoArg, mixedTwoArg)
 import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
 import System.Console.MultiArg.Prim (ParserE, throw)
-import qualified Text.Matchers.Text as M
 import Text.Parsec (parse)
 
 import Penny.Copper.DateTime (DefaultTimeZone, dateTime)
 import Penny.Copper.Qty (Radix, Separator, qty)
 
 import qualified Penny.Lincoln.Predicates as P
-import Penny.Lincoln.Bits (DateTime, Qty)
+import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PostingBox)
 import qualified Penny.Liberty.Expressions as X
 

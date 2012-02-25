@@ -1,14 +1,12 @@
 module Penny.Liberty.Matchers where
 
 import Control.Applicative ((<$>), (<*>), pure, (<|>))
-import Control.Monad.Exception.Synchronous (
-  Exceptional(Exception, Success))
-import Data.Text (Text, pack, unpack)
+import Control.Monad.Exception.Synchronous (Exceptional)
+import Data.Text (Text, pack)
 import System.Console.MultiArg.Combinator
-  (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg,
-   mixedTwoArg)
+  (mixedNoArg, longNoArg)
 import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
-import System.Console.MultiArg.Prim (ParserE, throw)
+import System.Console.MultiArg.Prim (ParserE)
 import qualified Text.Matchers.Text as M
 
 import Penny.Liberty.Error (Error)

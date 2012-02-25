@@ -2,7 +2,6 @@ module Penny.Liberty.Sorter where
 
 
 import Data.Char (toUpper)
-import Data.Monoid (mappend)
 import Data.Text (Text, pack, isPrefixOf)
 import System.Console.MultiArg.Prim (ParserE, throw)
 import System.Console.MultiArg.Combinator
