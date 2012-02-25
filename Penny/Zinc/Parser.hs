@@ -115,7 +115,6 @@ parsePostingInfos dtz dt rad sep = do
         preFilt = PSq.postingInfos (orderer st') pbs
   return f
 
-
 -- | Takes the list of tokens and gets the predicate to use.
 getPredicate :: 
   [X.Token (T.PostingInfo -> Bool)]
