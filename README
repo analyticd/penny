@@ -17,3 +17,7 @@ I have developed for Penny's use, such as wraptainer; I have not
 yet posted this stuff to Github, but hopefully I will do so soon.
 I won't put anything on Hackage until I am sure that doing so would
 not be a huge disfavor to the world :)
+
+Oh, and don't look at the commit messages; they are notoriously
+useless and I won't start making them useful until the code matures
+a bit.
