@@ -10,6 +10,7 @@ data Error = MultiArgError MAE.Expecting MAE.Saw
              | BadNumberError Text
              | BadQtyError Text
              | BadSortKeyError Text
+             | BadComparator Text
              deriving Show
 
 instance MAE.Error Error where

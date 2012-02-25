@@ -1,3 +1,23 @@
+-- | The Zinc filter.
+--
+-- The Zinc command line can be broken into three parts: the filter
+-- specification, the report specification, and the files
+-- specification. This module handles the filter specification. Its
+-- job is to build a single predicate that will take each PostingInfo
+-- and return True if the PostingInfo shall be included in the list of
+-- postings or False if it is not.
+--
+-- This filter is used by other parts of Penny, too--the Postings
+-- report also uses this module to filter out which postings should
+-- appear in the report. So, this filter has only options that apply
+-- to any PostingBox. Other options are inside other modules. For
+-- instance the main filter specification also allows options like
+-- --fwd-seq-unsorted; these are handled elsewhere.
+--
+-- All options that the filter takes do one of two things: either they
+-- affect the matcher that is used to determine whether textual fields
+-- are a match, or they add tokens that are later parsed by an
+-- expression parser.
 module Penny.Zinc.Parser.Filter where
 
 import Control.Applicative ((<|>))
@@ -8,7 +28,8 @@ import Data.Monoid (mempty)
 import Data.Queue (enqueue, empty)
 import Data.Text (Text, pack, unpack)
 import System.Console.MultiArg.Combinator
-  (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg)
+  (mixedNoArg, mixedOneArg, longOneArg, longNoArg, longTwoArg,
+   mixedTwoArg)
 import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
 import System.Console.MultiArg.Prim (ParserE, throw)
 import qualified Text.Matchers.Text as M
@@ -26,6 +47,12 @@ import Penny.Zinc.Parser.Error (Error)
 import qualified Penny.Zinc.Parser.Error as E
 
 
+-- * The state
+
+-- | All options share this common state. Additional tokens are
+-- appended to the end of the tokens list (perhaps they should be
+-- prepended and then reversed later, or perhaps a Queue should be
+-- used?)
 data State =
   State { sensitive :: M.CaseSensitive
         , matcher :: Text -> Exceptional Text (Text -> Bool)
@@ -36,24 +63,206 @@ blankState = State { sensitive = M.Insensitive
                    , matcher = return . M.within M.Insensitive
                    , tokens = mempty }
 
+-- | Appends a token to the end of the token list.
 addToken :: X.Token (PostingBox -> Bool) -> State -> State
 addToken t s = s { tokens = tokens s ++ [t] }
 
+-- | Adds an additional operand to the state. Operands examine a
+-- PostingBox and return a boolean.
 addOperand :: (PostingBox -> Bool) -> State -> State
 addOperand = addToken . X.TokOperand
 
+-- * MultiArg option factories
+
+-- | Creates options that match against fields that are
+-- colon-separated. The operand added will return True if the
+-- posting's colon-separated option matches the pattern given, or
+-- False if it does not.
+sepOption ::
+  String
+  -- ^ Long option name
+  
+  -> Maybe Char
+  -- ^ Short option name, if there is one
+
+  -> (Text -> (Text -> Bool) -> PostingBox -> Bool)
+  -- ^ When applied to a text that separates the different segments of
+  -- the field, a matcher, and a posting, this function returns True
+  -- if the posting matches the matcher or False if it does not.
+  
+  -> State
+  -- ^ The initial state
+
+  -> ParserE Error (State)
+  -- ^ The final state, with the appropriate operand added.
+sepOption str mc f s = do
+  let lo = makeLongOpt . pack $ str
+  (_, p) <- mixedOneArg lo [] $ case mc of
+    Nothing -> []
+    (Just c) -> [makeShortOpt c]
+  m <- throwIf $ getMatcher p s
+  return $ addOperand (f sep m) s
+
+-- | Creates options that take two arguments, with the first argument
+-- being the level to match, and the second being the pattern that
+-- should match against that level.  Adds an operand that returns True
+-- if the pattern matches.
+levelOption ::
+  String
+  -- ^ Long option name
+  
+  -> (Int -> (Text -> Bool) -> PostingBox -> Bool)
+  -- ^ Applied to an integer, a matcher, and a PostingBox, this
+  -- function returns True if a particular field in the posting
+  -- matches the matcher given at the given level, or False otherwise.
+
+  -> State
+  -- ^ Initial state
+  
+  -> ParserE Error (State)
+  -- ^ Final state, with the appropriate operand added.
+levelOption str f s = do
+  let lo = makeLongOpt . pack $ str
+  (_, ns, p) <- longTwoArg lo
+  n <- throwIf $ parseInt ns
+  m <- throwIf $ getMatcher p s
+  return $ addOperand (f n m) s
+
+-- | Creates options that add an operand that matches the posting if a
+-- particluar field matches the pattern given.
+patternOption ::
+  String
+  -- ^ Long option
+  
+  -> Maybe Char
+  -- ^ Short option, if included
+
+  -> ((Text -> Bool) -> PostingBox -> Bool)
+  -- ^ When applied to a matcher and a PostingBox, this function
+  -- returns True if the posting matches, or False if it does not.
+  
+  -> State
+  -- ^ The initial state
+  
+  -> ParserE Error (State)
+  -- ^ The final state, with the option added
+patternOption str mc f s = do
+  let lo = makeLongOpt . pack $ str
+  (_, p) <- mixedOneArg lo [] $ case mc of
+    (Just c) -> [makeShortOpt c]
+    Nothing -> []
+  m <- throwIf $ getMatcher p s
+  return $ addOperand (f m) s
+
+-- | Creates options that change the common state in some way.
+changeState ::
+  String
+  -- ^ Long option name
+
+  -> Maybe Char
+  -- ^ Short option name, if wanted
+
+  -> (State -> State)
+  -- ^ State transformer
+  
+  -> State
+  -- ^ Initial state
+
+  -> ParserE Error (State)
+  -- ^ Final state
+changeState str mc f s = do
+  let lo = makeLongOpt . pack $ str
+      so = case mc of
+        Nothing -> []
+        Just c -> [makeShortOpt c]
+  _ <- mixedNoArg lo [] so
+  return $ f s
+
+-- * Miscellaneous combinators
+
+-- | Throws if the function returned an Exception; otherwise, returns
+-- the value of the Success. Useful for applying functions from within
+-- the ParserE monad that might fail but that do not need access to
+-- the ParserE monad.
+throwIf :: Exceptional Error g -> ParserE Error g
+throwIf ex = case ex of
+  Exception e -> throw e
+  Success g -> return g
+
+-- * Comparison options
+
+-- | Represents comparer options given on the command line.
+data Comparer = LessThan
+                | LessThanEQ
+                | Equals
+                | GreaterThan
+                | GreaterThanEQ
+                | NotEquals
+                deriving Show
+
+-- | Returns a function that compares an item against something and
+-- returns True if the item is within the range specified, or False if
+-- not.
+comp ::
+  Ord b
+  => Comparer 
+  -- ^ The comparison must return this to be successful
+  
+  -> b
+  -- ^ Right hand side of the comparison
+  
+  -> (a -> b)
+  -- ^ Function to convert an item to the left hand side of the
+  -- comparison
+  
+  -> a
+  -- ^ Left hand side of the comparison (before being converted by the
+  -- function above)
+  
+  -> Bool
+comp c b f a = let r = compare (f a) b in
+  case c of
+    LessThan -> r == LT
+    LessThanEQ -> r == LT || r == EQ
+    Equals -> r == EQ
+    GreaterThan -> r == GT
+    GreaterThanEQ -> r == GT || r == EQ
+    NotEquals -> r /= EQ
+
+-- | Parses comparers given on command line to internal representation
+parseComparer :: Text -> Exceptional E.Error Comparer
+parseComparer t
+  | t == pack "<" = Success LessThan
+  | t == pack "<=" = Success LessThanEQ
+  | t == pack "==" = Success Equals
+  | t == pack ">" = Success GreaterThan
+  | t == pack ">=" = Success GreaterThanEQ
+  | t == pack "/=" = Success NotEquals
+  | otherwise = Exception $ E.BadComparator t
+
+-- * Dates
+
+{-
+date :: DefaultTimeZone -> State -> ParserE Error State
+date dtz s = do
+  let lo = makeLongOpt . pack $ "date"
+      so = makeShortOpt 'd'
+  (_, c, d) <- mixedTwoArg lo [] [so]
+  cmp <- throwIf $ parseComparer c
+  dt <- throwIf $ parseDate dtz d
+-}
 before :: DefaultTimeZone -> State -> ParserE Error (State)
 before dtz s = do
   let lo = makeLongOpt . pack $ "before"
   (_, t) <- mixedOneArg lo [] []
-  dt <- parseDate dtz t
+  dt <- throwIf $ parseDate dtz t
   return $ addOperand (P.before dt) s
 
 after :: DefaultTimeZone -> State -> ParserE Error (State)
 after dtz s = do
   let lo = makeLongOpt . pack $ "after"
   (_, t) <- longOneArg lo
-  d <- parseDate dtz t
+  d <- throwIf $ parseDate dtz t
   return $ addOperand (P.after d) s
 
 onOrBefore :: DefaultTimeZone -> State -> ParserE Error (State)
@@ -61,7 +270,7 @@ onOrBefore dtz s = do
   let lo = makeLongOpt . pack $ "on-or-before"
       so = makeShortOpt 'b'
   (_, t) <- mixedOneArg lo [] [so]
-  d <- parseDate dtz t
+  d <- throwIf $ parseDate dtz t
   return $ addOperand (P.onOrBefore d) s
 
 onOrAfter :: DefaultTimeZone -> State -> ParserE Error (State)
@@ -69,14 +278,14 @@ onOrAfter dtz s = do
   let lo = makeLongOpt . pack $ "on-or-after"
       so = makeShortOpt 'a'
   (_, t) <- mixedOneArg lo [] [so]
-  d <- parseDate dtz t
+  d <- throwIf $ parseDate dtz t
   return $ addOperand (P.onOrAfter d) s
   
 dayEquals :: DefaultTimeZone -> State -> ParserE Error (State)
 dayEquals dtz s = do
   let lo = makeLongOpt . pack $ "day-equals"
   (_, t) <- longOneArg lo
-  d <- parseDate dtz t
+  d <- throwIf $ parseDate dtz t
   return $ addOperand (P.dateIs d) s
 
 current :: DateTime -> State -> ParserE Error (State)
@@ -85,83 +294,53 @@ current dt s = do
   _ <- longNoArg lo
   return $ addOperand (P.onOrBefore dt) s
 
-parseDate :: DefaultTimeZone -> Text -> ParserE Error DateTime
+parseDate :: DefaultTimeZone -> Text -> Exceptional Error DateTime
 parseDate dtz t = case parse (dateTime dtz) "" t of
-  Left _ -> throw E.DateParseError
+  Left _ -> Exception E.DateParseError
   Right d -> return d
 
---
--- Pattern matching
---
+-- * Pattern matching
 
-getMatcher :: Text -> State -> ParserE Error (Text -> Bool)
+-- | Given a Text from the command line which represents a pattern,
+-- and a State, return a Matcher. This will fail if the pattern is bad
+-- (e.g. it is a bad regular expression).
+getMatcher :: Text -> State -> Exceptional Error (Text -> Bool)
 getMatcher t s = case matcher s t of
-  Exception e -> throw $ E.BadPatternError e
+  Exception e -> Exception $ E.BadPatternError e
   Success m -> return m
 
 sep :: Text
 sep = pack ":"
 
-sepOption ::
-  String
-  -> Maybe Char
-  -> (Text -> (Text -> Bool) -> PostingBox -> Bool)
-  -> State
-  -> ParserE Error (State)
-sepOption str mc f s = do
-  let lo = makeLongOpt . pack $ str
-  (_, p) <- mixedOneArg lo [] $ case mc of
-    Nothing -> []
-    (Just c) -> [makeShortOpt c]
-  m <- getMatcher p s
-  return $ addOperand (f sep m) s
-
+-- | The account option; matches if the pattern given matches the
+-- colon-separated account name.
 account :: State -> ParserE Error (State)
 account = sepOption "account" (Just 'A') P.account
 
-parseInt :: Text -> ParserE Error Int
+-- | Parses exactly one integer; fails if it cannot read exactly one.
+parseInt :: Text -> Exceptional Error Int
 parseInt t = let ps = reads . unpack $ t in
   case ps of
-    [] -> throw $ E.BadNumberError t
+    [] -> Exception $ E.BadNumberError t
     ((i, s):[]) -> if length s /= 0
-                   then throw $ E.BadNumberError t
+                   then Exception $ E.BadNumberError t
                    else return i
-    _ -> throw $ E.BadNumberError t
+    _ -> Exception $ E.BadNumberError t
 
-levelOption ::
-  String
-  -> (Int -> (Text -> Bool) -> PostingBox -> Bool)
-  -> State
-  -> ParserE Error (State)
-levelOption str f s = do
-  let lo = makeLongOpt . pack $ str
-  (_, ns, p) <- longTwoArg lo
-  n <- parseInt ns
-  m <- getMatcher p s
-  return $ addOperand (f n m) s
-
+-- | The account-level option; matches if the account at the given
+-- level matches.
 accountLevel :: State -> ParserE Error (State)
 accountLevel = levelOption "account-level" P.accountLevel
 
+-- | The accountAny option; returns True if the matcher given matches
+-- a single sub-account name at any level.
 accountAny :: State -> ParserE Error (State)
 accountAny = patternOption "account-any" Nothing P.accountAny
 
+-- | The payee option; returns True if the matcher matches the payee
+-- name.
 payee :: State -> ParserE Error (State)
 payee = patternOption "payee" (Just 'p') P.payee
-
-patternOption ::
-  String -- ^ Long option
-  -> Maybe Char -- ^ Short option
-  -> ((Text -> Bool) -> PostingBox -> Bool) -- ^ Predicate maker
-  -> State
-  -> ParserE Error (State)
-patternOption str mc f s = do
-  let lo = makeLongOpt . pack $ str
-  (_, p) <- mixedOneArg lo [] $ case mc of
-    (Just c) -> [makeShortOpt c]
-    Nothing -> []
-  m <- getMatcher p s
-  return $ addOperand (f m) s
 
 tag :: State -> ParserE Error (State)
 tag = patternOption "tag" (Just 't') P.tag
@@ -181,7 +360,6 @@ commodityLevel = levelOption "commodity-level" P.commodityLevel
 commodityAny :: State -> ParserE Error (State)
 commodityAny = patternOption "commodity" Nothing P.commodityAny
 
-
 postingMemo :: State -> ParserE Error (State)
 postingMemo = patternOption "posting-memo" Nothing P.postingMemo
 
@@ -189,8 +367,7 @@ transactionMemo :: State -> ParserE Error (State)
 transactionMemo = patternOption "transaction-memo"
                   Nothing P.transactionMemo
 
-noFlag :: State -> ParserE Error (State)
-noFlag = return . addOperand P.noFlag
+-- * Non-pattern matching
 
 debit :: State -> ParserE Error (State)
 debit = return . addOperand P.debit
@@ -233,38 +410,7 @@ equals ::
   -> ParserE Error (State)
 equals = qtyOption "equals" P.equals
 
-data Comparer = LessThan
-                | LessThanEQ
-                | Equals
-                | GreaterThan
-                | GreaterThanEQ
-                | NotEquals
-                deriving Show
-
-comp :: Ord b => Comparer -> b -> (a -> b) -> a -> Bool
-comp c b f a = let r = compare (f a) b in
-  case c of
-    LessThan -> r == LT
-    LessThanEQ -> r == LT || r == EQ
-    Equals -> r == EQ
-    GreaterThan -> r == GT
-    GreaterThanEQ -> r == GT || r == EQ
-    NotEquals -> r /= EQ
-
-changeState ::
-  String
-  -> Maybe Char
-  -> (State -> State)
-  -> State
-  -> ParserE Error (State)
-changeState str mc f s = do
-  let lo = makeLongOpt . pack $ str
-      so = case mc of
-        Nothing -> []
-        Just c -> [makeShortOpt c]
-  _ <- mixedNoArg lo [] so
-  return $ f s
-
+-- * Matcher manipulation
 
 caseInsensitive :: State -> ParserE Error (State)
 caseInsensitive = changeState "case-insensitive" (Just 'i') f where
@@ -290,14 +436,19 @@ exact :: State -> ParserE Error (State)
 exact = changeState "exact" Nothing f where
   f st = st { matcher = \t -> return (M.exact (sensitive st) t) }
 
+-- * Operators
+
+-- | Open parentheses
 open :: State -> ParserE Error (State)
 open s = let lo = makeLongOpt . pack $ "open" in
   longNoArg lo >> return (addToken X.TokOpenParen s)
 
+-- | Close parentheses
 close :: State -> ParserE Error (State)
 close s = let lo = makeLongOpt . pack $ "open" in
   longNoArg lo >> return (addToken X.TokCloseParen s)
 
+-- | and operator
 parseAnd :: State -> ParserE Error (State)
 parseAnd s = do
   let lo = makeLongOpt . pack $ "and"
@@ -308,6 +459,7 @@ tokAnd :: X.Token (a -> Bool)
 tokAnd = X.TokBinary (X.Precedence 3) X.ALeft f where
   f x y = \a -> x a && y a
 
+-- | or operator
 parseOr :: State -> ParserE Error (State)
 parseOr s = do
   let lo = makeLongOpt . pack $ "or"
@@ -315,6 +467,7 @@ parseOr s = do
   let f x y = \a -> x a || y a
   return (addToken (X.TokBinary (X.Precedence 2) X.ALeft f) s)
 
+-- | not operator
 parseNot :: State -> ParserE Error (State)
 parseNot s = do
   let lo = makeLongOpt . pack $ "not"
@@ -322,6 +475,8 @@ parseNot s = do
   let f = (not .)
   return (addToken (X.TokUnaryPrefix (X.Precedence 4) f) s)
 
+-- | Operands that are not separated by operators are assumed to be
+-- joined with an and operator; this function adds the and operators.
 insertAddTokens :: [X.Token (a -> Bool)]
                    -> [X.Token (a -> Bool)]
 insertAddTokens ts = concatMap inserter grouped where
@@ -331,10 +486,16 @@ insertAddTokens ts = concatMap inserter grouped where
     (X.TokOperand _, X.TokOperand _) -> True
     _ -> False
 
+-- | Takes the list of tokens and gets the predicate to use.
 getPredicate :: State -> Maybe (PostingBox -> Bool)
 getPredicate s = X.evaluate q where
   q = foldl (flip enqueue) empty (insertAddTokens . tokens $ s)
 
+-- * The combined token parser
+
+-- | Combines all the parsers in this module to parse a single
+-- token. Only parses one token. Fails if the next word on the command
+-- line is not a token.
 parseToken :: DefaultTimeZone
               -> DateTime
               -> Radix
@@ -361,7 +522,6 @@ parseToken dtz dt rad sp st =
   <|> commodityAny st
   <|> postingMemo st
   <|> transactionMemo st
-  <|> noFlag st
   <|> debit st
   <|> credit st
   

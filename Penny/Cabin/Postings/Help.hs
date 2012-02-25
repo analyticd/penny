@@ -12,3 +12,4 @@ helpStr = unlines [
   "  the running balance.",
   "",
   "  Additional filtering options:"
+  ]
