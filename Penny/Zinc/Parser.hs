@@ -10,16 +10,16 @@ import Data.Text (Text)
 import qualified Text.Matchers.Text as M
 import System.Console.MultiArg.Prim (ParserE, feed, throw)
 
-import qualified Penny.Zinc.Expressions as X
-import qualified Penny.Zinc.Parser.Matchers as PM
-import qualified Penny.Zinc.Parser.Operands as O
-import qualified Penny.Zinc.Parser.Operators as Oo
-import qualified Penny.Zinc.Parser.PostFilters as PF
-import qualified Penny.Zinc.Parser.Seq as PSq
-import qualified Penny.Zinc.Parser.Sorter as S
-import qualified Penny.Zinc.Parser.Types as T
-import Penny.Zinc.Parser.Error (Error)
-import qualified Penny.Zinc.Parser.Error as E
+import Penny.Liberty.Error (Error)
+import qualified Penny.Liberty.Error as E
+import qualified Penny.Liberty.Expressions as X
+import qualified Penny.Liberty.Matchers as PM
+import qualified Penny.Liberty.Operands as O
+import qualified Penny.Liberty.Operators as Oo
+import qualified Penny.Liberty.PostFilters as PF
+import qualified Penny.Liberty.Seq as PSq
+import qualified Penny.Liberty.Sorter as S
+import qualified Penny.Liberty.Types as T
 
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (Radix, Separator)
