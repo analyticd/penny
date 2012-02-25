@@ -18,7 +18,7 @@
 -- affect the matcher that is used to determine whether textual fields
 -- are a match, or they add tokens that are later parsed by an
 -- expression parser.
-module Penny.Zinc.Parser.Filter where
+module Penny.Zinc.Parser.Operands where
 
 import Control.Applicative ((<|>))
 import Control.Monad.Exception.Synchronous (
