@@ -107,28 +107,9 @@ parsePostingInfos ::
 parsePostingInfos dtz dt rad sep = do
   let st = newState
   st' <- parseOptions dtz dt rad sep st
-  p <- case getPredicate (tokens st') of
+  p <- case Oo.getPredicate (tokens st') of
     Just pr -> return pr
     Nothing -> throw E.BadExpression
   let f pbs = filter p preFilt where
         preFilt = PSq.postingInfos (orderer st') pbs
   return f
-
--- | Takes the list of tokens and gets the predicate to use.
-getPredicate :: 
-  [X.Token (T.PostingInfo -> Bool)]
-  -> Maybe (T.PostingInfo -> Bool)
-getPredicate ls = X.evaluate q where
-  q = foldl (flip Q.enqueue) Q.empty (insertAddTokens ls)
-
--- | If there is no operand between tokens, the And operand is
--- assumed; this function inserts that operand.
-insertAddTokens :: [X.Token (a -> Bool)]
-                   -> [X.Token (a -> Bool)]
-insertAddTokens ts = concatMap inserter grouped where
-  inserter = intersperse Oo.tokAnd
-  grouped = groupBy f ts
-  f x y = case (x, y) of
-    (X.TokOperand _, X.TokOperand _) -> True
-    _ -> False
-

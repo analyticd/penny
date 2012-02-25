@@ -2,6 +2,7 @@ module Penny.Liberty.Operators where
 
 import Control.Applicative ((<|>))
 import Data.List (intersperse, groupBy)
+import qualified Data.Queue as Q
 import Data.Text (pack)
 import System.Console.MultiArg.Combinator (longNoArg)
 import System.Console.MultiArg.Option (makeLongOpt)
@@ -46,6 +47,13 @@ parseNot = do
   _ <- longNoArg lo
   let f = (not .)
   return (X.TokUnaryPrefix (X.Precedence 4) f)
+
+-- | Takes the list of tokens and gets the predicate to use.
+getPredicate :: 
+  [X.Token (a -> Bool)]
+  -> Maybe (a -> Bool)
+getPredicate ls = X.evaluate q where
+  q = foldl (flip Q.enqueue) Q.empty (insertAddTokens ls)
 
 -- | Operands that are not separated by operators are assumed to be
 -- joined with an and operator; this function adds the and operators.
