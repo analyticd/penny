@@ -250,7 +250,7 @@ Library
         Penny.Zinc,
         Penny.Zinc.Parser,
         Penny.Zinc.Parser.Error,
-        Penny.Zinc.Parser.Filter,
+        Penny.Zinc.Parser.Operands,
         Penny.Zinc.Parser.Matchers,
         Penny.Zinc.Parser.Operators,
         Penny.Zinc.Parser.Sorter,

@@ -49,6 +49,38 @@ import qualified Penny.Zinc.Parser.Error as E
 type MatcherFactory = Text -> Exceptional Text (Text -> Bool)
 type Operand = X.Operand (PostingBox -> Bool)
 
+-- * The combined token parser
+
+-- | Combines all the parsers in this module to parse a single
+-- token. Only parses one token. Fails if the next word on the command
+-- line is not a token.
+parseToken :: DefaultTimeZone
+              -> DateTime
+              -> Radix
+              -> Separator
+              -> MatcherFactory
+              -> ParserE Error Operand
+parseToken dtz dt rad sp f =
+  date dtz
+  <|> current dt
+  
+  <|> account f
+  <|> accountLevel f
+  <|> accountAny f
+  <|> payee f
+  <|> tag f
+  <|> number f
+  <|> flag f
+  <|> commodity f
+  <|> commodityLevel f
+  <|> commodityAny f
+  <|> postingMemo f
+  <|> transactionMemo f
+  <|> debit
+  <|> credit
+  
+  <|> qtyOption rad sp
+
 -- * MultiArg option factories
 
 -- | Creates options that match against fields that are
@@ -267,35 +299,3 @@ getPredicate s = X.evaluate q where
   q = foldl (flip enqueue) empty (insertAddTokens . tokens $ s)
 -}
 
--- * The combined token parser
-
-
--- | Combines all the parsers in this module to parse a single
--- token. Only parses one token. Fails if the next word on the command
--- line is not a token.
-parseToken :: DefaultTimeZone
-              -> DateTime
-              -> Radix
-              -> Separator
-              -> MatcherFactory
-              -> ParserE Error Operand
-parseToken dtz dt rad sp f =
-  date dtz
-  <|> current dt
-  
-  <|> account f
-  <|> accountLevel f
-  <|> accountAny f
-  <|> payee f
-  <|> tag f
-  <|> number f
-  <|> flag f
-  <|> commodity f
-  <|> commodityLevel f
-  <|> commodityAny f
-  <|> postingMemo f
-  <|> transactionMemo f
-  <|> debit
-  <|> credit
-  
-  <|> qtyOption rad sp

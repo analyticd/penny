@@ -10,7 +10,7 @@ import qualified Text.Matchers.Text as M
 import System.Console.MultiArg.Prim (ParserE, feed)
 
 import qualified Penny.Zinc.Expressions as X
-import qualified Penny.Zinc.Parser.Filter as F
+import qualified Penny.Zinc.Parser.Operands as O
 import qualified Penny.Zinc.Parser.Sorter as S
 import Penny.Zinc.Parser.Error (Error)
 
@@ -19,6 +19,7 @@ import Penny.Copper.Qty (Radix, Separator)
 import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PostingBox)
 
+{-
 parseOption ::
   DefaultTimeZone
   -> DateTime
@@ -38,7 +39,7 @@ parseOptions ::
   -> (F.State, S.Orderer)
   -> ParserE Error (F.State, S.Orderer)
 parseOptions dtz dt rad sep = feed (parseOption dtz dt rad sep)
-
+-}
 
 
 data State =
@@ -93,5 +94,3 @@ numberSorted ps = reverse backNums where
     f (pb, fu, bu, fs) bs = PostingInfo pb fu bu fs bs
     bss = map BackSeqSorted [0..]
 
-defaultState :: (F.State, S.Orderer)
-defaultState = (F.blankState, mempty)
