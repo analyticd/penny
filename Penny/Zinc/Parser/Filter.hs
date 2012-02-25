@@ -1,4 +1,4 @@
--- | The Zinc filter.
+-- | Zinc operands
 --
 -- The Zinc command line can be broken into three parts: the filter
 -- specification, the report specification, and the files
@@ -45,7 +45,6 @@ import qualified Penny.Zinc.Expressions as X
 
 import Penny.Zinc.Parser.Error (Error)
 import qualified Penny.Zinc.Parser.Error as E
-
 
 type MatcherFactory = Text -> Exceptional Text (Text -> Bool)
 type Operand = X.Operand (PostingBox -> Bool)
@@ -270,7 +269,7 @@ getPredicate s = X.evaluate q where
 
 -- * The combined token parser
 
-{-
+
 -- | Combines all the parsers in this module to parse a single
 -- token. Only parses one token. Fails if the next word on the command
 -- line is not a token.
@@ -278,40 +277,25 @@ parseToken :: DefaultTimeZone
               -> DateTime
               -> Radix
               -> Separator
-              -> State
-              -> ParserE Error (State)
-parseToken dtz dt rad sp st =
-  date dtz st
-  <|> current dt st
+              -> MatcherFactory
+              -> ParserE Error Operand
+parseToken dtz dt rad sp f =
+  date dtz
+  <|> current dt
   
-  <|> account st
-  <|> accountLevel st
-  <|> accountAny st
-  <|> payee st
-  <|> tag st
-  <|> number st
-  <|> flag st
-  <|> commodity st
-  <|> commodityLevel st
-  <|> commodityAny st
-  <|> postingMemo st
-  <|> transactionMemo st
-  <|> debit st
-  <|> credit st
+  <|> account f
+  <|> accountLevel f
+  <|> accountAny f
+  <|> payee f
+  <|> tag f
+  <|> number f
+  <|> flag f
+  <|> commodity f
+  <|> commodityLevel f
+  <|> commodityAny f
+  <|> postingMemo f
+  <|> transactionMemo f
+  <|> debit
+  <|> credit
   
-  <|> qtyOption rad sp st
-  
-  <|> caseInsensitive st
-  <|> caseSensitive st
-  <|> within st
-  <|> pcre st
-  <|> posix st
-  <|> exact st
-  
-  <|> open st
-  <|> close st
-  <|> parseAnd st
-  <|> parseOr st
-  <|> parseNot st
-
--}
+  <|> qtyOption rad sp
