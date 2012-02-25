@@ -292,10 +292,4 @@ qtyOption rad sp = do
   c <- throwIf $ parseComparer cs
   return $ X.Operand (P.qty c q)
 
-{-
--- | Takes the list of tokens and gets the predicate to use.
-getPredicate :: State -> Maybe (PostingBox -> Bool)
-getPredicate s = X.evaluate q where
-  q = foldl (flip enqueue) empty (insertAddTokens . tokens $ s)
--}
 

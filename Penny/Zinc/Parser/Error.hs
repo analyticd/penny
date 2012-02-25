@@ -11,6 +11,7 @@ data Error = MultiArgError MAE.Expecting MAE.Saw
              | BadQtyError Text
              | BadSortKeyError Text
              | BadComparator Text
+             | BadExpression
              deriving Show
 
 instance MAE.Error Error where
