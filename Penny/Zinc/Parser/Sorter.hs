@@ -56,16 +56,15 @@ ordPairs =
 
 -- The order of the arguments to mappend is correct - the functions
 -- will run right to left, like a compose
-sort :: Orderer
-        -> ParserE Error Orderer
-sort ordIn = do
+sort :: ParserE Error Orderer
+sort = do
   let lo = makeLongOpt . pack $ "sort"
       so = makeShortOpt 's'
   (_, arg) <- mixedOneArg lo [] [so]
   let matches = filter (\p -> arg `isPrefixOf` (fst p)) ords
-  sorter <- case matches of
+  case matches of
     [] -> throw $ BadSortKeyError arg
     x:[] -> return $ snd x
     _ -> throw $ BadSortKeyError arg
-  return $ sorter `mappend` ordIn
+
 
