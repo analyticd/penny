@@ -12,6 +12,9 @@ data Error = MultiArgError MAE.Expecting MAE.Saw
              | BadSortKeyError Text
              | BadComparator Text
              | BadExpression
+             | BadColorName Text
+             | BadFieldName Text
+             | BadBackgroundArg Text
              deriving Show
 
 instance MAE.Error Error where

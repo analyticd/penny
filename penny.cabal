@@ -221,6 +221,7 @@ Library
         Penny.Copper.TopLine,
         Penny.Copper.Transaction
         Penny.Liberty,
+        Penny.Liberty.Combinator,
         Penny.Liberty.Error,
         Penny.Liberty.Expressions,
         Penny.Liberty.Expressions.Infix,

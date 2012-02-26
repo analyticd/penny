@@ -5,26 +5,22 @@ module Penny.Liberty.Filter where
 
 import Control.Applicative ((<|>), (<$>))
 import Control.Monad.Exception.Synchronous (Exceptional)
-import Data.Monoid (mempty, mappend)
 import Data.Text (Text)
 import qualified Text.Matchers.Text as M
-import System.Console.MultiArg.Prim (ParserE, feed, throw)
+import System.Console.MultiArg.Prim (ParserE)
 
 import Penny.Liberty.Error (Error)
-import qualified Penny.Liberty.Error as E
 import qualified Penny.Liberty.Expressions as X
 import qualified Penny.Liberty.Matchers as PM
 import qualified Penny.Liberty.Operands as O
 import qualified Penny.Liberty.Operators as Oo
 import qualified Penny.Liberty.PostFilters as PF
 import qualified Penny.Liberty.Seq as PSq
-import qualified Penny.Liberty.Sorter as S
 import qualified Penny.Liberty.Types as T
 
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (Radix, Separator)
 import Penny.Lincoln.Bits (DateTime)
-import Penny.Lincoln.Boxes (PostingBox)
 
 data State =
   State { sensitive :: M.CaseSensitive
@@ -82,12 +78,3 @@ parseOption dtz dt rad sp st =
   <|> wrapMatcher st
   <|> wrapSeq st
   <|> wrapPostFilter st
-
-parseOptions ::
-  DefaultTimeZone
-  -> DateTime
-  -> Radix
-  -> Separator
-  -> State
-  -> ParserE Error State
-parseOptions dtz dt rad sp = feed (parseOption dtz dt rad sp)

@@ -33,7 +33,7 @@ parser dtz dt rad sep rpts = do
   let sensitive = F.resultSensitive filtResult
       factory = F.resultFactory filtResult
       filt = F.resultFilter filtResult
-  (rpt, colors) <- R.report rpts sensitive factory
+  (rpt, cs) <- R.report rpts sensitive factory
   fns <- L.filenames
-  return $ Result filt rpt colors fns
+  return $ Result filt rpt cs fns
   

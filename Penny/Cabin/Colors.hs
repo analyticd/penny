@@ -1,6 +1,7 @@
 module Penny.Cabin.Colors (
   -- * Colors
   Colors(Colors0, Colors8, Colors256),
+  ColorPref(Pref0, Pref8, Pref256, PrefAuto),
   Color,
   Color8,
   Color256,
@@ -49,7 +50,11 @@ import Data.Word (Word8)
 import System.Environment (getEnvironment)
 import System.IO (hIsTerminalDevice, stdout)
 
--- | How many colors do you want?
+-- | The user's color preference.
+data ColorPref = Pref0 | Pref8 | Pref256 | PrefAuto
+               deriving Show
+
+-- | How many colors to actually show.
 data Colors = Colors0 | Colors8 | Colors256
             deriving Show
 

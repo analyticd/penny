@@ -1,11 +1,11 @@
 module Penny.Zinc.Ledgers where
 
-import Control.Applicative ((<$>), many, pure, (<*>), liftA)
+import Control.Applicative ((<$>), many, liftA)
 import qualified Data.List.NonEmpty as NE
 import Data.Text (Text, pack)
 import qualified Penny.Liberty.Error as E
 import System.Console.MultiArg.Combinator (option)
-import System.Console.MultiArg.Prim (ParserE, nextArg, try)
+import System.Console.MultiArg.Prim (ParserE, nextArg)
 
 data Filename =
   Filename Text

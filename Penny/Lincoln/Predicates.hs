@@ -1,7 +1,6 @@
 module Penny.Lincoln.Predicates where
 
 import Data.Text (Text)
-import Data.Maybe (isNothing)
 
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Boxes (PostingBox)

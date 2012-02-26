@@ -2,6 +2,9 @@ module Penny.Cabin.Postings.Help where
 
 import qualified Data.Text as X
 
+help :: X.Text
+help = X.pack helpStr
+
 helpStr :: String
 helpStr = unlines [
   "postings, pos",
@@ -19,6 +22,8 @@ helpStr = unlines [
   "    no: never show colors",
   "    auto: show 8 or 256 colors, but only if stdout is a terminal",
   "    256: show 256 colors always",
+  "  --background light|dark",
+  "    Use appropriate color scheme for terminal background",
   "",
   "  --width num",
   "    Hint for roughly how wide the report should be in columns",
