@@ -45,3 +45,11 @@ fromLibertyInfo b pn rpn tpi =
               , fwdSeqSorted = T.fwdSeqSorted tpi
               , backSeqSorted = T.backSeqSorted tpi }
 
+toLibertyInfo :: PostingInfo -> T.PostingInfo
+toLibertyInfo p =
+  T.PostingInfo { T.postingBox = postingBox p
+                , T.fwdSeqUnsorted = fwdSeqUnsorted p
+                , T.backSeqUnsorted = backSeqUnsorted p
+                , T.fwdSeqSorted = fwdSeqSorted p
+                , T.backSeqSorted = backSeqSorted p }
+
