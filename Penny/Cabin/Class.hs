@@ -4,7 +4,7 @@ import Control.Monad.Exception.Synchronous (Exceptional)
 import Data.Text (Text)
 import System.Console.MultiArg.Prim (ParserE)
 
-import Penny.Cabin.Colors (Chunk, Colors)
+import Penny.Cabin.Colors (Chunk, ColorPref, Width)
 import Penny.Liberty.Error (Error)
 import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (  PostingBox, PriceBox )
@@ -24,19 +24,19 @@ type ReportFunc =
 type ParseReportOpts =
   CaseSensitive
   -> (Text -> Exceptional Text (Text -> Bool))
-  -> ParserE Error (ReportFunc, Colors)
+  -> ParserE Error (ReportFunc, ColorPref)
 
 data Report =
   Report { help :: Text
          , printReport :: ParseReportOpts }
 
 data Context =
-  Context { lines :: Maybe Lines
-          , columns :: Maybe Columns
+  Context { screenLines :: Maybe ScreenLines
+          , screenWidth :: Maybe ScreenWidth
           , currentTime :: DateTime }
 
-data Columns = Columns { unColumns :: Int }
-               deriving Show
+data ScreenLines = ScreenLines { unLines :: Int }
+                 deriving Show
 
-data Lines = Lines { unLines :: Int }
-             deriving Show
+newtype ScreenWidth = ScreenWidth { unScreenWidth :: Int }
+                      deriving Show

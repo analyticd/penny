@@ -2,6 +2,8 @@
 module Penny.Liberty.Combinator where
 
 import Control.Applicative ((<|>))
+import qualified Data.Text as X
+import qualified Penny.Liberty.Error as LE
 import System.Console.MultiArg.Error as E
 import System.Console.MultiArg.Prim as P
 
@@ -27,3 +29,15 @@ runUntilFailure ::
   -> P.ParserT s e m [a]
 runUntilFailure f = P.feed f (failOnSuccess f)
 
+-- | Succeeds and consumes the next word if the next word on the
+-- command line is the word given. If the next word is something else,
+-- or if there is no next word, fails without consuming any input.
+nextWordIs ::
+  (Monad m)
+  => X.Text
+  -> P.ParserT s LE.Error m X.Text
+nextWordIs t = do
+  w <- P.lookAhead P.nextArg
+  if w == t
+    then nextArg
+    else P.throw $ LE.UnexpectedWord t w

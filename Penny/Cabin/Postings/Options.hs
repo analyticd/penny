@@ -11,7 +11,10 @@ import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Cabin.Allocate as A
+import qualified Penny.Cabin.Class as Cl
+import qualified Penny.Cabin.Colors as CC
 import qualified Penny.Cabin.Postings.Colors as C
+import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Types as T
 import qualified Penny.Cabin.Postings.Schemes.DarkBackground as Dark
 
@@ -23,8 +26,9 @@ data Options =
           , balanceFormat :: Bits.Commodity -> Bal.Nought -> X.Text
           , payeeAllocation :: A.Allocation
           , accountAllocation :: A.Allocation 
-          , width :: ReportWidth
-          , subAccountLength :: Int }
+          , width :: Maybe Cl.ScreenWidth -> ReportWidth
+          , subAccountLength :: Int
+          , colorPref :: CC.ColorPref }
 
 newtype ReportWidth = ReportWidth { unReportWidth :: Int }
                       deriving (Eq, Show, Ord)
@@ -56,8 +60,13 @@ columnsVarToWidth ms = case ms of
     (i, []):[] -> if i > 0 then ReportWidth i else defaultWidth
     _ -> defaultWidth
 
-defaultOptions :: ReportWidth -> Options
-defaultOptions rw =
+useScreenWidth :: Maybe Cl.ScreenWidth -> ReportWidth
+useScreenWidth sw = case sw of
+  Nothing -> defaultWidth
+  (Just (Cl.ScreenWidth w)) -> ReportWidth w
+
+defaultOptions :: Options
+defaultOptions =
   Options { drCrColors = Dark.drCrColors
           , baseColors = Dark.baseColors
           , dateFormat = ymd
@@ -65,11 +74,25 @@ defaultOptions rw =
           , balanceFormat = balanceAsIs
           , payeeAllocation = A.allocation 40
           , accountAllocation = A.allocation 60
-          , width = rw
-          , subAccountLength = 2 }
+          , width = useScreenWidth
+          , subAccountLength = 2
+          , colorPref = CC.PrefAuto }
 
-getOptions :: IO Options
-getOptions = do
-  c <- columnsVar
-  let w = columnsVarToWidth c
-  return $ defaultOptions w
+defaultFields :: F.Fields Bool
+defaultFields =
+  F.Fields { F.lineNum        = False
+           , F.date           = True
+           , F.flag           = False
+           , F.number         = False
+           , F.payee          = True
+           , F.account        = True
+           , F.postingDrCr    = True
+           , F.postingCmdty   = True
+           , F.postingQty     = True
+           , F.totalDrCr      = True
+           , F.totalCmdty     = True
+           , F.totalQty       = True
+           , F.tags           = False
+           , F.memo           = False
+           , F.filename       = False }
+

@@ -7,11 +7,11 @@ import Data.Text (Text, pack)
 import qualified Text.Matchers.Text as M
 import System.Console.MultiArg.Combinator (longOneArg, option)
 import System.Console.MultiArg.Option (makeLongOpt)
-import System.Console.MultiArg.Prim (ParserE, throw)
+import System.Console.MultiArg.Prim (ParserE, throw, nextArg)
 
 import qualified Penny.Cabin.Colors as CC
 import Penny.Liberty.Error (Error)
-import Penny.Liberty.Combinator (runUntilFailure)
+import Penny.Liberty.Combinator (runUntilFailure, nextWordIs)
 import qualified Penny.Liberty.Error as Er
 import qualified Penny.Liberty.Expressions as Ex
 import qualified Penny.Liberty.Filter as LF
@@ -90,6 +90,21 @@ parseArgs dtz dt rad sp st =
     rs <- runUntilFailure (parseArg dtz dt rad sp) st
     if null rs then return st else return (last rs)
 
+parseCommand ::
+  DefaultTimeZone
+  -> DateTime
+  -> Radix
+  -> Separator
+  -> Op.Options
+  -> M.CaseSensitive
+  -> (Text -> Exceptional Text (Text -> Bool))
+  -> ParserE Error State
+parseCommand dtz dt rad sp op cs fact = let
+  st = newState op cs fact
+  in do
+    nextWordIs (pack "postings") <|> nextWordIs (pack "pos")
+    parseArgs dtz dt rad sp st
+  
 data State =
   State { sensitive :: M.CaseSensitive
         , factory :: Text -> Exceptional Text (Text -> Bool)
@@ -99,6 +114,21 @@ data State =
         , scheme :: (PC.DrCrColors, PC.BaseColors) 
         , width :: Op.ReportWidth
         , fields :: Fl.Fields Bool }
+
+newState ::
+  Op.Options
+  -> M.CaseSensitive
+  -> (Text -> Exceptional Text (Text -> Bool))
+  -> State
+newState op s f =
+  State { sensitive = s
+        , factory = f
+        , tokens = []
+        , postFilter = id
+        , colors = Op.colorPref op
+        , scheme = (Op.drCrColors op, Op.baseColors op)
+        , width = Op.width op
+        , fields = Op.defaultFields }
 
 toLibertyState :: State -> LF.State
 toLibertyState st =
