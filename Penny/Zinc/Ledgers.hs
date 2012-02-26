@@ -21,5 +21,5 @@ filename = do
 filenames :: ParserE E.Error (NE.NonEmpty Filename)
 filenames = do
   fn1 <- option Stdin (Filename <$> nextArg)
-  fns <- option [] $ liftA (fmap Filename) (many nextArg)
+  fns <- liftA (fmap Filename) (many nextArg)
   return $ NE.nonEmpty fn1 fns
