@@ -192,7 +192,6 @@ Library
         Penny.Cabin.Postings.Grid,
         Penny.Cabin.Postings.Grower,
         Penny.Cabin.Postings.Options,
-        Penny.Cabin.Postings.Report,
         Penny.Cabin.Postings.Schemes,
         Penny.Cabin.Postings.Schemes.DarkBackground,
         Penny.Cabin.Postings.Schemes.LightBackground,
