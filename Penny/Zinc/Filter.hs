@@ -10,6 +10,7 @@ import System.Console.MultiArg.Prim (ParserE, feed, throw)
 import Penny.Liberty.Error (Error)
 import qualified Penny.Liberty.Error as E
 import qualified Penny.Liberty.Expressions as X
+import qualified Penny.Liberty.Filter as LF
 import qualified Penny.Liberty.Matchers as PM
 import qualified Penny.Liberty.Operands as O
 import qualified Penny.Liberty.Operators as Oo
@@ -37,6 +38,25 @@ newState =
         , tokens = []
         , postFilter = id
         , orderer = mempty }
+
+wrapLiberty ::
+  DefaultTimeZone
+  -> DateTime
+  -> Radix
+  -> Separator
+  -> State
+  -> ParserE Error State
+wrapLiberty dtz dt rad sp st = let
+  toLibSt = LF.State { LF.sensitive = sensitive st
+                     , LF.factory = factory st
+                     , LF.tokens = tokens st
+                     , LF.postFilter = postFilter st }
+  fromLibSt libSt = State { sensitive = LF.sensitive libSt
+                          , factory = LF.factory libSt
+                          , tokens = LF.tokens libSt
+                          , postFilter = LF.postFilter libSt
+                          , orderer = orderer st }
+  in fromLibSt <$> LF.parseOption dtz dt rad sp toLibSt
 
 wrapOperand ::
   DefaultTimeZone
@@ -80,12 +100,8 @@ parseOption ::
   -> State
   -> ParserE Error State
 parseOption dtz dt rad sp st =
-  wrapOperand dtz dt rad sp st
-  <|> wrapOperator st
-  <|> wrapMatcher st
+  wrapLiberty dtz dt rad sp st
   <|> wrapOrderer st
-  <|> wrapSeq st
-  <|> wrapPostFilter st
 
 parseOptions ::
   DefaultTimeZone
