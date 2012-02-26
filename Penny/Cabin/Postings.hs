@@ -46,13 +46,13 @@ import qualified Penny.Cabin.Postings.Grid as G
 import qualified Penny.Cabin.Postings.Options as O
 import qualified Penny.Cabin.Postings.Types as T
 
-import qualified Penny.Lincoln.Boxes as B
+import qualified Penny.Liberty.Types as LT
 
 report ::
   F.Fields Bool
   -> O.Options
   -> (T.PostingInfo -> Bool)
-  -> [B.PostingBox]
+  -> [LT.PostingInfo]
   -> Maybe C.Chunk
 report flds o =
   G.report (f claimer) (f grower) (f allocator) (f finalizer) where

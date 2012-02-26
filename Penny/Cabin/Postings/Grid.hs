@@ -25,8 +25,8 @@ import qualified Data.Traversable as Tr
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Postings.Types as T
 import qualified Penny.Cabin.Row as R
+import qualified Penny.Liberty.Types as LT
 import qualified Penny.Lincoln.Balance as Bal
-import qualified Penny.Lincoln.Boxes as B
 import qualified Penny.Lincoln.Queries as Q
 
 -- | fmap over an array, with additional information. Similar to fmap,
@@ -46,27 +46,27 @@ fmapArray f a = A.array b ls' where
   f' (i, e) = (i, f a i e)
 
 -- * Step 1 - Compute balances
-balanceAccum :: Bal.Balance -> B.PostingBox -> (Bal.Balance, Bal.Balance)
-balanceAccum bal pb = (bal', bal') where
+balanceAccum :: Bal.Balance -> LT.PostingInfo -> (Bal.Balance, Bal.Balance)
+balanceAccum bal po = (bal', bal') where
   bal' = bal `mappend` pstgBal
-  pstgBal = Bal.entryToBalance . Q.entry $ pb
+  pstgBal = Bal.entryToBalance . Q.entry . LT.postingBox $ po
 
-balances :: [B.PostingBox] -> [(B.PostingBox, Bal.Balance)]
+balances :: [LT.PostingInfo] -> [(LT.PostingInfo, Bal.Balance)]
 balances ps = zip ps (snd . Tr.mapAccumL balanceAccum mempty $ ps)
 
 -- * Step 2 - Number postings
 numberPostings ::
-  [(B.PostingBox, Bal.Balance)]
+  [(LT.PostingInfo, Bal.Balance)]
   -> [T.PostingInfo]
 numberPostings ls = reverse reversed where
   withPostingNums =
     getZipList
-    $ (\(pb, bal) pn -> (pb, bal, pn))
+    $ (\(li, bal) pn -> (li, bal, pn))
     <$> ZipList ls
     <*> ZipList (map T.PostingNum [0..])
   reversed =
     getZipList
-    $ (\(pb, bal, pn) rpn -> T.PostingInfo pb bal pn rpn)
+    $ (\(li, bal, pn) rpn -> T.fromLibertyInfo bal pn rpn li)
     <$> ZipList (reverse withPostingNums)
     <*> ZipList (map T.RevPostingNum [0..])
 
@@ -259,7 +259,7 @@ report ::
   -> Allocator c t
   -> Finalizer c t
   -> (T.PostingInfo -> Bool)
-  -> [B.PostingBox]
+  -> [LT.PostingInfo]
   -> Maybe C.Chunk
 report c g a f p pbs =
   (toArray
