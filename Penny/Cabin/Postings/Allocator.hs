@@ -1,3 +1,5 @@
+-- | Step 9 - Allocation. See "Penny.Cabin.Postings.Grid" for more
+-- details on what is happening in here.
 module Penny.Cabin.Postings.Allocator where
 
 import qualified Data.Array as A

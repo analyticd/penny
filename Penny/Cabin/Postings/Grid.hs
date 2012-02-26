@@ -1,3 +1,17 @@
+-- | The Postings grid.
+--
+-- The Postings report is just a big grid. This is represented as an
+-- array. Filling in the grid is a multiple-step process. This module
+-- contains the higher-level functions that are responsible for
+-- filling in the grid.
+--
+-- The grid is cooperative: in order for things to line up on screen,
+-- it is essential that each cell be the right size. However the model
+-- ultimately relies on the contents of each cell to size itself
+-- correctly, rather than other functions resizing the cells. This is
+-- because ultimately each cell knows best how to size itself to
+-- fit--for example, how it might truncate its contents to fit a
+-- narrow cell.
 module Penny.Cabin.Postings.Grid where
 
 import Control.Applicative (
@@ -15,6 +29,12 @@ import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Boxes as B
 import qualified Penny.Lincoln.Queries as Q
 
+-- | fmap over an array, with additional information. Similar to fmap,
+-- but with an ordinary fmap the function sees only the contents of
+-- the current cell. fmapArray shows the function the entire array and
+-- the address of the current cell, as well as the contents of the
+-- cell itself. The function then returns the contents of the new
+-- cell.
 fmapArray ::
   A.Ix i
   => (A.Array i y -> i -> y -> z)
@@ -25,7 +45,7 @@ fmapArray f a = A.array b ls' where
   ls' = map f' . A.assocs $ a
   f' (i, e) = (i, f a i e)
 
--- Step 1 - Compute balances
+-- * Step 1 - Compute balances
 balanceAccum :: Bal.Balance -> B.PostingBox -> (Bal.Balance, Bal.Balance)
 balanceAccum bal pb = (bal', bal') where
   bal' = bal `mappend` pstgBal
@@ -34,7 +54,7 @@ balanceAccum bal pb = (bal', bal') where
 balances :: [B.PostingBox] -> [(B.PostingBox, Bal.Balance)]
 balances ps = zip ps (snd . Tr.mapAccumL balanceAccum mempty $ ps)
 
--- Step 2 - Number postings
+-- * Step 2 - Number postings
 numberPostings ::
   [(B.PostingBox, Bal.Balance)]
   -> [T.PostingInfo]
@@ -50,20 +70,20 @@ numberPostings ls = reverse reversed where
     <$> ZipList (reverse withPostingNums)
     <*> ZipList (map T.RevPostingNum [0..])
 
--- Step 3 - Get visible postings only
+-- * Step 3 - Get visible postings only
 filterToVisible ::
   (T.PostingInfo -> Bool)
   -> [T.PostingInfo]
   -> [T.PostingInfo]
 filterToVisible b ps = filter b ps  
 
--- Step 4 - add visible numbers
+-- * Step 4 - add visible numbers
 addVisibleNum ::
   [T.PostingInfo]
   -> [(T.PostingInfo, T.VisibleNum)]
 addVisibleNum ls = zip ls (map T.VisibleNum [0..])
 
--- Step 5 - multiply into tranches
+-- * Step 5 - multiply into tranches
 tranches ::
   Bounded t
   => [(T.PostingInfo, T.VisibleNum)]
@@ -73,7 +93,7 @@ tranches ls =
   <$> ls
   <*> [minBound, maxBound]
 
--- Step 6 - multiply to array
+-- * Step 6 - multiply to array
 toArray ::
   (Bounded c, Bounded t, A.Ix c, A.Ix t)
   => [(T.PostingInfo, T.VisibleNum, t)]
@@ -92,6 +112,8 @@ toArray ls =
     in Just $ A.array b ps
 
 type Index c t = (c, (T.VisibleNum, t))
+
+-- * Step 7 - Space claim
 
 -- | Step 7 - Space claim. What different cells should do at this phase:
 --
@@ -121,6 +143,8 @@ spaceClaim ::
   -> A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
 spaceClaim f = fmapArray g where
   g a i p = (p, f a i p)
+
+-- * Step 8 - GrowToFit
 
 -- | Step 8 - GrowToFit. What different cells should do at this phase:
 --
@@ -158,6 +182,8 @@ growCells ::
 growCells f = fmapArray g where
   g a i (p, w) = (p, f a i (p, w))
 
+-- * Step 9 - Allocate
+
 -- | Step 9 - Allocate. What to do at this phase:
 --
 -- * GrowToFit, Padding, Empty, and Overran cells - have already
@@ -187,6 +213,8 @@ allocateCells ::
 allocateCells f = fmapArray g where
   g a i (p, w) = (p, f a i (p, w))
 
+-- * Step 10 - Finalize
+
 -- | Step 10. Finalize all cells, including overruns. What cells should
 -- do at this phase:
 --
@@ -212,7 +240,7 @@ finalize ::
   -> CellArray c t
 finalize f = CellArray . fmapArray f
 
--- Step 11 - make chunks
+-- * Step 11 - make chunks
 newtype CellArray c t =
   CellArray { unCellArray :: A.Array (Index c t) R.Cell }
 
@@ -222,7 +250,7 @@ instance (A.Ix c, A.Ix t) => R.HasChunk (CellArray c t) where
     rs = fmap toRow . Ta.OneDim . Ta.rows $ a
     toRow = F.foldr R.prependCell R.emptyRow
 
--- Put it all together!
+-- * Put it all together
 
 report ::
   (A.Ix c, A.Ix t, Bounded c, Bounded t)

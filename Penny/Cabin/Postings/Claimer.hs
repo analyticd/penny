@@ -1,3 +1,6 @@
+-- | Step 7 - Space claim. See the documentation in
+-- "Penny.Cabin.Postings.Grid" for details about how this fits in to
+-- the process.
 module Penny.Cabin.Postings.Claimer where
 
 import Control.Applicative ((<$>), (<*>), pure)

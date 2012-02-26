@@ -1,3 +1,4 @@
+-- | Data types used throughout the Postings report.
 module Penny.Cabin.Postings.Types where
 
 import qualified Data.Array as A

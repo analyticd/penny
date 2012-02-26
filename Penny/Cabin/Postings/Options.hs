@@ -1,3 +1,4 @@
+-- | Options for the Postings report.
 module Penny.Cabin.Postings.Options where
 
 import qualified Data.Text as X

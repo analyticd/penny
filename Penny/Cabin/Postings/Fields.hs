@@ -1,3 +1,6 @@
+-- | A generic type that represents all the available fields in the
+-- postings report. Its current main use is parameterized on Bool to
+-- indicate which fields the user wants to see.
 module Penny.Cabin.Postings.Fields where
 
 data Fields a =

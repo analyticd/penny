@@ -1,3 +1,5 @@
+-- | Step 10 - Finalizer. See the comments in
+-- "Penny.Cabin.Postings.Grid" to see where this fits in.
 module Penny.Cabin.Postings.Finalizer where
 
 import qualified Data.Array as A

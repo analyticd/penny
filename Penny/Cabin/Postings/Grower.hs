@@ -1,3 +1,5 @@
+-- | Step 8 - GrowToFit. See "Penny.Cabin.Postings.Grid" for more
+-- details on where this fits into the larger order.
 module Penny.Cabin.Postings.Grower where
 
 import qualified Data.Array as A
