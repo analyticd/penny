@@ -22,18 +22,74 @@ import Penny.Copper.Qty (Radix, Separator)
 
 data Options =
   Options { drCrColors :: C.DrCrColors
+            -- ^ Colors to use when displaying debits, credits, and
+            -- when displaying balance totals
+
           , baseColors :: C.BaseColors 
+            -- ^ Colors to use when displaying everything else
+
           , dateFormat :: T.PostingInfo -> X.Text
+            -- ^ How to display dates. This function is applied to the
+            -- a PostingInfo so it has lots of information, but it
+            -- should return a date for use in the Date field.
+            
           , qtyFormat :: T.PostingInfo -> X.Text
+            -- ^ How to display the quantity of the posting. This
+            -- function is applied to a PostingInfo so it has lots of
+            -- information, but it should return a formatted string of
+            -- the quantity. Allows you to format digit grouping,
+            -- radix points, perform rounding, etc.
+            
           , balanceFormat :: Bits.Commodity -> Bal.Nought -> X.Text
+            -- ^ How to display balance totals. Similar to
+            -- balanceFormat.
+            
           , payeeAllocation :: A.Allocation
+            -- ^ This and accountAllocation determine how much space
+            -- payees and accounts receive. They divide up the
+            -- remaining space after everything else is displayed. For
+            -- instance if payeeAllocation is 60 and accountAllocation
+            -- is 40, the payee takes about 60 percent of the
+            -- remaining space and the account takes about 40 percent.
+            
           , accountAllocation :: A.Allocation 
+            -- ^ See payeeAllocation above
+
           , width :: ReportWidth
+            -- ^ Gives the default report width. This can be
+            -- overridden on the command line. You can use the
+            -- information from the Runtime to make this as wide as
+            -- the as the current terminal.
+
           , subAccountLength :: Int
-          , colorPref :: CC.ColorPref 
+            -- ^ When shortening the names of sub accounts to make
+            -- them fit, they will be this long.
+
+          , colorPref :: CC.ColorPref
+            -- ^ How many colors you want to see, or do it
+            -- automatically.
+
           , timeZone :: DefaultTimeZone
+            -- ^ When dates and times are given on the command line
+            -- and they have no time zone, they are assumed to be in
+            -- this time zone. This has no bearing on how dates are
+            -- formatted in the output; for that, see dateFormat
+            -- above.
+
           , radix :: Radix
-          , separator :: Separator }
+            -- ^ The character used for the radix point for numbers
+            -- given on the command line (e.g. a full stop, or a
+            -- comma). Affects how inputs are parsed. Has no bearing
+            -- on how output is formatted; for that, see qtyFormat and
+            -- balanceFormat above.
+            
+          , separator :: Separator
+            -- ^ The character used as the digit group separator for
+            -- numbers parsed from the command line (e.g. a full stop,
+            -- or a comma). Affects how inputs are parsed. Has no
+            -- bearing on how output is formatted; for that, see
+            -- qtyFormat and balanceFormat above.
+          }
 
 newtype ReportWidth = ReportWidth { unReportWidth :: Int }
                       deriving (Eq, Show, Ord)
