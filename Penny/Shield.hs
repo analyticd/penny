@@ -8,7 +8,20 @@
 -- information would require reaching into the FFI and so it is not
 -- implemented.
 
-module Penny.Shield where
+module Penny.Shield (
+  ScreenLines,
+  unScreenLines,
+  ScreenWidth,
+  unScreenWidth,
+  Output(IsTTY, NotTTY),
+  Term,
+  unTerm,
+  Runtime,
+  environment,
+  currentTime,
+  output,
+  runtime)
+  where
 
 import Control.Applicative ((<$>), (<*>))
 import Data.Time (getCurrentTime)
@@ -17,7 +30,7 @@ import System.IO (hIsTerminalDevice, stdout)
 
 import Penny.Lincoln.Bits (DateTime(DateTime))
 
-data ScreenLines = ScreenLines { unLines :: Int }
+data ScreenLines = ScreenLines { unScreenLines :: Int }
                  deriving Show
 
 newtype ScreenWidth = ScreenWidth { unScreenWidth :: Int }

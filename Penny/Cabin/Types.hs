@@ -1,6 +1,6 @@
--- | Types used throughout Cabin. Also provides an interface for other
--- Penny components to use.
-module Penny.Cabin.Types where
+-- | An interface for other Penny components to use. Reports must
+-- provide functions that
+module Penny.Cabin.Interface where
 
 import Control.Monad.Exception.Synchronous (Exceptional)
 import Data.Text (Text)
@@ -12,6 +12,7 @@ import Penny.Liberty.Types (PostingInfo)
 import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PriceBox)
 import Penny.Liberty.Error (Error)
+import Penny.Shield (Runtime)
 
 type ReportFunc =
   [PostingInfo]
