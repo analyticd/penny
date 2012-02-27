@@ -107,7 +107,7 @@ makeReportParser dtz rad sp rf rt c fact = do
 -- the @balanceFormat@ and @qtyFormat@ fields in the
 -- 'Penny.Cabin.Postings.Options.Options' record. (TODO will probably
 -- move dtz, rad, and sep to the Options record.)
-makeReport ::
+report ::
   DefaultTimeZone
   -- ^ If a date or time entered on the command line has no time zone,
   -- it is assumed to be in this time zone.
