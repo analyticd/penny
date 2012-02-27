@@ -33,7 +33,7 @@
 -- show various fields. However, the order of the fields is not
 -- configurable without editing the source code (sorry).
 
-module Penny.Cabin.Postings where
+module Penny.Cabin.Postings (report) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
@@ -132,5 +132,5 @@ makeReport ::
   -- this function can be overridden on the command line.
 
   -> CT.Report
-makeReport dtz rad sp rf = CT.Report help rpt where
+report dtz rad sp rf = CT.Report help rpt where
   rpt = makeReportParser dtz rad sp rf
