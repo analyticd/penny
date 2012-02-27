@@ -1,5 +1,5 @@
--- | An interface for other Penny components to use. Reports must
--- provide functions that
+-- | An interface for other Penny components to use. A report is
+-- anything that is a 'Report'.
 module Penny.Cabin.Interface where
 
 import Control.Monad.Exception.Synchronous (Exceptional)
