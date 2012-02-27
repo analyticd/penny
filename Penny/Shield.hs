@@ -33,11 +33,10 @@ data Runtime = Runtime { environment :: [(String, String)]
                        , output :: Output }
 
 runtime :: IO Runtime
-runtime =
-  Runtime
-  <$> getEnvironment
-  <*> (DateTime <$> getCurrentTime)
-  <*> findOutput
+runtime = Runtime
+          <$> getEnvironment
+          <*> (DateTime <$> getCurrentTime)
+          <*> findOutput
 
 findOutput :: IO Output
 findOutput = do
