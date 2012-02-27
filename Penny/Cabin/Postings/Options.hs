@@ -15,9 +15,9 @@ import qualified Penny.Cabin.Postings.Colors as C
 import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Types as T
 import qualified Penny.Cabin.Postings.Schemes.DarkBackground as Dark
-import qualified Penny.Cabin.Types as CT
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (Radix, Separator)
+import qualified Penny.Shield as S
 
 
 data Options =
@@ -122,7 +122,7 @@ defaultOptions ::
   DefaultTimeZone
   -> Radix
   -> Separator
-  -> CT.Runtime
+  -> S.Runtime
   -> Options
 defaultOptions dtz rad sep rt =
   Options { drCrColors = Dark.drCrColors
@@ -139,10 +139,10 @@ defaultOptions dtz rad sep rt =
           , radix = rad
           , separator = sep }
 
-widthFromRuntime :: CT.Runtime -> ReportWidth
-widthFromRuntime rt = case CT.screenWidth rt of
+widthFromRuntime :: S.Runtime -> ReportWidth
+widthFromRuntime rt = case S.screenWidth rt of
   Nothing -> defaultWidth
-  Just (CT.ScreenWidth w) -> ReportWidth w
+  Just w -> ReportWidth . S.unScreenWidth $ w
 
 defaultFields :: F.Fields Bool
 defaultFields =

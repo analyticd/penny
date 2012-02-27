@@ -4,8 +4,9 @@ import qualified Data.List.NonEmpty as NE
 import System.Console.MultiArg.Prim (ParserE)
 import qualified Penny.Liberty.Types as T
 import Penny.Cabin.Colors (ColorPref)
-import qualified Penny.Cabin.Types as CT
+import qualified Penny.Cabin.Interface as I
 import qualified Penny.Liberty.Error as E
+import qualified Penny.Shield as S
 import qualified Penny.Zinc.Filter as F
 import qualified Penny.Zinc.Report as R
 import qualified Penny.Zinc.Ledgers as L
@@ -17,17 +18,17 @@ import Penny.Lincoln.Boxes (PostingBox)
 
 data Result =
   Result { filter :: [PostingBox] -> [T.PostingInfo]
-         , reportFunc :: CT.ReportFunc
+         , reportFunc :: I.ReportFunc
          , colors :: ColorPref
          , filenames :: NE.NonEmpty L.Filename }
 
 parser ::
-  CT.Runtime
+  S.Runtime
   -> DefaultTimeZone
   -> DateTime
   -> Radix
   -> Separator
-  -> NE.NonEmpty CT.Report
+  -> NE.NonEmpty I.Report
   -> ParserE E.Error Result
 parser rt dtz dt rad sep rpts = do
   filtResult <- F.parseFilter dtz dt rad sep

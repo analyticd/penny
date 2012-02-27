@@ -8,17 +8,18 @@ import System.Console.MultiArg.Prim (ParserE)
 import qualified Text.Matchers.Text as T
 
 import Penny.Cabin.Colors (ColorPref)
-import qualified Penny.Cabin.Types as CT
+import qualified Penny.Cabin.Interface as I
 import qualified Penny.Liberty.Error as E
+import qualified Penny.Shield as S
 
 report ::
-  CT.Runtime
-  -> NE.NonEmpty CT.Report
+  S.Runtime
+  -> NE.NonEmpty I.Report
   -> T.CaseSensitive
   -> (X.Text -> ES.Exceptional X.Text (X.Text -> Bool))
-  -> ParserE E.Error (CT.ReportFunc, ColorPref)
+  -> ParserE E.Error (I.ReportFunc, ColorPref)
 report rt rs c fact = foldl (<|>) first rest where
-  toParser r = CT.parseReport r rt c fact
+  toParser r = I.parseReport r rt c fact
   first = toParser (NE.neHead rs)
   rest = map toParser (NE.neTail rs)
 

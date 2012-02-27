@@ -9,7 +9,6 @@ import System.Console.MultiArg.Prim (ParserE)
 
 import Penny.Cabin.Colors (Chunk, ColorPref)
 import Penny.Liberty.Types (PostingInfo)
-import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PriceBox)
 import Penny.Liberty.Error (Error)
 import Penny.Shield (Runtime)

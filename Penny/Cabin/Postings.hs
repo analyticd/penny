@@ -51,11 +51,13 @@ import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Grid as G
 import qualified Penny.Cabin.Postings.Options as O
 import qualified Penny.Cabin.Postings.Parser as P
-import qualified Penny.Cabin.Types as CT
+import qualified Penny.Cabin.Interface as I
 
 import Penny.Liberty.Operators (getPredicate)
 import Penny.Liberty.Error (Error)
 import qualified Penny.Liberty.Types as LT
+
+import qualified Penny.Shield as S
 
 printReport ::
   F.Fields Bool
@@ -81,14 +83,14 @@ makeReportFunc f o s ps _ = case getPredicate (P.tokens s) of
     Just c -> c
 
 makeReportParser ::
-  (CT.Runtime -> (F.Fields Bool, O.Options))
-  -> CT.Runtime
+  (S.Runtime -> (F.Fields Bool, O.Options))
+  -> S.Runtime
   -> CaseSensitive
   -> (X.Text -> Ex.Exceptional X.Text (X.Text -> Bool))
-  -> ParserE Error (CT.ReportFunc, C.ColorPref)
+  -> ParserE Error (I.ReportFunc, C.ColorPref)
 makeReportParser rf rt c fact = do
   let (flds, opts) = rf rt
-  s <- P.parseCommand (CT.currentTime rt) opts c fact
+  s <- P.parseCommand (S.currentTime rt) opts c fact
   let colorPref = P.colors s
       reportFunc = makeReportFunc flds opts s
   return (reportFunc, colorPref)
@@ -96,7 +98,7 @@ makeReportParser rf rt c fact = do
 -- | Creates a Postings report. Apply this function to your
 -- customizations.
 report ::
-  (CT.Runtime -> (F.Fields Bool, O.Options))
+  (S.Runtime -> (F.Fields Bool, O.Options))
   -- ^ Function that, when applied to a a data type that holds various
   -- values that can only be known at runtime (such as the width of
   -- the screen, the TERM environment variable, and whether standard
@@ -107,6 +109,6 @@ report ::
   -- configuring your options.) The fields and options returned by
   -- this function can be overridden on the command line.
 
-  -> CT.Report
-report rf = CT.Report help rpt where
+  -> I.Report
+report rf = I.Report help rpt where
   rpt = makeReportParser rf

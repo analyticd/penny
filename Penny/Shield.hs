@@ -20,6 +20,9 @@ module Penny.Shield (
   environment,
   currentTime,
   output,
+  screenLines,
+  screenWidth,
+  term,
   runtime)
   where
 
