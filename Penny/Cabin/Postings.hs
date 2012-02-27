@@ -99,11 +99,38 @@ makeReportParser dtz rad sp rf rt c fact = do
       reportFunc = makeReportFunc flds opts s
   return (reportFunc, colorPref)
 
+-- | Creates a Postings report. Apply this function to your
+-- customizations. The Radix and Separator variables are used /only/
+-- to configure the way values are parsed on the command line. They
+-- have no bearing on the way output is displayed in the report. To
+-- change the way values are displayed in the report, take a look at
+-- the @balanceFormat@ and @qtyFormat@ fields in the
+-- 'Penny.Cabin.Postings.Options.Options' record. (TODO will probably
+-- move dtz, rad, and sep to the Options record.)
 makeReport ::
   DefaultTimeZone
+  -- ^ If a date or time entered on the command line has no time zone,
+  -- it is assumed to be in this time zone.
+
   -> Radix
+  -- ^ Radix point character used for values entered on the command
+  -- line.
+  
   -> Separator
+  -- ^ Digit grouping character used for values entered on the command
+  -- line.
+
   -> (CT.Runtime -> (F.Fields Bool, O.Options))
+  -- ^ Function that, when applied to a a data type that holds various
+  -- values that can only be known at runtime (such as the width of
+  -- the screen, the TERM environment variable, and whether standard
+  -- output is a terminal) returns which fields to show and the
+  -- default report options. This way you can configure your options
+  -- depending upon the runtime environment. (You can always ignore
+  -- the runtime variable if you don't care about that stuff when
+  -- configuring your options.) The fields and options returned by
+  -- this function can be overridden on the command line.
+
   -> CT.Report
 makeReport dtz rad sp rf = CT.Report help rpt where
   rpt = makeReportParser dtz rad sp rf
