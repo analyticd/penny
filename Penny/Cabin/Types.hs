@@ -13,24 +13,6 @@ import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PriceBox)
 import Penny.Liberty.Error (Error)
 
-data ScreenLines = ScreenLines { unLines :: Int }
-                 deriving Show
-
-newtype ScreenWidth = ScreenWidth { unScreenWidth :: Int }
-                      deriving Show
-
-data Output = IsTTY | NotTTY
-
-newtype Term = Term { unTerm :: String } deriving Show
-
--- | Information about the runtime environment.
-data Runtime =
-  Runtime { screenLines :: Maybe ScreenLines
-          , screenWidth :: Maybe ScreenWidth
-          , currentTime :: DateTime 
-          , output :: Output
-          , term :: Maybe Term }
-
 type ReportFunc =
   [PostingInfo]
   -> [PriceBox]

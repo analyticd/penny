@@ -5,7 +5,6 @@ import qualified Data.Text as X
 import Data.Time (formatTime)
 import System.Locale (defaultTimeLocale)
 import qualified Data.Time as Time
-import System.Environment (getEnvironment)
 
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
@@ -108,9 +107,6 @@ balanceAsIs _ n = case n of
   Bal.Zero -> X.pack "--"
   Bal.NonZero c -> X.pack . show . Bits.unQty . Bal.qty $ c
 
-columnsVar :: IO (Maybe String)
-columnsVar = getEnvironment >>= return . lookup "COLUMNS"
-  
 defaultWidth :: ReportWidth
 defaultWidth = ReportWidth 80
 

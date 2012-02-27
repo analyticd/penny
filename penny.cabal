@@ -263,6 +263,7 @@ Library
         Penny.Lincoln.TextNonEmpty,
         Penny.Lincoln.Transaction,
         Penny.Lincoln.Transaction.Unverified,
+        Penny.Shield,
         Penny.Zinc,
         Penny.Zinc.Filter,
         Penny.Zinc.Help,
