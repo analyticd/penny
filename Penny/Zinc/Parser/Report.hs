@@ -1,4 +1,4 @@
-module Penny.Zinc.Report where
+module Penny.Zinc.Parser.Report where
 
 import Control.Applicative ((<|>))
 import qualified Control.Monad.Exception.Synchronous as ES

@@ -1,4 +1,4 @@
-module Penny.Zinc.Filter where
+module Penny.Zinc.Parser.Filter where
 
 import Control.Applicative ((<|>), (<$>))
 import Control.Monad.Exception.Synchronous (Exceptional)

@@ -7,9 +7,9 @@ import Penny.Cabin.Colors (ColorPref)
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Liberty.Error as E
 import qualified Penny.Shield as S
-import qualified Penny.Zinc.Filter as F
-import qualified Penny.Zinc.Report as R
-import qualified Penny.Zinc.Ledgers as L
+import qualified Penny.Zinc.Parser.Filter as F
+import qualified Penny.Zinc.Parser.Report as R
+import qualified Penny.Zinc.Parser.Ledgers as L
 
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (Radix, Separator)

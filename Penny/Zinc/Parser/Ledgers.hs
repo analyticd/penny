@@ -1,4 +1,4 @@
-module Penny.Zinc.Ledgers where
+module Penny.Zinc.Parser.Ledgers where
 
 import Control.Applicative ((<$>), many, liftA)
 import qualified Data.List.NonEmpty as NE
