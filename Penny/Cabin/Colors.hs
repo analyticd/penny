@@ -15,6 +15,7 @@ module Penny.Cabin.Colors (
   -- * Chunks
   Chunk,
   chunk,
+  emptyChunk,
   chunkSize,
   Width(Width, unWidth),
   printChunk,
@@ -62,8 +63,11 @@ data Bit = Bit TextSpec Text
 
 data Chunk = Chunk (Seq Bit)
 
+emptyChunk :: Chunk
+emptyChunk = Chunk S.empty
+
 instance Monoid Chunk where
-  mempty = Chunk S.empty
+  mempty = emptyChunk
   mappend (Chunk c1) (Chunk c2) = Chunk (c1 `mappend` c2)
 
 data Color8 =

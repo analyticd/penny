@@ -35,6 +35,9 @@
 
 module Penny.Cabin.Postings where
 
+import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Text as X
+
 import Penny.Cabin.Postings.Claimer (claimer)
 import Penny.Cabin.Postings.Grower (grower)
 import Penny.Cabin.Postings.Allocator (allocator)
@@ -45,33 +48,33 @@ import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Grid as G
 import qualified Penny.Cabin.Postings.Options as O
 import qualified Penny.Cabin.Postings.Parser as P
-import qualified Penny.Cabin.Postings.Types as T
+import qualified Penny.Cabin.Postings.Types as PT
 import qualified Penny.Cabin.Types as CT
 
+import Penny.Liberty.Expressions (evaluate)
+import Penny.Liberty.Operators (getPredicate)
 import qualified Penny.Liberty.Types as LT
 
 report ::
   F.Fields Bool
   -> O.Options
-  -> (T.PostingInfo -> Bool)
+  -> (LT.PostingInfo -> Bool)
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
 report flds o =
   G.report (f claimer) (f grower) (f allocator) (f finalizer) where
     f fn = fn flds o
 
-{-
-makeResultFunc ::
-  State
-  -> Cl.Context
-  -> [T.PostingInfo]
+makeReportFunc ::
+  F.Fields Bool
+  -> O.Options
+  -> P.State
+  -> [LT.PostingInfo]
   -> a
-  -> Exceptional Text Chunk
-makeResultFunc = undefined
--}
-{-
-makeResultFunc st cx ps _ = case Oo.getPredicate (tokens st) of
-  Nothing -> Exception (pack "bad expresssion")
-  (Just p) -> let
--}  
+  -> Ex.Exceptional X.Text C.Chunk
+makeReportFunc f o s ps _ = case getPredicate (P.tokens s) of
+  Nothing -> Ex.Exception (X.pack "postings: bad expression")
+  Just p -> Ex.Success $ case report f o p ps of
+    Nothing -> C.emptyChunk
+    Just c -> c
 

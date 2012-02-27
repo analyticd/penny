@@ -72,10 +72,11 @@ numberPostings ls = reverse reversed where
 
 -- * Step 3 - Get visible postings only
 filterToVisible ::
-  (T.PostingInfo -> Bool)
+  (LT.PostingInfo -> Bool)
   -> [T.PostingInfo]
   -> [T.PostingInfo]
-filterToVisible b ps = filter b ps  
+filterToVisible p ps = filter p' ps where
+  p' pstg = p (T.toLibertyInfo pstg)
 
 -- * Step 4 - add visible numbers
 addVisibleNum ::
@@ -258,7 +259,7 @@ report ::
   -> Grower c t
   -> Allocator c t
   -> Finalizer c t
-  -> (T.PostingInfo -> Bool)
+  -> (LT.PostingInfo -> Bool)
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
 report c g a f p pbs =

@@ -32,8 +32,7 @@ data Runtime =
           , term :: Maybe Term }
 
 type ReportFunc =
-  Runtime
-  -> [PostingInfo]
+  [PostingInfo]
   -> [PriceBox]
   -> Exceptional Text Chunk
 
@@ -42,7 +41,8 @@ type ReportFunc =
 -- not its command name) up until, but not including, the first
 -- non-option word.
 type ParseReportOpts =
-  CaseSensitive
+  Runtime
+  -> CaseSensitive
   -> (Text -> Exceptional Text (Text -> Bool))
   -> ParserE Error (ReportFunc, ColorPref)
 

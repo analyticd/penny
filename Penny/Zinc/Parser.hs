@@ -22,18 +22,19 @@ data Result =
          , filenames :: NE.NonEmpty L.Filename }
 
 parser ::
-  DefaultTimeZone
+  CT.Runtime
+  -> DefaultTimeZone
   -> DateTime
   -> Radix
   -> Separator
   -> NE.NonEmpty CT.Report
   -> ParserE E.Error Result
-parser dtz dt rad sep rpts = do
+parser rt dtz dt rad sep rpts = do
   filtResult <- F.parseFilter dtz dt rad sep
   let sensitive = F.resultSensitive filtResult
       factory = F.resultFactory filtResult
       filt = F.resultFilter filtResult
-  (rpt, cs) <- R.report rpts sensitive factory
+  (rpt, cs) <- R.report rt rpts sensitive factory
   fns <- L.filenames
   return $ Result filt rpt cs fns
   
