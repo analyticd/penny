@@ -2,13 +2,12 @@
 module Penny.Cabin.Postings.Parser where
 
 import Control.Applicative ((<|>), (<$>))
-import Control.Monad.Exception.Synchronous
-  (Exceptional(Success, Exception))
+import Control.Monad.Exception.Synchronous (Exceptional)
 import Data.Text (Text, pack)
 import qualified Text.Matchers.Text as M
 import System.Console.MultiArg.Combinator (longOneArg, option)
 import System.Console.MultiArg.Option (makeLongOpt)
-import System.Console.MultiArg.Prim (ParserE, throw, nextArg)
+import System.Console.MultiArg.Prim (ParserE, throw)
 
 import qualified Penny.Cabin.Colors as CC
 import Penny.Liberty.Error (Error)
@@ -17,9 +16,7 @@ import qualified Penny.Liberty.Error as Er
 import qualified Penny.Liberty.Expressions as Ex
 import qualified Penny.Liberty.Filter as LF
 import qualified Penny.Liberty.Operands as Od
-import qualified Penny.Liberty.Operators as Oo
 import qualified Penny.Liberty.Types as Ty
-import qualified Penny.Cabin.Class as Cl
 import qualified Penny.Cabin.Postings.Colors as PC
 import qualified Penny.Cabin.Postings.Fields as Fl
 import qualified Penny.Cabin.Postings.Options as Op
@@ -29,7 +26,6 @@ import qualified Penny.Cabin.Postings.Schemes.LightBackground as LB
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (Radix, Separator)
 import Penny.Lincoln.Bits (DateTime)
-import Penny.Lincoln.Boxes (PriceBox)
 
 
 wrapLiberty ::
@@ -53,7 +49,7 @@ wrapBackground st = mkSt <$> background where
 
 wrapWidth :: State -> ParserE Error State
 wrapWidth st = mkSt <$> widthArg where
-  mkSt w = st { width = const w }
+  mkSt w = st { width = w }
 
 showField :: State -> ParserE Error State
 showField st = mkSt <$> fieldArg "show" where
@@ -106,7 +102,7 @@ parseCommand ::
 parseCommand dtz dt rad sp op cs fact = let
   st = newState op cs fact
   in do
-    nextWordIs (pack "postings") <|> nextWordIs (pack "pos")
+    _ <- nextWordIs (pack "postings") <|> nextWordIs (pack "pos")
     parseArgs dtz dt rad sp st
   
 data State =
@@ -116,7 +112,7 @@ data State =
         , postFilter :: [Ty.PostingInfo] -> [Ty.PostingInfo]
         , colors :: CC.ColorPref
         , scheme :: (PC.DrCrColors, PC.BaseColors) 
-        , width :: Maybe Cl.ScreenWidth -> Op.ReportWidth
+        , width :: Op.ReportWidth
         , fields :: Fl.Fields Bool }
 
 newState ::

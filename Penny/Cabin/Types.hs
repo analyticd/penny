@@ -48,4 +48,4 @@ type ParseReportOpts =
 
 data Report =
   Report { help :: Text
-         , printReport :: ParseReportOpts }
+         , parseReport :: ParseReportOpts }

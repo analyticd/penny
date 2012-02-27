@@ -11,7 +11,6 @@ import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Cabin.Allocate as A
-import qualified Penny.Cabin.Class as Cl
 import qualified Penny.Cabin.Colors as CC
 import qualified Penny.Cabin.Postings.Colors as C
 import qualified Penny.Cabin.Postings.Fields as F
@@ -26,7 +25,7 @@ data Options =
           , balanceFormat :: Bits.Commodity -> Bal.Nought -> X.Text
           , payeeAllocation :: A.Allocation
           , accountAllocation :: A.Allocation 
-          , width :: Maybe Cl.ScreenWidth -> ReportWidth
+          , width :: ReportWidth
           , subAccountLength :: Int
           , colorPref :: CC.ColorPref }
 
@@ -60,11 +59,6 @@ columnsVarToWidth ms = case ms of
     (i, []):[] -> if i > 0 then ReportWidth i else defaultWidth
     _ -> defaultWidth
 
-useScreenWidth :: Maybe Cl.ScreenWidth -> ReportWidth
-useScreenWidth sw = case sw of
-  Nothing -> defaultWidth
-  (Just (Cl.ScreenWidth w)) -> ReportWidth w
-
 defaultOptions :: Options
 defaultOptions =
   Options { drCrColors = Dark.drCrColors
@@ -74,7 +68,7 @@ defaultOptions =
           , balanceFormat = balanceAsIs
           , payeeAllocation = A.allocation 40
           , accountAllocation = A.allocation 60
-          , width = useScreenWidth
+          , width = defaultWidth
           , subAccountLength = 2
           , colorPref = CC.PrefAuto }
 

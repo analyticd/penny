@@ -3,8 +3,8 @@ module Penny.Zinc.Parser where
 import qualified Data.List.NonEmpty as NE
 import System.Console.MultiArg.Prim (ParserE)
 import qualified Penny.Liberty.Types as T
-import qualified Penny.Cabin.Class as C
-import Penny.Cabin.Colors (Colors)
+import Penny.Cabin.Colors (ColorPref)
+import qualified Penny.Cabin.Types as CT
 import qualified Penny.Liberty.Error as E
 import qualified Penny.Zinc.Filter as F
 import qualified Penny.Zinc.Report as R
@@ -17,8 +17,8 @@ import Penny.Lincoln.Boxes (PostingBox)
 
 data Result =
   Result { filter :: [PostingBox] -> [T.PostingInfo]
-         , reportFunc :: C.ReportFunc
-         , colors :: Colors
+         , reportFunc :: CT.ReportFunc
+         , colors :: ColorPref
          , filenames :: NE.NonEmpty L.Filename }
 
 parser ::
@@ -26,7 +26,7 @@ parser ::
   -> DateTime
   -> Radix
   -> Separator
-  -> NE.NonEmpty C.Report
+  -> NE.NonEmpty CT.Report
   -> ParserE E.Error Result
 parser dtz dt rad sep rpts = do
   filtResult <- F.parseFilter dtz dt rad sep
