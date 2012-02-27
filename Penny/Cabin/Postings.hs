@@ -53,9 +53,6 @@ import qualified Penny.Cabin.Postings.Options as O
 import qualified Penny.Cabin.Postings.Parser as P
 import qualified Penny.Cabin.Types as CT
 
-import Penny.Copper.DateTime (DefaultTimeZone)
-import Penny.Copper.Qty (Radix, Separator)
-
 import Penny.Liberty.Operators (getPredicate)
 import Penny.Liberty.Error (Error)
 import qualified Penny.Liberty.Types as LT
@@ -84,43 +81,22 @@ makeReportFunc f o s ps _ = case getPredicate (P.tokens s) of
     Just c -> c
 
 makeReportParser ::
-  DefaultTimeZone
-  -> Radix
-  -> Separator
-  -> (CT.Runtime -> (F.Fields Bool, O.Options))
+  (CT.Runtime -> (F.Fields Bool, O.Options))
   -> CT.Runtime
   -> CaseSensitive
   -> (X.Text -> Ex.Exceptional X.Text (X.Text -> Bool))
   -> ParserE Error (CT.ReportFunc, C.ColorPref)
-makeReportParser dtz rad sp rf rt c fact = do
+makeReportParser rf rt c fact = do
   let (flds, opts) = rf rt
-  s <- P.parseCommand dtz (CT.currentTime rt) rad sp opts c fact
+  s <- P.parseCommand (CT.currentTime rt) opts c fact
   let colorPref = P.colors s
       reportFunc = makeReportFunc flds opts s
   return (reportFunc, colorPref)
 
 -- | Creates a Postings report. Apply this function to your
--- customizations. The Radix and Separator variables are used /only/
--- to configure the way values are parsed on the command line. They
--- have no bearing on the way output is displayed in the report. To
--- change the way values are displayed in the report, take a look at
--- the @balanceFormat@ and @qtyFormat@ fields in the
--- 'Penny.Cabin.Postings.Options.Options' record. (TODO will probably
--- move dtz, rad, and sep to the Options record.)
+-- customizations.
 report ::
-  DefaultTimeZone
-  -- ^ If a date or time entered on the command line has no time zone,
-  -- it is assumed to be in this time zone.
-
-  -> Radix
-  -- ^ Radix point character used for values entered on the command
-  -- line.
-  
-  -> Separator
-  -- ^ Digit grouping character used for values entered on the command
-  -- line.
-
-  -> (CT.Runtime -> (F.Fields Bool, O.Options))
+  (CT.Runtime -> (F.Fields Bool, O.Options))
   -- ^ Function that, when applied to a a data type that holds various
   -- values that can only be known at runtime (such as the width of
   -- the screen, the TERM environment variable, and whether standard
@@ -132,5 +108,5 @@ report ::
   -- this function can be overridden on the command line.
 
   -> CT.Report
-report dtz rad sp rf = CT.Report help rpt where
-  rpt = makeReportParser dtz rad sp rf
+report rf = CT.Report help rpt where
+  rpt = makeReportParser rf

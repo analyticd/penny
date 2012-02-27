@@ -23,21 +23,20 @@ import qualified Penny.Cabin.Postings.Options as Op
 import qualified Penny.Cabin.Postings.Schemes.DarkBackground as DB
 import qualified Penny.Cabin.Postings.Schemes.LightBackground as LB
 
-import Penny.Copper.DateTime (DefaultTimeZone)
-import Penny.Copper.Qty (Radix, Separator)
 import Penny.Lincoln.Bits (DateTime)
 
 
 wrapLiberty ::
-  DefaultTimeZone
+  Op.Options
   -> DateTime
-  -> Radix
-  -> Separator
   -> State
   -> ParserE Error State
-wrapLiberty dtz dt rad sep st =
-  fromLibertyState st
-  <$> LF.parseOption dtz dt rad sep (toLibertyState st)
+wrapLiberty op dt st = let
+  dtz = Op.timeZone op
+  rad = Op.radix op
+  sep = Op.separator op
+  in fromLibertyState st
+     <$> LF.parseOption dtz dt rad sep (toLibertyState st)
 
 wrapColor :: State -> ParserE Error State
 wrapColor st = mkSt <$> color where
@@ -64,14 +63,12 @@ hideField st = mkSt <$> fieldArg "hide" where
     fields' = f False oldFields
 
 parseArg ::
-  DefaultTimeZone
+  Op.Options
   -> DateTime
-  -> Radix
-  -> Separator
   -> State
   -> ParserE Error State
-parseArg dtz dt rad sp st =
-  wrapLiberty dtz dt rad sp st
+parseArg op dt st =
+  wrapLiberty op dt st
   <|> wrapColor st
   <|> wrapBackground st
   <|> wrapWidth st
@@ -79,31 +76,26 @@ parseArg dtz dt rad sp st =
   <|> hideField st
 
 parseArgs ::
-  DefaultTimeZone
+  Op.Options
   -> DateTime
-  -> Radix
-  -> Separator
   -> State
   -> ParserE Error State
-parseArgs dtz dt rad sp st =
+parseArgs op dt st =
   option st $ do
-    rs <- runUntilFailure (parseArg dtz dt rad sp) st
+    rs <- runUntilFailure (parseArg op dt) st
     if null rs then return st else return (last rs)
 
 parseCommand ::
-  DefaultTimeZone
-  -> DateTime
-  -> Radix
-  -> Separator
+  DateTime
   -> Op.Options
   -> M.CaseSensitive
   -> (Text -> Exceptional Text (Text -> Bool))
   -> ParserE Error State
-parseCommand dtz dt rad sp op cs fact = let
+parseCommand dt op cs fact = let
   st = newState op cs fact
   in do
     _ <- nextWordIs (pack "postings") <|> nextWordIs (pack "pos")
-    parseArgs dtz dt rad sp st
+    parseArgs op dt st
   
 data State =
   State { sensitive :: M.CaseSensitive

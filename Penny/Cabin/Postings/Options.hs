@@ -16,6 +16,9 @@ import qualified Penny.Cabin.Postings.Colors as C
 import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Types as T
 import qualified Penny.Cabin.Postings.Schemes.DarkBackground as Dark
+import Penny.Copper.DateTime (DefaultTimeZone)
+import Penny.Copper.Qty (Radix, Separator)
+
 
 data Options =
   Options { drCrColors :: C.DrCrColors
@@ -27,7 +30,10 @@ data Options =
           , accountAllocation :: A.Allocation 
           , width :: ReportWidth
           , subAccountLength :: Int
-          , colorPref :: CC.ColorPref }
+          , colorPref :: CC.ColorPref 
+          , timeZone :: DefaultTimeZone
+          , radix :: Radix
+          , separator :: Separator }
 
 newtype ReportWidth = ReportWidth { unReportWidth :: Int }
                       deriving (Eq, Show, Ord)
@@ -59,8 +65,8 @@ columnsVarToWidth ms = case ms of
     (i, []):[] -> if i > 0 then ReportWidth i else defaultWidth
     _ -> defaultWidth
 
-defaultOptions :: Options
-defaultOptions =
+defaultOptions :: DefaultTimeZone -> Radix -> Separator -> Options
+defaultOptions dtz rad sep =
   Options { drCrColors = Dark.drCrColors
           , baseColors = Dark.baseColors
           , dateFormat = ymd
@@ -70,7 +76,10 @@ defaultOptions =
           , accountAllocation = A.allocation 60
           , width = defaultWidth
           , subAccountLength = 2
-          , colorPref = CC.PrefAuto }
+          , colorPref = CC.PrefAuto 
+          , timeZone = dtz
+          , radix = rad
+          , separator = sep }
 
 defaultFields :: F.Fields Bool
 defaultFields =
