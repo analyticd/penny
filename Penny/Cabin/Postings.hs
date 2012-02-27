@@ -41,9 +41,11 @@ import Penny.Cabin.Postings.Allocator (allocator)
 import Penny.Cabin.Postings.Finalizer (finalizer)
 
 import qualified Penny.Cabin.Colors as C
+import qualified Penny.Cabin.Class as Cl
 import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Grid as G
 import qualified Penny.Cabin.Postings.Options as O
+import qualified Penny.Cabin.Postings.Parser as P
 import qualified Penny.Cabin.Postings.Types as T
 
 import qualified Penny.Liberty.Types as LT
@@ -57,3 +59,17 @@ report ::
 report flds o =
   G.report (f claimer) (f grower) (f allocator) (f finalizer) where
     f fn = fn flds o
+
+makeResultFunc ::
+  State
+  -> Cl.Context
+  -> [T.PostingInfo]
+  -> a
+  -> Exceptional Text Chunk
+makeResultFunc = undefined
+{-
+makeResultFunc st cx ps _ = case Oo.getPredicate (tokens st) of
+  Nothing -> Exception (pack "bad expresssion")
+  (Just p) -> let
+-}  
+

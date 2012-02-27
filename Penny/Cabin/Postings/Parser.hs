@@ -119,17 +119,6 @@ data State =
         , width :: Maybe Cl.ScreenWidth -> Op.ReportWidth
         , fields :: Fl.Fields Bool }
 
-makeResultFunc ::
-  State
-  -> Cl.Context
-  -> [Ty.PostingInfo]
-  -> [PriceBox]
-  -> Exceptional Text Chunk
-makeResultFunc st cx ps rs = case Oo.getPredicate (tokens st) of
-  Nothing -> Exception (pack "bad expresssion")
-  (Just p) -> let
-    
-
 newState ::
   Op.Options
   -> M.CaseSensitive
