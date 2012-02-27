@@ -37,31 +37,36 @@ module Penny.Cabin.Postings where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
+import Text.Matchers.Text (CaseSensitive)
+import System.Console.MultiArg.Prim (ParserE)
 
 import Penny.Cabin.Postings.Claimer (claimer)
 import Penny.Cabin.Postings.Grower (grower)
 import Penny.Cabin.Postings.Allocator (allocator)
 import Penny.Cabin.Postings.Finalizer (finalizer)
+import Penny.Cabin.Postings.Help (help)
 
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Grid as G
 import qualified Penny.Cabin.Postings.Options as O
 import qualified Penny.Cabin.Postings.Parser as P
-import qualified Penny.Cabin.Postings.Types as PT
 import qualified Penny.Cabin.Types as CT
 
-import Penny.Liberty.Expressions (evaluate)
+import Penny.Copper.DateTime (DefaultTimeZone)
+import Penny.Copper.Qty (Radix, Separator)
+
 import Penny.Liberty.Operators (getPredicate)
+import Penny.Liberty.Error (Error)
 import qualified Penny.Liberty.Types as LT
 
-report ::
+printReport ::
   F.Fields Bool
   -> O.Options
   -> (LT.PostingInfo -> Bool)
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
-report flds o =
+printReport flds o =
   G.report (f claimer) (f grower) (f allocator) (f finalizer) where
     f fn = fn flds o
 
@@ -74,7 +79,31 @@ makeReportFunc ::
   -> Ex.Exceptional X.Text C.Chunk
 makeReportFunc f o s ps _ = case getPredicate (P.tokens s) of
   Nothing -> Ex.Exception (X.pack "postings: bad expression")
-  Just p -> Ex.Success $ case report f o p ps of
+  Just p -> Ex.Success $ case printReport f o p ps of
     Nothing -> C.emptyChunk
     Just c -> c
 
+makeReportParser ::
+  DefaultTimeZone
+  -> Radix
+  -> Separator
+  -> (CT.Runtime -> (F.Fields Bool, O.Options))
+  -> CT.Runtime
+  -> CaseSensitive
+  -> (X.Text -> Ex.Exceptional X.Text (X.Text -> Bool))
+  -> ParserE Error (CT.ReportFunc, C.ColorPref)
+makeReportParser dtz rad sp rf rt c fact = do
+  let (flds, opts) = rf rt
+  s <- P.parseCommand dtz (CT.currentTime rt) rad sp opts c fact
+  let colorPref = P.colors s
+      reportFunc = makeReportFunc flds opts s
+  return (reportFunc, colorPref)
+
+makeReport ::
+  DefaultTimeZone
+  -> Radix
+  -> Separator
+  -> (CT.Runtime -> (F.Fields Bool, O.Options))
+  -> CT.Report
+makeReport dtz rad sp rf = CT.Report help rpt where
+  rpt = makeReportParser dtz rad sp rf
