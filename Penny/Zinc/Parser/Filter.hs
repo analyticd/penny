@@ -3,9 +3,10 @@ module Penny.Zinc.Parser.Filter where
 import Control.Applicative ((<|>), (<$>))
 import Control.Monad.Exception.Synchronous (Exceptional)
 import Data.Monoid (mempty, mappend)
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import qualified Text.Matchers.Text as M
-import System.Console.MultiArg.Combinator (option)
+import System.Console.MultiArg.Combinator (option, mixedNoArg)
+import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
 import System.Console.MultiArg.Prim (ParserE, throw)
 
 import Penny.Liberty.Error (Error)
@@ -23,12 +24,17 @@ import Penny.Copper.Qty (Radix, Separator)
 import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PostingBox)
 
+data NeedsHelp = NeedsHelp
+
+data Help = Help | NoHelp
+
 data State =
   State { sensitive :: M.CaseSensitive
         , factory :: Text -> Exceptional Text (Text -> Bool)
         , tokens :: [X.Token (T.PostingInfo -> Bool)]
         , postFilter :: [T.PostingInfo] -> [T.PostingInfo]
-        , orderer :: S.Orderer }
+        , orderer :: S.Orderer
+        , help :: Help }
 
 newState :: State
 newState =
@@ -36,7 +42,8 @@ newState =
         , factory = \t -> return (M.within M.Insensitive t)
         , tokens = []
         , postFilter = id
-        , orderer = mempty }
+        , orderer = mempty 
+        , help = NoHelp }
 
 wrapLiberty ::
   DefaultTimeZone
@@ -54,12 +61,23 @@ wrapLiberty dtz dt rad sp st = let
                           , factory = LF.factory libSt
                           , tokens = LF.tokens libSt
                           , postFilter = LF.postFilter libSt
-                          , orderer = orderer st }
+                          , orderer = orderer st
+                          , help = help st }
   in fromLibSt <$> LF.parseOption dtz dt rad sp toLibSt
 
 wrapOrderer :: State -> ParserE Error State
 wrapOrderer st = mkSt <$> S.sort where
   mkSt o = st { orderer = o `mappend` (orderer st) }
+
+helpOpt :: ParserE Error ()
+helpOpt = do
+  let lo = makeLongOpt . pack $ "help"
+      so = makeShortOpt 'h'
+  _ <- mixedNoArg lo [] [so]
+  return ()
+
+wrapHelp :: State -> ParserE Error State
+wrapHelp st = (\_ -> st { help = Help }) <$> helpOpt
 
 parseOption ::
   DefaultTimeZone
@@ -71,6 +89,7 @@ parseOption ::
 parseOption dtz dt rad sp st =
   wrapLiberty dtz dt rad sp st
   <|> wrapOrderer st
+  <|> wrapHelp st
 
 parseOptions ::
   DefaultTimeZone
@@ -87,22 +106,34 @@ parseOptions dtz dt rad sp st =
 data Result =
   Result { resultFactory :: Text -> Exceptional Text (Text -> Bool)
          , resultSensitive :: M.CaseSensitive
-         , resultFilter :: [PostingBox] -> [T.PostingInfo] }
+         , sorterFilterer :: [PostingBox] -> [T.PostingInfo] }
 
 parseFilter ::
   DefaultTimeZone
   -> DateTime
   -> Radix
   -> Separator
-  -> ParserE Error Result
+  -> ParserE Error (Either NeedsHelp Result)
 parseFilter dtz dt rad sep = do
-  let st = newState
-  st' <- parseOptions dtz dt rad sep st
-  p <- case Oo.getPredicate (tokens st') of
-    Just pr -> return pr
-    Nothing -> throw E.BadExpression
-  let f pbs = filter p preFilt where
-        preFilt = PSq.postingInfos (orderer st') pbs
-  return Result { resultFactory = factory st'
-                , resultSensitive = sensitive st'
-                , resultFilter = f }
+  st' <- parseOptions dtz dt rad sep newState
+  case help st' of
+    Help -> return . Left $ NeedsHelp
+    NoHelp -> do
+      p <- case Oo.getPredicate (tokens st') of
+        Just pr -> return pr
+        Nothing -> throw E.BadExpression
+      let f = sortFilterAndPostFilter (orderer st') p (postFilter st')
+          r = Result { resultFactory = factory st'
+                     , resultSensitive = sensitive st'
+                     , sorterFilterer = f }
+      return . Right $ r
+
+sortFilterAndPostFilter ::
+  S.Orderer
+  -> (T.PostingInfo -> Bool)
+  -> ([T.PostingInfo] -> [T.PostingInfo])
+  -> [PostingBox] -> [T.PostingInfo]
+sortFilterAndPostFilter o p pf =
+  pf
+  . filter p
+  . PSq.sortedPostingInfos o

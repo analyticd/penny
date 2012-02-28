@@ -16,8 +16,8 @@ import Penny.Liberty.Error (Error)
 import Penny.Lincoln.Boxes (PostingBox)
 import qualified Penny.Lincoln.Predicates as P
 
-postingInfos :: S.Orderer -> [PostingBox] -> [T.PostingInfo]
-postingInfos o = numberSorted . sortTriples o . numberUnsorted
+sortedPostingInfos :: S.Orderer -> [PostingBox] -> [T.PostingInfo]
+sortedPostingInfos o = numberSorted . sortTriples o . numberUnsorted
 
 numberUnsorted ::
   [PostingBox]

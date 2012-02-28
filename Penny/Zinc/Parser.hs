@@ -17,7 +17,7 @@ import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PostingBox)
 
 data Result =
-  Result { filter :: [PostingBox] -> [T.PostingInfo]
+  Result { sorterFilterWithPost :: [PostingBox] -> [T.PostingInfo]
          , reportFunc :: I.ReportFunc
          , colors :: ColorPref
          , filenames :: NE.NonEmpty L.Filename }
@@ -29,13 +29,16 @@ parser ::
   -> Radix
   -> Separator
   -> NE.NonEmpty I.Report
-  -> ParserE E.Error Result
+  -> ParserE E.Error (Either F.NeedsHelp Result)
 parser rt dtz dt rad sep rpts = do
-  filtResult <- F.parseFilter dtz dt rad sep
-  let sensitive = F.resultSensitive filtResult
-      factory = F.resultFactory filtResult
-      filt = F.resultFilter filtResult
-  (rpt, cs) <- R.report rt rpts sensitive factory
-  fns <- L.filenames
-  return $ Result filt rpt cs fns
+  fr <- F.parseFilter dtz dt rad sep
+  case fr of
+    Left h -> return $ Left h
+    Right filtResult -> do
+      let sensitive = F.resultSensitive filtResult
+          factory = F.resultFactory filtResult
+          filt = F.sorterFilterer filtResult
+      (rpt, cs) <- R.report rt rpts sensitive factory
+      fns <- L.filenames
+      return . Right $ Result filt rpt cs fns
   
