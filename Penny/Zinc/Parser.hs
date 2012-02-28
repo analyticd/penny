@@ -25,13 +25,12 @@ data Result =
 parser ::
   S.Runtime
   -> DefaultTimeZone
-  -> DateTime
   -> Radix
   -> Separator
   -> NE.NonEmpty I.Report
   -> ParserE E.Error (Either F.NeedsHelp Result)
-parser rt dtz dt rad sep rpts = do
-  fr <- F.parseFilter dtz dt rad sep
+parser rt dtz rad sep rpts = do
+  fr <- F.parseFilter dtz (S.currentTime rt) rad sep
   case fr of
     Left h -> return $ Left h
     Right filtResult -> do

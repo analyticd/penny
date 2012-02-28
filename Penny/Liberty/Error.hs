@@ -1,6 +1,6 @@
 module Penny.Liberty.Error where
 
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import qualified System.Console.MultiArg.Error as MAE
 
 data Error = MultiArgError MAE.Expecting MAE.Saw
@@ -21,3 +21,6 @@ data Error = MultiArgError MAE.Expecting MAE.Saw
 instance MAE.Error Error where
   parseErr = MultiArgError
 
+-- | Barebones for now
+display :: Error -> Text
+display = pack . show
