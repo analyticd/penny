@@ -265,11 +265,13 @@ Library
         Penny.Lincoln.Transaction.Unverified,
         Penny.Shield,
         Penny.Zinc,
+        Penny.Zinc.Error,
         Penny.Zinc.Help,
         Penny.Zinc.Parser,
         Penny.Zinc.Parser.Filter,
         Penny.Zinc.Parser.Ledgers,
-        Penny.Zinc.Parser.Report
+        Penny.Zinc.Parser.Report,
+        Penny.Zinc.ReportChunk
 
 
     if flag(testing)
