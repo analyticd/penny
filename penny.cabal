@@ -184,6 +184,7 @@ Library
         Penny.Cabin.Interface,
         Penny.Cabin.Postings,
         Penny.Cabin.Postings.Address,
+        Penny.Cabin.Postings.AllocationClaim,
         Penny.Cabin.Postings.Allocator,
         Penny.Cabin.Postings.Claimer,
         Penny.Cabin.Postings.Colors,
