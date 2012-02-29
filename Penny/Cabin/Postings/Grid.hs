@@ -246,9 +246,9 @@ allocateCells ::
 allocateCells f = fmapArray g where
   g a i (p, w) = (p, f a i (p, w))
 
--- * Step 10 - Finalize
+-- * Step 11 - Finalize
 
--- | Step 10. Finalize all cells, including overruns. What cells should
+-- | Step 11. Finalize all cells, including overruns. What cells should
 -- do at this phase:
 --
 -- * GrowToFit, Empty but padded, padding, overran, allocated cells -
@@ -273,7 +273,7 @@ finalize ::
   -> CellArray c t
 finalize f = CellArray . fmapArray f
 
--- * Step 11 - make chunks
+-- * Step 12 - make chunks
 newtype CellArray c t =
   CellArray { unCellArray :: A.Array (Index c t) R.Cell }
 
