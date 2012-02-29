@@ -112,7 +112,7 @@ surround l r t = l `X.cons` t `X.snoc` r
 
 flag :: Grower
 flag flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.date col a R.LeftJustify ts cs where
+  Just $ ifShown flds F.flag col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = case Q.flag . T.postingBox $ p of
       Nothing -> Seq.empty

@@ -52,8 +52,9 @@ parseNot = do
 getPredicate :: 
   [X.Token (a -> Bool)]
   -> Maybe (a -> Bool)
-getPredicate ls = X.evaluate q where
-  q = foldl (flip Q.enqueue) Q.empty (insertAddTokens ls)
+getPredicate ls =
+  if null ls then Just (const True) else X.evaluate q where
+    q = foldl (flip Q.enqueue) Q.empty (insertAddTokens ls)
 
 -- | Operands that are not separated by operators are assumed to be
 -- joined with an and operator; this function adds the and operators.
