@@ -33,7 +33,15 @@
 -- show various fields. However, the order of the fields is not
 -- configurable without editing the source code (sorry).
 
-module Penny.Cabin.Postings (report) where
+module Penny.Cabin.Postings (
+  -- * Postings report builder
+  report,
+  
+  -- * Options
+  O.Options(..), O.ReportWidth(..),
+  O.ymd, O.qtyAsIs, O.balanceAsIs, O.defaultWidth,
+  O.columnsVarToWidth, O.defaultOptions, O.widthFromRuntime,
+  O.defaultFields) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X

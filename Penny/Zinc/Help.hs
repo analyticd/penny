@@ -1,7 +1,9 @@
 module Penny.Zinc.Help where
 
-help :: String
-help = unlines [
+import Data.Text (Text, pack)
+
+help :: Text
+help = pack $ unlines [
   "usage: zinc [posting filters] report [report options] file . . .",
   "",
   "Posting filters",
@@ -111,32 +113,5 @@ help = unlines [
   "",
   "  Ascending order by default; for descending order,",
   "  capitalize the name of the key.",
-  "",
-  "Reports and their options:",
-  "",
-  "postings, pos",
-  "  Show postings in order with a running balance.",
-  "  The postings report takes the same options shown",
-  "  above; however, these options affect which postings",
-  "  are shown in the report. Postings not shown still affect",
-  "  the running balance.",
-  "",
-  "  Additional options:",
-  "    --related",
-  "      Show related postings",
-  "    --head n",
-  "      Show only the first n postings",
-  "    --tail n",
-  "      Show only the last n postings",
-  "    --color",
-  "      Shade with a bit of color",
-  "",
-  "balance, bal",
-  "  Show a tree of accounts and their balances.",
-  "  Options:",
-  "    --depth n",
-  "      Show accounts only to this depth",
-  "    --color",
-  "      Shade with a bit of color",
   ""
   ]

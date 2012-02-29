@@ -13,7 +13,6 @@ import qualified Penny.Zinc.Parser.Ledgers as L
 
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (Radix, Separator)
-import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PostingBox)
 
 data Result =

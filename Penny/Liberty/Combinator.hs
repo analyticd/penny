@@ -1,11 +1,11 @@
 -- | Some combinators that can be useful for working with parsers.
 module Penny.Liberty.Combinator where
 
-import Control.Applicative ((<|>))
 import qualified Data.Text as X
 import qualified Penny.Liberty.Error as LE
 import System.Console.MultiArg.Error as E
 import System.Console.MultiArg.Prim as P
+import System.Console.MultiArg.Combinator (option)
 
 -- | Fails without consuming any input if the parser
 -- succeeds. Succeeds if the parser fails without consuming any
@@ -15,8 +15,9 @@ failOnSuccess ::
   => (a -> P.ParserT s e m a)
   -> a
   -> P.ParserT s e m ()
-failOnSuccess pf i = let p = pf i in
-  (P.lookAhead p >> P.genericThrow) <|> return ()
+failOnSuccess pf i = do
+  r <- option False ((lookAhead (pf i)) >> return True)
+  if r then P.genericThrow else return ()
 
 
 -- | Repetitively runs a parser until it fails. Succeeds if the last

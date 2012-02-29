@@ -18,7 +18,7 @@ open = let lo = makeLongOpt . pack $ "open" in
 
 -- | Close parentheses
 close :: ParserE Error (X.Token a)
-close = let lo = makeLongOpt . pack $ "open" in
+close = let lo = makeLongOpt . pack $ "close" in
   longNoArg lo >> return X.TokCloseParen
 
 -- | and operator

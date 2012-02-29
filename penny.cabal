@@ -186,6 +186,7 @@ Library
         Penny.Cabin.Postings.Address,
         Penny.Cabin.Postings.Allocator,
         Penny.Cabin.Postings.Claimer,
+        Penny.Cabin.Postings.Colors,
         Penny.Cabin.Postings.Help,
         Penny.Cabin.Postings.Fields,
         Penny.Cabin.Postings.Finalizer,
@@ -295,4 +296,15 @@ Executable copperTest
       pretty ==1.0.*
   else
     buildable: False
+
+Executable penny
+  hs-source-dirs: bin
+  Build-depends:
+    base ==4.*,
+    time ==1.2.*,
+    penny ==0.1.*,
+    NonEmptyList ==0.0.5
+
+  Main-is: penny.hs
+  GHC-Options: -Wall
 

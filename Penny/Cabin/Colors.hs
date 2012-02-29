@@ -208,8 +208,13 @@ printBit c (Bit ts t) = let
   tsStr = textSpecCode c ts
   in putStr tsStr >> TIO.putStr t
 
-printChunk :: Colors -> Chunk -> IO ()
-printChunk c (Chunk cs) =
+printChunk :: ColorPref -> Chunk -> IO ()
+printChunk cp (Chunk cs) = do
+  c <- case cp of
+        Pref0 -> return Colors0
+        Pref8 -> return Colors8
+        Pref256 -> return Colors256
+        PrefAuto -> autoColors
   T.traverse (printBit c) cs *> printReset c
 
 autoColors :: IO Colors
