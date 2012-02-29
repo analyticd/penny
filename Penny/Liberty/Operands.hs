@@ -20,7 +20,7 @@
 -- expression parser.
 module Penny.Liberty.Operands where
 
-import Control.Applicative ((<|>), (<$>))
+import Control.Applicative ((<|>), (<$>), (<$))
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
 import Data.Text (Text, pack, unpack)
@@ -269,12 +269,12 @@ transactionMemo = patternOption "transaction-memo"
 -- * Non-pattern matching
 
 debit :: ParserE Error Operand
-debit = const (X.Operand P.debit)
-        <$> longNoArg (makeLongOpt . pack $ "debit")
+debit = X.Operand P.debit
+        <$ longNoArg (makeLongOpt . pack $ "debit")
 
 credit :: ParserE Error Operand
-credit = const (X.Operand P.credit)
-         <$> longNoArg (makeLongOpt . pack $ "credit")
+credit = X.Operand P.credit
+         <$ longNoArg (makeLongOpt . pack $ "credit")
 
 qtyOption ::
   Radix
