@@ -183,33 +183,65 @@ growCells ::
 growCells f = fmapArray g where
   g a i (p, w) = (p, f a i (p, w))
 
--- * Step 9 - Allocate
+-- * Step 9 - Allocation Claim
 
--- | Step 9 - Allocate. What to do at this phase:
+-- | Step 9 - Allocation claim. What do do at this phase:
 --
 -- * GrowToFit, Padding, Empty, and Overran cells - have already
--- supplied a cell. Pass that cell along.
+-- supplied a cell. Pass that cell along using AcCell.
 --
 -- * Allocated cells - If the field is not selected to be in the
--- report, supply Nothing. If the field is selected, then use the
--- minimum report width, the width of all other GrowToFit and Padding
--- cells in the row, and the share allocated to other Allocated cells
--- that are going to show in the report. Supply a cell that is
--- justified to be exactly the necessary width. (The Row module will
--- not truncate or wrap cells, so the function must take care of this
--- on its own.)
+-- report, supply an empty cell in AcCell . If the field is selected,
+-- then calculate the maximum width that the cell could use and pass
+-- it in an AcWidth.
 --
--- * Overrunning cells - supply Nothing.
-type Allocator c t =
+-- * Overrunning cells - supply AcOverrunning
+type AllocationClaim c t =
   A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
   -> Index c t
   -> (T.PostingInfo, Maybe R.Cell)
+  -> AcClaim
+
+data AcClaim =
+  AcCell R.Cell
+  | AcWidth Int
+  | AcOverrunning
+
+allocateClaim ::
+  (A.Ix c, A.Ix t)
+  => AllocationClaim c t
+  -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
+  -> A.Array (Index c t) (T.PostingInfo, AcClaim)
+allocateClaim f = fmapArray g where
+  g a i (p, mc) = (p, f a i (p, mc))
+
+-- * Step 10 - Allocate
+
+-- | Step 10 - Allocate. What to do at this phase:
+--
+-- * GrowToFit, Padding, Empty, Overran, and Allocated cells whose
+-- field is not in the report - have already supplied a cell via
+-- AcCell. Pass that cell along.
+--
+-- * Allocated cells whose field is in the report - have supplied an
+-- AcWidth. Use the minimum report width, the width of all other
+-- GrowToFit and Padding cells in the row, and the share allocated to
+-- other Allocated cells that are going to show in the report to
+-- determine the maximum space available to the allocated
+-- column. Also, compute the maximum AcWidth of the column. Create a
+-- cell that is as wide as (min maxAcWidth availAllocatedSpace).
+--
+-- * Overrunning cells - supply Nothing.
+type Allocator c t =
+  A.Array (Index c t) (T.PostingInfo, AcClaim)
+  -> Index c t
+  -> (T.PostingInfo, AcClaim)
   -> Maybe R.Cell
 
 allocateCells ::
   (A.Ix c, A.Ix t)
   => Allocator c t
-  -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
+  -> A.Array (Index c t) (T.PostingInfo, AcClaim)
   -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
 allocateCells f = fmapArray g where
   g a i (p, w) = (p, f a i (p, w))
@@ -258,11 +290,12 @@ report ::
   => Claimer c t
   -> Grower c t
   -> Allocator c t
+  -> AllocationClaim c t
   -> Finalizer c t
   -> (LT.PostingInfo -> Bool)
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
-report c g a f p pbs =
+report c g a ac f p pbs =
   (toArray
    . tranches
    . addVisibleNum
@@ -275,6 +308,7 @@ report c g a f p pbs =
    . R.chunk
    . finalize f
    . allocateCells a
+   . allocateClaim ac
    . growCells g
    . spaceClaim c)
   
