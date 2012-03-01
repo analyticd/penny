@@ -22,22 +22,15 @@ import qualified Penny.Cabin.TextFormat as TF
 import Penny.Cabin.Postings.Address (Col, Row)
 import qualified Penny.Cabin.Postings.Address as Adr
 import qualified Penny.Cabin.Postings.Colors as PC
+import qualified Penny.Cabin.Postings.Grid as G
 import qualified Penny.Cabin.Postings.Types as T
 import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Options as O
 
 type Arr = A.Array (Col, (T.VisibleNum, Row))
-           (T.PostingInfo, Maybe R.Cell)
+           (T.PostingInfo, G.AcClaim)
 
 type Address = (Col, Row)
-
-type Allocator =
-  F.Fields Bool
-  -> O.Options
-  -> Arr
-  -> (Col, (T.VisibleNum, Row))
-  -> (T.PostingInfo, Maybe R.Cell)
-  -> Maybe R.Cell
 
 newtype PayeeWidth = PayeeWidth { unPayeeWidth :: Int }
                      deriving (Show, Eq, Ord)
@@ -45,13 +38,14 @@ newtype PayeeWidth = PayeeWidth { unPayeeWidth :: Int }
 newtype AccountWidth = AccountWidth { unAccountWidth :: Int }
                        deriving (Show, Eq, Ord)
 
-allocator :: Allocator
-allocator flds os a (col, (vn, r)) (p, mc) = case mc of
-  Just c -> Just c
-  Nothing -> case (col, r) of
-    (Adr.Payee, Adr.Top) -> payee flds os a (col, (vn, r)) (p, mc)
-    (Adr.Account, Adr.Top) -> account flds os a (col, (vn, r)) (p, mc)
-    _ -> Nothing
+allocator ::  F.Fields Bool -> O.Options -> G.Allocator Col Row
+allocator flds os a (col, (vn, r)) (p, ac) = case ac of
+  G.AcCell c -> Just c
+  G.AcOverrunning -> Nothing
+  G.AcWidth _ -> case (col, r) of
+    (Adr.Payee, Adr.Top) -> payee flds os a (col, (vn, r)) (p, ac)
+    (Adr.Account, Adr.Top) -> account flds os a (col, (vn, r)) (p, ac)
+    _ -> error "allocator 1 error: should never happen"
 
 payeeCell ::
   PayeeWidth
@@ -75,11 +69,15 @@ payeeCell (PayeeWidth pw) p ts =
         $ seqTxts
       in fmap toChunk wrapped
 
-payee :: Allocator
+payee :: F.Fields Bool -> O.Options -> G.Allocator Col Row
 payee flds os a (_, (vn, _)) (p, _) =
-  case fst $ widths flds os vn a of
-    Just pw -> Just $ payeeCell pw p ts where
+  case fst $ aloWidths flds os vn a of
+    Just pw -> Just $ payeeCell bestWidth p ts where
       ts = PC.colors vn (O.baseColors os)
+      bestWidth =
+        PayeeWidth
+        $ min (unPayeeWidth pw)
+        (maxPayeeReservedWidth a)
     Nothing -> Nothing
 
 accountCell ::
@@ -103,19 +101,42 @@ accountCell (AccountWidth aw) os p ts =
        $ shortened
 
 
-account :: Allocator
+account ::  F.Fields Bool -> O.Options -> G.Allocator Col Row
 account flds os a (_, (vn, _)) (p, _) =
-  case snd $ widths flds os vn a of
-    Just aw -> Just $ accountCell aw os p ts where
+  case snd $ aloWidths flds os vn a of
+    Just aw -> Just $ accountCell bestWidth os p ts where
       ts = PC.colors vn (O.baseColors os)
+      bestWidth = AccountWidth
+                  $ min (unAccountWidth aw)
+                  (maxAccountReservedWidth a)
     Nothing -> Nothing
 
-widths :: F.Fields Bool
+maxPayeeReservedWidth :: Arr -> Int
+maxPayeeReservedWidth a = F.foldr folder 0 clm where
+  clm = Tb.column a Adr.Payee
+  folder (info, ac) maxSoFar = case ac of
+    G.AcWidth w -> max maxSoFar w where
+      w = case Q.payee . T.postingBox $ info of
+        Nothing -> 0
+        (Just pye) -> X.length . HT.text $ pye
+    _ -> maxSoFar
+
+maxAccountReservedWidth :: Arr -> Int
+maxAccountReservedWidth a = F.foldr folder 0 clm where
+  clm = Tb.column a Adr.Account
+  folder (info, ac) maxSoFar = case ac of
+    G.AcWidth w -> max maxSoFar w where
+        w = X.length . HT.text . HT.Delimited (X.singleton ':')
+            . HT.textList . Q.account . T.postingBox $ info
+    _ -> maxSoFar
+
+
+aloWidths :: F.Fields Bool
           -> O.Options
           -> T.VisibleNum
           -> Arr
           -> (Maybe PayeeWidth, Maybe AccountWidth)
-widths flds os vn arr = (pw, aw) where
+aloWidths flds os vn arr = (pw, aw) where
   allocs = M.fromList [ ('p', O.payeeAllocation os)
                       , ('a', O.accountAllocation os) ]
   widthTop = topRowWidth vn arr
@@ -136,8 +157,8 @@ topRowWidth :: T.VisibleNum -> Arr -> C.Width
 topRowWidth vn a = F.foldr mappend mempty r where
   r = fmap toWidth . Tb.OneDim . Tb.row a $ (vn, Adr.Top)
   toWidth (_, cell) = case cell of
-    Nothing -> mempty
-    (Just c) -> R.width c
+    G.AcCell c -> R.width c
+    _ -> mempty
 
 newtype MaxAllocated = MaxAllocated { unMaxAllocated :: Int }
                        deriving (Eq, Ord, Show)
