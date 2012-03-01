@@ -144,7 +144,9 @@ instance HasChunk Row where
   chunk (Row cells) =
     if S.null cells
     then mempty
-    else F.foldr mappend mempty zipped where
+    else F.foldr mappend mempty zippedWithNewlines where
+      newline = C.chunk C.defaultSpec (X.singleton '\n')
+      zippedWithNewlines = fmap (`mappend` newline) zipped
       zipped = F.foldr1 zipper (fmap justifiedChunks cells)
       zipper s1 s2 = S.zipWith mappend s1 s2
 
