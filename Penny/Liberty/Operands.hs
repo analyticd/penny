@@ -20,7 +20,7 @@
 -- expression parser.
 module Penny.Liberty.Operands where
 
-import Control.Applicative ((<|>), (<$>), (<$))
+import Control.Applicative ((<|>), (<$))
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
 import Data.Text (Text, pack, unpack)

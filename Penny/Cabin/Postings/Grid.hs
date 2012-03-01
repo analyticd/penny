@@ -289,13 +289,13 @@ report ::
   (A.Ix c, A.Ix t, Bounded c, Bounded t)
   => Claimer c t
   -> Grower c t
-  -> Allocator c t
   -> AllocationClaim c t
+  -> Allocator c t
   -> Finalizer c t
   -> (LT.PostingInfo -> Bool)
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
-report c g a ac f p pbs =
+report c g ac a f p pbs =
   (toArray
    . tranches
    . addVisibleNum

@@ -115,7 +115,7 @@ maxPayeeReservedWidth :: Arr -> Int
 maxPayeeReservedWidth a = F.foldr folder 0 clm where
   clm = Tb.column a Adr.Payee
   folder (info, ac) maxSoFar = case ac of
-    G.AcWidth w -> max maxSoFar w where
+    G.AcWidth _ -> max maxSoFar w where
       w = case Q.payee . T.postingBox $ info of
         Nothing -> 0
         (Just pye) -> X.length . HT.text $ pye
@@ -125,7 +125,7 @@ maxAccountReservedWidth :: Arr -> Int
 maxAccountReservedWidth a = F.foldr folder 0 clm where
   clm = Tb.column a Adr.Account
   folder (info, ac) maxSoFar = case ac of
-    G.AcWidth w -> max maxSoFar w where
+    G.AcWidth _ -> max maxSoFar w where
         w = X.length . HT.text . HT.Delimited (X.singleton ':')
             . HT.textList . Q.account . T.postingBox $ info
     _ -> maxSoFar
