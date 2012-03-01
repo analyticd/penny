@@ -24,7 +24,8 @@ import Penny.Lincoln.Bits (DateTime)
 
 data State =
   State { sensitive :: M.CaseSensitive
-        , factory :: Text -> Exceptional Text (Text -> Bool)
+        , factory :: M.CaseSensitive
+                     -> Text -> Exceptional Text (Text -> Bool)
         , tokens :: [X.Token (T.PostingInfo -> Bool)]
         , postFilter :: [T.PostingInfo] -> [T.PostingInfo] }
 

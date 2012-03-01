@@ -1,7 +1,7 @@
 -- | The Postings command line parser.
 module Penny.Cabin.Postings.Parser where
 
-import Control.Applicative ((<|>), (<$>))
+import Control.Applicative ((<|>), (<$>), (*>))
 import Control.Monad.Exception.Synchronous (Exceptional)
 import Data.Text (Text, pack)
 import qualified Text.Matchers.Text as M
@@ -27,118 +27,84 @@ import Penny.Lincoln.Bits (DateTime)
 
 
 wrapLiberty ::
-  Op.Options
-  -> DateTime
-  -> State
-  -> ParserE Error State
-wrapLiberty op dt st = let
+  DateTime
+  -> Op.Options
+  -> ParserE Error Op.Options
+wrapLiberty dt op = let
   dtz = Op.timeZone op
   rad = Op.radix op
   sep = Op.separator op
-  in fromLibertyState st
-     <$> LF.parseOption dtz dt rad sep (toLibertyState st)
+  in fromLibertyState op
+     <$> LF.parseOption dtz dt rad sep (toLibertyState op)
 
-wrapColor :: State -> ParserE Error State
+wrapColor :: Op.Options -> ParserE Error Op.Options
 wrapColor st = mkSt <$> color where
-  mkSt co = st { colors = co }
+  mkSt co = st { Op.colorPref = co }
 
-wrapBackground :: State -> ParserE Error State
+wrapBackground :: Op.Options -> ParserE Error Op.Options
 wrapBackground st = mkSt <$> background where
-  mkSt b = st { scheme = b }
+  mkSt b = st { Op.drCrColors = fst b 
+              , Op.baseColors = snd b }
 
-wrapWidth :: State -> ParserE Error State
+wrapWidth :: Op.Options -> ParserE Error Op.Options
 wrapWidth st = mkSt <$> widthArg where
-  mkSt w = st { width = w }
+  mkSt w = st { Op.width = w }
 
-showField :: State -> ParserE Error State
+showField :: Op.Options -> ParserE Error Op.Options
 showField st = mkSt <$> fieldArg "show" where
-  mkSt f = st { fields = fields' } where
-    oldFields = fields st
+  mkSt f = st { Op.fields = fields' } where
+    oldFields = Op.fields st
     fields' = f True oldFields
 
-hideField :: State -> ParserE Error State
+hideField :: Op.Options -> ParserE Error Op.Options
 hideField st = mkSt <$> fieldArg "hide" where
-  mkSt f = st { fields = fields' } where
-    oldFields = fields st
+  mkSt f = st { Op.fields = fields' } where
+    oldFields = Op.fields st
     fields' = f False oldFields
 
 parseArg ::
-  Op.Options
-  -> DateTime
-  -> State
-  -> ParserE Error State
-parseArg op dt st =
-  wrapLiberty op dt st
-  <|> wrapColor st
-  <|> wrapBackground st
-  <|> wrapWidth st
-  <|> showField st
-  <|> hideField st
+  DateTime
+  -> Op.Options
+  -> ParserE Error Op.Options
+parseArg dt op =
+  wrapLiberty dt op 
+  <|> wrapColor op
+  <|> wrapBackground op
+  <|> wrapWidth op
+  <|> showField op
+  <|> hideField op
 
 parseArgs ::
-  Op.Options
-  -> DateTime
-  -> State
-  -> ParserE Error State
-parseArgs op dt st =
-  option st $ do
-    rs <- runUntilFailure (parseArg op dt) st
-    if null rs then return st else return (last rs)
+  DateTime
+  -> Op.Options
+  -> ParserE Error Op.Options
+parseArgs dt op =
+  option op $ do
+    rs <- runUntilFailure (parseArg dt) op
+    if null rs then return op else return (last rs)
 
 parseCommand ::
   DateTime
   -> Op.Options
-  -> M.CaseSensitive
-  -> (Text -> Exceptional Text (Text -> Bool))
-  -> ParserE Error State
-parseCommand dt op cs fact = let
-  st = newState op cs fact
-  in do
-    _ <- nextWordIs (pack "postings") <|> nextWordIs (pack "pos")
-    parseArgs op dt st
+  -> ParserE Error Op.Options
+parseCommand dt op =
+    (nextWordIs (pack "postings")
+     <|> nextWordIs (pack "pos"))
+    *> parseArgs dt op
   
-data State =
-  State { sensitive :: M.CaseSensitive
-        , factory :: Text -> Exceptional Text (Text -> Bool)
-        , tokens :: [Ex.Token (Ty.PostingInfo -> Bool)]
-        , postFilter :: [Ty.PostingInfo] -> [Ty.PostingInfo]
-        , colors :: CC.ColorPref
-        , scheme :: (PC.DrCrColors, PC.BaseColors) 
-        , width :: Op.ReportWidth
-        , fields :: Fl.Fields Bool }
+toLibertyState :: Op.Options -> LF.State
+toLibertyState op =
+  LF.State { LF.sensitive = Op.sensitive op
+           , LF.factory = Op.factory op
+           , LF.tokens = Op.tokens op
+           , LF.postFilter = Op.postFilter op }
 
-newState ::
-  Op.Options
-  -> M.CaseSensitive
-  -> (Text -> Exceptional Text (Text -> Bool))
-  -> State
-newState op s f =
-  State { sensitive = s
-        , factory = f
-        , tokens = []
-        , postFilter = id
-        , colors = Op.colorPref op
-        , scheme = (Op.drCrColors op, Op.baseColors op)
-        , width = Op.width op
-        , fields = Op.defaultFields }
-
-toLibertyState :: State -> LF.State
-toLibertyState st =
-  LF.State { LF.sensitive = sensitive st
-           , LF.factory = factory st
-           , LF.tokens = tokens st
-           , LF.postFilter = postFilter st }
-
-fromLibertyState :: State -> LF.State -> State
-fromLibertyState st lf =
-  State { sensitive = LF.sensitive lf
-        , factory = LF.factory lf
-        , tokens = LF.tokens lf
-        , postFilter = LF.postFilter lf
-        , colors = colors st
-        , scheme = scheme st 
-        , width = width st
-        , fields = fields st }
+fromLibertyState :: Op.Options -> LF.State -> Op.Options
+fromLibertyState op lf =
+  op  { Op.sensitive = LF.sensitive lf
+      , Op.factory = LF.factory lf
+      , Op.tokens = LF.tokens lf
+      , Op.postFilter = LF.postFilter lf }
 
 color :: ParserE Error CC.ColorPref
 color = do

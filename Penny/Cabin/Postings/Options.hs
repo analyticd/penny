@@ -1,11 +1,16 @@
 -- | Options for the Postings report.
 module Penny.Cabin.Postings.Options where
 
+import Control.Monad.Exception.Synchronous (Exceptional)
+import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Time (formatTime)
 import System.Locale (defaultTimeLocale)
 import qualified Data.Time as Time
+import qualified Text.Matchers.Text as M
 
+import qualified Penny.Liberty.Expressions as Ex
+import qualified Penny.Liberty.Types as Ty
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
@@ -89,6 +94,23 @@ data Options =
             -- or a comma). Affects how inputs are parsed. Has no
             -- bearing on how output is formatted; for that, see
             -- qtyFormat and balanceFormat above.
+            
+          , sensitive :: M.CaseSensitive
+            -- ^ Whether pattern matches are case sensitive by default.
+            
+          , factory :: M.CaseSensitive
+                       -> Text -> Exceptional Text (Text -> Bool)
+            -- ^ Default factory for pattern matching
+            
+          , tokens :: [Ex.Token (Ty.PostingInfo -> Bool)]
+            -- ^ Default list of tokens used to filter postings.
+            
+          , postFilter :: [Ty.PostingInfo] -> [Ty.PostingInfo]
+            -- ^ The entire posting list is transformed by this
+            -- function after it is filtered according to the tokens.
+            
+          , fields :: F.Fields Bool
+            -- ^ Default fields to show in the report.
           }
 
 newtype ReportWidth = ReportWidth { unReportWidth :: Int }
@@ -137,7 +159,12 @@ defaultOptions dtz rad sep rt =
           , colorPref = CC.PrefAuto 
           , timeZone = dtz
           , radix = rad
-          , separator = sep }
+          , separator = sep
+          , sensitive = M.Insensitive
+          , factory = \s t -> (return (M.within s t))
+          , tokens = []
+          , postFilter = id
+          , fields = defaultFields }
 
 widthFromRuntime :: S.Runtime -> ReportWidth
 widthFromRuntime rt = case S.screenWidth rt of
