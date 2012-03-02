@@ -25,7 +25,7 @@ type ReportFunc =
 type ParseReportOpts =
   Runtime
   -> CaseSensitive
-  -> (Text -> Exceptional Text (Text -> Bool))
+  -> (CaseSensitive -> Text -> Exceptional Text (Text -> Bool))
   -> ParserE Error (ReportFunc, ColorPref)
 
 data Report =

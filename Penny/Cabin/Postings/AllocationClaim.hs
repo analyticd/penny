@@ -19,23 +19,22 @@ type Arr = A.Array (Col, (T.VisibleNum, Row))
 type Address = (Col, Row)
 
 allocationClaim ::
-  F.Fields Bool
-  -> O.Options
+  O.Options
   -> G.AllocationClaim Col Row
-allocationClaim _ _ _ _ (_, Just c) = G.AcCell c
+allocationClaim _ _ _ (_, Just c) = G.AcCell c
 
-allocationClaim flds _ _ (col, (_, tr)) (p, _) = case (col, tr) of
+allocationClaim opts _ (col, (_, tr)) (p, _) = case (col, tr) of
   (Adr.Payee, Adr.Top) -> let
     w = case Q.payee . T.postingBox $ p of
       Nothing -> 0
       (Just pye) -> X.length . HT.text $ pye
-    in if F.payee flds
+    in if F.payee . O.fields $ opts
        then G.AcWidth w
        else G.AcCell R.zeroCell
   (Adr.Account, Adr.Top) -> let
     w = X.length . HT.text . HT.Delimited (X.singleton ':')
         . HT.textList . Q.account . T.postingBox $ p
-    in if F.account flds
+    in if F.account . O.fields $ opts
        then G.AcWidth w
        else G.AcCell R.zeroCell
   (Adr.Multi, row) -> case row of

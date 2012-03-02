@@ -30,7 +30,8 @@ data Help = Help | NoHelp
 
 data State =
   State { sensitive :: M.CaseSensitive
-        , factory :: Text -> Exceptional Text (Text -> Bool)
+        , factory :: M.CaseSensitive
+                     -> Text -> Exceptional Text (Text -> Bool)
         , tokens :: [X.Token (T.PostingInfo -> Bool)]
         , postFilter :: [T.PostingInfo] -> [T.PostingInfo]
         , orderer :: S.Orderer
@@ -39,7 +40,7 @@ data State =
 newState :: State
 newState =
   State { sensitive = M.Insensitive
-        , factory = \t -> return (M.within M.Insensitive t)
+        , factory = \c t -> return (M.within c t)
         , tokens = []
         , postFilter = id
         , orderer = mempty 
@@ -104,7 +105,8 @@ parseOptions dtz dt rad sp st =
     if null rs then return st else return (last rs)
 
 data Result =
-  Result { resultFactory :: Text -> Exceptional Text (Text -> Bool)
+  Result { resultFactory :: M.CaseSensitive
+                            -> Text -> Exceptional Text (Text -> Bool)
          , resultSensitive :: M.CaseSensitive
          , sorterFilterer :: [PostingBox] -> [T.PostingInfo] }
 

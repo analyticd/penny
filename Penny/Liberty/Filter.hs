@@ -32,7 +32,7 @@ data State =
 newState :: State
 newState =
   State { sensitive = M.Insensitive
-        , factory = \t -> return (M.within M.Insensitive t)
+        , factory = \c t -> return (M.within c t)
         , tokens = []
         , postFilter = id }
 
@@ -44,7 +44,8 @@ wrapOperand ::
   -> State
   -> ParserE Error State
 wrapOperand dtz dt rad sep st =
-  mkSt <$> O.parseToken dtz dt rad sep (factory st) where
+  mkSt <$> O.parseToken dtz dt rad sep fact where
+    fact = factory st (sensitive st)
     mkSt op = st { tokens = tokens st ++ [op'] } where
         op' = X.TokOperand (f . T.postingBox)
         (X.Operand f) = op

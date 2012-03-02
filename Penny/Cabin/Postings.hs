@@ -69,46 +69,44 @@ import qualified Penny.Liberty.Types as LT
 import qualified Penny.Shield as S
 
 printReport ::
-  F.Fields Bool
-  -> O.Options
+  O.Options
   -> (LT.PostingInfo -> Bool)
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
-printReport flds o =
+printReport o =
   G.report (f claimer) (f grower)
   (f allocationClaim) (f allocator) (f finalizer) where
-    f fn = fn flds o
+    f fn = fn o
 
 makeReportFunc ::
-  F.Fields Bool
-  -> O.Options
-  -> P.State
+  O.Options
   -> [LT.PostingInfo]
   -> a
   -> Ex.Exceptional X.Text C.Chunk
-makeReportFunc f o s ps _ = case getPredicate (P.tokens s) of
+makeReportFunc o ps _ = case getPredicate (O.tokens o) of
   Nothing -> Ex.Exception (X.pack "postings: bad expression")
-  Just p -> Ex.Success $ case printReport f o p ps of
+  Just p -> Ex.Success $ case printReport o p ps of
     Nothing -> C.emptyChunk
     Just c -> c
 
 makeReportParser ::
-  (S.Runtime -> (F.Fields Bool, O.Options))
+  (S.Runtime -> O.Options)
   -> S.Runtime
   -> CaseSensitive
-  -> (X.Text -> Ex.Exceptional X.Text (X.Text -> Bool))
+  -> (CaseSensitive -> X.Text -> Ex.Exceptional X.Text (X.Text -> Bool))
   -> ParserE Error (I.ReportFunc, C.ColorPref)
 makeReportParser rf rt c fact = do
-  let (flds, opts) = rf rt
-  s <- P.parseCommand (S.currentTime rt) opts c fact
-  let colorPref = P.colors s
-      reportFunc = makeReportFunc flds opts s
+  let opts = (rf rt) { O.sensitive = c
+                     , O.factory = fact }
+  opts' <- P.parseCommand (S.currentTime rt) opts
+  let colorPref = O.colorPref opts'
+      reportFunc = makeReportFunc opts'
   return (reportFunc, colorPref)
 
 -- | Creates a Postings report. Apply this function to your
 -- customizations.
 report ::
-  (S.Runtime -> (F.Fields Bool, O.Options))
+  (S.Runtime -> O.Options)
   -- ^ Function that, when applied to a a data type that holds various
   -- values that can only be known at runtime (such as the width of
   -- the screen, the TERM environment variable, and whether standard

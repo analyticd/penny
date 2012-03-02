@@ -38,13 +38,13 @@ newtype PayeeWidth = PayeeWidth { unPayeeWidth :: Int }
 newtype AccountWidth = AccountWidth { unAccountWidth :: Int }
                        deriving (Show, Eq, Ord)
 
-allocator ::  F.Fields Bool -> O.Options -> G.Allocator Col Row
-allocator flds os a (col, (vn, r)) (p, ac) = case ac of
+allocator ::  O.Options -> G.Allocator Col Row
+allocator os a (col, (vn, r)) (p, ac) = case ac of
   G.AcCell c -> Just c
   G.AcOverrunning -> Nothing
   G.AcWidth _ -> case (col, r) of
-    (Adr.Payee, Adr.Top) -> payee flds os a (col, (vn, r)) (p, ac)
-    (Adr.Account, Adr.Top) -> account flds os a (col, (vn, r)) (p, ac)
+    (Adr.Payee, Adr.Top) -> payee os a (col, (vn, r)) (p, ac)
+    (Adr.Account, Adr.Top) -> account os a (col, (vn, r)) (p, ac)
     _ -> error "allocator 1 error: should never happen"
 
 payeeCell ::
@@ -69,9 +69,9 @@ payeeCell (PayeeWidth pw) p ts =
         $ seqTxts
       in fmap toChunk wrapped
 
-payee :: F.Fields Bool -> O.Options -> G.Allocator Col Row
-payee flds os a (_, (vn, _)) (p, _) =
-  case fst $ aloWidths flds os vn a of
+payee :: O.Options -> G.Allocator Col Row
+payee os a (_, (vn, _)) (p, _) =
+  case fst $ aloWidths os vn a of
     Just pw -> Just $ payeeCell bestWidth p ts where
       ts = PC.colors vn (O.baseColors os)
       bestWidth =
@@ -101,9 +101,9 @@ accountCell (AccountWidth aw) os p ts =
        $ shortened
 
 
-account ::  F.Fields Bool -> O.Options -> G.Allocator Col Row
-account flds os a (_, (vn, _)) (p, _) =
-  case snd $ aloWidths flds os vn a of
+account ::  O.Options -> G.Allocator Col Row
+account os a (_, (vn, _)) (p, _) =
+  case snd $ aloWidths os vn a of
     Just aw -> Just $ accountCell bestWidth os p ts where
       ts = PC.colors vn (O.baseColors os)
       bestWidth = AccountWidth
@@ -131,12 +131,11 @@ maxAccountReservedWidth a = F.foldr folder 0 clm where
     _ -> maxSoFar
 
 
-aloWidths :: F.Fields Bool
-          -> O.Options
+aloWidths :: O.Options
           -> T.VisibleNum
           -> Arr
           -> (Maybe PayeeWidth, Maybe AccountWidth)
-aloWidths flds os vn arr = (pw, aw) where
+aloWidths os vn arr = (pw, aw) where
   allocs = M.fromList [ ('p', O.payeeAllocation os)
                       , ('a', O.accountAllocation os) ]
   widthTop = topRowWidth vn arr
@@ -147,6 +146,7 @@ aloWidths flds os vn arr = (pw, aw) where
   acct = AccountWidth . fromIntegral . (! 'a') $ ws
   payeeAll = PayeeWidth . fromIntegral . unMaxAllocated $ widthMax
   acctAll = AccountWidth . fromIntegral . unMaxAllocated $ widthMax
+  flds = O.fields os
   (pw, aw) = case (F.payee flds, F.account flds) of
     (True, True) -> (Just pay, Just acct)
     (False, False) -> (Nothing, Nothing)

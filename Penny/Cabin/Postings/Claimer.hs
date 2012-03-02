@@ -24,26 +24,25 @@ import qualified Penny.Cabin.Postings.Options as O
 
 ifShown ::
   (F.Fields Bool -> Bool)
-  -> F.Fields Bool
+  -> O.Options
   -> Maybe T.ClaimedWidth
   -> Maybe T.ClaimedWidth
-ifShown fn flds mt =
-  if fn flds
+ifShown fn opts mt =
+  if fn (O.fields opts)
   then mt
   else Nothing
  
 type Claimer = 
-  F.Fields Bool
-  -> O.Options
+  O.Options
   -> A.Array (Col, (T.VisibleNum, Row)) T.PostingInfo
   -> (Col, (T.VisibleNum, Row))
   -> T.PostingInfo
   -> Maybe T.ClaimedWidth
 
 claimer :: Claimer
-claimer flds opts a (col, (vn, r)) p = let
+claimer opts a (col, (vn, r)) p = let
   f = claimLookup ! (col, r) in
-  f flds opts a (col, (vn, r)) p
+  f opts a (col, (vn, r)) p
 
 claimLookup :: M.Map (Col, Row) Claimer
 claimLookup = foldl (flip . uncurry $ M.insert) noClaims ls where
@@ -59,7 +58,7 @@ claimLookup = foldl (flip . uncurry $ M.insert) noClaims ls where
         totalCmdty, sTotalCmdty, totalQty]
 
 noClaim :: Claimer
-noClaim _ _ _ _ _ = Nothing
+noClaim _ _ _ _ = Nothing
 
 claimOne :: Maybe T.ClaimedWidth
 claimOne = Just $ T.ClaimedWidth 1
@@ -72,8 +71,8 @@ claimOneIf b =
 
 lineNum :: ((Col, Row), Claimer)
 lineNum = ((Adr.LineNum, Adr.Top), f) where
-  f flds _ _ _ p =
-    ifShown F.lineNum flds $
+  f opts _ _ p =
+    ifShown F.lineNum opts $
     case Q.postingLine . T.postingBox $ p of
       Nothing -> Nothing
       (Just n) ->
@@ -87,8 +86,8 @@ lineNum = ((Adr.LineNum, Adr.Top), f) where
 
 sLineNum :: ((Col, Row), Claimer)
 sLineNum = ((Adr.SLineNum, Adr.Top), f) where
-  f flds _ _ _ p =
-    ifShown F.lineNum flds
+  f opts _ _ p =
+    ifShown F.lineNum opts
     . claimOneIf
     . isJust
     . Q.postingLine
@@ -97,8 +96,8 @@ sLineNum = ((Adr.SLineNum, Adr.Top), f) where
 
 date :: ((Col, Row), Claimer)
 date = ((Adr.Date, Adr.Top), f) where
-  f flds opts _ _ p =
-    ifShown F.date flds $
+  f opts _ _ p =
+    ifShown F.date opts $
     Just
     . T.ClaimedWidth
     . X.length
@@ -107,13 +106,13 @@ date = ((Adr.Date, Adr.Top), f) where
 
 sDate :: ((Col, Row), Claimer)
 sDate = ((Adr.SDate, Adr.Top), f) where
-  f flds _ _ _ _ = ifShown F.date flds claimOne
+  f opts _ _ _ = ifShown F.date opts claimOne
 
 
 flag :: ((Col, Row), Claimer)
 flag = ((Adr.Multi, Adr.Top), f) where
-  f flds _ _ _ p =
-    ifShown F.flag flds $
+  f opts _ _ p =
+    ifShown F.flag opts $
     case Q.flag . T.postingBox $ p of
       Nothing -> Nothing
       (Just fl) ->
@@ -126,8 +125,8 @@ flag = ((Adr.Multi, Adr.Top), f) where
 
 sFlag :: ((Col, Row), Claimer)
 sFlag = ((Adr.SMulti, Adr.Top), f) where
-  f flds _ _ _ p =
-    ifShown F.flag flds
+  f opts _ _ p =
+    ifShown F.flag opts
     . claimOneIf
     . isJust
     . Q.flag
@@ -136,8 +135,8 @@ sFlag = ((Adr.SMulti, Adr.Top), f) where
 
 number :: ((Col, Row), Claimer)
 number = ((Adr.Num, Adr.Top), f) where
-  f flds _ _ _ p =
-    ifShown F.number flds $
+  f opts _ _ p =
+    ifShown F.number opts $
     case Q.number . T.postingBox $ p of
       Nothing -> Nothing
       (Just num) ->
@@ -149,8 +148,8 @@ number = ((Adr.Num, Adr.Top), f) where
 
 sNumber :: ((Col, Row), Claimer)
 sNumber = ((Adr.SNum, Adr.Top), f) where
-  f flds _ _ _ p =
-    ifShown F.flag flds
+  f opts _ _ p =
+    ifShown F.flag opts
     . claimOneIf
     . isJust
     . Q.number
@@ -162,8 +161,8 @@ payee = ((Adr.Payee, Adr.Top), noClaim)
 
 sPayee :: ((Col, Row), Claimer)
 sPayee = ((Adr.SPayee, Adr.Top), f) where
-  f flds _ _ _ p =
-    ifShown F.payee flds
+  f opts _ _ p =
+    ifShown F.payee opts
     . claimOneIf
     . isJust
     . Q.payee
@@ -175,22 +174,22 @@ account = ((Adr.Account, Adr.Top), noClaim)
 
 sAccount :: ((Col, Row), Claimer)
 sAccount = ((Adr.SAccount, Adr.Top), f) where
-  f flds _ _ _ _ = ifShown F.account flds claimOne
+  f opts _ _ _ = ifShown F.account opts claimOne
 
 postingDrCr :: ((Col, Row), Claimer)
 postingDrCr = ((Adr.PostingDrCr, Adr.Top), f) where
-  f flds _ _ _ _ = ifShown F.postingDrCr flds $
+  f opts _ _ _ = ifShown F.postingDrCr opts $
                    Just (T.ClaimedWidth 2)
 
 sPostingDrCr :: ((Col, Row), Claimer)
 sPostingDrCr = ((Adr.SPostingDrCr, Adr.Top), f) where
-  f flds _ _ _ _ =
-    ifShown F.postingDrCr flds claimOne
+  f opts _ _ _ =
+    ifShown F.postingDrCr opts claimOne
 
 postingCmdty :: ((Col, Row), Claimer)
 postingCmdty = ((Adr.PostingCommodity, Adr.Top), f) where
-  f flds _ _ _ p =
-    ifShown F.postingCmdty flds $
+  f opts _ _ p =
+    ifShown F.postingCmdty opts $
     Just
     . T.ClaimedWidth
     . X.length
@@ -203,12 +202,12 @@ postingCmdty = ((Adr.PostingCommodity, Adr.Top), f) where
 
 sPostingCmdty :: ((Col, Row), Claimer)
 sPostingCmdty = ((Adr.SPostingCommodity, Adr.Top), f) where
-  f flds _ _ _ _ = ifShown F.postingCmdty flds claimOne
+  f opts _ _ _ = ifShown F.postingCmdty opts claimOne
 
 postingQty :: ((Col, Row), Claimer)    
 postingQty = ((Adr.PostingQty, Adr.Top), f) where
-  f flds opts _ _ p =
-    ifShown F.postingQty flds $
+  f opts _ _ p =
+    ifShown F.postingQty opts $
     Just
     . T.ClaimedWidth
     . X.length
@@ -217,24 +216,24 @@ postingQty = ((Adr.PostingQty, Adr.Top), f) where
 
 sPostingQty :: ((Col, Row), Claimer)
 sPostingQty = ((Adr.SPostingQty, Adr.Top), f) where
-  f flds _ _ _ _ = ifShown F.postingQty flds claimOne
+  f opts _ _ _ = ifShown F.postingQty opts claimOne
 
 totalDrCr :: ((Col, Row), Claimer)
 totalDrCr = ((Adr.TotalDrCr, Adr.Top), f) where
-  f flds _ _ _ _ =
-    ifShown F.totalDrCr flds
+  f opts _ _ _ =
+    ifShown F.totalDrCr opts
     $ Just
     . T.ClaimedWidth
     $ 2
 
 sTotalDrCr :: ((Col, Row), Claimer)
 sTotalDrCr = ((Adr.STotalDrCr, Adr.Top), f) where
-  f flds _ _ _ _ = ifShown F.totalDrCr flds claimOne
+  f opts _ _ _ = ifShown F.totalDrCr opts claimOne
 
 
 totalCmdty :: ((Col, Row), Claimer)
 totalCmdty = ((Adr.TotalCommodity, Adr.Top), f) where
-  f flds _ _ _ p = ifShown F.totalCmdty flds (Just widest) where
+  f opts _ _ p = ifShown F.totalCmdty opts (Just widest) where
     balMap = Bal.unBalance . T.balance $ p
     widest = M.foldrWithKey folder (T.ClaimedWidth 0) balMap where
       folder com _ soFar = max width soFar where
@@ -247,11 +246,11 @@ totalCmdty = ((Adr.TotalCommodity, Adr.Top), f) where
 
 sTotalCmdty :: ((Col, Row), Claimer)
 sTotalCmdty = ((Adr.STotalCommodity, Adr.Top), f) where
-  f flds _ _ _ _ = ifShown F.totalCmdty flds claimOne
+  f opts _ _ _ = ifShown F.totalCmdty opts claimOne
 
 totalQty :: ((Col, Row), Claimer)
 totalQty = ((Adr.TotalQty, Adr.Top), f) where
-  f flds opts _ _ p = ifShown F.totalQty flds (Just widest) where
+  f opts _ _ p = ifShown F.totalQty opts (Just widest) where
     balMap = Bal.unBalance . T.balance $ p
     widest = M.foldrWithKey folder (T.ClaimedWidth 0) balMap where
       folder com no soFar = max width soFar where

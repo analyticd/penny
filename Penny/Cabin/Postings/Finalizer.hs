@@ -31,17 +31,16 @@ type Index = (Col, (T.VisibleNum, Row))
 type Address = (Col, Row)
 
 type Finalizer =
-  F.Fields Bool
-  -> O.Options
+  O.Options
   -> Arr
   -> (Col, (T.VisibleNum, Row))
   -> (T.PostingInfo, Maybe R.Cell)
   -> R.Cell
 
 finalizer :: Finalizer
-finalizer flds os a (col, (vn, r)) (p, mc) = case mc of
+finalizer os a (col, (vn, r)) (p, mc) = case mc of
   Just c -> c
-  Nothing -> let f fn = fn flds os a (col, (vn, r)) (p, mc) in
+  Nothing -> let f fn = fn os a (col, (vn, r)) (p, mc) in
     case (col, r) of
       (Adr.Multi, Adr.Tags) -> f tags
       (Adr.Multi, Adr.Memo) -> f memo
@@ -74,8 +73,8 @@ widthFlagToPostingQty vn = rangeAdd i where
   i = ((Adr.Multi, r), (Adr.PostingQty, r))
 
 tags :: Finalizer
-tags flds os a (_, (vn, _)) (p, _) = cell where
-  cell = if F.tags flds
+tags os a (_, (vn, _)) (p, _) = cell where
+  cell = if F.tags . O.fields $ os
          then R.Cell R.LeftJustify w ts cs
          else R.zeroCell
   w = widthFlagToPostingQty vn a
@@ -107,8 +106,8 @@ memoChunks ts m (C.Width w) = cs where
   toChunk (TF.Words ws) = C.chunk ts (X.unwords . Fd.toList $ ws)
 
 memo :: Finalizer
-memo flds os a (_, (vn, _)) (p, _) = cell where
-  cell = if F.memo flds
+memo os a (_, (vn, _)) (p, _) = cell where
+  cell = if F.memo . O.fields $ os
          then R.Cell R.LeftJustify w ts cs
          else R.zeroCell
   pm = Q.postingMemo . T.postingBox $ p
@@ -123,8 +122,8 @@ memo flds os a (_, (vn, _)) (p, _) = cell where
   ts = PC.colors vn (O.baseColors os)
   
 filename :: Finalizer
-filename flds os a (_, (vn, _)) (p, _) = cell where
-  cell = if F.filename flds
+filename os a (_, (vn, _)) (p, _) = cell where
+  cell = if F.filename . O.fields $ os
          then R.Cell R.LeftJustify w ts cs
          else R.zeroCell
   w = widthFlagToPostingQty vn a
@@ -136,5 +135,5 @@ filename flds os a (_, (vn, _)) (p, _) = cell where
   ts = PC.colors vn (O.baseColors os)
 
 overran :: Finalizer
-overran _ _ _ _ _ = R.zeroCell
+overran _ _ _ _ = R.zeroCell
 

@@ -16,7 +16,8 @@ report ::
   S.Runtime
   -> NE.NonEmpty I.Report
   -> T.CaseSensitive
-  -> (X.Text -> ES.Exceptional X.Text (X.Text -> Bool))
+  -> (T.CaseSensitive
+      -> X.Text -> ES.Exceptional X.Text (X.Text -> Bool))
   -> ParserE E.Error (I.ReportFunc, ColorPref)
 report rt rs c fact = foldl (<|>) first rest where
   toParser r = I.parseReport r rt c fact

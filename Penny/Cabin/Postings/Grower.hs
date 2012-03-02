@@ -32,16 +32,15 @@ type Arr = A.Array (Col, (T.VisibleNum, Row))
 type Address = (Col, Row)
 
 type Grower =
-  F.Fields Bool
-  -> O.Options
+  O.Options
   -> Arr
   -> (Col, (T.VisibleNum, Row))
   -> (T.PostingInfo, Maybe T.ClaimedWidth)
   -> Maybe R.Cell
 
 grower :: Grower
-grower flds o a (c, (vn, r)) p =
-  f flds o a (c, (vn, r)) p where
+grower o a (c, (vn, r)) p =
+  f o a (c, (vn, r)) p where
     f = growers ! (c, r)
 
 widest :: Col -> Arr -> C.Width
@@ -56,7 +55,7 @@ widest col arr = F.foldr f (C.Width 0) clm where
         $ cw
 
 padding :: Grower
-padding _ opts a (col, (vn, _)) _ = let
+padding opts a (col, (vn, _)) _ = let
   ts = PC.colors vn (O.baseColors opts)
   width = widest col a
   j = R.LeftJustify
@@ -67,16 +66,16 @@ emptyButPadded :: Grower
 emptyButPadded = padding
 
 overran :: Grower
-overran _ _ _ _ _ = Just R.zeroCell
+overran _ _ _ _ = Just R.zeroCell
 
 allocated :: Grower
-allocated _ _ _ _ _ = Nothing
+allocated _ _ _ _ = Nothing
 
 overrunning :: Grower
-overrunning _ _ _ _ _ = Nothing
+overrunning _ _ _ _ = Nothing
 
 ifShown ::
-  F.Fields Bool
+  O.Options
   -> (F.Fields Bool -> Bool)
   -> Col
   -> Arr
@@ -84,16 +83,16 @@ ifShown ::
   -> C.TextSpec
   -> Seq.Seq C.Chunk
   -> R.Cell
-ifShown flds fn c a just ts cs = let
+ifShown opts fn c a just ts cs = let
   w = widest c a in
-  if fn flds
+  if fn . O.fields $ opts
   then R.Cell just w ts cs
   else R.Cell just w ts Seq.empty
 
 
 lineNum :: Grower
-lineNum flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.lineNum col a R.LeftJustify ts cs where
+lineNum os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.lineNum col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = case Q.postingLine . T.postingBox $ p of
       Nothing -> Seq.empty
@@ -102,8 +101,8 @@ lineNum flds os a (col, (vn, _)) (p, _) =
                    . Me.unPostingLine $ ln
 
 date :: Grower
-date flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.date col a R.LeftJustify ts cs where
+date os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.date col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = Seq.singleton . C.chunk ts . O.dateFormat os $ p
 
@@ -111,8 +110,8 @@ surround :: Char -> Char -> X.Text -> X.Text
 surround l r t = l `X.cons` t `X.snoc` r
 
 flag :: Grower
-flag flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.flag col a R.LeftJustify ts cs where
+flag os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.flag col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = case Q.flag . T.postingBox $ p of
       Nothing -> Seq.empty
@@ -122,8 +121,8 @@ flag flds os a (col, (vn, _)) (p, _) =
                  . HT.text
                  $ fl
 number :: Grower
-number flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.number col a R.LeftJustify ts cs where
+number os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.number col a R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
     cs = case Q.number . T.postingBox $ p of
       Nothing -> Seq.empty
@@ -134,8 +133,8 @@ number flds os a (col, (vn, _)) (p, _) =
                  $ fl
 
 postingDrCr :: Grower
-postingDrCr flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.postingDrCr col a R.LeftJustify ts cs where
+postingDrCr os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.postingDrCr col a R.LeftJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
     dc = Q.drCr . T.postingBox $ p
@@ -147,8 +146,8 @@ postingDrCr flds os a (col, (vn, _)) (p, _) =
            Bits.Credit -> "Cr"
 
 postingCmdty :: Grower
-postingCmdty flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.postingCmdty col a R.RightJustify ts cs where
+postingCmdty os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.postingCmdty col a R.RightJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
     dc = Q.drCr . T.postingBox $ p
@@ -162,8 +161,8 @@ postingCmdty flds os a (col, (vn, _)) (p, _) =
          $ p
 
 postingQty :: Grower
-postingQty flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.postingQty col a R.RightJustify ts cs where
+postingQty os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.postingQty col a R.RightJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
     dc = Q.drCr . T.postingBox $ p
@@ -173,8 +172,8 @@ postingQty flds os a (col, (vn, _)) (p, _) =
          $ p
 
 totalDrCr :: Grower
-totalDrCr flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.totalDrCr col a R.LeftJustify ts cs where
+totalDrCr os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.totalDrCr col a R.LeftJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
     dc = Q.drCr . T.postingBox $ p
@@ -197,8 +196,8 @@ totalDrCr flds os a (col, (vn, _)) (p, _) =
       in C.chunk spec txt
 
 totalCmdty :: Grower
-totalCmdty flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.totalCmdty col a R.RightJustify ts cs where
+totalCmdty os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.totalCmdty col a R.RightJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
     dc = Q.drCr . T.postingBox $ p
@@ -220,8 +219,8 @@ totalCmdty flds os a (col, (vn, _)) (p, _) =
       in C.chunk spec txt
 
 totalQty :: Grower
-totalQty flds os a (col, (vn, _)) (p, _) =
-  Just $ ifShown flds F.totalQty col a R.LeftJustify ts cs where
+totalQty os a (col, (vn, _)) (p, _) =
+  Just $ ifShown os F.totalQty col a R.LeftJustify ts cs where
     ts = PC.colors vn bc
     bc = PC.drCrToBaseColors dc (O.drCrColors os)
     dc = Q.drCr . T.postingBox $ p

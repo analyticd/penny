@@ -14,8 +14,7 @@ separator = snd radSep
 
 postings :: NE.NonEmpty I.Report
 postings = NE.nonEmpty (P.report f) [] where
-  f rt = (P.defaultFields,
-          P.defaultOptions defaultTimeZone radix separator rt)
+  f rt = P.defaultOptions defaultTimeZone radix separator rt
 
 main :: IO ()
 main = Z.zincMain defaultTimeZone radix separator postings
