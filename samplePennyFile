@@ -1,3 +1,14 @@
+// Changes to make:
+// * Change multiline comment to /* */
+// * Allow Debit and Credit to be lower case, or single D or C
+//   or d or c
+// * Change radix and separator to be fixed
+// * Add quoting:
+//   * Curly braces for accounts
+//   * Angle brackets for payees
+// * Change posting memos - single quote mark
+// * Verify allowed characters for all fields
+// Make comments begin with a single slash
 // Sample Penny file. Penny is a double-entry accounting
 // system. Penny uses traditional accounting terminology,
 // which means that every transaction will have "debits"

@@ -1,5 +1,6 @@
 module Penny.Copper.DateTime where
 
+import Control.Applicative ((<$>), (<*>), pure)
 import Data.Time (
   minutesToTimeZone, TimeOfDay, makeTimeOfDayValid,
   localTimeToUTC, midnight, LocalTime ( LocalTime ),
@@ -20,11 +21,13 @@ dateTime ::
   -> Parser B.DateTime
 dateTime (DefaultTimeZone dtz) = do
   d <- day
-  maybeTime <- optionMaybe (try (char ' ' >> timeOfDay))
+  _ <- char ' '
+  maybeTime <- optionMaybe timeOfDay
   (tod, tz) <- case maybeTime of
     Nothing -> return (midnight, dtz)
     (Just t) -> do
-      maybeTz <- optionMaybe (try (char ' ' >> timeZone))
+      _ <- char ' '
+      maybeTz <- optionMaybe timeZone
       case maybeTz of
         (Just zone) -> return (t, zone)
         Nothing -> return (t, dtz)
@@ -53,14 +56,10 @@ digits1or2 = do
   return r
 
 monthOrDayNum :: Parser Int
-monthOrDayNum = do
-  i <- digits1or2
-  return $ read i
+monthOrDayNum = read <$> digits1or2
 
 year :: Parser Integer
-year = do
-  i <- replicateM 4 digit
-  return $ read i
+year = read <$> (replicateM 4 digit)
 
 day :: Parser Day
 day = do
@@ -75,18 +74,13 @@ day = do
     (Just da) -> return da
   
 hoursMins :: Parser (Int, Int)
-hoursMins = do
-  h <- digits1or2
-  void $ char ':'
-  m <- replicateM 2 digit
-  return (read h, read m)
+hoursMins = f <$> digits1or2 <*> char ':' <*> replicateM 2 digit where
+  f h _ m = (read h, read m)
 
 secs :: Parser Pico
-secs = do
-  void $ char ':'
-  s <- replicateM 2 digit
-  let fi = fromIntegral :: Integer -> Pico
-  return (fi . read $ s)
+secs = f <$> char ':' <*> replicateM 2 digit where
+  f _ s = (fromIntegral . (read :: String -> Int) $ s)
+
 
 timeOfDay :: Parser TimeOfDay
 timeOfDay = do
@@ -104,13 +98,9 @@ sign = let
   in pos <|> neg
 
 timeZone :: Parser TimeZone
-timeZone = do
-  s <- sign
-  hh <- replicateM 2 digit
-  mm <- replicateM 2 digit
-  let hr = read hh
-      mi = read mm
-      mins = s (hr * 60 + mi)
-      zone = minutesToTimeZone mins
-  return zone
+timeZone = f <$> sign <*> replicateM 2 digit <*> replicateM 2 digit
+  where
+    f s h m = let mins = s (hr * 60 + mi)
+                  (hr, mi) = (read h, read m)
+              in minutesToTimeZone mins
 
