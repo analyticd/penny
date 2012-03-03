@@ -221,7 +221,8 @@ Library
         Penny.Copper.Qty,
         Penny.Copper.Tags,
         Penny.Copper.TopLine,
-        Penny.Copper.Transaction
+        Penny.Copper.Transaction,
+        Penny.Copper.Util,
         Penny.Liberty,
         Penny.Liberty.Combinator,
         Penny.Liberty.Error,

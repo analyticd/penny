@@ -1,15 +1,35 @@
 module Penny.Copper.Commodity where
 
-import Control.Applicative ((<*>), pure)
+import Control.Applicative ((<*>), (<$>), pure, (*>))
+import qualified Data.Char as C
 import Data.Char (
   isControl, isSpace, isDigit)
 import Data.Text ( pack )
-import Text.Parsec ( satisfy, many, char )
+import Text.Parsec ( satisfy, many, char, sepBy1, many1, (<?>),
+                     between)
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Lincoln.Bits as B
-import Data.List.NonEmpty (nonEmpty)
+import Data.List.NonEmpty (nonEmpty, unsafeToNonEmpty)
+import Penny.Copper.Util (inCat)
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
+
+quotedCmdtyChar :: Char -> Bool
+quotedCmdtyChar c = (category || specific) && notBanned where
+  category = inCat C.UppercaseLetter C.OtherSymbol c
+  specific = c == ' '
+  notBanned = not $ c `elem` ['"', ':']
+
+quotedSubCmdty :: Parser B.SubCommodity
+quotedSubCmdty = f <$> m <?> "sub commodity" where
+  m = many1 (satisfy quotedCmdtyChar)
+  f cs = B.SubCommodity (TextNonEmpty (head cs) (pack $ tail cs))
+
+quotedCmdty :: Parser B.Commodity
+quotedCmdty = between quot quot c where
+  quot = char '"'
+  c = (B.Commodity . unsafeToNonEmpty)
+      <$> sepBy1 quotedSubCmdty (char ':')
 
 isCommodityChar :: Char -> Bool
 isCommodityChar c = and $ (map (not .) ps) <*> pure c where
