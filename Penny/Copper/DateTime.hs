@@ -44,7 +44,7 @@ dateTime (DefaultTimeZone dtz) = do
 -- You can omit the time zone spec, in which case
 -- the parser assumes the time is local to the timezone that is
 -- passed in to the function (generally this will be the local time
--- the machine is in.)
+-- the machine is in, or UTC).
 
 digits1or2 :: Parser String
 digits1or2 = do

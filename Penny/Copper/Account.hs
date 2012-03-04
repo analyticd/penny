@@ -7,14 +7,14 @@
 -- other characters may be nearly any character, except for a space.
 module Penny.Copper.Account where
 
-import Control.Applicative((<$>), (<*>), pure)
+import Control.Applicative((<$>), (<*>), pure, (*>))
 import Control.Monad ( liftM, void )
 import Data.Char ( isLetter, isNumber )
 import qualified Data.Char as C
 import Data.Text ( pack )
 import Text.Parsec (
   char, satisfy, notFollowedBy, (<|>), try, many, (<?>),
-  many1, between, sepBy1 )
+  many1, between, sepBy1, option )
 import Text.Parsec.Text ( Parser )
 
 import Data.List.NonEmpty (nonEmpty, unsafeToNonEmpty)
@@ -42,41 +42,30 @@ lvl1Account = B.Account . unsafeToNonEmpty <$> p <?> e where
 lvl1AccountQuoted :: Parser B.Account
 lvl1AccountQuoted = between (char '{') (char '}') lvl1Account
 
-lvl2AccountFirst :: Parser B.SubAccountName
-lvl2AccountFirst = f <$> c1 <*> cs <?> e where
+lvl2SubAccountFirst :: Parser B.SubAccountName
+lvl2SubAccountFirst = f <$> c1 <*> cs <?> e where
   c1 = satisfy (inCat C.UppercaseLetter C.OtherLetter)
   p c = allowed && notBanned where
     allowed = inCat C.UppercaseLetter C.OtherSymbol c || c == ' '
     notBanned = not $ c `elem` "}:"
   cs = many (satisfy p)
   f l1 lr = B.SubAccountName (TextNonEmpty l1 (pack lr))
-  e = "account name beginning with a letter"
+  e = "sub account name beginning with a letter"
   
+lvl2SubAccountRest :: Parser B.SubAccountName
+lvl2SubAccountRest = f <$> cs <?> e where
+  cs = many1 (satisfy p)
+  p c = allowed && notBanned where
+    allowed = inCat C.UppercaseLetter C.OtherSymbol c
+    notBanned = not $ c `elem` "}:"
+  f = B.SubAccountName . unsafeTextNonEmpty
+  e = "sub account name"
 
-subAccountChar :: Parser Char
-subAccountChar = let
-  notSpc = satisfy (\l -> isLetter l || isNumber l)
-  spc = do
-    void $ char ' '
-    notFollowedBy (char ' ' <|> char '#')
-    return ' '
-  in notSpc <|> try spc
-
-subAccountName :: Parser B.SubAccountName
-subAccountName = do
-  c <- subAccountChar
-  r <- liftM pack $ many subAccountChar
-  return . B.SubAccountName $ TextNonEmpty c r
-
-firstSubAccount :: Parser B.SubAccountName
-firstSubAccount = subAccountName
-
-nextSubAccount :: Parser B.SubAccountName
-nextSubAccount = char ':' >> subAccountName
-
-account :: Parser B.Account
-account = do
-  f <- firstSubAccount
-  r <- many nextSubAccount
-  return . B.Account $ nonEmpty f r
+lvl2Account :: Parser B.Account
+lvl2Account = f <$> p1 <*> p2 <?> e where
+  f x y = B.Account (nonEmpty x y)
+  p1 = lvl2SubAccountFirst
+  p2 = option [] $
+       char ':' *> sepBy1 lvl2SubAccountRest (char ':')
+  e = "account name"
 

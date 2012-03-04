@@ -43,7 +43,7 @@ lvl1SubCmdty = f <$> m <?> "sub commodity" where
 
 -- | A commodity that might have spaces inside of the name. To parse
 -- this when it is in a ledger file, it must be quoted; use
--- quotedCmdty for that. This parser can be used directly for values
+-- quotedLvl1Cmdty for that. This parser can be used directly for values
 -- entered from the command line.
 lvl1Cmdty :: Parser B.Commodity
 lvl1Cmdty = (B.Commodity . unsafeToNonEmpty)
@@ -106,7 +106,8 @@ lvl3Cmdty = f <$> ls <?> e where
   ls = sepBy1 lvl3SubCmdty (char ':')
   e = "commodity, letters and symbols only"
 
--- | A commodity being read in from the command line, where the commodity is guaranteed to be the only thing to parse.
+-- | A commodity being read in from the command line, where the
+-- commodity is guaranteed to be the only thing to parse.
 commandLineCmdty :: Parser B.Commodity
 commandLineCmdty = lvl1Cmdty
 
