@@ -8,6 +8,7 @@
 //   * Angle brackets for payees
 // * Change posting memos - single quote mark
 // * Verify allowed characters for all fields
+// * Change price symbol to @
 // Make comments begin with a single slash
 // Sample Penny file. Penny is a double-entry accounting
 // system. Penny uses traditional accounting terminology,
