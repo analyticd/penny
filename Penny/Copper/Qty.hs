@@ -15,7 +15,7 @@ module Penny.Copper.Qty where
 import Control.Applicative ((<$>), (<*>), (<$), (*>), optional)
 import qualified Data.List.NonEmpty as NE
 import Text.Parsec ( char, (<|>), many, many1, try, (<?>), 
-                     sepBy1)
+                     sepBy1, digit)
 import qualified Text.Parsec as P
 import Text.Parsec.Text ( Parser )
 
@@ -65,66 +65,33 @@ parseGrouper g = () <$ char c <?> "grouping character" where
 <allGroups> ::= <firstGroups> | <firstGroups> <nextGroups>
 <whole> ::= <allGroups> | <digits>
 <fractional> ::= <digits>
-<number> ::= <whole> <radix>
-             | <radix> <fractional>
+<number> ::= <whole>
+             | <whole> <radix>
              | <whole> <radix> <fractional>
+             | <radix> <fractional>
 -}
 
-newtype Digit = Digit Char
-digit :: Parser Digit
-digit = Digit <$> P.digit <?> "digit"
-
-data Digits = Digits (NE.NonEmpty Digit)
-digits :: Parser Digits
-digits = Digits <$> parseNonEmpty digit <?> "digits"
-
-data FirstGroups = FirstGroups Digits Digits
-firstGroups :: Grouper -> Parser FirstGroups
-firstGroups g = let
-  f d1 _ d2 = FirstGroups d1 d2
-  e = "first group of digits" in
-  f <$> digits <*> parseGrouper g <*> digits <?> e
-
-newtype NextGroup = NextGroup Digits
-nextGroup :: Grouper -> Parser NextGroup
-nextGroup g = parseGrouper g *> (NextGroup <$> digits)
-
-newtype NextGroups = NextGroups (NE.NonEmpty NextGroup)
-nextGroups :: Grouper -> Parser NextGroups
-nextGroups g = NextGroups <$> parseNonEmpty (nextGroup g)
-
-data AllGroups = FirstOnly FirstGroups
-                 | FirstAndNext FirstGroups NextGroups
-allGroups :: Grouper -> Parser AllGroups
-allGroups g = f <$> firstGroups g <*> optional (nextGroups g) where
-  f fg ng = case ng of
-    Nothing -> FirstOnly fg
-    Just n -> FirstAndNext fg n
-
-firstOrDigits :: Grouper -> Parser (Either FirstGroups Digits)
-firstOrDigits g = f <$> digits <*> optional (nextGroup g) <?> e where
-  e = "first group of digits"
-  f g1 g2 = case g2 of
-    Nothing -> Right g1
-    Just (NextGroup d) -> Left $ FirstGroups g1 d
-
-data Whole = Whole (Either AllGroups Digits)
-whole :: Grouper -> Parser Whole
-whole g = f <$> firstOrDigits g <*> (optional (nextGroups g)) where
-  f fd mayNg = Whole $ case fd of
-    Left fg -> Left $ case mayNg of
-      Nothing -> FirstOnly fg
-      Just ng -> FirstAndNext fg ng
-    Right d -> Right d
-
-shorter :: Grouper -> Parser String
-shorter g = concat
+groupedDigits :: Grouper -> Parser String
+groupedDigits g = concat
             <$> sepBy1 (many1 P.digit) (parseGrouper g)
 
-parseNonEmpty :: Parser a -> Parser (NE.NonEmpty a)
-parseNonEmpty p = NE.nonEmpty <$> p <*> many p
+whole :: Grouper -> Parser String
+whole g = p <$> group1 <*> optional groupRest <?> "whole number" where
+  group1 = many1 digit
+  groupRest = parseGrouper g *> sepBy1 (many1 digit) (parseGrouper g)
+  p g1 gr = case gr of
+    Nothing -> g1
+    (Just groups) -> g1 ++ (concat groups)
 
+fractional :: Parser String
+fractional = many1 digit
 
+data Number = Whole String
+              | WholeRad String
+              | WholeRadFrac String String
+              | RadFrac String
+
+number :: Parser Number
 
 lvl1QtyUnquoted :: Parser Qty
 lvl1QtyUnquoted = undefined
