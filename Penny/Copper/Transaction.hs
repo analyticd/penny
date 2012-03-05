@@ -54,27 +54,13 @@ maybeTransaction fn dtz rg =
   <*> Po.posting rg
   <*> many (Po.posting rg)
 
-{-
 transaction ::
   M.Filename
   -> DT.DefaultTimeZone
-  -> Qt.Radix
-  -> Qt.Separator
+  -> Qt.RadGroup
   -> Parser TransactionBox
-transaction fn dtz rad sep = do
-  (pa, tll, tml) <- topLine dtz
-  let paMeta = M.TopLineMeta tml (Just tll) (Just fn)
-  (p1, p1meta) <- Po.posting rad sep
-  (p2, p2meta) <- Po.posting rad sep
-  psPairs <- many (try (Po.posting rad sep))
-  let (ps, psMeta) = (map fst psPairs, map snd psPairs)
-      fam = Family pa p1 p2 ps
-      errXact = T.transaction fam
-  xact <- case errXact of
-    (Ex.Exception err) -> fail $ errorStr err
-    (Ex.Success x) -> return x
-  return (transactionBox xact (Just
-                               . TransactionMeta
-                               $ Family paMeta p1meta p2meta psMeta))
-
--}
+transaction fn dtz rg = do
+  ex <- maybeTransaction fn dtz rg
+  case ex of
+    Ex.Exception s -> fail s
+    Ex.Success b -> return b
