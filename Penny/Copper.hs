@@ -4,12 +4,12 @@ module Penny.Copper (
   ledger,
   parseTransactions,
   Item(Transaction, Price),
-  Q.Radix,
-  Q.Separator,
-  Q.radixAndSeparator,
+  Q.RadGroup,
+  Q.periodComma, Q.periodSpace, Q.commaPeriod, Q.commaSpace,
   Filename(Filename),
   DT.DefaultTimeZone(DefaultTimeZone)) where
 
+import Control.Applicative ((<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe ( catMaybes )
 import Data.Text ( Text, unpack )
@@ -31,12 +31,11 @@ data Ledger =
 ledger ::
   Filename
   -> DT.DefaultTimeZone
-  -> Q.Radix
-  -> Q.Separator
+  -> Q.RadGroup
   -> Parser Ledger
-ledger fn dtz rad sep =
-  manyTill (I.itemWithLineNumber fn dtz rad sep) eof
-  >>= return . Ledger
+ledger fn dtz rg =
+  Ledger
+  <$> manyTill (I.itemWithLineNumber fn dtz rg) eof
 
 data Item =
   Transaction TransactionBox
@@ -45,14 +44,12 @@ data Item =
 
 parseTransactions ::
   DT.DefaultTimeZone
-  -> Q.Radix
-  -> Q.Separator
+  -> Q.RadGroup
   -> Filename
   -> Text
   -> Ex.Exceptional ParseError [Item]
-parseTransactions dtz rad sep f@(Filename fn) t = let
-  p = ledger f dtz rad sep
-  in case Parsec.parse p (unpack fn) t of
+parseTransactions dtz rg f@(Filename fn) t =
+  case Parsec.parse (ledger f dtz rg) (unpack fn) t of
     (Left e) -> Ex.Exception e
     (Right (Ledger g)) -> let
       pr (_, i) = case i of

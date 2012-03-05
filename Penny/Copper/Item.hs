@@ -1,6 +1,6 @@
 module Penny.Copper.Item where
 
-import Control.Applicative ((<$>), (<*>), liftA)
+import Control.Applicative ((<$>), (<*>), (<$))
 import Control.Monad ( liftM )
 import Text.Parsec (getPosition, sourceLine, (<|>), char)
 import Text.Parsec.Text ( Parser )
@@ -25,23 +25,21 @@ data Item = Transaction TransactionBox
 itemWithLineNumber ::
   M.Filename
   -> DT.DefaultTimeZone
-  -> Q.Radix
-  -> Q.Separator
+  -> Q.RadGroup
   -> Parser (M.Line, Item)
-itemWithLineNumber fn dtz rad sep = (,)
-  <$> liftA (M.Line . sourceLine) getPosition
-  <*> parseItem fn dtz rad sep
+itemWithLineNumber fn dtz rg = (,)
+  <$> ((M.Line . sourceLine) <$> getPosition)
+  <*> parseItem fn dtz rg
 
 parseItem ::
   M.Filename
   -> DT.DefaultTimeZone
-  -> Q.Radix
-  -> Q.Separator
+  -> Q.RadGroup
   -> Parser Item
-parseItem fn dtz rad sep = let
-   bl = char '\n' >> return BlankLine
-   t = liftM Transaction $ transaction fn dtz rad sep
-   p = liftM Price $ price dtz rad sep
-   cm = liftM Multiline CM.multiline
-   co = liftM SingleLine CS.comment
+parseItem fn dtz rg = let
+   bl = BlankLine <$ char '\n'
+   t = Transaction <$> transaction fn dtz rg
+   p = Price <$> price dtz rg
+   cm = Multiline <$> CM.multiline
+   co = SingleLine <$> CS.comment
    in (bl <|> t <|> p <|> cm <|> co)
