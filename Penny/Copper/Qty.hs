@@ -5,7 +5,8 @@ module Penny.Copper.Qty (
   
   -- * Parsing quantities
   qtyUnquoted,
-  qtyQuoted) where
+  qtyQuoted,
+  qty) where
 
 import Control.Applicative ((<$>), (<*>), (<$), (*>), optional)
 import qualified Data.Decimal as D
@@ -149,3 +150,8 @@ qtyUnquoted (RadGroup r g) = f <$> p where
 qtyQuoted :: RadGroup -> Parser Qty
 qtyQuoted (RadGroup r g) = between (char '^') (char '^') p where
   p = (partialNewQty . toDecimal) <$> numberStrGrouped r g
+
+-- | Parse a quoted quantity or, if that fails, an unquoted
+-- quantity.
+qty :: RadGroup -> Parser Qty
+qty r = qtyQuoted r <|> qtyUnquoted r <?> "quantity"

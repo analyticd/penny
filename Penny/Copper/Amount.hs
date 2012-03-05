@@ -1,71 +1,72 @@
-module Penny.Copper.Amount where
+-- | Amount parsers. An amount is a commodity and a quantity. (An
+-- entry is an amount and a debit or credit).
+--
+-- Possible combinations:
+--
+-- * quoted Level 1 commodity, optional whitespace, quantity
+--
+-- * Level 3 commodity, optional whitespace, quantity
+--
+-- * Quantity, optional whitespace, quoted Level 1 commodity
+--
+-- * Quantity, optional whitespace, Level 2 commodity
+--
+-- Each quantity may be quoted or unquoted.
+module Penny.Copper.Amount (amount) where
 
-import Control.Applicative ((<*>), pure )
+import Control.Applicative ((<$>), (<*>), pure, optional, (<|>))
 import Control.Monad ( void )
-import Text.Parsec ( char, choice, try, many )
+import Text.Parsec ( char, choice, try, many, (<?>) )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.Qty as Q
+import Penny.Copper.Util (lexeme)
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Meta as M
 
-spaces :: Parser ()
-spaces = void (many (char ' '))
+-- | Parse optional spaces, returns appropriate metadata.
+spaces :: Parser M.SpaceBetween
+spaces = f <$> many (char ' ') where
+  f l = if null l then M.NoSpaceBetween else M.SpaceBetween
 
-commoditySpaceQty ::
-  Q.Radix
-  -> Q.Separator
-  -> Parser (B.Amount, M.Format)
-commoditySpaceQty rdx sep = do
-  c <- C.commodityWithDigits
-  void $ char ' '
-  spaces
-  q <- Q.qty rdx sep
-  let fmt = M.Format c M.CommodityOnLeft M.SpaceBetween
-  return (B.Amount q c, fmt)
+cmdtyQty :: Parser B.Commodity
+            -> Q.RadGroup
+            -> Parser (B.Amount, M.Format)
+cmdtyQty p rg = let
+  f c s q = (a, fmt) where
+    a = B.Amount q c
+    fmt = M.Format c M.CommodityOnLeft s
+  e = "amount, commodity on left"
+  in f <$> p <*> spaces <*> Q.qty rg <?> e
 
-commodityQty ::
-  Q.Radix
-  -> Q.Separator
-  -> Parser (B.Amount, M.Format)
-commodityQty rdx sep = do
-  c <- C.commodityNoDigits
-  q <- Q.qty rdx sep
-  let fmt = M.Format c M.CommodityOnLeft M.NoSpaceBetween
-  return (B.Amount q c, fmt)
+lvl1CmdtyQty :: Q.RadGroup -> Parser (B.Amount, M.Format)
+lvl1CmdtyQty = cmdtyQty C.quotedLvl1Cmdty
 
-qtyCommodity ::
-  Q.Radix
-  -> Q.Separator
-  -> Parser (B.Amount, M.Format)
-qtyCommodity rdx sep = do
-  q <- Q.qty rdx sep
-  c <- C.commodityWithDigits
-  let fmt = M.Format c M.CommodityOnRight M.NoSpaceBetween
-  return (B.Amount q c, fmt)
+lvl3CmdtyQty :: Q.RadGroup -> Parser (B.Amount, M.Format)
+lvl3CmdtyQty = cmdtyQty C.lvl3Cmdty
 
-qtySpaceCommodity ::
-  Q.Radix
-  -> Q.Separator
-  -> Parser (B.Amount, M.Format)
-qtySpaceCommodity rdx sep = do
-  q <- Q.qty rdx sep
-  void $ char ' '
-  spaces
-  c <- C.commodityWithDigits
-  let fmt = M.Format c M.CommodityOnRight M.SpaceBetween
-  return (B.Amount q c, fmt)
+qtyCmdty :: Parser B.Commodity
+            -> Q.RadGroup
+            -> Parser (B.Amount, M.Format)
+qtyCmdty p rg = let
+  f q s c = (a, fmt) where
+    a = B.Amount q c
+    fmt = M.Format c M.CommodityOnRight s
+  e = "amount, commodity on right"
+  in f <$> Q.qty rg <*> spaces <*> p <?> e
 
-amount ::
-  Q.Radix
-  -> Q.Separator
-  -> Parser (B.Amount, M.Format)
-amount rdx sep =
-  choice
-  . map try
-  $ [commodityQty, commoditySpaceQty,
-     qtyCommodity, qtySpaceCommodity]
-  <*> pure rdx
-  <*> pure sep
+qtyLvl1Cmdty :: Q.RadGroup -> Parser (B.Amount, M.Format)
+qtyLvl1Cmdty = qtyCmdty C.quotedLvl1Cmdty
 
+qtyLvl2Cmdty :: Q.RadGroup -> Parser (B.Amount, M.Format)
+qtyLvl2Cmdty = qtyCmdty C.lvl2Cmdty
+
+-- | Parses an amount with its metadata. Handles all combinations of
+-- commodities and quantities.
+amount :: Q.RadGroup -> Parser (B.Amount, M.Format)
+amount rg = lvl1CmdtyQty rg
+            <|> lvl3CmdtyQty rg
+            <|> qtyLvl1Cmdty rg
+            <|> qtyLvl2Cmdty rg
+            <?> "amount"
