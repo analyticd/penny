@@ -1,7 +1,7 @@
 module Penny.Copper.TopLine where
 
 import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>), (<$),
-                            (<**>), pure)
+                            (<**>), pure, liftA)
 import Control.Monad ( void, when, liftM )
 import Data.Maybe (isNothing)
 import Text.Parsec ( optionMaybe, many, char, getParserState,
@@ -13,31 +13,26 @@ import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Memos.Transaction as M
 import qualified Penny.Copper.Flag as F
 import qualified Penny.Copper.Number as N
-import qualified Penny.Copper.Payees.Transaction as Payee
+import qualified Penny.Copper.Payees as P
+import Penny.Copper.Util (lexeme)
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
-whitespace :: Parser ()
-whitespace = void (many (char ' '))
-
-topLine :: DT.DefaultTimeZone
-           -> Parser (U.TopLine, Meta.TopLineLine,
-                      (Maybe Meta.TopMemoLine))
-topLine dtz = do
-  m <- optionMaybe M.memo
-  let (mem, tml) = case m of
-        (Just (me, tm)) -> (Just me, Just tm)
+topLine ::
+  DT.DefaultTimeZone
+  -> Parser (U.TopLine, Meta.TopLineLine, (Maybe Meta.TopMemoLine))
+topLine dtz =
+  f
+  <$> optionMaybe M.memo
+  <*> liftA toLine getParserState
+  <*> lexeme (DT.dateTime dtz)
+  <*> optionMaybe (lexeme F.flag)
+  <*> optionMaybe (lexeme N.number)
+  <*> optionMaybe (P.quotedPayee <|> P.unquotedPayee)
+  <*  char '\n'
+  where
+    f mayMe lin dt fl nu pa = (tl, lin, tml) where
+      tl = U.TopLine dt fl nu pa me
+      (me, tml) = case mayMe of
         Nothing -> (Nothing, Nothing)
-  line <- liftM ( Meta.TopLineLine
-                 . Meta.Line
-                 . sourceLine
-                 . statePos) getParserState
-  d <- DT.dateTime dtz
-  whitespace
-  f <- optionMaybe F.flag
-  whitespace
-  n <- optionMaybe N.number
-  whitespace
-  p <- optionMaybe Payee.payee
-  when (isNothing p) (void $ char '\n')
-  return (U.TopLine d f n p mem, line, tml)
-
+        (Just (m, t)) -> (Just m, Just t)
+    toLine = Meta.TopLineLine . Meta.Line . sourceLine . statePos

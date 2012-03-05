@@ -15,7 +15,7 @@ import qualified Penny.Copper.Entry as En
 import qualified Penny.Copper.Flag as Fl
 import qualified Penny.Copper.Memos.Posting as Me
 import qualified Penny.Copper.Number as Nu
-import qualified Penny.Copper.Payees.Posting as Pa
+import qualified Penny.Copper.Payees as Pa
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Tags as Ta
 import Penny.Copper.Util (lexeme)
@@ -31,7 +31,7 @@ posting rg =
   <* many (char ' ')
   <*> optionMaybe (lexeme Fl.flag)
   <*> optionMaybe (lexeme Nu.number)
-  <*> optionMaybe (lexeme Pa.payee)
+  <*> optionMaybe (lexeme Pa.quotedPayee)
   <*> lexeme (Ac.lvl1Account <|> Ac.lvl2Account)
   <*> lexeme Ta.tags
   <*> optionMaybe (lexeme (En.entry rg))

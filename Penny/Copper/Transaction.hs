@@ -20,6 +20,7 @@ errorStr e = case e of
   T.TooManyInferError -> "too many postings with entry amounts to infer"
   T.CouldNotInferError -> "could not infer entry for posting"
 
+{-
 transaction ::
   M.Filename
   -> DT.DefaultTimeZone
@@ -42,3 +43,4 @@ transaction fn dtz rad sep = do
                                . TransactionMeta
                                $ Family paMeta p1meta p2meta psMeta))
 
+-}
