@@ -1,9 +1,12 @@
 module Penny.Copper.Posting where
 
-import Control.Monad ( void )
+import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>), (<$),
+                            (<**>), pure)
+import Control.Monad ( void, liftM )
 import Text.Parsec (
   char, many, getParserState, sourceColumn,
-  statePos, optionMaybe, option, try, sourceLine )
+  statePos, optionMaybe, option, try, sourceLine, (<?>),
+  State)
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Lincoln.Bits as B
@@ -15,39 +18,40 @@ import qualified Penny.Copper.Number as Nu
 import qualified Penny.Copper.Payees.Posting as Pa
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Tags as Ta
+import Penny.Copper.Util (lexeme)
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
-whitespace :: Parser ()
-whitespace = void (many (char ' '))
-
-posting :: Qt.Radix
-           -> Qt.Separator
+posting :: Qt.RadGroup
            -> Parser (U.Posting, M.PostingMeta)
-posting rad sep = do
-  void $ char ' '
-  whitespace
-  st <- getParserState
-  let col = M.Column . sourceColumn . statePos $ st
-      lin = M.PostingLine . M.Line . sourceLine . statePos $ st
-  f <- optionMaybe Fl.flag
-  whitespace
-  n <- optionMaybe Nu.number
-  whitespace
-  p <- optionMaybe Pa.payee
-  whitespace
-  a <- Ac.account
-  whitespace
-  t <- option (B.Tags []) Ta.tags
-  whitespace
-  (e, maybeFmt) <- do
-    me <- optionMaybe $ En.entry rad sep
-    case me of
-      (Just (e', fmt')) -> return (Just e', Just fmt')
-      Nothing -> return (Nothing, Nothing)
-  whitespace
-  void $ char '\n'
-  m <- optionMaybe $ try (Me.memo col)
-  let unv = U.Posting p n f a t e m
-  return (unv, M.PostingMeta (Just lin) maybeFmt)
+posting rg =
+  M.PostingLine . M.Line . sourceLine . statePos
+  <$> getParserState
+  <**> pure makeUnverified
+  <* many (char ' ')
+  <*> optionMaybe (lexeme Fl.flag)
+  <*> optionMaybe (lexeme Nu.number)
+  <*> optionMaybe (lexeme Pa.payee)
+  <*> lexeme (Ac.lvl1Account <|> Ac.lvl2Account)
+  <*> lexeme Ta.tags
+  <*> optionMaybe (lexeme (En.entry rg))
+  <* char '\n'
+  <*> optionMaybe Me.memo
+  <?> "posting"
 
+makeUnverified ::
+  M.PostingLine
+  -> Maybe B.Flag
+  -> Maybe B.Number
+  -> Maybe B.Payee
+  -> B.Account
+  -> B.Tags
+  -> Maybe (B.Entry, M.Format)
+  -> Maybe B.Memo
+  -> (U.Posting, M.PostingMeta)
+makeUnverified pl fl nu pa ac ta pair me = (upo, meta) where
+  upo = U.Posting pa nu fl ac ta en me
+  meta = M.PostingMeta (Just pl) fmt
+  (en, fmt) = case pair of
+    Nothing -> (Nothing, Nothing)
+    Just (e, f) -> (Just e, Just f)

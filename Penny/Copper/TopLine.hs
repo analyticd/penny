@@ -1,5 +1,7 @@
 module Penny.Copper.TopLine where
 
+import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>), (<$),
+                            (<**>), pure)
 import Control.Monad ( void, when, liftM )
 import Data.Maybe (isNothing)
 import Text.Parsec ( optionMaybe, many, char, getParserState,

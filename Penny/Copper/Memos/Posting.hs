@@ -24,6 +24,7 @@ memo = let
   p1 = satisfy isCommentChar
   ps = many (satisfy isCommentChar)
   f c cs = B.Memo $ TextNonEmpty c (pack cs)
-  in char '\''
+  in many (char ' ')
+     *> char '\''
      *> (f <$> p1 <*> ps <?> "posting memo")
      <* char '\n'
