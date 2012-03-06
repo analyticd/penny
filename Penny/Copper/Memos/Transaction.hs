@@ -4,7 +4,7 @@ import Control.Monad ( void, liftM )
 import qualified Data.Char as C
 import Data.Text ( pack )
 import Text.Parsec (
-  char, many1, satisfy, sourceLine, getPosition )
+  char, many1, satisfy, sourceLine, getPosition, (<?>))
 import Text.Parsec.Text ( Parser )
 
 import Penny.Copper.Util (inCat)
@@ -24,8 +24,9 @@ line = do
   return (cs ++ "\n")
 
 memo :: Parser (B.Memo, TopMemoLine)
-memo = do
-  lin <- liftM (TopMemoLine . Line . sourceLine) getPosition
-  (c:cs) <- liftM concat $ many1 line
-  return ((B.Memo $ TextNonEmpty c (pack cs)), lin)
+memo = p <?> "transaction memo" where
+  p = do
+    lin <- liftM (TopMemoLine . Line . sourceLine) getPosition
+    (c:cs) <- liftM concat $ many1 line
+    return ((B.Memo $ TextNonEmpty c (pack cs)), lin)
 

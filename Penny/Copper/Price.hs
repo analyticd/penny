@@ -1,7 +1,7 @@
 module Penny.Copper.Price where
 
 import Control.Monad ( void )
-import Text.Parsec ( char, many, getPosition, sourceLine )
+import Text.Parsec ( char, many, getPosition, sourceLine, (<?>))
 import qualified Text.Parsec.Pos as Pos
 import Text.Parsec.Text ( Parser )
 
@@ -51,6 +51,7 @@ maybePrice dtz rg =
   <*> lexeme (C.quotedLvl1Cmdty <|> C.lvl2Cmdty)
   <*> A.amount rg
   <* char '\n'
+  <?> "price"
   
 price ::
   DT.DefaultTimeZone

@@ -6,7 +6,7 @@ import Data.Time (
   localTimeToUTC, midnight, LocalTime ( LocalTime ),
   Day, fromGregorianValid, TimeZone )
 import Text.Parsec (
-  optionMaybe, char, try, digit, (<|>), option )
+  optionMaybe, char, try, digit, (<|>), option, (<?>))
 import Text.Parsec.Text ( Parser )
 import Control.Monad ( replicateM, void )
 import Data.Fixed ( Pico )
@@ -19,21 +19,22 @@ newtype DefaultTimeZone =
 dateTime ::
   DefaultTimeZone
   -> Parser B.DateTime
-dateTime (DefaultTimeZone dtz) = do
-  d <- day
-  _ <- char ' '
-  maybeTime <- optionMaybe timeOfDay
-  (tod, tz) <- case maybeTime of
-    Nothing -> return (midnight, dtz)
-    (Just t) -> do
-      _ <- char ' '
-      maybeTz <- optionMaybe timeZone
-      case maybeTz of
-        (Just zone) -> return (t, zone)
-        Nothing -> return (t, dtz)
-  let local = LocalTime d tod
-      utc = localTimeToUTC tz local
-  return $ B.DateTime utc
+dateTime (DefaultTimeZone dtz) = p <?> "date" where
+  p = do
+    d <- day
+    _ <- char ' '
+    maybeTime <- optionMaybe timeOfDay
+    (tod, tz) <- case maybeTime of
+      Nothing -> return (midnight, dtz)
+      (Just t) -> do
+        _ <- char ' '
+        maybeTz <- optionMaybe timeZone
+        case maybeTz of
+          (Just zone) -> return (t, zone)
+          Nothing -> return (t, dtz)
+    let local = LocalTime d tod
+        utc = localTimeToUTC tz local
+    return $ B.DateTime utc
 
 -- Format for dates is:
 -- 2011/01/22 or 2011-01-22

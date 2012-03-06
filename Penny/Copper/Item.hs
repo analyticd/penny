@@ -2,7 +2,8 @@ module Penny.Copper.Item where
 
 import Control.Applicative ((<$>), (<*>), (<$))
 import Control.Monad ( liftM )
-import Text.Parsec (getPosition, sourceLine, (<|>), char)
+import Text.Parsec (getPosition, sourceLine, (<|>), char,
+                    (<?>))
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.Comments as C
@@ -35,7 +36,7 @@ parseItem ::
   -> Q.RadGroup
   -> Parser Item
 parseItem fn dtz rg = let
-   bl = BlankLine <$ char '\n'
+   bl = BlankLine <$ char '\n' <?> "blank line"
    t = Transaction <$> transaction fn dtz rg
    p = Price <$> price dtz rg
    c = Comment <$> C.comment
