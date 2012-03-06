@@ -12,9 +12,7 @@ import Text.PrettyPrint (
   ($$), hsep)
 
 import Penny.Copper as Cop
-import qualified Penny.Copper.Meta as CM
-import qualified Penny.Copper.Comments.Multiline as CM
-import qualified Penny.Copper.Comments.SingleLine as CS
+import qualified Penny.Copper.Comments as Com
 import qualified Penny.Copper.Item as I
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Boxes as X
@@ -36,8 +34,13 @@ maybePretty s m = case m of
 indent :: Int
 indent = 2
 
+instance Pretty TextNonEmpty where
+  pretty (TextNonEmpty c cs) = char c <> text (unpack cs)
+
+
 instance Pretty B.SubAccountName where
   pretty (B.SubAccountName t) = pretty t
+
 
 instance Pretty B.Account where
   pretty (B.Account ss) =
@@ -45,8 +48,11 @@ instance Pretty B.Account where
     . punctuate (char ':')
     $ (map pretty . toList $ ss)
 
-instance Pretty B.Amount where
-  pretty (B.Amount q c) = pretty q <+> pretty c
+instance Pretty B.Qty where
+  pretty = text . show . B.unQty
+
+instance Pretty B.SubCommodity where
+  pretty (B.SubCommodity t) = pretty t
 
 instance Pretty B.Commodity where
   pretty (B.Commodity cs) =
@@ -54,8 +60,10 @@ instance Pretty B.Commodity where
     . punctuate (char ':')
     $ (map pretty . toList $ cs)
 
-instance Pretty B.SubCommodity where
-  pretty (B.SubCommodity t) = pretty t
+
+instance Pretty B.Amount where
+  pretty (B.Amount q c) = pretty q <+> pretty c
+
 
 instance Pretty B.DateTime where
   pretty (B.DateTime t) =
@@ -72,17 +80,13 @@ instance Pretty B.DrCr where
 instance Pretty B.Entry where
   pretty (B.Entry d a) = pretty d <+> pretty a
 
-instance Pretty B.Qty where
-  pretty = text . show . B.unQty
-
-instance Pretty TextNonEmpty where
-  pretty (TextNonEmpty c cs) = char c <> text (unpack cs)
 
 instance Pretty B.Flag where
   pretty (B.Flag t) = brackets . pretty $ t
 
 instance Pretty B.Memo where
   pretty (B.Memo t) = text "Memo: " <> (quotes . pretty $ t)
+
 
 instance Pretty B.Number where
   pretty (B.Number t) = parens . pretty $ t
@@ -96,6 +100,7 @@ instance Pretty B.From where
 instance Pretty B.To where
   pretty (B.To c) = pretty c
 
+
 instance Pretty B.CountPerUnit where
   pretty (B.CountPerUnit q) = pretty q
 
@@ -108,6 +113,7 @@ instance Pretty B.Price where
     <> text " at "
     <> pretty (B.countPerUnit p)
 
+
 instance Pretty B.PricePoint where
   pretty (B.PricePoint d p) =
     text "Price point: "
@@ -119,6 +125,7 @@ instance Pretty B.Tag where
 
 instance Pretty B.Tags where
   pretty (B.Tags ts) = hcat . map pretty $ ts
+
 
 instance Pretty Doc where
   pretty = id
@@ -137,6 +144,7 @@ instance Pretty T.Posting where
          , maybePretty "memo"   . T.pMemo ]
          <*> pure t
 
+
 instance Pretty T.TopLine where
   pretty t = sep $ text "TopLine:" : ls where
     ls = [ pretty . T.tDateTime
@@ -145,6 +153,7 @@ instance Pretty T.TopLine where
          , maybePretty "payee"  . T.tPayee
          , maybePretty "memo"   . T.tMemo ]
          <*> pure t
+
 
 instance (Pretty p, Pretty c)
          => Pretty (F.Family p c) where
@@ -167,6 +176,7 @@ instance (Pretty p, Pretty c)
       toSibling (i, c) =
         hang (text ("Sibling " ++ show i)) indent $ pretty c
 
+
 instance Pretty a => Pretty (Siblings a) where
   pretty (Siblings f s rs) =
     hang (text "Siblings") indent
@@ -178,12 +188,14 @@ instance Pretty a => Pretty (Siblings a) where
 instance Pretty T.Transaction where
   pretty t = text "Transaction:" <+> pretty (T.unTransaction t)
 
+
 instance Pretty LM.Line where
   pretty (LM.Line l) = text . show $ l
 
 instance Pretty LM.Side where
   pretty LM.CommodityOnLeft = text "on Left"
   pretty LM.CommodityOnRight = text "on Right"
+
 
 instance Pretty LM.SpaceBetween where
   pretty LM.SpaceBetween = text "space between"
@@ -195,24 +207,53 @@ instance Pretty LM.Format where
 instance Pretty LM.Filename where
   pretty (LM.Filename f) = text "Filename:" <+> text (unpack f)
 
-instance (Pretty a, Pretty b)
-         => Pretty (LM.TransactionMeta a b) where
+instance Pretty LM.Column where
+  pretty (LM.Column c) = text "Column:" <+> text (show c)
+
+instance Pretty LM.PriceLine where
+  pretty (LM.PriceLine l) = text "Price line:" <+> pretty l 
+
+instance Pretty LM.PostingLine where
+  pretty (LM.PostingLine l) = text "Posting line:" <+> pretty l
+
+instance Pretty LM.TopMemoLine where
+  pretty (LM.TopMemoLine l) = text "Top memo line:" <+> pretty l
+
+instance Pretty LM.TopLineLine where
+  pretty (LM.TopLineLine l) = text "Top line line:" <+> pretty l
+
+instance Pretty LM.PriceMeta where
+  pretty (LM.PriceMeta l f) = text "Price meta:"
+                             <+> pretty l <+> pretty f
+
+instance Pretty LM.PostingMeta where
+  pretty (LM.PostingMeta l mf) =
+    text "Posting meta:" <+> maybePretty "posting line" l
+    <+> maybePretty "posting format" mf
+
+instance Pretty LM.TopLineMeta where
+  pretty (LM.TopLineMeta tml tl f) =
+    text "Transaction meta:"
+    <+> maybePretty "Top memo line" tml
+    <+> maybePretty "Top line" tl
+    <+> maybePretty "Filename" f
+
+instance Pretty LM.TransactionMeta where
   pretty (LM.TransactionMeta f) =
     hang (text "Transaction meta") indent (pretty f)
 
-instance (Pretty t, Pretty p)
-         => Pretty (X.TransactionBox t p) where
+instance Pretty X.TransactionBox where
   pretty box = hang (text "Transaction box:") indent $
                pretty (X.transaction box)
                $$ maybePretty "transaction meta" (X.transactionMeta box)
 
-instance (Pretty t, Pretty p)
-         => Pretty (X.PostingBox t p) where
+
+instance Pretty X.PostingBox where
   pretty box = hang (text "Posting box:") indent $
                pretty (X.postingBundle box)
                $$ maybePretty "posting meta" (X.metaBundle box)
 
-instance (Pretty m) => Pretty (X.PriceBox m) where
+instance Pretty X.PriceBox where
   pretty box = hang (text "Price box:") indent $
                pretty (X.price box)
                $$ maybePretty "price meta" (X.priceMeta box)
@@ -224,48 +265,26 @@ instance (Pretty l, Pretty r)
 
 instance Pretty ParseError where
   pretty e = text "Parse error" <+> pretty (text . show $ e)
-instance Pretty CM.PriceLine where
-  pretty (CM.PriceLine l) = text "Price line:" <+> pretty l 
 
-instance Pretty CM.PostingLine where
-  pretty (CM.PostingLine l) = text "Posting line:" <+> pretty l
+instance Pretty Com.Multiline where
+  pretty (Com.Multiline is) = text "Multiline" <+> (hsep (map pretty is))
 
-instance Pretty CM.TopMemoLine where
-  pretty (CM.TopMemoLine l) = text "Top memo line:" <+> pretty l
+instance Pretty Com.Item where
+  pretty (Com.Text t) = pretty t
+  pretty (Com.Nested ml) = pretty ml
 
-instance Pretty CM.TopLineLine where
-  pretty (CM.TopLineLine l) = text "Top line line:" <+> pretty l
+instance Pretty Com.Comment where
+  pretty (Com.Single s) = pretty s
+  pretty (Com.Multi m) = pretty m
 
-instance Pretty CM.PriceMeta where
-  pretty (CM.PriceMeta l f) = text "Price meta:"
-                             <+> pretty l <+> pretty f
-
-instance Pretty CM.PostingMeta where
-  pretty (CM.PostingMeta l mf) =
-    text "Posting meta:" <+> pretty l
-    <+> maybePretty "posting format" mf
-
-instance Pretty CM.TransactionMeta where
-  pretty (CM.TransactionMeta tml tl f) =
-    text "Transaction meta:" <+> maybePretty "Top memo line" tml
-    <+> pretty tl <+> pretty f
-
-instance Pretty CM.Multiline where
-  pretty (CM.Multiline is) = text "Multiline" <+> (hsep (map pretty is))
-
-instance Pretty CM.Item where
-  pretty (CM.Text t) = pretty t
-  pretty (CM.Nested ml) = pretty ml
-
-instance Pretty CS.Comment where
-  pretty (CS.Comment t) = text (unpack t)
+instance Pretty Com.SingleLine where
+  pretty (Com.SingleLine t) = text "SingleLine" <+> text (unpack t)
 
 instance Pretty I.Item where
   pretty i = hang (text "Item") indent $ case i of
     (I.Transaction t) -> hang (text "Transaction") indent $ pretty t
     (I.Price pb) -> hang (text "Price box") indent $ pretty pb
-    (I.Multiline m) -> hang (text "Multiline") indent $ pretty m
-    (I.SingleLine c) -> hang (text "Single line") indent $ pretty c
+    (I.Comment c) -> hang (text "Comment") indent $ pretty c
     (I.BlankLine) -> text "Blank line"
 
 instance Pretty Cop.Item where
