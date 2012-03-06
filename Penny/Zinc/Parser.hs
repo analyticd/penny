@@ -12,7 +12,7 @@ import qualified Penny.Zinc.Parser.Report as R
 import qualified Penny.Zinc.Parser.Ledgers as L
 
 import Penny.Copper.DateTime (DefaultTimeZone)
-import Penny.Copper.Qty (Radix, Separator)
+import Penny.Copper.Qty (RadGroup)
 import Penny.Lincoln.Boxes (PostingBox)
 
 data Result =
@@ -24,12 +24,11 @@ data Result =
 parser ::
   S.Runtime
   -> DefaultTimeZone
-  -> Radix
-  -> Separator
+  -> RadGroup
   -> NE.NonEmpty I.Report
   -> ParserE E.Error (Either F.NeedsHelp Result)
-parser rt dtz rad sep rpts = do
-  fr <- F.parseFilter dtz (S.currentTime rt) rad sep
+parser rt dtz rg rpts = do
+  fr <- F.parseFilter dtz (S.currentTime rt) rg
   case fr of
     Left h -> return $ Left h
     Right filtResult -> do

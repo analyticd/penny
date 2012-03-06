@@ -43,15 +43,14 @@ readLedgers = T.traverse f where
 
 parseLedger ::
   C.DefaultTimeZone
-  -> C.Radix
-  -> C.Separator
+  -> C.RadGroup
   -> (Filename, Text)
   -> Ex.Exceptional ZE.Error ([TransactionBox], [PriceBox])
-parseLedger dtz rad sep (f, txt) = let
+parseLedger dtz rg (f, txt) = let
   fn = case f of
     Stdin -> pack "<stdin>"
     Filename x -> x
-  in case C.parseTransactions dtz rad sep (C.Filename fn) txt of
+  in case C.parseTransactions dtz rg (C.Filename fn) txt of
     Ex.Exception e ->
       Ex.Exception (ZE.ParseError (pack . show $ e))
     Ex.Success is -> let

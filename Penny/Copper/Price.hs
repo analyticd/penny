@@ -50,6 +50,7 @@ maybePrice dtz rg =
   <*> lexeme (DT.dateTime dtz)
   <*> lexeme (C.quotedLvl1Cmdty <|> C.lvl2Cmdty)
   <*> A.amount rg
+  <* char '\n'
   
 price ::
   DT.DefaultTimeZone

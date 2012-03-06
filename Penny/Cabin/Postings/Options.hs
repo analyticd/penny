@@ -21,7 +21,7 @@ import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Types as T
 import qualified Penny.Cabin.Postings.Schemes.DarkBackground as Dark
 import Penny.Copper.DateTime (DefaultTimeZone)
-import Penny.Copper.Qty (Radix, Separator)
+import Penny.Copper.Qty (RadGroup)
 import qualified Penny.Shield as S
 
 
@@ -81,19 +81,14 @@ data Options =
             -- formatted in the output; for that, see dateFormat
             -- above.
 
-          , radix :: Radix
-            -- ^ The character used for the radix point for numbers
+          , radGroup :: RadGroup
+            -- ^ The characters used for the radix point for numbers
             -- given on the command line (e.g. a full stop, or a
-            -- comma). Affects how inputs are parsed. Has no bearing
+            -- comma) and for the digit group separator for
+            -- numbers parsed from the command line (e.g. a full stop,
+            -- or a comma). Affects how inputs are parsed. Has no bearing
             -- on how output is formatted; for that, see qtyFormat and
             -- balanceFormat above.
-            
-          , separator :: Separator
-            -- ^ The character used as the digit group separator for
-            -- numbers parsed from the command line (e.g. a full stop,
-            -- or a comma). Affects how inputs are parsed. Has no
-            -- bearing on how output is formatted; for that, see
-            -- qtyFormat and balanceFormat above.
             
           , sensitive :: M.CaseSensitive
             -- ^ Whether pattern matches are case sensitive by default.
@@ -142,11 +137,10 @@ columnsVarToWidth ms = case ms of
 
 defaultOptions ::
   DefaultTimeZone
-  -> Radix
-  -> Separator
+  -> RadGroup
   -> S.Runtime
   -> Options
-defaultOptions dtz rad sep rt =
+defaultOptions dtz rg rt =
   Options { drCrColors = Dark.drCrColors
           , baseColors = Dark.baseColors
           , dateFormat = ymd
@@ -158,8 +152,7 @@ defaultOptions dtz rad sep rt =
           , subAccountLength = 2
           , colorPref = CC.PrefAuto 
           , timeZone = dtz
-          , radix = rad
-          , separator = sep
+          , radGroup = rg
           , sensitive = M.Insensitive
           , factory = \s t -> (return (M.within s t))
           , tokens = []

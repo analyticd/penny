@@ -32,10 +32,9 @@ wrapLiberty ::
   -> ParserE Error Op.Options
 wrapLiberty dt op = let
   dtz = Op.timeZone op
-  rad = Op.radix op
-  sep = Op.separator op
+  rg = Op.radGroup op
   in fromLibertyState op
-     <$> LF.parseOption dtz dt rad sep (toLibertyState op)
+     <$> LF.parseOption dtz dt rg (toLibertyState op)
 
 wrapColor :: Op.Options -> ParserE Error Op.Options
 wrapColor st = mkSt <$> color where

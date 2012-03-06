@@ -31,7 +31,7 @@ import System.Console.MultiArg.Prim (ParserE, throw)
 import Text.Parsec (parse)
 
 import Penny.Copper.DateTime (DefaultTimeZone, dateTime)
-import Penny.Copper.Qty (Radix, Separator, qty)
+import Penny.Copper.Qty (RadGroup, qty)
 
 import qualified Penny.Lincoln.Predicates as P
 import Penny.Lincoln.Bits (DateTime)
@@ -51,11 +51,10 @@ type Operand = X.Operand (PostingBox -> Bool)
 -- line is not a token.
 parseToken :: DefaultTimeZone
               -> DateTime
-              -> Radix
-              -> Separator
+              -> RadGroup
               -> MatcherFactory
               -> ParserE Error Operand
-parseToken dtz dt rad sp f =
+parseToken dtz dt rg f =
   date dtz
   <|> current dt
   
@@ -74,7 +73,7 @@ parseToken dtz dt rad sp f =
   <|> debit
   <|> credit
   
-  <|> qtyOption rad sp
+  <|> qtyOption rg
 
 -- * MultiArg option factories
 
@@ -277,13 +276,12 @@ credit = X.Operand P.credit
          <$ longNoArg (makeLongOpt . pack $ "credit")
 
 qtyOption ::
-  Radix
-  -> Separator
+  RadGroup
   -> ParserE Error Operand
-qtyOption rad sp = do
+qtyOption rg = do
   let lo = makeLongOpt . pack $ "qty"
   (_, cs, qs) <- longTwoArg lo
-  q <- case parse (qty rad sp) "" qs of
+  q <- case parse (qty rg) "" qs of
     Left _ -> throw $ E.BadQtyError qs
     Right qtParsed -> return qtParsed
   c <- throwIf $ parseComparer cs

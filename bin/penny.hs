@@ -7,14 +7,15 @@ import qualified Penny.Cabin.Postings as P
 import qualified Penny.Copper as C
 import qualified Penny.Zinc as Z
 
+defaultTimeZone :: C.DefaultTimeZone
 defaultTimeZone = C.DefaultTimeZone utc
-radSep = C.radixAndSeparator '.' ','
-radix = fst radSep
-separator = snd radSep
+
+radGroup :: C.RadGroup
+radGroup = C.periodComma
 
 postings :: NE.NonEmpty I.Report
 postings = NE.nonEmpty (P.report f) [] where
-  f rt = P.defaultOptions defaultTimeZone radix separator rt
+  f rt = P.defaultOptions defaultTimeZone radGroup rt
 
 main :: IO ()
-main = Z.zincMain defaultTimeZone radix separator postings
+main = Z.zincMain defaultTimeZone radGroup postings

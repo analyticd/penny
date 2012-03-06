@@ -28,14 +28,13 @@ import qualified Penny.Zinc.Parser.Ledgers as L
 
 reportChunk ::
   Cop.DefaultTimeZone
-  -> Cop.Radix
-  -> Cop.Separator
+  -> Cop.RadGroup
   -> NE.NonEmpty (L.Filename, Text)
   -> ([PostingBox] -> [T.PostingInfo])
   -> I.ReportFunc
   -> Ex.Exceptional ZE.Error Col.Chunk
-reportChunk dtz rad sep fs filt rf = do
-  ps <- L.combineData <$> T.traverse (L.parseLedger dtz rad sep) fs
+reportChunk dtz rg fs filt rf = do
+  ps <- L.combineData <$> T.traverse (L.parseLedger dtz rg) fs
   let processedPostings = filt . postingBoxes . fst $ ps
   case rf processedPostings (snd ps) of
     Ex.Exception e -> Ex.Exception (ZE.ReportError e)
@@ -43,14 +42,13 @@ reportChunk dtz rad sep fs filt rf = do
 
 zincMain ::
   Cop.DefaultTimeZone
-  -> Cop.Radix
-  -> Cop.Separator
+  -> Cop.RadGroup
   -> NE.NonEmpty I.Report
   -> IO ()
-zincMain dtz rad sep rs = do
+zincMain dtz rg rs = do
   rt <- S.runtime
   as <- fmap (fmap pack) getArgs
-  multiArgRes <- case parseE as (P.parser rt dtz rad sep rs) of
+  multiArgRes <- case parseE as (P.parser rt dtz rg rs) of
     Ex.Exception e -> parseErrorExit e
     Ex.Success g -> return g
   parseRes <- case multiArgRes of
@@ -62,7 +60,7 @@ zincMain dtz rad sep rs = do
   let filt = P.sorterFilterWithPost parseRes
       rpt = P.reportFunc parseRes
       cp = P.colors parseRes
-  case reportChunk dtz rad sep legs filt rpt of
+  case reportChunk dtz rg legs filt rpt of
     Ex.Exception err -> do
       TIO.putStrLn . ZE.printError $ err
       exitFailure

@@ -19,7 +19,7 @@ import qualified Penny.Liberty.Seq as PSq
 import qualified Penny.Liberty.Types as T
 
 import Penny.Copper.DateTime (DefaultTimeZone)
-import Penny.Copper.Qty (Radix, Separator)
+import Penny.Copper.Qty (RadGroup)
 import Penny.Lincoln.Bits (DateTime)
 
 data State =
@@ -39,12 +39,11 @@ newState =
 wrapOperand ::
   DefaultTimeZone
   -> DateTime
-  -> Radix
-  -> Separator
+  -> RadGroup
   -> State
   -> ParserE Error State
-wrapOperand dtz dt rad sep st =
-  mkSt <$> O.parseToken dtz dt rad sep fact where
+wrapOperand dtz dt rg st =
+  mkSt <$> O.parseToken dtz dt rg fact where
     fact = factory st (sensitive st)
     mkSt op = st { tokens = tokens st ++ [op'] } where
         op' = X.TokOperand (f . T.postingBox)
@@ -70,12 +69,11 @@ wrapPostFilter st = mkSt <$> PF.parser where
 parseOption ::
   DefaultTimeZone
   -> DateTime
-  -> Radix
-  -> Separator
+  -> RadGroup
   -> State
   -> ParserE Error State
-parseOption dtz dt rad sp st =
-  wrapOperand dtz dt rad sp st
+parseOption dtz dt rg st =
+  wrapOperand dtz dt rg st
   <|> wrapOperator st
   <|> wrapMatcher st
   <|> wrapSeq st

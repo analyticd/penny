@@ -20,7 +20,7 @@ import qualified Penny.Liberty.Sorter as S
 import qualified Penny.Liberty.Types as T
 
 import Penny.Copper.DateTime (DefaultTimeZone)
-import Penny.Copper.Qty (Radix, Separator)
+import Penny.Copper.Qty (RadGroup)
 import Penny.Lincoln.Bits (DateTime)
 import Penny.Lincoln.Boxes (PostingBox)
 
@@ -49,11 +49,10 @@ newState =
 wrapLiberty ::
   DefaultTimeZone
   -> DateTime
-  -> Radix
-  -> Separator
+  -> RadGroup
   -> State
   -> ParserE Error State
-wrapLiberty dtz dt rad sp st = let
+wrapLiberty dtz dt rg st = let
   toLibSt = LF.State { LF.sensitive = sensitive st
                      , LF.factory = factory st
                      , LF.tokens = tokens st
@@ -64,7 +63,7 @@ wrapLiberty dtz dt rad sp st = let
                           , postFilter = LF.postFilter libSt
                           , orderer = orderer st
                           , help = help st }
-  in fromLibSt <$> LF.parseOption dtz dt rad sp toLibSt
+  in fromLibSt <$> LF.parseOption dtz dt rg toLibSt
 
 wrapOrderer :: State -> ParserE Error State
 wrapOrderer st = mkSt <$> S.sort where
@@ -83,25 +82,23 @@ wrapHelp st = (\_ -> st { help = Help }) <$> helpOpt
 parseOption ::
   DefaultTimeZone
   -> DateTime
-  -> Radix
-  -> Separator
+  -> RadGroup
   -> State
   -> ParserE Error State
-parseOption dtz dt rad sp st =
-  wrapLiberty dtz dt rad sp st
+parseOption dtz dt rg st =
+  wrapLiberty dtz dt rg st
   <|> wrapOrderer st
   <|> wrapHelp st
 
 parseOptions ::
   DefaultTimeZone
   -> DateTime
-  -> Radix
-  -> Separator
+  -> RadGroup
   -> State
   -> ParserE Error State
-parseOptions dtz dt rad sp st =
+parseOptions dtz dt rg st =
   option st $ do
-    rs <- runUntilFailure (parseOption dtz dt rad sp) st
+    rs <- runUntilFailure (parseOption dtz dt rg) st
     if null rs then return st else return (last rs)
 
 data Result =
@@ -113,11 +110,10 @@ data Result =
 parseFilter ::
   DefaultTimeZone
   -> DateTime
-  -> Radix
-  -> Separator
+  -> RadGroup
   -> ParserE Error (Either NeedsHelp Result)
-parseFilter dtz dt rad sep = do
-  st' <- parseOptions dtz dt rad sep newState
+parseFilter dtz dt rg = do
+  st' <- parseOptions dtz dt rg newState
   case help st' of
     Help -> return . Left $ NeedsHelp
     NoHelp -> do
