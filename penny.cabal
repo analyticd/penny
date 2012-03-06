@@ -277,6 +277,7 @@ Library
 
     if flag(testing)
       Exposed-modules:
+        Penny.Denver,
         Penny.Denver.Pretty
 
     ghc-options: -Wall

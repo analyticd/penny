@@ -48,6 +48,12 @@ multiline comment.
 
 */
 
+2011/12/15 Salts Deluxe
+    Assets:Checking                 Dr $2000.00
+        'Payday
+    Income:Salary                  Cr $1500.00
+    Expenses:Taxes                 Cr $500.00
+
 ; This is a transaction memo. It is associated
 ; with the transaction, and the penny program lets you
 ; search their contents.

@@ -1,15 +1,43 @@
+-- | Transactions, the heart of Penny. The Transaction data type is
+-- abstract, so that only this module can create Transactions. This
+-- provides assurance that if a Transaction exists, it is a valid,
+-- balanced Transaction. In addition, the Posting data type is
+-- abstract as well, so you know that if you have a Posting, it was
+-- created as part of a balanced Transaction.
+--
+-- Functions prefixed with a @p@ query a particular posting for its
+-- properties. Functions prefixed with a @t@ query transactions. Every
+-- transaction has a single DateTime, and all the postings have this
+-- same DateTime, so there is no function to query a posting's
+-- DateTime. Just query the parent transaction. For other things such
+-- as Number and Flag, the transaction might have data and the posting
+-- might have data as well, so functions are provided to query both.
+--
+-- Often you will want to query a single posting and have a function
+-- that gives you, for example, the posting's flag if it has one, or
+-- the transaction's flag if it has one, or Nothing if neither the
+-- posting nor the transaction has a flag. The functions in
+-- "Penny.Lincoln.Queries" do that.
 module Penny.Lincoln.Transaction (
+  
+  -- * Postings and transactions
   Posting,
-  pPayee, pNumber, pFlag, pAccount, pTags,
-  pEntry, pMemo,
-  TopLine,
-  tDateTime, tFlag, tNumber, tPayee, tMemo,
   Transaction,
-  unTransaction,
+  Inferred(Inferred, NotInferred),
+  TopLine,
+
+  -- * Making transactions
   transaction,
   Error ( UnbalancedError, TooManyInferError,
           CouldNotInferError),
-  postingFamily) where
+  
+  -- * Querying postings
+  pPayee, pNumber, pFlag, pAccount, pTags,
+  pEntry, pMemo, pInferred,
+
+  -- * Querying transactions
+  tDateTime, tFlag, tNumber, tPayee, tMemo,
+  unTransaction, postingFamily ) where
 
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Family ( children, orphans, adopt )
@@ -29,6 +57,12 @@ import qualified Data.Traversable as Tr
 import qualified Control.Monad.Trans.State.Lazy as St
 import Control.Monad.Trans.Class ( lift )
 
+-- | Indicates whether the entry for this posting was inferred. That
+-- is, if the user did not supply an entry for this posting, then it
+-- was inferred.
+data Inferred = Inferred | NotInferred deriving Show
+
+-- | Each Transaction consists of at least two Postings.
 data Posting =
   Posting { pPayee   :: (Maybe B.Payee)
           , pNumber  :: (Maybe B.Number)
@@ -36,9 +70,13 @@ data Posting =
           , pAccount :: B.Account
           , pTags    :: B.Tags
           , pEntry   :: B.Entry
-          , pMemo    :: (Maybe B.Memo) }
+          , pMemo    :: (Maybe B.Memo) 
+          , pInferred :: Inferred }
   deriving Show
 
+-- | The TopLine holds information that applies to all the postings in
+-- a transaction (so named because in a ledger file, this information
+-- appears on the top line.)
 data TopLine =
   TopLine { tDateTime :: B.DateTime
           , tFlag     :: (Maybe B.Flag)
@@ -47,13 +85,14 @@ data TopLine =
           , tMemo     :: (Maybe B.Memo) }
   deriving Show
 
--- | All the Postings in a Transaction:
---
--- * Must produce a Total whose debits and credits are equal.
+-- | All the Postings in a Transaction must produce a Total whose
+-- debits and credits are equal. That is, the Transaction must be
+-- balanced. No Transactions are created that are not balanced.
 newtype Transaction =
   Transaction { unTransaction :: F.Family TopLine Posting }
   deriving Show
   
+-- | Errors that can arise when making a Transaction.
 data Error = UnbalancedError
            | TooManyInferError
            | CouldNotInferError
@@ -94,8 +133,8 @@ infer po =
         Nothing -> Ex.throwT CouldNotInferError
         (Just e) -> do
           lift $ St.put Nothing
-          return $ toPosting po e
-    (Just e) -> return $ toPosting po e
+          return $ toPosting po e Inferred
+    (Just e) -> return $ toPosting po e NotInferred
           
 runInfer ::
   Maybe B.Entry
@@ -123,8 +162,9 @@ inferAll pos t = do
 
 toPosting :: U.Posting
              -> B.Entry
+             -> Inferred
              -> Posting
-toPosting (U.Posting p n f a t _ m) e = Posting p n f a t e m
+toPosting (U.Posting p n f a t _ m) e i = Posting p n f a t e m i
 
 toTopLine :: U.TopLine -> TopLine
 toTopLine (U.TopLine d f n p m) = TopLine d f n p m
