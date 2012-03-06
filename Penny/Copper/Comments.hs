@@ -4,7 +4,8 @@ module Penny.Copper.Comments (
   Item(Text, Nested),
   Multiline(Multiline)) where
 
-import Control.Applicative ((<$>), (<*>), (*>), (<|>), pure)
+import Control.Applicative ((<$>), (<*>), (*>), (<|>), pure, (<*),
+                            (<**>), (<$))
 import Control.Monad ( void )
 import qualified Data.Char as C
 import Data.Ix (range)
@@ -15,7 +16,7 @@ import Text.Parsec (
   noneOf, notFollowedBy)
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat)
+import Penny.Copper.Util (inCat, eol)
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 
 data Comment = Single SingleLine
@@ -31,11 +32,10 @@ isSingleLineChar c = inCategory || allowed where
   inCategory = inCat C.UppercaseLetter C.OtherSymbol c
 
 singleLine :: Parser SingleLine
-singleLine = do
-  _ <- char '/'
-  cs <- many (satisfy isSingleLineChar)
-  void $ char '\n'
-  return (SingleLine (pack cs))
+singleLine = (SingleLine . pack)
+             <$ char '/'
+             <*> many (satisfy isSingleLineChar)
+             <?> "single line comment"
 
 data Item = Text TextNonEmpty
             | Nested Comment
@@ -44,14 +44,17 @@ data Item = Text TextNonEmpty
 data Multiline = Multiline [Item]
                  deriving Show
 
+-- | A comment, either single line or multiline, and an EOL with
+-- whitespace before and after.
 comment :: Parser Comment
-comment = p <?> "comment" where
-  p = char '/'
-      *> ( (Multi<$> multiline)
-           <|> (Single <$> singleLine))
+comment = char '/'
+          *> ( (Multi <$> multiline) <|> (Single <$> singleLine))
+          <* eol
+          <?> "comment"
       
 star :: Parser Char
 star = try (char '*' *> notFollowedBy (char '/') *> pure '*')
+       <?> "star"
 
 multilineText :: Parser Item
 multilineText = f <$> valid <*> many valid where
@@ -59,13 +62,11 @@ multilineText = f <$> valid <*> many valid where
   f c cs = Text (TextNonEmpty c (pack cs))
 
 nested :: Parser Item
-nested = p <?> "nested comment" where
-  p = comment >>= return . Nested
+nested = Nested <$> comment <?> "nested comment"
 
 multiline :: Parser Multiline
-multiline = do
-  _ <- char '*'
-  is <- many (multilineText <|> nested)
-  _ <- string "*/"
-  _ <- char '\n'
-  return $ Multiline is
+multiline = Multiline
+            <$ char '*'
+            <*> many (multilineText <|> nested)
+            <* string "*/"
+            <?> "multiline comment"

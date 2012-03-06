@@ -1,6 +1,6 @@
 module Penny.Copper.Util where
 
-import Control.Applicative ((<*))
+import Control.Applicative ((<*), pure)
 import qualified Data.Char as C
 import Data.Ix (range)
 import qualified Data.Set as S
@@ -17,11 +17,10 @@ inCat g1 g2 c = C.generalCategory c `S.member` gs where
 lexeme :: Parser a -> Parser a
 lexeme p = p <* many (char ' ')
 
--- | Creates a new parser that behaves like the old one, but also
--- parses any trailing whitespace followed by a newline followed by
+-- | Parses any trailing whitespace followed by a newline followed by
 -- additional whitespace.
-eol :: Parser a -> Parser a
-eol p = p
-        <* many (char ' ')
-        <* char '\n'
-        <* many (char ' ')
+eol :: Parser ()
+eol = pure ()
+      <* many (char ' ')
+      <* char '\n'
+      <* many (char ' ')

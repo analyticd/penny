@@ -15,7 +15,7 @@ import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Copper.Qty as Q
-import Penny.Copper.Util (lexeme)
+import Penny.Copper.Util (lexeme, eol)
 
 {-
 BNF-style specification for prices:
@@ -50,9 +50,11 @@ maybePrice dtz rg =
   <*> lexeme (DT.dateTime dtz)
   <*> lexeme (C.quotedLvl1Cmdty <|> C.lvl2Cmdty)
   <*> A.amount rg
-  <* char '\n'
+  <* eol
   <?> "price"
   
+-- | A price with an EOL and whitespace after the EOL. Fails if the
+-- price is not valid (e.g. the from and to commodities are the same).
 price ::
   DT.DefaultTimeZone
   -> Q.RadGroup
