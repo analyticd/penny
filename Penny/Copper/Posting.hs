@@ -32,10 +32,11 @@ posting rg =
   <*> optionMaybe (lexeme Fl.flag)
   <*> optionMaybe (lexeme Nu.number)
   <*> optionMaybe (lexeme Pa.quotedPayee)
-  <*> lexeme (Ac.lvl1Account <|> Ac.lvl2Account)
+  <*> lexeme (Ac.lvl1AccountQuoted <|> Ac.lvl2Account)
   <*> lexeme Ta.tags
   <*> optionMaybe (lexeme (En.entry rg))
   <* char '\n'
+  <* many (char ' ')
   <*> optionMaybe Me.memo
   <?> "posting"
 

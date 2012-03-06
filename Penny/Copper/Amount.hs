@@ -46,27 +46,22 @@ lvl1CmdtyQty = cmdtyQty C.quotedLvl1Cmdty
 lvl3CmdtyQty :: Q.RadGroup -> Parser (B.Amount, M.Format)
 lvl3CmdtyQty = cmdtyQty C.lvl3Cmdty
 
-qtyCmdty :: Parser B.Commodity
-            -> Q.RadGroup
-            -> Parser (B.Amount, M.Format)
-qtyCmdty p rg = let
+cmdtyOnRight :: Q.RadGroup -> Parser (B.Amount, M.Format)
+cmdtyOnRight rg = let  
   f q s c = (a, fmt) where
     a = B.Amount q c
     fmt = M.Format c M.CommodityOnRight s
   e = "amount, commodity on right"
-  in f <$> Q.qty rg <*> spaces <*> p <?> e
-
-qtyLvl1Cmdty :: Q.RadGroup -> Parser (B.Amount, M.Format)
-qtyLvl1Cmdty = qtyCmdty C.quotedLvl1Cmdty
-
-qtyLvl2Cmdty :: Q.RadGroup -> Parser (B.Amount, M.Format)
-qtyLvl2Cmdty = qtyCmdty C.lvl2Cmdty
+  in f
+     <$> Q.qty rg
+     <*> spaces
+     <*> (C.quotedLvl1Cmdty <|> C.lvl2Cmdty)
+     <?> e
 
 -- | Parses an amount with its metadata. Handles all combinations of
 -- commodities and quantities.
 amount :: Q.RadGroup -> Parser (B.Amount, M.Format)
 amount rg = lvl1CmdtyQty rg
             <|> lvl3CmdtyQty rg
-            <|> qtyLvl1Cmdty rg
-            <|> qtyLvl2Cmdty rg
+            <|> cmdtyOnRight rg
             <?> "amount"

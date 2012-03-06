@@ -25,7 +25,7 @@ import Penny.Copper.Util (inCat)
 
 lvl1Char :: Char -> Bool
 lvl1Char c = allowed && notBanned where
-  allowed = inCat C.UppercaseLetter C.OtherSymbol c
+  allowed = inCat C.UppercaseLetter C.OtherSymbol c || c == ' '
   notBanned = not $ c `elem` "}:"
 
 lvl1Sub :: Parser B.SubAccountName

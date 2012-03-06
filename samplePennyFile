@@ -30,7 +30,7 @@
 // As you can see, single line comments begin with
 // two slashes. 
 
-{- This is a multiline comment.
+/* This is a multiline comment.
    Neither single line comments nor multiline comments
    may begin on lines that have data. They must begin
    on lines all by themselves. They must also begin in
@@ -38,15 +38,15 @@
    a line that has nothing but whitespace. However,
    a line that is solely a newline is okay.
 
-{- You can also nest multiline comments, like this. However,
+/* You can also nest multiline comments, like this. However,
 any nested comments must be well-formed. You cannot have
 stray comment beginning or ending characters; this will
-cause the parser to fail. -}
+cause the parser to fail. */
 
 There must not be any trailing whitespace after the end of the
 multiline comment.
 
--}
+*/
 
 ; This is a transaction memo. It is associated
 ; with the transaction, and the penny program lets you
@@ -74,7 +74,7 @@ multiline comment.
 // is cleared.
 
 2012/01/02 [*] (302) GreenGas
-    Liabilities:Credit Card             Cr $5.00
+    {Liabilities:Credit Card}             Cr $5.00
     Expenses:Car #gas #trips
 
 ; This transaction has a posting with a different payee.
@@ -83,8 +83,8 @@ multiline comment.
 2012/01/03 Flathead
     [R] (905) <Luvapet Vet> Expenses:Pet    Dr $10.00
     Assets:Checking               Cr $5.00
-    [*] (2313) Liabilities:Credit Card       Cr $5.00
-       This interest rate is too high
+    [*] (2313) {Liabilities:Credit Card}       Cr $5.00
+       'This interest rate is too high
 
 // Flags can be more than one letter. Actually they can include
 // any character except ']'.
@@ -109,8 +109,8 @@ multiline comment.
 2012/01/05 Stockbroker
     Assets:Brokerage              Dr 1,000 LUV
     Assets:Current:Checking       Cr $ 2,000.00
-    Income:Brokerage Trading Account  Cr 1,000 LUV
-    Income:Brokerage Trading Account  Dr $ 2,000.00
+    {Income:Brokerage Trading Account}  Cr 1,000 LUV
+    {Income:Brokerage Trading Account}  Dr $ 2,000.00
 
 // Prices allow you to specify how to convert one commodity
 // to another. Prices do not affect the way any of your
@@ -123,16 +123,16 @@ multiline comment.
 // equals the given quantity of the other commodity. Here
 // are some examples.
 
-P 2012/01/05 17:55:55 -0500 LUV $9.62
-P 2012/01/05 Gold $1738.35
+@ 2012/01/05 17:55:55 -0500 LUV $9.62
+@ 2012/01/05 Gold $1738.35
 
 // Prices only work one way. For instance the first
 // price tells you how many dollars one euro is worth, and allows
 // reports to convert from euro to dollars. To convert from
 // dollars to euro, you must specify another price.
-P 2012/01/05 € $1.3207
-P 2012/01/05 $ €0.7572
-P 2012/01/05 ¥ 0.6418 INR
+@ 2012/01/05 € $1.3207
+@ 2012/01/05 $ €0.7572
+@ 2012/01/05 ¥ 0.6418 INR
 
 ; Commodities can have several components in their names,
 ; just as accounts can. Subsequent parts can be viewed as
@@ -147,23 +147,23 @@ P 2012/01/05 ¥ 0.6418 INR
 ; two transactions show:
 2007/02/01 Bought stock
     Assets:Brokerage               Dr 100 T:2007
-      $37.75 per share
+      '$37.75 per share
     Assets:Checking                Cr $3775
-    Income:Brokerage Trading       Cr 100 T:2007
-    Income:Brokerage Trading       Dr $3775
+    {Income:Brokerage Trading}       Cr 100 T:2007
+    {Income:Brokerage Trading}       Dr $3775
 
 2012/01/12 Bought stock
     Assets:Brokerage               Dr 100 T:2012
-      $30.12 per share
+      '$30.12 per share
     Assets:Checking                Cr $3012
-    Income:Brokerage Trading       Cr 100 T:2012
-    Income:Brokerage Trading       Dr $3012
+    {Income:Brokerage Trading}       Cr 100 T:2012
+    {Income:Brokerage Trading}       Dr $3012
 
 // and some prices to go along with the T example. Reports that use
 // prices can elect to apply the single T price both to the
 // T:2012 and the T:2007 commodities.
-P 2007/06/01 T $40.53
-P 2012/01/27 T $29.16
+@ 2007/06/01 T $40.53
+@ 2012/01/27 T $29.16
 
 // As the examples above show, Penny works fine with Unicode.
 // Your ledger file should be encoded in your system's default
@@ -205,13 +205,13 @@ P 2012/01/27 T $29.16
 ; they are mandatory for the minutes and seconds.
 2012/01/28 09:58 King Arthur Flour
     Expenses:Food                  Dr $5.25
-       Sourdough starter!
+       'Sourdough starter!
     Assets:Current:Checking
 
 ; Transaction specifying a local time zone
 2012/01/28 17:26:44 -0500 Exactamundo
     Expenses:Amusements           Dr $400
-    Liabilities:Credit Card       Cr $300
+    {Liabilities:Credit Card}       Cr $300
     Assets:Current:Checking       Cr $100
 
 ; Transaction specifying UTC. Also, you can always
@@ -268,11 +268,11 @@ P 2012/01/27 T $29.16
 2012/01/30 Benny Broker
     Assets:Brokerage                 Dr MSFT100
     Assets:Current:Checking          Cr 2959 $
-    Income:Stock Trading Account     Cr 100 MSFT
-    Income:StockTradingAcccount      Dr $2959
+    {Income:Stock Trading Account}     Cr 100 MSFT
+    {Income:Stock Trading Acccount}      Dr $2959
 
 
-{- What's the difference between transaction memos, posting
+/* What's the difference between transaction memos, posting
    memos, and comments? Here I will draw a distinction between
    penny (lower case), which is the command-line executable
    program, and the Penny parser (upper case), which is the Haskell
@@ -295,5 +295,5 @@ P 2012/01/27 T $29.16
    automatically reconcile your checking account statement).
    By writing your own code using the Penny parser, you can
    do transformations like this while still keeping your comments
-   intact. Pretty neat. -}
+   intact. Pretty neat. */
 

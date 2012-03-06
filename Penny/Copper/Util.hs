@@ -12,5 +12,8 @@ inCat :: C.GeneralCategory -> C.GeneralCategory
 inCat g1 g2 c = C.generalCategory c `S.member` gs where
   gs = S.fromList (range (g1, g2))
 
+-- | Creates a new parser that behaves like the old one, but also
+-- parses any whitespace remaining afterward.
 lexeme :: Parser a -> Parser a
 lexeme p = const <$> p <*> many (char ' ')
+
