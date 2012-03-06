@@ -23,8 +23,6 @@ module Penny.Lincoln.Transaction (
   -- * Postings and transactions
   Posting,
   Transaction,
-  Inferred(Inferred, NotInferred),
-  TopLine,
 
   -- * Making transactions
   transaction,
@@ -32,10 +30,12 @@ module Penny.Lincoln.Transaction (
           CouldNotInferError),
   
   -- * Querying postings
+  Inferred(Inferred, NotInferred),
   pPayee, pNumber, pFlag, pAccount, pTags,
   pEntry, pMemo, pInferred,
 
   -- * Querying transactions
+  TopLine,
   tDateTime, tFlag, tNumber, tPayee, tMemo,
   unTransaction, postingFamily ) where
 
