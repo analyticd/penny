@@ -5,14 +5,11 @@ module Penny.Copper.Comments (
   Multiline(Multiline)) where
 
 import Control.Applicative ((<$>), (<*>), (*>), (<|>), pure, (<*),
-                            (<**>), (<$))
-import Control.Monad ( void )
+                            (<$))
 import qualified Data.Char as C
-import Data.Ix (range)
-import qualified Data.Set as S
-import Data.Text ( Text, pack, snoc )
+import Data.Text ( Text, pack )
 import Text.Parsec (
-  try, many, char, satisfy, string, (<?>), anyChar,
+  try, many, char, satisfy, string, (<?>),
   noneOf, notFollowedBy)
 import Text.Parsec.Text ( Parser )
 

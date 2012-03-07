@@ -1,11 +1,10 @@
 module Penny.Copper.Posting where
 
-import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>), (<$),
+import Control.Applicative ((<$>), (<*>), (<*), (<|>),
                             (<**>), pure)
-import Control.Monad ( void, liftM )
 import Text.Parsec (
-  char, many, getParserState, sourceColumn,
-  statePos, optionMaybe, option, try, sourceLine, (<?>),
+  char, many, getParserState,
+  statePos, optionMaybe, sourceLine, (<?>),
   State)
 import Text.Parsec.Text ( Parser )
 

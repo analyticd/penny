@@ -1,8 +1,7 @@
 module Penny.Copper.Memos.Transaction where
 
-import Control.Applicative ((<*>), (<$>), (<*), (*>), (<$))
+import Control.Applicative ((<*>), (<$>), (<*), (<$))
 import qualified Data.Char as C
-import Data.Text ( pack )
 import Text.Parsec (
   char, many1, satisfy, sourceLine, getPosition, (<?>))
 import Text.Parsec.Text ( Parser )
@@ -10,8 +9,7 @@ import Text.Parsec.Text ( Parser )
 import Penny.Copper.Util (inCat, eol)
 import Penny.Lincoln.Meta (TopMemoLine(TopMemoLine), Line(Line))
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
-                                    unsafeTextNonEmpty)
+import Penny.Lincoln.TextNonEmpty (unsafeTextNonEmpty)
 
 isCommentChar :: Char -> Bool
 isCommentChar c = inCat C.UppercaseLetter C.OtherSymbol c

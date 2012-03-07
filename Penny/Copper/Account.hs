@@ -7,13 +7,11 @@
 -- other characters may be nearly any character, except for a space.
 module Penny.Copper.Account where
 
-import Control.Applicative((<$>), (<*>), pure, (*>))
-import Control.Monad ( liftM, void )
-import Data.Char ( isLetter, isNumber )
+import Control.Applicative((<$>), (<*>), (*>))
 import qualified Data.Char as C
 import Data.Text ( pack )
 import Text.Parsec (
-  char, satisfy, notFollowedBy, (<|>), try, many, (<?>),
+  char, satisfy, many, (<?>),
   many1, between, sepBy1, option )
 import Text.Parsec.Text ( Parser )
 

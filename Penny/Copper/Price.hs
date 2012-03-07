@@ -1,12 +1,10 @@
 module Penny.Copper.Price where
 
-import Control.Monad ( void )
-import Text.Parsec ( char, many, getPosition, sourceLine, (<?>))
-import qualified Text.Parsec.Pos as Pos
+import Text.Parsec ( char, getPosition, sourceLine, (<?>),
+                     SourcePos )
 import Text.Parsec.Text ( Parser )
 
-import Control.Applicative ((<$>), (<*>), (<**>), (*>), (<*),
-                            (<|>), (<$))
+import Control.Applicative ((<*>), (<*), (<|>), (<$))
 
 import qualified Penny.Lincoln.Boxes as Box
 import qualified Penny.Lincoln.Bits as B
@@ -25,7 +23,7 @@ BNF-style specification for prices:
 <toAmount> ::= "amount"
 -}
 
-mkPrice :: Pos.SourcePos
+mkPrice :: SourcePos
          -> B.DateTime
          -> B.Commodity
          -> (B.Amount, M.Format)
@@ -34,7 +32,7 @@ mkPrice pos dt from (am, fmt) = let
   to = B.commodity am
   q = B.qty am
   pm = M.PriceMeta pl fmt
-  pl = M.PriceLine . M.Line . Pos.sourceLine $ pos
+  pl = M.PriceLine . M.Line . sourceLine $ pos
   in do
     p <- B.newPrice (B.From from) (B.To to) (B.CountPerUnit q)
     return $ Box.PriceBox (B.PricePoint dt p) (Just pm)

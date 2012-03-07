@@ -1,12 +1,12 @@
 module Penny.Copper.DateTime where
 
-import Control.Applicative ((<$>), (<*>), pure)
+import Control.Applicative ((<$>), (<*>))
 import Data.Time (
   minutesToTimeZone, TimeOfDay, makeTimeOfDayValid,
   localTimeToUTC, midnight, LocalTime ( LocalTime ),
   Day, fromGregorianValid, TimeZone )
 import Text.Parsec (
-  optionMaybe, char, try, digit, (<|>), option, (<?>))
+  optionMaybe, char, digit, (<|>), option, (<?>))
 import Text.Parsec.Text ( Parser )
 import Control.Monad ( replicateM, void )
 import Data.Fixed ( Pico )

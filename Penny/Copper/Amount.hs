@@ -14,14 +14,12 @@
 -- Each quantity may be quoted or unquoted.
 module Penny.Copper.Amount (amount) where
 
-import Control.Applicative ((<$>), (<*>), pure, optional, (<|>))
-import Control.Monad ( void )
-import Text.Parsec ( char, choice, try, many, (<?>) )
+import Control.Applicative ((<$>), (<*>), (<|>))
+import Text.Parsec ( char, many, (<?>) )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.Qty as Q
-import Penny.Copper.Util (lexeme)
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Meta as M
 

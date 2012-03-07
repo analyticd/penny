@@ -2,7 +2,7 @@ module Penny.Copper.Transaction where
 
 import Control.Applicative ((<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Text.Parsec (try, many )
+import Text.Parsec (many)
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.DateTime as DT
@@ -24,14 +24,12 @@ errorStr e = case e of
 
 mkTransaction ::
   M.Filename
-  -> DT.DefaultTimeZone
-  -> Qt.RadGroup
   -> (U.TopLine, M.TopLineLine, Maybe M.TopMemoLine)
   -> (U.Posting, M.PostingMeta)
   -> (U.Posting, M.PostingMeta)
   -> [(U.Posting, M.PostingMeta)]
   -> Ex.Exceptional String TransactionBox
-mkTransaction fn dtz rg tripTop p1 p2 ps = let
+mkTransaction fn tripTop p1 p2 ps = let
   (tl, tll, tml) = tripTop
   famTrans = Family tl (fst p1) (fst p2) (map fst ps)
   paMeta = M.TopLineMeta tml (Just tll) (Just fn)
@@ -48,7 +46,7 @@ maybeTransaction ::
   -> Qt.RadGroup
   -> Parser (Ex.Exceptional String TransactionBox)
 maybeTransaction fn dtz rg =
-  mkTransaction fn dtz rg
+  mkTransaction fn
   <$> topLine dtz
   <*> Po.posting rg
   <*> Po.posting rg

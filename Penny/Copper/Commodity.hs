@@ -13,10 +13,8 @@
 -- * Level 3 commodities. All charcters must be letters or symbols.
 module Penny.Copper.Commodity where
 
-import Control.Applicative ((<*>), (<$>), pure, (*>), (<|>))
+import Control.Applicative ((<*>), (<$>), (*>), (<|>))
 import qualified Data.Char as C
-import Data.Char (
-  isControl, isSpace, isDigit)
 import Data.Text ( pack )
 import Text.Parsec ( satisfy, many, char, sepBy1, many1, (<?>),
                      between, option )
@@ -54,9 +52,9 @@ lvl1Cmdty = (B.Commodity . unsafeToNonEmpty)
 -- | A commodity that may have spaces in the name; is wrapped inside
 -- of double quotes.
 quotedLvl1Cmdty :: Parser B.Commodity
-quotedLvl1Cmdty = between quot quot lvl1Cmdty
+quotedLvl1Cmdty = between q q lvl1Cmdty
               <?> "quoted commodity" where
-                quot = char '"'
+                q = char '"'
 
 -- | Allows only letters and symbols.
 lvl2FirstChar :: Char -> Bool

@@ -2,7 +2,7 @@ module Penny.Copper.Entry where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad ( void )
-import Text.Parsec ( char, string, optional, (<|>), many1, (<?>) )
+import Text.Parsec ( char, string, optional, (<|>), (<?>) )
 import Text.Parsec.Text ( Parser )
 
 import Penny.Copper.Amount (amount)

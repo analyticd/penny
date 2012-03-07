@@ -10,8 +10,7 @@ module Penny.Copper.Qty (
 
 import Control.Applicative ((<$>), (<*>), (<$), (*>), optional)
 import qualified Data.Decimal as D
-import qualified Data.List.NonEmpty as NE
-import Text.Parsec ( char, (<|>), many, many1, try, (<?>), 
+import Text.Parsec ( char, (<|>), many1, (<?>), 
                      sepBy1, digit, between)
 import qualified Text.Parsec as P
 import Text.Parsec.Text ( Parser )
@@ -80,16 +79,10 @@ wholeGrouped g = p <$> group1 <*> optional groupRest <?> e where
 wholeNonGrouped :: Parser String
 wholeNonGrouped = many1 digit
 
-fractional :: Parser String
-fractional = many1 digit
-
 data NumberStr = Whole String
                | WholeRad String
                | WholeRadFrac String String
                | RadFrac String
-
-startsRad :: Radix -> Parser (Maybe String)
-startsRad r = parseRadix r *> (optional (many1 P.digit))
 
 fractionalOnly :: Radix -> Parser String
 fractionalOnly r = parseRadix r *> many1 P.digit

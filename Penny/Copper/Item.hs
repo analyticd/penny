@@ -1,8 +1,7 @@
 module Penny.Copper.Item where
 
 import Control.Applicative ((<$>), (<*>), (<$))
-import Control.Monad ( liftM )
-import Text.Parsec (getPosition, sourceLine, (<|>), char,
+import Text.Parsec (getPosition, sourceLine, (<|>),
                     (<?>))
 import Text.Parsec.Text ( Parser )
 

@@ -2,9 +2,7 @@
 module Penny.Cabin.Postings.Parser where
 
 import Control.Applicative ((<|>), (<$>), (*>))
-import Control.Monad.Exception.Synchronous (Exceptional)
 import Data.Text (Text, pack)
-import qualified Text.Matchers.Text as M
 import System.Console.MultiArg.Combinator (longOneArg, option)
 import System.Console.MultiArg.Option (makeLongOpt)
 import System.Console.MultiArg.Prim (ParserE, throw)
@@ -13,10 +11,8 @@ import qualified Penny.Cabin.Colors as CC
 import Penny.Liberty.Error (Error)
 import Penny.Liberty.Combinator (runUntilFailure, nextWordIs)
 import qualified Penny.Liberty.Error as Er
-import qualified Penny.Liberty.Expressions as Ex
 import qualified Penny.Liberty.Filter as LF
 import qualified Penny.Liberty.Operands as Od
-import qualified Penny.Liberty.Types as Ty
 import qualified Penny.Cabin.Postings.Colors as PC
 import qualified Penny.Cabin.Postings.Fields as Fl
 import qualified Penny.Cabin.Postings.Options as Op

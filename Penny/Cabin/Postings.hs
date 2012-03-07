@@ -56,7 +56,6 @@ import Penny.Cabin.Postings.Finalizer (finalizer)
 import Penny.Cabin.Postings.Help (help)
 
 import qualified Penny.Cabin.Colors as C
-import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Grid as G
 import qualified Penny.Cabin.Postings.Options as O
 import qualified Penny.Cabin.Postings.Parser as P

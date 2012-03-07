@@ -1,12 +1,9 @@
 module Penny.Copper.Tags where
 
 import Control.Applicative ((<$>), (*>), (<*>))
-import Control.Monad ( liftM )
-import Data.Char ( isLetter, isNumber )
 import qualified Data.Char as C
 import Data.Text ( pack )
-import Text.Parsec (
-  char, satisfy, many, skipMany, try, (<?>))
+import Text.Parsec (char, satisfy, many, (<?>))
 import Text.Parsec.Text ( Parser )
 
 import Penny.Copper.Util (inCat, lexeme)

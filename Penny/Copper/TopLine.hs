@@ -1,10 +1,8 @@
 module Penny.Copper.TopLine where
 
-import Control.Applicative ((<$>), (<*>), (<*), (*>), (<|>), (<$),
-                            (<**>), pure, liftA)
-import Control.Monad ( void, when, liftM )
-import Data.Maybe (isNothing)
-import Text.Parsec ( optionMaybe, many, char, getParserState,
+import Control.Applicative ((<$>), (<*>), (<*), (<|>),
+                            liftA)
+import Text.Parsec ( optionMaybe, getParserState,
                      sourceLine, statePos, optionMaybe )
 import Text.Parsec.Text ( Parser )
 
