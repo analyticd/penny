@@ -7,9 +7,10 @@
 -- other characters may be nearly any character, except for a space.
 module Penny.Copper.Account where
 
-import Control.Applicative((<$>), (<*>), (*>))
+import Control.Applicative((<$>), (<*>), (*>), (<$))
+import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Char as C
-import Data.Text ( pack )
+import Data.Text ( pack, Text )
 import Text.Parsec (
   char, satisfy, many, (<?>),
   many1, between, sepBy1, option )
@@ -19,7 +20,9 @@ import Data.List.NonEmpty (nonEmpty, unsafeToNonEmpty)
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
                                     unsafeTextNonEmpty )
+import qualified Penny.Lincoln.HasText as HT
 import Penny.Copper.Util (inCat)
+import qualified Penny.Copper.Util as U
 
 lvl1Char :: Char -> Bool
 lvl1Char c = allowed && notBanned where
@@ -67,3 +70,7 @@ lvl2Account = f <$> p1 <*> p2 <?> e where
        char ':' *> sepBy1 lvl2SubAccountRest (char ':')
   e = "account name"
 
+renderSubAccount ::
+  B.SubAccountName
+  -> Ex.Exceptional U.RenderError Text
+renderSubAccount = undefined
