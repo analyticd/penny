@@ -12,6 +12,7 @@ import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Price ( price )
 import Penny.Copper.Transaction ( transaction )
+import Penny.Copper.Util (eol)
 import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
 
 
@@ -36,7 +37,7 @@ parseItem ::
   -> Q.RadGroup
   -> Parser Item
 parseItem fn dtz rg = let
-   bl = BlankLine <$ char '\n' <?> "blank line"
+   bl = BlankLine <$ eol <?> "blank line"
    t = Transaction <$> transaction fn dtz rg
    p = Price <$> price dtz rg
    c = Comment <$> C.comment

@@ -14,7 +14,7 @@ import qualified Penny.Copper.Memos.Transaction as M
 import qualified Penny.Copper.Flag as F
 import qualified Penny.Copper.Number as N
 import qualified Penny.Copper.Payees as P
-import Penny.Copper.Util (lexeme)
+import Penny.Copper.Util (lexeme, eol)
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
 topLine ::
@@ -28,7 +28,7 @@ topLine dtz =
   <*> optionMaybe (lexeme F.flag)
   <*> optionMaybe (lexeme N.number)
   <*> optionMaybe (P.quotedPayee <|> P.unquotedPayee)
-  <*  char '\n'
+  <*  eol
   where
     f mayMe lin dt fl nu pa = (tl, lin, tml) where
       tl = U.TopLine dt fl nu pa me

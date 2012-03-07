@@ -23,6 +23,5 @@ memo = (\c cs -> B.Memo $ TextNonEmpty c (pack cs))
        <$ char '\''
        <*> satisfy isCommentChar
        <*> many (satisfy isCommentChar)
-       <* char '\n'
        <* eol
        <?> "posting memo"

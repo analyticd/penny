@@ -59,7 +59,7 @@ multiline comment.
 ; search their contents.
 2012/01/01 Payee Name
     Assets:Checking                 Cr $5.00
-    Expenses:Food
+Expenses:Food
 
 // Lines with a posting start with at least one space. At least
 // two spaces separate the account name and the DrCr.

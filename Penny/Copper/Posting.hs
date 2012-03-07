@@ -18,7 +18,7 @@ import qualified Penny.Copper.Number as Nu
 import qualified Penny.Copper.Payees as Pa
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Tags as Ta
-import Penny.Copper.Util (lexeme)
+import Penny.Copper.Util (lexeme, eol)
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
@@ -35,8 +35,7 @@ posting rg =
   <*> lexeme (Ac.lvl1AccountQuoted <|> Ac.lvl2Account)
   <*> lexeme Ta.tags
   <*> optionMaybe (lexeme (En.entry rg))
-  <* char '\n'
-  <* many (char ' ')
+  <* eol
   <*> optionMaybe Me.memo
   <?> "posting"
 
