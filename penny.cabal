@@ -149,7 +149,7 @@ Flag test
   Default: False
 
 Library
-    extensions: CPP
+    hs-source-dirs: lib
     Build-depends:
         array ==0.3.*,
         base ==4.*,
@@ -282,7 +282,6 @@ Library
       Exposed-modules:
         Penny.Denver,
         Penny.Denver.Pretty
-      cpp-options: -DTEST
 
     ghc-options: -Wall
 

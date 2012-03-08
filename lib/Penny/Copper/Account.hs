@@ -117,7 +117,7 @@ checkOtherSubAccount = U.checkText ls where
 -- Testing
 --
 
-#ifdef TEST
+{-
 _level1Account :: B.Account
 _level1Account = Bd.crashy $ Bd.account "Assets:Bank Account"
 
@@ -126,4 +126,4 @@ _level2Account = Bd.crashy $ Bd.account "Assets:Bank"
 
 _badAccount :: B.Account
 _badAccount = Bd.crashy $ Bd.account "Assets:Bank\n"
-#endif
+-}
