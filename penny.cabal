@@ -144,11 +144,12 @@ source-repository head
     type: git
     location: git://github.com/massysett/penny.git
 
-Flag testing
+Flag test
   Description: build test code and executables
   Default: False
 
 Library
+    extensions: CPP
     Build-depends:
         array ==0.3.*,
         base ==4.*,
@@ -171,7 +172,7 @@ Library
         -- problems. However this old one works fine.
         NonEmptyList ==0.0.5
         
-    if flag(testing)
+    if flag(test)
        Build-depends:
          pretty ==1.0.*,
          old-locale ==1.0.*
@@ -277,10 +278,11 @@ Library
 
 
 
-    if flag(testing)
+    if flag(test)
       Exposed-modules:
         Penny.Denver,
         Penny.Denver.Pretty
+      cpp-options: -DTEST
 
     ghc-options: -Wall
 
@@ -294,7 +296,7 @@ Executable copperTest
     penny ==0.1.*
   Main-is: copperTest.hs
   GHC-Options: -Wall
-  if flag(testing)
+  if flag(test)
     Build-depends:
       pretty ==1.0.*
   else

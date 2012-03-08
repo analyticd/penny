@@ -9,13 +9,7 @@
 --
 -- The disadvantage of the nesting is that building these data types
 -- can be tedious if, for example, you want to build some data within
--- a short custom Haskell program. Thus, this module. Many of the
--- functions here are partial--they simply apply "error" if you supply
--- invalid data, such as an sub-account name that is empty. Thus their
--- use is not recommended unless you are okay with your program
--- crashing nastily (which, face it, is just fine in many
--- circumstances). No function in this module or elsewhere in Penny
--- will create invalid data, because Penny never allows this.
+-- a short custom Haskell program. Thus, this module.
 
 module Penny.Lincoln.Builders where
 
@@ -28,11 +22,15 @@ import Penny.Lincoln.TextNonEmpty (TextNonEmpty(TextNonEmpty))
 import Data.Text (pack)
 import qualified Data.Traversable as T
 
+-- | Makes a function partial. Use if you don't want to bother dealing
+-- with the Exceptional type.
+crashy :: Show e => Ex.Exceptional e a -> a
+crashy = Ex.resolve (error . show)
+
 -- | Create an Account. You supply a single String, with colons to
--- separate the different sub-accounts. /This function is partial/. It
--- applies 'error' if the account name is not valid.
-account :: String -> B.Account
-account input = Ex.resolve error $ do
+-- separate the different sub-accounts.
+account :: String -> Ex.Exceptional String B.Account
+account input = do
   subStrs <- case S.splitOn ":" input of
     []:[] -> Ex.throw "account name is null"
     (s:ss) -> return $ NE.nonEmpty s ss

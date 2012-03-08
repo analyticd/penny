@@ -5,7 +5,11 @@
 --
 -- * Level 2 account. The first sub-account begins with a letter. All
 -- other characters may be nearly any character, except for a space.
-module Penny.Copper.Account where
+module Penny.Copper.Account (
+  lvl1Account
+  , lvl1AccountQuoted
+  , lvl2Account
+  ) where
 
 import Control.Applicative((<$>), (<*>), (*>), (<$))
 import Control.Monad.Exception.Synchronous as Ex
@@ -26,7 +30,7 @@ import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
 import qualified Penny.Lincoln.HasText as HT
 import Penny.Copper.Util (inCat)
 import qualified Penny.Copper.Util as U
-import qualified Penny.Lincoln.Partial as Partial
+import qualified Penny.Lincoln.Builders as Bd
 
 lvl1Char :: Char -> Bool
 lvl1Char c = allowed && notBanned where
@@ -113,11 +117,13 @@ checkOtherSubAccount = U.checkText ls where
 -- Testing
 --
 
+#ifdef TEST
 _level1Account :: B.Account
-_level1Account = Partial.account "Assets:Bank Account"
+_level1Account = Bd.crashy $ Bd.account "Assets:Bank Account"
 
 _level2Account :: B.Account
-_level2Account = Partial.account "Assets:Bank"
+_level2Account = Bd.crashy $ Bd.account "Assets:Bank"
 
 _badAccount :: B.Account
-_badAccount = Partial.account $ "Assets:Bank\n"
+_badAccount = Bd.crashy $ Bd.account "Assets:Bank\n"
+#endif
