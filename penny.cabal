@@ -164,6 +164,7 @@ Library
         multiarg ==0.3.*,
         matchers ==0.1.*,
         old-locale ==1.0.*,
+        split ==0.1.*,
 
         -- Do not use newer versions of NonEmptyList. They do not
         -- compile with newer versions of GHC due to dependency
@@ -259,6 +260,7 @@ Library
         Penny.Lincoln.Family.Siblings,
         Penny.Lincoln.HasText,
         Penny.Lincoln.Meta,
+        Penny.Lincoln.Partial,
         Penny.Lincoln.Predicates,
         Penny.Lincoln.Queries,
         Penny.Lincoln.TextNonEmpty,

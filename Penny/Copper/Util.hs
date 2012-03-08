@@ -52,9 +52,9 @@ checkChar p c = if p c then return c else Ex.throw (BadChar c)
 -- associated with that predicate. If none of the predicates indicates
 -- that the Text is valid, returns the rightmost error.
 --
--- Here, least restrictive means the predicate that indicates True for
--- the widest range of characters, while most restrictive means the
--- predicate that indicates True for the narrowest range of
+-- Here, most restrictive means the predicate that indicates True for
+-- the narrowest range of characters, while least restrictive means
+-- the predicate that indicates True for the widest range of
 -- characters.
 checkText ::
   HT.HasText a
