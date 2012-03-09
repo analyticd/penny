@@ -172,11 +172,6 @@ Library
         -- problems. However this old one works fine.
         NonEmptyList ==0.0.5
         
-    if flag(test)
-       Build-depends:
-         pretty ==1.0.*,
-         old-locale ==1.0.*
-
     Exposed-modules:
         Penny,
         Penny.Cabin,
@@ -276,21 +271,25 @@ Library
         Penny.Zinc.Parser.Ledgers,
         Penny.Zinc.Parser.Report
 
-    if flag(test)
-      Exposed-modules:
-        Penny.Denver,
-        Penny.Denver.Pretty
-
     ghc-options: -Wall
 
 Executable pennyTest
   hs-source-dirs: pennyTest
   main-is: Main.hs
   Build-depends:
-    penny ==0.1.*
+    penny ==0.1.*,
+    base ==4.*,
+    parsec >= 3.1.2 && < 3.2,
+    pretty ==1.0.*,
+    text ==0.11.*,
+    time ==1.2.*,
+    old-locale ==1.0.*
+
   GHC-Options: -Wall
   if ! flag(test)
     buildable: False
+  Other-modules:
+    PennyTest.Pretty
 
 Executable copperTest
   hs-source-dirs: testing
@@ -299,7 +298,7 @@ Executable copperTest
     text ==0.11.*,
     time ==1.2.*,
     parsec >=3.1.2 && < 3.2,
-    penny ==0.1.*
+    penny ==0.1.*,
     pretty ==1.0.*
   Main-is: copperTest.hs
   GHC-Options: -Wall

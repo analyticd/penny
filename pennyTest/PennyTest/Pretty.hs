@@ -1,4 +1,4 @@
-module Penny.Denver.Pretty where
+module PennyTest.Pretty where
 
 import Control.Applicative (pure, (<*>))
 import Data.Foldable (toList)

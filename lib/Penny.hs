@@ -7,9 +7,6 @@ the links for details on each component of Penny.
 
 "Penny.Copper" - the Penny parser. Depends on Lincoln.
 
-"Penny.Denver" - Penny testing. Only available if you built Penny with
-the @testing@ flag; clicking on this link if you did not use the @testing@ flag will get you a @file not found@ error.
-
 "Penny.Liberty" - Penny command line parser helpers. Depends on Lincoln and Copper.
 
 "Penny.Lincoln" - the Penny core. Depends on no other Penny components.
