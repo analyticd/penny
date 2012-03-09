@@ -45,7 +45,7 @@ data Options =
             -- the quantity. Allows you to format digit grouping,
             -- radix points, perform rounding, etc.
             
-          , balanceFormat :: Bits.Commodity -> Bal.Nought -> X.Text
+          , balanceFormat :: Bits.Commodity -> Bal.BottomLine -> X.Text
             -- ^ How to display balance totals. Similar to
             -- balanceFormat.
             
@@ -119,7 +119,7 @@ ymd p = X.pack (formatTime defaultTimeLocale fmt d) where
 qtyAsIs :: T.PostingInfo -> X.Text
 qtyAsIs p = X.pack . show . Bits.unQty . Q.qty . T.postingBox $ p
 
-balanceAsIs :: Bits.Commodity -> Bal.Nought -> X.Text
+balanceAsIs :: Bits.Commodity -> Bal.BottomLine -> X.Text
 balanceAsIs _ n = case n of
   Bal.Zero -> X.pack "--"
   Bal.NonZero c -> X.pack . show . Bits.unQty . Bal.qty $ c

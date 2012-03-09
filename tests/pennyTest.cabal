@@ -19,6 +19,7 @@ Library
   hs-source-dirs: lib
   Build-depends:
     base ==4.*,
+    containers ==0.4.*,
     Decimal >= 0.2.2 && < 0.3,
     explicit-exception ==0.1.*,
     NonEmptyList ==0.0.5,
@@ -40,6 +41,7 @@ Library
     PennyTest.Copper,
     PennyTest.Copper.Account,
     PennyTest.Lincoln,
+    PennyTest.Lincoln.Balance,
     PennyTest.Lincoln.Bits,
     PennyTest.Lincoln.Family,
     PennyTest.Lincoln.Family.Child,

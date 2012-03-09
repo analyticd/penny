@@ -60,8 +60,8 @@ test_adoptedCount =
 
 -- | The size of a married family is as large as the smaller marrying
 -- family.
-prop_marriedSize :: (F.Family () (), F.Family () ()) -> Bool
-prop_marriedSize (f1, f2) = expected == actual where
+prop_marriedSize :: F.Family () () -> F.Family () () -> Bool
+prop_marriedSize f1 f2 = expected == actual where
   len = length . F.children
   expected = min (len f1) (len f2)
   actual = len (TF.marry f1 f2)

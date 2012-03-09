@@ -39,8 +39,8 @@ drCrToBaseColors dc col = case dc of
 
 -- | Change a DrCrColors to a BaseColors, based on a balance (unlike
 -- entries, balances might be zero.)
-noughtToBaseColors :: DrCrColors -> Bal.Nought -> BaseColors
-noughtToBaseColors col no = case no of
+bottomLineToBaseColors :: DrCrColors -> Bal.BottomLine -> BaseColors
+bottomLineToBaseColors col no = case no of
   Bal.Zero -> BaseColors (evenZero col) (oddZero col)
   Bal.NonZero column -> drCrToBaseColors (Bal.drCr column) col
   

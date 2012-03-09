@@ -186,7 +186,7 @@ totalDrCr os a (col, (vn, _)) (p, _) =
     toChunk nou = let
       spec = 
         PC.colors vn
-        . PC.noughtToBaseColors (O.drCrColors os)
+        . PC.bottomLineToBaseColors (O.drCrColors os)
         $ nou
       txt = X.pack $ case nou of
         Bal.Zero -> "--"
@@ -210,7 +210,7 @@ totalCmdty os a (col, (vn, _)) (p, _) =
     toChunk (com, nou) = let
       spec =
         PC.colors vn
-        . PC.noughtToBaseColors (O.drCrColors os)
+        . PC.bottomLineToBaseColors (O.drCrColors os)
         $ nou
       txt = HT.text
             . HT.Delimited (X.singleton ':')
@@ -233,7 +233,7 @@ totalQty os a (col, (vn, _)) (p, _) =
     toChunk (com, nou) = let
       spec = 
         PC.colors vn
-        . PC.noughtToBaseColors (O.drCrColors os)
+        . PC.bottomLineToBaseColors (O.drCrColors os)
         $ nou
       txt = O.balanceFormat os com nou
       in C.chunk spec txt
