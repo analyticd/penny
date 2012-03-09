@@ -34,7 +34,7 @@ cmdtyQty :: Parser B.Commodity
 cmdtyQty p rg = let
   f c s q = (a, fmt) where
     a = B.Amount q c
-    fmt = M.Format c M.CommodityOnLeft s
+    fmt = M.Format M.CommodityOnLeft s
   e = "amount, commodity on left"
   in f <$> p <*> spaces <*> Q.qty rg <?> e
 
@@ -48,7 +48,7 @@ cmdtyOnRight :: Q.RadGroup -> Parser (B.Amount, M.Format)
 cmdtyOnRight rg = let  
   f q s c = (a, fmt) where
     a = B.Amount q c
-    fmt = M.Format c M.CommodityOnRight s
+    fmt = M.Format M.CommodityOnRight s
   e = "amount, commodity on right"
   in f
      <$> Q.qty rg

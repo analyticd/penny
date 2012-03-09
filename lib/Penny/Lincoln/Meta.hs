@@ -1,6 +1,5 @@
 module Penny.Lincoln.Meta where
 
-import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Family.Family as F
 
 import qualified Data.Text as X
@@ -9,8 +8,7 @@ data Side = CommodityOnLeft | CommodityOnRight deriving Show
 data SpaceBetween = SpaceBetween | NoSpaceBetween deriving Show
 
 data Format =
-  Format { commodity :: B.Commodity
-         , side :: Side
+  Format { side :: Side
          , between :: SpaceBetween }
   deriving Show
 
