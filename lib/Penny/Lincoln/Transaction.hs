@@ -116,7 +116,7 @@ transaction f@(F.Family p _ _ _) = do
 totalAll :: S.Siblings U.Posting
          -> Bal.Balance
 totalAll =
-  mconcat
+  F.foldr1 Bal.addBalances
   . catMaybes
   . F.toList
   . fmap (fmap Bal.entryToBalance . U.entry)

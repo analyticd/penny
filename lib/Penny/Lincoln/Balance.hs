@@ -4,6 +4,7 @@ module Penny.Lincoln.Balance (
   Balanced(Balanced, Inferable, NotInferable),
   isBalanced,
   entryToBalance,
+  addBalances,
   BottomLine(Zero, NonZero),
   Column,
   drCr,
@@ -13,11 +14,14 @@ import Data.Map ( Map )
 import qualified Data.Map as M
 import Data.Monoid ( Monoid, mempty, mappend )
 
-import Penny.Lincoln.Bits (add, difference)
+import Penny.Lincoln.Bits (
+  add, difference, Difference(LeftBiggerBy, RightBiggerBy, Equal))
 import qualified Penny.Lincoln.Bits as B
 
 -- | A balance summarizes several entries. You do not create a Balance
--- directly. Instead, use 'entryToBalance'.
+-- directly. Instead, use 'entryToBalance'. Balance used to be a
+-- monoid, but there is nothing appropriate for mempty. Instead,
+-- Balance is really a semigroup, but not a monoid.
 newtype Balance = Balance (Map B.Commodity BottomLine)
                   deriving (Show, Eq)
 
@@ -31,10 +35,7 @@ data Balanced = Balanced
               | NotInferable
               deriving (Show, Eq)
 
--- | Is this balance balanced? A single key-value pair is balanced if
--- its BottomLine is Zero. A key-value pair is not balanced if its BottomLine
--- is NonZero, even if the Column contained therein has a Qty of
--- zero. Instead, the column would require an equalizing
+-- | Is this balance balanced?
 isBalanced :: Balance -> Balanced
 isBalanced (Balance m) = M.foldrWithKey f Balanced m where
   f c n b = case n of
@@ -50,6 +51,7 @@ isBalanced (Balance m) = M.foldrWithKey f Balanced m where
         in Inferable e
       _ -> NotInferable
 
+-- | Converts an Entry to a Balance.
 entryToBalance :: B.Entry -> Balance
 entryToBalance (B.Entry dc am) = Balance $ M.singleton c no where
   c = B.commodity am
@@ -70,19 +72,22 @@ instance Monoid BottomLine where
           (Column dc2 q2) = c2
       in if dc1 == dc2
          then NonZero $ Column dc1 (q1 `add` q2)
-         else if q1 == q2
-              then Zero
-              else let
-                q' = q1 `difference` q2
-                dc' = if q1 > q2 then dc1 else dc2
-                in NonZero $ Column dc' q'
+         else case difference q1 q2 of
+           LeftBiggerBy diff ->
+             NonZero $ Column dc1 diff
+           RightBiggerBy diff ->
+             NonZero $ Column dc2 diff
+           Equal -> Zero
 
 data Column = Column { drCr :: B.DrCr
                      , qty :: B.Qty }
               deriving (Show, Eq)
 
-instance Monoid Balance where
-  mempty = Balance M.empty
-  mappend (Balance t1) (Balance t2) =
+-- | Add two Balances together. Commodities are never removed from the
+-- balance, even if their balance is zero. Instead, they are left in
+-- the balance. Sometimes you want to know that a commodity was in the
+-- account but its balance is now zero.
+addBalances :: Balance -> Balance -> Balance
+addBalances (Balance t1) (Balance t2) = 
     Balance $ M.unionWith mappend t1 t2
 
