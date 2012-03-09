@@ -15,7 +15,7 @@ module Penny.Copper.Account (
   , lvl2RemainingChar
   ) where
 
-import Control.Applicative((<$>), (<*>), (*>), (<$))
+import Control.Applicative((<$>), (<*>), (*>))
 import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Char as C
 import qualified Data.Foldable as F
@@ -34,7 +34,6 @@ import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
 import qualified Penny.Lincoln.HasText as HT
 import Penny.Copper.Util (inCat)
 import qualified Penny.Copper.Util as U
-import qualified Penny.Lincoln.Builders as Bd
 
 -- | Characters allowed in a Level 1 account. (Check the source code
 -- to see what these are).
@@ -133,19 +132,3 @@ render a = do
   return $ case l of
     L1 -> cons '{' t `snoc` '}'
     L2 -> t
-
-
---
--- Testing
---
-
-{-
-_level1Account :: B.Account
-_level1Account = Bd.crashy $ Bd.account "Assets:Bank Account"
-
-_level2Account :: B.Account
-_level2Account = Bd.crashy $ Bd.account "Assets:Bank"
-
-_badAccount :: B.Account
-_badAccount = Bd.crashy $ Bd.account "Assets:Bank\n"
--}

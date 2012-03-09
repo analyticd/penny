@@ -14,7 +14,6 @@
 module Penny.Lincoln.Builders where
 
 import Control.Monad.Exception.Synchronous as Ex
-import Control.Monad (when)
 import qualified Data.List.Split as S
 import qualified Data.List.NonEmpty as NE
 import Penny.Lincoln.Bits as B
@@ -32,6 +31,7 @@ crashy = Ex.resolve (error . show)
 account :: String -> Ex.Exceptional String B.Account
 account input = do
   subStrs <- case S.splitOn ":" input of
+    [] -> error "splitOn returned an empty list; should never happen"
     []:[] -> Ex.throw "account name is null"
     (s:ss) -> return $ NE.nonEmpty s ss
   let makeSub s = case s of
