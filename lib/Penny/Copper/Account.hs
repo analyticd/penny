@@ -9,13 +9,17 @@ module Penny.Copper.Account (
   lvl1Account
   , lvl1AccountQuoted
   , lvl2Account
+  , render
+  , lvl1Char
+  , lvl2FirstChar
+  , lvl2RemainingChar
   ) where
 
 import Control.Applicative((<$>), (<*>), (*>), (<$))
 import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Char as C
 import qualified Data.Foldable as F
-import Data.Text ( pack, Text )
+import Data.Text ( snoc, cons, pack, Text )
 import qualified Data.Traversable as T
 import Text.Parsec (
   char, satisfy, many, (<?>),
@@ -32,6 +36,8 @@ import Penny.Copper.Util (inCat)
 import qualified Penny.Copper.Util as U
 import qualified Penny.Lincoln.Builders as Bd
 
+-- | Characters allowed in a Level 1 account. (Check the source code
+-- to see what these are).
 lvl1Char :: Char -> Bool
 lvl1Char c = allowed && notBanned where
   allowed = inCat C.UppercaseLetter C.OtherSymbol c || c == ' '
@@ -51,9 +57,12 @@ lvl1Account = B.Account . unsafeToNonEmpty <$> p <?> e where
 lvl1AccountQuoted :: Parser B.Account
 lvl1AccountQuoted = between (char '{') (char '}') lvl1Account
 
+-- | Characters allowed for the first character of a Level 2 account.
 lvl2FirstChar :: Char -> Bool
 lvl2FirstChar = inCat C.UppercaseLetter C.OtherLetter
 
+-- | Characters allowed for the remaining characters of a Level 2
+-- account.
 lvl2RemainingChar :: Char -> Bool
 lvl2RemainingChar c = allowed && notBanned where
     allowed = inCat C.UppercaseLetter C.OtherSymbol c
@@ -112,6 +121,19 @@ checkOtherSubAccount ::
   -> Ex.Exceptional U.RenderError Level
 checkOtherSubAccount = U.checkText ls where
   ls = nonEmpty (lvl2RemainingChar, L2) [(lvl1Char, L1)]
+
+-- | Shows an account, with the minimum level of quoting
+-- possible. Fails with an error if any one of the characters in the
+-- account name does not satisfy the 'lvl1Char' predicate. Otherwise
+-- returns a rendered account, quoted if necessary.
+render :: B.Account -> Ex.Exceptional U.RenderError Text
+render a = do
+  l <- checkAccount a
+  let t = HT.text . HT.Delimited (pack ":") . HT.textList $ a
+  return $ case l of
+    L1 -> cons '{' t `snoc` '}'
+    L2 -> t
+
 
 --
 -- Testing
