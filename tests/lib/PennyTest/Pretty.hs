@@ -202,7 +202,7 @@ instance Pretty LM.SpaceBetween where
   pretty LM.NoSpaceBetween = text "no space between"
 
 instance Pretty LM.Format where
-  pretty (LM.Format c s b) = sep [pretty c, pretty s, pretty b]
+  pretty (LM.Format s b) = sep [pretty s, pretty b]
 
 instance Pretty LM.Filename where
   pretty (LM.Filename f) = text "Filename:" <+> text (unpack f)
@@ -223,8 +223,10 @@ instance Pretty LM.TopLineLine where
   pretty (LM.TopLineLine l) = text "Top line line:" <+> pretty l
 
 instance Pretty LM.PriceMeta where
-  pretty (LM.PriceMeta l f) = text "Price meta:"
-                             <+> pretty l <+> pretty f
+  pretty (LM.PriceMeta l f) =
+    text "Price meta:"
+    <+> maybePretty "price line" l
+    <+> maybePretty "price format" f
 
 instance Pretty LM.PostingMeta where
   pretty (LM.PostingMeta l mf) =

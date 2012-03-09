@@ -31,7 +31,7 @@ mkPrice :: SourcePos
 mkPrice pos dt from (am, fmt) = let
   to = B.commodity am
   q = B.qty am
-  pm = M.PriceMeta pl fmt
+  pm = M.PriceMeta (Just pl) (Just fmt)
   pl = M.PriceLine . M.Line . sourceLine $ pos
   in do
     p <- B.newPrice (B.From from) (B.To to) (B.CountPerUnit q)

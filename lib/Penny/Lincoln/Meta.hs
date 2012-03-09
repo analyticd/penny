@@ -34,8 +34,8 @@ newtype TopLineLine = TopLineLine { unTopLineLine :: Line }
                       deriving Show
 
 data PriceMeta =
-  PriceMeta { priceLine :: PriceLine
-            , priceFormat :: Format }
+  PriceMeta { priceLine :: Maybe PriceLine
+            , priceFormat :: Maybe Format }
   deriving Show
 
 data PostingMeta =
