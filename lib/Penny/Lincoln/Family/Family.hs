@@ -5,4 +5,4 @@ data Family p c =
          , child1 :: c
          , child2 :: c
          , children :: [c] }
-  deriving Show
+  deriving (Eq, Show)

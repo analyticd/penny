@@ -8,6 +8,8 @@ module Penny.Lincoln.Boxes (
   topLineMeta,
   postingBoxes) where
 
+import Data.Foldable (toList)
+
 import Penny.Lincoln.Meta
   (TransactionMeta, unTransactionMeta, TopLineMeta, PostingMeta,
    PriceMeta)
@@ -16,7 +18,6 @@ import Penny.Lincoln.Transaction (
   Transaction, TopLine, Posting, unTransaction)
 import Penny.Lincoln.Family (children)
 import Penny.Lincoln.Family.Child (Child, child, parent)
-import Penny.Lincoln.Family.Siblings (flatten)
 import qualified Penny.Lincoln.Family.Family as F
 
 data TransactionBox =
@@ -49,10 +50,10 @@ transactionBox t mm = case mm of
 postingBoxes :: [TransactionBox] -> [PostingBox]
 postingBoxes = concatMap toBox where
   toBox (TransactionBox cTrans cMeta) = let
-    cs = flatten . children . unTransaction $ cTrans
+    cs = toList . children . unTransaction $ cTrans
     metas = case cMeta of
       Nothing -> repeat Nothing
-      (Just mb) -> map Just . flatten
+      (Just mb) -> map Just . toList
                    . children . unTransactionMeta $ mb
     in zipWith PostingBox cs metas
 

@@ -1,4 +1,11 @@
-module Penny.Lincoln.Family where
+module Penny.Lincoln.Family (
+  children,
+  orphans,
+  adopt,
+  marry,
+  marryWith,
+  divorce,
+  divorceWith) where
 
 import qualified Penny.Lincoln.Family.Family as F
 import qualified Penny.Lincoln.Family.Child as C
@@ -9,7 +16,7 @@ children (F.Family p c1 c2 cRest) = S.Siblings fc sc rc where
   fc = C.Child c1 c2 cRest p
   sc = C.Child c2 c1 cRest p
   rc = map toChild rest
-  rest = S.others cRest
+  rest = others cRest
   toChild (c, cs) = C.Child c c1 (c2:cs) p
 
 orphans :: F.Family p c -> S.Siblings c
@@ -48,3 +55,15 @@ divorceWith fp fc (F.Family p c1 c2 cs) = (f2, f3) where
 divorce :: F.Family (p1, p2) (c1, c2)
          -> (F.Family p1 c1, F.Family p2 c2)
 divorce = divorceWith id id
+
+others :: [a] -> [(a, [a])]
+others = map yank . allIndexes
+
+allIndexes :: [a] -> [(Int, [a])]
+allIndexes as = zip [0..] (replicate (length as) as)
+
+yank :: (Int, [a]) -> (a, [a])
+yank (i, as) = let
+  (ys, zs) = splitAt i as
+  in (head zs, ys ++ (tail zs))
+

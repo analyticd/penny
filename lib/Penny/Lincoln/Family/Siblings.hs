@@ -5,9 +5,9 @@ import qualified Data.Traversable as T
 import Control.Applicative ((<*>), (<$>))
 
 data Siblings a = Siblings { first :: a
-                         , second :: a
-                         , rest :: [a] }
-                  deriving Show
+                           , second :: a
+                           , rest :: [a] }
+                  deriving (Eq, Show)
 
 instance Functor Siblings where
   fmap g (Siblings f s rs) = Siblings (g f) (g s) (map g rs)
@@ -22,17 +22,3 @@ instance T.Traversable Siblings where
     <$> g f
     <*> g s
     <*> T.traverse g rs
-
-flatten :: Siblings a -> [a]
-flatten (Siblings a1 a2 as) = a1:a2:as
-
-others :: [a] -> [(a, [a])]
-others = map yank . allIndexes
-
-allIndexes :: [a] -> [(Int, [a])]
-allIndexes as = zip [0..] (replicate (length as) as)
-
-yank :: (Int, [a]) -> (a, [a])
-yank (i, as) = let
-  (ys, zs) = splitAt i as
-  in (head zs, ys ++ (tail zs))
