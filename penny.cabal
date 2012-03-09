@@ -144,10 +144,6 @@ source-repository head
     type: git
     location: git://github.com/massysett/penny.git
 
-Flag test
-  Description: build test code and executables
-  Default: False
-
 Library
     hs-source-dirs: lib
     Build-depends:
@@ -272,38 +268,6 @@ Library
         Penny.Zinc.Parser.Report
 
     ghc-options: -Wall
-
-Executable pennyTest
-  hs-source-dirs: pennyTest
-  main-is: Main.hs
-  Build-depends:
-    penny ==0.1.*,
-    base ==4.*,
-    parsec >= 3.1.2 && < 3.2,
-    pretty ==1.0.*,
-    text ==0.11.*,
-    time ==1.2.*,
-    old-locale ==1.0.*
-
-  GHC-Options: -Wall
-  if ! flag(test)
-    buildable: False
-  Other-modules:
-    PennyTest.Pretty
-
-Executable copperTest
-  hs-source-dirs: testing
-  Build-depends:
-    base ==4.*,
-    text ==0.11.*,
-    time ==1.2.*,
-    parsec >=3.1.2 && < 3.2,
-    penny ==0.1.*,
-    pretty ==1.0.*
-  Main-is: copperTest.hs
-  GHC-Options: -Wall
-  if ! flag(test)
-    buildable: False
 
 Executable penny
   hs-source-dirs: bin

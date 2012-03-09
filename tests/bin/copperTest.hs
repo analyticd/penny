@@ -8,7 +8,7 @@ import Text.Parsec
 import Text.PrettyPrint
 
 import Penny.Copper
-import Penny.Denver.Pretty
+import PennyTest.Pretty
 
 main :: IO ()
 main = do

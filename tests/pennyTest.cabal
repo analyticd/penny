@@ -1,0 +1,56 @@
+name: pennyTest
+version: 0.1.0.0
+Cabal-version: >=1.8
+Build-Type: Simple
+License: MIT
+Copyright: 2012 Omari Norman.
+author: Omari Norman
+maintainer: omari@smileystation.com
+stability: Experimental
+homepage: http://www.github.com/massysett/penny
+bug-reports: omari@smileystation.com
+Category: Console
+License-File: LICENSE
+synopsis: Tests for Penny
+
+description: All tests for Penny are housed in this package.
+
+Library
+  hs-source-dirs: lib
+  Build-depends:
+    penny ==0.1.*,
+    base ==4.*,
+    parsec >= 3.1.2 && < 3.2,
+    pretty ==1.0.*,
+    text ==0.11.*,
+    time ==1.2.*,
+    old-locale ==1.0.*
+
+  GHC-Options: -Wall
+  Exposed-modules:
+    PennyTest.Pretty
+
+Executable testSuite
+  hs-source-dirs: bin
+  main-is: TestSuite.hs
+  Build-depends:
+    pennyTest ==0.1.*,
+    base ==4.*
+
+  GHC-Options: -Wall
+
+Executable copperTest
+  hs-source-dirs: bin
+  Build-depends:
+    base ==4.*,
+    text ==0.11.*,
+    time ==1.2.*,
+    parsec >=3.1.2 && < 3.2,
+    penny ==0.1.*,
+    pretty ==1.0.*,
+    pennyTest ==0.1.*
+
+  Main-is: copperTest.hs
+  GHC-Options: -Wall
+
+
