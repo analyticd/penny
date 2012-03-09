@@ -39,7 +39,12 @@ Library
     PennyTest.Pretty,
     PennyTest.Copper,
     PennyTest.Copper.Account,
+    PennyTest.Lincoln,
     PennyTest.Lincoln.Bits,
+    PennyTest.Lincoln.Family,
+    PennyTest.Lincoln.Family.Child,
+    PennyTest.Lincoln.Family.Family,
+    PennyTest.Lincoln.Family.Siblings,
     PennyTest.Lincoln.Meta,
     PennyTest.Lincoln.TextNonEmpty
 
