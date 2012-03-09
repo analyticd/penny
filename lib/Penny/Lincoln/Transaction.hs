@@ -102,6 +102,16 @@ data Error = UnbalancedError
 postingFamily :: Transaction -> S.Siblings (C.Child TopLine Posting)
 postingFamily (Transaction ps) = children ps
 
+{- BNF-like grammar for the various sorts of allowed postings.
+
+postingGroup ::= (inferGroup balancedGroup*) | balancedGroup+
+inferGroup ::= "at least 1 posting. All postings have same account and
+                commodity. The balance is inferable."
+balancedGroup ::= "at least 2 postings. All postings have the same
+                   account and commodity. The balance is balanced."
+
+-}
+
 -- | Makes transactions.
 transaction ::
   F.Family U.TopLine U.Posting
