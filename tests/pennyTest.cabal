@@ -18,24 +18,37 @@ description: All tests for Penny are housed in this package.
 Library
   hs-source-dirs: lib
   Build-depends:
-    penny ==0.1.*,
     base ==4.*,
+    Decimal >= 0.2.2 && < 0.3,
+    explicit-exception ==0.1.*,
+    NonEmptyList ==0.0.5,
+    old-locale ==1.0.*,
     parsec >= 3.1.2 && < 3.2,
+    penny ==0.1.*,
     pretty ==1.0.*,
+    QuickCheck ==2.4.*,
+    test-framework ==0.5.*,
+    test-framework-quickcheck2 ==0.2.*,
     text ==0.11.*,
-    time ==1.2.*,
-    old-locale ==1.0.*
+    time ==1.2.*
 
-  GHC-Options: -Wall
+
+  GHC-Options: -Wall -fno-warn-orphans
   Exposed-modules:
-    PennyTest.Pretty
+    PennyTest,
+    PennyTest.Pretty,
+    PennyTest.Copper,
+    PennyTest.Copper.Account,
+    PennyTest.Lincoln.Bits,
+    PennyTest.Lincoln.TextNonEmpty
 
-Executable testSuite
+Executable pennyTestSuite
   hs-source-dirs: bin
   main-is: TestSuite.hs
   Build-depends:
+    base ==4.*,
     pennyTest ==0.1.*,
-    base ==4.*
+    test-framework ==0.5.*
 
   GHC-Options: -Wall
 

@@ -1,6 +1,7 @@
 module Main where
 
-import PennyTest.Pretty
+import qualified PennyTest as P
+import qualified Test.Framework as TF
 
 main :: IO ()
-main = return ()
+main = TF.defaultMain [P.tests]
