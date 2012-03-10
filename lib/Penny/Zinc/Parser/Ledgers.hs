@@ -5,6 +5,7 @@ import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO as TIO
 import qualified Data.Traversable as T
@@ -77,4 +78,4 @@ filenames :: ParserE LE.Error (NE.NonEmpty Filename)
 filenames = do
   fn1 <- option Stdin (Filename <$> nextArg)
   fns <- liftA (fmap Filename) (many nextArg)
-  return $ NE.nonEmpty fn1 fns
+  return $ fn1 :| fns

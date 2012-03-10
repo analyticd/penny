@@ -21,6 +21,6 @@ report ::
   -> ParserE E.Error (I.ReportFunc, ColorPref)
 report rt rs c fact = foldl (<|>) first rest where
   toParser r = I.parseReport r rt c fact
-  first = toParser (NE.neHead rs)
-  rest = map toParser (NE.neTail rs)
+  first = toParser (NE.head rs)
+  rest = map toParser (NE.tail rs)
 

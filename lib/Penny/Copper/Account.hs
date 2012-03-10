@@ -26,7 +26,7 @@ import Text.Parsec (
   many1, between, sepBy1, option )
 import Text.Parsec.Text ( Parser )
 
-import Data.List.NonEmpty (nonEmpty, unsafeToNonEmpty)
+import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.List.NonEmpty as NE
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
@@ -49,7 +49,7 @@ lvl1Sub = f <$> p <?> e where
   e = "sub account name"
 
 lvl1Account :: Parser B.Account
-lvl1Account = B.Account . unsafeToNonEmpty <$> p <?> e where
+lvl1Account = B.Account . NE.fromList <$> p <?> e where
   e = "account name"
   p = sepBy1 lvl1Sub (char ':')
 
@@ -85,7 +85,7 @@ lvl2SubAccountRest = f <$> cs <?> e where
 
 lvl2Account :: Parser B.Account
 lvl2Account = f <$> p1 <*> p2 <?> e where
-  f x y = B.Account (nonEmpty x y)
+  f x y = B.Account (x :| y)
   p1 = lvl2SubAccountFirst
   p2 = option [] $
        char ':' *> sepBy1 lvl2SubAccountRest (char ':')
@@ -97,8 +97,8 @@ data Level = L1 | L2
 -- | Checks an account to see what level to render it at.
 checkAccount :: B.Account -> Ex.Exceptional U.RenderError Level
 checkAccount (B.Account subs) = let
-  checkFirst = checkFirstSubAccount (NE.neHead subs)
-  checkRest = map checkFirstSubAccount (NE.neTail subs)
+  checkFirst = checkFirstSubAccount (NE.head subs)
+  checkRest = map checkFirstSubAccount (NE.tail subs)
   in F.minimum <$> T.sequenceA (checkFirst : checkRest)
 
 -- | Checks the first sub account to see if it qualifies as a Level 1
@@ -119,7 +119,7 @@ checkOtherSubAccount ::
   B.SubAccountName
   -> Ex.Exceptional U.RenderError Level
 checkOtherSubAccount = U.checkText ls where
-  ls = nonEmpty (lvl2RemainingChar, L2) [(lvl1Char, L1)]
+  ls = (lvl2RemainingChar, L2) :| [(lvl1Char, L1)]
 
 -- | Shows an account, with the minimum level of quoting
 -- possible. Fails with an error if any one of the characters in the

@@ -15,7 +15,7 @@ module Penny.Lincoln.Builders where
 
 import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.List.Split as S
-import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty((:|)))
 import Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty (TextNonEmpty(TextNonEmpty))
 import Data.Text (pack)
@@ -33,7 +33,7 @@ account input = do
   subStrs <- case S.splitOn ":" input of
     [] -> error "splitOn returned an empty list; should never happen"
     []:[] -> Ex.throw "account name is null"
-    (s:ss) -> return $ NE.nonEmpty s ss
+    (s:ss) -> return $ s :| ss
   let makeSub s = case s of
         [] -> Ex.throw $
               "sub account name is null from account: " ++ input

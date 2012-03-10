@@ -161,13 +161,9 @@ Library
         multiarg ==0.3.*,
         matchers ==0.1.*,
         old-locale ==1.0.*,
-        split ==0.1.*,
+        semigroups ==0.8.*,
+        split ==0.1.*
 
-        -- Do not use newer versions of NonEmptyList. They do not
-        -- compile with newer versions of GHC due to dependency
-        -- problems. However this old one works fine.
-        NonEmptyList ==0.0.5
-        
     Exposed-modules:
         Penny,
         Penny.Cabin,
@@ -275,7 +271,8 @@ Executable penny
     base ==4.*,
     time ==1.2.*,
     penny ==0.1.*,
-    NonEmptyList ==0.0.5
+    semigroups ==0.8.*
+
 
   Main-is: penny.hs
   GHC-Options: -Wall

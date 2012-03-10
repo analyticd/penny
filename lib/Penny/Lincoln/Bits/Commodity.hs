@@ -2,7 +2,7 @@ module Penny.Lincoln.Bits.Commodity where
 
 import Penny.Lincoln.TextNonEmpty (
   TextNonEmpty ( TextNonEmpty ) )
-import Data.List.NonEmpty (NonEmpty, nonEmpty)
+import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Text ( empty )
 
 newtype Commodity =
@@ -16,4 +16,4 @@ newtype SubCommodity =
 -- | Creates a Commodity whose name is only a single character.
 charCommodity :: Char -> Commodity
 charCommodity c =
-  Commodity (nonEmpty (SubCommodity (TextNonEmpty c empty)) [])
+  Commodity ((SubCommodity (TextNonEmpty c empty)) :| [])

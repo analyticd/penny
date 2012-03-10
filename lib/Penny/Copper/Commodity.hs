@@ -21,7 +21,7 @@ import Text.Parsec ( satisfy, many, char, sepBy1, many1, (<?>),
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Lincoln.Bits as B
-import Data.List.NonEmpty (nonEmpty, unsafeToNonEmpty)
+import Data.List.NonEmpty (NonEmpty((:|)), fromList)
 import Penny.Copper.Util (inCat)
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
                                     unsafeTextNonEmpty )
@@ -44,7 +44,7 @@ lvl1SubCmdty = f <$> m <?> "sub commodity" where
 -- quotedLvl1Cmdty for that. This parser can be used directly for values
 -- entered from the command line.
 lvl1Cmdty :: Parser B.Commodity
-lvl1Cmdty = (B.Commodity . unsafeToNonEmpty)
+lvl1Cmdty = (B.Commodity . fromList)
                   <$> sepBy1 lvl1SubCmdty (char ':')
                   <?> "commodity with spaces"
 
@@ -86,7 +86,7 @@ lvl2Cmdty = f <$> firstSub <*> restSubs <?> e where
   restSubs = option []
              $ char ':'
              *> sepBy1 lvl2OtherSubCmdty (char ':')
-  f s1 sr = B.Commodity (nonEmpty s1 sr)
+  f s1 sr = B.Commodity (s1 :| sr)
 
 lvl3Chars :: Char -> Bool
 lvl3Chars c = inCat C.UppercaseLetter C.OtherLetter c
@@ -100,7 +100,7 @@ lvl3SubCmdty = f <$> ls <?> e where
 
 lvl3Cmdty :: Parser B.Commodity
 lvl3Cmdty = f <$> ls <?> e where
-  f = B.Commodity . unsafeToNonEmpty
+  f = B.Commodity . fromList
   ls = sepBy1 lvl3SubCmdty (char ':')
   e = "commodity, letters and symbols only"
 

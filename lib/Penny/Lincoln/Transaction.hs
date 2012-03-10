@@ -51,7 +51,6 @@ import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
-import Data.Monoid ( mconcat )
 import Data.Maybe ( catMaybes )
 import qualified Data.Traversable as Tr
 import qualified Control.Monad.Trans.State.Lazy as St
