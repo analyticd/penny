@@ -46,7 +46,7 @@ renderableSub = B.SubAccountName
 
 renderableAcct :: Gen B.Account
 renderableAcct = B.Account
-                 <$> (NE.nonEmpty
+                 <$> ((NE.:|)
                       <$> renderableSub
                       <*> Q.listOf renderableSub)
 

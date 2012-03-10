@@ -47,6 +47,3 @@ instance Arbitrary M.PostingMeta where
 
 instance Arbitrary M.TopLineMeta where
   arbitrary = M.TopLineMeta <$> arbitrary <*> arbitrary <*> arbitrary
-
-{- TODO add Arbitrary for TransactionMeta
-   (need Arbitrary or generator for Family) -}

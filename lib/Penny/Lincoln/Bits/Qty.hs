@@ -43,7 +43,7 @@ unQty :: Qty -> Decimal
 unQty (Qty d) = d
 
 -- | Make a new Qty. This function is partial. It will call error if
--- its argument is less than zero.
+-- its argument is less than or equal to zero.
 partialNewQty :: Decimal -> Qty
 partialNewQty d =
   if d <= 0

@@ -6,7 +6,7 @@ module Penny.Lincoln.Balance (
   entryToBalance,
   addBalances,
   BottomLine(Zero, NonZero),
-  Column,
+  Column(Column),
   drCr,
   qty) where
 
