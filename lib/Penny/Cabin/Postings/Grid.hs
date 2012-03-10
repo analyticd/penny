@@ -14,11 +14,10 @@
 -- narrow cell.
 module Penny.Cabin.Postings.Grid where
 
-import Control.Applicative (
-  (<$>), (<*>), ZipList(ZipList, getZipList))
+import Control.Applicative ((<$>), (<*>))
 import qualified Data.Array as A
 import qualified Data.Foldable as F
-import Data.Monoid (mempty, mappend)
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Table as Ta
 import qualified Data.Traversable as Tr
 
@@ -46,15 +45,34 @@ fmapArray f a = A.array b ls' where
   f' (i, e) = (i, f a i e)
 
 -- * Step 1 - Compute balances
+{-
 balanceAccum :: Bal.Balance -> LT.PostingInfo -> (Bal.Balance, Bal.Balance)
 balanceAccum bal po = (bal', bal') where
   bal' = bal `mappend` pstgBal
   pstgBal = Bal.entryToBalance . Q.entry . LT.postingBox $ po
+-}
 
+balanceAccum :: Maybe Bal.Balance
+                -> LT.PostingInfo
+                -> (Maybe Bal.Balance, (LT.PostingInfo, Bal.Balance))
+balanceAccum mb po = (Just bal', (po, bal')) where
+  bal' = let
+    balThis = Bal.entryToBalance . Q.entry . LT.postingBox $ po
+    in case mb of
+      Nothing -> balThis
+      Just balOld -> Bal.addBalances balOld balThis
+
+balances :: NE.NonEmpty LT.PostingInfo
+            -> NE.NonEmpty (LT.PostingInfo, Bal.Balance)
+balances = snd . Tr.mapAccumL balanceAccum Nothing
+
+{-
 balances :: [LT.PostingInfo] -> [(LT.PostingInfo, Bal.Balance)]
 balances ps = zip ps (snd . Tr.mapAccumL balanceAccum mempty $ ps)
-
+-}
 -- * Step 2 - Number postings
+
+{-
 numberPostings ::
   [(LT.PostingInfo, Bal.Balance)]
   -> [T.PostingInfo]
@@ -69,13 +87,26 @@ numberPostings ls = reverse reversed where
     $ (\(li, bal, pn) rpn -> T.fromLibertyInfo bal pn rpn li)
     <$> ZipList (reverse withPostingNums)
     <*> ZipList (map T.RevPostingNum [0..])
+-}
 
+numberPostings ::
+  NE.NonEmpty (LT.PostingInfo, Bal.Balance)
+  -> NE.NonEmpty T.PostingInfo
+numberPostings ls = NE.reverse reversed where
+  withPostingNums = NE.zipWith f ls ns where
+    f (li, bal) pn = (li, bal, pn)
+    ns = fmap T.PostingNum (NE.iterate succ 0)
+  reversed = NE.zipWith f wpn rpns where
+    f (li, bal, pn) rpn = T.fromLibertyInfo bal pn rpn li
+    wpn = NE.reverse withPostingNums
+    rpns = fmap T.RevPostingNum (NE.iterate succ 0)
+    
 -- * Step 3 - Get visible postings only
 filterToVisible ::
   (LT.PostingInfo -> Bool)
+  -> NE.NonEmpty T.PostingInfo
   -> [T.PostingInfo]
-  -> [T.PostingInfo]
-filterToVisible p ps = filter p' ps where
+filterToVisible p ps = NE.filter p' ps where
   p' pstg = p (T.toLibertyInfo pstg)
 
 -- * Step 4 - add visible numbers
@@ -296,19 +327,19 @@ report ::
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
 report c g ac a f p pbs =
-  (toArray
-   . tranches
-   . addVisibleNum
-   . filterToVisible p
-   . numberPostings
-   . balances
-   $ pbs )
-  >>=
-  (return
-   . R.chunk
-   . finalize f
-   . allocateCells a
-   . allocateClaim ac
-   . growCells g
-   . spaceClaim c)
-  
+  NE.nonEmpty pbs
+
+  >>= (toArray
+       . tranches
+       . addVisibleNum
+       . filterToVisible p
+       . numberPostings
+       . balances)
+
+  >>= (return
+       . R.chunk
+       . finalize f
+       . allocateCells a
+       . allocateClaim ac
+       . growCells g
+       . spaceClaim c)

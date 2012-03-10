@@ -1,6 +1,7 @@
 module Main where
 
 import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Time (utc)
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Postings as P
@@ -14,7 +15,7 @@ radGroup :: C.RadGroup
 radGroup = C.periodComma
 
 postings :: NE.NonEmpty I.Report
-postings = NE.nonEmpty (P.report f) [] where
+postings = (P.report f) :| [] where
   f rt = P.defaultOptions defaultTimeZone radGroup rt
 
 main :: IO ()
