@@ -244,7 +244,10 @@ shuffle ls = do
 
 -- | A random unrenderable unverified transaction makes a
 -- Transaction. Resizes the generator; without doing that, stack
--- overflows will result from the ridiculous amount of data.
+-- overflows will result from the ridiculous amount of data. This may
+-- be a bug, as Penny should be able to handle any amount of data in
+-- theory, but of course whether this is a bug depends on whether the
+-- problem is with Penny or with QuickCheck.
 prop_unrender :: Gen Bool
 prop_unrender = resize 15 $ do
   f <- randomUnrenderable
