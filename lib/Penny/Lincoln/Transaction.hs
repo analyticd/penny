@@ -26,8 +26,7 @@ module Penny.Lincoln.Transaction (
 
   -- * Making transactions
   transaction,
-  Error ( UnbalancedError, TooManyInferError,
-          CouldNotInferError),
+  Error ( UnbalancedError, CouldNotInferError),
   
   -- * Querying postings
   Inferred(Inferred, NotInferred),
@@ -93,7 +92,6 @@ newtype Transaction =
   
 -- | Errors that can arise when making a Transaction.
 data Error = UnbalancedError
-           | TooManyInferError
            | CouldNotInferError
 
 -- | Get the Postings from a Transaction, with information on the

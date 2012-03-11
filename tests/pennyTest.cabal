@@ -49,6 +49,8 @@ Library
     PennyTest.Lincoln.Family.Family,
     PennyTest.Lincoln.Family.Siblings,
     PennyTest.Lincoln.Meta,
+    PennyTest.Lincoln.Transaction,
+    PennyTest.Lincoln.Transaction.Unverified,
     PennyTest.Lincoln.TextNonEmpty
 
 Executable pennyTestSuite

@@ -19,7 +19,6 @@ import qualified Penny.Lincoln.Transaction.Unverified as U
 errorStr :: T.Error -> String
 errorStr e = case e of
   T.UnbalancedError -> "postings are not balanced"
-  T.TooManyInferError -> "too many postings with entry amounts to infer"
   T.CouldNotInferError -> "could not infer entry for posting"
 
 mkTransaction ::

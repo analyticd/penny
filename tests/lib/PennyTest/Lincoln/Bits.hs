@@ -2,6 +2,7 @@ module PennyTest.Lincoln.Bits where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import qualified Data.Decimal as D
+import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Maybe (fromJust)
@@ -96,35 +97,44 @@ instance Arbitrary B.Tags where
 instance Arbitrary a => Arbitrary (NE.NonEmpty a) where
   arbitrary = (:|) <$> arbitrary <*> arbitrary
 
-data DrCrQty = DrCrQty B.DrCr B.Qty
-                 deriving (Eq, Show)
+type NEDrCrQty = (B.DrCr, NE.NonEmpty B.Qty)
 
--- | Generate a random Entry, a list of Entries that, combined,
--- balance the random Entry, and (if possible) a list of Entries that
--- are in the opposite column of the random Entry but add up to
--- something less than the random Entry.
-randEntries :: Gen (DrCrQty, [DrCrQty], Maybe [DrCrQty])
+
+-- | Returns a triple (a, b, c) where:
+--
+-- * a is a Debit or Credit and a list of random quantities
+--
+-- * b is a Debit or Credit (the opposite of whatever was given in a)
+-- and list of random quantities that add up to the sum of the
+-- quantities given in a
+--
+-- * c is, if possible, a Debit or Credit (the opposite of whatever
+-- was given in a) and a list of random quantities that add up to
+-- something less than the sum of the quantities given in a
+randEntries :: Gen (NEDrCrQty, NEDrCrQty, Maybe NEDrCrQty)
 randEntries = let
-  mkEn dc dec = DrCrQty dc (B.partialNewQty dec)
-  f dc (d, ds, mds) = let
+  mkq = B.partialNewQty
+  f dc (os, ss, mss) = let
     dcOther = case dc of
       B.Debit -> B.Credit
       B.Credit -> B.Debit
-    e = mkEn dc d
-    es = fmap (mkEn dcOther) ds
-    mes = fmap (mkEn dcOther) <$> mds
-    in (e, es, mes)
+    os' = (dc, fmap mkq os)
+    ss' = (dcOther, fmap mkq ss)
+    mss' = (,) <$> pure dcOther <*> (fmap mkq <$> mss)
+    in (os', ss', mss')
   in f <$> arbitrary <*> randDecTriple
     
+    
+type NEDecimal = NE.NonEmpty D.Decimal
 
--- | Generate a random positive Decimal, a list of Decimals that add
--- up to that Decimal, and (if possible) a list of Decimals that add
--- up to some quantity that is less than the Decimal.
-randDecTriple :: Gen (D.Decimal, [D.Decimal], Maybe [D.Decimal])
+-- | Generate a list of random positive Decimals, a list of Decimals
+-- that add up to that Decimal, and (if possible) a list of Decimals
+-- that add up to some quantity that is less than the Decimal.
+randDecTriple :: Gen (NEDecimal, NEDecimal, Maybe NEDecimal)
 randDecTriple = do
-  d <- randPosDec
-  ds <- addsUpTo d
-  mayBZ <- betweenZero d
+  d <- NE.fromList <$> Q.listOf1 randPosDec
+  ds <- addsUpTo (F.sum d)
+  mayBZ <- betweenZero (F.sum d)
   bz <- case mayBZ of
     Nothing -> return Nothing
     Just b -> Just <$> addsUpTo b
@@ -155,14 +165,14 @@ betweenZero (D.Decimal p m)
 
 -- | Generate a random list of Decimals that adds up to the given
 -- Decimal.
-addsUpTo :: D.Decimal -> Gen [D.Decimal]
+addsUpTo :: D.Decimal -> Gen (NE.NonEmpty D.Decimal)
 addsUpTo d = (fmap unDec) <$> (addsUpToDec (Dec d))
 
-addsUpToDec :: Dec -> Gen [Dec]
+addsUpToDec :: Dec -> Gen (NE.NonEmpty Dec)
 addsUpToDec t = do
   its <- suchThat arbitrary (>= 1)
   ns <- newNum t its []
-  return (filter (/= (Dec (D.Decimal 0 0))) ns)
+  return (NE.fromList (filter (/= (Dec (D.Decimal 0 0))) ns))
   
 
 -- | Given a target sum, the sum of the list so far, and the number of
