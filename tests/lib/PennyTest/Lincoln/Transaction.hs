@@ -15,7 +15,8 @@ import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Traversable as Tr
 import qualified System.Random as R
 import qualified System.Random.Shuffle as Shuf
-import Test.QuickCheck (Arbitrary, arbitrary, Gen, listOf1)
+import Test.QuickCheck (Arbitrary, arbitrary, Gen, listOf1,
+                        resize)
 import qualified Test.QuickCheck.Gen as G
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework (Test, testGroup)
@@ -241,9 +242,11 @@ shuffle ls = do
 -- Tests
 --
 
--- | A random unrenderable unverified transaction makes a Transaction.
+-- | A random unrenderable unverified transaction makes a
+-- Transaction. Resizes the generator; without doing that, stack
+-- overflows will result from the ridiculous amount of data.
 prop_unrender :: Gen Bool
-prop_unrender = do
+prop_unrender = resize 15 $ do
   f <- randomUnrenderable
   return $ case T.transaction f of
     Ex.Exception _ -> False
