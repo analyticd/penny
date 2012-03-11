@@ -27,6 +27,7 @@ Library
     penny ==0.1.*,
     pretty ==1.0.*,
     random ==1.0.*,
+    random-shuffle ==0.0.3,
     semigroups ==0.8.*,
     QuickCheck ==2.4.*,
     test-framework ==0.5.*,

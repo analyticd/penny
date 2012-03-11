@@ -1,5 +1,6 @@
 module PennyTest.Lincoln.Transaction where
 
+import Penny.Lincoln.Family (adopt)
 import qualified Penny.Lincoln.Family.Family as Fam
 import qualified Penny.Lincoln.Family.Siblings as Sib
 import qualified Penny.Lincoln.Transaction as T
@@ -8,12 +9,16 @@ import qualified Penny.Lincoln.Bits as B
 import qualified PennyTest.Lincoln.Bits as TB
 
 import Control.Applicative (pure, (<$>), (<*>))
-import qualified Data.List.NonEmpty as NE
+import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Foldable as Foldable
 import Data.List.NonEmpty (NonEmpty((:|)))
-import Data.Text (pack)
 import qualified Data.Traversable as Tr
-import Test.QuickCheck as Q
-import Test.QuickCheck (Arbitrary, arbitrary, Gen, suchThat)
+import qualified System.Random as R
+import qualified System.Random.Shuffle as Shuf
+import Test.QuickCheck (Arbitrary, arbitrary, Gen, listOf1)
+import qualified Test.QuickCheck.Gen as G
+import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.Framework (Test, testGroup)
 
 -- | All the data needed to generate a single unverified transaction.
 data TransInputs =
@@ -61,62 +66,193 @@ pGroupInputs t = PGroupInputs (pPayee t) (pNumber t) (pFlag t)
                  (pAccount t) (pTags t) (pMemo t) (pCmdty t)
                  (pEntries t)
 
+{-
 mkTransTester :: TransInputs -> (T.Transaction -> Bool) -> Gen Bool
 mkTransTester i f = do
   top <- U.TopLine <$> dateTime i <*> tFlag i <*> tNumber i
          <*> tPayee i <*> tMemo i
   undefined
-
+-}
 -- | Generates a single unverified Posting.
 makePosting ::
   GenCommon
   -> B.Account
-  -> B.Commodity
+  -> Maybe B.Entry
+  -> Gen U.Posting
+makePosting c ac en =
+  U.Posting <$> cPayee c <*> cNumber c <*> cFlag c
+  <*> pure ac <*> cTags c <*> pure en <*> cMemo c
+
+-- | Generates a single unverified Posting with an Entry.
+makePostingWithEntry ::
+  GenCommon
+  -> B.Account
   -> B.DrCr
+  -> B.Commodity
   -> B.Qty
   -> Gen U.Posting
-makePosting c ac cy dc q  = let
+makePostingWithEntry c ac dc cy q = let
   am = B.Amount q cy
   en = Just $ B.Entry dc am
-  in U.Posting <$> cPayee c <*> cNumber c <*> cFlag c
-     <*> pure ac <*> cTags c <*> pure en <*> cMemo c
+  in makePosting c ac en
 
--- | Generates a single balanced group of unverified Postings. (A
--- single Transaction might consist of one or more groups). This group
--- is balanced without inference.
-pGroupNoInfer :: PGroupInputs -> Gen (Sib.Siblings U.Posting)
-pGroupNoInfer p = do
+-- | Generates a single unverified Posting with no Entry.
+makePostingWithoutEntry ::
+  GenCommon
+  -> B.Account
+  -> Gen U.Posting
+makePostingWithoutEntry c ac = makePosting c ac Nothing
+
+-- | Generates a single group of unverified Postings. Supply a
+-- function to get the original and balancing quantities and DrCrs
+-- from the generator. Whether the Postings are balanced or not
+-- depends on the result of the function. Also returns the account
+-- used to make the group of postings.
+pGroup ::
+  (Gen (TB.NEDrCrQty, TB.NEDrCrQty, Maybe TB.NEDrCrQty)
+   -> Gen (TB.NEDrCrQty, TB.NEDrCrQty))
+  -- ^ When applied to a generator, this function returns a pair p,
+  -- where fst p are the original quantities and DrCrs, and snd p are
+  -- the balancing quantities and DrCrs.
+  -> PGroupInputs
+  -> Gen (Sib.Siblings U.Posting, B.Account)
+pGroup getQs p = do
   ac <- tgAccount p
   cy <- tgCommodity p
-  (origs, bals, _) <- tgEntries p
-  let mkP = makePosting (genCommon p) ac cy
+  (origs, bals) <- getQs . tgEntries $ p
+  let mkP dc = makePostingWithEntry (genCommon p) ac dc cy
       mkPs (dc, qs) = Tr.traverse (mkP dc) qs
   originals <- mkPs origs
   balancers <- mkPs bals
   let (sib1:|rs1) = originals
       (sib2:|rs2) = balancers
       result = Sib.Siblings sib1 sib2 (rs1 ++ rs2)
-  return result
+  return (result, ac)
+
+-- | Generates a single balanced group of unverified Postings. (A
+-- single Transaction might consist of one or more groups). This group
+-- is balanced without inference.
+pGroupNoInfer :: PGroupInputs -> Gen (Sib.Siblings U.Posting)
+pGroupNoInfer p = fst <$> pGroup (fmap (\(f, s, _) -> (f, s))) p
 
 -- | Generates a single balanced group of unverified Postings. (A
 -- single Transaction might consist of one or more groups). This group
 -- is balanced, but the balance must be inferred.
 pGroupInfer :: PGroupInputs -> Gen (Sib.Siblings U.Posting)
-pGroupInfer p = do
-  ac <- tgAccount p
-  cy <- tgCommodity p
-  let getOrigsBals = do
-        (o, _, mayBals) <- tgEntries p
-        maybe getOrigsBals (\b -> return (o, b)) mayBals
-  (origs, bals) <- getOrigsBals
-  let mkP dc = makePosting (genCommon p) ac cy dc
-      mkPs (dc, qs) = Tr.traverse (mkP dc) qs
-  originals <- mkPs origs
-  balancers <- mkPs bals
-  inferred <- U.Posting <$> tgPayee p <*> tgNumber p <*> tgFlag p
-              <*> pure ac <*> tgTags p <*> pure Nothing <*> tgMemo p
-  let (sib1:|rs1) = originals
-      (sib2:|rs2) = balancers
-      result = Sib.Siblings sib1 sib2 (rs1 ++ rs2 ++ [inferred])
+pGroupInfer p = do 
+  let getOrigsBals gen = do
+        (o, _, mayBals) <- gen
+        maybe (getOrigsBals gen) (\b -> return (o, b)) mayBals
+  (sibs, ac) <- pGroup getOrigsBals p
+  inferred <- makePostingWithoutEntry (genCommon p) ac
+  let sibs' = Sib.Siblings (Sib.first sibs) (Sib.second sibs)
+              (Sib.rest sibs ++ [inferred])
+  return sibs'
+
+-- | Makes unverified TopLines.
+topLine :: TransInputs -> Gen U.TopLine
+topLine t = U.TopLine
+            <$> dateTime t
+            <*> tFlag t
+            <*> tNumber t
+            <*> tPayee t
+            <*> tMemo t
+
+-- | Given a generator of unverified Postings, makes unverified
+-- Transaction family.
+unverifiedTransaction ::
+  TransInputs
+  -> (PGroupInputs -> Gen (Sib.Siblings U.Posting))
+  -> Gen (Fam.Family U.TopLine U.Posting)
+unverifiedTransaction t pf =
+  adopt <$> topLine t <*> pf (pGroupInputs t)
+
+-- | Makes a generator that makes multiple groups of balanced
+-- unverified Postings. For a transaction to be balanced, it may
+-- contain multiple groups of balanced unverified postings, but it can
+-- contain only one group of inferrable postings.
+multBalancedPostings :: PGroupInputs -> Gen (Sib.Siblings U.Posting)
+multBalancedPostings p = toSibs <$> listOf1 (pGroupNoInfer p) where
+  toSibs ls = let
+    items = concat . fmap Foldable.toList $ ls
+    in case items of
+      (a:b:rs) -> Sib.Siblings a b rs
+      _ -> error "multBalancedPostings error"
+
+-- | Makes a generator that makes multiple groups of balanced
+-- unverified Postings and that might also include inferrable
+-- postings.
+multBalancedPostingsWithInfer ::
+  PGroupInputs
+  -> Gen (Sib.Siblings U.Posting)
+multBalancedPostingsWithInfer p = do
+  balanced <- multBalancedPostings p
+  doInferred <- arbitrary
+  if doInferred
+    then do
+    inferred <- pGroupInfer p
+    let result = Sib.Siblings (Sib.first balanced) (Sib.second balanced)
+                 (Sib.rest balanced ++ Foldable.toList inferred)
+    return result
+    else return balanced
+
+-- | Shuffles a bunch of Postings.
+shufflePostings :: Sib.Siblings U.Posting
+                   -> Gen (Sib.Siblings U.Posting)
+shufflePostings s = do
+  let ls = Foldable.toList s
+  shuffled <- shuffle ls
+  let result = case shuffled of
+        a:b:rs -> Sib.Siblings a b rs
+        _ -> error "shufflePostings error"
   return result
 
+-- | Generates unverified Transactions. Some may require inference,
+-- some may not. Some may have multiple groups of balanced
+-- Postings. All postings within a transaction will be shuffled.
+randomUnverifiedTransactions ::
+  TransInputs
+  -> Gen (Fam.Family U.TopLine U.Posting)
+randomUnverifiedTransactions t = do
+  let shuffled pg = do
+        ss <- multBalancedPostingsWithInfer pg
+        shufflePostings ss
+  unverifiedTransaction t shuffled
+  
+
+-- | Makes unverified Transactions that will likely not be renderable.
+randomUnrenderable :: Gen (Fam.Family U.TopLine U.Posting)
+randomUnrenderable = randomUnverifiedTransactions t where
+  t = TransInputs arbitrary arbitrary arbitrary arbitrary arbitrary 
+      arbitrary arbitrary arbitrary arbitrary arbitrary arbitrary 
+      arbitrary TB.randEntries
+
+-- | Gets the StdGen out of a Gen.
+qcStdGen :: Gen R.StdGen
+qcStdGen = G.MkGen $ \g _ -> g
+
+-- | Shuffles a list.
+shuffle :: [a] -> Gen [a]
+shuffle ls = do
+  g <- qcStdGen
+  return $ Shuf.shuffle' ls (length ls) g
+
+--
+-- Tests
+--
+
+-- | A random unrenderable unverified transaction makes a Transaction.
+prop_unrender :: Gen Bool
+prop_unrender = do
+  f <- randomUnrenderable
+  return $ case T.transaction f of
+    Ex.Exception _ -> False
+    Ex.Success _ -> True
+
+test_unrender:: Test
+test_unrender = testProperty s prop_unrender where
+  s = "Random unrenderable unverified transactions make Transactions"
+
+tests :: Test
+tests = testGroup "Transaction"
+        [ test_unrender ]
