@@ -247,7 +247,8 @@ shuffle ls = do
 -- overflows will result from the ridiculous amount of data. This may
 -- be a bug, as Penny should be able to handle any amount of data in
 -- theory, but of course whether this is a bug depends on whether the
--- problem is with Penny or with QuickCheck.
+-- problem is with Penny or with QuickCheck. (Penny's bugginess is
+-- much more likely of course :)
 prop_unrender :: Gen Bool
 prop_unrender = resize 15 $ do
   f <- randomUnrenderable
