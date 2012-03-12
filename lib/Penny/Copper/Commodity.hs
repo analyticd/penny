@@ -11,11 +11,37 @@
 -- character. Spaces however are not permitted.
 --
 -- * Level 3 commodities. All charcters must be letters or symbols.
-module Penny.Copper.Commodity where
+module Penny.Copper.Commodity (
+  -- * Level 1 commodities
+  lvl1Char,
+  lvl1Cmdty,
+  quotedLvl1Cmdty,
+  commandLineCmdty,
+  
+  -- * Level 2 commodities
+  lvl2FirstChar,
+  lvl2OtherChars,
+  lvl2Cmdty,
+  
+  -- * Level 3 commodities
+  lvl3Chars,
+  lvl3Cmdty,
+  
+  -- * Helpers when parsing from a file
+  leftSideCmdty,
+  rightSideCmdty,
+  
+  -- * Rendering
+  renderQuotedLvl1,
+  renderLvl2,
+  renderLvl3
+  ) where
 
 import Control.Applicative ((<*>), (<$>), (*>), (<|>))
+import Control.Monad (when)
 import qualified Data.Char as C
-import Data.Text ( pack )
+import qualified Data.Foldable as Foldable
+import Data.Text ( pack, Text, cons, snoc, singleton )
 import Text.Parsec ( satisfy, many, char, sepBy1, many1, (<?>),
                      between, option )
 import Text.Parsec.Text ( Parser )
@@ -23,8 +49,10 @@ import Text.Parsec.Text ( Parser )
 import qualified Penny.Lincoln.Bits as B
 import Data.List.NonEmpty (NonEmpty((:|)), fromList)
 import Penny.Copper.Util (inCat)
+import qualified Penny.Lincoln.HasText as HT
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
                                     unsafeTextNonEmpty )
+import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 -- | Most liberal set of letters allowed in a commodity. 
 lvl1Char :: Char -> Bool
@@ -122,3 +150,33 @@ rightSideCmdty =
   quotedLvl1Cmdty
   <|> lvl2Cmdty
   <?> "commodity to the right of the quantity"
+
+-- | Render a quoted Level 1 commodity. Always succeeds, as all
+-- commodities can be rendered quoted.
+renderQuotedLvl1 :: B.Commodity -> Text
+renderQuotedLvl1 c =
+  '"'
+  `cons` HT.text (HT.Delimited (singleton ':') (HT.textList c))
+  `snoc` '"'
+
+-- | Render a Level 2 commodity. Fails if the first character is not a
+-- letter or a symbol, or if any other character is a space.
+renderLvl2 :: B.Commodity -> Maybe Text
+renderLvl2 (B.Commodity c) = do
+  let f:|rs = c
+  when (not $ lvl2FirstChar (TNE.first (B.unSubCommodity f))) Nothing
+  when (not $ TNE.all lvl2OtherChars (B.unSubCommodity f)) Nothing
+  when (not (all (TNE.all lvl2OtherChars . B.unSubCommodity) rs))
+    Nothing
+  return $ HT.text (HT.Delimited (singleton ':') (HT.textList c))
+
+-- | Render a Level 3 commodity. Fails if any character is not a
+-- letter or a symbol.
+renderLvl3 :: B.Commodity -> Maybe Text
+renderLvl3 (B.Commodity c) = do
+  let f:|_ = c
+  when (not $ TNE.all lvl3Chars (B.unSubCommodity f)) Nothing
+  when (not (Foldable.all (TNE.all lvl3Chars . B.unSubCommodity) c))
+    Nothing
+  return $ HT.text (HT.Delimited (singleton ':') (HT.textList c))
+

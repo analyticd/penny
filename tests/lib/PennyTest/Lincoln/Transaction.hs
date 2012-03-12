@@ -52,7 +52,8 @@ data PGroupInputs =
     , tgCommodity :: Gen B.Commodity
     , tgEntries :: Gen (TB.NEDrCrQty, TB.NEDrCrQty, Maybe TB.NEDrCrQty) }
 
--- | All Postings generated can have entirely random data for these elements.
+-- | All Postings generated can have entirely random data for these
+-- elements.
 data GenCommon = GenCommon {
   cPayee :: Gen (Maybe B.Payee)
   , cNumber :: Gen (Maybe B.Number)
@@ -68,13 +69,6 @@ pGroupInputs t = PGroupInputs (pPayee t) (pNumber t) (pFlag t)
                  (pAccount t) (pTags t) (pMemo t) (pCmdty t)
                  (pEntries t)
 
-{-
-mkTransTester :: TransInputs -> (T.Transaction -> Bool) -> Gen Bool
-mkTransTester i f = do
-  top <- U.TopLine <$> dateTime i <*> tFlag i <*> tNumber i
-         <*> tPayee i <*> tMemo i
-  undefined
--}
 -- | Generates a single unverified Posting.
 makePosting ::
   GenCommon
@@ -251,7 +245,7 @@ shuffle ls = do
 -- problem is with Penny or with QuickCheck. (Penny's bugginess is
 -- much more likely of course :)
 prop_unrender :: Gen Bool
-prop_unrender = resize 15 $ do
+prop_unrender = resize 10 $ do
   f <- randomUnrenderable
   return $ case T.transaction f of
     Ex.Exception _ -> False
