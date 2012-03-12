@@ -60,3 +60,5 @@ instance HasTextList B.Commodity where
 instance HasTextList B.Tags where
   textList = map text . B.unTags
 
+instance HasText a => HasTextList [a] where
+  textList = map text

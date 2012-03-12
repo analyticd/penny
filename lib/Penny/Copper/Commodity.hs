@@ -38,7 +38,7 @@ module Penny.Copper.Commodity (
   ) where
 
 import Control.Applicative ((<*>), (<$>), (*>), (<|>))
-import Control.Monad (when)
+import Control.Monad (when, guard)
 import qualified Data.Char as C
 import qualified Data.Foldable as Foldable
 import Data.Text ( pack, Text, cons, snoc, singleton )
@@ -48,7 +48,7 @@ import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Lincoln.Bits as B
 import Data.List.NonEmpty (NonEmpty((:|)), fromList)
-import Penny.Copper.Util (inCat)
+import Penny.Copper.Util (inCat, listIsOK)
 import qualified Penny.Lincoln.HasText as HT
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
                                     unsafeTextNonEmpty )
@@ -151,13 +151,13 @@ rightSideCmdty =
   <|> lvl2Cmdty
   <?> "commodity to the right of the quantity"
 
--- | Render a quoted Level 1 commodity. Always succeeds, as all
--- commodities can be rendered quoted.
-renderQuotedLvl1 :: B.Commodity -> Text
-renderQuotedLvl1 c =
-  '"'
-  `cons` HT.text (HT.Delimited (singleton ':') (HT.textList c))
-  `snoc` '"'
+-- | Render a quoted Level 1 commodity. Fails if any character does not satisfy lvl1Char.
+renderQuotedLvl1 :: B.Commodity -> Maybe Text
+renderQuotedLvl1 ca@(B.Commodity c) = do
+  guard $ listIsOK lvl1Char ca
+  return $ '"'
+    `cons` HT.text (HT.Delimited (singleton ':') (HT.textList c))
+    `snoc` '"'
 
 -- | Render a Level 2 commodity. Fails if the first character is not a
 -- letter or a symbol, or if any other character is a space.
@@ -166,8 +166,7 @@ renderLvl2 (B.Commodity c) = do
   let f:|rs = c
   when (not $ lvl2FirstChar (TNE.first (B.unSubCommodity f))) Nothing
   when (not $ TNE.all lvl2OtherChars (B.unSubCommodity f)) Nothing
-  when (not (all (TNE.all lvl2OtherChars . B.unSubCommodity) rs))
-    Nothing
+  guard $ listIsOK lvl2OtherChars c
   return $ HT.text (HT.Delimited (singleton ':') (HT.textList c))
 
 -- | Render a Level 3 commodity. Fails if any character is not a

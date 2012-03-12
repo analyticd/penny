@@ -5,6 +5,7 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Char as C
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
+import Data.Maybe (isNothing)
 import qualified Data.Text as X
 import Data.Ix (range)
 import qualified Data.Set as S
@@ -74,3 +75,12 @@ checkText ps a = let
   in case F.foldr1 folder results of
     Left c -> Ex.throw (BadChar c)
     Right b -> return b
+
+listIsOK ::
+  HT.HasTextList a
+  => (Char -> Bool) -- ^ Returns True for characters that are allowed
+  -> a
+  -> Bool
+listIsOK p = all (X.all p) . HT.textList
+
+  
