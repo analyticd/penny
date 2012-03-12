@@ -12,9 +12,13 @@
 -- * Quantity, optional whitespace, Level 2 commodity
 --
 -- Each quantity may be quoted or unquoted.
-module Penny.Copper.Amount (amount) where
+module Penny.Copper.Amount (
+  amount
+  , render
+  ) where
 
 import Control.Applicative ((<$>), (<*>), (<|>))
+import qualified Data.Text as X
 import Text.Parsec ( char, many, (<?>) )
 import Text.Parsec.Text ( Parser )
 
@@ -63,3 +67,13 @@ amount rg = lvl1CmdtyQty rg
             <|> lvl3CmdtyQty rg
             <|> cmdtyOnRight rg
             <?> "amount"
+
+-- | Render an Amount. The Format is required so that the commodity
+-- can be displayed in the right place.
+render ::
+  Q.GroupingSpec
+  -> Q.RadGroup
+  -> M.Format
+  -> B.Amount
+  -> X.Text
+render = undefined
