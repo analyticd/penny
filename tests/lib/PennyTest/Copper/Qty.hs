@@ -2,15 +2,14 @@ module PennyTest.Copper.Qty where
 
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Lincoln.Bits as B
-
-import qualified PennyTest.Lincoln.Bits as TB
+-- Import orphan instances of Arbitrary
+import PennyTest.Lincoln.Bits ()
 
 import Control.Applicative ((<*))
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import qualified Text.Parsec as P
-import Text.Parsec.Text (Parser)
 import Test.Framework (Test, testGroup)
-import Test.QuickCheck (Arbitrary, arbitrary, Gen, elements)
+import Test.QuickCheck (Arbitrary, arbitrary, elements)
 
 instance Arbitrary Q.RadGroup where
   arbitrary = elements [

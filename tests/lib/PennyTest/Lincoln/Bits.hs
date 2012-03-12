@@ -13,7 +13,7 @@ import PennyTest.Lincoln.TextNonEmpty ()
 import qualified System.Random as R
 import qualified Test.QuickCheck as Q
 import Test.QuickCheck (arbitrary, Arbitrary, Gen, choose, suchThat,
-                        resize, sized)
+                        sized)
 
 instance Q.Arbitrary B.SubAccountName where
   arbitrary = B.SubAccountName <$> arbitrary
