@@ -42,6 +42,7 @@ Library
     PennyTest.Pretty,
     PennyTest.Copper,
     PennyTest.Copper.Account,
+    PennyTest.Copper.Qty,
     PennyTest.Lincoln,
     PennyTest.Lincoln.Balance,
     PennyTest.Lincoln.Bits,

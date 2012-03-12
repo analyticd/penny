@@ -7,6 +7,7 @@ import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Lincoln.Bits as B
 import qualified PennyTest.Lincoln.Bits as TB
+import PennyTest.Lincoln.Transaction.Unverified ()
 
 import Control.Applicative (pure, (<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -260,6 +261,29 @@ test_unrender:: Test
 test_unrender = testProperty s prop_unrender where
   s = "Random unrenderable unverified transactions make Transactions"
 
+-- | Adding any unverified posting to an unverified but putatively
+-- balanced transaction unbalances it. Adding a posting with no Entry
+-- gives a CouldNotInfer error; adding a posting with an Entry gives
+-- an UnbalancedError. Using this with a generator size much bigger
+-- than 10 overflows the stack.
+prop_unbalanced :: Gen Bool
+prop_unbalanced = resize 10 $ do
+  f <- randomUnrenderable
+  p <- arbitrary
+  let expectedError = case U.entry p of
+        Nothing -> T.CouldNotInferError
+        Just _ -> T.UnbalancedError
+      f' = Fam.Family (Fam.parent f) (Fam.child1 f) (Fam.child2 f)
+           (p : Fam.children f)
+  return $ case T.transaction f' of
+    Ex.Success _ -> False
+    Ex.Exception e -> e == expectedError
+
+test_unbalanced :: Test
+test_unbalanced = testProperty s prop_unbalanced where
+  s = "Adding unverified postings unbalances"
+
 tests :: Test
 tests = testGroup "Transaction"
-        [ test_unrender ]
+        [ test_unrender
+        , test_unbalanced ]

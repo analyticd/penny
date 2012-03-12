@@ -1,3 +1,5 @@
+-- | Orphan instances for Arbitrary for unverified TopLine and for
+-- unverified Posting.
 module PennyTest.Lincoln.Transaction.Unverified where
 
 import Control.Applicative ((<$>), (<*>))

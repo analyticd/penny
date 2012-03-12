@@ -3,6 +3,9 @@ module Penny.Copper.Qty (
   RadGroup, periodComma, periodSpace, commaPeriod,
   commaSpace,
   
+  -- * Rendering
+  render,
+
   -- * Parsing quantities
   qtyUnquoted,
   qtyQuoted,
@@ -10,12 +13,13 @@ module Penny.Copper.Qty (
 
 import Control.Applicative ((<$>), (<*>), (<$), (*>), optional)
 import qualified Data.Decimal as D
+import qualified Data.Text as X
 import Text.Parsec ( char, (<|>), many1, (<?>), 
                      sepBy1, digit, between)
 import qualified Text.Parsec as P
 import Text.Parsec.Text ( Parser )
 
-import Penny.Lincoln.Bits.Qty ( Qty, partialNewQty )
+import Penny.Lincoln.Bits.Qty ( Qty, partialNewQty, unQty )
 
 data Radix = RComma | RPeriod deriving Show
 data Grouper = GComma | GPeriod | GSpace deriving Show
@@ -148,3 +152,13 @@ qtyQuoted (RadGroup r g) = between (char '^') (char '^') p where
 -- quantity.
 qty :: RadGroup -> Parser Qty
 qty r = qtyQuoted r <|> qtyUnquoted r <?> "quantity"
+
+-- | Render a Qty. For now this does not do any digit
+-- grouping. Therefore nothing is quoted (as the radix character may
+-- only be a period or a comma).
+render :: RadGroup -> Qty -> X.Text
+render (RadGroup r _) q = X.pack $ map f (show $ unQty q) where
+  rad = case r of
+    RComma -> ','
+    RPeriod -> '.'
+  f c = if c == '.' then rad else c

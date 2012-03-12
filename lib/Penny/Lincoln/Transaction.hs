@@ -58,7 +58,7 @@ import Control.Monad.Trans.Class ( lift )
 -- | Indicates whether the entry for this posting was inferred. That
 -- is, if the user did not supply an entry for this posting, then it
 -- was inferred.
-data Inferred = Inferred | NotInferred deriving Show
+data Inferred = Inferred | NotInferred deriving (Eq, Show)
 
 -- | Each Transaction consists of at least two Postings.
 data Posting =
@@ -93,6 +93,7 @@ newtype Transaction =
 -- | Errors that can arise when making a Transaction.
 data Error = UnbalancedError
            | CouldNotInferError
+           deriving (Eq, Show)
 
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
