@@ -16,10 +16,18 @@ instance Arbitrary Q.RadGroup where
   arbitrary = elements [
     Q.periodComma, Q.periodSpace, Q.commaPeriod, Q.commaSpace ]
 
--- | Parsing a rendered Qty gives the same Qty.
-prop_parseQty :: Q.RadGroup -> B.Qty -> Bool
-prop_parseQty rg q = let
-  rendered = Q.render rg q
+instance Arbitrary Q.GroupingSpec where
+  arbitrary = elements [ Q.NoGrouping, Q.GroupLarge, Q.GroupAll ]
+
+-- | Parsing a rendered, quoted Qty gives the same Qty.
+prop_parseQty ::
+  Q.RadGroup
+  -> Q.GroupingSpec
+  -> Q.GroupingSpec
+  -> B.Qty
+  -> Bool
+prop_parseQty rg gw gd q = let
+  rendered = Q.quote . Q.renderUnquoted rg gw gd $ q
   parsed = P.parse (Q.qty rg <* P.eof) "" rendered
   in case parsed of
     Left _ -> False

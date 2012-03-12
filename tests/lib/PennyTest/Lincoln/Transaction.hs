@@ -1,10 +1,11 @@
 module PennyTest.Lincoln.Transaction where
 
-import Penny.Lincoln.Family (adopt)
+import Penny.Lincoln.Family (adopt, orphans)
 import qualified Penny.Lincoln.Family.Family as Fam
 import qualified Penny.Lincoln.Family.Siblings as Sib
 import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Transaction.Unverified as U
+import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as B
 import qualified PennyTest.Lincoln.Bits as TB
 import PennyTest.Lincoln.Transaction.Unverified ()
@@ -13,6 +14,7 @@ import Control.Applicative (pure, (<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as Foldable
 import Data.List.NonEmpty (NonEmpty((:|)))
+import qualified Data.Map as Map
 import qualified Data.Traversable as Tr
 import qualified System.Random as R
 import qualified System.Random.Shuffle as Shuf
@@ -215,13 +217,19 @@ randomUnverifiedTransactions t = do
         shufflePostings ss
   unverifiedTransaction t shuffled
   
-
 -- | Makes unverified Transactions that will likely not be renderable.
 randomUnrenderable :: Gen (Fam.Family U.TopLine U.Posting)
 randomUnrenderable = randomUnverifiedTransactions t where
   t = TransInputs arbitrary arbitrary arbitrary arbitrary arbitrary 
       arbitrary arbitrary arbitrary arbitrary arbitrary arbitrary 
       arbitrary TB.randEntries
+
+newtype RandomUnrenderable =
+  RandomUnrenderable (Fam.Family U.TopLine U.Posting)
+  deriving Show
+
+instance Arbitrary RandomUnrenderable where
+  arbitrary = RandomUnrenderable <$> resize 10 randomUnrenderable
 
 -- | Gets the StdGen out of a Gen.
 qcStdGen :: Gen R.StdGen
@@ -244,13 +252,11 @@ shuffle ls = do
 -- theory, but of course whether this is a bug depends on whether the
 -- problem is with Penny or with QuickCheck. (Penny's bugginess is
 -- much more likely of course :)
-prop_unrender :: Gen Bool
-prop_unrender = resize 10 $ do
-  f <- randomUnrenderable
-  return $ case T.transaction f of
-    Ex.Exception _ -> False
-    Ex.Success _ -> True
-
+prop_unrender :: RandomUnrenderable -> Bool
+prop_unrender (RandomUnrenderable f) = case T.transaction f of
+  Ex.Exception _ -> False
+  Ex.Success _ -> True
+  
 test_unrender:: Test
 test_unrender = testProperty s prop_unrender where
   s = "Random unrenderable unverified transactions make Transactions"
@@ -260,16 +266,14 @@ test_unrender = testProperty s prop_unrender where
 -- gives a CouldNotInfer error; adding a posting with an Entry gives
 -- an UnbalancedError. Using this with a generator size much bigger
 -- than 10 overflows the stack.
-prop_unbalanced :: Gen Bool
-prop_unbalanced = resize 10 $ do
-  f <- randomUnrenderable
-  p <- arbitrary
-  let expectedError = case U.entry p of
-        Nothing -> T.CouldNotInferError
-        Just _ -> T.UnbalancedError
-      f' = Fam.Family (Fam.parent f) (Fam.child1 f) (Fam.child2 f)
-           (p : Fam.children f)
-  return $ case T.transaction f' of
+prop_unbalanced :: RandomUnrenderable -> U.Posting -> Bool
+prop_unbalanced (RandomUnrenderable f) p = let
+  expectedError = case U.entry p of
+    Nothing -> T.CouldNotInferError
+    Just _ -> T.UnbalancedError
+  f' = Fam.Family (Fam.parent f) (Fam.child1 f) (Fam.child2 f)
+       (p : Fam.children f)
+  in case T.transaction f' of
     Ex.Success _ -> False
     Ex.Exception e -> e == expectedError
 
@@ -277,7 +281,48 @@ test_unbalanced :: Test
 test_unbalanced = testProperty s prop_unbalanced where
   s = "Adding unverified postings unbalances"
 
+-- | The balance of a random transaction is never empty.
+prop_noEmptyBalances :: RandomUnrenderable -> Bool
+prop_noEmptyBalances (RandomUnrenderable f) =
+  case T.transaction f of
+    Ex.Exception _ -> False
+    Ex.Success t -> if Map.null (Bal.unBalance (transBalance t))
+                    then False
+                    else True
+
+test_noEmptyBalances :: Test
+test_noEmptyBalances = testProperty s prop_noEmptyBalances where
+  s = "Balances of random transactions are never empty"
+
+transBalance :: T.Transaction -> Bal.Balance
+transBalance t = let
+  entries = fmap (Bal.entryToBalance . T.pEntry)
+            . orphans
+            . T.unTransaction $ t
+  tot = Bal.addBalances (Sib.first entries) (Sib.second entries)
+  in foldr Bal.addBalances tot (Sib.rest entries)
+
+-- | Every commodity in a random transaction's balance has a
+-- BottomLine of Zero.
+prop_bottomLineZero :: RandomUnrenderable -> Bool
+prop_bottomLineZero (RandomUnrenderable u) =
+  case T.transaction u of
+    Ex.Exception _ -> False
+    Ex.Success t -> let
+      bal = Bal.unBalance . transBalance $ t
+      p b = case b of
+        Bal.Zero -> True
+        _ -> False
+      in Foldable.all p bal
+
+test_bottomLineZero :: Test
+test_bottomLineZero = testProperty s prop_bottomLineZero where
+  s = "Bottom line of every commodity in transaction" 
+      ++ " balance is zero"
+
 tests :: Test
 tests = testGroup "Transaction"
         [ test_unrender
-        , test_unbalanced ]
+        , test_unbalanced 
+        , test_noEmptyBalances
+        , test_bottomLineZero ]

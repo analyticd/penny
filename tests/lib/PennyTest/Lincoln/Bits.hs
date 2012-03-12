@@ -7,12 +7,13 @@ import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Maybe (fromJust)
 import qualified Data.Time as DT
+import Data.Word (Word8)
 import qualified Penny.Lincoln.Bits as B
 import PennyTest.Lincoln.TextNonEmpty ()
 import qualified System.Random as R
 import qualified Test.QuickCheck as Q
 import Test.QuickCheck (arbitrary, Arbitrary, Gen, choose, suchThat,
-                        resize)
+                        resize, sized)
 
 instance Q.Arbitrary B.SubAccountName where
   arbitrary = B.SubAccountName <$> arbitrary
@@ -81,12 +82,23 @@ instance Arbitrary B.Price where
 instance Arbitrary B.PricePoint where
   arbitrary = B.PricePoint <$> arbitrary <*> arbitrary
 
+-- | Creates random Decimals with a distribution a little more
+-- interesting than the Arbitrary that comes with Data.Decimal.
+-- Also, only returns Decimals >= 0.
+randomDecimal :: Gen D.Decimal
+randomDecimal = sized $ \s -> do
+  places <- choose (0, (min s (fromIntegral maxDecimalPlaces)))
+  mantissa <- choose (1, (max 1 $ fromIntegral s ^ mantissaExponent))
+  return $ D.Decimal (fromIntegral places) mantissa
+
+maxDecimalPlaces :: Word8
+maxDecimalPlaces = 10
+
+mantissaExponent :: Int
+mantissaExponent = 10
+
 instance Q.Arbitrary B.Qty where
-  arbitrary = let
-    p d = case B.newQty d of
-      Nothing -> False
-      Just _ -> True
-    in B.partialNewQty <$> (Q.suchThat arbitrary p)
+  arbitrary = B.partialNewQty <$> randomDecimal
 
 instance Arbitrary B.Tag where
   arbitrary = B.Tag <$> arbitrary
@@ -132,7 +144,7 @@ type NEDecimal = NE.NonEmpty D.Decimal
 -- that add up to some quantity that is less than the Decimal.
 randDecTriple :: Gen (NEDecimal, NEDecimal, Maybe NEDecimal)
 randDecTriple = do
-  d <- NE.fromList <$> Q.listOf1 randPosDec
+  d <- NE.fromList <$> Q.listOf1 randomDecimal
   ds <- addsUpTo (F.sum d)
   mayBZ <- betweenZero (F.sum d)
   bz <- case mayBZ of
@@ -140,17 +152,6 @@ randDecTriple = do
     Just b -> Just <$> addsUpTo b
   return (d, ds, bz)
         
-
--- | Generate a random positive Decimal. The exponent is a Word8; this
--- function will apply fromIntegral to an Int, which should make an
--- appropriately random Word8.
-randPosDec :: Gen D.Decimal
-randPosDec = D.Decimal
-             <$> (fromIntegral <$> (choose (0, e) :: Gen Int))
-             <*> suchThat (resize size arbitrary) (>= 1)
-             where
-               size = 10 ^ e
-               e = 10
 
 -- | Given a positive decimal p, return a decimal that has the same
 -- number of decimal places and is in the open-ended range (0,

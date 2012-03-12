@@ -4,7 +4,9 @@ module Penny.Copper.Qty (
   commaSpace,
   
   -- * Rendering
-  render,
+  GroupingSpec(NoGrouping, GroupLarge, GroupAll),
+  renderUnquoted,
+  quote,
 
   -- * Parsing quantities
   qtyUnquoted,
@@ -13,7 +15,10 @@ module Penny.Copper.Qty (
 
 import Control.Applicative ((<$>), (<*>), (<$), (*>), optional)
 import qualified Data.Decimal as D
+import Data.List (intercalate)
+import Data.List.Split (splitEvery, splitOn)
 import qualified Data.Text as X
+import Data.Text (snoc, cons)
 import Text.Parsec ( char, (<|>), many1, (<?>), 
                      sepBy1, digit, between)
 import qualified Text.Parsec as P
@@ -78,7 +83,17 @@ wholeGrouped g = p <$> group1 <*> optional groupRest <?> e where
   groupRest = parseGrouper g *> sepBy1 (many1 digit) (parseGrouper g)
   p g1 gr = case gr of
     Nothing -> g1
-    (Just groups) -> g1 ++ (concat groups)
+    Just groups -> g1 ++ concat groups
+
+fractionalGrouped :: Grouper -> Parser String
+fractionalGrouped g =
+  p <$> group1 <*> optional groupRest <?> e where
+    e = "fractional number"
+    group1 = many1 digit
+    groupRest = parseGrouper g *> sepBy1 (many1 digit) (parseGrouper g)
+    p g1 gr = case gr of
+      Nothing -> g1
+      Just groups -> g1 ++ concat groups
 
 wholeNonGrouped :: Parser String
 wholeNonGrouped = many1 digit
@@ -101,7 +116,7 @@ numberStrGrouped r g = startsWhole <|> fracOnly <?> e where
       case mayRad of
         Nothing -> return $ Whole wholeStr
         Just _ -> do
-          mayFrac <- optional $ many1 P.digit
+          mayFrac <- optional $ fractionalGrouped g
           case mayFrac of
             Nothing -> return $ WholeRad wholeStr
             Just frac -> return $ WholeRadFrac wholeStr frac
@@ -153,12 +168,77 @@ qtyQuoted (RadGroup r g) = between (char '^') (char '^') p where
 qty :: RadGroup -> Parser Qty
 qty r = qtyQuoted r <|> qtyUnquoted r <?> "quantity"
 
--- | Render a Qty. For now this does not do any digit
--- grouping. Therefore nothing is quoted (as the radix character may
--- only be a period or a comma).
-render :: RadGroup -> Qty -> X.Text
-render (RadGroup r _) q = X.pack $ map f (show $ unQty q) where
-  rad = case r of
-    RComma -> ','
-    RPeriod -> '.'
-  f c = if c == '.' then rad else c
+-- | Specifies how to perform digit grouping when rendering a
+-- quantity. All grouping groups into groups of 3 digits.
+data GroupingSpec = 
+  NoGrouping
+  -- ^ Do not perform any digit grouping
+  | GroupLarge
+    -- ^ Group digits, but only if the number to be grouped is greater
+    -- than 9,999 (if grouping the whole part) or if there are more
+    -- than 4 decimal places (if grouping the fractional part).
+  | GroupAll
+    -- ^ Group digits whenever there are at least four decimal places.
+  deriving (Eq, Show)
+
+-- | Quotes a rendered Qty, but only if necessary; otherwise, simply
+-- leaves it unquoted.
+quote :: X.Text -> X.Text
+quote t = case X.find (== ' ') t of
+  Nothing -> t
+  Just _ -> '^' `cons` t `snoc` '^'
+
+-- | Renders an unquoted Qty. Performs digit grouping as requested. 
+renderUnquoted ::
+  RadGroup
+  -> GroupingSpec
+  -- ^ Group for the portion to the left of the radix point?
+
+  -> GroupingSpec
+  -- ^ Group for the portion to the right of the radix point?
+
+  -> Qty
+  -> X.Text
+renderUnquoted (RadGroup r g) gl gr q = let
+  qs = show . unQty $ q
+  in X.pack $ case splitOn "." qs of
+    w:[] -> groupWhole g gl w
+    w:d:[] ->
+      groupWhole g gl w ++ renderRadix r ++ groupDecimal g gr d
+    _ -> error "Qty.hs: rendering error"
+
+renderGrouper :: Grouper -> String
+renderGrouper g = case g of
+  GComma -> ","
+  GPeriod -> "."
+  GSpace -> " "
+
+renderRadix :: Radix -> String
+renderRadix r = case r of
+  RComma -> ","
+  RPeriod -> "."
+
+-- | Performs grouping for amounts to the left of the radix point.
+groupWhole :: Grouper -> GroupingSpec -> String -> String
+groupWhole g gs o = let
+  grouped = intercalate (renderGrouper g)
+            . reverse
+            . map reverse
+            . splitEvery 3
+            . reverse
+            $ o
+  in case gs of
+  NoGrouping -> o
+  GroupLarge -> if length o > 4 then grouped else o
+  GroupAll -> grouped
+
+-- | Performs grouping for amounts to the right of the radix point.
+groupDecimal :: Grouper -> GroupingSpec -> String -> String
+groupDecimal g gs o = let
+  grouped = intercalate (renderGrouper g)
+            . splitEvery 3
+            $ o
+  in case gs of
+    NoGrouping -> o
+    GroupLarge -> if length o > 4 then grouped else o
+    GroupAll -> grouped
