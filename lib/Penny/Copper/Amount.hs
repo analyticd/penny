@@ -72,8 +72,27 @@ amount rg = lvl1CmdtyQty rg
 -- can be displayed in the right place.
 render ::
   Q.GroupingSpec
+  -- ^ Grouping to the left of the radix point
+  -> Q.GroupingSpec
+  -- ^ Grouping to the right of the radix point
   -> Q.RadGroup
   -> M.Format
   -> B.Amount
   -> X.Text
-render = undefined
+render gl gr rg f a = let
+  (q, c) = (B.qty a, B.commodity a)
+  qty = Q.quote $ Q.renderUnquoted rg gl gr q
+  ws = case M.between f of
+    M.SpaceBetween -> X.singleton ' '
+    M.NoSpaceBetween -> X.empty
+  quotedLvl1 = C.renderQuotedLvl1 c
+  mayLvl3 = C.renderLvl3 c
+  mayLvl2 = C.renderLvl2 c
+  (l, r) = case M.side f of
+    M.CommodityOnLeft -> case mayLvl3 of
+      Nothing -> (quotedLvl1, qty)
+      Just l3 -> (l3, qty)
+    M.CommodityOnRight -> case mayLvl2 of
+      Nothing -> (qty, quotedLvl1)
+      Just l2 -> (qty, l2)
+  in X.concat [l, ws, r]
