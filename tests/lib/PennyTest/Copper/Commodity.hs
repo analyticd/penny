@@ -10,22 +10,37 @@ import Control.Applicative ((<$>), (<*))
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import qualified Text.Parsec as P
 import Test.Framework (Test, testGroup)
-import Test.QuickCheck (Arbitrary, arbitrary, suchThat)
+import Test.QuickCheck (Arbitrary, arbitrary, suchThat, Gen, oneof)
 
--- | Commodities that are renderable. These are Level 1 commodities.
-newtype RCommodity =
-  RCommodity { unRCommodity :: B.Commodity }
+-- | Generates one of any of the renderable commodities (levels 1, 2,
+-- or 3).
+genRCmdty :: Gen B.Commodity
+genRCmdty = oneof [genLvl1Cmdty, genLvl2Cmdty, genLvl3Cmdty]
+
+-- | Randomly picks one of any of the renderable commodities (levels
+-- 1, 2, or 3).
+newtype RCmdty = RCmdty { unRCmdty :: B.Commodity }
+                 deriving (Show, Eq)
+
+instance Arbitrary RCmdty where
+  arbitrary = RCmdty <$> genRCmdty
+
+-- | Level 1 commodities.
+newtype Lvl1Cmdty =
+  Lvl1Cmdty { unRCommodity :: B.Commodity }
   deriving (Show, Eq)
 
-instance Arbitrary RCommodity where
-  arbitrary = RCommodity <$>
-              wrapTextNonEmptyList (suchThat arbitrary C.lvl1Char)
-              (suchThat arbitrary C.lvl1Char) B.SubCommodity
-              B.Commodity
+genLvl1Cmdty :: Gen B.Commodity
+genLvl1Cmdty = wrapTextNonEmptyList (suchThat arbitrary C.lvl1Char)
+               (suchThat arbitrary C.lvl1Char) B.SubCommodity
+               B.Commodity
+
+instance Arbitrary Lvl1Cmdty where
+  arbitrary = Lvl1Cmdty <$> genLvl1Cmdty
 
 -- | Parsing a rendered Commodity should yield the same thing.
-prop_parseRenderable :: RCommodity -> Bool
-prop_parseRenderable (RCommodity c) =
+prop_parseRenderable :: Lvl1Cmdty -> Bool
+prop_parseRenderable (Lvl1Cmdty c) =
   case C.renderQuotedLvl1 c of
     Nothing -> False
     Just t -> case P.parse (C.quotedLvl1Cmdty <* P.eof) "" t of
@@ -40,12 +55,15 @@ newtype Lvl2Cmdty =
   Lvl2Cmdty { unLvl2Cmdty :: B.Commodity }
   deriving (Eq, Show)
 
-instance Arbitrary Lvl2Cmdty where
-  arbitrary = Lvl2Cmdty <$>
-              wrapTextNonEmptyList (suchThat arbitrary C.lvl2FirstChar)
+genLvl2Cmdty :: Gen B.Commodity
+genLvl2Cmdty = wrapTextNonEmptyList (suchThat arbitrary C.lvl2FirstChar)
               (suchThat arbitrary C.lvl2OtherChars) B.SubCommodity
               B.Commodity
+ 
 
+instance Arbitrary Lvl2Cmdty where
+  arbitrary = Lvl2Cmdty <$> genLvl2Cmdty
+              
 -- | Parsing a rendered Lvl 2 commodity should yield same thing.
 prop_parseLvl2 :: Lvl2Cmdty -> Bool
 prop_parseLvl2 (Lvl2Cmdty c) =
@@ -63,11 +81,14 @@ newtype Lvl3Cmdty =
   Lvl3Cmdty { unLvl3Cmdty :: B.Commodity }
   deriving (Eq, Show)
 
+genLvl3Cmdty :: Gen B.Commodity
+genLvl3Cmdty = wrapTextNonEmptyList (suchThat arbitrary C.lvl3Chars)
+               (suchThat arbitrary C.lvl3Chars) B.SubCommodity
+               B.Commodity 
+
 instance Arbitrary Lvl3Cmdty where
-  arbitrary = Lvl3Cmdty <$>
-              wrapTextNonEmptyList (suchThat arbitrary C.lvl3Chars)
-              (suchThat arbitrary C.lvl3Chars) B.SubCommodity
-              B.Commodity
+  arbitrary = Lvl3Cmdty <$> genLvl3Cmdty
+
 
 -- | Parsing a rendered Lvl 2 commodity should yield same thing.
 prop_parseLvl3 :: Lvl3Cmdty -> Bool

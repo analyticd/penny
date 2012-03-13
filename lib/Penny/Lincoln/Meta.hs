@@ -4,13 +4,13 @@ import qualified Penny.Lincoln.Family.Family as F
 
 import qualified Data.Text as X
 
-data Side = CommodityOnLeft | CommodityOnRight deriving Show
-data SpaceBetween = SpaceBetween | NoSpaceBetween deriving Show
+data Side = CommodityOnLeft | CommodityOnRight deriving (Eq, Show)
+data SpaceBetween = SpaceBetween | NoSpaceBetween deriving (Eq, Show)
 
 data Format =
   Format { side :: Side
          , between :: SpaceBetween }
-  deriving Show
+  deriving (Eq, Show)
 
 newtype Line = Line { unLine :: Int }
                deriving Show
