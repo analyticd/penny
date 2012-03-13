@@ -62,3 +62,42 @@ instance HasTextList B.Tags where
 
 instance HasText a => HasTextList [a] where
   textList = map text
+
+class HasTextNonEmpty a where
+  textNonEmpty :: a -> TextNonEmpty
+
+instance HasTextNonEmpty TextNonEmpty where
+  textNonEmpty = id
+
+instance HasTextNonEmpty B.SubAccountName where
+  textNonEmpty = B.unSubAccountName
+
+instance HasTextNonEmpty B.SubCommodity where
+  textNonEmpty = B.unSubCommodity
+
+instance HasTextNonEmpty B.Flag where
+  textNonEmpty = B.unFlag
+  
+instance HasTextNonEmpty B.Memo where
+  textNonEmpty = B.unMemo
+
+instance HasTextNonEmpty B.Number where
+  textNonEmpty = B.unNumber
+
+instance HasTextNonEmpty B.Payee where
+  textNonEmpty = B.unPayee
+
+instance HasTextNonEmpty B.Tag where
+  textNonEmpty = B.unTag
+
+class HasTextNonEmptyList a where
+  textNonEmptyList :: a -> NonEmpty TextNonEmpty
+
+instance HasTextNonEmpty a => HasTextNonEmptyList (NonEmpty a) where
+  textNonEmptyList = fmap textNonEmpty
+
+instance HasTextNonEmptyList B.Account where
+  textNonEmptyList = fmap textNonEmpty . B.unAccount
+
+instance HasTextNonEmptyList B.Commodity where
+  textNonEmptyList = fmap textNonEmpty . B.unCommodity

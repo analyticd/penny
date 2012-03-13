@@ -5,11 +5,11 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Char as C
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
-import Data.Maybe (isNothing)
 import qualified Data.Text as X
 import Data.Ix (range)
 import qualified Data.Set as S
 import qualified Penny.Lincoln.HasText as HT
+import qualified Penny.Lincoln.TextNonEmpty as TNE
 import Text.Parsec (char, many)
 import Text.Parsec.Text (Parser)
 
@@ -77,10 +77,17 @@ checkText ps a = let
     Right b -> return b
 
 listIsOK ::
-  HT.HasTextList a
+  HT.HasTextNonEmptyList a
   => (Char -> Bool) -- ^ Returns True for characters that are allowed
   -> a
   -> Bool
-listIsOK p = all (X.all p) . HT.textList
+listIsOK p = F.all (TNE.all p) . HT.textNonEmptyList
 
-  
+firstCharOfListIsOK ::
+  HT.HasTextNonEmptyList a
+  => (Char -> Bool) -- ^ Returns True if the first character is allowed
+  -> a
+  -> Bool
+firstCharOfListIsOK p ls = let
+  firstText = NE.head . HT.textNonEmptyList $ ls
+  in p (TNE.first firstText)

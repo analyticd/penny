@@ -38,9 +38,8 @@ module Penny.Copper.Commodity (
   ) where
 
 import Control.Applicative ((<*>), (<$>), (*>), (<|>))
-import Control.Monad (when, guard)
+import Control.Monad (guard)
 import qualified Data.Char as C
-import qualified Data.Foldable as Foldable
 import Data.Text ( pack, Text, cons, snoc, singleton )
 import Text.Parsec ( satisfy, many, char, sepBy1, many1, (<?>),
                      between, option )
@@ -48,11 +47,10 @@ import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Lincoln.Bits as B
 import Data.List.NonEmpty (NonEmpty((:|)), fromList)
-import Penny.Copper.Util (inCat, listIsOK)
+import Penny.Copper.Util (inCat, listIsOK, firstCharOfListIsOK)
 import qualified Penny.Lincoln.HasText as HT
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
                                     unsafeTextNonEmpty )
-import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 -- | Most liberal set of letters allowed in a commodity. 
 lvl1Char :: Char -> Bool
@@ -163,9 +161,7 @@ renderQuotedLvl1 ca@(B.Commodity c) = do
 -- letter or a symbol, or if any other character is a space.
 renderLvl2 :: B.Commodity -> Maybe Text
 renderLvl2 (B.Commodity c) = do
-  let f:|rs = c
-  when (not $ lvl2FirstChar (TNE.first (B.unSubCommodity f))) Nothing
-  when (not $ TNE.all lvl2OtherChars (B.unSubCommodity f)) Nothing
+  guard $ firstCharOfListIsOK lvl2FirstChar c
   guard $ listIsOK lvl2OtherChars c
   return $ HT.text (HT.Delimited (singleton ':') (HT.textList c))
 
@@ -173,9 +169,6 @@ renderLvl2 (B.Commodity c) = do
 -- letter or a symbol.
 renderLvl3 :: B.Commodity -> Maybe Text
 renderLvl3 (B.Commodity c) = do
-  let f:|_ = c
-  when (not $ TNE.all lvl3Chars (B.unSubCommodity f)) Nothing
-  when (not (Foldable.all (TNE.all lvl3Chars . B.unSubCommodity) c))
-    Nothing
+  guard $ listIsOK lvl3Chars c
   return $ HT.text (HT.Delimited (singleton ':') (HT.textList c))
 
