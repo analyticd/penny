@@ -149,7 +149,8 @@ rightSideCmdty =
   <|> lvl2Cmdty
   <?> "commodity to the right of the quantity"
 
--- | Render a quoted Level 1 commodity. Fails if any character does not satisfy lvl1Char.
+-- | Render a quoted Level 1 commodity. Fails if any character does
+-- not satisfy lvl1Char.
 renderQuotedLvl1 :: B.Commodity -> Maybe Text
 renderQuotedLvl1 ca@(B.Commodity c) = do
   guard $ listIsOK lvl1Char ca
