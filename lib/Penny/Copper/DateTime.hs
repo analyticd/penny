@@ -3,8 +3,9 @@ module Penny.Copper.DateTime where
 import Control.Applicative ((<$>), (<*>))
 import Data.Time (
   minutesToTimeZone, TimeOfDay, makeTimeOfDayValid,
-  localTimeToUTC, midnight, LocalTime ( LocalTime ),
+  midnight, LocalTime ( LocalTime ),
   Day, fromGregorianValid, TimeZone )
+import qualified Data.Time as T
 import Text.Parsec (
   optionMaybe, char, digit, (<|>), option, (<?>))
 import Text.Parsec.Text ( Parser )
@@ -33,8 +34,8 @@ dateTime (DefaultTimeZone dtz) = p <?> "date" where
           (Just zone) -> return (t, zone)
           Nothing -> return (t, dtz)
     let local = LocalTime d tod
-        utc = localTimeToUTC tz local
-    return $ B.DateTime utc
+        zoned = T.ZonedTime local tz
+    return $ B.DateTime zoned
 
 -- Format for dates is:
 -- 2011/01/22 or 2011-01-22

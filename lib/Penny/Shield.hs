@@ -27,7 +27,7 @@ module Penny.Shield (
   where
 
 import Control.Applicative ((<$>), (<*>))
-import Data.Time (getCurrentTime)
+import Data.Time (getZonedTime)
 import System.Environment (getEnvironment)
 import System.IO (hIsTerminalDevice, stdout)
 
@@ -51,7 +51,7 @@ data Runtime = Runtime { environment :: [(String, String)]
 runtime :: IO Runtime
 runtime = Runtime
           <$> getEnvironment
-          <*> (DateTime <$> getCurrentTime)
+          <*> (DateTime <$> getZonedTime)
           <*> findOutput
 
 findOutput :: IO Output

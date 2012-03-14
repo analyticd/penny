@@ -113,7 +113,12 @@ newtype ReportWidth = ReportWidth { unReportWidth :: Int }
 
 ymd :: T.PostingInfo -> X.Text
 ymd p = X.pack (formatTime defaultTimeLocale fmt d) where
-  d = Time.utctDay . Bits.unDateTime . Q.dateTime . T.postingBox $ p
+  d = Time.utctDay
+      . Time.zonedTimeToUTC
+      . Bits.unDateTime
+      . Q.dateTime
+      . T.postingBox
+      $ p
   fmt = "%Y-%m-%d"
 
 qtyAsIs :: T.PostingInfo -> X.Text

@@ -1,3 +1,4 @@
+-- | Essential data types used to make Transactions and Postings.
 module Penny.Lincoln.Bits (
   -- * Accounts
   Ac.SubAccountName(SubAccountName, unSubAccountName),
