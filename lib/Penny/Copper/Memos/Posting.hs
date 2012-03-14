@@ -1,6 +1,6 @@
 module Penny.Copper.Memos.Posting where
 
-import Control.Applicative ((<*>), (<*), (<$))
+import Control.Applicative ((<*>), (<*), (<$), optional, (<$>))
 import qualified Data.Char as C
 import Data.Text ( pack )
 import Text.Parsec (char, satisfy, many, (<?>))
@@ -15,9 +15,13 @@ isCommentChar c = inCat C.UppercaseLetter C.OtherSymbol c
                   || c == ' '
 
 memo :: Parser B.Memo
-memo = (\c cs -> B.Memo $ TextNonEmpty c (pack cs))
-       <$ char '\''
-       <*> satisfy isCommentChar
-       <*> many (satisfy isCommentChar)
-       <* eol
-       <?> "posting memo"
+memo = B.Memo <$> many memoLine
+
+memoLine :: Parser B.MemoLine
+memoLine = (\c cs -> B.Memo $ TextNonEmpty c (pack cs))
+           <$ char '\''
+           <* optional (char ' ')
+           <*> satisfy isCommentChar
+           <*> many (satisfy isCommentChar)
+           <* eol
+           <?> "posting memo"

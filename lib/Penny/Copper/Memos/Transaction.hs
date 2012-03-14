@@ -1,6 +1,6 @@
 module Penny.Copper.Memos.Transaction where
 
-import Control.Applicative ((<*>), (<$>), (<*), (<$))
+import Control.Applicative ((<*>), (<$>), (<*), (<$), optional)
 import qualified Data.Char as C
 import Text.Parsec (
   char, many1, satisfy, sourceLine, getPosition, (<?>))
@@ -15,17 +15,23 @@ isCommentChar :: Char -> Bool
 isCommentChar c = inCat C.UppercaseLetter C.OtherSymbol c
                   || c == ' '
 
-line :: Parser String
-line = (++ "\n")
-        <$ char ';'
-        <*> many1 (satisfy isCommentChar)
-        <* eol
+memoLine :: Parser B.MemoLine
+memoLine = B.MemoLine
+           <$ char ';'
+           <* optional (char ' ')
+           <*> satisfy isCommentChar
+           <*> many (satisfy isCommentChar)
+           <* eol
+           <?> "posting memo line"
+
+memo :: Parser B.Memo
+memo = B.Memo <$> many memoLine
 
 -- | Parses a transaction memo and associated whitespace afterward.
 memo :: Parser (B.Memo, TopMemoLine)
 memo =
-  (\lin ls -> (B.Memo (unsafeTextNonEmpty ls), lin))
+  flip (,)
   <$> ((TopMemoLine . Line . sourceLine) <$> getPosition)
-  <*> (concat <$> many1 line)
+  <*> memo
   <?> "transaction memo"
   

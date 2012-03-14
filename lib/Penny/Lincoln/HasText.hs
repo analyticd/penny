@@ -27,8 +27,8 @@ instance HasText B.SubCommodity where
 instance HasText B.Flag where
   text = text . B.unFlag
 
-instance HasText B.Memo where
-  text = text . B.unMemo
+instance HasText B.MemoLine where
+  text = text . B.unMemoLine
 
 instance HasText B.Number where
   text = text . B.unNumber
@@ -60,6 +60,9 @@ instance HasTextList B.Commodity where
 instance HasTextList B.Tags where
   textList = map text . B.unTags
 
+instance HasTextList B.Memo where
+  textList = map text . B.unMemo
+
 instance HasText a => HasTextList [a] where
   textList = map text
 
@@ -78,9 +81,6 @@ instance HasTextNonEmpty B.SubCommodity where
 instance HasTextNonEmpty B.Flag where
   textNonEmpty = B.unFlag
   
-instance HasTextNonEmpty B.Memo where
-  textNonEmpty = B.unMemo
-
 instance HasTextNonEmpty B.Number where
   textNonEmpty = B.unNumber
 

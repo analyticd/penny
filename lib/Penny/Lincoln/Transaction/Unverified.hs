@@ -7,7 +7,7 @@ data TopLine = TopLine
                  (Maybe B.Flag)
                  (Maybe B.Number)
                  (Maybe B.Payee)
-                 (Maybe B.Memo)
+                 B.Memo
                  deriving Show
 
 data Posting = Posting
@@ -17,7 +17,7 @@ data Posting = Posting
                  B.Account
                  B.Tags
                  (Maybe B.Entry)
-                 (Maybe B.Memo)
+                 B.Memo
                  deriving Show
 
 entry :: Posting -> Maybe B.Entry

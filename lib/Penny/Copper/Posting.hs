@@ -24,10 +24,9 @@ import qualified Penny.Lincoln.Transaction.Unverified as U
 posting :: Qt.RadGroup
            -> Parser (U.Posting, M.PostingMeta)
 posting rg =
-  M.PostingLine . M.Line . sourceLine . statePos
-  <$> getParserState
-  <**> pure makeUnverified
-  <* many (char ' ')
+  makeUnverified
+  <$> (M.PostingLine . M.Line . sourceLine . statePos
+       <$> getParserState)
   <*> optionMaybe (lexeme Fl.flag)
   <*> optionMaybe (lexeme Nu.number)
   <*> optionMaybe (lexeme Pa.quotedPayee)

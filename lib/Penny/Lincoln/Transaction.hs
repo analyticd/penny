@@ -68,7 +68,7 @@ data Posting =
           , pAccount :: B.Account
           , pTags    :: B.Tags
           , pEntry   :: B.Entry
-          , pMemo    :: (Maybe B.Memo) 
+          , pMemo    :: B.Memo
           , pInferred :: Inferred }
   deriving Show
 
@@ -80,7 +80,7 @@ data TopLine =
           , tFlag     :: (Maybe B.Flag)
           , tNumber   :: (Maybe B.Number)
           , tPayee    :: (Maybe B.Payee)
-          , tMemo     :: (Maybe B.Memo) }
+          , tMemo     :: B.Memo }
   deriving Show
 
 -- | All the Postings in a Transaction must produce a Total whose

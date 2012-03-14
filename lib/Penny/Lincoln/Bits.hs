@@ -24,6 +24,7 @@ module Penny.Lincoln.Bits (
   F.Flag(Flag, unFlag),
 
   -- * Memos
+  M.MemoLine(MemoLine, unMemoLine),
   M.Memo(Memo, unMemo),
 
   -- * Number
