@@ -18,7 +18,7 @@ memo :: Parser B.Memo
 memo = B.Memo <$> many memoLine
 
 memoLine :: Parser B.MemoLine
-memoLine = (\c cs -> B.Memo $ TextNonEmpty c (pack cs))
+memoLine = (\c cs -> B.MemoLine $ TextNonEmpty c (pack cs))
            <$ char '\''
            <* optional (char ' ')
            <*> satisfy isCommentChar

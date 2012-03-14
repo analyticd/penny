@@ -23,7 +23,7 @@ errorStr e = case e of
 
 mkTransaction ::
   M.Filename
-  -> (U.TopLine, M.TopLineLine, Maybe M.TopMemoLine)
+  -> (U.TopLine, M.TopLineLine, M.TopMemoLine)
   -> (U.Posting, M.PostingMeta)
   -> (U.Posting, M.PostingMeta)
   -> [(U.Posting, M.PostingMeta)]
@@ -31,7 +31,7 @@ mkTransaction ::
 mkTransaction fn tripTop p1 p2 ps = let
   (tl, tll, tml) = tripTop
   famTrans = Family tl (fst p1) (fst p2) (map fst ps)
-  paMeta = M.TopLineMeta tml (Just tll) (Just fn)
+  paMeta = M.TopLineMeta (Just tml) (Just tll) (Just fn)
   famMeta = Family paMeta (snd p1) (snd p2) (map snd ps)
   meta = Just . TransactionMeta $ famMeta
   errXact = T.transaction famTrans

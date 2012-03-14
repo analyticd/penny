@@ -34,7 +34,7 @@ posting rg =
   <*> lexeme Ta.tags
   <*> optionMaybe (lexeme (En.entry rg))
   <* eol
-  <*> optionMaybe Me.memo
+  <*> Me.memo
   <?> "posting"
 
 makeUnverified ::
@@ -45,7 +45,7 @@ makeUnverified ::
   -> B.Account
   -> B.Tags
   -> Maybe (B.Entry, M.Format)
-  -> Maybe B.Memo
+  -> B.Memo
   -> (U.Posting, M.PostingMeta)
 makeUnverified pl fl nu pa ac ta pair me = (upo, meta) where
   upo = U.Posting pa nu fl ac ta en me

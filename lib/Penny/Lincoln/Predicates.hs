@@ -1,6 +1,6 @@
 module Penny.Lincoln.Predicates where
 
-import Data.Text (Text)
+import Data.Text (Text, singleton)
 
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Boxes (PostingBox)
@@ -32,6 +32,11 @@ matchLevel i f a = let ts = textList a in
   then False
   else f (ts !! i)
 
+matchMemo :: (Text -> Bool) -> B.Memo -> Bool
+matchMemo f m = f m' where
+  m' = text $ Delimited (singleton ' ') (textList m)
+  
+
 matchMaybeLevel ::
   HasTextList a
   => Int
@@ -54,10 +59,10 @@ flag :: (Text -> Bool) -> PostingBox -> Bool
 flag f = matchMaybe f . Q.flag
 
 postingMemo :: (Text -> Bool) -> PostingBox -> Bool
-postingMemo f = matchMaybe f . Q.postingMemo
+postingMemo f = matchMemo f . Q.postingMemo
 
 transactionMemo :: (Text -> Bool) -> PostingBox -> Bool
-transactionMemo f = matchMaybe f . Q.transactionMemo
+transactionMemo f = matchMemo f . Q.transactionMemo
 
 -- * Flexible comparisons
 

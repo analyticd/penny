@@ -32,10 +32,10 @@ number = best T.pNumber T.tNumber
 flag :: PostingBox -> Maybe B.Flag
 flag = best T.pFlag T.tFlag
 
-postingMemo :: PostingBox -> Maybe B.Memo
+postingMemo :: PostingBox -> B.Memo
 postingMemo = T.pMemo . posting
 
-transactionMemo :: PostingBox -> Maybe B.Memo
+transactionMemo :: PostingBox -> B.Memo
 transactionMemo = T.tMemo . topLine
 
 dateTime :: PostingBox -> B.DateTime

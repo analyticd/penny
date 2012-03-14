@@ -17,10 +17,10 @@ import qualified Penny.Lincoln.Transaction.Unverified as U
 
 topLine ::
   DT.DefaultTimeZone
-  -> Parser (U.TopLine, Meta.TopLineLine, (Maybe Meta.TopMemoLine))
+  -> Parser (U.TopLine, Meta.TopLineLine, Meta.TopMemoLine)
 topLine dtz =
   f
-  <$> optionMaybe M.memo
+  <$> M.memo
   <*> liftA toLine getParserState
   <*> lexeme (DT.dateTime dtz)
   <*> optionMaybe (lexeme F.flag)
@@ -28,9 +28,6 @@ topLine dtz =
   <*> optionMaybe (P.quotedPayee <|> P.unquotedPayee)
   <*  eol
   where
-    f mayMe lin dt fl nu pa = (tl, lin, tml) where
+    f (me, tml) lin dt fl nu pa = (tl, lin, tml) where
       tl = U.TopLine dt fl nu pa me
-      (me, tml) = case mayMe of
-        Nothing -> (Nothing, Nothing)
-        (Just (m, t)) -> (Just m, Just t)
     toLine = Meta.TopLineLine . Meta.Line . sourceLine . statePos

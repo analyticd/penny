@@ -102,6 +102,8 @@ memoChunks ts m (C.Width w) = cs where
        . Seq.fromList
        . X.words
        . HT.text
+       . HT.Delimited (X.singleton ' ')
+       . HT.textList
        $ m
   toChunk (TF.Words ws) = C.chunk ts (X.unwords . Fd.toList $ ws)
 
@@ -112,12 +114,12 @@ memo os a (_, (vn, _)) (p, _) = cell where
          else R.zeroCell
   pm = Q.postingMemo . T.postingBox $ p
   tm = Q.transactionMemo . T.postingBox $ p
-  cs = case (pm, tm) of
-    (Nothing, Nothing) -> mempty
-    (Just pms, Nothing) -> memoChunks ts pms w
-    (Nothing, Just tms) -> memoChunks ts tms w
-    (Just pms, Just tms) ->
-      memoChunks ts pms w `mappend` memoChunks ts tms w
+  nullMemo (Bits.Memo m) = null m
+  cs = case (nullMemo pm, nullMemo tm) of
+    (True, True) -> mempty
+    (False, True) -> memoChunks ts pm w
+    (True, False) -> memoChunks ts tm w
+    (False, False) -> memoChunks ts pm w `mappend` memoChunks ts tm w
   w = widthFlagToPostingQty vn a
   ts = PC.colors vn (O.baseColors os)
   
