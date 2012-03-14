@@ -3,14 +3,13 @@ module PennyTest.Pretty where
 import Control.Applicative (pure, (<*>))
 import Data.Foldable (toList)
 import Data.Text (unpack)
-import qualified Data.Text as X
 import Data.Time (formatTime)
 import System.Locale (defaultTimeLocale)
 import Text.Parsec.Error (ParseError)
 import Text.PrettyPrint (
   punctuate, char, hcat, (<>), (<+>), text, Doc,
   brackets, quotes, parens, sep, hang, vcat,
-  ($$), hsep)
+  ($$))
 
 import Penny.Copper as Cop
 import qualified Penny.Copper.Comments as Com
@@ -271,22 +270,8 @@ instance (Pretty l, Pretty r)
 instance Pretty ParseError where
   pretty e = text "Parse error" <+> pretty (text . show $ e)
 
-instance Pretty Com.Multiline where
-  pretty (Com.Multiline is) = text "Multiline" <+> (hsep (map pretty is))
-
-instance Pretty X.Text where
-  pretty t = text (unpack t)
-
-instance Pretty Com.MultilineItem where
-  pretty (Com.MultilineText t) = pretty t
-  pretty (Com.Nested ml) = pretty ml
-
 instance Pretty Com.Comment where
-  pretty (Com.Single s) = pretty s
-  pretty (Com.Multi m) = pretty m
-
-instance Pretty Com.SingleLine where
-  pretty (Com.SingleLine t) = text "SingleLine" <+> text (unpack t)
+  pretty (Com.Comment c) = text "Comment" <+> text (unpack c)
 
 instance Pretty I.Item where
   pretty i = hang (text "Item") indent $ case i of
