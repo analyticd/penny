@@ -85,8 +85,10 @@ instance Pretty B.Flag where
   pretty (B.Flag t) = brackets . pretty $ t
 
 instance Pretty B.Memo where
-  pretty (B.Memo t) = text "Memo: " <> (quotes . pretty $ t)
+  pretty (B.Memo t) = text "Memo: " <> (hcat . map pretty $ t)
 
+instance Pretty B.MemoLine where
+  pretty (B.MemoLine l) = text "Memo line:" <> pretty l
 
 instance Pretty B.Number where
   pretty (B.Number t) = parens . pretty $ t
@@ -141,7 +143,7 @@ instance Pretty T.Posting where
          , pretty               . T.pAccount
          , pretty               . T.pTags
          , pretty               . T.pEntry
-         , maybePretty "memo"   . T.pMemo ]
+         , pretty               . T.pMemo ]
          <*> pure t
 
 
@@ -151,7 +153,7 @@ instance Pretty T.TopLine where
          , maybePretty "flag"   . T.tFlag
          , maybePretty "number" . T.tNumber
          , maybePretty "payee"  . T.tPayee
-         , maybePretty "memo"   . T.tMemo ]
+         , pretty               . T.tMemo ]
          <*> pure t
 
 

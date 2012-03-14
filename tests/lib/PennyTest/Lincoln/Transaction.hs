@@ -31,13 +31,13 @@ data TransInputs =
     , tFlag :: Gen (Maybe B.Flag)
     , tNumber :: Gen (Maybe B.Number)
     , tPayee :: Gen (Maybe B.Payee)
-    , tMemo :: Gen (Maybe B.Memo)
+    , tMemo :: Gen B.Memo
     , pPayee :: Gen (Maybe B.Payee)
     , pNumber :: Gen (Maybe B.Number)
     , pFlag :: Gen (Maybe B.Flag)
     , pAccount :: Gen B.Account
     , pTags :: Gen B.Tags
-    , pMemo :: Gen (Maybe B.Memo)
+    , pMemo :: Gen B.Memo
     , pCmdty :: Gen B.Commodity
     , pEntries :: Gen (TB.NEDrCrQty, TB.NEDrCrQty, Maybe TB.NEDrCrQty) }
 
@@ -50,7 +50,7 @@ data PGroupInputs =
     , tgFlag :: Gen (Maybe B.Flag)
     , tgAccount :: Gen B.Account
     , tgTags :: Gen B.Tags
-    , tgMemo :: Gen (Maybe B.Memo)
+    , tgMemo :: Gen B.Memo
     , tgCommodity :: Gen B.Commodity
     , tgEntries :: Gen (TB.NEDrCrQty, TB.NEDrCrQty, Maybe TB.NEDrCrQty) }
 
@@ -61,10 +61,11 @@ data GenCommon = GenCommon {
   , cNumber :: Gen (Maybe B.Number)
   , cFlag :: Gen (Maybe B.Flag)
   , cTags :: Gen B.Tags
-  , cMemo :: Gen (Maybe B.Memo) }
+  , cMemo :: Gen B.Memo }
 
 genCommon :: PGroupInputs -> GenCommon
-genCommon t = GenCommon (tgPayee t) (tgNumber t) (tgFlag t) (tgTags t) (tgMemo t)
+genCommon t = GenCommon (tgPayee t) (tgNumber t) (tgFlag t) (tgTags t)
+              (tgMemo t)
 
 pGroupInputs :: TransInputs -> PGroupInputs
 pGroupInputs t = PGroupInputs (pPayee t) (pNumber t) (pFlag t)

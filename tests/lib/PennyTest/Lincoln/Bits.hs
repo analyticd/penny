@@ -53,6 +53,9 @@ instance Arbitrary B.Entry where
 instance Arbitrary B.Flag where
   arbitrary = B.Flag <$> arbitrary
 
+instance Arbitrary B.MemoLine where
+  arbitrary = B.MemoLine <$> arbitrary
+
 instance Arbitrary B.Memo where
   arbitrary = B.Memo <$> arbitrary
 
