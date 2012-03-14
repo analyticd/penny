@@ -1,16 +1,17 @@
 module Penny.Copper.Comments (
-  comment, Comment(Single, Multi),
-  SingleLine(SingleLine),
-  Item(Text, Nested),
-  Multiline(Multiline)) where
+  comment
+  , Comment(Single, Multi)
+  , SingleLine(SingleLine)
+  , Item(Text, Nested)
+  , Multiline(Multiline)
+  ) where
 
-import Control.Applicative ((<$>), (<*>), (*>), (<|>), pure, (<*),
-                            (<$))
+import Control.Applicative ((<$>), (<*>), (*>), (<|>), (<*), (<$))
 import qualified Data.Char as C
 import Data.Text ( Text, pack )
 import Text.Parsec (
   try, many, char, satisfy, string, (<?>),
-  noneOf, notFollowedBy)
+  notFollowedBy)
 import Text.Parsec.Text ( Parser )
 
 import Penny.Copper.Util (inCat, eol)
@@ -50,12 +51,12 @@ comment = char '/'
           <?> "comment"
       
 star :: Parser Char
-star = try (char '*' *> notFollowedBy (char '/') *> pure '*')
+star = try (char '*' <* notFollowedBy (char '/'))
        <?> "star"
 
 multilineText :: Parser Item
 multilineText = f <$> valid <*> many valid where
-  valid = noneOf "*/" <|> star
+  valid = satisfy (/= '*') <|> star
   f c cs = Text (TextNonEmpty c (pack cs))
 
 nested :: Parser Item
