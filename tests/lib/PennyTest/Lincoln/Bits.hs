@@ -13,7 +13,7 @@ import PennyTest.Lincoln.TextNonEmpty ()
 import qualified System.Random as R
 import qualified Test.QuickCheck as Q
 import Test.QuickCheck (arbitrary, Arbitrary, Gen, choose, suchThat,
-                        sized)
+                        sized, resize, listOf)
 
 instance Q.Arbitrary B.SubAccountName where
   arbitrary = B.SubAccountName <$> arbitrary
@@ -30,16 +30,33 @@ instance Q.Arbitrary B.SubCommodity where
 instance Q.Arbitrary B.Commodity where
   arbitrary = B.Commodity <$> arbitrary
 
-
-instance Q.Arbitrary DT.Day where
-  arbitrary = DT.ModifiedJulianDay <$> (Q.suchThat arbitrary (>= 0))
-
 instance Q.Arbitrary DT.DiffTime where
   arbitrary = DT.secondsToDiffTime
               <$> (Q.suchThat arbitrary (\s -> s >= 0 && s < 86400))
 
 instance Q.Arbitrary DT.UTCTime where
   arbitrary = DT.UTCTime <$> arbitrary <*> arbitrary
+
+instance Q.Arbitrary DT.Day where
+  arbitrary = DT.ModifiedJulianDay <$> choose (20000, 100000)
+
+instance Q.Arbitrary DT.TimeOfDay where
+  arbitrary = DT.TimeOfDay
+              <$> choose (0, 23)
+              <*> choose (0, 59)
+              <*> (fromIntegral <$> choose (0 :: Int, 59))
+
+instance Q.Arbitrary DT.LocalTime where
+  arbitrary = DT.LocalTime <$> arbitrary <*> arbitrary
+
+instance Q.Arbitrary DT.TimeZone where
+  arbitrary = DT.TimeZone
+              <$> choose (minBound, maxBound)
+              <*> arbitrary
+              <*> resize 4 (listOf arbitrary)
+
+instance Q.Arbitrary DT.ZonedTime where
+  arbitrary = DT.ZonedTime <$> arbitrary <*> arbitrary
 
 instance Q.Arbitrary B.DateTime where
   arbitrary = B.DateTime <$> arbitrary

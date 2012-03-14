@@ -40,3 +40,4 @@ wrapTextNonEmptyList gf gr wi wo = let
     wi <$> (TNE.TextNonEmpty <$> gr <*> (X.pack <$> listOf gr))
   restWords = (listOf otherWord)
   in wo <$> ( (:|) <$> firstWord <*> restWords)
+

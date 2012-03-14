@@ -3,6 +3,7 @@ module PennyTest.Pretty where
 import Control.Applicative (pure, (<*>))
 import Data.Foldable (toList)
 import Data.Text (unpack)
+import qualified Data.Text as X
 import Data.Time (formatTime)
 import System.Locale (defaultTimeLocale)
 import Text.Parsec.Error (ParseError)
@@ -273,8 +274,11 @@ instance Pretty ParseError where
 instance Pretty Com.Multiline where
   pretty (Com.Multiline is) = text "Multiline" <+> (hsep (map pretty is))
 
-instance Pretty Com.Item where
-  pretty (Com.Text t) = pretty t
+instance Pretty X.Text where
+  pretty t = text (unpack t)
+
+instance Pretty Com.MultilineItem where
+  pretty (Com.MultilineText t) = pretty t
   pretty (Com.Nested ml) = pretty ml
 
 instance Pretty Com.Comment where

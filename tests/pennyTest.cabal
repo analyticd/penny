@@ -43,6 +43,7 @@ Library
     PennyTest.Copper,
     PennyTest.Copper.Account,
     PennyTest.Copper.Amount,
+    PennyTest.Copper.Comments,
     PennyTest.Copper.Commodity,
     PennyTest.Copper.Qty,
     PennyTest.Copper.Util,

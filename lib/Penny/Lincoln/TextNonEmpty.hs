@@ -1,10 +1,11 @@
 module Penny.Lincoln.TextNonEmpty (
   TextNonEmpty (TextNonEmpty, first, rest),
   unsafeTextNonEmpty,
-  any, all) where
+  any, all,
+  toText) where
 
 import Prelude hiding (any, all)
-import Data.Text ( Text, pack )
+import Data.Text ( Text, pack, cons )
 import qualified Data.Text as X
 
 data TextNonEmpty = TextNonEmpty { first :: Char
@@ -19,3 +20,6 @@ any f (TextNonEmpty c ts) = f c || X.any f ts
 
 all :: (Char -> Bool) -> TextNonEmpty -> Bool
 all f (TextNonEmpty c ts) = f c && X.all f ts
+
+toText :: TextNonEmpty -> Text
+toText (TextNonEmpty t ts) = t `cons` ts
