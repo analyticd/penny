@@ -4,7 +4,7 @@ module Penny.Copper.DateTime (
   , render
   ) where
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>), (<*>), optional)
 import qualified Data.Text as X
 import Data.Time (
   minutesToTimeZone, TimeOfDay, makeTimeOfDayValid,
@@ -33,7 +33,7 @@ dateTime ::
 dateTime (DefaultTimeZone dtz) = p <?> "date" where
   p = do
     d <- day
-    _ <- char ' '
+    _ <- optional (char ' ')
     maybeTime <- optionMaybe timeOfDay
     (tod, tz) <- case maybeTime of
       Nothing -> return (midnight, dtz)
