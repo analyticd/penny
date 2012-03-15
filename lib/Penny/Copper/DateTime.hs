@@ -1,6 +1,11 @@
-module Penny.Copper.DateTime where
+module Penny.Copper.DateTime (
+  DefaultTimeZone(DefaultTimeZone, unDefaultTimeZone)
+  , dateTime
+  , render
+  ) where
 
 import Control.Applicative ((<$>), (<*>))
+import qualified Data.Text as X
 import Data.Time (
   minutesToTimeZone, TimeOfDay, makeTimeOfDayValid,
   midnight, LocalTime ( LocalTime ),
@@ -11,12 +16,16 @@ import Text.Parsec (
 import Text.Parsec.Text ( Parser )
 import Control.Monad ( replicateM, void )
 import Data.Fixed ( Pico )
+import System.Locale (defaultTimeLocale)
 
 import qualified Penny.Lincoln.Bits as B
 
 newtype DefaultTimeZone =
   DefaultTimeZone { unDefaultTimeZone :: TimeZone }
 
+-- | Parse a date and, optionally, an attached time. If the parsed
+-- text does not indicate a time zone, it is assumed to be in the
+-- DefaultTimeZone given.
 dateTime ::
   DefaultTimeZone
   -> Parser B.DateTime
@@ -106,3 +115,20 @@ timeZone = f <$> sign <*> replicateM 2 digit <*> replicateM 2 digit
                   (hr, mi) = (read h, read m)
               in minutesToTimeZone mins
 
+-- | Render a DateTime. If the DateTime is in the given
+-- DefaultTimeZone, and the DateTime is midnight, then the time and
+-- time zone will not be printed. Otherwise, the time and time zone
+-- will both be printed. The test for time zone equality depends only
+-- upon the time zone's offset from UTC.
+render :: DefaultTimeZone -> B.DateTime -> X.Text
+render (DefaultTimeZone dtz) (B.DateTime zt) = let
+  fmtLong = "%F %T %z"
+  fmtShort = "%F"
+  sameZone = T.timeZoneMinutes dtz
+             == T.timeZoneMinutes (T.zonedTimeZone zt)
+  local = T.localTimeOfDay . T.zonedTimeToLocalTime $ zt
+  isMidnight = local == T.midnight
+  fmt = if sameZone && isMidnight
+        then fmtShort
+        else fmtLong
+  in X.pack $ T.formatTime defaultTimeLocale fmt zt
