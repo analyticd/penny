@@ -51,7 +51,7 @@ instance Q.Arbitrary DT.LocalTime where
 
 instance Q.Arbitrary DT.TimeZone where
   arbitrary = DT.TimeZone
-              <$> choose (minBound, maxBound)
+              <$> choose ((-1339), 1339)
               <*> arbitrary
               <*> resize 4 (listOf arbitrary)
 

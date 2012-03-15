@@ -22,6 +22,7 @@ import qualified Penny.Lincoln.Bits as B
 
 newtype DefaultTimeZone =
   DefaultTimeZone { unDefaultTimeZone :: TimeZone }
+  deriving (Eq, Show)
 
 -- | Parse a date and, optionally, an attached time. If the parsed
 -- text does not indicate a time zone, it is assumed to be in the
