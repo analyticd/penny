@@ -6,11 +6,23 @@
 -- Unquoted payees. These are not surrounded by @<@ and @>@. Their
 -- first character must be a letter or number.
 
-module Penny.Copper.Payees where
+module Penny.Copper.Payees (
+  -- * Quoted payees
+  quotedChar
+  , quotedPayee
+    
+    -- * Unquoted payees
+  , unquotedFirstChar
+  , unquotedRestChars
+  , unquotedPayee
+    
+    -- * Rendering
+  , render
+  ) where
 
 import Control.Applicative ((<$>), (<*>))
 import qualified Data.Char as C
-import Data.Text (pack)
+import Data.Text (pack, Text)
 import Text.Parsec (char, satisfy, many, between, (<?>))
 import Text.Parsec.Text ( Parser )
 
@@ -31,7 +43,7 @@ quotedPayee = between (char '<') (char '>') p <?> "quoted payee" where
       <*> many (satisfy quotedChar)
 
 unquotedFirstChar :: Char -> Bool
-unquotedFirstChar = inCat C.UppercaseLetter C.OtherNumber
+unquotedFirstChar = inCat C.UppercaseLetter C.OtherLetter
 
 unquotedRestChars :: Char -> Bool
 unquotedRestChars c = inCat C.UppercaseLetter C.OtherSymbol c
@@ -45,3 +57,7 @@ unquotedPayee = let
      <*> many (satisfy unquotedRestChars)
      <?> "unquoted payee"
 
+-- | Render a payee with a minimum of quoting. Fails if cannot be
+-- rendered at all.
+render :: B.Payee -> Maybe Text
+render = undefined

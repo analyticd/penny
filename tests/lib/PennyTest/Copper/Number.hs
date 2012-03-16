@@ -1,7 +1,7 @@
-module PennyTest.Copper.Flag where
+module PennyTest.Copper.Number where
 
 import qualified Penny.Copper.Amount as A
-import qualified Penny.Copper.Flag as F
+import qualified Penny.Copper.Number as N
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 import qualified Penny.Copper.Entry as E
@@ -22,29 +22,29 @@ import qualified Text.Parsec as P
 import Test.Framework (Test, testGroup)
 import Test.QuickCheck (Arbitrary, arbitrary, suchThat, Gen, listOf)
 
--- | Generates renderable Flags.
-genRFlag :: Gen B.Flag
-genRFlag = B.Flag <$> genTextNonEmpty g g where
-  g = suchThat arbitrary F.isFlagChar
+-- | Generate renderable Numbers.
+genRNumber :: Gen B.Number
+genRNumber = B.Number <$> genTextNonEmpty g g where
+  g = suchThat arbitrary N.isNumChar
 
-newtype RFlag = RFlag { unRFlag :: B.Flag }
-                deriving (Show, Eq)
+newtype RNumber = RNumber { unRNumber :: B.Number }
+                  deriving (Show, Eq)
 
-instance Arbitrary RFlag where
-  arbitrary = RFlag <$> genRFlag
+instance Arbitrary RNumber where
+  arbitrary = RNumber <$> genRNumber
 
--- | Parsing a rendered renderable should yield the same Flag.
-prop_parseRenderable :: RFlag -> Bool
-prop_parseRenderable (RFlag fl) = case F.render fl of
+-- | Parsing a rendered Number should give the same thing.
+prop_parseRNumber :: RNumber -> Bool
+prop_parseRNumber (RNumber n) = case N.render n of
   Nothing -> False
-  Just txt -> case P.parse (F.flag <* P.eof) "" txt of
+  Just txt -> case P.parse (N.number <* P.eof) "" txt of
     Left _ -> False
-    Right fl' -> fl' == fl
+    Right n' -> n == n'
 
-test_parseRenderable :: Test
-test_parseRenderable = testProperty s prop_parseRenderable where
-  s = "Parsing rendered renderable Flag yields same Flag"
+test_parseRNumber :: Test
+test_parseRNumber = testProperty s prop_parseRNumber where
+  s = "Parsing renderable Number should give same Number"
 
 tests :: Test
-tests = testGroup "Flag"
-        [ test_parseRenderable ]
+tests = testGroup "Number"
+        [ test_parseRNumber ]

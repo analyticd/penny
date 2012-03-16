@@ -41,3 +41,9 @@ wrapTextNonEmptyList gf gr wi wo = let
   restWords = (listOf otherWord)
   in wo <$> ( (:|) <$> firstWord <*> restWords)
 
+-- | Generate a TextNonEmpty with given generators for the first
+-- character and for the rest of the characters.
+genTextNonEmpty :: Gen Char -> Gen Char -> Gen TNE.TextNonEmpty
+genTextNonEmpty gf gr = TNE.TextNonEmpty
+                        <$> gf
+                        <*> (X.pack <$> listOf gr)
