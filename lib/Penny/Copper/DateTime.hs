@@ -60,7 +60,6 @@ timeOfDay = do
   h <- hrs
   colon
   m <- mins
-  colon
   maybeS <- optional (colon >> secs)
   let s = fromMaybe (fromIntegral (0 :: Int)) maybeS
   return $ T.TimeOfDay h m s

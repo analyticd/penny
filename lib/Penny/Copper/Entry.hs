@@ -1,15 +1,18 @@
-module Penny.Copper.Entry where
+module Penny.Copper.Entry (entry, render) where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad ( void )
+import qualified Data.Text as X
 import Text.Parsec ( char, string, optional, (<|>), (<?>) )
 import Text.Parsec.Text ( Parser )
 
 import Penny.Copper.Amount (amount)
+import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Util (lexeme)
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Meta (Format)
+import qualified Penny.Lincoln.Meta as M
 
 drCr :: Parser B.DrCr
 drCr = let
@@ -27,3 +30,19 @@ entry :: Q.RadGroup -> Parser (B.Entry, Format)
 entry rg = f <$> lexeme drCr <*> amount rg <?> e where
   f dc (am, fmt) = (B.Entry dc am, fmt)
   e = "entry"
+
+render ::
+  Q.GroupingSpec
+  -- ^ Grouping to the left of the radix point
+  -> Q.GroupingSpec
+  -- ^ Grouping to the right of the radix point
+  -> Q.RadGroup
+  -> M.Format
+  -> B.Entry
+  -> Maybe X.Text
+render gl gr rg f (B.Entry dc a) = do
+  amt <- A.render gl gr rg f a
+  let dcTxt = X.pack $ case dc of
+        B.Debit -> "Dr"
+        B.Credit -> "Cr"
+  return $ X.append (X.snoc dcTxt ' ') amt
