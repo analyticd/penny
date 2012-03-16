@@ -5,13 +5,11 @@ module Penny.Copper.Comments (
   , render
   ) where
 
-import Control.Applicative ((<$>), (<*>), (*>), (<|>), (<*), (<$))
+import Control.Applicative ((<*>), (<*), (<$))
 import qualified Data.Char as C
-import Data.Text ( Text, pack, append, cons, snoc )
+import Data.Text ( Text, pack, cons, snoc )
 import qualified Data.Text as X
-import Text.Parsec (
-  try, many, many1, char, satisfy, string, (<?>),
-  notFollowedBy)
+import Text.Parsec (many, char, satisfy, (<?>))
 import Text.Parsec.Text ( Parser )
 
 import Penny.Copper.Util (inCat, eol)

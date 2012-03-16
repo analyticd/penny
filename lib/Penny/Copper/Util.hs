@@ -1,6 +1,6 @@
 module Penny.Copper.Util where
 
-import Control.Applicative ((<*), pure)
+import Control.Applicative ((<*), pure, (<$))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Char as C
 import qualified Data.Foldable as F
@@ -30,6 +30,10 @@ eol = pure ()
       <* many (char ' ')
       <* char '\n'
       <* many (char ' ')
+
+-- | Parses a run of spaces.
+spaces :: Parser ()
+spaces = () <$ many (char ' ')
 
 -- | Errors from rendering.
 data RenderError = BadChar Char 
