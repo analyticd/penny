@@ -17,10 +17,13 @@ import qualified Text.Parsec as P
 import Test.Framework (Test, testGroup)
 import Test.QuickCheck (Arbitrary, arbitrary, suchThat, Gen)
 
--- | Generates renderable amounts.
+-- | Generates renderable amounts. The commodities are distributed
+-- evenly between Level 1, Level 2, and Level 3 commodities.
 genRAmount :: Gen B.Amount
 genRAmount = B.Amount <$> arbitrary <*> genRCmdty
 
+-- | A renderable Amount.  The commodities are distributed
+-- evenly between Level 1, Level 2, and Level 3 commodities.
 newtype RAmount = RAmount { unRAmount :: B.Amount }
                   deriving (Show, Eq)
 
