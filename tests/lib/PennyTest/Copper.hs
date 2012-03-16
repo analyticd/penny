@@ -8,6 +8,7 @@ import qualified PennyTest.Copper.Comments as Comments
 import qualified PennyTest.Copper.Commodity as C
 import qualified PennyTest.Copper.DateTime as DT
 import qualified PennyTest.Copper.Entry as Entry
+import qualified PennyTest.Copper.Flag as Flag
 import qualified PennyTest.Copper.Qty as Q
 
 tests :: TF.Test
@@ -19,5 +20,6 @@ tests = TF.testGroup "Copper"
         , C.tests
         , DT.tests
         , Entry.tests
+        , Flag.tests
         , Q.tests
         ]

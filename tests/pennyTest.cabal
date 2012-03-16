@@ -47,6 +47,7 @@ Library
     PennyTest.Copper.Commodity,
     PennyTest.Copper.DateTime,
     PennyTest.Copper.Entry,
+    PennyTest.Copper.Flag,
     PennyTest.Copper.Qty,
     PennyTest.Copper.Util,
     PennyTest.Lincoln,
