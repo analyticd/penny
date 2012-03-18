@@ -141,7 +141,7 @@ lvl3Cmdty :: Parser B.Commodity
 lvl3Cmdty = f <$> p1 <*> pr <?> e where
   f cf cs = B.Commodity (cf :| cs)
   p1 = lvl3FirstSubCmdty
-  pr = sepBy lvl3OtherSubCmdty (char ':')
+  pr = option [] $ char ':' *> sepBy lvl3OtherSubCmdty (char ':')
   e = "commodity, letters and symbols only"
 
 -- | A commodity being read in from the command line, where the

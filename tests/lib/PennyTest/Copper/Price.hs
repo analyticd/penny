@@ -131,14 +131,15 @@ prop_renderableParses (RPricePointData ppd) (gl, gr) rg fmt =
     txt <- P.render (defaultTimeZone ppd) gl gr rg fmt pp
     let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
     case Parsec.parse parser "" txt of
-      Left e -> error $ "parse error: " ++ show e ++ "rendered: " ++ show txt
+      Left e -> error $ "parse error: " ++ show e
+                ++ "rendered: " ++ show txt
       Right _ -> return True
 
 test_renderableParses :: Test
 test_renderableParses = testProperty s prop_renderableParses where
   s = "A renderable PricePoint parses without error"
 
--- | Parsing a renderable PricePoint should give the same thing.
+-- | Parsing a renderable PricePoint should give the same price.
 prop_parseRPricePoint ::
   RPricePointData
   -> (Q.GroupingSpec, Q.GroupingSpec)
@@ -154,11 +155,40 @@ prop_parseRPricePoint (RPricePointData ppd) (gl, gr) rg fmt =
     box <- either (const Nothing) Just $ Parsec.parse parser "" txt
     priceMeta <- Boxes.priceMeta box
     fmt' <- M.priceFormat priceMeta
-    return $ fmt' == fmt && Boxes.price box == pp
+    if Boxes.price box /= pp
+       then error $ "\nparsed price point differs. Input: "
+            ++ show pp
+            ++ "\nparsed: " ++ show (Boxes.price box)
+            ++ "\nRendered: " ++ show txt
+      else return True
 
 test_parseRPricePoint :: Test
 test_parseRPricePoint = testProperty s prop_parseRPricePoint where
-  s = "Parsing a renderable PricePoint should give the same thing"
+  s = "Parsing a renderable PricePoint should give the same PricePoint"
+
+-- | Parsing a renderable PricePoint should give the same price and
+-- metadata
+prop_parseRPricePointMeta ::
+  RPricePointData
+  -> (Q.GroupingSpec, Q.GroupingSpec)
+  -> Q.RadGroup
+  -> M.Format
+  -> Bool
+prop_parseRPricePointMeta (RPricePointData ppd) (gl, gr) rg fmt =
+  fromMaybe False $ do
+    p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
+    let pp = B.PricePoint (dateTime ppd) p
+    txt <- P.render (defaultTimeZone ppd) gl gr rg fmt pp
+    let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
+    box <- either (const Nothing) Just $ Parsec.parse parser "" txt
+    priceMeta <- Boxes.priceMeta box
+    fmt' <- M.priceFormat priceMeta
+    return $ fmt' == fmt && Boxes.price box == pp
+
+test_parseRPricePointMeta :: Test
+test_parseRPricePointMeta = testProperty s prop_parseRPricePointMeta where
+  s = "Parsing a renderable PricePoint should give the same price "
+      ++ "and metadata"
 
 tests :: Test
 tests = testGroup "Price"
@@ -166,4 +196,5 @@ tests = testGroup "Price"
           , test_renderableIsValid
           , test_isRenderable
           , test_renderableParses
-          , test_parseRPricePoint ]
+          , test_parseRPricePoint
+          , test_parseRPricePointMeta ]
