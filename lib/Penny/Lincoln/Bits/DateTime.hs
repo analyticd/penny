@@ -1,25 +1,19 @@
 -- | Perhaps this could be called @moment@, as it aims to identify a
--- moment in time. Internally, times are kept as zoned times--for more
--- information on what this means, consult "Data.Time.LocalTime". To
--- create a DateTime, you must supply a zoned time; the easiest way to
--- do this is to use the ZonedTime constructor by building the
--- necessary component parts.
+-- moment in time. A DateTime is a combination of a LocalTime from
+-- Data.Time and a TimeZoneOffset. Previously a DateTime was simply a
+-- ZonedTime from Data.Time but ZonedTime has data that Penny does not
+-- need.
 module Penny.Lincoln.Bits.DateTime where
 
 import qualified Data.Time as T
 import Data.Monoid (mappend)
 
-newtype DateTime = DateTime { unDateTime :: T.ZonedTime }
-                   deriving (Show)
+-- | The number of minutes that this timezone is offset from UTC. Can
+-- be positive, negative, or zero.
+newtype TimeZoneOffset = TimeZoneOffset { unTimeZoneOffset :: Int }
+                         deriving (Eq, Ord, Show)
 
-instance Eq DateTime where
-  (DateTime dt1) == (DateTime dt2) =
-    (T.zonedTimeToLocalTime dt1 == T.zonedTimeToLocalTime dt2)
-    &&
-    (T.zonedTimeZone dt1) == (T.zonedTimeZone dt2)
-
-instance Ord DateTime where
-  compare (DateTime dt1) (DateTime dt2) = mappend c1 c2 where
-    c1 = compare (T.zonedTimeToLocalTime dt1)
-         (T.zonedTimeToLocalTime dt1)
-    c2 = compare (T.zonedTimeZone dt1) (T.zonedTimeZone dt2)
+-- | A DateTime is both a LocalTime and a time zone offset.
+data DateTime = DateTime { localTime :: T.LocalTime
+                         , timeZone :: TimeZoneOffset }
+                   deriving (Eq, Ord, Show)
