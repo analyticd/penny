@@ -82,9 +82,10 @@ newtype Lvl3Cmdty =
   deriving (Eq, Show)
 
 genLvl3Cmdty :: Gen B.Commodity
-genLvl3Cmdty = wrapTextNonEmptyList (suchThat arbitrary C.lvl3Chars)
-               (suchThat arbitrary C.lvl3Chars) B.SubCommodity
-               B.Commodity 
+genLvl3Cmdty =
+  wrapTextNonEmptyList f r B.SubCommodity B.Commodity where
+    f = suchThat arbitrary C.lvl3FirstChar
+    r = suchThat arbitrary C.lvl3OtherChars
 
 instance Arbitrary Lvl3Cmdty where
   arbitrary = Lvl3Cmdty <$> genLvl3Cmdty

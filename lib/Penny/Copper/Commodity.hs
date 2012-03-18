@@ -10,7 +10,8 @@
 -- or a symbol. All other characters may be nearly any other
 -- character. Spaces however are not permitted.
 --
--- * Level 3 commodities. All charcters must be letters or symbols.
+-- * Level 3 commodities. All charcters must be letters or symbols. In
+-- addition, the first character cannot be a @+@ or a @-@.
 module Penny.Copper.Commodity (
   -- * Level 1 commodities
   lvl1Char,
@@ -24,7 +25,8 @@ module Penny.Copper.Commodity (
   lvl2Cmdty,
   
   -- * Level 3 commodities
-  lvl3Chars,
+  lvl3FirstChar,
+  lvl3OtherChars,
   lvl3Cmdty,
   
   -- * Helpers when parsing from a file
@@ -42,7 +44,7 @@ import Control.Monad (guard)
 import qualified Data.Char as C
 import Data.Text ( pack, Text, cons, snoc, singleton )
 import Text.Parsec ( satisfy, many, char, sepBy1, many1, (<?>),
-                     between, option )
+                     between, option, sepBy )
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Lincoln.Bits as B
@@ -114,20 +116,32 @@ lvl2Cmdty = f <$> firstSub <*> restSubs <?> e where
              *> sepBy1 lvl2OtherSubCmdty (char ':')
   f s1 sr = B.Commodity (s1 :| sr)
 
-lvl3Chars :: Char -> Bool
-lvl3Chars c = inCat C.UppercaseLetter C.OtherLetter c
-              || inCat C.MathSymbol C.CurrencySymbol c
+lvl3OtherChars :: Char -> Bool
+lvl3OtherChars c = inCat C.UppercaseLetter C.OtherLetter c
+                   || inCat C.MathSymbol C.CurrencySymbol c
 
-lvl3SubCmdty :: Parser B.SubCommodity
-lvl3SubCmdty = f <$> ls <?> e where 
+lvl3FirstChar :: Char -> Bool
+lvl3FirstChar c = lvl3OtherChars c && (not $ c `elem` "+-")
+
+lvl3FirstSubCmdty :: Parser B.SubCommodity
+lvl3FirstSubCmdty = f <$> c <*> cs <?> e where
+  e = "first sub commodity, letters and symbols only, "
+      ++ "first character not a + or -"
+  f c1 cr = B.SubCommodity (TextNonEmpty c1 (pack cr))
+  c = satisfy lvl3FirstChar
+  cs = many (satisfy lvl3OtherChars)
+
+lvl3OtherSubCmdty :: Parser B.SubCommodity
+lvl3OtherSubCmdty = f <$> ls <?> e where 
   e = "sub commodity, letters and symbols only"
   f = B.SubCommodity . unsafeTextNonEmpty
-  ls = many1 (satisfy lvl3Chars)
+  ls = many1 (satisfy lvl3OtherChars)
 
 lvl3Cmdty :: Parser B.Commodity
-lvl3Cmdty = f <$> ls <?> e where
-  f = B.Commodity . fromList
-  ls = sepBy1 lvl3SubCmdty (char ':')
+lvl3Cmdty = f <$> p1 <*> pr <?> e where
+  f cf cs = B.Commodity (cf :| cs)
+  p1 = lvl3FirstSubCmdty
+  pr = sepBy lvl3OtherSubCmdty (char ':')
   e = "commodity, letters and symbols only"
 
 -- | A commodity being read in from the command line, where the
@@ -170,5 +184,6 @@ renderLvl2 (B.Commodity c) = do
 -- letter or a symbol.
 renderLvl3 :: B.Commodity -> Maybe Text
 renderLvl3 (B.Commodity c) = do
-  guard $ listIsOK lvl3Chars c
+  guard $ listIsOK lvl3OtherChars c
+  guard $ firstCharOfListIsOK lvl3FirstChar c
   return $ HT.text (HT.Delimited (singleton ':') (HT.textList c))
