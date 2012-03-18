@@ -54,6 +54,19 @@ newtype RPricePointData = RPricePointData PricePointData
 instance Arbitrary RPricePointData where
   arbitrary = RPricePointData <$> genRPricePointData
 
+newtype RandomPricePointData = RandomPricePointData PricePointData
+                               deriving (Eq, Show)
+
+instance Arbitrary RandomPricePointData where
+  arbitrary =
+    RandomPricePointData
+    <$> (PricePointData
+         <$> arbitrary
+         <*> (B.From <$> arbitrary)
+         <*> (B.To <$> arbitrary)
+         <*> (B.CountPerUnit <$> arbitrary)
+         <*> arbitrary )
+
 -- | Generates a DefaultTimeZone and a DateTime. Some of the time zones
 -- for the DateTime will be the same as the DefaultTimeZone given; in
 -- addition, some will also be at midnight for the given time zone.
@@ -65,6 +78,65 @@ genDTZandDT = oneof [random, sameZone, sameZoneMidnight] where
   sameZoneMidnight =
     (\(TDT.SameZoneMidnight dtz dt) -> (dtz, dt))
     <$> arbitrary
+
+-- | Random, unrenderable PricePointData makes a valid Price.
+prop_randomIsValid :: RandomPricePointData -> Bool
+prop_randomIsValid (RandomPricePointData ppd) =
+  maybe False (const True) $
+  B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
+
+test_randomIsValid :: Test
+test_randomIsValid = testProperty s prop_randomIsValid where
+  s = "random unrenderable PricePointData is valid Price"
+
+-- | Renderable PricePointData makes a valid Price.
+prop_renderableIsValid :: RPricePointData -> Bool
+prop_renderableIsValid (RPricePointData ppd) =
+  maybe False (const True) $
+  B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
+
+test_renderableIsValid :: Test
+test_renderableIsValid = testProperty s prop_renderableIsValid where
+  s = "renderable PricePointData is valid Price"
+
+-- | Renderable PricePointData is renderable
+prop_isRenderable ::
+  RPricePointData
+  -> (Q.GroupingSpec, Q.GroupingSpec)
+  -> Q.RadGroup
+  -> M.Format
+  -> Bool
+prop_isRenderable (RPricePointData ppd) (gl, gr) rg fmt =
+  fromMaybe False $ do
+    p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
+    let pp = B.PricePoint (dateTime ppd) p
+    _ <- P.render (defaultTimeZone ppd) gl gr rg fmt pp
+    return True
+
+test_isRenderable :: Test
+test_isRenderable = testProperty s prop_isRenderable where
+  s = "renderable PricePoint data is indeed renderable"
+
+-- | Renderable PricePoint parses without error
+prop_renderableParses ::
+  RPricePointData
+  -> (Q.GroupingSpec, Q.GroupingSpec)
+  -> Q.RadGroup
+  -> M.Format
+  -> Bool
+prop_renderableParses (RPricePointData ppd) (gl, gr) rg fmt =
+  fromMaybe False $ do
+    p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
+    let pp = B.PricePoint (dateTime ppd) p
+    txt <- P.render (defaultTimeZone ppd) gl gr rg fmt pp
+    let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
+    case Parsec.parse parser "" txt of
+      Left e -> error $ "parse error: " ++ show e ++ "rendered: " ++ show txt
+      Right _ -> return True
+
+test_renderableParses :: Test
+test_renderableParses = testProperty s prop_renderableParses where
+  s = "A renderable PricePoint parses without error"
 
 -- | Parsing a renderable PricePoint should give the same thing.
 prop_parseRPricePoint ::
@@ -90,4 +162,8 @@ test_parseRPricePoint = testProperty s prop_parseRPricePoint where
 
 tests :: Test
 tests = testGroup "Price"
-        [ test_parseRPricePoint ]
+        [ test_randomIsValid
+          , test_renderableIsValid
+          , test_isRenderable
+          , test_renderableParses
+          , test_parseRPricePoint ]

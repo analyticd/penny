@@ -87,7 +87,7 @@ render dtz gl gr rg fmt pp = let
   (B.From from) = B.from . B.price $ pp
   (B.To to) = B.to . B.price $ pp
   (B.CountPerUnit q) = B.countPerUnit . B.price $ pp
-  mayFromTxt = C.renderLvl2 from <|> C.renderQuotedLvl1 from
+  mayFromTxt = C.renderLvl3 from <|> C.renderQuotedLvl1 from
   amt = B.Amount q to
   mayAmtTxt = A.render gl gr rg fmt amt
   in do
