@@ -10,6 +10,8 @@ import qualified PennyTest.Copper.DateTime as DT
 import qualified PennyTest.Copper.Entry as Entry
 import qualified PennyTest.Copper.Flag as Flag
 import qualified PennyTest.Copper.Number as Number
+import qualified PennyTest.Copper.Payees as Payees
+import qualified PennyTest.Copper.Price as Price
 import qualified PennyTest.Copper.Qty as Q
 
 tests :: TF.Test
@@ -23,5 +25,7 @@ tests = TF.testGroup "Copper"
         , Entry.tests
         , Flag.tests
         , Number.tests
+        , Payees.tests
+        , Price.tests
         , Q.tests
         ]

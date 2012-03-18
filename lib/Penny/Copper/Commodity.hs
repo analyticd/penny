@@ -172,4 +172,3 @@ renderLvl3 :: B.Commodity -> Maybe Text
 renderLvl3 (B.Commodity c) = do
   guard $ listIsOK lvl3Chars c
   return $ HT.text (HT.Delimited (singleton ':') (HT.textList c))
-

@@ -1,10 +1,12 @@
-module Penny.Copper.Price where
+module Penny.Copper.Price (price, render) where
 
 import Text.Parsec ( char, getPosition, sourceLine, (<?>),
                      SourcePos )
 import Text.Parsec.Text ( Parser )
 
 import Control.Applicative ((<*>), (<*), (<|>), (<$))
+import Data.Text (singleton, snoc, intercalate)
+import qualified Data.Text as X
 
 import qualified Penny.Lincoln.Boxes as Box
 import qualified Penny.Lincoln.Bits as B
@@ -51,8 +53,11 @@ maybePrice dtz rg =
   <* eol
   <?> "price"
   
--- | A price with an EOL and whitespace after the EOL. Fails if the
--- price is not valid (e.g. the from and to commodities are the same).
+-- | A price with an EOL and whitespace after the EOL. @price d r@
+-- will parse a PriceBox, where @d@ is the DefaultTimeZone for the
+-- DateTime in the PricePoint, and @r@ is the radix point and grouping
+-- character to parse the Amount. Fails if the price is not valid
+-- (e.g. the from and to commodities are the same).
 price ::
   DT.DefaultTimeZone
   -> Q.RadGroup
@@ -62,3 +67,34 @@ price dtz rg = do
   case b of
     Nothing -> fail "invalid price given"
     Just p -> return p
+
+-- | @render dtz rg f pp@ renders a price point @pp@. @dtz@ is the
+-- DefaultTimeZone for rendering of the DateTime in the Price
+-- Point. @rg@ is the radix point and grouping character for the
+-- amount. @f@ is the Format for how the price will be
+-- formatted. Fails if either the From or the To commodity cannot be
+-- rendered.
+render ::
+  DT.DefaultTimeZone
+  -> Q.GroupingSpec -- ^ Grouping to the left of the radix point
+  -> Q.GroupingSpec -- ^ Grouping to the right of the radix point
+  -> Q.RadGroup
+  -> M.Format
+  -> B.PricePoint
+  -> Maybe X.Text
+render dtz gl gr rg fmt pp = let
+  dateTxt = DT.render dtz (B.dateTime pp)
+  (B.From from) = B.from . B.price $ pp
+  (B.To to) = B.to . B.price $ pp
+  (B.CountPerUnit q) = B.countPerUnit . B.price $ pp
+  mayFromTxt = C.renderLvl2 from <|> C.renderQuotedLvl1 from
+  amt = B.Amount q to
+  mayAmtTxt = A.render gl gr rg fmt amt
+  in do
+    amtTxt <- mayAmtTxt
+    fromTxt <- mayFromTxt
+    return $
+       (intercalate (singleton ' ')
+       [singleton '@', dateTxt, fromTxt, amtTxt])
+       `snoc` '\n'
+            

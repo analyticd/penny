@@ -49,6 +49,8 @@ Library
     PennyTest.Copper.Entry,
     PennyTest.Copper.Flag,
     PennyTest.Copper.Number,
+    PennyTest.Copper.Payees,
+    PennyTest.Copper.Price,
     PennyTest.Copper.Qty,
     PennyTest.Copper.Util,
     PennyTest.Lincoln,

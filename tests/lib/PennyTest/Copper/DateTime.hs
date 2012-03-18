@@ -1,4 +1,8 @@
-module PennyTest.Copper.DateTime (tests) where
+module PennyTest.Copper.DateTime (
+  SameTimeZone(SameTimeZone)
+  , SameZoneMidnight (SameZoneMidnight)
+  , tests
+  ) where
 
 import Control.Applicative ((<$>), (<*))
 import qualified Data.Time as T

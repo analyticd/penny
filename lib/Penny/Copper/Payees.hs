@@ -7,8 +7,11 @@
 -- first character must be a letter or number.
 
 module Penny.Copper.Payees (
+  -- * Parse any payee
+  payee
+  
   -- * Quoted payees
-  quotedChar
+  , quotedChar
   , quotedPayee
     
     -- * Unquoted payees
@@ -17,24 +20,32 @@ module Penny.Copper.Payees (
   , unquotedPayee
     
     -- * Rendering
-  , render
+  , smartRender
+  , quoteRender
   ) where
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>), (<*>), (<|>))
 import qualified Data.Char as C
-import Data.Text (pack, Text)
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.Text (pack, Text, snoc, cons)
+import qualified Data.Text as X
 import Text.Parsec (char, satisfy, many, between, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat)
+import Penny.Copper.Util (inCat, checkText)
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
+import Penny.Lincoln.TextNonEmpty as TNE
 
 quotedChar :: Char -> Bool
 quotedChar c = allowed && not banned where
   allowed = inCat C.UppercaseLetter C.OtherSymbol c ||
             c == ' '
   banned = c == '>'
+
+payee :: Parser B.Payee
+payee = quotedPayee <|> unquotedPayee
 
 quotedPayee :: Parser B.Payee
 quotedPayee = between (char '<') (char '>') p <?> "quoted payee" where
@@ -59,5 +70,24 @@ unquotedPayee = let
 
 -- | Render a payee with a minimum of quoting. Fails if cannot be
 -- rendered at all.
-render :: B.Payee -> Maybe Text
-render = undefined
+smartRender :: B.Payee -> Maybe Text
+smartRender (B.Payee p) = let
+  TextNonEmpty first rest = p
+  noQuoteNeeded = unquotedFirstChar first
+                  && X.all unquotedRestChars rest
+  renderable = TNE.all quotedChar p
+  quoted = '<' `cons` TNE.toText p `snoc` '>'
+  makeText
+    | noQuoteNeeded = Just $ TNE.toText p
+    | renderable = Just quoted
+    | otherwise = Nothing
+  in makeText
+
+-- | Renders with quotes, whether the payee needs it or not.
+quoteRender :: B.Payee -> Maybe Text
+quoteRender (B.Payee p) = let
+  renderable = TNE.all quotedChar p
+  quoted = '<' `cons` TNE.toText p `snoc` '>'
+  in if renderable
+     then Just quoted
+     else Nothing
