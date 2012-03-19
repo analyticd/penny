@@ -20,18 +20,21 @@ memo = B.Memo <$> many memoLine
 
 memoLine :: Parser B.MemoLine
 memoLine = (\c cs -> B.MemoLine $ TNE.TextNonEmpty c (X.pack cs))
-           <$ many (char ' ')
-           <* char '\''
+           <$ char '\''
            <*> satisfy isCommentChar
            <*> many (satisfy isCommentChar)
            <* eol
            <?> "posting memo"
 
 render :: B.Memo -> Maybe X.Text
-render (B.Memo ls) = X.concat `fmap` mapM renderLine ls 
+render (B.Memo ls) = X.concat <$> mapM renderLine ls 
 
 renderLine :: B.MemoLine -> Maybe X.Text
 renderLine (B.MemoLine l) =
   if TNE.all isCommentChar l
-  then Just $ X.pack "    '" `X.append` TNE.toText l `X.snoc` '\n'
+  then Just $
+       X.pack (replicate 8 ' ')
+       `X.snoc` '\''
+       `X.append` TNE.toText l
+       `X.snoc` '\n'
   else Nothing
