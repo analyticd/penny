@@ -1,4 +1,4 @@
-module PennyTest.Copper.Price (tests) where
+module PennyTest.Copper.Price (tests, genDTZandDT) where
 
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Price as P

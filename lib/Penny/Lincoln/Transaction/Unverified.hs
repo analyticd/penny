@@ -8,7 +8,7 @@ data TopLine = TopLine
                  (Maybe B.Number)
                  (Maybe B.Payee)
                  B.Memo
-                 deriving Show
+                 deriving (Eq, Show)
 
 data Posting = Posting
                  (Maybe B.Payee)
@@ -18,7 +18,7 @@ data Posting = Posting
                  B.Tags
                  (Maybe B.Entry)
                  B.Memo
-                 deriving Show
+                 deriving (Eq, Show)
 
 entry :: Posting -> Maybe B.Entry
 entry (Posting _ _ _ _ _ e _) = e

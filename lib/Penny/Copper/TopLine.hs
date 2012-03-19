@@ -52,11 +52,11 @@ renMaybe mx f = case mx of
 render :: DT.DefaultTimeZone -> U.TopLine -> Maybe X.Text
 render dtz (U.TopLine dt fl nu pa me) =
   f
-  <$> pure (space (DT.render dtz dt))
+  <$> M.render me
+  <*> pure (space (DT.render dtz dt))
   <*> (space <$> renMaybe fl F.render)
   <*> (space <$> renMaybe nu N.render)
   <*> renMaybe pa P.smartRender
-  <*> M.render me
   where
     f meX dtX flX nuX paX =
       X.concat [meX, dtX, flX, nuX, paX] `X.snoc` '\n'
