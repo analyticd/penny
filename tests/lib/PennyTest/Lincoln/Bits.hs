@@ -58,8 +58,13 @@ instance Q.Arbitrary DT.TimeZone where
 instance Q.Arbitrary DT.ZonedTime where
   arbitrary = DT.ZonedTime <$> arbitrary <*> arbitrary
 
+instance Q.Arbitrary B.TimeZoneOffset where
+  arbitrary = B.TimeZoneOffset <$> arbitrary
+
 instance Q.Arbitrary B.DateTime where
-  arbitrary = B.DateTime <$> arbitrary
+  arbitrary = B.DateTime
+              <$> arbitrary
+              <*> arbitrary
 
 instance Arbitrary B.DrCr where
   arbitrary = Q.oneof [pure B.Debit, pure B.Credit]

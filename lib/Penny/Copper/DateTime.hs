@@ -6,7 +6,7 @@ module Penny.Copper.DateTime (
 
 import Control.Applicative ((<$>), optional)
 import qualified Data.Text as X
-import Data.Time (fromGregorianValid, TimeZone)
+import Data.Time (fromGregorianValid)
 import Data.Maybe (fromMaybe)
 import qualified Data.Time as T
 import Text.Parsec (char, digit, (<|>), (<?>))
@@ -19,7 +19,7 @@ import Penny.Copper.Util (spaces)
 import qualified Penny.Lincoln.Bits as B
 
 newtype DefaultTimeZone =
-  DefaultTimeZone { unDefaultTimeZone :: TimeZone }
+  DefaultTimeZone { unDefaultTimeZone :: B.TimeZoneOffset }
   deriving (Eq, Show)
 
 date :: Parser T.Day
@@ -64,18 +64,16 @@ timeOfDay = do
   let s = fromMaybe (fromIntegral (0 :: Int)) maybeS
   return $ T.TimeOfDay h m s
 
-timeZone :: Parser T.TimeZone
-timeZone = do
+timeZoneOffset :: Parser B.TimeZoneOffset
+timeZoneOffset = do
   changeSign <-
     (char '+' >> return id)
     <|> (char '-' >> return (negate :: Int -> Int))
     <?> "time zone sign"
   h <- read <$> replicateM 2 digit
-  when (h > 23) $ fail "invalid time zone hours"
   m <- read <$> replicateM 2 digit
-  when (m > 59) $ fail "invalid time zone minutes"
   let mi = h * 60 + m
-  return $ T.minutesToTimeZone (changeSign mi)
+  return $ B.TimeZoneOffset (changeSign mi)
 
 dateTime :: DefaultTimeZone -> Parser B.DateTime
 dateTime (DefaultTimeZone dtz) = do
@@ -83,10 +81,10 @@ dateTime (DefaultTimeZone dtz) = do
   spaces
   mayTod <- optional timeOfDay
   spaces
-  mayTz <- optional timeZone
+  mayTz <- optional timeZoneOffset
   let tod = fromMaybe T.midnight mayTod
       tz = fromMaybe dtz mayTz
-  return (B.DateTime (T.ZonedTime (T.LocalTime d tod) tz))
+  return (B.DateTime (T.LocalTime d tod) tz)
 
 -- | Render a DateTime. If the DateTime is in the given
 -- DefaultTimeZone, and the DateTime is midnight, then the time and
@@ -94,14 +92,14 @@ dateTime (DefaultTimeZone dtz) = do
 -- will both be printed. The test for time zone equality depends only
 -- upon the time zone's offset from UTC.
 render :: DefaultTimeZone -> B.DateTime -> X.Text
-render (DefaultTimeZone dtz) (B.DateTime zt) = let
+render (DefaultTimeZone dtz) (B.DateTime lt off) = let
   fmtLong = "%F %T %z"
   fmtShort = "%F"
-  sameZone = T.timeZoneMinutes dtz
-             == T.timeZoneMinutes (T.zonedTimeZone zt)
-  local = T.localTimeOfDay . T.zonedTimeToLocalTime $ zt
+  sameZone = dtz == off
+  local = T.localTimeOfDay lt
   isMidnight = local == T.midnight
   fmt = if sameZone && isMidnight
         then fmtShort
         else fmtLong
+  zt = T.ZonedTime lt (T.minutesToTimeZone (B.unTimeZoneOffset off))
   in X.pack $ T.formatTime defaultTimeLocale fmt zt

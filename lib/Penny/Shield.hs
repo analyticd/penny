@@ -27,11 +27,11 @@ module Penny.Shield (
   where
 
 import Control.Applicative ((<$>), (<*>))
-import Data.Time (getZonedTime)
+import qualified Data.Time as T
 import System.Environment (getEnvironment)
 import System.IO (hIsTerminalDevice, stdout)
 
-import Penny.Lincoln.Bits (DateTime(DateTime))
+import qualified Penny.Lincoln.Bits as B
 
 data ScreenLines = ScreenLines { unScreenLines :: Int }
                  deriving Show
@@ -45,13 +45,17 @@ newtype Term = Term { unTerm :: String } deriving Show
 
 -- | Information about the runtime environment.
 data Runtime = Runtime { environment :: [(String, String)]
-                       , currentTime :: DateTime
+                       , currentTime :: B.DateTime
                        , output :: Output }
+
+zonedToDateTime :: T.ZonedTime -> B.DateTime
+zonedToDateTime (T.ZonedTime lt tz) = B.DateTime lt off where
+  off = B.TimeZoneOffset $ T.timeZoneMinutes tz
 
 runtime :: IO Runtime
 runtime = Runtime
           <$> getEnvironment
-          <*> (DateTime <$> getZonedTime)
+          <*> (zonedToDateTime <$> T.getZonedTime)
           <*> findOutput
 
 findOutput :: IO Output

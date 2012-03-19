@@ -3,7 +3,7 @@ module PennyTest.Pretty where
 import Control.Applicative (pure, (<*>))
 import Data.Foldable (toList)
 import Data.Text (unpack)
-import Data.Time (formatTime)
+import Data.Time (formatTime, minutesToTimeZone, ZonedTime(ZonedTime))
 import System.Locale (defaultTimeLocale)
 import Text.Parsec.Error (ParseError)
 import Text.PrettyPrint (
@@ -66,12 +66,14 @@ instance Pretty B.Amount where
 
 
 instance Pretty B.DateTime where
-  pretty (B.DateTime t) =
+  pretty (B.DateTime lt (B.TimeZoneOffset off)) =
     text
     . formatTime defaultTimeLocale fmt
-    $ t
+    $ zt
     where
       fmt = "%F %T %z"
+      tz = minutesToTimeZone off
+      zt = ZonedTime lt tz
                           
 instance Pretty B.DrCr where
   pretty B.Debit = text "Dr"

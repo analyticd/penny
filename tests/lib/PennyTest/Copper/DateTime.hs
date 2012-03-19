@@ -25,10 +25,11 @@ data SameTimeZone =
 
 instance Arbitrary SameTimeZone where
   arbitrary = do
-    tz <- arbitrary
+    offset <- arbitrary
     lt <- arbitrary
-    let zt = T.ZonedTime lt tz
-    return $ SameTimeZone (DT.DefaultTimeZone tz) (B.DateTime zt)
+    let dtz = DT.DefaultTimeZone offset
+        dt = B.DateTime lt offset
+    return $ SameTimeZone dtz dt
 
 instance Arbitrary DT.DefaultTimeZone where
   arbitrary = DT.DefaultTimeZone <$> arbitrary
@@ -40,29 +41,21 @@ data SameZoneMidnight =
 
 instance Arbitrary SameZoneMidnight where
   arbitrary = do
-    tz <- arbitrary
+    offset <- arbitrary
     day <- arbitrary
-    let zt = T.ZonedTime (T.LocalTime day T.midnight) tz
-    return $ SameZoneMidnight
-      (DT.DefaultTimeZone tz) (B.DateTime zt)
-
--- | Tests ZonedTimes to see if they are equivalent. Only examines the
--- LocalTime and the timeZoneMinutes of the TimeZone; ignores other
--- aspects of the time zone.
-sameTimeZone :: T.TimeZone -> T.TimeZone -> Bool
-sameTimeZone t1 t2 =
-  T.timeZoneMinutes t1 == T.timeZoneMinutes t2
+    let dtz = DT.DefaultTimeZone offset
+        lt = T.LocalTime day T.midnight
+        dt = B.DateTime lt offset
+    return $ SameZoneMidnight dtz dt
 
 -- | Parsing a random rendered DateTime should yield the same thing.
 prop_parseRendered :: DT.DefaultTimeZone -> B.DateTime -> Bool
-prop_parseRendered dtz dt@(B.DateTime zt) =
+prop_parseRendered dtz dt =
   let r = DT.render dtz dt
       p = P.parse (DT.dateTime dtz <* P.eof) "" r
   in case p of
     Left _ -> False
-    Right (B.DateTime zt') ->
-      (T.zonedTimeToLocalTime zt == T.zonedTimeToLocalTime zt')
-      && sameTimeZone (T.zonedTimeZone zt) (T.zonedTimeZone zt')
+    Right dt' -> dt == dt'
 
 test_parseRendered :: Test
 test_parseRendered = testProperty s prop_parseRendered where
@@ -71,14 +64,12 @@ test_parseRendered = testProperty s prop_parseRendered where
 -- | Parsing a rendered DateTime where the time zone is the same as
 -- the DefaultTimeZone should yield the same thing.
 prop_parseSameTimeZone :: SameTimeZone -> Bool
-prop_parseSameTimeZone (SameTimeZone dtz dt@(B.DateTime zt)) = let
+prop_parseSameTimeZone (SameTimeZone dtz dt) = let
   r = DT.render dtz dt
   p = P.parse (DT.dateTime dtz <* P.eof) "" r
   in case p of
     Left _ -> False
-    Right (B.DateTime zt') ->
-      (T.zonedTimeToLocalTime zt == T.zonedTimeToLocalTime zt')
-      && sameTimeZone (T.zonedTimeZone zt) (T.zonedTimeZone zt')
+    Right dt' -> dt == dt'
 
 test_parseSameTimeZone :: Test
 test_parseSameTimeZone = testProperty s prop_parseSameTimeZone where
@@ -106,13 +97,12 @@ test_midnightParses =
 -- local time.
 prop_parseMidnightLocalTime :: SameZoneMidnight -> Bool
 prop_parseMidnightLocalTime szm = let
-  (SameZoneMidnight dtz dt@(B.DateTime zt)) = szm
+  (SameZoneMidnight dtz dt) = szm
   r = DT.render dtz dt
   p = P.parse (DT.dateTime dtz <* P.eof) "" r
   in case p of
     Left _ -> False
-    Right (B.DateTime zt') ->
-      (T.zonedTimeToLocalTime zt == T.zonedTimeToLocalTime zt')
+    Right dt' -> dt == dt'
 
 test_parseMidnightLocalTime :: Test
 test_parseMidnightLocalTime =
@@ -123,14 +113,12 @@ test_parseMidnightLocalTime =
 -- the DefaultTimeZone and the time is midnight should yield the same
 -- thing.
 prop_parseMidnight :: SameZoneMidnight -> Bool
-prop_parseMidnight (SameZoneMidnight dtz dt@(B.DateTime zt)) = let
+prop_parseMidnight (SameZoneMidnight dtz dt) = let
   r = DT.render dtz dt
   p = P.parse (DT.dateTime dtz <* P.eof) "" r
   in case p of
     Left _ -> False
-    Right (B.DateTime zt') ->
-      (T.zonedTimeToLocalTime zt == T.zonedTimeToLocalTime zt')
-      && sameTimeZone (T.zonedTimeZone zt) (T.zonedTimeZone zt')
+    Right dt' -> dt == dt'
 
 test_parseMidnight :: Test
 test_parseMidnight = testProperty s prop_parseMidnight where
