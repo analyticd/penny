@@ -26,16 +26,13 @@ module Penny.Copper.Payees (
 
 import Control.Applicative ((<$>), (<*>), (<|>))
 import qualified Data.Char as C
-import qualified Data.List.NonEmpty as NE
-import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Text (pack, Text, snoc, cons)
 import qualified Data.Text as X
 import Text.Parsec (char, satisfy, many, between, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat, checkText)
+import Penny.Copper.Util (inCat)
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 import Penny.Lincoln.TextNonEmpty as TNE
 
 quotedChar :: Char -> Bool
@@ -72,9 +69,9 @@ unquotedPayee = let
 -- rendered at all.
 smartRender :: B.Payee -> Maybe Text
 smartRender (B.Payee p) = let
-  TextNonEmpty first rest = p
-  noQuoteNeeded = unquotedFirstChar first
-                  && X.all unquotedRestChars rest
+  TextNonEmpty f r = p
+  noQuoteNeeded = unquotedFirstChar f
+                  && X.all unquotedRestChars r
   renderable = TNE.all quotedChar p
   quoted = '<' `cons` TNE.toText p `snoc` '>'
   makeText

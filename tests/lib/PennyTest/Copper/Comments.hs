@@ -5,10 +5,9 @@ import qualified Data.Text as X
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import qualified Text.Parsec as P
 import Test.Framework (Test, testGroup)
-import Test.QuickCheck (
-  Arbitrary, arbitrary, suchThat, Gen,
-  frequency, listOf, listOf1, sized, resize, oneof,
-  vectorOf)
+import Test.QuickCheck (Arbitrary, arbitrary, suchThat,
+                        Gen, listOf)
+
 
 import qualified Penny.Copper.Comments as C
 
