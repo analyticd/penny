@@ -14,7 +14,8 @@ module Penny.Lincoln.Bits (
 
   -- * DateTime
   DT.DateTime(DateTime, localTime, timeZone),
-  DT.TimeZoneOffset(TimeZoneOffset, unTimeZoneOffset),
+  DT.TimeZoneOffset,
+  DT.minsToOffset, DT.offsetToMins, DT.noOffset,
 
   -- * Debits and Credits
   DC.DrCr(Debit, Credit),

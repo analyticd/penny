@@ -3,20 +3,13 @@ module PennyTest.Copper.Util where
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
 
-import qualified Penny.Copper.Commodity as C
-import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 -- Import orphan instances of Arbitrary
 import PennyTest.Lincoln.Bits ()
 
-import Control.Applicative ((<$>), (<*>), (<$), (<*),
-                            (*>))
+import Control.Applicative ((<$>), (<*>))
 import qualified Data.Text as X
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import qualified Text.Parsec as P
-import Test.Framework (Test, testGroup)
-import Test.QuickCheck (Arbitrary, arbitrary, elements, suchThat,
-                        listOf, Gen)
+import Test.QuickCheck (listOf, Gen)
 
 
 wrapTextNonEmptyList ::

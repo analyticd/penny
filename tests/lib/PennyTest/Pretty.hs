@@ -66,13 +66,13 @@ instance Pretty B.Amount where
 
 
 instance Pretty B.DateTime where
-  pretty (B.DateTime lt (B.TimeZoneOffset off)) =
+  pretty (B.DateTime lt off) =
     text
     . formatTime defaultTimeLocale fmt
     $ zt
     where
       fmt = "%F %T %z"
-      tz = minutesToTimeZone off
+      tz = minutesToTimeZone . B.offsetToMins $ off
       zt = ZonedTime lt tz
                           
 instance Pretty B.DrCr where

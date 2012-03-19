@@ -9,13 +9,12 @@ import PennyTest.Lincoln.Bits ()
 import PennyTest.Lincoln.Meta ()
 import PennyTest.Copper.Commodity (genRCmdty)
 import PennyTest.Copper.Qty ()
-import PennyTest.Copper.Util (wrapTextNonEmptyList)
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import qualified Text.Parsec as P
 import Test.Framework (Test, testGroup)
-import Test.QuickCheck (Arbitrary, arbitrary, suchThat, Gen)
+import Test.QuickCheck (Arbitrary, arbitrary, Gen)
 
 -- | Generates renderable amounts. The commodities are distributed
 -- evenly between Level 1, Level 2, and Level 3 commodities.

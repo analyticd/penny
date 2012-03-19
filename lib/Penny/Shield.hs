@@ -50,7 +50,8 @@ data Runtime = Runtime { environment :: [(String, String)]
 
 zonedToDateTime :: T.ZonedTime -> B.DateTime
 zonedToDateTime (T.ZonedTime lt tz) = B.DateTime lt off where
-  off = B.TimeZoneOffset $ T.timeZoneMinutes tz
+  off = maybe (error "could not convert time to local time")
+        id (B.minsToOffset (T.timeZoneMinutes tz))
 
 runtime :: IO Runtime
 runtime = Runtime

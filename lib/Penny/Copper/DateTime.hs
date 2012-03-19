@@ -73,7 +73,8 @@ timeZoneOffset = do
   h <- read <$> replicateM 2 digit
   m <- read <$> replicateM 2 digit
   let mi = h * 60 + m
-  return $ B.TimeZoneOffset (changeSign mi)
+  maybe (fail "invalid time zone offset") return
+    $ B.minsToOffset (changeSign mi)
 
 dateTime :: DefaultTimeZone -> Parser B.DateTime
 dateTime (DefaultTimeZone dtz) = do
@@ -101,5 +102,5 @@ render (DefaultTimeZone dtz) (B.DateTime lt off) = let
   fmt = if sameZone && isMidnight
         then fmtShort
         else fmtLong
-  zt = T.ZonedTime lt (T.minutesToTimeZone (B.unTimeZoneOffset off))
+  zt = T.ZonedTime lt (T.minutesToTimeZone (B.offsetToMins off))
   in X.pack $ T.formatTime defaultTimeLocale fmt zt

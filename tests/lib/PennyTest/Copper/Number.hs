@@ -1,26 +1,19 @@
 module PennyTest.Copper.Number where
 
-import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Number as N
 import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Lincoln.TextNonEmpty as TNE
-import qualified Penny.Copper.Entry as E
-import qualified Penny.Copper.Qty as Q
-import qualified Penny.Lincoln.Meta as M
 
 -- Import orphan instances of Arbitrary
 import PennyTest.Lincoln.Bits ()
 import PennyTest.Lincoln.Meta ()
-import PennyTest.Copper.Commodity (genRCmdty)
 import PennyTest.Copper.Qty ()
-import PennyTest.Copper.Util (wrapTextNonEmptyList, genTextNonEmpty)
+import PennyTest.Copper.Util (genTextNonEmpty)
 
-import Control.Applicative ((<$>), (<*), (<*>))
-import Data.Text (pack)
+import Control.Applicative ((<$>), (<*))
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import qualified Text.Parsec as P
 import Test.Framework (Test, testGroup)
-import Test.QuickCheck (Arbitrary, arbitrary, suchThat, Gen, listOf)
+import Test.QuickCheck (Arbitrary, arbitrary, suchThat, Gen)
 
 -- | Generate renderable Numbers.
 genRNumber :: Gen B.Number

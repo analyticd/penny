@@ -12,7 +12,7 @@ import PennyTest.Pretty
 
 main :: IO ()
 main = do
-  let dtz = DefaultTimeZone (TimeZoneOffset 0)
+  let dtz = DefaultTimeZone noOffset
   (a:[]) <- getArgs
   f <- TIO.readFile a
   let rg = periodComma

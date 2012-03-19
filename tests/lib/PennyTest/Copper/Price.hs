@@ -1,12 +1,9 @@
 module PennyTest.Copper.Price (tests) where
 
-import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Price as P
 import qualified Penny.Lincoln.Boxes as Boxes
 import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Lincoln.TextNonEmpty as TNE
-import qualified Penny.Copper.Entry as E
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Lincoln.Meta as M
 
@@ -16,16 +13,13 @@ import PennyTest.Lincoln.Meta ()
 import PennyTest.Copper.Commodity (genRCmdty)
 import qualified PennyTest.Copper.DateTime as TDT
 import PennyTest.Copper.Qty ()
-import PennyTest.Copper.Util (wrapTextNonEmptyList, genTextNonEmpty)
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Data.Maybe (fromMaybe)
-import Data.Text (pack)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import qualified Text.Parsec as Parsec
 import Test.Framework (Test, testGroup)
-import Test.QuickCheck (Arbitrary, arbitrary, suchThat, Gen, listOf,
-                        oneof)
+import Test.QuickCheck (Arbitrary, arbitrary, suchThat, Gen, oneof)
 
 data PricePointData =
   PricePointData { dateTime :: B.DateTime
@@ -43,10 +37,10 @@ data PricePointData =
 genRPricePointData :: Gen PricePointData
 genRPricePointData = do
   (dtz, dt) <- genDTZandDT
-  from <- B.From <$> genRCmdty
-  to <- B.To <$> suchThat genRCmdty (/= (B.unFrom from))
+  fr <- B.From <$> genRCmdty
+  t <- B.To <$> suchThat genRCmdty (/= (B.unFrom fr))
   cpu <- B.CountPerUnit <$> arbitrary
-  return $ PricePointData dt from to cpu dtz
+  return $ PricePointData dt fr t cpu dtz
 
 newtype RPricePointData = RPricePointData PricePointData
                           deriving (Eq, Show)
@@ -153,8 +147,6 @@ prop_parseRPricePoint (RPricePointData ppd) (gl, gr) rg fmt =
     txt <- P.render (defaultTimeZone ppd) gl gr rg fmt pp
     let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
     box <- either (const Nothing) Just $ Parsec.parse parser "" txt
-    priceMeta <- Boxes.priceMeta box
-    fmt' <- M.priceFormat priceMeta
     if Boxes.price box /= pp
        then error $ "\nparsed price point differs. Input: "
             ++ show pp
@@ -186,9 +178,9 @@ prop_parseRPricePointMeta (RPricePointData ppd) (gl, gr) rg fmt =
     return $ fmt' == fmt && Boxes.price box == pp
 
 test_parseRPricePointMeta :: Test
-test_parseRPricePointMeta = testProperty s prop_parseRPricePointMeta where
-  s = "Parsing a renderable PricePoint should give the same price "
-      ++ "and metadata"
+test_parseRPricePointMeta =
+  testProperty s prop_parseRPricePointMeta where
+    s = "Parsing renderable PricePoint gives same price and metadata"
 
 tests :: Test
 tests = testGroup "Price"

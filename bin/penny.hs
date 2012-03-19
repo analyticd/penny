@@ -9,7 +9,7 @@ import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Zinc as Z
 
 defaultTimeZone :: C.DefaultTimeZone
-defaultTimeZone = C.DefaultTimeZone (B.TimeZoneOffset 0)
+defaultTimeZone = C.DefaultTimeZone B.noOffset
 
 radGroup :: C.RadGroup
 radGroup = C.periodComma

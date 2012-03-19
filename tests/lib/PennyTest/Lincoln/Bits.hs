@@ -59,7 +59,10 @@ instance Q.Arbitrary DT.ZonedTime where
   arbitrary = DT.ZonedTime <$> arbitrary <*> arbitrary
 
 instance Q.Arbitrary B.TimeZoneOffset where
-  arbitrary = B.TimeZoneOffset <$> arbitrary
+  arbitrary = do
+    i <- choose ((-840), 840)
+    maybe (error "arbitrary TimeZoneOffset failed") return
+      $ B.minsToOffset i
 
 instance Q.Arbitrary B.DateTime where
   arbitrary = B.DateTime
