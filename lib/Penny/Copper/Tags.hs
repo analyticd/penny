@@ -1,4 +1,6 @@
-module Penny.Copper.Tags (isTagChar, tags) where
+module Penny.Copper.Tags (
+  isTagChar, tags, render
+  )where
 
 import Control.Applicative ((<$>), (*>), (<*>))
 import qualified Data.Char as C
@@ -31,5 +33,6 @@ renderTag (B.Tag t) =
   else Nothing
 
 render :: B.Tags -> Maybe X.Text
-render (B.Tags ts) = do
-  
+render (B.Tags ts) =
+  X.intercalate (X.singleton ' ')
+  <$> mapM renderTag ts

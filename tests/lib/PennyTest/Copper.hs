@@ -14,6 +14,7 @@ import qualified PennyTest.Copper.Number as Number
 import qualified PennyTest.Copper.Payees as Payees
 import qualified PennyTest.Copper.Price as Price
 import qualified PennyTest.Copper.Qty as Q
+import qualified PennyTest.Copper.Tags as Tags
 
 tests :: TF.Test
 tests = TF.testGroup "Copper"
@@ -30,4 +31,5 @@ tests = TF.testGroup "Copper"
         , Payees.tests
         , Price.tests
         , Q.tests
+        , Tags.tests
         ]

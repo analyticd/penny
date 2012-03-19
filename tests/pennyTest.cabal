@@ -55,6 +55,7 @@ Library
     PennyTest.Copper.Payees,
     PennyTest.Copper.Price,
     PennyTest.Copper.Qty,
+    PennyTest.Copper.Tags,
     PennyTest.Copper.Util,
     PennyTest.Lincoln,
     PennyTest.Lincoln.Balance,
