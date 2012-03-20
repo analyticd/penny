@@ -1,8 +1,11 @@
-module Penny.Copper.Transaction (transaction, render) where
+module Penny.Copper.Transaction (transaction, render,
+                                 boxToUnverifiedWithMeta) where
 
 import Control.Applicative ((<$>), (<*>))
+import Control.Monad (guard)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Foldable (toList)
+import qualified Data.Traversable as Tr
 import qualified Data.Text as X
 import Text.Parsec (many)
 import Text.Parsec.Text ( Parser )
@@ -13,10 +16,11 @@ import Penny.Copper.TopLine ( topLine )
 import qualified Penny.Copper.Posting as Po
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Lincoln.Meta as M
-import Penny.Lincoln.Family (orphans)
+import Penny.Lincoln.Family (orphans, marryWith, adopt)
 import qualified Penny.Lincoln.Family.Family as F
 import Penny.Lincoln.Family.Family ( Family ( Family ) )
 import Penny.Lincoln.Meta (TransactionMeta(TransactionMeta))
+import qualified Penny.Lincoln.Boxes as Boxes
 import Penny.Lincoln.Boxes (transactionBox, TransactionBox)
 import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Transaction.Unverified as U
@@ -66,6 +70,34 @@ transaction fn dtz rg = do
   case ex of
     Ex.Exception s -> fail s
     Ex.Success b -> return b
+
+boxToUnverifiedWithMeta ::
+  TransactionBox
+  -> Maybe (Family U.TopLine Po.UnverifiedWithMeta)
+boxToUnverifiedWithMeta b = do
+  let t = T.unTransaction . Boxes.transaction $ b
+  transMeta <- M.unTransactionMeta <$> Boxes.transactionMeta b
+  guard (length (F.children transMeta) == length (F.children t))
+  let famPairs = marryWith const (,) t transMeta
+      pairs = fmap toUnverifiedPair $ orphans famPairs
+      toUnverifiedPair (p, m) = (unverifyPosting p, m)
+  unvsWithMetas <- Tr.traverse Po.unverifiedWithMeta pairs
+  let uTopLine = unverifyTopLine (F.parent t)
+  return $ adopt uTopLine unvsWithMetas
+
+unverifyTopLine :: T.TopLine -> U.TopLine
+unverifyTopLine t =
+  U.TopLine (T.tDateTime t) (T.tFlag t)
+  (T.tNumber t) (T.tPayee t) (T.tMemo t)
+
+unverifyPosting :: T.Posting -> U.Posting
+unverifyPosting p =
+  U.Posting (T.pPayee p) (T.pNumber p) (T.pFlag p)
+  (T.pAccount p) (T.pTags p) en (T.pMemo p)
+  where
+    en = case T.pInferred p of
+      T.Inferred -> Just $ T.pEntry p
+      T.NotInferred -> Nothing
 
 render ::
   DT.DefaultTimeZone
