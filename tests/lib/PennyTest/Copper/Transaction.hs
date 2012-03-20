@@ -1,14 +1,16 @@
 module PennyTest.Copper.Transaction where
 
-import Control.Applicative ((<$>), (<*>), pure)
+import qualified Control.Monad.Exception.Synchronous as Ex
+import Control.Applicative ((<$>), (<*>), pure, (<*))
 import Data.Traversable (traverse)
 import PennyTest.Copper.Util (genMaybe)
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Posting as P
+import qualified Penny.Copper.Transaction as T
 import qualified PennyTest.Copper.Account as TAc
 import qualified PennyTest.Copper.Commodity as TCy
-import qualified PennyTest.Copper.Entry as TEn
+import PennyTest.Copper.DateTime ()
 import qualified PennyTest.Copper.Flag as TFl
 import qualified PennyTest.Copper.Payees as TPa
 import qualified PennyTest.Copper.Memos.Posting as TPostingMemo
@@ -18,14 +20,16 @@ import qualified PennyTest.Copper.Tags as TTa
 import qualified PennyTest.Lincoln.Bits as TB
 import PennyTest.Lincoln.Meta ()
 import qualified PennyTest.Lincoln.Transaction as TLT
-import Test.QuickCheck (Arbitrary, arbitrary, Gen, listOf1,
-                        resize, oneof, Property)
+import Test.QuickCheck (
+  Arbitrary, arbitrary, Gen, oneof, sized, resize, Property,
+  property)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework (Test, testGroup)
+import qualified Text.Parsec as Parsec
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import Penny.Lincoln.Family (orphans, adopt)
+import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Family.Family as Fam
-import qualified Penny.Lincoln.Family.Siblings as Sib
 
 -- | The data needed to generate a single renderable unverified
 -- transaction.
@@ -50,7 +54,7 @@ rTransInputs =
 
 -- | Generate random renderable transactions.
 randomRenderable :: Gen (Fam.Family U.TopLine P.UnverifiedWithMeta)
-randomRenderable = do
+randomRenderable = sized $ \s -> resize (min s 3) $ do
   t <- TLT.randomUnverifiedTransactions rTransInputs
   let unverifieds = orphans t
   unvWithMetas <- traverse toUnvWithMeta unverifieds
@@ -64,12 +68,29 @@ instance Arbitrary RUnverified where
 
 -- | Parsing random renderable Posting gives the same thing.
 prop_parseRendered ::
-  DT.DefaultTimeZone
+  M.Filename
+  -> DT.DefaultTimeZone
   -> (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
   -> RUnverified
-  -> Bool
-prop_parseRendered = undefined
+  -> Property
+prop_parseRendered fn dtz gs rg (RUnverified fam) =
+  case T.render dtz gs rg fam of
+    Nothing -> error "render failed"
+    Just x -> let
+      parser = T.transaction fn dtz rg <* Parsec.eof
+      in case Parsec.parse parser "" x of
+        Left _ -> error "parse failed"
+        Right box -> case T.boxToUnverifiedWithMeta box of
+          Ex.Exception e -> error $ e ++ " parsed: " ++ show box
+          Ex.Success fam' ->
+            if fam /= fam'
+            then error "families not equal"
+            else property True
+
+test_parseRendered :: Test
+test_parseRendered = testProperty s prop_parseRendered where
+  s = "Parsing rendered Transaction yields same Transaction"
 
 -- | Generates random metadata to accompany an unverified Posting.
 toUnvWithMeta :: U.Posting -> Gen P.UnverifiedWithMeta
@@ -86,3 +107,7 @@ toUnvWithMeta (U.Posting pa nu fl ac ta en me) =
     enWithMeta = case en of
       Nothing -> return Nothing
       Just e -> Just <$> ((,) <$> pure e <*> arbitrary)
+
+tests :: Test
+tests = testGroup "Transaction"
+        [ test_parseRendered ]

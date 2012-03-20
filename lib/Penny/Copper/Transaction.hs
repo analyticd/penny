@@ -2,7 +2,7 @@ module Penny.Copper.Transaction (transaction, render,
                                  boxToUnverifiedWithMeta) where
 
 import Control.Applicative ((<$>), (<*>))
-import Control.Monad (guard)
+import Control.Monad (unless)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Foldable (toList)
 import qualified Data.Traversable as Tr
@@ -73,15 +73,20 @@ transaction fn dtz rg = do
 
 boxToUnverifiedWithMeta ::
   TransactionBox
-  -> Maybe (Family U.TopLine Po.UnverifiedWithMeta)
+  -> Ex.Exceptional String (Family U.TopLine Po.UnverifiedWithMeta)
 boxToUnverifiedWithMeta b = do
   let t = T.unTransaction . Boxes.transaction $ b
-  transMeta <- M.unTransactionMeta <$> Boxes.transactionMeta b
-  guard (length (F.children transMeta) == length (F.children t))
+  transMeta <- Ex.fromMaybe "conversion to TransactionMeta failed" $
+               M.unTransactionMeta <$> Boxes.transactionMeta b
+  unless (length (F.children transMeta) == length (F.children t)) $
+    Ex.throw "families not same length"
   let famPairs = marryWith const (,) t transMeta
       pairs = fmap toUnverifiedPair $ orphans famPairs
       toUnverifiedPair (p, m) = (unverifyPosting p, m)
-  unvsWithMetas <- Tr.traverse Po.unverifiedWithMeta pairs
+  unvsWithMetas <-
+    case Tr.traverse Po.unverifiedWithMeta pairs of
+      Just r -> return r
+      Nothing -> Ex.throw "a posting lacks metadata"
   let uTopLine = unverifyTopLine (F.parent t)
   return $ adopt uTopLine unvsWithMetas
 
@@ -96,8 +101,8 @@ unverifyPosting p =
   (T.pAccount p) (T.pTags p) en (T.pMemo p)
   where
     en = case T.pInferred p of
-      T.Inferred -> Just $ T.pEntry p
-      T.NotInferred -> Nothing
+      T.Inferred -> Nothing
+      T.NotInferred -> Just $ T.pEntry p
 
 render ::
   DT.DefaultTimeZone
