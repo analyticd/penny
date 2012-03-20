@@ -138,15 +138,39 @@ pGroupNoInfer p = fst <$> pGroup (fmap (\(f, s, _) -> (f, s))) p
 -- single Transaction might consist of one or more groups). This group
 -- is balanced, but the balance must be inferred.
 pGroupInfer :: PGroupInputs -> Gen (Sib.Siblings U.Posting)
-pGroupInfer p = do 
-  let getOrigsBals gen = do
-        (o, _, mayBals) <- gen
-        maybe (getOrigsBals gen) (\b -> return (o, b)) mayBals
-  (sibs, ac) <- pGroup getOrigsBals p
+pGroupInfer p = do
+  (sibs, ac) <- pGroup inferIfPossible p
   inferred <- makePostingWithoutEntry (genCommon p) ac
   let sibs' = Sib.Siblings (Sib.first sibs) (Sib.second sibs)
               (Sib.rest sibs ++ [inferred])
   return sibs'
+
+-- | Applied to a triple (a, b, c) where
+--
+-- * a is a Debit or Credit and a list of random quantities
+--
+-- * b is a Debit or Credit (the opposite of whatever was given in a)
+-- and list of random quantities that add up to the sum of the
+-- quantities given in a
+--
+-- * c is, if possible, a Debit or Credit (the opposite of whatever
+-- was given in a) and a list of random quantities that add up to
+-- something less than the sum of the quantities given in @a@
+--
+-- Returns a pair where fst is the original DrCr and random quanties,
+-- and snd is balancing. If possible, snd adds up to less than a,
+-- leading to a group that must be inferred. However, if this was not
+-- possible, then a group that needs no inference is returned.
+inferIfPossible ::
+  Gen (TB.NEDrCrQty, TB.NEDrCrQty, Maybe TB.NEDrCrQty)
+  -> Gen (TB.NEDrCrQty, TB.NEDrCrQty)
+inferIfPossible g = do
+  (a, b, c) <- g
+  return (a, case c of
+             Just balancers -> balancers
+             Nothing -> b)
+    
+
 
 -- | Makes unverified TopLines.
 topLine :: TransInputs -> Gen U.TopLine
