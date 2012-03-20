@@ -80,7 +80,7 @@ prop_parseRendered fn dtz gs rg (RUnverified fam) =
     Just x -> let
       parser = T.transaction fn dtz rg <* Parsec.eof
       in case Parsec.parse parser "" x of
-        Left _ -> error "parse failed"
+        Left e -> error $ "parse failed. error: " ++ show e
         Right box -> case T.boxToUnverifiedWithMeta box of
           Ex.Exception e -> error $ e ++ " parsed: " ++ show box
           Ex.Success fam' ->

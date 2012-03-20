@@ -107,7 +107,7 @@ makePostingWithoutEntry c ac = makePosting c ac Nothing
 -- from the generator. Whether the Postings are balanced or not
 -- depends on the result of the function. Also returns the account
 -- used to make the group of postings.
-pGroup ::
+pGroupAlwaysSucceeds ::
   (Gen (TB.NEDrCrQty, TB.NEDrCrQty, Maybe TB.NEDrCrQty)
    -> Gen (TB.NEDrCrQty, TB.NEDrCrQty))
   -- ^ When applied to a generator, this function returns a pair p,
@@ -115,7 +115,7 @@ pGroup ::
   -- the balancing quantities and DrCrs.
   -> PGroupInputs
   -> Gen (Sib.Siblings U.Posting, B.Account)
-pGroup getQs p = do
+pGroupAlwaysSucceeds getQs p = do
   ac <- tgAccount p
   cy <- tgCommodity p
   (origs, bals) <- getQs . tgEntries $ p
@@ -128,22 +128,50 @@ pGroup getQs p = do
       result = Sib.Siblings sib1 sib2 (rs1 ++ rs2)
   return (result, ac)
 
+pGroupSometimesFails ::
+  (Gen (TB.NEDrCrQty, TB.NEDrCrQty, Maybe TB.NEDrCrQty)
+   -> Gen (Maybe (TB.NEDrCrQty, TB.NEDrCrQty)))
+  -- ^ When applied to a generator, this function returns a pair p,
+  -- where fst p are the original quantities and DrCrs, and snd p are
+  -- the balancing quantities and DrCrs.
+  -> PGroupInputs
+  -> Gen (Maybe (Sib.Siblings U.Posting, B.Account))
+pGroupSometimesFails getQs p = do
+  ac <- tgAccount p
+  cy <- tgCommodity p
+  pair <- getQs . tgEntries $ p
+  case pair of
+    Just (origs, bals) -> do
+      let mkP dc = makePostingWithEntry (genCommon p) ac dc cy
+          mkPs (dc, qs) = Tr.traverse (mkP dc) qs
+      originals <- mkPs origs
+      balancers <- mkPs bals
+      let (sib1:|rs1) = originals
+          (sib2:|rs2) = balancers
+          result = Sib.Siblings sib1 sib2 (rs1 ++ rs2)
+      return $ Just (result, ac)
+    Nothing -> return Nothing
+
 -- | Generates a single balanced group of unverified Postings. (A
 -- single Transaction might consist of one or more groups). This group
 -- is balanced without inference.
 pGroupNoInfer :: PGroupInputs -> Gen (Sib.Siblings U.Posting)
-pGroupNoInfer p = fst <$> pGroup (fmap (\(f, s, _) -> (f, s))) p
+pGroupNoInfer p =
+  fst <$> pGroupAlwaysSucceeds (fmap (\(f, s, _) -> (f, s))) p
 
 -- | Generates a single balanced group of unverified Postings. (A
 -- single Transaction might consist of one or more groups). This group
 -- is balanced, but the balance must be inferred.
-pGroupInfer :: PGroupInputs -> Gen (Sib.Siblings U.Posting)
+pGroupInfer :: PGroupInputs -> Gen (Maybe (Sib.Siblings U.Posting))
 pGroupInfer p = do
-  (sibs, ac) <- pGroup inferIfPossible p
-  inferred <- makePostingWithoutEntry (genCommon p) ac
-  let sibs' = Sib.Siblings (Sib.first sibs) (Sib.second sibs)
-              (Sib.rest sibs ++ [inferred])
-  return sibs'
+  maybePair <- pGroupSometimesFails inferIfPossible p
+  case maybePair of
+    Nothing -> return Nothing
+    Just (sibs, ac) -> do
+      inferred <- makePostingWithoutEntry (genCommon p) ac
+      let sibs' = Sib.Siblings (Sib.first sibs) (Sib.second sibs)
+                  (Sib.rest sibs ++ [inferred])
+      return $ Just sibs'
 
 -- | Applied to a triple (a, b, c) where
 --
@@ -163,13 +191,12 @@ pGroupInfer p = do
 -- possible, then a group that needs no inference is returned.
 inferIfPossible ::
   Gen (TB.NEDrCrQty, TB.NEDrCrQty, Maybe TB.NEDrCrQty)
-  -> Gen (TB.NEDrCrQty, TB.NEDrCrQty)
+  -> Gen (Maybe (TB.NEDrCrQty, TB.NEDrCrQty))
 inferIfPossible g = do
-  (a, b, c) <- g
-  return (a, case c of
-             Just balancers -> balancers
-             Nothing -> b)
-    
+  (a, _, c) <- g
+  case c of
+    Nothing -> return Nothing
+    Just r -> return $ Just (a, r)
 
 
 -- | Makes unverified TopLines.
@@ -212,11 +239,15 @@ multBalancedPostingsWithInfer p = do
   balanced <- multBalancedPostings p
   doInferred <- arbitrary
   if doInferred
-    then do
-    inferred <- pGroupInfer p
-    let result = Sib.Siblings (Sib.first balanced) (Sib.second balanced)
-                 (Sib.rest balanced ++ Foldable.toList inferred)
-    return result
+    then do inferred <- pGroupInfer p
+            case inferred of
+              Nothing -> return balanced
+              Just inf ->
+                let result = Sib.Siblings (Sib.first balanced)
+                             (Sib.second balanced)
+                             (Sib.rest balanced
+                              ++ Foldable.toList inf)
+                in return result
     else return balanced
 
 -- | Shuffles a bunch of Postings.
