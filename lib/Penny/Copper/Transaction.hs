@@ -2,15 +2,18 @@ module Penny.Copper.Transaction (transaction, render) where
 
 import Control.Applicative ((<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Data.Foldable (toList)
 import qualified Data.Text as X
 import Text.Parsec (many)
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.DateTime as DT
+import qualified Penny.Copper.TopLine as TL
 import Penny.Copper.TopLine ( topLine )
 import qualified Penny.Copper.Posting as Po
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Lincoln.Meta as M
+import Penny.Lincoln.Family (orphans)
 import qualified Penny.Lincoln.Family.Family as F
 import Penny.Lincoln.Family.Family ( Family ( Family ) )
 import Penny.Lincoln.Meta (TransactionMeta(TransactionMeta))
@@ -68,6 +71,10 @@ render ::
   DT.DefaultTimeZone
   -> (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> Family U.TopLine (U.Posting, Maybe M.Format)
+  -> Family U.TopLine Po.UnverifiedWithMeta
   -> Maybe X.Text
-render = undefined
+render dtz gs rg fm = let
+  pstgs = orphans fm
+  tlX = TL.render dtz (F.parent fm)
+  maybes = tlX : toList (fmap (Po.render gs rg) pstgs)
+  in X.concat <$> sequence maybes

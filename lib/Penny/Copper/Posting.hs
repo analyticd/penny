@@ -1,4 +1,8 @@
-module Penny.Copper.Posting (posting, render) where
+module Penny.Copper.Posting (
+  posting, render,
+  UnverifiedWithMeta(flag, number, payee, account, tags,
+                     entry, memo)
+  ) where
 
 import Control.Applicative ((<$>), (<*>), (<*), (<|>))
 import qualified Data.Text as X
@@ -27,30 +31,37 @@ posting rg =
   makeUnverified
   <$> (M.PostingLine . M.Line . sourceLine . statePos
        <$> getParserState)
-  <*> optionMaybe (lexeme Fl.flag)
-  <*> optionMaybe (lexeme Nu.number)
-  <*> optionMaybe (lexeme Pa.quotedPayee)
-  <*> lexeme (Ac.lvl1AccountQuoted <|> Ac.lvl2Account)
-  <*> lexeme Ta.tags
-  <*> optionMaybe (lexeme (En.entry rg))
-  <* eol
-  <*> Me.memo
+  <*> (UnverifiedWithMeta
+       <$> optionMaybe (lexeme Fl.flag)
+       <*> optionMaybe (lexeme Nu.number)
+       <*> optionMaybe (lexeme Pa.quotedPayee)
+       <*> lexeme (Ac.lvl1AccountQuoted <|> Ac.lvl2Account)
+       <*> lexeme Ta.tags
+       <*> optionMaybe (lexeme (En.entry rg))
+       <* eol
+       <*> Me.memo)
   <?> "posting"
+
+data UnverifiedWithMeta = UnverifiedWithMeta {
+  flag :: Maybe B.Flag
+  , number :: Maybe B.Number
+  , payee :: Maybe B.Payee
+  , account :: B.Account
+  , tags :: B.Tags
+  , entry :: Maybe (B.Entry, M.Format)
+  , memo :: B.Memo
+  } deriving (Eq, Show)
+    
 
 makeUnverified ::
   M.PostingLine
-  -> Maybe B.Flag
-  -> Maybe B.Number
-  -> Maybe B.Payee
-  -> B.Account
-  -> B.Tags
-  -> Maybe (B.Entry, M.Format)
-  -> B.Memo
+  -> UnverifiedWithMeta
   -> (U.Posting, M.PostingMeta)
-makeUnverified pl fl nu pa ac ta pair me = (upo, meta) where
-  upo = U.Posting pa nu fl ac ta en me
+makeUnverified pl u = (upo, meta) where
+  upo = U.Posting (payee u) (number u) (flag u) (account u)
+        (tags u) en (memo u)
   meta = M.PostingMeta (Just pl) fmt
-  (en, fmt) = case pair of
+  (en, fmt) = case entry u of
     Nothing -> (Nothing, Nothing)
     Just (e, f) -> (Just e, Just f)
 
@@ -60,24 +71,17 @@ makeUnverified pl fl nu pa ac ta pair me = (upo, meta) where
 render ::
   (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> Maybe B.Flag
-  -> Maybe B.Number
-  -> Maybe B.Payee
-  -> B.Account
-  -> B.Tags
-  -> Maybe (B.Entry, M.Format)
-  -> B.Memo
+  -> UnverifiedWithMeta
   -> Maybe X.Text
-render (gl, gr) rg fl nu pa ac ta enFmt me =
+render (gl, gr) rg u =
   f
-  <$> renMaybe fl Fl.render
-  <*> renMaybe nu Nu.render
-  <*> renMaybe pa Pa.quoteRender
-  <*> Ac.render ac
-  <*> Ta.render ta
-  <*> renMaybe enFmt renderEn
-  -- <*> renMaybe en (En.render gl gr rg fmt)
-  <*> Me.render me
+  <$> renMaybe (flag u) Fl.render
+  <*> renMaybe (number u) Nu.render
+  <*> renMaybe (payee u) Pa.quoteRender
+  <*> Ac.render (account u)
+  <*> Ta.render (tags u)
+  <*> renMaybe (entry u) renderEn
+  <*> Me.render (memo u)
   where
     f flX nuX paX acX taX enX meX = let
       ws = txtWords [flX, nuX, paX, acX, taX, enX]
