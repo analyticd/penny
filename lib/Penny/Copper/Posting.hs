@@ -1,7 +1,9 @@
 module Penny.Copper.Posting (
   posting, render,
-  UnverifiedWithMeta(flag, number, payee, account, tags,
-                     entry, memo)
+  UnverifiedWithMeta(
+    UnverifiedWithMeta, flag, number, payee,
+    account, tags, entry, memo),
+  unverifiedWithMeta
   ) where
 
 import Control.Applicative ((<$>), (<*>), (<*), (<|>))
@@ -52,6 +54,31 @@ data UnverifiedWithMeta = UnverifiedWithMeta {
   , memo :: B.Memo
   } deriving (Eq, Show)
     
+unverifiedWithMeta ::
+  (U.Posting, M.PostingMeta)
+  -> Maybe UnverifiedWithMeta
+unverifiedWithMeta (upo, meta) =
+  let (U.Posting pa nu fl ac ta mayEn me) = upo in
+  case (mayEn, M.postingFormat meta) of
+    (Nothing, Nothing) -> Just UnverifiedWithMeta {
+      flag = fl
+      , number = nu
+      , payee = pa
+      , account = ac
+      , tags = ta
+      , entry = Nothing
+      , memo = me }
+    (Just en, Just mt) -> Just UnverifiedWithMeta {
+      flag = fl
+      , number = nu
+      , payee = pa
+      , account = ac
+      , tags = ta
+      , entry = Just (en, mt)
+      , memo = me }
+    _ -> Nothing
+
+      
 
 makeUnverified ::
   M.PostingLine

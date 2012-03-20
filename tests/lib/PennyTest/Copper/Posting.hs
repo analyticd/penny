@@ -4,8 +4,6 @@ import Control.Applicative ((<$>), (<*>), (<*), (*>))
 import Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Copper.Posting as P
 import qualified Penny.Copper.Qty as Qt
-import qualified Penny.Lincoln.Meta as M
-import qualified Penny.Lincoln.Transaction.Unverified as U
 
 import Test.QuickCheck (Gen, Arbitrary, arbitrary, oneof)
 import Test.Framework (Test, testGroup)
@@ -22,21 +20,21 @@ import PennyTest.Lincoln.Meta ()
 import qualified PennyTest.Copper.Tags as TTa
 import PennyTest.Copper.Util (genMaybe)
 
--- | Generate renderable unverified Postings. The Accounts are
--- variably Level 1 and Level 2. The Commodities in the Amount are
--- distributed between Levels 1, 2, and 3.
-genRUPosting :: Gen U.Posting
+-- | Generate renderable unverified Postings with metadata. The
+-- Accounts are variably Level 1 and Level 2. The Commodities in the
+-- Amount are distributed between Levels 1, 2, and 3.
+genRUPosting :: Gen P.UnverifiedWithMeta
 genRUPosting =
-  U.Posting
-  <$> genMaybe (oneof [TPa.genNoQuotePayee, TPa.genNeedsQuotePayee])
+  P.UnverifiedWithMeta
+  <$> genMaybe TFl.genRFlag
   <*> genMaybe TNu.genRNumber
-  <*> genMaybe TFl.genRFlag
+  <*> genMaybe (oneof [TPa.genNoQuotePayee, TPa.genNeedsQuotePayee])
   <*> oneof [TAc.genLvl1Account, TAc.genLvl2Account]
   <*> TTa.genRTags
-  <*> genMaybe TEn.genREntry
+  <*> genMaybe ((,) <$> TEn.genREntry <*> arbitrary)
   <*> TMe.genRMemo
 
-newtype RUPosting = RUPosting U.Posting
+newtype RUPosting = RUPosting P.UnverifiedWithMeta
                     deriving (Eq, Show)
 instance Arbitrary RUPosting where
   arbitrary = RUPosting <$> genRUPosting
@@ -45,29 +43,23 @@ instance Arbitrary RUPosting where
 prop_parseRendered ::
   (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> M.Format
   -> RUPosting
   -> Bool
-prop_parseRendered (gl, gr) rg fmt (RUPosting p) =
+prop_parseRendered gs rg (RUPosting p) =
   Ex.switch error id $ do
-    txt <- case P.render p (gl, gr) rg fmt of
+    txt <- case P.render gs rg p of
       Nothing -> Ex.throw "Failed to render"
       Just x -> return x
     let parser = Parsec.many (Parsec.char ' ')
                *> P.posting rg
                <* Parsec.eof
-    (p', pm) <- case Parsec.parse parser "" txt of
+    pAndMeta <- case Parsec.parse parser "" txt of
         Left e -> Ex.throw $ "parse error: " ++ show e
                   ++ " rendered: " ++ show txt
         Right pair -> return pair
-    _ <- case M.postingFormat pm of
-      Nothing -> case U.entry p of
-        Just _ -> Ex.throw "no metadata"
-        Nothing -> return ()
-      Just fmt' ->
-        if fmt /= fmt'
-        then Ex.throw "formats not equal"
-        else return ()
+    p' <- case P.unverifiedWithMeta pAndMeta of
+      Nothing -> Ex.throw "unverifiedWithMeta failed"
+      Just r -> return r
     if p /= p'
       then Ex.throw "postings not equal"
       else return True
