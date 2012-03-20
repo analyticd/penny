@@ -11,7 +11,7 @@ import Penny.Copper.TopLine ( topLine )
 import qualified Penny.Copper.Posting as Po
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Lincoln.Meta as M
-import qualified Penny.Lincoln.Family as F
+import qualified Penny.Lincoln.Family.Family as F
 import Penny.Lincoln.Family.Family ( Family ( Family ) )
 import Penny.Lincoln.Meta (TransactionMeta(TransactionMeta))
 import Penny.Lincoln.Boxes (transactionBox, TransactionBox)

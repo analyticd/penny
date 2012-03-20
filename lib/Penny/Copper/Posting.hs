@@ -54,20 +54,29 @@ makeUnverified pl fl nu pa ac ta pair me = (upo, meta) where
     Nothing -> (Nothing, Nothing)
     Just (e, f) -> (Just e, Just f)
 
+-- | Renders an unverified Posting. Fails if any of the components
+-- fail to render. In addition, if the unverified Posting has an
+-- Entry, a Format must be provided, otherwise render fails.
 render ::
-  U.Posting
-  -> (Qt.GroupingSpec, Qt.GroupingSpec)
+  (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> M.Format
+  -> Maybe B.Flag
+  -> Maybe B.Number
+  -> Maybe B.Payee
+  -> B.Account
+  -> B.Tags
+  -> Maybe (B.Entry, M.Format)
+  -> B.Memo
   -> Maybe X.Text
-render (U.Posting pa nu fl ac ta en me) (gl, gr) rg fmt =
+render (gl, gr) rg fl nu pa ac ta enFmt me =
   f
   <$> renMaybe fl Fl.render
   <*> renMaybe nu Nu.render
   <*> renMaybe pa Pa.quoteRender
   <*> Ac.render ac
   <*> Ta.render ta
-  <*> renMaybe en (En.render gl gr rg fmt)
+  <*> renMaybe enFmt renderEn
+  -- <*> renMaybe en (En.render gl gr rg fmt)
   <*> Me.render me
   where
     f flX nuX paX acX taX enX meX = let
@@ -76,3 +85,4 @@ render (U.Posting pa nu fl ac ta en me) (gl, gr) rg fmt =
          `X.append` ws
          `X.snoc` '\n'
          `X.append` meX
+    renderEn (en, fmt) = En.render gl gr rg fmt en
