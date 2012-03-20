@@ -7,9 +7,9 @@ import qualified Penny.Lincoln.TextNonEmpty as TNE
 -- Import orphan instances of Arbitrary
 import PennyTest.Lincoln.Bits ()
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>), (<*>), pure)
 import qualified Data.Text as X
-import Test.QuickCheck (listOf, Gen)
+import Test.QuickCheck (listOf, Gen, oneof)
 
 
 wrapTextNonEmptyList ::
@@ -40,3 +40,8 @@ genTextNonEmpty :: Gen Char -> Gen Char -> Gen TNE.TextNonEmpty
 genTextNonEmpty gf gr = TNE.TextNonEmpty
                         <$> gf
                         <*> (X.pack <$> listOf gr)
+
+-- | Turns a generator into a generator of maybes.
+genMaybe :: Gen a -> Gen (Maybe a)
+genMaybe g = oneof [pure Nothing, Just <$> g]
+

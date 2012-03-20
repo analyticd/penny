@@ -54,8 +54,7 @@ unquotedFirstChar :: Char -> Bool
 unquotedFirstChar = inCat C.UppercaseLetter C.OtherLetter
 
 unquotedRestChars :: Char -> Bool
-unquotedRestChars c = inCat C.UppercaseLetter C.OtherSymbol c
-                      || c == ' '
+unquotedRestChars = quotedChar
 
 unquotedPayee :: Parser B.Payee
 unquotedPayee = let

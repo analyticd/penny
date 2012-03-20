@@ -1,7 +1,6 @@
 module Penny.Copper.Util where
 
 import Control.Applicative ((<*), pure, (<$))
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Char as C
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -35,19 +34,6 @@ eol = pure ()
 spaces :: Parser ()
 spaces = () <$ many (char ' ')
 
--- | Errors from rendering.
-data RenderError = BadChar Char 
-                   deriving Show
-
--- | Supplied with a function which returns True if a character is
--- allowed, returns a function that when given a character will return
--- a RenderError if the character is bad or the character if the
--- character is good.
-checkChar :: (Char -> Bool)
-             -> Char
-             -> Ex.Exceptional RenderError Char
-checkChar p c = if p c then return c else Ex.throw (BadChar c)
-
 -- | Applied to a non-empty list of pairs, with the first element of
 -- the pair being a predicate that returns True if a character is OK
 -- and the second element being something of an arbitrary type, and to
@@ -65,7 +51,7 @@ checkText ::
   HT.HasText a
   => NE.NonEmpty ((Char -> Bool), b)
   -> a
-  -> Ex.Exceptional RenderError b
+  -> Maybe b
 checkText ps a = let
   t = HT.text a
   results = fmap (g . f) ps where
@@ -77,7 +63,7 @@ checkText ps a = let
     Right b -> Right b
     Left _ -> y
   in case F.foldr1 folder results of
-    Left c -> Ex.throw (BadChar c)
+    Left _ -> Nothing
     Right b -> return b
 
 listIsOK ::
@@ -95,3 +81,19 @@ firstCharOfListIsOK ::
 firstCharOfListIsOK p ls = let
   firstText = NE.head . HT.textNonEmptyList $ ls
   in p (TNE.first firstText)
+
+-- | Takes a field that may or may not be present and a function that
+-- renders it. If the field is not present at all, returns an empty
+-- Text. Otherwise will succeed or fail depending upon whether the
+-- rendering function succeeds or fails.
+renMaybe :: Maybe a -> (a -> Maybe X.Text) -> Maybe X.Text
+renMaybe mx f = case mx of
+  Nothing -> Just X.empty
+  Just a -> f a
+
+-- | Merges a list of words into one Text; however, if any given Text
+-- is empty, that Text is first dropped from the list.
+txtWords :: [X.Text] -> X.Text
+txtWords xs = case filter (not . X.null) xs of
+  [] -> X.empty
+  rs -> X.unwords rs

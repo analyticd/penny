@@ -12,6 +12,7 @@ import qualified PennyTest.Copper.Flag as Flag
 import qualified PennyTest.Copper.Memos as Memos
 import qualified PennyTest.Copper.Number as Number
 import qualified PennyTest.Copper.Payees as Payees
+import qualified PennyTest.Copper.Posting as Posting
 import qualified PennyTest.Copper.Price as Price
 import qualified PennyTest.Copper.Qty as Q
 import qualified PennyTest.Copper.Tags as Tags
@@ -30,6 +31,7 @@ tests = TF.testGroup "Copper"
         , Memos.tests
         , Number.tests
         , Payees.tests
+        , Posting.tests
         , Price.tests
         , Q.tests
         , Tags.tests

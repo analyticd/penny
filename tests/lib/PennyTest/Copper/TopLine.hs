@@ -1,6 +1,6 @@
 module PennyTest.Copper.TopLine where
 
-import Control.Applicative ((<$>), (<*>), (<*), pure)
+import Control.Applicative ((<$>), (<*>), (<*))
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.TopLine as T
 import Test.QuickCheck (Arbitrary, arbitrary, Gen, oneof)
@@ -14,6 +14,7 @@ import qualified PennyTest.Copper.Flag as Flag
 import qualified PennyTest.Copper.Number as Number
 import qualified PennyTest.Copper.Payees as Payees
 import qualified PennyTest.Copper.Memos.Transaction as Memos
+import PennyTest.Copper.Util (genMaybe)
 
 -- | Generate renderable TopLine and a DefaultTimeZone. Some of the
 -- DefaultTimeZones will be in the same time zone as the DateTime; in
@@ -30,9 +31,6 @@ genRTopLine =
   <*> Memos.genRMemo
   where
     f (dtz, dt) fl nu pa me = (U.TopLine dt fl nu pa me, dtz)
-
-genMaybe :: Gen a -> Gen (Maybe a)
-genMaybe g = oneof [pure Nothing, Just <$> g]
 
 newtype RTopLine = RTopLine (U.TopLine, DT.DefaultTimeZone)
                    deriving (Show, Eq)

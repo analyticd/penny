@@ -1,7 +1,6 @@
 module PennyTest.Copper.Account where
 
 import Control.Applicative ((<$>), (<*>), (<|>), (<*))
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as X
 import qualified Penny.Copper.Account as A
@@ -12,9 +11,10 @@ import PennyTest.Lincoln.Bits ()
 import qualified Test.QuickCheck as Q
 import qualified Test.Framework as TF
 import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.QuickCheck (Arbitrary, arbitrary, Gen)
+import Test.QuickCheck (Arbitrary, arbitrary, Gen, suchThat)
 import qualified Text.Parsec as P
 import Text.Parsec.Text (Parser)
+import PennyTest.Copper.Util (wrapTextNonEmptyList)
 
 -- | Render must fail for characters that are not allowed in a level 1
 -- account; must succeed for all other characters.
@@ -22,8 +22,8 @@ prop_renderSuccess :: B.Account -> Bool
 prop_renderSuccess a = expected == actual where
   expected = renderable a
   actual = case A.render a of    
-    Ex.Success _ -> True
-    Ex.Exception _ -> False
+    Just _-> True
+    Nothing -> False
 
 renderable :: B.Account -> Bool
 renderable a = if X.any (not . A.lvl1Char) (X.concat $ HT.textList a)
@@ -59,8 +59,8 @@ instance Arbitrary Renderable where
 prop_roundTrip :: Parser B.Account -> Renderable -> Bool
 prop_roundTrip lvlParser (Renderable r) = let
   rendered = case A.render r of
-    Ex.Exception _ -> error "prop_roundTrip: should never happen"
-    Ex.Success g -> g
+    Nothing -> error "prop_roundTrip: should never happen"
+    Just g -> g
   parser = lvlParser <* P.eof
   parseResult = P.parse parser "" rendered
   in case parseResult of
@@ -76,6 +76,19 @@ prop_roundTripLvl1First =
 prop_roundTripLvl2First :: Renderable -> Bool
 prop_roundTripLvl2First =
   prop_roundTrip (A.lvl2Account <|> A.lvl1AccountQuoted)
+
+-- | Generate Level 1 Account.
+genLvl1Account :: Gen B.Account
+genLvl1Account =
+  wrapTextNonEmptyList g g B.SubAccountName B.Account where
+    g = suchThat arbitrary A.lvl1Char
+
+-- | Generate a Level 2 account
+genLvl2Account :: Gen B.Account
+genLvl2Account =
+  wrapTextNonEmptyList
+  (suchThat arbitrary A.lvl2FirstChar)
+  (suchThat arbitrary A.lvl2RemainingChar) B.SubAccountName B.Account
 
 -- | All tests from this module
 tests :: TF.Test

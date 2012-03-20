@@ -16,7 +16,7 @@ import qualified Penny.Copper.Memos.Transaction as M
 import qualified Penny.Copper.Flag as F
 import qualified Penny.Copper.Number as N
 import qualified Penny.Copper.Payees as P
-import Penny.Copper.Util (lexeme, eol)
+import Penny.Copper.Util (lexeme, eol, renMaybe, txtWords)
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
 topLine ::
@@ -36,27 +36,14 @@ topLine dtz =
       tl = U.TopLine dt fl nu pa me
     toLine = Meta.TopLineLine . Meta.Line . sourceLine . statePos
 
--- | Appends a space, but only if the Text is not null.
-space :: X.Text -> X.Text
-space x = if X.null x then x else x `X.snoc` ' '
-
--- | Takes a field that may or may not be present and a function that
--- renders it. If the field is not present at all, returns an empty
--- Text. Otherwise will succeed or fail depending upon whether the
--- rendering function succeeds or fails.
-renMaybe :: Maybe a -> (a -> Maybe X.Text) -> Maybe X.Text
-renMaybe mx f = case mx of
-  Nothing -> Just X.empty
-  Just a -> f a
-
 render :: DT.DefaultTimeZone -> U.TopLine -> Maybe X.Text
 render dtz (U.TopLine dt fl nu pa me) =
   f
   <$> M.render me
-  <*> pure (space (DT.render dtz dt))
-  <*> (space <$> renMaybe fl F.render)
-  <*> (space <$> renMaybe nu N.render)
+  <*> pure (DT.render dtz dt)
+  <*> renMaybe fl F.render
+  <*> renMaybe nu N.render
   <*> renMaybe pa P.smartRender
   where
     f meX dtX flX nuX paX =
-      X.concat [meX, dtX, flX, nuX, paX] `X.snoc` '\n'
+      txtWords [meX, dtX, flX, nuX, paX] `X.snoc` '\n'

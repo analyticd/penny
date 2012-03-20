@@ -53,6 +53,7 @@ Library
     PennyTest.Copper.Memos.Transaction,
     PennyTest.Copper.Number,
     PennyTest.Copper.Payees,
+    PennyTest.Copper.Posting,
     PennyTest.Copper.Price,
     PennyTest.Copper.Qty,
     PennyTest.Copper.Tags,

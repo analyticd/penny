@@ -16,7 +16,6 @@ module Penny.Copper.Account (
   ) where
 
 import Control.Applicative((<$>), (<*>), (*>))
-import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Char as C
 import qualified Data.Foldable as F
 import Data.Text ( snoc, cons, pack, Text )
@@ -95,7 +94,7 @@ data Level = L1 | L2
            deriving (Eq, Ord, Show)
 
 -- | Checks an account to see what level to render it at.
-checkAccount :: B.Account -> Ex.Exceptional U.RenderError Level
+checkAccount :: B.Account -> Maybe Level
 checkAccount (B.Account subs) = let
   checkFirst = checkFirstSubAccount (NE.head subs)
   checkRest = map checkFirstSubAccount (NE.tail subs)
@@ -105,7 +104,7 @@ checkAccount (B.Account subs) = let
 -- or Level 2 sub account.
 checkFirstSubAccount ::
   B.SubAccountName
-  -> Ex.Exceptional U.RenderError Level
+  -> Maybe Level
 checkFirstSubAccount s = do
   l <- checkOtherSubAccount s
   return $ case l of
@@ -117,7 +116,7 @@ checkFirstSubAccount s = do
 -- qualifies as a Level 1 or Level 2 sub account.
 checkOtherSubAccount ::
   B.SubAccountName
-  -> Ex.Exceptional U.RenderError Level
+  -> Maybe Level
 checkOtherSubAccount = U.checkText ls where
   ls = (lvl2RemainingChar, L2) :| [(lvl1Char, L1)]
 
@@ -125,7 +124,7 @@ checkOtherSubAccount = U.checkText ls where
 -- possible. Fails with an error if any one of the characters in the
 -- account name does not satisfy the 'lvl1Char' predicate. Otherwise
 -- returns a rendered account, quoted if necessary.
-render :: B.Account -> Ex.Exceptional U.RenderError Text
+render :: B.Account -> Maybe Text
 render a = do
   l <- checkAccount a
   let t = HT.text . HT.Delimited (pack ":") . HT.textList $ a
