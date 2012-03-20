@@ -31,7 +31,8 @@ newtype Lvl1Cmdty =
   deriving (Show, Eq)
 
 genLvl1Cmdty :: Gen B.Commodity
-genLvl1Cmdty = wrapTextNonEmptyList (suchThat arbitrary C.lvl1Char)
+genLvl1Cmdty = wrapTextNonEmptyList (min 3)
+               (suchThat arbitrary C.lvl1Char)
                (suchThat arbitrary C.lvl1Char) B.SubCommodity
                B.Commodity
 
@@ -56,9 +57,10 @@ newtype Lvl2Cmdty =
   deriving (Eq, Show)
 
 genLvl2Cmdty :: Gen B.Commodity
-genLvl2Cmdty = wrapTextNonEmptyList (suchThat arbitrary C.lvl2FirstChar)
-              (suchThat arbitrary C.lvl2OtherChars) B.SubCommodity
-              B.Commodity
+genLvl2Cmdty = wrapTextNonEmptyList (min 3)
+               (suchThat arbitrary C.lvl2FirstChar)
+               (suchThat arbitrary C.lvl2OtherChars) B.SubCommodity
+               B.Commodity
  
 
 instance Arbitrary Lvl2Cmdty where
@@ -83,7 +85,7 @@ newtype Lvl3Cmdty =
 
 genLvl3Cmdty :: Gen B.Commodity
 genLvl3Cmdty =
-  wrapTextNonEmptyList f r B.SubCommodity B.Commodity where
+  wrapTextNonEmptyList (min 3) f r B.SubCommodity B.Commodity where
     f = suchThat arbitrary C.lvl3FirstChar
     r = suchThat arbitrary C.lvl3OtherChars
 

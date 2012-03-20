@@ -9,11 +9,19 @@ import PennyTest.Lincoln.Bits ()
 
 import Control.Applicative ((<$>), (<*>), pure)
 import qualified Data.Text as X
-import Test.QuickCheck (listOf, Gen, oneof)
+import Test.QuickCheck (listOf, Gen, oneof, sized, resize)
 
 
+-- | Generates a type that wraps a NonEmpty of TextNonEmptys.
 wrapTextNonEmptyList ::
-  Gen Char
+  (Int -> Int)
+  -- ^ Function that, when applied to the size parameter, returns a
+  -- new size. This size is used to control the length of the tail of
+  -- the NonEmpty. The tail will have a random length between 0 and
+  -- this number. This size does not control the length of the
+  -- TextNonEmptys; those depend on the size parameter.
+  
+  -> Gen Char
   -- ^ Generates the first character of the list
 
   -> Gen Char
@@ -26,12 +34,13 @@ wrapTextNonEmptyList ::
   -- ^ Wraps the outer items
 
   -> Gen b
-wrapTextNonEmptyList gf gr wi wo = let
+wrapTextNonEmptyList sf gf gr wi wo = let
   firstWord =
     wi <$> (TNE.TextNonEmpty <$> gf <*> (X.pack <$> listOf gr))
   otherWord =
     wi <$> (TNE.TextNonEmpty <$> gr <*> (X.pack <$> listOf gr))
-  restWords = (listOf otherWord)
+  restWords = sized $ \s ->
+    resize (sf s) (listOf (resize s otherWord))
   in wo <$> ( (:|) <$> firstWord <*> restWords)
 
 -- | Generate a TextNonEmpty with given generators for the first

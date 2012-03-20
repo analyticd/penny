@@ -80,13 +80,14 @@ prop_roundTripLvl2First =
 -- | Generate Level 1 Account.
 genLvl1Account :: Gen B.Account
 genLvl1Account =
-  wrapTextNonEmptyList g g B.SubAccountName B.Account where
+  wrapTextNonEmptyList (min 3) g g B.SubAccountName B.Account where
     g = suchThat arbitrary A.lvl1Char
 
 -- | Generate a Level 2 account
 genLvl2Account :: Gen B.Account
 genLvl2Account =
   wrapTextNonEmptyList
+  (min 3)
   (suchThat arbitrary A.lvl2FirstChar)
   (suchThat arbitrary A.lvl2RemainingChar) B.SubAccountName B.Account
 
