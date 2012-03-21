@@ -2,7 +2,8 @@ module PennyTest.Copper.Price (
   tests, genDT,
   PricePointData(PricePointData, dateTime, from,
                  to, countPerUnit, defaultTimeZone),
-  genRPricePointData
+  genRPricePointData,
+  pricesEqual
   ) where
 
 import qualified Penny.Copper.DateTime as DT
@@ -60,6 +61,17 @@ instance Arbitrary RandomPricePointData where
          <*> (B.To <$> arbitrary)
          <*> (B.CountPerUnit <$> arbitrary)
          <*> TDT.genAnyTimeZone )
+
+-- | Checks to see if two PriceBoxes are equal.
+pricesEqual :: Boxes.PriceBox -> Boxes.PriceBox -> Bool
+pricesEqual b1 b2 = maybe False id $ do
+  let p1 = Boxes.price b1
+      p2 = Boxes.price b2
+  m1 <- Boxes.priceMeta b1
+  m2 <- Boxes.priceMeta b2
+  f1 <- M.priceFormat m1
+  f2 <- M.priceFormat m2
+  return ((p1 == p2) && (f1 == f2))
 
 -- | Generates a DateTime. Some of the time zones
 -- for the DateTime will be the same as the DefaultTimeZone given; in

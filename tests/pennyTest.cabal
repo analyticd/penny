@@ -97,4 +97,15 @@ Executable copperTest
   Main-is: copperTest.hs
   GHC-Options: -Wall
 
+Executable gibberish
+  hs-source-dirs: bin
+  Build-depends:
+    base ==4.*,
+    pennyTest ==0.1.*,
+    penny ==0.1.*,
+    QuickCheck ==2.4.*,
+    random ==1.0.*,
+    text ==0.11.*
 
+  Main-is: gibberish.hs
+  GHC-Options: -Wall

@@ -1,17 +1,25 @@
 module PennyTest.Copper.Item where
 
-import Control.Applicative ((<$>), (<*>), pure)
+import Control.Applicative ((<$>), (<*>), pure, (<*))
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified PennyTest.Copper.Comments as C
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Item as I
-import Test.QuickCheck (Gen, arbitrary, Arbitrary, oneof)
+import qualified Penny.Copper.Qty as Q
+import Test.Framework (testGroup, Test)
+import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.QuickCheck (
+  Gen, arbitrary, Arbitrary, oneof, Property, property,
+  printTestCase)
 import qualified PennyTest.Copper.Transaction as TT
 import PennyTest.Lincoln.Meta ()
+import qualified PennyTest.Copper.DateTime as TDT
 import qualified PennyTest.Copper.Price as TP
 import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Boxes as Boxes
 import qualified Penny.Lincoln.Meta as M
+import qualified Text.Parsec as Parsec
 
 -- | Generate renderable Items.
 genRItem :: DT.DefaultTimeZone -> Gen I.Item
@@ -38,13 +46,55 @@ genPrice dtz = do
           Nothing -> error $ "genRItem: making price failed"
           Just p -> return p
   let pp = B.PricePoint (TP.dateTime ppd) pr
-      result = Boxes.PriceBox <$> pure pp <*> (Just <$> arbitrary)
+      meta = M.PriceMeta <$> arbitrary <*> (Just <$> arbitrary)
+      result = Boxes.PriceBox <$> pure pp <*> (Just <$> meta)
   I.Price <$> result
   
 -- | Genereate renderable Comments.
 genCom :: Gen I.Item
-genCom = undefined
+genCom = I.Comment <$> C.genRComment
 
 -- | Generate blank lines.
 genBlank :: Gen I.Item
-genBlank = undefined
+genBlank = return I.BlankLine
+
+-- | Parsing a renderable Item yields the same thing.
+prop_parseRenderable ::
+  TDT.AnyTimeZone
+  -> M.Filename
+  -> (Q.GroupingSpec, Q.GroupingSpec)
+  -> Q.RadGroup
+  -> Property
+prop_parseRenderable (TDT.AnyTimeZone dtz) fn gs rg = do
+  i <- genRItem dtz
+  case I.render dtz gs rg i of
+    Nothing -> printTestCase ("render failed. Item: " ++ show i)
+               False
+    Just x -> let
+      parser = I.itemWithLineNumber fn dtz rg <* Parsec.eof
+      in case Parsec.parse parser "" x of
+        Left e -> printTestCase ("parse failed: " ++ show e)
+                  False
+        Right (_, i') -> if itemsEq i i'
+                    then property True
+                    else printTestCase "items not equal"
+                         False
+
+test_parseRenderable :: Test
+test_parseRenderable = testProperty s prop_parseRenderable where
+  s = "Parsing rendered Item gives same Item"
+
+itemsEq :: I.Item -> I.Item -> Bool
+itemsEq i1 i2 = case (i1, i2) of
+  (I.Transaction t1, I.Transaction t2) ->
+    TT.boxesEqual t1 t2
+  (I.Price p1, I.Price p2) ->
+    TP.pricesEqual p1 p2
+  (I.Comment c1, I.Comment c2) ->
+    c1 == c2
+  (I.BlankLine, I.BlankLine) -> True
+  _ -> False
+
+tests :: Test
+tests = testGroup "Item"
+        [ test_parseRenderable ]

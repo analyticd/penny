@@ -47,4 +47,6 @@ render dtz tl =
   <*> renMaybe (T.tPayee tl) P.smartRender
   where
     f meX dtX flX nuX paX =
-      txtWords [meX, dtX, flX, nuX, paX] `X.snoc` '\n'
+      meX
+      `X.append` (txtWords [dtX, flX, nuX, paX])
+      `X.snoc` '\n'
