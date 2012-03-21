@@ -8,10 +8,6 @@ import qualified Test.QuickCheck as Q
 randText :: Q.Gen X.Text
 randText = X.pack <$> Q.arbitrary
 
-{-
-instance Q.Arbitrary T.TextNonEmpty where
-  arbitrary = T.TextNonEmpty <$> Q.arbitrary <*> randText
--}
 -- | Generates a TextNonEmpty using the given generators for the first
 -- character and for all other characters. The length of the tail
 -- depends on the size parameter.

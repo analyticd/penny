@@ -26,10 +26,10 @@ import Text.Parsec.Text ( Parser )
 
 import Penny.Lincoln.Bits.Qty ( Qty, partialNewQty, unQty )
 
-data Radix = RComma | RPeriod deriving Show
-data Grouper = GComma | GPeriod | GSpace deriving Show
+data Radix = RComma | RPeriod deriving (Eq, Show)
+data Grouper = GComma | GPeriod | GSpace deriving (Eq, Show)
 
-data RadGroup = RadGroup Radix Grouper deriving Show
+data RadGroup = RadGroup Radix Grouper deriving (Eq, Show)
 
 -- | Radix is period, grouping is comma
 periodComma :: RadGroup
@@ -191,15 +191,12 @@ quote t = case X.find (== ' ') t of
 -- | Renders an unquoted Qty. Performs digit grouping as requested. 
 renderUnquoted ::
   RadGroup
-  -> GroupingSpec
-  -- ^ Group for the portion to the left of the radix point?
-
-  -> GroupingSpec
-  -- ^ Group for the portion to the right of the radix point?
+  -> (GroupingSpec, GroupingSpec)
+  -- ^ Group for the portion to the left and right of the radix point?
 
   -> Qty
   -> X.Text
-renderUnquoted (RadGroup r g) gl gr q = let
+renderUnquoted (RadGroup r g) (gl, gr) q = let
   qs = show . unQty $ q
   in X.pack $ case splitOn "." qs of
     w:[] -> groupWhole g gl w

@@ -11,7 +11,7 @@ import qualified PennyTest.Copper.Payees as TPa
 import qualified PennyTest.Copper.Memos.Posting as TMe
 import qualified PennyTest.Copper.Number as TNu
 import PennyTest.Copper.Qty ()
-import PennyTest.Lincoln.Meta ()
+import qualified PennyTest.Lincoln.Meta as TM
 import qualified PennyTest.Copper.Tags as TTa
 import PennyTest.Copper.Util (genMaybe)
 import qualified Penny.Lincoln.Transaction.Unverified as U
@@ -30,8 +30,12 @@ genRUPosting = do
   en <- genMaybe TEn.genREntry
   me <- TMe.genRMemo
   meta <- case en of
-    Nothing -> M.PostingMeta <$> arbitrary <*> pure Nothing
-    Just _ -> M.PostingMeta <$> arbitrary <*> arbitrary
+    Nothing -> M.PostingMeta
+               <$> genMaybe TM.genPostingLine
+               <*> pure Nothing
+    Just _ -> M.PostingMeta
+              <$> genMaybe TM.genPostingLine
+              <*> genMaybe TM.genFormat
   let uPo = U.Posting pa nu fl ac ta en me
   return (uPo, meta)
 

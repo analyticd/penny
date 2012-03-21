@@ -32,16 +32,13 @@ entry rg = f <$> lexeme drCr <*> amount rg <?> e where
   e = "entry"
 
 render ::
-  Q.GroupingSpec
-  -- ^ Grouping to the left of the radix point
-  -> Q.GroupingSpec
-  -- ^ Grouping to the right of the radix point
+  (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
   -> M.Format
   -> B.Entry
   -> Maybe X.Text
-render gl gr rg f (B.Entry dc a) = do
-  amt <- A.render gl gr rg f a
+render gs rg f (B.Entry dc a) = do
+  amt <- A.render gs rg f a
   let dcTxt = X.pack $ case dc of
         B.Debit -> "Dr"
         B.Credit -> "Cr"

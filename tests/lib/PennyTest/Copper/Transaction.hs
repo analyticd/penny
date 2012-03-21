@@ -6,24 +6,24 @@ import Data.Foldable (toList)
 import Data.Traversable (traverse)
 import PennyTest.Copper.Util (genMaybe)
 import qualified Penny.Copper.DateTime as DT
-import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Transaction as T
 import qualified PennyTest.Copper.Account as TAc
 import qualified PennyTest.Copper.Commodity as TCy
 import qualified PennyTest.Copper.DateTime as TDT
 import qualified PennyTest.Copper.Flag as TFl
 import qualified PennyTest.Copper.Payees as TPa
+import qualified PennyTest.Copper.Qty as TQ
 import qualified PennyTest.Copper.Memos.Posting as TPostingMemo
 import qualified PennyTest.Copper.Memos.Transaction as TTransactionMemo
 import qualified PennyTest.Copper.Number as TNu
 import PennyTest.Copper.Price (genDT)
 import qualified PennyTest.Copper.Tags as TTa
 import qualified PennyTest.Lincoln.Bits as TB
-import PennyTest.Lincoln.Meta ()
+import PennyTest.Lincoln.Meta as TM
 import PennyTest.Lincoln.Family.Family ()
 import qualified PennyTest.Lincoln.Transaction as TLT
 import Test.QuickCheck (
-  Arbitrary, arbitrary, Gen, oneof, sized, resize, Property,
+  Gen, oneof, sized, resize, Property,
   property)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework (Test, testGroup)
@@ -65,20 +65,25 @@ randomRenderable dtz = sized $ \s -> resize (min s 6) $ do
   t <- TLT.randomUnverifiedTransactions (rTransInputs dtz)
   let uPstgs = orphans t
       toMeta uPo = case U.entry uPo of
-        Nothing -> M.PostingMeta <$> arbitrary <*> pure Nothing
-        Just _ -> M.PostingMeta <$> arbitrary <*> (Just <$> arbitrary)
+        Nothing -> M.PostingMeta
+                   <$> genMaybe TM.genPostingLine
+                   <*> pure Nothing
+        Just _ -> M.PostingMeta
+                  <$> genMaybe TM.genPostingLine
+                  <*> (Just <$> TM.genFormat)
   pstgMetas <- traverse toMeta uPstgs
-  topLineMeta <- arbitrary
+  topLineMeta <- TM.genTopLineMeta
   return (t, adopt topLineMeta pstgMetas)
 
 -- | Parsing random renderable Posting gives the same thing.
 prop_parseRendered ::
   TDT.AnyTimeZone
-  -> M.Filename
-  -> (Qt.GroupingSpec, Qt.GroupingSpec)
-  -> Qt.RadGroup
+  -> TM.AnyFilename
+  -> TQ.AnySpecPair
+  -> TQ.AnyRadGroup
   -> Property
-prop_parseRendered (TDT.AnyTimeZone dtz) fn gs rg = do
+prop_parseRendered (TDT.AnyTimeZone dtz) (TM.AnyFilename fn)
+  (TQ.AnySpecPair gs) (TQ.AnyRadGroup rg) = do
   (tFam, metaFam) <- randomRenderable dtz
   case Txn.transaction tFam of
     Ex.Exception _ -> error "making transaction failed"
@@ -108,8 +113,6 @@ boxesEqual b1 b2 = let
           M.postingFormat pm1 == M.postingFormat pm2
     return ((and . toList . fmap sameMeta $ os)
             && t1 == t2)
-
-  
 
 test_parseRendered :: Test
 test_parseRendered = testProperty s prop_parseRendered where

@@ -36,7 +36,7 @@ Library
     time ==1.2.*
 
 
-  GHC-Options: -Wall -fno-warn-orphans
+  GHC-Options: -Wall
   Exposed-modules:
     PennyTest,
     PennyTest.Pretty,
@@ -65,7 +65,6 @@ Library
     PennyTest.Lincoln.Balance,
     PennyTest.Lincoln.Bits,
     PennyTest.Lincoln.Family,
-    PennyTest.Lincoln.Family.Child,
     PennyTest.Lincoln.Family.Family,
     PennyTest.Lincoln.Family.Siblings,
     PennyTest.Lincoln.Meta,

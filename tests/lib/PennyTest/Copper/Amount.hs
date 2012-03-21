@@ -2,12 +2,10 @@ module PennyTest.Copper.Amount where
 
 import qualified Penny.Copper.Amount as A
 import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Copper.Qty as Q
-import qualified Penny.Lincoln.Meta as M
 import qualified PennyTest.Lincoln.Bits as TB
-import PennyTest.Lincoln.Meta ()
+import qualified PennyTest.Lincoln.Meta as TM
 import PennyTest.Copper.Commodity (genRCmdty)
-import PennyTest.Copper.Qty ()
+import qualified PennyTest.Copper.Qty as TQ
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Test.Framework.Providers.QuickCheck2 (testProperty)
@@ -30,14 +28,14 @@ instance Arbitrary RAmount where
 
 -- | Parsing a rendered renderable should yield the same amount.
 prop_parseAmount ::
-  Q.GroupingSpec -- ^ Grouping to left of radix point
-  -> Q.GroupingSpec -- ^ Grouping to right of radix point
-  -> Q.RadGroup
-  -> M.Format
+  TQ.AnySpecPair
+  -> TQ.AnyRadGroup
+  -> TM.Format
   -> RAmount
   -> Bool
-prop_parseAmount gl gr rg f (RAmount a) =
-  case A.render gl gr rg f a of
+prop_parseAmount (TQ.AnySpecPair gs) (TQ.AnyRadGroup rg)
+  (TM.Format f) (RAmount a) =
+  case A.render gs rg f a of
     Nothing -> False
     Just t -> case P.parse (A.amount rg <* P.eof) "" t of
       Left _ -> False

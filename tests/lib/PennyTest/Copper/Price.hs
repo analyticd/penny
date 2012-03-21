@@ -13,10 +13,10 @@ import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Meta as M
 
 import qualified PennyTest.Lincoln.Bits as TB
-import PennyTest.Lincoln.Meta ()
+import qualified PennyTest.Lincoln.Meta as TM
 import PennyTest.Copper.Commodity (genRCmdty)
 import qualified PennyTest.Copper.DateTime as TDT
-import PennyTest.Copper.Qty ()
+import qualified PennyTest.Copper.Qty as TQ
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Data.Maybe (fromMaybe)
@@ -107,11 +107,14 @@ prop_isRenderable :: Property
 prop_isRenderable = do
   dtz <- TDT.genAnyTimeZone
   ppd <- genRPricePointData dtz
-  (gl, gr, rg, fmt) <- arbitrary
+  gs@(_, _) <- (,) <$> TQ.genGroupingSpec
+                 <*> TQ.genGroupingSpec
+  rg <- TQ.genRadGroup
+  fmt <- TM.genFormat
   fromMaybe (property False) $ do
     p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
     let pp = B.PricePoint (dateTime ppd) p
-    _ <- P.render (defaultTimeZone ppd) gl gr rg (pp, fmt)
+    _ <- P.render (defaultTimeZone ppd) gs rg (pp, fmt)
     return (property True)
   
 test_isRenderable :: Test
@@ -121,13 +124,17 @@ test_isRenderable = testProperty s prop_isRenderable where
 -- | Renderable PricePoint parses without error
 prop_renderableParses :: Property
 prop_renderableParses = do
-  (gl, gr, rg, fmt) <- arbitrary
+  gs@(_, _) <- (,)
+               <$> TQ.genGroupingSpec
+               <*> TQ.genGroupingSpec
+  rg <- TQ.genRadGroup
+  fmt <- TM.genFormat
   dtz <- TDT.genAnyTimeZone
   ppd <- genRPricePointData dtz
   fromMaybe (property False) $ do
     p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
     let pp = B.PricePoint (dateTime ppd) p
-    txt <- P.render (defaultTimeZone ppd) gl gr rg (pp, fmt)
+    txt <- P.render (defaultTimeZone ppd) gs rg (pp, fmt)
     let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
     case Parsec.parse parser "" txt of
       Left e -> let
@@ -143,13 +150,16 @@ test_renderableParses = testProperty s prop_renderableParses where
 -- | Parsing a renderable PricePoint should give the same price.
 prop_parseRPricePoint :: Property
 prop_parseRPricePoint = do
-  (gl, gr, rg, fmt) <- arbitrary
+  gs@(_, _) <- (,) <$> TQ.genGroupingSpec
+               <*> TQ.genGroupingSpec
+  rg <- TQ.genRadGroup
+  fmt <- TM.genFormat
   dtz <- TDT.genAnyTimeZone
   ppd <- genRPricePointData dtz
   fromMaybe (property False) $ do
     p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
     let pp = B.PricePoint (dateTime ppd) p
-    txt <- P.render (defaultTimeZone ppd) gl gr rg (pp, fmt)
+    txt <- P.render (defaultTimeZone ppd) gs rg (pp, fmt)
     let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
     box <- either (const Nothing) Just $ Parsec.parse parser "" txt
     if Boxes.price box /= pp
@@ -169,13 +179,16 @@ test_parseRPricePoint = testProperty s prop_parseRPricePoint where
 -- metadata
 prop_parseRPricePointMeta :: Property
 prop_parseRPricePointMeta = do
-  (gl, gr, rg, fmt) <- arbitrary
+  gs@(_, _) <- (,) <$> TQ.genGroupingSpec
+               <*> TQ.genGroupingSpec
+  rg <- TQ.genRadGroup
+  fmt <- TM.genFormat
   dtz <- TDT.genAnyTimeZone
   ppd <- genRPricePointData dtz
   fromMaybe (property False) $ do
     p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
     let pp = B.PricePoint (dateTime ppd) p
-    txt <- P.render (defaultTimeZone ppd) gl gr rg (pp, fmt)
+    txt <- P.render (defaultTimeZone ppd) gs rg (pp, fmt)
     let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
     box <- either (const Nothing) Just $ Parsec.parse parser "" txt
     priceMeta <- Boxes.priceMeta box

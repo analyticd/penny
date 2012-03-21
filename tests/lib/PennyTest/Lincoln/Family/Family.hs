@@ -2,9 +2,12 @@ module PennyTest.Lincoln.Family.Family where
 
 import Control.Applicative ((<$>), (<*>))
 import qualified Penny.Lincoln.Family.Family as F
-import qualified Test.QuickCheck as Q
-import Test.QuickCheck (Arbitrary, arbitrary)
+import Test.QuickCheck (Gen, listOf)
 
-instance (Arbitrary p, Arbitrary c) => Arbitrary (F.Family p c) where
-  arbitrary = F.Family <$> arbitrary <*> arbitrary <*> arbitrary
-              <*> arbitrary
+genFamily :: Gen p -> Gen c -> Gen c -> Gen c -> Gen (F.Family p c)
+genFamily gp gc1 gc2 gcr =
+  F.Family
+  <$> gp
+  <*> gc1
+  <*> gc2
+  <*> listOf gcr

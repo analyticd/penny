@@ -2,12 +2,10 @@ module PennyTest.Copper.Entry where
 
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Copper.Entry as E
-import qualified Penny.Copper.Qty as Q
-import qualified Penny.Lincoln.Meta as M
 import qualified PennyTest.Copper.Amount as TA
 import qualified PennyTest.Lincoln.Bits as TB
-import PennyTest.Lincoln.Meta ()
-import PennyTest.Copper.Qty ()
+import qualified PennyTest.Lincoln.Meta as TM
+import qualified PennyTest.Copper.Qty as TQ
 
 import Control.Applicative ((<$>), (<*), (<*>))
 import Test.Framework.Providers.QuickCheck2 (testProperty)
@@ -29,14 +27,14 @@ instance Arbitrary REntry where
 
 -- | Parsing a rendered renderable should yield the same Entry.
 prop_parseEntry ::
-  Q.GroupingSpec -- ^ Grouping to the left of radix point
-  -> Q.GroupingSpec -- ^ Grouping to the right of radix point
-  -> Q.RadGroup
-  -> M.Format
+  TQ.AnySpecPair
+  -> TQ.AnyRadGroup
+  -> TM.Format
   -> REntry
   -> Bool
-prop_parseEntry gl gr rg f (REntry e) =
-  case E.render gl gr rg f e of
+prop_parseEntry (TQ.AnySpecPair gs) (TQ.AnyRadGroup rg)
+  (TM.Format f) (REntry e) =
+  case E.render gs rg f e of
     Nothing -> False
     Just txt -> case P.parse (E.entry rg <* P.eof) "" txt of
       Left _ -> False

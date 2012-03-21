@@ -72,7 +72,7 @@ render ::
   -> Qt.RadGroup
   -> (T.Posting, M.PostingMeta)
   -> Maybe X.Text
-render (gl, gr) rg (p, m) = do
+render gs rg (p, m) = do
   fl <- renMaybe (T.pFlag p) Fl.render
   nu <- renMaybe (T.pNumber p) Nu.render
   pa <- renMaybe (T.pPayee p) Pa.quoteRender
@@ -83,7 +83,7 @@ render (gl, gr) rg (p, m) = do
     (T.Inferred, Nothing) -> return Nothing
     (T.NotInferred, Just f) -> return (Just (T.pEntry p, f))
     _ -> Nothing
-  let renderEn (e, f) = En.render gl gr rg f e
+  let renderEn (e, f) = En.render gs rg f e
   en <- renMaybe maybePair renderEn
   let ws = txtWords [fl, nu, pa, ac, ta, en]
   return $ X.pack (replicate 4 ' ')

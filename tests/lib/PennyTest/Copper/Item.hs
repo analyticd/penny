@@ -5,16 +5,17 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified PennyTest.Copper.Comments as C
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Item as I
-import qualified Penny.Copper.Qty as Q
 import Test.Framework (testGroup, Test)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck (
-  Gen, arbitrary, Arbitrary, oneof, Property, property,
+  Gen, oneof, Property, property,
   printTestCase)
 import qualified PennyTest.Copper.Transaction as TT
-import PennyTest.Lincoln.Meta ()
+import qualified PennyTest.Lincoln.Meta as TM
+import qualified PennyTest.Copper.Qty as TQ
 import qualified PennyTest.Copper.DateTime as TDT
 import qualified PennyTest.Copper.Price as TP
+import PennyTest.Copper.Util (genMaybe)
 import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Boxes as Boxes
@@ -46,7 +47,9 @@ genPrice dtz = do
           Nothing -> error $ "genRItem: making price failed"
           Just p -> return p
   let pp = B.PricePoint (TP.dateTime ppd) pr
-      meta = M.PriceMeta <$> arbitrary <*> (Just <$> arbitrary)
+      meta = M.PriceMeta
+             <$> genMaybe TM.genPriceLine
+             <*> (Just <$> TM.genFormat)
       result = Boxes.PriceBox <$> pure pp <*> (Just <$> meta)
   I.Price <$> result
   
@@ -61,24 +64,26 @@ genBlank = return I.BlankLine
 -- | Parsing a renderable Item yields the same thing.
 prop_parseRenderable ::
   TDT.AnyTimeZone
-  -> M.Filename
-  -> (Q.GroupingSpec, Q.GroupingSpec)
-  -> Q.RadGroup
+  -> TM.AnyFilename
+  -> TQ.AnySpecPair
+  -> TQ.AnyRadGroup
   -> Property
-prop_parseRenderable (TDT.AnyTimeZone dtz) fn gs rg = do
-  i <- genRItem dtz
-  case I.render dtz gs rg i of
-    Nothing -> printTestCase ("render failed. Item: " ++ show i)
-               False
-    Just x -> let
-      parser = I.itemWithLineNumber fn dtz rg <* Parsec.eof
-      in case Parsec.parse parser "" x of
-        Left e -> printTestCase ("parse failed: " ++ show e)
-                  False
-        Right (_, i') -> if itemsEq i i'
-                    then property True
-                    else printTestCase "items not equal"
-                         False
+prop_parseRenderable (TDT.AnyTimeZone dtz) afn
+  (TQ.AnySpecPair gs) (TQ.AnyRadGroup rg) = do
+    let TM.AnyFilename fn = afn
+    i <- genRItem dtz
+    case I.render dtz gs rg i of
+      Nothing -> printTestCase ("render failed. Item: " ++ show i)
+                 False
+      Just x -> let
+        parser = I.itemWithLineNumber fn dtz rg <* Parsec.eof
+        in case Parsec.parse parser "" x of
+          Left e -> printTestCase ("parse failed: " ++ show e)
+                    False
+          Right (_, i') -> if itemsEq i i'
+                           then property True
+                           else printTestCase "items not equal"
+                                False
 
 test_parseRenderable :: Test
 test_parseRenderable = testProperty s prop_parseRenderable where

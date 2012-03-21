@@ -76,19 +76,18 @@ price dtz rg = do
 -- rendered.
 render ::
   DT.DefaultTimeZone
-  -> Q.GroupingSpec -- ^ Grouping to the left of the radix point
-  -> Q.GroupingSpec -- ^ Grouping to the right of the radix point
+  -> (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
   -> (B.PricePoint, M.Format)
   -> Maybe X.Text
-render dtz gl gr rg (pp, fmt) = let
+render dtz gs rg (pp, fmt) = let
   dateTxt = DT.render dtz (B.dateTime pp)
   (B.From from) = B.from . B.price $ pp
   (B.To to) = B.to . B.price $ pp
   (B.CountPerUnit q) = B.countPerUnit . B.price $ pp
   mayFromTxt = C.renderLvl3 from <|> C.renderQuotedLvl1 from
   amt = B.Amount q to
-  mayAmtTxt = A.render gl gr rg fmt amt
+  mayAmtTxt = A.render gs rg fmt amt
   in do
     amtTxt <- mayAmtTxt
     fromTxt <- mayFromTxt

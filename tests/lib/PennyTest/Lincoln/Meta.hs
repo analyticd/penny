@@ -2,48 +2,63 @@ module PennyTest.Lincoln.Meta where
 
 import qualified Penny.Lincoln.Meta as M
 
-import Control.Applicative (pure, (<$>), (<*>))
+import Control.Applicative ((<$>), (<*>))
 import Data.Text (pack)
-import Test.QuickCheck as Q
-import Test.QuickCheck (Arbitrary, arbitrary)
+import Test.QuickCheck (Arbitrary, arbitrary, elements, Gen)
+import PennyTest.Lincoln.Bits (genMaybe)
 
-instance Arbitrary M.Side where
-  arbitrary = oneof [ pure M.CommodityOnLeft
-                    , pure M.CommodityOnRight ]
+genSide :: Gen M.Side
+genSide = elements [ M.CommodityOnLeft, M.CommodityOnRight ]
 
-instance Arbitrary M.SpaceBetween where
-  arbitrary = oneof [ pure M.SpaceBetween
-                    , pure M.NoSpaceBetween ]
+genSpaceBetween :: Gen M.SpaceBetween
+genSpaceBetween = elements [M.SpaceBetween, M.NoSpaceBetween]
 
-instance Arbitrary M.Format where
-  arbitrary = M.Format <$> arbitrary <*> arbitrary
+genFormat :: Gen M.Format
+genFormat = M.Format <$> genSide <*> genSpaceBetween
 
-instance Arbitrary M.Line where
-  arbitrary = M.Line <$> arbitrary
+newtype Format = Format M.Format
+                 deriving (Eq, Show)
+instance Arbitrary Format where
+  arbitrary = Format <$> genFormat
 
-instance Arbitrary M.Filename where
-  arbitrary = M.Filename <$> (pack <$> arbitrary)
+genLine :: Gen M.Line
+genLine = M.Line <$> arbitrary
 
-instance Arbitrary M.Column where
-  arbitrary = M.Column <$> arbitrary
+newtype AnyFilename = AnyFilename M.Filename
+                      deriving (Eq, Show)
+instance Arbitrary AnyFilename where
+  arbitrary = AnyFilename <$> genFilename
 
-instance Arbitrary M.PriceLine where
-  arbitrary = M.PriceLine <$> arbitrary
+genFilename :: Gen M.Filename
+genFilename = M.Filename <$> (pack <$> arbitrary)
 
-instance Arbitrary M.PostingLine where
-  arbitrary = M.PostingLine <$> arbitrary
+genColumn :: Gen M.Column
+genColumn = M.Column <$> arbitrary
 
-instance Arbitrary M.TopMemoLine where
-  arbitrary = M.TopMemoLine <$> arbitrary
+genPriceLine :: Gen M.PriceLine
+genPriceLine = M.PriceLine <$> genLine
 
-instance Arbitrary M.TopLineLine where
-  arbitrary = M.TopLineLine <$> arbitrary
+genPostingLine :: Gen M.PostingLine
+genPostingLine = M.PostingLine <$> genLine
 
-instance Arbitrary M.PriceMeta where
-  arbitrary = M.PriceMeta <$> arbitrary <*> arbitrary
+genTopMemoLine :: Gen M.TopMemoLine
+genTopMemoLine = M.TopMemoLine <$> genLine
 
-instance Arbitrary M.PostingMeta where
-  arbitrary = M.PostingMeta <$> arbitrary <*> arbitrary
+genTopLineLine :: Gen M.TopLineLine
+genTopLineLine = M.TopLineLine <$> genLine
 
-instance Arbitrary M.TopLineMeta where
-  arbitrary = M.TopLineMeta <$> arbitrary <*> arbitrary <*> arbitrary
+genPriceMeta :: Gen M.PriceMeta
+genPriceMeta = M.PriceMeta
+               <$> genMaybe genPriceLine
+               <*> genMaybe genFormat
+
+genPostingMeta :: Gen M.PostingMeta
+genPostingMeta = M.PostingMeta
+                 <$> genMaybe genPostingLine
+                 <*> genMaybe genFormat
+
+genTopLineMeta :: Gen M.TopLineMeta
+genTopLineMeta = M.TopLineMeta
+                 <$> genMaybe genTopMemoLine
+                 <*> genMaybe genTopLineLine
+                 <*> genMaybe genFilename

@@ -71,17 +71,15 @@ amount rg = lvl1CmdtyQty rg
 -- | Render an Amount. The Format is required so that the commodity
 -- can be displayed in the right place.
 render ::
-  Q.GroupingSpec
-  -- ^ Grouping to the left of the radix point
-  -> Q.GroupingSpec
-  -- ^ Grouping to the right of the radix point
+  (Q.GroupingSpec, Q.GroupingSpec)
+  -- ^ Grouping
   -> Q.RadGroup
   -> M.Format
   -> B.Amount
   -> Maybe X.Text
-render gl gr rg f a = let
+render gs rg f a = let
   (q, c) = (B.qty a, B.commodity a)
-  qty = Q.quote $ Q.renderUnquoted rg gl gr q
+  qty = Q.quote $ Q.renderUnquoted rg gs q
   ws = case M.between f of
     M.SpaceBetween -> X.singleton ' '
     M.NoSpaceBetween -> X.empty

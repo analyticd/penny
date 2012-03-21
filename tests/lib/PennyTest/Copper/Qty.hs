@@ -3,29 +3,45 @@ module PennyTest.Copper.Qty where
 import qualified Penny.Copper.Qty as Q
 import qualified PennyTest.Lincoln.Bits as TB
 
-import Control.Applicative ((<*))
+import Control.Applicative ((<*), (<$>), (<*>))
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import qualified Text.Parsec as P
 import Test.Framework (Test, testGroup)
 import Test.QuickCheck (Arbitrary, arbitrary, elements,
-                        Property, property)
+                        Property, property, Gen)
 
-instance Arbitrary Q.RadGroup where
-  arbitrary = elements [
+genRadGroup :: Gen Q.RadGroup
+genRadGroup = elements [
     Q.periodComma, Q.periodSpace, Q.commaPeriod, Q.commaSpace ]
 
-instance Arbitrary Q.GroupingSpec where
-  arbitrary = elements [ Q.NoGrouping, Q.GroupLarge, Q.GroupAll ]
+newtype AnyRadGroup = AnyRadGroup Q.RadGroup
+                      deriving (Show, Eq)
+instance Arbitrary AnyRadGroup where
+  arbitrary = AnyRadGroup <$> genRadGroup
+
+genGroupingSpec :: Gen Q.GroupingSpec
+genGroupingSpec = elements [ Q.NoGrouping, Q.GroupLarge, Q.GroupAll ]
+
+newtype AnyGroupingSpec = AnyGroupingSpec Q.GroupingSpec
+                          deriving (Eq, Show)
+instance Arbitrary AnyGroupingSpec where
+  arbitrary = AnyGroupingSpec <$> genGroupingSpec
+
+newtype AnySpecPair = AnySpecPair (Q.GroupingSpec, Q.GroupingSpec)
+                      deriving (Eq, Show)
+instance Arbitrary AnySpecPair where
+  arbitrary = AnySpecPair <$>
+              ((,) <$> genGroupingSpec <*> genGroupingSpec)
 
 -- | Parsing a rendered, quoted Qty gives the same Qty.
 prop_parseQty ::
-  Q.RadGroup
-  -> Q.GroupingSpec
-  -> Q.GroupingSpec
+  AnyRadGroup
+  -> (AnyGroupingSpec, AnyGroupingSpec)
   -> Property
-prop_parseQty rg gw gd = do
+prop_parseQty (AnyRadGroup rg) gs = do
+  let (AnyGroupingSpec gl, AnyGroupingSpec gr) = gs
   q <- TB.genQty
-  let rendered = Q.quote . Q.renderUnquoted rg gw gd $ q
+  let rendered = Q.quote . Q.renderUnquoted rg (gl, gr) $ q
       parsed = P.parse (Q.qty rg <* P.eof) "" rendered
   case parsed of
     Left _ -> property False

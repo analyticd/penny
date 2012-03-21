@@ -60,8 +60,7 @@ render dtz gs rg i = case i of
     T.render dtz gs rg t
   Price p -> do
     pair <- P.unbox p
-    let (gl, gr) = gs
-    P.render dtz gl gr rg pair
+    P.render dtz gs rg pair
   Comment c -> C.render c
   BlankLine -> Just $ X.singleton '\n'
     
