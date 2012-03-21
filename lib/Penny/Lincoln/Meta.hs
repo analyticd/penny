@@ -13,43 +13,43 @@ data Format =
   deriving (Eq, Show)
 
 newtype Line = Line { unLine :: Int }
-               deriving Show
+               deriving (Eq, Show)
 
 newtype Filename = Filename { unFilename :: X.Text }
-                   deriving Show
+                   deriving (Eq, Show)
 
 newtype Column = Column { unColumn :: Int }
                  deriving (Show, Eq, Ord)
 
 newtype PriceLine = PriceLine { unPriceLine :: Line }
-                    deriving Show
+                    deriving (Eq, Show)
 
 newtype PostingLine = PostingLine { unPostingLine :: Line }
-                      deriving Show
+                      deriving (Eq, Show)
 
 newtype TopMemoLine = TopMemoLine { unTopMemoLine :: Line }
-                      deriving Show
+                      deriving (Eq, Show)
 
 newtype TopLineLine = TopLineLine { unTopLineLine :: Line }
-                      deriving Show
+                      deriving (Eq, Show)
 
 data PriceMeta =
   PriceMeta { priceLine :: Maybe PriceLine
             , priceFormat :: Maybe Format }
-  deriving Show
+  deriving (Eq, Show)
 
 data PostingMeta =
   PostingMeta { postingLine :: Maybe PostingLine
               , postingFormat :: Maybe Format }
-  deriving Show
+  deriving (Eq, Show)
 
 data TopLineMeta =
   TopLineMeta { topMemoLine :: Maybe TopMemoLine
               , topLineLine :: Maybe TopLineLine
               , filename :: Maybe Filename }
-  deriving Show
+  deriving (Eq, Show)
 
 newtype TransactionMeta =
   TransactionMeta
   { unTransactionMeta :: F.Family TopLineMeta PostingMeta }
-  deriving Show
+  deriving (Eq, Show)

@@ -70,7 +70,7 @@ data Posting =
           , pEntry   :: B.Entry
           , pMemo    :: B.Memo
           , pInferred :: Inferred }
-  deriving Show
+  deriving (Eq, Show)
 
 -- | The TopLine holds information that applies to all the postings in
 -- a transaction (so named because in a ledger file, this information
@@ -81,14 +81,14 @@ data TopLine =
           , tNumber   :: (Maybe B.Number)
           , tPayee    :: (Maybe B.Payee)
           , tMemo     :: B.Memo }
-  deriving Show
+  deriving (Eq, Show)
 
 -- | All the Postings in a Transaction must produce a Total whose
 -- debits and credits are equal. That is, the Transaction must be
 -- balanced. No Transactions are created that are not balanced.
 newtype Transaction =
   Transaction { unTransaction :: F.Family TopLine Posting }
-  deriving Show
+  deriving (Eq, Show)
   
 -- | Errors that can arise when making a Transaction.
 data Error = UnbalancedError

@@ -1,12 +1,9 @@
 module PennyTest.Copper.TopLine where
 
-import Control.Applicative ((<$>), (<*>), (<*))
+import Control.Applicative ((<$>), (<*>))
 import qualified Penny.Copper.DateTime as DT
-import qualified Penny.Copper.TopLine as T
 import Test.QuickCheck (Arbitrary, arbitrary, Gen, oneof)
 import Test.Framework (Test, testGroup)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import qualified Text.Parsec as P
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
 import PennyTest.Copper.Price (genDTZandDT)
@@ -37,20 +34,6 @@ newtype RTopLine = RTopLine (U.TopLine, DT.DefaultTimeZone)
 instance Arbitrary RTopLine where
   arbitrary = RTopLine <$> genRTopLine
 
--- | Parsing a rendered TopLine should yield the same thing.
-prop_parseRendered :: RTopLine -> Bool
-prop_parseRendered (RTopLine (tl, dtz)) =
-  case T.render dtz tl of
-    Nothing -> error "Not renderable"
-    Just x -> case P.parse (T.topLine dtz <* P.eof) "" x of
-      Left e -> error $ "parse failed: " ++ show e
-                ++ " rendered: " ++ show x
-      Right (tl', _, _) -> tl' == tl
-
-test_parseRendered :: Test
-test_parseRendered = testProperty s prop_parseRendered where
-  s = "parsing rendered TopLine yields same thing"
-
 tests :: Test
-tests = testGroup "TopLine"
-        [ test_parseRendered ]
+tests = testGroup "TopLine" []
+

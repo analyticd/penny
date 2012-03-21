@@ -2,11 +2,11 @@ module PennyTest.Copper.Transaction where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Applicative ((<$>), (<*>), pure, (<*))
+import Data.Foldable (toList)
 import Data.Traversable (traverse)
 import PennyTest.Copper.Util (genMaybe)
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Qty as Qt
-import qualified Penny.Copper.Posting as P
 import qualified Penny.Copper.Transaction as T
 import qualified PennyTest.Copper.Account as TAc
 import qualified PennyTest.Copper.Commodity as TCy
@@ -19,6 +19,7 @@ import qualified PennyTest.Copper.Number as TNu
 import qualified PennyTest.Copper.Tags as TTa
 import qualified PennyTest.Lincoln.Bits as TB
 import PennyTest.Lincoln.Meta ()
+import PennyTest.Lincoln.Family.Family ()
 import qualified PennyTest.Lincoln.Transaction as TLT
 import Test.QuickCheck (
   Arbitrary, arbitrary, Gen, oneof, sized, resize, Property,
@@ -26,8 +27,10 @@ import Test.QuickCheck (
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework (Test, testGroup)
 import qualified Text.Parsec as Parsec
+import qualified Penny.Lincoln.Boxes as Boxes
+import qualified Penny.Lincoln.Transaction as Txn
 import qualified Penny.Lincoln.Transaction.Unverified as U
-import Penny.Lincoln.Family (orphans, adopt)
+import Penny.Lincoln.Family (orphans, adopt, marry)
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Family.Family as Fam
 
@@ -53,15 +56,21 @@ rTransInputs =
     , TLT.pEntries = TB.randEntries }
 
 -- | Generate random renderable transactions.
-randomRenderable :: Gen (Fam.Family U.TopLine P.UnverifiedWithMeta)
+randomRenderable :: Gen ((Fam.Family U.TopLine U.Posting),
+                         (Fam.Family M.TopLineMeta M.PostingMeta))
 randomRenderable = sized $ \s -> resize (min s 3) $ do
   t <- TLT.randomUnverifiedTransactions rTransInputs
-  let unverifieds = orphans t
-  unvWithMetas <- traverse toUnvWithMeta unverifieds
-  return (adopt (Fam.parent t) unvWithMetas)
+  let uPstgs = orphans t
+      toMeta uPo = case U.entry uPo of
+        Nothing -> M.PostingMeta <$> arbitrary <*> pure Nothing
+        Just _ -> M.PostingMeta <$> arbitrary <*> (Just <$> arbitrary)
+  pstgMetas <- traverse toMeta uPstgs
+  topLineMeta <- arbitrary
+  return (t, adopt topLineMeta pstgMetas)
 
 newtype RUnverified =
-  RUnverified (Fam.Family U.TopLine P.UnverifiedWithMeta)
+  RUnverified ((Fam.Family U.TopLine U.Posting),
+               (Fam.Family M.TopLineMeta M.PostingMeta))
   deriving (Show, Eq)
 instance Arbitrary RUnverified where
   arbitrary = RUnverified <$> randomRenderable
@@ -74,39 +83,41 @@ prop_parseRendered ::
   -> Qt.RadGroup
   -> RUnverified
   -> Property
-prop_parseRendered fn dtz gs rg (RUnverified fam) =
-  case T.render dtz gs rg fam of
-    Nothing -> error "render failed"
-    Just x -> let
-      parser = T.transaction fn dtz rg <* Parsec.eof
-      in case Parsec.parse parser "" x of
-        Left e -> error $ "parse failed. error: " ++ show e
-        Right box -> case T.boxToUnverifiedWithMeta box of
-          Ex.Exception e -> error $ e ++ " parsed: " ++ show box
-          Ex.Success fam' ->
-            if fam /= fam'
-            then error "families not equal"
-            else property True
+prop_parseRendered fn dtz gs rg (RUnverified (tFam, metaFam)) =
+  case Txn.transaction tFam of
+    Ex.Exception _ -> error "making transaction failed"
+    Ex.Success txn ->
+      let box = Boxes.transactionBox txn
+                (Just (M.TransactionMeta metaFam))
+      in case T.render dtz gs rg box of
+        Nothing -> error "render failed"
+        Just x -> let
+          parser = T.transaction fn dtz rg <* Parsec.eof
+          in case Parsec.parse parser "" x of
+            Left e -> error $ "parse failed. error: " ++ show e
+            Right box' ->
+                if not $ boxesEqual box box'
+                then error "boxes not equal"
+                else property True
+
+boxesEqual :: Boxes.TransactionBox -> Boxes.TransactionBox -> Bool
+boxesEqual b1 b2 = let
+  (t1, t2) = (Boxes.transaction b1, Boxes.transaction b2)
+  in maybe False id $ do
+    m1 <- M.unTransactionMeta <$> Boxes.transactionMeta b1
+    m2 <- M.unTransactionMeta <$> Boxes.transactionMeta b2
+    let married = marry m1 m2
+        os = orphans married
+        sameMeta (pm1, pm2) =
+          M.postingFormat pm1 == M.postingFormat pm2
+    return ((and . toList . fmap sameMeta $ os)
+            && t1 == t2)
+
+  
 
 test_parseRendered :: Test
 test_parseRendered = testProperty s prop_parseRendered where
   s = "Parsing rendered Transaction yields same Transaction"
-
--- | Generates random metadata to accompany an unverified Posting.
-toUnvWithMeta :: U.Posting -> Gen P.UnverifiedWithMeta
-toUnvWithMeta (U.Posting pa nu fl ac ta en me) =
-  P.UnverifiedWithMeta
-  <$> pure fl
-  <*> pure nu
-  <*> pure pa
-  <*> pure ac
-  <*> pure ta
-  <*> enWithMeta
-  <*> pure me
-  where
-    enWithMeta = case en of
-      Nothing -> return Nothing
-      Just e -> Just <$> ((,) <$> pure e <*> arbitrary)
 
 tests :: Test
 tests = testGroup "Transaction"

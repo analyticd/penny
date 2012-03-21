@@ -104,7 +104,7 @@ prop_isRenderable (RPricePointData ppd) (gl, gr) rg fmt =
   fromMaybe False $ do
     p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
     let pp = B.PricePoint (dateTime ppd) p
-    _ <- P.render (defaultTimeZone ppd) gl gr rg fmt pp
+    _ <- P.render (defaultTimeZone ppd) gl gr rg (pp, fmt)
     return True
 
 test_isRenderable :: Test
@@ -122,7 +122,7 @@ prop_renderableParses (RPricePointData ppd) (gl, gr) rg fmt =
   fromMaybe False $ do
     p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
     let pp = B.PricePoint (dateTime ppd) p
-    txt <- P.render (defaultTimeZone ppd) gl gr rg fmt pp
+    txt <- P.render (defaultTimeZone ppd) gl gr rg (pp, fmt)
     let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
     case Parsec.parse parser "" txt of
       Left e -> error $ "parse error: " ++ show e
@@ -144,7 +144,7 @@ prop_parseRPricePoint (RPricePointData ppd) (gl, gr) rg fmt =
   fromMaybe False $ do
     p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
     let pp = B.PricePoint (dateTime ppd) p
-    txt <- P.render (defaultTimeZone ppd) gl gr rg fmt pp
+    txt <- P.render (defaultTimeZone ppd) gl gr rg (pp, fmt)
     let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
     box <- either (const Nothing) Just $ Parsec.parse parser "" txt
     if Boxes.price box /= pp
@@ -170,7 +170,7 @@ prop_parseRPricePointMeta (RPricePointData ppd) (gl, gr) rg fmt =
   fromMaybe False $ do
     p <- B.newPrice (from ppd) (to ppd) (countPerUnit ppd)
     let pp = B.PricePoint (dateTime ppd) p
-    txt <- P.render (defaultTimeZone ppd) gl gr rg fmt pp
+    txt <- P.render (defaultTimeZone ppd) gl gr rg (pp, fmt)
     let parser = P.price (defaultTimeZone ppd) rg <* Parsec.eof
     box <- either (const Nothing) Just $ Parsec.parse parser "" txt
     priceMeta <- Boxes.priceMeta box

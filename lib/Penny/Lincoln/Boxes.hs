@@ -23,7 +23,7 @@ import qualified Penny.Lincoln.Family.Family as F
 data TransactionBox =
   TransactionBox { transaction :: Transaction
                  , transactionMeta :: Maybe TransactionMeta }
-  deriving Show
+  deriving (Eq, Show)
 
 data PostingBox =
   PostingBox { postingBundle :: Child TopLine Posting
