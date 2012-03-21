@@ -1,4 +1,9 @@
-module PennyTest.Copper.Price (tests, genDTZandDT) where
+module PennyTest.Copper.Price (
+  tests, genDTZandDT,
+  PricePointData(PricePointData, dateTime, from,
+                 to, countPerUnit, defaultTimeZone),
+  genRPricePointData
+  ) where
 
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Price as P
@@ -61,7 +66,7 @@ instance Arbitrary RandomPricePointData where
          <*> (B.CountPerUnit <$> arbitrary)
          <*> arbitrary )
 
--- | Generates a DefaultTimeZone and a DateTime. Some of the time zones
+-- | Generates a DateTime. Some of the time zones
 -- for the DateTime will be the same as the DefaultTimeZone given; in
 -- addition, some will also be at midnight for the given time zone.
 genDTZandDT :: Gen (DT.DefaultTimeZone, B.DateTime)

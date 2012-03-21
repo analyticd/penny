@@ -58,7 +58,7 @@ rTransInputs =
 -- | Generate random renderable transactions.
 randomRenderable :: Gen ((Fam.Family U.TopLine U.Posting),
                          (Fam.Family M.TopLineMeta M.PostingMeta))
-randomRenderable = sized $ \s -> resize (min s 3) $ do
+randomRenderable = sized $ \s -> resize (min s 6) $ do
   t <- TLT.randomUnverifiedTransactions rTransInputs
   let uPstgs = orphans t
       toMeta uPo = case U.entry uPo of
