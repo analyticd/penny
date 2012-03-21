@@ -2,7 +2,7 @@ module Penny.Copper.Transaction (transaction, render,
                                  boxToUnverifiedWithMeta) where
 
 import Control.Applicative ((<$>), (<*>))
-import Control.Monad (unless)
+import Control.Monad (unless, guard)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Foldable (toList)
 import qualified Data.Traversable as Tr
@@ -16,7 +16,7 @@ import Penny.Copper.TopLine ( topLine )
 import qualified Penny.Copper.Posting as Po
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Lincoln.Meta as M
-import Penny.Lincoln.Family (orphans, marryWith, adopt)
+import Penny.Lincoln.Family (orphans, marryWith, adopt, marry)
 import qualified Penny.Lincoln.Family.Family as F
 import Penny.Lincoln.Family.Family ( Family ( Family ) )
 import Penny.Lincoln.Meta (TransactionMeta(TransactionMeta))
@@ -104,6 +104,7 @@ unverifyPosting p =
       T.Inferred -> Nothing
       T.NotInferred -> Just $ T.pEntry p
 
+{-
 render ::
   DT.DefaultTimeZone
   -> (Qt.GroupingSpec, Qt.GroupingSpec)
@@ -115,3 +116,23 @@ render dtz gs rg fm = let
   tlX = TL.render dtz (F.parent fm)
   maybes = tlX : toList (fmap (Po.render gs rg) pstgs)
   in X.concat <$> sequence maybes
+-}
+
+render ::
+  DT.DefaultTimeZone
+  -> (Qt.GroupingSpec, Qt.GroupingSpec)
+  -> Qt.RadGroup
+  -> TransactionBox
+  -> Maybe X.Text
+render dtz gs rg box = do
+  let txnFam = T.unTransaction $ Boxes.transaction box
+  metaFam <- M.unTransactionMeta <$> Boxes.transactionMeta box
+  guard (length (F.children txnFam) == length (F.children metaFam))
+  let married = marry txnFam metaFam
+      pstgs = orphans married
+  tlX <- TL.render dtz (fst . F.parent $ married)
+  pstgsX <- Tr.traverse (Po.render gs rg) pstgs
+  return $ tlX `X.append` (X.concat (toList pstgsX))
+  
+
+

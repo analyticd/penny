@@ -25,6 +25,7 @@ import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Tags as Ta
 import Penny.Copper.Util (lexeme, eol, renMaybe, txtWords)
 import qualified Penny.Lincoln.Meta as M
+import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
 posting :: Qt.RadGroup
@@ -92,28 +93,30 @@ makeUnverified pl u = (upo, meta) where
     Nothing -> (Nothing, Nothing)
     Just (e, f) -> (Just e, Just f)
 
--- | Renders an unverified Posting. Fails if any of the components
+
+-- | Renders a Posting. Fails if any of the components
 -- fail to render. In addition, if the unverified Posting has an
 -- Entry, a Format must be provided, otherwise render fails.
 render ::
   (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> UnverifiedWithMeta
+  -> (T.Posting, M.PostingMeta)
   -> Maybe X.Text
-render (gl, gr) rg u =
-  f
-  <$> renMaybe (flag u) Fl.render
-  <*> renMaybe (number u) Nu.render
-  <*> renMaybe (payee u) Pa.quoteRender
-  <*> Ac.render (account u)
-  <*> Ta.render (tags u)
-  <*> renMaybe (entry u) renderEn
-  <*> Me.render (memo u)
-  where
-    f flX nuX paX acX taX enX meX = let
-      ws = txtWords [flX, nuX, paX, acX, taX, enX]
-      in X.pack (replicate 4 ' ')
-         `X.append` ws
-         `X.snoc` '\n'
-         `X.append` meX
-    renderEn (en, fmt) = En.render gl gr rg fmt en
+render (gl, gr) rg (p, m) = do
+  fl <- renMaybe (T.pFlag p) Fl.render
+  nu <- renMaybe (T.pNumber p) Nu.render
+  pa <- renMaybe (T.pPayee p) Pa.quoteRender
+  ac <- Ac.render (T.pAccount p)
+  ta <- Ta.render (T.pTags p)
+  me <- Me.render (T.pMemo p)
+  maybePair <- case (T.pInferred p, M.postingFormat m) of
+    (T.Inferred, Nothing) -> return Nothing
+    (T.NotInferred, Just f) -> return (Just (T.pEntry p, f))
+    _ -> Nothing
+  let renderEn (e, f) = En.render gl gr rg f e
+  en <- renMaybe maybePair renderEn
+  let ws = txtWords [fl, nu, pa, ac, ta, en]
+  return $ X.pack (replicate 4 ' ')
+    `X.append` ws
+    `X.snoc` '\n'
+    `X.append` me

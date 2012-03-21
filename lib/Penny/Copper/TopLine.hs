@@ -16,6 +16,7 @@ import qualified Penny.Copper.Memos.Transaction as M
 import qualified Penny.Copper.Flag as F
 import qualified Penny.Copper.Number as N
 import qualified Penny.Copper.Payees as P
+import qualified Penny.Lincoln.Transaction as T
 import Penny.Copper.Util (lexeme, eol, renMaybe, txtWords)
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
@@ -36,14 +37,14 @@ topLine dtz =
       tl = U.TopLine dt fl nu pa me
     toLine = Meta.TopLineLine . Meta.Line . sourceLine . statePos
 
-render :: DT.DefaultTimeZone -> U.TopLine -> Maybe X.Text
-render dtz (U.TopLine dt fl nu pa me) =
+render :: DT.DefaultTimeZone -> T.TopLine -> Maybe X.Text
+render dtz tl =
   f
-  <$> M.render me
-  <*> pure (DT.render dtz dt)
-  <*> renMaybe fl F.render
-  <*> renMaybe nu N.render
-  <*> renMaybe pa P.smartRender
+  <$> M.render (T.tMemo tl)
+  <*> pure (DT.render dtz (T.tDateTime tl))
+  <*> renMaybe (T.tFlag tl) F.render
+  <*> renMaybe (T.tNumber tl) N.render
+  <*> renMaybe (T.tPayee tl) P.smartRender
   where
     f meX dtX flX nuX paX =
       txtWords [meX, dtX, flX, nuX, paX] `X.snoc` '\n'

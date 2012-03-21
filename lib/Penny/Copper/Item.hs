@@ -5,7 +5,6 @@ module Penny.Copper.Item (
   ) where
 
 import Control.Applicative ((<$>), (<*>), (<$))
-import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import Text.Parsec (getPosition, sourceLine, (<|>),
                     (<?>))
@@ -58,8 +57,7 @@ render ::
   -> Maybe X.Text
 render dtz gs rg i = case i of
   Transaction t -> do
-    fam <- Ex.toMaybe (T.boxToUnverifiedWithMeta t)
-    T.render dtz gs rg fam
+    T.render dtz gs rg t
   Price p -> do
     pair <- P.unbox p
     let (gl, gr) = gs
