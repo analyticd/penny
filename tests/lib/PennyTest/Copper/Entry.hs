@@ -5,8 +5,7 @@ import qualified Penny.Copper.Entry as E
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Lincoln.Meta as M
 import qualified PennyTest.Copper.Amount as TA
--- Import orphan instances of Arbitrary
-import PennyTest.Lincoln.Bits ()
+import qualified PennyTest.Lincoln.Bits as TB
 import PennyTest.Lincoln.Meta ()
 import PennyTest.Copper.Qty ()
 
@@ -19,7 +18,7 @@ import Test.QuickCheck (Arbitrary, arbitrary, Gen)
 -- | A renderable Entry. The commodities in the Amount are distributed
 -- evenly between Level 1, Level 2, and Level 3 commodities.
 genREntry :: Gen B.Entry
-genREntry = B.Entry <$> arbitrary <*> TA.genRAmount
+genREntry = B.Entry <$> TB.genDrCr <*> TA.genRAmount
 
 -- | A renderable Entry. The commodities in the Amount are distributed
 -- evenly between Level 1, Level 2, and Level 3 commodities.

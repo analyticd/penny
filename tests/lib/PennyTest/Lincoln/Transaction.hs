@@ -8,7 +8,7 @@ import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as B
 import qualified PennyTest.Lincoln.Bits as TB
-import PennyTest.Lincoln.Transaction.Unverified ()
+import qualified  PennyTest.Lincoln.Transaction.Unverified as TU
 
 import Control.Applicative (pure, (<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -19,7 +19,7 @@ import qualified Data.Traversable as Tr
 import qualified System.Random as R
 import qualified System.Random.Shuffle as Shuf
 import Test.QuickCheck (Arbitrary, arbitrary, Gen, listOf1,
-                        resize)
+                        resize, property, Property)
 import qualified Test.QuickCheck.Gen as G
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework (Test, testGroup)
@@ -276,9 +276,20 @@ randomUnverifiedTransactions t = do
 -- | Makes unverified Transactions that will likely not be renderable.
 randomUnrenderable :: Gen (Fam.Family U.TopLine U.Posting)
 randomUnrenderable = randomUnverifiedTransactions t where
-  t = TransInputs TB.genDateTime arbitrary arbitrary arbitrary arbitrary 
-      arbitrary arbitrary arbitrary arbitrary arbitrary arbitrary 
-      arbitrary TB.randEntries
+  t = TransInputs
+      TB.genDateTime
+      (TB.genMaybe TB.genUniFlag)
+      (TB.genMaybe TB.genUniNumber)
+      (TB.genMaybe TB.genUniPayee)
+      TB.genUniMemo
+      (TB.genMaybe TB.genUniPayee)
+      (TB.genMaybe TB.genUniNumber)
+      (TB.genMaybe TB.genUniFlag)
+      TB.genUniAccount
+      TB.genUniTags
+      TB.genUniMemo
+      TB.genUniCommodity
+      TB.randEntries
 
 newtype RandomUnrenderable =
   RandomUnrenderable (Fam.Family U.TopLine U.Posting)
@@ -322,16 +333,17 @@ test_unrender = testProperty s prop_unrender where
 -- gives a CouldNotInfer error; adding a posting with an Entry gives
 -- an UnbalancedError. Using this with a generator size much bigger
 -- than 10 overflows the stack.
-prop_unbalanced :: RandomUnrenderable -> U.Posting -> Bool
-prop_unbalanced (RandomUnrenderable f) p = let
-  expectedError = case U.entry p of
-    Nothing -> T.CouldNotInferError
-    Just _ -> T.UnbalancedError
-  f' = Fam.Family (Fam.parent f) (Fam.child1 f) (Fam.child2 f)
-       (p : Fam.children f)
-  in case T.transaction f' of
-    Ex.Success _ -> False
-    Ex.Exception e -> e == expectedError
+prop_unbalanced :: RandomUnrenderable -> Property
+prop_unbalanced (RandomUnrenderable f) = do
+  p <- TU.genUniPosting
+  let expectedError = case U.entry p of
+        Nothing -> T.CouldNotInferError
+        Just _ -> T.UnbalancedError
+      f' = Fam.Family (Fam.parent f) (Fam.child1 f) (Fam.child2 f)
+           (p : Fam.children f)
+  case T.transaction f' of
+    Ex.Success _ -> property False
+    Ex.Exception e -> property (e == expectedError)
 
 test_unbalanced :: Test
 test_unbalanced = testProperty s prop_unbalanced where

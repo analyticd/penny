@@ -7,24 +7,27 @@ import qualified Penny.Copper.Account as A
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.TextNonEmpty as TNE
-import PennyTest.Lincoln.Bits ()
+import qualified PennyTest.Lincoln.Bits as TB
 import qualified Test.QuickCheck as Q
 import qualified Test.Framework as TF
 import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.QuickCheck (Arbitrary, arbitrary, Gen, suchThat)
+import Test.QuickCheck (Arbitrary, arbitrary, Gen, suchThat,
+                        Property, property)
 import qualified Text.Parsec as P
 import Text.Parsec.Text (Parser)
 import PennyTest.Copper.Util (wrapTextNonEmptyList)
 
 -- | Render must fail for characters that are not allowed in a level 1
 -- account; must succeed for all other characters.
-prop_renderSuccess :: B.Account -> Bool
-prop_renderSuccess a = expected == actual where
-  expected = renderable a
-  actual = case A.render a of    
-    Just _-> True
-    Nothing -> False
-
+prop_renderSuccess :: Property
+prop_renderSuccess = do
+  a <- TB.genUniAccount
+  let expected = renderable a
+      actual = case A.render a of    
+        Just _-> True
+        Nothing -> False
+  property (expected == actual)
+      
 renderable :: B.Account -> Bool
 renderable a = if X.any (not . A.lvl1Char) (X.concat $ HT.textList a)
                then False

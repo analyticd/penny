@@ -1,15 +1,14 @@
 module PennyTest.Copper.Qty where
 
 import qualified Penny.Copper.Qty as Q
-import qualified Penny.Lincoln.Bits as B
--- Import orphan instances of Arbitrary
-import PennyTest.Lincoln.Bits ()
+import qualified PennyTest.Lincoln.Bits as TB
 
 import Control.Applicative ((<*))
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import qualified Text.Parsec as P
 import Test.Framework (Test, testGroup)
-import Test.QuickCheck (Arbitrary, arbitrary, elements)
+import Test.QuickCheck (Arbitrary, arbitrary, elements,
+                        Property, property)
 
 instance Arbitrary Q.RadGroup where
   arbitrary = elements [
@@ -23,14 +22,14 @@ prop_parseQty ::
   Q.RadGroup
   -> Q.GroupingSpec
   -> Q.GroupingSpec
-  -> B.Qty
-  -> Bool
-prop_parseQty rg gw gd q = let
-  rendered = Q.quote . Q.renderUnquoted rg gw gd $ q
-  parsed = P.parse (Q.qty rg <* P.eof) "" rendered
-  in case parsed of
-    Left _ -> False
-    Right q' -> q' == q
+  -> Property
+prop_parseQty rg gw gd = do
+  q <- TB.genQty
+  let rendered = Q.quote . Q.renderUnquoted rg gw gd $ q
+      parsed = P.parse (Q.qty rg <* P.eof) "" rendered
+  case parsed of
+    Left _ -> property False
+    Right q' -> property $ q' == q
     
 test_parseQty :: Test
 test_parseQty = testProperty s prop_parseQty where

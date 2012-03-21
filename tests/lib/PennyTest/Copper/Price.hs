@@ -12,7 +12,6 @@ import qualified Penny.Lincoln.Boxes as Boxes
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Meta as M
 
--- Import orphan instances of Arbitrary
 import qualified PennyTest.Lincoln.Bits as TB
 import PennyTest.Lincoln.Meta ()
 import PennyTest.Copper.Commodity (genRCmdty)
@@ -46,7 +45,7 @@ genRPricePointData dtz = do
   dt <- genDT dtz
   fr <- B.From <$> genRCmdty
   t <- B.To <$> suchThat genRCmdty (/= (B.unFrom fr))
-  cpu <- B.CountPerUnit <$> arbitrary
+  cpu <- TB.genCountPerUnit
   return $ PricePointData dt fr t cpu dtz
 
 newtype RandomPricePointData = RandomPricePointData PricePointData
@@ -57,9 +56,9 @@ instance Arbitrary RandomPricePointData where
     RandomPricePointData
     <$> (PricePointData
          <$> TB.genDateTime
-         <*> (B.From <$> arbitrary)
-         <*> (B.To <$> arbitrary)
-         <*> (B.CountPerUnit <$> arbitrary)
+         <*> TB.genUniFrom
+         <*> TB.genUniTo
+         <*> TB.genCountPerUnit
          <*> TDT.genAnyTimeZone )
 
 -- | Checks to see if two PriceBoxes are equal.

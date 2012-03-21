@@ -9,26 +9,57 @@ import Data.Maybe (fromJust)
 import qualified Data.Time as DT
 import Data.Word (Word8)
 import qualified Penny.Lincoln.Bits as B
-import PennyTest.Lincoln.TextNonEmpty ()
+import PennyTest.Lincoln.TextNonEmpty (genTextNonEmpty)
 import qualified System.Random as R
 import qualified Test.QuickCheck as Q
 import Test.QuickCheck (arbitrary, Arbitrary, Gen, choose, suchThat,
-                        sized)
+                        sized, oneof, listOf, elements)
 
-instance Q.Arbitrary B.SubAccountName where
-  arbitrary = B.SubAccountName <$> arbitrary
+-- | Generates Unicode characters over the entire Unicode
+-- range. Characters in ASCII and in Latin1 are heavily favored;
+-- however, all characters are generated.
+unicode :: Gen Char
+unicode = oneof [ ascii, latin1, others ] where
+  ascii = toEnum <$> choose (0, 127)
+  latin1 = toEnum <$> choose (128, 255)
+  others = toEnum <$> choose (256, fromEnum (maxBound :: Char))
 
-instance Q.Arbitrary B.Account where
-  arbitrary = B.Account <$> arbitrary
+-- | Generates SubAccountNames from characters throughout the Unicode
+-- range.
+genUniSubAccountName :: Gen B.SubAccountName
+genUniSubAccountName =
+  B.SubAccountName
+  <$> (genTextNonEmpty unicode unicode)
 
-instance Q.Arbitrary B.Amount where
-  arbitrary = B.Amount <$> arbitrary <*> arbitrary
+-- | Generates a NonEmptyList using the generators for the first
+-- element and for all subsequent elements. The length of the tail
+-- depends upon the size parameter.
+genNonEmpty :: Gen a -> Gen a -> Gen (NE.NonEmpty a)
+genNonEmpty g1 gr =
+  (:|)
+  <$> g1
+  <*> listOf gr
 
-instance Q.Arbitrary B.SubCommodity where
-  arbitrary = B.SubCommodity <$> arbitrary
+-- | Generates Accounts from characters throughout the Unicode range.
+genUniAccount :: Gen B.Account
+genUniAccount = B.Account <$> genNonEmpty g g where
+  g = genUniSubAccountName
 
-instance Q.Arbitrary B.Commodity where
-  arbitrary = B.Commodity <$> arbitrary
+genUniAmount :: Gen B.Amount
+genUniAmount = B.Amount <$> genQty <*> genUniCommodity 
+
+-- | Generate a SubCommodity from characters through the Unicode
+-- range.
+genUniSubCommodity :: Gen B.SubCommodity
+genUniSubCommodity = B.SubCommodity
+                     <$> genTextNonEmpty unicode unicode
+
+-- | Generate a Commodity from characters throughout the Unicode
+-- range.
+
+genUniCommodity :: Gen B.Commodity
+genUniCommodity = B.Commodity <$> genNonEmpty g g where
+  g = genUniSubCommodity
 
 -- | Generate a DiffTime that is in the range [0, 86400) seconds.
 genDiffTime :: Gen DT.DiffTime
@@ -103,46 +134,47 @@ newtype DateTime = DateTime B.DateTime
 instance Arbitrary DateTime where
   arbitrary = DateTime <$> genDateTime
 
-instance Arbitrary B.DrCr where
-  arbitrary = Q.oneof [pure B.Debit, pure B.Credit]
+genDrCr :: Gen B.DrCr
+genDrCr = elements [B.Debit, B.Credit]
 
-instance Arbitrary B.Entry where
-  arbitrary = B.Entry <$> arbitrary <*> arbitrary
+genUniEntry :: Gen B.Entry
+genUniEntry = B.Entry <$> genDrCr <*> genUniAmount
 
-instance Arbitrary B.Flag where
-  arbitrary = B.Flag <$> arbitrary
+genUniFlag :: Gen B.Flag
+genUniFlag = B.Flag <$> genTextNonEmpty unicode unicode
 
-instance Arbitrary B.MemoLine where
-  arbitrary = B.MemoLine <$> arbitrary
+genUniMemoLine :: Gen B.MemoLine
+genUniMemoLine = B.MemoLine <$> genTextNonEmpty unicode unicode
 
-instance Arbitrary B.Memo where
-  arbitrary = B.Memo <$> arbitrary
+genUniMemo :: Gen B.Memo
+genUniMemo = B.Memo <$> listOf g where
+  g = genUniMemoLine
+  
+genUniNumber :: Gen B.Number
+genUniNumber = B.Number <$> genTextNonEmpty unicode unicode
 
-instance Arbitrary B.Number where
-  arbitrary = B.Number <$> arbitrary
+genUniPayee :: Gen B.Payee
+genUniPayee = B.Payee <$> genTextNonEmpty unicode unicode
 
-instance Arbitrary B.Payee where
-  arbitrary = B.Payee <$> arbitrary
+genUniFrom :: Gen B.From
+genUniFrom = B.From <$> genUniCommodity
 
-instance Arbitrary B.From where
-  arbitrary = B.From <$> arbitrary
+genUniTo :: Gen B.To
+genUniTo = B.To <$> genUniCommodity
 
-instance Arbitrary B.To where
-  arbitrary = B.To <$> arbitrary
+genCountPerUnit :: Gen B.CountPerUnit
+genCountPerUnit = B.CountPerUnit <$> genQty
 
-instance Arbitrary B.CountPerUnit where
-  arbitrary = B.CountPerUnit <$> arbitrary
-
-instance Arbitrary B.Price where
-  arbitrary = mkPrice <$> Q.suchThat g p where
-    g = (,,) <$> arbitrary <*> arbitrary <*> arbitrary
+genUniPrice :: Gen B.Price
+genUniPrice = mkPrice <$> Q.suchThat g p where
+    g = (,,) <$> genUniFrom <*> genUniTo <*> genCountPerUnit
     p (f, t, c) = case B.newPrice f t c of
       Nothing -> False
       Just _ -> True
     mkPrice (f, t, c) = fromJust $ B.newPrice f t c
 
-instance Arbitrary B.PricePoint where
-  arbitrary = B.PricePoint <$> genDateTime <*> arbitrary
+genUniPricePoint :: Gen B.PricePoint
+genUniPricePoint = B.PricePoint <$> genDateTime <*> genUniPrice
 
 -- | Creates random Decimals with a distribution a little more
 -- interesting than the Arbitrary that comes with Data.Decimal.
@@ -159,17 +191,14 @@ maxDecimalPlaces = 10
 mantissaExponent :: Int
 mantissaExponent = 10
 
-instance Q.Arbitrary B.Qty where
-  arbitrary = B.partialNewQty <$> randomDecimal
+genQty :: Gen B.Qty
+genQty = B.partialNewQty <$> randomDecimal
 
-instance Arbitrary B.Tag where
-  arbitrary = B.Tag <$> arbitrary
+genUniTag :: Gen B.Tag
+genUniTag = B.Tag <$> genTextNonEmpty unicode unicode
 
-instance Arbitrary B.Tags where
-  arbitrary = B.Tags <$> arbitrary
-
-instance Arbitrary a => Arbitrary (NE.NonEmpty a) where
-  arbitrary = (:|) <$> arbitrary <*> arbitrary
+genUniTags :: Gen B.Tags
+genUniTags = B.Tags <$> listOf genUniTag
 
 type NEDrCrQty = (B.DrCr, NE.NonEmpty B.Qty)
 
@@ -196,7 +225,7 @@ randEntries = let
     ss' = (dcOther, fmap mkq ss)
     mss' = (,) <$> pure dcOther <*> (fmap mkq <$> mss)
     in (os', ss', mss')
-  in f <$> arbitrary <*> randDecTriple
+  in f <$> genDrCr <*> randDecTriple
     
     
 type NEDecimal = NE.NonEmpty D.Decimal
@@ -279,3 +308,6 @@ newtype Dec = Dec { unDec :: D.DecimalRaw Integer }
 
 decZero :: Dec
 decZero = Dec $ D.Decimal 0 0
+
+genMaybe :: Gen a -> Gen (Maybe a)
+genMaybe g = oneof [pure Nothing, Just <$> g]
