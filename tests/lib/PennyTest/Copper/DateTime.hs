@@ -39,8 +39,8 @@ instance Arbitrary AnyTimeZone where
   arbitrary = AnyTimeZone <$> genAnyTimeZone
 
 -- | Parsing a random rendered DateTime should yield the same thing.
-prop_parseRendered :: AnyTimeZone -> TB.SaneDateTime -> Bool
-prop_parseRendered (AnyTimeZone dtz) (TB.SaneDateTime dt) =
+prop_parseRendered :: AnyTimeZone -> TB.DateTime -> Bool
+prop_parseRendered (AnyTimeZone dtz) (TB.DateTime dt) =
   let r = DT.render dtz dt
       p = P.parse (DT.dateTime dtz <* P.eof) "" r
   in case p of

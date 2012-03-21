@@ -35,28 +35,28 @@ genDiffTime :: Gen DT.DiffTime
 genDiffTime = DT.secondsToDiffTime
               <$> (Q.suchThat arbitrary (\s -> s >= 0 && s < 86400))
 
-newtype SaneDiffTime = SaneDiffTime DT.DiffTime
+newtype DiffTime = DiffTime DT.DiffTime
                        deriving (Eq, Show)
-instance Q.Arbitrary SaneDiffTime where
-  arbitrary = SaneDiffTime <$> genDiffTime
+instance Q.Arbitrary DiffTime where
+  arbitrary = DiffTime <$> genDiffTime
 
 -- | Generate a Day that falls between the years 1858 and 2132.
 genDay :: Gen DT.Day
 genDay = DT.ModifiedJulianDay <$> choose (0, 100000)
 
-newtype SaneDay = SaneDay DT.Day
+newtype Day = Day DT.Day
                   deriving (Eq, Show)
-instance Q.Arbitrary SaneDay where
-  arbitrary = SaneDay <$> genDay
+instance Q.Arbitrary Day where
+  arbitrary = Day <$> genDay
 
 -- | Generate a UTC time using genDay and genDiffTime.
 genUTCTime :: Gen DT.UTCTime
 genUTCTime = DT.UTCTime <$> genDay <*> genDiffTime
 
-newtype SaneUTCTime = SaneUTCTime DT.UTCTime
+newtype UTCTime = UTCTime DT.UTCTime
                       deriving (Eq, Show)
-instance Q.Arbitrary SaneUTCTime where
-  arbitrary = SaneUTCTime <$> genUTCTime
+instance Q.Arbitrary UTCTime where
+  arbitrary = UTCTime <$> genUTCTime
 
 -- | Generate a TimeOfDay whose values are valid.
 genTimeOfDay :: Gen DT.TimeOfDay
@@ -66,20 +66,20 @@ genTimeOfDay =
   <*> choose (0, 59)
   <*> (fromIntegral <$> choose (0 :: Int, 59))
 
-newtype SaneTimeOfDay = SaneTimeOfDay DT.TimeOfDay
+newtype TimeOfDay = TimeOfDay DT.TimeOfDay
                         deriving (Eq, Show)
-instance Q.Arbitrary SaneTimeOfDay where
-  arbitrary = SaneTimeOfDay <$> genTimeOfDay
+instance Q.Arbitrary TimeOfDay where
+  arbitrary = TimeOfDay <$> genTimeOfDay
 
 -- | Generate a LocalTime using genDay and genTimeOfDay.
 genLocalTime :: Gen DT.LocalTime
 genLocalTime =
   DT.LocalTime <$> genDay <*> genTimeOfDay
 
-newtype SaneLocalTime = SaneLocalTime DT.LocalTime
+newtype LocalTime = LocalTime DT.LocalTime
                         deriving (Eq, Show)
-instance Q.Arbitrary SaneLocalTime where
-  arbitrary = SaneLocalTime <$> genLocalTime
+instance Q.Arbitrary LocalTime where
+  arbitrary = LocalTime <$> genLocalTime
 
 -- | Generate a TimeZoneOffset between -840 and 840 minutes.
 genTimeZoneOffset :: Gen B.TimeZoneOffset
@@ -88,20 +88,20 @@ genTimeZoneOffset = do
   maybe (error "arbitrary TimeZoneOffset failed") return
     $ B.minsToOffset i
   
-newtype SaneTimeZoneOffset =
-  SaneTimeZoneOffset B.TimeZoneOffset
+newtype TimeZoneOffset =
+  TimeZoneOffset B.TimeZoneOffset
   deriving (Eq, Show)
-instance Arbitrary SaneTimeZoneOffset where
-  arbitrary = SaneTimeZoneOffset <$> genTimeZoneOffset
+instance Arbitrary TimeZoneOffset where
+  arbitrary = TimeZoneOffset <$> genTimeZoneOffset
 
 -- | Generate a DateTime using genLocalTime and genTimeZoneOffset.
 genDateTime :: Gen B.DateTime
 genDateTime = B.DateTime <$> genLocalTime <*> genTimeZoneOffset
 
-newtype SaneDateTime = SaneDateTime B.DateTime
+newtype DateTime = DateTime B.DateTime
                        deriving (Eq, Show)
-instance Arbitrary SaneDateTime where
-  arbitrary = SaneDateTime <$> genDateTime
+instance Arbitrary DateTime where
+  arbitrary = DateTime <$> genDateTime
 
 instance Arbitrary B.DrCr where
   arbitrary = Q.oneof [pure B.Debit, pure B.Credit]
