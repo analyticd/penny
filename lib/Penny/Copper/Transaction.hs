@@ -1,8 +1,7 @@
-module Penny.Copper.Transaction (transaction, render,
-                                 boxToUnverifiedWithMeta) where
+module Penny.Copper.Transaction (transaction, render) where
 
 import Control.Applicative ((<$>), (<*>))
-import Control.Monad (unless, guard)
+import Control.Monad (guard)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Foldable (toList)
 import qualified Data.Traversable as Tr
@@ -16,7 +15,7 @@ import Penny.Copper.TopLine ( topLine )
 import qualified Penny.Copper.Posting as Po
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Lincoln.Meta as M
-import Penny.Lincoln.Family (orphans, marryWith, adopt, marry)
+import Penny.Lincoln.Family (orphans, marry)
 import qualified Penny.Lincoln.Family.Family as F
 import Penny.Lincoln.Family.Family ( Family ( Family ) )
 import Penny.Lincoln.Meta (TransactionMeta(TransactionMeta))
@@ -70,53 +69,6 @@ transaction fn dtz rg = do
   case ex of
     Ex.Exception s -> fail s
     Ex.Success b -> return b
-
-boxToUnverifiedWithMeta ::
-  TransactionBox
-  -> Ex.Exceptional String (Family U.TopLine Po.UnverifiedWithMeta)
-boxToUnverifiedWithMeta b = do
-  let t = T.unTransaction . Boxes.transaction $ b
-  transMeta <- Ex.fromMaybe "conversion to TransactionMeta failed" $
-               M.unTransactionMeta <$> Boxes.transactionMeta b
-  unless (length (F.children transMeta) == length (F.children t)) $
-    Ex.throw "families not same length"
-  let famPairs = marryWith const (,) t transMeta
-      pairs = fmap toUnverifiedPair $ orphans famPairs
-      toUnverifiedPair (p, m) = (unverifyPosting p, m)
-  unvsWithMetas <-
-    case Tr.traverse Po.unverifiedWithMeta pairs of
-      Just r -> return r
-      Nothing -> Ex.throw "a posting lacks metadata"
-  let uTopLine = unverifyTopLine (F.parent t)
-  return $ adopt uTopLine unvsWithMetas
-
-unverifyTopLine :: T.TopLine -> U.TopLine
-unverifyTopLine t =
-  U.TopLine (T.tDateTime t) (T.tFlag t)
-  (T.tNumber t) (T.tPayee t) (T.tMemo t)
-
-unverifyPosting :: T.Posting -> U.Posting
-unverifyPosting p =
-  U.Posting (T.pPayee p) (T.pNumber p) (T.pFlag p)
-  (T.pAccount p) (T.pTags p) en (T.pMemo p)
-  where
-    en = case T.pInferred p of
-      T.Inferred -> Nothing
-      T.NotInferred -> Just $ T.pEntry p
-
-{-
-render ::
-  DT.DefaultTimeZone
-  -> (Qt.GroupingSpec, Qt.GroupingSpec)
-  -> Qt.RadGroup
-  -> Family U.TopLine Po.UnverifiedWithMeta
-  -> Maybe X.Text
-render dtz gs rg fm = let
-  pstgs = orphans fm
-  tlX = TL.render dtz (F.parent fm)
-  maybes = tlX : toList (fmap (Po.render gs rg) pstgs)
-  in X.concat <$> sequence maybes
--}
 
 render ::
   DT.DefaultTimeZone
