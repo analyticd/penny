@@ -1,4 +1,4 @@
-module Penny.Copper.Price (price, render) where
+module Penny.Copper.Price (price, render, unbox) where
 
 import Text.Parsec ( char, getPosition, sourceLine, (<?>),
                      SourcePos )
@@ -79,10 +79,9 @@ render ::
   -> Q.GroupingSpec -- ^ Grouping to the left of the radix point
   -> Q.GroupingSpec -- ^ Grouping to the right of the radix point
   -> Q.RadGroup
-  -> M.Format
-  -> B.PricePoint
+  -> (B.PricePoint, M.Format)
   -> Maybe X.Text
-render dtz gl gr rg fmt pp = let
+render dtz gl gr rg (pp, fmt) = let
   dateTxt = DT.render dtz (B.dateTime pp)
   (B.From from) = B.from . B.price $ pp
   (B.To to) = B.to . B.price $ pp
@@ -97,4 +96,9 @@ render dtz gl gr rg fmt pp = let
        (intercalate (singleton ' ')
        [singleton '@', dateTxt, fromTxt, amtTxt])
        `snoc` '\n'
-            
+
+unbox :: Box.PriceBox -> Maybe (B.PricePoint, M.Format)
+unbox b = do
+  m <- Box.priceMeta b
+  f <- M.priceFormat m
+  return (Box.price b, f)

@@ -48,6 +48,7 @@ Library
     PennyTest.Copper.DateTime,
     PennyTest.Copper.Entry,
     PennyTest.Copper.Flag,
+    PennyTest.Copper.Item,
     PennyTest.Copper.Memos,
     PennyTest.Copper.Memos.Posting,
     PennyTest.Copper.Memos.Transaction,
