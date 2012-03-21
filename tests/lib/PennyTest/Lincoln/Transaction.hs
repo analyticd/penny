@@ -276,7 +276,7 @@ randomUnverifiedTransactions t = do
 -- | Makes unverified Transactions that will likely not be renderable.
 randomUnrenderable :: Gen (Fam.Family U.TopLine U.Posting)
 randomUnrenderable = randomUnverifiedTransactions t where
-  t = TransInputs arbitrary arbitrary arbitrary arbitrary arbitrary 
+  t = TransInputs TB.genDateTime arbitrary arbitrary arbitrary arbitrary 
       arbitrary arbitrary arbitrary arbitrary arbitrary arbitrary 
       arbitrary TB.randEntries
 

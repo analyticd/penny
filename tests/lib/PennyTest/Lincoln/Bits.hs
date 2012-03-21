@@ -13,7 +13,7 @@ import PennyTest.Lincoln.TextNonEmpty ()
 import qualified System.Random as R
 import qualified Test.QuickCheck as Q
 import Test.QuickCheck (arbitrary, Arbitrary, Gen, choose, suchThat,
-                        sized, resize, listOf)
+                        sized)
 
 instance Q.Arbitrary B.SubAccountName where
   arbitrary = B.SubAccountName <$> arbitrary
@@ -30,44 +30,78 @@ instance Q.Arbitrary B.SubCommodity where
 instance Q.Arbitrary B.Commodity where
   arbitrary = B.Commodity <$> arbitrary
 
-instance Q.Arbitrary DT.DiffTime where
-  arbitrary = DT.secondsToDiffTime
+-- | Generate a DiffTime that is in the range [0, 86400) seconds.
+genDiffTime :: Gen DT.DiffTime
+genDiffTime = DT.secondsToDiffTime
               <$> (Q.suchThat arbitrary (\s -> s >= 0 && s < 86400))
 
-instance Q.Arbitrary DT.UTCTime where
-  arbitrary = DT.UTCTime <$> arbitrary <*> arbitrary
+newtype SaneDiffTime = SaneDiffTime DT.DiffTime
+                       deriving (Eq, Show)
+instance Q.Arbitrary SaneDiffTime where
+  arbitrary = SaneDiffTime <$> genDiffTime
 
-instance Q.Arbitrary DT.Day where
-  arbitrary = DT.ModifiedJulianDay <$> choose (20000, 100000)
+-- | Generate a Day that falls between the years 1858 and 2132.
+genDay :: Gen DT.Day
+genDay = DT.ModifiedJulianDay <$> choose (0, 100000)
 
-instance Q.Arbitrary DT.TimeOfDay where
-  arbitrary = DT.TimeOfDay
-              <$> choose (0, 23)
-              <*> choose (0, 59)
-              <*> (fromIntegral <$> choose (0 :: Int, 59))
+newtype SaneDay = SaneDay DT.Day
+                  deriving (Eq, Show)
+instance Q.Arbitrary SaneDay where
+  arbitrary = SaneDay <$> genDay
 
-instance Q.Arbitrary DT.LocalTime where
-  arbitrary = DT.LocalTime <$> arbitrary <*> arbitrary
+-- | Generate a UTC time using genDay and genDiffTime.
+genUTCTime :: Gen DT.UTCTime
+genUTCTime = DT.UTCTime <$> genDay <*> genDiffTime
 
-instance Q.Arbitrary DT.TimeZone where
-  arbitrary = DT.TimeZone
-              <$> choose ((-1339), 1339)
-              <*> arbitrary
-              <*> resize 4 (listOf arbitrary)
+newtype SaneUTCTime = SaneUTCTime DT.UTCTime
+                      deriving (Eq, Show)
+instance Q.Arbitrary SaneUTCTime where
+  arbitrary = SaneUTCTime <$> genUTCTime
 
-instance Q.Arbitrary DT.ZonedTime where
-  arbitrary = DT.ZonedTime <$> arbitrary <*> arbitrary
+-- | Generate a TimeOfDay whose values are valid.
+genTimeOfDay :: Gen DT.TimeOfDay
+genTimeOfDay =
+  DT.TimeOfDay
+  <$> choose (0, 23)
+  <*> choose (0, 59)
+  <*> (fromIntegral <$> choose (0 :: Int, 59))
 
-instance Q.Arbitrary B.TimeZoneOffset where
-  arbitrary = do
-    i <- choose ((-840), 840)
-    maybe (error "arbitrary TimeZoneOffset failed") return
-      $ B.minsToOffset i
+newtype SaneTimeOfDay = SaneTimeOfDay DT.TimeOfDay
+                        deriving (Eq, Show)
+instance Q.Arbitrary SaneTimeOfDay where
+  arbitrary = SaneTimeOfDay <$> genTimeOfDay
 
-instance Q.Arbitrary B.DateTime where
-  arbitrary = B.DateTime
-              <$> arbitrary
-              <*> arbitrary
+-- | Generate a LocalTime using genDay and genTimeOfDay.
+genLocalTime :: Gen DT.LocalTime
+genLocalTime =
+  DT.LocalTime <$> genDay <*> genTimeOfDay
+
+newtype SaneLocalTime = SaneLocalTime DT.LocalTime
+                        deriving (Eq, Show)
+instance Q.Arbitrary SaneLocalTime where
+  arbitrary = SaneLocalTime <$> genLocalTime
+
+-- | Generate a TimeZoneOffset between -840 and 840 minutes.
+genTimeZoneOffset :: Gen B.TimeZoneOffset
+genTimeZoneOffset = do
+  i <- choose ((-840), 840)
+  maybe (error "arbitrary TimeZoneOffset failed") return
+    $ B.minsToOffset i
+  
+newtype SaneTimeZoneOffset =
+  SaneTimeZoneOffset B.TimeZoneOffset
+  deriving (Eq, Show)
+instance Arbitrary SaneTimeZoneOffset where
+  arbitrary = SaneTimeZoneOffset <$> genTimeZoneOffset
+
+-- | Generate a DateTime using genLocalTime and genTimeZoneOffset.
+genDateTime :: Gen B.DateTime
+genDateTime = B.DateTime <$> genLocalTime <*> genTimeZoneOffset
+
+newtype SaneDateTime = SaneDateTime B.DateTime
+                       deriving (Eq, Show)
+instance Arbitrary SaneDateTime where
+  arbitrary = SaneDateTime <$> genDateTime
 
 instance Arbitrary B.DrCr where
   arbitrary = Q.oneof [pure B.Debit, pure B.Credit]
@@ -108,7 +142,7 @@ instance Arbitrary B.Price where
     mkPrice (f, t, c) = fromJust $ B.newPrice f t c
 
 instance Arbitrary B.PricePoint where
-  arbitrary = B.PricePoint <$> arbitrary <*> arbitrary
+  arbitrary = B.PricePoint <$> genDateTime <*> arbitrary
 
 -- | Creates random Decimals with a distribution a little more
 -- interesting than the Arbitrary that comes with Data.Decimal.

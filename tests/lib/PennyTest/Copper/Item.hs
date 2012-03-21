@@ -2,6 +2,7 @@ module PennyTest.Copper.Item where
 
 import Control.Applicative ((<$>), (<*>), pure)
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Item as I
 import Test.QuickCheck (Gen, arbitrary, Arbitrary, oneof)
 import qualified PennyTest.Copper.Transaction as TT
@@ -13,13 +14,13 @@ import qualified Penny.Lincoln.Boxes as Boxes
 import qualified Penny.Lincoln.Meta as M
 
 -- | Generate renderable Items.
-genRItem :: Gen I.Item
-genRItem = oneof [genTrans, genPrice, genCom, genBlank]
+genRItem :: DT.DefaultTimeZone -> Gen I.Item
+genRItem dtz = oneof [genTrans dtz, genPrice dtz, genCom, genBlank]
   
 -- | Generate renderable Transactions.
-genTrans :: Gen I.Item
-genTrans = do
-  (transFam, metaFam) <- TT.randomRenderable
+genTrans :: DT.DefaultTimeZone -> Gen I.Item
+genTrans dtz = do
+  (transFam, metaFam) <- TT.randomRenderable dtz
   txn <- case T.transaction transFam of
     Ex.Exception e ->
       error $ "genRItem: making transaction failed: " ++ show e
@@ -28,11 +29,10 @@ genTrans = do
       box = Boxes.transactionBox txn (Just meta)
   return $ I.Transaction box
 
--- | Generate renderable Prices. BROKEN needs to account for
--- defaulttimezone. Also need to adjust transactions for DTZ.
-genPrice :: Gen I.Item
-genPrice = do
-  ppd <- TP.genRPricePointData
+-- | Generate renderable Prices.
+genPrice :: DT.DefaultTimeZone -> Gen I.Item
+genPrice dtz = do
+  ppd <- TP.genRPricePointData dtz
   pr <- case B.newPrice (TP.from ppd)
              (TP.to ppd) (TP.countPerUnit ppd) of
           Nothing -> error $ "genRItem: making price failed"

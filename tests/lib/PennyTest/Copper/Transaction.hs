@@ -10,12 +10,13 @@ import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Transaction as T
 import qualified PennyTest.Copper.Account as TAc
 import qualified PennyTest.Copper.Commodity as TCy
-import PennyTest.Copper.DateTime ()
+import qualified PennyTest.Copper.DateTime as TDT
 import qualified PennyTest.Copper.Flag as TFl
 import qualified PennyTest.Copper.Payees as TPa
 import qualified PennyTest.Copper.Memos.Posting as TPostingMemo
 import qualified PennyTest.Copper.Memos.Transaction as TTransactionMemo
 import qualified PennyTest.Copper.Number as TNu
+import PennyTest.Copper.Price (genDT)
 import qualified PennyTest.Copper.Tags as TTa
 import qualified PennyTest.Lincoln.Bits as TB
 import PennyTest.Lincoln.Meta ()
@@ -36,10 +37,10 @@ import qualified Penny.Lincoln.Family.Family as Fam
 
 -- | The data needed to generate a single renderable unverified
 -- transaction.
-rTransInputs :: TLT.TransInputs
-rTransInputs =
+rTransInputs :: DT.DefaultTimeZone -> TLT.TransInputs
+rTransInputs dtz =
   TLT.TransInputs {
-    TLT.dateTime = arbitrary
+    TLT.dateTime = genDT dtz
     , TLT.tFlag = genMaybe TFl.genRFlag
     , TLT.tNumber = genMaybe TNu.genRNumber
     , TLT.tPayee =
@@ -56,10 +57,12 @@ rTransInputs =
     , TLT.pEntries = TB.randEntries }
 
 -- | Generate random renderable transactions.
-randomRenderable :: Gen ((Fam.Family U.TopLine U.Posting),
-                         (Fam.Family M.TopLineMeta M.PostingMeta))
-randomRenderable = sized $ \s -> resize (min s 6) $ do
-  t <- TLT.randomUnverifiedTransactions rTransInputs
+randomRenderable ::
+  DT.DefaultTimeZone
+  -> Gen ((Fam.Family U.TopLine U.Posting),
+          (Fam.Family M.TopLineMeta M.PostingMeta))
+randomRenderable dtz = sized $ \s -> resize (min s 6) $ do
+  t <- TLT.randomUnverifiedTransactions (rTransInputs dtz)
   let uPstgs = orphans t
       toMeta uPo = case U.entry uPo of
         Nothing -> M.PostingMeta <$> arbitrary <*> pure Nothing
@@ -68,22 +71,15 @@ randomRenderable = sized $ \s -> resize (min s 6) $ do
   topLineMeta <- arbitrary
   return (t, adopt topLineMeta pstgMetas)
 
-newtype RUnverified =
-  RUnverified ((Fam.Family U.TopLine U.Posting),
-               (Fam.Family M.TopLineMeta M.PostingMeta))
-  deriving (Show, Eq)
-instance Arbitrary RUnverified where
-  arbitrary = RUnverified <$> randomRenderable
-
 -- | Parsing random renderable Posting gives the same thing.
 prop_parseRendered ::
-  M.Filename
-  -> DT.DefaultTimeZone
+  TDT.AnyTimeZone
+  -> M.Filename
   -> (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> RUnverified
   -> Property
-prop_parseRendered fn dtz gs rg (RUnverified (tFam, metaFam)) =
+prop_parseRendered (TDT.AnyTimeZone dtz) fn gs rg = do
+  (tFam, metaFam) <- randomRenderable dtz
   case Txn.transaction tFam of
     Ex.Exception _ -> error "making transaction failed"
     Ex.Success txn ->
