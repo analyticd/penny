@@ -11,7 +11,10 @@
 -- can be tedious if, for example, you want to build some data within
 -- a short custom Haskell program. Thus, this module.
 
-module Penny.Lincoln.Builders where
+module Penny.Lincoln.Builders ( 
+  crashy
+  , account
+  ) where
 
 import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.List.Split as S

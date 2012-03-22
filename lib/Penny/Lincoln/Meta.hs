@@ -1,3 +1,6 @@
+-- | Transaction and posting metadata. Also useful here are the types
+-- and function in "Penny.Lincoln.Boxes", which combine metadata with
+-- postings and prices.
 module Penny.Lincoln.Meta where
 
 import qualified Penny.Lincoln.Family.Family as F

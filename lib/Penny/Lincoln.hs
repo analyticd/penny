@@ -3,7 +3,9 @@
 -- Penny's core types and classes are here. This module re-exports the
 -- most useful things. For more details you will want to look at the
 -- sub-modules. Also, not all types and functions are re-exported due
--- to naming conflicts.
+-- to naming conflicts. In particular, neither
+-- "Penny.Lincoln.Predicates" nor "Penny.Lincoln.Queries" is exported
+-- from here due to the blizzard of name conflicts that would result.
 module Penny.Lincoln (
   -- * Balances
   B.Balance
@@ -83,7 +85,7 @@ module Penny.Lincoln (
     
     -- * Boxes
     -- ** Box types
-  , X.TransactionBox ( transaction, transactionMeta )
+  , X.TransactionBox ( transactionMeta )
   , X.PostingBox ( postingBundle, metaBundle )
   , X.PriceBox (PriceBox)
   
@@ -96,9 +98,91 @@ module Penny.Lincoln (
   , X.posting
   , X.postingMeta
   , X.topLineMeta
+    
+    -- * Builders
+  , Bd.crashy
+  , Bd.account
+    
+    -- * Families
+    -- ** Family types
+  , F.Family(Family)
+  , F.Child(Child)
+  , F.Siblings(Siblings)
+    
+    -- ** Manipulating families
+  , F.children
+  , F.orphans
+  , F.adopt
+  , F.marryWith
+  , F.marry
+  , F.divorceWith
+  , F.divorce
+    
+    -- * HasText
+  , HT.HasText(text)
+  , HT.Delimited(Delimited)
+  , HT.HasTextList(textList)
+  , HT.HasTextNonEmpty(textNonEmpty)
+  , HT.HasTextNonEmptyList(textNonEmptyList)
+
+    -- * Metadata
+  , M.Side(CommodityOnLeft, CommodityOnRight)
+  , M.SpaceBetween(..)
+  , M.Format(..)
+  , M.Line(..)
+  , M.Filename(..)
+  , M.PriceLine(..)
+  , M.PostingLine(..)
+  , M.TopMemoLine(..)
+  , M.TopLineLine(..)
+  , M.PriceMeta(..)
+  , M.PostingMeta(..)
+  , M.TopLineMeta(..)
+  , M.TransactionMeta(..)
+    
+    -- * TextNonEmpty
+  , TNE.TextNonEmpty(TextNonEmpty)
+    
+    -- * Transactions
+    -- ** Postings and transactions
+  , T.Posting
+  , T.Transaction
+
+    -- ** Making transactions
+  , T.transaction
+  , T.Error ( UnbalancedError, CouldNotInferError)
+  
+    -- ** Querying postings
+  , T.Inferred(Inferred, NotInferred)
+  , T.pPayee
+  , T.pNumber
+  , T.pFlag
+  , T.pAccount
+  , T.pTags
+  , T.pEntry
+  , T.pMemo
+  , T.pInferred
+
+    -- ** Querying transactions
+  , T.TopLine
+  , T.tDateTime
+  , T.tFlag
+  , T.tNumber
+  , T.tPayee
+  , T.tMemo
+    
+    -- ** Unwrapping Transactions
+  , T.unTransaction
+  , T.postingFamily
 
   ) where
 
 import qualified Penny.Lincoln.Balance as B
 import qualified Penny.Lincoln.Bits as I
 import qualified Penny.Lincoln.Boxes as X
+import qualified Penny.Lincoln.Builders as Bd
+import qualified Penny.Lincoln.Family as F
+import qualified Penny.Lincoln.HasText as HT
+import qualified Penny.Lincoln.Meta as M
+import qualified Penny.Lincoln.TextNonEmpty as TNE
+import qualified Penny.Lincoln.Transaction as T

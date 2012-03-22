@@ -4,9 +4,7 @@
 -- ZonedTime from Data.Time but ZonedTime has data that Penny does not
 -- need.
 module Penny.Lincoln.Bits.DateTime (
-  DateTime (DateTime)
-  , localTime
-  , timeZone
+  DateTime (DateTime, localTime, timeZone)
   , TimeZoneOffset
   , offsetToMins
   , minsToOffset

@@ -6,9 +6,8 @@ module Penny.Lincoln.Balance (
   entryToBalance,
   addBalances,
   BottomLine(Zero, NonZero),
-  Column(Column),
-  drCr,
-  qty) where
+  Column(Column, drCr, qty)
+  ) where
 
 import Data.Map ( Map )
 import qualified Data.Map as M

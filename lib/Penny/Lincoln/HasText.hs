@@ -39,6 +39,8 @@ instance HasText B.Payee where
 instance HasText B.Tag where
   text = text . B.unTag
   
+-- | Applying 'text' to a Delimited type will give you a single Text
+-- with the delimiter interspersed between the values of the list.
 data Delimited a = Delimited Text [a]
                  deriving Show
 
