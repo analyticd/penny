@@ -1,12 +1,24 @@
+-- | Lincoln separates transactions and postings from metadata about
+-- the transactions and postings. This is because not all postings
+-- necessarily have metadata. However, when you do have metadata, you
+-- will want to handle it together with the posting or the
+-- transaction; this information goes into a Box.
 module Penny.Lincoln.Boxes (
+  -- * Boxes
   TransactionBox ( transaction, transactionMeta ),
   PostingBox ( postingBundle, metaBundle ),
   PriceBox (PriceBox, price, priceMeta),
+  
+  -- * Functions to manipulate boxes
+  -- ** Making boxes
+  transactionBox,
+  postingBoxes,
+
+  -- ** Deconstructing posting boxes
   posting,
   postingMeta,
-  transactionBox,
   topLineMeta,
-  postingBoxes) where
+  ) where
 
 import Data.Foldable (toList)
 
@@ -35,6 +47,12 @@ data PriceBox =
            , priceMeta :: Maybe PriceMeta }
   deriving Show
 
+-- | Makes a TransactionBox. Unites each element of a family of
+-- Postings with the correct element of a family of metadata. WARNING
+-- /This function is partial/. It will apply 'error' if there is not
+-- exactly the same number of postings as there are children in the
+-- metadata family. This always indicates some sort of programmer
+-- error so it is pointless to anything other than apply 'error'.
 transactionBox :: Transaction
                   -> Maybe TransactionMeta
                   -> TransactionBox
@@ -47,6 +65,9 @@ transactionBox t mm = case mm of
        then error "Boxes.hs: error: metadata and transaction mismatch"
        else TransactionBox t (Just m)
 
+-- | Changes a list of TransactionBoxes into a list of
+-- PostingBoxes. This will always result in a longer list, because
+-- each Transaction has at least two Postings.
 postingBoxes :: [TransactionBox] -> [PostingBox]
 postingBoxes = concatMap toBox where
   toBox (TransactionBox cTrans cMeta) = let

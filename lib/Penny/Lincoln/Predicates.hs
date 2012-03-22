@@ -1,3 +1,6 @@
+-- | Functions that return a boolean based upon some criterion that
+-- matches something, often a PostingBox. Useful when filtering
+-- Postings.
 module Penny.Lincoln.Predicates where
 
 import Data.Text (Text, singleton)

@@ -1,4 +1,7 @@
-module Penny.Lincoln.Family.Siblings where
+module Penny.Lincoln.Family.Siblings (
+  Siblings(Siblings, first, second, rest),
+  collapse
+  ) where
 
 import qualified Prelude as P
 import Prelude hiding (concat)
@@ -9,6 +12,8 @@ import qualified Data.Foldable as Foldable
 import qualified Data.Traversable as T
 import Control.Applicative ((<*>), (<$>))
 
+-- | Describes the siblings of a family, but tells you nothing about
+-- the parent. There are always at least two Siblings.
 data Siblings a = Siblings { first :: a
                            , second :: a
                            , rest :: [a] }
@@ -32,6 +37,9 @@ instance T.Traversable Siblings where
     <*> g s
     <*> T.traverse g rs
 
+-- | Change a Siblings of NonEmpty lists to a Siblings. The original
+-- order of the elements contained in the Siblings and within the
+-- NonEmpty lists is preserved.
 collapse :: Siblings (NE.NonEmpty a)
             -> Siblings a
 collapse (Siblings (s1_1:|s1_r) s2@(s2_1:|s2_r) sr) =
