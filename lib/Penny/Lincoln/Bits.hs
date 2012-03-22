@@ -19,6 +19,7 @@ module Penny.Lincoln.Bits (
 
   -- * Debits and Credits
   DC.DrCr(Debit, Credit),
+  DC.opposite,
   
   -- * Entries
   E.Entry(Entry, drCr, amount),

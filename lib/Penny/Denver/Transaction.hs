@@ -3,8 +3,10 @@ module Penny.Denver.Transaction where
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Text as X
+import qualified Data.Time as T
 import qualified Penny.Denver.Common as C
 import qualified Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Family.Family as F
 import qualified Penny.Lincoln.TextNonEmpty as TNE
@@ -18,8 +20,14 @@ newtype Transaction =
 
 data PostingWithFormat =
   PostingWithFormat { posting :: U.Posting
-                    , meta :: M.Format }
+                    , postingFmt :: M.Format }
   deriving (Eq, Show)
+
+data PriceWithFormat =
+  PriceWithFormat {
+    price :: B.PricePoint
+    , priceFmt :: M.Format
+    } deriving (Eq, Show)
 
 lincolnizePstg ::
   P.Posting
@@ -31,14 +39,81 @@ lincolnizeCleared c = case c of
   C.Cleared -> Just (B.Flag (TNE.TextNonEmpty '*' X.empty))
   C.NotCleared -> Nothing
 
+data Valued = Valued {
+  original :: PostingWithFormat
+  , offset :: PostingWithFormat
+  , priced :: PostingWithFormat
+  , vPrice :: PriceWithFormat
+  } deriving (Eq, Show)
+
 lincolnizeValued ::
-  C.Cleared
+  T.Day
+  -> C.Cleared
   -> B.Account
   -> P.Entry
   -> P.Price
   -> Maybe B.MemoLine
-  -> (PostingWithFormat, PostingWithFormat, PostingWithFormat)
+  -> Valued
 lincolnizeValued = undefined
+
+lincolnizeOriginal ::
+  C.Cleared
+  -> B.Account
+  -> P.Entry
+  -> Maybe B.MemoLine
+  -> PostingWithFormat
+lincolnizeOriginal c a e mayMemo = PostingWithFormat p fmt where
+  fmt = P.entryFormat e
+  p = U.Posting Nothing Nothing fl a (B.Tags []) (Just e') memo
+  fl = lincolnizeCleared c
+  memo = lincolnizeMemo mayMemo
+  e' = B.Entry (lincolnizeSign (P.sign e)) amt
+  amt = lincolnizeAmount (P.amount e)
+
+lincolnizeOffset :: P.Entry -> PostingWithFormat
+lincolnizeOffset e = PostingWithFormat p fmt where
+  fmt = P.entryFormat e
+  p = U.Posting Nothing Nothing Nothing tradingAcct (B.Tags [])
+      (Just e') (B.Memo [])
+  e' = B.Entry dc amt
+  dc = B.opposite (lincolnizeSign (P.sign e))
+  amt = lincolnizeAmount (P.amount e)
+
+lincolnizePriced :: P.Entry -> P.Price -> PostingWithFormat
+lincolnizePriced e pr = PostingWithFormat p fmt where
+  fmt = P.priceFormat pr
+  p = U.Posting Nothing Nothing Nothing tradingAcct (B.Tags [])
+      (Just e') (B.Memo [])
+  e' = B.Entry dc amt
+  dc = lincolnizeSign (P.sign e)
+  amt = B.Amount qty (lincolnizeCommodity (P.toCommodity pr))
+  qty = B.mult (P.qtyPerUnit pr) (P.qty . P.amount $ e)
+  
+makePrice :: T.Day -> P.Entry -> P.Price -> PriceWithFormat
+makePrice d e pr = PriceWithFormat pp fmt where
+  fmt = P.priceFormat pr
+  pp = B.PricePoint dt pr'
+  
+
+tradingAcct :: B.Account
+tradingAcct = Bd.crashy . Bd.account $ "Income:Trading"
+
+lincolnizeMemo :: Maybe B.MemoLine -> B.Memo
+lincolnizeMemo mayMemo = case mayMemo of
+  Nothing -> B.Memo []
+  Just ml -> B.Memo [ml]
+
+lincolnizeSign :: P.Sign -> B.DrCr
+lincolnizeSign s = case s of
+  P.Positive -> B.Debit
+  P.Negative -> B.Credit
+
+lincolnizeCommodity :: P.Commodity -> B.Commodity
+lincolnizeCommodity (P.Commodity tne) = B.Commodity (s1:|[]) where
+  s1 = B.SubCommodity tne
+
+lincolnizeAmount :: P.Amount -> B.Amount
+lincolnizeAmount (P.Amount q c) = B.Amount q (lincolnizeCommodity c)
 
 {-
 Values
