@@ -4,18 +4,102 @@ import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Text as X
 import qualified Data.Time as T
+import Data.Traversable (traverse)
+import qualified Data.Foldable as Foldable
 import qualified Penny.Denver.Common as C
 import qualified Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln.Boxes as Boxes
 import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Lincoln.Meta as M
+import Penny.Lincoln.Family (orphans, adopt, divorceWith)
 import qualified Penny.Lincoln.Family.Family as F
+import qualified Penny.Lincoln.Family.Siblings as S
 import qualified Penny.Lincoln.TextNonEmpty as TNE
+import qualified Penny.Lincoln.Transaction as LT
 import qualified Penny.Denver.Posting as P
 import qualified Penny.Denver.TopLine as TL
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
-newtype Transaction =
-  Transaction { unTransaction :: F.Family TL.TopLine P.Posting }
+
+
+data UnverifiedWithMeta =
+  UnverifiedWithMeta {
+    unvData :: F.Family U.TopLine U.Posting
+    , unvMeta :: M.TransactionMeta
+    } deriving (Show, Eq)
+
+-- | A Lincolnized transaction. Is not yet a true Penny transaction as
+-- it still must be processed through
+-- Penny.Lincoln.Transaction.transaction.
+newtype LincolnizedTxn =
+  LincolnizedTxn {
+    unLincolnizedTxn :: F.Family U.TopLine Lincolnized
+    } deriving (Eq, Show)
+
+lincolnizeTxn ::
+  Raw
+  -> Maybe (LincolnizedTxn, [PriceWithFormat])
+lincolnizeTxn (Raw fa@(F.Family tl _ _ _)) = let
+  tl' = lincolnizeTopLine tl
+  ors = orphans fa
+  d = TL.day tl
+  in do
+    lincolnWithMayPrices <- traverse (lincolnizePstg d) ors
+    let (sibs, ps) = separatePrices lincolnWithMayPrices
+        fam' = adopt tl' sibs
+        lincolnized = LincolnizedTxn fam'
+    return (lincolnized, ps)
+
+{-
+    let famWithMeta = adopt tl' pstgs
+        (unv, meta) = divorceWith splitTopLine splitLincolnized
+                      famWithMeta
+    txn <- LT.transaction unv
+    let box = Boxes.transactionBox txn
+              (Just (M.TransactionMeta meta)
+-}
+
+-- | Converts a NonEmpty list of Lincolnized and maybe Prices to a
+-- NonEmpty list of Lincolnized and a list of Prices.
+separatePrices ::
+  S.Siblings (NE.NonEmpty Lincolnized, Maybe PriceWithFormat)
+  -> (S.Siblings Lincolnized, [PriceWithFormat])
+separatePrices s = (s', ps) where
+  folded = Foldable.foldr foldPair ([], []) s
+  (s1, s2, ss) = case fst folded of
+    (i1:i2:is) -> (i1, i2, is)
+    _ -> error "separatePrices error"
+  s' = S.Siblings s1 s2 ss
+  ps = snd folded
+
+foldPair :: (NE.NonEmpty Lincolnized, Maybe PriceWithFormat)
+            -> ([Lincolnized], [PriceWithFormat])
+            -> ([Lincolnized], [PriceWithFormat])
+foldPair (neL, mp) (ls, ps) = (ls', ps') where
+  ls' = Foldable.toList ls ++ ls'
+  ps' = case mp of
+    Nothing -> ps
+    Just p -> p:ps
+
+
+-- | Splits an unverified TopLine into an unverified TopLine and an
+-- empty TopLineMeta.
+splitTopLine :: U.TopLine -> (U.TopLine, M.TopLineMeta)
+splitTopLine tl = (tl, M.TopLineMeta Nothing Nothing Nothing)
+
+-- | Splits a Lincolnized into an unverified Posting and a
+-- PostingMeta.
+splitLincolnized :: Lincolnized -> (U.Posting, M.PostingMeta)
+splitLincolnized l = case l of
+  WithEntry (PostingWithFormat p fmt) -> let
+    meta = M.PostingMeta Nothing (Just fmt)
+    in (p, meta)
+  NoEntry p -> (p, M.PostingMeta Nothing Nothing)
+
+-- | A transaction as read in from a Ledger file. The parser supplies
+-- this.
+newtype Raw =
+  Raw { unTransaction :: F.Family TL.TopLine P.Posting }
   deriving (Eq, Show)
 
 data PostingWithFormat =
@@ -23,16 +107,40 @@ data PostingWithFormat =
                     , postingFmt :: M.Format }
   deriving (Eq, Show)
 
+data Lincolnized =
+  WithEntry PostingWithFormat
+  | NoEntry U.Posting
+  deriving (Show, Eq)
+
 data PriceWithFormat =
   PriceWithFormat {
     price :: B.PricePoint
     , priceFmt :: M.Format
     } deriving (Eq, Show)
 
+lincolnizeTopLine :: TL.TopLine -> U.TopLine
+lincolnizeTopLine (TL.TopLine d c n p) =
+  U.TopLine dt fl n p (B.Memo []) where
+    dt = lincolnizeDay d
+    fl = lincolnizeCleared c
+
 lincolnizePstg ::
-  P.Posting
-  -> Maybe (NE.NonEmpty PostingWithFormat, Maybe PriceWithFormat)
-lincolnizePstg = undefined
+  T.Day
+  -> P.Posting
+  -> Maybe (NE.NonEmpty Lincolnized, Maybe PriceWithFormat)
+lincolnizePstg d (P.Posting c a r m) = case r of
+  Nothing -> let
+    l = lincolnizeNoEntry c a m
+    in Just ((NoEntry l) :| [], Nothing)
+  Just rec -> let e = P.entry rec in
+    case P.price rec of
+      Nothing -> let
+        l = lincolnizeEntryOnly c a e m
+        in Just ((WithEntry l) :| [], Nothing)
+      Just p -> do
+        (Valued p1 p2 p3 vp) <- lincolnizeValued d c a e p m
+        let ls = fmap WithEntry (p1 :| [p2, p3])
+        return (ls, Just vp)
 
 lincolnizeCleared :: C.Cleared -> Maybe B.Flag
 lincolnizeCleared c = case c of
@@ -45,6 +153,30 @@ data Valued = Valued {
   , priced :: PostingWithFormat
   , vPrice :: PriceWithFormat
   } deriving (Eq, Show)
+
+lincolnizeNoEntry ::
+  C.Cleared
+  -> B.Account
+  -> Maybe B.MemoLine
+  -> U.Posting
+lincolnizeNoEntry c a mayMemo =
+  U.Posting Nothing Nothing fl a (B.Tags []) Nothing memo where
+    fl = lincolnizeCleared c
+    memo = lincolnizeMemo mayMemo
+
+lincolnizeEntryOnly ::
+  C.Cleared
+  -> B.Account
+  -> P.Entry
+  -> Maybe B.MemoLine
+  -> PostingWithFormat
+lincolnizeEntryOnly c a e mayMemo = PostingWithFormat p fmt where
+  fmt = P.entryFormat e
+  p = U.Posting Nothing Nothing fl a (B.Tags []) (Just e') memo
+  fl = lincolnizeCleared c
+  e' = B.Entry (lincolnizeSign (P.sign e)) amt
+  amt = lincolnizeAmount (P.amount e)
+  memo = lincolnizeMemo mayMemo
 
 lincolnizeValued ::
   T.Day
