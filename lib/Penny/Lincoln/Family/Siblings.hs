@@ -1,5 +1,10 @@
 module Penny.Lincoln.Family.Siblings where
 
+import qualified Prelude as P
+import Prelude hiding (concat)
+import qualified Data.Semigroup as S
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Foldable as Foldable
 import qualified Data.Traversable as T
 import Control.Applicative ((<*>), (<$>))
@@ -8,6 +13,10 @@ data Siblings a = Siblings { first :: a
                            , second :: a
                            , rest :: [a] }
                   deriving (Eq, Show)
+
+instance S.Semigroup (Siblings a) where
+  (Siblings a1 a2 ar) <> (Siblings b1 b2 br) =
+    Siblings a1 a2 (ar ++ (b1:b2:br))
 
 instance Functor Siblings where
   fmap g (Siblings f s rs) = Siblings (g f) (g s) (map g rs)
@@ -22,3 +31,16 @@ instance T.Traversable Siblings where
     <$> g f
     <*> g s
     <*> T.traverse g rs
+
+collapse :: Siblings (NE.NonEmpty a)
+            -> Siblings a
+collapse (Siblings (s1_1:|s1_r) s2@(s2_1:|s2_r) sr) =
+  Siblings r1 r2 rr where
+    r1 = s1_1
+    (r2, rr) = case s1_r of
+      [] -> (s2_1, (s2_r ++ concatNE sr))
+      x:xs -> (x, xs ++ concatNE (s2 : sr))
+
+concatNE :: [NE.NonEmpty a] -> [a]
+concatNE = foldr f [] where
+  f (a :| as) soFar = (a:as) ++ soFar

@@ -1,7 +1,9 @@
-module Penny.Denver.Transaction where
+module Penny.Denver.Transaction (lincolnize, Raw(Raw)) where
 
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.Maybe (catMaybes)
 import qualified Data.Text as X
 import qualified Data.Time as T
 import Data.Traversable (traverse)
@@ -21,20 +23,62 @@ import qualified Penny.Denver.TopLine as TL
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
 
+-- | Takes a C++ Ledger transaction and transforms it to a Lincoln
+-- transaction. All data passed in through the Raw is preserved,
+-- either through the actual transaction or through the metadata.
+--
+-- Postings with no Record result in one Lincolnized Posting. Postings
+-- with a Record but without a price result in one Lincolnized
+-- Posting. Postings with a Record and with a Price result in three
+-- Lincolnized postings and in one or more Prices. For details, see
+-- the comments at the bottom of this source file.
+--
+-- This computation will fail if:
+--
+-- * Lincoln cannot make a balanced transaction. Unlike C++ Ledger
+-- there is no sort of fudge factor for transactions that have prices.
+--
+-- * A posting has a price with a commodity that is the same as the
+-- commodity on the Amount.
+lincolnize ::
+  Raw
+  -> Maybe (Boxes.TransactionBox, [Boxes.PriceBox])
+lincolnize r = do
+  (lincolnizedTxn, ps) <- lincolnizeTxn r
+  let unv = unvWithMeta lincolnizedTxn
+  tBox <- transactionBox unv
+  let pBoxes = map priceBox ps
+  return (tBox, pBoxes)
+
+priceBox :: PriceWithFormat -> Boxes.PriceBox
+priceBox (PriceWithFormat p fmt) =
+  Boxes.PriceBox p (Just (M.PriceMeta Nothing (Just fmt)))
+
+transactionBox :: UnverifiedWithMeta
+                  -> Maybe Boxes.TransactionBox
+transactionBox (UnverifiedWithMeta unv meta) = do
+  txn <- Ex.toMaybe $ LT.transaction unv
+  return $ Boxes.transactionBox txn (Just meta)
 
 data UnverifiedWithMeta =
-  UnverifiedWithMeta {
-    unvData :: F.Family U.TopLine U.Posting
-    , unvMeta :: M.TransactionMeta
-    } deriving (Show, Eq)
+  UnverifiedWithMeta
+  (F.Family U.TopLine U.Posting)
+  M.TransactionMeta
+  deriving (Show, Eq)
+
+unvWithMeta :: LincolnizedTxn -> UnverifiedWithMeta
+unvWithMeta (LincolnizedTxn fam) = let
+  (unv, m) = divorceWith splitTopLine splitLincolnized fam
+  meta = M.TransactionMeta m
+  in UnverifiedWithMeta unv meta
+
 
 -- | A Lincolnized transaction. Is not yet a true Penny transaction as
 -- it still must be processed through
 -- Penny.Lincoln.Transaction.transaction.
 newtype LincolnizedTxn =
-  LincolnizedTxn {
-    unLincolnizedTxn :: F.Family U.TopLine Lincolnized
-    } deriving (Eq, Show)
+  LincolnizedTxn (F.Family U.TopLine Lincolnized)
+  deriving (Eq, Show)
 
 lincolnizeTxn ::
   Raw
@@ -50,37 +94,15 @@ lincolnizeTxn (Raw fa@(F.Family tl _ _ _)) = let
         lincolnized = LincolnizedTxn fam'
     return (lincolnized, ps)
 
-{-
-    let famWithMeta = adopt tl' pstgs
-        (unv, meta) = divorceWith splitTopLine splitLincolnized
-                      famWithMeta
-    txn <- LT.transaction unv
-    let box = Boxes.transactionBox txn
-              (Just (M.TransactionMeta meta)
--}
-
 -- | Converts a NonEmpty list of Lincolnized and maybe Prices to a
 -- NonEmpty list of Lincolnized and a list of Prices.
 separatePrices ::
   S.Siblings (NE.NonEmpty Lincolnized, Maybe PriceWithFormat)
   -> (S.Siblings Lincolnized, [PriceWithFormat])
-separatePrices s = (s', ps) where
-  folded = Foldable.foldr foldPair ([], []) s
-  (s1, s2, ss) = case fst folded of
-    (i1:i2:is) -> (i1, i2, is)
-    _ -> error "separatePrices error"
-  s' = S.Siblings s1 s2 ss
-  ps = snd folded
-
-foldPair :: (NE.NonEmpty Lincolnized, Maybe PriceWithFormat)
-            -> ([Lincolnized], [PriceWithFormat])
-            -> ([Lincolnized], [PriceWithFormat])
-foldPair (neL, mp) (ls, ps) = (ls', ps') where
-  ls' = Foldable.toList ls ++ ls'
-  ps' = case mp of
-    Nothing -> ps
-    Just p -> p:ps
-
+separatePrices s = (lincs, ps) where
+  split = (fmap fst s, fmap snd s)
+  lincs = S.collapse (fst split)
+  ps = catMaybes . Foldable.toList . snd $ split
 
 -- | Splits an unverified TopLine into an unverified TopLine and an
 -- empty TopLineMeta.
@@ -98,25 +120,23 @@ splitLincolnized l = case l of
 
 -- | A transaction as read in from a Ledger file. The parser supplies
 -- this.
-newtype Raw =
-  Raw { unTransaction :: F.Family TL.TopLine P.Posting }
-  deriving (Eq, Show)
+newtype Raw = Raw (F.Family TL.TopLine P.Posting)
+            deriving (Eq, Show)
 
-data PostingWithFormat =
-  PostingWithFormat { posting :: U.Posting
-                    , postingFmt :: M.Format }
-  deriving (Eq, Show)
+data PostingWithFormat = PostingWithFormat
+                         U.Posting
+                         M.Format
+                       deriving (Eq, Show)
 
 data Lincolnized =
   WithEntry PostingWithFormat
   | NoEntry U.Posting
   deriving (Show, Eq)
 
-data PriceWithFormat =
-  PriceWithFormat {
-    price :: B.PricePoint
-    , priceFmt :: M.Format
-    } deriving (Eq, Show)
+data PriceWithFormat = PriceWithFormat
+                       B.PricePoint
+                       M.Format
+                       deriving (Eq, Show)
 
 lincolnizeTopLine :: TL.TopLine -> U.TopLine
 lincolnizeTopLine (TL.TopLine d c n p) =
@@ -148,10 +168,10 @@ lincolnizeCleared c = case c of
   C.NotCleared -> Nothing
 
 data Valued = Valued {
-  original :: PostingWithFormat
-  , offset :: PostingWithFormat
-  , priced :: PostingWithFormat
-  , vPrice :: PriceWithFormat
+  _original :: PostingWithFormat
+  , _offset :: PostingWithFormat
+  , _priced :: PostingWithFormat
+  , _vPriceFormat :: PriceWithFormat
   } deriving (Eq, Show)
 
 lincolnizeNoEntry ::

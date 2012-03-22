@@ -110,4 +110,5 @@ test_divorcedSize = testProperty s prop_divorcedSize where
 tests :: T.Test
 tests = T.testGroup "Family"
         [test_childCount, test_siblingCount, test_orphanCount,
-         test_adoptedCount, test_marriedSize, test_divorcedSize]
+         test_adoptedCount, test_marriedSize, test_divorcedSize,
+         TS.tests]
