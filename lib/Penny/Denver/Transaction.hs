@@ -31,8 +31,8 @@ data PriceWithFormat =
 
 lincolnizePstg ::
   P.Posting
-  -> NE.NonEmpty PostingWithFormat
-lincolnizePstg p = undefined
+  -> Maybe (NE.NonEmpty PostingWithFormat, Maybe PriceWithFormat)
+lincolnizePstg = undefined
 
 lincolnizeCleared :: C.Cleared -> Maybe B.Flag
 lincolnizeCleared c = case c of
@@ -53,8 +53,14 @@ lincolnizeValued ::
   -> P.Entry
   -> P.Price
   -> Maybe B.MemoLine
-  -> Valued
-lincolnizeValued = undefined
+  -> Maybe Valued
+lincolnizeValued d c a e p m = let
+  orig = lincolnizeOriginal c a e m
+  off = lincolnizeOffset e
+  pri = lincolnizePriced e p
+  in do
+    vPri <- makePrice d e p
+    return $ Valued orig off pri vPri
 
 lincolnizeOriginal ::
   C.Cleared
@@ -89,11 +95,23 @@ lincolnizePriced e pr = PostingWithFormat p fmt where
   amt = B.Amount qty (lincolnizeCommodity (P.toCommodity pr))
   qty = B.mult (P.qtyPerUnit pr) (P.qty . P.amount $ e)
   
-makePrice :: T.Day -> P.Entry -> P.Price -> PriceWithFormat
-makePrice d e pr = PriceWithFormat pp fmt where
+makePrice :: T.Day -> P.Entry -> P.Price -> Maybe PriceWithFormat
+makePrice d e pr = let
   fmt = P.priceFormat pr
-  pp = B.PricePoint dt pr'
-  
+  dt = lincolnizeDay d
+  fr = B.From (lincolnizeCommodity (P.commodity . P.amount $ e))
+  to = B.To (lincolnizeCommodity (P.toCommodity pr))
+  cpu = B.CountPerUnit (P.qtyPerUnit pr)
+  in do
+    pr' <- B.newPrice fr to cpu
+    let pp = B.PricePoint dt pr'
+    return $ PriceWithFormat pp fmt
+
+lincolnizeDay :: T.Day -> B.DateTime
+lincolnizeDay d = B.DateTime lt tz where
+  lt = T.LocalTime d tod
+  tod = T.midnight
+  tz = B.noOffset
 
 tradingAcct :: B.Account
 tradingAcct = Bd.crashy . Bd.account $ "Income:Trading"

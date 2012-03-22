@@ -5,9 +5,16 @@ import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 
+data EntryPrice =
+  NoEntry
+  | EntryOnly Entry
+  | EntryPrice Entry Price
+  deriving (Eq, Show)
+
 data Posting = Posting {
   cleared :: C.Cleared
   , account :: B.Account
+  , entryPrice :: EntryPrice
   , entry :: Maybe Entry
   , price :: Maybe Price
   , memo :: Maybe B.MemoLine
