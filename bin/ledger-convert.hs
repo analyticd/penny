@@ -16,7 +16,7 @@ dtz :: C.DefaultTimeZone
 dtz = C.utcDefault
 
 gs :: (C.GroupingSpec, C.GroupingSpec)
-gs = (C.GroupAll, C.GroupAll)
+gs = (C.GroupAll, C.NoGrouping)
 
 rg :: C.RadGroup
 rg = C.periodComma

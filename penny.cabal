@@ -282,6 +282,8 @@ Library
         Penny.Zinc.Parser.Report
 
     ghc-options: -Wall
+    if flag(debug)
+      ghc-options: -auto-all
 
 Executable penny
   if flag(pennyCLI)
@@ -297,6 +299,8 @@ Executable penny
 
   Main-is: penny.hs
   GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all
 
 Executable ledger-convert
   hs-source-dirs: bin
@@ -319,3 +323,7 @@ Flag convert
 Flag pennyCLI
   Description: Build the Penny command-line binary
   Default: True
+
+Flag debug
+  Description: Turns on useful debugging options
+  Default: False

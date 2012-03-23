@@ -325,11 +325,16 @@ blankLine :: Parser Cop.Item
 blankLine = many (char ' ') *> eol *> pure Cop.BlankLine
             <?> "blank line"
 
+-- | Changes a pair of a transaction and a list of prices to a Copper
+-- item. Inserts a blank line after each added price to aid
+-- readability.
 transactionPairToItem ::
   (L.TransactionBox, [L.PriceBox]) -> NonEmpty Cop.Item
 transactionPairToItem (t, ps) = let
   tItem = Cop.Transaction t
-  pItems = map Cop.Price ps
+  pItems = concat
+           . map (\p -> [Cop.Price p, Cop.BlankLine])
+           $ ps
   in case pItems of
     [] -> tItem :| []
     p1:pr -> p1 :| (pr ++ [tItem])
