@@ -200,11 +200,19 @@ spaceClaim f = fmapArray g where
 -- supply Nothing.
 --
 -- * Overrunning cells - these should supply Nothing.
+--
+-- The Grower function is supplied with the maximum claimed width of
+-- every column.
 type Grower c t =
-  A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
+  A.Array c C.Width
+  -- ^ Maximum claimed width of every column
   -> Index c t
+  -- ^ Address of this particular cell
   -> (T.PostingInfo, Maybe T.ClaimedWidth)
+  -- ^ Information on this posting, and contents of this particular
+  -- cell
   -> Maybe R.Cell
+  -- ^ Supplied cell, if applicable
 
 growCells ::
   (A.Ix c, A.Ix t)
@@ -212,7 +220,31 @@ growCells ::
   -> A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
   -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
 growCells f = fmapArray g where
-  g a i (p, w) = (p, f a i (p, w))
+  g a i (p, w) = (p, f maxW i (p, w)) where
+    maxW = widthArray a
+
+-- | Transforms a two-dimensional array of columns and rows into a
+-- one-dimensional array indicating the widest row in each column.
+widthArray ::
+  (A.Ix c, A.Ix r)
+  => A.Array (c, r) (a, Maybe T.ClaimedWidth)
+  -> A.Array c C.Width
+widthArray =
+  fmap widestRow
+  . Ta.columns
+  . fmap snd
+
+-- | Takes an array of rows. Returns the width of the widest row.
+widestRow ::
+  (A.Ix r)
+  => A.Array r (Maybe T.ClaimedWidth)
+  -> C.Width
+widestRow a = F.foldl' f (C.Width 0) (Ta.OneDim a) where
+  f soFar clm = max width soFar where
+    width = case clm of
+      Nothing -> C.Width 0
+      Just cw -> C.Width . T.unClaimedWidth $ cw
+
 
 -- * Step 9 - Allocation Claim
 
