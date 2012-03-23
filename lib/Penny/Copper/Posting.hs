@@ -1,5 +1,5 @@
 module Penny.Copper.Posting (
-  posting, render,
+  posting, render
   ) where
 
 import Control.Applicative ((<$>), (<*>), (<*), (<|>))
@@ -67,6 +67,22 @@ makeUnverified pl u = (upo, meta) where
 -- | Renders a Posting. Fails if any of the components
 -- fail to render. In addition, if the unverified Posting has an
 -- Entry, a Format must be provided, otherwise render fails.
+--
+-- The columns look like this. Column numbers begin with 0 (like they
+-- do in Emacs) rather than with column 1 (like they do in
+-- Vim). (Really Emacs is the strange one; most CLI utilities seem to
+-- start with column 1 too...)
+--
+-- > ID COLUMN WIDTH WHAT
+-- > ---------------------------------------------------
+-- > A    0      4     Blank spaces for indentation
+-- > B    4      50    Flag, Number, Payee, Account, Tags
+-- > C    54     2     Blank spaces for padding
+-- > D    56     NA    Entry
+--
+-- Omit the padding after column B if there is no entry; also omit
+-- columns C and D entirely if there is no Entry. (It is annoying to
+-- have extraneous blank space in a file).
 render ::
   (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
@@ -85,8 +101,26 @@ render gs rg (p, m) = do
     _ -> Nothing
   let renderEn (e, f) = En.render gs rg f e
   en <- renMaybe maybePair renderEn
-  let ws = txtWords [fl, nu, pa, ac, ta, en]
-  return $ X.pack (replicate 4 ' ')
-    `X.append` ws
-    `X.snoc` '\n'
-    `X.append` me
+  return $ formatter fl nu pa ac ta en me
+
+formatter ::
+  X.Text    -- ^ Flag
+  -> X.Text -- ^ Number
+  -> X.Text -- ^ Payee
+  -> X.Text -- ^ Account
+  -> X.Text -- ^ Tags
+  -> X.Text -- ^ Entry
+  -> X.Text -- ^ Memo
+  -> X.Text
+formatter fl nu pa ac ta en me = let
+  colA = X.pack (replicate 4 ' ')
+  colBnoPad = txtWords [fl, nu, pa, ac, ta]
+  colD = en
+  colB = if X.null en
+         then colBnoPad
+         else X.justifyLeft 50 ' ' colBnoPad
+  colC = if X.null en
+         then X.empty
+         else X.pack (replicate 2 ' ')
+  rtn = X.singleton '\n'
+  in X.concat [colA, colB, colC, colD, rtn, me]

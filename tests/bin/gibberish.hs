@@ -1,3 +1,13 @@
+-- | Usage: gibberish num seed size, where
+--
+-- * num is the number of items to generate (an item may be a posting,
+-- price, comment, or blank line)
+--
+-- * seed is an integer seed for the random generator
+--
+-- * size is the size parameter for QuickCheck. Must be a postive
+-- integer. Bigger number generally means longer strings are generated
+-- and longer lists made.
 module Main where
 
 import qualified Data.Text as X

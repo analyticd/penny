@@ -279,13 +279,8 @@ instance Pretty I.Item where
   pretty i = hang (text "Item") indent $ case i of
     (I.Transaction t) -> hang (text "Transaction") indent $ pretty t
     (I.Price pb) -> hang (text "Price box") indent $ pretty pb
-    (I.Comment c) -> hang (text "Comment") indent $ pretty c
+    (I.CommentItem c) -> hang (text "Comment") indent $ pretty c
     (I.BlankLine) -> text "Blank line"
-
-instance Pretty Cop.Item where
-  pretty i = hang (text "Item") indent $ case i of
-    (Cop.Transaction t) -> hang (text "Transaction") indent $ pretty t
-    (Cop.Price pb) -> hang (text "Price box") indent $ pretty pb
 
 instance Pretty Cop.Ledger where
   pretty (Cop.Ledger ls) =

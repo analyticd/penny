@@ -55,7 +55,7 @@ genPrice dtz = do
   
 -- | Genereate renderable Comments.
 genCom :: Gen I.Item
-genCom = I.Comment <$> C.genRComment
+genCom = I.CommentItem <$> C.genRComment
 
 -- | Generate blank lines.
 genBlank :: Gen I.Item
@@ -95,7 +95,7 @@ itemsEq i1 i2 = case (i1, i2) of
     TT.boxesEqual t1 t2
   (I.Price p1, I.Price p2) ->
     TP.pricesEqual p1 p2
-  (I.Comment c1, I.Comment c2) ->
+  (I.CommentItem c1, I.CommentItem c2) ->
     c1 == c2
   (I.BlankLine, I.BlankLine) -> True
   _ -> False

@@ -162,9 +162,12 @@ lincolnizePstg d (P.Posting c a r m) = case r of
         let ls = fmap WithEntry (p1 :| [p2, p3])
         return (ls, Just vp)
 
+clearedChar :: Char
+clearedChar = 'R'
+
 lincolnizeCleared :: C.Cleared -> Maybe B.Flag
 lincolnizeCleared c = case c of
-  C.Cleared -> Just (B.Flag (TNE.TextNonEmpty '*' X.empty))
+  C.Cleared -> Just (B.Flag (TNE.TextNonEmpty clearedChar X.empty))
   C.NotCleared -> Nothing
 
 data Valued = Valued {
