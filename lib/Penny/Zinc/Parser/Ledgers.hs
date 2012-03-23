@@ -17,6 +17,7 @@ import qualified Penny.Zinc.Error as ZE
 import System.Console.MultiArg.Combinator (option)
 import System.Console.MultiArg.Prim (ParserE, nextArg)
 import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
+import qualified Text.Parsec as Parsec
 
 warnTerminal :: IO ()
 warnTerminal =
@@ -48,16 +49,19 @@ parseLedger ::
   -> (Filename, Text)
   -> Ex.Exceptional ZE.Error ([TransactionBox], [PriceBox])
 parseLedger dtz rg (f, txt) = let
-  fn = case f of
-    Stdin -> pack "<stdin>"
-    Filename x -> x
-  in case C.parseTransactions dtz rg (C.Filename fn) txt of
+  fnStr = case f of
+    Stdin -> "<stdin>"
+    Filename x -> unpack x
+  fn = C.Filename . pack $ fnStr
+  parser = C.ledger fn dtz rg
+  in case Ex.fromEither $ Parsec.parse parser fnStr txt of
     Ex.Exception e ->
       Ex.Exception (ZE.ParseError (pack . show $ e))
-    Ex.Success is -> let
-      folder i (ts, ps) = case i of
+    Ex.Success (C.Ledger is) -> let
+      folder i (ts, ps) = case snd i of
         C.Transaction t -> (t:ts, ps)
         C.Price p -> (ts, p:ps)
+        _ -> (ts, ps)
       in Ex.Success $ foldr folder ([], []) is
 
 combineData ::
