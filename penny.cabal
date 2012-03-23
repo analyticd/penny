@@ -224,6 +224,7 @@ Library
         Penny.Copper.Util,
         Penny.Denver,
         Penny.Denver.Common,
+        Penny.Denver.Parser,
         Penny.Denver.Posting,
         Penny.Denver.TopLine,
         Penny.Denver.Transaction,
