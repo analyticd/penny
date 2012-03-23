@@ -7,10 +7,12 @@ import Control.Applicative(
   (<$>), (<*>), (<*), (*>), (<$), many, pure,
   (<|>))
 import Control.Monad (replicateM)
+import qualified Data.Char as Char
 import qualified Data.Text as X
 import qualified Data.Time as T
 import qualified Penny.Lincoln as L
-import Text.Parsec (char, digit, satisfy, option, optionMaybe)
+import Text.Parsec (char, digit, satisfy, option, optionMaybe,
+                    letter, alphaNum)
 import qualified Penny.Denver.Posting as P
 import Text.Parsec.Text (Parser)
 
@@ -66,3 +68,69 @@ topLine =
 
 negative :: Parser P.Sign
 negative = char '-' *> pure P.Negative
+
+isCurrencySymbol :: Char -> Bool
+isCurrencySymbol c = Char.generalCategory c == Char.CurrencySymbol
+
+commodity :: Parser P.Commodity
+commodity = currency <|> named where
+  currency = P.Commodity
+             <$> (L.TextNonEmpty
+                  <$> satisfy isCurrencySymbol
+                  <*> pure X.empty)
+  named = P.Commodity
+          <$> (L.TextNonEmpty
+               <$> letter
+               <*> (X.pack <$> many alphaNum))
+
+{-
+Possible combinations for entries. Things in brackets are optional.
+C means Commodity, Q means Qty, N means Negative sign, P means Space.
+Spaces here are for readability only and do not have meaning.
+
+Commodity on left side:
+[N] C [P] [N] Q
+
+Commodity on right side:
+[N] Q [P] C
+
+-}
+
+commodityOnLeft ::
+  Bool -- ^ Negative sign?
+  -> P.Commodity
+  -> Bool -- ^ Space?
+  -> Bool -- ^ Negative sign?
+  -> L.Qty
+  -> Maybe P.Entry
+commodityOnLeft n1 c s n2 q = let
+  sign = case (n1, n2) of
+    (True, True) -> Nothing
+    (True, False) -> Just P.Negative
+    (False, True) -> Just P.Negative
+    (False, False) -> Just P.Positive
+  fmt = L.Format L.CommodityOnLeft btwn
+  btwn = if s then L.SpaceBetween else L.NoSpaceBetween
+  amt = P.Amount q c
+  in case sign of
+    Nothing -> Nothing
+    Just sgn -> Just $ P.Entry sgn amt fmt
+
+commodityOnRight ::
+  Bool -- ^ Negative?
+  -> L.Qty
+  -> Bool -- ^ Space?
+  -> P.Commodity
+  -> P.Entry
+commodityOnRight n q s c = P.Entry sgn amt fmt where
+  sgn = if n then P.Negative else P.Positive
+  amt = P.Amount q c
+  fmt = L.Format L.CommodityOnRight bet
+  bet = if s then L.SpaceBetween else L.NoSpaceBetween
+
+parseCtyOnLeft :: Parser P.Entry
+parseCtyOnLeft = let
+  r = commodityOnLeft
+      <$> option False (negative *> True)
+      <*> 
+      
