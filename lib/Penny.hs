@@ -7,13 +7,21 @@ the links for details on each component of Penny.
 
 "Penny.Copper" - the Penny parser. Depends on Lincoln.
 
-"Penny.Liberty" - Penny command line parser helpers. Depends on Lincoln and Copper.
+"Penny.Denver" - Imports from John Wiegley's Ledger
+
+"Penny.Liberty" - Penny command line parser helpers. Depends on
+Lincoln and Copper.
 
 "Penny.Lincoln" - the Penny core. Depends on no other Penny components.
 
-"Penny.Zinc" - the Penny command-line interface. Depends on Cabin, Copper, Liberty, and Lincoln.
+"Penny.Shield" the Penny runtime environment
 
-A crude drawing of these dependencies appears in the source code for this module (I don't know if Haddock would like it.)
+"Penny.Zinc" - the Penny command-line interface. Depends on Cabin,
+Copper, Liberty, and Lincoln.
+
+A crude drawing of these dependencies appears in the source code for
+this module (I don't know if Haddock would like it.) I really need a
+better way to do this - dot, maybe.
 
 -}
 

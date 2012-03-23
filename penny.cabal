@@ -95,11 +95,28 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
+  * Tested with QuickCheck. This will not root out all bugs but it has
+    already squashed a few of them. All tests are maintained in a
+    separate library, which is not on Hackage but which is maintained
+    in the same version control tree as is Penny. See the tests
+    directory at <https://github.com/massysett/penny>. You can of
+    course compile and run the tests yourself.
+
+  .
+
   * Freely licensed under the MIT license. If you take this code,
     improve it, lock it up and make it proprietary, and sell it,
     AWESOME! I haven't lost anything because I still have my code and,
     what's more, then maybe I can buy your product and not have to
     maintain this one any more!
+
+  .
+
+  * Uses no GHC extensions. However, the code is only tested under GHC
+    and for all practical purposes it will only run under GHC at this
+    time because it uses libraries such as Data.Text that are
+    available only under GHC. Despite this I expect I will continue to
+    avoid language extensions.
 
   .
 
@@ -119,15 +136,10 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  * Young and not well tested yet.
-
-  .
-
-  * Unix only. Penny uses the terminfo library to know whether it has
-    a color terminal available, and it uses the Unix locale funtions
-    to determine the default characters for the radix point and digit
-    grouping character. Porting to Windows might be trivial, but I do
-    not use Windows so I am not well-suited for this task.
+  * Young and not well tested yet. Also, only tested on Unix. I can
+    see no reason why Penny would not work under Windows, as it does
+    not use any Unix-specific libraries; however, I have not tested it
+    under Windows.
 
   .
 
