@@ -1,6 +1,6 @@
 module Penny.Copper.Item (
   itemWithLineNumber,
-  Item(Transaction, Price, Comment, BlankLine),
+  Item(Transaction, Price, CommentItem, BlankLine),
   render
   ) where
 
@@ -24,7 +24,7 @@ import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
 
 data Item = Transaction TransactionBox
           | Price PriceBox
-          | Comment C.Comment
+          | CommentItem C.Comment
           | BlankLine
           deriving Show
 
@@ -46,7 +46,7 @@ parseItem fn dtz rg = let
    bl = BlankLine <$ eol <?> "blank line"
    t = Transaction <$> transaction fn dtz rg
    p = Price <$> price dtz rg
-   c = Comment <$> C.comment
+   c = CommentItem <$> C.comment
    in (bl <|> t <|> p <|> c)
 
 render ::
@@ -61,6 +61,6 @@ render dtz gs rg i = case i of
   Price p -> do
     pair <- P.unbox p
     P.render dtz gs rg pair
-  Comment c -> C.render c
+  CommentItem c -> C.render c
   BlankLine -> Just $ X.singleton '\n'
     

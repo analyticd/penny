@@ -11,6 +11,7 @@ import qualified Data.Text.IO as TIO
 import qualified Data.Traversable as T
 
 import qualified Penny.Copper as C
+import qualified Penny.Lincoln as L
 import qualified Penny.Liberty.Error as LE
 import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
 import qualified Penny.Zinc.Error as ZE
@@ -52,7 +53,7 @@ parseLedger dtz rg (f, txt) = let
   fnStr = case f of
     Stdin -> "<stdin>"
     Filename x -> unpack x
-  fn = C.Filename . pack $ fnStr
+  fn = L.Filename . pack $ fnStr
   parser = C.ledger fn dtz rg
   in case Ex.fromEither $ Parsec.parse parser fnStr txt of
     Ex.Exception e ->
