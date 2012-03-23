@@ -13,7 +13,7 @@ import qualified Penny.Lincoln as L
 import Text.Parsec (
   char, digit, satisfy, option, optionMaybe,
   letter, alphaNum, try, string, notFollowedBy,
-  sepBy1, eof)
+  sepBy1, eof, (<?>))
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Denver.Posting as P
@@ -31,17 +31,19 @@ lexeme p = p <* many (char ' ')
 cleared :: Parser C.Cleared
 cleared = char '*' *> pure C.Cleared
           <|> pure C.NotCleared
+          <?> "cleared"
 
 day :: Parser T.Day
-day = do
-  y <- read <$> replicateM 4 digit
-  _ <- char '-' <|> char '/'
-  m <- read <$> replicateM 2 digit
-  _ <- char '-' <|> char '/'
-  d <- read <$> replicateM 2 digit
-  case T.fromGregorianValid y m d of
-    Nothing -> fail "invalid day"
-    Just dy -> return dy
+day = p <?> "day" where
+  p = do
+    y <- safeRead <$> replicateM 4 digit
+    _ <- char '-' <|> char '/'
+    m <- safeRead <$> replicateM 2 digit
+    _ <- char '-' <|> char '/'
+    d <- safeRead <$> replicateM 2 digit
+    case T.fromGregorianValid y m d of
+      Nothing -> fail "invalid day"
+      Just dy -> return dy
 
 number :: Parser L.Number
 number =
@@ -51,6 +53,7 @@ number =
        <$> satisfy (/= ')')
        <*> (X.pack <$> (many (satisfy (/= ')')))))
   <*  char ')'
+  <?> "number"
 
 isPayeeChar :: Char -> Bool
 isPayeeChar c = not $ c `elem` "\t\n"
@@ -61,6 +64,7 @@ payee =
   <$> (L.TextNonEmpty
        <$> satisfy isPayeeChar
        <*> (X.pack <$> many (satisfy isPayeeChar)))
+  <?> "payee"
 
 topLine :: Parser T.TopLine
 topLine =
@@ -70,18 +74,19 @@ topLine =
   <*> lexeme (optionMaybe number)
   <*> optionMaybe payee
   <* eol
+  <?> "top line"
 
 negative :: Parser P.Sign
-negative = char '-' *> pure P.Negative
+negative = char '-' *> pure P.Negative <?> "minus sign"
 
 isCurrencySymbol :: Char -> Bool
 isCurrencySymbol c = Char.generalCategory c == Char.CurrencySymbol
 
 qty :: Parser L.Qty
-qty = Q.qtyUnquoted Q.periodComma
+qty = Q.qtyUnquoted Q.periodComma <?> "quantity"
 
 commodity :: Parser P.Commodity
-commodity = currency <|> named where
+commodity = currency <|> named <?> "commodity" where
   currency = P.Commodity
              <$> (L.TextNonEmpty
                   <$> satisfy isCurrencySymbol
@@ -144,11 +149,12 @@ parseCtyOnLeft = let
       <*> option False (char ' ' *> pure True)
       <*> option False (negative *> pure True)
       <*> qty
-  in do
+  d = do
     maybeEn <- p
     case maybeEn of
       Nothing -> fail "two negative signs"
       Just e -> return e
+  in d <?> "entry, commodity on left"
 
 parseCtyOnRight :: Parser P.Entry
 parseCtyOnRight = commodityOnRight
@@ -156,9 +162,10 @@ parseCtyOnRight = commodityOnRight
                   <*> qty
                   <*> option False (char ' ' *> pure True)
                   <*> commodity
+                  <?> "entry, commodity on right"
 
 entry :: Parser P.Entry
-entry = try (parseCtyOnLeft) <|> parseCtyOnRight
+entry = try (parseCtyOnLeft) <|> parseCtyOnRight <?> "entry"
 
 {-
 Possible combinations for prices. Things in brackets are optional.
@@ -195,6 +202,7 @@ parsePriceCtyOnLeft =
   <$> commodity
   <*> option False (char ' ' *> pure True)
   <*> qty
+  <?> "price, commodity on left"
 
 parsePriceCtyOnRight :: Parser P.Price
 parsePriceCtyOnRight =
@@ -202,16 +210,19 @@ parsePriceCtyOnRight =
   <$> qty
   <*> option False (char ' ' *> pure True)
   <*> commodity
+  <?> "price, commodity on right"
 
 parsePrice :: Parser P.Price
 parsePrice =
   string "@ "
   *> (parsePriceCtyOnLeft <|> parsePriceCtyOnRight)
+  <?> "price"
 
 record :: Parser P.Record
 record = P.Record
          <$> lexeme entry
          <*> optional parsePrice
+         <?> "record"
 
 isMemoChar :: Char -> Bool
 isMemoChar c = not $ c `elem` "\t\n"
@@ -223,9 +234,10 @@ memoLine =
   <*> (L.TextNonEmpty
        <$> satisfy isMemoChar
        <*> (X.pack <$> many (satisfy isMemoChar)))
+  <?> "memo line"
 
 eol :: Parser ()
-eol = char '\n' *> many (char ' ') *> pure ()
+eol = char '\n' *> many (char ' ') *> pure () <?> "end of line"
 
 isFirstAccountChar :: Char -> Bool
 isFirstAccountChar = Char.isAlpha
@@ -235,10 +247,12 @@ isOtherAccountChar = Char.isAlphaNum
 
 accountSpace :: Parser Char
 accountSpace = try (char ' ' <* notFollowedBy (char ' '))
+               <?> "space in account name"
 
 otherAccountChar :: Parser Char
 otherAccountChar = satisfy isOtherAccountChar
                    <|> accountSpace
+                   <?> "account character"
 
 firstSubAccount :: Parser L.SubAccountName
 firstSubAccount =
@@ -246,6 +260,7 @@ firstSubAccount =
   <$> (L.TextNonEmpty
        <$> satisfy isFirstAccountChar
        <*> (X.pack <$> many otherAccountChar))
+  <?> "first sub account"
 
 otherSubAccount :: Parser L.SubAccountName
 otherSubAccount =
@@ -253,15 +268,18 @@ otherSubAccount =
   <$> (L.TextNonEmpty
        <$> satisfy isOtherAccountChar
        <*> (X.pack <$> many otherAccountChar))
+  <?> "other sub account"
 
 otherSubAccounts :: Parser [L.SubAccountName]
 otherSubAccounts = char ':' *> sepBy1 otherSubAccount (char ':')
+                   <?> "other sub accounts"
 
 account :: Parser L.Account
 account = L.Account
           <$> ((:|)
                <$> firstSubAccount
                <*> option [] otherSubAccounts)
+          <?> "account"
 
 posting :: Parser P.Posting
 posting =
@@ -271,21 +289,25 @@ posting =
   <*> lexeme (optional record)
   <*> lexeme (optional memoLine)
   <* eol
+  <?> "posting"
 
 family :: Parser Raw
 family =
-  Raw <$> (L.Family
-           <$> topLine
-           <*> posting
-           <*> posting
-           <*> many posting)
+  Raw
+  <$> (L.Family
+       <$> topLine
+       <*> posting
+       <*> posting
+       <*> many posting)
+  <?> "raw posting information"
 
 transaction :: Parser (L.TransactionBox, [L.PriceBox])
-transaction = do
-  raw <- family
-  case lincolnize raw of
-    Nothing -> fail "lincolnization failed"
-    Just pair -> return pair
+transaction = p <?> "transaction" where
+  p = do
+    raw <- family
+    case lincolnize raw of
+      Nothing -> fail $ "lincolnization failed: " ++ show raw
+      Just pair -> return pair
 
 isCommentChar :: Char -> Bool
 isCommentChar c = not $ c `elem` "\t\n"
@@ -297,9 +319,11 @@ comment =
        <$ char ';'
        <*> (X.pack <$> many (satisfy isCommentChar))
        <* eol)
+  <?> "comment"
 
 blankLine :: Parser Cop.Item
 blankLine = many (char ' ') *> eol *> pure Cop.BlankLine
+            <?> "blank line"
 
 transactionPairToItem ::
   (L.TransactionBox, [L.PriceBox]) -> NonEmpty Cop.Item
@@ -312,16 +336,18 @@ transactionPairToItem (t, ps) = let
 
 transactionItem :: Parser (NonEmpty Cop.Item)
 transactionItem = transactionPairToItem <$> transaction
+                  <?> "transaction item"
 
 item :: Parser (NonEmpty Cop.Item)
 item = (:|) <$> blankLine <*> pure []
        <|> (:|) <$> comment <*> pure []
        <|> transactionItem
+       <?> "item"
 
 items :: Parser [Cop.Item]
-items = option []
-        $ (concat . map toList)
-        <$> many item
+items = option [] ((concat . map toList)
+                   <$> many item)
+        <?> "items"
 
 -- | Converts a Ledger to Penny data. /Warning:/ this parser was
 -- designed to parse my ledger file from the Ledger 2.6 series. My
@@ -356,3 +382,9 @@ items = option []
 -- for more details on that.
 ledger :: Parser [Cop.Item]
 ledger = many (char ' ') *> items <* eof
+
+-- | Read, with a more useful error message.
+safeRead :: (Read a) => String -> a
+safeRead s = case reads s of
+  (x, ""):[] -> x
+  _ -> error $ "read failed: " ++ show s

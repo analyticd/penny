@@ -98,11 +98,6 @@ fractionalGrouped g =
 wholeNonGrouped :: Parser String
 wholeNonGrouped = many1 digit
 
-data NumberStr = Whole String
-               | WholeRad String
-               | WholeRadFrac String String
-               | RadFrac String
-
 fractionalOnly :: Radix -> Parser String
 fractionalOnly r = parseRadix r *> many1 P.digit
 
@@ -138,30 +133,77 @@ numberStrNonGrouped r = startsWhole <|> fracOnly <?> e where
             Just frac -> return $ WholeRadFrac wholeStr frac
   fracOnly = RadFrac <$> fractionalOnly r
 
-toDecimal :: NumberStr -> D.Decimal
-toDecimal s = read d where
-  d = case s of
-    Whole str -> str
-    WholeRad str -> str
-    WholeRadFrac wh fr -> wh ++ "." ++ fr
-    RadFrac fr -> '.':fr
 
+-- | A number string after radix and grouping characters have been
+-- stripped out.
+data NumberStr =
+  Whole String
+  -- ^ A whole number only. No radix point.
+  | WholeRad String
+    -- ^ A whole number and a radix point, but nothing after the radix
+    -- point.
+  | WholeRadFrac String String
+    -- ^ A whole number and something after the radix point.
+  | RadFrac String
+    -- ^ A radix point and a fractional value after it, but nothing
+    -- before the radix point.
+  deriving Show
+
+-- | Do not use Prelude.read or Prelude.reads on whole decimal strings
+-- like @232.72@. Sometimes it will fail, though sometimes it will
+-- succeed; why is not clear to me. Hopefully reading integers won't
+-- fail! However, in case it does, use read', whose error message will
+-- at least tell you what number was being read.
+--
+-- Data.Decimal cannot handle decimals whose exponent would exceed
+-- 255, which is the maximum that a Word8 can hold. A Word8 is used to
+-- hold the exponent. If the exponent would exceed 255, this function
+-- fails.
+toDecimal :: NumberStr -> Maybe D.Decimal
+toDecimal ns = case ns of
+  Whole s -> Just $ D.Decimal 0 (readWithErr s)
+  WholeRad s -> Just $ D.Decimal 0 (readWithErr s)
+  WholeRadFrac w f -> fromWholeRadFrac w f
+  RadFrac f -> fromWholeRadFrac "0" f
+  where
+    fromWholeRadFrac w f = let
+      len = length f
+      in if len > 255
+         then Nothing
+         else Just $ D.Decimal (fromIntegral len) (readWithErr (w ++ f))
+
+readWithErr :: String -> Integer
+readWithErr s = let
+  readSresult = reads s
+  in case readSresult of
+    (i, ""):[] -> i
+    _ -> error $ "readWithErr failed. String being read: " ++ s
+         ++ " Result of reads: " ++ show readSresult
+  
 -- | Unquoted quantity. These include no spaces, regardless of what
 -- the grouping character is.
 qtyUnquoted :: RadGroup -> Parser Qty
-qtyUnquoted (RadGroup r g) = f <$> p where
-  f = (partialNewQty . toDecimal)
-  p = case g of
+qtyUnquoted (RadGroup r g) = do
+  nStr <- case g of
     GSpace -> numberStrNonGrouped r
     _ -> numberStrGrouped r g
-
+  d <- case toDecimal nStr of
+    Nothing -> fail $ "fractional part too big: " ++ show nStr
+    Just dec -> return dec
+  return $ partialNewQty d
+  
 -- | Parse quoted quantity. It can include spaces, if the grouping
 -- character is a space. However these must be quoted when in a Ledger
 -- file (from the command line they need not be quoted). The quote
 -- character is a caret, @^@.
 qtyQuoted :: RadGroup -> Parser Qty
 qtyQuoted (RadGroup r g) = between (char '^') (char '^') p where
-  p = (partialNewQty . toDecimal) <$> numberStrGrouped r g
+  p = do
+    nStr <- numberStrGrouped r g
+    d <- case toDecimal nStr of
+      Nothing -> fail $ "fractional part too big: " ++ show nStr
+      Just dec -> return dec
+    return $ partialNewQty d
 
 -- | Parse a quoted quantity or, if that fails, an unquoted
 -- quantity.
