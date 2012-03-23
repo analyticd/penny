@@ -284,6 +284,10 @@ Library
     ghc-options: -Wall
 
 Executable penny
+  if flag(pennyCLI)
+    buildable: True
+  else
+    buildable: False
   hs-source-dirs: bin
   Build-depends:
     base ==4.*,
@@ -291,7 +295,27 @@ Executable penny
     penny ==0.1.*,
     semigroups ==0.8.*
 
-
   Main-is: penny.hs
   GHC-Options: -Wall
 
+Executable ledger-convert
+  hs-source-dirs: bin
+  if flag(convert)
+    buildable: True
+  else
+    buildable: False
+  Build-depends:
+    base ==4.*,
+    penny ==0.1.*,
+    parsec >= 3.1.2 && < 3.2,
+    text ==0.11.*
+  Main-is: ledger-convert.hs
+  GHC-Options: -Wall
+
+Flag convert
+  Description: Build the ledger-convert binary
+  Default: False
+
+Flag pennyCLI
+  Description: Build the Penny command-line binary
+  Default: True

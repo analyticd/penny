@@ -1,6 +1,7 @@
 module Penny.Copper.DateTime (
   DefaultTimeZone(DefaultTimeZone, unDefaultTimeZone)
   , dateTime
+  , utcDefault
   , render
   ) where
 
@@ -21,6 +22,9 @@ import qualified Penny.Lincoln.Bits as B
 newtype DefaultTimeZone =
   DefaultTimeZone { unDefaultTimeZone :: B.TimeZoneOffset }
   deriving (Eq, Show)
+
+utcDefault :: DefaultTimeZone
+utcDefault = DefaultTimeZone B.noOffset
 
 date :: Parser T.Day
 date = do

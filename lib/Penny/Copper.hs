@@ -6,6 +6,7 @@ module Penny.Copper (
   
   -- * Rendering
   render,
+  renderItems,
 
   -- * Items
   I.Item(Transaction, Price, CommentItem, BlankLine),
@@ -19,7 +20,8 @@ module Penny.Copper (
   Q.GroupingSpec(..),
   
   -- * Default time zone
-  DT.DefaultTimeZone(DefaultTimeZone)) where
+  DT.DefaultTimeZone(DefaultTimeZone),
+  DT.utcDefault) where
 
 import Control.Applicative ((<$>))
 import qualified Data.Text as X
@@ -51,5 +53,13 @@ render ::
   -> Q.RadGroup
   -> Ledger
   -> Maybe X.Text
-render dtz gs rg (Ledger is) =
-  X.concat <$> mapM (I.render dtz gs rg) (map snd is)
+render dtz gs rg (Ledger is) = renderItems dtz gs rg (map snd is)
+
+renderItems ::
+  DT.DefaultTimeZone
+  -> (Q.GroupingSpec, Q.GroupingSpec)
+  -> Q.RadGroup
+  -> [I.Item]
+  -> Maybe X.Text
+renderItems dtz gs rg is =
+  X.concat <$> mapM (I.render dtz gs rg) is
