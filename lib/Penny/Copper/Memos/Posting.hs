@@ -2,17 +2,16 @@ module Penny.Copper.Memos.Posting (
   memo, render, isCommentChar) where
 
 import Control.Applicative ((<*>), (<*), (<$), (<$>))
-import qualified Data.Char as C
 import qualified Data.Text as X
 import Text.Parsec (char, satisfy, many, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat, eol)
+import Penny.Copper.Util (eol, rangeLettersToSymbols)
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 isCommentChar :: Char -> Bool
-isCommentChar c = inCat C.UppercaseLetter C.OtherSymbol c
+isCommentChar c = rangeLettersToSymbols c
                   || c == ' '
 
 memo :: Parser B.Memo

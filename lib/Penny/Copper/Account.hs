@@ -16,7 +16,6 @@ module Penny.Copper.Account (
   ) where
 
 import Control.Applicative((<$>), (<*>), (*>))
-import qualified Data.Char as C
 import qualified Data.Foldable as F
 import Data.Text ( snoc, cons, pack, Text )
 import qualified Data.Traversable as T
@@ -31,14 +30,13 @@ import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
                                     unsafeTextNonEmpty )
 import qualified Penny.Lincoln.HasText as HT
-import Penny.Copper.Util (inCat)
 import qualified Penny.Copper.Util as U
 
 -- | Characters allowed in a Level 1 account. (Check the source code
 -- to see what these are).
 lvl1Char :: Char -> Bool
 lvl1Char c = allowed && notBanned where
-  allowed = inCat C.UppercaseLetter C.OtherSymbol c || c == ' '
+  allowed = U.rangeLettersToSymbols c || c == ' '
   notBanned = not $ c `elem` "}:"
 
 lvl1Sub :: Parser B.SubAccountName
@@ -57,13 +55,13 @@ lvl1AccountQuoted = between (char '{') (char '}') lvl1Account
 
 -- | Characters allowed for the first character of a Level 2 account.
 lvl2FirstChar :: Char -> Bool
-lvl2FirstChar = inCat C.UppercaseLetter C.OtherLetter
+lvl2FirstChar = U.rangeLetters
 
 -- | Characters allowed for the remaining characters of a Level 2
 -- account.
 lvl2RemainingChar :: Char -> Bool
 lvl2RemainingChar c = allowed && notBanned where
-    allowed = inCat C.UppercaseLetter C.OtherSymbol c
+    allowed = U.rangeLettersToSymbols c
     notBanned = not $ c `elem` "}:"
 
 lvl2SubAccountFirst :: Parser B.SubAccountName
@@ -77,7 +75,7 @@ lvl2SubAccountRest :: Parser B.SubAccountName
 lvl2SubAccountRest = f <$> cs <?> e where
   cs = many1 (satisfy p)
   p c = allowed && notBanned where
-    allowed = inCat C.UppercaseLetter C.OtherSymbol c
+    allowed = U.rangeLettersToSymbols c
     notBanned = not $ c `elem` "}:"
   f = B.SubAccountName . unsafeTextNonEmpty
   e = "sub account name"

@@ -3,17 +3,16 @@ module Penny.Copper.Tags (
   )where
 
 import Control.Applicative ((<$>), (*>), (<*>))
-import qualified Data.Char as C
 import qualified Data.Text as X
 import Text.Parsec (char, satisfy, many, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat, lexeme)
+import Penny.Copper.Util (lexeme, rangeLettersNumbers)
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 isTagChar :: Char -> Bool
-isTagChar = inCat C.UppercaseLetter C.OtherNumber
+isTagChar = rangeLettersNumbers
 
 tagChar :: Parser Char
 tagChar = satisfy isTagChar

@@ -25,20 +25,18 @@ module Penny.Copper.Payees (
   ) where
 
 import Control.Applicative ((<$>), (<*>), (<|>))
-import qualified Data.Char as C
 import Data.Text (pack, Text, snoc, cons)
 import qualified Data.Text as X
 import Text.Parsec (char, satisfy, many, between, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat)
+import Penny.Copper.Util (rangeLettersToSymbols, rangeLetters)
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty as TNE
 
 quotedChar :: Char -> Bool
 quotedChar c = allowed && not banned where
-  allowed = inCat C.UppercaseLetter C.OtherSymbol c ||
-            c == ' '
+  allowed = rangeLettersToSymbols c || c == ' '
   banned = c == '>'
 
 payee :: Parser B.Payee
@@ -51,7 +49,7 @@ quotedPayee = between (char '<') (char '>') p <?> "quoted payee" where
       <*> many (satisfy quotedChar)
 
 unquotedFirstChar :: Char -> Bool
-unquotedFirstChar = inCat C.UppercaseLetter C.OtherLetter
+unquotedFirstChar = rangeLetters
 
 unquotedRestChars :: Char -> Bool
 unquotedRestChars = quotedChar

@@ -1,19 +1,18 @@
 module Penny.Copper.Number (isNumChar, number, render) where
 
 import Control.Applicative ((<$>), (<*>))
-import qualified Data.Char as C
 import Data.Text ( pack, cons, snoc, Text )
 import Text.Parsec ( char, satisfy, many, between, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat)
+import Penny.Copper.Util (rangeLettersToSymbols)
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 isNumChar :: Char -> Bool
 isNumChar c = allowed && not banned where
-  allowed = inCat C.UppercaseLetter C.OtherSymbol c ||
+  allowed = rangeLettersToSymbols c ||
             c == ' '
   banned = c == ')'
 

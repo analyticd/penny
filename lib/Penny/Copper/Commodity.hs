@@ -41,7 +41,6 @@ module Penny.Copper.Commodity (
 
 import Control.Applicative ((<*>), (<$>), (*>), (<|>))
 import Control.Monad (guard)
-import qualified Data.Char as C
 import Data.Text ( pack, Text, cons, snoc, singleton )
 import Text.Parsec ( satisfy, many, char, sepBy1, many1, (<?>),
                      between, option, sepBy )
@@ -49,7 +48,8 @@ import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Lincoln.Bits as B
 import Data.List.NonEmpty (NonEmpty((:|)), fromList)
-import Penny.Copper.Util (inCat, listIsOK, firstCharOfListIsOK)
+import Penny.Copper.Util (listIsOK, firstCharOfListIsOK)
+import qualified Penny.Copper.Util as U
 import qualified Penny.Lincoln.HasText as HT
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
                                     unsafeTextNonEmpty )
@@ -57,7 +57,7 @@ import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
 -- | Most liberal set of letters allowed in a commodity. 
 lvl1Char :: Char -> Bool
 lvl1Char c = (category || specific) && notBanned where
-  category = inCat C.UppercaseLetter C.OtherSymbol c
+  category = U.rangeLettersToSymbols c
   specific = c == ' '
   notBanned = not $ c `elem` ['"', ':']
 
@@ -86,12 +86,11 @@ quotedLvl1Cmdty = between q q lvl1Cmdty
 
 -- | Allows only letters and symbols.
 lvl2FirstChar :: Char -> Bool
-lvl2FirstChar c = inCat C.UppercaseLetter C.OtherLetter c
-               || inCat C.MathSymbol C.CurrencySymbol c
+lvl2FirstChar c = U.rangeLetters c || U.rangeSymbols c
 
 lvl2OtherChars :: Char -> Bool
 lvl2OtherChars c = category && notBanned where
-  category = inCat C.UppercaseLetter C.OtherSymbol c
+  category = U.rangeLettersToSymbols c
   notBanned = not $ c `elem` ['"', ':']
 
 lvl2FirstSubCmdty :: Parser B.SubCommodity
@@ -117,8 +116,7 @@ lvl2Cmdty = f <$> firstSub <*> restSubs <?> e where
   f s1 sr = B.Commodity (s1 :| sr)
 
 lvl3OtherChars :: Char -> Bool
-lvl3OtherChars c = inCat C.UppercaseLetter C.OtherLetter c
-                   || inCat C.MathSymbol C.CurrencySymbol c
+lvl3OtherChars c = U.rangeLetters c || U.rangeSymbols c
 
 lvl3FirstChar :: Char -> Bool
 lvl3FirstChar c = lvl3OtherChars c && (not $ c `elem` "+-")

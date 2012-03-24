@@ -1,20 +1,19 @@
 module Penny.Copper.Flag (flag, isFlagChar, render) where
 
 import Control.Applicative ((<$>), (<*>))
-import qualified Data.Char as C
 import Data.Text ( pack, cons, snoc )
 import qualified Data.Text as X
 import Text.Parsec ( char, satisfy, many, between, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat)
+import qualified Penny.Copper.Util as U
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 isFlagChar :: Char -> Bool
 isFlagChar c = allowed && not banned where
-  allowed = inCat C.UppercaseLetter C.OtherSymbol c ||
+  allowed = U.rangeLettersToSymbols c ||
             c == ' '
   banned = c == ']'
 

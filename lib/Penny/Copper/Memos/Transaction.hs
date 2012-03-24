@@ -3,20 +3,19 @@ module Penny.Copper.Memos.Transaction (
   ) where
 
 import Control.Applicative ((<*>), (<$>), (<*), (<$))
-import qualified Data.Char as C
 import qualified Data.Text as X
 import Text.Parsec (
   char, satisfy, sourceLine, getPosition, (<?>),
   many)
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat, eol)
+import Penny.Copper.Util (rangeLettersToSymbols, eol)
 import Penny.Lincoln.Meta (TopMemoLine(TopMemoLine), Line(Line))
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 isCommentChar :: Char -> Bool
-isCommentChar c = inCat C.UppercaseLetter C.OtherSymbol c
+isCommentChar c = rangeLettersToSymbols c
                   || c == ' '
 
 memoLine :: Parser B.MemoLine

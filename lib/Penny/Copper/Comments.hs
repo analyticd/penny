@@ -6,13 +6,13 @@ module Penny.Copper.Comments (
   ) where
 
 import Control.Applicative ((<*>), (<*), (<$))
-import qualified Data.Char as C
 import Data.Text ( Text, pack, cons, snoc )
 import qualified Data.Text as X
 import Text.Parsec (many, char, satisfy, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (inCat, eol)
+import Penny.Copper.Util (eol)
+import qualified Penny.Copper.Util as U
 
 data Comment = Comment Text
              deriving (Eq, Show)
@@ -20,7 +20,7 @@ data Comment = Comment Text
 isCommentChar :: Char -> Bool
 isCommentChar c = inCategory || allowed where
   allowed = c `elem` " "
-  inCategory = inCat C.UppercaseLetter C.OtherSymbol c
+  inCategory = U.rangeLettersToSymbols c
 
 comment :: Parser Comment
 comment = Comment . pack

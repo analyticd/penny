@@ -5,17 +5,62 @@ import qualified Data.Char as C
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as X
-import Data.Ix (range)
-import qualified Data.Set as S
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 import Text.Parsec (char, many)
 import Text.Parsec.Text (Parser)
 
-inCat :: C.GeneralCategory -> C.GeneralCategory
-         -> Char -> Bool
-inCat g1 g2 c = C.generalCategory c `S.member` gs where
-  gs = S.fromList (range (g1, g2))
+rangeLettersToSymbols :: Char -> Bool
+rangeLettersToSymbols c = case C.generalCategory c of
+  C.UppercaseLetter -> True
+  C.LowercaseLetter -> True
+  C.TitlecaseLetter -> True
+  C.ModifierLetter -> True
+  C.OtherLetter -> True
+  C.DecimalNumber -> True
+  C.LetterNumber -> True
+  C.OtherNumber -> True
+  C.ConnectorPunctuation -> True
+  C.DashPunctuation -> True
+  C.OpenPunctuation -> True
+  C.ClosePunctuation -> True
+  C.InitialQuote -> True
+  C.FinalQuote -> True
+  C.OtherPunctuation -> True
+  C.MathSymbol -> True
+  C.CurrencySymbol -> True
+  C.ModifierSymbol -> True
+  C.OtherSymbol -> True
+  _ -> False
+
+rangeLetters :: Char -> Bool
+rangeLetters c = case C.generalCategory c of
+  C.UppercaseLetter -> True
+  C.LowercaseLetter -> True
+  C.TitlecaseLetter -> True
+  C.ModifierLetter -> True
+  C.OtherLetter -> True
+  _ -> False
+
+rangeSymbols :: Char -> Bool
+rangeSymbols c = case C.generalCategory c of
+  C.MathSymbol -> True
+  C.CurrencySymbol -> True
+  C.ModifierSymbol -> True
+  C.OtherSymbol -> True
+  _ -> False
+
+rangeLettersNumbers :: Char -> Bool
+rangeLettersNumbers c = case C.generalCategory c of
+  C.UppercaseLetter -> True
+  C.LowercaseLetter -> True
+  C.TitlecaseLetter -> True
+  C.ModifierLetter -> True
+  C.OtherLetter -> True
+  C.DecimalNumber -> True
+  C.LetterNumber -> True
+  C.OtherNumber -> True
+  _ -> False
 
 -- | Creates a new parser that behaves like the old one, but also
 -- parses any whitespace remaining afterward.
