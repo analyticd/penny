@@ -269,7 +269,7 @@ controlCode :: Code -> IO ()
 controlCode c =
   putStr csi
   >> putStr (unCode c)
-  >> putStr ";m"
+  >> putStr "m"
 
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
