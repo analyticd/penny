@@ -244,6 +244,7 @@ type AllocInspector c t =
 -- report, supply a Just empty cell. If the field is selected, use the
 -- width stored in the array created in step 9 to size the cell
 -- appropriately. Supply the appropriate Just cell.
+--
 -- * Overrunning cells - supply Nothing.
 type Allocator c t =
   M.Map c C.Width

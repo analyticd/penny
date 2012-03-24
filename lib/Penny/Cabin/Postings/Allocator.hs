@@ -1,21 +1,17 @@
--- | Step 9 - Allocation. See "Penny.Cabin.Postings.Grid" for more
+-- | Step 10 - Allocation. See "Penny.Cabin.Postings.Grid" for more
 -- details on what is happening in here.
 module Penny.Cabin.Postings.Allocator where
 
 import qualified Data.Array as A
 import qualified Data.Foldable as F
 import Data.List (intersperse)
-import Data.Map ((!))
 import qualified Data.Map as M
-import Data.Monoid (mempty, mappend)
 import qualified Data.Sequence as Seq
-import qualified Data.Table as Tb
 import qualified Data.Text as X
 
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.HasText as HT
 
-import qualified Penny.Cabin.Allocate as Alo
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.TextFormat as TF
@@ -24,64 +20,61 @@ import qualified Penny.Cabin.Postings.Address as Adr
 import qualified Penny.Cabin.Postings.Colors as PC
 import qualified Penny.Cabin.Postings.Grid as G
 import qualified Penny.Cabin.Postings.Types as T
-import qualified Penny.Cabin.Postings.Fields as F
 import qualified Penny.Cabin.Postings.Options as O
 
 type Arr = A.Array (Col, (T.VisibleNum, Row))
-           (T.PostingInfo, G.AcClaim)
+           (T.PostingInfo, Maybe R.Cell)
 
 type Address = (Col, Row)
 
-allocator ::  O.Options -> G.Allocator Col Row
-allocator os a (col, (vn, r)) (p, ac) = case ac of
-  G.AcCell c -> Just c
-  G.AcOverrunning -> Nothing
-  G.AcWidth _ -> case (col, r) of
-    (Adr.Payee, Adr.Top) -> payee os a (col, (vn, r)) (p, ac)
-    (Adr.Account, Adr.Top) -> account os a (col, (vn, r)) (p, ac)
-    _ -> error "allocator 1 error: should never happen"
+allocator :: O.Options -> G.Allocator Col Row
+allocator os m (col, (vn, r)) (p, mc) = case mc of
+  Just c -> Just c
+  Nothing -> case r of
+    Adr.Top -> Just $ let
+      ts = PC.colors vn (O.baseColors os)
+      in case col of
+        Adr.Payee -> let
+          w = m M.! Adr.Payee
+          in payeeCell w p ts
+        Adr.Account -> let
+          w = m M.! Adr.Account
+          in accountCell w os p ts
+        _ -> error "allocator error: should never happen"
+    _ -> Nothing
 
 payeeCell ::
-  PayeeWidth
+  C.Width
   -> T.PostingInfo
   -> C.TextSpec
   -> R.Cell
-payeeCell (PayeeWidth pw) p ts =
-  R.Cell R.LeftJustify (C.Width pw) ts $
-  case Q.payee . T.postingBox $ p of
-    Nothing -> Seq.empty
-    Just pye -> let
-      wrapped = TF.unLines 
-                . TF.wordWrap pw
-                . TF.txtWords
-                . HT.text
-                $ pye
-      toChunk (TF.Words seqTxts) =
-        C.chunk ts
-        . X.unwords
-        . F.toList
-        $ seqTxts
-      in fmap toChunk wrapped
-
-payee :: O.Options -> G.Allocator Col Row
-payee os a (_, (vn, _)) (p, _) =
-  case fst $ aloWidths os vn a of
-    Just pw -> Just $ payeeCell bestWidth p ts where
-      ts = PC.colors vn (O.baseColors os)
-      bestWidth =
-        PayeeWidth
-        $ min (unPayeeWidth pw)
-        (maxPayeeReservedWidth a)
-    Nothing -> Nothing
+payeeCell (C.Width pw) p ts =
+  if pw == 0 then R.zeroCell else
+    R.Cell R.LeftJustify (C.Width pw) ts $
+    case Q.payee . T.postingBox $ p of
+      Nothing -> Seq.empty
+      Just pye -> let
+        wrapped = TF.unLines 
+                  . TF.wordWrap pw
+                  . TF.txtWords
+                  . HT.text
+                  $ pye
+        toChunk (TF.Words seqTxts) =
+          C.chunk ts
+          . X.unwords
+          . F.toList
+          $ seqTxts
+        in fmap toChunk wrapped
 
 accountCell ::
-  AccountWidth
+  C.Width
   -> O.Options
   -> T.PostingInfo
   -> C.TextSpec
   -> R.Cell
-accountCell (AccountWidth aw) os p ts =
-  R.Cell R.LeftJustify (C.Width aw) ts $ let
+accountCell (C.Width aw) os p ts =
+  if aw == 0 then R.zeroCell else
+    R.Cell R.LeftJustify (C.Width aw) ts $ let
     target = TF.Target aw
     shortest = TF.Shortest . O.subAccountLength $ os
     a = Q.account . T.postingBox $ p
@@ -93,6 +86,33 @@ accountCell (AccountWidth aw) os p ts =
        . intersperse (X.singleton ':')
        . F.toList
        $ shortened
+
+
+
+{-
+allocator ::  O.Options -> G.Allocator Col Row
+allocator os a (col, (vn, r)) (p, ac) = case ac of
+  Just c -> Just c
+  Nothing -> case r of
+    Adr.Top -> Just $ case col of
+      Adr.Payee -> payeeCell 
+  G.AcCell c -> Just c
+  G.AcOverrunning -> Nothing
+  G.AcWidth _ -> case (col, r) of
+    (Adr.Payee, Adr.Top) -> 
+    (Adr.Account, Adr.Top) -> account os a (col, (vn, r)) (p, ac)
+    _ -> error "allocator 1 error: should never happen"
+
+payee :: O.Options -> G.Allocator Col Row
+payee os a (_, (vn, _)) (p, _) =
+  case fst $ aloWidths os vn a of
+    Just pw -> Just $ payeeCell bestWidth p ts where
+      ts = PC.colors vn (O.baseColors os)
+      bestWidth =
+        PayeeWidth
+        $ min (unPayeeWidth pw)
+        (maxPayeeReservedWidth a)
+    Nothing -> Nothing
 
 -- | Examines the array and allocates the maximum amount of space that
 -- this cell could use. THe maximum amount that can be used is the
@@ -111,23 +131,6 @@ account os a (_, (vn, _)) (p, _) =
                   (maxAccountReservedWidth a)
     Nothing -> Nothing
 
-maxPayeeReservedWidth :: Arr -> Int
-maxPayeeReservedWidth a = F.foldr folder 0 clm where
-  clm = Tb.column a Adr.Payee
-  folder (info, ac) maxSoFar = case ac of
-    G.AcWidth _ -> max maxSoFar w where
-      w = case Q.payee . T.postingBox $ info of
-        Nothing -> 0
-        (Just pye) -> X.length . HT.text $ pye
-    _ -> maxSoFar
-
-maxAccountReservedWidth :: Arr -> Int
-maxAccountReservedWidth a = F.foldr folder 0 clm where
-  clm = Tb.column a Adr.Account
-  folder (info, ac) maxSoFar = case ac of
-    G.AcWidth _ -> max maxSoFar w where
-        w = X.length . HT.text . HT.Delimited (X.singleton ':')
-            . HT.textList . Q.account . T.postingBox $ info
-    _ -> maxSoFar
 
 
+-}
