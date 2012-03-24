@@ -32,12 +32,6 @@ type Arr = A.Array (Col, (T.VisibleNum, Row))
 
 type Address = (Col, Row)
 
-newtype PayeeWidth = PayeeWidth { unPayeeWidth :: Int }
-                     deriving (Show, Eq, Ord)
-
-newtype AccountWidth = AccountWidth { unAccountWidth :: Int }
-                       deriving (Show, Eq, Ord)
-
 allocator ::  O.Options -> G.Allocator Col Row
 allocator os a (col, (vn, r)) (p, ac) = case ac of
   G.AcCell c -> Just c
@@ -137,40 +131,3 @@ maxAccountReservedWidth a = F.foldr folder 0 clm where
     _ -> maxSoFar
 
 
--- | Examines the array to determine the allocated width of the Payee
--- column and the Account column.
-aloWidths :: O.Options
-          -> T.VisibleNum
-          -> Arr
-          -> (Maybe PayeeWidth, Maybe AccountWidth)
-aloWidths os vn arr = (pw, aw) where
-  allocs = M.fromList [ ('p', O.payeeAllocation os)
-                      , ('a', O.accountAllocation os) ]
-  widthTop = topRowWidth vn arr
-  widthMax = maxAllocatedWidth widthTop (O.width os)
-  ws = Alo.allocate allocs
-           (fromIntegral . unMaxAllocated $ widthMax)
-  pay = PayeeWidth . fromIntegral . (! 'p') $ ws
-  acct = AccountWidth . fromIntegral . (! 'a') $ ws
-  payeeAll = PayeeWidth . fromIntegral . unMaxAllocated $ widthMax
-  acctAll = AccountWidth . fromIntegral . unMaxAllocated $ widthMax
-  flds = O.fields os
-  (pw, aw) = case (F.payee flds, F.account flds) of
-    (True, True) -> (Just pay, Just acct)
-    (False, False) -> (Nothing, Nothing)
-    (True, False) -> (Just payeeAll, Nothing)
-    (False, True) -> (Nothing, Just acctAll)
-
-topRowWidth :: T.VisibleNum -> Arr -> C.Width
-topRowWidth vn a = F.foldr mappend mempty r where
-  r = fmap toWidth . Tb.OneDim . Tb.row a $ (vn, Adr.Top)
-  toWidth (_, cell) = case cell of
-    G.AcCell c -> R.width c
-    _ -> mempty
-
-newtype MaxAllocated = MaxAllocated { unMaxAllocated :: Int }
-                       deriving (Eq, Ord, Show)
-
-maxAllocatedWidth :: C.Width -> O.ReportWidth -> MaxAllocated
-maxAllocatedWidth (C.Width rowW) (O.ReportWidth reportW) =
-  MaxAllocated $ max 0 (reportW - rowW)

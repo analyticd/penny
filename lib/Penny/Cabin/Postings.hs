@@ -50,7 +50,7 @@ import System.Console.MultiArg.Prim (ParserE)
 
 import Penny.Cabin.Postings.Claimer (claimer)
 import Penny.Cabin.Postings.Grower (grower)
-import Penny.Cabin.Postings.AllocationClaim (allocationClaim)
+import Penny.Cabin.Postings.AllocInspector (allocInspector)
 import Penny.Cabin.Postings.Allocator (allocator)
 import Penny.Cabin.Postings.Finalizer (finalizer)
 import Penny.Cabin.Postings.Help (help)
@@ -74,7 +74,7 @@ printReport ::
   -> Maybe C.Chunk
 printReport o =
   G.report (f claimer) (f grower)
-  (f allocationClaim) (f allocator) (f finalizer) where
+  (f allocInspector) (f allocator) (f finalizer) where
     f fn = fn o
 
 makeReportFunc ::

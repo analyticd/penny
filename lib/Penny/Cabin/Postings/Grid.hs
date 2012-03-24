@@ -18,6 +18,7 @@ import Control.Applicative ((<$>), (<*>))
 import qualified Data.Array as A
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map as M
 import qualified Data.Table as Ta
 import qualified Data.Traversable as Tr
 
@@ -45,12 +46,6 @@ fmapArray f a = A.array b ls' where
   f' (i, e) = (i, f a i e)
 
 -- * Step 1 - Compute balances
-{-
-balanceAccum :: Bal.Balance -> LT.PostingInfo -> (Bal.Balance, Bal.Balance)
-balanceAccum bal po = (bal', bal') where
-  bal' = bal `mappend` pstgBal
-  pstgBal = Bal.entryToBalance . Q.entry . LT.postingBox $ po
--}
 
 balanceAccum :: Maybe Bal.Balance
                 -> LT.PostingInfo
@@ -66,28 +61,7 @@ balances :: NE.NonEmpty LT.PostingInfo
             -> NE.NonEmpty (LT.PostingInfo, Bal.Balance)
 balances = snd . Tr.mapAccumL balanceAccum Nothing
 
-{-
-balances :: [LT.PostingInfo] -> [(LT.PostingInfo, Bal.Balance)]
-balances ps = zip ps (snd . Tr.mapAccumL balanceAccum mempty $ ps)
--}
 -- * Step 2 - Number postings
-
-{-
-numberPostings ::
-  [(LT.PostingInfo, Bal.Balance)]
-  -> [T.PostingInfo]
-numberPostings ls = reverse reversed where
-  withPostingNums =
-    getZipList
-    $ (\(li, bal) pn -> (li, bal, pn))
-    <$> ZipList ls
-    <*> ZipList (map T.PostingNum [0..])
-  reversed =
-    getZipList
-    $ (\(li, bal, pn) rpn -> T.fromLibertyInfo bal pn rpn li)
-    <$> ZipList (reverse withPostingNums)
-    <*> ZipList (map T.RevPostingNum [0..])
--}
 
 numberPostings ::
   NE.NonEmpty (LT.PostingInfo, Bal.Balance)
@@ -246,68 +220,46 @@ widestRow a = F.foldl' f (C.Width 0) (Ta.OneDim a) where
       Just cw -> C.Width . T.unClaimedWidth $ cw
 
 
--- * Step 9 - Allocation Claim
+-- * Step 9 - Allocation Inspection
 
--- | Step 9 - Allocation claim. What do do at this phase:
---
--- * GrowToFit, Padding, Empty, and Overran cells - have already
--- supplied a cell. Pass that cell along using AcCell.
---
--- * Allocated cells - If the field is not selected to be in the
--- report, supply an empty cell in AcCell . If the field is selected,
--- then calculate the maximum width that the cell could use and pass
--- it in an AcWidth.
---
--- * Overrunning cells - supply AcOverrunning
-type AllocationClaim c t =
+-- | Step 9 - Allocation Inspection. This function examines the grid
+-- array and makes some calculations. It does not change the
+-- individual values within the array. Instead, this function examines
+-- the entire array and determines the width of each allocated column.
+-- The result is stored in a map, because not every column is
+-- allocated; non-allocated columns are omitted from the map. This
+-- list is passed on to the calculation made in Step 10.
+type AllocInspector c t =
   A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
-  -> Index c t
-  -> (T.PostingInfo, Maybe R.Cell)
-  -> AcClaim
-
-data AcClaim =
-  AcCell R.Cell
-  | AcWidth Int
-  | AcOverrunning
-
-allocateClaim ::
-  (A.Ix c, A.Ix t)
-  => AllocationClaim c t
-  -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
-  -> A.Array (Index c t) (T.PostingInfo, AcClaim)
-allocateClaim f = fmapArray g where
-  g a i (p, mc) = (p, f a i (p, mc))
+  -> M.Map c C.Width
 
 -- * Step 10 - Allocate
 
 -- | Step 10 - Allocate. What to do at this phase:
 --
--- * GrowToFit, Padding, Empty, Overran, and Allocated cells whose
--- field is not in the report - have already supplied a cell via
--- AcCell. Pass that cell along.
+-- * GrowToFit, Padding, Empty, and Overran cells - have already
+-- supplied a Just Cell from Step 8. Pass that cell along.
 --
--- * Allocated cells whose field is in the report - have supplied an
--- AcWidth. Use the minimum report width, the width of all other
--- GrowToFit and Padding cells in the row, and the share allocated to
--- other Allocated cells that are going to show in the report to
--- determine the maximum space available to the allocated
--- column. Also, compute the maximum AcWidth of the column. Create a
--- cell that is as wide as (min maxAcWidth availAllocatedSpace).
---
+-- * Allocated cells. If the field is not selected to be in the
+-- report, supply a Just empty cell. If the field is selected, use the
+-- width stored in the array created in step 9 to size the cell
+-- appropriately. Supply the appropriate Just cell.
 -- * Overrunning cells - supply Nothing.
 type Allocator c t =
-  A.Array (Index c t) (T.PostingInfo, AcClaim)
+  M.Map c C.Width
   -> Index c t
-  -> (T.PostingInfo, AcClaim)
+  -> (T.PostingInfo, Maybe R.Cell)
   -> Maybe R.Cell
 
 allocateCells ::
-  (A.Ix c, A.Ix t)
-  => Allocator c t
-  -> A.Array (Index c t) (T.PostingInfo, AcClaim)
+  (A.Ix c, A.Ix t, Ord c)
+  => AllocInspector c t
+  -> Allocator c t
   -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
-allocateCells f = fmapArray g where
-  g a i (p, w) = (p, f a i (p, w))
+  -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
+allocateCells insp f a = fmapArray g a where
+  g _ i (p, w) = (p, f fromStep9 i (p, w))
+  fromStep9 = insp a
 
 -- * Step 11 - Finalize
 
@@ -352,13 +304,13 @@ report ::
   (A.Ix c, A.Ix t, Bounded c, Bounded t)
   => Claimer c t
   -> Grower c t
-  -> AllocationClaim c t
+  -> AllocInspector c t
   -> Allocator c t
   -> Finalizer c t
   -> (LT.PostingInfo -> Bool)
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
-report c g ac a f p pbs =
+report c g ai a f p pbs =
   NE.nonEmpty pbs
 
   >>= (toArray
@@ -371,7 +323,6 @@ report c g ac a f p pbs =
   >>= (return
        . R.chunk
        . finalize f
-       . allocateCells a
-       . allocateClaim ac
+       . allocateCells ai a
        . growCells g
        . spaceClaim c)
