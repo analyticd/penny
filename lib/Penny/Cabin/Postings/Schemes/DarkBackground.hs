@@ -23,10 +23,10 @@ oddTextSpec = S.switchBackground CC.defaultColor
               (CC.color256 235) evenTextSpec
               
 debit :: CC.TextSpec -> CC.TextSpec
-debit = S.switchForeground CC.magenta (CC.color256 13)
+debit = S.switchForeground CC.magenta (CC.color256 51)
 
 credit :: CC.TextSpec -> CC.TextSpec
-credit = S.switchForeground CC.cyan (CC.color256 14)
+credit = S.switchForeground CC.cyan (CC.color256 123)
 
 zero :: CC.TextSpec -> CC.TextSpec
 zero = S.switchForeground CC.white (CC.color256 15)
