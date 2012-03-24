@@ -7,7 +7,7 @@ import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as X
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.TextNonEmpty as TNE
-import Text.Parsec (char, many)
+import Text.Parsec (char, many, skipMany)
 import Text.Parsec.Text (Parser)
 
 rangeLettersToSymbols :: Char -> Bool
@@ -71,15 +71,15 @@ rangeLettersNumbers c = case C.generalCategory c of
 -- | Creates a new parser that behaves like the old one, but also
 -- parses any whitespace remaining afterward.
 lexeme :: Parser a -> Parser a
-lexeme p = p <* many (char ' ')
+lexeme p = p <* skipMany (char ' ')
 
 -- | Parses any trailing whitespace followed by a newline followed by
 -- additional whitespace.
 eol :: Parser ()
 eol = pure ()
-      <* many (char ' ')
+      <* skipMany (char ' ')
       <* char '\n'
-      <* many (char ' ')
+      <* skipMany (char ' ')
 
 -- | Parses a run of spaces.
 spaces :: Parser ()

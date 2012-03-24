@@ -5,14 +5,14 @@ module Penny.Copper.DateTime (
   , render
   ) where
 
-import Control.Applicative ((<$>), optional)
+import Control.Applicative ((<$>), optional, (<*>))
 import qualified Data.Text as X
 import Data.Time (fromGregorianValid)
 import Data.Maybe (fromMaybe)
 import qualified Data.Time as T
 import Text.Parsec (char, digit, (<|>), (<?>))
 import Text.Parsec.Text ( Parser )
-import Control.Monad ( replicateM, void, when )
+import Control.Monad ( void, when )
 import Data.Fixed ( Pico )
 import System.Locale (defaultTimeLocale)
 
@@ -26,14 +26,40 @@ newtype DefaultTimeZone =
 utcDefault :: DefaultTimeZone
 utcDefault = DefaultTimeZone B.noOffset
 
+charToDigit :: Char -> Int
+charToDigit c = case c of
+  '0' -> 0
+  '1' -> 1
+  '2' -> 2
+  '3' -> 3
+  '4' -> 4
+  '5' -> 5
+  '6' -> 6
+  '7' -> 7
+  '8' -> 8
+  '9' -> 9
+  _ -> error "unrecognized digit"
+
+read2digits :: Parser Int
+read2digits = f <$> digit <*> digit where
+  f d1 d2 = charToDigit d1 * 10 + charToDigit d2
+
+read4digits :: Parser Integer
+read4digits = f <$> digit <*> digit <*> digit <*> digit where
+  f d1 d2 d3 d4 = fromIntegral $
+    charToDigit d1 * 1000
+    + charToDigit d2 * 100
+    + charToDigit d3 * 10
+    + charToDigit d4
+
 date :: Parser T.Day
 date = do
   let slash = void $ char '/' <|> char '-'
-  y <- read <$> replicateM 4 digit
+  y <- read4digits
   slash
-  m <- read <$> replicateM 2 digit
+  m <- read2digits
   slash
-  d <- read <$> replicateM 2 digit
+  d <- read2digits
   case fromGregorianValid y m d of
     Nothing -> fail "invalid date"
     Just dt -> return dt
@@ -43,21 +69,21 @@ colon = void $ char ':'
 
 hrs :: Parser Int
 hrs = do
-  h <- read <$> replicateM 2 digit
+  h <- read2digits
   when (h > 23) $ fail "invalid hour"
   return h
 
 mins :: Parser Int
 mins = do
-  m <- read <$> replicateM 2 digit
+  m <- read2digits
   when (m > 59) $ fail "invalid minute"
   return m
 
 secs :: Parser Pico
 secs = do
-  s <- (read :: String -> Int) <$> replicateM 2 digit
+  s <- fromIntegral <$> read2digits
   when (s > 59) $ fail "invalid seconds"
-  return $ fromIntegral s
+  return s
 
 timeOfDay :: Parser T.TimeOfDay
 timeOfDay = do
@@ -74,8 +100,8 @@ timeZoneOffset = do
     (char '+' >> return id)
     <|> (char '-' >> return (negate :: Int -> Int))
     <?> "time zone sign"
-  h <- read <$> replicateM 2 digit
-  m <- read <$> replicateM 2 digit
+  h <- read2digits
+  m <- read2digits
   let mi = h * 60 + m
   maybe (fail "invalid time zone offset") return
     $ B.minsToOffset (changeSign mi)
