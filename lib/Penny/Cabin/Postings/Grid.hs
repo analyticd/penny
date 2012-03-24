@@ -219,9 +219,9 @@ growCells ::
   => Grower c t
   -> A.Array (Index c t) (T.PostingInfo, Maybe T.ClaimedWidth)
   -> A.Array (Index c t) (T.PostingInfo, Maybe R.Cell)
-growCells f = fmapArray g where
-  g a i (p, w) = (p, f maxW i (p, w)) where
-    maxW = widthArray a
+growCells f a = fmapArray g a where
+  g _ i (p, w) = (p, f maxW i (p, w))
+  maxW = widthArray a
 
 -- | Transforms a two-dimensional array of columns and rows into a
 -- one-dimensional array indicating the widest row in each column.

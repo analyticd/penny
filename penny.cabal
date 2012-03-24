@@ -283,7 +283,7 @@ Library
 
     ghc-options: -Wall
     if flag(debug)
-      ghc-options: -auto-all
+      ghc-options: -auto-all -caf-all
 
 Executable penny
   if flag(pennyCLI)
@@ -300,7 +300,7 @@ Executable penny
   Main-is: penny.hs
   GHC-Options: -Wall
   if flag(debug)
-    GHC-Options: -rtsopts -auto-all
+    GHC-Options: -rtsopts -auto-all -caf-all
 
 Executable ledger-convert
   hs-source-dirs: bin
