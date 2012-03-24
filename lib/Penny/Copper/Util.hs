@@ -42,6 +42,12 @@ rangeLetters c = case C.generalCategory c of
   C.OtherLetter -> True
   _ -> False
 
+rangeMathCurrency :: Char -> Bool
+rangeMathCurrency c = case C.generalCategory c of
+  C.MathSymbol -> True
+  C.CurrencySymbol -> True
+  _ -> False
+
 rangeSymbols :: Char -> Bool
 rangeSymbols c = case C.generalCategory c of
   C.MathSymbol -> True

@@ -86,7 +86,7 @@ quotedLvl1Cmdty = between q q lvl1Cmdty
 
 -- | Allows only letters and symbols.
 lvl2FirstChar :: Char -> Bool
-lvl2FirstChar c = U.rangeLetters c || U.rangeSymbols c
+lvl2FirstChar c = U.rangeLetters c || U.rangeMathCurrency c
 
 lvl2OtherChars :: Char -> Bool
 lvl2OtherChars c = category && notBanned where
@@ -116,7 +116,7 @@ lvl2Cmdty = f <$> firstSub <*> restSubs <?> e where
   f s1 sr = B.Commodity (s1 :| sr)
 
 lvl3OtherChars :: Char -> Bool
-lvl3OtherChars c = U.rangeLetters c || U.rangeSymbols c
+lvl3OtherChars c = U.rangeLetters c || U.rangeMathCurrency c
 
 lvl3FirstChar :: Char -> Bool
 lvl3FirstChar c = lvl3OtherChars c && (not $ c `elem` "+-")
