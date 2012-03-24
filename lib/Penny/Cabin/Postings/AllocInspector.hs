@@ -29,7 +29,7 @@ type Address = (Col, Row)
 -- report at all, its width is zero. If a column does appear, then its
 -- width is the SMALLER of the widest cell in the column or the
 -- allocated width of the column.
-allocInspector :: O.Options -> Arr -> M.Map Col C.Width
+allocInspector :: O.Options a -> Arr -> M.Map Col C.Width
 allocInspector o a = M.fromList ls where
   ls = [(Adr.Payee, pw), (Adr.Account, aw)]
   (pwAlo, awAlo) = calcMaxAloWidths o a
@@ -80,7 +80,7 @@ maxAccountReservedWidth a = Fdbl.foldl' folder (AccountWidth 0) clm where
 -- | Composes functions to calculate the maximum allocated widths from
 -- an array.
 calcMaxAloWidths ::
-  O.Options
+  O.Options a
   -> Arr
   -> (Maybe PayeeWidth, Maybe AccountWidth)
 calcMaxAloWidths o = maxAloWidths . allAloWidths o
@@ -95,7 +95,7 @@ allVisibleNum a = A.range (minVn, maxVn) where
 -- | Gets a list of all PayeeWidth and AccountWidth for the whole
 -- array. Assumes that each column appears in the report.
 allAloWidths ::
-  O.Options
+  O.Options a
   -> Arr
   -> [(Maybe PayeeWidth, Maybe AccountWidth)]
 allAloWidths os arr = map (aloWidths os arr) (allVisibleNum arr)
@@ -119,7 +119,7 @@ maxAloWidths = Fdbl.foldl' f (Nothing, Nothing) where
 
 -- | Examines the array to determine the allocated width of the Payee
 -- column and the Account column for a particular row.
-aloWidths :: O.Options
+aloWidths :: O.Options a
           -> Arr
           -> T.VisibleNum
           -> (Maybe PayeeWidth, Maybe AccountWidth)
@@ -158,7 +158,7 @@ maxAllocatedWidth (C.Width rowW) (O.ReportWidth reportW) =
 {-
 
 allocationClaim ::
-  O.Options
+  O.Options a
   -> G.AllocationClaim Col Row
 allocationClaim _ _ _ (_, Just c) = G.AcCell c
 

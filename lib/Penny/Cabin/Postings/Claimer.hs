@@ -24,7 +24,7 @@ import qualified Penny.Cabin.Postings.Options as O
 
 ifShown ::
   (F.Fields Bool -> Bool)
-  -> O.Options
+  -> O.Options a
   -> Maybe T.ClaimedWidth
   -> Maybe T.ClaimedWidth
 ifShown fn opts mt =
@@ -32,19 +32,19 @@ ifShown fn opts mt =
   then mt
   else Nothing
  
-type Claimer = 
-  O.Options
+type Claimer a = 
+  O.Options a
   -> A.Array (Col, (T.VisibleNum, Row)) T.PostingInfo
   -> (Col, (T.VisibleNum, Row))
   -> T.PostingInfo
   -> Maybe T.ClaimedWidth
 
-claimer :: Claimer
+claimer :: Claimer a
 claimer opts a (col, (vn, r)) p = let
   f = claimLookup ! (col, r) in
   f opts a (col, (vn, r)) p
 
-claimLookup :: M.Map (Col, Row) Claimer
+claimLookup :: M.Map (Col, Row) (Claimer a)
 claimLookup = foldl (flip . uncurry $ M.insert) noClaims ls where
   noClaims = M.fromList
     $ (,)
@@ -57,7 +57,7 @@ claimLookup = foldl (flip . uncurry $ M.insert) noClaims ls where
         postingQty, sPostingQty, totalDrCr, sTotalDrCr,
         totalCmdty, sTotalCmdty, totalQty]
 
-noClaim :: Claimer
+noClaim :: Claimer a
 noClaim _ _ _ _ = Nothing
 
 claimOne :: Maybe T.ClaimedWidth
@@ -69,7 +69,7 @@ claimOneIf b =
   then claimOne
   else Nothing
 
-lineNum :: ((Col, Row), Claimer)
+lineNum :: ((Col, Row), Claimer a)
 lineNum = ((Adr.LineNum, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.lineNum opts $
@@ -84,7 +84,7 @@ lineNum = ((Adr.LineNum, Adr.Top), f) where
         . Me.unPostingLine
         $ n
 
-sLineNum :: ((Col, Row), Claimer)
+sLineNum :: ((Col, Row), Claimer a)
 sLineNum = ((Adr.SLineNum, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.lineNum opts
@@ -94,7 +94,7 @@ sLineNum = ((Adr.SLineNum, Adr.Top), f) where
     . T.postingBox
     $ p
 
-date :: ((Col, Row), Claimer)
+date :: ((Col, Row), Claimer a)
 date = ((Adr.Date, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.date opts $
@@ -104,12 +104,12 @@ date = ((Adr.Date, Adr.Top), f) where
     . O.dateFormat opts
     $ p
 
-sDate :: ((Col, Row), Claimer)
+sDate :: ((Col, Row), Claimer a)
 sDate = ((Adr.SDate, Adr.Top), f) where
   f opts _ _ _ = ifShown F.date opts claimOne
 
 
-flag :: ((Col, Row), Claimer)
+flag :: ((Col, Row), Claimer a)
 flag = ((Adr.Multi, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.flag opts $
@@ -123,7 +123,7 @@ flag = ((Adr.Multi, Adr.Top), f) where
         . text
         $ fl
 
-sFlag :: ((Col, Row), Claimer)
+sFlag :: ((Col, Row), Claimer a)
 sFlag = ((Adr.SMulti, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.flag opts
@@ -133,7 +133,7 @@ sFlag = ((Adr.SMulti, Adr.Top), f) where
     . T.postingBox
     $ p
 
-number :: ((Col, Row), Claimer)
+number :: ((Col, Row), Claimer a)
 number = ((Adr.Num, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.number opts $
@@ -146,7 +146,7 @@ number = ((Adr.Num, Adr.Top), f) where
         . text
         $ num
 
-sNumber :: ((Col, Row), Claimer)
+sNumber :: ((Col, Row), Claimer a)
 sNumber = ((Adr.SNum, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.flag opts
@@ -156,10 +156,10 @@ sNumber = ((Adr.SNum, Adr.Top), f) where
     . T.postingBox
     $ p
 
-payee :: ((Col, Row), Claimer)
+payee :: ((Col, Row), Claimer a)
 payee = ((Adr.Payee, Adr.Top), noClaim)
 
-sPayee :: ((Col, Row), Claimer)
+sPayee :: ((Col, Row), Claimer a)
 sPayee = ((Adr.SPayee, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.payee opts
@@ -169,24 +169,24 @@ sPayee = ((Adr.SPayee, Adr.Top), f) where
     . T.postingBox
     $ p
 
-account :: ((Col, Row), Claimer)
+account :: ((Col, Row), Claimer a)
 account = ((Adr.Account, Adr.Top), noClaim)
 
-sAccount :: ((Col, Row), Claimer)
+sAccount :: ((Col, Row), Claimer a)
 sAccount = ((Adr.SAccount, Adr.Top), f) where
   f opts _ _ _ = ifShown F.account opts claimOne
 
-postingDrCr :: ((Col, Row), Claimer)
+postingDrCr :: ((Col, Row), Claimer a)
 postingDrCr = ((Adr.PostingDrCr, Adr.Top), f) where
   f opts _ _ _ = ifShown F.postingDrCr opts $
                    Just (T.ClaimedWidth 2)
 
-sPostingDrCr :: ((Col, Row), Claimer)
+sPostingDrCr :: ((Col, Row), Claimer a)
 sPostingDrCr = ((Adr.SPostingDrCr, Adr.Top), f) where
   f opts _ _ _ =
     ifShown F.postingDrCr opts claimOne
 
-postingCmdty :: ((Col, Row), Claimer)
+postingCmdty :: ((Col, Row), Claimer a)
 postingCmdty = ((Adr.PostingCommodity, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.postingCmdty opts $
@@ -200,11 +200,11 @@ postingCmdty = ((Adr.PostingCommodity, Adr.Top), f) where
     . T.postingBox
     $ p
 
-sPostingCmdty :: ((Col, Row), Claimer)
+sPostingCmdty :: ((Col, Row), Claimer a)
 sPostingCmdty = ((Adr.SPostingCommodity, Adr.Top), f) where
   f opts _ _ _ = ifShown F.postingCmdty opts claimOne
 
-postingQty :: ((Col, Row), Claimer)    
+postingQty :: ((Col, Row), Claimer a)    
 postingQty = ((Adr.PostingQty, Adr.Top), f) where
   f opts _ _ p =
     ifShown F.postingQty opts $
@@ -214,11 +214,11 @@ postingQty = ((Adr.PostingQty, Adr.Top), f) where
     . O.qtyFormat opts
     $ p
 
-sPostingQty :: ((Col, Row), Claimer)
+sPostingQty :: ((Col, Row), Claimer a)
 sPostingQty = ((Adr.SPostingQty, Adr.Top), f) where
   f opts _ _ _ = ifShown F.postingQty opts claimOne
 
-totalDrCr :: ((Col, Row), Claimer)
+totalDrCr :: ((Col, Row), Claimer a)
 totalDrCr = ((Adr.TotalDrCr, Adr.Top), f) where
   f opts _ _ _ =
     ifShown F.totalDrCr opts
@@ -226,12 +226,12 @@ totalDrCr = ((Adr.TotalDrCr, Adr.Top), f) where
     . T.ClaimedWidth
     $ 2
 
-sTotalDrCr :: ((Col, Row), Claimer)
+sTotalDrCr :: ((Col, Row), Claimer a)
 sTotalDrCr = ((Adr.STotalDrCr, Adr.Top), f) where
   f opts _ _ _ = ifShown F.totalDrCr opts claimOne
 
 
-totalCmdty :: ((Col, Row), Claimer)
+totalCmdty :: ((Col, Row), Claimer a)
 totalCmdty = ((Adr.TotalCommodity, Adr.Top), f) where
   f opts _ _ p = ifShown F.totalCmdty opts (Just widest) where
     balMap = Bal.unBalance . T.balance $ p
@@ -244,11 +244,11 @@ totalCmdty = ((Adr.TotalCommodity, Adr.Top), f) where
                 . HT.textList
                 $ com
 
-sTotalCmdty :: ((Col, Row), Claimer)
+sTotalCmdty :: ((Col, Row), Claimer a)
 sTotalCmdty = ((Adr.STotalCommodity, Adr.Top), f) where
   f opts _ _ _ = ifShown F.totalCmdty opts claimOne
 
-totalQty :: ((Col, Row), Claimer)
+totalQty :: ((Col, Row), Claimer a)
 totalQty = ((Adr.TotalQty, Adr.Top), f) where
   f opts _ _ p = ifShown F.totalQty opts (Just widest) where
     balMap = Bal.unBalance . T.balance $ p

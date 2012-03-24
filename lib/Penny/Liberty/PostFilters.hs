@@ -7,10 +7,9 @@ import System.Console.MultiArg.Combinator (longOneArg)
 import System.Console.MultiArg.Option (makeLongOpt)
 
 import qualified Penny.Liberty.Operands as O
-import qualified Penny.Liberty.Types as T
 import Penny.Liberty.Error (Error)
 
-optHead :: ParserE Error ([T.PostingInfo] -> [T.PostingInfo])
+optHead :: ParserE Error ([a] -> [a])
 optHead = do
   let lo = makeLongOpt . pack $ "head"
   (_, iStr) <- longOneArg lo
@@ -18,7 +17,7 @@ optHead = do
   let f ls = take i ls
   return f
 
-optTail :: ParserE Error ([T.PostingInfo] -> [T.PostingInfo])
+optTail :: ParserE Error ([a] -> [a])
 optTail = do
   let lo = makeLongOpt . pack $ "tail"
   (_, iStr) <- longOneArg lo
@@ -27,5 +26,5 @@ optTail = do
         toDrop = length ls - i
   return f
 
-parser :: ParserE Error ([T.PostingInfo] -> [T.PostingInfo])
+parser :: ParserE Error ([a] -> [a])
 parser = optHead <|> optTail

@@ -22,14 +22,14 @@ import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (RadGroup)
 import Penny.Lincoln.Bits (DateTime)
 
-data State =
+data State a =
   State { sensitive :: M.CaseSensitive
         , factory :: M.CaseSensitive
                      -> Text -> Exceptional Text (Text -> Bool)
         , tokens :: [X.Token (T.PostingInfo -> Bool)]
-        , postFilter :: [T.PostingInfo] -> [T.PostingInfo] }
+        , postFilter :: [a] -> [a] }
 
-newState :: State
+newState :: State a
 newState =
   State { sensitive = M.Insensitive
         , factory = \c t -> return (M.within c t)
@@ -40,8 +40,8 @@ wrapOperand ::
   DefaultTimeZone
   -> DateTime
   -> RadGroup
-  -> State
-  -> ParserE Error State
+  -> State a
+  -> ParserE Error (State a)
 wrapOperand dtz dt rg st =
   mkSt <$> O.parseToken dtz dt rg fact where
     fact = factory st (sensitive st)
@@ -49,20 +49,20 @@ wrapOperand dtz dt rg st =
         op' = X.TokOperand (f . T.postingBox)
         (X.Operand f) = op
 
-wrapOperator :: State -> ParserE Error State
+wrapOperator :: State a -> ParserE Error (State a)
 wrapOperator st = mkSt <$> Oo.parser where
   mkSt f  = st { tokens = tokens st ++ [f] }
 
-wrapMatcher :: State -> ParserE Error State
+wrapMatcher :: State a -> ParserE Error (State a)
 wrapMatcher st = mkSt <$> PM.parser cOld mOld where
   (cOld, mOld) = (sensitive st, factory st)
   mkSt (c, m) = st { sensitive = c, factory = m }
   
-wrapSeq :: State -> ParserE Error State
+wrapSeq :: State a -> ParserE Error (State a)
 wrapSeq st = mkSt <$> PSq.parser where
   mkSt op = st { tokens = tokens st ++ [op] }
 
-wrapPostFilter :: State -> ParserE Error State
+wrapPostFilter :: State a -> ParserE Error (State a)
 wrapPostFilter st = mkSt <$> PF.parser where
   mkSt fn = st { postFilter = fn . postFilter st }
 
@@ -70,8 +70,8 @@ parseOption ::
   DefaultTimeZone
   -> DateTime
   -> RadGroup
-  -> State
-  -> ParserE Error State
+  -> State a
+  -> ParserE Error (State a)
 parseOption dtz dt rg st =
   wrapOperand dtz dt rg st
   <|> wrapOperator st

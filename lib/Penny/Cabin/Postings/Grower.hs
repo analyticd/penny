@@ -29,19 +29,19 @@ type Arr = A.Array (Col, (T.VisibleNum, Row))
 
 type Address = (Col, Row)
 
-type Grower =
-  O.Options
+type Grower a =
+  O.Options a
   -> A.Array Col C.Width
   -> (Col, (T.VisibleNum, Row))
   -> (T.PostingInfo, Maybe T.ClaimedWidth)
   -> Maybe R.Cell
 
-grower :: Grower
+grower :: Grower a
 grower o w (c, (vn, r)) p =
   f o w (c, (vn, r)) p where
     f = growers ! (c, r)
 
-padding :: Grower
+padding :: Grower a
 padding opts w (col, (vn, _)) _ = let
   ts = PC.colors vn (O.baseColors opts)
   width = w A.! col
@@ -49,20 +49,20 @@ padding opts w (col, (vn, _)) _ = let
   sq = Seq.empty
   in Just $ R.Cell j width ts sq
 
-emptyButPadded :: Grower
+emptyButPadded :: Grower a
 emptyButPadded = padding
 
-overran :: Grower
+overran :: Grower a
 overran _ _ _ _ = Just R.zeroCell
 
-allocated :: Grower
+allocated :: Grower a
 allocated _ _ _ _ = Nothing
 
-overrunning :: Grower
+overrunning :: Grower a
 overrunning _ _ _ _ = Nothing
 
 ifShown ::
-  O.Options
+  O.Options a
   -> (F.Fields Bool -> Bool)
   -> A.Array Col C.Width
   -> Col
@@ -77,7 +77,7 @@ ifShown opts fn wa c just ts cs = let
   else R.Cell just w ts Seq.empty
 
 
-lineNum :: Grower
+lineNum :: Grower a
 lineNum os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.lineNum wa col R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
@@ -87,7 +87,7 @@ lineNum os wa (col, (vn, _)) (p, _) =
                    . X.pack . show . Me.unLine
                    . Me.unPostingLine $ ln
 
-date :: Grower
+date :: Grower a
 date os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.date wa col R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
@@ -96,7 +96,7 @@ date os wa (col, (vn, _)) (p, _) =
 surround :: Char -> Char -> X.Text -> X.Text
 surround l r t = l `X.cons` t `X.snoc` r
 
-flag :: Grower
+flag :: Grower a
 flag os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.flag wa col R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
@@ -107,7 +107,7 @@ flag os wa (col, (vn, _)) (p, _) =
                  . surround '[' ']'
                  . HT.text
                  $ fl
-number :: Grower
+number :: Grower a
 number os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.number wa col R.LeftJustify ts cs where
     ts = PC.colors vn (O.baseColors os)
@@ -119,7 +119,7 @@ number os wa (col, (vn, _)) (p, _) =
                  . HT.text
                  $ fl
 
-postingDrCr :: Grower
+postingDrCr :: Grower a
 postingDrCr os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.postingDrCr wa col R.LeftJustify ts cs where
     ts = PC.colors vn bc
@@ -132,7 +132,7 @@ postingDrCr os wa (col, (vn, _)) (p, _) =
            Bits.Debit -> "Dr"
            Bits.Credit -> "Cr"
 
-postingCmdty :: Grower
+postingCmdty :: Grower a
 postingCmdty os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.postingCmdty wa col R.RightJustify ts cs where
     ts = PC.colors vn bc
@@ -147,7 +147,7 @@ postingCmdty os wa (col, (vn, _)) (p, _) =
          . T.postingBox
          $ p
 
-postingQty :: Grower
+postingQty :: Grower a
 postingQty os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.postingQty wa col R.RightJustify ts cs where
     ts = PC.colors vn bc
@@ -158,7 +158,7 @@ postingQty os wa (col, (vn, _)) (p, _) =
          . O.qtyFormat os
          $ p
 
-totalDrCr :: Grower
+totalDrCr :: Grower a
 totalDrCr os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.totalDrCr wa col R.LeftJustify ts cs where
     ts = PC.colors vn bc
@@ -182,7 +182,7 @@ totalDrCr os wa (col, (vn, _)) (p, _) =
           Bits.Credit -> "Cr"
       in C.chunk spec txt
 
-totalCmdty :: Grower
+totalCmdty :: Grower a
 totalCmdty os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.totalCmdty wa col R.RightJustify ts cs where
     ts = PC.colors vn bc
@@ -205,7 +205,7 @@ totalCmdty os wa (col, (vn, _)) (p, _) =
             $ com
       in C.chunk spec txt
 
-totalQty :: Grower
+totalQty :: Grower a
 totalQty os wa (col, (vn, _)) (p, _) =
   Just $ ifShown os F.totalQty wa col R.LeftJustify ts cs where
     ts = PC.colors vn bc
@@ -225,7 +225,7 @@ totalQty os wa (col, (vn, _)) (p, _) =
       txt = O.balanceFormat os com nou
       in C.chunk spec txt
 
-topRow :: [(Address, Grower)]
+topRow :: [(Address, Grower a)]
 topRow = zipWith tup cols ls where
   tup col g = ((col, Adr.Top), g)
   cols = [minBound..maxBound]
@@ -234,7 +234,7 @@ topRow = zipWith tup cols ls where
          postingDrCr, postingCmdty, postingQty,
          totalDrCr, totalCmdty, totalQty ]
 
-otherRows :: [(Address, Grower)]
+otherRows :: [(Address, Grower a)]
 otherRows = lEmpties ++ oruns ++ orans ++ rEmpties where
   makeList uL lR g = zip (A.range (b, e)) (repeat g) where
     b = (uL, Adr.Tags)
@@ -244,5 +244,5 @@ otherRows = lEmpties ++ oruns ++ orans ++ rEmpties where
   orans = makeList Adr.SMulti Adr.PostingQty overran
   rEmpties = makeList Adr.SPostingQty Adr.TotalQty emptyButPadded
 
-growers :: M.Map Address Grower
+growers :: M.Map Address (Grower a)
 growers = M.fromList (topRow ++ otherRows)

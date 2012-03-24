@@ -76,11 +76,13 @@ numberPostings ls = NE.reverse reversed where
     rpns = fmap T.RevPostingNum (NE.iterate succ 0)
     
 -- * Step 3 - Get visible postings only
+
 filterToVisible ::
-  (LT.PostingInfo -> Bool)
+  (LT.PostingInfo -> Bool) -- ^ Main predicate
+  -> ([T.PostingInfo] -> [T.PostingInfo]) -- ^ Post filter
   -> NE.NonEmpty T.PostingInfo
   -> [T.PostingInfo]
-filterToVisible p ps = NE.filter p' ps where
+filterToVisible p pf = pf . NE.filter p' where
   p' pstg = p (T.toLibertyInfo pstg)
 
 -- * Step 4 - add visible numbers
@@ -308,16 +310,17 @@ report ::
   -> AllocInspector c t
   -> Allocator c t
   -> Finalizer c t
-  -> (LT.PostingInfo -> Bool)
+  -> (LT.PostingInfo -> Bool) -- ^ Main predicate
+  -> ([T.PostingInfo] -> [T.PostingInfo]) -- ^ Post filter
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
-report c g ai a f p pbs =
+report c g ai a f p pf pbs =
   NE.nonEmpty pbs
 
   >>= (toArray
        . tranches
        . addVisibleNum
-       . filterToVisible p
+       . filterToVisible p pf
        . numberPostings
        . balances)
 

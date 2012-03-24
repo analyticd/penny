@@ -27,7 +27,7 @@ type Arr = A.Array (Col, (T.VisibleNum, Row))
 
 type Address = (Col, Row)
 
-allocator :: O.Options -> G.Allocator Col Row
+allocator :: O.Options a -> G.Allocator Col Row
 allocator os m (col, (vn, r)) (p, mc) = case mc of
   Just c -> Just c
   Nothing -> case r of
@@ -68,7 +68,7 @@ payeeCell (C.Width pw) p ts =
 
 accountCell ::
   C.Width
-  -> O.Options
+  -> O.Options a
   -> T.PostingInfo
   -> C.TextSpec
   -> R.Cell

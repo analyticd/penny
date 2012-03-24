@@ -16,6 +16,7 @@ import qualified Penny.Liberty.Operands as Od
 import qualified Penny.Cabin.Postings.Colors as PC
 import qualified Penny.Cabin.Postings.Fields as Fl
 import qualified Penny.Cabin.Postings.Options as Op
+import qualified Penny.Cabin.Postings.Types as LT
 import qualified Penny.Cabin.Postings.Schemes.DarkBackground as DB
 import qualified Penny.Cabin.Postings.Schemes.LightBackground as LB
 
@@ -24,34 +25,34 @@ import Penny.Lincoln.Bits (DateTime)
 
 wrapLiberty ::
   DateTime
-  -> Op.Options
-  -> ParserE Error Op.Options
+  -> Op.Options LT.PostingInfo
+  -> ParserE Error (Op.Options LT.PostingInfo)
 wrapLiberty dt op = let
   dtz = Op.timeZone op
   rg = Op.radGroup op
   in fromLibertyState op
      <$> LF.parseOption dtz dt rg (toLibertyState op)
 
-wrapColor :: Op.Options -> ParserE Error Op.Options
+wrapColor :: (Op.Options a) -> ParserE Error (Op.Options a)
 wrapColor st = mkSt <$> color where
   mkSt co = st { Op.colorPref = co }
 
-wrapBackground :: Op.Options -> ParserE Error Op.Options
+wrapBackground :: (Op.Options a) -> ParserE Error (Op.Options a)
 wrapBackground st = mkSt <$> background where
   mkSt b = st { Op.drCrColors = fst b 
               , Op.baseColors = snd b }
 
-wrapWidth :: Op.Options -> ParserE Error Op.Options
+wrapWidth :: (Op.Options a) -> ParserE Error (Op.Options a)
 wrapWidth st = mkSt <$> widthArg where
   mkSt w = st { Op.width = w }
 
-showField :: Op.Options -> ParserE Error Op.Options
+showField :: (Op.Options a) -> ParserE Error (Op.Options a)
 showField st = mkSt <$> fieldArg "show" where
   mkSt f = st { Op.fields = fields' } where
     oldFields = Op.fields st
     fields' = f True oldFields
 
-hideField :: Op.Options -> ParserE Error Op.Options
+hideField :: (Op.Options a) -> ParserE Error (Op.Options a)
 hideField st = mkSt <$> fieldArg "hide" where
   mkSt f = st { Op.fields = fields' } where
     oldFields = Op.fields st
@@ -59,8 +60,8 @@ hideField st = mkSt <$> fieldArg "hide" where
 
 parseArg ::
   DateTime
-  -> Op.Options
-  -> ParserE Error Op.Options
+  -> (Op.Options LT.PostingInfo)
+  -> ParserE Error (Op.Options LT.PostingInfo)
 parseArg dt op =
   wrapLiberty dt op 
   <|> wrapColor op
@@ -71,8 +72,8 @@ parseArg dt op =
 
 parseArgs ::
   DateTime
-  -> Op.Options
-  -> ParserE Error Op.Options
+  -> (Op.Options LT.PostingInfo)
+  -> ParserE Error (Op.Options LT.PostingInfo)
 parseArgs dt op =
   option op $ do
     rs <- runUntilFailure (parseArg dt) op
@@ -80,21 +81,21 @@ parseArgs dt op =
 
 parseCommand ::
   DateTime
-  -> Op.Options
-  -> ParserE Error Op.Options
+  -> (Op.Options LT.PostingInfo)
+  -> ParserE Error (Op.Options LT.PostingInfo)
 parseCommand dt op =
     (nextWordIs (pack "postings")
      <|> nextWordIs (pack "pos"))
     *> parseArgs dt op
   
-toLibertyState :: Op.Options -> LF.State
+toLibertyState :: (Op.Options LT.PostingInfo) -> (LF.State LT.PostingInfo)
 toLibertyState op =
   LF.State { LF.sensitive = Op.sensitive op
            , LF.factory = Op.factory op
            , LF.tokens = Op.tokens op
            , LF.postFilter = Op.postFilter op }
 
-fromLibertyState :: Op.Options -> LF.State -> Op.Options
+fromLibertyState :: (Op.Options LT.PostingInfo) -> LF.State LT.PostingInfo -> (Op.Options LT.PostingInfo)
 fromLibertyState op lf =
   op  { Op.sensitive = LF.sensitive lf
       , Op.factory = LF.factory lf

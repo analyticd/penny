@@ -30,14 +30,14 @@ type Arr = A.Array (Col, (T.VisibleNum, Row))
 type Index = (Col, (T.VisibleNum, Row))
 type Address = (Col, Row)
 
-type Finalizer =
-  O.Options
+type Finalizer a =
+  O.Options a
   -> Arr
   -> (Col, (T.VisibleNum, Row))
   -> (T.PostingInfo, Maybe R.Cell)
   -> R.Cell
 
-finalizer :: Finalizer
+finalizer :: Finalizer a
 finalizer os a (col, (vn, r)) (p, mc) = case mc of
   Just c -> c
   Nothing -> let f fn = fn os a (col, (vn, r)) (p, mc) in
@@ -72,7 +72,7 @@ widthFlagToPostingQty vn = rangeAdd i where
   r = (vn, Adr.Top)
   i = ((Adr.Multi, r), (Adr.PostingQty, r))
 
-tags :: Finalizer
+tags :: Finalizer a
 tags os a (_, (vn, _)) (p, _) = cell where
   cell = if F.tags . O.fields $ os
          then R.Cell R.LeftJustify w ts cs
@@ -107,7 +107,7 @@ memoChunks ts m (C.Width w) = cs where
        $ m
   toChunk (TF.Words ws) = C.chunk ts (X.unwords . Fd.toList $ ws)
 
-memo :: Finalizer
+memo :: Finalizer a
 memo os a (_, (vn, _)) (p, _) = cell where
   cell = if F.memo . O.fields $ os
          then R.Cell R.LeftJustify w ts cs
@@ -123,7 +123,7 @@ memo os a (_, (vn, _)) (p, _) = cell where
   w = widthFlagToPostingQty vn a
   ts = PC.colors vn (O.baseColors os)
   
-filename :: Finalizer
+filename :: Finalizer a
 filename os a (_, (vn, _)) (p, _) = cell where
   cell = if F.filename . O.fields $ os
          then R.Cell R.LeftJustify w ts cs
@@ -136,6 +136,6 @@ filename os a (_, (vn, _)) (p, _) = cell where
     Just fn -> Seq.singleton . toChunk . Me.unFilename $ fn
   ts = PC.colors vn (O.baseColors os)
 
-overran :: Finalizer
+overran :: Finalizer a
 overran _ _ _ _ = R.zeroCell
 

@@ -25,7 +25,7 @@ import Penny.Copper.Qty (RadGroup)
 import qualified Penny.Shield as S
 
 
-data Options =
+data Options a =
   Options { drCrColors :: C.DrCrColors
             -- ^ Colors to use when displaying debits, credits, and
             -- when displaying balance totals
@@ -100,7 +100,7 @@ data Options =
           , tokens :: [Ex.Token (Ty.PostingInfo -> Bool)]
             -- ^ Default list of tokens used to filter postings.
             
-          , postFilter :: [Ty.PostingInfo] -> [Ty.PostingInfo]
+          , postFilter :: [a] -> [a]
             -- ^ The entire posting list is transformed by this
             -- function after it is filtered according to the tokens.
             
@@ -143,7 +143,7 @@ defaultOptions ::
   DefaultTimeZone
   -> RadGroup
   -> S.Runtime
-  -> Options
+  -> Options a
 defaultOptions dtz rg rt =
   Options { drCrColors = Dark.drCrColors
           , baseColors = Dark.baseColors

@@ -59,6 +59,7 @@ import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Postings.Grid as G
 import qualified Penny.Cabin.Postings.Options as O
 import qualified Penny.Cabin.Postings.Parser as P
+import qualified Penny.Cabin.Postings.Types as T
 import qualified Penny.Cabin.Interface as I
 
 import Penny.Liberty.Operators (getPredicate)
@@ -68,8 +69,9 @@ import qualified Penny.Liberty.Types as LT
 import qualified Penny.Shield as S
 
 printReport ::
-  O.Options
+  O.Options T.PostingInfo
   -> (LT.PostingInfo -> Bool)
+  -> ([T.PostingInfo] -> [T.PostingInfo])
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
 printReport o =
@@ -78,18 +80,19 @@ printReport o =
     f fn = fn o
 
 makeReportFunc ::
-  O.Options
+  O.Options T.PostingInfo
   -> [LT.PostingInfo]
   -> a
   -> Ex.Exceptional X.Text C.Chunk
 makeReportFunc o ps _ = case getPredicate (O.tokens o) of
   Nothing -> Ex.Exception (X.pack "postings: bad expression")
-  Just p -> Ex.Success $ case printReport o p ps of
-    Nothing -> C.emptyChunk
-    Just c -> c
+  Just p -> let pf = O.postFilter o in
+    Ex.Success $ case printReport o p pf ps of
+      Nothing -> C.emptyChunk
+      Just c -> c
 
 makeReportParser ::
-  (S.Runtime -> O.Options)
+  (S.Runtime -> O.Options T.PostingInfo)
   -> S.Runtime
   -> CaseSensitive
   -> (CaseSensitive -> X.Text -> Ex.Exceptional X.Text (X.Text -> Bool))
@@ -105,7 +108,7 @@ makeReportParser rf rt c fact = do
 -- | Creates a Postings report. Apply this function to your
 -- customizations.
 report ::
-  (S.Runtime -> O.Options)
+  (S.Runtime -> O.Options T.PostingInfo)
   -- ^ Function that, when applied to a a data type that holds various
   -- values that can only be known at runtime (such as the width of
   -- the screen, the TERM environment variable, and whether standard
