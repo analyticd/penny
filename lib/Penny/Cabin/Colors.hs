@@ -169,7 +169,6 @@ class HasForegroundCode c where
 class HasBackgroundCode c where
   backgroundCode :: c -> Code
 
---instance HasForegroundCode Color
 data Style a =
   Style { foreground :: Foreground a
         , background :: Background a
@@ -179,34 +178,42 @@ data Style a =
         , invisible :: Switch Invisible
         , inverse :: Switch Inverse }
 
-
 styleCodes :: (HasForegroundCode a, HasBackgroundCode a)
-              => Style a -> String
-styleCodes s = controlSequence ls where
-  ls = catMaybes $
-       [Just $ onCode Reset,
-        colorForeground (foreground s),
-        colorBackground (background s),
-        codeIfOn (bold s),
-        codeIfOn (underline s),
-        codeIfOn (flash s),
-        codeIfOn (invisible s),
-        codeIfOn (inverse s)]
+              => Style a -> IO ()
+styleCodes s =
+  controlCode (onCode Reset)
+  >> printMaybeCode (colorForeground (foreground s))
+  >> printMaybeCode (colorBackground (background s))
+  >> printCodeIfOn (bold s)
+  >> printCodeIfOn (underline s)
+  >> printCodeIfOn (flash s)
+  >> printCodeIfOn (invisible s)
+  >> printCodeIfOn (inverse s)
+
+printCodeIfOn :: HasOnCode a => Switch a -> IO ()
+printCodeIfOn s = case s of
+  Off _ -> return ()
+  On a -> controlCode . onCode $ a
+
+printMaybeCode :: Maybe Code -> IO ()
+printMaybeCode c = case c of
+  Nothing -> return ()
+  Just code -> controlCode code
 
 data TextSpec =
   TextSpec { style8 :: Style Color8
            , style256 :: Style Color256 }
 
-textSpecCode :: Colors -> TextSpec -> String
+textSpecCode :: Colors -> TextSpec -> IO ()
 textSpecCode c ts = case c of
-  Colors0 -> ""
+  Colors0 -> return ()
   Colors8 -> styleCodes . style8 $ ts
   Colors256 -> styleCodes . style256 $ ts
 
 printBit :: Colors -> Bit -> IO ()
-printBit c (Bit ts t) = let
-  tsStr = textSpecCode c ts
-  in putStr tsStr >> TIO.putStr t
+printBit c (Bit ts t) =
+  textSpecCode c ts
+  >> TIO.putStr t
 
 printChunk :: ColorPref -> Chunk -> IO ()
 printChunk cp (Chunk cs) = do
@@ -253,20 +260,16 @@ data Switch a = Off a | On a
 printReset :: Colors -> IO ()
 printReset c = case c of
   Colors0 -> pure ()
-  _ -> putStr . controlSequence $ [onCode Reset]
-
-codeIfOn :: HasOnCode a => Switch a -> Maybe Code
-codeIfOn s = case s of
-  Off _ -> Nothing
-  On a -> Just . onCode $ a
+  _ -> controlCode (onCode Reset)
 
 csi :: String
 csi = toEnum 27:'[':[]
 
-controlSequence :: [Code] -> String
-controlSequence [] = ""
-controlSequence xs = csi ++ s ++ "m" where
-  s = concat . intersperse ";" . map unCode $ xs
+controlCode :: Code -> IO ()
+controlCode c =
+  putStr csi
+  >> putStr (unCode c)
+  >> putStr ";m"
 
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
