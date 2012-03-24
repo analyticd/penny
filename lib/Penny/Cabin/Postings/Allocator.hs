@@ -100,7 +100,13 @@ accountCell (AccountWidth aw) os p ts =
        . F.toList
        $ shortened
 
-
+-- | Examines the array and allocates the maximum amount of space that
+-- this cell could use. THe maximum amount that can be used is the
+-- minimum of:
+--
+-- * the allocated width of this column, or
+--
+-- * the widest cell in the column.
 account ::  O.Options -> G.Allocator Col Row
 account os a (_, (vn, _)) (p, _) =
   case snd $ aloWidths os vn a of
@@ -131,6 +137,8 @@ maxAccountReservedWidth a = F.foldr folder 0 clm where
     _ -> maxSoFar
 
 
+-- | Examines the array to determine the allocated width of the Payee
+-- column and the Account column.
 aloWidths :: O.Options
           -> T.VisibleNum
           -> Arr
