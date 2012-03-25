@@ -108,3 +108,14 @@ Executable gibberish
 
   Main-is: gibberish.hs
   GHC-Options: -Wall
+
+Executable brassTest
+  hs-source-dirs: bin
+  Build-depends:
+    base ==4.*,
+    penny ==0.1.*,
+    bytestring ==0.9.*,
+    pretty-show ==1.2.*
+
+  Main-is: brassTest.hs
+  GHC-Options: -Wall
