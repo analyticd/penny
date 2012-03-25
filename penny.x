@@ -1,41 +1,77 @@
 {
-module Penny.Brass.Lexer where
+module Main where
 }
 
 %wrapper "posn-bytestring"
 
-$lowAscii   = \x00-\x1f      -- unprintable stuff
-$space      = \x20
-$lowSymbol  = \x21-\x2f      -- exclamation point to solidus
 $digit      = 0-9
-$midSymbol  = \x3a-\x40      -- colon to commercial at
-$highSymbol = \x5b-\x60      -- left square bracket to grave accent
-$topSymbol  = \x7b-\x7e      -- left curly bracket to tilde
-$delete     = \x7f
-$newline    = \x0a
+$upper      = A-Z
+$lower      = a-z
+$other      = \x80-\x10ffff
+$space      = \x20
+$newline    = \x0A
+$dollar     = \$
 
-$notSpecial = [^\x01]
-              
+tokens :-
 
-$notSpace = [^ \x20 \t \x0A ]
+$space+ { Spaces }
+$newline { Newline }
+\[      { OpenBracket }
+\]      { CloseBracket }
+\/      { Slash }
+\-      { Dash }
+\:      { Colon }
+\*      { Asterisk }
+\;      { Semicolon }
+\<       { LessThan }
+\>       { GreaterThan }
+\'       { Apostrophe }
+\"       { Quote }
+\.      { Period }
+\,      { Comma }
+\#       { Hash }
+\+      { Plus }
+@       { AtSign }
+\^      { Caret }
+\$      { Dollar }
 
-$special = [ $lowAscii $space $lowSymbol $digit $midSymbol
-             $highSymbol $topSymbol $delete $newline ]
-
-lex :-
-
-$space+ ;
-$newline { \p _ -> BlankLine p }
-"#" .* \n { Comment }
-\; .* \n { PostingMemo }
-$notSpecial $notSpace* { Word }
-
+[ $upper $lower $other $dollar ]+         { LettersOthersDollars }
+$digit+                                   { AllDigits }
+$digit [ $upper $lower $other $dollar]*   { StartsWithDigit }
+[ $upper $lower $other $dollar $digit ]+  { Word }
 
 {
+
 data Token =
-  BlankLine AlexPosn
-  | Comment AlexPosn ByteString.ByteString
-  | PostingMemo AlexPosn ByteString.ByteString
-  | Word AlexPosn ByteString.ByteString
+  Spaces                                     AlexPosn ByteString.ByteString
+  | Newline                                  AlexPosn ByteString.ByteString
+  | OpenBracket                              AlexPosn ByteString.ByteString
+  | CloseBracket                             AlexPosn ByteString.ByteString
+  | Slash                                    AlexPosn ByteString.ByteString
+  | Dash                                     AlexPosn ByteString.ByteString
+  | Colon                                    AlexPosn ByteString.ByteString
+  | Asterisk                                 AlexPosn ByteString.ByteString
+  | Semicolon                                AlexPosn ByteString.ByteString
+  | LessThan                                 AlexPosn ByteString.ByteString
+  | GreaterThan                              AlexPosn ByteString.ByteString
+  | Apostrophe                               AlexPosn ByteString.ByteString
+  | Quote                                    AlexPosn ByteString.ByteString
+  | Period                                   AlexPosn ByteString.ByteString
+  | Comma                                    AlexPosn ByteString.ByteString
+  | Hash                                     AlexPosn ByteString.ByteString
+  | Plus                                     AlexPosn ByteString.ByteString
+  | AtSign                                   AlexPosn ByteString.ByteString
+  | Caret                                    AlexPosn ByteString.ByteString
+  | Dollar                                   AlexPosn ByteString.ByteString
+  | LettersOthersDollars                     AlexPosn ByteString.ByteString
+  | AllDigits                                AlexPosn ByteString.ByteString
+  | StartsWithDigit                          AlexPosn ByteString.ByteString
+  | Word                                     AlexPosn ByteString.ByteString
+  deriving Show
+
+main = do
+  c <- ByteString.getContents
+  let tokens = alexScanTokens c
+  putStr (show c)
 
 }
