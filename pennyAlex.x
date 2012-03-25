@@ -1,5 +1,5 @@
 {
-module Main where
+module Penny.Brass.Lexer where
 }
 
 %wrapper "posn-bytestring"
@@ -68,10 +68,5 @@ data Token =
   | StartsWithDigit                          AlexPosn ByteString.ByteString
   | Word                                     AlexPosn ByteString.ByteString
   deriving Show
-
-main = do
-  c <- ByteString.getContents
-  let tokens = alexScanTokens c
-  putStr (show c)
 
 }
