@@ -69,7 +69,7 @@
 ; indentation is nice for readability, but it is not required.
 ; (It does have to be on a new line though.)
 2012/01/03 Flathead
-    [R] (905) <Luvapet Vet> Expenses:Pet    Dr $10.00
+    [R] (905) <Luvapet Vet> Expenses:Pet    Dr $^10.00^
     Assets:Checking               Cr $5.00
     [*] (2313) {Liabilities:Credit Card}       Cr $5.00
        'This interest rate is too high
