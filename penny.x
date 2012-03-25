@@ -14,22 +14,22 @@ $topSymbol  = \x7b-\x7e      -- left curly bracket to tilde
 $delete     = \x7f
 $newline    = \x0a
 
+$notSpecial = [^\x01]
+              
 
-$special = [ $lowAscii $space $lowSymbol $midSymbol
-             $digit $highSymbol $topSymbol $delete ]
+$notSpace = [^ \x20 \t \x0A ]
 
-@nonSpace = [ ^ \n \t $space ]
+$special = [ $lowAscii $space $lowSymbol $digit $midSymbol
+             $highSymbol $topSymbol $delete $newline ]
 
-tokens :-
+lex :-
 
--- actions must have type :: AlexPosn -> ByteString.ByteString -> token
-
-$space+    ;
+$space+ ;
 $newline { \p _ -> BlankLine p }
+"#" .* \n { Comment }
+\; .* \n { PostingMemo }
+$notSpecial $notSpace* { Word }
 
-\#.* { \p s -> Comment p s }
-\;.* { \p s -> PostingMemo p s }
-[ ^ $special ] @nonSpace* { \p s -> Word p s }
 
 {
 data Token =
