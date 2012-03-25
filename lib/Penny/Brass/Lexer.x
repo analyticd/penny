@@ -1,4 +1,5 @@
 {
+{-# OPTIONS_GHC -w #-}
 module Penny.Brass.Lexer where
 }
 

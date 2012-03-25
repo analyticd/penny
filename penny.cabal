@@ -191,6 +191,7 @@ Library
 
     Exposed-modules:
         Penny,
+        Penny.Brass.Lexer,
         Penny.Cabin,
         Penny.Cabin.Allocate,
         Penny.Cabin.Balance,
