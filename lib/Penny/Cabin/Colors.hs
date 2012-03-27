@@ -37,10 +37,8 @@ module Penny.Cabin.Colors (
   
 
 import Control.Applicative (pure, (*>))
-import Data.Maybe (catMaybes)
 import Data.Monoid (Monoid, mempty, mappend)
 import qualified Data.Foldable as F
-import Data.List (intersperse)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Data.Text (Text)
@@ -48,6 +46,7 @@ import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified Data.Traversable as T
 import Data.Word (Word8)
+import qualified Data.ByteString.Char8 as BS
 import System.Environment (getEnvironment)
 import System.IO (hIsTerminalDevice, stdout)
 
@@ -59,9 +58,9 @@ data ColorPref = Pref0 | Pref8 | Pref256 | PrefAuto
 data Colors = Colors0 | Colors8 | Colors256
             deriving Show
 
-data Bit = Bit TextSpec Text
+data Bit = Bit !TextSpec !Text
 
-data Chunk = Chunk (Seq Bit)
+newtype Chunk = Chunk (Seq Bit)
 
 emptyChunk :: Chunk
 emptyChunk = Chunk S.empty
@@ -83,25 +82,25 @@ data Color8 =
 
 instance HasForegroundCode Color8 where
   foregroundCode a = case a of
-    Black -> Code "30"
-    Red -> Code "31"
-    Green -> Code "32"
-    Yellow -> Code "33"
-    Blue -> Code "34"
-    Magenta -> Code "35"
-    Cyan -> Code "36"
-    White -> Code "37"
+    Black -> code (esc:"[30m")
+    Red -> code (esc:"[31m")
+    Green -> code (esc:"[32m")
+    Yellow -> code (esc:"[33m")
+    Blue -> code (esc:"[34m")
+    Magenta -> code (esc:"[35m")
+    Cyan -> code (esc:"[36m")
+    White -> code (esc:"[37m")
 
 instance HasBackgroundCode Color8 where
   backgroundCode a = case a of
-    Black -> Code "40"
-    Red -> Code "41"
-    Green -> Code "42"
-    Yellow -> Code "43"
-    Blue -> Code "44"
-    Magenta -> Code "45"
-    Cyan -> Code "46"
-    White -> Code "47"
+    Black -> code (esc:"[40m")
+    Red -> code (esc:"[41m")
+    Green -> code (esc:"[42m")
+    Yellow -> code (esc:"[43m")
+    Blue -> code (esc:"[44m")
+    Magenta -> code (esc:"[45m")
+    Cyan -> code (esc:"[46m")
+    White -> code (esc:"[47m")
 
 black :: Color Color8
 black = Color Black
@@ -133,14 +132,14 @@ color256 = Color . c256
 defaultColor :: Color a
 defaultColor = Default
 
-data Color256 = Color256 Word8
+newtype Color256 = Color256 Word8
                 deriving Show
 
 instance HasForegroundCode Color256 where
-  foregroundCode (Color256 w) = Code $ "38;5;" ++ show w
+  foregroundCode (Color256 w) = code (esc:("[38;5;" ++ show w ++ "m"))
 
 instance HasBackgroundCode Color256 where
-  backgroundCode (Color256 w) = Code $ "48;5;" ++ show w
+  backgroundCode (Color256 w) = code (esc:("[48;5;" ++ show w ++ "m"))
 
 c256 :: Int -> Color256
 c256 w =
@@ -198,7 +197,7 @@ printCodeIfOn s = case s of
 printMaybeCode :: Maybe Code -> IO ()
 printMaybeCode c = case c of
   Nothing -> return ()
-  Just code -> controlCode code
+  Just cd -> controlCode cd
 
 data TextSpec =
   TextSpec { style8 :: Style Color8
@@ -246,14 +245,17 @@ data Flash = Flash
 data Inverse = Inverse
 data Invisible = Invisible
 data Reset = Reset
-newtype Code = Code { unCode :: String }
+newtype Code = Code BS.ByteString
 
-instance HasOnCode Bold where onCode _ = Code "1"
-instance HasOnCode Underline where onCode _ = Code "4"
-instance HasOnCode Flash where onCode _ = Code "5"
-instance HasOnCode Inverse where onCode _ = Code "7"
-instance HasOnCode Invisible where onCode _ = Code "8"
-instance HasOnCode Reset where onCode _ = Code "0"
+code :: String -> Code
+code = Code . BS.pack
+
+instance HasOnCode Bold where onCode _ = code (esc:"[1m")
+instance HasOnCode Underline where onCode _ = code (esc:"[4m")
+instance HasOnCode Flash where onCode _ = code (esc:"[5m")
+instance HasOnCode Inverse where onCode _ = code (esc:"[7m")
+instance HasOnCode Invisible where onCode _ = code (esc:"[8m")
+instance HasOnCode Reset where onCode _ = code (esc:"[0m")
 
 data Switch a = Off a | On a
 
@@ -262,14 +264,11 @@ printReset c = case c of
   Colors0 -> pure ()
   _ -> controlCode (onCode Reset)
 
-csi :: String
-csi = toEnum 27:'[':[]
+esc :: Char
+esc = toEnum 27
 
 controlCode :: Code -> IO ()
-controlCode c =
-  putStr csi
-  >> putStr (unCode c)
-  >> putStr "m"
+controlCode (Code c) = BS.putStr c
 
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
