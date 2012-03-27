@@ -21,33 +21,33 @@ newtype RevPostingNum =
 newtype VisibleNum = VisibleNum { unVisibleNum :: Int }
                      deriving (Show, Eq, Ord)
 
-data PostingInfo =
-  PostingInfo { postingBox :: B.PostingBox
-              , balance :: Bal.Balance
-              , postingNum :: PostingNum
-              , revPostingNum :: RevPostingNum
-              , fwdSeqUnsorted :: T.FwdSeqUnsorted
-              , backSeqUnsorted :: T.BackSeqUnsorted
-              , fwdSeqSorted :: T.FwdSeqSorted
-              , backSeqSorted :: T.BackSeqSorted }
+data T =
+  T { postingBox :: B.PostingBox
+    , balance :: Bal.Balance
+    , postingNum :: PostingNum
+    , revPostingNum :: RevPostingNum
+    , fwdSeqUnsorted :: T.FwdSeqUnsorted
+    , backSeqUnsorted :: T.BackSeqUnsorted
+    , fwdSeqSorted :: T.FwdSeqSorted
+    , backSeqSorted :: T.BackSeqSorted }
 
 fromLibertyInfo ::
   Bal.Balance
   -> PostingNum
   -> RevPostingNum
   -> T.PostingInfo
-  -> PostingInfo
+  -> T
 fromLibertyInfo b pn rpn tpi =
-  PostingInfo { postingBox = T.postingBox tpi
-              , balance = b
-              , postingNum = pn
-              , revPostingNum = rpn
-              , fwdSeqUnsorted = T.fwdSeqUnsorted tpi
-              , backSeqUnsorted = T.backSeqUnsorted tpi
-              , fwdSeqSorted = T.fwdSeqSorted tpi
-              , backSeqSorted = T.backSeqSorted tpi }
+  T { postingBox = T.postingBox tpi
+    , balance = b
+    , postingNum = pn
+    , revPostingNum = rpn
+    , fwdSeqUnsorted = T.fwdSeqUnsorted tpi
+    , backSeqUnsorted = T.backSeqUnsorted tpi
+    , fwdSeqSorted = T.fwdSeqSorted tpi
+    , backSeqSorted = T.backSeqSorted tpi }
 
-toLibertyInfo :: PostingInfo -> T.PostingInfo
+toLibertyInfo :: T -> T.PostingInfo
 toLibertyInfo p =
   T.PostingInfo { T.postingBox = postingBox p
                 , T.fwdSeqUnsorted = fwdSeqUnsorted p
