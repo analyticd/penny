@@ -213,7 +213,7 @@ sep = pack ":"
 -- | The account option; matches if the pattern given matches the
 -- colon-separated account name.
 account :: MatcherFactory -> ParserE Error Operand
-account = sepOption "account" (Just 'A') P.account
+account = sepOption "account" (Just 'a') P.account
 
 -- | Parses exactly one integer; fails if it cannot read exactly one.
 parseInt :: Text -> Exceptional Error Int

@@ -31,7 +31,7 @@ help = pack $ unlines [
   "Pattern matching",
   "----------------",
   "",
-  "-A pattern, --account pattern",
+  "-a pattern, --account pattern",
   "  Pattern must match colon-separated account name",
   "--account-level num pat",
   "  Pattern must match sub account at given level",
