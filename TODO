@@ -1,9 +1,0 @@
-* Check parsers. Some might need two whitespace parsers: one for
-   required whitespace and one for optional whitespace.
-
-* Write merge for families
-
-* Improve parser errors
-
-* Write tests for inputs that should fail
-
