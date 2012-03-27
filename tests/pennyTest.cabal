@@ -80,7 +80,7 @@ Executable pennyTestSuite
     pennyTest ==0.1.*,
     test-framework ==0.5.*
 
-  GHC-Options: -Wall
+  GHC-Options: -Wall -rtsopts
 
 Executable copperTest
   hs-source-dirs: bin
@@ -94,7 +94,7 @@ Executable copperTest
     pennyTest ==0.1.*
 
   Main-is: copperTest.hs
-  GHC-Options: -Wall
+  GHC-Options: -Wall -rtsopts
 
 Executable gibberish
   hs-source-dirs: bin
@@ -107,7 +107,7 @@ Executable gibberish
     text ==0.11.*
 
   Main-is: gibberish.hs
-  GHC-Options: -Wall
+  GHC-Options: -Wall -rtsopts
 
 Executable brassTest
   hs-source-dirs: bin
@@ -118,4 +118,4 @@ Executable brassTest
     pretty-show ==1.2.*
 
   Main-is: brassTest.hs
-  GHC-Options: -Wall
+  GHC-Options: -Wall -rtsopts
