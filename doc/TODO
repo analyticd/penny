@@ -1,0 +1,4 @@
+* Fix bug with --show memo option to postings report. It is crashing
+   with Array.!: undefined array element.
+
+* Parse errors are not rendering with line breaks.
