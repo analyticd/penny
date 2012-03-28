@@ -29,15 +29,17 @@ data T =
     , fwdSeqUnsorted :: T.FwdSeqUnsorted
     , backSeqUnsorted :: T.BackSeqUnsorted
     , fwdSeqSorted :: T.FwdSeqSorted
-    , backSeqSorted :: T.BackSeqSorted }
+    , backSeqSorted :: T.BackSeqSorted
+    , visibleNum :: VisibleNum }
 
 fromLibertyInfo ::
   Bal.Balance
   -> PostingNum
   -> RevPostingNum
   -> T.PostingInfo
+  -> VisibleNum
   -> T
-fromLibertyInfo b pn rpn tpi =
+fromLibertyInfo b pn rpn tpi vn =
   T { postingBox = T.postingBox tpi
     , balance = b
     , postingNum = pn
@@ -45,7 +47,8 @@ fromLibertyInfo b pn rpn tpi =
     , fwdSeqUnsorted = T.fwdSeqUnsorted tpi
     , backSeqUnsorted = T.backSeqUnsorted tpi
     , fwdSeqSorted = T.fwdSeqSorted tpi
-    , backSeqSorted = T.backSeqSorted tpi }
+    , backSeqSorted = T.backSeqSorted tpi
+    , visibleNum = vn }
 
 toLibertyInfo :: T -> T.PostingInfo
 toLibertyInfo p =

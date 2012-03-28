@@ -37,6 +37,14 @@ data TransactionBox =
                  , transactionMeta :: Maybe TransactionMeta }
   deriving (Eq, Show)
 
+-- | A PostingBox holds not only information about a particular
+-- posting, but also information about the associated TopLine and also
+-- information on all related Postings. There is also information
+-- about metadata for all these things, if there is any. The functions
+-- in 'Penny.Lincoln.Queries' make use of all this information to
+-- provide the \"best\" information about a posting--for instance, if
+-- a posting has no Number, but its associated TopLine does, the
+-- number function will provide the number from the TopLine.
 data PostingBox =
   PostingBox { postingBundle :: Child TopLine Posting
              , metaBundle :: Maybe (Child TopLineMeta PostingMeta) }
