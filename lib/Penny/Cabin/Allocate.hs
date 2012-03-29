@@ -8,12 +8,11 @@ import qualified Control.Monad.Trans.State as St
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import qualified Data.Map as M
-import Data.Word (Word)
 
-newtype Allocation = Allocation { unAllocation :: Word }
+newtype Allocation = Allocation { unAllocation :: Int }
                      deriving (Show, Eq, Ord)
 
-allocation :: Word -> Allocation
+allocation :: Int -> Allocation
 allocation i =
   if i < 1
   then error "Allocations must be at least 1"
@@ -22,13 +21,13 @@ allocation i =
 allocate ::
   Ord k
   => M.Map k Allocation
-  -> Word
-  -> M.Map k Word
+  -> Int
+  -> M.Map k Int
 allocate m t = let
   tot = F.sum . fmap (toDouble . unAllocation) $ m
   ratios = fmap ((/tot) . toDouble . unAllocation) m
   rounded = fmap (round . (* (toDouble t))) ratios
-  toDouble = fromIntegral :: Word -> Double
+  toDouble = fromIntegral :: Int -> Double
   
   in if M.null m
      then M.empty
@@ -36,9 +35,9 @@ allocate m t = let
 
 adjust ::
   Ord k
-  => M.Map k Word
-  -> Word
-  -> M.Map k Word
+  => M.Map k Int
+  -> Int
+  -> M.Map k Int
 adjust ws w = let
   wsInts = fmap fromIntegral ws
   diff = (fromIntegral w) - F.sum wsInts in
@@ -51,7 +50,7 @@ adjust ws w = let
          in adjust ws' w
 
 -- | The state is the target number minus the current actual total.
-adjustMap :: Word -> St.State Int Word
+adjustMap :: Int -> St.State Int Int
 adjustMap w = do
   diff <- St.get
   case compare diff 0 of

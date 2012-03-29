@@ -1,11 +1,13 @@
 -- | Calculates cells that "grow to fit." These cells grow to fit the
 -- widest cell in the column. No information is ever truncated from
 -- these cells (what use is a truncated dollar amount?)
-module Penny.Cabin.Posts.Growers (growCells, Fields(..)) where
+module Penny.Cabin.Posts.Growers (growCells, Fields(..), grownWidth) where
 
 import Control.Applicative((<$>), Applicative(pure, (<*>)))
 import Data.List (foldl')
 import qualified Data.Map as M
+import qualified Data.Semigroup as Semi
+import Data.Semigroup ((<>))
 import qualified Data.Sequence as Seq
 import Data.Text (Text, pack, empty)
 import qualified Data.Text as X
@@ -16,6 +18,8 @@ import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Info as I
 import qualified Penny.Cabin.Posts.Info as Info
+import qualified Penny.Cabin.Posts.Spacers as S
+import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
@@ -62,8 +66,8 @@ justifyCells ::
   -> [Fields (Maybe R.Cell)]
 justifyCells widths cs = let
   justifier mayWidth mayCell = resizer <$> mayWidth <*> mayCell
-  justifyRow = newFields justifier widths
-  in map justifyRow cs
+  justifyRow = justifier <$> widths
+  in map (justifyRow <*>) cs
 
 -- | Measures all cells and returns a Fields indicating the widest
 -- field in each column. Fields that are not in the report are
@@ -93,63 +97,19 @@ updateWidest ::
   Fields (Maybe Int)
   -> Fields (Maybe R.Cell)
   -> Fields (Maybe Int)
-updateWidest = newFields wider where
+updateWidest fi fc = wider <$> fi <*> fc where
   wider maybeI maybeC =
     max
     <$> maybeI
     <*> ((C.unWidth . R.widestLine . R.chunks) <$> maybeC)
   
+
 getCells :: Options.T a -> Info.T -> Fields (Maybe R.Cell)
 getCells os i = let
   flds = growingFields os
-  ifShown fn a =
-    if fn flds then Just a else Nothing in
-  Fields {
-    postingNum = ifShown postingNum (getPostingNum os i)
-    , visibleNum = ifShown visibleNum (getVisibleNum os i)
-    , revPostingNum = ifShown revPostingNum (getRevPostingNum os i)
-    , lineNum = ifShown lineNum (getLineNum os i)
-    , date = ifShown date (getDate os i)
-    , flag = ifShown flag (getFlag os i)
-    , number = ifShown number (getNumber os i)
-    , postingDrCr = ifShown postingDrCr (getPostingDrCr os i)
-    , postingCmdty = ifShown postingCmdty (getPostingCmdty os i)
-    , postingQty = ifShown postingQty (getPostingQty os i)
-    , totalDrCr = ifShown totalDrCr (getTotalDrCr os i)
-    , totalCmdty = ifShown totalCmdty (getTotalCmdty os i)
-    , totalQty = ifShown totalQty (getTotalQty os i) }
+  ifShown fld fn = if fld then Just $ fn os i else Nothing
+  in ifShown <$> flds <*> growers
 
--- | Makes a new Fields based on a function and two old Fields. A
--- common pattern is the need to create a new Fields data based on the
--- contents of two old Fields types. This results in a lot of
--- boilerplate. This function takes two Fields data parameterized on
--- different types and a function which takes both of those types and
--- returns a new type. This function is appled to every record in the
--- Fields type to create a new Fields data.
-newFields ::
-  (a -> b -> c)
-  -> Fields a
-  -> Fields b
-  -> Fields c
-newFields f a b =
-  f <$> a <*> b
-  
-{-
-  Fields {
-  postingNum = f (postingNum a) (postingNum b)
-  , visibleNum = f (visibleNum a) (visibleNum b)
-  , revPostingNum = f (revPostingNum a) (revPostingNum b)
-  , lineNum = f (lineNum a) (lineNum b)
-  , date = f (date a) (date b)
-  , flag = f (flag a) (flag b)
-  , number = f (number a) (number b)
-  , postingDrCr = f (postingDrCr a) (postingDrCr b)
-  , postingCmdty = f (postingCmdty a) (postingCmdty b)
-  , postingQty = f (postingQty a) (postingQty b)
-  , totalDrCr = f (totalDrCr a) (totalDrCr b)
-  , totalCmdty = f (totalCmdty a) (totalCmdty b)
-  , totalQty = f (totalQty a) (totalQty b) }
--}
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
 oneLine :: Text -> Options.T a -> Info.T -> R.Cell
@@ -161,6 +121,22 @@ oneLine t os i = let
   j = R.LeftJustify
   chunk = Seq.singleton . C.chunk ts $ t
   in R.Cell j w ts chunk
+
+growers :: Fields (Options.T a -> Info.T -> R.Cell)
+growers = Fields {
+  postingNum = getPostingNum
+  , visibleNum = getVisibleNum
+  , revPostingNum = getRevPostingNum
+  , lineNum = getLineNum
+  , date = getDate
+  , flag = getFlag
+  , number = getNumber
+  , postingDrCr = getPostingDrCr
+  , postingCmdty = getPostingCmdty
+  , postingQty = getPostingQty
+  , totalDrCr = getTotalDrCr
+  , totalCmdty = getTotalCmdty
+  , totalQty = getTotalQty }
 
 getPostingNum :: Options.T a -> Info.T -> R.Cell
 getPostingNum os i = oneLine t os i where
@@ -301,20 +277,20 @@ growingFields o = let
 
 -- | All growing fields.
 data Fields a = Fields {
-  postingNum :: !a
-  , visibleNum :: !a
-  , revPostingNum :: !a
-  , lineNum :: !a
+  postingNum :: a
+  , visibleNum :: a
+  , revPostingNum :: a
+  , lineNum :: a
     -- ^ The line number from the posting's metadata
-  , date :: !a
-  , flag :: !a
-  , number :: !a
-  , postingDrCr :: !a
-  , postingCmdty :: !a
-  , postingQty :: !a
-  , totalDrCr :: !a
-  , totalCmdty :: !a
-  , totalQty :: !a }
+  , date :: a
+  , flag :: a
+  , number :: a
+  , postingDrCr :: a
+  , postingCmdty :: a
+  , postingQty :: a
+  , totalDrCr :: a
+  , totalCmdty :: a
+  , totalQty :: a }
   deriving (Show, Eq)
 
 instance Functor Fields where
@@ -364,10 +340,72 @@ instance Applicative Fields where
     , totalCmdty = totalCmdty fl (totalCmdty fa)
     , totalQty = totalQty fl (totalQty fa) }
     
-  
+-- | Pairs data from a Fields with its matching spacer field. The
+-- spacer field is returned in a Maybe because the TotalQty field does
+-- not have a spacer.
+pairWithSpacer :: Fields a -> Spacers.T b -> Fields (a, Maybe b)
+pairWithSpacer f s = Fields {
+  postingNum = (postingNum f, Just (S.postingNum s))
+  , visibleNum = (visibleNum f, Just (S.visibleNum s))
+  , revPostingNum = (revPostingNum f, Just (S.revPostingNum s))
+  , lineNum = (lineNum f, Just (S.lineNum s))
+  , date = (date f, Just (S.date s))
+  , flag = (flag f, Just (S.flag s))
+  , number = (number f, Just (S.number s))
+  , postingDrCr = (postingDrCr f, Just (S.postingDrCr s))
+  , postingCmdty = (postingCmdty f, Just (S.postingCmdty s))
+  , postingQty = (postingQty f, Just (S.postingQty s))
+  , totalDrCr = (totalDrCr f, Just (S.totalDrCr s))
+  , totalCmdty = (totalCmdty f, Just (S.totalCmdty s))
+  , totalQty = (totalQty f, Nothing) }
 
+-- | Reduces a set of Fields to a single value.
+reduce :: Semi.Semigroup s => Fields s -> s
+reduce f =
+  postingNum f
+  <> visibleNum f
+  <> revPostingNum f
+  <> lineNum f
+  <> date f
+  <> flag f
+  <> number f
+  <> postingDrCr f
+  <> postingCmdty f
+  <> postingQty f
+  <> totalDrCr f
+  <> totalCmdty f
+  <> totalQty f
 
-    
+-- | Compute the width of all Grown cells, including any applicable
+-- spacer cells.
+grownWidth ::
+  Fields (Maybe Int)
+  -> Spacers.T Int
+  -> Int
+grownWidth fs ss =
+  Semi.getSum
+  . reduce
+  . fmap Semi.Sum
+  . fmap fieldWidth
+  $ pairWithSpacer fs ss
+
+-- | Compute the field width of a single field and its spacer. The
+-- first element of the tuple is the field width, if present; the
+-- second element of the tuple is the width of the spacer. If there is
+-- no field, returns 0.
+fieldWidth :: (Maybe Int, Maybe Int) -> Int
+fieldWidth (m1, m2) = case m1 of
+  Nothing -> 0
+  Just i1 -> case m2 of
+    Just i2 -> if i2 > 0 then i1 + i2 else i1
+    Nothing -> i1
+
+-- | Sums the spacers. Takes into account which one is rightmost.
+sumSpacers :: Spacers.T Int -> Fields Bool -> Int
+sumSpacers s f
+  | F.totalQty f = sumAllSpacers
+  | not F.totalQty =
+    g | 
 
 {-
 t_postingNum :: a -> Fields a -> Fields a

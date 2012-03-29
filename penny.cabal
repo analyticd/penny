@@ -184,6 +184,7 @@ Library
         Penny.Cabin.Colors.Switch,
         Penny.Cabin.Interface,
         Penny.Cabin.Posts,
+        Penny.Cabin.Posts.Allocate,
         Penny.Cabin.Posts.Allocated,
         Penny.Cabin.Posts.Colors,
         Penny.Cabin.Posts.Colors.DarkBackground,

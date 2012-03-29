@@ -15,7 +15,7 @@ import qualified Penny.Liberty.Types as Ty
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
-import qualified Penny.Cabin.Allocate as A
+import qualified Penny.Cabin.Posts.Allocate as A
 import qualified Penny.Cabin.Colors as CC
 import qualified Penny.Cabin.Posts.Colors as C
 import qualified Penny.Cabin.Posts.Fields as Fields
