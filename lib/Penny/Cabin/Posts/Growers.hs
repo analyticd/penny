@@ -1,9 +1,9 @@
 -- | Calculates cells that "grow to fit." These cells grow to fit the
 -- widest cell in the column. No information is ever truncated from
 -- these cells (what use is a truncated dollar amount?)
-module Penny.Cabin.Posts.Growers (growCells, Fields) where
+module Penny.Cabin.Posts.Growers (growCells, Fields(..)) where
 
-import Control.Applicative((<$>), (<*>), (<$))
+import Control.Applicative((<$>), Applicative(pure, (<*>)))
 import Data.List (foldl')
 import qualified Data.Map as M
 import qualified Data.Sequence as Seq
@@ -25,35 +25,65 @@ import qualified Penny.Lincoln.Queries as Q
 -- width undetermined. Then it determines the widest line in each
 -- column. Finally it adjusts each cell in the column so that it is
 -- that maximum width.
-growCells :: Options.T a -> [Info.T] -> [Fields (Maybe R.Cell)]
-growCells o = justifyCells . map (getCells o)
-
-justifyCells ::
+--
+-- Returns a list of rows, and a Fields holding the width of each
+-- cell. Each of these widths will be at least 1; fields that were in
+-- the report but that ended up having no width are changed to
+-- Nothing.
+growCells ::
   Options.T a
+  -> [Info.T]
+  -> ([Fields (Maybe R.Cell)], Fields (Maybe Int))
+growCells o info = (rowsNoZeroes, widthsNoZeroes) where
+  cells = justifyCells widths . map (getCells o) $ info
+  fieldsInReport = growingFields o
+  widths = measureWidest fieldsInReport cells
+  widthsNoZeroes = fmap removeZero widths where
+    removeZero maybeI = case maybeI of
+      Nothing -> Nothing
+      Just 0 -> Nothing
+      Just x -> Just x
+  fieldsNoZeroes = newFields removeZero widths where
+    removeZero width maybeCell = case width of
+      Nothing -> Nothing
+      Just _ -> maybeCell
+  rowsNoZeroes = map fieldsNoZeroes cells
+
+
+-- | Given a width and a cell, resizes the cell.
+resizer :: Int -> R.Cell -> R.Cell
+resizer i c = c { R.width = C.Width i }
+
+-- | Given measurements of the widest cell in a column, adjusts each
+-- cell so that it is that wide.
+justifyCells ::
+  Fields (Maybe Int)
   -> [Fields (Maybe R.Cell)]
   -> [Fields (Maybe R.Cell)]
-justifyCells os fs = let
-  mkField fn = maybe Nothing (const (Just 0)) (fn showing)
-  showing = O.fields os
-  starter fn = C.Width 0 <$ fn showing
-  s = Fields {
-    postingNum = starter postingNum
-    , visibleNum = starter visibleNum
-    , revPostingNum = starter revPostingNum
-    , lineNum = starter lineNum
-    , date = starter date
-    , flag = starter flag
-    , number = starter number
-    , postingDrCr = starter postingDrCr
-    , postingCmdty = starter postingCmdty
-    , postingQty = starter postingQty
-    , totalDrCr = starter postingDrCr
-    , totalCmdty = starter postingCmdty
-    , totalQty = starter postingQty }
-  in foldl' updateWidest s 
+justifyCells widths cs = let
+  justifier mayWidth mayCell = resizer <$> mayWidth <*> mayCell
+  justifyRow = newFields justifier widths
+  in map justifyRow cs
+
+-- | Measures all cells and returns a Fields indicating the widest
+-- field in each column. Fields that are not in the report are
+-- Nothing. Fields that are in the report, but that have no width, are
+-- Just 0.
+measureWidest ::
+  Fields Bool
+  -> [Fields (Maybe R.Cell)]
+  -> Fields (Maybe Int)
+measureWidest fs = foldl' updateWidest z where
+  z = initWidest fs
 
 
-
+-- | Initializes the starting set of fields for the initializer value
+-- that is used for updateWidest. Fields that are present in the
+-- report are initialized to Just zero; fields not in the report are
+-- initialized to Nothing.
+initWidest :: Fields Bool -> Fields (Maybe Int)
+initWidest = fmap (\b -> if b then Just 0 else Nothing)
+  
 -- | Given a Fields indicating the cell widths found so far, update
 -- the cell widths with values from a new set of cells, keeping
 -- whichever is wider. If a cell is not present in the report at all,
@@ -63,25 +93,12 @@ updateWidest ::
   Fields (Maybe Int)
   -> Fields (Maybe R.Cell)
   -> Fields (Maybe Int)
-updateWidest ts cs = let
-  wider fn1 fn2 = max
-    <$> fn1 ts
-    <*> ((C.unWidth . R.widestLine . R.chunks) <$> (fn2 cs))
-  in Fields {
-    postingNum = wider postingNum postingNum
-    , visibleNum = wider visibleNum visibleNum
-    , revPostingNum = wider revPostingNum revPostingNum
-    , lineNum = wider lineNum lineNum
-    , date = wider date date
-    , flag = wider flag flag
-    , number = wider number number
-    , postingDrCr = wider postingDrCr postingDrCr
-    , postingCmdty = wider postingCmdty postingCmdty
-    , postingQty = wider postingQty postingQty
-    , totalDrCr = wider postingDrCr postingDrCr
-    , totalCmdty = wider postingCmdty postingCmdty
-    , totalQty = wider postingQty postingQty }
-
+updateWidest = newFields wider where
+  wider maybeI maybeC =
+    max
+    <$> maybeI
+    <*> ((C.unWidth . R.widestLine . R.chunks) <$> maybeC)
+  
 getCells :: Options.T a -> Info.T -> Fields (Maybe R.Cell)
 getCells os i = let
   flds = growingFields os
@@ -101,6 +118,42 @@ getCells os i = let
     , totalDrCr = ifShown totalDrCr (getTotalDrCr os i)
     , totalCmdty = ifShown totalCmdty (getTotalCmdty os i)
     , totalQty = ifShown totalQty (getTotalQty os i) }
+
+-- | Makes a new Fields based on a function and two old Fields. A
+-- common pattern is the need to create a new Fields data based on the
+-- contents of two old Fields types. This results in a lot of
+-- boilerplate. This function takes two Fields data parameterized on
+-- different types and a function which takes both of those types and
+-- returns a new type. This function is appled to every record in the
+-- Fields type to create a new Fields data.
+newFields ::
+  (a -> b -> c)
+  -> Fields a
+  -> Fields b
+  -> Fields c
+newFields f a b = Fields {
+  postingNum = f (postingNum a) (postingNum b)
+  , visibleNum = f (visibleNum a) (visibleNum b)
+  , revPostingNum = f (revPostingNum a) (revPostingNum b)
+  , lineNum = f (lineNum a) (lineNum b)
+  , date = f (date a) (date b)
+  , flag = f (flag a) (flag b)
+  , number = f (number a) (number b)
+  , postingDrCr = f (postingDrCr a) (postingDrCr b)
+  , postingCmdty = f (postingCmdty a) (postingCmdty b)
+  , postingQty = f (postingQty a) (postingQty b)
+  , totalDrCr = f (totalDrCr a) (totalDrCr b)
+  , totalCmdty = f (totalCmdty a) (totalCmdty b)
+  , totalQty = f (totalQty a) (totalQty b) }
+
+-- | Takes an old Fields and a Fields with functions in each
+-- field. Returns a new Fields from applying the functions to the old
+-- Fields.
+multiNewFields ::
+  Fields a
+  -> Fields (a -> b)
+  -> Fields b
+multiNewFields = undefined
 
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
@@ -268,6 +321,42 @@ data Fields a = Fields {
   , totalCmdty :: !a
   , totalQty :: !a }
   deriving (Show, Eq)
+
+instance Functor Fields where
+  fmap f i = Fields {
+    postingNum = f (postingNum i)
+    , visibleNum = f (visibleNum i)
+    , revPostingNum = f (revPostingNum i)
+    , lineNum = f (lineNum i)
+    , date = f (date i)
+    , flag = f (flag i)
+    , number = f (number i)
+    , postingDrCr = f (postingDrCr i)
+    , postingCmdty = f (postingCmdty i)
+    , postingQty = f (postingQty i)
+    , totalDrCr = f (totalDrCr i)
+    , totalCmdty = f (totalCmdty i)
+    , totalQty = f (totalQty i) }
+    
+instance Applicative Fields where
+  pure a = Fields {
+    postingNum = a
+    , visibleNum = a
+    , revPostingNum = a
+    , lineNum = a
+    , date = a
+    , flag = a
+    , number = a
+    , postingDrCr = a
+    , postingCmdty = a
+    , postingQty = a
+    , totalDrCr = a
+    , totalCmdty = a
+    , totalQty = a }
+  
+
+
+    
 
 {-
 t_postingNum :: a -> Fields a -> Fields a
