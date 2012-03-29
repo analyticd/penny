@@ -43,11 +43,11 @@ growCells o info = (rowsNoZeroes, widthsNoZeroes) where
       Nothing -> Nothing
       Just 0 -> Nothing
       Just x -> Just x
-  fieldsNoZeroes = newFields removeZero widths where
+  fieldsNoZeroes = removeZero <$> widths where
     removeZero width maybeCell = case width of
       Nothing -> Nothing
       Just _ -> maybeCell
-  rowsNoZeroes = map fieldsNoZeroes cells
+  rowsNoZeroes = map (fieldsNoZeroes <*>) cells
 
 
 -- | Given a width and a cell, resizes the cell.
@@ -131,7 +131,11 @@ newFields ::
   -> Fields a
   -> Fields b
   -> Fields c
-newFields f a b = Fields {
+newFields f a b =
+  f <$> a <*> b
+  
+{-
+  Fields {
   postingNum = f (postingNum a) (postingNum b)
   , visibleNum = f (visibleNum a) (visibleNum b)
   , revPostingNum = f (revPostingNum a) (revPostingNum b)
@@ -145,16 +149,7 @@ newFields f a b = Fields {
   , totalDrCr = f (totalDrCr a) (totalDrCr b)
   , totalCmdty = f (totalCmdty a) (totalCmdty b)
   , totalQty = f (totalQty a) (totalQty b) }
-
--- | Takes an old Fields and a Fields with functions in each
--- field. Returns a new Fields from applying the functions to the old
--- Fields.
-multiNewFields ::
-  Fields a
-  -> Fields (a -> b)
-  -> Fields b
-multiNewFields = undefined
-
+-}
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
 oneLine :: Text -> Options.T a -> Info.T -> R.Cell
@@ -337,7 +332,7 @@ instance Functor Fields where
     , totalDrCr = f (totalDrCr i)
     , totalCmdty = f (totalCmdty i)
     , totalQty = f (totalQty i) }
-    
+
 instance Applicative Fields where
   pure a = Fields {
     postingNum = a
@@ -353,6 +348,22 @@ instance Applicative Fields where
     , totalDrCr = a
     , totalCmdty = a
     , totalQty = a }
+
+  fl <*> fa = Fields {
+    postingNum = postingNum fl (postingNum fa)
+    , visibleNum = visibleNum fl (visibleNum fa)
+    , revPostingNum = revPostingNum fl (revPostingNum fa)
+    , lineNum = lineNum fl (lineNum fa)
+    , date = date fl (date fa)
+    , flag = flag fl (flag fa)
+    , number = number fl (number fa)
+    , postingDrCr = postingDrCr fl (postingDrCr fa)
+    , postingCmdty = postingCmdty fl (postingCmdty fa)
+    , postingQty = postingQty fl (postingQty fa)
+    , totalDrCr = totalDrCr fl (totalDrCr fa)
+    , totalCmdty = totalCmdty fl (totalCmdty fa)
+    , totalQty = totalQty fl (totalQty fa) }
+    
   
 
 
