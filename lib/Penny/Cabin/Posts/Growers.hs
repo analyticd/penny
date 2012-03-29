@@ -3,6 +3,8 @@
 -- these cells (what use is a truncated dollar amount?)
 module Penny.Cabin.Posts.Growers (growCells, Fields) where
 
+import Control.Applicative((<$>), (<*>), (<$))
+import Data.List (foldl')
 import qualified Data.Map as M
 import qualified Data.Sequence as Seq
 import Data.Text (Text, pack, empty)
@@ -26,8 +28,31 @@ import qualified Penny.Lincoln.Queries as Q
 growCells :: Options.T a -> [Info.T] -> [Fields (Maybe R.Cell)]
 growCells o = justifyCells . map (getCells o)
 
-justifyCells :: [Fields (Maybe R.Cell)] -> [Fields (Maybe R.Cell)]
-justifyCells = undefined
+justifyCells ::
+  Options.T a
+  -> [Fields (Maybe R.Cell)]
+  -> [Fields (Maybe R.Cell)]
+justifyCells os fs = let
+  mkField fn = maybe Nothing (const (Just 0)) (fn showing)
+  showing = O.fields os
+  starter fn = C.Width 0 <$ fn showing
+  s = Fields {
+    postingNum = starter postingNum
+    , visibleNum = starter visibleNum
+    , revPostingNum = starter revPostingNum
+    , lineNum = starter lineNum
+    , date = starter date
+    , flag = starter flag
+    , number = starter number
+    , postingDrCr = starter postingDrCr
+    , postingCmdty = starter postingCmdty
+    , postingQty = starter postingQty
+    , totalDrCr = starter postingDrCr
+    , totalCmdty = starter postingCmdty
+    , totalQty = starter postingQty }
+  in foldl' updateWidest s 
+
+
 
 -- | Given a Fields indicating the cell widths found so far, update
 -- the cell widths with values from a new set of cells, keeping
@@ -39,9 +64,23 @@ updateWidest ::
   -> Fields (Maybe R.Cell)
   -> Fields (Maybe Int)
 updateWidest ts cs = let
-  ifShown fn a =
-    maybe Nothing (const (Just a)) (fn ts) in
-  undefined
+  wider fn1 fn2 = max
+    <$> fn1 ts
+    <*> ((C.unWidth . R.widestLine . R.chunks) <$> (fn2 cs))
+  in Fields {
+    postingNum = wider postingNum postingNum
+    , visibleNum = wider visibleNum visibleNum
+    , revPostingNum = wider revPostingNum revPostingNum
+    , lineNum = wider lineNum lineNum
+    , date = wider date date
+    , flag = wider flag flag
+    , number = wider number number
+    , postingDrCr = wider postingDrCr postingDrCr
+    , postingCmdty = wider postingCmdty postingCmdty
+    , postingQty = wider postingQty postingQty
+    , totalDrCr = wider postingDrCr postingDrCr
+    , totalCmdty = wider postingCmdty postingCmdty
+    , totalQty = wider postingQty postingQty }
 
 getCells :: Options.T a -> Info.T -> Fields (Maybe R.Cell)
 getCells os i = let
