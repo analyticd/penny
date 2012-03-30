@@ -33,6 +33,7 @@ module Penny.Cabin.Posts.Allocated (payeeAndAcct, Fields(..)) where
 
 import Control.Applicative(Applicative((<*>), pure), (<$>))
 import Data.Maybe (catMaybes, isJust)
+import Data.List (intersperse)
 import qualified Data.Foldable as Fdbl
 import qualified Data.Sequence as Seq
 import qualified Data.Traversable as T
@@ -181,9 +182,23 @@ allocPayee w os i = let
   in c
 
 
-
 allocAcct :: Int -> Options.T a -> Info.T -> R.Cell
-allocAcct = undefined
+allocAcct aw os i = let
+  pb = I.postingBox i
+  ts = PC.colors (I.visibleNum i) (O.baseColors os) in
+  if aw == 0 then R.zeroCell else
+    R.Cell R.LeftJustify (C.Width aw) ts $ let
+    target = TF.Target aw
+    shortest = TF.Shortest . O.subAccountLength $ os
+    a = Q.account pb
+    ws = TF.Words . Seq.fromList . HT.textList $ a
+    (TF.Words shortened) = TF.shorten shortest target ws
+    in Seq.singleton
+       . C.chunk ts
+       . X.concat
+       . intersperse (X.singleton ':')
+       . Fdbl.toList
+       $ shortened
 
 -- | Gets the width of the two allocated fields.
 fieldWidth ::
