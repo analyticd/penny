@@ -59,29 +59,81 @@ data Fields a = Fields {
   , account :: a
   } deriving (Eq, Show)
 
-instance Functor Fields where
-  fmap f i = Fields {
-    payee = f (payee i)
-    , account = f (account i) }
+-- | Creates Payee and Account cells. The user must have requested the
+-- cells. In addition, no cells are created if there is not enough
+-- space for them in the report. Returns a Fields; each element of the
+-- Fields is Nothing if no cells were created (either because the user
+-- did not ask for them, or because there was no room) or Just cs i,
+-- where cs is a list of all the cells, and i is the width of all the
+-- cells.
+payeeAndAcct ::
+  Options.T a
+  -> Spacers.T Int
+  -> G.Fields (Maybe Int)
+  -> O.ReportWidth
+  -> [Info.T]
+  -> Fields (Maybe ([R.Cell], Int))
+payeeAndAcct os ss fs rw is = allocateCells os ws is where
+  ws = fieldWidth os ss fs rw
 
-instance Applicative Fields where
-  pure a = Fields a a
-  ff <*> fa = Fields {
-    payee = payee ff (payee fa)
-    , account = account ff (account fa) }
 
-instance Fdbl.Foldable Fields where
-  foldr f z flds =
-    f (payee flds) (f (account flds) z)
+-- | Allocates cells. Returns a pair, with the first element being the
+-- list of allocated cells, and the second indicating the width of the
+-- cells, which will be greater than zero.
+allocateCells ::
+  Options.T a
+  -> Fields Int
+  -> [Info.T]
+  -> Fields (Maybe ([R.Cell], Int))
+allocateCells os fs is = let
+  cellMakers = Fields allocPayee allocAcct
+  mkCells width maker =
+    if width > 0
+    then Just (map (maker width os) is)
+    else Nothing
+  unShrunkCells = mkCells <$> fs <*> cellMakers
+  in fmap (fmap removeExtraSpace) unShrunkCells
 
-instance T.Traversable Fields where
-  traverse f flds =
-    Fields <$> f (payee flds) <*> f (account flds)
-  
+
+-- | After first being allocated by allocPayee and allocAcct, cells
+-- are as wide as the total space allocated. This function removes the
+-- extra space, making all the cells as wide as the widest
+-- cell. Returns the resized cells and the new width.
+removeExtraSpace :: [R.Cell] -> ([R.Cell], Int)
+removeExtraSpace cs = (trimmed, len) where
+  len = Fdbl.foldl' f 0 cs where
+    f acc c = max acc (Fdbl.foldl' g 0 (R.chunks c)) where
+      g inAcc chk = max inAcc (C.unWidth . C.chunkSize $ chk)
+  trimmed = map f cs where
+    f c = c { R.width = C.Width len }
+
+-- | Gets the width of the two allocated fields.
+fieldWidth ::
+  Options.T a
+  -> Spacers.T Int
+  -> G.Fields (Maybe Int)
+  -> O.ReportWidth
+  -> Fields Int
+fieldWidth os ss fs (O.ReportWidth rw) = let
+  flds = optionsToFields os
+  grownWidth = sumGrowersAndSpacers fs ss
+  widthForCells = rw - grownWidth - allocSpacerWidth
+  payeeSpacerWidth = if payee flds then abs (S.payee ss) else 0
+  acctSpacerWidth = if account flds then abs (S.account ss) else 0
+  allocSpacerWidth = payeeSpacerWidth + acctSpacerWidth
+  allocs = (\bool alloc -> if bool then alloc else A.allocation 0)
+           <$> flds
+           <*> Fields (O.payeeAllocation os) (O.accountAllocation os)
+  in if widthForCells < 1
+     then pure 0
+     else A.allocate allocs widthForCells
+
+
 optionsToFields :: Options.T a -> Fields Bool
 optionsToFields os = let f = O.fields os in Fields {
   payee = F.payee f
   , account = F.account f }
+
 
 -- | Sums spacers for growing cells. This function is intended for use
 -- only by the functions that allocate cells for the report, so it
@@ -168,33 +220,6 @@ sumGrowersAndSpacers fs ss = spacers + flds where
       Just i -> acc + i
 
 
-payeeAndAcct ::
-  Options.T a
-  -> Spacers.T Int
-  -> G.Fields (Maybe Int)
-  -> O.ReportWidth
-  -> [Info.T]
-  -> Fields (Maybe ([R.Cell], Int))
-payeeAndAcct os ss fs rw is = allocateCells os ws is where
-  ws = fieldWidth os ss fs rw
-  
-
--- | Allocates cells. Returns a pair, with the first element being the
--- list of allocated cells, and the second indicating the width of the
--- cells, which will be greater than zero.
-allocateCells ::
-  Options.T a
-  -> Fields Int
-  -> [Info.T]
-  -> Fields (Maybe ([R.Cell], Int))
-allocateCells os fs is = let
-  cellMakers = Fields allocPayee allocAcct
-  mkCells width maker =
-    if width > 0
-    then Just (map (maker width os) is, width)
-    else Nothing
-  in mkCells <$> fs <*> cellMakers
-
 allocPayee :: Int -> Options.T a -> Info.T -> R.Cell
 allocPayee w os i = let
   pb = I.postingBox i
@@ -236,23 +261,22 @@ allocAcct aw os i = let
        . Fdbl.toList
        $ shortened
 
--- | Gets the width of the two allocated fields.
-fieldWidth ::
-  Options.T a
-  -> Spacers.T Int
-  -> G.Fields (Maybe Int)
-  -> O.ReportWidth
-  -> Fields Int
-fieldWidth os ss fs (O.ReportWidth rw) = let
-  flds = optionsToFields os
-  grownWidth = sumGrowersAndSpacers fs ss
-  widthForCells = rw - grownWidth - allocSpacerWidth
-  payeeSpacerWidth = if payee flds then abs (S.payee ss) else 0
-  acctSpacerWidth = if account flds then abs (S.account ss) else 0
-  allocSpacerWidth = payeeSpacerWidth + acctSpacerWidth
-  allocs = (\bool alloc -> if bool then alloc else A.allocation 0)
-           <$> flds
-           <*> Fields (O.payeeAllocation os) (O.accountAllocation os)
-  in if widthForCells < 1
-     then pure 0
-     else A.allocate allocs widthForCells
+instance Functor Fields where
+  fmap f i = Fields {
+    payee = f (payee i)
+    , account = f (account i) }
+
+instance Applicative Fields where
+  pure a = Fields a a
+  ff <*> fa = Fields {
+    payee = payee ff (payee fa)
+    , account = account ff (account fa) }
+
+instance Fdbl.Foldable Fields where
+  foldr f z flds =
+    f (payee flds) (f (account flds) z)
+
+instance T.Traversable Fields where
+  traverse f flds =
+    Fields <$> f (payee flds) <*> f (account flds)
+  
