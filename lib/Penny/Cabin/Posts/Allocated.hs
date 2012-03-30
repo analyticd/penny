@@ -37,8 +37,6 @@ import Data.List (intersperse)
 import qualified Data.Foldable as Fdbl
 import qualified Data.Sequence as Seq
 import qualified Data.Traversable as T
-import qualified Data.Semigroup as Semi
-import Data.Semigroup ((<>))
 import qualified Data.Text as X
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Row as R
@@ -220,93 +218,3 @@ fieldWidth os ss fs (O.ReportWidth rw) = let
   in if widthForCells < 1
      then pure 0
      else A.allocate allocs widthForCells
-  
-
-
--- | Takes allocations and whether a field appears. The returned
--- Fields has elements that are Nothing if the field does not appear
--- at all, or Just Int with the width if the field does appear. The
--- width does NOT include the width of the accompanying spacer.
--- Allocations are made after subtracting the width of the spacers.
-allocate ::
-  Fields (A.Allocation, Int)
-  -> Fields Bool
-  -> O.ReportWidth
-  -> Fields Int
-allocate = undefined
-
--- | Assign the allocations to a Fields.
-allocations :: Options.T a -> Fields A.Allocation
-allocations os = Fields {
-  payee = O.payeeAllocation os
-  , account = O.accountAllocation os }
-
--- | Taking into account the fields the user requested, and the
--- available space, calculate the fields that will actually appear.
--- If there is not enough space to accomodate ALL requested allocated
--- fields and their spacers, NONE of them will be shown.
-appearingFields ::
-  Fields Bool
-  -> G.Fields (Maybe Int)
-  -> Spacers.T Int
-  -> O.ReportWidth
-  -> Fields Bool
-appearingFields flds grown spacers rw = let
-  withSpacers = pairWithSpacer flds spacers
-  demanded = spaceDemanded withSpacers
-  maxAlloc = maxAllocatedWidth grown spacers rw
-  in if demanded > maxAlloc then pure False else flds
-
--- | Calculate the space demanded by all allocated cells, including
--- their spacers. One field demands a single space, and whatever space
--- is set aside for its spacer. The first argument is a Fields holding
--- pairs, where the first element is whether the user asked for the
--- particular field to appear, and the second element is the width of
--- the accompanying spacer.
-spaceDemanded ::
-  Fields (Bool, Int)
-  -> C.Width
-spaceDemanded =
-  C.Width
-  . Semi.getSum
-  . reduce
-  . fmap Semi.Sum
-  . fmap d
-  where
-    d (appears, width)
-      | not appears = 0
-      | width < 1 = 1
-      | otherwise = width + 1
-
--- | Reduce a Fields holding a semigroup.
-reduce :: Semi.Semigroup s => Fields s -> s
-reduce f =
-  payee f
-  <> account f
-
-allocatedFields :: Options.T a -> Fields Bool
-allocatedFields o = let
-  f = O.fields o in Fields {
-    payee = F.payee f
-    , account = F.account f }
-
--- | Pairs data from a Fields with its matching spacer field.
-pairWithSpacer :: Fields a -> Spacers.T b -> Fields (a, b)
-pairWithSpacer f s = Fields {
-  payee = (payee f, S.payee s)
-  , account = (account f, S.account s) }
-
-
--- | Calculate the maximum width to make available to allocated
--- cells. Apply to the width of all Grown fields, the width of all
--- spacers, and the width of the entire report. The width returned is
--- the width available both for the Payee and Allocation fields and
--- their associated spacers.
-maxAllocatedWidth ::
-  G.Fields (Maybe Int)
-  -> Spacers.T Int
-  -> O.ReportWidth
-  -> C.Width
-maxAllocatedWidth fs ss rw = C.Width $ max 0 diff where
-  wGrown = G.grownWidth fs ss
-  diff = O.unReportWidth rw - wGrown
