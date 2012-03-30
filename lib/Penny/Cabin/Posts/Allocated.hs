@@ -95,27 +95,65 @@ sumSpacers ::
   G.Fields (Maybe a)
   -> Spacers.T Int
   -> Int
-sumSpacers fs ss = let
-  pairedWithSpacers = G.pairWithSpacer fs ss
-  toWidth (showing, maybeWidth, tag) =
-    if isJust showing
-    then case maybeWidth of
-      Just w -> Just (w, tag)
-      Nothing -> Just (0, tag)
-    else Nothing
-  allWidths = catMaybes . Fdbl.toList . fmap toWidth $ triples
-  triples = (\(a, b) c -> (a, b, c))
-            <$> pairedWithSpacers
-            <*> G.eFields
-  relevantWidths = case snd $ last allWidths of
-    G.ETotalQty -> allWidths
+sumSpacers fs =
+  sum
+  . map fst
+  . appearingSpacers
+  . catMaybes
+  . Fdbl.toList
+  . fmap toWidth
+  . pairedWithSpacers fs
+  
+
+-- | Takes a triple:
+--
+-- * The first element is Just _ if the field appears in the report;
+-- Nothing if not
+--
+-- * The second element is Maybe Int for the width of the spacer
+-- (TotalQty has no spacer, so it will be Nothing)
+--
+-- * The third element is the EFields tag
+--
+-- Returns Nothing if the field does not appear in the report. Returns
+-- Just a pair if the field does appear in the report, where the first
+-- element is the width of the spacer, and the second element is the
+-- EFields tag.
+toWidth :: (Maybe a, Maybe Int, t) -> Maybe (Int, t)
+toWidth (maybeShowing, maybeWidth, tag) =
+  if isJust maybeShowing
+  then case maybeWidth of
+    Just w -> Just (w, tag)
+    Nothing -> Just (0, tag)
+  else Nothing
+
+
+-- | Given a list of all spacers that are attached to the fields that
+-- are present in a report, return a list of the spacers that will
+-- actually appear in the report. The rightmost spacer does not appear
+-- if it is to the right of Account (unless there is a TotalQty field,
+-- in which case, all spacers appear because TotalQty has no spacer.)
+appearingSpacers :: [(Int, G.EFields)] -> [(Int, G.EFields)]
+appearingSpacers ss = case ss of
+  [] -> []
+  l -> case snd $ last l of
+    G.ETotalQty -> l
     t -> if t > G.ENumber
-         then init allWidths
-         else allWidths
-  in if null allWidths
-     then 0
-     else sum . map fst $ relevantWidths
-    
+         then init l
+         else l
+
+-- | Applied to two arguments: first, a Fields, and second, a
+-- Spacers. Combines each Field with its corresponding Spacer and with
+-- the GFields, which indicates each particular field.
+pairedWithSpacers ::
+  G.Fields a
+  -> Spacers.T b
+  -> G.Fields (a, Maybe b, G.EFields)
+pairedWithSpacers f s =
+  (\(a, b) c -> (a, b, c))
+  <$> G.pairWithSpacer f s
+  <*> G.eFields
+
 -- | Sums the contents of growing cells and their accompanying
 -- spacers; makes the adjustments described in sumSpacers.
 sumGrowersAndSpacers ::
