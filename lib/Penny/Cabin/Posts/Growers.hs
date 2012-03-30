@@ -1,9 +1,12 @@
 -- | Calculates cells that "grow to fit." These cells grow to fit the
 -- widest cell in the column. No information is ever truncated from
 -- these cells (what use is a truncated dollar amount?)
-module Penny.Cabin.Posts.Growers (growCells, Fields(..), grownWidth) where
+module Penny.Cabin.Posts.Growers (
+  growCells, Fields(..), grownWidth,
+  eFields, EFields(..), pairWithSpacer) where
 
 import Control.Applicative((<$>), Applicative(pure, (<*>)))
+import qualified Data.Foldable as Fdbl
 import Data.List (foldl')
 import qualified Data.Map as M
 import qualified Data.Semigroup as Semi
@@ -275,6 +278,40 @@ growingFields o = let
     , totalCmdty = F.totalCmdty f
     , totalQty = F.totalQty f }
 
+-- | All growing fields, as an ADT.
+data EFields =
+  EPostingNum
+  | EVisibleNum
+  | ERevPostingNum
+  | ELineNum
+  | EDate
+  | EFlag
+  | ENumber
+  | EPostingDrCr
+  | EPostingCmdty
+  | EPostingQty
+  | ETotalDrCr
+  | ETotalCmdty
+  | ETotalQty
+  deriving (Show, Eq, Ord, Enum)
+
+-- | Returns a Fields where each record has its corresponding EField.
+eFields :: Fields EFields
+eFields = Fields {
+  postingNum = EPostingNum
+  , visibleNum = EVisibleNum
+  , revPostingNum = ERevPostingNum
+  , lineNum = ELineNum
+  , date = EDate
+  , flag = EFlag
+  , number = ENumber
+  , postingDrCr = EPostingDrCr
+  , postingCmdty = EPostingCmdty
+  , postingQty = EPostingQty
+  , totalDrCr = ETotalDrCr
+  , totalCmdty = ETotalCmdty
+  , totalQty = ETotalQty }
+
 -- | All growing fields.
 data Fields a = Fields {
   postingNum :: a
@@ -292,6 +329,22 @@ data Fields a = Fields {
   , totalCmdty :: a
   , totalQty :: a }
   deriving (Show, Eq)
+
+instance Fdbl.Foldable Fields where
+  foldr f z i =
+    f (postingNum i)
+    (f (visibleNum i)
+     (f (revPostingNum i)
+      (f (lineNum i)
+       (f (date i)
+        (f (flag i)
+         (f (number i)
+          (f (postingDrCr i)
+           (f (postingCmdty i)
+            (f (postingQty i)
+             (f (totalDrCr i)
+              (f (totalCmdty i)
+               (f (totalQty i) z))))))))))))
 
 instance Functor Fields where
   fmap f i = Fields {
@@ -399,13 +452,6 @@ fieldWidth (m1, m2) = case m1 of
   Just i1 -> case m2 of
     Just i2 -> if i2 > 0 then i1 + i2 else i1
     Nothing -> i1
-
--- | Sums the spacers. Takes into account which one is rightmost.
-sumSpacers :: Spacers.T Int -> Fields Bool -> Int
-sumSpacers s f
-  | F.totalQty f = sumAllSpacers
-  | not F.totalQty =
-    g | 
 
 {-
 t_postingNum :: a -> Fields a -> Fields a
