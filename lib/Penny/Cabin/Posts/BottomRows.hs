@@ -18,10 +18,13 @@
 
 module Penny.Cabin.Posts.BottomRows where
 
-import Control.Applicative((<$>), (<*>))
+import Control.Applicative((<$>), Applicative(pure,  (<*>)))
 import qualified Data.Foldable as Fdbl
-import Data.List (intersperse)
-import Data.Monoid (mappend, mempty)
+import Control.Monad (guard)
+import Data.List (intersperse, find)
+import qualified Data.List.NonEmpty as NE
+import Data.Maybe (catMaybes)
+import Data.Monoid (mappend, mempty, First(First, getFirst))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as X
 import qualified Data.Traversable as T
@@ -49,41 +52,23 @@ data Fields a = Fields {
   , filename :: a
   } deriving (Show, Eq)
 
+instance Functor Fields where
+  fmap f (Fields t m fn) =
+    Fields (f t) (f m) (f fn)
+
+instance Applicative Fields where
+  pure a = Fields a a a
+  ff <*> fa = Fields {
+    tags = (tags ff) (tags fa)
+    , memo = (memo ff) (memo fa)
+    , filename = (filename ff) (filename fa)
+    }
 
 bottomRowsFields :: Fields.T a -> Fields a
 bottomRowsFields f = Fields {
   tags = F.tags f
   , memo = F.memo f
   , filename = F.filename f }
-
-
-data BottomLayout =
-  HangingIndent
-  | WidthOfTopColumns
-  | WidthOfReport
-  deriving (Show, Eq)
-
-
--- | Examines the top row to determine what sort of layout is
--- necessary for the bottom cells. Apply to a TopRowCells Bool, which
--- indicates which of the top row cells are actually in the report
--- (not the ones the user requested; some of the ones the user
--- requested might not be in the report because they had no data, or
--- because there was no space.)
-layout :: TopRowCells (Bool, ETopRowCells) -> BottomLayout
-layout tr
-  | null ls = WidthOfReport
-  | canHang ls = HangingIndent
-  | otherwise = WidthOfTopColumns
-    where
-      ls = map snd . filter fst . Fdbl.toList $ tr
-
-
-canHang :: [ETopRowCells] -> Bool
-canHang ls
-  | length ls > 5 && ETotalDrCr `elem` ls && ETotalCmdty `elem` ls
-    && ETotalQty `elem` ls = True
-  | otherwise = False
 
 
 data Hanging a = Hanging {
@@ -97,13 +82,112 @@ newtype SpacerWidth = SpacerWidth Int deriving (Show, Eq)
 newtype ContentWidth = ContentWidth Int deriving (Show, Eq)
 
 
+hanging ::
+  [TopCellSpec]
+  -> Maybe ((Info.T -> Int -> (C.TextSpec, R.Cell))
+            -> Info.T -> R.Row)
+hanging = undefined
+
+widthOfTopColumns ::
+  [TopCellSpec]
+  -> Maybe ((Info.T -> Int -> (C.TextSpec, R.Cell))
+            -> Info.T -> R.Row)
+widthOfTopColumns = undefined
+
+widthOfReport ::
+  O.ReportWidth
+  -> (Info.T -> Int -> (C.TextSpec, R.Cell))
+  -> Info.T
+  -> R.Row
+widthOfReport = undefined
+
+chooseProcessor ::
+  [TopCellSpec]
+  -> O.ReportWidth
+  -> (Info.T -> Int -> (C.TextSpec, R.Cell))
+  -> Info.T
+  -> R.Row
+chooseProcessor specs rw fn = let
+  firstTwo = First (hanging specs)
+             `mappend` First (widthOfTopColumns specs)
+  in case getFirst firstTwo of
+    Nothing -> widthOfReport rw fn
+    Just r -> r fn
+
+infoProcessors ::
+  [TopCellSpec]
+  -> O.ReportWidth
+  -> Fields (Maybe (Info.T -> Int -> (C.TextSpec, R.Cell)))
+  -> Fields (Maybe (Info.T -> R.Row))
+infoProcessors specs rw flds = let
+  chooser = chooseProcessor specs rw
+  mkProcessor mayFn = case mayFn of
+    Nothing -> Nothing
+    Just fn -> Just $ chooser fn
+  in mkProcessor <$> flds
+
+
+makeRows ::
+  [Info.T]
+  -> Fields (Maybe (Info.T -> R.Row))
+  -> Fields (Maybe [R.Row])
+makeRows is flds = let
+  mkRow fn = map fn is
+  in fmap (fmap mkRow) flds
+
+
 -- | Calculates column widths for a Hanging report. If it cannot
 -- calculate the widths (because these cells do not support hanging),
 -- returns Nothing.
-hangingWidths :: [(ETopRowCells, Maybe SpacerWidth, ContentWidth)]
+hangingWidths :: [TopCellSpec]
                  -> Maybe (Hanging Int)
-hangingWidths = undefined
+hangingWidths ls = do
+  let len = length ls
+  guard (len > 4)
+  let matchColumn x (c, _, _) = x == c
+  totDrCr <- find (matchColumn ETotalDrCr) ls
+  totCmdty <- find (matchColumn ETotalCmdty) ls
+  totQty <- find (matchColumn ETotalQty) ls
+  let (first:middle) = take (len - 3) ls
+  mid <- NE.nonEmpty middle
+  return $ calcHangingWidths first mid (totDrCr, totCmdty, totQty)
 
+type TopCellSpec = (ETopRowCells, Maybe SpacerWidth, ContentWidth)
+
+-- | Given the first column in the top row, at least one middle
+-- column, and the last three columns, calculate the width of the
+-- three columns in the hanging report.
+calcHangingWidths ::
+  TopCellSpec
+  -> NE.NonEmpty TopCellSpec
+  -> (TopCellSpec, TopCellSpec, TopCellSpec)
+  -> Hanging Int
+calcHangingWidths l m r = Hanging left middle right where
+  calcWidth (_, maybeSp, (ContentWidth c)) =
+    c + maybe 0 (\(SpacerWidth w) -> abs w) maybeSp
+  left = calcWidth l
+  middle = Fdbl.foldl' f 0 m where
+    f acc c = acc + calcWidth c
+  (totDrCr, totCmdty, totQty) = r
+  right = calcWidth totDrCr + calcWidth totCmdty
+          + calcWidth totQty
+
+
+topCellSpecs :: G.Fields (Maybe Int)
+                -> A.Fields (Maybe Int)
+                -> Spacers.T Int
+                -> [TopCellSpec]
+topCellSpecs gFlds aFlds spcs = let
+  allFlds = topRowCells gFlds aFlds
+  cws = fmap (fmap ContentWidth) allFlds
+  merged = mergeWithSpacers cws spcs
+  tripler e (cw, maybeSpc) = (e, (fmap SpacerWidth maybeSpc), cw)
+  list = Fdbl.toList $ tripler <$> eTopRowCells <*> merged
+  toMaybe (e, maybeS, maybeC) = case maybeC of
+    Nothing -> Nothing
+    Just c -> Just (e, maybeS, c)
+  in catMaybes (map toMaybe list)
+  
 
 -- | Merges a TopRowCells with a Spacers. Returns Maybes because
 -- totalQty has no spacer.
@@ -151,6 +235,22 @@ makeSpecificWidth :: Int -> (Int -> (a, R.Cell)) -> R.Row
 makeSpecificWidth w f = c `R.prependCell` R.emptyRow where
   (_, c) = f w
 
+
+type Maker a = Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)
+
+makers :: Fields (Maker a)
+makers = Fields tagsCell memoCell filenameCell
+
+-- | Applied to an Options, indicating which reports the user wants,
+-- returns a Fields (Maybe Maker) with a Maker in each respective
+-- field that the user wants to see.
+requestedMakers ::
+  Options.T a
+  -> Fields (Maybe (Info.T -> Int -> (C.TextSpec, R.Cell)))
+requestedMakers os = let
+  flds = bottomRowsFields (O.fields os)
+  filler b mkr = if b then Just $ mkr os else Nothing
+  in filler <$> flds <*> makers
 
 tagsCell :: Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)
 tagsCell os info w = (ts, cell) where
@@ -307,6 +407,41 @@ instance Functor TopRowCells where
     , totalDrCr = f (totalDrCr t)
     , totalCmdty = f (totalCmdty t)
     , totalQty = f (totalQty t) }
+
+instance Applicative TopRowCells where
+  pure a = TopRowCells {
+    postingNum = a
+    , visibleNum = a
+    , revPostingNum = a
+    , lineNum = a
+    , date = a
+    , flag = a
+    , number = a
+    , payee = a
+    , account = a
+    , postingDrCr = a
+    , postingCmdty = a
+    , postingQty = a
+    , totalDrCr = a
+    , totalCmdty = a
+    , totalQty = a }
+
+  ff <*> fa = TopRowCells {
+    postingNum = (postingNum ff) (postingNum fa)
+    , visibleNum = (visibleNum ff) (visibleNum fa)
+    , revPostingNum = (revPostingNum ff) (revPostingNum fa)
+    , lineNum = (lineNum ff) (lineNum fa)
+    , date = (date ff) (date fa)
+    , flag = (flag ff) (flag fa)
+    , number = (number ff) (number fa)
+    , payee = (payee ff) (payee fa)
+    , account = (account ff) (account fa)
+    , postingDrCr = (postingDrCr ff) (postingDrCr fa)
+    , postingCmdty = (postingCmdty ff) (postingCmdty fa)
+    , postingQty = (postingQty ff) (postingQty fa)
+    , totalDrCr = (totalDrCr ff) (totalDrCr fa)
+    , totalCmdty = (totalCmdty ff) (totalCmdty fa)
+    , totalQty = (totalQty ff) (totalQty fa) }
 
 instance Fdbl.Foldable TopRowCells where
   foldr f z o =
