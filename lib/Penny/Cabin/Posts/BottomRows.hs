@@ -21,6 +21,7 @@ module Penny.Cabin.Posts.BottomRows where
 import Control.Applicative((<$>), (<*>))
 import qualified Data.Foldable as Fdbl
 import Data.List (intersperse)
+import Data.Monoid (mappend, mempty)
 import qualified Data.Sequence as Seq
 import qualified Data.Text as X
 import qualified Data.Traversable as T
@@ -35,8 +36,12 @@ import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Info as Info
 import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Options as O
+import qualified Penny.Cabin.Posts.Spacers as Spacers
+import qualified Penny.Cabin.Posts.Spacers as S
+import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.Queries as Q
+
 
 data Fields a = Fields {
   tags :: a
@@ -44,17 +49,20 @@ data Fields a = Fields {
   , filename :: a
   } deriving (Show, Eq)
 
+
 bottomRowsFields :: Fields.T a -> Fields a
 bottomRowsFields f = Fields {
   tags = F.tags f
   , memo = F.memo f
   , filename = F.filename f }
 
+
 data BottomLayout =
   HangingIndent
   | WidthOfTopColumns
   | WidthOfReport
   deriving (Show, Eq)
+
 
 -- | Examines the top row to determine what sort of layout is
 -- necessary for the bottom cells. Apply to a TopRowCells Bool, which
@@ -70,17 +78,56 @@ layout tr
     where
       ls = map snd . filter fst . Fdbl.toList $ tr
 
+
 canHang :: [ETopRowCells] -> Bool
 canHang ls
   | length ls > 5 && ETotalDrCr `elem` ls && ETotalCmdty `elem` ls
     && ETotalQty `elem` ls = True
   | otherwise = False
 
+
 data Hanging a = Hanging {
   leftPad :: a
   , mainCell :: a
   , rightPad :: a
   } deriving (Show, Eq)
+
+
+newtype SpacerWidth = SpacerWidth Int deriving (Show, Eq)
+newtype ContentWidth = ContentWidth Int deriving (Show, Eq)
+
+
+-- | Calculates column widths for a Hanging report. If it cannot
+-- calculate the widths (because these cells do not support hanging),
+-- returns Nothing.
+hangingWidths :: [(ETopRowCells, Maybe SpacerWidth, ContentWidth)]
+                 -> Maybe (Hanging Int)
+hangingWidths = undefined
+
+
+-- | Merges a TopRowCells with a Spacers. Returns Maybes because
+-- totalQty has no spacer.
+mergeWithSpacers ::
+  TopRowCells a
+  -> Spacers.T b
+  -> TopRowCells (a, Maybe b)
+mergeWithSpacers t s = TopRowCells {
+  postingNum = (postingNum t, Just (S.postingNum s)) 
+  , visibleNum = (visibleNum t, Just (S.visibleNum s))
+  , revPostingNum = (revPostingNum t, Just (S.revPostingNum s))
+  , lineNum = (lineNum t, Just (S.lineNum s))
+  , date = (date t, Just (S.date s))
+  , flag = (flag t, Just (S.flag s))
+  , number = (number t, Just (S.number s))
+  , payee = (payee t, Just (S.payee s))
+  , account = (account t, Just (S.account s))
+  , postingDrCr = (postingDrCr t, Just (S.postingDrCr s))
+  , postingCmdty = (postingCmdty t, Just (S.postingCmdty s))
+  , postingQty = (postingQty t, Just (S.postingQty s))
+  , totalDrCr = (totalDrCr t, Just (S.totalDrCr s))
+  , totalCmdty = (totalCmdty t, Just (S.totalCmdty s))
+  , totalQty = (totalQty t, Nothing) }
+
 
 -- | Applied to a Hanging describing the widths of the columns, and to
 -- a function that, when applied to the width of the middle cell,
@@ -97,11 +144,13 @@ makeHanging (Hanging lw mw rw) f = row where
   row = l `R.prependCell` (m `R.prependCell`
         (r `R.prependCell` R.emptyRow))
   
+
 -- | Applied to a function that, when applied to the width of a cell,
 -- returns a cell filled with data, returns a Row with that cell.
 makeSpecificWidth :: Int -> (Int -> (a, R.Cell)) -> R.Row
 makeSpecificWidth w f = c `R.prependCell` R.emptyRow where
   (_, c) = f w
+
 
 tagsCell :: Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)
 tagsCell os info w = (ts, cell) where
@@ -121,6 +170,51 @@ tagsCell os info w = (ts, cell) where
     $ info
   toChunk (TF.Words ws) = C.chunk ts t where
     t = X.concat . intersperse (X.singleton ' ') . Fdbl.toList $ ws
+
+
+memoChunks :: C.TextSpec -> L.Memo -> C.Width -> Seq.Seq C.Chunk
+memoChunks ts m (C.Width w) = cs where
+  cs = fmap toChunk
+       . TF.unLines
+       . TF.wordWrap w
+       . TF.Words
+       . Seq.fromList
+       . X.words
+       . HT.text
+       . HT.Delimited (X.singleton ' ')
+       . HT.textList
+       $ m
+  toChunk (TF.Words ws) = C.chunk ts (X.unwords . Fdbl.toList $ ws)
+
+
+memoCell :: Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)
+memoCell os info width = (ts, cell) where
+  w = C.Width width
+  vn = Info.visibleNum info
+  cell = R.Cell R.LeftJustify w ts cs
+  ts = PC.colors vn (O.baseColors os)
+  pm = Q.postingMemo . Info.postingBox $ info
+  tm = Q.transactionMemo . Info.postingBox $ info
+  nullMemo (L.Memo m) = null m
+  cs = case (nullMemo pm, nullMemo tm) of
+    (True, True) -> mempty
+    (False, True) -> memoChunks ts pm w
+    (True, False) -> memoChunks ts tm w
+    (False, False) -> memoChunks ts pm w `mappend` memoChunks ts tm w
+  
+
+filenameCell :: Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)
+filenameCell os info width = (ts, cell) where
+  w = C.Width width
+  vn = Info.visibleNum info
+  cell = R.Cell R.LeftJustify w ts cs
+  toChunk n = C.chunk ts
+              . X.drop (max 0 (C.unWidth w - X.length n)) $ n
+  cs = case Q.filename . Info.postingBox $ info of
+    Nothing -> Seq.empty
+    Just fn -> Seq.singleton . toChunk . L.unFilename $ fn
+  ts = PC.colors vn (O.baseColors os)
+
 
 
 data TopRowCells a = TopRowCells {
