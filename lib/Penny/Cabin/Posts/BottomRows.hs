@@ -247,22 +247,6 @@ mergeWithSpacers t s = TopRowCells {
   , totalQty = (totalQty t, Nothing) }
 
 
--- | Applied to a Hanging describing the widths of the columns, and to
--- a function that, when applied to the width of the middle cell,
--- returns the TextSpec for the padding cells and returns the middle
--- cell itself, returns a Row with all three cells.
-makeHanging ::
-  Hanging Int
-  -> (Int -> (C.TextSpec, R.Cell))
-  -> R.Row
-makeHanging (Hanging lw mw rw) f = row where
-  (ts, m) = f mw
-  padder w = R.Cell R.LeftJustify (C.Width w) ts Seq.empty
-  (l, r) = (padder lw, padder rw)
-  row = l `R.prependCell` (m `R.prependCell`
-        (r `R.prependCell` R.emptyRow))
-  
-
 -- | Applied to a function that, when applied to the width of a cell,
 -- returns a cell filled with data, returns a Row with that cell.
 makeSpecificWidth :: Int -> (Info.T -> Int -> (a, R.Cell))
