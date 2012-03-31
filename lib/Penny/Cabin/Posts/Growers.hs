@@ -7,7 +7,6 @@ module Penny.Cabin.Posts.Growers (
 
 import Control.Applicative((<$>), Applicative(pure, (<*>)))
 import qualified Data.Foldable as Fdbl
-import Data.List (foldl')
 import qualified Data.Map as M
 import qualified Data.Semigroup as Semi
 import Data.Semigroup ((<>))
@@ -40,78 +39,18 @@ import qualified Penny.Lincoln.Queries as Q
 growCells ::
   Options.T a
   -> [Info.T]
-  -> ([Fields (Maybe R.Cell)], Fields (Maybe Int))
-growCells o info = (rowsNoZeroes, widthsNoZeroes) where
-  cells = justifyCells widths . map (getCells o) $ info
-  fieldsInReport = growingFields o
-  widths = measureWidest fieldsInReport cells
-  widthsNoZeroes = fmap removeZero widths where
-    removeZero maybeI = case maybeI of
-      Nothing -> Nothing
-      Just 0 -> Nothing
-      Just x -> Just x
-  fieldsNoZeroes = removeZero <$> widths where
-    removeZero width maybeCell = case width of
-      Nothing -> Nothing
-      Just _ -> maybeCell
-  rowsNoZeroes = map (fieldsNoZeroes <*>) cells
-
-
--- | Given a width and a cell, resizes the cell.
-resizer :: Int -> R.Cell -> R.Cell
-resizer i c = c { R.width = C.Width i }
-
--- | Given measurements of the widest cell in a column, adjusts each
--- cell so that it is that wide.
-justifyCells ::
-  Fields (Maybe Int)
-  -> [Fields (Maybe R.Cell)]
-  -> [Fields (Maybe R.Cell)]
-justifyCells widths cs = let
-  justifier mayWidth mayCell = resizer <$> mayWidth <*> mayCell
-  justifyRow = justifier <$> widths
-  in map (justifyRow <*>) cs
-
--- | Measures all cells and returns a Fields indicating the widest
--- field in each column. Fields that are not in the report are
--- Nothing. Fields that are in the report, but that have no width, are
--- Just 0.
-measureWidest ::
-  Fields Bool
-  -> [Fields (Maybe R.Cell)]
-  -> Fields (Maybe Int)
-measureWidest fs = foldl' updateWidest z where
-  z = initWidest fs
-
-
--- | Initializes the starting set of fields for the initializer value
--- that is used for updateWidest. Fields that are present in the
--- report are initialized to Just zero; fields not in the report are
--- initialized to Nothing.
-initWidest :: Fields Bool -> Fields (Maybe Int)
-initWidest = fmap (\b -> if b then Just 0 else Nothing)
-  
--- | Given a Fields indicating the cell widths found so far, update
--- the cell widths with values from a new set of cells, keeping
--- whichever is wider. If a cell is not present in the report at all,
--- its corresponding field should be initialized to Nothing; this
--- function will then skip it.
-updateWidest ::
-  Fields (Maybe Int)
-  -> Fields (Maybe R.Cell)
-  -> Fields (Maybe Int)
-updateWidest fi fc = wider <$> fi <*> fc where
-  wider maybeI maybeC =
-    max
-    <$> maybeI
-    <*> ((C.unWidth . R.widestLine . R.chunks) <$> maybeC)
-  
-
-getCells :: Options.T a -> Info.T -> Fields (Maybe R.Cell)
-getCells os i = let
-  flds = growingFields os
-  ifShown fld fn = if fld then Just $ fn os i else Nothing
-  in ifShown <$> flds <*> growers
+  -> Fields (Maybe ([R.Cell], Int))
+growCells o infos = toPair <$> wanted <*> growers where
+  toPair b gwr
+    | b = let
+      w = Fdbl.foldl' f 0 cs
+      f acc c = max acc (C.unWidth . R.widestLine . R.chunks $ c)
+      cs = map (resizer w . gwr o) infos
+      resizer i c = c { R.width = C.Width i }
+      in if w > 0 then Just (cs, w) else Nothing
+    | otherwise = Nothing
+  wanted = growingFields o
+    
 
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
