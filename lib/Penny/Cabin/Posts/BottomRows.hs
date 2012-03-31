@@ -16,7 +16,8 @@
 -- * Otherwise, the bottom rows are as wide as all the top cells
 -- combined. Each bottom row will have one cell.
 
-module Penny.Cabin.Posts.BottomRows where
+module Penny.Cabin.Posts.BottomRows (
+  bottomRows, Fields(..)) where
 
 import Control.Applicative((<$>), Applicative(pure,  (<*>)))
 import qualified Data.Foldable as Fdbl
@@ -30,6 +31,7 @@ import qualified Data.Text as X
 import qualified Data.Traversable as T
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Row as R
+import Penny.Cabin.Row ((<<|))
 import qualified Penny.Cabin.TextFormat as TF
 import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Posts.Colors as PC
@@ -44,6 +46,18 @@ import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.Queries as Q
+
+bottomRows ::
+  G.Fields (Maybe Int)
+  -> A.Fields (Maybe Int)
+  -> Options.T a
+  -> [Info.T]
+  -> Fields (Maybe [R.Row])
+bottomRows gf af os is = makeRows is pcs where
+  pcs = infoProcessors topSpecs rw wanted
+  wanted = requestedMakers os
+  topSpecs = topCellSpecs gf af (O.spacers os)
+  rw = O.width os
 
 
 data Fields a = Fields {
@@ -86,13 +100,33 @@ hanging ::
   [TopCellSpec]
   -> Maybe ((Info.T -> Int -> (C.TextSpec, R.Cell))
             -> Info.T -> R.Row)
-hanging = undefined
+hanging specs = hangingWidths specs
+                >>= return . hangingInfoProcessor
+
+hangingInfoProcessor ::
+  Hanging Int
+  -> (Info.T -> Int -> (C.TextSpec, R.Cell))
+  -> Info.T
+  -> R.Row
+hangingInfoProcessor widths mkr info = row where
+  row = left <<| mid <<| right <<| R.emptyRow
+  (ts, mid) = mkr info (mainCell widths)
+  mkPad w = R.Cell R.LeftJustify (C.Width w) ts Seq.empty
+  left = mkPad (leftPad widths)
+  right = mkPad (rightPad widths)
 
 widthOfTopColumns ::
   [TopCellSpec]
   -> Maybe ((Info.T -> Int -> (C.TextSpec, R.Cell))
             -> Info.T -> R.Row)
-widthOfTopColumns = undefined
+widthOfTopColumns ts =
+  if null ts
+  then Nothing
+  else Just $ makeSpecificWidth w where
+    w = Fdbl.foldl' f 0 ts
+    f acc (_, maySpcWidth, (ContentWidth cw)) =
+      acc + cw + maybe 0 (\(SpacerWidth sw) -> sw) maySpcWidth
+
 
 widthOfReport ::
   O.ReportWidth
@@ -231,9 +265,10 @@ makeHanging (Hanging lw mw rw) f = row where
 
 -- | Applied to a function that, when applied to the width of a cell,
 -- returns a cell filled with data, returns a Row with that cell.
-makeSpecificWidth :: Int -> (Int -> (a, R.Cell)) -> R.Row
-makeSpecificWidth w f = c `R.prependCell` R.emptyRow where
-  (_, c) = f w
+makeSpecificWidth :: Int -> (Info.T -> Int -> (a, R.Cell))
+                     -> Info.T -> R.Row
+makeSpecificWidth w f i = c <<| R.emptyRow where
+  (_, c) = f i w
 
 
 type Maker a = Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)

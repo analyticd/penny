@@ -6,7 +6,9 @@ module Penny.Cabin.Row (
   Row,
   emptyRow,
   prependCell,
+  (<<|),
   appendCell,
+  (|>>),
   Rows,
   emptyRows,
   prependRow,
@@ -115,8 +117,16 @@ addCell glue c (Row cs) = let
 prependCell :: Cell -> Row -> Row
 prependCell = addCell (<|) 
 
+(<<|) :: Cell -> Row -> Row
+(<<|) = prependCell
+infixr 5 <<|
+
 appendCell :: Cell -> Row -> Row
 appendCell = addCell (flip (|>))
+
+(|>>) :: Cell -> Row -> Row
+(|>>) = appendCell
+infixl 5 |>>
 
 height :: PaddedCell -> Height
 height (PaddedCell cs _) = Height (S.length cs)
