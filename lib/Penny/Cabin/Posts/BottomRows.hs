@@ -133,7 +133,8 @@ widthOfReport ::
   -> (Info.T -> Int -> (C.TextSpec, R.Cell))
   -> Info.T
   -> R.Row
-widthOfReport = undefined
+widthOfReport (O.ReportWidth rw) fn info =
+  makeSpecificWidth rw fn info
 
 chooseProcessor ::
   [TopCellSpec]
