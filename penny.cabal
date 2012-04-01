@@ -198,6 +198,7 @@ Library
         Penny.Cabin.Posts.Options,
         Penny.Cabin.Posts.Parser,
         Penny.Cabin.Posts.Numbered,
+        Penny.Cabin.Posts.Report,
         Penny.Cabin.Posts.Spacers,
         Penny.Cabin.Postings,
         Penny.Cabin.Postings.Address,
