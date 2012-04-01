@@ -121,10 +121,10 @@ prependCell = addCell (<|)
 (<<|) = prependCell
 infixr 5 <<|
 
-appendCell :: Cell -> Row -> Row
-appendCell = addCell (flip (|>))
+appendCell :: Row -> Cell -> Row
+appendCell = flip (addCell (flip (|>)))
 
-(|>>) :: Cell -> Row -> Row
+(|>>) :: Row -> Cell -> Row
 (|>>) = appendCell
 infixl 5 |>>
 

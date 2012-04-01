@@ -67,6 +67,12 @@ data Fields a = Fields {
   , filename :: a
   } deriving (Show, Eq)
 
+instance Fdbl.Foldable Fields where
+  foldr f z d =
+    f (tags d)
+    (f (memo d)
+     (f (filename d) z))
+
 instance Functor Fields where
   fmap f (Fields t m fn) =
     Fields (f t) (f m) (f fn)
