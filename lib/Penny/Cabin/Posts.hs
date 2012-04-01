@@ -11,12 +11,16 @@ import qualified Penny.Cabin.Colors as C
 makeCells :: Options.T a -> [Info.T] -> C.Chunk
 makeCells os is = let
   fmapSnd flds = fmap (fmap snd) flds
+  fmapFst flds = fmap (fmap fst) flds
   gFldW = fmapSnd gFlds
   aFldW = fmapSnd aFlds
   gFlds = G.growCells os is
   aFlds = A.payeeAndAcct gFldW os is
   bFlds = B.bottomRows gFldW aFldW os is
-  topCells = B.topRowCells gFlds aFlds
+  topCells = B.topRowCells (fmapFst gFlds) (fmapFst aFlds)
   spcrs = Options.spacers os
   withSpcrs = B.mergeWithSpacers topCells spcrs
   in undefined
+
+topRow :: B.TopRowCells (Maybe [R.Cell], Maybe Int) -> R.Row
+topRow = undefined
