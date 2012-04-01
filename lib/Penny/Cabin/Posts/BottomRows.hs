@@ -17,7 +17,8 @@
 -- combined. Each bottom row will have one cell.
 
 module Penny.Cabin.Posts.BottomRows (
-  bottomRows, Fields(..)) where
+  bottomRows, Fields(..), TopRowCells(..), mergeWithSpacers,
+  topRowCells) where
 
 import Control.Applicative((<$>), Applicative(pure,  (<*>)))
 import qualified Data.Foldable as Fdbl
