@@ -1,115 +1,117 @@
 module Penny.Cabin.Posts where
 
+import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as Fdbl
-import Data.List (transpose)
-import Data.Maybe (isNothing, catMaybes)
-import qualified Data.Sequence as Seq
-import qualified Penny.Cabin.Posts.Growers as G
-import qualified Penny.Cabin.Posts.Allocated as A
-import qualified Penny.Cabin.Posts.BottomRows as B
-import qualified Penny.Cabin.Posts.Options as Options
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Traversable as Tr
+import qualified Penny.Cabin.Interface as Iface
+import Penny.Cabin.Posts.Help (help)
+import Penny.Cabin.Posts.Chunk (makeChunk)
 import qualified Penny.Cabin.Posts.Info as Info
-import qualified Penny.Cabin.Row as R
+import qualified Penny.Cabin.Posts.Options as Options
+import qualified Penny.Cabin.Posts.Options as O
+import qualified Penny.Cabin.Posts.Parser as P
 import qualified Penny.Cabin.Colors as C
-import qualified Penny.Cabin.Posts.Colors as PC
+import Penny.Liberty.Operators (getPredicate)
 import qualified Penny.Liberty.Types as LT
+import qualified Penny.Lincoln.Balance as Bal
+import qualified Penny.Lincoln.Queries as Q
+import qualified Penny.Shield as S
+import Text.Matchers.Text (CaseSensitive)
+import qualified Data.Text as X
+import System.Console.MultiArg.Prim (ParserE)
+import Penny.Liberty.Error (Error)
 
-report ::
+balanceAccum :: Maybe Bal.Balance
+                -> LT.PostingInfo
+                -> (Maybe Bal.Balance, (LT.PostingInfo, Bal.Balance))
+balanceAccum mb po = (Just bal', (po, bal')) where
+  bal' = let
+    balThis = Bal.entryToBalance . Q.entry . LT.postingBox $ po
+    in case mb of
+      Nothing -> balThis
+      Just balOld -> Bal.addBalances balOld balThis
+
+balances :: NE.NonEmpty LT.PostingInfo
+            -> NE.NonEmpty (LT.PostingInfo, Bal.Balance)
+balances = snd . Tr.mapAccumL balanceAccum Nothing
+
+
+type WithPostingNums =
+  (LT.PostingInfo, Bal.Balance, Info.PostingNum, Info.RevPostingNum)
+
+numberPostings ::
+  NE.NonEmpty (LT.PostingInfo, Bal.Balance)
+  -> NE.NonEmpty WithPostingNums
+numberPostings ls = NE.reverse reversed where
+  withPostingNums = NE.zipWith f ls ns where
+    f (li, bal) pn = (li, bal, pn)
+    ns = fmap Info.PostingNum (NE.iterate succ 0)
+  reversed = NE.zipWith f wpn rpns where
+    f (li, bal, pn) rpn = (li, bal, pn, rpn)
+    wpn = NE.reverse withPostingNums
+    rpns = fmap Info.RevPostingNum (NE.iterate succ 0)
+    
+filterToVisible ::
   (LT.PostingInfo -> Bool) -- ^ Main predicate
+  -> ([a] -> [a]) -- ^ Post filter
+  -> NE.NonEmpty WithPostingNums
+  -> [WithPostingNums]
+filterToVisible p pf = pf . NE.filter p' where
+  p' (pstg, _, _, _) = p pstg
+
+
+
+printReport ::
+  Options.T Info.T
+  -> (LT.PostingInfo -> Bool)
   -> ([Info.T] -> [Info.T])
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
-report = undefined
-
-makeCells :: Options.T a -> [Info.T] -> C.Chunk
-makeCells os is = let
-  fmapSnd flds = fmap (fmap snd) flds
-  fmapFst flds = fmap (fmap fst) flds
-  gFldW = fmapSnd gFlds
-  aFldW = fmapSnd aFlds
-  gFlds = G.growCells os is
-  aFlds = A.payeeAndAcct gFldW os is
-  bFlds = B.bottomRows gFldW aFldW os is
-  topCells = B.topRowCells (fmapFst gFlds) (fmapFst aFlds)
-  withSpacers = B.mergeWithSpacers topCells (Options.spacers os)
-  topRows = makeTopRows (Options.baseColors os) withSpacers
-  bottomRows = makeBottomRows bFlds
-  rws = makeAllRows topRows bottomRows
-  in R.chunk rws
+printReport = undefined
 
 
-topRowsCells ::
-  PC.BaseColors
-  -> B.TopRowCells (Maybe [R.Cell], Maybe Int)
-  -> [[(R.Cell, Maybe R.Cell)]]
-topRowsCells bc t = let
-  toWithSpc (mayCs, maySp) = case mayCs of
-    Nothing -> Nothing
-    Just cs -> Just (makeSpacers bc cs maySp)
-  f mayPairList acc = case mayPairList of
-    Nothing -> acc
-    (Just pairList) -> pairList : acc
-  in transpose $ Fdbl.foldr f [] (fmap toWithSpc t)
-
-makeRow :: [(R.Cell, Maybe R.Cell)] -> R.Row
-makeRow ls = let
-  cells = foldr f [] ls where
-    f (c, mayC) acc = case mayC of
-      Nothing -> c:acc
-      Just spcr -> c:spcr:acc
-  in Fdbl.foldl' R.appendCell R.emptyRow cells
-
-makeSpacers ::
-  PC.BaseColors
-  -> [R.Cell]
-  -> Maybe Int
-  -> [(R.Cell, Maybe R.Cell)]
-makeSpacers bc cs mayI = case mayI of
-  Nothing -> map (\c -> (c, Nothing)) cs
-  Just i -> makeEvenOddSpacers bc cs i
-
-makeEvenOddSpacers ::
-  PC.BaseColors
-  -> [R.Cell]
-  -> Int
-  -> [(R.Cell, Maybe R.Cell)]
-makeEvenOddSpacers bc cs i = let absI = abs i in
-  if absI == 0
-  then map (\c -> (c, Nothing)) cs
-  else let
-    spcrs = cycle [Just $ mkSpcr evenTs, Just $ mkSpcr oddTs]
-    mkSpcr ts = R.Cell R.LeftJustify (C.Width absI) ts Seq.empty
-    evenTs = PC.evenColors bc
-    oddTs = PC.oddColors bc
-    in zip cs spcrs
-
-makeTopRows ::
-  PC.BaseColors
-  -> B.TopRowCells (Maybe [R.Cell], Maybe Int)
-  -> Maybe [R.Row]
-makeTopRows bc trc =
-  if Fdbl.all (isNothing . fst) trc
-  then Nothing
-  else Just $ map makeRow . topRowsCells bc $ trc
+makeReportFunc ::
+  Options.T Info.T
+  -> [LT.PostingInfo]
+  -> a
+  -> Ex.Exceptional X.Text C.Chunk
+makeReportFunc o ps _ = case getPredicate (O.tokens o) of
+  Nothing -> Ex.Exception (X.pack "postings: bad expression")
+  Just p -> let pf = O.postFilter o in
+    Ex.Success $ case printReport o p pf ps of
+      Nothing -> C.emptyChunk
+      Just c -> c
 
 
-makeBottomRows ::
-  B.Fields (Maybe [R.Row])
-  -> Maybe [[R.Row]]
-makeBottomRows flds =
-  if Fdbl.all isNothing flds
-  then Nothing
-  else Just . transpose . catMaybes . Fdbl.toList $ flds
+makeReportParser ::
+  (S.Runtime -> Options.T Info.T)
+  -> S.Runtime
+  -> CaseSensitive
+  -> (CaseSensitive -> X.Text -> Ex.Exceptional X.Text (X.Text -> Bool))
+  -> ParserE Error (Iface.ReportFunc, C.ColorPref)
+makeReportParser rf rt c fact = do
+  let opts = (rf rt) { O.sensitive = c
+                     , O.factory = fact }
+  opts' <- P.parseCommand (S.currentTime rt) opts
+  let colorPref = O.colorPref opts'
+      reportFunc = makeReportFunc opts'
+  return (reportFunc, colorPref)
 
-makeAllRows :: Maybe [R.Row] -> Maybe [[R.Row]] -> R.Rows
-makeAllRows mayrs mayrrs = case (mayrs, mayrrs) of
-  (Nothing, Nothing) -> R.emptyRows
-  (Just rs, Nothing) -> Fdbl.foldl' R.appendRow R.emptyRows rs
-  (Nothing, Just rrs) ->
-    Fdbl.foldl' R.appendRow R.emptyRows (concat rrs)
-  (Just rs, Just rrs) ->
-    Fdbl.foldl' addRows  R.emptyRows (zip rs rrs) where 
-      addRows rws (tr, brs) = let
-        withTopRow = rws `R.appendRow` tr
-        in Fdbl.foldl' R.appendRow withTopRow brs
+-- | Creates a Postings report. Apply this function to your
+-- customizations.
+report ::
+  (S.Runtime -> Options.T Info.T)
+  -- ^ Function that, when applied to a a data type that holds various
+  -- values that can only be known at runtime (such as the width of
+  -- the screen, the TERM environment variable, and whether standard
+  -- output is a terminal) returns which fields to show and the
+  -- default report options. This way you can configure your options
+  -- depending upon the runtime environment. (You can always ignore
+  -- the runtime variable if you don't care about that stuff when
+  -- configuring your options.) The fields and options returned by
+  -- this function can be overridden on the command line.
 
+  -> Iface.Report
+report rf = Iface.Report help rpt where
+  rpt = makeReportParser rf

@@ -193,6 +193,8 @@ Library
         Penny.Cabin.Posts.Fields,
         Penny.Cabin.Posts.Info,
         Penny.Cabin.Posts.Growers,
+        Penny.Cabin.Posts.Chunk,
+        Penny.Cabin.Posts.Help,
         Penny.Cabin.Posts.Options,
         Penny.Cabin.Posts.Parser,
         Penny.Cabin.Posts.Spacers,

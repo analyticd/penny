@@ -141,7 +141,7 @@ pickField t
   | t == pack "postingNum"       = Just Fl.t_postingNum
   | t == pack "visibleNum"       = Just Fl.t_visibleNum
   | t == pack "revPostingNum"    = Just Fl.t_revPostingNum
-  | t == pack "linenum"          = Just Fl.t_lineNum
+  | t == pack "lineNum"          = Just Fl.t_lineNum
   | t == pack "date"             = Just Fl.t_date
   | t == pack "flag"             = Just Fl.t_flag
   | t == pack "number"           = Just Fl.t_number
