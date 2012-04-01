@@ -336,7 +336,7 @@ filenameCell os info width = (ts, cell) where
   vn = Info.visibleNum info
   cell = R.Cell R.LeftJustify w ts cs
   toChunk n = C.chunk ts
-              . X.drop (max 0 (C.unWidth w - X.length n)) $ n
+              . X.drop (max 0 (X.length n - width)) $ n
   cs = case Q.filename . Info.postingBox $ info of
     Nothing -> Seq.empty
     Just fn -> Seq.singleton . toChunk . L.unFilename $ fn
