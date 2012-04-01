@@ -37,10 +37,8 @@ module Penny.Cabin.Colors (
   
 
 import Control.Applicative (pure, (*>))
-import Data.Maybe (catMaybes)
 import Data.Monoid (Monoid, mempty, mappend)
 import qualified Data.Foldable as F
-import Data.List (intersperse)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Data.Text (Text)

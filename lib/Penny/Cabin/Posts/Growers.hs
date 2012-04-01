@@ -113,17 +113,30 @@ dcTxt :: L.DrCr -> Text
 dcTxt L.Debit = pack "Dr"
 dcTxt L.Credit = pack "Cr"
 
+-- | Gives a one-line cell that is colored according to whether the
+-- posting is a debit or credit.
+coloredPostingCell :: Text -> Options.T -> Info.T -> R.Cell
+coloredPostingCell t os i = R.Cell j w ts chunk where
+  j = R.LeftJustify
+  w = C.Width 0
+  chunk = Seq.singleton . C.chunk ts $ t
+  dc = Q.drCr . I.postingBox $ i
+  ts = PC.colors (I.visibleNum i)
+       . PC.drCrToBaseColors dc
+       . O.drCrColors
+       $ os
+
 getPostingDrCr :: Options.T -> Info.T -> R.Cell
-getPostingDrCr os i = oneLine t os i where
+getPostingDrCr os i = coloredPostingCell t os i where
   t = dcTxt . Q.drCr . I.postingBox $ i
 
 getPostingCmdty :: Options.T -> Info.T -> R.Cell
-getPostingCmdty os i = oneLine t os i where
+getPostingCmdty os i = coloredPostingCell t os i where
   t = L.text . L.Delimited (X.singleton ':') 
       . L.textList . Q.commodity . I.postingBox $ i
 
 getPostingQty :: Options.T -> Info.T -> R.Cell
-getPostingQty os i = oneLine t os i where
+getPostingQty os i = coloredPostingCell t os i where
   t = O.qtyFormat os i
 
 getTotalDrCr :: Options.T -> Info.T -> R.Cell
