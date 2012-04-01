@@ -1,7 +1,6 @@
 module Penny.Cabin.Posts where
 
 import Control.Monad.Exception.Synchronous as Ex
-import qualified Data.Foldable as Fdbl
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Traversable as Tr
 import qualified Penny.Cabin.Interface as Iface
@@ -59,6 +58,10 @@ filterToVisible p pf = pf . NE.filter p' where
   p' (Numbered.T info _ _ _) = p info
 
 
+addVisibleNum :: [Numbered.T] -> [Info.T]
+addVisibleNum = zipWith f nums where
+  f num info = Numbered.toPostsInfo info num
+  nums = map Info.VisibleNum [0..]
 
 printReport ::
   Options.T
@@ -66,7 +69,15 @@ printReport ::
   -> ([Numbered.T] -> [Numbered.T])
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
-printReport = undefined
+printReport os mainPred postFilt lInfos = case NE.nonEmpty lInfos of
+  Nothing -> Nothing
+  Just neInfos -> let
+    infos = addVisibleNum
+            . filterToVisible mainPred postFilt
+            . numberPostings
+            . balances
+            $ neInfos
+    in Just $ makeChunk os infos
 
 
 makeReportFunc ::
