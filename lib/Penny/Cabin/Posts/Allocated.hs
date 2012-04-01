@@ -67,14 +67,14 @@ data Fields a = Fields {
 -- where cs is a list of all the cells, and i is the width of all the
 -- cells.
 payeeAndAcct ::
-  Options.T a
-  -> Spacers.T Int
-  -> G.Fields (Maybe Int)
-  -> O.ReportWidth
+  G.Fields (Maybe Int)
+  -> Options.T a
   -> [Info.T]
   -> Fields (Maybe ([R.Cell], Int))
-payeeAndAcct os ss fs rw is = allocateCells os ws is where
+payeeAndAcct fs os = allocateCells os ws where
   ws = fieldWidth os ss fs rw
+  ss = O.spacers os
+  rw = O.width os
 
 
 -- | Allocates cells. Returns a pair, with the first element being the
