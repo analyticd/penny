@@ -22,6 +22,7 @@ import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Info as I
 import qualified Penny.Cabin.Posts.Info as Info
+import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Posts.Colors.DarkBackground as Dark
@@ -30,7 +31,7 @@ import Penny.Copper.Qty (RadGroup)
 import qualified Penny.Shield as S
 
 
-data T a =
+data T =
   T { drCrColors :: C.DrCrColors
       -- ^ Colors to use when displaying debits, credits, and
       -- when displaying balance totals
@@ -105,7 +106,7 @@ data T a =
     , tokens :: [Ex.Token (Ty.PostingInfo -> Bool)]
       -- ^ Default list of tokens used to filter postings.
       
-    , postFilter :: [a] -> [a]
+    , postFilter :: [Numbered.T] -> [Numbered.T]
       -- ^ The entire posting list is transformed by this
       -- function after it is filtered according to the tokens.
       
@@ -153,7 +154,7 @@ defaultOptions ::
   DefaultTimeZone
   -> RadGroup
   -> S.Runtime
-  -> T a
+  -> T
 defaultOptions dtz rg rt =
   T { drCrColors = Dark.drCrColors
     , baseColors = Dark.baseColors

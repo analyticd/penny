@@ -68,7 +68,7 @@ data Fields a = Fields {
 -- cells.
 payeeAndAcct ::
   G.Fields (Maybe Int)
-  -> Options.T a
+  -> Options.T
   -> [Info.T]
   -> Fields (Maybe ([R.Cell], Int))
 payeeAndAcct fs os = allocateCells os ws where
@@ -81,7 +81,7 @@ payeeAndAcct fs os = allocateCells os ws where
 -- list of allocated cells, and the second indicating the width of the
 -- cells, which will be greater than zero.
 allocateCells ::
-  Options.T a
+  Options.T
   -> Fields Int
   -> [Info.T]
   -> Fields (Maybe ([R.Cell], Int))
@@ -109,7 +109,7 @@ removeExtraSpace cs = (trimmed, len) where
 
 -- | Gets the width of the two allocated fields.
 fieldWidth ::
-  Options.T a
+  Options.T
   -> Spacers.T Int
   -> G.Fields (Maybe Int)
   -> O.ReportWidth
@@ -129,7 +129,7 @@ fieldWidth os ss fs (O.ReportWidth rw) = let
      else A.allocate allocs widthForCells
 
 
-optionsToFields :: Options.T a -> Fields Bool
+optionsToFields :: Options.T -> Fields Bool
 optionsToFields os = let f = O.fields os in Fields {
   payee = F.payee f
   , account = F.account f }
@@ -220,7 +220,7 @@ sumGrowersAndSpacers fs ss = spacers + flds where
       Just i -> acc + i
 
 
-allocPayee :: Int -> Options.T a -> Info.T -> R.Cell
+allocPayee :: Int -> Options.T -> Info.T -> R.Cell
 allocPayee w os i = let
   pb = I.postingBox i
   ts = PC.colors (I.visibleNum i) (O.baseColors os)
@@ -243,7 +243,7 @@ allocPayee w os i = let
   in c
 
 
-allocAcct :: Int -> Options.T a -> Info.T -> R.Cell
+allocAcct :: Int -> Options.T -> Info.T -> R.Cell
 allocAcct aw os i = let
   pb = I.postingBox i
   ts = PC.colors (I.visibleNum i) (O.baseColors os) in

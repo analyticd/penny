@@ -8,6 +8,7 @@ import qualified Penny.Cabin.Interface as Iface
 import Penny.Cabin.Posts.Help (help)
 import Penny.Cabin.Posts.Chunk (makeChunk)
 import qualified Penny.Cabin.Posts.Info as Info
+import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Parser as P
@@ -37,42 +38,39 @@ balances :: NE.NonEmpty LT.PostingInfo
 balances = snd . Tr.mapAccumL balanceAccum Nothing
 
 
-type WithPostingNums =
-  (LT.PostingInfo, Bal.Balance, Info.PostingNum, Info.RevPostingNum)
-
 numberPostings ::
   NE.NonEmpty (LT.PostingInfo, Bal.Balance)
-  -> NE.NonEmpty WithPostingNums
+  -> NE.NonEmpty Numbered.T
 numberPostings ls = NE.reverse reversed where
   withPostingNums = NE.zipWith f ls ns where
     f (li, bal) pn = (li, bal, pn)
     ns = fmap Info.PostingNum (NE.iterate succ 0)
   reversed = NE.zipWith f wpn rpns where
-    f (li, bal, pn) rpn = (li, bal, pn, rpn)
+    f (li, bal, pn) rpn = Numbered.T li bal pn rpn
     wpn = NE.reverse withPostingNums
     rpns = fmap Info.RevPostingNum (NE.iterate succ 0)
     
 filterToVisible ::
   (LT.PostingInfo -> Bool) -- ^ Main predicate
-  -> ([a] -> [a]) -- ^ Post filter
-  -> NE.NonEmpty WithPostingNums
-  -> [WithPostingNums]
+  -> ([Numbered.T] -> [Numbered.T]) -- ^ Post filter
+  -> NE.NonEmpty Numbered.T
+  -> [Numbered.T]
 filterToVisible p pf = pf . NE.filter p' where
-  p' (pstg, _, _, _) = p pstg
+  p' (Numbered.T info _ _ _) = p info
 
 
 
 printReport ::
-  Options.T Info.T
+  Options.T
   -> (LT.PostingInfo -> Bool)
-  -> ([Info.T] -> [Info.T])
+  -> ([Numbered.T] -> [Numbered.T])
   -> [LT.PostingInfo]
   -> Maybe C.Chunk
 printReport = undefined
 
 
 makeReportFunc ::
-  Options.T Info.T
+  Options.T
   -> [LT.PostingInfo]
   -> a
   -> Ex.Exceptional X.Text C.Chunk
@@ -85,7 +83,7 @@ makeReportFunc o ps _ = case getPredicate (O.tokens o) of
 
 
 makeReportParser ::
-  (S.Runtime -> Options.T Info.T)
+  (S.Runtime -> Options.T)
   -> S.Runtime
   -> CaseSensitive
   -> (CaseSensitive -> X.Text -> Ex.Exceptional X.Text (X.Text -> Bool))
@@ -101,7 +99,7 @@ makeReportParser rf rt c fact = do
 -- | Creates a Postings report. Apply this function to your
 -- customizations.
 report ::
-  (S.Runtime -> Options.T Info.T)
+  (S.Runtime -> Options.T)
   -- ^ Function that, when applied to a a data type that holds various
   -- values that can only be known at runtime (such as the width of
   -- the screen, the TERM environment variable, and whether standard

@@ -9,6 +9,7 @@ data PostingInfo =
               , backSeqUnsorted :: BackSeqUnsorted
               , fwdSeqSorted :: FwdSeqSorted
               , backSeqSorted :: BackSeqSorted }
+  deriving Show
 
 newtype FwdSeqSorted = FwdSeqSorted { unFwdSeqSorted :: Integer }
                        deriving (Show, Eq, Ord)

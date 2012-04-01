@@ -12,9 +12,8 @@ import qualified Penny.Cabin.Posts.Info as Info
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Posts.Colors as PC
-import qualified Penny.Liberty.Types as LT
 
-makeChunk :: Options.T a -> [Info.T] -> C.Chunk
+makeChunk :: Options.T -> [Info.T] -> C.Chunk
 makeChunk os is = let
   fmapSnd flds = fmap (fmap snd) flds
   fmapFst flds = fmap (fmap fst) flds

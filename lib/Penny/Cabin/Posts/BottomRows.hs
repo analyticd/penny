@@ -51,7 +51,7 @@ import qualified Penny.Lincoln.Queries as Q
 bottomRows ::
   G.Fields (Maybe Int)
   -> A.Fields (Maybe Int)
-  -> Options.T a
+  -> Options.T
   -> [Info.T]
   -> Fields (Maybe [R.Row])
 bottomRows gf af os is = makeRows is pcs where
@@ -263,23 +263,23 @@ makeSpecificWidth w f i = c <<| R.emptyRow where
   (_, c) = f i w
 
 
-type Maker a = Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)
+type Maker = Options.T -> Info.T -> Int -> (C.TextSpec, R.Cell)
 
-makers :: Fields (Maker a)
+makers :: Fields Maker
 makers = Fields tagsCell memoCell filenameCell
 
 -- | Applied to an Options, indicating which reports the user wants,
 -- returns a Fields (Maybe Maker) with a Maker in each respective
 -- field that the user wants to see.
 requestedMakers ::
-  Options.T a
+  Options.T
   -> Fields (Maybe (Info.T -> Int -> (C.TextSpec, R.Cell)))
 requestedMakers os = let
   flds = bottomRowsFields (O.fields os)
   filler b mkr = if b then Just $ mkr os else Nothing
   in filler <$> flds <*> makers
 
-tagsCell :: Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)
+tagsCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.Cell)
 tagsCell os info w = (ts, cell) where
   vn = Info.visibleNum info
   cell = R.Cell R.LeftJustify (C.Width w) ts cs
@@ -314,7 +314,7 @@ memoChunks ts m (C.Width w) = cs where
   toChunk (TF.Words ws) = C.chunk ts (X.unwords . Fdbl.toList $ ws)
 
 
-memoCell :: Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)
+memoCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.Cell)
 memoCell os info width = (ts, cell) where
   w = C.Width width
   vn = Info.visibleNum info
@@ -330,7 +330,7 @@ memoCell os info width = (ts, cell) where
     (False, False) -> memoChunks ts pm w `mappend` memoChunks ts tm w
   
 
-filenameCell :: Options.T a -> Info.T -> Int -> (C.TextSpec, R.Cell)
+filenameCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.Cell)
 filenameCell os info width = (ts, cell) where
   w = C.Width width
   vn = Info.visibleNum info

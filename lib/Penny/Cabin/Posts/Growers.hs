@@ -37,7 +37,7 @@ import qualified Penny.Lincoln.Queries as Q
 -- the report but that ended up having no width are changed to
 -- Nothing.
 growCells ::
-  Options.T a
+  Options.T
   -> [Info.T]
   -> Fields (Maybe ([R.Cell], Int))
 growCells o infos = toPair <$> wanted <*> growers where
@@ -54,7 +54,7 @@ growCells o infos = toPair <$> wanted <*> growers where
 
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
-oneLine :: Text -> Options.T a -> Info.T -> R.Cell
+oneLine :: Text -> Options.T -> Info.T -> R.Cell
 oneLine t os i = let
   bc = Options.baseColors os
   vn = I.visibleNum i
@@ -64,7 +64,7 @@ oneLine t os i = let
   chunk = Seq.singleton . C.chunk ts $ t
   in R.Cell j w ts chunk
 
-growers :: Fields (Options.T a -> Info.T -> R.Cell)
+growers :: Fields (Options.T -> Info.T -> R.Cell)
 growers = Fields {
   postingNum = getPostingNum
   , visibleNum = getVisibleNum
@@ -80,32 +80,32 @@ growers = Fields {
   , totalCmdty = getTotalCmdty
   , totalQty = getTotalQty }
 
-getPostingNum :: Options.T a -> Info.T -> R.Cell
+getPostingNum :: Options.T -> Info.T -> R.Cell
 getPostingNum os i = oneLine t os i where
   t = pack . show . I.unPostingNum . I.postingNum $ i
 
-getVisibleNum :: Options.T a -> Info.T -> R.Cell
+getVisibleNum :: Options.T -> Info.T -> R.Cell
 getVisibleNum os i = oneLine t os i where
   t = pack . show . I.unVisibleNum . I.visibleNum $ i
 
-getRevPostingNum :: Options.T a -> Info.T -> R.Cell
+getRevPostingNum :: Options.T -> Info.T -> R.Cell
 getRevPostingNum os i = oneLine t os i where
   t = pack . show . I.unRevPostingNum . I.revPostingNum $ i
 
-getLineNum :: Options.T a -> Info.T -> R.Cell
+getLineNum :: Options.T -> Info.T -> R.Cell
 getLineNum os i = oneLine t os i where
   lineTxt = pack . show . L.unLine . L.unPostingLine
   t = maybe empty lineTxt (Q.postingLine . I.postingBox $ i)
 
-getDate :: Options.T a -> Info.T -> R.Cell
+getDate :: Options.T -> Info.T -> R.Cell
 getDate os i = oneLine t os i where
   t = O.dateFormat os i
 
-getFlag :: Options.T a -> Info.T -> R.Cell
+getFlag :: Options.T -> Info.T -> R.Cell
 getFlag os i = oneLine t os i where
   t = maybe empty L.text (Q.flag . I.postingBox $ i)
 
-getNumber :: Options.T a -> Info.T -> R.Cell
+getNumber :: Options.T -> Info.T -> R.Cell
 getNumber os i = oneLine t os i where
   t = maybe empty L.text (Q.number . I.postingBox $ i)
 
@@ -113,20 +113,20 @@ dcTxt :: L.DrCr -> Text
 dcTxt L.Debit = pack "Dr"
 dcTxt L.Credit = pack "Cr"
 
-getPostingDrCr :: Options.T a -> Info.T -> R.Cell
+getPostingDrCr :: Options.T -> Info.T -> R.Cell
 getPostingDrCr os i = oneLine t os i where
   t = dcTxt . Q.drCr . I.postingBox $ i
 
-getPostingCmdty :: Options.T a -> Info.T -> R.Cell
+getPostingCmdty :: Options.T -> Info.T -> R.Cell
 getPostingCmdty os i = oneLine t os i where
   t = L.text . L.Delimited (X.singleton ':') 
       . L.textList . Q.commodity . I.postingBox $ i
 
-getPostingQty :: Options.T a -> Info.T -> R.Cell
+getPostingQty :: Options.T -> Info.T -> R.Cell
 getPostingQty os i = oneLine t os i where
   t = O.qtyFormat os i
 
-getTotalDrCr :: Options.T a -> Info.T -> R.Cell
+getTotalDrCr :: Options.T -> Info.T -> R.Cell
 getTotalDrCr os i = let
   vn = I.visibleNum i
   ts = PC.colors vn bc
@@ -151,7 +151,7 @@ getTotalDrCr os i = let
   w = C.Width 0
   in R.Cell j w ts cs
 
-getTotalCmdty :: Options.T a -> Info.T -> R.Cell
+getTotalCmdty :: Options.T -> Info.T -> R.Cell
 getTotalCmdty os i = let
   vn = I.visibleNum i
   j = R.RightJustify
@@ -177,7 +177,7 @@ getTotalCmdty os i = let
     in C.chunk spec txt
   in R.Cell j w ts cs
 
-getTotalQty :: Options.T a -> Info.T -> R.Cell
+getTotalQty :: Options.T -> Info.T -> R.Cell
 getTotalQty os i = let
   vn = I.visibleNum i
   j = R.LeftJustify
@@ -200,7 +200,7 @@ getTotalQty os i = let
   w = C.Width 0
   in R.Cell j w ts cs
 
-growingFields :: Options.T a -> Fields Bool
+growingFields :: Options.T -> Fields Bool
 growingFields o = let
   f = O.fields o in Fields {
     postingNum = F.postingNum f
