@@ -12,6 +12,14 @@ import qualified Penny.Cabin.Posts.Info as Info
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Posts.Colors as PC
+import qualified Penny.Liberty.Types as LT
+
+report ::
+  (LT.PostingInfo -> Bool) -- ^ Main predicate
+  -> ([Info.T] -> [Info.T])
+  -> [LT.PostingInfo]
+  -> Maybe C.Chunk
+report = undefined
 
 makeCells :: Options.T a -> [Info.T] -> C.Chunk
 makeCells os is = let
@@ -23,9 +31,12 @@ makeCells os is = let
   aFlds = A.payeeAndAcct gFldW os is
   bFlds = B.bottomRows gFldW aFldW os is
   topCells = B.topRowCells (fmapFst gFlds) (fmapFst aFlds)
-  spcrs = Options.spacers os
-  withSpcrs = B.mergeWithSpacers topCells spcrs
-  in undefined
+  withSpacers = B.mergeWithSpacers topCells (Options.spacers os)
+  topRows = makeTopRows (Options.baseColors os) withSpacers
+  bottomRows = makeBottomRows bFlds
+  rws = makeAllRows topRows bottomRows
+  in R.chunk rws
+
 
 topRowsCells ::
   PC.BaseColors
@@ -89,3 +100,16 @@ makeBottomRows flds =
   if Fdbl.all isNothing flds
   then Nothing
   else Just . transpose . catMaybes . Fdbl.toList $ flds
+
+makeAllRows :: Maybe [R.Row] -> Maybe [[R.Row]] -> R.Rows
+makeAllRows mayrs mayrrs = case (mayrs, mayrrs) of
+  (Nothing, Nothing) -> R.emptyRows
+  (Just rs, Nothing) -> Fdbl.foldl' R.appendRow R.emptyRows rs
+  (Nothing, Just rrs) ->
+    Fdbl.foldl' R.appendRow R.emptyRows (concat rrs)
+  (Just rs, Just rrs) ->
+    Fdbl.foldl' addRows  R.emptyRows (zip rs rrs) where 
+      addRows rws (tr, brs) = let
+        withTopRow = rws `R.appendRow` tr
+        in Fdbl.foldl' R.appendRow withTopRow brs
+

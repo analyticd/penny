@@ -140,8 +140,8 @@ emptyRows = Rows S.empty
 prependRow :: Row -> Rows -> Rows
 prependRow r (Rows rs) = Rows (r <| rs)
 
-appendRow :: Row -> Rows -> Rows
-appendRow r (Rows rs) = Rows (rs |> r)
+appendRow :: Rows -> Row -> Rows
+appendRow (Rows rs) r = Rows (rs |> r)
 
 instance Monoid Rows where
   mempty = Rows S.empty
