@@ -12,6 +12,7 @@ module Penny.Lincoln.Balance (
 import Data.Map ( Map )
 import qualified Data.Map as M
 import Data.Monoid ( Monoid, mempty, mappend )
+import qualified Data.Semigroup as Semi
 
 import Penny.Lincoln.Bits (
   add, difference, Difference(LeftBiggerBy, RightBiggerBy, Equal))
@@ -90,3 +91,5 @@ addBalances :: Balance -> Balance -> Balance
 addBalances (Balance t1) (Balance t2) = 
     Balance $ M.unionWith mappend t1 t2
 
+instance Semi.Semigroup Balance where
+  (<>) = addBalances

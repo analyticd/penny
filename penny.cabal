@@ -159,9 +159,7 @@ source-repository head
 Library
     hs-source-dirs: lib
     Build-depends:
-        array ==0.3.*,
         base ==4.*,
-        bytestring ==0.9.*,
         text ==0.11.*,
         explicit-exception ==0.1.*,
         containers ==0.4.*,
@@ -170,7 +168,7 @@ Library
         Decimal >= 0.2.2 && < 0.3,
         parsec >= 3.1.2 && < 3.2,
         wraptainer ==0.1.*,
-        multiarg ==0.3.*,
+        multiarg ==0.2.*,
         matchers ==0.1.*,
         old-locale ==1.0.*,
         semigroups ==0.8.*,
@@ -181,6 +179,8 @@ Library
         Penny.Cabin,
         Penny.Cabin.Allocate,
         Penny.Cabin.Balance,
+        Penny.Cabin.Balance.Help,
+        Penny.Cabin.Balance.Tree,
         Penny.Cabin.Chunk,
         Penny.Cabin.Chunk.Switch,
         Penny.Cabin.Colors,
