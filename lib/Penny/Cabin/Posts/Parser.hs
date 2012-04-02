@@ -6,18 +6,18 @@ import System.Console.MultiArg.Combinator (longOneArg, option)
 import System.Console.MultiArg.Option (makeLongOpt)
 import System.Console.MultiArg.Prim (ParserE, throw)
 
-import qualified Penny.Cabin.Colors as CC
+import qualified Penny.Cabin.Chunk as CC
 import Penny.Liberty.Error (Error)
 import Penny.Liberty.Combinator (runUntilFailure, nextWordIs)
 import qualified Penny.Liberty.Error as Er
 import qualified Penny.Liberty.Filter as LF
 import qualified Penny.Liberty.Operands as Od
-import qualified Penny.Cabin.Posts.Colors as PC
+import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as Fl
 import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Options as Op
-import qualified Penny.Cabin.Posts.Colors.DarkBackground as DB
-import qualified Penny.Cabin.Posts.Colors.LightBackground as LB
+import qualified Penny.Cabin.Colors.DarkBackground as DB
+import qualified Penny.Cabin.Colors.LightBackground as LB
 
 import Penny.Lincoln.Bits (DateTime)
 

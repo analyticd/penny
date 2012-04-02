@@ -3,7 +3,7 @@ module Penny.Zinc.Parser where
 import qualified Data.List.NonEmpty as NE
 import System.Console.MultiArg.Prim (ParserE)
 import qualified Penny.Liberty.Types as T
-import Penny.Cabin.Colors (ColorPref)
+import Penny.Cabin.Chunk (ColorPref)
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Liberty.Error as E
 import qualified Penny.Shield as S

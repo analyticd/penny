@@ -10,8 +10,8 @@ import qualified Penny.Cabin.Posts.BottomRows as B
 import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Info as Info
 import qualified Penny.Cabin.Row as R
-import qualified Penny.Cabin.Colors as C
-import qualified Penny.Cabin.Posts.Colors as PC
+import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Cabin.Colors as PC
 
 makeChunk :: Options.T -> [Info.T] -> C.Chunk
 makeChunk os is = let

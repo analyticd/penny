@@ -11,7 +11,7 @@ import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Parser as P
-import qualified Penny.Cabin.Colors as C
+import qualified Penny.Cabin.Chunk as C
 import Penny.Liberty.Operators (getPredicate)
 import qualified Penny.Liberty.Types as LT
 import qualified Penny.Lincoln.Balance as Bal

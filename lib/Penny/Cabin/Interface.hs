@@ -7,7 +7,7 @@ import Data.Text (Text)
 import Text.Matchers.Text (CaseSensitive)
 import System.Console.MultiArg.Prim (ParserE)
 
-import Penny.Cabin.Colors (Chunk, ColorPref)
+import Penny.Cabin.Chunk (Chunk, ColorPref)
 import Penny.Liberty.Types (PostingInfo)
 import Penny.Lincoln.Boxes (PriceBox)
 import Penny.Liberty.Error (Error)

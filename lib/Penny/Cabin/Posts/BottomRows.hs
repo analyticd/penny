@@ -30,12 +30,12 @@ import Data.Monoid (mappend, mempty, First(First, getFirst))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as X
 import qualified Data.Traversable as T
-import qualified Penny.Cabin.Colors as C
+import qualified Penny.Cabin.Chunk as C
 import qualified Penny.Cabin.Row as R
 import Penny.Cabin.Row ((<<|))
 import qualified Penny.Cabin.TextFormat as TF
 import qualified Penny.Cabin.Posts.Allocated as A
-import qualified Penny.Cabin.Posts.Colors as PC
+import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G

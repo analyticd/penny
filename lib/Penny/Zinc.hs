@@ -14,7 +14,7 @@ import System.Console.MultiArg.GetArgs (getArgs)
 import System.Exit (exitFailure, exitSuccess)
 import System.IO (stderr)
 
-import qualified Penny.Cabin.Colors as Col
+import qualified Penny.Cabin.Chunk as Col
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Copper as Cop
 import Penny.Lincoln.Boxes (PostingBox, postingBoxes)

@@ -13,8 +13,8 @@ import Data.Semigroup ((<>))
 import qualified Data.Sequence as Seq
 import Data.Text (Text, pack, empty)
 import qualified Data.Text as X
-import qualified Penny.Cabin.Colors as C
-import qualified Penny.Cabin.Posts.Colors as PC
+import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Fields as F

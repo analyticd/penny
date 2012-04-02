@@ -16,8 +16,8 @@ import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Cabin.Posts.Allocate as A
-import qualified Penny.Cabin.Colors as CC
-import qualified Penny.Cabin.Posts.Colors as C
+import qualified Penny.Cabin.Chunk as CC
+import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Info as I
@@ -25,7 +25,7 @@ import qualified Penny.Cabin.Posts.Info as Info
 import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Spacers as Spacers
-import qualified Penny.Cabin.Posts.Colors.DarkBackground as Dark
+import qualified Penny.Cabin.Colors.DarkBackground as Dark
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (RadGroup)
 import qualified Penny.Shield as S

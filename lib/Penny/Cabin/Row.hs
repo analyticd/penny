@@ -21,9 +21,9 @@ import Data.Sequence (Seq, (<|), (|>), ViewL ((:<)))
 import qualified Data.Sequence as S
 import qualified Data.Text as X
 
-import Penny.Cabin.Colors
+import Penny.Cabin.Chunk
   (Chunk, TextSpec, chunkSize, Width(Width, unWidth))
-import qualified Penny.Cabin.Colors as C
+import qualified Penny.Cabin.Chunk as C
 
 -- | How to justify cells. LeftJustify leaves the right side
 -- ragged. RightJustify leaves the left side ragged.

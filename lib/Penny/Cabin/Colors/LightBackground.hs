@@ -1,9 +1,9 @@
 -- | The default colors; the user may override.
-module Penny.Cabin.Posts.Colors.LightBackground where
+module Penny.Cabin.Colors.LightBackground where
 
-import qualified Penny.Cabin.Posts.Colors as PC
-import qualified Penny.Cabin.Colors as CC
-import qualified Penny.Cabin.Colors.Switch as S
+import qualified Penny.Cabin.Colors as PC
+import qualified Penny.Cabin.Chunk as CC
+import qualified Penny.Cabin.Chunk.Switch as S
 
 baseColors :: PC.BaseColors
 baseColors = PC.BaseColors evenTextSpec oddTextSpec
