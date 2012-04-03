@@ -52,20 +52,64 @@ makeRow ::
   -> Columns R.Cell
 makeRow os ps a mayBal isEven = undefined
 
+fillTextSpec ::
+  O.Options
+  -> IsEven
+  -> Chunk.TextSpec
+fillTextSpec os isEven = let
+  getTs = if isEven then C.evenColors else C.oddColors
+  in getTs . O.baseColors $ os
+  
+
 
 makeQtyCell ::
-  S.
+  O.Options
   -> S.Option Bal.Balance
+  -> Chunk.TextSpec
   -> IsEven
   -> R.Cell
-makeQtyCell mayBal ts = R.Cell j w ts cs where
+makeQtyCell os mayBal fill isEven = R.Cell j w fill cs where
   j = R.RightJustify
   w = Chunk.Width 0
-  csTxt = case S.getOption mayBal of
-    Nothing -> Seq.singleton . X.pack $ "--"
-    Just bal -> Seq.fromList . fmap (O.balanceFormat o)
-                . M.elems . Bal.unBalance $ bal
-  cs = fmap (Chunk.chunk ts) csTxt
+  cs = case S.getOption mayBal of
+    Nothing -> let
+      getTs = if isEven then C.evenZero else C.oddZero
+      ts = getTs . O.drCrColors $ os
+      in Seq.singleton (Chunk.chunk ts (X.pack "--"))
+    Just bal -> undefined
+
+-- | 
+
+-- | Returns a triple (x, y, z), where x is the DrCr chunk, y is the
+-- commodity chunk, and z is the qty chunk.
+bottomLineChunks ::
+  O.Options
+  -> IsEven
+  -> (L.Commodity, Bal.BottomLine)
+  -> (Chunk.Chunk, Chunk.Chunk, Chunk.Chunk)
+bottomLineChunks os isEven (comm, bl) = (dc, cty, qty) where
+  dc = Chunk.chunk ts dcTxt
+  cty = Chunk.chunk ts ctyTxt
+  qty = Chunk.chunk ts qtyTxt
+  ctyTxt = L.text (L.Delimited (X.singleton ':') (L.textList comm))
+  (ts, dcTxt, qtyTxt) = case bl of
+    Bal.Zero -> let
+      getTs = if isEven then C.evenZero else C.oddZero
+      dcT = X.pack "--"
+      qtyT = dcT
+      in (getTs . O.drCrColors $ os, dcT, qtyT)
+    Bal.NonZero clm -> let
+      (getTs, dcT) = case Bal.drCr clm of
+        L.Debit ->
+          (if isEven then C.evenDebit else C.oddDebit,
+           X.pack "Dr")
+        L.Credit ->
+          (if isEven then C.evenCredit else C.evenCredit,
+           X.pack "Cr")
+      qTxt = (O.balanceFormat os) bl
+      in (getTs . O.drCrColors $ os, dcT, qTxt)
+
+{-
 
 makeCommodityCell ::
   S.Option Bal.Balance
@@ -76,3 +120,4 @@ makeCommodityCell mayBal ts = R.Cell j w ts cs where
   w = Chunk.Width 0
   csTxt = case S.getOption mayBal of
     Nothing -> Seq.singleton . X.pack $ "--"
+-}
