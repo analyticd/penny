@@ -5,6 +5,7 @@ import qualified Data.Text as X
 import qualified Penny.Lincoln as L
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
+import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Lincoln.Balance as Bal
 
 data Options = Options {
@@ -19,3 +20,9 @@ balanceAsIs n = case n of
   L.Zero -> X.pack "--"
   L.NonZero c -> X.pack . show . L.unQty . Bal.qty $ c
 
+defaultOptions :: Options
+defaultOptions = Options {
+  drCrColors = DB.drCrColors
+  , baseColors = DB.baseColors
+  , balanceFormat = balanceAsIs
+  , colorPref = Chunk.PrefAuto }
