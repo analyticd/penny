@@ -2,8 +2,12 @@
 -- processing.
 module Penny.Cabin.Balance.Tree where
 
+import qualified Data.Row as R
+import qualified Data.Sequence as Seq
+import qualified Control.Monad.Trans.Writer as W
 import qualified Data.Foldable as Fdbl
 import qualified Data.NestedMap as NM
+import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Liberty.Types as LT
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
@@ -25,3 +29,11 @@ balances = Fdbl.foldl' addPosting NM.empty . map toPair where
     ac = Q.account box
     en = Q.entry box
     in (ac, en)
+
+makeRow ::
+  O.Options
+  -> [(L.SubAccountName, (S.Option Bal.Balance))]
+  -> L.SubAccountName
+  -> S.Option Bal.Balance
+  -> R.Row
+makeRow

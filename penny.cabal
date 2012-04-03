@@ -180,6 +180,7 @@ Library
         Penny.Cabin.Allocate,
         Penny.Cabin.Balance,
         Penny.Cabin.Balance.Help,
+        Penny.Cabin.Balance.Options,
         Penny.Cabin.Balance.Tree,
         Penny.Cabin.Chunk,
         Penny.Cabin.Chunk.Switch,
