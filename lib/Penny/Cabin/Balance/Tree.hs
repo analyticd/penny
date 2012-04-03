@@ -1,6 +1,6 @@
 -- | Takes postings and places them into a tree for further
 -- processing.
-module Penny.Cabin.Balance.Tree where
+module Penny.Cabin.Balance.Tree (report) where
 
 import Control.Applicative(Applicative(pure, (<*>)), (<$>))
 import qualified Penny.Cabin.Row as R
@@ -10,6 +10,7 @@ import Data.Sequence ((|>), (<|))
 import qualified Control.Monad.Trans.Writer as W
 import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
+import qualified Data.Monoid as Monoid
 import qualified Data.NestedMap as NM
 import qualified Data.Text as X
 import qualified Penny.Cabin.Balance.Options as O
@@ -21,15 +22,35 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Data.Semigroup as S
 
-type Balances = NM.NestedMap L.SubAccountName (S.Option Bal.Balance)
+newtype RawBal = RawBal { unRawBal :: S.Option Bal.Balance }
+instance Monoid.Monoid RawBal where
+  mappend (RawBal b1) (RawBal b2) = RawBal $ b1 `Monoid.mappend` b2
+  mempty = RawBal Monoid.mempty
 
-addPosting :: Balances -> (L.Account, L.Entry) -> Balances
+newtype SummedBal = SummedBal { unSummedBal :: S.Option Bal.Balance }
+instance Monoid.Monoid SummedBal where
+  mappend (SummedBal b1) (SummedBal b2) =
+    SummedBal $ b1 `Monoid.mappend` b2
+  mempty = SummedBal Monoid.mempty
+
+type SummedBals = NM.NestedMap L.SubAccountName SummedBal
+type RawBals = NM.NestedMap L.SubAccountName RawBal
+
+report :: O.Options -> [LT.PostingInfo] -> Chunk.Chunk
+report os = R.chunk
+            . Fdbl.foldl' R.appendRow R.emptyRows
+            . totaledTreeToRows os
+            . balances
+
+-- | Inserts a single posting into the Balances tree.
+addPosting :: RawBals -> (L.Account, L.Entry) -> RawBals
 addPosting bals (ac, en) = let
-  bal = S.Option . Just . L.entryToBalance $ en
+  bal = RawBal . S.Option . Just . L.entryToBalance $ en
   subs = Fdbl.toList . L.unAccount $ ac
   in NM.insert bals subs bal
 
-balances :: [LT.PostingInfo] -> Balances
+-- | Calculates all balances. Does NOT sum the balances.
+balances :: [LT.PostingInfo] -> RawBals
 balances = Fdbl.foldl' addPosting NM.empty . map toPair where
   toPair p = let
     box = LT.postingBox p
@@ -72,8 +93,17 @@ widthSpacerDrCr = 1
 widthSpacerCommodity :: Int
 widthSpacerCommodity = 1
 
-cellToRow :: O.Options -> IsEven -> Columns R.Cell -> R.Row
-cellToRow os isEven (Columns a dc c q) = let
+totaledTreeToRows ::
+  O.Options
+  -> RawBals
+  -> Seq.Seq R.Row
+totaledTreeToRows os bals = Seq.zipWith f es cellsResized where
+  cellsResized = resizedCells os bals
+  es = Seq.iterateN (Seq.length cellsResized) not True
+  f = cellsToRow os
+
+cellsToRow :: O.Options -> IsEven -> Columns R.Cell -> R.Row
+cellsToRow os isEven (Columns a dc c q) = let
   fillSpec = if isEven
              then C.evenColors . O.baseColors $ os
              else C.oddColors . O.baseColors $ os
@@ -90,7 +120,7 @@ cellToRow os isEven (Columns a dc c q) = let
 
 resizedCells ::
   O.Options
-  -> Balances
+  -> RawBals
   -> Seq.Seq (Columns R.Cell)
 resizedCells os bals = resize ws cols where
   cols = allCells os bals
@@ -113,28 +143,27 @@ maxWidths = Fdbl.foldl' f (pure 0) where
     max old (Chunk.unWidth . R.widestLine . R.chunks $ new)
   f acc cols = maxCol <$> acc <*> cols
 
-
 allCells ::
   O.Options
-  -> Balances
+  -> RawBals
   -> Seq.Seq (Columns R.Cell)
 allCells os bal = let
-  (tot, tree) = NM.cumulativeTotal bal
+  (tot, tree) = NM.cumulativeTotal (fmap (SummedBal . unRawBal) bal)
   in makeTotalCells os tot
      <| treeCells os tree
 
 treeCells ::
   O.Options
-  -> Balances
+  -> SummedBals
   -> Seq.Seq (Columns R.Cell)
 treeCells os =
   W.execWriter . NM.traverseWithTrail (traverser os)
 
 traverser ::
   O.Options
-  -> [(L.SubAccountName, S.Option Bal.Balance)]
+  -> [(L.SubAccountName, SummedBal)]
   -> L.SubAccountName
-  -> S.Option Bal.Balance
+  -> SummedBal
   -> a
   -> W.Writer (Seq.Seq (Columns R.Cell)) (Maybe ())
 traverser os hist a mayBal _ =
@@ -144,7 +173,7 @@ traverser os hist a mayBal _ =
 
 makeTotalCells ::
   O.Options
-  -> S.Option Bal.Balance
+  -> SummedBal
   -> Columns R.Cell
 makeTotalCells os mayBal = Columns act dc com qt where
   act = accountCell os True 0 tot
@@ -153,9 +182,9 @@ makeTotalCells os mayBal = Columns act dc com qt where
 
 makeCells ::
   O.Options
-  -> [(L.SubAccountName, S.Option Bal.Balance)]
+  -> [(L.SubAccountName, SummedBal)]
   -> L.SubAccountName
-  -> S.Option Bal.Balance
+  -> SummedBal
   -> Columns R.Cell
 makeCells os ps a mayBal = Columns act dc com qt where
   lvl = length ps + 1
@@ -193,7 +222,7 @@ accountCell os isEven lvl acct = R.Cell j w ts chk where
 bottomLineCells ::
   O.Options
   -> IsEven
-  -> S.Option Bal.Balance
+  -> SummedBal
   -> (R.Cell, R.Cell, R.Cell)
 bottomLineCells os isEven mayBal = let
   fill = fillTextSpec os isEven
@@ -204,15 +233,15 @@ bottomLineCells os isEven mayBal = let
     R.Cell R.LeftJustify (Chunk.Width 0)
     tsZero (Seq.singleton (Chunk.chunk tsZero (X.pack "--")))
   zeroCells = (zeroCell, zeroCell, zeroCell)
-  in case S.getOption mayBal of
+  in case S.getOption . unSummedBal $ mayBal of
     Nothing -> zeroCells
     Just bal -> bottomLineBalCells fill
                 . map (bottomLineBalChunks os isEven)
                 . M.assocs
                 . Bal.unBalance
                 $ bal
-  
-            
+
+
 
 -- | Takes a list of triples from bottomLineChunks and creates three
 -- Cells, one each for DrCr, Commodity, and Qty.
