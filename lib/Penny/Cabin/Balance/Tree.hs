@@ -1,5 +1,15 @@
 -- | Takes postings and places them into a tree for further
 -- processing.
+--
+-- Steps:
+--
+-- * [LT.PostingInfo] -> RawBals
+-- * RawBals -> (SummedBals, TotalBal)
+-- * (SummedBals, TotalBal) -> (CellsInMap, TotalBal)
+-- * (CellsInMap, TotalBal) -> [Columns R.Cell]
+-- * [Columns R.Cell] -> [Columns R.Cell] (resize)
+-- * [Columns R.Cell] -> [R.Row]
+-- * [R.Row] -> R.Rows
 module Penny.Cabin.Balance.Tree (report) where
 
 import Control.Applicative(Applicative(pure, (<*>)), (<$>))
@@ -27,14 +37,17 @@ instance Monoid.Monoid RawBal where
   mappend (RawBal b1) (RawBal b2) = RawBal $ b1 `Monoid.mappend` b2
   mempty = RawBal Monoid.mempty
 
-newtype SummedBal = SummedBal { unSummedBal :: S.Option Bal.Balance }
+newtype SummedBal =
+  SummedBal { unSummedBal :: S.Option Bal.Balance }
 instance Monoid.Monoid SummedBal where
   mappend (SummedBal b1) (SummedBal b2) =
     SummedBal $ b1 `Monoid.mappend` b2
   mempty = SummedBal Monoid.mempty
 
+type CellsInMap = NM.NestedMap L.SubAccountName (Columns R.Cell)
 type SummedBals = NM.NestedMap L.SubAccountName SummedBal
 type RawBals = NM.NestedMap L.SubAccountName RawBal
+
 
 report :: O.Options -> [LT.PostingInfo] -> Chunk.Chunk
 report os = R.chunk
