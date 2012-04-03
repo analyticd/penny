@@ -9,7 +9,7 @@
 -- * (CellsInMap, TotalBal) -> [Columns R.Cell]
 -- * [Columns R.Cell] -> [Columns R.Cell] (resize)
 -- * [Columns R.Cell] -> [R.Row]
--- * [R.Row] -> R.Rows
+-- * [R.Row] -> Chunk.Chunk
 module Penny.Cabin.Balance.Tree (report) where
 
 import Control.Applicative(Applicative(pure, (<*>)), (<$>))
@@ -19,6 +19,7 @@ import qualified Data.Sequence as Seq
 import Data.Sequence ((|>), (<|))
 import qualified Control.Monad.Trans.Writer as W
 import qualified Data.Foldable as Fdbl
+import qualified Data.Functor.Identity as Id
 import qualified Data.Map as M
 import qualified Data.Monoid as Monoid
 import qualified Data.NestedMap as NM
@@ -47,13 +48,53 @@ instance Monoid.Monoid SummedBal where
 type CellsInMap = NM.NestedMap L.SubAccountName (Columns R.Cell)
 type SummedBals = NM.NestedMap L.SubAccountName SummedBal
 type RawBals = NM.NestedMap L.SubAccountName RawBal
+type TotalBal = SummedBal
 
-
-report :: O.Options -> [LT.PostingInfo] -> Chunk.Chunk
-report os = R.chunk
+reportOld :: O.Options -> [LT.PostingInfo] -> Chunk.Chunk
+reportOld os = R.chunk
             . Fdbl.foldl' R.appendRow R.emptyRows
             . totaledTreeToRows os
             . balances
+
+report :: O.Options -> [LT.PostingInfo] -> Chunk.Chunk
+report os =
+  rowsToChunk
+  . columnListToRows os
+  . resizeColumnsInList
+  . makeColumnList os
+  . makeCellsInMap os
+  . sumBalances
+  . rawBalances
+
+rowsToChunk :: [R.Row] -> Chunk.Chunk
+rowsToChunk = R.chunk . Fdbl.foldl' R.appendRow R.emptyRows
+
+columnListToRows :: O.Options -> [Columns R.Cell] -> [R.Row]
+columnListToRows os = zipWith f bools where
+  f b c = cellsToRow os b c
+  bools = iterate not True
+
+resizeColumnsInList :: [Columns R.Cell] -> [Columns R.Cell]
+resizeColumnsInList cs = resize mw cs where
+  mw = maxWidths cs
+
+makeColumnList :: O.Options -> (CellsInMap, TotalBal) -> [Columns R.Cell]
+makeColumnList os (cim, tb) = totCols : restCols where
+  totCols = makeTotalCells os tb
+  restCols = Fdbl.toList cim
+
+makeCellsInMap :: O.Options -> (SummedBals, TotalBal) -> (CellsInMap, TotalBal)
+makeCellsInMap os (sb, tb) = (cim, tb) where
+  cim = Id.runIdentity (NM.traverseWithTrail (traverser' os) sb)
+
+sumBalances :: RawBals -> (SummedBals, TotalBal)
+sumBalances rb = (sb, (SummedBal . unRawBal $ tb)) where
+  (tb, rawBals) = NM.cumulativeTotal rb
+  sb = fmap (SummedBal . unRawBal) rawBals
+
+rawBalances :: [LT.PostingInfo] -> RawBals
+rawBalances = balances
+
 
 -- | Inserts a single posting into the Balances tree.
 addPosting :: RawBals -> (L.Account, L.Entry) -> RawBals
@@ -182,6 +223,16 @@ traverser ::
 traverser os hist a mayBal _ =
   W.tell (Seq.singleton (makeCells os hist a mayBal))
   >> return (Just ())
+
+traverser' ::
+  O.Options
+  -> [(L.SubAccountName, SummedBal)]
+  -> L.SubAccountName
+  -> SummedBal
+  -> a
+  -> Id.Identity (Maybe (Columns R.Cell))
+traverser' os hist a mayBal _ =
+  return (Just $ makeCells os hist a mayBal)
 
 
 makeTotalCells ::
