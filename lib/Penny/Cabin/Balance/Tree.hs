@@ -16,8 +16,7 @@ import Control.Applicative(Applicative(pure, (<*>)), (<$>))
 import qualified Penny.Cabin.Row as R
 import Penny.Cabin.Row((|>>))
 import qualified Data.Sequence as Seq
-import Data.Sequence ((|>), (<|))
-import qualified Control.Monad.Trans.Writer as W
+import Data.Sequence ((|>))
 import qualified Data.Foldable as Fdbl
 import qualified Data.Functor.Identity as Id
 import qualified Data.Map as M
@@ -50,12 +49,6 @@ type SummedBals = NM.NestedMap L.SubAccountName SummedBal
 type RawBals = NM.NestedMap L.SubAccountName RawBal
 type TotalBal = SummedBal
 
-reportOld :: O.Options -> [LT.PostingInfo] -> Chunk.Chunk
-reportOld os = R.chunk
-            . Fdbl.foldl' R.appendRow R.emptyRows
-            . totaledTreeToRows os
-            . balances
-
 report :: O.Options -> [LT.PostingInfo] -> Chunk.Chunk
 report os =
   rowsToChunk
@@ -76,7 +69,14 @@ columnListToRows os = zipWith f bools where
 
 resizeColumnsInList :: [Columns R.Cell] -> [Columns R.Cell]
 resizeColumnsInList cs = resize mw cs where
-  mw = maxWidths cs
+  mw = Fdbl.foldl' f (pure 0) cs where
+    maxCol old new =
+      max old (Chunk.unWidth . R.widestLine . R.chunks $ new)
+    f acc cols = maxCol <$> acc <*> cols
+  resize widths = fmap resizeRow where
+    resizeCell w c = c { R.width = Chunk.Width w }
+    resizeRow = (resizeCell <$> widths <*> )
+
 
 makeColumnList :: O.Options -> (CellsInMap, TotalBal) -> [Columns R.Cell]
 makeColumnList os (cim, tb) = totCols : restCols where
@@ -85,7 +85,7 @@ makeColumnList os (cim, tb) = totCols : restCols where
 
 makeCellsInMap :: O.Options -> (SummedBals, TotalBal) -> (CellsInMap, TotalBal)
 makeCellsInMap os (sb, tb) = (cim, tb) where
-  cim = Id.runIdentity (NM.traverseWithTrail (traverser' os) sb)
+  cim = Id.runIdentity (NM.traverseWithTrail (traverser os) sb)
 
 sumBalances :: RawBals -> (SummedBals, TotalBal)
 sumBalances rb = (sb, (SummedBal . unRawBal $ tb)) where
@@ -93,7 +93,12 @@ sumBalances rb = (sb, (SummedBal . unRawBal $ tb)) where
   sb = fmap (SummedBal . unRawBal) rawBals
 
 rawBalances :: [LT.PostingInfo] -> RawBals
-rawBalances = balances
+rawBalances = Fdbl.foldl' addPosting NM.empty . map toPair where
+  toPair p = let
+    box = LT.postingBox p
+    ac = Q.account box
+    en = Q.entry box
+    in (ac, en)
 
 
 -- | Inserts a single posting into the Balances tree.
@@ -102,15 +107,6 @@ addPosting bals (ac, en) = let
   bal = RawBal . S.Option . Just . L.entryToBalance $ en
   subs = Fdbl.toList . L.unAccount $ ac
   in NM.insert bals subs bal
-
--- | Calculates all balances. Does NOT sum the balances.
-balances :: [LT.PostingInfo] -> RawBals
-balances = Fdbl.foldl' addPosting NM.empty . map toPair where
-  toPair p = let
-    box = LT.postingBox p
-    ac = Q.account box
-    en = Q.entry box
-    in (ac, en)
 
 type IsEven = Bool
 
@@ -147,15 +143,6 @@ widthSpacerDrCr = 1
 widthSpacerCommodity :: Int
 widthSpacerCommodity = 1
 
-totaledTreeToRows ::
-  O.Options
-  -> RawBals
-  -> Seq.Seq R.Row
-totaledTreeToRows os bals = Seq.zipWith f es cellsResized where
-  cellsResized = resizedCells os bals
-  es = Seq.iterateN (Seq.length cellsResized) not True
-  f = cellsToRow os
-
 cellsToRow :: O.Options -> IsEven -> Columns R.Cell -> R.Row
 cellsToRow os isEven (Columns a dc c q) = let
   fillSpec = if isEven
@@ -172,46 +159,6 @@ cellsToRow os isEven (Columns a dc c q) = let
      |>> spacer widthSpacerCommodity
      |>> q
 
-resizedCells ::
-  O.Options
-  -> RawBals
-  -> Seq.Seq (Columns R.Cell)
-resizedCells os bals = resize ws cols where
-  cols = allCells os bals
-  ws = maxWidths cols
-
-resize :: Functor f
-          => Columns Int
-          -> f (Columns R.Cell)
-          -> f (Columns R.Cell)
-resize widths = fmap resizeRow where
-  resizeCell w c = c { R.width = Chunk.Width w }
-  resizeRow = (resizeCell <$> widths <*> )
-
-
-maxWidths :: (Fdbl.Foldable f)
-             => f (Columns R.Cell)
-             -> Columns Int
-maxWidths = Fdbl.foldl' f (pure 0) where
-  maxCol old new =
-    max old (Chunk.unWidth . R.widestLine . R.chunks $ new)
-  f acc cols = maxCol <$> acc <*> cols
-
-allCells ::
-  O.Options
-  -> RawBals
-  -> Seq.Seq (Columns R.Cell)
-allCells os bal = let
-  (tot, tree) = NM.cumulativeTotal (fmap (SummedBal . unRawBal) bal)
-  in makeTotalCells os tot
-     <| treeCells os tree
-
-treeCells ::
-  O.Options
-  -> SummedBals
-  -> Seq.Seq (Columns R.Cell)
-treeCells os =
-  W.execWriter . NM.traverseWithTrail (traverser os)
 
 traverser ::
   O.Options
@@ -219,19 +166,8 @@ traverser ::
   -> L.SubAccountName
   -> SummedBal
   -> a
-  -> W.Writer (Seq.Seq (Columns R.Cell)) (Maybe ())
-traverser os hist a mayBal _ =
-  W.tell (Seq.singleton (makeCells os hist a mayBal))
-  >> return (Just ())
-
-traverser' ::
-  O.Options
-  -> [(L.SubAccountName, SummedBal)]
-  -> L.SubAccountName
-  -> SummedBal
-  -> a
   -> Id.Identity (Maybe (Columns R.Cell))
-traverser' os hist a mayBal _ =
+traverser os hist a mayBal _ =
   return (Just $ makeCells os hist a mayBal)
 
 
