@@ -2,12 +2,16 @@
 -- processing.
 module Penny.Cabin.Balance.Tree where
 
-import qualified Data.Row as R
+import qualified Penny.Cabin.Row as R
 import qualified Data.Sequence as Seq
 import qualified Control.Monad.Trans.Writer as W
 import qualified Data.Foldable as Fdbl
+import qualified Data.Map as M
 import qualified Data.NestedMap as NM
+import qualified Data.Text as X
 import qualified Penny.Cabin.Balance.Options as O
+import qualified Penny.Cabin.Chunk as Chunk
+import qualified Penny.Cabin.Colors as C
 import qualified Penny.Liberty.Types as LT
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
@@ -30,10 +34,45 @@ balances = Fdbl.foldl' addPosting NM.empty . map toPair where
     en = Q.entry box
     in (ac, en)
 
+type IsEven = Bool
+
+data Columns a = Columns {
+  account :: a
+  , drCr :: a
+  , commodity :: a
+  , quantity :: a
+  } deriving Show
+
 makeRow ::
   O.Options
-  -> [(L.SubAccountName, (S.Option Bal.Balance))]
+  -> [(L.SubAccountName, S.Option Bal.Balance)]
   -> L.SubAccountName
   -> S.Option Bal.Balance
-  -> R.Row
-makeRow
+  -> IsEven
+  -> Columns R.Cell
+makeRow os ps a mayBal isEven = undefined
+
+
+makeQtyCell ::
+  S.
+  -> S.Option Bal.Balance
+  -> IsEven
+  -> R.Cell
+makeQtyCell mayBal ts = R.Cell j w ts cs where
+  j = R.RightJustify
+  w = Chunk.Width 0
+  csTxt = case S.getOption mayBal of
+    Nothing -> Seq.singleton . X.pack $ "--"
+    Just bal -> Seq.fromList . fmap (O.balanceFormat o)
+                . M.elems . Bal.unBalance $ bal
+  cs = fmap (Chunk.chunk ts) csTxt
+
+makeCommodityCell ::
+  S.Option Bal.Balance
+  -> Chunk.TextSpec
+  -> R.Cell
+makeCommodityCell mayBal ts = R.Cell j w ts cs where
+  j = R.LeftJustify
+  w = Chunk.Width 0
+  csTxt = case S.getOption mayBal of
+    Nothing -> Seq.singleton . X.pack $ "--"
