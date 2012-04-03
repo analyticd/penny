@@ -2,9 +2,11 @@
 -- processing.
 module Penny.Cabin.Balance.Tree where
 
+import Control.Applicative(Applicative(pure, (<*>)), (<$>))
 import qualified Penny.Cabin.Row as R
+import Penny.Cabin.Row((|>>))
 import qualified Data.Sequence as Seq
-import Data.Sequence ((|>))
+import Data.Sequence ((|>), (<|))
 import qualified Control.Monad.Trans.Writer as W
 import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
@@ -44,14 +46,121 @@ data Columns a = Columns {
   , quantity :: a
   } deriving Show
 
-makeRow ::
+instance Functor Columns where
+  fmap f c = Columns {
+    account = f (account c)
+    , drCr = f (drCr c)
+    , commodity = f (commodity c)
+    , quantity = f (quantity c)
+    }
+
+instance Applicative Columns where
+  pure a = Columns a a a a
+  fn <*> fa = Columns {
+    account = (account fn) (account fa)
+    , drCr = (drCr fn) (drCr fa)
+    , commodity = (commodity fn) (commodity fa)
+    , quantity = (quantity fn) (quantity fa)
+    }
+
+widthSpacerAcct :: Int
+widthSpacerAcct = 4
+
+widthSpacerDrCr :: Int
+widthSpacerDrCr = 1
+
+widthSpacerCommodity :: Int
+widthSpacerCommodity = 1
+
+cellToRow :: O.Options -> IsEven -> Columns R.Cell -> R.Row
+cellToRow os isEven (Columns a dc c q) = let
+  fillSpec = if isEven
+             then C.evenColors . O.baseColors $ os
+             else C.oddColors . O.baseColors $ os
+  spacer w = R.Cell j (Chunk.Width w) fillSpec Seq.empty
+  j = R.LeftJustify
+  in R.emptyRow
+     |>> a
+     |>> spacer widthSpacerAcct
+     |>> dc
+     |>> spacer widthSpacerDrCr
+     |>> c
+     |>> spacer widthSpacerCommodity
+     |>> q
+
+resizedCells ::
+  O.Options
+  -> Balances
+  -> Seq.Seq (Columns R.Cell)
+resizedCells os bals = resize ws cols where
+  cols = allCells os bals
+  ws = maxWidths cols
+
+resize :: Functor f
+          => Columns Int
+          -> f (Columns R.Cell)
+          -> f (Columns R.Cell)
+resize widths = fmap resizeRow where
+  resizeCell w c = c { R.width = Chunk.Width w }
+  resizeRow = (resizeCell <$> widths <*> )
+
+
+maxWidths :: (Fdbl.Foldable f)
+             => f (Columns R.Cell)
+             -> Columns Int
+maxWidths = Fdbl.foldl' f (pure 0) where
+  maxCol old new =
+    max old (Chunk.unWidth . R.widestLine . R.chunks $ new)
+  f acc cols = maxCol <$> acc <*> cols
+
+
+allCells ::
+  O.Options
+  -> Balances
+  -> Seq.Seq (Columns R.Cell)
+allCells os bal = let
+  (tot, tree) = NM.cumulativeTotal bal
+  in makeTotalCells os tot
+     <| treeCells os tree
+
+treeCells ::
+  O.Options
+  -> Balances
+  -> Seq.Seq (Columns R.Cell)
+treeCells os =
+  W.execWriter . NM.traverseWithTrail (traverser os)
+
+traverser ::
   O.Options
   -> [(L.SubAccountName, S.Option Bal.Balance)]
   -> L.SubAccountName
   -> S.Option Bal.Balance
-  -> IsEven
+  -> a
+  -> W.Writer (Seq.Seq (Columns R.Cell)) (Maybe ())
+traverser os hist a mayBal _ =
+  W.tell (Seq.singleton (makeCells os hist a mayBal))
+  >> return (Just ())
+
+
+makeTotalCells ::
+  O.Options
+  -> S.Option Bal.Balance
   -> Columns R.Cell
-makeRow os ps a mayBal isEven = undefined
+makeTotalCells os mayBal = Columns act dc com qt where
+  act = accountCell os True 0 tot
+  tot = L.SubAccountName $ L.TextNonEmpty 'T' (X.pack "otal")
+  (dc, com, qt) = bottomLineCells os True mayBal
+
+makeCells ::
+  O.Options
+  -> [(L.SubAccountName, S.Option Bal.Balance)]
+  -> L.SubAccountName
+  -> S.Option Bal.Balance
+  -> Columns R.Cell
+makeCells os ps a mayBal = Columns act dc com qt where
+  lvl = length ps + 1
+  act = accountCell os (even lvl) lvl a
+  (dc, com, qt) = bottomLineCells os (even lvl) mayBal
 
 fillTextSpec ::
   O.Options
@@ -62,22 +171,24 @@ fillTextSpec os isEven = let
   in getTs . O.baseColors $ os
   
 
+padding :: Int
+padding = 2
 
-makeQtyCell ::
+accountCell ::
   O.Options
-  -> S.Option Bal.Balance
-  -> Chunk.TextSpec
   -> IsEven
+  -> Int
+  -> L.SubAccountName
   -> R.Cell
-makeQtyCell os mayBal fill isEven = R.Cell j w fill cs where
-  j = R.RightJustify
+accountCell os isEven lvl acct = R.Cell j w ts chk where
+  j = R.LeftJustify
   w = Chunk.Width 0
-  cs = case S.getOption mayBal of
-    Nothing -> let
-      getTs = if isEven then C.evenZero else C.oddZero
-      ts = getTs . O.drCrColors $ os
-      in Seq.singleton (Chunk.chunk ts (X.pack "--"))
-    Just bal -> undefined
+  ts = if isEven
+       then C.evenColors . O.baseColors $ os
+       else C.oddColors . O.baseColors $ os
+  chk = Seq.singleton $ Chunk.chunk ts txt where
+    txt = pad `X.append` (L.text acct)
+    pad = X.replicate (padding * lvl) (X.singleton ' ')
 
 bottomLineCells ::
   O.Options
@@ -143,16 +254,3 @@ bottomLineBalChunks os isEven (comm, bl) = (dc, cty, qty) where
            X.pack "Cr")
       qTxt = (O.balanceFormat os) bl
       in (getTs . O.drCrColors $ os, dcT, qTxt)
-
-{-
-
-makeCommodityCell ::
-  S.Option Bal.Balance
-  -> Chunk.TextSpec
-  -> R.Cell
-makeCommodityCell mayBal ts = R.Cell j w ts cs where
-  j = R.LeftJustify
-  w = Chunk.Width 0
-  csTxt = case S.getOption mayBal of
-    Nothing -> Seq.singleton . X.pack $ "--"
--}
