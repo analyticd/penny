@@ -1,15 +1,3 @@
-# Changes to make:
-# * Change multiline comment to /* */
-# * Allow Debit and Credit to be lower case, or single D or C
-#   or d or c
-# * Change radix and separator to be fixed
-# * Add quoting:
-#   * Curly braces for accounts
-#   * Angle brackets for payees
-# * Change posting memos - single quote mark
-# * Verify allowed characters for all fields
-# * Change price symbol to @
-# Make comments begin with a single slash
 # Sample Penny file. Penny is a double-entry accounting
 # system. Penny uses traditional accounting terminology,
 # which means that every transaction will have "debits"
@@ -28,25 +16,25 @@
 # http://www.principlesofaccounting.com/
 
 # As you can see, single line comments begin with
-# two slashes. 
+# a hash mark, like a shell script. Currently there
+# is no way to make a multi-line comment.
+
+# Here is a sample transaction to start things off.
 
 2011/12/15 Salts Deluxe
-    Assets:Checking                 Dr $2000.00
+    Assets:Checking                Dr $2000.00
         'Payday
     Income:Salary                  Cr $1500.00
     Expenses:Taxes                 Cr $500.00
 
 ; This is a transaction memo. It is associated
 ; with the transaction, and the penny program lets you
-; search their contents.
+; search their contents. Transaction memos appear immediately
+; before a transaction and their lines begin with
+; semicolons.
 2012/01/01 Payee Name
     Assets:Checking                 Cr $5.00
     Expenses:Food
-
-# Lines with a posting start with at least one space. At least
-# two spaces separate the account name and the DrCr.
-# Account names can have one embedded space at a time (never
-# immediately following or preceding the colon).
 
 # Tags are only one word. Precede each tag with an asterisk.
 # Postings can have one or more "tags". These allow you to
@@ -61,13 +49,25 @@
 # For instance, this can be used to indicate a posting
 # is cleared.
 
+# Penny uses spaces to separate different parts of the
+# transaction. If you want to include spaces in the name
+# of an account, you must enclose it in curly braces
+# as shown in the next transaction.
+
 2012/01/02 [C] (302) GreenGas
     {Liabilities:Credit Card}             Cr $5.00
     Expenses:Car *gas *trips
 
+# Though the posting lines in this file are nicely indented for
+# readability, Penny does not require this.
+
 ; This transaction has a posting with a different payee.
-; The last posting has a memo. It must be indented farther than the
-; line its posting is on.
+; You can do this by enclosing the payee in greater than
+; and less than signs as shown.
+; The last posting has a memo.
+; These begin with an apostrophe. As with posting lines, the
+; indentation is nice for readability, but it is not required.
+; (It does have to be on a new line though.)
 2012/01/03 Flathead
     [R] (905) <Luvapet Vet> Expenses:Pet    Dr $10.00
     Assets:Checking               Cr $5.00
@@ -81,9 +81,13 @@
     Assets:Checking                     Cr $200.00
 
 
-# You can have commas in amounts. The commas are ignored.
-# (The digit grouping character and the radix point
-# character are configurable.)
+# By default, the digit grouping character is the comma and
+# the radix point character is the period. You can configure these
+# (somewhat) easily by making changes to the source code (not
+# as bad as it sounds, believe it or not.) The digit grouping
+# character is really for your benefit; Penny mostly ignores
+# it. The radix point is of course quite significant.
+
 # Commodity names may be before or after the commodity amount.
 # They can be separated from the amount by one optional space.
 
@@ -105,8 +109,11 @@
 # transactions are parsed. Even if you specify prices,
 # you still must ensure that the debits equal the credits
 # in every transaction; if they do not, the parser will fail.
-# Prices can be useful for some reports which use this
-# information.
+# Eventually the postings and balance reports might use
+# price information; I also plan to make a separate
+# price change report, but for now this data does not
+# actually do anything.
+
 # Prices specify that ONE unit of the given commodity
 # equals the given quantity of the other commodity. Here
 # are some examples.
@@ -126,7 +133,9 @@
 ; just as accounts can. Subsequent parts can be viewed as
 ; sub-commodities. This can be handy if different commodities
 ; have something in common and you want to group them together.
-; Some reports that use prices can apply a single price to multiple
+; Currently nothing uses price data or sub-commodities. The plan
+; is that 
+; some reports that use prices can apply a single price to multiple
 ; sub-commodities. For example, let's say you bought shares in T in
 ; 2007 and in 2012. For tax purposes you want to track them separately
 ; in your reports (this can matter for capital gains taxes) yet
@@ -153,16 +162,24 @@
 @ 2007/06/01 T $40.53
 @ 2012/01/27 T $29.16
 
-# As the examples above show, Penny works fine with Unicode.
+# As the examples above show with the currency symbols,
+# Penny works fine with Unicode.
 # Your ledger file should be encoded in your system's default
 # encoding. On my system this is UTF-8, as it is on most
 # recent Linux systems, but some systems use other encodings.
 # I know that Slackware was recently using ISO-8859-1. Non-Unicode
 # encodings should work fine as well, as Penny will convert them
 # to Unicode internally.
-#
-# If your ledger file is encoded in your system's default
-# encoding and you still have Unicode problems,
+
+# Although Penny currently should work with a data file encoded with
+# any common encoding, it is possible that future versions might work
+# only with UTF-8. In particular, the Alex lexer works only with
+# UTF-8; I might switch to Alex and Happy to make parsing faster and
+# less memory hungry. For maximum future-proofness use UTF-8 or just
+# plain 7-bit ASCII (which is also valid UTF-8.)
+
+# If your ledger file is encoded in UTF-8
+# and you still have Unicode problems,
 # it is a bug. Please report it to me.
 
 # If you have no idea what all this encoding stuff is about,
@@ -173,7 +190,7 @@
 # The Penny program will not change your input file. It cannot
 # change your input file as it is opened read-only.
 
-#//////////////////////////////////////////////////////////
+##############################################################
 
 # Dates - as one example with the prices suggested, dates
 # need not be just a date. They can also include a time.
@@ -185,7 +202,8 @@
 # or which you can configure as being in whatever time zone your
 # system is set to use. Or of course you can specify the time
 # zone by specifying the number of hours and minutes the
-# time differs from UTC. To specify UTC, use +0000 or -0000.
+# time differs from UTC. To specify UTC, use +0000 or -0000. In the
+# default configuration, the DefaultTimeZone is UTC.
 
 ; Transaction that specifies a time. The time zone is the
 ; DefaultTimeZone, which you can configure. Times must be specified
@@ -226,15 +244,6 @@
 # An entry is an amount combined with an indication of Debit
 # or Credit.
 
-# You can write your amount in different orders, and Penny will
-# remember the order you used. Some reports might use this order.
-# Typically the last way you wrote the commodity is the one that a
-# a report will use when printing a report.
-
-# A commodity's identity is determined by the characters you use
-# when you type the commodity. Thus EUR 100 and 100 EUR mean the
-# same thing, except for the fact that they are formatted differently.
-
 # You can write commodities and quantities in one of four ways:
 #
 # * Commodity first, without a separating space. E.g. $100, F25, €59,
@@ -247,9 +256,21 @@
 # * Commodity last, with separating space.
 #
 # In the last three cases, the commodity name can include digits.
-# In no case can the commodity name include whitespace characters.
+# If you want to include spaces in the name of a commodity, surround
+# it with "quotes".
 # In all cases the commodity name can use sub-commodities by
-# using colons. Here's an example. Note that the transaction balances
+# using colons.
+
+# A commodity's identity is determined by the characters you use
+# when you type the commodity. Thus EUR 100 and 100 EUR mean the
+# same thing, except for the fact that they are formatted differently.
+
+# The Penny parser does remember the order in which you specified
+# the commodity and the quantity for every posting, but currently
+# nothing is done with this information. For instance, in the
+# postings report, the commodity is always shown first.
+
+# Here's an example. Note that the transaction balances
 # because the commodity is the same whether written before or after
 # the quantity.
 
