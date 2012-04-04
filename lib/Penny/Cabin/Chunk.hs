@@ -36,7 +36,6 @@ module Penny.Cabin.Chunk (
   Invisible(Invisible) ) where
   
 
-import Control.Applicative (pure, (*>))
 import Data.Monoid (Monoid, mempty, mappend)
 import qualified Data.Foldable as F
 import Data.Sequence (Seq)
@@ -45,7 +44,6 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Text.Lazy.IO as TIO
 import qualified Data.Text.Lazy.Builder as TB
-import qualified Data.Traversable as T
 import Data.Word (Word8)
 import System.Environment (getEnvironment)
 import System.IO (hIsTerminalDevice, stdout)
@@ -82,25 +80,25 @@ data Color8 =
 
 instance HasForegroundCode Color8 where
   foregroundCode a = case a of
-    Black -> Code $ TB.fromString "30"
-    Red -> Code $ TB.fromString "31"
-    Green -> Code $ TB.fromString "32"
-    Yellow -> Code $ TB.fromString "33"
-    Blue -> Code $ TB.fromString "34"
-    Magenta -> Code $ TB.fromString "35"
-    Cyan -> Code $ TB.fromString "36"
-    White -> Code $ TB.fromString "37"
+    Black -> code "30"
+    Red -> code "31"
+    Green -> code "32"
+    Yellow -> code "33"
+    Blue -> code "34"
+    Magenta -> code "35"
+    Cyan -> code "36"
+    White -> code "37"
 
 instance HasBackgroundCode Color8 where
   backgroundCode a = case a of
-    Black -> Code $ TB.fromString "40"
-    Red -> Code $ TB.fromString "41"
-    Green -> Code $ TB.fromString "42"
-    Yellow -> Code $ TB.fromString "43"
-    Blue -> Code $ TB.fromString "44"
-    Magenta -> Code $ TB.fromString "45"
-    Cyan -> Code $ TB.fromString "46"
-    White -> Code $ TB.fromString "47"
+    Black -> code "40"
+    Red -> code "41"
+    Green -> code "42"
+    Yellow -> code "43"
+    Blue -> code "44"
+    Magenta -> code "45"
+    Cyan -> code "46"
+    White -> code "47"
 
 black :: Color Color8
 black = Color Black
@@ -137,11 +135,11 @@ data Color256 = Color256 Word8
 
 instance HasForegroundCode Color256 where
   foregroundCode (Color256 w) =
-    Code $ TB.fromString ("38;5;" ++ show w)
+    code ("38;5;" ++ show w)
 
 instance HasBackgroundCode Color256 where
   backgroundCode (Color256 w) =
-    Code $ TB.fromString ("48;5;" ++ show w)
+    code ("48;5;" ++ show w)
 
 c256 :: Int -> Color256
 c256 w =
@@ -203,7 +201,7 @@ printCodeIfOn s = case s of
 printMaybeCode :: Maybe Code -> TB.Builder
 printMaybeCode c = case c of
   Nothing -> mempty
-  Just code -> controlCode code
+  Just cd -> controlCode cd
 
 data TextSpec =
   TextSpec { style8 :: Style Color8
@@ -263,12 +261,15 @@ data Invisible = Invisible
 data Reset = Reset
 newtype Code = Code { unCode :: TB.Builder }
 
-instance HasOnCode Bold where onCode _ = Code $ TB.fromString "1"
-instance HasOnCode Underline where onCode _ = Code $ TB.fromString "4"
-instance HasOnCode Flash where onCode _ = Code $ TB.fromString "5"
-instance HasOnCode Inverse where onCode _ = Code $ TB.fromString "7"
-instance HasOnCode Invisible where onCode _ = Code $ TB.fromString "8"
-instance HasOnCode Reset where onCode _ = Code $ TB.fromString "0"
+code :: String -> Code
+code s = Code $ csi .++. TB.fromString s .++. TB.singleton 'm'
+
+instance HasOnCode Bold where onCode _ = code "1"
+instance HasOnCode Underline where onCode _ = code "4"
+instance HasOnCode Flash where onCode _ = code "5"
+instance HasOnCode Inverse where onCode _ = code "7"
+instance HasOnCode Invisible where onCode _ = code "8"
+instance HasOnCode Reset where onCode _ = code "0"
 
 data Switch a = Off a | On a
 
@@ -281,10 +282,7 @@ csi :: TB.Builder
 csi = TB.fromString (toEnum 27:'[':[])
 
 controlCode :: Code -> TB.Builder
-controlCode c =
-  csi
-  .++. unCode c
-  .++. TB.singleton 'm'
+controlCode = unCode
 
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
