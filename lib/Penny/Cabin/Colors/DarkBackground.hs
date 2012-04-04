@@ -17,22 +17,22 @@ drCrColors = PC.DrCrColors { PC.evenDebit = debit evenTextSpec
                            , PC.oddZero = zero oddTextSpec }
 
 evenTextSpec :: CC.TextSpec
-evenTextSpec = CC.defaultSpec
+evenTextSpec = CC.defaultTextSpec
 
 oddTextSpec :: CC.TextSpec
-oddTextSpec = S.switchBackground CC.defaultColor
-              (CC.color256_235) evenTextSpec
+oddTextSpec = S.switchBackground CC.color8_b_default
+              CC.color256_b_235 evenTextSpec
               
 -- | Debits in 256 colors are orange; in 8 colors, magenta
 debit :: CC.TextSpec -> CC.TextSpec
-debit = S.switchForeground CC.magenta (CC.color256_208)
+debit = S.switchForeground CC.color8_f_magenta CC.color256_f_208
 
 -- | Credits in 256 colors are cyan; in 8 colors, cyan
 credit :: CC.TextSpec -> CC.TextSpec
-credit = S.switchForeground CC.cyan (CC.color256_45)
+credit = S.switchForeground CC.color8_f_cyan (CC.color256_f_45)
 
 -- | Zero values are white
 zero :: CC.TextSpec -> CC.TextSpec
-zero = S.switchForeground CC.white (CC.color256_15)
+zero = S.switchForeground CC.color8_f_white (CC.color256_f_15)
 
 

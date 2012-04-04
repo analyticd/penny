@@ -52,7 +52,7 @@ data PaddedCell =
 -- as necessary, but because the cell has no width and no chunks, it
 -- will never appear.
 zeroCell :: Cell
-zeroCell = Cell LeftJustify (Width 0) C.defaultSpec S.empty
+zeroCell = Cell LeftJustify (Width 0) C.defaultTextSpec S.empty
 
 widestLine :: Seq Chunk -> Width
 widestLine = F.foldr max (Width 0) . fmap chunkSize
@@ -155,7 +155,7 @@ instance HasChunk Row where
     if S.null cells
     then mempty
     else F.foldr mappend mempty zippedWithNewlines where
-      newline = C.chunk C.defaultSpec (X.singleton '\n')
+      newline = C.chunk C.defaultTextSpec (X.singleton '\n')
       zippedWithNewlines = fmap (`mappend` newline) zipped
       zipped = F.foldr1 zipper (fmap justifiedChunks cells)
       zipper s1 s2 = S.zipWith mappend s1 s2
