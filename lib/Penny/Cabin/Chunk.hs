@@ -43,7 +43,8 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Text.IO as TIO
+import qualified Data.Text.Lazy.IO as TIO
+import qualified Data.Text.Lazy.Builder as TB
 import qualified Data.Traversable as T
 import Data.Word (Word8)
 import System.Environment (getEnvironment)
@@ -81,25 +82,25 @@ data Color8 =
 
 instance HasForegroundCode Color8 where
   foregroundCode a = case a of
-    Black -> Code "30"
-    Red -> Code "31"
-    Green -> Code "32"
-    Yellow -> Code "33"
-    Blue -> Code "34"
-    Magenta -> Code "35"
-    Cyan -> Code "36"
-    White -> Code "37"
+    Black -> Code $ TB.fromString "30"
+    Red -> Code $ TB.fromString "31"
+    Green -> Code $ TB.fromString "32"
+    Yellow -> Code $ TB.fromString "33"
+    Blue -> Code $ TB.fromString "34"
+    Magenta -> Code $ TB.fromString "35"
+    Cyan -> Code $ TB.fromString "36"
+    White -> Code $ TB.fromString "37"
 
 instance HasBackgroundCode Color8 where
   backgroundCode a = case a of
-    Black -> Code "40"
-    Red -> Code "41"
-    Green -> Code "42"
-    Yellow -> Code "43"
-    Blue -> Code "44"
-    Magenta -> Code "45"
-    Cyan -> Code "46"
-    White -> Code "47"
+    Black -> Code $ TB.fromString "40"
+    Red -> Code $ TB.fromString "41"
+    Green -> Code $ TB.fromString "42"
+    Yellow -> Code $ TB.fromString "43"
+    Blue -> Code $ TB.fromString "44"
+    Magenta -> Code $ TB.fromString "45"
+    Cyan -> Code $ TB.fromString "46"
+    White -> Code $ TB.fromString "47"
 
 black :: Color Color8
 black = Color Black
@@ -135,10 +136,12 @@ data Color256 = Color256 Word8
                 deriving Show
 
 instance HasForegroundCode Color256 where
-  foregroundCode (Color256 w) = Code $ "38;5;" ++ show w
+  foregroundCode (Color256 w) =
+    Code $ TB.fromString ("38;5;" ++ show w)
 
 instance HasBackgroundCode Color256 where
-  backgroundCode (Color256 w) = Code $ "48;5;" ++ show w
+  backgroundCode (Color256 w) =
+    Code $ TB.fromString ("48;5;" ++ show w)
 
 c256 :: Int -> Color256
 c256 w =
@@ -176,42 +179,53 @@ data Style a =
         , invisible :: Switch Invisible
         , inverse :: Switch Inverse }
 
+(.++.) :: TB.Builder -> TB.Builder -> TB.Builder
+(.++.) = mappend
+infixr 5 .++.
+
 styleCodes :: (HasForegroundCode a, HasBackgroundCode a)
-              => Style a -> IO ()
+              => Style a -> TB.Builder
 styleCodes s =
   controlCode (onCode Reset)
-  >> printMaybeCode (colorForeground (foreground s))
-  >> printMaybeCode (colorBackground (background s))
-  >> printCodeIfOn (bold s)
-  >> printCodeIfOn (underline s)
-  >> printCodeIfOn (flash s)
-  >> printCodeIfOn (invisible s)
-  >> printCodeIfOn (inverse s)
+  .++. printMaybeCode (colorForeground (foreground s))
+  .++. printMaybeCode (colorBackground (background s))
+  .++. printCodeIfOn (bold s)
+  .++. printCodeIfOn (underline s)
+  .++. printCodeIfOn (flash s)
+  .++. printCodeIfOn (invisible s)
+  .++. printCodeIfOn (inverse s)
 
-printCodeIfOn :: HasOnCode a => Switch a -> IO ()
+printCodeIfOn :: HasOnCode a => Switch a -> TB.Builder
 printCodeIfOn s = case s of
-  Off _ -> return ()
+  Off _ -> mempty
   On a -> controlCode . onCode $ a
 
-printMaybeCode :: Maybe Code -> IO ()
+printMaybeCode :: Maybe Code -> TB.Builder
 printMaybeCode c = case c of
-  Nothing -> return ()
+  Nothing -> mempty
   Just code -> controlCode code
 
 data TextSpec =
   TextSpec { style8 :: Style Color8
            , style256 :: Style Color256 }
 
-textSpecCode :: Colors -> TextSpec -> IO ()
+textSpecCode :: Colors -> TextSpec -> TB.Builder
 textSpecCode c ts = case c of
-  Colors0 -> return ()
+  Colors0 -> mempty
   Colors8 -> styleCodes . style8 $ ts
   Colors256 -> styleCodes . style256 $ ts
 
+{-
 printBit :: Colors -> Bit -> IO ()
 printBit c (Bit ts t) =
   textSpecCode c ts
   >> TIO.putStr t
+-}
+builder :: Colors -> Bit -> TB.Builder -> TB.Builder
+builder c (Bit ts t) acc =
+  textSpecCode c ts 
+  .++. TB.fromText t
+  .++. acc
 
 printChunk :: ColorPref -> Chunk -> IO ()
 printChunk cp (Chunk cs) = do
@@ -220,7 +234,10 @@ printChunk cp (Chunk cs) = do
         Pref8 -> return Colors8
         Pref256 -> return Colors256
         PrefAuto -> autoColors
-  T.traverse (printBit c) cs *> printReset c
+  let z = printReset c
+      bldr = F.foldr (builder c) z cs
+  TIO.putStr (TB.toLazyText bldr)
+  --T.traverse (printBit c) cs *> printReset c
 
 autoColors :: IO Colors
 autoColors = do
@@ -244,30 +261,30 @@ data Flash = Flash
 data Inverse = Inverse
 data Invisible = Invisible
 data Reset = Reset
-newtype Code = Code { unCode :: String }
+newtype Code = Code { unCode :: TB.Builder }
 
-instance HasOnCode Bold where onCode _ = Code "1"
-instance HasOnCode Underline where onCode _ = Code "4"
-instance HasOnCode Flash where onCode _ = Code "5"
-instance HasOnCode Inverse where onCode _ = Code "7"
-instance HasOnCode Invisible where onCode _ = Code "8"
-instance HasOnCode Reset where onCode _ = Code "0"
+instance HasOnCode Bold where onCode _ = Code $ TB.fromString "1"
+instance HasOnCode Underline where onCode _ = Code $ TB.fromString "4"
+instance HasOnCode Flash where onCode _ = Code $ TB.fromString "5"
+instance HasOnCode Inverse where onCode _ = Code $ TB.fromString "7"
+instance HasOnCode Invisible where onCode _ = Code $ TB.fromString "8"
+instance HasOnCode Reset where onCode _ = Code $ TB.fromString "0"
 
 data Switch a = Off a | On a
 
-printReset :: Colors -> IO ()
+printReset :: Colors -> TB.Builder
 printReset c = case c of
-  Colors0 -> pure ()
+  Colors0 -> mempty
   _ -> controlCode (onCode Reset)
 
-csi :: String
-csi = toEnum 27:'[':[]
+csi :: TB.Builder
+csi = TB.fromString (toEnum 27:'[':[])
 
-controlCode :: Code -> IO ()
+controlCode :: Code -> TB.Builder
 controlCode c =
-  putStr csi
-  >> putStr (unCode c)
-  >> putStr "m"
+  csi
+  .++. unCode c
+  .++. TB.singleton 'm'
 
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
