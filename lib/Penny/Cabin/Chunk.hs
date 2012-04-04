@@ -8,7 +8,262 @@ module Penny.Cabin.Chunk (
   Foreground(Foreground, unForeground),
   Background(Background, unBackground),
   black, red, green, yellow, blue, magenta, cyan, white,
-  color256,
+  color256_0,
+  color256_1,
+  color256_2,
+  color256_3,
+  color256_4,
+  color256_5,
+  color256_6,
+  color256_7,
+  color256_8,
+  color256_9,
+  color256_10,
+  color256_11,
+  color256_12,
+  color256_13,
+  color256_14,
+  color256_15,
+  color256_16,
+  color256_17,
+  color256_18,
+  color256_19,
+  color256_20,
+  color256_21,
+  color256_22,
+  color256_23,
+  color256_24,
+  color256_25,
+  color256_26,
+  color256_27,
+  color256_28,
+  color256_29,
+  color256_30,
+  color256_31,
+  color256_32,
+  color256_33,
+  color256_34,
+  color256_35,
+  color256_36,
+  color256_37,
+  color256_38,
+  color256_39,
+  color256_40,
+  color256_41,
+  color256_42,
+  color256_43,
+  color256_44,
+  color256_45,
+  color256_46,
+  color256_47,
+  color256_48,
+  color256_49,
+  color256_50,
+  color256_51,
+  color256_52,
+  color256_53,
+  color256_54,
+  color256_55,
+  color256_56,
+  color256_57,
+  color256_58,
+  color256_59,
+  color256_60,
+  color256_61,
+  color256_62,
+  color256_63,
+  color256_64,
+  color256_65,
+  color256_66,
+  color256_67,
+  color256_68,
+  color256_69,
+  color256_70,
+  color256_71,
+  color256_72,
+  color256_73,
+  color256_74,
+  color256_75,
+  color256_76,
+  color256_77,
+  color256_78,
+  color256_79,
+  color256_80,
+  color256_81,
+  color256_82,
+  color256_83,
+  color256_84,
+  color256_85,
+  color256_86,
+  color256_87,
+  color256_88,
+  color256_89,
+  color256_90,
+  color256_91,
+  color256_92,
+  color256_93,
+  color256_94,
+  color256_95,
+  color256_96,
+  color256_97,
+  color256_98,
+  color256_99,
+  color256_100,
+  color256_101,
+  color256_102,
+  color256_103,
+  color256_104,
+  color256_105,
+  color256_106,
+  color256_107,
+  color256_108,
+  color256_109,
+  color256_110,
+  color256_111,
+  color256_112,
+  color256_113,
+  color256_114,
+  color256_115,
+  color256_116,
+  color256_117,
+  color256_118,
+  color256_119,
+  color256_120,
+  color256_121,
+  color256_122,
+  color256_123,
+  color256_124,
+  color256_125,
+  color256_126,
+  color256_127,
+  color256_128,
+  color256_129,
+  color256_130,
+  color256_131,
+  color256_132,
+  color256_133,
+  color256_134,
+  color256_135,
+  color256_136,
+  color256_137,
+  color256_138,
+  color256_139,
+  color256_140,
+  color256_141,
+  color256_142,
+  color256_143,
+  color256_144,
+  color256_145,
+  color256_146,
+  color256_147,
+  color256_148,
+  color256_149,
+  color256_150,
+  color256_151,
+  color256_152,
+  color256_153,
+  color256_154,
+  color256_155,
+  color256_156,
+  color256_157,
+  color256_158,
+  color256_159,
+  color256_160,
+  color256_161,
+  color256_162,
+  color256_163,
+  color256_164,
+  color256_165,
+  color256_166,
+  color256_167,
+  color256_168,
+  color256_169,
+  color256_170,
+  color256_171,
+  color256_172,
+  color256_173,
+  color256_174,
+  color256_175,
+  color256_176,
+  color256_177,
+  color256_178,
+  color256_179,
+  color256_180,
+  color256_181,
+  color256_182,
+  color256_183,
+  color256_184,
+  color256_185,
+  color256_186,
+  color256_187,
+  color256_188,
+  color256_189,
+  color256_190,
+  color256_191,
+  color256_192,
+  color256_193,
+  color256_194,
+  color256_195,
+  color256_196,
+  color256_197,
+  color256_198,
+  color256_199,
+  color256_200,
+  color256_201,
+  color256_202,
+  color256_203,
+  color256_204,
+  color256_205,
+  color256_206,
+  color256_207,
+  color256_208,
+  color256_209,
+  color256_210,
+  color256_211,
+  color256_212,
+  color256_213,
+  color256_214,
+  color256_215,
+  color256_216,
+  color256_217,
+  color256_218,
+  color256_219,
+  color256_220,
+  color256_221,
+  color256_222,
+  color256_223,
+  color256_224,
+  color256_225,
+  color256_226,
+  color256_227,
+  color256_228,
+  color256_229,
+  color256_230,
+  color256_231,
+  color256_232,
+  color256_233,
+  color256_234,
+  color256_235,
+  color256_236,
+  color256_237,
+  color256_238,
+  color256_239,
+  color256_240,
+  color256_241,
+  color256_242,
+  color256_243,
+  color256_244,
+  color256_245,
+  color256_246,
+  color256_247,
+  color256_248,
+  color256_249,
+  color256_250,
+  color256_251,
+  color256_252,
+  color256_253,
+  color256_254,
+  color256_255,
   defaultColor,
   autoColors,
 
@@ -44,7 +299,6 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Text.Lazy.IO as TIO
 import qualified Data.Text.Lazy.Builder as TB
-import Data.Word (Word8)
 import System.Environment (getEnvironment)
 import System.IO (hIsTerminalDevice, stdout)
 
@@ -124,28 +378,8 @@ cyan = Color Cyan
 white :: Color Color8
 white = Color White
 
-color256 :: Int -> Color Color256
-color256 = Color . c256
-
 defaultColor :: Color a
 defaultColor = Default
-
-data Color256 = Color256 Word8
-                deriving Show
-
-instance HasForegroundCode Color256 where
-  foregroundCode (Color256 w) =
-    code ("38;5;" ++ show w)
-
-instance HasBackgroundCode Color256 where
-  backgroundCode (Color256 w) =
-    code ("48;5;" ++ show w)
-
-c256 :: Int -> Color256
-c256 w =
-  if w < 0 || w > 255
-  then error "color number out of range"
-  else Color256 (fromIntegral w)
 
 data Color a = Default | Color a
 
@@ -213,12 +447,7 @@ textSpecCode c ts = case c of
   Colors8 -> styleCodes . style8 $ ts
   Colors256 -> styleCodes . style256 $ ts
 
-{-
-printBit :: Colors -> Bit -> IO ()
-printBit c (Bit ts t) =
-  textSpecCode c ts
-  >> TIO.putStr t
--}
+
 builder :: Colors -> Bit -> TB.Builder -> TB.Builder
 builder c (Bit ts t) acc =
   textSpecCode c ts 
@@ -235,7 +464,7 @@ printChunk cp (Chunk cs) = do
   let z = printReset c
       bldr = F.foldr (builder c) z cs
   TIO.putStr (TB.toLazyText bldr)
-  --T.traverse (printBit c) cs *> printReset c
+
 
 autoColors :: IO Colors
 autoColors = do
@@ -315,7 +544,7 @@ defaultSpec = TextSpec { style8 = defaultStyle
                        , style256 = defaultStyle }
 
 data Color256 =
-  | Color256_0
+  Color256_0
   | Color256_1
   | Color256_2
   | Color256_3
@@ -1090,3 +1319,771 @@ instance HasBackgroundCode Color256 where
     Color256_253 -> code "48;5;253"
     Color256_254 -> code "48;5;254"
     Color256_255 -> code "48;5;255"
+
+color256_0 :: Color Color256
+color256_0 = Color Color256_0
+
+color256_1 :: Color Color256
+color256_1 = Color Color256_1
+
+color256_2 :: Color Color256
+color256_2 = Color Color256_2
+
+color256_3 :: Color Color256
+color256_3 = Color Color256_3
+
+color256_4 :: Color Color256
+color256_4 = Color Color256_4
+
+color256_5 :: Color Color256
+color256_5 = Color Color256_5
+
+color256_6 :: Color Color256
+color256_6 = Color Color256_6
+
+color256_7 :: Color Color256
+color256_7 = Color Color256_7
+
+color256_8 :: Color Color256
+color256_8 = Color Color256_8
+
+color256_9 :: Color Color256
+color256_9 = Color Color256_9
+
+color256_10 :: Color Color256
+color256_10 = Color Color256_10
+
+color256_11 :: Color Color256
+color256_11 = Color Color256_11
+
+color256_12 :: Color Color256
+color256_12 = Color Color256_12
+
+color256_13 :: Color Color256
+color256_13 = Color Color256_13
+
+color256_14 :: Color Color256
+color256_14 = Color Color256_14
+
+color256_15 :: Color Color256
+color256_15 = Color Color256_15
+
+color256_16 :: Color Color256
+color256_16 = Color Color256_16
+
+color256_17 :: Color Color256
+color256_17 = Color Color256_17
+
+color256_18 :: Color Color256
+color256_18 = Color Color256_18
+
+color256_19 :: Color Color256
+color256_19 = Color Color256_19
+
+color256_20 :: Color Color256
+color256_20 = Color Color256_20
+
+color256_21 :: Color Color256
+color256_21 = Color Color256_21
+
+color256_22 :: Color Color256
+color256_22 = Color Color256_22
+
+color256_23 :: Color Color256
+color256_23 = Color Color256_23
+
+color256_24 :: Color Color256
+color256_24 = Color Color256_24
+
+color256_25 :: Color Color256
+color256_25 = Color Color256_25
+
+color256_26 :: Color Color256
+color256_26 = Color Color256_26
+
+color256_27 :: Color Color256
+color256_27 = Color Color256_27
+
+color256_28 :: Color Color256
+color256_28 = Color Color256_28
+
+color256_29 :: Color Color256
+color256_29 = Color Color256_29
+
+color256_30 :: Color Color256
+color256_30 = Color Color256_30
+
+color256_31 :: Color Color256
+color256_31 = Color Color256_31
+
+color256_32 :: Color Color256
+color256_32 = Color Color256_32
+
+color256_33 :: Color Color256
+color256_33 = Color Color256_33
+
+color256_34 :: Color Color256
+color256_34 = Color Color256_34
+
+color256_35 :: Color Color256
+color256_35 = Color Color256_35
+
+color256_36 :: Color Color256
+color256_36 = Color Color256_36
+
+color256_37 :: Color Color256
+color256_37 = Color Color256_37
+
+color256_38 :: Color Color256
+color256_38 = Color Color256_38
+
+color256_39 :: Color Color256
+color256_39 = Color Color256_39
+
+color256_40 :: Color Color256
+color256_40 = Color Color256_40
+
+color256_41 :: Color Color256
+color256_41 = Color Color256_41
+
+color256_42 :: Color Color256
+color256_42 = Color Color256_42
+
+color256_43 :: Color Color256
+color256_43 = Color Color256_43
+
+color256_44 :: Color Color256
+color256_44 = Color Color256_44
+
+color256_45 :: Color Color256
+color256_45 = Color Color256_45
+
+color256_46 :: Color Color256
+color256_46 = Color Color256_46
+
+color256_47 :: Color Color256
+color256_47 = Color Color256_47
+
+color256_48 :: Color Color256
+color256_48 = Color Color256_48
+
+color256_49 :: Color Color256
+color256_49 = Color Color256_49
+
+color256_50 :: Color Color256
+color256_50 = Color Color256_50
+
+color256_51 :: Color Color256
+color256_51 = Color Color256_51
+
+color256_52 :: Color Color256
+color256_52 = Color Color256_52
+
+color256_53 :: Color Color256
+color256_53 = Color Color256_53
+
+color256_54 :: Color Color256
+color256_54 = Color Color256_54
+
+color256_55 :: Color Color256
+color256_55 = Color Color256_55
+
+color256_56 :: Color Color256
+color256_56 = Color Color256_56
+
+color256_57 :: Color Color256
+color256_57 = Color Color256_57
+
+color256_58 :: Color Color256
+color256_58 = Color Color256_58
+
+color256_59 :: Color Color256
+color256_59 = Color Color256_59
+
+color256_60 :: Color Color256
+color256_60 = Color Color256_60
+
+color256_61 :: Color Color256
+color256_61 = Color Color256_61
+
+color256_62 :: Color Color256
+color256_62 = Color Color256_62
+
+color256_63 :: Color Color256
+color256_63 = Color Color256_63
+
+color256_64 :: Color Color256
+color256_64 = Color Color256_64
+
+color256_65 :: Color Color256
+color256_65 = Color Color256_65
+
+color256_66 :: Color Color256
+color256_66 = Color Color256_66
+
+color256_67 :: Color Color256
+color256_67 = Color Color256_67
+
+color256_68 :: Color Color256
+color256_68 = Color Color256_68
+
+color256_69 :: Color Color256
+color256_69 = Color Color256_69
+
+color256_70 :: Color Color256
+color256_70 = Color Color256_70
+
+color256_71 :: Color Color256
+color256_71 = Color Color256_71
+
+color256_72 :: Color Color256
+color256_72 = Color Color256_72
+
+color256_73 :: Color Color256
+color256_73 = Color Color256_73
+
+color256_74 :: Color Color256
+color256_74 = Color Color256_74
+
+color256_75 :: Color Color256
+color256_75 = Color Color256_75
+
+color256_76 :: Color Color256
+color256_76 = Color Color256_76
+
+color256_77 :: Color Color256
+color256_77 = Color Color256_77
+
+color256_78 :: Color Color256
+color256_78 = Color Color256_78
+
+color256_79 :: Color Color256
+color256_79 = Color Color256_79
+
+color256_80 :: Color Color256
+color256_80 = Color Color256_80
+
+color256_81 :: Color Color256
+color256_81 = Color Color256_81
+
+color256_82 :: Color Color256
+color256_82 = Color Color256_82
+
+color256_83 :: Color Color256
+color256_83 = Color Color256_83
+
+color256_84 :: Color Color256
+color256_84 = Color Color256_84
+
+color256_85 :: Color Color256
+color256_85 = Color Color256_85
+
+color256_86 :: Color Color256
+color256_86 = Color Color256_86
+
+color256_87 :: Color Color256
+color256_87 = Color Color256_87
+
+color256_88 :: Color Color256
+color256_88 = Color Color256_88
+
+color256_89 :: Color Color256
+color256_89 = Color Color256_89
+
+color256_90 :: Color Color256
+color256_90 = Color Color256_90
+
+color256_91 :: Color Color256
+color256_91 = Color Color256_91
+
+color256_92 :: Color Color256
+color256_92 = Color Color256_92
+
+color256_93 :: Color Color256
+color256_93 = Color Color256_93
+
+color256_94 :: Color Color256
+color256_94 = Color Color256_94
+
+color256_95 :: Color Color256
+color256_95 = Color Color256_95
+
+color256_96 :: Color Color256
+color256_96 = Color Color256_96
+
+color256_97 :: Color Color256
+color256_97 = Color Color256_97
+
+color256_98 :: Color Color256
+color256_98 = Color Color256_98
+
+color256_99 :: Color Color256
+color256_99 = Color Color256_99
+
+color256_100 :: Color Color256
+color256_100 = Color Color256_100
+
+color256_101 :: Color Color256
+color256_101 = Color Color256_101
+
+color256_102 :: Color Color256
+color256_102 = Color Color256_102
+
+color256_103 :: Color Color256
+color256_103 = Color Color256_103
+
+color256_104 :: Color Color256
+color256_104 = Color Color256_104
+
+color256_105 :: Color Color256
+color256_105 = Color Color256_105
+
+color256_106 :: Color Color256
+color256_106 = Color Color256_106
+
+color256_107 :: Color Color256
+color256_107 = Color Color256_107
+
+color256_108 :: Color Color256
+color256_108 = Color Color256_108
+
+color256_109 :: Color Color256
+color256_109 = Color Color256_109
+
+color256_110 :: Color Color256
+color256_110 = Color Color256_110
+
+color256_111 :: Color Color256
+color256_111 = Color Color256_111
+
+color256_112 :: Color Color256
+color256_112 = Color Color256_112
+
+color256_113 :: Color Color256
+color256_113 = Color Color256_113
+
+color256_114 :: Color Color256
+color256_114 = Color Color256_114
+
+color256_115 :: Color Color256
+color256_115 = Color Color256_115
+
+color256_116 :: Color Color256
+color256_116 = Color Color256_116
+
+color256_117 :: Color Color256
+color256_117 = Color Color256_117
+
+color256_118 :: Color Color256
+color256_118 = Color Color256_118
+
+color256_119 :: Color Color256
+color256_119 = Color Color256_119
+
+color256_120 :: Color Color256
+color256_120 = Color Color256_120
+
+color256_121 :: Color Color256
+color256_121 = Color Color256_121
+
+color256_122 :: Color Color256
+color256_122 = Color Color256_122
+
+color256_123 :: Color Color256
+color256_123 = Color Color256_123
+
+color256_124 :: Color Color256
+color256_124 = Color Color256_124
+
+color256_125 :: Color Color256
+color256_125 = Color Color256_125
+
+color256_126 :: Color Color256
+color256_126 = Color Color256_126
+
+color256_127 :: Color Color256
+color256_127 = Color Color256_127
+
+color256_128 :: Color Color256
+color256_128 = Color Color256_128
+
+color256_129 :: Color Color256
+color256_129 = Color Color256_129
+
+color256_130 :: Color Color256
+color256_130 = Color Color256_130
+
+color256_131 :: Color Color256
+color256_131 = Color Color256_131
+
+color256_132 :: Color Color256
+color256_132 = Color Color256_132
+
+color256_133 :: Color Color256
+color256_133 = Color Color256_133
+
+color256_134 :: Color Color256
+color256_134 = Color Color256_134
+
+color256_135 :: Color Color256
+color256_135 = Color Color256_135
+
+color256_136 :: Color Color256
+color256_136 = Color Color256_136
+
+color256_137 :: Color Color256
+color256_137 = Color Color256_137
+
+color256_138 :: Color Color256
+color256_138 = Color Color256_138
+
+color256_139 :: Color Color256
+color256_139 = Color Color256_139
+
+color256_140 :: Color Color256
+color256_140 = Color Color256_140
+
+color256_141 :: Color Color256
+color256_141 = Color Color256_141
+
+color256_142 :: Color Color256
+color256_142 = Color Color256_142
+
+color256_143 :: Color Color256
+color256_143 = Color Color256_143
+
+color256_144 :: Color Color256
+color256_144 = Color Color256_144
+
+color256_145 :: Color Color256
+color256_145 = Color Color256_145
+
+color256_146 :: Color Color256
+color256_146 = Color Color256_146
+
+color256_147 :: Color Color256
+color256_147 = Color Color256_147
+
+color256_148 :: Color Color256
+color256_148 = Color Color256_148
+
+color256_149 :: Color Color256
+color256_149 = Color Color256_149
+
+color256_150 :: Color Color256
+color256_150 = Color Color256_150
+
+color256_151 :: Color Color256
+color256_151 = Color Color256_151
+
+color256_152 :: Color Color256
+color256_152 = Color Color256_152
+
+color256_153 :: Color Color256
+color256_153 = Color Color256_153
+
+color256_154 :: Color Color256
+color256_154 = Color Color256_154
+
+color256_155 :: Color Color256
+color256_155 = Color Color256_155
+
+color256_156 :: Color Color256
+color256_156 = Color Color256_156
+
+color256_157 :: Color Color256
+color256_157 = Color Color256_157
+
+color256_158 :: Color Color256
+color256_158 = Color Color256_158
+
+color256_159 :: Color Color256
+color256_159 = Color Color256_159
+
+color256_160 :: Color Color256
+color256_160 = Color Color256_160
+
+color256_161 :: Color Color256
+color256_161 = Color Color256_161
+
+color256_162 :: Color Color256
+color256_162 = Color Color256_162
+
+color256_163 :: Color Color256
+color256_163 = Color Color256_163
+
+color256_164 :: Color Color256
+color256_164 = Color Color256_164
+
+color256_165 :: Color Color256
+color256_165 = Color Color256_165
+
+color256_166 :: Color Color256
+color256_166 = Color Color256_166
+
+color256_167 :: Color Color256
+color256_167 = Color Color256_167
+
+color256_168 :: Color Color256
+color256_168 = Color Color256_168
+
+color256_169 :: Color Color256
+color256_169 = Color Color256_169
+
+color256_170 :: Color Color256
+color256_170 = Color Color256_170
+
+color256_171 :: Color Color256
+color256_171 = Color Color256_171
+
+color256_172 :: Color Color256
+color256_172 = Color Color256_172
+
+color256_173 :: Color Color256
+color256_173 = Color Color256_173
+
+color256_174 :: Color Color256
+color256_174 = Color Color256_174
+
+color256_175 :: Color Color256
+color256_175 = Color Color256_175
+
+color256_176 :: Color Color256
+color256_176 = Color Color256_176
+
+color256_177 :: Color Color256
+color256_177 = Color Color256_177
+
+color256_178 :: Color Color256
+color256_178 = Color Color256_178
+
+color256_179 :: Color Color256
+color256_179 = Color Color256_179
+
+color256_180 :: Color Color256
+color256_180 = Color Color256_180
+
+color256_181 :: Color Color256
+color256_181 = Color Color256_181
+
+color256_182 :: Color Color256
+color256_182 = Color Color256_182
+
+color256_183 :: Color Color256
+color256_183 = Color Color256_183
+
+color256_184 :: Color Color256
+color256_184 = Color Color256_184
+
+color256_185 :: Color Color256
+color256_185 = Color Color256_185
+
+color256_186 :: Color Color256
+color256_186 = Color Color256_186
+
+color256_187 :: Color Color256
+color256_187 = Color Color256_187
+
+color256_188 :: Color Color256
+color256_188 = Color Color256_188
+
+color256_189 :: Color Color256
+color256_189 = Color Color256_189
+
+color256_190 :: Color Color256
+color256_190 = Color Color256_190
+
+color256_191 :: Color Color256
+color256_191 = Color Color256_191
+
+color256_192 :: Color Color256
+color256_192 = Color Color256_192
+
+color256_193 :: Color Color256
+color256_193 = Color Color256_193
+
+color256_194 :: Color Color256
+color256_194 = Color Color256_194
+
+color256_195 :: Color Color256
+color256_195 = Color Color256_195
+
+color256_196 :: Color Color256
+color256_196 = Color Color256_196
+
+color256_197 :: Color Color256
+color256_197 = Color Color256_197
+
+color256_198 :: Color Color256
+color256_198 = Color Color256_198
+
+color256_199 :: Color Color256
+color256_199 = Color Color256_199
+
+color256_200 :: Color Color256
+color256_200 = Color Color256_200
+
+color256_201 :: Color Color256
+color256_201 = Color Color256_201
+
+color256_202 :: Color Color256
+color256_202 = Color Color256_202
+
+color256_203 :: Color Color256
+color256_203 = Color Color256_203
+
+color256_204 :: Color Color256
+color256_204 = Color Color256_204
+
+color256_205 :: Color Color256
+color256_205 = Color Color256_205
+
+color256_206 :: Color Color256
+color256_206 = Color Color256_206
+
+color256_207 :: Color Color256
+color256_207 = Color Color256_207
+
+color256_208 :: Color Color256
+color256_208 = Color Color256_208
+
+color256_209 :: Color Color256
+color256_209 = Color Color256_209
+
+color256_210 :: Color Color256
+color256_210 = Color Color256_210
+
+color256_211 :: Color Color256
+color256_211 = Color Color256_211
+
+color256_212 :: Color Color256
+color256_212 = Color Color256_212
+
+color256_213 :: Color Color256
+color256_213 = Color Color256_213
+
+color256_214 :: Color Color256
+color256_214 = Color Color256_214
+
+color256_215 :: Color Color256
+color256_215 = Color Color256_215
+
+color256_216 :: Color Color256
+color256_216 = Color Color256_216
+
+color256_217 :: Color Color256
+color256_217 = Color Color256_217
+
+color256_218 :: Color Color256
+color256_218 = Color Color256_218
+
+color256_219 :: Color Color256
+color256_219 = Color Color256_219
+
+color256_220 :: Color Color256
+color256_220 = Color Color256_220
+
+color256_221 :: Color Color256
+color256_221 = Color Color256_221
+
+color256_222 :: Color Color256
+color256_222 = Color Color256_222
+
+color256_223 :: Color Color256
+color256_223 = Color Color256_223
+
+color256_224 :: Color Color256
+color256_224 = Color Color256_224
+
+color256_225 :: Color Color256
+color256_225 = Color Color256_225
+
+color256_226 :: Color Color256
+color256_226 = Color Color256_226
+
+color256_227 :: Color Color256
+color256_227 = Color Color256_227
+
+color256_228 :: Color Color256
+color256_228 = Color Color256_228
+
+color256_229 :: Color Color256
+color256_229 = Color Color256_229
+
+color256_230 :: Color Color256
+color256_230 = Color Color256_230
+
+color256_231 :: Color Color256
+color256_231 = Color Color256_231
+
+color256_232 :: Color Color256
+color256_232 = Color Color256_232
+
+color256_233 :: Color Color256
+color256_233 = Color Color256_233
+
+color256_234 :: Color Color256
+color256_234 = Color Color256_234
+
+color256_235 :: Color Color256
+color256_235 = Color Color256_235
+
+color256_236 :: Color Color256
+color256_236 = Color Color256_236
+
+color256_237 :: Color Color256
+color256_237 = Color Color256_237
+
+color256_238 :: Color Color256
+color256_238 = Color Color256_238
+
+color256_239 :: Color Color256
+color256_239 = Color Color256_239
+
+color256_240 :: Color Color256
+color256_240 = Color Color256_240
+
+color256_241 :: Color Color256
+color256_241 = Color Color256_241
+
+color256_242 :: Color Color256
+color256_242 = Color Color256_242
+
+color256_243 :: Color Color256
+color256_243 = Color Color256_243
+
+color256_244 :: Color Color256
+color256_244 = Color Color256_244
+
+color256_245 :: Color Color256
+color256_245 = Color Color256_245
+
+color256_246 :: Color Color256
+color256_246 = Color Color256_246
+
+color256_247 :: Color Color256
+color256_247 = Color Color256_247
+
+color256_248 :: Color Color256
+color256_248 = Color Color256_248
+
+color256_249 :: Color Color256
+color256_249 = Color Color256_249
+
+color256_250 :: Color Color256
+color256_250 = Color Color256_250
+
+color256_251 :: Color Color256
+color256_251 = Color Color256_251
+
+color256_252 :: Color Color256
+color256_252 = Color Color256_252
+
+color256_253 :: Color Color256
+color256_253 = Color Color256_253
+
+color256_254 :: Color Color256
+color256_254 = Color Color256_254
+
+color256_255 :: Color Color256
+color256_255 = Color Color256_255

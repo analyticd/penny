@@ -21,18 +21,18 @@ evenTextSpec = CC.defaultSpec
 
 oddTextSpec :: CC.TextSpec
 oddTextSpec = S.switchBackground CC.defaultColor
-              (CC.color256 235) evenTextSpec
+              (CC.color256_235) evenTextSpec
               
 -- | Debits in 256 colors are orange; in 8 colors, magenta
 debit :: CC.TextSpec -> CC.TextSpec
-debit = S.switchForeground CC.magenta (CC.color256 208)
+debit = S.switchForeground CC.magenta (CC.color256_208)
 
 -- | Credits in 256 colors are cyan; in 8 colors, cyan
 credit :: CC.TextSpec -> CC.TextSpec
-credit = S.switchForeground CC.cyan (CC.color256 45)
+credit = S.switchForeground CC.cyan (CC.color256_45)
 
 -- | Zero values are white
 zero :: CC.TextSpec -> CC.TextSpec
-zero = S.switchForeground CC.white (CC.color256 15)
+zero = S.switchForeground CC.white (CC.color256_15)
 
 
