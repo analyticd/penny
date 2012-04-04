@@ -5,7 +5,8 @@
 --
 -- * [LT.PostingInfo] -> RawBals
 -- * RawBals -> (SummedBals, TotalBal)
--- * (SummedBals, TotalBal) -> (CellsInMap, TotalBal)
+-- * (SummedBals, TotalBal) -> (SummedWithIsEven, TotalBal)
+-- * (SummedWithIsEven, TotalBal) -> (CellsInMap, TotalBal)
 -- * (CellsInMap, TotalBal) -> [Columns R.Cell]
 -- * [Columns R.Cell] -> [Columns R.Cell] (resize)
 -- * [Columns R.Cell] -> [R.Row]
@@ -13,6 +14,7 @@
 module Penny.Cabin.Balance.Tree (report) where
 
 import Control.Applicative(Applicative(pure, (<*>)), (<$>))
+import qualified Control.Monad.Trans.State as St
 import qualified Penny.Cabin.Row as R
 import Penny.Cabin.Row((|>>))
 import qualified Data.Sequence as Seq
@@ -23,6 +25,7 @@ import qualified Data.Map as M
 import qualified Data.Monoid as Monoid
 import qualified Data.NestedMap as NM
 import qualified Data.Text as X
+import qualified Data.Traversable as Tr
 import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
@@ -46,6 +49,7 @@ instance Monoid.Monoid SummedBal where
 
 type CellsInMap = NM.NestedMap L.SubAccountName (Columns R.Cell)
 type SummedBals = NM.NestedMap L.SubAccountName SummedBal
+type SummedWithIsEven = NM.NestedMap L.SubAccountName (SummedBal, Bool)
 type RawBals = NM.NestedMap L.SubAccountName RawBal
 type TotalBal = SummedBal
 
@@ -56,6 +60,7 @@ report os =
   . resizeColumnsInList
   . makeColumnList os
   . makeCellsInMap os
+  . makeSummedWithIsEven
   . sumBalances
   . rawBalances
 
@@ -85,10 +90,20 @@ makeColumnList os (cim, tb) = totCols : restCols where
 
 makeCellsInMap ::
   O.Options
-  -> (SummedBals, TotalBal)
+  -> (SummedWithIsEven, TotalBal)
   -> (CellsInMap, TotalBal)
 makeCellsInMap os (sb, tb) = (cim, tb) where
   cim = Id.runIdentity (NM.traverseWithTrail (traverser os) sb)
+
+makeSummedWithIsEven ::
+  (SummedBals, TotalBal)
+  -> (SummedWithIsEven, TotalBal)
+makeSummedWithIsEven (sb, tb) = (swie, tb) where
+  swie = St.evalState (Tr.mapM f sb) False
+  f lbl = do
+    st <- St.get
+    St.put (not st)
+    return (lbl, st)
 
 sumBalances :: RawBals -> (SummedBals, TotalBal)
 sumBalances rb = (sb, (SummedBal . unRawBal $ tb)) where
@@ -165,9 +180,9 @@ cellsToRow os isEven (Columns a dc c q) = let
 
 traverser ::
   O.Options
-  -> [(L.SubAccountName, SummedBal)]
+  -> [(L.SubAccountName, (SummedBal, Bool))]
   -> L.SubAccountName
-  -> SummedBal
+  -> (SummedBal, Bool)
   -> a
   -> Id.Identity (Maybe (Columns R.Cell))
 traverser os hist a mayBal _ =
@@ -185,14 +200,14 @@ makeTotalCells os mayBal = Columns act dc com qt where
 
 makeCells ::
   O.Options
-  -> [(L.SubAccountName, SummedBal)]
+  -> [(L.SubAccountName, (SummedBal, Bool))]
   -> L.SubAccountName
-  -> SummedBal
+  -> (SummedBal, Bool)
   -> Columns R.Cell
-makeCells os ps a mayBal = Columns act dc com qt where
+makeCells os ps a (mayBal, isEven) = Columns act dc com qt where
   lvl = length ps + 1
-  act = accountCell os (even lvl) lvl a
-  (dc, com, qt) = bottomLineCells os (even lvl) mayBal
+  act = accountCell os isEven lvl a
+  (dc, com, qt) = bottomLineCells os isEven mayBal
 
 fillTextSpec ::
   O.Options
@@ -245,7 +260,6 @@ bottomLineCells os isEven mayBal = let
                 $ bal
 
 
-
 -- | Takes a list of triples from bottomLineChunks and creates three
 -- Cells, one each for DrCr, Commodity, and Qty.
 bottomLineBalCells ::
@@ -282,7 +296,7 @@ bottomLineBalChunks os isEven (comm, bl) = (dc, cty, qty) where
           (if isEven then C.evenDebit else C.oddDebit,
            X.pack "Dr")
         L.Credit ->
-          (if isEven then C.evenCredit else C.evenCredit,
+          (if isEven then C.evenCredit else C.oddCredit,
            X.pack "Cr")
       qTxt = (O.balanceFormat os) bl
       in (getTs . O.drCrColors $ os, dcT, qTxt)
