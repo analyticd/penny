@@ -8,6 +8,7 @@ import qualified Penny.Cabin.Colors.LightBackground as LB
 import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Balance.Tree as Tree
+import qualified Penny.Liberty.Combinator as LC
 import qualified Penny.Liberty.Error as E
 import qualified Penny.Liberty.Types as LT
 import qualified System.Console.MultiArg.Prim as P
@@ -26,11 +27,8 @@ opts :: O.Options -> P.ParserE E.Error O.Options
 opts os = let
   p o = color o
         <|> background o
-  end o = do
-    _ <- color o <|> background o
-    P.genericThrow
   in do
-    ls <- P.feed p end os
+    ls <- LC.runUntilFailure p os
     case ls of
       [] -> return os
       xs -> return $ last xs

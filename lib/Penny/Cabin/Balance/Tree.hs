@@ -83,7 +83,10 @@ makeColumnList os (cim, tb) = totCols : restCols where
   totCols = makeTotalCells os tb
   restCols = Fdbl.toList cim
 
-makeCellsInMap :: O.Options -> (SummedBals, TotalBal) -> (CellsInMap, TotalBal)
+makeCellsInMap ::
+  O.Options
+  -> (SummedBals, TotalBal)
+  -> (CellsInMap, TotalBal)
 makeCellsInMap os (sb, tb) = (cim, tb) where
   cim = Id.runIdentity (NM.traverseWithTrail (traverser os) sb)
 
