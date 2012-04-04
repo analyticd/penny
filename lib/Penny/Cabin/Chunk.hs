@@ -713,7 +713,8 @@ infixr 5 +++
 
 builder :: Colors -> Bit -> TB.Builder -> TB.Builder
 builder c (Bit ts t) acc =
-  textSpecCodes c ts 
+  printReset c
+  +++ textSpecCodes c ts 
   +++ TB.fromText t
   +++ acc
 

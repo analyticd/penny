@@ -71,7 +71,7 @@ justify ts wi@(Width w) j c = glue padding c where
     LeftJustify -> ck `mappend` pd
     RightJustify -> pd `mappend` ck
   padding = C.chunk ts t
-  t = X.pack (replicate s ' ')
+  t = X.replicate s (X.singleton ' ')
   s = if wi > chunkSize c
       then w - (unWidth . chunkSize $ c)
       else 0
