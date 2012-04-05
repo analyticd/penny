@@ -149,6 +149,21 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
+  * Can be slow and memory hungry with large data sets. I have a
+    ledger file with about 28,000 lines. On my least capable machine
+    (which has an Intel Core 2 Duo at 1.6 GHz) this takes about 1.4
+    seconds to parse. Not horrible but not instantaneous
+    either. Generating a report about all these transactions can take
+    about seven seconds and a little less than 300 MB of memory. I
+    have eliminated all the obvious slowness from the code; any
+    further speedup will take a lot more work and will involve
+    practically rewriting the parser modules and/or the report
+    modules. I hope to do this eventually but because the program is
+    currently usable with relatively recent hardware it's not on the
+    top of my list. Any help here is most welcome.
+
+  .
+
   More details about the organization of the Penny modules is
   available by examining the top "Penny" module.
 
