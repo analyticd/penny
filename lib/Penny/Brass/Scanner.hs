@@ -29,27 +29,33 @@ instance Monad StateM where
   (>>=) = bind
   fail s = StateM $ \_ -> Failed s
 
-lexer :: (A.Token -> StateM a) -> StateM a
-lexer cont = StateM $ \s -> f s where
-  f st = let
-    res = runStateM (lexerInner cont) st
-    in case res of
-      Failed str -> Failed str
-      Ok bs' maySt -> case maySt of
-        Nothing -> f bs'
-        (Just k') -> runStateM k' bs'
+data InnerResult a =
+  Skipped !BS.ByteString
+  | InnerEOF (StateM a)
+  | InnerError
+  | FoundToken !BS.ByteString (StateM a)
+
 
 lexerInner ::
   (A.Token -> StateM a)
-  -> StateM (Maybe (StateM a))
-lexerInner cont = StateM $ \bs ->
-  case L.alexScan bs 0 of
-    L.AlexSkip bs' _ -> Ok bs' Nothing
-    L.AlexEOF ->
-      Ok BS.empty (Just $ cont A.EOF)
-    L.AlexError _ ->
-      Ok BS.empty (Just (fail "lexer error"))
-    L.AlexToken rest len act -> let
-      str = BS.take len bs
-      tok = act str
-      in Ok rest (Just $ cont tok)
+  -> BS.ByteString
+  -> InnerResult a
+lexerInner cont bs = case L.alexScan bs 0 of
+  L.AlexToken rest len act -> let
+    str = BS.take len bs
+    tok = act str
+    in FoundToken rest (cont tok)
+  L.AlexSkip bs' _ -> Skipped bs'
+  L.AlexEOF ->
+    InnerEOF (cont A.EOF)
+  L.AlexError _ ->
+    InnerError
+
+
+lexer :: (A.Token -> StateM a) -> StateM a
+lexer cont = StateM $ \s -> f s where
+  f bs = case lexerInner cont bs of
+    FoundToken bs' st' -> runStateM st' bs'
+    Skipped bs' -> f bs'
+    InnerEOF st' -> runStateM st' BS.empty
+    InnerError -> Failed "parse error"
