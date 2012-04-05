@@ -608,10 +608,13 @@ newtype Foreground256 = Foreground256 { unForeground256 :: Code }
 --
 -- Chunks
 --
-data Chunk = Chunk (Seq Bit)
+newtype Chunk = Chunk (Seq Bit)
 
 chunk :: TextSpec -> Text -> Chunk
-chunk ts = single . Bit ts
+chunk ts t = let
+  sqnce = S.singleton . Bit ts $ t
+  in ts `seq` t `seq` sqnce `seq`
+  Chunk sqnce
 
 emptyChunk :: Chunk
 emptyChunk = Chunk S.empty
@@ -622,7 +625,8 @@ chunkSize (Chunk cs) = F.foldr f (Width 0) cs where
 
 instance Monoid Chunk where
   mempty = emptyChunk
-  mappend (Chunk c1) (Chunk c2) = Chunk (c1 `mappend` c2)
+  mappend (Chunk c1) (Chunk c2) = let c' = c1 `mappend` c2
+                                  in c' `seq` Chunk c'
 
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
@@ -655,20 +659,20 @@ newtype Inverse = Inverse { unInverse :: Bool }
 -- Styles
 --
 data StyleCommon = StyleCommon {
-  bold :: Bold
-  , underline :: Underline
-  , flash :: Flash
-  , inverse :: Inverse }
+  bold :: !Bold
+  , underline :: !Underline
+  , flash :: !Flash
+  , inverse :: !Inverse }
 
 data Style8 = Style8 {
-  foreground8 :: Foreground8
-  , background8 :: Background8
-  , common8 :: StyleCommon }
+  foreground8 :: !Foreground8
+  , background8 :: !Background8
+  , common8 :: !StyleCommon }
 
 data Style256 = Style256 {
-  foreground256 :: Foreground256
-  , background256 :: Background256
-  , common256 :: StyleCommon }
+  foreground256 :: !Foreground256
+  , background256 :: !Background256
+  , common256 :: !StyleCommon }
 
 defaultStyleCommon :: StyleCommon
 defaultStyleCommon = StyleCommon {
@@ -693,8 +697,8 @@ defaultStyle256 = Style256 {
 -- TextSpec
 --
 data TextSpec = TextSpec {
-  style8 :: Style8
-  , style256 :: Style256 }
+  style8 :: !Style8
+  , style256 :: !Style256 }
 
 defaultTextSpec :: TextSpec
 defaultTextSpec = TextSpec {
@@ -786,9 +790,6 @@ printReset :: Colors -> TB.Builder
 printReset c = case c of
   Colors0 -> mempty
   _ -> unCode resetOn
-
-single :: Bit -> Chunk
-single = Chunk . S.singleton
 
 --
 -- Color basement

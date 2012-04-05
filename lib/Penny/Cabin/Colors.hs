@@ -10,17 +10,17 @@ import qualified Penny.Cabin.Posts.Info as I
 -- @even@ and @odd@ refer to the the posting's visible number. @Zero@
 -- is for the balance entries whose balance is zero.
 data DrCrColors =
-  DrCrColors { evenDebit :: C.TextSpec
-             , evenCredit :: C.TextSpec
-             , oddDebit :: C.TextSpec
-             , oddCredit :: C.TextSpec
-             , evenZero :: C.TextSpec
-             , oddZero :: C.TextSpec }
+  DrCrColors { evenDebit :: !C.TextSpec
+             , evenCredit :: !C.TextSpec
+             , oddDebit :: !C.TextSpec
+             , oddCredit :: !C.TextSpec
+             , evenZero :: !C.TextSpec
+             , oddZero :: !C.TextSpec }
 
 -- | The colors for all fields other than entries and totals.
 data BaseColors =
-  BaseColors { evenColors :: C.TextSpec
-             , oddColors :: C.TextSpec }
+  BaseColors { evenColors :: !C.TextSpec
+             , oddColors :: !C.TextSpec }
 
 -- | Change a BaseColors to a TextSpec.
 colors :: I.VisibleNum -> BaseColors -> C.TextSpec

@@ -41,7 +41,7 @@ data Justification =
 data Cell =
   Cell { justification :: Justification
        , width :: Width
-       , padSpec :: TextSpec
+       , padSpec :: !TextSpec
        , chunks :: Seq Chunk }
 
 data PaddedCell =
@@ -96,6 +96,7 @@ morePadding h (PaddedCell cs c) = PaddedCell cs' c where
 justifyAll ::
   TextSpec -> Width -> Justification -> Seq Chunk -> Seq Chunk
 justifyAll ts w j = fmap (justify ts w j)
+
 
 addCell ::
   (PaddedCell -> Seq PaddedCell -> Seq PaddedCell)
@@ -154,7 +155,7 @@ instance HasChunk Row where
   chunk (Row cells) =
     if S.null cells
     then mempty
-    else F.foldr mappend mempty zippedWithNewlines where
+    else F.foldl' mappend mempty zippedWithNewlines where
       newline = C.chunk C.defaultTextSpec (X.singleton '\n')
       zippedWithNewlines = fmap (`mappend` newline) zipped
       zipped = F.foldr1 zipper (fmap justifiedChunks cells)
