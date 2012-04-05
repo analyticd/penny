@@ -59,6 +59,7 @@ data Token =
   | UpperLowerOther !X.Text
   | DigitsShort !X.Text
   | DigitsLong !X.Text
+  | EOF
   deriving Show
 
 upperLowerOther :: BS.ByteString -> Token
