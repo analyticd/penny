@@ -174,7 +174,9 @@ source-repository head
 Library
     hs-source-dirs: lib
     Build-depends:
+        array ==0.3.*,
         base ==4.*,
+        bytestring ==0.9.*,
         text ==0.11.*,
         explicit-exception ==0.1.*,
         containers ==0.4.*,
@@ -191,6 +193,7 @@ Library
 
     Exposed-modules:
         Penny,
+        Penny.Brass.AlexInput,
         Penny.Brass.Lexer,
         Penny.Cabin,
         Penny.Cabin.Allocate,
