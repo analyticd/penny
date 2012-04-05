@@ -55,9 +55,9 @@ $newline { \p _ -> Newline p }
 \}       { \p _ -> CloseBrace p }
 \~       { \p _ -> Tilde p }
 
-"Dr"                                      { \p _ -> Debit p }
+"Dr"                                      { \p _ -> Dr p }
 "Debit"                                   { \p _ -> Debit p }
-"Cr"                                      { \p _ -> Credit p }
+"Cr"                                      { \p _ -> Cr p }
 "Credit"                                  { \p _ -> Credit p }
 [ $upper $lower $other ]+                 { UpperLowerOther }
 $digit{1,8}                               { DigitsShort }
@@ -100,7 +100,9 @@ data Token =
   | VerticalBar                       AlexPosn
   | CloseBrace                        AlexPosn
   | Tilde                             AlexPosn
+  | Dr                                AlexPosn
   | Debit                             AlexPosn
+  | Cr                                AlexPosn
   | Credit                            AlexPosn
   | UpperLowerOther                   AlexPosn !ByteString.ByteString
   | DigitsShort                       AlexPosn !ByteString.ByteString
