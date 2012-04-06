@@ -15,15 +15,17 @@ import Penny.Lincoln.Strict (List((:|:), Empty))
 %lexer { S.lexer } { A.EOF }
 
 %token
-    hash    { A.Hash }
-    letters { A.UpperLowerOther $$ }
-    spaces  { A.Spaces $$ }
+    letters { A.Letters $$ }
     digitsShort { A.DigitsShort $$ }
     digitsLong { A.DigitsLong $$ }
     newline { A.Newline }
-    exclamation { A.Exclamation }
 
 %%
+
+FileItems : {- empty -} { Empty }
+          | FileItems FileItem { $2 :|: $1 }
+
+FileItem : Comment { T.ItemComment $1 }
 
 Comment : hash CommentContents newline MaybeSpaces { T.Comment $2 }
 

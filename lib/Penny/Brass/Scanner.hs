@@ -16,6 +16,8 @@ data State = State {
   remaining :: !BS.ByteString
   , lineNum :: Line
   , colNum :: Col
+  , prevLine :: Line
+  , prevCol :: Col
   } deriving Show
 
 data Location = Location !Line !Col
@@ -23,9 +25,13 @@ data Location = Location !Line !Col
 newtype StateM a =
   StateM { runStateM :: State -> (Result a, State) }
 
-location :: StateM Location
-location = StateM $ \s ->
+currLocation :: StateM Location
+currLocation = StateM $ \s ->
   (Ok (Location (lineNum s) (colNum s)), s)
+
+prevLocation :: StateM Location
+prevLocation = StateM $ \s ->
+  (Ok (Location (prevLine s) (prevCol s)), s)
 
 inject :: a -> StateM a
 inject a = StateM $ \s -> (Ok a, s)
@@ -39,7 +45,7 @@ displayToken = show
 
 parseError :: A.Token -> StateM a
 parseError tok = do
-  loc <- location
+  loc <- prevLocation
   let s = "parse error at " ++ displayLocation loc
           ++ " bad token: " ++ displayToken tok
           ++ "\n"
@@ -87,14 +93,17 @@ lexerInner cont bs lin col = case L.alexScan bs 0 of
 
 lexer :: (A.Token -> StateM a) -> StateM a
 lexer cont = StateM $ \s -> f s where
-  f st@(State bs li co) = case lexerInner cont bs li co of
+  f st@(State bs li co _ _) = case lexerInner cont bs li co of
     FoundToken bs' k lin col ->
       let newSt = st { remaining = bs'
+                     , prevLine = li
+                     , prevCol = co
                      , lineNum = lin
                      , colNum = col }
       in runStateM k newSt
     Skipped bs' col ->
       let newSt = st { remaining = bs'
+                     , prevCol = colNum st
                      , colNum = col }
       in f newSt
     InnerEOF st' ->

@@ -18,8 +18,8 @@ alexInputPrevChar _ =
   error "Do not use left-context patterns in the Alex specification"
 
 data Token =
-  Spaces !Int
-  | Newline
+  Newline
+  | Spaces !Int
   | Exclamation
   | Quote
   | Hash
@@ -56,14 +56,17 @@ data Token =
   | Debit
   | Cr
   | Credit
-  | UpperLowerOther !X.Text
+  | Letters !X.Text
   | DigitsShort !X.Text
   | DigitsLong !X.Text
   | EOF
   deriving Show
 
-upperLowerOther :: BS.ByteString -> Token
-upperLowerOther = UpperLowerOther . XE.decodeUtf8
+spaces :: BS.ByteString -> Token
+spaces = Spaces . fromIntegral . BS.length
+
+letters :: BS.ByteString -> Token
+letters = Letters . XE.decodeUtf8
 
 digitsShort :: BS.ByteString -> Token
 digitsShort = DigitsShort . XE.decodeUtf8
@@ -71,5 +74,3 @@ digitsShort = DigitsShort . XE.decodeUtf8
 digitsLong :: BS.ByteString -> Token
 digitsLong = DigitsLong . XE.decodeUtf8
 
-spaces :: BS.ByteString -> Token
-spaces = Spaces . fromIntegral . BS.length

@@ -59,6 +59,6 @@ $newline { const Newline }
 "Debit"                                   { const Debit }
 "Cr"                                      { const Cr }
 "Credit"                                  { const Credit }
-[ $upper $lower $other ]+                 { upperLowerOther }
+[ $upper $lower $other ]+                 { letters }
 $digit{1,8}                               { digitsShort }
 $digit{9,}                                { digitsLong }
