@@ -8,4 +8,9 @@ data Comment = Comment !(List CommentContent)
 
 data CommentContent = CommentText !X.Text
 
+exclamation :: X.Text
+exclamation = X.singleton '!'
+
+spaces :: Int -> X.Text
+spaces i = X.replicate i (X.singleton ' ')
 

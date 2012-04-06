@@ -21,6 +21,7 @@ import Penny.Lincoln.Strict (List((:|:), Empty))
     digitsShort { A.DigitsShort $$ }
     digitsLong { A.DigitsLong $$ }
     newline { A.Newline }
+    exclamation { A.Exclamation }
 
 %%
 
@@ -30,7 +31,10 @@ CommentContents : {- empty -} { Empty }
                 | CommentContents CommentContent { $2 :|: $1 }
 
 CommentContent : letters { T.CommentText $1 }
-               | spaces { T.CommentText (X.replicate $1 (X.singleton ' ')) }
+               | spaces { T.CommentText (T.spaces $1) }
                | digitsShort { T.CommentText $1 }
                | digitsLong { T.CommentText $1 }
+               | exclamation { T.CommentText T.exclamation }
+
+
 
