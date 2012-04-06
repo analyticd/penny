@@ -1,4 +1,11 @@
 module Penny.Brass.Start where
 
-data File
-data Item = Comment [
+import qualified Data.Text as X
+
+import Penny.Lincoln.Strict (List)
+
+data Comment = Comment !(List CommentContent)
+
+data CommentContent = CommentText !X.Text
+
+
