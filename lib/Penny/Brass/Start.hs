@@ -2,20 +2,51 @@ module Penny.Brass.Start where
 
 import qualified Data.Text as X
 
-import Penny.Lincoln.Strict (List)
+import Penny.Lincoln.Strict (List, Might)
 
 data FileItem = ItemComment Comment
-                | ItemDate Date
+                | ItemNumber Number
+                | ItemFlag Flag
+                | ItemUnquotedPayee Payee
+                | ItemDateTime DateTime
                 deriving Show
 
-data Comment = Comment !(List CommentContent)
+data Comment = Comment !(List X.Text)
                deriving (Show, Eq)
 
-data CommentContent = CommentText !X.Text
-                      deriving (Show, Eq)
+data Number = Number !(List X.Text)
+              deriving (Show, Eq)
+
+data Flag = Flag !(List X.Text)
+            deriving (Show, Eq)
+
+data Payee = Payee !X.Text !(List X.Text)
+             deriving (Eq, Show)
 
 data Date = Date !X.Text !X.Text !X.Text
-            deriving Show
+            deriving (Eq, Show)
+
+data HoursMins = HoursMins !X.Text !X.Text
+                 deriving (Eq, Show)
+
+data Secs = Secs !X.Text
+            deriving (Eq, Show)
+
+data HoursMinsSecs = HoursMinsSecs !HoursMins !(Might Secs)
+                     deriving (Eq, Show)
+
+data TzSign = TzPlus | TzMinus
+            deriving (Show, Eq)
+
+data TimeZone = TimeZone !TzSign !X.Text
+                deriving (Show, Eq)
+
+data TimeAndOrZone = TimeMaybeZone !HoursMinsSecs !(Might TimeZone)
+                   | ZoneOnly !TimeZone
+                   deriving (Show, Eq)
+
+data DateTime = DateTime !Date !(Might TimeAndOrZone)
+                deriving (Show, Eq)
 
 spaces :: Int -> X.Text
 spaces i = X.replicate i (X.singleton ' ')

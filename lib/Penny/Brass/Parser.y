@@ -5,7 +5,9 @@ import qualified Penny.Brass.AlexInput as A
 import qualified Penny.Brass.Scanner as S
 import qualified Penny.Brass.Start as T
 import qualified Data.Text as X
-import Penny.Lincoln.Strict (List((:|:), Empty))
+import Penny.Lincoln.Strict
+  (List((:|:), Empty), Might(Here, Nope))
+
 }
 
 %name brass
@@ -62,7 +64,10 @@ FileItems : {- empty -} { Empty }
           | FileItems FileItem { $2 :|: $1 }
 
 FileItem : Comment { T.ItemComment $1 }
-         | Date { T.ItemDate $1 }
+         | Number { T.ItemNumber $1 }
+         | Flag { T.ItemFlag $1 }
+         | UnquotedPayee { T.ItemUnquotedPayee $1 }
+         | DateTime { T.ItemDateTime $1 }
 
 Comment : hash CommentContents newline MaybeSpaces { T.Comment $2 }
 
@@ -70,45 +75,45 @@ CommentContents : {- empty -} { Empty }
                 | CommentContents CommentContent { $2 :|: $1 }
 
 CommentContent
-  : letters { T.CommentText $1 }
-  | spaces { T.CommentText (T.spaces $1) }
-  | digits { T.CommentText $1 }
-  | exclamation { T.CommentText T.exclamation }
-  | quote { T.CommentText T.quote }
-  | hash { T.CommentText T.hash }
-  | dollar { T.CommentText T.dollar }
-  | percent { T.CommentText T.percent }
-  | ampersand { T.CommentText T.ampersand }
-  | apostrophe { T.CommentText T.apostrophe }
-  | openParen { T.CommentText T.openParen }
-  | closeParen { T.CommentText T.closeParen }
-  | asterisk { T.CommentText T.asterisk }
-  | plus { T.CommentText T.plus }
-  | comma { T.CommentText T.comma }
-  | dash { T.CommentText T.dash }
-  | period { T.CommentText T.period }
-  | slash { T.CommentText T.slash }
-  | colon { T.CommentText T.colon }
-  | semicolon { T.CommentText T.semicolon }
-  | lessThan { T.CommentText T.lessThan }
-  | equals   { T.CommentText T.equals }
-  | greaterThan { T.CommentText T.greaterThan }
-  | question { T.CommentText T.question }
-  | atSign { T.CommentText T.atSign }
-  | openBracket { T.CommentText T.openBracket }
-  | backslash { T.CommentText T.backslash }
-  | closeBracket { T.CommentText T.closeBracket }
-  | caret { T.CommentText T.caret }
-  | underscore { T.CommentText T.underscore }
-  | backtick { T.CommentText T.backtick }
-  | openBrace { T.CommentText T.openBrace }
-  | verticalBar { T.CommentText T.verticalBar }
-  | closeBrace { T.CommentText T.closeBrace }
-  | tilde { T.CommentText T.tilde }
-  | dr    { T.CommentText T.dr }
-  | debit { T.CommentText T.debit }
-  | cr     { T.CommentText T.cr }
-  | credit { T.CommentText T.credit }
+  : letters { $1 }
+  | spaces { (T.spaces $1) }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | colon { T.colon }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
 
 MaybeSpaces : {- empty -} { }
             | spaces { }
@@ -117,8 +122,226 @@ DateSeparator
   : dash { }
   | slash { }
 
+Number
+  : openParen NumberContents closeParen newline MaybeSpaces
+    { T.Number $2 }
+
+NumberContents : NumberContent { $1 :|: Empty }
+               | NumberContents NumberContent { $2 :|: $1 }
+
+NumberContent
+  : letters { $1 }
+  | spaces { (T.spaces $1) }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | colon { T.colon }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+Flag
+  : openBracket FlagContents closeBracket newline MaybeSpaces
+    { T.Flag $2 }
+
+FlagContents : FlagContent { $1 :|: Empty }
+             | FlagContents FlagContent { $2 :|: $1 }
+
+FlagContent
+  : letters { $1 }
+  | spaces { (T.spaces $1) }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | colon { T.colon }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+QuotedPayee
+  : lessThan QuotedPayeeContent QuotedPayeeRests greaterThan { T.Payee $2 $3 }
+
+QuotedPayeeContent
+  : letters { $1 }
+  | spaces { (T.spaces $1) }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | colon { T.colon }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+QuotedPayeeRests
+  : {- empty -} { Empty }
+  | QuotedPayeeRests QuotedPayeeContent { $2 :|: $1 }
+
+UnquotedPayee
+  : UnquotedPayeeLeader UnquotedPayeeRests newline MaybeSpaces { T.Payee $1 $2 }
+
+UnquotedPayeeLeader
+  : letters { $1 }
+
+UnquotedPayeeRests
+  : {- empty -} { Empty }
+  | UnquotedPayeeRests UnquotedPayeeRest { $2 :|: $1 }
+
+UnquotedPayeeRest
+  : letters { $1 }
+  | spaces { (T.spaces $1) }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | colon { T.colon }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
 Date
   : digits DateSeparator
     digits DateSeparator
-    digits newline MaybeSpaces
+    digits
     { T.Date $1 $3 $5 }
+
+HoursMins
+  : digits colon digits { T.HoursMins $1 $3 }
+
+Secs
+  : colon digits { T.Secs $2 }
+
+MaybeSecs : Secs { Here $1 }
+          | {- empty -} { Nope }
+
+HoursMinsSecs : HoursMins MaybeSecs { T.HoursMinsSecs $1 $2 }
+
+TimeZone : plus digits { T.TimeZone T.TzPlus $2 }
+         | dash digits { T.TimeZone T.TzMinus $2 }
+
+MaybeTimeMaybeZone : {- empty -} { Nope }
+                   | spaces TimeAndOrZone { Here $2 }
+
+TimeAndOrZone : HoursMinsSecs MaybeZone { T.TimeMaybeZone $1 $2 }
+              | TimeZone       { T.ZoneOnly $1 }
+
+MaybeZone : {- empty -} { Nope }
+          | spaces TimeZone { Here $2 }
+
+DateTime : Date MaybeTimeMaybeZone newline { T.DateTime $1 $2 }
