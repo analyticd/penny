@@ -45,5 +45,11 @@ tokenList :: String
 tokenList = concatMap toTok singleCharsWithUpperCase where
   toTok (n, u, _) = "    " ++ n ++ " { A." ++ u ++ " }\n"
 
+toText :: String
+toText = concatMap toLine singleCharsWithUpperCase where
+  toLine (n, u, c) =
+    n ++ " :: X.Text\n"
+    ++ n ++ " = X.singleton '" ++ c ++ "'\n\n"
+
 main :: IO ()
-main = putStr tokenList
+main = putStr toText
