@@ -64,10 +64,8 @@ FileItems : {- empty -} { Empty }
           | FileItems FileItem { $2 :|: $1 }
 
 FileItem : Comment { T.ItemComment $1 }
-         | Number { T.ItemNumber $1 }
-         | Flag { T.ItemFlag $1 }
-         | UnquotedPayee { T.ItemUnquotedPayee $1 }
-         | DateTime { T.ItemDateTime $1 }
+         | TopLine { T.ItemTopLine $1 }
+         | newline { T.ItemBlankLine }
 
 Comment : hash CommentContents newline MaybeSpaces { T.Comment $2 }
 
@@ -123,7 +121,7 @@ DateSeparator
   | slash { }
 
 Number
-  : openParen NumberContents closeParen newline MaybeSpaces
+  : openParen NumberContents closeParen MaybeSpaces
     { T.Number $2 }
 
 NumberContents : NumberContent { $1 :|: Empty }
@@ -170,7 +168,7 @@ NumberContent
   | credit { T.credit }
 
 Flag
-  : openBracket FlagContents closeBracket newline MaybeSpaces
+  : openBracket FlagContents closeBracket MaybeSpaces
     { T.Flag $2 }
 
 FlagContents : FlagContent { $1 :|: Empty }
@@ -217,7 +215,10 @@ FlagContent
   | credit { T.credit }
 
 QuotedPayee
-  : lessThan QuotedPayeeContent QuotedPayeeRests greaterThan { T.Payee $2 $3 }
+  : lessThan
+    QuotedPayeeContent QuotedPayeeRests
+    greaterThan
+    MaybeSpaces { T.Payee $2 $3 }
 
 QuotedPayeeContent
   : letters { $1 }
@@ -264,7 +265,7 @@ QuotedPayeeRests
   | QuotedPayeeRests QuotedPayeeContent { $2 :|: $1 }
 
 UnquotedPayee
-  : UnquotedPayeeLeader UnquotedPayeeRests newline MaybeSpaces { T.Payee $1 $2 }
+  : UnquotedPayeeLeader UnquotedPayeeRests { T.Payee $1 $2 }
 
 UnquotedPayeeLeader
   : letters { $1 }
@@ -317,7 +318,7 @@ UnquotedPayeeRest
 Date
   : digits DateSeparator
     digits DateSeparator
-    digits
+    digits MaybeSpaces
     { T.Date $1 $3 $5 }
 
 HoursMins
@@ -329,18 +330,35 @@ Secs
 MaybeSecs : Secs { Here $1 }
           | {- empty -} { Nope }
 
-HoursMinsSecs : HoursMins MaybeSecs { T.HoursMinsSecs $1 $2 }
+HoursMinsSecs : HoursMins MaybeSecs MaybeSpaces { T.HoursMinsSecs $1 $2 }
 
-TimeZone : plus digits { T.TimeZone T.TzPlus $2 }
-         | dash digits { T.TimeZone T.TzMinus $2 }
+TimeZone : plus digits MaybeSpaces { T.TimeZone T.TzPlus $2 }
+         | dash digits MaybeSpaces { T.TimeZone T.TzMinus $2 }
 
 MaybeTimeMaybeZone : {- empty -} { Nope }
-                   | spaces TimeAndOrZone { Here $2 }
+                   | TimeAndOrZone { Here $1 }
 
 TimeAndOrZone : HoursMinsSecs MaybeZone { T.TimeMaybeZone $1 $2 }
               | TimeZone       { T.ZoneOnly $1 }
 
 MaybeZone : {- empty -} { Nope }
-          | spaces TimeZone { Here $2 }
+          | TimeZone { Here $1 }
 
-DateTime : Date MaybeTimeMaybeZone newline { T.DateTime $1 $2 }
+DateTime : Date MaybeTimeMaybeZone { T.DateTime $1 $2 }
+
+-- TopLine
+
+MaybeFlag : {- empty -} { Nope }
+          | Flag { Here $1 }
+
+MaybeNumber : {- empty -} { Nope }
+            | Number { Here $1 }
+
+MaybeTopLinePayee : {- empty -} { Nope }
+                  | QuotedPayee { Here $1 }
+                  | UnquotedPayee { Here $1 }
+
+TopLine : DateTime MaybeFlag
+          MaybeNumber MaybeTopLinePayee
+          newline MaybeSpaces
+          { T.TopLine $1 $2 $3 $4 }

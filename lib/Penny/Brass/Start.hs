@@ -5,10 +5,8 @@ import qualified Data.Text as X
 import Penny.Lincoln.Strict (List, Might)
 
 data FileItem = ItemComment Comment
-                | ItemNumber Number
-                | ItemFlag Flag
-                | ItemUnquotedPayee Payee
-                | ItemDateTime DateTime
+                | ItemTopLine TopLine
+                | ItemBlankLine
                 deriving Show
 
 data Comment = Comment !(List X.Text)
@@ -47,6 +45,10 @@ data TimeAndOrZone = TimeMaybeZone !HoursMinsSecs !(Might TimeZone)
 
 data DateTime = DateTime !Date !(Might TimeAndOrZone)
                 deriving (Show, Eq)
+
+data TopLine = TopLine !DateTime !(Might Flag) !(Might Number)
+               !(Might Payee)
+               deriving (Show, Eq)
 
 spaces :: Int -> X.Text
 spaces i = X.replicate i (X.singleton ' ')
