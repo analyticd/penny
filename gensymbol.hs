@@ -51,5 +51,10 @@ toText = concatMap toLine singleCharsWithUpperCase where
     n ++ " :: X.Text\n"
     ++ n ++ " = X.singleton '" ++ c ++ "'\n\n"
 
+commentContent :: String
+commentContent = concatMap toLine singleCharsWithUpperCase where
+  toLine (n, _, _) =
+    "  | " ++ n ++ " { T.CommentText T." ++ n ++ " }\n"
+
 main :: IO ()
 main = putStr toText
