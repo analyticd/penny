@@ -242,7 +242,6 @@ QuotedPayeeContent
   | semicolon { T.semicolon }
   | lessThan { T.lessThan }
   | equals   { T.equals }
-  | greaterThan { T.greaterThan }
   | question { T.question }
   | atSign { T.atSign }
   | openBracket { T.openBracket }
