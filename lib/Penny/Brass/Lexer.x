@@ -60,5 +60,5 @@ $newline { const Newline }
 "Cr"                                      { const Cr }
 "Credit"                                  { const Credit }
 [ $upper $lower $other ]+                 { letters }
-$digit{1,8}                               { digitsShort }
-$digit{9,}                                { digitsLong }
+$digit+                                   { digits }
+

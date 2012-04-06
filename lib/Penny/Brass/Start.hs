@@ -5,6 +5,7 @@ import qualified Data.Text as X
 import Penny.Lincoln.Strict (List)
 
 data FileItem = ItemComment Comment
+                | ItemDate Date
                 deriving Show
 
 data Comment = Comment !(List CommentContent)
@@ -12,6 +13,9 @@ data Comment = Comment !(List CommentContent)
 
 data CommentContent = CommentText !X.Text
                       deriving (Show, Eq)
+
+data Date = Date !X.Text !X.Text !X.Text
+            deriving Show
 
 spaces :: Int -> X.Text
 spaces i = X.replicate i (X.singleton ' ')
@@ -70,6 +74,9 @@ semicolon = X.singleton ';'
 lessThan :: X.Text
 lessThan = X.singleton '<'
 
+equals :: X.Text
+equals = X.singleton '='
+
 greaterThan :: X.Text
 greaterThan = X.singleton '>'
 
@@ -109,3 +116,14 @@ closeBrace = X.singleton '}'
 tilde :: X.Text
 tilde = X.singleton '~'
 
+dr :: X.Text
+dr = X.pack "Dr"
+
+debit :: X.Text
+debit = X.pack "Debit"
+
+cr :: X.Text
+cr = X.pack "Cr"
+
+credit :: X.Text
+credit = X.pack "Credit"

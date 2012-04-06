@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+runhaskell Setup configure --user -O0 -f -pennyCLI
+runhaskell Setup build
+runhaskell Setup install
+
+cd tests
+runhaskell Setup configure --user -O0
+runhaskell Setup build
+runhaskell Setup install

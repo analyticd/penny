@@ -21,6 +21,7 @@ singleChars = [
   , ("colon", ":")
   , ("semicolon", ";")
   , ("lessThan", "<")
+  , ("equals", "=")
   , ("greaterThan", ">")
   , ("question", "?")
   , ("atSign", "@")
@@ -35,6 +36,8 @@ singleChars = [
   , ("closeBrace", "}")
   , ("tilde", "~")
   ]
+
+drCr = ["dr", "debit", "cr", "credit"]
 
 singleCharsWithUpperCase = map toTriple singleChars where
   toTriple (n, c) = (n, u, c) where
@@ -56,5 +59,7 @@ commentContent = concatMap toLine singleCharsWithUpperCase where
   toLine (n, _, _) =
     "  | " ++ n ++ " { T.CommentText T." ++ n ++ " }\n"
 
+singlesWithDrCr :: [(String, String)]
+
 main :: IO ()
-main = putStr toText
+main = putStr commentContent

@@ -140,3 +140,12 @@ unzip = unzipWith id
 concatNE :: List (NonEmpty a) -> List a
 concatNE = F.foldr f Empty where
   f (a :||: as) soFar = (a :|: as) `appendLists` soFar
+
+data Might a =
+  Nope
+  | Yep !a
+  deriving (Eq, Show)
+
+instance Functor Might where
+  fmap _ Nope = Nope
+  fmap f (Yep a) = Yep (f a)

@@ -57,8 +57,7 @@ data Token =
   | Cr
   | Credit
   | Letters !X.Text
-  | DigitsShort !X.Text
-  | DigitsLong !X.Text
+  | Digits !X.Text
   | EOF
   deriving Show
 
@@ -68,9 +67,6 @@ spaces = Spaces . fromIntegral . BS.length
 letters :: BS.ByteString -> Token
 letters = Letters . XE.decodeUtf8
 
-digitsShort :: BS.ByteString -> Token
-digitsShort = DigitsShort . XE.decodeUtf8
-
-digitsLong :: BS.ByteString -> Token
-digitsLong = DigitsLong . XE.decodeUtf8
+digits :: BS.ByteString -> Token
+digits = Digits . XE.decodeUtf8
 
