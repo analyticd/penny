@@ -196,6 +196,7 @@ Library
         Penny.Brass.AlexInput,
         Penny.Brass.Lexer,
         Penny.Brass.Scanner,
+        Penny.Brass.Start,
         Penny.Cabin,
         Penny.Cabin.Allocate,
         Penny.Cabin.Balance,
