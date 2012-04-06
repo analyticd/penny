@@ -7,6 +7,7 @@ import qualified Penny.Brass.Lexer as L
 data Result a =
   Ok a
   | Failed String
+  deriving Show
 
 type Line = Int
 type Col = Int
@@ -15,7 +16,7 @@ data State = State {
   remaining :: !BS.ByteString
   , lineNum :: Line
   , colNum :: Col
-  }
+  } deriving Show
 
 data Location = Location !Line !Col
 
@@ -74,7 +75,7 @@ lexerInner cont bs lin col = case L.alexScan bs 0 of
     str = BS.take len bs
     tok = act str
     (lin', col') = case tok of
-      A.Newline -> (lin + 1, col)
+      A.Newline -> (lin + 1, 1)
       _ -> (lin, col + len)
     in FoundToken rest (cont tok) lin' col'
   L.AlexSkip bs' len -> Skipped bs' (col + len)

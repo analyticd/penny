@@ -25,7 +25,7 @@ import Penny.Lincoln.Strict (List((:|:), Empty))
 
 %%
 
-Comment : hash CommentContents newline { T.Comment $2 }
+Comment : hash CommentContents newline MaybeSpaces { T.Comment $2 }
 
 CommentContents : {- empty -} { Empty }
                 | CommentContents CommentContent { $2 :|: $1 }
@@ -36,5 +36,5 @@ CommentContent : letters { T.CommentText $1 }
                | digitsLong { T.CommentText $1 }
                | exclamation { T.CommentText T.exclamation }
 
-
-
+MaybeSpaces : {- empty -} { }
+            | spaces { }

@@ -5,9 +5,10 @@ import qualified Data.Text as X
 import Penny.Lincoln.Strict (List)
 
 data Comment = Comment !(List CommentContent)
+               deriving (Show, Eq)
 
 data CommentContent = CommentText !X.Text
-
+                      deriving (Show, Eq)
 exclamation :: X.Text
 exclamation = X.singleton '!'
 

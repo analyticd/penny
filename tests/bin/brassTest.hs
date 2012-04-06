@@ -1,13 +1,17 @@
 module Main where
 
-import Data.List (foldl')
-import Penny.Brass.Lexer (alexScanTokens)
-import qualified Data.ByteString.Lazy as BS
+import Penny.Brass.Parser (brass)
+import qualified Data.ByteString as BS
+import qualified Penny.Brass.Start as T
+import qualified Penny.Brass.Scanner as S
 --import Text.Show.Pretty (ppShow)
+
+parser :: S.StateM T.Comment
+parser = brass
 
 main :: IO ()
 main = do
-  tokens <- fmap alexScanTokens BS.getContents
-  let folder acc e = e `seq` succ acc
-      folded = foldl' folder (0 :: Int) tokens
-  putStrLn (show folded)
+  bs <- BS.getContents
+  let st = S.State bs 1 1
+      c = S.runStateM parser st
+  print c
