@@ -76,7 +76,7 @@ data QtyItem =
   | QtySpace
   deriving (Show, Eq)
 
-data Qty = Qty !QtyItem !(List QtyItem)
+data Qty = Qty !S.Location !QtyItem !(List QtyItem)
            deriving (Show, Eq)
 
 -- End Data

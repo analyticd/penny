@@ -777,5 +777,32 @@ L3Cmdty : L3SubCmdty L3SubCmdtyRest { T.Commodity $1 $2 }
 -- periods, commas, and spaces. A subsequent stage will make
 -- sense of this jumble.
 
-Qty :: { T.Qty }
-Qty 
+UnquotedQty :: { T.Qty }
+UnquotedQty : Location UnquotedQtyItem
+              UnquotedQtyItemList { T.Qty $1 $2 $3 }
+
+UnquotedQtyItem :: { T.QtyItem }
+UnquotedQtyItem : digits { T.QtyDigits $1 }
+                | period { T.QtyPeriod }
+                | comma { T.QtyComma }
+
+UnquotedQtyItemList :: { List T.QtyItem }
+UnquotedQtyItemList
+  : {- empty -} { Empty }
+  | UnquotedQtyItemList UnquotedQtyItem { $2 :|: $1 }
+
+QuotedQty :: { T.Qty }
+QuotedQty : Location QuotedQtyItem QuotedQtyItemList
+            { T.Qty $1 $2 $3 }
+
+QuotedQtyItem :: { T.QtyItem }
+QuotedQtyItem : digits { T.QtyDigits $1 }
+              | period { T.QtyPeriod }
+              | comma { T.QtyComma }
+              | spaces { T.QtySpace }
+
+QuotedQtyItemList :: { List T.QtyItem }
+QuotedQtyItemList
+  : {- empty -} { Empty }
+  | QuotedQtyItemList QuotedQtyItem { $2 :|: $1 }
+
