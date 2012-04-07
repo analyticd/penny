@@ -122,10 +122,10 @@ MaybeSpaces :: { Might Int }
 MaybeSpaces : {- empty -} { Nope }
             | spaces { Here $1 }
 
-DateSeparator :: { X.Text }
+DateSeparator :: { }
 DateSeparator
-  : dash { $1 }
-  | slash { $1 }
+  : dash {  }
+  | slash { }
 
 Number :: { T.Number }
   : openParen NumberContents closeParen MaybeSpaces
@@ -368,7 +368,7 @@ TimeAndOrZone :: { T.TimeAndOrZone }
 TimeAndOrZone : HoursMinsSecs MaybeZone { T.TimeMaybeZone $1 $2 }
               | TimeZone       { T.ZoneOnly $1 }
 
-MaybeZone :: { Might TimeZone }
+MaybeZone :: { Might T.TimeZone }
 MaybeZone : {- empty -} { Nope }
           | TimeZone { Here $1 }
 
@@ -462,7 +462,13 @@ L1AcctList : L1SubAcct { $1 :|: Empty }
 -- Level 2 Account
 --
 L2AcctFirstChunk :: { X.Text }
-L2AcctFirstChunk : letters { $1 }
+L2AcctFirstChunk
+  : letters { $1 }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
 
 L2AcctOtherChunk :: { X.Text }
 L2AcctOtherChunk
@@ -483,7 +489,6 @@ L2AcctOtherChunk
   | dash { T.dash }
   | period { T.period }
   | slash { T.slash }
-  | colon { T.colon }
   | semicolon { T.semicolon }
   | lessThan { T.lessThan }
   | equals   { T.equals }
@@ -583,3 +588,194 @@ Tags : TagsContent { T.Tags $1 }
 TagsContent :: { List T.Tag }
 TagsContent : {- empty -} { Empty }
             | TagsContent Tag { $2 :|: $1 }
+
+--
+-- Commodities
+--
+
+-- Level 1 Commodities
+
+L1CmdtyContent :: { X.Text }
+L1CmdtyContent
+  : letters { $1 }
+  | spaces { (T.spaces $1) }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+L1SubCmdty :: { T.SubCommodity }
+L1SubCmdty : L1CmdtyContent L1SubCmdtyContentList
+             { T.SubCommodity $1 $2 }
+
+L1SubCmdtyContentList :: { List X.Text }
+L1SubCmdtyContentList : {- empty -} { Empty }
+                      | L1SubCmdtyContentList L1CmdtyContent
+                        { $2 :|: $1 }
+
+L1Cmdty :: { T.Commodity }
+L1Cmdty : quote
+          L1SubCmdty L1TrailingCmdtys
+          quote
+          { T.Commodity $2 $3 }
+
+L1TrailingCmdtys :: { List T.SubCommodity }
+L1TrailingCmdtys : {- empty -} { Empty }
+                 | colon L1TrailingCmdtyList { $2 }
+
+L1TrailingCmdtyList :: { List T.SubCommodity }
+L1TrailingCmdtyList : L1SubCmdty { $1 :|: Empty }
+                    | L1TrailingCmdtyList colon L1SubCmdty
+                      { $3 :|: $1 }
+
+-- Level 2 commodities
+
+L2FirstCmdtyLeader :: { X.Text }
+L2FirstCmdtyLeader
+  : letters { $1 }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+L2CmdtyContent :: { X.Text }
+L2CmdtyContent
+  : letters { $1 }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | colon { T.colon }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+L2FirstSubCmdty :: { T.SubCommodity }
+L2FirstSubCmdty : L2FirstCmdtyLeader L2FirstCmdtyRest
+                  { T.SubCommodity $1 $2 }
+
+L2FirstCmdtyRest :: { List X.Text }
+L2FirstCmdtyRest : L2CmdtyContent { $1 :|: Empty }
+                 | L2FirstCmdtyRest L2CmdtyContent { $2 :|: $1 }
+
+L2OtherSubCmdty :: { T.SubCommodity }
+L2OtherSubCmdty : L2CmdtyContent L2OtherCmdtyRest
+                  { T.SubCommodity $1 $2 }
+
+L2OtherCmdtyRest :: { List X.Text }
+L2OtherCmdtyRest : L2CmdtyContent { $1 :|: Empty }
+                 | L2OtherCmdtyRest L2CmdtyContent { $2 :|: $1 }
+
+L2Cmdty :: { T.Commodity }
+L2Cmdty : L2FirstSubCmdty L2RestCmdtys { T.Commodity $1 $2 }
+
+L2RestCmdtys :: { List T.SubCommodity }
+L2RestCmdtys : {- empty -} { Empty }
+             | colon L2RestCmdtyList { $2 }
+
+L2RestCmdtyList :: { List T.SubCommodity }
+L2RestCmdtyList
+  : L2OtherSubCmdty { $1 :|: Empty }
+  | L2RestCmdtyList colon L2OtherSubCmdty { $3 :|: $1 }
+
+-- Level 3 commodities
+
+L3SubCmdtyContent :: { X.Text }
+L3SubCmdtyContent
+  : letters { $1 }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+L3SubCmdty :: { T.SubCommodity }
+L3SubCmdty : L3SubCmdtyContent L3SubCmdtyContentRest
+             { T.SubCommodity $1 $2 }
+
+L3SubCmdtyContentRest :: { List X.Text }
+L3SubCmdtyContentRest
+  : {- empty -} { Empty }
+  | L3SubCmdtyContentRest L3SubCmdtyContent { $2 :|: $1 }
+
+L3SubCmdtyList :: { List T.SubCommodity }
+L3SubCmdtyList
+  : L3SubCmdty { $1 :|: Empty }
+  | L3SubCmdtyList colon L3SubCmdty { $3 :|: $1 }
+
+L3SubCmdtyRest :: { List T.SubCommodity }
+L3SubCmdtyRest : {- empty -} { Empty }
+               | colon L3SubCmdtyList { $2 }
+
+L3Cmdty :: { T.Commodity }
+L3Cmdty : L3SubCmdty L3SubCmdtyRest { T.Commodity $1 $2 }
+
+--
+-- Quantities
+--
+
+-- A quantity is parsed simply as a sequence of digits,
+-- periods, commas, and spaces. A subsequent stage will make
+-- sense of this jumble.
+
+Qty :: { T.Qty }
+Qty 

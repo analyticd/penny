@@ -63,6 +63,27 @@ data Tag = Tag !X.Text !(List X.Text)
 data Tags = Tags !(List Tag)
             deriving (Show, Eq)
 
+data SubCommodity = SubCommodity !X.Text !(List X.Text)
+                    deriving (Show, Eq)
+
+data Commodity = Commodity !SubCommodity !(List SubCommodity)
+                 deriving (Show, Eq)
+
+data QtyItem =
+  QtyDigits !X.Text
+  | QtyPeriod
+  | QtyComma
+  | QtySpace
+  deriving (Show, Eq)
+
+data Qty = Qty !QtyItem !(List QtyItem)
+           deriving (Show, Eq)
+
+-- End Data
+
+--
+-- Helpers
+--
 spaces :: Int -> X.Text
 spaces i = X.replicate i (X.singleton ' ')
 
