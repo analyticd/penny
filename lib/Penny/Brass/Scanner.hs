@@ -1,6 +1,7 @@
 module Penny.Brass.Scanner where
 
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.UTF8 as U
 import qualified Penny.Brass.AlexInput as A
 import qualified Penny.Brass.Lexer as L
 
@@ -21,6 +22,7 @@ data State = State {
   } deriving Show
 
 data Location = Location !Line !Col
+                deriving (Show, Eq)
 
 newtype StateM a =
   StateM { runStateM :: State -> (Result a, State) }
@@ -78,7 +80,7 @@ lexerInner ::
   -> InnerResult a
 lexerInner cont bs lin col = case L.alexScan bs 0 of
   L.AlexToken rest len act -> let
-    str = BS.take len bs
+    str = U.take len bs
     tok = act str
     (lin', col') = case tok of
       A.Newline -> (lin + 1, 1)

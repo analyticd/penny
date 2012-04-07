@@ -358,7 +358,175 @@ MaybeTopLinePayee : {- empty -} { Nope }
                   | QuotedPayee { Here $1 }
                   | UnquotedPayee { Here $1 }
 
-TopLine : DateTime MaybeFlag
+TopLine : Location DateTime MaybeFlag
           MaybeNumber MaybeTopLinePayee
           newline MaybeSpaces
-          { T.TopLine $1 $2 $3 $4 }
+          { T.TopLine $1 $2 $3 $4 $5 }
+
+Location : {- empty -} {% S.prevLocation }
+
+L1AcctChunk
+  : letters { $1 }
+  | spaces { (T.spaces $1) }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+L1SubAcct : L1AcctChunk L1SubAcctRest { T.SubAccount $1 $2 }
+
+L1SubAcctRest : {- empty -} { Empty }
+              | L1SubAcctRest L1AcctChunk { $2 :|: $1 }
+
+L1Acct : openBrace L1SubAcct L1AcctRest closeBrace
+         { T.Account $2 $3 }
+
+L1AcctRest : {- empty -} { Empty }
+           | colon L1AcctList { $2 }
+
+L1AcctList : L1SubAcct { $1 :|: Empty }
+           | L1AcctList colon L1SubAcct { $3 :|: $1 }
+
+--
+-- Level 2 Account
+--
+L2AcctFirstChunk : letters { $1 }
+
+L2AcctOtherChunk
+  : letters { $1 }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | colon { T.colon }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+L2FirstSubAcct : L2AcctFirstChunk L2AcctChunkList { T.SubAccount $1 $2 }
+
+L2AcctChunkList : {- empty -} { Empty }
+                | L2AcctChunkList L2AcctOtherChunk { $2 :|: $1 }
+
+L2OtherSubAcct : L2AcctOtherChunk L2AcctChunkList { T.SubAccount $1 $2 }
+
+L2Account : L2FirstSubAcct L2RestSubAccts { T.Account $1 $2 }
+
+L2RestSubAccts : {- empty -} { Empty }
+               | colon L2AcctList { $2 }
+
+L2AcctList : L2OtherSubAcct { $1 :|: Empty }
+           | L2AcctList colon L2OtherSubAcct { $3 :|: $1 }
+
+--
+-- Tags
+--
+TagContent
+  : letters { $1 }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | colon { T.colon }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+Tag : asterisk TagContent TagContents { T.Tag $2 $3 }
+
+TagContents : {- empty -} { Empty }
+            | TagContents TagContent { $2 :|: $1 }
+
+Tags : TagsContent { T.Tags $1 }
+
+TagsContent : {- empty -} { Empty }
+            | TagsContent Tag { $2 :|: $1 }

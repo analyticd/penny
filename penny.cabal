@@ -189,7 +189,8 @@ Library
         matchers ==0.1.*,
         old-locale ==1.0.*,
         semigroups ==0.8.*,
-        split ==0.1.*
+        split ==0.1.*,
+        utf8-string ==0.3.*
 
     Exposed-modules:
         Penny,

@@ -3,6 +3,7 @@ module Penny.Brass.Start where
 import qualified Data.Text as X
 
 import Penny.Lincoln.Strict (List, Might)
+import qualified Penny.Brass.Scanner as S
 
 data FileItem = ItemComment Comment
                 | ItemTopLine TopLine
@@ -46,9 +47,21 @@ data TimeAndOrZone = TimeMaybeZone !HoursMinsSecs !(Might TimeZone)
 data DateTime = DateTime !Date !(Might TimeAndOrZone)
                 deriving (Show, Eq)
 
-data TopLine = TopLine !DateTime !(Might Flag) !(Might Number)
-               !(Might Payee)
+data TopLine = TopLine !S.Location !DateTime !(Might Flag)
+               !(Might Number) !(Might Payee)
                deriving (Show, Eq)
+
+data Account = Account !SubAccount !(List SubAccount)
+               deriving (Show, Eq)
+
+data SubAccount = SubAccount !X.Text !(List X.Text)
+                  deriving (Show, Eq)
+
+data Tag = Tag !X.Text !(List X.Text)
+           deriving (Show, Eq)
+
+data Tags = Tags !(List Tag)
+            deriving (Show, Eq)
 
 spaces :: Int -> X.Text
 spaces i = X.replicate i (X.singleton ' ')
