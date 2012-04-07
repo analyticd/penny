@@ -60,18 +60,23 @@ import Penny.Lincoln.Strict
 
 %%
 
+FileItems :: { List T.FileItem }
 FileItems : {- empty -} { Empty }
           | FileItems FileItem { $2 :|: $1 }
 
+FileItem :: { T.FileItem }
 FileItem : Comment { T.ItemComment $1 }
          | TopLine { T.ItemTopLine $1 }
          | newline { T.ItemBlankLine }
 
+Comment :: { T.Comment }
 Comment : hash CommentContents newline MaybeSpaces { T.Comment $2 }
 
+CommentContents :: { List X.Text }
 CommentContents : {- empty -} { Empty }
                 | CommentContents CommentContent { $2 :|: $1 }
 
+CommentContent :: { X.Text }
 CommentContent
   : letters { $1 }
   | spaces { (T.spaces $1) }
@@ -113,20 +118,24 @@ CommentContent
   | cr     { T.cr }
   | credit { T.credit }
 
-MaybeSpaces : {- empty -} { }
-            | spaces { }
+MaybeSpaces :: { Might Int }
+MaybeSpaces : {- empty -} { Nope }
+            | spaces { Here $1 }
 
+DateSeparator :: { X.Text }
 DateSeparator
-  : dash { }
-  | slash { }
+  : dash { $1 }
+  | slash { $1 }
 
-Number
+Number :: { T.Number }
   : openParen NumberContents closeParen MaybeSpaces
     { T.Number $2 }
 
+NumberContents :: { List X.Text }
 NumberContents : NumberContent { $1 :|: Empty }
                | NumberContents NumberContent { $2 :|: $1 }
 
+NumberContent :: { X.Text }
 NumberContent
   : letters { $1 }
   | spaces { (T.spaces $1) }
@@ -167,13 +176,16 @@ NumberContent
   | cr     { T.cr }
   | credit { T.credit }
 
+Flag :: { T.Flag }
 Flag
   : openBracket FlagContents closeBracket MaybeSpaces
     { T.Flag $2 }
 
+FlagContents :: { List X.Text }
 FlagContents : FlagContent { $1 :|: Empty }
              | FlagContents FlagContent { $2 :|: $1 }
 
+FlagContent :: { X.Text }
 FlagContent
   : letters { $1 }
   | spaces { (T.spaces $1) }
@@ -214,12 +226,14 @@ FlagContent
   | cr     { T.cr }
   | credit { T.credit }
 
+QuotedPayee :: { T.Payee }
 QuotedPayee
   : lessThan
     QuotedPayeeContent QuotedPayeeRests
     greaterThan
     MaybeSpaces { T.Payee $2 $3 }
 
+QuotedPayeeContent :: { X.Text }
 QuotedPayeeContent
   : letters { $1 }
   | spaces { (T.spaces $1) }
@@ -260,20 +274,25 @@ QuotedPayeeContent
   | cr     { T.cr }
   | credit { T.credit }
 
+QuotedPayeeRests :: { List X.Text }
 QuotedPayeeRests
   : {- empty -} { Empty }
   | QuotedPayeeRests QuotedPayeeContent { $2 :|: $1 }
 
+UnquotedPayee :: { T.Payee }
 UnquotedPayee
   : UnquotedPayeeLeader UnquotedPayeeRests { T.Payee $1 $2 }
 
+UnquotedPayeeLeader :: { X.Text }
 UnquotedPayeeLeader
   : letters { $1 }
 
+UnquotedPayeeRests :: { List X.Text }
 UnquotedPayeeRests
   : {- empty -} { Empty }
   | UnquotedPayeeRests UnquotedPayeeRest { $2 :|: $1 }
 
+UnquotedPayeeRest :: { X.Text }
 UnquotedPayeeRest
   : letters { $1 }
   | spaces { (T.spaces $1) }
@@ -315,56 +334,72 @@ UnquotedPayeeRest
   | cr     { T.cr }
   | credit { T.credit }
 
+Date :: { T.Date }
 Date
   : digits DateSeparator
     digits DateSeparator
     digits MaybeSpaces
     { T.Date $1 $3 $5 }
 
+HoursMins :: { T.HoursMins }
 HoursMins
   : digits colon digits { T.HoursMins $1 $3 }
 
+Secs :: { T.Secs }
 Secs
   : colon digits { T.Secs $2 }
 
+MaybeSecs :: { Might T.Secs }
 MaybeSecs : Secs { Here $1 }
           | {- empty -} { Nope }
 
+HoursMinsSecs :: { T.HoursMinsSecs }
 HoursMinsSecs : HoursMins MaybeSecs MaybeSpaces { T.HoursMinsSecs $1 $2 }
 
+TimeZone :: { T.TimeZone }
 TimeZone : plus digits MaybeSpaces { T.TimeZone T.TzPlus $2 }
          | dash digits MaybeSpaces { T.TimeZone T.TzMinus $2 }
 
+MaybeTimeMaybeZone :: { Might T.TimeAndOrZone }
 MaybeTimeMaybeZone : {- empty -} { Nope }
                    | TimeAndOrZone { Here $1 }
 
+TimeAndOrZone :: { T.TimeAndOrZone }
 TimeAndOrZone : HoursMinsSecs MaybeZone { T.TimeMaybeZone $1 $2 }
               | TimeZone       { T.ZoneOnly $1 }
 
+MaybeZone :: { Might TimeZone }
 MaybeZone : {- empty -} { Nope }
           | TimeZone { Here $1 }
 
+DateTime :: { T.DateTime }
 DateTime : Date MaybeTimeMaybeZone { T.DateTime $1 $2 }
 
 -- TopLine
 
+MaybeFlag :: { Might T.Flag }
 MaybeFlag : {- empty -} { Nope }
           | Flag { Here $1 }
 
+MaybeNumber :: { Might T.Number }
 MaybeNumber : {- empty -} { Nope }
             | Number { Here $1 }
 
+MaybeTopLinePayee :: { Might T.Payee }
 MaybeTopLinePayee : {- empty -} { Nope }
                   | QuotedPayee { Here $1 }
                   | UnquotedPayee { Here $1 }
 
+TopLine :: { T.TopLine }
 TopLine : Location DateTime MaybeFlag
           MaybeNumber MaybeTopLinePayee
           newline MaybeSpaces
           { T.TopLine $1 $2 $3 $4 $5 }
 
+Location :: { S.Location }
 Location : {- empty -} {% S.prevLocation }
 
+L1AcctChunk :: { X.Text }
 L1AcctChunk
   : letters { $1 }
   | spaces { (T.spaces $1) }
@@ -404,25 +439,32 @@ L1AcctChunk
   | cr     { T.cr }
   | credit { T.credit }
 
+L1SubAcct :: { T.SubAccount }
 L1SubAcct : L1AcctChunk L1SubAcctRest { T.SubAccount $1 $2 }
 
+L1SubAcctRest :: { List X.Text }
 L1SubAcctRest : {- empty -} { Empty }
               | L1SubAcctRest L1AcctChunk { $2 :|: $1 }
 
+L1Acct :: { T.Account }
 L1Acct : openBrace L1SubAcct L1AcctRest closeBrace
          { T.Account $2 $3 }
 
+L1AcctRest :: { List T.SubAccount }
 L1AcctRest : {- empty -} { Empty }
            | colon L1AcctList { $2 }
 
+L1AcctList :: { List T.SubAccount }
 L1AcctList : L1SubAcct { $1 :|: Empty }
            | L1AcctList colon L1SubAcct { $3 :|: $1 }
 
 --
 -- Level 2 Account
 --
+L2AcctFirstChunk :: { X.Text }
 L2AcctFirstChunk : letters { $1 }
 
+L2AcctOtherChunk :: { X.Text }
 L2AcctOtherChunk
   : letters { $1 }
   | digits { $1 }
@@ -463,24 +505,31 @@ L2AcctOtherChunk
   | cr     { T.cr }
   | credit { T.credit }
 
+L2FirstSubAcct :: { T.SubAccount }
 L2FirstSubAcct : L2AcctFirstChunk L2AcctChunkList { T.SubAccount $1 $2 }
 
+L2AcctChunkList :: { List X.Text }
 L2AcctChunkList : {- empty -} { Empty }
                 | L2AcctChunkList L2AcctOtherChunk { $2 :|: $1 }
 
+L2OtherSubAcct :: { T.SubAccount }
 L2OtherSubAcct : L2AcctOtherChunk L2AcctChunkList { T.SubAccount $1 $2 }
 
+L2Account :: { T.Account }
 L2Account : L2FirstSubAcct L2RestSubAccts { T.Account $1 $2 }
 
+L2RestSubAccts :: { List T.SubAccount }
 L2RestSubAccts : {- empty -} { Empty }
                | colon L2AcctList { $2 }
 
+L2AcctList :: { List T.SubAccount }
 L2AcctList : L2OtherSubAcct { $1 :|: Empty }
            | L2AcctList colon L2OtherSubAcct { $3 :|: $1 }
 
 --
 -- Tags
 --
+TagContent :: { X.Text }
 TagContent
   : letters { $1 }
   | digits { $1 }
@@ -521,12 +570,16 @@ TagContent
   | cr     { T.cr }
   | credit { T.credit }
 
+Tag :: { T.Tag }
 Tag : asterisk TagContent TagContents { T.Tag $2 $3 }
 
+TagContents :: { List X.Text }
 TagContents : {- empty -} { Empty }
             | TagContents TagContent { $2 :|: $1 }
 
+Tags :: { T.Tags }
 Tags : TagsContent { T.Tags $1 }
 
+TagsContent :: { List T.Tag }
 TagsContent : {- empty -} { Empty }
             | TagsContent Tag { $2 :|: $1 }
