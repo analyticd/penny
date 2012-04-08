@@ -56,7 +56,7 @@
 
 2012/01/02 [C] (302) GreenGas
     {Liabilities:Credit Card}             Cr $5.00
-    Expenses:Car *gas *trips
+    Expenses:Car *gas trips*
 
 # Though the posting lines in this file are nicely indented for
 # readability, Penny does not require this.

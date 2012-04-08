@@ -5,8 +5,9 @@ import qualified Data.Text as X
 import Penny.Lincoln.Strict (List, Might)
 import qualified Penny.Brass.Scanner as S
 
-data FileItem = ItemComment Comment
-                | ItemTransaction Transaction
+data FileItem = ItemComment !Comment
+                | ItemTransaction !Transaction
+                | ItemPrice !Price
                 | ItemBlankLine
                 deriving Show
 
@@ -96,13 +97,19 @@ data Entry = Entry !DrCr !Amount
              deriving (Show, Eq)
 
 data Posting = Posting !S.Location !(Might Flag) !(Might Number)
-               !(Might Payee) !Account !Tags
-               !(Might Entry) !Memo
+               !(Might Payee) !AccountTagsEntry !Memo
                deriving (Show, Eq)
+
+data AccountTagsEntry =
+  AccountTagsEntry !Account !Tags !(Might Entry)
+  deriving (Show, Eq)
 
 data Transaction = Transaction !TopLine !Posting !Posting
                    !(List Posting)
                    deriving (Show, Eq)
+
+data Price = Price !DateTime !Commodity !Amount
+             deriving (Show, Eq)
 
 -- End Data
 

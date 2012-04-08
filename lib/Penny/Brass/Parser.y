@@ -77,6 +77,7 @@ FileItems : {- empty -} { Empty }
 FileItem :: { T.FileItem }
 FileItem : Comment { T.ItemComment $1 }
          | Transaction { T.ItemTransaction $1 }
+         | Price { T.ItemPrice $1 }
          | newline MaybeSpaces { T.ItemBlankLine }
 
 --
@@ -507,10 +508,6 @@ TopLine : TransactionMemo Location DateTime MaybeFlag
 -- Account
 --
 
-Account :: { T.Account }
-Account : L1Account MaybeSpaces { $1 }
-        | L2Account MaybeSpaces { $1 }
-
 L1AcctChunk :: { X.Text }
 L1AcctChunk
   : letters { $1 }
@@ -559,7 +556,7 @@ L1SubAcctRest : {- empty -} { Empty }
               | L1SubAcctRest L1AcctChunk { $2 :|: $1 }
 
 L1Account :: { T.Account }
-L1Account : openBrace L1SubAcct L1AcctRest closeBrace
+L1Account : openBrace L1SubAcct L1AcctRest closeBrace MaybeSpaces
          { T.Account $2 $3 }
 
 L1AcctRest :: { List T.SubAccount }
@@ -659,7 +656,6 @@ TagContent
   | apostrophe { T.apostrophe }
   | openParen { T.openParen }
   | closeParen { T.closeParen }
-  | asterisk { T.asterisk }
   | plus { T.plus }
   | comma { T.comma }
   | dash { T.dash }
@@ -688,18 +684,19 @@ TagContent
   | credit { T.credit }
 
 Tag :: { T.Tag }
-Tag : asterisk TagContent TagContents MaybeSpaces { T.Tag $2 $3 }
+Tag : TagContent TagContents { T.Tag $1 $2 }
 
 TagContents :: { List X.Text }
 TagContents : {- empty -} { Empty }
             | TagContents TagContent { $2 :|: $1 }
 
-Tags :: { T.Tags }
-Tags : TagsContent { T.Tags $1 }
+TagList :: { List T.Tag }
+TagList : Tag { $1 :|: Empty }
+        | TagList spaces Tag { $3 :|: $1 }
 
-TagsContent :: { List T.Tag }
-TagsContent : {- empty -} { Empty }
-            | TagsContent Tag { $2 :|: $1 }
+Tags :: { T.Tags }
+Tags : {- empty -} { T.Tags Empty }
+     | asterisk TagList asterisk MaybeSpaces { T.Tags $2 }
 
 --
 -- Commodities
@@ -776,6 +773,7 @@ L1TrailingCmdtyList : L1SubCmdty { $1 :|: Empty }
 L2FirstCmdtyLeader :: { X.Text }
 L2FirstCmdtyLeader
   : letters { $1 }
+  | dollar { T.dollar }
   | dr    { T.dr }
   | debit { T.debit }
   | cr     { T.cr }
@@ -800,7 +798,6 @@ L2CmdtyContent
   | dash { T.dash }
   | period { T.period }
   | slash { T.slash }
-  | colon { T.colon }
   | semicolon { T.semicolon }
   | lessThan { T.lessThan }
   | equals   { T.equals }
@@ -827,7 +824,7 @@ L2FirstSubCmdty : L2FirstCmdtyLeader L2FirstCmdtyRest
                   { T.SubCommodity $1 $2 }
 
 L2FirstCmdtyRest :: { List X.Text }
-L2FirstCmdtyRest : L2CmdtyContent { $1 :|: Empty }
+L2FirstCmdtyRest : {- empty -} { Empty }
                  | L2FirstCmdtyRest L2CmdtyContent { $2 :|: $1 }
 
 L2OtherSubCmdty :: { T.SubCommodity }
@@ -835,7 +832,7 @@ L2OtherSubCmdty : L2CmdtyContent L2OtherCmdtyRest
                   { T.SubCommodity $1 $2 }
 
 L2OtherCmdtyRest :: { List X.Text }
-L2OtherCmdtyRest : L2CmdtyContent { $1 :|: Empty }
+L2OtherCmdtyRest : {- empty -} { Empty }
                  | L2OtherCmdtyRest L2CmdtyContent { $2 :|: $1 }
 
 L2Cmdty :: { T.Commodity }
@@ -855,6 +852,7 @@ L2RestCmdtyList
 L3SubCmdtyContent :: { X.Text }
 L3SubCmdtyContent
   : letters { $1 }
+  | dollar { T.dollar }
   | dr    { T.dr }
   | debit { T.debit }
   | cr     { T.cr }
@@ -912,8 +910,8 @@ UnquotedQtyItemList
   | UnquotedQtyItemList UnquotedQtyItem { $2 :|: $1 }
 
 QuotedQty :: { T.Qty }
-QuotedQty : Location QuotedQtyItem QuotedQtyItemList
-            { T.Qty $1 $2 $3 }
+QuotedQty : Location caret QuotedQtyItem QuotedQtyItemList caret
+            { T.Qty $1 $3 $4 }
 
 QuotedQtyItem :: { T.QtyItem }
 QuotedQtyItem : digits { T.QtyDigits $1 }
@@ -992,13 +990,32 @@ PostingMemo :: { T.Memo }
 PostingMemo : Location PostingMemoList { T.Memo $1 $2 }
 
 --
+-- AccountTagsEntry
+--
+L1AccountTagsEntry :: { T.AccountTagsEntry }
+L1AccountTagsEntry : L1Account Tags MaybeEntry newline MaybeSpaces
+                     { T.AccountTagsEntry $1 $2 $3 }
+
+L2AccountTagsEntry :: { T.AccountTagsEntry }
+L2AccountTagsEntry
+  : L2Account newline MaybeSpaces
+    { T.AccountTagsEntry $1 (T.Tags Empty) Nope }
+  | L2Account spaces Tags MaybeEntry newline MaybeSpaces
+    { T.AccountTagsEntry $1 $3 $4 }
+
+AccountTagsEntry :: { T.AccountTagsEntry }
+AccountTagsEntry : L1AccountTagsEntry { $1 }
+                 | L2AccountTagsEntry { $1 }
+
+
+--
 -- Posting
 --
 Posting :: { T.Posting }
 Posting :
   Location MaybeFlag MaybeNumber MaybeQuotedPayee
-  Account Tags MaybeEntry newline MaybeSpaces PostingMemo
-  { T.Posting $1 $2 $3 $4 $5 $6 $7 $10 }
+  AccountTagsEntry PostingMemo
+  { T.Posting $1 $2 $3 $4 $5 $6 }
 
 --
 -- Transaction
@@ -1010,3 +1027,15 @@ MorePostings : {- empty -} { Empty }
 Transaction :: { T.Transaction }
 Transaction : TopLine Posting Posting MorePostings
               { T.Transaction $1 $2 $3 $4 }
+
+--
+-- Prices
+--
+Price :: { T.Price }
+Price : atSign MaybeSpaces DateTime FromCmdty
+        spaces Amount newline MaybeSpaces
+        { T.Price $3 $4 $6 }
+
+FromCmdty :: { T.Commodity }
+FromCmdty : L1Cmdty { $1 }
+          | L2Cmdty { $1 }
