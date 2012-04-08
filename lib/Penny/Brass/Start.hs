@@ -6,7 +6,7 @@ import Penny.Lincoln.Strict (List, Might)
 import qualified Penny.Brass.Scanner as S
 
 data FileItem = ItemComment Comment
-                | ItemTopLine TopLine
+                | ItemTransaction Transaction
                 | ItemBlankLine
                 deriving Show
 
@@ -47,7 +47,7 @@ data TimeAndOrZone = TimeMaybeZone !HoursMinsSecs !(Might TimeZone)
 data DateTime = DateTime !Date !(Might TimeAndOrZone)
                 deriving (Show, Eq)
 
-data TopLine = TopLine !S.Location !DateTime !(Might Flag)
+data TopLine = TopLine !Memo !S.Location !DateTime !(Might Flag)
                !(Might Number) !(Might Payee)
                deriving (Show, Eq)
 
@@ -78,6 +78,31 @@ data QtyItem =
 
 data Qty = Qty !S.Location !QtyItem !(List QtyItem)
            deriving (Show, Eq)
+
+data Amount = AmtCmdtyOnRight !Qty !(Might Int) !Commodity
+              | AmtCmdtyOnLeft !Commodity !(Might Int) !Qty
+              deriving (Eq, Show)
+
+data MemoLine = MemoLine !X.Text !(List X.Text)
+                deriving (Eq, Show)
+
+data Memo = Memo !S.Location !(List MemoLine)
+            deriving (Show, Eq)
+
+data DrCr = Debit | Credit
+          deriving (Show, Eq)
+
+data Entry = Entry !DrCr !Amount
+             deriving (Show, Eq)
+
+data Posting = Posting !S.Location !(Might Flag) !(Might Number)
+               !(Might Payee) !Account !Tags
+               !(Might Entry) !Memo
+               deriving (Show, Eq)
+
+data Transaction = Transaction !TopLine !Posting !Posting
+                   !(List Posting)
+                   deriving (Show, Eq)
 
 -- End Data
 

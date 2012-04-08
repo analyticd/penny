@@ -60,14 +60,43 @@ import Penny.Lincoln.Strict
 
 %%
 
+--
+-- PennyFile
+--
+PennyFile :: { List T.FileItem }
+PennyFile : MaybeSpaces FileItems { $2 }
+
+--
+-- File Items
+--
+
 FileItems :: { List T.FileItem }
 FileItems : {- empty -} { Empty }
           | FileItems FileItem { $2 :|: $1 }
 
 FileItem :: { T.FileItem }
 FileItem : Comment { T.ItemComment $1 }
-         | TopLine { T.ItemTopLine $1 }
-         | newline { T.ItemBlankLine }
+         | Transaction { T.ItemTransaction $1 }
+         | newline MaybeSpaces { T.ItemBlankLine }
+
+--
+-- Location
+--
+
+Location :: { S.Location }
+Location : {- empty -} {% S.prevLocation }
+
+--
+-- Spaces
+--
+
+MaybeSpaces :: { Might Int }
+MaybeSpaces : {- empty -} { Nope }
+            | spaces { Here $1 }
+
+--
+-- Comments
+--
 
 Comment :: { T.Comment }
 Comment : hash CommentContents newline MaybeSpaces { T.Comment $2 }
@@ -118,14 +147,73 @@ CommentContent
   | cr     { T.cr }
   | credit { T.credit }
 
-MaybeSpaces :: { Might Int }
-MaybeSpaces : {- empty -} { Nope }
-            | spaces { Here $1 }
+--
+-- Memo content and Transaction Memos
+--
 
-DateSeparator :: { }
-DateSeparator
-  : dash {  }
-  | slash { }
+MemoContent :: { X.Text }
+MemoContent
+  : letters { $1 }
+  | spaces { (T.spaces $1) }
+  | digits { $1 }
+  | exclamation { T.exclamation }
+  | quote { T.quote }
+  | hash { T.hash }
+  | dollar { T.dollar }
+  | percent { T.percent }
+  | ampersand { T.ampersand }
+  | apostrophe { T.apostrophe }
+  | openParen { T.openParen }
+  | closeParen { T.closeParen }
+  | asterisk { T.asterisk }
+  | plus { T.plus }
+  | comma { T.comma }
+  | dash { T.dash }
+  | period { T.period }
+  | slash { T.slash }
+  | colon { T.colon }
+  | semicolon { T.semicolon }
+  | lessThan { T.lessThan }
+  | equals   { T.equals }
+  | greaterThan { T.greaterThan }
+  | question { T.question }
+  | atSign { T.atSign }
+  | openBracket { T.openBracket }
+  | backslash { T.backslash }
+  | closeBracket { T.closeBracket }
+  | caret { T.caret }
+  | underscore { T.underscore }
+  | backtick { T.backtick }
+  | openBrace { T.openBrace }
+  | verticalBar { T.verticalBar }
+  | closeBrace { T.closeBrace }
+  | tilde { T.tilde }
+  | dr    { T.dr }
+  | debit { T.debit }
+  | cr     { T.cr }
+  | credit { T.credit }
+
+MemoContentList :: { List X.Text }
+MemoContentList
+  : {- empty -} { Empty }
+  | MemoContentList MemoContent { $2 :|: $1 }
+
+TransactionMemoLine :: { T.MemoLine }
+TransactionMemoLine
+  : semicolon MemoContent MemoContentList newline MaybeSpaces
+    { T.MemoLine $2 $3 }
+
+TransactionMemoList :: { List T.MemoLine }
+TransactionMemoList
+  : {- empty -} { Empty }
+  | TransactionMemoList TransactionMemoLine { $2 :|: $1 }
+
+TransactionMemo :: { T.Memo }
+TransactionMemo : Location TransactionMemoList { T.Memo $1 $2 }
+
+--
+-- Number
+--
 
 Number :: { T.Number }
   : openParen NumberContents closeParen MaybeSpaces
@@ -176,6 +264,14 @@ NumberContent
   | cr     { T.cr }
   | credit { T.credit }
 
+MaybeNumber :: { Might T.Number }
+MaybeNumber : {- empty -} { Nope }
+            | Number { Here $1 }
+
+--
+-- Flag
+--
+
 Flag :: { T.Flag }
 Flag
   : openBracket FlagContents closeBracket MaybeSpaces
@@ -225,6 +321,18 @@ FlagContent
   | debit { T.debit }
   | cr     { T.cr }
   | credit { T.credit }
+
+MaybeFlag :: { Might T.Flag }
+MaybeFlag : {- empty -} { Nope }
+          | Flag { Here $1 }
+
+--
+-- Payee
+--
+
+MaybeQuotedPayee :: { Might T.Payee }
+MaybeQuotedPayee : {- empty -} { Nope }
+                 | QuotedPayee { Here $1 }
 
 QuotedPayee :: { T.Payee }
 QuotedPayee
@@ -334,6 +442,15 @@ UnquotedPayeeRest
   | cr     { T.cr }
   | credit { T.credit }
 
+--
+-- Date
+--
+
+DateSeparator :: { }
+DateSeparator
+  : dash {  }
+  | slash { }
+
 Date :: { T.Date }
 Date
   : digits DateSeparator
@@ -375,29 +492,24 @@ MaybeZone : {- empty -} { Nope }
 DateTime :: { T.DateTime }
 DateTime : Date MaybeTimeMaybeZone { T.DateTime $1 $2 }
 
--- TopLine
-
-MaybeFlag :: { Might T.Flag }
-MaybeFlag : {- empty -} { Nope }
-          | Flag { Here $1 }
-
-MaybeNumber :: { Might T.Number }
-MaybeNumber : {- empty -} { Nope }
-            | Number { Here $1 }
-
 MaybeTopLinePayee :: { Might T.Payee }
 MaybeTopLinePayee : {- empty -} { Nope }
                   | QuotedPayee { Here $1 }
                   | UnquotedPayee { Here $1 }
 
 TopLine :: { T.TopLine }
-TopLine : Location DateTime MaybeFlag
+TopLine : TransactionMemo Location DateTime MaybeFlag
           MaybeNumber MaybeTopLinePayee
           newline MaybeSpaces
-          { T.TopLine $1 $2 $3 $4 $5 }
+          { T.TopLine $1 $2 $3 $4 $5 $6 }
 
-Location :: { S.Location }
-Location : {- empty -} {% S.prevLocation }
+--
+-- Account
+--
+
+Account :: { T.Account }
+Account : L1Account MaybeSpaces { $1 }
+        | L2Account MaybeSpaces { $1 }
 
 L1AcctChunk :: { X.Text }
 L1AcctChunk
@@ -446,8 +558,8 @@ L1SubAcctRest :: { List X.Text }
 L1SubAcctRest : {- empty -} { Empty }
               | L1SubAcctRest L1AcctChunk { $2 :|: $1 }
 
-L1Acct :: { T.Account }
-L1Acct : openBrace L1SubAcct L1AcctRest closeBrace
+L1Account :: { T.Account }
+L1Account : openBrace L1SubAcct L1AcctRest closeBrace
          { T.Account $2 $3 }
 
 L1AcctRest :: { List T.SubAccount }
@@ -576,7 +688,7 @@ TagContent
   | credit { T.credit }
 
 Tag :: { T.Tag }
-Tag : asterisk TagContent TagContents { T.Tag $2 $3 }
+Tag : asterisk TagContent TagContents MaybeSpaces { T.Tag $2 $3 }
 
 TagContents :: { List X.Text }
 TagContents : {- empty -} { Empty }
@@ -769,6 +881,14 @@ L3SubCmdtyRest : {- empty -} { Empty }
 L3Cmdty :: { T.Commodity }
 L3Cmdty : L3SubCmdty L3SubCmdtyRest { T.Commodity $1 $2 }
 
+LeftSideCmdty :: { T.Commodity }
+LeftSideCmdty : L1Cmdty { $1 }
+              | L3Cmdty { $1 }
+
+RightSideCmdty :: { T.Commodity }
+RightSideCmdty : L1Cmdty { $1 }
+               | L2Cmdty { $1 }
+
 --
 -- Quantities
 --
@@ -806,3 +926,87 @@ QuotedQtyItemList
   : {- empty -} { Empty }
   | QuotedQtyItemList QuotedQtyItem { $2 :|: $1 }
 
+Qty :: { T.Qty }
+Qty : UnquotedQty { $1 }
+    | QuotedQty { $1 }
+
+
+--
+-- DrCr
+--
+DrCr :: { T.DrCr }
+DrCr : Debit MaybeSpaces { $1 }
+     | Credit MaybeSpaces { $1 }
+
+Debit :: { T.DrCr }
+Debit : dr { T.Debit }
+      | debit { T.Debit }
+
+Credit :: { T.DrCr }
+Credit : cr { T.Credit }
+       | credit { T.Credit }
+
+--
+-- Entry
+--
+MaybeEntry :: { Might T.Entry }
+MaybeEntry : {- empty -} { Nope }
+           | Entry MaybeSpaces { Here $1 }
+
+Entry :: { T.Entry }
+Entry : DrCr Amount { T.Entry $1 $2 }
+
+--
+-- Amounts
+--
+
+Amount :: { T.Amount }
+Amount : AmtCmdtyOnRight { $1 }
+       | AmtCmdtyOnLeft { $1 }
+
+AmtCmdtyOnRight :: { T.Amount }
+AmtCmdtyOnRight : Qty MaybeSpaces RightSideCmdty
+                  { T.AmtCmdtyOnRight $1 $2 $3 }
+
+AmtCmdtyOnLeft :: { T.Amount }
+AmtCmdtyOnLeft : LeftSideCmdty MaybeSpaces Qty
+                 { T.AmtCmdtyOnLeft $1 $2 $3 }
+
+--
+-- Posting Memos
+--
+
+PostingMemoLine :: { T.MemoLine }
+PostingMemoLine
+  : apostrophe 
+    MemoContent MemoContentList
+    newline
+    MaybeSpaces
+    { T.MemoLine $2 $3 }
+
+PostingMemoList :: { List T.MemoLine }
+PostingMemoList : {- empty -} { Empty }
+                | PostingMemoList PostingMemoLine { $2 :|: $1 }
+
+PostingMemo :: { T.Memo }
+PostingMemo : Location PostingMemoList { T.Memo $1 $2 }
+
+--
+-- Posting
+--
+Posting :: { T.Posting }
+Posting :
+  Location MaybeFlag MaybeNumber MaybeQuotedPayee
+  Account Tags MaybeEntry newline MaybeSpaces PostingMemo
+  { T.Posting $1 $2 $3 $4 $5 $6 $7 $10 }
+
+--
+-- Transaction
+--
+MorePostings :: { List T.Posting }
+MorePostings : {- empty -} { Empty }
+             | MorePostings Posting { $2 :|: $1 }
+
+Transaction :: { T.Transaction }
+Transaction : TopLine Posting Posting MorePostings
+              { T.Transaction $1 $2 $3 $4 }
