@@ -10,6 +10,7 @@ import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Text as X
 import qualified Data.Time as T
 import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.TextNonEmpty as TNE
 import Text.Parsec (
   char, digit, satisfy, option, optionMaybe,
   letter, alphaNum, try, string, notFollowedBy,
@@ -49,9 +50,9 @@ number :: Parser L.Number
 number =
   L.Number
   <$ char '('
-  <*> (L.TextNonEmpty
+  <*> (TNE.textNonEmpty
        <$> satisfy (/= ')')
-       <*> (X.pack <$> (many (satisfy (/= ')')))))
+       <*> ((many (satisfy (/= ')')))))
   <*  char ')'
   <?> "number"
 
@@ -61,9 +62,9 @@ isPayeeChar c = not $ c `elem` "\t\n"
 payee :: Parser L.Payee
 payee =
   L.Payee
-  <$> (L.TextNonEmpty
+  <$> (TNE.textNonEmpty
        <$> satisfy isPayeeChar
-       <*> (X.pack <$> many (satisfy isPayeeChar)))
+       <*> (many (satisfy isPayeeChar)))
   <?> "payee"
 
 topLine :: Parser T.TopLine
@@ -88,13 +89,13 @@ qty = Q.qtyUnquoted Q.periodComma <?> "quantity"
 commodity :: Parser P.Commodity
 commodity = currency <|> named <?> "commodity" where
   currency = P.Commodity
-             <$> (L.TextNonEmpty
+             <$> (TNE.textNonEmpty
                   <$> satisfy isCurrencySymbol
-                  <*> pure X.empty)
+                  <*> pure "")
   named = P.Commodity
-          <$> (L.TextNonEmpty
+          <$> (TNE.textNonEmpty
                <$> letter
-               <*> (X.pack <$> many alphaNum))
+               <*> (many alphaNum))
 
 {-
 Possible combinations for entries. Things in brackets are optional.
@@ -231,9 +232,9 @@ memoLine :: Parser L.MemoLine
 memoLine =
   L.MemoLine
   <$ char ';'
-  <*> (L.TextNonEmpty
+  <*> (TNE.textNonEmpty
        <$> satisfy isMemoChar
-       <*> (X.pack <$> many (satisfy isMemoChar)))
+       <*> (many (satisfy isMemoChar)))
   <?> "memo line"
 
 eol :: Parser ()
@@ -257,17 +258,17 @@ otherAccountChar = satisfy isOtherAccountChar
 firstSubAccount :: Parser L.SubAccountName
 firstSubAccount =
   L.SubAccountName
-  <$> (L.TextNonEmpty
+  <$> (TNE.textNonEmpty
        <$> satisfy isFirstAccountChar
-       <*> (X.pack <$> many otherAccountChar))
+       <*> (many otherAccountChar))
   <?> "first sub account"
 
 otherSubAccount :: Parser L.SubAccountName
 otherSubAccount =
   L.SubAccountName
-  <$> (L.TextNonEmpty
+  <$> (TNE.textNonEmpty
        <$> satisfy isOtherAccountChar
-       <*> (X.pack <$> many otherAccountChar))
+       <*> (many otherAccountChar))
   <?> "other sub account"
 
 otherSubAccounts :: Parser [L.SubAccountName]

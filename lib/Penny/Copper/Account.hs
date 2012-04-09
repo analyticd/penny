@@ -18,6 +18,7 @@ module Penny.Copper.Account (
 import Control.Applicative((<$>), (<*>), (*>))
 import qualified Data.Foldable as F
 import Data.Text ( snoc, cons, pack, Text )
+import qualified Data.Text as X
 import qualified Data.Traversable as T
 import Text.Parsec (
   char, satisfy, many, (<?>),
@@ -27,8 +28,8 @@ import Text.Parsec.Text ( Parser )
 import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.List.NonEmpty as NE
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
-                                    unsafeTextNonEmpty )
+import Penny.Lincoln.TextNonEmpty ( textNonEmpty,
+                                    unsafeTextNonEmpty, toText)
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Copper.Util as U
 
@@ -68,7 +69,7 @@ lvl2SubAccountFirst :: Parser B.SubAccountName
 lvl2SubAccountFirst = f <$> c1 <*> cs <?> e where
   c1 = satisfy lvl2FirstChar
   cs = many (satisfy lvl2RemainingChar)
-  f l1 lr = B.SubAccountName (TextNonEmpty l1 (pack lr))
+  f l1 lr = B.SubAccountName (textNonEmpty l1 lr)
   e = "sub account name beginning with a letter"
   
 lvl2SubAccountRest :: Parser B.SubAccountName
@@ -107,7 +108,8 @@ checkFirstSubAccount s = do
   l <- checkOtherSubAccount s
   return $ case l of
     L1 -> L1
-    L2 -> let (B.SubAccountName (TextNonEmpty c _)) = s
+    L2 -> let (B.SubAccountName tne) = s
+              c = X.head . toText $ tne
           in if lvl2FirstChar c then L2 else L1
 
 -- | Checks a sub account other than the first one to see if it

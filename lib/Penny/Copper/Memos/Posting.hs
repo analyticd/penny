@@ -18,7 +18,7 @@ memo :: Parser B.Memo
 memo = B.Memo <$> many memoLine
 
 memoLine :: Parser B.MemoLine
-memoLine = (\c cs -> B.MemoLine $ TNE.TextNonEmpty c (X.pack cs))
+memoLine = (\c cs -> B.MemoLine $ TNE.textNonEmpty c cs)
            <$ char '\''
            <*> satisfy isCommentChar
            <*> many (satisfy isCommentChar)

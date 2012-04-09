@@ -25,7 +25,7 @@ module Penny.Copper.Payees (
   ) where
 
 import Control.Applicative ((<$>), (<*>), (<|>))
-import Data.Text (pack, Text, snoc, cons)
+import Data.Text (Text, snoc, cons)
 import qualified Data.Text as X
 import Text.Parsec (char, satisfy, many, between, (<?>))
 import Text.Parsec.Text ( Parser )
@@ -44,7 +44,7 @@ payee = quotedPayee <|> unquotedPayee
 
 quotedPayee :: Parser B.Payee
 quotedPayee = between (char '<') (char '>') p <?> "quoted payee" where
-  p = (\c cs -> B.Payee (TextNonEmpty c (pack cs)))
+  p = (\c cs -> B.Payee (TNE.textNonEmpty c cs))
       <$> satisfy quotedChar
       <*> many (satisfy quotedChar)
 
@@ -56,7 +56,7 @@ unquotedRestChars = quotedChar
 
 unquotedPayee :: Parser B.Payee
 unquotedPayee = let
-  p c cs = B.Payee (TextNonEmpty c (pack cs))
+  p c cs = B.Payee (TNE.textNonEmpty c cs)
   in p
      <$> satisfy unquotedFirstChar
      <*> many (satisfy unquotedRestChars)
@@ -66,7 +66,8 @@ unquotedPayee = let
 -- rendered at all.
 smartRender :: B.Payee -> Maybe Text
 smartRender (B.Payee p) = let
-  TextNonEmpty f r = p
+  f = X.head . TNE.toText $ p
+  r = X.tail . TNE.toText $ p
   noQuoteNeeded = unquotedFirstChar f
                   && X.all unquotedRestChars r
   renderable = TNE.all quotedChar p

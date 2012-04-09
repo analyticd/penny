@@ -31,6 +31,7 @@ import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Liberty.Types as LT
 import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.TextNonEmpty as TNE
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Data.Semigroup as S
@@ -195,7 +196,7 @@ makeTotalCells ::
   -> Columns R.Cell
 makeTotalCells os mayBal = Columns act dc com qt where
   act = accountCell os True 0 tot
-  tot = L.SubAccountName $ L.TextNonEmpty 'T' (X.pack "otal")
+  tot = L.SubAccountName $ TNE.textNonEmpty 'T' "otal"
   (dc, com, qt) = bottomLineCells os True mayBal
 
 makeCells ::

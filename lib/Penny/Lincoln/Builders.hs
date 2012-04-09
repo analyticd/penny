@@ -20,8 +20,7 @@ import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.List.Split as S
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Penny.Lincoln.Bits as B
-import Penny.Lincoln.TextNonEmpty (TextNonEmpty(TextNonEmpty))
-import Data.Text (pack)
+import Penny.Lincoln.TextNonEmpty (textNonEmpty)
 import qualified Data.Traversable as T
 
 -- | Makes a function partial. Use if you don't want to bother dealing
@@ -40,7 +39,7 @@ account input = do
   let makeSub s = case s of
         [] -> Ex.throw $
               "sub account name is null from account: " ++ input
-        (c:cs) -> return $ B.SubAccountName (TextNonEmpty c (pack cs))
+        (c:cs) -> return $ B.SubAccountName (textNonEmpty c cs)
   subs <- T.traverse makeSub subStrs
   return $ B.Account subs
     

@@ -131,7 +131,7 @@ firstCharOfListIsOK ::
   -> Bool
 firstCharOfListIsOK p ls = let
   firstText = NE.head . HT.textNonEmptyList $ ls
-  in p (TNE.first firstText)
+  in p (X.head . TNE.toText $ firstText)
 
 -- | Takes a field that may or may not be present and a function that
 -- renders it. If the field is not present at all, returns an empty

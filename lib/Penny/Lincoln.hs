@@ -141,7 +141,10 @@ module Penny.Lincoln (
   , M.TransactionMeta(..)
     
     -- * TextNonEmpty
-  , TNE.TextNonEmpty(TextNonEmpty)
+  , TNE.TextNonEmpty
+  , TNE.unsafeTextToNonEmpty
+  , TNE.unsafeTextNonEmpty
+  , TNE.toText
     
     -- * Transactions
     -- ** Postings and transactions

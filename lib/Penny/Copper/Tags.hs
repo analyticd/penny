@@ -19,7 +19,7 @@ tagChar = satisfy isTagChar
 
 tag :: Parser B.Tag
 tag = (char '*' *> (f <$> tagChar <*> many tagChar)) <?> e where
-  f t ts = B.Tag $ TNE.TextNonEmpty t (X.pack ts)
+  f t ts = B.Tag $ TNE.textNonEmpty t ts
   e = "tag"
 
 tags :: Parser B.Tags

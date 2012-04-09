@@ -41,7 +41,7 @@ module Penny.Copper.Commodity (
 
 import Control.Applicative ((<*>), (<$>), (*>), (<|>))
 import Control.Monad (guard)
-import Data.Text ( pack, Text, cons, snoc, singleton )
+import Data.Text ( Text, cons, snoc, singleton )
 import Text.Parsec ( satisfy, many, char, sepBy1, many1, (<?>),
                      between, option, sepBy )
 import Text.Parsec.Text ( Parser )
@@ -51,7 +51,7 @@ import Data.List.NonEmpty (NonEmpty((:|)), fromList)
 import Penny.Copper.Util (listIsOK, firstCharOfListIsOK)
 import qualified Penny.Copper.Util as U
 import qualified Penny.Lincoln.HasText as HT
-import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
+import Penny.Lincoln.TextNonEmpty ( textNonEmpty,
                                     unsafeTextNonEmpty )
 
 -- | Most liberal set of letters allowed in a commodity. 
@@ -65,7 +65,7 @@ lvl1Char c = (category || specific) && notBanned where
 lvl1SubCmdty :: Parser B.SubCommodity
 lvl1SubCmdty = f <$> m <?> "sub commodity" where
   m = many1 (satisfy lvl1Char)
-  f cs = B.SubCommodity (TextNonEmpty (head cs) (pack $ tail cs))
+  f cs = B.SubCommodity (textNonEmpty (head cs) (tail cs))
 
 -- | A commodity that might have spaces inside of the name. To parse
 -- this when it is in a ledger file, it must be quoted; use
@@ -98,7 +98,7 @@ lvl2FirstSubCmdty = f <$> firstLet <*> restLet <?> e where
   e = "sub commodity, first character is letter or symbol"
   firstLet = satisfy lvl2FirstChar
   restLet = many (satisfy lvl2OtherChars)
-  f l1 lr = B.SubCommodity (TextNonEmpty l1 (pack lr))
+  f l1 lr = B.SubCommodity (textNonEmpty l1 lr)
 
 lvl2OtherSubCmdty :: Parser B.SubCommodity
 lvl2OtherSubCmdty = f <$> ls <?> e where
@@ -125,7 +125,7 @@ lvl3FirstSubCmdty :: Parser B.SubCommodity
 lvl3FirstSubCmdty = f <$> c <*> cs <?> e where
   e = "first sub commodity, letters and symbols only, "
       ++ "first character not a + or -"
-  f c1 cr = B.SubCommodity (TextNonEmpty c1 (pack cr))
+  f c1 cr = B.SubCommodity (textNonEmpty c1 cr)
   c = satisfy lvl3FirstChar
   cs = many (satisfy lvl3OtherChars)
 

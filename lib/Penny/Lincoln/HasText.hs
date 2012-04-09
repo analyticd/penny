@@ -3,11 +3,11 @@ module Penny.Lincoln.HasText where
 import Data.Foldable (toList)
 import Data.List (intersperse)
 import Data.List.NonEmpty (NonEmpty)
-import Data.Text (Text, cons)
+import Data.Text (Text)
 import qualified Data.Text as X
 
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.TextNonEmpty (TextNonEmpty(TextNonEmpty))
+import Penny.Lincoln.TextNonEmpty (TextNonEmpty, toText)
 
 class HasText a where
   text :: a -> Text
@@ -16,7 +16,7 @@ instance HasText Text where
   text = id
 
 instance HasText TextNonEmpty where
-  text (TextNonEmpty f r) = f `cons` r
+  text = toText
 
 instance HasText B.SubAccountName where
   text = text . B.unSubAccountName

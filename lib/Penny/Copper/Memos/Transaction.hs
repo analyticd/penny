@@ -20,10 +20,10 @@ isCommentChar c = rangeLettersToSymbols c
 
 memoLine :: Parser B.MemoLine
 memoLine = B.MemoLine <$> (
-  TNE.TextNonEmpty
+  TNE.textNonEmpty
   <$ char ';'
   <*> satisfy isCommentChar
-  <*> (X.pack <$> many (satisfy isCommentChar))
+  <*> (many (satisfy isCommentChar))
   <* eol )
   <?> "posting memo line"
 

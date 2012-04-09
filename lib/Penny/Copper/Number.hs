@@ -1,13 +1,12 @@
 module Penny.Copper.Number (isNumChar, number, render) where
 
 import Control.Applicative ((<$>), (<*>))
-import Data.Text ( pack, cons, snoc, Text )
+import Data.Text ( cons, snoc, Text )
 import Text.Parsec ( char, satisfy, many, between, (<?>))
 import Text.Parsec.Text ( Parser )
 
 import Penny.Copper.Util (rangeLettersToSymbols)
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 isNumChar :: Char -> Bool
@@ -18,7 +17,7 @@ isNumChar c = allowed && not banned where
 
 number :: Parser B.Number
 number = between (char '(') (char ')') p <?> "number" where
-  p = (\c cs -> B.Number (TextNonEmpty c (pack cs)))
+  p = (\c cs -> B.Number (TNE.textNonEmpty c cs))
       <$> satisfy isNumChar
       <*> many (satisfy isNumChar)
 

@@ -4,7 +4,6 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Maybe (catMaybes)
-import qualified Data.Text as X
 import qualified Data.Time as T
 import Data.Traversable (traverse)
 import qualified Data.Foldable as Foldable
@@ -167,7 +166,7 @@ clearedChar = 'R'
 
 lincolnizeCleared :: C.Cleared -> Maybe B.Flag
 lincolnizeCleared c = case c of
-  C.Cleared -> Just (B.Flag (TNE.TextNonEmpty clearedChar X.empty))
+  C.Cleared -> Just (B.Flag (TNE.textNonEmpty clearedChar ""))
   C.NotCleared -> Nothing
 
 data Valued = Valued {
