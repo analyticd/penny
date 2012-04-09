@@ -11,6 +11,7 @@ import qualified Data.Foldable as F
 import qualified Penny.Brass.Start as T
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Strict as S
+import qualified Penny.Lincoln.Transaction.Unverified as U
 import Penny.Lincoln.Strict (List((:|:)))
 import qualified Penny.Brass.Scanner as C
 
@@ -105,6 +106,8 @@ data Error =
   | ZeroQtyError C.Location
   | ExponentTooBig C.Location
   | BadDateTime C.Location
+  | TransactionError C.Location L.Error
+  deriving (Show, Eq)
 
 readQty :: RadGroup -> T.Qty -> Ex.Exceptional Error L.Qty
 readQty rg (T.Qty l i1 ir) =
@@ -233,4 +236,109 @@ commodity :: T.Commodity -> L.Commodity
 commodity (T.Commodity s1 ss) = L.Commodity (s1' :| ss') where
   s1' = subCommodity s1
   ss' = F.toList . fmap subCommodity $ ss
+  
+amount ::
+  RadGroup
+  -> T.Amount
+  -> Ex.Exceptional Error (L.Amount, L.Format)
+amount rg a =
+  let (qt, maybeSpaces, ct, side) = case a of
+        T.AmtCmdtyOnRight q s c -> (q, s, c, L.CommodityOnRight)
+        T.AmtCmdtyOnLeft c s q -> (q, s, c, L.CommodityOnLeft)
+      b = case maybeSpaces of
+        S.Nope -> L.NoSpaceBetween
+        S.Here _ -> L.SpaceBetween
+      f = L.Format side b
+      cmdty = commodity ct
+  in do
+    q <- readQty rg qt
+    return (L.Amount q cmdty, f)
+
+memoLine :: T.MemoLine -> L.MemoLine
+memoLine (T.MemoLine m ms) =
+  L.MemoLine . L.unsafeTextToNonEmpty . txtConcat
+  $ (m :|: ms)
+
+memo :: T.Memo -> (L.Memo, L.Line)
+memo (T.Memo (C.Location l _) ms) = (m, (L.Line l)) where
+  m = L.Memo . F.toList . fmap memoLine $ ms
+
+drCr :: T.DrCr -> L.DrCr
+drCr T.Debit = L.Debit
+drCr T.Credit = L.Credit
+
+entry ::
+  RadGroup
+  -> T.Entry
+  -> Ex.Exceptional Error (L.Entry, L.Format)
+entry rg (T.Entry dct at) =
+  let dc = drCr dct
+  in do
+    (am, fmt) <- amount rg at
+    return (L.Entry dc am, fmt)
+
+fmapMight :: (a -> b) -> S.Might a -> Maybe b
+fmapMight f ma = case ma of
+  S.Nope -> Nothing
+  S.Here a -> Just $ f a
+
+posting ::
+  RadGroup
+  -> T.Posting
+  -> Ex.Exceptional Error (U.Posting, L.PostingMeta)
+posting rg (T.Posting (C.Location l _) ft nt pt
+         (T.AccountTagsEntry at tt et) mt) = do
+  let p = fmapMight payee pt
+      n = fmapMight number nt
+      f = fmapMight flag ft
+      a = account at
+      t = tags tt
+      (m, _) = memo mt
+      lin = Just . L.PostingLine . L.Line $ l
+  (e, pm) <- case et of
+    S.Nope -> return (Nothing, L.PostingMeta lin Nothing)
+    S.Here ent -> do
+      (en, fmt) <- entry rg ent
+      return (Just en, L.PostingMeta lin (Just fmt))
+  let u = U.Posting p n f a t e m
+  return (u, pm)
+
+topLine ::
+  DefaultTimeZone
+  -> L.Filename
+  -> T.TopLine
+  -> Ex.Exceptional Error (U.TopLine, L.TopLineMeta)
+topLine dtz fn (T.TopLine mt (C.Location l _) dtt ft nt pt) = do
+  dt <- dateTime dtz dtt
+  let f = fmapMight flag ft
+      n = fmapMight number nt
+      p = fmapMight payee pt
+      (m, tml) = memo mt
+      u = U.TopLine dt f n p m
+      ml = Just . L.TopMemoLine $ tml
+      ll = Just . L.TopLineLine . L.Line $ l
+      meta = L.TopLineMeta ml ll (Just fn)
+  return (u, meta)
+
+transaction ::
+  DefaultTimeZone
+  -> L.Filename
+  -> RadGroup
+  -> T.Transaction
+  -> Ex.Exceptional Error L.TransactionBox
+transaction dtz fn rg (T.Transaction tlt p1t p2t pst) = do
+  (tl, tlm) <- topLine dtz fn tlt
+  (p1, p1m) <- posting rg p1t
+  (p2, p2m) <- posting rg p2t
+  psWithMeta <- mapM (posting rg) (F.toList pst)
+  let (ps, psm) = (map fst psWithMeta, map snd psWithMeta)
+      uFam = L.Family tl p1 p2 ps
+      mFam = Just . L.TransactionMeta $ L.Family tlm p1m p2m psm
+  t <- case L.transaction uFam of
+    Ex.Exception err ->
+      let (T.TopLine _ l _ _ _ _) = tlt
+          e = TransactionError l err
+      in Ex.throw e
+    Ex.Success g -> return g
+  return (L.transactionBox t mFam)
   
