@@ -1,9 +1,14 @@
 module Penny.Brass.Translator where
 
+import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Decimal as D
+import Data.Maybe (mapMaybe)
 import qualified Data.Text as X
 import qualified Data.Foldable as F
 import qualified Penny.Brass.Start as T
+import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Strict as S
+import qualified Penny.Brass.Scanner as C
 
 data Radix = RComma | RPeriod deriving (Eq, Show)
 data Grouper = GComma | GPeriod | GSpace deriving (Eq, Show)
@@ -26,10 +31,6 @@ commaPeriod = RadGroup RComma GPeriod
 commaSpace :: RadGroup
 commaSpace = RadGroup RComma GSpace
 
-data QtyToken = QtyDigits !X.Text
-                | QtyRadix
-                deriving (Show, Eq)
-
 data QtyReader = QtyReader { exponent :: !Int
                            , total :: !Integer }
 
@@ -51,54 +52,53 @@ readInteger x = total qr' where
   qr = QtyReader (X.length x - 1) 0
   qr' = X.foldl' readDigit qr x
 
-data QtyStringData =
-  QtyStringData { qtyStr :: !X.Text
-                , expSize :: !Int 
-                , sawRadix :: !Bool }
-  | TooManyRadixError
+data QtyStrItem = Radix | Digits !X.Text
 
-getQtyStringData ::
+qtyStrItem ::
   RadGroup
   -> T.QtyItem
-  -> S.List T.QtyItem
-  -> QtyStringData
-getQtyStringData (RadGroup r g) qi l = d' where
-  d = QtyStringData X.empty 0
-  d' = undefined
-  
--- | Translate a list of 
+  -> Maybe QtyStrItem
+qtyStrItem (RadGroup r _) qi = case qi of
+  T.QtyDigits x -> Just (Digits x)
+  T.QtyPeriod -> case r of RPeriod -> Just Radix; _ -> Nothing
+  T.QtyComma -> case r of RComma -> Just Radix; _ -> Nothing
+  T.QtySpace -> Nothing
 
-{-
-addItemToQsd :: RadGroup -> QtyStringData -> T.QtyItem -> QtyStringData
-addItemToQsd _ TooManyRadixError _ = TooManyRadixError
-addItemToQsd (RadGroup r g) (QtyStringData qstr e sawRad) i =
-  case i of
-    QtyDigits x -> let
-      e' = if sawRad then e + X.length x else e
-      in QtyStringData (x `X.append` qstr) e sawRad
-    QtyPeriod ->
-      case (r, g) of
-        (RComma, 
-        RPeriod ->
-          if sawRad
-          then TooManyRadixError
-          else QtyStringData qstr e True
-        RComma -> case g of
-          GPeriod ->
-            if sawRad
-            then TooManyRadixError
-            else QtySringData qstr e True
-          _ -> QtyStringData qstr e sawRad
-      
-          GComma -> QtyStringData qstr e sawRad
-          GSpace -> 
-                                  
+data QtyReadAcc = QtyReadAcc { _numStr :: !X.Text
+                             , _expLen :: !Int
+                             , _seenRadix :: !Bool }
+                  | TooManyRadixError
 
-    QtyPeriod -> case (r, g) of
-      (RPeiod, _) -> QtyStringData (qtyStr qsd, 
-    
-  addItem qsd i = case i of
-    
-    case (r, g) of
-    (RPeriod, RComma) -> case i of
--}  
+readQtyItem :: QtyReadAcc -> QtyStrItem -> QtyReadAcc
+readQtyItem a i = case a of
+  TooManyRadixError -> TooManyRadixError
+  QtyReadAcc n e s -> case i of
+    Radix -> if s
+             then TooManyRadixError
+             else QtyReadAcc n e True
+    Digits x ->
+      let e' = if s then e else e + X.length x in
+      QtyReadAcc (n `X.append` x) e' s
+
+data Error =
+  MultipleRadixError C.Location
+  | ZeroQtyError C.Location
+  | ExponentTooBig C.Location
+
+readQty :: RadGroup -> T.Qty -> Ex.Exceptional Error L.Qty
+readQty rg (T.Qty l i1 ir) =
+  let is = i1: (F.toList ir)
+      acc = QtyReadAcc X.empty 0 False
+      acc' = F.foldl' readQtyItem acc
+             . mapMaybe (qtyStrItem rg)
+             $ is
+  in case acc' of
+    TooManyRadixError -> Ex.Exception (MultipleRadixError l)
+    QtyReadAcc n e _ -> r where
+      r | e > 255 = Ex.Exception (ExponentTooBig l)
+        | int == 0 = Ex.Exception (ZeroQtyError l)
+        | otherwise = Ex.Success . L.partialNewQty
+                      . D.Decimal e' $ int
+        where
+          e' = fromIntegral e
+          int = readInteger n
