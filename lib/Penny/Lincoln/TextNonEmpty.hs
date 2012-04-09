@@ -41,3 +41,4 @@ all f (TextNonEmpty ts) = X.all f ts
 
 toText :: TextNonEmpty -> Text
 toText (TextNonEmpty ts) = ts
+
