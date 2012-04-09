@@ -7,7 +7,7 @@ import qualified Penny.Brass.Start as T
 import qualified Penny.Brass.Scanner as S
 --import Text.Show.Pretty (ppShow)
 
-parser :: S.StateM (Strict.List T.FileItem)
+parser :: S.StateM T.PennyFile
 parser = brass
 
 main :: IO ()
@@ -15,4 +15,7 @@ main = do
   bs <- BS.getContents
   let st = S.State bs 1 1 1 1
       c = S.runStateM parser st
-  print c
+  case fst c of
+    S.Ok r -> print . T.revPennyFile $ r
+    S.Failed s -> print s >> (print . snd $ c)
+

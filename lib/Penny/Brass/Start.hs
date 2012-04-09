@@ -3,13 +3,17 @@ module Penny.Brass.Start where
 import qualified Data.Text as X
 
 import Penny.Lincoln.Strict (List, Might)
+import qualified Penny.Lincoln.Strict as R
 import qualified Penny.Brass.Scanner as S
+
+data PennyFile = PennyFile !(List FileItem)
+                 deriving (Eq, Show)
 
 data FileItem = ItemComment !Comment
                 | ItemTransaction !Transaction
                 | ItemPrice !Price
                 | ItemBlankLine
-                deriving Show
+                deriving (Eq, Show)
 
 data Comment = Comment !(List X.Text)
                deriving (Show, Eq)
@@ -45,7 +49,7 @@ data TimeAndOrZone = TimeMaybeZone !HoursMinsSecs !(Might TimeZone)
                    | ZoneOnly !TimeZone
                    deriving (Show, Eq)
 
-data DateTime = DateTime !Date !(Might TimeAndOrZone)
+data DateTime = DateTime !S.Location !Date !(Might TimeAndOrZone)
                 deriving (Show, Eq)
 
 data TopLine = TopLine !Memo !S.Location !DateTime !(Might Flag)
@@ -112,6 +116,96 @@ data Price = Price !DateTime !Commodity !Amount
              deriving (Show, Eq)
 
 -- End Data
+
+-- Reversers
+revPennyFile :: PennyFile -> PennyFile
+revPennyFile (PennyFile l) =
+  PennyFile . R.reverse . fmap revFileItem $ l
+
+revFileItem :: FileItem -> FileItem
+revFileItem f = case f of
+  ItemComment c -> ItemComment (revComment c)
+  ItemTransaction t -> ItemTransaction (revTransaction t)
+  ItemPrice p -> ItemPrice (revPrice p)
+  ItemBlankLine -> ItemBlankLine
+
+revComment :: Comment -> Comment
+revComment (Comment x) = Comment . R.reverse $ x
+
+revTransaction :: Transaction -> Transaction
+revTransaction (Transaction tl p1 p2 pr) =
+  Transaction (revTopLine tl) (revPosting p1) (revPosting p2)
+  (R.reverse . fmap revPosting $ pr)
+
+-- DateTime does not need to be reversed
+
+revPrice :: Price -> Price
+revPrice (Price dt c a) = Price dt (revCommodity c)
+                          (revAmount a)
+
+revNumber :: Number -> Number
+revNumber (Number x) = Number . R.reverse $ x
+
+revFlag :: Flag -> Flag
+revFlag (Flag x) = Flag . R.reverse $ x
+
+revPayee :: Payee -> Payee
+revPayee (Payee x1 xs) = Payee x1 (R.reverse xs)
+
+revTopLine :: TopLine -> TopLine
+revTopLine (TopLine m l dt fl nu pa) =
+  TopLine (revMemo m) l dt (fmap revFlag fl) (fmap revNumber nu)
+  (fmap revPayee pa)
+
+revAccount :: Account -> Account
+revAccount (Account s1 sr) =
+  Account (revSubAccount s1) (fmap revSubAccount (R.reverse sr))
+
+revSubAccount :: SubAccount -> SubAccount
+revSubAccount (SubAccount s1 sr) = SubAccount s1 (R.reverse sr)
+
+revTag :: Tag -> Tag
+revTag (Tag t1 tr) = Tag t1 (R.reverse tr)
+
+revTags :: Tags -> Tags
+revTags (Tags ts) = Tags (fmap revTag (R.reverse ts))
+
+revSubCommodity :: SubCommodity -> SubCommodity
+revSubCommodity (SubCommodity s1 ss) =
+  SubCommodity s1 (R.reverse ss)
+
+revCommodity :: Commodity -> Commodity
+revCommodity (Commodity c1 cs) =
+  Commodity c1 (fmap revSubCommodity (R.reverse cs))
+
+revQty :: Qty -> Qty
+revQty (Qty l i is) = Qty l i (R.reverse is)
+
+revAmount :: Amount -> Amount
+revAmount (AmtCmdtyOnRight q i c) =
+  AmtCmdtyOnRight (revQty q) i (revCommodity c)
+revAmount (AmtCmdtyOnLeft c i q) =
+  AmtCmdtyOnLeft (revCommodity c) i (revQty q)
+
+revMemoLine :: MemoLine -> MemoLine
+revMemoLine (MemoLine t1 ts) = MemoLine t1 (R.reverse ts)
+
+revMemo :: Memo -> Memo
+revMemo (Memo l ms) = Memo l (fmap revMemoLine . R.reverse $ ms)
+
+revEntry :: Entry -> Entry
+revEntry (Entry dc a) = Entry dc (revAmount a)
+
+revPosting :: Posting -> Posting
+revPosting (Posting l f n p ate m) =
+  Posting l (fmap revFlag f) (fmap revNumber n)
+  (fmap revPayee p) (revAccountTagsEntry ate) (revMemo m)
+
+revAccountTagsEntry :: AccountTagsEntry -> AccountTagsEntry
+revAccountTagsEntry (AccountTagsEntry a t e) =
+  AccountTagsEntry (revAccount a) (revTags t) (fmap revEntry e)
+
+
 
 --
 -- Helpers

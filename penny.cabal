@@ -199,6 +199,7 @@ Library
         Penny.Brass.Parser,
         Penny.Brass.Scanner,
         Penny.Brass.Start,
+        Penny.Brass.Translator,
         Penny.Cabin,
         Penny.Cabin.Allocate,
         Penny.Cabin.Balance,

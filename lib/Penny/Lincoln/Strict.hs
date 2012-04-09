@@ -4,7 +4,7 @@ import qualified Data.Foldable as F
 import Control.Applicative ((<$>), (<*>), pure)
 import qualified Data.Traversable as T
 import Prelude hiding (zip, zipWith, unzip, length, replicate, splitAt,
-                       fst, snd, concat, curry)
+                       fst, snd, concat, curry, reverse)
 import qualified Prelude as P
 
 data List a =
@@ -140,3 +140,14 @@ unzip = unzipWith id
 concatNE :: List (NonEmpty a) -> List a
 concatNE = F.foldr f Empty where
   f (a :||: as) soFar = (a :|: as) `appendLists` soFar
+
+reverse :: List a -> List a
+reverse = F.foldl' (flip (:|:)) Empty
+
+mapMight :: (a -> Might b) -> List a -> List b
+mapMight _ Empty = Empty
+mapMight f (x :|: xs) =
+  let rs = mapMight f xs in
+  case f x of
+    Nope -> rs
+    Here r -> r :|: rs

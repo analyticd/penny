@@ -63,8 +63,8 @@ import Penny.Lincoln.Strict
 --
 -- PennyFile
 --
-PennyFile :: { List T.FileItem }
-PennyFile : MaybeSpaces FileItems { $2 }
+PennyFile :: { T.PennyFile }
+PennyFile : MaybeSpaces FileItems { T.PennyFile $2 }
 
 --
 -- File Items
@@ -491,7 +491,7 @@ MaybeZone : {- empty -} { Nope }
           | TimeZone { Here $1 }
 
 DateTime :: { T.DateTime }
-DateTime : Date MaybeTimeMaybeZone { T.DateTime $1 $2 }
+DateTime : Location Date MaybeTimeMaybeZone { T.DateTime $1 $2 $3 }
 
 MaybeTopLinePayee :: { Might T.Payee }
 MaybeTopLinePayee : {- empty -} { Nope }
