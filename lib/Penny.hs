@@ -19,28 +19,8 @@ Lincoln and Copper.
 "Penny.Zinc" - the Penny command-line interface. Depends on Cabin,
 Copper, Liberty, and Lincoln.
 
-A crude drawing of these dependencies appears in the source code for
-this module (I don't know if Haddock would like it.) I really need a
-better way to do this - dot, maybe.
-
--}
-
-{-
-
-Graph:
-                     +----------Zinc
-                     |           |
-                     |           |
-                     |    +----Cabin
-                     |    |      |
-                     |    |      |
-                     |----+-> Liberty----+
-                     |    |      |       |
-                     |    |      |       |
-                     |----+-> Copper     |
-                     |    |      |       |
-                     |    |      |       |
-                     +----+-> Lincoln <--+
+The dependencies are represented as a dot file in doc/dependencies.dot
+in the Penny git repository.
 
 -}
 module Penny where
