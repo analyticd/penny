@@ -108,7 +108,7 @@ readQtyItem a i = case a of
              then TooManyRadixError
              else QtyReadAcc n e True
     Digits x ->
-      let e' = if s then e else e + X.length x in
+      let e' = if s then e + X.length x else 0 in
       QtyReadAcc (n `X.append` x) e' s
 
 data Error =
