@@ -17,6 +17,7 @@ module Penny.Brass (
 import Penny.Brass.Parser (brass)
 import qualified Penny.Brass.Translator as Tr
 import qualified Penny.Brass.Scanner as Sc
+import qualified Penny.Brass.Start as St
 import qualified Penny.Lincoln as L
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.ByteString as BS
@@ -37,6 +38,7 @@ parse dtz rg fn bs =
   in case parseRes of
     Sc.Failed e -> Ex.Exception (ParseError e)
     Sc.Ok pf ->
-      case Tr.pennyFile dtz rg fn pf of
+      let reversed = St.revPennyFile pf in
+      case Tr.pennyFile dtz rg fn reversed of
         Ex.Exception e -> Ex.Exception (TranslatorError e)
         Ex.Success g -> return g
