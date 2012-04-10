@@ -24,7 +24,6 @@ source-repository head type: git location:
     git://github.com/massysett/penny.git
 
 Executable penny
-  hs-source-dirs: bin
   Build-depends:
     base ==4.*,
     penny ==0.1.*

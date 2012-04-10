@@ -180,7 +180,6 @@ source-repository head type: git location:
     git://github.com/massysett/penny.git
 
 Library
-    hs-source-dirs: lib
     Build-depends:
         base ==4.*,
         text ==0.11.*,
