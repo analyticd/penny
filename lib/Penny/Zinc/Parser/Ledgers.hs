@@ -1,5 +1,6 @@
 module Penny.Zinc.Parser.Ledgers where
 
+import qualified Data.ByteString as BS
 import Control.Applicative ((<$>), (<*>), pure, many, liftA)
 import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -11,6 +12,7 @@ import qualified Data.Text.IO as TIO
 import qualified Data.Traversable as T
 
 import qualified Penny.Copper as C
+import qualified Penny.Brass as Br
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty.Error as LE
 import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
@@ -22,7 +24,7 @@ import qualified Text.Parsec as Parsec
 
 warnTerminal :: IO ()
 warnTerminal =
-  hPutStrLn stderr $ "zinc: warning: reading from standard input, "
+  hPutStrLn stderr $ "penny: warning: reading from standard input, "
   ++ "which is a terminal"
 
 data Filename =
@@ -31,37 +33,36 @@ data Filename =
 
 -- | Actually reads the file off disk. For now just let this crash if
 -- any of the IO errors occur.
-ledgerText :: Filename -> IO Text
+ledgerText :: Filename -> IO BS.ByteString
 ledgerText f = case f of
   Stdin -> do
     isTerm <- hIsTerminalDevice stdin
     when isTerm warnTerminal
-    TIO.hGetContents stdin
-  Filename fn -> TIO.readFile (unpack fn)
+    BS.hGetContents stdin
+  Filename fn -> BS.readFile (unpack fn)
 
 readLedgers :: NE.NonEmpty Filename
-               -> IO (NE.NonEmpty (Filename, Text))
+               -> IO (NE.NonEmpty (Filename, BS.ByteString))
 readLedgers = T.traverse f where
   f fn = (,) <$> pure fn <*> ledgerText fn
 
 parseLedger ::
-  C.DefaultTimeZone
-  -> C.RadGroup
-  -> (Filename, Text)
+  Br.DefaultTimeZone
+  -> Br.RadGroup
+  -> (Filename, BS.ByteString)
   -> Ex.Exceptional ZE.Error ([TransactionBox], [PriceBox])
-parseLedger dtz rg (f, txt) = let
+parseLedger dtz rg (f, bs) = let
   fnStr = case f of
     Stdin -> "<stdin>"
     Filename x -> unpack x
   fn = L.Filename . pack $ fnStr
-  parser = C.ledger fn dtz rg
-  in case Ex.fromEither $ Parsec.parse parser fnStr txt of
+  in case Br.parse dtz rg fn bs of
     Ex.Exception e ->
-      Ex.Exception (ZE.ParseError (pack . show $ e))
-    Ex.Success (C.Ledger is) -> let
-      folder i (ts, ps) = case snd i of
-        C.Transaction t -> (t:ts, ps)
-        C.Price p -> (ts, p:ps)
+      Ex.throw (ZE.ParseError (pack . show $ e))
+    Ex.Success is -> let
+      folder i (ts, ps) = case i of
+        Br.Transaction t -> (t:ts, ps)
+        Br.Price p -> (ts, p:ps)
         _ -> (ts, ps)
       in Ex.Success $ foldr folder ([], []) is
 

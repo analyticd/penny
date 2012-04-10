@@ -3,6 +3,7 @@ module Penny.Zinc where
 
 import Control.Applicative ((<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.ByteString as BS
 import Data.Monoid (mappend, mconcat)
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
@@ -14,6 +15,7 @@ import System.Console.MultiArg.GetArgs (getArgs)
 import System.Exit (exitFailure, exitSuccess)
 import System.IO (stderr)
 
+import qualified Penny.Brass as Br
 import qualified Penny.Cabin.Chunk as Col
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Copper as Cop
@@ -27,9 +29,9 @@ import qualified Penny.Zinc.Parser as P
 import qualified Penny.Zinc.Parser.Ledgers as L
 
 reportChunk ::
-  Cop.DefaultTimeZone
-  -> Cop.RadGroup
-  -> NE.NonEmpty (L.Filename, Text)
+  Br.DefaultTimeZone
+  -> Br.RadGroup
+  -> NE.NonEmpty (L.Filename, BS.ByteString)
   -> ([PostingBox] -> [T.PostingInfo])
   -> I.ReportFunc
   -> Ex.Exceptional ZE.Error Col.Chunk
@@ -41,14 +43,16 @@ reportChunk dtz rg fs filt rf = do
     Ex.Success g -> Ex.Success g
 
 zincMain ::
-  Cop.DefaultTimeZone
+  Br.DefaultTimeZone
+  -> Br.RadGroup
+  -> Cop.DefaultTimeZone
   -> Cop.RadGroup
   -> NE.NonEmpty I.Report
   -> IO ()
-zincMain dtz rg rs = do
+zincMain dtz rg cdtz crg rs = do
   rt <- S.runtime
   as <- fmap (fmap pack) getArgs
-  multiArgRes <- case parseE as (P.parser rt dtz rg rs) of
+  multiArgRes <- case parseE as (P.parser rt cdtz crg rs) of
     Ex.Exception e -> parseErrorExit e
     Ex.Success g -> return g
   parseRes <- case multiArgRes of
