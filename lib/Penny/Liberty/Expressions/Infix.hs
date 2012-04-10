@@ -22,7 +22,7 @@ module Penny.Liberty.Expressions.Infix (
 import qualified Penny.Liberty.Expressions.RPN as R
 import Penny.Liberty.Queue
   (Queue, View(Empty, Front), view, enqueue, empty )
-import Data.Stack (push)
+import Penny.Liberty.Stack (push)
 import qualified Penny.Liberty.Stack as S
 
 type Stack a = S.Stack (StackVal a)
