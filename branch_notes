@@ -1,0 +1,42 @@
+Notes on this branch
+
+I established this branch to see if parsing the Penny input file would
+be any faster with Alex and Happy. As it turned out, the performance
+was practially unchanged from using Parsec. Memory usage was about the
+same, as was total time.
+
+Happy has some advantages over Parsec: because you specify the grammar
+all at once, Happy will warn you if there are ambiguities. However,
+Parsec has the advantage of being able to specify the grammar in
+Haskell, which is more flexible. Parsec parsers are also easier to
+test because I can test them piecemeal. Parsec is also more flexible
+because it can parse with arbitrary look-ahead and with context
+sensitivity. Parsec also has better error messages; Happy will only
+tell you where an error is and what the bad token is, while Parsec
+will tell yoy what productions would have been valid at the point of
+error.
+
+Overall though I would not say that either Parsec or Happy is
+"better", just that they are different tools. People on the Internet
+sometimes say that a bottom-up parser like Happy is faster, but I did
+not find that to be the case here.
+
+Since the performance of both is about the same, I will stick with
+Parsec because it has better error messages and because I have already
+written the Parsec parser. Though Parsec's inability to report
+conflicts in the grammar is a disadvantage, I have hammered it with
+enough QuickCheck tests to be confident that the Parsec parser is
+sound.
+
+I have thought of how to speed up parsing, but I am now out of
+ideas. I could cache the data on disk, but I am not sure how much this
+would speed things up and it would not be particularly user
+friendly. Attoparsec is out of the question because it does not track
+location, so its error messages would be nearly worthless and,
+besides, seeing that Happy is about as fast as Parsec makes me doubt
+that Attoparsec is somehow going to be leagues faster, no matter what
+random webpages say. Other libraries on Hackage are poorly documented.
+
+So for the time being I am sticking with Parsec.
+
+-- Omari Norman 2012-04-10
