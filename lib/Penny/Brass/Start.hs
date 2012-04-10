@@ -112,7 +112,7 @@ data Transaction = Transaction !TopLine !Posting !Posting
                    !(List Posting)
                    deriving (Show, Eq)
 
-data Price = Price !DateTime !Commodity !Amount
+data Price = Price !S.Location !DateTime !Commodity !Amount
              deriving (Show, Eq)
 
 -- End Data
@@ -140,7 +140,7 @@ revTransaction (Transaction tl p1 p2 pr) =
 -- DateTime does not need to be reversed
 
 revPrice :: Price -> Price
-revPrice (Price dt c a) = Price dt (revCommodity c)
+revPrice (Price l dt c a) = Price l dt (revCommodity c)
                           (revAmount a)
 
 revNumber :: Number -> Number

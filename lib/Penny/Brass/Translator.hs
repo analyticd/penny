@@ -1,4 +1,14 @@
-module Penny.Brass.Translator where
+module Penny.Brass.Translator (
+  RadGroup,
+  periodComma,
+  periodSpace,
+  commaPeriod,
+  commaSpace,
+  DefaultTimeZone(DefaultTimeZone, unDefaultTimeZone),
+  utcDefault,
+  Error(..),
+  Item(..),
+  pennyFile) where
 
 import Control.Monad (guard)
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -43,7 +53,7 @@ newtype DefaultTimeZone =
 utcDefault :: DefaultTimeZone
 utcDefault = DefaultTimeZone L.noOffset
 
-data QtyReader = QtyReader { exponent :: !Int
+data QtyReader = QtyReader { _exponent :: !Int
                            , total :: !Integer }
 
 -- | Reads a single digit of a number string. Adjusts the QtyReader as
@@ -107,6 +117,7 @@ data Error =
   | ExponentTooBig C.Location
   | BadDateTime C.Location
   | TransactionError C.Location L.Error
+  | BadPrice C.Location
   deriving (Show, Eq)
 
 readQty :: RadGroup -> T.Qty -> Ex.Exceptional Error L.Qty
@@ -342,3 +353,53 @@ transaction dtz fn rg (T.Transaction tlt p1t p2t pst) = do
     Ex.Success g -> return g
   return (L.transactionBox t mFam)
   
+price ::
+  DefaultTimeZone
+  -> RadGroup
+  -> T.Price
+  -> Ex.Exceptional Error L.PriceBox
+price dtz rg (T.Price l dtt ct at) = do
+  dt <- dateTime dtz dtt
+  let fr = L.From . commodity $ ct
+  (amt, fmt) <- amount rg at
+  let (L.Amount q c) = amt
+      to = L.To c
+      cpu = L.CountPerUnit q
+      (C.Location lin _) = l
+      pl = Just . L.PriceLine . L.Line $ lin
+      pm = L.PriceMeta pl (Just fmt)
+  case L.newPrice fr to cpu of
+    Nothing -> Ex.throw (BadPrice l)
+    Just p ->
+      let pp = L.PricePoint dt p
+          box = L.PriceBox pp (Just pm)
+      in return box
+
+data Item = Transaction L.TransactionBox
+            | Price L.PriceBox
+            | CommentItem Comment
+            | BlankLine
+            deriving Show
+
+fileItem ::
+  DefaultTimeZone
+  -> RadGroup
+  -> L.Filename
+  -> T.FileItem
+  -> Ex.Exceptional Error Item
+fileItem dtz rg fn i = case i of
+  T.ItemComment c -> return . CommentItem . comment $ c
+  T.ItemTransaction t ->
+    transaction dtz fn rg t >>= return . Transaction
+  T.ItemPrice p ->
+    price dtz rg p >>= return . Price
+  T.ItemBlankLine -> return BlankLine
+
+pennyFile ::
+  DefaultTimeZone
+  -> RadGroup
+  -> L.Filename 
+  -> T.PennyFile
+  -> Ex.Exceptional Error [Item]
+pennyFile dtz rg fn (T.PennyFile is) =
+  mapM (fileItem dtz rg fn) . F.toList $ is

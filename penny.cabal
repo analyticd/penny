@@ -194,6 +194,7 @@ Library
 
     Exposed-modules:
         Penny,
+        Penny.Brass,
         Penny.Brass.AlexInput,
         Penny.Brass.Lexer,
         Penny.Brass.Parser,

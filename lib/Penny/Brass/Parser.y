@@ -1032,9 +1032,9 @@ Transaction : TopLine Posting Posting MorePostings
 -- Prices
 --
 Price :: { T.Price }
-Price : atSign MaybeSpaces DateTime FromCmdty
+Price : Location atSign MaybeSpaces DateTime FromCmdty
         spaces Amount newline MaybeSpaces
-        { T.Price $3 $4 $6 }
+        { T.Price $1 $4 $5 $7 }
 
 FromCmdty :: { T.Commodity }
 FromCmdty : L1Cmdty { $1 }
