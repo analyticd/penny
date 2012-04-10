@@ -5,10 +5,10 @@ module Penny.Liberty.Expressions.RPN (
   RPN,
   process) where
 
-import Data.Stack (
+import Penny.Liberty.Stack (
   Stack, push, empty, View(Empty, Top),
   view)
-import qualified Data.Queue as Q
+import qualified Penny.Liberty.Queue as Q
 
 newtype Operand a = Operand a deriving Show
 

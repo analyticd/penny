@@ -20,10 +20,10 @@ module Penny.Liberty.Expressions.Infix (
   ) where
 
 import qualified Penny.Liberty.Expressions.RPN as R
-import Data.Queue
+import Penny.Liberty.Queue
   (Queue, View(Empty, Front), view, enqueue, empty )
 import Data.Stack (push)
-import qualified Data.Stack as S
+import qualified Penny.Liberty.Stack as S
 
 type Stack a = S.Stack (StackVal a)
 type Output a = Queue (R.Token a)

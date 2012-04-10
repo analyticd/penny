@@ -2,7 +2,7 @@ module Penny.Liberty.Operators where
 
 import Control.Applicative ((<|>))
 import Data.List (intersperse, groupBy)
-import qualified Data.Queue as Q
+import qualified Penny.Liberty.Queue as Q
 import Data.Text (pack)
 import System.Console.MultiArg.Combinator (longNoArg)
 import System.Console.MultiArg.Option (makeLongOpt)

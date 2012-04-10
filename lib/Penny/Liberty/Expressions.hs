@@ -14,7 +14,7 @@ module Penny.Liberty.Expressions (
   evaluate) where
 
 import Penny.Liberty.Expressions.Infix as I
-import Data.Queue (Queue, enqueue, empty)
+import Penny.Liberty.Queue (Queue, enqueue, empty)
 import Penny.Liberty.Expressions.RPN as R
 
 evaluate :: Queue (I.Token a) -> Maybe a
