@@ -1,0 +1,39 @@
+Name: penny-bin
+Version: 0.1.0.0
+Cabal-version: >=1.8
+Build-Type: Simple
+License: MIT
+Copyright: 2012 Omari Norman.
+author: Omari Norman
+maintainer: omari@smileystation.com
+stability: Experimental
+homepage: http://www.github.com/massysett/penny
+bug-reports: omari@smileystation.com
+Category: Console, Finance
+License-File: LICENSE
+synopsis: Extensible double-entry accounting system - library
+
+description: Penny is a double-entry accounting system. It is inspired
+  by, but incompatible with, John Wiegley's Ledger, which is available
+  at <http://ledger-cli.org/>. Installing this package with cabal
+  install will install the executable program and the necessary
+  libraries. For more information, see the page for the Penny library,
+  available here.
+
+source-repository head type: git location:
+    git://github.com/massysett/penny.git
+
+Executable penny
+  hs-source-dirs: bin
+  Build-depends:
+    base ==4.*,
+    penny ==0.1.*
+
+  Main-is: penny.hs
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
+Flag debug
+  Description: Turns on useful debugging options
+  Default: False
