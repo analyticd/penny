@@ -176,8 +176,9 @@ description: Penny is a double-entry accounting system. It is inspired
   in a separate package, penny-tests (not on Hackage). All code is
   maintained in one version control repository.
 
-source-repository head type: git location:
-    git://github.com/massysett/penny.git
+source-repository head
+    type: git
+    location: git://github.com/massysett/penny.git
 
 Library
     Build-depends:
@@ -311,3 +312,7 @@ Library
     ghc-options: -Wall
     if flag(debug)
       ghc-options: -auto-all -caf-all
+
+Flag debug
+    Description: turns on some debugging options
+    Default: False

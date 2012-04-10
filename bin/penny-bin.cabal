@@ -20,13 +20,14 @@ description: Penny is a double-entry accounting system. It is inspired
   libraries. For more information, see the page for the Penny library,
   available here.
 
-source-repository head type: git location:
-    git://github.com/massysett/penny.git
+source-repository head
+    type: git
+    location: git://github.com/massysett/penny.git
 
 Executable penny
   Build-depends:
     base ==4.*,
-    penny ==0.1.*
+    penny-lib ==0.1.*
 
   Main-is: penny.hs
   GHC-Options: -Wall
