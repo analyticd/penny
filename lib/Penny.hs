@@ -22,5 +22,49 @@ Copper, Liberty, and Lincoln.
 The dependencies are represented as a dot file in doc/dependencies.dot
 in the Penny git repository.
 
+This module exports a few functions that are useful for building a
+simple command line program with default options. To make anything
+more complicated you may need to import modules from deeper down
+within the hierarchy, but for a program based on the defaults only you
+should be able to import this module only (and nothing else).
+
 -}
-module Penny where
+module Penny (
+  -- * Default time zone
+  Copper.DefaultTimeZone (DefaultTimeZone)
+  , Copper.utcDefault
+  , minsToDefaultTimeZone
+    
+    -- * Radix and grouping characters
+  , Copper.RadGroup
+  , Copper.periodComma
+  , Copper.periodSpace
+  , Copper.commaPeriod
+  , Copper.commaSpace
+    
+    -- * Reports
+  , Cabin.allReportsWithDefaults
+    
+    -- * Main function
+  , Z.zincMain
+    
+    -- * Other useful stuff - for custom reports
+    -- ** NonEmpty
+  , NonEmpty(..)
+  ) where
+
+import qualified Penny.Cabin as Cabin
+import qualified Penny.Copper as Copper
+import qualified Penny.Lincoln as L
+import qualified Penny.Zinc as Z
+import Data.List.NonEmpty (NonEmpty((:|)))
+
+-- | Use to make a DefaultTimeZone based on the number of minutes the
+-- time zone is offset from UTC. Make sure the argument you supply is
+-- between (-840) and 840; otherwise your program will crash at
+-- runtime.
+minsToDefaultTimeZone :: Int -> Copper.DefaultTimeZone
+minsToDefaultTimeZone i = case L.minsToOffset i of
+  Nothing -> error $ "penny: error: minutes out of range of "
+             ++ "allowed values for time zone"
+  Just tzo -> Copper.DefaultTimeZone tzo

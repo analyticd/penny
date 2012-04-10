@@ -34,8 +34,11 @@
 -- configurable without editing the source code (sorry).
 
 module Penny.Cabin.Posts (
+  -- * Defaults
+  defaultPostsReport
+
   -- * Postings report builder
-  R.report
+  , R.report
   
   -- * Options
   , O.T(..)
@@ -45,5 +48,15 @@ module Penny.Cabin.Posts (
   , O.defaultFields
   ) where
 
+import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Posts.Report as R
 import qualified Penny.Cabin.Posts.Options as O
+import qualified Penny.Copper as C
+
+-- | When applied to a DefaultTimeZone and a RadGroup, returns a
+-- report with the default options.
+defaultPostsReport ::
+  C.DefaultTimeZone
+  -> C.RadGroup
+  -> I.Report
+defaultPostsReport dtz rg = R.report (O.defaultOptions dtz rg)

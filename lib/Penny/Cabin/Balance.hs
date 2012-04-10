@@ -1,5 +1,6 @@
 -- | The Penny balance report
-module Penny.Cabin.Balance (balanceReport, O.defaultOptions) where
+module Penny.Cabin.Balance (balanceReport, O.defaultOptions,
+                            defaultBalanceReport) where
 
 import qualified Penny.Cabin.Balance.Parser as P
 import qualified Penny.Cabin.Balance.Options as O
@@ -13,3 +14,6 @@ balanceReport os = I.Report H.help pr where
     let cp = O.colorPref os'
         f' infos _ = return (f infos)
     return (f', cp)
+
+defaultBalanceReport :: I.Report
+defaultBalanceReport = balanceReport O.defaultOptions
