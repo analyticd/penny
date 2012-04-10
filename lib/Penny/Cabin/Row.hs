@@ -9,10 +9,6 @@ module Penny.Cabin.Row (
   (<<|),
   appendCell,
   (|>>),
-  Rows,
-  emptyRows,
-  prependRow,
-  appendRow,
   HasChunk(chunk)) where
 
 import Data.Monoid (Monoid, mempty, mappend)
@@ -39,8 +35,8 @@ data Justification =
 -- blank text added on the bottom as needed) when joined with other
 -- cells into a Row.
 data Cell =
-  Cell { justification :: Justification
-       , width :: Width
+  Cell { justification :: !Justification
+       , width :: !Width
        , padSpec :: !TextSpec
        , chunks :: Seq Chunk }
 
@@ -132,22 +128,6 @@ infixl 5 |>>
 height :: PaddedCell -> Height
 height (PaddedCell cs _) = Height (S.length cs)
 
--- | Several rows, joined together.
-newtype Rows = Rows (Seq Row)
-
-emptyRows :: Rows
-emptyRows = Rows S.empty
-
-prependRow :: Row -> Rows -> Rows
-prependRow r (Rows rs) = Rows (r <| rs)
-
-appendRow :: Rows -> Row -> Rows
-appendRow (Rows rs) r = Rows (rs |> r)
-
-instance Monoid Rows where
-  mempty = Rows S.empty
-  mappend (Rows s1) (Rows s2) = Rows $ mappend s1 s2
-
 class HasChunk a where
   chunk :: a -> Chunk
 
@@ -160,6 +140,3 @@ instance HasChunk Row where
       zippedWithNewlines = fmap (`mappend` newline) zipped
       zipped = F.foldr1 zipper (fmap justifiedChunks cells)
       zipper s1 s2 = S.zipWith mappend s1 s2
-
-instance HasChunk Rows where
-  chunk (Rows rs) = F.foldr mappend mempty (fmap chunk rs)
