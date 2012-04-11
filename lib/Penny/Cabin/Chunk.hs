@@ -606,27 +606,12 @@ newtype Foreground256 = Foreground256 { unForeground256 :: Code }
 
 
 --
--- Chunks
+-- Bits (it better be bits)
 --
-newtype Chunk = Chunk (Seq Bit)
+data Bit = Bit !TextSpec !Text
 
-chunk :: TextSpec -> Text -> Chunk
-chunk ts t = let
-  sqnce = S.singleton . Bit ts $ t
-  in ts `seq` t `seq` sqnce `seq`
-  Chunk sqnce
-
-emptyChunk :: Chunk
-emptyChunk = Chunk S.empty
-
-chunkSize :: Chunk -> Width
-chunkSize (Chunk cs) = F.foldr f (Width 0) cs where
-  f (Bit _ x) (Width t) = Width $ X.length x + t
-
-instance Monoid Chunk where
-  mempty = emptyChunk
-  mappend (Chunk c1) (Chunk c2) = let c' = c1 `mappend` c2
-                                  in c' `seq` Chunk c'
+bit :: TextSpec -> Text -> Bit
+bit = Bit
 
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
@@ -635,16 +620,14 @@ instance Monoid Width where
   mempty = Width 0
   mappend (Width w1) (Width w2) = Width $ w1 + w2
 
-printChunk :: ColorPref -> Chunk -> IO ()
-printChunk cp (Chunk cs) = do
-  c <- case cp of
-        Pref0 -> return Colors0
-        Pref8 -> return Colors8
-        Pref256 -> return Colors256
-        PrefAuto -> autoColors
-  let z = printReset c
-      bldr = F.foldr (builder c) z cs
-  TIO.putStr (TB.toLazyText bldr)
+bitSize :: Bit -> Width
+bitSize (Bit _ t) = Width . X.length $ t
+
+printBits :: Colors -> [Bit] -> IO ()
+printBits c =
+  TIO.putStr
+  . TB.toLazyText
+  . foldr (builder c) (printReset c)
 
 
 --
@@ -708,8 +691,6 @@ defaultTextSpec = TextSpec {
 --
 -- Internal
 --
-
-data Bit = Bit TextSpec Text
 
 (+++) :: TB.Builder -> TB.Builder -> TB.Builder
 (+++) = mappend
