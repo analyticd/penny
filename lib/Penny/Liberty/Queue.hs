@@ -7,8 +7,6 @@ module Penny.Liberty.Queue (
 
 import Data.Sequence ((<|))
 import qualified Data.Sequence as S
-import qualified Data.Foldable as F
-import qualified Data.Traversable as T
 
 newtype Queue t = Queue (S.Seq t)
                 deriving (Eq, Read, Show, Ord)
