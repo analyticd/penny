@@ -3,11 +3,11 @@
 module Penny.Cabin.Interface where
 
 import Control.Monad.Exception.Synchronous (Exceptional)
-import Data.Text (Text)
+import qualified Data.Text as X
+import qualified Data.Text.Lazy as XL
 import Text.Matchers.Text (CaseSensitive)
 import System.Console.MultiArg.Prim (ParserE)
 
-import Penny.Cabin.Chunk (Chunk, ColorPref)
 import Penny.Liberty.Types (PostingInfo)
 import Penny.Lincoln.Boxes (PriceBox)
 import Penny.Liberty.Error (Error)
@@ -16,7 +16,7 @@ import Penny.Shield (Runtime)
 type ReportFunc =
   [PostingInfo]
   -> [PriceBox]
-  -> Exceptional Text Chunk
+  -> Exceptional X.Text XL.Text
 
 -- | The parser must parse everything beginning with its command name
 -- (parser must fail without consuming any input if the next word is
@@ -25,9 +25,9 @@ type ReportFunc =
 type ParseReportOpts =
   Runtime
   -> CaseSensitive
-  -> (CaseSensitive -> Text -> Exceptional Text (Text -> Bool))
-  -> ParserE Error (ReportFunc, ColorPref)
+  -> (CaseSensitive -> X.Text -> Exceptional X.Text (X.Text -> Bool))
+  -> ParserE Error ReportFunc
 
 data Report =
-  Report { help :: Text
+  Report { help :: X.Text
          , parseReport :: ParseReportOpts }
