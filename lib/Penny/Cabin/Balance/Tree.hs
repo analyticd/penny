@@ -3,14 +3,14 @@
 --
 -- Steps:
 --
--- * [LT.PostingInfo] -> RawBals
--- * RawBals -> (SummedBals, TotalBal)
--- * (SummedBals, TotalBal) -> (SummedWithIsEven, TotalBal)
--- * (SummedWithIsEven, TotalBal) -> (CellsInMap, TotalBal)
--- * (CellsInMap, TotalBal) -> [Columns R.Cell]
--- * [Columns R.Cell] -> [Columns R.Cell] (resize)
--- * [Columns R.Cell] -> [R.Row]
--- * [R.Row] -> Chunk.Chunk
+-- 1. [LT.PostingInfo] -> RawBals
+-- 2. RawBals -> (SummedBals, TotalBal)
+-- 3. (SummedBals, TotalBal) -> (SummedWithIsEven, TotalBal)
+-- 4. (SummedWithIsEven, TotalBal) -> (PreSpecMap, TotalBal)
+-- 5. (PreSpecMap, TotalBal) -> [Columns PreSpec]
+-- 6. [Columns PreSpec] -> [Columns R.ColumnSpec] (strict)
+-- 7. [Columns R.ColumnSpec] -> [R.Row] (lazy)
+-- 8. [R.Row] -> XL.Text (lazy)
 module Penny.Cabin.Balance.Tree (report) where
 
 import Control.Applicative(Applicative(pure, (<*>)), (<$>))
@@ -25,6 +25,7 @@ import qualified Data.Map as M
 import qualified Data.Monoid as Monoid
 import qualified Penny.Cabin.Balance.NestedMap as NM
 import qualified Data.Text as X
+import qualified Data.Text.Lazy as XL
 import qualified Data.Traversable as Tr
 import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Chunk as Chunk
@@ -35,25 +36,68 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Data.Semigroup as S
 
+data PreSpec = PreSpec {
+  justification :: R.Justification
+  , padSpec :: Chunk.TextSpec
+  , bits :: [Chunk.Bit] }
+
+-- Step 1
 newtype RawBal = RawBal { unRawBal :: S.Option Bal.Balance }
 instance Monoid.Monoid RawBal where
   mappend (RawBal b1) (RawBal b2) = RawBal $ b1 `Monoid.mappend` b2
   mempty = RawBal Monoid.mempty
 
+type RawBals = NM.NestedMap L.SubAccountName RawBal
+
+-- Step 2
 newtype SummedBal =
   SummedBal { unSummedBal :: S.Option Bal.Balance }
 instance Monoid.Monoid SummedBal where
   mappend (SummedBal b1) (SummedBal b2) =
     SummedBal $ b1 `Monoid.mappend` b2
   mempty = SummedBal Monoid.mempty
-
-type CellsInMap = NM.NestedMap L.SubAccountName (Columns R.Cell)
-type SummedBals = NM.NestedMap L.SubAccountName SummedBal
-type SummedWithIsEven = NM.NestedMap L.SubAccountName (SummedBal, Bool)
-type RawBals = NM.NestedMap L.SubAccountName RawBal
 type TotalBal = SummedBal
+type SummedBals = NM.NestedMap L.SubAccountName SummedBal
 
-report :: O.Options -> [LT.PostingInfo] -> Chunk.Chunk
+-- Step 3
+type SummedWithIsEven = NM.NestedMap L.SubAccountName (SummedBal, Bool)
+
+-- Step 4
+instance Functor Columns where
+  fmap f c = Columns {
+    account = f (account c)
+    , drCr = f (drCr c)
+    , commodity = f (commodity c)
+    , quantity = f (quantity c)
+    }
+
+instance Applicative Columns where
+  pure a = Columns a a a a
+  fn <*> fa = Columns {
+    account = (account fn) (account fa)
+    , drCr = (drCr fn) (drCr fa)
+    , commodity = (commodity fn) (commodity fa)
+    , quantity = (quantity fn) (quantity fa)
+    }
+
+data Columns a = Columns {
+  account :: a
+  , drCr :: a
+  , commodity :: a
+  , quantity :: a
+  } deriving Show
+
+type PreSpecMap = NM.NestedMap L.SubAccountName (Columns PreSpec)
+
+-- Step 5
+
+-- Step 6
+
+-- Step 7
+
+-- Step 8
+
+report :: O.Options -> [LT.PostingInfo] -> XL.Text
 report os =
   rowsToChunk
   . columnListToRows os
@@ -127,30 +171,6 @@ addPosting bals (ac, en) = let
   in NM.insert bals subs bal
 
 type IsEven = Bool
-
-data Columns a = Columns {
-  account :: a
-  , drCr :: a
-  , commodity :: a
-  , quantity :: a
-  } deriving Show
-
-instance Functor Columns where
-  fmap f c = Columns {
-    account = f (account c)
-    , drCr = f (drCr c)
-    , commodity = f (commodity c)
-    , quantity = f (quantity c)
-    }
-
-instance Applicative Columns where
-  pure a = Columns a a a a
-  fn <*> fa = Columns {
-    account = (account fn) (account fa)
-    , drCr = (drCr fn) (drCr fa)
-    , commodity = (commodity fn) (commodity fa)
-    , quantity = (quantity fn) (quantity fa)
-    }
 
 widthSpacerAcct :: Int
 widthSpacerAcct = 4
