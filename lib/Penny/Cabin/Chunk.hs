@@ -1,19 +1,17 @@
 module Penny.Cabin.Chunk (
   -- * Colors
   Colors(Colors0, Colors8, Colors256),
-  ColorPref(Pref0, Pref8, Pref256, PrefAuto),
   Background8,
   Background256,
   Foreground8,
   Foreground256,
 
-  -- * Chunks
-  Chunk,
-  chunk,
-  emptyChunk,
-  chunkSize,
+  -- * Bits
+  Bit,
+  bit,
   Width(Width, unWidth),
-  printChunk,
+  bitWidth,
+  printBits,
   
   -- * Effects
   Bold(Bold, unBold),
@@ -591,10 +589,6 @@ import System.IO (hIsTerminalDevice, stdout)
 -- Colors
 --
 
--- | The user's color preference.
-data ColorPref = Pref0 | Pref8 | Pref256 | PrefAuto
-               deriving Show
-
 -- | How many colors to actually show.
 data Colors = Colors0 | Colors8 | Colors256
             deriving Show
@@ -608,7 +602,7 @@ newtype Foreground256 = Foreground256 { unForeground256 :: Code }
 --
 -- Bits (it better be bits)
 --
-data Bit = Bit !TextSpec !Text
+data Bit = Bit TextSpec Text
 
 bit :: TextSpec -> Text -> Bit
 bit = Bit
@@ -620,8 +614,8 @@ instance Monoid Width where
   mempty = Width 0
   mappend (Width w1) (Width w2) = Width $ w1 + w2
 
-bitSize :: Bit -> Width
-bitSize (Bit _ t) = Width . X.length $ t
+bitWidth :: Bit -> Width
+bitWidth (Bit _ t) = Width . X.length $ t
 
 printBits :: Colors -> [Bit] -> IO ()
 printBits c =
@@ -642,20 +636,20 @@ newtype Inverse = Inverse { unInverse :: Bool }
 -- Styles
 --
 data StyleCommon = StyleCommon {
-  bold :: !Bold
-  , underline :: !Underline
-  , flash :: !Flash
-  , inverse :: !Inverse }
+  bold :: Bold
+  , underline :: Underline
+  , flash :: Flash
+  , inverse :: Inverse }
 
 data Style8 = Style8 {
-  foreground8 :: !Foreground8
-  , background8 :: !Background8
-  , common8 :: !StyleCommon }
+  foreground8 :: Foreground8
+  , background8 :: Background8
+  , common8 :: StyleCommon }
 
 data Style256 = Style256 {
-  foreground256 :: !Foreground256
-  , background256 :: !Background256
-  , common256 :: !StyleCommon }
+  foreground256 :: Foreground256
+  , background256 :: Background256
+  , common256 :: StyleCommon }
 
 defaultStyleCommon :: StyleCommon
 defaultStyleCommon = StyleCommon {
@@ -680,8 +674,8 @@ defaultStyle256 = Style256 {
 -- TextSpec
 --
 data TextSpec = TextSpec {
-  style8 :: !Style8
-  , style256 :: !Style256 }
+  style8 :: Style8
+  , style256 :: Style256 }
 
 defaultTextSpec :: TextSpec
 defaultTextSpec = TextSpec {
@@ -730,19 +724,6 @@ common s =
        then unCode flashOn else mempty)
   +++ (if unInverse . inverse $ s
        then unCode inverseOn else mempty)
-
-autoColors :: IO Colors
-autoColors = do
-  isTerm <- hIsTerminalDevice stdout
-  if isTerm
-    then do
-    env <- getEnvironment
-    case lookup "TERM" env of
-      Nothing -> return Colors8
-      (Just t) -> if t == "xterm-256color"
-                  then return Colors256
-                  else return Colors8
-    else return Colors0
 
 newtype Code = Code { unCode :: TB.Builder }
 

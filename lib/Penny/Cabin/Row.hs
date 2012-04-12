@@ -1,24 +1,10 @@
 module Penny.Cabin.Row (
   Justification(LeftJustify, RightJustify),
-  Cell(Cell, justification, width, padSpec, chunks),
-  zeroCell,
-  widestLine,
-  Row,
-  emptyRow,
-  prependCell,
-  (<<|),
-  appendCell,
-  (|>>),
-  HasChunk(chunk)) where
+  ColumnSpec(ColumnSpec, justification, width, padSpec, bits),
+  row ) where
 
-import Data.Monoid (Monoid, mempty, mappend)
-import qualified Data.Foldable as F
-import Data.Sequence (Seq, (<|), (|>), ViewL ((:<)))
-import qualified Data.Sequence as S
+import Data.List (transpose)
 import qualified Data.Text as X
-
-import Penny.Cabin.Chunk
-  (Chunk, TextSpec, chunkSize, Width(Width, unWidth))
 import qualified Penny.Cabin.Chunk as C
 
 -- | How to justify cells. LeftJustify leaves the right side
@@ -34,109 +20,87 @@ data Justification =
 -- aligned between left and right margins) and padded (with lines of
 -- blank text added on the bottom as needed) when joined with other
 -- cells into a Row.
-data Cell =
-  Cell { justification :: !Justification
-       , width :: !Width
-       , padSpec :: !TextSpec
-       , chunks :: Seq Chunk }
+data ColumnSpec =
+  ColumnSpec { justification :: Justification
+             , width :: C.Width
+             , padSpec :: C.TextSpec
+             , bits :: [C.Bit] }
 
-data PaddedCell =
-  PaddedCell { justifiedChunks :: Seq Chunk
-             , _bottom :: Chunk }
+newtype JustifiedCell = JustifiedCell (Either (C.Bit, C.Bit) C.Bit)
+data JustifiedColumn = JustifiedColumn {
+  justifiedCells :: [JustifiedCell]
+  , _justifiedWidth :: C.Width
+  , _justifiedPadSpec :: C.TextSpec }
 
--- | Creates a Cell that has no width. It will be padded on the bottom
--- as necessary, but because the cell has no width and no chunks, it
--- will never appear.
-zeroCell :: Cell
-zeroCell = Cell LeftJustify (Width 0) C.defaultTextSpec S.empty
+data PaddedColumns = PaddedColumns {
+  _paddedCells :: [[JustifiedCell]]
+  , _paddedHeight :: Height }
 
-widestLine :: Seq Chunk -> Width
-widestLine = F.foldr max (Width 0) . fmap chunkSize
+newtype WithNewlineColumn = WithNewlineColumn [[JustifiedCell]]
 
--- | A Row consists of several Cells. The Cells will be padded and
--- justified appropriately, with the padding adjusting to accomodate
--- other Cells in the Row.
-newtype Row = Row (Seq PaddedCell)
+justify ::
+  C.TextSpec
+  -> C.Width
+  -> Justification
+  -> C.Bit
+  -> JustifiedCell
+justify ts (C.Width w) j b
+  | origWidth < w = JustifiedCell . Left $ pair
+  | otherwise = JustifiedCell . Right $ b
+    where
+      origWidth = C.unWidth . C.bitWidth $ b
+      pad = C.bit ts t
+      t = X.replicate (w - origWidth) (X.singleton ' ')
+      pair = case j of
+        LeftJustify -> (b, pad)
+        RightJustify -> (pad, b)
 
-emptyRow :: Row
-emptyRow = Row S.empty
-
-justify :: TextSpec -> Width -> Justification -> Chunk -> Chunk
-justify ts wi@(Width w) j c = glue padding c where
-  glue pd ck = case j of
-    LeftJustify -> ck `mappend` pd
-    RightJustify -> pd `mappend` ck
-  padding = C.chunk ts t
-  t = X.replicate s (X.singleton ' ')
-  s = if wi > chunkSize c
-      then w - (unWidth . chunkSize $ c)
-      else 0
-
-newtype Height = Height { unHeight :: Int }
+newtype Height = Height { _unHeight :: Int }
                  deriving (Show, Eq, Ord)
 
-bottomPad :: TextSpec -> Width -> Chunk
-bottomPad ts (Width w) = C.chunk ts t where
-  t = X.pack (replicate w ' ')
+height :: [[a]] -> Height
+height = Height . maximum . map length
 
-morePadding ::
-  Height
-  -> PaddedCell
-  -> PaddedCell
-morePadding h (PaddedCell cs c) = PaddedCell cs' c where
-  cs' = if unHeight h > S.length cs
-        then cs `mappend` pads
-        else cs
-  pads = S.replicate (unHeight h - S.length cs) c
+row :: [ColumnSpec] -> [C.Bit]
+row =
+  concat
+  . concat
+  . toBits
+  . withNewlineColumn
+  . bottomPad
+  . map justifiedColumn
 
-justifyAll ::
-  TextSpec -> Width -> Justification -> Seq Chunk -> Seq Chunk
-justifyAll ts w j = fmap (justify ts w j)
+justifiedColumn :: ColumnSpec -> JustifiedColumn
+justifiedColumn (ColumnSpec j w ts bs) = JustifiedColumn cs w ts where
+  cs = map (justify ts w j) $ bs
 
+bottomPad :: [JustifiedColumn] -> PaddedColumns
+bottomPad jcs = PaddedColumns pcs (Height h) where
+  justCells = map justifiedCells jcs
+  (Height h) = height justCells
+  pcs = map toPaddedColumn jcs
+  toPaddedColumn (JustifiedColumn cs (C.Width w) ts) = let
+    l = length cs
+    nPads = h - l
+    pad = C.bit ts t
+    t = X.replicate w (X.singleton ' ')
+    pads = replicate nPads . JustifiedCell . Right $ pad
+    cs'
+      | l < h = cs ++ pads
+      | otherwise = cs
+    in cs'
 
-addCell ::
-  (PaddedCell -> Seq PaddedCell -> Seq PaddedCell)
-  -> Cell
-  -> Row
-  -> Row
-addCell glue c (Row cs) = let
-  s = padSpec c
-  justified = justifyAll s (width c)
-              (justification c) (chunks c)
-  pc = PaddedCell justified (bottomPad s (width c))
-  in case S.viewl cs of
-    S.EmptyL -> Row (S.singleton pc)
-    existing :< _ -> let
-      newHeight = max (height existing) (height pc)
-      pcs = glue pc cs
-      in Row (fmap (morePadding newHeight) pcs)
+withNewlineColumn :: PaddedColumns -> WithNewlineColumn
+withNewlineColumn (PaddedColumns cs (Height h)) =
+  WithNewlineColumn cs' where
+    newlineList = replicate h newline
+    newline = [JustifiedCell . Right
+               $ C.bit C.defaultTextSpec (X.singleton '\n')]
+    cs' = cs ++ newlineList
 
-prependCell :: Cell -> Row -> Row
-prependCell = addCell (<|) 
-
-(<<|) :: Cell -> Row -> Row
-(<<|) = prependCell
-infixr 5 <<|
-
-appendCell :: Row -> Cell -> Row
-appendCell = flip (addCell (flip (|>)))
-
-(|>>) :: Row -> Cell -> Row
-(|>>) = appendCell
-infixl 5 |>>
-
-height :: PaddedCell -> Height
-height (PaddedCell cs _) = Height (S.length cs)
-
-class HasChunk a where
-  chunk :: a -> Chunk
-
-instance HasChunk Row where
-  chunk (Row cells) =
-    if S.null cells
-    then mempty
-    else F.foldl' mappend mempty zippedWithNewlines where
-      newline = C.chunk C.defaultTextSpec (X.singleton '\n')
-      zippedWithNewlines = fmap (`mappend` newline) zipped
-      zipped = F.foldr1 zipper (fmap justifiedChunks cells)
-      zipper s1 s2 = S.zipWith mappend s1 s2
+toBits :: WithNewlineColumn -> [[[C.Bit]]]
+toBits (WithNewlineColumn cs) = map (map toB) . transpose $ cs where
+  toB (JustifiedCell c) = case c of
+    Left (lb, rb) -> [lb, rb]
+    Right b -> [b]
+    

@@ -212,6 +212,7 @@ Library
         Penny.Cabin.Colors.DarkBackground,
         Penny.Cabin.Colors.LightBackground,
         Penny.Cabin.Interface,
+        Penny.Cabin.Options,
         Penny.Cabin.Posts,
         Penny.Cabin.Posts.Allocate,
         Penny.Cabin.Posts.Allocated,

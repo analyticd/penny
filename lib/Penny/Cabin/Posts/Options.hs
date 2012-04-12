@@ -18,6 +18,7 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Cabin.Posts.Allocate as A
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as C
+import qualified Penny.Cabin.Options as O
 import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Info as I
@@ -76,7 +77,7 @@ data T =
       -- ^ When shortening the names of sub accounts to make
       -- them fit, they will be this long.
 
-    , colorPref :: CC.ColorPref
+    , colorPref :: CC.Colors
       -- ^ How many colors you want to see, or do it
       -- automatically.
 
@@ -165,7 +166,7 @@ defaultOptions dtz rg rt =
     , accountAllocation = A.allocation 60
     , width = widthFromRuntime rt
     , subAccountLength = 2
-    , colorPref = CC.PrefAuto 
+    , colorPref = O.autoColors O.PrefAuto rt
     , timeZone = dtz
     , radGroup = rg
     , sensitive = M.Insensitive
