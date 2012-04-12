@@ -13,80 +13,53 @@ import qualified Penny.Liberty.Error as Er
 import qualified Penny.Liberty.Filter as LF
 import qualified Penny.Liberty.Operands as Od
 import qualified Penny.Cabin.Colors as PC
-import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Posts.Fields as Fl
 import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Options as Op
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
-import qualified Penny.Shield as S
 
 import Penny.Lincoln.Bits (DateTime)
 
-type GetOpts = S.Runtime -> Op.T
-
 wrapLiberty ::
   DateTime
-  -> GetOpts
-  -> S.Runtime
-  -> ParserE Error (GetOpts)
-wrapLiberty dt getOpts rt = let
-  op = getOpts rt
+  -> Op.T
+  -> ParserE Error (Op.T)
+wrapLiberty dt op = let
   dtz = Op.timeZone op
   rg = Op.radGroup op
-  dtz = Op.timeZone 
+  in fromLibertyState op
+     <$> LF.parseOption dtz dt rg (toLibertyState op)
 
-wrappedLiberty ::
-  GetOpts
-  -> ParserE Error (S.Runtime -> LF.State Numbered.T)
-  
-  
-  
-  f st' rt = let
-    op = getOpts rt
-    dtz = Op.timeZone op
-    rg = Op.radGroup op
-    st = toLibertyState op
-    in fromLibertyState getOpts st'
-  
-  
-  parseOpt rt = let
-    op = getOpts rt
-    dtz = Op.timeZone op
-    rg = Op.radGroup op
-    in LF.parseOption dtz dt rg (toLibertyState op)
-  in fromLibertyState getOpts <$> parseOpt
+wrapColor :: (Op.T) -> ParserE Error (Op.T)
+wrapColor st = mkSt <$> color where
+  mkSt co = st { Op.colorPref = co }
 
+wrapBackground :: (Op.T) -> ParserE Error (Op.T)
+wrapBackground st = mkSt <$> background where
+  mkSt b = st { Op.drCrColors = fst b 
+              , Op.baseColors = snd b }
 
-wrapColor :: (GetOpts) -> ParserE Error (GetOpts)
-wrapColor getOpts = mkSt <$> color where
-  mkSt co rt = getOpts rt { Op.colorPref = co }
+wrapWidth :: (Op.T) -> ParserE Error (Op.T)
+wrapWidth st = mkSt <$> widthArg where
+  mkSt w = st { Op.width = w }
 
-wrapBackground :: (GetOpts) -> ParserE Error (GetOpts)
-wrapBackground getOpts = mkSt <$> background where
-  mkSt b rt = getOpts rt { Op.drCrColors = fst b 
-                         , Op.baseColors = snd b }
-
-wrapWidth :: (GetOpts) -> ParserE Error (GetOpts)
-wrapWidth getOpts = mkSt <$> widthArg where
-  mkSt w rt = getOpts rt { Op.width = w }
-
-showField :: (GetOpts) -> ParserE Error (GetOpts)
-showField getOpts = mkSt <$> fieldArg "show" where
-  mkSt f rt = getOpts rt { Op.fields = fields' } where
-    oldFields = Op.fields (getOpts rt)
+showField :: (Op.T) -> ParserE Error (Op.T)
+showField st = mkSt <$> fieldArg "show" where
+  mkSt f = st { Op.fields = fields' } where
+    oldFields = Op.fields st
     fields' = f True oldFields
 
-hideField :: (GetOpts) -> ParserE Error (GetOpts)
-hideField getOpts = mkSt <$> fieldArg "hide" where
-  mkSt f rt = getOpts rt  { Op.fields = fields' } where
-    oldFields = Op.fields (getOpts rt)
+hideField :: (Op.T) -> ParserE Error (Op.T)
+hideField st = mkSt <$> fieldArg "hide" where
+  mkSt f = st { Op.fields = fields' } where
+    oldFields = Op.fields st
     fields' = f False oldFields
 
 parseArg ::
   DateTime
-  -> (GetOpts)
-  -> ParserE Error (GetOpts)
+  -> (Op.T)
+  -> ParserE Error (Op.T)
 parseArg dt op =
   wrapLiberty dt op 
   <|> wrapColor op
@@ -97,8 +70,8 @@ parseArg dt op =
 
 parseArgs ::
   DateTime
-  -> (GetOpts)
-  -> ParserE Error (GetOpts)
+  -> (Op.T)
+  -> ParserE Error (Op.T)
 parseArgs dt op =
   option op $ do
     rs <- runUntilFailure (parseArg dt) op
@@ -106,28 +79,28 @@ parseArgs dt op =
 
 parseCommand ::
   DateTime
-  -> (GetOpts)
-  -> ParserE Error (GetOpts)
-parseCommand dt getOp =
+  -> (Op.T)
+  -> ParserE Error (Op.T)
+parseCommand dt op =
     (nextWordIs (pack "postings")
      <|> nextWordIs (pack "pos"))
-    *> parseArgs dt getOp
+    *> parseArgs dt op
   
-toLibertyState :: Op.T -> (LF.State Numbered.T)
+toLibertyState :: (Op.T) -> (LF.State Numbered.T)
 toLibertyState op =
   LF.State { LF.sensitive = Op.sensitive op
            , LF.factory = Op.factory op
            , LF.tokens = Op.tokens op
            , LF.postFilter = Op.postFilter op }
 
-fromLibertyState :: (GetOpts) -> LF.State Numbered.T -> (GetOpts)
-fromLibertyState getOp lf = \s ->
-  getOp s { Op.sensitive = LF.sensitive lf
-          , Op.factory = LF.factory lf
-          , Op.tokens = LF.tokens lf
-          , Op.postFilter = LF.postFilter lf }
+fromLibertyState :: (Op.T) -> LF.State Numbered.T -> (Op.T)
+fromLibertyState op lf =
+  op  { Op.sensitive = LF.sensitive lf
+      , Op.factory = LF.factory lf
+      , Op.tokens = LF.tokens lf
+      , Op.postFilter = LF.postFilter lf }
 
-color :: ParserE Error (S.Runtime -> CC.Colors)
+color :: ParserE Error CC.ColorPref
 color = do
   let lo = makeLongOpt . pack $ "color"
   (_, t) <- longOneArg lo
@@ -135,12 +108,12 @@ color = do
     Nothing -> throw $ Er.BadColorName t
     (Just col) -> return col
   
-pickColorArg :: Text -> Maybe (S.Runtime -> CC.Colors)
+pickColorArg :: Text -> Maybe CC.ColorPref
 pickColorArg t
-  | t == pack "yes" = Just (const CC.Colors8)
-  | t == pack "no" = Just (const CC.Colors0)
-  | t == pack "256" = Just (const CC.Colors256)
-  | t == pack "auto" = Just CO.maxCapableColors
+  | t == pack "yes" = Just CC.Pref8
+  | t == pack "no" = Just CC.Pref0
+  | t == pack "256" = Just CC.Pref256
+  | t == pack "auto" = Just CC.PrefAuto
   | otherwise = Nothing
 
 background :: ParserE Error (PC.DrCrColors, PC.BaseColors)
