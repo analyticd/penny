@@ -1,7 +1,7 @@
 module Penny.Cabin.Row (
   Justification(LeftJustify, RightJustify),
   ColumnSpec(ColumnSpec, justification, width, padSpec, bits),
-  C.Width(unWidth),
+  C.Width(Width, unWidth),
   row ) where
 
 import Data.List (transpose)

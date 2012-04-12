@@ -11,7 +11,7 @@ module Penny.Cabin.Chunk (
   bit,
   Width(Width, unWidth),
   bitWidth,
-  printBits,
+  bitsToText,
   
   -- * Effects
   Bold(Bold, unBold),
@@ -575,15 +575,10 @@ module Penny.Cabin.Chunk (
 
 
 import Data.Monoid (Monoid, mempty, mappend)
-import qualified Data.Foldable as F
-import Data.Sequence (Seq)
-import qualified Data.Sequence as S
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Text.Lazy.IO as TIO
+import qualified Data.Text.Lazy as XL
 import qualified Data.Text.Lazy.Builder as TB
-import System.Environment (getEnvironment)
-import System.IO (hIsTerminalDevice, stdout)
 
 --
 -- Colors
@@ -617,11 +612,8 @@ instance Monoid Width where
 bitWidth :: Bit -> Width
 bitWidth (Bit _ t) = Width . X.length $ t
 
-printBits :: Colors -> [Bit] -> IO ()
-printBits c =
-  TIO.putStr
-  . TB.toLazyText
-  . foldr (builder c) (printReset c)
+bitsToText :: Colors -> [Bit] -> XL.Text
+bitsToText c = TB.toLazyText . foldr (builder c) (printReset c)
 
 
 --

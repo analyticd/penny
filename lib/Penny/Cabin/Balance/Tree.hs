@@ -9,8 +9,7 @@
 -- 4. (SummedWithIsEven, TotalBal) -> (PreSpecMap, TotalBal)
 -- 5. (PreSpecMap, TotalBal) -> [Columns PreSpec]
 -- 6. [Columns PreSpec] -> [Columns R.ColumnSpec] (strict)
--- 7. [Columns R.ColumnSpec] -> [R.Row] (lazy)
--- 8. [R.Row] -> XL.Text (lazy)
+-- 7. [Columns R.ColumnSpec] -> [[Chunk.Bit]] (lazy)
 module Penny.Cabin.Balance.Tree (report) where
 
 import Control.Applicative(Applicative(pure, (<*>)), (<$>))
@@ -22,7 +21,6 @@ import qualified Data.Map as M
 import qualified Data.Monoid as Monoid
 import qualified Penny.Cabin.Balance.NestedMap as NM
 import qualified Data.Text as X
-import qualified Data.Text.Lazy as XL
 import qualified Data.Traversable as Tr
 import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Chunk as Chunk
@@ -40,6 +38,13 @@ instance Monoid.Monoid RawBal where
   mempty = RawBal Monoid.mempty
 
 type RawBals = NM.NestedMap L.SubAccountName RawBal
+
+-- | Inserts a single posting into the Balances tree.
+addPosting :: RawBals -> (L.Account, L.Entry) -> RawBals
+addPosting bals (ac, en) = let
+  bal = RawBal . S.Option . Just . L.entryToBalance $ en
+  subs = Fdbl.toList . L.unAccount $ ac
+  in NM.insert bals subs bal
 
 rawBalances :: [LT.PostingInfo] -> RawBals
 rawBalances = Fdbl.foldl' addPosting NM.empty . map toPair where
@@ -100,11 +105,11 @@ instance Applicative Columns where
     , drCr = (drCr fn) (drCr fa)
     , commodity = (commodity fn) (commodity fa)
     , quantity = (quantity fn) (quantity fa)
-    }
+     }
 
 data PreSpec = PreSpec {
-  justification :: R.Justification
-  , padSpec :: Chunk.TextSpec
+  _justification :: R.Justification
+  , _padSpec :: Chunk.TextSpec
   , bits :: [Chunk.Bit] }
 
 type PreSpecMap = NM.NestedMap L.SubAccountName (Columns PreSpec)
@@ -120,6 +125,8 @@ bottomLineBalCells spec ts = (mkSpec dc, mkSpec ct, mkSpec qt) where
   (dc, ct, qt) = foldr f ([], [], []) ts
   f (da, ca, qa) (d, c, q) = (da:d, ca:c, qa:q)
 
+
+type IsEven = Bool
 
 -- | Returns a triple (x, y, z), where x is the DrCr chunk, y is the
 -- commodity chunk, and z is the qty chunk.
@@ -151,11 +158,20 @@ bottomLineBalChunks os isEven (comm, bl) = (dc, cty, qty) where
       in (getTs . O.drCrColors $ os, dcT, qTxt)
 
 
+fillTextSpec ::
+  O.Options
+  -> IsEven
+  -> Chunk.TextSpec
+fillTextSpec os isEven = let
+  getTs = if isEven then C.evenColors else C.oddColors
+  in getTs . O.baseColors $ os
+  
+
 bottomLineCells ::
   O.Options
   -> IsEven
   -> SummedBal
-  -> (R.PreSpec, R.PreSpec, R.PreSpec)
+  -> (PreSpec, PreSpec, PreSpec)
 bottomLineCells os isEven mayBal = let
   fill = fillTextSpec os isEven
   tsZero = if isEven
@@ -166,12 +182,31 @@ bottomLineCells os isEven mayBal = let
     tsZero [Chunk.bit tsZero (X.pack "--")]
   zeroSpecs = (zeroSpec, zeroSpec, zeroSpec)
   in case S.getOption . unSummedBal $ mayBal of
-    Nothing -> zeroCells
+    Nothing -> zeroSpecs
     Just bal -> bottomLineBalCells fill
                 . map (bottomLineBalChunks os isEven)
                 . M.assocs
                 . Bal.unBalance
                 $ bal
+
+padding :: Int
+padding = 2
+
+accountPreSpec ::
+  O.Options
+  -> IsEven
+  -> Int
+  -> L.SubAccountName
+  -> PreSpec
+accountPreSpec os isEven lvl acct = PreSpec j ts [bit] where
+  j = R.LeftJustify
+  ts = if isEven
+       then C.evenColors . O.baseColors $ os
+       else C.oddColors . O.baseColors $ os
+  bit = Chunk.bit ts txt where
+    txt = pad `X.append` (L.text acct)
+    pad = X.replicate (padding * lvl) (X.singleton ' ')
+
 
 makePreSpec ::
   O.Options
@@ -179,9 +214,9 @@ makePreSpec ::
   -> L.SubAccountName
   -> (SummedBal, Bool)
   -> Columns PreSpec
-makeCells os ps a (mayBal, isEven) = Columns act dc com qt where
+makePreSpec os ps a (mayBal, isEven) = Columns act dc com qt where
   lvl = length ps + 1
-  act = accountCell os isEven lvl a
+  act = accountPreSpec os isEven lvl a
   (dc, com, qt) = bottomLineCells os isEven mayBal
 
 traverser ::
@@ -190,9 +225,9 @@ traverser ::
   -> L.SubAccountName
   -> (SummedBal, Bool)
   -> a
-  -> Id.Identity (Maybe (Columns R.PreSpec))
+  -> Id.Identity (Maybe (Columns PreSpec))
 traverser os hist a mayBal _ =
-  return (Just $ makeCells os hist a mayBal)
+  return (Just $ makePreSpec os hist a mayBal)
 
 makePreSpecMap ::
   O.Options
@@ -205,9 +240,9 @@ makePreSpecMap os (sb, tb) = (cim, tb) where
 makeTotalCells ::
   O.Options
   -> SummedBal
-  -> Columns R.Cell
+  -> Columns PreSpec
 makeTotalCells os mayBal = Columns act dc com qt where
-  act = accountCell os True 0 tot
+  act = accountPreSpec os True 0 tot
   tot = L.SubAccountName $ L.TextNonEmpty 'T' (X.pack "otal")
   (dc, com, qt) = bottomLineCells os True mayBal
 
@@ -217,54 +252,37 @@ makeColumnList os (cim, tb) = totCols : restCols where
   restCols = Fdbl.toList cim
 
 
--- Step 6 -- START HERE
-resizeColumnsInList :: [Columns PreSpec] -> [Columns R.ColumnSpec]
-resizeColumnsInList cs = resize mw cs where
-  mw = Fdbl.foldl' f (pure 0) cs where
-    maxCol old new =
-      max old (Chunk.unWidth . maximum
-               . map Chunk.bitWidth . bits $ new)
-    f acc cols = maxCol <$> acc <*> cols
-  resize widths = fmap resizeRow where
-    resizeCell w c = c { R.width = Chunk.Width w }
-    resizeRow = (resizeCell <$> widths <*> )
+-- Step 6
 
+-- | When given a list of columns, determine the widest row in each
+-- column.
+maxWidths :: [Columns PreSpec] -> Columns R.Width
+maxWidths = Fdbl.foldl' maxWidthPerColumn (pure (R.Width 0))
+
+-- | Applied to a Columns of PreSpec and a Colums of widths, return a
+-- Columns that has the wider of the two values.
+maxWidthPerColumn ::
+  Columns R.Width
+  -> Columns PreSpec
+  -> Columns R.Width
+maxWidthPerColumn w p = f <$> w <*> p where
+  f old new = max old (maximum . map Chunk.bitWidth . bits $ new)
+  
+-- | Changes a single set of Columns to a set of ColumnSpec of the
+-- given width.
+preSpecToSpec ::
+  Columns R.Width
+  -> Columns PreSpec
+  -> Columns R.ColumnSpec
+preSpecToSpec ws p = f <$> ws <*> p where
+  f width (PreSpec j ps bs) = R.ColumnSpec j width ps bs
+
+resizeColumnsInList :: [Columns PreSpec] -> [Columns R.ColumnSpec]
+resizeColumnsInList cs = map (preSpecToSpec w) cs where
+  w = maxWidths cs
 
 
 -- Step 7
-
--- Step 8
-
-report :: O.Options -> [LT.PostingInfo] -> XL.Text
-report os =
-  rowsToChunk
-  . columnListToRows os
-  . resizeColumnsInList
-  . makeColumnList os
-  . makeCellsInMap os
-  . makeSummedWithIsEven
-  . sumBalances
-  . rawBalances
-
-rowsToChunk :: [R.Row] -> Chunk.Chunk
-rowsToChunk = R.chunk . Fdbl.foldl' R.appendRow R.emptyRows
-
-columnListToRows :: O.Options -> [Columns R.Cell] -> [R.Row]
-columnListToRows os = zipWith f bools where
-  f b c = cellsToRow os b c
-  bools = iterate not True
-
-
-
--- | Inserts a single posting into the Balances tree.
-addPosting :: RawBals -> (L.Account, L.Entry) -> RawBals
-addPosting bals (ac, en) = let
-  bal = RawBal . S.Option . Just . L.entryToBalance $ en
-  subs = Fdbl.toList . L.unAccount $ ac
-  in NM.insert bals subs bal
-
-type IsEven = Bool
-
 widthSpacerAcct :: Int
 widthSpacerAcct = 4
 
@@ -274,52 +292,44 @@ widthSpacerDrCr = 1
 widthSpacerCommodity :: Int
 widthSpacerCommodity = 1
 
-cellsToRow :: O.Options -> IsEven -> Columns R.Cell -> R.Row
-cellsToRow os isEven (Columns a dc c q) = let
+colsToBits ::
+  O.Options
+  -> IsEven
+  -> Columns R.ColumnSpec
+  -> [Chunk.Bit]
+colsToBits os isEven (Columns a dc c q) = let
   fillSpec = if isEven
              then C.evenColors . O.baseColors $ os
              else C.oddColors . O.baseColors $ os
-  spacer w = R.Cell j (Chunk.Width w) fillSpec Seq.empty
+  spacer w = R.ColumnSpec j (Chunk.Width w) fillSpec []
   j = R.LeftJustify
-  in R.emptyRow
-     |>> a
-     |>> spacer widthSpacerAcct
-     |>> dc
-     |>> spacer widthSpacerDrCr
-     |>> c
-     |>> spacer widthSpacerCommodity
-     |>> q
+  cs = a
+       : spacer widthSpacerAcct
+       : dc
+       : spacer widthSpacerDrCr
+       : c
+       : spacer widthSpacerCommodity
+       : q
+       : []
+  in R.row cs
 
-
-
-fillTextSpec ::
+colsListToBits ::
   O.Options
-  -> IsEven
-  -> Chunk.TextSpec
-fillTextSpec os isEven = let
-  getTs = if isEven then C.evenColors else C.oddColors
-  in getTs . O.baseColors $ os
-  
-
-padding :: Int
-padding = 2
-
-accountCell ::
-  O.Options
-  -> IsEven
-  -> Int
-  -> L.SubAccountName
-  -> R.Cell
-accountCell os isEven lvl acct = R.Cell j w ts chk where
-  j = R.LeftJustify
-  w = Chunk.Width 0
-  ts = if isEven
-       then C.evenColors . O.baseColors $ os
-       else C.oddColors . O.baseColors $ os
-  chk = Seq.singleton $ Chunk.chunk ts txt where
-    txt = pad `X.append` (L.text acct)
-    pad = X.replicate (padding * lvl) (X.singleton ' ')
+  -> [Columns R.ColumnSpec]
+  -> [[Chunk.Bit]]
+colsListToBits os = zipWith f bools where
+  f b c = colsToBits os b c
+  bools = iterate not True
 
 
+-- Tie it all together
 
-
+report :: O.Options -> [LT.PostingInfo] -> [[Chunk.Bit]]
+report os =
+  colsListToBits os
+  . resizeColumnsInList
+  . makeColumnList os
+  . makePreSpecMap os
+  . makeSummedWithIsEven
+  . sumBalances
+  . rawBalances
