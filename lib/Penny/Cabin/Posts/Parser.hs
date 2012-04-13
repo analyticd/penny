@@ -1,8 +1,8 @@
 module Penny.Cabin.Posts.Parser (parseCommand) where
 
-import Control.Applicative ((<|>), (<$>), (*>))
+import Control.Applicative ((<|>), (<$>), (*>), pure)
 import Data.Text (Text, pack)
-import System.Console.MultiArg.Combinator (longOneArg, option)
+import System.Console.MultiArg.Combinator (longOneArg, option, longNoArg)
 import System.Console.MultiArg.Option (makeLongOpt)
 import System.Console.MultiArg.Prim (ParserE, throw)
 
@@ -55,6 +55,8 @@ parseArg dt rt op =
   <|> wrapWidth op
   <|> showField op
   <|> hideField op
+  <|> showAllFields op
+  <|> hideAllFields op
 
 wrapLiberty ::
   DateTime
@@ -105,6 +107,17 @@ fromLibertyState op lf =
       , Op.tokens = LF.tokens lf
       , Op.postFilter = LF.postFilter lf }
 
+
+showAllFields :: Op.T -> ParserE Error Op.T
+showAllFields op =
+  longNoArg (makeLongOpt . pack $ "show-all")
+  *> pure (op { Op.fields = pure True })
+
+hideAllFields :: Op.T -> ParserE Error Op.T
+hideAllFields op =
+  longNoArg (makeLongOpt . pack $ "hide-all")
+  *> pure (op { Op.fields = pure False })
+
 color :: S.Runtime -> ParserE Error CC.Colors
 color rt = do
   let lo = makeLongOpt . pack $ "color"
@@ -140,6 +153,7 @@ widthArg = do
   (_, t) <- longOneArg (makeLongOpt . pack $ "width")
   n <- Od.throwIf . Od.parseInt $ t
   return . Op.ReportWidth $ n
+
 
 pickField :: Text -> Maybe (a -> Fl.T a -> Fl.T a)
 pickField t

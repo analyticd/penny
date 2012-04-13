@@ -1,6 +1,8 @@
 -- | Fields that can appear in the Posts report.
 module Penny.Cabin.Posts.Fields where
 
+import Control.Applicative(Applicative(pure, (<*>)))
+
 data T a = T {
   postingNum :: a
   , visibleNum :: a
@@ -22,6 +24,68 @@ data T a = T {
   , memo :: a
   , filename :: a }
   deriving (Show, Eq)
+
+instance Functor T where
+  fmap f fa = T {
+    postingNum = f (postingNum fa)
+    , visibleNum = f (visibleNum fa)
+    , revPostingNum = f (revPostingNum fa)
+    , lineNum = f (lineNum fa)
+    , date = f (date fa)
+    , flag = f (flag fa)
+    , number = f (number fa)
+    , payee = f (payee fa)
+    , account = f (account fa)
+    , postingDrCr = f (postingDrCr fa)
+    , postingCmdty = f (postingCmdty fa)
+    , postingQty = f (postingQty fa)
+    , totalDrCr = f (totalDrCr fa)
+    , totalCmdty = f (totalCmdty fa)
+    , totalQty = f (totalQty fa)
+    , tags = f (tags fa)
+    , memo = f (memo fa)
+    , filename = f (filename fa) }
+
+instance Applicative T where
+  pure a = T {
+    postingNum = a
+    , visibleNum = a
+    , revPostingNum = a
+    , lineNum = a
+    , date = a
+    , flag = a
+    , number = a
+    , payee = a
+    , account = a
+    , postingDrCr = a
+    , postingCmdty = a
+    , postingQty = a
+    , totalDrCr = a
+    , totalCmdty = a
+    , totalQty = a
+    , tags = a
+    , memo = a
+    , filename = a }
+
+  ff <*> fa = T {
+    postingNum = postingNum ff (postingNum fa)
+    , visibleNum = visibleNum ff (visibleNum fa)
+    , revPostingNum = revPostingNum ff (revPostingNum fa)
+    , lineNum = lineNum ff (lineNum fa)
+    , date = date ff (date fa)
+    , flag = flag ff (flag fa)
+    , number = number ff (number fa)
+    , payee = payee ff (payee fa)
+    , account = account ff (account fa)
+    , postingDrCr = postingDrCr ff (postingDrCr fa)
+    , postingCmdty = postingCmdty ff (postingCmdty fa)
+    , postingQty = postingQty ff (postingQty fa)
+    , totalDrCr = totalDrCr ff (totalDrCr fa)
+    , totalCmdty = totalCmdty ff (totalCmdty fa)
+    , totalQty = totalQty ff (totalQty fa)
+    , tags = tags ff (tags fa)
+    , memo = memo ff (memo fa)
+    , filename = filename ff (filename fa) }
 
 t_postingNum :: a -> T a -> T a
 t_postingNum a f = f { postingNum = a }

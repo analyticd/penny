@@ -33,5 +33,9 @@ helpStr = unlines [
   "      date, flag, number, payee, account,",
   "      postingDrCr, postingCommodity, postingQty,",
   "      totalDrCr, totalCommodity, totalQty,",
-  "      tags, memo, filename"
+  "      tags, memo, filename",
+  "  --show-all",
+  "    Show all fields",
+  "  --hide-all",
+  "    Hide all fields"
   ]
