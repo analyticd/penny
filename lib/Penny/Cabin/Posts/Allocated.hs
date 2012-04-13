@@ -70,7 +70,7 @@ payeeAndAcct ::
   G.Fields (Maybe Int)
   -> Options.T
   -> [Info.T]
-  -> Fields (Maybe ([R.Cell], Int))
+  -> Fields (Maybe ([R.ColumnSpec], Int))
 payeeAndAcct fs os = allocateCells os ws where
   ws = fieldWidth os ss fs rw
   ss = O.spacers os
@@ -84,7 +84,7 @@ allocateCells ::
   Options.T
   -> Fields Int
   -> [Info.T]
-  -> Fields (Maybe ([R.Cell], Int))
+  -> Fields (Maybe ([R.ColumnSpec], Int))
 allocateCells os fs is = let
   cellMakers = Fields allocPayee allocAcct
   mkCells width maker =
@@ -99,11 +99,11 @@ allocateCells os fs is = let
 -- are as wide as the total space allocated. This function removes the
 -- extra space, making all the cells as wide as the widest
 -- cell. Returns the resized cells and the new width.
-removeExtraSpace :: [R.Cell] -> ([R.Cell], Int)
+removeExtraSpace :: [R.ColumnSpec] -> ([R.ColumnSpec], Int)
 removeExtraSpace cs = (trimmed, len) where
   len = Fdbl.foldl' f 0 cs where
-    f acc c = max acc (Fdbl.foldl' g 0 (R.chunks c)) where
-      g inAcc chk = max inAcc (C.unWidth . C.chunkSize $ chk)
+    f acc c = max acc (Fdbl.foldl' g 0 (R.bits c)) where
+      g inAcc chk = max inAcc (C.unWidth . C.bitWidth $ chk)
   trimmed = map f cs where
     f c = c { R.width = C.Width len }
 
@@ -220,46 +220,46 @@ sumGrowersAndSpacers fs ss = spacers + flds where
       Just i -> acc + i
 
 
-allocPayee :: Int -> Options.T -> Info.T -> R.Cell
+allocPayee :: Int -> Options.T -> Info.T -> R.ColumnSpec
 allocPayee w os i = let
   pb = I.postingBox i
   ts = PC.colors (I.visibleNum i) (O.baseColors os)
-  c = if w == 0 then R.zeroCell else R.Cell j (C.Width w) ts sq
+  c = R.ColumnSpec j (C.Width w) ts sq
   j = R.LeftJustify
   sq = case Q.payee pb of
-    Nothing -> Seq.empty
+    Nothing -> []
     Just pye -> let
-      wrapped = TF.unLines 
-                . TF.wordWrap w
-                . TF.txtWords
-                . HT.text
-                $ pye
-      toChunk (TF.Words seqTxts) =
-        C.chunk ts
+      wrapped =
+        Fdbl.toList
+        . TF.unLines 
+        . TF.wordWrap w
+        . TF.txtWords
+        . HT.text
+        $ pye
+      toBit (TF.Words seqTxts) =
+        C.bit ts
         . X.unwords
         . Fdbl.toList
         $ seqTxts
-      in fmap toChunk wrapped
+      in fmap toBit wrapped
   in c
 
 
-allocAcct :: Int -> Options.T -> Info.T -> R.Cell
+allocAcct :: Int -> Options.T -> Info.T -> R.ColumnSpec
 allocAcct aw os i = let
   pb = I.postingBox i
   ts = PC.colors (I.visibleNum i) (O.baseColors os) in
-  if aw == 0 then R.zeroCell else
-    R.Cell R.LeftJustify (C.Width aw) ts $ let
+  R.ColumnSpec R.LeftJustify (C.Width aw) ts $ let
     target = TF.Target aw
     shortest = TF.Shortest . O.subAccountLength $ os
     a = Q.account pb
     ws = TF.Words . Seq.fromList . HT.textList $ a
     (TF.Words shortened) = TF.shorten shortest target ws
-    in Seq.singleton
-       . C.chunk ts
+    in [C.bit ts
        . X.concat
        . intersperse (X.singleton ':')
        . Fdbl.toList
-       $ shortened
+       $ shortened]
 
 instance Functor Fields where
   fmap f i = Fields {

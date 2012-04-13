@@ -32,7 +32,6 @@ import qualified Data.Text as X
 import qualified Data.Traversable as T
 import qualified Penny.Cabin.Chunk as C
 import qualified Penny.Cabin.Row as R
-import Penny.Cabin.Row ((<<|))
 import qualified Penny.Cabin.TextFormat as TF
 import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Colors as PC
@@ -53,7 +52,7 @@ bottomRows ::
   -> A.Fields (Maybe Int)
   -> Options.T
   -> [Info.T]
-  -> Fields (Maybe [R.Row])
+  -> Fields (Maybe [[C.Bit]])
 bottomRows gf af os is = makeRows is pcs where
   pcs = infoProcessors topSpecs rw wanted
   wanted = requestedMakers os
@@ -105,27 +104,27 @@ newtype ContentWidth = ContentWidth Int deriving (Show, Eq)
 
 hanging ::
   [TopCellSpec]
-  -> Maybe ((Info.T -> Int -> (C.TextSpec, R.Cell))
-            -> Info.T -> R.Row)
+  -> Maybe ((Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
+            -> Info.T -> [C.Bit])
 hanging specs = hangingWidths specs
                 >>= return . hangingInfoProcessor
 
 hangingInfoProcessor ::
   Hanging Int
-  -> (Info.T -> Int -> (C.TextSpec, R.Cell))
+  -> (Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
   -> Info.T
-  -> R.Row
+  -> [C.Bit]
 hangingInfoProcessor widths mkr info = row where
-  row = left <<| mid <<| right <<| R.emptyRow
+  row = R.row [left, mid, right]
   (ts, mid) = mkr info (mainCell widths)
-  mkPad w = R.Cell R.LeftJustify (C.Width w) ts Seq.empty
+  mkPad w = R.ColumnSpec R.LeftJustify (C.Width w) ts []
   left = mkPad (leftPad widths)
   right = mkPad (rightPad widths)
 
 widthOfTopColumns ::
   [TopCellSpec]
-  -> Maybe ((Info.T -> Int -> (C.TextSpec, R.Cell))
-            -> Info.T -> R.Row)
+  -> Maybe ((Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
+            -> Info.T -> [C.Bit])
 widthOfTopColumns ts =
   if null ts
   then Nothing
@@ -137,18 +136,18 @@ widthOfTopColumns ts =
 
 widthOfReport ::
   O.ReportWidth
-  -> (Info.T -> Int -> (C.TextSpec, R.Cell))
+  -> (Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
   -> Info.T
-  -> R.Row
+  -> [C.Bit]
 widthOfReport (O.ReportWidth rw) fn info =
   makeSpecificWidth rw fn info
 
 chooseProcessor ::
   [TopCellSpec]
   -> O.ReportWidth
-  -> (Info.T -> Int -> (C.TextSpec, R.Cell))
+  -> (Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
   -> Info.T
-  -> R.Row
+  -> [C.Bit]
 chooseProcessor specs rw fn = let
   firstTwo = First (hanging specs)
              `mappend` First (widthOfTopColumns specs)
@@ -159,8 +158,8 @@ chooseProcessor specs rw fn = let
 infoProcessors ::
   [TopCellSpec]
   -> O.ReportWidth
-  -> Fields (Maybe (Info.T -> Int -> (C.TextSpec, R.Cell)))
-  -> Fields (Maybe (Info.T -> R.Row))
+  -> Fields (Maybe (Info.T -> Int -> (C.TextSpec, R.ColumnSpec)))
+  -> Fields (Maybe (Info.T -> [C.Bit]))
 infoProcessors specs rw flds = let
   chooser = chooseProcessor specs rw
   mkProcessor mayFn = case mayFn of
@@ -171,8 +170,8 @@ infoProcessors specs rw flds = let
 
 makeRows ::
   [Info.T]
-  -> Fields (Maybe (Info.T -> R.Row))
-  -> Fields (Maybe [R.Row])
+  -> Fields (Maybe (Info.T -> [C.Bit]))
+  -> Fields (Maybe [[C.Bit]])
 makeRows is flds = let
   mkRow fn = map fn is
   in fmap (fmap mkRow) flds
@@ -257,13 +256,13 @@ mergeWithSpacers t s = TopRowCells {
 
 -- | Applied to a function that, when applied to the width of a cell,
 -- returns a cell filled with data, returns a Row with that cell.
-makeSpecificWidth :: Int -> (Info.T -> Int -> (a, R.Cell))
-                     -> Info.T -> R.Row
-makeSpecificWidth w f i = c <<| R.emptyRow where
+makeSpecificWidth :: Int -> (Info.T -> Int -> (a, R.ColumnSpec))
+                     -> Info.T -> [C.Bit]
+makeSpecificWidth w f i = R.row [c] where
   (_, c) = f i w
 
 
-type Maker = Options.T -> Info.T -> Int -> (C.TextSpec, R.Cell)
+type Maker = Options.T -> Info.T -> Int -> (C.TextSpec, R.ColumnSpec)
 
 makers :: Fields Maker
 makers = Fields tagsCell memoCell filenameCell
@@ -273,19 +272,20 @@ makers = Fields tagsCell memoCell filenameCell
 -- field that the user wants to see.
 requestedMakers ::
   Options.T
-  -> Fields (Maybe (Info.T -> Int -> (C.TextSpec, R.Cell)))
+  -> Fields (Maybe (Info.T -> Int -> (C.TextSpec, R.ColumnSpec)))
 requestedMakers os = let
   flds = bottomRowsFields (O.fields os)
   filler b mkr = if b then Just $ mkr os else Nothing
   in filler <$> flds <*> makers
 
-tagsCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.Cell)
+tagsCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.ColumnSpec)
 tagsCell os info w = (ts, cell) where
   vn = Info.visibleNum info
-  cell = R.Cell R.LeftJustify (C.Width w) ts cs
+  cell = R.ColumnSpec R.LeftJustify (C.Width w) ts cs
   ts = PC.colors vn (O.baseColors os)
   cs =
-    fmap toChunk
+    Fdbl.toList
+    . fmap toBit
     . TF.unLines
     . TF.wordWrap w
     . TF.Words
@@ -295,13 +295,14 @@ tagsCell os info w = (ts, cell) where
     . Q.tags
     . Info.postingBox
     $ info
-  toChunk (TF.Words ws) = C.chunk ts t where
+  toBit (TF.Words ws) = C.bit ts t where
     t = X.concat . intersperse (X.singleton ' ') . Fdbl.toList $ ws
 
 
-memoChunks :: C.TextSpec -> L.Memo -> C.Width -> Seq.Seq C.Chunk
-memoChunks ts m (C.Width w) = cs where
-  cs = fmap toChunk
+memoBits :: C.TextSpec -> L.Memo -> C.Width -> [C.Bit]
+memoBits ts m (C.Width w) = cs where
+  cs = Fdbl.toList
+       . fmap toBit
        . TF.unLines
        . TF.wordWrap w
        . TF.Words
@@ -311,35 +312,35 @@ memoChunks ts m (C.Width w) = cs where
        . HT.Delimited (X.singleton ' ')
        . HT.textList
        $ m
-  toChunk (TF.Words ws) = C.chunk ts (X.unwords . Fdbl.toList $ ws)
+  toBit (TF.Words ws) = C.bit ts (X.unwords . Fdbl.toList $ ws)
 
 
-memoCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.Cell)
+memoCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.ColumnSpec)
 memoCell os info width = (ts, cell) where
   w = C.Width width
   vn = Info.visibleNum info
-  cell = R.Cell R.LeftJustify w ts cs
+  cell = R.ColumnSpec R.LeftJustify w ts cs
   ts = PC.colors vn (O.baseColors os)
   pm = Q.postingMemo . Info.postingBox $ info
   tm = Q.transactionMemo . Info.postingBox $ info
   nullMemo (L.Memo m) = null m
   cs = case (nullMemo pm, nullMemo tm) of
     (True, True) -> mempty
-    (False, True) -> memoChunks ts pm w
-    (True, False) -> memoChunks ts tm w
-    (False, False) -> memoChunks ts pm w `mappend` memoChunks ts tm w
+    (False, True) -> memoBits ts pm w
+    (True, False) -> memoBits ts tm w
+    (False, False) -> memoBits ts pm w `mappend` memoBits ts tm w
   
 
-filenameCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.Cell)
+filenameCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.ColumnSpec)
 filenameCell os info width = (ts, cell) where
   w = C.Width width
   vn = Info.visibleNum info
-  cell = R.Cell R.LeftJustify w ts cs
-  toChunk n = C.chunk ts
-              . X.drop (max 0 (X.length n - width)) $ n
+  cell = R.ColumnSpec R.LeftJustify w ts cs
+  toBit n = C.bit ts
+            . X.drop (max 0 (X.length n - width)) $ n
   cs = case Q.filename . Info.postingBox $ info of
-    Nothing -> Seq.empty
-    Just fn -> Seq.singleton . toChunk . L.unFilename $ fn
+    Nothing -> []
+    Just fn -> [toBit . L.unFilename $ fn]
   ts = PC.colors vn (O.baseColors os)
 
 
