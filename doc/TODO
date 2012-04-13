@@ -8,3 +8,4 @@
 
 * Add option to remove zero accounts from balance, posts reports
 
+* Fix colors on light backgrounds - many are invisible
