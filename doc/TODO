@@ -1,4 +1,11 @@
-* Fix bug with --show memo option to postings report. It is crashing
-   with Array.!: undefined array element.
+* Clean up error messages
 
-* Parse errors are not rendering with line breaks.
+* Write manual
+
+* Document APIs
+
+* Add price change report
+
+* Add option to remove zero accounts from balance, posts reports
+
+* Add --show-all and --hide-all fields options to Posts report
