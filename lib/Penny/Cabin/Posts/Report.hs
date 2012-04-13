@@ -1,4 +1,4 @@
-module Penny.Cabin.Posts.Report where
+module Penny.Cabin.Posts.Report (report) where
 
 import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.List.NonEmpty as NE
@@ -19,6 +19,7 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
 import Text.Matchers.Text (CaseSensitive)
 import qualified Data.Text as X
+import qualified Data.Text.Lazy as XL
 import System.Console.MultiArg.Prim (ParserE)
 import Penny.Liberty.Error (Error)
 
@@ -68,7 +69,7 @@ printReport ::
   -> (LT.PostingInfo -> Bool)
   -> ([Numbered.T] -> [Numbered.T])
   -> [LT.PostingInfo]
-  -> Maybe C.Chunk
+  -> Maybe XL.Text
 printReport os mainPred postFilt lInfos = case NE.nonEmpty lInfos of
   Nothing -> Nothing
   Just neInfos -> let
@@ -77,19 +78,20 @@ printReport os mainPred postFilt lInfos = case NE.nonEmpty lInfos of
             . numberPostings
             . balances
             $ neInfos
-    in Just $ makeChunk os infos
+    colors = Options.colorPref os
+    in Just . C.bitsToText colors . makeChunk os $ infos
 
 
 makeReportFunc ::
   Options.T
   -> [LT.PostingInfo]
   -> a
-  -> Ex.Exceptional X.Text C.Chunk
+  -> Ex.Exceptional X.Text XL.Text
 makeReportFunc o ps _ = case getPredicate (O.tokens o) of
   Nothing -> Ex.Exception (X.pack "postings: bad expression")
   Just p -> let pf = O.postFilter o in
     Ex.Success $ case printReport o p pf ps of
-      Nothing -> C.emptyChunk
+      Nothing -> XL.empty
       Just c -> c
 
 
@@ -98,14 +100,13 @@ makeReportParser ::
   -> S.Runtime
   -> CaseSensitive
   -> (CaseSensitive -> X.Text -> Ex.Exceptional X.Text (X.Text -> Bool))
-  -> ParserE Error (Iface.ReportFunc, C.ColorPref)
+  -> ParserE Error Iface.ReportFunc
 makeReportParser rf rt c fact = do
   let opts = (rf rt) { O.sensitive = c
                      , O.factory = fact }
-  opts' <- P.parseCommand (S.currentTime rt) opts
-  let colorPref = O.colorPref opts'
-      reportFunc = makeReportFunc opts'
-  return (reportFunc, colorPref)
+  opts' <- P.parseCommand (S.currentTime rt) rt opts
+  let reportFunc = makeReportFunc opts'
+  return reportFunc
 
 -- | Creates a Postings report. Apply this function to your
 -- customizations.

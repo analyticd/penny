@@ -8,12 +8,12 @@ import qualified Penny.Cabin.Balance.Help as H
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Shield as S
 
-balanceReport :: O.Options -> I.Report
-balanceReport os = I.Report H.help pr where
+balanceReport :: (S.Runtime -> O.Options) -> I.Report
+balanceReport getOpts = I.Report H.help pr where
   pr rt _ _ = do
-    (f, _) <- P.parser rt os
+    (f, _) <- P.parser rt (getOpts rt)
     let f' infos _ = return (f infos)
     return f'
 
-defaultBalanceReport :: S.Runtime -> I.Report
-defaultBalanceReport rt = balanceReport (O.defaultOptions rt)
+defaultBalanceReport :: I.Report
+defaultBalanceReport = balanceReport O.defaultOptions

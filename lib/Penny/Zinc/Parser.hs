@@ -3,7 +3,6 @@ module Penny.Zinc.Parser where
 import qualified Data.List.NonEmpty as NE
 import System.Console.MultiArg.Prim (ParserE)
 import qualified Penny.Liberty.Types as T
-import Penny.Cabin.Chunk (ColorPref)
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Liberty.Error as E
 import qualified Penny.Shield as S
@@ -18,7 +17,6 @@ import Penny.Lincoln.Boxes (PostingBox)
 data Result =
   Result { sorterFilterWithPost :: [PostingBox] -> [T.PostingInfo]
          , reportFunc :: I.ReportFunc
-         , colors :: ColorPref
          , filenames :: NE.NonEmpty L.Filename }
 
 parser ::
@@ -35,7 +33,7 @@ parser rt dtz rg rpts = do
       let sensitive = F.resultSensitive filtResult
           factory = F.resultFactory filtResult
           filt = F.sorterFilterer filtResult
-      (rpt, cs) <- R.report rt rpts sensitive factory
+      rpt <- R.report rt rpts sensitive factory
       fns <- L.filenames
-      return . Right $ Result filt rpt cs fns
+      return . Right $ Result filt rpt fns
   

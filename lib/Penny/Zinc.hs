@@ -7,14 +7,15 @@ import Data.Monoid (mappend, mconcat)
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import Data.Text (Text, pack)
+import qualified Data.Text.Lazy as XL
 import qualified Data.Text.IO as TIO
+import qualified Data.Text.Lazy.IO as LIO
 import qualified Data.Traversable as T
 import System.Console.MultiArg.Prim (parseE)
 import System.Console.MultiArg.GetArgs (getArgs)
 import System.Exit (exitFailure, exitSuccess)
 import System.IO (stderr)
 
-import qualified Penny.Cabin.Chunk as Col
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Copper as Cop
 import Penny.Lincoln.Boxes (PostingBox, postingBoxes)
@@ -32,7 +33,7 @@ reportChunk ::
   -> NE.NonEmpty (L.Filename, Text)
   -> ([PostingBox] -> [T.PostingInfo])
   -> I.ReportFunc
-  -> Ex.Exceptional ZE.Error Col.Chunk
+  -> Ex.Exceptional ZE.Error XL.Text
 reportChunk dtz rg fs filt rf = do
   ps <- L.combineData <$> T.traverse (L.parseLedger dtz rg) fs
   let processedPostings = filt . postingBoxes . fst $ ps
@@ -59,12 +60,11 @@ zincMain dtz rg rs = do
   legs <- L.readLedgers (P.filenames parseRes)
   let filt = P.sorterFilterWithPost parseRes
       rpt = P.reportFunc parseRes
-      cp = P.colors parseRes
   case reportChunk dtz rg legs filt rpt of
     Ex.Exception err -> do
       TIO.putStrLn . ZE.printError $ err
       exitFailure
-    Ex.Success g -> Col.printChunk cp g >> exitSuccess
+    Ex.Success g -> LIO.putStr g >> exitSuccess
 
 
 helpText ::

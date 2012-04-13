@@ -1,4 +1,4 @@
-module Penny.Cabin.Balance.Parser where
+module Penny.Cabin.Balance.Parser (parser) where
 
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL

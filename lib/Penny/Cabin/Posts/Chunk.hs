@@ -3,7 +3,6 @@ module Penny.Cabin.Posts.Chunk (makeChunk) where
 import qualified Data.Foldable as Fdbl
 import Data.List (transpose)
 import Data.Maybe (isNothing, catMaybes)
-import qualified Data.Sequence as Seq
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Posts.BottomRows as B
@@ -13,7 +12,7 @@ import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Chunk as C
 import qualified Penny.Cabin.Colors as PC
 
-makeChunk :: Options.T -> [Info.T] -> C.Chunk
+makeChunk :: Options.T -> [Info.T] -> [C.Bit]
 makeChunk os is = let
   fmapSnd flds = fmap (fmap snd) flds
   fmapFst flds = fmap (fmap fst) flds
@@ -26,14 +25,13 @@ makeChunk os is = let
   withSpacers = B.mergeWithSpacers topCells (Options.spacers os)
   topRows = makeTopRows (Options.baseColors os) withSpacers
   bottomRows = makeBottomRows bFlds
-  rws = makeAllRows topRows bottomRows
-  in R.chunk rws
+  in makeAllRows topRows bottomRows
 
 
 topRowsCells ::
   PC.BaseColors
-  -> B.TopRowCells (Maybe [R.Cell], Maybe Int)
-  -> [[(R.Cell, Maybe R.Cell)]]
+  -> B.TopRowCells (Maybe [R.ColumnSpec], Maybe Int)
+  -> [[(R.ColumnSpec, Maybe R.ColumnSpec)]]
 topRowsCells bc t = let
   toWithSpc (mayCs, maySp) = case mayCs of
     Nothing -> Nothing
@@ -43,42 +41,41 @@ topRowsCells bc t = let
     (Just pairList) -> pairList : acc
   in transpose $ Fdbl.foldr f [] (fmap toWithSpc t)
 
-makeRow :: [(R.Cell, Maybe R.Cell)] -> R.Row
-makeRow ls = let
-  cells = foldr f [] ls where
-    f (c, mayC) acc = case mayC of
-      Nothing -> c:acc
-      Just spcr -> c:spcr:acc
-  in Fdbl.foldl' R.appendCell R.emptyRow cells
+makeRow :: [(R.ColumnSpec, Maybe R.ColumnSpec)] -> [C.Bit]
+makeRow = R.row . foldr f [] where
+  f (c, mayC) acc = case mayC of
+    Nothing -> c:acc
+    Just spcr -> c:spcr:acc
+
 
 makeSpacers ::
   PC.BaseColors
-  -> [R.Cell]
+  -> [R.ColumnSpec]
   -> Maybe Int
-  -> [(R.Cell, Maybe R.Cell)]
+  -> [(R.ColumnSpec, Maybe R.ColumnSpec)]
 makeSpacers bc cs mayI = case mayI of
   Nothing -> map (\c -> (c, Nothing)) cs
   Just i -> makeEvenOddSpacers bc cs i
 
 makeEvenOddSpacers ::
   PC.BaseColors
-  -> [R.Cell]
+  -> [R.ColumnSpec]
   -> Int
-  -> [(R.Cell, Maybe R.Cell)]
+  -> [(R.ColumnSpec, Maybe R.ColumnSpec)]
 makeEvenOddSpacers bc cs i = let absI = abs i in
   if absI == 0
   then map (\c -> (c, Nothing)) cs
   else let
     spcrs = cycle [Just $ mkSpcr evenTs, Just $ mkSpcr oddTs]
-    mkSpcr ts = R.Cell R.LeftJustify (C.Width absI) ts Seq.empty
+    mkSpcr ts = R.ColumnSpec R.LeftJustify (C.Width absI) ts []
     evenTs = PC.evenColors bc
     oddTs = PC.oddColors bc
     in zip cs spcrs
 
 makeTopRows ::
   PC.BaseColors
-  -> B.TopRowCells (Maybe [R.Cell], Maybe Int)
-  -> Maybe [R.Row]
+  -> B.TopRowCells (Maybe [R.ColumnSpec], Maybe Int)
+  -> Maybe [[C.Bit]]
 makeTopRows bc trc =
   if Fdbl.all (isNothing . fst) trc
   then Nothing
@@ -86,22 +83,19 @@ makeTopRows bc trc =
 
 
 makeBottomRows ::
-  B.Fields (Maybe [R.Row])
-  -> Maybe [[R.Row]]
+  B.Fields (Maybe [[C.Bit]])
+  -> Maybe [[[C.Bit]]]
 makeBottomRows flds =
   if Fdbl.all isNothing flds
   then Nothing
   else Just . transpose . catMaybes . Fdbl.toList $ flds
 
-makeAllRows :: Maybe [R.Row] -> Maybe [[R.Row]] -> R.Rows
+makeAllRows :: Maybe [[C.Bit]] -> Maybe [[[C.Bit]]] -> [C.Bit]
 makeAllRows mayrs mayrrs = case (mayrs, mayrrs) of
-  (Nothing, Nothing) -> R.emptyRows
-  (Just rs, Nothing) -> Fdbl.foldl' R.appendRow R.emptyRows rs
-  (Nothing, Just rrs) ->
-    Fdbl.foldl' R.appendRow R.emptyRows (concat rrs)
-  (Just rs, Just rrs) ->
-    Fdbl.foldl' addRows  R.emptyRows (zip rs rrs) where 
-      addRows rws (tr, brs) = let
-        withTopRow = rws `R.appendRow` tr
-        in Fdbl.foldl' R.appendRow withTopRow brs
+  (Nothing, Nothing) -> []
+  (Just rs, Nothing) -> concat rs
+  (Nothing, Just rrs) -> concat . concat $ rrs
+  (Just rs, Just rrs) -> concat $ zipWith f rs rrs where
+    f topRow botRows = concat [topRow, concat botRows]
+
 
