@@ -10,7 +10,6 @@ import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
 import qualified Data.Semigroup as Semi
 import Data.Semigroup ((<>))
-import qualified Data.Sequence as Seq
 import Data.Text (Text, pack, empty)
 import qualified Data.Text as X
 import qualified Penny.Cabin.Chunk as C
@@ -39,32 +38,45 @@ import qualified Penny.Lincoln.Queries as Q
 growCells ::
   Options.T
   -> [Info.T]
-  -> Fields (Maybe ([R.Cell], Int))
+  -> Fields (Maybe ([R.ColumnSpec], Int))
 growCells o infos = toPair <$> wanted <*> growers where
   toPair b gwr
     | b = let
-      w = Fdbl.foldl' f 0 cs
-      f acc c = max acc (C.unWidth . R.widestLine . R.chunks $ c)
-      cs = map (resizer w . gwr o) infos
-      resizer i c = c { R.width = C.Width i }
-      in if w > 0 then Just (cs, w) else Nothing
+      cs = map (gwr o) infos
+      w = Fdbl.foldl' f 0 cs where
+        f acc c = max acc (widestLine c)
+      cs' = map (sizer (R.Width w)) cs
+      in if w > 0 then Just (cs', w) else Nothing
     | otherwise = Nothing
   wanted = growingFields o
-    
+
+widestLine :: PreSpec -> Int
+widestLine (PreSpec _ _ bs) =
+  maximum . map (R.unWidth . C.bitWidth) $ bs
+
+data PreSpec = PreSpec {
+  _justification :: R.Justification
+  , _padSpec :: C.TextSpec
+  , _bits :: [C.Bit] }
+
+
+-- | Given a PreSpec and a width, create a ColumnSpec of the right
+-- size.
+sizer :: R.Width -> PreSpec -> R.ColumnSpec
+sizer w (PreSpec j ts bs) = R.ColumnSpec j w ts bs
 
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
-oneLine :: Text -> Options.T -> Info.T -> R.Cell
+oneLine :: Text -> Options.T -> Info.T -> PreSpec
 oneLine t os i = let
   bc = Options.baseColors os
   vn = I.visibleNum i
   ts = PC.colors vn bc
-  w = C.Width 0
   j = R.LeftJustify
-  chunk = Seq.singleton . C.chunk ts $ t
-  in R.Cell j w ts chunk
+  bit = C.bit ts t
+  in PreSpec j ts [bit]
 
-growers :: Fields (Options.T -> Info.T -> R.Cell)
+growers :: Fields (Options.T -> Info.T -> PreSpec)
 growers = Fields {
   postingNum = getPostingNum
   , visibleNum = getVisibleNum
@@ -80,32 +92,32 @@ growers = Fields {
   , totalCmdty = getTotalCmdty
   , totalQty = getTotalQty }
 
-getPostingNum :: Options.T -> Info.T -> R.Cell
+getPostingNum :: Options.T -> Info.T -> PreSpec
 getPostingNum os i = oneLine t os i where
   t = pack . show . I.unPostingNum . I.postingNum $ i
 
-getVisibleNum :: Options.T -> Info.T -> R.Cell
+getVisibleNum :: Options.T -> Info.T -> PreSpec
 getVisibleNum os i = oneLine t os i where
   t = pack . show . I.unVisibleNum . I.visibleNum $ i
 
-getRevPostingNum :: Options.T -> Info.T -> R.Cell
+getRevPostingNum :: Options.T -> Info.T -> PreSpec
 getRevPostingNum os i = oneLine t os i where
   t = pack . show . I.unRevPostingNum . I.revPostingNum $ i
 
-getLineNum :: Options.T -> Info.T -> R.Cell
+getLineNum :: Options.T -> Info.T -> PreSpec
 getLineNum os i = oneLine t os i where
   lineTxt = pack . show . L.unLine . L.unPostingLine
   t = maybe empty lineTxt (Q.postingLine . I.postingBox $ i)
 
-getDate :: Options.T -> Info.T -> R.Cell
+getDate :: Options.T -> Info.T -> PreSpec
 getDate os i = oneLine t os i where
   t = O.dateFormat os i
 
-getFlag :: Options.T -> Info.T -> R.Cell
+getFlag :: Options.T -> Info.T -> PreSpec
 getFlag os i = oneLine t os i where
   t = maybe empty L.text (Q.flag . I.postingBox $ i)
 
-getNumber :: Options.T -> Info.T -> R.Cell
+getNumber :: Options.T -> Info.T -> PreSpec
 getNumber os i = oneLine t os i where
   t = maybe empty L.text (Q.number . I.postingBox $ i)
 
@@ -115,43 +127,41 @@ dcTxt L.Credit = pack "Cr"
 
 -- | Gives a one-line cell that is colored according to whether the
 -- posting is a debit or credit.
-coloredPostingCell :: Text -> Options.T -> Info.T -> R.Cell
-coloredPostingCell t os i = R.Cell j w ts chunk where
+coloredPostingCell :: Text -> Options.T -> Info.T -> PreSpec
+coloredPostingCell t os i = PreSpec j ts [bit] where
   j = R.LeftJustify
-  w = C.Width 0
-  chunk = Seq.singleton . C.chunk ts $ t
+  bit = C.bit ts t
   dc = Q.drCr . I.postingBox $ i
   ts = PC.colors (I.visibleNum i)
        . PC.drCrToBaseColors dc
        . O.drCrColors
        $ os
 
-getPostingDrCr :: Options.T -> Info.T -> R.Cell
+getPostingDrCr :: Options.T -> Info.T -> PreSpec
 getPostingDrCr os i = coloredPostingCell t os i where
   t = dcTxt . Q.drCr . I.postingBox $ i
 
-getPostingCmdty :: Options.T -> Info.T -> R.Cell
+getPostingCmdty :: Options.T -> Info.T -> PreSpec
 getPostingCmdty os i = coloredPostingCell t os i where
   t = L.text . L.Delimited (X.singleton ':') 
       . L.textList . Q.commodity . I.postingBox $ i
 
-getPostingQty :: Options.T -> Info.T -> R.Cell
+getPostingQty :: Options.T -> Info.T -> PreSpec
 getPostingQty os i = coloredPostingCell t os i where
   t = O.qtyFormat os i
 
-getTotalDrCr :: Options.T -> Info.T -> R.Cell
+getTotalDrCr :: Options.T -> Info.T -> PreSpec
 getTotalDrCr os i = let
   vn = I.visibleNum i
   ts = PC.colors vn bc
   bc = PC.drCrToBaseColors dc (O.drCrColors os)
   dc = Q.drCr . I.postingBox $ i
-  cs = fmap toChunk
-       . Seq.fromList
+  cs = fmap toBit
        . M.elems
        . L.unBalance
        . I.balance
        $ i
-  toChunk bl = let
+  toBit bl = let
     spec = 
       PC.colors vn
       . PC.bottomLineToBaseColors (O.drCrColors os)
@@ -159,26 +169,23 @@ getTotalDrCr os i = let
     txt = case bl of
       L.Zero -> pack "--"
       L.NonZero (L.Column clmDrCr _) -> dcTxt clmDrCr
-    in C.chunk spec txt
+    in C.bit spec txt
   j = R.LeftJustify
-  w = C.Width 0
-  in R.Cell j w ts cs
+  in PreSpec j ts cs
 
-getTotalCmdty :: Options.T -> Info.T -> R.Cell
+getTotalCmdty :: Options.T -> Info.T -> PreSpec
 getTotalCmdty os i = let
   vn = I.visibleNum i
   j = R.RightJustify
-  w = C.Width 0
   ts = PC.colors vn bc
   bc = PC.drCrToBaseColors dc (O.drCrColors os)
   dc = Q.drCr . I.postingBox $ i
-  cs = fmap toChunk
-       . Seq.fromList
+  cs = fmap toBit
        . M.assocs
        . L.unBalance
        . I.balance
        $ i
-  toChunk (com, nou) = let
+  toBit (com, nou) = let
     spec =
       PC.colors vn
       . PC.bottomLineToBaseColors (O.drCrColors os)
@@ -187,10 +194,10 @@ getTotalCmdty os i = let
           . L.Delimited (X.singleton ':')
           . L.textList
           $ com
-    in C.chunk spec txt
-  in R.Cell j w ts cs
+    in C.bit spec txt
+  in PreSpec j ts cs
 
-getTotalQty :: Options.T -> Info.T -> R.Cell
+getTotalQty :: Options.T -> Info.T -> PreSpec
 getTotalQty os i = let
   vn = I.visibleNum i
   j = R.LeftJustify
@@ -198,7 +205,6 @@ getTotalQty os i = let
   bc = PC.drCrToBaseColors dc (O.drCrColors os)
   dc = Q.drCr . I.postingBox $ i
   cs = fmap toChunk
-       . Seq.fromList
        . M.assocs
        . L.unBalance
        . I.balance
@@ -209,9 +215,8 @@ getTotalQty os i = let
       . PC.bottomLineToBaseColors (O.drCrColors os)
       $ nou
     txt = O.balanceFormat os com nou
-    in C.chunk spec txt
-  w = C.Width 0
-  in R.Cell j w ts cs
+    in C.bit spec txt
+  in PreSpec j ts cs
 
 growingFields :: Options.T -> Fields Bool
 growingFields o = let
