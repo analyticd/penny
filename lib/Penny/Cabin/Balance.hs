@@ -1,5 +1,6 @@
 -- | The Penny balance report
 module Penny.Cabin.Balance (balanceReport, O.defaultOptions,
+                            O.Options(..),
                             defaultBalanceReport) where
 
 import qualified Penny.Cabin.Balance.Parser as P

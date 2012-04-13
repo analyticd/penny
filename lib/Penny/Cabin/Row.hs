@@ -33,11 +33,10 @@ data JustifiedColumn = JustifiedColumn {
   , _justifiedWidth :: C.Width
   , _justifiedPadSpec :: C.TextSpec }
 
-data PaddedColumns = PaddedColumns {
-  _paddedCells :: [[JustifiedCell]]
-  , _paddedHeight :: Height }
+newtype PaddedColumns = PaddedColumns [[JustifiedCell]]
+newtype CellsByRow = CellsByRow [[JustifiedCell]]
+newtype CellRowsWithNewlines = CellRowsWithNewlines [[JustifiedCell]]
 
-newtype WithNewlineColumn = WithNewlineColumn [[JustifiedCell]]
 
 justify ::
   C.TextSpec
@@ -67,7 +66,8 @@ row =
   concat
   . concat
   . toBits
-  . withNewlineColumn
+  . toCellRowsWithNewlines
+  . toCellsByRow
   . bottomPad
   . map justifiedColumn
 
@@ -76,7 +76,7 @@ justifiedColumn (ColumnSpec j w ts bs) = JustifiedColumn cs w ts where
   cs = map (justify ts w j) $ bs
 
 bottomPad :: [JustifiedColumn] -> PaddedColumns
-bottomPad jcs = PaddedColumns pcs (Height h) where
+bottomPad jcs = PaddedColumns pcs where
   justCells = map justifiedCells jcs
   (Height h) = height justCells
   pcs = map toPaddedColumn jcs
@@ -91,17 +91,23 @@ bottomPad jcs = PaddedColumns pcs (Height h) where
       | otherwise = cs
     in cs'
 
-withNewlineColumn :: PaddedColumns -> WithNewlineColumn
-withNewlineColumn (PaddedColumns cs (Height h)) =
-  WithNewlineColumn cs' where
-    newlineList = replicate h newline
-    newline = [JustifiedCell . Right
-               $ C.bit C.defaultTextSpec (X.singleton '\n')]
-    cs' = cs ++ newlineList
 
-toBits :: WithNewlineColumn -> [[[C.Bit]]]
-toBits (WithNewlineColumn cs) = map (map toB) . transpose $ cs where
+toCellsByRow :: PaddedColumns -> CellsByRow
+toCellsByRow (PaddedColumns cs) = CellsByRow (transpose cs)
+
+
+toCellRowsWithNewlines :: CellsByRow -> CellRowsWithNewlines
+toCellRowsWithNewlines (CellsByRow bs) =
+  CellRowsWithNewlines bs' where
+    bs' = foldr f [] bs
+    newline = JustifiedCell . Right
+              $ C.bit C.defaultTextSpec (X.singleton '\n')
+    f cells acc = (cells ++ [newline]) : acc
+    
+
+toBits :: CellRowsWithNewlines -> [[[C.Bit]]]
+toBits (CellRowsWithNewlines cs) = map (map toB) cs where
   toB (JustifiedCell c) = case c of
     Left (lb, rb) -> [lb, rb]
     Right b -> [b]
-    
+
