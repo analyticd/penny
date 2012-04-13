@@ -1,6 +1,7 @@
 module Penny.Cabin.Balance.Parser where
 
 import qualified Data.Text as X
+import qualified Data.Text.Lazy as XL
 import Control.Applicative ((<|>))
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Colors.DarkBackground as DB
@@ -8,24 +9,29 @@ import qualified Penny.Cabin.Colors.LightBackground as LB
 import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Balance.Tree as Tree
+import qualified Penny.Cabin.Options as CO
 import qualified Penny.Liberty.Combinator as LC
 import qualified Penny.Liberty.Error as E
 import qualified Penny.Liberty.Types as LT
+import qualified Penny.Shield as S
 import qualified System.Console.MultiArg.Prim as P
 import qualified System.Console.MultiArg.Combinator as C
 import qualified System.Console.MultiArg.Option as Opt
 
 parser ::
-  O.Options
-  -> P.ParserE E.Error ([LT.PostingInfo] -> Chk.Chunk, O.Options)
-parser os = do
+  S.Runtime
+  -> O.Options
+  -> P.ParserE E.Error ([LT.PostingInfo] -> XL.Text, O.Options)
+parser rt os = do
   command
-  os' <- opts os
-  return (Tree.report os', os')
+  os' <- opts rt os
+  let toTxt = Chk.bitsToText (O.colorPref os') . concat
+              . Tree.report os'
+  return (toTxt, os')
 
-opts :: O.Options -> P.ParserE E.Error O.Options
-opts os = let
-  p o = color o
+opts :: S.Runtime -> O.Options -> P.ParserE E.Error O.Options
+opts rt os = let
+  p o = color rt o
         <|> background o
   in do
     ls <- LC.runUntilFailure p os
@@ -40,18 +46,21 @@ command = P.try $ do
     then return ()
     else P.throw (E.UnexpectedWord (X.pack "balance") n)
 
-color :: O.Options -> P.ParserE E.Error O.Options
-color os = do
+color :: S.Runtime -> O.Options -> P.ParserE E.Error O.Options
+color rt os = do
   (_, a) <- C.longOneArg (Opt.makeLongOpt (X.pack "color"))
-  c <- processColorArg a
+  c <- processColorArg rt a
   return $ os { O.colorPref = c }
 
-processColorArg :: X.Text -> P.ParserE E.Error Chk.ColorPref
-processColorArg x
-  | x == X.pack "yes" = return Chk.Pref8
-  | x == X.pack "no" = return Chk.Pref0
-  | x == X.pack "auto" = return Chk.PrefAuto
-  | x == X.pack "256" = return Chk.Pref256
+processColorArg ::
+  S.Runtime
+  -> X.Text
+  -> P.ParserE E.Error Chk.Colors
+processColorArg rt x
+  | x == X.pack "yes" = return Chk.Colors8
+  | x == X.pack "no" = return Chk.Colors0
+  | x == X.pack "auto" = return Chk.Colors256
+  | x == X.pack "256" = return (CO.maxCapableColors rt)
   | otherwise = P.throw (E.BadColorName x)
 
 background :: O.Options -> P.ParserE E.Error O.Options
