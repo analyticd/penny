@@ -23,6 +23,7 @@ import qualified Data.Monoid as Monoid
 import qualified Penny.Cabin.Balance.NestedMap as NM
 import qualified Data.Text as X
 import qualified Data.Traversable as Tr
+import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
@@ -39,7 +40,7 @@ newtype FlatMap = FlatMap { _unFlatMap :: M.Map L.Account Bal.Balance }
 
 toFlatMap :: O.Options -> [LT.PostingInfo] -> FlatMap
 toFlatMap o = FlatMap . foldr f M.empty where
-  remove = not . O.unShowZeroBalances . O.showZeroBalances $ o
+  remove = not . CO.unShowZeroBalances . O.showZeroBalances $ o
   f i m =
     let pb = LT.postingBox i
         a = Q.account pb

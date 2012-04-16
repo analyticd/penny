@@ -41,3 +41,7 @@ bottomLineToBaseColors col no = case no of
   Bal.Zero -> BaseColors (evenZero col) (oddZero col)
   Bal.NonZero column -> drCrToBaseColors (Bal.drCr column) col
   
+-- | TextSpec to use when showing the lack of a balance.
+noBalanceColors :: I.VisibleNum -> DrCrColors -> C.TextSpec
+noBalanceColors (I.VisibleNum vn) dc =
+  if odd vn then oddZero dc else evenZero dc

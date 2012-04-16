@@ -6,6 +6,7 @@ import qualified Data.Traversable as Tr
 import qualified Penny.Cabin.Interface as Iface
 import Penny.Cabin.Posts.Help (help)
 import Penny.Cabin.Posts.Chunk (makeChunk)
+import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Posts.Info as Info
 import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Options as Options
@@ -23,23 +24,29 @@ import qualified Data.Text.Lazy as XL
 import System.Console.MultiArg.Prim (ParserE)
 import Penny.Liberty.Error (Error)
 
-balanceAccum :: Maybe Bal.Balance
-                -> LT.PostingInfo
-                -> (Maybe Bal.Balance, (LT.PostingInfo, Bal.Balance))
-balanceAccum mb po = (Just bal', (po, bal')) where
-  bal' = let
-    balThis = Bal.entryToBalance . Q.entry . LT.postingBox $ po
-    in case mb of
-      Nothing -> balThis
-      Just balOld -> Bal.addBalances balOld balThis
+balanceAccum :: 
+  CO.ShowZeroBalances
+  -> Maybe Bal.Balance
+  -> LT.PostingInfo
+  -> (Maybe Bal.Balance, (LT.PostingInfo, Maybe Bal.Balance))
+balanceAccum (CO.ShowZeroBalances szb) mb po =
+  let balThis = Bal.entryToBalance . Q.entry . LT.postingBox $ po
+      balNew = case mb of
+        Nothing -> balThis
+        Just balOld -> Bal.addBalances balOld balThis
+      balNoZeroes = Bal.removeZeroCommodities balNew
+      bal' = if szb then Just balNew else balNoZeroes
+  in (bal', (po, bal'))
 
-balances :: NE.NonEmpty LT.PostingInfo
-            -> NE.NonEmpty (LT.PostingInfo, Bal.Balance)
-balances = snd . Tr.mapAccumL balanceAccum Nothing
+balances ::
+  CO.ShowZeroBalances
+  -> NE.NonEmpty LT.PostingInfo
+  -> NE.NonEmpty (LT.PostingInfo, Maybe Bal.Balance)
+balances szb = snd . Tr.mapAccumL (balanceAccum szb) Nothing
 
 
 numberPostings ::
-  NE.NonEmpty (LT.PostingInfo, Bal.Balance)
+  NE.NonEmpty (LT.PostingInfo, Maybe Bal.Balance)
   -> NE.NonEmpty Numbered.T
 numberPostings ls = NE.reverse reversed where
   withPostingNums = NE.zipWith f ls ns where
@@ -76,7 +83,7 @@ printReport os mainPred postFilt lInfos = case NE.nonEmpty lInfos of
     infos = addVisibleNum
             . filterToVisible mainPred postFilt
             . numberPostings
-            . balances
+            . balances (O.showZeroBalances os)
             $ neInfos
     colors = Options.colorPref os
     in Just . C.bitsToText colors . makeChunk os $ infos

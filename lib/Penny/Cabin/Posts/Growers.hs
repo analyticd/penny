@@ -156,22 +156,23 @@ getTotalDrCr os i = let
   ts = PC.colors vn bc
   bc = PC.drCrToBaseColors dc (O.drCrColors os)
   dc = Q.drCr . I.postingBox $ i
-  cs = fmap toBit
-       . M.elems
-       . L.unBalance
-       . I.balance
-       $ i
-  toBit bl = let
-    spec = 
-      PC.colors vn
-      . PC.bottomLineToBaseColors (O.drCrColors os)
-      $ bl
-    txt = case bl of
-      L.Zero -> pack "--"
-      L.NonZero (L.Column clmDrCr _) -> dcTxt clmDrCr
-    in C.bit spec txt
+  bits = case I.balance i of
+    Nothing -> let
+      spec = PC.noBalanceColors vn (O.drCrColors os)
+      in [C.bit spec (pack "--")]
+    Just bal -> let
+      toBit bl = let
+        spec = 
+          PC.colors vn
+          . PC.bottomLineToBaseColors (O.drCrColors os)
+          $ bl
+        txt = case bl of
+          L.Zero -> pack "--"
+          L.NonZero (L.Column clmDrCr _) -> dcTxt clmDrCr
+        in C.bit spec txt
+      in fmap toBit . M.elems . L.unBalance $ bal
   j = R.LeftJustify
-  in PreSpec j ts cs
+  in PreSpec j ts bits
 
 getTotalCmdty :: Options.T -> Info.T -> PreSpec
 getTotalCmdty os i = let
@@ -180,22 +181,23 @@ getTotalCmdty os i = let
   ts = PC.colors vn bc
   bc = PC.drCrToBaseColors dc (O.drCrColors os)
   dc = Q.drCr . I.postingBox $ i
-  cs = fmap toBit
-       . M.assocs
-       . L.unBalance
-       . I.balance
-       $ i
-  toBit (com, nou) = let
-    spec =
-      PC.colors vn
-      . PC.bottomLineToBaseColors (O.drCrColors os)
-      $ nou
-    txt = L.text
-          . L.Delimited (X.singleton ':')
-          . L.textList
-          $ com
-    in C.bit spec txt
-  in PreSpec j ts cs
+  bits = case I.balance i of
+    Nothing -> let
+      spec = PC.noBalanceColors vn (O.drCrColors os)
+      in [C.bit spec (pack "--")]
+    Just bal -> let
+      toBit (com, nou) = let
+        spec =
+          PC.colors vn
+          . PC.bottomLineToBaseColors (O.drCrColors os)
+          $ nou
+        txt = L.text
+              . L.Delimited (X.singleton ':')
+              . L.textList
+              $ com
+        in C.bit spec txt
+      in fmap toBit . M.assocs . L.unBalance $ bal
+  in PreSpec j ts bits
 
 getTotalQty :: Options.T -> Info.T -> PreSpec
 getTotalQty os i = let
@@ -204,19 +206,19 @@ getTotalQty os i = let
   ts = PC.colors vn bc
   bc = PC.drCrToBaseColors dc (O.drCrColors os)
   dc = Q.drCr . I.postingBox $ i
-  cs = fmap toChunk
-       . M.assocs
-       . L.unBalance
-       . I.balance
-       $ i
-  toChunk (com, nou) = let
-    spec = 
-      PC.colors vn
-      . PC.bottomLineToBaseColors (O.drCrColors os)
-      $ nou
-    txt = O.balanceFormat os com nou
-    in C.bit spec txt
-  in PreSpec j ts cs
+  bits = case I.balance i of
+    Nothing -> let
+      spec = PC.noBalanceColors vn (O.drCrColors os)
+      in [C.bit spec (pack "--")]
+    Just bal -> fmap toChunk . M.assocs . L.unBalance $ bal where
+      toChunk (com, nou) = let
+        spec = 
+          PC.colors vn
+          . PC.bottomLineToBaseColors (O.drCrColors os)
+          $ nou
+        txt = O.balanceFormat os com nou
+        in C.bit spec txt
+  in PreSpec j ts bits
 
 growingFields :: Options.T -> Fields Bool
 growingFields o = let

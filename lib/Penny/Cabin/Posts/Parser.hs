@@ -1,6 +1,6 @@
 module Penny.Cabin.Posts.Parser (parseCommand) where
 
-import Control.Applicative ((<|>), (<$>), (*>), pure)
+import Control.Applicative ((<|>), (<$>), (*>), pure, (<$))
 import Data.Text (Text, pack)
 import System.Console.MultiArg.Combinator (longOneArg, option, longNoArg)
 import System.Console.MultiArg.Option (makeLongOpt)
@@ -57,6 +57,8 @@ parseArg dt rt op =
   <|> hideField op
   <|> showAllFields op
   <|> hideAllFields op
+  <|> showZeroBalances op
+  <|> hideZeroBalances op
 
 wrapLiberty ::
   DateTime
@@ -117,6 +119,16 @@ hideAllFields :: Op.T -> ParserE Error Op.T
 hideAllFields op =
   longNoArg (makeLongOpt . pack $ "hide-all")
   *> pure (op { Op.fields = pure False })
+
+showZeroBalances :: Op.T -> ParserE Error Op.T
+showZeroBalances op = op' <$ opt where
+  op' = op { Op.showZeroBalances = CO.ShowZeroBalances True }
+  opt = longNoArg (makeLongOpt . pack $ "show-zero-balances")
+
+hideZeroBalances :: Op.T -> ParserE Error Op.T
+hideZeroBalances op = op' <$ opt where
+  op' = op { Op.showZeroBalances = CO.ShowZeroBalances False }
+  opt = longNoArg (makeLongOpt . pack $ "hide-zero-balances")
 
 color :: S.Runtime -> ParserE Error CC.Colors
 color rt = do

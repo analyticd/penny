@@ -37,5 +37,11 @@ helpStr = unlines [
   "  --show-all",
   "    Show all fields",
   "  --hide-all",
-  "    Hide all fields"
+  "    Hide all fields",
+  "",
+  "  --show-zero-balances",
+  "    Show balances that are zero",
+  "  --hide-zero-balances",
+  "    Hide balances that are zero",
+  ""
   ]

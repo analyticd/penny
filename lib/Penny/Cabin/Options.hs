@@ -25,3 +25,9 @@ autoColors c r = case c of
   Pref8 -> C.Colors8
   Pref256 -> C.Colors256
   PrefAuto -> maxCapableColors r
+
+-- | Whether to show zero balances in reports.
+newtype ShowZeroBalances =
+  ShowZeroBalances { unShowZeroBalances :: Bool }
+  deriving (Show, Eq)
+

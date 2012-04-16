@@ -82,9 +82,9 @@ processBackgroundArg x
 showZero :: O.Options -> P.ParserE E.Error O.Options
 showZero os = os' <$ C.longNoArg lno where
   lno = Opt.makeLongOpt (X.pack "show-zero-balances")
-  os' = os { O.showZeroBalances = O.ShowZeroBalances True }
+  os' = os { O.showZeroBalances = CO.ShowZeroBalances True }
 
 hideZero :: O.Options -> P.ParserE E.Error O.Options
 hideZero os = os' <$ C.longNoArg lno where
   lno = Opt.makeLongOpt (X.pack "hide-zero-balances")
-  os' = os { O.showZeroBalances = O.ShowZeroBalances False }
+  os' = os { O.showZeroBalances = CO.ShowZeroBalances False }

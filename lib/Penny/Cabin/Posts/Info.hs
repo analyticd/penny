@@ -23,7 +23,7 @@ newtype VisibleNum = VisibleNum { unVisibleNum :: Int }
 
 data T =
   T { postingBox :: B.PostingBox
-    , balance :: Bal.Balance
+    , balance :: Maybe Bal.Balance
     , postingNum :: PostingNum
     , revPostingNum :: RevPostingNum
     , fwdSeqUnsorted :: T.FwdSeqUnsorted
@@ -33,7 +33,7 @@ data T =
     , visibleNum :: VisibleNum }
 
 fromLibertyInfo ::
-  Bal.Balance
+  Maybe Bal.Balance
   -> PostingNum
   -> RevPostingNum
   -> T.PostingInfo

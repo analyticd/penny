@@ -118,6 +118,8 @@ data T =
       -- ^ Default width for spacer fields. If any of these Ints are
       -- less than or equal to zero, there will be no spacer. There is
       -- never a spacer for fields that do not appear in the report.
+      
+    , showZeroBalances :: O.ShowZeroBalances
     }
 
 newtype ReportWidth = ReportWidth { unReportWidth :: Int }
@@ -174,7 +176,8 @@ defaultOptions dtz rg rt =
     , tokens = []
     , postFilter = id
     , fields = defaultFields
-    , spacers = defaultSpacerWidth }
+    , spacers = defaultSpacerWidth
+    , showZeroBalances = O.ShowZeroBalances False }
 
 widthFromRuntime :: S.Runtime -> ReportWidth
 widthFromRuntime rt = case S.screenWidth rt of

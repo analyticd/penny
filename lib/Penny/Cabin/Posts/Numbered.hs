@@ -6,7 +6,7 @@ import qualified Penny.Lincoln.Balance as Bal
 
 data T = T {
   postingInfo :: LT.PostingInfo
-  , balance :: Bal.Balance
+  , balance :: Maybe Bal.Balance
   , postingNum :: I.PostingNum
   , revPostingNum :: I.RevPostingNum
   } deriving Show
