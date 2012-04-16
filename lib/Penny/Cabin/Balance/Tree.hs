@@ -20,7 +20,7 @@ import qualified Data.Foldable as Fdbl
 import qualified Data.Functor.Identity as Id
 import qualified Data.Map as M
 import qualified Data.Monoid as Monoid
-import qualified Penny.Cabin.Balance.NestedMap as NM
+import qualified Penny.Lincoln.NestedMap as NM
 import qualified Data.Text as X
 import qualified Data.Traversable as Tr
 import qualified Penny.Cabin.Options as CO
