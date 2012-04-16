@@ -5,6 +5,7 @@ module Penny.Lincoln.Balance (
   isBalanced,
   entryToBalance,
   addBalances,
+  removeZeroCommodities,
   BottomLine(Zero, NonZero),
   Column(Column, drCr, qty)
   ) where
@@ -93,3 +94,14 @@ addBalances (Balance t1) (Balance t2) =
 
 instance Semi.Semigroup Balance where
   (<>) = addBalances
+
+-- | Removes zero balances from a Balance. Will not return a Balance
+-- with no commodities; instead, returns Nothing if there would be a
+-- balance with no commodities.
+removeZeroCommodities :: Balance -> Maybe Balance
+removeZeroCommodities (Balance m) =
+  let p b = case b of
+        Zero -> False
+        _ -> True
+      m' = M.filter p m
+  in if M.null m' then Nothing else Just (Balance m')

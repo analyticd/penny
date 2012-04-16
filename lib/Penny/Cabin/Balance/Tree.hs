@@ -3,7 +3,8 @@
 --
 -- Steps:
 --
--- 1. [LT.PostingInfo] -> RawBals
+-- 0. [LT.PostingInfo] -> FlatMap
+-- 1. FlatMap -> RawBals
 -- 2. RawBals -> (SummedBals, TotalBal)
 -- 3. (SummedBals, TotalBal) -> (SummedWithIsEven, TotalBal)
 -- 4. (SummedWithIsEven, TotalBal) -> (PreSpecMap, TotalBal)
@@ -30,6 +31,29 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Data.Semigroup as S
+
+-- Step 0. This puts all the PostingInfos into a flat map, where the
+-- key is the full account name and the value is the balance. If the
+-- user desired, zero balances are eliminated from the flat map.
+newtype FlatMap = FlatMap { unFlatMap :: M.Map L.Account Bal.Balance }
+
+toFlatMap :: O.Options -> [LT.PostingInfo] -> FlatMap
+toFlatMap o = FlatMap . foldr f M.empty where
+  remove = O.unRemoveZeroBalances . O.removeZeroBalances $ o
+  f i m =
+    let pb = LT.postingBox i
+        a = Q.account pb
+        bal = Bal.entryToBalance . Q.entry $ pb
+    in case M.lookup a m of
+      Nothing -> M.insert a bal m
+      Just oldBal ->
+        let added = Bal.addBalances oldBal bal
+            newBal = if remove
+                     then Bal.removeZeroCommodities added
+                     else Just added
+        in case newBal of
+          Nothing -> m
+          Just b' -> M.insert a b' m
 
 -- Step 1
 newtype RawBal = RawBal { unRawBal :: S.Option Bal.Balance }

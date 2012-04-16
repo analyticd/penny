@@ -15,7 +15,12 @@ data Options = Options {
   , baseColors :: C.BaseColors
   , balanceFormat :: L.BottomLine -> X.Text
   , colorPref :: Chunk.Colors
+  , removeZeroBalances :: RemoveZeroBalances
   }
+
+newtype RemoveZeroBalances =
+  RemoveZeroBalances { unRemoveZeroBalances :: Bool }
+  deriving (Show, Eq)
 
 balanceAsIs :: L.BottomLine -> X.Text
 balanceAsIs n = case n of
@@ -27,4 +32,5 @@ defaultOptions rt = Options {
   drCrColors = DB.drCrColors
   , baseColors = DB.baseColors
   , balanceFormat = balanceAsIs
-  , colorPref = O.maxCapableColors rt }
+  , colorPref = O.maxCapableColors rt
+  , removeZeroBalances = RemoveZeroBalances False }
