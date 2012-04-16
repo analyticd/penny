@@ -52,7 +52,7 @@ toFlatMap o = FlatMap . foldr f M.empty where
                      then Bal.removeZeroCommodities added
                      else Just added
         in case newBal of
-          Nothing -> m
+          Nothing -> M.delete a m
           Just b' -> M.insert a b' m
 
 -- Step 1

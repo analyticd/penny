@@ -33,4 +33,4 @@ defaultOptions rt = Options {
   , baseColors = DB.baseColors
   , balanceFormat = balanceAsIs
   , colorPref = O.maxCapableColors rt
-  , showZeroBalances = ShowZeroBalances True }
+  , showZeroBalances = ShowZeroBalances False }
