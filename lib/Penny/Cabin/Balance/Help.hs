@@ -17,6 +17,11 @@ helpStr = unlines [
   "    256: show 256 colors always",
   "  --background light|dark",
   "    Use appropriate color scheme for terminal background",
+  "",
+  "  --show-zero-balances",
+  "    Show balances that are zero",
+  "  --hide-zero-balances",
+  "    Hide balances that are zero",
   ""
   ]
   

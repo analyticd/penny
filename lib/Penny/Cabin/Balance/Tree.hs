@@ -35,11 +35,11 @@ import qualified Data.Semigroup as S
 -- Step 0. This puts all the PostingInfos into a flat map, where the
 -- key is the full account name and the value is the balance. If the
 -- user desired, zero balances are eliminated from the flat map.
-newtype FlatMap = FlatMap { unFlatMap :: M.Map L.Account Bal.Balance }
+newtype FlatMap = FlatMap { _unFlatMap :: M.Map L.Account Bal.Balance }
 
 toFlatMap :: O.Options -> [LT.PostingInfo] -> FlatMap
 toFlatMap o = FlatMap . foldr f M.empty where
-  remove = O.unRemoveZeroBalances . O.removeZeroBalances $ o
+  remove = not . O.unShowZeroBalances . O.showZeroBalances $ o
   f i m =
     let pb = LT.postingBox i
         a = Q.account pb
@@ -63,20 +63,19 @@ instance Monoid.Monoid RawBal where
 
 type RawBals = NM.NestedMap L.SubAccountName RawBal
 
--- | Inserts a single posting into the Balances tree.
-addPosting :: RawBals -> (L.Account, L.Entry) -> RawBals
-addPosting bals (ac, en) = let
-  bal = RawBal . S.Option . Just . L.entryToBalance $ en
-  subs = Fdbl.toList . L.unAccount $ ac
-  in NM.insert bals subs bal
-
-rawBalances :: [LT.PostingInfo] -> RawBals
-rawBalances = Fdbl.foldl' addPosting NM.empty . map toPair where
-  toPair p = let
-    box = LT.postingBox p
-    ac = Q.account box
-    en = Q.entry box
-    in (ac, en)
+-- | Inserts a pair from the FlatMap into the Balances NestedMap.
+insertBalance ::
+  L.Account
+  -> Bal.Balance
+  -> RawBals
+  -> RawBals
+insertBalance a b rbs = let
+  rb = RawBal . S.Option . Just $ b
+  subs = Fdbl.toList . L.unAccount $ a
+  in NM.insert rbs subs rb
+  
+rawBalances :: FlatMap -> RawBals
+rawBalances (FlatMap m) = M.foldrWithKey insertBalance NM.empty m
 
 -- Step 2
 newtype SummedBal =
@@ -357,3 +356,4 @@ report os =
   . makeSummedWithIsEven
   . sumBalances
   . rawBalances
+  . toFlatMap os

@@ -2,7 +2,7 @@ module Penny.Cabin.Balance.Parser (parser) where
 
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL
-import Control.Applicative ((<|>))
+import Control.Applicative ((<|>), (<$))
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
@@ -33,6 +33,8 @@ opts :: S.Runtime -> O.Options -> P.ParserE E.Error O.Options
 opts rt os = let
   p o = color rt o
         <|> background o
+        <|> showZero o
+        <|> hideZero o
   in do
     ls <- LC.runUntilFailure p os
     case ls of
@@ -77,3 +79,12 @@ processBackgroundArg x
   | x == X.pack "dark" = return (DB.drCrColors, DB.baseColors)
   | otherwise = P.throw (E.BadBackgroundArg x)
 
+showZero :: O.Options -> P.ParserE E.Error O.Options
+showZero os = os' <$ C.longNoArg lno where
+  lno = Opt.makeLongOpt (X.pack "show-zero-balances")
+  os' = os { O.showZeroBalances = O.ShowZeroBalances True }
+
+hideZero :: O.Options -> P.ParserE E.Error O.Options
+hideZero os = os' <$ C.longNoArg lno where
+  lno = Opt.makeLongOpt (X.pack "hide-zero-balances")
+  os' = os { O.showZeroBalances = O.ShowZeroBalances False }

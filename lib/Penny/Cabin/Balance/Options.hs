@@ -15,11 +15,11 @@ data Options = Options {
   , baseColors :: C.BaseColors
   , balanceFormat :: L.BottomLine -> X.Text
   , colorPref :: Chunk.Colors
-  , removeZeroBalances :: RemoveZeroBalances
+  , showZeroBalances :: ShowZeroBalances
   }
 
-newtype RemoveZeroBalances =
-  RemoveZeroBalances { unRemoveZeroBalances :: Bool }
+newtype ShowZeroBalances =
+  ShowZeroBalances { unShowZeroBalances :: Bool }
   deriving (Show, Eq)
 
 balanceAsIs :: L.BottomLine -> X.Text
@@ -33,4 +33,4 @@ defaultOptions rt = Options {
   , baseColors = DB.baseColors
   , balanceFormat = balanceAsIs
   , colorPref = O.maxCapableColors rt
-  , removeZeroBalances = RemoveZeroBalances False }
+  , showZeroBalances = ShowZeroBalances True }
