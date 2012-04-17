@@ -174,6 +174,14 @@ module Penny.Lincoln (
     -- ** Unwrapping Transactions
   , T.unTransaction
   , T.postingFamily
+    
+    -- * PriceDb
+  , DB.PriceDb
+  , DB.emptyDb
+  , DB.addPrice
+  , DB.getPrice
+  , DB.PriceDbError(FromNotFound, ToNotFound, CpuNotFound)
+  , DB.convert
 
   ) where
 
@@ -184,5 +192,6 @@ import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Lincoln.Family as F
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.Meta as M
+import qualified Penny.Lincoln.PriceDb as DB
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 import qualified Penny.Lincoln.Transaction as T

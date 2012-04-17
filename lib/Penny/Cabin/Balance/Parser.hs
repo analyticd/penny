@@ -11,6 +11,8 @@ import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Balance.Tree as Tree
 import qualified Penny.Cabin.Options as CO
+import qualified Penny.Copper.Commodity as CC
+import qualified Penny.Copper.DateTime as CD
 import qualified Penny.Liberty.Combinator as LC
 import qualified Penny.Liberty.Error as E
 import qualified Penny.Liberty.Types as LT
@@ -19,6 +21,7 @@ import qualified Penny.Shield as S
 import qualified System.Console.MultiArg.Prim as P
 import qualified System.Console.MultiArg.Combinator as C
 import qualified System.Console.MultiArg.Option as Opt
+import qualified Text.Parsec as Parsec
 
 type ReportFn =
   [LT.PostingInfo]
@@ -43,6 +46,8 @@ opts rt os = let
         <|> background o
         <|> showZero o
         <|> hideZero o
+        <|> convertLong o
+        <|> convertShort rt o
   in do
     ls <- LC.runUntilFailure p os
     case ls of
@@ -96,3 +101,29 @@ hideZero :: O.Options -> P.ParserE E.Error O.Options
 hideZero os = os' <$ C.longNoArg lno where
   lno = Opt.makeLongOpt (X.pack "hide-zero-balances")
   os' = os { O.showZeroBalances = CO.ShowZeroBalances False }
+
+convertLong :: O.Options -> P.ParserE E.Error O.Options
+convertLong os = do
+  (_, a1, a2) <- C.longTwoArg (Opt.makeLongOpt (X.pack "convert"))
+  cty <- case Parsec.parse CC.lvl1Cmdty "" a1 of
+    Left _ -> P.throw (E.BadCommodityError a1)
+    Right g -> return g
+  let parseDate = CD.dateTime (O.defaultTimeZone os)
+  dt <- case Parsec.parse parseDate "" a2 of
+    Left _ -> P.throw E.DateParseError
+    Right g -> return g
+  let os' = os { O.convert = Just (cty, dt) }
+  return os'
+
+convertShort ::
+  S.Runtime
+  -> O.Options
+  -> P.ParserE E.Error O.Options
+convertShort rt os = do
+  (_, a1) <- C.shortOneArg (Opt.makeShortOpt 'c')
+  cty <- case Parsec.parse CC.lvl1Cmdty "" a1 of
+    Left _ -> P.throw (E.BadCommodityError a1)
+    Right g -> return g
+  let dt = S.currentTime rt
+      os' = os { O.convert = Just (cty, dt) }
+  return os'

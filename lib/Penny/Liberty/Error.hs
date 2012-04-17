@@ -16,6 +16,7 @@ data Error = MultiArgError MAE.Expecting MAE.Saw
              | BadFieldName Text
              | BadBackgroundArg Text
              | UnexpectedWord Text Text
+             | BadCommodityError Text
              deriving Show
 
 instance MAE.Error Error where

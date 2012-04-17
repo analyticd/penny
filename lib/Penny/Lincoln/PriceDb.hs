@@ -8,7 +8,7 @@ module Penny.Lincoln.PriceDb (
   emptyDb,
   addPrice,
   getPrice,
-  Error(FromNotFound, ToNotFound, CpuNotFound),
+  PriceDbError(FromNotFound, ToNotFound, CpuNotFound),
   convert
   ) where
 
@@ -68,7 +68,7 @@ dateTimeToUTC (B.DateTime lt tzo) = T.localTimeToUTC tz lt where
   tz = T.minutesToTimeZone . B.offsetToMins $ tzo
 
 -- | Getting prices can fail; if it fails, an Error is returned.
-data Error = FromNotFound | ToNotFound | CpuNotFound
+data PriceDbError = FromNotFound | ToNotFound | CpuNotFound
 
 -- | Looks up values from the PriceDb. Throws "Error" if something
 -- fails.
@@ -100,7 +100,7 @@ getPrice ::
   -> B.From
   -> B.To
   -> B.DateTime
-  -> Ex.Exceptional Error B.CountPerUnit
+  -> Ex.Exceptional PriceDbError B.CountPerUnit
 getPrice (PriceDb db) fr to dt = do
   let utc = dateTimeToUTC dt
       subs = Fdbl.toList . B.unCommodity . B.unFrom $ fr
@@ -122,14 +122,14 @@ getPrice (PriceDb db) fr to dt = do
 -- | Given an Amount and a Commodity to convert the amount to,
 -- converts the Amount to the given commodity. If the Amount given is
 -- already in the To commodity, simply returns what was passed in. Can
--- fail and throw Error. Internally uses 'getPrice', so read its
+-- fail and throw PriceDbError. Internally uses 'getPrice', so read its
 -- documentation for details on how price lookup works.
 convert ::
   PriceDb
   -> B.DateTime
   -> B.To
   -> B.Amount
-  -> Ex.Exceptional Error B.Amount
+  -> Ex.Exceptional PriceDbError B.Amount
 convert db dt to (B.Amount qt fr) = do
   cpu <- fmap B.unCountPerUnit (getPrice db (B.From fr) to dt)
   let qt' = B.mult cpu qt

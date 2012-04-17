@@ -8,6 +8,7 @@ import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Options as O
 import qualified Penny.Shield as S
 import qualified Penny.Cabin.Colors.DarkBackground as DB
+import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Lincoln.Balance as Bal
 
 data Options = Options {
@@ -16,6 +17,8 @@ data Options = Options {
   , balanceFormat :: L.BottomLine -> X.Text
   , colorPref :: Chunk.Colors
   , showZeroBalances :: O.ShowZeroBalances
+  , convert :: Maybe (L.Commodity, L.DateTime)
+  , defaultTimeZone :: DT.DefaultTimeZone
   }
 
 balanceAsIs :: L.BottomLine -> X.Text
@@ -29,4 +32,6 @@ defaultOptions rt = Options {
   , baseColors = DB.baseColors
   , balanceFormat = balanceAsIs
   , colorPref = O.maxCapableColors rt
-  , showZeroBalances = O.ShowZeroBalances False }
+  , showZeroBalances = O.ShowZeroBalances False
+  , convert = Nothing
+  , defaultTimeZone = DT.utcDefault }

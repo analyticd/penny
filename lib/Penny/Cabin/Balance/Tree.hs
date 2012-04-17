@@ -3,14 +3,23 @@
 --
 -- Steps:
 --
--- 0. [LT.PostingInfo] -> FlatMap
--- 1. FlatMap -> RawBals
--- 2. RawBals -> (SummedBals, TotalBal)
--- 3. (SummedBals, TotalBal) -> (SummedWithIsEven, TotalBal)
--- 4. (SummedWithIsEven, TotalBal) -> (PreSpecMap, TotalBal)
--- 5. (PreSpecMap, TotalBal) -> [Columns PreSpec]
--- 6. [Columns PreSpec] -> [Columns R.ColumnSpec] (strict)
--- 7. [Columns R.ColumnSpec] -> [[Chunk.Bit]] (lazy)
+-- * 1. [LT.PostingInfo] -> [PriceConverted]
+--
+-- * 2. [PriceConverted] -> FlatMap
+--
+-- * 3. FlatMap -> RawBals
+--
+-- * 4. RawBals -> (SummedBals, TotalBal)
+--
+-- * 5. (SummedBals, TotalBal) -> (SummedWithIsEven, TotalBal)
+--
+-- * 6. (SummedWithIsEven, TotalBal) -> (PreSpecMap, TotalBal)
+--
+-- * 7. (PreSpecMap, TotalBal) -> [Columns PreSpec]
+--
+-- * 8. [Columns PreSpec] -> [Columns R.ColumnSpec] (strict)
+--
+-- * 9. [Columns R.ColumnSpec] -> [[Chunk.Bit]] (lazy)
 module Penny.Cabin.Balance.Tree (report) where
 
 import Control.Applicative(Applicative(pure, (<*>)), (<$>))
@@ -30,22 +39,69 @@ import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Liberty.Types as LT
 import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.Boxes as LB
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Data.Semigroup as S
 
--- Step 0. This puts all the PostingInfos into a flat map, where the
--- key is the full account name and the value is the balance. If the
--- user desired, zero balances are eliminated from the flat map.
+-- Step 1. Convert prices.
+data PriceConverted = PriceConverted {
+  entry :: L.Entry
+  , account :: L.Account }
+
+convertOne ::
+  L.PriceDb
+  -> (L.Commodity, L.DateTime)
+  -> L.Entry
+  -> Ex.Exceptional X.Text L.Entry
+convertOne db (cty, dt) (L.Entry dc am) = do
+  let to = L.To cty
+  am' <- case L.convert db dt to am of
+    Ex.Exception e -> Ex.throw (convertError cty dt am e)
+    Ex.Success g -> return g
+  return (L.Entry dc am')
+
+convertError ::
+  L.Commodity
+  -> L.DateTime
+  -> L.Amount
+  -> L.PriceDbError
+  -> X.Text
+convertError to dt (L.Amount _ fr) e =
+  let fromErr = L.text (L.Delimited (X.singleton ':') fr)
+      toErr = L.text (L.Delimited (X.singleton ':') to)
+  in case e of
+    L.FromNotFound ->
+      X.pack "no data to convert from commodity "
+      `X.append` fromErr
+    L.ToNotFound ->
+      X.pack "no data to convert to commodity "
+      `X.append` toErr
+    L.CpuNotFound ->
+      X.pack "no data to convert from commodity "
+      `X.append` fromErr
+      `X.append` (X.pack " to commodity ")
+      `X.append` toErr
+      `X.append` (X.pack " at given date and time")
+  
+
+buildDb :: [L.PriceBox] -> L.PriceDb
+buildDb = foldl f L.emptyDb where
+  f db pb = L.addPrice db (LB.price pb)
+
+converter :: [L.PriceBox] -> [LT.PostingInfo]
+
+-- Step 2. This puts all the PriceConverteds into a flat map, where
+-- the key is the full account name and the value is the balance. If
+-- the user desired, zero balances are eliminated from the flat map.
 newtype FlatMap = FlatMap { _unFlatMap :: M.Map L.Account Bal.Balance }
 
-toFlatMap :: O.Options -> [LT.PostingInfo] -> FlatMap
+toFlatMap :: O.Options -> [PriceConverted] -> FlatMap
 toFlatMap o = FlatMap . foldr f M.empty where
   remove = not . CO.unShowZeroBalances . O.showZeroBalances $ o
-  f i m =
-    let pb = LT.postingBox i
-        a = Q.account pb
-        bal = Bal.entryToBalance . Q.entry $ pb
+  f pc m =
+    let a = account pc
+        bal = Bal.entryToBalance . entry $ pc
     in case M.lookup a m of
       Nothing -> M.insert a bal m
       Just oldBal ->
@@ -57,7 +113,7 @@ toFlatMap o = FlatMap . foldr f M.empty where
           Nothing -> M.delete a m
           Just b' -> M.insert a b' m
 
--- Step 1
+-- Step 3
 newtype RawBal = RawBal { unRawBal :: S.Option Bal.Balance }
 instance Monoid.Monoid RawBal where
   mappend (RawBal b1) (RawBal b2) = RawBal $ b1 `Monoid.mappend` b2
@@ -79,7 +135,7 @@ insertBalance a b rbs = let
 rawBalances :: FlatMap -> RawBals
 rawBalances (FlatMap m) = M.foldrWithKey insertBalance NM.empty m
 
--- Step 2
+-- Step 4
 newtype SummedBal =
   SummedBal { unSummedBal :: S.Option Bal.Balance }
 instance Monoid.Monoid SummedBal where
@@ -94,7 +150,7 @@ sumBalances rb = (sb, (SummedBal . unRawBal $ tb)) where
   (tb, rawBals) = NM.cumulativeTotal rb
   sb = fmap (SummedBal . unRawBal) rawBals
 
--- Step 3
+-- Step 5
 type SummedWithIsEven = NM.NestedMap L.SubAccountName (SummedBal, Bool)
 
 makeSummedWithIsEven ::
@@ -107,7 +163,7 @@ makeSummedWithIsEven (sb, tb) = (swie, tb) where
     St.put (not st)
     return (lbl, st)
 
--- Step 4
+-- Step 6
 data Columns a = Columns {
   account :: a
   , drCr :: a
@@ -261,7 +317,7 @@ makePreSpecMap ::
 makePreSpecMap os (sb, tb) = (cim, tb) where
   cim = Id.runIdentity (NM.traverseWithTrail (traverser os) sb)
 
--- Step 5
+-- Step 7
 makeTotalCells ::
   O.Options
   -> SummedBal
@@ -277,7 +333,7 @@ makeColumnList os (cim, tb) = totCols : restCols where
   restCols = Fdbl.toList cim
 
 
--- Step 6
+-- Step 8
 
 -- | When given a list of columns, determine the widest row in each
 -- column.
@@ -307,7 +363,7 @@ resizeColumnsInList cs = map (preSpecToSpec w) cs where
   w = maxWidths cs
 
 
--- Step 7
+-- Step 9
 widthSpacerAcct :: Int
 widthSpacerAcct = 4
 
