@@ -11,10 +11,8 @@ import qualified Penny.Shield as S
 
 balanceReport :: (S.Runtime -> O.Options) -> I.Report
 balanceReport getOpts = I.Report H.help pr where
-  pr rt _ _ = do
-    (f, _) <- P.parser rt (getOpts rt)
-    let f' infos _ = return (f infos)
-    return f'
+  pr rt _ _ = P.parser rt (getOpts rt)
+
 
 defaultBalanceReport :: I.Report
 defaultBalanceReport = balanceReport O.defaultOptions

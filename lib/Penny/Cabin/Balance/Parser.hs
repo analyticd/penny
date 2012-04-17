@@ -3,6 +3,7 @@ module Penny.Cabin.Balance.Parser (parser) where
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL
 import Control.Applicative ((<|>), (<$))
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
@@ -13,21 +14,28 @@ import qualified Penny.Cabin.Options as CO
 import qualified Penny.Liberty.Combinator as LC
 import qualified Penny.Liberty.Error as E
 import qualified Penny.Liberty.Types as LT
+import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import qualified System.Console.MultiArg.Prim as P
 import qualified System.Console.MultiArg.Combinator as C
 import qualified System.Console.MultiArg.Option as Opt
 
+type ReportFn =
+  [LT.PostingInfo]
+  -> [L.PriceBox]
+  -> Ex.Exceptional X.Text XL.Text
+
 parser ::
   S.Runtime
   -> O.Options
-  -> P.ParserE E.Error ([LT.PostingInfo] -> XL.Text, O.Options)
+  -> P.ParserE E.Error ReportFn
 parser rt os = do
   command
   os' <- opts rt os
-  let toTxt = Chk.bitsToText (O.colorPref os') . concat
-              . Tree.report os'
-  return (toTxt, os')
+  let toTxt infos prices = do
+        bits <- Tree.report os' infos prices
+        return . Chk.bitsToText (O.colorPref os') . concat $ bits
+  return toTxt
 
 opts :: S.Runtime -> O.Options -> P.ParserE E.Error O.Options
 opts rt os = let

@@ -14,6 +14,7 @@
 module Penny.Cabin.Balance.Tree (report) where
 
 import Control.Applicative(Applicative(pure, (<*>)), (<$>))
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Control.Monad.Trans.State as St
 import qualified Penny.Cabin.Row as R
 import qualified Data.Foldable as Fdbl
@@ -348,9 +349,14 @@ colsListToBits os = zipWith f bools where
 
 -- Tie it all together
 
-report :: O.Options -> [LT.PostingInfo] -> [[Chunk.Bit]]
-report os =
-  colsListToBits os
+report ::
+  O.Options
+  -> [LT.PostingInfo]
+  -> [L.PriceBox]
+  -> Ex.Exceptional X.Text [[Chunk.Bit]]
+report os ps rs =
+  return
+  . colsListToBits os
   . resizeColumnsInList
   . makeColumnList os
   . makePreSpecMap os
@@ -358,3 +364,4 @@ report os =
   . sumBalances
   . rawBalances
   . toFlatMap os
+  $ ps

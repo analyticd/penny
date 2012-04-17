@@ -22,6 +22,13 @@ helpStr = unlines [
   "    Show balances that are zero",
   "  --hide-zero-balances",
   "    Hide balances that are zero",
+  "",
+  "  --convert commodity dateTime",
+  "    Convert all commodities to the given commodity using their",
+  "    price at the given date (and, optionally, time.) Fails if",
+  "    any commodity does not have the necessary price.",
+  "  -c commodity",
+  "    Same as \"convert commodity [right now]\"",
   ""
   ]
   
