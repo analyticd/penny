@@ -297,6 +297,7 @@ Library
         Penny.Lincoln.Meta,
         Penny.Lincoln.NestedMap,
         Penny.Lincoln.Predicates,
+        Penny.Lincoln.PriceDb,
         Penny.Lincoln.Queries,
         Penny.Lincoln.TextNonEmpty,
         Penny.Lincoln.Transaction,

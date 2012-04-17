@@ -8,14 +8,13 @@ module Penny.Lincoln.NestedMap (
   unNestedMap,
   empty,
   relabel,
-  find,
+  descend,
   insert,
   cumulativeTotal,
   traverse,
   traverseWithTrail ) where
 
 import Control.Applicative ((<*>), (<$>))
-import Control.Monad.Exception.Synchronous (Exceptional (Exception, Success))
 import Data.Map ( Map )
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
@@ -64,7 +63,7 @@ newSubmap (NestedMap m) k g = (newL, NestedMap newM) where
     (Just (oldL, (NestedMap oldM))) -> (g (Just oldL), oldM)
 
 -- | Descends through a NestedMap with successive keys in the list,
--- proceeding from left to right.. At any given level, if the key
+-- proceeding from left to right. At any given level, if the key
 -- given does not already exist, then inserts an empty submap and
 -- applies the given label modification function to Nothing to
 -- determine the new label. If the given key already does exist, then
@@ -82,28 +81,23 @@ relabel (NestedMap m) ((k, f):vs) = let
   newM' = relabel newM vs
   in NestedMap $ M.insert k (newL, newM') m
 
--- | Given a list of keys, finds the value at the last key. This
--- operation can fail at any one of the given keys. If it fails,
--- @Exception ls@ is returned, where @ls@ is a list of keys that do
--- not exist in the map. For example, if you apply this function to
--- the list [1,2,3,4] and the key 1 is at the top of the NestedMap and
--- the key 2 is below the key 1 of the NestedMap, but there is no key
--- 3 below key 2 of the NestedMap, this function will return
--- @Exception [3,4]@.
-find ::
-  (Ord k)
+-- | Given a list of keys, find the key that is furthest down in the
+-- map that matches the requested list of keys. Returns [(k, l)],
+-- where the first item in the list is the topmost key found and its
+-- matching label, and the last item in the list is the deepest key
+-- found and its matching label. (Often you will be most interested
+-- in the deepest key.)
+descend ::
+  Ord k
   => [k]
   -> NestedMap k l
-  -> Exceptional [k] l
-find ks (NestedMap m) = lookup' ks m where
-  lookup' ks' m' = case ks' of
-    [] -> Exception []
-    (x:[]) -> case M.lookup x m' of
-      (Just (l, _)) -> Success l
-      Nothing -> Exception [x]
-    (x:xs) -> case M.lookup x m' of
-      (Just (_, (NestedMap m''))) -> lookup' xs m''
-      Nothing -> Exception (x:xs)
+  -> [(k, l)]
+descend keys (NestedMap mi) = descend' keys mi where
+  descend' [] _ = []
+  descend' (k:ks) m = case M.lookup k m of
+    Nothing -> []
+    Just (l, (NestedMap im)) -> (k, l) : descend' ks im
+
 
 -- | Descends through the NestedMap one level at a time, proceeding
 -- key by key from left to right through the list of keys given. At
