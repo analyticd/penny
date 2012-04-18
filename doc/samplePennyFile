@@ -109,10 +109,11 @@
 # transactions are parsed. Even if you specify prices,
 # you still must ensure that the debits equal the credits
 # in every transaction; if they do not, the parser will fail.
-# Eventually the postings and balance reports might use
-# price information; I also plan to make a separate
-# price change report, but for now this data does not
-# actually do anything.
+
+# The balance report uses price information for the --convert and -c
+# options. This allows you to convert all commodities in the file to a
+# single commodity. Typically you would use this to see what the
+# balance of all your accounts is in your home currency.
 
 # Prices specify that ONE unit of the given commodity
 # equals the given quantity of the other commodity. Here
@@ -156,9 +157,10 @@
     {Income:Brokerage Trading}       Cr 100 T:2012
     {Income:Brokerage Trading}       Dr $3012
 
-# and some prices to go along with the T example. Reports that use
-# prices can elect to apply the single T price both to the
-# T:2012 and the T:2007 commodities.
+# and some prices to go along with the T example. Because no
+# different prices are specified for T:2012 and for T:2007,
+# the balance report will use the price for T for both these
+# commodities if you use the --convert or -c options.
 @ 2007/06/01 T $40.53
 @ 2012/01/27 T $29.16
 
@@ -170,13 +172,6 @@
 # I know that Slackware was recently using ISO-8859-1. Non-Unicode
 # encodings should work fine as well, as Penny will convert them
 # to Unicode internally.
-
-# Although Penny currently should work with a data file encoded with
-# any common encoding, it is possible that future versions might work
-# only with UTF-8. In particular, the Alex lexer works only with
-# UTF-8; I might switch to Alex and Happy to make parsing faster and
-# less memory hungry. For maximum future-proofness use UTF-8 or just
-# plain 7-bit ASCII (which is also valid UTF-8.)
 
 # If your ledger file is encoded in UTF-8
 # and you still have Unicode problems,
