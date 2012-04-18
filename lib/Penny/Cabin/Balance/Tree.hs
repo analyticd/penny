@@ -46,30 +46,34 @@ import qualified Data.Semigroup as S
 
 -- Step 1. Convert prices.
 data PriceConverted = PriceConverted {
-  entry :: L.Entry
-  , account :: L.Account }
+  pcEntry :: L.Entry
+  , pcAccount :: L.Account }
 
 convertOne ::
   L.PriceDb
   -> (L.Commodity, L.DateTime)
   -> L.Entry
   -> Ex.Exceptional X.Text L.Entry
-convertOne db (cty, dt) (L.Entry dc am) = do
-  let to = L.To cty
-  am' <- case L.convert db dt to am of
-    Ex.Exception e -> Ex.throw (convertError cty dt am e)
-    Ex.Success g -> return g
-  return (L.Entry dc am')
+convertOne db (cty, dt) en@(L.Entry dc am@(L.Amount _ fr)) =
+  if fr == cty
+  then return en
+  else do
+    let to = L.To cty
+    am' <- case L.convert db dt to am of
+      Ex.Exception e -> Ex.throw (convertError cty am e)
+      Ex.Success g -> return g
+    return (L.Entry dc am')
 
 convertError ::
   L.Commodity
-  -> L.DateTime
   -> L.Amount
   -> L.PriceDbError
   -> X.Text
-convertError to dt (L.Amount _ fr) e =
-  let fromErr = L.text (L.Delimited (X.singleton ':') fr)
-      toErr = L.text (L.Delimited (X.singleton ':') to)
+convertError to (L.Amount _ fr) e =
+  let fromErr = L.text (L.Delimited (X.singleton ':')
+                        (Fdbl.toList . L.unCommodity $ fr))
+      toErr = L.text (L.Delimited (X.singleton ':')
+                      (Fdbl.toList . L.unCommodity $ to))
   in case e of
     L.FromNotFound ->
       X.pack "no data to convert from commodity "
@@ -89,7 +93,28 @@ buildDb :: [L.PriceBox] -> L.PriceDb
 buildDb = foldl f L.emptyDb where
   f db pb = L.addPrice db (LB.price pb)
 
-converter :: [L.PriceBox] -> [LT.PostingInfo]
+converter ::
+  O.Options
+  -> [L.PriceBox]
+  -> [LT.PostingInfo]
+  -> Ex.Exceptional X.Text [PriceConverted]
+converter os pbs infos = case O.convert os of
+  Nothing ->
+    let f info = PriceConverted en ac where
+          p = LT.postingBox $ info
+          en = Q.entry p
+          ac = Q.account p
+    in return . map f $ infos
+  Just pair ->
+    let f info = let p = LT.postingBox $ info
+                     en = Q.entry p
+                     ac = Q.account p
+                 in do
+                   en' <- convertOne db pair en
+                   return (PriceConverted en' ac)
+        db = buildDb pbs
+    in mapM f infos
+
 
 -- Step 2. This puts all the PriceConverteds into a flat map, where
 -- the key is the full account name and the value is the balance. If
@@ -100,8 +125,8 @@ toFlatMap :: O.Options -> [PriceConverted] -> FlatMap
 toFlatMap o = FlatMap . foldr f M.empty where
   remove = not . CO.unShowZeroBalances . O.showZeroBalances $ o
   f pc m =
-    let a = account pc
-        bal = Bal.entryToBalance . entry $ pc
+    let a = pcAccount pc
+        bal = Bal.entryToBalance . pcEntry $ pc
     in case M.lookup a m of
       Nothing -> M.insert a bal m
       Just oldBal ->
@@ -410,14 +435,15 @@ report ::
   -> [LT.PostingInfo]
   -> [L.PriceBox]
   -> Ex.Exceptional X.Text [[Chunk.Bit]]
-report os ps rs =
+report os ps rs = do
+  pcs <- converter os rs ps
   return
-  . colsListToBits os
-  . resizeColumnsInList
-  . makeColumnList os
-  . makePreSpecMap os
-  . makeSummedWithIsEven
-  . sumBalances
-  . rawBalances
-  . toFlatMap os
-  $ ps
+    . colsListToBits os
+    . resizeColumnsInList
+    . makeColumnList os
+    . makePreSpecMap os
+    . makeSummedWithIsEven
+    . sumBalances
+    . rawBalances
+    . toFlatMap os
+    $ pcs

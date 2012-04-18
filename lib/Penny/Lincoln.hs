@@ -62,7 +62,6 @@ module Penny.Lincoln (
   , I.To(To, unTo)
   , I.CountPerUnit(CountPerUnit, unCountPerUnit)
   , I.Price(from, to, countPerUnit)
-  , I.convert
   , I.newPrice
   , I.PricePoint(PricePoint, dateTime, price)
 
