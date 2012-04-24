@@ -14,12 +14,13 @@
 module Penny.Lincoln.Builders ( 
   crashy
   , account
+  , commodity
   ) where
 
 import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.List.Split as S
 import Data.List.NonEmpty (NonEmpty((:|)))
-import Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.TextNonEmpty (TextNonEmpty(TextNonEmpty))
 import Data.Text (pack)
 import qualified Data.Traversable as T
@@ -43,4 +44,19 @@ account input = do
         (c:cs) -> return $ B.SubAccountName (TextNonEmpty c (pack cs))
   subs <- T.traverse makeSub subStrs
   return $ B.Account subs
+    
+-- | Create a Commodity. You supply a single String, with colons to
+-- separate the different sub-commodities.
+commodity :: String -> Ex.Exceptional String B.Commodity
+commodity input = do
+  subStrs <- case S.splitOn ":" input of
+    [] -> error "splitOn returned an empty list; should never happen"
+    []:[] -> Ex.throw "account name is null"
+    (s:ss) -> return $ s :| ss
+  let makeSub s = case s of
+        [] -> Ex.throw $
+              "sub account name is null from account: " ++ input
+        (c:cs) -> return $ B.SubCommodity (TextNonEmpty c (pack cs))
+  subs <- T.traverse makeSub subStrs
+  return $ B.Commodity subs
     
