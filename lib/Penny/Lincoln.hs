@@ -31,7 +31,10 @@ module Penny.Lincoln (
   , I.charCommodity
     
     -- ** DateTime
-  , I.DateTime (DateTime, localTime, timeZone)
+  , I.DateTime
+  , I.dateTime
+  , I.localTime
+  , I.timeZone
   , I.TimeZoneOffset
   , I.minsToOffset
   , I.offsetToMins
@@ -63,7 +66,7 @@ module Penny.Lincoln (
   , I.CountPerUnit(CountPerUnit, unCountPerUnit)
   , I.Price(from, to, countPerUnit)
   , I.newPrice
-  , I.PricePoint(PricePoint, dateTime, price)
+  , I.PricePoint(PricePoint, price)
 
     -- ** Quantities                               
   , I.Qty

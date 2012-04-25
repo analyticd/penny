@@ -115,7 +115,7 @@ dateTime (DefaultTimeZone dtz) = do
   mayTz <- optional timeZoneOffset
   let tod = fromMaybe T.midnight mayTod
       tz = fromMaybe dtz mayTz
-  return (B.DateTime (T.LocalTime d tod) tz)
+  return (B.dateTime (T.LocalTime d tod) tz)
 
 -- | Render a DateTime. If the DateTime is in the given
 -- DefaultTimeZone, and the DateTime is midnight, then the time and
@@ -123,7 +123,9 @@ dateTime (DefaultTimeZone dtz) = do
 -- will both be printed. The test for time zone equality depends only
 -- upon the time zone's offset from UTC.
 render :: DefaultTimeZone -> B.DateTime -> X.Text
-render (DefaultTimeZone dtz) (B.DateTime lt off) = let
+render (DefaultTimeZone dtz) dt = let
+  lt = B.localTime dt
+  off = B.timeZone dt
   fmtLong = "%F %T %z"
   fmtShort = "%F"
   sameZone = dtz == off

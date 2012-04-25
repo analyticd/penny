@@ -4,7 +4,10 @@
 -- ZonedTime from Data.Time but ZonedTime has data that Penny does not
 -- need.
 module Penny.Lincoln.Bits.DateTime (
-  DateTime (DateTime, localTime, timeZone)
+  DateTime
+  , dateTime
+  , localTime
+  , timeZone
   , TimeZoneOffset
   , offsetToMins
   , minsToOffset
@@ -32,7 +35,23 @@ minsToOffset m = if abs m > 840
 noOffset :: TimeZoneOffset
 noOffset = TimeZoneOffset 0
 
--- | A DateTime is both a LocalTime and a time zone offset.
+-- | A DateTime is a UTC time that also remembers the local time from
+-- which it was set. The Eq and Ord instances will compare two
+-- DateTimes based on their equivalent UTC times.
 data DateTime = DateTime { localTime :: T.LocalTime
                          , timeZone :: TimeZoneOffset }
-                   deriving (Eq, Ord, Show)
+                   deriving Show
+
+-- | Construct a DateTime.
+dateTime :: T.LocalTime -> TimeZoneOffset -> DateTime
+dateTime = DateTime
+
+toUTC :: DateTime -> T.UTCTime
+toUTC (DateTime lt (TimeZoneOffset tzo)) = T.localTimeToUTC tz lt where
+  tz = T.minutesToTimeZone tzo
+
+instance Eq DateTime where
+  l == r = toUTC l == toUTC r
+
+instance Ord DateTime where
+  compare l r = compare (toUTC l) (toUTC r)

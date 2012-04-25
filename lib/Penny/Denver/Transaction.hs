@@ -263,7 +263,7 @@ makePrice d e pr = let
     return $ PriceWithFormat pp fmt
 
 lincolnizeDay :: T.Day -> B.DateTime
-lincolnizeDay d = B.DateTime lt tz where
+lincolnizeDay d = B.dateTime lt tz where
   lt = T.LocalTime d tod
   tod = T.midnight
   tz = B.noOffset

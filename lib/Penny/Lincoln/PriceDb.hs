@@ -64,8 +64,11 @@ insertIntoToMap (B.PricePoint dt pr) =
   in relabeler
 
 dateTimeToUTC :: B.DateTime -> T.UTCTime
-dateTimeToUTC (B.DateTime lt tzo) = T.localTimeToUTC tz lt where
+dateTimeToUTC dt = T.localTimeToUTC tz lt where
   tz = T.minutesToTimeZone . B.offsetToMins $ tzo
+  lt = B.localTime dt
+  tzo = B.timeZone dt
+
 
 -- | Getting prices can fail; if it fails, an Error is returned.
 data PriceDbError = FromNotFound | ToNotFound | CpuNotFound

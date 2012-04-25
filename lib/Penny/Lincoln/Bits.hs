@@ -13,7 +13,10 @@ module Penny.Lincoln.Bits (
   C.charCommodity,
 
   -- * DateTime
-  DT.DateTime(DateTime, localTime, timeZone),
+  DT.DateTime,
+  DT.dateTime,
+  DT.localTime,
+  DT.timeZone,
   DT.TimeZoneOffset,
   DT.minsToOffset, DT.offsetToMins, DT.noOffset,
 
@@ -42,7 +45,7 @@ module Penny.Lincoln.Bits (
   Pr.CountPerUnit(CountPerUnit, unCountPerUnit),
   Pr.Price(from, to, countPerUnit),
   Pr.convert, Pr.newPrice,
-  PP.PricePoint(PricePoint, dateTime, price),
+  PP.PricePoint(PricePoint, price),
 
   -- * Quantities
   Q.Qty, Q.unQty, Q.partialNewQty,

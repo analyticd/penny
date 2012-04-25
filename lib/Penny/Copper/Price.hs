@@ -10,6 +10,7 @@ import qualified Data.Text as X
 
 import qualified Penny.Lincoln.Boxes as Box
 import qualified Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln.Bits.PricePoint as PP
 import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.DateTime as DT
@@ -81,7 +82,7 @@ render ::
   -> (B.PricePoint, M.Format)
   -> Maybe X.Text
 render dtz gs rg (pp, fmt) = let
-  dateTxt = DT.render dtz (B.dateTime pp)
+  dateTxt = DT.render dtz (PP.dateTime pp)
   (B.From from) = B.from . B.price $ pp
   (B.To to) = B.to . B.price $ pp
   (B.CountPerUnit q) = B.countPerUnit . B.price $ pp
