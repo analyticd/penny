@@ -1,0 +1,154 @@
+.TH penny 1
+
+.SH NAME
+penny - report on postings in financial ledger
+
+.SH SYNOPSIS
+penny [posting filter expression] report name [report options] FILE...
+
+.SH DESCRIPTION
+
+The
+.B penny
+program prepares reports based upon the
+.B postings
+in your ledger file. Each transaction has at least two postings. After
+.B penny
+verifies that your ledger file is
+.I balanced
+(that is, every posting has debits and credits that are equal)
+.B penny
+splits each transaction into its component postings. After this point,
+.B penny
+for the most part deals only with postings, not with transactions.
+
+You may specify a
+.I filter expression
+that determines which postings are ultimately used for the report. The
+filter expression may also contain additional options that perform
+tasks other than filtering. For example, you may specify how to
+perform text matching (for instance, you may want to use regular
+expressions) or you may specify that you want to sort the postings (by
+default, they are not sorted and are left in the order in which they
+were found in the input ledger).
+
+Next you must specify a
+.IR report .
+The report shows you something interesting. Currently there are two reports: 
+.BR postings ,
+which shows information about each posting, like a checkbook register, and
+.BR balance ,
+which shows you information about the balance of each account. The
+report is based only upon the postings that the filter expression
+returned.
+
+You may then specify options pertaining to the report. The
+.BR postings
+report takes many options that format its output and that specify
+which postings are shown in the report; however, postings that the
+filter expression returned that are not shown in the report still
+affect the running balance. This can be useful if, for example, you
+want to see the total balance in your bank account and how some
+transactions affect it but you do not want to see all transactions
+since the beginning of time. The
+.BR balance
+report takes many fewer options.
+
+Finally you may specify one or more files from which to draw the
+data. If you do not specify a file, standard input is used.
+
+The report is always printed to standard output. By default,
+.BR penny
+sees whether its standard output is a terminal. If so,
+.BR penny 's
+output is sized to fit the width of the
+.BR COLUMNS
+environment variable (if it is set) and is printed in color. If
+standard output is not a terminal, by default the output is not in
+color and will be 80 characters wide. This behavior can be overridden
+on the command line.
+
+Entering the data into the ledger files is your responsibility;
+.B penny
+will never modify this data. To see how to enter data into the file,
+see the file
+.BR docs/samplePennyFile ,
+which is included inside the package for
+.BR penny-lib .
+
+.SH POSTING FILTERS
+.SS Dates
+
+.TP
+.B --date cmp timespec, -d cmp timespec
+
+The date of the posting must be within the time frame given.
+.BR cmp
+is one of
+.BR < , > , <= , >= , == , /= , !=
+and
+.BR date
+is either a date alone, such as
+.BR 2012-04-25 ,
+or a date and a time, such as
+.BR "2012-04-25 14:25 -0400" .
+You may need to quote some of these arguments; for example,
+.BR >
+probably has special meaning to your shell and so you will need to
+quote it.
+
+.TP
+.B --current
+Same as
+.B --date <= [right now]
+
+.SS Pattern matching
+
+These options allow you to filter postings by specifying a pattern
+that must match a particular component of the posting. By default the simple
+.I within
+matcher is used, and matches are case-insensitive.
+
+.TP
+.B -a pattern, --account pattern
+The sub-accounts of the account are separated with colons, and the
+match succeeds if the pattern matches this entire colon-separated
+name.
+
+.TP
+.B --account-level num pattern
+The account is separated into sub-accounts, which are numbered
+beginning at zero. The match succeeds if the posting has a sub-account
+numbered at the given level, and if that sub account matches the given
+pattern.
+
+.TP
+.B --account-any pattern
+The account is separated into sub-accounts. The match succeeds if the
+pattern matches any of a posting's sub-accounts.
+
+.TP
+.B --payee pattern, -p pattern
+Succeeds if the pattern matches the posting's payee. If the posting
+has no payee, the payee of the parent transaction is used (if there is
+one).
+
+.TP
+.B --tag pattern, -t pattern
+Succeeds if any one of the posting's tags matches the given pattern.
+
+.TP
+.B --number pattern
+Succeeds if the posting's number matches the given pattern. If the
+posting has no number, the number of the parent transaction is used
+(if there is one).
+
+.TP
+.B --flag pattern
+Succeeds if the posting's flag matches the given pattern. If the
+posting has no number, the flag of the parent transaction is used
+(if there is one).
+
+.TP
+.B --commodity pattern
+The commodity is separated into colon-separated sub-commodities, and the test succeeds if 
