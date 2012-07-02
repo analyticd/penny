@@ -34,7 +34,7 @@ were found in the input ledger).
 
 Next you must specify a
 .IR report .
-The report shows you something interesting. Currently there are two reports: 
+Currently there are two reports: 
 .BR postings ,
 which shows information about each posting, like a checkbook register, and
 .BR balance ,
@@ -151,4 +151,231 @@ posting has no number, the flag of the parent transaction is used
 
 .TP
 .B --commodity pattern
-The commodity is separated into colon-separated sub-commodities, and the test succeeds if 
+The commodity is separated into colon-separated sub-commodities, and
+the test succeeds if the pattern matches the full colon-separated
+commodity name.
+
+.TP
+.B --commodity-level pattern
+The commodity is separated into sub-commodities, which are numbered
+beginning at zero. The match succeeds if the posting has a sub-commodity
+numbered at the given level, and if that sub-commodity matches the given
+pattern.
+
+.TP
+.B --commodity-any pattern
+The commodity is separated into sub-commodities. The match succeeds if
+the pattern matches any of a posting's sub-commodities.
+
+.TP
+.B --posting-memo pattern
+The posting memo must match the given pattern.
+
+.TP
+.B --transaction-memo pattern
+The transaction memo must match the given pattern.
+
+.SS Other posting characteristics
+
+.B --debit
+The entry must be a debit.
+
+.B --credit
+The entry must be a credit.
+
+.B --qty cmp number
+The entry's quantity must fall within the given range. Valid values
+for cmp are the same as those for --date.
+
+.SS Operators
+
+Each of the options above is a single operand. You can join these
+operands together with operators. These operators are specified below,
+from highest to lowest precedence. All operators are left
+associative. If you specify two adjacent operands without specifying
+an operator, penny automatically uses the --and operator.
+
+.TP
+.BI --open expr --close
+Force precedence using parentheses. Enclose a complete expression
+between the
+.B --open
+and
+.B --close
+options.
+
+.TP
+.BI --not expr
+True if
+.I expr
+is false.
+
+.TP
+.IB expr1 --and expr2
+True if
+.I expr1
+and
+.I expr2
+are both true.
+
+.TP
+.IB expr1 --or expr2
+True if
+.I expr1
+or
+.I expr2
+is true.
+
+.SS Options affecting patterns
+
+These options affect how patterns are interpreted. The order of the
+.B penny
+command line is significant; each of these options only affects
+patterns that appear after it on the command line.
+
+.TP
+.B -i, --case-insensitive
+Patterns are case insensitive (default)
+
+.TP
+.B -I, --case-sensitive
+Patterns are case sensitive
+
+.TP
+.B --within
+Use the "within" matcher, which matches if the pattern given appears
+anywhere within the target text. This is a simple letter-for-letter
+match, not a regular expression, though its case sensitivity is
+affected by the
+.B --case-insensitive
+and
+.B --case-sensitive
+options.
+
+.TP
+.B --pcre
+Use the "pcre" matcher, which uses Perl-compatible regular expressions (see
+.BR pcresyntax "(1) and " pcrepattern (1))
+
+.TP
+.B --posix
+Use the "posix" matcher, which uses POSIX regular expressions (see
+.BR regex (7))
+
+.TP
+.B --exact
+Use the "exact" matcher, which matches if the given pattern is a
+letter-for-letter match of the target text, with case sensitivity
+determined by the
+.B --case-insensitive
+and
+.B --case-sensitive
+options.
+
+.SH Removing postings after sorting and filtering
+
+.TP
+.BI "--head " n
+Keep only the first
+.I n
+postings.
+
+.TP
+.BI "--tail " n
+Keep only the last
+.I n
+postings.
+
+.SH Sorting
+
+.TP
+.BI "--sort " key
+.TQ
+.BI "-s " key
+Sorts postings according to a key. Use multiple
+.B --sort
+options to sort by more than one key. Valid keys are: payee, date,
+flag, number, account, drCr, qty, commodity, postingMemo,
+transactionMemo.
+
+The postings are sorted in ascending order if the first letter of the
+key is lowercase; descending order if the first letter of the key is
+uppercase.
+
+.SS REPORTS
+
+.SS postings report
+
+The
+.B postings
+report, or
+.B pos
+for short, shows postings in order with a running balance. This report
+takes all the options shown above in the categories from "Posting
+filters" to "Removing postings after sorting and filtering." These
+options affect which postings are shown in the report. Postings that
+are not shown in the report but which were not filtered out in the
+filtering stage still affect the report's running balance.
+
+Additional options for the
+.B postings
+report:
+
+.TP
+.BR --color " yes|no|auto|256"
+Controls which colors are shown.
+.B yes
+always shows 8 colors.
+.B no
+never shows colors.
+.B auto
+first examines whether standard output is a terminal. If standard output is not a terminal,
+.B penny
+does not show any colors. If standard output is a terminal, examines
+the value of the TERM environment variable. If TERM is
+"xterm-256color", uses 256 colors. If TERM is any other value, or if
+TERM is not set, uses 8 colors.
+
+.TP
+.BR --background " light|dark"
+Pick a color scheme for a light or dark terminal background (by
+default, a dark color scheme is used.)
+
+.TP
+.BI --width " num"
+Gives a hint for roughly how wide the report should be, in
+columns. Sometimes the report will be narrower than the specified
+width; however, it will never be wider than the specified width.
+
+.TP
+.BI "--show" " field"
+.TQ
+.BI "--hide" " field"
+Show or hide fields from the displayed report. Fields are displayed in a fixed order. Available fields are:
+
+.TP
+.B transaction
+A number assigned to each transaction in order from beginning to end,
+beginning with zero. This number is assigned before the transactions
+are split into postings.
+
+.TP
+.B revTransaction
+Like
+.BR transaction ,
+but assigned to each transaction in order from end to beginning.
+
+.TP
+.B pre-filter
+A number assigned to each posting, beginning with zero, before the
+postings are filtered.
+
+.TP
+.B revPre-filter
+Like
+.BR pre-filter ,
+but assigned to each posting from end to beginning.
+
+.TP
+.B post-sort
+A number assigned to each posting, beginning with zero, that remains
