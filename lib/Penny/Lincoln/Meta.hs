@@ -24,17 +24,54 @@ newtype Filename = Filename { unFilename :: X.Text }
 newtype Column = Column { unColumn :: Int }
                  deriving (Show, Eq, Ord)
 
-newtype PriceLine = PriceLine { unPriceLine :: Line }
+-- | The line that a price appears on inside of a file.
+newtype PriceLine = PriceLine { unPriceLine :: Int }
                     deriving (Eq, Show)
 
-newtype PostingLine = PostingLine { unPostingLine :: Line }
+-- | The line that a posting appears on inside of a file.
+newtype PostingLine = PostingLine { unPostingLine :: Int }
                       deriving (Eq, Show)
 
-newtype TopMemoLine = TopMemoLine { unTopMemoLine :: Line }
+-- | The line on which the memo of a transaction begins.
+newtype TopMemoLine = TopMemoLine { unTopMemoLine :: Int }
                       deriving (Eq, Show)
 
-newtype TopLineLine = TopLineLine { unTopLineLine :: Line }
+-- | The line on which the top line of a transaction is.
+newtype TopLineLine = TopLineLine { unTopLineLine :: Int }
                       deriving (Eq, Show)
+
+-- | Transactions are numbered in sequence, beginning at zero, from
+-- first to last.
+newtype TransactionNum =
+  TransactionNum { unTransactionNum :: Int }
+  deriving (Eq, Show)
+
+-- | Transactions numbered in sequence, beginning at zero, from last
+-- to first.
+newtype RevTransactionNum =
+  RevTransactionNum { unRevTransactionNum :: Int }
+  deriving (Eq, Show)
+
+-- | Postings are numbered in sequence, beginning at zero, from first
+-- to last. Numbered after transactions are split into postings, but
+-- before postings are filtered.
+newtype UnfilteredNum =
+  UnfilteredNum { unUnfilteredNum :: Int }
+  deriving (Eq, Show)
+
+-- | Unfiltered transactions, numbered from last to first begining at
+-- zero.
+newtype RevUnfilteredNum =
+  RevUnfilteredNum { unRevUnfilteredNum :: Int }
+  deriving (Eq, Show)
+
+-- | Postings are numbered in sequence, beginning at zero, from first
+-- to last, after the postings have been filtered.
+newtype FilteredNum =
+  FilteredNum { unFilteredNum :: Int }
+  deriving (Eq, Show)
+
+
 
 data PriceMeta =
   PriceMeta { priceLine :: Maybe PriceLine

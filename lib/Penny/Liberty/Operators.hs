@@ -1,4 +1,4 @@
-module Penny.Liberty.Operators where
+module Penny.Liberty.Operators (parser, getPredicate) where
 
 import Control.Applicative ((<|>))
 import Data.List (intersperse, groupBy)
