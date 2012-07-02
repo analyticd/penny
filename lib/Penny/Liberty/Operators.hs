@@ -4,49 +4,47 @@ import Control.Applicative ((<|>))
 import Data.List (intersperse, groupBy)
 import qualified Penny.Liberty.Queue as Q
 import Data.Text (pack)
-import System.Console.MultiArg.Combinator (longNoArg)
+import System.Console.MultiArg.Combinator (
+  OptSpec(OptSpec), ArgSpec(NoArg),
+  parseOption)
 import System.Console.MultiArg.Option (makeLongOpt)
-import System.Console.MultiArg.Prim (ParserE)
+import System.Console.MultiArg.Prim (Parser)
 
 import qualified Penny.Liberty.Expressions as X
+import qualified Control.Monad.Exception.Synchronous as Ex
 import Penny.Liberty.Error (Error)
 
+noArg :: a -> String -> Parser a
+noArg a s = let os = OptSpec [s] "" (NoArg a)
+            in parseOption [os]
+
 -- | Open parentheses
-open :: ParserE Error (X.Token a)
-open = let lo = makeLongOpt . pack $ "open" in
-  longNoArg lo >> return X.TokOpenParen
+open :: Parser (X.Token a)
+open = noArg X.TokOpenParen "open"
 
 -- | Close parentheses
-close :: ParserE Error (X.Token a)
-close = let lo = makeLongOpt . pack $ "close" in
-  longNoArg lo >> return X.TokCloseParen
+close :: Parser (X.Token a)
+close = noArg X.TokCloseParen "close"
 
 -- | and operator
-parseAnd :: ParserE Error (X.Token (a -> Bool))
-parseAnd = do
-  let lo = makeLongOpt . pack $ "and"
-  _ <- longNoArg lo
-  return tokAnd
+parseAnd :: Parser (X.Token (a -> Bool))
+parseAnd = noArg tokAnd "and"
 
 tokAnd :: X.Token (a -> Bool)
 tokAnd = X.TokBinary (X.Precedence 3) X.ALeft f where
   f x y = \a -> x a && y a
 
 -- | or operator
-parseOr :: ParserE Error (X.Token (a -> Bool))
-parseOr = do
-  let lo = makeLongOpt . pack $ "or"
-  _ <- longNoArg lo
-  let f x y = \a -> x a || y a
-  return (X.TokBinary (X.Precedence 2) X.ALeft f)
+parseOr :: Parser (X.Token (a -> Bool))
+parseOr = noArg tokOr "or" where
+  f x y = \a -> x a || y a
+  tokOr = X.TokBinary (X.Precedence 2) X.ALeft f
 
 -- | not operator
-parseNot :: ParserE Error (X.Token (a -> Bool))
-parseNot = do
-  let lo = makeLongOpt . pack $ "not"
-  _ <- longNoArg lo
-  let f = (not .)
-  return (X.TokUnaryPrefix (X.Precedence 4) f)
+parseNot :: Parser (X.Token (a -> Bool))
+parseNot = noArg tokNot "not" where
+  tokNot = X.TokUnaryPrefix (X.Precedence 4) (not .)
+
 
 -- | Takes the list of tokens and gets the predicate to use.
 getPredicate :: 
@@ -67,7 +65,7 @@ insertAddTokens ts = concatMap inserter grouped where
     (X.TokOperand _, X.TokOperand _) -> True
     _ -> False
 
-parser :: ParserE Error (X.Token (a -> Bool))
+parser :: Parser (X.Token (a -> Bool))
 parser =
   open
   <|> close

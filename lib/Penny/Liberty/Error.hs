@@ -1,10 +1,8 @@
 module Penny.Liberty.Error where
 
 import Data.Text (Text, pack)
-import qualified System.Console.MultiArg.Error as MAE
 
-data Error = MultiArgError MAE.Expecting MAE.Saw
-             | MakeMatcherFactoryError Text
+data Error = MakeMatcherFactoryError Text
              | DateParseError
              | BadPatternError Text
              | BadNumberError Text
@@ -19,8 +17,6 @@ data Error = MultiArgError MAE.Expecting MAE.Saw
              | BadCommodityError Text
              deriving Show
 
-instance MAE.Error Error where
-  parseErr = MultiArgError
 
 -- | Barebones for now
 display :: Error -> Text
