@@ -1,5 +1,5 @@
 transaction, for the entire transaction. On the TopLineMeta.
 unfiltered, after transactions have been split. On the PostingMeta.
-filtered, after filtering. On the PostingMeta.
-sorted, after sorting. On the PostingMeta.
-visible, visible postings only. On the PostingMeta.
+filtered, after filtering. On the PostingBox.
+sorted, after sorting. On the PostingBox.
+visible, visible postings only. On the PostingBox.
