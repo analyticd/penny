@@ -61,7 +61,7 @@ import Control.Monad.Trans.Class ( lift )
 data Inferred = Inferred | NotInferred deriving (Eq, Show)
 
 -- | Each Transaction consists of at least two Postings.
-data Posting =
+data Posting m =
   Posting { pPayee   :: (Maybe B.Payee)
           , pNumber  :: (Maybe B.Number)
           , pFlag    :: (Maybe B.Flag)
@@ -69,25 +69,27 @@ data Posting =
           , pTags    :: B.Tags
           , pEntry   :: B.Entry
           , pMemo    :: B.Memo
-          , pInferred :: Inferred }
+          , pInferred :: Inferred
+          , pMeta     :: m }
   deriving (Eq, Show)
 
 -- | The TopLine holds information that applies to all the postings in
 -- a transaction (so named because in a ledger file, this information
 -- appears on the top line.)
-data TopLine =
+data TopLine m =
   TopLine { tDateTime :: B.DateTime
           , tFlag     :: (Maybe B.Flag)
           , tNumber   :: (Maybe B.Number)
           , tPayee    :: (Maybe B.Payee)
-          , tMemo     :: B.Memo }
+          , tMemo     :: B.Memo
+          , tMeta     :: m }
   deriving (Eq, Show)
 
 -- | All the Postings in a Transaction must produce a Total whose
 -- debits and credits are equal. That is, the Transaction must be
 -- balanced. No Transactions are created that are not balanced.
-newtype Transaction =
-  Transaction { unTransaction :: F.Family TopLine Posting }
+newtype Transaction tm pm =
+  Transaction { unTransaction :: F.Family (TopLine tm) (Posting pm) }
   deriving (Eq, Show)
   
 -- | Errors that can arise when making a Transaction.
@@ -97,7 +99,9 @@ data Error = UnbalancedError
 
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
-postingFamily :: Transaction -> S.Siblings (C.Child TopLine Posting)
+postingFamily ::
+  Transaction tm pm
+  -> S.Siblings (C.Child (TopLine tm) (Posting pm))
 postingFamily (Transaction ps) = children ps
 
 {- BNF-like grammar for the various sorts of allowed postings.
@@ -112,8 +116,8 @@ balancedGroup ::= "at least 2 postings. All postings have the same
 
 -- | Makes transactions.
 transaction ::
-  F.Family U.TopLine U.Posting
-  -> Exceptional Error Transaction
+  F.Family (U.TopLine tm) (U.Posting pm)
+  -> Exceptional Error (Transaction tm pm)
 transaction f@(F.Family p _ _ _) = do
   let os = orphans f
       t = totalAll os
@@ -121,7 +125,7 @@ transaction f@(F.Family p _ _ _) = do
   a2 <- inferAll os t
   return $ Transaction (adopt p' a2)
 
-totalAll :: S.Siblings U.Posting
+totalAll :: S.Siblings (U.Posting pm)
          -> Bal.Balance
 totalAll =
   F.foldr1 Bal.addBalances
@@ -130,9 +134,9 @@ totalAll =
   . fmap (fmap Bal.entryToBalance . U.entry)
 
 infer ::
-  U.Posting
+  (U.Posting pm)
   -> Ex.ExceptionalT Error
-  (St.State (Maybe B.Entry)) Posting
+  (St.State (Maybe B.Entry)) (Posting pm)
 infer po =
   case U.entry po of
     Nothing -> do
@@ -146,8 +150,8 @@ infer po =
           
 runInfer ::
   Maybe B.Entry
-  -> S.Siblings U.Posting
-  -> Exceptional Error (S.Siblings Posting)
+  -> S.Siblings (U.Posting pm)
+  -> Exceptional Error (S.Siblings (Posting pm))
 runInfer me pos = do
   let (res, finalSt) = St.runState ext me
       ext = Ex.runExceptionalT (Tr.mapM infer pos)
@@ -158,9 +162,9 @@ runInfer me pos = do
       (Success g) -> return g
 
 inferAll ::
-  S.Siblings U.Posting
+  S.Siblings (U.Posting pm)
   -> Bal.Balance
-  -> Exceptional Error (S.Siblings Posting)
+  -> Exceptional Error (S.Siblings (Posting pm))
 inferAll pos t = do
   en <- case Bal.isBalanced t of
     Bal.Balanced -> return Nothing
@@ -168,13 +172,13 @@ inferAll pos t = do
     Bal.NotInferable -> throw UnbalancedError
   runInfer en pos
 
-toPosting :: U.Posting
+toPosting :: U.Posting pm
              -> B.Entry
              -> Inferred
-             -> Posting
-toPosting (U.Posting p n f a t _ m) e i = Posting p n f a t e m i
+             -> Posting pm
+toPosting (U.Posting p n f a t _ m mt) e i = Posting p n f a t e m i mt
 
-toTopLine :: U.TopLine -> TopLine
-toTopLine (U.TopLine d f n p m) = TopLine d f n p m
+toTopLine :: U.TopLine tm -> TopLine tm
+toTopLine (U.TopLine d f n p m mt) = TopLine d f n p m mt
 
 
