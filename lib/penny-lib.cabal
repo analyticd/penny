@@ -287,7 +287,6 @@ Library
         Penny.Lincoln.Bits.PricePoint,
         Penny.Lincoln.Bits.Qty,
         Penny.Lincoln.Bits.Tags,
-        Penny.Lincoln.Boxes,
         Penny.Lincoln.Builders,
         Penny.Lincoln.Family,
         Penny.Lincoln.Family.Child,
