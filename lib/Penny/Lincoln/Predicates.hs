@@ -67,55 +67,25 @@ postingMemo f = matchMemo f . Q.postingMemo
 transactionMemo :: (Text -> Bool) -> PostingChild tm pm -> Bool
 transactionMemo f = matchMemo f . Q.transactionMemo
 
--- * Flexible comparisons
-
--- | A versatile way to compare things.
-data Comparer = LessThan
-                | LessThanEQ
-                | Equals
-                | GreaterThan
-                | GreaterThanEQ
-                | NotEquals
-                deriving Show
-
--- | Returns a function that compares an item against something and
--- returns True if the item is within the range specified, or False if
--- not.
-comp ::
-  Ord b
-  => Comparer 
-  -- ^ The comparison must return this to be successful
-  
-  -> b
-  -- ^ Right hand side of the comparison
-  
-  -> (a -> b)
-  -- ^ Function to convert an item to the left hand side of the
-  -- comparison
-  
-  -> a
-  -- ^ Left hand side of the comparison (before being converted by the
-  -- function above)
-  
-  -> Bool
-comp c b f a = let r = compare (f a) b in
-  case c of
-    LessThan -> r == LT
-    LessThanEQ -> r == LT || r == EQ
-    Equals -> r == EQ
-    GreaterThan -> r == GT
-    GreaterThanEQ -> r == GT || r == EQ
-    NotEquals -> r /= EQ
-
 -- * Date
 
-date :: Comparer -> B.DateTime -> PostingChild tm pm -> Bool
-date c d = comp c d Q.dateTime
+date ::
+  (B.DateTime -> B.DateTime -> Bool)
+  -> B.DateTime
+  -> PostingChild tm pm
+  -> Bool
+date f dt c = f (Q.dateTime c) dt
+
 
 -- * Qty
 
-qty :: Comparer -> B.Qty -> PostingChild tm pm -> Bool
-qty c q = comp c q Q.qty
+qty ::
+  (B.Qty -> B.Qty -> Bool)
+  -> B.Qty
+  -> PostingChild tm pm
+  -> Bool
+qty f q c = f (Q.qty c) q
+
 
 -- * DrCr
 drCr :: B.DrCr -> PostingChild tm pm -> Bool
