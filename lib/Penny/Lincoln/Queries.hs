@@ -1,87 +1,69 @@
 module Penny.Lincoln.Queries where
 
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.Boxes ( PostingBox, postingBundle, metaBundle)
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Meta as M
 import Penny.Lincoln.Balance (Balance, entryToBalance)
+import qualified Penny.Lincoln.Family as F
 
 
-posting :: PostingBox -> T.Posting
-posting = child . postingBundle
+type PostingChild tm pm = F.Child (T.TopLine tm) (T.Posting pm)
 
-topLine :: PostingBox -> T.TopLine
-topLine = parent . postingBundle
-
-best :: (T.Posting -> Maybe a)
-        -> (T.TopLine -> Maybe a)
-        -> PostingBox
-        -> Maybe a
-best fp ft b = case fp . posting $ b of
-  (Just r) -> Just r
-  Nothing -> ft . topLine $ b
+best ::
+  (T.Posting pm -> Maybe a)
+  -> (T.TopLine tm -> Maybe a)
+  -> PostingChild tm pm
+  -> Maybe a
+best fp ft c = case fp . child $ c of
+  Just r -> Just r
+  Nothing -> ft . parent $ c
 
 
-payee :: PostingBox -> Maybe B.Payee
+payee :: PostingChild tm pm -> Maybe B.Payee
 payee = best T.pPayee T.tPayee
 
-number :: PostingBox -> Maybe B.Number
+number :: PostingChild tm pm -> Maybe B.Number
 number = best T.pNumber T.tNumber
 
-flag :: PostingBox -> Maybe B.Flag
+flag :: PostingChild tm pm -> Maybe B.Flag
 flag = best T.pFlag T.tFlag
 
-postingMemo :: PostingBox -> B.Memo
-postingMemo = T.pMemo . posting
+postingMemo :: PostingChild tm pm -> B.Memo
+postingMemo = T.pMemo . child
 
-transactionMemo :: PostingBox -> B.Memo
-transactionMemo = T.tMemo . topLine
+transactionMemo :: PostingChild tm pm -> B.Memo
+transactionMemo = T.tMemo . parent
 
-dateTime :: PostingBox -> B.DateTime
-dateTime = T.tDateTime . topLine
+dateTime :: PostingChild tm pm -> B.DateTime
+dateTime = T.tDateTime . parent
 
-account :: PostingBox -> B.Account
-account = T.pAccount . posting
+account :: PostingChild tm pm -> B.Account
+account = T.pAccount . child
 
-tags :: PostingBox -> B.Tags
-tags = T.pTags . posting
+tags :: PostingChild tm pm -> B.Tags
+tags = T.pTags . child
 
-entry :: PostingBox -> B.Entry
-entry = T.pEntry . posting
+entry :: PostingChild tm pm -> B.Entry
+entry = T.pEntry . child
 
-balance :: PostingBox -> Balance
+balance :: PostingChild tm pm -> Balance
 balance = entryToBalance . entry
 
-drCr :: PostingBox -> B.DrCr
+drCr :: PostingChild tm pm -> B.DrCr
 drCr = B.drCr . entry
 
-amount :: PostingBox -> B.Amount
+amount :: PostingChild tm pm -> B.Amount
 amount = B.amount . entry
 
-qty :: PostingBox -> B.Qty
+qty :: PostingChild tm pm -> B.Qty
 qty = B.qty . amount
 
-commodity :: PostingBox -> B.Commodity
+commodity :: PostingChild tm pm -> B.Commodity
 commodity = B.commodity . amount
 
-postingMeta :: PostingBox -> Maybe M.PostingMeta
-postingMeta pb = metaBundle pb >>= return . child
+postingMeta :: PostingChild tm pm -> pm
+postingMeta = T.pMeta . child
 
-postingLine :: PostingBox -> Maybe M.PostingLine
-postingLine pb = postingMeta pb >>= M.postingLine
-
-postingFormat :: PostingBox -> Maybe M.Format
-postingFormat pb = postingMeta pb >>= M.postingFormat
-
-topLineMeta :: PostingBox -> Maybe M.TopLineMeta
-topLineMeta pb = metaBundle pb >>= return . parent
-
-topMemoLine :: PostingBox -> Maybe M.TopMemoLine
-topMemoLine pb = topLineMeta pb >>= M.topMemoLine
-
-topLineLine :: PostingBox -> Maybe M.TopLineLine
-topLineLine pb = topLineMeta pb >>= M.topLineLine
-
-filename :: PostingBox -> Maybe M.Filename
-filename pb = topLineMeta pb >>= M.filename
+topLineMeta :: PostingChild tm pm -> tm
+topLineMeta = T.tMeta . parent

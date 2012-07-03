@@ -23,6 +23,7 @@ module Penny.Lincoln.Transaction (
   -- * Postings and transactions
   Posting,
   Transaction,
+  PostingChild,
 
   -- * Making transactions
   transaction,
@@ -31,11 +32,11 @@ module Penny.Lincoln.Transaction (
   -- * Querying postings
   Inferred(Inferred, NotInferred),
   pPayee, pNumber, pFlag, pAccount, pTags,
-  pEntry, pMemo, pInferred,
+  pEntry, pMemo, pInferred, pMeta,
 
   -- * Querying transactions
   TopLine,
-  tDateTime, tFlag, tNumber, tPayee, tMemo,
+  tDateTime, tFlag, tNumber, tPayee, tMemo, tMeta,
   unTransaction, postingFamily ) where
 
 import qualified Penny.Lincoln.Bits as B
@@ -97,11 +98,13 @@ data Error = UnbalancedError
            | CouldNotInferError
            deriving (Eq, Show)
 
+type PostingChild tm pm = C.Child (TopLine tm) (Posting pm)
+
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
 postingFamily ::
   Transaction tm pm
-  -> S.Siblings (C.Child (TopLine tm) (Posting pm))
+  -> S.Siblings (PostingChild tm pm)
 postingFamily (Transaction ps) = children ps
 
 {- BNF-like grammar for the various sorts of allowed postings.

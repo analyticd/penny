@@ -6,10 +6,10 @@ module Penny.Lincoln.Predicates where
 import Data.Text (Text, singleton)
 
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.Boxes (PostingBox)
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList,
                               Delimited(Delimited))
 import qualified Penny.Lincoln.Queries as Q
+import Penny.Lincoln.Transaction (PostingChild)
 
 -- * Matching helpers
 
@@ -52,19 +52,19 @@ matchMaybeLevel i f ma = case ma of
 
 -- * Pattern matching fields
 
-payee :: (Text -> Bool) -> PostingBox -> Bool
+payee :: (Text -> Bool) -> PostingChild tm pm -> Bool
 payee f = matchMaybe f . Q.payee
 
-number :: (Text -> Bool) -> PostingBox -> Bool
+number :: (Text -> Bool) -> PostingChild tm pm -> Bool
 number f = matchMaybe f . Q.number
 
-flag :: (Text -> Bool) -> PostingBox -> Bool
+flag :: (Text -> Bool) -> PostingChild tm pm -> Bool
 flag f = matchMaybe f . Q.flag
 
-postingMemo :: (Text -> Bool) -> PostingBox -> Bool
+postingMemo :: (Text -> Bool) -> PostingChild tm pm -> Bool
 postingMemo f = matchMemo f . Q.postingMemo
 
-transactionMemo :: (Text -> Bool) -> PostingBox -> Bool
+transactionMemo :: (Text -> Bool) -> PostingChild tm pm -> Bool
 transactionMemo f = matchMemo f . Q.transactionMemo
 
 -- * Flexible comparisons
@@ -109,22 +109,22 @@ comp c b f a = let r = compare (f a) b in
 
 -- * Date
 
-date :: Comparer -> B.DateTime -> PostingBox -> Bool
+date :: Comparer -> B.DateTime -> PostingChild tm pm -> Bool
 date c d = comp c d Q.dateTime
 
 -- * Qty
 
-qty :: Comparer -> B.Qty -> PostingBox -> Bool
+qty :: Comparer -> B.Qty -> PostingChild tm pm -> Bool
 qty c q = comp c q Q.qty
 
 -- * DrCr
-drCr :: B.DrCr -> PostingBox -> Bool
+drCr :: B.DrCr -> PostingChild tm pm -> Bool
 drCr dc p = dc == Q.drCr p
 
-debit :: PostingBox -> Bool
+debit :: PostingChild tm pm -> Bool
 debit p = Q.drCr p == B.Debit
 
-credit :: PostingBox -> Bool
+credit :: PostingChild tm pm -> Bool
 credit p = Q.drCr p == B.Credit
 
 -- * Matching delimited fields
@@ -138,31 +138,31 @@ matchDelimited d f = f . text . Delimited d . textList
 
 -- * Commodity
 
-commodity :: Text -> (Text -> Bool) -> PostingBox -> Bool
+commodity :: Text -> (Text -> Bool) -> PostingChild tm pm -> Bool
 commodity t f = matchDelimited t f
                 . B.unCommodity
                 . Q.commodity
 
-commodityLevel :: Int -> (Text -> Bool) -> PostingBox -> Bool
+commodityLevel :: Int -> (Text -> Bool) -> PostingChild tm pm -> Bool
 commodityLevel i f = matchLevel i f . Q.commodity
 
-commodityAny :: (Text -> Bool) -> PostingBox -> Bool
+commodityAny :: (Text -> Bool) -> PostingChild tm pm -> Bool
 commodityAny f = matchAny f . Q.commodity
 
 
 -- * Account
-account :: Text -> (Text -> Bool) -> PostingBox -> Bool
+account :: Text -> (Text -> Bool) -> PostingChild tm pm -> Bool
 account t f = matchDelimited t f
                 . B.unAccount
                 . Q.account
 
-accountLevel :: Int -> (Text -> Bool) -> PostingBox -> Bool
+accountLevel :: Int -> (Text -> Bool) -> PostingChild tm pm -> Bool
 accountLevel i f = matchLevel i f . Q.account
 
-accountAny :: (Text -> Bool) -> PostingBox -> Bool
+accountAny :: (Text -> Bool) -> PostingChild tm pm -> Bool
 accountAny f = matchAny f . Q.account
 
 -- * Tags
-tag :: (Text -> Bool) -> PostingBox -> Bool
+tag :: (Text -> Bool) -> PostingChild tm pm -> Bool
 tag f = matchAny f . Q.tags
 
