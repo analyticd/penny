@@ -85,22 +85,6 @@ module Penny.Lincoln (
   , I.Tags(Tags, unTags)
     
     
-    -- * Boxes
-    -- ** Box types
-  , X.TransactionBox ( transactionMeta )
-  , X.PostingBox ( postingBundle, metaBundle )
-  , X.PriceBox (PriceBox)
-  
-    -- ** Functions to manipulate boxes
-    -- *** Making boxes
-  , X.transactionBox
-  , X.postingBoxes
-
-    -- ** Deconstructing posting boxes
-  , X.posting
-  , X.postingMeta
-  , X.topLineMeta
-    
     -- * Builders
   , Bd.crashy
   , Bd.account
@@ -127,21 +111,6 @@ module Penny.Lincoln (
   , HT.HasTextNonEmpty(textNonEmpty)
   , HT.HasTextNonEmptyList(textNonEmptyList)
 
-    -- * Metadata
-  , M.Side(CommodityOnLeft, CommodityOnRight)
-  , M.SpaceBetween(..)
-  , M.Format(..)
-  , M.Line(..)
-  , M.Filename(..)
-  , M.PriceLine(..)
-  , M.PostingLine(..)
-  , M.TopMemoLine(..)
-  , M.TopLineLine(..)
-  , M.PriceMeta(..)
-  , M.PostingMeta(..)
-  , M.TopLineMeta(..)
-  , M.TransactionMeta(..)
-    
     -- * TextNonEmpty
   , TNE.TextNonEmpty(TextNonEmpty)
     
@@ -189,11 +158,9 @@ module Penny.Lincoln (
 
 import qualified Penny.Lincoln.Balance as B
 import qualified Penny.Lincoln.Bits as I
-import qualified Penny.Lincoln.Boxes as X
 import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Lincoln.Family as F
 import qualified Penny.Lincoln.HasText as HT
-import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.PriceDb as DB
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 import qualified Penny.Lincoln.Transaction as T

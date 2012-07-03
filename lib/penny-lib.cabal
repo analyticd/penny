@@ -293,7 +293,6 @@ Library
         Penny.Lincoln.Family.Family,
         Penny.Lincoln.Family.Siblings,
         Penny.Lincoln.HasText,
-        Penny.Lincoln.Meta,
         Penny.Lincoln.NestedMap,
         Penny.Lincoln.Predicates,
         Penny.Lincoln.PriceDb,
