@@ -6,11 +6,12 @@ module Penny.Copper.TopLine (
 import Control.Applicative ((<$>), (<*>), (<*), (<|>),
                             liftA, pure)
 import qualified Data.Text as X
-import Text.Parsec ( optionMaybe, getParserState,
-                     sourceLine, statePos, optionMaybe )
+import Text.Parsec ( optionMaybe, getPosition,
+                     sourceLine, statePos, optionMaybe, 
+                     sourceName )
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Lincoln.Meta as Meta
+import qualified Penny.Copper.Meta as Meta
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Memos.Transaction as M
 import qualified Penny.Copper.Flag as F
@@ -22,22 +23,28 @@ import qualified Penny.Lincoln.Transaction.Unverified as U
 
 topLine ::
   DT.DefaultTimeZone
-  -> Parser (U.TopLine, Meta.TopLineLine, Meta.TopMemoLine)
+  -> Parser (U.TopLine Meta.TopLineMeta)
 topLine dtz =
   f
   <$> M.memo
-  <*> liftA toLine getParserState
+  <*> getPosition
   <*> lexeme (DT.dateTime dtz)
   <*> optionMaybe (lexeme F.flag)
   <*> optionMaybe (lexeme N.number)
   <*> optionMaybe (P.quotedPayee <|> P.unquotedPayee)
   <*  eol
   where
-    f (me, tml) lin dt fl nu pa = (tl, lin, tml) where
-      tl = U.TopLine dt fl nu pa me
-    toLine = Meta.TopLineLine . Meta.Line . sourceLine . statePos
+    f (me, tml) pos dt fl nu pa = tl where
+      tl = U.TopLine dt fl nu pa me tlm
+      tlm = Meta.TopLineMeta tml lin fn
+      lin = Meta.TopLineLine . sourceLine $ pos
+      fn = Meta.Filename . X.pack . sourceName $ pos
 
-render :: DT.DefaultTimeZone -> T.TopLine -> Maybe X.Text
+
+render ::
+  DT.DefaultTimeZone
+  -> T.TopLine m
+  -> Maybe X.Text
 render dtz tl =
   f
   <$> M.render (T.tMemo tl)

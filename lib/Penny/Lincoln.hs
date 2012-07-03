@@ -118,6 +118,7 @@ module Penny.Lincoln (
     -- ** Postings and transactions
   , T.Posting
   , T.Transaction
+  , T.PostingChild
 
     -- ** Making transactions
   , T.transaction
@@ -153,6 +154,12 @@ module Penny.Lincoln (
   , DB.getPrice
   , DB.PriceDbError(FromNotFound, ToNotFound, CpuNotFound)
   , DB.convert
+    
+    -- * Serials
+  , S.Serial
+  , S.forward
+  , S.backward
+  , S.serials
 
   ) where
 
@@ -162,5 +169,6 @@ import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Lincoln.Family as F
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.PriceDb as DB
+import qualified Penny.Lincoln.Serial as S
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 import qualified Penny.Lincoln.Transaction as T

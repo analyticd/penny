@@ -12,39 +12,40 @@ import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.Comments as C
 import qualified Penny.Copper.DateTime as DT
-import qualified Penny.Lincoln.Meta as M
+import qualified Penny.Lincoln as L
+import qualified Penny.Copper.Meta as M
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Price ( price )
 import qualified Penny.Copper.Price as P
 import qualified Penny.Copper.Transaction as T
 import Penny.Copper.Transaction ( transaction )
 import Penny.Copper.Util (eol)
-import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
 
 
-data Item = Transaction TransactionBox
-          | Price PriceBox
+data Item = Transaction (L.Transaction M.TopLineMeta M.PostingMeta)
+          | Price (L.PricePoint M.PriceMeta)
           | CommentItem C.Comment
           | BlankLine
           deriving Show
 
+newtype Line = Line { unLine :: Int }
+               deriving (Eq, Show)
+
 itemWithLineNumber ::
-  M.Filename
-  -> DT.DefaultTimeZone
+  DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (M.Line, Item)
-itemWithLineNumber fn dtz rg = (,)
-  <$> ((M.Line . sourceLine) <$> getPosition)
-  <*> parseItem fn dtz rg
+  -> Parser (Line, Item)
+itemWithLineNumber dtz rg = (,)
+  <$> ((Line . sourceLine) <$> getPosition)
+  <*> parseItem dtz rg
 
 parseItem ::
-  M.Filename
-  -> DT.DefaultTimeZone
+  DT.DefaultTimeZone
   -> Q.RadGroup
   -> Parser Item
-parseItem fn dtz rg = let
+parseItem dtz rg = let
    bl = BlankLine <$ eol <?> "blank line"
-   t = Transaction <$> transaction fn dtz rg
+   t = Transaction <$> transaction dtz rg
    p = Price <$> price dtz rg
    c = CommentItem <$> C.comment
    in (bl <|> t <|> p <|> c)
@@ -58,9 +59,7 @@ render ::
 render dtz gs rg i = case i of
   Transaction t -> do
     T.render dtz gs rg t
-  Price p -> do
-    pair <- P.unbox p
-    P.render dtz gs rg pair
+  Price pp -> P.render dtz gs rg pp
   CommentItem c -> C.render c
   BlankLine -> Just $ X.singleton '\n'
     

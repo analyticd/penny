@@ -1,4 +1,4 @@
-module Penny.Copper.Price (price, render, unbox) where
+module Penny.Copper.Price (price, render) where
 
 import Text.Parsec ( char, getPosition, sourceLine, (<?>),
                      SourcePos )
@@ -8,13 +8,12 @@ import Control.Applicative ((<*>), (<*), (<|>), (<$))
 import Data.Text (singleton, snoc, intercalate)
 import qualified Data.Text as X
 
-import qualified Penny.Lincoln.Boxes as Box
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Bits.PricePoint as PP
 import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.DateTime as DT
-import qualified Penny.Lincoln.Meta as M
+import qualified Penny.Copper.Meta as M
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Util (lexeme, eol)
 
@@ -30,20 +29,20 @@ mkPrice :: SourcePos
          -> B.DateTime
          -> B.Commodity
          -> (B.Amount, M.Format)
-         -> Maybe Box.PriceBox
+         -> Maybe (PP.PricePoint M.PriceMeta)
 mkPrice pos dt from (am, fmt) = let
   to = B.commodity am
   q = B.qty am
-  pm = M.PriceMeta (Just pl) (Just fmt)
-  pl = M.PriceLine . M.Line . sourceLine $ pos
+  pm = M.PriceMeta pl fmt
+  pl = M.PriceLine . sourceLine $ pos
   in do
     p <- B.newPrice (B.From from) (B.To to) (B.CountPerUnit q)
-    return $ Box.PriceBox (B.PricePoint dt p) (Just pm)
+    return $ PP.PricePoint dt p pm
 
 maybePrice ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (Maybe Box.PriceBox)
+  -> Parser (Maybe (PP.PricePoint M.PriceMeta))
 maybePrice dtz rg =
   mkPrice
   <$ lexeme (char '@')
@@ -62,7 +61,7 @@ maybePrice dtz rg =
 price ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser Box.PriceBox
+  -> Parser (PP.PricePoint M.PriceMeta)
 price dtz rg = do
   b <- maybePrice dtz rg
   case b of
@@ -79,9 +78,10 @@ render ::
   DT.DefaultTimeZone
   -> (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
-  -> (B.PricePoint, M.Format)
+  -> PP.PricePoint M.PriceMeta
   -> Maybe X.Text
-render dtz gs rg (pp, fmt) = let
+render dtz gs rg pp = let
+  fmt = M.priceFormat . PP.ppMeta $ pp
   dateTxt = DT.render dtz (PP.dateTime pp)
   (B.From from) = B.from . B.price $ pp
   (B.To to) = B.to . B.price $ pp
@@ -96,9 +96,3 @@ render dtz gs rg (pp, fmt) = let
        (intercalate (singleton ' ')
        [singleton '@', dateTxt, fromTxt, amtTxt])
        `snoc` '\n'
-
-unbox :: Box.PriceBox -> Maybe (B.PricePoint, M.Format)
-unbox b = do
-  m <- Box.priceMeta b
-  f <- M.priceFormat m
-  return (Box.price b, f)

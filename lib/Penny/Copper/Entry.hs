@@ -11,8 +11,8 @@ import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Util (lexeme)
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.Meta (Format)
-import qualified Penny.Lincoln.Meta as M
+import Penny.Copper.Meta (Format)
+import qualified Penny.Copper.Meta as M
 
 drCr :: Parser B.DrCr
 drCr = let

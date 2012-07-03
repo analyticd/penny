@@ -10,7 +10,7 @@ import Text.Parsec (
 import Text.Parsec.Text ( Parser )
 
 import Penny.Copper.Util (rangeLettersToSymbols, eol)
-import Penny.Lincoln.Meta (TopMemoLine(TopMemoLine), Line(Line))
+import qualified Penny.Copper.Meta as M
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 
@@ -28,10 +28,10 @@ memoLine = B.MemoLine <$> (
   <?> "posting memo line"
 
 -- | Parses a transaction memo and associated whitespace afterward.
-memo :: Parser (B.Memo, TopMemoLine)
+memo :: Parser (B.Memo, M.TopMemoLine)
 memo =
   flip (,)
-  <$> ((TopMemoLine . Line . sourceLine) <$> getPosition)
+  <$> ((M.TopMemoLine . sourceLine) <$> getPosition)
   <*> (B.Memo <$> many memoLine)
   <?> "transaction memo"
   

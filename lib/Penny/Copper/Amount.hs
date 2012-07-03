@@ -25,7 +25,7 @@ import Text.Parsec.Text ( Parser )
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Lincoln.Meta as M
+import qualified Penny.Copper.Meta as M
 
 -- | Parse optional spaces, returns appropriate metadata.
 spaces :: Parser M.SpaceBetween

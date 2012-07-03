@@ -20,15 +20,15 @@ import qualified Penny.Copper.Payees as Pa
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Tags as Ta
 import Penny.Copper.Util (lexeme, eol, renMaybe, txtWords)
-import qualified Penny.Lincoln.Meta as M
+import qualified Penny.Copper.Meta as M
 import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
 posting :: Qt.RadGroup
-           -> Parser (U.Posting, M.PostingMeta)
+           -> Parser (U.Posting M.PostingMeta)
 posting rg =
   makeUnverified
-  <$> (M.PostingLine . M.Line . sourceLine . statePos
+  <$> (M.PostingLine . sourceLine . statePos
        <$> getParserState)
   <*> (UnverifiedWithMeta
        <$> optionMaybe (lexeme Fl.flag)
@@ -54,11 +54,11 @@ data UnverifiedWithMeta = UnverifiedWithMeta {
 makeUnverified ::
   M.PostingLine
   -> UnverifiedWithMeta
-  -> (U.Posting, M.PostingMeta)
-makeUnverified pl u = (upo, meta) where
+  -> (U.Posting M.PostingMeta)
+makeUnverified pl u = upo where
   upo = U.Posting (payee u) (number u) (flag u) (account u)
-        (tags u) en (memo u)
-  meta = M.PostingMeta (Just pl) fmt
+        (tags u) en (memo u) meta
+  meta = M.PostingMeta pl fmt
   (en, fmt) = case entry u of
     Nothing -> (Nothing, Nothing)
     Just (e, f) -> (Just e, Just f)
@@ -86,15 +86,16 @@ makeUnverified pl u = (upo, meta) where
 render ::
   (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> (T.Posting, M.PostingMeta)
+  -> (T.Posting M.PostingMeta)
   -> Maybe X.Text
-render gs rg (p, m) = do
+render gs rg p = do
   fl <- renMaybe (T.pFlag p) Fl.render
   nu <- renMaybe (T.pNumber p) Nu.render
   pa <- renMaybe (T.pPayee p) Pa.quoteRender
   ac <- Ac.render (T.pAccount p)
   ta <- Ta.render (T.pTags p)
   me <- Me.render (T.pMemo p)
+  let m = T.pMeta p
   maybePair <- case (T.pInferred p, M.postingFormat m) of
     (T.Inferred, Nothing) -> return Nothing
     (T.NotInferred, Just f) -> return (Just (T.pEntry p, f))
