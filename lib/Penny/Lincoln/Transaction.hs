@@ -32,12 +32,12 @@ module Penny.Lincoln.Transaction (
   -- * Querying postings
   Inferred(Inferred, NotInferred),
   pPayee, pNumber, pFlag, pAccount, pTags,
-  pEntry, pMemo, pInferred, pMeta,
+  pEntry, pMemo, pInferred, pMeta, changePostingMeta,
 
   -- * Querying transactions
   TopLine,
   tDateTime, tFlag, tNumber, tPayee, tMemo, tMeta,
-  unTransaction, postingFamily ) where
+  unTransaction, postingFamily, changeTransactionMeta ) where
 
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Family ( children, orphans, adopt )
@@ -185,3 +185,31 @@ toTopLine :: U.TopLine tm -> TopLine tm
 toTopLine (U.TopLine d f n p m mt) = TopLine d f n p m mt
 
 
+-- | Change the metadata on a transaction.
+changeTransactionMeta ::
+  tm
+  -- ^ The new transaction (top line) metadata
+  
+  -> Transaction om pm
+  -- ^ The old transaction with metadata
+
+  -> Transaction tm pm
+  -- ^ Transaction with new metadata
+
+changeTransactionMeta m (Transaction f) = Transaction f' where
+  f' = F.Family tl c1 c2 cs
+  (F.Family p c1 c2 cs) = f
+  tl = p { tMeta = m }
+
+-- | Change the metadata on a posting.
+changePostingMeta ::
+  pm
+  -- ^ The new posting metadata
+
+  -> Posting om
+  -- ^ Transaction with old metadata
+
+  -> Posting pm
+  -- ^ Transaction with new metadata
+
+changePostingMeta m p = p { pMeta = m }

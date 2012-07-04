@@ -12,6 +12,12 @@ module Penny.Lincoln.Family (
   C.Child(Child),
   S.Siblings(Siblings),
   
+  -- * Mapping families
+  F.mapChildrenM,
+  F.mapChildren,
+  F.mapParentM,
+  F.mapParent,
+
   -- * Functions to manipulate families
   children,
   orphans,

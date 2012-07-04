@@ -134,6 +134,7 @@ module Penny.Lincoln (
   , T.pEntry
   , T.pMemo
   , T.pInferred
+  , T.changePostingMeta
 
     -- ** Querying transactions
   , T.TopLine
@@ -142,6 +143,7 @@ module Penny.Lincoln (
   , T.tNumber
   , T.tPayee
   , T.tMemo
+  , T.changeTransactionMeta
     
     -- ** Unwrapping Transactions
   , T.unTransaction

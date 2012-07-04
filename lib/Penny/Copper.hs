@@ -28,7 +28,7 @@ import qualified Data.Text as X
 import Text.Parsec ( manyTill, eof )
 import Text.Parsec.Text ( Parser )
 
-import Penny.Lincoln.Meta ( Line, Filename(..) )
+import qualified Penny.Copper.Meta as M
 import qualified Penny.Copper.Comments as C
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Copper.DateTime as DT
