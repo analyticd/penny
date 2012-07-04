@@ -10,6 +10,7 @@ module Penny.Copper (
 
   -- * Items
   I.Item(Transaction, Price, CommentItem, BlankLine),
+  I.Line(unLine),
 
   -- * Comments
   C.Comment(Comment),
@@ -35,17 +36,16 @@ import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Item as I
 
 data Ledger =
-  Ledger [(Line, I.Item)]
+  Ledger [(I.Line, I.Item)]
   deriving Show
 
 ledger ::
-  Filename
-  -> DT.DefaultTimeZone
+  DT.DefaultTimeZone
   -> Q.RadGroup
   -> Parser Ledger
-ledger fn dtz rg =
+ledger dtz rg =
   Ledger
-  <$> manyTill (I.itemWithLineNumber fn dtz rg) eof
+  <$> manyTill (I.itemWithLineNumber dtz rg) eof
 
 render ::
   DT.DefaultTimeZone

@@ -1,6 +1,7 @@
 module Penny.Copper.Item (
   itemWithLineNumber,
   Item(Transaction, Price, CommentItem, BlankLine),
+  Line(unLine),
   render
   ) where
 
