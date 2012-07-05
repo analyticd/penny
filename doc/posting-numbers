@@ -1,5 +1,17 @@
-transaction, for the entire transaction. On the TopLineMeta.
-unfiltered, after transactions have been split. On the PostingMeta.
-filtered, after filtering. On the PostingBox.
-sorted, after sorting. On the PostingBox.
-visible, visible postings only. On the PostingBox.
+Transaction metadata level
+--------------------------
+global-transaction - compares transaction to all transactions read in from all files.
+global-posting - compares posting to all postings read in from all files.
+file-transaction - compares transaction to all transactions in the same file.
+file-posting - compares posting to all postings read in the same file.
+
+
+Box level
+---------
+filtered - compares posting to other filtered postings.
+sorted - compares posting to other sorted postings.
+visible - compares posting to other visible postings.
+
+Filtering options allow filtering only on transaction
+metadata. Visibility options (on the postings report) allow filtering
+on transaction metadata, on filtered serials, and on sorted serials.
