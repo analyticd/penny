@@ -25,7 +25,7 @@ import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
 posting :: Qt.RadGroup
-           -> Parser (U.Posting M.PostingMeta)
+           -> Parser (U.Posting (M.PostingLine, Maybe M.Format))
 posting rg =
   makeUnverified
   <$> (M.PostingLine . sourceLine . statePos
@@ -54,11 +54,10 @@ data UnverifiedWithMeta = UnverifiedWithMeta {
 makeUnverified ::
   M.PostingLine
   -> UnverifiedWithMeta
-  -> (U.Posting M.PostingMeta)
+  -> (U.Posting (M.PostingLine, Maybe M.Format))
 makeUnverified pl u = upo where
   upo = U.Posting (payee u) (number u) (flag u) (account u)
-        (tags u) en (memo u) meta
-  meta = M.PostingMeta pl fmt
+        (tags u) en (memo u) (pl, fmt)
   (en, fmt) = case entry u of
     Nothing -> (Nothing, Nothing)
     Just (e, f) -> (Just e, Just f)

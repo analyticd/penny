@@ -17,7 +17,7 @@ data Serial = Serial {
   
   -- | Numbered from last to first, ending at zero.
   , backward :: !Int
-  } deriving Show
+  } deriving (Eq, Show)
              
 
 -- | Label a list of items with serials.

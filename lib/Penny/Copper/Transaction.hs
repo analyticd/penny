@@ -1,4 +1,4 @@
-module Penny.Copper.Transaction (transaction, render) where
+module Penny.Copper.Transaction (transaction, render, Transaction) where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (guard)
@@ -26,12 +26,16 @@ errorStr e = case e of
   T.UnbalancedError -> "postings are not balanced"
   T.CouldNotInferError -> "could not infer entry for posting"
 
+type Transaction =
+  T.Transaction (M.TopMemoLine, M.TopLineLine)
+  (M.PostingLine, Maybe M.Format)
+
 mkTransaction ::
-  U.TopLine M.TopLineMeta
-  -> U.Posting M.PostingMeta
-  -> U.Posting M.PostingMeta
-  -> [U.Posting M.PostingMeta]
-  -> Ex.Exceptional String (T.Transaction M.TopLineMeta M.PostingMeta)
+  U.TopLine (M.TopMemoLine, M.TopLineLine)
+  -> U.Posting (M.PostingLine, Maybe M.Format)
+  -> U.Posting (M.PostingLine, Maybe M.Format)
+  -> [U.Posting (M.PostingLine, Maybe M.Format)]
+  -> Ex.Exceptional String Transaction
 mkTransaction top p1 p2 ps = let
   famTrans = Family top p1 p2 ps
   errXact = T.transaction famTrans
@@ -42,8 +46,7 @@ mkTransaction top p1 p2 ps = let
 maybeTransaction ::
   DT.DefaultTimeZone
   -> Qt.RadGroup
-  -> Parser (Ex.Exceptional String
-             (T.Transaction M.TopLineMeta M.PostingMeta))
+  -> Parser (Ex.Exceptional String Transaction)
 maybeTransaction dtz rg =
   mkTransaction
   <$> topLine dtz
@@ -54,7 +57,7 @@ maybeTransaction dtz rg =
 transaction ::
   DT.DefaultTimeZone
   -> Qt.RadGroup
-  -> Parser (T.Transaction M.TopLineMeta M.PostingMeta)
+  -> Parser Transaction
 transaction dtz rg = do
   ex <- maybeTransaction dtz rg
   case ex of

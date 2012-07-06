@@ -23,7 +23,7 @@ import qualified Penny.Lincoln.Transaction.Unverified as U
 
 topLine ::
   DT.DefaultTimeZone
-  -> Parser (U.TopLine Meta.TopLineMeta)
+  -> Parser (U.TopLine (Meta.TopMemoLine, Meta.TopLineLine))
 topLine dtz =
   f
   <$> M.memo
@@ -35,10 +35,9 @@ topLine dtz =
   <*  eol
   where
     f (me, tml) pos dt fl nu pa = tl where
-      tl = U.TopLine dt fl nu pa me tlm
-      tlm = Meta.TopLineMeta tml lin fn
-      lin = Meta.TopLineLine . sourceLine $ pos
-      fn = Meta.Filename . X.pack . sourceName $ pos
+      tl = U.TopLine dt fl nu pa me (tml, tll)
+      tll = Meta.TopLineLine . sourceLine $ pos
+
 
 
 render ::

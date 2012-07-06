@@ -1,5 +1,6 @@
 module Penny.Copper.Meta where
 
+import qualified Penny.Lincoln.Serial as S
 import qualified Data.Text as X
 
 newtype TopLineLine = TopLineLine { unTopLineLine :: Int }
@@ -33,14 +34,35 @@ data PriceMeta =
             , priceFormat :: Format }
   deriving (Eq, Show)
 
+newtype GlobalPosting =
+  GlobalPosting { unGlobalPosting :: S.Serial }
+  deriving (Eq, Show)
+
+newtype FilePosting =
+  FilePosting { unFilePosting :: S.Serial }
+  deriving (Eq, Show)
+
 data PostingMeta =
   PostingMeta { postingLine :: PostingLine
-              , postingFormat :: Maybe Format }
+              , postingFormat :: Maybe Format
+              , globalPosting :: GlobalPosting
+              , filePosting :: FilePosting }
   deriving (Eq, Show)
+
+newtype GlobalTransaction =
+  GlobalTransaction { unGlobalTransaction :: S.Serial }
+  deriving (Eq, Show)
+
+newtype FileTransaction =
+  FileTransaction { unFileTransaction :: S.Serial }
+  deriving (Eq, Show)
+
 
 data TopLineMeta =
   TopLineMeta { topMemoLine :: TopMemoLine
               , topLineLine :: TopLineLine
-              , filename :: Filename }
+              , filename :: Filename
+              , globalTransaction :: GlobalTransaction
+              , fileTransaction :: FileTransaction }
   deriving (Eq, Show)
 
