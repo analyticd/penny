@@ -68,7 +68,7 @@ render ::
   DT.DefaultTimeZone
   -> (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> T.Transaction M.TopLineMeta M.PostingMeta
+  -> T.Transaction () (Maybe M.Format)
   -> Maybe X.Text
 render dtz gs rg txn = do
   let txnFam = T.unTransaction txn

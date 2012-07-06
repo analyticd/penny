@@ -23,10 +23,14 @@ import Penny.Copper.Transaction ( transaction )
 import Penny.Copper.Util (eol)
 
 
-data Item = Transaction (L.Transaction M.TopLineMeta M.PostingMeta)
-          | Price (L.PricePoint M.PriceMeta)
-          | CommentItem C.Comment
-          | BlankLine
+-- | An Item is used both to hold the result of parsing an item from a
+-- file and for rendering. It is parameterized on two types: the
+-- metadata type for the TopLine, and the metadata type for the
+-- Posting.
+data Item tm pm = Transaction (L.Transaction tm pm)
+                | Price (L.PricePoint M.PriceMeta)
+                | CommentItem C.Comment
+                | BlankLine
           deriving Show
 
 newtype Line = Line { unLine :: Int }
@@ -35,7 +39,8 @@ newtype Line = Line { unLine :: Int }
 itemWithLineNumber ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (Line, Item)
+  -> Parser (Line, (Item (M.TopMemoLine, M.TopLineLine)
+                    (M.PostingLine, Maybe M.Format)))
 itemWithLineNumber dtz rg = (,)
   <$> ((Line . sourceLine) <$> getPosition)
   <*> parseItem dtz rg
@@ -43,7 +48,8 @@ itemWithLineNumber dtz rg = (,)
 parseItem ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser Item
+  -> Parser (Item (M.TopMemoLine, M.TopLineLine)
+                    (M.PostingLine, Maybe M.Format))
 parseItem dtz rg = let
    bl = BlankLine <$ eol <?> "blank line"
    t = Transaction <$> transaction dtz rg
@@ -55,11 +61,10 @@ render ::
   DT.DefaultTimeZone
   -> (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
-  -> Item
+  -> Item () (Maybe M.Format)
   -> Maybe X.Text
 render dtz gs rg i = case i of
-  Transaction t -> do
-    T.render dtz gs rg t
+  Transaction t -> T.render dtz gs rg t
   Price pp -> P.render dtz gs rg pp
   CommentItem c -> C.render c
   BlankLine -> Just $ X.singleton '\n'

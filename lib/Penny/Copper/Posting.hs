@@ -85,7 +85,7 @@ makeUnverified pl u = upo where
 render ::
   (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> (T.Posting M.PostingMeta)
+  -> T.Posting (Maybe M.Format)
   -> Maybe X.Text
 render gs rg p = do
   fl <- renMaybe (T.pFlag p) Fl.render
@@ -94,8 +94,7 @@ render gs rg p = do
   ac <- Ac.render (T.pAccount p)
   ta <- Ta.render (T.pTags p)
   me <- Me.render (T.pMemo p)
-  let m = T.pMeta p
-  maybePair <- case (T.pInferred p, M.postingFormat m) of
+  maybePair <- case (T.pInferred p, T.pMeta p) of
     (T.Inferred, Nothing) -> return Nothing
     (T.NotInferred, Just f) -> return (Just (T.pEntry p, f))
     _ -> Nothing

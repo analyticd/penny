@@ -1,17 +1,5 @@
 -- | Copper - the Penny parser
 module Penny.Copper (
-  -- * Parsing
-  Ledger(Ledger),
-  ledger,
-  
-  -- * Rendering
-  render,
-  renderItems,
-
-  -- * Items
-  I.Item(Transaction, Price, CommentItem, BlankLine),
-  I.Line(unLine),
-
   -- * Comments
   C.Comment(Comment),
 
@@ -22,9 +10,30 @@ module Penny.Copper (
   
   -- * Default time zone
   DT.DefaultTimeZone(DefaultTimeZone),
-  DT.utcDefault) where
+  DT.utcDefault,
+  
+  -- * Filename and FileContents
+  Filename(Filename, unFilename),
+  FileContents(FileContents, unFileContents),
+  
+  -- * Errors
+  ErrorMsg (ErrorMsg, unErrorMsg),
+
+  -- * Items
+  I.Item(Transaction, Price, CommentItem, BlankLine),
+  I.Line(unLine),
+
+  -- * Parsing
+  Ledger(Ledger, unLedger),
+  parse,
+  
+  -- * Rendering
+  I.render
+  ) where
+
 
 import Control.Applicative ((<$>))
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import Text.Parsec ( manyTill, eof )
 import Text.Parsec.Text ( Parser )
@@ -36,30 +45,41 @@ import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Item as I
 
 data Ledger =
-  Ledger [(I.Line, I.Item)]
+  Ledger { unLedger :: [(I.Line, I.Item M.TopLineMeta M.PostingMeta)] }
   deriving Show
 
-ledger ::
-  DT.DefaultTimeZone
-  -> Q.RadGroup
-  -> Parser Ledger
-ledger dtz rg =
-  Ledger
-  <$> manyTill (I.itemWithLineNumber dtz rg) eof
+newtype Filename = Filename { unFilename :: X.Text }
+                   deriving (Eq, Show)
 
-render ::
-  DT.DefaultTimeZone
-  -> (Q.GroupingSpec, Q.GroupingSpec)
-  -> Q.RadGroup
-  -> Ledger
-  -> Maybe X.Text
-render dtz gs rg (Ledger is) = renderItems dtz gs rg (map snd is)
+newtype FileContents = FileContents { unFileContents :: X.Text }
+                       deriving (Eq, Show)
 
-renderItems ::
+newtype ErrorMsg = ErrorMsg { unErrorMsg :: X.Text }
+                   deriving (Eq, Show)
+
+type TopLineFileMeta =
+  (M.TopMemoLine, M.TopLineLine, M.Filename, M.FileTransaction)
+
+type PostingFileMeta =
+  (M.PostingLine, Maybe M.Format, M.FilePosting)
+
+parseFile ::
   DT.DefaultTimeZone
-  -> (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
-  -> [I.Item]
-  -> Maybe X.Text
-renderItems dtz gs rg is =
-  X.concat <$> mapM (I.render dtz gs rg) is
+  -> (Filename, FileContents)
+  -> Parser [(I.Line, I.Item TopLineFileMeta PostingFileMeta)]
+parseFile = undefined
+
+parseFiles ::
+  DT.DefaultTimeZone
+  -> Q.RadGroup
+  -> [(Filename, FileContents)]
+  -> Parser [(I.Line, I.Item M.TopLineMeta M.PostingMeta)]
+parseFiles = undefined
+
+parse ::
+  DT.DefaultTimeZone
+  -> Q.RadGroup
+  -> [(Filename, FileContents)]
+  -> Ex.Exceptional ErrorMsg Ledger
+parse = undefined
