@@ -53,6 +53,7 @@ import Control.Applicative ((<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import Text.Parsec ( manyTill, eof )
+import qualified Text.Parsec as P
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.Meta as M
@@ -83,11 +84,16 @@ type PostingFileMeta =
 parseFile ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> M.Filename
-  -> Parser [(I.Line, I.Item TopLineFileMeta PostingFileMeta)]
-parseFile dtz rg fn =
-  addFileMetadata fn
-  <$> manyTill (I.itemWithLineNumber dtz rg) eof
+  -> (M.Filename, FileContents)
+  -> Ex.Exceptional ErrorMsg
+  [(I.Line, I.Item TopLineFileMeta PostingFileMeta)]
+parseFile dtz rg (fn, (FileContents c)) =
+  let p = addFileMetadata fn
+          <$> manyTill (I.itemWithLineNumber dtz rg) eof
+      fnStr = X.unpack . M.unFilename $ fn
+  in case P.parse p fnStr c of
+    Left err -> Ex.throw (ErrorMsg . X.pack . show $ err)
+    Right g -> return g
 
 addFileMetadata ::
   M.Filename
@@ -104,31 +110,35 @@ addFileMetadata fn ls =
   in zip lns is'
 
 
-parseFiles ::
-  DT.DefaultTimeZone
-  -> Q.RadGroup
-  -> [(M.Filename, FileContents)]
-  -> Parser [(I.Line, I.Item M.TopLineMeta M.PostingMeta)]
-parseFiles = undefined
+addGlobalMetadata ::
+  [[(I.Line, I.Item TopLineFileMeta PostingFileMeta)]]
+  -> [(I.Line, I.Item M.TopLineMeta M.PostingMeta)]
+addGlobalMetadata lss =
+  let ls = concat lss
+      procTop s (tml, tll, fn, ft) =
+        M.TopLineMeta tml tll fn (M.GlobalTransaction s) ft
+      procPstg s (pl, fmt, fp) =
+        M.PostingMeta pl fmt (M.GlobalPosting s) fp
+      (lns, is) = (map fst ls, map snd ls)
+      eis = map toEiItem is
+      eis' = L.addSerialsToEithers procTop procPstg eis
+      is' = map fromEiItem eis'
+  in zip lns is'
 
 parse ::
   DT.DefaultTimeZone
   -> Q.RadGroup
   -> [(M.Filename, FileContents)]
   -> Ex.Exceptional ErrorMsg Ledger
-parse = undefined
-
-append1 :: b -> a -> (a, b)
-append1 b a = (a, b)
+parse dtz rg ps =
+  mapM (parseFile dtz rg) ps
+  >>= (return . Ledger . addGlobalMetadata)
 
 append2 :: c -> (a, b) -> (a, b, c)
 append2 c (a, b) = (a, b, c)
 
 append3 :: d -> (a, b, c) -> (a, b, c, d)
 append3 d (a, b, c) = (a, b, c, d)
-
-append4 :: e -> (a, b, c, d) -> (a, b, c, d, e)
-append4 e (a, b, c, d) = (a, b, c, d, e)
 
 data Other = OPrice (L.PricePoint M.PriceMeta)
              | OCommentItem C.Comment
