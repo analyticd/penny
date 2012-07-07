@@ -20,9 +20,6 @@ data Format =
 newtype Filename = Filename { unFilename :: X.Text }
                    deriving (Eq, Show)
 
-newtype Column = Column { unColumn :: Int }
-                 deriving (Show, Eq, Ord)
-
 newtype PriceLine = PriceLine { unPriceLine :: Int }
                     deriving (Eq, Show)
 

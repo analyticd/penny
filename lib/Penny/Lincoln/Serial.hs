@@ -1,9 +1,11 @@
 module Penny.Lincoln.Serial (
   Serial, forward, backward, serials,
   serialItems, serialChildrenInFamilies, serialParentsInFamilies,
-  selectiveSerialParents) where
+  selectiveSerialParents,
+  selectiveSerial) where
 
 import Data.Foldable (foldl', toList)
+import Control.Monad.Trans.Class (lift)
 import qualified Data.Either as E
 import qualified Penny.Lincoln.Family as F
 import qualified Control.Monad.Trans.State as St
@@ -17,6 +19,7 @@ data Serial = Serial {
   
   -- | Numbered from last to first, ending at zero.
   , backward :: !Int
+
   } deriving (Eq, Show)
              
 
@@ -147,3 +150,103 @@ selectiveSerialChildrenSt xformer selector a =
       fam' <- serialChildrenInFamily xformer fam
       return $ toB fam'
     Right b -> return b
+
+type PNextFwd = Int
+type PNextBack = Int
+type CNextFwd = Int
+type CNextBack = Int
+type State = (PNextFwd, PNextBack, CNextFwd, CNextBack)
+
+selectiveSerial ::
+  (Serial -> p -> p')
+  -> (Serial -> c -> c')
+  -> (a -> Either (F.Family p c, F.Family p' c' -> b) b)
+  -> [a]
+  -> [b]
+selectiveSerial xformP xformC selector as =
+  let pnf = 0
+      plen = length as
+      cnf = 0
+      clen = length . concatMap toList . map F.orphans
+             . map fst . E.lefts . map selector $ as
+      initState = (pnf, plen - 1, cnf, clen - 1)
+      k = selectiveSerialSt xformP xformC selector
+  in St.evalState (mapM k as) initState
+
+selectiveSerialF ::
+  (Serial -> p -> p')
+  -> (Serial -> c -> c')
+  -> F.Family p c
+  -> St.State State (F.Family p' c')
+selectiveSerialF fp fc f =
+  F.mapParentM (selectiveSerialPSt fp) f
+  >>= F.mapChildrenM (selectiveSerialCSt fc)
+
+
+selectiveSerialSt ::
+  (Serial -> p -> p')
+  -> (Serial -> c -> c')
+  -> (a -> Either (F.Family p c, F.Family p' c' -> b) b)
+  -> a
+  -> St.State State b
+selectiveSerialSt xformP xformC selector a =
+  case selector a of
+    Left (fam, f) -> do
+      fam' <- selectiveSerialF xformP xformC fam
+      return $ f fam'
+    Right b -> return b
+
+selectiveSerialCSt ::
+  (Serial -> c -> c')
+  -> c
+  -> St.State State c'
+selectiveSerialCSt f c = do
+  (pnf, pnb, cnf, cnb) <- St.get
+  let s = Serial cnf cnb
+  St.put (pnf, pnb, succ cnf, pred cnb)
+  return (f s c)
+
+selectiveSerialPSt ::
+  (Serial -> p -> p')
+  -> p
+  -> St.State State p'
+selectiveSerialPSt f p = do
+  (pnf, pnb, cnf, cnb) <- St.get
+  let s = Serial pnf pnb
+  St.put (succ pnf, pred pnb, cnf, cnb)
+  return (f s p)
+
+newtype Index = Index { unIndex :: Int } deriving (Eq, Ord, Show)
+newtype Total = Total { unTotal :: Int } deriving (Eq, Ord, Show)
+
+type NextA = Int
+type NextB = Int
+
+serialEithers ::
+  Monad m
+  => ([a] -> Serial -> a -> m c)
+  -> ([b] -> Serial -> b -> m d)
+  -> [Either a b]
+  -> m [Either c d]
+serialEithers fa fb ls =
+  let allA = E.lefts ls
+      allB = E.rights ls
+      totA = Total . length $ allA
+      totB = Total . length $ allB
+      initState = (0 :: Int, 0 :: Int)
+      k e = do
+        (nextA, nextB) <- St.get
+        case e of
+          Left a -> do
+            c <- lift $ fa allA (serial totA (Index nextA)) a
+            St.put (succ nextA, nextB)
+            return $ Left c
+          Right b -> do
+            d <- lift $ fb allB (serial totB (Index nextB)) b
+            St.put (nextA, succ nextB)
+            return $ Right d
+  in St.evalStateT (mapM k ls) initState
+
+serial :: Total -> Index -> Serial
+serial (Total t) (Index i) = Serial i b where
+  b = t - i - 1

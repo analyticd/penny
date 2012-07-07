@@ -203,13 +203,10 @@ changeTransactionMeta m (Transaction f) = Transaction f' where
 
 -- | Change the metadata on a posting.
 changePostingMeta ::
-  pm
-  -- ^ The new posting metadata
-
-  -> Posting om
-  -- ^ Transaction with old metadata
-
-  -> Posting pm
-  -- ^ Transaction with new metadata
-
-changePostingMeta m p = p { pMeta = m }
+  (m -> m')
+  -> Transaction pm m
+  -> Transaction pm m'
+changePostingMeta f (Transaction fam) =
+  Transaction . F.mapChildren g $ fam
+  where
+    g p = p { pMeta = f (pMeta p) }
