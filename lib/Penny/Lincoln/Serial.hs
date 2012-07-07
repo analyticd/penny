@@ -1,10 +1,14 @@
 module Penny.Lincoln.Serial (
   Serial, forward, backward, serials,
-  serialItems, serialChildrenInFamilies, serialParentsInFamilies,
+  serialItems, serialItemsM, serialChildrenInFamilies,
+  serialParentsInFamilies,
   selectiveSerialParents,
-  selectiveSerial) where
+  selectiveSerial,
+  serialChildrenInFamily, serialEithers,
+  NextFwd, NextBack, initNexts) where
 
 import Data.Foldable (foldl', toList)
+import Control.Monad (zipWithM)
 import Control.Monad.Trans.Class (lift)
 import qualified Data.Either as E
 import qualified Penny.Lincoln.Family as F
@@ -30,6 +34,16 @@ serialItems :: (Serial -> a -> b)
 serialItems f as =
   let ss = serials as
   in zipWith f ss as
+
+-- | Label a list of items with serials, in a monad.
+serialItemsM ::
+  Monad m
+  => (Serial -> a -> m b)
+  -> [a]
+  -> m [b]
+serialItemsM f as =
+  let ss = serials as
+  in zipWithM f ss as
 
 -- | Applied to a list of items, return a list of Serials usable to
 -- identify the list of items.
@@ -72,7 +86,7 @@ serialChildrenInFamilies f ls =
   let nf = 0
       len = length . concatMap toList . map F.orphans $ ls
       nb = len - 1
-      initState = (nf, nb)
+      initState = (NextFwd nf, NextBack nb)
   in St.evalState (mapM (serialChildrenInFamily f) ls) initState
 
 serialChildrenInFamily ::
@@ -81,17 +95,17 @@ serialChildrenInFamily ::
   -> St.State (NextFwd, NextBack) (F.Family p cNew)
 serialChildrenInFamily f = F.mapChildrenM (serialItemSt f)
 
-type NextFwd = Int
-type NextBack = Int
+newtype NextFwd = NextFwd { unNextFwd :: Int } deriving Show
+newtype NextBack = NextBack { unNextBack :: Int } deriving Show
 
 serialItemSt ::
   (Serial -> cOld -> cNew)
   -> cOld
   -> St.State (NextFwd, NextBack) cNew
 serialItemSt f old = do
-  (fwd, bak) <- St.get
+  (NextFwd fwd, NextBack bak) <- St.get
   let s = Serial fwd bak
-  St.put (succ fwd, pred bak)
+  St.put (NextFwd $ succ fwd, NextBack $ pred bak)
   return (f s old)
 
 
@@ -104,7 +118,7 @@ selectiveSerialParents xformer selector as =
   let nf = 0
       fams = map fst . E.lefts . map selector $ as
       len = length fams
-      initState = (0, len - 1)
+      initState = (NextFwd 0, NextBack $ len - 1)
       k = selectiveSerialParentsSt xformer selector
   in St.evalState (mapM k as) initState
       
@@ -117,11 +131,11 @@ selectiveSerialParentsSt ::
 selectiveSerialParentsSt xformer selector a =
   case selector a of
     Left ((F.Family p c1 c2 cs), toB) -> do
-      (fwd, bak) <- St.get
+      (NextFwd fwd, NextBack bak) <- St.get
       let s = Serial fwd bak
           fam = F.Family (xformer s p) c1 c2 cs
           b = toB fam
-      St.put (succ fwd, pred bak)
+      St.put (NextFwd $ succ fwd, NextBack $ pred bak)
       return b
     Right b -> return b
 
@@ -134,7 +148,7 @@ selectiveSerialChildren xformer selector as =
   let nf = 0
       fams = map fst . E.lefts . map selector $ as
       len = length . concatMap toList . map F.orphans $ fams
-      initState = (nf, len - 1)
+      initState = (NextFwd nf, NextBack $ len - 1)
       k = selectiveSerialChildrenSt xformer selector
   in St.evalState (mapM k as) initState
 
@@ -224,8 +238,8 @@ type NextB = Int
 
 serialEithers ::
   Monad m
-  => ([a] -> Serial -> a -> m c)
-  -> ([b] -> Serial -> b -> m d)
+  => (Serial -> a -> m c)
+  -> (Serial -> b -> m d)
   -> [Either a b]
   -> m [Either c d]
 serialEithers fa fb ls =
@@ -238,11 +252,11 @@ serialEithers fa fb ls =
         (nextA, nextB) <- St.get
         case e of
           Left a -> do
-            c <- lift $ fa allA (serial totA (Index nextA)) a
+            c <- lift $ fa (serial totA (Index nextA)) a
             St.put (succ nextA, nextB)
             return $ Left c
           Right b -> do
-            d <- lift $ fb allB (serial totB (Index nextB)) b
+            d <- lift $ fb (serial totB (Index nextB)) b
             St.put (nextA, succ nextB)
             return $ Right d
   in St.evalStateT (mapM k ls) initState
@@ -250,3 +264,6 @@ serialEithers fa fb ls =
 serial :: Total -> Index -> Serial
 serial (Total t) (Index i) = Serial i b where
   b = t - i - 1
+
+initNexts :: Int -> (NextFwd, NextBack)
+initNexts i = (NextFwd 0, NextBack $ i - 1)

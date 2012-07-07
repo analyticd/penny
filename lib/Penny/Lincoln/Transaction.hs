@@ -37,7 +37,12 @@ module Penny.Lincoln.Transaction (
   -- * Querying transactions
   TopLine,
   tDateTime, tFlag, tNumber, tPayee, tMemo, tMeta,
-  unTransaction, postingFamily, changeTransactionMeta ) where
+  unTransaction, postingFamily, changeTransactionMeta,
+  
+  -- * Adding serials
+  addSerialsToList, addSerialsToEithers
+  
+  ) where
 
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Family ( children, orphans, adopt )
@@ -46,10 +51,12 @@ import qualified Penny.Lincoln.Family.Child as C
 import qualified Penny.Lincoln.Family.Siblings as S
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Lincoln.Balance as Bal
+import qualified Penny.Lincoln.Serial as Ser
 
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Either as E
 import qualified Data.Foldable as F
 import Data.Maybe ( catMaybes )
 import qualified Data.Traversable as Tr
@@ -210,3 +217,44 @@ changePostingMeta f (Transaction fam) =
   Transaction . F.mapChildren g $ fam
   where
     g p = p { pMeta = f (pMeta p) }
+
+addSerials ::
+  (Ser.Serial -> tm -> tm')
+  -> (Ser.Serial -> pm -> pm')
+  -> Ser.Serial
+  -> Transaction tm pm
+  -> St.State (Ser.NextFwd, Ser.NextBack) (Transaction tm' pm')
+addSerials ft fp s (Transaction fam) = do
+  let topMapper pm = pm { tMeta = ft s (tMeta pm) }
+      pstgMapper ser pstg = pstg { pMeta = fp ser (pMeta pstg) }
+      fam' = F.mapParent topMapper fam
+  fam'' <- Ser.serialChildrenInFamily pstgMapper fam'
+  return $ Transaction fam''
+
+addSerialsToList ::
+  (Ser.Serial -> tm -> tm')
+  -> (Ser.Serial -> pm -> pm')
+  -> [Transaction tm pm]
+  -> [Transaction tm' pm']
+addSerialsToList ft fp ls =
+  let nPstgs = length . concatMap F.toList . map orphans
+               . map unTransaction $ ls
+      initState = Ser.initNexts nPstgs
+      processor = addSerials ft fp
+  in St.evalState (Ser.serialItemsM processor ls) initState
+
+
+addSerialsToEithers ::
+  (Ser.Serial -> tm -> tm')
+  -> (Ser.Serial -> pm -> pm')
+  -> [Either a (Transaction tm pm)]
+  -> [Either a (Transaction tm' pm')]
+addSerialsToEithers ft fp ls =
+  let txns = E.rights ls
+      nPstgs = length . concatMap F.toList . map orphans
+               . map unTransaction $ txns
+      initState = Ser.initNexts nPstgs
+      processA _ a = return a
+      processTxn = addSerials ft fp
+      k = Ser.serialEithers processA processTxn ls
+  in St.evalState k initState
