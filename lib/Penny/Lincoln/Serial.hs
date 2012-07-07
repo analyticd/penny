@@ -1,9 +1,6 @@
 module Penny.Lincoln.Serial (
   Serial, forward, backward, serials,
-  serialItems, serialItemsM, serialChildrenInFamilies,
-  serialParentsInFamilies,
-  selectiveSerialParents,
-  selectiveSerial,
+  serialItems, serialItemsM,
   serialChildrenInFamily, serialEithers,
   NextFwd, NextBack, initNexts) where
 
@@ -54,41 +51,6 @@ serials as = zipWith Serial fs rs where
   rs = take len . iterate pred $ (len - 1)
 
 
--- | Label a list of parents with serials, in order.
-serialParentsInFamilies ::
-  (Serial -> pOld -> pNew)
-  -- ^ Function that takes the serial and the old parent, and returns
-  -- a new parent.
-  
-  -> [F.Family pOld c]
-  -> [F.Family pNew c]
-
-serialParentsInFamilies f ls =
-  let nf = 0
-      nb = (length ls) - 1
-      initState = (nf, nb)
-      g a = do
-        (fwd, bak) <- St.get
-        let s = Serial fwd bak
-        St.put (succ fwd, pred bak)
-        return $ f s a
-  in St.evalState (mapM (F.mapParentM g) ls) initState
-
--- | Label a list of children with serials, in order.
-serialChildrenInFamilies ::
-  (Serial -> cOld -> cNew)
-  -- ^ Function that takes the serial and the old child, and returns a
-  -- new child.
-  
-  -> [F.Family p cOld]
-  -> [F.Family p cNew]
-serialChildrenInFamilies f ls = 
-  let nf = 0
-      len = length . concatMap toList . map F.orphans $ ls
-      nb = len - 1
-      initState = (NextFwd nf, NextBack nb)
-  in St.evalState (mapM (serialChildrenInFamily f) ls) initState
-
 serialChildrenInFamily ::
   (Serial -> cOld -> cNew)
   -> F.Family p cOld
@@ -108,133 +70,8 @@ serialItemSt f old = do
   St.put (NextFwd $ succ fwd, NextBack $ pred bak)
   return (f s old)
 
-
-selectiveSerialParents ::
-  (Serial -> p -> p')
-  -> (a -> Either (F.Family p c, F.Family p' c -> b) b)
-  -> [a]
-  -> [b]
-selectiveSerialParents xformer selector as =
-  let nf = 0
-      fams = map fst . E.lefts . map selector $ as
-      len = length fams
-      initState = (NextFwd 0, NextBack $ len - 1)
-      k = selectiveSerialParentsSt xformer selector
-  in St.evalState (mapM k as) initState
-      
-
-selectiveSerialParentsSt ::
-  (Serial -> p -> p')
-  -> (a -> Either (F.Family p c, F.Family p' c -> b) b)
-  -> a
-  -> St.State (NextFwd, NextBack) b
-selectiveSerialParentsSt xformer selector a =
-  case selector a of
-    Left ((F.Family p c1 c2 cs), toB) -> do
-      (NextFwd fwd, NextBack bak) <- St.get
-      let s = Serial fwd bak
-          fam = F.Family (xformer s p) c1 c2 cs
-          b = toB fam
-      St.put (NextFwd $ succ fwd, NextBack $ pred bak)
-      return b
-    Right b -> return b
-
-selectiveSerialChildren ::
-  (Serial -> c -> c')
-  -> (a -> Either (F.Family p c, F.Family p c' -> b) b)
-  -> [a]
-  -> [b]
-selectiveSerialChildren xformer selector as =
-  let nf = 0
-      fams = map fst . E.lefts . map selector $ as
-      len = length . concatMap toList . map F.orphans $ fams
-      initState = (NextFwd nf, NextBack $ len - 1)
-      k = selectiveSerialChildrenSt xformer selector
-  in St.evalState (mapM k as) initState
-
-
-selectiveSerialChildrenSt ::
-  (Serial -> c -> c')
-  -> (a -> Either (F.Family p c, F.Family p c' -> b) b)
-  -> a
-  -> St.State (NextFwd, NextBack) b
-selectiveSerialChildrenSt xformer selector a =
-  case selector a of
-    Left (fam, toB) -> do
-      fam' <- serialChildrenInFamily xformer fam
-      return $ toB fam'
-    Right b -> return b
-
-type PNextFwd = Int
-type PNextBack = Int
-type CNextFwd = Int
-type CNextBack = Int
-type State = (PNextFwd, PNextBack, CNextFwd, CNextBack)
-
-selectiveSerial ::
-  (Serial -> p -> p')
-  -> (Serial -> c -> c')
-  -> (a -> Either (F.Family p c, F.Family p' c' -> b) b)
-  -> [a]
-  -> [b]
-selectiveSerial xformP xformC selector as =
-  let pnf = 0
-      plen = length as
-      cnf = 0
-      clen = length . concatMap toList . map F.orphans
-             . map fst . E.lefts . map selector $ as
-      initState = (pnf, plen - 1, cnf, clen - 1)
-      k = selectiveSerialSt xformP xformC selector
-  in St.evalState (mapM k as) initState
-
-selectiveSerialF ::
-  (Serial -> p -> p')
-  -> (Serial -> c -> c')
-  -> F.Family p c
-  -> St.State State (F.Family p' c')
-selectiveSerialF fp fc f =
-  F.mapParentM (selectiveSerialPSt fp) f
-  >>= F.mapChildrenM (selectiveSerialCSt fc)
-
-
-selectiveSerialSt ::
-  (Serial -> p -> p')
-  -> (Serial -> c -> c')
-  -> (a -> Either (F.Family p c, F.Family p' c' -> b) b)
-  -> a
-  -> St.State State b
-selectiveSerialSt xformP xformC selector a =
-  case selector a of
-    Left (fam, f) -> do
-      fam' <- selectiveSerialF xformP xformC fam
-      return $ f fam'
-    Right b -> return b
-
-selectiveSerialCSt ::
-  (Serial -> c -> c')
-  -> c
-  -> St.State State c'
-selectiveSerialCSt f c = do
-  (pnf, pnb, cnf, cnb) <- St.get
-  let s = Serial cnf cnb
-  St.put (pnf, pnb, succ cnf, pred cnb)
-  return (f s c)
-
-selectiveSerialPSt ::
-  (Serial -> p -> p')
-  -> p
-  -> St.State State p'
-selectiveSerialPSt f p = do
-  (pnf, pnb, cnf, cnb) <- St.get
-  let s = Serial pnf pnb
-  St.put (succ pnf, pred pnb, cnf, cnb)
-  return (f s p)
-
 newtype Index = Index { unIndex :: Int } deriving (Eq, Ord, Show)
 newtype Total = Total { unTotal :: Int } deriving (Eq, Ord, Show)
-
-type NextA = Int
-type NextB = Int
 
 serialEithers ::
   Monad m
