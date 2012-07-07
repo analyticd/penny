@@ -94,42 +94,15 @@ addFileMetadata ::
   -> [(I.Line, (I.Item (M.TopMemoLine, M.TopLineLine)
                 (M.PostingLine, Maybe M.Format)))]
   -> [(I.Line, I.Item TopLineFileMeta PostingFileMeta)]
-addFileMetadata = undefined
+addFileMetadata fn ls =
+  let (lns, is) = (map fst ls, map snd ls)
+      eis = map toEiItem is
+      procTop s = append3 (M.FileTransaction s) . append2 fn
+      procPstg s = append2 (M.FilePosting s)
+      eis' = L.addSerialsToEithers procTop procPstg eis
+      is' = map fromEiItem eis'
+  in zip lns is'
 
-
-addFileTransaction ::
-  M.Filename
-  -> S.Serial
-  -> (M.TopMemoLine, M.TopLineLine)
-  -> TopLineFileMeta
-addFileTransaction fn s (tml, tll) =
-  (tml, tll, fn, (M.FileTransaction s))
-
-addFilePosting ::
-  S.Serial
-  -> (M.PostingLine, Maybe M.Format)
-  -> PostingFileMeta
-addFilePosting s (pl, fmt) = (pl, fmt, M.FilePosting s)
-
-{-
-fileItemSelect ::
-  I.Item (M.TopMemoLine, M.TopLineLine)
-  (M.PostingLine, Maybe M.Format)
-  -> Either (F.Family (L.TopLine (M.TopMemoLine, M.TopLineLine))
-             (L.Posting (M.PostingLine, Maybe M.Format)),
-             F.Family (L.TopLine TopLineFileMeta)
-             (L.Posting PostingFileMeta)
-             -> I.Item TopLineFileMeta PostingFileMeta)
-  (I.Item TopLineFileMeta PostingFileMeta)
-fileItemSelect i = case i of
-  I.Transaction t ->
-    let fam = L.unTransaction t
-        changer fam' = I.Transaction 
-    in Left (fam, \f -> I.Transaction (L.changePostingMeta )
-  I.Price p -> Right (I.Price p)
-  I.CommentItem c -> Right (I.CommentItem c)
-  I.BlankLine -> I.BlankLine
--}
 
 parseFiles ::
   DT.DefaultTimeZone
@@ -144,3 +117,38 @@ parse ::
   -> [(M.Filename, FileContents)]
   -> Ex.Exceptional ErrorMsg Ledger
 parse = undefined
+
+append1 :: b -> a -> (a, b)
+append1 b a = (a, b)
+
+append2 :: c -> (a, b) -> (a, b, c)
+append2 c (a, b) = (a, b, c)
+
+append3 :: d -> (a, b, c) -> (a, b, c, d)
+append3 d (a, b, c) = (a, b, c, d)
+
+append4 :: e -> (a, b, c, d) -> (a, b, c, d, e)
+append4 e (a, b, c, d) = (a, b, c, d, e)
+
+data Other = OPrice (L.PricePoint M.PriceMeta)
+             | OCommentItem C.Comment
+             | OBlankLine
+             deriving Show
+
+type EiItem tm pm = Either Other (L.Transaction tm pm)
+
+toEiItem :: I.Item tm pm -> EiItem tm pm
+toEiItem i = case i of
+  I.Transaction t -> Right t
+  I.Price p -> Left (OPrice p)
+  I.CommentItem c -> Left (OCommentItem c)
+  I.BlankLine -> Left OBlankLine
+
+fromEiItem :: EiItem tm pm -> I.Item tm pm
+fromEiItem i = case i of
+  Left l -> case l of
+    OPrice p -> I.Price p
+    OCommentItem c -> I.CommentItem c
+    OBlankLine -> I.BlankLine
+  Right t -> I.Transaction t
+
