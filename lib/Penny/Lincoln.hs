@@ -145,13 +145,16 @@ module Penny.Lincoln (
   , T.tMemo
   , T.changeTransactionMeta
     
-    -- * Adding serials to transactions
+    -- ** Adding serials to transactions
   , T.addSerialsToList
   , T.addSerialsToEithers
     
     -- ** Unwrapping Transactions
   , T.unTransaction
   , T.postingFamily
+    
+    -- ** Transaction boxes
+  , T.Box (Box, boxMeta, boxPosting)
     
     -- * PriceDb
   , DB.PriceDb

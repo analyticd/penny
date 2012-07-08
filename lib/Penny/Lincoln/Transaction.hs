@@ -40,7 +40,10 @@ module Penny.Lincoln.Transaction (
   unTransaction, postingFamily, changeTransactionMeta,
   
   -- * Adding serials
-  addSerialsToList, addSerialsToEithers
+  addSerialsToList, addSerialsToEithers,
+  
+  -- * Box
+  Box ( Box, boxMeta, boxPosting )
   
   ) where
 
@@ -258,3 +261,12 @@ addSerialsToEithers ft fp ls =
       processTxn = addSerials ft fp
       k = Ser.serialEithers processA processTxn ls
   in St.evalState k initState
+
+-- | A box stores a family of transaction data along with
+-- metadata. The transaction is stored in child form, indicating a
+-- particular posting of interest. The metadata is in addition to the
+-- metadata associated with the TopLine and with each posting.
+data Box bm tm pm =
+  Box { boxMeta :: bm
+      , boxPosting :: C.Child (TopLine tm) (Posting pm) }
+  deriving Show
