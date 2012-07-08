@@ -21,29 +21,89 @@
 module Penny.Liberty.Operands where
 
 import Control.Applicative ((<|>), (<$))
+import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
 import Data.Text (Text, pack, unpack)
-import System.Console.MultiArg.Combinator
-  (mixedOneArg, longNoArg, longTwoArg, mixedTwoArg)
-import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
-import System.Console.MultiArg.Prim (ParserE, throw)
+import qualified System.Console.MultiArg.Combinator as C
+import System.Console.MultiArg.Prim (Parser)
 import Text.Parsec (parse)
-
+  
+import qualified Penny.Copper as Cop
 import Penny.Copper.DateTime (DefaultTimeZone, dateTime)
 import Penny.Copper.Qty (RadGroup, qty)
 
 import qualified Penny.Lincoln.Predicates as P
-import Penny.Lincoln.Bits (DateTime)
-import Penny.Lincoln.Boxes (PostingBox)
+import qualified Penny.Lincoln as L
 import qualified Penny.Liberty.Expressions as X
 
 import Penny.Liberty.Error (Error)
 import qualified Penny.Liberty.Error as E
 
-type MatcherFactory = Text -> Exceptional Text (Text -> Bool)
-type Operand = X.Operand (PostingBox -> Bool)
+type MatcherFactory = Text -> Ex.Exceptional Text (Text -> Bool)
+type Operand =
+  X.Operand (L.PostingChild Cop.TopLineMeta Cop.PostingMeta
+             -> Bool)
 
+type MatcherFunc =
+  Parser (MatcherFactory -> Ex.Exceptional Error Operand)
+
+
+-- | Given a Text from the command line which represents a pattern,
+-- and a MatcherFactor, return a Matcher. Fails if the pattern is bad
+-- (e.g. it is not a valid regular expression).
+getMatcher ::
+  Text
+  -> MatcherFactory
+  -> Ex.Exceptional Error (Text -> Bool)
+
+getMatcher t f = case f t of
+  Ex.Exception e -> Ex.Exception $ E.BadPatternError e
+  Ex.Success m -> return m
+
+-- | Parses comparers given on command line to a function.
+parseComparer ::
+  (Eq a, Ord a)
+  => String
+  -> Ex.Exceptional E.Error (a -> a -> Bool)
+parseComparer t
+  | t == "<" = Ex.Success (<)
+  | t == "<=" = Ex.Success (<=)
+  | t == "==" = Ex.Success (==)
+  | t == ">" = Ex.Success (>)
+  | t == ">=" = Ex.Success (>=)
+  | t == "/=" = Ex.Success (/=)
+  | t == "!=" = Ex.Success (/=)
+  | otherwise = Ex.Exception $ E.BadComparator (pack t)
+
+parseDate :: DefaultTimeZone -> Text -> Exceptional Error L.DateTime
+parseDate dtz t = case parse (dateTime dtz) "" t of
+  Left _ -> Exception E.DateParseError
+  Right d -> return d
+
+date :: DefaultTimeZone -> Parser (Ex.Exceptional Error Operand)
+date dtz =
+  let os = C.OptSpec ["date"] ['d'] (C.TwoArg f)
+      f a1 a2 = do
+        cmp <- parseComparer a1
+        dt <- parseDate dtz (pack a2)
+        return $ X.Operand (P.date cmp dt)
+  in C.parseOption [os]
+
+current :: Parser (DateTime -> Ex.Exceptional Error Operand)
+current =
+  let os = C.OptSpec ["current"] [] (C.NoArg f)
+      
+      f dt
+  let lo = makeLongOpt . pack $ "current"
+      cmp = P.LessThanEQ
+  _ <- longNoArg lo
+  return $ X.Operand (P.date cmp dt)
+
+
+
+{-
+type Operand = X.Operand (PostingBox -> Bool)
 -- * The combined token parser
 
 -- | Combines all the parsers in this module to parse a single
@@ -163,49 +223,9 @@ throwIf ex = case ex of
 
 -- * Comparison options
 
--- | Parses comparers given on command line to internal representation
-parseComparer :: Text -> Exceptional E.Error P.Comparer
-parseComparer t
-  | t == pack "<" = Success P.LessThan
-  | t == pack "<=" = Success P.LessThanEQ
-  | t == pack "==" = Success P.Equals
-  | t == pack ">" = Success P.GreaterThan
-  | t == pack ">=" = Success P.GreaterThanEQ
-  | t == pack "/=" = Success P.NotEquals
-  | otherwise = Exception $ E.BadComparator t
-
 -- * Dates
 
-date :: DefaultTimeZone -> ParserE Error Operand
-date dtz = do
-  let lo = makeLongOpt . pack $ "date"
-      so = makeShortOpt 'd'
-  (_, c, d) <- mixedTwoArg lo [] [so]
-  cmp <- throwIf $ parseComparer c
-  dt <- throwIf $ parseDate dtz d
-  return $ X.Operand (P.date cmp dt)
-
-current :: DateTime -> ParserE Error Operand
-current dt = do
-  let lo = makeLongOpt . pack $ "current"
-      cmp = P.LessThanEQ
-  _ <- longNoArg lo
-  return $ X.Operand (P.date cmp dt)
-
-parseDate :: DefaultTimeZone -> Text -> Exceptional Error DateTime
-parseDate dtz t = case parse (dateTime dtz) "" t of
-  Left _ -> Exception E.DateParseError
-  Right d -> return d
-
 -- * Pattern matching
-
--- | Given a Text from the command line which represents a pattern,
--- and a State, return a Matcher. This will fail if the pattern is bad
--- (e.g. it is a bad regular expression).
-getMatcher :: Text -> MatcherFactory -> Exceptional Error (Text -> Bool)
-getMatcher t f = case f t of
-  Exception e -> Exception $ E.BadPatternError e
-  Success m -> return m
 
 sep :: Text
 sep = pack ":"
@@ -288,3 +308,4 @@ qtyOption rg = do
   return $ X.Operand (P.qty c q)
 
 
+-}
