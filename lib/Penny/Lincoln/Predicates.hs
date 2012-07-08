@@ -70,11 +70,10 @@ transactionMemo f = matchMemo f . Q.transactionMemo
 -- * Date
 
 date ::
-  (B.DateTime -> B.DateTime -> Bool)
-  -> B.DateTime
+  (B.DateTime -> Bool)
   -> PostingChild tm pm
   -> Bool
-date f dt c = f (Q.dateTime c) dt
+date f c = f (Q.dateTime c)
 
 
 -- * Qty
