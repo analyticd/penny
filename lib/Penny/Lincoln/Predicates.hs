@@ -79,11 +79,10 @@ date f c = f (Q.dateTime c)
 -- * Qty
 
 qty ::
-  (B.Qty -> B.Qty -> Bool)
-  -> B.Qty
+  (B.Qty -> Bool)
   -> PostingChild tm pm
   -> Bool
-qty f q c = f (Q.qty c) q
+qty f c = f (Q.qty c)
 
 
 -- * DrCr

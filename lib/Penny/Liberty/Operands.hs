@@ -18,7 +18,7 @@
 -- affect the matcher that is used to determine whether textual fields
 -- are a match, or they add tokens that are later parsed by an
 -- expression parser.
-module Penny.Liberty.Operands where
+module Penny.Liberty.Operands (parseToken) where
 
 import Control.Applicative ((<|>), (<$))
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -34,6 +34,7 @@ import qualified Penny.Copper as Cop
 import Penny.Copper.DateTime (DefaultTimeZone, dateTime)
 import Penny.Copper.Qty (RadGroup, qty)
 
+import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty.Expressions as X
@@ -235,18 +236,133 @@ credit :: Parser Operand
 credit =
   let os = C.OptSpec ["credit"] [] (C.NoArg (X.Operand P.credit))
   in C.parseOption [os]
-{-
 
--- * The combined token parser
+qtyOption ::
+  RadGroup
+  -> Parser (Exceptional Error Operand)
+qtyOption rg =
+  let os = C.OptSpec ["qty"] [] (C.TwoArg f)
+      f a1 a2 = do
+        q <- case parse (qty rg) "" (pack a2) of
+          Left _ -> Ex.throw $ E.BadQtyError (pack a2)
+          Right g -> return g
+        cmp <- parseComparer a1
+        return $ X.Operand (P.qty (`cmp` q))
+  in C.parseOption [os]
+
+-- | Creates two options suitable for comparison of serial numbers,
+-- one for ascending, one for descending.
+serialOption ::
+
+  (PostingChild -> L.Serial)
+  -- ^ Function that, when applied to a PostingChild, returns the serial
+  -- you are interested in.
+
+  -> String
+  -- ^ Name of the command line option, such as @global-transaction@
+
+  -> Parser (Exceptional Error Operand)
+  -- ^ Parses both descending and ascending serial options.
+
+serialOption getSerial n =
+  let osA = C.OptSpec [n ++ "-ascending"] []
+            (C.TwoArg (f L.forward))
+      osD = C.OptSpec [n ++ "-descending"] []
+            (C.TwoArg (f L.backward))
+      f getInt a1 a2 = do
+        cmp <- parseComparer a1
+        i <- parseInt a2
+        let op pc = (getInt . getSerial $ pc) `cmp` i
+        return $ X.Operand op
+  in C.parseOption [osA, osD]
+
+globalTransaction :: Parser (Exceptional Error Operand)
+globalTransaction =
+  let f = Cop.unGlobalTransaction
+          . Cop.globalTransaction
+          . L.tMeta
+          . parent
+  in serialOption f "global-transaction"
+
+globalPosting :: Parser (Exceptional Error Operand)
+globalPosting =
+  let f = Cop.unGlobalPosting
+          . Cop.globalPosting
+          . L.pMeta
+          . child
+  in serialOption f "global-posting"
+
+filePosting :: Parser (Exceptional Error Operand)
+filePosting =
+  let f = Cop.unFilePosting
+          . Cop.filePosting
+          . L.pMeta
+          . child
+  in serialOption f "file-posting"
+
+fileTransaction :: Parser (Exceptional Error Operand)
+fileTransaction =
+  let f = Cop.unFileTransaction
+          . Cop.fileTransaction
+          . L.tMeta
+          . parent
+  in serialOption f "file-transaction"
 
 -- | Combines all the parsers in this module to parse a single
 -- token. Only parses one token. Fails if the next word on the command
 -- line is not a token.
-parseToken :: DefaultTimeZone
-              -> DateTime
-              -> RadGroup
-              -> MatcherFactory
-              -> ParserE Error Operand
+parseToken ::
+  DefaultTimeZone
+  -> RadGroup
+  -> Parser (L.DateTime
+             -> MatcherFactory
+             -> Ex.Exceptional Error Operand)
+
+parseToken dtz rg =
+  wrapNoArg (date dtz)
+  <|> (do { f <- current; return (\dt _ -> return (f dt)) })
+  <|> wrapFactArg account
+  <|> wrapFactArg accountLevel
+  <|> wrapFactArg accountAny
+  <|> wrapFactArg payee
+  <|> wrapFactArg tag
+  <|> wrapFactArg number
+  <|> wrapFactArg flag
+  <|> wrapFactArg commodity
+  <|> wrapFactArg commodityLevel
+  <|> wrapFactArg commodityAny
+  <|> wrapFactArg postingMemo
+  <|> wrapFactArg transactionMemo
+  <|> (do { o <- debit; return (\_ _ -> return o) })
+  <|> (do { o <- credit; return (\_ _ -> return o) })
+  <|> wrapNoArg (qtyOption rg)
+  <|> wrapNoArg globalTransaction
+  <|> wrapNoArg globalPosting
+  <|> wrapNoArg filePosting
+  <|> wrapNoArg fileTransaction
+
+wrapNoArg ::
+  Parser (Ex.Exceptional Error Operand)
+  -> Parser (L.DateTime
+             -> MatcherFactory
+             -> Ex.Exceptional Error Operand)
+wrapNoArg p = do
+  o <- p
+  return (\_ _ -> o)
+
+wrapFactArg ::
+  Parser (MatcherFactory -> Exceptional Error Operand)
+  -> Parser (L.DateTime
+             -> MatcherFactory
+             -> Ex.Exceptional Error Operand)
+wrapFactArg p = do
+  f <- p
+  return (\_ fact -> f fact)
+
+{-
+
+-- * The combined token parser
+
 parseToken dtz dt rg f =
   date dtz
   <|> current dt
@@ -273,18 +389,6 @@ parseToken dtz dt rg f =
 -- * Miscellaneous combinators
 
 -- * Non-pattern matching
-
-qtyOption ::
-  RadGroup
-  -> ParserE Error Operand
-qtyOption rg = do
-  let lo = makeLongOpt . pack $ "qty"
-  (_, cs, qs) <- longTwoArg lo
-  q <- case parse (qty rg) "" qs of
-    Left _ -> throw $ E.BadQtyError qs
-    Right qtParsed -> return qtParsed
-  c <- throwIf $ parseComparer cs
-  return $ X.Operand (P.qty c q)
 
 
 -}

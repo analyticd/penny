@@ -18,8 +18,7 @@ on transaction metadata, on filtered serials, and on sorted serials.
 
 Command line options consist of the name of the serial, followed by a
 separate word indicating ascending or descending order. For example:
-"--global-transaction ascending" or "--global-transaction asc" or
-simply "--global-transaction a".
+"--global-transaction-ascending" or "--global-transaction-descending".
 
 Field names for the postings report consist of the name of the serial
 followed by "-asc" or "-dsc" for ascending or descending order.

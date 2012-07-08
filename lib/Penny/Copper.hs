@@ -27,9 +27,10 @@ module Penny.Copper (
   M.PriceMeta(priceLine, priceFormat),
   M.GlobalPosting(unGlobalPosting),
   M.FilePosting(unFilePosting),
+  M.GlobalTransaction(unGlobalTransaction),
+  M.FileTransaction(unFileTransaction),
   M.PostingMeta(postingLine, postingFormat, globalPosting,
                 filePosting),
-  M.GlobalTransaction(unGlobalTransaction),
   M.TopLineMeta(topMemoLine, topLineLine, filename,
                 globalTransaction, fileTransaction),
   

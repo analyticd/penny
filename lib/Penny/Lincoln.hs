@@ -134,6 +134,7 @@ module Penny.Lincoln (
   , T.pEntry
   , T.pMemo
   , T.pInferred
+  , T.pMeta
   , T.changePostingMeta
 
     -- ** Querying transactions
@@ -143,6 +144,7 @@ module Penny.Lincoln (
   , T.tNumber
   , T.tPayee
   , T.tMemo
+  , T.tMeta
   , T.changeTransactionMeta
     
     -- ** Adding serials to transactions
