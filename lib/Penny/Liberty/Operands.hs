@@ -359,36 +359,23 @@ wrapFactArg p = do
   f <- p
   return (\_ fact -> f fact)
 
-{-
+------------------------------------------------------------
+-- Post filters
+------------------------------------------------------------
 
--- * The combined token parser
+optHead :: Parser (Exceptional Error ([a] -> [a]))
+optHead =
+  let os = C.OptSpec ["head"] [] (C.OneArg f)
+      f a = do
+        i <- parseInt a
+        return $ take i
+  in C.parseOption [os]
 
-parseToken dtz dt rg f =
-  date dtz
-  <|> current dt
-  
-  <|> account f
-  <|> accountLevel f
-  <|> accountAny f
-  <|> payee f
-  <|> tag f
-  <|> number f
-  <|> flag f
-  <|> commodity f
-  <|> commodityLevel f
-  <|> commodityAny f
-  <|> postingMemo f
-  <|> transactionMemo f
-  <|> debit
-  <|> credit
-  
-  <|> qtyOption rg
-
--- * MultiArg option factories
-
--- * Miscellaneous combinators
-
--- * Non-pattern matching
-
-
--}
+optTail :: Parser (Exceptional Error ([a] -> [a]))
+optTail =
+  let os = C.OptSpec ["tail"] [] (C.OneArg f)
+      f a = do
+        i <- parseInt a
+        let f ls = drop (length ls - i) ls
+        return f
+  in C.parseOption [os]
