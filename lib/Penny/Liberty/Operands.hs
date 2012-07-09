@@ -41,9 +41,14 @@ import qualified Penny.Liberty.Expressions as X
 
 import Penny.Liberty.Error (Error)
 import qualified Penny.Liberty.Error as E
+import Text.Matchers.CaseSensitive (
+  CaseSensitive(Sensitive, Insensitive))
 
 type PostingChild = L.PostingChild Cop.TopLineMeta Cop.PostingMeta
-type MatcherFactory = Text -> Ex.Exceptional Text (Text -> Bool)
+type MatcherFactory =
+  CaseSensitive
+  -> Text
+  -> Ex.Exceptional Text (Text -> Bool)
 type Operand = X.Operand (PostingChild -> Bool)
 
 type MatcherFunc =
@@ -55,10 +60,11 @@ type MatcherFunc =
 -- (e.g. it is not a valid regular expression).
 getMatcher ::
   String
+  -> CaseSensitive
   -> MatcherFactory
   -> Ex.Exceptional Error (Text -> Bool)
 
-getMatcher s f = case f (pack s) of
+getMatcher s cs f = case f cs (pack s) of
   Ex.Exception e -> Ex.Exception $ E.BadPatternError e
   Ex.Success m -> return m
 
@@ -113,14 +119,16 @@ sepOption ::
   -- the field, a matcher, and a posting, this function returns True
   -- if the posting matches the matcher or False if it does not.
   
-  -> Parser (MatcherFactory -> Ex.Exceptional Error Operand)
+  -> Parser (CaseSensitive
+             -> MatcherFactory
+             -> Ex.Exceptional Error Operand)
 sepOption str mc f =
   let so = case mc of
         Nothing -> []
         Just c -> [c]
       os = C.OptSpec [str] so (C.OneArg g)
-      g a factory = do
-        m <- getMatcher a factory
+      g a cs factory = do
+        m <- getMatcher a cs factory
         return $ X.Operand (f sep m)
   in C.parseOption [os]
 
@@ -150,13 +158,14 @@ levelOption ::
   -- function returns True if a particular field in the posting
   -- matches the matcher given at the given level, or False otherwise.
   
-  -> Parser (MatcherFactory -> Exceptional Error Operand)
+  -> Parser (CaseSensitive
+             -> MatcherFactory -> Exceptional Error Operand)
   
 levelOption str f =
   let os = C.OptSpec [str] [] (C.TwoArg g)
-      g a1 a2 factory = do
+      g a1 a2 cs factory = do
         n <- parseInt a1
-        m <- getMatcher a2 factory
+        m <- getMatcher a2 cs factory
         return $ X.Operand (f n m)
   in C.parseOption [os]
 
@@ -173,57 +182,70 @@ patternOption ::
   -- ^ When applied to a matcher and a PostingBox, this function
   -- returns True if the posting matches, or False if it does not.
   
-  -> Parser (MatcherFactory -> Exceptional Error Operand)
+  -> Parser (CaseSensitive
+             -> MatcherFactory -> Exceptional Error Operand)
 patternOption str mc f =
   let so = maybe [] (\c -> [c]) mc
       os = C.OptSpec [str] so (C.OneArg g)
-      g a1 factory = do
-        m <- getMatcher a1 factory
+      g a1 cs factory = do
+        m <- getMatcher a1 cs factory
         return $ X.Operand (f m)
   in C.parseOption [os]
 
 -- | The account option; matches if the pattern given matches the
 -- colon-separated account name.
-account :: Parser (MatcherFactory -> Exceptional Error Operand)
+account :: Parser (CaseSensitive
+                   -> MatcherFactory -> Exceptional Error Operand)
 account = sepOption "account" (Just 'a') P.account
 
 -- | The account-level option; matches if the account at the given
 -- level matches.
-accountLevel :: Parser (MatcherFactory -> Exceptional Error Operand)
+accountLevel :: Parser (CaseSensitive
+                        -> MatcherFactory -> Exceptional Error Operand)
 accountLevel = levelOption "account-level" P.accountLevel
 
 -- | The accountAny option; returns True if the matcher given matches
 -- a single sub-account name at any level.
-accountAny :: Parser (MatcherFactory -> Exceptional Error Operand)
+accountAny :: Parser (CaseSensitive
+                      -> MatcherFactory -> Exceptional Error Operand)
 accountAny = patternOption "account-any" Nothing P.accountAny
 
 -- | The payee option; returns True if the matcher matches the payee
 -- name.
-payee :: Parser (MatcherFactory -> Exceptional Error Operand)
+payee :: Parser (CaseSensitive
+                 -> MatcherFactory -> Exceptional Error Operand)
 payee = patternOption "payee" (Just 'p') P.payee
 
-tag :: Parser (MatcherFactory -> Exceptional Error Operand)
+tag :: Parser (CaseSensitive
+               -> MatcherFactory -> Exceptional Error Operand)
 tag = patternOption "tag" (Just 't') P.tag
 
-number :: Parser (MatcherFactory -> Exceptional Error Operand)
+number :: Parser (CaseSensitive
+                  -> MatcherFactory -> Exceptional Error Operand)
 number = patternOption "number" Nothing P.number
 
-flag :: Parser (MatcherFactory -> Exceptional Error Operand)
+flag :: Parser (CaseSensitive
+                -> MatcherFactory -> Exceptional Error Operand)
 flag = patternOption "flag" Nothing P.flag
 
-commodity :: Parser (MatcherFactory -> Exceptional Error Operand)
+commodity :: Parser (CaseSensitive
+                     -> MatcherFactory -> Exceptional Error Operand)
 commodity = sepOption "commodity" Nothing P.commodity
 
-commodityLevel :: Parser (MatcherFactory -> Exceptional Error Operand)
+commodityLevel :: Parser (CaseSensitive
+                          -> MatcherFactory -> Exceptional Error Operand)
 commodityLevel = levelOption "commodity-level" P.commodityLevel
 
-commodityAny :: Parser (MatcherFactory -> Exceptional Error Operand)
+commodityAny :: Parser (CaseSensitive
+                        -> MatcherFactory -> Exceptional Error Operand)
 commodityAny = patternOption "commodity" Nothing P.commodityAny
 
-postingMemo :: Parser (MatcherFactory -> Exceptional Error Operand)
+postingMemo :: Parser (CaseSensitive
+                       -> MatcherFactory -> Exceptional Error Operand)
 postingMemo = patternOption "posting-memo" Nothing P.postingMemo
 
-transactionMemo :: Parser (MatcherFactory -> Exceptional Error Operand)
+transactionMemo :: Parser (CaseSensitive
+                           -> MatcherFactory -> Exceptional Error Operand)
 transactionMemo = patternOption "transaction-memo"
                   Nothing P.transactionMemo
 
@@ -315,12 +337,13 @@ parseToken ::
   DefaultTimeZone
   -> RadGroup
   -> Parser (L.DateTime
+             -> CaseSensitive
              -> MatcherFactory
              -> Ex.Exceptional Error Operand)
 
 parseToken dtz rg =
   wrapNoArg (date dtz)
-  <|> (do { f <- current; return (\dt _ -> return (f dt)) })
+  <|> (do { f <- current; return (\dt _ _ -> return (f dt)) })
   <|> wrapFactArg account
   <|> wrapFactArg accountLevel
   <|> wrapFactArg accountAny
@@ -333,8 +356,8 @@ parseToken dtz rg =
   <|> wrapFactArg commodityAny
   <|> wrapFactArg postingMemo
   <|> wrapFactArg transactionMemo
-  <|> (do { o <- debit; return (\_ _ -> return o) })
-  <|> (do { o <- credit; return (\_ _ -> return o) })
+  <|> (do { o <- debit; return (\_ _ _ -> return o) })
+  <|> (do { o <- credit; return (\_ _ _ -> return o) })
   <|> wrapNoArg (qtyOption rg)
   <|> wrapNoArg globalTransaction
   <|> wrapNoArg globalPosting
@@ -344,20 +367,22 @@ parseToken dtz rg =
 wrapNoArg ::
   Parser (Ex.Exceptional Error Operand)
   -> Parser (L.DateTime
+             -> CaseSensitive
              -> MatcherFactory
              -> Ex.Exceptional Error Operand)
 wrapNoArg p = do
   o <- p
-  return (\_ _ -> o)
+  return (\_ _ _ -> o)
 
 wrapFactArg ::
-  Parser (MatcherFactory -> Exceptional Error Operand)
+  Parser (CaseSensitive -> MatcherFactory -> Exceptional Error Operand)
   -> Parser (L.DateTime
+             -> CaseSensitive
              -> MatcherFactory
              -> Ex.Exceptional Error Operand)
 wrapFactArg p = do
   f <- p
-  return (\_ fact -> f fact)
+  return (\_ cs fact -> f cs fact)
 
 ------------------------------------------------------------
 -- Post filters
@@ -379,3 +404,9 @@ optTail =
         let f ls = drop (length ls - i) ls
         return f
   in C.parseOption [os]
+
+------------------------------------------------------------
+-- Matcher control
+------------------------------------------------------------
+
+
