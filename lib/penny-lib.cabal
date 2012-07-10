@@ -256,7 +256,6 @@ Library
         Penny.Denver.TopLine,
         Penny.Denver.Transaction,
         Penny.Liberty,
-        Penny.Liberty.Error,
         Penny.Liberty.Expressions,
         Penny.Liberty.Expressions.Infix,
         Penny.Liberty.Expressions.RPN,

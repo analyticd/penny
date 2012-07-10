@@ -56,6 +56,13 @@ type Operand = X.Operand (PostingChild -> Bool)
 type MatcherFunc =
   Parser (MatcherFactory -> Ex.Exceptional Error Operand)
 
+data State a =
+  State { sensitive :: CaseSensitive
+        , factory :: MatcherFactory
+        , postFilter :: [a] -> [a]
+        , tokens :: [X.Operand (PostingChild -> Bool)]
+        , sorters :: PostingChild -> PostingChild -> Ordering }
+
 
 data Error = MakeMatcherFactoryError Text
              | DateParseError
@@ -355,15 +362,15 @@ fileTransaction =
 -- | Parses operands.
 parseOperand ::
   DefaultTimeZone
+  -> L.DateTime
   -> RadGroup
-  -> Parser (L.DateTime
-             -> CaseSensitive
+  -> Parser (CaseSensitive
              -> MatcherFactory
              -> Ex.Exceptional Error Operand)
 
-parseOperand dtz rg =
+parseOperand dtz dt rg =
   wrapNoArg (date dtz)
-  <|> (do { f <- current; return (\dt _ _ -> return (f dt)) })
+  <|> (do { f <- current; return (\_ _ -> return (f dt)) })
   <|> wrapFactArg account
   <|> wrapFactArg accountLevel
   <|> wrapFactArg accountAny
@@ -376,8 +383,8 @@ parseOperand dtz rg =
   <|> wrapFactArg commodityAny
   <|> wrapFactArg postingMemo
   <|> wrapFactArg transactionMemo
-  <|> (do { o <- debit; return (\_ _ _ -> return o) })
-  <|> (do { o <- credit; return (\_ _ _ -> return o) })
+  <|> (do { o <- debit; return (\_ _ -> return o) })
+  <|> (do { o <- credit; return (\_ _ -> return o) })
   <|> wrapNoArg (qtyOption rg)
   <|> wrapNoArg globalTransaction
   <|> wrapNoArg globalPosting
@@ -386,23 +393,21 @@ parseOperand dtz rg =
 
 wrapNoArg ::
   Parser (Ex.Exceptional Error Operand)
-  -> Parser (L.DateTime
-             -> CaseSensitive
+  -> Parser (CaseSensitive
              -> MatcherFactory
              -> Ex.Exceptional Error Operand)
 wrapNoArg p = do
   o <- p
-  return (\_ _ _ -> o)
+  return (\_ _ -> o)
 
 wrapFactArg ::
   Parser (CaseSensitive -> MatcherFactory -> Exceptional Error Operand)
-  -> Parser (L.DateTime
-             -> CaseSensitive
+  -> Parser (CaseSensitive
              -> MatcherFactory
              -> Ex.Exceptional Error Operand)
 wrapFactArg p = do
   f <- p
-  return (\_ cs fact -> f cs fact)
+  return (\cs fact -> f cs fact)
 
 ------------------------------------------------------------
 -- Post filters
@@ -436,13 +441,13 @@ noArg :: a -> String -> Parser a
 noArg a s = let os = C.OptSpec [s] "" (C.NoArg a)
             in C.parseOption [os]
 
-insensitive :: Parser CaseSensitive
-insensitive =
+parseInsensitive :: Parser CaseSensitive
+parseInsensitive =
   let os = C.OptSpec ["case-insensitive"] ['i'] (C.NoArg Insensitive)
   in C.parseOption [os]
 
-sensitive :: Parser CaseSensitive
-sensitive =
+parseSensitive :: Parser CaseSensitive
+parseSensitive =
   let os = C.OptSpec ["case-sensitive"] ['I'] (C.NoArg Sensitive)
   in C.parseOption [os]
 
@@ -463,7 +468,7 @@ parseMatcherSelect :: Parser MatcherFactory
 parseMatcherSelect = within <|> pcre <|> posix <|> exact
 
 parseCaseSelect :: Parser CaseSensitive
-parseCaseSelect = insensitive <|> sensitive
+parseCaseSelect = parseInsensitive <|> parseSensitive
 
 ------------------------------------------------------------
 -- Operators
