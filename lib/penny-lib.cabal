@@ -263,7 +263,6 @@ Library
         Penny.Liberty.Operands,
         Penny.Liberty.Queue,
         Penny.Liberty.Seq,
-        Penny.Liberty.Sorter,
         Penny.Liberty.Stack,
         Penny.Lincoln,
         Penny.Lincoln.Balance,

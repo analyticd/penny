@@ -1,6 +1,6 @@
 module Penny.Liberty.Error where
 
-import Data.Text (Text, pack)
+import Data.Text (Text)
 
 data Error = MakeMatcherFactoryError Text
              | DateParseError
