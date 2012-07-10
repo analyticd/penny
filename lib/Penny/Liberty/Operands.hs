@@ -42,8 +42,6 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty.Expressions as X
 
-import Penny.Liberty.Error (Error)
-import qualified Penny.Liberty.Error as E
 import Text.Matchers.CaseSensitive (
   CaseSensitive(Sensitive, Insensitive))
 import qualified Text.Matchers.Text as TM
@@ -57,6 +55,22 @@ type Operand = X.Operand (PostingChild -> Bool)
 
 type MatcherFunc =
   Parser (MatcherFactory -> Ex.Exceptional Error Operand)
+
+
+data Error = MakeMatcherFactoryError Text
+             | DateParseError
+             | BadPatternError Text
+             | BadNumberError Text
+             | BadQtyError Text
+             | BadSortKeyError Text
+             | BadComparator Text
+             | BadExpression
+             | BadColorName Text
+             | BadFieldName Text
+             | BadBackgroundArg Text
+             | UnexpectedWord Text Text
+             | BadCommodityError Text
+             deriving Show
 
 
 ------------------------------------------------------------
@@ -73,14 +87,14 @@ getMatcher ::
   -> Ex.Exceptional Error (Text -> Bool)
 
 getMatcher s cs f = case f cs (pack s) of
-  Ex.Exception e -> Ex.Exception $ E.BadPatternError e
+  Ex.Exception e -> Ex.Exception $ BadPatternError e
   Ex.Success m -> return m
 
 -- | Parses comparers given on command line to a function.
 parseComparer ::
   (Eq a, Ord a)
   => String
-  -> Ex.Exceptional E.Error (a -> a -> Bool)
+  -> Ex.Exceptional Error (a -> a -> Bool)
 parseComparer t
   | t == "<" = Ex.Success (<)
   | t == "<=" = Ex.Success (<=)
@@ -89,11 +103,11 @@ parseComparer t
   | t == ">=" = Ex.Success (>=)
   | t == "/=" = Ex.Success (/=)
   | t == "!=" = Ex.Success (/=)
-  | otherwise = Ex.Exception $ E.BadComparator (pack t)
+  | otherwise = Ex.Exception $ BadComparator (pack t)
 
 parseDate :: DefaultTimeZone -> Text -> Exceptional Error L.DateTime
 parseDate dtz t = case parse (dateTime dtz) "" t of
-  Left _ -> Exception E.DateParseError
+  Left _ -> Exception DateParseError
   Right d -> return d
 
 date :: DefaultTimeZone -> Parser (Ex.Exceptional Error Operand)
@@ -147,11 +161,11 @@ sep = Text.singleton ':'
 parseInt :: String -> Exceptional Error Int
 parseInt t = let ps = reads t in
   case ps of
-    [] -> Exception $ E.BadNumberError (pack t)
+    [] -> Exception $ BadNumberError (pack t)
     ((i, s):[]) -> if length s /= 0
-                   then Exception $ E.BadNumberError (pack t)
+                   then Exception $ BadNumberError (pack t)
                    else return i
-    _ -> Exception $ E.BadNumberError (pack t)
+    _ -> Exception $ BadNumberError (pack t)
 
 -- | Creates options that take two arguments, with the first argument
 -- being the level to match, and the second being the pattern that
@@ -274,7 +288,7 @@ qtyOption rg =
   let os = C.OptSpec ["qty"] [] (C.TwoArg f)
       f a1 a2 = do
         q <- case parse (qty rg) "" (pack a2) of
-          Left _ -> Ex.throw $ E.BadQtyError (pack a2)
+          Left _ -> Ex.throw $ BadQtyError (pack a2)
           Right g -> return g
         cmp <- parseComparer a1
         return $ X.Operand (P.qty (`cmp` q))
@@ -530,7 +544,7 @@ parseSort =
       f a =
         let matches = filter (\p -> a `isPrefixOf` (fst p)) ords
         in case matches of
-          [] -> Ex.throw $ E.BadSortKeyError (pack a)
+          [] -> Ex.throw $ BadSortKeyError (pack a)
           x:[] -> return $ snd x
-          _ -> Ex.throw $ E.BadSortKeyError (pack a)
+          _ -> Ex.throw $ BadSortKeyError (pack a)
   in C.parseOption [os]
