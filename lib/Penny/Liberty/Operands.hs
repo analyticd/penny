@@ -18,7 +18,7 @@
 -- affect the matcher that is used to determine whether textual fields
 -- are a match, or they add tokens that are later parsed by an
 -- expression parser.
-module Penny.Liberty.Operands (parseToken) where
+module Penny.Liberty.Operands where
 
 import Control.Applicative ((<|>), (<$))
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -43,6 +43,7 @@ import Penny.Liberty.Error (Error)
 import qualified Penny.Liberty.Error as E
 import Text.Matchers.CaseSensitive (
   CaseSensitive(Sensitive, Insensitive))
+import qualified Text.Matchers.Text as TM
 
 type PostingChild = L.PostingChild Cop.TopLineMeta Cop.PostingMeta
 type MatcherFactory =
@@ -54,6 +55,10 @@ type Operand = X.Operand (PostingChild -> Bool)
 type MatcherFunc =
   Parser (MatcherFactory -> Ex.Exceptional Error Operand)
 
+
+------------------------------------------------------------
+-- Operands
+------------------------------------------------------------
 
 -- | Given a String from the command line which represents a pattern,
 -- and a MatcherFactor, return a Matcher. Fails if the pattern is bad
@@ -330,10 +335,8 @@ fileTransaction =
           . parent
   in serialOption f "file-transaction"
 
--- | Combines all the parsers in this module to parse a single
--- token. Only parses one token. Fails if the next word on the command
--- line is not a token.
-parseToken ::
+-- | Parses operands.
+parseOperand ::
   DefaultTimeZone
   -> RadGroup
   -> Parser (L.DateTime
@@ -341,7 +344,7 @@ parseToken ::
              -> MatcherFactory
              -> Ex.Exceptional Error Operand)
 
-parseToken dtz rg =
+parseOperand dtz rg =
   wrapNoArg (date dtz)
   <|> (do { f <- current; return (\dt _ _ -> return (f dt)) })
   <|> wrapFactArg account
@@ -405,8 +408,70 @@ optTail =
         return f
   in C.parseOption [os]
 
+parsePostFilter :: Parser (Exceptional Error ([a] -> [a]))
+parsePostFilter = optHead <|> optTail
+
 ------------------------------------------------------------
 -- Matcher control
 ------------------------------------------------------------
 
+noArg :: a -> String -> Parser a
+noArg a s = let os = C.OptSpec [s] "" (C.NoArg a)
+            in C.parseOption [os]
 
+insensitive :: Parser CaseSensitive
+insensitive =
+  let os = C.OptSpec ["case-insensitive"] ['i'] (C.NoArg Insensitive)
+  in C.parseOption [os]
+
+sensitive :: Parser CaseSensitive
+sensitive =
+  let os = C.OptSpec ["case-sensitive"] ['I'] (C.NoArg Sensitive)
+  in C.parseOption [os]
+
+
+within :: Parser MatcherFactory
+within = noArg (\c t -> return (TM.within c t)) "within"
+
+pcre :: Parser MatcherFactory
+pcre = noArg TM.pcre "pcre"
+
+posix :: Parser MatcherFactory
+posix = noArg TM.tdfa "posix"
+
+exact :: Parser MatcherFactory
+exact = noArg (\c t -> return (TM.exact c t)) "exact"
+
+parseMatcherSelect :: Parser MatcherFactory
+parseMatcherSelect = within <|> pcre <|> posix <|> exact
+
+parseCaseSelect :: Parser CaseSensitive
+parseCaseSelect = insensitive <|> sensitive
+
+------------------------------------------------------------
+-- Operators
+------------------------------------------------------------
+
+-- | Open parentheses
+open :: Parser (X.Token a)
+open = noArg X.TokOpenParen "open"
+
+-- | Close parentheses
+close :: Parser (X.Token a)
+close = noArg X.TokCloseParen "close"
+
+-- | and operator
+parseAnd :: Parser (X.Token (a -> Bool))
+parseAnd = noArg X.tokAnd "and"
+
+-- | or operator
+parseOr :: Parser (X.Token (a -> Bool))
+parseOr = noArg X.tokOr "or"
+
+-- | not operator
+parseNot :: Parser (X.Token (a -> Bool))
+parseNot = noArg X.tokNot "not" where
+
+parseOperator :: Parser (X.Token (a -> Bool))
+parseOperator =
+  open <|> close <|> parseAnd <|> parseOr <|> parseNot

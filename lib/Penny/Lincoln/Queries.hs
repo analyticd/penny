@@ -3,7 +3,6 @@ module Penny.Lincoln.Queries where
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Transaction as T
-import qualified Penny.Lincoln.Meta as M
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 import qualified Penny.Lincoln.Family as F
 
