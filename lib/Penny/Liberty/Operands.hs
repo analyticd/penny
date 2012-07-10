@@ -24,6 +24,8 @@ import Control.Applicative ((<|>), (<$))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad.Exception.Synchronous (
   Exceptional(Exception, Success))
+import Data.Char (toUpper)
+import Data.List (isPrefixOf)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as Text
 import qualified System.Console.MultiArg.Combinator as C
@@ -37,6 +39,7 @@ import Penny.Copper.Qty (RadGroup, qty)
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty.Expressions as X
 
 import Penny.Liberty.Error (Error)
@@ -475,3 +478,59 @@ parseNot = noArg X.tokNot "not" where
 parseOperator :: Parser (X.Token (a -> Bool))
 parseOperator =
   open <|> close <|> parseAnd <|> parseOr <|> parseNot
+
+------------------------------------------------------------
+-- Sorting
+------------------------------------------------------------
+type Orderer = PostingChild -> PostingChild -> Ordering
+
+ordering ::
+  (Ord b)
+  => (a -> b)
+  -> (a -> a -> Ordering)
+ordering q = f where
+  f p1 p2 = compare (q p1) (q p2)
+
+
+flipOrder :: (a -> a -> Ordering) -> (a -> a -> Ordering)
+flipOrder f = f' where
+  f' p1 p2 = case f p1 p2 of
+    LT -> GT
+    GT -> LT
+    EQ -> EQ
+
+capitalizeFirstLetter :: String -> String
+capitalizeFirstLetter s = case s of
+  [] -> []
+  (x:xs) -> toUpper x : xs
+
+ordPairs :: [(String, Orderer)]
+ordPairs = 
+  [ ("payee", ordering Q.payee)
+  , ("date", ordering Q.dateTime)
+  , ("flag", ordering Q.flag)
+  , ("number", ordering Q.number)
+  , ("account", ordering Q.account)
+  , ("drCr", ordering Q.drCr)
+  , ("qty", ordering Q.qty)
+  , ("commodity", ordering Q.commodity)
+  , ("postingMemo", ordering Q.postingMemo)
+  , ("transactionMemo", ordering Q.transactionMemo) ]
+
+ords :: [(String, Orderer)]
+ords = ordPairs ++ uppers where
+  uppers = map toReversed ordPairs
+  toReversed (s, f) =
+    (capitalizeFirstLetter s, flipOrder f)
+
+
+parseSort :: Parser (Exceptional Error Orderer)
+parseSort =
+  let os = C.OptSpec ["sort"] ['s'] (C.OneArg f)
+      f a =
+        let matches = filter (\p -> a `isPrefixOf` (fst p)) ords
+        in case matches of
+          [] -> Ex.throw $ E.BadSortKeyError (pack a)
+          x:[] -> return $ snd x
+          _ -> Ex.throw $ E.BadSortKeyError (pack a)
+  in C.parseOption [os]
