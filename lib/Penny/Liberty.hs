@@ -13,16 +13,22 @@ module Penny.Liberty (
   State(..),
   initState,
   parseLiberty,
-  X.evaluate ) where
+  X.evaluate,
+  FilteredNum(FilteredNum, unFilteredNum),
+  SortedNum(SortedNum, unSortedNum),
+  LibertyMeta(LibertyMeta, filteredNum, sortedNum),
+  xactionsToFiltered
+  
+  ) where
 
-import Control.Applicative ((<|>), (<$))
+import Control.Applicative ((<|>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad.Exception.Synchronous (
-  Exceptional(Exception, Success))
+  Exceptional(Exception))
 import Data.Char (toUpper)
-import Data.List (isPrefixOf)
+import Data.List (isPrefixOf, sortBy)
 import Data.Monoid (mappend, mempty)
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text, pack)
 import qualified Data.Text as Text
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
@@ -36,11 +42,100 @@ import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
+import qualified Penny.Liberty.Queue as Queue
 import qualified Penny.Liberty.Expressions as X
 
 import Text.Matchers.CaseSensitive (
   CaseSensitive(Sensitive, Insensitive))
 import qualified Text.Matchers.Text as TM
+
+-- | A serial indicating how a post relates to all other postings that
+-- made it through the filtering phase.
+newtype FilteredNum = FilteredNum { unFilteredNum :: L.Serial }
+                      deriving Show
+
+-- | A serial indicating how a posting relates to all other postings
+-- that have been sorted.
+newtype SortedNum = SortedNum { unSortedNum :: L.Serial }
+                    deriving Show
+
+-- | All metadata from Liberty.
+data LibertyMeta =
+  LibertyMeta { filteredNum :: FilteredNum
+              , sortedNum :: SortedNum }
+  deriving Show
+
+
+-- | Takes a list of transactions, splits them into PostingChild
+-- instances, filters them, post-filters them, sorts them, and places
+-- them in Box instances with Filtered serials.
+xactionsToFiltered ::
+  
+  [X.Token (PostingChild -> Bool)]
+  -- ^ Parsing these tokens will yield an expression that will be used
+  -- to filter the postings. If parsing the tokens fails, this
+  -- function returns Nothing. If the resulting RPN expression fails,
+  -- this function returns Nothing.
+
+  -> ([L.Box FilteredNum Cop.TopLineMeta Cop.PostingMeta]
+      -> [L.Box FilteredNum Cop.TopLineMeta Cop.PostingMeta])
+  -- ^ The post filter. I would think this type could be written as
+  -- ([a] -> [a]), but this causes a compiler error for reasons I
+  -- cannot yet understand. (Does work with forall a, but I have no
+  -- idea what this means exactly.)
+
+  -> (PostingChild -> PostingChild -> Ordering)
+  -- ^ The sorter
+
+  -> [L.Transaction Cop.TopLineMeta Cop.PostingMeta]
+  -- ^ The transactions to work on (probably parsed in from Copper)
+  
+  -> Maybe [L.Box LibertyMeta Cop.TopLineMeta Cop.PostingMeta]
+  -- ^ Nothing if the token list fails to parse into an RPN
+  -- expression, or if the resulting RPN expression fails to return a
+  -- result (e.g. it leaves values on the stack); otherwise, returns
+  -- Just with the the sorted, filtered postings.
+
+xactionsToFiltered tkns pf s txns =
+  case X.evaluate (foldl (flip Queue.enqueue) Queue.empty tkns) of
+    Nothing -> Nothing
+    Just pdct ->
+      return
+      . addSortedNum
+      . pf
+      . sortBy (sorter s)
+      . addFilteredNum
+      . map toBox
+      . filter pdct
+      . concatMap makeChildren
+      $ txns
+
+-- | Transform a list of transactions into a list of children.
+makeChildren :: L.Transaction tm pm -> [L.PostingChild tm pm]
+makeChildren = undefined
+
+-- | Transforms a PostingChild into a Box.
+toBox :: L.PostingChild tm pm -> L.Box () tm pm
+toBox = L.Box ()
+
+-- | Takes a list of filtered boxes and adds the Filtered serials.
+
+addFilteredNum :: [L.Box () tm pm] -> [L.Box FilteredNum tm pm]
+addFilteredNum = undefined
+
+-- | Wraps a PostingChild sorter to change it to a Box sorter.
+sorter :: (PostingChild -> PostingChild -> Ordering)
+          -> L.Box a Cop.TopLineMeta Cop.PostingMeta
+          -> L.Box b Cop.TopLineMeta Cop.PostingMeta
+          -> Ordering
+sorter = undefined
+
+-- | Takes a list of Boxes with metadata and adds a Serial for the
+-- Sorted.
+addSortedNum ::
+  [L.Box FilteredNum tm pm]
+  -> [L.Box LibertyMeta tm pm]
+addSortedNum = undefined
 
 type PostingChild = L.PostingChild Cop.TopLineMeta Cop.PostingMeta
 type MatcherFactory =
@@ -48,9 +143,6 @@ type MatcherFactory =
   -> Text
   -> Ex.Exceptional Text (Text -> Bool)
 type Operand = X.Operand (PostingChild -> Bool)
-
-type MatcherFunc =
-  Parser (MatcherFactory -> Ex.Exceptional Error Operand)
 
 -- | Each command line option can depend on values that were
 -- previously parsed on the command line. Each option can see
@@ -230,8 +322,8 @@ sepOption str mc f =
         Nothing -> []
         Just c -> [c]
       os = C.OptSpec [str] so (C.OneArg g)
-      g a cs factory = do
-        m <- getMatcher a cs factory
+      g a cs fty = do
+        m <- getMatcher a cs fty
         return $ X.Operand (f sep m)
   in C.parseOption [os]
 
@@ -266,9 +358,9 @@ levelOption ::
   
 levelOption str f =
   let os = C.OptSpec [str] [] (C.TwoArg g)
-      g a1 a2 cs factory = do
+      g a1 a2 cs fty = do
         n <- parseInt a1
-        m <- getMatcher a2 cs factory
+        m <- getMatcher a2 cs fty
         return $ X.Operand (f n m)
   in C.parseOption [os]
 
@@ -290,8 +382,8 @@ patternOption ::
 patternOption str mc f =
   let so = maybe [] (\c -> [c]) mc
       os = C.OptSpec [str] so (C.OneArg g)
-      g a1 cs factory = do
-        m <- getMatcher a1 cs factory
+      g a1 cs fty = do
+        m <- getMatcher a1 cs fty
         return $ X.Operand (f m)
   in C.parseOption [os]
 
@@ -500,8 +592,8 @@ optTail =
   let os = C.OptSpec ["tail"] [] (C.OneArg f)
       f a = do
         i <- parseInt a
-        let f ls = drop (length ls - i) ls
-        return f
+        let g ls = drop (length ls - i) ls
+        return g
   in C.parseOption [os]
 
 parsePostFilter :: Parser (Exceptional Error ([a] -> [a]))

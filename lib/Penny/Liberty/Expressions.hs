@@ -23,6 +23,7 @@ import Penny.Liberty.Expressions.RPN as R
 
 import Data.List (intersperse, groupBy)
 
+-- | Tokens should be enqueued from left to right.
 evaluate :: Queue (I.Token a) -> Maybe a
 evaluate i = I.infixToRPN i >>= R.process
 
