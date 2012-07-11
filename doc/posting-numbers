@@ -23,4 +23,4 @@ separate word indicating ascending or descending order. For example:
 Field names for the postings report consist of the name of the serial
 followed by "-asc" or "-dsc" for ascending or descending order.
 
-
+Zinc (using some functions in Liberty) first takes transactions and splits them into PostingChild instances. Zinc then filters the postings  using the expression that was parsed from the command line
