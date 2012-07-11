@@ -52,6 +52,10 @@ type Operand = X.Operand (PostingChild -> Bool)
 type MatcherFunc =
   Parser (MatcherFactory -> Ex.Exceptional Error Operand)
 
+-- | Each command line option can depend on values that were
+-- previously parsed on the command line. Each option can see
+-- previously parsed values that are parsed in and can modify this
+-- state for subsequent options.
 data State a =
   State { sensitive :: CaseSensitive
         , factory :: MatcherFactory
@@ -59,6 +63,7 @@ data State a =
         , tokens :: [X.Token (PostingChild -> Bool)]
         , sorters :: PostingChild -> PostingChild -> Ordering }
 
+-- | Create an initial State with default values.
 initState :: State a
 initState = State { sensitive = Insensitive
                   , factory = \c t -> return (TM.within c t)
@@ -85,6 +90,13 @@ data Error = MakeMatcherFactoryError Text
 ------------------------------------------------------------
 -- Combined parser
 ------------------------------------------------------------
+
+-- | The Penny command line can be broken into three parts: the filter
+-- specification, the report specification, and the files
+-- specification. This function parses the filter specification. It
+-- can also be used to parse filter specifications for other parts of
+-- the command line; for instance, as part of the postings report
+-- specification.
 parseLiberty ::
   DefaultTimeZone
   -> L.DateTime
