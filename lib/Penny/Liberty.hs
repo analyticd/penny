@@ -7,7 +7,13 @@
 -- Cabin would also depend on Zinc, functions formerly in Zinc that
 -- Cabin will also find useful are relocated here, to Liberty.
 
-module Penny.Liberty where
+module Penny.Liberty (
+  Error(..),
+  MatcherFactory,
+  State(..),
+  initState,
+  parseLiberty,
+  X.evaluate ) where
 
 import Control.Applicative ((<|>), (<$))
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -90,6 +96,7 @@ parseLiberty dtz dt rg =
   <|> wrapMatSelect
   <|> wrapCaseSelect
   <|> wrapOperator
+  <|> wrapSort
 
 wrapOperand ::
   DefaultTimeZone
@@ -126,6 +133,14 @@ wrapOperator :: Parser (State a -> Exceptional Error (State a))
 wrapOperator = do
   op <- parseOperator
   return (\st -> return st { tokens = tokens st ++ [op] })
+
+wrapSort :: Parser (State a -> Exceptional Error (State a))
+wrapSort = do
+  exO <- parseSort
+  let f st = do
+        o <- exO   
+        return st { sorters = mappend o (sorters st) }
+  return f
 
 ------------------------------------------------------------
 -- Operands
