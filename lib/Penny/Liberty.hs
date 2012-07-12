@@ -77,12 +77,8 @@ xactionsToFiltered ::
   -- function returns Nothing. If the resulting RPN expression fails,
   -- this function returns Nothing.
 
-  -> ([L.Box FilteredNum Cop.TopLineMeta Cop.PostingMeta]
-      -> [L.Box FilteredNum Cop.TopLineMeta Cop.PostingMeta])
-  -- ^ The post filter. I would think this type could be written as
-  -- ([a] -> [a]), but this causes a compiler error for reasons I
-  -- cannot yet understand. (Does work with forall a, but I have no
-  -- idea what this means exactly.)
+  -> [PostFilterFn]
+  -- ^ Post filter specs
 
   -> (PostingChild -> PostingChild -> Ordering)
   -- ^ The sorter
@@ -96,13 +92,13 @@ xactionsToFiltered ::
   -- result (e.g. it leaves values on the stack); otherwise, returns
   -- Just with the the sorted, filtered postings.
 
-xactionsToFiltered tkns pf s txns =
+xactionsToFiltered tkns pfs s txns =
   case X.evaluate (foldl (flip Queue.enqueue) Queue.empty tkns) of
     Nothing -> Nothing
     Just pdct ->
       return
       . addSortedNum
-      . pf
+      . processPostFilters pfs
       . sortBy (sorter s)
       . addFilteredNum
       . map toBox
@@ -144,22 +140,40 @@ type MatcherFactory =
   -> Ex.Exceptional Text (Text -> Bool)
 type Operand = X.Operand (PostingChild -> Bool)
 
+type ListLength = Int
+type ItemIndex = Int
+
+-- | Specifies options for the post-filter stage.
+type PostFilterFn = ListLength -> ItemIndex -> Bool
+
+
+processPostFilters :: [PostFilterFn] -> [a] -> [a]
+processPostFilters pfs ls = foldl processPostFilter ls pfs
+
+
+processPostFilter :: [a] -> PostFilterFn -> [a]
+processPostFilter as fn = map fst . filter fn' $ zipped where
+  len = length as
+  fn' (_, idx) = fn len idx
+  zipped = zip as [0..]
+  
+
 -- | Each command line option can depend on values that were
 -- previously parsed on the command line. Each option can see
 -- previously parsed values that are parsed in and can modify this
 -- state for subsequent options.
-data State a =
+data State =
   State { sensitive :: CaseSensitive
         , factory :: MatcherFactory
-        , postFilter :: [a] -> [a]
+        , postFilter :: [PostFilterFn]
         , tokens :: [X.Token (PostingChild -> Bool)]
         , sorters :: PostingChild -> PostingChild -> Ordering }
 
 -- | Create an initial State with default values.
-initState :: State a
+initState :: State
 initState = State { sensitive = Insensitive
                   , factory = \c t -> return (TM.within c t)
-                  , postFilter = id
+                  , postFilter = []
                   , tokens = []
                   , sorters = mempty }
 
@@ -193,7 +207,7 @@ parseLiberty ::
   DefaultTimeZone
   -> L.DateTime
   -> RadGroup
-  -> Parser (State a -> Exceptional Error (State a))
+  -> Parser (State -> Exceptional Error State)
 parseLiberty dtz dt rg =
   wrapOperand dtz dt rg
   <|> wrapPostFilter
@@ -206,7 +220,7 @@ wrapOperand ::
   DefaultTimeZone
   -> L.DateTime
   -> RadGroup
-  -> Parser (State a -> Exceptional Error (State a))
+  -> Parser (State -> Exceptional Error State)
 wrapOperand dtz dt rg = do
   fn <- parseOperand dtz dt rg
   let f st = do
@@ -215,30 +229,30 @@ wrapOperand dtz dt rg = do
   return f
 
 
-wrapPostFilter :: Parser (State a -> Exceptional Error (State a))
+wrapPostFilter :: Parser (State -> Exceptional Error State)
 wrapPostFilter = do
   fn <- parsePostFilter
   let f st = do
         pf' <- fn
-        return st { postFilter = pf' . postFilter st }
+        return st { postFilter = postFilter st ++ [pf'] }
   return f
 
-wrapMatSelect :: Parser (State a -> Exceptional Error (State a))
+wrapMatSelect :: Parser (State -> Exceptional Error State)
 wrapMatSelect = do
   mf <- parseMatcherSelect
   return (\st -> return st { factory = mf })
 
-wrapCaseSelect :: Parser (State a -> Exceptional Error (State a))
+wrapCaseSelect :: Parser (State -> Exceptional Error State)
 wrapCaseSelect = do
   cs <- parseCaseSelect
   return (\st -> return st { sensitive = cs })
 
-wrapOperator :: Parser (State a -> Exceptional Error (State a))
+wrapOperator :: Parser (State -> Exceptional Error State)
 wrapOperator = do
   op <- parseOperator
   return (\st -> return st { tokens = tokens st ++ [op] })
 
-wrapSort :: Parser (State a -> Exceptional Error (State a))
+wrapSort :: Parser (State -> Exceptional Error State)
 wrapSort = do
   exO <- parseSort
   let f st = do
@@ -579,24 +593,24 @@ wrapFactArg p = do
 -- Post filters
 ------------------------------------------------------------
 
-optHead :: Parser (Exceptional Error ([a] -> [a]))
+optHead :: Parser (Exceptional Error PostFilterFn)
 optHead =
   let os = C.OptSpec ["head"] [] (C.OneArg f)
       f a = do
         i <- parseInt a
-        return $ take i
+        return (\_ idx -> idx < i)
   in C.parseOption [os]
 
-optTail :: Parser (Exceptional Error ([a] -> [a]))
+optTail :: Parser (Exceptional Error PostFilterFn)
 optTail =
   let os = C.OptSpec ["tail"] [] (C.OneArg f)
       f a = do
         i <- parseInt a
-        let g ls = drop (length ls - i) ls
+        let g len idx = idx >= len - i
         return g
   in C.parseOption [os]
 
-parsePostFilter :: Parser (Exceptional Error ([a] -> [a]))
+parsePostFilter :: Parser (Exceptional Error PostFilterFn)
 parsePostFilter = optHead <|> optTail
 
 ------------------------------------------------------------
