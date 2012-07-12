@@ -217,7 +217,6 @@ Library
         Penny.Cabin.Posts.Allocated,
         Penny.Cabin.Posts.BottomRows,
         Penny.Cabin.Posts.Fields,
-        Penny.Cabin.Posts.Info,
         Penny.Cabin.Posts.Growers,
         Penny.Cabin.Posts.Chunk,
         Penny.Cabin.Posts.Help,

@@ -4,9 +4,13 @@ module Penny.Cabin.Posts.Fields where
 import Control.Applicative(Applicative(pure, (<*>)))
 
 data T a = T {
-  postingNum :: a
-  , visibleNum :: a
-  , revPostingNum :: a
+  globalTransaction :: a
+  , globalPosting :: a
+  , fileTransaction :: a
+  , filePosting :: a
+  , filtered :: a
+  , sorted :: a
+  , visible :: a
   , lineNum :: a
     -- ^ The line number from the posting's metadata
   , date :: a
@@ -27,9 +31,13 @@ data T a = T {
 
 instance Functor T where
   fmap f fa = T {
-    postingNum = f (postingNum fa)
-    , visibleNum = f (visibleNum fa)
-    , revPostingNum = f (revPostingNum fa)
+    globalTransaction = f (globalTransaction fa)
+    , globalPosting = f (globalPosting fa)
+    , fileTransaction = f (fileTransaction fa)
+    , filePosting = f (filePosting fa)
+    , filtered = f (filtered fa)
+    , sorted = f (sorted fa)
+    , visible = f (visible fa)
     , lineNum = f (lineNum fa)
     , date = f (date fa)
     , flag = f (flag fa)
@@ -48,9 +56,13 @@ instance Functor T where
 
 instance Applicative T where
   pure a = T {
-    postingNum = a
-    , visibleNum = a
-    , revPostingNum = a
+    globalTransaction = a
+    , globalPosting = a
+    , fileTransaction = a
+    , filePosting = a
+    , filtered = a
+    , sorted = a
+    , visible = a
     , lineNum = a
     , date = a
     , flag = a
@@ -68,9 +80,13 @@ instance Applicative T where
     , filename = a }
 
   ff <*> fa = T {
-    postingNum = postingNum ff (postingNum fa)
-    , visibleNum = visibleNum ff (visibleNum fa)
-    , revPostingNum = revPostingNum ff (revPostingNum fa)
+    globalTransaction = globalTransaction ff (globalTransaction fa)
+    , globalPosting = globalPosting ff (globalPosting fa)
+    , fileTransaction = fileTransaction ff (fileTransaction fa)
+    , filePosting = filePosting ff (filePosting fa)
+    , filtered = filtered ff (filtered fa)
+    , sorted = sorted ff (sorted fa)
+    , visible = visible ff (visible fa)
     , lineNum = lineNum ff (lineNum fa)
     , date = date ff (date fa)
     , flag = flag ff (flag fa)
@@ -87,14 +103,26 @@ instance Applicative T where
     , memo = memo ff (memo fa)
     , filename = filename ff (filename fa) }
 
-t_postingNum :: a -> T a -> T a
-t_postingNum a f = f { postingNum = a }
+t_globalTransaction :: a -> T a -> T a
+t_globalTransaction a f = f { globalTransaction = a }
 
-t_visibleNum :: a -> T a -> T a
-t_visibleNum a f = f { visibleNum = a }
+t_globalPosting :: a -> T a -> T a
+t_globalPosting a f = f { globalPosting = a }
 
-t_revPostingNum :: a -> T a -> T a
-t_revPostingNum a f = f { revPostingNum = a }
+t_fileTransaction :: a -> T a -> T a
+t_fileTransaction a f = f { fileTransaction = a }
+
+t_filePosting :: a -> T a -> T a
+t_filePosting a f = f { filePosting = a }
+
+t_filtered :: a -> T a -> T a
+t_filtered a f = f { filtered = a }
+
+t_sorted :: a -> T a -> T a
+t_sorted a f = f { sorted = a }
+
+t_visible :: a -> T a -> T a
+t_visible a f = f { visible = a }
 
 t_lineNum :: a -> T a -> T a
 t_lineNum a f = f { lineNum = a }

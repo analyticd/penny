@@ -11,7 +11,6 @@ import qualified Data.Time as Time
 import qualified Text.Matchers.Text as M
 
 import qualified Penny.Liberty.Expressions as Ex
-import qualified Penny.Liberty.Types as Ty
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
