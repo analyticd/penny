@@ -223,19 +223,19 @@ getTotalQty os i = let
 growingFields :: Options.T -> Fields Bool
 growingFields o = let
   f = O.fields o in Fields {
-    postingNum = F.postingNum f
-    , visibleNum = F.visibleNum f
+    postingNum      = F.postingNum f
+    , visibleNum    = F.visibleNum f
     , revPostingNum = F.revPostingNum f
-    , lineNum = F.lineNum f
-    , date = F.date f
-    , flag = F.flag f
-    , number = F.number f
-    , postingDrCr = F.postingDrCr f
-    , postingCmdty = F.postingCmdty f
-    , postingQty = F.postingQty f
-    , totalDrCr = F.totalDrCr f
-    , totalCmdty = F.totalCmdty f
-    , totalQty = F.totalQty f }
+    , lineNum       = F.lineNum f
+    , date          = F.date f
+    , flag          = F.flag f
+    , number        = F.number f
+    , postingDrCr   = F.postingDrCr f
+    , postingCmdty  = F.postingCmdty f
+    , postingQty    = F.postingQty f
+    , totalDrCr     = F.totalDrCr f
+    , totalCmdty    = F.totalCmdty f
+    , totalQty      = F.totalQty f }
 
 -- | All growing fields, as an ADT.
 data EFields =
@@ -257,136 +257,164 @@ data EFields =
 -- | Returns a Fields where each record has its corresponding EField.
 eFields :: Fields EFields
 eFields = Fields {
-  postingNum = EPostingNum
-  , visibleNum = EVisibleNum
+  postingNum      = EPostingNum
+  , visibleNum    = EVisibleNum
   , revPostingNum = ERevPostingNum
-  , lineNum = ELineNum
-  , date = EDate
-  , flag = EFlag
-  , number = ENumber
-  , postingDrCr = EPostingDrCr
-  , postingCmdty = EPostingCmdty
-  , postingQty = EPostingQty
-  , totalDrCr = ETotalDrCr
-  , totalCmdty = ETotalCmdty
-  , totalQty = ETotalQty }
+  , lineNum       = ELineNum
+  , date          = EDate
+  , flag          = EFlag
+  , number        = ENumber
+  , postingDrCr   = EPostingDrCr
+  , postingCmdty  = EPostingCmdty
+  , postingQty    = EPostingQty
+  , totalDrCr     = ETotalDrCr
+  , totalCmdty    = ETotalCmdty
+  , totalQty      = ETotalQty }
 
 -- | All growing fields.
 data Fields a = Fields {
-  postingNum :: a
-  , visibleNum :: a
-  , revPostingNum :: a
-  , lineNum :: a
+  globalTransaction :: a
+  , globalPosting   :: a
+  , fileTransaction :: a
+  , filePosting     :: a
+  , filtered        :: a
+  , sorted          :: a
+  , visible         :: a
+  , lineNum         :: a
     -- ^ The line number from the posting's metadata
-  , date :: a
-  , flag :: a
-  , number :: a
-  , postingDrCr :: a
-  , postingCmdty :: a
-  , postingQty :: a
-  , totalDrCr :: a
-  , totalCmdty :: a
-  , totalQty :: a }
+  , date            :: a
+  , flag            :: a
+  , number          :: a
+  , postingDrCr     :: a
+  , postingCmdty    :: a
+  , postingQty      :: a
+  , totalDrCr       :: a
+  , totalCmdty      :: a
+  , totalQty        :: a }
   deriving (Show, Eq)
 
 instance Fdbl.Foldable Fields where
   foldr f z i =
-    f (postingNum i)
-    (f (visibleNum i)
-     (f (revPostingNum i)
-      (f (lineNum i)
-       (f (date i)
-        (f (flag i)
-         (f (number i)
-          (f (postingDrCr i)
-           (f (postingCmdty i)
-            (f (postingQty i)
-             (f (totalDrCr i)
-              (f (totalCmdty i)
-               (f (totalQty i) z))))))))))))
+    f (globalTransaction i)
+    (f (globalPosting i)
+     (f (fileTransaction i)
+      (f (filePosting i)
+       (f (filtered i)
+        (f (sorted i)
+         (f (visible i)
+          (f (lineNum i)
+           (f (date i)
+            (f (flag i)
+             (f (number i)
+              (f (postingDrCr i)
+               (f (postingCmdty i)
+                (f (postingQty i)
+                 (f (totalDrCr i)
+                  (f (totalCmdty i)
+                   (f (totalQty i) z))))))))))))))))
 
 instance Functor Fields where
   fmap f i = Fields {
-    postingNum = f (postingNum i)
-    , visibleNum = f (visibleNum i)
-    , revPostingNum = f (revPostingNum i)
-    , lineNum = f (lineNum i)
-    , date = f (date i)
-    , flag = f (flag i)
-    , number = f (number i)
-    , postingDrCr = f (postingDrCr i)
-    , postingCmdty = f (postingCmdty i)
-    , postingQty = f (postingQty i)
-    , totalDrCr = f (totalDrCr i)
-    , totalCmdty = f (totalCmdty i)
-    , totalQty = f (totalQty i) }
+    globalTransaction = f (globalTransaction i)
+    , globalPosting   = f (globalPosting     i)
+    , fileTransaction = f (fileTransaction   i)
+    , filePosting     = f (filePosting       i)
+    , filtered        = f (filtered          i)
+    , sorted          = f (sorted            i)
+    , visible         = f (visible           i)
+    , lineNum         = f (lineNum           i)
+    , date            = f (date              i)
+    , flag            = f (flag              i)
+    , number          = f (number            i)
+    , postingDrCr     = f (postingDrCr       i)
+    , postingCmdty    = f (postingCmdty      i)
+    , postingQty      = f (postingQty        i)
+    , totalDrCr       = f (totalDrCr         i)
+    , totalCmdty      = f (totalCmdty        i)
+    , totalQty        = f (totalQty          i) }
 
 instance Applicative Fields where
   pure a = Fields {
-    postingNum = a
-    , visibleNum = a
-    , revPostingNum = a
-    , lineNum = a
-    , date = a
-    , flag = a
-    , number = a
-    , postingDrCr = a
-    , postingCmdty = a
-    , postingQty = a
-    , totalDrCr = a
-    , totalCmdty = a
-    , totalQty = a }
+    globalTransaction = a
+    , globalPosting   = a
+    , fileTransaction = a
+    , filePosting     = a
+    , filtered        = a
+    , sorted          = a
+    , visible         = a
+    , lineNum         = a
+    , date            = a
+    , flag            = a
+    , number          = a
+    , postingDrCr     = a
+    , postingCmdty    = a
+    , postingQty      = a
+    , totalDrCr       = a
+    , totalCmdty      = a
+    , totalQty        = a }
 
   fl <*> fa = Fields {
-    postingNum = postingNum fl (postingNum fa)
-    , visibleNum = visibleNum fl (visibleNum fa)
-    , revPostingNum = revPostingNum fl (revPostingNum fa)
-    , lineNum = lineNum fl (lineNum fa)
-    , date = date fl (date fa)
-    , flag = flag fl (flag fa)
-    , number = number fl (number fa)
-    , postingDrCr = postingDrCr fl (postingDrCr fa)
-    , postingCmdty = postingCmdty fl (postingCmdty fa)
-    , postingQty = postingQty fl (postingQty fa)
-    , totalDrCr = totalDrCr fl (totalDrCr fa)
-    , totalCmdty = totalCmdty fl (totalCmdty fa)
-    , totalQty = totalQty fl (totalQty fa) }
-    
+    globalTransaction = globalTransaction fl (globalTransaction fa)
+    , globalPosting   = globalPosting     fl (globalPosting     fa)
+    , fileTransaction = fileTransaction   fl (fileTransaction   fa)
+    , filePosting     = filePosting       fl (filePosting       fa)
+    , filtered        = filtered          fl (filtered          fa)
+    , sorted          = sorted            fl (sorted            fa)
+    , visible         = visible           fl (visible           fa)
+    , lineNum         = lineNum           fl (lineNum           fa)
+    , date            = date              fl (date              fa)
+    , flag            = flag              fl (flag              fa)
+    , number          = number            fl (number            fa)
+    , postingDrCr     = postingDrCr       fl (postingDrCr       fa)
+    , postingCmdty    = postingCmdty      fl (postingCmdty      fa)
+    , postingQty      = postingQty        fl (postingQty        fa)
+    , totalDrCr       = totalDrCr         fl (totalDrCr         fa)
+    , totalCmdty      = totalCmdty        fl (totalCmdty        fa)
+    , totalQty        = totalQty          fl (totalQty          fa) }
+
 -- | Pairs data from a Fields with its matching spacer field. The
 -- spacer field is returned in a Maybe because the TotalQty field does
 -- not have a spacer.
 pairWithSpacer :: Fields a -> Spacers.T b -> Fields (a, Maybe b)
 pairWithSpacer f s = Fields {
-  postingNum = (postingNum f, Just (S.postingNum s))
-  , visibleNum = (visibleNum f, Just (S.visibleNum s))
-  , revPostingNum = (revPostingNum f, Just (S.revPostingNum s))
-  , lineNum = (lineNum f, Just (S.lineNum s))
-  , date = (date f, Just (S.date s))
-  , flag = (flag f, Just (S.flag s))
-  , number = (number f, Just (S.number s))
-  , postingDrCr = (postingDrCr f, Just (S.postingDrCr s))
-  , postingCmdty = (postingCmdty f, Just (S.postingCmdty s))
-  , postingQty = (postingQty f, Just (S.postingQty s))
-  , totalDrCr = (totalDrCr f, Just (S.totalDrCr s))
-  , totalCmdty = (totalCmdty f, Just (S.totalCmdty s))
-  , totalQty = (totalQty f, Nothing) }
+  globalTransaction = (globalTransaction f, Just (S.globalTransaction s))
+  , globalPosting   = (globalPosting     f, Just (S.globalPosting     s))
+  , fileTransaction = (fileTransaction   f, Just (S.fileTransaction   s))
+  , filePosting     = (filePosting       f, Just (S.filePosting       s))
+  , filtered        = (filtered          f, Just (S.filtered          s))
+  , sorted          = (sorted            f, Just (S.sorted            s))
+  , visible         = (visible           f, Just (S.visible           s))
+  , lineNum         = (lineNum           f, Just (S.lineNum           s))
+  , date            = (date              f, Just (S.date              s))
+  , flag            = (flag              f, Just (S.flag              s))
+  , number          = (number            f, Just (S.number            s))
+  , postingDrCr     = (postingDrCr       f, Just (S.postingDrCr       s))
+  , postingCmdty    = (postingCmdty      f, Just (S.postingCmdty      s))
+  , postingQty      = (postingQty        f, Just (S.postingQty        s))
+  , totalDrCr       = (totalDrCr         f, Just (S.totalDrCr         s))
+  , totalCmdty      = (totalCmdty        f, Just (S.totalCmdty        s))
+  , totalQty        = (totalQty          f, Nothing                     ) }
 
 -- | Reduces a set of Fields to a single value.
 reduce :: Semi.Semigroup s => Fields s -> s
 reduce f =
-  postingNum f
-  <> visibleNum f
-  <> revPostingNum f
-  <> lineNum f
-  <> date f
-  <> flag f
-  <> number f
-  <> postingDrCr f
-  <> postingCmdty f
-  <> postingQty f
-  <> totalDrCr f
-  <> totalCmdty f
-  <> totalQty f
+  globalTransaction  f
+  <> globalPosting   f
+  <> fileTransaction f
+  <> filePosting     f
+  <> filtered        f
+  <> sorted          f
+  <> visible         f
+  <> lineNum         f
+  <> date            f
+  <> flag            f
+  <> number          f
+  <> postingDrCr     f
+  <> postingCmdty    f
+  <> postingQty      f
+  <> totalDrCr       f
+  <> totalCmdty      f
+  <> totalQty        f
 
 -- | Compute the width of all Grown cells, including any applicable
 -- spacer cells.
