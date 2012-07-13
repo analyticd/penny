@@ -17,13 +17,15 @@ import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Fields as F
-import qualified Penny.Cabin.Posts.Info as I
-import qualified Penny.Cabin.Posts.Info as Info
+import qualified Penny.Cabin.Posts.Meta as Meta
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Row as R
+import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
+
+type Box = L.Box Meta.PostMeta 
 
 -- | Grows the cells that will be GrowToFit cells in the report. First
 -- this function fills in all visible cells with text, but leaves the
@@ -78,19 +80,23 @@ oneLine t os i = let
 
 growers :: Fields (Options.T -> Info.T -> PreSpec)
 growers = Fields {
-  postingNum = getPostingNum
-  , visibleNum = getVisibleNum
-  , revPostingNum = getRevPostingNum
-  , lineNum = getLineNum
-  , date = getDate
-  , flag = getFlag
-  , number = getNumber
-  , postingDrCr = getPostingDrCr
-  , postingCmdty = getPostingCmdty
-  , postingQty = getPostingQty
-  , totalDrCr = getTotalDrCr
-  , totalCmdty = getTotalCmdty
-  , totalQty = getTotalQty }
+  globalTransaction = getGlobalTransaction
+  , globalPosting   = getGlobalPosting
+  , fileTransaction = getFileTransaction
+  , filePosting     = getFilePosting
+  , filtered        = getFiltered
+  , sorted          = getSorted
+  , visible         = getVisible
+  , lineNum         = getLineNum
+  , date            = getDate
+  , flag            = getFlag
+  , number          = getNumber
+  , postingDrCr     = getPostingDrCr
+  , postingCmdty    = getPostingCmdty
+  , postingQty      = getPostingQty
+  , totalDrCr       = getTotalDrCr
+  , totalCmdty      = getTotalCmdty
+  , totalQty        = getTotalQty }
 
 getPostingNum :: Options.T -> Info.T -> PreSpec
 getPostingNum os i = oneLine t os i where
@@ -223,25 +229,33 @@ getTotalQty os i = let
 growingFields :: Options.T -> Fields Bool
 growingFields o = let
   f = O.fields o in Fields {
-    postingNum      = F.postingNum f
-    , visibleNum    = F.visibleNum f
-    , revPostingNum = F.revPostingNum f
-    , lineNum       = F.lineNum f
-    , date          = F.date f
-    , flag          = F.flag f
-    , number        = F.number f
-    , postingDrCr   = F.postingDrCr f
-    , postingCmdty  = F.postingCmdty f
-    , postingQty    = F.postingQty f
-    , totalDrCr     = F.totalDrCr f
-    , totalCmdty    = F.totalCmdty f
-    , totalQty      = F.totalQty f }
+    globalTransaction = F.globalTransaction f
+    , globalPosting   = F.globalPosting     f
+    , fileTransaction = F.fileTransaction   f
+    , filePosting     = F.filePosting       f
+    , filtered        = F.filtered          f
+    , sorted          = F.sorted            f
+    , visible         = F.visible           f
+    , lineNum         = F.lineNum           f
+    , date            = F.date              f
+    , flag            = F.flag              f
+    , number          = F.number            f
+    , postingDrCr     = F.postingDrCr       f
+    , postingCmdty    = F.postingCmdty      f
+    , postingQty      = F.postingQty        f
+    , totalDrCr       = F.totalDrCr         f
+    , totalCmdty      = F.totalCmdty        f
+    , totalQty        = F.totalQty          f }
 
 -- | All growing fields, as an ADT.
 data EFields =
-  EPostingNum
-  | EVisibleNum
-  | ERevPostingNum
+  EGlobalTransaction
+  | EGlobalPosting
+  | EFileTransaction
+  | EFilePosting
+  | EFiltered
+  | ESorted
+  | EVisible
   | ELineNum
   | EDate
   | EFlag
@@ -257,19 +271,23 @@ data EFields =
 -- | Returns a Fields where each record has its corresponding EField.
 eFields :: Fields EFields
 eFields = Fields {
-  postingNum      = EPostingNum
-  , visibleNum    = EVisibleNum
-  , revPostingNum = ERevPostingNum
-  , lineNum       = ELineNum
-  , date          = EDate
-  , flag          = EFlag
-  , number        = ENumber
-  , postingDrCr   = EPostingDrCr
-  , postingCmdty  = EPostingCmdty
-  , postingQty    = EPostingQty
-  , totalDrCr     = ETotalDrCr
-  , totalCmdty    = ETotalCmdty
-  , totalQty      = ETotalQty }
+  globalTransaction = EGlobalTransaction
+  , globalPosting   = EGlobalPosting
+  , fileTransaction = EFileTransaction
+  , filePosting     = EFilePosting
+  , filtered        = EFiltered
+  , sorted          = ESorted
+  , visible         = EVisible
+  , lineNum         = ELineNum
+  , date            = EDate
+  , flag            = EFlag
+  , number          = ENumber
+  , postingDrCr     = EPostingDrCr
+  , postingCmdty    = EPostingCmdty
+  , postingQty      = EPostingQty
+  , totalDrCr       = ETotalDrCr
+  , totalCmdty      = ETotalCmdty
+  , totalQty        = ETotalQty }
 
 -- | All growing fields.
 data Fields a = Fields {
