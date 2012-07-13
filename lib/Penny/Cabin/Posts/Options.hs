@@ -23,7 +23,6 @@ import qualified Penny.Cabin.Options as O
 import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Meta as Meta
-import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Colors.DarkBackground as Dark
@@ -33,7 +32,7 @@ import Penny.Copper.Qty (RadGroup)
 import qualified Penny.Shield as S
 
 
-type Box = L.Box Meta.PostsMeta Cop.TopLineMeta Cop.PostingMeta
+type Box = L.Box Meta.PostMeta Cop.TopLineMeta Cop.PostingMeta
 type PostingChild = L.PostingChild Cop.TopLineMeta Cop.PostingMeta
 
 data T =
@@ -178,7 +177,7 @@ defaultOptions dtz rg rt =
     , sensitive = M.Insensitive
     , factory = \s t -> (return (M.within s t))
     , tokens = []
-    , postFilter = id
+    , postFilter = []
     , fields = defaultFields
     , spacers = defaultSpacerWidth
     , showZeroBalances = O.ShowZeroBalances False }

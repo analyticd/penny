@@ -223,7 +223,6 @@ Library
         Penny.Cabin.Posts.Meta,
         Penny.Cabin.Posts.Options,
         Penny.Cabin.Posts.Parser,
-        Penny.Cabin.Posts.Numbered,
         Penny.Cabin.Posts.Report,
         Penny.Cabin.Posts.Spacers,
         Penny.Cabin.Row,
