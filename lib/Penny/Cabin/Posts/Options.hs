@@ -10,7 +10,9 @@ import System.Locale (defaultTimeLocale)
 import qualified Data.Time as Time
 import qualified Text.Matchers.Text as M
 
+import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as Ex
+import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
 import qualified Penny.Lincoln.Queries as Q
@@ -20,16 +22,19 @@ import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Options as O
 import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
-import qualified Penny.Cabin.Posts.Info as I
-import qualified Penny.Cabin.Posts.Info as Info
+import qualified Penny.Cabin.Posts.Meta as Meta
 import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Colors.DarkBackground as Dark
+import qualified Penny.Copper as Cop
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (RadGroup)
 import qualified Penny.Shield as S
 
+
+type Box = L.Box Meta.PostsMeta Cop.TopLineMeta Cop.PostingMeta
+type PostingChild = L.PostingChild Cop.TopLineMeta Cop.PostingMeta
 
 data T =
   T { drCrColors :: C.DrCrColors
@@ -39,12 +44,12 @@ data T =
     , baseColors :: C.BaseColors 
       -- ^ Colors to use when displaying everything else
 
-    , dateFormat :: Info.T -> X.Text
+    , dateFormat :: Box -> X.Text
       -- ^ How to display dates. This function is applied to the
       -- a PostingInfo so it has lots of information, but it
       -- should return a date for use in the Date field.
       
-    , qtyFormat :: Info.T -> X.Text
+    , qtyFormat :: Box -> X.Text
       -- ^ How to display the quantity of the posting. This
       -- function is applied to a PostingInfo so it has lots of
       -- information, but it should return a formatted string of
@@ -103,10 +108,11 @@ data T =
                  -> Text -> Exceptional Text (Text -> Bool)
       -- ^ Default factory for pattern matching
       
-    , tokens :: [Ex.Token (Ty.PostingInfo -> Bool)]
+    , tokens :: [Ex.Token (PostingChild -> Bool)]
       -- ^ Default list of tokens used to filter postings.
       
-    , postFilter :: [Numbered.T] -> [Numbered.T]
+      -- START HERE
+    , postFilter :: [Ly.PostFilterFn]
       -- ^ The entire posting list is transformed by this
       -- function after it is filtered according to the tokens.
       

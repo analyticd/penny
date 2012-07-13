@@ -220,6 +220,7 @@ Library
         Penny.Cabin.Posts.Growers,
         Penny.Cabin.Posts.Chunk,
         Penny.Cabin.Posts.Help,
+        Penny.Cabin.Posts.Meta,
         Penny.Cabin.Posts.Options,
         Penny.Cabin.Posts.Parser,
         Penny.Cabin.Posts.Numbered,

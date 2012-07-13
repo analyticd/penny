@@ -17,8 +17,10 @@ module Penny.Liberty (
   FilteredNum(FilteredNum, unFilteredNum),
   SortedNum(SortedNum, unSortedNum),
   LibertyMeta(LibertyMeta, filteredNum, sortedNum),
-  xactionsToFiltered
-  
+  xactionsToFiltered,
+  ListLength(ListLength, unListLength),
+  ItemIndex(ItemIndex, unItemIndex),
+  PostFilterFn
   ) where
 
 import Control.Applicative ((<|>))
@@ -140,8 +142,10 @@ type MatcherFactory =
   -> Ex.Exceptional Text (Text -> Bool)
 type Operand = X.Operand (PostingChild -> Bool)
 
-type ListLength = Int
-type ItemIndex = Int
+newtype ListLength = ListLength { unListLength :: Int }
+                     deriving (Eq, Ord, Show)
+newtype ItemIndex = ItemIndex { unItemIndex :: Int }
+                    deriving (Eq, Ord, Show)
 
 -- | Specifies options for the post-filter stage.
 type PostFilterFn = ListLength -> ItemIndex -> Bool
@@ -153,8 +157,8 @@ processPostFilters pfs ls = foldl processPostFilter ls pfs
 
 processPostFilter :: [a] -> PostFilterFn -> [a]
 processPostFilter as fn = map fst . filter fn' $ zipped where
-  len = length as
-  fn' (_, idx) = fn len idx
+  len = ListLength $ length as
+  fn' (_, idx) = fn len (ItemIndex idx)
   zipped = zip as [0..]
   
 
@@ -597,7 +601,7 @@ optHead :: Parser (Exceptional Error PostFilterFn)
 optHead =
   let os = C.OptSpec ["head"] [] (C.OneArg f)
       f a = do
-        i <- parseInt a
+        i <- fmap ItemIndex (parseInt a)
         return (\_ idx -> idx < i)
   in C.parseOption [os]
 
@@ -606,7 +610,7 @@ optTail =
   let os = C.OptSpec ["tail"] [] (C.OneArg f)
       f a = do
         i <- parseInt a
-        let g len idx = idx >= len - i
+        let g (ListLength len) (ItemIndex idx) = idx >= len - i
         return g
   in C.parseOption [os]
 
