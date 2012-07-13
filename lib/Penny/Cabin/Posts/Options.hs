@@ -111,7 +111,6 @@ data T =
     , tokens :: [Ex.Token (PostingChild -> Bool)]
       -- ^ Default list of tokens used to filter postings.
       
-      -- START HERE
     , postFilter :: [Ly.PostFilterFn]
       -- ^ The entire posting list is transformed by this
       -- function after it is filtered according to the tokens.
@@ -130,17 +129,17 @@ data T =
 newtype ReportWidth = ReportWidth { unReportWidth :: Int }
                       deriving (Eq, Show, Ord)
 
-ymd :: Info.T -> X.Text
+ymd :: Box -> X.Text
 ymd p = X.pack (formatTime defaultTimeLocale fmt d) where
   d = Time.localDay
       . Bits.localTime
       . Q.dateTime
-      . I.postingBox
+      . L.boxPosting
       $ p
   fmt = "%Y-%m-%d"
 
-qtyAsIs :: Info.T -> X.Text
-qtyAsIs p = X.pack . show . Bits.unQty . Q.qty . I.postingBox $ p
+qtyAsIs :: Box -> X.Text
+qtyAsIs p = X.pack . show . Bits.unQty . Q.qty . L.boxPosting $ p
 
 balanceAsIs :: Bits.Commodity -> Bal.BottomLine -> X.Text
 balanceAsIs _ n = case n of
@@ -191,39 +190,47 @@ widthFromRuntime rt = case S.screenWidth rt of
 
 defaultFields :: Fields.T Bool
 defaultFields =
-  Fields.T { F.postingNum     = False
-           , F.visibleNum     = False
-           , F.revPostingNum  = False
-           , F.lineNum        = False
-           , F.date           = True
-           , F.flag           = False
-           , F.number         = False
-           , F.payee          = True
-           , F.account        = True
-           , F.postingDrCr    = True
-           , F.postingCmdty   = True
-           , F.postingQty     = True
-           , F.totalDrCr      = True
-           , F.totalCmdty     = True
-           , F.totalQty       = True
-           , F.tags           = False
-           , F.memo           = False
-           , F.filename       = False }
+  Fields.T { F.globalTransaction = False
+           , F.globalPosting     = False
+           , F.fileTransaction   = False
+           , F.filePosting       = False
+           , F.filtered          = False
+           , F.sorted            = False
+           , F.visible           = False
+           , F.lineNum           = False
+           , F.date              = True
+           , F.flag              = False
+           , F.number            = False
+           , F.payee             = True
+           , F.account           = True
+           , F.postingDrCr       = True
+           , F.postingCmdty      = True
+           , F.postingQty        = True
+           , F.totalDrCr         = True
+           , F.totalCmdty        = True
+           , F.totalQty          = True
+           , F.tags              = False
+           , F.memo              = False
+           , F.filename          = False }
 
 defaultSpacerWidth :: Spacers.T Int
 defaultSpacerWidth =
-  Spacers.T { S.postingNum    = 1
-            , S.visibleNum    = 1
-            , S.revPostingNum = 1
-            , S.lineNum       = 1
-            , S.date          = 1
-            , S.flag          = 1
-            , S.number        = 1
-            , S.payee         = 4
-            , S.account       = 1
-            , S.postingDrCr   = 1
-            , S.postingCmdty  = 1
-            , S.postingQty    = 1
-            , S.totalDrCr     = 1
-            , S.totalCmdty    = 1 }
+  Spacers.T { S.globalTransaction = 1
+            , S.globalPosting     = 1
+            , S.fileTransaction   = 1
+            , S.filePosting       = 1
+            , S.filtered          = 1
+            , S.sorted            = 1
+            , S.visible           = 1
+            , S.lineNum           = 1
+            , S.date              = 1
+            , S.flag              = 1
+            , S.number            = 1
+            , S.payee             = 4
+            , S.account           = 1
+            , S.postingDrCr       = 1
+            , S.postingCmdty      = 1
+            , S.postingQty        = 1
+            , S.totalDrCr         = 1
+            , S.totalCmdty        = 1 }
 
