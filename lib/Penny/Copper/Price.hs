@@ -8,12 +8,10 @@ import Control.Applicative ((<*>), (<*), (<|>), (<$))
 import Data.Text (singleton, snoc, intercalate)
 import qualified Data.Text as X
 
-import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Lincoln.Bits.PricePoint as PP
+import qualified Penny.Lincoln as L
 import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.DateTime as DT
-import qualified Penny.Copper.Meta as M
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Util (lexeme, eol)
 
@@ -26,23 +24,23 @@ BNF-style specification for prices:
 -}
 
 mkPrice :: SourcePos
-         -> B.DateTime
-         -> B.Commodity
-         -> (B.Amount, M.Format)
-         -> Maybe (PP.PricePoint M.PriceMeta)
+         -> L.DateTime
+         -> L.Commodity
+         -> (L.Amount, L.Format)
+         -> Maybe (PP.PricePoint L.PriceMeta)
 mkPrice pos dt from (am, fmt) = let
-  to = B.commodity am
-  q = B.qty am
-  pm = M.PriceMeta pl fmt
-  pl = M.PriceLine . sourceLine $ pos
+  to = L.commodity am
+  q = L.qty am
+  pm = L.PriceMeta pl fmt
+  pl = L.PriceLine . sourceLine $ pos
   in do
-    p <- B.newPrice (B.From from) (B.To to) (B.CountPerUnit q)
+    p <- L.newPrice (L.From from) (L.To to) (L.CountPerUnit q)
     return $ PP.PricePoint dt p pm
 
 maybePrice ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (Maybe (PP.PricePoint M.PriceMeta))
+  -> Parser (Maybe (PP.PricePoint L.PriceMeta))
 maybePrice dtz rg =
   mkPrice
   <$ lexeme (char '@')
@@ -61,7 +59,7 @@ maybePrice dtz rg =
 price ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (PP.PricePoint M.PriceMeta)
+  -> Parser (PP.PricePoint L.PriceMeta)
 price dtz rg = do
   b <- maybePrice dtz rg
   case b of
@@ -78,16 +76,16 @@ render ::
   DT.DefaultTimeZone
   -> (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
-  -> PP.PricePoint M.PriceMeta
+  -> PP.PricePoint L.PriceMeta
   -> Maybe X.Text
 render dtz gs rg pp = let
-  fmt = M.priceFormat . PP.ppMeta $ pp
+  fmt = L.priceFormat . PP.ppMeta $ pp
   dateTxt = DT.render dtz (PP.dateTime pp)
-  (B.From from) = B.from . B.price $ pp
-  (B.To to) = B.to . B.price $ pp
-  (B.CountPerUnit q) = B.countPerUnit . B.price $ pp
+  (L.From from) = L.from . L.price $ pp
+  (L.To to) = L.to . L.price $ pp
+  (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
   mayFromTxt = C.renderLvl3 from <|> C.renderQuotedLvl1 from
-  amt = B.Amount q to
+  amt = L.Amount q to
   mayAmtTxt = A.render gs rg fmt amt
   in do
     amtTxt <- mayAmtTxt

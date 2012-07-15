@@ -15,25 +15,6 @@ module Penny.Copper (
   -- * FileContents
   FileContents(FileContents, unFileContents),
   
-  -- * Metadata
-  M.TopLineLine(unTopLineLine),
-  M.TopMemoLine(unTopMemoLine),
-  M.Side(CommodityOnLeft, CommodityOnRight),
-  M.SpaceBetween(SpaceBetween, NoSpaceBetween),
-  M.Format(Format, side, between),
-  M.Filename(Filename, unFilename),
-  M.PriceLine(unPriceLine),
-  M.PostingLine(unPostingLine),
-  M.PriceMeta(priceLine, priceFormat),
-  M.GlobalPosting(unGlobalPosting),
-  M.FilePosting(unFilePosting),
-  M.GlobalTransaction(unGlobalTransaction),
-  M.FileTransaction(unFileTransaction),
-  M.PostingMeta(postingLine, postingFormat, globalPosting,
-                filePosting),
-  M.TopLineMeta(topMemoLine, topLineLine, filename,
-                globalTransaction, fileTransaction),
-  
   -- * Errors
   ErrorMsg (ErrorMsg, unErrorMsg),
 
@@ -57,7 +38,6 @@ import Text.Parsec ( manyTill, eof )
 import qualified Text.Parsec as P
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Copper.Meta as M
 import qualified Penny.Copper.Comments as C
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Copper.DateTime as DT

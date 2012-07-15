@@ -31,7 +31,7 @@ emptyDb :: PriceDb
 emptyDb = PriceDb NM.empty
 
 -- | Add a single price to the PriceDb.
-addPrice :: PriceDb -> B.PricePoint m -> PriceDb
+addPrice :: PriceDb -> B.PricePoint -> PriceDb
 addPrice (PriceDb db) pp@(B.PricePoint _ pr _) =
   PriceDb $ NM.relabel db ls where
     ls = firsts ++ [lst]
@@ -47,7 +47,7 @@ addPrice (PriceDb db) pp@(B.PricePoint _ pr _) =
 -- | Returns a function to use when inserting a new value into the
 -- ToMap label of a PriceDb.
 insertIntoToMap ::
-  B.PricePoint m
+  B.PricePoint
   -> Maybe ToMap
   -> ToMap
 insertIntoToMap (B.PricePoint dt pr _) =

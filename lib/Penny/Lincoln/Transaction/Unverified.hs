@@ -1,17 +1,18 @@
 module Penny.Lincoln.Transaction.Unverified where
 
 import qualified Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln.Meta as M
 
-data TopLine m = TopLine
-                 B.DateTime
-                 (Maybe B.Flag)
-                 (Maybe B.Number)
-                 (Maybe B.Payee)
-                 B.Memo
-                 m
-                 deriving (Eq, Show)
+data TopLine = TopLine
+               B.DateTime
+               (Maybe B.Flag)
+               (Maybe B.Number)
+               (Maybe B.Payee)
+               B.Memo
+               M.TopLineMeta
+             deriving (Eq, Show)
 
-data Posting m = Posting
+data Posting = Posting
                  (Maybe B.Payee)
                  (Maybe B.Number) 
                  (Maybe B.Flag) 
@@ -19,8 +20,8 @@ data Posting m = Posting
                  B.Tags
                  (Maybe B.Entry)
                  B.Memo
-                 m
+                 M.PostingMeta
                  deriving (Eq, Show)
 
-entry :: Posting m -> Maybe B.Entry
+entry :: Posting -> Maybe B.Entry
 entry (Posting _ _ _ _ _ e _ _) = e

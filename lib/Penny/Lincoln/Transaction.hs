@@ -49,6 +49,7 @@ module Penny.Lincoln.Transaction (
 
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.Family ( children, orphans, adopt )
+import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Family.Family as F
 import qualified Penny.Lincoln.Family.Child as C
 import qualified Penny.Lincoln.Family.Siblings as S
@@ -72,7 +73,7 @@ import Control.Monad.Trans.Class ( lift )
 data Inferred = Inferred | NotInferred deriving (Eq, Show)
 
 -- | Each Transaction consists of at least two Postings.
-data Posting m =
+data Posting =
   Posting { pPayee   :: (Maybe B.Payee)
           , pNumber  :: (Maybe B.Number)
           , pFlag    :: (Maybe B.Flag)
@@ -81,26 +82,26 @@ data Posting m =
           , pEntry   :: B.Entry
           , pMemo    :: B.Memo
           , pInferred :: Inferred
-          , pMeta     :: m }
+          , pMeta     :: M.PostingMeta }
   deriving (Eq, Show)
 
 -- | The TopLine holds information that applies to all the postings in
 -- a transaction (so named because in a ledger file, this information
 -- appears on the top line.)
-data TopLine m =
+data TopLine =
   TopLine { tDateTime :: B.DateTime
           , tFlag     :: (Maybe B.Flag)
           , tNumber   :: (Maybe B.Number)
           , tPayee    :: (Maybe B.Payee)
           , tMemo     :: B.Memo
-          , tMeta     :: m }
+          , tMeta     :: M.TopLineMeta }
   deriving (Eq, Show)
 
 -- | All the Postings in a Transaction must produce a Total whose
 -- debits and credits are equal. That is, the Transaction must be
 -- balanced. No Transactions are created that are not balanced.
-newtype Transaction tm pm =
-  Transaction { unTransaction :: F.Family (TopLine tm) (Posting pm) }
+newtype Transaction =
+  Transaction { unTransaction :: F.Family TopLine Posting }
   deriving (Eq, Show)
   
 -- | Errors that can arise when making a Transaction.
@@ -108,13 +109,13 @@ data Error = UnbalancedError
            | CouldNotInferError
            deriving (Eq, Show)
 
-type PostingChild tm pm = C.Child (TopLine tm) (Posting pm)
+type PostingChild = C.Child TopLine Posting
 
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
 postingFamily ::
-  Transaction tm pm
-  -> S.Siblings (PostingChild tm pm)
+  Transaction
+  -> S.Siblings PostingChild
 postingFamily (Transaction ps) = children ps
 
 {- BNF-like grammar for the various sorts of allowed postings.
@@ -129,8 +130,8 @@ balancedGroup ::= "at least 2 postings. All postings have the same
 
 -- | Makes transactions.
 transaction ::
-  F.Family (U.TopLine tm) (U.Posting pm)
-  -> Exceptional Error (Transaction tm pm)
+  F.Family U.TopLine U.Posting
+  -> Exceptional Error Transaction
 transaction f@(F.Family p _ _ _) = do
   let os = orphans f
       t = totalAll os
@@ -138,7 +139,7 @@ transaction f@(F.Family p _ _ _) = do
   a2 <- inferAll os t
   return $ Transaction (adopt p' a2)
 
-totalAll :: S.Siblings (U.Posting pm)
+totalAll :: S.Siblings U.Posting
          -> Bal.Balance
 totalAll =
   F.foldr1 Bal.addBalances
@@ -147,9 +148,9 @@ totalAll =
   . fmap (fmap Bal.entryToBalance . U.entry)
 
 infer ::
-  (U.Posting pm)
+  U.Posting
   -> Ex.ExceptionalT Error
-  (St.State (Maybe B.Entry)) (Posting pm)
+  (St.State (Maybe B.Entry)) Posting
 infer po =
   case U.entry po of
     Nothing -> do
@@ -163,8 +164,8 @@ infer po =
           
 runInfer ::
   Maybe B.Entry
-  -> S.Siblings (U.Posting pm)
-  -> Exceptional Error (S.Siblings (Posting pm))
+  -> S.Siblings U.Posting
+  -> Exceptional Error (S.Siblings Posting)
 runInfer me pos = do
   let (res, finalSt) = St.runState ext me
       ext = Ex.runExceptionalT (Tr.mapM infer pos)
@@ -175,9 +176,9 @@ runInfer me pos = do
       (Success g) -> return g
 
 inferAll ::
-  S.Siblings (U.Posting pm)
+  S.Siblings U.Posting
   -> Bal.Balance
-  -> Exceptional Error (S.Siblings (Posting pm))
+  -> Exceptional Error (S.Siblings Posting)
 inferAll pos t = do
   en <- case Bal.isBalanced t of
     Bal.Balanced -> return Nothing
@@ -185,48 +186,51 @@ inferAll pos t = do
     Bal.NotInferable -> throw UnbalancedError
   runInfer en pos
 
-toPosting :: U.Posting pm
+toPosting :: U.Posting
              -> B.Entry
              -> Inferred
-             -> Posting pm
-toPosting (U.Posting p n f a t _ m mt) e i = Posting p n f a t e m i mt
+             -> Posting
+toPosting (U.Posting p n f a t _ m mt) e i =
+  Posting p n f a t e m i mt
 
-toTopLine :: U.TopLine tm -> TopLine tm
-toTopLine (U.TopLine d f n p m mt) = TopLine d f n p m mt
+toTopLine :: U.TopLine -> TopLine
+toTopLine (U.TopLine d f n p m mt) =
+  TopLine d f n p m mt
 
 
 -- | Change the metadata on a transaction.
 changeTransactionMeta ::
-  tm
-  -- ^ The new transaction (top line) metadata
+  (M.TopLineMeta -> M.TopLineMeta)
+  -- ^ Function that, when applied to the old top line meta, returns
+  -- the new meta.
   
-  -> Transaction om pm
+  -> Transaction
   -- ^ The old transaction with metadata
 
-  -> Transaction tm pm
+  -> Transaction
   -- ^ Transaction with new metadata
 
-changeTransactionMeta m (Transaction f) = Transaction f' where
+changeTransactionMeta fm (Transaction f) = Transaction f' where
   f' = F.Family tl c1 c2 cs
   (F.Family p c1 c2 cs) = f
-  tl = p { tMeta = m }
+  tl = p { tMeta = fm (tMeta tl) }
 
 -- | Change the metadata on a posting.
 changePostingMeta ::
-  (m -> m')
-  -> Transaction pm m
-  -> Transaction pm m'
+  (M.PostingMeta -> M.PostingMeta)
+  -> Transaction
+  -> Transaction
 changePostingMeta f (Transaction fam) =
   Transaction . F.mapChildren g $ fam
   where
     g p = p { pMeta = f (pMeta p) }
 
 addSerials ::
-  (Ser.Serial -> tm -> tm')
-  -> (Ser.Serial -> pm -> pm')
+  (Ser.Serial -> M.TopLineMeta -> M.TopLineMeta)
+  -> (Ser.Serial -> M.PostingMeta -> M.PostingMeta)
   -> Ser.Serial
-  -> Transaction tm pm
-  -> St.State (Ser.NextFwd, Ser.NextBack) (Transaction tm' pm')
+  -> Transaction
+  -> St.State (Ser.NextFwd, Ser.NextBack) Transaction
 addSerials ft fp s (Transaction fam) = do
   let topMapper pm = pm { tMeta = ft s (tMeta pm) }
       pstgMapper ser pstg = pstg { pMeta = fp ser (pMeta pstg) }
@@ -235,10 +239,10 @@ addSerials ft fp s (Transaction fam) = do
   return $ Transaction fam''
 
 addSerialsToList ::
-  (Ser.Serial -> tm -> tm')
-  -> (Ser.Serial -> pm -> pm')
-  -> [Transaction tm pm]
-  -> [Transaction tm' pm']
+  (Ser.Serial -> M.TopLineMeta -> M.TopLineMeta)
+  -> (Ser.Serial -> M.PostingMeta -> M.PostingMeta)
+  -> [Transaction]
+  -> [Transaction]
 addSerialsToList ft fp ls =
   let nPstgs = length . concatMap F.toList . map orphans
                . map unTransaction $ ls
@@ -248,10 +252,10 @@ addSerialsToList ft fp ls =
 
 
 addSerialsToEithers ::
-  (Ser.Serial -> tm -> tm')
-  -> (Ser.Serial -> pm -> pm')
-  -> [Either a (Transaction tm pm)]
-  -> [Either a (Transaction tm' pm')]
+  (Ser.Serial -> M.TopLineMeta -> M.TopLineMeta)
+  -> (Ser.Serial -> M.PostingMeta -> M.PostingMeta)
+  -> [Either a Transaction]
+  -> [Either a Transaction]
 addSerialsToEithers ft fp ls =
   let txns = E.rights ls
       nPstgs = length . concatMap F.toList . map orphans
@@ -266,7 +270,7 @@ addSerialsToEithers ft fp ls =
 -- metadata. The transaction is stored in child form, indicating a
 -- particular posting of interest. The metadata is in addition to the
 -- metadata associated with the TopLine and with each posting.
-data Box bm tm pm =
-  Box { boxMeta :: bm
-      , boxPosting :: C.Child (TopLine tm) (Posting pm) }
+data Box m =
+  Box { boxMeta :: m
+      , boxPosting :: C.Child TopLine Posting }
   deriving Show

@@ -10,16 +10,15 @@ import Text.Parsec (
 import Text.Parsec.Text ( Parser )
 
 import Penny.Copper.Util (rangeLettersToSymbols, eol)
-import qualified Penny.Copper.Meta as M
-import qualified Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 isCommentChar :: Char -> Bool
 isCommentChar c = rangeLettersToSymbols c
                   || c == ' '
 
-memoLine :: Parser B.MemoLine
-memoLine = B.MemoLine <$> (
+memoLine :: Parser L.MemoLine
+memoLine = L.MemoLine <$> (
   TNE.TextNonEmpty
   <$ char ';'
   <*> satisfy isCommentChar
@@ -28,19 +27,19 @@ memoLine = B.MemoLine <$> (
   <?> "posting memo line"
 
 -- | Parses a transaction memo and associated whitespace afterward.
-memo :: Parser (B.Memo, M.TopMemoLine)
+memo :: Parser (L.Memo, L.TopMemoLine)
 memo =
   flip (,)
-  <$> ((M.TopMemoLine . sourceLine) <$> getPosition)
-  <*> (B.Memo <$> many memoLine)
+  <$> ((L.TopMemoLine . sourceLine) <$> getPosition)
+  <*> (L.Memo <$> many memoLine)
   <?> "transaction memo"
   
 -- | Renders a transaction memo. Fails if the memo is not renderable.
-render :: B.Memo -> Maybe X.Text
-render (B.Memo m) = X.concat <$> mapM renderLine m
+render :: L.Memo -> Maybe X.Text
+render (L.Memo m) = X.concat <$> mapM renderLine m
 
-renderLine :: B.MemoLine -> Maybe X.Text
-renderLine (B.MemoLine l) =
+renderLine :: L.MemoLine -> Maybe X.Text
+renderLine (L.MemoLine l) =
   if TNE.all isCommentChar l
   then Just $ X.singleton ';' `X.append` TNE.toText l `X.snoc` '\n'
   else Nothing

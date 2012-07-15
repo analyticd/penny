@@ -14,7 +14,7 @@ import qualified Penny.Copper.TopLine as TL
 import Penny.Copper.TopLine ( topLine )
 import qualified Penny.Copper.Posting as Po
 import qualified Penny.Copper.Qty as Qt
-import qualified Penny.Copper.Meta as M
+import qualified Penny.Lincoln as L
 import Penny.Lincoln.Family (orphans, marry)
 import qualified Penny.Lincoln.Family.Family as F
 import Penny.Lincoln.Family.Family ( Family ( Family ) )
@@ -26,15 +26,11 @@ errorStr e = case e of
   T.UnbalancedError -> "postings are not balanced"
   T.CouldNotInferError -> "could not infer entry for posting"
 
-type Transaction =
-  T.Transaction (M.TopMemoLine, M.TopLineLine)
-  (M.PostingLine, Maybe M.Format)
-
 mkTransaction ::
-  U.TopLine (M.TopMemoLine, M.TopLineLine)
-  -> U.Posting (M.PostingLine, Maybe M.Format)
-  -> U.Posting (M.PostingLine, Maybe M.Format)
-  -> [U.Posting (M.PostingLine, Maybe M.Format)]
+  U.TopLine
+  -> U.Posting
+  -> U.Posting
+  -> [U.Posting]
   -> Ex.Exceptional String Transaction
 mkTransaction top p1 p2 ps = let
   famTrans = Family top p1 p2 ps
@@ -68,7 +64,7 @@ render ::
   DT.DefaultTimeZone
   -> (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> T.Transaction () (Maybe M.Format)
+  -> T.Transaction
   -> Maybe X.Text
 render dtz gs rg txn = do
   let txnFam = T.unTransaction txn

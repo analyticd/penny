@@ -10,36 +10,34 @@ import Penny.Copper.Amount (amount)
 import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Util (lexeme)
-import qualified Penny.Lincoln.Bits as B
-import Penny.Copper.Meta (Format)
-import qualified Penny.Copper.Meta as M
+import qualified Penny.Lincoln as L
 
-drCr :: Parser B.DrCr
+drCr :: Parser L.DrCr
 drCr = let
   dr = do
     void (char 'D' <|> char 'd')
     void (char 'r') <|> void (string "ebit")
-    return B.Debit
+    return L.Debit
   cr = do
     void (char 'C' <|> char 'c')
     void (optional (char 'r' >> optional (string "edit")))
-    return B.Credit
+    return L.Credit
   in dr <|> cr
 
-entry :: Q.RadGroup -> Parser (B.Entry, Format)
+entry :: Q.RadGroup -> Parser (L.Entry, L.Format)
 entry rg = f <$> lexeme drCr <*> amount rg <?> e where
-  f dc (am, fmt) = (B.Entry dc am, fmt)
+  f dc (am, fmt) = (L.Entry dc am, fmt)
   e = "entry"
 
 render ::
   (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
-  -> M.Format
-  -> B.Entry
+  -> L.Format
+  -> L.Entry
   -> Maybe X.Text
-render gs rg f (B.Entry dc a) = do
+render gs rg f (L.Entry dc a) = do
   amt <- A.render gs rg f a
   let dcTxt = X.pack $ case dc of
-        B.Debit -> "Dr"
-        B.Credit -> "Cr"
+        L.Debit -> "Dr"
+        L.Credit -> "Cr"
   return $ X.append (X.snoc dcTxt ' ') amt

@@ -2,8 +2,9 @@ module Penny.Lincoln.Bits.PricePoint where
 
 import Penny.Lincoln.Bits.Price (Price)
 import Penny.Lincoln.Bits.DateTime (DateTime)
+import qualified Penny.Lincoln.Meta as M
 
-data PricePoint m = PricePoint { dateTime :: DateTime
-                               , price :: Price
-                               , ppMeta :: m }
-                  deriving (Eq, Ord, Show)
+data PricePoint = PricePoint { dateTime :: DateTime
+                             , price :: Price
+                             , ppMeta :: M.PriceMeta }
+                  deriving Show

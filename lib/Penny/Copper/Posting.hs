@@ -20,7 +20,6 @@ import qualified Penny.Copper.Payees as Pa
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Copper.Tags as Ta
 import Penny.Copper.Util (lexeme, eol, renMaybe, txtWords)
-import qualified Penny.Copper.Meta as M
 import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Transaction.Unverified as U
 

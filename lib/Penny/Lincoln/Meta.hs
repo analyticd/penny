@@ -1,4 +1,4 @@
-module Penny.Copper.Meta where
+module Penny.Lincoln.Meta where
 
 import qualified Penny.Lincoln.Serial as S
 import qualified Data.Text as X
@@ -27,8 +27,8 @@ newtype PostingLine = PostingLine { unPostingLine :: Int }
                       deriving (Eq, Show)
 
 data PriceMeta =
-  PriceMeta { priceLine :: PriceLine
-            , priceFormat :: Format }
+  PriceMeta { priceLine :: Maybe PriceLine
+            , priceFormat :: Maybe Format }
   deriving (Eq, Show)
 
 newtype GlobalPosting =
@@ -39,11 +39,14 @@ newtype FilePosting =
   FilePosting { unFilePosting :: S.Serial }
   deriving (Eq, Show)
 
+emptyPostingMeta :: PostingMeta
+emptyPostingMeta = PostingMeta Nothing Nothing Nothing Nothing
+
 data PostingMeta =
-  PostingMeta { postingLine :: PostingLine
+  PostingMeta { postingLine :: Maybe PostingLine
               , postingFormat :: Maybe Format
-              , globalPosting :: GlobalPosting
-              , filePosting :: FilePosting }
+              , globalPosting :: Maybe GlobalPosting
+              , filePosting :: Maybe FilePosting }
   deriving (Eq, Show)
 
 newtype GlobalTransaction =
@@ -55,11 +58,14 @@ newtype FileTransaction =
   deriving (Eq, Show)
 
 
+emptyTopLineMeta :: TopLineMeta
+emptyTopLineMeta = TopLineMeta Nothing Nothing Nothing Nothing Nothing
+
 data TopLineMeta =
-  TopLineMeta { topMemoLine :: TopMemoLine
-              , topLineLine :: TopLineLine
-              , filename :: Filename
-              , globalTransaction :: GlobalTransaction
-              , fileTransaction :: FileTransaction }
+  TopLineMeta { topMemoLine :: Maybe TopMemoLine
+              , topLineLine :: Maybe TopLineLine
+              , filename :: Maybe Filename
+              , globalTransaction :: Maybe GlobalTransaction
+              , fileTransaction :: Maybe FileTransaction }
   deriving (Eq, Show)
 

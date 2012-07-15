@@ -24,35 +24,34 @@ import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.Qty as Q
-import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Copper.Meta as M
+import qualified Penny.Lincoln as L
 
 -- | Parse optional spaces, returns appropriate metadata.
-spaces :: Parser M.SpaceBetween
+spaces :: Parser L.SpaceBetween
 spaces = f <$> many (char ' ') where
-  f l = if null l then M.NoSpaceBetween else M.SpaceBetween
+  f l = if null l then L.NoSpaceBetween else L.SpaceBetween
 
-cmdtyQty :: Parser B.Commodity
+cmdtyQty :: Parser L.Commodity
             -> Q.RadGroup
-            -> Parser (B.Amount, M.Format)
+            -> Parser (L.Amount, L.Format)
 cmdtyQty p rg = let
   f c s q = (a, fmt) where
-    a = B.Amount q c
-    fmt = M.Format M.CommodityOnLeft s
+    a = L.Amount q c
+    fmt = L.Format L.CommodityOnLeft s
   e = "amount, commodity on left"
   in f <$> p <*> spaces <*> Q.qty rg <?> e
 
-lvl1CmdtyQty :: Q.RadGroup -> Parser (B.Amount, M.Format)
+lvl1CmdtyQty :: Q.RadGroup -> Parser (L.Amount, L.Format)
 lvl1CmdtyQty = cmdtyQty C.quotedLvl1Cmdty
 
-lvl3CmdtyQty :: Q.RadGroup -> Parser (B.Amount, M.Format)
+lvl3CmdtyQty :: Q.RadGroup -> Parser (L.Amount, L.Format)
 lvl3CmdtyQty = cmdtyQty C.lvl3Cmdty
 
-cmdtyOnRight :: Q.RadGroup -> Parser (B.Amount, M.Format)
+cmdtyOnRight :: Q.RadGroup -> Parser (L.Amount, L.Format)
 cmdtyOnRight rg = let  
   f q s c = (a, fmt) where
-    a = B.Amount q c
-    fmt = M.Format M.CommodityOnRight s
+    a = L.Amount q c
+    fmt = L.Format L.CommodityOnRight s
   e = "amount, commodity on right"
   in f
      <$> Q.qty rg
@@ -62,7 +61,7 @@ cmdtyOnRight rg = let
 
 -- | Parses an amount with its metadata. Handles all combinations of
 -- commodities and quantities.
-amount :: Q.RadGroup -> Parser (B.Amount, M.Format)
+amount :: Q.RadGroup -> Parser (L.Amount, L.Format)
 amount rg = lvl1CmdtyQty rg
             <|> lvl3CmdtyQty rg
             <|> cmdtyOnRight rg
@@ -74,24 +73,24 @@ render ::
   (Q.GroupingSpec, Q.GroupingSpec)
   -- ^ Grouping
   -> Q.RadGroup
-  -> M.Format
-  -> B.Amount
+  -> L.Format
+  -> L.Amount
   -> Maybe X.Text
 render gs rg f a = let
-  (q, c) = (B.qty a, B.commodity a)
+  (q, c) = (L.qty a, L.commodity a)
   qty = Q.quote $ Q.renderUnquoted rg gs q
-  ws = case M.between f of
-    M.SpaceBetween -> X.singleton ' '
-    M.NoSpaceBetween -> X.empty
+  ws = case L.between f of
+    L.SpaceBetween -> X.singleton ' '
+    L.NoSpaceBetween -> X.empty
   mayLvl3 = C.renderLvl3 c
   mayLvl2 = C.renderLvl2 c
   in do
     quotedLvl1 <- C.renderQuotedLvl1 c
-    let (l, r) = case M.side f of
-          M.CommodityOnLeft -> case mayLvl3 of
+    let (l, r) = case L.side f of
+          L.CommodityOnLeft -> case mayLvl3 of
             Nothing -> (quotedLvl1, qty)
             Just l3 -> (l3, qty)
-          M.CommodityOnRight -> case mayLvl2 of
+          L.CommodityOnRight -> case mayLvl2 of
             Nothing -> (qty, quotedLvl1)
             Just l2 -> (qty, l2)
     return $ X.concat [l, ws, r]

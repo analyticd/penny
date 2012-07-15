@@ -158,6 +158,27 @@ module Penny.Lincoln (
     -- ** Transaction boxes
   , T.Box (Box, boxMeta, boxPosting)
     
+  -- * Metadata
+  , M.TopLineLine(TopLineLine, unTopLineLine)
+  , M.TopMemoLine(TopMemoLine, unTopMemoLine)
+  , M.Side(CommodityOnLeft, CommodityOnRight)
+  , M.SpaceBetween(SpaceBetween, NoSpaceBetween)
+  , M.Format(Format, side, between)
+  , M.Filename(Filename, unFilename)
+  , M.PriceLine(unPriceLine)
+  , M.PostingLine(unPostingLine)
+  , M.PriceMeta(priceLine, priceFormat)
+  , M.GlobalPosting(unGlobalPosting)
+  , M.FilePosting(unFilePosting)
+  , M.GlobalTransaction(unGlobalTransaction)
+  , M.FileTransaction(unFileTransaction)
+  , M.PostingMeta(PostingMeta, postingLine, postingFormat,
+                  globalPosting, filePosting)
+  , M.emptyPostingMeta
+  , M.TopLineMeta(TopLineMeta, topMemoLine, topLineLine, filename,
+                globalTransaction, fileTransaction)
+  , M.emptyTopLineMeta
+  
     -- * PriceDb
   , DB.PriceDb
   , DB.emptyDb
@@ -179,6 +200,7 @@ import qualified Penny.Lincoln.Bits as I
 import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Lincoln.Family as F
 import qualified Penny.Lincoln.HasText as HT
+import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.PriceDb as DB
 import qualified Penny.Lincoln.Serial as S
 import qualified Penny.Lincoln.TextNonEmpty as TNE

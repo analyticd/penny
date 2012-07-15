@@ -14,7 +14,6 @@ import Text.Parsec.Text ( Parser )
 import qualified Penny.Copper.Comments as C
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Lincoln as L
-import qualified Penny.Copper.Meta as M
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Price ( price )
 import qualified Penny.Copper.Price as P
@@ -28,7 +27,7 @@ import Penny.Copper.Util (eol)
 -- metadata type for the TopLine, and the metadata type for the
 -- Posting.
 data Item tm pm = Transaction (L.Transaction tm pm)
-                | Price (L.PricePoint M.PriceMeta)
+                | Price (L.PricePoint L.PriceMeta)
                 | CommentItem C.Comment
                 | BlankLine
           deriving Show
@@ -39,8 +38,8 @@ newtype Line = Line { unLine :: Int }
 itemWithLineNumber ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (Line, (Item (M.TopMemoLine, M.TopLineLine)
-                    (M.PostingLine, Maybe M.Format)))
+  -> Parser (Line, (Item (L.TopMemoLine, L.TopLineLine)
+                    (L.PostingLine, Maybe L.Format)))
 itemWithLineNumber dtz rg = (,)
   <$> ((Line . sourceLine) <$> getPosition)
   <*> parseItem dtz rg
@@ -48,8 +47,8 @@ itemWithLineNumber dtz rg = (,)
 parseItem ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (Item (M.TopMemoLine, M.TopLineLine)
-                    (M.PostingLine, Maybe M.Format))
+  -> Parser (Item (L.TopMemoLine, L.TopLineLine)
+                    (L.PostingLine, Maybe L.Format))
 parseItem dtz rg = let
    bl = BlankLine <$ eol <?> "blank line"
    t = Transaction <$> transaction dtz rg
@@ -61,7 +60,7 @@ render ::
   DT.DefaultTimeZone
   -> (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
-  -> Item () (Maybe M.Format)
+  -> Item () (Maybe L.Format)
   -> Maybe X.Text
 render dtz gs rg i = case i of
   Transaction t -> T.render dtz gs rg t
