@@ -31,20 +31,17 @@ module Penny.Copper (
   ) where
 
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import Text.Parsec ( manyTill, eof )
 import qualified Text.Parsec as P
-import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.Comments as C
 import qualified Penny.Copper.Qty as Q
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Item as I
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Serial as S
-import qualified Penny.Lincoln.Family as F
 
 data Ledger =
   Ledger { unLedger :: [(I.Line, I.Item)] }
@@ -59,41 +56,43 @@ newtype ErrorMsg = ErrorMsg { unErrorMsg :: X.Text }
 parseFile ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> (M.Filename, FileContents)
+  -> (L.Filename, FileContents)
   -> Ex.Exceptional ErrorMsg
-  [(I.Line, I.Item TopLineFileMeta PostingFileMeta)]
+  [(I.Line, I.Item)]
 parseFile dtz rg (fn, (FileContents c)) =
   let p = addFileMetadata fn
           <$> manyTill (I.itemWithLineNumber dtz rg) eof
-      fnStr = X.unpack . M.unFilename $ fn
+      fnStr = X.unpack . L.unFilename $ fn
   in case P.parse p fnStr c of
     Left err -> Ex.throw (ErrorMsg . X.pack . show $ err)
     Right g -> return g
 
 addFileMetadata ::
-  M.Filename
-  -> [(I.Line, (I.Item (M.TopMemoLine, M.TopLineLine)
-                (M.PostingLine, Maybe M.Format)))]
-  -> [(I.Line, I.Item TopLineFileMeta PostingFileMeta)]
+  L.Filename
+  -> [(I.Line, I.Item)]
+  -> [(I.Line, I.Item)]
 addFileMetadata fn ls =
   let (lns, is) = (map fst ls, map snd ls)
       eis = map toEiItem is
-      procTop s = append3 (M.FileTransaction s) . append2 fn
-      procPstg s = append2 (M.FilePosting s)
+      procTop s m =
+        m { L.fileTransaction = Just (L.FileTransaction s)
+          , L.filename = Just fn }
+      procPstg s m =
+        m { L.filePosting = Just (L.FilePosting s) }
       eis' = L.addSerialsToEithers procTop procPstg eis
       is' = map fromEiItem eis'
   in zip lns is'
 
 
 addGlobalMetadata ::
-  [[(I.Line, I.Item TopLineFileMeta PostingFileMeta)]]
-  -> [(I.Line, I.Item M.TopLineMeta M.PostingMeta)]
+  [[(I.Line, I.Item)]]
+  -> [(I.Line, I.Item)]
 addGlobalMetadata lss =
   let ls = concat lss
-      procTop s (tml, tll, fn, ft) =
-        M.TopLineMeta tml tll fn (M.GlobalTransaction s) ft
-      procPstg s (pl, fmt, fp) =
-        M.PostingMeta pl fmt (M.GlobalPosting s) fp
+      procTop s m =
+        m { L.globalTransaction = Just (L.GlobalTransaction s) }
+      procPstg s m =
+        m { L.globalPosting = Just (L.GlobalPosting s) }
       (lns, is) = (map fst ls, map snd ls)
       eis = map toEiItem is
       eis' = L.addSerialsToEithers procTop procPstg eis
@@ -103,33 +102,27 @@ addGlobalMetadata lss =
 parse ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> [(M.Filename, FileContents)]
+  -> [(L.Filename, FileContents)]
   -> Ex.Exceptional ErrorMsg Ledger
 parse dtz rg ps =
   mapM (parseFile dtz rg) ps
   >>= (return . Ledger . addGlobalMetadata)
 
-append2 :: c -> (a, b) -> (a, b, c)
-append2 c (a, b) = (a, b, c)
-
-append3 :: d -> (a, b, c) -> (a, b, c, d)
-append3 d (a, b, c) = (a, b, c, d)
-
-data Other = OPrice (L.PricePoint M.PriceMeta)
+data Other = OPrice L.PricePoint
              | OCommentItem C.Comment
              | OBlankLine
              deriving Show
 
-type EiItem tm pm = Either Other (L.Transaction tm pm)
+type EiItem = Either Other L.Transaction
 
-toEiItem :: I.Item tm pm -> EiItem tm pm
+toEiItem :: I.Item -> EiItem
 toEiItem i = case i of
   I.Transaction t -> Right t
   I.Price p -> Left (OPrice p)
   I.CommentItem c -> Left (OCommentItem c)
   I.BlankLine -> Left OBlankLine
 
-fromEiItem :: EiItem tm pm -> I.Item tm pm
+fromEiItem :: EiItem -> I.Item
 fromEiItem i = case i of
   Left l -> case l of
     OPrice p -> I.Price p

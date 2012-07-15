@@ -168,10 +168,10 @@ module Penny.Lincoln (
   , M.PriceLine(PriceLine, unPriceLine)
   , M.PostingLine(PostingLine, unPostingLine)
   , M.PriceMeta(PriceMeta, priceLine, priceFormat)
-  , M.GlobalPosting(unGlobalPosting)
-  , M.FilePosting(unFilePosting)
-  , M.GlobalTransaction(unGlobalTransaction)
-  , M.FileTransaction(unFileTransaction)
+  , M.GlobalPosting(GlobalPosting, unGlobalPosting)
+  , M.FilePosting(FilePosting, unFilePosting)
+  , M.GlobalTransaction(GlobalTransaction, unGlobalTransaction)
+  , M.FileTransaction(FileTransaction, unFileTransaction)
   , M.PostingMeta(PostingMeta, postingLine, postingFormat,
                   globalPosting, filePosting)
   , M.emptyPostingMeta
