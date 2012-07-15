@@ -26,10 +26,10 @@ import Penny.Copper.Util (eol)
 -- file and for rendering. It is parameterized on two types: the
 -- metadata type for the TopLine, and the metadata type for the
 -- Posting.
-data Item tm pm = Transaction (L.Transaction tm pm)
-                | Price (L.PricePoint L.PriceMeta)
-                | CommentItem C.Comment
-                | BlankLine
+data Item = Transaction L.Transaction
+          | Price L.PricePoint
+          | CommentItem C.Comment
+          | BlankLine
           deriving Show
 
 newtype Line = Line { unLine :: Int }
@@ -38,8 +38,7 @@ newtype Line = Line { unLine :: Int }
 itemWithLineNumber ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (Line, (Item (L.TopMemoLine, L.TopLineLine)
-                    (L.PostingLine, Maybe L.Format)))
+  -> Parser (Line, Item)
 itemWithLineNumber dtz rg = (,)
   <$> ((Line . sourceLine) <$> getPosition)
   <*> parseItem dtz rg
@@ -47,8 +46,7 @@ itemWithLineNumber dtz rg = (,)
 parseItem ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (Item (L.TopMemoLine, L.TopLineLine)
-                    (L.PostingLine, Maybe L.Format))
+  -> Parser Item
 parseItem dtz rg = let
    bl = BlankLine <$ eol <?> "blank line"
    t = Transaction <$> transaction dtz rg
@@ -60,7 +58,7 @@ render ::
   DT.DefaultTimeZone
   -> (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
-  -> Item () (Maybe L.Format)
+  -> Item
   -> Maybe X.Text
 render dtz gs rg i = case i of
   Transaction t -> T.render dtz gs rg t

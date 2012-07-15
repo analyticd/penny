@@ -45,7 +45,7 @@ module Penny.Lincoln.Bits (
   Pr.CountPerUnit(CountPerUnit, unCountPerUnit),
   Pr.Price(from, to, countPerUnit),
   Pr.convert, Pr.newPrice,
-  PP.PricePoint(PricePoint, price),
+  PP.PricePoint(PricePoint, price, ppMeta),
 
   -- * Quantities
   Q.Qty, Q.unQty, Q.partialNewQty,

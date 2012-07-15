@@ -9,6 +9,7 @@ import Data.Text (singleton, snoc, intercalate)
 import qualified Data.Text as X
 
 import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.Bits.PricePoint as PP
 import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.DateTime as DT
@@ -27,20 +28,20 @@ mkPrice :: SourcePos
          -> L.DateTime
          -> L.Commodity
          -> (L.Amount, L.Format)
-         -> Maybe (PP.PricePoint L.PriceMeta)
+         -> Maybe L.PricePoint
 mkPrice pos dt from (am, fmt) = let
   to = L.commodity am
   q = L.qty am
-  pm = L.PriceMeta pl fmt
+  pm = L.PriceMeta (Just pl) (Just fmt)
   pl = L.PriceLine . sourceLine $ pos
   in do
     p <- L.newPrice (L.From from) (L.To to) (L.CountPerUnit q)
-    return $ PP.PricePoint dt p pm
+    return $ L.PricePoint dt p pm
 
 maybePrice ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (Maybe (PP.PricePoint L.PriceMeta))
+  -> Parser (Maybe L.PricePoint)
 maybePrice dtz rg =
   mkPrice
   <$ lexeme (char '@')
@@ -59,7 +60,7 @@ maybePrice dtz rg =
 price ::
   DT.DefaultTimeZone
   -> Q.RadGroup
-  -> Parser (PP.PricePoint L.PriceMeta)
+  -> Parser L.PricePoint
 price dtz rg = do
   b <- maybePrice dtz rg
   case b of
@@ -76,18 +77,18 @@ render ::
   DT.DefaultTimeZone
   -> (Q.GroupingSpec, Q.GroupingSpec)
   -> Q.RadGroup
-  -> PP.PricePoint L.PriceMeta
+  -> L.PricePoint
   -> Maybe X.Text
 render dtz gs rg pp = let
-  fmt = L.priceFormat . PP.ppMeta $ pp
   dateTxt = DT.render dtz (PP.dateTime pp)
   (L.From from) = L.from . L.price $ pp
   (L.To to) = L.to . L.price $ pp
   (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
   mayFromTxt = C.renderLvl3 from <|> C.renderQuotedLvl1 from
   amt = L.Amount q to
-  mayAmtTxt = A.render gs rg fmt amt
   in do
+    fmt <- L.priceFormat . L.ppMeta $ pp
+    let mayAmtTxt = A.render gs rg fmt amt
     amtTxt <- mayAmtTxt
     fromTxt <- mayFromTxt
     return $

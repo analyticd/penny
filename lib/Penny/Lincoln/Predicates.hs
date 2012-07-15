@@ -52,26 +52,26 @@ matchMaybeLevel i f ma = case ma of
 
 -- * Pattern matching fields
 
-payee :: (Text -> Bool) -> PostingChild tm pm -> Bool
+payee :: (Text -> Bool) -> PostingChild -> Bool
 payee f = matchMaybe f . Q.payee
 
-number :: (Text -> Bool) -> PostingChild tm pm -> Bool
+number :: (Text -> Bool) -> PostingChild -> Bool
 number f = matchMaybe f . Q.number
 
-flag :: (Text -> Bool) -> PostingChild tm pm -> Bool
+flag :: (Text -> Bool) -> PostingChild -> Bool
 flag f = matchMaybe f . Q.flag
 
-postingMemo :: (Text -> Bool) -> PostingChild tm pm -> Bool
+postingMemo :: (Text -> Bool) -> PostingChild -> Bool
 postingMemo f = matchMemo f . Q.postingMemo
 
-transactionMemo :: (Text -> Bool) -> PostingChild tm pm -> Bool
+transactionMemo :: (Text -> Bool) -> PostingChild -> Bool
 transactionMemo f = matchMemo f . Q.transactionMemo
 
 -- * Date
 
 date ::
   (B.DateTime -> Bool)
-  -> PostingChild tm pm
+  -> PostingChild
   -> Bool
 date f c = f (Q.dateTime c)
 
@@ -80,19 +80,19 @@ date f c = f (Q.dateTime c)
 
 qty ::
   (B.Qty -> Bool)
-  -> PostingChild tm pm
+  -> PostingChild
   -> Bool
 qty f c = f (Q.qty c)
 
 
 -- * DrCr
-drCr :: B.DrCr -> PostingChild tm pm -> Bool
+drCr :: B.DrCr -> PostingChild -> Bool
 drCr dc p = dc == Q.drCr p
 
-debit :: PostingChild tm pm -> Bool
+debit :: PostingChild -> Bool
 debit p = Q.drCr p == B.Debit
 
-credit :: PostingChild tm pm -> Bool
+credit :: PostingChild -> Bool
 credit p = Q.drCr p == B.Credit
 
 -- * Matching delimited fields
@@ -106,31 +106,31 @@ matchDelimited d f = f . text . Delimited d . textList
 
 -- * Commodity
 
-commodity :: Text -> (Text -> Bool) -> PostingChild tm pm -> Bool
+commodity :: Text -> (Text -> Bool) -> PostingChild -> Bool
 commodity t f = matchDelimited t f
                 . B.unCommodity
                 . Q.commodity
 
-commodityLevel :: Int -> (Text -> Bool) -> PostingChild tm pm -> Bool
+commodityLevel :: Int -> (Text -> Bool) -> PostingChild -> Bool
 commodityLevel i f = matchLevel i f . Q.commodity
 
-commodityAny :: (Text -> Bool) -> PostingChild tm pm -> Bool
+commodityAny :: (Text -> Bool) -> PostingChild -> Bool
 commodityAny f = matchAny f . Q.commodity
 
 
 -- * Account
-account :: Text -> (Text -> Bool) -> PostingChild tm pm -> Bool
+account :: Text -> (Text -> Bool) -> PostingChild -> Bool
 account t f = matchDelimited t f
                 . B.unAccount
                 . Q.account
 
-accountLevel :: Int -> (Text -> Bool) -> PostingChild tm pm -> Bool
+accountLevel :: Int -> (Text -> Bool) -> PostingChild -> Bool
 accountLevel i f = matchLevel i f . Q.account
 
-accountAny :: (Text -> Bool) -> PostingChild tm pm -> Bool
+accountAny :: (Text -> Bool) -> PostingChild -> Bool
 accountAny f = matchAny f . Q.account
 
 -- * Tags
-tag :: (Text -> Bool) -> PostingChild tm pm -> Bool
+tag :: (Text -> Bool) -> PostingChild -> Bool
 tag f = matchAny f . Q.tags
 

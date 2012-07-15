@@ -1,7 +1,6 @@
-module Penny.Copper.Transaction (transaction, render, Transaction) where
+module Penny.Copper.Transaction (transaction, render) where
 
 import Control.Applicative ((<$>), (<*>))
-import Control.Monad (guard)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Foldable (toList)
 import qualified Data.Traversable as Tr
@@ -15,7 +14,7 @@ import Penny.Copper.TopLine ( topLine )
 import qualified Penny.Copper.Posting as Po
 import qualified Penny.Copper.Qty as Qt
 import qualified Penny.Lincoln as L
-import Penny.Lincoln.Family (orphans, marry)
+import Penny.Lincoln.Family (orphans)
 import qualified Penny.Lincoln.Family.Family as F
 import Penny.Lincoln.Family.Family ( Family ( Family ) )
 import qualified Penny.Lincoln.Transaction as T
@@ -31,7 +30,7 @@ mkTransaction ::
   -> U.Posting
   -> U.Posting
   -> [U.Posting]
-  -> Ex.Exceptional String Transaction
+  -> Ex.Exceptional String L.Transaction
 mkTransaction top p1 p2 ps = let
   famTrans = Family top p1 p2 ps
   errXact = T.transaction famTrans
@@ -42,7 +41,7 @@ mkTransaction top p1 p2 ps = let
 maybeTransaction ::
   DT.DefaultTimeZone
   -> Qt.RadGroup
-  -> Parser (Ex.Exceptional String Transaction)
+  -> Parser (Ex.Exceptional String L.Transaction)
 maybeTransaction dtz rg =
   mkTransaction
   <$> topLine dtz
@@ -53,7 +52,7 @@ maybeTransaction dtz rg =
 transaction ::
   DT.DefaultTimeZone
   -> Qt.RadGroup
-  -> Parser Transaction
+  -> Parser L.Transaction
 transaction dtz rg = do
   ex <- maybeTransaction dtz rg
   case ex of

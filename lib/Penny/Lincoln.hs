@@ -66,7 +66,7 @@ module Penny.Lincoln (
   , I.CountPerUnit(CountPerUnit, unCountPerUnit)
   , I.Price(from, to, countPerUnit)
   , I.newPrice
-  , I.PricePoint(PricePoint, price)
+  , I.PricePoint(PricePoint, price, ppMeta)
 
     -- ** Quantities                               
   , I.Qty
@@ -165,9 +165,9 @@ module Penny.Lincoln (
   , M.SpaceBetween(SpaceBetween, NoSpaceBetween)
   , M.Format(Format, side, between)
   , M.Filename(Filename, unFilename)
-  , M.PriceLine(unPriceLine)
-  , M.PostingLine(unPostingLine)
-  , M.PriceMeta(priceLine, priceFormat)
+  , M.PriceLine(PriceLine, unPriceLine)
+  , M.PostingLine(PostingLine, unPostingLine)
+  , M.PriceMeta(PriceMeta, priceLine, priceFormat)
   , M.GlobalPosting(unGlobalPosting)
   , M.FilePosting(unFilePosting)
   , M.GlobalTransaction(unGlobalTransaction)

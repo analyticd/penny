@@ -10,6 +10,7 @@ import Text.Parsec (
   State)
 import Text.Parsec.Text ( Parser )
 
+import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Copper.Account as Ac
 import qualified Penny.Copper.Entry as En
@@ -24,10 +25,10 @@ import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
 posting :: Qt.RadGroup
-           -> Parser (U.Posting (M.PostingLine, Maybe M.Format))
+           -> Parser U.Posting
 posting rg =
   makeUnverified
-  <$> (M.PostingLine . sourceLine . statePos
+  <$> (L.PostingLine . sourceLine . statePos
        <$> getParserState)
   <*> (UnverifiedWithMeta
        <$> optionMaybe (lexeme Fl.flag)
@@ -46,20 +47,21 @@ data UnverifiedWithMeta = UnverifiedWithMeta {
   , payee :: Maybe B.Payee
   , account :: B.Account
   , tags :: B.Tags
-  , entry :: Maybe (B.Entry, M.Format)
+  , entry :: Maybe (B.Entry, L.Format)
   , memo :: B.Memo
   } deriving (Eq, Show)
     
 makeUnverified ::
-  M.PostingLine
+  L.PostingLine
   -> UnverifiedWithMeta
-  -> (U.Posting (M.PostingLine, Maybe M.Format))
+  -> U.Posting
 makeUnverified pl u = upo where
   upo = U.Posting (payee u) (number u) (flag u) (account u)
-        (tags u) en (memo u) (pl, fmt)
+        (tags u) en (memo u) meta
   (en, fmt) = case entry u of
     Nothing -> (Nothing, Nothing)
     Just (e, f) -> (Just e, Just f)
+  meta = L.PostingMeta (Just pl) fmt Nothing Nothing
 
 
 -- | Renders a Posting. Fails if any of the components
@@ -84,7 +86,7 @@ makeUnverified pl u = upo where
 render ::
   (Qt.GroupingSpec, Qt.GroupingSpec)
   -> Qt.RadGroup
-  -> T.Posting (Maybe M.Format)
+  -> T.Posting
   -> Maybe X.Text
 render gs rg p = do
   fl <- renMaybe (T.pFlag p) Fl.render
@@ -93,7 +95,7 @@ render gs rg p = do
   ac <- Ac.render (T.pAccount p)
   ta <- Ta.render (T.pTags p)
   me <- Me.render (T.pMemo p)
-  maybePair <- case (T.pInferred p, T.pMeta p) of
+  maybePair <- case (T.pInferred p, L.postingFormat . T.pMeta $ p) of
     (T.Inferred, Nothing) -> return Nothing
     (T.NotInferred, Just f) -> return (Just (T.pEntry p, f))
     _ -> Nothing

@@ -47,7 +47,7 @@ import qualified Penny.Lincoln.Serial as S
 import qualified Penny.Lincoln.Family as F
 
 data Ledger =
-  Ledger { unLedger :: [(I.Line, I.Item M.TopLineMeta M.PostingMeta)] }
+  Ledger { unLedger :: [(I.Line, I.Item)] }
   deriving Show
 
 newtype FileContents = FileContents { unFileContents :: X.Text }
@@ -55,12 +55,6 @@ newtype FileContents = FileContents { unFileContents :: X.Text }
 
 newtype ErrorMsg = ErrorMsg { unErrorMsg :: X.Text }
                    deriving (Eq, Show)
-
-type TopLineFileMeta =
-  (M.TopMemoLine, M.TopLineLine, M.Filename, M.FileTransaction)
-
-type PostingFileMeta =
-  (M.PostingLine, Maybe M.Format, M.FilePosting)
 
 parseFile ::
   DT.DefaultTimeZone

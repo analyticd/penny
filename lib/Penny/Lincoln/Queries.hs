@@ -1,68 +1,69 @@
 module Penny.Lincoln.Queries where
 
 import qualified Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln.Meta as M
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Transaction as T
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 import qualified Penny.Lincoln.Family as F
 
 
-type PostingChild tm pm = F.Child (T.TopLine tm) (T.Posting pm)
+type PostingChild = F.Child T.TopLine T.Posting
 
 best ::
-  (T.Posting pm -> Maybe a)
-  -> (T.TopLine tm -> Maybe a)
-  -> PostingChild tm pm
+  (T.Posting -> Maybe a)
+  -> (T.TopLine -> Maybe a)
+  -> PostingChild
   -> Maybe a
 best fp ft c = case fp . child $ c of
   Just r -> Just r
   Nothing -> ft . parent $ c
 
 
-payee :: PostingChild tm pm -> Maybe B.Payee
+payee :: PostingChild -> Maybe B.Payee
 payee = best T.pPayee T.tPayee
 
-number :: PostingChild tm pm -> Maybe B.Number
+number :: PostingChild -> Maybe B.Number
 number = best T.pNumber T.tNumber
 
-flag :: PostingChild tm pm -> Maybe B.Flag
+flag :: PostingChild -> Maybe B.Flag
 flag = best T.pFlag T.tFlag
 
-postingMemo :: PostingChild tm pm -> B.Memo
+postingMemo :: PostingChild -> B.Memo
 postingMemo = T.pMemo . child
 
-transactionMemo :: PostingChild tm pm -> B.Memo
+transactionMemo :: PostingChild -> B.Memo
 transactionMemo = T.tMemo . parent
 
-dateTime :: PostingChild tm pm -> B.DateTime
+dateTime :: PostingChild -> B.DateTime
 dateTime = T.tDateTime . parent
 
-account :: PostingChild tm pm -> B.Account
+account :: PostingChild -> B.Account
 account = T.pAccount . child
 
-tags :: PostingChild tm pm -> B.Tags
+tags :: PostingChild -> B.Tags
 tags = T.pTags . child
 
-entry :: PostingChild tm pm -> B.Entry
+entry :: PostingChild -> B.Entry
 entry = T.pEntry . child
 
-balance :: PostingChild tm pm -> Balance
+balance :: PostingChild -> Balance
 balance = entryToBalance . entry
 
-drCr :: PostingChild tm pm -> B.DrCr
+drCr :: PostingChild -> B.DrCr
 drCr = B.drCr . entry
 
-amount :: PostingChild tm pm -> B.Amount
+amount :: PostingChild -> B.Amount
 amount = B.amount . entry
 
-qty :: PostingChild tm pm -> B.Qty
+qty :: PostingChild -> B.Qty
 qty = B.qty . amount
 
-commodity :: PostingChild tm pm -> B.Commodity
+commodity :: PostingChild -> B.Commodity
 commodity = B.commodity . amount
 
-postingMeta :: PostingChild tm pm -> pm
+postingMeta :: PostingChild -> M.PostingMeta
 postingMeta = T.pMeta . child
 
-topLineMeta :: PostingChild tm pm -> tm
+topLineMeta :: PostingChild -> M.TopLineMeta
 topLineMeta = T.tMeta . parent
