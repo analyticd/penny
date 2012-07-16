@@ -118,7 +118,7 @@ module Penny.Lincoln (
     -- ** Postings and transactions
   , T.Posting
   , T.Transaction
-  , T.PostingChild
+  , T.PostFam
 
     -- ** Making transactions
   , T.transaction
@@ -153,10 +153,10 @@ module Penny.Lincoln (
     
     -- ** Unwrapping Transactions
   , T.unTransaction
-  , T.postingFamily
+  , T.unPostFam
     
     -- ** Transaction boxes
-  , T.Box (Box, boxMeta, boxPosting)
+  , T.Box (Box, boxMeta, boxPostFam)
     
   -- * Metadata
   , M.TopLineLine(TopLineLine, unTopLineLine)

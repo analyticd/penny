@@ -5,65 +5,61 @@ import qualified Penny.Lincoln.Meta as M
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Transaction as T
 import Penny.Lincoln.Balance (Balance, entryToBalance)
-import qualified Penny.Lincoln.Family as F
-
-
-type PostingChild = F.Child T.TopLine T.Posting
 
 best ::
   (T.Posting -> Maybe a)
   -> (T.TopLine -> Maybe a)
-  -> PostingChild
+  -> T.PostFam
   -> Maybe a
-best fp ft c = case fp . child $ c of
+best fp ft c = case fp . child . T.unPostFam $ c of
   Just r -> Just r
-  Nothing -> ft . parent $ c
+  Nothing -> ft . parent . T.unPostFam $ c
 
 
-payee :: PostingChild -> Maybe B.Payee
+payee :: T.PostFam -> Maybe B.Payee
 payee = best T.pPayee T.tPayee
 
-number :: PostingChild -> Maybe B.Number
+number :: T.PostFam -> Maybe B.Number
 number = best T.pNumber T.tNumber
 
-flag :: PostingChild -> Maybe B.Flag
+flag :: T.PostFam -> Maybe B.Flag
 flag = best T.pFlag T.tFlag
 
-postingMemo :: PostingChild -> B.Memo
-postingMemo = T.pMemo . child
+postingMemo :: T.PostFam -> B.Memo
+postingMemo = T.pMemo . child . T.unPostFam
 
-transactionMemo :: PostingChild -> B.Memo
-transactionMemo = T.tMemo . parent
+transactionMemo :: T.PostFam -> B.Memo
+transactionMemo = T.tMemo . parent . T.unPostFam
 
-dateTime :: PostingChild -> B.DateTime
-dateTime = T.tDateTime . parent
+dateTime :: T.PostFam -> B.DateTime
+dateTime = T.tDateTime . parent . T.unPostFam
 
-account :: PostingChild -> B.Account
-account = T.pAccount . child
+account :: T.PostFam -> B.Account
+account = T.pAccount . child . T.unPostFam
 
-tags :: PostingChild -> B.Tags
-tags = T.pTags . child
+tags :: T.PostFam -> B.Tags
+tags = T.pTags . child . T.unPostFam
 
-entry :: PostingChild -> B.Entry
-entry = T.pEntry . child
+entry :: T.PostFam -> B.Entry
+entry = T.pEntry . child . T.unPostFam
 
-balance :: PostingChild -> Balance
+balance :: T.PostFam -> Balance
 balance = entryToBalance . entry
 
-drCr :: PostingChild -> B.DrCr
+drCr :: T.PostFam -> B.DrCr
 drCr = B.drCr . entry
 
-amount :: PostingChild -> B.Amount
+amount :: T.PostFam -> B.Amount
 amount = B.amount . entry
 
-qty :: PostingChild -> B.Qty
+qty :: T.PostFam -> B.Qty
 qty = B.qty . amount
 
-commodity :: PostingChild -> B.Commodity
+commodity :: T.PostFam -> B.Commodity
 commodity = B.commodity . amount
 
-postingMeta :: PostingChild -> M.PostingMeta
-postingMeta = T.pMeta . child
+postingMeta :: T.PostFam -> M.PostingMeta
+postingMeta = T.pMeta . child . T.unPostFam
 
-topLineMeta :: PostingChild -> M.TopLineMeta
-topLineMeta = T.tMeta . parent
+topLineMeta :: T.PostFam -> M.TopLineMeta
+topLineMeta = T.tMeta . parent . T.unPostFam

@@ -36,7 +36,6 @@ import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
 import Text.Parsec (parse)
   
-import qualified Penny.Copper as Cop
 import Penny.Copper.DateTime (DefaultTimeZone, dateTime)
 import Penny.Copper.Qty (RadGroup, qty)
 
@@ -73,7 +72,7 @@ data LibertyMeta =
 -- them in Box instances with Filtered serials.
 xactionsToFiltered ::
   
-  [X.Token (PostingChild -> Bool)]
+  [X.Token (L.PostFam -> Bool)]
   -- ^ Parsing these tokens will yield an expression that will be used
   -- to filter the postings. If parsing the tokens fails, this
   -- function returns Nothing. If the resulting RPN expression fails,
@@ -82,13 +81,13 @@ xactionsToFiltered ::
   -> [PostFilterFn]
   -- ^ Post filter specs
 
-  -> (PostingChild -> PostingChild -> Ordering)
+  -> (L.PostFam -> L.PostFam -> Ordering)
   -- ^ The sorter
 
-  -> [L.Transaction Cop.TopLineMeta Cop.PostingMeta]
+  -> [L.Transaction]
   -- ^ The transactions to work on (probably parsed in from Copper)
   
-  -> Maybe [L.Box LibertyMeta Cop.TopLineMeta Cop.PostingMeta]
+  -> Maybe [L.Box LibertyMeta]
   -- ^ Nothing if the token list fails to parse into an RPN
   -- expression, or if the resulting RPN expression fails to return a
   -- result (e.g. it leaves values on the stack); otherwise, returns
@@ -109,38 +108,37 @@ xactionsToFiltered tkns pfs s txns =
       $ txns
 
 -- | Transform a list of transactions into a list of children.
-makeChildren :: L.Transaction tm pm -> [L.PostingChild tm pm]
+makeChildren :: L.Transaction -> [L.PostFam]
 makeChildren = undefined
 
 -- | Transforms a PostingChild into a Box.
-toBox :: L.PostingChild tm pm -> L.Box () tm pm
+toBox :: L.PostFam -> L.Box ()
 toBox = L.Box ()
 
 -- | Takes a list of filtered boxes and adds the Filtered serials.
 
-addFilteredNum :: [L.Box () tm pm] -> [L.Box FilteredNum tm pm]
+addFilteredNum :: [L.Box ()] -> [L.Box FilteredNum]
 addFilteredNum = undefined
 
 -- | Wraps a PostingChild sorter to change it to a Box sorter.
-sorter :: (PostingChild -> PostingChild -> Ordering)
-          -> L.Box a Cop.TopLineMeta Cop.PostingMeta
-          -> L.Box b Cop.TopLineMeta Cop.PostingMeta
+sorter :: (L.PostFam -> L.PostFam -> Ordering)
+          -> L.Box a
+          -> L.Box b
           -> Ordering
 sorter = undefined
 
 -- | Takes a list of Boxes with metadata and adds a Serial for the
 -- Sorted.
 addSortedNum ::
-  [L.Box FilteredNum tm pm]
-  -> [L.Box LibertyMeta tm pm]
+  [L.Box FilteredNum]
+  -> [L.Box LibertyMeta]
 addSortedNum = undefined
 
-type PostingChild = L.PostingChild Cop.TopLineMeta Cop.PostingMeta
 type MatcherFactory =
   CaseSensitive
   -> Text
   -> Ex.Exceptional Text (Text -> Bool)
-type Operand = X.Operand (PostingChild -> Bool)
+type Operand = X.Operand (L.PostFam -> Bool)
 
 newtype ListLength = ListLength { unListLength :: Int }
                      deriving (Eq, Ord, Show)
@@ -170,8 +168,8 @@ data State =
   State { sensitive :: CaseSensitive
         , factory :: MatcherFactory
         , postFilter :: [PostFilterFn]
-        , tokens :: [X.Token (PostingChild -> Bool)]
-        , sorters :: PostingChild -> PostingChild -> Ordering }
+        , tokens :: [X.Token (L.PostFam -> Bool)]
+        , sorters :: L.PostFam -> L.PostFam -> Ordering }
 
 -- | Create an initial State with default values.
 initState :: State
@@ -327,7 +325,7 @@ sepOption ::
   -> Maybe Char
   -- ^ Short option name, if there is one
 
-  -> (Text -> (Text -> Bool) -> PostingChild -> Bool)
+  -> (Text -> (Text -> Bool) -> L.PostFam -> Bool)
   -- ^ When applied to a text that separates the different segments of
   -- the field, a matcher, and a posting, this function returns True
   -- if the posting matches the matcher or False if it does not.
@@ -366,7 +364,7 @@ levelOption ::
   String
   -- ^ Long option name
   
-  -> (Int -> (Text -> Bool) -> PostingChild -> Bool)
+  -> (Int -> (Text -> Bool) -> L.PostFam -> Bool)
   -- ^ Applied to an integer, a matcher, and a PostingBox, this
   -- function returns True if a particular field in the posting
   -- matches the matcher given at the given level, or False otherwise.
@@ -391,7 +389,7 @@ patternOption ::
   -> Maybe Char
   -- ^ Short option, if included
 
-  -> ((Text -> Bool) -> PostingChild -> Bool)
+  -> ((Text -> Bool) -> L.PostFam -> Bool)
   -- ^ When applied to a matcher and a PostingBox, this function
   -- returns True if the posting matches, or False if it does not.
   
@@ -489,7 +487,7 @@ qtyOption rg =
 -- one for ascending, one for descending.
 serialOption ::
 
-  (PostingChild -> L.Serial)
+  (L.PostFam -> Maybe L.Serial)
   -- ^ Function that, when applied to a PostingChild, returns the serial
   -- you are interested in.
 
@@ -507,40 +505,46 @@ serialOption getSerial n =
       f getInt a1 a2 = do
         cmp <- parseComparer a1
         i <- parseInt a2
-        let op pc = (getInt . getSerial $ pc) `cmp` i
+        let op pf = case getSerial pf of
+              Nothing -> False
+              Just ser -> getInt ser `cmp` i
         return $ X.Operand op
   in C.parseOption [osA, osD]
 
 globalTransaction :: Parser (Exceptional Error Operand)
 globalTransaction =
-  let f = Cop.unGlobalTransaction
-          . Cop.globalTransaction
+  let f = fmap L.unGlobalTransaction
+          . L.globalTransaction
           . L.tMeta
           . parent
+          . L.unPostFam
   in serialOption f "global-transaction"
 
 globalPosting :: Parser (Exceptional Error Operand)
 globalPosting =
-  let f = Cop.unGlobalPosting
-          . Cop.globalPosting
+  let f = fmap L.unGlobalPosting
+          . L.globalPosting
           . L.pMeta
           . child
+          . L.unPostFam
   in serialOption f "global-posting"
 
 filePosting :: Parser (Exceptional Error Operand)
 filePosting =
-  let f = Cop.unFilePosting
-          . Cop.filePosting
+  let f = fmap L.unFilePosting
+          . L.filePosting
           . L.pMeta
           . child
+          . L.unPostFam
   in serialOption f "file-posting"
 
 fileTransaction :: Parser (Exceptional Error Operand)
 fileTransaction =
-  let f = Cop.unFileTransaction
-          . Cop.fileTransaction
+  let f = fmap L.unFileTransaction
+          . L.fileTransaction
           . L.tMeta
           . parent
+          . L.unPostFam
   in serialOption f "file-transaction"
 
 -- | Parses operands.
@@ -685,7 +689,7 @@ parseOperator =
 ------------------------------------------------------------
 -- Sorting
 ------------------------------------------------------------
-type Orderer = PostingChild -> PostingChild -> Ordering
+type Orderer = L.PostFam -> L.PostFam -> Ordering
 
 ordering ::
   (Ord b)

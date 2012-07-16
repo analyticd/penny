@@ -23,7 +23,7 @@ module Penny.Lincoln.Transaction (
   -- * Postings and transactions
   Posting,
   Transaction,
-  PostingChild,
+  PostFam (unPostFam),
 
   -- * Making transactions
   transaction,
@@ -37,13 +37,13 @@ module Penny.Lincoln.Transaction (
   -- * Querying transactions
   TopLine,
   tDateTime, tFlag, tNumber, tPayee, tMemo, tMeta,
-  unTransaction, postingFamily, changeTransactionMeta,
+  unTransaction, postFam, changeTransactionMeta,
   
   -- * Adding serials
   addSerialsToList, addSerialsToEithers,
   
   -- * Box
-  Box ( Box, boxMeta, boxPosting )
+  Box ( Box, boxMeta, boxPostFam )
   
   ) where
 
@@ -109,14 +109,13 @@ data Error = UnbalancedError
            | CouldNotInferError
            deriving (Eq, Show)
 
-type PostingChild = C.Child TopLine Posting
+newtype PostFam = PostFam { unPostFam :: C.Child TopLine Posting }
+                  deriving Show
 
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
-postingFamily ::
-  Transaction
-  -> S.Siblings PostingChild
-postingFamily (Transaction ps) = children ps
+postFam :: Transaction -> [PostFam]
+postFam (Transaction ps) = undefined
 
 {- BNF-like grammar for the various sorts of allowed postings.
 
@@ -272,5 +271,5 @@ addSerialsToEithers ft fp ls =
 -- metadata associated with the TopLine and with each posting.
 data Box m =
   Box { boxMeta :: m
-      , boxPosting :: C.Child TopLine Posting }
+      , boxPostFam :: PostFam }
   deriving Show

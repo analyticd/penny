@@ -26,14 +26,12 @@ import qualified Penny.Cabin.Posts.Meta as Meta
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Colors.DarkBackground as Dark
-import qualified Penny.Copper as Cop
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (RadGroup)
 import qualified Penny.Shield as S
 
 
-type Box = L.Box Meta.PostMeta Cop.TopLineMeta Cop.PostingMeta
-type PostingChild = L.PostingChild Cop.TopLineMeta Cop.PostingMeta
+type Box = L.Box Meta.PostMeta
 
 data T =
   T { drCrColors :: C.DrCrColors
@@ -107,7 +105,7 @@ data T =
                  -> Text -> Exceptional Text (Text -> Bool)
       -- ^ Default factory for pattern matching
       
-    , tokens :: [Ex.Token (PostingChild -> Bool)]
+    , tokens :: [Ex.Token (L.PostFam -> Bool)]
       -- ^ Default list of tokens used to filter postings.
       
     , postFilter :: [Ly.PostFilterFn]
@@ -133,12 +131,12 @@ ymd p = X.pack (formatTime defaultTimeLocale fmt d) where
   d = Time.localDay
       . Bits.localTime
       . Q.dateTime
-      . L.boxPosting
+      . L.boxPostFam
       $ p
   fmt = "%Y-%m-%d"
 
 qtyAsIs :: Box -> X.Text
-qtyAsIs p = X.pack . show . Bits.unQty . Q.qty . L.boxPosting $ p
+qtyAsIs p = X.pack . show . Bits.unQty . Q.qty . L.boxPostFam $ p
 
 balanceAsIs :: Bits.Commodity -> Bal.BottomLine -> X.Text
 balanceAsIs _ n = case n of
