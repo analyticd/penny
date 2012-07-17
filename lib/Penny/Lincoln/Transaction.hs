@@ -273,3 +273,6 @@ data Box m =
   Box { boxMeta :: m
       , boxPostFam :: PostFam }
   deriving Show
+
+instance Functor Box where
+  fmap f (Box m pf) = Box (f m) pf

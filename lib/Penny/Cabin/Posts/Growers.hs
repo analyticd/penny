@@ -24,9 +24,9 @@ import qualified Penny.Cabin.Row as R
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
-import qualified Penny.Lincoln.Family.Child (child, parent)
 
-type Box = L.Box Meta.PostMeta 
+
+type Box = L.Box M.PostMeta 
 
 -- | Grows the cells that will be GrowToFit cells in the report. First
 -- this function fills in all visible cells with text, but leaves the
@@ -73,7 +73,7 @@ sizer w (PreSpec j ts bs) = R.ColumnSpec j w ts bs
 oneLine :: Text -> Options.T -> Box -> PreSpec
 oneLine t os b =
   let bc = Options.baseColors os
-      ts = PC.colors (M.visibleNum b) bc
+      ts = PC.colors (M.visibleNum . L.boxMeta $ b) bc
       j = R.LeftJustify
       bit = C.bit ts t
   in PreSpec j ts [bit]
@@ -112,7 +112,7 @@ serialCellMaybe ::
   -- box has a serial, or Nothing if not.
   
   -> Options.T -> Box -> PreSpec
-serialCellMaybe f os b = oneLine t f os b
+serialCellMaybe f os b = oneLine t os b
   where
     t = case f (L.boxPostFam b) of
       Nothing -> X.empty
@@ -121,44 +121,79 @@ serialCellMaybe f os b = oneLine t f os b
 serialCell ::
   (M.PostMeta -> Int)
   -> Options.T -> Box -> PreSpec
-serialCell f os b = oneLine t f os b
+serialCell f os b = oneLine t os b
   where
-    t = pack . show . f . boxMeta $ b
+    t = pack . show . f . L.boxMeta $ b
 
 getGlobalTransaction :: Options.T -> Box -> PreSpec
 getGlobalTransaction =
-  let f pf =
-        fmap L.forward
-        (L.unGlobalTransaction . Q.globalTransaction $ pf)
-  in serialCellMaybe f
+  serialCellMaybe (fmap (L.forward . L.unGlobalTransaction)
+                   . Q.globalTransaction)
+
+getRevGlobalTransaction :: Options.T -> Box -> PreSpec
+getRevGlobalTransaction =
+  serialCellMaybe (fmap (L.backward . L.unGlobalTransaction)
+                   . Q.globalTransaction)
 
 getGlobalPosting :: Options.T -> Box -> PreSpec
 getGlobalPosting =
-  let f pf =
-        fmap L.forward
-        (L.unGlobalTransaction . Q.globalTransaction $ pf)
-  in serialCellMaybe f
+  serialCellMaybe (fmap (L.forward . L.unGlobalPosting)
+                   . Q.globalPosting)
 
+getRevGlobalPosting :: Options.T -> Box -> PreSpec
+getRevGlobalPosting =
+  serialCellMaybe (fmap (L.backward . L.unGlobalPosting)
+                   . Q.globalPosting)
 
+getFileTransaction :: Options.T -> Box -> PreSpec
+getFileTransaction =
+  serialCellMaybe (fmap (L.forward . L.unFileTransaction)
+                   . Q.fileTransaction)
 
+getRevFileTransaction :: Options.T -> Box -> PreSpec
+getRevFileTransaction =
+  serialCellMaybe (fmap (L.backward . L.unFileTransaction)
+                   . Q.fileTransaction)
 
+getFilePosting :: Options.T -> Box -> PreSpec
+getFilePosting =
+  serialCellMaybe (fmap (L.forward . L.unFilePosting)
+                   . Q.filePosting)
 
-getPostingNum :: Options.T -> Box -> PreSpec
-getPostingNum os i = oneLine t os i where
-  t = pack . show . I.unPostingNum . I.postingNum $ i
+getRevFilePosting :: Options.T -> Box -> PreSpec
+getRevFilePosting =
+  serialCellMaybe (fmap (L.backward . L.unFilePosting)
+                   . Q.filePosting)
 
-getVisibleNum :: Options.T -> Box -> PreSpec
-getVisibleNum os i = oneLine t os i where
-  t = pack . show . I.unVisibleNum . I.visibleNum $ i
+getSorted :: Options.T -> Box -> PreSpec
+getSorted =
+  serialCell (L.forward . Ly.unSortedNum . M.sortedNum)
 
-getRevPostingNum :: Options.T -> Box -> PreSpec
-getRevPostingNum os i = oneLine t os i where
-  t = pack . show . I.unRevPostingNum . I.revPostingNum $ i
+getRevSorted :: Options.T -> Box -> PreSpec
+getRevSorted =
+  serialCell (L.backward . Ly.unSortedNum . M.sortedNum)
+
+getFiltered :: Options.T -> Box -> PreSpec
+getFiltered =
+  serialCell (L.forward . Ly.unFilteredNum . M.filteredNum)
+
+getRevFiltered :: Options.T -> Box -> PreSpec
+getRevFiltered =
+  serialCell (L.backward . Ly.unFilteredNum . M.filteredNum)
+
+getVisible :: Options.T -> Box -> PreSpec
+getVisible =
+  serialCell (L.forward . M.unVisibleNum . M.visibleNum)
+
+getRevVisible :: Options.T -> Box -> PreSpec
+getRevVisible =
+  serialCell (L.backward . M.unVisibleNum . M.visibleNum)
+
 
 getLineNum :: Options.T -> Box -> PreSpec
-getLineNum os i = oneLine t os i where
-  lineTxt = pack . show . L.unLine . L.unPostingLine
-  t = maybe empty lineTxt (Q.postingLine . I.postingBox $ i)
+getLineNum os b = oneLine t os b where
+  lineTxt = pack . show . L.unPostingLine
+  t = maybe empty lineTxt (Q.postingLine . L.boxPostFam $ b)
 
 getDate :: Options.T -> Box -> PreSpec
 getDate os i = oneLine t os i where
@@ -166,11 +201,11 @@ getDate os i = oneLine t os i where
 
 getFlag :: Options.T -> Box -> PreSpec
 getFlag os i = oneLine t os i where
-  t = maybe empty L.text (Q.flag . I.postingBox $ i)
+  t = maybe empty L.text (Q.flag . L.boxPostFam $ i)
 
 getNumber :: Options.T -> Box -> PreSpec
 getNumber os i = oneLine t os i where
-  t = maybe empty L.text (Q.number . I.postingBox $ i)
+  t = maybe empty L.text (Q.number . L.boxPostFam $ i)
 
 dcTxt :: L.DrCr -> Text
 dcTxt L.Debit = pack "Dr"
@@ -182,20 +217,20 @@ coloredPostingCell :: Text -> Options.T -> Box -> PreSpec
 coloredPostingCell t os i = PreSpec j ts [bit] where
   j = R.LeftJustify
   bit = C.bit ts t
-  dc = Q.drCr . I.postingBox $ i
-  ts = PC.colors (I.visibleNum i)
+  dc = Q.drCr . L.boxPostFam $ i
+  ts = PC.colors (M.visibleNum . L.boxMeta $ i)
        . PC.drCrToBaseColors dc
        . O.drCrColors
        $ os
 
 getPostingDrCr :: Options.T -> Box -> PreSpec
 getPostingDrCr os i = coloredPostingCell t os i where
-  t = dcTxt . Q.drCr . I.postingBox $ i
+  t = dcTxt . Q.drCr . L.boxPostFam $ i
 
 getPostingCmdty :: Options.T -> Box -> PreSpec
 getPostingCmdty os i = coloredPostingCell t os i where
   t = L.text . L.Delimited (X.singleton ':') 
-      . L.textList . Q.commodity . I.postingBox $ i
+      . L.textList . Q.commodity . L.boxPostFam $ i
 
 getPostingQty :: Options.T -> Box -> PreSpec
 getPostingQty os i = coloredPostingCell t os i where
@@ -203,11 +238,11 @@ getPostingQty os i = coloredPostingCell t os i where
 
 getTotalDrCr :: Options.T -> Box -> PreSpec
 getTotalDrCr os i = let
-  vn = I.visibleNum i
+  vn = M.visibleNum . L.boxMeta $ i
   ts = PC.colors vn bc
   bc = PC.drCrToBaseColors dc (O.drCrColors os)
-  dc = Q.drCr . I.postingBox $ i
-  bits = case I.balance i of
+  dc = Q.drCr . L.boxPostFam $ i
+  bits = case M.balance . L.boxMeta $ i of
     Nothing -> let
       spec = PC.noBalanceColors vn (O.drCrColors os)
       in [C.bit spec (pack "--")]
@@ -227,12 +262,12 @@ getTotalDrCr os i = let
 
 getTotalCmdty :: Options.T -> Box -> PreSpec
 getTotalCmdty os i = let
-  vn = I.visibleNum i
+  vn = M.visibleNum . L.boxMeta $ i
   j = R.RightJustify
   ts = PC.colors vn bc
   bc = PC.drCrToBaseColors dc (O.drCrColors os)
-  dc = Q.drCr . I.postingBox $ i
-  bits = case I.balance i of
+  dc = Q.drCr . L.boxPostFam $ i
+  bits = case M.balance . L.boxMeta $ i of
     Nothing -> let
       spec = PC.noBalanceColors vn (O.drCrColors os)
       in [C.bit spec (pack "--")]
@@ -252,12 +287,12 @@ getTotalCmdty os i = let
 
 getTotalQty :: Options.T -> Box -> PreSpec
 getTotalQty os i = let
-  vn = I.visibleNum i
+  vn = M.visibleNum . L.boxMeta $ i
   j = R.LeftJustify
   ts = PC.colors vn bc
   bc = PC.drCrToBaseColors dc (O.drCrColors os)
-  dc = Q.drCr . I.postingBox $ i
-  bits = case I.balance i of
+  dc = Q.drCr . L.boxPostFam $ i
+  bits = case M.balance . L.boxMeta $ i of
     Nothing -> let
       spec = PC.noBalanceColors vn (O.drCrColors os)
       in [C.bit spec (pack "--")]
@@ -274,39 +309,47 @@ getTotalQty os i = let
 growingFields :: Options.T -> Fields Bool
 growingFields o = let
   f = O.fields o in Fields {
-    globalTransaction    = F.globalTransaction  f
-    , globalPosting      = F.globalPosting      f
-    , revGlobalPosting   = F.revGlobalPosting   f
-    , fileTransaction    = F.fileTransaction    f
-    , revFileTransaction = F.revFileTransaction f
-    , filePosting        = F.filePosting        f
-    , revFilePosting     = F.revFilePosting     f
-    , filtered           = F.filtered           f
-    , revFiltered        = F.revFiltered        f
-    , sorted             = F.sorted             f
-    , revSorted          = F.revSorted          f
-    , visible            = F.visible            f
-    , revVisible         = F.revVisible         f
-    , lineNum            = F.lineNum            f
-    , date               = F.date               f
-    , flag               = F.flag               f
-    , number             = F.number             f
-    , postingDrCr        = F.postingDrCr        f
-    , postingCmdty       = F.postingCmdty       f
-    , postingQty         = F.postingQty         f
-    , totalDrCr          = F.totalDrCr          f
-    , totalCmdty         = F.totalCmdty         f
-    , totalQty           = F.totalQty           f }
+    globalTransaction      = F.globalTransaction  f
+    , revGlobalTransaction = F.globalTransaction  f
+    , globalPosting        = F.globalPosting      f
+    , revGlobalPosting     = F.revGlobalPosting   f
+    , fileTransaction      = F.fileTransaction    f
+    , revFileTransaction   = F.revFileTransaction f
+    , filePosting          = F.filePosting        f
+    , revFilePosting       = F.revFilePosting     f
+    , filtered             = F.filtered           f
+    , revFiltered          = F.revFiltered        f
+    , sorted               = F.sorted             f
+    , revSorted            = F.revSorted          f
+    , visible              = F.visible            f
+    , revVisible           = F.revVisible         f
+    , lineNum              = F.lineNum            f
+    , date                 = F.date               f
+    , flag                 = F.flag               f
+    , number               = F.number             f
+    , postingDrCr          = F.postingDrCr        f
+    , postingCmdty         = F.postingCmdty       f
+    , postingQty           = F.postingQty         f
+    , totalDrCr            = F.totalDrCr          f
+    , totalCmdty           = F.totalCmdty         f
+    , totalQty             = F.totalQty           f }
 
 -- | All growing fields, as an ADT.
 data EFields =
   EGlobalTransaction
+  | ERevGlobalTransaction
   | EGlobalPosting
+  | ERevGlobalPosting
   | EFileTransaction
+  | ERevFileTransaction
   | EFilePosting
+  | ERevFilePosting
   | EFiltered
+  | ERevFiltered
   | ESorted
+  | ERevSorted
   | EVisible
+  | ERevVisible
   | ELineNum
   | EDate
   | EFlag
@@ -322,23 +365,30 @@ data EFields =
 -- | Returns a Fields where each record has its corresponding EField.
 eFields :: Fields EFields
 eFields = Fields {
-  globalTransaction = EGlobalTransaction
-  , globalPosting   = EGlobalPosting
-  , fileTransaction = EFileTransaction
-  , filePosting     = EFilePosting
-  , filtered        = EFiltered
-  , sorted          = ESorted
-  , visible         = EVisible
-  , lineNum         = ELineNum
-  , date            = EDate
-  , flag            = EFlag
-  , number          = ENumber
-  , postingDrCr     = EPostingDrCr
-  , postingCmdty    = EPostingCmdty
-  , postingQty      = EPostingQty
-  , totalDrCr       = ETotalDrCr
-  , totalCmdty      = ETotalCmdty
-  , totalQty        = ETotalQty }
+  globalTransaction      = EGlobalTransaction
+  , revGlobalTransaction = ERevGlobalTransaction
+  , globalPosting        = EGlobalPosting
+  , revGlobalPosting     = ERevGlobalPosting
+  , fileTransaction      = EFileTransaction
+  , revFileTransaction   = ERevFileTransaction
+  , filePosting          = EFilePosting
+  , revFilePosting       = ERevFilePosting
+  , filtered             = EFiltered
+  , revFiltered          = ERevFiltered
+  , sorted               = ESorted
+  , revSorted            = ERevSorted
+  , visible              = EVisible
+  , revVisible           = ERevVisible
+  , lineNum              = ELineNum
+  , date                 = EDate
+  , flag                 = EFlag
+  , number               = ENumber
+  , postingDrCr          = EPostingDrCr
+  , postingCmdty         = EPostingCmdty
+  , postingQty           = EPostingQty
+  , totalDrCr            = ETotalDrCr
+  , totalCmdty           = ETotalCmdty
+  , totalQty             = ETotalQty }
 
 -- | All growing fields.
 data Fields a = Fields {
@@ -451,67 +501,88 @@ instance Applicative Fields where
     , totalQty             = a }
 
   fl <*> fa = Fields {
-    globalTransaction = globalTransaction fl (globalTransaction fa)
-    , globalPosting   = globalPosting     fl (globalPosting     fa)
-    , fileTransaction = fileTransaction   fl (fileTransaction   fa)
-    , filePosting     = filePosting       fl (filePosting       fa)
-    , filtered        = filtered          fl (filtered          fa)
-    , sorted          = sorted            fl (sorted            fa)
-    , visible         = visible           fl (visible           fa)
-    , lineNum         = lineNum           fl (lineNum           fa)
-    , date            = date              fl (date              fa)
-    , flag            = flag              fl (flag              fa)
-    , number          = number            fl (number            fa)
-    , postingDrCr     = postingDrCr       fl (postingDrCr       fa)
-    , postingCmdty    = postingCmdty      fl (postingCmdty      fa)
-    , postingQty      = postingQty        fl (postingQty        fa)
-    , totalDrCr       = totalDrCr         fl (totalDrCr         fa)
-    , totalCmdty      = totalCmdty        fl (totalCmdty        fa)
-    , totalQty        = totalQty          fl (totalQty          fa) }
+    globalTransaction      = globalTransaction    fl (globalTransaction    fa)
+    , revGlobalTransaction = revGlobalTransaction fl (revGlobalTransaction fa)
+    , globalPosting        = globalPosting        fl (globalPosting        fa)
+    , revGlobalPosting     = revGlobalPosting     fl (revGlobalPosting     fa)
+    , fileTransaction      = fileTransaction      fl (fileTransaction      fa)
+    , revFileTransaction   = revFileTransaction   fl (revFileTransaction   fa)
+    , filePosting          = filePosting          fl (filePosting          fa)
+    , revFilePosting       = revFilePosting       fl (revFilePosting       fa)
+    , filtered             = filtered             fl (filtered             fa)
+    , revFiltered          = revFiltered          fl (revFiltered          fa)
+    , sorted               = sorted               fl (sorted               fa)
+    , revSorted            = revSorted            fl (revSorted            fa)
+    , visible              = visible              fl (visible              fa)
+    , revVisible           = revVisible           fl (revVisible           fa)
+    , lineNum              = lineNum              fl (lineNum              fa)
+    , date                 = date                 fl (date                 fa)
+    , flag                 = flag                 fl (flag                 fa)
+    , number               = number               fl (number               fa)
+    , postingDrCr          = postingDrCr          fl (postingDrCr          fa)
+    , postingCmdty         = postingCmdty         fl (postingCmdty         fa)
+    , postingQty           = postingQty           fl (postingQty           fa)
+    , totalDrCr            = totalDrCr            fl (totalDrCr            fa)
+    , totalCmdty           = totalCmdty           fl (totalCmdty           fa)
+    , totalQty             = totalQty             fl (totalQty             fa) }
 
 -- | Pairs data from a Fields with its matching spacer field. The
 -- spacer field is returned in a Maybe because the TotalQty field does
 -- not have a spacer.
 pairWithSpacer :: Fields a -> Spacers.T b -> Fields (a, Maybe b)
 pairWithSpacer f s = Fields {
-  globalTransaction = (globalTransaction f, Just (S.globalTransaction s))
-  , globalPosting   = (globalPosting     f, Just (S.globalPosting     s))
-  , fileTransaction = (fileTransaction   f, Just (S.fileTransaction   s))
-  , filePosting     = (filePosting       f, Just (S.filePosting       s))
-  , filtered        = (filtered          f, Just (S.filtered          s))
-  , sorted          = (sorted            f, Just (S.sorted            s))
-  , visible         = (visible           f, Just (S.visible           s))
-  , lineNum         = (lineNum           f, Just (S.lineNum           s))
-  , date            = (date              f, Just (S.date              s))
-  , flag            = (flag              f, Just (S.flag              s))
-  , number          = (number            f, Just (S.number            s))
-  , postingDrCr     = (postingDrCr       f, Just (S.postingDrCr       s))
-  , postingCmdty    = (postingCmdty      f, Just (S.postingCmdty      s))
-  , postingQty      = (postingQty        f, Just (S.postingQty        s))
-  , totalDrCr       = (totalDrCr         f, Just (S.totalDrCr         s))
-  , totalCmdty      = (totalCmdty        f, Just (S.totalCmdty        s))
-  , totalQty        = (totalQty          f, Nothing                     ) }
+  globalTransaction      = (globalTransaction    f, Just (S.globalTransaction    s))
+  , revGlobalTransaction = (revGlobalTransaction f, Just (S.revGlobalTransaction s))
+  , globalPosting        = (globalPosting        f, Just (S.globalPosting        s))
+  , revGlobalPosting     = (revGlobalPosting     f, Just (S.revGlobalPosting     s))
+  , fileTransaction      = (fileTransaction      f, Just (S.fileTransaction      s))
+  , revFileTransaction   = (revFileTransaction   f, Just (S.revFileTransaction   s))
+  , filePosting          = (filePosting          f, Just (S.filePosting          s))
+  , revFilePosting       = (revFilePosting       f, Just (S.revFilePosting       s))
+  , filtered             = (filtered             f, Just (S.filtered             s))
+  , revFiltered          = (revFiltered          f, Just (S.revFiltered          s))
+  , sorted               = (sorted               f, Just (S.sorted               s))
+  , revSorted            = (revSorted            f, Just (S.revSorted            s))
+  , visible              = (visible              f, Just (S.visible              s))
+  , revVisible           = (revVisible           f, Just (S.revVisible           s))
+  , lineNum              = (lineNum              f, Just (S.lineNum              s))
+  , date                 = (date                 f, Just (S.date                 s))
+  , flag                 = (flag                 f, Just (S.flag                 s))
+  , number               = (number               f, Just (S.number               s))
+  , postingDrCr          = (postingDrCr          f, Just (S.postingDrCr          s))
+  , postingCmdty         = (postingCmdty         f, Just (S.postingCmdty         s))
+  , postingQty           = (postingQty           f, Just (S.postingQty           s))
+  , totalDrCr            = (totalDrCr            f, Just (S.totalDrCr            s))
+  , totalCmdty           = (totalCmdty           f, Just (S.totalCmdty           s))
+  , totalQty             = (totalQty             f, Nothing                        ) }
 
 -- | Reduces a set of Fields to a single value.
 reduce :: Semi.Semigroup s => Fields s -> s
 reduce f =
-  globalTransaction  f
-  <> globalPosting   f
-  <> fileTransaction f
-  <> filePosting     f
-  <> filtered        f
-  <> sorted          f
-  <> visible         f
-  <> lineNum         f
-  <> date            f
-  <> flag            f
-  <> number          f
-  <> postingDrCr     f
-  <> postingCmdty    f
-  <> postingQty      f
-  <> totalDrCr       f
-  <> totalCmdty      f
-  <> totalQty        f
+  globalTransaction       f
+  <> revGlobalTransaction f
+  <> globalPosting        f
+  <> revGlobalPosting     f
+  <> fileTransaction      f
+  <> revFileTransaction   f
+  <> filePosting          f
+  <> revFilePosting       f
+  <> filtered             f
+  <> revFiltered          f
+  <> sorted               f
+  <> revSorted            f
+  <> visible              f
+  <> revVisible           f
+  <> lineNum              f
+  <> date                 f
+  <> flag                 f
+  <> number               f
+  <> postingDrCr          f
+  <> postingCmdty         f
+  <> postingQty           f
+  <> totalDrCr            f
+  <> totalCmdty           f
+  <> totalQty             f
 
 -- | Compute the width of all Grown cells, including any applicable
 -- spacer cells.

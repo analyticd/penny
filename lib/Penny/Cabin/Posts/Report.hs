@@ -24,20 +24,6 @@ import qualified Data.Text.Lazy as XL
 import System.Console.MultiArg.Prim (ParserE)
 import Penny.Liberty.Error (Error)
 
-balanceAccum :: 
-  CO.ShowZeroBalances
-  -> Maybe Bal.Balance
-  -> LT.PostingInfo
-  -> (Maybe Bal.Balance, (LT.PostingInfo, Maybe Bal.Balance))
-balanceAccum (CO.ShowZeroBalances szb) mb po =
-  let balThis = Bal.entryToBalance . Q.entry . LT.postingBox $ po
-      balNew = case mb of
-        Nothing -> balThis
-        Just balOld -> Bal.addBalances balOld balThis
-      balNoZeroes = Bal.removeZeroCommodities balNew
-      bal' = if szb then Just balNew else balNoZeroes
-  in (bal', (po, bal'))
-
 balances ::
   CO.ShowZeroBalances
   -> NE.NonEmpty LT.PostingInfo

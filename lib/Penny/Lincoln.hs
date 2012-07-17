@@ -14,6 +14,7 @@ module Penny.Lincoln (
   , B.isBalanced
   , B.entryToBalance
   , B.addBalances
+  , B.removeZeroCommodities
   , B.BottomLine (Zero, NonZero)
   , B.Column (Column)
   

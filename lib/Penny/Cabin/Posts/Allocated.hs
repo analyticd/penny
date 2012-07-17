@@ -44,15 +44,17 @@ import qualified Penny.Cabin.Posts.Allocate as A
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
-import qualified Penny.Cabin.Posts.Info as I
-import qualified Penny.Cabin.Posts.Info as Info
+import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.TextFormat as TF
+import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.HasText as HT
+
+type Box = L.Box M.PostMeta 
 
 data Fields a = Fields {
   payee :: a
@@ -69,7 +71,7 @@ data Fields a = Fields {
 payeeAndAcct ::
   G.Fields (Maybe Int)
   -> Options.T
-  -> [Info.T]
+  -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
 payeeAndAcct fs os = allocateCells os ws where
   ws = fieldWidth os ss fs rw
@@ -83,7 +85,7 @@ payeeAndAcct fs os = allocateCells os ws where
 allocateCells ::
   Options.T
   -> Fields Int
-  -> [Info.T]
+  -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
 allocateCells os fs is = let
   cellMakers = Fields allocPayee allocAcct
@@ -220,10 +222,10 @@ sumGrowersAndSpacers fs ss = spacers + flds where
       Just i -> acc + i
 
 
-allocPayee :: Int -> Options.T -> Info.T -> R.ColumnSpec
+allocPayee :: Int -> Options.T -> Box -> R.ColumnSpec
 allocPayee w os i = let
-  pb = I.postingBox i
-  ts = PC.colors (I.visibleNum i) (O.baseColors os)
+  pb = L.boxPostFam i
+  ts = PC.colors (M.visibleNum . L.boxMeta $ i) (O.baseColors os)
   c = R.ColumnSpec j (C.Width w) ts sq
   j = R.LeftJustify
   sq = case Q.payee pb of
@@ -245,10 +247,10 @@ allocPayee w os i = let
   in c
 
 
-allocAcct :: Int -> Options.T -> Info.T -> R.ColumnSpec
+allocAcct :: Int -> Options.T -> Box -> R.ColumnSpec
 allocAcct aw os i = let
-  pb = I.postingBox i
-  ts = PC.colors (I.visibleNum i) (O.baseColors os) in
+  pb = L.boxPostFam i
+  ts = PC.colors (M.visibleNum . L.boxMeta $ i) (O.baseColors os) in
   R.ColumnSpec R.LeftJustify (C.Width aw) ts $ let
     target = TF.Target aw
     shortest = TF.Shortest . O.subAccountLength $ os
