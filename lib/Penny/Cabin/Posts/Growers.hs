@@ -80,23 +80,30 @@ oneLine t os b =
 
 growers :: Fields (Options.T -> Box -> PreSpec)
 growers = Fields {
-  globalTransaction = getGlobalTransaction
-  , globalPosting   = getGlobalPosting
-  , fileTransaction = getFileTransaction
-  , filePosting     = getFilePosting
-  , filtered        = getFiltered
-  , sorted          = getSorted
-  , visible         = getVisible
-  , lineNum         = getLineNum
-  , date            = getDate
-  , flag            = getFlag
-  , number          = getNumber
-  , postingDrCr     = getPostingDrCr
-  , postingCmdty    = getPostingCmdty
-  , postingQty      = getPostingQty
-  , totalDrCr       = getTotalDrCr
-  , totalCmdty      = getTotalCmdty
-  , totalQty        = getTotalQty }
+  globalTransaction      = getGlobalTransaction
+  , revGlobalTransaction = getRevGlobalTransaction
+  , globalPosting        = getGlobalPosting
+  , revGlobalPosting     = getRevGlobalPosting
+  , fileTransaction      = getFileTransaction
+  , revFileTransaction   = getRevFileTransaction
+  , filePosting          = getFilePosting
+  , revFilePosting       = getRevFilePosting
+  , filtered             = getFiltered
+  , revFiltered          = getRevFiltered
+  , sorted               = getSorted
+  , revSorted            = getRevSorted
+  , visible              = getVisible
+  , revVisible           = getRevVisible
+  , lineNum              = getLineNum
+  , date                 = getDate
+  , flag                 = getFlag
+  , number               = getNumber
+  , postingDrCr          = getPostingDrCr
+  , postingCmdty         = getPostingCmdty
+  , postingQty           = getPostingQty
+  , totalDrCr            = getTotalDrCr
+  , totalCmdty           = getTotalCmdty
+  , totalQty             = getTotalQty }
 
 -- | Make a left justified cell one line long that shows a serial.
 serialCellMaybe ::
@@ -267,23 +274,29 @@ getTotalQty os i = let
 growingFields :: Options.T -> Fields Bool
 growingFields o = let
   f = O.fields o in Fields {
-    globalTransaction = F.globalTransaction f
-    , globalPosting   = F.globalPosting     f
-    , fileTransaction = F.fileTransaction   f
-    , filePosting     = F.filePosting       f
-    , filtered        = F.filtered          f
-    , sorted          = F.sorted            f
-    , visible         = F.visible           f
-    , lineNum         = F.lineNum           f
-    , date            = F.date              f
-    , flag            = F.flag              f
-    , number          = F.number            f
-    , postingDrCr     = F.postingDrCr       f
-    , postingCmdty    = F.postingCmdty      f
-    , postingQty      = F.postingQty        f
-    , totalDrCr       = F.totalDrCr         f
-    , totalCmdty      = F.totalCmdty        f
-    , totalQty        = F.totalQty          f }
+    globalTransaction    = F.globalTransaction  f
+    , globalPosting      = F.globalPosting      f
+    , revGlobalPosting   = F.revGlobalPosting   f
+    , fileTransaction    = F.fileTransaction    f
+    , revFileTransaction = F.revFileTransaction f
+    , filePosting        = F.filePosting        f
+    , revFilePosting     = F.revFilePosting     f
+    , filtered           = F.filtered           f
+    , revFiltered        = F.revFiltered        f
+    , sorted             = F.sorted             f
+    , revSorted          = F.revSorted          f
+    , visible            = F.visible            f
+    , revVisible         = F.revVisible         f
+    , lineNum            = F.lineNum            f
+    , date               = F.date               f
+    , flag               = F.flag               f
+    , number             = F.number             f
+    , postingDrCr        = F.postingDrCr        f
+    , postingCmdty       = F.postingCmdty       f
+    , postingQty         = F.postingQty         f
+    , totalDrCr          = F.totalDrCr          f
+    , totalCmdty         = F.totalCmdty         f
+    , totalQty           = F.totalQty           f }
 
 -- | All growing fields, as an ADT.
 data EFields =
@@ -329,85 +342,113 @@ eFields = Fields {
 
 -- | All growing fields.
 data Fields a = Fields {
-  globalTransaction :: a
-  , globalPosting   :: a
-  , fileTransaction :: a
-  , filePosting     :: a
-  , filtered        :: a
-  , sorted          :: a
-  , visible         :: a
-  , lineNum         :: a
+  globalTransaction      :: a
+  , revGlobalTransaction :: a
+  , globalPosting        :: a
+  , revGlobalPosting     :: a
+  , fileTransaction      :: a
+  , revFileTransaction   :: a
+  , filePosting          :: a
+  , revFilePosting       :: a
+  , filtered             :: a
+  , revFiltered          :: a
+  , sorted               :: a
+  , revSorted            :: a
+  , visible              :: a
+  , revVisible           :: a
+  , lineNum              :: a
     -- ^ The line number from the posting's metadata
-  , date            :: a
-  , flag            :: a
-  , number          :: a
-  , postingDrCr     :: a
-  , postingCmdty    :: a
-  , postingQty      :: a
-  , totalDrCr       :: a
-  , totalCmdty      :: a
-  , totalQty        :: a }
+  , date                 :: a
+  , flag                 :: a
+  , number               :: a
+  , postingDrCr          :: a
+  , postingCmdty         :: a
+  , postingQty           :: a
+  , totalDrCr            :: a
+  , totalCmdty           :: a
+  , totalQty             :: a }
   deriving (Show, Eq)
 
 instance Fdbl.Foldable Fields where
   foldr f z i =
     f (globalTransaction i)
-    (f (globalPosting i)
-     (f (fileTransaction i)
-      (f (filePosting i)
-       (f (filtered i)
-        (f (sorted i)
-         (f (visible i)
-          (f (lineNum i)
-           (f (date i)
-            (f (flag i)
-             (f (number i)
-              (f (postingDrCr i)
-               (f (postingCmdty i)
-                (f (postingQty i)
-                 (f (totalDrCr i)
-                  (f (totalCmdty i)
-                   (f (totalQty i) z))))))))))))))))
+    (f (revGlobalTransaction i)
+     (f (globalPosting i)
+      (f (revGlobalPosting i)
+       (f (fileTransaction i)
+        (f (revFileTransaction i)
+         (f (filePosting i)
+          (f (revFilePosting i)
+           (f (filtered i)
+            (f (revFiltered i)
+             (f (sorted i)
+              (f (revSorted i)
+               (f (visible i)
+                (f (revVisible i)
+                 (f (lineNum i)
+                  (f (date i)
+                   (f (flag i)
+                    (f (number i)
+                     (f (postingDrCr i)
+                      (f (postingCmdty i)
+                       (f (postingQty i)
+                        (f (totalDrCr i)
+                         (f (totalCmdty i)
+                          (f (totalQty i) z)))))))))))))))))))))))
 
 instance Functor Fields where
   fmap f i = Fields {
-    globalTransaction = f (globalTransaction i)
-    , globalPosting   = f (globalPosting     i)
-    , fileTransaction = f (fileTransaction   i)
-    , filePosting     = f (filePosting       i)
-    , filtered        = f (filtered          i)
-    , sorted          = f (sorted            i)
-    , visible         = f (visible           i)
-    , lineNum         = f (lineNum           i)
-    , date            = f (date              i)
-    , flag            = f (flag              i)
-    , number          = f (number            i)
-    , postingDrCr     = f (postingDrCr       i)
-    , postingCmdty    = f (postingCmdty      i)
-    , postingQty      = f (postingQty        i)
-    , totalDrCr       = f (totalDrCr         i)
-    , totalCmdty      = f (totalCmdty        i)
-    , totalQty        = f (totalQty          i) }
+    globalTransaction      = f (globalTransaction    i)
+    , revGlobalTransaction = f (revGlobalTransaction i)
+    , globalPosting        = f (globalPosting        i)
+    , revGlobalPosting     = f (revGlobalPosting     i)
+    , fileTransaction      = f (fileTransaction      i)
+    , revFileTransaction   = f (revFileTransaction   i)
+    , filePosting          = f (filePosting          i)
+    , revFilePosting       = f (revFilePosting       i)
+    , filtered             = f (filtered             i)
+    , revFiltered          = f (revFiltered          i)
+    , sorted               = f (sorted               i)
+    , revSorted            = f (revSorted            i)
+    , visible              = f (visible              i)
+    , revVisible           = f (revVisible           i)
+    , lineNum              = f (lineNum              i)
+    , date                 = f (date                 i)
+    , flag                 = f (flag                 i)
+    , number               = f (number               i)
+    , postingDrCr          = f (postingDrCr          i)
+    , postingCmdty         = f (postingCmdty         i)
+    , postingQty           = f (postingQty           i)
+    , totalDrCr            = f (totalDrCr            i)
+    , totalCmdty           = f (totalCmdty           i)
+    , totalQty             = f (totalQty             i) }
 
 instance Applicative Fields where
   pure a = Fields {
-    globalTransaction = a
-    , globalPosting   = a
-    , fileTransaction = a
-    , filePosting     = a
-    , filtered        = a
-    , sorted          = a
-    , visible         = a
-    , lineNum         = a
-    , date            = a
-    , flag            = a
-    , number          = a
-    , postingDrCr     = a
-    , postingCmdty    = a
-    , postingQty      = a
-    , totalDrCr       = a
-    , totalCmdty      = a
-    , totalQty        = a }
+    globalTransaction      = a
+    , revGlobalTransaction = a
+    , globalPosting        = a
+    , revGlobalPosting     = a
+    , fileTransaction      = a
+    , revFileTransaction   = a
+    , filePosting          = a
+    , revFilePosting       = a
+    , filtered             = a
+    , revFiltered          = a
+    , sorted               = a
+    , revSorted            = a
+    , visible              = a
+    , revVisible           = a
+    , lineNum              = a
+    , date                 = a
+    , flag                 = a
+    , number               = a
+    , postingDrCr          = a
+    , postingCmdty         = a
+    , postingQty           = a
+    , totalDrCr            = a
+    , totalCmdty           = a
+    , totalQty             = a }
 
   fl <*> fa = Fields {
     globalTransaction = globalTransaction fl (globalTransaction fa)
