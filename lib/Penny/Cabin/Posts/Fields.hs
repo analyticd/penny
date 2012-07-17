@@ -5,12 +5,19 @@ import Control.Applicative(Applicative(pure, (<*>)))
 
 data T a = T {
   globalTransaction :: a
+  , revGlobalTransaction :: a
   , globalPosting :: a
+  , revGlobalPosting :: a
   , fileTransaction :: a
+  , revFileTransaction :: a
   , filePosting :: a
+  , revFilePosting :: a
   , filtered :: a
+  , revFiltered :: a
   , sorted :: a
+  , revSorted :: a
   , visible :: a
+  , revVisible :: a
   , lineNum :: a
     -- ^ The line number from the posting's metadata
   , date :: a
@@ -32,12 +39,19 @@ data T a = T {
 instance Functor T where
   fmap f fa = T {
     globalTransaction = f (globalTransaction fa)
+    , revGlobalTransaction = f (revGlobalTransaction fa)
     , globalPosting = f (globalPosting fa)
+    , revGlobalPosting = f (revGlobalPosting fa)
     , fileTransaction = f (fileTransaction fa)
+    , revFileTransaction = f (revFileTransaction fa)
     , filePosting = f (filePosting fa)
+    , revFilePosting = f (revFilePosting fa)
     , filtered = f (filtered fa)
+    , revFiltered = f (revFiltered fa)
     , sorted = f (sorted fa)
+    , revSorted = f (revSorted fa)
     , visible = f (visible fa)
+    , revVisible = f (revVisible fa)
     , lineNum = f (lineNum fa)
     , date = f (date fa)
     , flag = f (flag fa)
@@ -57,12 +71,19 @@ instance Functor T where
 instance Applicative T where
   pure a = T {
     globalTransaction = a
+    , revGlobalTransaction = a
     , globalPosting = a
+    , revGlobalPosting = a
     , fileTransaction = a
+    , revFileTransaction = a
     , filePosting = a
+    , revFilePosting = a
     , filtered = a
+    , revFiltered = a
     , sorted = a
+    , revSorted = a
     , visible = a
+    , revVisible = a
     , lineNum = a
     , date = a
     , flag = a
@@ -81,12 +102,20 @@ instance Applicative T where
 
   ff <*> fa = T {
     globalTransaction = globalTransaction ff (globalTransaction fa)
+    , revGlobalTransaction = revGlobalTransaction ff
+                             (revGlobalTransaction fa)
     , globalPosting = globalPosting ff (globalPosting fa)
+    , revGlobalPosting = revGlobalPosting ff (revGlobalPosting fa)
     , fileTransaction = fileTransaction ff (fileTransaction fa)
+    , revFileTransaction = revFileTransaction ff (revFileTransaction fa)
     , filePosting = filePosting ff (filePosting fa)
+    , revFilePosting = revFilePosting ff (revFilePosting fa)
     , filtered = filtered ff (filtered fa)
+    , revFiltered = revFiltered ff (revFiltered fa)
     , sorted = sorted ff (sorted fa)
+    , revSorted = revSorted ff (revSorted fa)
     , visible = visible ff (visible fa)
+    , revVisible = revVisible ff (revVisible fa)
     , lineNum = lineNum ff (lineNum fa)
     , date = date ff (date fa)
     , flag = flag ff (flag fa)
@@ -106,23 +135,44 @@ instance Applicative T where
 t_globalTransaction :: a -> T a -> T a
 t_globalTransaction a f = f { globalTransaction = a }
 
+t_revGlobalTransaction :: a -> T a -> T a
+t_revGlobalTransaction a f = f { revGlobalTransaction = a }
+
 t_globalPosting :: a -> T a -> T a
 t_globalPosting a f = f { globalPosting = a }
+
+t_revGlobalPosting :: a -> T a -> T a
+t_revGlobalPosting a f = f { revGlobalPosting = a }
 
 t_fileTransaction :: a -> T a -> T a
 t_fileTransaction a f = f { fileTransaction = a }
 
+t_revFileTransaction :: a -> T a -> T a
+t_revFileTransaction a f = f { revFileTransaction = a }
+
 t_filePosting :: a -> T a -> T a
 t_filePosting a f = f { filePosting = a }
+
+t_revFilePosting :: a -> T a -> T a
+t_revFilePosting a f = f { revFilePosting = a }
 
 t_filtered :: a -> T a -> T a
 t_filtered a f = f { filtered = a }
 
+t_revFiltered :: a -> T a -> T a
+t_revFiltered a f = f { revFiltered = a }
+
 t_sorted :: a -> T a -> T a
 t_sorted a f = f { sorted = a }
 
+t_revSorted :: a -> T a -> T a
+t_revSorted a f = f { revSorted = a }
+
 t_visible :: a -> T a -> T a
 t_visible a f = f { visible = a }
+
+t_revVisible :: a -> T a -> T a
+t_revVisible a f = f { revVisible = a }
 
 t_lineNum :: a -> T a -> T a
 t_lineNum a f = f { lineNum = a }
