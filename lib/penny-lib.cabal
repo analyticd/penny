@@ -211,6 +211,7 @@ Library
         Penny.Cabin.Colors.DarkBackground,
         Penny.Cabin.Colors.LightBackground,
         Penny.Cabin.Interface,
+        Penny.Cabin.Meta,
         Penny.Cabin.Options,
         Penny.Cabin.Posts,
         Penny.Cabin.Posts.Allocate,

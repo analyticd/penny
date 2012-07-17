@@ -16,7 +16,7 @@ module Penny.Liberty (
   X.evaluate,
   FilteredNum(FilteredNum, unFilteredNum),
   SortedNum(SortedNum, unSortedNum),
-  LibertyMeta(LibertyMeta, filteredNum, sortedNum),
+  LibertyMeta(filteredNum, sortedNum),
   xactionsToFiltered,
   ListLength(ListLength, unListLength),
   ItemIndex(ItemIndex, unItemIndex),

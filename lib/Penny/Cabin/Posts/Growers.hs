@@ -7,7 +7,7 @@ module Penny.Cabin.Posts.Growers (
 
 import Control.Applicative((<$>), Applicative(pure, (<*>)))
 import qualified Data.Foldable as Fdbl
-import qualified Data.Map as M
+import Data.Map (elems, assocs)
 import qualified Data.Semigroup as Semi
 import Data.Semigroup ((<>))
 import Data.Text (Text, pack, empty)
@@ -17,13 +17,14 @@ import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Fields as F
-import qualified Penny.Cabin.Posts.Meta as Meta
+import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
+import qualified Penny.Lincoln.Family.Child (child, parent)
 
 type Box = L.Box Meta.PostMeta 
 
@@ -39,7 +40,7 @@ type Box = L.Box Meta.PostMeta
 -- Nothing.
 growCells ::
   Options.T
-  -> [Info.T]
+  -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
 growCells o infos = toPair <$> wanted <*> growers where
   toPair b gwr
@@ -69,16 +70,15 @@ sizer w (PreSpec j ts bs) = R.ColumnSpec j w ts bs
 
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
-oneLine :: Text -> Options.T -> Info.T -> PreSpec
-oneLine t os i = let
-  bc = Options.baseColors os
-  vn = I.visibleNum i
-  ts = PC.colors vn bc
-  j = R.LeftJustify
-  bit = C.bit ts t
+oneLine :: Text -> Options.T -> Box -> PreSpec
+oneLine t os b =
+  let bc = Options.baseColors os
+      ts = PC.colors (M.visibleNum b) bc
+      j = R.LeftJustify
+      bit = C.bit ts t
   in PreSpec j ts [bit]
 
-growers :: Fields (Options.T -> Info.T -> PreSpec)
+growers :: Fields (Options.T -> Box -> PreSpec)
 growers = Fields {
   globalTransaction = getGlobalTransaction
   , globalPosting   = getGlobalPosting
@@ -98,32 +98,70 @@ growers = Fields {
   , totalCmdty      = getTotalCmdty
   , totalQty        = getTotalQty }
 
-getPostingNum :: Options.T -> Info.T -> PreSpec
+-- | Make a left justified cell one line long that shows a serial.
+serialCellMaybe ::
+  (L.PostFam -> Maybe Int)
+  -- ^ When applied to a Box, this function returns Just Int if the
+  -- box has a serial, or Nothing if not.
+  
+  -> Options.T -> Box -> PreSpec
+serialCellMaybe f os b = oneLine t f os b
+  where
+    t = case f (L.boxPostFam b) of
+      Nothing -> X.empty
+      Just i -> X.pack . show $ i
+
+serialCell ::
+  (M.PostMeta -> Int)
+  -> Options.T -> Box -> PreSpec
+serialCell f os b = oneLine t f os b
+  where
+    t = pack . show . f . boxMeta $ b
+
+getGlobalTransaction :: Options.T -> Box -> PreSpec
+getGlobalTransaction =
+  let f pf =
+        fmap L.forward
+        (L.unGlobalTransaction . Q.globalTransaction $ pf)
+  in serialCellMaybe f
+
+getGlobalPosting :: Options.T -> Box -> PreSpec
+getGlobalPosting =
+  let f pf =
+        fmap L.forward
+        (L.unGlobalTransaction . Q.globalTransaction $ pf)
+  in serialCellMaybe f
+
+
+
+
+
+getPostingNum :: Options.T -> Box -> PreSpec
 getPostingNum os i = oneLine t os i where
   t = pack . show . I.unPostingNum . I.postingNum $ i
 
-getVisibleNum :: Options.T -> Info.T -> PreSpec
+getVisibleNum :: Options.T -> Box -> PreSpec
 getVisibleNum os i = oneLine t os i where
   t = pack . show . I.unVisibleNum . I.visibleNum $ i
 
-getRevPostingNum :: Options.T -> Info.T -> PreSpec
+getRevPostingNum :: Options.T -> Box -> PreSpec
 getRevPostingNum os i = oneLine t os i where
   t = pack . show . I.unRevPostingNum . I.revPostingNum $ i
 
-getLineNum :: Options.T -> Info.T -> PreSpec
+getLineNum :: Options.T -> Box -> PreSpec
 getLineNum os i = oneLine t os i where
   lineTxt = pack . show . L.unLine . L.unPostingLine
   t = maybe empty lineTxt (Q.postingLine . I.postingBox $ i)
 
-getDate :: Options.T -> Info.T -> PreSpec
+getDate :: Options.T -> Box -> PreSpec
 getDate os i = oneLine t os i where
   t = O.dateFormat os i
 
-getFlag :: Options.T -> Info.T -> PreSpec
+getFlag :: Options.T -> Box -> PreSpec
 getFlag os i = oneLine t os i where
   t = maybe empty L.text (Q.flag . I.postingBox $ i)
 
-getNumber :: Options.T -> Info.T -> PreSpec
+getNumber :: Options.T -> Box -> PreSpec
 getNumber os i = oneLine t os i where
   t = maybe empty L.text (Q.number . I.postingBox $ i)
 
@@ -133,7 +171,7 @@ dcTxt L.Credit = pack "Cr"
 
 -- | Gives a one-line cell that is colored according to whether the
 -- posting is a debit or credit.
-coloredPostingCell :: Text -> Options.T -> Info.T -> PreSpec
+coloredPostingCell :: Text -> Options.T -> Box -> PreSpec
 coloredPostingCell t os i = PreSpec j ts [bit] where
   j = R.LeftJustify
   bit = C.bit ts t
@@ -143,20 +181,20 @@ coloredPostingCell t os i = PreSpec j ts [bit] where
        . O.drCrColors
        $ os
 
-getPostingDrCr :: Options.T -> Info.T -> PreSpec
+getPostingDrCr :: Options.T -> Box -> PreSpec
 getPostingDrCr os i = coloredPostingCell t os i where
   t = dcTxt . Q.drCr . I.postingBox $ i
 
-getPostingCmdty :: Options.T -> Info.T -> PreSpec
+getPostingCmdty :: Options.T -> Box -> PreSpec
 getPostingCmdty os i = coloredPostingCell t os i where
   t = L.text . L.Delimited (X.singleton ':') 
       . L.textList . Q.commodity . I.postingBox $ i
 
-getPostingQty :: Options.T -> Info.T -> PreSpec
+getPostingQty :: Options.T -> Box -> PreSpec
 getPostingQty os i = coloredPostingCell t os i where
   t = O.qtyFormat os i
 
-getTotalDrCr :: Options.T -> Info.T -> PreSpec
+getTotalDrCr :: Options.T -> Box -> PreSpec
 getTotalDrCr os i = let
   vn = I.visibleNum i
   ts = PC.colors vn bc
@@ -176,11 +214,11 @@ getTotalDrCr os i = let
           L.Zero -> pack "--"
           L.NonZero (L.Column clmDrCr _) -> dcTxt clmDrCr
         in C.bit spec txt
-      in fmap toBit . M.elems . L.unBalance $ bal
+      in fmap toBit . elems . L.unBalance $ bal
   j = R.LeftJustify
   in PreSpec j ts bits
 
-getTotalCmdty :: Options.T -> Info.T -> PreSpec
+getTotalCmdty :: Options.T -> Box -> PreSpec
 getTotalCmdty os i = let
   vn = I.visibleNum i
   j = R.RightJustify
@@ -202,10 +240,10 @@ getTotalCmdty os i = let
               . L.textList
               $ com
         in C.bit spec txt
-      in fmap toBit . M.assocs . L.unBalance $ bal
+      in fmap toBit . assocs . L.unBalance $ bal
   in PreSpec j ts bits
 
-getTotalQty :: Options.T -> Info.T -> PreSpec
+getTotalQty :: Options.T -> Box -> PreSpec
 getTotalQty os i = let
   vn = I.visibleNum i
   j = R.LeftJustify
@@ -216,7 +254,7 @@ getTotalQty os i = let
     Nothing -> let
       spec = PC.noBalanceColors vn (O.drCrColors os)
       in [C.bit spec (pack "--")]
-    Just bal -> fmap toChunk . M.assocs . L.unBalance $ bal where
+    Just bal -> fmap toChunk . assocs . L.unBalance $ bal where
       toChunk (com, nou) = let
         spec = 
           PC.colors vn

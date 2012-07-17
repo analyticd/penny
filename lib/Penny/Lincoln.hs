@@ -192,6 +192,7 @@ module Penny.Lincoln (
   , S.forward
   , S.backward
   , S.serials
+  , S.serialItems
 
   ) where
 

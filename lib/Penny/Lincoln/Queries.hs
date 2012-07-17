@@ -63,3 +63,30 @@ postingMeta = T.pMeta . child . T.unPostFam
 
 topLineMeta :: T.PostFam -> M.TopLineMeta
 topLineMeta = T.tMeta . parent . T.unPostFam
+
+topMemoLine :: T.PostFam -> Maybe M.TopMemoLine
+topMemoLine = M.topMemoLine . topLineMeta
+
+topLineLine :: T.PostFam -> Maybe M.TopLineLine
+topLineLine = M.topLineLine . topLineMeta
+
+filename :: T.PostFam -> Maybe M.Filename
+filename = M.filename . topLineMeta
+
+globalTransaction :: T.PostFam -> Maybe M.GlobalTransaction
+globalTransaction = M.globalTransaction . topLineMeta
+
+fileTransaction :: T.PostFam -> Maybe M.FileTransaction
+fileTransaction = M.fileTransaction . topLineMeta
+
+postingLine :: T.PostFam -> Maybe M.PostingLine
+postingLine = M.postingLine . postingMeta
+
+postingFormat :: T.PostFam -> Maybe M.Format
+postingFormat = M.postingFormat . postingMeta
+
+globalPosting :: T.PostFam -> Maybe M.GlobalPosting
+globalPosting = M.globalPosting . postingMeta
+
+filePosting :: T.PostFam -> Maybe M.FilePosting
+filePosting = M.filePosting . postingMeta
