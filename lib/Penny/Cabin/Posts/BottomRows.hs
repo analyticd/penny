@@ -38,7 +38,7 @@ import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
-import qualified Penny.Cabin.Posts.Info as Info
+import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Spacers as Spacers
@@ -47,11 +47,13 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.Queries as Q
 
+type Box = L.Box M.PostMeta 
+
 bottomRows ::
   G.Fields (Maybe Int)
   -> A.Fields (Maybe Int)
   -> Options.T
-  -> [Info.T]
+  -> [Box]
   -> Fields (Maybe [[C.Bit]])
 bottomRows gf af os is = makeRows is pcs where
   pcs = infoProcessors topSpecs rw wanted
@@ -111,8 +113,8 @@ hanging specs = hangingWidths specs
 
 hangingInfoProcessor ::
   Hanging Int
-  -> (Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
-  -> Info.T
+  -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
+  -> Box
   -> [C.Bit]
 hangingInfoProcessor widths mkr info = row where
   row = R.row [left, mid, right]
@@ -123,8 +125,8 @@ hangingInfoProcessor widths mkr info = row where
 
 widthOfTopColumns ::
   [TopCellSpec]
-  -> Maybe ((Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
-            -> Info.T -> [C.Bit])
+  -> Maybe ((Box -> Int -> (C.TextSpec, R.ColumnSpec))
+            -> Box -> [C.Bit])
 widthOfTopColumns ts =
   if null ts
   then Nothing
@@ -136,8 +138,8 @@ widthOfTopColumns ts =
 
 widthOfReport ::
   O.ReportWidth
-  -> (Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
-  -> Info.T
+  -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
+  -> Box
   -> [C.Bit]
 widthOfReport (O.ReportWidth rw) fn info =
   makeSpecificWidth rw fn info
@@ -145,8 +147,8 @@ widthOfReport (O.ReportWidth rw) fn info =
 chooseProcessor ::
   [TopCellSpec]
   -> O.ReportWidth
-  -> (Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
-  -> Info.T
+  -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
+  -> Box
   -> [C.Bit]
 chooseProcessor specs rw fn = let
   firstTwo = First (hanging specs)
@@ -158,8 +160,8 @@ chooseProcessor specs rw fn = let
 infoProcessors ::
   [TopCellSpec]
   -> O.ReportWidth
-  -> Fields (Maybe (Info.T -> Int -> (C.TextSpec, R.ColumnSpec)))
-  -> Fields (Maybe (Info.T -> [C.Bit]))
+  -> Fields (Maybe (Box -> Int -> (C.TextSpec, R.ColumnSpec)))
+  -> Fields (Maybe (Box -> [C.Bit]))
 infoProcessors specs rw flds = let
   chooser = chooseProcessor specs rw
   mkProcessor mayFn = case mayFn of
@@ -169,8 +171,8 @@ infoProcessors specs rw flds = let
 
 
 makeRows ::
-  [Info.T]
-  -> Fields (Maybe (Info.T -> [C.Bit]))
+  [Box]
+  -> Fields (Maybe (Box -> [C.Bit]))
   -> Fields (Maybe [[C.Bit]])
 makeRows is flds = let
   mkRow fn = map fn is
@@ -237,7 +239,8 @@ mergeWithSpacers ::
   -> Spacers.T b
   -> TopRowCells (a, Maybe b)
 mergeWithSpacers t s = TopRowCells {
-  postingNum = (postingNum t, Just (S.postingNum s)) 
+  postingNum = (postingNum t, Just (S.postingNum s))
+  , rev
   , visibleNum = (visibleNum t, Just (S.visibleNum s))
   , revPostingNum = (revPostingNum t, Just (S.revPostingNum s))
   , lineNum = (lineNum t, Just (S.lineNum s))
@@ -346,46 +349,80 @@ filenameCell os info width = (ts, cell) where
 
 
 data TopRowCells a = TopRowCells {
-  postingNum :: a
-  , visibleNum :: a
-  , revPostingNum :: a
-  , lineNum :: a
-  , date :: a
-  , flag :: a
-  , number :: a
-  , payee :: a
-  , account :: a
-  , postingDrCr :: a
-  , postingCmdty :: a
-  , postingQty :: a
-  , totalDrCr :: a
-  , totalCmdty :: a
-  , totalQty :: a }
+  globalTransaction      :: a
+  , revGlobalTransaction :: a
+  , globalPosting        :: a
+  , revGlobalPosting     :: a
+  , fileTransaction      :: a
+  , revFileTransaction   :: a
+  , filePosting          :: a
+  , revFilePosting       :: a
+  , filtered             :: a
+  , revFiltered          :: a
+  , sorted               :: a
+  , revSorted            :: a
+  , visible              :: a
+  , revVisible           :: a
+  , lineNum              :: a
+    -- ^ The line number from the posting's metadata
+  , date                 :: a
+  , flag                 :: a
+  , number               :: a
+  , payee                :: a
+  , account              :: a
+  , postingDrCr          :: a
+  , postingCmdty         :: a
+  , postingQty           :: a
+  , totalDrCr            :: a
+  , totalCmdty           :: a
+  , totalQty             :: a }
   deriving (Show, Eq)
 
 topRowCells :: G.Fields a -> A.Fields a -> TopRowCells a
 topRowCells g a = TopRowCells {
-  postingNum = G.postingNum g
-  , visibleNum = G.visibleNum g
-  , revPostingNum = G.revPostingNum g
-  , lineNum = G.lineNum g
-  , date = G.date g
-  , flag = G.flag g
-  , number = G.number g
-  , payee = A.payee a
-  , account = A.account a
-  , postingDrCr = G.postingDrCr g
-  , postingCmdty = G.postingCmdty g
-  , postingQty = G.postingQty g
-  , totalDrCr = G.totalDrCr g
-  , totalCmdty = G.totalCmdty g
-  , totalQty = G.totalQty g }
+  globalTransaction      = G.globalTransaction g
+  , revGlobalTransaction = G.revGlobalTransaction g
+  , globalPosting        = G.globalPosting g
+  , revGlobalPosting     = G.revGlobalPosting g
+  , fileTransaction      = G.fileTransaction g
+  , revFileTransaction   = G.revFileTransaction g
+  , filePosting          = G.filePosting g
+  , revFilePosting       = G.revFilePosting g
+  , filtered             = G.filtered g
+  , revFiltered          = G.revFiltered g
+  , sorted               = G.sorted g
+  , revSorted            = G.revSorted g
+  , visible              = G.visible g
+  , revVisible           = G.revVisible g
+  , lineNum              = G.lineNum g
+  , date                 = G.date g
+  , flag                 = G.flag g
+  , number               = G.number g
+  , payee                = A.payee a
+  , account              = A.account a
+  , postingDrCr          = G.postingDrCr g
+  , postingCmdty         = G.postingCmdty g
+  , postingQty           = G.postingQty g
+  , totalDrCr            = G.totalDrCr g
+  , totalCmdty           = G.totalCmdty g
+  , totalQty             = G.totalQty g }
 
 
 data ETopRowCells =
-  EPostingNum
-  | EVisibleNum
-  | ERevPostingNum
+  EGlobalTransaction
+  | ERevGlobalTransaction
+  | EGlobalPosting
+  | ERevGlobalPosting
+  | EFileTransaction
+  | ERevFileTransaction
+  | EFilePosting
+  | ERevFilePosting
+  | EFiltered
+  | ERevFiltered
+  | ESorted
+  | ERevSorted
+  | EVisible
+  | ERevVisible
   | ELineNum
   | EDate
   | EFlag
@@ -402,74 +439,118 @@ data ETopRowCells =
 
 eTopRowCells :: TopRowCells ETopRowCells
 eTopRowCells = TopRowCells {
-    postingNum = EPostingNum
-  , visibleNum = EVisibleNum
-  , revPostingNum = ERevPostingNum
-  , lineNum = ELineNum
-  , date = EDate
-  , flag = EFlag
-  , number = ENumber
-  , payee = EPayee
-  , account = EAccount
-  , postingDrCr = EPostingDrCr
-  , postingCmdty = EPostingCmdty
-  , postingQty = EPostingQty
-  , totalDrCr = ETotalDrCr
-  , totalCmdty = ETotalCmdty
-  , totalQty = ETotalQty }
+  globalTransaction      = EGlobalTransaction
+  , revGlobalTransaction = ERevGlobalTransaction
+  , globalPosting        = EGlobalPosting
+  , revGlobalPosting     = ERevGlobalPosting
+  , fileTransaction      = EFileTransaction
+  , revFileTransaction   = ERevFileTransaction
+  , filePosting          = EFilePosting
+  , revFilePosting       = ERevFilePosting
+  , filtered             = EFiltered
+  , revFiltered          = ERevFiltered
+  , sorted               = ESorted
+  , revSorted            = ERevSorted
+  , visible              = EVisible
+  , revVisible           = ERevVisible
+  , lineNum              = ELineNum
+  , date                 = EDate
+  , flag                 = EFlag
+  , number               = ENumber
+  , payee                = EPayee
+  , account              = EAccount
+  , postingDrCr          = EPostingDrCr
+  , postingCmdty         = EPostingCmdty
+  , postingQty           = EPostingQty
+  , totalDrCr            = ETotalDrCr
+  , totalCmdty           = ETotalCmdty
+  , totalQty             = ETotalQty }
 
 instance Functor TopRowCells where
   fmap f t = TopRowCells {
-    postingNum = f (postingNum t)
-    , visibleNum = f (visibleNum t)
-    , revPostingNum = f (revPostingNum t)
-    , lineNum = f (lineNum t)
-    , date = f (date t)
-    , flag = f (flag t)
-    , number = f (number t)
-    , payee = f (payee t)
-    , account = f (account t)
-    , postingDrCr = f (postingDrCr t)
-    , postingCmdty = f (postingCmdty t)
-    , postingQty = f (postingQty t)
-    , totalDrCr = f (totalDrCr t)
-    , totalCmdty = f (totalCmdty t)
-    , totalQty = f (totalQty t) }
+    globalTransaction      = f (globalTransaction    t)
+    , revGlobalTransaction = f (revGlobalTransaction t)
+    , globalPosting        = f (globalPosting        t)
+    , revGlobalPosting     = f (revGlobalPosting     t)
+    , fileTransaction      = f (fileTransaction      t)
+    , revFileTransaction   = f (revFileTransaction   t)
+    , filePosting          = f (filePosting          t)
+    , revFilePosting       = f (revFilePosting       t)
+    , filtered             = f (filtered             t)
+    , revFiltered          = f (revFiltered          t)
+    , sorted               = f (sorted               t)
+    , revSorted            = f (revSorted            t)
+    , visible              = f (visible              t)
+    , revVisible           = f (revVisible           t)
+    , lineNum              = f (lineNum              t)
+    , date                 = f (date                 t)
+    , flag                 = f (flag                 t)
+    , number               = f (number               t)
+    , payee                = f (payee                t)
+    , account              = f (account              t)
+    , postingDrCr          = f (postingDrCr          t)
+    , postingCmdty         = f (postingCmdty         t)
+    , postingQty           = f (postingQty           t)
+    , totalDrCr            = f (totalDrCr            t)
+    , totalCmdty           = f (totalCmdty           t)
+    , totalQty             = f (totalQty             t) }
 
 instance Applicative TopRowCells where
   pure a = TopRowCells {
-    postingNum = a
-    , visibleNum = a
-    , revPostingNum = a
-    , lineNum = a
-    , date = a
-    , flag = a
-    , number = a
-    , payee = a
-    , account = a
-    , postingDrCr = a
-    , postingCmdty = a
-    , postingQty = a
-    , totalDrCr = a
-    , totalCmdty = a
-    , totalQty = a }
+    globalTransaction      = a
+    , revGlobalTransaction = a
+    , globalPosting        = a
+    , revGlobalPosting     = a
+    , fileTransaction      = a
+    , revFileTransaction   = a
+    , filePosting          = a
+    , revFilePosting       = a
+    , filtered             = a
+    , revFiltered          = a
+    , sorted               = a
+    , revSorted            = a
+    , visible              = a
+    , revVisible           = a
+    , lineNum              = a
+    , date                 = a
+    , flag                 = a
+    , number               = a
+    , payee                = a
+    , account              = a
+    , postingDrCr          = a
+    , postingCmdty         = a
+    , postingQty           = a
+    , totalDrCr            = a
+    , totalCmdty           = a
+    , totalQty             = a }
 
   ff <*> fa = TopRowCells {
-    postingNum = (postingNum ff) (postingNum fa)
-    , visibleNum = (visibleNum ff) (visibleNum fa)
-    , revPostingNum = (revPostingNum ff) (revPostingNum fa)
-    , lineNum = (lineNum ff) (lineNum fa)
-    , date = (date ff) (date fa)
-    , flag = (flag ff) (flag fa)
-    , number = (number ff) (number fa)
-    , payee = (payee ff) (payee fa)
-    , account = (account ff) (account fa)
-    , postingDrCr = (postingDrCr ff) (postingDrCr fa)
-    , postingCmdty = (postingCmdty ff) (postingCmdty fa)
-    , postingQty = (postingQty ff) (postingQty fa)
-    , totalDrCr = (totalDrCr ff) (totalDrCr fa)
-    , totalCmdty = (totalCmdty ff) (totalCmdty fa)
-    , totalQty = (totalQty ff) (totalQty fa) }
+    globalTransaction      = globalTransaction    ff (globalTransaction    fa)
+    , revGlobalTransaction = revGlobalTransaction ff (revGlobalTransaction fa)
+    , globalPosting        = globalPosting        ff (globalPosting        fa)
+    , revGlobalPosting     = revGlobalPosting     ff (revGlobalPosting     fa)
+    , fileTransaction      = fileTransaction      ff (fileTransaction      fa)
+    , revFileTransaction   = revFileTransaction   ff (revFileTransaction   fa)
+    , filePosting          = filePosting          ff (filePosting          fa)
+    , revFilePosting       = revFilePosting       ff (revFilePosting       fa)
+    , filtered             = filtered             ff (filtered             fa)
+    , revFiltered          = revFiltered          ff (revFiltered          fa)
+    , sorted               = sorted               ff (sorted               fa)
+    , revSorted            = revSorted            ff (revSorted            fa)
+    , visible              = visible              ff (visible              fa)
+    , revVisible           = revVisible           ff (revVisible           fa)
+    , lineNum              = lineNum              ff (lineNum              fa)
+    , date                 = date                 ff (date                 fa)
+    , flag                 = flag                 ff (flag                 fa)
+    , number               = number               ff (number               fa)
+    , payee                = payee                ff (payee                fa)
+    , account              = account              ff (account              fa)
+    , postingDrCr          = postingDrCr          ff (postingDrCr          fa)
+    , postingCmdty         = postingCmdty         ff (postingCmdty         fa)
+    , postingQty           = postingQty           ff (postingQty           fa)
+    , totalDrCr            = totalDrCr            ff (totalDrCr            fa)
+    , totalCmdty           = totalCmdty           ff (totalCmdty           fa)
+    , totalQty             = totalQty             ff (totalQty             fa) }
 
 instance Fdbl.Foldable TopRowCells where
   foldr f z o =
