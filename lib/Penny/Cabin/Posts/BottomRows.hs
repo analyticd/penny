@@ -106,8 +106,8 @@ newtype ContentWidth = ContentWidth Int deriving (Show, Eq)
 
 hanging ::
   [TopCellSpec]
-  -> Maybe ((Info.T -> Int -> (C.TextSpec, R.ColumnSpec))
-            -> Info.T -> [C.Bit])
+  -> Maybe ((Box -> Int -> (C.TextSpec, R.ColumnSpec))
+            -> Box -> [C.Bit])
 hanging specs = hangingWidths specs
                 >>= return . hangingInfoProcessor
 
@@ -239,10 +239,20 @@ mergeWithSpacers ::
   -> Spacers.T b
   -> TopRowCells (a, Maybe b)
 mergeWithSpacers t s = TopRowCells {
-  postingNum = (postingNum t, Just (S.postingNum s))
-  , rev
-  , visibleNum = (visibleNum t, Just (S.visibleNum s))
-  , revPostingNum = (revPostingNum t, Just (S.revPostingNum s))
+  globalTransaction = (globalTransaction t, Just (S.globalTransaction s))
+  , revGlobalTransaction = (revGlobalTransaction t, Just (S.revGlobalTransaction s))
+  , globalPosting = (globalPosting t, Just (S.globalPosting s))
+  , revGlobalPosting = (revGlobalPosting t, Just (S.revGlobalPosting s))
+  , fileTransaction = (fileTransaction t, Just (S.fileTransaction s))
+  , revFileTransaction = (revFileTransaction t, Just (S.revFileTransaction s))
+  , filePosting = (filePosting t, Just (S.filePosting s))
+  , revFilePosting = (revFilePosting t, Just (S.revFilePosting s))
+  , filtered = (filtered t, Just (S.filtered s))
+  , revFiltered = (revFiltered t, Just (S.revFiltered s))
+  , sorted = (sorted t, Just (S.sorted s))
+  , revSorted = (revSorted t, Just (S.revSorted s))
+  , visible = (visible t, Just (S.visible s))
+  , revVisible = (revVisible t, Just (S.revVisible s))
   , lineNum = (lineNum t, Just (S.lineNum s))
   , date = (date t, Just (S.date s))
   , flag = (flag t, Just (S.flag s))
@@ -259,13 +269,13 @@ mergeWithSpacers t s = TopRowCells {
 
 -- | Applied to a function that, when applied to the width of a cell,
 -- returns a cell filled with data, returns a Row with that cell.
-makeSpecificWidth :: Int -> (Info.T -> Int -> (a, R.ColumnSpec))
-                     -> Info.T -> [C.Bit]
+makeSpecificWidth :: Int -> (Box -> Int -> (a, R.ColumnSpec))
+                     -> Box -> [C.Bit]
 makeSpecificWidth w f i = R.row [c] where
   (_, c) = f i w
 
 
-type Maker = Options.T -> Info.T -> Int -> (C.TextSpec, R.ColumnSpec)
+type Maker = Options.T -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 
 makers :: Fields Maker
 makers = Fields tagsCell memoCell filenameCell
@@ -275,15 +285,15 @@ makers = Fields tagsCell memoCell filenameCell
 -- field that the user wants to see.
 requestedMakers ::
   Options.T
-  -> Fields (Maybe (Info.T -> Int -> (C.TextSpec, R.ColumnSpec)))
+  -> Fields (Maybe (Box -> Int -> (C.TextSpec, R.ColumnSpec)))
 requestedMakers os = let
   flds = bottomRowsFields (O.fields os)
   filler b mkr = if b then Just $ mkr os else Nothing
   in filler <$> flds <*> makers
 
-tagsCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.ColumnSpec)
+tagsCell :: Options.T -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 tagsCell os info w = (ts, cell) where
-  vn = Info.visibleNum info
+  vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify (C.Width w) ts cs
   ts = PC.colors vn (O.baseColors os)
   cs =
@@ -296,7 +306,7 @@ tagsCell os info w = (ts, cell) where
     . map (X.cons '*')
     . HT.textList
     . Q.tags
-    . Info.postingBox
+    . L.boxPostFam
     $ info
   toBit (TF.Words ws) = C.bit ts t where
     t = X.concat . intersperse (X.singleton ' ') . Fdbl.toList $ ws
@@ -318,14 +328,14 @@ memoBits ts m (C.Width w) = cs where
   toBit (TF.Words ws) = C.bit ts (X.unwords . Fdbl.toList $ ws)
 
 
-memoCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.ColumnSpec)
+memoCell :: Options.T -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 memoCell os info width = (ts, cell) where
   w = C.Width width
-  vn = Info.visibleNum info
+  vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify w ts cs
   ts = PC.colors vn (O.baseColors os)
-  pm = Q.postingMemo . Info.postingBox $ info
-  tm = Q.transactionMemo . Info.postingBox $ info
+  pm = Q.postingMemo . L.boxPostFam $ info
+  tm = Q.transactionMemo . L.boxPostFam $ info
   nullMemo (L.Memo m) = null m
   cs = case (nullMemo pm, nullMemo tm) of
     (True, True) -> mempty
@@ -334,14 +344,14 @@ memoCell os info width = (ts, cell) where
     (False, False) -> memoBits ts pm w `mappend` memoBits ts tm w
   
 
-filenameCell :: Options.T -> Info.T -> Int -> (C.TextSpec, R.ColumnSpec)
+filenameCell :: Options.T -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 filenameCell os info width = (ts, cell) where
   w = C.Width width
-  vn = Info.visibleNum info
+  vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify w ts cs
   toBit n = C.bit ts
             . X.drop (max 0 (X.length n - width)) $ n
-  cs = case Q.filename . Info.postingBox $ info of
+  cs = case Q.filename . L.boxPostFam $ info of
     Nothing -> []
     Just fn -> [toBit . L.unFilename $ fn]
   ts = PC.colors vn (O.baseColors os)
@@ -554,28 +564,50 @@ instance Applicative TopRowCells where
 
 instance Fdbl.Foldable TopRowCells where
   foldr f z o =
-    f (postingNum o)
-    (f (visibleNum o)
-     (f (revPostingNum o)
-      (f (lineNum o)
-       (f (date o)
-        (f (flag o)
-         (f (number o)
-          (f (payee o)
-           (f (account o)
-            (f (postingDrCr o)
-             (f (postingCmdty o)
-              (f (postingQty o)
-               (f (totalDrCr o)
-                (f (totalCmdty o)
-                 (f (totalQty o) z))))))))))))))
+    f (globalTransaction o)
+    (f (revGlobalTransaction o)
+     (f (globalPosting o)
+      (f (revGlobalPosting o)
+       (f (fileTransaction o)
+        (f (revFileTransaction o)
+         (f (filePosting o)
+          (f (revFilePosting o)
+           (f (filtered o)
+            (f (revFiltered o)
+             (f (sorted o)
+              (f (revSorted o)
+               (f (visible o)
+                (f (revVisible o)
+                 (f (lineNum o)
+                  (f (date o)
+                   (f (flag o)
+                    (f (number o)
+                     (f (payee o)
+                      (f (account o)
+                       (f (postingDrCr o)
+                        (f (postingCmdty o)
+                         (f (postingQty o)
+                          (f (totalDrCr o)
+                           (f (totalCmdty o)
+                            (f (totalQty o) z)))))))))))))))))))))))))
 
 instance T.Traversable TopRowCells where
   traverse f t =
     TopRowCells
-    <$> f (postingNum t)
-    <*> f (visibleNum t)
-    <*> f (revPostingNum t)
+    <$> f (globalTransaction t)
+    <*> f (revGlobalTransaction t)
+    <*> f (globalPosting t)
+    <*> f (revGlobalPosting t)
+    <*> f (fileTransaction t)
+    <*> f (revFileTransaction t)
+    <*> f (filePosting t)
+    <*> f (revFilePosting t)
+    <*> f (filtered t)
+    <*> f (revFiltered t)
+    <*> f (sorted t)
+    <*> f (revSorted t)
+    <*> f (visible t)
+    <*> f (revVisible t)
     <*> f (lineNum t)
     <*> f (date t)
     <*> f (flag t)
