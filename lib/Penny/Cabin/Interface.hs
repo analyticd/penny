@@ -8,15 +8,12 @@ import qualified Data.Text.Lazy as XL
 import Text.Matchers.Text (CaseSensitive)
 import System.Console.MultiArg.Prim (Parser)
 
-import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
-import Penny.Liberty (Error)
 import Penny.Shield (Runtime)
 
 type ReportFunc =
-  [L.PostingChild C.TopLineMeta C.PostingMeta]
-  -> [L.PricePoint C.PriceMeta]
-  
+  [L.PostFam]
+  -> [L.PricePoint]
   -> Exceptional X.Text XL.Text
   -- ^ The exception type is a strict Text, containing the error
   -- message. The success type is a lazy Text, containing the
