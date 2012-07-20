@@ -1,28 +1,39 @@
 module Penny.Cabin.Posts.Parser (parseCommand) where
 
 import Control.Applicative ((<|>), (<$>), (*>), pure, (<$))
+import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Text (Text, pack)
-import System.Console.MultiArg.Combinator (longOneArg, option, longNoArg)
-import System.Console.MultiArg.Option (makeLongOpt)
-import System.Console.MultiArg.Prim (ParserE, throw)
+import System.Console.MultiArg.Prim (Parser)
 
 import qualified Penny.Cabin.Chunk as CC
-import Penny.Liberty.Error (Error)
-import Penny.Liberty.Combinator (runUntilFailure, nextWordIs)
-import qualified Penny.Liberty.Error as Er
-import qualified Penny.Liberty.Filter as LF
-import qualified Penny.Liberty.Operands as Od
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as Fl
-import qualified Penny.Cabin.Posts.Numbered as Numbered
 import qualified Penny.Cabin.Posts.Options as Op
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
 import qualified Penny.Cabin.Options as CO
+import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as S
 
 import Penny.Lincoln.Bits (DateTime)
 
+data Error = Error
+
+-- | Parses the command line from the first word remaining up until,
+-- but not including, the first non-option argment.
+parseCommand ::
+  S.Runtime
+  -> Op.T
+  -- ^ Default options for the posts report
+  -> Parser (Ex.Exceptional Error Op.T)
+parseCommand = undefined
+
+parseOption ::
+  S.Runtime
+  -> Parser (Op.T -> Ex.Exceptional Error Op.T)
+parseOption = undefined
+
+{-
 parseCommand ::
   DateTime
   -> S.Runtime
@@ -197,3 +208,4 @@ fieldArg str = do
   case pickField t of
     Just fl -> return fl
     Nothing -> throw $ Er.BadFieldName t
+-}
