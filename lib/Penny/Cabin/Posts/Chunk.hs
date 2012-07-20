@@ -7,12 +7,15 @@ import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Posts.BottomRows as B
 import qualified Penny.Cabin.Posts.Options as Options
-import qualified Penny.Cabin.Posts.Info as Info
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Chunk as C
 import qualified Penny.Cabin.Colors as PC
+import qualified Penny.Lincoln as L
+import qualified Penny.Cabin.Posts.Meta as M
 
-makeChunk :: Options.T -> [Info.T] -> [C.Bit]
+type Box = L.Box M.PostMeta 
+
+makeChunk :: Options.T -> [Box] -> [C.Bit]
 makeChunk os is = let
   fmapSnd flds = fmap (fmap snd) flds
   fmapFst flds = fmap (fmap fst) flds
