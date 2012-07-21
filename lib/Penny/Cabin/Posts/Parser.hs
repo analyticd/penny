@@ -1,12 +1,10 @@
-module Penny.Cabin.Posts.Parser (parseCommand) where
+module Penny.Cabin.Posts.Parser (parseOptions) where
 
-import Control.Applicative ((<|>), (<$>), (*>), pure, (<$), many,
-                            (<*>))
+import Control.Applicative ((<|>), (<$>), pure, many, (<*>))
 import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toLower)
 import qualified Data.Foldable as F
-import Data.Text (Text, pack)
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
 
@@ -18,9 +16,8 @@ import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Liberty as Ly
+import qualified Penny.Liberty.Expressions as Exp
 import qualified Penny.Shield as S
-
-import Penny.Lincoln.Bits (DateTime)
 
 data Error = BadColorName String
              | BadBackgroundArg String
@@ -32,12 +29,12 @@ data Error = BadColorName String
 
 -- | Parses the command line from the first word remaining up until,
 -- but not including, the first non-option argment.
-parseCommand ::
+parseOptions ::
   S.Runtime
   -> Op.T
   -- ^ Default options for the posts report
   -> Parser (Ex.Exceptional Error Op.T)
-parseCommand rt op = fmap f (many (parseOption rt))
+parseOptions rt op = fmap f (many (parseOption rt))
   where
     folder = foldl (>=>) return
     f ls = (folder ls) op
@@ -46,12 +43,61 @@ parseCommand rt op = fmap f (many (parseOption rt))
 parseOption ::
   S.Runtime
   -> Parser (Op.T -> Ex.Exceptional Error Op.T)
-parseOption = undefined
+parseOption rt =
+  operand rt
+  <|> postFilter
+  <|> matcherSelect
+  <|> caseSelect
+  <|> operator
+  <|> color rt
+  <|> background
+  <|> width
+  <|> showField
+  <|> hideField
+  <|> showAllFields
+  <|> hideAllFields
+  <|> showZeroBalances
+  <|> hideZeroBalances
 
 operand :: S.Runtime -> Parser (Op.T -> Ex.Exceptional Error Op.T)
-operand rt =
-  let f op =
+operand rt = f <$> Ly.parseOperand
+  where
+    f lyFn op =
+      let dtz = Op.timeZone op
+          rg = Op.radGroup op
+          dt = S.currentTime rt
+          cs = Op.sensitive op
+          fty = Op.factory op
+      in case lyFn dt dtz rg cs fty of
+        Ex.Exception e -> Ex.throw . LibertyError $ e
+        Ex.Success (Exp.Operand g) ->
+          let ts' = Op.tokens op ++ [Exp.TokOperand g]
+          in return op { Op.tokens = ts' }
 
+
+postFilter :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+postFilter = f <$> Ly.parsePostFilter
+  where
+    f ex op =
+      case ex of
+        Ex.Exception e -> Ex.throw . LibertyError $ e
+        Ex.Success pf ->
+          return op { Op.postFilter = Op.postFilter op ++ [pf] }
+
+matcherSelect :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+matcherSelect = f <$> Ly.parseMatcherSelect
+  where
+    f mf op = return op { Op.factory = mf }
+
+caseSelect :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+caseSelect = f <$> Ly.parseCaseSelect
+  where
+    f cs op = return op { Op.sensitive = cs }
+
+operator :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+operator = f <$> Ly.parseOperator
+  where
+    f oo op = return op { Op.tokens = Op.tokens op ++ [oo] }
 
 parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
 parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
@@ -215,79 +261,3 @@ fieldNames = Fl.T {
   , Fl.tags = "tags"
   , Fl.memo = "memo"
   , Fl.filename = "filename" }
-
-
-
-{-
-parseCommand ::
-  DateTime
-  -> S.Runtime
-  -> (Op.T)
-  -> ParserE Error (Op.T)
-parseCommand dt rt op =
-    (nextWordIs (pack "postings")
-     <|> nextWordIs (pack "pos"))
-    *> parseArgs dt rt op
-  
-parseArgs ::
-  DateTime
-  -> S.Runtime
-  -> (Op.T)
-  -> ParserE Error (Op.T)
-parseArgs dt rt op =
-  option op $ do
-    rs <- runUntilFailure (parseArg dt rt) op
-    if null rs then return op else return (last rs)
-
-parseArg ::
-  DateTime
-  -> S.Runtime
-  -> (Op.T)
-  -> ParserE Error (Op.T)
-parseArg dt rt op =
-  wrapLiberty dt op 
-  <|> wrapColor rt op
-  <|> wrapBackground op
-  <|> wrapWidth op
-  <|> showField op
-  <|> hideField op
-  <|> showAllFields op
-  <|> hideAllFields op
-  <|> showZeroBalances op
-  <|> hideZeroBalances op
-
-wrapLiberty ::
-  DateTime
-  -> Op.T
-  -> ParserE Error (Op.T)
-wrapLiberty dt op = let
-  dtz = Op.timeZone op
-  rg = Op.radGroup op
-  in fromLibertyState op
-     <$> LF.parseOption dtz dt rg (toLibertyState op)
-
-wrapBackground :: (Op.T) -> ParserE Error (Op.T)
-wrapBackground st = mkSt <$> background where
-  mkSt b = st { Op.drCrColors = fst b 
-              , Op.baseColors = snd b }
-
-wrapWidth :: (Op.T) -> ParserE Error (Op.T)
-wrapWidth st = mkSt <$> widthArg where
-  mkSt w = st { Op.width = w }
-
-toLibertyState :: (Op.T) -> (LF.State Numbered.T)
-toLibertyState op =
-  LF.State { LF.sensitive = Op.sensitive op
-           , LF.factory = Op.factory op
-           , LF.tokens = Op.tokens op
-           , LF.postFilter = Op.postFilter op }
-
-fromLibertyState :: (Op.T) -> LF.State Numbered.T -> (Op.T)
-fromLibertyState op lf =
-  op  { Op.sensitive = LF.sensitive lf
-      , Op.factory = LF.factory lf
-      , Op.tokens = LF.tokens lf
-      , Op.postFilter = LF.postFilter lf }
-
-
--}

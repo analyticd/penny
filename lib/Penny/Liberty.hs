@@ -10,9 +10,6 @@
 module Penny.Liberty (
   Error(..),
   MatcherFactory,
-  State(..),
-  initState,
-  parseLiberty,
   X.evaluate,
   FilteredNum(FilteredNum, unFilteredNum),
   SortedNum(SortedNum, unSortedNum),
@@ -37,7 +34,6 @@ import Control.Monad.Exception.Synchronous (
   Exceptional(Exception))
 import Data.Char (toUpper)
 import Data.List (isPrefixOf, sortBy)
-import Data.Monoid (mappend, mempty)
 import Data.Text (Text, pack)
 import qualified Data.Text as Text
 import qualified System.Console.MultiArg.Combinator as C
@@ -168,25 +164,6 @@ processPostFilter as fn = map fst . filter fn' $ zipped where
   zipped = zip as [0..]
   
 
--- | Each command line option can depend on values that were
--- previously parsed on the command line. Each option can see
--- previously parsed values that are parsed in and can modify this
--- state for subsequent options.
-data State =
-  State { sensitive :: CaseSensitive
-        , factory :: MatcherFactory
-        , postFilter :: [PostFilterFn]
-        , tokens :: [X.Token (L.PostFam -> Bool)]
-        , sorters :: L.PostFam -> L.PostFam -> Ordering }
-
--- | Create an initial State with default values.
-initState :: State
-initState = State { sensitive = Insensitive
-                  , factory = \c t -> return (TM.within c t)
-                  , postFilter = []
-                  , tokens = []
-                  , sorters = mempty }
-
 data Error = MakeMatcherFactoryError Text
              | DateParseError
              | BadPatternError Text
@@ -202,73 +179,6 @@ data Error = MakeMatcherFactoryError Text
              | BadCommodityError Text
              deriving Show
 
-
-------------------------------------------------------------
--- Combined parser
-------------------------------------------------------------
-
--- | The Penny command line can be broken into three parts: the filter
--- specification, the report specification, and the files
--- specification. This function parses the filter specification. It
--- can also be used to parse filter specifications for other parts of
--- the command line; for instance, as part of the postings report
--- specification.
-parseLiberty ::
-  DefaultTimeZone
-  -> L.DateTime
-  -> RadGroup
-  -> Parser (State -> Exceptional Error State)
-parseLiberty dtz dt rg =
-  wrapOperand dtz dt rg
-  <|> wrapPostFilter
-  <|> wrapMatSelect
-  <|> wrapCaseSelect
-  <|> wrapOperator
-  <|> wrapSort
-
-wrapOperand ::
-  DefaultTimeZone
-  -> L.DateTime
-  -> RadGroup
-  -> Parser (State -> Exceptional Error State)
-wrapOperand dtz dt rg = do
-  fn <- parseOperand dtz dt rg
-  let f st = do
-        (X.Operand op) <- fn (sensitive st) (factory st)
-        return $ st { tokens = tokens st ++ [X.TokOperand op] }
-  return f
-
-
-wrapPostFilter :: Parser (State -> Exceptional Error State)
-wrapPostFilter = do
-  fn <- parsePostFilter
-  let f st = do
-        pf' <- fn
-        return st { postFilter = postFilter st ++ [pf'] }
-  return f
-
-wrapMatSelect :: Parser (State -> Exceptional Error State)
-wrapMatSelect = do
-  mf <- parseMatcherSelect
-  return (\st -> return st { factory = mf })
-
-wrapCaseSelect :: Parser (State -> Exceptional Error State)
-wrapCaseSelect = do
-  cs <- parseCaseSelect
-  return (\st -> return st { sensitive = cs })
-
-wrapOperator :: Parser (State -> Exceptional Error State)
-wrapOperator = do
-  op <- parseOperator
-  return (\st -> return st { tokens = tokens st ++ [op] })
-
-wrapSort :: Parser (State -> Exceptional Error State)
-wrapSort = do
-  exO <- parseSort
-  let f st = do
-        o <- exO   
-        return st { sorters = mappend o (sorters st) }
-  return f
 
 ------------------------------------------------------------
 -- Operands
@@ -307,10 +217,10 @@ parseDate dtz t = case parse (dateTime dtz) "" t of
   Left _ -> Exception DateParseError
   Right d -> return d
 
-date :: DefaultTimeZone -> Parser (Ex.Exceptional Error Operand)
-date dtz =
+date :: Parser (DefaultTimeZone -> Ex.Exceptional Error Operand)
+date =
   let os = C.OptSpec ["date"] ['d'] (C.TwoArg f)
-      f a1 a2 = do
+      f a1 a2 dtz = do
         cmp <- parseComparer a1
         dt <- parseDate dtz (pack a2)
         return $ X.Operand (P.date (`cmp` dt))
@@ -478,12 +388,10 @@ credit =
   let os = C.OptSpec ["credit"] [] (C.NoArg (X.Operand P.credit))
   in C.parseOption [os]
 
-qtyOption ::
-  RadGroup
-  -> Parser (Exceptional Error Operand)
-qtyOption rg =
+qtyOption :: Parser (RadGroup -> Exceptional Error Operand)
+qtyOption =
   let os = C.OptSpec ["qty"] [] (C.TwoArg f)
-      f a1 a2 = do
+      f a1 a2 rg = do
         q <- case parse (qty rg) "" (pack a2) of
           Left _ -> Ex.throw $ BadQtyError (pack a2)
           Right g -> return g
@@ -557,16 +465,16 @@ fileTransaction =
 
 -- | Parses operands.
 parseOperand ::
-  DefaultTimeZone
-  -> L.DateTime
-  -> RadGroup
-  -> Parser (CaseSensitive
-             -> MatcherFactory
-             -> Ex.Exceptional Error Operand)
+  Parser (L.DateTime
+          -> DefaultTimeZone
+          -> RadGroup
+          -> CaseSensitive
+          -> MatcherFactory
+          -> Ex.Exceptional Error Operand)
 
-parseOperand dtz dt rg =
-  wrapNoArg (date dtz)
-  <|> (do { f <- current; return (\_ _ -> return (f dt)) })
+parseOperand =
+  (do { f <- date; return (\_ dtz _ _ _ -> f dtz)})
+  <|> (do { f <- current; return (\dt _ _ _ _ -> return (f dt)) })
   <|> wrapFactArg account
   <|> wrapFactArg accountLevel
   <|> wrapFactArg accountAny
@@ -579,31 +487,38 @@ parseOperand dtz dt rg =
   <|> wrapFactArg commodityAny
   <|> wrapFactArg postingMemo
   <|> wrapFactArg transactionMemo
-  <|> (do { o <- debit; return (\_ _ -> return o) })
-  <|> (do { o <- credit; return (\_ _ -> return o) })
-  <|> wrapNoArg (qtyOption rg)
+  <|> (do { o <- debit; return (\_ _ _ _ _ -> return o) })
+  <|> (do { o <- credit; return (\_ _ _ _ _ -> return o) })
+  <|> (do { f <- qtyOption; return (\ _ _ rg _ _ -> f rg)})
   <|> wrapNoArg globalTransaction
   <|> wrapNoArg globalPosting
   <|> wrapNoArg filePosting
   <|> wrapNoArg fileTransaction
 
+
 wrapNoArg ::
   Parser (Ex.Exceptional Error Operand)
-  -> Parser (CaseSensitive
+  -> Parser (L.DateTime
+             -> DefaultTimeZone
+             -> RadGroup
+             -> CaseSensitive
              -> MatcherFactory
              -> Ex.Exceptional Error Operand)
 wrapNoArg p = do
   o <- p
-  return (\_ _ -> o)
+  return (\_ _ _ _ _ -> o)
 
 wrapFactArg ::
   Parser (CaseSensitive -> MatcherFactory -> Exceptional Error Operand)
-  -> Parser (CaseSensitive
+  -> Parser (L.DateTime
+             -> DefaultTimeZone
+             -> RadGroup
+             -> CaseSensitive
              -> MatcherFactory
              -> Ex.Exceptional Error Operand)
 wrapFactArg p = do
   f <- p
-  return (\cs fact -> f cs fact)
+  return (\_ _ _ cs fact -> f cs fact)
 
 ------------------------------------------------------------
 -- Post filters
