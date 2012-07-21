@@ -4,6 +4,7 @@ import Control.Applicative ((<|>), (<$>), (*>), pure, (<$), many)
 import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Text (Text, pack)
+import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
 
 import qualified Penny.Cabin.Chunk as CC
@@ -18,7 +19,10 @@ import qualified Penny.Shield as S
 
 import Penny.Lincoln.Bits (DateTime)
 
-data Error = Error
+data Error = BadColorName String
+             | BadBackgroundArg String
+             | BadWidthArg String
+             deriving Show
 
 -- | Parses the command line from the first word remaining up until,
 -- but not including, the first non-option argment.
@@ -38,13 +42,46 @@ parseOption ::
   -> Parser (Op.T -> Ex.Exceptional Error Op.T)
 parseOption = undefined
 
-toLibertyState :: Op.T -> Ly.State
-toLibertyState op =
-  Ly.State { Ly.sensitive = Op.sensitive op
-           , Ly.factory = Op.factory op
-           , Ly.postFilter = Op.postFilter op
-           , Ly.tokens = Op.tokens op
-           , Ly.sorters = Op.sorters op }
+parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
+parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
+
+color :: S.Runtime -> Parser (Op.T -> Ex.Exceptional Error Op.T)
+color rt = parseOpt ["color"] "" (C.OneArg f)
+  where
+    f a1 op = case pickColorArg rt a1 of
+      Nothing -> Ex.throw . BadColorName $ a1
+      Just c -> return (op { Op.colorPref = c })
+
+pickColorArg :: S.Runtime -> String -> Maybe CC.Colors
+pickColorArg rt t
+  | t == "yes" = Just CC.Colors8
+  | t == "no" = Just CC.Colors0
+  | t == "256" = Just CC.Colors256
+  | t == "auto" = Just . CO.maxCapableColors $ rt
+  | otherwise = Nothing
+
+pickBackgroundArg :: String -> Maybe (PC.DrCrColors, PC.BaseColors)
+pickBackgroundArg t
+  | t == "light" = Just (LB.drCrColors, LB.baseColors)
+  | t == "dark" = Just (DB.drCrColors, DB.baseColors)
+  | otherwise = Nothing
+
+
+background :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+background = parseOpt ["background"] "" (C.OneArg f)
+  where
+    f a1 op = case pickBackgroundArg a1 of
+      Nothing -> Ex.throw . BadBackgroundArg $ a1
+      Just (dc, bc) -> return (op { Op.drCrColors = dc
+                                  , Op.baseColors = bc } )
+
+
+width :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+width = parseOpt ["width"] "" (C.OneArg f)
+  where
+    f a1 op = case reads a1 of
+      (i, ""):[] -> return (op { Op.width = Op.ReportWidth i })
+      _ -> Ex.throw . BadWidthArg $ a1
 
 {-
 parseCommand ::
@@ -93,10 +130,6 @@ wrapLiberty dt op = let
   rg = Op.radGroup op
   in fromLibertyState op
      <$> LF.parseOption dtz dt rg (toLibertyState op)
-
-wrapColor :: S.Runtime -> (Op.T) -> ParserE Error (Op.T)
-wrapColor rt st = mkSt <$> color rt where
-  mkSt co = st { Op.colorPref = co }
 
 wrapBackground :: (Op.T) -> ParserE Error (Op.T)
 wrapBackground st = mkSt <$> background where
@@ -153,43 +186,6 @@ hideZeroBalances :: Op.T -> ParserE Error Op.T
 hideZeroBalances op = op' <$ opt where
   op' = op { Op.showZeroBalances = CO.ShowZeroBalances False }
   opt = longNoArg (makeLongOpt . pack $ "hide-zero-balances")
-
-color :: S.Runtime -> ParserE Error CC.Colors
-color rt = do
-  let lo = makeLongOpt . pack $ "color"
-  (_, t) <- longOneArg lo
-  case pickColorArg rt t of
-    Nothing -> throw $ Er.BadColorName t
-    (Just col) -> return col
-  
-pickColorArg :: S.Runtime -> Text -> Maybe CC.Colors
-pickColorArg rt t
-  | t == pack "yes" = Just CC.Colors8
-  | t == pack "no" = Just CC.Colors0
-  | t == pack "256" = Just CC.Colors256
-  | t == pack "auto" = Just . CO.maxCapableColors $ rt
-  | otherwise = Nothing
-
-background :: ParserE Error (PC.DrCrColors, PC.BaseColors)
-background = do
-  let lo = makeLongOpt . pack $ "background"
-  (_, t) <- longOneArg lo
-  case pickBackgroundArg t of
-    Nothing -> throw $ Er.BadBackgroundArg t
-    Just back -> return back
-
-pickBackgroundArg :: Text -> Maybe (PC.DrCrColors, PC.BaseColors)
-pickBackgroundArg t
-  | t == pack "light" = Just (LB.drCrColors, LB.baseColors)
-  | t == pack "dark" = Just (DB.drCrColors, DB.baseColors)
-  | otherwise = Nothing
-
-widthArg :: ParserE Error Op.ReportWidth
-widthArg = do
-  (_, t) <- longOneArg (makeLongOpt . pack $ "width")
-  n <- Od.throwIf . Od.parseInt $ t
-  return . Op.ReportWidth $ n
-
 
 pickField :: Text -> Maybe (a -> Fl.T a -> Fl.T a)
 pickField t

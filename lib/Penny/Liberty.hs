@@ -20,7 +20,15 @@ module Penny.Liberty (
   xactionsToFiltered,
   ListLength(ListLength, unListLength),
   ItemIndex(ItemIndex, unItemIndex),
-  PostFilterFn
+  PostFilterFn,
+  
+  -- * Parsers
+  parseOperand,
+  parsePostFilter,
+  parseMatcherSelect,
+  parseCaseSelect,
+  parseOperator,
+  parseSort
   ) where
 
 import Control.Applicative ((<|>))
