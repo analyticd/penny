@@ -1,6 +1,7 @@
 module Penny.Cabin.Posts.Parser (parseCommand) where
 
-import Control.Applicative ((<|>), (<$>), (*>), pure, (<$))
+import Control.Applicative ((<|>), (<$>), (*>), pure, (<$), many)
+import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Text (Text, pack)
 import System.Console.MultiArg.Prim (Parser)
@@ -26,12 +27,24 @@ parseCommand ::
   -> Op.T
   -- ^ Default options for the posts report
   -> Parser (Ex.Exceptional Error Op.T)
-parseCommand = undefined
+parseCommand rt op = fmap f (many (parseOption rt))
+  where
+    folder = foldl (>=>) return
+    f ls = (folder ls) op
+
 
 parseOption ::
   S.Runtime
   -> Parser (Op.T -> Ex.Exceptional Error Op.T)
 parseOption = undefined
+
+toLibertyState :: Op.T -> Ly.State
+toLibertyState op =
+  Ly.State { Ly.sensitive = Op.sensitive op
+           , Ly.factory = Op.factory op
+           , Ly.postFilter = Op.postFilter op
+           , Ly.tokens = Op.tokens op
+           , Ly.sorters = Op.sorters op }
 
 {-
 parseCommand ::
