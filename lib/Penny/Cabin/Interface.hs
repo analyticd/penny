@@ -33,10 +33,9 @@ type ParserFunc =
   -- ^ The resulting function that will be applied to postings and
   -- prices to produce a report.
 
--- | The parser must parse everything beginning with its command name
--- (parser must fail without consuming any input if the next word is
--- not its command name) up until, but not including, the first
--- non-option word.
+-- | The parser must parse everything beginning with the first word
+-- after the name of the report (the parser does not parse the name of
+-- the report) up until, but not including, the first non-option word.
 type ParseReportOpts =
   Runtime
   -- ^ Information only known at runtime, such as the
@@ -47,5 +46,8 @@ type ParseReportOpts =
 data Report =
   Report { help :: X.Text
            -- ^ A strict Text containing a help message.
+           
+         , name :: String
+           -- ^ The name of the report
            
          , parseReport :: ParseReportOpts }
