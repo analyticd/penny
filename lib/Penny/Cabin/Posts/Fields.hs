@@ -2,6 +2,7 @@
 module Penny.Cabin.Posts.Fields where
 
 import Control.Applicative(Applicative(pure, (<*>)))
+import qualified Data.Foldable as F
 
 data T a = T {
   globalTransaction :: a
@@ -131,6 +132,39 @@ instance Applicative T where
     , tags = tags ff (tags fa)
     , memo = memo ff (memo fa)
     , filename = filename ff (filename fa) }
+
+instance F.Foldable T where
+  foldr f z t =
+    f (globalTransaction t)
+    (f (revGlobalTransaction t)
+     (f (globalPosting t)
+      (f (revGlobalPosting t)
+       (f (fileTransaction t)
+        (f (revFileTransaction t)
+         (f (filePosting t)
+          (f (revFilePosting t)
+           (f (filtered t)
+            (f (revFiltered t)
+             (f (sorted t)
+              (f (revSorted t)
+               (f (visible t)
+                (f (revVisible t)
+                 (f (lineNum t)
+                  (f (date t)
+                   (f (flag t)
+                    (f (number t)
+                     (f (payee t)
+                      (f (account t)
+                       (f (postingDrCr t)
+                        (f (postingCmdty t)
+                         (f (postingQty t)
+                          (f (totalDrCr t)
+                           (f (totalCmdty t)
+                            (f (totalQty t)
+                             (f (tags t)
+                              (f (memo t)
+                               (f (filename t) z))))))))))))))))))))))))))))
+
 
 t_globalTransaction :: a -> T a -> T a
 t_globalTransaction a f = f { globalTransaction = a }

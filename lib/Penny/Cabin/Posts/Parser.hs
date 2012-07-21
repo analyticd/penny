@@ -1,8 +1,11 @@
 module Penny.Cabin.Posts.Parser (parseCommand) where
 
-import Control.Applicative ((<|>), (<$>), (*>), pure, (<$), many)
+import Control.Applicative ((<|>), (<$>), (*>), pure, (<$), many,
+                            (<*>))
 import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Data.Char (toLower)
+import qualified Data.Foldable as F
 import Data.Text (Text, pack)
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
@@ -22,6 +25,8 @@ import Penny.Lincoln.Bits (DateTime)
 data Error = BadColorName String
              | BadBackgroundArg String
              | BadWidthArg String
+             | NoMatchingFieldName
+             | MultipleMatchingFieldNames [String]
              deriving Show
 
 -- | Parses the command line from the first word remaining up until,
@@ -82,6 +87,92 @@ width = parseOpt ["width"] "" (C.OneArg f)
     f a1 op = case reads a1 of
       (i, ""):[] -> return (op { Op.width = Op.ReportWidth i })
       _ -> Ex.throw . BadWidthArg $ a1
+
+-- | Turns a field on if it is True.
+fieldOn ::
+  Fl.T Bool
+  -- ^ Fields as seen so far
+
+  -> Fl.T Bool
+  -- ^ Record that should have one True element indicating a field
+  -- name seen on the command line; other elements should be False
+  
+  -> Fl.T Bool
+  -- ^ Fields as seen so far, with new field added
+
+fieldOn old new = (||) <$> old <*> new
+
+-- | Turns off a field if it is True.
+fieldOff ::
+  Fl.T Bool
+  -- ^ Fields seen so far
+  
+  -> Fl.T Bool
+  -- ^ Record that should have one True element indicating a field
+  -- name seen on the command line; other elements should be False
+  
+  -> Fl.T Bool
+  -- ^ Fields as seen so far, with new field added
+
+fieldOff old new = f <$> old <*> new
+  where
+    f o False = o
+    f _ True = False
+
+parseField :: String -> Ex.Exceptional Error (Fl.T Bool)
+parseField str =
+  let lower = map toLower str
+      checkField s =
+        if (map toLower s) == lower
+        then (s, True)
+        else (s, False)
+      flds = checkField <$> fieldNames
+  in checkFields flds
+
+-- | Checks the fields with the True value to ensure there is only one.
+checkFields :: Fl.T (String, Bool) -> Ex.Exceptional Error (Fl.T Bool)
+checkFields fs =
+  let f (s, b) ls = if b then s:ls else ls
+  in case F.foldr f [] fs of
+    [] -> Ex.throw NoMatchingFieldName
+    _:[] -> return (snd <$> fs)
+    ls -> Ex.throw . MultipleMatchingFieldNames $ ls
+
+
+
+fieldNames :: Fl.T String
+fieldNames = Fl.T {
+  Fl.globalTransaction = "globalTransaction"
+  , Fl.revGlobalTransaction = "revGlobalTransaction"
+  , Fl.globalPosting = "globalPosting"
+  , Fl.revGlobalPosting = "revGlobalPosting"
+  , Fl.fileTransaction = "fileTransaction"
+  , Fl.revFileTransaction = "revFileTransaction"
+  , Fl.filePosting = "filePosting"
+  , Fl.revFilePosting = "revFilePosting"
+  , Fl.filtered = "filtered"
+  , Fl.revFiltered = "revFiltered"
+  , Fl.sorted = "sorted"
+  , Fl.revSorted = "revSorted"
+  , Fl.visible = "visible"
+  , Fl.revVisible = "revVisible"
+  , Fl.lineNum = "lineNum"
+  , Fl.date = "date"
+  , Fl.flag = "flag"
+  , Fl.number = "number"
+  , Fl.payee = "payee"
+  , Fl.account = "account"
+  , Fl.postingDrCr = "postingDrCr"
+  , Fl.postingCmdty = "postingCmdty"
+  , Fl.postingQty = "postingQty"
+  , Fl.totalDrCr = "totalDrCr"
+  , Fl.totalCmdty = "totalCmdty"
+  , Fl.totalQty = "totalQty"
+  , Fl.tags = "tags"
+  , Fl.memo = "memo"
+  , Fl.filename = "filename" }
+
+
 
 {-
 parseCommand ::
