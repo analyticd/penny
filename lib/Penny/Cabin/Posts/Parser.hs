@@ -27,6 +27,7 @@ data Error = BadColorName String
              | BadWidthArg String
              | NoMatchingFieldName
              | MultipleMatchingFieldNames [String]
+             | LibertyError Ly.Error
              deriving Show
 
 -- | Parses the command line from the first word remaining up until,
@@ -46,6 +47,11 @@ parseOption ::
   S.Runtime
   -> Parser (Op.T -> Ex.Exceptional Error Op.T)
 parseOption = undefined
+
+operand :: S.Runtime -> Parser (Op.T -> Ex.Exceptional Error Op.T)
+operand rt =
+  let f op =
+
 
 parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
 parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
@@ -87,6 +93,44 @@ width = parseOpt ["width"] "" (C.OneArg f)
     f a1 op = case reads a1 of
       (i, ""):[] -> return (op { Op.width = Op.ReportWidth i })
       _ -> Ex.throw . BadWidthArg $ a1
+
+showField :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+showField = parseOpt ["show"] "" (C.OneArg f)
+  where
+    f a1 op = do
+      fl <- parseField a1
+      let newFl = fieldOn (Op.fields op) fl
+      return op { Op.fields = newFl }
+
+hideField :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+hideField = parseOpt ["hide"] "" (C.OneArg f)
+  where
+    f a1 op = do
+      fl <- parseField a1
+      let newFl = fieldOff (Op.fields op) fl
+      return op { Op.fields = newFl }
+
+showAllFields :: Parser (Op.T -> Ex.Exceptional a Op.T)
+showAllFields = parseOpt ["show-all"] "" (C.NoArg f)
+  where
+    f op = return (op {Op.fields = pure True})
+
+hideAllFields :: Parser (Op.T -> Ex.Exceptional a Op.T)
+hideAllFields = parseOpt ["hide-all"] "" (C.NoArg f)
+  where
+    f op = return (op {Op.fields = pure False})
+
+showZeroBalances :: Parser (Op.T -> Ex.Exceptional a Op.T)
+showZeroBalances = parseOpt ["show-zero-balances"] "" (C.NoArg f)
+  where
+    f op =
+      return (op {Op.showZeroBalances = CO.ShowZeroBalances True })
+
+hideZeroBalances :: Parser (Op.T -> Ex.Exceptional a Op.T)
+hideZeroBalances = parseOpt ["hide-zero-balances"] "" (C.NoArg f)
+  where
+    f op =
+      return (op {Op.showZeroBalances = CO.ShowZeroBalances False })
 
 -- | Turns a field on if it is True.
 fieldOn ::
@@ -231,18 +275,6 @@ wrapWidth :: (Op.T) -> ParserE Error (Op.T)
 wrapWidth st = mkSt <$> widthArg where
   mkSt w = st { Op.width = w }
 
-showField :: (Op.T) -> ParserE Error (Op.T)
-showField st = mkSt <$> fieldArg "show" where
-  mkSt f = st { Op.fields = fields' } where
-    oldFields = Op.fields st
-    fields' = f True oldFields
-
-hideField :: (Op.T) -> ParserE Error (Op.T)
-hideField st = mkSt <$> fieldArg "hide" where
-  mkSt f = st { Op.fields = fields' } where
-    oldFields = Op.fields st
-    fields' = f False oldFields
-
 toLibertyState :: (Op.T) -> (LF.State Numbered.T)
 toLibertyState op =
   LF.State { LF.sensitive = Op.sensitive op
@@ -258,54 +290,4 @@ fromLibertyState op lf =
       , Op.postFilter = LF.postFilter lf }
 
 
-showAllFields :: Op.T -> ParserE Error Op.T
-showAllFields op =
-  longNoArg (makeLongOpt . pack $ "show-all")
-  *> pure (op { Op.fields = pure True })
-
-hideAllFields :: Op.T -> ParserE Error Op.T
-hideAllFields op =
-  longNoArg (makeLongOpt . pack $ "hide-all")
-  *> pure (op { Op.fields = pure False })
-
-showZeroBalances :: Op.T -> ParserE Error Op.T
-showZeroBalances op = op' <$ opt where
-  op' = op { Op.showZeroBalances = CO.ShowZeroBalances True }
-  opt = longNoArg (makeLongOpt . pack $ "show-zero-balances")
-
-hideZeroBalances :: Op.T -> ParserE Error Op.T
-hideZeroBalances op = op' <$ opt where
-  op' = op { Op.showZeroBalances = CO.ShowZeroBalances False }
-  opt = longNoArg (makeLongOpt . pack $ "hide-zero-balances")
-
-pickField :: Text -> Maybe (a -> Fl.T a -> Fl.T a)
-pickField t
-  | t == pack "postingNum"       = Just Fl.t_postingNum
-  | t == pack "visibleNum"       = Just Fl.t_visibleNum
-  | t == pack "revPostingNum"    = Just Fl.t_revPostingNum
-  | t == pack "lineNum"          = Just Fl.t_lineNum
-  | t == pack "date"             = Just Fl.t_date
-  | t == pack "flag"             = Just Fl.t_flag
-  | t == pack "number"           = Just Fl.t_number
-  | t == pack "payee"            = Just Fl.t_payee
-  | t == pack "account"          = Just Fl.t_account
-  | t == pack "postingDrCr"      = Just Fl.t_postingDrCr
-  | t == pack "postingCommodity" = Just Fl.t_postingCmdty
-  | t == pack "postingQty"       = Just Fl.t_postingQty
-  | t == pack "totalDrCr"        = Just Fl.t_totalDrCr
-  | t == pack "totalCommodity"   = Just Fl.t_totalCmdty
-  | t == pack "totalQty"         = Just Fl.t_totalQty
-  | t == pack "tags"             = Just Fl.t_tags
-  | t == pack "memo"             = Just Fl.t_memo
-  | t == pack "filename"         = Just Fl.t_filename
-  | otherwise                    = Nothing
-
-fieldArg ::
-  String
-  -> ParserE Error (Bool -> Fl.T Bool -> Fl.T Bool)
-fieldArg str = do
-  (_, t) <- longOneArg (makeLongOpt . pack $ str)
-  case pickField t of
-    Just fl -> return fl
-    Nothing -> throw $ Er.BadFieldName t
 -}
