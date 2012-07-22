@@ -9,10 +9,11 @@ import Text.Matchers.Text (CaseSensitive)
 import System.Console.MultiArg.Prim (Parser)
 
 import qualified Penny.Lincoln as L
+import qualified Penny.Liberty as Ly
 import Penny.Shield (Runtime)
 
 type ReportFunc =
-  [L.PostFam]
+  [L.Box Ly.LibertyMeta]
   -> [L.PricePoint]
   -> Exceptional X.Text XL.Text
   -- ^ The exception type is a strict Text, containing the error

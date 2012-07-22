@@ -37,9 +37,6 @@ module Penny.Cabin.Posts (
   -- * Defaults
   defaultPostsReport
 
-  -- * Postings report builder
-  , R.report
-  
   -- * Options
   , O.T(..)
   , O.ReportWidth(..)
@@ -49,9 +46,9 @@ module Penny.Cabin.Posts (
   ) where
 
 import qualified Penny.Cabin.Interface as I
-import qualified Penny.Cabin.Posts.Report as R
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Copper as C
+import qualified Penny.Shield as S
 
 -- | When applied to a DefaultTimeZone and a RadGroup, returns a
 -- report with the default options.
@@ -59,4 +56,15 @@ defaultPostsReport ::
   C.DefaultTimeZone
   -> C.RadGroup
   -> I.Report
-defaultPostsReport dtz rg = R.report (O.defaultOptions dtz rg)
+defaultPostsReport dtz rg = undefined
+
+-- | Makes a Posts report with customizable options.
+parsePostsReport ::
+  (S.Runtime -> O.T)
+  -- ^ Function that, when applied to a Runtime, returns the report
+  -- options
+
+  -> I.ParseReportOpts
+parsePostsReport frt rt =
+  let opts = frt rt
+  in undefined
