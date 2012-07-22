@@ -11,12 +11,14 @@ import System.Console.MultiArg.Prim (Parser)
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as Fl
+import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Posts.Options as Op
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as Exp
+import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 
 data Error = BadColorName String
@@ -25,6 +27,8 @@ data Error = BadColorName String
              | NoMatchingFieldName
              | MultipleMatchingFieldNames [String]
              | LibertyError Ly.Error
+             | BadNumber String
+             | BadComparator String
              deriving Show
 
 -- | Parses the command line from the first word remaining up until,
@@ -45,6 +49,7 @@ parseOption ::
   -> Parser (Op.T -> Ex.Exceptional Error Op.T)
 parseOption rt =
   operand rt
+  <|> boxFilters
   <|> postFilter
   <|> matcherSelect
   <|> caseSelect
@@ -71,8 +76,77 @@ operand rt = f <$> Ly.parseOperand
       in case lyFn dt dtz rg cs fty of
         Ex.Exception e -> Ex.throw . LibertyError $ e
         Ex.Success (Exp.Operand g) ->
-          let ts' = Op.tokens op ++ [Exp.TokOperand g]
+          let g' = g . L.boxPostFam
+              ts' = Op.tokens op ++ [Exp.TokOperand g']
           in return op { Op.tokens = ts' }
+
+-- | Processes a option for box-level serials.
+optBoxSerial ::
+  [String]
+  -- ^ Long options
+  
+  -> [Char]
+  -- ^ Short options
+  
+  -> (M.PostMeta -> Int)
+  -- ^ Pulls the serial from the PostMeta
+  
+  -> Parser (Op.T -> Ex.Exceptional Error Op.T)
+
+optBoxSerial ls ss f = parseOpt ls ss (C.TwoArg g)
+  where
+    g a1 a2 op = do
+      cmp <- Ex.fromMaybe (BadComparator a1) (Ly.parseComparer a1)
+      i <- parseInt a2
+      let h box =
+            let ser = f . L.boxMeta $ box
+            in ser `cmp` i
+          tok = Exp.TokOperand h
+      return op { Op.tokens = Op.tokens op ++ [tok] }
+
+optFilteredNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+optFilteredNum = optBoxSerial ["filtered"] "" f
+  where
+    f = L.forward . Ly.unFilteredNum . M.filteredNum
+
+optRevFilteredNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+optRevFilteredNum = optBoxSerial ["revFiltered"] "" f
+  where
+    f = L.backward . Ly.unFilteredNum . M.filteredNum
+
+optSortedNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+optSortedNum = optBoxSerial ["sorted"] "" f
+  where
+    f = L.forward . Ly.unSortedNum . M.sortedNum
+
+optRevSortedNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+optRevSortedNum = optBoxSerial ["revSorted"] "" f
+  where
+    f = L.backward . Ly.unSortedNum . M.sortedNum
+
+optVisibleNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+optVisibleNum = optBoxSerial ["visible"] "" f
+  where
+    f = L.forward . M.unVisibleNum . M.visibleNum
+
+optRevVisibleNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+optRevVisibleNum = optBoxSerial ["revVisible"] "" f
+  where
+    f = L.backward . M.unVisibleNum . M.visibleNum
+
+parseInt :: String -> Ex.Exceptional Error Int
+parseInt s = case reads s of
+  (i, ""):[] -> return i
+  _ -> Ex.throw . BadNumber $ s
+
+boxFilters :: Parser (Op.T -> Ex.Exceptional Error Op.T)
+boxFilters =
+  optFilteredNum
+  <|> optRevFilteredNum
+  <|> optSortedNum
+  <|> optRevSortedNum
+  <|> optVisibleNum
+  <|> optRevVisibleNum
 
 
 postFilter :: Parser (Op.T -> Ex.Exceptional Error Op.T)

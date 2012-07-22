@@ -18,6 +18,7 @@ module Penny.Liberty (
   ListLength(ListLength, unListLength),
   ItemIndex(ItemIndex, unItemIndex),
   PostFilterFn,
+  parseComparer,
   
   -- * Parsers
   parseOperand,
@@ -201,16 +202,16 @@ getMatcher s cs f = case f cs (pack s) of
 parseComparer ::
   (Eq a, Ord a)
   => String
-  -> Ex.Exceptional Error (a -> a -> Bool)
+  -> Maybe (a -> a -> Bool)
 parseComparer t
-  | t == "<" = Ex.Success (<)
-  | t == "<=" = Ex.Success (<=)
-  | t == "==" = Ex.Success (==)
-  | t == ">" = Ex.Success (>)
-  | t == ">=" = Ex.Success (>=)
-  | t == "/=" = Ex.Success (/=)
-  | t == "!=" = Ex.Success (/=)
-  | otherwise = Ex.Exception $ BadComparator (pack t)
+  | t == "<" = Just (<)
+  | t == "<=" = Just (<=)
+  | t == "==" = Just (==)
+  | t == ">" = Just (>)
+  | t == ">=" = Just (>=)
+  | t == "/=" = Just (/=)
+  | t == "!=" = Just (/=)
+  | otherwise = Nothing
 
 parseDate :: DefaultTimeZone -> Text -> Exceptional Error L.DateTime
 parseDate dtz t = case parse (dateTime dtz) "" t of
@@ -221,7 +222,8 @@ date :: Parser (DefaultTimeZone -> Ex.Exceptional Error Operand)
 date =
   let os = C.OptSpec ["date"] ['d'] (C.TwoArg f)
       f a1 a2 dtz = do
-        cmp <- parseComparer a1
+        cmp <- Ex.fromMaybe (BadComparator (pack a1))
+               (parseComparer a1)
         dt <- parseDate dtz (pack a2)
         return $ X.Operand (P.date (`cmp` dt))
   in C.parseOption [os]
@@ -395,7 +397,8 @@ qtyOption =
         q <- case parse (qty rg) "" (pack a2) of
           Left _ -> Ex.throw $ BadQtyError (pack a2)
           Right g -> return g
-        cmp <- parseComparer a1
+        cmp <- Ex.fromMaybe (BadComparator (pack a1))
+               (parseComparer a1)
         return $ X.Operand (P.qty (`cmp` q))
   in C.parseOption [os]
 
@@ -419,7 +422,8 @@ serialOption getSerial n =
       osD = C.OptSpec [n ++ "-descending"] []
             (C.TwoArg (f L.backward))
       f getInt a1 a2 = do
-        cmp <- parseComparer a1
+        cmp <- Ex.fromMaybe (BadComparator (pack a1))
+               (parseComparer a1)
         i <- parseInt a2
         let op pf = case getSerial pf of
               Nothing -> False
