@@ -37,9 +37,8 @@ import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
-import qualified Penny.Liberty.Types as LT
+import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Boxes as LB
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Data.Semigroup as S
@@ -89,31 +88,31 @@ convertError to (L.Amount _ fr) e =
       `X.append` (X.pack " at given date and time")
   
 
-buildDb :: [L.PriceBox] -> L.PriceDb
+buildDb :: [L.PricePoint] -> L.PriceDb
 buildDb = foldl f L.emptyDb where
-  f db pb = L.addPrice db (LB.price pb)
+  f db pb = L.addPrice db pb
 
 converter ::
   O.Options
-  -> [L.PriceBox]
-  -> [LT.PostingInfo]
+  -> [L.PricePoint]
+  -> [L.Box Ly.LibertyMeta]
   -> Ex.Exceptional X.Text [PriceConverted]
-converter os pbs infos = case O.convert os of
+converter os pbs bs = case O.convert os of
   Nothing ->
-    let f info = PriceConverted en ac where
-          p = LT.postingBox $ info
+    let f b = PriceConverted en ac where
+          p = L.boxPostFam b
           en = Q.entry p
           ac = Q.account p
-    in return . map f $ infos
+    in return . map f $ bs
   Just pair ->
-    let f info = let p = LT.postingBox $ info
-                     en = Q.entry p
-                     ac = Q.account p
+    let f b = let p = L.boxPostFam b
+                  en = Q.entry p
+                  ac = Q.account p
                  in do
                    en' <- convertOne db pair en
                    return (PriceConverted en' ac)
         db = buildDb pbs
-    in mapM f infos
+    in mapM f bs
 
 
 -- Step 2. This puts all the PriceConverteds into a flat map, where
@@ -432,8 +431,8 @@ colsListToBits os = zipWith f bools where
 
 report ::
   O.Options
-  -> [LT.PostingInfo]
-  -> [L.PriceBox]
+  -> [L.Box Ly.LibertyMeta]
+  -> [L.PricePoint]
   -> Ex.Exceptional X.Text [[Chunk.Bit]]
 report os ps rs = do
   pcs <- converter os rs ps
