@@ -1,13 +1,16 @@
 module Penny.Cabin.Posts.Meta (
   M.VisibleNum(M.unVisibleNum)
   , PostMeta(filteredNum, sortedNum, visibleNum, balance)
-  , addPostMeta
+  , filterBoxes
+  , addMetadata
   ) where
 
 import Data.List (mapAccumL)
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
+import qualified Penny.Liberty.Queue as Queue
 import qualified Penny.Liberty as Ly
+import qualified Penny.Liberty.Expressions as Exp
 import qualified Penny.Cabin.Meta as M
 import qualified Penny.Cabin.Options as CO
 
@@ -18,13 +21,31 @@ data PostMeta =
             , balance :: Maybe L.Balance }
   deriving Show
 
+
+-- | Takes a list of Box with LibertyMeta, and a list of tokens from
+-- the command line, and a list of post filters. Filters the list of
+-- Box and processes the post filter. Fails if the expression fails to
+-- produce a result.
+filterBoxes ::
+  [Exp.Token (L.Box Ly.LibertyMeta -> Bool)]
+  -> [Ly.PostFilterFn]
+  -> [L.Box Ly.LibertyMeta]
+  -> Maybe [L.Box Ly.LibertyMeta]
+filterBoxes tks pfs bs = fmap fltr (Exp.evaluate q)
+  where
+    q = foldl (flip Queue.enqueue) Queue.empty tks
+    fltr p =
+      Ly.processPostFilters pfs . filter p $ bs
+
+  
+
 -- | Applied to a list of Box that have already been filtered, returns
 -- a list of Box with posting metadata.
-addPostMeta ::
+addMetadata ::
   CO.ShowZeroBalances
   -> [L.Box Ly.LibertyMeta]
   -> [L.Box PostMeta]
-addPostMeta szb = M.visibleNums f . addBalances szb where
+addMetadata szb = M.visibleNums f . addBalances szb where
   f vn (lm, mb) =
     PostMeta (Ly.filteredNum lm) (Ly.sortedNum lm) vn mb
 

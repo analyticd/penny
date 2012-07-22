@@ -11,7 +11,6 @@ import System.Console.MultiArg.Prim (Parser)
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as Fl
-import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Posts.Options as Op
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
@@ -35,13 +34,11 @@ data Error = BadColorName String
 -- but not including, the first non-option argment.
 parseOptions ::
   S.Runtime
-  -> Op.T
-  -- ^ Default options for the posts report
-  -> Parser (Ex.Exceptional Error Op.T)
-parseOptions rt op = fmap f (many (parseOption rt))
+  -> Parser (Op.T -> Ex.Exceptional Error Op.T)
+parseOptions rt = fmap f (many (parseOption rt))
   where
     folder = foldl (>=>) return
-    f ls = (folder ls) op
+    f ls = (folder ls)
 
 
 parseOption ::
@@ -88,7 +85,7 @@ optBoxSerial ::
   -> [Char]
   -- ^ Short options
   
-  -> (M.PostMeta -> Int)
+  -> (Ly.LibertyMeta -> Int)
   -- ^ Pulls the serial from the PostMeta
   
   -> Parser (Op.T -> Ex.Exceptional Error Op.T)
@@ -107,32 +104,22 @@ optBoxSerial ls ss f = parseOpt ls ss (C.TwoArg g)
 optFilteredNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
 optFilteredNum = optBoxSerial ["filtered"] "" f
   where
-    f = L.forward . Ly.unFilteredNum . M.filteredNum
+    f = L.forward . Ly.unFilteredNum . Ly.filteredNum
 
 optRevFilteredNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
 optRevFilteredNum = optBoxSerial ["revFiltered"] "" f
   where
-    f = L.backward . Ly.unFilteredNum . M.filteredNum
+    f = L.backward . Ly.unFilteredNum . Ly.filteredNum
 
 optSortedNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
 optSortedNum = optBoxSerial ["sorted"] "" f
   where
-    f = L.forward . Ly.unSortedNum . M.sortedNum
+    f = L.forward . Ly.unSortedNum . Ly.sortedNum
 
 optRevSortedNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
 optRevSortedNum = optBoxSerial ["revSorted"] "" f
   where
-    f = L.backward . Ly.unSortedNum . M.sortedNum
-
-optVisibleNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
-optVisibleNum = optBoxSerial ["visible"] "" f
-  where
-    f = L.forward . M.unVisibleNum . M.visibleNum
-
-optRevVisibleNum :: Parser (Op.T -> Ex.Exceptional Error Op.T)
-optRevVisibleNum = optBoxSerial ["revVisible"] "" f
-  where
-    f = L.backward . M.unVisibleNum . M.visibleNum
+    f = L.backward . Ly.unSortedNum . Ly.sortedNum
 
 parseInt :: String -> Ex.Exceptional Error Int
 parseInt s = case reads s of
@@ -145,8 +132,6 @@ boxFilters =
   <|> optRevFilteredNum
   <|> optSortedNum
   <|> optRevSortedNum
-  <|> optVisibleNum
-  <|> optRevVisibleNum
 
 
 postFilter :: Parser (Op.T -> Ex.Exceptional Error Op.T)

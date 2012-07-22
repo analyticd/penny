@@ -105,7 +105,7 @@ data T =
                  -> Text -> Exceptional Text (Text -> Bool)
       -- ^ Default factory for pattern matching
       
-    , tokens :: [Ex.Token (Box -> Bool)]
+    , tokens :: [Ex.Token (L.Box Ly.LibertyMeta -> Bool)]
       -- ^ Default list of tokens used to filter postings.
       
     , postFilter :: [Ly.PostFilterFn]

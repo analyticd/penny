@@ -36,6 +36,9 @@
 module Penny.Cabin.Posts (
   -- * Defaults
   defaultPostsReport
+  
+  -- * Custom report
+  , customPostsReport
 
   -- * Options
   , O.T(..)
@@ -45,10 +48,23 @@ module Penny.Cabin.Posts (
   , O.defaultFields
   ) where
 
+import Control.Applicative ((<$>))
+import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Text as X
+import qualified Data.Text.Lazy as XL
+import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Posts.Options as O
+import qualified Penny.Cabin.Posts.Meta as M
+import Penny.Cabin.Posts.Chunk (makeChunk)
+import Penny.Cabin.Posts.Parser (parseOptions)
+import Penny.Cabin.Posts.Help (help)
 import qualified Penny.Copper as C
+import qualified Penny.Lincoln as L
+import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as S
+import System.Console.MultiArg.Prim (Parser)
+import Text.Matchers.Text (CaseSensitive)
 
 -- | When applied to a DefaultTimeZone and a RadGroup, returns a
 -- report with the default options.
@@ -56,15 +72,75 @@ defaultPostsReport ::
   C.DefaultTimeZone
   -> C.RadGroup
   -> I.Report
-defaultPostsReport dtz rg = undefined
+defaultPostsReport dtz rg = makeReport f where
+  f = parseReportOpts (\rt -> O.defaultOptions dtz rg rt)
 
--- | Makes a Posts report with customizable options.
-parsePostsReport ::
+-- | Generate a custom Posts report.
+customPostsReport ::
   (S.Runtime -> O.T)
-  -- ^ Function that, when applied to a Runtime, returns the report
-  -- options
+  -- ^ Function that, when applied to a Runtime, returns the default
+  -- options for the posts report. The options will be overridden by
+  -- any options on the command line.
 
-  -> I.ParseReportOpts
-parsePostsReport frt rt =
-  let opts = frt rt
-  in undefined
+  -> I.Report
+customPostsReport = makeReport . parseReportOpts
+
+-- | When passed a ParseReportOpts, makes a Report.
+makeReport ::
+  I.ParseReportOpts
+  -> I.Report
+makeReport f =
+  I.Report { I.help = help
+           , I.name = "posts"
+           , I.parseReport = f }
+
+type Factory = CaseSensitive -> X.Text
+                 -> Ex.Exceptional X.Text (X.Text -> Bool)
+
+parseReportOpts ::
+  (S.Runtime -> O.T)
+  -> S.Runtime
+  -> Parser (CaseSensitive
+             -> Factory
+             -> [L.Box Ly.LibertyMeta]
+             -> a
+             -> Ex.Exceptional X.Text XL.Text)
+parseReportOpts frt rt = do
+  getOpts <- parseOptions rt
+  let optsDefault = frt rt
+      f cs fty bs _ = do
+        let optsInit = optsDefault { O.sensitive = cs
+                                   , O.factory = fty }
+        optsParsed <- case getOpts optsInit of
+          Ex.Exception e -> Ex.throw . X.pack . show $ e
+          Ex.Success g -> return g
+        makeReportTxt optsParsed bs
+  return f
+            
+
+-- | Using the options parsed from the command line, print out the
+-- report.
+makeReportTxt ::
+  O.T
+  -> [L.Box Ly.LibertyMeta]
+  -> Ex.Exceptional X.Text XL.Text
+makeReportTxt op bs = fmap mkText postMetaBoxes
+  where
+    e = X.pack "posts report: filter expression parse failure"
+    postMetaBoxes = Ex.fromMaybe e (filterAndAssignMeta op bs)
+    mkText = Chk.bitsToText (O.colorPref op) . makeChunk op
+    
+
+-- | Takes a list of Box with LibertyMeta and options as processed
+-- from the command line.  Filters the list of Box and processes the
+-- post filter, then assigns the post metadata. Fails if the
+-- expression fails to produce a result.
+filterAndAssignMeta ::
+  O.T
+  -> [L.Box Ly.LibertyMeta]
+  -> Maybe [L.Box M.PostMeta]
+filterAndAssignMeta op bs =
+  M.addMetadata (O.showZeroBalances op)
+  <$> M.filterBoxes (O.tokens op) (O.postFilter op) bs
+
+

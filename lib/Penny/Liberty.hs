@@ -19,6 +19,7 @@ module Penny.Liberty (
   ItemIndex(ItemIndex, unItemIndex),
   PostFilterFn,
   parseComparer,
+  processPostFilters,
   
   -- * Parsers
   parseOperand,
