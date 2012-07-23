@@ -22,11 +22,13 @@ module Penny.Liberty (
   processPostFilters,
   
   -- * Parsers
+  Operand,
   parseOperand,
   parsePostFilter,
   parseMatcherSelect,
   parseCaseSelect,
   parseOperator,
+  Orderer,
   parseSort
   ) where
 

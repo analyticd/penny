@@ -1,13 +1,14 @@
 module Penny.Zinc.Parser.Filter where
 
 import Control.Applicative ((<|>), (<$>))
-import Control.Monad.Exception.Synchronous (Exceptional)
+import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Monoid (mempty, mappend)
 import Data.Text (Text, pack)
 import qualified Text.Matchers.Text as M
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
 
+import qualified Penny.Copper as Cop
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as X
@@ -15,29 +16,88 @@ import qualified Penny.Liberty.Expressions as X
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (RadGroup)
 
-data NeedsHelp = NeedsHelp
 
-data Help = Help | NoHelp
 
-{-
+data Error = LibertyError Ly.Error
+             deriving Show
+
 data State =
   State { sensitive :: M.CaseSensitive
         , factory :: M.CaseSensitive
-                     -> Text -> Exceptional Text (Text -> Bool)
-        , tokens :: [X.Token (T.PostingInfo -> Bool)]
-        , postFilter :: [T.PostingInfo] -> [T.PostingInfo]
-        , orderer :: S.Orderer
-        , help :: Help }
+                     -> Text -> Ex.Exceptional Text (Text -> Bool)
+        , tokens :: [X.Token (L.PostFam -> Bool)]
+        , postFilter :: [Ly.PostFilterFn]
+        , orderer :: Ly.Orderer
+        , help :: Bool
+        , currentTime :: L.DateTime
+        , defaultTimeZone :: Cop.DefaultTimeZone
+        , radGroup :: Cop.RadGroup }
 
-newState :: State
-newState =
+newState ::
+  L.DateTime
+  -> Cop.DefaultTimeZone
+  -> Cop.RadGroup
+  -> State
+newState time dtz rg =
   State { sensitive = M.Insensitive
         , factory = \c t -> return (M.within c t)
         , tokens = []
-        , postFilter = id
-        , orderer = mempty 
-        , help = NoHelp }
+        , postFilter = []
+        , orderer = mempty
+        , help = False
+        , currentTime = time
+        , defaultTimeZone = dtz
+        , radGroup = rg }
 
+option :: [String] -> [Char] -> C.ArgSpec a -> Parser a
+option ss cs a = C.parseOption [C.OptSpec ss cs a]
+
+operand :: Parser (State -> Ex.Exceptional Error State)
+operand = f <$> Ly.parseOperand
+  where
+    f lyFn =
+      let g st =
+            let r = lyFn (currentTime st) (defaultTimeZone st)
+                    (radGroup st) (sensitive st) (factory st)
+            in case r of
+              Ex.Exception e -> Ex.throw . LibertyError $ e
+              Ex.Success (X.Operand o) ->
+                let tok' = tokens st ++ [X.TokOperand o]
+                in return st { tokens = tok' }
+      in g
+                   
+parsePostFilter :: Parser (State -> Ex.Exceptional Error State)
+parsePostFilter = f <$> Ly.parsePostFilter
+  where
+    f lyResult =
+      let g st = case lyResult of
+            Ex.Exception e -> Ex.throw . LibertyError $ e
+            Ex.Success g ->
+              let ls' = postFilter st ++ [g]
+              in return st { postFilter = ls' }
+      in g
+
+impurify ::
+  (Functor f, 
+
+parseMatcherSelect :: Parser (State -> State)
+parseMatcherSelect = f <$> Ly.parseMatcherSelect
+  where
+    f fty = g
+      where
+        g st = st { factory = fty }
+
+parseCaseSelect :: Parser (State -> State)
+parseCaseSelect = f <$> Ly.parseCaseSelect
+  where
+    f sel = g
+      where
+        g st = st { sensitive = sel }
+
+parseOperator :: Parser (State -> Ex.Exceptional a State)
+parseOperator = undefined
+
+{-
 wrapLiberty ::
   DefaultTimeZone
   -> DateTime
