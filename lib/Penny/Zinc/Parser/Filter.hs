@@ -5,29 +5,21 @@ import Control.Monad.Exception.Synchronous (Exceptional)
 import Data.Monoid (mempty, mappend)
 import Data.Text (Text, pack)
 import qualified Text.Matchers.Text as M
-import System.Console.MultiArg.Combinator (option, mixedNoArg)
-import System.Console.MultiArg.Option (makeLongOpt, makeShortOpt)
-import System.Console.MultiArg.Prim (ParserE, throw)
+import qualified System.Console.MultiArg.Combinator as C
+import System.Console.MultiArg.Prim (Parser)
 
-import Penny.Liberty.Error (Error)
-import Penny.Liberty.Combinator (runUntilFailure)
-import qualified Penny.Liberty.Error as E
+import qualified Penny.Lincoln as L
+import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as X
-import qualified Penny.Liberty.Filter as LF
-import qualified Penny.Liberty.Operators as Oo
-import qualified Penny.Liberty.Seq as PSq
-import qualified Penny.Liberty.Sorter as S
-import qualified Penny.Liberty.Types as T
 
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (RadGroup)
-import Penny.Lincoln.Bits (DateTime)
-import Penny.Lincoln.Boxes (PostingBox)
 
 data NeedsHelp = NeedsHelp
 
 data Help = Help | NoHelp
 
+{-
 data State =
   State { sensitive :: M.CaseSensitive
         , factory :: M.CaseSensitive
@@ -135,3 +127,4 @@ sortFilterAndPostFilter o p pf =
   pf
   . filter p
   . PSq.sortedPostingInfos o
+-}
