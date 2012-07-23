@@ -2,7 +2,8 @@ module Penny.Cabin.Balance.Parser (parser) where
 
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL
-import Control.Applicative ((<|>), (<$))
+import Control.Applicative ((<|>), many)
+import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Colors.DarkBackground as DB
@@ -13,117 +14,130 @@ import qualified Penny.Cabin.Balance.Tree as Tree
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Copper.Commodity as CC
 import qualified Penny.Copper.DateTime as CD
-import qualified Penny.Liberty.Combinator as LC
-import qualified Penny.Liberty.Error as E
-import qualified Penny.Liberty.Types as LT
+import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
-import qualified System.Console.MultiArg.Prim as P
+import System.Console.MultiArg.Prim (Parser)
 import qualified System.Console.MultiArg.Combinator as C
-import qualified System.Console.MultiArg.Option as Opt
 import qualified Text.Parsec as Parsec
 
-type ReportFn =
-  [LT.PostingInfo]
-  -> [L.PriceBox]
-  -> Ex.Exceptional X.Text XL.Text
+data Error = BadColorName String
+           | BadBackground String
+           | BadCommodity String
+           | BadDate String
+             deriving Show
 
 parser ::
   S.Runtime
-  -> O.Options
-  -> P.ParserE E.Error ReportFn
-parser rt os = do
-  command
-  os' <- opts rt os
-  let toTxt infos prices = do
-        bits <- Tree.report os' infos prices
-        return . Chk.bitsToText (O.colorPref os') . concat $ bits
-  return toTxt
-
-opts :: S.Runtime -> O.Options -> P.ParserE E.Error O.Options
-opts rt os = let
-  p o = color rt o
-        <|> background o
-        <|> showZero o
-        <|> hideZero o
-        <|> convertLong o
-        <|> convertShort rt o
-  in do
-    ls <- LC.runUntilFailure p os
-    case ls of
-      [] -> return os
-      xs -> return $ last xs
-
-command :: P.ParserE E.Error ()
-command = P.try $ do
-  n <- P.nextArg
-  if n == X.pack "bal" || n == X.pack "balance"
-    then return ()
-    else P.throw (E.UnexpectedWord (X.pack "balance") n)
-
-color :: S.Runtime -> O.Options -> P.ParserE E.Error O.Options
-color rt os = do
-  (_, a) <- C.longOneArg (Opt.makeLongOpt (X.pack "color"))
-  c <- processColorArg rt a
-  return $ os { O.colorPref = c }
+  -> Parser (O.Options
+             -> [L.Box Ly.LibertyMeta]
+             -> [L.PricePoint]
+             -> Ex.Exceptional X.Text XL.Text)
+parser rt = do
+  ls <- many (opts rt)
+  let f opInit bs ps = do
+        let errOpParsed = (foldl (>=>) return ls) opInit
+        opParsed <- case errOpParsed of
+          Ex.Exception e -> Ex.throw . X.pack . show $ e
+          Ex.Success g -> return g
+        bits <- Tree.report opParsed bs ps
+        return
+          . Chk.bitsToText (O.colorPref opParsed)
+          . concat
+          $ bits
+  return f
 
 processColorArg ::
   S.Runtime
-  -> X.Text
-  -> P.ParserE E.Error Chk.Colors
+  -> String
+  -> Maybe Chk.Colors
 processColorArg rt x
-  | x == X.pack "yes" = return Chk.Colors8
-  | x == X.pack "no" = return Chk.Colors0
-  | x == X.pack "auto" = return Chk.Colors256
-  | x == X.pack "256" = return (CO.maxCapableColors rt)
-  | otherwise = P.throw (E.BadColorName x)
+  | x == "yes" = return Chk.Colors8
+  | x == "no" = return Chk.Colors0
+  | x == "auto" = return Chk.Colors256
+  | x == "256" = return (CO.maxCapableColors rt)
+  | otherwise = Nothing
 
-background :: O.Options -> P.ParserE E.Error O.Options
-background os = do
-  (_, a) <- C.longOneArg (Opt.makeLongOpt (X.pack "background"))
-  (dc, bc) <- processBackgroundArg a
-  return $ os { O.drCrColors = dc, O.baseColors = bc }
+parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
+parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
+
+color ::
+  S.Runtime
+  -> Parser (O.Options -> Ex.Exceptional Error O.Options)
+color rt = parseOpt ["color"] "" (C.OneArg f)
+  where
+    f a1 op = case processColorArg rt a1 of
+      Nothing -> Ex.throw . BadColorName $ a1
+      Just c -> return (op { O.colorPref = c })
 
 processBackgroundArg ::
-  X.Text
-  -> P.ParserE E.Error (Col.DrCrColors, Col.BaseColors)
+  String
+  -> Maybe (Col.DrCrColors, Col.BaseColors)
 processBackgroundArg x
-  | x == X.pack "light" = return (LB.drCrColors, LB.baseColors)
-  | x == X.pack "dark" = return (DB.drCrColors, DB.baseColors)
-  | otherwise = P.throw (E.BadBackgroundArg x)
+  | x == "light" = return (LB.drCrColors, LB.baseColors)
+  | x == "dark" = return (DB.drCrColors, DB.baseColors)
+  | otherwise = Nothing
 
-showZero :: O.Options -> P.ParserE E.Error O.Options
-showZero os = os' <$ C.longNoArg lno where
-  lno = Opt.makeLongOpt (X.pack "show-zero-balances")
-  os' = os { O.showZeroBalances = CO.ShowZeroBalances True }
 
-hideZero :: O.Options -> P.ParserE E.Error O.Options
-hideZero os = os' <$ C.longNoArg lno where
-  lno = Opt.makeLongOpt (X.pack "hide-zero-balances")
-  os' = os { O.showZeroBalances = CO.ShowZeroBalances False }
+background :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+background = parseOpt ["background"] "" (C.OneArg f)
+  where
+    f a1 op = case processBackgroundArg a1 of
+      Nothing -> Ex.throw . BadBackground $ a1
+      Just (dc, base) ->
+        return op { O.drCrColors = dc
+                  , O.baseColors = base }
 
-convertLong :: O.Options -> P.ParserE E.Error O.Options
-convertLong os = do
-  (_, a1, a2) <- C.longTwoArg (Opt.makeLongOpt (X.pack "convert"))
-  cty <- case Parsec.parse CC.lvl1Cmdty "" a1 of
-    Left _ -> P.throw (E.BadCommodityError a1)
-    Right g -> return g
-  let parseDate = CD.dateTime (O.defaultTimeZone os)
-  dt <- case Parsec.parse parseDate "" a2 of
-    Left _ -> P.throw E.DateParseError
-    Right g -> return g
-  let os' = os { O.convert = Just (cty, dt) }
-  return os'
+showZeroBalances ::
+  Parser (O.Options -> Ex.Exceptional a O.Options)
+showZeroBalances = parseOpt ["show-zero-balances"] "" (C.NoArg f)
+  where
+    f op =
+      return (op {O.showZeroBalances = CO.ShowZeroBalances True })
+
+hideZeroBalances ::
+  Parser (O.Options -> Ex.Exceptional a O.Options)
+hideZeroBalances = parseOpt ["hide-zero-balances"] "" (C.NoArg f)
+  where
+    f op =
+      return (op {O.showZeroBalances = CO.ShowZeroBalances False })
+
+convertLong ::
+  Parser (O.Options -> Ex.Exceptional Error O.Options)
+convertLong = parseOpt ["convert"] "" (C.TwoArg f)
+  where
+    f a1 a2 op = do
+      cty <- case Parsec.parse CC.lvl1Cmdty "" (X.pack a1) of
+        Left _ -> Ex.throw . BadCommodity $ a1
+        Right g -> return g
+      let parseDate = CD.dateTime (O.defaultTimeZone op)
+      dt <- case Parsec.parse parseDate "" (X.pack a2) of
+        Left _ -> Ex.throw . BadDate $ a2
+        Right g -> return g
+      let op' = op { O.convert = Just (cty, dt) }
+      return op'
 
 convertShort ::
   S.Runtime
-  -> O.Options
-  -> P.ParserE E.Error O.Options
-convertShort rt os = do
-  (_, a1) <- C.shortOneArg (Opt.makeShortOpt 'c')
-  cty <- case Parsec.parse CC.lvl1Cmdty "" a1 of
-    Left _ -> P.throw (E.BadCommodityError a1)
-    Right g -> return g
-  let dt = S.currentTime rt
-      os' = os { O.convert = Just (cty, dt) }
-  return os'
+  -> Parser (O.Options -> Ex.Exceptional Error O.Options)
+convertShort rt = parseOpt [] ['c'] (C.OneArg f)
+  where
+    f a1 op = do
+      cty <- case Parsec.parse CC.lvl1Cmdty "" (X.pack a1) of
+        Left _ -> Ex.throw . BadCommodity $ a1
+        Right g -> return g
+      let dt = S.currentTime rt
+          op' = op { O.convert = Just (cty, dt) }
+      return op'
+        
+
+opts ::
+  S.Runtime
+  -> Parser (O.Options -> Ex.Exceptional Error O.Options)
+opts rt =
+  color rt
+  <|> background
+  <|> showZeroBalances
+  <|> hideZeroBalances
+  <|> convertLong
+  <|> convertShort rt
