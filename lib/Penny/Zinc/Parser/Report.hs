@@ -1,25 +1,34 @@
-module Penny.Zinc.Parser.Report where
+module Penny.Zinc.Parser.Report (report) where
 
-import Control.Applicative ((<|>))
-import qualified Control.Monad.Exception.Synchronous as ES
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Text as X
-import System.Console.MultiArg.Prim (ParserE)
-import qualified Text.Matchers.Text as T
+import System.Console.MultiArg.Prim (Parser)
+import qualified System.Console.MultiArg.Combinator as C
 
 import qualified Penny.Cabin.Interface as I
-import qualified Penny.Liberty.Error as E
 import qualified Penny.Shield as S
+import qualified Data.Set as Set
 
+-- | Given a Runtime and a list of available Reports, returns a Parser
+-- that will return a function corresponding to the report the user
+-- desires. The parser returned assumes that the filtering options
+-- have already been parsed. The returned parser parses all options
+-- corresponding to report options in order to return the function.
 report ::
   S.Runtime
-  -> NE.NonEmpty I.Report
-  -> T.CaseSensitive
-  -> (T.CaseSensitive
-      -> X.Text -> ES.Exceptional X.Text (X.Text -> Bool))
-  -> ParserE E.Error I.ReportFunc
-report rt rs c fact = foldl (<|>) first rest where
-  toParser r = I.parseReport r rt c fact
-  first = toParser (NE.head rs)
-  rest = map toParser (NE.tail rs)
+  -- ^ Things only known at runtime, such as the current date
+  
+  -> [I.Report]
+  -- ^ List of available Reports
+
+  -> Parser I.ParserFunc
+report rt rs = do
+  let toPair r = (I.name r, I.parseReport r rt)
+      alist = map toPair rs
+      set = Set.fromList . map fst $ alist
+  (_, n) <- C.matchApproxWord set
+  case lookup n alist of
+    Nothing -> error $ "Penny.Zinc.Parser.Report: error: "
+               ++ "report not found"
+    Just rptFunc -> rptFunc
+
+
 

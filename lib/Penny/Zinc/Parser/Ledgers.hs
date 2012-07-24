@@ -1,22 +1,20 @@
 module Penny.Zinc.Parser.Ledgers where
 
-import Control.Applicative ((<$>), (<*>), pure, many, liftA)
+import Control.Applicative ((<$>), (<*>), pure, many, liftA,
+                            optional)
 import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
-import qualified Data.List.NonEmpty as NE
-import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO as TIO
 import qualified Data.Traversable as T
 
 import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
-import qualified Penny.Liberty.Error as LE
+import qualified Penny.Liberty as Ly
 import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
 import qualified Penny.Zinc.Error as ZE
-import System.Console.MultiArg.Combinator (option)
-import System.Console.MultiArg.Prim (ParserE, nextArg)
+import System.Console.MultiArg.Prim (Parser, nextArg)
 import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
 import qualified Text.Parsec as Parsec
 
@@ -39,9 +37,8 @@ ledgerText f = case f of
     TIO.hGetContents stdin
   Filename fn -> TIO.readFile (unpack fn)
 
-readLedgers :: NE.NonEmpty Filename
-               -> IO (NE.NonEmpty (Filename, Text))
-readLedgers = T.traverse f where
+readLedgers :: [Filename] -> IO [(Filename, Text)]
+readLedgers = mapM f where
   f fn = (,) <$> pure fn <*> ledgerText fn
 
 parseLedger ::
@@ -72,15 +69,18 @@ combineData ::
 combineData = F.foldr f ([], []) where
   f (as, bs) (ass, bss) = (as ++ ass, bs ++ bss)
 
-filename :: ParserE LE.Error Filename
-filename = do
-  a <- nextArg
-  return $ if a == pack "-"
-           then Stdin
-           else Filename a
+filename :: Parser Filename
+filename = f <$> nextArg
+  where
+    f a = if a == pack "-"
+          then Stdin
+          else Filename a
 
-filenames :: ParserE LE.Error (NE.NonEmpty Filename)
+filenames :: Parser [Filename]
 filenames = do
-  fn1 <- option Stdin (Filename <$> nextArg)
-  fns <- liftA (fmap Filename) (many nextArg)
-  return $ fn1 :| fns
+  fn1 <- optional filename
+  case fn1 of
+    Nothing -> return [Stdin]
+    Just fn -> do
+      fns <- many filename
+      return fn1:fns
