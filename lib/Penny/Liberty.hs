@@ -20,6 +20,7 @@ module Penny.Liberty (
   PostFilterFn,
   parseComparer,
   processPostFilters,
+  parseTokenList,
   
   -- * Parsers
   Operand,
@@ -75,16 +76,20 @@ data LibertyMeta =
   deriving Show
 
 
+-- | Parses a list of tokens. Returns Nothing if the token sequence is
+-- invalid (e.g. if two operators are next to each other) or if the
+-- resulting RPN expression is bad (there are tokens left on the stack
+-- after parsing). Otherwise, returns the expression.
+parseTokenList :: [X.Token a] -> Maybe a
+parseTokenList = X.evaluate . foldl (flip Queue.enqueue) Queue.empty
+
 -- | Takes a list of transactions, splits them into PostingChild
 -- instances, filters them, post-filters them, sorts them, and places
 -- them in Box instances with Filtered serials.
 xactionsToFiltered ::
   
-  [X.Token (L.PostFam -> Bool)]
-  -- ^ Parsing these tokens will yield an expression that will be used
-  -- to filter the postings. If parsing the tokens fails, this
-  -- function returns Nothing. If the resulting RPN expression fails,
-  -- this function returns Nothing.
+  (L.PostFam -> Bool)
+  -- ^ The predicate to filter the transactions
 
   -> [PostFilterFn]
   -- ^ Post filter specs
@@ -95,25 +100,18 @@ xactionsToFiltered ::
   -> [L.Transaction]
   -- ^ The transactions to work on (probably parsed in from Copper)
   
-  -> Maybe [L.Box LibertyMeta]
-  -- ^ Nothing if the token list fails to parse into an RPN
-  -- expression, or if the resulting RPN expression fails to return a
-  -- result (e.g. it leaves values on the stack); otherwise, returns
-  -- Just with the the sorted, filtered postings.
+  -> [L.Box LibertyMeta]
+  -- ^ Sorted, filtered postings
 
-xactionsToFiltered tkns pfs s txns =
-  case X.evaluate (foldl (flip Queue.enqueue) Queue.empty tkns) of
-    Nothing -> Nothing
-    Just pdct ->
-      return
-      . addSortedNum
-      . processPostFilters pfs
-      . sortBy (sorter s)
-      . addFilteredNum
-      . map toBox
-      . filter pdct
-      . concatMap makeChildren
-      $ txns
+xactionsToFiltered pdct pfs s =
+  addSortedNum
+  . processPostFilters pfs
+  . sortBy (sorter s)
+  . addFilteredNum
+  . map toBox
+  . filter pdct
+  . concatMap makeChildren
+
 
 -- | Transform a list of transactions into a list of children.
 makeChildren :: L.Transaction -> [L.PostFam]

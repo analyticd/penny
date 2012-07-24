@@ -1,9 +1,15 @@
-module Penny.Zinc.Parser.Filter where
+module Penny.Zinc.Parser.Filter (
+  parseFilter
+  , Error(LibertyError, TokenParseError)
+  , NeedsHelp
+  , Result(resultFactory, resultSensitive, sorterFilterer)
+  ) where
 
-import Control.Applicative ((<|>), (<$>))
+import Control.Applicative ((<|>), (<$>), Applicative, pure, many)
+import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Monoid (mempty, mappend)
-import Data.Text (Text, pack)
+import Data.Text (Text)
 import qualified Text.Matchers.Text as M
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
@@ -13,13 +19,59 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as X
 
-import Penny.Copper.DateTime (DefaultTimeZone)
-import Penny.Copper.Qty (RadGroup)
+import qualified Penny.Zinc.Parser.Defaults as D
+import qualified Penny.Zinc.Parser.Defaults as Defaults
 
-
+-- | Parses all filtering options. Returns a parser that contains an
+-- Exception if some error occurred after parsing the options, or a
+-- Success with a result if the parse was successful.
+parseFilter ::
+  Defaults.T
+  -> Parser (Ex.Exceptional Error (Either NeedsHelp Result))
+parseFilter d = fmap f (many parser) where
+  f ls =
+    let k = foldl (>=>) return ls
+    in case k (newState d) of
+      Ex.Success st' ->
+        if help st'
+        then return . Left $ NeedsHelp
+        else
+          case Ly.parseTokenList . tokens $ st' of
+            Nothing -> Ex.throw TokenParseError
+            Just pdct ->
+              let fn = Ly.xactionsToFiltered pdct
+                       (postFilter st') (orderer st')
+                  r = Result { resultFactory = factory st'
+                             , resultSensitive = sensitive st'
+                             , sorterFilterer = fn }
+              in return . Right $ r
+      Ex.Exception e -> Ex.Exception e
+      
 
 data Error = LibertyError Ly.Error
+             | TokenParseError
              deriving Show
+
+-- | Returned if the user requested help.
+data NeedsHelp = NeedsHelp
+                 deriving Show
+
+-- | Indicates the result of a successful parse of filtering options.
+data Result =
+  Result { resultFactory :: M.CaseSensitive
+                            -> Text -> Ex.Exceptional Text (Text -> Bool)
+           -- ^ The factory indicated, so that it can be used in
+           -- subsequent parses of the same command line.
+
+         , resultSensitive :: M.CaseSensitive
+           -- ^ Indicated case sensitivity, so that it can be used in
+           -- subsequent parses of the command line.
+           
+         , sorterFilterer :: [L.Transaction] -> [L.Box Ly.LibertyMeta]
+           -- ^ Applied to a list of Transaction, will sort and filter
+           -- the transactions and assign them LibertyMeta.
+         }
+
 
 data State =
   State { sensitive :: M.CaseSensitive
@@ -34,20 +86,28 @@ data State =
         , radGroup :: Cop.RadGroup }
 
 newState ::
-  L.DateTime
-  -> Cop.DefaultTimeZone
-  -> Cop.RadGroup
+  Defaults.T
   -> State
-newState time dtz rg =
-  State { sensitive = M.Insensitive
-        , factory = \c t -> return (M.within c t)
+newState d =
+  State { sensitive = D.sensitive d
+        , factory = D.factory d
         , tokens = []
         , postFilter = []
         , orderer = mempty
         , help = False
-        , currentTime = time
-        , defaultTimeZone = dtz
-        , radGroup = rg }
+        , currentTime = D.currentTime d
+        , defaultTimeZone = D.defaultTimeZone d
+        , radGroup = D.radGroup d }
+
+parser :: Parser (State -> Ex.Exceptional Error State)
+parser =
+  operand
+  <|> parsePostFilter
+  <|> impurify parseMatcherSelect
+  <|> impurify parseCaseSelect
+  <|> impurify parseOperator
+  <|> parseSort
+  <|> impurify parseHelp
 
 option :: [String] -> [Char] -> C.ArgSpec a -> Parser a
 option ss cs a = C.parseOption [C.OptSpec ss cs a]
@@ -72,13 +132,16 @@ parsePostFilter = f <$> Ly.parsePostFilter
     f lyResult =
       let g st = case lyResult of
             Ex.Exception e -> Ex.throw . LibertyError $ e
-            Ex.Success g ->
-              let ls' = postFilter st ++ [g]
+            Ex.Success pf ->
+              let ls' = postFilter st ++ [pf]
               in return st { postFilter = ls' }
       in g
 
 impurify ::
-  (Functor f, 
+  (Functor f, Applicative a)
+  => f (b -> b)
+  -> f (b -> a b)
+impurify = fmap (pure .)
 
 parseMatcherSelect :: Parser (State -> State)
 parseMatcherSelect = f <$> Ly.parseMatcherSelect
@@ -94,8 +157,27 @@ parseCaseSelect = f <$> Ly.parseCaseSelect
       where
         g st = st { sensitive = sel }
 
-parseOperator :: Parser (State -> Ex.Exceptional a State)
-parseOperator = undefined
+parseOperator :: Parser (State -> State)
+parseOperator = f <$> Ly.parseOperator
+  where
+    f tok = g
+      where
+        g st = st { tokens = tokens st ++ [tok] }
+
+parseSort :: Parser (State -> Ex.Exceptional Error State)
+parseSort = f <$> Ly.parseSort
+  where
+    f exOrd = g
+      where
+        g st = case exOrd of
+          Ex.Exception e -> Ex.throw . LibertyError $ e
+          Ex.Success o ->
+            return st { orderer = mappend o (orderer st) }
+
+parseHelp :: Parser (State -> State)
+parseHelp = option ["help"] ['h'] (C.NoArg f)
+  where
+    f st = st { help = True }
 
 {-
 wrapLiberty ::
@@ -152,12 +234,6 @@ parseOptions dtz dt rg st =
   option st $ do
     rs <- runUntilFailure (parseOption dtz dt rg) st
     if null rs then return st else return (last rs)
-
-data Result =
-  Result { resultFactory :: M.CaseSensitive
-                            -> Text -> Exceptional Text (Text -> Bool)
-         , resultSensitive :: M.CaseSensitive
-         , sorterFilterer :: [PostingBox] -> [T.PostingInfo] }
 
 parseFilter ::
   DefaultTimeZone

@@ -296,6 +296,7 @@ Library
         Penny.Zinc.Error,
         Penny.Zinc.Help,
         Penny.Zinc.Parser,
+        Penny.Zinc.Parser.Defaults,
         Penny.Zinc.Parser.Filter,
         Penny.Zinc.Parser.Ledgers,
         Penny.Zinc.Parser.Report
