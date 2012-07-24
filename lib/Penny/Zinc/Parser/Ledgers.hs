@@ -41,11 +41,11 @@ readLedgers :: [Filename] -> IO [(Filename, Text)]
 readLedgers = mapM f where
   f fn = (,) <$> pure fn <*> ledgerText fn
 
-parseLedger ::
+parseLedgers ::
   C.DefaultTimeZone
   -> C.RadGroup
   -> (Filename, Text)
-  -> Ex.Exceptional ZE.Error ([TransactionBox], [PriceBox])
+  -> Ex.Exceptional ZE.Error ([L.Transaction], [L.PricePoint])
 parseLedger dtz rg (f, txt) = let
   fnStr = case f of
     Stdin -> "<stdin>"
