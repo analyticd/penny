@@ -1,22 +1,21 @@
-module Penny.Zinc.Parser.Ledgers where
+module Penny.Zinc.Parser.Ledgers (
+  filenames
+  , parseLedgers
+  , readLedgers
+  ) where
 
-import Control.Applicative ((<$>), (<*>), pure, many, liftA,
-                            optional)
+import Control.Applicative ((<$>), many, optional)
 import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Data.Foldable as F
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO as TIO
-import qualified Data.Traversable as T
 
 import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
-import qualified Penny.Liberty as Ly
-import Penny.Lincoln.Boxes (TransactionBox, PriceBox)
 import qualified Penny.Zinc.Error as ZE
 import System.Console.MultiArg.Prim (Parser, nextArg)
 import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
-import qualified Text.Parsec as Parsec
+
 
 warnTerminal :: IO ()
 warnTerminal =
@@ -26,6 +25,11 @@ warnTerminal =
 data Filename =
   Filename Text
   | Stdin
+
+-- | Converts a Ledgers filename to a Lincoln filename.
+convertFilename :: Filename -> L.Filename
+convertFilename (Filename x) = L.Filename x
+convertFilename Stdin = L.Filename . pack $ "<stdin>"
 
 -- | Actually reads the file off disk. For now just let this crash if
 -- any of the IO errors occur.
@@ -39,42 +43,31 @@ ledgerText f = case f of
 
 readLedgers :: [Filename] -> IO [(Filename, Text)]
 readLedgers = mapM f where
-  f fn = (,) <$> pure fn <*> ledgerText fn
+  f fn = (\txt -> (fn, txt)) <$> ledgerText fn
 
 parseLedgers ::
   C.DefaultTimeZone
   -> C.RadGroup
-  -> (Filename, Text)
+  -> [(Filename, Text)]
   -> Ex.Exceptional ZE.Error ([L.Transaction], [L.PricePoint])
-parseLedger dtz rg (f, txt) = let
-  fnStr = case f of
-    Stdin -> "<stdin>"
-    Filename x -> unpack x
-  fn = L.Filename . pack $ fnStr
-  parser = C.ledger fn dtz rg
-  in case Ex.fromEither $ Parsec.parse parser fnStr txt of
-    Ex.Exception e ->
-      Ex.Exception (ZE.ParseError (pack . show $ e))
-    Ex.Success (C.Ledger is) -> let
+parseLedgers dtz rg ls =
+  let toPair (f, t) = (convertFilename f, C.FileContents t)
+      parsed = C.parse dtz rg (map toPair ls)
       folder i (ts, ps) = case snd i of
         C.Transaction t -> (t:ts, ps)
         C.Price p -> (ts, p:ps)
         _ -> (ts, ps)
-      in Ex.Success $ foldr folder ([], []) is
+      toResult (C.Ledger is) = foldr folder ([], []) is
+      toErr (C.ErrorMsg x) = ZE.ParseError x
+  in Ex.mapExceptional toErr toResult parsed
 
-combineData ::
-  F.Foldable f
-  => f ([a], [b])
-  -> ([a], [b])
-combineData = F.foldr f ([], []) where
-  f (as, bs) (ass, bss) = (as ++ ass, bs ++ bss)
 
 filename :: Parser Filename
 filename = f <$> nextArg
   where
-    f a = if a == pack "-"
+    f a = if a == "-"
           then Stdin
-          else Filename a
+          else Filename . pack $ a
 
 filenames :: Parser [Filename]
 filenames = do
@@ -83,4 +76,4 @@ filenames = do
     Nothing -> return [Stdin]
     Just fn -> do
       fns <- many filename
-      return fn1:fns
+      return (fn:fns)
