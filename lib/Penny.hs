@@ -7,8 +7,6 @@ the links for details on each component of Penny.
 
 "Penny.Copper" - the Penny parser. Depends on Lincoln.
 
-"Penny.Denver" - Imports from John Wiegley's Ledger
-
 "Penny.Liberty" - Penny command line parser helpers. Depends on
 Lincoln and Copper.
 
