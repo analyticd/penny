@@ -110,12 +110,8 @@ xactionsToFiltered pdct pfs s =
   . addFilteredNum
   . map toBox
   . filter pdct
-  . concatMap makeChildren
+  . concatMap L.postFam
 
-
--- | Transform a list of transactions into a list of children.
-makeChildren :: L.Transaction -> [L.PostFam]
-makeChildren = undefined
 
 -- | Transforms a PostingChild into a Box.
 toBox :: L.PostFam -> L.Box ()
@@ -123,22 +119,25 @@ toBox = L.Box ()
 
 -- | Takes a list of filtered boxes and adds the Filtered serials.
 
-addFilteredNum :: [L.Box ()] -> [L.Box FilteredNum]
-addFilteredNum = undefined
+addFilteredNum :: [L.Box a] -> [L.Box FilteredNum]
+addFilteredNum = L.serialItems f where
+  f ser = fmap (const (FilteredNum ser))
 
 -- | Wraps a PostingChild sorter to change it to a Box sorter.
 sorter :: (L.PostFam -> L.PostFam -> Ordering)
           -> L.Box a
           -> L.Box b
           -> Ordering
-sorter = undefined
+sorter f b1 b2 = f (L.boxPostFam b1) (L.boxPostFam b2)
 
 -- | Takes a list of Boxes with metadata and adds a Serial for the
 -- Sorted.
 addSortedNum ::
   [L.Box FilteredNum]
   -> [L.Box LibertyMeta]
-addSortedNum = undefined
+addSortedNum = L.serialItems f where
+  f ser = fmap g where
+    g filtNum = LibertyMeta filtNum (SortedNum ser)
 
 type MatcherFactory =
   CaseSensitive

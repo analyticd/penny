@@ -1,5 +1,5 @@
 -- | Cabin - Penny reports
-module Penny.Cabin (allReportsWithDefaults) where
+module Penny.Cabin (allReportsWithDefaults, I.Report(..)) where
 
 import qualified Penny.Cabin.Balance as B
 import qualified Penny.Cabin.Posts as P

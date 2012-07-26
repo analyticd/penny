@@ -61,7 +61,7 @@ import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Either as E
-import qualified Data.Foldable as F
+import qualified Data.Foldable as Fdbl
 import Data.Maybe ( catMaybes )
 import qualified Data.Traversable as Tr
 import qualified Control.Monad.Trans.State.Lazy as St
@@ -115,7 +115,7 @@ newtype PostFam = PostFam { unPostFam :: C.Child TopLine Posting }
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
 postFam :: Transaction -> [PostFam]
-postFam (Transaction ps) = undefined
+postFam (Transaction ps) = map PostFam . Fdbl.toList . children $ ps
 
 {- BNF-like grammar for the various sorts of allowed postings.
 
@@ -141,9 +141,9 @@ transaction f@(F.Family p _ _ _) = do
 totalAll :: S.Siblings U.Posting
          -> Bal.Balance
 totalAll =
-  F.foldr1 Bal.addBalances
+  Fdbl.foldr1 Bal.addBalances
   . catMaybes
-  . F.toList
+  . Fdbl.toList
   . fmap (fmap Bal.entryToBalance . U.entry)
 
 infer ::
@@ -243,7 +243,7 @@ addSerialsToList ::
   -> [Transaction]
   -> [Transaction]
 addSerialsToList ft fp ls =
-  let nPstgs = length . concatMap F.toList . map orphans
+  let nPstgs = length . concatMap Fdbl.toList . map orphans
                . map unTransaction $ ls
       initState = Ser.initNexts nPstgs
       processor = addSerials ft fp
@@ -257,7 +257,7 @@ addSerialsToEithers ::
   -> [Either a Transaction]
 addSerialsToEithers ft fp ls =
   let txns = E.rights ls
-      nPstgs = length . concatMap F.toList . map orphans
+      nPstgs = length . concatMap Fdbl.toList . map orphans
                . map unTransaction $ txns
       initState = Ser.initNexts nPstgs
       processA _ a = return a

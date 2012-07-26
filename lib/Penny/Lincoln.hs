@@ -147,6 +147,7 @@ module Penny.Lincoln (
   , T.tMemo
   , T.tMeta
   , T.changeTransactionMeta
+  , T.postFam
     
     -- ** Adding serials to transactions
   , T.addSerialsToList

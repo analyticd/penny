@@ -43,9 +43,13 @@ module Penny (
     -- * Reports
   , Cabin.allReportsWithDefaults
     
+    -- * Parser defaults
+  , Z.T(..)
+  , Z.defaultFromRuntime
+    
     -- * Main function
-  , Z.runPenny
   , defaultPenny
+  , customPenny
     
     -- * Other useful stuff - for custom reports
   ) where
@@ -72,3 +76,13 @@ defaultPenny dtz rg = do
   let df = Z.defaultFromRuntime dtz rg
       rs = Cabin.allReportsWithDefaults dtz rg
   Z.runPenny rt dtz rg df rs
+
+customPenny ::
+  Copper.DefaultTimeZone
+  -> Copper.RadGroup
+  -> (S.Runtime -> Z.T)
+  -> [Cabin.Report]
+  -> IO ()
+customPenny dtz rg gd rs = do
+  rt <- S.runtime
+  Z.runPenny rt dtz rg gd rs
