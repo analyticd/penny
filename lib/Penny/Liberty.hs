@@ -220,6 +220,7 @@ parseComparer t
   | t == "<" = Just (<)
   | t == "<=" = Just (<=)
   | t == "==" = Just (==)
+  | t == "=" = Just (==)
   | t == ">" = Just (>)
   | t == ">=" = Just (>=)
   | t == "/=" = Just (/=)
@@ -430,9 +431,9 @@ serialOption ::
   -- ^ Parses both descending and ascending serial options.
 
 serialOption getSerial n =
-  let osA = C.OptSpec [n ++ "-ascending"] []
+  let osA = C.OptSpec [n] []
             (C.TwoArg (f L.forward))
-      osD = C.OptSpec [n ++ "-descending"] []
+      osD = C.OptSpec [addPrefix "rev" n] []
             (C.TwoArg (f L.backward))
       f getInt a1 a2 = do
         cmp <- Ex.fromMaybe (BadComparator (pack a1))
@@ -444,6 +445,15 @@ serialOption getSerial n =
         return $ X.Operand op
   in C.parseOption [osA, osD]
 
+-- | Takes a string, adds a prefix and capitalizes the first letter of
+-- the old string. e.g. applied to "rev" and "globalTransaction",
+-- returns "revGlobalTransaction".
+addPrefix :: String -> String -> String
+addPrefix pre suf = pre ++ suf' where
+  suf' = case suf of
+    "" -> ""
+    x:xs -> toUpper x : xs
+
 globalTransaction :: Parser (Exceptional Error Operand)
 globalTransaction =
   let f = fmap L.unGlobalTransaction
@@ -451,7 +461,7 @@ globalTransaction =
           . L.tMeta
           . parent
           . L.unPostFam
-  in serialOption f "global-transaction"
+  in serialOption f "globalTransaction"
 
 globalPosting :: Parser (Exceptional Error Operand)
 globalPosting =
@@ -460,7 +470,7 @@ globalPosting =
           . L.pMeta
           . child
           . L.unPostFam
-  in serialOption f "global-posting"
+  in serialOption f "globalPosting"
 
 filePosting :: Parser (Exceptional Error Operand)
 filePosting =
@@ -469,7 +479,7 @@ filePosting =
           . L.pMeta
           . child
           . L.unPostFam
-  in serialOption f "file-posting"
+  in serialOption f "filePosting"
 
 fileTransaction :: Parser (Exceptional Error Operand)
 fileTransaction =
@@ -478,7 +488,7 @@ fileTransaction =
           . L.tMeta
           . parent
           . L.unPostFam
-  in serialOption f "file-transaction"
+  in serialOption f "fileTransaction"
 
 -- | Parses operands.
 parseOperand ::
