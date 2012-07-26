@@ -11,6 +11,7 @@ module Penny.Liberty (
   Error(..),
   MatcherFactory,
   X.evaluate,
+  X.Token,
   FilteredNum(FilteredNum, unFilteredNum),
   SortedNum(SortedNum, unSortedNum),
   LibertyMeta(filteredNum, sortedNum),
@@ -21,6 +22,7 @@ module Penny.Liberty (
   parseComparer,
   processPostFilters,
   parseTokenList,
+  parsePredicate,
   
   -- * Parsers
   Operand,
@@ -80,8 +82,19 @@ data LibertyMeta =
 -- invalid (e.g. if two operators are next to each other) or if the
 -- resulting RPN expression is bad (there are tokens left on the stack
 -- after parsing). Otherwise, returns the expression.
+--
+-- An empty list will fail to parse. The function calling this one
+-- must deal with empty lists if those are a possibility.
 parseTokenList :: [X.Token a] -> Maybe a
 parseTokenList = X.evaluate . foldl (flip Queue.enqueue) Queue.empty
+
+-- | Parses a list of tokens to obtain a predicate. Deals with an
+-- empty list of tokens by returning a predicate that is always
+-- True. Fails if the list of tokens is not empty and the parse fails.
+parsePredicate :: [X.Token (a -> Bool)] -> Maybe (a -> Bool)
+parsePredicate ls = case ls of
+  [] -> return (const True)
+  ts -> parseTokenList ts
 
 -- | Takes a list of transactions, splits them into PostingChild
 -- instances, filters them, post-filters them, sorts them, and places

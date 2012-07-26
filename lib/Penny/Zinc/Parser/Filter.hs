@@ -36,7 +36,7 @@ parseFilter d = fmap f (many parser) where
         if help st'
         then return . Left $ NeedsHelp
         else
-          case Ly.parseTokenList . tokens $ st' of
+          case Ly.parsePredicate . tokens $ st' of
             Nothing -> Ex.throw TokenParseError
             Just pdct ->
               let fn = Ly.xactionsToFiltered pdct
@@ -46,7 +46,6 @@ parseFilter d = fmap f (many parser) where
                              , sorterFilterer = fn }
               in return . Right $ r
       Ex.Exception e -> Ex.Exception e
-      
 
 data Error = LibertyError Ly.Error
              | TokenParseError

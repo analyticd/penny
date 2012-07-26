@@ -8,7 +8,6 @@ module Penny.Cabin.Posts.Meta (
 import Data.List (mapAccumL)
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
-import qualified Penny.Liberty.Queue as Queue
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as Exp
 import qualified Penny.Cabin.Meta as M
@@ -31,13 +30,12 @@ filterBoxes ::
   -> [Ly.PostFilterFn]
   -> [L.Box Ly.LibertyMeta]
   -> Maybe [L.Box Ly.LibertyMeta]
-filterBoxes tks pfs bs = fmap fltr (Exp.evaluate q)
+filterBoxes tks pfs bs = fmap fltr (Ly.parsePredicate tks)
   where
-    q = foldl (flip Queue.enqueue) Queue.empty tks
     fltr p =
       Ly.processPostFilters pfs . filter p $ bs
 
-  
+
 
 -- | Applied to a list of Box that have already been filtered, returns
 -- a list of Box with posting metadata.

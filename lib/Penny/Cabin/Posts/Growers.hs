@@ -310,7 +310,7 @@ growingFields :: Options.T -> Fields Bool
 growingFields o = let
   f = O.fields o in Fields {
     globalTransaction      = F.globalTransaction  f
-    , revGlobalTransaction = F.globalTransaction  f
+    , revGlobalTransaction = F.revGlobalTransaction  f
     , globalPosting        = F.globalPosting      f
     , revGlobalPosting     = F.revGlobalPosting   f
     , fileTransaction      = F.fileTransaction    f
@@ -608,44 +608,3 @@ fieldWidth (m1, m2) = case m1 of
     Just i2 -> if i2 > 0 then i1 + i2 else i1
     Nothing -> i1
 
-{-
-t_postingNum :: a -> Fields a -> Fields a
-t_postingNum a f = f { postingNum = a }
-
-t_visibleNum :: a -> Fields a -> Fields a
-t_visibleNum a f = f { visibleNum = a }
-
-t_revPostingNum :: a -> Fields a -> Fields a
-t_revPostingNum a f = f { revPostingNum = a }
-
-t_lineNum :: a -> Fields a -> Fields a
-t_lineNum a f = f { lineNum = a }
-
-t_date :: a -> Fields a -> Fields a
-t_date a f = f { date = a }
-
-t_flag :: a -> Fields a -> Fields a
-t_flag a f = f { flag = a }
-
-t_number :: a -> Fields a -> Fields a
-t_number a f = f { number = a }
-
-t_postingDrCr :: a -> Fields a -> Fields a
-t_postingDrCr a f = f { postingDrCr = a }
-
-t_postingCmdty :: a -> Fields a -> Fields a
-t_postingCmdty a f = f { postingCmdty = a }
-
-t_postingQty :: a -> Fields a -> Fields a
-t_postingQty a f = f { postingQty = a }
-
-t_totalDrCr :: a -> Fields a -> Fields a
-t_totalDrCr a f = f { totalDrCr = a }
-
-t_totalCmdty :: a -> Fields a -> Fields a
-t_totalCmdty a f = f { totalCmdty = a }
-
-t_totalQty :: a -> Fields a -> Fields a
-t_totalQty a f = f { totalQty = a }
-
--}
