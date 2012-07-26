@@ -1,4 +1,8 @@
-module Penny.Zinc.Parser (parser) where
+module Penny.Zinc.Parser (
+  Defaults.T(..)
+  , Defaults.defaultFromRuntime
+  , parser
+  ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Monoid (mappend, mconcat)
@@ -27,10 +31,11 @@ parser ::
   S.Runtime
   -> DefaultTimeZone
   -> RadGroup
-  -> Defaults.T
+  -> (S.Runtime -> Defaults.T)
   -> [I.Report]
   -> Parser (IO ())
-parser rt dtz rg df rs = do
+parser rt dtz rg getDf rs = do
+  let df = getDf rt
   errFilt <- F.parseFilter df
   case errFilt of
     Ex.Exception e -> return $ do

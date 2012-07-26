@@ -46,18 +46,17 @@ module Penny (
   , Cabin.allReportsWithDefaults
     
     -- * Main function
-  , Z.zincMain
+  , Z.runPenny
+  , defaultPenny
     
     -- * Other useful stuff - for custom reports
-    -- ** NonEmpty
-  , NonEmpty(..)
   ) where
 
 import qualified Penny.Cabin as Cabin
 import qualified Penny.Copper as Copper
 import qualified Penny.Lincoln as L
+import qualified Penny.Shield as S
 import qualified Penny.Zinc as Z
-import Data.List.NonEmpty (NonEmpty((:|)))
 
 -- | Use to make a DefaultTimeZone based on the number of minutes the
 -- time zone is offset from UTC. Make sure the argument you supply is
@@ -68,3 +67,10 @@ minsToDefaultTimeZone i = case L.minsToOffset i of
   Nothing -> error $ "penny: error: minutes out of range of "
              ++ "allowed values for time zone"
   Just tzo -> Copper.DefaultTimeZone tzo
+
+defaultPenny :: Copper.DefaultTimeZone -> Copper.RadGroup -> IO ()
+defaultPenny dtz rg = do
+  rt <- S.runtime
+  let df = Z.defaultFromRuntime dtz rg
+      rs = Cabin.allReportsWithDefaults dtz rg
+  Z.runPenny rt dtz rg df rs
