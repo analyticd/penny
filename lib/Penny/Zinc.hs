@@ -67,11 +67,5 @@ zincMain dtz rg rs = do
     Ex.Success g -> LIO.putStr g >> exitSuccess
 
 
-helpText ::
-  (F.Foldable f, Functor f)
-  => f I.Report
-  -> Text
-helpText = mappend H.help . mconcat . F.toList . fmap I.help
-
 parseErrorExit :: LE.Error -> IO a
 parseErrorExit e = TIO.hPutStrLn stderr (LE.display e) >> exitFailure

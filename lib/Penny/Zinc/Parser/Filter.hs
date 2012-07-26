@@ -1,8 +1,8 @@
 module Penny.Zinc.Parser.Filter (
   parseFilter
   , Error(LibertyError, TokenParseError)
-  , NeedsHelp
-  , Result(resultFactory, resultSensitive, sorterFilterer)
+  , NeedsHelp(NeedsHelp)
+  , Result(Result, resultFactory, resultSensitive, sorterFilterer)
   ) where
 
 import Control.Applicative ((<|>), (<$>), Applicative, pure, many)
