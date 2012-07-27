@@ -15,7 +15,7 @@ import qualified Penny.Cabin.Posts.Meta as M
 
 type Box = L.Box M.PostMeta 
 
-makeChunk :: Options.T -> [Box] -> [C.Bit]
+makeChunk :: Options.T -> [Box] -> [C.Chunk]
 makeChunk os is = let
   fmapSnd flds = fmap (fmap snd) flds
   fmapFst flds = fmap (fmap fst) flds
@@ -44,7 +44,7 @@ topRowsCells bc t = let
     (Just pairList) -> pairList : acc
   in transpose $ Fdbl.foldr f [] (fmap toWithSpc t)
 
-makeRow :: [(R.ColumnSpec, Maybe R.ColumnSpec)] -> [C.Bit]
+makeRow :: [(R.ColumnSpec, Maybe R.ColumnSpec)] -> [C.Chunk]
 makeRow = R.row . foldr f [] where
   f (c, mayC) acc = case mayC of
     Nothing -> c:acc
@@ -78,7 +78,7 @@ makeEvenOddSpacers bc cs i = let absI = abs i in
 makeTopRows ::
   PC.BaseColors
   -> B.TopRowCells (Maybe [R.ColumnSpec], Maybe Int)
-  -> Maybe [[C.Bit]]
+  -> Maybe [[C.Chunk]]
 makeTopRows bc trc =
   if Fdbl.all (isNothing . fst) trc
   then Nothing
@@ -86,14 +86,14 @@ makeTopRows bc trc =
 
 
 makeBottomRows ::
-  B.Fields (Maybe [[C.Bit]])
-  -> Maybe [[[C.Bit]]]
+  B.Fields (Maybe [[C.Chunk]])
+  -> Maybe [[[C.Chunk]]]
 makeBottomRows flds =
   if Fdbl.all isNothing flds
   then Nothing
   else Just . transpose . catMaybes . Fdbl.toList $ flds
 
-makeAllRows :: Maybe [[C.Bit]] -> Maybe [[[C.Bit]]] -> [C.Bit]
+makeAllRows :: Maybe [[C.Chunk]] -> Maybe [[[C.Chunk]]] -> [C.Chunk]
 makeAllRows mayrs mayrrs = case (mayrs, mayrrs) of
   (Nothing, Nothing) -> []
   (Just rs, Nothing) -> concat rs

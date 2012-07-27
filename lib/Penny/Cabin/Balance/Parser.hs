@@ -42,7 +42,7 @@ parser rt = do
           Ex.Success g -> return g
         bits <- Tree.report opParsed bs ps
         return
-          . Chk.bitsToText (O.colorPref opParsed)
+          . Chk.chunksToText (O.colorPref opParsed)
           . concat
           $ bits
   return f

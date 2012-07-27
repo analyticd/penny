@@ -25,9 +25,9 @@ data ColumnSpec =
   ColumnSpec { justification :: Justification
              , width :: C.Width
              , padSpec :: C.TextSpec
-             , bits :: [C.Bit] }
+             , bits :: [C.Chunk] }
 
-newtype JustifiedCell = JustifiedCell (Either (C.Bit, C.Bit) C.Bit)
+newtype JustifiedCell = JustifiedCell (Either (C.Chunk, C.Chunk) C.Chunk)
 data JustifiedColumn = JustifiedColumn {
   justifiedCells :: [JustifiedCell]
   , _justifiedWidth :: C.Width
@@ -42,14 +42,14 @@ justify ::
   C.TextSpec
   -> C.Width
   -> Justification
-  -> C.Bit
+  -> C.Chunk
   -> JustifiedCell
 justify ts (C.Width w) j b
   | origWidth < w = JustifiedCell . Left $ pair
   | otherwise = JustifiedCell . Right $ b
     where
-      origWidth = C.unWidth . C.bitWidth $ b
-      pad = C.bit ts t
+      origWidth = C.unWidth . C.chunkWidth $ b
+      pad = C.chunk ts t
       t = X.replicate (w - origWidth) (X.singleton ' ')
       pair = case j of
         LeftJustify -> (b, pad)
@@ -61,7 +61,7 @@ newtype Height = Height { _unHeight :: Int }
 height :: [[a]] -> Height
 height = Height . maximum . map length
 
-row :: [ColumnSpec] -> [C.Bit]
+row :: [ColumnSpec] -> [C.Chunk]
 row =
   concat
   . concat
@@ -83,7 +83,7 @@ bottomPad jcs = PaddedColumns pcs where
   toPaddedColumn (JustifiedColumn cs (C.Width w) ts) = let
     l = length cs
     nPads = h - l
-    pad = C.bit ts t
+    pad = C.chunk ts t
     t = X.replicate w (X.singleton ' ')
     pads = replicate nPads . JustifiedCell . Right $ pad
     cs'
@@ -101,11 +101,11 @@ toCellRowsWithNewlines (CellsByRow bs) =
   CellRowsWithNewlines bs' where
     bs' = foldr f [] bs
     newline = JustifiedCell . Right
-              $ C.bit C.defaultTextSpec (X.singleton '\n')
+              $ C.chunk C.defaultTextSpec (X.singleton '\n')
     f cells acc = (cells ++ [newline]) : acc
     
 
-toBits :: CellRowsWithNewlines -> [[[C.Bit]]]
+toBits :: CellRowsWithNewlines -> [[[C.Chunk]]]
 toBits (CellRowsWithNewlines cs) = map (map toB) cs where
   toB (JustifiedCell c) = case c of
     Left (lb, rb) -> [lb, rb]

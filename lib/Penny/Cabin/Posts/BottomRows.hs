@@ -54,7 +54,7 @@ bottomRows ::
   -> A.Fields (Maybe Int)
   -> Options.T
   -> [Box]
-  -> Fields (Maybe [[C.Bit]])
+  -> Fields (Maybe [[C.Chunk]])
 bottomRows gf af os is = makeRows is pcs where
   pcs = infoProcessors topSpecs rw wanted
   wanted = requestedMakers os
@@ -107,7 +107,7 @@ newtype ContentWidth = ContentWidth Int deriving (Show, Eq)
 hanging ::
   [TopCellSpec]
   -> Maybe ((Box -> Int -> (C.TextSpec, R.ColumnSpec))
-            -> Box -> [C.Bit])
+            -> Box -> [C.Chunk])
 hanging specs = hangingWidths specs
                 >>= return . hangingInfoProcessor
 
@@ -115,7 +115,7 @@ hangingInfoProcessor ::
   Hanging Int
   -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
   -> Box
-  -> [C.Bit]
+  -> [C.Chunk]
 hangingInfoProcessor widths mkr info = row where
   row = R.row [left, mid, right]
   (ts, mid) = mkr info (mainCell widths)
@@ -126,7 +126,7 @@ hangingInfoProcessor widths mkr info = row where
 widthOfTopColumns ::
   [TopCellSpec]
   -> Maybe ((Box -> Int -> (C.TextSpec, R.ColumnSpec))
-            -> Box -> [C.Bit])
+            -> Box -> [C.Chunk])
 widthOfTopColumns ts =
   if null ts
   then Nothing
@@ -140,7 +140,7 @@ widthOfReport ::
   O.ReportWidth
   -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
   -> Box
-  -> [C.Bit]
+  -> [C.Chunk]
 widthOfReport (O.ReportWidth rw) fn info =
   makeSpecificWidth rw fn info
 
@@ -149,7 +149,7 @@ chooseProcessor ::
   -> O.ReportWidth
   -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
   -> Box
-  -> [C.Bit]
+  -> [C.Chunk]
 chooseProcessor specs rw fn = let
   firstTwo = First (hanging specs)
              `mappend` First (widthOfTopColumns specs)
@@ -161,7 +161,7 @@ infoProcessors ::
   [TopCellSpec]
   -> O.ReportWidth
   -> Fields (Maybe (Box -> Int -> (C.TextSpec, R.ColumnSpec)))
-  -> Fields (Maybe (Box -> [C.Bit]))
+  -> Fields (Maybe (Box -> [C.Chunk]))
 infoProcessors specs rw flds = let
   chooser = chooseProcessor specs rw
   mkProcessor mayFn = case mayFn of
@@ -172,8 +172,8 @@ infoProcessors specs rw flds = let
 
 makeRows ::
   [Box]
-  -> Fields (Maybe (Box -> [C.Bit]))
-  -> Fields (Maybe [[C.Bit]])
+  -> Fields (Maybe (Box -> [C.Chunk]))
+  -> Fields (Maybe [[C.Chunk]])
 makeRows is flds = let
   mkRow fn = map fn is
   in fmap (fmap mkRow) flds
@@ -270,7 +270,7 @@ mergeWithSpacers t s = TopRowCells {
 -- | Applied to a function that, when applied to the width of a cell,
 -- returns a cell filled with data, returns a Row with that cell.
 makeSpecificWidth :: Int -> (Box -> Int -> (a, R.ColumnSpec))
-                     -> Box -> [C.Bit]
+                     -> Box -> [C.Chunk]
 makeSpecificWidth w f i = R.row [c] where
   (_, c) = f i w
 
@@ -308,11 +308,11 @@ tagsCell os info w = (ts, cell) where
     . Q.tags
     . L.boxPostFam
     $ info
-  toBit (TF.Words ws) = C.bit ts t where
+  toBit (TF.Words ws) = C.chunk ts t where
     t = X.concat . intersperse (X.singleton ' ') . Fdbl.toList $ ws
 
 
-memoBits :: C.TextSpec -> L.Memo -> C.Width -> [C.Bit]
+memoBits :: C.TextSpec -> L.Memo -> C.Width -> [C.Chunk]
 memoBits ts m (C.Width w) = cs where
   cs = Fdbl.toList
        . fmap toBit
@@ -325,7 +325,7 @@ memoBits ts m (C.Width w) = cs where
        . HT.Delimited (X.singleton ' ')
        . HT.textList
        $ m
-  toBit (TF.Words ws) = C.bit ts (X.unwords . Fdbl.toList $ ws)
+  toBit (TF.Words ws) = C.chunk ts (X.unwords . Fdbl.toList $ ws)
 
 
 memoCell :: Options.T -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
@@ -349,7 +349,7 @@ filenameCell os info width = (ts, cell) where
   w = C.Width width
   vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify w ts cs
-  toBit n = C.bit ts
+  toBit n = C.chunk ts
             . X.drop (max 0 (X.length n - width)) $ n
   cs = case Q.filename . L.boxPostFam $ info of
     Nothing -> []

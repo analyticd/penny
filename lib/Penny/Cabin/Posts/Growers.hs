@@ -55,12 +55,12 @@ growCells o infos = toPair <$> wanted <*> growers where
 
 widestLine :: PreSpec -> Int
 widestLine (PreSpec _ _ bs) =
-  maximum . map (R.unWidth . C.bitWidth) $ bs
+  maximum . map (R.unWidth . C.chunkWidth) $ bs
 
 data PreSpec = PreSpec {
   _justification :: R.Justification
   , _padSpec :: C.TextSpec
-  , _bits :: [C.Bit] }
+  , _bits :: [C.Chunk] }
 
 
 -- | Given a PreSpec and a width, create a ColumnSpec of the right
@@ -75,7 +75,7 @@ oneLine t os b =
   let bc = Options.baseColors os
       ts = PC.colors (M.visibleNum . L.boxMeta $ b) bc
       j = R.LeftJustify
-      bit = C.bit ts t
+      bit = C.chunk ts t
   in PreSpec j ts [bit]
 
 growers :: Fields (Options.T -> Box -> PreSpec)
@@ -216,7 +216,7 @@ dcTxt L.Credit = pack "Cr"
 coloredPostingCell :: Text -> Options.T -> Box -> PreSpec
 coloredPostingCell t os i = PreSpec j ts [bit] where
   j = R.LeftJustify
-  bit = C.bit ts t
+  bit = C.chunk ts t
   dc = Q.drCr . L.boxPostFam $ i
   ts = PC.colors (M.visibleNum . L.boxMeta $ i)
        . PC.drCrToBaseColors dc
@@ -245,7 +245,7 @@ getTotalDrCr os i = let
   bits = case M.balance . L.boxMeta $ i of
     Nothing -> let
       spec = PC.noBalanceColors vn (O.drCrColors os)
-      in [C.bit spec (pack "--")]
+      in [C.chunk spec (pack "--")]
     Just bal -> let
       toBit bl = let
         spec = 
@@ -255,7 +255,7 @@ getTotalDrCr os i = let
         txt = case bl of
           L.Zero -> pack "--"
           L.NonZero (L.Column clmDrCr _) -> dcTxt clmDrCr
-        in C.bit spec txt
+        in C.chunk spec txt
       in fmap toBit . elems . L.unBalance $ bal
   j = R.LeftJustify
   in PreSpec j ts bits
@@ -270,7 +270,7 @@ getTotalCmdty os i = let
   bits = case M.balance . L.boxMeta $ i of
     Nothing -> let
       spec = PC.noBalanceColors vn (O.drCrColors os)
-      in [C.bit spec (pack "--")]
+      in [C.chunk spec (pack "--")]
     Just bal -> let
       toBit (com, nou) = let
         spec =
@@ -281,7 +281,7 @@ getTotalCmdty os i = let
               . L.Delimited (X.singleton ':')
               . L.textList
               $ com
-        in C.bit spec txt
+        in C.chunk spec txt
       in fmap toBit . assocs . L.unBalance $ bal
   in PreSpec j ts bits
 
@@ -295,7 +295,7 @@ getTotalQty os i = let
   bits = case M.balance . L.boxMeta $ i of
     Nothing -> let
       spec = PC.noBalanceColors vn (O.drCrColors os)
-      in [C.bit spec (pack "--")]
+      in [C.chunk spec (pack "--")]
     Just bal -> fmap toChunk . assocs . L.unBalance $ bal where
       toChunk (com, nou) = let
         spec = 
@@ -303,7 +303,7 @@ getTotalQty os i = let
           . PC.bottomLineToBaseColors (O.drCrColors os)
           $ nou
         txt = O.balanceFormat os com nou
-        in C.bit spec txt
+        in C.chunk spec txt
   in PreSpec j ts bits
 
 growingFields :: Options.T -> Fields Bool

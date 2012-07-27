@@ -105,7 +105,7 @@ removeExtraSpace :: [R.ColumnSpec] -> ([R.ColumnSpec], Int)
 removeExtraSpace cs = (trimmed, len) where
   len = Fdbl.foldl' f 0 cs where
     f acc c = max acc (Fdbl.foldl' g 0 (R.bits c)) where
-      g inAcc chk = max inAcc (C.unWidth . C.bitWidth $ chk)
+      g inAcc chk = max inAcc (C.unWidth . C.chunkWidth $ chk)
   trimmed = map f cs where
     f c = c { R.width = C.Width len }
 
@@ -239,7 +239,7 @@ allocPayee w os i = let
         . HT.text
         $ pye
       toBit (TF.Words seqTxts) =
-        C.bit ts
+        C.chunk ts
         . X.unwords
         . Fdbl.toList
         $ seqTxts
@@ -257,7 +257,7 @@ allocAcct aw os i = let
     a = Q.account pb
     ws = TF.Words . Seq.fromList . HT.textList $ a
     (TF.Words shortened) = TF.shorten shortest target ws
-    in [C.bit ts
+    in [C.chunk ts
        . X.concat
        . intersperse (X.singleton ':')
        . Fdbl.toList

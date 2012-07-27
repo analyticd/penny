@@ -128,7 +128,7 @@ makeReportTxt op bs = fmap mkText postMetaBoxes
   where
     e = X.pack "posts report: filter expression parse failure"
     postMetaBoxes = Ex.fromMaybe e (filterAndAssignMeta op bs)
-    mkText = Chk.bitsToText (O.colorPref op) . makeChunk op
+    mkText = Chk.chunksToText (O.colorPref op) . makeChunk op
     
 
 -- | Takes a list of Box with LibertyMeta and options as processed

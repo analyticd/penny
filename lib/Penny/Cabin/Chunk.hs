@@ -1,3 +1,4 @@
+-- | Handles colors.
 module Penny.Cabin.Chunk (
   -- * Colors
   Colors(Colors0, Colors8, Colors256),
@@ -6,12 +7,12 @@ module Penny.Cabin.Chunk (
   Foreground8,
   Foreground256,
 
-  -- * Bits
-  Bit,
-  bit,
+  -- * Chunks
+  Chunk,
+  chunk,
   Width(Width, unWidth),
-  bitWidth,
-  bitsToText,
+  chunkWidth,
+  chunksToText,
   
   -- * Effects
   Bold(Bold, unBold),
@@ -20,6 +21,9 @@ module Penny.Cabin.Chunk (
   Inverse(Inverse, unInverse),
 
   -- * Style and TextSpec
+  
+  -- | A style is a bundle of attributes that describes text
+  -- attributes, such as its color and whether it is bold.
   StyleCommon (StyleCommon, bold, underline, flash, inverse),
   Style8 (Style8, foreground8, background8, common8),
   Style256 (Style256, foreground256, background256, common256),
@@ -588,20 +592,38 @@ import qualified Data.Text.Lazy.Builder as TB
 data Colors = Colors0 | Colors8 | Colors256
             deriving Show
 
+-- | Background color in an 8 color setting.
 newtype Background8 = Background8 { unBackground8 :: Code }
+
+-- | Background color in a 256 color setting.
 newtype Background256 = Background256 { unBackground256 :: Code }
+
+-- | Foreground color in an 8 color setting.
 newtype Foreground8 = Foreground8 { unForeground8 :: Code }
+
+-- | Foreground color in a 256 color setting.
 newtype Foreground256 = Foreground256 { unForeground256 :: Code }
 
 
 --
--- Bits (it better be bits)
+-- Chunks
 --
-data Bit = Bit TextSpec Text
 
-bit :: TextSpec -> Text -> Bit
-bit = Bit
+-- | A chunk is some textual data coupled with a description of what
+-- color the text is. The chunk knows what colors to use for both
+-- foreground color and background color, in both an 8 color terminal
+-- and a 256 color terminal. The chunk has only one set of color
+-- descriptions. To change colors, you must use a new chunk.
+--
+-- There is no way to combine chunks. To print large numbers of
+-- chunks, lazily build a list of them and then print them using
+-- chunksToText.
+data Chunk = Chunk TextSpec Text
 
+chunk :: TextSpec -> Text -> Chunk
+chunk = Chunk
+
+-- | How wide the text of a chunk is.
 newtype Width = Width { unWidth :: Int }
                 deriving (Show, Eq, Ord)
 
@@ -609,11 +631,13 @@ instance Monoid Width where
   mempty = Width 0
   mappend (Width w1) (Width w2) = Width $ w1 + w2
 
-bitWidth :: Bit -> Width
-bitWidth (Bit _ t) = Width . X.length $ t
+chunkWidth :: Chunk -> Width
+chunkWidth (Chunk _ t) = Width . X.length $ t
 
-bitsToText :: Colors -> [Bit] -> XL.Text
-bitsToText c = TB.toLazyText . foldr (builder c) (printReset c)
+-- | Transforms chunks to a lazy Text. This function runs lazily and
+-- in constant time and space.
+chunksToText :: Colors -> [Chunk] -> XL.Text
+chunksToText c = TB.toLazyText . foldr (builder c) (printReset c)
 
 
 --
@@ -627,22 +651,32 @@ newtype Inverse = Inverse { unInverse :: Bool }
 --
 -- Styles
 --
+
+-- | Style elements that apply in both 8 and 256 color
+-- terminals. However, the elements are described separately for 8 and
+-- 256 color terminals, so that the text appearance can change
+-- depending on how many colors a terminal has.
 data StyleCommon = StyleCommon {
   bold :: Bold
   , underline :: Underline
   , flash :: Flash
   , inverse :: Inverse }
 
+-- | Describes text appearance (foreground and background colors, as
+-- well as other attributes such as bold) for an 8 color terminal.
 data Style8 = Style8 {
   foreground8 :: Foreground8
   , background8 :: Background8
   , common8 :: StyleCommon }
 
+-- | Describes text appearance (foreground and background colors, as
+-- well as other attributes such as bold) for a 256 color terminal.
 data Style256 = Style256 {
   foreground256 :: Foreground256
   , background256 :: Background256
   , common256 :: StyleCommon }
 
+-- | Has all bold, flash, underline, and inverse turned off.
 defaultStyleCommon :: StyleCommon
 defaultStyleCommon = StyleCommon {
   bold = Bold False
@@ -650,12 +684,16 @@ defaultStyleCommon = StyleCommon {
   , flash = Flash False
   , inverse = Inverse False }
 
+-- | Uses the default terminal colors (which will vary depending on
+-- the terminal).
 defaultStyle8 :: Style8
 defaultStyle8 = Style8 {
   foreground8 = color8_f_default
   , background8 = color8_b_default
   , common8 = defaultStyleCommon }
 
+-- | Uses the default terminal colors (which will vary depending on
+-- the terminal).
 defaultStyle256 :: Style256
 defaultStyle256 = Style256 {
   foreground256 = color256_f_default
@@ -665,10 +703,15 @@ defaultStyle256 = Style256 {
 --
 -- TextSpec
 --
+
+-- | The TextSpec bundles together the styles for the 8 and 256 color
+-- terminals, so that the text can be portrayed on any terminal.
 data TextSpec = TextSpec {
   style8 :: Style8
   , style256 :: Style256 }
 
+-- | A TextSpec with the default colors on 8 and 256 color terminals,
+-- with all attributes turned off.
 defaultTextSpec :: TextSpec
 defaultTextSpec = TextSpec {
   style8 = defaultStyle8
@@ -682,8 +725,8 @@ defaultTextSpec = TextSpec {
 (+++) = mappend
 infixr 5 +++
 
-builder :: Colors -> Bit -> TB.Builder -> TB.Builder
-builder c (Bit ts t) acc =
+builder :: Colors -> Chunk -> TB.Builder -> TB.Builder
+builder c (Chunk ts t) acc =
   printReset c
   +++ textSpecCodes c ts 
   +++ TB.fromText t

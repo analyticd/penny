@@ -215,7 +215,7 @@ instance Applicative Columns where
 data PreSpec = PreSpec {
   _justification :: R.Justification
   , _padSpec :: Chunk.TextSpec
-  , bits :: [Chunk.Bit] }
+  , bits :: [Chunk.Chunk] }
 
 type PreSpecMap = NM.NestedMap L.SubAccountName (Columns PreSpec)
 
@@ -223,7 +223,7 @@ type PreSpecMap = NM.NestedMap L.SubAccountName (Columns PreSpec)
 -- Cells, one each for DrCr, Commodity, and Qty.
 bottomLineBalCells ::
   Chunk.TextSpec -- ^ Fill colors
-  -> [(Chunk.Bit, Chunk.Bit, Chunk.Bit)]
+  -> [(Chunk.Chunk, Chunk.Chunk, Chunk.Chunk)]
   -> (PreSpec, PreSpec, PreSpec)
 bottomLineBalCells spec ts = (mkSpec dc, mkSpec ct, mkSpec qt) where
   mkSpec ls = PreSpec R.LeftJustify spec ls
@@ -239,11 +239,11 @@ bottomLineBalChunks ::
   O.Options
   -> IsEven
   -> (L.Commodity, Bal.BottomLine)
-  -> (Chunk.Bit, Chunk.Bit, Chunk.Bit)
+  -> (Chunk.Chunk, Chunk.Chunk, Chunk.Chunk)
 bottomLineBalChunks os isEven (comm, bl) = (dc, cty, qty) where
-  dc = Chunk.bit ts dcTxt
-  cty = Chunk.bit ts ctyTxt
-  qty = Chunk.bit ts qtyTxt
+  dc = Chunk.chunk ts dcTxt
+  cty = Chunk.chunk ts ctyTxt
+  qty = Chunk.chunk ts qtyTxt
   ctyTxt = L.text (L.Delimited (X.singleton ':') (L.textList comm))
   (ts, dcTxt, qtyTxt) = case bl of
     Bal.Zero -> let
@@ -284,7 +284,7 @@ bottomLineCells os isEven mayBal = let
            else C.oddZero . O.drCrColors $ os
   zeroSpec =
     PreSpec R.LeftJustify
-    tsZero [Chunk.bit tsZero (X.pack "--")]
+    tsZero [Chunk.chunk tsZero (X.pack "--")]
   zeroSpecs = (zeroSpec, zeroSpec, zeroSpec)
   in case S.getOption . unSummedBal $ mayBal of
     Nothing -> zeroSpecs
@@ -308,7 +308,7 @@ accountPreSpec os isEven lvl acct = PreSpec j ts [bit] where
   ts = if isEven
        then C.evenColors . O.baseColors $ os
        else C.oddColors . O.baseColors $ os
-  bit = Chunk.bit ts txt where
+  bit = Chunk.chunk ts txt where
     txt = pad `X.append` (L.text acct)
     pad = X.replicate (padding * lvl) (X.singleton ' ')
 
@@ -371,7 +371,7 @@ maxWidthPerColumn ::
   -> Columns PreSpec
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
-  f old new = max old (maximum . map Chunk.bitWidth . bits $ new)
+  f old new = max old (maximum . map Chunk.chunkWidth . bits $ new)
   
 -- | Changes a single set of Columns to a set of ColumnSpec of the
 -- given width.
@@ -401,7 +401,7 @@ colsToBits ::
   O.Options
   -> IsEven
   -> Columns R.ColumnSpec
-  -> [Chunk.Bit]
+  -> [Chunk.Chunk]
 colsToBits os isEven (Columns a dc c q) = let
   fillSpec = if isEven
              then C.evenColors . O.baseColors $ os
@@ -421,7 +421,7 @@ colsToBits os isEven (Columns a dc c q) = let
 colsListToBits ::
   O.Options
   -> [Columns R.ColumnSpec]
-  -> [[Chunk.Bit]]
+  -> [[Chunk.Chunk]]
 colsListToBits os = zipWith f bools where
   f b c = colsToBits os b c
   bools = iterate not True
@@ -433,7 +433,7 @@ report ::
   O.Options
   -> [L.Box Ly.LibertyMeta]
   -> [L.PricePoint]
-  -> Ex.Exceptional X.Text [[Chunk.Bit]]
+  -> Ex.Exceptional X.Text [[Chunk.Chunk]]
 report os ps rs = do
   pcs <- converter os rs ps
   return
