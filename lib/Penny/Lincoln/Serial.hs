@@ -4,7 +4,6 @@ module Penny.Lincoln.Serial (
   serialChildrenInFamily, serialEithers,
   NextFwd, NextBack, initNexts) where
 
-import Data.Foldable (foldl', toList)
 import Control.Monad (zipWithM)
 import Control.Monad.Trans.Class (lift)
 import qualified Data.Either as E
@@ -57,8 +56,8 @@ serialChildrenInFamily ::
   -> St.State (NextFwd, NextBack) (F.Family p cNew)
 serialChildrenInFamily f = F.mapChildrenM (serialItemSt f)
 
-newtype NextFwd = NextFwd { unNextFwd :: Int } deriving Show
-newtype NextBack = NextBack { unNextBack :: Int } deriving Show
+newtype NextFwd = NextFwd Int deriving Show
+newtype NextBack = NextBack Int deriving Show
 
 serialItemSt ::
   (Serial -> cOld -> cNew)
@@ -70,8 +69,8 @@ serialItemSt f old = do
   St.put (NextFwd $ succ fwd, NextBack $ pred bak)
   return (f s old)
 
-newtype Index = Index { unIndex :: Int } deriving (Eq, Ord, Show)
-newtype Total = Total { unTotal :: Int } deriving (Eq, Ord, Show)
+newtype Index = Index Int deriving (Eq, Ord, Show)
+newtype Total = Total Int deriving (Eq, Ord, Show)
 
 serialEithers ::
   Monad m

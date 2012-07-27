@@ -17,34 +17,13 @@ module Penny.Liberty.Expressions (
   evaluate) where
 
 import Penny.Liberty.Expressions.Infix as I
-import Penny.Liberty.Queue (Queue, enqueue, empty)
-import qualified Penny.Liberty.Queue as Q
+import Penny.Liberty.Queue (Queue)
 import Penny.Liberty.Expressions.RPN as R
 
-import Data.List (intersperse, groupBy)
 
 -- | Tokens should be enqueued from left to right.
 evaluate :: Queue (I.Token a) -> Maybe a
 evaluate i = I.infixToRPN i >>= R.process
-
--- | Takes the list of tokens and gets the predicate to use.
-getPredicate :: 
-  [I.Token (a -> Bool)]
-  -> Maybe (a -> Bool)
-getPredicate ls =
-  if null ls then Just (const True) else evaluate q where
-    q = foldl (flip Q.enqueue) Q.empty (insertAddTokens ls)
-
--- | Operands that are not separated by operators are assumed to be
--- joined with an and operator; this function adds the and operators.
-insertAddTokens :: [I.Token (a -> Bool)]
-                   -> [I.Token (a -> Bool)]
-insertAddTokens ts = concatMap inserter grouped where
-  inserter = intersperse tokAnd
-  grouped = groupBy f ts
-  f x y = case (x, y) of
-    (I.TokOperand _, I.TokOperand _) -> True
-    _ -> False
 
 -- | An And token which is left associative with precedence 3.
 tokAnd :: I.Token (a -> Bool)
