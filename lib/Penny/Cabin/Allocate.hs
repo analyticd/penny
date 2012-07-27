@@ -18,11 +18,20 @@ allocation i =
   then error "Allocations must be at least 1"
   else Allocation i
 
+-- | Divide up a whole number proportionally into several parts. The
+-- sum of the parts is guaranteed to add up to original number.
 allocate ::
   Ord k
   => M.Map k Allocation
+  -- ^ Maps arbitrary unique values to the allocations, so that you
+  -- can look up the corresponding allocations.
+
   -> Int
+  -- ^ Allocated values will add up to this number.
+  
   -> M.Map k Int
+  -- ^ The given number, allocated into proportional parts.
+
 allocate m t = let
   tot = F.sum . fmap (toDouble . unAllocation) $ m
   ratios = fmap ((/tot) . toDouble . unAllocation) m

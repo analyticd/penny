@@ -1,4 +1,23 @@
--- | Handles colors.
+-- | Handles colors and special effects for text. This module was
+-- written using the control sequences documented for xterm in
+-- ctlseqs.txt, which is included in the xterm source code (on Debian
+-- GNU/Linux systems, it is at
+-- \/usr\/share\/doc\/xterm\/ctlseqs.txt.gz). The code in here should also
+-- work for any terminal which recognizes ISO 6429 escape sequences
+-- (also known as ANSI escape sequences), but only for 8 colors. This
+-- module also generates sequences for 256 color xterms; though this
+-- works fine with xterm, it might not work on other terminals (I
+-- believe it works for other terminals commonly found on Linux
+-- systems, such as gnome-terminal and Konsole, but I have not tested
+-- these terminals as I do not use them.) Perhaps it also works on
+-- Windows or Mac OS X systems and their terminals, though I have not
+-- tested them (in particular, Windows could be problematic as not all
+-- Windows terminals support ISO 6429.)
+--
+-- In theory there are more portable ways to generate color codes,
+-- such as through curses (or is it ncurses?) but support for ISO 6429
+-- is widespread enough that I am prepared to say that if your
+-- terminal does not support it, too bad; just use the colorless mode.
 module Penny.Cabin.Chunk (
   -- * Colors
   Colors(Colors0, Colors8, Colors256),
