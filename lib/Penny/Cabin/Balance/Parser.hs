@@ -28,13 +28,13 @@ data Error = BadColorName String
              deriving Show
 
 parser ::
-  S.Runtime
-  -> Parser (O.Options
-             -> [L.Box Ly.LibertyMeta]
-             -> [L.PricePoint]
-             -> Ex.Exceptional X.Text XL.Text)
-parser rt = do
-  ls <- many (opts rt)
+  Parser (S.Runtime
+          -> O.Options
+          -> [L.Box Ly.LibertyMeta]
+          -> [L.PricePoint]
+          -> Ex.Exceptional X.Text XL.Text)
+parser = do
+  ls <- many opts
   let f opInit bs ps = do
         let errOpParsed = (foldl (>=>) return ls) opInit
         opParsed <- case errOpParsed of

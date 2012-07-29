@@ -13,15 +13,12 @@ import qualified Penny.Liberty as Ly
 import Penny.Shield (Runtime)
 
 type ReportFunc =
-  [L.Box Ly.LibertyMeta]
-  -> [L.PricePoint]
-  -> Exceptional X.Text XL.Text
-  -- ^ The exception type is a strict Text, containing the error
-  -- message. The success type is a lazy Text, containing the
-  -- resulting report.
+  Runtime
+  -- ^ Information only known at runtime, such as the
+  -- environment. Does not include any information that is derived
+  -- from parsing the command line.
 
-type ParserFunc =
-  CaseSensitive
+  -> CaseSensitive
   -- ^ Result from previous parses indicating whether the user desires
   -- case sensitivity (this may have been changed in the filtering
   -- options)
@@ -30,19 +27,18 @@ type ParserFunc =
   -- ^ Result from previous parsers indicating the matcher factory the
   -- user wishes to use
   
-  -> ReportFunc
-  -- ^ The resulting function that will be applied to postings and
-  -- prices to produce a report.
+  -> [L.Box Ly.LibertyMeta]
+  -- ^ Postings that will be included in the report
+  
+  -> [L.PricePoint]
+  -- ^ PricePoints to be included in the report
+  
+  
+  -> Exceptional X.Text XL.Text
+  -- ^ The exception type is a strict Text, containing the error
+  -- message. The success type is a lazy Text, containing the
+  -- resulting report.
 
--- | The parser must parse everything beginning with the first word
--- after the name of the report (the parser does not parse the name of
--- the report) up until, but not including, the first non-option word.
-type ParseReportOpts =
-  Runtime
-  -- ^ Information only known at runtime, such as the
-  -- environment. Does not include any information that is derived
-  -- from parsing the command line.
-  -> Parser ParserFunc
 
 data Report =
   Report { help :: X.Text
@@ -51,4 +47,9 @@ data Report =
          , name :: String
            -- ^ The name of the report
            
-         , parseReport :: ParseReportOpts }
+         , parseReport :: Parser ReportFunc
+           -- ^ The parser must parse everything beginning with the
+           -- first word after the name of the report (the parser does
+           -- not parse the name of the report) up until, but not
+           -- including, the first non-option word.
+         }
