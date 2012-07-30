@@ -1,4 +1,4 @@
-name: penny-tests
+name: penny-test-lib
 version: 0.1.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
@@ -13,10 +13,10 @@ Category: Console, Finance
 License-File: LICENSE
 synopsis: Tests for Penny
 
-description: All tests for Penny are housed in this package.
+description: The test library for Penny is housed in this
+             package. Test executables are in a separate package.
 
 Library
-  hs-source-dirs: lib
   Build-depends:
     base ==4.*,
     containers ==0.4.*,
@@ -34,7 +34,6 @@ Library
     test-framework-quickcheck2 ==0.2.*,
     text ==0.11.*,
     time ==1.2.*
-
 
   GHC-Options: -Wall
   Exposed-modules:
@@ -71,40 +70,3 @@ Library
     PennyTest.Lincoln.Transaction,
     PennyTest.Lincoln.Transaction.Unverified,
     PennyTest.Lincoln.TextNonEmpty
-
-Executable pennyTestSuite
-  hs-source-dirs: bin
-  main-is: TestSuite.hs
-  Build-depends:
-    base ==4.*,
-    pennyTest ==0.1.*,
-    test-framework ==0.5.*
-
-  GHC-Options: -Wall
-
-Executable copperTest
-  hs-source-dirs: bin
-  Build-depends:
-    base ==4.*,
-    text ==0.11.*,
-    time ==1.2.*,
-    parsec >=3.1.2 && < 3.2,
-    penny ==0.1.*,
-    pretty ==1.0.*,
-    pennyTest ==0.1.*
-
-  Main-is: copperTest.hs
-  GHC-Options: -Wall
-
-Executable gibberish
-  hs-source-dirs: bin
-  Build-depends:
-    base ==4.*,
-    pennyTest ==0.1.*,
-    penny ==0.1.*,
-    QuickCheck ==2.4.*,
-    random ==1.0.*,
-    text ==0.11.*
-
-  Main-is: gibberish.hs
-  GHC-Options: -Wall
