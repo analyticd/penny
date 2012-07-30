@@ -33,18 +33,15 @@ data Error = BadColorName String
 -- | Parses the command line from the first word remaining up until,
 -- but not including, the first non-option argment.
 parseOptions ::
-  S.Runtime
-  -> Parser (Op.T -> Ex.Exceptional Error Op.T)
-parseOptions rt = fmap f (many (parseOption rt))
+  Parser (S.Runtime -> Op.T -> Ex.Exceptional Error Op.T)
+parseOptions = fmap folder (many (parseOption rt))
   where
-    folder = foldl (>=>) return
-    f ls = (folder ls)
+    folder rt = foldl (>=>) return . map (\fn -> fn rt)
 
 
 parseOption ::
-  S.Runtime
-  -> Parser (Op.T -> Ex.Exceptional Error Op.T)
-parseOption rt =
+  Parser (S.Runtime -> Op.T -> Ex.Exceptional Error Op.T)
+parseOption =
   operand rt
   <|> boxFilters
   <|> postFilter

@@ -87,7 +87,7 @@ customPostsReport = makeReport . parseReportOpts
 
 -- | When passed a ParseReportOpts, makes a Report.
 makeReport ::
-  I.ParseReportOpts
+  I.ReportFunc
   -> I.Report
 makeReport f =
   I.Report { I.help = help
@@ -99,13 +99,13 @@ type Factory = CaseSensitive -> X.Text
 
 parseReportOpts ::
   (S.Runtime -> O.T)
-  -> S.Runtime
-  -> Parser (CaseSensitive
+  -> Parser (S.Runtime
+             -> CaseSensitive
              -> Factory
              -> [L.Box Ly.LibertyMeta]
              -> a
              -> Ex.Exceptional X.Text XL.Text)
-parseReportOpts frt rt = do
+parseReportOpts frt = do
   getOpts <- parseOptions rt
   let optsDefault = frt rt
       f cs fty bs _ = do

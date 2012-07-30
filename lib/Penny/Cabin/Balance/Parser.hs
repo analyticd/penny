@@ -35,8 +35,9 @@ parser ::
           -> Ex.Exceptional X.Text XL.Text)
 parser = do
   ls <- many opts
-  let f opInit bs ps = do
-        let errOpParsed = (foldl (>=>) return ls) opInit
+  let f rt opInit bs ps = do
+        let ls' = map (\fn -> fn rt) ls
+            errOpParsed = (foldl (>=>) return ls') opInit
         opParsed <- case errOpParsed of
           Ex.Exception e -> Ex.throw . X.pack . show $ e
           Ex.Success g -> return g
@@ -61,12 +62,12 @@ processColorArg rt x
 parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
 parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
 
-color ::
-  S.Runtime
-  -> Parser (O.Options -> Ex.Exceptional Error O.Options)
-color rt = parseOpt ["color"] "" (C.OneArg f)
+color :: Parser (S.Runtime
+                 -> O.Options
+                 -> Ex.Exceptional Error O.Options)
+color = parseOpt ["color"] "" (C.OneArg f)
   where
-    f a1 op = case processColorArg rt a1 of
+    f a1 rt op = case processColorArg rt a1 of
       Nothing -> Ex.throw . BadColorName $ a1
       Just c -> return (op { O.colorPref = c })
 
@@ -117,12 +118,12 @@ convertLong = parseOpt ["convert"] "" (C.TwoArg f)
       let op' = op { O.convert = Just (cty, dt) }
       return op'
 
-convertShort ::
-  S.Runtime
-  -> Parser (O.Options -> Ex.Exceptional Error O.Options)
-convertShort rt = parseOpt [] ['c'] (C.OneArg f)
+convertShort :: Parser (S.Runtime
+                        -> O.Options
+                        -> Ex.Exceptional Error O.Options)
+convertShort = parseOpt [] ['c'] (C.OneArg f)
   where
-    f a1 op = do
+    f a1 rt op = do
       cty <- case Parsec.parse CC.lvl1Cmdty "" (X.pack a1) of
         Left _ -> Ex.throw . BadCommodity $ a1
         Right g -> return g
@@ -131,13 +132,17 @@ convertShort rt = parseOpt [] ['c'] (C.OneArg f)
       return op'
         
 
-opts ::
-  S.Runtime
-  -> Parser (O.Options -> Ex.Exceptional Error O.Options)
-opts rt =
-  color rt
-  <|> background
-  <|> showZeroBalances
-  <|> hideZeroBalances
-  <|> convertLong
-  <|> convertShort rt
+opts :: Parser (S.Runtime
+                -> O.Options
+                -> Ex.Exceptional Error O.Options)
+opts =
+  color
+  <|> mkTwoArg background
+  <|> mkTwoArg showZeroBalances
+  <|> mkTwoArg hideZeroBalances
+  <|> mkTwoArg convertLong
+  <|> convertShort
+  where
+    mkTwoArg p = do
+      f <- p
+      return (\_ op -> f op)
