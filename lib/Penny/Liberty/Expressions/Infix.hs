@@ -21,8 +21,6 @@ module Penny.Liberty.Expressions.Infix (
         TokOpenParen,
         TokCloseParen),
   
-  R.Operand(Operand),
-  
   infixToRPN
   ) where
 
@@ -31,6 +29,8 @@ import qualified Penny.Liberty.Expressions.RPN as R
 import qualified Data.Sequence as Seq
 import Data.Sequence((|>), Seq)
 
+-- | Precedence can be any integer; the greater the number, the higher
+-- the precedence.
 newtype Precedence = Precedence Int deriving (Show, Eq, Ord)
 
 data Associativity = ALeft | ARight deriving Show
@@ -78,13 +78,21 @@ infixToRPN ::
   -> Maybe (Seq (R.Token a))
   -- ^ The resulting RPN expression. The token type here is a token
   -- from Penny.Liberty.Expressions.RPN, which is a different type
-  -- than the Token in this module. Fails if the infix expression
-  -- fails to parse for any reason.
+  -- than the Token in this module. Fails only if there is a close
+  -- parenthesis without a matching open parenthesis, or if there is
+  -- an open parenthesis without a matching close parenthesis. Other
+  -- nonsensical expressions will still parse to an RPN expression
+  -- successfully, so the RPN parser has to catch these errors.
+
 infixToRPN ls =
   Fdbl.foldlM processToken ([], Seq.empty) ls
   >>= popRemainingOperators
 
 
+-- | Process a single input token. Fails if the token is a close
+-- parenthesis and a matching open parenthesis is not
+-- found. Otherwise, succeeds and adjusts the stack and the output
+-- queue accordingly.
 processToken ::
   ([StackVal a], Seq (R.Token a))
   -> Token a
@@ -193,6 +201,9 @@ processCloseParen (ss, os) = case ss of
       StkBinary _ f -> popper (R.Binary f)
       StkOpenParen -> Just (xs, os)
 
+-- | Removes all remaining operators from the stack and puts them on
+-- the output queue. Fails if the stack has an open parenthesis; as
+-- this is unmatched.
 popRemainingOperators ::
   ([StackVal a], Seq (R.Token a))
   -> Maybe (Seq (R.Token a))
