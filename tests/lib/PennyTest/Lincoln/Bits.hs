@@ -8,12 +8,13 @@ import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Maybe (fromJust)
 import qualified Data.Time as DT
 import Data.Word (Word8)
+import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Bits as B
 import PennyTest.Lincoln.TextNonEmpty (genTextNonEmpty)
 import qualified System.Random as R
 import qualified Test.QuickCheck as Q
 import Test.QuickCheck (arbitrary, Arbitrary, Gen, choose, suchThat,
-                        sized, oneof, listOf, elements)
+                        sized, oneof, listOf, elements, frequency)
 
 -- | Generates Unicode characters over the entire Unicode
 -- range. Characters in ASCII and in Latin1 are heavily favored;
@@ -127,7 +128,7 @@ instance Arbitrary TimeZoneOffset where
 
 -- | Generate a DateTime using genLocalTime and genTimeZoneOffset.
 genDateTime :: Gen B.DateTime
-genDateTime = B.DateTime <$> genLocalTime <*> genTimeZoneOffset
+genDateTime = B.dateTime <$> genLocalTime <*> genTimeZoneOffset
 
 newtype DateTime = DateTime B.DateTime
                        deriving (Eq, Show)
@@ -173,8 +174,41 @@ genUniPrice = mkPrice <$> Q.suchThat g p where
       Just _ -> True
     mkPrice (f, t, c) = fromJust $ B.newPrice f t c
 
-genUniPricePoint :: Gen B.PricePoint
-genUniPricePoint = B.PricePoint <$> genDateTime <*> genUniPrice
+genPriceLine :: Gen L.PriceLine
+genPriceLine = L.PriceLine <$> arbitrary
+
+genSide :: Gen L.Side
+genSide = elements [L.CommodityOnLeft, L.CommodityOnRight]
+
+genSpaceBetween :: Gen L.SpaceBetween
+genSpaceBetween = elements [L.SpaceBetween, L.NoSpaceBetween]
+
+genFormat :: Gen L.Format
+genFormat = L.Format <$> genSide <*> genSpaceBetween
+
+genMaybe :: Gen a -> Gen (Maybe a)
+genMaybe g = frequency [ (3, Just <$> g)
+                       , (1, return Nothing) ]
+
+genPriceMeta :: Gen L.PriceMeta
+genPriceMeta = L.PriceMeta
+               <$> genMaybe genPriceLine
+               <*> genMaybe genFormat
+
+
+genPrice :: Gen L.Price
+genPrice = do
+  cpu <- genCountPerUnit
+  f <- L.From <$> genUniCommodity
+  t <- L.To <$> genUniCommodity
+  case L.newPrice f t cpu of
+    Nothing -> genPrice
+    Just p -> return p
+
+genPricePoint :: Gen L.PricePoint
+genPricePoint =
+  L.PricePoint <$> genDateTime <*> genPrice <*> genPriceMeta
+
 
 -- | Creates random Decimals with a distribution a little more
 -- interesting than the Arbitrary that comes with Data.Decimal.
@@ -309,5 +343,4 @@ newtype Dec = Dec { unDec :: D.DecimalRaw Integer }
 decZero :: Dec
 decZero = Dec $ D.Decimal 0 0
 
-genMaybe :: Gen a -> Gen (Maybe a)
-genMaybe g = oneof [pure Nothing, Just <$> g]
+
