@@ -47,17 +47,17 @@ tokNot = I.TokUnaryPrefix (I.Precedence 4) (not .)
 --
 -- Testing
 --
-plus :: I.Token Double
-plus = I.TokBinary (I.Precedence 4) I.ALeft (+)
+_plus :: I.Token Double
+_plus = I.TokBinary (I.Precedence 4) I.ALeft (+)
 
-minus :: I.Token Double
-minus = I.TokBinary (I.Precedence 4) I.ALeft (-)
+_minus :: I.Token Double
+_minus = I.TokBinary (I.Precedence 4) I.ALeft (-)
 
-times :: I.Token Double
-times = I.TokBinary (I.Precedence 5) I.ALeft (*)
+_times :: I.Token Double
+_times = I.TokBinary (I.Precedence 5) I.ALeft (*)
 
-divide :: I.Token Double
-divide = I.TokBinary (I.Precedence 5) I.ALeft (/)
+_divide :: I.Token Double
+_divide = I.TokBinary (I.Precedence 5) I.ALeft (/)
 
-neg :: I.Token Double
-neg = I.TokUnaryPrefix (I.Precedence 5) negate
+_neg :: I.Token Double
+_neg = I.TokUnaryPrefix (I.Precedence 5) negate
