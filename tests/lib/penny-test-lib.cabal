@@ -38,7 +38,6 @@ Library
   GHC-Options: -Wall
   Exposed-modules:
     PennyTest,
-    PennyTest.Pretty,
     PennyTest.Copper,
     PennyTest.Copper.Account,
     PennyTest.Copper.Amount,
