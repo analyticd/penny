@@ -138,10 +138,11 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  * Young and not well tested yet. Also, only tested on Unix. I can
-    see no reason why Penny would not work under Windows, as it does
-    not use any Unix-specific libraries; however, I have not tested it
-    under Windows.
+  * Young and not well tested yet. Also, only tested on Unix. Though I
+    see no reason Penny would not work on Windows, I do know that the
+    code for generating colorful reports will completely break in a
+    Windows Cmd.exe window. There might be other Windows breakage, as
+    I have not tested Penny under Windows at all.
 
   .
 
@@ -157,12 +158,11 @@ description: Penny is a double-entry accounting system. It is inspired
     seconds to parse. Not horrible but not instantaneous
     either. Generating a report about all these transactions can take
     about seven seconds and a little less than 300 MB of memory. I
-    have eliminated all the obvious slowness from the code; any
-    further speedup will take a lot more work and will involve
-    practically rewriting the parser modules and/or the report
-    modules. I hope to do this eventually but because the program is
-    currently usable with relatively recent hardware it's not on the
-    top of my list. Any help here is most welcome.
+    have eliminated all the obvious slowness from the code and
+    attempted a rewrite of the parser, which made no difference; other
+    ideas to speed up Penny with large data sets would involve
+    substantial changes and this is not at the top of my list because
+    the program is currently usable with relatively recent hardware.
 
   .
 
