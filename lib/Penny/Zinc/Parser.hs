@@ -59,8 +59,8 @@ parseReportsAndFilesAndPrint ::
   -> Parser (IO ())
 parseReportsAndFilesAndPrint rt dtz rg rs rslt = do
   let (F.Result factory sensitive sortFilt) = rslt
-  parserFunc <- R.report rt rs
-  let reportFunc = parserFunc sensitive factory
+  parserFunc <- R.report rs
+  let reportFunc = parserFunc rt sensitive factory
   filenames <- L.filenames
   return $ do
     ledgers <- L.readLedgers filenames

@@ -34,34 +34,41 @@ data Error = BadColorName String
 -- but not including, the first non-option argment.
 parseOptions ::
   Parser (S.Runtime -> Op.T -> Ex.Exceptional Error Op.T)
-parseOptions = fmap folder (many (parseOption rt))
-  where
-    folder rt = foldl (>=>) return . map (\fn -> fn rt)
+parseOptions = f <$> many parseOption where
+  f ls =
+    let g rt op =
+          let ls' = map (\fn -> fn rt) ls
+          in (foldl (>=>) return ls') op
+    in g
 
 
 parseOption ::
   Parser (S.Runtime -> Op.T -> Ex.Exceptional Error Op.T)
 parseOption =
-  operand rt
-  <|> boxFilters
-  <|> postFilter
-  <|> matcherSelect
-  <|> caseSelect
-  <|> operator
-  <|> color rt
-  <|> background
-  <|> width
-  <|> showField
-  <|> hideField
-  <|> showAllFields
-  <|> hideAllFields
-  <|> showZeroBalances
-  <|> hideZeroBalances
-
-operand :: S.Runtime -> Parser (Op.T -> Ex.Exceptional Error Op.T)
-operand rt = f <$> Ly.parseOperand
+  operand
+  <|> mkTwoArg boxFilters
+  <|> mkTwoArg postFilter
+  <|> mkTwoArg matcherSelect
+  <|> mkTwoArg caseSelect
+  <|> mkTwoArg operator
+  <|> color
+  <|> mkTwoArg background
+  <|> mkTwoArg width
+  <|> mkTwoArg showField
+  <|> mkTwoArg hideField
+  <|> mkTwoArg showAllFields
+  <|> mkTwoArg hideAllFields
+  <|> mkTwoArg showZeroBalances
+  <|> mkTwoArg hideZeroBalances
   where
-    f lyFn op =
+    mkTwoArg p = do
+      f <- p
+      return (\_ o -> f o)
+
+operand :: Parser (S.Runtime -> Op.T -> Ex.Exceptional Error Op.T)
+operand = f <$> Ly.parseOperand
+  where
+    f lyFn rt op =
       let dtz = Op.timeZone op
           rg = Op.radGroup op
           dt = S.currentTime rt
@@ -158,10 +165,10 @@ operator = f <$> Ly.parseOperator
 parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
 parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
 
-color :: S.Runtime -> Parser (Op.T -> Ex.Exceptional Error Op.T)
-color rt = parseOpt ["color"] "" (C.OneArg f)
+color :: Parser (S.Runtime -> Op.T -> Ex.Exceptional Error Op.T)
+color = parseOpt ["color"] "" (C.OneArg f)
   where
-    f a1 op = case pickColorArg rt a1 of
+    f a1 rt op = case pickColorArg rt a1 of
       Nothing -> Ex.throw . BadColorName $ a1
       Just c -> return (op { Op.colorPref = c })
 
