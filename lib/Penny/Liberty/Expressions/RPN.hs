@@ -9,13 +9,12 @@ module Penny.Liberty.Expressions.RPN (
   Operand(Operand),
   Operator(Unary, Binary),
   Token(TokOperand, TokOperator),
-  RPN,
   process) where
 
+import qualified Data.Foldable as Fdbl
 import Penny.Liberty.Stack (
   Stack, push, empty, View(Empty, Top),
   view)
-import qualified Penny.Liberty.Queue as Q
 
 -- | An operand; for example, in the expression @5 4 +@, @5@ and @4@
 -- are operands.
@@ -41,12 +40,6 @@ data Token a =
   TokOperand (Operand a)
   | TokOperator (Operator a)
   deriving Show
-
--- | Represents an RPN expression ready to be parsed. The tokens must
--- be enqueued from left to right, so that the beginning of the
--- expression is at the front of the queue and the end of the
--- expression is at the back of the queue.
-type RPN a = Q.Queue (Token a)
 
 -- | The stack of operands. When parsing an RPN expression, operands
 -- are removed from the incoming queue of tokens and are pushed onto
@@ -94,65 +87,34 @@ processOperand = push
 -- | Processes the next token. Fails if the next token is an operator
 -- and fails; otherwise, returns the new stack of operands.
 processToken ::
-  Token a
-  -> Operands a
+  Operands a
+  -> Token a
   -> Maybe (Operands a)
-processToken tok s = case tok of
+processToken s tok = case tok of
   TokOperand d -> return (processOperand d s)
   TokOperator t -> processOperator t s
 
--- | Process an RPN expression.
---
--- Fails if an operator fails to process
--- because there were insufficient operands on the stack; also fails
--- if there are operands left on the stack after the entire expression
--- has been parsed. Otherwise, succeeds with the result.
-process :: RPN a -> Maybe a
-process i = case popTokens i of
-  Just os -> case view os of
-    Top oss (Operand x) -> case view oss of 
-      Empty -> Just x
-      _ -> Nothing
+-- | Processes an entire input sequence of RPN tokens.
+process ::
+  Fdbl.Foldable l
+  => l (Token a)
+  -- ^ The tokens must be in the sequence from left to right in
+  -- postfix order; for example, @5 4 -@ will yield @1@. Typically
+  -- many appends will be required in order to build this sequence. If
+  -- performance is a concern, you can use a Data.Sequence; if the
+  -- list is small (as these lists will typically be) a regular list
+  -- will do just fine.
+
+  -> Maybe a
+  -- ^ Fails if there is not exactly one operand remaining on the
+  -- stack at the end of the parse, or if at any time there are
+  -- insufficient operands on the stack to parse an
+  -- operator. Otherwise, succeeds and returns the result.
+process ls = do
+  os <- Fdbl.foldlM processToken empty ls
+  (top, rest) <- case view os of
+    Top oss (Operand x) -> return (x, oss)
     _ -> Nothing
-  _ -> Nothing
-
-popTokens :: RPN a
-             -> Maybe (Operands a)
-popTokens i = case popTokens' i empty of
-  Nothing -> Nothing
-  Just (is, s') -> case Q.view is of
-    Q.Empty -> return s'
+  case view rest of
+    Empty -> return top
     _ -> Nothing
-
--- | Recursively removes tokens from the input queue of tokens to be
--- parsed. The base case is an empty input queue. In this case the
--- input queue and list of operands is returned unchanged. The
--- recursive case is an input queue with at least one token. In this
--- case the token is processed and popTokens' is called again with the
--- resulting input queue and operand stack.
-popTokens' :: RPN a
-             -> Operands a
-             -> Maybe (RPN a, Operands a)
-popTokens' ts s = case Q.view ts of
-  Q.Empty -> return (ts, s)
-  Q.Front xs x -> do
-    s' <- processToken x s
-    popTokens' xs s'
-
---
--- Testing
---
-
--- 19
-{-
-_input :: RPN Int
-_input = RPN [ TokOperand (Operand 4)
-             , TokOperand (Operand 5)
-             , TokOperand (Operand 8)
-             , TokOperator (Binary (*))
-             , TokOperand (Operand 6)
-             , TokOperator (Binary (-))
-             , TokOperator (Binary (+))
-             , TokOperand (Operand 2)
-             , TokOperator (Binary div) ]
--}
