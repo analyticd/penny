@@ -1,3 +1,12 @@
+-- | Creates RPN expressions from infix inputs.
+--
+-- Penny accepts only infix expressions, but RPN expressions are
+-- easier to process. This module converts infix expressions to RPN
+-- expressions for further processing.
+--
+-- Uses the shunting-yard algorithm, best described at
+-- http://www.chris-j.co.uk/parsing.php (be sure to use the \"click to
+-- display\" links).
 module Penny.Liberty.Expressions.Infix (
 
   Precedence(Precedence),
@@ -14,19 +23,13 @@ module Penny.Liberty.Expressions.Infix (
   
   R.Operand(Operand),
   
-  Output,
-  
   infixToRPN
   ) where
 
+import qualified Data.Foldable as Fdbl
 import qualified Penny.Liberty.Expressions.RPN as R
-import Penny.Liberty.Queue
-  (Queue, View(Empty, Front), view, enqueue, empty )
-import Penny.Liberty.Stack (push)
-import qualified Penny.Liberty.Stack as S
-
-type Stack a = S.Stack (StackVal a)
-type Output a = Queue (R.Token a)
+import qualified Data.Sequence as Seq
+import Data.Sequence((|>), Seq)
 
 newtype Precedence = Precedence Int deriving (Show, Eq, Ord)
 
@@ -63,91 +66,142 @@ instance Show (StackVal a) where
     "<binary, " ++ show p ++ ">"
   show StkOpenParen = "<OpenParen>"
 
-popTokens ::
-  (Precedence -> Bool)
-  -> Stack a
-  -> Output a
-  -> (Stack a, Output a)
-popTokens f ss os = case S.view ss of
-  S.Empty -> noChange
-  S.Top xs x -> case x of
-    StkOpenParen -> (ss, os)
-    StkUnaryPrefix p g -> popper (R.Unary g) p
-    StkBinary p g -> popper (R.Binary g) p
-    where
-      popper tok pr =
-        if f pr
-        then popTokens f xs output'
-        else noChange
-          where
-            output' = enqueue os (R.TokOperator tok)
-  where
-    noChange = (ss, os)
+-- | Converts an infix expression to an RPN expression.
+infixToRPN ::
+  Fdbl.Foldable l
+  => l (Token a)
+  -- ^ Input tokens. These should be in the sequence from left to
+  -- right in ordinary infix order. The easiest choice is a list,
+  -- though you might want to use Data.Sequence if many appends will
+  -- be needed to build the sequence.
+
+  -> Maybe (Seq (R.Token a))
+  -- ^ The resulting RPN expression. The token type here is a token
+  -- from Penny.Liberty.Expressions.RPN, which is a different type
+  -- than the Token in this module. Fails if the infix expression
+  -- fails to parse for any reason.
+infixToRPN ls =
+  Fdbl.foldlM processToken ([], Seq.empty) ls
+  >>= popRemainingOperators
+
 
 processToken ::
-  Token a
-  -> Stack a
-  -> Output a
-  -> Maybe (Stack a, Output a)
-processToken t ss os = case t of
-  TokOperand a ->
-    Just (ss, enqueue os (R.TokOperand (R.Operand a)))
-  TokUnaryPostfix f ->
-    Just (ss, enqueue os (R.TokOperator (R.Unary f)))
-  TokUnaryPrefix p f -> let
-    outputVal = StkUnaryPrefix p f
-    in Just (push outputVal ss, os)
-  TokBinary p a f -> let
-    stackVal = StkBinary p f
-    (stack', output') =
-      case a of
-        ALeft -> popTokens (>= p) ss os
-        ARight -> popTokens (> p) ss os
-    in Just (push stackVal stack', output')
-  TokOpenParen ->
-    Just (push StkOpenParen ss, os)
-  TokCloseParen -> popThroughOpenParen ss os
+  ([StackVal a], Seq (R.Token a))
+  -> Token a
+  -> Maybe ([StackVal a], Seq (R.Token a))
+processToken (ss, ts) tok =
+  case tok of
+    TokOperand a -> Just (ss, processOperand a ts)
+    TokUnaryPostfix f ->
+      Just (ss, processUnaryPostfix f ts)
+    TokUnaryPrefix p f ->
+      Just (processUnaryPrefix p f ss, ts)
+    TokBinary p a f ->
+      Just (processBinary p a f (ss, ts))
+    TokOpenParen -> Just (processOpenParen ss, ts)
+    TokCloseParen -> processCloseParen (ss, ts)
 
-infixToRPN ::
-  Queue (Token a)
-  -> Maybe (Output a)
-infixToRPN i = processTokens' i S.empty empty
+-- | If a token is an operand, append it to the postfix output.
+processOperand :: a -> Seq (R.Token a) -> Seq (R.Token a)
+processOperand a sq = sq |> (R.TokOperand (R.Operand a))
 
-processTokens' ::
-  Queue (Token a)
-  -> Stack a
-  -> Output a
-  -> Maybe (Output a)
-processTokens' is st os = case view is of
-  Empty -> popRemainingOperators st os
-  Front ts t -> do
-    (stack', output') <- processToken t st os
-    processTokens' ts stack' output'
+-- | If a token is a unary postfix operator, append it to the postfix
+-- output.
+processUnaryPostfix ::
+  (a -> a)
+  -> Seq (R.Token a)
+  -> Seq (R.Token a)
+processUnaryPostfix f sq =
+  sq |> (R.TokOperator (R.Unary f))
 
-popRemainingOperators ::
-  Stack a
-  -> Output a
-  -> Maybe (Output a)
-popRemainingOperators s os = case S.view s of
-  S.Empty -> Just os
-  S.Top xs x -> case x of
-    StkOpenParen -> Nothing
-    StkUnaryPrefix _ f -> pusher (R.Unary f)
-    StkBinary _ f -> pusher (R.Binary f)
-    where
-      pusher op = popRemainingOperators xs output' where
-        output' = enqueue os (R.TokOperator op)
+-- | If a token is a unary prefix operator, push it onto the stack.
+processUnaryPrefix ::
+  Precedence
+  -> (a -> a)
+  -> [StackVal a]
+  -> [StackVal a]
+processUnaryPrefix p f s = (StkUnaryPrefix p f):s
 
-popThroughOpenParen ::
-  Stack a
-  -> Output a
-  -> Maybe (Stack a, Output a)
-popThroughOpenParen ss os = case S.view ss of
-  S.Empty -> Nothing
-  S.Top xs x -> let
-    popper op = popThroughOpenParen xs output' where
-      output' = enqueue os (R.TokOperator op)
+-- | Pops tokens from the stack and appends them to the ouptut, as
+-- long as the token at the top of the stack is and operator and its
+-- precedence meets the given predicate.
+popTokens ::
+  (Precedence -> Bool)
+  -> ([StackVal a], Seq (R.Token a))
+  -> ([StackVal a], Seq (R.Token a))
+popTokens f (ss, os) =
+  case ss of
+    [] -> (ss, os)
+    x:xs -> case x of
+      StkOpenParen -> (ss, os)
+      StkUnaryPrefix p g -> popper (R.Unary g) p
+      StkBinary p g -> popper (R.Binary g) p
+      where
+        popper tok pr =
+          if f pr
+          then
+            let output' = os |> (R.TokOperator tok)
+            in popTokens f (xs, output')
+          else (ss, os)
+  
+
+-- | If the token is a binary operator A, then:
+--
+-- If A is left associative, while there is an operator B of higher or
+-- equal precedence than A at the top of the stack, pop B off the
+-- stack and append it to the output.
+--
+-- If A is right associative, while there is an operator B of higher
+-- precedence than A at the top of the stack, pop B off the stack and
+-- append it to the output.
+--
+-- Push A onto the stack.
+processBinary ::
+  Precedence
+  -> Associativity
+  -> (a -> a -> a)
+  -> ([StackVal a], Seq (R.Token a))
+  -> ([StackVal a], Seq (R.Token a))
+processBinary p a f pair =
+  let pdct = case a of
+        ALeft -> (>= p)
+        ARight -> (> p)
+      (ss, os) = popTokens pdct pair
+  in ((StkBinary p f):ss, os)
+
+-- | If the token is an opening parenthesis, push it onto the stack.
+processOpenParen :: [StackVal a] -> [StackVal a]
+processOpenParen = (StkOpenParen :)
+
+-- | If the token is a closing parenthesis, pop operators off the top
+-- of the stack and append them to the output until the operator at
+-- the top of the stack is an opening bracket. Pop the opening bracket
+-- off the stack.
+--
+-- Fails if no open paren is found.
+processCloseParen ::
+  ([StackVal a], Seq (R.Token a))
+  -> Maybe ([StackVal a], Seq (R.Token a))
+processCloseParen (ss, os) = case ss of
+  [] -> Nothing
+  (x:xs) ->
+    let popper op = processCloseParen (xs, output')
+          where
+            output' = os |> (R.TokOperator op)
     in case x of
       StkUnaryPrefix _ f -> popper (R.Unary f)        
       StkBinary _ f -> popper (R.Binary f)
       StkOpenParen -> Just (xs, os)
+
+popRemainingOperators ::
+  ([StackVal a], Seq (R.Token a))
+  -> Maybe (Seq (R.Token a))
+popRemainingOperators (s, os) = case s of
+  [] -> Just os
+  x:xs -> case x of
+    StkOpenParen -> Nothing
+    StkUnaryPrefix _ f -> pusher (R.Unary f)
+    StkBinary _ f -> pusher (R.Binary f)
+    where
+      pusher op = popRemainingOperators (xs, output') where
+        output' = os |> (R.TokOperator op)

@@ -16,13 +16,18 @@ module Penny.Liberty.Expressions (
   tokNot,
   evaluate) where
 
+import qualified Data.Foldable as Fdbl
 import Penny.Liberty.Expressions.Infix as I
-import Penny.Liberty.Queue (Queue)
 import Penny.Liberty.Expressions.RPN as R
 
 
--- | Tokens should be enqueued from left to right.
-evaluate :: Queue (I.Token a) -> Maybe a
+-- | Tokens should be enqueued from left to right, so that tokens on
+-- the left side of the sequence are those at the beginning of the
+-- expression.
+evaluate ::
+  Fdbl.Foldable l
+  => l (I.Token a)
+  -> Maybe a
 evaluate i = I.infixToRPN i >>= R.process
 
 -- | An And token which is left associative with precedence 3.
