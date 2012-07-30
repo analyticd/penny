@@ -80,7 +80,7 @@ popTokens f ss os = case S.view ss of
         then popTokens f xs output'
         else noChange
           where
-            output' = enqueue (R.TokOperator tok) os
+            output' = enqueue os (R.TokOperator tok)
   where
     noChange = (ss, os)
 
@@ -91,9 +91,9 @@ processToken ::
   -> Maybe (Stack a, Output a)
 processToken t ss os = case t of
   TokOperand a ->
-    Just (ss, enqueue (R.TokOperand (R.Operand a)) os)
+    Just (ss, enqueue os (R.TokOperand (R.Operand a)))
   TokUnaryPostfix f ->
-    Just (ss, enqueue (R.TokOperator (R.Unary f)) os)
+    Just (ss, enqueue os (R.TokOperator (R.Unary f)))
   TokUnaryPrefix p f -> let
     outputVal = StkUnaryPrefix p f
     in Just (push outputVal ss, os)
@@ -136,7 +136,7 @@ popRemainingOperators s os = case S.view s of
     StkBinary _ f -> pusher (R.Binary f)
     where
       pusher op = popRemainingOperators xs output' where
-        output' = enqueue (R.TokOperator op) os
+        output' = enqueue os (R.TokOperator op)
 
 popThroughOpenParen ::
   Stack a
@@ -146,7 +146,7 @@ popThroughOpenParen ss os = case S.view ss of
   S.Empty -> Nothing
   S.Top xs x -> let
     popper op = popThroughOpenParen xs output' where
-      output' = enqueue (R.TokOperator op) os
+      output' = enqueue os (R.TokOperator op)
     in case x of
       StkUnaryPrefix _ f -> popper (R.Unary f)        
       StkBinary _ f -> popper (R.Binary f)

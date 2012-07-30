@@ -86,7 +86,7 @@ data LibertyMeta =
 -- An empty list will fail to parse. The function calling this one
 -- must deal with empty lists if those are a possibility.
 parseTokenList :: [X.Token a] -> Maybe a
-parseTokenList = X.evaluate . foldl (flip Queue.enqueue) Queue.empty
+parseTokenList = X.evaluate . foldl Queue.enqueue Queue.empty
 
 -- | Parses a list of tokens to obtain a predicate. Deals with an
 -- empty list of tokens by returning a predicate that is always
