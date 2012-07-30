@@ -251,8 +251,6 @@ Library
         Penny.Liberty.Expressions,
         Penny.Liberty.Expressions.Infix,
         Penny.Liberty.Expressions.RPN,
-        Penny.Liberty.Queue,
-        Penny.Liberty.Stack,
         Penny.Lincoln,
         Penny.Lincoln.Balance,
         Penny.Lincoln.Bits,

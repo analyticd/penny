@@ -12,9 +12,6 @@ module Penny.Liberty.Expressions.RPN (
   process) where
 
 import qualified Data.Foldable as Fdbl
-import Penny.Liberty.Stack (
-  Stack, push, empty, View(Empty, Top),
-  view)
 
 -- | An operand; for example, in the expression @5 4 +@, @5@ and @4@
 -- are operands.
@@ -41,11 +38,6 @@ data Token a =
   | TokOperator (Operator a)
   deriving Show
 
--- | The stack of operands. When parsing an RPN expression, operands
--- are removed from the incoming queue of tokens and are pushed onto
--- this stack to await further processing. Operators are never pushed
--- onto the stack; therefore the stack holds only operands.
-type Operands a = Stack (Operand a)
 
 -- | Given an operator, and the stack of operands, process the
 -- operator. When parsing an RPN expression, encountering an operator
@@ -64,32 +56,32 @@ type Operands a = Stack (Operand a)
 -- operator pushed onto the top of the stack.
 processOperator ::
   Operator a
-  -> Operands a
-  -> Maybe (Operands a)
+  -> [Operand a]
+  -> Maybe ([Operand a])
 processOperator t ds = case t of
-  (Unary f) -> case view ds of
-    Empty -> Nothing
-    Top xs (Operand x) -> return $ push (Operand (f x)) xs
-  (Binary f) -> case view ds of
-    Empty -> Nothing
-    Top dss (Operand x) -> case view dss of
-      Top dsss (Operand y) ->
-        return $ push (Operand (f y x)) dsss
-      Empty -> Nothing
+  (Unary f) -> case ds of
+    [] -> Nothing
+    (Operand x):xs -> return $ (Operand (f x)) : xs
+  (Binary f) -> case ds of
+    [] -> Nothing
+    (Operand x):dss -> case dss of
+      (Operand y):dsss ->
+        return $ (Operand (f y x)) : dsss
+      [] -> Nothing
 
 -- | Adds an operand to the top of the stack.
 processOperand ::
   Operand a
-  -> Operands a
-  -> Operands a
-processOperand = push
+  -> [Operand a]
+  -> [Operand a]
+processOperand = (:)
 
 -- | Processes the next token. Fails if the next token is an operator
 -- and fails; otherwise, returns the new stack of operands.
 processToken ::
-  Operands a
+  [Operand a]
   -> Token a
-  -> Maybe (Operands a)
+  -> Maybe ([Operand a])
 processToken s tok = case tok of
   TokOperand d -> return (processOperand d s)
   TokOperator t -> processOperator t s
@@ -111,10 +103,10 @@ process ::
   -- insufficient operands on the stack to parse an
   -- operator. Otherwise, succeeds and returns the result.
 process ls = do
-  os <- Fdbl.foldlM processToken empty ls
-  (top, rest) <- case view os of
-    Top oss (Operand x) -> return (x, oss)
+  os <- Fdbl.foldlM processToken [] ls
+  (top, rest) <- case os of
+    (Operand x) : oss -> return (x, oss)
     _ -> Nothing
-  case view rest of
-    Empty -> return top
+  case rest of
+    [] -> return top
     _ -> Nothing

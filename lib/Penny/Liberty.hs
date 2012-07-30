@@ -54,7 +54,6 @@ import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
-import qualified Penny.Liberty.Queue as Queue
 import qualified Penny.Liberty.Expressions as X
 
 import Text.Matchers.CaseSensitive (
@@ -86,7 +85,7 @@ data LibertyMeta =
 -- An empty list will fail to parse. The function calling this one
 -- must deal with empty lists if those are a possibility.
 parseTokenList :: [X.Token a] -> Maybe a
-parseTokenList = X.evaluate . foldl Queue.enqueue Queue.empty
+parseTokenList = X.evaluate
 
 -- | Parses a list of tokens to obtain a predicate. Deals with an
 -- empty list of tokens by returning a predicate that is always

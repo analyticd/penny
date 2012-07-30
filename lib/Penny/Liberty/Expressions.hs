@@ -43,3 +43,21 @@ tokOr = I.TokBinary (I.Precedence 2) I.ALeft f where
 -- | A unary prefix Not token with precedence 4.
 tokNot :: I.Token (a -> Bool)
 tokNot = I.TokUnaryPrefix (I.Precedence 4) (not .)
+
+--
+-- Testing
+--
+plus :: I.Token Double
+plus = I.TokBinary (I.Precedence 4) I.ALeft (+)
+
+minus :: I.Token Double
+minus = I.TokBinary (I.Precedence 4) I.ALeft (-)
+
+times :: I.Token Double
+times = I.TokBinary (I.Precedence 5) I.ALeft (*)
+
+divide :: I.Token Double
+divide = I.TokBinary (I.Precedence 5) I.ALeft (/)
+
+neg :: I.Token Double
+neg = I.TokUnaryPrefix (I.Precedence 5) negate
