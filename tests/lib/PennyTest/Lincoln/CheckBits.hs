@@ -2,6 +2,7 @@
 
 module PennyTest.Lincoln.CheckBits where
 
+import Control.Applicative ((<$>))
 import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.Property as P
 import qualified PennyTest.Lincoln.Generators as G
@@ -34,4 +35,47 @@ badOffsets = testProperty n t
         _ -> return $
              P.failed { P.reason = "failed with offset: " ++ show i }
 
--- | Convert succeeds when it should.
+-- | newPrice succeeds if the commodities are different.
+newPriceSuccess :: T.Test
+newPriceSuccess = testProperty n t
+  where
+    n = "newPrice succeeds if commodities are different"
+    t = do
+      fr <- G.from
+      to <- Q.suchThat G.to (\(L.To cTo) -> cTo /= (L.unFrom fr))
+      d <- G.randomDecimal
+      case L.CountPerUnit <$> (L.newQty d) of
+        Nothing ->
+          return $ P.failed { P.reason = "could not generate cost per unit "
+                                         ++ "with decimal: " ++ show d }
+        Just cpu ->
+          case L.newPrice fr to cpu of
+            Nothing ->
+              return $ P.failed { P.reason = "price generation failed with "
+                                             ++ "from commodity: " ++ show fr
+                                             ++ " to commodity: " ++ show to }
+            Just _ -> return P.succeeded
+
+        
+-- | newPrice fails if the commodities are the same.
+newPriceFail :: T.Test
+newPriceFail = testProperty n t
+  where
+    n = "newPrice succeeds if commodities are different"
+    t = do
+      fr <- G.from
+      let to = L.To . L.unFrom $ fr
+      d <- G.randomDecimal
+      case L.CountPerUnit <$> (L.newQty d) of
+        Nothing ->
+          return $ P.failed { P.reason = "could not generate cost per unit "
+                                         ++ "with decimal: " ++ show d }
+        Just cpu ->
+          case L.newPrice fr to cpu of
+            Just _ ->
+              return $ P.failed { P.reason = "price generation succeeded with "
+                                             ++ "from commodity: " ++ show fr
+                                             ++ " to commodity: " ++ show to }
+            Nothing -> return P.succeeded
+
+        

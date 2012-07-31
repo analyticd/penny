@@ -34,6 +34,7 @@ convert p (Amount q c) =
   else let q' = q `mult` (unCountPerUnit . countPerUnit $ p)
        in Just (Amount q' (unTo . to $ p))
 
+-- | Succeeds only if From and To are different commodities.
 newPrice :: From -> To -> CountPerUnit -> Maybe Price
 newPrice f t cpu =
   if unFrom f == unTo t
