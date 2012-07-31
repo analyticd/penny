@@ -9,7 +9,6 @@ import qualified Data.Fixed as Fixed
 import qualified Data.Foldable as F
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
-import Data.Maybe (fromJust)
 import qualified Data.Time as DT
 import Data.Word (Word8)
 import qualified Penny.Lincoln as L
@@ -62,8 +61,8 @@ account = B.Account <$> genNonEmpty g g where
 
 -- ** Amounts
 
-amount :: Gen B.Amount
-amount = B.Amount <$> genQty <*> commodity 
+amount :: L.Qty -> Gen B.Amount
+amount q = B.Amount q <$> commodity 
 
 -- ** Commodities
 
@@ -91,13 +90,13 @@ timeOfDay =
   DT.TimeOfDay
   <$> choose (0, 23)
   <*> choose (0, 59)
-  <*> genPico
+  <*> pico
 
 -- | Generate a Pico in the range [0, 61).
 pico :: Gen Fixed.Pico
 pico =
   fromRational . toRational
-  <$> suchThat (< (61.0 :: Double)) (choose (0, 61))
+  <$> suchThat (choose (0, 61)) (< (61.0 :: Double))
 
 
 -- | Generate a valid LocalTime.
@@ -110,19 +109,14 @@ localTime = DT.LocalTime <$> day <*> timeOfDay
 -- TimeZoneOffset. Otherwise, this should fail.
 timeZoneOffset ::
   Gen Int
-  -> Gen (Maybe TimeZoneOffset)
+  -> Gen (Maybe L.TimeZoneOffset)
 timeZoneOffset = fmap L.minsToOffset
 
--- | Pass in a generator for the time zone offset; if an offset is
+-- | Pass in the time zone offset; if an offset is
 -- successfully generated, return a DateTime.
-dateTime ::
-  Gen Int
-  -> Gen (Maybe DateTime)
-dateTime = do
-  tzo <- timeZoneOffset
-  case tzo of
-    Nothing -> return Nothing
-    Just tz -> (\lt -> L.dateTime lt tz) <$> localTime
+dateTime :: L.TimeZoneOffset -> Gen L.DateTime
+dateTime tzo = flip L.dateTime tzo <$> localTime
+
 
 -- ** Debits and credits
 
@@ -131,8 +125,8 @@ drCr = elements [B.Debit, B.Credit]
 
 -- ** Entries
 
-entry :: Gen B.Entry
-entry = B.Entry <$> drCr <*> amount
+entry :: L.Qty -> Gen B.Entry
+entry q = B.Entry <$> drCr <*> (amount q)
 
 -- ** Flag
 
@@ -161,13 +155,10 @@ payee = B.Payee <$> genTextNonEmpty unicode unicode
 -- ** Price and price points
 
 from :: Gen B.From
-from = B.From <$> genUniCommodity
+from = B.From <$> commodity
 
 to :: Gen B.To
-to = B.To <$> genUniCommodity
-
-countPerUnit :: Gen B.CountPerUnit
-countPerUnit = B.CountPerUnit <$> genQty
+to = B.To <$> commodity
 
 priceLine :: Gen L.PriceLine
 priceLine = L.PriceLine <$> arbitrary
@@ -183,22 +174,16 @@ format = L.Format <$> side <*> spaceBetween
 
 priceMeta :: Gen L.PriceMeta
 priceMeta = L.PriceMeta
-               <$> genMaybe priceLine
-               <*> genMaybe format
+            <$> genMaybe priceLine
+            <*> genMaybe format
 
 
-price :: Gen L.Price
-price = do
-  cpu <- countPerUnit
-  f <- L.From <$> genUniCommodity
-  t <- L.To <$> genUniCommodity
-  case L.newPrice f t cpu of
-    Nothing -> price
-    Just p -> return p
-
-genPricePoint :: Gen L.PricePoint
-genPricePoint =
-  L.PricePoint <$> genDateTime <*> genPrice <*> priceMeta
+-- | When given a Price, generate a PricePoint.
+pricePoint :: L.TimeZoneOffset -> L.Price -> Gen L.PricePoint
+pricePoint tzo p =
+  (\dt pm -> L.PricePoint dt p pm)
+  <$> dateTime tzo
+  <*> priceMeta
 
 
 -- | Creates random Decimals with a distribution a little more
@@ -216,14 +201,11 @@ maxDecimalPlaces = 10
 mantissaExponent :: Int
 mantissaExponent = 10
 
-genQty :: Gen B.Qty
-genQty = B.partialNewQty <$> randomDecimal
+tag :: Gen B.Tag
+tag = B.Tag <$> genTextNonEmpty unicode unicode
 
-genUniTag :: Gen B.Tag
-genUniTag = B.Tag <$> genTextNonEmpty unicode unicode
-
-genUniTags :: Gen B.Tags
-genUniTags = B.Tags <$> listOf genUniTag
+tags :: Gen B.Tags
+tags = B.Tags <$> listOf tag
 
 type NEDrCrQty = (B.DrCr, NE.NonEmpty B.Qty)
 
@@ -250,9 +232,9 @@ randEntries = let
     ss' = (dcOther, fmap mkq ss)
     mss' = (,) <$> pure dcOther <*> (fmap mkq <$> mss)
     in (os', ss', mss')
-  in f <$> genDrCr <*> randDecTriple
-    
-    
+  in f <$> drCr <*> randDecTriple
+
+
 type NEDecimal = NE.NonEmpty D.Decimal
 
 -- | Generate a list of random positive Decimals, a list of Decimals
