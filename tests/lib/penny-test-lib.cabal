@@ -60,6 +60,7 @@ Library
     PennyTest.Copper.TopLine,
     PennyTest.Copper.Util,
     PennyTest.Lincoln,
+    PennyTest.Lincoln.Generators,
     PennyTest.Lincoln.Balance,
     PennyTest.Lincoln.Bits,
     PennyTest.Lincoln.Family,
