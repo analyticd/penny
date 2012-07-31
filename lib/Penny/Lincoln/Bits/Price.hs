@@ -24,6 +24,9 @@ data Price = Price { from :: From
                    , countPerUnit :: CountPerUnit }
              deriving (Eq, Ord, Show)
 
+-- | Convert an amount from the From price to the To price. Fails if
+-- the From commodity in the Price is not the same as the commodity in
+-- the Amount.
 convert :: Price -> Amount -> Maybe Amount
 convert p (Amount q c) =
   if (unFrom . from $ p) /= c
