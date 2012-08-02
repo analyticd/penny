@@ -201,11 +201,22 @@ maxDecimalPlaces = 10
 mantissaExponent :: Int
 mantissaExponent = 10
 
+-- ** Tags
+
 tag :: Gen B.Tag
 tag = B.Tag <$> genTextNonEmpty unicode unicode
 
 tags :: Gen B.Tags
 tags = B.Tags <$> listOf tag
+
+-- * Metadata
+
+-- | Generates Ints over the entire range of Int, but generates zeroes
+-- about a fourth of the time. The other three-fourths of values are
+-- randomly distributed over the range of Int. Does not depend on the
+-- size parameter.
+
+-- * Entry generators
 
 type NEDrCrQty = (B.DrCr, NE.NonEmpty B.Qty)
 
