@@ -215,6 +215,16 @@ tags = B.Tags <$> listOf tag
 -- about a fourth of the time. The other three-fourths of values are
 -- randomly distributed over the range of Int. Does not depend on the
 -- size parameter.
+someZeros :: Gen Int
+someZeros = oneof [ return 0, choose (minBound, maxBound) ]
+
+topLineLine :: Gen L.TopLineLine
+topLineLine = L.TopLineLine <$> someZeros
+
+topMemoLine :: Gen L.TopMemoLine
+topMemoLine = L.TopMemoLine <$> someZeros
+
+filename :: 
 
 -- * Entry generators
 
