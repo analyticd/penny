@@ -1,5 +1,5 @@
 Name: penny-lib
-Version: 0.1.0.0
+Version: 0.2.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
 License: MIT
@@ -179,7 +179,7 @@ Library
         Decimal >= 0.2.2 && < 0.3,
         parsec >= 3.1.2 && < 3.2,
         multiarg ==0.4.*,
-        matchers ==0.1.*,
+        matchers ==0.2.*,
         old-locale ==1.0.*,
         semigroups ==0.8.*,
         split ==0.1.*
