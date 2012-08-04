@@ -55,8 +55,8 @@ processColorArg ::
 processColorArg rt x
   | x == "yes" = return Chk.Colors8
   | x == "no" = return Chk.Colors0
-  | x == "auto" = return Chk.Colors256
-  | x == "256" = return (CO.maxCapableColors rt)
+  | x == "auto" = return (CO.maxCapableColors rt)
+  | x == "256" = return Chk.Colors256
   | otherwise = Nothing
 
 parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a

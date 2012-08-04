@@ -17,8 +17,7 @@ description: Penny is a double-entry accounting system. It is inspired
   by, but incompatible with, John Wiegley's Ledger, which is available
   at <http://ledger-cli.org/>. Installing this package with cabal
   install will install the executable program and the necessary
-  libraries. For more information, see the page for the Penny library,
-  available here.
+  libraries. For more information, see the page for the Penny library.
 
 source-repository head
     type: git

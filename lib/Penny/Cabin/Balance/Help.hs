@@ -28,7 +28,7 @@ helpStr = unlines [
   "    price at the given date (and, optionally, time.) Fails if",
   "    any commodity does not have the necessary price.",
   "  -c commodity",
-  "    Same as \"convert commodity [right now]\"",
+  "    Same as \"--convert commodity [right now]\"",
   ""
   ]
   

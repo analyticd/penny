@@ -16,7 +16,7 @@ in your ledger file. Each transaction has at least two postings. After
 .B penny
 verifies that your ledger file is
 .I balanced
-(that is, every posting has debits and credits that are equal)
+(that is, every transaction has debits and credits that are equal)
 .B penny
 splits each transaction into its component postings. After this point,
 .B penny
@@ -76,31 +76,76 @@ see the file
 which is included inside the package for
 .BR penny-lib .
 
+.SH COMPARERS
+
+Many options perform comparisons; for example, the
+.B --date
+option compares postings to a date you specify to determine
+which postings to keep and which to reject. Where
+.I comparer
+appears below, you must supply one of the following strings.
+You will need to quote many of them, because many of these
+characters will have special meaning for your shell.
+
+.TS
+tab(:);
+l l l
+- - -
+lB lB l.
+Primary form:Alternate form:Comparison performed
+<::Less than
+<=::Less than or equal to
+==:T{
+=
+T}:Equals
+>::Greater than
+>=::Greater than or equal to
+/=:!=:Not equal to
+.TE
+
 .SH POSTING FILTERS
 .SS Dates
 
 .TP
-.B --date cmp timespec, -d cmp timespec
+.BI "--date | -d " "comparer timespec"
 
 The date of the posting must be within the time frame given.
-.BR cmp
-is one of
-.BR < , > , <= , >= , == , /= , !=
-and
 .BR date
+is the same format as dates in the
+.B penny
+file and
 is either a date alone, such as
 .BR 2012-04-25 ,
 or a date and a time, such as
 .BR "2012-04-25 14:25 -0400" .
-You may need to quote some of these arguments; for example,
-.BR >
-probably has special meaning to your shell and so you will need to
-quote it.
 
 .TP
 .B --current
 Same as
-.B --date <= [right now]
+.BI "--date <= " "right now"
+
+.SS Serials
+These perform matching based on serials. For more on serials,
+see the section
+.B SERIALS
+below. Each option takes the form
+.IR "option comparer number" .
+.TP
+.B --globalTransaction
+.TQ
+.B --revGlobalTransaction
+.TQ
+.B --globalPosting
+.TQ
+.B --revGlobalPosting
+.TQ
+.B --fileTransaction
+.TQ
+.B --revFileTransaction
+.TQ
+.B --filePosting
+.TQ
+.B --revFilePosting
 
 .SS Pattern matching
 
@@ -110,69 +155,71 @@ that must match a particular component of the posting. By default the simple
 matcher is used, and matches are case-insensitive.
 
 .TP
-.B -a pattern, --account pattern
+.BI "--account | -a " pattern
 The sub-accounts of the account are separated with colons, and the
 match succeeds if the pattern matches this entire colon-separated
 name.
 
 .TP
-.B --account-level num pattern
+.BI "--account-level " "num " pattern
 The account is separated into sub-accounts, which are numbered
 beginning at zero. The match succeeds if the posting has a sub-account
 numbered at the given level, and if that sub account matches the given
 pattern.
 
 .TP
-.B --account-any pattern
+.BI --account-any " pattern"
 The account is separated into sub-accounts. The match succeeds if the
 pattern matches any of a posting's sub-accounts.
 
 .TP
-.B --payee pattern, -p pattern
+.BI  "--payee | -p " pattern
 Succeeds if the pattern matches the posting's payee. If the posting
 has no payee, the payee of the parent transaction is used (if there is
 one).
 
 .TP
-.B --tag pattern, -t pattern
+.BI "--tag | -t " pattern
 Succeeds if any one of the posting's tags matches the given pattern.
 
 .TP
-.B --number pattern
-Succeeds if the posting's number matches the given pattern. If the
-posting has no number, the number of the parent transaction is used
-(if there is one).
+.BI --number " pattern"
+Succeeds if the posting's number matches the given pattern. (This is
+the number that you specify in parentheses in your ledger file, not
+the line number or any of the serial numbers.)  If the posting has no
+number, the number of the parent transaction is used (if there is
+one).
 
 .TP
-.B --flag pattern
+.BI --flag " pattern"
 Succeeds if the posting's flag matches the given pattern. If the
 posting has no number, the flag of the parent transaction is used
 (if there is one).
 
 .TP
-.B --commodity pattern
+.BI --commodity " pattern"
 The commodity is separated into colon-separated sub-commodities, and
 the test succeeds if the pattern matches the full colon-separated
 commodity name.
 
 .TP
-.B --commodity-level pattern
+.BI "--commodity-level " pattern
 The commodity is separated into sub-commodities, which are numbered
 beginning at zero. The match succeeds if the posting has a sub-commodity
 numbered at the given level, and if that sub-commodity matches the given
 pattern.
 
 .TP
-.B --commodity-any pattern
+.BI "--commodity-any " pattern
 The commodity is separated into sub-commodities. The match succeeds if
 the pattern matches any of a posting's sub-commodities.
 
 .TP
-.B --posting-memo pattern
+.BI "--posting-memo " pattern
 The posting memo must match the given pattern.
 
 .TP
-.B --transaction-memo pattern
+.BI "--transaction-memo " pattern
 The transaction memo must match the given pattern.
 
 .SS Other posting characteristics
@@ -183,20 +230,18 @@ The entry must be a debit.
 .B --credit
 The entry must be a credit.
 
-.B --qty cmp number
-The entry's quantity must fall within the given range. Valid values
-for cmp are the same as those for --date.
+.BI --qty " comparer number"
+The entry's quantity must fall within the given range.
 
 .SS Operators
 
-Each of the options above is a single operand. You can join these
-operands together with operators. These operators are specified below,
-from highest to lowest precedence. All operators are left
-associative. If you specify two adjacent operands without specifying
-an operator, penny automatically uses the --and operator.
+Each of the options above is a single operand. If you have multiple
+operands, you must join them together using operators.  These
+operators are specified below, from highest to lowest precedence. All
+operators are left associative.
 
 .TP
-.BI --open expr --close
+.BI "--open " expr " --close"
 Force precedence using parentheses. Enclose a complete expression
 between the
 .B --open
@@ -205,13 +250,13 @@ and
 options.
 
 .TP
-.BI --not expr
+.BI "--not " expr
 True if
 .I expr
 is false.
 
 .TP
-.IB expr1 --and expr2
+.IB expr1 " --and " expr2
 True if
 .I expr1
 and
@@ -219,7 +264,7 @@ and
 are both true.
 
 .TP
-.IB expr1 --or expr2
+.IB expr1 " --or " expr2
 True if
 .I expr1
 or
@@ -234,19 +279,19 @@ command line is significant; each of these options only affects
 patterns that appear after it on the command line.
 
 .TP
-.B -i, --case-insensitive
+.B "-i | --case-insensitive"
 Patterns are case insensitive (default)
 
 .TP
-.B -I, --case-sensitive
+.B "-I | --case-sensitive"
 Patterns are case sensitive
 
 .TP
 .B --within
-Use the "within" matcher, which matches if the pattern given appears
-anywhere within the target text. This is a simple letter-for-letter
-match, not a regular expression, though its case sensitivity is
-affected by the
+Use the "within" matcher (default), which matches if the pattern given
+appears anywhere within the target text. This is a simple
+letter-for-letter match, not a regular expression, though its case
+sensitivity is affected by the
 .B --case-insensitive
 and
 .B --case-sensitive
@@ -302,9 +347,7 @@ The postings are sorted in ascending order if the first letter of the
 key is lowercase; descending order if the first letter of the key is
 uppercase.
 
-.SS REPORTS
-
-.SS postings report
+.SH POSTINGS REPORT
 
 The
 .B postings
@@ -320,6 +363,30 @@ filtering stage still affect the report's running balance.
 Additional options for the
 .B postings
 report:
+
+.SS Additional serial filtering options
+These options affect which postings are shown. Postings that were not
+filtered in the filtering stage but that are not shown still affect
+the running balance. In addition to using the same options that are
+used for filtering, these additional options are available that are
+based on some additional serials. They take the form
+.IR "option comparer number " .
+For more information on serials, see the
+.B SERIALS
+section below.
+
+.TP
+.B --filtered
+filtered serial, forward component
+.TQ
+.B --revFiltered
+filtered serial, reverse component
+.TQ
+.B --sorted
+sorted serial, forward component
+.TQ
+.B --revSorted
+sorted serial, reverse component
 
 .TP
 .BR --color " yes|no|auto|256"
@@ -351,65 +418,121 @@ width; however, it will never be wider than the specified width.
 .BI "--show" " field"
 .TQ
 .BI "--hide" " field"
-Show or hide fields from the displayed report. Fields are displayed in a fixed order. Available fields are:
+Show or hide fields from the displayed report. Fields are displayed in
+a fixed order, which is the same as the order that the table below is
+in. Fields with an asterisk are shown by default.
 
-.RS 8
-.TP
-.B globalTransaction
-globalTransaction serial, forward component
+.\" Do not precede the empty fields in the table with any spaces. This
+.\" will cause GNU tbl to segfault.
+.\" See
+.\" http://lists.gnu.org/archive/html/groff/2010-11/msg00014.html
+.\" Apparently the bug has been fixed but who knows how long that will
+.\" take to propogate.
 
-.TP
-.B revGlobalTransaction
-globalTransaction serial, reverse component
-
-.TP
-.B globalPosting
-globalPosting serial, forward component
-
-.TP
-.B revGlobalPosting
-globalPosting serial, reverse component
-
-.TP
-.B fileTransaction
-fileTransaction serial, forward component
-
-.TP
-.B revFileTransaction
-fileTransaction serial, reverse component
-
-.TP
-.B filePosting
-filePosting serial, forward component
-
-.TP
-.B revFilePosting
-filePosting serial, reverse component
-
-.TP
-.B filtered
-filtered serial, forward component
-
-.TP
-.B revFiltered
-filtered serial, reverse component
-
-.TP
-.B sorted
-sorted serial, forward component
+.TS
+tab(:);
+lB lB l.
+:globalTransaction:globalTransaction serial, forward component
+:revGlobalTransaction:globalTransaction serial, reverse component
+:globalPosting:globalPosting serial, forward component
+:revGlobalPosting:globalPosting serial, reverse component
+:fileTransaction:fileTransaction serial, forward component
+:revFileTransaction:fileTransaction serial, reverse component
+:filePosting:filePosting serial, forward component
+:revFilePosting:filePosting serial, reverse component
+:filtered:filtered serial, forward component
+:revFiltered:revFiltered serial, reverse component
+:sorted:sorted serial, forward component
+:revSorted:sorted serial, reverse component
+:visible:visible serial, forward component
+:revVisible:visible serial, reverse component
+:lineNum:line number (starting from 1)
+*:date:transaction's date
+:flag:posting or transaction flag
+:number:posting or transaction's number
+*:payee:posting or transaction's payee
+*:account:posting's account
+*:postingDrCr:whether the posting is a debit or credit
+*:postingCmdty:posting's commodity
+*:postingQty:posting's quantity
+*:totalDrCr:whether the running total is a debit or credit
+*:totalCommodity:commodity of the running total
+*:totalQty:quantity of the running total
+:tags:posting's tags
+:memo:the posting and transaction memo
+:filename:filename where the posting came from
+.TE
 
 .TP
-.B revSorted
-sorted serial, reverse component
+.B --show-all
+Show all fields
 
 .TP
-.B visible
-visible serial, forward component
+.B --hide-all
+Hide all fields
 
 .TP
-.B revVisible
-visible serial, reverse component
+.B --show-zero-balances
+Shows the balance of all commodities in the
+.IR totalDrCr ", " totalCommodity ", and " totalQty
+fields, even if that balance is zero.
 
+.TP
+.B --hide-zero-balances
+Hides the balance of commodities in the
+.IR totalDrCr ", " totalCommodity ", and " totalQty
+fields if they are zero (default)
+
+.SH BALANCE REPORT
+The
+.B balance
+report summarizes the balances in each account that is represented in
+the postings that remain after the filtering specifications are
+carried out. You can use sorting specifications with the balance
+report, but they will have no effect. The accounts are shown
+hierarchically. This report is also useful for converting from one
+commodity to another.
+
+The
+.B balance
+report accepts the following options:
+
+.TP
+.BI --color " yes|no|auto|256"
+Controls how many colors to display:
+
+.TS
+tab(:);
+lB l.
+yes:always show 8 colors
+no:never show any colors
+auto:T{
+show 8 or 256 colors, but only if standard output is a terminal.
+If standard output is a terminal, shows 256 colors if the value
+of the TERM environment variable is \fIxterm-256color\fR;
+otherwise, shows 8 colors.
+T}
+256:always show 256 colors
+.TE
+
+.TP
+.BI --background " light|dark"
+Use appropriate color scheme for the given terminal background
+
+.TP
+.BI --convert " commodity dateTime"
+Convert all commodities to the given commodity using their price as of
+the given date and, optionally, time.
+.IR commodity " and " dateTime
+follow the same format as the respective items in a ledger file. If
+any commodity does not have a matching price,
+.B penny
+will fail and give you an error message.
+
+.TP
+.BI -c " commodity"
+Same as
+.BI "--convert " "commodity [right now]"
 
 .SH SERIALS
 
@@ -467,3 +590,10 @@ specified by the options to the
 report. (Does not apply to the
 .I balance
 report.)
+
+.SH SEE ALSO
+The file
+.B doc/samplePennyFile
+in the tarball for the
+.B penny-lib
+package shows you how to write a ledger file.

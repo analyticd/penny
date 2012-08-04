@@ -97,15 +97,6 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  * Tested with QuickCheck. This will not root out all bugs but it has
-    already squashed a few of them. All tests are maintained in a
-    separate library, which is not on Hackage but which is maintained
-    in the same version control tree as is Penny. See the tests
-    directory at <https://github.com/massysett/penny>. You can of
-    course compile and run the tests yourself.
-
-  .
-
   * Freely licensed under the MIT license. If you take this code,
     improve it, lock it up and make it proprietary, and sell it,
     AWESOME! I haven't lost anything because I still have my code and,
@@ -138,11 +129,9 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  * Young and not well tested yet. Also, only tested on Unix. Though I
-    see no reason Penny would not work on Windows, I do know that the
-    code for generating colorful reports will completely break in a
-    Windows Cmd.exe window. There might be other Windows breakage, as
-    I have not tested Penny under Windows at all.
+  * Young and not well tested yet. Also, only tested on Unix. It
+    probably would not be difficult to make Penny run on Windows; if
+    someone wants to do that, go ahead.
 
   .
 
@@ -171,10 +160,9 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  This package, penny-lib, is the Penny library. The executable is in
-  a separate package, penny-bin (available on Hackage) and tests are
-  in a separate package, penny-tests (not on Hackage). All code is
-  maintained in one version control repository.
+  This is only a library. For the executable package, which also
+  includes more documentation, search for the penny-bin package on
+  Hackage.
 
 source-repository head
     type: git

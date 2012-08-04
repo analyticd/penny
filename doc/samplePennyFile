@@ -134,10 +134,7 @@
 ; just as accounts can. Subsequent parts can be viewed as
 ; sub-commodities. This can be handy if different commodities
 ; have something in common and you want to group them together.
-; Currently nothing uses price data or sub-commodities. The plan
-; is that 
-; some reports that use prices can apply a single price to multiple
-; sub-commodities. For example, let's say you bought shares in T in
+; For example, let's say you bought shares in T in
 ; 2007 and in 2012. For tax purposes you want to track them separately
 ; in your reports (this can matter for capital gains taxes) yet
 ; shares in T have the same price whether you bought them in 2007
@@ -228,7 +225,7 @@
 # they don't make sense, please let me know.
 #
 # A commodity is a thing of value you track in Penny. Typically this
-# will be a currency (like $ of €, but it can be whatever you like,
+# will be a currency (like $ or €, but it can be whatever you like,
 # such as a ticker symbol or some letters to represent your house.
 
 # A quantity is a number, such as 3 or 65.2 or 33.80. Notice that
@@ -244,11 +241,11 @@
 # * Commodity first, without a separating space. E.g. $100, F25, €59,
 # In this case the commodity name CANNOT have any digits.
 #
-# * Commodity first, with a separating space. E.g. $100, €59.
+# * Commodity first, with a separating space. E.g. $ 100, € 59.
 #
-# * Commodity last, without separating space.
+# * Commodity last, without separating space. E.g. 59€.
 #
-# * Commodity last, with separating space.
+# * Commodity last, with separating space. E.g. 59 €.
 #
 # In the last three cases, the commodity name can include digits.
 # If you want to include spaces in the name of a commodity, surround

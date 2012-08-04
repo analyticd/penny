@@ -19,7 +19,7 @@ help = pack $ unlines [
   "--current",
   "  Same as \"--date <= (right now) \"",
   "",
-  "Sequence numbers",
+  "Serials",
   "----------------",
   "These options take the form --option cmp num; the given",
   "sequence number must fall within the given range. \"rev\"",

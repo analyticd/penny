@@ -26,8 +26,6 @@ helpStr = unlines [
   "    --sorted, --revSorted",
   "      All postings remaining after filtering and after",
   "      postings have been sorted",
-  "    --visible, --revVisible",
-  "      All postings after filtering and sorting",
   "",
   "  Other additional options:",
   "",
