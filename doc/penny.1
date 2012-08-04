@@ -353,29 +353,117 @@ width; however, it will never be wider than the specified width.
 .BI "--hide" " field"
 Show or hide fields from the displayed report. Fields are displayed in a fixed order. Available fields are:
 
+.RS 8
 .TP
-.B transaction
-A number assigned to each transaction in order from beginning to end,
-beginning with zero. This number is assigned before the transactions
-are split into postings.
+.B globalTransaction
+globalTransaction serial, forward component
 
 .TP
-.B revTransaction
+.B revGlobalTransaction
+globalTransaction serial, reverse component
+
+.TP
+.B globalPosting
+globalPosting serial, forward component
+
+.TP
+.B revGlobalPosting
+globalPosting serial, reverse component
+
+.TP
+.B fileTransaction
+fileTransaction serial, forward component
+
+.TP
+.B revFileTransaction
+fileTransaction serial, reverse component
+
+.TP
+.B filePosting
+filePosting serial, forward component
+
+.TP
+.B revFilePosting
+filePosting serial, reverse component
+
+.TP
+.B filtered
+filtered serial, forward component
+
+.TP
+.B revFiltered
+filtered serial, reverse component
+
+.TP
+.B sorted
+sorted serial, forward component
+
+.TP
+.B revSorted
+sorted serial, reverse component
+
+.TP
+.B visible
+visible serial, forward component
+
+.TP
+.B revVisible
+visible serial, reverse component
+
+
+.SH SERIALS
+
+Each posting is assigned several
+.IR serials ,
+each of which is a pair of ordinal numbers. The first number in the
+pair, or
+.IR "forward component" ,
+is assigned by numbering the transactions or postings from
+beginning to end beginning at zero, while the second number in the
+pair, or
+.IR "reverse component" ,
+is assigned by numbering the transactions or postings from end to
+beginning, beginning at zero. Here are all the serials that are
+assigned to each posting.
+
+.TP
+.B globalTransaction
+All transactions are numbered in order, beginning with those in the
+first file specified on the command line and ending with the last
+file. Occurs before the transactions are split into postings.
+
+.TP
+.B fileTransaction
 Like
-.BR transaction ,
-but assigned to each transaction in order from end to beginning.
+.IR globalTransaction ,
+but numbering restarts with each new file.
 
 .TP
-.B pre-filter
-A number assigned to each posting, beginning with zero, before the
-postings are filtered.
+.B globalPosting
+All postings are numbered in order, beginning with those in the first
+file specified on the command line and ending with the last file.
 
 .TP
-.B revPre-filter
+.B filePosting
 Like
-.BR pre-filter ,
-but assigned to each posting from end to beginning.
+.IR globalPosting ,
+but numbering restarts with each new file.
 
 .TP
-.B post-sort
-A number assigned to each posting, beginning with zero, that remains
+.B filtered
+Postings are numbered after first removing the postings as specified
+by the filtering options specified on the command line.
+
+.TP
+.B sorted
+Postings are numbered in order after the sorting options have been
+applied, which occurs after the filtering options have been applied.
+
+.TP
+.B visible
+Postings are numbered in order after removing the postings as
+specified by the options to the
+.I postings
+report. (Does not apply to the
+.I balance
+report.)
