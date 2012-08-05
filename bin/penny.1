@@ -72,9 +72,9 @@ Entering the data into the ledger files is your responsibility;
 .B penny
 will never modify this data. To see how to enter data into the file,
 see the file
-.BR docs/samplePennyFile ,
+.BR samplePennyFile ,
 which is included inside the package for
-.BR penny-lib .
+.BR penny-bin .
 
 .SH COMPARERS
 
@@ -161,7 +161,7 @@ match succeeds if the pattern matches this entire colon-separated
 name.
 
 .TP
-.BI "--account-level " "num " pattern
+.BI "--account-level " "number pattern"
 The account is separated into sub-accounts, which are numbered
 beginning at zero. The match succeeds if the posting has a sub-account
 numbered at the given level, and if that sub account matches the given
@@ -203,7 +203,7 @@ the test succeeds if the pattern matches the full colon-separated
 commodity name.
 
 .TP
-.BI "--commodity-level " pattern
+.BI "--commodity-level " "number pattern"
 The commodity is separated into sub-commodities, which are numbered
 beginning at zero. The match succeeds if the posting has a sub-commodity
 numbered at the given level, and if that sub-commodity matches the given
@@ -334,9 +334,7 @@ postings.
 .SH Sorting
 
 .TP
-.BI "--sort " key
-.TQ
-.BI "-s " key
+.BI "--sort | -s " key
 Sorts postings according to a key. Use multiple
 .B --sort
 options to sort by more than one key. Valid keys are: payee, date,
@@ -387,6 +385,8 @@ sorted serial, forward component
 .TQ
 .B --revSorted
 sorted serial, reverse component
+
+.SS Other additional options for the balance report
 
 .TP
 .BR --color " yes|no|auto|256"
@@ -593,7 +593,7 @@ report.)
 
 .SH SEE ALSO
 The file
-.B doc/samplePennyFile
+.B samplePennyFile
 in the tarball for the
-.B penny-lib
+.B penny-bin
 package shows you how to write a ledger file.
