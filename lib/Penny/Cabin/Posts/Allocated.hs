@@ -47,7 +47,6 @@ import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Spacers as S
-import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.TextFormat as TF
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
@@ -111,7 +110,7 @@ removeExtraSpace cs = (trimmed, len) where
 -- | Gets the width of the two allocated fields.
 fieldWidth ::
   O.Options
-  -> Spacers.T Int
+  -> S.Spacers Int
   -> G.Fields (Maybe Int)
   -> O.ReportWidth
   -> Fields Int
@@ -146,7 +145,7 @@ optionsToFields os = let f = O.fields os in Fields {
 -- Spacers.
 sumSpacers ::
   G.Fields (Maybe a)
-  -> Spacers.T Int
+  -> S.Spacers Int
   -> Int
 sumSpacers fs =
   sum
@@ -200,7 +199,7 @@ appearingSpacers ss = case ss of
 -- the GFields, which indicates each particular field.
 pairedWithSpacers ::
   G.Fields a
-  -> Spacers.T b
+  -> S.Spacers b
   -> G.Fields (a, Maybe b, G.EFields)
 pairedWithSpacers f s =
   (\(a, b) c -> (a, b, c))
@@ -211,7 +210,7 @@ pairedWithSpacers f s =
 -- spacers; makes the adjustments described in sumSpacers.
 sumGrowersAndSpacers ::
   G.Fields (Maybe Int)
-  -> Spacers.T Int
+  -> S.Spacers Int
   -> Int
 sumGrowersAndSpacers fs ss = spacers + flds where
   spacers = sumSpacers fs ss

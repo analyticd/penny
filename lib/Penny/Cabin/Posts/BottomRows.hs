@@ -39,7 +39,6 @@ import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Posts.Options as O
-import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.HasText as HT
@@ -216,7 +215,7 @@ calcHangingWidths l m r = Hanging left middle right where
 
 topCellSpecs :: G.Fields (Maybe Int)
                 -> A.Fields (Maybe Int)
-                -> Spacers.T Int
+                -> S.Spacers Int
                 -> [TopCellSpec]
 topCellSpecs gFlds aFlds spcs = let
   allFlds = topRowCells gFlds aFlds
@@ -234,7 +233,7 @@ topCellSpecs gFlds aFlds spcs = let
 -- totalQty has no spacer.
 mergeWithSpacers ::
   TopRowCells a
-  -> Spacers.T b
+  -> S.Spacers b
   -> TopRowCells (a, Maybe b)
 mergeWithSpacers t s = TopRowCells {
   globalTransaction = (globalTransaction t, Just (S.globalTransaction s))

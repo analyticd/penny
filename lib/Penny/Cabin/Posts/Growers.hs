@@ -19,7 +19,6 @@ import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Posts.Spacers as S
-import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
@@ -529,7 +528,7 @@ instance Applicative Fields where
 -- | Pairs data from a Fields with its matching spacer field. The
 -- spacer field is returned in a Maybe because the TotalQty field does
 -- not have a spacer.
-pairWithSpacer :: Fields a -> Spacers.T b -> Fields (a, Maybe b)
+pairWithSpacer :: Fields a -> S.Spacers b -> Fields (a, Maybe b)
 pairWithSpacer f s = Fields {
   globalTransaction      = (globalTransaction    f, Just (S.globalTransaction    s))
   , revGlobalTransaction = (revGlobalTransaction f, Just (S.revGlobalTransaction s))
@@ -588,7 +587,7 @@ reduce f =
 -- spacer cells.
 grownWidth ::
   Fields (Maybe Int)
-  -> Spacers.T Int
+  -> S.Spacers Int
   -> Int
 grownWidth fs ss =
   Semi.getSum

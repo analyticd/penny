@@ -3,7 +3,7 @@
 -- field.
 module Penny.Cabin.Posts.Spacers where
 
-data T a = T {
+data Spacers a = Spacers {
   globalTransaction :: a
   , revGlobalTransaction :: a
   , globalPosting :: a
@@ -31,78 +31,3 @@ data T a = T {
   , totalDrCr :: a
   , totalCmdty :: a }
   deriving (Show, Eq)
-
-t_globalTransaction :: a -> T a -> T a
-t_globalTransaction a f = f { globalTransaction = a }
-
-t_revGlobalTransaction :: a -> T a -> T a
-t_revGlobalTransaction a f = f { revGlobalTransaction = a }
-
-t_globalPosting :: a -> T a -> T a
-t_globalPosting a f = f { globalPosting = a }
-
-t_revGlobalPosting :: a -> T a -> T a
-t_revGlobalPosting a f = f { revGlobalPosting = a }
-
-t_fileTransaction :: a -> T a -> T a
-t_fileTransaction a f = f { fileTransaction = a }
-
-t_revFileTransaction :: a -> T a -> T a
-t_revFileTransaction a f = f { revFileTransaction = a }
-
-t_filePosting :: a -> T a -> T a
-t_filePosting a f = f { filePosting = a }
-
-t_revFilePosting :: a -> T a -> T a
-t_revFilePosting a f = f { revFilePosting = a }
-
-t_filtered :: a -> T a -> T a
-t_filtered a f = f { filtered = a }
-
-t_revFiltered :: a -> T a -> T a
-t_revFiltered a f = f { revFiltered = a }
-
-t_sorted :: a -> T a -> T a
-t_sorted a f = f { sorted = a }
-
-t_revSorted :: a -> T a -> T a
-t_revSorted a f = f { revSorted = a }
-
-t_visible :: a -> T a -> T a
-t_visible a f = f { visible = a }
-
-t_revVisible :: a -> T a -> T a
-t_revVisible a f = f { revVisible = a }
-
-t_lineNum :: a -> T a -> T a
-t_lineNum a f = f { lineNum = a }
-
-t_date :: a -> T a -> T a
-t_date a f = f { date = a }
-
-t_flag :: a -> T a -> T a
-t_flag a f = f { flag = a }
-
-t_number :: a -> T a -> T a
-t_number a f = f { number = a }
-
-t_payee :: a -> T a -> T a
-t_payee a f = f { payee = a }
-
-t_account :: a -> T a -> T a
-t_account a f = f { account = a }
-
-t_postingDrCr :: a -> T a -> T a
-t_postingDrCr a f = f { postingDrCr = a }
-
-t_postingCmdty :: a -> T a -> T a
-t_postingCmdty a f = f { postingCmdty = a }
-
-t_postingQty :: a -> T a -> T a
-t_postingQty a f = f { postingQty = a }
-
-t_totalDrCr :: a -> T a -> T a
-t_totalDrCr a f = f { totalDrCr = a }
-
-t_totalCmdty :: a -> T a -> T a
-t_totalCmdty a f = f { totalCmdty = a }

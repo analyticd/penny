@@ -23,7 +23,6 @@ import qualified Penny.Cabin.Options as O
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Meta as Meta
 import qualified Penny.Cabin.Posts.Spacers as S
-import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Colors.DarkBackground as Dark
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (RadGroup)
@@ -114,7 +113,7 @@ data Options =
     , fields :: F.Fields Bool
       -- ^ Default fields to show in the report.
       
-    , spacers :: Spacers.T Int
+    , spacers :: S.Spacers Int
       -- ^ Default width for spacer fields. If any of these Ints are
       -- less than or equal to zero, there will be no spacer. There is
       -- never a spacer for fields that do not appear in the report.
@@ -216,9 +215,9 @@ defaultFields =
            , F.memo                 = False
            , F.filename             = False }
 
-defaultSpacerWidth :: Spacers.T Int
+defaultSpacerWidth :: S.Spacers Int
 defaultSpacerWidth =
-  Spacers.T { S.globalTransaction    = 1
+  S.Spacers { S.globalTransaction    = 1
             , S.revGlobalTransaction = 1
             , S.globalPosting        = 1
             , S.revGlobalPosting     = 1
