@@ -21,15 +21,13 @@ import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Options as O
 import qualified Penny.Cabin.Posts.Fields as F
-import qualified Penny.Cabin.Posts.Meta as Meta
+import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Colors.DarkBackground as Dark
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (RadGroup)
 import qualified Penny.Shield as S
 
-
-type Box = L.Box Meta.PostMeta
 
 data Options =
   Options { drCrColors :: C.DrCrColors

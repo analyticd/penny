@@ -195,6 +195,10 @@ module Penny.Lincoln (
   , S.backward
   , S.serials
   , S.serialItems
+    
+    -- * Matchers
+  , Matchers.Matcher
+  , Matchers.Factory
 
   ) where
 
@@ -203,6 +207,7 @@ import qualified Penny.Lincoln.Bits as I
 import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Lincoln.Family as F
 import qualified Penny.Lincoln.HasText as HT
+import qualified Penny.Lincoln.Matchers as Matchers
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.PriceDb as DB
 import qualified Penny.Lincoln.Serial as S
