@@ -4,7 +4,7 @@ module Penny.Cabin.Posts.Fields where
 import Control.Applicative(Applicative(pure, (<*>)))
 import qualified Data.Foldable as F
 
-data T a = T {
+data Fields a = Fields {
   globalTransaction :: a
   , revGlobalTransaction :: a
   , globalPosting :: a
@@ -37,8 +37,8 @@ data T a = T {
   , filename :: a }
   deriving (Show, Eq)
 
-instance Functor T where
-  fmap f fa = T {
+instance Functor Fields where
+  fmap f fa = Fields {
     globalTransaction = f (globalTransaction fa)
     , revGlobalTransaction = f (revGlobalTransaction fa)
     , globalPosting = f (globalPosting fa)
@@ -69,8 +69,8 @@ instance Functor T where
     , memo = f (memo fa)
     , filename = f (filename fa) }
 
-instance Applicative T where
-  pure a = T {
+instance Applicative Fields where
+  pure a = Fields {
     globalTransaction = a
     , revGlobalTransaction = a
     , globalPosting = a
@@ -101,7 +101,7 @@ instance Applicative T where
     , memo = a
     , filename = a }
 
-  ff <*> fa = T {
+  ff <*> fa = Fields {
     globalTransaction = globalTransaction ff (globalTransaction fa)
     , revGlobalTransaction = revGlobalTransaction ff
                              (revGlobalTransaction fa)
@@ -133,7 +133,7 @@ instance Applicative T where
     , memo = memo ff (memo fa)
     , filename = filename ff (filename fa) }
 
-instance F.Foldable T where
+instance F.Foldable Fields where
   foldr f z t =
     f (globalTransaction t)
     (f (revGlobalTransaction t)

@@ -35,7 +35,6 @@ import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.TextFormat as TF
 import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Colors as PC
-import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
@@ -85,7 +84,7 @@ instance Applicative Fields where
     , filename = (filename ff) (filename fa)
     }
 
-bottomRowsFields :: Fields.T a -> Fields a
+bottomRowsFields :: F.Fields a -> Fields a
 bottomRowsFields f = Fields {
   tags = F.tags f
   , memo = F.memo f

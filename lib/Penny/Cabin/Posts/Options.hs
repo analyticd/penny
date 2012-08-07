@@ -20,7 +20,6 @@ import qualified Penny.Cabin.Posts.Allocate as A
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Options as O
-import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Meta as Meta
 import qualified Penny.Cabin.Posts.Spacers as S
@@ -112,7 +111,7 @@ data Options =
       -- ^ The entire posting list is transformed by this
       -- function after it is filtered according to the tokens.
       
-    , fields :: Fields.T Bool
+    , fields :: F.Fields Bool
       -- ^ Default fields to show in the report.
       
     , spacers :: Spacers.T Int
@@ -185,9 +184,9 @@ widthFromRuntime rt = case S.screenWidth rt of
   Nothing -> defaultWidth
   Just w -> ReportWidth . S.unScreenWidth $ w
 
-defaultFields :: Fields.T Bool
+defaultFields :: F.Fields Bool
 defaultFields =
-  Fields.T { F.globalTransaction    = False
+  F.Fields { F.globalTransaction    = False
            , F.revGlobalTransaction = False
            , F.globalPosting        = False
            , F.revGlobalPosting     = False

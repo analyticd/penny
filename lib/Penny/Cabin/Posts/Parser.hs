@@ -4,13 +4,13 @@ import Control.Applicative ((<|>), (<$>), pure, many, (<*>))
 import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toLower)
-import qualified Data.Foldable as F
+import qualified Data.Foldable as Fdbl
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
 
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
-import qualified Penny.Cabin.Posts.Fields as Fl
+import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Options as Op
 import qualified Penny.Cabin.Colors.DarkBackground as DB
@@ -244,28 +244,28 @@ hideZeroBalances = parseOpt ["hide-zero-balances"] "" (C.NoArg f)
 
 -- | Turns a field on if it is True.
 fieldOn ::
-  Fl.T Bool
+  F.Fields Bool
   -- ^ Fields as seen so far
 
-  -> Fl.T Bool
+  -> F.Fields Bool
   -- ^ Record that should have one True element indicating a field
   -- name seen on the command line; other elements should be False
   
-  -> Fl.T Bool
+  -> F.Fields Bool
   -- ^ Fields as seen so far, with new field added
 
 fieldOn old new = (||) <$> old <*> new
 
 -- | Turns off a field if it is True.
 fieldOff ::
-  Fl.T Bool
+  F.Fields Bool
   -- ^ Fields seen so far
   
-  -> Fl.T Bool
+  -> F.Fields Bool
   -- ^ Record that should have one True element indicating a field
   -- name seen on the command line; other elements should be False
   
-  -> Fl.T Bool
+  -> F.Fields Bool
   -- ^ Fields as seen so far, with new field added
 
 fieldOff old new = f <$> old <*> new
@@ -273,7 +273,7 @@ fieldOff old new = f <$> old <*> new
     f o False = o
     f _ True = False
 
-parseField :: String -> Ex.Exceptional Error (Fl.T Bool)
+parseField :: String -> Ex.Exceptional Error (F.Fields Bool)
 parseField str =
   let lower = map toLower str
       checkField s =
@@ -284,44 +284,44 @@ parseField str =
   in checkFields flds
 
 -- | Checks the fields with the True value to ensure there is only one.
-checkFields :: Fl.T (String, Bool) -> Ex.Exceptional Error (Fl.T Bool)
+checkFields :: F.Fields (String, Bool) -> Ex.Exceptional Error (F.Fields Bool)
 checkFields fs =
   let f (s, b) ls = if b then s:ls else ls
-  in case F.foldr f [] fs of
+  in case Fdbl.foldr f [] fs of
     [] -> Ex.throw NoMatchingFieldName
     _:[] -> return (snd <$> fs)
     ls -> Ex.throw . MultipleMatchingFieldNames $ ls
 
 
 
-fieldNames :: Fl.T String
-fieldNames = Fl.T {
-  Fl.globalTransaction = "globalTransaction"
-  , Fl.revGlobalTransaction = "revGlobalTransaction"
-  , Fl.globalPosting = "globalPosting"
-  , Fl.revGlobalPosting = "revGlobalPosting"
-  , Fl.fileTransaction = "fileTransaction"
-  , Fl.revFileTransaction = "revFileTransaction"
-  , Fl.filePosting = "filePosting"
-  , Fl.revFilePosting = "revFilePosting"
-  , Fl.filtered = "filtered"
-  , Fl.revFiltered = "revFiltered"
-  , Fl.sorted = "sorted"
-  , Fl.revSorted = "revSorted"
-  , Fl.visible = "visible"
-  , Fl.revVisible = "revVisible"
-  , Fl.lineNum = "lineNum"
-  , Fl.date = "date"
-  , Fl.flag = "flag"
-  , Fl.number = "number"
-  , Fl.payee = "payee"
-  , Fl.account = "account"
-  , Fl.postingDrCr = "postingDrCr"
-  , Fl.postingCmdty = "postingCmdty"
-  , Fl.postingQty = "postingQty"
-  , Fl.totalDrCr = "totalDrCr"
-  , Fl.totalCmdty = "totalCmdty"
-  , Fl.totalQty = "totalQty"
-  , Fl.tags = "tags"
-  , Fl.memo = "memo"
-  , Fl.filename = "filename" }
+fieldNames :: F.Fields String
+fieldNames = F.Fields {
+  F.globalTransaction = "globalTransaction"
+  , F.revGlobalTransaction = "revGlobalTransaction"
+  , F.globalPosting = "globalPosting"
+  , F.revGlobalPosting = "revGlobalPosting"
+  , F.fileTransaction = "fileTransaction"
+  , F.revFileTransaction = "revFileTransaction"
+  , F.filePosting = "filePosting"
+  , F.revFilePosting = "revFilePosting"
+  , F.filtered = "filtered"
+  , F.revFiltered = "revFiltered"
+  , F.sorted = "sorted"
+  , F.revSorted = "revSorted"
+  , F.visible = "visible"
+  , F.revVisible = "revVisible"
+  , F.lineNum = "lineNum"
+  , F.date = "date"
+  , F.flag = "flag"
+  , F.number = "number"
+  , F.payee = "payee"
+  , F.account = "account"
+  , F.postingDrCr = "postingDrCr"
+  , F.postingCmdty = "postingCmdty"
+  , F.postingQty = "postingQty"
+  , F.totalDrCr = "totalDrCr"
+  , F.totalCmdty = "totalCmdty"
+  , F.totalQty = "totalQty"
+  , F.tags = "tags"
+  , F.memo = "memo"
+  , F.filename = "filename" }
