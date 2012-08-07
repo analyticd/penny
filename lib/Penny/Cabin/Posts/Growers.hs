@@ -2,6 +2,7 @@
 -- widest cell in the column. No information is ever truncated from
 -- these cells (what use is a truncated dollar amount?)
 module Penny.Cabin.Posts.Growers (
+  GrowOpts(..),
   growCells, Fields(..), grownWidth,
   eFields, EFields(..), pairWithSpacer) where
 
@@ -13,11 +14,10 @@ import Data.Semigroup ((<>))
 import Data.Text (Text, pack, empty)
 import qualified Data.Text as X
 import qualified Penny.Cabin.Chunk as C
-import qualified Penny.Cabin.Colors as PC
-import qualified Penny.Cabin.Posts.Options as O
-import qualified Penny.Cabin.Posts.Options as Options
+import qualified Penny.Cabin.Colors as CC
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Meta as M
+import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Liberty as Ly
@@ -25,7 +25,15 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 
 
-type Box = L.Box M.PostMeta 
+-- | All the options needed to grow the cells.
+data GrowOpts = GrowOpts {
+  baseColors :: CC.BaseColors
+  , drCrColors :: CC.DrCrColors
+  , dateFormat :: Box -> X.Text
+  , qtyFormat :: Box -> X.Text
+  , balanceFormat :: L.Commodity -> L.BottomLine -> X.Text
+  , fields :: F.Fields Bool
+  }
 
 -- | Grows the cells that will be GrowToFit cells in the report. First
 -- this function fills in all visible cells with text, but leaves the
@@ -38,19 +46,19 @@ type Box = L.Box M.PostMeta
 -- the report but that ended up having no width are changed to
 -- Nothing.
 growCells ::
-  O.Options
+  GrowOpts
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
 growCells o infos = toPair <$> wanted <*> growers where
   toPair b gwr
-    | b = let
-      cs = map (gwr o) infos
-      w = Fdbl.foldl' f 0 cs where
-        f acc c = max acc (widestLine c)
-      cs' = map (sizer (R.Width w)) cs
+    | b =
+      let cs = map (gwr o) infos
+          w = Fdbl.foldl' f 0 cs where
+            f acc c = max acc (widestLine c)
+          cs' = map (sizer (R.Width w)) cs
       in if w > 0 then Just (cs', w) else Nothing
     | otherwise = Nothing
-  wanted = growingFields o
+  wanted = growingFields . fields $ o
 
 widestLine :: PreSpec -> Int
 widestLine (PreSpec _ _ bs) =
@@ -69,40 +77,65 @@ sizer w (PreSpec j ts bs) = R.ColumnSpec j w ts bs
 
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
-oneLine :: Text -> O.Options -> Box -> PreSpec
-oneLine t os b =
-  let bc = Options.baseColors os
-      ts = PC.colors (M.visibleNum . L.boxMeta $ b) bc
+oneLine :: Text -> CC.BaseColors -> Box -> PreSpec
+oneLine t bc b =
+  let ts = CC.colors (M.visibleNum . L.boxMeta $ b) bc
       j = R.LeftJustify
       bit = C.chunk ts t
   in PreSpec j ts [bit]
 
-growers :: Fields (O.Options -> Box -> PreSpec)
+-- | Converts a function that accepts a BaseColors to one that accepts
+-- a GrowOpts.
+bcToGrowOpts ::
+  (CC.BaseColors -> Box -> PreSpec)
+  -> GrowOpts -> Box -> PreSpec
+bcToGrowOpts f g = f (baseColors g)
+
+-- | Converts a function that accepts a DrCrColors to one that accepts
+-- a GrowOpts.
+dcToGrowOpts ::
+  (CC.DrCrColors -> Box -> PreSpec)
+  -> GrowOpts -> Box -> PreSpec
+dcToGrowOpts f g = f (drCrColors g)
+
+
+-- | Gets a Fields with each field filled with the function that fills
+-- the cells for that field.
+growers :: Fields (GrowOpts -> Box -> PreSpec)
 growers = Fields {
-  globalTransaction      = getGlobalTransaction
-  , revGlobalTransaction = getRevGlobalTransaction
-  , globalPosting        = getGlobalPosting
-  , revGlobalPosting     = getRevGlobalPosting
-  , fileTransaction      = getFileTransaction
-  , revFileTransaction   = getRevFileTransaction
-  , filePosting          = getFilePosting
-  , revFilePosting       = getRevFilePosting
-  , filtered             = getFiltered
-  , revFiltered          = getRevFiltered
-  , sorted               = getSorted
-  , revSorted            = getRevSorted
-  , visible              = getVisible
-  , revVisible           = getRevVisible
-  , lineNum              = getLineNum
-  , date                 = getDate
-  , flag                 = getFlag
-  , number               = getNumber
-  , postingDrCr          = getPostingDrCr
-  , postingCmdty         = getPostingCmdty
-  , postingQty           = getPostingQty
-  , totalDrCr            = getTotalDrCr
-  , totalCmdty           = getTotalCmdty
-  , totalQty             = getTotalQty }
+  globalTransaction      = bcToGrowOpts getGlobalTransaction
+  , revGlobalTransaction = bcToGrowOpts getRevGlobalTransaction
+  , globalPosting        = bcToGrowOpts getGlobalPosting
+  , revGlobalPosting     = bcToGrowOpts getRevGlobalPosting
+  , fileTransaction      = bcToGrowOpts getFileTransaction
+  , revFileTransaction   = bcToGrowOpts getRevFileTransaction
+  , filePosting          = bcToGrowOpts getFilePosting
+  , revFilePosting       = bcToGrowOpts getRevFilePosting
+  , filtered             = bcToGrowOpts getFiltered
+  , revFiltered          = bcToGrowOpts getRevFiltered
+  , sorted               = bcToGrowOpts getSorted
+  , revSorted            = bcToGrowOpts getRevSorted
+  , visible              = bcToGrowOpts getVisible
+  , revVisible           = bcToGrowOpts getRevVisible
+  , lineNum              = bcToGrowOpts getLineNum
+  , date                 = \o -> getDate (baseColors o) (dateFormat o)
+  , flag                 = bcToGrowOpts getFlag
+  , number               = bcToGrowOpts getNumber
+  , postingDrCr          = dcToGrowOpts getPostingDrCr
+  , postingCmdty         = dcToGrowOpts getPostingCmdty
+  , postingQty           = let fn o =
+                                 let fmt = qtyFormat o
+                                     dc = drCrColors o
+                                 in getPostingQty fmt dc
+                           in fn
+  , totalDrCr            = dcToGrowOpts getTotalDrCr
+  , totalCmdty           = dcToGrowOpts getTotalCmdty
+  , totalQty             = let fn o =
+                                 let fmt = balanceFormat o
+                                     dc = drCrColors o
+                                 in getTotalQty fmt dc
+                           in fn }
+
 
 -- | Make a left justified cell one line long that shows a serial.
 serialCellMaybe ::
@@ -110,8 +143,8 @@ serialCellMaybe ::
   -- ^ When applied to a Box, this function returns Just Int if the
   -- box has a serial, or Nothing if not.
   
-  -> O.Options -> Box -> PreSpec
-serialCellMaybe f os b = oneLine t os b
+  -> CC.BaseColors -> Box -> PreSpec
+serialCellMaybe f bc b = oneLine t bc b
   where
     t = case f (L.boxPostFam b) of
       Nothing -> X.empty
@@ -119,91 +152,90 @@ serialCellMaybe f os b = oneLine t os b
 
 serialCell ::
   (M.PostMeta -> Int)
-  -> O.Options -> Box -> PreSpec
-serialCell f os b = oneLine t os b
+  -> CC.BaseColors -> Box -> PreSpec
+serialCell f bc b = oneLine t bc b
   where
     t = pack . show . f . L.boxMeta $ b
 
-getGlobalTransaction :: O.Options -> Box -> PreSpec
+getGlobalTransaction :: CC.BaseColors -> Box -> PreSpec
 getGlobalTransaction =
   serialCellMaybe (fmap (L.forward . L.unGlobalTransaction)
                    . Q.globalTransaction)
 
-getRevGlobalTransaction :: O.Options -> Box -> PreSpec
+getRevGlobalTransaction :: CC.BaseColors -> Box -> PreSpec
 getRevGlobalTransaction =
   serialCellMaybe (fmap (L.backward . L.unGlobalTransaction)
                    . Q.globalTransaction)
 
-getGlobalPosting :: O.Options -> Box -> PreSpec
+getGlobalPosting :: CC.BaseColors -> Box -> PreSpec
 getGlobalPosting =
   serialCellMaybe (fmap (L.forward . L.unGlobalPosting)
                    . Q.globalPosting)
 
-getRevGlobalPosting :: O.Options -> Box -> PreSpec
+getRevGlobalPosting :: CC.BaseColors -> Box -> PreSpec
 getRevGlobalPosting =
   serialCellMaybe (fmap (L.backward . L.unGlobalPosting)
                    . Q.globalPosting)
 
-getFileTransaction :: O.Options -> Box -> PreSpec
+getFileTransaction :: CC.BaseColors -> Box -> PreSpec
 getFileTransaction =
   serialCellMaybe (fmap (L.forward . L.unFileTransaction)
                    . Q.fileTransaction)
 
-getRevFileTransaction :: O.Options -> Box -> PreSpec
+getRevFileTransaction :: CC.BaseColors -> Box -> PreSpec
 getRevFileTransaction =
   serialCellMaybe (fmap (L.backward . L.unFileTransaction)
                    . Q.fileTransaction)
 
-getFilePosting :: O.Options -> Box -> PreSpec
+getFilePosting :: CC.BaseColors -> Box -> PreSpec
 getFilePosting =
   serialCellMaybe (fmap (L.forward . L.unFilePosting)
                    . Q.filePosting)
 
-getRevFilePosting :: O.Options -> Box -> PreSpec
+getRevFilePosting :: CC.BaseColors -> Box -> PreSpec
 getRevFilePosting =
   serialCellMaybe (fmap (L.backward . L.unFilePosting)
                    . Q.filePosting)
 
-getSorted :: O.Options -> Box -> PreSpec
+getSorted :: CC.BaseColors -> Box -> PreSpec
 getSorted =
   serialCell (L.forward . Ly.unSortedNum . M.sortedNum)
 
-getRevSorted :: O.Options -> Box -> PreSpec
+getRevSorted :: CC.BaseColors -> Box -> PreSpec
 getRevSorted =
   serialCell (L.backward . Ly.unSortedNum . M.sortedNum)
 
-getFiltered :: O.Options -> Box -> PreSpec
+getFiltered :: CC.BaseColors -> Box -> PreSpec
 getFiltered =
   serialCell (L.forward . Ly.unFilteredNum . M.filteredNum)
 
-getRevFiltered :: O.Options -> Box -> PreSpec
+getRevFiltered :: CC.BaseColors -> Box -> PreSpec
 getRevFiltered =
   serialCell (L.backward . Ly.unFilteredNum . M.filteredNum)
 
-getVisible :: O.Options -> Box -> PreSpec
+getVisible :: CC.BaseColors -> Box -> PreSpec
 getVisible =
   serialCell (L.forward . M.unVisibleNum . M.visibleNum)
 
-getRevVisible :: O.Options -> Box -> PreSpec
+getRevVisible :: CC.BaseColors -> Box -> PreSpec
 getRevVisible =
   serialCell (L.backward . M.unVisibleNum . M.visibleNum)
 
 
-getLineNum :: O.Options -> Box -> PreSpec
-getLineNum os b = oneLine t os b where
+getLineNum :: CC.BaseColors -> Box -> PreSpec
+getLineNum bc b = oneLine t bc b where
   lineTxt = pack . show . L.unPostingLine
   t = maybe empty lineTxt (Q.postingLine . L.boxPostFam $ b)
 
-getDate :: O.Options -> Box -> PreSpec
-getDate os i = oneLine t os i where
-  t = O.dateFormat os i
+getDate :: CC.BaseColors -> (Box -> X.Text) -> Box -> PreSpec
+getDate bc gd b = oneLine (gd b) bc b
 
-getFlag :: O.Options -> Box -> PreSpec
-getFlag os i = oneLine t os i where
+getFlag :: CC.BaseColors -> Box -> PreSpec
+getFlag bc i = oneLine t bc i where
   t = maybe empty L.text (Q.flag . L.boxPostFam $ i)
 
-getNumber :: O.Options -> Box -> PreSpec
-getNumber os i = oneLine t os i where
+getNumber :: CC.BaseColors -> Box -> PreSpec
+getNumber bc i = oneLine t bc i where
   t = maybe empty L.text (Q.number . L.boxPostFam $ i)
 
 dcTxt :: L.DrCr -> Text
@@ -212,126 +244,131 @@ dcTxt L.Credit = pack "Cr"
 
 -- | Gives a one-line cell that is colored according to whether the
 -- posting is a debit or credit.
-coloredPostingCell :: Text -> O.Options -> Box -> PreSpec
-coloredPostingCell t os i = PreSpec j ts [bit] where
+coloredPostingCell :: Text -> CC.DrCrColors -> Box -> PreSpec
+coloredPostingCell t dccol i = PreSpec j ts [bit] where
   j = R.LeftJustify
   bit = C.chunk ts t
   dc = Q.drCr . L.boxPostFam $ i
-  ts = PC.colors (M.visibleNum . L.boxMeta $ i)
-       . PC.drCrToBaseColors dc
-       . O.drCrColors
-       $ os
+  ts = CC.colors (M.visibleNum . L.boxMeta $ i)
+       . CC.drCrToBaseColors dc
+       $ dccol
 
-getPostingDrCr :: O.Options -> Box -> PreSpec
-getPostingDrCr os i = coloredPostingCell t os i where
+
+getPostingDrCr :: CC.DrCrColors -> Box -> PreSpec
+getPostingDrCr dc i = coloredPostingCell t dc i where
   t = dcTxt . Q.drCr . L.boxPostFam $ i
 
-getPostingCmdty :: O.Options -> Box -> PreSpec
-getPostingCmdty os i = coloredPostingCell t os i where
+getPostingCmdty :: CC.DrCrColors -> Box -> PreSpec
+getPostingCmdty dc i = coloredPostingCell t dc i where
   t = L.text . L.Delimited (X.singleton ':') 
       . L.textList . Q.commodity . L.boxPostFam $ i
 
-getPostingQty :: O.Options -> Box -> PreSpec
-getPostingQty os i = coloredPostingCell t os i where
-  t = O.qtyFormat os i
+getPostingQty :: (Box -> X.Text) -> CC.DrCrColors -> Box -> PreSpec
+getPostingQty qf dc i = coloredPostingCell (qf i) dc i
 
-getTotalDrCr :: O.Options -> Box -> PreSpec
-getTotalDrCr os i = let
-  vn = M.visibleNum . L.boxMeta $ i
-  ts = PC.colors vn bc
-  bc = PC.drCrToBaseColors dc (O.drCrColors os)
-  dc = Q.drCr . L.boxPostFam $ i
-  bits = case M.balance . L.boxMeta $ i of
-    Nothing -> let
-      spec = PC.noBalanceColors vn (O.drCrColors os)
-      in [C.chunk spec (pack "--")]
-    Just bal -> let
-      toBit bl = let
-        spec = 
-          PC.colors vn
-          . PC.bottomLineToBaseColors (O.drCrColors os)
-          $ bl
-        txt = case bl of
-          L.Zero -> pack "--"
-          L.NonZero (L.Column clmDrCr _) -> dcTxt clmDrCr
-        in C.chunk spec txt
-      in fmap toBit . elems . L.unBalance $ bal
-  j = R.LeftJustify
+getTotalDrCr :: CC.DrCrColors -> Box -> PreSpec
+getTotalDrCr dccol i =
+  let vn = M.visibleNum . L.boxMeta $ i
+      ts = CC.colors vn bc
+      bc = CC.drCrToBaseColors dc dccol
+      dc = Q.drCr . L.boxPostFam $ i
+      bits = case M.balance . L.boxMeta $ i of
+        Nothing ->
+          let spec = CC.noBalanceColors vn dccol
+          in [C.chunk spec (pack "--")]
+        Just bal ->
+          let toBit bl =
+                let spec = 
+                      CC.colors vn
+                      . CC.bottomLineToBaseColors dccol
+                      $ bl
+                    txt = case bl of
+                      L.Zero -> pack "--"
+                      L.NonZero (L.Column clmDrCr _) ->
+                        dcTxt clmDrCr
+                in C.chunk spec txt
+          in fmap toBit . elems . L.unBalance $ bal
+      j = R.LeftJustify
   in PreSpec j ts bits
 
-getTotalCmdty :: O.Options -> Box -> PreSpec
-getTotalCmdty os i = let
-  vn = M.visibleNum . L.boxMeta $ i
-  j = R.RightJustify
-  ts = PC.colors vn bc
-  bc = PC.drCrToBaseColors dc (O.drCrColors os)
-  dc = Q.drCr . L.boxPostFam $ i
-  bits = case M.balance . L.boxMeta $ i of
-    Nothing -> let
-      spec = PC.noBalanceColors vn (O.drCrColors os)
-      in [C.chunk spec (pack "--")]
-    Just bal -> let
-      toBit (com, nou) = let
-        spec =
-          PC.colors vn
-          . PC.bottomLineToBaseColors (O.drCrColors os)
-          $ nou
-        txt = L.text
-              . L.Delimited (X.singleton ':')
-              . L.textList
-              $ com
-        in C.chunk spec txt
-      in fmap toBit . assocs . L.unBalance $ bal
+getTotalCmdty :: CC.DrCrColors -> Box -> PreSpec
+getTotalCmdty dccol i =
+  let vn = M.visibleNum . L.boxMeta $ i
+      j = R.RightJustify
+      ts = CC.colors vn bc
+      bc = CC.drCrToBaseColors dc dccol
+      dc = Q.drCr . L.boxPostFam $ i
+      bits = case M.balance . L.boxMeta $ i of
+        Nothing ->
+          let spec = CC.noBalanceColors vn dccol
+          in [C.chunk spec (pack "--")]
+        Just bal ->
+          let toBit (com, nou) =
+                let spec =
+                      CC.colors vn
+                      . CC.bottomLineToBaseColors dccol
+                      $ nou
+                    txt = L.text
+                          . L.Delimited (X.singleton ':')
+                          . L.textList
+                          $ com
+                in C.chunk spec txt
+          in fmap toBit . assocs . L.unBalance $ bal
   in PreSpec j ts bits
 
-getTotalQty :: O.Options -> Box -> PreSpec
-getTotalQty os i = let
-  vn = M.visibleNum . L.boxMeta $ i
-  j = R.LeftJustify
-  ts = PC.colors vn bc
-  bc = PC.drCrToBaseColors dc (O.drCrColors os)
-  dc = Q.drCr . L.boxPostFam $ i
-  bits = case M.balance . L.boxMeta $ i of
-    Nothing -> let
-      spec = PC.noBalanceColors vn (O.drCrColors os)
-      in [C.chunk spec (pack "--")]
-    Just bal -> fmap toChunk . assocs . L.unBalance $ bal where
-      toChunk (com, nou) = let
-        spec = 
-          PC.colors vn
-          . PC.bottomLineToBaseColors (O.drCrColors os)
-          $ nou
-        txt = O.balanceFormat os com nou
-        in C.chunk spec txt
+getTotalQty ::
+  (L.Commodity -> L.BottomLine -> X.Text)
+  -> CC.DrCrColors
+  -> Box
+  -> PreSpec
+getTotalQty balFmt dccol i =
+  let vn = M.visibleNum . L.boxMeta $ i
+      j = R.LeftJustify
+      ts = CC.colors vn bc
+      bc = CC.drCrToBaseColors dc dccol
+      dc = Q.drCr . L.boxPostFam $ i
+      bits = case M.balance . L.boxMeta $ i of
+        Nothing ->
+          let spec = CC.noBalanceColors vn dccol
+          in [C.chunk spec (pack "--")]
+        Just bal ->
+          fmap toChunk . assocs . L.unBalance $ bal
+            where
+              toChunk (com, nou) =
+                let spec = 
+                      CC.colors vn
+                      . CC.bottomLineToBaseColors dccol
+                      $ nou
+                    txt = balFmt com nou
+                in C.chunk spec txt
   in PreSpec j ts bits
 
-growingFields :: O.Options -> Fields Bool
-growingFields o = let
-  f = O.fields o in Fields {
-    globalTransaction      = F.globalTransaction  f
-    , revGlobalTransaction = F.revGlobalTransaction  f
-    , globalPosting        = F.globalPosting      f
-    , revGlobalPosting     = F.revGlobalPosting   f
-    , fileTransaction      = F.fileTransaction    f
-    , revFileTransaction   = F.revFileTransaction f
-    , filePosting          = F.filePosting        f
-    , revFilePosting       = F.revFilePosting     f
-    , filtered             = F.filtered           f
-    , revFiltered          = F.revFiltered        f
-    , sorted               = F.sorted             f
-    , revSorted            = F.revSorted          f
-    , visible              = F.visible            f
-    , revVisible           = F.revVisible         f
-    , lineNum              = F.lineNum            f
-    , date                 = F.date               f
-    , flag                 = F.flag               f
-    , number               = F.number             f
-    , postingDrCr          = F.postingDrCr        f
-    , postingCmdty         = F.postingCmdty       f
-    , postingQty           = F.postingQty         f
-    , totalDrCr            = F.totalDrCr          f
-    , totalCmdty           = F.totalCmdty         f
-    , totalQty             = F.totalQty           f }
+growingFields :: F.Fields Bool -> Fields Bool
+growingFields f = Fields {
+  globalTransaction      = F.globalTransaction    f
+  , revGlobalTransaction = F.revGlobalTransaction f
+  , globalPosting        = F.globalPosting        f
+  , revGlobalPosting     = F.revGlobalPosting     f
+  , fileTransaction      = F.fileTransaction      f
+  , revFileTransaction   = F.revFileTransaction   f
+  , filePosting          = F.filePosting          f
+  , revFilePosting       = F.revFilePosting       f
+  , filtered             = F.filtered             f
+  , revFiltered          = F.revFiltered          f
+  , sorted               = F.sorted               f
+  , revSorted            = F.revSorted            f
+  , visible              = F.visible              f
+  , revVisible           = F.revVisible           f
+  , lineNum              = F.lineNum              f
+  , date                 = F.date                 f
+  , flag                 = F.flag                 f
+  , number               = F.number               f
+  , postingDrCr          = F.postingDrCr          f
+  , postingCmdty         = F.postingCmdty         f
+  , postingQty           = F.postingQty           f
+  , totalDrCr            = F.totalDrCr            f
+  , totalCmdty           = F.totalCmdty           f
+  , totalQty             = F.totalQty             f }
 
 -- | All growing fields, as an ADT.
 data EFields =

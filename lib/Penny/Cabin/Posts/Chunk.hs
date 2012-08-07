@@ -17,18 +17,18 @@ import qualified Penny.Cabin.Posts.Meta as M
 type Box = L.Box M.PostMeta 
 
 makeChunk :: O.Options -> [Box] -> [C.Chunk]
-makeChunk os is = let
-  fmapSnd flds = fmap (fmap snd) flds
-  fmapFst flds = fmap (fmap fst) flds
-  gFldW = fmapSnd gFlds
-  aFldW = fmapSnd aFlds
-  gFlds = G.growCells os is
-  aFlds = A.payeeAndAcct gFldW os is
-  bFlds = B.bottomRows gFldW aFldW os is
-  topCells = B.topRowCells (fmapFst gFlds) (fmapFst aFlds)
-  withSpacers = B.mergeWithSpacers topCells (Options.spacers os)
-  topRows = makeTopRows (Options.baseColors os) withSpacers
-  bottomRows = makeBottomRows bFlds
+makeChunk os is =
+  let fmapSnd flds = fmap (fmap snd) flds
+      fmapFst flds = fmap (fmap fst) flds
+      gFldW = fmapSnd gFlds
+      aFldW = fmapSnd aFlds
+      gFlds = G.growCells os is
+      aFlds = A.payeeAndAcct gFldW os is
+      bFlds = B.bottomRows gFldW aFldW os is
+      topCells = B.topRowCells (fmapFst gFlds) (fmapFst aFlds)
+      withSpacers = B.mergeWithSpacers topCells (Options.spacers os)
+      topRows = makeTopRows (Options.baseColors os) withSpacers
+      bottomRows = makeBottomRows bFlds
   in makeAllRows topRows bottomRows
 
 

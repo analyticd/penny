@@ -29,7 +29,8 @@
 -- arrangements are made if either field gets an allocation of 0.
 --
 -- 5. Fill cell contents. Return filled cells.
-module Penny.Cabin.Posts.Allocated (payeeAndAcct, Fields(..)) where
+module Penny.Cabin.Posts.Allocated (payeeAndAcct, Fields(..),
+                                    SubAccountLength(..)) where
 
 import Control.Applicative(Applicative((<*>), pure), (<$>))
 import Data.Maybe (catMaybes, isJust)
@@ -45,6 +46,7 @@ import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
+import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.TextFormat as TF
@@ -52,12 +54,23 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.HasText as HT
 
-type Box = L.Box M.PostMeta 
-
 data Fields a = Fields {
   payee :: a
   , account :: a
   } deriving (Eq, Show)
+
+newtype SubAccountLength =
+  SubAccountLength { unSubAccountLength :: Int }
+  deriving Show
+
+-- | All the information needed for allocated cells.
+data AllocatedOpts = AllocatedOpts {
+  fields :: Fields Bool
+  , subAccountLength :: SubAccountLength
+  , baseColors :: PC.BaseColors
+  , payeeAllocation :: A.Allocation
+  , accountAllocation :: A.Allocation
+  } deriving Show
 
 -- | Creates Payee and Account cells. The user must have requested the
 -- cells. In addition, no cells are created if there is not enough
@@ -68,10 +81,11 @@ data Fields a = Fields {
 -- cells.
 payeeAndAcct ::
   G.Fields (Maybe Int)
-  -> O.Options
+  -> Fields Bool
+  -> AllocatedOpts
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
-payeeAndAcct fs os = allocateCells os ws where
+payeeAndAcct gs fs as = allocateCells os ws where
   ws = fieldWidth os ss fs rw
   ss = O.spacers os
   rw = O.width os
@@ -85,13 +99,13 @@ allocateCells ::
   -> Fields Int
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
-allocateCells os fs is = let
-  cellMakers = Fields allocPayee allocAcct
-  mkCells width maker =
-    if width > 0
-    then Just (map (maker width os) is)
-    else Nothing
-  unShrunkCells = mkCells <$> fs <*> cellMakers
+allocateCells os fs is =
+  let cellMakers = Fields allocPayee allocAcct
+      mkCells width maker =
+        if width > 0
+        then Just (map (maker width os) is)
+        else Nothing
+      unShrunkCells = mkCells <$> fs <*> cellMakers
   in fmap (fmap removeExtraSpace) unShrunkCells
 
 
@@ -109,28 +123,29 @@ removeExtraSpace cs = (trimmed, len) where
 
 -- | Gets the width of the two allocated fields.
 fieldWidth ::
-  O.Options
+  Fields Bool
+  -> A.Allocation -- ^ Payee allocation
+  -> A.Allocation -- ^ Accout allocation
   -> S.Spacers Int
   -> G.Fields (Maybe Int)
   -> O.ReportWidth
   -> Fields Int
-fieldWidth os ss fs (O.ReportWidth rw) = let
-  flds = optionsToFields os
-  grownWidth = sumGrowersAndSpacers fs ss
-  widthForCells = rw - grownWidth - allocSpacerWidth
-  payeeSpacerWidth = if payee flds then abs (S.payee ss) else 0
-  acctSpacerWidth = if account flds then abs (S.account ss) else 0
-  allocSpacerWidth = payeeSpacerWidth + acctSpacerWidth
-  allocs = (\bool alloc -> if bool then alloc else A.allocation 0)
-           <$> flds
-           <*> Fields (O.payeeAllocation os) (O.accountAllocation os)
+fieldWidth flds pa aa ss fs (O.ReportWidth rw) =
+  let grownWidth = sumGrowersAndSpacers fs ss
+      widthForCells = rw - grownWidth - allocSpacerWidth
+      payeeSpacerWidth = if payee flds then abs (S.payee ss) else 0
+      acctSpacerWidth = if account flds then abs (S.account ss) else 0
+      allocSpacerWidth = payeeSpacerWidth + acctSpacerWidth
+      allocs = (\bool alloc -> if bool then alloc else A.allocation 0)
+               <$> flds
+               <*> Fields pa aa
   in if widthForCells < 1
      then pure 0
      else A.allocate allocs widthForCells
 
 
-optionsToFields :: O.Options -> Fields Bool
-optionsToFields os = let f = O.fields os in Fields {
+optionsToFields :: F.Fields Bool -> Fields Bool
+optionsToFields f = Fields {
   payee = F.payee f
   , account = F.account f }
 
@@ -220,46 +235,57 @@ sumGrowersAndSpacers fs ss = spacers + flds where
       Just i -> acc + i
 
 
-allocPayee :: Int -> O.Options -> Box -> R.ColumnSpec
-allocPayee w os i = let
-  pb = L.boxPostFam i
-  ts = PC.colors (M.visibleNum . L.boxMeta $ i) (O.baseColors os)
-  c = R.ColumnSpec j (C.Width w) ts sq
-  j = R.LeftJustify
-  sq = case Q.payee pb of
-    Nothing -> []
-    Just pye -> let
-      wrapped =
-        Fdbl.toList
-        . TF.unLines 
-        . TF.wordWrap w
-        . TF.txtWords
-        . HT.text
-        $ pye
-      toBit (TF.Words seqTxts) =
-        C.chunk ts
-        . X.unwords
-        . Fdbl.toList
-        $ seqTxts
-      in fmap toBit wrapped
+allocPayee ::
+  Int
+  -- ^ Width that is permitted for this column
+  -> PC.BaseColors
+  -> Box
+  -> R.ColumnSpec
+allocPayee w bc i =
+  let pb = L.boxPostFam i
+      ts = PC.colors (M.visibleNum . L.boxMeta $ i) bc
+      c = R.ColumnSpec j (C.Width w) ts sq
+      j = R.LeftJustify
+      sq = case Q.payee pb of
+        Nothing -> []
+        Just pye ->
+          let wrapped =
+                Fdbl.toList
+                . TF.unLines 
+                . TF.wordWrap w
+                . TF.txtWords
+                . HT.text
+                $ pye
+              toBit (TF.Words seqTxts) =
+                C.chunk ts
+                . X.unwords
+                . Fdbl.toList
+                $ seqTxts
+          in fmap toBit wrapped
   in c
 
 
-allocAcct :: Int -> O.Options -> Box -> R.ColumnSpec
-allocAcct aw os i = let
-  pb = L.boxPostFam i
-  ts = PC.colors (M.visibleNum . L.boxMeta $ i) (O.baseColors os) in
-  R.ColumnSpec R.LeftJustify (C.Width aw) ts $ let
-    target = TF.Target aw
-    shortest = TF.Shortest . O.subAccountLength $ os
-    a = Q.account pb
-    ws = TF.Words . Seq.fromList . HT.textList $ a
-    (TF.Words shortened) = TF.shorten shortest target ws
-    in [C.chunk ts
-       . X.concat
-       . intersperse (X.singleton ':')
-       . Fdbl.toList
-       $ shortened]
+allocAcct ::
+  Int
+  -- ^ Width that is permitted for this column
+  -> SubAccountLength
+  -> PC.BaseColors
+  -> Box
+  -> R.ColumnSpec
+allocAcct aw sl bc i =
+  let pb = L.boxPostFam i
+      ts = PC.colors (M.visibleNum . L.boxMeta $ i) bc
+  in R.ColumnSpec R.LeftJustify (C.Width aw) ts $
+     let target = TF.Target aw
+         shortest = TF.Shortest . unSubAccountLength $ sl
+         a = Q.account pb
+         ws = TF.Words . Seq.fromList . HT.textList $ a
+         (TF.Words shortened) = TF.shorten shortest target ws
+     in [C.chunk ts
+         . X.concat
+         . intersperse (X.singleton ':')
+         . Fdbl.toList
+         $ shortened]
 
 instance Functor Fields where
   fmap f i = Fields {
