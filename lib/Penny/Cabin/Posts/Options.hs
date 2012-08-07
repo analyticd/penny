@@ -33,8 +33,8 @@ import qualified Penny.Shield as S
 
 type Box = L.Box Meta.PostMeta
 
-data T =
-  T { drCrColors :: C.DrCrColors
+data Options =
+  Options { drCrColors :: C.DrCrColors
       -- ^ Colors to use when displaying debits, credits, and
       -- when displaying balance totals
 
@@ -158,9 +158,9 @@ defaultOptions ::
   DefaultTimeZone
   -> RadGroup
   -> S.Runtime
-  -> T
+  -> Options
 defaultOptions dtz rg rt =
-  T { drCrColors = Dark.drCrColors
+  Options { drCrColors = Dark.drCrColors
     , baseColors = Dark.baseColors
     , dateFormat = ymd
     , qtyFormat = qtyAsIs

@@ -39,7 +39,7 @@ type Box = L.Box M.PostMeta
 -- the report but that ended up having no width are changed to
 -- Nothing.
 growCells ::
-  Options.T
+  O.Options
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
 growCells o infos = toPair <$> wanted <*> growers where
@@ -70,7 +70,7 @@ sizer w (PreSpec j ts bs) = R.ColumnSpec j w ts bs
 
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
-oneLine :: Text -> Options.T -> Box -> PreSpec
+oneLine :: Text -> O.Options -> Box -> PreSpec
 oneLine t os b =
   let bc = Options.baseColors os
       ts = PC.colors (M.visibleNum . L.boxMeta $ b) bc
@@ -78,7 +78,7 @@ oneLine t os b =
       bit = C.chunk ts t
   in PreSpec j ts [bit]
 
-growers :: Fields (Options.T -> Box -> PreSpec)
+growers :: Fields (O.Options -> Box -> PreSpec)
 growers = Fields {
   globalTransaction      = getGlobalTransaction
   , revGlobalTransaction = getRevGlobalTransaction
@@ -111,7 +111,7 @@ serialCellMaybe ::
   -- ^ When applied to a Box, this function returns Just Int if the
   -- box has a serial, or Nothing if not.
   
-  -> Options.T -> Box -> PreSpec
+  -> O.Options -> Box -> PreSpec
 serialCellMaybe f os b = oneLine t os b
   where
     t = case f (L.boxPostFam b) of
@@ -120,90 +120,90 @@ serialCellMaybe f os b = oneLine t os b
 
 serialCell ::
   (M.PostMeta -> Int)
-  -> Options.T -> Box -> PreSpec
+  -> O.Options -> Box -> PreSpec
 serialCell f os b = oneLine t os b
   where
     t = pack . show . f . L.boxMeta $ b
 
-getGlobalTransaction :: Options.T -> Box -> PreSpec
+getGlobalTransaction :: O.Options -> Box -> PreSpec
 getGlobalTransaction =
   serialCellMaybe (fmap (L.forward . L.unGlobalTransaction)
                    . Q.globalTransaction)
 
-getRevGlobalTransaction :: Options.T -> Box -> PreSpec
+getRevGlobalTransaction :: O.Options -> Box -> PreSpec
 getRevGlobalTransaction =
   serialCellMaybe (fmap (L.backward . L.unGlobalTransaction)
                    . Q.globalTransaction)
 
-getGlobalPosting :: Options.T -> Box -> PreSpec
+getGlobalPosting :: O.Options -> Box -> PreSpec
 getGlobalPosting =
   serialCellMaybe (fmap (L.forward . L.unGlobalPosting)
                    . Q.globalPosting)
 
-getRevGlobalPosting :: Options.T -> Box -> PreSpec
+getRevGlobalPosting :: O.Options -> Box -> PreSpec
 getRevGlobalPosting =
   serialCellMaybe (fmap (L.backward . L.unGlobalPosting)
                    . Q.globalPosting)
 
-getFileTransaction :: Options.T -> Box -> PreSpec
+getFileTransaction :: O.Options -> Box -> PreSpec
 getFileTransaction =
   serialCellMaybe (fmap (L.forward . L.unFileTransaction)
                    . Q.fileTransaction)
 
-getRevFileTransaction :: Options.T -> Box -> PreSpec
+getRevFileTransaction :: O.Options -> Box -> PreSpec
 getRevFileTransaction =
   serialCellMaybe (fmap (L.backward . L.unFileTransaction)
                    . Q.fileTransaction)
 
-getFilePosting :: Options.T -> Box -> PreSpec
+getFilePosting :: O.Options -> Box -> PreSpec
 getFilePosting =
   serialCellMaybe (fmap (L.forward . L.unFilePosting)
                    . Q.filePosting)
 
-getRevFilePosting :: Options.T -> Box -> PreSpec
+getRevFilePosting :: O.Options -> Box -> PreSpec
 getRevFilePosting =
   serialCellMaybe (fmap (L.backward . L.unFilePosting)
                    . Q.filePosting)
 
-getSorted :: Options.T -> Box -> PreSpec
+getSorted :: O.Options -> Box -> PreSpec
 getSorted =
   serialCell (L.forward . Ly.unSortedNum . M.sortedNum)
 
-getRevSorted :: Options.T -> Box -> PreSpec
+getRevSorted :: O.Options -> Box -> PreSpec
 getRevSorted =
   serialCell (L.backward . Ly.unSortedNum . M.sortedNum)
 
-getFiltered :: Options.T -> Box -> PreSpec
+getFiltered :: O.Options -> Box -> PreSpec
 getFiltered =
   serialCell (L.forward . Ly.unFilteredNum . M.filteredNum)
 
-getRevFiltered :: Options.T -> Box -> PreSpec
+getRevFiltered :: O.Options -> Box -> PreSpec
 getRevFiltered =
   serialCell (L.backward . Ly.unFilteredNum . M.filteredNum)
 
-getVisible :: Options.T -> Box -> PreSpec
+getVisible :: O.Options -> Box -> PreSpec
 getVisible =
   serialCell (L.forward . M.unVisibleNum . M.visibleNum)
 
-getRevVisible :: Options.T -> Box -> PreSpec
+getRevVisible :: O.Options -> Box -> PreSpec
 getRevVisible =
   serialCell (L.backward . M.unVisibleNum . M.visibleNum)
 
 
-getLineNum :: Options.T -> Box -> PreSpec
+getLineNum :: O.Options -> Box -> PreSpec
 getLineNum os b = oneLine t os b where
   lineTxt = pack . show . L.unPostingLine
   t = maybe empty lineTxt (Q.postingLine . L.boxPostFam $ b)
 
-getDate :: Options.T -> Box -> PreSpec
+getDate :: O.Options -> Box -> PreSpec
 getDate os i = oneLine t os i where
   t = O.dateFormat os i
 
-getFlag :: Options.T -> Box -> PreSpec
+getFlag :: O.Options -> Box -> PreSpec
 getFlag os i = oneLine t os i where
   t = maybe empty L.text (Q.flag . L.boxPostFam $ i)
 
-getNumber :: Options.T -> Box -> PreSpec
+getNumber :: O.Options -> Box -> PreSpec
 getNumber os i = oneLine t os i where
   t = maybe empty L.text (Q.number . L.boxPostFam $ i)
 
@@ -213,7 +213,7 @@ dcTxt L.Credit = pack "Cr"
 
 -- | Gives a one-line cell that is colored according to whether the
 -- posting is a debit or credit.
-coloredPostingCell :: Text -> Options.T -> Box -> PreSpec
+coloredPostingCell :: Text -> O.Options -> Box -> PreSpec
 coloredPostingCell t os i = PreSpec j ts [bit] where
   j = R.LeftJustify
   bit = C.chunk ts t
@@ -223,20 +223,20 @@ coloredPostingCell t os i = PreSpec j ts [bit] where
        . O.drCrColors
        $ os
 
-getPostingDrCr :: Options.T -> Box -> PreSpec
+getPostingDrCr :: O.Options -> Box -> PreSpec
 getPostingDrCr os i = coloredPostingCell t os i where
   t = dcTxt . Q.drCr . L.boxPostFam $ i
 
-getPostingCmdty :: Options.T -> Box -> PreSpec
+getPostingCmdty :: O.Options -> Box -> PreSpec
 getPostingCmdty os i = coloredPostingCell t os i where
   t = L.text . L.Delimited (X.singleton ':') 
       . L.textList . Q.commodity . L.boxPostFam $ i
 
-getPostingQty :: Options.T -> Box -> PreSpec
+getPostingQty :: O.Options -> Box -> PreSpec
 getPostingQty os i = coloredPostingCell t os i where
   t = O.qtyFormat os i
 
-getTotalDrCr :: Options.T -> Box -> PreSpec
+getTotalDrCr :: O.Options -> Box -> PreSpec
 getTotalDrCr os i = let
   vn = M.visibleNum . L.boxMeta $ i
   ts = PC.colors vn bc
@@ -260,7 +260,7 @@ getTotalDrCr os i = let
   j = R.LeftJustify
   in PreSpec j ts bits
 
-getTotalCmdty :: Options.T -> Box -> PreSpec
+getTotalCmdty :: O.Options -> Box -> PreSpec
 getTotalCmdty os i = let
   vn = M.visibleNum . L.boxMeta $ i
   j = R.RightJustify
@@ -285,7 +285,7 @@ getTotalCmdty os i = let
       in fmap toBit . assocs . L.unBalance $ bal
   in PreSpec j ts bits
 
-getTotalQty :: Options.T -> Box -> PreSpec
+getTotalQty :: O.Options -> Box -> PreSpec
 getTotalQty os i = let
   vn = M.visibleNum . L.boxMeta $ i
   j = R.LeftJustify
@@ -306,7 +306,7 @@ getTotalQty os i = let
         in C.chunk spec txt
   in PreSpec j ts bits
 
-growingFields :: Options.T -> Fields Bool
+growingFields :: O.Options -> Fields Bool
 growingFields o = let
   f = O.fields o in Fields {
     globalTransaction      = F.globalTransaction  f

@@ -45,7 +45,6 @@ import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
-import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Spacers as Spacers
@@ -70,7 +69,7 @@ data Fields a = Fields {
 -- cells.
 payeeAndAcct ::
   G.Fields (Maybe Int)
-  -> Options.T
+  -> O.Options
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
 payeeAndAcct fs os = allocateCells os ws where
@@ -83,7 +82,7 @@ payeeAndAcct fs os = allocateCells os ws where
 -- list of allocated cells, and the second indicating the width of the
 -- cells, which will be greater than zero.
 allocateCells ::
-  Options.T
+  O.Options
   -> Fields Int
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
@@ -111,7 +110,7 @@ removeExtraSpace cs = (trimmed, len) where
 
 -- | Gets the width of the two allocated fields.
 fieldWidth ::
-  Options.T
+  O.Options
   -> Spacers.T Int
   -> G.Fields (Maybe Int)
   -> O.ReportWidth
@@ -131,7 +130,7 @@ fieldWidth os ss fs (O.ReportWidth rw) = let
      else A.allocate allocs widthForCells
 
 
-optionsToFields :: Options.T -> Fields Bool
+optionsToFields :: O.Options -> Fields Bool
 optionsToFields os = let f = O.fields os in Fields {
   payee = F.payee f
   , account = F.account f }
@@ -222,7 +221,7 @@ sumGrowersAndSpacers fs ss = spacers + flds where
       Just i -> acc + i
 
 
-allocPayee :: Int -> Options.T -> Box -> R.ColumnSpec
+allocPayee :: Int -> O.Options -> Box -> R.ColumnSpec
 allocPayee w os i = let
   pb = L.boxPostFam i
   ts = PC.colors (M.visibleNum . L.boxMeta $ i) (O.baseColors os)
@@ -247,7 +246,7 @@ allocPayee w os i = let
   in c
 
 
-allocAcct :: Int -> Options.T -> Box -> R.ColumnSpec
+allocAcct :: Int -> O.Options -> Box -> R.ColumnSpec
 allocAcct aw os i = let
   pb = L.boxPostFam i
   ts = PC.colors (M.visibleNum . L.boxMeta $ i) (O.baseColors os) in

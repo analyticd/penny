@@ -39,7 +39,6 @@ import qualified Penny.Cabin.Posts.Fields as Fields
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
-import qualified Penny.Cabin.Posts.Options as Options
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Spacers as Spacers
 import qualified Penny.Cabin.Posts.Spacers as S
@@ -52,7 +51,7 @@ type Box = L.Box M.PostMeta
 bottomRows ::
   G.Fields (Maybe Int)
   -> A.Fields (Maybe Int)
-  -> Options.T
+  -> O.Options
   -> [Box]
   -> Fields (Maybe [[C.Chunk]])
 bottomRows gf af os is = makeRows is pcs where
@@ -275,7 +274,7 @@ makeSpecificWidth w f i = R.row [c] where
   (_, c) = f i w
 
 
-type Maker = Options.T -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
+type Maker = O.Options -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 
 makers :: Fields Maker
 makers = Fields tagsCell memoCell filenameCell
@@ -284,14 +283,14 @@ makers = Fields tagsCell memoCell filenameCell
 -- returns a Fields (Maybe Maker) with a Maker in each respective
 -- field that the user wants to see.
 requestedMakers ::
-  Options.T
+  O.Options
   -> Fields (Maybe (Box -> Int -> (C.TextSpec, R.ColumnSpec)))
 requestedMakers os = let
   flds = bottomRowsFields (O.fields os)
   filler b mkr = if b then Just $ mkr os else Nothing
   in filler <$> flds <*> makers
 
-tagsCell :: Options.T -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
+tagsCell :: O.Options -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 tagsCell os info w = (ts, cell) where
   vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify (C.Width w) ts cs
@@ -328,7 +327,7 @@ memoBits ts m (C.Width w) = cs where
   toBit (TF.Words ws) = C.chunk ts (X.unwords . Fdbl.toList $ ws)
 
 
-memoCell :: Options.T -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
+memoCell :: O.Options -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 memoCell os info width = (ts, cell) where
   w = C.Width width
   vn = M.visibleNum . L.boxMeta $ info
@@ -344,7 +343,7 @@ memoCell os info width = (ts, cell) where
     (False, False) -> memoBits ts pm w `mappend` memoBits ts tm w
   
 
-filenameCell :: Options.T -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
+filenameCell :: O.Options -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 filenameCell os info width = (ts, cell) where
   w = C.Width width
   vn = M.visibleNum . L.boxMeta $ info

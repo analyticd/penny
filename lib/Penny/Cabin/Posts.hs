@@ -41,7 +41,7 @@ module Penny.Cabin.Posts (
   , customPostsReport
 
   -- * Options
-  , O.T(..)
+  , O.Options(..)
   , O.ReportWidth(..)
   , O.ymd, O.qtyAsIs, O.balanceAsIs, O.defaultWidth
   , O.columnsVarToWidth, O.defaultOptions, O.widthFromRuntime
@@ -77,7 +77,7 @@ defaultPostsReport dtz rg = makeReport f where
 
 -- | Generate a custom Posts report.
 customPostsReport ::
-  (S.Runtime -> O.T)
+  (S.Runtime -> O.Options)
   -- ^ Function that, when applied to a Runtime, returns the default
   -- options for the posts report. The options will be overridden by
   -- any options on the command line.
@@ -98,7 +98,7 @@ type Factory = CaseSensitive -> X.Text
                  -> Ex.Exceptional X.Text (X.Text -> Bool)
 
 parseReportOpts ::
-  (S.Runtime -> O.T)
+  (S.Runtime -> O.Options)
   -> Parser (S.Runtime
              -> CaseSensitive
              -> Factory
@@ -121,7 +121,7 @@ parseReportOpts frt = do
 -- | Using the options parsed from the command line, print out the
 -- report.
 makeReportTxt ::
-  O.T
+  O.Options
   -> [L.Box Ly.LibertyMeta]
   -> Ex.Exceptional X.Text XL.Text
 makeReportTxt op bs = fmap mkText postMetaBoxes
@@ -136,7 +136,7 @@ makeReportTxt op bs = fmap mkText postMetaBoxes
 -- post filter, then assigns the post metadata. Fails if the
 -- expression fails to produce a result.
 filterAndAssignMeta ::
-  O.T
+  O.Options
   -> [L.Box Ly.LibertyMeta]
   -> Maybe [L.Box M.PostMeta]
 filterAndAssignMeta op bs =
