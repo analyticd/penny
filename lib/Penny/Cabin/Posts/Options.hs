@@ -5,9 +5,6 @@ module Penny.Cabin.Posts.Options where
 import Control.Monad.Exception.Synchronous (Exceptional)
 import Data.Text (Text)
 import qualified Data.Text as X
-import Data.Time (formatTime)
-import System.Locale (defaultTimeLocale)
-import qualified Data.Time as Time
 import qualified Text.Matchers.Text as M
 
 import qualified Penny.Liberty as Ly
@@ -15,7 +12,6 @@ import qualified Penny.Liberty.Expressions as Ex
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Bits as Bits
-import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Cabin.Posts.Allocate as A
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as C
@@ -23,10 +19,8 @@ import qualified Penny.Cabin.Options as O
 import qualified Penny.Cabin.Posts.Fields as F
 import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Spacers as S
-import qualified Penny.Cabin.Colors.DarkBackground as Dark
 import Penny.Copper.DateTime (DefaultTimeZone)
 import Penny.Copper.Qty (RadGroup)
-import qualified Penny.Shield as S
 
 
 data Options =
@@ -121,123 +115,4 @@ data Options =
 
 newtype ReportWidth = ReportWidth { unReportWidth :: Int }
                       deriving (Eq, Show, Ord)
-
-ymd :: Box -> X.Text
-ymd p = X.pack (formatTime defaultTimeLocale fmt d) where
-  d = Time.localDay
-      . Bits.localTime
-      . Q.dateTime
-      . L.boxPostFam
-      $ p
-  fmt = "%Y-%m-%d"
-
-qtyAsIs :: Box -> X.Text
-qtyAsIs p = X.pack . show . Bits.unQty . Q.qty . L.boxPostFam $ p
-
-balanceAsIs :: Bits.Commodity -> Bal.BottomLine -> X.Text
-balanceAsIs _ n = case n of
-  Bal.Zero -> X.pack "--"
-  Bal.NonZero c -> X.pack . show . Bits.unQty . Bal.qty $ c
-
-defaultWidth :: ReportWidth
-defaultWidth = ReportWidth 80
-
-columnsVarToWidth :: Maybe String -> ReportWidth
-columnsVarToWidth ms = case ms of
-  Nothing -> defaultWidth
-  Just str -> case reads str of
-    [] -> defaultWidth
-    (i, []):[] -> if i > 0 then ReportWidth i else defaultWidth
-    _ -> defaultWidth
-
-defaultOptions ::
-  DefaultTimeZone
-  -> RadGroup
-  -> S.Runtime
-  -> Options
-defaultOptions dtz rg rt =
-  Options { drCrColors = Dark.drCrColors
-    , baseColors = Dark.baseColors
-    , dateFormat = ymd
-    , qtyFormat = qtyAsIs
-    , balanceFormat = balanceAsIs
-    , payeeAllocation = A.allocation 40
-    , accountAllocation = A.allocation 60
-    , width = widthFromRuntime rt
-    , subAccountLength = 2
-    , colorPref = O.autoColors O.PrefAuto rt
-    , timeZone = dtz
-    , radGroup = rg
-    , sensitive = M.Insensitive
-    , factory = \s t -> (return (M.within s t))
-    , tokens = []
-    , postFilter = []
-    , fields = defaultFields
-    , spacers = defaultSpacerWidth
-    , showZeroBalances = O.ShowZeroBalances False }
-
-widthFromRuntime :: S.Runtime -> ReportWidth
-widthFromRuntime rt = case S.screenWidth rt of
-  Nothing -> defaultWidth
-  Just w -> ReportWidth . S.unScreenWidth $ w
-
-defaultFields :: F.Fields Bool
-defaultFields =
-  F.Fields { F.globalTransaction    = False
-           , F.revGlobalTransaction = False
-           , F.globalPosting        = False
-           , F.revGlobalPosting     = False
-           , F.fileTransaction      = False
-           , F.revFileTransaction   = False
-           , F.filePosting          = False
-           , F.revFilePosting       = False
-           , F.filtered             = False
-           , F.revFiltered          = False
-           , F.sorted               = False
-           , F.revSorted            = False
-           , F.visible              = False
-           , F.revVisible           = False
-           , F.lineNum              = False
-           , F.date                 = True
-           , F.flag                 = False
-           , F.number               = False
-           , F.payee                = True
-           , F.account              = True
-           , F.postingDrCr          = True
-           , F.postingCmdty         = True
-           , F.postingQty           = True
-           , F.totalDrCr            = True
-           , F.totalCmdty           = True
-           , F.totalQty             = True
-           , F.tags                 = False
-           , F.memo                 = False
-           , F.filename             = False }
-
-defaultSpacerWidth :: S.Spacers Int
-defaultSpacerWidth =
-  S.Spacers { S.globalTransaction    = 1
-            , S.revGlobalTransaction = 1
-            , S.globalPosting        = 1
-            , S.revGlobalPosting     = 1
-            , S.fileTransaction      = 1
-            , S.revFileTransaction   = 1
-            , S.filePosting          = 1
-            , S.revFilePosting       = 1
-            , S.filtered             = 1
-            , S.revFiltered          = 1
-            , S.sorted               = 1
-            , S.revSorted            = 1
-            , S.visible              = 1
-            , S.revVisible           = 1
-            , S.lineNum              = 1
-            , S.date                 = 1
-            , S.flag                 = 1
-            , S.number               = 1
-            , S.payee                = 4
-            , S.account              = 1
-            , S.postingDrCr          = 1
-            , S.postingCmdty         = 1
-            , S.postingQty           = 1
-            , S.totalDrCr            = 1
-            , S.totalCmdty           = 1 }
 

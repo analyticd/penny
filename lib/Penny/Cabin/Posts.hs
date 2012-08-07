@@ -40,12 +40,15 @@ module Penny.Cabin.Posts (
   -- * Custom report
   , customPostsReport
 
+    -- * Report without a parser
+  , postsReport
+
   -- * Options
-  , O.Options(..)
+  , ZO.ZincOpts(..)
   , O.ReportWidth(..)
-  , O.ymd, O.qtyAsIs, O.balanceAsIs, O.defaultWidth
-  , O.columnsVarToWidth, O.defaultOptions, O.widthFromRuntime
-  , O.defaultFields
+  , ZO.ymd, ZO.qtyAsIs, ZO.balanceAsIs, ZO.defaultWidth
+  , ZO.columnsVarToWidth, ZO.defaultOptions, ZO.widthFromRuntime
+  , ZO.defaultFields
   ) where
 
 import Control.Applicative ((<$>))
@@ -55,6 +58,7 @@ import qualified Data.Text.Lazy as XL
 import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Posts.Options as O
+import qualified Penny.Cabin.Posts.ZincOpts as ZO
 import qualified Penny.Cabin.Posts.Meta as M
 import Penny.Cabin.Posts.Chunk (makeChunk)
 import Penny.Cabin.Posts.Parser (parseOptions)
@@ -73,11 +77,11 @@ defaultPostsReport ::
   -> C.RadGroup
   -> I.Report
 defaultPostsReport dtz rg = makeReport f where
-  f = parseReportOpts (\rt -> O.defaultOptions dtz rg rt)
+  f = parseReportOpts (\rt -> ZO.defaultOptions dtz rg rt)
 
 -- | Generate a custom Posts report.
 customPostsReport ::
-  (S.Runtime -> O.Options)
+  (S.Runtime -> ZO.ZincOpts)
   -- ^ Function that, when applied to a Runtime, returns the default
   -- options for the posts report. The options will be overridden by
   -- any options on the command line.
@@ -98,7 +102,7 @@ type Factory = CaseSensitive -> X.Text
                  -> Ex.Exceptional X.Text (X.Text -> Bool)
 
 parseReportOpts ::
-  (S.Runtime -> O.Options)
+  (S.Runtime -> ZO.ZincOpts)
   -> Parser (S.Runtime
              -> CaseSensitive
              -> Factory
@@ -108,23 +112,24 @@ parseReportOpts ::
 parseReportOpts frt = do
   getOpts <- parseOptions
   let f rt cs fty bs _ = do
-        let optsDefault = frt rt
+        let optsDefault = ZO.toOptions . frt $ rt
             optsInit = optsDefault { O.sensitive = cs
                                    , O.factory = fty }
         optsParsed <- case getOpts rt optsInit of
           Ex.Exception e -> Ex.throw . X.pack . show $ e
           Ex.Success g -> return g
-        makeReportTxt optsParsed bs
+        postsReport optsParsed bs
   return f
             
 
--- | Using the options parsed from the command line, print out the
--- report.
-makeReportTxt ::
+-- | Applied to an Options record and a list of posting boxes with
+-- LibertyMeta, returns either an exception (which will arise only if
+-- the filter expression fails to parse) or the text of the report.
+postsReport ::
   O.Options
   -> [L.Box Ly.LibertyMeta]
   -> Ex.Exceptional X.Text XL.Text
-makeReportTxt op bs = fmap mkText postMetaBoxes
+postsReport op bs = fmap mkText postMetaBoxes
   where
     e = X.pack "posts report: filter expression parse failure"
     postMetaBoxes = Ex.fromMaybe e (filterAndAssignMeta op bs)
