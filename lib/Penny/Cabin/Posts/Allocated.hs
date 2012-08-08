@@ -29,8 +29,12 @@
 -- arrangements are made if either field gets an allocation of 0.
 --
 -- 5. Fill cell contents. Return filled cells.
-module Penny.Cabin.Posts.Allocated (payeeAndAcct, Fields(..),
-                                    SubAccountLength(..)) where
+module Penny.Cabin.Posts.Allocated (
+  payeeAndAcct
+  , AllocatedOpts(..)
+  , Fields(..)
+  , SubAccountLength(..)
+  ) where
 
 import Control.Applicative(Applicative((<*>), pure), (<$>))
 import Data.Maybe (catMaybes, isJust)
@@ -43,7 +47,6 @@ import qualified Penny.Cabin.Chunk as C
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Posts.Allocate as A
 import qualified Penny.Cabin.Colors as PC
-import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
 import Penny.Cabin.Posts.Meta (Box)
@@ -70,7 +73,10 @@ data AllocatedOpts = AllocatedOpts {
   , baseColors :: PC.BaseColors
   , payeeAllocation :: A.Allocation
   , accountAllocation :: A.Allocation
-  } deriving Show
+  , spacers :: S.Spacers Int
+  , growerWidths :: G.Fields (Maybe Int)
+  , reportWidth :: O.ReportWidth
+  }
 
 -- | Creates Payee and Account cells. The user must have requested the
 -- cells. In addition, no cells are created if there is not enough
@@ -80,30 +86,34 @@ data AllocatedOpts = AllocatedOpts {
 -- where cs is a list of all the cells, and i is the width of all the
 -- cells.
 payeeAndAcct ::
-  G.Fields (Maybe Int)
-  -> Fields Bool
-  -> AllocatedOpts
+  AllocatedOpts
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
-payeeAndAcct gs fs as = allocateCells os ws where
-  ws = fieldWidth os ss fs rw
-  ss = O.spacers os
-  rw = O.width os
+payeeAndAcct as = allocateCells sl bc ws
+  where
+    sl = subAccountLength as
+    bc = baseColors as
+    ws = fieldWidth (fields as) (payeeAllocation as)
+         (accountAllocation as) (spacers as)
+         (growerWidths as) (reportWidth as)
 
 
 -- | Allocates cells. Returns a pair, with the first element being the
 -- list of allocated cells, and the second indicating the width of the
 -- cells, which will be greater than zero.
 allocateCells ::
-  O.Options
-  -> Fields Int
+  SubAccountLength
+  -> PC.BaseColors
+  -> Fields UnShrunkWidth
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
-allocateCells os fs is =
-  let cellMakers = Fields allocPayee allocAcct
-      mkCells width maker =
+allocateCells sl bc fs bs =
+  let mkPayees i b = allocPayee i bc b
+      mkAccts i b = allocAcct i sl bc b
+      cellMakers = Fields mkPayees mkAccts
+      mkCells (UnShrunkWidth width) maker =
         if width > 0
-        then Just (map (maker width os) is)
+        then Just (map (maker width) bs)
         else Nothing
       unShrunkCells = mkCells <$> fs <*> cellMakers
   in fmap (fmap removeExtraSpace) unShrunkCells
@@ -121,6 +131,11 @@ removeExtraSpace cs = (trimmed, len) where
   trimmed = map f cs where
     f c = c { R.width = C.Width len }
 
+-- | The width of an on-screen field, after accounting for the width
+-- of the entire report and the allocations but before shrinking.
+newtype UnShrunkWidth = UnShrunkWidth Int
+                      deriving Show
+
 -- | Gets the width of the two allocated fields.
 fieldWidth ::
   Fields Bool
@@ -129,7 +144,7 @@ fieldWidth ::
   -> S.Spacers Int
   -> G.Fields (Maybe Int)
   -> O.ReportWidth
-  -> Fields Int
+  -> Fields UnShrunkWidth
 fieldWidth flds pa aa ss fs (O.ReportWidth rw) =
   let grownWidth = sumGrowersAndSpacers fs ss
       widthForCells = rw - grownWidth - allocSpacerWidth
@@ -140,14 +155,8 @@ fieldWidth flds pa aa ss fs (O.ReportWidth rw) =
                <$> flds
                <*> Fields pa aa
   in if widthForCells < 1
-     then pure 0
-     else A.allocate allocs widthForCells
-
-
-optionsToFields :: F.Fields Bool -> Fields Bool
-optionsToFields f = Fields {
-  payee = F.payee f
-  , account = F.account f }
+     then pure (UnShrunkWidth 0)
+     else fmap UnShrunkWidth $ A.allocate allocs widthForCells
 
 
 -- | Sums spacers for growing cells. This function is intended for use
@@ -227,8 +236,8 @@ sumGrowersAndSpacers ::
   G.Fields (Maybe Int)
   -> S.Spacers Int
   -> Int
-sumGrowersAndSpacers fs ss = spacers + flds where
-  spacers = sumSpacers fs ss
+sumGrowersAndSpacers fs ss = spcrs + flds where
+  spcrs = sumSpacers fs ss
   flds = Fdbl.foldr f 0 fs where
     f maybeI acc = case maybeI of
       Nothing -> acc

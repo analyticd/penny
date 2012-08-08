@@ -6,28 +6,34 @@ import Data.Maybe (isNothing, catMaybes)
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Posts.BottomRows as B
-import qualified Penny.Cabin.Posts.Options as Options
-import qualified Penny.Cabin.Posts.Options as O
+import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Chunk as C
 import qualified Penny.Cabin.Colors as PC
-import qualified Penny.Lincoln as L
-import qualified Penny.Cabin.Posts.Meta as M
+import Penny.Cabin.Posts.Meta (Box)
 
-type Box = L.Box M.PostMeta 
 
-makeChunk :: O.Options -> [Box] -> [C.Chunk]
-makeChunk os is =
-  let fmapSnd flds = fmap (fmap snd) flds
-      fmapFst flds = fmap (fmap fst) flds
-      gFldW = fmapSnd gFlds
+makeChunk ::
+  S.Spacers Int
+  -> PC.BaseColors
+  -> G.GrowOpts
+  -> (G.Fields (Maybe Int) -> A.AllocatedOpts)
+  -> (G.Fields (Maybe Int)
+      -> A.Fields (Maybe Int)
+      -> B.BottomOpts)
+  -> [Box]
+  -> [C.Chunk]
+makeChunk ss bc go ao bo bs =
+  let fmapSnd = fmap (fmap snd)
+      fmapFst = fmap (fmap fst)
+      gFldW = fmap (fmap snd) gFlds
       aFldW = fmapSnd aFlds
-      gFlds = G.growCells os is
-      aFlds = A.payeeAndAcct gFldW os is
-      bFlds = B.bottomRows gFldW aFldW os is
-      topCells = B.topRowCells (fmapFst gFlds) (fmapFst aFlds)
-      withSpacers = B.mergeWithSpacers topCells (Options.spacers os)
-      topRows = makeTopRows (Options.baseColors os) withSpacers
+      gFlds = G.growCells go bs
+      aFlds = A.payeeAndAcct (ao gFldW) bs
+      bFlds = B.bottomRows (bo gFldW aFldW) bs
+      topCells = B.topRowCells (fmapFst gFlds) (fmap (fmap fst) aFlds)
+      withSpacers = B.mergeWithSpacers topCells ss
+      topRows = makeTopRows bc withSpacers
       bottomRows = makeBottomRows bFlds
   in makeAllRows topRows bottomRows
 

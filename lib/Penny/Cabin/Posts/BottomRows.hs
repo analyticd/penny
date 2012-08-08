@@ -17,6 +17,7 @@
 -- combined. Each bottom row will have one cell.
 
 module Penny.Cabin.Posts.BottomRows (
+  BottomOpts(..),
   bottomRows, Fields(..), TopRowCells(..), mergeWithSpacers,
   topRowCells) where
 
@@ -38,25 +39,31 @@ import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
+import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.Queries as Q
 
-type Box = L.Box M.PostMeta 
+data BottomOpts = BottomOpts {
+  growingWidths :: G.Fields (Maybe Int)
+  , allocatedWidths :: A.Fields (Maybe Int)
+  , fields :: F.Fields Bool
+  , baseColors :: PC.BaseColors
+  , reportWidth :: O.ReportWidth
+  , spacers :: S.Spacers Int
+  }
 
 bottomRows ::
-  G.Fields (Maybe Int)
-  -> A.Fields (Maybe Int)
-  -> O.Options
+  BottomOpts
   -> [Box]
   -> Fields (Maybe [[C.Chunk]])
-bottomRows gf af os is = makeRows is pcs where
-  pcs = infoProcessors topSpecs rw wanted
-  wanted = requestedMakers os
-  topSpecs = topCellSpecs gf af (O.spacers os)
-  rw = O.width os
+bottomRows os bs = makeRows bs pcs where
+  pcs = infoProcessors topSpecs (reportWidth os) wanted
+  wanted = requestedMakers (fields os) (baseColors os)
+  topSpecs = topCellSpecs (growingWidths os) (allocatedWidths os)
+             (spacers os)
 
 
 data Fields a = Fields {
@@ -272,7 +279,7 @@ makeSpecificWidth w f i = R.row [c] where
   (_, c) = f i w
 
 
-type Maker = O.Options -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
+type Maker = PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 
 makers :: Fields Maker
 makers = Fields tagsCell memoCell filenameCell
@@ -281,18 +288,19 @@ makers = Fields tagsCell memoCell filenameCell
 -- returns a Fields (Maybe Maker) with a Maker in each respective
 -- field that the user wants to see.
 requestedMakers ::
-  O.Options
+  F.Fields Bool
+  -> PC.BaseColors
   -> Fields (Maybe (Box -> Int -> (C.TextSpec, R.ColumnSpec)))
-requestedMakers os = let
-  flds = bottomRowsFields (O.fields os)
-  filler b mkr = if b then Just $ mkr os else Nothing
+requestedMakers allFlds bc =
+  let flds = bottomRowsFields allFlds
+      filler b mkr = if b then Just $ mkr bc else Nothing
   in filler <$> flds <*> makers
 
-tagsCell :: O.Options -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
-tagsCell os info w = (ts, cell) where
+tagsCell :: PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
+tagsCell bc info w = (ts, cell) where
   vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify (C.Width w) ts cs
-  ts = PC.colors vn (O.baseColors os)
+  ts = PC.colors vn bc
   cs =
     Fdbl.toList
     . fmap toBit
@@ -325,12 +333,12 @@ memoBits ts m (C.Width w) = cs where
   toBit (TF.Words ws) = C.chunk ts (X.unwords . Fdbl.toList $ ws)
 
 
-memoCell :: O.Options -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
-memoCell os info width = (ts, cell) where
+memoCell :: PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
+memoCell bc info width = (ts, cell) where
   w = C.Width width
   vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify w ts cs
-  ts = PC.colors vn (O.baseColors os)
+  ts = PC.colors vn bc
   pm = Q.postingMemo . L.boxPostFam $ info
   tm = Q.transactionMemo . L.boxPostFam $ info
   nullMemo (L.Memo m) = null m
@@ -341,8 +349,8 @@ memoCell os info width = (ts, cell) where
     (False, False) -> memoBits ts pm w `mappend` memoBits ts tm w
   
 
-filenameCell :: O.Options -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
-filenameCell os info width = (ts, cell) where
+filenameCell :: PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
+filenameCell bc info width = (ts, cell) where
   w = C.Width width
   vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify w ts cs
@@ -351,7 +359,7 @@ filenameCell os info width = (ts, cell) where
   cs = case Q.filename . L.boxPostFam $ info of
     Nothing -> []
     Just fn -> [toBit . L.unFilename $ fn]
-  ts = PC.colors vn (O.baseColors os)
+  ts = PC.colors vn bc
 
 
 
