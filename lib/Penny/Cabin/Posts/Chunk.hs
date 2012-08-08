@@ -1,39 +1,90 @@
-module Penny.Cabin.Posts.Chunk (makeChunk) where
+module Penny.Cabin.Posts.Chunk (ChunkOpts(..), makeChunk) where
 
 import qualified Data.Foldable as Fdbl
 import Data.List (transpose)
 import Data.Maybe (isNothing, catMaybes)
+import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Allocated as A
+import qualified Penny.Cabin.Posts.Allocate as Alc
 import qualified Penny.Cabin.Posts.BottomRows as B
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Chunk as C
 import qualified Penny.Cabin.Colors as PC
 import Penny.Cabin.Posts.Meta (Box)
+import qualified Penny.Lincoln as L
+import qualified Data.Text as X
+import qualified Penny.Cabin.Posts.Options as O
 
+
+data ChunkOpts = ChunkOpts {
+  baseColors :: PC.BaseColors
+  , drCrColors :: PC.DrCrColors
+  , dateFormat :: Box -> X.Text
+  , qtyFormat :: Box -> X.Text
+  , balanceFormat :: L.Commodity -> L.BottomLine -> X.Text
+  , fields :: F.Fields Bool
+  , subAccountLength :: A.SubAccountLength
+  , payeeAllocation :: Alc.Allocation
+  , accountAllocation :: Alc.Allocation
+  , spacers :: S.Spacers Int
+  , reportWidth :: O.ReportWidth
+  }
+
+growOpts :: ChunkOpts -> G.GrowOpts
+growOpts c = G.GrowOpts {
+  G.baseColors = baseColors c
+  , G.drCrColors = drCrColors c
+  , G.dateFormat = dateFormat c
+  , G.qtyFormat = qtyFormat c
+  , G.balanceFormat = balanceFormat c
+  , G.fields = fields c
+  }
+
+allocatedOpts :: ChunkOpts -> G.Fields (Maybe Int) -> A.AllocatedOpts
+allocatedOpts c g = A.AllocatedOpts {
+  A.fields = let f = fields c
+             in A.Fields { A.payee = F.payee f
+                         , A.account = F.account f }
+  , A.subAccountLength = subAccountLength c
+  , A.baseColors = baseColors c
+  , A.payeeAllocation = payeeAllocation c
+  , A.accountAllocation = accountAllocation c
+  , A.spacers = spacers c
+  , A.growerWidths = g
+  , A.reportWidth = reportWidth c
+  }
+
+bottomOpts ::
+  ChunkOpts
+  -> G.Fields (Maybe Int)
+  -> A.Fields (Maybe Int)
+  -> B.BottomOpts
+bottomOpts c g a = B.BottomOpts {
+  B.growingWidths = g
+  , B.allocatedWidths = a
+  , B.fields = fields c
+  , B.baseColors = baseColors c
+  , B.reportWidth = reportWidth c
+  , B.spacers = spacers c
+  }
 
 makeChunk ::
-  S.Spacers Int
-  -> PC.BaseColors
-  -> G.GrowOpts
-  -> (G.Fields (Maybe Int) -> A.AllocatedOpts)
-  -> (G.Fields (Maybe Int)
-      -> A.Fields (Maybe Int)
-      -> B.BottomOpts)
+  ChunkOpts
   -> [Box]
   -> [C.Chunk]
-makeChunk ss bc go ao bo bs =
+makeChunk c bs =
   let fmapSnd = fmap (fmap snd)
       fmapFst = fmap (fmap fst)
       gFldW = fmap (fmap snd) gFlds
       aFldW = fmapSnd aFlds
-      gFlds = G.growCells go bs
-      aFlds = A.payeeAndAcct (ao gFldW) bs
-      bFlds = B.bottomRows (bo gFldW aFldW) bs
+      gFlds = G.growCells (growOpts c) bs
+      aFlds = A.payeeAndAcct (allocatedOpts c gFldW) bs
+      bFlds = B.bottomRows (bottomOpts c gFldW aFldW) bs
       topCells = B.topRowCells (fmapFst gFlds) (fmap (fmap fst) aFlds)
-      withSpacers = B.mergeWithSpacers topCells ss
-      topRows = makeTopRows bc withSpacers
+      withSpacers = B.mergeWithSpacers topCells (spacers c)
+      topRows = makeTopRows (baseColors c) withSpacers
       bottomRows = makeBottomRows bFlds
   in makeAllRows topRows bottomRows
 
