@@ -17,6 +17,7 @@ import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Options as O
 import qualified Penny.Cabin.Posts.Fields as F
+import qualified Penny.Cabin.Posts.Types as T
 import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Spacers as S
 import Penny.Copper.DateTime (DefaultTimeZone)
@@ -58,7 +59,7 @@ data Options =
     , accountAllocation :: A.Allocation 
       -- ^ See payeeAllocation above
 
-    , width :: ReportWidth
+    , width :: T.ReportWidth
       -- ^ Gives the default report width. This can be
       -- overridden on the command line. You can use the
       -- information from the Runtime to make this as wide as
@@ -113,6 +114,4 @@ data Options =
     , showZeroBalances :: O.ShowZeroBalances
     }
 
-newtype ReportWidth = ReportWidth { unReportWidth :: Int }
-                      deriving (Eq, Show, Ord)
 

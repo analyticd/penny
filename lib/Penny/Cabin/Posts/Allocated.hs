@@ -50,8 +50,8 @@ import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
 import Penny.Cabin.Posts.Meta (Box)
-import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Spacers as S
+import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Cabin.TextFormat as TF
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
@@ -75,7 +75,7 @@ data AllocatedOpts = AllocatedOpts {
   , accountAllocation :: A.Allocation
   , spacers :: S.Spacers Int
   , growerWidths :: G.Fields (Maybe Int)
-  , reportWidth :: O.ReportWidth
+  , reportWidth :: Ty.ReportWidth
   }
 
 -- | Creates Payee and Account cells. The user must have requested the
@@ -143,9 +143,9 @@ fieldWidth ::
   -> A.Allocation -- ^ Accout allocation
   -> S.Spacers Int
   -> G.Fields (Maybe Int)
-  -> O.ReportWidth
+  -> Ty.ReportWidth
   -> Fields UnShrunkWidth
-fieldWidth flds pa aa ss fs (O.ReportWidth rw) =
+fieldWidth flds pa aa ss fs (Ty.ReportWidth rw) =
   let grownWidth = sumGrowersAndSpacers fs ss
       widthForCells = rw - grownWidth - allocSpacerWidth
       payeeSpacerWidth = if payee flds then abs (S.payee ss) else 0

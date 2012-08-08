@@ -213,6 +213,7 @@ Library
         Penny.Cabin.Posts.Options,
         Penny.Cabin.Posts.Parser,
         Penny.Cabin.Posts.Spacers,
+        Penny.Cabin.Posts.Types,
         Penny.Cabin.Posts.ZincOpts,
         Penny.Cabin.Row,
         Penny.Cabin.TextFormat,

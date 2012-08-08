@@ -15,8 +15,7 @@ import qualified Penny.Cabin.Colors as PC
 import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
-import qualified Penny.Cabin.Posts.Options as O
-
+import qualified Penny.Cabin.Posts.Types as Ty
 
 data ChunkOpts = ChunkOpts {
   baseColors :: PC.BaseColors
@@ -29,7 +28,7 @@ data ChunkOpts = ChunkOpts {
   , payeeAllocation :: Alc.Allocation
   , accountAllocation :: Alc.Allocation
   , spacers :: S.Spacers Int
-  , reportWidth :: O.ReportWidth
+  , reportWidth :: Ty.ReportWidth
   }
 
 growOpts :: ChunkOpts -> G.GrowOpts

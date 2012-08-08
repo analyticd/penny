@@ -40,8 +40,8 @@ import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
 import Penny.Cabin.Posts.Meta (Box)
-import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Spacers as S
+import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.Queries as Q
@@ -51,7 +51,7 @@ data BottomOpts = BottomOpts {
   , allocatedWidths :: A.Fields (Maybe Int)
   , fields :: F.Fields Bool
   , baseColors :: PC.BaseColors
-  , reportWidth :: O.ReportWidth
+  , reportWidth :: Ty.ReportWidth
   , spacers :: S.Spacers Int
   }
 
@@ -141,16 +141,16 @@ widthOfTopColumns ts =
 
 
 widthOfReport ::
-  O.ReportWidth
+  Ty.ReportWidth
   -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
   -> Box
   -> [C.Chunk]
-widthOfReport (O.ReportWidth rw) fn info =
+widthOfReport (Ty.ReportWidth rw) fn info =
   makeSpecificWidth rw fn info
 
 chooseProcessor ::
   [TopCellSpec]
-  -> O.ReportWidth
+  -> Ty.ReportWidth
   -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
   -> Box
   -> [C.Chunk]
@@ -163,7 +163,7 @@ chooseProcessor specs rw fn = let
 
 infoProcessors ::
   [TopCellSpec]
-  -> O.ReportWidth
+  -> Ty.ReportWidth
   -> Fields (Maybe (Box -> Int -> (C.TextSpec, R.ColumnSpec)))
   -> Fields (Maybe (Box -> [C.Chunk]))
 infoProcessors specs rw flds = let

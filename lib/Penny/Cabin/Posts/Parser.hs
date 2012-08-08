@@ -11,15 +11,19 @@ import System.Console.MultiArg.Prim (Parser)
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as F
+import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Options as O
 import qualified Penny.Cabin.Posts.Options as Op
+import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
 import qualified Penny.Cabin.Options as CO
+import qualified Penny.Copper as Cop
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as Exp
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
+import qualified Text.Matchers.Text as M
 
 data Error = BadColorName String
              | BadBackgroundArg String
@@ -30,6 +34,19 @@ data Error = BadColorName String
              | BadNumber String
              | BadComparator String
              deriving Show
+
+data State = State {
+  sensitive :: M.CaseSensitive
+  , factory :: L.Factory
+  , tokens :: [Ly.Token (Box -> Bool)]
+  , postFilter :: [Ly.PostFilterFn]
+  , fields :: F.Fields Bool
+  , colorPref :: CC.Colors
+  , drCrColors :: PC.DrCrColors
+  , baseColors :: PC.BaseColors
+  , width :: Ty.ReportWidth
+  , showZeroBalances :: CO.ShowZeroBalances
+  }
 
 -- | Parses the command line from the first word remaining up until,
 -- but not including, the first non-option argment.
@@ -48,18 +65,18 @@ parseOption ::
 parseOption =
   operand
   <|> mkTwoArg boxFilters
-  <|> mkTwoArg postFilter
+  <|> mkTwoArg parsePostFilter
   <|> mkTwoArg matcherSelect
   <|> mkTwoArg caseSelect
   <|> mkTwoArg operator
   <|> color
   <|> mkTwoArg background
-  <|> mkTwoArg width
+  <|> mkTwoArg parseWidth
   <|> mkTwoArg showField
   <|> mkTwoArg hideField
   <|> mkTwoArg showAllFields
   <|> mkTwoArg hideAllFields
-  <|> mkTwoArg showZeroBalances
+  <|> mkTwoArg parseShowZeroBalances
   <|> mkTwoArg hideZeroBalances
   where
     mkTwoArg p = do
@@ -139,8 +156,8 @@ boxFilters =
   <|> optRevSortedNum
 
 
-postFilter :: Parser (O.Options -> Ex.Exceptional Error O.Options)
-postFilter = f <$> Ly.parsePostFilter
+parsePostFilter :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+parsePostFilter = f <$> Ly.parsePostFilter
   where
     f ex op =
       case ex of
@@ -197,11 +214,11 @@ background = parseOpt ["background"] "" (C.OneArg f)
                                   , Op.baseColors = bc } )
 
 
-width :: Parser (O.Options -> Ex.Exceptional Error O.Options)
-width = parseOpt ["width"] "" (C.OneArg f)
+parseWidth :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+parseWidth = parseOpt ["width"] "" (C.OneArg f)
   where
     f a1 op = case reads a1 of
-      (i, ""):[] -> return (op { Op.width = Op.ReportWidth i })
+      (i, ""):[] -> return (op { Op.width = Ty.ReportWidth i })
       _ -> Ex.throw . BadWidthArg $ a1
 
 showField :: Parser (O.Options -> Ex.Exceptional Error O.Options)
@@ -230,9 +247,11 @@ hideAllFields = parseOpt ["hide-all"] "" (C.NoArg f)
   where
     f op = return (op {Op.fields = pure False})
 
-showZeroBalances :: Parser (O.Options -> Ex.Exceptional a O.Options)
-showZeroBalances = parseOpt ["show-zero-balances"] "" (C.NoArg f)
+parseShowZeroBalances ::
+  Parser (O.Options -> Ex.Exceptional a O.Options)
+parseShowZeroBalances = parseOpt opt "" (C.NoArg f)
   where
+    opt = ["show-zero-balances"]
     f op =
       return (op {Op.showZeroBalances = CO.ShowZeroBalances True })
 
