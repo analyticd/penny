@@ -7,6 +7,13 @@ module Penny.Cabin.Balance (
   T.report
   , T.nullConvert
   , T.converter
+    
+    -- * Parsing reports
+    -- | For use with the Zinc command line parser.
+  , BalanceOpts(..)
+  , balanceReport
+  , defaultOptions
+  , balanceAsIs
 
   ) where
 
@@ -57,7 +64,7 @@ toTreeOpts p b = T.TreeOpts {
 parser :: (S.Runtime -> BalanceOpts) -> Parser I.ReportFunc
 parser frt = do
   parsed <- P.parseOptions
-  let rf rt cs fty ps pps = do
+  let rf rt _ _ ps pps = do
         let bo = frt rt
             po = toParseOpts bo
         po' <- Ex.mapException showParseErr $

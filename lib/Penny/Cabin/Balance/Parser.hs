@@ -5,7 +5,6 @@ module Penny.Cabin.Balance.Parser (
   ) where
 
 import qualified Data.Text as X
-import qualified Data.Text.Lazy as XL
 import Control.Applicative ((<|>), many, Applicative, pure)
 import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -13,11 +12,9 @@ import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
 import qualified Penny.Cabin.Chunk as Chk
-import qualified Penny.Cabin.Balance.Tree as Tree
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Copper.Commodity as CC
 import qualified Penny.Copper.DateTime as CD
-import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import System.Console.MultiArg.Prim (Parser)

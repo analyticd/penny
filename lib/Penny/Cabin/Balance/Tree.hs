@@ -42,7 +42,6 @@ import qualified Data.Traversable as Tr
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
-import qualified Penny.Copper as Cop
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
