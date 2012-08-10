@@ -1,15 +1,18 @@
-module Penny.Cabin.Balance.Parser (parser) where
+module Penny.Cabin.Balance.Parser (
+  Error(..)
+  , ParseOpts(..)
+  , parseOptions
+  ) where
 
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL
-import Control.Applicative ((<|>), many)
+import Control.Applicative ((<|>), many, Applicative, pure)
 import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
 import qualified Penny.Cabin.Chunk as Chk
-import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Balance.Tree as Tree
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Copper.Commodity as CC
@@ -21,32 +24,21 @@ import System.Console.MultiArg.Prim (Parser)
 import qualified System.Console.MultiArg.Combinator as C
 import qualified Text.Parsec as Parsec
 
+data ParseOpts = ParseOpts {
+  drCrColors :: Col.DrCrColors
+  , baseColors :: Col.BaseColors
+  , colorPref :: Chk.Colors
+  , showZeroBalances :: CO.ShowZeroBalances
+  , convert :: Maybe (L.Commodity, L.DateTime)
+  }
+
+
 data Error = BadColorName String
            | BadBackground String
            | BadCommodity String
            | BadDate String
              deriving Show
 
-parser ::
-  Parser (S.Runtime
-          -> O.Options
-          -> [L.Box Ly.LibertyMeta]
-          -> [L.PricePoint]
-          -> Ex.Exceptional X.Text XL.Text)
-parser = do
-  ls <- many opts
-  let f rt opInit bs ps = do
-        let ls' = map (\fn -> fn rt) ls
-            errOpParsed = (foldl (>=>) return ls') opInit
-        opParsed <- case errOpParsed of
-          Ex.Exception e -> Ex.throw . X.pack . show $ e
-          Ex.Success g -> return g
-        bits <- Tree.report opParsed bs ps
-        return
-          . Chk.chunksToText (O.colorPref opParsed)
-          . concat
-          $ bits
-  return f
 
 processColorArg ::
   S.Runtime
@@ -63,13 +55,13 @@ parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
 parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
 
 color :: Parser (S.Runtime
-                 -> O.Options
-                 -> Ex.Exceptional Error O.Options)
+                 -> ParseOpts
+                 -> Ex.Exceptional Error ParseOpts)
 color = parseOpt ["color"] "" (C.OneArg f)
   where
     f a1 rt op = case processColorArg rt a1 of
       Nothing -> Ex.throw . BadColorName $ a1
-      Just c -> return (op { O.colorPref = c })
+      Just c -> return (op { colorPref = c })
 
 processBackgroundArg ::
   String
@@ -80,47 +72,48 @@ processBackgroundArg x
   | otherwise = Nothing
 
 
-background :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+background :: Parser (ParseOpts -> Ex.Exceptional Error ParseOpts)
 background = parseOpt ["background"] "" (C.OneArg f)
   where
     f a1 op = case processBackgroundArg a1 of
       Nothing -> Ex.throw . BadBackground $ a1
       Just (dc, base) ->
-        return op { O.drCrColors = dc
-                  , O.baseColors = base }
+        return op { drCrColors = dc
+                  , baseColors = base }
 
-showZeroBalances ::
-  Parser (O.Options -> Ex.Exceptional a O.Options)
-showZeroBalances = parseOpt ["show-zero-balances"] "" (C.NoArg f)
+parseShowZeroBalances :: Parser (ParseOpts -> ParseOpts)
+parseShowZeroBalances = parseOpt opt "" (C.NoArg f)
   where
+    opt = ["show-zero-balances"] 
     f op =
-      return (op {O.showZeroBalances = CO.ShowZeroBalances True })
+      op {showZeroBalances = CO.ShowZeroBalances True }
 
-hideZeroBalances ::
-  Parser (O.Options -> Ex.Exceptional a O.Options)
+hideZeroBalances :: Parser (ParseOpts -> ParseOpts)
 hideZeroBalances = parseOpt ["hide-zero-balances"] "" (C.NoArg f)
   where
     f op =
-      return (op {O.showZeroBalances = CO.ShowZeroBalances False })
+      op {showZeroBalances = CO.ShowZeroBalances False }
 
 convertLong ::
-  Parser (O.Options -> Ex.Exceptional Error O.Options)
+  Parser (CD.DefaultTimeZone
+          -> ParseOpts
+          -> Ex.Exceptional Error ParseOpts)
 convertLong = parseOpt ["convert"] "" (C.TwoArg f)
   where
-    f a1 a2 op = do
+    f a1 a2 dtz op = do
       cty <- case Parsec.parse CC.lvl1Cmdty "" (X.pack a1) of
         Left _ -> Ex.throw . BadCommodity $ a1
         Right g -> return g
-      let parseDate = CD.dateTime (O.defaultTimeZone op)
+      let parseDate = CD.dateTime dtz
       dt <- case Parsec.parse parseDate "" (X.pack a2) of
         Left _ -> Ex.throw . BadDate $ a2
         Right g -> return g
-      let op' = op { O.convert = Just (cty, dt) }
+      let op' = op { convert = Just (cty, dt) }
       return op'
 
 convertShort :: Parser (S.Runtime
-                        -> O.Options
-                        -> Ex.Exceptional Error O.Options)
+                        -> ParseOpts
+                        -> Ex.Exceptional Error ParseOpts)
 convertShort = parseOpt [] ['c'] (C.OneArg f)
   where
     f a1 rt op = do
@@ -128,21 +121,39 @@ convertShort = parseOpt [] ['c'] (C.OneArg f)
         Left _ -> Ex.throw . BadCommodity $ a1
         Right g -> return g
       let dt = S.currentTime rt
-          op' = op { O.convert = Just (cty, dt) }
+          op' = op { convert = Just (cty, dt) }
       return op'
         
 
-opts :: Parser (S.Runtime
-                -> O.Options
-                -> Ex.Exceptional Error O.Options)
-opts =
-  color
-  <|> mkTwoArg background
-  <|> mkTwoArg showZeroBalances
-  <|> mkTwoArg hideZeroBalances
-  <|> mkTwoArg convertLong
-  <|> convertShort
+parseOptions :: Parser (S.Runtime
+                        -> CD.DefaultTimeZone
+                        -> ParseOpts
+                        -> Ex.Exceptional Error ParseOpts)
+parseOptions = do
+  fns <- many parseOption
+  let f rt dtz o1 =
+        let fns' = map (\fn -> fn rt dtz) fns
+        in foldl (>=>) return fns' o1
+  return f
+
+parseOption :: Parser (S.Runtime
+                       -> CD.DefaultTimeZone
+                       -> ParseOpts
+                       -> Ex.Exceptional Error ParseOpts)
+parseOption =
+  (do { f <- color; return (\rt _ o -> f rt o )})
+  <|> wrap background
+  <|> wrap (impurify parseShowZeroBalances)
+  <|> wrap (impurify hideZeroBalances)
+  <|> (do { f <- convertLong; return (\_ dtz o -> f dtz o )})
+  <|> (do { f <- convertShort; return (\rt _ o -> f rt o )})
   where
-    mkTwoArg p = do
+    wrap p = do
       f <- p
-      return (\_ op -> f op)
+      return (\_ _ op -> f op)
+
+impurify ::
+  (Applicative m, Functor f)
+  => f (a -> a)
+  -> f (a -> m a)
+impurify = fmap (\f -> pure . f)

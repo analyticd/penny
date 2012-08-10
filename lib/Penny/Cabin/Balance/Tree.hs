@@ -20,7 +20,13 @@
 -- * 8. [Columns PreSpec] -> [Columns R.ColumnSpec] (strict)
 --
 -- * 9. [Columns R.ColumnSpec] -> [[Chunk.Bit]] (lazy)
-module Penny.Cabin.Balance.Tree (report) where
+module Penny.Cabin.Balance.Tree (
+  report
+  , TreeOpts(..)
+  , PriceConverteds
+  , nullConvert
+  , converter
+  ) where
 
 import Control.Applicative(Applicative(pure, (<*>)), (<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -34,9 +40,9 @@ import qualified Penny.Lincoln.NestedMap as NM
 import qualified Data.Text as X
 import qualified Data.Traversable as Tr
 import qualified Penny.Cabin.Options as CO
-import qualified Penny.Cabin.Balance.Options as O
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
+import qualified Penny.Copper as Cop
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
@@ -44,9 +50,13 @@ import qualified Penny.Lincoln.Balance as Bal
 import qualified Data.Semigroup as S
 
 -- Step 1. Convert prices.
+
 data PriceConverted = PriceConverted {
   pcEntry :: L.Entry
   , pcAccount :: L.Account }
+
+newtype PriceConverteds =
+  PriceConverteds { unPriceConverteds :: [PriceConverted] }
 
 convertOne ::
   L.PriceDb
@@ -92,27 +102,33 @@ buildDb :: [L.PricePoint] -> L.PriceDb
 buildDb = foldl f L.emptyDb where
   f db pb = L.addPrice db pb
 
-converter ::
-  O.Options
-  -> [L.PricePoint]
-  -> [L.Box Ly.LibertyMeta]
-  -> Ex.Exceptional X.Text [PriceConverted]
-converter os pbs bs = case O.convert os of
-  Nothing ->
-    let f b = PriceConverted en ac where
+-- | Makes PriceConverteds where there is no target commodity.
+nullConvert :: [L.Box Ly.LibertyMeta] -> PriceConverteds
+nullConvert =
+  let f b = PriceConverted en ac
+        where
           p = L.boxPostFam b
           en = Q.entry p
           ac = Q.account p
-    in return . map f $ bs
-  Just pair ->
+    in PriceConverteds . map f
+
+-- | Makes PriceConverteds where commodities will have to be changed
+-- to a target commodity. This will fail if necessary price data is
+-- lacking.
+converter ::
+  (L.Commodity, L.DateTime)
+  -> [L.PricePoint]
+  -> [L.Box Ly.LibertyMeta]
+  -> Ex.Exceptional X.Text PriceConverteds
+converter conv pbs bs =
     let f b = let p = L.boxPostFam b
                   en = Q.entry p
                   ac = Q.account p
                  in do
-                   en' <- convertOne db pair en
+                   en' <- convertOne db conv en
                    return (PriceConverted en' ac)
         db = buildDb pbs
-    in mapM f bs
+    in fmap PriceConverteds $ mapM f bs
 
 
 -- Step 2. This puts all the PriceConverteds into a flat map, where
@@ -120,9 +136,9 @@ converter os pbs bs = case O.convert os of
 -- the user desired, zero balances are eliminated from the flat map.
 newtype FlatMap = FlatMap { _unFlatMap :: M.Map L.Account Bal.Balance }
 
-toFlatMap :: O.Options -> [PriceConverted] -> FlatMap
-toFlatMap o = FlatMap . foldr f M.empty where
-  remove = not . CO.unShowZeroBalances . O.showZeroBalances $ o
+toFlatMap :: TreeOpts -> PriceConverteds -> FlatMap
+toFlatMap o = FlatMap . foldr f M.empty . unPriceConverteds where
+  remove = not . CO.unShowZeroBalances . showZeroBalances $ o
   f pc m =
     let a = pcAccount pc
         bal = Bal.entryToBalance . pcEntry $ pc
@@ -236,7 +252,7 @@ type IsEven = Bool
 -- | Returns a triple (x, y, z), where x is the DrCr chunk, y is the
 -- commodity chunk, and z is the qty chunk.
 bottomLineBalChunks ::
-  O.Options
+  TreeOpts
   -> IsEven
   -> (L.Commodity, Bal.BottomLine)
   -> (Chunk.Chunk, Chunk.Chunk, Chunk.Chunk)
@@ -250,7 +266,7 @@ bottomLineBalChunks os isEven (comm, bl) = (dc, cty, qty) where
       getTs = if isEven then C.evenZero else C.oddZero
       dcT = X.pack "--"
       qtyT = dcT
-      in (getTs . O.drCrColors $ os, dcT, qtyT)
+      in (getTs . drCrColors $ os, dcT, qtyT)
     Bal.NonZero clm -> let
       (getTs, dcT) = case Bal.drCr clm of
         L.Debit ->
@@ -259,29 +275,29 @@ bottomLineBalChunks os isEven (comm, bl) = (dc, cty, qty) where
         L.Credit ->
           (if isEven then C.evenCredit else C.oddCredit,
            X.pack "Cr")
-      qTxt = (O.balanceFormat os) bl
-      in (getTs . O.drCrColors $ os, dcT, qTxt)
+      qTxt = (balanceFormat os) bl
+      in (getTs . drCrColors $ os, dcT, qTxt)
 
 
 fillTextSpec ::
-  O.Options
+  TreeOpts
   -> IsEven
   -> Chunk.TextSpec
 fillTextSpec os isEven = let
   getTs = if isEven then C.evenColors else C.oddColors
-  in getTs . O.baseColors $ os
+  in getTs . baseColors $ os
   
 
 bottomLineCells ::
-  O.Options
+  TreeOpts
   -> IsEven
   -> SummedBal
   -> (PreSpec, PreSpec, PreSpec)
 bottomLineCells os isEven mayBal = let
   fill = fillTextSpec os isEven
   tsZero = if isEven
-           then C.evenZero . O.drCrColors $ os
-           else C.oddZero . O.drCrColors $ os
+           then C.evenZero . drCrColors $ os
+           else C.oddZero . drCrColors $ os
   zeroSpec =
     PreSpec R.LeftJustify
     tsZero [Chunk.chunk tsZero (X.pack "--")]
@@ -298,7 +314,7 @@ padding :: Int
 padding = 2
 
 accountPreSpec ::
-  O.Options
+  TreeOpts
   -> IsEven
   -> Int
   -> L.SubAccountName
@@ -306,15 +322,15 @@ accountPreSpec ::
 accountPreSpec os isEven lvl acct = PreSpec j ts [bit] where
   j = R.LeftJustify
   ts = if isEven
-       then C.evenColors . O.baseColors $ os
-       else C.oddColors . O.baseColors $ os
+       then C.evenColors . baseColors $ os
+       else C.oddColors . baseColors $ os
   bit = Chunk.chunk ts txt where
     txt = pad `X.append` (L.text acct)
     pad = X.replicate (padding * lvl) (X.singleton ' ')
 
 
 makePreSpec ::
-  O.Options
+  TreeOpts
   -> [(L.SubAccountName, (SummedBal, Bool))]
   -> L.SubAccountName
   -> (SummedBal, Bool)
@@ -325,7 +341,7 @@ makePreSpec os ps a (mayBal, isEven) = Columns act dc com qt where
   (dc, com, qt) = bottomLineCells os isEven mayBal
 
 traverser ::
-  O.Options
+  TreeOpts
   -> [(L.SubAccountName, (SummedBal, Bool))]
   -> L.SubAccountName
   -> (SummedBal, Bool)
@@ -335,7 +351,7 @@ traverser os hist a mayBal _ =
   return (Just $ makePreSpec os hist a mayBal)
 
 makePreSpecMap ::
-  O.Options
+  TreeOpts
   -> (SummedWithIsEven, TotalBal)
   -> (PreSpecMap, TotalBal)
 makePreSpecMap os (sb, tb) = (cim, tb) where
@@ -343,7 +359,7 @@ makePreSpecMap os (sb, tb) = (cim, tb) where
 
 -- Step 7
 makeTotalCells ::
-  O.Options
+  TreeOpts
   -> SummedBal
   -> Columns PreSpec
 makeTotalCells os mayBal = Columns act dc com qt where
@@ -351,7 +367,7 @@ makeTotalCells os mayBal = Columns act dc com qt where
   tot = L.SubAccountName $ L.TextNonEmpty 'T' (X.pack "otal")
   (dc, com, qt) = bottomLineCells os True mayBal
 
-makeColumnList :: O.Options -> (PreSpecMap, TotalBal) -> [Columns PreSpec]
+makeColumnList :: TreeOpts -> (PreSpecMap, TotalBal) -> [Columns PreSpec]
 makeColumnList os (cim, tb) = totCols : restCols where
   totCols = makeTotalCells os tb
   restCols = Fdbl.toList cim
@@ -398,14 +414,14 @@ widthSpacerCommodity :: Int
 widthSpacerCommodity = 1
 
 colsToBits ::
-  O.Options
+  TreeOpts
   -> IsEven
   -> Columns R.ColumnSpec
   -> [Chunk.Chunk]
 colsToBits os isEven (Columns a dc c q) = let
   fillSpec = if isEven
-             then C.evenColors . O.baseColors $ os
-             else C.oddColors . O.baseColors $ os
+             then C.evenColors . baseColors $ os
+             else C.oddColors . baseColors $ os
   spacer w = R.ColumnSpec j (Chunk.Width w) fillSpec []
   j = R.LeftJustify
   cs = a
@@ -419,7 +435,7 @@ colsToBits os isEven (Columns a dc c q) = let
   in R.row cs
 
 colsListToBits ::
-  O.Options
+  TreeOpts
   -> [Columns R.ColumnSpec]
   -> [[Chunk.Chunk]]
 colsListToBits os = zipWith f bools where
@@ -427,17 +443,22 @@ colsListToBits os = zipWith f bools where
   bools = iterate not True
 
 
+-- Options
+data TreeOpts = TreeOpts {
+  drCrColors :: C.DrCrColors
+  , baseColors :: C.BaseColors
+  , balanceFormat :: L.BottomLine -> X.Text
+  , showZeroBalances :: CO.ShowZeroBalances
+  }
+
 -- Tie it all together
 
 report ::
-  O.Options
-  -> [L.Box Ly.LibertyMeta]
-  -> [L.PricePoint]
-  -> Ex.Exceptional X.Text [[Chunk.Chunk]]
-report os ps rs = do
-  pcs <- converter os rs ps
-  return
-    . colsListToBits os
+  TreeOpts
+  -> PriceConverteds
+  -> [[Chunk.Chunk]]
+report os  =
+    colsListToBits os
     . resizeColumnsInList
     . makeColumnList os
     . makePreSpecMap os
@@ -445,4 +466,4 @@ report os ps rs = do
     . sumBalances
     . rawBalances
     . toFlatMap os
-    $ pcs
+

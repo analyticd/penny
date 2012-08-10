@@ -5,7 +5,6 @@ import qualified Data.Text as X
 import qualified Penny.Lincoln as L
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
-import qualified Penny.Cabin.Options as O
 import qualified Penny.Shield as S
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Copper.DateTime as DT
@@ -20,11 +19,6 @@ data Options = Options {
   , convert :: Maybe (L.Commodity, L.DateTime)
   , defaultTimeZone :: DT.DefaultTimeZone
   }
-
-balanceAsIs :: L.BottomLine -> X.Text
-balanceAsIs n = case n of
-  L.Zero -> X.pack "--"
-  L.NonZero c -> X.pack . show . L.unQty . Bal.qty $ c
 
 defaultOptions :: S.Runtime -> Options
 defaultOptions rt = Options {
