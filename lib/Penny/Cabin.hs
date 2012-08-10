@@ -11,5 +11,5 @@ allReportsWithDefaults ::
   -> C.RadGroup
   -> [I.Report]
 allReportsWithDefaults dtz rg =
-  [B.defaultBalanceReport, P.defaultPostsReport dtz rg]
-  
+  [ B.defaultBalanceReport
+  , P.makeReport (P.defaultOptions dtz rg) ]

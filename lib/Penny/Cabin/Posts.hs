@@ -49,7 +49,6 @@ module Penny.Cabin.Posts (
   , defaultSpacerWidth
   ) where
 
-import Control.Applicative ((<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL
@@ -60,10 +59,8 @@ import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Posts.Allocate as Alc
-import qualified Penny.Cabin.Posts.BottomRows as B
 import qualified Penny.Cabin.Posts.Chunk as C
 import qualified Penny.Cabin.Posts.Fields as F
-import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Help as H
 import qualified Penny.Cabin.Posts.Meta as M
 import Penny.Cabin.Posts.Meta (Box)
@@ -123,12 +120,9 @@ parseReport frt = do
                 st = newParseState cs fty zo
         st' <- Ex.mapException showParserError maySt'
         pdct <- getPredicate . P.tokens $ st'
-        case maySt' of
-            Ex.Exception e -> Ex.throw . X.pack . show $ e
-            Ex.Success st' ->
-              return $ postsReport (P.colorPref st')
-                 (P.showZeroBalances st') pdct
-                 (P.postFilter st') (chunkOpts st' zo) ps
+        return $ postsReport (P.colorPref st')
+          (P.showZeroBalances st') pdct
+          (P.postFilter st') (chunkOpts st' zo) ps
   return rf
                  
             
@@ -173,10 +167,10 @@ getPredicate ::
 getPredicate ts =
   case ts of
     [] -> return $ const True
-    ls -> case Ly.parseTokenList ls of
-      Nothing -> Ex.throw . X.pack $
-                 "posts report: bad posting filter expression"
-      Just exp -> return exp
+    ls ->
+      Ex.fromMaybe
+        (X.pack "posts report: bad posting filter expression")
+        (Ly.parseTokenList ls)
 
 
 -- | All the information to configure the postings report if the
@@ -400,85 +394,3 @@ defaultSpacerWidth =
             , S.postingQty           = 1
             , S.totalDrCr            = 1
             , S.totalCmdty           = 1 }
-
-{-
--- | When applied to a DefaultTimeZone and a RadGroup, returns a
--- report with the default options.
-defaultPostsReport ::
-  C.DefaultTimeZone
-  -> C.RadGroup
-  -> I.Report
-defaultPostsReport dtz rg = makeReport f where
-  f = parseReportOpts (\rt -> ZO.defaultOptions dtz rg rt)
-
--- | Generate a custom Posts report.
-customPostsReport ::
-  (S.Runtime -> ZO.ZincOpts)
-  -- ^ Function that, when applied to a Runtime, returns the default
-  -- options for the posts report. The options will be overridden by
-  -- any options on the command line.
-
-  -> I.Report
-customPostsReport = makeReport . parseReportOpts
-
--- | When passed a ParseReportOpts, makes a Report.
-makeReport ::
-  Parser I.ReportFunc
-  -> I.Report
-makeReport f =
-  I.Report { I.help = help
-           , I.name = "posts"
-           , I.parseReport = f }
-
-type Factory = CaseSensitive -> X.Text
-                 -> Ex.Exceptional X.Text (X.Text -> Bool)
-
-parseReportOpts ::
-  (S.Runtime -> ZO.ZincOpts)
-  -> Parser (S.Runtime
-             -> CaseSensitive
-             -> Factory
-             -> [L.Box Ly.LibertyMeta]
-             -> a
-             -> Ex.Exceptional X.Text XL.Text)
-parseReportOpts frt = do
-  getOpts <- parseOptions
-  let f rt cs fty bs _ = do
-        let optsDefault = ZO.toOptions . frt $ rt
-            optsInit = optsDefault { O.sensitive = cs
-                                   , O.factory = fty }
-        optsParsed <- case getOpts rt optsInit of
-          Ex.Exception e -> Ex.throw . X.pack . show $ e
-          Ex.Success g -> return g
-        postsReport optsParsed bs
-  return f
-            
-
--- | Applied to an Options record and a list of posting boxes with
--- LibertyMeta, returns either an exception (which will arise only if
--- the filter expression fails to parse) or the text of the report.
-postsReport ::
-  O.Options
-  -> [L.Box Ly.LibertyMeta]
-  -> Ex.Exceptional X.Text XL.Text
-postsReport op bs = fmap mkText postMetaBoxes
-  where
-    e = X.pack "posts report: filter expression parse failure"
-    postMetaBoxes = Ex.fromMaybe e (filterAndAssignMeta op bs)
-    mkText = Chk.chunksToText (O.colorPref op) . makeChunk op
-    
-
--- | Takes a list of Box with LibertyMeta and options as processed
--- from the command line.  Filters the list of Box and processes the
--- post filter, then assigns the post metadata. Fails if the
--- expression fails to produce a result.
-filterAndAssignMeta ::
-  O.Options
-  -> [L.Box Ly.LibertyMeta]
-  -> Maybe [L.Box M.PostMeta]
-filterAndAssignMeta op bs =
-  M.addMetadata (O.showZeroBalances op)
-  <$> M.filterBoxes (O.tokens op) (O.postFilter op) bs
-
-
--}

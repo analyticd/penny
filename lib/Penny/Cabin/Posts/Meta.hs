@@ -9,7 +9,6 @@ import Data.List (mapAccumL)
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
-import qualified Penny.Liberty.Expressions as Exp
 import qualified Penny.Cabin.Meta as M
 import qualified Penny.Cabin.Options as CO
 
