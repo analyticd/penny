@@ -1,6 +1,7 @@
 module Penny.Cabin.Posts.Parser (State(..), parseOptions) where
 
-import Control.Applicative ((<|>), (<$>), pure, many, (<*>))
+import Control.Applicative ((<|>), (<$>), pure, many, (<*>),
+                            Applicative)
 import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toLower)
@@ -69,24 +70,30 @@ parseOption ::
           -> Ex.Exceptional Error State)
 parseOption =
   operand
-  <|> mkTwoArg boxFilters
-  <|> mkTwoArg parsePostFilter
-  <|> mkTwoArg matcherSelect
-  <|> mkTwoArg caseSelect
-  <|> mkTwoArg operator
+  <|> wrap boxFilters
+  <|> wrap parsePostFilter
+  <|> wrap (impurify matcherSelect)
+  <|> wrap (impurify caseSelect)
+  <|> wrap (impurify operator)
   <|> (do { f <- color; return (\rt _ _ st -> f rt st)})
-  <|> mkTwoArg background
-  <|> mkTwoArg parseWidth
-  <|> mkTwoArg showField
-  <|> mkTwoArg hideField
-  <|> mkTwoArg showAllFields
-  <|> mkTwoArg hideAllFields
-  <|> mkTwoArg parseShowZeroBalances
-  <|> mkTwoArg hideZeroBalances
+  <|> wrap background
+  <|> wrap parseWidth
+  <|> wrap showField
+  <|> wrap hideField
+  <|> wrap (impurify showAllFields)
+  <|> wrap (impurify hideAllFields)
+  <|> wrap (impurify parseShowZeroBalances)
+  <|> wrap (impurify hideZeroBalances)
   where
-    mkTwoArg p = do
+    wrap p = do
       f <- p
       return (\_ _ _ st -> f st)
+
+impurify ::
+  (Functor f, Applicative m)
+  => f (a -> b)
+  -> f (a -> m b)
+impurify = fmap (\g -> pure . g)
 
 operand :: Parser (S.Runtime
                    -> Cop.DefaultTimeZone
@@ -172,20 +179,20 @@ parsePostFilter = f <$> Ly.parsePostFilter
         Ex.Success pf ->
           return st { postFilter = postFilter st ++ [pf] }
 
-matcherSelect :: Parser (State -> Ex.Exceptional Error State)
+matcherSelect :: Parser (State -> State)
 matcherSelect = f <$> Ly.parseMatcherSelect
   where
-    f mf st = return st { factory = mf }
+    f mf st = st { factory = mf }
 
-caseSelect :: Parser (State -> Ex.Exceptional Error State)
+caseSelect :: Parser (State -> State)
 caseSelect = f <$> Ly.parseCaseSelect
   where
-    f cs st = return st { sensitive = cs }
+    f cs st = st { sensitive = cs }
 
-operator :: Parser (State -> Ex.Exceptional Error State)
+operator :: Parser (State -> State)
 operator = f <$> Ly.parseOperator
   where
-    f oo st = return st { tokens = tokens st ++ [oo] }
+    f oo st = st { tokens = tokens st ++ [oo] }
 
 parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
 parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
@@ -244,29 +251,26 @@ hideField = parseOpt ["hide"] "" (C.OneArg f)
       let newFl = fieldOff (fields st) fl
       return st { fields = newFl }
 
-showAllFields :: Parser (State -> Ex.Exceptional a State)
+showAllFields :: Parser (State -> State)
 showAllFields = parseOpt ["show-all"] "" (C.NoArg f)
   where
-    f st = return (st {fields = pure True})
+    f st = st {fields = pure True}
 
-hideAllFields :: Parser (State -> Ex.Exceptional a State)
+hideAllFields :: Parser (State -> State)
 hideAllFields = parseOpt ["hide-all"] "" (C.NoArg f)
   where
-    f st = return (st {fields = pure False})
+    f st = st {fields = pure False}
 
-parseShowZeroBalances ::
-  Parser (State -> Ex.Exceptional a State)
+parseShowZeroBalances :: Parser (State -> State)
 parseShowZeroBalances = parseOpt opt "" (C.NoArg f)
   where
     opt = ["show-zero-balances"]
-    f st =
-      return (st {showZeroBalances = CO.ShowZeroBalances True })
+    f st = st {showZeroBalances = CO.ShowZeroBalances True }
 
-hideZeroBalances :: Parser (State -> Ex.Exceptional a State)
+hideZeroBalances :: Parser (State -> State)
 hideZeroBalances = parseOpt ["hide-zero-balances"] "" (C.NoArg f)
   where
-    f st =
-      return (st {showZeroBalances = CO.ShowZeroBalances False })
+    f st = st {showZeroBalances = CO.ShowZeroBalances False }
 
 -- | Turns a field on if it is True.
 fieldOn ::
