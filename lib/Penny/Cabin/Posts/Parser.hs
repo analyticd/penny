@@ -1,4 +1,4 @@
-module Penny.Cabin.Posts.Parser (parseOptions) where
+module Penny.Cabin.Posts.Parser (State(..), parseOptions) where
 
 import Control.Applicative ((<|>), (<$>), pure, many, (<*>))
 import Control.Monad ((>=>))
@@ -11,9 +11,6 @@ import System.Console.MultiArg.Prim (Parser)
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as F
-import Penny.Cabin.Posts.Meta (Box)
-import qualified Penny.Cabin.Posts.Options as O
-import qualified Penny.Cabin.Posts.Options as Op
 import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Cabin.Colors.DarkBackground as DB
 import qualified Penny.Cabin.Colors.LightBackground as LB
@@ -38,7 +35,7 @@ data Error = BadColorName String
 data State = State {
   sensitive :: M.CaseSensitive
   , factory :: L.Factory
-  , tokens :: [Ly.Token (Box -> Bool)]
+  , tokens :: [Ly.Token (L.Box Ly.LibertyMeta -> Bool)]
   , postFilter :: [Ly.PostFilterFn]
   , fields :: F.Fields Bool
   , colorPref :: CC.Colors
@@ -51,17 +48,25 @@ data State = State {
 -- | Parses the command line from the first word remaining up until,
 -- but not including, the first non-option argment.
 parseOptions ::
-  Parser (S.Runtime -> O.Options -> Ex.Exceptional Error O.Options)
+  Parser (S.Runtime
+          -> Cop.DefaultTimeZone
+          -> Cop.RadGroup
+          -> State
+          -> Ex.Exceptional Error State)
 parseOptions = f <$> many parseOption where
   f ls =
-    let g rt op =
-          let ls' = map (\fn -> fn rt) ls
-          in (foldl (>=>) return ls') op
+    let g rt dtz rg st =
+          let ls' = map (\fn -> fn rt dtz rg) ls
+          in (foldl (>=>) return ls') st
     in g
 
 
 parseOption ::
-  Parser (S.Runtime -> O.Options -> Ex.Exceptional Error O.Options)
+  Parser (S.Runtime
+          -> Cop.DefaultTimeZone
+          -> Cop.RadGroup
+          -> State
+          -> Ex.Exceptional Error State)
 parseOption =
   operand
   <|> mkTwoArg boxFilters
@@ -69,7 +74,7 @@ parseOption =
   <|> mkTwoArg matcherSelect
   <|> mkTwoArg caseSelect
   <|> mkTwoArg operator
-  <|> color
+  <|> (do { f <- color; return (\rt _ _ st -> f rt st)})
   <|> mkTwoArg background
   <|> mkTwoArg parseWidth
   <|> mkTwoArg showField
@@ -81,23 +86,25 @@ parseOption =
   where
     mkTwoArg p = do
       f <- p
-      return (\_ o -> f o)
+      return (\_ _ _ st -> f st)
 
-operand :: Parser (S.Runtime -> O.Options -> Ex.Exceptional Error O.Options)
+operand :: Parser (S.Runtime
+                   -> Cop.DefaultTimeZone
+                   -> Cop.RadGroup
+                   -> State
+                   -> Ex.Exceptional Error State)
 operand = f <$> Ly.parseOperand
   where
-    f lyFn rt op =
-      let dtz = Op.timeZone op
-          rg = Op.radGroup op
-          dt = S.currentTime rt
-          cs = Op.sensitive op
-          fty = Op.factory op
+    f lyFn rt dtz rg st =
+      let dt = S.currentTime rt
+          cs = sensitive st
+          fty = factory st
       in case lyFn dt dtz rg cs fty of
         Ex.Exception e -> Ex.throw . LibertyError $ e
         Ex.Success (Exp.Operand g) ->
           let g' = g . L.boxPostFam
-              ts' = Op.tokens op ++ [Exp.TokOperand g']
-          in return op { Op.tokens = ts' }
+              ts' = tokens st ++ [Exp.TokOperand g']
+          in return st { tokens = ts' }
 
 -- | Processes a option for box-level serials.
 optBoxSerial ::
@@ -110,35 +117,35 @@ optBoxSerial ::
   -> (Ly.LibertyMeta -> Int)
   -- ^ Pulls the serial from the PostMeta
   
-  -> Parser (O.Options -> Ex.Exceptional Error O.Options)
+  -> Parser (State -> Ex.Exceptional Error State)
 
 optBoxSerial ls ss f = parseOpt ls ss (C.TwoArg g)
   where
-    g a1 a2 op = do
+    g a1 a2 st = do
       cmp <- Ex.fromMaybe (BadComparator a1) (Ly.parseComparer a1)
       i <- parseInt a2
       let h box =
             let ser = f . L.boxMeta $ box
             in ser `cmp` i
           tok = Exp.TokOperand h
-      return op { Op.tokens = Op.tokens op ++ [tok] }
+      return st { tokens = tokens st ++ [tok] }
 
-optFilteredNum :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+optFilteredNum :: Parser (State -> Ex.Exceptional Error State)
 optFilteredNum = optBoxSerial ["filtered"] "" f
   where
     f = L.forward . Ly.unFilteredNum . Ly.filteredNum
 
-optRevFilteredNum :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+optRevFilteredNum :: Parser (State -> Ex.Exceptional Error State)
 optRevFilteredNum = optBoxSerial ["revFiltered"] "" f
   where
     f = L.backward . Ly.unFilteredNum . Ly.filteredNum
 
-optSortedNum :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+optSortedNum :: Parser (State -> Ex.Exceptional Error State)
 optSortedNum = optBoxSerial ["sorted"] "" f
   where
     f = L.forward . Ly.unSortedNum . Ly.sortedNum
 
-optRevSortedNum :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+optRevSortedNum :: Parser (State -> Ex.Exceptional Error State)
 optRevSortedNum = optBoxSerial ["revSorted"] "" f
   where
     f = L.backward . Ly.unSortedNum . Ly.sortedNum
@@ -148,7 +155,7 @@ parseInt s = case reads s of
   (i, ""):[] -> return i
   _ -> Ex.throw . BadNumber $ s
 
-boxFilters :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+boxFilters :: Parser (State -> Ex.Exceptional Error State)
 boxFilters =
   optFilteredNum
   <|> optRevFilteredNum
@@ -156,39 +163,39 @@ boxFilters =
   <|> optRevSortedNum
 
 
-parsePostFilter :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+parsePostFilter :: Parser (State -> Ex.Exceptional Error State)
 parsePostFilter = f <$> Ly.parsePostFilter
   where
-    f ex op =
+    f ex st =
       case ex of
         Ex.Exception e -> Ex.throw . LibertyError $ e
         Ex.Success pf ->
-          return op { Op.postFilter = Op.postFilter op ++ [pf] }
+          return st { postFilter = postFilter st ++ [pf] }
 
-matcherSelect :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+matcherSelect :: Parser (State -> Ex.Exceptional Error State)
 matcherSelect = f <$> Ly.parseMatcherSelect
   where
-    f mf op = return op { Op.factory = mf }
+    f mf st = return st { factory = mf }
 
-caseSelect :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+caseSelect :: Parser (State -> Ex.Exceptional Error State)
 caseSelect = f <$> Ly.parseCaseSelect
   where
-    f cs op = return op { Op.sensitive = cs }
+    f cs st = return st { sensitive = cs }
 
-operator :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+operator :: Parser (State -> Ex.Exceptional Error State)
 operator = f <$> Ly.parseOperator
   where
-    f oo op = return op { Op.tokens = Op.tokens op ++ [oo] }
+    f oo st = return st { tokens = tokens st ++ [oo] }
 
 parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
 parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
 
-color :: Parser (S.Runtime -> O.Options -> Ex.Exceptional Error O.Options)
+color :: Parser (S.Runtime -> State -> Ex.Exceptional Error State)
 color = parseOpt ["color"] "" (C.OneArg f)
   where
-    f a1 rt op = case pickColorArg rt a1 of
+    f a1 rt st = case pickColorArg rt a1 of
       Nothing -> Ex.throw . BadColorName $ a1
-      Just c -> return (op { Op.colorPref = c })
+      Just c -> return (st { colorPref = c })
 
 pickColorArg :: S.Runtime -> String -> Maybe CC.Colors
 pickColorArg rt t
@@ -205,61 +212,61 @@ pickBackgroundArg t
   | otherwise = Nothing
 
 
-background :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+background :: Parser (State -> Ex.Exceptional Error State)
 background = parseOpt ["background"] "" (C.OneArg f)
   where
-    f a1 op = case pickBackgroundArg a1 of
+    f a1 st = case pickBackgroundArg a1 of
       Nothing -> Ex.throw . BadBackgroundArg $ a1
-      Just (dc, bc) -> return (op { Op.drCrColors = dc
-                                  , Op.baseColors = bc } )
+      Just (dc, bc) -> return (st { drCrColors = dc
+                                  , baseColors = bc } )
 
 
-parseWidth :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+parseWidth :: Parser (State -> Ex.Exceptional Error State)
 parseWidth = parseOpt ["width"] "" (C.OneArg f)
   where
-    f a1 op = case reads a1 of
-      (i, ""):[] -> return (op { Op.width = Ty.ReportWidth i })
+    f a1 st = case reads a1 of
+      (i, ""):[] -> return (st { width = Ty.ReportWidth i })
       _ -> Ex.throw . BadWidthArg $ a1
 
-showField :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+showField :: Parser (State -> Ex.Exceptional Error State)
 showField = parseOpt ["show"] "" (C.OneArg f)
   where
-    f a1 op = do
+    f a1 st = do
       fl <- parseField a1
-      let newFl = fieldOn (Op.fields op) fl
-      return op { Op.fields = newFl }
+      let newFl = fieldOn (fields st) fl
+      return st { fields = newFl }
 
-hideField :: Parser (O.Options -> Ex.Exceptional Error O.Options)
+hideField :: Parser (State -> Ex.Exceptional Error State)
 hideField = parseOpt ["hide"] "" (C.OneArg f)
   where
-    f a1 op = do
+    f a1 st = do
       fl <- parseField a1
-      let newFl = fieldOff (Op.fields op) fl
-      return op { Op.fields = newFl }
+      let newFl = fieldOff (fields st) fl
+      return st { fields = newFl }
 
-showAllFields :: Parser (O.Options -> Ex.Exceptional a O.Options)
+showAllFields :: Parser (State -> Ex.Exceptional a State)
 showAllFields = parseOpt ["show-all"] "" (C.NoArg f)
   where
-    f op = return (op {Op.fields = pure True})
+    f st = return (st {fields = pure True})
 
-hideAllFields :: Parser (O.Options -> Ex.Exceptional a O.Options)
+hideAllFields :: Parser (State -> Ex.Exceptional a State)
 hideAllFields = parseOpt ["hide-all"] "" (C.NoArg f)
   where
-    f op = return (op {Op.fields = pure False})
+    f st = return (st {fields = pure False})
 
 parseShowZeroBalances ::
-  Parser (O.Options -> Ex.Exceptional a O.Options)
+  Parser (State -> Ex.Exceptional a State)
 parseShowZeroBalances = parseOpt opt "" (C.NoArg f)
   where
     opt = ["show-zero-balances"]
-    f op =
-      return (op {Op.showZeroBalances = CO.ShowZeroBalances True })
+    f st =
+      return (st {showZeroBalances = CO.ShowZeroBalances True })
 
-hideZeroBalances :: Parser (O.Options -> Ex.Exceptional a O.Options)
+hideZeroBalances :: Parser (State -> Ex.Exceptional a State)
 hideZeroBalances = parseOpt ["hide-zero-balances"] "" (C.NoArg f)
   where
-    f op =
-      return (op {Op.showZeroBalances = CO.ShowZeroBalances False })
+    f st =
+      return (st {showZeroBalances = CO.ShowZeroBalances False })
 
 -- | Turns a field on if it is True.
 fieldOn ::
