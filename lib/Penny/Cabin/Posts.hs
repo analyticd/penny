@@ -71,7 +71,7 @@ import qualified Penny.Cabin.Posts.Types as T
 import qualified Penny.Copper as Cop
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
-import qualified Penny.Shield as S
+import qualified Penny.Shield as Sh
 import System.Console.MultiArg.Prim (Parser)
 import Text.Matchers.Text (CaseSensitive)
 
