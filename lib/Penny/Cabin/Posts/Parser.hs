@@ -1,4 +1,5 @@
-module Penny.Cabin.Posts.Parser (State(..), parseOptions) where
+module Penny.Cabin.Posts.Parser (State(..), parseOptions,
+                                 Error(..)) where
 
 import Control.Applicative ((<|>), (<$>), pure, many, (<*>),
                             Applicative)

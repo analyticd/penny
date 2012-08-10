@@ -56,14 +56,19 @@ import Control.Applicative ((<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL
-import qualified Penny.Cabin.Chunk as Chk
+import qualified Penny.Cabin.Chunk as CC
+import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Interface as I
+import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Posts.Allocated as A
+import qualified Penny.Cabin.Posts.Allocate as Alc
 import qualified Penny.Cabin.Posts.BottomRows as B
+import qualified Penny.Cabin.Posts.Chunk as C
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Help as H
 import qualified Penny.Cabin.Posts.Meta as M
+import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Parser as P
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Types as T
@@ -75,6 +80,142 @@ import qualified Penny.Shield as Sh
 import System.Console.MultiArg.Prim (Parser)
 import Text.Matchers.Text (CaseSensitive)
 
+-- | All information needed to make a Posts report. This function
+-- never fails.
+postsReport ::
+  CC.Colors
+  -- ^ How many colors to show.
+  -> CO.ShowZeroBalances
+  -> (L.Box Ly.LibertyMeta -> Bool)
+  -- ^ Removes posts from the report if applying this function to the
+  -- post returns False. Posts removed still affect the running
+  -- balance.
+  
+  -> [Ly.PostFilterFn]
+  -- ^ Applies these post-filters to the list of posts that results
+  -- from applying the predicate above. Might remove more
+  -- postings. Postings removed still affect the running balance.
+    
+  -> C.ChunkOpts
+  -> [L.Box Ly.LibertyMeta]
+  -> XL.Text
+
+postsReport col szb pdct pff co =
+  CC.chunksToText col
+  . C.makeChunk co
+  . M.toBoxList szb pdct pff
+
+
+parseReport ::
+  (Sh.Runtime -> ZincOpts)
+  -> Parser I.ReportFunc
+parseReport frt = do
+  getState <- P.parseOptions
+  let rf rt cs fty ps _ = do
+        let zo = frt rt
+            maySt' = getState rt dtz rg st
+              where
+                dtz = defaultTimeZone zo
+                rg = radGroup zo
+                st = newParseState cs fty zo
+        st' <- Ex.mapException showParserError maySt'
+        pdct <- getPredicate . P.tokens $ st'
+        case maySt' of
+            Ex.Exception e -> Ex.throw . X.pack . show $ e
+            Ex.Success st' ->
+              return $ postsReport (P.colorPref st')
+                 (P.showZeroBalances st') pdct
+                 (P.postFilter st') (chunkOpts st' zo) ps
+  return rf
+                 
+            
+makeReport ::
+  (Sh.Runtime -> ZincOpts)
+  -> I.Report
+makeReport frt = I.Report {
+  I.help = H.help
+  , I.name = "postings"
+  , I.parseReport = parseReport frt }
+
+defaultOptions ::
+  Cop.DefaultTimeZone
+  -> Cop.RadGroup
+  -> Sh.Runtime
+  -> ZincOpts
+defaultOptions dtz rg rt = ZincOpts {
+  defaultTimeZone = dtz
+  , radGroup = rg
+  , fields = 
+
+showParserError :: P.Error -> X.Text
+showParserError = X.pack . show
+
+getPredicate ::
+  [Ly.Token (L.Box Ly.LibertyMeta -> Bool)]
+  -> Ex.Exceptional X.Text (L.Box Ly.LibertyMeta -> Bool)
+getPredicate ts =
+  case ts of
+    [] -> return $ const True
+    ls -> case Ly.parseTokenList ls of
+      Nothing -> Ex.throw . X.pack $
+                 "posts report: bad posting filter expression"
+      Just exp -> return exp
+
+
+data ZincOpts = ZincOpts {
+  defaultTimeZone :: Cop.DefaultTimeZone
+  , radGroup :: Cop.RadGroup
+  , fields :: F.Fields Bool
+  , colorPref :: CC.Colors
+  , drCrColors :: PC.DrCrColors
+  , baseColors :: PC.BaseColors
+  , width :: T.ReportWidth
+  , showZeroBalances :: CO.ShowZeroBalances
+  , dateFormat :: Box -> X.Text
+  , qtyFormat :: Box -> X.Text
+  , balanceFormat :: L.Commodity -> L.BottomLine -> X.Text
+  , subAccountLength :: A.SubAccountLength
+  , payeeAllocation :: Alc.Allocation
+  , accountAllocation :: Alc.Allocation
+  , spacers :: S.Spacers Int
+  }
+
+chunkOpts ::
+  P.State 
+  -> ZincOpts
+  -> C.ChunkOpts
+chunkOpts s z = C.ChunkOpts {
+  C.baseColors = P.baseColors s
+  , C.drCrColors = P.drCrColors s
+  , C.dateFormat = dateFormat z
+  , C.qtyFormat = qtyFormat z
+  , C.balanceFormat = balanceFormat z
+  , C.fields = P.fields s
+  , C.subAccountLength = subAccountLength z
+  , C.payeeAllocation = payeeAllocation z
+  , C.accountAllocation = accountAllocation z
+  , C.spacers = spacers z
+  , C.reportWidth = P.width s
+  }
+
+
+newParseState ::
+  CaseSensitive
+  -> L.Factory
+  -> ZincOpts
+  -> P.State
+newParseState cs fty o = P.State {
+  P.sensitive = cs
+  , P.factory = fty
+  , P.tokens = []
+  , P.postFilter = []
+  , P.fields = fields o
+  , P.colorPref = colorPref o
+  , P.drCrColors = drCrColors o
+  , P.baseColors = baseColors o
+  , P.width = width o
+  , P.showZeroBalances = showZeroBalances o
+  }
 {-
 -- | When applied to a DefaultTimeZone and a RadGroup, returns a
 -- report with the default options.
