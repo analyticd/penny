@@ -33,7 +33,8 @@
 -- show various fields. However, the order of the fields is not
 -- configurable without editing the source code (sorry).
 
-module Penny.Cabin.Posts (
+module Penny.Cabin.Posts where
+{-
   -- * Defaults
   defaultPostsReport
   
@@ -50,26 +51,31 @@ module Penny.Cabin.Posts (
   , ZO.columnsVarToWidth, ZO.defaultOptions, ZO.widthFromRuntime
   , ZO.defaultFields
   ) where
-
+-}
 import Control.Applicative ((<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL
 import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Interface as I
-import qualified Penny.Cabin.Posts.Options as O
-import qualified Penny.Cabin.Posts.ZincOpts as ZO
+import qualified Penny.Cabin.Posts.Allocated as A
+import qualified Penny.Cabin.Posts.BottomRows as B
+import qualified Penny.Cabin.Posts.Fields as F
+import qualified Penny.Cabin.Posts.Growers as G
+import qualified Penny.Cabin.Posts.Help as H
 import qualified Penny.Cabin.Posts.Meta as M
-import Penny.Cabin.Posts.Chunk (makeChunk)
-import Penny.Cabin.Posts.Parser (parseOptions)
-import Penny.Cabin.Posts.Help (help)
-import qualified Penny.Copper as C
+import qualified Penny.Cabin.Posts.Parser as P
+import qualified Penny.Cabin.Posts.Spacers as S
+import qualified Penny.Cabin.Posts.Types as T
+
+import qualified Penny.Copper as Cop
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as S
 import System.Console.MultiArg.Prim (Parser)
 import Text.Matchers.Text (CaseSensitive)
 
+{-
 -- | When applied to a DefaultTimeZone and a RadGroup, returns a
 -- report with the default options.
 defaultPostsReport ::
@@ -149,3 +155,4 @@ filterAndAssignMeta op bs =
   <$> M.filterBoxes (O.tokens op) (O.postFilter op) bs
 
 
+-}
