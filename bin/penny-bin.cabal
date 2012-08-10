@@ -49,7 +49,7 @@ source-repository head
 Executable penny
   Build-depends:
     base ==4.*,
-    penny-lib ==0.2.*
+    penny-lib ==0.4.*
 
   Main-is: penny.hs
   GHC-Options: -Wall
