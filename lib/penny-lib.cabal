@@ -210,7 +210,6 @@ Library
         Penny.Cabin.Posts.Chunk,
         Penny.Cabin.Posts.Help,
         Penny.Cabin.Posts.Meta,
-        Penny.Cabin.Posts.Options,
         Penny.Cabin.Posts.Parser,
         Penny.Cabin.Posts.Spacers,
         Penny.Cabin.Posts.Types,
