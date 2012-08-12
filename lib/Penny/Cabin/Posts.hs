@@ -51,7 +51,6 @@ module Penny.Cabin.Posts (
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
-import qualified Data.Text.Lazy as XL
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Colors.DarkBackground as Dark
@@ -83,9 +82,7 @@ import Text.Matchers.Text (CaseSensitive)
 -- | All information needed to make a Posts report. This function
 -- never fails.
 postsReport ::
-  CC.Colors
-  -- ^ How many colors to show.
-  -> CO.ShowZeroBalances
+  CO.ShowZeroBalances
   -> (L.Box Ly.LibertyMeta -> Bool)
   -- ^ Removes posts from the report if applying this function to the
   -- post returns False. Posts removed still affect the running
@@ -98,11 +95,10 @@ postsReport ::
     
   -> C.ChunkOpts
   -> [L.Box Ly.LibertyMeta]
-  -> XL.Text
+  -> [CC.Chunk]
 
-postsReport col szb pdct pff co =
-  CC.chunksToText col
-  . C.makeChunk co
+postsReport szb pdct pff co =
+  C.makeChunk co
   . M.toBoxList szb pdct pff
 
 
@@ -120,9 +116,9 @@ parseReport frt = do
                 st = newParseState cs fty zo
         st' <- Ex.mapException showParserError maySt'
         pdct <- getPredicate . P.tokens $ st'
-        return $ postsReport (P.colorPref st')
-          (P.showZeroBalances st') pdct
-          (P.postFilter st') (chunkOpts st' zo) ps
+        let chks = postsReport (P.showZeroBalances st') pdct
+                   (P.postFilter st') (chunkOpts st' zo) ps
+        return . CC.chunksToText (P.colorPref st') $ chks
   return rf
                  
             

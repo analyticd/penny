@@ -134,3 +134,13 @@ accountAny f = matchAny f . Q.account
 tag :: (Text -> Bool) -> PostFam -> Bool
 tag f = matchAny f . Q.tags
 
+-- * Combining predicates
+(&&&) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
+(&&&) l r = \a -> l a && r a
+
+infixr 3 &&&
+
+(|||) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
+(|||) l r = \a -> l a || r a
+
+infixr 2 |||
