@@ -5,6 +5,7 @@ module Penny.Lincoln.Predicates where
 
 import Data.Text (Text, singleton)
 
+import qualified Data.Time as T
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList,
                               Delimited(Delimited))
@@ -75,6 +76,12 @@ date ::
   -> Bool
 date f c = f (Q.dateTime c)
 
+
+localDay ::
+  (T.Day -> Bool)
+  -> PostFam
+  -> Bool
+localDay f = f . Q.localDay
 
 -- * Qty
 

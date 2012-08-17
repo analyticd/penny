@@ -5,6 +5,7 @@ import qualified Penny.Lincoln.Meta as M
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Transaction as T
 import Penny.Lincoln.Balance (Balance, entryToBalance)
+import qualified Data.Time as Time
 
 best ::
   (T.Posting -> Maybe a)
@@ -33,6 +34,9 @@ transactionMemo = T.tMemo . parent . T.unPostFam
 
 dateTime :: T.PostFam -> B.DateTime
 dateTime = T.tDateTime . parent . T.unPostFam
+
+localDay :: T.PostFam -> Time.Day
+localDay = Time.localDay . B.localTime . dateTime
 
 account :: T.PostFam -> B.Account
 account = T.pAccount . child . T.unPostFam
