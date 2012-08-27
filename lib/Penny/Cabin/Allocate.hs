@@ -12,6 +12,8 @@ import qualified Data.Map as M
 newtype Allocation = Allocation { unAllocation :: Int }
                      deriving (Show, Eq, Ord)
 
+-- | Create a new Allocation. Applies error if its argument is less
+-- than 1.
 allocation :: Int -> Allocation
 allocation i =
   if i < 1

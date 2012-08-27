@@ -34,14 +34,34 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import System.Console.MultiArg.Prim (Parser)
 
+-- | Options for the balance report, when the options for the report
+-- are being parsed in from a command line.
 data BalanceOpts = BalanceOpts {
   drCrColors :: C.DrCrColors
+  -- ^ Colors for debits and credits that are shown in the far right
+  -- column of the report
+
   , baseColors :: C.BaseColors
+    -- ^ Colors for all fields other than the debits and credits
+    
   , balanceFormat :: L.BottomLine -> X.Text
+    -- ^ Formats a BottomLine. For example you can use this function
+    -- to deal with digit grouping.
+    
   , colorPref :: Chunk.Colors
+    -- ^ Show no colors, 8 colors, or 256 colors
+
   , showZeroBalances :: CO.ShowZeroBalances
+    -- ^ Whether to completely omit balances that are zero, or show them
+
   , defaultTimeZone :: Cop.DefaultTimeZone
+    -- ^ Time zone used when parsing dates and times from the command
+    -- line. Has no impact on how values are formatted for display.
+
   , convert :: Maybe (L.Commodity, L.DateTime)
+    -- ^ If Nothing, all entries are displayed in their original
+    -- commodity. If Just, all entries are converted to the commodity
+    -- given, based on the price at the given DateTime.
   }
 
 toParseOpts :: BalanceOpts -> P.ParseOpts
@@ -85,10 +105,14 @@ showParseErr :: P.Error -> X.Text
 showParseErr = X.pack . show
 
 
+-- | Applied to a function that takes a Runtime and returns the
+-- options for the Balance report, this function returns a Report that
+-- conforms to the Cabin report interface.
 balanceReport :: (S.Runtime -> BalanceOpts) -> I.Report
 balanceReport f = I.Report H.help "balance" (parser f)
 
 
+-- | Default options for the Balance report.
 defaultOptions :: Cop.DefaultTimeZone -> S.Runtime -> BalanceOpts
 defaultOptions dtz rt = BalanceOpts {
   drCrColors = Dark.drCrColors
@@ -100,6 +124,7 @@ defaultOptions dtz rt = BalanceOpts {
   , convert = Nothing
   }
 
+-- | Display a BottomLine, without any digit grouping.
 balanceAsIs :: L.BottomLine -> X.Text
 balanceAsIs n = case n of
   L.Zero -> X.pack "--"
