@@ -9,6 +9,9 @@ import qualified Penny.Shield as S
 data ColorPref = Pref0 | Pref8 | Pref256 | PrefAuto
                deriving Show
 
+-- | The maximum number of colors that can be displayed. If not a TTY,
+-- no colors. Otherwise, Examines TERM. If it is @xterm-256color@,
+-- then 256 colors; otherwise, assumes 8 colors are available.
 maxCapableColors :: S.Runtime -> C.Colors
 maxCapableColors r = case S.output r of
   S.NotTTY -> C.Colors0
@@ -19,6 +22,10 @@ maxCapableColors r = case S.output r of
                   then C.Colors256
                   else C.Colors8
 
+-- | Given the user's color preference, and the runtime, calculate how
+-- many colors to use. Respects the user's preference, but if the
+-- preference is to set colors automatically, then uses information
+-- from the runtime to display the maximum number of possible colors.
 autoColors :: ColorPref -> S.Runtime -> C.Colors
 autoColors c r = case c of
   Pref0 -> C.Colors0

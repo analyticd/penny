@@ -1,3 +1,4 @@
+-- | Parses options for the Balance report from the command line.
 module Penny.Cabin.Balance.Parser (
   Error(..)
   , ParseOpts(..)
@@ -21,6 +22,7 @@ import System.Console.MultiArg.Prim (Parser)
 import qualified System.Console.MultiArg.Combinator as C
 import qualified Text.Parsec as Parsec
 
+-- | Options for the Balance report that have been parsed from the command line.
 data ParseOpts = ParseOpts {
   drCrColors :: Col.DrCrColors
   , baseColors :: Col.BaseColors
@@ -122,6 +124,14 @@ convertShort = parseOpt [] ['c'] (C.OneArg f)
       return op'
         
 
+-- | Parses all options for the Balance report from the command
+-- line. Run this parser after parsing the name of the report
+-- (e.g. @bal@ or @balance@) from the command line. This parser will
+-- parse all words after the name of the report up to the the ledger
+-- file names. The result is a computation, which can fail if the user
+-- supplies a DateTime or a Commodity on the command line that fails
+-- to parse or if the user supplies a argument for the @--background@
+-- option that fails to parse.
 parseOptions :: Parser (S.Runtime
                         -> CD.DefaultTimeZone
                         -> ParseOpts

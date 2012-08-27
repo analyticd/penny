@@ -1,3 +1,6 @@
+-- | Default colors for use in all Cabin reports. These tie the
+-- specific colors given in the Chunk module to the semantic elements
+-- of the Cabin reports.
 module Penny.Cabin.Colors where
 
 import qualified Penny.Lincoln as L

@@ -1,3 +1,4 @@
+-- | Displays a single on-screen row. A row may contain multiple screen lines and multiple columns.
 module Penny.Cabin.Row (
   Justification(LeftJustify, RightJustify),
   ColumnSpec(ColumnSpec, justification, width, padSpec, bits),

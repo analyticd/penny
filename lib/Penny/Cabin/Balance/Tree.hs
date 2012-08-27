@@ -20,6 +20,16 @@
 -- * 8. [Columns PreSpec] -> [Columns R.ColumnSpec] (strict)
 --
 -- * 9. [Columns R.ColumnSpec] -> [[Chunk.Bit]] (lazy)
+--
+-- This module provides the functions necessary to generate the
+-- Balance report, after the options have either been parsed from the
+-- command line or if the options have already been supplied in the
+-- program (which can be useful if you have a program which is
+-- printing a Balance report.)
+--
+-- To make a Balance report, you must first convert the list of Boxes
+-- with LibertyMeta to PriceConverteds; then you can generate the
+-- report.
 module Penny.Cabin.Balance.Tree (
   report
   , TreeOpts(..)
@@ -101,7 +111,8 @@ buildDb :: [L.PricePoint] -> L.PriceDb
 buildDb = foldl f L.emptyDb where
   f db pb = L.addPrice db pb
 
--- | Makes PriceConverteds where there is no target commodity.
+-- | Makes PriceConverteds where there is no target commodity. Always
+-- succeeds.
 nullConvert :: [L.Box Ly.LibertyMeta] -> PriceConverteds
 nullConvert =
   let f b = PriceConverted en ac
@@ -116,9 +127,19 @@ nullConvert =
 -- lacking.
 converter ::
   (L.Commodity, L.DateTime)
+  -- ^ Convert to this commodity, using the price data as of this date and time
+
   -> [L.PricePoint]
+  -- ^ Price data to use
+
   -> [L.Box Ly.LibertyMeta]
+  -- ^ The postings
+
   -> Ex.Exceptional X.Text PriceConverteds
+  -- ^ If a posting fails to convert because there is not price data,
+  -- an exception is returned with an explanatory Text. Otherwise, the
+  -- converted prices are returned.
+
 converter conv pbs bs =
     let f b = let p = L.boxPostFam b
                   en = Q.entry p
@@ -443,6 +464,10 @@ colsListToBits os = zipWith f bools where
 
 
 -- Options
+
+-- | Options for making the balance report. These are the only options
+-- needed to make the report if the options are not being parsed in
+-- from the command line.
 data TreeOpts = TreeOpts {
   drCrColors :: C.DrCrColors
   , baseColors :: C.BaseColors
@@ -452,6 +477,7 @@ data TreeOpts = TreeOpts {
 
 -- Tie it all together
 
+-- | Creates the Balance report.
 report ::
   TreeOpts
   -> PriceConverteds
