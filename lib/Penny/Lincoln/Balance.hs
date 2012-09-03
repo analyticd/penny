@@ -26,7 +26,9 @@ import qualified Penny.Lincoln.Bits as B
 newtype Balance = Balance (Map B.Commodity BottomLine)
                   deriving (Show, Eq)
 
--- | The map returned by unBalance is never empty.
+-- | Returns a map where the keys are the commodities in the balance
+-- and the values are the balance for each commodity. If there is no
+-- balance at all, this map can be empty.
 unBalance :: Balance -> Map B.Commodity BottomLine
 unBalance (Balance m) = m
 
@@ -95,13 +97,16 @@ addBalances (Balance t1) (Balance t2) =
 instance Semi.Semigroup Balance where
   (<>) = addBalances
 
--- | Removes zero balances from a Balance. Will not return a Balance
--- with no commodities; instead, returns Nothing if there would be a
--- balance with no commodities.
-removeZeroCommodities :: Balance -> Maybe Balance
+instance Monoid Balance where
+  mempty = Balance M.empty
+  mappend = addBalances
+
+-- | Removes zero balances from a Balance.
+removeZeroCommodities :: Balance -> Balance
 removeZeroCommodities (Balance m) =
   let p b = case b of
         Zero -> False
         _ -> True
       m' = M.filter p m
-  in if M.null m' then Nothing else Just (Balance m')
+  in Balance m'
+
