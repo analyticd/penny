@@ -11,6 +11,7 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Cabin.Meta as M
 import qualified Penny.Cabin.Options as CO
+import Data.Monoid (mempty, mappend)
 
 -- | The Box type that is used throughout the Posts modules.
 type Box = L.Box PostMeta
@@ -19,16 +20,16 @@ data PostMeta =
   PostMeta { filteredNum :: Ly.FilteredNum
             , sortedNum :: Ly.SortedNum
             , visibleNum :: M.VisibleNum
-            , balance :: Maybe L.Balance }
+            , balance :: L.Balance }
   deriving Show
 
 
 addMetadata ::
-  [(L.Box (Ly.LibertyMeta, Maybe L.Balance))]
+  [(L.Box (Ly.LibertyMeta, L.Balance))]
   -> [Box]
 addMetadata = M.visibleNums f where
-  f vn (lm, mb) =
-    PostMeta (Ly.filteredNum lm) (Ly.sortedNum lm) vn mb
+  f vn (lm, b) =
+    PostMeta (Ly.filteredNum lm) (Ly.sortedNum lm) vn b
 
 -- | Adds appropriate metadata, including the running balance, to a
 -- list of Box. Because all posts are incorporated into the running
@@ -59,21 +60,19 @@ toBoxList szb pdct pff =
 addBalances ::
   CO.ShowZeroBalances
   -> [L.Box Ly.LibertyMeta]
-  -> [(L.Box (Ly.LibertyMeta, Maybe L.Balance))]
-addBalances szb = snd . mapAccumL (balanceAccum szb) Nothing
+  -> [(L.Box (Ly.LibertyMeta, L.Balance))]
+addBalances szb = snd . mapAccumL (balanceAccum szb) mempty
 
 balanceAccum :: 
   CO.ShowZeroBalances
-  -> Maybe L.Balance
+  -> L.Balance
   -> L.Box Ly.LibertyMeta
-  -> (Maybe L.Balance, (L.Box (Ly.LibertyMeta, Maybe L.Balance)))
-balanceAccum (CO.ShowZeroBalances szb) mb po =
+  -> (L.Balance, (L.Box (Ly.LibertyMeta, L.Balance)))
+balanceAccum (CO.ShowZeroBalances szb) balOld po =
   let balThis = L.entryToBalance . Q.entry . L.boxPostFam $ po
-      balNew = case mb of
-        Nothing -> balThis
-        Just balOld -> L.addBalances balOld balThis
+      balNew = mappend balOld balThis
       balNoZeroes = L.removeZeroCommodities balNew
-      bal' = if szb then Just balNew else balNoZeroes
+      bal' = if szb then balNew else balNoZeroes
       po' = L.Box (L.boxMeta po, bal') (L.boxPostFam po)
   in (bal', po')
 

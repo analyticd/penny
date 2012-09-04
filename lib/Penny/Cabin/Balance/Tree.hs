@@ -168,13 +168,13 @@ toFlatMap o = FlatMap . foldr f M.empty . unPriceConverteds where
         let added = Bal.addBalances oldBal bal
             newBal = if remove
                      then Bal.removeZeroCommodities added
-                     else Just added
-        in case newBal of
-          Nothing -> M.delete a m
-          Just b' -> M.insert a b' m
+                     else added
+        in if M.null . Bal.unBalance $ newBal
+           then M.delete a m
+           else M.insert a newBal m
 
 -- Step 3
-newtype RawBal = RawBal { unRawBal :: S.Option Bal.Balance }
+newtype RawBal = RawBal { unRawBal :: Bal.Balance }
 instance Monoid.Monoid RawBal where
   mappend (RawBal b1) (RawBal b2) = RawBal $ b1 `Monoid.mappend` b2
   mempty = RawBal Monoid.mempty
@@ -188,7 +188,7 @@ insertBalance ::
   -> RawBals
   -> RawBals
 insertBalance a b rbs = let
-  rb = RawBal . S.Option . Just $ b
+  rb = RawBal b
   subs = Fdbl.toList . L.unAccount $ a
   in NM.insert rbs subs rb
   
@@ -197,7 +197,7 @@ rawBalances (FlatMap m) = M.foldrWithKey insertBalance NM.empty m
 
 -- Step 4
 newtype SummedBal =
-  SummedBal { unSummedBal :: S.Option Bal.Balance }
+  SummedBal { unSummedBal :: Bal.Balance }
 instance Monoid.Monoid SummedBal where
   mappend (SummedBal b1) (SummedBal b2) =
     SummedBal $ b1 `Monoid.mappend` b2
@@ -313,7 +313,7 @@ bottomLineCells ::
   -> IsEven
   -> SummedBal
   -> (PreSpec, PreSpec, PreSpec)
-bottomLineCells os isEven mayBal = let
+bottomLineCells os isEven sb = let
   fill = fillTextSpec os isEven
   tsZero = if isEven
            then C.evenZero . drCrColors $ os
@@ -322,13 +322,13 @@ bottomLineCells os isEven mayBal = let
     PreSpec R.LeftJustify
     tsZero [Chunk.chunk tsZero (X.pack "--")]
   zeroSpecs = (zeroSpec, zeroSpec, zeroSpec)
-  in case S.getOption . unSummedBal $ mayBal of
-    Nothing -> zeroSpecs
-    Just bal -> bottomLineBalCells fill
-                . map (bottomLineBalChunks os isEven)
-                . M.assocs
-                . Bal.unBalance
-                $ bal
+  bal = Bal.unBalance . unSummedBal $ sb
+  in if M.null bal
+     then zeroSpecs
+     else bottomLineBalCells fill
+          . map (bottomLineBalChunks os isEven)
+          . M.assocs
+          $ bal
 
 padding :: Int
 padding = 2

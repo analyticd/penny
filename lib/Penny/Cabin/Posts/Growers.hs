@@ -9,6 +9,7 @@ module Penny.Cabin.Posts.Growers (
 import Control.Applicative((<$>), Applicative(pure, (<*>)))
 import qualified Data.Foldable as Fdbl
 import Data.Map (elems, assocs)
+import qualified Data.Map as Map
 import qualified Data.Semigroup as Semi
 import Data.Semigroup ((<>))
 import Data.Text (Text, pack, empty)
@@ -272,22 +273,22 @@ getTotalDrCr dccol i =
       ts = CC.colors vn bc
       bc = CC.drCrToBaseColors dc dccol
       dc = Q.drCr . L.boxPostFam $ i
-      bits = case M.balance . L.boxMeta $ i of
-        Nothing ->
-          let spec = CC.noBalanceColors vn dccol
-          in [C.chunk spec (pack "--")]
-        Just bal ->
-          let toBit bl =
-                let spec = 
-                      CC.colors vn
-                      . CC.bottomLineToBaseColors dccol
-                      $ bl
-                    txt = case bl of
-                      L.Zero -> pack "--"
-                      L.NonZero (L.Column clmDrCr _) ->
-                        dcTxt clmDrCr
-                in C.chunk spec txt
-          in fmap toBit . elems . L.unBalance $ bal
+      bal = L.unBalance . M.balance . L.boxMeta $ i
+      bits =
+        if Map.null bal
+        then let spec = CC.noBalanceColors vn dccol
+             in [C.chunk spec (pack "--")]
+        else let toBit bl =
+                   let spec = 
+                         CC.colors vn
+                         . CC.bottomLineToBaseColors dccol
+                         $ bl
+                       txt = case bl of
+                         L.Zero -> pack "--"
+                         L.NonZero (L.Column clmDrCr _) ->
+                           dcTxt clmDrCr
+                   in C.chunk spec txt
+             in fmap toBit . elems $ bal
       j = R.LeftJustify
   in PreSpec j ts bits
 
@@ -298,22 +299,22 @@ getTotalCmdty dccol i =
       ts = CC.colors vn bc
       bc = CC.drCrToBaseColors dc dccol
       dc = Q.drCr . L.boxPostFam $ i
-      bits = case M.balance . L.boxMeta $ i of
-        Nothing ->
-          let spec = CC.noBalanceColors vn dccol
-          in [C.chunk spec (pack "--")]
-        Just bal ->
-          let toBit (com, nou) =
-                let spec =
-                      CC.colors vn
-                      . CC.bottomLineToBaseColors dccol
-                      $ nou
-                    txt = L.text
-                          . L.Delimited (X.singleton ':')
-                          . L.textList
-                          $ com
-                in C.chunk spec txt
-          in fmap toBit . assocs . L.unBalance $ bal
+      bal = L.unBalance . M.balance . L.boxMeta $ i
+      bits =
+        if Map.null bal
+        then let spec = CC.noBalanceColors vn dccol
+             in [C.chunk spec (pack "--")]
+        else let toBit (com, nou) =
+                   let spec =
+                         CC.colors vn
+                         . CC.bottomLineToBaseColors dccol
+                         $ nou
+                       txt = L.text
+                             . L.Delimited (X.singleton ':')
+                             . L.textList
+                             $ com
+                   in C.chunk spec txt
+             in fmap toBit . assocs $ bal
   in PreSpec j ts bits
 
 getTotalQty ::
@@ -327,12 +328,14 @@ getTotalQty balFmt dccol i =
       ts = CC.colors vn bc
       bc = CC.drCrToBaseColors dc dccol
       dc = Q.drCr . L.boxPostFam $ i
-      bits = case M.balance . L.boxMeta $ i of
-        Nothing ->
+      bal = L.unBalance . M.balance . L.boxMeta $ i
+      bits =
+        if Map.null bal
+        then 
           let spec = CC.noBalanceColors vn dccol
           in [C.chunk spec (pack "--")]
-        Just bal ->
-          fmap toChunk . assocs . L.unBalance $ bal
+        else
+          fmap toChunk . assocs $ bal
             where
               toChunk (com, nou) =
                 let spec = 
