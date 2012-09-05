@@ -1,7 +1,11 @@
 -- | Creates the output Chunks for the Balance report for both
 -- multi-commodity and single-commodity reports.
 
-module Penny.Cabin.Balance.Chunker where
+module Penny.Cabin.Balance.Chunker (
+  Columns(..),
+  PreSpec(..),
+  preSpecsToBits
+  ) where
 
 import Control.Applicative
   (Applicative (pure), (<$>), (<*>))
@@ -108,3 +112,11 @@ colsListToBits bc = zipWith f bools where
   f b c = colsToBits b bc c
   bools = iterate not True
 
+preSpecsToBits ::
+  C.BaseColors
+  -> [Columns PreSpec]
+  -> [Chunk.Chunk]
+preSpecsToBits bc =
+  concat
+  . colsListToBits bc
+  . resizeColumnsInList
