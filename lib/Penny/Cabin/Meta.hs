@@ -1,6 +1,6 @@
 -- | Metadata that is specific to Cabin.
 module Penny.Cabin.Meta (VisibleNum, unVisibleNum,
-                         visibleNums ) where
+                         visibleNumBoxes, visibleNums ) where
 
 import qualified Penny.Lincoln as L
 
@@ -12,11 +12,17 @@ import qualified Penny.Lincoln as L
 newtype VisibleNum = VisibleNum { unVisibleNum :: L.Serial }
                      deriving (Eq, Show)
 
--- | Assignes VisibleNum to a list of boxes.
-visibleNums ::
+-- | Assigns VisibleNum to a list of boxes.
+visibleNumBoxes ::
   (VisibleNum -> a -> b)
   -> [L.Box a]
   -> [L.Box b]
-visibleNums f = L.serialItems s' where
+visibleNumBoxes f = L.serialItems s' where
   s' ser (L.Box m pf) = L.Box (f (VisibleNum ser) m) pf
 
+-- | Assigns VisibleNum to a list.
+visibleNums :: (VisibleNum -> a -> b) -> [a] -> [b]
+visibleNums f = L.serialItems f'
+  where
+    f' ser = f (VisibleNum ser)
+  

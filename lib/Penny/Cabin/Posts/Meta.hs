@@ -27,7 +27,7 @@ data PostMeta =
 addMetadata ::
   [(L.Box (Ly.LibertyMeta, L.Balance))]
   -> [Box]
-addMetadata = M.visibleNums f where
+addMetadata = M.visibleNumBoxes f where
   f vn (lm, b) =
     PostMeta (Ly.filteredNum lm) (Ly.sortedNum lm) vn b
 

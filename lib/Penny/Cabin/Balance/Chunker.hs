@@ -2,15 +2,16 @@
 -- multi-commodity and single-commodity reports.
 
 module Penny.Cabin.Balance.Chunker (
-  Columns(..),
-  PreSpec(..),
-  preSpecsToBits
+  Row(..),
+  rowsToChunks
   ) where
+
 
 import Control.Applicative
   (Applicative (pure), (<$>), (<*>))
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
+import qualified Penny.Cabin.Meta as Meta
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Lincoln as L
 import qualified Data.Foldable as Fdbl
@@ -19,7 +20,7 @@ import qualified Data.Text as X
 type IsEven = Bool
 
 data Columns a = Columns {
-  account :: a
+  acct :: a
   , drCr :: a
   , commodity :: a
   , quantity :: a
@@ -27,7 +28,7 @@ data Columns a = Columns {
 
 instance Functor Columns where
   fmap f c = Columns {
-    account = f (account c)
+    acct = f (acct c)
     , drCr = f (drCr c)
     , commodity = f (commodity c)
     , quantity = f (quantity c)
@@ -36,15 +37,15 @@ instance Functor Columns where
 instance Applicative Columns where
   pure a = Columns a a a a
   fn <*> fa = Columns {
-    account = (account fn) (account fa)
+    acct = (acct fn) (acct fa)
     , drCr = (drCr fn) (drCr fa)
     , commodity = (commodity fn) (commodity fa)
     , quantity = (quantity fn) (quantity fa)
      }
 
 data PreSpec = PreSpec {
-  justification :: R.Justification
-  , padSpec :: Chunk.TextSpec
+  _justification :: R.Justification
+  , _padSpec :: Chunk.TextSpec
   , bits :: [Chunk.Chunk] }
 
 -- | When given a list of columns, determine the widest row in each
@@ -123,38 +124,107 @@ preSpecsToBits bc =
   . colsListToBits bc
   . resizeColumnsInList
 
+-- | Displays a single account in a Balance report. In a
+-- single-commodity report, this account will only be one screen line
+-- long. In a multi-commodity report, it might be multiple lines long,
+-- with one screen line for each commodity.
 data Row = Row {
   indentation :: Int
+  -- ^ Indent the account name by this many levels (not by this many
+  -- spaces; this number is multiplied by another number in the
+  -- Chunker source to arrive at the final indentation amount)
+
   , accountTxt :: X.Text
+    -- ^ Text for the name of the account
+
   , balances :: [(L.Commodity, L.BottomLine)]
+    -- ^ Commodity balances. If this list is empty, dashes are
+    -- displayed for the DrCr, Commodity, and Qty.
   }
 
 rowsToChunks ::
   (L.Commodity -> L.Qty -> X.Text)
+  -- ^ How to format a balance to allow for digit grouping
+  -> C.DrCrColors
   -> C.BaseColors
   -> [Row]
   -> [Chunk.Chunk]
-rowsToChunks = undefined
+rowsToChunks fmt dc b =
+  preSpecsToBits b
+  . rowsToColumns fmt dc b
 
 rowsToColumns ::
   (L.Commodity -> L.Qty -> X.Text)
+  -- ^ How to format a balance to allow for digit grouping
+
+  -> C.DrCrColors
   -> C.BaseColors
   -> [Row]
   -> [Columns PreSpec]
-rowsToColumns fmt bc = zipWith (mkColumn fmt bc) evenOdd
+rowsToColumns fmt dc bc rs = map (mkColumn fmt dc bc) pairs
   where
-    evenOdd = iterate not True
+    pairs = Meta.visibleNums (,) rs
 
 
 mkColumn ::
   (L.Commodity -> L.Qty -> X.Text)
+  -> C.DrCrColors
   -> C.BaseColors
-  -> IsEven
-  -> Row
+  -> (Meta.VisibleNum, Row)
   -> Columns PreSpec
-mkColumn = undefined
-{-
-mkColumn fmt bc isEven (Row i a bs) = Columns ca cd cc cq
+mkColumn fmt dc bc (vn, (Row i acctTxt bs)) = Columns ca cd cc cq
   where
-    ts = if isEven then 
--}
+    baseCol = C.colors vn bc
+    ca = PreSpec R.LeftJustify baseCol [Chunk.chunk baseCol txt]
+      where
+        txt = X.append indents acctTxt
+        indents = X.replicate (indentAmount * max 0 i)
+                  (X.singleton ' ')
+    cd = PreSpec R.LeftJustify baseCol cksDrCr
+    cc = PreSpec R.RightJustify baseCol cksCmdty
+    cq = PreSpec R.LeftJustify baseCol cksQty
+    (cksDrCr, cksCmdty, cksQty) =
+      if null bs
+      then balanceChunksEmpty dc vn
+      else
+        let balChks = map (balanceChunks fmt dc vn) bs
+            cDrCr = map (\(a, _, _) -> a) balChks
+            cCmdty = map (\(_, a, _) -> a) balChks
+            cQty = map (\(_, _, a) -> a) balChks
+        in (cDrCr, cCmdty, cQty)
+
+
+balanceChunksEmpty ::
+  C.DrCrColors
+  -> Meta.VisibleNum
+  -> ([Chunk.Chunk], [Chunk.Chunk], [Chunk.Chunk])
+balanceChunksEmpty dc vn = (dash, dash, dash)
+  where
+    ts = C.colors vn . C.bottomLineToBaseColors dc $ L.Zero
+    dash = [Chunk.chunk ts (X.pack "--")]
+
+balanceChunks ::
+  (L.Commodity -> L.Qty -> X.Text)
+  -> C.DrCrColors
+  -> Meta.VisibleNum
+  -> (L.Commodity, L.BottomLine)
+  -> (Chunk.Chunk, Chunk.Chunk, Chunk.Chunk)
+balanceChunks fmt dcCol vn (cty, bl) = (chkDc, chkCt, chkQt)
+  where
+    ts = C.colors vn . C.bottomLineToBaseColors dcCol $ bl
+    chk = Chunk.chunk ts
+    (dcTxt, qtyTxt) = case bl of
+      L.Zero -> (X.pack "--", X.pack "--")
+      L.NonZero (L.Column dc q) ->
+        let dx = case dc of
+              L.Debit -> X.pack "Dr"
+              L.Credit -> X.pack "Cr"
+            qx = fmt cty q
+        in (dx, qx)
+    chkDc = chk dcTxt
+    chkQt = chk qtyTxt
+    chkCt = chk (L.text $ L.Delimited (X.singleton ':') (L.textList cty))
+
+
+indentAmount :: Int
+indentAmount = 2
