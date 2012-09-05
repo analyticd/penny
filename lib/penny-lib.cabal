@@ -189,6 +189,7 @@ Library
         Penny.Cabin,
         Penny.Cabin.Allocate,
         Penny.Cabin.Balance,
+        Penny.Cabin.Balance.Chunker,
         Penny.Cabin.Balance.Parser,
         Penny.Cabin.Balance.Help,
         Penny.Cabin.Balance.Tree,
