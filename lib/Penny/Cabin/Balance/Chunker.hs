@@ -124,16 +124,37 @@ preSpecsToBits bc =
   . resizeColumnsInList
 
 data Row = Row {
-  rAccount :: L.SubAccountName
-  , balance :: L.Balance
+  indentation :: Int
+  , accountTxt :: X.Text
+  , balances :: [(L.Commodity, L.BottomLine)]
   }
 
-toPreSpec ::
-  (L.BottomLine -> X.Text)
-  -- ^ How to format a balance
+rowsToChunks ::
+  (L.Commodity -> L.Qty -> X.Text)
+  -> C.BaseColors
+  -> [Row]
+  -> [Chunk.Chunk]
+rowsToChunks = undefined
 
+rowsToColumns ::
+  (L.Commodity -> L.Qty -> X.Text)
+  -> C.BaseColors
+  -> [Row]
+  -> [Columns PreSpec]
+rowsToColumns fmt bc = zipWith (mkColumn fmt bc) evenOdd
+  where
+    evenOdd = iterate not True
+
+
+mkColumn ::
+  (L.Commodity -> L.Qty -> X.Text)
+  -> C.BaseColors
+  -> IsEven
   -> Row
   -> Columns PreSpec
-toPreSpec f (Row a b) = Columns ca cd cc cq
+mkColumn = undefined
+{-
+mkColumn fmt bc isEven (Row i a bs) = Columns ca cd cc cq
   where
-    ca = 
+    ts = if isEven then 
+-}
