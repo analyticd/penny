@@ -12,7 +12,9 @@ import Control.Applicative
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Row as R
+import qualified Penny.Lincoln as L
 import qualified Data.Foldable as Fdbl
+import qualified Data.Text as X
 
 type IsEven = Bool
 
@@ -120,3 +122,18 @@ preSpecsToBits bc =
   concat
   . colsListToBits bc
   . resizeColumnsInList
+
+data Row = Row {
+  rAccount :: L.SubAccountName
+  , balance :: L.Balance
+  }
+
+toPreSpec ::
+  (L.BottomLine -> X.Text)
+  -- ^ How to format a balance
+
+  -> Row
+  -> Columns PreSpec
+toPreSpec f (Row a b) = Columns ca cd cc cq
+  where
+    ca = 
