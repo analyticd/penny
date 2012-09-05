@@ -210,6 +210,9 @@ sumBalances rb = (sb, (SummedBal . unRawBal $ tb)) where
   (tb, rawBals) = NM.cumulativeTotal rb
   sb = fmap (SummedBal . unRawBal) rawBals
 
+-- Step 5 (new)
+
+
 -- Step 5
 type SummedWithIsEven = NM.NestedMap L.SubAccountName (SummedBal, Bool)
 
