@@ -3,7 +3,8 @@
 
 module Penny.Cabin.Balance.Chunker (
   Row(..),
-  rowsToChunks
+  rowsToChunks,
+  labelLevels
   ) where
 
 
@@ -16,6 +17,7 @@ import qualified Penny.Cabin.Row as R
 import qualified Penny.Lincoln as L
 import qualified Data.Foldable as Fdbl
 import qualified Data.Text as X
+import qualified Data.Tree as T
 
 type IsEven = Bool
 
@@ -228,3 +230,10 @@ balanceChunks fmt dcCol vn (cty, bl) = (chkDc, chkCt, chkQt)
 
 indentAmount :: Int
 indentAmount = 2
+
+-- | Label each level of a Tree with an integer indicating how deep it
+-- is. The top node of the tree is level 0.
+labelLevels :: T.Tree a -> T.Tree (Int, a)
+labelLevels = go 0
+  where
+    go l (T.Node x xs) = T.Node (l, x) (map (go (l + 1)) xs)

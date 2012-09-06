@@ -27,7 +27,6 @@ import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Copper as Cop
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Shield as S
 
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -44,7 +43,7 @@ data BalanceOpts = BalanceOpts {
   , baseColors :: C.BaseColors
     -- ^ Colors for all fields other than the debits and credits
     
-  , balanceFormat :: L.BottomLine -> X.Text
+  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
     -- ^ Formats a BottomLine. For example you can use this function
     -- to deal with digit grouping.
     
@@ -95,7 +94,6 @@ parser frt = do
           Just co -> T.converter co pps ps
         return
           . Chunk.chunksToText (P.colorPref po')
-          . concat
           . T.report to
           $ conv
   return rf
@@ -125,8 +123,7 @@ defaultOptions dtz rt = BalanceOpts {
   }
 
 -- | Display a BottomLine, without any digit grouping.
-balanceAsIs :: L.BottomLine -> X.Text
-balanceAsIs n = case n of
-  L.Zero -> X.pack "--"
-  L.NonZero c -> X.pack . show . L.unQty . Bal.qty $ c
+balanceAsIs :: a -> L.Qty -> X.Text
+balanceAsIs _ = X.pack . show . L.unQty
+
 

@@ -12,12 +12,14 @@ module Penny.Lincoln.NestedMap (
   insert,
   cumulativeTotal,
   traverse,
-  traverseWithTrail ) where
+  traverseWithTrail, 
+  toForest ) where
 
 import Control.Applicative ((<*>), (<$>))
 import Data.Map ( Map )
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
+import qualified Data.Tree as E
 import qualified Data.Map as M
 import Data.Monoid ( Monoid, mconcat, mappend, mempty )
 
@@ -230,6 +232,12 @@ traversePairWithTrail f ls (k, (l, m)) = do
     (Just a) -> do
       m' <- traverseWithTrail' f ((k, l):ls) m
       return (Just (a, m'))
+
+-- | Convert a NestedMap to a Forest.
+toForest :: Ord k => NestedMap k l -> E.Forest (k, l)
+toForest = map toNode . M.assocs . unNestedMap
+  where
+    toNode (k, (l, m)) = E.Node (k, l) (toForest m)
 
 -- For testing
 _new :: (k, l) -> (k, (Maybe l -> l))

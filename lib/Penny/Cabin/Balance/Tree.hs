@@ -38,18 +38,15 @@ module Penny.Cabin.Balance.Tree (
   , converter
   ) where
 
-import Control.Applicative(Applicative(pure, (<*>)), (<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Control.Monad.Trans.State as St
-import qualified Penny.Cabin.Row as R
 import qualified Data.Foldable as Fdbl
-import qualified Data.Functor.Identity as Id
 import qualified Data.Map as M
 import qualified Data.Monoid as Monoid
 import qualified Penny.Lincoln.NestedMap as NM
 import qualified Data.Text as X
-import qualified Data.Traversable as Tr
+import qualified Data.Tree as E
 import qualified Penny.Cabin.Options as CO
+import qualified Penny.Cabin.Balance.Chunker as K
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Liberty as Ly
@@ -211,260 +208,28 @@ sumBalances rb = (sb, (SummedBal . unRawBal $ tb)) where
   sb = fmap (SummedBal . unRawBal) rawBals
 
 -- Step 5 (new)
+makeRows :: (SummedBals, TotalBal) -> [K.Row]
+makeRows (sb, tb) = first:rest
+  where
+    first = K.Row 0 (X.pack "Total") totBal
+    totBal = M.assocs . L.unBalance . unSummedBal $ tb
+    flat = concatMap E.flatten
+           . map K.labelLevels
+           . NM.toForest $ sb
+    toRow (lvl, (sub, bal)) = K.Row lvl acctName balList
+      where
+        acctName = L.text sub
+        balList = M.assocs . L.unBalance . unSummedBal $ bal
+    rest = map toRow flat
 
-
--- Step 5
-type SummedWithIsEven = NM.NestedMap L.SubAccountName (SummedBal, Bool)
-
-makeSummedWithIsEven ::
-  (SummedBals, TotalBal)
-  -> (SummedWithIsEven, TotalBal)
-makeSummedWithIsEven (sb, tb) = (swie, tb) where
-  swie = St.evalState (Tr.mapM f sb) False
-  f lbl = do
-    st <- St.get
-    St.put (not st)
-    return (lbl, st)
-
--- Step 6
-data Columns a = Columns {
-  account :: a
-  , drCr :: a
-  , commodity :: a
-  , quantity :: a
-  } deriving Show
-
-instance Functor Columns where
-  fmap f c = Columns {
-    account = f (account c)
-    , drCr = f (drCr c)
-    , commodity = f (commodity c)
-    , quantity = f (quantity c)
-    }
-
-instance Applicative Columns where
-  pure a = Columns a a a a
-  fn <*> fa = Columns {
-    account = (account fn) (account fa)
-    , drCr = (drCr fn) (drCr fa)
-    , commodity = (commodity fn) (commodity fa)
-    , quantity = (quantity fn) (quantity fa)
-     }
-
-data PreSpec = PreSpec {
-  _justification :: R.Justification
-  , _padSpec :: Chunk.TextSpec
-  , bits :: [Chunk.Chunk] }
-
-type PreSpecMap = NM.NestedMap L.SubAccountName (Columns PreSpec)
-
--- | Takes a list of triples from bottomLineChunks and creates three
--- Cells, one each for DrCr, Commodity, and Qty.
-bottomLineBalCells ::
-  Chunk.TextSpec -- ^ Fill colors
-  -> [(Chunk.Chunk, Chunk.Chunk, Chunk.Chunk)]
-  -> (PreSpec, PreSpec, PreSpec)
-bottomLineBalCells spec ts = (mkSpec dc, mkSpec ct, mkSpec qt) where
-  mkSpec ls = PreSpec R.LeftJustify spec ls
-  (dc, ct, qt) = foldr f ([], [], []) ts
-  f (da, ca, qa) (d, c, q) = (da:d, ca:c, qa:q)
-
-
-type IsEven = Bool
-
--- | Returns a triple (x, y, z), where x is the DrCr chunk, y is the
--- commodity chunk, and z is the qty chunk.
-bottomLineBalChunks ::
+-- Step 6 (New)
+makeChunks ::
   TreeOpts
-  -> IsEven
-  -> (L.Commodity, Bal.BottomLine)
-  -> (Chunk.Chunk, Chunk.Chunk, Chunk.Chunk)
-bottomLineBalChunks os isEven (comm, bl) = (dc, cty, qty) where
-  dc = Chunk.chunk ts dcTxt
-  cty = Chunk.chunk ts ctyTxt
-  qty = Chunk.chunk ts qtyTxt
-  ctyTxt = L.text (L.Delimited (X.singleton ':') (L.textList comm))
-  (ts, dcTxt, qtyTxt) = case bl of
-    Bal.Zero -> let
-      getTs = if isEven then C.evenZero else C.oddZero
-      dcT = X.pack "--"
-      qtyT = dcT
-      in (getTs . drCrColors $ os, dcT, qtyT)
-    Bal.NonZero clm -> let
-      (getTs, dcT) = case Bal.drCr clm of
-        L.Debit ->
-          (if isEven then C.evenDebit else C.oddDebit,
-           X.pack "Dr")
-        L.Credit ->
-          (if isEven then C.evenCredit else C.oddCredit,
-           X.pack "Cr")
-      qTxt = (balanceFormat os) bl
-      in (getTs . drCrColors $ os, dcT, qTxt)
-
-
-fillTextSpec ::
-  TreeOpts
-  -> IsEven
-  -> Chunk.TextSpec
-fillTextSpec os isEven = let
-  getTs = if isEven then C.evenColors else C.oddColors
-  in getTs . baseColors $ os
-  
-
-bottomLineCells ::
-  TreeOpts
-  -> IsEven
-  -> SummedBal
-  -> (PreSpec, PreSpec, PreSpec)
-bottomLineCells os isEven sb = let
-  fill = fillTextSpec os isEven
-  tsZero = if isEven
-           then C.evenZero . drCrColors $ os
-           else C.oddZero . drCrColors $ os
-  zeroSpec =
-    PreSpec R.LeftJustify
-    tsZero [Chunk.chunk tsZero (X.pack "--")]
-  zeroSpecs = (zeroSpec, zeroSpec, zeroSpec)
-  bal = Bal.unBalance . unSummedBal $ sb
-  in if M.null bal
-     then zeroSpecs
-     else bottomLineBalCells fill
-          . map (bottomLineBalChunks os isEven)
-          . M.assocs
-          $ bal
-
-padding :: Int
-padding = 2
-
-accountPreSpec ::
-  TreeOpts
-  -> IsEven
-  -> Int
-  -> L.SubAccountName
-  -> PreSpec
-accountPreSpec os isEven lvl acct = PreSpec j ts [bit] where
-  j = R.LeftJustify
-  ts = if isEven
-       then C.evenColors . baseColors $ os
-       else C.oddColors . baseColors $ os
-  bit = Chunk.chunk ts txt where
-    txt = pad `X.append` (L.text acct)
-    pad = X.replicate (padding * lvl) (X.singleton ' ')
-
-
-makePreSpec ::
-  TreeOpts
-  -> [(L.SubAccountName, (SummedBal, Bool))]
-  -> L.SubAccountName
-  -> (SummedBal, Bool)
-  -> Columns PreSpec
-makePreSpec os ps a (mayBal, isEven) = Columns act dc com qt where
-  lvl = length ps + 1
-  act = accountPreSpec os isEven lvl a
-  (dc, com, qt) = bottomLineCells os isEven mayBal
-
-traverser ::
-  TreeOpts
-  -> [(L.SubAccountName, (SummedBal, Bool))]
-  -> L.SubAccountName
-  -> (SummedBal, Bool)
-  -> a
-  -> Id.Identity (Maybe (Columns PreSpec))
-traverser os hist a mayBal _ =
-  return (Just $ makePreSpec os hist a mayBal)
-
-makePreSpecMap ::
-  TreeOpts
-  -> (SummedWithIsEven, TotalBal)
-  -> (PreSpecMap, TotalBal)
-makePreSpecMap os (sb, tb) = (cim, tb) where
-  cim = Id.runIdentity (NM.traverseWithTrail (traverser os) sb)
-
--- Step 7
-makeTotalCells ::
-  TreeOpts
-  -> SummedBal
-  -> Columns PreSpec
-makeTotalCells os mayBal = Columns act dc com qt where
-  act = accountPreSpec os True 0 tot
-  tot = L.SubAccountName $ L.TextNonEmpty 'T' (X.pack "otal")
-  (dc, com, qt) = bottomLineCells os True mayBal
-
-makeColumnList :: TreeOpts -> (PreSpecMap, TotalBal) -> [Columns PreSpec]
-makeColumnList os (cim, tb) = totCols : restCols where
-  totCols = makeTotalCells os tb
-  restCols = Fdbl.toList cim
-
-
--- Step 8
-
--- | When given a list of columns, determine the widest row in each
--- column.
-maxWidths :: [Columns PreSpec] -> Columns R.Width
-maxWidths = Fdbl.foldl' maxWidthPerColumn (pure (R.Width 0))
-
--- | Applied to a Columns of PreSpec and a Colums of widths, return a
--- Columns that has the wider of the two values.
-maxWidthPerColumn ::
-  Columns R.Width
-  -> Columns PreSpec
-  -> Columns R.Width
-maxWidthPerColumn w p = f <$> w <*> p where
-  f old new = max old (maximum . map Chunk.chunkWidth . bits $ new)
-  
--- | Changes a single set of Columns to a set of ColumnSpec of the
--- given width.
-preSpecToSpec ::
-  Columns R.Width
-  -> Columns PreSpec
-  -> Columns R.ColumnSpec
-preSpecToSpec ws p = f <$> ws <*> p where
-  f width (PreSpec j ps bs) = R.ColumnSpec j width ps bs
-
-resizeColumnsInList :: [Columns PreSpec] -> [Columns R.ColumnSpec]
-resizeColumnsInList cs = map (preSpecToSpec w) cs where
-  w = maxWidths cs
-
-
--- Step 9
-widthSpacerAcct :: Int
-widthSpacerAcct = 4
-
-widthSpacerDrCr :: Int
-widthSpacerDrCr = 1
-
-widthSpacerCommodity :: Int
-widthSpacerCommodity = 1
-
-colsToBits ::
-  TreeOpts
-  -> IsEven
-  -> Columns R.ColumnSpec
+  -> [K.Row]
   -> [Chunk.Chunk]
-colsToBits os isEven (Columns a dc c q) = let
-  fillSpec = if isEven
-             then C.evenColors . baseColors $ os
-             else C.oddColors . baseColors $ os
-  spacer w = R.ColumnSpec j (Chunk.Width w) fillSpec []
-  j = R.LeftJustify
-  cs = a
-       : spacer widthSpacerAcct
-       : dc
-       : spacer widthSpacerDrCr
-       : c
-       : spacer widthSpacerCommodity
-       : q
-       : []
-  in R.row cs
-
-colsListToBits ::
-  TreeOpts
-  -> [Columns R.ColumnSpec]
-  -> [[Chunk.Chunk]]
-colsListToBits os = zipWith f bools where
-  f b c = colsToBits os b c
-  bools = iterate not True
-
+makeChunks o rs =
+  K.rowsToChunks (balanceFormat o) (drCrColors o)
+  (baseColors o) rs
 
 -- Options
 
@@ -474,7 +239,7 @@ colsListToBits os = zipWith f bools where
 data TreeOpts = TreeOpts {
   drCrColors :: C.DrCrColors
   , baseColors :: C.BaseColors
-  , balanceFormat :: L.BottomLine -> X.Text
+  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
   }
 
@@ -484,13 +249,10 @@ data TreeOpts = TreeOpts {
 report ::
   TreeOpts
   -> PriceConverteds
-  -> [[Chunk.Chunk]]
+  -> [Chunk.Chunk]
 report os  =
-    colsListToBits os
-    . resizeColumnsInList
-    . makeColumnList os
-    . makePreSpecMap os
-    . makeSummedWithIsEven
+    makeChunks os
+    . makeRows
     . sumBalances
     . rawBalances
     . toFlatMap os
