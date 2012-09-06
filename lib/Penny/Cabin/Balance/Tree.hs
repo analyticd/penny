@@ -11,15 +11,9 @@
 --
 -- * 4. RawBals -> (SummedBals, TotalBal)
 --
--- * 5. (SummedBals, TotalBal) -> (SummedWithIsEven, TotalBal)
+-- * 5. (SummedBals, TotalBal) -> [K.Row]
 --
--- * 6. (SummedWithIsEven, TotalBal) -> (PreSpecMap, TotalBal)
---
--- * 7. (PreSpecMap, TotalBal) -> [Columns PreSpec]
---
--- * 8. [Columns PreSpec] -> [Columns R.ColumnSpec] (strict)
---
--- * 9. [Columns R.ColumnSpec] -> [[Chunk.Bit]] (lazy)
+-- * 6. [K.Row] -> [Chunk.Chunk]
 --
 -- This module provides the functions necessary to generate the
 -- Balance report, after the options have either been parsed from the
