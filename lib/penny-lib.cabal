@@ -193,6 +193,7 @@ Library
         Penny.Cabin.Balance.Parser,
         Penny.Cabin.Balance.Help,
         Penny.Cabin.Balance.Tree,
+        Penny.Cabin.Balance.Util,
         Penny.Cabin.Chunk,
         Penny.Cabin.Chunk.Switch,
         Penny.Cabin.Colors,
