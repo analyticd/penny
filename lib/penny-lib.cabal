@@ -192,6 +192,7 @@ Library
         Penny.Cabin.Balance.Chunker,
         Penny.Cabin.Balance.Parser,
         Penny.Cabin.Balance.Help,
+        Penny.Cabin.Balance.MultiCommodity,
         Penny.Cabin.Balance.Tree,
         Penny.Cabin.Balance.Util,
         Penny.Cabin.Chunk,
