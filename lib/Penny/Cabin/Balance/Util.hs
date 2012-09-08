@@ -7,6 +7,7 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.NestedMap as NM
 import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
+import Data.List (sortBy)
 import Data.Monoid (mconcat, Monoid)
 import Data.Maybe (mapMaybe)
 import qualified Data.Tree as T
@@ -122,3 +123,19 @@ labelLevels :: T.Tree a -> T.Tree (Int, a)
 labelLevels = go 0
   where
     go l (T.Node x xs) = T.Node (l, x) (map (go (l + 1)) xs)
+
+-- | Sorts each level of a Forest.
+sortForest ::
+  (a -> a -> Ordering)
+  -> T.Forest a
+  -> T.Forest a
+sortForest o f = sortBy o' (map (sortTree o) f)
+  where
+    o' x y = o (T.rootLabel x) (T.rootLabel y)
+
+-- | Sorts each level of a Tree.
+sortTree ::
+  (a -> a -> Ordering)
+  -> T.Tree a
+  -> T.Tree a
+sortTree o (T.Node l f) = T.Node l (sortForest o f)

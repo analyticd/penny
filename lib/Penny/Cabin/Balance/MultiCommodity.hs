@@ -2,7 +2,8 @@
 -- report because it does not allow for commodities to be converted.
 
 module Penny.Cabin.Balance.MultiCommodity (
-  TreeOpts(..), report
+  TreeOpts(..),
+  report
   ) where
 
 import qualified Penny.Cabin.Colors as C
@@ -24,13 +25,20 @@ data TreeOpts = TreeOpts {
   , baseColors :: C.BaseColors
   , balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
+  , order :: L.SubAccountName -> L.SubAccountName -> Ordering
   }
 
-summedBalTree ::
+summedSortedBalTree ::
   CO.ShowZeroBalances
+  -> (L.SubAccountName -> L.SubAccountName -> Ordering)
   -> [L.Box a]
   -> (E.Forest (L.SubAccountName, L.Balance), L.Balance)
-summedBalTree szb = U.sumForest mempty mappend . U.balances szb
+summedSortedBalTree szb o =
+  U.sumForest mempty mappend
+  . U.sortForest o'
+  . U.balances szb
+  where
+    o' x y = o (fst x) (fst y)
 
 rows ::
   (E.Forest (L.SubAccountName, L.Balance), L.Balance)
@@ -43,7 +51,8 @@ rows (o, b) = first:rest
       K.Row l (L.text s) (M.assocs . L.unBalance $ ib)
 
 report :: TreeOpts -> [L.Box a] -> [Chunk.Chunk]
-report (TreeOpts dc bc bf szb) =
+report (TreeOpts dc bc bf szb o) =
   K.rowsToChunks bf dc bc
   . rows
-  . summedBalTree szb
+  . summedSortedBalTree szb o
+
