@@ -2,8 +2,9 @@
 -- report because it does not allow for commodities to be converted.
 
 module Penny.Cabin.Balance.MultiCommodity (
-  TreeOpts(..),
-  report
+  Opts(..),
+  report,
+  help
   ) where
 
 import qualified Penny.Cabin.Colors as C
@@ -20,7 +21,7 @@ import qualified Penny.Cabin.Chunk as Chunk
 -- | Options for making the balance report. These are the only options
 -- needed to make the report if the options are not being parsed in
 -- from the command line.
-data TreeOpts = TreeOpts {
+data Opts = Opts {
   drCrColors :: C.DrCrColors
   , baseColors :: C.BaseColors
   , balanceFormat :: L.Commodity -> L.Qty -> X.Text
@@ -50,9 +51,30 @@ rows (o, b) = first:rest
     row (l, (s, ib)) =
       K.Row l (L.text s) (M.assocs . L.unBalance $ ib)
 
-report :: TreeOpts -> [L.Box a] -> [Chunk.Chunk]
-report (TreeOpts dc bc bf szb o) =
+report :: Opts -> [L.Box a] -> [Chunk.Chunk]
+report (Opts dc bc bf szb o) =
   K.rowsToChunks bf dc bc
   . rows
   . summedSortedBalTree szb o
 
+
+help :: X.Text
+help = X.pack . unlines $ [
+  "balance, bal",
+  "  Show account balances. Accepts ONLY the following options:",
+  "",
+  "    --color yes|no|auto|256",
+  "    yes: show 8 colors always",
+  "    no: never show colors",
+  "    auto: show 8 or 256 colors, but only if stdout is a terminal",
+  "    256: show 256 colors always",
+  "  --background light|dark",
+  "    Use appropriate color scheme for terminal background",
+  "",
+  "  --show-zero-balances",
+  "    Show balances that are zero",
+  "  --hide-zero-balances",
+  "    Hide balances that are zero",
+  ""
+  ]
+  
