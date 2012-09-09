@@ -4,23 +4,24 @@ module Penny.Cabin.Balance.MultiCommodity.Parser (
   , parseOptions
   ) where
 
-import Control.Applicative ((<|>), many, Applicative, pure)
+import Control.Applicative ((<|>), many, Applicative, pure,
+                            (<$))
 import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Cabin.Colors as Col
-import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as P
-import qualified Penny.Copper.DateTime as CD
-import qualified Penny.Shield as S
+import qualified Penny.Lincoln as L
 import System.Console.MultiArg.Prim (Parser)
 
--- | Options for the Balance report that have been parsed from the command line.
+-- | Options for the Balance report that have been parsed from the
+-- command line.
 data ParseOpts = ParseOpts {
   drCrColors :: Col.DrCrColors
   , baseColors :: Col.BaseColors
-  , colorPref :: Chk.Colors
+  , colorPref :: CO.ColorPref
   , showZeroBalances :: CO.ShowZeroBalances
+  , order :: L.SubAccountName -> L.SubAccountName -> Ordering
   }
 
 
@@ -29,14 +30,12 @@ data Error = BadColorName String
              deriving Show
 
 
-color :: Parser (S.Runtime
-                 -> ParseOpts
-                 -> Ex.Exceptional Error ParseOpts)
+color :: Parser (ParseOpts -> Ex.Exceptional Error ParseOpts)
 color = fmap toResult P.color
   where
-    toResult toEx rt po =
+    toResult ex po =
       Ex.mapExceptional BadColorName (\c -> po { colorPref = c })
-      (toEx rt)
+      ex
 
 
 background :: Parser (ParseOpts -> Ex.Exceptional Error ParseOpts)
@@ -53,6 +52,18 @@ zeroBalances = fmap toResult P.zeroBalances
   where
     toResult szb o = o { showZeroBalances = szb }
 
+ascending :: Parser (ParseOpts -> ParseOpts)
+ascending = f <$ P.ascending 
+  where
+    f o = o { order = compare }
+
+descending :: Parser (ParseOpts -> ParseOpts)
+descending = f <$ P.descending
+  where
+    f o = o { order = CO.descending compare }
+
+
+
 -- | Parses all options for the Balance report from the command
 -- line. Run this parser after parsing the name of the report
 -- (e.g. @bal@ or @balance@) from the command line. This parser will
@@ -61,26 +72,21 @@ zeroBalances = fmap toResult P.zeroBalances
 -- supplies a DateTime or a Commodity on the command line that fails
 -- to parse or if the user supplies a argument for the @--background@
 -- option that fails to parse.
-parseOptions :: Parser (S.Runtime
-                        -> CD.DefaultTimeZone
-                        -> ParseOpts
+parseOptions :: Parser (ParseOpts
                         -> Ex.Exceptional Error ParseOpts)
 parseOptions = fmap toResult (many parseOption)
   where
-    toResult fns rt dtz o1 =
-      let fns' = map (\fn -> fn rt dtz) fns
-      in foldl (>=>) return fns' o1
+    toResult fns o1 = foldl (>=>) return fns o1
 
-parseOption :: Parser (S.Runtime
-                       -> CD.DefaultTimeZone
-                       -> ParseOpts
+
+parseOption :: Parser (ParseOpts
                        -> Ex.Exceptional Error ParseOpts)
 parseOption =
-  fmap (\toEx rt _ o -> toEx rt o) color
-  <|> wrap background
-  <|> wrap (impurify zeroBalances)
-  where
-    wrap = fmap (\toEx _ _ op -> toEx op)
+  color
+  <|> background
+  <|> impurify zeroBalances
+  <|> impurify ascending
+  <|> impurify descending
 
 impurify ::
   (Applicative m, Functor f)

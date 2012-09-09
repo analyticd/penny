@@ -3,9 +3,15 @@
 
 module Penny.Cabin.Balance.MultiCommodity (
   Opts(..),
+  defaultOpts,
+  defaultParseOpts,
+  defaultFormat,
+  parseReport,
+  defaultReport,
   report
   ) where
 
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Lincoln as L
@@ -16,6 +22,10 @@ import qualified Data.Text as X
 import qualified Data.Tree as E
 import qualified Penny.Cabin.Balance.Chunker as K
 import qualified Penny.Cabin.Chunk as Chunk
+import qualified Penny.Cabin.Colors.DarkBackground as CD
+import qualified Penny.Cabin.Balance.MultiCommodity.Help as H
+import qualified Penny.Cabin.Balance.MultiCommodity.Parser as P
+import qualified Penny.Cabin.Interface as I
 
 -- | Options for making the balance report. These are the only options
 -- needed to make the report if the options are not being parsed in
@@ -27,6 +37,34 @@ data Opts = Opts {
   , showZeroBalances :: CO.ShowZeroBalances
   , order :: L.SubAccountName -> L.SubAccountName -> Ordering
   }
+
+defaultOpts :: Opts
+defaultOpts = Opts {
+  drCrColors = CD.drCrColors
+  , baseColors = CD.baseColors
+  , balanceFormat = defaultFormat
+  , showZeroBalances = CO.ShowZeroBalances True
+  , order = compare
+  }
+
+defaultParseOpts :: P.ParseOpts
+defaultParseOpts = P.ParseOpts {
+  P.drCrColors = CD.drCrColors
+  , P.baseColors = CD.baseColors
+  , P.colorPref = CO.PrefAuto
+  , P.showZeroBalances = CO.ShowZeroBalances True
+  , P.order = compare
+  }
+
+fromParseOpts ::
+  (L.Commodity -> L.Qty -> X.Text)
+  -> P.ParseOpts
+  -> Opts
+fromParseOpts fmt (P.ParseOpts dc bc _ szb o) =
+  Opts dc bc fmt szb o
+
+defaultFormat :: a -> L.Qty -> X.Text
+defaultFormat _ = X.pack . show . L.unQty
 
 summedSortedBalTree ::
   CO.ShowZeroBalances
@@ -50,8 +88,33 @@ rows (o, b) = first:rest
     row (l, (s, ib)) =
       K.Row l (L.text s) (M.assocs . L.unBalance $ ib)
 
+-- | This report is what to use if you already have your options (that
+-- is, you are not parsing them in from the command line.)
 report :: Opts -> [L.Box a] -> [Chunk.Chunk]
 report (Opts dc bc bf szb o) =
   K.rowsToChunks bf dc bc
   . rows
   . summedSortedBalTree szb o
+
+-- | The MultiCommodity report with configurable options.
+parseReport ::
+  (L.Commodity -> L.Qty -> X.Text)
+  -> P.ParseOpts
+  -> I.Report
+parseReport fmt o = I.Report H.help "balance" r
+  where
+    r = fmap f P.parseOptions
+      where
+        f toEx rt _ _ bs _ = Ex.mapExceptional err gd ex
+          where
+            ex = toEx o
+            err = X.pack . show
+            gd os' =
+              let mcOpts = fromParseOpts fmt os'
+                  chunks = report mcOpts bs
+                  col = CO.autoColors (P.colorPref os') rt
+              in Chunk.chunksToText col chunks
+
+-- | The MultiCommodity report, with default options.
+defaultReport :: I.Report
+defaultReport = parseReport defaultFormat defaultParseOpts
