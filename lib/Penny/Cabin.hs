@@ -24,5 +24,5 @@ allReportsWithDefaults ::
 
   -> [I.Report]
 allReportsWithDefaults dtz rg =
-  [ B.balanceReport (B.defaultOptions dtz)
+  [ B.multiCommodity
   , P.makeReport (P.defaultOptions dtz rg) ]
