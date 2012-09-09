@@ -19,6 +19,11 @@ help = X.pack . unlines $ [
   "    Show balances that are zero",
   "  --hide-zero-balances",
   "    Hide balances that are zero",
+  "",
+  "  --ascending",
+  "    Sort in ascending order by account name (default)",
+  "  --descending",
+  "    Sort in descending order by account name)",
   ""
   ]
   

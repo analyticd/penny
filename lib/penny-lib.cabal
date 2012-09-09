@@ -190,6 +190,8 @@ Library
         Penny.Cabin.Allocate,
         Penny.Cabin.Balance,
         Penny.Cabin.Balance.Chunker,
+        Penny.Cabin.Balance.Convert,
+        Penny.Cabin.Balance.Convert.Help,
         Penny.Cabin.Balance.Parser,
         Penny.Cabin.Balance.Help,
         Penny.Cabin.Balance.MultiCommodity,
