@@ -132,8 +132,8 @@ convert ::
   -> B.DateTime
   -> B.To
   -> B.Amount
-  -> Ex.Exceptional PriceDbError B.Amount
+  -> Ex.Exceptional PriceDbError B.Qty
 convert db dt to (B.Amount qt fr) = do
   cpu <- fmap B.unCountPerUnit (getPrice db (B.From fr) to dt)
   let qt' = B.mult cpu qt
-  return $ B.Amount qt' (B.unTo to)
+  return qt'

@@ -191,6 +191,7 @@ Library
         Penny.Cabin.Balance,
         Penny.Cabin.Balance.Chunker,
         Penny.Cabin.Balance.Convert,
+        Penny.Cabin.Balance.Convert.Chunker,
         Penny.Cabin.Balance.Convert.Help,
         Penny.Cabin.Balance.Parser,
         Penny.Cabin.Balance.Help,

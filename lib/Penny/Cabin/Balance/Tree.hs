@@ -69,10 +69,10 @@ convertOne db (cty, dt) en@(L.Entry dc am@(L.Amount _ fr)) =
   then return en
   else do
     let to = L.To cty
-    am' <- case L.convert db dt to am of
+    qt' <- case L.convert db dt to am of
       Ex.Exception e -> Ex.throw (convertError cty am e)
       Ex.Success g -> return g
-    return (L.Entry dc am')
+    return (L.Entry dc (L.Amount qt' cty))
 
 convertError ::
   L.Commodity

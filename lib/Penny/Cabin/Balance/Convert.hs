@@ -6,6 +6,7 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as Fdbl
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Colors as C
+import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Data.Text as X
@@ -26,28 +27,21 @@ type Sorter =
   -> (L.DrCr, L.Qty)
   -> Ordering
 
-data BalanceInfo = BalanceInfo {
-  biAccount :: L.Account
-  , biDrCr :: L.DrCr
-  , biQty :: L.Qty
-  }
-
-balInfo ::
+convertOne ::
   L.PriceDb
   -> L.DateTime
   -> L.To
-  -> L.Box a
-  -> Ex.Exceptional X.Text BalanceInfo
-balInfo db dt to b = Ex.mapExceptional e g ex
-  where
-    ex = L.convert db dt to am
-    am = Q.amount . L.boxPostFam $ b
-    fr = L.From  . L.commodity $ am
-    e = convertError to fr
-    g r = BalanceInfo ac dc (L.qty r)
-    dc = Q.drCr . L.boxPostFam $ b
-    ac = Q.account . L.boxPostFam $ b
-
+  -> (L.Commodity, L.BottomLine)
+  -> Ex.Exceptional X.Text L.BottomLine
+convertOne db dt to (cty, bl) =
+  case bl of
+    L.Zero -> return L.Zero
+    L.NonZero (L.Column dc qt) -> Ex.mapExceptional e g ex
+      where
+        ex = L.convert db dt to am
+        am = L.Amount qt cty
+        e = convertError to (L.From cty)
+        g r = L.NonZero (L.Column dc r)
 
 convertError ::
   L.To
@@ -77,4 +71,11 @@ convertError (L.To to) (L.From fr) e =
 buildDb :: [L.PricePoint] -> L.PriceDb
 buildDb = foldl f L.emptyDb where
   f db pb = L.addPrice db pb
+
+report ::
+  Opts
+  -> [L.PricePoint]
+  -> [L.Box a]
+  -> Ex.Exceptional X.Text [Chunk.Chunk]
+report os ps bs = undefined
 
