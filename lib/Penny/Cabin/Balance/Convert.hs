@@ -14,7 +14,7 @@ import qualified Data.Text as X
 data Opts = Opts {
   drCrColors :: C.DrCrColors
   , baseColors :: C.BaseColors
-  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
+  , balanceFormat :: L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
   , sorter :: Sorter
   , target :: L.Commodity

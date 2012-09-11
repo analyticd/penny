@@ -22,7 +22,6 @@ type IsEven = Bool
 data Columns a = Columns {
   acct :: a
   , drCr :: a
-  , commodity :: a
   , quantity :: a
   } deriving Show
 
@@ -30,16 +29,14 @@ instance Functor Columns where
   fmap f c = Columns {
     acct = f (acct c)
     , drCr = f (drCr c)
-    , commodity = f (commodity c)
     , quantity = f (quantity c)
     }
 
 instance Applicative Columns where
-  pure a = Columns a a a a
+  pure a = Columns a a a
   fn <*> fa = Columns {
     acct = (acct fn) (acct fa)
     , drCr = (drCr fn) (drCr fa)
-    , commodity = (commodity fn) (commodity fa)
     , quantity = (quantity fn) (quantity fa)
      }
 
@@ -76,22 +73,18 @@ resizeColumnsInList cs = map (preSpecToSpec w) cs where
   w = maxWidths cs
 
 
--- Step 9
 widthSpacerAcct :: Int
 widthSpacerAcct = 4
 
 widthSpacerDrCr :: Int
 widthSpacerDrCr = 1
 
-widthSpacerCommodity :: Int
-widthSpacerCommodity = 1
-
 colsToBits ::
   IsEven
   -> C.BaseColors
   -> Columns R.ColumnSpec
   -> [Chunk.Chunk]
-colsToBits isEven bc (Columns a dc c q) = let
+colsToBits isEven bc (Columns a dc q) = let
   fillSpec = if isEven
              then C.evenColors bc
              else C.oddColors bc
@@ -101,8 +94,6 @@ colsToBits isEven bc (Columns a dc c q) = let
        : spacer widthSpacerAcct
        : dc
        : spacer widthSpacerDrCr
-       : c
-       : spacer widthSpacerCommodity
        : q
        : []
   in R.row cs
@@ -137,13 +128,13 @@ data Row = Row {
   , accountTxt :: X.Text
     -- ^ Text for the name of the account
 
-  , balances :: [(L.Commodity, L.BottomLine)]
+  , balances :: [L.BottomLine]
     -- ^ Commodity balances. If this list is empty, dashes are
-    -- displayed for the DrCr, Commodity, and Qty.
+    -- displayed for the DrCr and Qty.
   }
 
 rowsToChunks ::
-  (L.Commodity -> L.Qty -> X.Text)
+  (L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
   -> C.DrCrColors
   -> C.BaseColors
@@ -154,7 +145,7 @@ rowsToChunks fmt dc b =
   . rowsToColumns fmt dc b
 
 rowsToColumns ::
-  (L.Commodity -> L.Qty -> X.Text)
+  (L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
 
   -> C.DrCrColors
@@ -167,12 +158,12 @@ rowsToColumns fmt dc bc rs = map (mkColumn fmt dc bc) pairs
 
 
 mkColumn ::
-  (L.Commodity -> L.Qty -> X.Text)
+  (L.Qty -> X.Text)
   -> C.DrCrColors
   -> C.BaseColors
   -> (Meta.VisibleNum, Row)
   -> Columns PreSpec
-mkColumn fmt dc bc (vn, (Row i acctTxt bs)) = Columns ca cd cc cq
+mkColumn fmt dc bc (vn, (Row i acctTxt bs)) = Columns ca cd cq
   where
     baseCol = C.colors vn bc
     ca = PreSpec R.LeftJustify baseCol [Chunk.chunk baseCol txt]
@@ -181,35 +172,33 @@ mkColumn fmt dc bc (vn, (Row i acctTxt bs)) = Columns ca cd cc cq
         indents = X.replicate (indentAmount * max 0 i)
                   (X.singleton ' ')
     cd = PreSpec R.LeftJustify baseCol cksDrCr
-    cc = PreSpec R.RightJustify baseCol cksCmdty
     cq = PreSpec R.LeftJustify baseCol cksQty
-    (cksDrCr, cksCmdty, cksQty) =
+    (cksDrCr, cksQty) =
       if null bs
       then balanceChunksEmpty dc vn
       else
         let balChks = map (balanceChunks fmt dc vn) bs
-            cDrCr = map (\(a, _, _) -> a) balChks
-            cCmdty = map (\(_, a, _) -> a) balChks
-            cQty = map (\(_, _, a) -> a) balChks
-        in (cDrCr, cCmdty, cQty)
+            cDrCr = map fst balChks
+            cQty = map snd balChks
+        in (cDrCr, cQty)
 
 
 balanceChunksEmpty ::
   C.DrCrColors
   -> Meta.VisibleNum
-  -> ([Chunk.Chunk], [Chunk.Chunk], [Chunk.Chunk])
-balanceChunksEmpty dc vn = (dash, dash, dash)
+  -> ([Chunk.Chunk], [Chunk.Chunk])
+balanceChunksEmpty dc vn = (dash, dash)
   where
     ts = C.colors vn . C.bottomLineToBaseColors dc $ L.Zero
     dash = [Chunk.chunk ts (X.pack "--")]
 
 balanceChunks ::
-  (L.Commodity -> L.Qty -> X.Text)
+  (L.Qty -> X.Text)
   -> C.DrCrColors
   -> Meta.VisibleNum
-  -> (L.Commodity, L.BottomLine)
-  -> (Chunk.Chunk, Chunk.Chunk, Chunk.Chunk)
-balanceChunks fmt dcCol vn (cty, bl) = (chkDc, chkCt, chkQt)
+  -> L.BottomLine
+  -> (Chunk.Chunk, Chunk.Chunk)
+balanceChunks fmt dcCol vn bl = (chkDc, chkQt)
   where
     ts = C.colors vn . C.bottomLineToBaseColors dcCol $ bl
     chk = Chunk.chunk ts
@@ -219,11 +208,10 @@ balanceChunks fmt dcCol vn (cty, bl) = (chkDc, chkCt, chkQt)
         let dx = case dc of
               L.Debit -> X.pack "Dr"
               L.Credit -> X.pack "Cr"
-            qx = fmt cty q
+            qx = fmt q
         in (dx, qx)
     chkDc = chk dcTxt
     chkQt = chk qtyTxt
-    chkCt = chk (L.text $ L.Delimited (X.singleton ':') (L.textList cty))
 
 
 indentAmount :: Int
