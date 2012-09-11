@@ -19,7 +19,7 @@ import qualified Penny.Cabin.Options as CO
 import Data.Monoid (mappend, mempty)
 import qualified Data.Text as X
 import qualified Data.Tree as E
-import qualified Penny.Cabin.Balance.Chunker as K
+import qualified Penny.Cabin.Balance.MultiCommodity.Chunker as K
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors.DarkBackground as CD
 import qualified Penny.Cabin.Balance.MultiCommodity.Help as H
