@@ -11,7 +11,6 @@ module Penny.Cabin.Balance.MultiCommodity (
   report
   ) where
 
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Lincoln as L
@@ -105,15 +104,13 @@ parseReport fmt o = I.Report H.help "balance" r
   where
     r = fmap f P.parseOptions
       where
-        f toEx rt _ _ bs _ = Ex.mapExceptional err gd ex
+        f toOs' rt _ _ bs _ = return $ Chunk.chunksToText col chunks
           where
-            ex = toEx o
-            err = X.pack . show
-            gd os' =
-              let mcOpts = fromParseOpts fmt os'
-                  chunks = report mcOpts bs
-                  col = CO.autoColors (P.colorPref os') rt
-              in Chunk.chunksToText col chunks
+            os' = toOs' o
+            mcOpts = fromParseOpts fmt os'
+            chunks = report mcOpts bs
+            col = CO.autoColors (P.colorPref os') rt
+
 
 -- | The MultiCommodity report, with default options.
 defaultReport :: I.Report

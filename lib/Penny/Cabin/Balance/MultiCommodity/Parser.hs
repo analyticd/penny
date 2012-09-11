@@ -1,13 +1,9 @@
 module Penny.Cabin.Balance.MultiCommodity.Parser (
-  Error(..)
-  , ParseOpts(..)
+  ParseOpts(..)
   , parseOptions
   ) where
 
-import Control.Applicative ((<|>), many, Applicative, pure,
-                            (<$))
-import Control.Monad ((>=>))
-import qualified Control.Monad.Exception.Synchronous as Ex
+import Control.Applicative ((<|>), many, (<$))
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as P
@@ -25,27 +21,19 @@ data ParseOpts = ParseOpts {
   }
 
 
-data Error = BadColorName String
-           | BadBackground String
-             deriving Show
 
-
-color :: Parser (ParseOpts -> Ex.Exceptional Error ParseOpts)
+color :: Parser (ParseOpts -> ParseOpts)
 color = fmap toResult P.color
   where
-    toResult ex po =
-      Ex.mapExceptional BadColorName (\c -> po { colorPref = c })
-      ex
+    toResult c po = po { colorPref = c }
 
 
-background :: Parser (ParseOpts -> Ex.Exceptional Error ParseOpts)
+background :: Parser (ParseOpts -> ParseOpts)
 background = fmap toResult P.background
   where
-    toResult ex po =
-      Ex.mapExceptional BadBackground
-      (\(dc, bc) -> po { drCrColors = dc
-                       , baseColors = bc })
-      ex
+    toResult (dc, bc) po = po { drCrColors = dc
+                              , baseColors = bc }
+
 
 zeroBalances :: Parser (ParseOpts -> ParseOpts)
 zeroBalances = fmap toResult P.zeroBalances
@@ -72,24 +60,16 @@ descending = f <$ P.descending
 -- supplies a DateTime or a Commodity on the command line that fails
 -- to parse or if the user supplies a argument for the @--background@
 -- option that fails to parse.
-parseOptions :: Parser (ParseOpts
-                        -> Ex.Exceptional Error ParseOpts)
+parseOptions :: Parser (ParseOpts -> ParseOpts)
 parseOptions = fmap toResult (many parseOption)
   where
-    toResult fns o1 = foldl (>=>) return fns o1
+    toResult fns o1 = foldl (flip (.)) id fns o1
 
 
-parseOption :: Parser (ParseOpts
-                       -> Ex.Exceptional Error ParseOpts)
+parseOption :: Parser (ParseOpts -> ParseOpts)
 parseOption =
   color
   <|> background
-  <|> impurify zeroBalances
-  <|> impurify ascending
-  <|> impurify descending
-
-impurify ::
-  (Applicative m, Functor f)
-  => f (a -> a)
-  -> f (a -> m a)
-impurify = fmap (\f -> pure . f)
+  <|> zeroBalances
+  <|> ascending
+  <|> descending
