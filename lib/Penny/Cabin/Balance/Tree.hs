@@ -124,7 +124,7 @@ converter ::
   -> [L.PricePoint]
   -- ^ Price data to use
 
-  -> [L.Box Ly.LibertyMeta]
+  -> [L.Box a]
   -- ^ The postings
 
   -> Ex.Exceptional X.Text PriceConverteds

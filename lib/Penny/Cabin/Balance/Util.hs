@@ -7,7 +7,8 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.NestedMap as NM
 import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
-import Data.List (sortBy)
+import Data.Ord (comparing)
+import Data.List (sortBy, maximumBy, groupBy)
 import Data.Monoid (mconcat, Monoid)
 import Data.Maybe (mapMaybe)
 import qualified Data.Tree as T
@@ -139,3 +140,43 @@ sortTree ::
   -> T.Tree a
   -> T.Tree a
 sortTree o (T.Node l f) = T.Node l (sortForest o f)
+
+-- | Like lastModeBy but using Ord.
+lastMode :: Ord a => [a] -> Maybe a
+lastMode = lastModeBy compare
+
+-- | Finds the mode of a list. Takes the mode that is located last in
+-- the list. Returns Nothing if there is no mode (that is, if the list
+-- is empty).
+lastModeBy ::
+  (a -> a -> Ordering)
+  -> [a]
+  -> Maybe a
+lastModeBy o ls =
+  case modesBy o' ls' of
+    [] -> Nothing
+    ms -> Just . fst . maximumBy fx $ ms
+    where
+      fx = comparing snd
+      ls' = zip ls ([0..] :: [Int])
+      o' x y = o (fst x) (fst y)
+
+-- | Like modesBy but using Ord.
+modes :: Ord a => [a] -> [a]
+modes = modesBy compare
+
+-- | Finds the modes of a list.
+modesBy :: (a -> a -> Ordering) -> [a] -> [a]
+modesBy o =
+  concat
+  . longestLists
+  . groupBy (\x y -> o x y == EQ)
+  . sortBy o
+  
+
+-- | Returns the longest lists.
+longestLists :: [[a]] -> [[a]]
+longestLists as =
+  let lengths = map (\ls -> (ls, length ls)) as
+      maxLen = maximum . map snd $ lengths
+  in map fst . filter (\(_, len) -> len == maxLen) $ lengths

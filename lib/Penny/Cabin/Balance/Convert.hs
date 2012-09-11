@@ -2,45 +2,79 @@
 
 module Penny.Cabin.Balance.Convert where
 
-import qualified Data.List as L
-import Data.Ord (comparing)
+import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Foldable as Fdbl
+import qualified Penny.Cabin.Options as CO
+import qualified Penny.Cabin.Colors as C
+import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.Queries as Q
+import qualified Data.Text as X
 
--- | Like lastModeBy but using Ord.
-lastMode :: Ord a => [a] -> Maybe a
-lastMode = lastModeBy compare
+data Opts = Opts {
+  drCrColors :: C.DrCrColors
+  , baseColors :: C.BaseColors
+  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
+  , showZeroBalances :: CO.ShowZeroBalances
+  , sorter :: Sorter
+  , target :: L.Commodity
+  , dateTime :: L.DateTime
+  }
 
--- | Finds the mode of a list. Takes the mode that is located last in
--- the list. Returns Nothing if there is no mode (that is, if the list
--- is empty).
-lastModeBy ::
-  (a -> a -> Ordering)
-  -> [a]
-  -> Maybe a
-lastModeBy o ls =
-  case modesBy o' ls' of
-    [] -> Nothing
-    ms -> Just . fst . L.maximumBy fx $ ms
-    where
-      fx = comparing snd
-      ls' = zip ls ([0..] :: [Int])
-      o' x y = o (fst x) (fst y)
+type Sorter =
+  L.Commodity
+  -> (L.DrCr, L.Qty)
+  -> (L.DrCr, L.Qty)
+  -> Ordering
 
--- | Like modesBy but using Ord.
-modes :: Ord a => [a] -> [a]
-modes = modesBy compare
+data BalanceInfo = BalanceInfo {
+  biAccount :: L.Account
+  , biDrCr :: L.DrCr
+  , biQty :: L.Qty
+  }
 
--- | Finds the modes of a list.
-modesBy :: (a -> a -> Ordering) -> [a] -> [a]
-modesBy o =
-  concat
-  . longestLists
-  . L.groupBy (\x y -> o x y == EQ)
-  . L.sortBy o
-  
+balInfo ::
+  L.PriceDb
+  -> L.DateTime
+  -> L.To
+  -> L.Box a
+  -> Ex.Exceptional X.Text BalanceInfo
+balInfo db dt to b = Ex.mapExceptional e g ex
+  where
+    ex = L.convert db dt to am
+    am = Q.amount . L.boxPostFam $ b
+    fr = L.From  . L.commodity $ am
+    e = convertError to fr
+    g r = BalanceInfo ac dc (L.qty r)
+    dc = Q.drCr . L.boxPostFam $ b
+    ac = Q.account . L.boxPostFam $ b
 
--- | Returns the longest lists.
-longestLists :: [[a]] -> [[a]]
-longestLists as =
-  let lengths = map (\ls -> (ls, length ls)) as
-      maxLen = maximum . map snd $ lengths
-  in map fst . filter (\(_, len) -> len == maxLen) $ lengths
+
+convertError ::
+  L.To
+  -> L.From
+  -> L.PriceDbError
+  -> X.Text
+convertError (L.To to) (L.From fr) e =
+  let fromErr = L.text (L.Delimited (X.singleton ':')
+                        (Fdbl.toList . L.unCommodity $ fr))
+      toErr = L.text (L.Delimited (X.singleton ':')
+                      (Fdbl.toList . L.unCommodity $ to))
+  in case e of
+    L.FromNotFound ->
+      X.pack "no data to convert from commodity "
+      `X.append` fromErr
+    L.ToNotFound ->
+      X.pack "no data to convert to commodity "
+      `X.append` toErr
+    L.CpuNotFound ->
+      X.pack "no data to convert from commodity "
+      `X.append` fromErr
+      `X.append` (X.pack " to commodity ")
+      `X.append` toErr
+      `X.append` (X.pack " at given date and time")
+
+
+buildDb :: [L.PricePoint] -> L.PriceDb
+buildDb = foldl f L.emptyDb where
+  f db pb = L.addPrice db pb
+
