@@ -3,6 +3,8 @@
 
 module Penny.Cabin.Balance.Convert.Chunker (
   MainRow(..),
+  OneColRow(..),
+  Row(..),
   rowsToChunks
   ) where
 
@@ -43,7 +45,7 @@ instance Applicative Columns where
 data PreSpec = PreSpec {
   _justification :: R.Justification
   , _padSpec :: Chunk.TextSpec
-  , bits :: [Chunk.Chunk] }
+  , bits :: Chunk.Chunk }
 
 -- | When given a list of columns, determine the widest row in each
 -- column.
@@ -57,7 +59,7 @@ maxWidthPerColumn ::
   -> Columns PreSpec
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
-  f old new = max old (maximum . map Chunk.chunkWidth . bits $ new)
+  f old new = max old (Chunk.chunkWidth . bits $ new)
   
 -- | Changes a single set of Columns to a set of ColumnSpec of the
 -- given width.
@@ -66,7 +68,7 @@ preSpecToSpec ::
   -> Columns PreSpec
   -> Columns R.ColumnSpec
 preSpecToSpec ws p = f <$> ws <*> p where
-  f width (PreSpec j ps bs) = R.ColumnSpec j width ps bs
+  f width (PreSpec j ps bs) = R.ColumnSpec j width ps [bs]
 
 resizeColumnsInList :: [Columns PreSpec] -> [Columns R.ColumnSpec]
 resizeColumnsInList cs = map (preSpecToSpec w) cs where
@@ -118,25 +120,32 @@ preSpecsToBits bc =
 data Row = RMain MainRow | ROneCol OneColRow
 
 -- | Displays a one-column row.
-data OneColRow
+data OneColRow = OneColRow
+  Int
+  -- ^ Indent the text by this many levels (not by this many
+  -- spaces; this number is multiplied by another number in the
+  -- Chunker source to arrive at the final indentation amount)
+
+  X.Text
+  -- ^ Text for the left column
 
 -- | Displays a single account in a Balance report. In a
 -- single-commodity report, this account will only be one screen line
 -- long. In a multi-commodity report, it might be multiple lines long,
 -- with one screen line for each commodity.
-data MainRow = MainRow {
-  indentation :: Int
+data MainRow = MainRow
+  Int
   -- ^ Indent the account name by this many levels (not by this many
   -- spaces; this number is multiplied by another number in the
   -- Chunker source to arrive at the final indentation amount)
 
-  , accountTxt :: X.Text
-    -- ^ Text for the name of the account
+  X.Text
+  -- ^ Text for the name of the account
 
-  , balances :: [L.BottomLine]
-    -- ^ Commodity balances. If this list is empty, dashes are
-    -- displayed for the DrCr and Qty.
-  }
+  L.BottomLine
+  -- ^ Commodity balances. If this list is empty, dashes are
+  -- displayed for the DrCr and Qty.
+
 
 rowsToChunks ::
   (L.Qty -> X.Text)
@@ -157,45 +166,53 @@ rowsToColumns ::
   -> C.BaseColors
   -> [Row]
   -> [Columns PreSpec]
-rowsToColumns fmt dc bc rs = map (mkColumn fmt dc bc) pairs
+rowsToColumns fmt dc bc rs = map (mkRow fmt dc bc) pairs
   where
     pairs = Meta.visibleNums (,) rs
 
 
-mkColumn ::
+mkRow ::
   (L.Qty -> X.Text)
   -> C.DrCrColors
   -> C.BaseColors
   -> (Meta.VisibleNum, Row)
   -> Columns PreSpec
-mkColumn fmt dc bc (vn, (Row i acctTxt bs)) = Columns ca cd cq
+mkRow fmt dc bc (vn, r) = case r of
+  RMain m -> mkMainRow fmt dc bc (vn, m)
+  ROneCol c -> mkOneColRow bc (vn, c)
+
+mkOneColRow ::
+  C.BaseColors
+  -> (Meta.VisibleNum, OneColRow)
+  -> Columns PreSpec
+mkOneColRow bc (vn, (OneColRow i t)) = Columns ca cd cq
+  where
+    txt = X.append indents t
+    indents = X.replicate (indentAmount * max 0 i)
+              (X.singleton ' ')
+    baseCol = C.colors vn bc
+    ca = PreSpec R.LeftJustify baseCol (Chunk.chunk baseCol txt)
+    cd = PreSpec R.LeftJustify baseCol (Chunk.chunk baseCol X.empty)
+    cq = cd
+
+mkMainRow ::
+  (L.Qty -> X.Text)
+  -> C.DrCrColors
+  -> C.BaseColors
+  -> (Meta.VisibleNum, MainRow)
+  -> Columns PreSpec
+mkMainRow fmt dc bc (vn, (MainRow i acctTxt b)) = Columns ca cd cq
   where
     baseCol = C.colors vn bc
-    ca = PreSpec R.LeftJustify baseCol [Chunk.chunk baseCol txt]
+    ca = PreSpec R.LeftJustify baseCol (Chunk.chunk baseCol txt)
       where
         txt = X.append indents acctTxt
         indents = X.replicate (indentAmount * max 0 i)
                   (X.singleton ' ')
     cd = PreSpec R.LeftJustify baseCol cksDrCr
     cq = PreSpec R.LeftJustify baseCol cksQty
-    (cksDrCr, cksQty) =
-      if null bs
-      then balanceChunksEmpty dc vn
-      else
-        let balChks = map (balanceChunks fmt dc vn) bs
-            cDrCr = map fst balChks
-            cQty = map snd balChks
-        in (cDrCr, cQty)
+    (cksDrCr, cksQty) = balanceChunks fmt dc vn b
 
-
-balanceChunksEmpty ::
-  C.DrCrColors
-  -> Meta.VisibleNum
-  -> ([Chunk.Chunk], [Chunk.Chunk])
-balanceChunksEmpty dc vn = (dash, dash)
-  where
-    ts = C.colors vn . C.bottomLineToBaseColors dc $ L.Zero
-    dash = [Chunk.chunk ts (X.pack "--")]
 
 balanceChunks ::
   (L.Qty -> X.Text)
