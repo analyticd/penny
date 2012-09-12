@@ -3,10 +3,12 @@
 module Penny.Cabin.Balance.Convert where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Tree as E
 import qualified Data.Foldable as Fdbl
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Chunk as Chunk
+import qualified Penny.Cabin.Balance.Convert.Chunker as K
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Data.Text as X
@@ -71,6 +73,27 @@ convertError (L.To to) (L.From fr) e =
 buildDb :: [L.PricePoint] -> L.PriceDb
 buildDb = foldl f L.emptyDb where
   f db pb = L.addPrice db pb
+
+data ForestAndBL = ForestAndBL {
+  tbForest :: E.Forest (L.SubAccountName, L.BottomLine)
+  , tbTotal :: L.BottomLine
+  , tbTo :: L.To
+  }
+
+rows :: ForestAndBL -> [K.Row]
+rows (ForestAndBL f tot to) = first:second:rest
+  where
+    first = K.MainRow 0 desc [tot]
+    desc = X.pack "All amounts reported in commodity: "
+           `X.append` (L.text
+                       . L.text 
+                       . L.Delimited (X.singleton ':')
+                       . L.textList
+                       . L.unTo
+                       $ to)
+    second = K.Row 0 (X.pack "Total") [tot]
+    rest = undefined
+
 
 report ::
   Opts

@@ -2,7 +2,7 @@
 -- multi-commodity and single-commodity reports.
 
 module Penny.Cabin.Balance.Convert.Chunker (
-  Row(..),
+  MainRow(..),
   rowsToChunks
   ) where
 
@@ -115,11 +115,16 @@ preSpecsToBits bc =
   . colsListToBits bc
   . resizeColumnsInList
 
+data Row = RMain MainRow | ROneCol OneColRow
+
+-- | Displays a one-column row.
+data OneColRow
+
 -- | Displays a single account in a Balance report. In a
 -- single-commodity report, this account will only be one screen line
 -- long. In a multi-commodity report, it might be multiple lines long,
 -- with one screen line for each commodity.
-data Row = Row {
+data MainRow = MainRow {
   indentation :: Int
   -- ^ Indent the account name by this many levels (not by this many
   -- spaces; this number is multiplied by another number in the
