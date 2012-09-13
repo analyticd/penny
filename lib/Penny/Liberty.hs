@@ -44,6 +44,7 @@ import Data.List (isPrefixOf, sortBy)
 import Data.Text (Text, pack)
 import qualified Data.Text as Text
 import qualified System.Console.MultiArg.Combinator as C
+import System.Console.MultiArg.Combinator (OptSpec)
 import System.Console.MultiArg.Prim (Parser)
 import Text.Parsec (parse)
   
@@ -230,6 +231,16 @@ parseDate :: DefaultTimeZone -> Text -> Exceptional Error L.DateTime
 parseDate dtz t = case parse (dateTime dtz) "" t of
   Left _ -> Exception DateParseError
   Right d -> return d
+
+date' :: OptSpec (DefaultTimeZone -> Ex.Exceptional Error Operand)
+date' = C.OptSpec ["date"] ['d'] (C.TwoArg f)
+  where
+    f a1 a2 dtz = do
+      cmp <- Ex.fromMaybe (BadComparator (pack a1))
+             (parseComparer a1)
+      dt <- parseDate dtz (pack a2)
+      return $ X.Operand (P.date (`cmp` dt))
+
 
 date :: Parser (DefaultTimeZone -> Ex.Exceptional Error Operand)
 date =
