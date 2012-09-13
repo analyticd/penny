@@ -32,7 +32,10 @@ module Penny.Liberty (
   caseSelectSpecs,
   operatorSpecs,
   Orderer,
-  sortSpecs
+  sortSpecs,
+  
+  -- * Errors
+  abort
   ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex

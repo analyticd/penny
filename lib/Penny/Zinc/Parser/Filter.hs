@@ -1,12 +1,10 @@
 module Penny.Zinc.Parser.Filter (
   parseFilter
-  , Error(LibertyError, TokenParseError)
   , NeedsHelp(NeedsHelp)
   , Result(Result, resultFactory, resultSensitive, sorterFilterer)
   ) where
 
-import Control.Applicative ((<|>), (<$>), Applicative, pure, many)
-import Control.Monad ((>=>))
+import Control.Applicative ((<$>), many)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Monoid (mempty, mappend)
 import Data.Text (Text)
@@ -22,34 +20,24 @@ import qualified Penny.Liberty.Expressions as X
 import qualified Penny.Zinc.Parser.Defaults as D
 import qualified Penny.Zinc.Parser.Defaults as Defaults
 
--- | Parses all filtering options. Returns a parser that contains an
--- Exception if some error occurred after parsing the options, or a
--- Success with a result if the parse was successful.
-parseFilter ::
-  Defaults.T
-  -> Parser (Ex.Exceptional Error (Either NeedsHelp Result))
+-- | Parses all filtering options. If the parse contains any errors, abort.
+parseFilter :: Defaults.T -> Parser (Either NeedsHelp Result)
 parseFilter d = fmap f (many parser) where
   f ls =
-    let k = foldl (>=>) return ls
-    in case k (newState d) of
-      Ex.Success st' ->
-        if help st'
-        then return . Left $ NeedsHelp
-        else
-          case Ly.parsePredicate . tokens $ st' of
-            Nothing -> Ex.throw TokenParseError
-            Just pdct ->
-              let fn = Ly.xactionsToFiltered pdct
-                       (postFilter st') (orderer st')
-                  r = Result { resultFactory = factory st'
-                             , resultSensitive = sensitive st'
-                             , sorterFilterer = fn }
-              in return . Right $ r
-      Ex.Exception e -> Ex.Exception e
+    let k = foldl (flip (.)) id ls
+        s = k (newState d)
+    in if help s
+       then Left NeedsHelp
+       else case Ly.parsePredicate . tokens $ s of
+         Nothing -> Ly.abort "could not parse filter expression"
+         Just pdct ->
+           let fn = Ly.xactionsToFiltered pdct
+                    (postFilter s) (orderer s)
+               r = Result { resultFactory = factory s
+                          , resultSensitive = sensitive s
+                          , sorterFilterer = fn }
+           in Right $ r
 
-data Error = LibertyError Ly.Error
-             | TokenParseError
-             deriving Show
 
 -- | Returned if the user requested help.
 data NeedsHelp = NeedsHelp
@@ -98,168 +86,53 @@ newState d =
         , defaultTimeZone = D.defaultTimeZone d
         , radGroup = D.radGroup d }
 
-parser :: Parser (State -> Ex.Exceptional Error State)
-parser =
-  operand
-  <|> parsePostFilter
-  <|> impurify parseMatcherSelect
-  <|> impurify parseCaseSelect
-  <|> impurify parseOperator
-  <|> parseSort
-  <|> impurify parseHelp
+parser :: Parser (State -> State)
+parser = C.parseOption $
+         operand
+         ++ parsePostFilter
+         ++ parseMatcherSelect
+         ++ parseCaseSelect
+         ++ parseOperator
+         ++ [parseSort, parseHelp]
 
-option :: [String] -> [Char] -> C.ArgSpec a -> Parser a
-option ss cs a = C.parseOption [C.OptSpec ss cs a]
 
-operand :: Parser (State -> Ex.Exceptional Error State)
-operand = f <$> Ly.parseOperand
+operand :: [C.OptSpec (State -> State)]
+operand = map (fmap f) Ly.operandSpecs
   where
-    f lyFn =
-      let g st =
-            let r = lyFn (currentTime st) (defaultTimeZone st)
-                    (radGroup st) (sensitive st) (factory st)
-            in case r of
-              Ex.Exception e -> Ex.throw . LibertyError $ e
-              Ex.Success (X.Operand o) ->
-                let tok' = tokens st ++ [X.TokOperand o]
-                in return st { tokens = tok' }
-      in g
+    f lyFn st =
+      let (X.Operand op) =
+            lyFn (currentTime st) (defaultTimeZone st)
+            (radGroup st) (sensitive st) (factory st)
+      in st { tokens = tokens st ++ [X.TokOperand op] }
                    
-parsePostFilter :: Parser (State -> Ex.Exceptional Error State)
-parsePostFilter = f <$> Ly.parsePostFilter
+parsePostFilter :: [C.OptSpec (State -> State)]
+parsePostFilter = map (fmap f) [s1, s2]
   where
-    f lyResult =
-      let g st = case lyResult of
-            Ex.Exception e -> Ex.throw . LibertyError $ e
-            Ex.Success pf ->
-              let ls' = postFilter st ++ [pf]
-              in return st { postFilter = ls' }
-      in g
+    (s1, s2) = Ly.postFilterSpecs
+    f g st = st { postFilter = postFilter st ++ [g] }
 
-impurify ::
-  (Functor f, Applicative a)
-  => f (b -> b)
-  -> f (b -> a b)
-impurify = fmap (pure .)
-
-parseMatcherSelect :: Parser (State -> State)
-parseMatcherSelect = f <$> Ly.parseMatcherSelect
+parseMatcherSelect :: [C.OptSpec (State -> State)]
+parseMatcherSelect = map (fmap f) Ly.matcherSelectSpecs
   where
-    f fty = g
-      where
-        g st = st { factory = fty }
+    f fty st = st { factory = fty }
 
-parseCaseSelect :: Parser (State -> State)
-parseCaseSelect = f <$> Ly.parseCaseSelect
+parseCaseSelect :: [C.OptSpec (State -> State)]
+parseCaseSelect = map (fmap f) Ly.caseSelectSpecs
   where
-    f sel = g
-      where
-        g st = st { sensitive = sel }
+    f sel st = st { sensitive = sel }
 
-parseOperator :: Parser (State -> State)
-parseOperator = f <$> Ly.parseOperator
+parseOperator :: [C.OptSpec (State -> State)]
+parseOperator = map (fmap f) Ly.operatorSpecs
   where
-    f tok = g
-      where
-        g st = st { tokens = tokens st ++ [tok] }
+    f tok st = st { tokens = tokens st ++ [tok] }
 
-parseSort :: Parser (State -> Ex.Exceptional Error State)
-parseSort = f <$> Ly.parseSort
+parseSort :: C.OptSpec (State -> State)
+parseSort = f <$> Ly.sortSpecs
   where
-    f exOrd = g
-      where
-        g st = case exOrd of
-          Ex.Exception e -> Ex.throw . LibertyError $ e
-          Ex.Success o ->
-            return st { orderer = mappend o (orderer st) }
+    f ord st = st { orderer = mappend ord (orderer st) }
 
-parseHelp :: Parser (State -> State)
-parseHelp = option ["help"] ['h'] (C.NoArg f)
+
+parseHelp :: C.OptSpec (State -> State)
+parseHelp = C.OptSpec ["help"] ['h'] (C.NoArg f)
   where
     f st = st { help = True }
-
-{-
-wrapLiberty ::
-  DefaultTimeZone
-  -> DateTime
-  -> RadGroup
-  -> State
-  -> ParserE Error State
-wrapLiberty dtz dt rg st = let
-  toLibSt = LF.State { LF.sensitive = sensitive st
-                     , LF.factory = factory st
-                     , LF.tokens = tokens st
-                     , LF.postFilter = postFilter st }
-  fromLibSt libSt = State { sensitive = LF.sensitive libSt
-                          , factory = LF.factory libSt
-                          , tokens = LF.tokens libSt
-                          , postFilter = LF.postFilter libSt
-                          , orderer = orderer st
-                          , help = help st }
-  in fromLibSt <$> LF.parseOption dtz dt rg toLibSt
-
-wrapOrderer :: State -> ParserE Error State
-wrapOrderer st = mkSt <$> S.sort where
-  mkSt o = st { orderer = o `mappend` (orderer st) }
-
-helpOpt :: ParserE Error ()
-helpOpt = do
-  let lo = makeLongOpt . pack $ "help"
-      so = makeShortOpt 'h'
-  _ <- mixedNoArg lo [] [so]
-  return ()
-
-wrapHelp :: State -> ParserE Error State
-wrapHelp st = (\_ -> st { help = Help }) <$> helpOpt
-
-parseOption ::
-  DefaultTimeZone
-  -> DateTime
-  -> RadGroup
-  -> State
-  -> ParserE Error State
-parseOption dtz dt rg st =
-  wrapLiberty dtz dt rg st
-  <|> wrapOrderer st
-  <|> wrapHelp st
-
-parseOptions ::
-  DefaultTimeZone
-  -> DateTime
-  -> RadGroup
-  -> State
-  -> ParserE Error State
-parseOptions dtz dt rg st =
-  option st $ do
-    rs <- runUntilFailure (parseOption dtz dt rg) st
-    if null rs then return st else return (last rs)
-
-parseFilter ::
-  DefaultTimeZone
-  -> DateTime
-  -> RadGroup
-  -> ParserE Error (Either NeedsHelp Result)
-parseFilter dtz dt rg = do
-  st' <- parseOptions dtz dt rg newState
-  case help st' of
-    Help -> return . Left $ NeedsHelp
-    NoHelp -> do
-      p <- case Oo.getPredicate (tokens st') of
-        Just pr -> return pr
-        Nothing -> throw E.BadExpression
-      let f = sortFilterAndPostFilter (orderer st') p (postFilter st')
-          r = Result { resultFactory = factory st'
-                     , resultSensitive = sensitive st'
-                     , sorterFilterer = f }
-      return . Right $ r
-
-sortFilterAndPostFilter ::
-  S.Orderer
-  -> (T.PostingInfo -> Bool)
-  -> ([T.PostingInfo] -> [T.PostingInfo])
-  -> [PostingBox] -> [T.PostingInfo]
-sortFilterAndPostFilter o p pf =
-  pf
-  . filter p
-  . PSq.sortedPostingInfos o
--}
