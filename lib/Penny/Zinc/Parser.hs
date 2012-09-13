@@ -36,16 +36,12 @@ parser ::
   -> Parser (IO ())
 parser rt dtz rg getDf rs = do
   let df = getDf rt
-  errFilt <- F.parseFilter df
-  case errFilt of
-    Ex.Exception e -> return $ do
-      hPutStrLn stderr $ ("penny: error: " ++ show e)
-      exitFailure
-    Ex.Success r -> case r of
-      Left F.NeedsHelp -> return $ do
-        StrictIO.putStrLn . helpText $ rs
-        exitSuccess
-      Right rslt -> parseReportsAndFilesAndPrint rt dtz rg rs rslt
+  r <- F.parseFilter df
+  case r of
+    Left F.NeedsHelp -> return $ do
+      StrictIO.putStrLn . helpText $ rs
+      exitSuccess
+    Right rslt -> parseReportsAndFilesAndPrint rt dtz rg rs rslt
         
 
 -- | Returns an IO action that will parse the report options and the
