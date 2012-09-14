@@ -12,6 +12,7 @@ import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Cabin.Balance.Convert.Chunker as K
+import qualified Penny.Cabin.Balance.Convert.Parser as P
 import qualified Penny.Lincoln as L
 import qualified Data.Map as M
 import qualified Data.Text as X
@@ -144,5 +145,35 @@ sumConvertSort os ps bs = mkResult <$> convertedFrst <*> convertedTot
     convertedTot = convertBalance db dt tgt tot
     mkResult f t = ForestAndBL (U.sortForest str f) t tgt
 
+-- | Determine the most frequent To commodity.
+mostFrequent :: [L.PricePoint] -> Maybe L.To
+mostFrequent = U.lastMode . map (L.to . L.price)
 
-    
+-- | Get options for the report, depending on what options were parsed
+-- from the command line. Fails if the user did not specify a
+-- commodity and mostFrequent fails.
+fromParsedOpts ::
+  [L.PricePoint]
+  -> (L.Qty -> X.Text)
+  -> P.Opts
+  -> Maybe Opts
+fromParsedOpts pp fmt (P.Opts c dc bc szb tgt dt so sb) =
+  case tgt of
+    P.ManualTarget to ->
+      Just $ Opts dc bc fmt szb (getSorter so sb) tgt dt
+    P.AutoTarget ->
+      case mostFrequent pp of
+        Nothing -> Nothing
+        Just to ->
+          Just $ Opts dc bc fmt szb (getSorter so sb) tgt dt
+
+getSorter :: P.SortOrder -> P.SortBy -> Sorter
+getSorter o b = flipper f
+  where
+    flipper = case o of
+      Ascending -> id
+      Descending -> Ly.flipOrder
+    f (a1, bl1) (a2, bl2) = case b of
+      SortByName -> compare a1 a2
+      SortByQty ->
+        case 

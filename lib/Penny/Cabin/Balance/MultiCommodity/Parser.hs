@@ -3,11 +3,12 @@ module Penny.Cabin.Balance.MultiCommodity.Parser (
   , parseOptions
   ) where
 
-import Control.Applicative ((<|>), many, (<$))
+import Control.Applicative (many, (<$))
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Lincoln as L
+import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
 
 -- | Options for the Balance report that have been parsed from the
@@ -22,30 +23,30 @@ data ParseOpts = ParseOpts {
 
 
 
-color :: Parser (ParseOpts -> ParseOpts)
+color :: C.OptSpec (ParseOpts -> ParseOpts)
 color = fmap toResult P.color
   where
     toResult c po = po { colorPref = c }
 
 
-background :: Parser (ParseOpts -> ParseOpts)
+background :: C.OptSpec (ParseOpts -> ParseOpts)
 background = fmap toResult P.background
   where
     toResult (dc, bc) po = po { drCrColors = dc
                               , baseColors = bc }
 
 
-zeroBalances :: Parser (ParseOpts -> ParseOpts)
-zeroBalances = fmap toResult P.zeroBalances
+zeroBalances :: [C.OptSpec (ParseOpts -> ParseOpts)]
+zeroBalances = map (fmap toResult) P.zeroBalances
   where
     toResult szb o = o { showZeroBalances = szb }
 
-ascending :: Parser (ParseOpts -> ParseOpts)
+ascending :: C.OptSpec (ParseOpts -> ParseOpts)
 ascending = f <$ P.ascending 
   where
     f o = o { order = compare }
 
-descending :: Parser (ParseOpts -> ParseOpts)
+descending :: C.OptSpec (ParseOpts -> ParseOpts)
 descending = f <$ P.descending
   where
     f o = o { order = CO.descending compare }
@@ -61,15 +62,16 @@ descending = f <$ P.descending
 -- to parse or if the user supplies a argument for the @--background@
 -- option that fails to parse.
 parseOptions :: Parser (ParseOpts -> ParseOpts)
-parseOptions = fmap toResult (many parseOption)
+parseOptions = fmap toResult (many . C.parseOption $ allSpecs)
   where
     toResult fns o1 = foldl (flip (.)) id fns o1
 
 
-parseOption :: Parser (ParseOpts -> ParseOpts)
-parseOption =
-  color
-  <|> background
-  <|> zeroBalances
-  <|> ascending
-  <|> descending
+allSpecs :: [C.OptSpec (ParseOpts -> ParseOpts)]
+allSpecs =
+  [ color
+  , background ]
+  ++ zeroBalances
+  ++ [ ascending
+     , descending
+     ]

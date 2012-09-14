@@ -109,12 +109,11 @@ parseReport frt = do
   getState <- P.parseOptions
   let rf rt cs fty ps _ = do
         let zo = frt rt
-            maySt' = getState rt dtz rg st
+            st' = getState rt dtz rg st
               where
                 dtz = defaultTimeZone zo
                 rg = radGroup zo
                 st = newParseState cs fty zo
-        st' <- Ex.mapException showParserError maySt'
         pdct <- getPredicate . P.tokens $ st'
         let chks = postsReport (P.showZeroBalances st') pdct
                    (P.postFilter st') (chunkOpts st' zo) ps
@@ -153,9 +152,6 @@ defaultOptions dtz rg rt = ZincOpts {
   , accountAllocation = Alc.allocation 40
   , spacers = defaultSpacerWidth }
 
-
-showParserError :: P.Error -> X.Text
-showParserError = X.pack . show
 
 getPredicate ::
   [Ly.Token (L.Box Ly.LibertyMeta -> Bool)]

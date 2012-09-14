@@ -19,6 +19,7 @@ module Penny.Liberty (
   ListLength(ListLength, unListLength),
   ItemIndex(ItemIndex, unItemIndex),
   PostFilterFn,
+  flipOrder,
   parseComparer,
   processPostFilters,
   parseTokenList,
