@@ -1,6 +1,12 @@
--- | The Convert report.
+-- | The Convert report. This report converts all account balances to
+-- a single commodity, which must be specified.
 
-module Penny.Cabin.Balance.Convert where
+module Penny.Cabin.Balance.Convert (
+  Opts(..)
+  , Sorter
+  , report
+  , cmdLineReport
+  ) where
 
 import Control.Applicative ((<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -25,6 +31,9 @@ import qualified Data.Map as M
 import qualified Data.Text as X
 import Data.Monoid (mempty, mappend, mconcat)
 
+-- | Options for the Convert report. These are the only options you
+-- need to use if you are supplying options programatically (as
+-- opposed to parsing them in from the command line.)
 data Opts = Opts {
   drCrColors :: C.DrCrColors
   , baseColors :: C.BaseColors
@@ -35,11 +44,18 @@ data Opts = Opts {
   , dateTime :: L.DateTime
   }
 
+-- | How to sort each line of the report. Each subaccount has only one
+-- BottomLine (unlike in the MultiCommodity report, where each
+-- subaccount may have more than one BottomLine, one for each
+-- commodity.)
 type Sorter =
   (L.SubAccountName, L.BottomLine)
   -> (L.SubAccountName, L.BottomLine)
   -> Ordering
 
+-- | Converts all commodities in a Balance to a single commodity and
+-- combines all the BottomLines into one. Fails with an error message
+-- if no conversion data is available.
 convertBalance ::
   L.PriceDb
   -> L.DateTime
@@ -50,6 +66,8 @@ convertBalance db dt to bal = fmap mconcat r
   where
     r = mapM (convertOne db dt to) . M.assocs . L.unBalance $ bal
 
+-- | Converts a single BottomLine to a new commodity. Fails with an
+-- error message if no conversion data is available.
 convertOne ::
   L.PriceDb
   -> L.DateTime
@@ -66,6 +84,7 @@ convertOne db dt to (cty, bl) =
         e = convertError to (L.From cty)
         g r = L.NonZero (L.Column dc r)
 
+-- | Creates an error message for conversion errors.
 convertError ::
   L.To
   -> L.From
@@ -91,16 +110,21 @@ convertError (L.To to) (L.From fr) e =
       `X.append` (X.pack " at given date and time")
 
 
+-- | Create a price database.
 buildDb :: [L.PricePoint] -> L.PriceDb
 buildDb = foldl f L.emptyDb where
   f db pb = L.addPrice db pb
 
+-- | All data for the report after all balances have been converted to
+-- a single commodity and all the sums of the child accounts have been
+-- added to the parent accounts.
 data ForestAndBL = ForestAndBL {
-  tbForest :: E.Forest (L.SubAccountName, L.BottomLine)
-  , tbTotal :: L.BottomLine
-  , tbTo :: L.To
+  _tbForest :: E.Forest (L.SubAccountName, L.BottomLine)
+  , _tbTotal :: L.BottomLine
+  , _tbTo :: L.To
   }
 
+-- | Converts the balance data in preparation for screen rendering.
 rows :: ForestAndBL -> [K.Row]
 rows (ForestAndBL f tot to) = first:second:rest
   where
@@ -123,6 +147,9 @@ mainRow (l, (a, b)) = K.RMain $ K.MainRow l x b
   where
     x = L.text a
 
+-- | The function for the Convert report. Use this function if you are
+-- setting the options from a program (as opposed to parsing them in
+-- from the command line.) Will fail if the balance conversions fail.
 report ::
   Opts
   -> [L.PricePoint]
@@ -135,6 +162,8 @@ report os@(Opts dc bc fmt _ _ _ _) ps bs =
   $ bs
 
 
+-- | Creates a report respecting the standard interface for reports
+-- whose options are parsed in from the command line.
 cmdLineReport ::
   Cop.DefaultTimeZone
   -> (S.Runtime -> O.DefaultOpts)
@@ -154,6 +183,10 @@ cmdLineReport dtz toOpts = I.Report H.help "convert" parser
       return $ Chunk.chunksToText colors cks
 
 
+-- | Sums the balances from the bottom to the top of the tree (so that
+-- parent accounts have the sum of the balances of all their
+-- children.) Then converts the commodities to a single commodity, and
+-- sorts the accounts as requested. Fails if the conversion fails.
 sumConvertSort ::
   Opts
   -> [L.PricePoint]

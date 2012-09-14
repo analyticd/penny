@@ -95,10 +95,17 @@ report (Opts dc bc bf szb o) =
   . rows
   . summedSortedBalTree szb o
 
--- | The MultiCommodity report with configurable options.
+-- | The MultiCommodity report with configurable options that have
+-- been parsed from the command line.
 parseReport ::
   (L.Commodity -> L.Qty -> X.Text)
+  -- ^ How to format balances. For instance you can use this to
+  -- perform commodity-sensitive digit grouping.
+
   -> P.ParseOpts
+  -- ^ Default options for the report. These can be overriden on the
+  -- command line.
+
   -> I.Report
 parseReport fmt o = I.Report H.help "balance" r
   where

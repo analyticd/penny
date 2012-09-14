@@ -1,4 +1,12 @@
-module Penny.Cabin.Balance.Convert.Parser where
+-- | Parsing options for the Convert report from the command line.
+module Penny.Cabin.Balance.Convert.Parser (
+  Opts(..)
+  , Target(..)
+  , Sorter
+  , SortOrder(..)
+  , SortBy(..)
+  , parseOpts)
+  where
 
 import Control.Applicative ((<$>), many)
 import qualified Data.Text as X
@@ -39,22 +47,16 @@ data Opts = Opts {
   , sortBy :: SortBy
   }
 
-defaultOptions :: L.DateTime -> Opts
-defaultOptions dt = Opts {
-  colorPref = CO.PrefAuto
-  , drCrColors = Dark.drCrColors
-  , baseColors = Dark.baseColors
-  , showZeroBalances = CO.ShowZeroBalances True
-  , target = AutoTarget
-  , dateTime = dt
-  , sortOrder = Ascending
-  , sortBy = SortByName }
-
+-- | Parses all options for the Convert report.
 parseOpts :: Cop.DefaultTimeZone -> Parser (Opts -> Opts)
 parseOpts dtz = fmap f (many (C.parseOption (allOptSpecs dtz)))
   where
     f = foldl (flip (.)) id
 
+-- | Do not be tempted to change the setup in this module so that the
+-- individual functions such as parseColor and parseBackground return
+-- parsers rather than OptSpec. Such an arrangement breaks the correct
+-- parsing of abbreviated long options.
 allOptSpecs :: Cop.DefaultTimeZone -> [C.OptSpec (Opts -> Opts)]
 allOptSpecs dtz =
   [ parseColor

@@ -1,5 +1,5 @@
 -- | Creates the output Chunks for the Balance report for both
--- multi-commodity and single-commodity reports.
+-- multi-commodity reports.
 
 module Penny.Cabin.Balance.MultiCommodity.Chunker (
   Row(..),

@@ -1,3 +1,5 @@
+-- | Default options for the Convert report when used from the command
+-- line.
 module Penny.Cabin.Balance.Convert.Options where
 
 import qualified Penny.Cabin.Balance.Convert.Parser as P
