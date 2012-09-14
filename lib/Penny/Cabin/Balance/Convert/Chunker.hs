@@ -1,5 +1,5 @@
--- | Creates the output Chunks for the Balance report for both
--- multi-commodity and single-commodity reports.
+-- | Creates the output Chunks for the Balance report for
+-- multi-commodity reports only.
 
 module Penny.Cabin.Balance.Convert.Chunker (
   MainRow(..),
@@ -119,32 +119,34 @@ preSpecsToBits bc =
 
 data Row = RMain MainRow | ROneCol OneColRow
 
--- | Displays a one-column row.
-data OneColRow = OneColRow
-  Int
+-- | Displays a one-column row. 
+data OneColRow = OneColRow {
+  ocIndentation :: Int
   -- ^ Indent the text by this many levels (not by this many
   -- spaces; this number is multiplied by another number in the
   -- Chunker source to arrive at the final indentation amount)
 
-  X.Text
+  , ocText :: X.Text
   -- ^ Text for the left column
+  }
 
 -- | Displays a single account in a Balance report. In a
 -- single-commodity report, this account will only be one screen line
 -- long. In a multi-commodity report, it might be multiple lines long,
 -- with one screen line for each commodity.
-data MainRow = MainRow
-  Int
+data MainRow = MainRow {
+  mrIndentation :: Int
   -- ^ Indent the account name by this many levels (not by this many
   -- spaces; this number is multiplied by another number in the
   -- Chunker source to arrive at the final indentation amount)
 
-  X.Text
+  , mrText :: X.Text
   -- ^ Text for the name of the account
 
-  L.BottomLine
+  , mrBottomLine :: L.BottomLine
   -- ^ Commodity balances. If this list is empty, dashes are
   -- displayed for the DrCr and Qty.
+  }
 
 
 rowsToChunks ::
