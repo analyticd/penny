@@ -12,8 +12,15 @@ import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Cabin.Balance.Convert.Chunker as K
+import qualified Penny.Cabin.Balance.Convert.Help as H
+import qualified Penny.Cabin.Balance.Convert.Options as O
 import qualified Penny.Cabin.Balance.Convert.Parser as P
+import qualified Penny.Cabin.Interface as I
+import qualified Penny.Copper as Cop
 import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.Balance as Bal
+import qualified Penny.Liberty as Ly
+import qualified Penny.Shield as S
 import qualified Data.Map as M
 import qualified Data.Text as X
 import Data.Monoid (mempty, mappend, mconcat)
@@ -128,6 +135,25 @@ report os@(Opts dc bc fmt _ _ _ _) ps bs =
   $ bs
 
 
+cmdLineReport ::
+  Cop.DefaultTimeZone
+  -> (S.Runtime -> O.DefaultOpts)
+  -> I.Report
+cmdLineReport dtz toOpts = I.Report H.help "convert" parser
+  where
+    parser = fmap f (P.parseOpts dtz)
+    f getOpts rt _ _ bs ps = do
+      let defaultOpts = toOpts rt
+          pDefaultOpts = O.toParserOpts defaultOpts
+          op' = getOpts pDefaultOpts
+          noDefault = X.pack "no default price found"
+          colors = CO.autoColors (P.colorPref op') rt
+      rptOpts <- Ex.fromMaybe noDefault
+                 $ fromParsedOpts ps (O.format defaultOpts) op'
+      cks <- report rptOpts ps bs
+      return $ Chunk.chunksToText colors cks
+      
+
 sumConvertSort ::
   Opts
   -> [L.PricePoint]
@@ -149,6 +175,7 @@ sumConvertSort os ps bs = mkResult <$> convertedFrst <*> convertedTot
 mostFrequent :: [L.PricePoint] -> Maybe L.To
 mostFrequent = U.lastMode . map (L.to . L.price)
 
+
 -- | Get options for the report, depending on what options were parsed
 -- from the command line. Fails if the user did not specify a
 -- commodity and mostFrequent fails.
@@ -157,23 +184,40 @@ fromParsedOpts ::
   -> (L.Qty -> X.Text)
   -> P.Opts
   -> Maybe Opts
-fromParsedOpts pp fmt (P.Opts c dc bc szb tgt dt so sb) =
+fromParsedOpts pp fmt (P.Opts _ dc bc szb tgt dt so sb) =
   case tgt of
     P.ManualTarget to ->
-      Just $ Opts dc bc fmt szb (getSorter so sb) tgt dt
+      Just $ Opts dc bc fmt szb (getSorter so sb) to dt
     P.AutoTarget ->
       case mostFrequent pp of
         Nothing -> Nothing
         Just to ->
-          Just $ Opts dc bc fmt szb (getSorter so sb) tgt dt
+          Just $ Opts dc bc fmt szb (getSorter so sb) to dt
 
 getSorter :: P.SortOrder -> P.SortBy -> Sorter
 getSorter o b = flipper f
   where
     flipper = case o of
-      Ascending -> id
-      Descending -> Ly.flipOrder
-    f (a1, bl1) (a2, bl2) = case b of
-      SortByName -> compare a1 a2
-      SortByQty ->
-        case 
+      P.Ascending -> id
+      P.Descending -> Ly.flipOrder
+    f p1@(a1, _) p2@(a2, _) = case b of
+      P.SortByName -> compare a1 a2
+      P.SortByQty -> cmpBottomLine p1 p2
+
+cmpBottomLine :: Sorter
+cmpBottomLine (n1, bl1) (n2, bl2) =
+  case (bl1, bl2) of
+    (L.Zero, L.Zero) -> EQ
+    (L.NonZero _, L.Zero) -> LT
+    (L.Zero, L.NonZero _) -> GT
+    (L.NonZero c1, L.NonZero c2) ->
+      mconcat [dc, qt, na]
+      where
+        dc = case (Bal.drCr c1, Bal.drCr c2) of
+          (L.Debit, L.Debit) -> EQ
+          (L.Debit, L.Credit) -> LT
+          (L.Credit, L.Debit) -> GT
+          (L.Credit, L.Credit) -> EQ
+        qt = compare (Bal.qty c1) (Bal.qty c2)
+        na = compare n1 n2
+
