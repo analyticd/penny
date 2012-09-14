@@ -25,4 +25,5 @@ allReportsWithDefaults ::
   -> [I.Report]
 allReportsWithDefaults dtz rg =
   [ B.multiCommodity
+  , B.convert dtz
   , P.makeReport (P.defaultOptions dtz rg) ]

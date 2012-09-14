@@ -152,7 +152,7 @@ cmdLineReport dtz toOpts = I.Report H.help "convert" parser
                  $ fromParsedOpts ps (O.format defaultOpts) op'
       cks <- report rptOpts ps bs
       return $ Chunk.chunksToText colors cks
-      
+
 
 sumConvertSort ::
   Opts
