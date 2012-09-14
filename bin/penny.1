@@ -534,6 +534,77 @@ will fail and give you an error message.
 Same as
 .BI "--convert " "commodity [right now]"
 
+.TP
+.B --ascending
+Sort accounts in ascending order (default).
+
+.TP
+.B --descending
+Sort accounts in descending order.
+
+.TP
+.BI --by-entry " commodity dateTime"
+Like
+.B --convert
+, but also sorts accounts by the resulting entries, rather than by
+sorting by account name as is the default. Debits are always shown
+first, then credits, then accounts with no balance. Then the amounts
+are shown, respecting the
+.B --ascending
+or
+.B --descending
+options. For example, here is a report you might get simply by running
+.IR "penny bal main.pny" .
+The accounts are sorted by name.
+
+.TS
+tab(:);
+l l l l.
+Total:Cr:$:18500.00
+Assets:Dr:$:53500.00
+  Checking:Dr:$:1000.00
+  House:Dr:$:50000.00
+  Savings:Dr:$:2500.00
+Liabilities:Cr:$:72000.00
+  Credit Card:Cr:$:2000.00
+  Mortgage:Cr:$:60000.00
+  Student Loan:Cr:$:10000.00
+.TE
+
+Now, here is the same data when running the command
+.IR "penny bal --by-entry $ 2012-08-31" :
+
+.TS
+tab(:);
+l l l l.
+Total:Cr:$:18500.00
+Assets:Dr:$:53500.00
+  Checking:Dr:$:1000.00
+  Savings:Dr:$:2500.00
+  House:Dr:$:50000.00
+Liabilities:Cr:$:72000.00
+  Credit Card:Cr:$:2000.00
+  Student Loan:Cr:$:10000.00
+  Mortgage:Cr:$:60000.00
+.TE
+
+Or, the same data when running the command
+.IR "penny bal --descending --by-entry $ 2012-08-31" :
+
+.TS
+tab(:);
+l l l l.
+Total:Cr:$:18500.00
+Assets:Dr:$:53500.00
+  House:Dr:$:50000.00
+  Savings:Dr:$:2500.00
+  Checking:Dr:$:1000.00
+Liabilities:Cr:$:72000.00
+  Mortgage:Cr:$:60000.00
+  Student Loan:Cr:$:10000.00
+  Credit Card:Cr:$:2000.00
+.TE
+
 .SH SERIALS
 
 Each posting is assigned several
