@@ -1,21 +1,20 @@
-module Penny.Cabin.Posts.Parser (State(..), parseOptions,
-                                 Error(..)) where
+module Penny.Cabin.Posts.Parser (State(..),
+                                 parseOptions) where
 
-import Control.Applicative ((<|>), (<$>), pure, many, (<*>),
+import Control.Applicative ((<$>), pure, many, (<*>),
                             Applicative)
-import Control.Monad ((>=>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toLower)
+import Data.List (intersperse)
 import qualified Data.Foldable as Fdbl
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
 
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
+import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Types as Ty
-import qualified Penny.Cabin.Colors.DarkBackground as DB
-import qualified Penny.Cabin.Colors.LightBackground as LB
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Copper as Cop
 import qualified Penny.Liberty as Ly
@@ -23,16 +22,6 @@ import qualified Penny.Liberty.Expressions as Exp
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import qualified Text.Matchers.Text as M
-
-data Error = BadColorName String
-             | BadBackgroundArg String
-             | BadWidthArg String
-             | NoMatchingFieldName
-             | MultipleMatchingFieldNames [String]
-             | LibertyError Ly.Error
-             | BadNumber String
-             | BadComparator String
-             deriving Show
 
 data State = State {
   sensitive :: M.CaseSensitive
@@ -54,13 +43,11 @@ parseOptions ::
           -> Cop.DefaultTimeZone
           -> Cop.RadGroup
           -> State
-          -> Ex.Exceptional Error State)
+          -> State)
 parseOptions = f <$> many parseOption where
-  f ls =
-    let g rt dtz rg st =
-          let ls' = map (\fn -> fn rt dtz rg) ls
-          in (foldl (>=>) return ls') st
-    in g
+  f ls rt dtz rg st =
+    let ls' = map (\fn -> fn rt dtz rg) ls
+    in foldl (flip (.)) id ls' st
 
 
 parseOption ::
@@ -68,33 +55,26 @@ parseOption ::
           -> Cop.DefaultTimeZone
           -> Cop.RadGroup
           -> State
-          -> Ex.Exceptional Error State)
-parseOption =
-  operand
-  <|> wrap boxFilters
-  <|> wrap parsePostFilter
-  <|> wrap (impurify matcherSelect)
-  <|> wrap (impurify caseSelect)
-  <|> wrap (impurify operator)
-  <|> (do { f <- color; return (\rt _ _ st -> f rt st)})
-  <|> wrap background
-  <|> wrap parseWidth
-  <|> wrap showField
-  <|> wrap hideField
-  <|> wrap (impurify showAllFields)
-  <|> wrap (impurify hideAllFields)
-  <|> wrap (impurify parseShowZeroBalances)
-  <|> wrap (impurify hideZeroBalances)
+          -> State)
+parseOption = C.parseOption ls
   where
-    wrap p = do
-      f <- p
-      return (\_ _ _ st -> f st)
+    ls = operand ++ map wrap others ++ [wrappedColor]
+    wrappedColor = fmap (\fn rt _ _ st -> fn rt st) color
+    wrap = fmap (\fn _ _ _ st -> fn st)
+    others =
+      boxFilters
+      ++ parsePostFilter
+      ++ matcherSelect
+      ++ caseSelect
+      ++ operator
+      ++ [ background
+         , parseWidth
+         , showField
+         , hideField
+         , showAllFields
+         , hideAllFields ]
+      ++ parseZeroBalances
 
-impurify ::
-  (Functor f, Applicative m)
-  => f (a -> b)
-  -> f (a -> m b)
-impurify = fmap (\g -> pure . g)
 
 operand :: [C.OptSpec (S.Runtime
                        -> Cop.DefaultTimeZone
@@ -186,83 +166,55 @@ operator = map (fmap f) Ly.operatorSpecs
   where
     f oo st = st { tokens = tokens st ++ [oo] }
 
-parseOpt :: [String] -> [Char] -> C.ArgSpec a -> Parser a
-parseOpt ss cs a = C.parseOption [C.OptSpec ss cs a]
-
-color :: Parser (S.Runtime -> State -> Ex.Exceptional Error State)
-color = parseOpt ["color"] "" (C.OneArg f)
+color :: C.OptSpec (S.Runtime -> State -> State)
+color = fmap f P.color
   where
-    f a1 rt st = case pickColorArg rt a1 of
-      Nothing -> Ex.throw . BadColorName $ a1
-      Just c -> return (st { colorPref = c })
-
-pickColorArg :: S.Runtime -> String -> Maybe CC.Colors
-pickColorArg rt t
-  | t == "yes" = Just CC.Colors8
-  | t == "no" = Just CC.Colors0
-  | t == "256" = Just CC.Colors256
-  | t == "auto" = Just . CO.maxCapableColors $ rt
-  | otherwise = Nothing
-
-pickBackgroundArg :: String -> Maybe (PC.DrCrColors, PC.BaseColors)
-pickBackgroundArg t
-  | t == "light" = Just (LB.drCrColors, LB.baseColors)
-  | t == "dark" = Just (DB.drCrColors, DB.baseColors)
-  | otherwise = Nothing
+    f pref rt st = st { colorPref = CO.autoColors pref rt }
 
 
-background :: Parser (State -> Ex.Exceptional Error State)
-background = parseOpt ["background"] "" (C.OneArg f)
+background :: C.OptSpec (State -> State)
+background = fmap f P.background
   where
-    f a1 st = case pickBackgroundArg a1 of
-      Nothing -> Ex.throw . BadBackgroundArg $ a1
-      Just (dc, bc) -> return (st { drCrColors = dc
-                                  , baseColors = bc } )
+    f (dc, bc) st = st { drCrColors = dc
+                       , baseColors = bc }
 
 
-parseWidth :: Parser (State -> Ex.Exceptional Error State)
-parseWidth = parseOpt ["width"] "" (C.OneArg f)
+parseWidth :: C.OptSpec (State -> State)
+parseWidth = C.OptSpec ["width"] "" (C.OneArg f)
   where
-    f a1 st = case reads a1 of
-      (i, ""):[] -> return (st { width = Ty.ReportWidth i })
-      _ -> Ex.throw . BadWidthArg $ a1
+    f a1 st = st { width = Ty.ReportWidth (Ly.parseInt a1) }
 
-showField :: Parser (State -> Ex.Exceptional Error State)
-showField = parseOpt ["show"] "" (C.OneArg f)
+showField :: C.OptSpec (State -> State)
+showField = C.OptSpec ["show"] "" (C.OneArg f)
   where
-    f a1 st = do
-      fl <- parseField a1
-      let newFl = fieldOn (fields st) fl
-      return st { fields = newFl }
+    f a1 st =
+      let fl = parseField a1
+          newFl = fieldOn (fields st) fl
+      in st { fields = newFl }
 
-hideField :: Parser (State -> Ex.Exceptional Error State)
-hideField = parseOpt ["hide"] "" (C.OneArg f)
+hideField :: C.OptSpec (State -> State)
+hideField = C.OptSpec ["hide"] "" (C.OneArg f)
   where
-    f a1 st = do
-      fl <- parseField a1
-      let newFl = fieldOff (fields st) fl
-      return st { fields = newFl }
+    f a1 st =
+      let fl = parseField a1
+          newFl = fieldOff (fields st) fl
+      in st { fields = newFl }
 
-showAllFields :: Parser (State -> State)
-showAllFields = parseOpt ["show-all"] "" (C.NoArg f)
+
+showAllFields :: C.OptSpec (State -> State)
+showAllFields = C.OptSpec ["show-all"] "" (C.NoArg f)
   where
     f st = st {fields = pure True}
 
-hideAllFields :: Parser (State -> State)
-hideAllFields = parseOpt ["hide-all"] "" (C.NoArg f)
+hideAllFields :: C.OptSpec (State -> State)
+hideAllFields = C.OptSpec ["hide-all"] "" (C.NoArg f)
   where
     f st = st {fields = pure False}
 
-parseShowZeroBalances :: Parser (State -> State)
-parseShowZeroBalances = parseOpt opt "" (C.NoArg f)
+parseZeroBalances :: [C.OptSpec (State -> State)]
+parseZeroBalances = map (fmap f) P.zeroBalances
   where
-    opt = ["show-zero-balances"]
-    f st = st {showZeroBalances = CO.ShowZeroBalances True }
-
-hideZeroBalances :: Parser (State -> State)
-hideZeroBalances = parseOpt ["hide-zero-balances"] "" (C.NoArg f)
-  where
-    f st = st {showZeroBalances = CO.ShowZeroBalances False }
+    f szb st = st { showZeroBalances = szb }
 
 -- | Turns a field on if it is True.
 fieldOn ::
@@ -295,7 +247,7 @@ fieldOff old new = f <$> old <*> new
     f o False = o
     f _ True = False
 
-parseField :: String -> Ex.Exceptional Error (F.Fields Bool)
+parseField :: String -> (F.Fields Bool)
 parseField str =
   let lower = map toLower str
       checkField s =
@@ -303,10 +255,25 @@ parseField str =
         then (s, True)
         else (s, False)
       flds = checkField <$> fieldNames
-  in checkFields flds
+      err e = case e of
+        NoMatchingFieldName ->
+          Ly.abort $ "no matching field name: " ++ str
+        MultipleMatchingFieldNames ns ->
+          Ly.abort $ "multiple field names match: "
+          ++ str ++ " matches: "
+          ++ (concat . intersperse ", " $ ns)
+  in Ex.resolve err (checkFields flds)
+
+
+data CheckFieldsError =
+  NoMatchingFieldName
+  | MultipleMatchingFieldNames [String]
+
 
 -- | Checks the fields with the True value to ensure there is only one.
-checkFields :: F.Fields (String, Bool) -> Ex.Exceptional Error (F.Fields Bool)
+checkFields ::
+  F.Fields (String, Bool)
+  -> Ex.Exceptional CheckFieldsError (F.Fields Bool)
 checkFields fs =
   let f (s, b) ls = if b then s:ls else ls
   in case Fdbl.foldr f [] fs of
