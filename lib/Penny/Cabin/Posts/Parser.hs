@@ -96,23 +96,21 @@ impurify ::
   -> f (a -> m b)
 impurify = fmap (\g -> pure . g)
 
-operand :: Parser (S.Runtime
-                   -> Cop.DefaultTimeZone
-                   -> Cop.RadGroup
-                   -> State
-                   -> Ex.Exceptional Error State)
-operand = f <$> Ly.parseOperand
+operand :: [C.OptSpec (S.Runtime
+                       -> Cop.DefaultTimeZone
+                       -> Cop.RadGroup
+                       -> State
+                       -> State)]
+operand = map (fmap f) Ly.operandSpecs
   where
     f lyFn rt dtz rg st =
       let dt = S.currentTime rt
           cs = sensitive st
           fty = factory st
-      in case lyFn dt dtz rg cs fty of
-        Ex.Exception e -> Ex.throw . LibertyError $ e
-        Ex.Success (Exp.Operand g) ->
-          let g' = g . L.boxPostFam
-              ts' = tokens st ++ [Exp.TokOperand g']
-          in return st { tokens = ts' }
+          (Exp.Operand g) = lyFn dt dtz rg cs fty
+          g' = g . L.boxPostFam
+          ts' = tokens st ++ [Exp.TokOperand g']
+      in st { tokens = ts' }
 
 -- | Processes a option for box-level serials.
 optBoxSerial ::
@@ -125,73 +123,66 @@ optBoxSerial ::
   -> (Ly.LibertyMeta -> Int)
   -- ^ Pulls the serial from the PostMeta
   
-  -> Parser (State -> Ex.Exceptional Error State)
+  -> C.OptSpec (State -> State)
 
-optBoxSerial ls ss f = parseOpt ls ss (C.TwoArg g)
+optBoxSerial ls ss f = C.OptSpec ls ss (C.TwoArg g)
   where
-    g a1 a2 st = do
-      cmp <- Ex.fromMaybe (BadComparator a1) (Ly.parseComparer a1)
-      i <- parseInt a2
-      let h box =
+    g a1 a2 st =
+      let cmp = Ly.parseComparer a1
+          i = Ly.parseInt a2
+          h box =
             let ser = f . L.boxMeta $ box
             in ser `cmp` i
           tok = Exp.TokOperand h
-      return st { tokens = tokens st ++ [tok] }
+      in st { tokens = tokens st ++ [tok] }
 
-optFilteredNum :: Parser (State -> Ex.Exceptional Error State)
+optFilteredNum :: C.OptSpec (State -> State)
 optFilteredNum = optBoxSerial ["filtered"] "" f
   where
     f = L.forward . Ly.unFilteredNum . Ly.filteredNum
 
-optRevFilteredNum :: Parser (State -> Ex.Exceptional Error State)
+optRevFilteredNum :: C.OptSpec (State -> State)
 optRevFilteredNum = optBoxSerial ["revFiltered"] "" f
   where
     f = L.backward . Ly.unFilteredNum . Ly.filteredNum
 
-optSortedNum :: Parser (State -> Ex.Exceptional Error State)
+optSortedNum :: C.OptSpec (State -> State)
 optSortedNum = optBoxSerial ["sorted"] "" f
   where
     f = L.forward . Ly.unSortedNum . Ly.sortedNum
 
-optRevSortedNum :: Parser (State -> Ex.Exceptional Error State)
+optRevSortedNum :: C.OptSpec (State -> State)
 optRevSortedNum = optBoxSerial ["revSorted"] "" f
   where
     f = L.backward . Ly.unSortedNum . Ly.sortedNum
 
-parseInt :: String -> Ex.Exceptional Error Int
-parseInt s = case reads s of
-  (i, ""):[] -> return i
-  _ -> Ex.throw . BadNumber $ s
-
-boxFilters :: Parser (State -> Ex.Exceptional Error State)
+boxFilters :: [C.OptSpec (State -> State)]
 boxFilters =
-  optFilteredNum
-  <|> optRevFilteredNum
-  <|> optSortedNum
-  <|> optRevSortedNum
+  [ optFilteredNum
+  , optRevFilteredNum
+  , optSortedNum
+  , optRevSortedNum
+  ]
 
 
-parsePostFilter :: Parser (State -> Ex.Exceptional Error State)
-parsePostFilter = f <$> Ly.parsePostFilter
+parsePostFilter :: [C.OptSpec (State -> State)]
+parsePostFilter = [fmap f optH, fmap f optT]
   where
-    f ex st =
-      case ex of
-        Ex.Exception e -> Ex.throw . LibertyError $ e
-        Ex.Success pf ->
-          return st { postFilter = postFilter st ++ [pf] }
+    (optH, optT) = Ly.postFilterSpecs
+    f pf st = st { postFilter = postFilter st ++ [pf] }
 
-matcherSelect :: Parser (State -> State)
-matcherSelect = f <$> Ly.parseMatcherSelect
+matcherSelect :: [C.OptSpec (State -> State)]
+matcherSelect = map (fmap f) Ly.matcherSelectSpecs
   where
     f mf st = st { factory = mf }
 
-caseSelect :: Parser (State -> State)
-caseSelect = f <$> Ly.parseCaseSelect
+caseSelect :: [C.OptSpec (State -> State)]
+caseSelect = map (fmap f) Ly.caseSelectSpecs
   where
     f cs st = st { sensitive = cs }
 
-operator :: Parser (State -> State)
-operator = f <$> Ly.parseOperator
+operator :: [C.OptSpec (State -> State)]
+operator = map (fmap f) Ly.operatorSpecs
   where
     f oo st = st { tokens = tokens st ++ [oo] }
 

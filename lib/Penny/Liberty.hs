@@ -23,6 +23,7 @@ module Penny.Liberty (
   processPostFilters,
   parseTokenList,
   parsePredicate,
+  parseInt,
   
   -- * Parsers
   Operand,
