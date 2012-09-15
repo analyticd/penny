@@ -6,6 +6,7 @@ module Penny.Cabin.Balance.Convert (
   , Sorter
   , report
   , cmdLineReport
+  , getSorter
   ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -227,6 +228,8 @@ fromParsedOpts pp fmt (P.Opts _ dc bc szb tgt dt so sb) =
         Just to ->
           Just $ Opts dc bc fmt szb (getSorter so sb) to dt
 
+-- | Returns a function usable to sort pairs of SubAccount and
+-- BottomLine depending on how you want them sorted.
 getSorter :: P.SortOrder -> P.SortBy -> Sorter
 getSorter o b = flipper f
   where
