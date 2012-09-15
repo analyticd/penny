@@ -34,7 +34,7 @@ tieredForest getKeys ls = fmap (fmap revSnd) . NM.toForest $ nm
           [] -> []
           ks ->
             let mkInitPair k = (k, maybe [] id)
-                mkLastPair k = (k, maybe [] (a:))
+                mkLastPair k = (k, maybe [a] (a:))
             in (map mkInitPair . init $ ks)
                ++ [(mkLastPair (last ks))]
 
@@ -74,7 +74,7 @@ balances (CO.ShowZeroBalances szb) =
     remover =
       if szb
       then id
-      else filterForest (M.null . L.unBalance . snd)
+      else filterForest (not . M.null . L.unBalance . snd)
            . map (fmap (mapSnd L.removeZeroCommodities))
 
 
