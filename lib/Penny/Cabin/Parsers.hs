@@ -10,8 +10,8 @@ import qualified System.Console.MultiArg.Combinator as C
 
 
 -- | Process an argument for how many colors the user wants to
--- see. Returns an Exception with the bad string if the user suppled a bad
--- color name, or Success if the color is good.
+-- see. Returns an Exception with the bad string if the user suppled a
+-- bad color name, or Success if the color is good.
 color :: C.OptSpec CO.ColorPref
 color = C.OptSpec ["color"] "" (C.ChoiceArg ls)
   where

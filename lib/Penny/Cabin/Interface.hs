@@ -22,18 +22,18 @@ type ReportFunc =
   -- ^ Result from previous parses indicating whether the user desires
   -- case sensitivity (this may have been changed in the filtering
   -- options)
-  
+
   -> (CaseSensitive -> X.Text -> Exceptional X.Text (X.Text -> Bool))
   -- ^ Result from previous parsers indicating the matcher factory the
   -- user wishes to use
-  
+
   -> [L.Box Ly.LibertyMeta]
   -- ^ Postings that will be included in the report
-  
+
   -> [L.PricePoint]
   -- ^ PricePoints to be included in the report
-  
-  
+
+
   -> Exceptional X.Text XL.Text
   -- ^ The exception type is a strict Text, containing the error
   -- message. The success type is a lazy Text, containing the
@@ -43,10 +43,10 @@ type ReportFunc =
 data Report =
   Report { help :: X.Text
            -- ^ A strict Text containing a help message.
-           
+
          , name :: String
            -- ^ The name of the report
-           
+
          , parseReport :: Parser ReportFunc
            -- ^ The parser must parse everything beginning with the
            -- first word after the name of the report (the parser does

@@ -1,4 +1,4 @@
-module Penny.Lincoln.Balance ( 
+module Penny.Lincoln.Balance (
   Balance,
   unBalance,
   Balanced(Balanced, Inferable, NotInferable),
@@ -20,9 +20,7 @@ import Penny.Lincoln.Bits (
 import qualified Penny.Lincoln.Bits as B
 
 -- | A balance summarizes several entries. You do not create a Balance
--- directly. Instead, use 'entryToBalance'. Balance used to be a
--- monoid, but there is nothing appropriate for mempty. Instead,
--- Balance is really a semigroup, but not a monoid.
+-- directly. Instead, use 'entryToBalance'.
 newtype Balance = Balance (Map B.Commodity BottomLine)
                   deriving (Show, Eq)
 
@@ -91,7 +89,7 @@ data Column = Column { drCr :: B.DrCr
 -- the balance. Sometimes you want to know that a commodity was in the
 -- account but its balance is now zero.
 addBalances :: Balance -> Balance -> Balance
-addBalances (Balance t1) (Balance t2) = 
+addBalances (Balance t1) (Balance t2) =
     Balance $ M.unionWith mappend t1 t2
 
 instance Semi.Semigroup Balance where
@@ -109,4 +107,3 @@ removeZeroCommodities (Balance m) =
         _ -> True
       m' = M.filter p m
   in Balance m'
-
