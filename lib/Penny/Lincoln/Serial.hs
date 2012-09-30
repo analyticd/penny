@@ -16,12 +16,12 @@ import qualified Control.Monad.Trans.State as St
 data Serial = Serial {
   -- | Numbered from first to last, beginning at zero.
   forward :: !Int
-  
+
   -- | Numbered from last to first, ending at zero.
   , backward :: !Int
 
   } deriving (Eq, Show)
-             
+
 
 -- | Label a list of items with serials.
 serialItems :: (Serial -> a -> b)
@@ -54,7 +54,7 @@ serialChildrenInFamily ::
   (Serial -> cOld -> cNew)
   -> F.Family p cOld
   -> St.State (NextFwd, NextBack) (F.Family p cNew)
-serialChildrenInFamily f = F.mapChildrenM (serialItemSt f)
+serialChildrenInFamily f = F.mapChildrenA (serialItemSt f)
 
 newtype NextFwd = NextFwd Int deriving Show
 newtype NextBack = NextBack Int deriving Show

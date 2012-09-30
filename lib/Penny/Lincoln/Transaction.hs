@@ -19,16 +19,17 @@
 -- posting nor the transaction has a flag. The functions in
 -- "Penny.Lincoln.Queries" do that.
 module Penny.Lincoln.Transaction (
-  
+
   -- * Postings and transactions
   Posting,
   Transaction,
   PostFam (unPostFam),
 
-  -- * Making transactions
+  -- * Making and deconstructing transactions
   transaction,
   Error ( UnbalancedError, CouldNotInferError),
-  
+  toUnverified,
+
   -- * Querying postings
   Inferred(Inferred, NotInferred),
   pPayee, pNumber, pFlag, pAccount, pTags,
@@ -38,13 +39,13 @@ module Penny.Lincoln.Transaction (
   TopLine,
   tDateTime, tFlag, tNumber, tPayee, tMemo, tMeta,
   unTransaction, postFam, changeTransactionMeta,
-  
+
   -- * Adding serials
   addSerialsToList, addSerialsToEithers,
-  
+
   -- * Box
   Box ( Box, boxMeta, boxPostFam )
-  
+
   ) where
 
 import qualified Penny.Lincoln.Bits as B
@@ -103,7 +104,7 @@ data TopLine =
 newtype Transaction =
   Transaction { unTransaction :: F.Family TopLine Posting }
   deriving (Eq, Show)
-  
+
 -- | Errors that can arise when making a Transaction.
 data Error = UnbalancedError
            | CouldNotInferError
@@ -126,6 +127,17 @@ balancedGroup ::= "at least 2 postings. All postings have the same
                    account and commodity. The balance is balanced."
 
 -}
+
+-- | Deconstruct a Transaction to a family of unverified data.
+toUnverified :: Transaction -> F.Family U.TopLine U.Posting
+toUnverified = F.mapParent fp . F.mapChildren fc . unTransaction
+  where
+    fp (TopLine dt fl nu pa mo ma) = U.TopLine dt fl nu pa mo ma
+    fc (Posting pa nu fl ac ta en mo ir me) =
+      let maybeEn = case ir of
+                      Inferred -> Nothing
+                      NotInferred -> Just en
+      in U.Posting pa nu fl ac ta maybeEn mo me
 
 -- | Makes transactions.
 transaction ::
@@ -160,7 +172,7 @@ infer po =
           lift $ St.put Nothing
           return $ toPosting po e Inferred
     (Just e) -> return $ toPosting po e NotInferred
-          
+
 runInfer ::
   Maybe B.Entry
   -> S.Siblings U.Posting
@@ -170,7 +182,7 @@ runInfer me pos = do
       ext = Ex.runExceptionalT (Tr.mapM infer pos)
   case finalSt of
     (Just _) -> throw UnbalancedError
-    Nothing -> case res of 
+    Nothing -> case res of
       (Exception e) -> throw e
       (Success g) -> return g
 
@@ -202,7 +214,7 @@ changeTransactionMeta ::
   (M.TopLineMeta -> M.TopLineMeta)
   -- ^ Function that, when applied to the old top line meta, returns
   -- the new meta.
-  
+
   -> Transaction
   -- ^ The old transaction with metadata
 

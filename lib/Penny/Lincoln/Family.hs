@@ -11,11 +11,11 @@ module Penny.Lincoln.Family (
   F.Family(Family),
   C.Child(Child),
   S.Siblings(Siblings),
-  
+
   -- * Mapping families
-  F.mapChildrenM,
+  F.mapChildrenA,
   F.mapChildren,
-  F.mapParentM,
+  F.mapParentA,
   F.mapParent,
 
   -- * Functions to manipulate families
@@ -26,6 +26,7 @@ module Penny.Lincoln.Family (
   marry,
   divorceWith,
   divorce,
+  F.filterChildren,
   S.collapse ) where
 
 import qualified Penny.Lincoln.Family.Family as F
@@ -69,7 +70,7 @@ marry :: F.Family p1 c1
          -> F.Family p2 c2
          -> F.Family (p1, p2) (c1, c2)
 marry = marryWith (,) (,)
-  
+
 -- | Splits up a family.
 divorceWith :: (p1 -> (p2, p3))
              -> (c1 -> (c2, c3))

@@ -17,20 +17,20 @@ module Penny.Lincoln (
   , B.removeZeroCommodities
   , B.BottomLine (Zero, NonZero)
   , B.Column (Column)
-  
+
     -- * Bits
     -- ** Accounts
   , I.SubAccountName (SubAccountName, unSubAccountName)
   , I.Account(Account, unAccount)
-  
+
     -- ** Amounts
   , I.Amount (Amount, qty, commodity)
-  
+
     -- ** Commodities
   , I.Commodity (Commodity, unCommodity)
   , I.SubCommodity (SubCommodity, unSubCommodity)
   , I.charCommodity
-    
+
     -- ** DateTime
   , I.DateTime
   , I.dateTime
@@ -40,27 +40,27 @@ module Penny.Lincoln (
   , I.minsToOffset
   , I.offsetToMins
   , I.noOffset
-    
+
     -- ** Debits and credits
   , I.DrCr(Debit, Credit)
   , I.opposite
-    
+
     -- ** Entries
   , I.Entry (Entry, drCr, amount)
-    
+
     -- ** Flag
   , I.Flag (Flag, unFlag)
-    
+
     -- ** Memos
   , I.MemoLine (MemoLine, unMemoLine)
   , I.Memo (Memo, unMemo)
-    
+
     -- ** Number
   , I.Number (Number, unNumber)
-    
+
     -- ** Payee
   , I.Payee (Payee, unPayee)
-    
+
     -- ** Prices and price points
   , I.From(From, unFrom)
   , I.To(To, unTo)
@@ -69,7 +69,7 @@ module Penny.Lincoln (
   , I.newPrice
   , I.PricePoint(PricePoint, price, ppMeta)
 
-    -- ** Quantities                               
+    -- ** Quantities
   , I.Qty
   , I.unQty
   , I.partialNewQty
@@ -80,22 +80,22 @@ module Penny.Lincoln (
   , I.zero
   , I.difference
   , I.Difference(LeftBiggerBy, RightBiggerBy, Equal)
-    
+
     -- ** Tags
   , I.Tag(Tag, unTag)
   , I.Tags(Tags, unTags)
-    
-    
+
+
     -- * Builders
   , Bd.crashy
   , Bd.account
-    
+
     -- * Families
     -- ** Family types
   , F.Family(Family)
   , F.Child(Child)
   , F.Siblings(Siblings)
-    
+
     -- ** Manipulating families
   , F.children
   , F.orphans
@@ -104,7 +104,8 @@ module Penny.Lincoln (
   , F.marry
   , F.divorceWith
   , F.divorce
-    
+  , F.filterChildren
+
     -- * HasText
   , HT.HasText(text)
   , HT.Delimited(Delimited)
@@ -114,17 +115,18 @@ module Penny.Lincoln (
 
     -- * TextNonEmpty
   , TNE.TextNonEmpty(TextNonEmpty)
-    
+
     -- * Transactions
     -- ** Postings and transactions
   , T.Posting
   , T.Transaction
   , T.PostFam
 
-    -- ** Making transactions
+    -- ** Making and deconstructing transactions
   , T.transaction
   , T.Error ( UnbalancedError, CouldNotInferError)
-  
+  , T.toUnverified
+
     -- ** Querying postings
   , T.Inferred(Inferred, NotInferred)
   , T.pPayee
@@ -148,18 +150,18 @@ module Penny.Lincoln (
   , T.tMeta
   , T.changeTransactionMeta
   , T.postFam
-    
+
     -- ** Adding serials to transactions
   , T.addSerialsToList
   , T.addSerialsToEithers
-    
+
     -- ** Unwrapping Transactions
   , T.unTransaction
   , T.unPostFam
-    
+
     -- ** Transaction boxes
   , T.Box (Box, boxMeta, boxPostFam)
-    
+
   -- * Metadata
   , M.TopLineLine(TopLineLine, unTopLineLine)
   , M.TopMemoLine(TopMemoLine, unTopMemoLine)
@@ -180,7 +182,7 @@ module Penny.Lincoln (
   , M.TopLineMeta(TopLineMeta, topMemoLine, topLineLine, filename,
                 globalTransaction, fileTransaction)
   , M.emptyTopLineMeta
-  
+
     -- * PriceDb
   , DB.PriceDb
   , DB.emptyDb
@@ -188,14 +190,14 @@ module Penny.Lincoln (
   , DB.getPrice
   , DB.PriceDbError(FromNotFound, ToNotFound, CpuNotFound)
   , DB.convert
-    
+
     -- * Serials
   , S.Serial
   , S.forward
   , S.backward
   , S.serials
   , S.serialItems
-    
+
     -- * Matchers
   , Matchers.Matcher
   , Matchers.Factory
