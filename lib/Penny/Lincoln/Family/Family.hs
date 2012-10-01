@@ -1,6 +1,7 @@
 module Penny.Lincoln.Family.Family where
 
 import Control.Applicative ((<$>), (<*>), pure, Applicative)
+import qualified Data.List as L
 import Data.Traversable (traverse)
 
 -- | A Family has one parent (ah, the anomie, sorry) and at least two
@@ -46,6 +47,13 @@ mapParentA f (Family p c1 c2 cs) =
 mapParent :: (a -> b) -> Family a c -> Family b c
 mapParent f (Family p c1 c2 cs) = Family (f p) c1 c2 cs
 
+
+-- | Finds the first child matching a predicate.
+find :: (p -> c -> Bool) -> Family p c -> Maybe c
+find f (Family p c1 c2 cs)
+  | f p c1 = Just c1
+  | f p c2 = Just c2
+  | otherwise = L.find (f p) cs
 
 -- | Filters the children. Fails if there are not at least two
 -- children after filtering. Retains the original order of the

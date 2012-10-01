@@ -105,6 +105,7 @@ module Penny.Lincoln (
   , F.divorceWith
   , F.divorce
   , F.filterChildren
+  , F.find
 
     -- * HasText
   , HT.HasText(text)

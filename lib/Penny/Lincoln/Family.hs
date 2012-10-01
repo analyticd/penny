@@ -27,6 +27,7 @@ module Penny.Lincoln.Family (
   divorceWith,
   divorce,
   F.filterChildren,
+  F.find,
   S.collapse ) where
 
 import qualified Penny.Lincoln.Family.Family as F
