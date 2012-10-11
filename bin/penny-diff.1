@@ -1,0 +1,32 @@
+.TH penny-diff 1
+
+.SH NAME
+penny-diff - show differences between two Penny files
+
+.SH SYNOPSIS
+penny-diff [-12] FILE1 FILE2
+
+.SH DESCRIPTION
+.B penny-diff
+shows the Penny items present in FILE1 that are not present in FILE2,
+as well as the items present in FILE2 that are not present in
+FILE1. An item is a transaction, a price point, or a single-line
+comment. Blank lines are ignored. Differences in the order of items are
+ignored. Because each single-line comment is its own item, no
+difference will be detected if the single-line comments appear in a
+different order in the two files, as long as all the same lines are
+present.
+
+.SH OPTIONS
+.TP
+.B -1
+Show only the items present in FILE1 that are not present in FILE2.
+
+.TP
+.B -2
+Show only the items present in FILE2 that are not present in FILE1.
+
+.SH EXIT STATUS
+0 if there are no differences between FILE1 and FILE2; 1 if there are
+differences; 2 if there was some problem (such as a file that could
+not be parsed.)

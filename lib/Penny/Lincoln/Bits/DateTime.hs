@@ -3,8 +3,8 @@
 -- Data.Time and a TimeZoneOffset. Previously a DateTime was simply a
 -- ZonedTime from Data.Time but ZonedTime has data that Penny does not
 -- need.
-module Penny.Lincoln.Bits.DateTime (
-  DateTime
+module Penny.Lincoln.Bits.DateTime
+  ( DateTime
   , dateTime
   , localTime
   , timeZone
@@ -12,6 +12,7 @@ module Penny.Lincoln.Bits.DateTime (
   , offsetToMins
   , minsToOffset
   , noOffset
+  , sameInstant
   ) where
 
 import qualified Data.Time as T
@@ -36,11 +37,14 @@ noOffset :: TimeZoneOffset
 noOffset = TimeZoneOffset 0
 
 -- | A DateTime is a UTC time that also remembers the local time from
--- which it was set. The Eq and Ord instances will compare two
--- DateTimes based on their equivalent UTC times.
+-- which it was set. The Eq and Ord instances account for the local
+-- time; that is, even though two DateTimes might indicate the same
+-- instant, Eq will indicate they are different if the time zones are
+-- different. To see if two DateTimes are the same instant, use
+-- sameInstant.
 data DateTime = DateTime { localTime :: T.LocalTime
                          , timeZone :: TimeZoneOffset }
-                   deriving Show
+                   deriving (Eq, Ord, Show)
 
 -- | Construct a DateTime.
 dateTime :: T.LocalTime -> TimeZoneOffset -> DateTime
@@ -50,8 +54,9 @@ toUTC :: DateTime -> T.UTCTime
 toUTC (DateTime lt (TimeZoneOffset tzo)) = T.localTimeToUTC tz lt where
   tz = T.minutesToTimeZone tzo
 
-instance Eq DateTime where
-  l == r = toUTC l == toUTC r
+-- | Are these DateTimes the same instant in time, after adjusting for
+-- local timezones?
 
-instance Ord DateTime where
-  compare l r = compare (toUTC l) (toUTC r)
+sameInstant :: DateTime -> DateTime -> Bool
+sameInstant t1 t2 = toUTC t1 == toUTC t2
+
