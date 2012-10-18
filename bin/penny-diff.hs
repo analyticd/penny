@@ -1,5 +1,6 @@
 module Main where
 
+import qualified Control.Exception as CEx
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified System.Console.MultiArg as M
 import qualified Penny.Lincoln as L
@@ -9,6 +10,7 @@ import qualified Penny.Copper.Price as CP
 import qualified Penny.Copper.Comments as CC
 import qualified Data.Maybe (mapMaybe)
 import qualified Data.Text as X
+import qualified Data.Text.IO as TIO
 import qualified System.Exit as E
 import qualified System.IO as IO
 
@@ -67,7 +69,16 @@ failure s = IO.hPutStrLn s >> E.exitWith (E.ExitFailure 2)
 
 parseFile :: CopperOptions -> String -> IO Cop.Ledger
 parseFile (CopperOptions dtz _ rg) s = do
-
+  eiTxt <- CEx.try $ TIO.readFile s
+  txt <- case eiTxt of
+    Left (e :: IOError) -> failure (show e)
+    Right g -> return g
+  let fn = L.Filename . X.pack $ s
+      c = C.FileContents txt
+      parsed = C.parse dtz rg [(fn, c)]
+  case parsed of
+    Ex.Exception e -> failure (show e)
+    Ex.Success g -> return g
 
 -- | Returns a tuple with the first filename, the second filename, and
 -- an indication of which differences to show.
