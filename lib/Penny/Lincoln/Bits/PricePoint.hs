@@ -7,4 +7,4 @@ import qualified Penny.Lincoln.Meta as M
 data PricePoint = PricePoint { dateTime :: DateTime
                              , price :: Price
                              , ppMeta :: M.PriceMeta }
-                  deriving Show
+                  deriving (Eq, Show)
