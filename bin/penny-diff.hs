@@ -67,6 +67,15 @@ runPennyDiff co@(CopperOptions dtz gs rg) = undefined
 failure :: String -> IO ()
 failure s = IO.hPutStrLn s >> E.exitWith (E.ExitFailure 2)
 
+-- | Returns a pair p, where fst p is the items that appear in file1
+-- but not in file2, and snd p is items that appear in file2 but not
+-- in file1.
+doDiffs
+  :: Cop.Ledger
+  -> Cop.Ledger
+  -> ([NonBlankItem], [NonBlankItem])
+doDiffs l1 l2 
+
 parseFile :: CopperOptions -> String -> IO Cop.Ledger
 parseFile (CopperOptions dtz _ rg) s = do
   eiTxt <- CEx.try $ TIO.readFile s
@@ -79,6 +88,7 @@ parseFile (CopperOptions dtz _ rg) s = do
   case parsed of
     Ex.Exception e -> failure (show e)
     Ex.Success g -> return g
+
 
 -- | Returns a tuple with the first filename, the second filename, and
 -- an indication of which differences to show.
