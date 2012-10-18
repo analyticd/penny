@@ -40,7 +40,7 @@ description: Penny is a double-entry accounting system. It is inspired
   appropriate path to the UNIX "man" command. You will also find the
   file "samplePennyFile", which will show you a sample ledger.
 
-extra-source-files: penny.1 samplePennyFile
+extra-source-files: penny.1 penny-diff.1 samplePennyFile
 
 source-repository head
     type: git
@@ -52,6 +52,19 @@ Executable penny
     penny-lib ==0.5.*
 
   Main-is: penny.hs
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
+Executable penny-diff
+  Build-depends:
+    base ==4.*,
+    penny-lib ==0.5.*,
+    text ==0.11.*,
+    multiarg ==0.6.*,
+    explicit-exception == 0.1.*
+
+  Main-is: penny-diff.hs
   GHC-Options: -Wall
   if flag(debug)
     GHC-Options: -rtsopts -auto-all -caf-all
