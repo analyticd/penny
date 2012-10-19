@@ -23,7 +23,8 @@ module Penny.Lincoln.Transaction (
   -- * Postings and transactions
   Posting,
   Transaction,
-  PostFam (unPostFam),
+  PostFam,
+  unPostFam,
 
   -- * Making and deconstructing transactions
   transaction,
@@ -44,8 +45,31 @@ module Penny.Lincoln.Transaction (
   addSerialsToList, addSerialsToEithers,
 
   -- * Box
-  Box ( Box, boxMeta, boxPostFam )
+  Box ( Box, boxMeta, boxPostFam ),
 
+  -- * Changers
+
+  -- | Functions allowing you to change aspects of an existing
+  -- transaction, without having to destroy and completely rebuild the
+  -- transaction. You cannot change the Entry or any of its
+  -- components, as changing any of these would unbalance the
+  -- Transaction.
+  mapTopLine,
+  cTxnDateTime,
+  cTxnFlag,
+  cTxnNumber,
+  cTxnPayee,
+  cTxnMemo,
+  cTxnMeta,
+
+  mapPostings,
+  cPstgPayee,
+  cPstgNumber,
+  cPstgFlag,
+  cPstgAccount,
+  cPstgTags,
+  cPstgMemo,
+  cPstgMeta
   ) where
 
 import qualified Penny.Lincoln.Bits as B
@@ -288,3 +312,112 @@ data Box m =
 
 instance Functor Box where
   fmap f (Box m pf) = Box (f m) pf
+
+-------------------------------------------------------------
+-- Changers
+-------------------------------------------------------------
+
+mapTopLine
+  :: (TopLine -> TopLine)
+  -> Transaction
+  -> Transaction
+mapTopLine f =
+  Transaction
+  . F.mapParent f
+  . unTransaction
+
+cTxnDateTime
+  :: (Transaction -> B.DateTime)
+  -> Transaction
+  -> Transaction
+cTxnDateTime f t = mapTopLine (\tl -> tl { tDateTime = f t }) t
+
+cTxnFlag
+  :: (Transaction -> Maybe B.Flag)
+  -> Transaction
+  -> Transaction
+cTxnFlag f t = mapTopLine (\tl -> tl { tFlag = f t }) t
+
+cTxnNumber
+  :: (Transaction -> Maybe B.Number)
+  -> Transaction
+  -> Transaction
+cTxnNumber f t = mapTopLine (\tl -> tl { tNumber = f t }) t
+
+cTxnPayee
+  :: (Transaction -> Maybe B.Payee)
+  -> Transaction
+  -> Transaction
+cTxnPayee f t = mapTopLine (\tl -> tl { tPayee = f t }) t
+
+cTxnMemo
+  :: (Transaction -> B.Memo)
+  -> Transaction
+  -> Transaction
+cTxnMemo f t = mapTopLine (\tl -> tl { tMemo = f t }) t
+
+cTxnMeta
+  :: (Transaction -> M.TopLineMeta)
+  -> Transaction
+  -> Transaction
+cTxnMeta f t = mapTopLine (\tl -> tl { tMeta = f t }) t
+
+mapPostings
+  :: (Transaction -> Posting -> Posting)
+  -> Transaction
+  -> Transaction
+mapPostings f t =
+  Transaction
+  . F.mapChildren (f t)
+  . unTransaction
+  $ t
+
+cPstgPayee
+  :: (Transaction -> Posting -> Maybe B.Payee)
+  -> Transaction
+  -> Transaction
+cPstgPayee f = mapPostings (\t p -> p { pPayee = f t p })
+
+
+cPstgNumber
+  :: (Transaction -> Posting -> Maybe B.Number)
+  -> Transaction
+  -> Transaction
+cPstgNumber f = mapPostings (\t p -> p { pNumber = f t p })
+
+cPstgFlag
+  :: (Transaction -> Posting -> Maybe B.Flag)
+  -> Transaction
+  -> Transaction
+cPstgFlag f = mapPostings (\t p -> p { pFlag = f t p })
+
+cPstgAccount
+  :: (Transaction -> Posting -> B.Account)
+  -> Transaction
+  -> Transaction
+cPstgAccount f = mapPostings (\t p -> p { pAccount = f t p })
+
+cPstgTags
+  :: (Transaction -> Posting -> B.Tags)
+  -> Transaction
+  -> Transaction
+cPstgTags f = mapPostings (\t p -> p { pTags = f t p })
+
+cPstgMemo
+  :: (Transaction -> Posting -> B.Memo)
+  -> Transaction
+  -> Transaction
+cPstgMemo f = mapPostings (\t p -> p { pMemo = f t p })
+
+cPstgMeta
+  :: (Transaction -> Posting -> M.PostingMeta)
+  -> Transaction
+  -> Transaction
+cPstgMeta f = mapPostings (\t p -> p { pMeta = f t p })
+
+
+
+
+
+
+
