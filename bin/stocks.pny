@@ -1,0 +1,130 @@
+# This file documents some recommended practices for dealing
+# with multi-commodity transactions. This is a work in progress.
+# If you have any suggestions, please send them to me at
+# omari@smileystation.com, as this has been cobbled together
+# from the ground-up and any improvements are welcome.
+
+# Any transaction that has two commodities will have at least
+# four postings. This is because all transasctions in Penny
+# must always be balanced.
+
+# One way to keep track of multiple commodities is to
+# use a separate account to track the cost basis. You will
+# need to use a separate account for each transaction you
+# want to track.
+
+# For instance here is a purchase of stock. I am using the date
+# of purchase as a unique identifier, though you could use
+# anything.
+
+2012-10-19 Purchase stock
+    Assets:Brokerage                                    Dr 100 F
+    Assets:Checking                                     Cr $1000.00
+    Basis:F:2012-10-19                                  Cr 100 F
+    Basis:F:2012-10-19                                  Dr $1000.00
+
+# A month later I sell my stock. Let's say it has done very well.
+
+2012-11-19 Sell stock
+    Assets:Brokerage                                    Cr 100 F
+    Assets:Checking                                     Dr $1400.00
+    Basis:F:2012-10-19                                  Dr 100 F
+    Basis:F:2012-10-19                                  Cr $1400.00
+
+# At this point, Basis:F:2012-10-19 has a credit balance of
+# $400.00. This is your capital gain from the sale. You probably want
+# to close out the Basis:F:2012-10-19 account by transferring its
+# balance to an income account. (You could even do this in the same
+# transaction as the stock sale.)
+
+2012-11-19 Capital Gain
+    Basis:F:2012-10-19                                  Dr $400.00
+    {Income:Capital Gain:F:2012-10-19}                  Cr $400.00
+
+# That's one way to do it. It's simple enough when you just have
+# one lot of stock. What if you have a bunch of different lots?
+# This can happen with dividend reinvestment especially. Here's
+# an example:
+
+2012-10-19 Purchase stock
+    Assets:Brokerage                                    Dr 100 LUV
+    Assets:Checking                                     Cr $1000.00
+    Basis:LUV:2012-10-19                                Cr 100 LUV
+    Basis:LUV:2012-10-19                                Dr $1000.00
+
+2012-11-19 Purchase stock
+    Assets:Brokerage                                    Dr 100 LUV
+    Assets:Checking                                     Cr $1200.00
+    Basis:LUV:2012-11-19                                Cr 100 LUV
+    Basis:LUV:2012-11-19                                Dr $1200.00
+
+2012-12-19 Purchase stock
+    Assets:Brokerage                                    Dr 100 LUV
+    Assets:Checking                                     Cr $1400.00
+    Basis:LUV:2012-12-19                                Cr 100 LUV
+    Basis:LUV:2012-12-19                                Dr $1400.00
+
+
+# Okay, time to sell. Get rid of all the LUV.  To get the capital gain
+# right, it must be distributed amongst all the LUV purchases. You
+# could do this yourself but who wants to?  So enter a transaction
+# like this first:
+
+2012-12-31 Sell stock
+    Assets:Brokerage                                    Cr 300 LUV
+    Assets:Checking                                     Dr $4800.00
+    Proceeds:LUV:2012-12-31                             Dr 300 LUV
+    Proceeds:LUV:2012-12-31                             Cr $4800.00
+
+# At this point your assets and brokerage accounts look good.  If you
+# don't care about capital gains, you can just stop here. But if you
+# want to close out the Basis accounts, you can use the penny-selloff
+# program. It creates transactions for you, which you can append to
+# your Penny file. You pass penny-selloff two arguments: first, the
+# name of the Proceeds account, and second, the filename to draw from.
+
+# penny-selloff 'Proceeds:LUV:2012-12-31' filename
+
+# penny-selloff will use all transactions from all the filenames
+# given. First it will make sure that the given Proceeds account has a
+# balance that consists of a debit amount and a credit amount with
+# differing commodities. penny-selloff takes the debit amount to be
+# the commodity you are selling off, and the credit amount of the
+# balance is the amount you received in the sale.
+
+# penny-selloff then takes the second sub-account from the given
+# account. Here, it is LUV. It then looks for accounts named
+# Basis:SUB-ACCOUNT:***. Here it looks for Basis:LUV:***. *** is a
+# Penny date (and optional time.)  All of these accounts that have a
+# balance are totaled up. This total balance must have a credit
+# balance that is greater than or equal to the debit balance of the
+# Proceeds account, and a debit balance whose commodity is the same
+# commodity as the credit balance of the Proceeds account.
+
+# penny-selloff then computes a per-share price of the proceeds and
+# calculates sale postings for each Basis account that has a
+# balance. Shares are sold off on a FIFO (first-in, first-out) basis,
+# so the oldest available shares are sold first. blah blah blah blah
+
+# so for example, with the above transactions, running
+
+# penny-selloff 'Proceeds:LUV:2012-12-31' stocks.pny
+
+# will create a posting that looks like this:
+
+; transaction created by penny-selloff for sale on 2012-12-31
+2012-12-31 Realize gain or loss
+    Basis:LUV:2012-10-19                                Dr 100 LUV
+    Basis:LUV:2012-10-19                                Cr $1000.00
+    {Income:Capital Gain:LUV:2012-12-31:2012-10-19}     Cr $600.00
+    Basis:LUV:2012-11-19                                Dr 100 LUV
+    Basis:LUV:2012-11-19                                Cr $1200.00
+    {Income:Capital Gain:LUV:2012-12-31:2012-11-19}     Cr $400.00
+    Basis:LUV:2012-12-19                                Dr 100 LUV
+    Basis:LUV:2012-12-19                                Cr $1400.00
+    {Income:Capital Gain:LUV:2012-12-31:2012-12-19}     Cr $200.00
+    Proceeds:LUV:2012-12-31                             Dr $4800.00
+    Proceeds:LUV:2012-12-31                             Cr 300 LUV
+
+# Thus the capital gain shows up in the Capital Gain account, and all
+# the Basis accounts and the Proceeds account have zero balances.

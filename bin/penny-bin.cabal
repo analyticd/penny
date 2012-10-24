@@ -56,6 +56,20 @@ Executable penny
   if flag(debug)
     GHC-Options: -rtsopts -auto-all -caf-all
 
+Executable penny-selloff
+  Build-depends:
+    base == 4.*,
+    penny-lib ==0.5.*,
+    explicit-exception ==0.1.*,
+    containers ==0.4.*,
+    semigroups ==0.8.*,
+    text ==0.11.*
+
+  Main-is: penny-selloff.hs
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
 Executable penny-diff
   Build-depends:
     base ==4.*,

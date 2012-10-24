@@ -1,6 +1,25 @@
 -- | Grab bag of utility functions.
 
-module Penny.Cabin.Balance.Util where
+module Penny.Cabin.Balance.Util
+  ( tieredForest
+  , tieredPostings
+  , filterForest
+  , balances
+  , flatten
+  , treeWithParents
+  , forestWithParents
+  , sumForest
+  , sumTree
+  , boxesBalance
+  , labelLevels
+  , sortForest
+  , sortTree
+  , lastMode
+  , lastModeBy
+  , modes
+  , modesBy
+  , longestLists
+  ) where
 
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Lincoln as L
@@ -9,6 +28,7 @@ import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
 import Data.Ord (comparing)
 import Data.List (sortBy, maximumBy, groupBy)
+import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Monoid (mconcat, Monoid)
 import Data.Maybe (mapMaybe)
 import qualified Data.Tree as T
@@ -78,6 +98,39 @@ balances (CO.ShowZeroBalances szb) =
            . map (fmap (mapSnd L.removeZeroCommodities))
 
 
+-- | Takes a tree of Balances (like what is produced by the 'balances'
+-- function) and produces a flat list of accounts with the balance of
+-- each account.
+flatten
+  :: T.Forest (L.SubAccountName, L.Balance)
+  -> [(L.Account, L.Balance)]
+flatten =
+  concatMap T.flatten
+  . map (fmap toPair) . forestWithParents
+  where
+    toPair ((s, b), ls) =
+      case reverse . map fst $ ls of
+        [] -> (L.Account (s :| []), b)
+        s1:sr -> (L.Account (s1 :| (sr ++ [s])), b)
+
+-- | Takes a Tree and returns a Tree where each node has information
+-- about its parent Nodes. The list of parent nodes has the most
+-- immediate parent first and the most distant parent last.
+treeWithParents :: T.Tree a -> T.Tree (a, [a])
+treeWithParents = treeWithParentsR []
+
+-- | Given a list of the parents seen so far, return a Tree where each
+-- node contains information about its parents.
+treeWithParentsR :: [a] -> T.Tree a -> T.Tree (a, [a])
+treeWithParentsR ls (T.Node n cs) = T.Node (n, ls) cs'
+  where
+    cs' = map (treeWithParentsR (n:ls)) cs
+
+-- | Takes a Forest and returns a Forest where each node has
+-- information about its parent Nodes.
+forestWithParents :: T.Forest a -> T.Forest (a, [a])
+forestWithParents = map (treeWithParentsR [])
+
 -- | Sums a forest from the bottom up. Returns a pair, where the first
 -- element is the forest, but with the second element of each node
 -- replaced with the sum of that node and all its children. The second
@@ -100,7 +153,7 @@ sumForest z f ts = (ts', s)
 sumTree ::
   s
   -- ^ Zero
-  
+
   -> (s -> s -> s)
   -- ^ Combiner
 
@@ -109,7 +162,7 @@ sumTree ::
 sumTree z f (T.Node (a, s) cs) = T.Node (a, f s cSum) cs'
   where
     (cs', cSum) = sumForest z f cs
-  
+
 
 boxesBalance :: [L.Box a] -> L.Balance
 boxesBalance = mconcat . map L.entryToBalance . map Q.entry
@@ -172,7 +225,7 @@ modesBy o =
   . longestLists
   . groupBy (\x y -> o x y == EQ)
   . sortBy o
-  
+
 
 -- | Returns the longest lists.
 longestLists :: [[a]] -> [[a]]
