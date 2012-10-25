@@ -75,6 +75,12 @@ cmdtyCurrency (ProceedsAcct a) ls = do
           Currency (L.Amount currQty currCty))
 
 
+-- | Change a BottomLine to a Column. Fails if the BottomLine is zero.
+bottomLineToColumn :: L.BottomLine -> Maybe L.Column
+bottomLineToColumn bl = case bl of
+  L.Zero -> Nothing
+  L.NonZero c -> Just c
+
 basisSub :: L.SubAccountName
 basisSub = L.SubAccountName (L.TextNonEmpty 'B' (pack "asis"))
 
@@ -98,13 +104,42 @@ basisDateTime dtz (L.Account (_ :| (_ : d : []))) =
     Right dt -> Just dt
 basisDateTime _ _ = Nothing
 
--- | Information on a single Basis corresponding to an asset purchase.
-data Basis = Basis
-  { basisCurrencyQty :: L.Qty
-  , basisStockQty :: L.Qty
-  } deriving Show
+-- | The currency quantity for a purchase.
+newtype CurrencyQty = CurrencyQty { unCurrencyQty :: L.Qty }
+  deriving (Show, Eq)
 
--- | Gets the Basis information pertaining to a single
+-- | The stock quantity for a purchase.
+newtype StockQty = StockQty { unStockQty :: L.Qty }
+  deriving (Show, Eq)
+
+-- | Gets the CurrencyQty. Fails if there is no debit balance with
+-- this commodity.
+currencyQty :: Currency -> L.Balance -> Maybe CurrencyQty
+currencyQty (Currency cu) bal = do
+  let balMap = L.unBalance . L.removeZeroCommodities $ bal
+  bl <- M.lookup (L.commodity cu) balMap
+  (L.Column dc q) <- bottomLineToColumn bl
+  guard (dc == L.Debit)
+  return . CurrencyQty $ q
+
+-- | Gets the StockQty. Fails if there is no credit balance with this
+-- commodity.
+stockQty :: Selloff -> L.Balance -> Maybe StockQty
+
+-- | Gets the Basis information pertaining to a single purchase. Fails
+-- if there is not exactly one debit with the selloff commodity and
+-- one credit with the currency commodity, or if there are more than
+-- two commodities in the balance.
+purchaseBasis
+  :: Selloff
+  -> Currency
+  -> L.Balance
+  -> Maybe (CurrencyQty, StockQty)
+purchaseBasis (Selloff so) (Currency cu) bal = do
+  let balMap = L.unBalance . L.removeZeroCommodities $ bal
+  guard (M.size balMap == 2)
+
+
 
 main :: IO ()
 main = undefined
