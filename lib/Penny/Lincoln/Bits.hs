@@ -23,7 +23,7 @@ module Penny.Lincoln.Bits (
   -- * Debits and Credits
   DC.DrCr(Debit, Credit),
   DC.opposite,
-  
+
   -- * Entries
   E.Entry(Entry, drCr, amount),
 
@@ -49,7 +49,7 @@ module Penny.Lincoln.Bits (
 
   -- * Quantities
   Q.Qty, Q.unQty, Q.partialNewQty,
-  Q.newQty, Q.add, Q.subt, Q.mult, Q.zero,
+  Q.newQty, Q.add, Q.subt, Q.mult,
   Q.difference,
   Q.Difference(Q.LeftBiggerBy, Q.RightBiggerBy, Q.Equal),
 

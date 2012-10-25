@@ -4,10 +4,17 @@
 module Penny.Lincoln.Bits.Qty (
   Qty, unQty, partialNewQty,
   newQty, add, subt, mult,
-  zero, Difference(LeftBiggerBy, RightBiggerBy, Equal),
-  difference) where
+  Difference(LeftBiggerBy, RightBiggerBy, Equal),
+  difference, allocate) where
 
 import Data.Decimal ( DecimalRaw ( Decimal ), Decimal )
+import qualified Data.Decimal as D
+import qualified Data.Foldable as F
+import Data.List.NonEmpty (NonEmpty((:|)))
+import qualified Data.List.NonEmpty as NE
+import qualified Control.Monad.Trans.State as St
+import qualified Data.Traversable as Tr
+import Data.Word (Word8)
 
 -- | A quantity is always greater than zero. Various odd questions
 -- happen if quantities can be zero. For instance, what if you have a
@@ -61,10 +68,134 @@ add :: Qty -> Qty -> Qty
 add (Qty q1) (Qty q2) = Qty $ q1 + q2
 
 subt :: Qty -> Qty -> Maybe Qty
-subt (Qty q1) (Qty q2) = if q2 > q1 then Nothing else Just $ Qty (q1 - q2)
+subt (Qty q1) (Qty q2) =
+  if q2 > q1
+  then Nothing
+  else Just $ Qty (q1 - q2)
 
 mult :: Qty -> Qty -> Qty
 mult (Qty q1) (Qty q2) = Qty $ q1 * q2
 
-zero :: Qty
-zero = Qty $ Decimal 0 0
+-- | Allocate a Qty proportionally so that the sum of the results adds
+-- up to a given Qty. Fails if the allocation cannot be made (e.g. if
+-- it is impossible to allocate without overflowing Decimal.) The
+-- result will always add up to the given sum.
+allocate
+  :: Qty
+  -- ^ The result will add up to this Qty.
+
+  -> NonEmpty Qty
+  -- ^ Allocate using this list of Qty.
+
+  -> NonEmpty Qty
+  -- ^ The length of this list will be equal to the length of the list
+  -- of allocations. Each item will correspond to the original
+  -- allocation.
+
+allocate = undefined
+
+
+-- | Given a list of integers and an exponent, produce a list of
+-- decimals.
+integersToDecimals :: Word8 -> NonEmpty Integer -> NonEmpty Decimal
+integersToDecimals e = fmap (Decimal e)
+
+-- | Allocates decimals. Does not guarantee that the decimals will
+-- each be greater than zero.
+allocDecimals
+  :: Decimal -> NonEmpty Decimal -> Maybe (NonEmpty Decimal)
+allocDecimals tot ls = do
+  (tot', ls', e) <- sameExponent 0 tot ls
+  let totInt = D.decimalMantissa tot'
+      lsInt = fmap D.decimalMantissa ls'
+      alloced = allocateIntegers totInt lsInt
+  return . fmap (Decimal e) $ alloced
+
+-- | Given a list of Decimals, and a single Decimal, return Decimals
+-- that are equivalent to the original Decimals, but where all
+-- Decimals have the same mantissa. Fails if overflow would
+-- result. Returns new mantissa in addition to new Decimals. Also, you
+-- provide an Int for an optional number of additional places to add
+-- to the exponent.
+sameExponent
+  :: Int
+  -> Decimal
+  -> NonEmpty Decimal
+  -> Maybe (Decimal, NonEmpty Decimal, Word8)
+sameExponent plus dec ls =
+  let maxExp = max (F.maximum . fmap D.decimalPlaces $ ls)
+                   (D.decimalPlaces dec)
+      newExpInt = plus + fromIntegral maxExp
+      newExp8 = fromIntegral plus + maxExp
+      conv (Decimal p m) =
+        let diff = newExp8 - p
+        in Decimal (p + diff) (m * 10 ^ diff)
+  in if newExpInt > 255
+     then Nothing
+     else Just (conv dec, fmap conv ls, newExp8)
+
+-- | Given a list of Decimals, and a single Decimal, produce a list of
+-- Integers. Each integer is produced by multiplying the mantissa by
+-- 10 raised to an exponent. The exponent used is the largest exponent
+-- of all the Decimals in the given list, plus the given amount. Fails
+-- if overflow would result.
+--
+-- In addition to the integers, returns the exponent used.
+decimalsToIntegers
+  :: Int
+  -> Decimal
+  -> NonEmpty Decimal
+  -> Maybe (Integer, NonEmpty Integer, Word8)
+decimalsToIntegers plus dec ls =
+  let maxExp = max (F.maximum . fmap D.decimalPlaces $ ls)
+                   (D.decimalPlaces dec)
+      newExpInt = plus + fromIntegral maxExp
+      newExp8 = fromIntegral plus + maxExp
+      conv d = D.decimalMantissa d * 10 ^ (fromIntegral newExp8)
+  in if newExpInt > 255
+     then Nothing
+     else Just (conv dec, fmap conv ls, newExp8)
+
+-- | Allocate Integers. All input Integers must be positive;
+-- otherwise, undefined behavior occurs. All output integers will be
+-- at least zero; however, they might be zero (there is no guarantee
+-- they will be positive.) All output Integers will add up to the
+-- target Integer.
+allocateIntegers :: Integer -> NonEmpty Integer -> NonEmpty Integer
+allocateIntegers target allocs =
+  let totAlloc = toDouble . F.sum $ allocs
+      tgtDbl = toDouble target
+      getResult alloc = (toDouble alloc * tgtDbl) / totAlloc
+      ratios = fmap getResult allocs
+      toDouble = fromIntegral :: Integer -> Double
+      rounded = fmap truncate ratios
+  in addToReachTarget target rounded
+
+-- | Returns a list with amounts added to each element so that its sum
+-- is the given value. Spreads out the additions to the extent
+-- possible. If the given sum is equal to or less than the sum of the
+-- list, returns the list without change.
+addToReachTarget
+  :: Integer
+  -> NonEmpty Integer
+  -> NonEmpty Integer
+addToReachTarget t ls =
+  let tot = F.sum ls
+      diff = t - tot
+  in if diff < 0
+     then ls
+     else
+      let (addToAll, nToIncrement) =
+            diff `divMod` (fromIntegral . length . F.toList $ ls)
+      in incrementFirstN nToIncrement . fmap (+ addToAll) $ ls
+
+-- | Increments the first n elements of a list.
+incrementFirstN :: Integer -> NonEmpty Integer -> NonEmpty Integer
+incrementFirstN i ls = St.evalState (Tr.traverse incr ls) i
+  where
+    incr e = do
+      c <- St.get
+      if c > 0
+        then St.modify pred >> return (succ e)
+        else return e
+

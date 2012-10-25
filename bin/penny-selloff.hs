@@ -112,34 +112,42 @@ newtype CurrencyQty = CurrencyQty { unCurrencyQty :: L.Qty }
 newtype StockQty = StockQty { unStockQty :: L.Qty }
   deriving (Show, Eq)
 
--- | Gets the CurrencyQty. Fails if there is no debit balance with
--- this commodity.
-currencyQty :: Currency -> L.Balance -> Maybe CurrencyQty
-currencyQty (Currency cu) bal = do
-  let balMap = L.unBalance . L.removeZeroCommodities $ bal
-  bl <- M.lookup (L.commodity cu) balMap
+-- | Gets a quantity from a balance that matches a particular
+-- commodity, but only if the commodity's balance has the given DrCr.
+quantityFromBal
+  :: L.Commodity
+  -> M.Map L.Commodity L.BottomLine
+  -- ^ Balance map, with zero commodities already removed
+  -> L.DrCr
+  -> Maybe L.Qty
+quantityFromBal cy balMap tgtDc = do
+  bl <- M.lookup cy balMap
   (L.Column dc q) <- bottomLineToColumn bl
-  guard (dc == L.Debit)
-  return . CurrencyQty $ q
+  guard (dc == tgtDc)
+  return q
 
--- | Gets the StockQty. Fails if there is no credit balance with this
--- commodity.
-stockQty :: Selloff -> L.Balance -> Maybe StockQty
 
 -- | Gets the Basis information pertaining to a single purchase. Fails
--- if there is not exactly one debit with the selloff commodity and
--- one credit with the currency commodity, or if there are more than
+-- if there is not exactly one credit with the selloff commodity and
+-- one debit with the currency commodity, or if there are more than
 -- two commodities in the balance.
 purchaseBasis
-  :: Selloff
-  -> Currency
+  :: Currency
+  -> Selloff
   -> L.Balance
   -> Maybe (CurrencyQty, StockQty)
-purchaseBasis (Selloff so) (Currency cu) bal = do
+purchaseBasis (Currency cu) (Selloff so) bal = do
   let balMap = L.unBalance . L.removeZeroCommodities $ bal
+  cq <- fmap CurrencyQty $ quantityFromBal
+        (L.commodity cu) balMap L.Debit
+  sq <- fmap StockQty $ quantityFromBal
+        (L.commodity so) balMap L.Credit
   guard (M.size balMap == 2)
+  return (cq, sq)
 
 
+-- | The selloff price per share.
+newtype SelloffPrice = SelloffPrice
 
 main :: IO ()
 main = undefined

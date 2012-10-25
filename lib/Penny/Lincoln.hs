@@ -77,7 +77,6 @@ module Penny.Lincoln (
   , I.add
   , I.subt
   , I.mult
-  , I.zero
   , I.difference
   , I.Difference(LeftBiggerBy, RightBiggerBy, Equal)
 
