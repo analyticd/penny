@@ -1,0 +1,36 @@
+Name: penny-test-lib
+Version: 0.5.0.0
+Cabal-version: >= 1.8
+Build-type: Simple
+License: MIT
+Copyright: 2012 Omari Norman.
+author: Omari Norman
+maintainer: omari@smileystation.com
+stability: Experimental
+homepage: http://www.github.com/massysett/penny
+bug-reports: omari@smileystation.com
+Category: Console, Finance
+License-File: LICENSE
+synopsis: Extensible double-entry accounting system - tests
+
+description: Penny tests
+
+Executable penny-test
+    Main-is: penny-test.hs
+    Build-depends:
+        base ==4.*,
+        Decimal >= 0.2.3,
+        penny-lib ==0.5.0.0,
+        QuickCheck ==2.4.*,
+        test-framework ==0.6.*,
+        test-framework-quickcheck2 ==0.2.*
+
+    Other-modules:
+        PennyTest,
+        PennyTest.Penny,
+        PennyTest.Penny.Lincoln,
+        PennyTest.Penny.Lincoln.Bits,
+        PennyTest.Penny.Lincoln.Bits.Qty
+
+    ghc-options: -Wall
+
