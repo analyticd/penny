@@ -7,11 +7,15 @@ module Penny.Lincoln.Bits.Qty (
   Difference(LeftBiggerBy, RightBiggerBy, Equal),
   difference, allocate) where
 
+import Control.Monad.Exception.Synchronous as Ex
+import Control.Monad (when)
 import Control.Monad.Loops (iterateUntil)
+import Control.Monad.Trans.Class (lift)
 import Data.Decimal ( DecimalRaw ( Decimal ), Decimal )
 import qualified Data.Decimal as D
 import qualified Data.Foldable as F
 import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
 import qualified Control.Monad.Trans.State as St
 import qualified Data.Traversable as Tr
 import Data.Word (Word8)
@@ -93,112 +97,74 @@ allocate
   -- of allocations. Each item will correspond to the original
   -- allocation. Fails if overflow would result.
 
-allocate (Qty t) =
-  fmap (fmap Qty) . allocDecimalsNoZeroes t . fmap unQty
+allocate (Qty t) = undefined
 
+data IntAllocResult =
+  AllocGood (NonEmpty Integer)
+  | InvalidInput
+  | NonPositiveInInput
+  | ZeroInResult
+  deriving (Show, Eq)
 
--- | Allocates decimals. If there are no zero decimals in the input,
--- there are no zero decimals in the result. If there are zero
--- decimals in the input, undefined behavior occurs. Fails if overflow
--- would occur.
-allocDecimalsNoZeroes
-  :: Decimal
-  -> NonEmpty Decimal
-  -> Maybe (NonEmpty Decimal)
-allocDecimalsNoZeroes d ls = St.evalState k 0
-  where
-    p m = case m of
-      Nothing -> True
-      Just r -> F.all (> (Decimal 0 0)) r
-    k = iterateUntil p (allocDecimalsSt d ls)
-
--- | Allocates decimals. The state stores the amount to increment the
--- decimal exponents by. This function performs the allocation and
--- then increases the increment.
-allocDecimalsSt
-  :: Decimal
-  -> NonEmpty Decimal
-  -> St.State Int (Maybe (NonEmpty Decimal))
-allocDecimalsSt d ls = do
-  i <- St.get
-  St.modify succ
-  case allocDecimals i d ls of
-    Nothing -> return Nothing
-    Just r -> return (Just r)
-
--- | Allocates decimals. Does not guarantee that the decimals will
--- each be greater than zero.
-allocDecimals
-  :: Int -> Decimal -> NonEmpty Decimal -> Maybe (NonEmpty Decimal)
-allocDecimals i tot ls = do
-  (tot', ls', e) <- sameExponent i tot ls
-  let totInt = D.decimalMantissa tot'
-      lsInt = fmap D.decimalMantissa ls'
-      alloced = allocateIntegers totInt lsInt
-  return . fmap (Decimal e) $ alloced
-
--- | Given a list of Decimals, and a single Decimal, return Decimals
--- that are equivalent to the original Decimals, but where all
--- Decimals have the same mantissa. Fails if overflow would
--- result. Also, you provide an Int for an optional number of
--- additional places to add to the exponent.
-sameExponent
-  :: Int
-  -> Decimal
-  -> NonEmpty Decimal
-  -> Maybe (Decimal, NonEmpty Decimal, Word8)
-sameExponent plus dec ls =
-  let maxExp = max (F.maximum . fmap D.decimalPlaces $ ls)
-                   (D.decimalPlaces dec)
-      newExpInt = plus + fromIntegral maxExp
-      newExp8 = fromIntegral plus + maxExp
-      conv (Decimal p m) =
-        let diff = newExp8 - p
-        in Decimal (p + diff) (m * 10 ^ diff)
-  in if newExpInt > 255
-     then Nothing
-     else Just (conv dec, fmap conv ls, newExp8)
-
--- | Allocate Integers. All input Integers must be positive;
--- otherwise, undefined behavior occurs. All output integers will be
--- at least zero; however, they might be zero (there is no guarantee
--- they will be positive.) All output Integers will add up to the
--- target Integer.
-allocateIntegers :: Integer -> NonEmpty Integer -> NonEmpty Integer
-allocateIntegers target allocs =
-  let totAlloc = toDouble . F.sum $ allocs
-      tgtDbl = toDouble target
-      getResult alloc = (toDouble alloc * tgtDbl) / totAlloc
-      ratios = fmap getResult allocs
-      toDouble = fromIntegral :: Integer -> Double
-      rounded = fmap truncate ratios
-  in addToReachTarget target rounded
-
--- | Returns a list with amounts added to each element so that its sum
--- is the given value. Spreads out the additions to the extent
--- possible. If the given sum is equal to or less than the sum of the
--- list, returns the list without change.
-addToReachTarget
+-- | Allocates a non-empty list of integers. Computes an amount for
+-- each integer in the list. Stops if any of the allocations would be
+-- zero (in such a case, increase the size of what to allocate, then
+-- try again.)
+allocIntegers
   :: Integer
-  -> NonEmpty Integer
-  -> NonEmpty Integer
-addToReachTarget t ls =
-  let tot = F.sum ls
-      diff = t - tot
-  in if diff < 0
-     then ls
-     else
-      let (addToAll, nToIncrement) =
-            diff `divMod` (fromIntegral . length . F.toList $ ls)
-      in incrementFirstN nToIncrement . fmap (+ addToAll) $ ls
+  -- ^ All the results will sum up to this integer.
 
--- | Increments the first n elements of a list.
-incrementFirstN :: Integer -> NonEmpty Integer -> NonEmpty Integer
-incrementFirstN i ls = St.evalState (Tr.traverse incr ls) i
-  where
-    incr e = do
-      c <- St.get
-      if c > 0
-        then St.modify pred >> return (succ e)
-        else return e
+  -> NonEmpty Integer
+  -- ^ Allocate these integers.
 
+  -> IntAllocResult
+
+allocIntegers tgt ls =
+  let sumAllocs = F.sum ls
+      nAllocs = length . F.toList $ ls
+      lsWithIxs = NE.zip (NE.iterate succ 0) ls
+      k = Tr.traverse (allocator sumAllocs tgt nAllocs) lsWithIxs
+  in case St.evalState (Ex.runExceptionalT k) tgt of
+      Ex.Exception e -> case e of
+        AFNonPositiveInInput -> NonPositiveInInput
+        AFInvalidInput -> InvalidInput
+        AFZeroInResult -> ZeroInResult
+      Ex.Success g -> AllocGood g
+
+data AllocatorFail =
+  AFNonPositiveInInput | AFZeroInResult | AFInvalidInput
+  deriving (Show, Eq)
+
+type AllocLeft = Integer
+
+-- | Stateful computation that allocates integers.
+allocator
+  :: Integer
+  -- ^ Sum of all allocations
+
+  -> Integer
+  -- ^ Target total
+
+  -> Int
+  -- ^ Total number of all allocations (that's the number of
+  -- allocations, not their sum)
+
+  -> (Int, Integer)
+  -- ^ This allocation's index and the allocation
+
+  -> Ex.ExceptionalT AllocatorFail (St.State AllocLeft) Integer
+allocator s t n (ix, a) = do
+  when (s < 1 || t < 1 || n < 1 || a < 1)
+    $ Ex.throwT AFNonPositiveInInput
+  when ((ix > n - 1) || (ix < 0)) $ Ex.throwT AFInvalidInput
+  let td = fromIntegral :: Integer -> Double
+      r = truncate (((td a) * (td t)) / (td s))
+  if ix == (n - 1)
+    then do
+      l <- lift St.get
+      lift $ St.put 0
+      return l
+    else do
+      when (r < 1) (Ex.throwT AFZeroInResult)
+      lift $ St.modify (subtract r)
+      return r
