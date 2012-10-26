@@ -7,15 +7,16 @@ module Penny.Lincoln.Bits.Qty (
   Difference(LeftBiggerBy, RightBiggerBy, Equal),
   difference, allocate) where
 
-import Control.Monad.Exception.Synchronous as Ex
 import Control.Monad (when)
 import Control.Monad.Loops (iterateUntil)
 import Control.Monad.Trans.Class (lift)
+import qualified Control.Monad.Trans.Maybe as TM
 import Data.Decimal ( DecimalRaw ( Decimal ), Decimal )
 import qualified Data.Decimal as D
 import qualified Data.Foldable as F
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
+import Data.Maybe (isJust)
 import qualified Control.Monad.Trans.State as St
 import qualified Data.Traversable as Tr
 import Data.Word (Word8)
@@ -97,14 +98,74 @@ allocate
   -- of allocations. Each item will correspond to the original
   -- allocation. Fails if overflow would result.
 
-allocate (Qty t) = undefined
+allocate t ls =
+  fmap (fmap Qty) (allocDecimals (unQty t) (fmap unQty ls))
 
-data IntAllocResult =
-  AllocGood (NonEmpty Integer)
-  | InvalidInput
-  | NonPositiveInInput
-  | ZeroInResult
-  deriving (Show, Eq)
+allocDecimals
+  :: D.Decimal -> NonEmpty D.Decimal -> Maybe (NonEmpty D.Decimal)
+allocDecimals tot ls = do
+  (dt, dls, e) <- sameExponent 0 tot ls
+  (r, plus) <- allocNoZeroes (D.decimalMantissa dt)
+    (fmap D.decimalMantissa dls)
+  Tr.sequenceA
+    . fmap (adjustExponent plus)
+    . fmap (D.Decimal e) $ r
+
+
+-- | Given an amount that the exponent was increased by, adjust a
+-- Decimal so it is equal to its old value. Fails if there would be
+-- overflow.
+adjustExponent :: Int -> D.Decimal -> Maybe D.Decimal
+adjustExponent maybeNegI (D.Decimal e m) =
+  let i = abs maybeNegI
+  in if i + (fromIntegral e) > 255
+     then Nothing
+     else Just $ Decimal (fromIntegral (i + (fromIntegral e))) m
+
+
+-- | Given a list of Decimals, and a single Decimal, return Decimals
+-- that are equivalent to the original Decimals, but where all
+-- Decimals have the same mantissa. Fails if overflow would
+-- result. Also, you provide an Int for an optional number of
+-- additional places to add to the exponent. The absolute value of
+-- this Int is used.
+sameExponent
+  :: Int
+  -> Decimal
+  -> NonEmpty Decimal
+  -> Maybe (Decimal, NonEmpty Decimal, Word8)
+sameExponent maybeNegPlus dec ls =
+  let plus = abs maybeNegPlus
+      maxExp = max (F.maximum . fmap D.decimalPlaces $ ls)
+                   (D.decimalPlaces dec)
+      newExpInt = plus + fromIntegral maxExp
+      newExp8 = fromIntegral plus + maxExp
+      conv (Decimal p m) =
+        let diff = newExp8 - p
+        in Decimal (p + diff) (m * 10 ^ diff)
+  in if newExpInt > 255
+     then Nothing
+     else Just (conv dec, fmap conv ls, newExp8)
+
+-- | Allocates integers so that no zeroes are in the result. Fails if
+-- any of the input is bad. May have had to multiply the integers by a
+-- power of ten; this power is returned with the result.
+allocNoZeroes
+  :: Integer
+  -> NonEmpty Integer
+  -> Maybe (NonEmpty Integer, Int)
+allocNoZeroes tot ls =
+  let k = do
+        p <- St.get
+        St.modify succ
+        let tot' = tot * 10 ^ p
+        return $ (p, allocIntegers tot' ls)
+      pdct (_, r) = isJust r
+      loopResult = St.evalState (iterateUntil pdct k) 0
+  in case snd loopResult of
+    Nothing ->  error "allocNoZeroes: should never happen"
+    Just g -> return (g, fst loopResult)
+
 
 -- | Allocates a non-empty list of integers. Computes an amount for
 -- each integer in the list. Stops if any of the allocations would be
@@ -117,23 +178,14 @@ allocIntegers
   -> NonEmpty Integer
   -- ^ Allocate these integers.
 
-  -> IntAllocResult
+  -> Maybe (NonEmpty Integer)
 
 allocIntegers tgt ls =
   let sumAllocs = F.sum ls
       nAllocs = length . F.toList $ ls
       lsWithIxs = NE.zip (NE.iterate succ 0) ls
       k = Tr.traverse (allocator sumAllocs tgt nAllocs) lsWithIxs
-  in case St.evalState (Ex.runExceptionalT k) tgt of
-      Ex.Exception e -> case e of
-        AFNonPositiveInInput -> NonPositiveInInput
-        AFInvalidInput -> InvalidInput
-        AFZeroInResult -> ZeroInResult
-      Ex.Success g -> AllocGood g
-
-data AllocatorFail =
-  AFNonPositiveInInput | AFZeroInResult | AFInvalidInput
-  deriving (Show, Eq)
+  in St.evalState (TM.runMaybeT k) tgt
 
 type AllocLeft = Integer
 
@@ -152,19 +204,20 @@ allocator
   -> (Int, Integer)
   -- ^ This allocation's index and the allocation
 
-  -> Ex.ExceptionalT AllocatorFail (St.State AllocLeft) Integer
+  -> TM.MaybeT (St.State AllocLeft) Integer
 allocator s t n (ix, a) = do
   when (s < 1 || t < 1 || n < 1 || a < 1)
-    $ Ex.throwT AFNonPositiveInInput
-  when ((ix > n - 1) || (ix < 0)) $ Ex.throwT AFInvalidInput
+    $ error "allocator: fail 1"
+  when ((ix > n - 1) || (ix < 0)) $ error "allocator: fail 2"
   let td = fromIntegral :: Integer -> Double
-      r = truncate (((td a) * (td t)) / (td s))
+      r = round (((td a) * (td t)) / (td s))
   if ix == (n - 1)
     then do
       l <- lift St.get
+      when (l < 1) (fail "")
       lift $ St.put 0
       return l
     else do
-      when (r < 1) (Ex.throwT AFZeroInResult)
+      when (r < 1) (fail "")
       lift $ St.modify (subtract r)
       return r

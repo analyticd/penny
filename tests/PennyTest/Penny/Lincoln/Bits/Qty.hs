@@ -28,8 +28,9 @@ tests = TF.testGroup "PennyTest.Penny.Lincoln.Bits.Qty"
     prop_newQty
 
   , testProperty
-    "sum of allocations adds up to correct sum"
-    prop_allocateSum
+    "allocations are correct"
+    prop_allocations
+
   ]
 
 -- | Generates half verySmallDecimal generators, half typicalDecimal
@@ -180,15 +181,23 @@ oneof ls
 allocateSum :: Q.Qty -> NonEmpty Q.Qty -> Bool
 allocateSum q ls = (F.foldl1 Q.add ls) == q
 
--- | Sum of allocations adds up to requested value.
-ex_allocateSum
+-- | Tests three things about allocations: they add up to the correct
+-- value, the number of allocations made is the same as the number
+-- requested, and none of the results are zero or negative.
+ex_allocations
   :: Ex.ExceptionalT P.Result G.Gen P.Result
-ex_allocateSum = do
+ex_allocations = do
   (tot, ls) <- oneof [gen_allocate_typical, gen_allocate_mixed]
   case Q.allocate tot ls of
     Nothing -> return P.rejected
-    Just r -> return $ P.liftBool (allocateSum tot r)
+    Just r ->
+      return $ P.liftBool
+        ((allocateSum tot r)
+          && ((length . F.toList $ ls) == (length . F.toList $ r))
+          && (F.all (\q -> Q.unQty q > D.Decimal 0 0) ls))
+
 
 -- | Sum of allocations adds up to requested value.
-prop_allocateSum :: G.Gen P.Result
-prop_allocateSum = Ex.resolveT return ex_allocateSum
+prop_allocations :: G.Gen P.Result
+prop_allocations = Ex.resolveT return ex_allocations
+
