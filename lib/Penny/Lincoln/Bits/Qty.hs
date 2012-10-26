@@ -36,6 +36,7 @@ data Difference =
   LeftBiggerBy Qty
   | RightBiggerBy Qty
   | Equal
+  deriving (Eq, Show)
 
 -- | Subtract the second Qty from the first.
 difference :: Qty -> Qty -> Difference
