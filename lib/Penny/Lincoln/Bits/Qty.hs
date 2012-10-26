@@ -7,11 +7,11 @@ module Penny.Lincoln.Bits.Qty (
   Difference(LeftBiggerBy, RightBiggerBy, Equal),
   difference, allocate) where
 
+import Control.Monad.Loops (iterateUntil)
 import Data.Decimal ( DecimalRaw ( Decimal ), Decimal )
 import qualified Data.Decimal as D
 import qualified Data.Foldable as F
-import Data.List.NonEmpty (NonEmpty((:|)))
-import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty)
 import qualified Control.Monad.Trans.State as St
 import qualified Data.Traversable as Tr
 import Data.Word (Word8)
@@ -87,25 +87,50 @@ allocate
   -> NonEmpty Qty
   -- ^ Allocate using this list of Qty.
 
-  -> NonEmpty Qty
+  -> Maybe (NonEmpty Qty)
   -- ^ The length of this list will be equal to the length of the list
   -- of allocations. Each item will correspond to the original
-  -- allocation.
+  -- allocation. Fails if overflow would result.
 
-allocate = undefined
+allocate (Qty t) =
+  fmap (fmap Qty) . allocDecimalsNoZeroes t . fmap unQty
 
 
--- | Given a list of integers and an exponent, produce a list of
--- decimals.
-integersToDecimals :: Word8 -> NonEmpty Integer -> NonEmpty Decimal
-integersToDecimals e = fmap (Decimal e)
+-- | Allocates decimals. If there are no zero decimals in the input,
+-- there are no zero decimals in the result. If there are zero
+-- decimals in the input, undefined behavior occurs. Fails if overflow
+-- would occur.
+allocDecimalsNoZeroes
+  :: Decimal
+  -> NonEmpty Decimal
+  -> Maybe (NonEmpty Decimal)
+allocDecimalsNoZeroes d ls = St.evalState k 0
+  where
+    p m = case m of
+      Nothing -> True
+      Just r -> F.all (> (Decimal 0 0)) r
+    k = iterateUntil p (allocDecimalsSt d ls)
+
+-- | Allocates decimals. The state stores the amount to increment the
+-- decimal exponents by. This function performs the allocation and
+-- then increases the increment.
+allocDecimalsSt
+  :: Decimal
+  -> NonEmpty Decimal
+  -> St.State Int (Maybe (NonEmpty Decimal))
+allocDecimalsSt d ls = do
+  i <- St.get
+  St.modify succ
+  case allocDecimals i d ls of
+    Nothing -> return Nothing
+    Just r -> return (Just r)
 
 -- | Allocates decimals. Does not guarantee that the decimals will
 -- each be greater than zero.
 allocDecimals
-  :: Decimal -> NonEmpty Decimal -> Maybe (NonEmpty Decimal)
-allocDecimals tot ls = do
-  (tot', ls', e) <- sameExponent 0 tot ls
+  :: Int -> Decimal -> NonEmpty Decimal -> Maybe (NonEmpty Decimal)
+allocDecimals i tot ls = do
+  (tot', ls', e) <- sameExponent i tot ls
   let totInt = D.decimalMantissa tot'
       lsInt = fmap D.decimalMantissa ls'
       alloced = allocateIntegers totInt lsInt
@@ -114,9 +139,8 @@ allocDecimals tot ls = do
 -- | Given a list of Decimals, and a single Decimal, return Decimals
 -- that are equivalent to the original Decimals, but where all
 -- Decimals have the same mantissa. Fails if overflow would
--- result. Returns new mantissa in addition to new Decimals. Also, you
--- provide an Int for an optional number of additional places to add
--- to the exponent.
+-- result. Also, you provide an Int for an optional number of
+-- additional places to add to the exponent.
 sameExponent
   :: Int
   -> Decimal
@@ -130,28 +154,6 @@ sameExponent plus dec ls =
       conv (Decimal p m) =
         let diff = newExp8 - p
         in Decimal (p + diff) (m * 10 ^ diff)
-  in if newExpInt > 255
-     then Nothing
-     else Just (conv dec, fmap conv ls, newExp8)
-
--- | Given a list of Decimals, and a single Decimal, produce a list of
--- Integers. Each integer is produced by multiplying the mantissa by
--- 10 raised to an exponent. The exponent used is the largest exponent
--- of all the Decimals in the given list, plus the given amount. Fails
--- if overflow would result.
---
--- In addition to the integers, returns the exponent used.
-decimalsToIntegers
-  :: Int
-  -> Decimal
-  -> NonEmpty Decimal
-  -> Maybe (Integer, NonEmpty Integer, Word8)
-decimalsToIntegers plus dec ls =
-  let maxExp = max (F.maximum . fmap D.decimalPlaces $ ls)
-                   (D.decimalPlaces dec)
-      newExpInt = plus + fromIntegral maxExp
-      newExp8 = fromIntegral plus + maxExp
-      conv d = D.decimalMantissa d * 10 ^ (fromIntegral newExp8)
   in if newExpInt > 255
      then Nothing
      else Just (conv dec, fmap conv ls, newExp8)
