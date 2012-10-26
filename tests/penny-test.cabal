@@ -1,4 +1,4 @@
-Name: penny-test-lib
+Name: penny-test
 Version: 0.5.0.0
 Cabal-version: >= 1.8
 Build-type: Simple
@@ -20,10 +20,12 @@ Executable penny-test
     Build-depends:
         base ==4.*,
         Decimal >= 0.2.3,
+        explicit-exception ==0.1.*,
         penny-lib ==0.5.0.0,
         QuickCheck ==2.4.*,
         test-framework ==0.6.*,
-        test-framework-quickcheck2 ==0.2.*
+        test-framework-quickcheck2 ==0.2.*,
+        transformers == 0.3.*
 
     Other-modules:
         PennyTest,
