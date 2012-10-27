@@ -1,9 +1,11 @@
 module Main where
 
 import Control.Monad (guard)
+import qualified Control.Monad.Trans.State as St
 import qualified Penny.Copper as Cop
 import Penny.Copper.DateTime (dateTime)
 import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.List (find)
@@ -93,15 +95,19 @@ isBasisAccount (SelloffLabel l) (L.Account (s1 :| sr))
       s:_ -> l == s
   | otherwise = False
 
+newtype PurchaseDate = PurchaseDate { unPurchaseDate :: L.DateTime }
+  deriving Show
+
 -- | Examines an Account to see if it has a valid DateTime as the
 -- third sub-account, and to ensure that there are no additional
 -- sub-accounts. If it is valid, returns the DateTime; fails
 -- otherwise.
-basisDateTime :: Cop.DefaultTimeZone -> L.Account -> Maybe L.DateTime
+basisDateTime
+  :: Cop.DefaultTimeZone -> L.Account -> Maybe PurchaseDate
 basisDateTime dtz (L.Account (_ :| (_ : d : []))) =
   case Parsec.parse (dateTime dtz) "" (L.text d) of
     Left _ -> Nothing
-    Right dt -> Just dt
+    Right dt -> Just . PurchaseDate $ dt
 basisDateTime _ _ = Nothing
 
 -- | The currency quantity for a purchase.
@@ -111,6 +117,12 @@ newtype CurrencyQty = CurrencyQty { unCurrencyQty :: L.Qty }
 -- | The stock quantity for a purchase.
 newtype StockQty = StockQty { unStockQty :: L.Qty }
   deriving (Show, Eq)
+
+data PurchaseInfo = PurchaseInfo
+  { pDateTime :: PurchaseDate
+  , pCurrQty :: CurrencyQty
+  , pStockQty :: StockQty
+  } deriving Show
 
 -- | Gets a quantity from a balance that matches a particular
 -- commodity, but only if the commodity's balance has the given DrCr.
@@ -125,6 +137,7 @@ quantityFromBal cy balMap tgtDc = do
   (L.Column dc q) <- bottomLineToColumn bl
   guard (dc == tgtDc)
   return q
+
 
 
 -- | Gets the Basis information pertaining to a single purchase. Fails
@@ -145,9 +158,34 @@ purchaseBasis (Currency cu) (Selloff so) bal = do
   guard (M.size balMap == 2)
   return (cq, sq)
 
+-- | How many shares still need to have their basis adjusted? Nothing
+-- if no shares remain.
+newtype SelloffRemaining
+  = SelloffRemaining { unSelloffRemaining :: Maybe L.Qty }
+  deriving Show
 
--- | The selloff price per share.
-newtype SelloffPrice = SelloffPrice
+-- | Information on the adjustment of the basis, to be used in the
+-- result transaction. Each BasisAdj represents the postings that will
+-- result from adjusting a single purchase transaction.
+data BasisAdj = BasisAdj
+  { adjSharesSold :: Q.Qty
+    -- ^ Number of shares sold (this will be a debit). Typically will
+    -- be the number of shares purchased in the corresponding
+    -- transaction, but it might be less if nearly all the sold shares
+    -- have already been adjusted.
+
+  ,
+
+-- | A stateful computation that computes the selloff information for
+-- a single purchase. Stores how many shares remain to be sold off. If
+-- there are no shares remaining to be sold off, returns an empty
+-- list.
+selloffPurchase
+  :: GroupName
+  -> SelloffLabel
+  -> PurchaseInfo
+  -> St.State SelloffRemaining (Maybe BasisAdj)
+selloffPurchase = undefined
 
 main :: IO ()
 main = undefined
