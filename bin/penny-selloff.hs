@@ -1,193 +1,95 @@
+-- | penny-selloff
+
+-- Steps
+
+-- * In IO monad: read values given on command line.
+
+-- * Parse command line. Fails if command line fails to parse.
+
+-- * If help is requested, show help and exit successfully.
+
+-- * In IO monad: read text of files given on command line. Fails if
+-- there is an IO failure.
+
+-- * Parse files given on command line. Fails if files fail to parse.
+
+-- * Calculate balances of all accounts. Remove zero balances. This
+-- step never fails.
+
+-- * Find Proceeds account specified on command line. Split it into a
+-- group name (the second sub-account) and a selloff label (the third
+-- sub-account). Obtain the SelloffStockAmt, which is the debit
+-- balance, and the SelloffCurrencyAmt, which is the credit
+-- balance. Fails if the Proceeds account does not have exactly three
+-- sub-accounts, or if the account does not have a balance with
+-- exactly one debit balance and exactly one credit balance. Returns a
+-- record with the group name, the selloff label, the selloff currency
+-- amount, and the selloff stock amount. (Remember, an amount is a Qty
+-- and a Commodity.)
+
+-- * Filter account balances to find all Basis accounts with a
+-- matching group name. Only accounts that have Basis as the first
+-- sub-account AND a matching group name as the second sub-account are
+-- further analyzed; all other accounts are discarded. Returns a list
+-- of matching accounts, but only with a list of remaining
+-- sub-accounts after the first and second sub-accounts, and the
+-- balances of these accounts. This computation does not fail.
+
+-- * For each basis account, parse out the purchase information. This
+-- consists of a DateTime, which is the time of the purchase; the Qty
+-- of stock purchased; and the Qty of currency paid for the
+-- stock. Returns this information in a record. Fails if the basis
+-- account does not have exactly two commodities in its balance, or if
+-- there is not a credit balance matching the stock commodity, or if
+-- there is not a debit balance matching the currency commodity, or if
+-- the basis account has more than one remaining sub-account; or if
+-- the DateTime cannot be parsed.
+
+-- * For each basis account, compute the basis realization
+-- information. First sort the basis accounts with the earliest
+-- accounts coming first. Then for each account calculate how many
+-- shares to debit and how much currency to credit. Do this in a
+-- stateful transforming function that will transform the purchase
+-- information into a pair with basis realization information and
+-- purchase information. The state contains the number of shares
+-- remaining that need to have their basis realized, and the total
+-- cost of realized shares.
+
+-- To calculate each basis realization, compare the number of shares
+-- purchased with the number still remaining to be realized. If the
+-- number purchased is less than or equal to the number remaining to
+-- be realized, return a basis realization that realizes all the
+-- shares purchased. If the number of shares purchased is more than
+-- the number still remaining to be realized, then realize all the
+-- shares that still need to be realized, and credit the cost
+-- proportionally. If there are no shares remaining to be realized,
+-- return no realization information at all.
+
+-- Returns a list of pairs of basis realizations and purchase
+-- information; purchases that have no basis realizations are
+-- discarded. Also returns the total cost of shares sold. Fails if
+-- there are still shares that have not had their basis realized
+-- (i.e. the number of shares in the Proceeds account is greater than
+-- the number of shares in the selloff group.)
+
+-- * Compute the capital gain or loss. Take the difference between the
+-- selloff currency quantity and the cost of shares sold. If the
+-- selloff currency quantity is greater, there is a capital
+-- gain. Record credits to an Income:Capital Gain account. If the cost
+-- of shares sold is greater, there is a capital loss. Record debits
+-- to an Expenses:Capital Loss account. To calculate the gain or loss
+-- per purchase transaction, use the allocate function in the Qty
+-- module. The target total is the total capital gain or loss, and
+-- each allocation is the number of shares purchased in each
+-- account. Returns a list of quantities (one for each capital gain or
+-- loss, which corresponds to each purchase account) and an indication
+-- of whether there was a capital gain or loss (this need only be
+-- reported once.) Fails if the allocation fails.
+
+-- * Create output transaction. This never fails (if it does, it is a
+-- programmer error; just apply error.)
+
+-- * In IO monad: Print output transaction.
+
 module Main where
-
-import Control.Monad (guard)
-import qualified Control.Monad.Trans.State as St
-import qualified Penny.Copper as Cop
-import Penny.Copper.DateTime (dateTime)
-import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Transaction.Unverified as U
-import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.List.NonEmpty (NonEmpty((:|)))
-import Data.List (find)
-import qualified Data.Map as M
-import Data.Maybe (mapMaybe)
-import Data.Text (pack)
-import qualified Text.Parsec as Parsec
-
-
--- | A selloff pertains only to commodities that are in a particular
--- group, where the group is indicated in the account name. The group
--- name is the penultimate sub-account name in the Proceeds
--- account. The group name is often the same as the commodity name,
--- but this need not be true.
-newtype GroupName = GroupName { unGroupName :: L.SubAccountName }
-  deriving (Eq, Show)
-
--- | A selloff has a label applying to that particular selloff. This
--- is indicated in the last sub-account name in the Proceeds
--- account. The selloff label is often the date of the selloff, but
--- this need not be true.
-newtype SelloffLabel =
-  SelloffLabel { unSelloffLabel :: L.SubAccountName }
-  deriving (Eq, Show)
-
--- | The stock being sold off.
-newtype Selloff = Selloff { unSelloff :: L.Amount }
-  deriving (Eq, Show)
-
--- | The commodity obtained in exchange for the sold-off commodity.
-newtype Currency = Currency { unCurrency :: L.Amount }
-  deriving (Eq, Show)
-
--- | The Proceeds account parsed in from the command line.
-newtype ProceedsAcct = ProceedsAcct { unProceedsAcct :: L.Account }
-  deriving (Eq, Show)
-
--- | Gets a ProceedsAcct from an account parsed in from the command
--- line. Fails if the account does not have exactly three
--- sub-accounts.
-parseAccount
-  :: L.Account
-  -> Maybe (ProceedsAcct, GroupName, SelloffLabel)
-parseAccount a@(L.Account (_ :| (g : s : []))) =
-  Just (ProceedsAcct a, GroupName g, SelloffLabel s)
-parseAccount _ = Nothing
-
--- | Determines the selloff commodity and the currency. The
--- ProceedsAcct must exist, and it must have a balance consisting of
--- exactly two entries, with one debit entry and one credit entry. If
--- any of these conditions fail, this function fails.
-cmdtyCurrency
-  :: ProceedsAcct
-  -> [(L.Account, L.Balance)]
-  -> Maybe (Selloff, Currency)
-cmdtyCurrency (ProceedsAcct a) ls = do
-  (_, bal) <- find (\p -> fst p == a) ls
-  let lsBal = mapMaybe toColumn . M.toList . L.unBalance $ bal
-      isDebit (_, (L.Column dc _)) = case dc of
-        L.Debit -> True
-        _ -> False
-      toColumn (cty, bl) = case bl of
-        L.Zero -> Nothing
-        L.NonZero c -> Just (cty, c)
-  guard (length lsBal == 2)
-  (sellCty, L.Column _ sellQty) <- find isDebit lsBal
-  (currCty, L.Column _ currQty) <- find (not . isDebit) lsBal
-  return (Selloff (L.Amount sellQty sellCty),
-          Currency (L.Amount currQty currCty))
-
-
--- | Change a BottomLine to a Column. Fails if the BottomLine is zero.
-bottomLineToColumn :: L.BottomLine -> Maybe L.Column
-bottomLineToColumn bl = case bl of
-  L.Zero -> Nothing
-  L.NonZero c -> Just c
-
-basisSub :: L.SubAccountName
-basisSub = L.SubAccountName (L.TextNonEmpty 'B' (pack "asis"))
-
--- | Examines an account to determine whether it is a Basis
--- account and has the selloff label we're interested in.
-isBasisAccount :: SelloffLabel -> L.Account -> Bool
-isBasisAccount (SelloffLabel l) (L.Account (s1 :| sr))
-  | s1 == basisSub = case sr of
-      [] -> False
-      s:_ -> l == s
-  | otherwise = False
-
-newtype PurchaseDate = PurchaseDate { unPurchaseDate :: L.DateTime }
-  deriving Show
-
--- | Examines an Account to see if it has a valid DateTime as the
--- third sub-account, and to ensure that there are no additional
--- sub-accounts. If it is valid, returns the DateTime; fails
--- otherwise.
-basisDateTime
-  :: Cop.DefaultTimeZone -> L.Account -> Maybe PurchaseDate
-basisDateTime dtz (L.Account (_ :| (_ : d : []))) =
-  case Parsec.parse (dateTime dtz) "" (L.text d) of
-    Left _ -> Nothing
-    Right dt -> Just . PurchaseDate $ dt
-basisDateTime _ _ = Nothing
-
--- | The currency quantity for a purchase.
-newtype CurrencyQty = CurrencyQty { unCurrencyQty :: L.Qty }
-  deriving (Show, Eq)
-
--- | The stock quantity for a purchase.
-newtype StockQty = StockQty { unStockQty :: L.Qty }
-  deriving (Show, Eq)
-
-data PurchaseInfo = PurchaseInfo
-  { pDateTime :: PurchaseDate
-  , pCurrQty :: CurrencyQty
-  , pStockQty :: StockQty
-  } deriving Show
-
--- | Gets a quantity from a balance that matches a particular
--- commodity, but only if the commodity's balance has the given DrCr.
-quantityFromBal
-  :: L.Commodity
-  -> M.Map L.Commodity L.BottomLine
-  -- ^ Balance map, with zero commodities already removed
-  -> L.DrCr
-  -> Maybe L.Qty
-quantityFromBal cy balMap tgtDc = do
-  bl <- M.lookup cy balMap
-  (L.Column dc q) <- bottomLineToColumn bl
-  guard (dc == tgtDc)
-  return q
-
-
-
--- | Gets the Basis information pertaining to a single purchase. Fails
--- if there is not exactly one credit with the selloff commodity and
--- one debit with the currency commodity, or if there are more than
--- two commodities in the balance.
-purchaseBasis
-  :: Currency
-  -> Selloff
-  -> L.Balance
-  -> Maybe (CurrencyQty, StockQty)
-purchaseBasis (Currency cu) (Selloff so) bal = do
-  let balMap = L.unBalance . L.removeZeroCommodities $ bal
-  cq <- fmap CurrencyQty $ quantityFromBal
-        (L.commodity cu) balMap L.Debit
-  sq <- fmap StockQty $ quantityFromBal
-        (L.commodity so) balMap L.Credit
-  guard (M.size balMap == 2)
-  return (cq, sq)
-
--- | How many shares still need to have their basis adjusted? Nothing
--- if no shares remain.
-newtype SelloffRemaining
-  = SelloffRemaining { unSelloffRemaining :: Maybe L.Qty }
-  deriving Show
-
--- | Information on the adjustment of the basis, to be used in the
--- result transaction. Each BasisAdj represents the postings that will
--- result from adjusting a single purchase transaction.
-data BasisAdj = BasisAdj
-  { adjSharesSold :: Q.Qty
-    -- ^ Number of shares sold (this will be a debit). Typically will
-    -- be the number of shares purchased in the corresponding
-    -- transaction, but it might be less if nearly all the sold shares
-    -- have already been adjusted.
-
-  ,
-
--- | A stateful computation that computes the selloff information for
--- a single purchase. Stores how many shares remain to be sold off. If
--- there are no shares remaining to be sold off, returns an empty
--- list.
-selloffPurchase
-  :: GroupName
-  -> SelloffLabel
-  -> PurchaseInfo
-  -> St.State SelloffRemaining (Maybe BasisAdj)
-selloffPurchase = undefined
-
-main :: IO ()
-main = undefined
-
 
