@@ -93,3 +93,21 @@
 
 module Main where
 
+import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Penny.Lincoln as L
+
+type Err = Ex.Exception Error
+
+data Error
+  = ParseFail String
+  deriving (Show, Eq)
+
+data ProceedsAcct = ProceedsAcct { unProceedsAcct :: L.Account }
+  deriving Show
+
+data ParseResult
+  = NeedsHelp
+  | ParseResult ProceedsAcct [InputFilename]
+
+parseCommandLine :: [String] -> Err ParseResult
+parseCommandLine = undefined
