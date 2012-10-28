@@ -94,20 +94,254 @@
 module Main where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Control.Monad (when)
+import qualified Control.Monad.Trans.State as St
+import Data.List (find)
+import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.Maybe (isJust, mapMaybe)
+import Data.Text (pack)
+import qualified Penny.Lincoln.Balance as Bal
+import qualified Penny.Cabin.Balance.Util as BU
+import Penny.Cabin.Options (ShowZeroBalances(..))
+import qualified Penny.Copper as Cop
+import qualified Penny.Copper.DateTime as DT
+import qualified Penny.Copper.Account as CA
 import qualified Penny.Lincoln as L
+import qualified Data.Map as M
+import qualified System.Console.MultiArg as MA
+import Text.Parsec as Parsec
 
-type Err = Ex.Exception Error
+defaultTimeZone :: Cop.DefaultTimeZone
+defaultTimeZone = Cop.utcDefault
+
+radGroup :: Cop.RadGroup
+radGroup = Cop.periodComma
+
+type Err = Ex.Exceptional Error
 
 data Error
-  = ParseFail String
-  deriving (Show, Eq)
+  = ParseFail MA.Error
+  | NoInputArgs
+  | ProceedsParseFailed Parsec.ParseError
+  | NoInputFiles
+  | LedgerParseError Cop.ErrorMsg
+  | NoSelloffAccount
+  | NotThreeSelloffSubAccounts
+  | BadSelloffBalance
+  | BadPurchaseBalance
+  | BadPurchaseDate Parsec.ParseError
+  | NotThreePurchaseSubAccounts
+  deriving Show
 
 data ProceedsAcct = ProceedsAcct { unProceedsAcct :: L.Account }
   deriving Show
+
+newtype InputFilename = InputFilename { unInputFilename :: String }
+  deriving (Eq, Show)
 
 data ParseResult
   = NeedsHelp
   | ParseResult ProceedsAcct [InputFilename]
 
+data Flag
+  = Help
+  | PosArg String
+  deriving (Show, Eq)
+
 parseCommandLine :: [String] -> Err ParseResult
-parseCommandLine = undefined
+parseCommandLine ss =
+  let os = [MA.OptSpec ["help"] "h" (MA.NoArg Help)]
+  in case MA.parse MA.Intersperse os PosArg ss of
+    Ex.Exception e -> Ex.Exception . ParseFail $ e
+    Ex.Success g ->
+      if isJust . find (== Help) $ g
+      then return NeedsHelp
+      else do
+        let toArg a = case a of
+              PosArg s -> Just s
+              _ -> Nothing
+        x:xs <- case mapMaybe toArg g of
+          [] -> Ex.throw NoInputArgs
+          r -> return r
+        a <- Ex.mapException ProceedsParseFailed
+              . Ex.fromEither
+              $ Parsec.parse CA.lvl1Account "" (pack x)
+        when (null xs) $ Ex.throw NoInputFiles
+        return $ ParseResult (ProceedsAcct a) (map InputFilename xs)
+
+help :: String
+help = ""
+
+parseFiles
+  :: [(L.Filename, Cop.FileContents)]
+  -> Err Cop.Ledger
+parseFiles ls = Ex.mapException LedgerParseError
+  $ Cop.parse defaultTimeZone radGroup ls
+
+calcBalances :: Cop.Ledger -> [(L.Account, L.Balance)]
+calcBalances =
+  let toTxn (_, i) = case i of
+        Cop.Transaction t -> Just t
+        _ -> Nothing
+  in BU.flatten
+      . BU.balances (ShowZeroBalances False)
+      . map (L.Box ())
+      . concatMap L.postFam
+      . mapMaybe toTxn
+      . Cop.unLedger
+
+newtype Group = Group { unGroup :: L.SubAccountName }
+  deriving (Show, Eq)
+
+newtype Label = Label { unLabel :: L.SubAccountName }
+  deriving (Show, Eq)
+
+newtype SelloffStock = SelloffStock { unSelloffStock :: L.Amount }
+  deriving (Show, Eq)
+
+newtype SelloffCurrency
+  = SelloffCurrency { unSelloffCurrency :: L.Amount }
+  deriving (Show, Eq)
+
+data SelloffInfo = SelloffInfo
+  { siGroup    :: Group
+  , siLabel    :: Label
+  , siStock    :: SelloffStock
+  , siCurrency :: SelloffCurrency
+  } deriving Show
+
+selloffInfo
+  :: ProceedsAcct -> [(L.Account, L.Balance)] -> Err SelloffInfo
+selloffInfo (ProceedsAcct pa) bals = do
+  bal <- fmap snd
+          . Ex.fromMaybe NoSelloffAccount
+          . find ((== pa) . fst)
+          $ bals
+  (g, l) <- case L.unAccount pa of
+    _ :| (s2 : s3 : []) -> return (s2, s3)
+    _ -> Ex.throw NotThreeSelloffSubAccounts
+  (sStock, sCurr) <- selloffStockCurr bal
+  return $ SelloffInfo (Group g) (Label l) sStock sCurr
+
+selloffStockCurr :: L.Balance -> Err (SelloffStock, SelloffCurrency)
+selloffStockCurr bal = do
+  let m = L.unBalance bal
+  when (M.size m /= 2) $ Ex.throw BadSelloffBalance
+  let toPair (cy, bl) = case bl of
+        Bal.Zero -> Nothing
+        Bal.NonZero col -> Just (cy, col)
+      ps = mapMaybe toPair . M.toList $ m
+      findBal dc = Ex.fromMaybe BadSelloffBalance
+                    . find ((== dc) . Bal.drCr . snd)
+                    $ ps
+  (cyStock, (Bal.Column _ qtyStock)) <- findBal L.Debit
+  (cyCurr, (Bal.Column _ qtyCurr)) <- findBal L.Credit
+  let sellStock = SelloffStock (L.Amount qtyStock cyStock)
+      sellCurr = SelloffCurrency (L.Amount qtyCurr cyCurr)
+  return (sellStock, sellCurr)
+
+
+basis :: L.SubAccountName
+basis = L.SubAccountName (L.TextNonEmpty 'B' (pack "asis"))
+
+findBasisAccounts
+  :: Group
+  -> [(L.Account, L.Balance)]
+  -> [([L.SubAccountName], L.Balance)]
+findBasisAccounts (Group g) = mapMaybe f
+  where
+    f ((L.Account a), b) = case a of
+      s0 :| (s1:ss) -> if (s0 == basis) && (s1 == g)
+                        then Just (ss, b) else Nothing
+      _ -> Nothing
+
+
+data PurchaseDate = PurchaseDate { unPurchaseDate :: L.DateTime }
+  deriving Show
+
+data PurchaseStockQty
+  = PurchaseStockQty { unPurchaseStockQty :: L.Qty }
+  deriving (Eq, Show)
+
+data PurchaseCurrencyQty
+  = PurchaseCurrencyQty { unPurchaseCurrencyQty :: L.Qty }
+  deriving (Eq, Show)
+
+data PurchaseInfo = PurchaseInfo
+  { piDate :: PurchaseDate
+  , piStockQty :: PurchaseStockQty
+  , piCurrencyQty :: PurchaseCurrencyQty
+  } deriving Show
+
+purchaseInfo
+  :: SelloffStock
+  -> SelloffCurrency
+  -> ([L.SubAccountName], L.Balance)
+  -> Err PurchaseInfo
+purchaseInfo sStock sCurr (ss, bal) = do
+  dateSub <- case ss of
+    s1:[] -> return s1
+    _ -> Ex.throw NotThreePurchaseSubAccounts
+  date <- Ex.mapException BadPurchaseDate
+          . Ex.fromEither
+          . Parsec.parse (DT.dateTime defaultTimeZone) ""
+          . L.text
+          $ dateSub
+  (stockQty, currQty) <- purchaseQtys sStock sCurr bal
+  return $ PurchaseInfo (PurchaseDate date) stockQty currQty
+
+purchaseQtys
+  :: SelloffStock
+  -> SelloffCurrency
+  -> L.Balance
+  -> Err (PurchaseStockQty, PurchaseCurrencyQty)
+purchaseQtys (SelloffStock sStock) (SelloffCurrency sCurr) bal = do
+  let m = L.unBalance bal
+  when (M.size m /= 2) $ Ex.throw BadPurchaseBalance
+  let toPair (cy, bl) = case bl of
+        Bal.Zero -> Nothing
+        Bal.NonZero col -> Just (cy, col)
+      ps = mapMaybe toPair . M.toList $ m
+      findBal dc = Ex.fromMaybe BadPurchaseBalance
+                    . find ((== dc) . Bal.drCr . snd)
+                    $ ps
+  (cyStock, (Bal.Column _ qtyStock)) <- findBal L.Credit
+  (cyCurr, (Bal.Column _ qtyCurr)) <- findBal L.Debit
+  when (cyStock /= L.commodity sStock) $ Ex.throw BadPurchaseBalance
+  when (cyCurr /= L.commodity sCurr) $ Ex.throw BadPurchaseBalance
+  return (PurchaseStockQty qtyStock, PurchaseCurrencyQty qtyCurr)
+
+
+newtype RealizedStockQty
+  = RealizedStockQty { unRealizedStockQty :: L.Qty }
+  deriving (Eq, Show)
+
+newtype RealizedCurrencyQty
+  = RealizedCurrencyQty { unRealizedCurrencyQty :: L.Qty }
+  deriving (Eq, Show)
+
+newtype CostSharesSold
+  = CostSharesSold { unCostSharesSold :: L.Qty }
+  deriving (Eq, Show)
+
+newtype StillToRealize
+  = StillToRealize { unStillToRealize :: L.Qty }
+  deriving (Eq, Show)
+
+data BasisRealiztn = BasisRealiztn
+  { brStockQty :: RealizedStockQty
+  , brCurrencyQty :: RealizedCurrencyQty
+  } deriving Show
+
+stRealizeBasis
+  :: PurchaseInfo
+  -> St.State (Maybe CostSharesSold, Maybe StillToRealize)
+              (Maybe (PurchaseInfo, BasisRealiztn))
+stRealizeBasis p = do
+  mayTr <- St.gets snd
+  case mayTr of
+    Nothing -> return Nothing
+    StillToRealize tr ->
+
+main :: IO ()
+main = undefined
