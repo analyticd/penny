@@ -52,6 +52,7 @@ module Penny.Lincoln.Bits (
   Q.newQty, Q.add, Q.subt, Q.mult,
   Q.difference,
   Q.Difference(Q.LeftBiggerBy, Q.RightBiggerBy, Q.Equal),
+  Q.allocate,
 
   -- * Tags
   T.Tag(Tag, unTag),

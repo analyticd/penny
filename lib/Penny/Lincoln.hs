@@ -79,6 +79,7 @@ module Penny.Lincoln (
   , I.mult
   , I.difference
   , I.Difference(LeftBiggerBy, RightBiggerBy, Equal)
+  , I.allocate
 
     -- ** Tags
   , I.Tag(Tag, unTag)

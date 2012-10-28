@@ -96,6 +96,7 @@ module Main where
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad (when)
 import qualified Control.Monad.Trans.State as St
+import Control.Monad.Trans.Class (lift)
 import Data.List (find)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Maybe (isJust, mapMaybe)
@@ -131,6 +132,7 @@ data Error
   | BadPurchaseBalance
   | BadPurchaseDate Parsec.ParseError
   | NotThreePurchaseSubAccounts
+  | BasisAllocationFailed
   deriving Show
 
 data ProceedsAcct = ProceedsAcct { unProceedsAcct :: L.Account }
@@ -333,15 +335,56 @@ data BasisRealiztn = BasisRealiztn
   , brCurrencyQty :: RealizedCurrencyQty
   } deriving Show
 
+-- | Realize an individual purchase account's basis. Fails if the
+-- basis cannot be allocated.
 stRealizeBasis
   :: PurchaseInfo
-  -> St.State (Maybe CostSharesSold, Maybe StillToRealize)
-              (Maybe (PurchaseInfo, BasisRealiztn))
+  -> Ex.ExceptionalT Error
+     (St.State (Maybe CostSharesSold, Maybe StillToRealize))
+     (Maybe (PurchaseInfo, BasisRealiztn))
 stRealizeBasis p = do
-  mayTr <- St.gets snd
+  mayTr <- lift $ St.gets snd
   case mayTr of
     Nothing -> return Nothing
-    StillToRealize tr ->
+    Just (StillToRealize tr) -> do
+      let sq = unPurchaseStockQty . piStockQty $ p
+          pcq = unPurchaseCurrencyQty . piCurrencyQty $ p
+      mayCss <- lift $ St.gets fst
+      case L.difference tr sq of
+        L.LeftBiggerBy tr' -> do
+          let br = BasisRealiztn (RealizedStockQty sq)
+                   (RealizedCurrencyQty pcq)
+              css' = case mayCss of
+                Nothing -> CostSharesSold pcq
+                Just (CostSharesSold css) ->
+                  CostSharesSold (L.add pcq css)
+          lift $ St.put (Just css', Just (StillToRealize tr'))
+          return (Just (p, br))
+        L.RightBiggerBy unsoldStockQty -> do
+          let alloced = L.allocate pcq (sq :| [unsoldStockQty])
+          basisSold <- case alloced of
+            Just (x :| (_ : [])) -> return x
+            Nothing -> Ex.throwT BasisAllocationFailed
+            _ -> error "stRealizeBasis: error"
+          let css' = case mayCss of
+                Nothing -> CostSharesSold basisSold
+                Just (CostSharesSold css) ->
+                  CostSharesSold (L.add basisSold css)
+              br = BasisRealiztn (RealizedStockQty tr)
+                 (RealizedCurrencyQty basisSold)
+          lift $ St.put (Just css', Nothing)
+          return (Just (p, br))
+        L.Equal -> do
+          let br = BasisRealiztn (RealizedStockQty sq)
+                (RealizedCurrencyQty pcq)
+              css' = case mayCss of
+                Nothing -> CostSharesSold pcq
+                Just (CostSharesSold css) ->
+                  CostSharesSold (L.add css pcq)
+          lift $ St.put (Just css', Nothing)
+          return (Just (p, br))
+
+
 
 main :: IO ()
 main = undefined
