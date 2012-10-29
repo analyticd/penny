@@ -140,7 +140,7 @@ data Error
   | BadSelloffBalance
   | BadPurchaseBalance
   | BadPurchaseDate Parsec.ParseError
-  | NotThreePurchaseSubAccounts
+  | NotThreePurchaseSubAccounts [L.SubAccountName]
   | BasisAllocationFailed
   | ZeroCostSharesSold
   | InsufficientSharePurchases
@@ -277,8 +277,8 @@ findBasisAccounts
 findBasisAccounts (Group g) = mapMaybe f
   where
     f ((L.Account a), b) = case a of
-      s0 :| (s1:ss) -> if (s0 == basis) && (s1 == g)
-                        then Just (ss, b) else Nothing
+      s0 :| (s1:s2:ss) -> if (s0 == basis) && (s1 == g)
+                        then Just (s2:ss, b) else Nothing
       _ -> Nothing
 
 
@@ -307,7 +307,7 @@ purchaseInfo
 purchaseInfo sStock sCurr (ss, bal) = do
   dateSub <- case ss of
     s1:[] -> return s1
-    _ -> Ex.throw NotThreePurchaseSubAccounts
+    _ -> Ex.throw $ NotThreePurchaseSubAccounts ss
   date <- Ex.mapException BadPurchaseDate
           . Ex.fromEither
           . Parsec.parse (DT.dateTime defaultTimeZone) ""
@@ -509,13 +509,13 @@ income :: L.SubAccountName
 income = L.SubAccountName (L.TextNonEmpty 'I' (pack "ncome"))
 
 capGain :: L.SubAccountName
-capGain = L.SubAccountName (L.TextNonEmpty 'C' (pack "apital gain"))
+capGain = L.SubAccountName (L.TextNonEmpty 'C' (pack "apital Gain"))
 
 expense :: L.SubAccountName
 expense = L.SubAccountName (L.TextNonEmpty 'E' (pack "xpenses"))
 
 capLoss :: L.SubAccountName
-capLoss = L.SubAccountName (L.TextNonEmpty 'C' (pack "apital loss"))
+capLoss = L.SubAccountName (L.TextNonEmpty 'C' (pack "apital Loss"))
 
 capChangeAcct
   :: GainOrLoss
@@ -612,6 +612,7 @@ makeOutput pa ps = do
   (purchBases, css) <- realizeBases (siStock si) purchInfos
   wcc <- capitalChange css (siCurrency si) purchBases
   return
+    . (`X.snoc` '\n')
     . fromMaybe (error "makeOutput: transaction did not render")
     . CT.render defaultTimeZone groupingSpec radGroup
     . mkTxn si
