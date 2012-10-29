@@ -97,11 +97,15 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad (when)
 import qualified Control.Monad.Trans.State as St
 import Control.Monad.Trans.Class (lift)
+import Data.Foldable (toList)
 import Data.List (find)
 import Data.List.NonEmpty (NonEmpty((:|)))
-import Data.Maybe (isJust, mapMaybe)
+import qualified Data.List.NonEmpty as NE
+import Data.Maybe (isJust, mapMaybe, catMaybes)
 import Data.Text (pack)
+import qualified Data.Text as X
 import qualified Penny.Lincoln.Balance as Bal
+import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Cabin.Balance.Util as BU
 import Penny.Cabin.Options (ShowZeroBalances(..))
 import qualified Penny.Copper as Cop
@@ -133,6 +137,11 @@ data Error
   | BadPurchaseDate Parsec.ParseError
   | NotThreePurchaseSubAccounts
   | BasisAllocationFailed
+  | ZeroCostSharesSold
+  | InsufficientSharePurchases
+  | NoPurchaseInformation
+  | CapitalChangeAllocationFailed
+  | SaleDateParseFailed Parsec.ParseError
   deriving Show
 
 data ProceedsAcct = ProceedsAcct { unProceedsAcct :: L.Account }
@@ -195,7 +204,7 @@ calcBalances =
 newtype Group = Group { unGroup :: L.SubAccountName }
   deriving (Show, Eq)
 
-newtype Label = Label { unLabel :: L.SubAccountName }
+newtype SaleDate = SaleDate { unSaleDate :: L.DateTime }
   deriving (Show, Eq)
 
 newtype SelloffStock = SelloffStock { unSelloffStock :: L.Amount }
@@ -207,7 +216,7 @@ newtype SelloffCurrency
 
 data SelloffInfo = SelloffInfo
   { siGroup    :: Group
-  , siLabel    :: Label
+  , siSaleDate    :: SaleDate
   , siStock    :: SelloffStock
   , siCurrency :: SelloffCurrency
   } deriving Show
@@ -219,11 +228,16 @@ selloffInfo (ProceedsAcct pa) bals = do
           . Ex.fromMaybe NoSelloffAccount
           . find ((== pa) . fst)
           $ bals
-  (g, l) <- case L.unAccount pa of
+  (g, d) <- case L.unAccount pa of
     _ :| (s2 : s3 : []) -> return (s2, s3)
     _ -> Ex.throw NotThreeSelloffSubAccounts
   (sStock, sCurr) <- selloffStockCurr bal
-  return $ SelloffInfo (Group g) (Label l) sStock sCurr
+  date <- fmap SaleDate
+          . Ex.mapException SaleDateParseFailed
+          . Ex.fromEither
+          . Parsec.parse (DT.dateTime defaultTimeZone) ""
+          $ (L.text d)
+  return $ SelloffInfo (Group g) date sStock sCurr
 
 selloffStockCurr :: L.Balance -> Err (SelloffStock, SelloffCurrency)
 selloffStockCurr bal = do
@@ -351,6 +365,7 @@ stRealizeBasis p = do
           pcq = unPurchaseCurrencyQty . piCurrencyQty $ p
       mayCss <- lift $ St.gets fst
       case L.difference tr sq of
+
         L.LeftBiggerBy tr' -> do
           let br = BasisRealiztn (RealizedStockQty sq)
                    (RealizedCurrencyQty pcq)
@@ -360,6 +375,7 @@ stRealizeBasis p = do
                   CostSharesSold (L.add pcq css)
           lift $ St.put (Just css', Just (StillToRealize tr'))
           return (Just (p, br))
+
         L.RightBiggerBy unsoldStockQty -> do
           let alloced = L.allocate pcq (sq :| [unsoldStockQty])
           basisSold <- case alloced of
@@ -374,6 +390,7 @@ stRealizeBasis p = do
                  (RealizedCurrencyQty basisSold)
           lift $ St.put (Just css', Nothing)
           return (Just (p, br))
+
         L.Equal -> do
           let br = BasisRealiztn (RealizedStockQty sq)
                 (RealizedCurrencyQty pcq)
@@ -383,6 +400,163 @@ stRealizeBasis p = do
                   CostSharesSold (L.add css pcq)
           lift $ St.put (Just css', Nothing)
           return (Just (p, br))
+
+realizeBases
+  :: SelloffStock
+  -> [PurchaseInfo]
+  -> Err ([(PurchaseInfo, BasisRealiztn)], CostSharesSold)
+realizeBases sellStck ps = do
+  let stReal = Just . StillToRealize . L.qty
+               . unSelloffStock $ sellStck
+      (exRs, (mayCss, mayTr)) = St.runState
+        (Ex.runExceptionalT (mapM stRealizeBasis ps))
+        (Nothing, stReal)
+  rs <- exRs
+  when (isJust mayTr) $ Ex.throw InsufficientSharePurchases
+  css <- Ex.fromMaybe ZeroCostSharesSold mayCss
+  return (catMaybes rs, css)
+
+newtype CapitalChange = CapitalChange { unCapitalChange :: L.Qty }
+  deriving Show
+
+data WithCapitalChange = WithCapitalChange
+  { wcPurchaseInfo :: PurchaseInfo
+  , wcBasisRealiztn :: BasisRealiztn
+  , wcCapitalChange :: Maybe CapitalChange
+  } deriving Show
+
+data GainOrLoss = Gain | Loss deriving (Eq, Show)
+
+capitalChange
+  :: CostSharesSold
+  -> SelloffCurrency
+  -> [(PurchaseInfo, BasisRealiztn)]
+  -> Err ([WithCapitalChange], Maybe GainOrLoss)
+capitalChange css sc ls =
+  let sellCurrQty = L.qty . unSelloffCurrency $ sc
+      costQty = unCostSharesSold css
+      mayGainLoss =
+        case L.difference sellCurrQty costQty of
+          L.LeftBiggerBy q -> Just (q, Gain)
+          L.RightBiggerBy q -> Just (q, Loss)
+          L.Equal -> Nothing
+  in case mayGainLoss of
+    Nothing ->
+      let mkCapChange (p, br) = WithCapitalChange p br Nothing
+      in return (map mkCapChange ls, Nothing)
+    Just (qt, gl) -> do
+      nePurchs <- Ex.fromMaybe NoPurchaseInformation
+                  . NE.nonEmpty $ ls
+      let qtys = fmap (unRealizedStockQty . brStockQty . snd)
+                 nePurchs
+      alloced <- Ex.fromMaybe CapitalChangeAllocationFailed
+                 . L.allocate qt $ qtys
+      let mkCapChange (p, br) q =
+            WithCapitalChange p br (Just (CapitalChange q))
+          r = toList $ NE.zipWith mkCapChange nePurchs alloced
+      return (r, Just gl)
+
+memo :: SaleDate -> L.Memo
+memo (SaleDate sd) =
+  let dTxt = DT.render defaultTimeZone sd
+      txt = pack "transaction created by penny-selloff for sale on "
+            `X.append` dTxt
+  in L.Memo [L.MemoLine (L.TextNonEmpty ' ' txt)]
+
+payee :: L.Payee
+payee = L.Payee (L.TextNonEmpty 'R' (pack "ealize gain or loss"))
+
+topLine :: SaleDate -> U.TopLine
+topLine sd = U.TopLine (unSaleDate sd) Nothing Nothing (Just payee)
+             (memo sd) L.emptyTopLineMeta
+
+basisOffsets
+  :: SelloffInfo
+  -> BasisRealiztn
+  -> (U.Posting, U.Posting)
+basisOffsets s p = (po enDr, po enCr)
+  where
+    ac = L.Account (basis :| [grp, dt])
+    grp = unGroup . siGroup $ s
+    dt = dateToSubAcct . unSaleDate . siSaleDate $ s
+    enDr = L.Entry L.Debit
+           (L.Amount (unRealizedStockQty . brStockQty $ p)
+              (L.commodity . unSelloffStock . siStock $ s))
+    enCr = L.Entry L.Credit
+           (L.Amount (unRealizedCurrencyQty . brCurrencyQty $ p)
+              (L.commodity . unSelloffCurrency . siCurrency $ s))
+    meta = L.PostingMeta Nothing (Just fmt) Nothing Nothing
+    fmt = L.Format L.CommodityOnLeft L.SpaceBetween
+    po en = U.Posting Nothing Nothing Nothing ac (L.Tags [])
+            (Just en) (L.Memo []) meta
+
+dateToSubAcct :: L.DateTime -> L.SubAccountName
+dateToSubAcct dt = L.SubAccountName (L.TextNonEmpty f r)
+  where
+    dtTxt = DT.render defaultTimeZone dt
+    (f, r) = case X.uncons dtTxt of
+      Just x -> x
+      Nothing -> error "dateToSubAcct: date rendered empty"
+
+income :: L.SubAccountName
+income = L.SubAccountName (L.TextNonEmpty 'I' (pack "ncome"))
+
+capGain :: L.SubAccountName
+capGain = L.SubAccountName (L.TextNonEmpty 'C' (pack "apital gain"))
+
+expense :: L.SubAccountName
+expense = L.SubAccountName (L.TextNonEmpty 'E' (pack "xpenses"))
+
+capLoss :: L.SubAccountName
+capLoss = L.SubAccountName (L.TextNonEmpty 'C' (pack "apital loss"))
+
+capChangeAcct
+  :: GainOrLoss
+  -> SelloffInfo
+  -> PurchaseInfo
+  -> L.Account
+capChangeAcct gl si p = L.Account $ case gl of
+  Gain -> income :| [capGain, grp, sd, pd]
+  Loss -> expense :| [capLoss, grp, sd, pd]
+  where
+    grp = unGroup . siGroup $ si
+    sd = dateToSubAcct . unSaleDate . siSaleDate $ si
+    pd = dateToSubAcct . unPurchaseDate . piDate $ p
+
+capChangeEntry
+  :: GainOrLoss
+  -> SelloffCurrency
+  -> CapitalChange
+  -> L.Entry
+capChangeEntry gl sc cc = L.Entry dc (L.Amount qt cy)
+  where
+    dc = case gl of
+      Gain -> L.Credit
+      Loss -> L.Debit
+    cy = L.commodity . unSelloffCurrency $ sc
+    qt = unCapitalChange cc
+
+capChangePstg
+  :: SelloffInfo
+  -> GainOrLoss
+  -> CapitalChange
+  -> PurchaseInfo
+  -> U.Posting
+capChangePstg si gl cc p =
+  U.Posting Nothing Nothing Nothing ac (L.Tags []) (Just en)
+    (L.Memo []) meta
+  where
+    meta = L.PostingMeta Nothing (Just fmt) Nothing Nothing
+    fmt = L.Format L.CommodityOnLeft L.SpaceBetween
+    ac = capChangeAcct gl si p
+    en = capChangeEntry gl (siCurrency si) cc
+
+mkTxn
+  :: SelloffInfo
+  -> ([WithCapitalChange], GainOrLoss)
+  -> L.Transaction
+mkTxn = undefined
+
 
 
 
