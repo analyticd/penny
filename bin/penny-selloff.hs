@@ -432,7 +432,7 @@ newtype CapitalChange = CapitalChange { unCapitalChange :: L.Qty }
 data WithCapitalChanges
   = WithCapitalChanges [(PurchaseInfo, BasisRealiztn, CapitalChange)]
       GainOrLoss
-  | NoChange [BasisRealiztn]
+  | NoChange [(PurchaseInfo, BasisRealiztn)]
   deriving Show
 
 data GainOrLoss = Gain | Loss deriving (Eq, Show)
@@ -451,11 +451,11 @@ capitalChange css sc ls =
           L.RightBiggerBy q -> Just (q, Loss)
           L.Equal -> Nothing
   in case mayGainLoss of
-    Nothing -> return . NoChange . fmap snd $ ls
+    Nothing -> return . NoChange $ ls
     Just (qt, gl) -> do
       nePurchs <- Ex.fromMaybe NoPurchaseInformation
                   . NE.nonEmpty $ ls
-      let qtys = fmap (unRealizedStockQty . brStockQty . snd)
+      let qtys = fmap (unPurchaseCurrencyQty . piCurrencyQty . fst)
                  nePurchs
       alloced <- Ex.fromMaybe CapitalChangeAllocationFailed
                  . L.allocate qt $ qtys
@@ -479,13 +479,14 @@ topLine sd = U.TopLine (unSaleDate sd) Nothing Nothing (Just payee)
 
 basisOffsets
   :: SelloffInfo
+  -> PurchaseDate
   -> BasisRealiztn
   -> (U.Posting, U.Posting)
-basisOffsets s p = (po enDr, po enCr)
+basisOffsets s pd p = (po enDr, po enCr)
   where
     ac = L.Account (basis :| [grp, dt])
     grp = unGroup . siGroup $ s
-    dt = dateToSubAcct . unSaleDate . siSaleDate $ s
+    dt = dateToSubAcct . unPurchaseDate $ pd
     enDr = L.Entry L.Debit
            (L.Amount (unRealizedStockQty . brStockQty $ p)
               (L.commodity . unSelloffStock . siStock $ s))
@@ -589,14 +590,14 @@ mkTxn si wcc = Ex.resolve err exTxn
     ps = case wcc of
       NoChange infoRlzns -> concatMap f infoRlzns
         where
-          f br =
-            let (b1, b2) = basisOffsets si br
+          f (p, br) =
+            let (b1, b2) = basisOffsets si (piDate p) br
             in [b1, b2]
       WithCapitalChanges trips gl -> concatMap f trips
         where
           f (p, br, cc) = [b1, b2, c]
             where
-              (b1, b2) = basisOffsets si br
+              (b1, b2) = basisOffsets si (piDate p) br
               c = capChangePstg si gl cc p
 
 makeOutput

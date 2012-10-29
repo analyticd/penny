@@ -114,17 +114,18 @@
 
 #; transaction created by penny-selloff for sale on 2012-12-31
 #2012-12-31 Realize gain or loss
-#    Basis:LUV:2012-10-19                                Dr 100 LUV
-#    Basis:LUV:2012-10-19                                Cr $1000.00
-#    {Income:Capital Gain:LUV:2012-12-31:2012-10-19}     Cr $600.00
-#    Basis:LUV:2012-11-19                                Dr 100 LUV
-#    Basis:LUV:2012-11-19                                Cr $1200.00
-#    {Income:Capital Gain:LUV:2012-12-31:2012-11-19}     Cr $400.00
-#    Basis:LUV:2012-12-19                                Dr 100 LUV
-#    Basis:LUV:2012-12-19                                Cr $1400.00
-#    {Income:Capital Gain:LUV:2012-12-31:2012-12-19}     Cr $200.00
-#    Proceeds:LUV:2012-12-31                             Dr $4800.00
-#    Proceeds:LUV:2012-12-31                             Cr 300 LUV
+#    {Proceeds:LUV:2012-12-31}                           Dr $ 4,800.00
+#    {Proceeds:LUV:2012-12-31}                           Cr LUV 300
+#    {Basis:LUV:2012-10-19}                              Dr LUV 100
+#    {Basis:LUV:2012-10-19}                              Cr $ 1,000.00
+#    {Income:Capital Gain:LUV:2012-12-31:2012-10-19}     Cr $ 333.33
+#    {Basis:LUV:2012-11-19}                              Dr LUV 100
+#    {Basis:LUV:2012-11-19}                              Cr $ 1,200.00
+#    {Income:Capital Gain:LUV:2012-12-31:2012-11-19}     Cr $ 400.00
+#    {Basis:LUV:2012-12-19}                              Dr LUV 100
+#    {Basis:LUV:2012-12-19}                              Cr $ 1,400.00
+#    {Income:Capital Gain:LUV:2012-12-31:2012-12-19}     Cr $ 466.67
+#
 
 # Thus the capital gain shows up in the Capital Gain account, and all
 # the Basis accounts and the Proceeds account have zero balances.
