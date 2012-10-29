@@ -101,9 +101,10 @@ import Data.Foldable (toList)
 import Data.List (find)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.List.NonEmpty as NE
-import Data.Maybe (isJust, mapMaybe, catMaybes)
+import Data.Maybe (isJust, mapMaybe, catMaybes, fromMaybe)
 import Data.Text (pack)
 import qualified Data.Text as X
+import qualified Data.Text.IO as TIO
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Cabin.Balance.Util as BU
@@ -111,6 +112,7 @@ import Penny.Cabin.Options (ShowZeroBalances(..))
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Account as CA
+import qualified Penny.Copper.Transaction as CT
 import qualified Penny.Lincoln as L
 import qualified Data.Map as M
 import qualified System.Console.MultiArg as MA
@@ -121,6 +123,9 @@ defaultTimeZone = Cop.utcDefault
 
 radGroup :: Cop.RadGroup
 radGroup = Cop.periodComma
+
+groupingSpec :: (Cop.GroupingSpec, Cop.GroupingSpec)
+groupingSpec = (Cop.GroupAll, Cop.NoGrouping)
 
 type Err = Ex.Exceptional Error
 
@@ -149,6 +154,11 @@ data ProceedsAcct = ProceedsAcct { unProceedsAcct :: L.Account }
 
 newtype InputFilename = InputFilename { unInputFilename :: String }
   deriving (Eq, Show)
+
+loadFile :: InputFilename -> IO (L.Filename, Cop.FileContents)
+loadFile (InputFilename fn) = fmap f (TIO.readFile fn)
+  where
+    f fc = (L.Filename . pack $ fn, Cop.FileContents fc)
 
 data ParseResult
   = NeedsHelp
@@ -181,7 +191,7 @@ parseCommandLine ss =
         return $ ParseResult (ProceedsAcct a) (map InputFilename xs)
 
 help :: String
-help = ""
+help = "usage: penny-selloff PROCEEDS_ACCOUNT FILE..."
 
 parseFiles
   :: [(L.Filename, Cop.FileContents)]
@@ -419,11 +429,11 @@ realizeBases sellStck ps = do
 newtype CapitalChange = CapitalChange { unCapitalChange :: L.Qty }
   deriving Show
 
-data WithCapitalChange = WithCapitalChange
-  { wcPurchaseInfo :: PurchaseInfo
-  , wcBasisRealiztn :: BasisRealiztn
-  , wcCapitalChange :: Maybe CapitalChange
-  } deriving Show
+data WithCapitalChanges
+  = WithCapitalChanges [(PurchaseInfo, BasisRealiztn, CapitalChange)]
+      GainOrLoss
+  | NoChange [BasisRealiztn]
+  deriving Show
 
 data GainOrLoss = Gain | Loss deriving (Eq, Show)
 
@@ -431,7 +441,7 @@ capitalChange
   :: CostSharesSold
   -> SelloffCurrency
   -> [(PurchaseInfo, BasisRealiztn)]
-  -> Err ([WithCapitalChange], Maybe GainOrLoss)
+  -> Err WithCapitalChanges
 capitalChange css sc ls =
   let sellCurrQty = L.qty . unSelloffCurrency $ sc
       costQty = unCostSharesSold css
@@ -441,9 +451,7 @@ capitalChange css sc ls =
           L.RightBiggerBy q -> Just (q, Loss)
           L.Equal -> Nothing
   in case mayGainLoss of
-    Nothing ->
-      let mkCapChange (p, br) = WithCapitalChange p br Nothing
-      in return (map mkCapChange ls, Nothing)
+    Nothing -> return . NoChange . fmap snd $ ls
     Just (qt, gl) -> do
       nePurchs <- Ex.fromMaybe NoPurchaseInformation
                   . NE.nonEmpty $ ls
@@ -451,10 +459,9 @@ capitalChange css sc ls =
                  nePurchs
       alloced <- Ex.fromMaybe CapitalChangeAllocationFailed
                  . L.allocate qt $ qtys
-      let mkCapChange (p, br) q =
-            WithCapitalChange p br (Just (CapitalChange q))
+      let mkCapChange (p, br) q = (p, br, CapitalChange q)
           r = toList $ NE.zipWith mkCapChange nePurchs alloced
-      return (r, Just gl)
+      return $ WithCapitalChanges r gl
 
 memo :: SaleDate -> L.Memo
 memo (SaleDate sd) =
@@ -551,14 +558,75 @@ capChangePstg si gl cc p =
     ac = capChangeAcct gl si p
     en = capChangeEntry gl (siCurrency si) cc
 
+proceeds :: L.SubAccountName
+proceeds = L.SubAccountName (L.TextNonEmpty 'P' (pack "roceeds"))
+
+proceedsPstgs
+  :: SelloffInfo
+  -> (U.Posting, U.Posting)
+proceedsPstgs si = (po dr, po cr)
+  where
+    po en = U.Posting Nothing Nothing Nothing ac (L.Tags [])
+      (Just en) (L.Memo []) meta
+    meta = L.PostingMeta Nothing (Just fmt) Nothing Nothing
+    ac = L.Account (proceeds :| [gr, dt])
+    gr = unGroup . siGroup $ si
+    dt = dateToSubAcct . unSaleDate . siSaleDate $ si
+    dr = L.Entry L.Debit (unSelloffCurrency . siCurrency $ si)
+    cr = L.Entry L.Credit (unSelloffStock . siStock $ si)
+    fmt = L.Format L.CommodityOnLeft L.SpaceBetween
+
 mkTxn
   :: SelloffInfo
-  -> ([WithCapitalChange], GainOrLoss)
+  -> WithCapitalChanges
   -> L.Transaction
-mkTxn = undefined
+mkTxn si wcc = Ex.resolve err exTxn
+  where
+    err = const $ error "mkTxn: making transaction failed"
+    exTxn = L.transaction $ L.Family tl p1 p2 ps
+    tl = topLine . siSaleDate $ si
+    (p1, p2) = proceedsPstgs si
+    ps = case wcc of
+      NoChange infoRlzns -> concatMap f infoRlzns
+        where
+          f br =
+            let (b1, b2) = basisOffsets si br
+            in [b1, b2]
+      WithCapitalChanges trips gl -> concatMap f trips
+        where
+          f (p, br, cc) = [b1, b2, c]
+            where
+              (b1, b2) = basisOffsets si br
+              c = capChangePstg si gl cc p
 
-
+makeOutput
+  :: ProceedsAcct
+  -> [(L.Filename, Cop.FileContents)]
+  -> Err X.Text
+makeOutput pa ps = do
+  bals <- fmap calcBalances $ parseFiles ps
+  si <- selloffInfo pa bals
+  let basisAccts = findBasisAccounts (siGroup si) bals
+  purchInfos <- mapM (purchaseInfo (siStock si) (siCurrency si))
+                basisAccts
+  (purchBases, css) <- realizeBases (siStock si) purchInfos
+  wcc <- capitalChange css (siCurrency si) purchBases
+  return
+    . fromMaybe (error "makeOutput: transaction did not render")
+    . CT.render defaultTimeZone groupingSpec radGroup
+    . mkTxn si
+    $ wcc
 
 
 main :: IO ()
-main = undefined
+main =
+  MA.getArgs
+  >>= Ex.switch (error . show) handleParseResult . parseCommandLine
+
+
+handleParseResult :: ParseResult -> IO ()
+handleParseResult pr = case pr of
+  NeedsHelp -> putStrLn help
+  ParseResult pa fs ->
+    mapM loadFile fs
+    >>= Ex.switch (error . show) TIO.putStr . makeOutput pa
