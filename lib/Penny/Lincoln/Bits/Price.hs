@@ -6,14 +6,13 @@ module Penny.Lincoln.Bits.Price (
   convert,
   newPrice) where
 
-import Penny.Lincoln.Bits.Amount (Amount(Amount))
-import Penny.Lincoln.Bits.Commodity (Commodity)
+import qualified Penny.Lincoln.Bits.Open as O
 import Penny.Lincoln.Bits.Qty (Qty, mult)
 
-newtype From = From { unFrom :: Commodity }
+newtype From = From { unFrom :: O.Commodity }
                deriving (Eq, Ord, Show)
 
-newtype To = To { unTo :: Commodity }
+newtype To = To { unTo :: O.Commodity }
              deriving (Eq, Ord, Show)
 
 newtype CountPerUnit = CountPerUnit { unCountPerUnit :: Qty }
@@ -27,12 +26,12 @@ data Price = Price { from :: From
 -- | Convert an amount from the From price to the To price. Fails if
 -- the From commodity in the Price is not the same as the commodity in
 -- the Amount.
-convert :: Price -> Amount -> Maybe Amount
-convert p (Amount q c) =
+convert :: Price -> O.Amount -> Maybe O.Amount
+convert p (O.Amount q c) =
   if (unFrom . from $ p) /= c
   then Nothing
   else let q' = q `mult` (unCountPerUnit . countPerUnit $ p)
-       in Just (Amount q' (unTo . to $ p))
+       in Just (O.Amount q' (unTo . to $ p))
 
 -- | Succeeds only if From and To are different commodities.
 newPrice :: From -> To -> CountPerUnit -> Maybe Price

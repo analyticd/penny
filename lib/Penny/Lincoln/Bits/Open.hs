@@ -1,9 +1,12 @@
 -- | These are the bits that are "open"; that is, their constructors
--- are exported. This includes most bits.
+-- are exported. This includes most bits. Some bits that have open
+-- constructors are not in this module because they include other bits
+-- that do not have exported constructors.
 
 module Penny.Lincoln.Bits.Open where
 
 import Data.Text (Text)
+import qualified Penny.Lincoln.Bits.Qty as Q
 
 newtype SubAccount =
   SubAccount { unSubAccount :: Text }
@@ -12,7 +15,7 @@ newtype SubAccount =
 newtype Account = Account { unAccount :: [SubAccount] }
                   deriving (Eq, Show, Ord)
 
-data Amount = Amount { qty :: Qty
+data Amount = Amount { qty :: Q.Qty
                      , commodity :: Commodity }
               deriving (Eq, Show, Ord)
 
