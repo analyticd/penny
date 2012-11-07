@@ -259,6 +259,7 @@ Library
         Penny.Lincoln.Bits.Flag,
         Penny.Lincoln.Bits.Memo,
         Penny.Lincoln.Bits.Number,
+        Penny.Lincoln.Bits.Open,
         Penny.Lincoln.Bits.Payee,
         Penny.Lincoln.Bits.Price,
         Penny.Lincoln.Bits.PricePoint,
