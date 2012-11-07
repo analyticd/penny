@@ -1,6 +1,4 @@
 module Penny.Lincoln.Bits.Number where
 
-import Penny.Lincoln.TextNonEmpty (TextNonEmpty)
+import qualified Data.Text as X
 
-newtype Number = Number { unNumber :: TextNonEmpty }
-                 deriving (Eq, Show, Ord)

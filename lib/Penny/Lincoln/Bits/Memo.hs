@@ -1,9 +1,4 @@
 module Penny.Lincoln.Bits.Memo where
 
-import Penny.Lincoln.TextNonEmpty (TextNonEmpty)
+import qualified Data.Text as X
 
-newtype MemoLine = MemoLine { unMemoLine :: TextNonEmpty }
-                   deriving (Eq, Ord, Show)
-
-newtype Memo = Memo { unMemo :: [MemoLine] }
-             deriving (Eq, Show, Ord)
