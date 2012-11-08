@@ -34,13 +34,13 @@ rangeLettersToSymbols c = case C.generalCategory c of
   _ -> False
 
 rangeLetters :: Char -> Bool
-rangeLetters c = case C.generalCategory c of
-  C.UppercaseLetter -> True
-  C.LowercaseLetter -> True
-  C.TitlecaseLetter -> True
-  C.ModifierLetter -> True
-  C.OtherLetter -> True
-  _ -> False
+rangeLetters c =
+  (c >= 'A' && c <= 'Z')
+  || (c >= 'a' && c <= 'z')
+  || c > toEnum 0x7F
+
+rangeAny :: Char -> Bool
+rangeAny = (>= ' ')
 
 rangeMathCurrency :: Char -> Bool
 rangeMathCurrency c = case C.generalCategory c of
@@ -84,54 +84,6 @@ eol = pure ()
 -- | Parses a run of spaces.
 spaces :: Parser ()
 spaces = () <$ many (char ' ')
-
--- | Applied to a non-empty list of pairs, with the first element of
--- the pair being a predicate that returns True if a character is OK
--- and the second element being something of an arbitrary type, and to
--- something that has a Text. The pairs must be ordered from most
--- restrictive to least restrictive predicates. If at least one of the
--- predicates indicates that the Text is valid, returns the leftmost b
--- associated with that predicate. If none of the predicates indicates
--- that the Text is valid, returns the rightmost error.
---
--- Here, most restrictive means the predicate that indicates True for
--- the narrowest range of characters, while least restrictive means
--- the predicate that indicates True for the widest range of
--- characters.
-checkText ::
-  HT.HasText a
-  => NE.NonEmpty ((Char -> Bool), b)
-  -> a
-  -> Maybe b
-checkText ps a = let
-  t = HT.text a
-  results = fmap (g . f) ps where
-    f (p, b) = (X.find (not . p) t, b)
-    g (p, b) = case p of
-      Nothing -> Right b
-      Just c -> Left c
-  folder x y = case x of
-    Right b -> Right b
-    Left _ -> y
-  in case F.foldr1 folder results of
-    Left _ -> Nothing
-    Right b -> return b
-
-listIsOK ::
-  HT.HasTextNonEmptyList a
-  => (Char -> Bool) -- ^ Returns True for characters that are allowed
-  -> a
-  -> Bool
-listIsOK p = F.all (TNE.all p) . HT.textNonEmptyList
-
-firstCharOfListIsOK ::
-  HT.HasTextNonEmptyList a
-  => (Char -> Bool) -- ^ Returns True if the first character is allowed
-  -> a
-  -> Bool
-firstCharOfListIsOK p ls = let
-  firstText = NE.head . HT.textNonEmptyList $ ls
-  in p (TNE.first firstText)
 
 -- | Takes a field that may or may not be present and a function that
 -- renders it. If the field is not present at all, returns an empty

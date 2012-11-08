@@ -5,8 +5,8 @@
 --
 -- * Level 2 account. The first sub-account begins with a letter. All
 -- other characters may be nearly any character, except for a space.
-module Penny.Copper.Account (
-  lvl1Account
+module Penny.Copper.Account
+  ( lvl1Account
   , lvl1AccountQuoted
   , lvl2Account
   , render
@@ -16,8 +16,11 @@ module Penny.Copper.Account (
   ) where
 
 import Control.Applicative((<$>), (<*>), (*>))
+import Data.List (intersperse)
 import qualified Data.Foldable as F
+import qualified Data.Monoid as M
 import Data.Text ( snoc, cons, pack, Text )
+import qualified Data.Text as X
 import qualified Data.Traversable as T
 import Text.Parsec (
   char, satisfy, many, (<?>),
@@ -35,18 +38,18 @@ import qualified Penny.Copper.Util as U
 -- | Characters allowed in a Level 1 account. (Check the source code
 -- to see what these are).
 lvl1Char :: Char -> Bool
-lvl1Char c = allowed && notBanned where
-  allowed = U.rangeLettersToSymbols c || c == ' '
-  notBanned = not $ c `elem` "}:"
+lvl1Char c = allowed && not banned where
+  allowed = U.rangeAny c
+  banned = (c == '{') || (c == ':')
 
-lvl1Sub :: Parser B.SubAccountName
+lvl1Sub :: Parser B.SubAccount
 lvl1Sub = f <$> p <?> e where
-  f = B.SubAccountName . unsafeTextNonEmpty
+  f = B.SubAccount . pack
   p = many1 (satisfy lvl1Char)
   e = "sub account name"
 
 lvl1Account :: Parser B.Account
-lvl1Account = B.Account . NE.fromList <$> p <?> e where
+lvl1Account = B.Account <$> p <?> e where
   e = "account name"
   p = sepBy1 lvl1Sub (char ':')
 
@@ -60,29 +63,29 @@ lvl2FirstChar = U.rangeLetters
 -- | Characters allowed for the remaining characters of a Level 2
 -- account.
 lvl2RemainingChar :: Char -> Bool
-lvl2RemainingChar c = allowed && notBanned where
-    allowed = U.rangeLettersToSymbols c
-    notBanned = not $ c `elem` "}:"
+lvl2RemainingChar c = allowed && not banned where
+    allowed = U.rangeAny c
+    banned = c == ':'
 
-lvl2SubAccountFirst :: Parser B.SubAccountName
+lvl2SubAccountFirst :: Parser B.SubAccount
 lvl2SubAccountFirst = f <$> c1 <*> cs <?> e where
   c1 = satisfy lvl2FirstChar
   cs = many (satisfy lvl2RemainingChar)
-  f l1 lr = B.SubAccountName (TextNonEmpty l1 (pack lr))
+  f l1 lr = B.SubAccount (pack (l1:lr))
   e = "sub account name beginning with a letter"
-  
-lvl2SubAccountRest :: Parser B.SubAccountName
+
+lvl2SubAccountRest :: Parser B.SubAccount
 lvl2SubAccountRest = f <$> cs <?> e where
   cs = many1 (satisfy p)
-  p c = allowed && notBanned where
-    allowed = U.rangeLettersToSymbols c
-    notBanned = not $ c `elem` "}:"
-  f = B.SubAccountName . unsafeTextNonEmpty
+  p c = allowed && not banned where
+    allowed = U.rangeAny c
+    banned = c == ':'
+  f = B.SubAccount . pack
   e = "sub account name"
 
 lvl2Account :: Parser B.Account
 lvl2Account = f <$> p1 <*> p2 <?> e where
-  f x y = B.Account (x :| y)
+  f x y = B.Account (x : y)
   p1 = lvl2SubAccountFirst
   p2 = option [] $
        char ':' *> sepBy1 lvl2SubAccountRest (char ':')
@@ -91,41 +94,48 @@ lvl2Account = f <$> p1 <*> p2 <?> e where
 data Level = L1 | L2
            deriving (Eq, Ord, Show)
 
--- | Checks an account to see what level to render it at.
-checkAccount :: B.Account -> Maybe Level
-checkAccount (B.Account subs) = let
-  checkFirst = checkFirstSubAccount (NE.head subs)
-  checkRest = map checkFirstSubAccount (NE.tail subs)
-  in F.minimum <$> T.sequenceA (checkFirst : checkRest)
+-- | Is True if a sub account can be rendered at Level 1;
+-- False otherwise.
+isSubAcctLvl1 :: B.SubAccount -> Bool
+isSubAcctLvl1 (B.SubAccount x) =
+  (not . X.null $ x)
+  && (X.all lvl1Char x)
 
--- | Checks the first sub account to see if it qualifies as a Level 1
--- or Level 2 sub account.
-checkFirstSubAccount ::
-  B.SubAccountName
-  -> Maybe Level
-checkFirstSubAccount s = do
-  l <- checkOtherSubAccount s
-  return $ case l of
-    L1 -> L1
-    L2 -> let (B.SubAccountName (TextNonEmpty c _)) = s
-          in if lvl2FirstChar c then L2 else L1
+isAcctLvl1 :: B.Account -> Bool
+isAcctLvl1 (B.Account ls) =
+  (not . null $ ls)
+  && (all isSubAcctLvl1 ls)
 
--- | Checks a sub account other than the first one to see if it
--- qualifies as a Level 1 or Level 2 sub account.
-checkOtherSubAccount ::
-  B.SubAccountName
-  -> Maybe Level
-checkOtherSubAccount = U.checkText ls where
-  ls = (lvl2RemainingChar, L2) :| [(lvl1Char, L1)]
+firstSubAcctLvl2 :: B.SubAccount -> Bool
+firstSubAcctLvl2 (B.SubAccount x) = case X.uncons x of
+  Nothing -> False
+  Just (c, r) -> lvl2FirstChar c && (X.all lvl2RemainingChar r)
+
+otherSubAcctLvl2 :: B.SubAccount -> Bool
+otherSubAcctLvl2 (B.SubAccount x) =
+  (not . X.null $ x)
+  && (X.all lvl2RemainingChar x)
+
+isAcctLvl2 :: B.Account -> Bool
+isAcctLvl2 (B.Account ls) = case ls of
+  [] -> False
+  x:xs -> firstSubAcctLvl2 x && all otherSubAcctLvl2 xs
+
+acctLvl :: B.Account -> Maybe Level
+acctLvl a = M.getFirst . M.mconcat . map M.First $
+  [ if isAcctLvl1 a then Just L1 else Nothing
+  , if isAcctLvl2 a then Just L2 else Nothing
+  ]
 
 -- | Shows an account, with the minimum level of quoting
 -- possible. Fails with an error if any one of the characters in the
 -- account name does not satisfy the 'lvl1Char' predicate. Otherwise
 -- returns a rendered account, quoted if necessary.
 render :: B.Account -> Maybe Text
-render a = do
-  l <- checkAccount a
-  let t = HT.text . HT.Delimited (pack ":") . HT.textList $ a
-  return $ case l of
-    L1 -> cons '{' t `snoc` '}'
-    L2 -> t
+render a = fmap toTxt (acctLvl a)
+  where
+    t = X.concat . intersperse (X.singleton ':')
+        . map B.unSubAccount . B.unAccount $ a
+    toTxt l = case l of
+      L1 -> cons '{' t `snoc` '}'
+      L2 -> t
