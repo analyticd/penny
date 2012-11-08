@@ -16,6 +16,12 @@ instance HasText B.SubAccount where
 instance HasText B.Flag where
   text = B.unFlag
 
+instance HasText B.Commodity where
+  text = B.unCommodity
+
+instance HasText B.Memo where
+  text = B.unMemo
+
 instance HasText B.Number where
   text = B.unNumber
 

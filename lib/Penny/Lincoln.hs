@@ -20,7 +20,7 @@ module Penny.Lincoln (
 
     -- * Bits
     -- ** Accounts
-  , I.SubAccountName (SubAccountName, unSubAccountName)
+  , I.SubAccount (SubAccount, unSubAccount)
   , I.Account(Account, unAccount)
 
     -- ** Amounts
@@ -28,7 +28,6 @@ module Penny.Lincoln (
 
     -- ** Commodities
   , I.Commodity (Commodity, unCommodity)
-  , I.charCommodity
 
     -- ** DateTime
   , I.TimeZoneOffset ( offsetToMins )
@@ -89,7 +88,6 @@ module Penny.Lincoln (
 
 
     -- * Builders
-  , Bd.crashy
   , Bd.account
 
     -- * Families
@@ -210,5 +208,4 @@ import qualified Penny.Lincoln.Matchers as Matchers
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.PriceDb as DB
 import qualified Penny.Lincoln.Serial as S
-import qualified Penny.Lincoln.TextNonEmpty as TNE
 import qualified Penny.Lincoln.Transaction as T

@@ -3,12 +3,13 @@
 -- Postings.
 module Penny.Lincoln.Predicates where
 
-import Data.Text (Text, singleton)
 
+import Data.List (intersperse)
+import Data.Text (Text)
+import qualified Data.Text as X
 import Data.Time (Day)
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.HasText (HasText, text, HasTextList, textList,
-                              Delimited(Delimited))
+import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
 import qualified Penny.Lincoln.Family.Family as F
 import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Queries as Q
@@ -42,11 +43,10 @@ matchLevel i f a = let ts = textList a in
   then False
   else f (ts !! i)
 
--- | Does the matcher match the text of the memo? Joins each line of
--- the memo with spaces.
+-- | Does the matcher match the text of the memo? Does nothing special
+-- to account for line breaks in the memo.
 matchMemo :: (Text -> Bool) -> B.Memo -> Bool
-matchMemo f m = f m' where
-  m' = text $ Delimited (singleton ' ') (textList m)
+matchMemo f = f . text
 
 
 matchMaybeLevel ::
@@ -116,27 +116,17 @@ matchDelimited ::
   => Text
   -> (Text -> Bool)
   -> a -> Bool
-matchDelimited d f = f . text . Delimited d . textList
+matchDelimited d f = f . X.concat . intersperse d . textList
 
 -- * Commodity
 
-commodity :: Text -> (Text -> Bool) -> PostFam -> Bool
-commodity t f = matchDelimited t f
-                . B.unCommodity
-                . Q.commodity
-
-commodityLevel :: Int -> (Text -> Bool) -> PostFam -> Bool
-commodityLevel i f = matchLevel i f . Q.commodity
-
-commodityAny :: (Text -> Bool) -> PostFam -> Bool
-commodityAny f = matchAny f . Q.commodity
+commodity :: (Text -> Bool) -> PostFam -> Bool
+commodity f = f . text . Q.commodity
 
 
 -- * Account
 account :: Text -> (Text -> Bool) -> PostFam -> Bool
-account t f = matchDelimited t f
-                . B.unAccount
-                . Q.account
+account t f = matchDelimited t f . Q.account
 
 accountLevel :: Int -> (Text -> Bool) -> PostFam -> Bool
 accountLevel i f = matchLevel i f . Q.account

@@ -36,7 +36,7 @@ dateTime :: T.PostFam -> B.DateTime
 dateTime = T.tDateTime . parent . T.unPostFam
 
 localDay :: T.PostFam -> Time.Day
-localDay = Time.localDay . B.localTime . dateTime
+localDay = B.day . dateTime
 
 account :: T.PostFam -> B.Account
 account = T.pAccount . child . T.unPostFam
