@@ -16,7 +16,6 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
 import qualified Data.Time as T
-import qualified Penny.Lincoln.NestedMap as NM
 import qualified Penny.Lincoln.Bits as B
 
 type CpuMap = M.Map T.UTCTime B.CountPerUnit
@@ -24,7 +23,7 @@ type ToMap = M.Map B.To CpuMap
 
 -- | The PriceDb holds information about prices. Create an empty one
 -- using 'emptyDb' then fill it with values using foldl or similar.
-newtype PriceDb = PriceDb (NM.NestedMap B.SubCommodity ToMap)
+newtype PriceDb = PriceDb (M.Map B.Commodity ToMap)
 
 -- | An empty PriceDb
 emptyDb :: PriceDb
