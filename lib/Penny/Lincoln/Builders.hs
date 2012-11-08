@@ -11,52 +11,19 @@
 -- can be tedious if, for example, you want to build some data within
 -- a short custom Haskell program. Thus, this module.
 
-module Penny.Lincoln.Builders ( 
-  crashy
-  , account
-  , commodity
+module Penny.Lincoln.Builders
+  ( account
   ) where
 
-import Control.Monad.Exception.Synchronous as Ex
 import qualified Data.List.Split as S
-import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.TextNonEmpty (TextNonEmpty(TextNonEmpty))
 import Data.Text (pack)
-import qualified Data.Traversable as T
-
--- | Makes a function partial. Use if you don't want to bother dealing
--- with the Exceptional type.
-crashy :: Show e => Ex.Exceptional e a -> a
-crashy = Ex.resolve (error . show)
 
 -- | Create an Account. You supply a single String, with colons to
 -- separate the different sub-accounts.
-account :: String -> Ex.Exceptional String B.Account
-account input = do
-  subStrs <- case S.splitOn ":" input of
-    [] -> error "splitOn returned an empty list; should never happen"
-    []:[] -> Ex.throw "account name is null"
-    (s:ss) -> return $ s :| ss
-  let makeSub s = case s of
-        [] -> Ex.throw $
-              "sub account name is null from account: " ++ input
-        (c:cs) -> return $ B.SubAccountName (TextNonEmpty c (pack cs))
-  subs <- T.traverse makeSub subStrs
-  return $ B.Account subs
-    
--- | Create a Commodity. You supply a single String, with colons to
--- separate the different sub-commodities.
-commodity :: String -> Ex.Exceptional String B.Commodity
-commodity input = do
-  subStrs <- case S.splitOn ":" input of
-    [] -> error "splitOn returned an empty list; should never happen"
-    []:[] -> Ex.throw "account name is null"
-    (s:ss) -> return $ s :| ss
-  let makeSub s = case s of
-        [] -> Ex.throw $
-              "sub account name is null from account: " ++ input
-        (c:cs) -> return $ B.SubCommodity (TextNonEmpty c (pack cs))
-  subs <- T.traverse makeSub subStrs
-  return $ B.Commodity subs
-    
+account :: String -> B.Account
+account s =
+  if null s
+  then B.Account []
+  else B.Account . map B.SubAccount . map pack . S.splitOn ":" $ s
+

@@ -9,10 +9,10 @@ import qualified Text.Matchers.Text as MT
 type Matcher = X.Text -> Bool
 
 -- | A function that makes Matchers.
-type Factory =
-  MT.CaseSensitive
+type Factory
+  = MT.CaseSensitive
   -- ^ Will this matcher be case sensitive?
-  
+
   -> X.Text
   -- ^ The pattern to use when testing for a match. For example, this
   -- might be a regular expression, or simply the text to be matched.

@@ -28,18 +28,21 @@ module Penny.Lincoln (
 
     -- ** Commodities
   , I.Commodity (Commodity, unCommodity)
-  , I.SubCommodity (SubCommodity, unSubCommodity)
   , I.charCommodity
 
     -- ** DateTime
-  , I.DateTime
-  , I.dateTime
-  , I.localTime
-  , I.timeZone
-  , I.TimeZoneOffset
+  , I.TimeZoneOffset ( offsetToMins )
   , I.minsToOffset
-  , I.offsetToMins
   , I.noOffset
+  , I.Hours ( unHours )
+  , I.intToHours
+  , I.Minutes ( unMinutes )
+  , I.intToMinutes
+  , I.Seconds ( unSeconds )
+  , I.picoToSeconds
+  , I.DateTime ( .. )
+  , I.toUTC
+  , I.sameInstant
 
     -- ** Debits and credits
   , I.DrCr(Debit, Credit)
@@ -52,7 +55,6 @@ module Penny.Lincoln (
   , I.Flag (Flag, unFlag)
 
     -- ** Memos
-  , I.MemoLine (MemoLine, unMemoLine)
   , I.Memo (Memo, unMemo)
 
     -- ** Number
@@ -109,13 +111,7 @@ module Penny.Lincoln (
 
     -- * HasText
   , HT.HasText(text)
-  , HT.Delimited(Delimited)
   , HT.HasTextList(textList)
-  , HT.HasTextNonEmpty(textNonEmpty)
-  , HT.HasTextNonEmptyList(textNonEmptyList)
-
-    -- * TextNonEmpty
-  , TNE.TextNonEmpty(TextNonEmpty)
 
     -- * Transactions
     -- ** Postings and transactions

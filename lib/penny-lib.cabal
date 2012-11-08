@@ -267,7 +267,6 @@ Library
         Penny.Lincoln.PriceDb,
         Penny.Lincoln.Queries,
         Penny.Lincoln.Serial,
-        Penny.Lincoln.TextNonEmpty,
         Penny.Lincoln.Transaction,
         Penny.Lincoln.Transaction.Unverified,
         Penny.Shield,
