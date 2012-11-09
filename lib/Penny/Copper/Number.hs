@@ -1,29 +1,26 @@
 module Penny.Copper.Number (isNumChar, number, render) where
 
-import Control.Applicative ((<$>), (<*>))
 import Data.Text ( pack, cons, snoc, Text )
-import Text.Parsec ( char, satisfy, many, between, (<?>))
+import qualified Data.Text as X
+import Text.Parsec ( char, satisfy, many1, between, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (rangeLettersToSymbols)
+import qualified Penny.Copper.Util as U
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ) )
-import qualified Penny.Lincoln.TextNonEmpty as TNE
 
 isNumChar :: Char -> Bool
 isNumChar c = allowed && not banned where
-  allowed = rangeLettersToSymbols c ||
-            c == ' '
+  allowed = U.unicodeAll c || U.asciiAll c
   banned = c == ')'
 
 number :: Parser B.Number
-number = between (char '(') (char ')') p <?> "number" where
-  p = (\c cs -> B.Number (TextNonEmpty c (pack cs)))
-      <$> satisfy isNumChar
-      <*> many (satisfy isNumChar)
+number = between (char '(') (char ')') p <?> "number"
+  where
+    p = fmap (B.Number . pack) (many1 (satisfy isNumChar))
+
 
 render :: B.Number -> Maybe Text
-render (B.Number tne) =
-  if TNE.all isNumChar tne
-  then Just $ '(' `cons` TNE.toText tne `snoc` ')'
+render (B.Number t) =
+  if X.all isNumChar t
+  then Just $ '(' `cons` t `snoc` ')'
   else Nothing

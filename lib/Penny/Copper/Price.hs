@@ -9,7 +9,7 @@ import Data.Text (singleton, snoc, intercalate)
 import qualified Data.Text as X
 
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Bits.PricePoint as PP
+import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Copper.Amount as A
 import qualified Penny.Copper.Commodity as C
 import qualified Penny.Copper.DateTime as DT
@@ -38,34 +38,29 @@ mkPrice pos dt from (am, fmt) = let
     p <- L.newPrice (L.From from) (L.To to) (L.CountPerUnit q)
     return $ L.PricePoint dt p pm
 
-maybePrice ::
-  DT.DefaultTimeZone
-  -> Q.RadGroup
-  -> Parser (Maybe L.PricePoint)
-maybePrice dtz rg =
+maybePrice :: Parser (Maybe L.PricePoint)
+maybePrice =
   mkPrice
   <$ lexeme (char '@')
   <*> getPosition
-  <*> lexeme (DT.dateTime dtz)
+  <*> lexeme DT.dateTime
   <*> lexeme (C.quotedLvl1Cmdty <|> C.lvl2Cmdty)
-  <*> A.amount rg
+  <*> A.amount
   <* eol
   <?> "price"
-  
+
 -- | A price with an EOL and whitespace after the EOL. @price d r@
 -- will parse a PriceBox, where @d@ is the DefaultTimeZone for the
 -- DateTime in the PricePoint, and @r@ is the radix point and grouping
 -- character to parse the Amount. Fails if the price is not valid
 -- (e.g. the from and to commodities are the same).
-price ::
-  DT.DefaultTimeZone
-  -> Q.RadGroup
-  -> Parser L.PricePoint
-price dtz rg = do
-  b <- maybePrice dtz rg
-  case b of
+price :: Parser L.PricePoint
+price = do
+  p <- maybePrice
+  case p of
     Nothing -> fail "invalid price given"
-    Just p -> return p
+    Just pr -> return pr
+
 
 -- | @render dtz rg f pp@ renders a price point @pp@. @dtz@ is the
 -- DefaultTimeZone for rendering of the DateTime in the Price
@@ -74,13 +69,11 @@ price dtz rg = do
 -- formatted. Fails if either the From or the To commodity cannot be
 -- rendered.
 render ::
-  DT.DefaultTimeZone
-  -> (Q.GroupingSpec, Q.GroupingSpec)
-  -> Q.RadGroup
+  (Q.GroupingSpec, Q.GroupingSpec)
   -> L.PricePoint
   -> Maybe X.Text
-render dtz gs rg pp = let
-  dateTxt = DT.render dtz (PP.dateTime pp)
+render gs pp = let
+  dateTxt = DT.render (B.dateTime pp)
   (L.From from) = L.from . L.price $ pp
   (L.To to) = L.to . L.price $ pp
   (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
@@ -88,7 +81,7 @@ render dtz gs rg pp = let
   amt = L.Amount q to
   in do
     fmt <- L.priceFormat . L.ppMeta $ pp
-    let mayAmtTxt = A.render gs rg fmt amt
+    let mayAmtTxt = A.render gs fmt amt
     amtTxt <- mayAmtTxt
     fromTxt <- mayFromTxt
     return $

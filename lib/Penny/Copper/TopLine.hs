@@ -19,15 +19,12 @@ import qualified Penny.Lincoln.Transaction as T
 import Penny.Copper.Util (lexeme, eol, renMaybe, txtWords)
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
-topLine ::
-  DT.DefaultTimeZone
-  -- -> Parser (U.TopLine (Meta.TopMemoLine, Meta.TopLineLine))
-  -> Parser U.TopLine
-topLine dtz =
+topLine :: Parser U.TopLine
+topLine =
   f
   <$> M.memo
   <*> getPosition
-  <*> lexeme (DT.dateTime dtz)
+  <*> lexeme DT.dateTime
   <*> optionMaybe (lexeme F.flag)
   <*> optionMaybe (lexeme N.number)
   <*> optionMaybe (P.quotedPayee <|> P.unquotedPayee)
@@ -40,15 +37,11 @@ topLine dtz =
       tll = L.TopLineLine . sourceLine $ pos
 
 
-
-render ::
-  DT.DefaultTimeZone
-  -> T.TopLine
-  -> Maybe X.Text
-render dtz tl =
+render :: T.TopLine -> Maybe X.Text
+render tl =
   f
   <$> M.render (T.tMemo tl)
-  <*> pure (DT.render dtz (T.tDateTime tl))
+  <*> pure (DT.render (T.tDateTime tl))
   <*> renMaybe (T.tFlag tl) F.render
   <*> renMaybe (T.tNumber tl) N.render
   <*> renMaybe (T.tPayee tl) P.smartRender

@@ -1,39 +1,38 @@
 module Penny.Copper.Memos.Posting (
-  memo, render, isCommentChar) where
+  memo, render, isMemoChar) where
 
-import Control.Applicative ((<*>), (<*), (<$), (<$>))
+import Control.Applicative ((<*), (*>))
 import qualified Data.Text as X
-import Text.Parsec (char, satisfy, many, (<?>))
+import Text.Parsec (char, satisfy, many1, many, (<?>))
 import Text.Parsec.Text ( Parser )
 
-import Penny.Copper.Util (eol, rangeLettersToSymbols)
+import Penny.Copper.Util (eol)
+import qualified Penny.Copper.Util as U
 import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Lincoln.TextNonEmpty as TNE
 
-isCommentChar :: Char -> Bool
-isCommentChar c = rangeLettersToSymbols c
-                  || c == ' '
+isMemoChar :: Char -> Bool
+isMemoChar c = U.unicodeAll c || U.asciiAll c
 
 memo :: Parser B.Memo
-memo = B.Memo <$> many memoLine
+memo = fmap (B.Memo . X.pack . concat) (many1 memoLine)
 
-memoLine :: Parser B.MemoLine
-memoLine = (\c cs -> B.MemoLine $ TNE.TextNonEmpty c (X.pack cs))
-           <$ char '\''
-           <*> satisfy isCommentChar
-           <*> many (satisfy isCommentChar)
-           <* eol
-           <?> "posting memo"
+memoLine :: Parser String
+memoLine = fmap (++ "\n") p
+  where
+    p = char '\''
+        *> many (satisfy isMemoChar)
+        <* eol
+        <?> "posting memo"
 
 render :: B.Memo -> Maybe X.Text
-render (B.Memo ls) = X.concat <$> mapM renderLine ls 
+render (B.Memo x) =
+  let ls = X.split (== '\n') x
+  in if null ls || not (all (X.all isMemoChar) ls)
+     then Nothing
+     else
+      let mkLine l = X.pack (replicate 8 ' ')
+                     `X.snoc` '\''
+                     `X.append` l
+                     `X.snoc` '\n'
+      in Just . X.concat . map mkLine $ ls
 
-renderLine :: B.MemoLine -> Maybe X.Text
-renderLine (B.MemoLine l) =
-  if TNE.all isCommentChar l
-  then Just $
-       X.pack (replicate 8 ' ')
-       `X.snoc` '\''
-       `X.append` TNE.toText l
-       `X.snoc` '\n'
-  else Nothing

@@ -13,30 +13,30 @@ import Penny.Copper.Util (lexeme)
 import qualified Penny.Lincoln as L
 
 drCr :: Parser L.DrCr
-drCr = let
-  dr = do
-    void (char 'D' <|> char 'd')
-    void (char 'r') <|> void (string "ebit")
-    return L.Debit
-  cr = do
-    void (char 'C' <|> char 'c')
-    void (optional (char 'r' >> optional (string "edit")))
-    return L.Credit
-  in dr <|> cr
+drCr = dr <|> cr
+  where
+    dr = do
+      void (char 'D' <|> char 'd')
+      void (char 'r') <|> void (string "ebit")
+      return L.Debit
+    cr = do
+      void (char 'C' <|> char 'c')
+      void (optional (char 'r' >> optional (string "edit")))
+      return L.Credit
 
-entry :: Q.RadGroup -> Parser (L.Entry, L.Format)
-entry rg = f <$> lexeme drCr <*> amount rg <?> e where
+
+entry :: Parser (L.Entry, L.Format)
+entry = f <$> lexeme drCr <*> amount <?> e where
   f dc (am, fmt) = (L.Entry dc am, fmt)
   e = "entry"
 
-render ::
-  (Q.GroupingSpec, Q.GroupingSpec)
-  -> Q.RadGroup
+render
+  :: (Q.GroupingSpec, Q.GroupingSpec)
   -> L.Format
   -> L.Entry
   -> Maybe X.Text
-render gs rg f (L.Entry dc a) = do
-  amt <- A.render gs rg f a
+render gs f (L.Entry dc a) = do
+  amt <- A.render gs f a
   let dcTxt = X.pack $ case dc of
         L.Debit -> "Dr"
         L.Credit -> "Cr"

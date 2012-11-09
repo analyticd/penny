@@ -16,7 +16,7 @@ module Penny.Lincoln.Bits (
   DT.noOffset,
   DT.Hours ( unHours ),
   DT.intToHours,
-  DT.zeroHours
+  DT.zeroHours,
   DT.Minutes ( unMinutes ),
   DT.intToMinutes,
   DT.zeroMinutes,
@@ -26,6 +26,7 @@ module Penny.Lincoln.Bits (
   DT.zeroSeconds,
   DT.DateTime ( .. ),
   DT.toUTC,
+  DT.toZonedTime,
   DT.sameInstant,
 
   -- * Debits and Credits

@@ -1,6 +1,5 @@
 module Penny.Copper.DateTime
   ( dateTime
-  , utcDefault
   , render
   ) where
 
@@ -11,8 +10,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Time as T
 import Text.Parsec (char, digit, (<|>), (<?>))
 import Text.Parsec.Text ( Parser )
-import Control.Monad ( void, when )
-import Data.Fixed ( Pico )
+import Control.Monad ( void )
 import System.Locale (defaultTimeLocale)
 
 import Penny.Copper.Util (spaces)
@@ -108,22 +106,19 @@ dateTime = do
       tz = fromMaybe B.noOffset mayTz
   return $ B.DateTime d h m s tz
 
--- | Render a DateTime. If the DateTime is in the given
--- DefaultTimeZone, and the DateTime is midnight, then the time and
+-- | Render a DateTime. If the DateTime is midnight, then the time and
 -- time zone will not be printed. Otherwise, the time and time zone
 -- will both be printed. The test for time zone equality depends only
 -- upon the time zone's offset from UTC.
-render :: DefaultTimeZone -> B.DateTime -> X.Text
-render (DefaultTimeZone dtz) dt = let
-  lt = B.localTime dt
-  off = B.timeZone dt
-  fmtLong = "%F %T %z"
-  fmtShort = "%F"
-  sameZone = dtz == off
-  local = T.localTimeOfDay lt
-  isMidnight = local == T.midnight
-  fmt = if sameZone && isMidnight
-        then fmtShort
-        else fmtLong
-  zt = T.ZonedTime lt (T.minutesToTimeZone (B.offsetToMins off))
-  in X.pack $ T.formatTime defaultTimeLocale fmt zt
+render :: B.DateTime -> X.Text
+render dt = X.pack $ T.formatTime defaultTimeLocale fmt zt
+  where
+    zt = B.toZonedTime dt
+    fmtLong = "%F %T %z"
+    fmtShort = "%F"
+    isUTC = B.timeZone dt == B.noOffset
+    isMidnight = (B.hours dt, B.minutes dt, B.seconds dt)
+                 == B.midnight
+    fmt = if isUTC && isMidnight
+          then fmtShort
+          else fmtLong

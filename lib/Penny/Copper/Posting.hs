@@ -24,9 +24,8 @@ import Penny.Copper.Util (lexeme, eol, renMaybe, txtWords)
 import qualified Penny.Lincoln.Transaction as T
 import qualified Penny.Lincoln.Transaction.Unverified as U
 
-posting :: Qt.RadGroup
-           -> Parser U.Posting
-posting rg =
+posting :: Parser U.Posting
+posting =
   makeUnverified
   <$> (L.PostingLine . sourceLine . statePos
        <$> getParserState)
@@ -36,7 +35,7 @@ posting rg =
        <*> optionMaybe (lexeme Pa.quotedPayee)
        <*> lexeme (Ac.lvl1AccountQuoted <|> Ac.lvl2Account)
        <*> lexeme Ta.tags
-       <*> optionMaybe (lexeme (En.entry rg))
+       <*> optionMaybe (lexeme En.entry)
        <* eol
        <*> Me.memo)
   <?> "posting"
@@ -85,10 +84,9 @@ makeUnverified pl u = upo where
 -- have extraneous blank space in a file).
 render ::
   (Qt.GroupingSpec, Qt.GroupingSpec)
-  -> Qt.RadGroup
   -> T.Posting
   -> Maybe X.Text
-render gs rg p = do
+render gs p = do
   fl <- renMaybe (T.pFlag p) Fl.render
   nu <- renMaybe (T.pNumber p) Nu.render
   pa <- renMaybe (T.pPayee p) Pa.quoteRender
@@ -99,7 +97,7 @@ render gs rg p = do
     (T.Inferred, Nothing) -> return Nothing
     (T.NotInferred, Just f) -> return (Just (T.pEntry p, f))
     _ -> Nothing
-  let renderEn (e, f) = En.render gs rg f e
+  let renderEn (e, f) = En.render gs f e
   en <- renMaybe maybePair renderEn
   return $ formatter fl nu pa ac ta en me
 

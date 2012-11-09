@@ -17,22 +17,15 @@ module Penny.Copper.Account
 
 import Control.Applicative((<$>), (<*>), (*>))
 import Data.List (intersperse)
-import qualified Data.Foldable as F
 import qualified Data.Monoid as M
 import Data.Text ( snoc, cons, pack, Text )
 import qualified Data.Text as X
-import qualified Data.Traversable as T
 import Text.Parsec (
   char, satisfy, many, (<?>),
   many1, between, sepBy1, option )
 import Text.Parsec.Text ( Parser )
 
-import Data.List.NonEmpty (NonEmpty((:|)))
-import qualified Data.List.NonEmpty as NE
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.TextNonEmpty ( TextNonEmpty ( TextNonEmpty ),
-                                    unsafeTextNonEmpty )
-import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Copper.Util as U
 
 -- | Characters allowed in a Level 1 account. (Check the source code

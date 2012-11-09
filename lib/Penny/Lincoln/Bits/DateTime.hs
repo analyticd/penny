@@ -19,6 +19,7 @@ module Penny.Lincoln.Bits.DateTime
   , midnight
   , DateTime ( .. )
   , toUTC
+  , toZonedTime
   , sameInstant
   ) where
 
@@ -95,6 +96,15 @@ data DateTime = DateTime
   , seconds :: Seconds
   , timeZone :: TimeZoneOffset
   } deriving (Eq, Ord, Show)
+
+toZonedTime :: DateTime -> T.ZonedTime
+toZonedTime dt = T.ZonedTime lt tz
+  where
+    d = day dt
+    lt = T.LocalTime d tod
+    tod = T.TimeOfDay (unHours . hours $ dt) (unMinutes . minutes $ dt)
+          (unSeconds . seconds $ dt)
+    tz = T.TimeZone (offsetToMins . timeZone $ dt) False ""
 
 toUTC :: DateTime -> T.UTCTime
 toUTC dt = T.localTimeToUTC tz lt

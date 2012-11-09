@@ -8,7 +8,6 @@ import qualified Data.Text as X
 import Text.Parsec (many)
 import Text.Parsec.Text ( Parser )
 
-import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.TopLine as TL
 import Penny.Copper.TopLine ( topLine )
 import qualified Penny.Copper.Posting as Po
@@ -38,38 +37,30 @@ mkTransaction top p1 p2 ps = let
     Ex.Exception err -> Ex.Exception . errorStr $ err
     Ex.Success x -> return x
 
-maybeTransaction ::
-  DT.DefaultTimeZone
-  -> Qt.RadGroup
-  -> Parser (Ex.Exceptional String L.Transaction)
-maybeTransaction dtz rg =
+maybeTransaction :: Parser (Ex.Exceptional String L.Transaction)
+maybeTransaction =
   mkTransaction
-  <$> topLine dtz
-  <*> Po.posting rg
-  <*> Po.posting rg
-  <*> many (Po.posting rg)
+  <$> topLine
+  <*> Po.posting
+  <*> Po.posting
+  <*> many Po.posting
 
-transaction ::
-  DT.DefaultTimeZone
-  -> Qt.RadGroup
-  -> Parser L.Transaction
-transaction dtz rg = do
-  ex <- maybeTransaction dtz rg
+transaction :: Parser L.Transaction
+transaction = do
+  ex <- maybeTransaction
   case ex of
     Ex.Exception s -> fail s
     Ex.Success b -> return b
 
 render ::
-  DT.DefaultTimeZone
-  -> (Qt.GroupingSpec, Qt.GroupingSpec)
-  -> Qt.RadGroup
+  (Qt.GroupingSpec, Qt.GroupingSpec)
   -> T.Transaction
   -> Maybe X.Text
-render dtz gs rg txn = do
+render gs txn = do
   let txnFam = T.unTransaction txn
-  tlX <- TL.render dtz (F.parent txnFam)
-  pstgsX <- Tr.traverse (Po.render gs rg) (orphans txnFam)
+  tlX <- TL.render (F.parent txnFam)
+  pstgsX <- Tr.traverse (Po.render gs) (orphans txnFam)
   return $ tlX `X.append` (X.concat (toList pstgsX))
-  
+
 
 

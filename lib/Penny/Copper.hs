@@ -1,33 +1,27 @@
 -- | Copper - the Penny parser
-module Penny.Copper (
-  -- * Comments
-  C.Comment(Comment),
+module Penny.Copper
+  ( -- * Comments
+    C.Comment(Comment)
 
   -- * Radix and grouping
-  Q.RadGroup,
-  Q.periodComma, Q.periodSpace, Q.commaPeriod, Q.commaSpace,
-  Q.GroupingSpec(..),
-  
-  -- * Default time zone
-  DT.DefaultTimeZone(DefaultTimeZone),
-  DT.utcDefault,
-  
+  , Q.GroupingSpec(..)
+
   -- * FileContents
-  FileContents(FileContents, unFileContents),
-  
+  , FileContents(FileContents, unFileContents)
+
   -- * Errors
-  ErrorMsg (ErrorMsg, unErrorMsg),
+  , ErrorMsg (ErrorMsg, unErrorMsg)
 
   -- * Items
-  I.Item(Transaction, Price, CommentItem, BlankLine),
-  I.Line(unLine),
+  , I.Item(Transaction, Price, CommentItem, BlankLine)
+  , I.Line(unLine)
 
   -- * Parsing
-  Ledger(Ledger, unLedger),
-  parse,
-  
+  , Ledger(Ledger, unLedger)
+  , parse
+
   -- * Rendering
-  I.render
+  , I.render
   ) where
 
 
@@ -39,7 +33,6 @@ import qualified Text.Parsec as P
 
 import qualified Penny.Copper.Comments as C
 import qualified Penny.Copper.Qty as Q
-import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Copper.Item as I
 import qualified Penny.Lincoln as L
 
@@ -53,15 +46,12 @@ newtype FileContents = FileContents { unFileContents :: X.Text }
 newtype ErrorMsg = ErrorMsg { unErrorMsg :: X.Text }
                    deriving (Eq, Show)
 
-parseFile ::
-  DT.DefaultTimeZone
-  -> Q.RadGroup
-  -> (L.Filename, FileContents)
-  -> Ex.Exceptional ErrorMsg
-  [(I.Line, I.Item)]
-parseFile dtz rg (fn, (FileContents c)) =
+parseFile
+  :: (L.Filename, FileContents)
+  -> Ex.Exceptional ErrorMsg [(I.Line, I.Item)]
+parseFile (fn, (FileContents c)) =
   let p = addFileMetadata fn
-          <$> manyTill (I.itemWithLineNumber dtz rg) eof
+          <$> manyTill I.itemWithLineNumber eof
       fnStr = X.unpack . L.unFilename $ fn
   in case P.parse p fnStr c of
     Left err -> Ex.throw (ErrorMsg . X.pack . show $ err)
@@ -99,13 +89,11 @@ addGlobalMetadata lss =
       is' = map fromEiItem eis'
   in zip lns is'
 
-parse ::
-  DT.DefaultTimeZone
-  -> Q.RadGroup
-  -> [(L.Filename, FileContents)]
+parse
+  :: [(L.Filename, FileContents)]
   -> Ex.Exceptional ErrorMsg Ledger
-parse dtz rg ps =
-  mapM (parseFile dtz rg) ps
+parse ps =
+  mapM parseFile ps
   >>= (return . Ledger . addGlobalMetadata)
 
 data Other = OPrice L.PricePoint

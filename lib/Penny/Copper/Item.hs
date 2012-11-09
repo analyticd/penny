@@ -12,7 +12,6 @@ import Text.Parsec (getPosition, sourceLine, (<|>),
 import Text.Parsec.Text ( Parser )
 
 import qualified Penny.Copper.Comments as C
-import qualified Penny.Copper.DateTime as DT
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper.Qty as Q
 import Penny.Copper.Price ( price )
@@ -35,34 +34,26 @@ data Item = Transaction L.Transaction
 newtype Line = Line { unLine :: Int }
                deriving (Eq, Show)
 
-itemWithLineNumber ::
-  DT.DefaultTimeZone
-  -> Q.RadGroup
-  -> Parser (Line, Item)
-itemWithLineNumber dtz rg = (,)
+itemWithLineNumber :: Parser (Line, Item)
+itemWithLineNumber = (,)
   <$> ((Line . sourceLine) <$> getPosition)
-  <*> parseItem dtz rg
+  <*> parseItem
 
-parseItem ::
-  DT.DefaultTimeZone
-  -> Q.RadGroup
-  -> Parser Item
-parseItem dtz rg = let
+parseItem :: Parser Item
+parseItem = let
    bl = BlankLine <$ eol <?> "blank line"
-   t = Transaction <$> transaction dtz rg
-   p = Price <$> price dtz rg
+   t = Transaction <$> transaction
+   p = Price <$> price
    c = CommentItem <$> C.comment
    in (bl <|> t <|> p <|> c)
 
-render ::
-  DT.DefaultTimeZone
-  -> (Q.GroupingSpec, Q.GroupingSpec)
-  -> Q.RadGroup
+render
+  :: (Q.GroupingSpec, Q.GroupingSpec)
   -> Item
   -> Maybe X.Text
-render dtz gs rg i = case i of
-  Transaction t -> T.render dtz gs rg t
-  Price pp -> P.render dtz gs rg pp
+render gs i = case i of
+  Transaction t -> T.render gs t
+  Price pp -> P.render gs pp
   CommentItem c -> C.render c
   BlankLine -> Just $ X.singleton '\n'
-    
+

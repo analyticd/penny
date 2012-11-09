@@ -2,11 +2,7 @@ module Penny.Copper.Util where
 
 import Control.Applicative ((<*), pure, (<$))
 import qualified Data.Char as C
-import qualified Data.Foldable as F
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Text as X
-import qualified Penny.Lincoln.HasText as HT
-import qualified Penny.Lincoln.TextNonEmpty as TNE
 import Text.Parsec (char, many, skipMany)
 import Text.Parsec.Text (Parser)
 
