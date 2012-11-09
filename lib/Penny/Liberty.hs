@@ -48,9 +48,9 @@ import qualified Data.Text as Text
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Combinator (OptSpec)
 import Text.Parsec (parse)
-  
-import Penny.Copper.DateTime (DefaultTimeZone, dateTime)
-import Penny.Copper.Qty (RadGroup, qty)
+
+import Penny.Copper.DateTime (dateTime)
+import Penny.Copper.Qty (qty)
 
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
@@ -230,17 +230,17 @@ parseComparer t
   | t == "!=" = (/=)
   | otherwise = abort $ "invalid comparer: " ++ t
 
-parseDate :: DefaultTimeZone -> Text -> L.DateTime
-parseDate dtz t = case parse (dateTime dtz) "" t of
+parseDate :: Text -> L.DateTime
+parseDate t = case parse dateTime "" t of
   Left _ -> abort $ "could not parse date: " ++ unpack t
   Right d -> d
 
-date :: OptSpec (DefaultTimeZone -> Operand)
+date :: OptSpec Operand
 date = C.OptSpec ["date"] ['d'] (C.TwoArg f)
   where
-    f a1 a2 dtz =
+    f a1 a2 =
       let cmp = parseComparer a1
-          dt = parseDate dtz (pack a2)
+          dt = parseDate (pack a2)
       in X.Operand (P.date (`cmp` dt))
 
 
@@ -317,14 +317,14 @@ levelOption str f = C.OptSpec [str] [] (C.TwoArg g)
 patternOption ::
   String
   -- ^ Long option
-  
+
   -> Maybe Char
   -- ^ Short option, if included
 
   -> ((Text -> Bool) -> L.PostFam -> Bool)
   -- ^ When applied to a matcher and a PostingBox, this function
   -- returns True if the posting matches, or False if it does not.
-  
+
   -> OptSpec (CaseSensitive -> MatcherFactory -> Operand)
 patternOption str mc f = C.OptSpec [str] so (C.OneArg g)
   where
@@ -364,13 +364,7 @@ flag :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
 flag = patternOption "flag" Nothing P.flag
 
 commodity :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
-commodity = sepOption "commodity" Nothing P.commodity
-
-commodityLevel :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
-commodityLevel = levelOption "commodity-level" P.commodityLevel
-
-commodityAny :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
-commodityAny = patternOption "commodity" Nothing P.commodityAny
+commodity = patternOption "commodity" Nothing P.commodity
 
 postingMemo :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
 postingMemo = patternOption "posting-memo" Nothing P.postingMemo
@@ -385,11 +379,11 @@ debit = C.OptSpec ["debit"] [] (C.NoArg (X.Operand P.debit))
 credit :: OptSpec Operand
 credit = C.OptSpec ["credit"] [] (C.NoArg (X.Operand P.credit))
 
-qtyOption :: OptSpec (RadGroup -> Operand)
+qtyOption :: OptSpec Operand
 qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
   where
-    f a1 a2 rg =
-      let q = case parse (qty rg) "" (pack a2) of
+    f a1 a2 =
+      let q = case parse qty "" (pack a2) of
             Left _ -> abort $ "invalid quantity: " ++ a2
             Right g -> g
           cmp = parseComparer a1
@@ -470,23 +464,21 @@ fileTransaction =
   in serialOption f "fileTransaction"
 
 unDouble :: (OptSpec Operand, OptSpec Operand)
-            -> [OptSpec (a -> b -> c -> d -> e -> Operand)]
+            -> [OptSpec (a -> b -> c -> Operand)]
 unDouble (o1, o2) = [fmap f o1, fmap f o2]
   where
-    f = (\g _ _ _ _ _ -> g)
+    f = (\g _ _ _ -> g)
 
 
 -- | All operand OptSpec.
 operandSpecs :: [OptSpec (L.DateTime
-                          -> DefaultTimeZone
-                          -> RadGroup
                           -> CaseSensitive
                           -> MatcherFactory
                           -> Operand)]
 
 operandSpecs =
-  [ fmap (\f _ dtz _ _ _ -> f dtz) date
-  , fmap (\f dt _ _ _ _ -> f dt) current
+  [ fmap (\f _ _ _ -> f) date
+  , fmap (\f dt _ _ -> f dt) current
   , wrapFactArg account
   , wrapFactArg accountLevel
   , wrapFactArg accountAny
@@ -495,20 +487,18 @@ operandSpecs =
   , wrapFactArg number
   , wrapFactArg flag
   , wrapFactArg commodity
-  , wrapFactArg commodityLevel
-  , wrapFactArg commodityAny
   , wrapFactArg postingMemo
   , wrapFactArg transactionMemo
-  , fmap (\f _ _ _ _ _ -> f) debit
-  , fmap (\f _ _ _ _ _  -> f) credit
-  , fmap (\f _ _ rg _ _ -> f rg) qtyOption
+  , fmap (\f _ _ _ -> f) debit
+  , fmap (\f _ _ _  -> f) credit
+  , fmap (\f _ _ _ -> f) qtyOption
   ]
   ++ unDouble globalTransaction
   ++ unDouble globalPosting
   ++ unDouble filePosting
   ++ unDouble fileTransaction
     where
-      wrapFactArg = fmap (\f _ _ _ cs fty -> f cs fty)
+      wrapFactArg = fmap (\f _ cs fty -> f cs fty)
 
 ------------------------------------------------------------
 -- Post filters

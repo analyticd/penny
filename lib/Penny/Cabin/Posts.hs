@@ -67,7 +67,6 @@ import qualified Penny.Cabin.Posts.Parser as P
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Types as T
 
-import qualified Penny.Copper as Cop
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Queries as Q
@@ -109,18 +108,16 @@ parseReport frt = do
   getState <- P.parseOptions
   let rf rt cs fty ps _ = do
         let zo = frt rt
-            st' = getState rt dtz rg st
+            st' = getState rt st
               where
-                dtz = defaultTimeZone zo
-                rg = radGroup zo
                 st = newParseState cs fty zo
         pdct <- getPredicate . P.tokens $ st'
         let chks = postsReport (P.showZeroBalances st') pdct
                    (P.postFilter st') (chunkOpts st' zo) ps
         return . CC.chunksToText (P.colorPref st') $ chks
   return rf
-                 
-            
+
+
 makeReport ::
   (Sh.Runtime -> ZincOpts)
   -> I.Report
@@ -130,15 +127,11 @@ makeReport frt = I.Report {
   , I.parseReport = parseReport frt }
 
 
-defaultOptions ::
-  Cop.DefaultTimeZone
-  -> Cop.RadGroup
-  -> Sh.Runtime
+defaultOptions
+  :: Sh.Runtime
   -> ZincOpts
-defaultOptions dtz rg rt = ZincOpts {
-  defaultTimeZone = dtz
-  , radGroup = rg
-  , fields = defaultFields
+defaultOptions rt = ZincOpts
+  { fields = defaultFields
   , colorPref = CO.maxCapableColors rt
   , drCrColors = Dark.drCrColors
   , baseColors = Dark.baseColors
@@ -167,23 +160,10 @@ getPredicate ts =
 
 -- | All the information to configure the postings report if the
 -- options will be parsed in from the command line.
-data ZincOpts = ZincOpts {
-  defaultTimeZone :: Cop.DefaultTimeZone
-  -- ^ The postings report takes options to determine which posts will
-  -- be visible. This determines the time zone to use when parsing
-  -- these options. Does not affect how the resulting report is
-  -- formatted. For that, see the dateFormat field.
-  
-  , radGroup :: Cop.RadGroup
-    -- ^ The postings report takes options to determine which posts
-    -- will be visible. This determines the radix point and grouping
-    -- character to use when parsing these options. Does not affect
-    -- how the resulting report is formatted. For that, see the
-    -- qtyFormat field.
-
-  , fields :: F.Fields Bool
+data ZincOpts = ZincOpts
+  { fields :: F.Fields Bool
     -- ^ Default fields to show in the report.
-      
+
   , colorPref :: CC.Colors
     -- ^ How many colors you want to see, or do it
     -- automatically.
@@ -240,7 +220,7 @@ data ZincOpts = ZincOpts {
     -- ^ Default width for spacer fields. If any of these Ints are
     -- less than or equal to zero, there will be no spacer. There is
     -- never a spacer for fields that do not appear in the report.
-      
+
   }
 
 chunkOpts ::
@@ -283,8 +263,7 @@ newParseState cs fty o = P.State {
 -- | Shows the date of a posting in YYYY-MM-DD format.
 ymd :: Box -> X.Text
 ymd p = X.pack (Time.formatTime defaultTimeLocale fmt d) where
-  d = Time.localDay
-      . L.localTime
+  d = L.day
       . Q.dateTime
       . L.boxPostFam
       $ p

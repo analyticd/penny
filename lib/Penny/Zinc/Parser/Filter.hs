@@ -12,7 +12,6 @@ import qualified Text.Matchers.Text as M
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Prim (Parser)
 
-import qualified Penny.Copper as Cop
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as X
@@ -68,9 +67,7 @@ data State =
         , postFilter :: [Ly.PostFilterFn]
         , orderer :: Ly.Orderer
         , help :: Bool
-        , currentTime :: L.DateTime
-        , defaultTimeZone :: Cop.DefaultTimeZone
-        , radGroup :: Cop.RadGroup }
+        , currentTime :: L.DateTime }
 
 newState ::
   Defaults.T
@@ -82,9 +79,7 @@ newState d =
         , postFilter = []
         , orderer = mempty
         , help = False
-        , currentTime = D.currentTime d
-        , defaultTimeZone = D.defaultTimeZone d
-        , radGroup = D.radGroup d }
+        , currentTime = D.currentTime d }
 
 parser :: Parser (State -> State)
 parser = C.parseOption $
@@ -101,8 +96,7 @@ operand = map (fmap f) Ly.operandSpecs
   where
     f lyFn st =
       let (X.Operand op) =
-            lyFn (currentTime st) (defaultTimeZone st)
-            (radGroup st) (sensitive st) (factory st)
+            lyFn (currentTime st) (sensitive st) (factory st)
       in st { tokens = tokens st ++ [X.TokOperand op] }
                    
 parsePostFilter :: [C.OptSpec (State -> State)]

@@ -18,7 +18,7 @@ data ParseOpts = ParseOpts {
   , baseColors :: Col.BaseColors
   , colorPref :: CO.ColorPref
   , showZeroBalances :: CO.ShowZeroBalances
-  , order :: L.SubAccountName -> L.SubAccountName -> Ordering
+  , order :: L.SubAccount -> L.SubAccount -> Ordering
   }
 
 

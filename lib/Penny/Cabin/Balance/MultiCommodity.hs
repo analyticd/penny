@@ -34,7 +34,7 @@ data Opts = Opts {
   , baseColors :: C.BaseColors
   , balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
-  , order :: L.SubAccountName -> L.SubAccountName -> Ordering
+  , order :: L.SubAccount -> L.SubAccount -> Ordering
   }
 
 defaultOpts :: Opts
@@ -67,9 +67,9 @@ defaultFormat _ = X.pack . show . L.unQty
 
 summedSortedBalTree ::
   CO.ShowZeroBalances
-  -> (L.SubAccountName -> L.SubAccountName -> Ordering)
+  -> (L.SubAccount -> L.SubAccount -> Ordering)
   -> [L.Box a]
-  -> (E.Forest (L.SubAccountName, L.Balance), L.Balance)
+  -> (E.Forest (L.SubAccount, L.Balance), L.Balance)
 summedSortedBalTree szb o =
   U.sumForest mempty mappend
   . U.sortForest o'
@@ -78,7 +78,7 @@ summedSortedBalTree szb o =
     o' x y = o (fst x) (fst y)
 
 rows ::
-  (E.Forest (L.SubAccountName, L.Balance), L.Balance)
+  (E.Forest (L.SubAccount, L.Balance), L.Balance)
   -> [K.Row]
 rows (o, b) = first:rest
   where

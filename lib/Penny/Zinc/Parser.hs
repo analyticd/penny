@@ -20,47 +20,40 @@ import qualified Penny.Zinc.Parser.Report as R
 import qualified Penny.Zinc.Parser.Ledgers as L
 import qualified Penny.Zinc.Parser.Defaults as Defaults
 
-import Penny.Copper.DateTime (DefaultTimeZone)
-import Penny.Copper.Qty (RadGroup)
-
 -- | Parses all command line options and arguments. Returns an IO
 -- action which will print appropriate error messages if something
 -- failed, or will print a report and exit successfully if everything
 -- went well.
 parser ::
   S.Runtime
-  -> DefaultTimeZone
-  -> RadGroup
   -> (S.Runtime -> Defaults.T)
   -> [I.Report]
   -> Parser (IO ())
-parser rt dtz rg getDf rs = do
+parser rt getDf rs = do
   let df = getDf rt
   r <- F.parseFilter df
   case r of
     Left F.NeedsHelp -> return $ do
       StrictIO.putStrLn . helpText $ rs
       exitSuccess
-    Right rslt -> parseReportsAndFilesAndPrint rt dtz rg rs rslt
-        
+    Right rslt -> parseReportsAndFilesAndPrint rt rs rslt
+
 
 -- | Returns an IO action that will parse the report options and the
 -- files on the command line and print the resulting report.
-parseReportsAndFilesAndPrint ::
-  S.Runtime
-  -> DefaultTimeZone
-  -> RadGroup
+parseReportsAndFilesAndPrint
+  :: S.Runtime
   -> [I.Report]
   -> F.Result
   -> Parser (IO ())
-parseReportsAndFilesAndPrint rt dtz rg rs rslt = do
+parseReportsAndFilesAndPrint rt rs rslt = do
   let (F.Result factory sensitive sortFilt) = rslt
   parserFunc <- R.report rs
   let reportFunc = parserFunc rt sensitive factory
   filenames <- L.filenames
   return $ do
     ledgers <- L.readLedgers filenames
-    let parsed = L.parseLedgers dtz rg ledgers
+    let parsed = L.parseLedgers ledgers
     case parsed of
       Ex.Exception e -> do
         hPutStrLn stderr . show $ e

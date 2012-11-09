@@ -28,7 +28,6 @@ import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
 import Data.Ord (comparing)
 import Data.List (sortBy, maximumBy, groupBy)
-import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Monoid (mconcat, Monoid)
 import Data.Maybe (mapMaybe)
 import qualified Data.Tree as T
@@ -62,7 +61,7 @@ tieredForest getKeys ls = fmap (fmap revSnd) . NM.toForest $ nm
 -- of each of the trees corresponds to a sub account. The label of the
 -- node tells you the sub account name and gives you a list of the
 -- postings at that level.
-tieredPostings :: [L.Box a] -> T.Forest (L.SubAccountName, [L.Box a])
+tieredPostings :: [L.Box a] -> T.Forest (L.SubAccount, [L.Box a])
 tieredPostings = tieredForest e
   where
     e = Fdbl.toList . L.unAccount . Q.account . L.boxPostFam
@@ -85,7 +84,7 @@ filterForest f = mapMaybe pruneTree
 balances ::
   CO.ShowZeroBalances
   -> [L.Box a]
-  -> T.Forest (L.SubAccountName, L.Balance)
+  -> T.Forest (L.SubAccount, L.Balance)
 balances (CO.ShowZeroBalances szb) =
   remover
   . map (fmap (mapSnd boxesBalance))
@@ -102,7 +101,7 @@ balances (CO.ShowZeroBalances szb) =
 -- function) and produces a flat list of accounts with the balance of
 -- each account.
 flatten
-  :: T.Forest (L.SubAccountName, L.Balance)
+  :: T.Forest (L.SubAccount, L.Balance)
   -> [(L.Account, L.Balance)]
 flatten =
   concatMap T.flatten
@@ -110,8 +109,8 @@ flatten =
   where
     toPair ((s, b), ls) =
       case reverse . map fst $ ls of
-        [] -> (L.Account (s :| []), b)
-        s1:sr -> (L.Account (s1 :| (sr ++ [s])), b)
+        [] -> (L.Account [s], b)
+        s1:sr -> (L.Account (s1 : (sr ++ [s])), b)
 
 -- | Takes a Tree and returns a Tree where each node has information
 -- about its parent Nodes. The list of parent nodes has the most

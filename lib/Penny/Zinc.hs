@@ -9,20 +9,17 @@ import System.Exit (exitFailure)
 import System.IO (stderr, hPutStrLn)
 
 import qualified Penny.Cabin.Interface as I
-import qualified Penny.Copper as Cop
 import qualified Penny.Shield as S
 import qualified Penny.Zinc.Parser as P
 
 runPenny ::
   S.Runtime
-  -> Cop.DefaultTimeZone
-  -> Cop.RadGroup
   -> (S.Runtime -> P.T)
   -> [I.Report]
   -> IO ()
-runPenny rt dtz rg df rs = do
+runPenny rt df rs = do
   as <- getArgs
-  case M.parse as (P.parser rt dtz rg df rs) of
+  case M.parse as (P.parser rt df rs) of
     Ex.Exception e -> do
       hPutStrLn stderr . show $ e
       exitFailure

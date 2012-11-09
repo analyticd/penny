@@ -7,23 +7,13 @@ module Penny.Cabin (allReportsWithDefaults, I.Report(..)) where
 
 import qualified Penny.Cabin.Balance as B
 import qualified Penny.Cabin.Posts as P
-import qualified Penny.Copper as C
 import qualified Penny.Cabin.Interface as I
 
 -- | Returns a list of all reports currently available in
 -- Penny. Currently this list has just two reports: the Balance report
 -- and the Postings report.
-allReportsWithDefaults ::
-  C.DefaultTimeZone
-  -- ^ The time zone used when parsing times from the command
-  -- line. Has no impact on how output is formatted.
-
-  -> C.RadGroup
-  -- ^ The radix and grouping characters used when parsing quantities
-  -- from the command line. Has no impact on how output is formatted.
-
-  -> [I.Report]
-allReportsWithDefaults dtz rg =
+allReportsWithDefaults :: [I.Report]
+allReportsWithDefaults =
   [ B.multiCommodity
-  , B.convert dtz
-  , P.makeReport (P.defaultOptions dtz rg) ]
+  , B.convert
+  , P.makeReport P.defaultOptions ]

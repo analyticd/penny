@@ -223,7 +223,7 @@ balanceChunks fmt dcCol vn (cty, bl) = (chkDc, chkCt, chkQt)
         in (dx, qx)
     chkDc = chk dcTxt
     chkQt = chk qtyTxt
-    chkCt = chk (L.text $ L.Delimited (X.singleton ':') (L.textList cty))
+    chkCt = chk . L.unCommodity $ cty
 
 
 indentAmount :: Int

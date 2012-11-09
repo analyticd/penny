@@ -45,14 +45,12 @@ readLedgers :: [Filename] -> IO [(Filename, Text)]
 readLedgers = mapM f where
   f fn = (\txt -> (fn, txt)) <$> ledgerText fn
 
-parseLedgers ::
-  C.DefaultTimeZone
-  -> C.RadGroup
-  -> [(Filename, Text)]
+parseLedgers
+  :: [(Filename, Text)]
   -> Ex.Exceptional ZE.Error ([L.Transaction], [L.PricePoint])
-parseLedgers dtz rg ls =
+parseLedgers ls =
   let toPair (f, t) = (convertFilename f, C.FileContents t)
-      parsed = C.parse dtz rg (map toPair ls)
+      parsed = C.parse (map toPair ls)
       folder i (ts, ps) = case snd i of
         C.Transaction t -> (t:ts, ps)
         C.Price p -> (ts, p:ps)

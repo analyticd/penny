@@ -48,16 +48,15 @@ data Runtime = Runtime { environment :: [(String, String)]
                        , currentTime :: B.DateTime
                        , output :: Output }
 
-zonedToDateTime :: T.ZonedTime -> B.DateTime
-zonedToDateTime (T.ZonedTime lt tz) = B.dateTime lt off where
-  off = maybe (error "could not convert time to local time")
-        id (B.minsToOffset (T.timeZoneMinutes tz))
-
 runtime :: IO Runtime
 runtime = Runtime
           <$> getEnvironment
-          <*> (zonedToDateTime <$> T.getZonedTime)
+          <*> (toDT <$> T.getZonedTime)
           <*> findOutput
+          where
+            toDT t = case B.fromZonedTime t of
+              Nothing -> error "time conversion error"
+              Just ti -> ti
 
 findOutput :: IO Output
 findOutput = do

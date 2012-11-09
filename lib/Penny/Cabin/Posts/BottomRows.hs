@@ -326,9 +326,7 @@ memoBits ts m (C.Width w) = cs where
        . TF.Words
        . Seq.fromList
        . X.words
-       . HT.text
-       . HT.Delimited (X.singleton ' ')
-       . HT.textList
+       . L.unMemo
        $ m
   toBit (TF.Words ws) = C.chunk ts (X.unwords . Fdbl.toList $ ws)
 
@@ -341,13 +339,13 @@ memoCell bc info width = (ts, cell) where
   ts = PC.colors vn bc
   pm = Q.postingMemo . L.boxPostFam $ info
   tm = Q.transactionMemo . L.boxPostFam $ info
-  nullMemo (L.Memo m) = null m
+  nullMemo (L.Memo m) = X.null m
   cs = case (nullMemo pm, nullMemo tm) of
     (True, True) -> mempty
     (False, True) -> memoBits ts pm w
     (True, False) -> memoBits ts tm w
     (False, False) -> memoBits ts pm w `mappend` memoBits ts tm w
-  
+
 
 filenameCell :: PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
 filenameCell bc info width = (ts, cell) where

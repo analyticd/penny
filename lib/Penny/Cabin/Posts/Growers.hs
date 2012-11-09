@@ -261,8 +261,7 @@ getPostingDrCr dc i = coloredPostingCell t dc i where
 
 getPostingCmdty :: CC.DrCrColors -> Box -> PreSpec
 getPostingCmdty dc i = coloredPostingCell t dc i where
-  t = L.text . L.Delimited (X.singleton ':') 
-      . L.textList . Q.commodity . L.boxPostFam $ i
+  t = L.unCommodity . Q.commodity . L.boxPostFam $ i
 
 getPostingQty :: (Box -> X.Text) -> CC.DrCrColors -> Box -> PreSpec
 getPostingQty qf dc i = coloredPostingCell (qf i) dc i
@@ -309,10 +308,7 @@ getTotalCmdty dccol i =
                          CC.colors vn
                          . CC.bottomLineToBaseColors dccol
                          $ nou
-                       txt = L.text
-                             . L.Delimited (X.singleton ':')
-                             . L.textList
-                             $ com
+                       txt = L.unCommodity com
                    in C.chunk spec txt
              in fmap toBit . assocs $ bal
   in PreSpec j ts bits

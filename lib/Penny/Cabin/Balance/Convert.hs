@@ -12,7 +12,6 @@ module Penny.Cabin.Balance.Convert (
 import Control.Applicative ((<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Tree as E
-import qualified Data.Foldable as Fdbl
 import qualified Data.Traversable as Tvbl
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Colors as C
@@ -23,7 +22,6 @@ import qualified Penny.Cabin.Balance.Convert.Help as H
 import qualified Penny.Cabin.Balance.Convert.Options as O
 import qualified Penny.Cabin.Balance.Convert.Parser as P
 import qualified Penny.Cabin.Interface as I
-import qualified Penny.Copper as Cop
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Liberty as Ly
@@ -50,8 +48,8 @@ data Opts = Opts {
 -- subaccount may have more than one BottomLine, one for each
 -- commodity.)
 type Sorter =
-  (L.SubAccountName, L.BottomLine)
-  -> (L.SubAccountName, L.BottomLine)
+  (L.SubAccount, L.BottomLine)
+  -> (L.SubAccount, L.BottomLine)
   -> Ordering
 
 -- | Converts all commodities in a Balance to a single commodity and
@@ -92,10 +90,8 @@ convertError ::
   -> L.PriceDbError
   -> X.Text
 convertError (L.To to) (L.From fr) e =
-  let fromErr = L.text (L.Delimited (X.singleton ':')
-                        (Fdbl.toList . L.unCommodity $ fr))
-      toErr = L.text (L.Delimited (X.singleton ':')
-                      (Fdbl.toList . L.unCommodity $ to))
+  let fromErr = L.unCommodity fr
+      toErr = L.unCommodity to
   in case e of
     L.FromNotFound ->
       X.pack "no data to convert from commodity "
@@ -120,7 +116,7 @@ buildDb = foldl f L.emptyDb where
 -- a single commodity and all the sums of the child accounts have been
 -- added to the parent accounts.
 data ForestAndBL = ForestAndBL {
-  _tbForest :: E.Forest (L.SubAccountName, L.BottomLine)
+  _tbForest :: E.Forest (L.SubAccount, L.BottomLine)
   , _tbTotal :: L.BottomLine
   , _tbTo :: L.To
   }
@@ -131,9 +127,7 @@ rows (ForestAndBL f tot to) = first:second:rest
   where
     first = K.ROneCol $ K.OneColRow 0 desc
     desc = X.pack "All amounts reported in commodity: "
-           `X.append` (L.text 
-                       . L.Delimited (X.singleton ':')
-                       . L.textList
+           `X.append` (L.unCommodity
                        . L.unTo
                        $ to)
     second = K.RMain $ K.MainRow 0 (X.pack "Total") tot
@@ -143,7 +137,7 @@ rows (ForestAndBL f tot to) = first:second:rest
            $ f
 
 
-mainRow :: (Int, (L.SubAccountName, L.BottomLine)) -> K.Row
+mainRow :: (Int, (L.SubAccount, L.BottomLine)) -> K.Row
 mainRow (l, (a, b)) = K.RMain $ K.MainRow l x b
   where
     x = L.text a
@@ -165,13 +159,12 @@ report os@(Opts dc bc fmt _ _ _ _) ps bs =
 
 -- | Creates a report respecting the standard interface for reports
 -- whose options are parsed in from the command line.
-cmdLineReport ::
-  Cop.DefaultTimeZone
-  -> (S.Runtime -> O.DefaultOpts)
+cmdLineReport
+  :: (S.Runtime -> O.DefaultOpts)
   -> I.Report
-cmdLineReport dtz toOpts = I.Report H.help "convert" parser
+cmdLineReport toOpts = I.Report H.help "convert" parser
   where
-    parser = fmap f (P.parseOpts dtz)
+    parser = fmap f P.parseOpts
     f getOpts rt _ _ bs ps = do
       let defaultOpts = toOpts rt
           pDefaultOpts = O.toParserOpts defaultOpts

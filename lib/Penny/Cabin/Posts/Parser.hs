@@ -16,7 +16,6 @@ import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Cabin.Options as CO
-import qualified Penny.Copper as Cop
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as Exp
 import qualified Penny.Lincoln as L
@@ -40,27 +39,22 @@ data State = State {
 -- but not including, the first non-option argment.
 parseOptions ::
   Parser (S.Runtime
-          -> Cop.DefaultTimeZone
-          -> Cop.RadGroup
           -> State
           -> State)
 parseOptions = f <$> many parseOption where
-  f ls rt dtz rg st =
-    let ls' = map (\fn -> fn rt dtz rg) ls
+  f ls rt st =
+    let ls' = map (\fn -> fn rt) ls
     in foldl (flip (.)) id ls' st
 
 
 parseOption ::
   Parser (S.Runtime
-          -> Cop.DefaultTimeZone
-          -> Cop.RadGroup
           -> State
           -> State)
 parseOption = C.parseOption ls
   where
-    ls = operand ++ map wrap others ++ [wrappedColor]
-    wrappedColor = fmap (\fn rt _ _ st -> fn rt st) color
-    wrap = fmap (\fn _ _ _ st -> fn st)
+    ls = operand ++ map wrap others ++ [color]
+    wrap = fmap (\fn _ st -> fn st)
     others =
       boxFilters
       ++ parsePostFilter
@@ -77,17 +71,15 @@ parseOption = C.parseOption ls
 
 
 operand :: [C.OptSpec (S.Runtime
-                       -> Cop.DefaultTimeZone
-                       -> Cop.RadGroup
                        -> State
                        -> State)]
 operand = map (fmap f) Ly.operandSpecs
   where
-    f lyFn rt dtz rg st =
+    f lyFn rt st =
       let dt = S.currentTime rt
           cs = sensitive st
           fty = factory st
-          (Exp.Operand g) = lyFn dt dtz rg cs fty
+          (Exp.Operand g) = lyFn dt cs fty
           g' = g . L.boxPostFam
           ts' = tokens st ++ [Exp.TokOperand g']
       in st { tokens = ts' }

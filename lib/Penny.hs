@@ -27,62 +27,36 @@ within the hierarchy, but for a program based on the defaults only you
 should be able to import this module only (and nothing else).
 
 -}
-module Penny (
-  -- * Default time zone
-  Copper.DefaultTimeZone (DefaultTimeZone)
-  , Copper.utcDefault
-  , minsToDefaultTimeZone
-    
-    -- * Radix and grouping characters
-  , Copper.RadGroup
-  , Copper.periodComma
-  , Copper.periodSpace
-  , Copper.commaPeriod
-  , Copper.commaSpace
-    
-    -- * Reports
-  , Cabin.allReportsWithDefaults
-    
+module Penny
+  (  -- * Reports
+    Cabin.allReportsWithDefaults
+
     -- * Parser defaults
   , Z.T(..)
   , Z.defaultFromRuntime
-    
+
     -- * Main function
   , defaultPenny
   , customPenny
-    
+
     -- * Other useful stuff - for custom reports
   ) where
 
 import qualified Penny.Cabin as Cabin
-import qualified Penny.Copper as Copper
-import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import qualified Penny.Zinc as Z
 
--- | Use to make a DefaultTimeZone based on the number of minutes the
--- time zone is offset from UTC. Make sure the argument you supply is
--- between (-840) and 840; otherwise your program will crash at
--- runtime.
-minsToDefaultTimeZone :: Int -> Copper.DefaultTimeZone
-minsToDefaultTimeZone i = case L.minsToOffset i of
-  Nothing -> error $ "penny: error: minutes out of range of "
-             ++ "allowed values for time zone"
-  Just tzo -> Copper.DefaultTimeZone tzo
-
-defaultPenny :: Copper.DefaultTimeZone -> Copper.RadGroup -> IO ()
-defaultPenny dtz rg = do
+defaultPenny :: IO ()
+defaultPenny = do
   rt <- S.runtime
-  let df = Z.defaultFromRuntime dtz rg
-      rs = Cabin.allReportsWithDefaults dtz rg
-  Z.runPenny rt dtz rg df rs
+  let df = Z.defaultFromRuntime
+      rs = Cabin.allReportsWithDefaults
+  Z.runPenny rt df rs
 
-customPenny ::
-  Copper.DefaultTimeZone
-  -> Copper.RadGroup
-  -> (S.Runtime -> Z.T)
+customPenny
+  :: (S.Runtime -> Z.T)
   -> [Cabin.Report]
   -> IO ()
-customPenny dtz rg gd rs = do
+customPenny gd rs = do
   rt <- S.runtime
-  Z.runPenny rt dtz rg gd rs
+  Z.runPenny rt gd rs

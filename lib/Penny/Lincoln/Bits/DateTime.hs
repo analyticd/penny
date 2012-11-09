@@ -20,6 +20,7 @@ module Penny.Lincoln.Bits.DateTime
   , DateTime ( .. )
   , toUTC
   , toZonedTime
+  , fromZonedTime
   , sameInstant
   ) where
 
@@ -105,6 +106,14 @@ toZonedTime dt = T.ZonedTime lt tz
     tod = T.TimeOfDay (unHours . hours $ dt) (unMinutes . minutes $ dt)
           (unSeconds . seconds $ dt)
     tz = T.TimeZone (offsetToMins . timeZone $ dt) False ""
+
+fromZonedTime :: T.ZonedTime -> Maybe DateTime
+fromZonedTime (T.ZonedTime (T.LocalTime d tod) tz) = do
+  h <- intToHours . T.todHour $ tod
+  m <- intToMinutes . T.todMin $ tod
+  s <- picoToSeconds . T.todSec $ tod
+  tzo <- minsToOffset . T.timeZoneMinutes $ tz
+  return $ DateTime d h m s tzo
 
 toUTC :: DateTime -> T.UTCTime
 toUTC dt = T.localTimeToUTC tz lt

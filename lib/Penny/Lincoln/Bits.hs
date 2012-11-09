@@ -27,6 +27,7 @@ module Penny.Lincoln.Bits (
   DT.DateTime ( .. ),
   DT.toUTC,
   DT.toZonedTime,
+  DT.fromZonedTime,
   DT.sameInstant,
 
   -- * Debits and Credits

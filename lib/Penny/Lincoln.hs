@@ -42,6 +42,7 @@ module Penny.Lincoln (
   , I.DateTime ( .. )
   , I.toUTC
   , I.toZonedTime
+  , I.fromZonedTime
   , I.sameInstant
 
     -- ** Debits and credits

@@ -12,11 +12,9 @@ import Control.Applicative ((<$>), many)
 import qualified Data.Text as X
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Colors as Col
-import qualified Penny.Cabin.Colors.DarkBackground as Dark
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
-import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Commodity as CC
 import qualified Penny.Copper.DateTime as CD
 import qualified System.Console.MultiArg.Combinator as C
@@ -26,8 +24,8 @@ import System.Console.MultiArg.Prim (Parser)
 -- | Is the target commodity determined by the user or automatically?
 data Target = AutoTarget | ManualTarget L.To
 
-type Sorter = (L.SubAccountName, L.BottomLine)
-              -> (L.SubAccountName, L.BottomLine)
+type Sorter = (L.SubAccount, L.BottomLine)
+              -> (L.SubAccount, L.BottomLine)
               -> Ordering
 
 data SortOrder = Ascending | Descending
@@ -48,8 +46,8 @@ data Opts = Opts {
   }
 
 -- | Parses all options for the Convert report.
-parseOpts :: Cop.DefaultTimeZone -> Parser (Opts -> Opts)
-parseOpts dtz = fmap f (many (C.parseOption (allOptSpecs dtz)))
+parseOpts :: Parser (Opts -> Opts)
+parseOpts = fmap f (many (C.parseOption allOptSpecs))
   where
     f = foldl (flip (.)) id
 
@@ -57,14 +55,14 @@ parseOpts dtz = fmap f (many (C.parseOption (allOptSpecs dtz)))
 -- individual functions such as parseColor and parseBackground return
 -- parsers rather than OptSpec. Such an arrangement breaks the correct
 -- parsing of abbreviated long options.
-allOptSpecs :: Cop.DefaultTimeZone -> [C.OptSpec (Opts -> Opts)]
-allOptSpecs dtz =
+allOptSpecs :: [C.OptSpec (Opts -> Opts)]
+allOptSpecs =
   [ parseColor
   , parseBackground ]
   ++ parseZeroBalances
   ++
   [ parseCommodity
-  , parseDate dtz
+  , parseDate
   , parseSort
   , parseAscending
   , parseDescending ]
@@ -90,13 +88,11 @@ parseCommodity = C.OptSpec ["commodity"] "c" (C.OneArg f)
         Left _ -> Ly.abort $ "invalid commodity: " ++ a1
         Right g -> os { target = ManualTarget . L.To $ g }
 
-parseDate ::
-  Cop.DefaultTimeZone
-  -> C.OptSpec (Opts -> Opts)
-parseDate dtz = C.OptSpec ["date"] "d" (C.OneArg f)
+parseDate :: C.OptSpec (Opts -> Opts)
+parseDate = C.OptSpec ["date"] "d" (C.OneArg f)
   where
     f a1 os =
-      case Parsec.parse (CD.dateTime dtz) "" (X.pack a1) of
+      case Parsec.parse CD.dateTime "" (X.pack a1) of
         Left _ -> Ly.abort $ "invalid date: " ++ a1
         Right g -> os { dateTime = g }
 
