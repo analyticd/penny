@@ -1,40 +1,13 @@
 module Penny.Copper.Util where
 
 import Control.Applicative ((<*), pure, (<$))
-import qualified Data.Char as C
 import qualified Data.Text as X
 import Text.Parsec (char, many, skipMany)
 import Text.Parsec.Text (Parser)
 
-rangeLettersToSymbols :: Char -> Bool
-rangeLettersToSymbols c = case C.generalCategory c of
-  C.UppercaseLetter -> True
-  C.LowercaseLetter -> True
-  C.TitlecaseLetter -> True
-  C.ModifierLetter -> True
-  C.OtherLetter -> True
-  C.DecimalNumber -> True
-  C.LetterNumber -> True
-  C.OtherNumber -> True
-  C.ConnectorPunctuation -> True
-  C.DashPunctuation -> True
-  C.OpenPunctuation -> True
-  C.ClosePunctuation -> True
-  C.InitialQuote -> True
-  C.FinalQuote -> True
-  C.OtherPunctuation -> True
-  C.MathSymbol -> True
-  C.CurrencySymbol -> True
-  C.ModifierSymbol -> True
-  C.OtherSymbol -> True
-  _ -> False
-
 unicodeAll :: Char -> Bool
 unicodeAll c =
   c > '\x7f' && (c < '\xD800' || c > '\xDFFF')
-
-unicodeNoThinSpace :: Char -> Bool
-unicodeNoThinSpace c = unicodeAll c && c /= '\x2009'
 
 letter :: Char -> Bool
 letter c =
@@ -46,32 +19,6 @@ digit c = c >= '0' && c <= '9'
 
 asciiAll :: Char -> Bool
 asciiAll c = c >= ' ' && c < '\x7f'
-
-rangeMathCurrency :: Char -> Bool
-rangeMathCurrency c = case C.generalCategory c of
-  C.MathSymbol -> True
-  C.CurrencySymbol -> True
-  _ -> False
-
-rangeSymbols :: Char -> Bool
-rangeSymbols c = case C.generalCategory c of
-  C.MathSymbol -> True
-  C.CurrencySymbol -> True
-  C.ModifierSymbol -> True
-  C.OtherSymbol -> True
-  _ -> False
-
-rangeLettersNumbers :: Char -> Bool
-rangeLettersNumbers c = case C.generalCategory c of
-  C.UppercaseLetter -> True
-  C.LowercaseLetter -> True
-  C.TitlecaseLetter -> True
-  C.ModifierLetter -> True
-  C.OtherLetter -> True
-  C.DecimalNumber -> True
-  C.LetterNumber -> True
-  C.OtherNumber -> True
-  _ -> False
 
 -- | Creates a new parser that behaves like the old one, but also
 -- parses any whitespace remaining afterward.

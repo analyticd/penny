@@ -21,11 +21,13 @@ Executable penny-test
         base ==4.*,
         Decimal >= 0.2.3,
         explicit-exception ==0.1.*,
+        parsec ==3.1.*,
         penny-lib ==0.5.0.0,
         QuickCheck ==2.4.*,
         semigroups ==0.8.*,
         test-framework ==0.6.*,
         test-framework-quickcheck2 ==0.2.*,
+        text ==0.11.*,
         transformers == 0.3.*
 
     Other-modules:
