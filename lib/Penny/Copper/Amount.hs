@@ -32,53 +32,51 @@ spaces = f <$> many (char ' ') where
   f l = if null l then L.NoSpaceBetween else L.SpaceBetween
 
 cmdtyQty :: Parser L.Commodity
-            -> Q.RadGroup
             -> Parser (L.Amount, L.Format)
-cmdtyQty p rg = let
+cmdtyQty p = let
   f c s q = (a, fmt) where
     a = L.Amount q c
     fmt = L.Format L.CommodityOnLeft s
   e = "amount, commodity on left"
-  in f <$> p <*> spaces <*> Q.qty rg <?> e
+  in f <$> p <*> spaces <*> Q.qty <?> e
 
-lvl1CmdtyQty :: Q.RadGroup -> Parser (L.Amount, L.Format)
+lvl1CmdtyQty :: Parser (L.Amount, L.Format)
 lvl1CmdtyQty = cmdtyQty C.quotedLvl1Cmdty
 
-lvl3CmdtyQty :: Q.RadGroup -> Parser (L.Amount, L.Format)
+lvl3CmdtyQty :: Parser (L.Amount, L.Format)
 lvl3CmdtyQty = cmdtyQty C.lvl3Cmdty
 
-cmdtyOnRight :: Q.RadGroup -> Parser (L.Amount, L.Format)
-cmdtyOnRight rg = let  
+cmdtyOnRight :: Parser (L.Amount, L.Format)
+cmdtyOnRight = let
   f q s c = (a, fmt) where
     a = L.Amount q c
     fmt = L.Format L.CommodityOnRight s
   e = "amount, commodity on right"
   in f
-     <$> Q.qty rg
+     <$> Q.qty
      <*> spaces
      <*> (C.quotedLvl1Cmdty <|> C.lvl2Cmdty)
      <?> e
 
 -- | Parses an amount with its metadata. Handles all combinations of
 -- commodities and quantities.
-amount :: Q.RadGroup -> Parser (L.Amount, L.Format)
-amount rg = lvl1CmdtyQty rg
-            <|> lvl3CmdtyQty rg
-            <|> cmdtyOnRight rg
-            <?> "amount"
+amount :: Parser (L.Amount, L.Format)
+amount = lvl1CmdtyQty
+         <|> lvl3CmdtyQty
+         <|> cmdtyOnRight
+         <?> "amount"
 
 -- | Render an Amount. The Format is required so that the commodity
 -- can be displayed in the right place.
 render ::
   (Q.GroupingSpec, Q.GroupingSpec)
   -- ^ Grouping
-  -> Q.RadGroup
   -> L.Format
   -> L.Amount
   -> Maybe X.Text
-render gs rg f a = let
+render gs f a = let
   (q, c) = (L.qty a, L.commodity a)
-  qty = Q.quote $ Q.renderUnquoted rg gs q
+  qty = Q.render gs q
   ws = case L.between f of
     L.SpaceBetween -> X.singleton ' '
     L.NoSpaceBetween -> X.empty
