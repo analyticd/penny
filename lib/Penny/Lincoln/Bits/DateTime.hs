@@ -9,10 +9,14 @@ module Penny.Lincoln.Bits.DateTime
   , noOffset
   , Hours ( unHours )
   , intToHours
+  , zeroHours
   , Minutes ( unMinutes )
   , intToMinutes
+  , zeroMinutes
   , Seconds ( unSeconds )
   , picoToSeconds
+  , zeroSeconds
+  , midnight
   , DateTime ( .. )
   , toUTC
   , sameInstant
@@ -54,10 +58,16 @@ intToHours :: Int -> Maybe Hours
 intToHours h =
   if h >= 0 && h < 24 then Just . Hours $ h else Nothing
 
+zeroHours :: Hours
+zeroHours = Hours 0
+
 -- | succeeds if 0 <= x < 60
 intToMinutes :: Int -> Maybe Minutes
 intToMinutes m =
   if m >= 0 && m < 60 then Just . Minutes $ m else Nothing
+
+zeroMinutes :: Minutes
+zeroMinutes = Minutes 0
 
 -- | succeeds if 0 <= x < 61 (to allow for leap seconds)
 picoToSeconds :: Pico -> Maybe Seconds
@@ -65,6 +75,12 @@ picoToSeconds s =
   if s >= 0 && s < 61
   then Just . Seconds $ s
   else Nothing
+
+zeroSeconds :: Seconds
+zeroSeconds = Seconds 0
+
+midnight :: (Hours, Minutes, Seconds)
+midnight = (zeroHours, zeroMinutes, zeroSeconds)
 
 -- | A DateTime is a UTC time that also remembers the local time from
 -- which it was set. The Eq and Ord instances account for the local

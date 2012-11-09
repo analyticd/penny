@@ -1,6 +1,5 @@
-module Penny.Copper.DateTime (
-  DefaultTimeZone(DefaultTimeZone, unDefaultTimeZone)
-  , dateTime
+module Penny.Copper.DateTime
+  ( dateTime
   , utcDefault
   , render
   ) where
@@ -18,13 +17,6 @@ import System.Locale (defaultTimeLocale)
 
 import Penny.Copper.Util (spaces)
 import qualified Penny.Lincoln.Bits as B
-
-newtype DefaultTimeZone =
-  DefaultTimeZone { unDefaultTimeZone :: B.TimeZoneOffset }
-  deriving (Eq, Show)
-
-utcDefault :: DefaultTimeZone
-utcDefault = DefaultTimeZone B.noOffset
 
 charToDigit :: Char -> Int
 charToDigit c = case c of
@@ -67,32 +59,31 @@ date = do
 colon :: Parser ()
 colon = void $ char ':'
 
-hrs :: Parser Int
+hrs :: Parser B.Hours
 hrs = do
   h <- read2digits
-  when (h > 23) $ fail "invalid hour"
-  return h
+  maybe (fail "invalid hour") return $ B.intToHours h
 
-mins :: Parser Int
+
+mins :: Parser B.Minutes
 mins = do
   m <- read2digits
-  when (m > 59) $ fail "invalid minute"
-  return m
+  maybe (fail "invalid minutes") return $ B.intToMinutes m
 
-secs :: Parser Pico
+secs :: Parser B.Seconds
 secs = do
-  s <- fromIntegral <$> read2digits
-  when (s > 59) $ fail "invalid seconds"
-  return s
+  s <- fmap fromIntegral read2digits
+  maybe (fail "invalid seconds") return $ B.picoToSeconds s
 
-timeOfDay :: Parser T.TimeOfDay
+
+timeOfDay :: Parser (B.Hours, B.Minutes, B.Seconds)
 timeOfDay = do
   h <- hrs
   colon
   m <- mins
   maybeS <- optional (colon >> secs)
-  let s = fromMaybe (fromIntegral (0 :: Int)) maybeS
-  return $ T.TimeOfDay h m s
+  let s = fromMaybe B.zeroSeconds maybeS
+  return (h, m, s)
 
 timeZoneOffset :: Parser B.TimeZoneOffset
 timeZoneOffset = do
@@ -106,16 +97,16 @@ timeZoneOffset = do
   maybe (fail "invalid time zone offset") return
     $ B.minsToOffset (changeSign mi)
 
-dateTime :: DefaultTimeZone -> Parser B.DateTime
-dateTime (DefaultTimeZone dtz) = do
+dateTime :: Parser B.DateTime
+dateTime = do
   d <- date
   spaces
   mayTod <- optional timeOfDay
   spaces
   mayTz <- optional timeZoneOffset
-  let tod = fromMaybe T.midnight mayTod
-      tz = fromMaybe dtz mayTz
-  return (B.dateTime (T.LocalTime d tod) tz)
+  let (h, m, s) = fromMaybe B.midnight mayTod
+      tz = fromMaybe B.noOffset mayTz
+  return $ B.DateTime d h m s tz
 
 -- | Render a DateTime. If the DateTime is in the given
 -- DefaultTimeZone, and the DateTime is midnight, then the time and

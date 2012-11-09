@@ -33,14 +33,23 @@ rangeLettersToSymbols c = case C.generalCategory c of
   C.OtherSymbol -> True
   _ -> False
 
-rangeLetters :: Char -> Bool
-rangeLetters c =
+unicodeAll :: Char -> Bool
+unicodeAll c =
+  c > '\x7f' && (c < '\xD800' || c > '\xDFFF')
+
+unicodeNoThinSpace :: Char -> Bool
+unicodeNoThinSpace c = unicodeAll c && c /= '\x2009'
+
+letter :: Char -> Bool
+letter c =
   (c >= 'A' && c <= 'Z')
   || (c >= 'a' && c <= 'z')
-  || c > toEnum 0x7F
 
-rangeAny :: Char -> Bool
-rangeAny = (>= ' ')
+digit :: Char -> Bool
+digit c = c >= '0' && c <= '9'
+
+asciiAll :: Char -> Bool
+asciiAll c = c >= ' ' && c < '\x7f'
 
 rangeMathCurrency :: Char -> Bool
 rangeMathCurrency c = case C.generalCategory c of

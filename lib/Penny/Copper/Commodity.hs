@@ -18,20 +18,20 @@ module Penny.Copper.Commodity (
   lvl1Cmdty,
   quotedLvl1Cmdty,
   commandLineCmdty,
-  
+
   -- * Level 2 commodities
   lvl2FirstChar,
   lvl2OtherChars,
   lvl2Cmdty,
-  
+
   -- * Level 3 commodities
   lvl3Char,
   lvl3Cmdty,
-  
+
   -- * Helpers when parsing from a file
   leftSideCmdty,
   rightSideCmdty,
-  
+
   -- * Rendering
   renderQuotedLvl1,
   renderLvl2,
@@ -53,7 +53,7 @@ import qualified Data.Text as X
 lvl1Char :: Char -> Bool
 lvl1Char c = allowed && not banned
   where
-    allowed = U.rangeAny c
+    allowed = U.asciiAll c || U.unicodeAll c
     banned = c == '"'
 
 
@@ -77,20 +77,15 @@ quotedLvl1Cmdty = between q q lvl1Cmdty <?> "quoted commodity"
 -- | Allows only letters and symbols.
 lvl2FirstChar :: Char -> Bool
 lvl2FirstChar c =
-  (c > '\x7F')
-  || (c == '$')
-  || (c >= 'a' && c <= 'z')
-  || (c >= 'A' && c <= 'Z')
+  U.unicodeAll c
+  || (U.letter c || c == '$')
 
 
 lvl2OtherChars :: Char -> Bool
-lvl2OtherChars c =
-  (c > '\x7F')
-  || (c == '$')
-  || (c == '_')
-  || (c >= 'a' && c <= 'z')
-  || (c >= 'A' && c <= 'Z')
-  || (c >= '0' && c <= '9')
+lvl2OtherChars c = allowed && not banned
+  where
+    allowed = U.asciiAll c || U.unicodeAll c
+    banned = c == ' '
 
 lvl2Cmdty :: Parser B.Commodity
 lvl2Cmdty = f <$> firstLet <*> restLet <?> e
@@ -102,11 +97,9 @@ lvl2Cmdty = f <$> firstLet <*> restLet <?> e
 
 lvl3Char :: Char -> Bool
 lvl3Char c =
-  (c > '\x7F')
-  || (c == '$')
-  || (c == '_')
-  || (c >= 'a' && c <= 'z')
-  || (c >= 'A' && c <= 'Z')
+  U.unicodeAll c
+  || U.letter c
+  || c == '$'
 
 lvl3Cmdty :: Parser B.Commodity
 lvl3Cmdty = (B.Commodity . X.pack) <$> p <?> e

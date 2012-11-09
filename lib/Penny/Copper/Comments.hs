@@ -18,9 +18,8 @@ data Comment = Comment Text
              deriving (Eq, Show)
 
 isCommentChar :: Char -> Bool
-isCommentChar c = inCategory || allowed where
-  allowed = c `elem` " "
-  inCategory = U.rangeLettersToSymbols c
+isCommentChar c = U.asciiAll c || U.unicodeAll c
+
 
 comment :: Parser Comment
 comment = Comment . pack

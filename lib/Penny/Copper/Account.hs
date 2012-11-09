@@ -39,7 +39,7 @@ import qualified Penny.Copper.Util as U
 -- to see what these are).
 lvl1Char :: Char -> Bool
 lvl1Char c = allowed && not banned where
-  allowed = U.rangeAny c
+  allowed = U.unicodeAll c || U.asciiAll c
   banned = (c == '{') || (c == ':')
 
 lvl1Sub :: Parser B.SubAccount
@@ -58,13 +58,13 @@ lvl1AccountQuoted = between (char '{') (char '}') lvl1Account
 
 -- | Characters allowed for the first character of a Level 2 account.
 lvl2FirstChar :: Char -> Bool
-lvl2FirstChar = U.rangeLetters
+lvl2FirstChar c = U.unicodeAll c || U.letter c
 
 -- | Characters allowed for the remaining characters of a Level 2
 -- account.
 lvl2RemainingChar :: Char -> Bool
 lvl2RemainingChar c = allowed && not banned where
-    allowed = U.rangeAny c
+    allowed = U.unicodeAll c || U.asciiAll c
     banned = c == ':'
 
 lvl2SubAccountFirst :: Parser B.SubAccount
@@ -78,7 +78,7 @@ lvl2SubAccountRest :: Parser B.SubAccount
 lvl2SubAccountRest = f <$> cs <?> e where
   cs = many1 (satisfy p)
   p c = allowed && not banned where
-    allowed = U.rangeAny c
+    allowed = U.unicodeAll c || U.asciiAll c
     banned = c == ':'
   f = B.SubAccount . pack
   e = "sub account name"
