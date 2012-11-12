@@ -4,7 +4,7 @@
 -- allowed. They are surrounded by @<@ and @>@.
 --
 -- Unquoted payees. These are not surrounded by @<@ and @>@. Their
--- first character must be a letter or number.
+-- first character must be a letter.
 
 module Penny.Copper.Payees (
   -- * Parse any payee

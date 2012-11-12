@@ -13,17 +13,23 @@ import qualified Data.Decimal as D
 import Data.List (intercalate)
 import Data.List.Split (splitEvery, splitOn)
 import qualified Data.Text as X
-import Text.Parsec ( char, (<|>), many1, (<?>),
-                     sepBy1, digit)
-import qualified Text.Parsec as P
+import Text.Parsec ( char, many1, (<?>), digit, many)
 import Text.Parsec.Text ( Parser )
 
-import Penny.Lincoln.Bits.Qty ( Qty, partialNewQty, unQty )
+import Penny.Lincoln.Bits.Qty ( Qty, newQty, unQty )
 
-data Radix = RComma | RPeriod deriving (Eq, Show)
-data Grouper = GComma | GPeriod | GSpace deriving (Eq, Show)
+{- a BNF style specification for numbers.
 
-data RadGroup = RadGroup Radix Grouper deriving (Eq, Show)
+<radix> ::= "."
+<grouper> ::= "\x2009"
+<digit> ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "0"
+<digits> ::= <digit>+
+<group> ::= <grouper> <digits>
+<sequence> ::= <digits> <group>*
+<postSequence> ::= <radix> <sequence>?
+<number> ::= <radix> <sequence>
+             | <sequence> <postSequence>?
+-}
 
 parseRadix :: Parser ()
 parseRadix = () <$ char '.' <?> "radix point" where
@@ -31,61 +37,37 @@ parseRadix = () <$ char '.' <?> "radix point" where
 parseGrouper :: Parser ()
 parseGrouper = () <$ char '\x2009' <?> "grouping character, thin space"
 
-{- a BNF style specification for numbers.
+parseDigit :: Parser Char
+parseDigit = digit
 
-<radix> ::= (as specified)
-<grouper> ::= (as specified)
-<digit> ::= "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "0"
-<digits> ::= <digit> | <digit> <digits>
-<firstGroups> ::= <digits> <grouper> <digits>
-<nextGroup> ::= <grouper> <digits>
-<nextGroups> ::= <nextGroup> | <nextGroup> <nextGroups>
-<allGroups> ::= <firstGroups> | <firstGroups> <nextGroups>
-<whole> ::= <allGroups> | <digits>
-<fractional> ::= <digits>
-<number> ::= <whole>
-             | <whole> <radix>
-             | <whole> <radix> <fractional>
-             | <radix> <fractional>
--}
+parseDigits :: Parser [Char]
+parseDigits = many1 parseDigit
 
-wholeGrouped :: Parser String
-wholeGrouped = p <$> group1 <*> optional groupRest <?> e where
-  e = "whole number"
-  group1 = many1 digit
-  groupRest = parseGrouper *> sepBy1 (many1 digit) parseGrouper
-  p g1 gr = case gr of
-    Nothing -> g1
-    Just groups -> g1 ++ concat groups
+data Group = Group { unGroup :: [Char] }
+data Sequence = Sequence [Char] [Group]
+data PostSequence = PostSequence (Maybe Sequence)
+data Number = NumberRadSeq Sequence
+            | NumberSeqPost Sequence (Maybe PostSequence)
 
-fractionalGrouped :: Parser String
-fractionalGrouped =
-  p <$> group1 <*> optional groupRest <?> e where
-    e = "fractional number"
-    group1 = many1 digit
-    groupRest = parseGrouper *> sepBy1 (many1 digit) parseGrouper
-    p g1 gr = case gr of
-      Nothing -> g1
-      Just groups -> g1 ++ concat groups
+parseGroup :: Parser Group
+parseGroup = Group <$> (parseGrouper *> parseDigits)
 
-fractionalOnly :: Parser String
-fractionalOnly = parseRadix *> many1 P.digit
+parseSequence :: Parser Sequence
+parseSequence = Sequence <$> parseDigits <*> many parseGroup
 
-numberStrGrouped :: Parser NumberStr
-numberStrGrouped = startsWhole <|> fracOnly <?> e where
-  e = "quantity, with optional grouping"
-  startsWhole = p <?> "whole number" where
-    p = do
-      wholeStr <- wholeGrouped
-      mayRad <- optional parseRadix
-      case mayRad of
-        Nothing -> return $ Whole wholeStr
-        Just _ -> do
-          mayFrac <- optional fractionalGrouped
-          return $ case mayFrac of
-            Nothing -> WholeRad wholeStr
-            Just frac -> WholeRadFrac wholeStr frac
-  fracOnly = RadFrac <$> fractionalOnly
+parsePostSequence :: Parser PostSequence
+parsePostSequence = PostSequence <$> optional parseSequence
+
+parseNumber :: Parser Number
+parseNumber = f <$> parseSequence <*> optional radPost
+  where
+    radPost = parseRadix *> optional parsePostSequence
+    f sq mayPost = case mayPost of
+o      Nothing ->  NumberRadSeq sq
+      Just post -> NumberSeqPost sq post
+
+sequenceToString :: Sequence -> String
+sequenceToString (Sequence s gs) = s ++ concatMap unGroup gs
 
 -- | A number string after radix and grouping characters have been
 -- stripped out.
@@ -101,6 +83,16 @@ data NumberStr =
     -- ^ A radix point and a fractional value after it, but nothing
     -- before the radix point.
   deriving Show
+
+numberToStr :: Number -> NumberStr
+numberToStr n = case n of
+  NumberRadSeq s -> RadFrac (sequenceToString s)
+  NumberSeqPost s mayPost -> case mayPost of
+    Nothing -> Whole (sequenceToString s)
+    Just (PostSequence maySeq) -> case maySeq of
+      Nothing -> WholeRad (sequenceToString s)
+      Just pss -> WholeRadFrac (sequenceToString s)
+                  (sequenceToString pss)
 
 -- | Do not use Prelude.read or Prelude.reads on whole decimal strings
 -- like @232.72@. Sometimes it will fail, though sometimes it will
@@ -133,15 +125,16 @@ readWithErr s = let
     _ -> error $ "readWithErr failed. String being read: " ++ s
          ++ " Result of reads: " ++ show readSresult
 
--- | Unquoted quantity. These include no spaces, regardless of what
--- the grouping character is.
 qty :: Parser Qty
 qty = do
-  nStr <- numberStrGrouped
-  d <- case toDecimal nStr of
-    Nothing -> fail $ "fractional part too big: " ++ show nStr
+  num <- fmap numberToStr parseNumber
+  d <- case toDecimal num of
+    Nothing -> fail "fractional part too big"
     Just dec -> return dec
-  return $ partialNewQty d
+  case newQty d of
+    Nothing -> fail $ "could not create quantity; zero quantities "
+                    ++ "are not allowed: " ++ show d
+    Just q -> return q
 
 -- | Specifies how to perform digit grouping when rendering a
 -- quantity. All grouping groups into groups of 3 digits.

@@ -1,0 +1,209 @@
+* Terminals
+
+Invalid = { c | c >= U+D800, c <= U+DFFF }
+AllPoints = { c | c >= U+0000, c <= U+10ffff }
+Unicode = { x ∈ AllPoints | x ∉ Invalid }
+Newline = { U+000A }
+Space = { U+0020 }
+NonNewline = { x ∈ Unicode | x /= U+000A }
+UpperCaseAscii = { x | x >= 'A', x <= 'Z' }
+LowerCaseAscii = { x | x >= 'a', x <= 'z' }
+Digit = { x | x >= '0', x <= '9' }
+NonAscii = { x ∈ NonNewline | x > U+007f }
+Letter = UpperCaseAscii ∪ LowerCaseAscii ∪ NonAscii
+Dollar = { '$' }
+Colon = { ':' }
+OpenCurly = { '{' }
+CloseCurly = { '}' }
+OpenSquare = { '[' }
+CloseSquare = { ']' }
+DoubleQuote = { '"' }
+Period = { '.' }
+Hash = { '#' }
+ThinSpace = { U+2009 }
+DateSep = { '/', '-' }
+Plus = { '+' }
+Minus = { '-' }
+LessThan = { '<' }
+GreaterThan = { '>' }
+OpenParen = { '(' }
+CloseParen = { ')' }
+Semicolon = { ';' }
+Apostrophe = { U+0027 }
+Tilde = { '~' }
+
+* Accounts
+
+** Level 1 Accounts
+
+Level 1 Accounts can have nearly any character, including
+spaces. However, when they appear in a ledger file, they must be
+quoted. There is no need to quote them when they appear on the command
+line, as each command-line argument is already isolated.
+
+Lvl1AcctChar = { x ∈ NonNewline | x ∉ CloseCurly, x ∉ Colon }
+<lvl1SubAcct> ::= Lvl1AcctChar+
+<lvl1FirstSubAcct> ::= <lvl1SubAcct>
+<lvl1OtherSubAcct> ::= Colon <lvl1SubAcct>
+<lvl1Acct> ::= <lvl1FirstSubAcct> <lvl1OtherSubAcct>*
+<quotedLvl1Acct> ::= OpenCurly <lvl1Acct> CloseCurly
+
+** Level 2 Accounts
+
+Level 2 Accounts contain a more restrictive range of characters than
+Level 1 Accounts. The first sub-account must begin with a letter or
+with any non-ASCII value. All other characters may be nearly any
+character except a space. Level 2 Accounts are not quoted.
+
+Lvl2AcctOtherChar = { x ∈ NonNewline | x ∉ Space, x ∉ Colon }
+<lvl2FirstSubAcct> ::= Letter Lvl2AcctOtherChar*
+<lvl2OtherSubAcct> ::= Colon Lvl2AcctOtherChar+
+<lvl2Acct> ::= <lvl2FirstSubAcct> <lvl2OtherSubAcct>*
+
+** Ledger file accounts
+
+When an account appears in a ledger file it can be a quoted Level 1
+Account or a Level 2 Account.
+
+<ledgerAcct> ::= <quotedLvl1Acct> | <lvl2Acct>
+
+* Commodities
+
+** Level 1 Commodities
+
+Level 1 Commodities can have a broad selection of characters,
+including spaces; but they must be quoted when they appear in a ledger
+file. They are not quoted when they appear on a command line.
+
+Lvl1CmdtyChar = { x ∈ NonNewline | x ∉ DoubleQuote }
+<lvl1Cmdty> ::= Lvl1CmdtyChar+
+<quotedLvl1Cmdty> ::= DoubleQuote <lvl1Cmdty> DoubleQuote
+
+** Level 2 Commodities
+
+Level 2 Commodities must begin with a letter, a dollar sign, or a
+non-ASCII character. They are not quoted. All other characters may be
+any non-space character.
+
+Lvl2CmdtyFirstChar = Letter ∪ Dollar
+Lvl2CmdtyOtherChar = { x ∈ NonNewline | x ∉ Space }
+<lvl2Cmdty> ::= Lvl2CmdtyFirstChar Lvl2CmdtyOtherChar*
+
+** Level 3 Commodities
+
+In Level 3 Commodities, all characters must be letters or the $
+symbol. They are not quoted.
+
+Lvl3CmdtyChar = Letter ∪ Dollar
+<lvl3Cmdty> ::= Lvl3CmdtyChar+
+
+* Quantities
+
+<digitGroup> ::= ThinSpace Digit+
+<digitSequence> ::= Digit+ <digitGroup>*
+<digitPostSequence> ::= Period <digitSequence>?
+<quantity> ::= Period <digitSequence>
+               | <digitSequence> <digitPostSequence>?
+
+* Amounts
+
+An amount is a commodity and a quantity.
+
+<leftCmdtyLvl1Amt> ::= <quotedLvl1Cmdty> Space* <quantity>
+<leftCmdtyLvl3Amt> ::= <lvl3Cmdty> Space* <quantity>
+<rightCmdtyLvl1Amt> ::= <quantity> Space* <quotedLvl1Cmdty>
+<rightCmdtyLvl2Amt> ::= <quantity> Space* <lvl2Cmdty>
+<leftSideCmdtyAmt> ::= <leftCmdtyLvl1Amt> | <leftCmdtyLvl3Amt>
+<rightSideCmdtyAmt> ::= <rightCmtdyLvl1Amt> | <rightCmdtyLvl2Amt>
+<amount> ::= <leftSideCmdtyAmt> | <rightSideCmdtyAmt>
+
+* Comments
+
+Comments are not associated with any transaction or price; they stand
+alone.
+
+<comment> ::= Hash NonNewline* Newline
+
+* DateTime
+
+The grammar does not restrict texts to valid dates or times; a later
+phase must validate the dates and times.
+
+<year> ::= Digit Digit Digit Digit
+<month> ::= Digit Digit
+<day> ::= Digit Digit
+<date> ::= <year> DateSep <month> DateSep <day>
+
+<hours> ::= Digit Digit?
+<minutes> ::= Colon Digit Digit
+<seconds> ::= Colon Digit Digit
+
+<time> ::= <hours> <minutes> <seconds>?
+
+<tzSign> ::= Plus | Minus
+<tzNumber> ::= Digit Digit Digit Digit
+<timeZone> ::= <tzSign> <tzNumber>
+
+<timeWithZone> ::= <time> Space* <timeZone>?
+<dateTime> ::= <date> Space* <timeWithZone>?
+
+* Entries
+
+An entry is a debit or credit and an amount.
+
+<debit> ::= LessThan
+<credit> ::= GreaterThan
+<drCr> ::= <debit> | <credit>
+<entry> ::= <drCr> Space* <amount>
+
+* Flag
+
+Flags are surrounded by square braces.
+
+FlagChar = { x ∈ NonNewline | x ∉ CloseSquare }
+
+<flag> ::= OpenSquare FlagChar* CloseSquare
+
+* Memos
+
+Memos are associated with a particular transaction or posting.
+
+** Posting memo
+
+<postingMemo> ::= Apostrophe NonNewline* Newline
+
+** Transaction memo
+
+<transactionMemo> ::= Semicolon NonNewline* Newline
+
+* Number
+
+Numbers are surrounded by parentheses.
+
+NumberChar = { x ∈ NonNewline | x ∉ CloseParen }
+
+<number> ::= OpenParen NumberChar* CloseParen
+
+* Payees
+
+** Quoted payees
+
+These allow the most latitide in the range of characters, but they
+must be quoted with tildes.
+
+QuotedPayeeChar = { x ∈ NonNewline | x ∉ Tilde }
+
+<quotedPayee> ::= Tilde QuotedPayeeChar* Tilde
+
+** Unquoted payees
+
+Their first character must be a letter.
+
+<unquotedPayee> ::= Letter NonNewline*
+
+* Prices
+
+A price has a DateTime, a From commodity, and a To amount.
+
+<fromCmdty> ::= <quotedLvl1Cmdty> | <lvl2Cmdty>
+<price> ::= <dateTime> Space* <fromCmdty> Space+ <amount>
