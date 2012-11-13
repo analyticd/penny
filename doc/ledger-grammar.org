@@ -126,7 +126,7 @@ An amount is a commodity and a quantity.
 Comments are not associated with any transaction or price; they stand
 alone.
 
-<comment> ::= White* Hash NonNewline*
+<comment> ::= White* Hash NonNewline* Newline White*
 
 * DateTime
 
@@ -174,11 +174,11 @@ Memos are associated with a particular transaction or posting.
 
 ** Posting memo
 
-<postingMemoLine> ::= White* Apostrophe NonNewline* Newline
+<postingMemoLine> ::= Apostrophe NonNewline* Newline White*
 
 ** Transaction memo
 
-<transactionMemoLine> ::= White* Semicolon NonNewline* Newline
+<transactionMemoLine> ::= Semicolon NonNewline* Newline White*
 
 * Number
 
@@ -211,7 +211,7 @@ Their first character must be a letter.
 A price has a DateTime, a From commodity, and a To amount.
 
 <fromCmdty> ::= <quotedLvl1Cmdty> | <lvl2Cmdty>
-<price> ::= White* <dateTime> White* <fromCmdty> White+ <amount> Newline
+<price> ::= <dateTime> White* <fromCmdty> White+ <amount> Newline White*
 
 * Tags
 
@@ -229,8 +229,8 @@ transaction memo.
 <topLinePayee> ::= <quotedLvl1Payee> | <lvl2Payee>
 <topLineFlagNum> ::= <flag>? White* <number>?
                      | <number>? White* <flag>?
-<topLine> ::= White* <transactionMemoLine>* <dateTime> White*
-              <topLineFlagNum> White* <topLinePayee> Newline
+<topLine> ::= <transactionMemoLine>* <dateTime> White*
+              <topLineFlagNum> White* <topLinePayee> Newline White*
 
 * Posting
 
@@ -248,4 +248,13 @@ transaction memo.
 
 <posting>
   ::= White* <postingFlagNumPayee> White* <postingAcct> White*
-      <tags>? White* <entry>? White* Newline
+      <tags>? White* <entry>? White* Newline White* PostingMemo*
+
+* Transaction
+
+A transaction always has at least two postings. In addition, the
+postings must be balanced; however, this restriction is not in the
+grammar. As a corollary, at most one posting can appear without an
+entry; this restriction also is not in the grammar.
+
+<transaction> ::= <topLine> <posting> <posting> <posting>*
