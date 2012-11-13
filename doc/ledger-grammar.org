@@ -175,10 +175,12 @@ Memos are associated with a particular transaction or posting.
 ** Posting memo
 
 <postingMemoLine> ::= Apostrophe NonNewline* Newline White*
+<postingMemo> ::= <postingMemoLine>+
 
 ** Transaction memo
 
 <transactionMemoLine> ::= Semicolon NonNewline* Newline White*
+<transactionMemo> ::= <transactionMemoLine>+
 
 * Number
 
@@ -229,7 +231,7 @@ transaction memo.
 <topLinePayee> ::= <quotedLvl1Payee> | <lvl2Payee>
 <topLineFlagNum> ::= <flag>? White* <number>?
                      | <number>? White* <flag>?
-<topLine> ::= <transactionMemoLine>* <dateTime> White*
+<topLine> ::= <transactionMemo>* <dateTime> White*
               <topLineFlagNum> White* <topLinePayee> Newline White*
 
 * Posting
@@ -247,8 +249,9 @@ transaction memo.
 <tags> ::= <tag> <nextTag>*
 
 <posting>
-  ::= White* <postingFlagNumPayee> White* <postingAcct> White*
-      <tags>? White* <entry>? White* Newline White* PostingMemo*
+  ::= <postingFlagNumPayee> White* <postingAcct> White*
+      <tags>? White* <entry>? White* Newline White* <postingMemo>*
+      White*
 
 * Transaction
 
@@ -258,3 +261,15 @@ grammar. As a corollary, at most one posting can appear without an
 entry; this restriction also is not in the grammar.
 
 <transaction> ::= <topLine> <posting> <posting> <posting>*
+
+* Blank line
+
+<blankLine> ::= Newline White*
+
+* Item
+
+<item> ::= <comment> | <price> | <transaction> | <blankLine>
+
+* Ledger
+
+<ledger> ::= White* <item>*
