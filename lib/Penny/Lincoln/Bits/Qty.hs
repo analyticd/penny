@@ -19,6 +19,47 @@ import qualified Control.Monad.Trans.State as St
 import qualified Data.Traversable as Tr
 import Data.Word (Word8)
 
+data NumberStr =
+  Whole String
+  -- ^ A whole number only. No radix point.
+  | WholeRad String
+    -- ^ A whole number and a radix point, but nothing after the radix
+    -- point.
+  | WholeRadFrac String String
+    -- ^ A whole number and something after the radix point.
+  | RadFrac String
+    -- ^ A radix point and a fractional value after it, but nothing
+    -- before the radix point.
+  deriving Show
+
+
+-- | Do not use Prelude.read or Prelude.reads on whole decimal strings
+-- like @232.72@. Sometimes it will fail, though sometimes it will
+-- succeed; why is not clear to me. Hopefully reading integers won't
+-- fail! However, in case it does, use read', whose error message will
+-- at least tell you what number was being read.
+toDecimal :: NumberStr -> Maybe Qty
+toDecimal ns = case ns of
+  Whole s -> Just $ Qty (readWithErr s) 0
+  WholeRad s -> Just $ Qty (readWithErr s) 0
+  WholeRadFrac w f -> fromWholeRadFrac w f
+  RadFrac f -> fromWholeRadFrac "0" f
+  where
+    fromWholeRadFrac w f =
+      let len = length f
+      in Just 
+      in if len > 255
+         then Nothing
+         else Just $ D.Decimal (fromIntegral len) (readWithErr (w ++ f))
+
+readWithErr :: String -> Integer
+readWithErr s = let
+  readSresult = reads s
+  in case readSresult of
+    (i, ""):[] -> i
+    _ -> error $ "readWithErr failed. String being read: " ++ s
+         ++ " Result of reads: " ++ show readSresult
+
 -- | A quantity is always greater than zero. Various odd questions
 -- happen if quantities can be zero. For instance, what if you have a
 -- debit whose quantity is zero? Does it require a balancing credit
