@@ -224,6 +224,8 @@ Library
         Penny.Cabin.Row,
         Penny.Cabin.TextFormat,
         Penny.Copper,
+        Penny.Copper.Terminals,
+        Penny.Copper.Parsec,
         Penny.Copper.Account,
         Penny.Copper.Amount,
         Penny.Copper.Comments,

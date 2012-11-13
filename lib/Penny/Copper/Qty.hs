@@ -63,7 +63,7 @@ parseNumber = f <$> parseSequence <*> optional radPost
   where
     radPost = parseRadix *> optional parsePostSequence
     f sq mayPost = case mayPost of
-o      Nothing ->  NumberRadSeq sq
+      Nothing ->  NumberRadSeq sq
       Just post -> NumberSeqPost sq post
 
 sequenceToString :: Sequence -> String

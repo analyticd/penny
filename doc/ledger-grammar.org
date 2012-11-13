@@ -1,11 +1,12 @@
 * Terminals
 
-Invalid = { c | c >= U+D800, c <= U+DFFF }
 AllPoints = { c | c >= U+0000, c <= U+10ffff }
+Invalid = { c | c >= U+D800, c <= U+DFFF }
 Unicode = { x ∈ AllPoints | x ∉ Invalid }
 Newline = { U+000A }
 Space = { U+0020 }
-White = { U+0020 U+0009 }
+Tab = { U+0009 }
+White = { Space Tab }
 NonNewline = { x ∈ Unicode | x ∉ Newline }
 NonNewlineNonSpace = { x ∈ NonNewline | x ∉ White }
 UpperCaseAscii = { x | x >= 'A', x <= 'Z' }
