@@ -5,7 +5,9 @@ AllPoints = { c | c >= U+0000, c <= U+10ffff }
 Unicode = { x ∈ AllPoints | x ∉ Invalid }
 Newline = { U+000A }
 Space = { U+0020 }
-NonNewline = { x ∈ Unicode | x /= U+000A }
+White = { U+0020 U+0009 }
+NonNewline = { x ∈ Unicode | x ∉ Newline }
+NonNewlineNonSpace = { x ∈ NonNewline | x ∉ White }
 UpperCaseAscii = { x | x >= 'A', x <= 'Z' }
 LowerCaseAscii = { x | x >= 'a', x <= 'z' }
 Digit = { x | x >= '0', x <= '9' }
@@ -31,6 +33,8 @@ CloseParen = { ')' }
 Semicolon = { ';' }
 Apostrophe = { U+0027 }
 Tilde = { '~' }
+Underscore = { '_' }
+Asterisk = { '*' }
 
 * Accounts
 
@@ -55,7 +59,7 @@ Level 1 Accounts. The first sub-account must begin with a letter or
 with any non-ASCII value. All other characters may be nearly any
 character except a space. Level 2 Accounts are not quoted.
 
-Lvl2AcctOtherChar = { x ∈ NonNewline | x ∉ Space, x ∉ Colon }
+Lvl2AcctOtherChar = { x ∈ NonNewline | x ∉ White, x ∉ Colon }
 <lvl2FirstSubAcct> ::= Letter Lvl2AcctOtherChar*
 <lvl2OtherSubAcct> ::= Colon Lvl2AcctOtherChar+
 <lvl2Acct> ::= <lvl2FirstSubAcct> <lvl2OtherSubAcct>*
@@ -86,7 +90,7 @@ non-ASCII character. They are not quoted. All other characters may be
 any non-space character.
 
 Lvl2CmdtyFirstChar = Letter ∪ Dollar
-Lvl2CmdtyOtherChar = { x ∈ NonNewline | x ∉ Space }
+Lvl2CmdtyOtherChar = { x ∈ NonNewline | x ∉ White }
 <lvl2Cmdty> ::= Lvl2CmdtyFirstChar Lvl2CmdtyOtherChar*
 
 ** Level 3 Commodities
@@ -109,10 +113,10 @@ Lvl3CmdtyChar = Letter ∪ Dollar
 
 An amount is a commodity and a quantity.
 
-<leftCmdtyLvl1Amt> ::= <quotedLvl1Cmdty> Space* <quantity>
-<leftCmdtyLvl3Amt> ::= <lvl3Cmdty> Space* <quantity>
-<rightCmdtyLvl1Amt> ::= <quantity> Space* <quotedLvl1Cmdty>
-<rightCmdtyLvl2Amt> ::= <quantity> Space* <lvl2Cmdty>
+<leftCmdtyLvl1Amt> ::= <quotedLvl1Cmdty> White* <quantity>
+<leftCmdtyLvl3Amt> ::= <lvl3Cmdty> White* <quantity>
+<rightCmdtyLvl1Amt> ::= <quantity> White* <quotedLvl1Cmdty>
+<rightCmdtyLvl2Amt> ::= <quantity> White* <lvl2Cmdty>
 <leftSideCmdtyAmt> ::= <leftCmdtyLvl1Amt> | <leftCmdtyLvl3Amt>
 <rightSideCmdtyAmt> ::= <rightCmtdyLvl1Amt> | <rightCmdtyLvl2Amt>
 <amount> ::= <leftSideCmdtyAmt> | <rightSideCmdtyAmt>
@@ -122,7 +126,7 @@ An amount is a commodity and a quantity.
 Comments are not associated with any transaction or price; they stand
 alone.
 
-<comment> ::= Hash NonNewline* Newline
+<comment> ::= White* Hash NonNewline*
 
 * DateTime
 
@@ -144,8 +148,8 @@ phase must validate the dates and times.
 <tzNumber> ::= Digit Digit Digit Digit
 <timeZone> ::= <tzSign> <tzNumber>
 
-<timeWithZone> ::= <time> Space* <timeZone>?
-<dateTime> ::= <date> Space* <timeWithZone>?
+<timeWithZone> ::= <time> White* <timeZone>?
+<dateTime> ::= <date> White* <timeWithZone>?
 
 * Entries
 
@@ -154,7 +158,7 @@ An entry is a debit or credit and an amount.
 <debit> ::= LessThan
 <credit> ::= GreaterThan
 <drCr> ::= <debit> | <credit>
-<entry> ::= <drCr> Space* <amount>
+<entry> ::= <drCr> White* <amount>
 
 * Flag
 
@@ -170,11 +174,11 @@ Memos are associated with a particular transaction or posting.
 
 ** Posting memo
 
-<postingMemo> ::= Apostrophe NonNewline* Newline
+<postingMemoLine> ::= White* Apostrophe NonNewline* Newline
 
 ** Transaction memo
 
-<transactionMemo> ::= Semicolon NonNewline* Newline
+<transactionMemoLine> ::= White* Semicolon NonNewline* Newline
 
 * Number
 
@@ -186,24 +190,62 @@ NumberChar = { x ∈ NonNewline | x ∉ CloseParen }
 
 * Payees
 
-** Quoted payees
+** Level 1 payees
 
 These allow the most latitide in the range of characters, but they
-must be quoted with tildes.
+must be quoted with tildes if in a ledger file.
 
 QuotedPayeeChar = { x ∈ NonNewline | x ∉ Tilde }
 
-<quotedPayee> ::= Tilde QuotedPayeeChar* Tilde
+<lvl1Payee> ::= QuotedPayeeChar*
+<quotedLvl1Payee> ::= Tilde <lvl1Payee> Tilde
 
-** Unquoted payees
+** Level 2 payees
 
 Their first character must be a letter.
 
-<unquotedPayee> ::= Letter NonNewline*
+<lvl2Payee> ::= Letter NonNewline*
 
 * Prices
 
 A price has a DateTime, a From commodity, and a To amount.
 
 <fromCmdty> ::= <quotedLvl1Cmdty> | <lvl2Cmdty>
-<price> ::= <dateTime> Space* <fromCmdty> Space+ <amount>
+<price> ::= White* <dateTime> White* <fromCmdty> White+ <amount> Newline
+
+* Tags
+
+Each tag is preceded by an asterisk. The tag text consists of letters,
+digits, and underscores.
+
+TagChar = { x ∈ NonNewlineNonSpace | x ∉ Asterisk }
+<tag> ::= Asterisk TagChar*
+
+* Top Line
+
+This is the first line of a transaction. It also includes the
+transaction memo.
+
+<topLinePayee> ::= <quotedLvl1Payee> | <lvl2Payee>
+<topLineFlagNum> ::= <flag>? White* <number>?
+                     | <number>? White* <flag>?
+<topLine> ::= White* <transactionMemoLine>* <dateTime> White*
+              <topLineFlagNum> White* <topLinePayee> Newline
+
+* Posting
+
+<postingFlagNumPayee>
+  ::=   <flag>?        White* <number>?      White* <quotedPayee>?
+      | <flag>?        White* <quotedPayee>? White* <number>?
+      | <number>?      White* <flag>?        White* <quotedPayee>?
+      | <number>?      White* <quotedPayee>? White* <flag>?
+      | <quotedPayee>? White* <flag>?        White* <number>?
+      | <quotedPayee>? White* <number>?      White* <flag>?
+
+<postingAcct> ::= <quotedLvl1Acct> | <lvl2Acct>
+<nextTag> ::= White* <tag>
+<tags> ::= <tag> <nextTag>*
+
+<posting>
+  ::= White* <postingFlagNumPayee> White* <postingAcct> White*
+      <tags>? White* <entry>? White* Newline
