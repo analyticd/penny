@@ -2,8 +2,7 @@
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
 module Penny.Lincoln.Bits.Qty (
-  Qty, unQty, partialNewQty,
-  newQty, add, subt, mult,
+  Qty, mantissa, places, add, mult,
   Difference(LeftBiggerBy, RightBiggerBy, Equal),
   difference, allocate) where
 
@@ -11,9 +10,8 @@ import Control.Monad (when)
 import Control.Monad.Loops (iterateUntil)
 import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Trans.Maybe as TM
-import Data.Decimal ( DecimalRaw ( Decimal ), Decimal )
-import qualified Data.Decimal as D
 import qualified Data.Foldable as F
+import Data.List (genericLength, genericReplicate, genericSplitAt)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe (isJust)
@@ -34,8 +32,57 @@ import Data.Word (Word8)
 -- Debit/Credit - maybe Debit/Credit/Zero. Barring the addition of
 -- that, though, the best way to indicate a situation such as this
 -- would be through transaction memos.
-newtype Qty = Qty Decimal
-              deriving (Eq, Ord, Show)
+--
+-- The Eq instance is derived. Therefore q1 == q2 only if q1 and q2
+-- have both the same mantissa and the same exponent. You may instead
+-- want 'equivalent'.
+data Qty = Qty { mantissa :: Integer
+               , places :: Integer
+               } deriving Eq
+
+instance Show Qty where
+  show (Qty m e) =
+    let man = show m
+        len = genericLength man
+    in case compare e len of
+        GT -> '.' : ((genericReplicate (e - len) '0') ++ man)
+        _ ->
+          let (b, end) = genericSplitAt (len - e) man
+          in b ++ ['.'] ++ end
+
+-- | Adjust the exponents on two Qty so they are equivalent
+-- before, but now have the same exponent.
+equalizeExponents :: Qty -> Qty -> (Qty, Qty)
+equalizeExponents x y = (x', y')
+  where
+    (ex, ey) = (places x, places y)
+    (x', y') = case compare ex ey of
+      GT -> (x, increaseExponent (ex - ey) y)
+      LT -> (increaseExponent (ey - ex) x, y)
+      EQ -> (x, y)
+
+-- | Increase the exponent by the amount given, so that the new Qty is
+-- equivalent to the old one. Takes the absolute value of the
+-- adjustment argument.
+increaseExponent :: Integer -> Qty -> Qty
+increaseExponent i (Qty m e) = Qty m' e'
+  where
+    amt = abs i
+    m' = m * 10 ^ amt
+    e' = e + amt
+
+-- | Increases the exponent to the given amount. Does nothing if the
+-- exponent is already at or higher than this amount.
+increaseExponentTo :: Integer -> Qty -> Qty
+increaseExponentTo i q@(Qty _ e) =
+  let diff = i - e
+  in if diff >= 0 then increaseExponent diff q else q
+
+-- | Compares Qty after equalizing their exponents.
+equivalent :: Qty -> Qty -> Bool
+equivalent x y = x' == y'
+  where
+    (x', y') = equalizeExponents x y
 
 data Difference =
   LeftBiggerBy Qty
@@ -43,44 +90,23 @@ data Difference =
   | Equal
   deriving (Eq, Show)
 
--- | Subtract the second Qty from the first.
+-- | Subtract the second Qty from the first, after equalizing their
+-- exponents.
 difference :: Qty -> Qty -> Difference
-difference (Qty q1) (Qty q2) = case compare q1 q2 of
-  GT -> LeftBiggerBy (Qty $ q1 - q2)
-  LT -> RightBiggerBy (Qty $ q2 - q1)
-  EQ -> Equal
-
--- | Unwrap a Qty to get the underlying Decimal. This Decimal will
--- always be greater than zero.
-unQty :: Qty -> Decimal
-unQty (Qty d) = d
-
--- | Make a new Qty. This function is partial. It will call error if
--- its argument is less than or equal to zero.
-partialNewQty :: Decimal -> Qty
-partialNewQty d =
-  if d <= 0
-  then error
-       $ "partialNewQty: argument less than or equal to zero: "
-       ++ show d
-  else Qty d
-
--- | Make a new Qty. Returns Nothing if its argument is less than
--- zero.
-newQty :: Decimal -> Maybe Qty
-newQty d = if d <= 0 then Nothing else Just (Qty d)
+difference x y =
+  let (x', y') = equalizeExponents x y
+      (mx, my) = (mantissa x', mantissa y')
+  in case compare mx my of
+    GT -> LeftBiggerBy (Qty (mx - my) (places x'))
+    LT -> RightBiggerBy (Qty (my - mx) (places x'))
+    EQ -> Equal
 
 add :: Qty -> Qty -> Qty
-add (Qty q1) (Qty q2) = Qty $ q1 + q2
-
-subt :: Qty -> Qty -> Maybe Qty
-subt (Qty q1) (Qty q2) =
-  if q2 > q1
-  then Nothing
-  else Just $ Qty (q1 - q2)
+add (Qty xm xe) (Qty ym _) = Qty (xm + ym) xe
 
 mult :: Qty -> Qty -> Qty
-mult (Qty q1) (Qty q2) = Qty $ q1 * q2
+mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe * ye)
+
 
 -- | Allocate a Qty proportionally so that the sum of the results adds
 -- up to a given Qty. Fails if the allocation cannot be made (e.g. if
@@ -93,67 +119,39 @@ allocate
   -> NonEmpty Qty
   -- ^ Allocate using this list of Qty.
 
-  -> Maybe (NonEmpty Qty)
+  -> NonEmpty Qty
   -- ^ The length of this list will be equal to the length of the list
   -- of allocations. Each item will correspond to the original
-  -- allocation. Fails if overflow would result.
+  -- allocation.
 
-allocate t ls =
-  fmap (fmap Qty) (allocDecimals (unQty t) (fmap unQty ls))
-
-allocDecimals
-  :: D.Decimal -> NonEmpty D.Decimal -> Maybe (NonEmpty D.Decimal)
-allocDecimals tot ls = do
-  (dt, dls, e) <- sameExponent 0 tot ls
-  (r, plus) <- allocNoZeroes (D.decimalMantissa dt)
-    (fmap D.decimalMantissa dls)
-  Tr.sequenceA
-    . fmap (adjustExponent plus)
-    . fmap (D.Decimal e) $ r
-
-
--- | Given an amount that the exponent was increased by, adjust a
--- Decimal so it is equal to its old value. Fails if there would be
--- overflow.
-adjustExponent :: Int -> D.Decimal -> Maybe D.Decimal
-adjustExponent maybeNegI (D.Decimal e m) =
-  let i = abs maybeNegI
-  in if i + (fromIntegral e) > 255
-     then Nothing
-     else Just $ Decimal (fromIntegral (i + (fromIntegral e))) m
+allocate tot ls =
+  let (tot', ls', newExp) = sameExponent tot ls
+      (r, plus) = allocNoZeroes (mantissa tot') (fmap mantissa ls')
+      allocedDecs = fmap (\i -> Qty i newExp) r
+  in fmap (increaseExponent plus) allocedDecs
 
 
 -- | Given a list of Decimals, and a single Decimal, return Decimals
 -- that are equivalent to the original Decimals, but where all
--- Decimals have the same mantissa. Fails if overflow would
--- result. Also, you provide an Int for an optional number of
--- additional places to add to the exponent. The absolute value of
--- this Int is used.
+-- Decimals have the same exponent. Also returns new exponent.
 sameExponent
-  :: Int
-  -> Decimal
-  -> NonEmpty Decimal
-  -> Maybe (Decimal, NonEmpty Decimal, Word8)
-sameExponent maybeNegPlus dec ls =
-  let plus = abs maybeNegPlus
-      maxExp = max (F.maximum . fmap D.decimalPlaces $ ls)
-                   (D.decimalPlaces dec)
-      newExpInt = plus + fromIntegral maxExp
-      newExp8 = fromIntegral plus + maxExp
-      conv (Decimal p m) =
-        let diff = newExp8 - p
-        in Decimal (p + diff) (m * 10 ^ diff)
-  in if newExpInt > 255
-     then Nothing
-     else Just (conv dec, fmap conv ls, newExp8)
+  :: Qty
+  -> NonEmpty Qty
+  -> (Qty, NonEmpty Qty, Integer)
+sameExponent dec ls =
+  let newExp = max (F.maximum . fmap places $ ls)
+                   (places dec)
+      dec' = increaseExponentTo newExp dec
+      ls' = fmap (increaseExponentTo newExp) ls
+  in (dec', ls', newExp)
 
--- | Allocates integers so that no zeroes are in the result. Fails if
--- any of the input is bad. May have had to multiply the integers by a
+-- | Allocates integers so that no zeroes are in the result.
+-- May have had to multiply the integers by a
 -- power of ten; this power is returned with the result.
 allocNoZeroes
   :: Integer
   -> NonEmpty Integer
-  -> Maybe (NonEmpty Integer, Int)
+  -> (NonEmpty Integer, Integer)
 allocNoZeroes tot ls =
   let k = do
         p <- St.get
@@ -164,7 +162,7 @@ allocNoZeroes tot ls =
       loopResult = St.evalState (iterateUntil pdct k) 0
   in case snd loopResult of
     Nothing ->  error "allocNoZeroes: should never happen"
-    Just g -> return (g, fst loopResult)
+    Just g -> (g, fst loopResult)
 
 
 -- | Allocates a non-empty list of integers. Computes an amount for
