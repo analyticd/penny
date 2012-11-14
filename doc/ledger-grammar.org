@@ -223,6 +223,8 @@ digits, and underscores.
 
 TagChar = { x ∈ NonNewlineNonSpace | x ∉ Asterisk }
 <tag> ::= Asterisk TagChar*
+<nextTag> ::= White* <tag>
+<tags> ::= <tag> <nextTag>*
 
 * Top Line
 
@@ -232,8 +234,8 @@ transaction memo.
 <topLinePayee> ::= <quotedLvl1Payee> | <lvl2Payee>
 <topLineFlagNum> ::= <flag>? White* <number>?
                      | <number>? White* <flag>?
-<topLine> ::= <transactionMemo>* <dateTime> White*
-              <topLineFlagNum> White* <topLinePayee> Newline White*
+<topLine> ::= <transactionMemo>? <dateTime> White*
+              <topLineFlagNum> White* <topLinePayee>? Newline White*
 
 * Posting
 
@@ -246,8 +248,6 @@ transaction memo.
       | <quotedPayee>? White* <number>?      White* <flag>?
 
 <postingAcct> ::= <quotedLvl1Acct> | <lvl2Acct>
-<nextTag> ::= White* <tag>
-<tags> ::= <tag> <nextTag>*
 
 <posting>
   ::= <postingFlagNumPayee> White* <postingAcct> White*
