@@ -224,6 +224,7 @@ Library
         Penny.Copper.Terminals,
         Penny.Copper.Parsec,
         Penny.Copper.Types,
+        Penny.Copper.Render,
         Penny.Copper.Account,
         Penny.Copper.Amount,
         Penny.Copper.Comments,
