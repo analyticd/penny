@@ -74,14 +74,15 @@ module Penny.Lincoln (
 
     -- ** Quantities
   , I.Qty
-  , I.unQty
-  , I.partialNewQty
-  , I.newQty
+  , I.NumberStr(..)
+  , I.toQty
+  , I.mantissa
+  , I.places
   , I.add
-  , I.subt
   , I.mult
   , I.difference
-  , I.Difference(LeftBiggerBy, RightBiggerBy, Equal)
+  , I.equivalent
+  , I.Difference(..)
   , I.allocate
 
     -- ** Tags

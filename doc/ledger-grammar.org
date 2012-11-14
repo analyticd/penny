@@ -127,7 +127,7 @@ An amount is a commodity and a quantity.
 Comments are not associated with any transaction or price; they stand
 alone.
 
-<comment> ::= White* Hash NonNewline* Newline White*
+<comment> ::= Hash NonNewline* Newline White*
 
 * DateTime
 

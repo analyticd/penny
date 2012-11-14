@@ -57,9 +57,8 @@ module Penny.Lincoln.Bits (
   PricePoint ( .. ),
 
   -- * Quantities
-  Q.Qty, Q.unQty, Q.partialNewQty,
-  Q.newQty, Q.add, Q.subt, Q.mult,
-  Q.difference,
+  Q.Qty, Q.NumberStr(..), Q.toQty, Q.mantissa, Q.places,
+  Q.add, Q.mult, Q.difference, Q.equivalent,
   Q.Difference(Q.LeftBiggerBy, Q.RightBiggerBy, Q.Equal),
   Q.allocate,
 

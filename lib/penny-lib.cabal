@@ -84,9 +84,7 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  * Penny stores amounts using only integers, building from the
-    Data.Decimal library available at
-    <http://hackage.haskell.org/package/Decimal>. This ensures the
+  * Penny stores amounts using only integers.  This ensures the
     accuracy of your data, as using floating point values to represent
     money is a bad idea. Here is one explanation:
     <http://stackoverflow.com/questions/3730019/why-not-use-double-or-float-to-represent-currency>. The
@@ -176,7 +174,6 @@ Library
         containers ==0.4.*,
         transformers == 0.3.*,
         time ==1.4.*,
-        Decimal >= 0.2.2 && < 0.3,
         parsec >= 3.1.2 && < 3.2,
         multiarg ==0.6.*,
         matchers ==0.2.*,

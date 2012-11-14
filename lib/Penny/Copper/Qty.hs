@@ -9,7 +9,6 @@ module Penny.Copper.Qty (
   ) where
 
 import Control.Applicative ((<$>), (<*>), (<$), (*>), optional)
-import qualified Data.Decimal as D
 import Data.List (intercalate)
 import Data.List.Split (splitEvery, splitOn)
 import qualified Data.Text as X

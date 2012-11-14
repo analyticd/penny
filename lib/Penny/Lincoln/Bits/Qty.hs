@@ -2,11 +2,10 @@
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
 module Penny.Lincoln.Bits.Qty (
-  Qty, mantissa, places, add, mult,
-  Difference(LeftBiggerBy, RightBiggerBy, Equal),
-  difference, allocate) where
+  Qty, NumberStr(..), toQty, mantissa, places,
+  add, mult, Difference(LeftBiggerBy, RightBiggerBy, Equal),
+  equivalent, difference, allocate) where
 
-import Control.Applicative ((<$>), (<*>))
 import Control.Monad (when)
 import Control.Monad.Loops (iterateUntil)
 import Control.Monad.Trans.Class (lift)
@@ -18,7 +17,6 @@ import qualified Data.List.NonEmpty as NE
 import Data.Maybe (isJust)
 import qualified Control.Monad.Trans.State as St
 import qualified Data.Traversable as Tr
-import Data.Word (Word8)
 
 data NumberStr =
   Whole String
@@ -34,28 +32,22 @@ data NumberStr =
   deriving Show
 
 
--- | Do not use Prelude.read or Prelude.reads on whole decimal strings
--- like @232.72@. Sometimes it will fail, though sometimes it will
--- succeed; why is not clear to me. Hopefully reading integers won't
--- fail! However, in case it does, use read', whose error message will
--- at least tell you what number was being read.
-toDecimal :: NumberStr -> Maybe Qty
-toDecimal ns = case ns of
+-- | Converts strings to Qty. Fails if any of the strings have
+-- non-digits, or if any are negative, or if the result is not greater
+-- than zero.
+toQty :: NumberStr -> Maybe Qty
+toQty ns = case ns of
   Whole s -> fmap (\m -> Qty m 0) (readInteger s)
   WholeRad s -> fmap (\m -> Qty m 0) (readInteger s)
   WholeRadFrac w f -> fromWholeRadFrac w f
   RadFrac f -> fromWholeRadFrac "0" f
   where
     fromWholeRadFrac w f =
-      let len = length f
-      in Just 
-      in if len > 255
-         then Nothing
-         else Just $ D.Decimal (fromIntegral len) (readWithErr (w ++ f))
+      fmap (\m -> Qty m (genericLength f)) (readInteger (w ++ f))
 
 -- | Reads non-negative integers only.
 readInteger :: String -> Maybe Integer
-readInteger s = reads s of
+readInteger s = case reads s of
   (i, ""):[] -> if i < 0 then Nothing else Just i
   _ -> Nothing
 
@@ -89,6 +81,12 @@ instance Show Qty where
         _ ->
           let (b, end) = genericSplitAt (len - e) man
           in b ++ ['.'] ++ end
+
+
+instance Ord Qty where
+  compare q1 q2 = compare (mantissa q1') (mantissa q2')
+    where
+      (q1', q2') = equalizeExponents q1 q2
 
 -- | Adjust the exponents on two Qty so they are equivalent
 -- before, but now have the same exponent.
