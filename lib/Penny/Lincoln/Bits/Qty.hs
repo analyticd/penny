@@ -6,6 +6,7 @@ module Penny.Lincoln.Bits.Qty (
   Difference(LeftBiggerBy, RightBiggerBy, Equal),
   difference, allocate) where
 
+import Control.Applicative ((<$>), (<*>))
 import Control.Monad (when)
 import Control.Monad.Loops (iterateUntil)
 import Control.Monad.Trans.Class (lift)
@@ -40,8 +41,8 @@ data NumberStr =
 -- at least tell you what number was being read.
 toDecimal :: NumberStr -> Maybe Qty
 toDecimal ns = case ns of
-  Whole s -> Just $ Qty (readWithErr s) 0
-  WholeRad s -> Just $ Qty (readWithErr s) 0
+  Whole s -> fmap (\m -> Qty m 0) (readInteger s)
+  WholeRad s -> fmap (\m -> Qty m 0) (readInteger s)
   WholeRadFrac w f -> fromWholeRadFrac w f
   RadFrac f -> fromWholeRadFrac "0" f
   where
@@ -52,13 +53,11 @@ toDecimal ns = case ns of
          then Nothing
          else Just $ D.Decimal (fromIntegral len) (readWithErr (w ++ f))
 
-readWithErr :: String -> Integer
-readWithErr s = let
-  readSresult = reads s
-  in case readSresult of
-    (i, ""):[] -> i
-    _ -> error $ "readWithErr failed. String being read: " ++ s
-         ++ " Result of reads: " ++ show readSresult
+-- | Reads non-negative integers only.
+readInteger :: String -> Maybe Integer
+readInteger s = reads s of
+  (i, ""):[] -> if i < 0 then Nothing else Just i
+  _ -> Nothing
 
 -- | A quantity is always greater than zero. Various odd questions
 -- happen if quantities can be zero. For instance, what if you have a
