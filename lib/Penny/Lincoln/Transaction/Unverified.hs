@@ -9,22 +9,22 @@ import qualified Penny.Lincoln.Meta as M
 
 data TopLine = TopLine {
     tDateTime :: B.DateTime
-  , tFlag :: (Maybe B.Flag)
-  , tNumber :: (Maybe B.Number)
-  , tPayee :: (Maybe B.Payee)
-  , tMemo :: B.Memo
-  , tMeta :: M.TopLineMeta
+  , tFlag     :: Maybe B.Flag
+  , tNumber   :: Maybe B.Number
+  , tPayee    :: Maybe B.Payee
+  , tMemo     :: Maybe B.Memo
+  , tMeta     :: M.TopLineMeta
   } deriving (Eq, Show)
 
 data Posting = Posting {
-    pPayee :: (Maybe B.Payee)
-  , pNumber :: (Maybe B.Number)
-  , pFlag :: (Maybe B.Flag)
+    pPayee   :: Maybe B.Payee
+  , pNumber  :: Maybe B.Number
+  , pFlag    :: Maybe B.Flag
   , pAccount :: B.Account
-  , pTags :: B.Tags
-  , pEntry :: (Maybe B.Entry)
-  , pMemo :: B.Memo
-  , pMeta :: M.PostingMeta
+  , pTags    :: B.Tags
+  , pEntry   :: Maybe B.Entry
+  , pMemo    :: Maybe B.Memo
+  , pMeta    :: M.PostingMeta
   } deriving (Eq, Show)
 
 entry :: Posting -> Maybe B.Entry

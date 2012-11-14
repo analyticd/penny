@@ -99,13 +99,13 @@ data Inferred = Inferred | NotInferred deriving (Eq, Show)
 
 -- | Each Transaction consists of at least two Postings.
 data Posting =
-  Posting { pPayee   :: (Maybe B.Payee)
-          , pNumber  :: (Maybe B.Number)
-          , pFlag    :: (Maybe B.Flag)
-          , pAccount :: B.Account
-          , pTags    :: B.Tags
-          , pEntry   :: B.Entry
-          , pMemo    :: B.Memo
+  Posting { pPayee    :: Maybe B.Payee
+          , pNumber   :: Maybe B.Number
+          , pFlag     :: Maybe B.Flag
+          , pAccount  :: B.Account
+          , pTags     :: B.Tags
+          , pEntry    :: B.Entry
+          , pMemo     :: Maybe B.Memo
           , pInferred :: Inferred
           , pMeta     :: M.PostingMeta }
   deriving (Eq, Show)
@@ -115,10 +115,10 @@ data Posting =
 -- appears on the top line.)
 data TopLine =
   TopLine { tDateTime :: B.DateTime
-          , tFlag     :: (Maybe B.Flag)
-          , tNumber   :: (Maybe B.Number)
-          , tPayee    :: (Maybe B.Payee)
-          , tMemo     :: B.Memo
+          , tFlag     :: Maybe B.Flag
+          , tNumber   :: Maybe B.Number
+          , tPayee    :: Maybe B.Payee
+          , tMemo     :: Maybe B.Memo
           , tMeta     :: M.TopLineMeta }
   deriving (Eq, Show)
 
@@ -351,7 +351,7 @@ cTxnPayee
 cTxnPayee f t = mapTopLine (\tl -> tl { tPayee = f t }) t
 
 cTxnMemo
-  :: (Transaction -> B.Memo)
+  :: (Transaction -> Maybe B.Memo)
   -> Transaction
   -> Transaction
 cTxnMemo f t = mapTopLine (\tl -> tl { tMemo = f t }) t
@@ -404,7 +404,7 @@ cPstgTags
 cPstgTags f = mapPostings (\t p -> p { pTags = f t p })
 
 cPstgMemo
-  :: (Transaction -> Posting -> B.Memo)
+  :: (Transaction -> Posting -> Maybe B.Memo)
   -> Transaction
   -> Transaction
 cPstgMemo f = mapPostings (\t p -> p { pMemo = f t p })

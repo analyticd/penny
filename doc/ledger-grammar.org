@@ -240,18 +240,18 @@ transaction memo.
 * Posting
 
 <postingFlagNumPayee>
-  ::=   <flag>?        White* <number>?      White* <quotedPayee>?
-      | <flag>?        White* <quotedPayee>? White* <number>?
-      | <number>?      White* <flag>?        White* <quotedPayee>?
-      | <number>?      White* <quotedPayee>? White* <flag>?
-      | <quotedPayee>? White* <flag>?        White* <number>?
-      | <quotedPayee>? White* <number>?      White* <flag>?
+  ::=   <flag>?            White* <number>?          White* <quotedLvl1Payee>?
+      | <flag>?            White* <quotedLvl1Payee>? White* <number>?
+      | <number>?          White* <flag>?            White* <quotedLvl1Payee>?
+      | <number>?          White* <quotedLvl1Payee>? White* <flag>?
+      | <quotedLvl1Payee>? White* <flag>?            White* <number>?
+      | <quotedLvl1Payee>? White* <number>?          White* <flag>?
 
 <postingAcct> ::= <quotedLvl1Acct> | <lvl2Acct>
 
 <posting>
   ::= <postingFlagNumPayee> White* <postingAcct> White*
-      <tags>? White* <entry>? White* Newline White* <postingMemo>*
+      <tags>? White* <entry>? White* Newline White* <postingMemo>
       White*
 
 * Transaction

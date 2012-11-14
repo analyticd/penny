@@ -9,6 +9,7 @@ import qualified Text.Parsec.Pos as Pos
 import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
                             (<|>), optional)
 import Control.Monad (replicateM)
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import Data.Maybe (fromMaybe)
@@ -132,7 +133,7 @@ rightSideCmdtyAmt = rightCmdtyLvl1Amt <|> rightCmdtyLvl2Amt
 amount :: Parser (L.Amount, L.Format)
 amount = leftSideCmdtyAmt <|> rightSideCmdtyAmt
 
-comment :: Parser Y.Comment
+comment :: Parser Y.Item
 comment =
   (Y.Comment . pack)
   <$ satisfy T.hash
@@ -319,10 +320,69 @@ topLine =
     <*> dateTime
     <*  skipWhite
     <*> topLineFlagNum
-    <*> skipWhite
+    <*  skipWhite
     <*> optional topLinePayee
-    <*> satisfy T.newline
-    <*> skipWhite
+    <*  satisfy T.newline
+    <*  skipWhite
   where
     f mayMe lin dt (mayFl, mayNum) mayPy =
-      U.TopLine dt mayFl mayNum mayPy
+      U.TopLine dt mayFl mayNum mayPy me mt
+      where
+        mt = L.TopLineMeta tml tll Nothing Nothing Nothing
+        (tml, me) = case mayMe of
+          Nothing -> (Nothing, Nothing)
+          Just (l, m) -> (Just l, Just m)
+        tll = Just (L.TopLineLine lin)
+
+postingFlagNumPayee
+  :: Parser (Maybe L.Flag, Maybe L.Number, Maybe L.Payee)
+postingFlagNumPayee =
+  let fl = optional flag
+      nu = optional number
+      qp = optional quotedLvl1Payee
+      ws = skipWhite
+  in      ((\f n p -> (f, n, p)) <$> fl <* ws <*> nu <* ws <*> qp)
+      <|> ((\f p n -> (f, n, p)) <$> fl <* ws <*> qp <* ws <*> nu)
+      <|> ((\n f p -> (f, n, p)) <$> nu <* ws <*> fl <* ws <*> qp)
+      <|> ((\n p f -> (f, n, p)) <$> nu <* ws <*> qp <* ws <*> fl)
+      <|> ((\p f n -> (f, n, p)) <$> qp <* ws <*> fl <* ws <*> nu)
+      <|> ((\p n f -> (f, n, p)) <$> qp <* ws <*> nu <* ws <*> fl)
+
+postingAcct :: Parser L.Account
+postingAcct = quotedLvl1Acct <|> lvl2Acct
+
+posting :: Parser U.Posting
+posting = f <$> lineNum              <* skipWhite
+            <*> postingFlagNumPayee  <* skipWhite
+            <*> postingAcct          <* skipWhite
+            <*> optional tags        <* skipWhite
+            <*> optional entry       <* skipWhite
+            <*  satisfy T.newline    <* skipWhite
+            <*> optional postingMemo <* skipWhite
+  where
+    f li (fl, nu, pa) ac ta enPair me =
+      U.Posting pa nu fl ac tgs en me mt
+      where
+        tgs = fromMaybe (L.Tags []) ta
+        en = fmap fst enPair
+        mt = L.PostingMeta (Just (L.PostingLine li)) fmt
+             Nothing Nothing
+        fmt = fmap snd enPair
+
+transaction :: Parser L.Transaction
+transaction = p >>= Ex.switch (fail . show) return
+  where
+    p = L.transaction <$>
+        (L.Family <$> topLine <*> posting
+        <*> posting <*> many posting)
+
+
+blankLine :: Parser Y.Item
+blankLine = Y.BlankLine <$ satisfy T.newline <* skipWhite
+
+item :: Parser Y.Item
+item = comment <|> fmap Y.PricePoint price
+       <|> fmap Y.Transaction transaction <|> blankLine
+
+ledger :: Parser Y.Ledger
+ledger = Y.Ledger <$ skipWhite <*> many item <* P.eof
