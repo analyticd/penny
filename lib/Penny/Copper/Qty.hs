@@ -15,7 +15,7 @@ import qualified Data.Text as X
 import Text.Parsec ( char, many1, (<?>), digit, many)
 import Text.Parsec.Text ( Parser )
 
-import Penny.Lincoln.Bits.Qty ( Qty, newQty, unQty )
+import Penny.Lincoln.Bits.Qty ( Qty )
 
 {- a BNF style specification for numbers.
 
@@ -135,62 +135,5 @@ qty = do
                     ++ "are not allowed: " ++ show d
     Just q -> return q
 
--- | Specifies how to perform digit grouping when rendering a
--- quantity. All grouping groups into groups of 3 digits.
-data GroupingSpec =
-  NoGrouping
-  -- ^ Do not perform any digit grouping
-  | GroupLarge
-    -- ^ Group digits, but only if the number to be grouped is greater
-    -- than 9,999 (if grouping the whole part) or if there are more
-    -- than 4 decimal places (if grouping the fractional part).
-  | GroupAll
-    -- ^ Group digits whenever there are at least four decimal places.
-  deriving (Eq, Show)
-
--- | Renders an unquoted Qty. Performs digit grouping as requested.
-render
-  :: (GroupingSpec, GroupingSpec)
-  -- ^ Group for the portion to the left and right of the radix point?
-
-  -> Qty
-  -> X.Text
-render (gl, gr) q = let
-  qs = show . unQty $ q
-  in X.pack $ case splitOn "." qs of
-    w:[] -> groupWhole gl w
-    w:d:[] ->
-      groupWhole gl w ++ renderRadix ++ groupDecimal gr d
-    _ -> error "Qty.hs: rendering error"
-
-renderGrouper :: String
-renderGrouper = "\x2009"
-
-renderRadix :: String
-renderRadix = "."
 
 
--- | Performs grouping for amounts to the left of the radix point.
-groupWhole :: GroupingSpec -> String -> String
-groupWhole gs o = let
-  grouped = intercalate renderGrouper
-            . reverse
-            . map reverse
-            . splitEvery 3
-            . reverse
-            $ o
-  in case gs of
-  NoGrouping -> o
-  GroupLarge -> if length o > 4 then grouped else o
-  GroupAll -> grouped
-
--- | Performs grouping for amounts to the right of the radix point.
-groupDecimal :: GroupingSpec -> String -> String
-groupDecimal gs o = let
-  grouped = intercalate renderGrouper
-            . splitEvery 3
-            $ o
-  in case gs of
-    NoGrouping -> o
-    GroupLarge -> if length o > 4 then grouped else o
-    GroupAll -> grouped

@@ -106,19 +106,3 @@ dateTime = do
       tz = fromMaybe B.noOffset mayTz
   return $ B.DateTime d h m s tz
 
--- | Render a DateTime. If the DateTime is midnight, then the time and
--- time zone will not be printed. Otherwise, the time and time zone
--- will both be printed. The test for time zone equality depends only
--- upon the time zone's offset from UTC.
-render :: B.DateTime -> X.Text
-render dt = X.pack $ T.formatTime defaultTimeLocale fmt zt
-  where
-    zt = B.toZonedTime dt
-    fmtLong = "%F %T %z"
-    fmtShort = "%F"
-    isUTC = B.timeZone dt == B.noOffset
-    isMidnight = (B.hours dt, B.minutes dt, B.seconds dt)
-                 == B.midnight
-    fmt = if isUTC && isMidnight
-          then fmtShort
-          else fmtLong

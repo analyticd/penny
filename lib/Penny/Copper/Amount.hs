@@ -66,29 +66,3 @@ amount = lvl1CmdtyQty
          <|> cmdtyOnRight
          <?> "amount"
 
--- | Render an Amount. The Format is required so that the commodity
--- can be displayed in the right place.
-render ::
-  (Q.GroupingSpec, Q.GroupingSpec)
-  -- ^ Grouping
-  -> L.Format
-  -> L.Amount
-  -> Maybe X.Text
-render gs f a = let
-  (q, c) = (L.qty a, L.commodity a)
-  qty = Q.render gs q
-  ws = case L.between f of
-    L.SpaceBetween -> X.singleton ' '
-    L.NoSpaceBetween -> X.empty
-  mayLvl3 = C.renderLvl3 c
-  mayLvl2 = C.renderLvl2 c
-  in do
-    quotedLvl1 <- C.renderQuotedLvl1 c
-    let (l, r) = case L.side f of
-          L.CommodityOnLeft -> case mayLvl3 of
-            Nothing -> (quotedLvl1, qty)
-            Just l3 -> (l3, qty)
-          L.CommodityOnRight -> case mayLvl2 of
-            Nothing -> (qty, quotedLvl1)
-            Just l2 -> (qty, l2)
-    return $ X.concat [l, ws, r]

@@ -126,29 +126,3 @@ rightSideCmdty =
   <|> lvl2Cmdty
   <?> "commodity to the right of the quantity"
 
--- | Render a quoted Level 1 commodity. Fails if any character does
--- not satisfy lvl1Char.
-renderQuotedLvl1 :: B.Commodity -> Maybe Text
-renderQuotedLvl1 (B.Commodity c) =
-  if X.all lvl1Char c
-  then Just $ '"' `cons` c `snoc` '"'
-  else Nothing
-
-
--- | Render a Level 2 commodity. Fails if the first character is not a
--- letter or a symbol, or if any other character is a space.
-renderLvl2 :: B.Commodity -> Maybe Text
-renderLvl2 (B.Commodity c) = do
-  (f, rs) <- X.uncons c
-  guard $ lvl2FirstChar f
-  guard . X.all lvl2OtherChars $ rs
-  return c
-
-
--- | Render a Level 3 commodity. Fails if any character is not a
--- letter or a symbol.
-renderLvl3 :: B.Commodity -> Maybe Text
-renderLvl3 (B.Commodity c) =
-  if (not . X.null $ c) && (X.all lvl3Char c)
-  then return c
-  else Nothing
