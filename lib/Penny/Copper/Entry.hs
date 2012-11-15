@@ -30,14 +30,3 @@ entry = f <$> lexeme drCr <*> amount <?> e where
   f dc (am, fmt) = (L.Entry dc am, fmt)
   e = "entry"
 
-render
-  :: (Q.GroupingSpec, Q.GroupingSpec)
-  -> L.Format
-  -> L.Entry
-  -> Maybe X.Text
-render gs f (L.Entry dc a) = do
-  amt <- A.render gs f a
-  let dcTxt = X.pack $ case dc of
-        L.Debit -> "Dr"
-        L.Credit -> "Cr"
-  return $ X.append (X.snoc dcTxt ' ') amt

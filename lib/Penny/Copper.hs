@@ -1,10 +1,9 @@
 -- | Copper - the Penny parser
 module Penny.Copper
-  ( -- * Comments
-    C.Comment(Comment)
-
+  (
   -- * Radix and grouping
-  , Q.GroupingSpec(..)
+  , R.GroupSpec (..)
+  , R.GroupSpecs (..)
 
   -- * FileContents
   , FileContents(FileContents, unFileContents)
@@ -13,15 +12,15 @@ module Penny.Copper
   , ErrorMsg (ErrorMsg, unErrorMsg)
 
   -- * Items
-  , I.Item(Transaction, Price, CommentItem, BlankLine)
-  , I.Line(unLine)
+  , Y.Item(Transaction, PricePoint, Comment, BlankLine)
+  , Y.Ledger (Ledger, unLedger)
 
   -- * Parsing
   , Ledger(Ledger, unLedger)
   , parse
 
   -- * Rendering
-  , I.render
+  , render
   ) where
 
 
@@ -31,14 +30,9 @@ import qualified Data.Text as X
 import Text.Parsec ( manyTill, eof )
 import qualified Text.Parsec as P
 
-import qualified Penny.Copper.Comments as C
-import qualified Penny.Copper.Qty as Q
-import qualified Penny.Copper.Item as I
+import qualified Penny.Copper.Parsec as CP
+import qualified Penny.Copper.Render as R
 import qualified Penny.Lincoln as L
-
-data Ledger =
-  Ledger { unLedger :: [(I.Line, I.Item)] }
-  deriving Show
 
 newtype FileContents = FileContents { unFileContents :: X.Text }
                        deriving (Eq, Show)
@@ -48,7 +42,7 @@ newtype ErrorMsg = ErrorMsg { unErrorMsg :: X.Text }
 
 parseFile
   :: (L.Filename, FileContents)
-  -> Ex.Exceptional ErrorMsg [(I.Line, I.Item)]
+  -> Ex.Exceptional ErrorMsg Y.Ledger
 parseFile (fn, (FileContents c)) =
   let p = addFileMetadata fn
           <$> manyTill I.itemWithLineNumber eof
@@ -59,9 +53,9 @@ parseFile (fn, (FileContents c)) =
 
 addFileMetadata ::
   L.Filename
-  -> [(I.Line, I.Item)]
-  -> [(I.Line, I.Item)]
-addFileMetadata fn ls =
+  -> Y.Ledger
+  -> Y.Ledger
+addFileMetadata fn (Y.Ledger ls) =
   let (lns, is) = (map fst ls, map snd ls)
       eis = map toEiItem is
       procTop s m =

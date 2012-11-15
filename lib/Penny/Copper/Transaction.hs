@@ -52,15 +52,6 @@ transaction = do
     Ex.Exception s -> fail s
     Ex.Success b -> return b
 
-render ::
-  (Qt.GroupingSpec, Qt.GroupingSpec)
-  -> T.Transaction
-  -> Maybe X.Text
-render gs txn = do
-  let txnFam = T.unTransaction txn
-  tlX <- TL.render (F.parent txnFam)
-  pstgsX <- Tr.traverse (Po.render gs) (orphans txnFam)
-  return $ tlX `X.append` (X.concat (toList pstgsX))
 
 
 

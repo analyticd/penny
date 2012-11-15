@@ -72,7 +72,7 @@ module Penny.Lincoln (
   , I.CountPerUnit(CountPerUnit, unCountPerUnit)
   , I.Price(from, to, countPerUnit)
   , I.newPrice
-  , I.PricePoint(PricePoint, price, ppMeta)
+  , I.PricePoint(PricePoint, dateTime, price, ppMeta)
 
     -- ** Quantities
   , I.Qty

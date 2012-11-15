@@ -37,16 +37,3 @@ topLine =
       tll = L.TopLineLine . sourceLine $ pos
 
 
-render :: T.TopLine -> Maybe X.Text
-render tl =
-  f
-  <$> M.render (T.tMemo tl)
-  <*> pure (DT.render (T.tDateTime tl))
-  <*> renMaybe (T.tFlag tl) F.render
-  <*> renMaybe (T.tNumber tl) N.render
-  <*> renMaybe (T.tPayee tl) P.smartRender
-  where
-    f meX dtX flX nuX paX =
-      meX
-      `X.append` (txtWords [dtX, flX, nuX, paX])
-      `X.snoc` '\n'

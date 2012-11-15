@@ -1,16 +1,21 @@
 module Penny.Copper.Render where
 
 import Control.Monad (guard)
-import Control.Applicative ((<|>))
+import Control.Applicative ((<$>), (<|>), (<*>))
+import Data.Foldable (toList)
 import Data.List (intersperse, intercalate)
 import Data.List.Split (splitEvery, splitOn)
 import qualified Data.Text as X
 import Data.Text (Text, cons, snoc)
 import qualified Penny.Copper.Terminals as T
+import qualified Penny.Lincoln.Transaction as LT
 import qualified Data.Time as Time
 import qualified Penny.Copper.Types as Y
 import qualified Penny.Lincoln as L
+import Penny.Lincoln.Family.Family (parent)
+import Penny.Lincoln.Family (orphans)
 import System.Locale (defaultTimeLocale)
+import qualified Data.Traversable as Tr
 
 -- | Is True if a sub account can be rendered at Level 1;
 -- False otherwise.
@@ -177,8 +182,11 @@ amount gs f a = let
             Just l2 -> (q, l2)
     return $ X.concat [l, ws, r]
 
-comment :: X.Text -> X.Text
-comment x = '#' `cons` x `snoc` '\n'
+comment :: X.Text -> Maybe X.Text
+comment x =
+  if (not . X.all T.nonNewline $ x)
+  then Nothing
+  else Just $ '#' `cons` x `snoc` '\n'
 
 -- | Render a DateTime. If the DateTime is midnight, then the time and
 -- time zone will not be printed. Otherwise, the time and time zone
@@ -197,3 +205,203 @@ dateTime dt = X.pack $ Time.formatTime defaultTimeLocale fmt zt
           then fmtShort
           else fmtLong
 
+entry
+  :: GroupSpecs
+  -> L.Format
+  -> L.Entry
+  -> Maybe X.Text
+entry gs f (L.Entry dc a) = do
+  amt <- amount gs f a
+  let dcTxt = X.pack $ case dc of
+        L.Debit -> "<"
+        L.Credit -> ">"
+  return $ X.append (X.snoc dcTxt ' ') amt
+
+flag :: L.Flag -> Maybe X.Text
+flag (L.Flag fl) =
+  if X.all T.flagChar fl
+  then Just $ '[' `cons` fl `snoc` ']'
+  else Nothing
+
+number :: L.Number -> Maybe Text
+number (L.Number t) =
+  if X.all T.numberChar t
+  then Just $ '(' `cons` t `snoc` ')'
+  else Nothing
+
+lvl2Payee :: L.Payee -> Maybe Text
+lvl2Payee (L.Payee p) = do
+  (c1, cs) <- X.uncons p
+  guard (T.letter c1)
+  guard (X.all T.nonNewline cs)
+  return p
+
+lvl1Payee :: L.Payee -> Maybe Text
+lvl1Payee (L.Payee p) = do
+  guard (not . X.null $ p)
+  guard (X.all T.quotedPayeeChar p)
+  return $ '~' `X.cons` p `X.snoc` '~'
+
+payee :: L.Payee -> Maybe Text
+payee p = lvl2Payee p <|> lvl1Payee p
+
+price ::
+  GroupSpecs
+  -> L.PricePoint
+  -> Maybe X.Text
+price gs pp = let
+  dateTxt = dateTime (L.dateTime pp)
+  (L.From from) = L.from . L.price $ pp
+  (L.To to) = L.to . L.price $ pp
+  (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
+  mayFromTxt = lvl3Cmdty from <|> lvl1CmdtyQuoted from
+  amt = L.Amount q to
+  in do
+    fmt <- L.priceFormat . L.ppMeta $ pp
+    let mayAmtTxt = amount gs fmt amt
+    amtTxt <- mayAmtTxt
+    fromTxt <- mayFromTxt
+    return $
+       (X.intercalate (X.singleton ' ')
+       [X.singleton '@', dateTxt, fromTxt, amtTxt])
+       `snoc` '\n'
+
+tag :: L.Tag -> Maybe X.Text
+tag (L.Tag t) =
+  if X.all T.tagChar t
+  then Just $ X.cons '*' t
+  else Nothing
+
+tags :: L.Tags -> Maybe X.Text
+tags (L.Tags ts) =
+  X.intercalate (X.singleton ' ')
+  <$> mapM tag ts
+
+transactionMemo :: L.Memo -> Maybe X.Text
+transactionMemo (L.Memo x) =
+  let ls = X.split (== '\n') x
+  in if null ls || (not (all (X.all T.nonNewline) ls))
+     then Nothing
+     else
+      let mkLn l = X.singleton ';' `X.append` l `X.snoc` '\n'
+      in Just . X.concat . map mkLn $ ls
+
+postingMemo :: L.Memo -> Maybe X.Text
+postingMemo (L.Memo x) =
+  let ls = X.split (== '\n') x
+  in if null ls || not (all (X.all T.nonNewline) ls)
+     then Nothing
+     else
+      let mkLine l = X.pack (replicate 8 ' ')
+                     `X.snoc` '\''
+                     `X.append` l
+                     `X.snoc` '\n'
+      in Just . X.concat . map mkLine $ ls
+
+-- | Takes a field that may or may not be present and a function that
+-- renders it. If the field is not present at all, returns an empty
+-- Text. Otherwise will succeed or fail depending upon whether the
+-- rendering function succeeds or fails.
+renMaybe :: Maybe a -> (a -> Maybe X.Text) -> Maybe X.Text
+renMaybe mx f = case mx of
+  Nothing -> Just X.empty
+  Just a -> f a
+
+topLine :: LT.TopLine -> Maybe X.Text
+topLine tl =
+  f
+  <$> renMaybe (LT.tMemo tl) transactionMemo
+  <*> renMaybe (LT.tFlag tl) flag
+  <*> renMaybe (LT.tNumber tl) number
+  <*> renMaybe (LT.tPayee tl) payee
+  where
+    f meX flX nuX paX =
+      meX
+      `X.append` (txtWords [dtX, flX, nuX, paX])
+      `X.snoc` '\n'
+    dtX = dateTime (LT.tDateTime tl)
+
+-- | Merges a list of words into one Text; however, if any given Text
+-- is empty, that Text is first dropped from the list.
+txtWords :: [X.Text] -> X.Text
+txtWords xs = case filter (not . X.null) xs of
+  [] -> X.empty
+  rs -> X.unwords rs
+
+-- | Renders a Posting. Fails if any of the components
+-- fail to render. In addition, if the unverified Posting has an
+-- Entry, a Format must be provided, otherwise render fails.
+--
+-- The columns look like this. Column numbers begin with 0 (like they
+-- do in Emacs) rather than with column 1 (like they do in
+-- Vim). (Really Emacs is the strange one; most CLI utilities seem to
+-- start with column 1 too...)
+--
+-- > ID COLUMN WIDTH WHAT
+-- > ---------------------------------------------------
+-- > A    0      4     Blank spaces for indentation
+-- > B    4      50    Flag, Number, Payee, Account, Tags
+-- > C    54     2     Blank spaces for padding
+-- > D    56     NA    Entry
+--
+-- Omit the padding after column B if there is no entry; also omit
+-- columns C and D entirely if there is no Entry. (It is annoying to
+-- have extraneous blank space in a file).
+posting ::
+  GroupSpecs
+  -> L.Posting
+  -> Maybe X.Text
+posting gs p = do
+  fl <- renMaybe (LT.pFlag p) flag
+  nu <- renMaybe (LT.pNumber p) number
+  pa <- renMaybe (LT.pPayee p) payee
+  ac <- account (LT.pAccount p)
+  ta <- tags (LT.pTags p)
+  me <- renMaybe (LT.pMemo p) postingMemo
+  maybePair <- case (LT.pInferred p, L.postingFormat . LT.pMeta $ p) of
+    (LT.Inferred, Nothing) -> return Nothing
+    (LT.NotInferred, Just f) -> return (Just (LT.pEntry p, f))
+    _ -> Nothing
+  let renderEn (e, f) = entry gs f e
+  en <- renMaybe maybePair renderEn
+  return $ formatter fl nu pa ac ta en me
+
+formatter ::
+  X.Text    -- ^ Flag
+  -> X.Text -- ^ Number
+  -> X.Text -- ^ Payee
+  -> X.Text -- ^ Account
+  -> X.Text -- ^ Tags
+  -> X.Text -- ^ Entry
+  -> X.Text -- ^ Memo
+  -> X.Text
+formatter fl nu pa ac ta en me = let
+  colA = X.pack (replicate 4 ' ')
+  colBnoPad = txtWords [fl, nu, pa, ac, ta]
+  colD = en
+  colB = if X.null en
+         then colBnoPad
+         else X.justifyLeft 50 ' ' colBnoPad
+  colC = if X.null en
+         then X.empty
+         else X.pack (replicate 2 ' ')
+  rtn = X.singleton '\n'
+  in X.concat [colA, colB, colC, colD, rtn, me]
+
+
+transaction ::
+  GroupSpecs
+  -> L.Transaction
+  -> Maybe X.Text
+transaction gs txn = do
+  let txnFam = LT.unTransaction txn
+  tlX <- topLine (parent txnFam)
+  pstgsX <- Tr.traverse (posting gs) (orphans txnFam)
+  return $ tlX `X.append` (X.concat (toList pstgsX))
+
+item :: GroupSpecs -> Y.Item -> Maybe X.Text
+item gs i = case i of
+  Y.BlankLine -> Just . X.singleton $ '\n'
+  Y.Comment x -> comment x
+  Y.PricePoint pp -> price gs pp
+  Y.Transaction t -> transaction gs t

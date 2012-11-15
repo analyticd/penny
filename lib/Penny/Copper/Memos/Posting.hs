@@ -24,15 +24,3 @@ memoLine = fmap (++ "\n") p
         <* eol
         <?> "posting memo"
 
-render :: B.Memo -> Maybe X.Text
-render (B.Memo x) =
-  let ls = X.split (== '\n') x
-  in if null ls || not (all (X.all isMemoChar) ls)
-     then Nothing
-     else
-      let mkLine l = X.pack (replicate 8 ' ')
-                     `X.snoc` '\''
-                     `X.append` l
-                     `X.snoc` '\n'
-      in Just . X.concat . map mkLine $ ls
-
