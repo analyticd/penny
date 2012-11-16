@@ -337,14 +337,13 @@ memoCell bc info width = (ts, cell) where
   vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify w ts cs
   ts = PC.colors vn bc
-  pm = Q.postingMemo . L.boxPostFam $ info
-  tm = Q.transactionMemo . L.boxPostFam $ info
-  nullMemo (L.Memo m) = X.null m
-  cs = case (nullMemo pm, nullMemo tm) of
-    (True, True) -> mempty
-    (False, True) -> memoBits ts pm w
-    (True, False) -> memoBits ts tm w
-    (False, False) -> memoBits ts pm w `mappend` memoBits ts tm w
+  mayPm = Q.postingMemo . L.boxPostFam $ info
+  mayTm = Q.transactionMemo . L.boxPostFam $ info
+  cs = case (mayPm, mayTm) of
+    (Nothing, Nothing) -> mempty
+    (Nothing, Just tm) -> memoBits ts tm w
+    (Just pm, Nothing) -> memoBits ts pm w
+    (Just pm, Just tm) -> memoBits ts pm w `mappend` memoBits ts tm w
 
 
 filenameCell :: PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)

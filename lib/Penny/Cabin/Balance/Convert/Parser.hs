@@ -15,8 +15,7 @@ import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
-import qualified Penny.Copper.Commodity as CC
-import qualified Penny.Copper.DateTime as CD
+import qualified Penny.Copper.Parsec as Pc
 import qualified System.Console.MultiArg.Combinator as C
 import qualified Text.Parsec as Parsec
 import System.Console.MultiArg.Prim (Parser)
@@ -84,7 +83,7 @@ parseCommodity :: C.OptSpec (Opts -> Opts)
 parseCommodity = C.OptSpec ["commodity"] "c" (C.OneArg f)
   where
     f a1 os =
-      case Parsec.parse CC.lvl1Cmdty "" (X.pack a1) of
+      case Parsec.parse Pc.lvl1Cmdty "" (X.pack a1) of
         Left _ -> Ly.abort $ "invalid commodity: " ++ a1
         Right g -> os { target = ManualTarget . L.To $ g }
 
@@ -92,7 +91,7 @@ parseDate :: C.OptSpec (Opts -> Opts)
 parseDate = C.OptSpec ["date"] "d" (C.OneArg f)
   where
     f a1 os =
-      case Parsec.parse CD.dateTime "" (X.pack a1) of
+      case Parsec.parse Pc.dateTime "" (X.pack a1) of
         Left _ -> Ly.abort $ "invalid date: " ++ a1
         Right g -> os { dateTime = g }
 

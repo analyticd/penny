@@ -1,9 +1,15 @@
 -- | Copper - the Penny parser
-module Penny.Copper where
+module Penny.Copper
+  ( parse
+  , Y.Item(BlankLine, Comment, PricePoint, Transaction)
+  , Y.Ledger(Ledger, unLedger)
+  , FileContents(FileContents, unFileContents)
+  , ErrorMsg (unErrorMsg)
+  ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
-import Text.Parsec ( manyTill, eof )
+import qualified Text.Parsec as Parsec
 import qualified Penny.Copper.Parsec as CP
 
 import qualified Penny.Lincoln as L
@@ -21,7 +27,7 @@ parseFile ::
 parseFile (fn, (FileContents c)) =
   let p = fmap (addFileMetadata fn) CP.ledger
       fnStr = X.unpack . L.unFilename $ fn
-  in case P.parse p fnStr c of
+  in case Parsec.parse p fnStr c of
     Left err -> Ex.throw (ErrorMsg . X.pack . show $ err)
     Right g -> return g
 

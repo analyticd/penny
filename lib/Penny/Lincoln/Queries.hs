@@ -26,10 +26,10 @@ number = best T.pNumber T.tNumber
 flag :: T.PostFam -> Maybe B.Flag
 flag = best T.pFlag T.tFlag
 
-postingMemo :: T.PostFam -> B.Memo
+postingMemo :: T.PostFam -> Maybe B.Memo
 postingMemo = T.pMemo . child . T.unPostFam
 
-transactionMemo :: T.PostFam -> B.Memo
+transactionMemo :: T.PostFam -> Maybe B.Memo
 transactionMemo = T.tMemo . parent . T.unPostFam
 
 dateTime :: T.PostFam -> B.DateTime

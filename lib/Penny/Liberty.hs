@@ -49,8 +49,7 @@ import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Combinator (OptSpec)
 import Text.Parsec (parse)
 
-import Penny.Copper.DateTime (dateTime)
-import Penny.Copper.Qty (qty)
+import qualified Penny.Copper.Parsec as Pc
 
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
@@ -231,7 +230,7 @@ parseComparer t
   | otherwise = abort $ "invalid comparer: " ++ t
 
 parseDate :: Text -> L.DateTime
-parseDate t = case parse dateTime "" t of
+parseDate t = case parse Pc.dateTime "" t of
   Left _ -> abort $ "could not parse date: " ++ unpack t
   Right d -> d
 
@@ -383,7 +382,7 @@ qtyOption :: OptSpec Operand
 qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
   where
     f a1 a2 =
-      let q = case parse qty "" (pack a2) of
+      let q = case parse Pc.quantity "" (pack a2) of
             Left _ -> abort $ "invalid quantity: " ++ a2
             Right g -> g
           cmp = parseComparer a1

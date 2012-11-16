@@ -272,14 +272,14 @@ ymd p = X.pack (Time.formatTime defaultTimeLocale fmt d) where
 -- | Shows the quantity of a posting. Does no rounding or
 -- prettification; simply uses show on the underlying Decimal.
 qtyAsIs :: Box -> X.Text
-qtyAsIs p = X.pack . show . L.unQty . Q.qty . L.boxPostFam $ p
+qtyAsIs p = X.pack . show . Q.qty . L.boxPostFam $ p
 
 -- | Shows the quantity of a balance. If there is no quantity, shows
 -- two dashes.
 balanceAsIs :: a -> L.BottomLine -> X.Text
 balanceAsIs _ n = case n of
   L.Zero -> X.pack "--"
-  L.NonZero c -> X.pack . show . L.unQty . Bal.qty $ c
+  L.NonZero c -> X.pack . show . Bal.qty $ c
 
 -- | The default width for the report.
 defaultWidth :: T.ReportWidth

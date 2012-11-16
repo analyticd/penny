@@ -63,7 +63,7 @@ fromParseOpts fmt (P.ParseOpts dc bc _ szb o) =
   Opts dc bc fmt szb o
 
 defaultFormat :: a -> L.Qty -> X.Text
-defaultFormat _ = X.pack . show . L.unQty
+defaultFormat _ = X.pack . show
 
 summedSortedBalTree ::
   CO.ShowZeroBalances

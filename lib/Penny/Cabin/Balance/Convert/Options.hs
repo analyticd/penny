@@ -48,8 +48,8 @@ defaultOptions rt = DefaultOpts {
   , target = P.AutoTarget
   , dateTime = S.currentTime rt
   , sortOrder = P.Ascending
-  , sortBy = P.SortByName 
-  , format = X.pack . show . L.unQty
+  , sortBy = P.SortByName
+  , format = X.pack . show
   }
 
 

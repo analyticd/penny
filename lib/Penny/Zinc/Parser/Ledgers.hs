@@ -51,12 +51,12 @@ parseLedgers
 parseLedgers ls =
   let toPair (f, t) = (convertFilename f, C.FileContents t)
       parsed = C.parse (map toPair ls)
-      folder i (ts, ps) = case snd i of
+      folder i (ts, ps) = case i of
         C.Transaction t -> (t:ts, ps)
-        C.Price p -> (ts, p:ps)
+        C.PricePoint p -> (ts, p:ps)
         _ -> (ts, ps)
       toResult (C.Ledger is) = foldr folder ([], []) is
-      toErr (C.ErrorMsg x) = ZE.ParseError x
+      toErr x = ZE.ParseError . C.unErrorMsg $ x
   in Ex.mapExceptional toErr toResult parsed
 
 

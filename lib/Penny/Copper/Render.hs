@@ -4,7 +4,7 @@ import Control.Monad (guard)
 import Control.Applicative ((<$>), (<|>), (<*>))
 import Data.Foldable (toList)
 import Data.List (intersperse, intercalate)
-import Data.List.Split (splitEvery, splitOn)
+import Data.List.Split (chunksOf, splitOn)
 import qualified Data.Text as X
 import Data.Text (Text, cons, snoc)
 import qualified Penny.Copper.Terminals as T
@@ -95,7 +95,7 @@ groupWhole gs o = let
   grouped = intercalate grouper
             . reverse
             . map reverse
-            . splitEvery 3
+            . chunksOf 3
             . reverse
             $ o
   in case gs of
@@ -107,7 +107,7 @@ groupWhole gs o = let
 groupDecimal :: GroupSpec -> String -> String
 groupDecimal gs o = let
   grouped = intercalate grouper
-            . splitEvery 3
+            . chunksOf 3
             $ o
   in case gs of
     NoGrouping -> o

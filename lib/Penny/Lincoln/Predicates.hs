@@ -45,8 +45,8 @@ matchLevel i f a = let ts = textList a in
 
 -- | Does the matcher match the text of the memo? Does nothing special
 -- to account for line breaks in the memo.
-matchMemo :: (Text -> Bool) -> B.Memo -> Bool
-matchMemo f = f . text
+matchMemo :: (Text -> Bool) -> Maybe B.Memo -> Bool
+matchMemo f = maybe False (f . text)
 
 
 matchMaybeLevel ::
