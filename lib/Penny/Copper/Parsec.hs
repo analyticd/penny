@@ -209,8 +209,8 @@ dateTime =
           Nothing -> (L.midnight, L.noOffset)
           Just (hr, mn, mayS, mayTz) ->
             let sec = fromMaybe L.zeroSeconds mayS
-                tz = fromMaybe L.noOffset mayTz
-            in ((hr, mn, sec), tz)
+                z = fromMaybe L.noOffset mayTz
+            in ((hr, mn, sec), z)
 
 debit :: Parser L.DrCr
 debit = L.Debit <$ satisfy T.lessThan
