@@ -2,7 +2,8 @@
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
 module Penny.Lincoln.Bits.Qty (
-  Qty, NumberStr(..), toQty, mantissa, places,
+  Qty, NumberStr(..), toQty, mantissa, places, newQty,
+  Mantissa, Places,
   add, mult, Difference(LeftBiggerBy, RightBiggerBy, Equal),
   equivalent, difference, allocate) where
 
@@ -72,15 +73,27 @@ data Qty = Qty { mantissa :: Integer
                , places :: Integer
                } deriving Eq
 
+type Mantissa = Integer
+type Places = Integer
+
+newQty :: Mantissa -> Places -> Maybe Qty
+newQty m p
+  | m > 0  && p >= 0 = Just $ Qty m p
+  | otherwise = Nothing
+
 instance Show Qty where
   show (Qty m e) =
     let man = show m
         len = genericLength man
+        small = "0." ++ ((genericReplicate (e - len) '0') ++ man)
     in case compare e len of
-        GT -> '.' : ((genericReplicate (e - len) '0') ++ man)
-        _ ->
+        GT -> small
+        EQ -> small
+        LT ->
           let (b, end) = genericSplitAt (len - e) man
-          in b ++ ['.'] ++ end
+          in if e == 0
+             then man
+             else b ++ ['.'] ++ end
 
 
 instance Ord Qty where

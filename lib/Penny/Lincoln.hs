@@ -84,6 +84,8 @@ module Penny.Lincoln (
   , I.mult
   , I.difference
   , I.equivalent
+  , I.newQty
+  , I.Mantissa, I.Places
   , I.Difference(..)
   , I.allocate
 
