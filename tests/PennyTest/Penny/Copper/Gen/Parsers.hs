@@ -2,6 +2,7 @@ module PennyTest.Penny.Copper.Gen.Parsers where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad.Trans.Class (lift)
+import Control.Monad (replicateM)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (genericLength, genericSplitAt, genericReplicate)
 import qualified Penny.Lincoln as L
@@ -161,8 +162,19 @@ qtyDigits q =
 -- are the same number.) There might also be leading zeroes, as these
 -- do not affect the number's final value (trailing zeroes do.) This
 -- function returns a random generation that takes these variations
--- into account. There will be no digit grouping.
-baseRender :: (String, String) -> Ex.ExceptionalT P.Result Gen String
+-- into account.
+--
+-- Returned is a pair. The first element is what to show to the left
+-- of the decimal point. The second element is a Maybe, which is
+-- Nothing if there is no decimal point and nothing after it, a Just
+-- "" if there is a decimal point, but nothing to show after it, or a
+-- Just non-empty string if there is a decimal point and something to
+-- show after it.
+--
+--  There will be no digit grouping.
+baseRender
+  :: (String, String)
+  -> Ex.ExceptionalT P.Result Gen (String, Maybe String)
 baseRender (l, r) = do
   l' <- lift $ Q.sized $ \s -> do
           n <- G.oneof [return 0, G.choose (0, s)]
@@ -170,15 +182,64 @@ baseRender (l, r) = do
   r' <- case r of
     "" -> do
       showDot <- lift Q.arbitrary
-      return $ if showDot then "." else ""
-    _ -> return $ '.' : r
+      return $ if showDot then Just "" else Nothing
+    _ -> return . Just $ r
   case (l, r) of
     ("", "") -> Ex.throwT P.failed { P.reason = e }
       where e = "quantity rendering has no digits."
-    _ -> return $ l' ++ r'
+    _ -> return $ (l', r')
 
 
 
--- | Randomly add some thin spaces to a string.
-addThinSpaces :: String -> Gen String
-addThinSpaces = undefined
+-- | Randomly add some thin spaces to a string. Does not always add
+-- thin spaces at all.
+addThinSpaces :: (String, Maybe String) -> Gen (String, Maybe String)
+addThinSpaces (s, ms) = do
+  addLeft <- Q.arbitrary
+  addRight <- Q.arbitrary
+  let genThin = G.elements [Nothing, Just '\x2009']
+  l <- if addLeft then interleave genThin s else return s
+  r <- case ms of
+    Nothing -> return Nothing
+    Just sr -> fmap Just $
+               if addRight then interleave genThin sr else return sr
+  return (l, r)
+
+
+renderQty :: (String, Maybe String) -> X.Text
+renderQty (l, mr) = (pack l) `X.append` r
+  where
+    r = case mr of
+      Nothing -> X.empty
+      Just r -> '.' `X.cons` (X.pack r)
+
+-- | Given a generator for a mantissa and an exponent, return a Qty
+-- and a string that should parse to that Qty. Half of these strings
+-- will have thin spaces included; half will not.
+qtyWithRendering
+  :: Gen (L.Mantissa, L.Places)
+  -> Ex.ExceptionalT P.Result Gen (L.Qty, X.Text)
+qtyWithRendering g = do
+  q <- mkQty g
+  let qd = qtyDigits q
+  baseR <- baseRender qd
+  withSpaces <- lift $ addThinSpaces baseR
+  return (q, renderQty withSpaces)
+
+randQtys :: Gen (L.Qty, X.Text)
+randQtys =
+  Ex.resolveT (error . P.reason)
+  $ qtyWithRendering (G.oneof [ verySmall, expNumOfDigits, sizedQty, large,
+                                typical ])
+
+interleave :: Gen (Maybe a) -> [a] -> Gen [a]
+interleave g ls = case ls of
+  [] -> return []
+  a:[] -> return [a]
+  a:as -> do
+    r <- g
+    rest <- interleave g as
+    return $ case r of
+      Nothing -> a:rest
+      Just rt -> a:rt:rest
+
