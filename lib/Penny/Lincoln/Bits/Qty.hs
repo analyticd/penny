@@ -35,7 +35,7 @@ data NumberStr =
 
 -- | Converts strings to Qty. Fails if any of the strings have
 -- non-digits, or if any are negative, or if the result is not greater
--- than zero.
+-- than zero, or if the strings are empty.
 toQty :: NumberStr -> Maybe Qty
 toQty ns = case ns of
   Whole s -> fmap (\m -> Qty m 0) (readInteger s)
@@ -153,10 +153,12 @@ difference x y =
     EQ -> Equal
 
 add :: Qty -> Qty -> Qty
-add (Qty xm xe) (Qty ym _) = Qty (xm + ym) xe
+add x y =
+  let ((Qty xm e), (Qty ym _)) = equalizeExponents x y
+  in Qty (xm + ym) e
 
 mult :: Qty -> Qty -> Qty
-mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe * ye)
+mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe + ye)
 
 
 -- | Allocate a Qty proportionally so that the sum of the results adds

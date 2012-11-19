@@ -85,74 +85,6 @@ lvl3Cmdty = do
   cs <- fmap pack $ G.listOf1 T.lvl3CmdtyChar
   return (L.Commodity cs, cs)
 
--- | Generates integers.
-integers :: Gen (L.Mantissa, L.Places)
-integers = (\m -> (m, 0))
-           <$> G.choose (1, fromIntegral (maxBound :: Int))
-
--- | How many digits does this number have?
-numOfDigits :: Integer -> Integer
-numOfDigits = genericLength . show
-
--- | Generates very small numbers.
-verySmall :: Gen (L.Mantissa, L.Places)
-verySmall = do
-  m <- G.choose (1, fromIntegral (maxBound :: Int))
-  let nd = numOfDigits m
-  p <- G.choose (nd * 10, nd * 100)
-  return (m, p)
-
--- | Generates numbers where the exponent is equal to the number of
--- digits (e.g. .345).
-expNumOfDigits :: Gen (L.Mantissa, L.Places)
-expNumOfDigits = G.sized $ \s -> do
-  m <- G.choose (1, max 1 (fromIntegral s))
-  return (m, numOfDigits m)
-
--- | Generates numbers that depend on size parameter. The exponent has
--- up to five more places than in the number generated.
-sizedQty :: Gen (L.Mantissa, L.Places)
-sizedQty = G.sized $ \s -> do
-  m <- G.choose (1, max 1 (fromIntegral (s ^ (3 :: Int))))
-  p <- G.choose (0, numOfDigits m + 5)
-  return (m, p)
-
--- | Generates large numbers.
-large :: Gen (L.Mantissa, L.Places)
-large = do
-  m <- G.choose (10 ^ (7 :: Int), (fromIntegral (maxBound :: Int)))
-  p <- G.choose (0, 4)
-  return (m, p)
-
-
--- | Generates typical numbers.
-typical :: Gen (L.Mantissa, L.Places)
-typical = (,)
-          <$> G.choose (1, 10 ^ (7 :: Int))
-          <*> G.choose (0, 4)
-
-mkQty
-  :: Gen (L.Mantissa, L.Places)
-  -> Ex.ExceptionalT P.Result Gen L.Qty
-mkQty g = do
-  (m, p) <- lift g
-  case L.newQty m p of
-    Nothing -> Ex.throwT P.failed { P.reason = e }
-      where e = "failed to make Qty."
-    Just q -> return q
-
--- | Given a Qty, return the digits that are before and after the
--- decimal point.
-qtyDigits :: L.Qty -> (String, String)
-qtyDigits q =
-  let (m, p) = (L.mantissa q, L.places q)
-      nd = numOfDigits m
-      (l, r) = genericSplitAt (nd - p) (show m)
-  in if p > nd
-     then (l, genericReplicate (p - nd) '0' ++ r)
-     else (l, r)
-
-
 -- | Given the digits that are before and after the decimal point,
 -- generate a base rendering. If q is a qty, then show q will always
 -- return the same string. However, when being parsed from a file, a
@@ -189,6 +121,17 @@ baseRender (l, r) = do
       where e = "quantity rendering has no digits."
     _ -> return $ (l', r')
 
+
+-- | Given a Qty, return the digits that are before and after the
+-- decimal point.
+qtyDigits :: L.Qty -> (String, String)
+qtyDigits q =
+  let (m, p) = (L.mantissa q, L.places q)
+      nd = numOfDigits m
+      (l, r) = genericSplitAt (nd - p) (show m)
+  in if p > nd
+     then (l, genericReplicate (p - nd) '0' ++ r)
+     else (l, r)
 
 
 -- | Randomly add some thin spaces to a string. Does not always add
