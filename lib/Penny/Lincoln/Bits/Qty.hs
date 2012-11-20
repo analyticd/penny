@@ -7,17 +7,11 @@ module Penny.Lincoln.Bits.Qty (
   add, mult, Difference(LeftBiggerBy, RightBiggerBy, Equal),
   equivalent, difference, allocate) where
 
-import Control.Monad (when)
-import Control.Monad.Loops (iterateUntil)
-import Control.Monad.Trans.Class (lift)
-import qualified Control.Monad.Trans.Maybe as TM
 import qualified Data.Foldable as F
 import Data.List (genericLength, genericReplicate, genericSplitAt)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
-import Data.Maybe (isJust)
-import qualified Control.Monad.Trans.State as St
-import qualified Data.Traversable as Tr
+import qualified Data.Map as M
 
 data NumberStr =
   Whole String
@@ -178,10 +172,12 @@ allocate
   -- allocation.
 
 allocate tot ls =
-  let (tot', ls', newExp) = sameExponent tot ls
-      (r, plus) = allocNoZeroes (mantissa tot') (fmap mantissa ls')
-      allocedDecs = fmap (\i -> Qty i newExp) r
-  in fmap (increaseExponent plus) allocedDecs
+  let (tot', ls', e') = sameExponent tot ls
+      (tI, lsI) = (mantissa tot', fmap mantissa ls')
+      (seats, pops, moreE) = growTarget tI lsI
+      del = allocateSeats seats pops
+      totE = e' + moreE
+  in fmap (\m -> Qty m totE) $ del
 
 
 -- | Given a list of Decimals, and a single Decimal, return Decimals
@@ -198,77 +194,88 @@ sameExponent dec ls =
       ls' = fmap (increaseExponentTo newExp) ls
   in (dec', ls', newExp)
 
--- | Allocates integers so that no zeroes are in the result.
--- May have had to multiply the integers by a
--- power of ten; this power is returned with the result.
-allocNoZeroes
+
+-- | Given an Integer and a list of Integers, multiply all integers by
+-- ten raised to an exponent, so that the first Integer is at least as
+-- large as the count of the number of Integers in the list. Returns
+-- the new Integer, new list of Integers, and the exponent used.
+growTarget
   :: Integer
   -> NonEmpty Integer
-  -> (NonEmpty Integer, Integer)
-allocNoZeroes tot ls =
-  let k = do
-        p <- St.get
-        St.modify succ
-        let tot' = tot * 10 ^ p
-        return $ (p, allocIntegers tot' ls)
-      pdct (_, r) = isJust r
-      loopResult = St.evalState (iterateUntil pdct k) 0
-  in case snd loopResult of
-    Nothing ->  error "allocNoZeroes: should never happen"
-    Just g -> (g, fst loopResult)
+  -> (Integer, NonEmpty Integer, Integer)
+growTarget target is = go target is 0
+  where
+    len = genericLength . F.toList $ is
+    go t xs c =
+      let t' = t * 10 ^ c
+          xs' = fmap (\x -> x * 10 ^ c) xs
+      in if t' >= len
+         then (t', xs', c)
+         else go t' xs' (c + 1)
+
+type Pop = Integer
+type Curr = Integer
+type Priority = Double
+type Divisor = Double
+type Who = Integer
+type TotSeats = Integer
+type SeatsLeft = Integer
+type Delegation = Integer
+
+-- | Calculates a single Huntington-Hill multiplier.
+divisor :: Curr -> Divisor
+divisor n = let f = fromIntegral n in sqrt (f * (f + 1))
+
+priority :: Pop -> Curr -> Priority
+priority p n =
+  let fp = fromIntegral p
+      fn = fromIntegral n
+  in fp / (divisor fn)
 
 
--- | Allocates a non-empty list of integers. Computes an amount for
--- each integer in the list. Stops if any of the allocations would be
--- zero (in such a case, increase the size of what to allocate, then
--- try again.)
-allocIntegers
-  :: Integer
-  -- ^ All the results will sum up to this integer.
+allocateSeats
+  :: TotSeats
+  -> NonEmpty Pop
+  -> NonEmpty Delegation
+allocateSeats tot pops =
+  let start = startingAllocation pops
+      r = allocateSeatsR (tot - fromIntegral (M.size start)) start
+  in NE.fromList . map snd . M.elems $ r
 
-  -> NonEmpty Integer
-  -- ^ Allocate these integers.
+allocateSeatsR
+  :: SeatsLeft
+  -> M.Map Who (Pop, Delegation)
+  -> M.Map Who (Pop, Delegation)
+allocateSeatsR l m =
+  let m' = allocateSeat m
+  in if l == 0
+      then m
+      else allocateSeatsR (l - 1) m'
 
-  -> Maybe (NonEmpty Integer)
 
-allocIntegers tgt ls =
-  let sumAllocs = F.sum ls
-      nAllocs = length . F.toList $ ls
-      lsWithIxs = NE.zip (NE.iterate succ 0) ls
-      k = Tr.traverse (allocator sumAllocs tgt nAllocs) lsWithIxs
-  in St.evalState (TM.runMaybeT k) tgt
+startingAllocation
+  :: NonEmpty Pop
+  -> M.Map Who (Pop, Delegation)
+startingAllocation =
+  M.fromList
+  . zip [0..]
+  . map (\p -> (p, 1))
+  . F.toList
 
-type AllocLeft = Integer
+allocateSeat
+  :: M.Map Who (Pop, Delegation)
+  -> M.Map Who (Pop, Delegation)
+allocateSeat m =
+  let priorities = fmap (\(p, d) -> priority p d) m
+      winner = maxValue priorities
+  in M.adjust (\(p, d) -> (p, d + 1)) winner m
 
--- | Stateful computation that allocates integers.
-allocator
-  :: Integer
-  -- ^ Sum of all allocations
+maxValue :: (Ord k, Ord v) => M.Map k v -> k
+maxValue m = case F.foldl' f Nothing . M.assocs $ m of
+  Nothing -> error "maxValue error"
+  Just (k, _) -> k
+  where
+    f Nothing (k, v) = Just (k, v)
+    f (Just (k1, v1)) (k2, v2) =
+      if v1 >= v2 then Just (k1, v1) else Just (k2, v2)
 
-  -> Integer
-  -- ^ Target total
-
-  -> Int
-  -- ^ Total number of all allocations (that's the number of
-  -- allocations, not their sum)
-
-  -> (Int, Integer)
-  -- ^ This allocation's index and the allocation
-
-  -> TM.MaybeT (St.State AllocLeft) Integer
-allocator s t n (ix, a) = do
-  when (s < 1 || t < 1 || n < 1 || a < 1)
-    $ error "allocator: fail 1"
-  when ((ix > n - 1) || (ix < 0)) $ error "allocator: fail 2"
-  let td = fromIntegral :: Integer -> Double
-      r = round (((td a) * (td t)) / (td s))
-  if ix == (n - 1)
-    then do
-      l <- lift St.get
-      when (l < 1) (fail "")
-      lift $ St.put 0
-      return l
-    else do
-      when (r < 1) (fail "")
-      lift $ St.modify (subtract r)
-      return r

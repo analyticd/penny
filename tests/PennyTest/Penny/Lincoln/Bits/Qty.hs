@@ -312,7 +312,7 @@ allocateSum q ls = (F.foldl1 Q.add ls) `Q.equivalent` q
 ex_allocations
   :: Ex.ExceptionalT P.Result G.Gen P.Result
 ex_allocations = do
-  (tot, ls) <- oneof [gen_allocate_typical, gen_allocate_mixed]
+  (tot, ls) <- gen_allocate_typical
   let a = Q.allocate tot ls
   return $ P.liftBool
            ((allocateSum tot a)
