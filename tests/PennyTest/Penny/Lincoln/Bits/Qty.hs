@@ -312,9 +312,15 @@ allocateSum q ls = (F.foldl1 Q.add ls) `Q.equivalent` q
 ex_allocations
   :: Ex.ExceptionalT P.Result G.Gen P.Result
 ex_allocations = do
-  (tot, ls) <- gen_allocate_typical
+  (tot, ls) <- oneof [gen_allocate_typical, gen_allocate_mixed]
   let a = Q.allocate tot ls
-  return $ P.liftBool
-           ((allocateSum tot a)
-           && ((length . F.toList $ ls) == (length . F.toList $ a)))
+  let e = "target: " ++ show tot ++ " result: " ++ show a
+          ++ " votes: " ++ show ls
+  mapM_ (checkQtyVerbose e) . NE.toList $ a
+  if allocateSum tot a then return ()
+    else let r = "allocateSum failed. " ++ e
+         in Ex.throwT (P.failed { P.reason = r })
+  if ((length . F.toList $ ls) == (length . F.toList $ a))
+    then return P.succeeded
+    else return P.failed { P.reason = "lengths do not match" }
 

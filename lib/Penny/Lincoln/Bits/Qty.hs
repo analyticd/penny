@@ -8,10 +8,9 @@ module Penny.Lincoln.Bits.Qty (
   equivalent, difference, allocate) where
 
 import qualified Data.Foldable as F
-import Data.List (genericLength, genericReplicate, genericSplitAt)
-import Data.List.NonEmpty (NonEmpty)
-import qualified Data.List.NonEmpty as NE
-import qualified Data.Map as M
+import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
+import Data.List.NonEmpty (NonEmpty((:|)))
+import Data.Ord (comparing)
 
 data NumberStr =
   Whole String
@@ -106,6 +105,7 @@ equalizeExponents x y = (x', y')
       LT -> (increaseExponent (ey - ex) x, y)
       EQ -> (x, y)
 
+
 -- | Increase the exponent by the amount given, so that the new Qty is
 -- equivalent to the old one. Takes the absolute value of the
 -- adjustment argument.
@@ -174,10 +174,12 @@ allocate
 allocate tot ls =
   let (tot', ls', e') = sameExponent tot ls
       (tI, lsI) = (mantissa tot', fmap mantissa ls')
-      (seats, pops, moreE) = growTarget tI lsI
-      del = allocateSeats seats pops
+      (seats, (p1 :| ps), moreE) = growTarget tI lsI
+      adjSeats = seats - (genericLength ps + 1)
+      del = largestRemainderMethod (adjSeats, p1 : ps)
       totE = e' + moreE
-  in fmap (\m -> Qty m totE) $ del
+      r1:rs = fmap (\m -> Qty (m + 1) totE) del
+  in r1 :| rs
 
 
 -- | Given a list of Decimals, and a single Decimal, return Decimals
@@ -213,69 +215,47 @@ growTarget target is = go target is 0
          then (t', xs', c)
          else go t' xs' (c + 1)
 
-type Pop = Integer
-type Curr = Integer
-type Priority = Double
-type Divisor = Double
-type Who = Integer
+-- Largest remainder method: votes for one party is divided by
+-- (total votes / number of seats). Result is an integer and a
+-- remainder. Each party gets the number of seats indicated by its
+-- integer. Parties are then ranked on the basis of the remainders, and
+-- those with the largest remainders get an additional seat until all
+-- seats have been distributed.
+type AutoSeats = Integer
+type PartyVotes = Integer
+type TotVotes = Integer
 type TotSeats = Integer
-type SeatsLeft = Integer
-type Delegation = Integer
+type Remainder = Rational
+type SeatsWon = Integer
 
--- | Calculates a single Huntington-Hill multiplier.
-divisor :: Curr -> Divisor
-divisor n = let f = fromIntegral n in sqrt (f * (f + 1))
-
-priority :: Pop -> Curr -> Priority
-priority p n =
-  let fp = fromIntegral p
-      fn = fromIntegral n
-  in fp / (divisor fn)
+autoAndRemainder
+  :: TotSeats -> TotVotes -> PartyVotes -> (AutoSeats, Remainder)
+autoAndRemainder ts tv pv =
+  let fI = fromIntegral
+  in properFraction (fI pv / (fI tv / fI ts))
 
 
-allocateSeats
+type Returns = (TotSeats, [PartyVotes])
+largestRemainderMethod :: Returns -> [SeatsWon]
+largestRemainderMethod rt@(ts, _) =
+  allocRemainder ts . allocAuto $ rt
+
+allocAuto :: Returns -> [(AutoSeats, Remainder)]
+allocAuto (ts, pvs) = map (autoAndRemainder ts (sum pvs)) pvs
+
+allocRemainder
   :: TotSeats
-  -> NonEmpty Pop
-  -> NonEmpty Delegation
-allocateSeats tot pops =
-  let start = startingAllocation pops
-      r = allocateSeatsR (tot - fromIntegral (M.size start)) start
-  in NE.fromList . map snd . M.elems $ r
-
-allocateSeatsR
-  :: SeatsLeft
-  -> M.Map Who (Pop, Delegation)
-  -> M.Map Who (Pop, Delegation)
-allocateSeatsR l m =
-  let m' = allocateSeat m
-  in if l == 0
-      then m
-      else allocateSeatsR (l - 1) m'
-
-
-startingAllocation
-  :: NonEmpty Pop
-  -> M.Map Who (Pop, Delegation)
-startingAllocation =
-  M.fromList
-  . zip [0..]
-  . map (\p -> (p, 1))
-  . F.toList
-
-allocateSeat
-  :: M.Map Who (Pop, Delegation)
-  -> M.Map Who (Pop, Delegation)
-allocateSeat m =
-  let priorities = fmap (\(p, d) -> priority p d) m
-      winner = maxValue priorities
-  in M.adjust (\(p, d) -> (p, d + 1)) winner m
-
-maxValue :: (Ord k, Ord v) => M.Map k v -> k
-maxValue m = case F.foldl' f Nothing . M.assocs $ m of
-  Nothing -> error "maxValue error"
-  Just (k, _) -> k
-  where
-    f Nothing (k, v) = Just (k, v)
-    f (Just (k1, v1)) (k2, v2) =
-      if v1 >= v2 then Just (k1, v1) else Just (k2, v2)
-
+  -> [(AutoSeats, Remainder)]
+  -> [SeatsWon]
+allocRemainder ts ls =
+  let totLeft = ts - (sum . map fst $ ls)
+      (leftForEach, stillLeft) = totLeft `divMod` genericLength ls
+      wIndex = zip ([0..] :: [Integer]) ls
+      sorted = sortBy (comparing (snd . snd)) wIndex
+      wOrder = zip [0..] sorted
+      awarder (ord, (ix, (as, _))) =
+        if ord < stillLeft
+        then (ix, as + leftForEach + 1)
+        else (ix, as + leftForEach)
+      awarded = map awarder wOrder
+  in map snd . sortBy (comparing fst) $ awarded
