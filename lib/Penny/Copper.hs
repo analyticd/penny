@@ -1,8 +1,9 @@
 -- | Copper - the Penny parser
 module Penny.Copper
   ( parse
-  , Y.Item(BlankLine, Comment, PricePoint, Transaction)
+  , Y.Item(BlankLine, IComment, PricePoint, Transaction)
   , Y.Ledger(Ledger, unLedger)
+  , Y.Comment(Comment, unComment)
   , FileContents(FileContents, unFileContents)
   , ErrorMsg (unErrorMsg)
   ) where
@@ -65,7 +66,7 @@ parse ::
 parse ps = fmap addGlobalMetadata $ mapM parseFile ps
 
 data Other = OPrice L.PricePoint
-             | OComment X.Text
+             | OComment Y.Comment
              | OBlankLine
              deriving Show
 
@@ -75,14 +76,14 @@ toEiItem :: Y.Item -> EiItem
 toEiItem i = case i of
   Y.Transaction t -> Right t
   Y.PricePoint p -> Left (OPrice p)
-  Y.Comment c -> Left (OComment c)
+  Y.IComment c -> Left (OComment c)
   Y.BlankLine -> Left OBlankLine
 
 fromEiItem :: EiItem -> Y.Item
 fromEiItem i = case i of
   Left l -> case l of
     OPrice p -> Y.PricePoint p
-    OComment c -> Y.Comment c
+    OComment c -> Y.IComment c
     OBlankLine -> Y.BlankLine
   Right t -> Y.Transaction t
 

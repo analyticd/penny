@@ -91,6 +91,9 @@ large = do
   return (m, p)
 
 
+anyGen :: Gen (Q.Mantissa, Q.Places)
+anyGen = G.oneof [integers, verySmall, expNumOfDigits, sizedQty, large]
+
 -- | Generates typical numbers.
 typical :: Gen (Q.Mantissa, Q.Places)
 typical = (,)

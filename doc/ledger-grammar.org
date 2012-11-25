@@ -222,9 +222,8 @@ Each tag is preceded by an asterisk. The tag text consists of letters,
 digits, and underscores.
 
 TagChar = { x ∈ NonNewlineNonSpace | x ∉ Asterisk }
-<tag> ::= Asterisk TagChar*
-<nextTag> ::= White* <tag>
-<tags> ::= <tag> <nextTag>*
+<tag> ::= Asterisk TagChar* White*
+<tags> ::= <tag>+
 
 * Top Line
 
@@ -251,7 +250,7 @@ transaction memo.
 
 <posting>
   ::= <postingFlagNumPayee> White* <postingAcct> White*
-      <tags>? White* <entry>? White* Newline White* <postingMemo>
+      <tags>? White* <entry>? White* Newline White* <postingMemo>?
       White*
 
 * Transaction

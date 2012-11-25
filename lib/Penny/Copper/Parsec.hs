@@ -133,7 +133,7 @@ rightSideCmdtyAmt = rightCmdtyLvl1Amt <|> rightCmdtyLvl2Amt
 amount :: Parser (L.Amount, L.Format)
 amount = leftSideCmdtyAmt <|> rightSideCmdtyAmt
 
-comment :: Parser Y.Item
+comment :: Parser Y.Comment
 comment =
   (Y.Comment . pack)
   <$ satisfy T.hash
@@ -159,10 +159,9 @@ date = p >>= failOnErr
 hours :: Parser L.Hours
 hours = p >>= (maybe (fail "could not parse hours") return)
   where
-    p = f <$> satisfy T.digit <*> optional (satisfy T.digit)
-    f d1 maybeD2 = L.intToHours . read $ case maybeD2 of
-      Nothing -> [d1]
-      Just d2 -> d1:[d2]
+    p = f <$> satisfy T.digit <*> satisfy T.digit
+    f d1 d2 = L.intToHours . read $ [d1,d2]
+
 
 minutes :: Parser L.Minutes
 minutes = p >>= maybe (fail "could not parse minutes") return
@@ -291,9 +290,7 @@ price = p >>= maybe (fail msg) return
 
 tag :: Parser L.Tag
 tag = L.Tag . pack <$ satisfy T.asterisk <*> many (satisfy T.tagChar)
-
-nextTag :: Parser L.Tag
-nextTag = many (satisfy T.white) *> tag
+      <* many (satisfy T.white)
 
 tags :: Parser L.Tags
 tags = (\t ts -> L.Tags (t:ts)) <$> tag <*> many nextTag
@@ -381,7 +378,7 @@ blankLine :: Parser Y.Item
 blankLine = Y.BlankLine <$ satisfy T.newline <* skipWhite
 
 item :: Parser Y.Item
-item = comment <|> fmap Y.PricePoint price
+item = fmap Y.IComment comment <|> fmap Y.PricePoint price
        <|> fmap Y.Transaction transaction <|> blankLine
 
 ledger :: Parser Y.Ledger

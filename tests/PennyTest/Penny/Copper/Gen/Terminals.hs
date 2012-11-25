@@ -73,6 +73,9 @@ hash = return '#'
 thinSpace :: Gen Char
 thinSpace = return '\x2009'
 
+dateSep :: Gen Char
+dateSep = G.elements "/-"
+
 plus :: Gen Char
 plus = return '+'
 

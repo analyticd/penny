@@ -23,6 +23,7 @@ Executable penny-test
         parsec ==3.1.*,
         penny-lib ==0.5.0.0,
         QuickCheck ==2.5.*,
+        random-shuffle ==0.0.4,
         semigroups ==0.8.*,
         test-framework ==0.6.*,
         test-framework-quickcheck2 ==0.2.*,

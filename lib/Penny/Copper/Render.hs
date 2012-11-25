@@ -182,8 +182,8 @@ amount gs f a = let
             Just l2 -> (q, l2)
     return $ X.concat [l, ws, r]
 
-comment :: X.Text -> Maybe X.Text
-comment x =
+comment :: Y.Comment -> Maybe X.Text
+comment (Y.Comment x) =
   if (not . X.all T.nonNewline $ x)
   then Nothing
   else Just $ '#' `cons` x `snoc` '\n'
@@ -402,6 +402,6 @@ transaction gs txn = do
 item :: GroupSpecs -> Y.Item -> Maybe X.Text
 item gs i = case i of
   Y.BlankLine -> Just . X.singleton $ '\n'
-  Y.Comment x -> comment x
+  Y.IComment x -> comment x
   Y.PricePoint pp -> price gs pp
   Y.Transaction t -> transaction gs t
