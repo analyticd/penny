@@ -33,8 +33,8 @@ Executable penny-test
     Other-modules:
           PennyTest
         , PennyTest.Penny
-        , PennyTest.Penny.Copper
-        , PennyTest.Penny.Copper.
+        , PennyTest.Penny.Copper.Gen.Parsers
+        , PennyTest.Penny.Copper.Gen.Terminals
         , PennyTest.Penny.Lincoln
         , PennyTest.Penny.Lincoln.Bits
         , PennyTest.Penny.Lincoln.Bits.Qty
