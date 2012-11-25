@@ -1,5 +1,7 @@
 module PennyTest.Penny.Copper.Parsec where
 
+import Control.Monad.Exception.Synchronous as Ex
+import Control.Monad.Trans.Class (lift)
 import Text.Parsec (parse)
 import Text.Parsec.Text (Parser)
 import Test.Framework (Test, testGroup)
@@ -39,18 +41,41 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
 
   , pTest "ledgerAcct"
     C.ledgerAcct P.ledgerAcct
+
+  , pTest "lvl1Cmdty"
+    C.lvl1Cmdty P.lvl1Cmdty
+
+  , pTest "quotedLvl1Cmdty"
+    C.quotedLvl1Cmdty
+    (fmap (\(P.QuotedLvl1Cmdty c x) -> (c, x)) P.quotedLvl1Cmdty)
+
+  , pTest "lvl2Cmdty"
+    C.lvl2Cmdty
+    (fmap (\(P.Lvl2Cmdty c x) -> (c, x)) P.lvl2Cmdty)
+
+  , pTest "lvl3Cmdty"
+    C.lvl3Cmdty
+    (fmap (\(P.Lvl3Cmdty c x) -> (c, x)) P.lvl3Cmdty)
+
+  , pTestT "quantity"
+    C.quantity P.quantity
+
+  , pTestBy sameFmt "leftCmdtyLvl1Amt"
+    C.leftCmdtyLvl1Amt P.leftCmdtyLvl1Amt
+
   ]
 
-pTestBy
+
+pTestByT
   :: Show a
   => (a -> a -> Bool)
   -> String
   -> Parser a
-  -> Gen (a, Text)
+  -> P.GenT (a, Text)
   -> Test
-pTestBy eq s p g = testProperty s t
+pTestByT eq s p g = testProperty s t
   where
-    t = do
+    t = Ex.resolveT return $ do
       (r, txt) <- g
       case parse p "" txt of
         Left e ->
@@ -64,6 +89,24 @@ pTestBy eq s p g = testProperty s t
                       ++ show parsed
                       ++ " expected result: " ++ show r
             in return $ QP.failed { QP.reason = msg }
+
+pTestT
+  :: (Show a, Eq a)
+  => String
+  -> Parser a
+  -> P.GenT (a, Text)
+  -> Test
+pTestT = pTestByT (==)
+
+
+pTestBy
+  :: Show a
+  => (a -> a -> Bool)
+  -> String
+  -> Parser a
+  -> Gen (a, Text)
+  -> Test
+pTestBy eq s p g = pTestByT eq s p (lift g)
 
 pTest
   :: (Show a, Eq a)

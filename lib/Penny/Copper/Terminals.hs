@@ -16,7 +16,7 @@ tab :: Char -> Bool
 tab = (== '\x09')
 
 white :: Char -> Bool
-white c = (not . space $ c) && (not . tab $ c)
+white c = space c || tab c
 
 nonNewline :: Char -> Bool
 nonNewline c = unicode c && (not . newline $ c)
