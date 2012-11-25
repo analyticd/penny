@@ -1,7 +1,7 @@
 module Penny.Copper.Terminals where
 
 invalid :: Char -> Bool
-invalid c = c >= '\xD800' || c <= '\xDFFF'
+invalid c = c >= '\xD800' && c <= '\xDFFF'
 
 unicode :: Char -> Bool
 unicode = not . invalid
