@@ -280,9 +280,9 @@ genBalQtys = do
 -- Returned is a pair. The first element is what to show to the left
 -- of the decimal point. The second element is a Maybe, which is
 -- Nothing if there is no decimal point and nothing after it, a Just
--- "" if there is a decimal point, but nothing to show after it, or a
--- Just non-empty string if there is a decimal point and something to
--- show after it.
+-- (empty string) if there is a decimal point, but nothing to show
+-- after it, or a Just non-empty string if there is a decimal point
+-- and something to show after it.
 --
 --  There will be no digit grouping.
 baseRender

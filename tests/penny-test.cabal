@@ -28,6 +28,7 @@ Executable penny-test
         test-framework ==0.6.*,
         test-framework-quickcheck2 ==0.2.*,
         text ==0.11.*,
+        time ==1.4.*,
         transformers == 0.3.*
 
     Other-modules:
