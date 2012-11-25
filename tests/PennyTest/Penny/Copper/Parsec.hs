@@ -27,6 +27,18 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
 
   , pTest "quotedLvl1Acct"
     C.quotedLvl1Acct P.quotedLvl1Acct
+
+  , pTest "lvl2FirstSubAcct"
+    C.lvl2FirstSubAcct P.lvl2FirstSubAcct
+
+  , pTest "lvl2OtherSubAcct"
+    C.lvl2OtherSubAcct P.lvl2OtherSubAcct
+
+  , pTest "lvl2Acct"
+    C.lvl2Acct P.lvl2Acct
+
+  , pTest "ledgerAcct"
+    C.ledgerAcct P.ledgerAcct
   ]
 
 pTestBy
