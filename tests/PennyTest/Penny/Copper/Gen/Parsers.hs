@@ -613,17 +613,82 @@ postingFlagNumPayee = do
 postingAcct :: Gen (L.Account, X.Text)
 postingAcct = G.oneof [quotedLvl1Acct, lvl2Acct]
 
-posting :: Maybe ((L.Entry, L.Format), X.Text) -> Gen U.Posting
+posting
+ :: Maybe ((L.Entry, L.Format), X.Text)
+ -> Gen (U.Posting, X.Text)
 posting mayEn = do
   ((fl, nu, pa), xfnp) <- postingFlagNumPayee
   ws1 <- white
   (ac, xa) <- postingAcct
   ws2 <- white
-  doTags <- G.arbitrary
+  doTags <- Q.arbitrary
   (ts, xt) <- if doTags
                 then tags
                 else return (L.Tags [], X.empty)
-  (ts, xt) <- optional tags
+  doMemo <- Q.arbitrary
+  (pm, xm) <- if doMemo
+                then do
+                      (mo, xMo) <- postingMemo
+                      return (Just mo, xMo)
+                else return (Nothing, X.empty)
+  ws3 <- white
+  ws4 <- white
+  ws5 <- white
+  let (en, fmt, xe) = case mayEn of
+        Nothing -> (Nothing, Nothing, X.empty)
+        Just ((jEn, jFmt), jXe) -> (Just jEn, Just jFmt, jXe)
+      mt = L.PostingMeta Nothing fmt Nothing Nothing
+      po = U.Posting pa nu fl ac ts en pm mt
+      txt = X.concat
+            [ xfnp, ws1, xa, ws2, xt, ws3, xe,
+              X.singleton '\n', ws4, xm, ws5]
+  return (po, txt)
+
+
+postings :: GenT [(U.Posting, X.Text)]
+postings = do
+  egs <- genEntryGroups
+  removeEn <- lift Q.arbitrary
+  ps <- if removeEn
+        then do
+          p1 <- lift $ posting Nothing
+          ps <- lift . mapM posting . map Just . tail $ egs
+          return (p1:ps)
+        else lift . mapM posting . map Just $ egs
+  lift . shuffle $ ps
+
+
+transaction :: GenT (L.Transaction, X.Text)
+transaction = do
+  (tl, xtl) <- topLine
+  pstgs <- postings
+  let x = xtl `X.append` (X.concat . map snd $ pstgs)
+      p1:p2:ps = pstgs
+      fam = L.Family tl (fst p1) (fst p2) (map fst ps)
+  case L.transaction fam of
+    Ex.Exception e ->
+      let r = "failed to create transaction: " ++ show e
+      in Ex.throwT P.failed { P.reason = r }
+    Ex.Success g -> return (g, x)
+
+blankLine :: Gen (C.Item, X.Text)
+blankLine = fmap f white
+  where
+    f ws = (C.BlankLine, '\n' `cons` ws)
+
+item :: GenT (C.Item, X.Text)
+item = oneof [ c, p, t, b ]
+  where
+    c = lift . fmap (\(com, x) -> (C.IComment com, x)) $ comment
+    p = fmap (\(pr, x) -> (C.PricePoint pr, x)) price
+    t = fmap (\(tr, x) -> (C.Transaction tr, x)) transaction
+    b = lift blankLine
+
+ledger :: GenT (C.Ledger, X.Text)
+ledger = f <$> lift white <*> (listOf item)
+  where
+    f ws is = ( C.Ledger . map fst $ is
+              , ws `X.append` (X.concat . map snd $ is))
 
 genBalQtys :: GenT ([(L.Qty, X.Text)], [(L.Qty, X.Text)])
 genBalQtys = do
@@ -648,8 +713,7 @@ genEntryGroup c = do
 genEntryGroups :: GenT [((L.Entry, L.Format), X.Text)]
 genEntryGroups = do
   cs <- lift uniqueCmdtys
-  gs <- mapM genEntryGroup cs
-  lift . shuffle . concat $ gs
+  fmap concat . mapM genEntryGroup $ cs
 
 
 uniqueCmdtys :: Gen [Cmdty]

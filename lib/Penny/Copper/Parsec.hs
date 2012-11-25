@@ -293,7 +293,7 @@ tag = L.Tag . pack <$ satisfy T.asterisk <*> many (satisfy T.tagChar)
       <* many (satisfy T.white)
 
 tags :: Parser L.Tags
-tags = (\t ts -> L.Tags (t:ts)) <$> tag <*> many nextTag
+tags = (\t ts -> L.Tags (t:ts)) <$> tag <*> many tag
 
 topLinePayee :: Parser L.Payee
 topLinePayee = quotedLvl1Payee <|> lvl2Payee
