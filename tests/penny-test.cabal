@@ -31,11 +31,13 @@ Executable penny-test
         transformers == 0.3.*
 
     Other-modules:
-        PennyTest,
-        PennyTest.Penny,
-        PennyTest.Penny.Lincoln,
-        PennyTest.Penny.Lincoln.Bits,
-        PennyTest.Penny.Lincoln.Bits.Qty
+          PennyTest
+        , PennyTest.Penny
+        , PennyTest.Penny.Copper
+        , PennyTest.Penny.Copper.
+        , PennyTest.Penny.Lincoln
+        , PennyTest.Penny.Lincoln.Bits
+        , PennyTest.Penny.Lincoln.Bits.Qty
 
     ghc-options: -Wall
 

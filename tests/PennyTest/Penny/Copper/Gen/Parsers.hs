@@ -25,6 +25,10 @@ import qualified Test.QuickCheck as Q
 
 type GenT = Ex.ExceptionalT P.Result Gen
 
+--
+-- * Helpers
+--
+
 suchThatMaybe :: GenT a -> (a -> Bool) -> GenT a
 suchThatMaybe g p = go (0 :: Int)
   where
@@ -35,6 +39,111 @@ suchThatMaybe g p = go (0 :: Int)
         else if i < 10
               then go (i + 1)
               else Ex.throwT P.rejected
+
+
+interleave :: Gen (Maybe a) -> [a] -> Gen [a]
+interleave g ls = case ls of
+  [] -> return []
+  a:[] -> return [a]
+  a:as -> do
+    r <- g
+    rest <- interleave g as
+    return $ case r of
+      Nothing -> a:rest
+      Just rt -> a:rt:rest
+
+oneof :: [Ex.ExceptionalT P.Result Gen a]
+      -> Ex.ExceptionalT P.Result Gen a
+oneof ls
+  | null ls = error "oneof used with empty list"
+  | otherwise = do
+      i <- lift $ G.choose (0, length ls)
+      ls !! i
+
+
+throwMaybe
+  :: Monad m
+  => String -> (Maybe a) -> Ex.ExceptionalT P.Result m a
+throwMaybe e ma = case ma of
+  Nothing ->
+    Ex.throwT P.failed { P.reason = "failed to generate " ++ e }
+  Just a -> return a
+
+leadingZero :: Show s => s -> X.Text
+leadingZero s =
+  let str = show s
+  in if length str > 1
+      then pack str
+      else pack ('0':str)
+
+optional
+  :: Ex.ExceptionalT P.Result Gen (a, X.Text)
+  -> Ex.ExceptionalT P.Result Gen (Maybe a, X.Text)
+optional o = do
+  b <- lift Q.arbitrary
+  if b
+    then do
+      (a, x) <- o
+      return (Just a, x)
+    else return (Nothing, X.empty)
+
+optionalG :: Gen (a, X.Text) -> Gen (Maybe a, X.Text)
+optionalG g = do
+  b <- Q.arbitrary
+  if b
+    then do
+      (a, x) <- g
+      return (Just a, x)
+    else
+      return (Nothing, X.empty)
+
+surround
+  :: Char -> Char -> (X.Text -> a) -> Gen Char -> Gen (a, X.Text)
+surround o c m g = do
+  x <- fmap pack $ G.listOf g
+  return (m x, o `cons` x `snoc` c)
+
+shuffle :: [a] -> Gen [a]
+shuffle ls = G.MkGen $ \g _ -> Shuffle.shuffle' ls (length ls) g
+
+genNonEmpty :: Gen a -> Gen (NonEmpty a)
+genNonEmpty g = (:|) <$> g <*> G.listOf g
+
+listOf :: GenT a -> GenT [a]
+listOf (Ex.ExceptionalT exG) = Ex.ExceptionalT $ G.sized $ \s -> do
+  n <- G.choose (0, s)
+  let go i r =
+        if i == n
+        then return . return $ r
+        else do
+          ex <- exG
+          case ex of
+            Ex.Exception e -> return . Ex.Exception $ e
+            Ex.Success v -> go (i + 1) (v : r)
+  go 0 []
+
+listOf1 :: GenT a -> GenT [a]
+listOf1 (Ex.ExceptionalT exG) = Ex.ExceptionalT $ G.sized $ \s -> do
+  n <- G.choose (0, s)
+  v1 <- exG
+  let go i r =
+        if i == n
+        then return . return $ r
+        else do
+          ex <- exG
+          case ex of
+            Ex.Exception e -> return . Ex.Exception $ e
+            Ex.Success v -> go (i + 1) (v : r)
+  case v1 of
+    Ex.Exception e -> return . Ex.Exception $ e
+    Ex.Success v -> go 0 [v]
+
+white :: Gen X.Text
+white = fmap pack (G.listOf T.white)
+
+--
+-- * Accounts
+--
 
 lvl1SubAcct :: Gen (L.SubAccount, X.Text)
 lvl1SubAcct = do
@@ -85,35 +194,18 @@ lvl2Acct = do
 ledgerAcct :: Gen (L.Account, X.Text)
 ledgerAcct = G.oneof [quotedLvl1Acct, lvl2Acct]
 
-lvl1Cmdty :: Gen (L.Commodity, X.Text)
-lvl1Cmdty = do
-  cs <- fmap X.pack (G.listOf1 T.lvl1CmdtyChar)
-  return (L.Commodity cs, cs)
+--
+-- * Commodities
+--
 
 data QuotedLvl1Cmdty = QuotedLvl1Cmdty L.Commodity X.Text
   deriving Show
 
-quotedLvl1Cmdty :: Gen QuotedLvl1Cmdty
-quotedLvl1Cmdty = fmap f lvl1Cmdty
-  where
-    f (c, gx) = QuotedLvl1Cmdty c ('"' `cons` gx `snoc` '"')
-
 data Lvl2Cmdty = Lvl2Cmdty L.Commodity X.Text
   deriving Show
 
-lvl2Cmdty :: Gen Lvl2Cmdty
-lvl2Cmdty = do
-  c1 <- T.lvl2CmdtyFirstChar
-  cs <- fmap pack $ G.listOf T.lvl2CmdtyOtherChar
-  return (Lvl2Cmdty (L.Commodity $ c1 `cons` cs) (c1 `cons` cs))
-
 data Lvl3Cmdty = Lvl3Cmdty L.Commodity X.Text
   deriving Show
-
-lvl3Cmdty :: Gen Lvl3Cmdty
-lvl3Cmdty = do
-  cs <- fmap pack $ G.listOf1 T.lvl3CmdtyChar
-  return (Lvl3Cmdty (L.Commodity cs) cs)
 
 data Cmdty
   = L1 QuotedLvl1Cmdty
@@ -127,10 +219,52 @@ unwrapCmdty c = case c of
   L2 (Lvl2Cmdty y x) -> (y, x)
   L3 (Lvl3Cmdty y x) -> (y, x)
 
+lvl1Cmdty :: Gen (L.Commodity, X.Text)
+lvl1Cmdty = do
+  cs <- fmap X.pack (G.listOf1 T.lvl1CmdtyChar)
+  return (L.Commodity cs, cs)
+
+quotedLvl1Cmdty :: Gen QuotedLvl1Cmdty
+quotedLvl1Cmdty = fmap f lvl1Cmdty
+  where
+    f (c, gx) = QuotedLvl1Cmdty c ('"' `cons` gx `snoc` '"')
+
+lvl2Cmdty :: Gen Lvl2Cmdty
+lvl2Cmdty = do
+  c1 <- T.lvl2CmdtyFirstChar
+  cs <- fmap pack $ G.listOf T.lvl2CmdtyOtherChar
+  return (Lvl2Cmdty (L.Commodity $ c1 `cons` cs) (c1 `cons` cs))
+
+lvl3Cmdty :: Gen Lvl3Cmdty
+lvl3Cmdty = do
+  cs <- fmap pack $ G.listOf1 T.lvl3CmdtyChar
+  return (Lvl3Cmdty (L.Commodity cs) cs)
+
 genCmdty :: Gen Cmdty
 genCmdty = G.oneof [ fmap L1 quotedLvl1Cmdty
                    , fmap L2 lvl2Cmdty
                    , fmap L3 lvl3Cmdty ]
+
+uniqueCmdtys :: Gen [Cmdty]
+uniqueCmdtys = G.sized $ \s -> do
+  ls <- (G.resize (min s 3) $ G.listOf1 genCmdty)
+  let f c1 c2 = (fst . unwrapCmdty $ c1) == (fst . unwrapCmdty $ c2)
+  return (nubBy f ls)
+
+
+--
+-- * Quantities
+--
+
+genBalQtys :: GenT ([(L.Qty, X.Text)], [(L.Qty, X.Text)])
+genBalQtys = do
+  origQtys <- listOf1 (qtyWithRendering TQ.anyGen)
+  let tot = foldl1 L.add . map fst $ origQtys
+  (v1:vr) <- listOf1 (TQ.mkQtyG TQ.anyGen)
+  let newQtys = NE.toList $ L.allocate tot (v1 :| vr)
+  newRenders <- mapM renderQtyWithThinSpaces newQtys
+  return (origQtys, zip newQtys newRenders)
+
 
 -- | Given the digits that are before and after the decimal point,
 -- generate a base rendering. If q is a qty, then show q will always
@@ -221,22 +355,12 @@ qtyWithRendering g = do
   x <- renderQtyWithThinSpaces q
   return (q, x)
 
-interleave :: Gen (Maybe a) -> [a] -> Gen [a]
-interleave g ls = case ls of
-  [] -> return []
-  a:[] -> return [a]
-  a:as -> do
-    r <- g
-    rest <- interleave g as
-    return $ case r of
-      Nothing -> a:rest
-      Just rt -> a:rt:rest
-
 quantity :: Ex.ExceptionalT P.Result Gen (L.Qty, X.Text)
 quantity = qtyWithRendering TQ.anyGen
 
-white :: Gen X.Text
-white = fmap pack (G.listOf T.white)
+--
+-- * Amounts
+--
 
 spaceBetween :: X.Text -> L.SpaceBetween
 spaceBetween x = if X.null x then L.NoSpaceBetween else L.SpaceBetween
@@ -281,14 +405,6 @@ rightCmdtyLvl2Amt (Lvl2Cmdty c xc) (q, xq) = do
       fmt = L.Format L.CommodityOnRight (spaceBetween ws)
   return ((amt, fmt), X.concat [xq, ws, xc])
 
-oneof :: [Ex.ExceptionalT P.Result Gen a]
-      -> Ex.ExceptionalT P.Result Gen a
-oneof ls
-  | null ls = error "oneof used with empty list"
-  | otherwise = do
-      i <- lift $ G.choose (0, length ls)
-      ls !! i
-
 leftSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl3Cmdty
   -> (L.Qty, X.Text)
@@ -316,12 +432,20 @@ amount c q = case c of
   L3 l3 -> leftSideCmdtyAmt (Right l3) q
 
 
+--
+-- * Comments
+--
+
 comment :: Gen (C.Comment, X.Text)
 comment = do
   x <- fmap pack $ G.listOf T.nonNewline
   ws <- white
   let txt = ('#' `cons` x `snoc` '\n') `X.append` ws
   return (C.Comment x, txt)
+
+--
+-- * DateTime
+--
 
 year :: Gen (Integer, X.Text)
 year = do
@@ -357,21 +481,6 @@ hours =  do
   hr <- throwMaybe "hours" (L.intToHours h)
   let x = leadingZero h
   return (hr, x)
-
-throwMaybe
-  :: Monad m
-  => String -> (Maybe a) -> Ex.ExceptionalT P.Result m a
-throwMaybe e ma = case ma of
-  Nothing ->
-    Ex.throwT P.failed { P.reason = "failed to generate " ++ e }
-  Just a -> return a
-
-leadingZero :: Show s => s -> X.Text
-leadingZero s =
-  let str = show s
-  in if length str > 1
-      then pack str
-      else pack ('0':str)
 
 minutes :: Ex.ExceptionalT P.Result Gen (L.Minutes, X.Text)
 minutes = do
@@ -415,27 +524,6 @@ timeZone = do
   o <- throwMaybe "time zone" (L.minsToOffset (s n))
   return (o, st `X.append` nt)
 
-optional
-  :: Ex.ExceptionalT P.Result Gen (a, X.Text)
-  -> Ex.ExceptionalT P.Result Gen (Maybe a, X.Text)
-optional o = do
-  b <- lift Q.arbitrary
-  if b
-    then do
-      (a, x) <- o
-      return (Just a, x)
-    else return (Nothing, X.empty)
-
-optionalG :: Gen (a, X.Text) -> Gen (Maybe a, X.Text)
-optionalG g = do
-  b <- Q.arbitrary
-  if b
-    then do
-      (a, x) <- g
-      return (Just a, x)
-    else
-      return (Nothing, X.empty)
-
 timeWithZone ::
   Ex.ExceptionalT P.Result Gen
   ((L.Hours, L.Minutes, Maybe L.Seconds, Maybe L.TimeZoneOffset), X.Text)
@@ -459,6 +547,10 @@ dateTime = do
           in ((hr, mn, sec), z)
   return (L.DateTime d h m s tz, xd `X.append` w `X.append` xt)
 
+--
+-- * DrCr
+--
+
 debit :: Gen (L.DrCr, X.Text)
 debit = (\x -> (L.Debit, X.singleton x)) <$> T.lessThan
 
@@ -467,6 +559,26 @@ credit = (\x -> (L.Credit, X.singleton x)) <$> T.greaterThan
 
 drCr :: Gen (L.DrCr, X.Text)
 drCr = G.oneof [debit, credit]
+
+--
+-- * Entry
+--
+
+genEntryGroup :: Cmdty -> GenT [((L.Entry, L.Format), X.Text)]
+genEntryGroup c = do
+  dr <- lift debit
+  cr <- lift credit
+  (dqs, cqs) <- genBalQtys
+  des <- lift $ mapM (entry c dr) dqs
+  ces <- lift $ mapM (entry c cr) cqs
+  return $ des ++ ces
+
+
+genEntryGroups :: GenT [((L.Entry, L.Format), X.Text)]
+genEntryGroups = do
+  cs <- lift uniqueCmdtys
+  fmap concat . mapM genEntryGroup $ cs
+
 
 entry
   :: Cmdty
@@ -479,9 +591,17 @@ entry c (d, xd) q = f <$> white <*> amount c q
       where
         x = X.concat [xd, w, xa]
 
+--
+-- * Flag
+--
+
 flag :: Gen (L.Flag, X.Text)
 flag = surround '[' ']' L.Flag T.flagChar
 
+
+--
+-- * Memo
+--
 
 postingMemoLine :: Gen (X.Text, X.Text)
 postingMemoLine = do
@@ -509,14 +629,16 @@ transactionMemo = do
       ren = X.concat . map snd $ me
   return (mem, ren)
 
+--
+-- * Number
+--
+
 number :: Gen (L.Number, X.Text)
 number = surround '(' ')' L.Number T.numberChar
 
-surround
-  :: Char -> Char -> (X.Text -> a) -> Gen Char -> Gen (a, X.Text)
-surround o c m g = do
-  x <- fmap pack $ G.listOf g
-  return (m x, o `cons` x `snoc` c)
+--
+-- * Payee
+--
 
 lvl1Payee :: Gen (L.Payee, X.Text)
 lvl1Payee = do
@@ -534,6 +656,10 @@ lvl2Payee = do
   ls <- fmap pack $ G.listOf T.nonNewline
   let x = l1 `cons` ls
   return (L.Payee x, x)
+
+--
+-- * Price
+--
 
 fromCmdty
   :: Either QuotedLvl1Cmdty Lvl2Cmdty
@@ -561,6 +687,10 @@ price = do
       x = X.concat [xdt, ws1, xfc, ws2, xam, X.singleton '\n', ws3]
   return (pp, x)
 
+--
+-- * Tags
+--
+
 tag :: Gen (L.Tag, X.Text)
 tag = do
   x <- fmap pack $ G.listOf T.tagChar
@@ -571,6 +701,10 @@ tags :: Gen (L.Tags, X.Text)
 tags = fmap f $ G.listOf1 tag
   where
     f ls = (L.Tags . map fst $ ls, X.concat . map snd $ ls)
+
+--
+-- * TopLine
+--
 
 topLinePayee :: Gen (L.Payee, X.Text)
 topLinePayee = G.oneof [quotedLvl1Payee, lvl2Payee]
@@ -594,6 +728,10 @@ topLine = do
       tl = U.TopLine dt fl nu pa me tlm
       x = X.concat [xme, xdt, w1, xfn, w2, xp, X.singleton '\n', w3]
   return (tl, x)
+
+--
+-- * Posting
+--
 
 postingFlagNumPayee
   :: Gen ((Maybe L.Flag, Maybe L.Number, Maybe L.Payee), X.Text)
@@ -658,6 +796,10 @@ postings = do
   lift . shuffle $ ps
 
 
+--
+-- * Transaction
+--
+
 transaction :: GenT (L.Transaction, X.Text)
 transaction = do
   (tl, xtl) <- topLine
@@ -671,10 +813,20 @@ transaction = do
       in Ex.throwT P.failed { P.reason = r }
     Ex.Success g -> return (g, x)
 
+--
+-- * BlankLine
+--
+
 blankLine :: Gen (C.Item, X.Text)
 blankLine = fmap f white
   where
     f ws = (C.BlankLine, '\n' `cons` ws)
+
+
+--
+-- * Item
+--
+
 
 item :: GenT (C.Item, X.Text)
 item = oneof [ c, p, t, b ]
@@ -684,77 +836,13 @@ item = oneof [ c, p, t, b ]
     t = fmap (\(tr, x) -> (C.Transaction tr, x)) transaction
     b = lift blankLine
 
+--
+-- * Ledger
+--
+
 ledger :: GenT (C.Ledger, X.Text)
 ledger = f <$> lift white <*> (listOf item)
   where
     f ws is = ( C.Ledger . map fst $ is
               , ws `X.append` (X.concat . map snd $ is))
-
-genBalQtys :: GenT ([(L.Qty, X.Text)], [(L.Qty, X.Text)])
-genBalQtys = do
-  origQtys <- listOf1 (qtyWithRendering TQ.anyGen)
-  let tot = foldl1 L.add . map fst $ origQtys
-  (v1:vr) <- listOf1 (TQ.mkQtyG TQ.anyGen)
-  let newQtys = NE.toList $ L.allocate tot (v1 :| vr)
-  newRenders <- mapM renderQtyWithThinSpaces newQtys
-  return (origQtys, zip newQtys newRenders)
-
-
-genEntryGroup :: Cmdty -> GenT [((L.Entry, L.Format), X.Text)]
-genEntryGroup c = do
-  dr <- lift debit
-  cr <- lift credit
-  (dqs, cqs) <- genBalQtys
-  des <- lift $ mapM (entry c dr) dqs
-  ces <- lift $ mapM (entry c cr) cqs
-  return $ des ++ ces
-
-
-genEntryGroups :: GenT [((L.Entry, L.Format), X.Text)]
-genEntryGroups = do
-  cs <- lift uniqueCmdtys
-  fmap concat . mapM genEntryGroup $ cs
-
-
-uniqueCmdtys :: Gen [Cmdty]
-uniqueCmdtys = G.sized $ \s -> do
-  ls <- (G.resize (min s 3) $ G.listOf1 genCmdty)
-  let f c1 c2 = (fst . unwrapCmdty $ c1) == (fst . unwrapCmdty $ c2)
-  return (nubBy f ls)
-
-
-shuffle :: [a] -> Gen [a]
-shuffle ls = G.MkGen $ \g _ -> Shuffle.shuffle' ls (length ls) g
-
-genNonEmpty :: Gen a -> Gen (NonEmpty a)
-genNonEmpty g = (:|) <$> g <*> G.listOf g
-
-listOf :: GenT a -> GenT [a]
-listOf (Ex.ExceptionalT exG) = Ex.ExceptionalT $ G.sized $ \s -> do
-  n <- G.choose (0, s)
-  let go i r =
-        if i == n
-        then return . return $ r
-        else do
-          ex <- exG
-          case ex of
-            Ex.Exception e -> return . Ex.Exception $ e
-            Ex.Success v -> go (i + 1) (v : r)
-  go 0 []
-
-listOf1 :: GenT a -> GenT [a]
-listOf1 (Ex.ExceptionalT exG) = Ex.ExceptionalT $ G.sized $ \s -> do
-  n <- G.choose (0, s)
-  v1 <- exG
-  let go i r =
-        if i == n
-        then return . return $ r
-        else do
-          ex <- exG
-          case ex of
-            Ex.Exception e -> return . Ex.Exception $ e
-            Ex.Success v -> go (i + 1) (v : r)
-  case v1 of
-    Ex.Exception e -> return . Ex.Exception $ e
-    Ex.Success v -> go 0 [v]
 
