@@ -10,6 +10,7 @@ import Test.QuickCheck (Gen)
 import qualified Test.QuickCheck.Property as QP
 import qualified PennyTest.Penny.Copper.Gen.Parsers as P
 import qualified Penny.Copper.Parsec as C
+import qualified Penny.Copper.Lincoln as L
 
 import Data.Text (Text)
 
@@ -59,9 +60,6 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
 
   , pTestT "quantity"
     C.quantity P.quantity
-
-  , pTestBy sameFmt "leftCmdtyLvl1Amt"
-    C.leftCmdtyLvl1Amt P.leftCmdtyLvl1Amt
 
   ]
 
@@ -115,3 +113,4 @@ pTest
   -> Gen (a, Text)
   -> Test
 pTest = pTestBy (==)
+
