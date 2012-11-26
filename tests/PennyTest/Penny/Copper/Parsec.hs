@@ -7,10 +7,10 @@ import Text.Parsec.Text (Parser)
 import Test.Framework (Test, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck (Gen)
+import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.Property as QP
 import qualified PennyTest.Penny.Copper.Gen.Parsers as P
 import qualified Penny.Copper.Parsec as C
-import qualified Penny.Copper.Lincoln as L
 
 import Data.Text (Text)
 
@@ -61,6 +61,56 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
   , pTestT "quantity"
     C.quantity P.quantity
 
+  , let g = do
+          c <- lift P.quotedLvl1Cmdty
+          q <- P.quantity
+          lift $ P.leftCmdtyLvl1Amt c q
+    in pTestT "leftCmdtyLvl1Amt"
+       C.leftCmdtyLvl1Amt g
+
+  , let g = do
+          c <- lift P.lvl3Cmdty
+          q <- P.quantity
+          lift $ P.leftCmdtyLvl3Amt c q
+    in pTestT "leftCmdtyLvl3Amt"
+       C.leftCmdtyLvl3Amt g
+
+  , let g = do
+          c <- lift P.quotedLvl1Cmdty
+          q <- P.quantity
+          lift $ P.rightCmdtyLvl1Amt c q
+    in pTestT "leftCmdtyLvl1Amt"
+       C.rightCmdtyLvl1Amt g
+
+  , let g = do
+          c <- lift P.lvl2Cmdty
+          q <- P.quantity
+          lift $ P.rightCmdtyLvl2Amt c q
+    in pTestT "rightCmdtyLvl2Amt"
+       C.rightCmdtyLvl2Amt g
+
+  , let g = do
+          c <- lift $ Q.oneof [ fmap Left P.quotedLvl1Cmdty
+                              , fmap Right P.lvl3Cmdty ]
+          q <- P.quantity
+          lift $ P.leftSideCmdtyAmt c q
+    in pTestT "leftSideCmdtyAmt"
+       C.leftSideCmdtyAmt g
+
+  , let g = do
+          c <- lift $ Q.oneof [ fmap Left P.quotedLvl1Cmdty
+                              , fmap Right P.lvl2Cmdty ]
+          q <- P.quantity
+          lift $ P.rightSideCmdtyAmt c q
+    in pTestT "rightSideCmdtyAmt"
+       C.rightSideCmdtyAmt g
+
+  , let g = do
+          c <- lift P.genCmdty
+          q <- P.quantity
+          lift $ P.amount c q
+    in pTestT "amount" C.amount g
+
   ]
 
 
@@ -78,6 +128,8 @@ pTestByT eq s p g = testProperty s t
       case parse p "" txt of
         Left e ->
           let msg = "failed to parse text: " ++ show e
+                    ++ " expected result: " ++ show r
+                    ++ " string being parsed: " ++ show txt
           in return $ QP.failed { QP.reason = msg }
         Right parsed ->
           if eq parsed r
@@ -86,6 +138,7 @@ pTestByT eq s p g = testProperty s t
             let msg = "result not equal. Parsed result: "
                       ++ show parsed
                       ++ " expected result: " ++ show r
+                      ++ " string being parsed: " ++ show txt
             in return $ QP.failed { QP.reason = msg }
 
 pTestT

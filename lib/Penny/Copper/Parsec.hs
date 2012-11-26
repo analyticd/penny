@@ -87,7 +87,7 @@ digitPostSequence = satisfy T.period *> optional digitSequence
 quantity :: Parser L.Qty
 quantity = p >>= failOnErr
   where
-    p = (L.Whole <$> (satisfy T.period *> digitSequence))
+    p = (L.RadFrac <$> (satisfy T.period *> digitSequence))
         <|> (f <$> digitSequence <*> optional digitPostSequence)
     f digSeq maybePostSeq = case maybePostSeq of
       Nothing -> L.Whole digSeq
