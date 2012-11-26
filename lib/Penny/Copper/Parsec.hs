@@ -148,7 +148,10 @@ day = read <$> replicateM 2 P.digit
 date :: Parser Time.Day
 date = p >>= failOnErr
   where
-    p = Time.fromGregorianValid <$> year <*> month <*> day
+    p = Time.fromGregorianValid
+        <$> year  <* satisfy T.dateSep
+        <*> month <* satisfy T.dateSep
+        <*> day
     failOnErr = maybe (fail "could not parse date") return
 
 hours :: Parser L.Hours

@@ -104,6 +104,12 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
           lift $ P.amount c q
     in pTestT "amount" C.amount g
 
+  , pTest "comment" C.comment P.comment
+  , pTest "year" C.year P.year
+  , pTest "month" C.month P.month
+  , pTest "day" C.day P.day
+  , pTestT "date" C.date P.date
+
   ]
 
 
