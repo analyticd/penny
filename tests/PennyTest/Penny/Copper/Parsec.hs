@@ -76,20 +76,6 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
        C.leftCmdtyLvl3Amt g
 
   , let g = do
-          c <- lift P.quotedLvl1Cmdty
-          q <- P.quantity
-          lift $ P.rightCmdtyLvl1Amt c q
-    in pTestT "leftCmdtyLvl1Amt"
-       C.rightCmdtyLvl1Amt g
-
-  , let g = do
-          c <- lift P.lvl2Cmdty
-          q <- P.quantity
-          lift $ P.rightCmdtyLvl2Amt c q
-    in pTestT "rightCmdtyLvl2Amt"
-       C.rightCmdtyLvl2Amt g
-
-  , let g = do
           c <- lift $ Q.oneof [ fmap Left P.quotedLvl1Cmdty
                               , fmap Right P.lvl3Cmdty ]
           q <- P.quantity
@@ -98,8 +84,15 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
        C.leftSideCmdtyAmt g
 
   , let g = do
-          c <- lift $ Q.oneof [ fmap Left P.quotedLvl1Cmdty
-                              , fmap Right P.lvl2Cmdty ]
+          wc <- P.rightSideCmdty
+          let (c, x) = case wc of
+                Left (P.QuotedLvl1Cmdty ic ix) -> (ic, ix)
+                Right (P.Lvl2Cmdty ic ix) -> (ic, ix)
+          return (c, x)
+    in pTest "rightSideCmdty" C.rightSideCmdty g
+
+  , let g = do
+          c <- lift P.rightSideCmdty
           q <- P.quantity
           lift $ P.rightSideCmdtyAmt c q
     in pTestT "rightSideCmdtyAmt"

@@ -385,26 +385,6 @@ leftCmdtyLvl3Amt (Lvl3Cmdty c xc) (q, xq) = do
       fmt = L.Format L.CommodityOnLeft (spaceBetween ws)
   return ((amt, fmt), X.concat [xc, ws, xq])
 
-rightCmdtyLvl1Amt
-  :: QuotedLvl1Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, L.Format), X.Text)
-rightCmdtyLvl1Amt (QuotedLvl1Cmdty c xc) (q, xq) = do
-  ws <- white
-  let amt = L.Amount q c
-      fmt = L.Format L.CommodityOnRight (spaceBetween ws)
-  return ((amt, fmt), X.concat [xq, ws, xc])
-
-rightCmdtyLvl2Amt
-  :: Lvl2Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, L.Format), X.Text)
-rightCmdtyLvl2Amt (Lvl2Cmdty c xc) (q, xq) = do
-  ws <- white
-  let amt = L.Amount q c
-      fmt = L.Format L.CommodityOnRight (spaceBetween ws)
-  return ((amt, fmt), X.concat [xq, ws, xc])
-
 leftSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl3Cmdty
   -> (L.Qty, X.Text)
@@ -413,13 +393,24 @@ leftSideCmdtyAmt c q = case c of
   Left l1 -> leftCmdtyLvl1Amt l1 q
   Right l3 -> leftCmdtyLvl3Amt l3 q
 
+rightSideCmdty :: Gen (Either QuotedLvl1Cmdty Lvl2Cmdty)
+rightSideCmdty = G.oneof
+  [ fmap Left quotedLvl1Cmdty
+  , fmap Right lvl2Cmdty ]
+
 rightSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl2Cmdty
   -> (L.Qty, X.Text)
   -> Gen ((L.Amount, L.Format), X.Text)
-rightSideCmdtyAmt c q = case c of
-  Left l1 -> rightCmdtyLvl1Amt l1 q
-  Right l2 -> rightCmdtyLvl2Amt l2 q
+rightSideCmdtyAmt cty (q, xq) = do
+  ws <- white
+  let (c, xc) = case cty of
+        Left (QuotedLvl1Cmdty ct x) -> (ct, x)
+        Right (Lvl2Cmdty ct x) -> (ct, x)
+      fmt = L.Format L.CommodityOnRight (spaceBetween ws)
+      xr = X.concat [xq, ws, xc]
+  return ((L.Amount q c, fmt), xr)
+
 
 amount
   :: Cmdty

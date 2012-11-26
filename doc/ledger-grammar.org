@@ -116,10 +116,9 @@ An amount is a commodity and a quantity.
 
 <leftCmdtyLvl1Amt> ::= <quotedLvl1Cmdty> White* <quantity>
 <leftCmdtyLvl3Amt> ::= <lvl3Cmdty> White* <quantity>
-<rightCmdtyLvl1Amt> ::= <quantity> White* <quotedLvl1Cmdty>
-<rightCmdtyLvl2Amt> ::= <quantity> White* <lvl2Cmdty>
 <leftSideCmdtyAmt> ::= <leftCmdtyLvl1Amt> | <leftCmdtyLvl3Amt>
-<rightSideCmdtyAmt> ::= <rightCmtdyLvl1Amt> | <rightCmdtyLvl2Amt>
+<rightSideCmdty> ::= <quotedLvl1Cmdty> | <lvl2Cmdty>
+<rightSideCmdtyAmt> ::= <quantity> White* <rightSideCmdty>
 <amount> ::= <leftSideCmdtyAmt> | <rightSideCmdtyAmt>
 
 * Comments

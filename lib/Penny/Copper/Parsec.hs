@@ -112,23 +112,18 @@ leftCmdtyLvl3Amt = f <$> lvl3Cmdty <*> spaceBetween <*> quantity
   where
     f c s q = (L.Amount q c, L.Format L.CommodityOnLeft s)
 
-rightCmdtyLvl1Amt :: Parser (L.Amount, L.Format)
-rightCmdtyLvl1Amt =
-  f <$> quantity <*> spaceBetween <*> quotedLvl1Cmdty
-  where
-    f q s c = (L.Amount q c, L.Format L.CommodityOnRight s)
-
-rightCmdtyLvl2Amt :: Parser (L.Amount, L.Format)
-rightCmdtyLvl2Amt =
-  f <$> quantity <*> spaceBetween <*> lvl2Cmdty
-  where
-    f q s c = (L.Amount q c, L.Format L.CommodityOnRight s)
-
 leftSideCmdtyAmt :: Parser (L.Amount, L.Format)
 leftSideCmdtyAmt = leftCmdtyLvl1Amt <|> leftCmdtyLvl3Amt
 
+rightSideCmdty :: Parser L.Commodity
+rightSideCmdty = quotedLvl1Cmdty <|> lvl2Cmdty
+
 rightSideCmdtyAmt :: Parser (L.Amount, L.Format)
-rightSideCmdtyAmt = rightCmdtyLvl1Amt <|> rightCmdtyLvl2Amt
+rightSideCmdtyAmt =
+  f <$> quantity <*> spaceBetween <*> rightSideCmdty
+  where
+    f q s c = (L.Amount q c, L.Format L.CommodityOnRight s)
+
 
 amount :: Parser (L.Amount, L.Format)
 amount = leftSideCmdtyAmt <|> rightSideCmdtyAmt
