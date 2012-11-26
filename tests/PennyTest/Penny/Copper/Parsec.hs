@@ -109,6 +109,10 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
   , pTest "month" C.month P.month
   , pTest "day" C.day P.day
   , pTestT "date" C.date P.date
+  , pTestT "hours" C.hours P.hours
+  , pTestT "minutes" C.minutes P.minutes
+  , pTestT "seconds" C.seconds P.seconds
+  , pTestT "time" C.time P.time
 
   ]
 
