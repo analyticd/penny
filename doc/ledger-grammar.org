@@ -235,20 +235,31 @@ transaction memo.
 <topLine> ::= <transactionMemo>? <dateTime> White*
               <topLineFlagNum> White* <topLinePayee>? Newline White*
 
-* Posting
+* FlagNumberPayee
 
-<postingFlagNumPayee>
-  ::=   <flag>?            White* <number>?          White* <quotedLvl1Payee>?
-      | <flag>?            White* <quotedLvl1Payee>? White* <number>?
-      | <number>?          White* <flag>?            White* <quotedLvl1Payee>?
-      | <number>?          White* <quotedLvl1Payee>? White* <flag>?
-      | <quotedLvl1Payee>? White* <flag>?            White* <number>?
-      | <quotedLvl1Payee>? White* <number>?          White* <flag>?
+<numberPayee> ::= <number> White* <quotedLvl1Payee>?
+<payeeNumber> ::= <quotedLvl1Payee> White* <number>?
+<afterFlag> ::= <numberPayee> | <payeeNumber>
+<flagFirst> ::= <flag> White* <afterFlag>?
+
+<flagPayee> ::= <flag> White* <quotedLvl1Payee>?
+<payeeFlag> ::= <quotedLvl1Payee> White* <flag>?
+<afterNumber> ::= <flagPayee> | <payeeFlag>
+<numberFirst> ::= <number> White* <afterNumber>?
+
+<numberFlag> ::= <number> White* <flag>?
+<flagNumber> ::= <flag> White* <number>?
+<afterPayee> ::= <numberFlag> <flagNumber>
+<payeeFirst> ::= <quotedLvl1Payee> White* <afterPayee>?
+
+<flagNumPayee> ::= <flagFirst> | <numberFirst> | <payeeFirst>
+
+* Posting
 
 <postingAcct> ::= <quotedLvl1Acct> | <lvl2Acct>
 
 <posting>
-  ::= <postingFlagNumPayee> White* <postingAcct> White*
+  ::= <flagNumPayee>? White* <postingAcct> White*
       <tags>? White* <entry>? White* Newline White* <postingMemo>?
       White*
 

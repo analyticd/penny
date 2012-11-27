@@ -1,9 +1,10 @@
 module PennyTest.Penny.Copper.Gen.Parsers where
 
 import Control.Applicative ((<$>), (<*>))
+import Control.Arrow (first)
 import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.List ( genericSplitAt, genericReplicate, permutations
+import Data.List ( genericSplitAt, genericReplicate
                  , nubBy )
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Transaction.Unverified as U
@@ -723,19 +724,52 @@ topLine = do
 -- * Posting
 --
 
-postingFlagNumPayee
+
+genPair
+  :: Gen (a, X.Text)
+  -> Gen (b, X.Text)
+  -> Gen ((Maybe a, Maybe b), X.Text)
+genPair ga gb = do
+  w <- white
+  let aFirst = do
+        (a, xa) <- ga
+        (b, xb) <- optionalG gb
+        return ((Just a, b), X.concat [xa, w, xb])
+      bFirst = do
+        (b, xb) <- gb
+        (a, xa) <- optionalG ga
+        return ((a, Just b), X.concat [xb, w, xa])
+  Q.oneof [aFirst, bFirst]
+
+
+genTriple
+  :: Gen (a, X.Text)
+  -> Gen (b, X.Text)
+  -> Gen (c, X.Text)
+  -> Gen ((a, Maybe b, Maybe c), X.Text)
+genTriple ga gb gc = do
+  (a, xa) <- ga
+  ((mb, mc), xbc) <- genPair gb gc
+  w <- white
+  return ((a, mb, mc), X.concat [xa, w, xbc])
+
+
+flagFirst :: Gen ((L.Flag, Maybe L.Number, Maybe L.Payee), X.Text)
+flagFirst = genTriple flag number quotedLvl1Payee
+
+numberFirst :: Gen ((L.Number, Maybe L.Flag, Maybe L.Payee), X.Text)
+numberFirst = genTriple number flag quotedLvl1Payee
+
+payeeFirst :: Gen ((L.Payee, Maybe L.Flag, Maybe L.Number), X.Text)
+payeeFirst = genTriple quotedLvl1Payee flag number
+
+
+flagNumPayee
   :: Gen ((Maybe L.Flag, Maybe L.Number, Maybe L.Payee), X.Text)
-postingFlagNumPayee = do
-  (fl, xfl) <- optionalG flag
-  (nu, xnu) <- optionalG number
-  (pa, xpa) <- optionalG quotedLvl1Payee
-  w1 <- white
-  w2 <- white
-  let ins (e1:e2:e3:[]) = [e1, w1, e2, w2, e3]
-      ins _ = error "postingFlagNumPayee error"
-      txts = map (X.concat . ins) . permutations $ [xfl, xnu, xpa]
-  x <- G.elements txts
-  return ((fl, nu, pa), x)
+flagNumPayee = Q.oneof
+  [ fmap (first (\(f, n, p) -> (Just f, n, p))) flagFirst
+  , fmap (first (\(n, f, p) -> (f, Just n, p))) numberFirst
+  , fmap (first (\(p, f, n) -> (f, n, Just p))) payeeFirst ]
 
 
 postingAcct :: Gen (L.Account, X.Text)
@@ -745,7 +779,8 @@ posting
  :: Maybe ((L.Entry, L.Format), X.Text)
  -> Gen (U.Posting, X.Text)
 posting mayEn = do
-  ((fl, nu, pa), xfnp) <- postingFlagNumPayee
+  (mayFnp, xfnp) <- optionalG flagNumPayee
+  let (fl, nu, pa) = fromMaybe (Nothing, Nothing, Nothing) mayFnp
   ws1 <- white
   (ac, xa) <- postingAcct
   ws2 <- white

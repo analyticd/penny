@@ -172,8 +172,8 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
   , pTest "topLineFlagNum" C.topLineFlagNum P.topLineFlagNum
   , pTestByT sameTopLine "topLine" C.topLine P.topLine
 
-  , pTest "postingFlagNumPayee" C.postingFlagNumPayee
-    P.postingFlagNumPayee
+  , pTest "flagNumPayee" C.flagNumPayee
+    P.flagNumPayee
 
   , pTest "postingAcct" C.postingAcct P.postingAcct
 
