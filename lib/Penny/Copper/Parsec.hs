@@ -336,12 +336,41 @@ postingFlagNumPayee =
       nu = optional number
       qp = optional quotedLvl1Payee
       ws = skipWhite
-  in      ((\f n p -> (f, n, p)) <$> fl <* ws <*> nu <* ws <*> qp)
-      <|> ((\f p n -> (f, n, p)) <$> fl <* ws <*> qp <* ws <*> nu)
-      <|> ((\n f p -> (f, n, p)) <$> nu <* ws <*> fl <* ws <*> qp)
-      <|> ((\n p f -> (f, n, p)) <$> nu <* ws <*> qp <* ws <*> fl)
-      <|> ((\p f n -> (f, n, p)) <$> qp <* ws <*> fl <* ws <*> nu)
-      <|> ((\p n f -> (f, n, p)) <$> qp <* ws <*> nu <* ws <*> fl)
+      nuQp = (,) <$> nu <* ws <*> qp
+      qpNu = flip (,) <$> qp <* ws <*> nu
+      flQp = (,) <$> fl <* ws <*> qp
+      qpFl = flip (,) <$> qp <* ws <*> fl
+      flNu = (,) <$> fl <* ws <*> nu
+      nuFl = flip (,) <$> nu <* ws <*> fl
+  in ((\f (n, p) -> (f, n, p)) <$> fl <* ws <*> (nuQp <|> qpNu))
+     <|> ((\n (f, p) -> (f, n, p)) <$> nu <* ws <*> (flQp <|> qpFl))
+     <|> ((\p (f, n) -> (f, n, p)) <$> qp <* ws <*> (flNu <|> nuFl))
+
+flagFirst :: Parser (Maybe L.Flag, Maybe L.Number, Maybe L.Payee)
+flagFirst = f <$> flag <* skipWhite <*> next
+  where
+    next = do
+      num <- optional (number <* skipWhite)
+      case num of
+        Nothing -> do
+          pay <- optional (payee <* skipWhite)
+          case pay of
+            Nothing -> return (Nothing, Nothing)
+            Just p -> do
+              num' <- optional (number <* skipWhite
+        Just n -> do
+          pay <- optional payee
+          skipWhite
+          case pay of
+            Nothing -> return (Just n, Nothing)
+            Just p -> return (Just n, Just p)
+    
+
+
+data FlagNumPayee = FNPFlag L.Flag
+                  | FNPNumber L.Number
+                  | FNPPayee L.Payee
+
 
 postingAcct :: Parser L.Account
 postingAcct = quotedLvl1Acct <|> lvl2Acct

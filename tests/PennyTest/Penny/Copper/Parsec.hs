@@ -11,6 +11,8 @@ import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.Property as QP
 import qualified PennyTest.Penny.Copper.Gen.Parsers as P
 import qualified Penny.Copper.Parsec as C
+import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.Transaction.Unverified as U
 
 import Data.Text (Text)
 
@@ -156,7 +158,33 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
   , pTest "lvl2Payee" C.lvl2Payee P.lvl2Payee
 
   , let g = do
-          c <- Q.oneof [ fmap
+          c <- Q.oneof [ fmap Left P.quotedLvl1Cmdty
+                       , fmap Right P.lvl2Cmdty ]
+          return $ P.fromCmdty c
+    in pTest "fromCmdty" C.fromCmdty g
+
+  , pTestByT samePricePoint "price"
+    C.price P.price
+
+  , pTest "tag" C.tag P.tag
+  , pTest "tags" C.tags P.tags
+  , pTest "topLinePayee" C.topLinePayee P.topLinePayee
+  , pTest "topLineFlagNum" C.topLineFlagNum P.topLineFlagNum
+  , pTestByT sameTopLine "topLine" C.topLine P.topLine
+
+  , pTest "postingFlagNumPayee" C.postingFlagNumPayee
+    P.postingFlagNumPayee
+
+  , pTest "postingAcct" C.postingAcct P.postingAcct
+
+  , let g = do
+          c <- lift P.genCmdty
+          dc <- lift P.drCr
+          q <- P.quantity
+          e <- lift $ Q.frequency [ (3, fmap Just (P.entry c dc q))
+                                  , (1, return Nothing) ]
+          lift $ P.posting e
+    in pTestByT samePosting "posting" C.posting g
 
   ]
 
@@ -214,3 +242,33 @@ pTest
   -> Test
 pTest = pTestBy (==)
 
+-- | Are these the same price? Excludes metadata such as line numbers,
+-- but does examine format.
+samePricePoint :: L.PricePoint -> L.PricePoint -> Bool
+samePricePoint pp1 pp2 =
+  (L.dateTime pp1 == L.dateTime pp2)
+  && (L.price pp1 == L.price pp2)
+  && ((L.priceFormat . L.ppMeta $ pp1)
+        == (L.priceFormat . L.ppMeta $ pp2))
+
+-- | Does not compare TopLineMeta.
+sameTopLine :: U.TopLine -> U.TopLine -> Bool
+sameTopLine x y =
+  (U.tDateTime x == U.tDateTime y)
+  && (U.tFlag x == U.tFlag y)
+  && (U.tNumber x == U.tNumber y)
+  && (U.tPayee x == U.tPayee y)
+  && (U.tMemo x == U.tMemo y)
+
+-- | Compares Posting Format only.
+samePosting :: U.Posting -> U.Posting -> Bool
+samePosting x y =
+  (U.pPayee x == U.pPayee y)
+  && (U.pNumber x == U.pNumber y)
+  && (U.pFlag x == U.pFlag y)
+  && (U.pAccount x == U.pAccount y)
+  && (U.pTags x == U.pTags y)
+  && (U.pEntry x == U.pEntry y)
+  && (U.pMemo x == U.pMemo y)
+  && ((L.postingFormat . U.pMeta $ x)
+      == (L.postingFormat . U.pMeta $ y))
