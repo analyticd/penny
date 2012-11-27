@@ -114,15 +114,59 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
   , pTestT "seconds" C.seconds P.seconds
   , pTestT "time" C.time P.time
 
+  , testProperty "tzSign" $ do
+      i <- Q.arbitrary
+      (fExp, txt) <- P.tzSign
+      let eiFParsed = parse C.tzSign "" txt
+      case eiFParsed of
+        Left e ->
+          let msg = "failed to parse time zone sign: " ++ show e
+          in return $ QP.failed { QP.reason = msg }
+        Right fParsed -> return $
+          if fParsed i == fExp i
+          then QP.succeeded
+          else let msg = "sign functions do not match"
+               in QP.failed { QP.reason = msg }
+
+  , pTest "tzNumber" C.tzNumber P.tzNumber
+  , pTestT "timeZone" C.timeZone P.timeZone
+  , pTestT "timeWithZone" C.timeWithZone P.timeWithZone
+  , pTestT "dateTime" C.dateTime P.dateTime
+  , pTest "debit" C.debit P.debit
+  , pTest "credit" C.credit P.credit
+
+  , let g = do
+          c <- lift P.genCmdty
+          dc <- lift P.drCr
+          q <- P.quantity
+          lift $ P.entry c dc q
+    in pTestT "entry" C.entry g
+
+  , pTest "flag" C.flag P.flag
+  , pTest "postingMemoLine" C.postingMemoLine P.postingMemoLine
+  , pTest "postingMemo" C.postingMemo P.postingMemo
+  , pTest "transactionMemoLine" C.transactionMemoLine P.transactionMemoLine
+
+  , let p (_, pm) em = pm == em
+    in pTestBy p "transactionMemo" C.transactionMemo P.transactionMemo
+
+  , pTest "number" C.number P.number
+  , pTest "payee" C.lvl1Payee P.lvl1Payee
+  , pTest "quotedLvl1Payee" C.quotedLvl1Payee P.quotedLvl1Payee
+  , pTest "lvl2Payee" C.lvl2Payee P.lvl2Payee
+
+  , let g = do
+          c <- Q.oneof [ fmap
+
   ]
 
 
 pTestByT
-  :: Show a
-  => (a -> a -> Bool)
+  :: (Show a, Show b)
+  => (a -> b -> Bool)
   -> String
   -> Parser a
-  -> P.GenT (a, Text)
+  -> P.GenT (b, Text)
   -> Test
 pTestByT eq s p g = testProperty s t
   where
@@ -154,11 +198,11 @@ pTestT = pTestByT (==)
 
 
 pTestBy
-  :: Show a
-  => (a -> a -> Bool)
+  :: (Show a, Show b)
+  => (a -> b -> Bool)
   -> String
   -> Parser a
-  -> Gen (a, Text)
+  -> Gen (b, Text)
   -> Test
 pTestBy eq s p g = pTestByT eq s p (lift g)
 

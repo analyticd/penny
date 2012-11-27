@@ -504,9 +504,8 @@ tzSign = do
 
 tzNumber :: Gen (Int, X.Text)
 tzNumber = do
-  i <- G.choose (0, 1440)
-  let zeroes = X.replicate ((length . show $ i) - 4) (X.singleton '0')
-  return (i, zeroes `X.append` (pack . show $ i))
+  i <- G.choose (0, 840)
+  return (i, X.justifyRight 4 '0' (pack . show $ i))
 
 timeZone :: Ex.ExceptionalT P.Result Gen (L.TimeZoneOffset, X.Text)
 timeZone = do
