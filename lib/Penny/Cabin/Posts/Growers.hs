@@ -240,8 +240,8 @@ getNumber bc i = oneLine t bc i where
   t = maybe empty L.text (Q.number . L.boxPostFam $ i)
 
 dcTxt :: L.DrCr -> Text
-dcTxt L.Debit = pack "Dr"
-dcTxt L.Credit = pack "Cr"
+dcTxt L.Debit = X.singleton '<'
+dcTxt L.Credit = X.singleton '>'
 
 -- | Gives a one-line cell that is colored according to whether the
 -- posting is a debit or credit.

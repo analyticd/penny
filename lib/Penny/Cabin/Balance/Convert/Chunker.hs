@@ -230,8 +230,8 @@ balanceChunks fmt dcCol vn bl = (chkDc, chkQt)
       L.Zero -> (X.pack "--", X.pack "--")
       L.NonZero (L.Column dc q) ->
         let dx = case dc of
-              L.Debit -> X.pack "Dr"
-              L.Credit -> X.pack "Cr"
+              L.Debit -> X.singleton '<'
+              L.Credit -> X.singleton '>'
             qx = fmt q
         in (dx, qx)
     chkDc = chk dcTxt

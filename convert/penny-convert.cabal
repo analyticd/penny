@@ -22,7 +22,8 @@ description: This is a self-contained executable (without any dependency on
   is always the thin space (Unicode code point U+2009). Another change
   is that there no longer is a default time zone; all dates and times
   are assumed to be UTC unless stated otherwise in a particular
-  price or transaction.
+  price or transaction. Also, the quoting character for payees was changed
+  from '<' and '>' to '~'.
   .
   This program simply changes the manner in which debits
   and credits are rendered. It makes no attempt to change the rendering

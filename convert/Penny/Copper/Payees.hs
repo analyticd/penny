@@ -70,7 +70,7 @@ smartRender (B.Payee p) = let
   noQuoteNeeded = unquotedFirstChar f
                   && X.all unquotedRestChars r
   renderable = TNE.all quotedChar p
-  quoted = '<' `cons` TNE.toText p `snoc` '>'
+  quoted = '~' `cons` TNE.toText p `snoc` '~'
   makeText
     | noQuoteNeeded = Just $ TNE.toText p
     | renderable = Just quoted
@@ -81,7 +81,7 @@ smartRender (B.Payee p) = let
 quoteRender :: B.Payee -> Maybe Text
 quoteRender (B.Payee p) = let
   renderable = TNE.all quotedChar p
-  quoted = '<' `cons` TNE.toText p `snoc` '>'
+  quoted = '~' `cons` TNE.toText p `snoc` '~'
   in if renderable
      then Just quoted
      else Nothing
