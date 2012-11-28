@@ -109,6 +109,9 @@ underscore = return '_'
 asterisk :: Gen Char
 asterisk = return '*'
 
+atSign :: Gen Char
+atSign = return '@'
+
 lvl1AcctChar :: Gen Char
 lvl1AcctChar = G.suchThat nonNewline
   (\c -> (not . T.closeCurly $ c) && (not . T.colon $ c))

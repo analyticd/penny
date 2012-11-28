@@ -140,3 +140,6 @@ quotedPayeeChar c = nonNewline c && (not . tilde $ c)
 tagChar :: Char -> Bool
 tagChar c = nonNewlineNonSpace c && (not . asterisk $ c)
   && (not . greaterThan $ c) && (not . lessThan $ c)
+
+atSign :: Char -> Bool
+atSign = (== '@')

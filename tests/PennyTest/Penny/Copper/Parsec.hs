@@ -16,6 +16,7 @@ import qualified Penny.Copper.Parsec as C
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Lincoln.Transaction as T
+import qualified Penny.Copper.Types as Y
 
 import Data.Text (Text)
 
@@ -190,7 +191,18 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
     in pTestByT samePosting "posting" C.posting g
 
   , pTestByT sameTransaction "transaction"
-    C.transaction P.transaction
+    C.transaction (P.maxSize 5 P.transaction)
+
+  , testProperty "blankLine" $ do
+      (_, txt) <- P.blankLine
+      case parse (C.blankLine <* Parsec.eof) "" txt of
+        Left _ -> return QP.failed
+        Right i -> case i of
+          Y.BlankLine -> return QP.succeeded
+          _ -> return QP.failed
+
+  , pTestByT sameItem "item" C.item (P.maxSize 5 P.item)
+  , pTestByT sameLedger "ledger" C.ledger (P.maxSize 5 P.ledger)
 
   ]
 
@@ -302,3 +314,15 @@ sameTransaction xtxn ytxn =
      && samePstg x1 y1
      && samePstg x2 y2
      && (and $ zipWith samePstg xs ys)
+
+sameItem :: Y.Item -> Y.Item -> Bool
+sameItem x y = case (x, y) of
+  (Y.BlankLine, Y.BlankLine) -> True
+  (Y.IComment a, Y.IComment b) -> a == b
+  (Y.PricePoint a, Y.PricePoint b) -> samePricePoint a b
+  (Y.Transaction a, Y.Transaction b) -> sameTransaction a b
+  _ -> False
+
+sameLedger :: Y.Ledger -> Y.Ledger -> Bool
+sameLedger (Y.Ledger x) (Y.Ledger y) =
+  and $ zipWith sameItem x y

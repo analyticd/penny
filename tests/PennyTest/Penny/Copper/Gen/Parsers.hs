@@ -30,6 +30,13 @@ type GenT = Ex.ExceptionalT P.Result Gen
 -- * Helpers
 --
 
+-- | The size parameter will be the one passed through the Gen monad
+-- or the one passed to this function, whichever is smaller.
+maxSize :: Int -> GenT a -> GenT a
+maxSize s (Ex.ExceptionalT g) = Ex.ExceptionalT g'
+  where
+    g' = G.sized $ \sg -> G.resize (min sg s) g
+
 suchThatMaybe :: GenT a -> (a -> Bool) -> GenT a
 suchThatMaybe g p = go (0 :: Int)
   where
@@ -58,7 +65,7 @@ oneof :: [Ex.ExceptionalT P.Result Gen a]
 oneof ls
   | null ls = error "oneof used with empty list"
   | otherwise = do
-      i <- lift $ G.choose (0, length ls)
+      i <- lift $ G.choose (0, length ls - 1)
       ls !! i
 
 
@@ -662,6 +669,8 @@ fromCmdty e = case e of
 
 price :: GenT (L.PricePoint, X.Text)
 price = do
+  atSign <- lift T.atSign
+  wsAt <- lift white
   fr <- lift genCmdty
   (dt, xdt) <- dateTime
   ws1 <- lift white
@@ -675,7 +684,8 @@ price = do
   p <- throwMaybe "price" (L.newPrice (L.From fc) to cpu)
   ws3 <- lift white
   let pp = L.PricePoint dt p (L.PriceMeta Nothing (Just fmt))
-      x = X.concat [xdt, ws1, xfc, ws2, xam, X.singleton '\n', ws3]
+      x = X.concat [ X.singleton atSign, wsAt, xdt, ws1, xfc,
+                     ws2, xam, X.singleton '\n', ws3]
   return (pp, x)
 
 --

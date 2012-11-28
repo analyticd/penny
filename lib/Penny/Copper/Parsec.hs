@@ -281,9 +281,10 @@ price = p >>= maybe (fail msg) return
         Just pr ->
           let pmt = L.PriceMeta (Just (L.PriceLine pl)) (Just fmt)
           in Just $ L.PricePoint dt pr pmt
-    p = f <$> lineNum <*> dateTime <* many (satisfy T.white)
-        <*> fromCmdty <* many1 (satisfy T.white)
-        <*> amount <* satisfy T.newline <* many (satisfy T.white)
+    p = f <$> lineNum <* satisfy T.atSign <* skipWhite
+        <*> dateTime <* skipWhite
+        <*> fromCmdty <* skipWhite
+        <*> amount <* satisfy T.newline <* skipWhite
     msg = "could not parse price, make sure the from and to commodities "
           ++ "are different"
 

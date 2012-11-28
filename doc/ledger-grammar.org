@@ -36,6 +36,7 @@ Apostrophe = { U+0027 }
 Tilde = { '~' }
 Underscore = { '_' }
 Asterisk = { '*' }
+AtSign = { '@' }
 
 * Accounts
 
@@ -214,7 +215,8 @@ Their first character must be a letter.
 A price has a DateTime, a From commodity, and a To amount.
 
 <fromCmdty> ::= <quotedLvl1Cmdty> | <lvl2Cmdty>
-<price> ::= <dateTime> White* <fromCmdty> White+ <amount> Newline White*
+<price> ::= AtSign White* <dateTime> White*
+            <fromCmdty> White+ <amount> Newline White*
 
 * Tags
 
