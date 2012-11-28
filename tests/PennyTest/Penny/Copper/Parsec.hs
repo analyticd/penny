@@ -1,8 +1,10 @@
 module PennyTest.Penny.Copper.Parsec where
 
+import Control.Applicative ((<*))
 import Control.Monad.Exception.Synchronous as Ex
 import Control.Monad.Trans.Class (lift)
 import Text.Parsec (parse)
+import qualified Text.Parsec as Parsec
 import Text.Parsec.Text (Parser)
 import Test.Framework (Test, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
@@ -200,7 +202,7 @@ pTestByT eq s p g = testProperty s t
   where
     t = Ex.resolveT return $ do
       (r, txt) <- g
-      case parse p "" txt of
+      case parse (p <* Parsec.eof) "" txt of
         Left e ->
           let msg = "failed to parse text: " ++ show e
                     ++ " expected result: " ++ show r

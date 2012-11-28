@@ -58,9 +58,10 @@ Lvl1AcctChar = { x ∈ NonNewline | x ∉ CloseCurly, x ∉ Colon }
 Level 2 Accounts contain a more restrictive range of characters than
 Level 1 Accounts. The first sub-account must begin with a letter or
 with any non-ASCII value. All other characters may be nearly any
-character except a space. Level 2 Accounts are not quoted.
+character except a space or asterisk. Level 2 Accounts are not quoted.
 
-Lvl2AcctOtherChar = { x ∈ NonNewline | x ∉ White, x ∉ Colon }
+Lvl2AcctOtherChar = { x ∈ NonNewline | x ∉ White, x ∉ Colon, x ∉ Asterisk,
+                                       x ∉ GreaterThan, X ∉ LessThan }
 <lvl2FirstSubAcct> ::= Letter Lvl2AcctOtherChar*
 <lvl2OtherSubAcct> ::= Colon Lvl2AcctOtherChar+
 <lvl2Acct> ::= <lvl2FirstSubAcct> <lvl2OtherSubAcct>*
@@ -220,7 +221,8 @@ A price has a DateTime, a From commodity, and a To amount.
 Each tag is preceded by an asterisk. The tag text consists of letters,
 digits, and underscores.
 
-TagChar = { x ∈ NonNewlineNonSpace | x ∉ Asterisk }
+TagChar = { x ∈ NonNewlineNonSpace | x ∉ Asterisk, x ∉ GreaterThan,
+                                     x ∉ LessThan }
 <tag> ::= Asterisk TagChar* White*
 <tags> ::= <tag>+
 

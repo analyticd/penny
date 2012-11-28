@@ -112,6 +112,8 @@ lvl1AcctChar c = nonNewline c && (not . closeCurly $ c)
 lvl2AcctOtherChar :: Char -> Bool
 lvl2AcctOtherChar c =
   nonNewline c && (not . white $ c) && (not . colon $ c)
+  && (not . asterisk $ c) && (not . greaterThan $ c)
+  && (not . lessThan $ c)
 
 lvl1CmdtyChar :: Char -> Bool
 lvl1CmdtyChar c =
@@ -137,3 +139,4 @@ quotedPayeeChar c = nonNewline c && (not . tilde $ c)
 
 tagChar :: Char -> Bool
 tagChar c = nonNewlineNonSpace c && (not . asterisk $ c)
+  && (not . greaterThan $ c) && (not . lessThan $ c)

@@ -110,10 +110,15 @@ asterisk :: Gen Char
 asterisk = return '*'
 
 lvl1AcctChar :: Gen Char
-lvl1AcctChar = G.suchThat nonNewline (T.closeCurly !!! T.colon)
+lvl1AcctChar = G.suchThat nonNewline
+  (\c -> (not . T.closeCurly $ c) && (not . T.colon $ c))
 
 lvl2AcctOtherChar :: Gen Char
-lvl2AcctOtherChar = G.suchThat nonNewline (T.white !!! T.colon)
+lvl2AcctOtherChar =
+  G.suchThat nonNewline
+  (\c -> (not . T.white $ c)
+    && (not . T.colon $ c) && (not . T.asterisk $ c)
+    && (not . T.greaterThan $ c) && (not . T.lessThan $ c))
 
 
 lvl1CmdtyChar :: Gen Char
@@ -124,11 +129,6 @@ lvl2CmdtyFirstChar = G.oneof [letter, dollar]
 
 lvl2CmdtyOtherChar :: Gen Char
 lvl2CmdtyOtherChar = G.suchThat nonNewline (not . T.white)
-
-(!!!) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
-(!!!) f1 f2 a = (not . f1 $ a) && (not . f2 $ a)
-
-infixr 2 !!!
 
 lvl3CmdtyChar :: Gen Char
 lvl3CmdtyChar = G.oneof [letter, dollar]
@@ -143,4 +143,6 @@ quotedPayeeChar :: Gen Char
 quotedPayeeChar = G.suchThat nonNewline (not . T.tilde)
 
 tagChar :: Gen Char
-tagChar = G.suchThat nonNewline (not . T.asterisk)
+tagChar = G.suchThat nonNewlineNonSpace
+  (\c -> (not . T.asterisk $ c) && (not . T.greaterThan $ c)
+    && (not . T.lessThan $ c))
