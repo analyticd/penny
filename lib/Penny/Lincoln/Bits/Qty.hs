@@ -198,9 +198,13 @@ sameExponent dec ls =
 
 
 -- | Given an Integer and a list of Integers, multiply all integers by
--- ten raised to an exponent, so that the first Integer is at least as
--- large as the count of the number of Integers in the list. Returns
+-- ten raised to an exponent, so that the first Integer is larger than
+-- the count of the number of Integers in the list. Returns
 -- the new Integer, new list of Integers, and the exponent used.
+--
+-- Previously this only grew the first Integer so that it was at least
+-- as large as the count of Integers in the list, but this causes
+-- problems, as there must be at least one seat for the allocation process.
 growTarget
   :: Integer
   -> NonEmpty Integer
@@ -211,7 +215,7 @@ growTarget target is = go target is 0
     go t xs c =
       let t' = t * 10 ^ c
           xs' = fmap (\x -> x * 10 ^ c) xs
-      in if t' >= len
+      in if t' > len
          then (t', xs', c)
          else go t' xs' (c + 1)
 
@@ -232,7 +236,12 @@ autoAndRemainder
   :: TotSeats -> TotVotes -> PartyVotes -> (AutoSeats, Remainder)
 autoAndRemainder ts tv pv =
   let fI = fromIntegral
-  in properFraction (fI pv / (fI tv / fI ts))
+      quota = if ts == 0
+              then error "autoAndRemainder: zero total seats"
+              else if tv == 0
+                   then error "autoAndRemainder: zero total votes"
+                   else fI tv / fI ts
+  in properFraction (fI pv / quota)
 
 
 type Returns = (TotSeats, [PartyVotes])

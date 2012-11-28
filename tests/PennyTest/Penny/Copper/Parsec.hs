@@ -189,6 +189,9 @@ tests = testGroup "PennyTest.Penny.Copper.Parsec"
           lift $ P.posting e
     in pTestByT samePosting "posting" C.posting g
 
+  , pTestByT sameTransaction "transaction"
+    C.transaction P.transaction
+
   ]
 
 
@@ -278,4 +281,24 @@ samePosting x y =
 
 sameTransaction :: T.Transaction -> T.Transaction -> Bool
 sameTransaction xtxn ytxn =
-  let (xt, yt) = (L.
+  let L.Family xt x1 x2 xs = L.unTransaction xtxn
+      L.Family yt y1 y2 ys = L.unTransaction ytxn
+      samePstg a b = T.pPayee a == T.pPayee b
+                     && T.pNumber a == T.pNumber b
+                     && T.pFlag a == T.pFlag b
+                     && T.pAccount a == T.pAccount b
+                     && T.pTags a == T.pTags b
+                     && T.pEntry a == T.pEntry b
+                     && T.pMemo a == T.pMemo b
+                     && T.pInferred a == T.pInferred b
+                     && (let f = L.postingFormat . T.pMeta
+                         in f a == f b)
+      sameTl a b = T.tDateTime a == T.tDateTime b
+                   && T.tFlag a == T.tFlag b
+                   && T.tNumber a == T.tNumber b
+                   && T.tPayee a == T.tPayee b
+                   && T.tMemo a == T.tMemo b
+  in sameTl xt yt
+     && samePstg x1 y1
+     && samePstg x2 y2
+     && (and $ zipWith samePstg xs ys)
