@@ -15,6 +15,7 @@ import qualified PennyTest.Penny.Copper.Gen.Parsers as P
 import qualified Penny.Copper.Parsec as C
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Transaction.Unverified as U
+import qualified Penny.Lincoln.Transaction as T
 
 import Data.Text (Text)
 
@@ -274,3 +275,7 @@ samePosting x y =
   && (U.pMemo x == U.pMemo y)
   && ((L.postingFormat . U.pMeta $ x)
       == (L.postingFormat . U.pMeta $ y))
+
+sameTransaction :: T.Transaction -> T.Transaction -> Bool
+sameTransaction xtxn ytxn =
+  let (xt, yt) = (L.
