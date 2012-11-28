@@ -7,28 +7,18 @@ import qualified System.Console.MultiArg as M
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Copper as C
-import qualified Penny.Copper.Transaction as CT
-import qualified Penny.Copper.Price as CP
-import qualified Penny.Copper.Comments as CC
+import qualified Penny.Copper.Render as CR
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified System.Exit as E
 import qualified System.IO as IO
 
-defaultCopperOptions :: CopperOptions
-defaultCopperOptions = CopperOptions C.utcDefault
-  (C.GroupAll, C.GroupAll) C.periodComma
-
+groupingSpecs :: CR.GroupSpecs
+groupingSpecs = CR.GroupSpecs CR.GroupAll CR.GroupAll
 
 main :: IO ()
-main = runPennyDiff defaultCopperOptions
-
-data CopperOptions = CopperOptions
-  { defaultTimeZone :: C.DefaultTimeZone
-  , groupingSpecs :: (C.GroupingSpec, C.GroupingSpec)
-  , radGroup :: C.RadGroup
-  } deriving Show
+main = runPennyDiff groupingSpecs
 
 help :: String
 help = unlines
@@ -68,21 +58,21 @@ clonedNonBlankItem nb1 nb2 = case (nb1, nb2) of
 toNonBlankItem :: C.Item -> Maybe NonBlankItem
 toNonBlankItem i = case i of
   C.Transaction t -> Just (Transaction t)
-  C.Price p -> Just (Price p)
-  C.CommentItem c -> Just (Comment c)
+  C.PricePoint p -> Just (Price p)
+  C.IComment c -> Just (Comment c)
   _ -> Nothing
 
-renderNonBlankItem :: CopperOptions -> NonBlankItem -> Maybe X.Text
-renderNonBlankItem (CopperOptions dtz gs rg) n = case n of
-  Transaction t -> CT.render dtz gs rg t
-  Price p -> CP.render dtz gs rg p
-  Comment c -> CC.render c
+renderNonBlankItem :: CR.GroupSpecs -> NonBlankItem -> Maybe X.Text
+renderNonBlankItem gs n = case n of
+  Transaction t -> CR.transaction gs t
+  Price p -> CR.price gs p
+  Comment c -> CR.comment c
 
-runPennyDiff :: CopperOptions -> IO ()
+runPennyDiff :: CR.GroupSpecs -> IO ()
 runPennyDiff co = do
   (f1, f2, dts) <- parseCommandLine
-  l1 <- parseFile co f1
-  l2 <- parseFile co f2
+  l1 <- parseFile f1
+  l2 <- parseFile f2
   let (r1, r2) = doDiffs l1 l2
   showDiffs co dts (f1, f2) (r1, r2)
   case (r1, r2) of
@@ -90,7 +80,7 @@ runPennyDiff co = do
     _ -> E.exitWith (E.ExitFailure 1)
 
 showDiffs
-  :: CopperOptions
+  :: CR.GroupSpecs
   -> DiffsToShow
   -> (String, String)
   -> ([NonBlankItem], [NonBlankItem])
@@ -113,14 +103,14 @@ failure s = IO.hPutStrLn IO.stderr s
 showNonBlankItems
   :: String
   -- ^ Description of items to show
-  -> CopperOptions
+  -> CR.GroupSpecs
   -> [NonBlankItem]
   -> IO ()
 showNonBlankItems s o ls =
   putStrLn s
   >> mapM_ (showNonBlankItem o) ls
 
-showNonBlankItem :: CopperOptions -> NonBlankItem -> IO ()
+showNonBlankItem :: CR.GroupSpecs -> NonBlankItem -> IO ()
 showNonBlankItem co nbi = maybe e TIO.putStr
   (renderNonBlankItem co nbi)
   where
@@ -136,20 +126,20 @@ doDiffs
   -> ([NonBlankItem], [NonBlankItem])
 doDiffs l1 l2 = (r1, r2)
   where
-    mkNbList = mapMaybe (toNonBlankItem . snd) . C.unLedger
+    mkNbList = mapMaybe toNonBlankItem . C.unLedger
     (nb1, nb2) = (mkNbList l1, mkNbList l2)
     df = deleteFirstsBy clonedNonBlankItem
     (r1, r2) = (nb1 `df` nb2, nb2 `df` nb1)
 
-parseFile :: CopperOptions -> String -> IO C.Ledger
-parseFile (CopperOptions dtz _ rg) s = do
+parseFile :: String -> IO C.Ledger
+parseFile s = do
   eiTxt <- CEx.try $ TIO.readFile s
   txt <- case eiTxt of
     Left e -> failure (show (e :: IOError))
     Right g -> return g
   let fn = L.Filename . X.pack $ s
       c = C.FileContents txt
-      parsed = C.parse dtz rg [(fn, c)]
+      parsed = C.parse [(fn, c)]
   case parsed of
     Ex.Exception e -> failure (show e)
     Ex.Success g -> return g

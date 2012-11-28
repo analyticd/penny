@@ -110,22 +110,15 @@ import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Cabin.Balance.Util as BU
 import Penny.Cabin.Options (ShowZeroBalances(..))
 import qualified Penny.Copper as Cop
-import qualified Penny.Copper.DateTime as DT
-import qualified Penny.Copper.Account as CA
-import qualified Penny.Copper.Transaction as CT
+import qualified Penny.Copper.Parsec as CP
+import qualified Penny.Copper.Render as CR
 import qualified Penny.Lincoln as L
 import qualified Data.Map as M
 import qualified System.Console.MultiArg as MA
 import Text.Parsec as Parsec
 
-defaultTimeZone :: Cop.DefaultTimeZone
-defaultTimeZone = Cop.utcDefault
-
-radGroup :: Cop.RadGroup
-radGroup = Cop.periodComma
-
-groupingSpec :: (Cop.GroupingSpec, Cop.GroupingSpec)
-groupingSpec = (Cop.GroupAll, Cop.NoGrouping)
+groupingSpec :: CR.GroupSpecs
+groupingSpec = CR.GroupSpecs CR.GroupAll CR.NoGrouping
 
 type Err = Ex.Exceptional Error
 
@@ -140,12 +133,11 @@ data Error
   | BadSelloffBalance
   | BadPurchaseBalance
   | BadPurchaseDate Parsec.ParseError
-  | NotThreePurchaseSubAccounts [L.SubAccountName]
+  | NotThreePurchaseSubAccounts [L.SubAccount]
   | BasisAllocationFailed
   | ZeroCostSharesSold
   | InsufficientSharePurchases
   | NoPurchaseInformation
-  | CapitalChangeAllocationFailed
   | SaleDateParseFailed Parsec.ParseError
   deriving Show
 
@@ -186,7 +178,7 @@ parseCommandLine ss =
           r -> return r
         a <- Ex.mapException ProceedsParseFailed
               . Ex.fromEither
-              $ Parsec.parse CA.lvl1Account "" (pack x)
+              $ Parsec.parse CP.lvl1Acct "" (pack x)
         when (null xs) $ Ex.throw NoInputFiles
         return $ ParseResult (ProceedsAcct a) (map InputFilename xs)
 
@@ -197,11 +189,11 @@ parseFiles
   :: [(L.Filename, Cop.FileContents)]
   -> Err Cop.Ledger
 parseFiles ls = Ex.mapException LedgerParseError
-  $ Cop.parse defaultTimeZone radGroup ls
+  $ Cop.parse ls
 
 calcBalances :: Cop.Ledger -> [(L.Account, L.Balance)]
 calcBalances =
-  let toTxn (_, i) = case i of
+  let toTxn i = case i of
         Cop.Transaction t -> Just t
         _ -> Nothing
   in BU.flatten
@@ -211,7 +203,7 @@ calcBalances =
       . mapMaybe toTxn
       . Cop.unLedger
 
-newtype Group = Group { unGroup :: L.SubAccountName }
+newtype Group = Group { unGroup :: L.SubAccount }
   deriving (Show, Eq)
 
 newtype SaleDate = SaleDate { unSaleDate :: L.DateTime }
@@ -239,13 +231,13 @@ selloffInfo (ProceedsAcct pa) bals = do
           . find ((== pa) . fst)
           $ bals
   (g, d) <- case L.unAccount pa of
-    _ :| (s2 : s3 : []) -> return (s2, s3)
+    _ : s2 : s3 : [] -> return (s2, s3)
     _ -> Ex.throw NotThreeSelloffSubAccounts
   (sStock, sCurr) <- selloffStockCurr bal
   date <- fmap SaleDate
           . Ex.mapException SaleDateParseFailed
           . Ex.fromEither
-          . Parsec.parse (DT.dateTime defaultTimeZone) ""
+          . Parsec.parse CP.dateTime ""
           $ (L.text d)
   return $ SelloffInfo (Group g) date sStock sCurr
 
@@ -267,18 +259,18 @@ selloffStockCurr bal = do
   return (sellStock, sellCurr)
 
 
-basis :: L.SubAccountName
-basis = L.SubAccountName (L.TextNonEmpty 'B' (pack "asis"))
+basis :: L.SubAccount
+basis = L.SubAccount . pack $ "Basis"
 
 findBasisAccounts
   :: Group
   -> [(L.Account, L.Balance)]
-  -> [([L.SubAccountName], L.Balance)]
+  -> [([L.SubAccount], L.Balance)]
 findBasisAccounts (Group g) = mapMaybe f
   where
     f ((L.Account a), b) = case a of
-      s0 :| (s1:s2:ss) -> if (s0 == basis) && (s1 == g)
-                        then Just (s2:ss, b) else Nothing
+      s0 : s1 : s2 : ss -> if (s0 == basis) && (s1 == g)
+                           then Just (s2:ss, b) else Nothing
       _ -> Nothing
 
 
@@ -302,7 +294,7 @@ data PurchaseInfo = PurchaseInfo
 purchaseInfo
   :: SelloffStock
   -> SelloffCurrency
-  -> ([L.SubAccountName], L.Balance)
+  -> ([L.SubAccount], L.Balance)
   -> Err PurchaseInfo
 purchaseInfo sStock sCurr (ss, bal) = do
   dateSub <- case ss of
@@ -310,7 +302,7 @@ purchaseInfo sStock sCurr (ss, bal) = do
     _ -> Ex.throw $ NotThreePurchaseSubAccounts ss
   date <- Ex.mapException BadPurchaseDate
           . Ex.fromEither
-          . Parsec.parse (DT.dateTime defaultTimeZone) ""
+          . Parsec.parse CP.dateTime ""
           . L.text
           $ dateSub
   (stockQty, currQty) <- purchaseQtys sStock sCurr bal
@@ -388,10 +380,9 @@ stRealizeBasis p = do
 
         L.RightBiggerBy unsoldStockQty -> do
           let alloced = L.allocate pcq (sq :| [unsoldStockQty])
-          basisSold <- case alloced of
-            Just (x :| (_ : [])) -> return x
-            Nothing -> Ex.throwT BasisAllocationFailed
-            _ -> error "stRealizeBasis: error"
+              basisSold = case alloced of
+                x :| (_ : []) -> x
+                _ -> error "stRealizeBasis: error"
           let css' = case mayCss of
                 Nothing -> CostSharesSold basisSold
                 Just (CostSharesSold css) ->
@@ -457,25 +448,24 @@ capitalChange css sc ls =
                   . NE.nonEmpty $ ls
       let qtys = fmap (unPurchaseCurrencyQty . piCurrencyQty . fst)
                  nePurchs
-      alloced <- Ex.fromMaybe CapitalChangeAllocationFailed
-                 . L.allocate qt $ qtys
+          alloced = L.allocate qt qtys
       let mkCapChange (p, br) q = (p, br, CapitalChange q)
           r = toList $ NE.zipWith mkCapChange nePurchs alloced
       return $ WithCapitalChanges r gl
 
 memo :: SaleDate -> L.Memo
 memo (SaleDate sd) =
-  let dTxt = DT.render defaultTimeZone sd
+  let dTxt = CR.dateTime sd
       txt = pack "transaction created by penny-selloff for sale on "
             `X.append` dTxt
-  in L.Memo [L.MemoLine (L.TextNonEmpty ' ' txt)]
+  in L.Memo txt
 
 payee :: L.Payee
-payee = L.Payee (L.TextNonEmpty 'R' (pack "ealize gain or loss"))
+payee = L.Payee . pack $ "Realize gain or loss"
 
 topLine :: SaleDate -> U.TopLine
 topLine sd = U.TopLine (unSaleDate sd) Nothing Nothing (Just payee)
-             (memo sd) L.emptyTopLineMeta
+             (Just . memo $ sd) L.emptyTopLineMeta
 
 basisOffsets
   :: SelloffInfo
@@ -484,7 +474,7 @@ basisOffsets
   -> (U.Posting, U.Posting)
 basisOffsets s pd p = (po enDr, po enCr)
   where
-    ac = L.Account (basis :| [grp, dt])
+    ac = L.Account [basis, grp, dt]
     grp = unGroup . siGroup $ s
     dt = dateToSubAcct . unPurchaseDate $ pd
     enDr = L.Entry L.Debit
@@ -496,27 +486,22 @@ basisOffsets s pd p = (po enDr, po enCr)
     meta = L.PostingMeta Nothing (Just fmt) Nothing Nothing
     fmt = L.Format L.CommodityOnLeft L.SpaceBetween
     po en = U.Posting Nothing Nothing Nothing ac (L.Tags [])
-            (Just en) (L.Memo []) meta
+            (Just en) Nothing meta
 
-dateToSubAcct :: L.DateTime -> L.SubAccountName
-dateToSubAcct dt = L.SubAccountName (L.TextNonEmpty f r)
-  where
-    dtTxt = DT.render defaultTimeZone dt
-    (f, r) = case X.uncons dtTxt of
-      Just x -> x
-      Nothing -> error "dateToSubAcct: date rendered empty"
+dateToSubAcct :: L.DateTime -> L.SubAccount
+dateToSubAcct = L.SubAccount . CR.dateTime
 
-income :: L.SubAccountName
-income = L.SubAccountName (L.TextNonEmpty 'I' (pack "ncome"))
+income :: L.SubAccount
+income = L.SubAccount .  pack $ "Income"
 
-capGain :: L.SubAccountName
-capGain = L.SubAccountName (L.TextNonEmpty 'C' (pack "apital Gain"))
+capGain :: L.SubAccount
+capGain = L.SubAccount . pack $ "Capital Gain"
 
-expense :: L.SubAccountName
-expense = L.SubAccountName (L.TextNonEmpty 'E' (pack "xpenses"))
+expense :: L.SubAccount
+expense = L.SubAccount . pack $ "Expenses"
 
-capLoss :: L.SubAccountName
-capLoss = L.SubAccountName (L.TextNonEmpty 'C' (pack "apital Loss"))
+capLoss :: L.SubAccount
+capLoss = L.SubAccount . pack $ "Capital Loss"
 
 capChangeAcct
   :: GainOrLoss
@@ -524,8 +509,8 @@ capChangeAcct
   -> PurchaseInfo
   -> L.Account
 capChangeAcct gl si p = L.Account $ case gl of
-  Gain -> income :| [capGain, grp, sd, pd]
-  Loss -> expense :| [capLoss, grp, sd, pd]
+  Gain -> [income, capGain, grp, sd, pd]
+  Loss -> [expense, capLoss, grp, sd, pd]
   where
     grp = unGroup . siGroup $ si
     sd = dateToSubAcct . unSaleDate . siSaleDate $ si
@@ -552,15 +537,15 @@ capChangePstg
   -> U.Posting
 capChangePstg si gl cc p =
   U.Posting Nothing Nothing Nothing ac (L.Tags []) (Just en)
-    (L.Memo []) meta
+    Nothing meta
   where
     meta = L.PostingMeta Nothing (Just fmt) Nothing Nothing
     fmt = L.Format L.CommodityOnLeft L.SpaceBetween
     ac = capChangeAcct gl si p
     en = capChangeEntry gl (siCurrency si) cc
 
-proceeds :: L.SubAccountName
-proceeds = L.SubAccountName (L.TextNonEmpty 'P' (pack "roceeds"))
+proceeds :: L.SubAccount
+proceeds = L.SubAccount . pack $ "Proceeds"
 
 proceedsPstgs
   :: SelloffInfo
@@ -568,9 +553,9 @@ proceedsPstgs
 proceedsPstgs si = (po dr, po cr)
   where
     po en = U.Posting Nothing Nothing Nothing ac (L.Tags [])
-      (Just en) (L.Memo []) meta
+      (Just en) Nothing meta
     meta = L.PostingMeta Nothing (Just fmt) Nothing Nothing
-    ac = L.Account (proceeds :| [gr, dt])
+    ac = L.Account [proceeds, gr, dt]
     gr = unGroup . siGroup $ si
     dt = dateToSubAcct . unSaleDate . siSaleDate $ si
     dr = L.Entry L.Debit (unSelloffCurrency . siCurrency $ si)
@@ -615,7 +600,7 @@ makeOutput pa ps = do
   return
     . (`X.snoc` '\n')
     . fromMaybe (error "makeOutput: transaction did not render")
-    . CT.render defaultTimeZone groupingSpec radGroup
+    . CR.transaction groupingSpec
     . mkTxn si
     $ wcc
 
