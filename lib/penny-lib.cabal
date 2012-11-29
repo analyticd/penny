@@ -56,9 +56,7 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  * Full Unicode support. Also, you may set which characters you wish
-    to use to represent the radix point and the digit grouping
-    character in your ledger file.
+  * Full Unicode support.
 
   .
 
@@ -110,6 +108,11 @@ description: Penny is a double-entry accounting system. It is inspired
     avoid language extensions.
 
   .
+
+  * Tested using QuickCheck. The tests are available in the Git
+    repository that also contains the main library. Not everything
+    is tested, but the tests that exist so far have already rooted
+    out some strange corner-case bugs.
 
   Non-features / disadvantages:
 
