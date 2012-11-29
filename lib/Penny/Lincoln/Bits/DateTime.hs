@@ -1,8 +1,3 @@
--- | Perhaps this could be called @moment@, as it aims to identify a
--- moment in time. A DateTime is a combination of a LocalTime from
--- Data.Time and a TimeZoneOffset. Previously a DateTime was simply a
--- ZonedTime from Data.Time but ZonedTime has data that Penny does not
--- need.
 module Penny.Lincoln.Bits.DateTime
   ( TimeZoneOffset ( offsetToMins )
   , minsToOffset
@@ -84,12 +79,13 @@ zeroSeconds = Seconds 0
 midnight :: (Hours, Minutes, Seconds)
 midnight = (zeroHours, zeroMinutes, zeroSeconds)
 
--- | A DateTime is a UTC time that also remembers the local time from
--- which it was set. The Eq and Ord instances account for the local
--- time; that is, even though two DateTimes might indicate the same
--- instant, Eq will indicate they are different if the time zones are
--- different. To see if two DateTimes are the same instant, use
--- sameInstant.
+-- | A DateTime is a a local date and time, along with a time zone
+-- offset.  The Eq and Ord instances are derived; therefore, two
+-- DateTime instances will not be equivalent if the time zone offsets
+-- are different, even if they are the same instant. To compare one
+-- DateTime to another, you probably want to use 'toUTC' and compare
+-- those. To see if two DateTime are the same instant, use
+-- 'sameInstant'.
 data DateTime = DateTime
   { day :: T.Day
   , hours :: Hours
