@@ -353,10 +353,14 @@ parseTriple
   -> Parser c
   -> Parser (a, Maybe b, Maybe c)
 parseTriple a b c =
-  (\x (y, z) -> (x, y, z))
+  f
   <$> a
   <* skipWhite
-  <*> parsePair b c
+  <*> optional (parsePair b c)
+  where
+    f ra mayRbc = case mayRbc of
+      Nothing -> (ra, Nothing, Nothing)
+      Just (rb, rc) -> (ra, rb, rc)
 
 
 flagFirst :: Parser (L.Flag, Maybe L.Number, Maybe L.Payee)

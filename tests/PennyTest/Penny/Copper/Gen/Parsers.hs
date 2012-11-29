@@ -759,7 +759,8 @@ genTriple
   -> Gen ((a, Maybe b, Maybe c), X.Text)
 genTriple ga gb gc = do
   (a, xa) <- ga
-  ((mb, mc), xbc) <- genPair gb gc
+  (mayPair, xbc) <- optionalG $ genPair gb gc
+  let (mb, mc) = fromMaybe (Nothing, Nothing) mayPair
   w <- white
   return ((a, mb, mc), X.concat [xa, w, xbc])
 
