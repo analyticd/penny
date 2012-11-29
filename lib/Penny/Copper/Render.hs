@@ -17,42 +17,62 @@ import Penny.Lincoln.Family (orphans)
 import System.Locale (defaultTimeLocale)
 import qualified Data.Traversable as Tr
 
+-- * Helpers
+-- | Merges a list of words into one Text; however, if any given Text
+-- is empty, that Text is first dropped from the list.
+txtWords :: [X.Text] -> X.Text
+txtWords xs = case filter (not . X.null) xs of
+  [] -> X.empty
+  rs -> X.unwords rs
+
+-- | Takes a field that may or may not be present and a function that
+-- renders it. If the field is not present at all, returns an empty
+-- Text. Otherwise will succeed or fail depending upon whether the
+-- rendering function succeeds or fails.
+renMaybe :: Maybe a -> (a -> Maybe X.Text) -> Maybe X.Text
+renMaybe mx f = case mx of
+  Nothing -> Just X.empty
+  Just a -> f a
+
+
+-- * Accounts
+
 -- | Is True if a sub account can be rendered at Level 1;
 -- False otherwise.
-isSubAccountLvl1 :: L.SubAccount -> Bool
-isSubAccountLvl1 (L.SubAccount x) =
+isSubAcctLvl1 :: L.SubAccount -> Bool
+isSubAcctLvl1 (L.SubAccount x) =
   X.all T.lvl1AcctChar x && not (X.null x)
 
-isAccountLvl1 :: L.Account -> Bool
-isAccountLvl1 (L.Account ls) =
+isAcctLvl1 :: L.Account -> Bool
+isAcctLvl1 (L.Account ls) =
   (not . null $ ls)
-  && (all isSubAccountLvl1 ls)
+  && (all isSubAcctLvl1 ls)
 
-lvl1Account :: L.Account -> Maybe Text
-lvl1Account a@(L.Account ls) = do
-  guard (isAccountLvl1 a)
+quotedLvl1Acct :: L.Account -> Maybe Text
+quotedLvl1Acct a@(L.Account ls) = do
+  guard (isAcctLvl1 a)
   let txt = X.concat . intersperse (X.singleton ':')
             . map L.unSubAccount $ ls
   return $ '{' `X.cons` txt `X.snoc` '}'
 
-isFirstSubAccountLvl2 :: L.SubAccount -> Bool
-isFirstSubAccountLvl2 (L.SubAccount x) = case X.uncons x of
+isFirstSubAcctLvl2 :: L.SubAccount -> Bool
+isFirstSubAcctLvl2 (L.SubAccount x) = case X.uncons x of
   Nothing -> False
   Just (c, r) -> T.letter c && (X.all T.lvl2AcctOtherChar r)
 
-isOtherSubAccountLvl2 :: L.SubAccount -> Bool
-isOtherSubAccountLvl2 (L.SubAccount x) =
+isOtherSubAcctLvl2 :: L.SubAccount -> Bool
+isOtherSubAcctLvl2 (L.SubAccount x) =
   (not . X.null $ x)
   && (X.all T.lvl2AcctOtherChar x)
 
-isAccountLvl2 :: L.Account -> Bool
-isAccountLvl2 (L.Account ls) = case ls of
+isAcctLvl2 :: L.Account -> Bool
+isAcctLvl2 (L.Account ls) = case ls of
   [] -> False
-  x:xs -> isFirstSubAccountLvl2 x && all isOtherSubAccountLvl2 xs
+  x:xs -> isFirstSubAcctLvl2 x && all isOtherSubAcctLvl2 xs
 
-lvl2Account :: L.Account -> Maybe Text
-lvl2Account a@(L.Account ls) = do
-  guard $ isAccountLvl2 a
+lvl2Acct :: L.Account -> Maybe Text
+lvl2Acct a@(L.Account ls) = do
+  guard $ isAcctLvl2 a
   return . X.concat . intersperse (X.singleton ':')
          . map L.unSubAccount $ ls
 
@@ -60,8 +80,40 @@ lvl2Account a@(L.Account ls) = do
 -- possible. Fails with an error if any one of the characters in the
 -- account name does not satisfy the 'lvl1Char' predicate. Otherwise
 -- returns a rendered account, quoted if necessary.
-account :: L.Account -> Maybe Text
-account a = lvl2Account a <|> lvl1Account a
+ledgerAcct :: L.Account -> Maybe Text
+ledgerAcct a = lvl2Acct a <|> quotedLvl1Acct a
+
+-- * Commodities
+
+-- | Render a quoted Level 1 commodity. Fails if any character does
+-- not satisfy lvl1Char.
+quotedLvl1Cmdty :: L.Commodity -> Maybe Text
+quotedLvl1Cmdty (L.Commodity c) =
+  if X.all T.lvl1CmdtyChar c
+  then Just $ '"' `cons` c `snoc` '"'
+  else Nothing
+
+
+-- | Render a Level 2 commodity. Fails if the first character is not a
+-- letter or a symbol, or if any other character is a space.
+lvl2Cmdty :: L.Commodity -> Maybe Text
+lvl2Cmdty (L.Commodity c) = do
+  (f, rs) <- X.uncons c
+  guard $ T.lvl2CmdtyFirstChar f
+  guard . X.all T.lvl2CmdtyOtherChar $ rs
+  return c
+
+
+-- | Render a Level 3 commodity. Fails if any character is not a
+-- letter or a symbol.
+lvl3Cmdty :: L.Commodity -> Maybe Text
+lvl3Cmdty (L.Commodity c) =
+  if (not . X.null $ c) && (X.all T.lvl3CmdtyChar c)
+  then return c
+  else Nothing
+
+
+-- * Quantities
 
 -- | Specifies how to perform digit grouping when rendering a
 -- quantity. All grouping groups into groups of 3 digits.
@@ -115,13 +167,13 @@ groupDecimal gs o = let
     GroupAll -> grouped
 
 -- | Renders an unquoted Qty. Performs digit grouping as requested.
-qty
+quantity
   :: GroupSpecs
   -- ^ Group for the portion to the left and right of the radix point?
 
   -> L.Qty
   -> X.Text
-qty gs q =
+quantity gs q =
   let qs = show q
   in X.pack $ case splitOn "." qs of
     w:[] -> groupWhole (left gs) w
@@ -129,32 +181,7 @@ qty gs q =
       groupWhole (left gs) w ++ radix ++ groupDecimal (right gs) d
     _ -> error "Qty.hs: rendering error"
 
--- | Render a quoted Level 1 commodity. Fails if any character does
--- not satisfy lvl1Char.
-lvl1CmdtyQuoted :: L.Commodity -> Maybe Text
-lvl1CmdtyQuoted (L.Commodity c) =
-  if X.all T.lvl1CmdtyChar c
-  then Just $ '"' `cons` c `snoc` '"'
-  else Nothing
-
-
--- | Render a Level 2 commodity. Fails if the first character is not a
--- letter or a symbol, or if any other character is a space.
-lvl2Cmdty :: L.Commodity -> Maybe Text
-lvl2Cmdty (L.Commodity c) = do
-  (f, rs) <- X.uncons c
-  guard $ T.lvl2CmdtyFirstChar f
-  guard . X.all T.lvl2CmdtyOtherChar $ rs
-  return c
-
-
--- | Render a Level 3 commodity. Fails if any character is not a
--- letter or a symbol.
-lvl3Cmdty :: L.Commodity -> Maybe Text
-lvl3Cmdty (L.Commodity c) =
-  if (not . X.null $ c) && (X.all T.lvl3CmdtyChar c)
-  then return c
-  else Nothing
+-- * Amounts
 
 -- | Render an Amount. The Format is required so that the commodity
 -- can be displayed in the right place.
@@ -165,14 +192,14 @@ amount ::
   -> Maybe X.Text
 amount gs f a = let
   (qt, c) = (L.qty a, L.commodity a)
-  q = qty gs qt
+  q = quantity gs qt
   ws = case L.between f of
     L.SpaceBetween -> X.singleton ' '
     L.NoSpaceBetween -> X.empty
   mayLvl3 = lvl3Cmdty c
   mayLvl2 = lvl2Cmdty c
   in do
-    quotedLvl1 <- lvl1CmdtyQuoted c
+    quotedLvl1 <- quotedLvl1Cmdty c
     let (l, r) = case L.side f of
           L.CommodityOnLeft -> case mayLvl3 of
             Nothing -> (quotedLvl1, q)
@@ -182,11 +209,15 @@ amount gs f a = let
             Just l2 -> (q, l2)
     return $ X.concat [l, ws, r]
 
+-- * Comments
+
 comment :: Y.Comment -> Maybe X.Text
 comment (Y.Comment x) =
   if (not . X.all T.nonNewline $ x)
   then Nothing
   else Just $ '#' `cons` x `snoc` '\n'
+
+-- * DateTime
 
 -- | Render a DateTime. If the DateTime is midnight, then the time and
 -- time zone will not be printed. Otherwise, the time and time zone
@@ -205,6 +236,8 @@ dateTime dt = X.pack $ Time.formatTime defaultTimeLocale fmt zt
           then fmtShort
           else fmtLong
 
+-- * Entries
+
 entry
   :: GroupSpecs
   -> L.Format
@@ -217,66 +250,15 @@ entry gs f (L.Entry dc a) = do
         L.Credit -> ">"
   return $ X.append (X.snoc dcTxt ' ') amt
 
+-- * Flags
+
 flag :: L.Flag -> Maybe X.Text
 flag (L.Flag fl) =
   if X.all T.flagChar fl
   then Just $ '[' `cons` fl `snoc` ']'
   else Nothing
 
-number :: L.Number -> Maybe Text
-number (L.Number t) =
-  if X.all T.numberChar t
-  then Just $ '(' `cons` t `snoc` ')'
-  else Nothing
-
-lvl2Payee :: L.Payee -> Maybe Text
-lvl2Payee (L.Payee p) = do
-  (c1, cs) <- X.uncons p
-  guard (T.letter c1)
-  guard (X.all T.nonNewline cs)
-  return p
-
-lvl1Payee :: L.Payee -> Maybe Text
-lvl1Payee (L.Payee p) = do
-  guard (not . X.null $ p)
-  guard (X.all T.quotedPayeeChar p)
-  return $ '~' `X.cons` p `X.snoc` '~'
-
-payee :: L.Payee -> Maybe Text
-payee p = lvl2Payee p <|> lvl1Payee p
-
-price ::
-  GroupSpecs
-  -> L.PricePoint
-  -> Maybe X.Text
-price gs pp = let
-  dateTxt = dateTime (L.dateTime pp)
-  (L.From from) = L.from . L.price $ pp
-  (L.To to) = L.to . L.price $ pp
-  (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
-  mayFromTxt = lvl3Cmdty from <|> lvl1CmdtyQuoted from
-  amt = L.Amount q to
-  in do
-    fmt <- L.priceFormat . L.ppMeta $ pp
-    let mayAmtTxt = amount gs fmt amt
-    amtTxt <- mayAmtTxt
-    fromTxt <- mayFromTxt
-    return $
-       (X.intercalate (X.singleton ' ')
-       [X.singleton '@', dateTxt, fromTxt, amtTxt])
-       `snoc` '\n'
-
-tag :: L.Tag -> Maybe X.Text
-tag (L.Tag t) =
-  if X.all T.tagChar t
-  then Just $ X.cons '*' t
-  else Nothing
-
-tags :: L.Tags -> Maybe X.Text
-tags (L.Tags ts) =
-  X.intercalate (X.singleton ' ')
-  <$> mapM tag ts
-
+-- * Memos
 transactionMemo :: L.Memo -> Maybe X.Text
 transactionMemo (L.Memo x) =
   let ls = X.split (== '\n') x
@@ -298,14 +280,69 @@ postingMemo (L.Memo x) =
                      `X.snoc` '\n'
       in Just . X.concat . map mkLine $ ls
 
--- | Takes a field that may or may not be present and a function that
--- renders it. If the field is not present at all, returns an empty
--- Text. Otherwise will succeed or fail depending upon whether the
--- rendering function succeeds or fails.
-renMaybe :: Maybe a -> (a -> Maybe X.Text) -> Maybe X.Text
-renMaybe mx f = case mx of
-  Nothing -> Just X.empty
-  Just a -> f a
+-- * Numbers
+
+number :: L.Number -> Maybe Text
+number (L.Number t) =
+  if X.all T.numberChar t
+  then Just $ '(' `cons` t `snoc` ')'
+  else Nothing
+
+-- * Payees
+
+quotedLvl1Payee :: L.Payee -> Maybe Text
+quotedLvl1Payee (L.Payee p) = do
+  guard (not . X.null $ p)
+  guard (X.all T.quotedPayeeChar p)
+  return $ '~' `X.cons` p `X.snoc` '~'
+
+lvl2Payee :: L.Payee -> Maybe Text
+lvl2Payee (L.Payee p) = do
+  (c1, cs) <- X.uncons p
+  guard (T.letter c1)
+  guard (X.all T.nonNewline cs)
+  return p
+
+payee :: L.Payee -> Maybe Text
+payee p = lvl2Payee p <|> quotedLvl1Payee p
+
+-- * Prices
+
+price ::
+  GroupSpecs
+  -> L.PricePoint
+  -> Maybe X.Text
+price gs pp = let
+  dateTxt = dateTime (L.dateTime pp)
+  (L.From from) = L.from . L.price $ pp
+  (L.To to) = L.to . L.price $ pp
+  (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
+  mayFromTxt = lvl3Cmdty from <|> quotedLvl1Cmdty from
+  amt = L.Amount q to
+  in do
+    fmt <- L.priceFormat . L.ppMeta $ pp
+    let mayAmtTxt = amount gs fmt amt
+    amtTxt <- mayAmtTxt
+    fromTxt <- mayFromTxt
+    return $
+       (X.intercalate (X.singleton ' ')
+       [X.singleton '@', dateTxt, fromTxt, amtTxt])
+       `snoc` '\n'
+
+-- * Tags
+
+tag :: L.Tag -> Maybe X.Text
+tag (L.Tag t) =
+  if X.all T.tagChar t
+  then Just $ X.cons '*' t
+  else Nothing
+
+tags :: L.Tags -> Maybe X.Text
+tags (L.Tags ts) =
+  X.intercalate (X.singleton ' ')
+  <$> mapM tag ts
+
+-- * TopLine
 
 topLine :: LT.TopLine -> Maybe X.Text
 topLine tl =
@@ -321,12 +358,7 @@ topLine tl =
       `X.snoc` '\n'
     dtX = dateTime (LT.tDateTime tl)
 
--- | Merges a list of words into one Text; however, if any given Text
--- is empty, that Text is first dropped from the list.
-txtWords :: [X.Text] -> X.Text
-txtWords xs = case filter (not . X.null) xs of
-  [] -> X.empty
-  rs -> X.unwords rs
+-- * Posting
 
 -- | Renders a Posting. Fails if any of the components
 -- fail to render. In addition, if the unverified Posting has an
@@ -355,7 +387,7 @@ posting gs p = do
   fl <- renMaybe (LT.pFlag p) flag
   nu <- renMaybe (LT.pNumber p) number
   pa <- renMaybe (LT.pPayee p) payee
-  ac <- account (LT.pAccount p)
+  ac <- ledgerAcct (LT.pAccount p)
   ta <- tags (LT.pTags p)
   me <- renMaybe (LT.pMemo p) postingMemo
   maybePair <- case (LT.pInferred p, L.postingFormat . LT.pMeta $ p) of
@@ -389,6 +421,8 @@ formatter fl nu pa ac ta en me = let
   in X.concat [colA, colB, colC, colD, rtn, me]
 
 
+-- * Transaction
+
 transaction ::
   GroupSpecs
   -> L.Transaction
@@ -399,9 +433,16 @@ transaction gs txn = do
   pstgsX <- Tr.traverse (posting gs) (orphans txnFam)
   return $ tlX `X.append` (X.concat (toList pstgsX))
 
+-- * Item
+
 item :: GroupSpecs -> Y.Item -> Maybe X.Text
 item gs i = case i of
   Y.BlankLine -> Just . X.singleton $ '\n'
   Y.IComment x -> comment x
   Y.PricePoint pp -> price gs pp
   Y.Transaction t -> transaction gs t
+
+-- * Ledger
+
+ledger :: GroupSpecs -> Y.Ledger -> Maybe X.Text
+ledger gs (Y.Ledger is) = fmap X.concat . mapM (item gs) $ is
