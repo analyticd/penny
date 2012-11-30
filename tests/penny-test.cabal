@@ -38,6 +38,7 @@ Executable penny-test
         , PennyTest.Penny.Copper.Gen.Parsers
         , PennyTest.Penny.Copper.Gen.Terminals
         , PennyTest.Penny.Copper.Parsec
+        , PennyTest.Penny.Copper.Render
         , PennyTest.Penny.Lincoln
         , PennyTest.Penny.Lincoln.Bits
         , PennyTest.Penny.Lincoln.Bits.Qty
