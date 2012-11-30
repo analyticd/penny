@@ -610,7 +610,7 @@ postingMemoLine = do
 postingMemo :: Gen (L.Memo, X.Text)
 postingMemo = do
   me <- G.listOf1 postingMemoLine
-  let mem = L.Memo . X.intercalate (X.singleton '\n') . map fst $ me
+  let mem = L.Memo . map fst $ me
       ren = X.concat .  map snd $ me
   return (mem, ren)
 
@@ -623,7 +623,7 @@ transactionMemoLine = do
 transactionMemo :: Gen (L.Memo, X.Text)
 transactionMemo = do
   me <- G.listOf1 transactionMemoLine
-  let mem = L.Memo . X.intercalate (X.singleton '\n') . map fst $ me
+  let mem = L.Memo . map fst $ me
       ren = X.concat . map snd $ me
   return (mem, ren)
 

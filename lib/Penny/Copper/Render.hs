@@ -295,12 +295,10 @@ postingMemoLine x =
   else Nothing
 
 postingMemo :: L.Memo -> Maybe X.Text
-postingMemo =
-  fmap (\x -> if X.null x then X.pack "'\n" else x)
-  . fmap X.concat
-  . mapM transactionMemoLine
-  . X.lines
-  . L.unMemo
+postingMemo (L.Memo ls) =
+  if null ls
+  then Nothing
+  else fmap X.concat . mapM postingMemoLine $ ls
 
 transactionMemoLine :: X.Text -> Maybe X.Text
 transactionMemoLine x =
@@ -309,12 +307,10 @@ transactionMemoLine x =
   else Nothing
 
 transactionMemo :: L.Memo -> Maybe X.Text
-transactionMemo =
-  fmap (\x -> if X.null x then X.pack ";\n" else x)
-  . fmap X.concat
-  . mapM transactionMemoLine
-  . X.lines
-  . L.unMemo
+transactionMemo (L.Memo ls) =
+  if null ls
+  then Nothing
+  else fmap X.concat . mapM transactionMemoLine $ ls
 
 -- * Numbers
 
@@ -328,7 +324,6 @@ number (L.Number t) =
 
 quotedLvl1Payee :: L.Payee -> Maybe Text
 quotedLvl1Payee (L.Payee p) = do
-  guard (not . X.null $ p)
   guard (X.all T.quotedPayeeChar p)
   return $ '~' `X.cons` p `X.snoc` '~'
 
@@ -422,7 +417,7 @@ posting ::
 posting gs p = do
   fl <- renMaybe (LT.pFlag p) flag
   nu <- renMaybe (LT.pNumber p) number
-  pa <- renMaybe (LT.pPayee p) payee
+  pa <- renMaybe (LT.pPayee p) quotedLvl1Payee
   ac <- ledgerAcct (LT.pAccount p)
   ta <- tags (LT.pTags p)
   me <- renMaybe (LT.pMemo p) postingMemo

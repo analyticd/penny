@@ -15,7 +15,6 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
-import qualified Data.Text as X
 import qualified Data.Time as Time
 
 lvl1SubAcct :: Parser L.SubAccount
@@ -229,25 +228,26 @@ flag = (L.Flag . pack) <$ satisfy T.openSquare
   <*> many (satisfy T.flagChar) <* satisfy (T.closeSquare)
 
 postingMemoLine :: Parser Text
-postingMemoLine = pack <$ satisfy T.apostrophe
-                  <*> many (satisfy T.nonNewline)
-                  <* satisfy T.newline <* many (satisfy T.white)
+postingMemoLine =
+  pack
+  <$ satisfy T.apostrophe
+  <*> many (satisfy T.nonNewline)
+  <* satisfy T.newline <* many (satisfy T.white)
 
 postingMemo :: Parser L.Memo
-postingMemo =
-  L.Memo . X.intercalate (X.singleton '\n')
-  <$> many1 postingMemoLine
+postingMemo = L.Memo <$> many1 postingMemoLine
 
 transactionMemoLine :: Parser Text
 transactionMemoLine =
-  pack <$ satisfy T.semicolon <*> many (satisfy T.nonNewline)
+  pack
+  <$ satisfy T.semicolon <*> many (satisfy T.nonNewline)
   <* satisfy T.newline <* skipWhite
 
 transactionMemo :: Parser (L.TopMemoLine, L.Memo)
 transactionMemo = f <$> lineNum <*> many1 transactionMemoLine
   where
     f tml ls = (L.TopMemoLine tml
-               , L.Memo . X.intercalate (X.singleton '\n') $ ls)
+               , L.Memo ls)
 
 
 number :: Parser L.Number

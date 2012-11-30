@@ -19,9 +19,6 @@ instance HasText B.Flag where
 instance HasText B.Commodity where
   text = B.unCommodity
 
-instance HasText B.Memo where
-  text = B.unMemo
-
 instance HasText B.Number where
   text = B.unNumber
 
@@ -40,3 +37,5 @@ instance HasTextList B.Account where
 instance HasTextList B.Tags where
   textList = map text . B.unTags
 
+instance HasTextList B.Memo where
+  textList = B.unMemo

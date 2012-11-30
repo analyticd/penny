@@ -43,10 +43,10 @@ matchLevel i f a = let ts = textList a in
   then False
   else f (ts !! i)
 
--- | Does the matcher match the text of the memo? Does nothing special
--- to account for line breaks in the memo.
+-- | Does the matcher match the text of the memo? Joins each line of
+-- the memo with a space.
 matchMemo :: (Text -> Bool) -> Maybe B.Memo -> Bool
-matchMemo f = maybe False (f . text)
+matchMemo f = maybe False (f . X.intercalate (X.singleton ' ') . B.unMemo)
 
 
 matchMaybeLevel ::

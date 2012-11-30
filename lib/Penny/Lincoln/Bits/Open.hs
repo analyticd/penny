@@ -38,7 +38,10 @@ data Entry = Entry { drCr :: DrCr
 newtype Flag = Flag { unFlag :: Text }
              deriving (Eq, Show, Ord)
 
-newtype Memo = Memo { unMemo :: Text }
+-- | There is one item in the list for each line of the memo. Do not
+-- include newlines in the texts themselves. However there is nothing
+-- to enforce this convention.
+newtype Memo = Memo { unMemo :: [Text] }
              deriving (Eq, Show, Ord)
 
 newtype Number = Number { unNumber :: Text }

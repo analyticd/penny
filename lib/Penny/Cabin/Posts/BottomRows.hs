@@ -326,6 +326,7 @@ memoBits ts m (C.Width w) = cs where
        . TF.Words
        . Seq.fromList
        . X.words
+       . X.intercalate (X.singleton ' ')
        . L.unMemo
        $ m
   toBit (TF.Words ws) = C.chunk ts (X.unwords . Fdbl.toList $ ws)

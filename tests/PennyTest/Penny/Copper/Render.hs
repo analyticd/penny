@@ -18,6 +18,7 @@ import qualified Text.Parsec as Parsec
 import qualified Data.Text as X
 import qualified Test.QuickCheck.Property as QP
 import qualified Test.QuickCheck.Gen as G
+import qualified PennyTest.Penny.Copper.Parsec as TC
 import Test.QuickCheck (Gen)
 
 tests :: TF.Test
@@ -81,14 +82,24 @@ tests = TF.testGroup "PennyTest.Penny.Copper.Render"
 
   , pTest "lvl2Payee" P.lvl2Payee TP.lvl2Payee R.lvl2Payee
 
-  , let genRend = do
-          gs <- lift genGroupSpecs
-          return (R.price gs)
-    in pTestByTG (==) "price" P.price TP.price genRend
+  , pTestByTG TC.samePricePoint "price" P.price TP.price
+    (withGroupSpecs R.price)
 
   , pTest "tag" P.tag TP.tag R.tag
   , pTest "tags" P.tags TP.tags R.tags
 
+  -- Cannot test TopLine and Posting. These functions take a Lincoln
+  -- TopLine and a Lincoln Posting. However there is no way to construct
+  -- these types from outside of the Lincoln.Transaction module. However
+  -- a test of the transaction renderer is sufficient.
+  , pTestByTG TC.sameTransaction "transaction" P.transaction
+    (TP.maxSize 5 TP.transaction) (withGroupSpecs R.transaction)
+
+  , pTestByTG TC.sameItem "item" P.item
+    (TP.maxSize 5 TP.item) (withGroupSpecs R.item)
+
+  , pTestByTG TC.sameLedger "ledger" P.ledger
+    (TP.maxSize 5 TP.ledger) (withGroupSpecs R.ledger)
   ]
 
 
@@ -202,3 +213,8 @@ pTest
   -> (a -> Maybe X.Text)
   -> TF.Test
 pTest = pTestBy (==)
+
+withGroupSpecs
+  :: (R.GroupSpecs -> a -> Maybe X.Text)
+  -> TP.GenT (a -> Maybe X.Text)
+withGroupSpecs f = lift genGroupSpecs >>= return . f
