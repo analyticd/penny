@@ -38,7 +38,7 @@ module Penny.Lincoln (
   , I.Minutes ( unMinutes )
   , I.intToMinutes
   , I.Seconds ( unSeconds )
-  , I.picoToSeconds
+  , I.intToSeconds
   , I.zeroSeconds
   , I.midnight
   , I.DateTime ( .. )

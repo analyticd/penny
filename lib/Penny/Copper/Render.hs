@@ -14,7 +14,6 @@ import qualified Penny.Copper.Types as Y
 import qualified Penny.Lincoln as L
 import Penny.Lincoln.Family.Family (parent)
 import Penny.Lincoln.Family (orphans)
-import System.Locale (defaultTimeLocale)
 import qualified Data.Traversable as Tr
 
 -- * Helpers
@@ -219,22 +218,50 @@ comment (Y.Comment x) =
 
 -- * DateTime
 
--- | Render a DateTime. If the DateTime is midnight, then the time and
--- time zone will not be printed. Otherwise, the time and time zone
--- will both be printed. The test for time zone equality depends only
--- upon the time zone's offset from UTC.
+-- | Render a DateTime. The day is always printed. If the time zone
+-- offset is not zero, then the time and time zone offset are both
+-- printed. If the time zone offset is zero, then the hours and
+-- minutes are printed, but only if the time is not midnight. If the
+-- seconds are not zero, they are also printed.
+
 dateTime :: L.DateTime -> X.Text
-dateTime dt = X.pack $ Time.formatTime defaultTimeLocale fmt zt
+dateTime (L.DateTime d h m s z) = X.append xd xr
   where
-    zt = L.toZonedTime dt
-    fmtLong = "%F %T %z"
-    fmtShort = "%F"
-    isUTC = L.timeZone dt == L.noOffset
-    isMidnight = (L.hours dt, L.minutes dt, L.seconds dt)
-                 == L.midnight
-    fmt = if isUTC && isMidnight
-          then fmtShort
-          else fmtLong
+    (iYr, iMo, iDy) = Time.toGregorian d
+    xr = hoursMinsSecsZone h m s z
+    dash = X.singleton '-'
+    xd = X.concat [ showX iYr, dash, pad2 . showX $ iMo, dash,
+                    pad2 . showX $ iDy ]
+
+pad2 :: X.Text -> X.Text
+pad2 = X.justifyRight 2 '0'
+
+pad4 :: X.Text -> X.Text
+pad4 = X.justifyRight 4 '0'
+
+showX :: Show a => a -> X.Text
+showX = X.pack . show
+
+hoursMinsSecsZone
+  :: L.Hours -> L.Minutes -> L.Seconds -> L.TimeZoneOffset -> X.Text
+hoursMinsSecsZone h m s z =
+  if z == L.noOffset && (h, m, s) == L.midnight
+  then X.empty
+  else let xhms = X.concat [xh, colon, xm, xs]
+           xh = pad2 . showX . L.unHours $ h
+           xm = pad2 . showX . L.unMinutes $ m
+           xs = let secs = L.unSeconds s
+                in if secs == 0
+                   then X.empty
+                   else ':' `X.cons` (pad2 . showX $ secs)
+           off = L.offsetToMins z
+           sign = X.singleton $ if off < 0 then '-' else '+'
+           padded = pad4 . showX . abs $ off
+           xz = if off == 0
+                then X.empty
+                else ' ' `X.cons` sign `X.append` padded
+           colon = X.singleton ':'
+       in ' ' `X.cons` xhms `X.append` xz
 
 -- * Entries
 

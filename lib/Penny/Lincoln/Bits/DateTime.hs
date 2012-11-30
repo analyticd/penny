@@ -9,7 +9,7 @@ module Penny.Lincoln.Bits.DateTime
   , intToMinutes
   , zeroMinutes
   , Seconds ( unSeconds )
-  , picoToSeconds
+  , intToSeconds
   , zeroSeconds
   , midnight
   , DateTime ( .. )
@@ -20,7 +20,6 @@ module Penny.Lincoln.Bits.DateTime
   ) where
 
 import qualified Data.Time as T
-import Data.Fixed (Pico)
 
 -- | The number of minutes that this timezone is offset from UTC. Can
 -- be positive, negative, or zero.
@@ -47,7 +46,7 @@ newtype Hours = Hours { unHours :: Int }
 newtype Minutes = Minutes { unMinutes :: Int }
                   deriving (Eq, Ord, Show)
 
-newtype Seconds = Seconds { unSeconds :: Pico }
+newtype Seconds = Seconds { unSeconds :: Int }
                   deriving (Eq, Ord, Show)
 
 -- | succeeds if 0 <= x < 24
@@ -67,8 +66,8 @@ zeroMinutes :: Minutes
 zeroMinutes = Minutes 0
 
 -- | succeeds if 0 <= x < 61 (to allow for leap seconds)
-picoToSeconds :: Pico -> Maybe Seconds
-picoToSeconds s =
+intToSeconds :: Int -> Maybe Seconds
+intToSeconds s =
   if s >= 0 && s < 61
   then Just . Seconds $ s
   else Nothing
@@ -100,14 +99,17 @@ toZonedTime dt = T.ZonedTime lt tz
     d = day dt
     lt = T.LocalTime d tod
     tod = T.TimeOfDay (unHours . hours $ dt) (unMinutes . minutes $ dt)
-          (unSeconds . seconds $ dt)
+          (fromIntegral . unSeconds . seconds $ dt)
     tz = T.TimeZone (offsetToMins . timeZone $ dt) False ""
 
 fromZonedTime :: T.ZonedTime -> Maybe DateTime
 fromZonedTime (T.ZonedTime (T.LocalTime d tod) tz) = do
   h <- intToHours . T.todHour $ tod
   m <- intToMinutes . T.todMin $ tod
-  s <- picoToSeconds . T.todSec $ tod
+  let (sWhole, sFrac) = properFraction . T.todSec $ tod
+  s <- if sFrac == 0
+       then intToSeconds sWhole
+       else Nothing
   tzo <- minsToOffset . T.timeZoneMinutes $ tz
   return $ DateTime d h m s tzo
 
@@ -115,7 +117,8 @@ toUTC :: DateTime -> T.UTCTime
 toUTC dt = T.localTimeToUTC tz lt
   where
     tz = T.minutesToTimeZone . offsetToMins . timeZone $ dt
-    tod = T.TimeOfDay (unHours h) (unMinutes m) (unSeconds s)
+    tod = T.TimeOfDay (unHours h) (unMinutes m)
+          (fromIntegral . unSeconds $ s)
     DateTime d h m s _ = dt
     lt = T.LocalTime d tod
 

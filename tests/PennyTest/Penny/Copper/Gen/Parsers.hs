@@ -491,7 +491,7 @@ seconds :: Ex.ExceptionalT P.Result Gen (L.Seconds, X.Text)
 seconds = do
   s <- lift $ G.choose (0, 59)
   let _types = s :: Int
-  se <- throwMaybe "seconds" (L.picoToSeconds (fromIntegral s))
+  se <- throwMaybe "seconds" (L.intToSeconds (fromIntegral s))
   return (se, ':' `cons` leadingZero s)
 
 time :: Ex.ExceptionalT P.Result Gen

@@ -86,6 +86,9 @@ tests = TF.testGroup "PennyTest.Penny.Copper.Render"
           return (R.price gs)
     in pTestByTG (==) "price" P.price TP.price genRend
 
+  , pTest "tag" P.tag TP.tag R.tag
+  , pTest "tags" P.tags TP.tags R.tags
+
   ]
 
 

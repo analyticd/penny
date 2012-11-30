@@ -172,7 +172,7 @@ seconds :: Parser L.Seconds
 seconds = p >>= maybe (fail "could not parse seconds") return
   where
     p = f <$ satisfy T.colon <*> satisfy T.digit <*> satisfy T.digit
-    f d1 d2 = L.picoToSeconds . read $ [d1, d2]
+    f d1 d2 = L.intToSeconds . read $ [d1, d2]
 
 time :: Parser (L.Hours, L.Minutes, Maybe L.Seconds)
 time = (,,) <$> hours <*> minutes <*> optional seconds

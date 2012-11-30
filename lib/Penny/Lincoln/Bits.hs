@@ -22,7 +22,7 @@ module Penny.Lincoln.Bits (
   DT.zeroMinutes,
   DT.midnight,
   DT.Seconds ( unSeconds ),
-  DT.picoToSeconds,
+  DT.intToSeconds,
   DT.zeroSeconds,
   DT.DateTime ( .. ),
   DT.toUTC,
