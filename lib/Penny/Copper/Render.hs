@@ -17,6 +17,7 @@ import Penny.Lincoln.Family (orphans)
 import qualified Data.Traversable as Tr
 
 -- * Helpers
+
 -- | Merges a list of words into one Text; however, if any given Text
 -- is empty, that Text is first dropped from the list.
 txtWords :: [X.Text] -> X.Text
@@ -286,26 +287,34 @@ flag (L.Flag fl) =
   else Nothing
 
 -- * Memos
-transactionMemo :: L.Memo -> Maybe X.Text
-transactionMemo (L.Memo x) =
-  let ls = X.split (== '\n') x
-  in if null ls || (not (all (X.all T.nonNewline) ls))
-     then Nothing
-     else
-      let mkLn l = X.singleton ';' `X.append` l `X.snoc` '\n'
-      in Just . X.concat . map mkLn $ ls
+
+postingMemoLine :: X.Text -> Maybe X.Text
+postingMemoLine x =
+  if X.all T.nonNewline x
+  then Just $ '\'' `cons` x `snoc` '\n'
+  else Nothing
 
 postingMemo :: L.Memo -> Maybe X.Text
-postingMemo (L.Memo x) =
-  let ls = X.split (== '\n') x
-  in if null ls || not (all (X.all T.nonNewline) ls)
-     then Nothing
-     else
-      let mkLine l = X.pack (replicate 8 ' ')
-                     `X.snoc` '\''
-                     `X.append` l
-                     `X.snoc` '\n'
-      in Just . X.concat . map mkLine $ ls
+postingMemo =
+  fmap (\x -> if X.null x then X.pack "'\n" else x)
+  . fmap X.concat
+  . mapM transactionMemoLine
+  . X.lines
+  . L.unMemo
+
+transactionMemoLine :: X.Text -> Maybe X.Text
+transactionMemoLine x =
+  if X.all T.nonNewline x
+  then Just $ ';' `cons` x `snoc` '\n'
+  else Nothing
+
+transactionMemo :: L.Memo -> Maybe X.Text
+transactionMemo =
+  fmap (\x -> if X.null x then X.pack ";\n" else x)
+  . fmap X.concat
+  . mapM transactionMemoLine
+  . X.lines
+  . L.unMemo
 
 -- * Numbers
 
