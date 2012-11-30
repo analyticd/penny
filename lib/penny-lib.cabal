@@ -172,6 +172,7 @@ source-repository head
 Library
     Build-depends:
         base ==4.*,
+        attoparsec ==0.10.*,
         text ==0.11.*,
         explicit-exception ==0.1.*,
         containers ==0.4.*,
@@ -224,6 +225,7 @@ Library
         Penny.Cabin.Row,
         Penny.Cabin.TextFormat,
         Penny.Copper,
+        Penny.Copper.Atto,
         Penny.Copper.Parsec,
         Penny.Copper.Render,
         Penny.Copper.Terminals,
