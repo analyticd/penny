@@ -740,15 +740,16 @@ genPair
   -> Gen (b, X.Text)
   -> Gen ((Maybe a, Maybe b), X.Text)
 genPair ga gb = do
-  w <- white
+  w1 <- white
+  w2 <- white
   let aFirst = do
         (a, xa) <- ga
         (b, xb) <- optionalG gb
-        return ((Just a, b), X.concat [xa, w, xb])
+        return ((Just a, b), X.concat [xa, w1, xb, w2])
       bFirst = do
         (b, xb) <- gb
         (a, xa) <- optionalG ga
-        return ((a, Just b), X.concat [xb, w, xa])
+        return ((a, Just b), X.concat [xb, w2, xa, w1])
   Q.oneof [aFirst, bFirst]
 
 

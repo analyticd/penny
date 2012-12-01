@@ -172,6 +172,7 @@ source-repository head
 Library
     Build-depends:
         base ==4.*,
+        action-permutations ==0.0.*,
         attoparsec ==0.10.*,
         text ==0.11.*,
         explicit-exception ==0.1.*,

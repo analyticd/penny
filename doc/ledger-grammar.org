@@ -241,20 +241,24 @@ transaction memo.
 
 * FlagNumberPayee
 
-<numberPayee> ::= <number> White* <quotedLvl1Payee>?
-<payeeNumber> ::= <quotedLvl1Payee> White* <number>?
+<flagWhite> :: <flag> White*
+<numberWhite> :: <number> White*
+<payeeWhite> :: <quotedLvl1Payee> White*
+
+<numberPayee> ::= <numberWhite> <payeeWhite>?
+<payeeNumber> ::= <payeeWhite> <numberWhite>?
 <afterFlag> ::= <numberPayee> | <payeeNumber>
-<flagFirst> ::= <flag> White* <afterFlag>?
+<flagFirst> ::= <flagWhite> <afterFlag>?
 
-<flagPayee> ::= <flag> White* <quotedLvl1Payee>?
-<payeeFlag> ::= <quotedLvl1Payee> White* <flag>?
+<flagPayee> ::= <flagWhite> <payeeWhite>?
+<payeeFlag> ::= <payeeWhite> <flagWhite>?
 <afterNumber> ::= <flagPayee> | <payeeFlag>
-<numberFirst> ::= <number> White* <afterNumber>?
+<numberFirst> ::= <number> <afterNumber>?
 
-<numberFlag> ::= <number> White* <flag>?
-<flagNumber> ::= <flag> White* <number>?
+<numberFlag> ::= <numberWhite> <flagWhite>?
+<flagNumber> ::= <flagWhite> <numberWhite>?
 <afterPayee> ::= <numberFlag> <flagNumber>
-<payeeFirst> ::= <quotedLvl1Payee> White* <afterPayee>?
+<payeeFirst> ::= <payeeWhite> <afterPayee>?
 
 <flagNumPayee> ::= <flagFirst> | <numberFirst> | <payeeFirst>
 
