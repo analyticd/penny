@@ -226,41 +226,23 @@ flag :: Parser L.Flag
 flag = L.Flag <$ skip T.openSquare
   <*> P.takeWhile T.flagChar <* skip T.closeSquare
 
-data Line =
-  PostingMemo Text
-  | TransactionMemo Text
-  | Blank
-  | Price (Int -> Maybe L.PricePoint)
-  | TopLine (Int -> Maybe L.Memo -> U.TopLine)
-
-
-postingMemoLine :: Parser Line
+postingMemoLine :: Parser Text
 postingMemoLine =
-  PostingMemo
-  <$ skip T.apostrophe
-  <*> P.takeWhile T.nonNewline
+  skip T.apostrophe
+  *> P.takeWhile T.nonNewline
   <* skip T.newline <* skipWhite
 
-{-
 postingMemo :: Parser L.Memo
-postingMemo = f <$> P.many1 postingMemoLine
-  where
-    f ls = (L.Memo ls, length ls)
--}
+postingMemo = L.Memo <$> P.many1 postingMemoLine
+
 
 transactionMemoLine :: Parser Text
 transactionMemoLine =
-  TransactionMemo
-  <$ skip T.semicolon *> P.takeWhile T.nonNewline
+  skip T.semicolon *> P.takeWhile T.nonNewline
   <* skip T.newline <* skipWhite
 
-{-
-transactionMemo :: Parser (Int -> L.TopMemoLine, L.Memo)
-transactionMemo = f <$> P.many1 transactionMemoLine
-  where
-    f ls = (L.TopMemoLine,
-    f tml ls = (L.TopMemoLine tml , L.Memo ls)
--}
+transactionMemo :: Parser L.Memo
+transactionMemo = L.Memo <$> P.many1 transactionMemoLine
 
 number :: Parser L.Number
 number =
@@ -280,29 +262,22 @@ lvl2Payee = (\c cs -> L.Payee (X.cons c cs)) <$> satisfy T.letter
 fromCmdty :: Parser L.From
 fromCmdty = L.From <$> (quotedLvl1Cmdty <|> lvl2Cmdty)
 
-price :: Parser Line
-price =
-  f
-  <$ skip T.atSign
-  <* skipWhite
-  <*> dateTime
-  <* skipWhite
-  <*> fromCmdty
-  <* skipWhite
-  <*> amount
-  <* skip T.newline
-  <* skipWhite
+price :: Parser L.PricePoint
+price = p >>= maybe (fail msg) return
   where
-    f dt fc (L.Amount qt to, fmt) = Price g
-      where
-        g i =
-          let cpu = L.CountPerUnit qt
-          in case L.newPrice fc (L.To to) cpu of
-              Nothing -> Nothing
-              Just pr ->
-                let pmt = L.PriceMeta (Just (L.PriceLine i)) (Just fmt)
-                in Just $ L.PricePoint dt pr pmt
-
+    f dt fr ((L.Amount qt to), fmt) =
+      let cpu = L.CountPerUnit qt
+      in case L.newPrice fr (L.To to) cpu of
+        Nothing -> Nothing
+        Just pr ->
+          let pmt = L.PriceMeta Nothing (Just fmt)
+          in Just $ L.PricePoint dt pr pmt
+    p = f <$ satisfy T.atSign <* skipWhite
+        <*> dateTime <* skipWhite
+        <*> fromCmdty <* skipWhite
+        <*> amount <* satisfy T.newline <* skipWhite
+    msg = "could not parse price, make sure the from and to commodities "
+          ++ "are different"
 
 tag :: Parser L.Tag
 tag = L.Tag <$ skip T.asterisk <*> P.takeWhile T.tagChar
@@ -323,24 +298,18 @@ topLineFlagNum = p1 <|> p2
            <$> optional number
            <* skipWhite <*> optional flag)
 
-topLine :: Parser Line
+topLine :: Parser U.TopLine
 topLine =
-  f
-  <$> dateTime
-  <*  skipWhite
-  <*> topLineFlagNum
-  <*  skipWhite
-  <*> optional topLinePayee
-  <*  satisfy T.newline
-  <*  skipWhite
+  f <$> optional transactionMemo
+    <*> dateTime
+    <*  skipWhite
+    <*> topLineFlagNum
+    <*  skipWhite
+    <*> optional topLinePayee
+    <*  satisfy T.newline
+    <*  skipWhite
   where
-    f dt (mayFl, mayNum) mayPy = TopLine g
+    f mayMe dt (mayFl, mayNum) mayPy =
+      U.TopLine dt mayFl mayNum mayPy mayMe mt
       where
-        g lin mayMe = U.TopLine dt mayFl mayNum mayPy me mt
-          where
-            mt = L.TopLineMeta tml tll Nothing Nothing Nothing
-            (tml, me) = case mayMe of
-              Nothing -> (Nothing, Nothing)
-              Just (l, m) -> (Just l, Just m)
-            tll = Just (L.TopLineLine lin)
-
+        mt = L.TopLineMeta Nothing Nothing Nothing Nothing Nothing
