@@ -1,0 +1,30 @@
+PennyTest:
+  PennyTest.Penny:
+    PennyTest.Penny.Copper:
+      PennyTest.Penny.Copper.Parsec:
+        ledgerAcct: [OK, passed 100 tests]
+        ledger: [OK, passed 100 tests]
+
+         Properties  Total      
+ Passed  2           2          
+ Failed  0           0          
+ Total   2           2          
+
+real	0m21.203s
+user	0m21.029s
+sys	0m0.129s
+PennyTest:
+  PennyTest.Penny:
+    PennyTest.Penny.Copper:
+      PennyTest.Penny.Copper.Atto:
+        ledgerAcct: [OK, passed 100 tests]
+        ledger: [OK, passed 100 tests]
+
+         Properties  Total      
+ Passed  2           2          
+ Failed  0           0          
+ Total   2           2          
+
+real	0m18.434s
+user	0m18.309s
+sys	0m0.086s

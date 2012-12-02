@@ -21,6 +21,7 @@ Executable penny-test
         base ==4.*,
         explicit-exception ==0.1.*,
         parsec ==3.1.*,
+        attoparsec ==0.10.*,
         penny-lib ==0.7.0.0,
         QuickCheck ==2.5.*,
         random-shuffle ==0.0.4,

@@ -6,7 +6,6 @@ import Text.Parsec.Text (Parser)
 import Text.Parsec (many, many1, satisfy)
 import qualified Text.Parsec as P
 import qualified Text.Parsec.Pos as Pos
-import Control.Arrow (first, second)
 import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
                             (<|>), optional)
 import qualified Control.Applicative.Permutation as AP
@@ -334,12 +333,11 @@ topLine =
 
 flagNumPayee :: Parser (Maybe L.Flag, Maybe L.Number, Maybe L.Payee)
 flagNumPayee =
-  AP.runPerms ( (,,) <$> AP.maybeAtom fl
-                <*> AP.maybeAtom nu <*> AP.maybeAtom pa)
-  where
-    fl = flag <* skipWhite
-    nu = number <* skipWhite
-    pa = quotedLvl1Payee <* skipWhite
+  AP.runPerms
+  $ (,,)
+  <$> AP.maybeAtom (flag <* skipWhite)
+  <*> AP.maybeAtom (number <* skipWhite)
+  <*> AP.maybeAtom (quotedLvl1Payee <* skipWhite)
 
 
 postingAcct :: Parser L.Account
@@ -347,14 +345,14 @@ postingAcct = quotedLvl1Acct <|> lvl2Acct
 
 posting :: Parser U.Posting
 posting = f <$> lineNum                <* skipWhite
-            <*> optional flagNumPayee  <* skipWhite
+            <*> flagNumPayee           <* skipWhite
             <*> postingAcct            <* skipWhite
             <*> optional tags          <* skipWhite
             <*> optional entry         <* skipWhite
             <*  satisfy T.newline      <* skipWhite
             <*> optional postingMemo   <* skipWhite
   where
-    f li mayFnp ac ta enPair me =
+    f li (fl, nu, pa) ac ta enPair me =
       U.Posting pa nu fl ac tgs en me mt
       where
         tgs = fromMaybe (L.Tags []) ta
@@ -362,7 +360,6 @@ posting = f <$> lineNum                <* skipWhite
         mt = L.PostingMeta (Just (L.PostingLine li)) fmt
              Nothing Nothing
         fmt = fmap snd enPair
-        (fl, nu, pa) = fromMaybe (Nothing, Nothing, Nothing) mayFnp
 
 transaction :: Parser L.Transaction
 transaction = p >>= Ex.switch (fail . show) return

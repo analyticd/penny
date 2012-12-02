@@ -1,8 +1,30 @@
+-- | The Attoparsec parser for the Copper file format. Because
+-- Attoparsec does not track locations, this parser does not provide
+-- line number metadata. It would be possible to write an Attoparsec
+-- parser which provides line number information. This would require
+-- doing the parse in two phases--one Attoparsec phase that returns a
+-- list of data, with one atom for each line, and a second phase that
+-- folds over this list to create the actual items. This would be
+-- possible, but rather nasty to write and currently not worth the
+-- effort.
+--
+-- At first I tried using a state transformer monad to keep track of
+-- the line number, but it's not clear how to handle
+-- backtracking--that is, attoparsec might backtrack, but it's not
+-- going to rewind the outer state transformer monad. Also, you cannot
+-- use combinators like many on a state transformer monad, because
+-- unlike the parser it's not a member of Alternative. Maybe I could
+-- write a custom monad to wrap Attoparsec that would also be a member
+-- of Alterntive? But I'm not sure that can be done while respecting
+-- the laws of the various typeclasses and, besides, by the time you
+-- do all that...might as well use Parsec, which has already done it :)
 module Penny.Copper.Atto where
 
+import Control.Applicative.Permutation as AP
 import Control.Applicative
   ((<$>), (<*>), (*>), (<*), (<$), many, (<|>), optional)
 import Control.Monad (replicateM)
+import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Attoparsec.Text (Parser, skip, satisfy)
 import qualified Data.Attoparsec.Text as P
 import Data.Maybe (fromMaybe)
@@ -313,3 +335,48 @@ topLine =
       U.TopLine dt mayFl mayNum mayPy mayMe mt
       where
         mt = L.TopLineMeta Nothing Nothing Nothing Nothing Nothing
+
+flagNumPayee :: Parser (Maybe L.Flag, Maybe L.Number, Maybe L.Payee)
+flagNumPayee =
+  AP.runPerms
+  $ (,,)
+  <$> AP.maybeAtom (flag <* skipWhite)
+  <*> AP.maybeAtom (number <* skipWhite)
+  <*> AP.maybeAtom (quotedLvl1Payee <* skipWhite)
+
+postingAcct :: Parser L.Account
+postingAcct = quotedLvl1Acct <|> lvl2Acct
+
+posting :: Parser U.Posting
+posting = f <$> flagNumPayee           <* skipWhite
+            <*> postingAcct            <* skipWhite
+            <*> optional tags          <* skipWhite
+            <*> optional entry         <* skipWhite
+            <*  skip T.newline         <* skipWhite
+            <*> optional postingMemo   <* skipWhite
+  where
+    f (fl, nu, pa) ac ta enPair me =
+      U.Posting pa nu fl ac tgs en me mt
+      where
+        tgs = fromMaybe (L.Tags []) ta
+        en = fmap fst enPair
+        mt = L.PostingMeta Nothing fmt Nothing Nothing
+        fmt = fmap snd enPair
+
+transaction :: Parser L.Transaction
+transaction = p >>= Ex.switch (fail . show) return
+  where
+    p = L.transaction <$>
+        (L.Family <$> topLine <*> posting
+        <*> posting <*> many posting)
+
+
+blankLine :: Parser Y.Item
+blankLine = Y.BlankLine <$ skip T.newline <* skipWhite
+
+item :: Parser Y.Item
+item = fmap Y.IComment comment <|> fmap Y.PricePoint price
+       <|> fmap Y.Transaction transaction <|> blankLine
+
+ledger :: Parser Y.Ledger
+ledger = Y.Ledger <$ skipWhite <*> many item <* P.endOfInput

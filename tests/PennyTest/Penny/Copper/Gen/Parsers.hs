@@ -2,10 +2,11 @@ module PennyTest.Penny.Copper.Gen.Parsers where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first)
+import Control.Monad (replicateM)
 import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List ( genericSplitAt, genericReplicate
-                 , nubBy )
+                 , nubBy, find )
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Copper as C
@@ -37,16 +38,10 @@ maxSize s (Ex.ExceptionalT g) = Ex.ExceptionalT g'
   where
     g' = G.sized $ \sg -> G.resize (min sg s) g
 
-suchThatMaybe :: GenT a -> (a -> Bool) -> GenT a
-suchThatMaybe g p = go (0 :: Int)
-  where
-    go i = do
-      r <- g
-      if p r
-        then return r
-        else if i < 10
-              then go (i + 1)
-              else Ex.throwT P.rejected
+suchThatMaybe :: (a -> Bool) -> GenT a -> GenT a
+suchThatMaybe p g =
+  replicateM 10 g
+  >>= maybe (Ex.throwT P.rejected) return . find p
 
 
 interleave :: Gen (Maybe a) -> [a] -> Gen [a]
@@ -117,34 +112,25 @@ shuffle ls = G.MkGen $ \g _ -> Shuffle.shuffle' ls (length ls) g
 genNonEmpty :: Gen a -> Gen (NonEmpty a)
 genNonEmpty g = (:|) <$> g <*> G.listOf g
 
+vectorOf :: Int -> GenT a -> GenT [a]
+vectorOf i =
+  Ex.ExceptionalT
+  . fmap sequence
+  . sequence
+  . replicate i
+  . Ex.runExceptionalT
+
+
 listOf :: GenT a -> GenT [a]
-listOf (Ex.ExceptionalT exG) = Ex.ExceptionalT $ G.sized $ \s -> do
+listOf exG = Ex.ExceptionalT $ G.sized $ \s -> do
   n <- G.choose (0, s)
-  let go i r =
-        if i == n
-        then return . return $ r
-        else do
-          ex <- exG
-          case ex of
-            Ex.Exception e -> return . Ex.Exception $ e
-            Ex.Success v -> go (i + 1) (v : r)
-  go 0 []
+  Ex.runExceptionalT . vectorOf n $ exG
+
 
 listOf1 :: GenT a -> GenT [a]
-listOf1 (Ex.ExceptionalT exG) = Ex.ExceptionalT $ G.sized $ \s -> do
+listOf1 exG = Ex.ExceptionalT $ G.sized $ \s -> do
   n <- G.choose (0, s)
-  v1 <- exG
-  let go i r =
-        if i == n
-        then return . return $ r
-        else do
-          ex <- exG
-          case ex of
-            Ex.Exception e -> return . Ex.Exception $ e
-            Ex.Success v -> go (i + 1) (v : r)
-  case v1 of
-    Ex.Exception e -> return . Ex.Exception $ e
-    Ex.Success v -> go 0 [v]
+  Ex.runExceptionalT . vectorOf (max 1 n) $ exG
 
 white :: Gen X.Text
 white = fmap pack (G.listOf T.white)
@@ -678,7 +664,7 @@ price = do
   ws2 <- fmap pack (lift $ G.listOf1 T.white)
   q <- qtyWithRendering TQ.anyGen
   let pdct x = unwrapCmdty x /= unwrapCmdty fr
-  toCmdty <- suchThatMaybe (lift genCmdty) pdct
+  toCmdty <- suchThatMaybe pdct (lift genCmdty)
   ((L.Amount toQ t, fmt), xam) <- lift $ amount toCmdty q
   let (to, cpu) = (L.To t, L.CountPerUnit toQ)
   p <- throwMaybe "price" (L.newPrice (L.From fc) to cpu)
@@ -878,7 +864,7 @@ item = oneof [ c, p, t, b ]
 --
 
 ledger :: GenT (C.Ledger, X.Text)
-ledger = f <$> lift white <*> (listOf item)
+ledger = f <$> lift white <*> vectorOf 100 item
   where
     f ws is = ( C.Ledger . map fst $ is
               , ws `X.append` (X.concat . map snd $ is))
