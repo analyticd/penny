@@ -188,7 +188,6 @@ Library
     Exposed-modules:
         Penny,
         Penny.Cabin,
-        Penny.Cabin.Allocate,
         Penny.Cabin.Balance,
         Penny.Cabin.Balance.Convert,
         Penny.Cabin.Balance.Convert.Chunker,
@@ -210,7 +209,6 @@ Library
         Penny.Cabin.Options,
         Penny.Cabin.Parsers,
         Penny.Cabin.Posts,
-        Penny.Cabin.Posts.Allocate,
         Penny.Cabin.Posts.Allocated,
         Penny.Cabin.Posts.BottomRows,
         Penny.Cabin.Posts.Fields,

@@ -5,7 +5,8 @@ module Penny.Lincoln.Bits.Qty (
   Qty, NumberStr(..), toQty, mantissa, places, newQty,
   Mantissa, Places,
   add, mult, Difference(LeftBiggerBy, RightBiggerBy, Equal),
-  equivalent, difference, allocate, largestRemainderMethod) where
+  equivalent, difference, allocate,
+  TotSeats, PartyVotes, SeatsWon, largestRemainderMethod) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
@@ -235,7 +236,7 @@ type SeatsWon = Integer
 
 -- | Allocates integers using the largest remainder method. This is
 -- the method used to allocate parliamentary seats in many countries,
--- so the types are named accordingly
+-- so the types are named accordingly.
 largestRemainderMethod
   :: TotSeats
   -- ^ Total number of seats in the legislature. This is the integer

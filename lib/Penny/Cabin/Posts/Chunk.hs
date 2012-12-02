@@ -6,7 +6,6 @@ import Data.Maybe (isNothing, catMaybes)
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Allocated as A
-import qualified Penny.Cabin.Posts.Allocate as Alc
 import qualified Penny.Cabin.Posts.BottomRows as B
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
@@ -25,8 +24,8 @@ data ChunkOpts = ChunkOpts {
   , balanceFormat :: L.Commodity -> L.BottomLine -> X.Text
   , fields :: F.Fields Bool
   , subAccountLength :: A.SubAccountLength
-  , payeeAllocation :: Alc.Allocation
-  , accountAllocation :: Alc.Allocation
+  , payeeAllocation :: A.Alloc
+  , accountAllocation :: A.Alloc
   , spacers :: S.Spacers Int
   , reportWidth :: Ty.ReportWidth
   }
@@ -48,8 +47,8 @@ allocatedOpts c g = A.AllocatedOpts {
                          , A.account = F.account f }
   , A.subAccountLength = subAccountLength c
   , A.baseColors = baseColors c
-  , A.payeeAllocation = payeeAllocation c
-  , A.accountAllocation = accountAllocation c
+  , A.allocations = A.Fields { A.payee = payeeAllocation c
+                             , A.account = accountAllocation c }
   , A.spacers = spacers c
   , A.growerWidths = g
   , A.reportWidth = reportWidth c

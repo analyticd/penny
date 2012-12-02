@@ -335,8 +335,9 @@ ex_allocations = do
 -- allocation is equal to what was requested
 prop_numParties :: Gen Bool
 prop_numParties = G.sized $ \s -> do
-  let genInt = G.choose (1, max 1 (fromIntegral s))
-  ts <- genInt
-  tvs <- G.listOf1 genInt
-  let r = Q.largestRemainderMethod ts tvs
+  ts <- G.choose (1, max 1 (fromIntegral s))
+  e1 <- G.choose (1, max 1 (fromIntegral s))
+  es <- G.listOf (G.choose (0, fromIntegral s))
+  let tvs = e1:es
+      r = Q.largestRemainderMethod ts tvs
   return $ sum r == ts && length r == length tvs

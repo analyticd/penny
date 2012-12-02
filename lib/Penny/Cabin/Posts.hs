@@ -39,6 +39,8 @@ module Penny.Cabin.Posts (
   , makeReport
   , defaultOptions
   , ZincOpts(..)
+  , A.Alloc
+  , A.alloc
   , ymd
   , qtyAsIs
   , balanceAsIs
@@ -57,7 +59,6 @@ import qualified Penny.Cabin.Colors.DarkBackground as Dark
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Posts.Allocated as A
-import qualified Penny.Cabin.Posts.Allocate as Alc
 import qualified Penny.Cabin.Posts.Chunk as C
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Help as H
@@ -141,8 +142,8 @@ defaultOptions rt = ZincOpts
   , qtyFormat = qtyAsIs
   , balanceFormat = balanceAsIs
   , subAccountLength = A.SubAccountLength 2
-  , payeeAllocation = Alc.allocation 60
-  , accountAllocation = Alc.allocation 40
+  , payeeAllocation = A.alloc 60
+  , accountAllocation = A.alloc 40
   , spacers = defaultSpacerWidth }
 
 
@@ -205,7 +206,7 @@ data ZincOpts = ZincOpts
     -- ^ When shortening the names of sub accounts to make
     -- them fit, they will be this long.
 
-  , payeeAllocation :: Alc.Allocation
+  , payeeAllocation :: A.Alloc
     -- ^ This and accountAllocation determine how much space
     -- payees and accounts receive. They divide up the
     -- remaining space after everything else is displayed. For
@@ -213,7 +214,7 @@ data ZincOpts = ZincOpts
     -- is 40, the payee takes about 60 percent of the
     -- remaining space and the account takes about 40 percent.
 
-  , accountAllocation :: Alc.Allocation
+  , accountAllocation :: A.Alloc
     -- ^ See payeeAllocation above
 
   , spacers :: S.Spacers Int

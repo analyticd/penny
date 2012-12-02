@@ -14,29 +14,49 @@
 -- c. If the rightmost growing field is to the right of Account but is
 -- not TotalQty, omit its spacer.
 --
--- 2. Subtract from this sum the width of the Payee and Account
--- spacers:
+-- 2. Obtain the width of the Payee and Account spacers. Include each
+-- spacer if its corresponding field appears in the report.
 --
--- a. Subtract the width of Payee spacer if it appears.
+-- 3. Subtract from the total report width the width of the the
+-- growing cells and the width of the Payee and Account spacers. This
+-- gives the total width available for the Payee and Account
+-- fields. If there are not at least two columns available, return
+-- without including the Payee and Account fields.
 --
--- b. Subtract the width of the Account spacer if it appears.
+-- 4. Determine the total width that the Payee and Account fields
+-- would obtain if they had all the space they could ever need. This
+-- is the "requested width".
 --
--- 3. If the remaining width is 0 or less, do nothing. Return, but
--- indicate in return value that neither Payee nor Account is showing.
+-- 5. Split up the available width for the Payee and Account fields
+-- depending on which fields appear:
 --
--- 4. Allocate the remaining width. If only Payee or Account appears,
--- it gets all the width; otherwise, allocate the widths. No special
--- arrangements are made if either field gets an allocation of 0.
+-- a. If only the one field appears, then it shall be as wide as the
+-- total available width or the its requested width, whichever is
+-- smaller.
 --
--- 5. Fill cell contents. Return filled cells.
+-- b. If both fields appear, then calculate the allocated width for
+-- each field. If either field's requested width is less than its
+-- allocated width, then that field is only as wide as its requested
+-- width. The other field is then as wide as (the sum of its allocated
+-- width and the leftover width from the other field) or its requested
+-- width, whichever is smaller. If neither field's requested width is
+-- less than its allocated width, then each field gets ts allocated
+-- width.
+--
+-- 6. Fill cell contents; return filled cells.
+
 module Penny.Cabin.Posts.Allocated (
   payeeAndAcct
   , AllocatedOpts(..)
   , Fields(..)
   , SubAccountLength(..)
+  , Alloc
+  , alloc
+  , unAlloc
   ) where
 
 import Control.Applicative(Applicative((<*>), pure), (<$>))
+import Control.Arrow (second)
 import Data.Maybe (catMaybes, isJust)
 import Data.List (intersperse)
 import qualified Data.Foldable as Fdbl
@@ -45,7 +65,6 @@ import qualified Data.Traversable as T
 import qualified Data.Text as X
 import qualified Penny.Cabin.Chunk as C
 import qualified Penny.Cabin.Row as R
-import qualified Penny.Cabin.Posts.Allocate as A
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
@@ -54,6 +73,7 @@ import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Cabin.TextFormat as TF
 import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.Bits.Qty as Qty
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.HasText as HT
 
@@ -66,13 +86,23 @@ newtype SubAccountLength =
   SubAccountLength { unSubAccountLength :: Int }
   deriving Show
 
+newtype Alloc = Alloc { unAlloc :: Int }
+  deriving Show
+
+alloc :: Int -> Alloc
+alloc i =
+  if i < 1
+  then error $ "allocations must be greater than zero."
+       ++ " supplied allocation: " ++ show i
+  else Alloc i
+
+
 -- | All the information needed for allocated cells.
 data AllocatedOpts = AllocatedOpts {
   fields :: Fields Bool
   , subAccountLength :: SubAccountLength
   , baseColors :: PC.BaseColors
-  , payeeAllocation :: A.Allocation
-  , accountAllocation :: A.Allocation
+  , allocations :: Fields Alloc
   , spacers :: S.Spacers Int
   , growerWidths :: G.Fields (Maybe Int)
   , reportWidth :: Ty.ReportWidth
@@ -85,79 +115,48 @@ data AllocatedOpts = AllocatedOpts {
 -- did not ask for them, or because there was no room) or Just cs i,
 -- where cs is a list of all the cells, and i is the width of all the
 -- cells.
-payeeAndAcct ::
-  AllocatedOpts
+payeeAndAcct
+  :: AllocatedOpts
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
-payeeAndAcct as = allocateCells sl bc ws
-  where
-    sl = subAccountLength as
-    bc = baseColors as
-    ws = fieldWidth (fields as) (payeeAllocation as)
-         (accountAllocation as) (spacers as)
-         (growerWidths as) (reportWidth as)
+payeeAndAcct ao bs =
+  let allBuilders =
+        T.traverse (builders (baseColors ao) (subAccountLength ao)) bs
+      availWidth = availableWidthForAllocs (growerWidths ao)
+                   (spacers ao) (fields ao) (reportWidth ao)
+      finals = divideAvailableWidth availWidth (fields ao)
+               (allocations ao)
+               (fmap maximum . fmap (fmap fst) $ allBuilders)
+  in fmap (fmap (second unFinal))
+     . buildSpecs finals
+     . fmap (fmap snd)
+     $ allBuilders
 
 
--- | Allocates cells. Returns a pair, with the first element being the
--- list of allocated cells, and the second indicating the width of the
--- cells, which will be greater than zero.
-allocateCells ::
-  SubAccountLength
-  -> PC.BaseColors
-  -> Fields UnShrunkWidth
-  -> [Box]
-  -> Fields (Maybe ([R.ColumnSpec], Int))
-allocateCells sl bc fs bs =
-  let mkPayees i b = allocPayee i bc b
-      mkAccts i b = allocAcct i sl bc b
-      cellMakers = Fields mkPayees mkAccts
-      mkCells (UnShrunkWidth width) maker =
-        if width > 0
-        then Just (map (maker width) bs)
-        else Nothing
-      unShrunkCells = mkCells <$> fs <*> cellMakers
-  in fmap (fmap removeExtraSpace) unShrunkCells
-
-
--- | After first being allocated by allocPayee and allocAcct, cells
--- are as wide as the total space allocated. This function removes the
--- extra space, making all the cells as wide as the widest
--- cell. Returns the resized cells and the new width.
-removeExtraSpace :: [R.ColumnSpec] -> ([R.ColumnSpec], Int)
-removeExtraSpace cs = (trimmed, len) where
-  len = Fdbl.foldl' f 0 cs where
-    f acc c = max acc (Fdbl.foldl' g 0 (R.bits c)) where
-      g inAcc chk = max inAcc (C.unWidth . C.chunkWidth $ chk)
-  trimmed = map f cs where
-    f c = c { R.width = C.Width len }
-
--- | The width of an on-screen field, after accounting for the width
--- of the entire report and the allocations but before shrinking.
-newtype UnShrunkWidth = UnShrunkWidth Int
-                      deriving Show
-
--- | Gets the width of the two allocated fields.
-fieldWidth ::
-  Fields Bool
-  -> A.Allocation -- ^ Payee allocation
-  -> A.Allocation -- ^ Accout allocation
+payeeAndAccountSpacerWidth
+  :: Fields Bool
   -> S.Spacers Int
-  -> G.Fields (Maybe Int)
-  -> Ty.ReportWidth
-  -> Fields UnShrunkWidth
-fieldWidth flds pa aa ss fs (Ty.ReportWidth rw) =
-  let grownWidth = sumGrowersAndSpacers fs ss
-      widthForCells = rw - grownWidth - allocSpacerWidth
-      payeeSpacerWidth = if payee flds then abs (S.payee ss) else 0
-      acctSpacerWidth = if account flds then abs (S.account ss) else 0
-      allocSpacerWidth = payeeSpacerWidth + acctSpacerWidth
-      allocs = (\bool alloc -> if bool then alloc else A.allocation 0)
-               <$> flds
-               <*> Fields pa aa
-  in if widthForCells < 1
-     then pure (UnShrunkWidth 0)
-     else fmap UnShrunkWidth $ A.allocate allocs widthForCells
+  -> Int
+payeeAndAccountSpacerWidth flds ss = pye + act
+  where
+    pye = if payee flds then abs (S.payee ss) else 0
+    act = if account flds then abs (S.account ss) else 0
 
+newtype AvailableWidth = AvailableWidth Int
+        deriving (Eq, Ord, Show)
+
+availableWidthForAllocs
+  :: G.Fields (Maybe Int)
+  -> S.Spacers Int
+  -> Fields Bool
+  -> Ty.ReportWidth
+  -> AvailableWidth
+availableWidthForAllocs growers ss flds (Ty.ReportWidth w) =
+  AvailableWidth $ max 0 diff
+  where
+    tot = sumGrowersAndSpacers growers ss
+          + payeeAndAccountSpacerWidth flds ss
+    diff = w - tot
 
 -- | Sums spacers for growing cells. This function is intended for use
 -- only by the functions that allocate cells for the report, so it
@@ -179,7 +178,7 @@ sumSpacers fs =
   . Fdbl.toList
   . fmap toWidth
   . pairedWithSpacers fs
-  
+
 
 -- | Takes a triple:
 --
@@ -230,7 +229,7 @@ pairedWithSpacers f s =
   <$> G.pairWithSpacer f s
   <*> G.eFields
 
--- | Sums the contents of growing cells and their accompanying
+-- | Sums the widths of growing cells and their accompanying
 -- spacers; makes the adjustments described in sumSpacers.
 sumGrowersAndSpacers ::
   G.Fields (Maybe Int)
@@ -243,58 +242,132 @@ sumGrowersAndSpacers fs ss = spcrs + flds where
       Nothing -> acc
       Just i -> acc + i
 
+newtype Request = Request { unRequest :: Int }
+        deriving (Eq, Ord, Show)
 
-allocPayee ::
-  Int
-  -- ^ Width that is permitted for this column
-  -> PC.BaseColors
-  -> Box
-  -> R.ColumnSpec
-allocPayee w bc i =
-  let pb = L.boxPostFam i
-      ts = PC.colors (M.visibleNum . L.boxMeta $ i) bc
-      c = R.ColumnSpec j (C.Width w) ts sq
-      j = R.LeftJustify
-      sq = case Q.payee pb of
-        Nothing -> []
-        Just pye ->
-          let wrapped =
-                Fdbl.toList
-                . TF.unLines 
-                . TF.wordWrap w
-                . TF.txtWords
-                . HT.text
-                $ pye
-              toBit (TF.Words seqTxts) =
-                C.chunk ts
-                . X.unwords
-                . Fdbl.toList
-                $ seqTxts
-          in fmap toBit wrapped
-  in c
+newtype Final = Final { unFinal :: Int }
+        deriving (Eq, Ord, Show)
 
 
-allocAcct ::
-  Int
-  -- ^ Width that is permitted for this column
+buildSpecs
+  :: Fields (Maybe Final)
+  -> Fields ([Final -> R.ColumnSpec])
+  -> Fields (Maybe ([R.ColumnSpec], Final))
+buildSpecs finals bs = f <$> finals <*> bs
+  where
+    f mayFinal gs = case mayFinal of
+      Nothing -> Nothing
+      Just fin -> Just ((gs <*> pure fin), fin)
+
+
+-- | Divide the total available width between the two fields.
+divideAvailableWidth
+  :: AvailableWidth
+  -> Fields Bool
+  -> Fields Alloc
+  -> Fields Request
+  -> Fields (Maybe Final)
+divideAvailableWidth (AvailableWidth aw) appear allocs rws = Fields pye act
+  where
+    minFinal i1 i2 =
+      let m = min i1 i2
+      in if m > 0 then Just . Final $ m else Nothing
+    pairAtLeast i1 i2 = (atLeast i1, atLeast i2)
+      where atLeast i = if i > 0 then Just . Final $ i else Nothing
+    reqP = unRequest . payee $ rws
+    reqA = unRequest . account $ rws
+    (pye, act) = case (payee appear, account appear) of
+      (False, False) -> (Nothing, Nothing)
+      (True, False) -> (minFinal reqP aw, Nothing)
+      (False, True) -> (Nothing, minFinal reqA aw)
+      (True, True) ->
+        let votes = [unAlloc . payee $ allocs, unAlloc . account $ allocs]
+            allocRslt = Qty.largestRemainderMethod (fromIntegral aw)
+                        (map fromIntegral votes)
+            (allocP, allocA) = case allocRslt of
+              x:y:[] -> (fromIntegral x, fromIntegral y)
+              _ -> error "divideAvailableWidth error"
+        in case (allocP > reqP, allocA > reqA) of
+            (True, True) -> pairAtLeast reqP reqA
+            (True, False) ->
+              pairAtLeast reqP $ (min (allocA + (allocP - reqP))) reqA
+            (False, True) ->
+              pairAtLeast (min reqP (allocP + (allocA - reqA))) reqA
+            (False, False) -> pairAtLeast allocP allocA
+
+
+builders
+  :: PC.BaseColors
   -> SubAccountLength
+  -> Box
+  -> Fields (Request, Final -> R.ColumnSpec)
+builders bc sl b = Fields (buildPayee bc b) (buildAcct sl bc b)
+
+buildPayee ::
+  PC.BaseColors
+  -> Box
+  -> (Request, Final -> R.ColumnSpec)
+  -- ^ Returns a tuple. The first element is the maximum width that
+  -- this cell needs to display its value perfectly. The second
+  -- element is a function that, when applied to an actual width,
+  -- returns a ColumnSpec.
+
+buildPayee bc i = (maxW, mkSpec)
+  where
+    pb = L.boxPostFam i
+    ts = PC.colors (M.visibleNum . L.boxMeta $ i) bc
+    j = R.LeftJustify
+    mayPye = Q.payee pb
+    maxW = Request $ maybe 0 (X.length . HT.text) mayPye
+    mkSpec (Final w) = R.ColumnSpec j (C.Width w) ts sq
+      where
+        sq = case mayPye of
+          Nothing -> []
+          Just pye ->
+            let wrapped =
+                  Fdbl.toList
+                  . TF.unLines
+                  . TF.wordWrap w
+                  . TF.txtWords
+                  . HT.text
+                  $ pye
+                toBit (TF.Words seqTxts) =
+                  C.chunk ts
+                  . X.unwords
+                  . Fdbl.toList
+                  $ seqTxts
+            in fmap toBit wrapped
+
+
+buildAcct ::
+  SubAccountLength
   -> PC.BaseColors
   -> Box
-  -> R.ColumnSpec
-allocAcct aw sl bc i =
-  let pb = L.boxPostFam i
-      ts = PC.colors (M.visibleNum . L.boxMeta $ i) bc
-  in R.ColumnSpec R.LeftJustify (C.Width aw) ts $
-     let target = TF.Target aw
-         shortest = TF.Shortest . unSubAccountLength $ sl
-         a = Q.account pb
-         ws = TF.Words . Seq.fromList . HT.textList $ a
-         (TF.Words shortened) = TF.shorten shortest target ws
-     in [C.chunk ts
-         . X.concat
-         . intersperse (X.singleton ':')
-         . Fdbl.toList
-         $ shortened]
+  -> (Request, Final -> R.ColumnSpec)
+  -- ^ Returns a tuple. The first element is the maximum width that
+  -- this cell needs to display its value perfectly. The second
+  -- element is a function that, when applied to an actual width,
+  -- returns a ColumnSpec.
+
+buildAcct sl bc i = (maxW, mkSpec)
+  where
+    pb = L.boxPostFam i
+    ts = PC.colors (M.visibleNum . L.boxMeta $ i) bc
+    aList = L.unAccount . Q.account $ pb
+    maxW = Request
+           $ (sum . map (X.length . L.unSubAccount) $ aList)
+           + max 0 (length aList - 1)
+    mkSpec (Final aw) = R.ColumnSpec R.LeftJustify (C.Width aw) ts sq
+      where
+        target = TF.Target aw
+        shortest = TF.Shortest . unSubAccountLength $ sl
+        ws = TF.Words . Seq.fromList . map L.unSubAccount $ aList
+        (TF.Words shortened) = TF.shorten shortest target ws
+        sq = [ C.chunk ts
+               . X.concat
+               . intersperse (X.singleton ':')
+               . Fdbl.toList
+               $ shortened ]
 
 instance Functor Fields where
   fmap f i = Fields {
@@ -314,4 +387,4 @@ instance Fdbl.Foldable Fields where
 instance T.Traversable Fields where
   traverse f flds =
     Fields <$> f (payee flds) <*> f (account flds)
-  
+
