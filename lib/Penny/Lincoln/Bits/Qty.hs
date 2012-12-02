@@ -5,8 +5,9 @@ module Penny.Lincoln.Bits.Qty (
   Qty, NumberStr(..), toQty, mantissa, places, newQty,
   Mantissa, Places,
   add, mult, Difference(LeftBiggerBy, RightBiggerBy, Equal),
-  equivalent, difference, allocate) where
+  equivalent, difference, allocate, largestRemainderMethod) where
 
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
 import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
 import Data.List.NonEmpty (NonEmpty((:|)))
@@ -176,7 +177,7 @@ allocate tot ls =
       (tI, lsI) = (mantissa tot', fmap mantissa ls')
       (seats, (p1 :| ps), moreE) = growTarget tI lsI
       adjSeats = seats - (genericLength ps + 1)
-      del = largestRemainderMethod (adjSeats, p1 : ps)
+      del = largestRemainderMethod adjSeats (p1 : ps)
       totE = e' + moreE
       r1:rs = fmap (\m -> Qty (m + 1) totE) del
   in r1 :| rs
@@ -232,6 +233,34 @@ type TotSeats = Integer
 type Remainder = Rational
 type SeatsWon = Integer
 
+-- | Allocates integers using the largest remainder method. This is
+-- the method used to allocate parliamentary seats in many countries,
+-- so the types are named accordingly
+largestRemainderMethod
+  :: TotSeats
+  -- ^ Total number of seats in the legislature. This is the integer
+  -- that will be allocated. This number must be positive or this
+  -- function will fail at runtime.
+
+  -> [PartyVotes]
+  -- ^ The total seats will be allocated proportionally depending on
+  -- how many votes each party received. The sum of this list must be
+  -- positive, and each member of the list must be at least zero;
+  -- otherwise a runtime error will occur.
+
+  -> [SeatsWon]
+  -- ^ The sum of this list will always be equal to the total number
+  -- of seats, and its length will always be equal to length of the
+  -- PartyVotes list.
+
+largestRemainderMethod ts pvs =
+  let err s = error $ "largestRemainderMethod: error: " ++ s
+  in Ex.resolve err $ do
+    Ex.assert "TotalSeats not positive" (ts > 0)
+    Ex.assert "sum of [PartyVotes] not positive" (sum pvs > 0)
+    Ex.assert "negative member of [PartyVotes]" (minimum pvs >= 0)
+    return (allocRemainder ts . allocAuto ts $ pvs)
+
 autoAndRemainder
   :: TotSeats -> TotVotes -> PartyVotes -> (AutoSeats, Remainder)
 autoAndRemainder ts tv pv =
@@ -244,13 +273,8 @@ autoAndRemainder ts tv pv =
   in properFraction (fI pv / quota)
 
 
-type Returns = (TotSeats, [PartyVotes])
-largestRemainderMethod :: Returns -> [SeatsWon]
-largestRemainderMethod rt@(ts, _) =
-  allocRemainder ts . allocAuto $ rt
-
-allocAuto :: Returns -> [(AutoSeats, Remainder)]
-allocAuto (ts, pvs) = map (autoAndRemainder ts (sum pvs)) pvs
+allocAuto :: TotSeats -> [PartyVotes] -> [(AutoSeats, Remainder)]
+allocAuto ts pvs = map (autoAndRemainder ts (sum pvs)) pvs
 
 allocRemainder
   :: TotSeats

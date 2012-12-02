@@ -49,6 +49,9 @@ tests = TF.testGroup "PennyTest.Penny.Lincoln.Bits.Qty"
     "allocate behaves as expected"
     (Ex.resolveT return ex_allocations)
 
+  , testProperty
+    "largestRemainderMethod allocates properly" prop_numParties
+
   ]
 
 -- | Generates integers.
@@ -327,3 +330,13 @@ ex_allocations = do
     then return P.succeeded
     else return P.failed { P.reason = "lengths do not match" }
 
+-- | Number of parties allocated by largestRemainderMethod is always
+-- equal to the number of parties requested, and that the sum of the
+-- allocation is equal to what was requested
+prop_numParties :: Gen Bool
+prop_numParties = G.sized $ \s -> do
+  let genInt = G.choose (1, max 1 (fromIntegral s))
+  ts <- genInt
+  tvs <- G.listOf1 genInt
+  let r = Q.largestRemainderMethod ts tvs
+  return $ sum r == ts && length r == length tvs
