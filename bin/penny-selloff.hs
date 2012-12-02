@@ -458,7 +458,7 @@ memo (SaleDate sd) =
   let dTxt = CR.dateTime sd
       txt = pack "transaction created by penny-selloff for sale on "
             `X.append` dTxt
-  in L.Memo txt
+  in L.Memo [txt]
 
 payee :: L.Payee
 payee = L.Payee . pack $ "Realize gain or loss"
