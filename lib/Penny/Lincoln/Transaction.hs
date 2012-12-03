@@ -54,22 +54,14 @@ module Penny.Lincoln.Transaction (
   -- transaction. You cannot change the Entry or any of its
   -- components, as changing any of these would unbalance the
   -- Transaction.
-  mapTopLine,
-  cTxnDateTime,
-  cTxnFlag,
-  cTxnNumber,
-  cTxnPayee,
-  cTxnMemo,
-  cTxnMeta,
-
-  mapPostings,
-  cPstgPayee,
-  cPstgNumber,
-  cPstgFlag,
-  cPstgAccount,
-  cPstgTags,
-  cPstgMemo,
-  cPstgMeta
+  TopLineChangeData(..),
+  PostingChangeData(..),
+  ChangePosting,
+  ChangeTransaction,
+  changeTransaction,
+  ChangePostingM,
+  ChangeTransactionM,
+  changeTransactionM
   ) where
 
 import qualified Penny.Lincoln.Bits as B
@@ -82,12 +74,13 @@ import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Serial as Ser
 
+import qualified Control.Monad as CM
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Either as E
 import qualified Data.Foldable as Fdbl
-import Data.Maybe ( catMaybes )
+import Data.Maybe ( catMaybes, fromMaybe )
 import qualified Data.Traversable as Tr
 import qualified Control.Monad.Trans.State.Lazy as St
 import Control.Monad.Trans.Class ( lift )
@@ -317,107 +310,93 @@ instance Functor Box where
 -- Changers
 -------------------------------------------------------------
 
-mapTopLine
-  :: (TopLine -> TopLine)
-  -> Transaction
-  -> Transaction
-mapTopLine f =
+-- | Each field in the record is a Maybe. If Nothing, make no change
+-- to this part of the TopLine.
+data TopLineChangeData = TopLineChangeData
+  { tcDateTime :: Maybe B.DateTime
+  , tcFlag :: Maybe (Maybe B.Flag)
+  , tcNumber :: Maybe (Maybe B.Number)
+  , tcPayee :: Maybe (Maybe B.Payee)
+  , tcMemo :: Maybe (Maybe B.Memo)
+  , tcMeta :: Maybe M.TopLineMeta
+  } deriving Show
+
+
+applyTopLineChange :: TopLineChangeData -> TopLine -> TopLine
+applyTopLineChange c t = TopLine
+  { tDateTime = fromMaybe (tDateTime t) (tcDateTime c)
+  , tFlag = fromMaybe (tFlag t) (tcFlag c)
+  , tNumber = fromMaybe (tNumber t) (tcNumber c)
+  , tPayee = fromMaybe (tPayee t) (tcPayee c)
+  , tMemo = fromMaybe (tMemo t) (tcMemo c)
+  , tMeta = fromMaybe (tMeta t) (tcMeta c)
+  }
+
+data PostingChangeData = PostingChangeData
+  { tpPayee :: Maybe (Maybe B.Payee)
+  , tpNumber :: Maybe (Maybe B.Number)
+  , tpFlag :: Maybe (Maybe B.Flag)
+  , tpAccount :: Maybe B.Account
+  , tpTags :: Maybe B.Tags
+  , tpMemo :: Maybe (Maybe B.Memo)
+  , tpMeta :: Maybe M.PostingMeta
+  } deriving Show
+
+applyPostingChange :: PostingChangeData -> Posting -> Posting
+applyPostingChange c p = Posting
+  { pPayee = fromMaybe (pPayee p) (tpPayee c)
+  , pNumber = fromMaybe (pNumber p) (tpNumber c)
+  , pFlag = fromMaybe (pFlag p) (tpFlag c)
+  , pAccount = fromMaybe (pAccount p) (tpAccount c)
+  , pTags = fromMaybe (pTags p) (tpTags c)
+  , pEntry = pEntry p
+  , pMemo = fromMaybe (pMemo p) (tpMemo c)
+  , pInferred = pInferred p
+  , pMeta = fromMaybe (pMeta p) (tpMeta c)
+  }
+
+type ChangePosting = Posting -> Maybe PostingChangeData
+
+type ChangeTransaction =
   Transaction
-  . F.mapParent f
-  . unTransaction
+  -- ^ The transaction being changed
 
-cTxnDateTime
-  :: (Transaction -> B.DateTime)
-  -> Transaction
-  -> Transaction
-cTxnDateTime f t = mapTopLine (\tl -> tl { tDateTime = f t }) t
+  -> (Maybe TopLineChangeData, ChangePosting)
+  -- ^ Two functions, one to indicate the new TopLine and one to
+  -- indicate the new posting.
 
-cTxnFlag
-  :: (Transaction -> Maybe B.Flag)
-  -> Transaction
-  -> Transaction
-cTxnFlag f t = mapTopLine (\tl -> tl { tFlag = f t }) t
 
-cTxnNumber
-  :: (Transaction -> Maybe B.Number)
-  -> Transaction
-  -> Transaction
-cTxnNumber f t = mapTopLine (\tl -> tl { tNumber = f t }) t
+changeTransaction :: ChangeTransaction -> Transaction -> Transaction
+changeTransaction f t = Transaction (F.Family tl' p1' p2' ps')
+  where
+    (Transaction (F.Family tl p1 p2 ps)) = t
+    (maybeTlc, fcp) = f t
+    tl' = maybe tl (flip applyTopLineChange tl) maybeTlc
+    cp p = maybe p (flip applyPostingChange p) (fcp p)
+    p1' = cp p1
+    p2' = cp p2
+    ps' = map cp ps
 
-cTxnPayee
-  :: (Transaction -> Maybe B.Payee)
-  -> Transaction
-  -> Transaction
-cTxnPayee f t = mapTopLine (\tl -> tl { tPayee = f t }) t
 
-cTxnMemo
-  :: (Transaction -> Maybe B.Memo)
-  -> Transaction
-  -> Transaction
-cTxnMemo f t = mapTopLine (\tl -> tl { tMemo = f t }) t
+type ChangePostingM m = Posting -> m (Maybe PostingChangeData)
 
-cTxnMeta
-  :: (Transaction -> M.TopLineMeta)
-  -> Transaction
-  -> Transaction
-cTxnMeta f t = mapTopLine (\tl -> tl { tMeta = f t }) t
-
-mapPostings
-  :: (Transaction -> Posting -> Posting)
-  -> Transaction
-  -> Transaction
-mapPostings f t =
+type ChangeTransactionM m =
   Transaction
-  . F.mapChildren (f t)
-  . unTransaction
-  $ t
+  -- ^ The transaction being changed
 
-cPstgPayee
-  :: (Transaction -> Posting -> Maybe B.Payee)
-  -> Transaction
-  -> Transaction
-cPstgPayee f = mapPostings (\t p -> p { pPayee = f t p })
+  -> m (Maybe TopLineChangeData, ChangePostingM m)
+  -- ^ Two functions, one to indicate the new TopLine and one to
+  -- indicate the new posting.
 
-
-cPstgNumber
-  :: (Transaction -> Posting -> Maybe B.Number)
-  -> Transaction
-  -> Transaction
-cPstgNumber f = mapPostings (\t p -> p { pNumber = f t p })
-
-cPstgFlag
-  :: (Transaction -> Posting -> Maybe B.Flag)
-  -> Transaction
-  -> Transaction
-cPstgFlag f = mapPostings (\t p -> p { pFlag = f t p })
-
-cPstgAccount
-  :: (Transaction -> Posting -> B.Account)
-  -> Transaction
-  -> Transaction
-cPstgAccount f = mapPostings (\t p -> p { pAccount = f t p })
-
-cPstgTags
-  :: (Transaction -> Posting -> B.Tags)
-  -> Transaction
-  -> Transaction
-cPstgTags f = mapPostings (\t p -> p { pTags = f t p })
-
-cPstgMemo
-  :: (Transaction -> Posting -> Maybe B.Memo)
-  -> Transaction
-  -> Transaction
-cPstgMemo f = mapPostings (\t p -> p { pMemo = f t p })
-
-cPstgMeta
-  :: (Transaction -> Posting -> M.PostingMeta)
-  -> Transaction
-  -> Transaction
-cPstgMeta f = mapPostings (\t p -> p { pMeta = f t p })
-
-
-
-
-
-
-
+changeTransactionM
+  :: Monad m
+  => ChangeTransactionM m -> Transaction -> m Transaction
+changeTransactionM f t = do
+  let (Transaction (F.Family tl p1 p2 ps)) = t
+  (maybeTlc, fcp) <- f t
+  let tl' = maybe tl (flip applyTopLineChange tl) maybeTlc
+      cp p = do
+        mayPcd <- fcp p
+        return (maybe p (flip applyPostingChange p) mayPcd)
+  fam <- CM.liftM3 (F.Family tl') (cp p1) (cp p2) (mapM cp ps)
+  return (Transaction fam)
