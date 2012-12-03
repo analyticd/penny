@@ -164,6 +164,16 @@ module Penny.Lincoln (
     -- ** Transaction boxes
   , T.Box (Box, boxMeta, boxPostFam)
 
+    -- ** Changing transactions
+  , T.TopLineChangeData(..)
+  , T.PostingChangeData(..)
+  , T.ChangePosting
+  , T.ChangeTransaction
+  , T.changeTransaction
+  , T.ChangePostingM
+  , T.ChangeTransactionM
+  , T.changeTransactionM
+
   -- * Metadata
   , M.TopLineLine(TopLineLine, unTopLineLine)
   , M.TopMemoLine(TopMemoLine, unTopMemoLine)
