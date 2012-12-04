@@ -13,6 +13,7 @@ module Penny.Lincoln.Bits.DateTime
   , zeroSeconds
   , midnight
   , DateTime ( .. )
+  , dateTimeMidnightUTC
   , toUTC
   , toZonedTime
   , fromZonedTime
@@ -92,6 +93,12 @@ data DateTime = DateTime
   , seconds :: Seconds
   , timeZone :: TimeZoneOffset
   } deriving (Eq, Ord, Show)
+
+dateTimeMidnightUTC :: T.Day -> DateTime
+dateTimeMidnightUTC d = DateTime d h m s z
+  where
+    (h, m, s) = midnight
+    z = noOffset
 
 toZonedTime :: DateTime -> T.ZonedTime
 toZonedTime dt = T.ZonedTime lt tz

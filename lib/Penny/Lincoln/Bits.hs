@@ -25,6 +25,7 @@ module Penny.Lincoln.Bits (
   DT.intToSeconds,
   DT.zeroSeconds,
   DT.DateTime ( .. ),
+  DT.dateTimeMidnightUTC,
   DT.toUTC,
   DT.toZonedTime,
   DT.fromZonedTime,

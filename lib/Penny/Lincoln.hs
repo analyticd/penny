@@ -42,6 +42,7 @@ module Penny.Lincoln (
   , I.zeroSeconds
   , I.midnight
   , I.DateTime ( .. )
+  , I.dateTimeMidnightUTC
   , I.toUTC
   , I.toZonedTime
   , I.fromZonedTime
@@ -126,6 +127,7 @@ module Penny.Lincoln (
 
     -- ** Making and deconstructing transactions
   , T.transaction
+  , T.rTransaction
   , T.Error ( UnbalancedError, CouldNotInferError)
   , T.toUnverified
 
@@ -166,7 +168,9 @@ module Penny.Lincoln (
 
     -- ** Changing transactions
   , T.TopLineChangeData(..)
+  , T.emptyTopLineChangeData
   , T.PostingChangeData(..)
+  , T.emptyPostingChangeData
   , T.ChangePosting
   , T.ChangeTransaction
   , T.changeTransaction

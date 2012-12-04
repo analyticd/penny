@@ -28,6 +28,7 @@ module Penny.Lincoln.Transaction (
 
   -- * Making and deconstructing transactions
   transaction,
+  rTransaction,
   Error ( UnbalancedError, CouldNotInferError),
   toUnverified,
 
@@ -55,7 +56,9 @@ module Penny.Lincoln.Transaction (
   -- components, as changing any of these would unbalance the
   -- Transaction.
   TopLineChangeData(..),
+  emptyTopLineChangeData,
   PostingChangeData(..),
+  emptyPostingChangeData,
   ChangePosting,
   ChangeTransaction,
   changeTransaction,
@@ -226,6 +229,61 @@ toTopLine (U.TopLine d f n p m mt) =
   TopLine d f n p m mt
 
 
+-- | Creates a @restricted transaction@; that is, one in which all the
+-- entries will have the same commodity, and in which all but one of
+-- the postings will all be debits or credits. The last posting will
+-- have no quantity specified at all and will be inferred. Creating
+-- these transactions never fails, in contrast to the transactions
+-- created by 'transaction', which can fail at runtime.
+rTransaction
+  :: B.Commodity
+  -- ^ All postings will have this same commodity
+
+  -> B.DrCr
+  -- ^ All postings except the inferred one will have this DrCr
+
+  -> U.TopLine
+
+  -> U.RPosting
+  -- ^ You must have at least one posting whose quantity you specify
+
+  -> [U.RPosting]
+  -- ^ Optionally you can have additional restricted postings.
+
+  -> U.IPosting
+  -- ^ And at least one posting whose quantity and DrCr will be inferred
+
+  -> Transaction
+
+rTransaction c dc ut u1 us i = Transaction (F.Family tl p1 p2 ps)
+  where
+    tl = toTopLine ut
+    tot = foldl1 B.add $ (U.rQty u1) : map U.rQty us
+    inf = Posting
+            { pPayee = U.iPayee i
+            , pNumber = U.iNumber i
+            , pFlag = U.iFlag i
+            , pAccount = U.iAccount i
+            , pTags = U.iTags i
+            , pEntry = B.Entry (B.opposite dc) (B.Amount tot c)
+            , pMemo = U.iMemo i
+            , pInferred = Inferred
+            , pMeta = U.iMeta i }
+    toPstg p = Posting
+                    { pPayee = U.rPayee p
+                    , pNumber = U.rNumber p
+                    , pFlag = U.rFlag p
+                    , pAccount = U.rAccount p
+                    , pTags = U.rTags p
+                    , pEntry = B.Entry dc (B.Amount (U.rQty p) c)
+                    , pMemo = U.rMemo p
+                    , pInferred = NotInferred
+                    , pMeta = U.rMeta p }
+    p1 = toPstg u1
+    (p2, ps) = case us of
+      [] -> (inf, [])
+      x:xs -> (toPstg x, (map toPstg xs) ++ [inf])
+
 -- | Change the metadata on a transaction.
 changeTransactionMeta ::
   (M.TopLineMeta -> M.TopLineMeta)
@@ -321,6 +379,9 @@ data TopLineChangeData = TopLineChangeData
   , tcMeta :: Maybe M.TopLineMeta
   } deriving Show
 
+emptyTopLineChangeData :: TopLineChangeData
+emptyTopLineChangeData =
+  TopLineChangeData Nothing Nothing Nothing Nothing Nothing Nothing
 
 applyTopLineChange :: TopLineChangeData -> TopLine -> TopLine
 applyTopLineChange c t = TopLine
@@ -333,26 +394,31 @@ applyTopLineChange c t = TopLine
   }
 
 data PostingChangeData = PostingChangeData
-  { tpPayee :: Maybe (Maybe B.Payee)
-  , tpNumber :: Maybe (Maybe B.Number)
-  , tpFlag :: Maybe (Maybe B.Flag)
-  , tpAccount :: Maybe B.Account
-  , tpTags :: Maybe B.Tags
-  , tpMemo :: Maybe (Maybe B.Memo)
-  , tpMeta :: Maybe M.PostingMeta
+  { pcPayee :: Maybe (Maybe B.Payee)
+  , pcNumber :: Maybe (Maybe B.Number)
+  , pcFlag :: Maybe (Maybe B.Flag)
+  , pcAccount :: Maybe B.Account
+  , pcTags :: Maybe B.Tags
+  , pcMemo :: Maybe (Maybe B.Memo)
+  , pcMeta :: Maybe M.PostingMeta
   } deriving Show
+
+emptyPostingChangeData :: PostingChangeData
+emptyPostingChangeData =
+  PostingChangeData Nothing Nothing Nothing Nothing Nothing
+    Nothing Nothing
 
 applyPostingChange :: PostingChangeData -> Posting -> Posting
 applyPostingChange c p = Posting
-  { pPayee = fromMaybe (pPayee p) (tpPayee c)
-  , pNumber = fromMaybe (pNumber p) (tpNumber c)
-  , pFlag = fromMaybe (pFlag p) (tpFlag c)
-  , pAccount = fromMaybe (pAccount p) (tpAccount c)
-  , pTags = fromMaybe (pTags p) (tpTags c)
+  { pPayee = fromMaybe (pPayee p) (pcPayee c)
+  , pNumber = fromMaybe (pNumber p) (pcNumber c)
+  , pFlag = fromMaybe (pFlag p) (pcFlag c)
+  , pAccount = fromMaybe (pAccount p) (pcAccount c)
+  , pTags = fromMaybe (pTags p) (pcTags c)
   , pEntry = pEntry p
-  , pMemo = fromMaybe (pMemo p) (tpMemo c)
+  , pMemo = fromMaybe (pMemo p) (pcMemo c)
   , pInferred = pInferred p
-  , pMeta = fromMaybe (pMeta p) (tpMeta c)
+  , pMeta = fromMaybe (pMeta p) (pcMeta c)
   }
 
 type ChangePosting = Posting -> Maybe PostingChangeData
