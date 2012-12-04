@@ -291,7 +291,8 @@ flag (L.Flag fl) =
 postingMemoLine :: X.Text -> Maybe X.Text
 postingMemoLine x =
   if X.all T.nonNewline x
-  then Just $ '\'' `cons` x `snoc` '\n'
+  then Just $ (X.replicate 8 (X.singleton ' '))
+              `X.append` ('\'' `cons` x `snoc` '\n')
   else Nothing
 
 postingMemo :: L.Memo -> Maybe X.Text
@@ -422,7 +423,7 @@ posting gs p = do
   ta <- tags (LT.pTags p)
   me <- renMaybe (LT.pMemo p) postingMemo
   maybePair <- case (LT.pInferred p, L.postingFormat . LT.pMeta $ p) of
-    (LT.Inferred, Nothing) -> return Nothing
+    (LT.Inferred, _) -> return Nothing
     (LT.NotInferred, Just f) -> return (Just (LT.pEntry p, f))
     _ -> Nothing
   let renderEn (e, f) = entry gs f e

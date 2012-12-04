@@ -95,6 +95,18 @@ Executable penny-diff
   if ! flag(build-diff)
     buildable: False
 
+Executable penny-reprint
+  Build-depends:
+      base ==4.*
+    , penny-lib ==0.7.*
+    , pretty-show ==1.2.*
+    , text ==0.11.*
+
+  main-is: penny-reprint.hs
+  ghc-options: -Wall
+  if ! flag(build-reprint)
+    buildable: False
+
 Flag debug
   Description: Turns on debugging options
   Default: False
@@ -109,4 +121,8 @@ Flag build-selloff
 
 Flag build-diff
   Description: Build the penny-diff executable
+  Default: True
+
+Flag build-reprint
+  Description: Build the penny-reprint executable
   Default: True
