@@ -155,10 +155,6 @@ module Penny.Lincoln (
   , T.changeTransactionMeta
   , T.postFam
 
-    -- ** Adding serials to transactions
-  , T.addSerialsToList
-  , T.addSerialsToEithers
-
     -- ** Unwrapping Transactions
   , T.unTransaction
   , T.unPostFam
@@ -171,12 +167,7 @@ module Penny.Lincoln (
   , T.emptyTopLineChangeData
   , T.PostingChangeData(..)
   , T.emptyPostingChangeData
-  , T.ChangePosting
-  , T.ChangeTransaction
   , T.changeTransaction
-  , T.ChangePostingM
-  , T.ChangeTransactionM
-  , T.changeTransactionM
 
   -- * Metadata
   , M.TopLineLine(TopLineLine, unTopLineLine)
@@ -211,7 +202,10 @@ module Penny.Lincoln (
   , S.Serial
   , S.forward
   , S.backward
-  , S.serials
+  , S.GenSerial
+  , S.incrementBack
+  , S.get
+  , S.makeSerials
   , S.serialItems
 
     -- * Matchers

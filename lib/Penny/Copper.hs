@@ -21,6 +21,7 @@ module Penny.Copper
   ) where
 
 import Control.Monad (when)
+import Control.Applicative ((<*>), (<$), pure)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
@@ -47,6 +48,19 @@ parseFile (fn, (FileContents c)) =
   in case Parsec.parse p fnStr c of
     Left err -> Ex.throw (ErrorMsg . X.pack . show $ err)
     Right g -> return g
+
+addTopLineFileMetadata
+  :: L.Filename
+  -> Y.Ledger
+  -> Y.Ledger
+addTopLineFileMetadata fn (Y.Ledger ls) =
+  let incr t = t <$ L.incrementBack
+      incrementCts = Y.mapLedgerA (Y.mapItemA pure pure incr) ls
+      assign t = fmap f L.get
+        where
+          f ser = L.emptyTopLineChangeData
+                    { L.tcMeta = Just tlm }
+
 
 addFileMetadata ::
   L.Filename

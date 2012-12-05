@@ -2,6 +2,8 @@
 module Penny.Cabin.Meta (VisibleNum, unVisibleNum,
                          visibleNumBoxes, visibleNums ) where
 
+import Control.Applicative ((*>))
+import qualified Data.Traversable as Tr
 import qualified Penny.Lincoln as L
 
 -- | Each row that is visible on screen is assigned a VisibleNum. This
@@ -17,12 +19,20 @@ visibleNumBoxes ::
   (VisibleNum -> a -> b)
   -> [L.Box a]
   -> [L.Box b]
-visibleNumBoxes f = L.serialItems s' where
-  s' ser (L.Box m pf) = L.Box (f (VisibleNum ser) m) pf
+visibleNumBoxes f bs = L.makeSerials k
+  where
+    k = Tr.sequenceA (replicate (length bs) L.incrementBack)
+        *> mapM assign bs
+    assign (L.Box m pf) = fmap g L.get
+      where
+        g ser = L.Box (f (VisibleNum ser) m) pf
+
 
 -- | Assigns VisibleNum to a list.
 visibleNums :: (VisibleNum -> a -> b) -> [a] -> [b]
-visibleNums f = L.serialItems f'
+visibleNums f as = L.makeSerials k
   where
-    f' ser = f (VisibleNum ser)
-  
+    k = Tr.sequenceA (replicate (length as) L.incrementBack)
+        *> mapM assign as
+    assign a = fmap (\ser -> f (VisibleNum ser) a) L.get
+

@@ -42,9 +42,6 @@ module Penny.Lincoln.Transaction (
   tDateTime, tFlag, tNumber, tPayee, tMemo, tMeta,
   unTransaction, postFam, changeTransactionMeta,
 
-  -- * Adding serials
-  addSerialsToList, addSerialsToEithers,
-
   -- * Box
   Box ( Box, boxMeta, boxPostFam ),
 
@@ -59,12 +56,7 @@ module Penny.Lincoln.Transaction (
   emptyTopLineChangeData,
   PostingChangeData(..),
   emptyPostingChangeData,
-  ChangePosting,
-  ChangeTransaction,
-  changeTransaction,
-  ChangePostingM,
-  ChangeTransactionM,
-  changeTransactionM
+  changeTransaction
   ) where
 
 import qualified Penny.Lincoln.Bits as B
@@ -75,13 +67,10 @@ import qualified Penny.Lincoln.Family.Child as C
 import qualified Penny.Lincoln.Family.Siblings as S
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Lincoln.Balance as Bal
-import qualified Penny.Lincoln.Serial as Ser
 
-import qualified Control.Monad as CM
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Data.Either as E
 import qualified Data.Foldable as Fdbl
 import Data.Maybe ( catMaybes, fromMaybe )
 import qualified Data.Traversable as Tr
@@ -311,47 +300,6 @@ changePostingMeta f (Transaction fam) =
   where
     g p = p { pMeta = f (pMeta p) }
 
-addSerials ::
-  (Ser.Serial -> M.TopLineMeta -> M.TopLineMeta)
-  -> (Ser.Serial -> M.PostingMeta -> M.PostingMeta)
-  -> Ser.Serial
-  -> Transaction
-  -> St.State (Ser.NextFwd, Ser.NextBack) Transaction
-addSerials ft fp s (Transaction fam) = do
-  let topMapper pm = pm { tMeta = ft s (tMeta pm) }
-      pstgMapper ser pstg = pstg { pMeta = fp ser (pMeta pstg) }
-      fam' = F.mapParent topMapper fam
-  fam'' <- Ser.serialChildrenInFamily pstgMapper fam'
-  return $ Transaction fam''
-
-addSerialsToList ::
-  (Ser.Serial -> M.TopLineMeta -> M.TopLineMeta)
-  -> (Ser.Serial -> M.PostingMeta -> M.PostingMeta)
-  -> [Transaction]
-  -> [Transaction]
-addSerialsToList ft fp ls =
-  let nPstgs = length . concatMap Fdbl.toList . map orphans
-               . map unTransaction $ ls
-      initState = Ser.initNexts nPstgs
-      processor = addSerials ft fp
-  in St.evalState (Ser.serialItemsM processor ls) initState
-
-
-addSerialsToEithers ::
-  (Ser.Serial -> M.TopLineMeta -> M.TopLineMeta)
-  -> (Ser.Serial -> M.PostingMeta -> M.PostingMeta)
-  -> [Either a Transaction]
-  -> [Either a Transaction]
-addSerialsToEithers ft fp ls =
-  let txns = E.rights ls
-      nPstgs = length . concatMap Fdbl.toList . map orphans
-               . map unTransaction $ txns
-      initState = Ser.initNexts nPstgs
-      processA _ a = return a
-      processTxn = addSerials ft fp
-      k = Ser.serialEithers processA processTxn ls
-  in St.evalState k initState
-
 -- | A box stores a family of transaction data along with
 -- metadata. The transaction is stored in child form, indicating a
 -- particular posting of interest. The metadata is in addition to the
@@ -421,48 +369,16 @@ applyPostingChange c p = Posting
   , pMeta = fromMaybe (pMeta p) (pcMeta c)
   }
 
-type ChangePosting = Posting -> Maybe PostingChangeData
-
-type ChangeTransaction =
-  Transaction
-  -- ^ The transaction being changed
-
-  -> (Maybe TopLineChangeData, ChangePosting)
-  -- ^ Two functions, one to indicate the new TopLine and one to
-  -- indicate the new posting.
-
-
-changeTransaction :: ChangeTransaction -> Transaction -> Transaction
-changeTransaction f t = Transaction (F.Family tl' p1' p2' ps')
-  where
-    (Transaction (F.Family tl p1 p2 ps)) = t
-    (maybeTlc, fcp) = f t
-    tl' = maybe tl (flip applyTopLineChange tl) maybeTlc
-    cp p = maybe p (flip applyPostingChange p) (fcp p)
-    p1' = cp p1
-    p2' = cp p2
-    ps' = map cp ps
-
-
-type ChangePostingM m = Posting -> m (Maybe PostingChangeData)
-
-type ChangeTransactionM m =
-  Transaction
-  -- ^ The transaction being changed
-
-  -> m (Maybe TopLineChangeData, ChangePostingM m)
-  -- ^ Two functions, one to indicate the new TopLine and one to
-  -- indicate the new posting.
-
-changeTransactionM
-  :: Monad m
-  => ChangeTransactionM m -> Transaction -> m Transaction
-changeTransactionM f t = do
-  let (Transaction (F.Family tl p1 p2 ps)) = t
-  (maybeTlc, fcp) <- f t
-  let tl' = maybe tl (flip applyTopLineChange tl) maybeTlc
-      cp p = do
-        mayPcd <- fcp p
-        return (maybe p (flip applyPostingChange p) mayPcd)
-  fam <- CM.liftM3 (F.Family tl') (cp p1) (cp p2) (mapM cp ps)
-  return (Transaction fam)
+changeTransaction
+  :: F.Family TopLineChangeData PostingChangeData
+  -> Transaction
+  -> Transaction
+changeTransaction c (Transaction t) =
+  let F.Family ctl cp1 cp2 cps = c
+      F.Family tl p1 p2 ps = t
+      tl' = applyTopLineChange ctl tl
+      p1' = applyPostingChange cp1 p1
+      p2' = applyPostingChange cp2 p2
+      ps' = zipWith applyPostingChange
+            (cps ++ repeat emptyPostingChangeData) ps
+  in Transaction (F.Family tl' p1' p2' ps')

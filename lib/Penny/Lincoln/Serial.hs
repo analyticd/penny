@@ -1,8 +1,10 @@
 module Penny.Lincoln.Serial (
   Serial, forward, backward, GenSerial,
-  incrementBack, get, makeSerials ) where
+  incrementBack, get, makeSerials, serialItems ) where
 
-import Control.Applicative (Applicative, (<*>), pure)
+import qualified Data.Traversable as Tr
+import Control.Applicative (Applicative, (<*>), pure, (*>))
+import Control.Monad (ap)
 
 data SerialSt = SerialSt
   { nextFwd :: Int
@@ -12,7 +14,7 @@ data SerialSt = SerialSt
 data Serial = Serial
   { forward :: Int
   , backward :: Int
-  } deriving Show
+  } deriving (Eq, Show, Ord)
 
 newtype GenSerial a = GenSerial (SerialSt -> (a, SerialSt))
 
@@ -22,11 +24,8 @@ instance Functor GenSerial where
     in (f a', st')
 
 instance Applicative GenSerial where
-  pure a = GenSerial $ \s -> (a, s)
-  (GenSerial f) <*> (GenSerial g) = GenSerial $ \s ->
-    let (k, s') = f s
-        (a, s'') = g s'
-    in (k a, s'')
+  pure = return
+  (<*>) = ap
 
 instance Monad GenSerial where
   return a = GenSerial $ \s -> (a, s)
@@ -48,3 +47,10 @@ get = GenSerial $ \s ->
 makeSerials :: GenSerial a -> a
 makeSerials (GenSerial k) =
   let (r, _) = k (SerialSt 0 0) in r
+
+serialItems :: (Serial -> a -> b) -> [a] -> [b]
+serialItems f as = makeSerials k
+  where
+    k = Tr.sequenceA (replicate (length as) incrementBack)
+        *> Tr.traverse g as
+    g a = fmap (\ser -> f ser a) get
