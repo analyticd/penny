@@ -87,9 +87,10 @@ import qualified Penny.Lincoln.Bits.Open as O
 import qualified Penny.Lincoln.Bits.DateTime as DT
 import qualified Penny.Lincoln.Bits.Price as Pr
 import qualified Penny.Lincoln.Bits.Qty as Q
-import qualified Penny.Lincoln.Meta as M
 
 data PricePoint = PricePoint { dateTime :: DT.DateTime
                              , price :: Pr.Price
-                             , ppMeta :: M.PriceMeta }
+                             , ppSide :: O.Side
+                             , ppSpaceBetween :: O.SpaceBetween
+                             , priceLine :: O.PriceLine }
                   deriving (Eq, Show)

@@ -170,25 +170,17 @@ module Penny.Lincoln (
   , T.changeTransaction
 
   -- * Metadata
-  , M.TopLineLine(TopLineLine, unTopLineLine)
-  , M.TopMemoLine(TopMemoLine, unTopMemoLine)
-  , M.Side(CommodityOnLeft, CommodityOnRight)
-  , M.SpaceBetween(SpaceBetween, NoSpaceBetween)
-  , M.Format(Format, side, between)
-  , M.Filename(Filename, unFilename)
-  , M.PriceLine(PriceLine, unPriceLine)
-  , M.PostingLine(PostingLine, unPostingLine)
-  , M.PriceMeta(PriceMeta, priceLine, priceFormat)
-  , M.GlobalPosting(GlobalPosting, unGlobalPosting)
-  , M.FilePosting(FilePosting, unFilePosting)
-  , M.GlobalTransaction(GlobalTransaction, unGlobalTransaction)
-  , M.FileTransaction(FileTransaction, unFileTransaction)
-  , M.PostingMeta(PostingMeta, postingLine, postingFormat,
-                  globalPosting, filePosting)
-  , M.emptyPostingMeta
-  , M.TopLineMeta(TopLineMeta, topMemoLine, topLineLine, filename,
-                globalTransaction, fileTransaction)
-  , M.emptyTopLineMeta
+  , B.TopLineLine(TopLineLine, unTopLineLine)
+  , B.TopMemoLine(TopMemoLine, unTopMemoLine)
+  , B.Side(CommodityOnLeft, CommodityOnRight)
+  , B.SpaceBetween(SpaceBetween, NoSpaceBetween)
+  , B.Filename(Filename, unFilename)
+  , B.PriceLine(PriceLine, unPriceLine)
+  , B.PostingLine(PostingLine, unPostingLine)
+  , B.GlobalPosting(GlobalPosting, unGlobalPosting)
+  , B.FilePosting(FilePosting, unFilePosting)
+  , B.GlobalTransaction(GlobalTransaction, unGlobalTransaction)
+  , B.FileTransaction(FileTransaction, unFileTransaction)
 
     -- * PriceDb
   , DB.PriceDb
@@ -220,7 +212,6 @@ import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Lincoln.Family as F
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.Matchers as Matchers
-import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.PriceDb as DB
 import qualified Penny.Lincoln.Serial as S
 import qualified Penny.Lincoln.Transaction as T

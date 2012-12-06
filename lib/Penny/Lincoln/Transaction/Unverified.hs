@@ -18,7 +18,6 @@
 module Penny.Lincoln.Transaction.Unverified where
 
 import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Lincoln.Meta as M
 
 data TopLine = TopLine
   { tDateTime :: B.DateTime
@@ -26,7 +25,11 @@ data TopLine = TopLine
   , tNumber   :: Maybe B.Number
   , tPayee    :: Maybe B.Payee
   , tMemo     :: Maybe B.Memo
-  , tMeta     :: M.TopLineMeta
+  , tTopLineLine :: Maybe B.TopLineLine
+  , tTopMemoLine :: Maybe B.TopMemoLine
+  , tFilename :: Maybe B.Filename
+  , tGlobalTransaction :: Maybe B.GlobalTransaction
+  , tFileTransaction :: Maybe B.FileTransaction
   } deriving (Eq, Show)
 
 emptyTopLine :: B.DateTime -> TopLine
@@ -36,7 +39,11 @@ emptyTopLine d = TopLine
   , tNumber = Nothing
   , tPayee = Nothing
   , tMemo = Nothing
-  , tMeta = M.emptyTopLineMeta
+  , tTopLineLine = Nothing
+  , tTopMemoLine = Nothing
+  , tFilename = Nothing
+  , tGlobalTransaction = Nothing
+  , tFileTransaction = Nothing
   }
 
 data Posting = Posting
@@ -47,7 +54,11 @@ data Posting = Posting
   , pTags    :: B.Tags
   , pEntry   :: Maybe B.Entry
   , pMemo    :: Maybe B.Memo
-  , pMeta    :: M.PostingMeta
+  , pSide :: Maybe B.Side
+  , pSpaceBetween :: Maybe B.SpaceBetween
+  , pPostingLine :: Maybe B.PostingLine
+  , pGlobalPosting :: Maybe B.GlobalPosting
+  , pFilePosting :: Maybe B.FilePosting
   } deriving (Eq, Show)
 
 emptyPosting :: B.Account -> Posting
@@ -59,7 +70,11 @@ emptyPosting a = Posting
   , pTags = B.Tags []
   , pEntry = Nothing
   , pMemo = Nothing
-  , pMeta = M.emptyPostingMeta
+  , pSide = Nothing
+  , pSpaceBetween = Nothing
+  , pPostingLine = Nothing
+  , pGlobalPosting = Nothing
+  , pFilePosting = Nothing
   }
 
 -- | A @restricted posting@ in which only the quantity is specified;
@@ -73,7 +88,11 @@ data RPosting = RPosting
   , rTags    :: B.Tags
   , rQty     :: B.Qty
   , rMemo    :: Maybe B.Memo
-  , rMeta    :: M.PostingMeta
+  , rSide :: Maybe B.Side
+  , rSpaceBetween :: Maybe B.SpaceBetween
+  , rPostingLine :: Maybe B.PostingLine
+  , rGlobalPosting :: Maybe B.GlobalPosting
+  , rFilePosting :: Maybe B.FilePosting
   } deriving (Eq, Show)
 
 emptyRPosting :: B.Account -> B.Qty -> RPosting
@@ -85,7 +104,11 @@ emptyRPosting a q = RPosting
   , rTags = B.Tags []
   , rQty = q
   , rMemo = Nothing
-  , rMeta = M.emptyPostingMeta
+  , rSide = Nothing
+  , rSpaceBetween = Nothing
+  , rPostingLine = Nothing
+  , rGlobalPosting = Nothing
+  , rFilePosting = Nothing
   }
 
 -- | An @inferred posting@ in which no quantity is specified.
@@ -96,7 +119,11 @@ data IPosting = IPosting
   , iAccount :: B.Account
   , iTags    :: B.Tags
   , iMemo    :: Maybe B.Memo
-  , iMeta    :: M.PostingMeta
+  , iSide :: Maybe B.Side
+  , iSpaceBetween :: Maybe B.SpaceBetween
+  , iPostingLine :: Maybe B.PostingLine
+  , iGlobalPosting :: Maybe B.GlobalPosting
+  , iFilePosting :: Maybe B.FilePosting
   } deriving (Eq, Show)
 
 emptyIPosting :: B.Account -> IPosting
@@ -107,8 +134,10 @@ emptyIPosting a = IPosting
   , iAccount = a
   , iTags = B.Tags []
   , iMemo = Nothing
-  , iMeta = M.emptyPostingMeta
+  , iSide = Nothing
+  , iSpaceBetween = Nothing
+  , iPostingLine = Nothing
+  , iGlobalPosting = Nothing
+  , iFilePosting = Nothing
   }
 
-entry :: Posting -> Maybe B.Entry
-entry (Posting _ _ _ _ _ e _ _) = e

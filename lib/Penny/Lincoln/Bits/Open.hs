@@ -6,6 +6,8 @@
 module Penny.Lincoln.Bits.Open where
 
 import Data.Text (Text)
+import qualified Data.Text as X
+import qualified Penny.Lincoln.Serial as S
 import qualified Penny.Lincoln.Bits.Qty as Q
 
 newtype SubAccount =
