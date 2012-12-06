@@ -92,6 +92,11 @@ data Posting =
           , pEntry    :: B.Entry
           , pMemo     :: Maybe B.Memo
           , pInferred :: Inferred
+          , pSide :: Maybe B.Side
+          , pSpaceBetween :: Maybe B.SpaceBetween
+          , pPostingLine :: Maybe B.PostingLine
+          , pGlobalPosting :: Maybe B.GlobalPosting
+          , pFilePosting :: Maybe B.FilePosting
           , pMeta     :: M.PostingMeta }
   deriving (Eq, Show)
 
@@ -104,7 +109,11 @@ data TopLine =
           , tNumber   :: Maybe B.Number
           , tPayee    :: Maybe B.Payee
           , tMemo     :: Maybe B.Memo
-          , tMeta     :: M.TopLineMeta }
+          , tTopLineLine :: Maybe B.TopLineLine
+          , tTopMemoLine :: Maybe B.TopMemoLine
+          , tFilename :: Maybe B.Filename
+          , tGlobalTransaction :: Maybe B.GlobalTransaction
+          , tFileTransaction :: Maybe B.FileTransaction }
   deriving (Eq, Show)
 
 -- | All the Postings in a Transaction must produce a Total whose

@@ -66,7 +66,21 @@ module Penny.Lincoln.Bits (
 
   -- * Tags
   O.Tag(Tag, unTag),
-  O.Tags(Tags, unTags)) where
+  O.Tags(Tags, unTags),
+
+  -- * Metadata
+  O.TopLineLine(..),
+  O.TopMemoLine(..),
+  O.Side(..),
+  O.SpaceBetween(..),
+  O.Filename(..),
+  O.PriceLine(..),
+  O.PostingLine(..),
+  O.GlobalPosting(..),
+  O.FilePosting(..),
+  O.GlobalTransaction(..),
+  O.FileTransaction(..)
+  ) where
 
 
 import qualified Penny.Lincoln.Bits.Open as O

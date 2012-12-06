@@ -56,3 +56,59 @@ newtype Tag = Tag { unTag :: Text }
 newtype Tags = Tags { unTags :: [Tag] }
                deriving (Eq, Show, Ord)
 
+-- Metadata
+
+-- | The line number that the TopLine starts on (excluding the memo
+-- accompanying the TopLine).
+newtype TopLineLine = TopLineLine { unTopLineLine :: Int }
+                      deriving (Eq, Show)
+
+-- | The line number that the memo accompanying the TopLine starts on.
+newtype TopMemoLine = TopMemoLine { unTopMemoLine :: Int }
+                      deriving (Eq, Show)
+
+-- | The commodity and and the quantity may appear with the commodity
+-- on the left (e.g. USD 2.14) or with the commodity on the right
+-- (e.g. 2.14 USD).
+data Side = CommodityOnLeft | CommodityOnRight deriving (Eq, Show)
+
+-- | There may or may not be a space in between the commodity and the
+-- quantity.
+data SpaceBetween = SpaceBetween | NoSpaceBetween deriving (Eq, Show)
+
+-- | The name of the file in which a transaction appears.
+newtype Filename = Filename { unFilename :: X.Text }
+                   deriving (Eq, Show)
+
+-- | The line number on which a price appears.
+newtype PriceLine = PriceLine { unPriceLine :: Int }
+                    deriving (Eq, Show)
+
+-- | The line number on which a posting appears.
+newtype PostingLine = PostingLine { unPostingLine :: Int }
+                      deriving (Eq, Show)
+
+-- | All postings are numbered in order, beginning with the first
+-- posting in the first file and ending with the last posting
+-- in the last file.
+newtype GlobalPosting =
+  GlobalPosting { unGlobalPosting :: S.Serial }
+  deriving (Eq, Show)
+
+-- | The postings in each file are numbered in order.
+newtype FilePosting =
+  FilePosting { unFilePosting :: S.Serial }
+  deriving (Eq, Show)
+
+-- | All transactions are numbered in order, beginning with the first
+-- transaction in the first file and ending with the last transaction
+-- in the last file.
+newtype GlobalTransaction =
+  GlobalTransaction { unGlobalTransaction :: S.Serial }
+  deriving (Eq, Show)
+
+-- | The transactions in each file are numbered in order.
+newtype FileTransaction =
+  FileTransaction { unFileTransaction :: S.Serial }
+  deriving (Eq, Show)
+
