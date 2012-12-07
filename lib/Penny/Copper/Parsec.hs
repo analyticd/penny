@@ -101,31 +101,31 @@ spaceBetween = f <$> optional (many1 (satisfy T.white))
   where
     f = maybe L.NoSpaceBetween (const L.SpaceBetween)
 
-leftCmdtyLvl1Amt :: Parser (L.Amount, L.Format)
+leftCmdtyLvl1Amt :: Parser (L.Amount, L.SpaceBetween, L.Side)
 leftCmdtyLvl1Amt =
   f <$> quotedLvl1Cmdty <*> spaceBetween <*> quantity
   where
-    f c s q = (L.Amount q c, L.Format L.CommodityOnLeft s)
+    f c s q = (L.Amount q c, s, L.CommodityOnLeft)
 
-leftCmdtyLvl3Amt :: Parser (L.Amount, L.Format)
+leftCmdtyLvl3Amt :: Parser (L.Amount, L.SpaceBetween, L.Side)
 leftCmdtyLvl3Amt = f <$> lvl3Cmdty <*> spaceBetween <*> quantity
   where
-    f c s q = (L.Amount q c, L.Format L.CommodityOnLeft s)
+    f c s q = (L.Amount q c, s, L.CommodityOnLeft)
 
-leftSideCmdtyAmt :: Parser (L.Amount, L.Format)
+leftSideCmdtyAmt :: Parser (L.Amount, L.SpaceBetween, L.Side)
 leftSideCmdtyAmt = leftCmdtyLvl1Amt <|> leftCmdtyLvl3Amt
 
 rightSideCmdty :: Parser L.Commodity
 rightSideCmdty = quotedLvl1Cmdty <|> lvl2Cmdty
 
-rightSideCmdtyAmt :: Parser (L.Amount, L.Format)
+rightSideCmdtyAmt :: Parser (L.Amount, L.SpaceBetween, L.Side)
 rightSideCmdtyAmt =
   f <$> quantity <*> spaceBetween <*> rightSideCmdty
   where
-    f q s c = (L.Amount q c, L.Format L.CommodityOnRight s)
+    f q s c = (L.Amount q c, s, L.CommodityOnRight)
 
 
-amount :: Parser (L.Amount, L.Format)
+amount :: Parser (L.Amount, L.SpaceBetween, L.Side)
 amount = leftSideCmdtyAmt <|> rightSideCmdtyAmt
 
 comment :: Parser Y.Comment
@@ -218,10 +218,10 @@ credit = L.Credit <$ satisfy T.greaterThan
 drCr :: Parser L.DrCr
 drCr = debit <|> credit
 
-entry :: Parser (L.Entry, L.Format)
+entry :: Parser (L.Entry, L.SpaceBetween, L.Side)
 entry = f <$> drCr <* (many (satisfy T.white)) <*> amount
   where
-    f dc (am, fmt) = (L.Entry dc am, fmt)
+    f dc (am, sb, sd) = (L.Entry dc am, sb, sd)
 
 flag :: Parser L.Flag
 flag = (L.Flag . pack) <$ satisfy T.openSquare
@@ -274,13 +274,12 @@ lineNum = Pos.sourceLine <$> P.getPosition
 price :: Parser L.PricePoint
 price = p >>= maybe (fail msg) return
   where
-    f pl dt fr ((L.Amount qt to), fmt) =
+    f li dt fr ((L.Amount qt to), sb, sd) =
       let cpu = L.CountPerUnit qt
       in case L.newPrice fr (L.To to) cpu of
         Nothing -> Nothing
-        Just pr ->
-          let pmt = L.PriceMeta (Just (L.PriceLine pl)) (Just fmt)
-          in Just $ L.PricePoint dt pr pmt
+        Just pr -> Just $ L.PricePoint dt pr
+                          (Just sd) (Just sb) (Just $ L.PriceLine li)
     p = f <$> lineNum <* satisfy T.atSign <* skipWhite
         <*> dateTime <* skipWhite
         <*> fromCmdty <* skipWhite
@@ -323,9 +322,9 @@ topLine =
     <*  skipWhite
   where
     f mayMe lin dt (mayFl, mayNum) mayPy =
-      U.TopLine dt mayFl mayNum mayPy me mt
+      U.TopLine dt mayFl mayNum mayPy me tll tml Nothing
+      Nothing Nothing
       where
-        mt = L.TopLineMeta tml tll Nothing Nothing Nothing
         (tml, me) = case mayMe of
           Nothing -> (Nothing, Nothing)
           Just (l, m) -> (Just l, Just m)
@@ -391,14 +390,14 @@ posting = f <$> lineNum                <* skipWhite
             <*  satisfy T.newline      <* skipWhite
             <*> optional postingMemo   <* skipWhite
   where
-    f li mayFnp ac ta enPair me =
-      U.Posting pa nu fl ac tgs en me mt
+    f li mayFnp ac ta mayTrip me =
+      U.Posting pa nu fl ac tgs en me sd sb pl Nothing Nothing
       where
         tgs = fromMaybe (L.Tags []) ta
-        en = fmap fst enPair
-        mt = L.PostingMeta (Just (L.PostingLine li)) fmt
-             Nothing Nothing
-        fmt = fmap snd enPair
+        pl = Just . L.PostingLine $ li
+        (en, sb, sd) =
+          maybe (Nothing, Nothing, Nothing)
+                (\(e, b, d) -> (Just e, Just b, Just d)) mayTrip
         (fl, nu, pa) = fromMaybe (Nothing, Nothing, Nothing) mayFnp
 
 transaction :: Parser L.Transaction

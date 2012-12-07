@@ -11,7 +11,6 @@ import Data.Time (Day)
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
 import qualified Penny.Lincoln.Family.Family as F
-import qualified Penny.Lincoln.Meta as M
 import qualified Penny.Lincoln.Queries as Q
 import Penny.Lincoln.Transaction (PostFam)
 import qualified Penny.Lincoln.Transaction as T
@@ -194,5 +193,5 @@ clonedPostings p1 p2 =
   && (T.pEntry p1 == T.pEntry p2)
   && (T.pMemo p1 == T.pMemo p2)
   && (T.pInferred p1 == T.pInferred p2)
-  && ((M.postingFormat . T.pMeta $ p1) ==
-      (M.postingFormat . T.pMeta $ p2))
+  && (T.pSide p1 == T.pSide p2)
+  && (T.pSpaceBetween p1 == T.pSpaceBetween p2)

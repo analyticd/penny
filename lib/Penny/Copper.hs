@@ -20,9 +20,13 @@ module Penny.Copper
 
   ) where
 
-import Control.Monad (when)
-import Control.Applicative ((<*>), (<$), pure)
+import Control.Monad (when, replicateM_)
+import Control.Applicative (pure, (*>), (<$>))
+import Data.Functor.Compose (Compose(Compose, getCompose))
+import Data.Maybe (mapMaybe)
+import Data.Monoid (mconcat)
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Foldable as F
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified Text.Parsec as Parsec
@@ -49,73 +53,112 @@ parseFile (fn, (FileContents c)) =
     Left err -> Ex.throw (ErrorMsg . X.pack . show $ err)
     Right g -> return g
 
-addTopLineFileMetadata
+addFileTransaction
   :: L.Filename
-  -> Y.Ledger
-  -> Y.Ledger
-addTopLineFileMetadata fn (Y.Ledger ls) =
-  let incr t = t <$ L.incrementBack
-      incrementCts = Y.mapLedgerA (Y.mapItemA pure pure incr) ls
-      assign t = fmap f L.get
-        where
-          f ser = L.emptyTopLineChangeData
-                    { L.tcMeta = Just tlm }
+  -> L.Transaction
+  -> L.GenSerial L.Transaction
+addFileTransaction fn t = f <$> L.get
+  where
+    f ser = L.changeTransaction fam t
+      where
+        fam = L.Family tl e e []
+        e = L.emptyPostingChangeData
+        tl = L.emptyTopLineChangeData
+             { L.tcFileTransaction =
+                Just (Just $ L.FileTransaction ser)
+             , L.tcFilename =
+                Just (Just fn) }
+
+addFilePosting
+  :: L.Transaction
+  -> L.GenSerial L.Transaction
+addFilePosting t = f <$> (L.mapChildrenA g (L.unTransaction t))
+  where
+    f fam = L.changeTransaction
+            (L.mapParent (const L.emptyTopLineChangeData) fam) t
+    g = const $ fmap h L.get
+      where h ser = L.emptyPostingChangeData
+              { L.pcFilePosting = Just (Just (L.FilePosting ser)) }
+
+addFileMetadataTxn
+  :: L.Filename
+  -> L.Transaction
+  -> Compose L.GenSerial L.GenSerial L.Transaction
+addFileMetadataTxn fn t = Compose $ do
+  t' <- addFileTransaction fn t
+  return (addFilePosting t')
+
+toPostings :: L.Transaction -> [L.Posting]
+toPostings = F.toList . L.orphans . L.unTransaction
+
+initCntTxn :: [a] -> L.GenSerial ()
+initCntTxn ts = replicateM_ (length ts) L.incrementBack
+
+initCntPstg :: [Y.Item] -> L.GenSerial ()
+initCntPstg fs = replicateM_ (length ls) L.incrementBack
+  where
+    ls = concatMap toPostings . mapMaybe toTxn $ fs
+
+toTxn :: Y.Item -> Maybe L.Transaction
+toTxn i = case i of
+  Y.Transaction t -> Just t
+  _ -> Nothing
+
+addFileMetadata :: L.Filename -> Y.Ledger -> Y.Ledger
+addFileMetadata fn a@(Y.Ledger ls) =
+  (L.makeSerials . (initCntPstg ls *>))
+  . (L.makeSerials . (initCntTxn ls *>))
+  . getCompose
+  . Y.mapLedgerA (Y.mapItemA pure pure (addFileMetadataTxn fn))
+  $ a
 
 
-addFileMetadata ::
-  L.Filename
-  -> Y.Ledger
-  -> Y.Ledger
-addFileMetadata fn (Y.Ledger ls) =
-  let eis = map toEiItem ls
-      procTop s m =
-        m { L.fileTransaction = Just (L.FileTransaction s)
-          , L.filename = Just fn }
-      procPstg s m =
-        m { L.filePosting = Just (L.FilePosting s) }
-      eis' = L.addSerialsToEithers procTop procPstg eis
-      is' = map fromEiItem eis'
-  in Y.Ledger is'
+addGlobalTransaction
+  :: L.Transaction
+  -> L.GenSerial L.Transaction
+addGlobalTransaction t = f <$> L.get
+  where
+    f ser = L.changeTransaction fam t
+      where
+        fam = L.Family tl e e []
+        e = L.emptyPostingChangeData
+        tl = L.emptyTopLineChangeData
+             { L.tcGlobalTransaction =
+               Just (Just $ L.GlobalTransaction ser) }
 
+addGlobalPosting
+  :: L.Transaction
+  -> L.GenSerial L.Transaction
+addGlobalPosting t = f <$> (L.mapChildrenA g (L.unTransaction t))
+  where
+    f fam = L.changeTransaction
+            (L.mapParent (const L.emptyTopLineChangeData) fam) t
+    g = const $ fmap h L.get
+      where
+        h ser = L.emptyPostingChangeData
+          { L.pcGlobalPosting = Just (Just (L.GlobalPosting ser)) }
+
+addGlobalMetadataTxn ::
+  L.Transaction
+  -> Compose L.GenSerial L.GenSerial L.Transaction
+addGlobalMetadataTxn t = Compose $ do
+  t' <- addGlobalTransaction t
+  return (addGlobalPosting t')
 
 addGlobalMetadata :: [Y.Ledger] -> Y.Ledger
-addGlobalMetadata lss =
-  let ls = concat . map Y.unLedger $ lss
-      procTop s m =
-        m { L.globalTransaction = Just (L.GlobalTransaction s) }
-      procPstg s m =
-        m { L.globalPosting = Just (L.GlobalPosting s) }
-      eis = map toEiItem ls
-      eis' = L.addSerialsToEithers procTop procPstg eis
-      is' = map fromEiItem eis'
-  in Y.Ledger is'
+addGlobalMetadata ls =
+  (L.makeSerials . (initCntPstg ls' *>))
+  . (L.makeSerials . (initCntTxn ls' *>))
+  . getCompose
+  . Y.mapLedgerA (Y.mapItemA pure pure addGlobalMetadataTxn)
+  $ a
+  where
+    a@(Y.Ledger ls') = mconcat ls
 
 parse ::
   [(L.Filename, FileContents)]
   -> Ex.Exceptional ErrorMsg Y.Ledger
 parse ps = fmap addGlobalMetadata $ mapM parseFile ps
-
-data Other = OPrice L.PricePoint
-             | OComment Y.Comment
-             | OBlankLine
-             deriving Show
-
-type EiItem = Either Other L.Transaction
-
-toEiItem :: Y.Item -> EiItem
-toEiItem i = case i of
-  Y.Transaction t -> Right t
-  Y.PricePoint p -> Left (OPrice p)
-  Y.IComment c -> Left (OComment c)
-  Y.BlankLine -> Left OBlankLine
-
-fromEiItem :: EiItem -> Y.Item
-fromEiItem i = case i of
-  Left l -> case l of
-    OPrice p -> Y.PricePoint p
-    OComment c -> Y.IComment c
-    OBlankLine -> Y.BlankLine
-  Right t -> Y.Transaction t
 
 -- | Reads and parses the given filename. Does not do anything to
 -- handle @-@ arguments; for that, see openStdin. Errors are indicated

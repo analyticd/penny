@@ -90,7 +90,7 @@ import qualified Penny.Lincoln.Bits.Qty as Q
 
 data PricePoint = PricePoint { dateTime :: DT.DateTime
                              , price :: Pr.Price
-                             , ppSide :: O.Side
-                             , ppSpaceBetween :: O.SpaceBetween
-                             , priceLine :: O.PriceLine }
+                             , ppSide :: Maybe O.Side
+                             , ppSpaceBetween :: Maybe O.SpaceBetween
+                             , priceLine :: Maybe O.PriceLine }
                   deriving (Eq, Show)

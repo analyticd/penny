@@ -73,7 +73,8 @@ module Penny.Lincoln (
   , I.CountPerUnit(CountPerUnit, unCountPerUnit)
   , I.Price(from, to, countPerUnit)
   , I.newPrice
-  , I.PricePoint(PricePoint, dateTime, price, ppMeta)
+  , I.PricePoint ( PricePoint, dateTime, price, ppSide,
+                   ppSpaceBetween, priceLine)
 
     -- ** Quantities
   , I.Qty
@@ -114,6 +115,10 @@ module Penny.Lincoln (
   , F.divorce
   , F.filterChildren
   , F.find
+  , F.mapChildren
+  , F.mapChildrenA
+  , F.mapParent
+  , F.mapParentA
 
     -- * HasText
   , HT.HasText(text)
@@ -141,8 +146,11 @@ module Penny.Lincoln (
   , T.pEntry
   , T.pMemo
   , T.pInferred
-  , T.pMeta
-  , T.changePostingMeta
+  , T.pSide
+  , T.pSpaceBetween
+  , T.pPostingLine
+  , T.pGlobalPosting
+  , T.pFilePosting
 
     -- ** Querying transactions
   , T.TopLine
@@ -151,8 +159,11 @@ module Penny.Lincoln (
   , T.tNumber
   , T.tPayee
   , T.tMemo
-  , T.tMeta
-  , T.changeTransactionMeta
+  , T.tTopLineLine
+  , T.tTopMemoLine
+  , T.tFilename
+  , T.tGlobalTransaction
+  , T.tFileTransaction
   , T.postFam
 
     -- ** Unwrapping Transactions
@@ -170,17 +181,17 @@ module Penny.Lincoln (
   , T.changeTransaction
 
   -- * Metadata
-  , B.TopLineLine(TopLineLine, unTopLineLine)
-  , B.TopMemoLine(TopMemoLine, unTopMemoLine)
-  , B.Side(CommodityOnLeft, CommodityOnRight)
-  , B.SpaceBetween(SpaceBetween, NoSpaceBetween)
-  , B.Filename(Filename, unFilename)
-  , B.PriceLine(PriceLine, unPriceLine)
-  , B.PostingLine(PostingLine, unPostingLine)
-  , B.GlobalPosting(GlobalPosting, unGlobalPosting)
-  , B.FilePosting(FilePosting, unFilePosting)
-  , B.GlobalTransaction(GlobalTransaction, unGlobalTransaction)
-  , B.FileTransaction(FileTransaction, unFileTransaction)
+  , I.TopLineLine(..)
+  , I.TopMemoLine(..)
+  , I.Side(CommodityOnLeft, CommodityOnRight)
+  , I.SpaceBetween(SpaceBetween, NoSpaceBetween)
+  , I.Filename(Filename, unFilename)
+  , I.PriceLine(PriceLine, unPriceLine)
+  , I.PostingLine(PostingLine, unPostingLine)
+  , I.GlobalPosting(GlobalPosting, unGlobalPosting)
+  , I.FilePosting(FilePosting, unFilePosting)
+  , I.GlobalTransaction(GlobalTransaction, unGlobalTransaction)
+  , I.FileTransaction(FileTransaction, unFileTransaction)
 
     -- * PriceDb
   , DB.PriceDb

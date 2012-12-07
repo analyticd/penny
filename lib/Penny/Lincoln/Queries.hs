@@ -1,7 +1,6 @@
 module Penny.Lincoln.Queries where
 
 import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Lincoln.Meta as M
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Transaction as T
 import Penny.Lincoln.Balance (Balance, entryToBalance)
@@ -62,35 +61,32 @@ qty = B.qty . amount
 commodity :: T.PostFam -> B.Commodity
 commodity = B.commodity . amount
 
-postingMeta :: T.PostFam -> M.PostingMeta
-postingMeta = T.pMeta . child . T.unPostFam
+topMemoLine :: T.PostFam -> Maybe B.TopMemoLine
+topMemoLine = T.tTopMemoLine . parent . T.unPostFam
 
-topLineMeta :: T.PostFam -> M.TopLineMeta
-topLineMeta = T.tMeta . parent . T.unPostFam
+topLineLine :: T.PostFam -> Maybe B.TopLineLine
+topLineLine = T.tTopLineLine . parent . T.unPostFam
 
-topMemoLine :: T.PostFam -> Maybe M.TopMemoLine
-topMemoLine = M.topMemoLine . topLineMeta
+filename :: T.PostFam -> Maybe B.Filename
+filename = T.tFilename . parent . T.unPostFam
 
-topLineLine :: T.PostFam -> Maybe M.TopLineLine
-topLineLine = M.topLineLine . topLineMeta
+globalTransaction :: T.PostFam -> Maybe B.GlobalTransaction
+globalTransaction = T.tGlobalTransaction . parent . T.unPostFam
 
-filename :: T.PostFam -> Maybe M.Filename
-filename = M.filename . topLineMeta
+fileTransaction :: T.PostFam -> Maybe B.FileTransaction
+fileTransaction = T.tFileTransaction . parent . T.unPostFam
 
-globalTransaction :: T.PostFam -> Maybe M.GlobalTransaction
-globalTransaction = M.globalTransaction . topLineMeta
+postingLine :: T.PostFam -> Maybe B.PostingLine
+postingLine = T.pPostingLine . child . T.unPostFam
 
-fileTransaction :: T.PostFam -> Maybe M.FileTransaction
-fileTransaction = M.fileTransaction . topLineMeta
+side :: T.PostFam -> Maybe B.Side
+side = T.pSide . child . T.unPostFam
 
-postingLine :: T.PostFam -> Maybe M.PostingLine
-postingLine = M.postingLine . postingMeta
+spaceBetween :: T.PostFam -> Maybe B.SpaceBetween
+spaceBetween = T.pSpaceBetween . child . T.unPostFam
 
-postingFormat :: T.PostFam -> Maybe M.Format
-postingFormat = M.postingFormat . postingMeta
+globalPosting :: T.PostFam -> Maybe B.GlobalPosting
+globalPosting = T.pGlobalPosting . child . T.unPostFam
 
-globalPosting :: T.PostFam -> Maybe M.GlobalPosting
-globalPosting = M.globalPosting . postingMeta
-
-filePosting :: T.PostFam -> Maybe M.FilePosting
-filePosting = M.filePosting . postingMeta
+filePosting :: T.PostFam -> Maybe B.FilePosting
+filePosting = T.pFilePosting . child . T.unPostFam

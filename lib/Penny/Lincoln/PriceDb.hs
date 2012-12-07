@@ -30,7 +30,7 @@ emptyDb = PriceDb M.empty
 
 -- | Add a single price to the PriceDb.
 addPrice :: PriceDb -> B.PricePoint -> PriceDb
-addPrice (PriceDb db) (B.PricePoint dt pr _) = PriceDb m'
+addPrice (PriceDb db) (B.PricePoint dt pr _ _ _) = PriceDb m'
   where
     m' = M.alter f (B.from pr) db
     utc = B.toUTC dt

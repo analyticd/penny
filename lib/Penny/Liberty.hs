@@ -429,8 +429,7 @@ addPrefix pre suf = pre ++ suf' where
 globalTransaction :: (OptSpec Operand, OptSpec Operand)
 globalTransaction =
   let f = fmap L.unGlobalTransaction
-          . L.globalTransaction
-          . L.tMeta
+          . L.tGlobalTransaction
           . parent
           . L.unPostFam
   in serialOption f "globalTransaction"
@@ -438,8 +437,7 @@ globalTransaction =
 globalPosting :: (OptSpec Operand, OptSpec Operand)
 globalPosting =
   let f = fmap L.unGlobalPosting
-          . L.globalPosting
-          . L.pMeta
+          . L.pGlobalPosting
           . child
           . L.unPostFam
   in serialOption f "globalPosting"
@@ -447,8 +445,7 @@ globalPosting =
 filePosting :: (OptSpec Operand, OptSpec Operand)
 filePosting =
   let f = fmap L.unFilePosting
-          . L.filePosting
-          . L.pMeta
+          . L.pFilePosting
           . child
           . L.unPostFam
   in serialOption f "filePosting"
@@ -456,8 +453,7 @@ filePosting =
 fileTransaction :: (OptSpec Operand, OptSpec Operand)
 fileTransaction =
   let f = fmap L.unFileTransaction
-          . L.fileTransaction
-          . L.tMeta
+          . L.tFileTransaction
           . parent
           . L.unPostFam
   in serialOption f "fileTransaction"
