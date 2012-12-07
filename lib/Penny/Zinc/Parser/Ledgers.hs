@@ -1,5 +1,6 @@
 module Penny.Zinc.Parser.Ledgers (
-  filenames
+    Filename
+  , filenames
   , parseLedgers
   , readLedgers
   ) where

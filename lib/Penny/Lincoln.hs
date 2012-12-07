@@ -24,7 +24,7 @@ module Penny.Lincoln (
   , I.Account(Account, unAccount)
 
     -- ** Amounts
-  , I.Amount (Amount, qty, commodity)
+  , I.Amount (Amount, qty, commodity, side, spaceBetween)
 
     -- ** Commodities
   , I.Commodity (Commodity, unCommodity)
@@ -132,6 +132,7 @@ module Penny.Lincoln (
 
     -- ** Making and deconstructing transactions
   , T.transaction
+  , T.RTransaction
   , T.rTransaction
   , T.Error ( UnbalancedError, CouldNotInferError)
   , T.toUnverified
@@ -146,8 +147,6 @@ module Penny.Lincoln (
   , T.pEntry
   , T.pMemo
   , T.pInferred
-  , T.pSide
-  , T.pSpaceBetween
   , T.pPostingLine
   , T.pGlobalPosting
   , T.pFilePosting

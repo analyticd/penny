@@ -48,7 +48,7 @@ isBalanced (Balance m) = M.foldrWithKey f Balanced m where
           B.Debit -> B.Credit
           B.Credit -> B.Debit
         q = qty col
-        a = B.Amount q c
+        a = B.Amount q c Nothing Nothing
         in Inferable e
       _ -> NotInferable
 

@@ -79,7 +79,7 @@ convertOne db dt to (cty, bl) =
     L.NonZero (L.Column dc qt) -> Ex.mapExceptional e g ex
       where
         ex = L.convert db dt to am
-        am = L.Amount qt cty
+        am = L.Amount qt cty Nothing Nothing
         e = convertError to (L.From cty)
         g r = L.NonZero (L.Column dc r)
 

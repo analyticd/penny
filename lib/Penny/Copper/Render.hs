@@ -187,21 +187,20 @@ quantity gs q =
 -- can be displayed in the right place.
 amount ::
   GroupSpecs
-  -> L.Side
-  -> L.SpaceBetween
   -> L.Amount
   -> Maybe X.Text
-amount gs sd sb a = let
-  (qt, c) = (L.qty a, L.commodity a)
-  q = quantity gs qt
-  ws = case sb of
-    L.SpaceBetween -> X.singleton ' '
-    L.NoSpaceBetween -> X.empty
-  mayLvl3 = lvl3Cmdty c
-  mayLvl2 = lvl2Cmdty c
+amount gs (L.Amount qt c maySd maySb) =
+  let mayLvl3 = lvl3Cmdty c
+      mayLvl2 = lvl2Cmdty c
+      q = quantity gs qt
   in do
     quotedLvl1 <- quotedLvl1Cmdty c
-    let (l, r) = case sd of
+    sd <- maySd
+    sb <- maySb
+    let ws = case sb of
+          L.SpaceBetween -> X.singleton ' '
+          L.NoSpaceBetween -> X.empty
+        (l, r) = case sd of
           L.CommodityOnLeft -> case mayLvl3 of
             Nothing -> (quotedLvl1, q)
             Just l3 -> (l3, q)
@@ -269,12 +268,10 @@ hoursMinsSecsZone h m s z =
 
 entry
   :: GroupSpecs
-  -> L.Side
-  -> L.SpaceBetween
   -> L.Entry
   -> Maybe X.Text
-entry gs sd sb (L.Entry dc a) = do
-  amt <- amount gs sd sb a
+entry gs (L.Entry dc a) = do
+  amt <- amount gs a
   let dcTxt = X.pack $ case dc of
         L.Debit -> "<"
         L.Credit -> ">"
@@ -352,12 +349,9 @@ price gs pp = let
   (L.To to) = L.to . L.price $ pp
   (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
   mayFromTxt = lvl3Cmdty from <|> quotedLvl1Cmdty from
-  amt = L.Amount q to
   in do
-    sd <- L.ppSide pp
-    sb <- L.ppSpaceBetween pp
-    let mayAmtTxt = amount gs sd sb amt
-    amtTxt <- mayAmtTxt
+    amtTxt <- amount gs
+              (L.Amount q to (L.ppSide pp) (L.ppSpaceBetween pp))
     fromTxt <- mayFromTxt
     return $
        (X.intercalate (X.singleton ' ')
@@ -425,13 +419,10 @@ posting gs p = do
   ac <- ledgerAcct (LT.pAccount p)
   ta <- tags (LT.pTags p)
   me <- renMaybe (LT.pMemo p) postingMemo
-  maybeTrip <- case (LT.pInferred p, LT.pSide p, LT.pSpaceBetween p) of
-    (LT.Inferred, _, _) -> return Nothing
-    (LT.NotInferred, Just sd, Just sb) ->
-        return (Just (LT.pEntry p, sd, sb))
-    _ -> Nothing
-  let renderEn (e, sd, sb) = entry gs sd sb e
-  en <- renMaybe maybeTrip renderEn
+  mayEn <- case LT.pInferred p of
+    LT.Inferred -> return Nothing
+    LT.NotInferred -> return (Just . L.pEntry $ p)
+  en <- renMaybe mayEn (entry gs)
   return $ formatter fl nu pa ac ta en me
 
 formatter ::

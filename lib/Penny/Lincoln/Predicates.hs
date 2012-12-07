@@ -193,5 +193,3 @@ clonedPostings p1 p2 =
   && (T.pEntry p1 == T.pEntry p2)
   && (T.pMemo p1 == T.pMemo p2)
   && (T.pInferred p1 == T.pInferred p2)
-  && (T.pSide p1 == T.pSide p2)
-  && (T.pSpaceBetween p1 == T.pSpaceBetween p2)

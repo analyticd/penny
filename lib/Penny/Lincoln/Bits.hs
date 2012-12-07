@@ -5,7 +5,7 @@ module Penny.Lincoln.Bits (
   O.Account(Account, unAccount),
 
   -- * Amounts
-  O.Amount(Amount, qty, commodity),
+  O.Amount(Amount, qty, commodity, side, spaceBetween),
 
   -- * Commodities
   O.Commodity(Commodity, unCommodity),

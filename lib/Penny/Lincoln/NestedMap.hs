@@ -4,15 +4,14 @@
 -- may query the map at any level or insert new labels (and,
 -- therefore, new keys) at any level.
 module Penny.Lincoln.NestedMap (
-  NestedMap ( NestedMap ),
-  unNestedMap,
+  NestedMap ( NestedMap, unNestedMap ),
   empty,
   relabel,
   descend,
   insert,
   cumulativeTotal,
   traverse,
-  traverseWithTrail, 
+  traverseWithTrail,
   toForest ) where
 
 import Control.Applicative ((<*>), (<$>))
@@ -43,7 +42,7 @@ instance (Ord k) => T.Traversable (NestedMap k) where
   traverse f (NestedMap m) = let
       f' (l, m') = (,) <$> f l <*> T.traverse f m'
       in NestedMap <$> T.traverse f' m
-                 
+
 -- | An empty NestedMap.
 empty :: NestedMap k l
 empty = NestedMap (M.empty)
@@ -124,7 +123,7 @@ insert m ks l = relabel m ts where
     newL mk = case mk of
       (Just old) -> old `mappend` l
       Nothing -> mempty `mappend` l
-  
+
 totalMap ::
   (Monoid l)
   => NestedMap k l

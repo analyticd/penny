@@ -28,6 +28,7 @@ module Penny.Lincoln.Transaction (
 
   -- * Making and deconstructing transactions
   transaction,
+  RTransaction(..),
   rTransaction,
   Error ( UnbalancedError, CouldNotInferError),
   toUnverified,
@@ -35,7 +36,7 @@ module Penny.Lincoln.Transaction (
   -- * Querying postings
   Inferred(Inferred, NotInferred),
   pPayee, pNumber, pFlag, pAccount, pTags,
-  pEntry, pMemo, pInferred, pSide, pSpaceBetween, pPostingLine,
+  pEntry, pMemo, pInferred, pPostingLine,
   pGlobalPosting, pFilePosting,
 
   -- * Querying transactions
@@ -93,8 +94,6 @@ data Posting =
           , pEntry    :: B.Entry
           , pMemo     :: Maybe B.Memo
           , pInferred :: Inferred
-          , pSide :: Maybe B.Side
-          , pSpaceBetween :: Maybe B.SpaceBetween
           , pPostingLine :: Maybe B.PostingLine
           , pGlobalPosting :: Maybe B.GlobalPosting
           , pFilePosting :: Maybe B.FilePosting
@@ -223,8 +222,6 @@ toUPosting p = U.Posting
       Inferred -> Nothing
       NotInferred -> Just (pEntry p)
   , U.pMemo = pMemo p
-  , U.pSide = pSide p
-  , U.pSpaceBetween = pSpaceBetween p
   , U.pPostingLine = pPostingLine p
   , U.pGlobalPosting = pGlobalPosting p
   , U.pFilePosting = pFilePosting p
@@ -245,8 +242,6 @@ toPosting u e i =
   , pEntry    = e
   , pMemo     = U.pMemo u
   , pInferred = i
-  , pSide = U.pSide u
-  , pSpaceBetween = U.pSpaceBetween u
   , pPostingLine = U.pPostingLine u
   , pGlobalPosting = U.pGlobalPosting u
   , pFilePosting = U.pFilePosting u
@@ -291,8 +286,6 @@ fromRPosting u e i = Posting
   , pEntry    = e
   , pMemo     = U.rMemo u
   , pInferred = i
-  , pSide = U.rSide u
-  , pSpaceBetween = U.rSpaceBetween u
   , pPostingLine = U.rPostingLine u
   , pGlobalPosting = U.rGlobalPosting u
   , pFilePosting = U.rFilePosting u
@@ -308,12 +301,36 @@ fromIPosting u e i = Posting
   , pEntry    = e
   , pMemo     = U.iMemo u
   , pInferred = i
-  , pSide = U.iSide u
-  , pSpaceBetween = U.iSpaceBetween u
   , pPostingLine = U.iPostingLine u
   , pGlobalPosting = U.iGlobalPosting u
   , pFilePosting = U.iFilePosting u
   }
+
+data RTransaction = RTransaction
+  { rtCommodity :: B.Commodity
+    -- ^ All postings will have this same commodity
+
+  , rtSide :: Maybe B.Side
+  -- ^ All commodities will be on this side of the amount
+
+  , rtSpaceBetween :: Maybe B.SpaceBetween
+  -- ^ All amounts will have this SpaceBetween
+
+  , rtDrCr :: B.DrCr
+  -- ^ All postings except the inferred one will have this DrCr
+
+  , rtTopLine :: U.TopLine
+
+  , rtPosting :: U.RPosting
+  -- ^ You must have at least one posting whose quantity you specify
+
+  , rtMorePostings :: [U.RPosting]
+  -- ^ Optionally you can have additional restricted postings.
+
+  , rtIPosting :: U.IPosting
+  -- ^ And at least one posting whose quantity and DrCr will be inferred
+
+  } deriving Show
 
 -- | Creates a @restricted transaction@; that is, one in which all the
 -- entries will have the same commodity, and in which all but one of
@@ -321,36 +338,23 @@ fromIPosting u e i = Posting
 -- have no quantity specified at all and will be inferred. Creating
 -- these transactions never fails, in contrast to the transactions
 -- created by 'transaction', which can fail at runtime.
-rTransaction
-  :: B.Commodity
-  -- ^ All postings will have this same commodity
-
-  -> B.DrCr
-  -- ^ All postings except the inferred one will have this DrCr
-
-  -> U.TopLine
-
-  -> U.RPosting
-  -- ^ You must have at least one posting whose quantity you specify
-
-  -> [U.RPosting]
-  -- ^ Optionally you can have additional restricted postings.
-
-  -> U.IPosting
-  -- ^ And at least one posting whose quantity and DrCr will be inferred
-
-  -> Transaction
-
-rTransaction c dc ut u1 us i = Transaction (F.Family tl p1 p2 ps)
+rTransaction :: RTransaction -> Transaction
+rTransaction rt = Transaction (F.Family tl p1 p2 ps)
   where
-    tl = toTopLine ut
-    tot = foldl1 B.add $ (U.rQty u1) : map U.rQty us
-    inf = fromIPosting i (B.Entry (B.opposite dc) (B.Amount tot c))
+    tl = toTopLine (rtTopLine rt)
+    tot = foldl1 B.add $ (U.rQty . rtPosting $ rt)
+                         : map U.rQty (rtMorePostings rt)
+    sd = rtSide rt
+    sb = rtSpaceBetween rt
+    inf = fromIPosting (rtIPosting rt)
+          ( B.Entry (B.opposite (rtDrCr rt))
+            (B.Amount tot (rtCommodity rt) sd sb))
           Inferred
     toPstg p = fromRPosting p
-               (B.Entry dc (B.Amount (U.rQty p) c)) NotInferred
-    p1 = toPstg u1
-    (p2, ps) = case us of
+               (B.Entry (rtDrCr rt)
+               (B.Amount (U.rQty p) (rtCommodity rt) sd sb)) NotInferred
+    p1 = toPstg . rtPosting $ rt
+    (p2, ps) = case rtMorePostings rt of
       [] -> (inf, [])
       x:xs -> (toPstg x, (map toPstg xs) ++ [inf])
 
@@ -453,15 +457,20 @@ applyPostingChange c p = Posting
   , pFlag = fromMaybe (pFlag p) (pcFlag c)
   , pAccount = fromMaybe (pAccount p) (pcAccount c)
   , pTags = fromMaybe (pTags p) (pcTags c)
-  , pEntry = pEntry p
+  , pEntry = en
   , pMemo = fromMaybe (pMemo p) (pcMemo c)
   , pInferred = pInferred p
-  , pSide = fromMaybe (pSide p) (pcSide c)
-  , pSpaceBetween = fromMaybe (pSpaceBetween p) (pcSpaceBetween c)
   , pPostingLine = fromMaybe (pPostingLine p) (pcPostingLine c)
   , pGlobalPosting = fromMaybe (pGlobalPosting p) (pcGlobalPosting c)
   , pFilePosting = fromMaybe (pFilePosting p) (pcFilePosting c)
   }
+  where
+    enOld = pEntry p
+    amOld = B.amount enOld
+    en = B.Entry (B.drCr enOld) am
+    am = B.Amount (B.qty amOld) (B.commodity amOld) sd sb
+    sd = fromMaybe (B.side amOld) (pcSide c)
+    sb = fromMaybe (B.spaceBetween amOld) (pcSpaceBetween c)
 
 changeTransaction
   :: F.Family TopLineChangeData PostingChangeData

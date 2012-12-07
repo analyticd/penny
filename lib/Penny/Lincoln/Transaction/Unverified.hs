@@ -54,8 +54,6 @@ data Posting = Posting
   , pTags    :: B.Tags
   , pEntry   :: Maybe B.Entry
   , pMemo    :: Maybe B.Memo
-  , pSide :: Maybe B.Side
-  , pSpaceBetween :: Maybe B.SpaceBetween
   , pPostingLine :: Maybe B.PostingLine
   , pGlobalPosting :: Maybe B.GlobalPosting
   , pFilePosting :: Maybe B.FilePosting
@@ -70,8 +68,6 @@ emptyPosting a = Posting
   , pTags = B.Tags []
   , pEntry = Nothing
   , pMemo = Nothing
-  , pSide = Nothing
-  , pSpaceBetween = Nothing
   , pPostingLine = Nothing
   , pGlobalPosting = Nothing
   , pFilePosting = Nothing
@@ -88,8 +84,6 @@ data RPosting = RPosting
   , rTags    :: B.Tags
   , rQty     :: B.Qty
   , rMemo    :: Maybe B.Memo
-  , rSide :: Maybe B.Side
-  , rSpaceBetween :: Maybe B.SpaceBetween
   , rPostingLine :: Maybe B.PostingLine
   , rGlobalPosting :: Maybe B.GlobalPosting
   , rFilePosting :: Maybe B.FilePosting
@@ -104,8 +98,6 @@ emptyRPosting a q = RPosting
   , rTags = B.Tags []
   , rQty = q
   , rMemo = Nothing
-  , rSide = Nothing
-  , rSpaceBetween = Nothing
   , rPostingLine = Nothing
   , rGlobalPosting = Nothing
   , rFilePosting = Nothing
@@ -119,8 +111,6 @@ data IPosting = IPosting
   , iAccount :: B.Account
   , iTags    :: B.Tags
   , iMemo    :: Maybe B.Memo
-  , iSide :: Maybe B.Side
-  , iSpaceBetween :: Maybe B.SpaceBetween
   , iPostingLine :: Maybe B.PostingLine
   , iGlobalPosting :: Maybe B.GlobalPosting
   , iFilePosting :: Maybe B.FilePosting
@@ -134,8 +124,6 @@ emptyIPosting a = IPosting
   , iAccount = a
   , iTags = B.Tags []
   , iMemo = Nothing
-  , iSide = Nothing
-  , iSpaceBetween = Nothing
   , iPostingLine = Nothing
   , iGlobalPosting = Nothing
   , iFilePosting = Nothing

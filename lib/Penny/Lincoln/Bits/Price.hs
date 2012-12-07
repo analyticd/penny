@@ -27,11 +27,11 @@ data Price = Price { from :: From
 -- the From commodity in the Price is not the same as the commodity in
 -- the Amount.
 convert :: Price -> O.Amount -> Maybe O.Amount
-convert p (O.Amount q c) =
+convert p (O.Amount q c sd sb) =
   if (unFrom . from $ p) /= c
   then Nothing
   else let q' = q `mult` (unCountPerUnit . countPerUnit $ p)
-       in Just (O.Amount q' (unTo . to $ p))
+       in Just (O.Amount q' (unTo . to $ p) sd sb)
 
 -- | Succeeds only if From and To are different commodities.
 newPrice :: From -> To -> CountPerUnit -> Maybe Price

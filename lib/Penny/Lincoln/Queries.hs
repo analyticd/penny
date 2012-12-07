@@ -80,10 +80,10 @@ postingLine :: T.PostFam -> Maybe B.PostingLine
 postingLine = T.pPostingLine . child . T.unPostFam
 
 side :: T.PostFam -> Maybe B.Side
-side = T.pSide . child . T.unPostFam
+side = B.side . amount
 
 spaceBetween :: T.PostFam -> Maybe B.SpaceBetween
-spaceBetween = T.pSpaceBetween . child . T.unPostFam
+spaceBetween = B.spaceBetween . amount
 
 globalPosting :: T.PostFam -> Maybe B.GlobalPosting
 globalPosting = T.pGlobalPosting . child . T.unPostFam

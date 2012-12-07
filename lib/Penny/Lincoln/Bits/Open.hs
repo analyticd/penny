@@ -18,7 +18,9 @@ newtype Account = Account { unAccount :: [SubAccount] }
                   deriving (Eq, Show, Ord)
 
 data Amount = Amount { qty :: Q.Qty
-                     , commodity :: Commodity }
+                     , commodity :: Commodity
+                     , side :: Maybe Side
+                     , spaceBetween :: Maybe SpaceBetween }
               deriving (Eq, Show, Ord)
 
 newtype Commodity =
@@ -72,11 +74,17 @@ newtype TopMemoLine = TopMemoLine { unTopMemoLine :: Int }
 -- | The commodity and and the quantity may appear with the commodity
 -- on the left (e.g. USD 2.14) or with the commodity on the right
 -- (e.g. 2.14 USD).
-data Side = CommodityOnLeft | CommodityOnRight deriving (Eq, Show)
+data Side
+  = CommodityOnLeft
+  | CommodityOnRight
+  deriving (Eq, Show, Ord)
 
 -- | There may or may not be a space in between the commodity and the
 -- quantity.
-data SpaceBetween = SpaceBetween | NoSpaceBetween deriving (Eq, Show)
+data SpaceBetween
+  = SpaceBetween
+  | NoSpaceBetween
+  deriving (Eq, Show, Ord)
 
 -- | The name of the file in which a transaction appears.
 newtype Filename = Filename { unFilename :: X.Text }
