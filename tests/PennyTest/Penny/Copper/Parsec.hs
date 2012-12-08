@@ -266,8 +266,8 @@ samePricePoint :: L.PricePoint -> L.PricePoint -> Bool
 samePricePoint pp1 pp2 =
   (L.dateTime pp1 == L.dateTime pp2)
   && (L.price pp1 == L.price pp2)
-  && ((L.priceFormat . L.ppMeta $ pp1)
-        == (L.priceFormat . L.ppMeta $ pp2))
+  && (L.ppSide pp1 == L.ppSide pp2)
+  && (L.ppSpaceBetween pp1 == L.ppSpaceBetween pp2)
 
 -- | Does not compare TopLineMeta.
 sameTopLine :: U.TopLine -> U.TopLine -> Bool
@@ -288,8 +288,7 @@ samePosting x y =
   && (U.pTags x == U.pTags y)
   && (U.pEntry x == U.pEntry y)
   && (U.pMemo x == U.pMemo y)
-  && ((L.postingFormat . U.pMeta $ x)
-      == (L.postingFormat . U.pMeta $ y))
+
 
 sameTransaction :: T.Transaction -> T.Transaction -> Bool
 sameTransaction xtxn ytxn =
@@ -303,8 +302,6 @@ sameTransaction xtxn ytxn =
                      && T.pEntry a == T.pEntry b
                      && T.pMemo a == T.pMemo b
                      && T.pInferred a == T.pInferred b
-                     && (let f = L.postingFormat . T.pMeta
-                         in f a == f b)
       sameTl a b = T.tDateTime a == T.tDateTime b
                    && T.tFlag a == T.tFlag b
                    && T.tNumber a == T.tNumber b

@@ -2,7 +2,6 @@ module Penny.Copper.Render where
 
 import Control.Monad (guard)
 import Control.Applicative ((<$>), (<|>), (<*>))
-import Data.Foldable (toList)
 import Data.List (intersperse, intercalate)
 import Data.List.Split (chunksOf, splitOn)
 import qualified Data.Text as X
@@ -12,9 +11,6 @@ import qualified Penny.Lincoln.Transaction as LT
 import qualified Data.Time as Time
 import qualified Penny.Copper.Types as Y
 import qualified Penny.Lincoln as L
-import Penny.Lincoln.Family.Family (parent)
-import Penny.Lincoln.Family (orphans)
-import qualified Data.Traversable as Tr
 
 -- * Helpers
 
@@ -287,18 +283,38 @@ flag (L.Flag fl) =
 
 -- * Memos
 
-postingMemoLine :: X.Text -> Maybe X.Text
-postingMemoLine x =
+-- | Renders a postingMemoLine, optionally with trailing
+-- whitespace. The trailing whitespace allows the next line to be
+-- indented properly if is also a postingMemoLine. This is handled
+-- using trailing whitespace rather than leading whitespace because
+-- leading whitespace is inconsistent with the grammar.
+postingMemoLine
+  :: Bool
+  -- ^ If True, pad the end of the output with eight spaces; if False,
+  -- do no padding
+
+  -> X.Text
+  -> Maybe X.Text
+postingMemoLine t x =
   if X.all T.nonNewline x
-  then Just $ (X.replicate 8 (X.singleton ' '))
-              `X.append` ('\'' `cons` x `snoc` '\n')
+  then let trailing = if t
+                      then X.empty
+                      else X.replicate 8 (X.singleton ' ')
+           ls = [X.singleton '\'', x, X.singleton '\n', trailing]
+        in Just $ X.concat ls
   else Nothing
 
+-- | Renders a postingMemo. Fails if the postingMemo is empty, as the
+-- grammar requires that they have at least one line. Properly inserts
+-- padding after all but the last postingMemoLine in order to properly
+-- indent the output.
 postingMemo :: L.Memo -> Maybe X.Text
 postingMemo (L.Memo ls) =
   if null ls
   then Nothing
-  else fmap X.concat . mapM postingMemoLine $ ls
+  else let bs = replicate (length ls - 1) True ++ [False]
+       in fmap X.concat . sequence $ zipWith postingMemoLine bs ls
+
 
 transactionMemoLine :: X.Text -> Maybe X.Text
 transactionMemoLine x =
@@ -373,6 +389,8 @@ tags (L.Tags ts) =
 
 -- * TopLine
 
+-- | Renders the TopLine. Emits trailing whitespace after the newline
+-- so that the first posting is properly indented.
 topLine :: LT.TopLine -> Maybe X.Text
 topLine tl =
   f
@@ -382,9 +400,9 @@ topLine tl =
   <*> renMaybe (LT.tPayee tl) payee
   where
     f meX flX nuX paX =
-      meX
-      `X.append` (txtWords [dtX, flX, nuX, paX])
-      `X.snoc` '\n'
+      X.concat [ meX, txtWords [dtX, flX, nuX, paX],
+                 X.singleton '\n',
+                 X.replicate 4 (X.singleton ' ') ]
     dtX = dateTime (LT.tDateTime tl)
 
 -- * Posting
@@ -408,11 +426,28 @@ topLine tl =
 -- Omit the padding after column B if there is no entry; also omit
 -- columns C and D entirely if there is no Entry. (It is annoying to
 -- have extraneous blank space in a file).
+--
+-- This table is a bit of a lie, because the blank spaces for
+-- indentation are emitted either by the posting previous to this one
+-- (either after the posting itself or after its postingMemo) or by
+-- the TopLine.
+--
+-- Also emits an additional eight spaces after the trailing newline if
+-- the posting has a memo. That way the memo will be indented
+-- properly. (There are trailing spaces here, as opposed to leading
+-- spaces in the posting memo, because the latter would be
+-- inconsistent with the grammar.)
+--
+-- Emits an extra four spaces after the first line if the first
+-- paramter is True. However, this is overriden if there is a memo, in
+-- which case eight spaces will be emitted.
 posting ::
   GroupSpecs
+  -> Bool
+  -- ^ If True, emit four spaces after the trailing newline.
   -> L.Posting
   -> Maybe X.Text
-posting gs p = do
+posting gs pad p = do
   fl <- renMaybe (LT.pFlag p) flag
   nu <- renMaybe (LT.pNumber p) number
   pa <- renMaybe (LT.pPayee p) quotedLvl1Payee
@@ -423,10 +458,11 @@ posting gs p = do
     LT.Inferred -> return Nothing
     LT.NotInferred -> return (Just . L.pEntry $ p)
   en <- renMaybe mayEn (entry gs)
-  return $ formatter fl nu pa ac ta en me
+  return $ formatter pad fl nu pa ac ta en me
 
 formatter ::
-  X.Text    -- ^ Flag
+  Bool      -- ^ If True, emit four trailing spaces if no memo
+  -> X.Text    -- ^ Flag
   -> X.Text -- ^ Number
   -> X.Text -- ^ Payee
   -> X.Text -- ^ Account
@@ -434,7 +470,7 @@ formatter ::
   -> X.Text -- ^ Entry
   -> X.Text -- ^ Memo
   -> X.Text
-formatter fl nu pa ac ta en me = let
+formatter pad fl nu pa ac ta en me = let
   colA = X.pack (replicate 4 ' ')
   colBnoPad = txtWords [fl, nu, pa, ac, ta]
   colD = en
@@ -444,7 +480,11 @@ formatter fl nu pa ac ta en me = let
   colC = if X.null en
          then X.empty
          else X.pack (replicate 2 ' ')
-  rtn = X.singleton '\n'
+  rtn = '\n' `X.cons` trailingWhite
+  trailingWhite = case (X.null me, pad) of
+    (True, False) -> X.empty
+    (True, True) -> X.replicate 4 (X.singleton ' ')
+    (False, _) -> X.replicate 8 (X.singleton ' ')
   in X.concat [colA, colB, colC, colD, rtn, me]
 
 
@@ -455,10 +495,16 @@ transaction ::
   -> L.Transaction
   -> Maybe X.Text
 transaction gs txn = do
-  let txnFam = LT.unTransaction txn
-  tlX <- topLine (parent txnFam)
-  pstgsX <- Tr.traverse (posting gs) (orphans txnFam)
-  return $ tlX `X.append` (X.concat (toList pstgsX))
+  let (L.Family tl p1 p2 ps) = LT.unTransaction txn
+  tlX <- topLine tl
+  p1X <- posting gs True p1
+  p2X <- posting gs (not . null $ ps) p2
+  psX <- if null ps
+         then return X.empty
+         else let bs = replicate (length ps - 1) True ++ [False]
+              in fmap X.concat . sequence
+                 $ zipWith (posting gs) bs ps
+  return $ X.concat [tlX, p1X, p2X, psX]
 
 -- * Item
 

@@ -376,27 +376,27 @@ spaceBetween x = if X.null x then L.NoSpaceBetween else L.SpaceBetween
 leftCmdtyLvl1Amt
   :: QuotedLvl1Cmdty
   -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, L.Format), X.Text)
+  -> Gen (L.Amount, X.Text)
 leftCmdtyLvl1Amt (QuotedLvl1Cmdty c xc) (q, xq) = do
   ws <- white
   let amt = L.Amount q c
-      fmt = L.Format L.CommodityOnLeft (spaceBetween ws)
-  return ((amt, fmt), X.concat [xc, ws, xq])
+            (Just L.CommodityOnLeft) (Just (spaceBetween ws))
+  return (amt, X.concat [xc, ws, xq])
 
 leftCmdtyLvl3Amt
   :: Lvl3Cmdty
   -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, L.Format), X.Text)
+  -> Gen (L.Amount, X.Text)
 leftCmdtyLvl3Amt (Lvl3Cmdty c xc) (q, xq) = do
   ws <- white
-  let amt = L.Amount q c
-      fmt = L.Format L.CommodityOnLeft (spaceBetween ws)
-  return ((amt, fmt), X.concat [xc, ws, xq])
+  let amt = L.Amount q c (Just L.CommodityOnLeft)
+            (Just (spaceBetween ws))
+  return (amt, X.concat [xc, ws, xq])
 
 leftSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl3Cmdty
   -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, L.Format), X.Text)
+  -> Gen (L.Amount, X.Text)
 leftSideCmdtyAmt c q = case c of
   Left l1 -> leftCmdtyLvl1Amt l1 q
   Right l3 -> leftCmdtyLvl3Amt l3 q
@@ -409,21 +409,22 @@ rightSideCmdty = G.oneof
 rightSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl2Cmdty
   -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, L.Format), X.Text)
+  -> Gen (L.Amount, X.Text)
 rightSideCmdtyAmt cty (q, xq) = do
   ws <- white
   let (c, xc) = case cty of
         Left (QuotedLvl1Cmdty ct x) -> (ct, x)
         Right (Lvl2Cmdty ct x) -> (ct, x)
-      fmt = L.Format L.CommodityOnRight (spaceBetween ws)
       xr = X.concat [xq, ws, xc]
-  return ((L.Amount q c, fmt), xr)
+      amt = L.Amount q c (Just L.CommodityOnRight)
+            (Just (spaceBetween ws))
+  return (amt, xr)
 
 
 amount
   :: Cmdty
   -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, L.Format), X.Text)
+  -> Gen (L.Amount, X.Text)
 amount c q = case c of
   L1 l1 -> G.oneof [ leftSideCmdtyAmt (Left l1) q
                    , rightSideCmdtyAmt (Left l1) q ]
@@ -562,7 +563,7 @@ drCr = G.oneof [debit, credit]
 -- * Entry
 --
 
-genEntryGroup :: Cmdty -> GenT [((L.Entry, L.Format), X.Text)]
+genEntryGroup :: Cmdty -> GenT [(L.Entry, X.Text)]
 genEntryGroup c = do
   dr <- lift debit
   cr <- lift credit
@@ -572,7 +573,7 @@ genEntryGroup c = do
   return $ des ++ ces
 
 
-genEntryGroups :: GenT [((L.Entry, L.Format), X.Text)]
+genEntryGroups :: GenT [(L.Entry, X.Text)]
 genEntryGroups = do
   cs <- lift uniqueCmdtys
   fmap concat . mapM genEntryGroup $ cs
@@ -582,10 +583,10 @@ entry
   :: Cmdty
   -> (L.DrCr, X.Text)
   -> (L.Qty, X.Text)
-  -> Gen ((L.Entry, L.Format), X.Text)
+  -> Gen (L.Entry, X.Text)
 entry c (d, xd) q = f <$> white <*> amount c q
   where
-    f w ((a, fmt), xa) = ((L.Entry d a, fmt), x)
+    f w (a, xa) = (L.Entry d a, x)
       where
         x = X.concat [xd, w, xa]
 
@@ -679,11 +680,11 @@ price = do
   q <- qtyWithRendering TQ.anyGen
   let pdct x = unwrapCmdty x /= unwrapCmdty fr
   toCmdty <- suchThatMaybe (lift genCmdty) pdct
-  ((L.Amount toQ t, fmt), xam) <- lift $ amount toCmdty q
+  (L.Amount toQ t sd sb, xam) <- lift $ amount toCmdty q
   let (to, cpu) = (L.To t, L.CountPerUnit toQ)
   p <- throwMaybe "price" (L.newPrice (L.From fc) to cpu)
   ws3 <- lift white
-  let pp = L.PricePoint dt p (L.PriceMeta Nothing (Just fmt))
+  let pp = L.PricePoint dt p sd sb Nothing
       x = X.concat [ X.singleton atSign, wsAt, xdt, ws1, xfc,
                      ws2, xam, X.singleton '\n', ws3]
   return (pp, x)
@@ -725,8 +726,8 @@ topLine = do
   w2 <- lift white
   (pa, xp) <- optional (lift topLinePayee)
   w3 <- lift white
-  let tlm = L.TopLineMeta Nothing Nothing Nothing Nothing Nothing
-      tl = U.TopLine dt fl nu pa me tlm
+  let tl = U.TopLine dt fl nu pa me Nothing Nothing Nothing
+           Nothing Nothing
       x = X.concat [xme, xdt, w1, xfn, w2, xp, X.singleton '\n', w3]
   return (tl, x)
 
@@ -787,7 +788,7 @@ postingAcct :: Gen (L.Account, X.Text)
 postingAcct = G.oneof [quotedLvl1Acct, lvl2Acct]
 
 posting
- :: Maybe ((L.Entry, L.Format), X.Text)
+ :: Maybe (L.Entry, X.Text)
  -> Gen (U.Posting, X.Text)
 posting mayEn = do
   (mayFnp, xfnp) <- optionalG flagNumPayee
@@ -808,11 +809,10 @@ posting mayEn = do
   ws3 <- white
   ws4 <- white
   ws5 <- white
-  let (en, fmt, xe) = case mayEn of
-        Nothing -> (Nothing, Nothing, X.empty)
-        Just ((jEn, jFmt), jXe) -> (Just jEn, Just jFmt, jXe)
-      mt = L.PostingMeta Nothing fmt Nothing Nothing
-      po = U.Posting pa nu fl ac ts en pm mt
+  let (en, xe) = case mayEn of
+        Nothing -> (Nothing, X.empty)
+        Just (jEn, jXe) -> (Just jEn, jXe)
+      po = U.Posting pa nu fl ac ts en pm Nothing Nothing Nothing
       txt = X.concat
             [ xfnp, ws1, xa, ws2, xt, ws3, xe,
               X.singleton '\n', ws4, xm, ws5]

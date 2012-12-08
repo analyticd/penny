@@ -10,7 +10,6 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Copper.Render as R
 import qualified PennyTest.Penny.Copper.Gen.Parsers as TP
 import Penny.Copper.Parsec as P
-import qualified Penny.Lincoln as L
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import qualified Test.Framework as TF
 import Text.Parsec.Text (Parser)
@@ -45,14 +44,12 @@ tests = TF.testGroup "PennyTest.Penny.Copper.Render"
 
   , let genRenderer = do
           gs <- lift genGroupSpecs
-          fmt <- lift genFormat
-          return (R.amount gs fmt)
+          return (R.amount gs)
         genAmt = do
           cy <- lift TP.genCmdty
           q <- TP.quantity
-          ((a, _), x) <- lift $ TP.amount cy q
-          return (a, x)
-    in pTestByTG (==) "amount" (fmap fst P.amount) genAmt genRenderer
+          lift $ TP.amount cy q
+    in pTestByTG (==) "amount" P.amount genAmt genRenderer
 
   , pTest "comment" P.comment TP.comment R.comment
 
@@ -65,7 +62,7 @@ tests = TF.testGroup "PennyTest.Penny.Copper.Render"
           lift $ TP.entry cy dc q
         genRend = do
           gs <- lift genGroupSpecs
-          return (\(en, fmt) -> R.entry gs fmt en)
+          return (\en -> R.entry gs en)
     in pTestByTG (==) "entry" P.entry genEn genRend
 
   , pTest "flag" P.flag TP.flag R.flag
@@ -102,12 +99,6 @@ tests = TF.testGroup "PennyTest.Penny.Copper.Render"
     (TP.maxSize 5 TP.ledger) (withGroupSpecs R.ledger)
   ]
 
-
-
-genFormat :: Gen L.Format
-genFormat =
-  L.Format <$> (G.elements [L.CommodityOnLeft, L.CommodityOnRight])
-           <*> (G.elements [L.SpaceBetween, L.NoSpaceBetween])
 
 genGroupSpec :: Gen R.GroupSpec
 genGroupSpec = G.elements [ R.NoGrouping, R.GroupLarge, R.GroupAll ]
