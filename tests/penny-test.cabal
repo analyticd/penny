@@ -45,3 +45,23 @@ Executable penny-test
 
     ghc-options: -Wall
 
+Executable penny-gibberish
+    Main-is: penny-gibberish.hs
+    Build-depends:
+          base ==4.*
+        , QuickCheck ==2.5.*
+        , text ==0.11.*
+        , random ==1.0.*
+        , explicit-exception ==0.1.*
+        , penny-lib ==0.5.1.0
+        , semigroups ==0.8.*
+        , test-framework ==0.6.*
+        , test-framework-quickcheck2 ==0.2.*
+        , transformers ==0.3.*
+        , random-shuffle ==0.0.4
+        , time ==1.4.*
+
+    Other-modules:
+          PennyTest.Penny.Copper.Gen.Parsers
+
+    ghc-options: -Wall

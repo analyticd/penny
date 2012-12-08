@@ -298,8 +298,8 @@ postingMemoLine
 postingMemoLine t x =
   if X.all T.nonNewline x
   then let trailing = if t
-                      then X.empty
-                      else X.replicate 8 (X.singleton ' ')
+                      then X.replicate 8 (X.singleton ' ')
+                      else X.empty
            ls = [X.singleton '\'', x, X.singleton '\n', trailing]
         in Just $ X.concat ls
   else Nothing
