@@ -13,7 +13,11 @@ module Penny.Copper
 
   -- * Types for things found in ledger files
   , Y.Item(BlankLine, IComment, PricePoint, Transaction)
+  , Y.mapItem
+  , Y.mapItemA
   , Y.Ledger(Ledger, unLedger)
+  , Y.mapLedger
+  , Y.mapLedgerA
   , Y.Comment(Comment, unComment)
   , FileContents(FileContents, unFileContents)
   , ErrorMsg (unErrorMsg)

@@ -472,6 +472,17 @@ applyPostingChange c p = Posting
     sd = fromMaybe (B.side amOld) (pcSide c)
     sb = fromMaybe (B.spaceBetween amOld) (pcSpaceBetween c)
 
+-- | Allows you to change the parts of a transaction that can be
+-- chanaged without unbalancing the transaction. You cannot change the
+-- DrCr, Qty, or Commodity, as changing these might unbalance the
+-- transaction. If there are elements you do not want to change at
+-- all, use an 'emptyTopLineChangeData' or an 'emptyPostingChangeData'
+-- in the appropriate part of the Family that you pass in. If the
+-- Family of change data has more children than the transaction, these
+-- extra children are ignored. If the Family in the Transaction has
+-- more children than the Family of change data, the extra postings
+-- are unchanged. That is, 'changeTransaction' will never delete
+-- postings.
 changeTransaction
   :: F.Family TopLineChangeData PostingChangeData
   -> Transaction
