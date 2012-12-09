@@ -22,6 +22,11 @@ module Penny.Copper
   , FileContents(FileContents, unFileContents)
   , ErrorMsg (unErrorMsg)
 
+  -- * Rendering
+  , R.GroupSpec(..)
+  , R.GroupSpecs(..)
+  , R.ledger
+
   ) where
 
 import Control.Monad (when, replicateM_)
@@ -37,6 +42,7 @@ import qualified Text.Parsec as Parsec
 import qualified Penny.Copper.Parsec as CP
 
 import qualified Penny.Lincoln as L
+import qualified Penny.Copper.Render as R
 import qualified Penny.Copper.Types as Y
 import qualified System.IO.Error as E
 import qualified System.IO as IO

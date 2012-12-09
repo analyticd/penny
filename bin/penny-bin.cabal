@@ -107,6 +107,21 @@ Executable penny-reprint
   if ! flag(build-reprint)
     buildable: False
 
+Executable penny-reconcile
+  Build-depends:
+      base ==4.*
+    , penny-lib ==0.5.1.0
+    , text ==0.11.*
+    , multiarg ==0.6.*
+    , explicit-exception ==0.1.*
+
+  main-is: penny-reconcile.hs
+  ghc-options: -Wall
+  if ! flag(build-reconcile)
+    buildable: False
+
+
+
 Flag debug
   Description: Turns on debugging options
   Default: False
@@ -125,4 +140,8 @@ Flag build-diff
 
 Flag build-reprint
   Description: Build the penny-reprint executable
+  Default: True
+
+Flag build-reconcile
+  Description: Build the penny-reconcile executable
   Default: True
