@@ -1,8 +1,8 @@
 module Penny.Lincoln.Serial (
   Serial, forward, backward, GenSerial,
-  incrementBack, get, makeSerials, serialItems ) where
+  incrementBack, getSerial, makeSerials, serialItems,
+  nSerials ) where
 
-import qualified Data.Traversable as Tr
 import Control.Applicative (Applicative, (<*>), pure, (*>))
 import Control.Monad (ap)
 
@@ -39,8 +39,8 @@ incrementBack = GenSerial $ \s ->
   let s' = SerialSt (nextFwd s) (nextBack s + 1)
   in ((), s')
 
-get :: GenSerial Serial
-get = GenSerial $ \s ->
+getSerial :: GenSerial Serial
+getSerial = GenSerial $ \s ->
   let s' = SerialSt (nextFwd s + 1) (nextBack s - 1)
   in (Serial (nextFwd s) (nextBack s), s')
 
@@ -49,8 +49,10 @@ makeSerials (GenSerial k) =
   let (r, _) = k (SerialSt 0 0) in r
 
 serialItems :: (Serial -> a -> b) -> [a] -> [b]
-serialItems f as = makeSerials k
-  where
-    k = Tr.sequenceA (replicate (length as) incrementBack)
-        *> Tr.traverse g as
-    g a = fmap (\ser -> f ser a) get
+serialItems f as = zipWith f (nSerials (length as)) as
+
+nSerials :: Int -> [Serial]
+nSerials n =
+  makeSerials $
+  (sequence . replicate n $ incrementBack)
+  *> (sequence . replicate n $ getSerial)

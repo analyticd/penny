@@ -132,7 +132,7 @@ module Penny.Lincoln (
 
     -- ** Making and deconstructing transactions
   , T.transaction
-  , T.RTransaction
+  , T.RTransaction(..)
   , T.rTransaction
   , T.Error ( UnbalancedError, CouldNotInferError)
   , T.toUnverified
@@ -206,9 +206,10 @@ module Penny.Lincoln (
   , S.backward
   , S.GenSerial
   , S.incrementBack
-  , S.get
+  , S.getSerial
   , S.makeSerials
   , S.serialItems
+  , S.nSerials
 
     -- * Matchers
   , Matchers.Matcher

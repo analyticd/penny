@@ -12,7 +12,9 @@ import qualified Penny.Copper as C
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Time as Time
+import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
+import Data.Monoid (mconcat)
 
 import qualified System.Random.Shuffle as Shuffle
 import qualified PennyTest.Penny.Copper.Gen.Terminals as T
@@ -836,6 +838,28 @@ postings = do
 -- * Transaction
 --
 
+-- | Ensures that the balance of all the postings of a transaction is
+-- zero. Returns True if balance is zero; False otherwise.
+zeroBalTransaction :: L.Transaction -> Bool
+zeroBalTransaction t =
+  let (L.Family _ p1 p2 ps) = L.unTransaction t
+      psAll = p1:p2:ps
+      bal = L.unBalance
+            . L.removeZeroCommodities
+            . mconcat
+            . map L.entryToBalance
+            . map L.pEntry
+            $ psAll
+  in M.null bal
+
+checkTransaction :: L.Transaction -> GenT ()
+checkTransaction t =
+  if zeroBalTransaction t
+  then return ()
+  else Ex.throwT P.failed { P.reason = r }
+  where
+    r = "transaction balance is not zero: " ++ show t
+
 transaction :: GenT (L.Transaction, X.Text)
 transaction = do
   (tl, xtl) <- topLine
@@ -847,7 +871,7 @@ transaction = do
     Ex.Exception e ->
       let r = "failed to create transaction: " ++ show e
       in Ex.throwT P.failed { P.reason = r }
-    Ex.Success g -> return (g, x)
+    Ex.Success g -> checkTransaction g >> return (g, x)
 
 --
 -- * BlankLine

@@ -186,23 +186,20 @@ amount ::
   -> L.Amount
   -> Maybe X.Text
 amount gs (L.Amount qt c maySd maySb) =
-  let mayLvl3 = lvl3Cmdty c
-      mayLvl2 = lvl2Cmdty c
-      q = quantity gs qt
+  let q = quantity gs qt
   in do
-    quotedLvl1 <- quotedLvl1Cmdty c
     sd <- maySd
     sb <- maySb
     let ws = case sb of
           L.SpaceBetween -> X.singleton ' '
           L.NoSpaceBetween -> X.empty
-        (l, r) = case sd of
-          L.CommodityOnLeft -> case mayLvl3 of
-            Nothing -> (quotedLvl1, q)
-            Just l3 -> (l3, q)
-          L.CommodityOnRight -> case mayLvl2 of
-            Nothing -> (q, quotedLvl1)
-            Just l2 -> (q, l2)
+    (l, r) <- case sd of
+          L.CommodityOnLeft -> do
+            cx <- lvl3Cmdty c <|> quotedLvl1Cmdty c
+            return (cx, q)
+          L.CommodityOnRight -> do
+            cx <- lvl2Cmdty c <|> quotedLvl1Cmdty c
+            return (q, cx)
     return $ X.concat [l, ws, r]
 
 -- * Comments

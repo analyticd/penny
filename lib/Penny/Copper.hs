@@ -57,7 +57,7 @@ addFileTransaction
   :: L.Filename
   -> L.Transaction
   -> L.GenSerial L.Transaction
-addFileTransaction fn t = f <$> L.get
+addFileTransaction fn t = f <$> L.getSerial
   where
     f ser = L.changeTransaction fam t
       where
@@ -76,7 +76,7 @@ addFilePosting t = f <$> (L.mapChildrenA g (L.unTransaction t))
   where
     f fam = L.changeTransaction
             (L.mapParent (const L.emptyTopLineChangeData) fam) t
-    g = const $ fmap h L.get
+    g = const $ fmap h L.getSerial
       where h ser = L.emptyPostingChangeData
               { L.pcFilePosting = Just (Just (L.FilePosting ser)) }
 
@@ -116,7 +116,7 @@ addFileMetadata fn a@(Y.Ledger ls) =
 addGlobalTransaction
   :: L.Transaction
   -> L.GenSerial L.Transaction
-addGlobalTransaction t = f <$> L.get
+addGlobalTransaction t = f <$> L.getSerial
   where
     f ser = L.changeTransaction fam t
       where
@@ -133,7 +133,7 @@ addGlobalPosting t = f <$> (L.mapChildrenA g (L.unTransaction t))
   where
     f fam = L.changeTransaction
             (L.mapParent (const L.emptyTopLineChangeData) fam) t
-    g = const $ fmap h L.get
+    g = const $ fmap h L.getSerial
       where
         h ser = L.emptyPostingChangeData
           { L.pcGlobalPosting = Just (Just (L.GlobalPosting ser)) }

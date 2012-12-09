@@ -23,7 +23,7 @@ visibleNumBoxes f bs = L.makeSerials k
   where
     k = Tr.sequenceA (replicate (length bs) L.incrementBack)
         *> mapM assign bs
-    assign (L.Box m pf) = fmap g L.get
+    assign (L.Box m pf) = fmap g L.getSerial
       where
         g ser = L.Box (f (VisibleNum ser) m) pf
 
@@ -34,5 +34,5 @@ visibleNums f as = L.makeSerials k
   where
     k = Tr.sequenceA (replicate (length as) L.incrementBack)
         *> mapM assign as
-    assign a = fmap (\ser -> f (VisibleNum ser) a) L.get
+    assign a = fmap (\ser -> f (VisibleNum ser) a) L.getSerial
 

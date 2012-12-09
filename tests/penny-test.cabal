@@ -29,7 +29,8 @@ Executable penny-test
         test-framework-quickcheck2 ==0.2.*,
         text ==0.11.*,
         time ==1.4.*,
-        transformers == 0.3.*
+        transformers == 0.3.*,
+        containers ==0.4.*
 
     Other-modules:
           PennyTest
@@ -60,6 +61,7 @@ Executable penny-gibberish
         , transformers ==0.3.*
         , random-shuffle ==0.0.4
         , time ==1.4.*
+        , containers ==0.4.*
 
     Other-modules:
           PennyTest.Penny.Copper.Gen.Parsers
