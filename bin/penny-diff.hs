@@ -90,15 +90,15 @@ renderTransaction gs f t = fmap addHeader $ CR.transaction gs t
     (L.Family tl _ _ _) = L.unTransaction t
     lin = case L.tMemo tl of
       Nothing -> L.unTopLineLine . fromJust
-                 . L.topLineLine . L.tMeta $ tl
+                 . L.tTopLineLine $ tl
       Just _ -> L.unTopMemoLine . fromJust
-                . L.topMemoLine . L.tMeta $ tl
+                . L.tTopMemoLine $ tl
     addHeader x = (showLineNum f lin) `X.append` x
 
 renderPrice :: CR.GroupSpecs -> File -> L.PricePoint -> Maybe X.Text
 renderPrice gs f p = fmap addHeader $ CR.price gs p
   where
-    lin = L.unPriceLine . fromJust . L.priceLine . L.ppMeta $ p
+    lin = L.unPriceLine . fromJust . L.priceLine $ p
     addHeader x = (showLineNum f lin) `X.append` x
 
 renderNonBlankItem :: CR.GroupSpecs -> File -> NonBlankItem -> Maybe X.Text

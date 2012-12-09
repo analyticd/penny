@@ -254,8 +254,12 @@ selloffStockCurr bal = do
                     $ ps
   (cyStock, (Bal.Column _ qtyStock)) <- findBal L.Debit
   (cyCurr, (Bal.Column _ qtyCurr)) <- findBal L.Credit
-  let sellStock = SelloffStock (L.Amount qtyStock cyStock)
-      sellCurr = SelloffCurrency (L.Amount qtyCurr cyCurr)
+  let sellStock = SelloffStock
+        (L.Amount qtyStock cyStock
+          (Just L.CommodityOnLeft) (Just L.SpaceBetween))
+      sellCurr = SelloffCurrency
+        (L.Amount qtyCurr cyCurr
+          (Just L.CommodityOnLeft) (Just L.SpaceBetween))
   return (sellStock, sellCurr)
 
 
@@ -464,8 +468,10 @@ payee :: L.Payee
 payee = L.Payee . pack $ "Realize gain or loss"
 
 topLine :: SaleDate -> U.TopLine
-topLine sd = U.TopLine (unSaleDate sd) Nothing Nothing (Just payee)
-             (Just . memo $ sd) L.emptyTopLineMeta
+topLine sd = (U.emptyTopLine (unSaleDate sd))
+             { U.tPayee = Just payee
+             , U.tMemo = Just . memo $ sd
+             }
 
 basisOffsets
   :: SelloffInfo
@@ -479,14 +485,14 @@ basisOffsets s pd p = (po enDr, po enCr)
     dt = dateToSubAcct . unPurchaseDate $ pd
     enDr = L.Entry L.Debit
            (L.Amount (unRealizedStockQty . brStockQty $ p)
-              (L.commodity . unSelloffStock . siStock $ s))
+              (L.commodity . unSelloffStock . siStock $ s)
+              (Just L.CommodityOnLeft) (Just L.SpaceBetween))
     enCr = L.Entry L.Credit
            (L.Amount (unRealizedCurrencyQty . brCurrencyQty $ p)
-              (L.commodity . unSelloffCurrency . siCurrency $ s))
-    meta = L.PostingMeta Nothing (Just fmt) Nothing Nothing
-    fmt = L.Format L.CommodityOnLeft L.SpaceBetween
-    po en = U.Posting Nothing Nothing Nothing ac (L.Tags [])
-            (Just en) Nothing meta
+              (L.commodity . unSelloffCurrency . siCurrency $ s)
+              (Just L.CommodityOnLeft) (Just L.SpaceBetween))
+    po en = (U.emptyPosting ac)
+            { U.pEntry = Just en }
 
 dateToSubAcct :: L.DateTime -> L.SubAccount
 dateToSubAcct = L.SubAccount . CR.dateTime
@@ -521,13 +527,15 @@ capChangeEntry
   -> SelloffCurrency
   -> CapitalChange
   -> L.Entry
-capChangeEntry gl sc cc = L.Entry dc (L.Amount qt cy)
+capChangeEntry gl sc cc = L.Entry dc (L.Amount qt cy sd sb)
   where
     dc = case gl of
       Gain -> L.Credit
       Loss -> L.Debit
     cy = L.commodity . unSelloffCurrency $ sc
     qt = unCapitalChange cc
+    sd = Just L.CommodityOnLeft
+    sb = Just L.SpaceBetween
 
 capChangePstg
   :: SelloffInfo
@@ -536,11 +544,9 @@ capChangePstg
   -> PurchaseInfo
   -> U.Posting
 capChangePstg si gl cc p =
-  U.Posting Nothing Nothing Nothing ac (L.Tags []) (Just en)
-    Nothing meta
+  (U.emptyPosting ac)
+  { U.pEntry = Just en }
   where
-    meta = L.PostingMeta Nothing (Just fmt) Nothing Nothing
-    fmt = L.Format L.CommodityOnLeft L.SpaceBetween
     ac = capChangeAcct gl si p
     en = capChangeEntry gl (siCurrency si) cc
 
@@ -552,15 +558,13 @@ proceedsPstgs
   -> (U.Posting, U.Posting)
 proceedsPstgs si = (po dr, po cr)
   where
-    po en = U.Posting Nothing Nothing Nothing ac (L.Tags [])
-      (Just en) Nothing meta
-    meta = L.PostingMeta Nothing (Just fmt) Nothing Nothing
+    po en = (U.emptyPosting ac) { U.pEntry = Just en }
     ac = L.Account [proceeds, gr, dt]
     gr = unGroup . siGroup $ si
     dt = dateToSubAcct . unSaleDate . siSaleDate $ si
     dr = L.Entry L.Debit (unSelloffCurrency . siCurrency $ si)
     cr = L.Entry L.Credit (unSelloffStock . siStock $ si)
-    fmt = L.Format L.CommodityOnLeft L.SpaceBetween
+
 
 mkTxn
   :: SelloffInfo
