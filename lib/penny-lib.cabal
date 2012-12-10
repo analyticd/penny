@@ -187,6 +187,12 @@ Library
 
     Exposed-modules:
         Penny,
+        Penny.Brenner,
+        Penny.Brenner.Amex,
+        Penny.Brenner.Amex.Import,
+        Penny.Brenner.Amex.Parsec,
+        Penny.Brenner.Amex.Types,
+        Penny.Brenner.Amex.Util,
         Penny.Cabin,
         Penny.Cabin.Balance,
         Penny.Cabin.Balance.Convert,
