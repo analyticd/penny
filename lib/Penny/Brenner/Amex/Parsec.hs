@@ -13,10 +13,10 @@ import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 
 -- | Loads incoming Amex transactions.
-loadIncoming :: Y.CSVLocation -> IO [AmexTxn]
+loadIncoming :: Y.CSVLocation -> IO [Y.Posting]
 loadIncoming (Y.CSVLocation loc) = do
   txt <- TIO.readFile loc
-  let parsed = P.parse (P.many parseRecord <* P.eof) "" txt
+  let parsed = P.parse (P.many posting <* P.eof) "" txt
   either (error . show) return parsed
 
 skipThrough :: Char -> Parser ()

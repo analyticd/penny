@@ -49,7 +49,8 @@ newtype Desc =
 newtype Amount = Amount { unAmount :: String }
   deriving (Eq, Show, Ord, Read)
 
-type DbMap = M.Map UNumber (Posting, L.Entry)
+type DbMap = M.Map UNumber Posting
+type DbList = [(UNumber, Posting)]
 
 data Posting = Posting
   { date :: Date

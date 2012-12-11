@@ -18,84 +18,88 @@
 module Penny.Brenner.Amex.Import where
 
 import Control.Monad.Exception.Synchronous as Ex
-import Control.Monad (when)
-import qualified Data.Set as Set
+import Data.Maybe (mapMaybe)
 import qualified System.Console.MultiArg as MA
-import System.Console.MultiArg.Prim (Parser)
-import qualified System.Console.MultiArg.Prim as MAP
-import qualified System.Console.MultiArg.Combinator as MAC
-import System.Exit (exitSuccess)
 import qualified Penny.Brenner.Amex.Types as Y
+import qualified Penny.Brenner.Amex.Util as U
+import qualified Penny.Brenner.Amex.Parsec as P
 
 data Arg
   = AHelp
   | ACSV String
   | AAllowNew
+  deriving (Eq, Show)
 
-data Opts
-  = ShowHelp
-  | DoImport ImportOpts
+toCSV :: Arg -> Maybe String
+toCSV a = case a of
+  ACSV s -> Just s
+  _ -> Nothing
 
 data ImportOpts = ImportOpts
   { csvFile :: Y.CSVLocation
   , allowNew :: Y.AllowNew
   }
 
+mode
+  :: Y.DbLocation
+  -> MA.Mode String (Ex.Exceptional String (IO ()))
+mode dbLoc = MA.Mode
+  { MA.mId = "import"
 
-parseOpts :: Y.Card -> Parser 
-parseOpts cd = do
-  
+  , MA.mName = "import"
+  , MA.mIntersperse = MA.Intersperse
+  , MA.mOpts =
+      [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
+      , MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew)
+      ]
+  , MA.mPosArgs = ACSV
+  , MA.mProcess = processor dbLoc
+  }
 
-parseOpts :: [String] -> Opts
-parseOpts ss =
-  Ex.switch err mkO
-  . MA.parse MA.Intersperse os posArg
-  $ ss
-  where
-    posArg s o = o { csvFile = Just s }
-    err e = error $ "could not parse command line: " ++ show e
-    mkO = foldl (\o f -> f o) defaultOpts
-    os = [ MA.OptSpec ["db"] "d"
-           (MA.OneArg (\s o -> o { dbLocation = s }))
 
-         , MA.OptSpec ["new"] "n"
-           (MA.NoArg (\o -> o { allowNew = True }))
-
-         , MA.OptSpec ["help"] "h"
-           (MA.NoArg (\o -> o { showHelp = True })) ]
-
+processor :: Y.DbLocation -> [Arg] -> Ex.Exceptional String (IO ())
+processor dbLoc as = do
+  let err s = Ex.throw $ "import: " ++ s
+  if any (== AHelp) as
+    then return $ putStrLn help
+    else do
+      loc <- case mapMaybe toCSV as of
+        [] -> err "you must provide a CSV file to read"
+        x:[] -> return (Y.CSVLocation x)
+        _ -> err "you cannot provide more than one CSV file to read"
+      let aNew = Y.AllowNew $ any (== AAllowNew) as
+      return $ doImport dbLoc (ImportOpts loc aNew)
 
 
 -- | Appends new Amex transactions to the existing list.
-appendNew ::
-  [(A.UNumber, A.AmexTxn)]
+appendNew
+  :: [(Y.UNumber, Y.Posting)]
   -- ^ Existing transactions
 
-  -> [A.AmexTxn]
+  -> [Y.Posting]
   -- ^ New transactions
 
-  -> ([(A.UNumber, A.AmexTxn)], Int)
+  -> ([(Y.UNumber, Y.Posting)], Int)
   -- ^ New list, and number of transactions added
 
-appendNew old new = (old ++ filteredNew, length filteredNew)
+appendNew db new = (db ++ newWithU, length newWithU)
   where
-    nextId = if null old then 0 else (maximum . map fst $ old) + 1
-    set = Set.fromList . map A.amexId . map snd $ old
-    newWithId = zip [nextId..] new
-    filteredNew = filter (flip Set.notMember set . A.amexId . snd)
-                  newWithId
+    nextUNum = if null db
+               then 0
+               else (Y.unUNumber . maximum . map fst $ db) + 1
+    currAmexIds = map (Y.amexId . snd) db
+    isNew p = not (any (== Y.amexId p) currAmexIds)
+    newPstgs = filter isNew new
+    mkPair i p = (Y.UNumber i, p)
+    newWithU = zipWith mkPair [nextUNum..] newPstgs
 
-main :: IO ()
-main = do
-  os <- fmap parseOpts MA.getArgs
-  when (showHelp os) (putStr help >> exitSuccess)
-  txnsOld <- A.loadDb (allowNew os) (dbLocation os)
-  let path = case csvFile os of
-        Nothing -> error "you must specify a file to import."
-        Just p -> p
-  ins <- A.loadIncoming path
+
+doImport :: Y.DbLocation -> ImportOpts -> IO ()
+doImport dbLoc os = do
+  txnsOld <- U.loadDb (allowNew os) dbLoc
+  ins <- P.loadIncoming . csvFile $ os
   let (new, len) = appendNew txnsOld ins
-  A.saveDb (dbLocation os) new
+  U.saveDb dbLoc new
   putStrLn $ "imported " ++ show len ++ " new transactions."
 
 help :: String
