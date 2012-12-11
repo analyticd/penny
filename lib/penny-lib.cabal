@@ -192,6 +192,7 @@ Library
         Penny.Brenner,
         Penny.Brenner.Amex,
         Penny.Brenner.Amex.Import,
+        Penny.Brenner.Amex.Merge,
         Penny.Brenner.Amex.Parsec,
         Penny.Brenner.Amex.Types,
         Penny.Brenner.Amex.Util,
