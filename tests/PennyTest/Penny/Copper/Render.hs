@@ -69,8 +69,11 @@ tests = TF.testGroup "PennyTest.Penny.Copper.Render"
   , pTest "transactionMemo" ((fmap snd) P.transactionMemo)
     TP.transactionMemo R.transactionMemo
 
-  , pTest "postingMemo" P.postingMemo
-    TP.postingMemo R.postingMemo
+  , let genRend = do
+          i <- G.elements [True, False]
+          return $ R.postingMemo i
+    in pTestByTG (==) "postingMemo" P.postingMemo (lift TP.postingMemo)
+       (lift genRend)
 
   , pTest "number" P.number TP.number R.number
 
