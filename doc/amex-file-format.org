@@ -1,0 +1,66 @@
+Amex CSV file format
+
+Current as of December 2, 2012
+
+This documents the Amex CSV that can be downloaded from the Amex
+website. Obtain this by using the "Download" link that is available
+when viewing account transactions. Be sure to select the checkbox for
+"additional transaction details" or the like, as this format contains
+the unique Amex ID numbers.
+
+Newlines are with linefeeds only (UNIX style, not Windows style.)
+Although newlines separate records, they also appear within some of
+the fields, so you cannot split the file into records using newlines
+alone (which makes it difficult to use line-oriented tools like awk.)
+
+Here are the fields, in order. The fields are separated by commas. The
+list starts at 1 (org-mode does not seem to like starting lists at 0.)
+
+Many fields are unknown. These have always appeared blank in the data
+I have.
+
+1. Date. This is given as MM/DD/YYYY followed by a three-digit day of
+   the week, such as "Wed".
+
+2. Unknown
+
+3. Description. This is the payee name (often truncated) followed by
+   the city and state. This contains many spaces (presumably so it
+   would line up in a table?) Appears wrapped in double quotes.
+
+4. Unknown
+
+5. Unknown
+
+6. Unknown
+
+7. Unknown
+
+8. Amount. Charges appear simply with the amount; payments and credits
+   appear with a prepended minus sign. This field is not wrapped in
+   double quotes.
+
+9. Unknown
+
+10. Category. Appears to categorize the merchant (e.g. "Hardware
+    Store") but the exact format is not immediately apparent;
+    sometimes a number appears with the description, sometimes there
+    are just numbers. This field is wrapped in double quotes.
+
+11. Doing Business As. This seems to be the best place to pull the
+    payee information from, as the Description field (number 3) mixes
+    this up with other information. Double-quoted.
+
+12. Address. Contains a street address with a city and state. Looks
+    something like Street Address (newline) City (newline) State
+    2-digit. Note the embedded newlines. Double-quoted.
+
+13. Postcode. Postal code, then newline, then country. Note the
+    embedded newline. Double-quoted.
+
+14. Amex ID. A long integer. Appears within both double quotes and
+    single quotes, e.g. "'320123300342679128'".
+
+15. Unknown
+
+16. Unknown

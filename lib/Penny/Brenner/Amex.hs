@@ -94,6 +94,7 @@ processParseResult pr cf ex =
       exitFailure
     Ex.Success g -> processResult pr cf g
 
+
 processResult
   :: String
   -- ^ Program name
@@ -103,10 +104,11 @@ processResult
   -> IO ()
 processResult pr cf (_, ei) =
   case ei of
-    Left _ -> putStrLn (help pr cf)
+    Left _ -> putStr (help pr cf)
     Right (_, ex) -> case ex of
-      Ex.Exception e ->
+      Ex.Exception e -> do
         putStrLn $ pr ++ ": error: " ++ e
+        exitFailure
       Ex.Success g -> g
 
 help ::
@@ -119,24 +121,30 @@ help n c = unlines ls ++ cs
   where
     ls = [ "usage: " ++ n ++ " [options] import|merge|clear ARGS..."
          , ""
-         , "For help on an individual command, use"
-         , n ++ "COMMAND --help"
+         , "For help on an individual command, use "
+         , n ++ " COMMAND --help"
+         , ""
          , "Options:"
          , "-c, --card CARD"
-         , "  Use one of the cards shown below. If this option"
+         , "  Use one of the Additional Cards shown below. If this option"
          , "  does not appear, the default card is used if there"
          , "  is one."
          , "-h, --help"
          , "  Show help and exit"
+         , ""
          ]
-    showPair (Y.Name a, cd) = showCard a cd
+    showPair (Y.Name a, cd) = "Additional card: " ++ a
+      ++ "\n" ++ showCard cd
     cs = showDefaultCard (Y.defaultCard c)
-         ++ (concatMap showPair . Y.moreCards $ c)
+         ++ more
+    more = if null (Y.moreCards c)
+           then "No additional cards\n"
+           else concatMap showPair . Y.moreCards $ c
 
 showDefaultCard :: Maybe Y.Card -> String
 showDefaultCard mc = case mc of
   Nothing -> "No default card\n"
-  Just c -> showCard "<DEFAULT>" c
+  Just c -> "Default Card:\n" ++ showCard c
 
 label :: String -> String -> String
 label l o = "  " ++ l ++ ": " ++ o ++ "\n"
@@ -148,10 +156,9 @@ showAccount =
   . map L.unSubAccount
   . L.unAccount
 
-showCard :: String -> Y.Card -> String
-showCard n c =
-  "Card " ++ n ++ ":\n"
-  ++ label "Database location" (Y.unDbLocation . Y.dbLocation $ c)
+showCard :: Y.Card -> String
+showCard c =
+  label "Database location" (Y.unDbLocation . Y.dbLocation $ c)
 
   ++ label "Amex ledger account"
      (showAccount . Y.unAmexAcct . Y.amexAcct $ c)
@@ -162,7 +169,9 @@ showCard n c =
   ++ label "Currency"
      (X.unpack . L.unCommodity . Y.unCurrency . Y.currency $ c)
 
--- | Information to configure a single card account. 
+  ++ "\n"
+
+-- | Information to configure a single card account.
 data Card = Card
   { dbLocation :: String
     -- ^ Path and filename to where the database is kept. You can use

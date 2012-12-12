@@ -286,30 +286,30 @@ flag (L.Flag fl) =
 -- using trailing whitespace rather than leading whitespace because
 -- leading whitespace is inconsistent with the grammar.
 postingMemoLine
-  :: Bool
-  -- ^ If True, pad the end of the output with eight spaces; if False,
-  -- do no padding
-
+  :: Int
+  -- ^ Pad the end of the output with this many spaces
   -> X.Text
   -> Maybe X.Text
-postingMemoLine t x =
+postingMemoLine p x =
   if X.all T.nonNewline x
-  then let trailing = if t
-                      then X.replicate 8 (X.singleton ' ')
-                      else X.empty
+  then let trailing = X.replicate p (X.singleton ' ')
            ls = [X.singleton '\'', x, X.singleton '\n', trailing]
         in Just $ X.concat ls
   else Nothing
 
 -- | Renders a postingMemo. Fails if the postingMemo is empty, as the
--- grammar requires that they have at least one line. Properly inserts
--- padding after all but the last postingMemoLine in order to properly
--- indent the output.
-postingMemo :: L.Memo -> Maybe X.Text
-postingMemo (L.Memo ls) =
+-- grammar requires that they have at least one line.
+--
+-- If the boolean is True, inserts padding after the last
+-- postingMemoLine so that the next line is indented by four
+-- columns. Use this if the posting memo is followed by another
+-- posting. If the last boolean if False, there is no indenting after
+-- the last postingMemoLine.
+postingMemo :: Bool -> L.Memo -> Maybe X.Text
+postingMemo iLast (L.Memo ls) =
   if null ls
   then Nothing
-  else let bs = replicate (length ls - 1) True ++ [False]
+  else let bs = replicate (length ls - 1) 8 ++ [if iLast then 4 else 0]
        in fmap X.concat . sequence $ zipWith postingMemoLine bs ls
 
 
@@ -437,7 +437,8 @@ topLine tl =
 --
 -- Emits an extra four spaces after the first line if the first
 -- paramter is True. However, this is overriden if there is a memo, in
--- which case eight spaces will be emitted.
+-- which case eight spaces will be emitted. (This allows the next
+-- posting to be indented properly.)
 posting ::
   GroupSpecs
   -> Bool
@@ -450,7 +451,7 @@ posting gs pad p = do
   pa <- renMaybe (LT.pPayee p) quotedLvl1Payee
   ac <- ledgerAcct (LT.pAccount p)
   ta <- tags (LT.pTags p)
-  me <- renMaybe (LT.pMemo p) postingMemo
+  me <- renMaybe (LT.pMemo p) (postingMemo pad)
   mayEn <- case LT.pInferred p of
     LT.Inferred -> return Nothing
     LT.NotInferred -> return (Just . L.pEntry $ p)
@@ -458,8 +459,9 @@ posting gs pad p = do
   return $ formatter pad fl nu pa ac ta en me
 
 formatter ::
-  Bool      -- ^ If True, emit four trailing spaces if no memo
-  -> X.Text    -- ^ Flag
+  Bool      -- ^ If True, emit four trailing spaces if no memo or
+            -- eight trailing spaces if there is a memo.
+  -> X.Text -- ^ Flag
   -> X.Text -- ^ Number
   -> X.Text -- ^ Payee
   -> X.Text -- ^ Account
@@ -468,7 +470,6 @@ formatter ::
   -> X.Text -- ^ Memo
   -> X.Text
 formatter pad fl nu pa ac ta en me = let
-  colA = X.pack (replicate 4 ' ')
   colBnoPad = txtWords [fl, nu, pa, ac, ta]
   colD = en
   colB = if X.null en
@@ -482,7 +483,7 @@ formatter pad fl nu pa ac ta en me = let
     (True, False) -> X.empty
     (True, True) -> X.replicate 4 (X.singleton ' ')
     (False, _) -> X.replicate 8 (X.singleton ' ')
-  in X.concat [colA, colB, colC, colD, rtn, me]
+  in X.concat [colB, colC, colD, rtn, me]
 
 
 -- * Transaction

@@ -184,7 +184,7 @@ parseFile s = do
 parseCommandLine :: IO (String, String, DiffsToShow)
 parseCommandLine = do
   as <- M.getArgs
-  let parsed = M.parse
+  let parsed = M.simple
                 M.Intersperse [optFile1, optFile2] Filename as
   ls <- case parsed of
     Ex.Exception e ->
