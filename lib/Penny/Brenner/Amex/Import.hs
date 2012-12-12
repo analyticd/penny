@@ -15,7 +15,7 @@
 -- -n, --new - Allows creation of new database. Without this option,
 -- if the database file is not found, quits with an error.
 
-module Penny.Brenner.Amex.Import where
+module Penny.Brenner.Amex.Import (mode) where
 
 import Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe (mapMaybe)
