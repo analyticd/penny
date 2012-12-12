@@ -64,7 +64,7 @@ findOutput = do
   return $ if isTerm then IsTTY else NotTTY
 
 screenLines :: Runtime -> Maybe ScreenLines
-screenLines r = 
+screenLines r =
   (lookup "LINES" . environment $ r)
   >>= safeRead
   >>= return . ScreenLines
