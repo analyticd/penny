@@ -2,8 +2,63 @@
 module Penny.Brenner.Amex where
 
 import qualified Penny.Brenner.Amex.Types as Y
+import Data.Maybe (mapMaybe)
 import qualified Data.Text as X
 import qualified Penny.Lincoln as L
+import qualified Penny.Brenner.Amex.Clear as C
+import qualified Penny.Brenner.Amex.Import as I
+import qualified Penny.Brenner.Amex.Merge as M
+import qualified System.Console.MultiArg as MA
+import qualified Control.Monad.Exception.Synchronous as Ex
+
+data Arg
+  = AHelp
+  | ACard String
+  deriving (Eq, Show)
+
+toCardOpt :: Arg -> Maybe String
+toCardOpt a = case a of { ACard s -> Just s; _ -> Nothing }
+
+globalOpts :: [MA.OptSpec Arg]
+globalOpts =
+  [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
+  , MA.OptSpec ["card"] "c" (MA.OneArg ACard)
+  ]
+
+data PreProc
+  = NeedsHelp
+  | DoIt Y.Card
+
+preProcessor :: Y.Config -> [Arg] -> Ex.Exceptional String PreProc
+preProcessor cf as =
+  if any (== AHelp) as
+  then return NeedsHelp
+  else do
+    let cardOpt = case mapMaybe toCardOpt as of
+          [] -> Nothing
+          xs -> Just . last $ xs
+    card <- case cardOpt of
+      Nothing -> case Y.defaultCard cf of
+        Nothing -> Ex.throw $ "no card given on command line, and no "
+                   ++ "default card provided."
+        Just c -> return c
+      Just o ->
+        let pdct (Y.Name n, _) = n == o
+        in case filter pdct (Y.moreCards cf) of
+          [] -> Ex.throw $ "card " ++ o ++ " not configured."
+          (_, c):[] -> return c
+          _ -> Ex.throw $ "more than one card named " ++ o
+                          ++ " configured."
+    return $ DoIt card
+
+whatMode
+  :: PreProc
+  -> Either (String -> String)
+      [MA.Mode String (Ex.Exceptional String (IO ()))]
+whatMode pp = case pp of
+  NeedsHelp -> Left id
+  DoIt cd ->
+    Right [ C.mode cd, I.mode (Y.dbLocation cd), M.mode cd ]
 
 help ::
   String
