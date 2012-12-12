@@ -10,6 +10,15 @@ import qualified Penny.Brenner.Amex.Import as I
 import qualified Penny.Brenner.Amex.Merge as M
 import qualified System.Console.MultiArg as MA
 import qualified Control.Monad.Exception.Synchronous as Ex
+import System.Exit (exitFailure)
+import qualified System.IO as IO
+
+amexMain :: Y.Config -> IO ()
+amexMain cf = do
+  as <- MA.getArgs
+  pr <- MA.getProgName
+  let r = MA.modes globalOpts (preProcessor cf) whatMode as
+  processParseResult pr cf r
 
 data Arg
   = AHelp
@@ -59,6 +68,37 @@ whatMode pp = case pp of
   NeedsHelp -> Left id
   DoIt cd ->
     Right [ C.mode cd, I.mode (Y.dbLocation cd), M.mode cd ]
+
+
+processParseResult
+  :: String
+  -- ^ Program name
+  -> Y.Config
+
+  -> Ex.Exceptional MA.Error
+      (a, Either b (c, Ex.Exceptional String (IO ())))
+  -> IO ()
+processParseResult pr cf ex =
+  case ex of
+    Ex.Exception err -> do
+      IO.hPutStrLn IO.stderr . show $ err
+      exitFailure
+    Ex.Success g -> processResult pr cf g
+
+processResult
+  :: String
+  -- ^ Program name
+
+  -> Y.Config
+  -> (a, Either b (c, Ex.Exceptional String (IO ())))
+  -> IO ()
+processResult pr cf (_, ei) =
+  case ei of
+    Left _ -> putStrLn (help pr cf)
+    Right (_, ex) -> case ex of
+      Ex.Exception e ->
+        putStrLn $ pr ++ ": error: " ++ e
+      Ex.Success g -> g
 
 help ::
   String
