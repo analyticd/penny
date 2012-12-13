@@ -113,10 +113,8 @@ fromZonedTime :: T.ZonedTime -> Maybe DateTime
 fromZonedTime (T.ZonedTime (T.LocalTime d tod) tz) = do
   h <- intToHours . T.todHour $ tod
   m <- intToMinutes . T.todMin $ tod
-  let (sWhole, sFrac) = properFraction . T.todSec $ tod
-  s <- if sFrac == 0
-       then intToSeconds sWhole
-       else Nothing
+  let (sWhole, _) = properFraction . T.todSec $ tod
+  s <- intToSeconds sWhole
   tzo <- minsToOffset . T.timeZoneMinutes $ tz
   return $ DateTime d h m s tzo
 

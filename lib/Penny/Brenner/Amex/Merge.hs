@@ -99,7 +99,7 @@ filterDb ax m l = M.difference m ml
       (f, r) <- X.uncons n
       guard (f == 'U')
       case reads . X.unpack $ r of
-        (x, ""):[] -> return x
+        (x, ""):[] -> return $ Y.UNumber x
         _ -> Nothing
 
 -- | Changes a single Item.

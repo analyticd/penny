@@ -69,7 +69,7 @@ data Opts
 parseArgs :: [String] -> Opts
 parseArgs ss =
   let opts = [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp) ]
-  in case MA.parse MA.Intersperse opts APosArg ss of
+  in case MA.simple MA.Intersperse opts APosArg ss of
       Ex.Exception e -> error . show $ e
       Ex.Success g ->
         if any (== AHelp) g

@@ -29,5 +29,6 @@ loadDb (Y.AllowNew allowNew) (Y.DbLocation dbLoc) = do
 saveDb :: Y.DbLocation -> Y.DbList -> IO ()
 saveDb (Y.DbLocation p) =
   writeFile p
+  .(++ "\n")
   . ppShow
 

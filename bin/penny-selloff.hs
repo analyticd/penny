@@ -164,7 +164,7 @@ data Flag
 parseCommandLine :: [String] -> Err ParseResult
 parseCommandLine ss =
   let os = [MA.OptSpec ["help"] "h" (MA.NoArg Help)]
-  in case MA.parse MA.Intersperse os PosArg ss of
+  in case MA.simple MA.Intersperse os PosArg ss of
     Ex.Exception e -> Ex.Exception . ParseFail $ e
     Ex.Success g ->
       if isJust . find (== Help) $ g
