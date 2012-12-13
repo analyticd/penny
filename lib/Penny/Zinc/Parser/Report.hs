@@ -1,7 +1,7 @@
 module Penny.Zinc.Parser.Report (report) where
 
 import System.Console.MultiArg.Prim (Parser)
-import qualified System.Console.MultiArg.Combinator as C
+import qualified System.Console.MultiArg as MA
 
 import qualified Penny.Cabin.Interface as I
 import qualified Data.Set as Set
@@ -20,7 +20,7 @@ report rs = do
   let toPair r = (I.name r, I.parseReport r)
       alist = map toPair rs
       set = Set.fromList . map fst $ alist
-  (_, n) <- C.matchApproxWord set
+  (_, n) <- MA.matchApproxWord set
   case lookup n alist of
     Nothing -> error $ "Penny.Zinc.Parser.Report: error: "
                ++ "report not found"
