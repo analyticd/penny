@@ -14,7 +14,7 @@ import qualified Data.Text.IO as TIO
 import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
 import qualified Penny.Zinc.Error as ZE
-import System.Console.MultiArg.Prim (Parser, nextArg)
+import System.Console.MultiArg.Prim (Parser, nextWord)
 import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
 
 
@@ -62,7 +62,7 @@ parseLedgers ls =
 
 
 filename :: Parser Filename
-filename = f <$> nextArg
+filename = f <$> nextWord
   where
     f a = if a == "-"
           then Stdin
