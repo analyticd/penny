@@ -25,7 +25,7 @@ module Penny.Liberty (
   parseTokenList,
   parsePredicate,
   parseInt,
-  
+
   -- * Parsers
   Operand,
   operandSpecs,
@@ -35,11 +35,10 @@ module Penny.Liberty (
   operatorSpecs,
   Orderer,
   sortSpecs,
-  
-  -- * Errors
-  abort
+
   ) where
 
+import Control.Applicative ((<*>), (<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper)
 import Data.List (isPrefixOf, sortBy)
@@ -205,11 +204,11 @@ getMatcher ::
   String
   -> CaseSensitive
   -> MatcherFactory
-  -> (Text -> Bool)
+  -> Ex.Exceptional String (Text -> Bool)
 
-getMatcher s cs f = Ex.resolve e $ f cs (pack s)
+getMatcher s cs f = Ex.mapException e (f cs (pack s))
   where
-    e err = abort $ "bad pattern: " ++ s ++ " error message: "
+    e err = "bad pattern: " ++ s ++ " error message: "
             ++ unpack err
 
 -- | Parses comparers given on command line to a function. Aborts if
@@ -217,30 +216,29 @@ getMatcher s cs f = Ex.resolve e $ f cs (pack s)
 parseComparer ::
   (Eq a, Ord a)
   => String
-  -> (a -> a -> Bool)
+  -> Ex.Exceptional String (a -> a -> Bool)
 parseComparer t
-  | t == "<" = (<)
-  | t == "<=" = (<=)
-  | t == "==" = (==)
-  | t == "=" = (==)
-  | t == ">" = (>)
-  | t == ">=" = (>=)
-  | t == "/=" = (/=)
-  | t == "!=" = (/=)
-  | otherwise = abort $ "invalid comparer: " ++ t
+  | t == "<" = return (<)
+  | t == "<=" = return (<=)
+  | t == "==" = return (==)
+  | t == "=" = return (==)
+  | t == ">" = return (>)
+  | t == ">=" = return (>=)
+  | t == "/=" = return (/=)
+  | t == "!=" = return (/=)
+  | otherwise = Ex.throw $ "invalid comparer: " ++ t
 
-parseDate :: Text -> L.DateTime
-parseDate t = case parse Pc.dateTime "" t of
-  Left _ -> abort $ "could not parse date: " ++ unpack t
-  Right d -> d
+parseDate :: String -> Ex.Exceptional String L.DateTime
+parseDate =
+  Ex.mapException f . Ex.fromEither . parse Pc.dateTime "" . pack
+  where
+    f msg = "invalid date: " ++ show msg
 
-date :: OptSpec Operand
+date :: OptSpec (Ex.Exceptional String Operand)
 date = C.OptSpec ["date"] ['d'] (C.TwoArg f)
   where
-    f a1 a2 =
-      let cmp = parseComparer a1
-          dt = parseDate (pack a2)
-      in X.Operand (P.date (`cmp` dt))
+    f a1 a2 = g <$> parseComparer a1 <*> parseDate a2
+    g cmp dt = X.Operand (P.date (`cmp` dt))
 
 
 current :: OptSpec (L.DateTime -> Operand)
@@ -256,7 +254,7 @@ current = C.OptSpec ["current"] [] (C.NoArg f)
 sepOption ::
   String
   -- ^ Long option name
-  
+
   -> Maybe Char
   -- ^ Short option name, if there is one
 
@@ -264,29 +262,27 @@ sepOption ::
   -- ^ When applied to a text that separates the different segments of
   -- the field, a matcher, and a posting, this function returns True
   -- if the posting matches the matcher or False if it does not.
-  
-  -> OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+
+  -> OptSpec ( CaseSensitive
+               -> MatcherFactory
+               -> Ex.Exceptional String Operand )
 sepOption str mc f = C.OptSpec [str] so (C.OneArg g)
   where
-    so = case mc of
-      Nothing -> []
-      Just c -> [c]
-    g a cs fty =
-      let m = getMatcher a cs fty
-      in X.Operand (f sep m)
+    so = maybe [] return mc
+    g a cs fty = h <$> getMatcher a cs fty
+      where
+        h mtr = X.Operand (f sep mtr)
 
 
 sep :: Text
 sep = Text.singleton ':'
 
 -- | Parses exactly one integer; fails if it cannot read exactly one.
-parseInt :: String -> Int
+parseInt :: String -> Ex.Exceptional String Int
 parseInt t =
-  let ps = reads t
-      err = abort $ "invalid number: " ++ t
-  in case ps of
-    ((i, s):[]) -> if length s /= 0 then err else i
-    _ -> err
+  case reads t of
+    ((i, ""):[]) -> return i
+    _ -> Ex.throw ("invalid number: " ++ t)
 
 -- | Creates options that take two arguments, with the first argument
 -- being the level to match, and the second being the pattern that
@@ -295,20 +291,20 @@ parseInt t =
 levelOption ::
   String
   -- ^ Long option name
-  
+
   -> (Int -> (Text -> Bool) -> L.PostFam -> Bool)
   -- ^ Applied to an integer, a matcher, and a PostingBox, this
   -- function returns True if a particular field in the posting
   -- matches the matcher given at the given level, or False otherwise.
-  
-  -> OptSpec (CaseSensitive -> MatcherFactory -> Operand)
-  
+
+  -> OptSpec ( CaseSensitive
+               -> MatcherFactory
+               -> Ex.Exceptional String Operand)
+
 levelOption str f = C.OptSpec [str] [] (C.TwoArg g)
   where
-      g a1 a2 cs fty =
-        let n = parseInt a1
-            m = getMatcher a2 cs fty
-        in X.Operand (f n m)
+    g a1 a2 cs fty = h <$> parseInt a1 <*> getMatcher a2 cs fty
+    h i m = X.Operand (f i m)
 
 
 -- | Creates options that add an operand that matches the posting if a
@@ -324,51 +320,73 @@ patternOption ::
   -- ^ When applied to a matcher and a PostingBox, this function
   -- returns True if the posting matches, or False if it does not.
 
-  -> OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+  -> OptSpec ( CaseSensitive
+               -> MatcherFactory
+               -> Ex.Exceptional String Operand )
 patternOption str mc f = C.OptSpec [str] so (C.OneArg g)
   where
     so = maybe [] (\c -> [c]) mc
-    g a1 cs fty =
-      let m = getMatcher a1 cs fty
-      in X.Operand (f m)
+    g a1 cs fty = h <$> getMatcher a1 cs fty
+    h m = X.Operand (f m)
+
 
 
 -- | The account option; matches if the pattern given matches the
 -- colon-separated account name.
-account :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+account :: OptSpec ( CaseSensitive
+                   -> MatcherFactory
+                   -> Ex.Exceptional String Operand )
 account = sepOption "account" (Just 'a') P.account
 
 -- | The account-level option; matches if the account at the given
 -- level matches.
-accountLevel :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+accountLevel :: OptSpec ( CaseSensitive
+                        -> MatcherFactory
+                        -> Ex.Exceptional String Operand)
 accountLevel = levelOption "account-level" P.accountLevel
 
 -- | The accountAny option; returns True if the matcher given matches
 -- a single sub-account name at any level.
-accountAny :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+accountAny :: OptSpec ( CaseSensitive
+                        -> MatcherFactory
+                        -> Ex.Exceptional String Operand )
 accountAny = patternOption "account-any" Nothing P.accountAny
 
 -- | The payee option; returns True if the matcher matches the payee
 -- name.
-payee :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+payee :: OptSpec ( CaseSensitive
+                 -> MatcherFactory
+                 -> Ex.Exceptional String Operand )
 payee = patternOption "payee" (Just 'p') P.payee
 
-tag :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)       
+tag :: OptSpec ( CaseSensitive
+                 -> MatcherFactory
+                 -> Ex.Exceptional String Operand)
 tag = patternOption "tag" (Just 't') P.tag
 
-number :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+number :: OptSpec ( CaseSensitive
+                    -> MatcherFactory
+                    -> Ex.Exceptional String Operand )
 number = patternOption "number" Nothing P.number
 
-flag :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+flag :: OptSpec ( CaseSensitive
+                  -> MatcherFactory
+                  -> Ex.Exceptional String Operand)
 flag = patternOption "flag" Nothing P.flag
 
-commodity :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+commodity :: OptSpec ( CaseSensitive
+                       -> MatcherFactory
+                       -> Ex.Exceptional String Operand)
 commodity = patternOption "commodity" Nothing P.commodity
 
-postingMemo :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+postingMemo :: OptSpec ( CaseSensitive
+                         -> MatcherFactory
+                         -> Ex.Exceptional String Operand)
 postingMemo = patternOption "posting-memo" Nothing P.postingMemo
 
-transactionMemo :: OptSpec (CaseSensitive -> MatcherFactory -> Operand)
+transactionMemo :: OptSpec ( CaseSensitive
+                             -> MatcherFactory
+                             -> Ex.Exceptional String Operand)
 transactionMemo = patternOption "transaction-memo"
                   Nothing P.transactionMemo
 
@@ -378,15 +396,15 @@ debit = C.OptSpec ["debit"] [] (C.NoArg (X.Operand P.debit))
 credit :: OptSpec Operand
 credit = C.OptSpec ["credit"] [] (C.NoArg (X.Operand P.credit))
 
-qtyOption :: OptSpec Operand
+qtyOption :: OptSpec (Ex.Exceptional String Operand)
 qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
   where
-    f a1 a2 =
-      let q = case parse Pc.quantity "" (pack a2) of
-            Left _ -> abort $ "invalid quantity: " ++ a2
-            Right g -> g
-          cmp = parseComparer a1
-      in X.Operand (P.qty (`cmp` q))
+    f a1 a2 = g <$> parseComparer a1 <*> parseQty a2
+    parseQty = Ex.mapException err . Ex.fromEither
+               . parse Pc.quantity "" . pack
+    err msg = "invalid quantity: " ++ show msg
+    g cmp qty = X.Operand (P.qty (`cmp` qty))
+
 
 -- | Creates two options suitable for comparison of serial numbers,
 -- one for ascending, one for descending.
@@ -399,7 +417,8 @@ serialOption ::
   -> String
   -- ^ Name of the command line option, such as @global-transaction@
 
-  -> (OptSpec Operand, OptSpec Operand)
+  -> ( OptSpec (Ex.Exceptional String Operand)
+     , OptSpec (Ex.Exceptional String Operand) )
   -- ^ Parses both descending and ascending serial options.
 
 serialOption getSerial n = (osA, osD)
@@ -408,13 +427,13 @@ serialOption getSerial n = (osA, osD)
           (C.TwoArg (f L.forward))
     osD = C.OptSpec [addPrefix "rev" n] []
           (C.TwoArg (f L.backward))
-    f getInt a1 a2 =
-      let cmp = parseComparer a1
-          i = parseInt a2
-          op pf = case getSerial pf of
-            Nothing -> False
-            Just ser -> getInt ser `cmp` i
-      in X.Operand op
+    f getInt a1 a2 = g <$> parseComparer a1 <*> parseInt a2
+      where
+        g cmp i =
+          let op pf = case getSerial pf of
+                Nothing -> False
+                Just ser -> getInt ser `cmp` i
+          in X.Operand op
 
 
 -- | Takes a string, adds a prefix and capitalizes the first letter of
@@ -426,7 +445,8 @@ addPrefix pre suf = pre ++ suf' where
     "" -> ""
     x:xs -> toUpper x : xs
 
-globalTransaction :: (OptSpec Operand, OptSpec Operand)
+globalTransaction :: ( OptSpec (Ex.Exceptional String Operand)
+                     , OptSpec (Ex.Exceptional String Operand) )
 globalTransaction =
   let f = fmap L.unGlobalTransaction
           . L.tGlobalTransaction
@@ -434,7 +454,8 @@ globalTransaction =
           . L.unPostFam
   in serialOption f "globalTransaction"
 
-globalPosting :: (OptSpec Operand, OptSpec Operand)
+globalPosting :: ( OptSpec (Ex.Exceptional String Operand)
+                 , OptSpec (Ex.Exceptional String Operand) )
 globalPosting =
   let f = fmap L.unGlobalPosting
           . L.pGlobalPosting
@@ -442,7 +463,8 @@ globalPosting =
           . L.unPostFam
   in serialOption f "globalPosting"
 
-filePosting :: (OptSpec Operand, OptSpec Operand)
+filePosting :: ( OptSpec (Ex.Exceptional String Operand)
+               , OptSpec (Ex.Exceptional String Operand) )
 filePosting =
   let f = fmap L.unFilePosting
           . L.pFilePosting
@@ -450,7 +472,8 @@ filePosting =
           . L.unPostFam
   in serialOption f "filePosting"
 
-fileTransaction :: (OptSpec Operand, OptSpec Operand)
+fileTransaction :: ( OptSpec (Ex.Exceptional String Operand)
+                   , OptSpec (Ex.Exceptional String Operand) )
 fileTransaction =
   let f = fmap L.unFileTransaction
           . L.tFileTransaction
@@ -458,8 +481,10 @@ fileTransaction =
           . L.unPostFam
   in serialOption f "fileTransaction"
 
-unDouble :: (OptSpec Operand, OptSpec Operand)
-            -> [OptSpec (a -> b -> c -> Operand)]
+unDouble
+  :: ( OptSpec (Ex.Exceptional String Operand)
+     , OptSpec (Ex.Exceptional String Operand) )
+  -> [ OptSpec (a -> b -> c -> Ex.Exceptional String Operand) ]
 unDouble (o1, o2) = [fmap f o1, fmap f o2]
   where
     f = (\g _ _ _ -> g)
@@ -469,11 +494,11 @@ unDouble (o1, o2) = [fmap f o1, fmap f o2]
 operandSpecs :: [OptSpec (L.DateTime
                           -> CaseSensitive
                           -> MatcherFactory
-                          -> Operand)]
+                          -> Ex.Exceptional String Operand)]
 
 operandSpecs =
   [ fmap (\f _ _ _ -> f) date
-  , fmap (\f dt _ _ -> f dt) current
+  , fmap (\f dt _ _ -> return (f dt)) current
   , wrapFactArg account
   , wrapFactArg accountLevel
   , wrapFactArg accountAny
@@ -484,8 +509,8 @@ operandSpecs =
   , wrapFactArg commodity
   , wrapFactArg postingMemo
   , wrapFactArg transactionMemo
-  , fmap (\f _ _ _ -> f) debit
-  , fmap (\f _ _ _  -> f) credit
+  , fmap (\f _ _ _ -> return f) debit
+  , fmap (\f _ _ _  -> return f) credit
   , fmap (\f _ _ _ -> f) qtyOption
   ]
   ++ unDouble globalTransaction
@@ -499,21 +524,24 @@ operandSpecs =
 -- Post filters
 ------------------------------------------------------------
 
-optHead :: OptSpec PostFilterFn
+optHead :: OptSpec (Ex.Exceptional String PostFilterFn)
 optHead = C.OptSpec ["head"] [] (C.OneArg f)
   where
-    f a _ ii =
-      let i = ItemIndex . parseInt $ a
-      in ii < i
+    f a = g <$> parseInt a
+      where
+        g i _ ii = ii < (ItemIndex i)
 
-optTail :: OptSpec PostFilterFn
+optTail :: OptSpec (Ex.Exceptional String PostFilterFn)
 optTail = C.OptSpec ["tail"] [] (C.OneArg f)
   where
-    f a (ListLength len) (ItemIndex ii) =
-      let i = parseInt a
-      in ii >= len - i
+    f a = g <$> parseInt a
+      where
+        g i (ListLength len) (ItemIndex ii) = ii >= len - i
 
-postFilterSpecs :: (OptSpec PostFilterFn, OptSpec PostFilterFn)
+
+
+postFilterSpecs :: ( OptSpec (Ex.Exceptional String PostFilterFn)
+                   , OptSpec (Ex.Exceptional String PostFilterFn) )
 postFilterSpecs = (optHead, optTail)
 
 ------------------------------------------------------------
@@ -605,7 +633,7 @@ capitalizeFirstLetter s = case s of
   (x:xs) -> toUpper x : xs
 
 ordPairs :: [(String, Orderer)]
-ordPairs = 
+ordPairs =
   [ ("payee", ordering Q.payee)
   , ("date", ordering Q.dateTime)
   , ("flag", ordering Q.flag)
@@ -624,15 +652,12 @@ ords = ordPairs ++ uppers where
     (capitalizeFirstLetter s, flipOrder f)
 
 
-sortSpecs :: OptSpec Orderer
+sortSpecs :: OptSpec (Ex.Exceptional String Orderer)
 sortSpecs = C.OptSpec ["sort"] ['s'] (C.OneArg f)
   where
     f a =
       let matches = filter (\p -> a `isPrefixOf` (fst p)) ords
       in case matches of
-        x:[] -> snd x
-        _ -> abort $ "invalid sort key: " ++ a
+        x:[] -> return $ snd x
+        _ -> Ex.throw $ "invalid sort key: " ++ a
 
-
-abort :: String -> a
-abort s = error $ "error: " ++ s
