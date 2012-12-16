@@ -1,11 +1,10 @@
 module Penny.Cabin.Posts.Parser (State(..),
                                  allSpecs) where
 
-import Control.Applicative ((<$>), pure, many, (<*>),
+import Control.Applicative ((<$>), pure, (<*>),
                             Applicative)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toLower)
-import Data.List (intersperse)
 import qualified Data.Foldable as Fdbl
 import qualified System.Console.MultiArg.Combinator as C
 import qualified System.Console.MultiArg as MA
@@ -37,26 +36,255 @@ data State = State {
 
 allSpecs
   :: S.Runtime -> [MA.OptSpec (State -> Ex.Exceptional String State)]
-allSpecs = undefined
+allSpecs rt =
+  operand rt
+  ++ boxFilters
+  ++ parsePostFilter
+  ++ matcherSelect
+  ++ caseSelect
+  ++ operator
+  ++ [ background
+     , color rt
+     , parseWidth
+     , showField
+     , hideField
+     , showAllFields
+     , hideAllFields
+     ]
+  ++ parseZeroBalances
+
 
 operand
   :: S.Runtime
   -> [MA.OptSpec (State -> Ex.Exceptional String State)]
-operand rt = map (fmap f) Ly.operandSpecs
+operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
   where
-    f lyFn st =
-      let dt = S.currentTime rt
-          cs = sensitive st
+    f lyFn st = do
+      let cs = sensitive st
           fty = factory st
-          g' = g . L.boxPostFam
+      (Exp.Operand g) <- lyFn cs fty
+      let g' = g . L.boxPostFam
           ts' = tokens st ++ [Exp.TokOperand g']
-      in do
-        op <- lyFn dt cs fty
-        let g' = 
-          (Exp.Operand g) = lyFn dt cs fty
-      in st { tokens = ts' }
+      return $ st { tokens = ts' }
 
 
+-- | Processes a option for box-level serials.
+optBoxSerial ::
+  [String]
+  -- ^ Long options
+
+  -> [Char]
+  -- ^ Short options
+
+  -> (Ly.LibertyMeta -> Int)
+  -- ^ Pulls the serial from the PostMeta
+
+  -> C.OptSpec (State -> Ex.Exceptional String State)
+
+optBoxSerial ls ss f = C.OptSpec ls ss (C.TwoArg g)
+  where
+    g a1 a2 st = do
+      cmp <- Ly.parseComparer a1
+      i <- Ly.parseInt a2
+      let h box =
+            let ser = f . L.boxMeta $ box
+            in ser `cmp` i
+          tok = Exp.TokOperand h
+      return $ st { tokens = tokens st ++ [tok] }
+
+optFilteredNum :: C.OptSpec (State -> Ex.Exceptional String State)
+optFilteredNum = optBoxSerial ["filtered"] "" f
+  where
+    f = L.forward . Ly.unFilteredNum . Ly.filteredNum
+
+optRevFilteredNum :: C.OptSpec (State -> Ex.Exceptional String State)
+optRevFilteredNum = optBoxSerial ["revFiltered"] "" f
+  where
+    f = L.backward . Ly.unFilteredNum . Ly.filteredNum
+
+optSortedNum :: C.OptSpec (State -> Ex.Exceptional String State)
+optSortedNum = optBoxSerial ["sorted"] "" f
+  where
+    f = L.forward . Ly.unSortedNum . Ly.sortedNum
+
+optRevSortedNum :: C.OptSpec (State -> Ex.Exceptional String State)
+optRevSortedNum = optBoxSerial ["revSorted"] "" f
+  where
+    f = L.backward . Ly.unSortedNum . Ly.sortedNum
+
+boxFilters :: [C.OptSpec (State -> Ex.Exceptional String State)]
+boxFilters =
+  [ optFilteredNum
+  , optRevFilteredNum
+  , optSortedNum
+  , optRevSortedNum
+  ]
+
+
+parsePostFilter :: [C.OptSpec (State -> Ex.Exceptional String State)]
+parsePostFilter = [fmap f optH, fmap f optT]
+  where
+    (optH, optT) = Ly.postFilterSpecs
+    f exc = case exc of
+      Ex.Exception s -> const $ Ex.throw s
+      Ex.Success pf ->
+        let g st = return $ st { postFilter = postFilter st ++ [pf] }
+        in g
+
+
+matcherSelect :: Applicative f => [C.OptSpec (State -> f State)]
+matcherSelect = map (fmap f) Ly.matcherSelectSpecs
+  where
+    f mf st = pure $ st { factory = mf }
+
+
+caseSelect :: Applicative f => [C.OptSpec (State -> f State)]
+caseSelect = map (fmap f) Ly.caseSelectSpecs
+  where
+    f cs st = pure $ st { sensitive = cs }
+
+operator :: Applicative f => [C.OptSpec (State -> f State)]
+operator = map (fmap f) Ly.operatorSpecs
+  where
+    f oo st = pure $ st { tokens = tokens st ++ [oo] }
+
+color :: Applicative f => S.Runtime -> C.OptSpec (State -> f State)
+color rt = fmap f P.color
+  where
+    f pref st = pure $ st { colorPref = CO.autoColors pref rt }
+
+background :: Applicative f => C.OptSpec (State -> f State)
+background = fmap f P.background
+  where
+    f (dc, bc) st = pure $ st { drCrColors = dc
+                              , baseColors = bc }
+
+parseWidth :: C.OptSpec (State -> Ex.Exceptional String State)
+parseWidth = C.OptSpec ["width"] "" (C.OneArg f)
+  where
+    f a1 st = do
+      i <- Ly.parseInt a1
+      return $ st { width = Ty.ReportWidth i }
+
+parseField :: String -> Ex.Exceptional String (F.Fields Bool)
+parseField str =
+  let lower = map toLower str
+      checkField s =
+        if (map toLower s) == lower
+        then (s, True)
+        else (s, False)
+      flds = checkField <$> fieldNames
+  in checkFields flds
+
+
+-- | Turns a field on if it is True.
+fieldOn ::
+  F.Fields Bool
+  -- ^ Fields as seen so far
+
+  -> F.Fields Bool
+  -- ^ Record that should have one True element indicating a field
+  -- name seen on the command line; other elements should be False
+
+  -> F.Fields Bool
+  -- ^ Fields as seen so far, with new field added
+
+fieldOn old new = (||) <$> old <*> new
+
+-- | Turns off a field if it is True.
+fieldOff ::
+  F.Fields Bool
+  -- ^ Fields seen so far
+
+  -> F.Fields Bool
+  -- ^ Record that should have one True element indicating a field
+  -- name seen on the command line; other elements should be False
+
+  -> F.Fields Bool
+  -- ^ Fields as seen so far, with new field added
+
+fieldOff old new = f <$> old <*> new
+  where
+    f o False = o
+    f _ True = False
+
+showField :: C.OptSpec (State -> Ex.Exceptional String State)
+showField = C.OptSpec ["show"] "" (C.OneArg f)
+  where
+    f a1 st = do
+      fl <- parseField a1
+      let newFl = fieldOn (fields st) fl
+      return $ st { fields = newFl }
+
+hideField :: C.OptSpec (State -> Ex.Exceptional String State)
+hideField = C.OptSpec ["hide"] "" (C.OneArg f)
+  where
+    f a1 st = do
+      fl <- parseField a1
+      let newFl = fieldOff (fields st) fl
+      return $ st { fields = newFl }
+
+showAllFields :: Applicative f => C.OptSpec (State -> f State)
+showAllFields = C.OptSpec ["show-all"] "" (C.NoArg f)
+  where
+    f st = pure $ st {fields = pure True}
+
+hideAllFields :: Applicative f => C.OptSpec (State -> f State)
+hideAllFields = C.OptSpec ["hide-all"] "" (C.NoArg f)
+  where
+    f st = pure $ st {fields = pure False}
+
+
+parseZeroBalances :: Applicative f => [C.OptSpec (State -> f State)]
+parseZeroBalances = map (fmap f) P.zeroBalances
+  where
+    f szb st = pure $ st { showZeroBalances = szb }
+
+-- | Checks the fields with the True value to ensure there is only one.
+checkFields ::
+  F.Fields (String, Bool)
+  -> Ex.Exceptional String (F.Fields Bool)
+checkFields fs =
+  let f (s, b) ls = if b then s:ls else ls
+  in case Fdbl.foldr f [] fs of
+    [] -> Ex.throw "no matching field names"
+    _:[] -> return (snd <$> fs)
+    _ -> Ex.throw "multiple matching field names"
+
+
+
+fieldNames :: F.Fields String
+fieldNames = F.Fields
+  { F.globalTransaction    = "globalTransaction"
+  , F.revGlobalTransaction = "revGlobalTransaction"
+  , F.globalPosting        = "globalPosting"
+  , F.revGlobalPosting     = "revGlobalPosting"
+  , F.fileTransaction      = "fileTransaction"
+  , F.revFileTransaction   = "revFileTransaction"
+  , F.filePosting          = "filePosting"
+  , F.revFilePosting       = "revFilePosting"
+  , F.filtered             = "filtered"
+  , F.revFiltered          = "revFiltered"
+  , F.sorted               = "sorted"
+  , F.revSorted            = "revSorted"
+  , F.visible              = "visible"
+  , F.revVisible           = "revVisible"
+  , F.lineNum              = "lineNum"
+  , F.date                 = "date"
+  , F.flag                 = "flag"
+  , F.number               = "number"
+  , F.payee                = "payee"
+  , F.account              = "account"
+  , F.postingDrCr          = "postingDrCr"
+  , F.postingCmdty         = "postingCmdty"
+  , F.postingQty           = "postingQty"
+  , F.totalDrCr            = "totalDrCr"
+  , F.totalCmdty           = "totalCmdty"
+  , F.totalQty             = "totalQty"
+  , F.tags                 = "tags"
+  , F.memo                 = "memo"
+  , F.filename             = "filename"
+  }
 
 {-
 -- | Parses the command line from the first word remaining up until,
@@ -94,227 +322,6 @@ parseOption = C.parseOption ls
       ++ parseZeroBalances
 
 
--- | Processes a option for box-level serials.
-optBoxSerial ::
-  [String]
-  -- ^ Long options
-  
-  -> [Char]
-  -- ^ Short options
-  
-  -> (Ly.LibertyMeta -> Int)
-  -- ^ Pulls the serial from the PostMeta
-  
-  -> C.OptSpec (State -> State)
-
-optBoxSerial ls ss f = C.OptSpec ls ss (C.TwoArg g)
-  where
-    g a1 a2 st =
-      let cmp = Ly.parseComparer a1
-          i = Ly.parseInt a2
-          h box =
-            let ser = f . L.boxMeta $ box
-            in ser `cmp` i
-          tok = Exp.TokOperand h
-      in st { tokens = tokens st ++ [tok] }
-
-optFilteredNum :: C.OptSpec (State -> State)
-optFilteredNum = optBoxSerial ["filtered"] "" f
-  where
-    f = L.forward . Ly.unFilteredNum . Ly.filteredNum
-
-optRevFilteredNum :: C.OptSpec (State -> State)
-optRevFilteredNum = optBoxSerial ["revFiltered"] "" f
-  where
-    f = L.backward . Ly.unFilteredNum . Ly.filteredNum
-
-optSortedNum :: C.OptSpec (State -> State)
-optSortedNum = optBoxSerial ["sorted"] "" f
-  where
-    f = L.forward . Ly.unSortedNum . Ly.sortedNum
-
-optRevSortedNum :: C.OptSpec (State -> State)
-optRevSortedNum = optBoxSerial ["revSorted"] "" f
-  where
-    f = L.backward . Ly.unSortedNum . Ly.sortedNum
-
-boxFilters :: [C.OptSpec (State -> State)]
-boxFilters =
-  [ optFilteredNum
-  , optRevFilteredNum
-  , optSortedNum
-  , optRevSortedNum
-  ]
 
 
-parsePostFilter :: [C.OptSpec (State -> State)]
-parsePostFilter = [fmap f optH, fmap f optT]
-  where
-    (optH, optT) = Ly.postFilterSpecs
-    f pf st = st { postFilter = postFilter st ++ [pf] }
-
-matcherSelect :: [C.OptSpec (State -> State)]
-matcherSelect = map (fmap f) Ly.matcherSelectSpecs
-  where
-    f mf st = st { factory = mf }
-
-caseSelect :: [C.OptSpec (State -> State)]
-caseSelect = map (fmap f) Ly.caseSelectSpecs
-  where
-    f cs st = st { sensitive = cs }
-
-operator :: [C.OptSpec (State -> State)]
-operator = map (fmap f) Ly.operatorSpecs
-  where
-    f oo st = st { tokens = tokens st ++ [oo] }
-
-color :: C.OptSpec (S.Runtime -> State -> State)
-color = fmap f P.color
-  where
-    f pref rt st = st { colorPref = CO.autoColors pref rt }
-
-
-background :: C.OptSpec (State -> State)
-background = fmap f P.background
-  where
-    f (dc, bc) st = st { drCrColors = dc
-                       , baseColors = bc }
-
-
-parseWidth :: C.OptSpec (State -> State)
-parseWidth = C.OptSpec ["width"] "" (C.OneArg f)
-  where
-    f a1 st = st { width = Ty.ReportWidth (Ly.parseInt a1) }
-
-showField :: C.OptSpec (State -> State)
-showField = C.OptSpec ["show"] "" (C.OneArg f)
-  where
-    f a1 st =
-      let fl = parseField a1
-          newFl = fieldOn (fields st) fl
-      in st { fields = newFl }
-
-hideField :: C.OptSpec (State -> State)
-hideField = C.OptSpec ["hide"] "" (C.OneArg f)
-  where
-    f a1 st =
-      let fl = parseField a1
-          newFl = fieldOff (fields st) fl
-      in st { fields = newFl }
-
-
-showAllFields :: C.OptSpec (State -> State)
-showAllFields = C.OptSpec ["show-all"] "" (C.NoArg f)
-  where
-    f st = st {fields = pure True}
-
-hideAllFields :: C.OptSpec (State -> State)
-hideAllFields = C.OptSpec ["hide-all"] "" (C.NoArg f)
-  where
-    f st = st {fields = pure False}
-
-parseZeroBalances :: [C.OptSpec (State -> State)]
-parseZeroBalances = map (fmap f) P.zeroBalances
-  where
-    f szb st = st { showZeroBalances = szb }
-
--- | Turns a field on if it is True.
-fieldOn ::
-  F.Fields Bool
-  -- ^ Fields as seen so far
-
-  -> F.Fields Bool
-  -- ^ Record that should have one True element indicating a field
-  -- name seen on the command line; other elements should be False
-  
-  -> F.Fields Bool
-  -- ^ Fields as seen so far, with new field added
-
-fieldOn old new = (||) <$> old <*> new
-
--- | Turns off a field if it is True.
-fieldOff ::
-  F.Fields Bool
-  -- ^ Fields seen so far
-  
-  -> F.Fields Bool
-  -- ^ Record that should have one True element indicating a field
-  -- name seen on the command line; other elements should be False
-  
-  -> F.Fields Bool
-  -- ^ Fields as seen so far, with new field added
-
-fieldOff old new = f <$> old <*> new
-  where
-    f o False = o
-    f _ True = False
-
-parseField :: String -> (F.Fields Bool)
-parseField str =
-  let lower = map toLower str
-      checkField s =
-        if (map toLower s) == lower
-        then (s, True)
-        else (s, False)
-      flds = checkField <$> fieldNames
-      err e = case e of
-        NoMatchingFieldName ->
-          Ly.abort $ "no matching field name: " ++ str
-        MultipleMatchingFieldNames ns ->
-          Ly.abort $ "multiple field names match: "
-          ++ str ++ " matches: "
-          ++ (concat . intersperse ", " $ ns)
-  in Ex.resolve err (checkFields flds)
-
-
-data CheckFieldsError =
-  NoMatchingFieldName
-  | MultipleMatchingFieldNames [String]
-
-
--- | Checks the fields with the True value to ensure there is only one.
-checkFields ::
-  F.Fields (String, Bool)
-  -> Ex.Exceptional CheckFieldsError (F.Fields Bool)
-checkFields fs =
-  let f (s, b) ls = if b then s:ls else ls
-  in case Fdbl.foldr f [] fs of
-    [] -> Ex.throw NoMatchingFieldName
-    _:[] -> return (snd <$> fs)
-    ls -> Ex.throw . MultipleMatchingFieldNames $ ls
-
-
-
-fieldNames :: F.Fields String
-fieldNames = F.Fields
-  { F.globalTransaction    = "globalTransaction"
-  , F.revGlobalTransaction = "revGlobalTransaction"
-  , F.globalPosting        = "globalPosting"
-  , F.revGlobalPosting     = "revGlobalPosting"
-  , F.fileTransaction      = "fileTransaction"
-  , F.revFileTransaction   = "revFileTransaction"
-  , F.filePosting          = "filePosting"
-  , F.revFilePosting       = "revFilePosting"
-  , F.filtered             = "filtered"
-  , F.revFiltered          = "revFiltered"
-  , F.sorted               = "sorted"
-  , F.revSorted            = "revSorted"
-  , F.visible              = "visible"
-  , F.revVisible           = "revVisible"
-  , F.lineNum              = "lineNum"
-  , F.date                 = "date"
-  , F.flag                 = "flag"
-  , F.number               = "number"
-  , F.payee                = "payee"
-  , F.account              = "account"
-  , F.postingDrCr          = "postingDrCr"
-  , F.postingCmdty         = "postingCmdty"
-  , F.postingQty           = "postingQty"
-  , F.totalDrCr            = "totalDrCr"
-  , F.totalCmdty           = "totalCmdty"
-  , F.totalQty             = "totalQty"
-  , F.tags                 = "tags"
-  , F.memo                 = "memo"
-  , F.filename             = "filename"
-  }
 -}
