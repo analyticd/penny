@@ -268,7 +268,7 @@ Library
         Penny.Zinc.Parser,
         Penny.Zinc.Parser.Defaults,
         Penny.Zinc.Parser.Filter,
-        Penny.Zinc.Parser.Ledgers,
+        Penny.Zinc.Parser.Ledgers
 
 
     ghc-options: -Wall

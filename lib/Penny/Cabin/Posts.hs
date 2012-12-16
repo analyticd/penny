@@ -33,10 +33,9 @@
 -- show various fields. However, the order of the fields is not
 -- configurable without editing the source code (sorry).
 
-module Penny.Cabin.Posts (
-  postsReport
-  , parseReport
-  , makeReport
+module Penny.Cabin.Posts
+  ( postsReport
+  , zincReport
   , defaultOptions
   , ZincOpts(..)
   , A.Alloc
@@ -52,7 +51,9 @@ module Penny.Cabin.Posts (
   ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Data.Either as Ei
 import qualified Data.Text as X
+import qualified Data.Text.Lazy as XL
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Colors.DarkBackground as Dark
@@ -75,7 +76,7 @@ import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as Sh
 
 import Data.Time as Time
-import System.Console.MultiArg.Prim (Parser)
+import qualified System.Console.MultiArg as MA
 import System.Locale (defaultTimeLocale)
 import Text.Matchers.Text (CaseSensitive)
 
@@ -87,12 +88,12 @@ postsReport ::
   -- ^ Removes posts from the report if applying this function to the
   -- post returns False. Posts removed still affect the running
   -- balance.
-  
+
   -> [Ly.PostFilterFn]
   -- ^ Applies these post-filters to the list of posts that results
   -- from applying the predicate above. Might remove more
   -- postings. Postings removed still affect the running balance.
-    
+
   -> C.ChunkOpts
   -> [L.Box Ly.LibertyMeta]
   -> [CC.Chunk]
@@ -102,30 +103,52 @@ postsReport szb pdct pff co =
   . M.toBoxList szb pdct pff
 
 
-parseReport ::
-  (Sh.Runtime -> ZincOpts)
-  -> Parser I.ReportFunc
-parseReport frt = do
-  getState <- P.parseOptions
-  let rf rt cs fty ps _ = do
-        let zo = frt rt
-            st' = getState rt st
-              where
-                st = newParseState cs fty zo
-        pdct <- getPredicate . P.tokens $ st'
-        let chks = postsReport (P.showZeroBalances st') pdct
-                   (P.postFilter st') (chunkOpts st' zo) ps
-        return . CC.chunksToText (P.colorPref st') $ chks
-  return rf
 
+zincReport :: (Sh.Runtime -> ZincOpts) -> I.Report
+zincReport mkOpts = (H.help, mkMode)
+  where
+    mkMode rt cs fty fsf = MA.Mode
+      { MA.mId = ()
+      , MA.mName = "postings"
+      , MA.mIntersperse = MA.Intersperse
+      , MA.mOpts = map (fmap Right) (P.allSpecs rt)
+      , MA.mPosArgs = Left
+      , MA.mProcess = process mkOpts rt cs fty fsf
+      }
 
-makeReport ::
-  (Sh.Runtime -> ZincOpts)
-  -> I.Report
-makeReport frt = I.Report {
-  I.help = H.help
-  , I.name = "postings"
-  , I.parseReport = parseReport frt }
+process
+  :: (Sh.Runtime -> ZincOpts)
+  -> Sh.Runtime
+  -> CaseSensitive
+  -> L.Factory
+  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -> [Either String (P.State -> Ex.Exceptional String P.State)]
+  -> Ex.Exceptional String ([String], I.PrintReport)
+process getOpts rt cs fty fsf ls =
+  let (posArgs, clOpts) = Ei.partitionEithers ls
+      os = getOpts rt
+      pState = newParseState cs fty os
+      exState' = foldl (>>=) (return pState) clOpts
+  in fmap (mkPrintReport posArgs os fsf) exState'
+
+mkPrintReport
+  :: [String]
+  -> ZincOpts
+  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -> P.State
+  -> ([String], [L.Transaction]
+                -> [L.PricePoint]
+                -> Ex.Exceptional X.Text XL.Text)
+mkPrintReport posArgs zo fsf st = (posArgs, f)
+  where
+    f txns _ = fmap mkChunks exPdct
+      where
+        exPdct = getPredicate (P.tokens st)
+        mkChunks pdct = CC.chunksToText (P.colorPref st) chks
+          where
+            chks = postsReport (P.showZeroBalances st) pdct
+                   (P.postFilter st) (chunkOpts st zo) boxes
+            boxes = fsf txns
 
 
 defaultOptions
@@ -225,7 +248,7 @@ data ZincOpts = ZincOpts
   }
 
 chunkOpts ::
-  P.State 
+  P.State
   -> ZincOpts
   -> C.ChunkOpts
 chunkOpts s z = C.ChunkOpts {
