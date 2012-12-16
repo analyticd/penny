@@ -52,7 +52,10 @@ handleParseResult
   -> Ex.Exceptional MA.Error (a, Either b (c, I.ParseResult))
   -> IO ()
 handleParseResult rs r =
-  case r of
+  let showErr e = do
+        IO.hPutStr IO.stderr $ "penny: error: " ++ e
+        exitFailure
+  in case r of
     Ex.Exception e -> do
       IO.hPutStr IO.stderr $ MA.formatError "penny" e
       exitFailure
@@ -61,15 +64,14 @@ handleParseResult rs r =
         Left _ -> do
           StrictIO.putStr (helpText rs)
           exitSuccess
-        Right (_, (fns, pr)) -> do
-          ledgers <- L.readLedgers fns
-          let showErr e = do
-                IO.hPutStr IO.stderr $ "penny: error: " ++ e
-                exitFailure
-          (txns, pps) <- Ex.switch showErr return
-                         $ L.parseLedgers ledgers
-          Ex.switch (showErr . X.unpack)
-            LazyIO.putStr $ pr txns pps
+        Right (_, ex) -> case ex of
+          Ex.Exception s -> showErr s
+          Ex.Success (fns, pr) -> do
+            ledgers <- L.readLedgers fns
+            (txns, pps) <- Ex.switch showErr return
+                           $ L.parseLedgers ledgers
+            Ex.switch (showErr . X.unpack)
+              LazyIO.putStr $ pr txns pps
 
 helpText ::
   [I.Report]

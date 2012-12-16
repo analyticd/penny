@@ -5,20 +5,21 @@ module Penny.Cabin.Balance.Convert.Parser (
   , Sorter
   , SortOrder(..)
   , SortBy(..)
-  , parseOpts)
-  where
+  , allOptSpecs
+  ) where
 
-import Control.Applicative ((<$>), many)
+
+import Control.Applicative ((<$>))
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Lincoln as L
-import qualified Penny.Liberty as Ly
 import qualified Penny.Copper.Parsec as Pc
 import qualified System.Console.MultiArg.Combinator as C
 import qualified Text.Parsec as Parsec
-import System.Console.MultiArg.Prim (Parser)
+
 
 -- | Is the target commodity determined by the user or automatically?
 data Target = AutoTarget | ManualTarget L.To
@@ -44,27 +45,23 @@ data Opts = Opts {
   , sortBy :: SortBy
   }
 
--- | Parses all options for the Convert report.
-parseOpts :: Parser (Opts -> Opts)
-parseOpts = fmap f (many (C.parseOption allOptSpecs))
-  where
-    f = foldl (flip (.)) id
-
 -- | Do not be tempted to change the setup in this module so that the
 -- individual functions such as parseColor and parseBackground return
 -- parsers rather than OptSpec. Such an arrangement breaks the correct
 -- parsing of abbreviated long options.
-allOptSpecs :: [C.OptSpec (Opts -> Opts)]
+allOptSpecs :: [C.OptSpec (Opts -> Ex.Exceptional String Opts)]
 allOptSpecs =
-  [ parseColor
-  , parseBackground ]
-  ++ parseZeroBalances
+  [ fmap toExc parseColor
+  , fmap toExc parseBackground ]
+  ++ map (fmap toExc) parseZeroBalances
   ++
   [ parseCommodity
   , parseDate
-  , parseSort
-  , parseAscending
-  , parseDescending ]
+  , fmap toExc parseSort
+  , fmap toExc parseAscending
+  , fmap toExc parseDescending ]
+  where
+    toExc f = return . f
 
 parseColor ::  C.OptSpec (Opts -> Opts)
 parseColor = (\c o -> o { colorPref = c }) <$> P.color
@@ -79,21 +76,21 @@ parseZeroBalances =
   map (fmap (\z o -> o { showZeroBalances = z })) P.zeroBalances
 
 
-parseCommodity :: C.OptSpec (Opts -> Opts)
+parseCommodity :: C.OptSpec (Opts -> Ex.Exceptional String Opts)
 parseCommodity = C.OptSpec ["commodity"] "c" (C.OneArg f)
   where
     f a1 os =
       case Parsec.parse Pc.lvl1Cmdty "" (X.pack a1) of
-        Left _ -> Ly.abort $ "invalid commodity: " ++ a1
-        Right g -> os { target = ManualTarget . L.To $ g }
+        Left _ -> Ex.throw $ "invalid commodity: " ++ a1
+        Right g -> return $ os { target = ManualTarget . L.To $ g }
 
-parseDate :: C.OptSpec (Opts -> Opts)
+parseDate :: C.OptSpec (Opts -> Ex.Exceptional String Opts)
 parseDate = C.OptSpec ["date"] "d" (C.OneArg f)
   where
     f a1 os =
       case Parsec.parse Pc.dateTime "" (X.pack a1) of
-        Left _ -> Ly.abort $ "invalid date: " ++ a1
-        Right g -> os { dateTime = g }
+        Left _ -> Ex.throw $ "invalid date: " ++ a1
+        Right g -> return $ os { dateTime = g }
 
 parseSort :: C.OptSpec (Opts -> Opts)
 parseSort = C.OptSpec ["sort"] "s" (C.ChoiceArg ls)

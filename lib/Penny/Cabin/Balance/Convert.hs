@@ -26,9 +26,11 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as S
+import qualified Data.Either as Ei
 import qualified Data.Map as M
 import qualified Data.Text as X
 import Data.Monoid (mempty, mappend, mconcat)
+import qualified System.Console.MultiArg as MA
 
 -- | Options for the Convert report. These are the only options you
 -- need to use if you are supplying options programatically (as
@@ -162,6 +164,44 @@ report os@(Opts dc bc fmt _ _ _ _) ps bs =
 cmdLineReport
   :: (S.Runtime -> O.DefaultOpts)
   -> I.Report
+cmdLineReport mkOpts = (H.help, mkMode)
+  where
+    mkMode rt _ _ fsf = MA.Mode
+      { MA.mId = ()
+      , MA.mName = "convert"
+      , MA.mIntersperse = MA.Intersperse
+      , MA.mOpts = map (fmap Right) P.allOptSpecs
+      , MA.mPosArgs = Left
+      , MA.mProcess = process rt mkOpts fsf }
+
+process
+  :: S.Runtime
+  -> (S.Runtime -> O.DefaultOpts)
+  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
+  -> Ex.Exceptional String ([String], I.PrintReport)
+process rt mkOpts fsf ls = do
+  let defaultOpts = mkOpts rt
+      (posArgs, parsed) = Ei.partitionEithers ls
+      op' = foldl (>>=) (return (O.toParserOpts defaultOpts)) parsed
+  case op' of
+      Ex.Exception s -> Ex.throw s
+      Ex.Success g ->
+        let noDefault = X.pack "no default price found"
+            pr ts pps = do
+              rptOpts <- Ex.fromMaybe noDefault $
+                fromParsedOpts pps (O.format defaultOpts) g
+              let boxes = fsf ts
+                  colors = CO.autoColors (P.colorPref g) rt
+              cks <- report rptOpts pps boxes
+              return $ Chunk.chunksToText colors cks
+        in return (posArgs, pr)
+
+{-
+    process opts = do
+      let (posArgs, fOpts) = Ei.partitionEithers opts
+-}
+{-
 cmdLineReport toOpts = I.Report H.help "convert" parser
   where
     parser = fmap f P.parseOpts
@@ -175,14 +215,14 @@ cmdLineReport toOpts = I.Report H.help "convert" parser
                  $ fromParsedOpts ps (O.format defaultOpts) op'
       cks <- report rptOpts ps bs
       return $ Chunk.chunksToText colors cks
-
+-}
 
 -- | Sums the balances from the bottom to the top of the tree (so that
 -- parent accounts have the sum of the balances of all their
 -- children.) Then converts the commodities to a single commodity, and
 -- sorts the accounts as requested. Fails if the conversion fails.
-sumConvertSort ::
-  Opts
+sumConvertSort
+  :: Opts
   -> [L.PricePoint]
   -> [L.Box a]
   -> Ex.Exceptional X.Text ForestAndBL

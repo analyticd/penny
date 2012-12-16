@@ -13,8 +13,9 @@ import qualified Penny.Liberty as Ly
 import Penny.Shield (Runtime)
 
 -- | The function that will print the report, and the positional
--- arguments.
-type ParseResult = ([String], PrintReport)
+-- arguments. If there was a problem parsing the command line options,
+-- return an Exception with an error message.
+type ParseResult = Exceptional String ([String], PrintReport)
 
 type PrintReport
   = [L.Transaction]
@@ -27,7 +28,8 @@ type PrintReport
   -> Exceptional X.Text XL.Text
   -- ^ The exception type is a strict Text, containing the error
   -- message. The success type is a lazy Text, containing the
-  -- resulting report.
+  -- resulting report. This allows for errors after the list of
+  -- transactions has been seen.
 
 
 -- | The strict Text containing a help message, and a function to make
