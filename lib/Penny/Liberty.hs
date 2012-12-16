@@ -11,7 +11,7 @@ module Penny.Liberty (
   Error(..),
   MatcherFactory,
   X.evaluate,
-  X.Token,
+  X.Token(..),
   FilteredNum(FilteredNum, unFilteredNum),
   SortedNum(SortedNum, unSortedNum),
   LibertyMeta(filteredNum, sortedNum),
@@ -99,7 +99,7 @@ parsePredicate ls = case ls of
 -- instances, filters them, post-filters them, sorts them, and places
 -- them in Box instances with Filtered serials.
 xactionsToFiltered ::
-  
+
   (L.PostFam -> Bool)
   -- ^ The predicate to filter the transactions
 
@@ -111,7 +111,7 @@ xactionsToFiltered ::
 
   -> [L.Transaction]
   -- ^ The transactions to work on (probably parsed in from Copper)
-  
+
   -> [L.Box LibertyMeta]
   -- ^ Sorted, filtered postings
 

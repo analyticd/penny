@@ -1,11 +1,10 @@
 module Penny.Zinc.Parser.Ledgers (
     Filename
-  , filenames
   , parseLedgers
   , readLedgers
   ) where
 
-import Control.Applicative ((<$>), many, optional)
+import Control.Applicative ((<$>))
 import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Text (Text, pack, unpack)
@@ -13,8 +12,6 @@ import qualified Data.Text.IO as TIO
 
 import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
-import qualified Penny.Zinc.Error as ZE
-import System.Console.MultiArg.Prim (Parser, nextWord)
 import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
 
 
@@ -42,13 +39,23 @@ ledgerText f = case f of
     TIO.hGetContents stdin
   Filename fn -> TIO.readFile (unpack fn)
 
-readLedgers :: [Filename] -> IO [(Filename, Text)]
-readLedgers = mapM f where
-  f fn = (\txt -> (fn, txt)) <$> ledgerText fn
+-- | Converts a string from the command line to a Filename.
+toFilename :: String -> Filename
+toFilename s =
+  if s == "-"
+  then Stdin
+  else Filename . pack $ s
+
+readLedgers :: [String] -> IO [(Filename, Text)]
+readLedgers ss =
+  let fns = if null ss then [Stdin] else map toFilename ss
+      f fn = (\txt -> (fn, txt)) <$> ledgerText fn
+  in mapM f fns
+
 
 parseLedgers
   :: [(Filename, Text)]
-  -> Ex.Exceptional ZE.Error ([L.Transaction], [L.PricePoint])
+  -> Ex.Exceptional String ([L.Transaction], [L.PricePoint])
 parseLedgers ls =
   let toPair (f, t) = (convertFilename f, C.FileContents t)
       parsed = C.parse (map toPair ls)
@@ -57,22 +64,7 @@ parseLedgers ls =
         C.PricePoint p -> (ts, p:ps)
         _ -> (ts, ps)
       toResult (C.Ledger is) = foldr folder ([], []) is
-      toErr x = ZE.ParseError . C.unErrorMsg $ x
+      toErr x = "could not parse ledger: "
+                ++ (unpack . C.unErrorMsg $ x)
   in Ex.mapExceptional toErr toResult parsed
 
-
-filename :: Parser Filename
-filename = f <$> nextWord
-  where
-    f a = if a == "-"
-          then Stdin
-          else Filename . pack $ a
-
-filenames :: Parser [Filename]
-filenames = do
-  fn1 <- optional filename
-  case fn1 of
-    Nothing -> return [Stdin]
-    Just fn -> do
-      fns <- many filename
-      return (fn:fns)

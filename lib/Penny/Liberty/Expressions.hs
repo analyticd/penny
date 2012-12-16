@@ -1,8 +1,8 @@
 module Penny.Liberty.Expressions (
   I.Precedence(Precedence),
-  
+
   I.Associativity(ALeft, ARight),
-  
+
   I.Token(TokOperand,
           TokUnaryPostfix,
           TokUnaryPrefix,
@@ -10,7 +10,7 @@ module Penny.Liberty.Expressions (
           TokOpenParen,
           TokCloseParen),
 
-  R.Operand(Operand),
+  R.Operand(..),
   tokAnd,
   tokOr,
   tokNot,

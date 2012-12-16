@@ -6,14 +6,36 @@ import Control.Monad.Exception.Synchronous (Exceptional)
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL
 import Text.Matchers.Text (CaseSensitive)
-import System.Console.MultiArg.Prim (Parser)
+import qualified System.Console.MultiArg as MA
 
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import Penny.Shield (Runtime)
 
-type ReportFunc =
-  Runtime
+-- | The function that will print the report, and the positional
+-- arguments.
+type ParseResult = ([String], PrintReport)
+
+type PrintReport
+  = [L.Transaction]
+  -- ^ All transactions; the report must sort and filter them
+
+  -> [L.PricePoint]
+  -- ^ PricePoints to be included in the report
+
+
+  -> Exceptional X.Text XL.Text
+  -- ^ The exception type is a strict Text, containing the error
+  -- message. The success type is a lazy Text, containing the
+  -- resulting report.
+
+
+-- | The strict Text containing a help message, and a function to make
+-- the mode
+type Report = (X.Text, MakeMode)
+
+type MakeMode
+  = Runtime
   -- ^ Information only known at runtime, such as the
   -- environment. Does not include any information that is derived
   -- from parsing the command line.
@@ -27,29 +49,11 @@ type ReportFunc =
   -- ^ Result from previous parsers indicating the matcher factory the
   -- user wishes to use
 
-  -> [L.Box Ly.LibertyMeta]
-  -- ^ Postings that will be included in the report
+  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -- ^ Result from previous parsers that will sort and filter incoming
+  -- transactions
 
-  -> [L.PricePoint]
-  -- ^ PricePoints to be included in the report
+  -> MA.Mode () ParseResult
+  -- ^ Strict Text containing a help message, and a Mode that will
+  -- print a report.
 
-
-  -> Exceptional X.Text XL.Text
-  -- ^ The exception type is a strict Text, containing the error
-  -- message. The success type is a lazy Text, containing the
-  -- resulting report.
-
-
-data Report =
-  Report { help :: X.Text
-           -- ^ A strict Text containing a help message.
-
-         , name :: String
-           -- ^ The name of the report
-
-         , parseReport :: Parser ReportFunc
-           -- ^ The parser must parse everything beginning with the
-           -- first word after the name of the report (the parser does
-           -- not parse the name of the report) up until, but not
-           -- including, the first non-option word.
-         }

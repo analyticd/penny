@@ -6,7 +6,7 @@
 -- 4 +@, the @5@ and the @4@ are operands; the @+@ is an operator;
 -- each of these three is a token.
 module Penny.Liberty.Expressions.RPN (
-  Operand(Operand),
+  Operand(..),
   Operator(Unary, Binary),
   Token(TokOperand, TokOperator),
   process) where
@@ -15,7 +15,7 @@ import qualified Data.Foldable as Fdbl
 
 -- | An operand; for example, in the expression @5 4 +@, @5@ and @4@
 -- are operands.
-newtype Operand a = Operand a deriving Show
+newtype Operand a = Operand { unOperand :: a } deriving Show
 
 -- | Operators; for example, in the expression @5 4 +@, @+@ is an
 -- operator. Because this is RPN, there is no operator precedence.

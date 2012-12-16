@@ -269,7 +269,7 @@ Library
         Penny.Zinc.Parser.Defaults,
         Penny.Zinc.Parser.Filter,
         Penny.Zinc.Parser.Ledgers,
-        Penny.Zinc.Parser.Report
+
 
     ghc-options: -Wall
     if flag(debug)

@@ -1,50 +1,122 @@
-module Penny.Zinc.Parser.Filter (
-  parseFilter
-  , NeedsHelp(NeedsHelp)
-  , Result(Result, resultFactory, resultSensitive, sorterFilterer)
+-- | Parses the global portion of the command line.
+module Penny.Zinc.Parser.Filter
+  ( GlobalResult(..)
+  , FilterOpts(..)
+  , allOpts
+  , processGlobal
   ) where
 
-import Control.Applicative ((<$>), many)
+import qualified Control.Monad.Trans.State as St
+import Data.Maybe (mapMaybe, catMaybes)
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.Monoid (mempty, mappend)
+import Data.Monoid (mconcat)
 import Data.Text (Text)
 import qualified Text.Matchers.Text as M
-import qualified System.Console.MultiArg.Combinator as C
-import System.Console.MultiArg.Prim (Parser)
+import qualified System.Console.MultiArg as MA
 
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as X
 
-import qualified Penny.Zinc.Parser.Defaults as D
 import qualified Penny.Zinc.Parser.Defaults as Defaults
 
--- | Parses all filtering options. If the parse contains any errors, abort.
-parseFilter :: Defaults.T -> Parser (Either NeedsHelp Result)
-parseFilter d = fmap f (many parser) where
-  f ls =
-    let k = foldl (flip (.)) id ls
-        s = k (newState d)
-    in if help s
-       then Left NeedsHelp
-       else case Ly.parsePredicate . tokens $ s of
-         Nothing -> Ly.abort "could not parse filter expression"
-         Just pdct ->
-           let fn = Ly.xactionsToFiltered pdct
-                    (postFilter s) (orderer s)
-               r = Result { resultFactory = factory s
-                          , resultSensitive = sensitive s
-                          , sorterFilterer = fn }
-           in Right $ r
+--
+-- OptResult, and functions dealing with it
+--
+data OptResult
+  = ROperand (L.DateTime
+             -> M.CaseSensitive
+             -> Ly.MatcherFactory
+             -> Ex.Exceptional String Ly.Operand)
+  | RPostFilter (Ex.Exceptional String Ly.PostFilterFn)
+  | RMatcherSelect Ly.MatcherFactory
+  | RCaseSelect M.CaseSensitive
+  | ROperator (Ly.Token (L.PostFam -> Bool))
+  | RSortSpec (Ex.Exceptional String Ly.Orderer)
+  | RHelp
+
+isHelp :: OptResult -> Bool
+isHelp o = case o of { RHelp -> True; _ -> False }
+
+getPostFilters
+  :: [OptResult]
+  -> Ex.Exceptional String [Ly.PostFilterFn]
+getPostFilters =
+  sequence
+  . mapMaybe f
+  where
+    f o = case o of
+      RPostFilter pf -> Just pf
+      _ -> Nothing
+
+getSortSpec
+  :: [OptResult]
+  -> Ex.Exceptional String Ly.Orderer
+getSortSpec =
+  fmap mconcat
+  . sequence
+  . mapMaybe f
+  where
+    f o = case o of
+      RSortSpec x -> Just x
+      _ -> Nothing
+
+type Factory = M.CaseSensitive
+             -> Text -> Ex.Exceptional Text (Text -> Bool)
+
+makeToken
+  :: L.DateTime
+  -> OptResult
+  -> St.State (M.CaseSensitive, Factory)
+              (Maybe (Ex.Exceptional String (Ly.Token (L.PostFam -> Bool))))
+makeToken dt o = case o of
+  ROperand f -> do
+    (s, fty) <- St.get
+    let g = fmap h (f dt s fty)
+        h (X.Operand fn) = Ly.TokOperand fn
+    return (Just g)
+  RMatcherSelect f -> do
+    (c, _) <- St.get
+    St.put (c, f)
+    return Nothing
+  RCaseSelect c -> do
+    (_, f) <- St.get
+    St.put (c, f)
+    return Nothing
+  ROperator t -> return . Just . return $ t
+  _ -> return Nothing
 
 
--- | Returned if the user requested help.
-data NeedsHelp = NeedsHelp
-                 deriving Show
+makeTokens
+  :: Defaults.T
+  -> [OptResult]
+  -> Ex.Exceptional String ( [Ly.Token (L.PostFam -> Bool)]
+                           , (M.CaseSensitive, Factory) )
+makeTokens df os =
+  let initSt = (Defaults.sensitive df, Defaults.factory df)
+      lsSt = mapM (makeToken (Defaults.currentTime df)) os
+      (ls, st') = St.runState lsSt initSt
+  in fmap (\xs -> (xs, st')) . sequence . catMaybes $ ls
+
+
+allOpts :: [MA.OptSpec OptResult]
+allOpts =
+  map (fmap ROperand) Ly.operandSpecs
+  ++ [fmap RPostFilter . fst $ Ly.postFilterSpecs]
+  ++ [fmap RPostFilter . snd $ Ly.postFilterSpecs]
+  ++ map (fmap RMatcherSelect) Ly.matcherSelectSpecs
+  ++ map (fmap RCaseSelect) Ly.caseSelectSpecs
+  ++ map (fmap ROperator) Ly.operatorSpecs
+  ++ [(fmap RSortSpec) Ly.sortSpecs]
+  ++ [MA.OptSpec ["help"] "h" (MA.NoArg RHelp)]
+
+data GlobalResult
+  = NeedsHelp
+  | RunPenny FilterOpts
 
 -- | Indicates the result of a successful parse of filtering options.
-data Result =
-  Result { resultFactory :: M.CaseSensitive
+data FilterOpts =
+  FilterOpts { resultFactory :: M.CaseSensitive
                             -> Text -> Ex.Exceptional Text (Text -> Bool)
            -- ^ The factory indicated, so that it can be used in
            -- subsequent parses of the same command line.
@@ -52,81 +124,26 @@ data Result =
          , resultSensitive :: M.CaseSensitive
            -- ^ Indicated case sensitivity, so that it can be used in
            -- subsequent parses of the command line.
-           
+
          , sorterFilterer :: [L.Transaction] -> [L.Box Ly.LibertyMeta]
            -- ^ Applied to a list of Transaction, will sort and filter
            -- the transactions and assign them LibertyMeta.
          }
 
+processGlobal
+  :: Defaults.T
+  -> [OptResult]
+  -> Ex.Exceptional String GlobalResult
+processGlobal d os =
+  if any isHelp os
+  then return NeedsHelp
+  else do
+    postFilts <- getPostFilters os
+    sortSpec <- getSortSpec os
+    (toks, (rs, rf)) <- makeTokens d os
+    let err = "could not parse filter expression."
+    pdct <- Ex.fromMaybe err $ Ly.parsePredicate toks
+    let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
+        fo = FilterOpts rf rs sf
+    return $ RunPenny fo
 
-data State =
-  State { sensitive :: M.CaseSensitive
-        , factory :: M.CaseSensitive
-                     -> Text -> Ex.Exceptional Text (Text -> Bool)
-        , tokens :: [X.Token (L.PostFam -> Bool)]
-        , postFilter :: [Ly.PostFilterFn]
-        , orderer :: Ly.Orderer
-        , help :: Bool
-        , currentTime :: L.DateTime }
-
-newState ::
-  Defaults.T
-  -> State
-newState d =
-  State { sensitive = D.sensitive d
-        , factory = D.factory d
-        , tokens = []
-        , postFilter = []
-        , orderer = mempty
-        , help = False
-        , currentTime = D.currentTime d }
-
-parser :: Parser (State -> State)
-parser = C.parseOption $
-         operand
-         ++ parsePostFilter
-         ++ parseMatcherSelect
-         ++ parseCaseSelect
-         ++ parseOperator
-         ++ [parseSort, parseHelp]
-
-
-operand :: [C.OptSpec (State -> State)]
-operand = map (fmap f) Ly.operandSpecs
-  where
-    f lyFn st =
-      let (X.Operand op) =
-            lyFn (currentTime st) (sensitive st) (factory st)
-      in st { tokens = tokens st ++ [X.TokOperand op] }
-                   
-parsePostFilter :: [C.OptSpec (State -> State)]
-parsePostFilter = map (fmap f) [s1, s2]
-  where
-    (s1, s2) = Ly.postFilterSpecs
-    f g st = st { postFilter = postFilter st ++ [g] }
-
-parseMatcherSelect :: [C.OptSpec (State -> State)]
-parseMatcherSelect = map (fmap f) Ly.matcherSelectSpecs
-  where
-    f fty st = st { factory = fty }
-
-parseCaseSelect :: [C.OptSpec (State -> State)]
-parseCaseSelect = map (fmap f) Ly.caseSelectSpecs
-  where
-    f sel st = st { sensitive = sel }
-
-parseOperator :: [C.OptSpec (State -> State)]
-parseOperator = map (fmap f) Ly.operatorSpecs
-  where
-    f tok st = st { tokens = tokens st ++ [tok] }
-
-parseSort :: C.OptSpec (State -> State)
-parseSort = f <$> Ly.sortSpecs
-  where
-    f ord st = st { orderer = mappend ord (orderer st) }
-
-
-parseHelp :: C.OptSpec (State -> State)
-parseHelp = C.OptSpec ["help"] ['h'] (C.NoArg f)
-  where
-    f st = st { help = True }

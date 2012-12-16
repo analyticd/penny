@@ -10,17 +10,17 @@
 module Penny.Liberty.Expressions.Infix (
 
   Precedence(Precedence),
-  
+
   Associativity(ALeft,
                 ARight),
-  
+
   Token(TokOperand,
         TokUnaryPostfix,
         TokUnaryPrefix,
         TokBinary,
         TokOpenParen,
         TokCloseParen),
-  
+
   infixToRPN
   ) where
 

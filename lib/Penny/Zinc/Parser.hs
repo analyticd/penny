@@ -1,75 +1,88 @@
-module Penny.Zinc.Parser (
-  Defaults.T(..)
+module Penny.Zinc.Parser
+  ( Defaults.T(..)
   , Defaults.defaultFromRuntime
-  , parser
+  , parseAndPrint
   ) where
 
+
+import Control.Applicative ((<*>),  pure)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Monoid (mappend, mconcat)
 import qualified Data.Text as X
 import qualified Data.Text.IO as StrictIO
 import qualified Data.Text.Lazy.IO as LazyIO
-import System.Console.MultiArg.Prim (Parser)
+import qualified System.Console.MultiArg as MA
 import System.Exit (exitSuccess, exitFailure)
-import System.IO (stderr, hPutStrLn)
+import qualified System.IO as IO
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Shield as S
 import qualified Penny.Zinc.Help as Help
 import qualified Penny.Zinc.Parser.Filter as F
-import qualified Penny.Zinc.Parser.Report as R
 import qualified Penny.Zinc.Parser.Ledgers as L
 import qualified Penny.Zinc.Parser.Defaults as Defaults
 
--- | Parses all command line options and arguments. Returns an IO
--- action which will print appropriate error messages if something
--- failed, or will print a report and exit successfully if everything
--- went well.
-parser ::
-  S.Runtime
-  -> (S.Runtime -> Defaults.T)
+parseCommandLine
+  :: Defaults.T
   -> [I.Report]
-  -> Parser (IO ())
-parser rt getDf rs = do
-  let df = getDf rt
-  r <- F.parseFilter df
-  case r of
-    Left F.NeedsHelp -> return $ do
-      StrictIO.putStrLn . helpText $ rs
-      exitSuccess
-    Right rslt -> parseReportsAndFilesAndPrint rt rs rslt
+  -> S.Runtime
+  -> [String]
+  -> Ex.Exceptional MA.Error
+     (F.GlobalResult, Either [()] ((), I.ParseResult))
+parseCommandLine df rs rt ss =
+  MA.modes F.allOpts (F.processGlobal df) (whatMode rt rs) ss
 
-
--- | Returns an IO action that will parse the report options and the
--- files on the command line and print the resulting report.
-parseReportsAndFilesAndPrint
+whatMode
   :: S.Runtime
   -> [I.Report]
-  -> F.Result
-  -> Parser (IO ())
-parseReportsAndFilesAndPrint rt rs rslt = do
-  let (F.Result factory sensitive sortFilt) = rslt
-  parserFunc <- R.report rs
-  let reportFunc = parserFunc rt sensitive factory
-  filenames <- L.filenames
-  return $ do
-    ledgers <- L.readLedgers filenames
-    let parsed = L.parseLedgers ledgers
-    case parsed of
-      Ex.Exception e -> do
-        hPutStrLn stderr . show $ e
-        exitFailure
-      Ex.Success (txns, prices) -> do
-        let boxes = sortFilt txns
-        case reportFunc boxes prices of
-          Ex.Exception bad -> do
-            StrictIO.putStrLn bad
-            exitFailure
-          Ex.Success good -> do
-            LazyIO.putStr good
-            exitSuccess
+  -> F.GlobalResult
+  -> Either (a -> ()) [MA.Mode () I.ParseResult]
+whatMode rt rs gr =
+  case gr of
+    F.NeedsHelp -> Left $ const ()
+    F.RunPenny (F.FilterOpts fty cs sf) ->
+      Right $ map snd rs
+            <*> pure rt
+            <*> pure cs
+            <*> pure fty
+            <*> pure sf
+
+
+handleParseResult
+  :: [I.Report]
+  -> Ex.Exceptional MA.Error (a, Either b (c, I.ParseResult))
+  -> IO ()
+handleParseResult rs r =
+  case r of
+    Ex.Exception e -> do
+      IO.hPutStr IO.stderr $ MA.formatError "penny" e
+      exitFailure
+    Ex.Success (_, ei) ->
+      case ei of
+        Left _ -> do
+          StrictIO.putStr (helpText rs)
+          exitSuccess
+        Right (_, (fns, pr)) -> do
+          ledgers <- L.readLedgers fns
+          let showErr e = do
+                IO.hPutStr IO.stderr $ "penny: error: " ++ e
+                exitFailure
+          (txns, pps) <- Ex.switch showErr return
+                         $ L.parseLedgers ledgers
+          Ex.switch (showErr . X.unpack)
+            LazyIO.putStr $ pr txns pps
 
 helpText ::
   [I.Report]
   -> X.Text
-helpText = mappend Help.help . mconcat . fmap I.help
+helpText = mappend Help.help . mconcat . fmap fst
 
+
+parseAndPrint
+  :: Defaults.T
+  -> [I.Report]
+  -> S.Runtime
+  -> [String]
+  -> IO ()
+parseAndPrint df rs rt ss =
+  handleParseResult rs
+  $ parseCommandLine df rs rt ss
