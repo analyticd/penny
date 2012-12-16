@@ -11,9 +11,12 @@ module Penny.Cabin.Balance.MultiCommodity (
   report
   ) where
 
+import Control.Applicative (Applicative, pure)
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Lincoln as L
+import qualified Penny.Liberty as Ly
+import qualified Data.Either as Ei
 import qualified Data.Map as M
 import qualified Penny.Cabin.Options as CO
 import Data.Monoid (mappend, mempty)
@@ -25,6 +28,8 @@ import qualified Penny.Cabin.Colors.DarkBackground as CD
 import qualified Penny.Cabin.Balance.MultiCommodity.Help as H
 import qualified Penny.Cabin.Balance.MultiCommodity.Parser as P
 import qualified Penny.Cabin.Interface as I
+import qualified System.Console.MultiArg as MA
+import qualified Penny.Shield as S
 
 -- | Options for making the balance report. These are the only options
 -- needed to make the report if the options are not being parsed in
@@ -107,7 +112,39 @@ parseReport ::
   -- command line.
 
   -> I.Report
-parseReport fmt o = I.Report H.help "balance" r
+--parseReport fmt o = (H.help, makeMode)I.Report H.help "balance" r
+parseReport fmt o = (H.help, makeMode)
+  where
+    makeMode rt _ _ fsf = MA.Mode
+      { MA.mId = ()
+      , MA.mName = "balance"
+      , MA.mIntersperse = MA.Intersperse
+      , MA.mOpts = map (fmap Right) P.allSpecs
+      , MA.mPosArgs = Left
+      , MA.mProcess = process fmt o rt fsf
+      }
+
+process
+  :: Applicative f
+  => (L.Commodity -> L.Qty -> X.Text)
+  -> P.ParseOpts
+  -> S.Runtime
+  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -> [Either String (P.ParseOpts -> P.ParseOpts)]
+  -> f ([String], I.PrintReport)
+process fmt o rt fsf ls =
+  let (posArgs, fns) = Ei.partitionEithers ls
+      mkParsedOpts = foldl (flip (.)) id fns
+      os' = mkParsedOpts o
+      mcOpts = fromParseOpts fmt os'
+      pr txns _ =
+        let col = CO.autoColors (P.colorPref os') rt
+            chunks = report mcOpts (fsf txns)
+            txt = Chunk.chunksToText col chunks
+        in return txt
+  in pure (posArgs, pr)
+
+{-
   where
     r = fmap f P.parseOptions
       where
@@ -118,6 +155,7 @@ parseReport fmt o = I.Report H.help "balance" r
             chunks = report mcOpts bs
             col = CO.autoColors (P.colorPref os') rt
 
+-}
 
 -- | The MultiCommodity report, with default options.
 defaultReport :: I.Report

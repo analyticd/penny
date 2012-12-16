@@ -197,25 +197,6 @@ process rt mkOpts fsf ls = do
               return $ Chunk.chunksToText colors cks
         in return (posArgs, pr)
 
-{-
-    process opts = do
-      let (posArgs, fOpts) = Ei.partitionEithers opts
--}
-{-
-cmdLineReport toOpts = I.Report H.help "convert" parser
-  where
-    parser = fmap f P.parseOpts
-    f getOpts rt _ _ bs ps = do
-      let defaultOpts = toOpts rt
-          pDefaultOpts = O.toParserOpts defaultOpts
-          op' = getOpts pDefaultOpts
-          noDefault = X.pack "no default price found"
-          colors = CO.autoColors (P.colorPref op') rt
-      rptOpts <- Ex.fromMaybe noDefault
-                 $ fromParsedOpts ps (O.format defaultOpts) op'
-      cks <- report rptOpts ps bs
-      return $ Chunk.chunksToText colors cks
--}
 
 -- | Sums the balances from the bottom to the top of the tree (so that
 -- parent accounts have the sum of the balances of all their
