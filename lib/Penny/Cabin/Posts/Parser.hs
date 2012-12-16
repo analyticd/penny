@@ -1,5 +1,5 @@
 module Penny.Cabin.Posts.Parser (State(..),
-                                 parseOptions) where
+                                 allSpecs) where
 
 import Control.Applicative ((<$>), pure, many, (<*>),
                             Applicative)
@@ -8,7 +8,7 @@ import Data.Char (toLower)
 import Data.List (intersperse)
 import qualified Data.Foldable as Fdbl
 import qualified System.Console.MultiArg.Combinator as C
-import System.Console.MultiArg.Prim (Parser)
+import qualified System.Console.MultiArg as MA
 
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
@@ -35,6 +35,30 @@ data State = State {
   , showZeroBalances :: CO.ShowZeroBalances
   }
 
+allSpecs
+  :: S.Runtime -> [MA.OptSpec (State -> Ex.Exceptional String State)]
+allSpecs = undefined
+
+operand
+  :: S.Runtime
+  -> [MA.OptSpec (State -> Ex.Exceptional String State)]
+operand rt = map (fmap f) Ly.operandSpecs
+  where
+    f lyFn st =
+      let dt = S.currentTime rt
+          cs = sensitive st
+          fty = factory st
+          g' = g . L.boxPostFam
+          ts' = tokens st ++ [Exp.TokOperand g']
+      in do
+        op <- lyFn dt cs fty
+        let g' = 
+          (Exp.Operand g) = lyFn dt cs fty
+      in st { tokens = ts' }
+
+
+
+{-
 -- | Parses the command line from the first word remaining up until,
 -- but not including, the first non-option argment.
 parseOptions ::
@@ -69,20 +93,6 @@ parseOption = C.parseOption ls
          , hideAllFields ]
       ++ parseZeroBalances
 
-
-operand :: [C.OptSpec (S.Runtime
-                       -> State
-                       -> State)]
-operand = map (fmap f) Ly.operandSpecs
-  where
-    f lyFn rt st =
-      let dt = S.currentTime rt
-          cs = sensitive st
-          fty = factory st
-          (Exp.Operand g) = lyFn dt cs fty
-          g' = g . L.boxPostFam
-          ts' = tokens st ++ [Exp.TokOperand g']
-      in st { tokens = ts' }
 
 -- | Processes a option for box-level serials.
 optBoxSerial ::
@@ -276,33 +286,35 @@ checkFields fs =
 
 
 fieldNames :: F.Fields String
-fieldNames = F.Fields {
-  F.globalTransaction = "globalTransaction"
+fieldNames = F.Fields
+  { F.globalTransaction    = "globalTransaction"
   , F.revGlobalTransaction = "revGlobalTransaction"
-  , F.globalPosting = "globalPosting"
-  , F.revGlobalPosting = "revGlobalPosting"
-  , F.fileTransaction = "fileTransaction"
-  , F.revFileTransaction = "revFileTransaction"
-  , F.filePosting = "filePosting"
-  , F.revFilePosting = "revFilePosting"
-  , F.filtered = "filtered"
-  , F.revFiltered = "revFiltered"
-  , F.sorted = "sorted"
-  , F.revSorted = "revSorted"
-  , F.visible = "visible"
-  , F.revVisible = "revVisible"
-  , F.lineNum = "lineNum"
-  , F.date = "date"
-  , F.flag = "flag"
-  , F.number = "number"
-  , F.payee = "payee"
-  , F.account = "account"
-  , F.postingDrCr = "postingDrCr"
-  , F.postingCmdty = "postingCmdty"
-  , F.postingQty = "postingQty"
-  , F.totalDrCr = "totalDrCr"
-  , F.totalCmdty = "totalCmdty"
-  , F.totalQty = "totalQty"
-  , F.tags = "tags"
-  , F.memo = "memo"
-  , F.filename = "filename" }
+  , F.globalPosting        = "globalPosting"
+  , F.revGlobalPosting     = "revGlobalPosting"
+  , F.fileTransaction      = "fileTransaction"
+  , F.revFileTransaction   = "revFileTransaction"
+  , F.filePosting          = "filePosting"
+  , F.revFilePosting       = "revFilePosting"
+  , F.filtered             = "filtered"
+  , F.revFiltered          = "revFiltered"
+  , F.sorted               = "sorted"
+  , F.revSorted            = "revSorted"
+  , F.visible              = "visible"
+  , F.revVisible           = "revVisible"
+  , F.lineNum              = "lineNum"
+  , F.date                 = "date"
+  , F.flag                 = "flag"
+  , F.number               = "number"
+  , F.payee                = "payee"
+  , F.account              = "account"
+  , F.postingDrCr          = "postingDrCr"
+  , F.postingCmdty         = "postingCmdty"
+  , F.postingQty           = "postingQty"
+  , F.totalDrCr            = "totalDrCr"
+  , F.totalCmdty           = "totalCmdty"
+  , F.totalQty             = "totalQty"
+  , F.tags                 = "tags"
+  , F.memo                 = "memo"
+  , F.filename             = "filename"
+  }
+-}
