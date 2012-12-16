@@ -8,7 +8,6 @@
 -- Cabin will also find useful are relocated here, to Liberty.
 
 module Penny.Liberty (
-  Error(..),
   MatcherFactory,
   X.evaluate,
   X.Token(..),
@@ -175,22 +174,6 @@ processPostFilter as fn = map fst . filter fn' $ zipped where
   len = ListLength $ length as
   fn' (_, idx) = fn len (ItemIndex idx)
   zipped = zip as [0..]
-  
-
-data Error = MakeMatcherFactoryError Text
-             | DateParseError
-             | BadPatternError Text
-             | BadNumberError Text
-             | BadQtyError Text
-             | BadSortKeyError Text
-             | BadComparator Text
-             | BadExpression
-             | BadColorName Text
-             | BadFieldName Text
-             | BadBackgroundArg Text
-             | UnexpectedWord Text Text
-             | BadCommodityError Text
-             deriving Show
 
 
 ------------------------------------------------------------
@@ -241,10 +224,10 @@ date = C.OptSpec ["date"] ['d'] (C.TwoArg f)
     g cmp dt = X.Operand (P.date (`cmp` dt))
 
 
-current :: OptSpec (L.DateTime -> Operand)
-current = C.OptSpec ["current"] [] (C.NoArg f)
+current :: L.DateTime -> OptSpec Operand
+current dt = C.OptSpec ["current"] [] (C.NoArg f)
   where
-    f dt = X.Operand (P.date (<= dt))
+    f = X.Operand (P.date (<= dt))
 
 
 -- | Creates options that match against fields that are
@@ -484,21 +467,22 @@ fileTransaction =
 unDouble
   :: ( OptSpec (Ex.Exceptional String Operand)
      , OptSpec (Ex.Exceptional String Operand) )
-  -> [ OptSpec (a -> b -> c -> Ex.Exceptional String Operand) ]
+  -> [ OptSpec (a -> b -> Ex.Exceptional String Operand) ]
 unDouble (o1, o2) = [fmap f o1, fmap f o2]
   where
-    f = (\g _ _ _ -> g)
+    f = (\g _ _ -> g)
 
 
 -- | All operand OptSpec.
-operandSpecs :: [OptSpec (L.DateTime
-                          -> CaseSensitive
-                          -> MatcherFactory
-                          -> Ex.Exceptional String Operand)]
+operandSpecs
+  :: L.DateTime
+  -> [OptSpec (CaseSensitive
+               -> MatcherFactory
+               -> Ex.Exceptional String Operand)]
 
-operandSpecs =
-  [ fmap (\f _ _ _ -> f) date
-  , fmap (\f dt _ _ -> return (f dt)) current
+operandSpecs dt =
+  [ fmap (\f _ _ -> f) date
+  , fmap (\o _ _ -> return o) (current dt)
   , wrapFactArg account
   , wrapFactArg accountLevel
   , wrapFactArg accountAny
@@ -509,16 +493,16 @@ operandSpecs =
   , wrapFactArg commodity
   , wrapFactArg postingMemo
   , wrapFactArg transactionMemo
-  , fmap (\f _ _ _ -> return f) debit
-  , fmap (\f _ _ _  -> return f) credit
-  , fmap (\f _ _ _ -> f) qtyOption
+  , fmap (\f _ _ -> return f) debit
+  , fmap (\f _ _  -> return f) credit
+  , fmap (\f _ _ -> f) qtyOption
   ]
   ++ unDouble globalTransaction
   ++ unDouble globalPosting
   ++ unDouble filePosting
   ++ unDouble fileTransaction
     where
-      wrapFactArg = fmap (\f _ cs fty -> f cs fty)
+      wrapFactArg = fmap (\f cs fty -> f cs fty)
 
 ------------------------------------------------------------
 -- Post filters

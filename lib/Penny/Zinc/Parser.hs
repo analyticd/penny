@@ -29,7 +29,8 @@ parseCommandLine
   -> Ex.Exceptional MA.Error
      (F.GlobalResult, Either [()] ((), I.ParseResult))
 parseCommandLine df rs rt ss =
-  MA.modes F.allOpts (F.processGlobal df) (whatMode rt rs) ss
+  MA.modes (F.allOpts (S.currentTime rt)) (F.processGlobal df)
+           (whatMode rt rs) ss
 
 whatMode
   :: S.Runtime

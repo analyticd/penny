@@ -24,8 +24,7 @@ import qualified Penny.Zinc.Parser.Defaults as Defaults
 -- OptResult, and functions dealing with it
 --
 data OptResult
-  = ROperand (L.DateTime
-             -> M.CaseSensitive
+  = ROperand (M.CaseSensitive
              -> Ly.MatcherFactory
              -> Ex.Exceptional String Ly.Operand)
   | RPostFilter (Ex.Exceptional String Ly.PostFilterFn)
@@ -65,14 +64,13 @@ type Factory = M.CaseSensitive
              -> Text -> Ex.Exceptional Text (Text -> Bool)
 
 makeToken
-  :: L.DateTime
-  -> OptResult
+  :: OptResult
   -> St.State (M.CaseSensitive, Factory)
               (Maybe (Ex.Exceptional String (Ly.Token (L.PostFam -> Bool))))
-makeToken dt o = case o of
+makeToken o = case o of
   ROperand f -> do
     (s, fty) <- St.get
-    let g = fmap h (f dt s fty)
+    let g = fmap h (f s fty)
         h (X.Operand fn) = Ly.TokOperand fn
     return (Just g)
   RMatcherSelect f -> do
@@ -94,14 +92,14 @@ makeTokens
                            , (M.CaseSensitive, Factory) )
 makeTokens df os =
   let initSt = (Defaults.sensitive df, Defaults.factory df)
-      lsSt = mapM (makeToken (Defaults.currentTime df)) os
+      lsSt = mapM makeToken os
       (ls, st') = St.runState lsSt initSt
   in fmap (\xs -> (xs, st')) . sequence . catMaybes $ ls
 
 
-allOpts :: [MA.OptSpec OptResult]
-allOpts =
-  map (fmap ROperand) Ly.operandSpecs
+allOpts :: L.DateTime -> [MA.OptSpec OptResult]
+allOpts dt =
+  map (fmap ROperand) (Ly.operandSpecs dt)
   ++ [fmap RPostFilter . fst $ Ly.postFilterSpecs]
   ++ [fmap RPostFilter . snd $ Ly.postFilterSpecs]
   ++ map (fmap RMatcherSelect) Ly.matcherSelectSpecs
