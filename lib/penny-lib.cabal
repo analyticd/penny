@@ -197,6 +197,7 @@ Library
         Penny.Brenner.Amex.Parsec,
         Penny.Brenner.Amex.Types,
         Penny.Brenner.Amex.Util,
+        Penny.Brenner.BofA.Parser,
         Penny.Cabin,
         Penny.Cabin.Balance,
         Penny.Cabin.Balance.Convert,

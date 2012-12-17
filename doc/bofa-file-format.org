@@ -1,0 +1,155 @@
+Bank of America download file format
+
+This is the format for the "WEB Connect for Quicken 2010 and above"
+option that is on the Bank of America download format. Ostensibly this
+is OFX in SGML, but I don't know if this is actually true as I have
+not yet found much about what "WEB Connect" is. A simple CSV would be
+preferable; however, B of A does not make unique transaction IDs
+available in CSV format. (QIF does not have this information, neither
+does the "Microsoft Excel format" on the website, which appears to
+just be a CSV.)
+
+The file has DOS line endings (\r\n).
+
+Unlike XML, tags are not always closed. The tag names are always in
+all caps. It does appear that tags that open alone on a line are
+balanced, while tags that are followed on the same line with data are
+not balanced.
+
+* Header
+
+There is a header portion with nine lines. Each has the field name,
+followed by a colon, and then some information (no space between the
+colon and the data). They have field names as follows:
+
+- OFXHEADER
+- DATA
+- VERSION
+- SECURITY
+- ENCODING
+- CHARSET
+- COMPRESSION
+- OLDFILEUID
+- NEWFILEUID
+
+Then there is a blank line.
+
+* OFX tag
+This tag is balanced. It encloses all the data. All other tags are
+within this tag.
+
+* SIGNONMSGSRSV1
+Sign on message? Balanced. Encloses some tags:
+
+** SONRS
+Balanced.
+
+*** STATUS
+Balanced.
+
+**** CODE
+Not balanced. There is a digit on the same line.
+
+**** SEVERITY
+Not balanced. Says "INFO" on the same line.
+
+*** DTSERVER
+Not balanced. Has some sort of date-time information?
+
+*** LANGUAGE
+Not balanced. Says ENG.
+
+*** DTACCTUP
+Not balanced. Has some date-time information. Looks like same
+information in DTSERVER.
+
+*** FI
+Balanced. Financial institution?
+
+**** ORG
+Not balanced. Bank of America.
+
+**** FID
+Not balanced. Says 5959.
+
+*** INTU.BID
+Not balanced. Four-digit number.
+
+*** INTU.USERID
+Not balanced. Says "massysett"
+
+* BANKMSGSRSV1
+Balanced.
+
+** STMTTRNRS
+Balanced.
+
+*** TRNUID
+Not balanced. "0"
+
+*** STATUS
+Balanced.
+
+**** CODE
+Not balanced. "0"
+
+**** SEVERITY
+Not balanced. "INFO"
+
+*** STMTRS
+Balanced.
+
+**** CURDEF
+Not balanced. "USD"
+
+**** BANKACCTFROM
+Balanced.
+
+***** BANKID
+Not Balanced. Digits.
+
+***** ACCTID
+Not balanced. Digits.
+
+***** ACCTTYPE
+Not balanced. Checking
+
+**** BANKTRANLIST
+Balanced.
+
+***** DTSTART
+Not balanced. Digits. Some sort of date-time.
+
+***** DTEND
+Not balanced. Digits. Some sort of date-time.
+
+***** STMTTRN
+Balanced. Where interesting stuff starts.
+
+****** TRNTYPE
+Not balanced. CREDIT or DEBIT.
+
+****** DTPOSTED
+Not balanced. A date-time. I am guessing the format for a date-time is
+YYYYMMDDHHMMSS. B of A is leaving the MMSS as zeroes.
+
+****** TRNAMT
+Not balanced. Digits with a decimal point. CREDIT transactions have no
+minus sign; DEBIT transactions have a leading minus sign.
+
+****** FITID
+Not balanced. Financial Institution ID? Digits with some points and
+maybe a minus.
+
+****** NAME
+Not balanced. The payee name.
+
+**** LEDGERBAL
+Balanced.
+
+***** BALAMT
+Not balanced. An amount.
+
+***** DTASOF
+Not balanced. Date as of? A date-time. Unlike the others, this
+date-time has minutes and seconds.
