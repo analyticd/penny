@@ -11,6 +11,8 @@ import Text.Parsec (char, string, many, many1, satisfy, manyTill,
 import Text.Parsec.String (Parser)
 import qualified Data.Tree as T
 import Data.Tree (Tree(Node))
+import qualified Penny.Brenner.Types as Y
+import qualified Data.Text as X
 
 newtype TagName = TagName { unTagName :: String }
   deriving (Eq, Show)
@@ -85,6 +87,11 @@ findNode x t@(Node l cs)
   | otherwise = getFirst . mconcat . map (First . findNode x) $ cs
 
 
+findNodes :: Eq a => a -> Tree a -> [Tree a]
+findNodes x t@(Node l cs)
+  | x == l = [t]
+  | otherwise = concatMap (findNodes x) cs
+
 safeRead :: (Read r) => String -> Maybe r
 safeRead s = case reads s of
   (i,""):[] -> Just i
@@ -92,8 +99,8 @@ safeRead s = case reads s of
 
 -- | Parses a B of A date-time. The format is YYYYMMDDHHMMSS. Discards
 -- the HHMMSS.
-parseDate :: String -> ExS T.Day
-parseDate s =
+parseDateStr :: String -> ExS Y.Date
+parseDateStr s =
   let (yr, r1) = splitAt 4 s
       (mo, r2) = splitAt 2 r1
       (da, _) = splitAt 2 r2
@@ -101,4 +108,35 @@ parseDate s =
       yi <- safeRead yr
       ym <- safeRead mo
       yd <- safeRead da
-      T.fromGregorianValid yi ym yd
+      Y.Date <$> T.fromGregorianValid yi ym yd
+
+parseAmountStr :: String -> ExS (Y.IncDec, Y.Amount)
+parseAmountStr s = do
+  (f, rs) <- case s of
+    "" -> Ex.throw "empty string for amount"
+    x:xs -> return (x, xs)
+  let (amtStr, incDec) = case f of
+        '-' -> (rs, Y.Decrease)
+        _ -> (s, Y.Increase)
+  amt <- Ex.fromMaybe ("could not parse amount: " ++ s)
+         $ Y.mkAmount amtStr
+  return (incDec, amt)
+
+posting :: Tree Label -> ExS Y.Posting
+posting (Node l cs) = do
+  pName <- case l of
+    Parent n -> return n
+    _ -> Ex.throw "did not find posting tree"
+  Ex.assert "did not find STMTTRN tag" $ unTagName pName == "STMTTRN"
+  (tType, tPosted, tAmt, tId, tName) <- case cs of
+    t1:t2:t3:t4:t5:[] -> return (t1, t2, t3, t4, t5)
+    _ -> Ex.throw "did not find five child nodes"
+  pType <- parseType tType
+  pPosted <- parsePosted tPosted
+  (pAmt, amtIncDec) <- parseAmount tAmt
+  pId <- parseId tId
+  pName <- parseName tName
+  Ex.assert "TRNTYPE and TRNAMT do not agree on posting type"
+    $ pType == amtIncDec
+  let pPayee = Y.Payee (X.empty)
+  return $ Y.Posting pPosted pName amtIncDec pAmt pPayee pId

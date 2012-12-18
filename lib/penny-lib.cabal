@@ -172,6 +172,7 @@ source-repository head
 Library
     Build-depends:
         base ==4.*,
+        cereal ==0.3.*,
         text ==0.11.*,
         explicit-exception ==0.1.*,
         containers ==0.4.*,
@@ -198,6 +199,7 @@ Library
         Penny.Brenner.Amex.Types,
         Penny.Brenner.Amex.Util,
         Penny.Brenner.BofA.Parser,
+        Penny.Brenner.Types,
         Penny.Cabin,
         Penny.Cabin.Balance,
         Penny.Cabin.Balance.Convert,
