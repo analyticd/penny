@@ -1,4 +1,4 @@
-module Penny.Brenner.Amex where
+module Penny.Brenner.Amex (parser) where
 
 import Control.Applicative ((<$>), (<*>), (<$), (<*), (*>), pure,
                             (<|>), optional)
@@ -10,6 +10,21 @@ import Text.Parsec (many1, char, many, satisfy)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified Control.Monad.Exception.Synchronous as Ex
+
+parser :: (String, Y.FitFileLocation
+                   -> IO (Ex.Exceptional String [Y.Posting]))
+parser = (help, loadIncoming)
+
+help :: String
+help = unlines
+  [ "Parses American Express transaction data in CSV format."
+  , "Not tested with American Express deposit accounts."
+  , "To download, click the \"Download\" link which is visible"
+  , "above and to the right of the transaction list. Under"
+  , "\"Download Current View\" Select \"CSV\""
+  , "and be sure to click"
+  , "\"Include all additional Transaction Details.\""
+  ]
 
 -- | Loads incoming Amex transactions.
 loadIncoming :: Y.FitFileLocation

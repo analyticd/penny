@@ -193,7 +193,7 @@ Library
         Penny,
         Penny.Brenner,
         Penny.Brenner.Amex,
-        Penny.Brenner.BofA.,
+        Penny.Brenner.BofA,
         Penny.Brenner.Clear,
         Penny.Brenner.Import,
         Penny.Brenner.Merge,

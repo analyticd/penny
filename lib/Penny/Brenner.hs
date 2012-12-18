@@ -10,7 +10,7 @@ module Penny.Brenner
   , Config(..)
   , R.GroupSpecs(..)
   , R.GroupSpec(..)
-  , Y.Translator
+  , Y.Translator(..)
   , brennerMain
   ) where
 
