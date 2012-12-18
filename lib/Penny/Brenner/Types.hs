@@ -7,6 +7,7 @@ module Penny.Brenner.Types
   , Desc(..)
   , Amount(unAmount)
   , mkAmount
+  , translate
   , DbMap
   , DbList
   , Posting(..)
@@ -18,7 +19,7 @@ module Penny.Brenner.Types
   , Currency(..)
   , FitAcct(..)
   , Config(..)
-  , CSVLocation(..)
+  , FitFileLocation(..)
   , AllowNew(..)
   ) where
 
@@ -146,11 +147,22 @@ mkAmount s =
   let isDigit c = c >= '0' && c <= '9'
       (_, rs) = span isDigit s
   in case rs of
-      "" -> return . Amount . pack $ s
+      "" -> if not . null $ s
+            then return . Amount . pack $ s
+            else Nothing
       '.':rest -> if all isDigit rest
                   then return . Amount . pack $ s
                   else Nothing
       _ -> Nothing
+
+translate
+  :: IncDec
+  -> Translator
+  -> L.DrCr
+translate Increase IncreaseIsDebit = L.Debit
+translate Increase IncreaseIsCredit = L.Credit
+translate Decrease IncreaseIsDebit = L.Credit
+translate Decrease IncreaseIsCredit = L.Debit
 
 type DbMap = M.Map UNumber Posting
 type DbList = [(UNumber, Posting)]
@@ -231,7 +243,16 @@ data FitAcct = FitAcct
   , groupSpecs :: R.GroupSpecs
   , translator :: Translator
 
-  , parser :: FilePath -> IO (Ex.Exceptional String [Posting])
+  , side :: L.Side
+  -- ^ When creating new transactions, the commodity will be on this
+  -- side
+
+  , spaceBetween :: L.SpaceBetween
+  -- ^ When creating new transactions, is there a space between the
+  -- commodity and the quantity
+
+  , parser :: ( String
+              , FitFileLocation -> IO (Ex.Exceptional String [Posting]))
   -- ^ Parses a file of transactions from the financial
   -- institution. The function must open the file and parse it. This
   -- is in the IO monad not only because the function must open the
@@ -242,6 +263,9 @@ data FitAcct = FitAcct
   -- IO monad (currently Brenner makes no attempt to catch these) so
   -- if any of the IO functions throw you can simply not handle the
   -- exceptions.
+  --
+  -- The first element of the pair is a help string which should
+  -- indicate how to download the data, as a helpful reminder.
 
   } deriving Show
 
@@ -256,7 +280,7 @@ data Config = Config
   , moreCards :: [(Name, FitAcct)]
   } deriving Show
 
-newtype CSVLocation = CSVLocation { unCSVLocation :: Text }
+newtype FitFileLocation = FitFileLocation { unFitFileLocation :: String }
   deriving (Show, Eq)
 
 newtype AllowNew = AllowNew { unAllowNew :: Bool }

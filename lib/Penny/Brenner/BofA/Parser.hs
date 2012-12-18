@@ -1,9 +1,8 @@
-module Penny.Brenner.BofA.Parser where
+module Penny.Brenner.BofA.Parser (parser) where
 
 import Control.Applicative ((<$>), (<*), (<$), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (isUpper)
-import Data.Monoid (mconcat, First(First, getFirst))
 import qualified Data.Time as T
 import qualified Text.Parsec as P
 import Text.Parsec (char, string, many, many1, satisfy, manyTill,
@@ -79,14 +78,6 @@ node = do
       return $
         T.Node (Terminal (TagName tagName) (TagData $ o:rs)) []
 
--- | Finds a node with the given node value. Returns the first one it
--- finds, if there is one.
-findNode :: (Eq a) => a -> Tree a -> Maybe (Tree a)
-findNode x t@(Node l cs)
-  | x == l = Just t
-  | otherwise = getFirst . mconcat . map (First . findNode x) $ cs
-
-
 findNodes :: Eq a => a -> Tree a -> [Tree a]
 findNodes x t@(Node l cs)
   | x == l = [t]
@@ -122,21 +113,100 @@ parseAmountStr s = do
          $ Y.mkAmount amtStr
   return (incDec, amt)
 
+postings :: Tree Label -> ExS [Y.Posting]
+postings t =
+  let match = Parent (TagName "STMTTRN")
+  in mapM posting .findNodes match $ t
+
 posting :: Tree Label -> ExS Y.Posting
 posting (Node l cs) = do
-  pName <- case l of
+  tag <- case l of
     Parent n -> return n
     _ -> Ex.throw "did not find posting tree"
-  Ex.assert "did not find STMTTRN tag" $ unTagName pName == "STMTTRN"
+  Ex.assert "did not find STMTTRN tag" $ unTagName tag == "STMTTRN"
   (tType, tPosted, tAmt, tId, tName) <- case cs of
     t1:t2:t3:t4:t5:[] -> return (t1, t2, t3, t4, t5)
     _ -> Ex.throw "did not find five child nodes"
   pType <- parseType tType
   pPosted <- parsePosted tPosted
-  (pAmt, amtIncDec) <- parseAmount tAmt
+  (amtIncDec, pAmt) <- parseAmount tAmt
   pId <- parseId tId
   pName <- parseName tName
   Ex.assert "TRNTYPE and TRNAMT do not agree on posting type"
     $ pType == amtIncDec
   let pPayee = Y.Payee (X.empty)
   return $ Y.Posting pPosted pName amtIncDec pAmt pPayee pId
+
+-- | Removes the TagData from a tree, after ensuring that the TagName
+-- is correct and that the tree has no children.
+terminalData
+  :: String
+  -- ^ The name of the terminal
+
+  -> Tree Label
+
+  -> ExS X.Text
+  -- ^ Returns the data from the tag, or an error if this is not a
+  -- terminal or if the terminal has children.
+terminalData n (Node l cs) = do
+  (tn, td) <- case l of
+    Parent _ -> Ex.throw $ "looking for data tag named " ++ n
+                           ++ ", but that tag does not have data"
+    Terminal x y -> return (x, y)
+  let tagErr = "looking for tag named " ++ n
+        ++ ", but found tag named " ++ unTagName tn
+  Ex.assert tagErr $ tn == TagName n
+  let kidsErr = "data tag " ++ n ++ " should have no children,"
+                ++ " but does"
+  Ex.assert kidsErr $ null cs
+  return . X.pack . unTagData $ td
+
+parseType :: Tree Label -> ExS Y.IncDec
+parseType t = do
+  d <- terminalData "TRNTYPE" t
+  let f | d == X.pack "CREDIT" = return Y.Increase
+        | d == X.pack "DEBIT" = return Y.Decrease
+        | otherwise = Ex.throw $ "TRNTYPE not a DEBIT or CREDIT; "
+                        ++ "instead its value is " ++ X.unpack d
+  f
+
+parsePosted :: Tree Label -> ExS Y.Date
+parsePosted t = do
+  d <- terminalData "DTPOSTED" t
+  parseDateStr (X.unpack d)
+
+parseAmount :: Tree Label -> ExS (Y.IncDec, Y.Amount)
+parseAmount t = do
+  d <- terminalData "TRNAMT" t
+  parseAmountStr (X.unpack d)
+
+parseId :: Tree Label -> ExS Y.FitId
+parseId t = do
+  d <- terminalData "FITID" t
+  return . Y.FitId $ d
+
+parseName :: Tree Label -> ExS Y.Desc
+parseName t = do
+  d <- terminalData "NAME" t
+  return . Y.Desc $ d
+
+help :: String
+help = unlines
+  [ "Parses Bank of America postings for deposit accounts, like checking"
+  , "or savings. This parser is not tested with credit card accounts."
+  , "To download the data, from the account activity screen click on"
+  , "\"Download\", which is just above all the transaction information."
+  , "Then download the \"WEB Connect for Quicken 2010 and above.\""
+  ]
+
+parser :: (String, Y.FitFileLocation
+                   -> IO (Ex.Exceptional String [Y.Posting]))
+parser = (help, psr)
+  where
+    psr (Y.FitFileLocation path) = do
+      str <- readFile path
+      return $ case P.parse bOfAFile "" str of
+        Left e -> Ex.throw
+                  $ "could not parse Bank of America transactions: "
+                    ++ show e
+        Right (_, t) -> postings t
