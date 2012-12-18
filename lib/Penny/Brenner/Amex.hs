@@ -1,221 +1,103 @@
--- | Amex - processing American Express downloaded data
-module Penny.Brenner.Amex
-  ( Card(..)
-  , Config(..)
-  , R.GroupSpecs(..)
-  , R.GroupSpec(..)
-  , amexMain
-  ) where
+module Penny.Brenner.Amex where
 
-import qualified Penny.Brenner.Amex.Types as Y
-import Data.Maybe (mapMaybe)
+import Control.Applicative ((<$>), (<*>), (<$), (<*), (*>), pure,
+                            (<|>), optional)
+import qualified Data.Time as Time
+import qualified Penny.Brenner.Types as Y
+import Text.Parsec.Text (Parser)
+import qualified Text.Parsec as P
+import Text.Parsec (many1, char, many, satisfy)
 import qualified Data.Text as X
-import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Builders as Bd
-import qualified Penny.Copper.Render as R
-import qualified Penny.Brenner.Amex.Clear as C
-import qualified Penny.Brenner.Amex.Import as I
-import qualified Penny.Brenner.Amex.Merge as M
-import qualified System.Console.MultiArg as MA
+import qualified Data.Text.IO as TIO
 import qualified Control.Monad.Exception.Synchronous as Ex
-import System.Exit (exitFailure)
-import qualified System.IO as IO
 
-amexMain :: Config -> IO ()
-amexMain cf = do
-  as <- MA.getArgs
-  pr <- MA.getProgName
-  let cf' = convertConfig cf
-      r = MA.modes globalOpts (preProcessor cf') whatMode as
-  processParseResult pr cf' r
+-- | Loads incoming Amex transactions.
+loadIncoming :: Y.FitFileLocation
+             -> IO (Ex.Exceptional String [Y.Posting])
+loadIncoming (Y.FitFileLocation loc) = do
+  txt <- TIO.readFile loc
+  let parsed = P.parse (P.many posting <* P.eof) "" txt
+      err s = "could not parse incoming postings: " ++ show s
+  return (Ex.mapException err . Ex.fromEither $ parsed)
 
-data Arg
-  = AHelp
-  | ACard String
-  deriving (Eq, Show)
+skipThrough :: Char -> Parser ()
+skipThrough c = () <$ many (satisfy (/= c)) <* char c
 
-toCardOpt :: Arg -> Maybe String
-toCardOpt a = case a of { ACard s -> Just s; _ -> Nothing }
+readThrough :: Char -> Parser String
+readThrough c = many (satisfy (/= c)) <* char c
 
-globalOpts :: [MA.OptSpec Arg]
-globalOpts =
-  [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
-  , MA.OptSpec ["card"] "c" (MA.OneArg ACard)
-  ]
-
-data PreProc
-  = NeedsHelp
-  | DoIt Y.Card
-
-preProcessor :: Y.Config -> [Arg] -> Ex.Exceptional String PreProc
-preProcessor cf as =
-  if any (== AHelp) as
-  then return NeedsHelp
-  else do
-    let cardOpt = case mapMaybe toCardOpt as of
-          [] -> Nothing
-          xs -> Just . last $ xs
-    card <- case cardOpt of
-      Nothing -> case Y.defaultCard cf of
-        Nothing -> Ex.throw $ "no card given on command line, and no "
-                   ++ "default card provided."
-        Just c -> return c
-      Just o ->
-        let pdct (Y.Name n, _) = n == o
-        in case filter pdct (Y.moreCards cf) of
-          [] -> Ex.throw $ "card " ++ o ++ " not configured."
-          (_, c):[] -> return c
-          _ -> Ex.throw $ "more than one card named " ++ o
-                          ++ " configured."
-    return $ DoIt card
-
-whatMode
-  :: PreProc
-  -> Either (String -> String)
-      [MA.Mode String (Ex.Exceptional String (IO ()))]
-whatMode pp = case pp of
-  NeedsHelp -> Left id
-  DoIt cd ->
-    Right [ C.mode cd, I.mode (Y.dbLocation cd), M.mode cd ]
-
-
-processParseResult
-  :: String
-  -- ^ Program name
-  -> Y.Config
-
-  -> Ex.Exceptional MA.Error
-      (a, Either b (c, Ex.Exceptional String (IO ())))
-  -> IO ()
-processParseResult pr cf ex =
-  case ex of
-    Ex.Exception err -> do
-      IO.hPutStr IO.stderr $ MA.formatError pr err
-      exitFailure
-    Ex.Success g -> processResult pr cf g
-
-
-processResult
-  :: String
-  -- ^ Program name
-
-  -> Y.Config
-  -> (a, Either b (c, Ex.Exceptional String (IO ())))
-  -> IO ()
-processResult pr cf (_, ei) =
-  case ei of
-    Left _ -> putStr (help pr cf)
-    Right (_, ex) -> case ex of
-      Ex.Exception e -> do
-        putStrLn $ pr ++ ": error: " ++ e
-        exitFailure
-      Ex.Success g -> g
-
-help ::
-  String
-  -- ^ Program name
-
-  -> Y.Config
-  -> String
-help n c = unlines ls ++ cs
+date :: Parser Y.Date
+date = p >>= failOnErr
   where
-    ls = [ "usage: " ++ n ++ " [options] import|merge|clear ARGS..."
-         , ""
-         , "For help on an individual command, use "
-         , n ++ " COMMAND --help"
-         , ""
-         , "Options:"
-         , "-c, --card CARD"
-         , "  Use one of the Additional Cards shown below. If this option"
-         , "  does not appear, the default card is used if there"
-         , "  is one."
-         , "-h, --help"
-         , "  Show help and exit"
-         , ""
-         ]
-    showPair (Y.Name a, cd) = "Additional card: " ++ a
-      ++ "\n" ++ showCard cd
-    cs = showDefaultCard (Y.defaultCard c)
-         ++ more
-    more = if null (Y.moreCards c)
-           then "No additional cards\n"
-           else concatMap showPair . Y.moreCards $ c
+    p = (,,)
+        <$> fmap read (many1 P.digit)
+        <*  char '/'
+        <*> fmap read (many1 P.digit)
+        <* char '/'
+        <*> fmap read (many1 P.digit)
+        <*  skipThrough ','
+    failOnErr (m, d, y) = maybe (fail "could not parse date")
+      (return . Y.Date)
+      $ Time.fromGregorianValid y m d
 
-showDefaultCard :: Maybe Y.Card -> String
-showDefaultCard mc = case mc of
-  Nothing -> "No default card\n"
-  Just c -> "Default Card:\n" ++ showCard c
+incDecAmount :: Parser (Y.IncDec, Y.Amount)
+incDecAmount = do
+  incDec <- (Y.Decrease <$ char '-') <|> pure Y.Increase
+  amtStr <- readThrough ','
+  case Y.mkAmount amtStr of
+    Nothing -> fail $ "could not parse amount: " ++ amtStr
+    Just a -> return (incDec, a)
 
-label :: String -> String -> String
-label l o = "  " ++ l ++ ": " ++ o ++ "\n"
+doubleQuoted :: Parser String
+doubleQuoted = char '"' *> readThrough '"'
 
-showAccount :: L.Account -> String
-showAccount =
-  X.unpack
-  . X.intercalate (X.singleton ':')
-  . map L.unSubAccount
-  . L.unAccount
+desc :: Parser Y.Desc
+desc = fmap (Y.Desc . X.pack) $ doubleQuoted <* char ','
 
-showCard :: Y.Card -> String
-showCard c =
-  label "Database location" (Y.unDbLocation . Y.dbLocation $ c)
+payee :: Parser Y.Payee
+payee = fmap (Y.Payee . X.pack) $ doubleQuoted <* char ','
 
-  ++ label "Amex ledger account"
-     (showAccount . Y.unAmexAcct . Y.amexAcct $ c)
+amexId :: Parser Y.FitId
+amexId = fmap (Y.FitId . X.pack)
+         $ char '"' *> char '\'' *> readThrough '\''
+           <* char '"' <* char ','
 
-  ++ label "Account for new offsetting postings"
-     (showAccount . Y.unDefaultAcct . Y.defaultAcct $ c)
 
-  ++ label "Currency"
-     (X.unpack . L.unCommodity . Y.unCurrency . Y.currency $ c)
+-- | Skips a field. Will skip a quoted field or,
+-- alternatively, skip everything through to the next comma. Do not
+-- use for the last field, as it looks for a trailing comma.
+skipField :: Parser ()
+skipField =
+  ()
+  <$ skipper
+  <* char ','
+  where
+    skipper =     (() <$ optional doubleQuoted)
+              <|> (() <$ many (satisfy (/= ',')))
 
-  ++ "\n"
 
--- | Information to configure a single card account.
-data Card = Card
-  { dbLocation :: String
-    -- ^ Path and filename to where the database is kept. You can use
-    -- an absolute or relative path (if it is relative, it will be
-    -- resolved relative to the current directory at runtime.)
+-- | Parses last field (currently unknown). Parsers the EOL character.
+skipLast :: Parser ()
+skipLast = skipThrough '\n'
 
-  , amexAcct :: String
-    -- ^ The account that you use in your Penny file to hold
-    -- transactions for this card. Separate each sub-account with
-    -- colons (as you do in the Penny file.)
-
-  , defaultAcct :: String
-    -- ^ When new transactions are created, one of the postings will
-    -- be in the amexAcct given above. The other posting will be in
-    -- this account.
-
-  , currency :: String
-    -- ^ The commodity for the currency of your card (e.g. @$@).
-
-  , groupSpecs :: R.GroupSpecs
-    -- ^ How to group digits when printing the resulting ledger. All
-    -- quantities (not just those affected by this program) will be
-    -- formatted using this specification.
-
-  } deriving Show
-
-convertCard :: Card -> Y.Card
-convertCard (Card db ax df cy gs) = Y.Card
-  { Y.dbLocation = Y.DbLocation db
-  , Y.amexAcct = Y.AmexAcct . Bd.account $ ax
-  , Y.defaultAcct = Y.DefaultAcct . Bd.account $ df
-  , Y.currency = Y.Currency . L.Commodity . X.pack $ cy
-  , Y.groupSpecs = gs
-  }
-
-data Config = Config
-  { defaultCard :: Maybe Card
-  , moreCards :: [(String, Card)]
-  } deriving Show
-
-convertConfig :: Config -> Y.Config
-convertConfig (Config d m) = Y.Config
-  { Y.defaultCard = fmap convertCard d
-  , Y.moreCards =
-      let f (n, c) = (Y.Name n, convertCard c)
-      in map f m
-  }
+posting :: Parser Y.Posting
+posting =
+  f
+  <$> date                                        -- 1
+  <*  skipField                                   -- 2 Unknown
+  <*> desc                                        -- 3 Description
+  <*  skipField                                   -- 4 Unknown
+  <*  skipField                                   -- 5 Unknown
+  <*  skipField                                   -- 6 Unknown
+  <*  skipField                                   -- 7 Unknown
+  <*> incDecAmount                                -- 8
+  <*  skipField                                   -- 9 Unknown
+  <*  skipField                                   -- 10 Category
+  <*> payee                                       -- 11 D.B.A.
+  <*  skipField                                   -- 12 Address
+  <*  skipField                                   -- 13 Postcode
+  <*> amexId                                      -- 14
+  <*  skipField                                   -- 15 Unknown
+  <*  skipLast                                    -- 16
+  where
+    f dt ds (t, a) p i = Y.Posting dt ds t a p i

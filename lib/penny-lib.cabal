@@ -200,6 +200,7 @@ Library
         Penny.Brenner.Amex.Types,
         Penny.Brenner.Amex.Util,
         Penny.Brenner.BofA.Parser,
+        Penny.Brenner.Clear,
         Penny.Brenner.Import,
         Penny.Brenner.Merge,
         Penny.Brenner.Types,

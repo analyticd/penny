@@ -267,7 +267,7 @@ data FitAcct = FitAcct
   -- The first element of the pair is a help string which should
   -- indicate how to download the data, as a helpful reminder.
 
-  } deriving Show
+  }
 
 -- | Configuration for the Brenner program. You can optionally have
 -- a default FitAcct, which is used if you do not specify any FitAcct on the
@@ -276,9 +276,9 @@ data FitAcct = FitAcct
 -- command line.
 
 data Config = Config
-  { defaultCard :: Maybe FitAcct
-  , moreCards :: [(Name, FitAcct)]
-  } deriving Show
+  { defaultFitAcct :: Maybe FitAcct
+  , moreFitAccts :: [(Name, FitAcct)]
+  }
 
 newtype FitFileLocation = FitFileLocation { unFitFileLocation :: String }
   deriving (Show, Eq)
