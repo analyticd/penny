@@ -1,4 +1,4 @@
-module Penny.Brenner.BofA.Parser (parser) where
+module Penny.Brenner.BofA (parser) where
 
 import Control.Applicative ((<$>), (<*), (<$), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
