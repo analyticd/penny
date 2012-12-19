@@ -197,6 +197,7 @@ Library
         Penny.Brenner.Clear,
         Penny.Brenner.Import,
         Penny.Brenner.Merge,
+        Penny.Brenner.Print,
         Penny.Brenner.Types,
         Penny.Brenner.Util,
         Penny.Cabin,

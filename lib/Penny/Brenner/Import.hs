@@ -1,20 +1,3 @@
--- | amex-import parses downloaded data from the Amex website and
--- imports it to the database.
---
--- Usage:
---
--- amex-import [options] CSV_FILE
---
--- where CSV_FILE is the file downloaded from the Amex website.
---
--- Options:
---
--- -d, --db FILE - Location of database file. If omitted, defaults to
--- hard-coded location.
---
--- -n, --new - Allows creation of new database. Without this option,
--- if the database file is not found, quits with an error.
-
 module Penny.Brenner.Import (mode) where
 
 import Control.Monad.Exception.Synchronous as Ex
@@ -28,13 +11,13 @@ import qualified System.Exit as E
 
 data Arg
   = AHelp
-  | ACSV String
+  | AFitFile String
   | AAllowNew
   deriving (Eq, Show)
 
-toCSV :: Arg -> Maybe String
-toCSV a = case a of
-  ACSV s -> Just s
+toFitFile :: Arg -> Maybe String
+toFitFile a = case a of
+  AFitFile s -> Just s
   _ -> Nothing
 
 data ImportOpts = ImportOpts
@@ -58,7 +41,7 @@ mode dbLoc prsr = MA.Mode
       [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
       , MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew)
       ]
-  , MA.mPosArgs = ACSV
+  , MA.mPosArgs = AFitFile
   , MA.mProcess = processor dbLoc prsr
   }
 
@@ -73,7 +56,7 @@ processor dbLoc prsr as = do
   if any (== AHelp) as
     then return $ putStrLn help
     else do
-      loc <- case mapMaybe toCSV as of
+      loc <- case mapMaybe toFitFile as of
         [] -> err "you must provide a postings file to read"
         x:[] -> return (Y.FitFileLocation x)
         _ -> err "you cannot provide more than one postings file to read"
@@ -119,14 +102,11 @@ doImport dbLoc os = do
 
 help :: String
 help = unlines
-  [ "penny-fit [options] FIT_FILE"
+  [ "penny-fit [global-options] import [local-options] FIT_FILE"
   , "where FIT_FILE is the file downloaded from the financial"
   , "institution."
   , ""
-  , "Options:"
-  , ""
-  , "-d, --db FILE - Location of database file. If omitted, defaults to"
-  , "hard-coded location."
+  , "Local Options:"
   , ""
   , "-n, --new - Allows creation of new database. Without this option,"
   , "if the database file is not found, quits with an error."
