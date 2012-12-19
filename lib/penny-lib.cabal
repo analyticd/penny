@@ -195,6 +195,7 @@ Library
         Penny.Brenner.Amex,
         Penny.Brenner.BofA,
         Penny.Brenner.Clear,
+        Penny.Brenner.Database,
         Penny.Brenner.Import,
         Penny.Brenner.Merge,
         Penny.Brenner.Print,

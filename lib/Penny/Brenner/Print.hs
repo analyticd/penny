@@ -2,21 +2,24 @@
 --
 -- TODO add support to this and other Brenner components for reading
 -- from stdin.
-module Penny.Brenner.Print where
+module Penny.Brenner.Print (mode) where
 
 import qualified Penny.Brenner.Types as Y
+import qualified Penny.Brenner.Util as U
 import qualified System.Console.MultiArg as MA
 import qualified System.IO as IO
 import qualified System.Exit as E
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe (mapMaybe)
-import qualified Data.Text as X
 
 help :: String
 help = unlines
-  [ "penny-fit [global-options] print FILE..."
+  [ "penny-fit [global-options] print [local-options] FILE..."
   , "Parses the transactions in each FILE using the appropriate parser"
   , "and prints the parse result to standard output."
+  , ""
+  , "Local options:"
+  , "  --help, -h Show this help and exit."
   ]
 
 data Arg
@@ -51,22 +54,8 @@ processor prsr ls =
         Ex.Exception s -> do
           IO.hPutStrLn IO.stderr $ "penny-fit import: error: " ++ s
           E.exitFailure
-        Ex.Success ps -> mapM putStr . map toString $ ps
+        Ex.Success ps -> mapM putStr . map U.showPosting $ ps
     toFile a = case a of
       ArgFile s -> Just (Y.FitFileLocation s)
       _ -> Nothing
 
-label :: String -> X.Text -> String
-label s x = s ++ ": " ++ X.unpack x ++ "\n"
-
-toString :: Y.Posting -> String
-toString (Y.Posting dt dc nc am py fd) =
-  label "Date" (X.pack . show . Y.unDate $ dt)
-  ++ label "Description" (Y.unDesc dc)
-  ++ label "Type" (X.pack $ case nc of
-                    Y.Increase -> "increase"
-                    Y.Decrease -> "decrease")
-  ++ label "Amount" (Y.unAmount am)
-  ++ label "Payee" (Y.unPayee py)
-  ++ label "Financial institution ID" (Y.unFitId fd)
-  ++ "\n"

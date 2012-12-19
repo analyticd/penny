@@ -75,3 +75,23 @@ quitOnError = join . fmap (Ex.switch err return)
       IO.hPutStrLn IO.stderr $ "penny-fit: error: " ++ s
       E.exitFailure
 
+label :: String -> X.Text -> String
+label s x = s ++ ": " ++ X.unpack x ++ "\n"
+
+-- | Shows a Posting in human readable format.
+showPosting :: Y.Posting -> String
+showPosting (Y.Posting dt dc nc am py fd) =
+  label "Date" (X.pack . show . Y.unDate $ dt)
+  ++ label "Description" (Y.unDesc dc)
+  ++ label "Type" (X.pack $ case nc of
+                    Y.Increase -> "increase"
+                    Y.Decrease -> "decrease")
+  ++ label "Amount" (Y.unAmount am)
+  ++ label "Payee" (Y.unPayee py)
+  ++ label "Financial institution ID" (Y.unFitId fd)
+  ++ "\n"
+
+showDbPair :: (Y.UNumber, Y.Posting) -> String
+showDbPair (Y.UNumber u, p) =
+  label "U number" (X.pack . show $ u)
+  ++ showPosting p
