@@ -23,6 +23,7 @@ import qualified Penny.Copper.Render as R
 import qualified Penny.Brenner.Clear as C
 import qualified Penny.Brenner.Import as I
 import qualified Penny.Brenner.Merge as M
+import qualified Penny.Brenner.Print as P
 import qualified System.Console.MultiArg as MA
 import qualified Control.Monad.Exception.Synchronous as Ex
 import System.Exit (exitFailure)
@@ -87,7 +88,9 @@ whatMode pp = case pp of
   DoIt cd ->
     Right [ C.mode cd
           , I.mode (Y.dbLocation cd) (snd . Y.parser $ cd)
-          , M.mode cd ]
+          , M.mode cd
+          , P.mode (snd . Y.parser $ cd)
+          ]
 
 
 processParseResult
