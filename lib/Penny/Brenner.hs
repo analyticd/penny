@@ -21,6 +21,7 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Copper.Render as R
 import qualified Penny.Brenner.Clear as C
+import qualified Penny.Brenner.Database as D
 import qualified Penny.Brenner.Import as I
 import qualified Penny.Brenner.Merge as M
 import qualified Penny.Brenner.Print as P
@@ -90,6 +91,7 @@ whatMode pp = case pp of
           , I.mode (Y.dbLocation cd) (snd . Y.parser $ cd)
           , M.mode cd
           , P.mode (snd . Y.parser $ cd)
+          , D.mode (Y.dbLocation cd)
           ]
 
 
