@@ -1,3 +1,6 @@
+-- | Parses statements for Bank of America deposit accounts. See the
+-- help text in the 'help' function for more details. Also, the file
+-- format is documented in the file @doc\/bofa-file-format.org@.
 module Penny.Brenner.BofA (parser) where
 
 import Control.Applicative ((<$>), (<*), (<$), (<*>))
@@ -124,16 +127,13 @@ posting (Node l cs) = do
     Parent n -> return n
     _ -> Ex.throw "did not find posting tree"
   Ex.assert "did not find STMTTRN tag" $ unTagName tag == "STMTTRN"
-  (tType, tPosted, tAmt, tId, tName) <- case cs of
-    t1:t2:t3:t4:t5:[] -> return (t1, t2, t3, t4, t5)
+  (tPosted, tAmt, tId, tName) <- case cs of
+    _:t2:t3:t4:t5:[] -> return (t2, t3, t4, t5)
     _ -> Ex.throw "did not find five child nodes"
-  pType <- parseType tType
   pPosted <- parsePosted tPosted
   (amtIncDec, pAmt) <- parseAmount tAmt
   pId <- parseId tId
   pName <- parseName tName
-  Ex.assert "TRNTYPE and TRNAMT do not agree on posting type"
-    $ pType == amtIncDec
   let pPayee = Y.Payee (X.empty)
   return $ Y.Posting pPosted pName amtIncDec pAmt pPayee pId
 
@@ -160,15 +160,6 @@ terminalData n (Node l cs) = do
                 ++ " but does"
   Ex.assert kidsErr $ null cs
   return . X.pack . unTagData $ td
-
-parseType :: Tree Label -> ExS Y.IncDec
-parseType t = do
-  d <- terminalData "TRNTYPE" t
-  let f | d == X.pack "CREDIT" = return Y.Increase
-        | d == X.pack "DEBIT" = return Y.Decrease
-        | otherwise = Ex.throw $ "TRNTYPE not a DEBIT or CREDIT; "
-                        ++ "instead its value is " ++ X.unpack d
-  f
 
 parsePosted :: Tree Label -> ExS Y.Date
 parsePosted t = do

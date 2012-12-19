@@ -127,7 +127,8 @@ Not balanced. Digits. Some sort of date-time.
 Balanced. Where interesting stuff starts.
 
 ****** TRNTYPE
-Not balanced. CREDIT or DEBIT.
+Not balanced. Transaction Type? Mostly CREDIT or DEBIT in the data I
+have, though it might also be ATM or who knows what else.
 
 ****** DTPOSTED
 Not balanced. A date-time. I am guessing the format for a date-time is

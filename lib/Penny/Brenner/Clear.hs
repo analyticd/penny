@@ -96,7 +96,7 @@ runClear c os = do
     Just ls -> return $ Set.fromList ls
   let (led', left) = changeLedger (Y.pennyAcct c) toClear leds
   when (not (Set.null left))
-    (fatal $ "some Amex postings were not cleared. "
+    (fatal $ "some postings were not cleared. "
       ++ "Those not cleared:\n" ++ ppShow left)
   case R.ledger (Y.groupSpecs c) led' of
     Nothing ->
@@ -104,8 +104,9 @@ runClear c os = do
     Just txt -> TIO.putStr txt
 
 
--- | Examines an AmexTxn and the DbMap to find a matching
--- UNumber. Fails if the AmexTxn is not in the Db.
+-- | Examines an financial institution transaction and the DbMap to
+-- find a matching UNumber. Fails if the financial institution
+-- transaction is not in the Db.
 findUNumber :: Y.DbMap -> Y.Posting -> Maybe Y.UNumber
 findUNumber m pstg =
   let atn = Y.fitId pstg

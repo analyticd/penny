@@ -1,3 +1,7 @@
+-- | Renders Penny data in a format that can be parsed by
+-- "Penny.Copper.Parsec". These functions render text that is
+-- compliant with the EBNF grammar which is at
+-- @doc\/ledger-grammar.org@.
 module Penny.Copper.Render where
 
 import Control.Monad (guard)

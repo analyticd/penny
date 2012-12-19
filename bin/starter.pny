@@ -1,0 +1,220 @@
+# This file contains some sample Penny data. It is used as a basis for
+# the examples in the penny-getting-started manual page.
+
+# This file, like all of Penny, assumes you have basic knowledge of
+# double-entry accounting. See penny-accounting-basics(1).
+
+# As you can see, comments begin with the # symbol. You can only
+# have single-line comments; there are no multi-line comments
+# (e.g. like <!-- --> in XML or /* */ in C.) Also, comments must
+# start at the beginning of a line.
+
+# We will distinguish between *transactions* and *postings*. A posting
+# must have, at a minimum, an account, an indication of whether it is
+# a debit or a credit, a commodity, and a quantity. A transaction must
+# have at least two postings. All the postings in a transaction must
+# balance--that is, their debits and credits must add up to the same
+# number.
+
+# A first example:
+
+2012-12-01 Spacely Sprockets
+    Income:Salary                                       > $3000.00
+    Assets:Checking                                     < $3000.00
+
+# As shown above, debits are indicated with < (a less-than sign, which
+# looks like a left-pointing arrow) and credits with a > (which looks
+# like a right-pointing arrow.) So, in this transaction, you have
+# debited your Assets:Checking account by $3000, and you have credited
+# your Salary account by $3000.
+
+# If you try to have a transaction which is NOT balanced--that is, the
+# sum of the debits is not equal to the sum of the credits--then Penny
+# will complain and quit. The following text is not a valid
+# transaction so it is commented out:
+
+# 2012-12-01 Unbalanced
+#     Income:Salary                                     > $3000.00
+#     Assets:Checking                                   > $3000.00
+
+# There, you have two credits, but no debit.
+
+# Some more transactions to get us started:
+2012-12-01 Landlord
+    Expenses:Rent                                       < $700.00
+    Assets:Checking                                     > $700.00
+
+2012-12-02 Whole Foods
+    Expenses:Food                                       < $43.10
+    Assets:Checking                                     > $43.10
+
+2012-12-02 Amazon.com
+    Expenses:Books                                      < $23.99
+    Liabilities:Amex                                    > $23.99
+
+# If your transaction has only two postings, then you don't have to
+# fill in the debit or credit, quantity, and commodity for both
+# postings. You can leave it blank for one of the postings. Penny will
+# use the debit or credit, quantity, and commodity from the one that
+# you fill in to "infer" what is is for the other posting.
+
+2012-12-02 CVS
+    Expenses:Drugs                                      < $12.14
+    Assets:Checking
+
+# Here, Penny infers that the Assets:Checking account is credited
+# $12.14.
+
+# The different parts of your Penny file--accounts, dates, and so
+# on--are separated with spaces. If you have data that includes
+# spaces--for instance, you have a space in an account name--then you
+# have to surround it with special characters. This is called
+# "quoting". This is also true if you want to include other special
+# characters in a particular part of your file. For example, to quote
+# an account that has spaces, use curly braces:
+
+2012-12-03 CVS
+    {Expenses:Personal Care}                            < $82.21
+    Liabilities:Amex
+
+# When you are writing a payee name in the first line of a transaction
+# (next to the date), it's okay to have spaces.
+
+# You can have more than two postings in a transaction. Your debits
+# and credits still have to be equal:
+2012-12-03 Safeway
+    Expenses:Food                                       < $8.94
+    {Expenses:Personal Care}                            < $20.00
+    Liabilities:Amex                                    > $28.94
+
+# If you have more than two postings, you can still leave one of them
+# without a debit or credit, commodity, or quantity, and Penny will
+# infer what it is.
+2012-12-04 Home Depot
+    Expenses:Hardware                                   < $50.00
+    Expenses:Garden                                     < $9.97
+    Liabilities:Amex
+
+# Each account is broken into "sub-accounts", which are separated by
+# colons. In all the examples we've seen so far, there are two
+# sub-accounts, but you can have as many or as few (down to one)
+# sub-accounts as you like.
+2012-12-05 Whole Foods
+    Expenses:Entertaining:Food                          < $67.75
+    Assets:Checking
+
+# Postings can have memos. The memo begins with an apostrophe.
+2012-12-06 Eli Zabar
+    Expenses:Food                                       < $23.04
+        'Some expensive bread.
+        'Next time try the one with the raisins.
+    Liabilities:Amex
+
+# In addition, transactions can have memos. Each line of these begins
+# with a semicolon. They must appear immediately before a
+# transaction. They are different from comments because a transaction
+# memo is associated with its transaction, while a comment is
+# associated with nothing.
+
+; Tried the new Potbelly
+2012-12-06 Potbelly
+    Expenses:Food                                       < $9.83
+    Liabilities:Amex
+
+# Whitespace separates the different elements of a transaction and a
+# posting. However Penny does not impose particular indentation on
+# you. The indentation you see above is just a convention that I think
+# looks readable, but you can do it a different way. Penny also does
+# not take sides in the tabs vs spaces holy war.
+
+2012-12-06 Duane Reade
+Expenses:Magazines < $2.98
+Liabilities:Amex
+
+# You do however have to keep each posting on a separate line, and you
+# have to keep all the lines of a transaction together without any
+# blank lines in between.
+
+# You can also choose how to write your commodities--that is, before
+# or after the quantity, and with or without a space between the
+# commodity and the quantity. Currently Penny remembers how you write
+# your commodities, though what it remembers has effects in only a few
+# places. In particular, it does not affect how your reports are formatted.
+
+# Ok, so this example does not really make sense with dollars, but it
+# gives you the idea.
+
+2012-12-06 Flo
+    Expenses:Insurance:Car                              < 230.00 $
+    Assets:Checking
+
+# Transactions and postings can have a "flag". I use only
+# single-character flags; however, you can make your flags as long as
+# you like. A flag is enclosed in square brackets. You might use these
+# to indicate when a transaction has cleared your bank, or to remember
+# what kind of a transaction it is.
+
+# This flag applies to the entire transaction.
+2012-12-06 [ATM] Cash
+    Assets:Checking                                     > $100.00
+    Expenses:Cash
+
+# This flag applies just to the posting it is next to.
+2012-12-10 Cash
+    Expenses:Cash                                       < $100.00
+    [ATM] Assets:Checking
+
+# Similarly, transactions and postings can have a "number". You might
+# use this for check numbers. This number applies to the whole
+# transaction...
+
+2012-12-11 (804) Comcast
+    Expenses:Cable                                      < $123.99
+    Assets:Checking
+
+# ... and this one just to the posting.
+
+2012-12-12 Washington Gas
+    Expenses:Utilities:Gas                              < $23.14
+    (805) Assets:Checking
+
+# The payee on the first line of the posting is optional. The only
+# thing required on the first line is the date. You can also put a
+# payee on the individual postings, but they must be surrounded with
+# tildes.
+
+2012-12-12
+    ~Zork enterprises~ (203) [R] Expenses:Gifts          < $16.99
+    [R] ~Barristers Inc.~ (204) Expenses:Gifts           < $42.99
+    Assets:Checking
+
+# As the above example shows, you can have a payee, number, and flag
+# on a single posting, or any combination of those. They can appear in
+# any order. The account name always appears after these.
+
+# A posting can have tags. This gives you another way (beyond
+# accounts) to classify postings. For example, let's say you take a
+# vacation. You spend money and put the expenses in different
+# accounts, but you want to track the vacation expenses together. You
+# precede each tag with an asterisk (you can have more than one tag on
+# a posting) and the tags go after the account name.
+
+2012-12-13 Amtrak
+    {Expenses:Train fare} *vacation2012                 < $700.00
+    Liabilities:Amex
+
+2012-12-14 Fitzpatrick Grand Central Hotel
+    Expenses:Hotel *vacation2012                        < $400.00
+    Liabilities:Amex
+
+# You can use either dashes or slashes as the date separator. You can
+# even mix them up :)
+
+2012/12-15 Aquagrill
+    Expenses:Food *vacation2012                         < $87.00
+    Liabilities:Amex
+
+# That's everything you need to get started recording your data with
+# Penny. If you want to track multiple commodities (for instance
+# stocks, or the price of your real estate) look at the commodity.pny
+# file, which will help you get started there.

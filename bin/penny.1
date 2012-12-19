@@ -34,13 +34,16 @@ were found in the input ledger).
 
 Next you must specify a
 .IR report .
-Currently there are two reports: 
-.BR postings ,
-which shows information about each posting, like a checkbook register, and
-.BR balance ,
-which shows you information about the balance of each account. The
-report is based only upon the postings that the filter expression
-returned.
+Currently there are three reports. The
+.BR postings
+report shows information about each posting, like a checkbook register.
+There are two reports that show account balances only: the
+.BR balance
+report and the
+.B convert
+report. Each report shows only the postings returned by the posting
+filter expression.
+
 
 You may then specify options pertaining to the report. The
 .BR postings
@@ -52,7 +55,9 @@ want to see the total balance in your bank account and how some
 transactions affect it but you do not want to see all transactions
 since the beginning of time. The
 .BR balance
-report takes many fewer options.
+and
+.B convert
+reports take many fewer options.
 
 Finally you may specify one or more files from which to draw the
 data. If you do not specify a file, standard input is used.
@@ -198,29 +203,18 @@ posting has no number, the flag of the parent transaction is used
 
 .TP
 .BI --commodity " pattern"
-The commodity is separated into colon-separated sub-commodities, and
-the test succeeds if the pattern matches the full colon-separated
-commodity name.
-
-.TP
-.BI "--commodity-level " "number pattern"
-The commodity is separated into sub-commodities, which are numbered
-beginning at zero. The match succeeds if the posting has a sub-commodity
-numbered at the given level, and if that sub-commodity matches the given
-pattern.
-
-.TP
-.BI "--commodity-any " pattern
-The commodity is separated into sub-commodities. The match succeeds if
-the pattern matches any of a posting's sub-commodities.
+Succeeds if the posting's commodity matches the given pattern.
 
 .TP
 .BI "--posting-memo " pattern
-The posting memo must match the given pattern.
+The posting memo must match the given pattern. For the purpose of this
+option, the line breaks in the posting memo are replaced with spaces.
 
 .TP
 .BI "--transaction-memo " pattern
-The transaction memo must match the given pattern.
+The transaction memo must match the given pattern. For the purpose of
+this option, the line breaks in the transaction memo are replaced with
+spaces.
 
 .SS Other posting characteristics
 
@@ -317,7 +311,7 @@ and
 .B --case-sensitive
 options.
 
-.SH Removing postings after sorting and filtering
+.SH REMOVING POSTINGS AFTER SORTING AND FILTERING
 
 .TP
 .BI "--head " n
@@ -331,7 +325,7 @@ Keep only the last
 .I n
 postings.
 
-.SH Sorting
+.SH SORTING
 
 .TP
 .BI "--sort | -s " key
@@ -396,7 +390,8 @@ always shows 8 colors.
 .B no
 never shows colors.
 .B auto
-first examines whether standard output is a terminal. If standard output is not a terminal,
+first examines whether standard output is a terminal. If standard
+output is not a terminal,
 .B penny
 does not show any colors. If standard output is a terminal, examines
 the value of the TERM environment variable. If TERM is
@@ -488,10 +483,9 @@ The
 .B balance
 report summarizes the balances in each account that is represented in
 the postings that remain after the filtering specifications are
-carried out. You can use sorting specifications with the balance
-report, but they will have no effect. The accounts are shown
-hierarchically. This report is also useful for converting from one
-commodity to another.
+carried out. You can use sorting specifications in the posting filter
+expression, but they will have no effect. The
+accounts are shown hierarchically.
 
 The
 .B balance
@@ -518,92 +512,88 @@ T}
 .TP
 .BI --background " light|dark"
 Use appropriate color scheme for the given terminal background
+(default: dark)
 
 .TP
-.BI --convert " commodity dateTime"
-Convert all commodities to the given commodity using their price as of
-the given date and, optionally, time.
-.IR commodity " and " dateTime
-follow the same format as the respective items in a ledger file. If
-any commodity does not have a matching price,
-.B penny
-will fail and give you an error message.
+.BI --show-zero-balances
+Show balances that are zero (default)
 
 .TP
-.BI -c " commodity"
-Same as
-.BI "--convert " "commodity [right now]"
+.BI --hide-zero-balances
+Hide balances that are zero
 
 .TP
 .B --ascending
-Sort accounts in ascending order (default).
+Sort in ascending order by account name (default)
 
 .TP
 .B --descending
-Sort accounts in descending order.
+Sort in descending order by account name
+
+.SH CONVERT REPORT
+
+The
+.B convert
+report shows account balances after converting all amounts to a single
+commodity. In addition to converting commodities, it also can sort
+accounts by their balances.  Accepts ONLY the following report
+options:
 
 .TP
-.BI --by-entry " commodity dateTime"
-Like
-.B --convert
-, but also sorts accounts by the resulting entries, rather than by
-sorting by account name as is the default. Debits are always shown
-first, then credits, then accounts with no balance. Then the amounts
-are shown, respecting the
-.B --ascending
-or
-.B --descending
-options. For example, here is a report you might get simply by running
-.IR "penny bal main.pny" .
-The accounts are sorted by name.
+.BI --color " yes|no|auto|256"
+Controls how many colors to display:
 
 .TS
 tab(:);
-l l l l.
-Total:Cr:$:18500.00
-Assets:Dr:$:53500.00
-  Checking:Dr:$:1000.00
-  House:Dr:$:50000.00
-  Savings:Dr:$:2500.00
-Liabilities:Cr:$:72000.00
-  Credit Card:Cr:$:2000.00
-  Mortgage:Cr:$:60000.00
-  Student Loan:Cr:$:10000.00
+lB l.
+yes:always show 8 colors
+no:never show any colors
+auto:T{
+show 8 or 256 colors, but only if standard output is a terminal.
+If standard output is a terminal, shows 256 colors if the value
+of the TERM environment variable is \fIxterm-256color\fR;
+otherwise, shows 8 colors.
+T}
+256:always show 256 colors
 .TE
 
-Now, here is the same data when running the command
-.IR "penny bal --by-entry $ 2012-08-31" :
+.TP
+.BI --background " light|dark"
+Use appropriate color scheme for the given terminal background
+(default: dark)
 
-.TS
-tab(:);
-l l l l.
-Total:Cr:$:18500.00
-Assets:Dr:$:53500.00
-  Checking:Dr:$:1000.00
-  Savings:Dr:$:2500.00
-  House:Dr:$:50000.00
-Liabilities:Cr:$:72000.00
-  Credit Card:Cr:$:2000.00
-  Student Loan:Cr:$:10000.00
-  Mortgage:Cr:$:60000.00
-.TE
+.TP
+.BI --show-zero-balances
+Show balances that are zero (default)
 
-Or, the same data when running the command
-.IR "penny bal --descending --by-entry $ 2012-08-31" :
+.TP
+.BI --hide-zero-balances
+Hide balances that are zero
 
-.TS
-tab(:);
-l l l l.
-Total:Cr:$:18500.00
-Assets:Dr:$:53500.00
-  House:Dr:$:50000.00
-  Savings:Dr:$:2500.00
-  Checking:Dr:$:1000.00
-Liabilities:Cr:$:72000.00
-  Mortgage:Cr:$:60000.00
-  Student Loan:Cr:$:10000.00
-  Credit Card:Cr:$:2000.00
-.TE
+.TP
+.BI "--commodity | -c " "TARGET-COMMODITY"
+Convert all commodities to
+.IR TARGET-COMMODITY .
+By default, the commodity that appears most often as the target
+commodity in your price data is used. If there is is a tie, the price
+closest to the end of your list of prices is used.
+
+.TP
+.BI "--date | -d " "DATE-TIME"
+Convert prices as of the date and time given. By default, the current
+date and time is used.
+
+.TP
+.BI "--sort | -s " "name|qty"
+Sort balances by sub-account name (default) or by quantity
+
+.TP
+.BI --ascending
+Sort in ascending order (default)
+
+.TP
+.BI --descending
+Sort in descending order
 
 .SH SERIALS
 
@@ -658,9 +648,10 @@ applied, which occurs after the filtering options have been applied.
 Postings are numbered in order after removing the postings as
 specified by the options to the
 .I postings
-report. (Does not apply to the
-.I balance
+report. (Applies only to the
+.I postings
 report.)
+
 
 .SH SEE ALSO
 The file

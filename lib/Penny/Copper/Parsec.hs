@@ -1,3 +1,5 @@
+-- | Parsec parsers for the ledger file format. The format is
+-- documented in EBNF in the file @doc\/ledger-grammar.org@.
 module Penny.Copper.Parsec where
 
 import qualified Penny.Copper.Terminals as T

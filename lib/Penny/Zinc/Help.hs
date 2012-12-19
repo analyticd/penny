@@ -4,7 +4,7 @@ import Data.Text (Text, pack)
 
 help :: Text
 help = pack $ unlines [
-  "usage: zinc [posting filters] report [report options] file . . .",
+  "usage: penny [posting filters] report [report options] file . . .",
   "",
   "Posting filters",
   "------------------------------------------",
@@ -55,10 +55,6 @@ help = pack $ unlines [
   "  Flag must match pattern",
   "--commodity pattern",
   "  Pattern must match colon-separated commodity name",
-  "--commodity-level num pattern",
-  "  Pattern must match sub commodity at given level",
-  "--commodity-any pattern",
-  "  Pattern must match sub commodity at any level",
   "--posting-memo pattern",
   "  Posting memo must match pattern",
   "--transaction-memo pattern",

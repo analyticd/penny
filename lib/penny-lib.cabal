@@ -11,6 +11,11 @@ homepage: http://www.github.com/massysett/penny
 bug-reports: omari@smileystation.com
 Category: Console, Finance
 License-File: LICENSE
+extra-source-files:
+    doc/*.org
+  , doc/*.dot
+  , doc/*.txt
+
 synopsis: Extensible double-entry accounting system - library
 
 description: Penny is a double-entry accounting system. It is inspired
@@ -166,119 +171,120 @@ description: Penny is a double-entry accounting system. It is inspired
   Hackage.
 
 source-repository head
-    type: git
-    location: git://github.com/massysett/penny.git
+  type: git
+  location: git://github.com/massysett/penny.git
 
 Library
-    Build-depends:
-        base ==4.*,
-        cereal ==0.3.*,
-        bytestring ==0.9.*,
-        text ==0.11.*,
-        explicit-exception ==0.1.*,
-        containers ==0.4.*,
-        transformers == 0.3.*,
-        time ==1.4.*,
-        parsec >= 3.1.2 && < 3.2,
-        multiarg ==0.7.*,
-        matchers ==0.2.*,
-        monad-loops ==0.3.*,
-        old-locale ==1.0.*,
-        pretty-show ==1.2.*,
-        semigroups ==0.8.*,
-        split ==0.2.*,
-        strict ==0.3.*
+  Build-depends:
+      base ==4.*
+    , bytestring ==0.9.*
+    , cereal ==0.3.*
+    , containers ==0.4.*
+    , explicit-exception ==0.1.*
+    , matchers ==0.2.*
+    , monad-loops ==0.3.*
+    , multiarg ==0.7.*
+    , old-locale ==1.0.*
+    , parsec >= 3.1.2 && < 3.2
+    , pretty-show ==1.2.*
+    , semigroups ==0.8.*
+    , split ==0.2.*
+    , strict ==0.3.*
+    , text ==0.11.*
+    , time ==1.4.*
+    , transformers == 0.3.*
 
-    Exposed-modules:
-        Penny,
-        Penny.Brenner,
-        Penny.Brenner.Amex,
-        Penny.Brenner.BofA,
-        Penny.Brenner.Clear,
-        Penny.Brenner.Database,
-        Penny.Brenner.Import,
-        Penny.Brenner.Merge,
-        Penny.Brenner.Print,
-        Penny.Brenner.Types,
-        Penny.Brenner.Util,
-        Penny.Cabin,
-        Penny.Cabin.Balance,
-        Penny.Cabin.Balance.Convert,
-        Penny.Cabin.Balance.Convert.Chunker,
-        Penny.Cabin.Balance.Convert.Help,
-        Penny.Cabin.Balance.Convert.Options,
-        Penny.Cabin.Balance.Convert.Parser,
-        Penny.Cabin.Balance.MultiCommodity,
-        Penny.Cabin.Balance.MultiCommodity.Chunker,
-        Penny.Cabin.Balance.MultiCommodity.Help,
-        Penny.Cabin.Balance.MultiCommodity.Parser,
-        Penny.Cabin.Balance.Util,
-        Penny.Cabin.Chunk,
-        Penny.Cabin.Chunk.Switch,
-        Penny.Cabin.Colors,
-        Penny.Cabin.Colors.DarkBackground,
-        Penny.Cabin.Colors.LightBackground,
-        Penny.Cabin.Interface,
-        Penny.Cabin.Meta,
-        Penny.Cabin.Options,
-        Penny.Cabin.Parsers,
-        Penny.Cabin.Posts,
-        Penny.Cabin.Posts.Allocated,
-        Penny.Cabin.Posts.BottomRows,
-        Penny.Cabin.Posts.Fields,
-        Penny.Cabin.Posts.Growers,
-        Penny.Cabin.Posts.Chunk,
-        Penny.Cabin.Posts.Help,
-        Penny.Cabin.Posts.Meta,
-        Penny.Cabin.Posts.Parser,
-        Penny.Cabin.Posts.Spacers,
-        Penny.Cabin.Posts.Types,
-        Penny.Cabin.Row,
-        Penny.Cabin.TextFormat,
-        Penny.Copper,
-        Penny.Copper.Parsec,
-        Penny.Copper.Render,
-        Penny.Copper.Terminals,
-        Penny.Copper.Types,
-        Penny.Liberty,
-        Penny.Liberty.Expressions,
-        Penny.Liberty.Expressions.Infix,
-        Penny.Liberty.Expressions.RPN,
-        Penny.Lincoln,
-        Penny.Lincoln.Balance,
-        Penny.Lincoln.Bits,
-        Penny.Lincoln.Bits.DateTime,
-        Penny.Lincoln.Bits.Open,
-        Penny.Lincoln.Bits.Price,
-        Penny.Lincoln.Bits.Qty,
-        Penny.Lincoln.Builders,
-        Penny.Lincoln.Family,
-        Penny.Lincoln.Family.Child,
-        Penny.Lincoln.Family.Family,
-        Penny.Lincoln.Family.Siblings,
-        Penny.Lincoln.HasText,
-        Penny.Lincoln.Matchers,
-        Penny.Lincoln.NestedMap,
-        Penny.Lincoln.Predicates,
-        Penny.Lincoln.PriceDb,
-        Penny.Lincoln.Queries,
-        Penny.Lincoln.Serial,
-        Penny.Lincoln.Transaction,
-        Penny.Lincoln.Transaction.Unverified,
-        Penny.Shield,
-        Penny.Zinc,
-        Penny.Zinc.Error,
-        Penny.Zinc.Help,
-        Penny.Zinc.Parser,
-        Penny.Zinc.Parser.Defaults,
-        Penny.Zinc.Parser.Filter,
-        Penny.Zinc.Parser.Ledgers
+  Exposed-modules:
+      Penny
+    , Penny.Brenner
+    , Penny.Brenner.Amex
+    , Penny.Brenner.BofA
+    , Penny.Brenner.Clear
+    , Penny.Brenner.Database
+    , Penny.Brenner.Import
+    , Penny.Brenner.Merge
+    , Penny.Brenner.Print
+    , Penny.Brenner.Types
+    , Penny.Brenner.Util
+    , Penny.Cabin
+    , Penny.Cabin.Balance
+    , Penny.Cabin.Balance.Convert
+    , Penny.Cabin.Balance.Convert.Chunker
+    , Penny.Cabin.Balance.Convert.Help
+    , Penny.Cabin.Balance.Convert.Options
+    , Penny.Cabin.Balance.Convert.Parser
+    , Penny.Cabin.Balance.MultiCommodity
+    , Penny.Cabin.Balance.MultiCommodity.Chunker
+    , Penny.Cabin.Balance.MultiCommodity.Help
+    , Penny.Cabin.Balance.MultiCommodity.Parser
+    , Penny.Cabin.Balance.Util
+    , Penny.Cabin.Chunk
+    , Penny.Cabin.Chunk.Switch
+    , Penny.Cabin.Colors
+    , Penny.Cabin.Colors.DarkBackground
+    , Penny.Cabin.Colors.LightBackground
+    , Penny.Cabin.Interface
+    , Penny.Cabin.Meta
+    , Penny.Cabin.Options
+    , Penny.Cabin.Parsers
+    , Penny.Cabin.Posts
+    , Penny.Cabin.Posts.Allocated
+    , Penny.Cabin.Posts.BottomRows
+    , Penny.Cabin.Posts.Fields
+    , Penny.Cabin.Posts.Growers
+    , Penny.Cabin.Posts.Chunk
+    , Penny.Cabin.Posts.Help
+    , Penny.Cabin.Posts.Meta
+    , Penny.Cabin.Posts.Parser
+    , Penny.Cabin.Posts.Spacers
+    , Penny.Cabin.Posts.Types
+    , Penny.Cabin.Row
+    , Penny.Cabin.TextFormat
+    , Penny.Copper
+    , Penny.Copper.Parsec
+    , Penny.Copper.Render
+    , Penny.Copper.Terminals
+    , Penny.Copper.Types
+    , Penny.Liberty
+    , Penny.Liberty.Expressions
+    , Penny.Liberty.Expressions.Infix
+    , Penny.Liberty.Expressions.RPN
+    , Penny.Lincoln
+    , Penny.Lincoln.Balance
+    , Penny.Lincoln.Bits
+    , Penny.Lincoln.Bits.DateTime
+    , Penny.Lincoln.Bits.Open
+    , Penny.Lincoln.Bits.Price
+    , Penny.Lincoln.Bits.Qty
+    , Penny.Lincoln.Builders
+    , Penny.Lincoln.Family
+    , Penny.Lincoln.Family.Child
+    , Penny.Lincoln.Family.Family
+    , Penny.Lincoln.Family.Siblings
+    , Penny.Lincoln.HasText
+    , Penny.Lincoln.Matchers
+    , Penny.Lincoln.NestedMap
+    , Penny.Lincoln.Predicates
+    , Penny.Lincoln.PriceDb
+    , Penny.Lincoln.Queries
+    , Penny.Lincoln.Serial
+    , Penny.Lincoln.Transaction
+    , Penny.Lincoln.Transaction.Unverified
+    , Penny.Shield
+    , Penny.Zinc
+    , Penny.Zinc.Error
+    , Penny.Zinc.Help
+    , Penny.Zinc.Parser
+    , Penny.Zinc.Parser.Defaults
+    , Penny.Zinc.Parser.Filter
+    , Penny.Zinc.Parser.Ledgers
 
 
-    ghc-options: -Wall
-    if flag(debug)
-      ghc-options: -auto-all -caf-all
+  ghc-options: -Wall
+  if flag(debug)
+    ghc-options: -auto-all -caf-all
 
 Flag debug
-    Description: turns on some debugging options
-    Default: False
+  Description: turns on some debugging options
+  Default: False
+

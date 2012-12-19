@@ -5,12 +5,12 @@ To render, run
 dot -Tps dependencies.dot -o dependencies.ps
 */
 digraph G {
+        Brenner -> Lincoln;
+        Brenner -> Copper;
         Cabin -> Lincoln;
         Cabin -> Liberty;
         Cabin -> Shield;
         Copper -> Lincoln;
-        Denver -> Copper;
-        Denver -> Lincoln;
         Liberty -> Lincoln;
         Liberty -> Copper;
         Shield -> Lincoln;

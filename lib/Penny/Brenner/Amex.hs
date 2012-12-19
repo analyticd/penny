@@ -1,3 +1,6 @@
+-- | Parses Amex credit card data. See the help text in the 'help'
+-- function for more details. Also, the file format is documented in
+-- the file @doc\/amex-file-format.org@.
 module Penny.Brenner.Amex (parser) where
 
 import Control.Applicative ((<$>), (<*>), (<$), (<*), (*>), pure,
