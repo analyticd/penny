@@ -11,6 +11,8 @@ module Penny.Brenner
   , R.GroupSpecs(..)
   , R.GroupSpec(..)
   , Y.Translator(..)
+  , L.Side(..)
+  , L.SpaceBetween(..)
   , brennerMain
   ) where
 
@@ -135,12 +137,18 @@ help ::
   -> String
 help n c = unlines ls ++ cs
   where
-    ls = [ "usage: " ++ n ++ " [options] import|merge|clear ARGS..."
+    ls = [ "usage: " ++ n ++ " [global-options]"
+            ++ " COMMAND [local-options]"
+            ++ " ARGS..."
          , ""
-         , "For help on an individual command, use "
+         , "where COMMAND is one of:"
+         , "import, merge, clear, database, print"
+         , ""
+         , "For help on an individual command and its"
+           ++ " local options, use "
          , n ++ " COMMAND --help"
          , ""
-         , "Options:"
+         , "Global Options:"
          , "-f, --fit-account CARD"
          , "  Use one of the Additional Financial Institution"
          , "  Accounts shown below. If this option does not appear,"
@@ -186,8 +194,11 @@ showFitAcct c =
   ++ label "Currency"
      (X.unpack . L.unCommodity . Y.unCurrency . Y.currency $ c)
 
+  ++ "\n"
+
   ++ "More information about the parser:\n"
   ++ (fst . Y.parser $ c)
+  ++ "\n\n"
 
 
 -- | Information to configure a single card account.
