@@ -1,35 +1,49 @@
 # This file documents some recommended practices for dealing
-# with multi-commodity transactions. This is a work in progress.
-# If you have any suggestions, please send them to me at
-# omari@smileystation.com, as this has been cobbled together
-# from the ground-up and any improvements are welcome.
+# with multi-commodity transactions.
 
-# Any transaction that has two commodities will have at least
-# four postings. This is because all transasctions in Penny
-# must always be balanced.
+# All the examples in the starter.pny file use dollars as the
+# commodity. However, Penny is flexible: you can track any commodity
+# you want. The simple rule is that all transactions must be
+# balanced--that is, the sum of the debits must be equal to the sum of
+# the credits. Each posting can have only one commodity. A debit sum
+# of one commodity must be offset by a credit sum of the same
+# commodity. So, let's say you buy 100 shares of F for $1 each. The
+# following transaction is INVALID so it is commented out:
 
-# One way to keep track of multiple commodities is to
-# use a separate account to track the cost basis. You will
-# need to use a separate account for each transaction you
-# want to track.
+# 2012/12/19 Buy stock
+#    Assets:Checking                         > $100.00
+#    Assets:Brokerage                        < 100 F
 
-# For instance here is a purchase of stock. I am using the date
-# of purchase as a unique identifier, though you could use
-# anything.
+# That transaction is not balanced. The $100 credit needs an
+# offsetting $100 debit, and the debit of 100 F needs an offsetting
+# credit of 100 F. Here's one way to do it:
 
 2012-10-19 Purchase stock
-    Assets:Brokerage                                    Dr 100 F
-    Assets:Checking                                     Cr $1000.00
-    Basis:F:2012-10-19                                  Cr 100 F
-    Basis:F:2012-10-19                                  Dr $1000.00
+    Assets:Brokerage                                    < 100 F
+    Assets:Checking                                     > $1000.00
+    Basis:F:2012-10-19                                  > 100 F
+    Basis:F:2012-10-19                                  < $1000.00
+
+# That method is the one I recommend. Offsetting your debit and credit
+# against a single Basis account will allow you to get more useful
+# information out of your ledger file, as we will see later. By
+# naming the Basis account as shown here (with the second sub-account
+# being the commodity symbol, and the third sub-account being the date
+# on which the commodity was purchased) the penny-selloff program will
+# be able to help you out later when you sell the commodity.
+
+# Any transaction that has two commodities will have at least four
+# postings. This is because all transasctions in Penny must always be
+# balanced, and every debit balance must be offset with a credit
+# balance of the exact same commodity.
 
 # A month later I sell my stock. Let's say it has done very well.
 
 2012-11-19 Sell stock
-    Assets:Brokerage                                    Cr 100 F
-    Assets:Checking                                     Dr $1400.00
-    Basis:F:2012-10-19                                  Dr 100 F
-    Basis:F:2012-10-19                                  Cr $1400.00
+    Assets:Brokerage                                    > 100 F
+    Assets:Checking                                     < $1400.00
+    Basis:F:2012-10-19                                  < 100 F
+    Basis:F:2012-10-19                                  > $1400.00
 
 # At this point, Basis:F:2012-10-19 has a credit balance of
 # $400.00. This is your capital gain from the sale. You probably want
@@ -38,8 +52,8 @@
 # transaction as the stock sale.)
 
 2012-11-19 Capital Gain
-    Basis:F:2012-10-19                                  Dr $400.00
-    {Income:Capital Gain:F:2012-10-19}                  Cr $400.00
+    Basis:F:2012-10-19                                  < $400.00
+    {Income:Capital Gain:F:2012-10-19}                  > $400.00
 
 # That's one way to do it. It's simple enough when you just have
 # one lot of stock. What if you have a bunch of different lots?
@@ -47,22 +61,22 @@
 # an example:
 
 2012-10-19 Purchase stock
-    Assets:Brokerage                                    Dr 100 LUV
-    Assets:Checking                                     Cr $1000.00
-    Basis:LUV:2012-10-19                                Cr 100 LUV
-    Basis:LUV:2012-10-19                                Dr $1000.00
+    Assets:Brokerage                                    < 100 LUV
+    Assets:Checking                                     > $1000.00
+    Basis:LUV:2012-10-19                                > 100 LUV
+    Basis:LUV:2012-10-19                                < $1000.00
 
 2012-11-19 Purchase stock
-    Assets:Brokerage                                    Dr 100 LUV
-    Assets:Checking                                     Cr $1200.00
-    Basis:LUV:2012-11-19                                Cr 100 LUV
-    Basis:LUV:2012-11-19                                Dr $1200.00
+    Assets:Brokerage                                    < 100 LUV
+    Assets:Checking                                     > $1200.00
+    Basis:LUV:2012-11-19                                > 100 LUV
+    Basis:LUV:2012-11-19                                < $1200.00
 
 2012-12-19 Purchase stock
-    Assets:Brokerage                                    Dr 100 LUV
-    Assets:Checking                                     Cr $1400.00
-    Basis:LUV:2012-12-19                                Cr 100 LUV
-    Basis:LUV:2012-12-19                                Dr $1400.00
+    Assets:Brokerage                                    < 100 LUV
+    Assets:Checking                                     > $1400.00
+    Basis:LUV:2012-12-19                                > 100 LUV
+    Basis:LUV:2012-12-19                                < $1400.00
 
 
 # Okay, time to sell. Get rid of all the LUV.  To get the capital gain
@@ -71,10 +85,10 @@
 # like this first:
 
 2012-12-31 Sell stock
-    Assets:Brokerage                                    Cr 300 LUV
-    Assets:Checking                                     Dr $4800.00
-    Proceeds:LUV:2012-12-31                             Dr 300 LUV
-    Proceeds:LUV:2012-12-31                             Cr $4800.00
+    Assets:Brokerage                                    > 300 LUV
+    Assets:Checking                                     < $4800.00
+    Proceeds:LUV:2012-12-31                             < 300 LUV
+    Proceeds:LUV:2012-12-31                             > $4800.00
 
 # At this point your assets and brokerage accounts look good.  If you
 # don't care about capital gains, you can just stop here. But if you
@@ -112,20 +126,19 @@
 
 # will create a posting that looks like this:
 
-#; transaction created by penny-selloff for sale on 2012-12-31
+#;transaction created by penny-selloff for sale on 2012-12-31
 #2012-12-31 Realize gain or loss
-#    {Proceeds:LUV:2012-12-31}                           Dr $ 4,800.00
-#    {Proceeds:LUV:2012-12-31}                           Cr LUV 300
-#    {Basis:LUV:2012-10-19}                              Dr LUV 100
-#    {Basis:LUV:2012-10-19}                              Cr $ 1,000.00
-#    {Income:Capital Gain:LUV:2012-12-31:2012-10-19}     Cr $ 333.33
-#    {Basis:LUV:2012-11-19}                              Dr LUV 100
-#    {Basis:LUV:2012-11-19}                              Cr $ 1,200.00
-#    {Income:Capital Gain:LUV:2012-12-31:2012-11-19}     Cr $ 400.00
-#    {Basis:LUV:2012-12-19}                              Dr LUV 100
-#    {Basis:LUV:2012-12-19}                              Cr $ 1,400.00
-#    {Income:Capital Gain:LUV:2012-12-31:2012-12-19}     Cr $ 466.67
-#
+#    Proceeds:LUV:2012-12-31                             < $ 4800.00
+#    Proceeds:LUV:2012-12-31                             > LUV 300
+#    Basis:LUV:2012-10-19                                < LUV 100
+#    Basis:LUV:2012-10-19                                > $ 1000.00
+#    {Income:Capital Gain:LUV:2012-12-31:2012-10-19}     > $ 333.33
+#    Basis:LUV:2012-11-19                                < LUV 100
+#    Basis:LUV:2012-11-19                                > $ 1200.00
+#    {Income:Capital Gain:LUV:2012-12-31:2012-11-19}     > $ 400.01
+#    Basis:LUV:2012-12-19                                < LUV 100
+#    Basis:LUV:2012-12-19                                > $ 1400.00
+#    {Income:Capital Gain:LUV:2012-12-31:2012-12-19}     > $ 466.66
 
 # Thus the capital gain shows up in the Capital Gain account, and all
 # the Basis accounts and the Proceeds account have zero balances.

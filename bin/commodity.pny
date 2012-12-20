@@ -2,27 +2,3 @@
 # commodities--for instance, stock holdings or the price of your
 # house.
 
-# All the examples in the starter.pny file use dollars as the
-# commodity. However, Penny is flexible: you can track any commodity
-# you want. The simple rule is that all transactions must be
-# balanced--that is, the sum of the debits must be equal to the sum of
-# the credits. Each posting can have only one commodity. A debit sum
-# of one commodity must be offset by a credit sum of the same
-# commodity. So, let's say you buy 100 shares of F for $1 each. The
-# following transaction is INVALID so it is commented out:
-
-# 2012/12/19 Buy stock
-#    Assets:Checking                         > $100.00
-#    Assets:Brokerage                        < 100 F
-
-# That transaction is not balanced. The $100 credit needs an
-# offsetting $100 debit, and the debit of 100 F needs an offsetting
-# credit of 100 F. Here's one way to do it:
-
-2012/12/19 Buy stock
-    Assets:Checking                                     < $100.00
-    Assets:Brokerage                                    > 100 F
-    Basis:F:2012-12-19                                  < 100 F
-    Basis:F:2012-12-19                                  > $100.00
-
-# That method is the one I recommend.

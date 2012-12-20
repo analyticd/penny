@@ -118,7 +118,7 @@ import qualified System.Console.MultiArg as MA
 import Text.Parsec as Parsec
 
 groupingSpec :: CR.GroupSpecs
-groupingSpec = CR.GroupSpecs CR.GroupAll CR.NoGrouping
+groupingSpec = CR.GroupSpecs CR.NoGrouping CR.NoGrouping
 
 type Err = Ex.Exceptional Error
 
