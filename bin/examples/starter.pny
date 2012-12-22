@@ -16,7 +16,11 @@
 # balance--that is, their debits and credits must add up to the same
 # number.
 
-# A first example:
+# Some first examples:
+
+2012-12-01 Opening balances
+    Equity                                              > $1554.60
+    Assets:Checking                                     < $1554.60
 
 2012-12-01 Spacely Sprockets
     Income:Salary                                       > $3000.00
@@ -38,6 +42,10 @@
 #     Assets:Checking                                   > $3000.00
 
 # There, you have two credits, but no debit.
+
+# Penny has no concept of negative numbers. All numbers are
+# positive. Furthermore, quantities cannot be zero--they must be
+# greather than zero, even if infinitesimally so.
 
 # Some more transactions to get us started:
 2012-12-01 Landlord
@@ -197,7 +205,8 @@ Liabilities:Amex
 # vacation. You spend money and put the expenses in different
 # accounts, but you want to track the vacation expenses together. You
 # precede each tag with an asterisk (you can have more than one tag on
-# a posting) and the tags go after the account name.
+# a posting) and the tags go after the account name. A tag can have
+# nearly any character except for '<', '>', '*', or a space.
 
 2012-12-13 Amtrak
     {Expenses:Train fare} *vacation2012                 < $700.00
@@ -214,7 +223,49 @@ Liabilities:Amex
     Expenses:Food *vacation2012                         < $87.00
     Liabilities:Amex
 
+# People in different countries use different characters for the radix
+# point (decimal point) and to separate digits into groups. Penny
+# imposes a single uniform way to represent the radix point and digit
+# grouping. As you have seen above, use the full stop character
+# (period) to represent the radix point.
+
+# If you want to group digits, use the Unicode thin space
+# character. This is Unicode code point 2009. Most editors will render
+# it the same way they render a space, but it's not the same
+# character. Different editors will have different ways to enter this
+# character; in Emacs, press C-x 8 <ret> 2009. In Vim, in insert mode
+# press Ctrl-V, then u2009. That looks like this:
+
+2012-12-16 Import savings
+    {Equity:Opening Balances}                           > $32 985.23
+    Assets:Savings
+
 # That's everything you need to get started recording your data with
 # Penny. If you want to track multiple commodities (for instance
-# stocks, or the price of your real estate) look at the commodity.pny
+# stocks, or the price of your real estate) look at the stocks.pny
 # file, which will help you get started there.
+
+# Here are some more transactions that will provide useful fodder for
+# the manual pages:
+
+2013-01-02 Conoco
+    Expenses:Gas                                        < $54.22
+    Assets:Checking
+
+2012-01-04 Express
+    Expenses:Clothes                                    < $103.00
+    Liabilities:Amex
+
+2012-01-05 Amazon.com
+    Expenses:Food                                       < $23.60
+    Expenses:Books                                      < $16.00
+    Liabilities:Amex
+
+2012-01-06 Landlord
+    Expenses:Rent                                       < $700.00
+    Assets:Checking
+
+2012-01-06 Spacely Sprockets
+    Income:Salary                                       > $3000.00
+    Assets:Checking
+

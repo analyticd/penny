@@ -5,9 +5,6 @@
 # must equal credits, or this file will not parse
 # and Penny will quit with an error.
 
-# Penny has no concept of negative numbers. All numbers
-# are positive or zero.
-
 # To learn double-entry accounting, pick up a used accounting
 # textbook at your favorite online used book retailer.
 # They can be had for under 10 U.S. dollars, as college
@@ -173,11 +170,6 @@
 # If your ledger file is encoded in UTF-8
 # and you still have Unicode problems,
 # it is a bug. Please report it to me.
-
-# If you have no idea what all this encoding stuff is about,
-# the first thing to remember is that there is no such thing
-# as plain text. Read this:
-# http://www.joelonsoftware.com/articles/Unicode.html
 
 # The Penny program will not change your input file. It cannot
 # change your input file as it is opened read-only.

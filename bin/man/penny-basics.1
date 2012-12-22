@@ -1,0 +1,67 @@
+.TH penny-basics 1
+
+.SH NAME
+penny-basics - getting started with Penny
+
+.SH THE penny PROGRAM
+
+The
+.B penny
+program is Penny's most basic tool. It gives you reports on what you
+have recorded in your
+.IR ledger ,
+which is simply a text file (or multiple files) containing your
+financial transactions.
+.B penny
+will never modify the data in your ledger; you maintain it yourself by hand (or by using some of the other programs in the
+.B penny
+suite, such as
+.BR penny-fit ,
+which will modify this data for you under some circumsances.)
+
+Examine the
+.I starter.pny
+file, located in the
+.I examples
+directory of the
+.I penny-bin
+package. It shows the basics of how to write a Penny ledger file. This
+man page will use this file for examples. Please follow along by
+typing some of the commands yourself and experiment on your own.
+
+.SH HOW penny WORKS
+First, some terminology. Your ledger file contains
+.IR transactions .
+Each transaction consists of at least two
+.BR postings .
+All the postings in a transaction must
+.IR balance ;
+that is, the sum of the debits for each commodity must equal the sum
+of the credits for that commodity.
+.B penny
+first reads in all your transactions. All the transactions must be balanced; if they are not,
+.B penny
+quits with an error message. Then
+.B penny
+splits the transactions into postings. After that,
+.B penny
+deals only with the postings, and not with the transactions that they were a part of.
+
+.B penny
+then will discard some of the postings and keep others, depending on the
+.I filter specification
+that you give. You can also sort the postings; by default they are left in the order that they were in in the file. Then a
+.I report
+that you specify is shown. The reports have additional options that you may specify.
+
+This is all more clear with some examples, so let's go!
+
+.SH SEEING THE POSTINGS IN AN ACCOUNT
+
+Let's say you want to see the postings in your checking account.
+
+.EX
+penny --account Assets:Checking postings starter.pny
+.EE
+
+will show you 

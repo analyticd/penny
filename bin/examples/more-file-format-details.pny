@@ -1,0 +1,108 @@
+# This file contains more details on the Penny file format. Read it if
+# you are interested, or if you are getting error messages you don't
+# understand when you use penny on your file.
+
+# A complete EBNF grammar for the file format is in the file
+# doc/ledger-file-format.org.
+
+# Use a Unicode file format when you save your data. Penny works with
+# UTF-8, which is the de-facto standard Unicode encoding on Unix
+# systems. If you do not want to bother with Unicode, it's best to use
+# just the ASCII subset of Unicode. Using a non-Unicode encoding might
+# work, but I have not tested that. Also, if you want to put digit
+# grouping characters in your penny file, Unicode is your only option,
+# as the Unicode thin space (U+2009) is the only digit grouping
+# character you can use.
+
+# If you have no idea what all this encoding stuff is about, the first
+# thing to remember is that there is no such thing as plain text. Read
+# this:
+
+# http://www.joelonsoftware.com/articles/Unicode.html
+
+# Since you can use Unicode, feel free to use whatever currency
+# symbols you want:
+
+2012-12-20 Euroworks
+    Income:Salary                                       > 2100 €
+    Assets:Bank
+
+# More detail on dates:
+
+# Dates are written in the format YYYY-MM-DD. If the month or the day
+# has only one digit, you must use leading zeroes. In addition, dates
+# can include a time. Times are written in 24-hour format, either as
+# HH:MM or as HH:MM:SS; again, if any component has only one digit,
+# you must use a leading zero.
+
+# You can use either a dash or a slash to separate YYYY and the MM and
+# the DD.
+
+# All dates and times are considered to be UTC. If you provide a time,
+# you may optionall specify the time zone offset by using a leading
+# plus or a leading minus.
+
+# Here are some sample postings with various dates and times.
+
+2012-12-17 02:23 Transfer from savings
+    Assets:Savings                                      > $200.00
+    Assets:Checking                                     < $200.00
+
+2012-12-17 12:23:35 Transfer from savings
+    Assets:Savings                                      > $200.00
+    Assets:Checking                                     < $200.00
+
+# Eastern time
+2012-12-17 14:56:00 -0500 Transfer from savings
+    Assets:Savings                                      > $200.00
+    Assets:Checking                                     < $200.00
+
+# Quoting for various fields:
+
+# Usually you can write information in your ledger file without using
+# characters to indicate which field is which. However, sometimes if
+# you want to use slightly more unusual characters, you have to
+# surround that field with characters. The canonical guide to what you
+# must do is in the bin/doc/ledger-grammar.org file. Here are the highlights:
+
+# Accounts can be unquoted if the very first character of the account
+# is a letter (capital or lower-case, A-Z or a-z) or any character
+# above Unicode code point 127 (e.g. ñ, or é, or í, or...). In
+# addition every other character may be nearly any character except a
+# space or an asterisk. Otherwise, you must surround your account with
+# curly braces. Example:
+
+2012-12-18 CVS
+    {Expenses:Personal Care}                            < $52.35
+        'Earplugs
+    Liabilities:Amex
+
+# You can assign payees to individual postings as well as to the
+# entire transaction. Payees assigned to individual postings must be
+# surrounded with tildes. You do not usually have to quote payees that
+# are assigned to the whole transaction; however, you do have to quote
+# them if the first character is not a letter. Examples:
+
+2012-12-18 ~7-Eleven~
+    Expenses:Food                                       < $12.99
+    Liabilities:Amex
+
+2012-12-19 Spacely Sprockets
+    Income:Salary                                       > $2000.00
+    ~State of Maryland~ Expenses:Taxes:State            < $200.00
+    ~Healthco~ Expenses:Insurance:Health                < $75.00
+    Assets:Checking
+
+# Whether or not you have to quote commodities is complicated. For
+# full details, look at bin/doc/ledger-grammar.org. The full rule set
+# depends on whether the commodity appears on the left side or the
+# right side of the quantity. (Whether there is a space between the
+# commodity and the quantity is not relevant.)
+
+# However, here is a simple rule that is always true. If your
+# commodity name consists ONLY of letters, the dollar sign, and
+# non-ASCII characters, you never need to quote it. Since most stock
+# ticker symbols are only letters, and because this means that you
+# never have to quote lone commodity symbols like $, €, ¥, etc, you
+# should not usually have to quote commodities.
+
