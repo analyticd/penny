@@ -60,18 +60,18 @@ and
 reports take many fewer options.
 
 Finally you may specify one or more files from which to draw the
-data. If you do not specify a file, standard input is used.
+data. If you do not specify a file, standard input is used. The report
+is always printed to standard output.
 
-The report is always printed to standard output. By default,
+By default,
 .BR penny
 sees whether its standard output is a terminal. If so,
 .BR penny 's
 output is sized to fit the width of the
 .BR COLUMNS
-environment variable (if it is set) and is printed in color. If
-standard output is not a terminal, by default the output is not in
-color and will be 80 characters wide. This behavior can be overridden
-on the command line.
+environment variable, if it is set. If standard output is not a
+terminal, by default the output will be 80 characters wide. This
+behavior can be overridden on the command line.
 
 Entering the data into the ledger files is your responsibility;
 .B penny
@@ -370,13 +370,13 @@ section below.
 .TP
 .B --filtered
 filtered serial, forward component
-.TQ
+.TP
 .B --revFiltered
 filtered serial, reverse component
-.TQ
+.TP
 .B --sorted
 sorted serial, forward component
-.TQ
+.TP
 .B --revSorted
 sorted serial, reverse component
 
@@ -385,18 +385,44 @@ sorted serial, reverse component
 .TP
 .BR --color " yes|no|auto|256"
 Controls which colors are shown.
+
+.RS
+.TP
 .B yes
-always shows 8 colors.
+always show 8 colors
+
+.TP
 .B no
-never shows colors.
+never show any colors (default)
+
+.TP
 .B auto
-first examines whether standard output is a terminal. If standard
-output is not a terminal,
-.B penny
-does not show any colors. If standard output is a terminal, examines
-the value of the TERM environment variable. If TERM is
-"xterm-256color", uses 256 colors. If TERM is any other value, or if
-TERM is not set, uses 8 colors.
+show 8 or 256 colors, but only if standard output is a terminal.
+If standard output is a terminal, shows 256 colors if the value
+of the TERM environment variable is
+.IR xterm-256color ;
+otherwise, shows 8 colors.
+
+.TP
+.B 256
+always show 256 colors
+.RE
+
+.\" The following is the table that used to be used for colors. The
+.\" above text with the .RS macro and .TP lays out better.
+\".TS
+\"tab(:);
+\"lB l.
+\"yes:always show 8 colors
+\"no:never show any colors (default)
+\"auto:T{
+\"show 8 or 256 colors, but only if standard output is a terminal.
+\"If standard output is a terminal, shows 256 colors if the value
+\"of the TERM environment variable is \fIxterm-256color\fR;
+\"otherwise, shows 8 colors.
+\"T}
+\"256:always show 256 colors
+\".TE
 
 .TP
 .BR --background " light|dark"
@@ -499,7 +525,7 @@ Controls how many colors to display:
 tab(:);
 lB l.
 yes:always show 8 colors
-no:never show any colors
+no:never show any colors (default)
 auto:T{
 show 8 or 256 colors, but only if standard output is a terminal.
 If standard output is a terminal, shows 256 colors if the value
@@ -547,7 +573,7 @@ Controls how many colors to display:
 tab(:);
 lB l.
 yes:always show 8 colors
-no:never show any colors
+no:never show any colors (default)
 auto:T{
 show 8 or 256 colors, but only if standard output is a terminal.
 If standard output is a terminal, shows 256 colors if the value
