@@ -12,10 +12,12 @@ module Penny.Cabin.Balance.Convert.Parser (
 import Control.Applicative ((<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
+import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Lincoln as L
+import qualified Penny.Shield as S
 import qualified Penny.Copper.Parsec as Pc
 import qualified System.Console.MultiArg.Combinator as C
 import qualified Text.Parsec as Parsec
@@ -34,8 +36,8 @@ data SortBy = SortByQty | SortByName
 -- | Default starting options for the Convert report. After
 -- considering what is parsed in from the command line and price data,
 -- a Convert.Opts will be generated.
-data Opts = Opts {
-  colorPref :: CO.ColorPref
+data Opts = Opts
+  { colorPref :: S.Runtime -> Chk.Colors
   , drCrColors :: Col.DrCrColors
   , baseColors :: Col.BaseColors
   , showZeroBalances :: CO.ShowZeroBalances

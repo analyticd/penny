@@ -129,22 +129,23 @@ process getOpts rt cs fty fsf ls =
       os = getOpts rt
       pState = newParseState cs fty os
       exState' = foldl (>>=) (return pState) clOpts
-  in fmap (mkPrintReport posArgs os fsf) exState'
+  in fmap (mkPrintReport rt posArgs os fsf) exState'
 
 mkPrintReport
-  :: [String]
+  :: Sh.Runtime
+  -> [String]
   -> ZincOpts
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> P.State
   -> ([String], [L.Transaction]
                 -> [L.PricePoint]
                 -> Ex.Exceptional X.Text XL.Text)
-mkPrintReport posArgs zo fsf st = (posArgs, f)
+mkPrintReport rt posArgs zo fsf st = (posArgs, f)
   where
     f txns _ = fmap mkChunks exPdct
       where
         exPdct = getPredicate (P.tokens st)
-        mkChunks pdct = CC.chunksToText (P.colorPref st) chks
+        mkChunks pdct = CC.chunksToText (P.colorPref st rt) chks
           where
             chks = postsReport (P.showZeroBalances st) pdct
                    (P.postFilter st) (chunkOpts st zo) boxes
@@ -156,7 +157,7 @@ defaultOptions
   -> ZincOpts
 defaultOptions rt = ZincOpts
   { fields = defaultFields
-  , colorPref = CO.maxCapableColors rt
+  , colorPref = const CC.Colors0
   , drCrColors = Dark.drCrColors
   , baseColors = Dark.baseColors
   , width = widthFromRuntime rt
@@ -188,7 +189,7 @@ data ZincOpts = ZincOpts
   { fields :: F.Fields Bool
     -- ^ Default fields to show in the report.
 
-  , colorPref :: CC.Colors
+  , colorPref :: Sh.Runtime -> CC.Colors
     -- ^ How many colors you want to see, or do it
     -- automatically.
 
@@ -251,8 +252,8 @@ chunkOpts ::
   P.State
   -> ZincOpts
   -> C.ChunkOpts
-chunkOpts s z = C.ChunkOpts {
-  C.baseColors = P.baseColors s
+chunkOpts s z = C.ChunkOpts
+  { C.baseColors = P.baseColors s
   , C.drCrColors = P.drCrColors s
   , C.dateFormat = dateFormat z
   , C.qtyFormat = qtyFormat z
@@ -271,8 +272,8 @@ newParseState ::
   -> L.Factory
   -> ZincOpts
   -> P.State
-newParseState cs fty o = P.State {
-  P.sensitive = cs
+newParseState cs fty o = P.State
+  { P.sensitive = cs
   , P.factory = fty
   , P.tokens = []
   , P.postFilter = []

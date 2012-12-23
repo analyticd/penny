@@ -4,18 +4,20 @@ module Penny.Cabin.Balance.MultiCommodity.Parser (
   ) where
 
 import Control.Applicative ((<$))
+import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as P
+import qualified Penny.Shield as S
 import qualified Penny.Lincoln as L
 import qualified System.Console.MultiArg.Combinator as C
 
 -- | Options for the Balance report that have been parsed from the
 -- command line.
-data ParseOpts = ParseOpts {
-  drCrColors :: Col.DrCrColors
+data ParseOpts = ParseOpts
+  { drCrColors :: Col.DrCrColors
   , baseColors :: Col.BaseColors
-  , colorPref :: CO.ColorPref
+  , colorPref :: S.Runtime -> Chk.Colors
   , showZeroBalances :: CO.ShowZeroBalances
   , order :: L.SubAccount -> L.SubAccount -> Ordering
   }

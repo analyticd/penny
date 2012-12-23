@@ -37,7 +37,7 @@ help = X.pack . unlines $ [
   "--ascending",
   "  Sort in ascending order (default)",
   "--descending",
-  "  Sort in descending order"
+  "  Sort in descending order",
   ""
   ]
 

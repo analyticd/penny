@@ -192,7 +192,7 @@ process rt mkOpts fsf ls = do
               rptOpts <- Ex.fromMaybe noDefault $
                 fromParsedOpts pps (O.format defaultOpts) g
               let boxes = fsf ts
-                  colors = CO.autoColors (P.colorPref g) rt
+                  colors = P.colorPref g rt
               cks <- report rptOpts pps boxes
               return $ Chunk.chunksToText colors cks
         in return (posArgs, pr)

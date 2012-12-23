@@ -34,8 +34,8 @@ import qualified Penny.Shield as S
 -- | Options for making the balance report. These are the only options
 -- needed to make the report if the options are not being parsed in
 -- from the command line.
-data Opts = Opts {
-  drCrColors :: C.DrCrColors
+data Opts = Opts
+  { drCrColors :: C.DrCrColors
   , baseColors :: C.BaseColors
   , balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
@@ -43,8 +43,8 @@ data Opts = Opts {
   }
 
 defaultOpts :: Opts
-defaultOpts = Opts {
-  drCrColors = CD.drCrColors
+defaultOpts = Opts
+  { drCrColors = CD.drCrColors
   , baseColors = CD.baseColors
   , balanceFormat = defaultFormat
   , showZeroBalances = CO.ShowZeroBalances True
@@ -52,10 +52,10 @@ defaultOpts = Opts {
   }
 
 defaultParseOpts :: P.ParseOpts
-defaultParseOpts = P.ParseOpts {
-  P.drCrColors = CD.drCrColors
+defaultParseOpts = P.ParseOpts
+  { P.drCrColors = CD.drCrColors
   , P.baseColors = CD.baseColors
-  , P.colorPref = CO.PrefAuto
+  , P.colorPref = const Chunk.Colors0
   , P.showZeroBalances = CO.ShowZeroBalances True
   , P.order = compare
   }
@@ -138,24 +138,12 @@ process fmt o rt fsf ls =
       os' = mkParsedOpts o
       mcOpts = fromParseOpts fmt os'
       pr txns _ =
-        let col = CO.autoColors (P.colorPref os') rt
+        let col = P.colorPref os' rt
             chunks = report mcOpts (fsf txns)
             txt = Chunk.chunksToText col chunks
         in return txt
   in pure (posArgs, pr)
 
-{-
-  where
-    r = fmap f P.parseOptions
-      where
-        f toOs' rt _ _ bs _ = return $ Chunk.chunksToText col chunks
-          where
-            os' = toOs' o
-            mcOpts = fromParseOpts fmt os'
-            chunks = report mcOpts bs
-            col = CO.autoColors (P.colorPref os') rt
-
--}
 
 -- | The MultiCommodity report, with default options.
 defaultReport :: I.Report

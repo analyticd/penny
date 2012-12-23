@@ -21,13 +21,13 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import qualified Text.Matchers.Text as M
 
-data State = State {
-  sensitive :: M.CaseSensitive
+data State = State
+  {sensitive :: M.CaseSensitive
   , factory :: L.Factory
   , tokens :: [Ly.Token (L.Box Ly.LibertyMeta -> Bool)]
   , postFilter :: [Ly.PostFilterFn]
   , fields :: F.Fields Bool
-  , colorPref :: CC.Colors
+  , colorPref :: S.Runtime -> CC.Colors
   , drCrColors :: PC.DrCrColors
   , baseColors :: PC.BaseColors
   , width :: Ty.ReportWidth
@@ -44,7 +44,7 @@ allSpecs rt =
   ++ caseSelect
   ++ operator
   ++ [ background
-     , color rt
+     , color
      , parseWidth
      , showField
      , hideField
@@ -148,10 +148,10 @@ operator = map (fmap f) Ly.operatorSpecs
   where
     f oo st = pure $ st { tokens = tokens st ++ [oo] }
 
-color :: Applicative f => S.Runtime -> C.OptSpec (State -> f State)
-color rt = fmap f P.color
+color :: Applicative f => C.OptSpec (State -> f State)
+color = fmap f P.color
   where
-    f pref st = pure $ st { colorPref = CO.autoColors pref rt }
+    f pref st = pure $ st { colorPref = pref }
 
 background :: Applicative f => C.OptSpec (State -> f State)
 background = fmap f P.background
@@ -285,43 +285,3 @@ fieldNames = F.Fields
   , F.memo                 = "memo"
   , F.filename             = "filename"
   }
-
-{-
--- | Parses the command line from the first word remaining up until,
--- but not including, the first non-option argment.
-parseOptions ::
-  Parser (S.Runtime
-          -> State
-          -> State)
-parseOptions = f <$> many parseOption where
-  f ls rt st =
-    let ls' = map (\fn -> fn rt) ls
-    in foldl (flip (.)) id ls' st
-
-
-parseOption ::
-  Parser (S.Runtime
-          -> State
-          -> State)
-parseOption = C.parseOption ls
-  where
-    ls = operand ++ map wrap others ++ [color]
-    wrap = fmap (\fn _ st -> fn st)
-    others =
-      boxFilters
-      ++ parsePostFilter
-      ++ matcherSelect
-      ++ caseSelect
-      ++ operator
-      ++ [ background
-         , parseWidth
-         , showField
-         , hideField
-         , showAllFields
-         , hideAllFields ]
-      ++ parseZeroBalances
-
-
-
-
--}

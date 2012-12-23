@@ -21,6 +21,7 @@
 module Penny.Cabin.Chunk (
   -- * Colors
   Colors(Colors0, Colors8, Colors256),
+  maxCapableColors,
   Background8,
   Background256,
   Foreground8,
@@ -32,7 +33,7 @@ module Penny.Cabin.Chunk (
   Width(Width, unWidth),
   chunkWidth,
   chunksToText,
-  
+
   -- * Effects
   Bold(Bold, unBold),
   Underline(Underline, unUnderline),
@@ -40,7 +41,7 @@ module Penny.Cabin.Chunk (
   Inverse(Inverse, unInverse),
 
   -- * Style and TextSpec
-  
+
   -- | A style is a bundle of attributes that describes text
   -- attributes, such as its color and whether it is bold.
   StyleCommon (StyleCommon, bold, underline, flash, inverse),
@@ -49,10 +50,10 @@ module Penny.Cabin.Chunk (
   defaultStyleCommon,
   defaultStyle8,
   defaultStyle256,
-  
+
   TextSpec (TextSpec, style8, style256),
   defaultTextSpec,
-  
+
   -- * Specific colors
   -- * 8 color foreground colors
   color8_f_default,
@@ -602,6 +603,7 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Text.Lazy as XL
 import qualified Data.Text.Lazy.Builder as TB
+import qualified Penny.Shield as S
 
 --
 -- Colors
@@ -610,6 +612,19 @@ import qualified Data.Text.Lazy.Builder as TB
 -- | How many colors to actually show.
 data Colors = Colors0 | Colors8 | Colors256
             deriving Show
+
+-- | The maximum number of colors that can be displayed. If not a TTY,
+-- no colors. Otherwise, Examines TERM. If it is @xterm-256color@,
+-- then 256 colors; otherwise, assumes 8 colors are available.
+maxCapableColors :: S.Runtime -> Colors
+maxCapableColors r = case S.output r of
+  S.NotTTY -> Colors0
+  S.IsTTY ->
+    case lookup "TERM" (S.environment r) of
+      Nothing -> Colors8
+      (Just t) -> if t == "xterm-256color"
+                  then Colors256
+                  else Colors8
 
 -- | Background color in an 8 color setting.
 newtype Background8 = Background8 { unBackground8 :: Code }

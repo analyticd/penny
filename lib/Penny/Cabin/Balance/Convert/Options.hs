@@ -3,6 +3,7 @@
 module Penny.Cabin.Balance.Convert.Options where
 
 import qualified Penny.Cabin.Balance.Convert.Parser as P
+import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Colors.DarkBackground as Dark
@@ -15,8 +16,8 @@ import qualified Data.Text as X
 -- line. You don't need to use it if you are setting the options for
 -- the Convert report directly from your own code.
 
-data DefaultOpts = DefaultOpts {
-    colorPref :: CO.ColorPref
+data DefaultOpts = DefaultOpts
+  { colorPref :: S.Runtime -> Chk.Colors
   , drCrColors :: Col.DrCrColors
   , baseColors :: Col.BaseColors
   , showZeroBalances :: CO.ShowZeroBalances
@@ -28,8 +29,8 @@ data DefaultOpts = DefaultOpts {
   }
 
 toParserOpts :: DefaultOpts -> P.Opts
-toParserOpts d = P.Opts {
-  P.colorPref = colorPref d
+toParserOpts d = P.Opts
+  { P.colorPref = colorPref d
   , P.drCrColors = drCrColors d
   , P.baseColors = baseColors d
   , P.showZeroBalances = showZeroBalances d
@@ -40,8 +41,8 @@ toParserOpts d = P.Opts {
   }
 
 defaultOptions :: S.Runtime -> DefaultOpts
-defaultOptions rt = DefaultOpts {
-    colorPref = CO.PrefAuto
+defaultOptions rt = DefaultOpts
+  { colorPref = const Chk.Colors0
   , drCrColors = Dark.drCrColors
   , baseColors = Dark.baseColors
   , showZeroBalances = CO.ShowZeroBalances True
