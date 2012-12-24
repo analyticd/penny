@@ -167,8 +167,7 @@ cmdLineReport
 cmdLineReport mkOpts = (H.help, mkMode)
   where
     mkMode rt _ _ fsf = MA.Mode
-      { MA.mId = ()
-      , MA.mName = "convert"
+      { MA.mName = "convert"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allOptSpecs
       , MA.mPosArgs = Left

@@ -29,10 +29,9 @@ data Arg
 
 mode
   :: (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
-  -> MA.Mode String (Ex.Exceptional String (IO ()))
+  -> MA.Mode (Ex.Exceptional String (IO ()))
 mode prsr = MA.Mode
-  { MA.mId = "print"
-  , MA.mName = "print"
+  { MA.mName = "print"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [MA.OptSpec ["help"] "h" (MA.NoArg ArgHelp)]
   , MA.mPosArgs = ArgFile

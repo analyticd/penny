@@ -107,8 +107,7 @@ zincReport :: (Sh.Runtime -> ZincOpts) -> I.Report
 zincReport mkOpts = (H.help, mkMode)
   where
     mkMode rt cs fty fsf = MA.Mode
-      { MA.mId = ()
-      , MA.mName = "postings"
+      { MA.mName = "postings"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) (P.allSpecs rt)
       , MA.mPosArgs = Left

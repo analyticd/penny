@@ -28,10 +28,9 @@ data Arg
 toPosArg :: Arg -> Maybe String
 toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
 
-mode :: Y.FitAcct -> MA.Mode String (Ex.Exceptional String (IO ()))
+mode :: Y.FitAcct -> MA.Mode (Ex.Exceptional String (IO ()))
 mode c = MA.Mode
-  { MA.mId = "merge"
-  , MA.mName = "merge"
+  { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts =
     [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)

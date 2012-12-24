@@ -19,10 +19,9 @@ data Arg = ArgHelp | ArgPos String deriving (Eq, Show)
 
 mode
   :: Y.DbLocation
-  -> MA.Mode String (Ex.Exceptional String (IO ()))
+  -> MA.Mode (Ex.Exceptional String (IO ()))
 mode dbLoc = MA.Mode
-  { MA.mId = "database"
-  , MA.mName = "database"
+  { MA.mName = "database"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [MA.OptSpec ["help"] "h" (MA.NoArg ArgHelp)]
   , MA.mPosArgs = ArgPos

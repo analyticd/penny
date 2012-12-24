@@ -85,7 +85,7 @@ preProcessor cf as =
 whatMode
   :: PreProc
   -> Either (String -> String)
-      [MA.Mode String (Ex.Exceptional String (IO ()))]
+      [MA.Mode (Ex.Exceptional String (IO ()))]
 whatMode pp = case pp of
   NeedsHelp -> Left id
   DoIt cd ->
@@ -103,7 +103,7 @@ processParseResult
   -> Y.Config
 
   -> Ex.Exceptional MA.Error
-      (a, Either b (c, Ex.Exceptional String (IO ())))
+      (a, Either b (Ex.Exceptional String (IO ())))
   -> IO ()
 processParseResult pr cf ex =
   case ex of
@@ -118,12 +118,12 @@ processResult
   -- ^ Program name
 
   -> Y.Config
-  -> (a, Either b (c, Ex.Exceptional String (IO ())))
+  -> (a, Either b (Ex.Exceptional String (IO ())))
   -> IO ()
 processResult pr cf (_, ei) =
   case ei of
     Left _ -> putStr (help pr cf)
-    Right (_, ex) -> case ex of
+    Right ex -> case ex of
       Ex.Exception e -> do
         putStrLn $ pr ++ ": error: " ++ e
         exitFailure

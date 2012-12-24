@@ -55,7 +55,7 @@ type MakeMode
   -- ^ Result from previous parsers that will sort and filter incoming
   -- transactions
 
-  -> MA.Mode () ParseResult
+  -> MA.Mode ParseResult
   -- ^ Strict Text containing a help message, and a Mode that will
   -- print a report.
 

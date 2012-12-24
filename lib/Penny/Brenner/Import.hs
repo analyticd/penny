@@ -31,11 +31,9 @@ mode
   :: Y.DbLocation
   -> ( Y.FitFileLocation
        -> IO (Ex.Exceptional String [Y.Posting]))
-  -> MA.Mode String (Ex.Exceptional String (IO ()))
+  -> MA.Mode (Ex.Exceptional String (IO ()))
 mode dbLoc prsr = MA.Mode
-  { MA.mId = "import"
-
-  , MA.mName = "import"
+  { MA.mName = "import"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts =
       [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)

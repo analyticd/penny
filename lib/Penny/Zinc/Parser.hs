@@ -27,7 +27,7 @@ parseCommandLine
   -> S.Runtime
   -> [String]
   -> Ex.Exceptional MA.Error
-     (F.GlobalResult, Either [()] ((), (Defaults.ColorToFile, I.ParseResult)))
+     (F.GlobalResult, Either [()] (Defaults.ColorToFile, I.ParseResult))
 parseCommandLine df rs rt ss =
   MA.modes (F.allOpts (S.currentTime rt)) (F.processGlobal df)
            (whatMode rt rs) ss
@@ -36,7 +36,7 @@ whatMode
   :: S.Runtime
   -> [I.Report]
   -> F.GlobalResult
-  -> Either (a -> ()) [MA.Mode () (Defaults.ColorToFile, I.ParseResult)]
+  -> Either (a -> ()) [MA.Mode (Defaults.ColorToFile, I.ParseResult)]
 whatMode rt rs gr =
   case gr of
     F.NeedsHelp -> Left $ const ()
@@ -53,7 +53,7 @@ handleParseResult
   :: S.Runtime
   -> [I.Report]
   -> Ex.Exceptional MA.Error
-     (a, Either b (c, (Defaults.ColorToFile, I.ParseResult)))
+     (a, Either b (Defaults.ColorToFile, I.ParseResult))
   -> IO ()
 handleParseResult rt rs r =
   let showErr e = do
@@ -68,7 +68,7 @@ handleParseResult rt rs r =
         Left _ -> do
           StrictIO.putStr (helpText rs)
           exitSuccess
-        Right (_, (ctf, ex)) -> case ex of
+        Right (ctf, ex) -> case ex of
           Ex.Exception s -> showErr s
           Ex.Success (fns, pr) -> do
             ledgers <- L.readLedgers fns

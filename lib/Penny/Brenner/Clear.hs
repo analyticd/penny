@@ -55,10 +55,9 @@ data Opts = Opts
   } deriving Show
 
 
-mode :: Y.FitAcct -> MA.Mode String (Ex.Exceptional String (IO ()))
+mode :: Y.FitAcct -> MA.Mode (Ex.Exceptional String (IO ()))
 mode c = MA.Mode
-  { MA.mId = "clear"
-  , MA.mName = "clear"
+  { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp) ]
   , MA.mPosArgs = APosArg
