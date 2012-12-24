@@ -240,6 +240,8 @@ Library
     , Penny.Cabin.Posts.Spacers
     , Penny.Cabin.Posts.Types
     , Penny.Cabin.Row
+    , Penny.Cabin.Scheme
+    , Penny.Cabin.Scheme.Dark
     , Penny.Cabin.TextFormat
     , Penny.Copper
     , Penny.Copper.Parsec

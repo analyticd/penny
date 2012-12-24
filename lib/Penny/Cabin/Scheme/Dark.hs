@@ -1,20 +1,20 @@
--- | The default colors; the user may override.
-module Penny.Cabin.Colors.DarkBackground where
+module Penny.Cabin.Scheme.Dark where
 
-import qualified Penny.Cabin.Colors as PC
-import qualified Penny.Cabin.Chunk as CC
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.Chunk.Switch as S
+import qualified Penny.Cabin.Chunk as CC
 
-baseColors :: PC.BaseColors
-baseColors = PC.BaseColors evenTextSpec oddTextSpec
-
-drCrColors :: PC.DrCrColors
-drCrColors = PC.DrCrColors { PC.evenDebit = debit evenTextSpec
-                           , PC.evenCredit = credit evenTextSpec
-                           , PC.oddDebit = debit oddTextSpec
-                           , PC.oddCredit = credit oddTextSpec
-                           , PC.evenZero = zero evenTextSpec
-                           , PC.oddZero = zero oddTextSpec }
+scheme :: E.Scheme
+scheme = E.Labels
+  { E.debit = E.EvenAndOdd { E.eoEven = debit evenTextSpec
+                           , E.eoOdd = debit oddTextSpec }
+  , E.credit = E.EvenAndOdd { E.eoEven = credit evenTextSpec
+                            , E.eoOdd = credit oddTextSpec }
+  , E.zero = E.EvenAndOdd { E.eoEven = zero evenTextSpec
+                          , E.eoOdd = zero oddTextSpec }
+  , E.other = E.EvenAndOdd { E.eoEven = evenTextSpec
+                           , E.eoOdd = oddTextSpec }
+  }
 
 evenTextSpec :: CC.TextSpec
 evenTextSpec = CC.defaultTextSpec
@@ -34,5 +34,4 @@ credit = S.switchForeground CC.color8_f_cyan (CC.color256_f_45)
 -- | Zero values are white
 zero :: CC.TextSpec -> CC.TextSpec
 zero = S.switchForeground CC.color8_f_white (CC.color256_f_15)
-
 
