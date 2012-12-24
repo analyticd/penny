@@ -33,6 +33,7 @@ data OptResult
   | ROperator (Ly.Token (L.PostFam -> Bool))
   | RSortSpec (Ex.Exceptional String Ly.Orderer)
   | RHelp
+  | RColorToFile Defaults.ColorToFile
 
 isHelp :: OptResult -> Bool
 isHelp o = case o of { RHelp -> True; _ -> False }
@@ -106,7 +107,24 @@ allOpts dt =
   ++ map (fmap RCaseSelect) Ly.caseSelectSpecs
   ++ map (fmap ROperator) Ly.operatorSpecs
   ++ [(fmap RSortSpec) Ly.sortSpecs]
-  ++ [MA.OptSpec ["help"] "h" (MA.NoArg RHelp)]
+  ++ [ MA.OptSpec ["help"] "h" (MA.NoArg RHelp)
+     , optColorToFile ]
+
+optColorToFile :: MA.OptSpec OptResult
+optColorToFile = MA.OptSpec ["color-to-file"] "" (MA.ChoiceArg ls)
+  where
+    ls = [ ("yes", RColorToFile $ Defaults.ColorToFile True)
+         , ("no", RColorToFile $ Defaults.ColorToFile False) ]
+
+getColorToFile :: Defaults.T -> [OptResult] -> Defaults.ColorToFile
+getColorToFile d ls =
+  case mapMaybe getOpt ls of
+    [] -> Defaults.colorToFile d
+    xs -> last xs
+  where
+    getOpt o = case o of
+      RColorToFile c -> Just c
+      _ -> Nothing
 
 data GlobalResult
   = NeedsHelp
@@ -126,6 +144,8 @@ data FilterOpts =
          , sorterFilterer :: [L.Transaction] -> [L.Box Ly.LibertyMeta]
            -- ^ Applied to a list of Transaction, will sort and filter
            -- the transactions and assign them LibertyMeta.
+
+         , colorToFile :: Defaults.ColorToFile
          }
 
 processGlobal
@@ -139,9 +159,10 @@ processGlobal d os =
     postFilts <- getPostFilters os
     sortSpec <- getSortSpec os
     (toks, (rs, rf)) <- makeTokens d os
-    let err = "could not parse filter expression."
+    let ctf = getColorToFile d os
+        err = "could not parse filter expression."
     pdct <- Ex.fromMaybe err $ Ly.parsePredicate toks
     let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
-        fo = FilterOpts rf rs sf
+        fo = FilterOpts rf rs sf ctf
     return $ RunPenny fo
 

@@ -53,7 +53,6 @@ module Penny.Cabin.Posts
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Either as Ei
 import qualified Data.Text as X
-import qualified Data.Text.Lazy as XL
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Colors.DarkBackground as Dark
@@ -129,23 +128,22 @@ process getOpts rt cs fty fsf ls =
       os = getOpts rt
       pState = newParseState cs fty os
       exState' = foldl (>>=) (return pState) clOpts
-  in fmap (mkPrintReport rt posArgs os fsf) exState'
+  in fmap (mkPrintReport posArgs os fsf) exState'
 
 mkPrintReport
-  :: Sh.Runtime
-  -> [String]
+  :: [String]
   -> ZincOpts
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> P.State
   -> ([String], [L.Transaction]
                 -> [L.PricePoint]
-                -> Ex.Exceptional X.Text XL.Text)
-mkPrintReport rt posArgs zo fsf st = (posArgs, f)
+                -> Ex.Exceptional X.Text [CC.Chunk])
+mkPrintReport posArgs zo fsf st = (posArgs, f)
   where
     f txns _ = fmap mkChunks exPdct
       where
         exPdct = getPredicate (P.tokens st)
-        mkChunks pdct = CC.chunksToText (P.colorPref st rt) chks
+        mkChunks pdct = chks
           where
             chks = postsReport (P.showZeroBalances st) pdct
                    (P.postFilter st) (chunkOpts st zo) boxes
@@ -157,7 +155,6 @@ defaultOptions
   -> ZincOpts
 defaultOptions rt = ZincOpts
   { fields = defaultFields
-  , colorPref = const CC.Colors0
   , drCrColors = Dark.drCrColors
   , baseColors = Dark.baseColors
   , width = widthFromRuntime rt
@@ -188,10 +185,6 @@ getPredicate ts =
 data ZincOpts = ZincOpts
   { fields :: F.Fields Bool
     -- ^ Default fields to show in the report.
-
-  , colorPref :: Sh.Runtime -> CC.Colors
-    -- ^ How many colors you want to see, or do it
-    -- automatically.
 
   , drCrColors :: PC.DrCrColors
     -- ^ Colors to use when displaying debits, credits, and
@@ -278,7 +271,6 @@ newParseState cs fty o = P.State
   , P.tokens = []
   , P.postFilter = []
   , P.fields = fields o
-  , P.colorPref = colorPref o
   , P.drCrColors = drCrColors o
   , P.baseColors = baseColors o
   , P.width = width o

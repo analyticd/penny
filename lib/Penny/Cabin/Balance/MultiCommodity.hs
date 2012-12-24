@@ -29,7 +29,6 @@ import qualified Penny.Cabin.Balance.MultiCommodity.Help as H
 import qualified Penny.Cabin.Balance.MultiCommodity.Parser as P
 import qualified Penny.Cabin.Interface as I
 import qualified System.Console.MultiArg as MA
-import qualified Penny.Shield as S
 
 -- | Options for making the balance report. These are the only options
 -- needed to make the report if the options are not being parsed in
@@ -55,7 +54,6 @@ defaultParseOpts :: P.ParseOpts
 defaultParseOpts = P.ParseOpts
   { P.drCrColors = CD.drCrColors
   , P.baseColors = CD.baseColors
-  , P.colorPref = const Chunk.Colors0
   , P.showZeroBalances = CO.ShowZeroBalances True
   , P.order = compare
   }
@@ -64,7 +62,7 @@ fromParseOpts ::
   (L.Commodity -> L.Qty -> X.Text)
   -> P.ParseOpts
   -> Opts
-fromParseOpts fmt (P.ParseOpts dc bc _ szb o) =
+fromParseOpts fmt (P.ParseOpts dc bc szb o) =
   Opts dc bc fmt szb o
 
 defaultFormat :: a -> L.Qty -> X.Text
@@ -128,20 +126,16 @@ process
   :: Applicative f
   => (L.Commodity -> L.Qty -> X.Text)
   -> P.ParseOpts
-  -> S.Runtime
+  -> a
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.ParseOpts -> P.ParseOpts)]
   -> f ([String], I.PrintReport)
-process fmt o rt fsf ls =
+process fmt o _ fsf ls =
   let (posArgs, fns) = Ei.partitionEithers ls
       mkParsedOpts = foldl (flip (.)) id fns
       os' = mkParsedOpts o
       mcOpts = fromParseOpts fmt os'
-      pr txns _ =
-        let col = P.colorPref os' rt
-            chunks = report mcOpts (fsf txns)
-            txt = Chunk.chunksToText col chunks
-        in return txt
+      pr txns _ = return $ report mcOpts (fsf txns)
   in pure (posArgs, pr)
 
 

@@ -117,5 +117,10 @@ help = pack $ unlines [
   "",
   "  Ascending order by default; for descending order,",
   "  capitalize the name of the key.",
-  ""
+  "",
+  "Colors",
+  "------",
+  "--color-to-file no|yes",
+  "  Whether to use color when standard output is not a",
+  "  terminal (default: no)"
   ]

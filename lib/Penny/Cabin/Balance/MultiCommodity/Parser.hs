@@ -4,11 +4,9 @@ module Penny.Cabin.Balance.MultiCommodity.Parser (
   ) where
 
 import Control.Applicative ((<$))
-import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as P
-import qualified Penny.Shield as S
 import qualified Penny.Lincoln as L
 import qualified System.Console.MultiArg.Combinator as C
 
@@ -17,17 +15,10 @@ import qualified System.Console.MultiArg.Combinator as C
 data ParseOpts = ParseOpts
   { drCrColors :: Col.DrCrColors
   , baseColors :: Col.BaseColors
-  , colorPref :: S.Runtime -> Chk.Colors
   , showZeroBalances :: CO.ShowZeroBalances
   , order :: L.SubAccount -> L.SubAccount -> Ordering
   }
 
-
-
-color :: C.OptSpec (ParseOpts -> ParseOpts)
-color = fmap toResult P.color
-  where
-    toResult c po = po { colorPref = c }
 
 
 background :: C.OptSpec (ParseOpts -> ParseOpts)
@@ -55,9 +46,7 @@ descending = f <$ P.descending
 
 allSpecs :: [C.OptSpec (ParseOpts -> ParseOpts)]
 allSpecs =
-  [ color
-  , background ]
+  [ background ]
   ++ zeroBalances
   ++ [ ascending
-     , descending
-     ]
+     , descending ]

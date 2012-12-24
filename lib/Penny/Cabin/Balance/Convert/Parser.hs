@@ -9,15 +9,12 @@ module Penny.Cabin.Balance.Convert.Parser (
   ) where
 
 
-import Control.Applicative ((<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
-import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Lincoln as L
-import qualified Penny.Shield as S
 import qualified Penny.Copper.Parsec as Pc
 import qualified System.Console.MultiArg.Combinator as C
 import qualified Text.Parsec as Parsec
@@ -37,8 +34,7 @@ data SortBy = SortByQty | SortByName
 -- considering what is parsed in from the command line and price data,
 -- a Convert.Opts will be generated.
 data Opts = Opts
-  { colorPref :: S.Runtime -> Chk.Colors
-  , drCrColors :: Col.DrCrColors
+  { drCrColors :: Col.DrCrColors
   , baseColors :: Col.BaseColors
   , showZeroBalances :: CO.ShowZeroBalances
   , target :: Target
@@ -53,8 +49,7 @@ data Opts = Opts
 -- parsing of abbreviated long options.
 allOptSpecs :: [C.OptSpec (Opts -> Ex.Exceptional String Opts)]
 allOptSpecs =
-  [ fmap toExc parseColor
-  , fmap toExc parseBackground ]
+  [ fmap toExc parseBackground ]
   ++ map (fmap toExc) parseZeroBalances
   ++
   [ parseCommodity
@@ -64,9 +59,6 @@ allOptSpecs =
   , fmap toExc parseDescending ]
   where
     toExc f = return . f
-
-parseColor ::  C.OptSpec (Opts -> Opts)
-parseColor = (\c o -> o { colorPref = c }) <$> P.color
 
 parseBackground :: C.OptSpec (Opts -> Opts)
 parseBackground = fmap f P.background

@@ -10,11 +10,11 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Monoid (mappend, mconcat)
 import qualified Data.Text as X
 import qualified Data.Text.IO as StrictIO
-import qualified Data.Text.Lazy.IO as LazyIO
 import qualified System.Console.MultiArg as MA
 import System.Exit (exitSuccess, exitFailure)
 import qualified System.IO as IO
 import qualified Penny.Cabin.Interface as I
+import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Shield as S
 import qualified Penny.Zinc.Help as Help
 import qualified Penny.Zinc.Parser.Filter as F
@@ -27,7 +27,7 @@ parseCommandLine
   -> S.Runtime
   -> [String]
   -> Ex.Exceptional MA.Error
-     (F.GlobalResult, Either [()] ((), I.ParseResult))
+     (F.GlobalResult, Either [()] ((), (Defaults.ColorToFile, I.ParseResult)))
 parseCommandLine df rs rt ss =
   MA.modes (F.allOpts (S.currentTime rt)) (F.processGlobal df)
            (whatMode rt rs) ss
@@ -36,23 +36,26 @@ whatMode
   :: S.Runtime
   -> [I.Report]
   -> F.GlobalResult
-  -> Either (a -> ()) [MA.Mode () I.ParseResult]
+  -> Either (a -> ()) [MA.Mode () (Defaults.ColorToFile, I.ParseResult)]
 whatMode rt rs gr =
   case gr of
     F.NeedsHelp -> Left $ const ()
-    F.RunPenny (F.FilterOpts fty cs sf) ->
-      Right $ map snd rs
-            <*> pure rt
-            <*> pure cs
-            <*> pure fty
-            <*> pure sf
-
+    F.RunPenny (F.FilterOpts fty cs sf ctf) ->
+      let prs = map snd rs
+                <*> pure rt
+                <*> pure cs
+                <*> pure fty
+                <*> pure sf
+          toCtf r = (ctf, r)
+      in Right $ map (fmap toCtf) prs
 
 handleParseResult
-  :: [I.Report]
-  -> Ex.Exceptional MA.Error (a, Either b (c, I.ParseResult))
+  :: S.Runtime
+  -> [I.Report]
+  -> Ex.Exceptional MA.Error
+     (a, Either b (c, (Defaults.ColorToFile, I.ParseResult)))
   -> IO ()
-handleParseResult rs r =
+handleParseResult rt rs r =
   let showErr e = do
         IO.hPutStr IO.stderr $ "penny: error: " ++ e
         exitFailure
@@ -65,14 +68,17 @@ handleParseResult rs r =
         Left _ -> do
           StrictIO.putStr (helpText rs)
           exitSuccess
-        Right (_, ex) -> case ex of
+        Right (_, (ctf, ex)) -> case ex of
           Ex.Exception s -> showErr s
           Ex.Success (fns, pr) -> do
             ledgers <- L.readLedgers fns
             (txns, pps) <- Ex.switch showErr return
                            $ L.parseLedgers ledgers
+            let term = if Defaults.unColorToFile ctf
+                       then Chk.TermFromEnv
+                       else Chk.autoTerm rt
             Ex.switch (showErr . X.unpack)
-              LazyIO.putStr $ pr txns pps
+              (Chk.printChunks term) $ pr txns pps
 
 helpText ::
   [I.Report]
@@ -87,5 +93,5 @@ parseAndPrint
   -> [String]
   -> IO ()
 parseAndPrint df rs rt ss =
-  handleParseResult rs
+  handleParseResult rt rs
   $ parseCommandLine df rs rt ss

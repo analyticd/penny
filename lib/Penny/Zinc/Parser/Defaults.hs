@@ -10,7 +10,9 @@ data T =
   T { sensitive :: M.CaseSensitive
     , factory :: M.CaseSensitive -> X.Text
                  -> Ex.Exceptional X.Text (X.Text -> Bool)
-    , currentTime :: L.DateTime }
+    , currentTime :: L.DateTime
+    , colorToFile :: ColorToFile
+    }
 
 defaultFromRuntime
   :: S.Runtime
@@ -18,5 +20,11 @@ defaultFromRuntime
 defaultFromRuntime rt =
   T { sensitive = M.Insensitive
     , factory = (\c t -> return (M.within c t))
-    , currentTime = S.currentTime rt }
+    , currentTime = S.currentTime rt
+    , colorToFile = ColorToFile False
+    }
+
+-- | Whether to use color when standard output is not a terminal.
+newtype ColorToFile = ColorToFile { unColorToFile :: Bool }
+  deriving (Eq, Show)
 

@@ -9,7 +9,6 @@ import qualified Data.Foldable as Fdbl
 import qualified System.Console.MultiArg.Combinator as C
 import qualified System.Console.MultiArg as MA
 
-import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Cabin.Posts.Fields as F
@@ -27,7 +26,6 @@ data State = State
   , tokens :: [Ly.Token (L.Box Ly.LibertyMeta -> Bool)]
   , postFilter :: [Ly.PostFilterFn]
   , fields :: F.Fields Bool
-  , colorPref :: S.Runtime -> CC.Colors
   , drCrColors :: PC.DrCrColors
   , baseColors :: PC.BaseColors
   , width :: Ty.ReportWidth
@@ -44,7 +42,6 @@ allSpecs rt =
   ++ caseSelect
   ++ operator
   ++ [ background
-     , color
      , parseWidth
      , showField
      , hideField
@@ -147,11 +144,6 @@ operator :: Applicative f => [C.OptSpec (State -> f State)]
 operator = map (fmap f) Ly.operatorSpecs
   where
     f oo st = pure $ st { tokens = tokens st ++ [oo] }
-
-color :: Applicative f => C.OptSpec (State -> f State)
-color = fmap f P.color
-  where
-    f pref st = pure $ st { colorPref = pref }
 
 background :: Applicative f => C.OptSpec (State -> f State)
 background = fmap f P.background

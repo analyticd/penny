@@ -190,6 +190,7 @@ Library
     , semigroups ==0.8.*
     , split ==0.2.*
     , strict ==0.3.*
+    , terminfo == 0.3.*
     , text ==0.11.*
     , time ==1.4.*
     , transformers == 0.3.*

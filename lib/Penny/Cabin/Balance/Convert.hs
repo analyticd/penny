@@ -192,9 +192,7 @@ process rt mkOpts fsf ls = do
               rptOpts <- Ex.fromMaybe noDefault $
                 fromParsedOpts pps (O.format defaultOpts) g
               let boxes = fsf ts
-                  colors = P.colorPref g rt
-              cks <- report rptOpts pps boxes
-              return $ Chunk.chunksToText colors cks
+              report rptOpts pps boxes
         in return (posArgs, pr)
 
 
@@ -232,7 +230,7 @@ fromParsedOpts ::
   -> (L.Qty -> X.Text)
   -> P.Opts
   -> Maybe Opts
-fromParsedOpts pp fmt (P.Opts _ dc bc szb tgt dt so sb) =
+fromParsedOpts pp fmt (P.Opts dc bc szb tgt dt so sb) =
   case tgt of
     P.ManualTarget to ->
       Just $ Opts dc bc fmt szb (getSorter so sb) to dt
