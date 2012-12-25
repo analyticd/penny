@@ -9,17 +9,15 @@ import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Posts.BottomRows as B
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.Chunk as C
-import qualified Penny.Cabin.Colors as PC
 import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
 import qualified Penny.Cabin.Posts.Types as Ty
 
-data ChunkOpts = ChunkOpts {
-  baseColors :: PC.BaseColors
-  , drCrColors :: PC.DrCrColors
-  , dateFormat :: Box -> X.Text
+data ChunkOpts = ChunkOpts
+  { dateFormat :: Box -> X.Text
   , qtyFormat :: Box -> X.Text
   , balanceFormat :: L.Commodity -> L.BottomLine -> X.Text
   , fields :: F.Fields Bool
@@ -31,22 +29,19 @@ data ChunkOpts = ChunkOpts {
   }
 
 growOpts :: ChunkOpts -> G.GrowOpts
-growOpts c = G.GrowOpts {
-  G.baseColors = baseColors c
-  , G.drCrColors = drCrColors c
-  , G.dateFormat = dateFormat c
+growOpts c = G.GrowOpts
+  { G.dateFormat = dateFormat c
   , G.qtyFormat = qtyFormat c
   , G.balanceFormat = balanceFormat c
   , G.fields = fields c
   }
 
 allocatedOpts :: ChunkOpts -> G.Fields (Maybe Int) -> A.AllocatedOpts
-allocatedOpts c g = A.AllocatedOpts {
-  A.fields = let f = fields c
-             in A.Fields { A.payee = F.payee f
-                         , A.account = F.account f }
+allocatedOpts c g = A.AllocatedOpts
+  { A.fields = let f = fields c
+               in A.Fields { A.payee = F.payee f
+                           , A.account = F.account f }
   , A.subAccountLength = subAccountLength c
-  , A.baseColors = baseColors c
   , A.allocations = A.Fields { A.payee = payeeAllocation c
                              , A.account = accountAllocation c }
   , A.spacers = spacers c
@@ -63,7 +58,6 @@ bottomOpts c g a = B.BottomOpts {
   B.growingWidths = g
   , B.allocatedWidths = a
   , B.fields = fields c
-  , B.baseColors = baseColors c
   , B.reportWidth = reportWidth c
   , B.spacers = spacers c
   }
@@ -71,7 +65,7 @@ bottomOpts c g a = B.BottomOpts {
 makeChunk ::
   ChunkOpts
   -> [Box]
-  -> [C.Chunk]
+  -> [E.PreChunk]
 makeChunk c bs =
   let fmapSnd = fmap (fmap snd)
       fmapFst = fmap (fmap fst)
@@ -82,74 +76,70 @@ makeChunk c bs =
       bFlds = B.bottomRows (bottomOpts c gFldW aFldW) bs
       topCells = B.topRowCells (fmapFst gFlds) (fmap (fmap fst) aFlds)
       withSpacers = B.mergeWithSpacers topCells (spacers c)
-      topRows = makeTopRows (baseColors c) withSpacers
+      topRows = makeTopRows withSpacers
       bottomRows = makeBottomRows bFlds
   in makeAllRows topRows bottomRows
 
 
-topRowsCells ::
-  PC.BaseColors
-  -> B.TopRowCells (Maybe [R.ColumnSpec], Maybe Int)
+topRowsCells
+  :: B.TopRowCells (Maybe [R.ColumnSpec], Maybe Int)
   -> [[(R.ColumnSpec, Maybe R.ColumnSpec)]]
-topRowsCells bc t = let
+topRowsCells t = let
   toWithSpc (mayCs, maySp) = case mayCs of
     Nothing -> Nothing
-    Just cs -> Just (makeSpacers bc cs maySp)
+    Just cs -> Just (makeSpacers cs maySp)
   f mayPairList acc = case mayPairList of
     Nothing -> acc
     (Just pairList) -> pairList : acc
   in transpose $ Fdbl.foldr f [] (fmap toWithSpc t)
 
-makeRow :: [(R.ColumnSpec, Maybe R.ColumnSpec)] -> [C.Chunk]
+makeRow :: [(R.ColumnSpec, Maybe R.ColumnSpec)] -> [E.PreChunk]
 makeRow = R.row . foldr f [] where
   f (c, mayC) acc = case mayC of
     Nothing -> c:acc
     Just spcr -> c:spcr:acc
 
 
-makeSpacers ::
-  PC.BaseColors
-  -> [R.ColumnSpec]
+makeSpacers
+  :: [R.ColumnSpec]
   -> Maybe Int
   -> [(R.ColumnSpec, Maybe R.ColumnSpec)]
-makeSpacers bc cs mayI = case mayI of
+makeSpacers cs mayI = case mayI of
   Nothing -> map (\c -> (c, Nothing)) cs
-  Just i -> makeEvenOddSpacers bc cs i
+  Just i -> makeEvenOddSpacers cs i
 
-makeEvenOddSpacers ::
-  PC.BaseColors
-  -> [R.ColumnSpec]
+makeEvenOddSpacers
+  :: [R.ColumnSpec]
   -> Int
   -> [(R.ColumnSpec, Maybe R.ColumnSpec)]
-makeEvenOddSpacers bc cs i = let absI = abs i in
+makeEvenOddSpacers cs i = let absI = abs i in
   if absI == 0
   then map (\c -> (c, Nothing)) cs
   else let
     spcrs = cycle [Just $ mkSpcr evenTs, Just $ mkSpcr oddTs]
     mkSpcr ts = R.ColumnSpec R.LeftJustify (C.Width absI) ts []
-    evenTs = PC.evenColors bc
-    oddTs = PC.oddColors bc
+    evenTs = (E.Other, E.Even)
+    oddTs = (E.Other, E.Odd)
     in zip cs spcrs
 
-makeTopRows ::
-  PC.BaseColors
-  -> B.TopRowCells (Maybe [R.ColumnSpec], Maybe Int)
-  -> Maybe [[C.Chunk]]
-makeTopRows bc trc =
+makeTopRows
+  :: B.TopRowCells (Maybe [R.ColumnSpec], Maybe Int)
+  -> Maybe [[E.PreChunk]]
+makeTopRows trc =
   if Fdbl.all (isNothing . fst) trc
   then Nothing
-  else Just $ map makeRow . topRowsCells bc $ trc
+  else Just $ map makeRow . topRowsCells $ trc
 
 
 makeBottomRows ::
-  B.Fields (Maybe [[C.Chunk]])
-  -> Maybe [[[C.Chunk]]]
+  B.Fields (Maybe [[E.PreChunk]])
+  -> Maybe [[[E.PreChunk]]]
 makeBottomRows flds =
   if Fdbl.all isNothing flds
   then Nothing
   else Just . transpose . catMaybes . Fdbl.toList $ flds
 
-makeAllRows :: Maybe [[C.Chunk]] -> Maybe [[[C.Chunk]]] -> [C.Chunk]
+makeAllRows :: Maybe [[E.PreChunk]] -> Maybe [[[E.PreChunk]]] -> [E.PreChunk]
 makeAllRows mayrs mayrrs = case (mayrs, mayrrs) of
   (Nothing, Nothing) -> []
   (Just rs, Nothing) -> concat rs
