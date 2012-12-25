@@ -2,7 +2,7 @@
 -- anything that is a 'Report'.
 module Penny.Cabin.Interface where
 
-import qualified Penny.Cabin.Chunk as Chk
+import qualified Penny.Cabin.Scheme as S
 import Control.Monad.Exception.Synchronous (Exceptional)
 import qualified Data.Text as X
 import Text.Matchers.Text (CaseSensitive)
@@ -25,9 +25,9 @@ type PrintReport
   -- ^ PricePoints to be included in the report
 
 
-  -> Exceptional X.Text [Chk.Chunk]
+  -> Exceptional X.Text [S.PreChunk]
   -- ^ The exception type is a strict Text, containing the error
-  -- message. The success type is a list of chunks containing the
+  -- message. The success type is a list of PreChunks containing the
   -- resulting report. This allows for errors after the list of
   -- transactions has been seen.
 

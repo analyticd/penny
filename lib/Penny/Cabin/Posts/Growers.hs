@@ -21,16 +21,15 @@ import qualified Penny.Cabin.Posts.Meta as M
 import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 
 
 -- | All the options needed to grow the cells.
-data GrowOpts = GrowOpts {
-  baseColors :: CC.BaseColors
-  , drCrColors :: CC.DrCrColors
-  , dateFormat :: Box -> X.Text
+data GrowOpts = GrowOpts
+  { dateFormat :: Box -> X.Text
   , qtyFormat :: Box -> X.Text
   , balanceFormat :: L.Commodity -> L.BottomLine -> X.Text
   , fields :: F.Fields Bool
@@ -67,8 +66,8 @@ widestLine (PreSpec _ _ bs) =
 
 data PreSpec = PreSpec {
   _justification :: R.Justification
-  , _padSpec :: C.TextSpec
-  , _bits :: [C.Chunk] }
+  , _padSpec :: (E.Label, E.EvenOdd)
+  , _bits :: [E.PreChunk] }
 
 
 -- | Given a PreSpec and a width, create a ColumnSpec of the right
@@ -78,12 +77,13 @@ sizer w (PreSpec j ts bs) = R.ColumnSpec j w ts bs
 
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
-oneLine :: Text -> CC.BaseColors -> Box -> PreSpec
-oneLine t bc b =
-  let ts = CC.colors (M.visibleNum . L.boxMeta $ b) bc
+oneLine :: Text -> E.Label -> Box -> PreSpec
+oneLine t lbl b =
+  let eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ b
       j = R.LeftJustify
-      bit = C.chunk ts t
-  in PreSpec j ts [bit]
+      pcs = E.PreChunk lbl eo t
+  in PreSpec j (lbl, eo) pcs
+
 
 -- | Converts a function that accepts a BaseColors to one that accepts
 -- a GrowOpts.
@@ -143,9 +143,9 @@ serialCellMaybe ::
   (L.PostFam -> Maybe Int)
   -- ^ When applied to a Box, this function returns Just Int if the
   -- box has a serial, or Nothing if not.
-  
-  -> CC.BaseColors -> Box -> PreSpec
-serialCellMaybe f bc b = oneLine t bc b
+
+  -> Box -> PreSpec
+serialCellMaybe f b = oneLine t E.Other b
   where
     t = case f (L.boxPostFam b) of
       Nothing -> X.empty
@@ -153,90 +153,90 @@ serialCellMaybe f bc b = oneLine t bc b
 
 serialCell ::
   (M.PostMeta -> Int)
-  -> CC.BaseColors -> Box -> PreSpec
-serialCell f bc b = oneLine t bc b
+  -> Box -> PreSpec
+serialCell f b = oneLine t E.Other b
   where
     t = pack . show . f . L.boxMeta $ b
 
-getGlobalTransaction :: CC.BaseColors -> Box -> PreSpec
+getGlobalTransaction :: Box -> PreSpec
 getGlobalTransaction =
   serialCellMaybe (fmap (L.forward . L.unGlobalTransaction)
                    . Q.globalTransaction)
 
-getRevGlobalTransaction :: CC.BaseColors -> Box -> PreSpec
+getRevGlobalTransaction :: Box -> PreSpec
 getRevGlobalTransaction =
   serialCellMaybe (fmap (L.backward . L.unGlobalTransaction)
                    . Q.globalTransaction)
 
-getGlobalPosting :: CC.BaseColors -> Box -> PreSpec
+getGlobalPosting :: Box -> PreSpec
 getGlobalPosting =
   serialCellMaybe (fmap (L.forward . L.unGlobalPosting)
                    . Q.globalPosting)
 
-getRevGlobalPosting :: CC.BaseColors -> Box -> PreSpec
+getRevGlobalPosting :: Box -> PreSpec
 getRevGlobalPosting =
   serialCellMaybe (fmap (L.backward . L.unGlobalPosting)
                    . Q.globalPosting)
 
-getFileTransaction :: CC.BaseColors -> Box -> PreSpec
+getFileTransaction :: Box -> PreSpec
 getFileTransaction =
   serialCellMaybe (fmap (L.forward . L.unFileTransaction)
                    . Q.fileTransaction)
 
-getRevFileTransaction :: CC.BaseColors -> Box -> PreSpec
+getRevFileTransaction :: Box -> PreSpec
 getRevFileTransaction =
   serialCellMaybe (fmap (L.backward . L.unFileTransaction)
                    . Q.fileTransaction)
 
-getFilePosting :: CC.BaseColors -> Box -> PreSpec
+getFilePosting :: Box -> PreSpec
 getFilePosting =
   serialCellMaybe (fmap (L.forward . L.unFilePosting)
                    . Q.filePosting)
 
-getRevFilePosting :: CC.BaseColors -> Box -> PreSpec
+getRevFilePosting :: Box -> PreSpec
 getRevFilePosting =
   serialCellMaybe (fmap (L.backward . L.unFilePosting)
                    . Q.filePosting)
 
-getSorted :: CC.BaseColors -> Box -> PreSpec
+getSorted :: Box -> PreSpec
 getSorted =
   serialCell (L.forward . Ly.unSortedNum . M.sortedNum)
 
-getRevSorted :: CC.BaseColors -> Box -> PreSpec
+getRevSorted :: Box -> PreSpec
 getRevSorted =
   serialCell (L.backward . Ly.unSortedNum . M.sortedNum)
 
-getFiltered :: CC.BaseColors -> Box -> PreSpec
+getFiltered :: Box -> PreSpec
 getFiltered =
   serialCell (L.forward . Ly.unFilteredNum . M.filteredNum)
 
-getRevFiltered :: CC.BaseColors -> Box -> PreSpec
+getRevFiltered :: Box -> PreSpec
 getRevFiltered =
   serialCell (L.backward . Ly.unFilteredNum . M.filteredNum)
 
-getVisible :: CC.BaseColors -> Box -> PreSpec
+getVisible :: Box -> PreSpec
 getVisible =
   serialCell (L.forward . M.unVisibleNum . M.visibleNum)
 
-getRevVisible :: CC.BaseColors -> Box -> PreSpec
+getRevVisible :: Box -> PreSpec
 getRevVisible =
   serialCell (L.backward . M.unVisibleNum . M.visibleNum)
 
 
-getLineNum :: CC.BaseColors -> Box -> PreSpec
-getLineNum bc b = oneLine t bc b where
+getLineNum :: Box -> PreSpec
+getLineNum b = oneLine t E.Other b where
   lineTxt = pack . show . L.unPostingLine
   t = maybe empty lineTxt (Q.postingLine . L.boxPostFam $ b)
 
-getDate :: CC.BaseColors -> (Box -> X.Text) -> Box -> PreSpec
-getDate bc gd b = oneLine (gd b) bc b
+getDate :: (Box -> X.Text) -> Box -> PreSpec
+getDate gd b = oneLine (gd b) E.Other b
 
-getFlag :: CC.BaseColors -> Box -> PreSpec
-getFlag bc i = oneLine t bc i where
+getFlag :: Box -> PreSpec
+getFlag i = oneLine t E.Other i where
   t = maybe empty L.text (Q.flag . L.boxPostFam $ i)
 
-getNumber :: CC.BaseColors -> Box -> PreSpec
-getNumber bc i = oneLine t bc i where
+getNumber :: Box -> PreSpec
+getNumber i = oneLine t E.Other i where
   t = maybe empty L.text (Q.number . L.boxPostFam $ i)
 
 dcTxt :: L.DrCr -> Text
@@ -245,73 +245,53 @@ dcTxt L.Credit = X.singleton '>'
 
 -- | Gives a one-line cell that is colored according to whether the
 -- posting is a debit or credit.
-coloredPostingCell :: Text -> CC.DrCrColors -> Box -> PreSpec
-coloredPostingCell t dccol i = PreSpec j ts [bit] where
+coloredPostingCell :: Text -> Box -> PreSpec
+coloredPostingCell t i = PreSpec j ts [bit] where
   j = R.LeftJustify
-  bit = C.chunk ts t
-  dc = Q.drCr . L.boxPostFam $ i
-  ts = CC.colors (M.visibleNum . L.boxMeta $ i)
-       . CC.drCrToBaseColors dc
-       $ dccol
+  lbl = case Q.drCr . L.boxPostFam $ i of
+    L.Debit -> E.Debit
+    L.Credit -> E.Credit
+  eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ i
+  bit = E.PreChunk lbl eo t
 
 
-getPostingDrCr :: CC.DrCrColors -> Box -> PreSpec
-getPostingDrCr dc i = coloredPostingCell t dc i where
+getPostingDrCr :: Box -> PreSpec
+getPostingDrCr i = coloredPostingCell t i where
   t = dcTxt . Q.drCr . L.boxPostFam $ i
 
 getPostingCmdty :: CC.DrCrColors -> Box -> PreSpec
-getPostingCmdty dc i = coloredPostingCell t dc i where
+getPostingCmdty dc i = coloredPostingCell t i where
   t = L.unCommodity . Q.commodity . L.boxPostFam $ i
 
-getPostingQty :: (Box -> X.Text) -> CC.DrCrColors -> Box -> PreSpec
-getPostingQty qf dc i = coloredPostingCell (qf i) dc i
+getPostingQty :: (Box -> X.Text) -> Box -> PreSpec
+getPostingQty qf i = coloredPostingCell (qf i) i
 
-getTotalDrCr :: CC.DrCrColors -> Box -> PreSpec
-getTotalDrCr dccol i =
+getTotalDrCr :: Box -> PreSpec
+getTotalDrCr i =
   let vn = M.visibleNum . L.boxMeta $ i
-      ts = CC.colors vn bc
-      bc = CC.drCrToBaseColors dc dccol
+      ps = (lbl, eo)
       dc = Q.drCr . L.boxPostFam $ i
+      lbl = E.dcToLbl dc
+      eo = E.fromVisibleNum vn
       bal = L.unBalance . M.balance . L.boxMeta $ i
       bits =
         if Map.null bal
-        then let spec = CC.noBalanceColors vn dccol
-             in [C.chunk spec (pack "--")]
-        else let toBit bl =
-                   let spec = 
-                         CC.colors vn
-                         . CC.bottomLineToBaseColors dccol
-                         $ bl
-                       txt = case bl of
-                         L.Zero -> pack "--"
-                         L.NonZero (L.Column clmDrCr _) ->
-                           dcTxt clmDrCr
-                   in C.chunk spec txt
-             in fmap toBit . elems $ bal
+        then [E.PreChunk E.Zero eo (pack "--")]
+        else fmap E.bottomLineToDrCr . elems $ bal
       j = R.LeftJustify
-  in PreSpec j ts bits
+  in PreSpec j ps bits
 
 getTotalCmdty :: CC.DrCrColors -> Box -> PreSpec
 getTotalCmdty dccol i =
   let vn = M.visibleNum . L.boxMeta $ i
       j = R.RightJustify
-      ts = CC.colors vn bc
-      bc = CC.drCrToBaseColors dc dccol
+      ps = (lbl, eo)
       dc = Q.drCr . L.boxPostFam $ i
-      bal = L.unBalance . M.balance . L.boxMeta $ i
-      bits =
-        if Map.null bal
-        then let spec = CC.noBalanceColors vn dccol
-             in [C.chunk spec (pack "--")]
-        else let toBit (com, nou) =
-                   let spec =
-                         CC.colors vn
-                         . CC.bottomLineToBaseColors dccol
-                         $ nou
-                       txt = L.unCommodity com
-                   in C.chunk spec txt
-             in fmap toBit . assocs $ bal
-  in PreSpec j ts bits
+      eo = E.fromVisibleNum vn
+      lbl = E.dcToLbl dc
+      bal = Map.toList . L.unBalance . M.balance . L.boxMeta $ i
+      preChunks = E.bottonLineToCmdty bal eo
+  in PreSpec j ps preChunks
 
 getTotalQty ::
   (L.Commodity -> L.BottomLine -> X.Text)
@@ -321,30 +301,16 @@ getTotalQty ::
 getTotalQty balFmt dccol i =
   let vn = M.visibleNum . L.boxMeta $ i
       j = R.LeftJustify
-      ts = CC.colors vn bc
-      bc = CC.drCrToBaseColors dc dccol
       dc = Q.drCr . L.boxPostFam $ i
-      bal = L.unBalance . M.balance . L.boxMeta $ i
-      bits =
-        if Map.null bal
-        then 
-          let spec = CC.noBalanceColors vn dccol
-          in [C.chunk spec (pack "--")]
-        else
-          fmap toChunk . assocs $ bal
-            where
-              toChunk (com, nou) =
-                let spec = 
-                      CC.colors vn
-                      . CC.bottomLineToBaseColors dccol
-                      $ nou
-                    txt = balFmt com nou
-                in C.chunk spec txt
-  in PreSpec j ts bits
+      ps = (E.dcToLbl dc, eo)
+      eo = E.fromVisibleNum vn
+      bal = Map.toList . L.unBalance . M.balance . L.boxMeta $ i
+      preChunks = E.bottomLineToQty balFmt bal eo
+  in PreSpec j ps preChunks
 
 growingFields :: F.Fields Bool -> Fields Bool
-growingFields f = Fields {
-  globalTransaction      = F.globalTransaction    f
+growingFields f = Fields
+  { globalTransaction    = F.globalTransaction    f
   , revGlobalTransaction = F.revGlobalTransaction f
   , globalPosting        = F.globalPosting        f
   , revGlobalPosting     = F.revGlobalPosting     f
@@ -399,8 +365,8 @@ data EFields =
 
 -- | Returns a Fields where each record has its corresponding EField.
 eFields :: Fields EFields
-eFields = Fields {
-  globalTransaction      = EGlobalTransaction
+eFields = Fields
+  { globalTransaction     = EGlobalTransaction
   , revGlobalTransaction = ERevGlobalTransaction
   , globalPosting        = EGlobalPosting
   , revGlobalPosting     = ERevGlobalPosting
@@ -426,8 +392,8 @@ eFields = Fields {
   , totalQty             = ETotalQty }
 
 -- | All growing fields.
-data Fields a = Fields {
-  globalTransaction      :: a
+data Fields a = Fields
+  { globalTransaction    :: a
   , revGlobalTransaction :: a
   , globalPosting        :: a
   , revGlobalPosting     :: a
@@ -482,8 +448,8 @@ instance Fdbl.Foldable Fields where
                           (f (totalQty i) z)))))))))))))))))))))))
 
 instance Functor Fields where
-  fmap f i = Fields {
-    globalTransaction      = f (globalTransaction    i)
+  fmap f i = Fields
+    { globalTransaction    = f (globalTransaction    i)
     , revGlobalTransaction = f (revGlobalTransaction i)
     , globalPosting        = f (globalPosting        i)
     , revGlobalPosting     = f (revGlobalPosting     i)
@@ -509,8 +475,8 @@ instance Functor Fields where
     , totalQty             = f (totalQty             i) }
 
 instance Applicative Fields where
-  pure a = Fields {
-    globalTransaction      = a
+  pure a = Fields
+    { globalTransaction     = a
     , revGlobalTransaction = a
     , globalPosting        = a
     , revGlobalPosting     = a
@@ -535,8 +501,8 @@ instance Applicative Fields where
     , totalCmdty           = a
     , totalQty             = a }
 
-  fl <*> fa = Fields {
-    globalTransaction      = globalTransaction    fl (globalTransaction    fa)
+  fl <*> fa = Fields
+    { globalTransaction    = globalTransaction    fl (globalTransaction    fa)
     , revGlobalTransaction = revGlobalTransaction fl (revGlobalTransaction fa)
     , globalPosting        = globalPosting        fl (globalPosting        fa)
     , revGlobalPosting     = revGlobalPosting     fl (revGlobalPosting     fa)

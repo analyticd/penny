@@ -22,7 +22,7 @@ evenTextSpec = CC.defaultTextSpec
 oddTextSpec :: CC.TextSpec
 oddTextSpec = S.switchBackground CC.color8_b_default
               (CC.color256_b_247) evenTextSpec
-              
+
 debit :: CC.TextSpec -> CC.TextSpec
 debit = S.switchForeground CC.color8_f_magenta (CC.color256_f_13)
 

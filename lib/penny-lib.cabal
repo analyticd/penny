@@ -242,6 +242,7 @@ Library
     , Penny.Cabin.Row
     , Penny.Cabin.Scheme
     , Penny.Cabin.Scheme.Dark
+    , Penny.Cabin.Scheme.Light
     , Penny.Cabin.TextFormat
     , Penny.Copper
     , Penny.Copper.Parsec

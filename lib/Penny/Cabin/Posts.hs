@@ -55,7 +55,6 @@ import qualified Data.Either as Ei
 import qualified Data.Text as X
 import qualified Penny.Cabin.Chunk as CC
 import qualified Penny.Cabin.Colors as PC
-import qualified Penny.Cabin.Colors.DarkBackground as Dark
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Posts.Allocated as A
@@ -67,6 +66,7 @@ import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Parser as P
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Types as T
+import qualified Penny.Cabin.Scheme as E
 
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Balance as Bal
@@ -185,13 +185,6 @@ data ZincOpts = ZincOpts
   { fields :: F.Fields Bool
     -- ^ Default fields to show in the report.
 
-  , drCrColors :: PC.DrCrColors
-    -- ^ Colors to use when displaying debits, credits, and
-    -- when displaying balance totals
-
-  , baseColors :: PC.BaseColors
-    -- ^ Colors to use when displaying everything else
-
   , width :: T.ReportWidth
     -- ^ Gives the default report width. This can be
     -- overridden on the command line. You can use the
@@ -245,9 +238,7 @@ chunkOpts ::
   -> ZincOpts
   -> C.ChunkOpts
 chunkOpts s z = C.ChunkOpts
-  { C.baseColors = P.baseColors s
-  , C.drCrColors = P.drCrColors s
-  , C.dateFormat = dateFormat z
+  { C.dateFormat = dateFormat z
   , C.qtyFormat = qtyFormat z
   , C.balanceFormat = balanceFormat z
   , C.fields = P.fields s

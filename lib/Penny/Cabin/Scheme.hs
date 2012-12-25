@@ -9,6 +9,8 @@
 module Penny.Cabin.Scheme where
 
 import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Cabin.Meta as M
+import qualified Penny.Lincoln as L
 import qualified Data.Text as X
 
 data Label
@@ -60,7 +62,61 @@ data PreChunk = PreChunk
   , text :: X.Text
   } deriving (Eq, Show)
 
+width :: PreChunk -> C.Width
+width = C.Width . X.length . text
+
 makeChunk :: Scheme -> PreChunk -> C.Chunk
 makeChunk s p =
   C.chunk (getEvenOddLabelValue (label p) (evenOdd p) s)
           (text p)
+
+fromVisibleNum :: M.VisibleNum -> EvenOdd
+fromVisibleNum vn =
+  let s = M.unVisibleNum vn in
+  if even . L.forward $ s then Even else Odd
+
+dcToLbl :: L.DrCr -> Label
+dcToLbl L.Debit = Debit
+dcToLbl L.Credit = Credit
+
+bottomLineToDrCr :: L.BottomLine -> EvenOdd -> PreChunk
+bottomLineToDrCr bl eo = PreChunk lbl eo t
+  where
+    (lbl, t) = case bl of
+      L.Zero -> (Zero, X.pack "--")
+      L.NonZero (L.Column clmDrCr _) -> case clmDrCr of
+        L.Debit -> (Debit, X.singleton '<')
+        L.Credit -> (Credit, X.singleton '>')
+
+bottomLineToCmdty
+  :: [(L.Commodity, L.BottomLine)]
+  -> EvenOdd
+  -> [PreChunk]
+bottomLineToCmdty ls eo =
+  if null ls
+  then [PreChunk Zero eo (X.pack "--")]
+  else
+    let toPc (com, bl) = PreChunk lbl eo t
+          where
+            t = L.unCommodity com
+            lbl = case bl of
+              L.Zero -> Zero
+              L.NonZero (L.Column clmDrCr _) -> dcToLbl clmDrCr
+    in map toPc ls
+
+bottomLineToQty
+  :: (L.Commodity -> L.BottomLine -> X.Text)
+  -> [(L.Commodity, L.BottomLine)]
+  -> EvenOdd
+  -> [PreChunk]
+bottomLineToQty getTxt ls eo =
+  if null ls
+  then [PreChunk Zero eo (X.pack "--")]
+  else
+    let toPc (com, bl) = PreChunk lbl eo t
+          where
+            t = getTxt com bl
+            lbl = case bl of
+              L.Zero -> Zero
+              L.NonZero (L.Column clmDrCr _) -> dcToLbl clmDrCr
+    in map toPc ls

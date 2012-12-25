@@ -8,6 +8,7 @@ module Penny.Cabin.Row (
 import Data.List (transpose)
 import qualified Data.Text as X
 import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Cabin.Scheme as E
 
 -- | How to justify cells. LeftJustify leaves the right side
 -- ragged. RightJustify leaves the left side ragged.
@@ -25,36 +26,38 @@ data Justification =
 data ColumnSpec =
   ColumnSpec { justification :: Justification
              , width :: C.Width
-             , padSpec :: C.TextSpec
-             , bits :: [C.Chunk] }
+             , padSpec :: (E.Label, E.EvenOdd)
+             , bits :: [E.PreChunk] }
 
-newtype JustifiedCell = JustifiedCell (Either (C.Chunk, C.Chunk) C.Chunk)
+newtype JustifiedCell = JustifiedCell (Either (E.PreChunk, E.PreChunk)
+                                              E.PreChunk)
 data JustifiedColumn = JustifiedColumn {
   justifiedCells :: [JustifiedCell]
   , _justifiedWidth :: C.Width
-  , _justifiedPadSpec :: C.TextSpec }
+  , _justifiedPadSpec :: (E.Label, E.EvenOdd) }
 
 newtype PaddedColumns = PaddedColumns [[JustifiedCell]]
 newtype CellsByRow = CellsByRow [[JustifiedCell]]
 newtype CellRowsWithNewlines = CellRowsWithNewlines [[JustifiedCell]]
 
 
-justify ::
-  C.TextSpec
-  -> C.Width
+justify
+  :: C.Width
   -> Justification
-  -> C.Chunk
+  -> E.PreChunk
   -> JustifiedCell
-justify ts (C.Width w) j b
+justify (C.Width w) j pc
   | origWidth < w = JustifiedCell . Left $ pair
-  | otherwise = JustifiedCell . Right $ b
+  | otherwise = JustifiedCell . Right $ pc
     where
-      origWidth = C.unWidth . C.chunkWidth $ b
-      pad = C.chunk ts t
+      origWidth = C.unWidth . E.width $ pc
+      lbl = E.label pc
+      eo = E.evenOdd pc
+      pad = E.PreChunk lbl eo t
       t = X.replicate (w - origWidth) (X.singleton ' ')
       pair = case j of
-        LeftJustify -> (b, pad)
-        RightJustify -> (pad, b)
+        LeftJustify -> (pc, pad)
+        RightJustify -> (pad, pc)
 
 newtype Height = Height { _unHeight :: Int }
                  deriving (Show, Eq, Ord)
@@ -62,7 +65,7 @@ newtype Height = Height { _unHeight :: Int }
 height :: [[a]] -> Height
 height = Height . maximum . map length
 
-row :: [ColumnSpec] -> [C.Chunk]
+row :: [ColumnSpec] -> [E.PreChunk]
 row =
   concat
   . concat
@@ -74,17 +77,17 @@ row =
 
 justifiedColumn :: ColumnSpec -> JustifiedColumn
 justifiedColumn (ColumnSpec j w ts bs) = JustifiedColumn cs w ts where
-  cs = map (justify ts w j) $ bs
+  cs = map (justify w j) $ bs
 
 bottomPad :: [JustifiedColumn] -> PaddedColumns
 bottomPad jcs = PaddedColumns pcs where
   justCells = map justifiedCells jcs
   (Height h) = height justCells
   pcs = map toPaddedColumn jcs
-  toPaddedColumn (JustifiedColumn cs (C.Width w) ts) = let
+  toPaddedColumn (JustifiedColumn cs (C.Width w) (lbl, eo)) = let
     l = length cs
     nPads = h - l
-    pad = C.chunk ts t
+    pad = E.PreChunk lbl eo t
     t = X.replicate w (X.singleton ' ')
     pads = replicate nPads . JustifiedCell . Right $ pad
     cs'
@@ -102,11 +105,11 @@ toCellRowsWithNewlines (CellsByRow bs) =
   CellRowsWithNewlines bs' where
     bs' = foldr f [] bs
     newline = JustifiedCell . Right
-              $ C.chunk C.defaultTextSpec (X.singleton '\n')
+              $ E.PreChunk E.Other E.Even (X.singleton '\n')
     f cells acc = (cells ++ [newline]) : acc
-    
 
-toBits :: CellRowsWithNewlines -> [[[C.Chunk]]]
+
+toBits :: CellRowsWithNewlines -> [[[E.PreChunk]]]
 toBits (CellRowsWithNewlines cs) = map (map toB) cs where
   toB (JustifiedCell c) = case c of
     Left (lb, rb) -> [lb, rb]
