@@ -32,10 +32,10 @@ import qualified Data.Sequence as Seq
 import qualified Data.Text as X
 import qualified Data.Traversable as T
 import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.TextFormat as TF
 import qualified Penny.Cabin.Posts.Allocated as A
-import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
@@ -46,11 +46,10 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.HasText as HT
 import qualified Penny.Lincoln.Queries as Q
 
-data BottomOpts = BottomOpts {
-  growingWidths :: G.Fields (Maybe Int)
+data BottomOpts = BottomOpts
+  { growingWidths :: G.Fields (Maybe Int)
   , allocatedWidths :: A.Fields (Maybe Int)
   , fields :: F.Fields Bool
-  , baseColors :: PC.BaseColors
   , reportWidth :: Ty.ReportWidth
   , spacers :: S.Spacers Int
   }
@@ -58,10 +57,10 @@ data BottomOpts = BottomOpts {
 bottomRows ::
   BottomOpts
   -> [Box]
-  -> Fields (Maybe [[C.Chunk]])
+  -> Fields (Maybe [[E.PreChunk]])
 bottomRows os bs = makeRows bs pcs where
   pcs = infoProcessors topSpecs (reportWidth os) wanted
-  wanted = requestedMakers (fields os) (baseColors os)
+  wanted = requestedMakers (fields os)
   topSpecs = topCellSpecs (growingWidths os) (allocatedWidths os)
              (spacers os)
 
@@ -110,16 +109,16 @@ newtype ContentWidth = ContentWidth Int deriving (Show, Eq)
 
 hanging ::
   [TopCellSpec]
-  -> Maybe ((Box -> Int -> (C.TextSpec, R.ColumnSpec))
-            -> Box -> [C.Chunk])
+  -> Maybe ((Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
+            -> Box -> [E.PreChunk])
 hanging specs = hangingWidths specs
                 >>= return . hangingInfoProcessor
 
 hangingInfoProcessor ::
   Hanging Int
-  -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
+  -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
   -> Box
-  -> [C.Chunk]
+  -> [E.PreChunk]
 hangingInfoProcessor widths mkr info = row where
   row = R.row [left, mid, right]
   (ts, mid) = mkr info (mainCell widths)
@@ -129,8 +128,8 @@ hangingInfoProcessor widths mkr info = row where
 
 widthOfTopColumns ::
   [TopCellSpec]
-  -> Maybe ((Box -> Int -> (C.TextSpec, R.ColumnSpec))
-            -> Box -> [C.Chunk])
+  -> Maybe ((Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
+            -> Box -> [E.PreChunk])
 widthOfTopColumns ts =
   if null ts
   then Nothing
@@ -142,18 +141,18 @@ widthOfTopColumns ts =
 
 widthOfReport ::
   Ty.ReportWidth
-  -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
+  -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
   -> Box
-  -> [C.Chunk]
+  -> [E.PreChunk]
 widthOfReport (Ty.ReportWidth rw) fn info =
   makeSpecificWidth rw fn info
 
 chooseProcessor ::
   [TopCellSpec]
   -> Ty.ReportWidth
-  -> (Box -> Int -> (C.TextSpec, R.ColumnSpec))
+  -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
   -> Box
-  -> [C.Chunk]
+  -> [E.PreChunk]
 chooseProcessor specs rw fn = let
   firstTwo = First (hanging specs)
              `mappend` First (widthOfTopColumns specs)
@@ -164,8 +163,8 @@ chooseProcessor specs rw fn = let
 infoProcessors ::
   [TopCellSpec]
   -> Ty.ReportWidth
-  -> Fields (Maybe (Box -> Int -> (C.TextSpec, R.ColumnSpec)))
-  -> Fields (Maybe (Box -> [C.Chunk]))
+  -> Fields (Maybe (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)))
+  -> Fields (Maybe (Box -> [E.PreChunk]))
 infoProcessors specs rw flds = let
   chooser = chooseProcessor specs rw
   mkProcessor mayFn = case mayFn of
@@ -176,8 +175,8 @@ infoProcessors specs rw flds = let
 
 makeRows ::
   [Box]
-  -> Fields (Maybe (Box -> [C.Chunk]))
-  -> Fields (Maybe [[C.Chunk]])
+  -> Fields (Maybe (Box -> [E.PreChunk]))
+  -> Fields (Maybe [[E.PreChunk]])
 makeRows is flds = let
   mkRow fn = map fn is
   in fmap (fmap mkRow) flds
@@ -234,7 +233,7 @@ topCellSpecs gFlds aFlds spcs = let
     Nothing -> Nothing
     Just c -> Just (e, maybeS, c)
   in catMaybes (map toMaybe list)
-  
+
 
 -- | Merges a TopRowCells with a Spacers. Returns Maybes because
 -- totalQty has no spacer.
@@ -274,12 +273,15 @@ mergeWithSpacers t s = TopRowCells {
 -- | Applied to a function that, when applied to the width of a cell,
 -- returns a cell filled with data, returns a Row with that cell.
 makeSpecificWidth :: Int -> (Box -> Int -> (a, R.ColumnSpec))
-                     -> Box -> [C.Chunk]
+                     -> Box -> [E.PreChunk]
 makeSpecificWidth w f i = R.row [c] where
   (_, c) = f i w
 
 
-type Maker = PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
+type Maker
+  = Box
+  -> Int
+  -> ((E.Label, E.EvenOdd), R.ColumnSpec)
 
 makers :: Fields Maker
 makers = Fields tagsCell memoCell filenameCell
@@ -289,18 +291,21 @@ makers = Fields tagsCell memoCell filenameCell
 -- field that the user wants to see.
 requestedMakers ::
   F.Fields Bool
-  -> PC.BaseColors
-  -> Fields (Maybe (Box -> Int -> (C.TextSpec, R.ColumnSpec)))
-requestedMakers allFlds bc =
+  -> Fields (Maybe (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)))
+requestedMakers allFlds =
   let flds = bottomRowsFields allFlds
-      filler b mkr = if b then Just $ mkr bc else Nothing
+      filler b mkr = if b then Just $ mkr else Nothing
   in filler <$> flds <*> makers
 
-tagsCell :: PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
-tagsCell bc info w = (ts, cell) where
+tagsCell
+  :: Box
+  -> Int
+  -> ((E.Label, E.EvenOdd), R.ColumnSpec)
+tagsCell info w = (ts, cell) where
   vn = M.visibleNum . L.boxMeta $ info
   cell = R.ColumnSpec R.LeftJustify (C.Width w) ts cs
-  ts = PC.colors vn bc
+  eo = E.fromVisibleNum vn
+  ts = (E.Other, eo)
   cs =
     Fdbl.toList
     . fmap toBit
@@ -313,12 +318,12 @@ tagsCell bc info w = (ts, cell) where
     . Q.tags
     . L.boxPostFam
     $ info
-  toBit (TF.Words ws) = C.chunk ts t where
+  toBit (TF.Words ws) = E.PreChunk E.Other eo t where
     t = X.concat . intersperse (X.singleton ' ') . Fdbl.toList $ ws
 
 
-memoBits :: C.TextSpec -> L.Memo -> C.Width -> [C.Chunk]
-memoBits ts m (C.Width w) = cs where
+memoBits :: (E.Label, E.EvenOdd) -> L.Memo -> C.Width -> [E.PreChunk]
+memoBits (lbl, eo) m (C.Width w) = cs where
   cs = Fdbl.toList
        . fmap toBit
        . TF.unLines
@@ -329,15 +334,16 @@ memoBits ts m (C.Width w) = cs where
        . X.intercalate (X.singleton ' ')
        . L.unMemo
        $ m
-  toBit (TF.Words ws) = C.chunk ts (X.unwords . Fdbl.toList $ ws)
+  toBit (TF.Words ws) = E.PreChunk lbl eo (X.unwords . Fdbl.toList $ ws)
 
 
-memoCell :: PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
-memoCell bc info width = (ts, cell) where
+memoCell :: Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
+memoCell info width = (ts, cell) where
   w = C.Width width
   vn = M.visibleNum . L.boxMeta $ info
+  eo = E.fromVisibleNum vn
+  ts = (E.Other, eo)
   cell = R.ColumnSpec R.LeftJustify w ts cs
-  ts = PC.colors vn bc
   mayPm = Q.postingMemo . L.boxPostFam $ info
   mayTm = Q.transactionMemo . L.boxPostFam $ info
   cs = case (mayPm, mayTm) of
@@ -347,22 +353,22 @@ memoCell bc info width = (ts, cell) where
     (Just pm, Just tm) -> memoBits ts pm w `mappend` memoBits ts tm w
 
 
-filenameCell :: PC.BaseColors -> Box -> Int -> (C.TextSpec, R.ColumnSpec)
-filenameCell bc info width = (ts, cell) where
+filenameCell :: Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
+filenameCell info width = (ts, cell) where
   w = C.Width width
   vn = M.visibleNum . L.boxMeta $ info
+  eo = E.fromVisibleNum vn
+  ts = (E.Other, eo)
   cell = R.ColumnSpec R.LeftJustify w ts cs
-  toBit n = C.chunk ts
+  toBit n = (E.PreChunk E.Other eo)
             . X.drop (max 0 (X.length n - width)) $ n
   cs = case Q.filename . L.boxPostFam $ info of
     Nothing -> []
     Just fn -> [toBit . L.unFilename $ fn]
-  ts = PC.colors vn bc
 
 
-
-data TopRowCells a = TopRowCells {
-  globalTransaction      :: a
+data TopRowCells a = TopRowCells
+  { globalTransaction    :: a
   , revGlobalTransaction :: a
   , globalPosting        :: a
   , revGlobalPosting     :: a
@@ -392,8 +398,8 @@ data TopRowCells a = TopRowCells {
   deriving (Show, Eq)
 
 topRowCells :: G.Fields a -> A.Fields a -> TopRowCells a
-topRowCells g a = TopRowCells {
-  globalTransaction      = G.globalTransaction g
+topRowCells g a = TopRowCells
+  { globalTransaction    = G.globalTransaction g
   , revGlobalTransaction = G.revGlobalTransaction g
   , globalPosting        = G.globalPosting g
   , revGlobalPosting     = G.revGlobalPosting g
@@ -451,8 +457,8 @@ data ETopRowCells =
   deriving (Show, Eq, Enum)
 
 eTopRowCells :: TopRowCells ETopRowCells
-eTopRowCells = TopRowCells {
-  globalTransaction      = EGlobalTransaction
+eTopRowCells = TopRowCells
+  { globalTransaction    = EGlobalTransaction
   , revGlobalTransaction = ERevGlobalTransaction
   , globalPosting        = EGlobalPosting
   , revGlobalPosting     = ERevGlobalPosting
@@ -480,8 +486,8 @@ eTopRowCells = TopRowCells {
   , totalQty             = ETotalQty }
 
 instance Functor TopRowCells where
-  fmap f t = TopRowCells {
-    globalTransaction      = f (globalTransaction    t)
+  fmap f t = TopRowCells
+    { globalTransaction    = f (globalTransaction    t)
     , revGlobalTransaction = f (revGlobalTransaction t)
     , globalPosting        = f (globalPosting        t)
     , revGlobalPosting     = f (revGlobalPosting     t)
@@ -509,8 +515,8 @@ instance Functor TopRowCells where
     , totalQty             = f (totalQty             t) }
 
 instance Applicative TopRowCells where
-  pure a = TopRowCells {
-    globalTransaction      = a
+  pure a = TopRowCells
+    { globalTransaction    = a
     , revGlobalTransaction = a
     , globalPosting        = a
     , revGlobalPosting     = a
@@ -537,8 +543,8 @@ instance Applicative TopRowCells where
     , totalCmdty           = a
     , totalQty             = a }
 
-  ff <*> fa = TopRowCells {
-    globalTransaction      = globalTransaction    ff (globalTransaction    fa)
+  ff <*> fa = TopRowCells
+    { globalTransaction    = globalTransaction    ff (globalTransaction    fa)
     , revGlobalTransaction = revGlobalTransaction ff (revGlobalTransaction fa)
     , globalPosting        = globalPosting        ff (globalPosting        fa)
     , revGlobalPosting     = revGlobalPosting     ff (revGlobalPosting     fa)

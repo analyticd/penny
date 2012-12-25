@@ -8,14 +8,12 @@ module Penny.Cabin.Posts.Growers (
 
 import Control.Applicative((<$>), Applicative(pure, (<*>)))
 import qualified Data.Foldable as Fdbl
-import Data.Map (elems, assocs)
+import Data.Map (elems)
 import qualified Data.Map as Map
 import qualified Data.Semigroup as Semi
 import Data.Semigroup ((<>))
 import Data.Text (Text, pack, empty)
 import qualified Data.Text as X
-import qualified Penny.Cabin.Chunk as C
-import qualified Penny.Cabin.Colors as CC
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Meta as M
 import Penny.Cabin.Posts.Meta (Box)

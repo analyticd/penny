@@ -65,12 +65,12 @@ import qualified Data.Traversable as T
 import qualified Data.Text as X
 import qualified Penny.Cabin.Chunk as C
 import qualified Penny.Cabin.Row as R
-import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
 import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Types as Ty
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.TextFormat as TF
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Bits.Qty as Qty
@@ -98,10 +98,9 @@ alloc i =
 
 
 -- | All the information needed for allocated cells.
-data AllocatedOpts = AllocatedOpts {
-  fields :: Fields Bool
+data AllocatedOpts = AllocatedOpts
+  { fields :: Fields Bool
   , subAccountLength :: SubAccountLength
-  , baseColors :: PC.BaseColors
   , allocations :: Fields Alloc
   , spacers :: S.Spacers Int
   , growerWidths :: G.Fields (Maybe Int)
@@ -121,7 +120,7 @@ payeeAndAcct
   -> Fields (Maybe ([R.ColumnSpec], Int))
 payeeAndAcct ao bs =
   let allBuilders =
-        T.traverse (builders (baseColors ao) (subAccountLength ao)) bs
+        T.traverse (builders (subAccountLength ao)) bs
       availWidth = availableWidthForAllocs (growerWidths ao)
                    (spacers ao) (fields ao) (reportWidth ao)
       finals = divideAvailableWidth availWidth (fields ao)
@@ -297,29 +296,28 @@ divideAvailableWidth (AvailableWidth aw) appear allocs rws = Fields pye act
 
 
 builders
-  :: PC.BaseColors
-  -> SubAccountLength
+  :: SubAccountLength
   -> Box
   -> Fields (Request, Final -> R.ColumnSpec)
-builders bc sl b = Fields (buildPayee bc b) (buildAcct sl bc b)
+builders sl b = Fields (buildPayee b) (buildAcct sl b)
 
-buildPayee ::
-  PC.BaseColors
-  -> Box
+buildPayee
+  :: Box
   -> (Request, Final -> R.ColumnSpec)
   -- ^ Returns a tuple. The first element is the maximum width that
   -- this cell needs to display its value perfectly. The second
   -- element is a function that, when applied to an actual width,
   -- returns a ColumnSpec.
 
-buildPayee bc i = (maxW, mkSpec)
+buildPayee i = (maxW, mkSpec)
   where
     pb = L.boxPostFam i
-    ts = PC.colors (M.visibleNum . L.boxMeta $ i) bc
+    eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ i
     j = R.LeftJustify
+    ps = (E.Other, eo)
     mayPye = Q.payee pb
     maxW = Request $ maybe 0 (X.length . HT.text) mayPye
-    mkSpec (Final w) = R.ColumnSpec j (C.Width w) ts sq
+    mkSpec (Final w) = R.ColumnSpec j (C.Width w) ps sq
       where
         sq = case mayPye of
           Nothing -> []
@@ -332,7 +330,7 @@ buildPayee bc i = (maxW, mkSpec)
                   . HT.text
                   $ pye
                 toBit (TF.Words seqTxts) =
-                  C.chunk ts
+                  E.PreChunk E.Other eo
                   . X.unwords
                   . Fdbl.toList
                   $ seqTxts
@@ -341,7 +339,6 @@ buildPayee bc i = (maxW, mkSpec)
 
 buildAcct ::
   SubAccountLength
-  -> PC.BaseColors
   -> Box
   -> (Request, Final -> R.ColumnSpec)
   -- ^ Returns a tuple. The first element is the maximum width that
@@ -349,21 +346,22 @@ buildAcct ::
   -- element is a function that, when applied to an actual width,
   -- returns a ColumnSpec.
 
-buildAcct sl bc i = (maxW, mkSpec)
+buildAcct sl i = (maxW, mkSpec)
   where
     pb = L.boxPostFam i
-    ts = PC.colors (M.visibleNum . L.boxMeta $ i) bc
+    eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ i
+    ps = (E.Other, eo)
     aList = L.unAccount . Q.account $ pb
     maxW = Request
            $ (sum . map (X.length . L.unSubAccount) $ aList)
            + max 0 (length aList - 1)
-    mkSpec (Final aw) = R.ColumnSpec R.LeftJustify (C.Width aw) ts sq
+    mkSpec (Final aw) = R.ColumnSpec R.LeftJustify (C.Width aw) ps sq
       where
         target = TF.Target aw
         shortest = TF.Shortest . unSubAccountLength $ sl
         ws = TF.Words . Seq.fromList . map L.unSubAccount $ aList
         (TF.Words shortened) = TF.shorten shortest target ws
-        sq = [ C.chunk ts
+        sq = [ E.PreChunk E.Other eo
                . X.concat
                . intersperse (X.singleton ':')
                . Fdbl.toList
