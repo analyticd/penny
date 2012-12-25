@@ -62,7 +62,7 @@ growCells o infos = toPair <$> wanted <*> growers where
 
 widestLine :: PreSpec -> Int
 widestLine (PreSpec _ _ bs) =
-  maximum . map (R.unWidth . C.chunkWidth) $ bs
+  maximum . map (R.unWidth . E.width) $ bs
 
 data PreSpec = PreSpec {
   _justification :: R.Justification
@@ -82,61 +82,38 @@ oneLine t lbl b =
   let eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ b
       j = R.LeftJustify
       pcs = E.PreChunk lbl eo t
-  in PreSpec j (lbl, eo) pcs
-
-
--- | Converts a function that accepts a BaseColors to one that accepts
--- a GrowOpts.
-bcToGrowOpts ::
-  (CC.BaseColors -> Box -> PreSpec)
-  -> GrowOpts -> Box -> PreSpec
-bcToGrowOpts f g = f (baseColors g)
-
--- | Converts a function that accepts a DrCrColors to one that accepts
--- a GrowOpts.
-dcToGrowOpts ::
-  (CC.DrCrColors -> Box -> PreSpec)
-  -> GrowOpts -> Box -> PreSpec
-dcToGrowOpts f g = f (drCrColors g)
+  in PreSpec j (lbl, eo) [pcs]
 
 
 -- | Gets a Fields with each field filled with the function that fills
 -- the cells for that field.
 growers :: Fields (GrowOpts -> Box -> PreSpec)
-growers = Fields {
-  globalTransaction      = bcToGrowOpts getGlobalTransaction
-  , revGlobalTransaction = bcToGrowOpts getRevGlobalTransaction
-  , globalPosting        = bcToGrowOpts getGlobalPosting
-  , revGlobalPosting     = bcToGrowOpts getRevGlobalPosting
-  , fileTransaction      = bcToGrowOpts getFileTransaction
-  , revFileTransaction   = bcToGrowOpts getRevFileTransaction
-  , filePosting          = bcToGrowOpts getFilePosting
-  , revFilePosting       = bcToGrowOpts getRevFilePosting
-  , filtered             = bcToGrowOpts getFiltered
-  , revFiltered          = bcToGrowOpts getRevFiltered
-  , sorted               = bcToGrowOpts getSorted
-  , revSorted            = bcToGrowOpts getRevSorted
-  , visible              = bcToGrowOpts getVisible
-  , revVisible           = bcToGrowOpts getRevVisible
-  , lineNum              = bcToGrowOpts getLineNum
-  , date                 = \o -> getDate (baseColors o) (dateFormat o)
-  , flag                 = bcToGrowOpts getFlag
-  , number               = bcToGrowOpts getNumber
-  , postingDrCr          = dcToGrowOpts getPostingDrCr
-  , postingCmdty         = dcToGrowOpts getPostingCmdty
-  , postingQty           = let fn o =
-                                 let fmt = qtyFormat o
-                                     dc = drCrColors o
-                                 in getPostingQty fmt dc
-                           in fn
-  , totalDrCr            = dcToGrowOpts getTotalDrCr
-  , totalCmdty           = dcToGrowOpts getTotalCmdty
-  , totalQty             = let fn o =
-                                 let fmt = balanceFormat o
-                                     dc = drCrColors o
-                                 in getTotalQty fmt dc
-                           in fn }
-
+growers = Fields
+  { globalTransaction    = const getGlobalTransaction
+  , revGlobalTransaction = const getRevGlobalTransaction
+  , globalPosting        = const getGlobalPosting
+  , revGlobalPosting     = const getRevGlobalPosting
+  , fileTransaction      = const getFileTransaction
+  , revFileTransaction   = const getRevFileTransaction
+  , filePosting          = const getFilePosting
+  , revFilePosting       = const getRevFilePosting
+  , filtered             = const getFiltered
+  , revFiltered          = const getRevFiltered
+  , sorted               = const getSorted
+  , revSorted            = const getRevSorted
+  , visible              = const getVisible
+  , revVisible           = const getRevVisible
+  , lineNum              = const getLineNum
+  , date                 = \o -> getDate (dateFormat o)
+  , flag                 = const getFlag
+  , number               = const getNumber
+  , postingDrCr          = const getPostingDrCr
+  , postingCmdty         = const getPostingCmdty
+  , postingQty           = \o -> getPostingQty (qtyFormat o)
+  , totalDrCr            = const getTotalDrCr
+  , totalCmdty           = const getTotalCmdty
+  , totalQty             = \o -> getTotalQty (balanceFormat o)
+  }
 
 -- | Make a left justified cell one line long that shows a serial.
 serialCellMaybe ::
@@ -246,7 +223,7 @@ dcTxt L.Credit = X.singleton '>'
 -- | Gives a one-line cell that is colored according to whether the
 -- posting is a debit or credit.
 coloredPostingCell :: Text -> Box -> PreSpec
-coloredPostingCell t i = PreSpec j ts [bit] where
+coloredPostingCell t i = PreSpec j (lbl, eo) [bit] where
   j = R.LeftJustify
   lbl = case Q.drCr . L.boxPostFam $ i of
     L.Debit -> E.Debit
@@ -259,8 +236,8 @@ getPostingDrCr :: Box -> PreSpec
 getPostingDrCr i = coloredPostingCell t i where
   t = dcTxt . Q.drCr . L.boxPostFam $ i
 
-getPostingCmdty :: CC.DrCrColors -> Box -> PreSpec
-getPostingCmdty dc i = coloredPostingCell t i where
+getPostingCmdty :: Box -> PreSpec
+getPostingCmdty i = coloredPostingCell t i where
   t = L.unCommodity . Q.commodity . L.boxPostFam $ i
 
 getPostingQty :: (Box -> X.Text) -> Box -> PreSpec
@@ -277,12 +254,12 @@ getTotalDrCr i =
       bits =
         if Map.null bal
         then [E.PreChunk E.Zero eo (pack "--")]
-        else fmap E.bottomLineToDrCr . elems $ bal
+        else fmap (flip E.bottomLineToDrCr eo) . elems $ bal
       j = R.LeftJustify
   in PreSpec j ps bits
 
-getTotalCmdty :: CC.DrCrColors -> Box -> PreSpec
-getTotalCmdty dccol i =
+getTotalCmdty :: Box -> PreSpec
+getTotalCmdty i =
   let vn = M.visibleNum . L.boxMeta $ i
       j = R.RightJustify
       ps = (lbl, eo)
@@ -290,15 +267,14 @@ getTotalCmdty dccol i =
       eo = E.fromVisibleNum vn
       lbl = E.dcToLbl dc
       bal = Map.toList . L.unBalance . M.balance . L.boxMeta $ i
-      preChunks = E.bottonLineToCmdty bal eo
+      preChunks = E.bottomLineToCmdty bal eo
   in PreSpec j ps preChunks
 
 getTotalQty ::
   (L.Commodity -> L.BottomLine -> X.Text)
-  -> CC.DrCrColors
   -> Box
   -> PreSpec
-getTotalQty balFmt dccol i =
+getTotalQty balFmt i =
   let vn = M.visibleNum . L.boxMeta $ i
       j = R.LeftJustify
       dc = Q.drCr . L.boxPostFam $ i
