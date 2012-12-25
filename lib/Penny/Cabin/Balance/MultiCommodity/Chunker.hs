@@ -13,6 +13,7 @@ import qualified Penny.Cabin.Chunk as Chunk
 import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Meta as Meta
 import qualified Penny.Cabin.Row as R
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Lincoln as L
 import qualified Data.Foldable as Fdbl
 import qualified Data.Text as X
@@ -45,8 +46,8 @@ instance Applicative Columns where
 
 data PreSpec = PreSpec {
   _justification :: R.Justification
-  , _padSpec :: Chunk.TextSpec
-  , bits :: [Chunk.Chunk] }
+  , _padSpec :: (E.Label, E.EvenOdd)
+  , bits :: [E.PreChunk] }
 
 -- | When given a list of columns, determine the widest row in each
 -- column.
@@ -60,8 +61,8 @@ maxWidthPerColumn ::
   -> Columns PreSpec
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
-  f old new = max old (maximum . map Chunk.chunkWidth . bits $ new)
-  
+  f old new = max old (maximum . map E.width . bits $ new)
+
 -- | Changes a single set of Columns to a set of ColumnSpec of the
 -- given width.
 preSpecToSpec ::
@@ -88,13 +89,12 @@ widthSpacerCommodity = 1
 
 colsToBits ::
   IsEven
-  -> C.BaseColors
   -> Columns R.ColumnSpec
   -> [Chunk.Chunk]
-colsToBits isEven bc (Columns a dc c q) = let
+colsToBits isEven (Columns a dc c q) = let
   fillSpec = if isEven
-             then C.evenColors bc
-             else C.oddColors bc
+             then (E.Other, E.Even)
+             else (E.Other, E.Odd)
   spacer w = R.ColumnSpec j (Chunk.Width w) fillSpec []
   j = R.LeftJustify
   cs = a
@@ -107,19 +107,17 @@ colsToBits isEven bc (Columns a dc c q) = let
        : []
   in R.row cs
 
-colsListToBits ::
-  C.BaseColors
-  -> [Columns R.ColumnSpec]
-  -> [[Chunk.Chunk]]
+colsListToBits
+  :: [Columns R.ColumnSpec]
+  -> [[E.PreChunk]]
 colsListToBits bc = zipWith f bools where
   f b c = colsToBits b bc c
   bools = iterate not True
 
-preSpecsToBits ::
-  C.BaseColors
-  -> [Columns PreSpec]
-  -> [Chunk.Chunk]
-preSpecsToBits bc =
+preSpecsToBits
+  :: [Columns PreSpec]
+  -> [E.PreChunk]
+preSpecsToBits =
   concat
   . colsListToBits bc
   . resizeColumnsInList
@@ -128,8 +126,8 @@ preSpecsToBits bc =
 -- single-commodity report, this account will only be one screen line
 -- long. In a multi-commodity report, it might be multiple lines long,
 -- with one screen line for each commodity.
-data Row = Row {
-  indentation :: Int
+data Row = Row
+  { indentation :: Int
   -- ^ Indent the account name by this many levels (not by this many
   -- spaces; this number is multiplied by another number in the
   -- Chunker source to arrive at the final indentation amount)
@@ -145,34 +143,28 @@ data Row = Row {
 rowsToChunks ::
   (L.Commodity -> L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
-  -> C.DrCrColors
-  -> C.BaseColors
   -> [Row]
   -> [Chunk.Chunk]
-rowsToChunks fmt dc b =
-  preSpecsToBits b
-  . rowsToColumns fmt dc b
+rowsToChunks fmt =
+  preSpecsToBits
+  . rowsToColumns fmt
 
 rowsToColumns ::
   (L.Commodity -> L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
 
-  -> C.DrCrColors
-  -> C.BaseColors
   -> [Row]
   -> [Columns PreSpec]
-rowsToColumns fmt dc bc rs = map (mkColumn fmt dc bc) pairs
+rowsToColumns fmt rs = map (mkColumn fmt) pairs
   where
     pairs = Meta.visibleNums (,) rs
 
 
 mkColumn ::
   (L.Commodity -> L.Qty -> X.Text)
-  -> C.DrCrColors
-  -> C.BaseColors
   -> (Meta.VisibleNum, Row)
   -> Columns PreSpec
-mkColumn fmt dc bc (vn, (Row i acctTxt bs)) = Columns ca cd cc cq
+mkColumn fmt (vn, (Row i acctTxt bs)) = Columns ca cd cc cq
   where
     baseCol = C.colors vn bc
     ca = PreSpec R.LeftJustify baseCol [Chunk.chunk baseCol txt]
