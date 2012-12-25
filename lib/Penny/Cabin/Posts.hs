@@ -53,8 +53,6 @@ module Penny.Cabin.Posts
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Either as Ei
 import qualified Data.Text as X
-import qualified Penny.Cabin.Chunk as CC
-import qualified Penny.Cabin.Colors as PC
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Posts.Allocated as A
@@ -95,7 +93,7 @@ postsReport ::
 
   -> C.ChunkOpts
   -> [L.Box Ly.LibertyMeta]
-  -> [CC.Chunk]
+  -> [E.PreChunk]
 
 postsReport szb pdct pff co =
   C.makeChunk co
@@ -136,7 +134,7 @@ mkPrintReport
   -> P.State
   -> ([String], [L.Transaction]
                 -> [L.PricePoint]
-                -> Ex.Exceptional X.Text [CC.Chunk])
+                -> Ex.Exceptional X.Text [E.PreChunk])
 mkPrintReport posArgs zo fsf st = (posArgs, f)
   where
     f txns _ = fmap mkChunks exPdct
@@ -154,8 +152,6 @@ defaultOptions
   -> ZincOpts
 defaultOptions rt = ZincOpts
   { fields = defaultFields
-  , drCrColors = Dark.drCrColors
-  , baseColors = Dark.baseColors
   , width = widthFromRuntime rt
   , showZeroBalances = CO.ShowZeroBalances False
   , dateFormat = ymd
@@ -261,8 +257,6 @@ newParseState cs fty o = P.State
   , P.tokens = []
   , P.postFilter = []
   , P.fields = fields o
-  , P.drCrColors = drCrColors o
-  , P.baseColors = baseColors o
   , P.width = width o
   , P.showZeroBalances = showZeroBalances o
   }
