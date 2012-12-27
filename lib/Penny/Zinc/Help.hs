@@ -122,5 +122,9 @@ help = pack $ unlines [
   "------",
   "--color-to-file no|yes",
   "  Whether to use color when standard output is not a",
-  "  terminal (default: no)"
+  "  terminal (default: no)",
+  "--scheme SCHEME_NAME",
+  "  use color scheme for report. Default available schemes:",
+  "    dark - for dark terminal background (default)",
+  "    light - for light terminal background"
   ]

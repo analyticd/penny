@@ -13,6 +13,7 @@ import qualified Data.Text.IO as StrictIO
 import qualified System.Console.MultiArg as MA
 import System.Exit (exitSuccess, exitFailure)
 import qualified System.IO as IO
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Shield as S
@@ -21,13 +22,21 @@ import qualified Penny.Zinc.Parser.Filter as F
 import qualified Penny.Zinc.Parser.Ledgers as L
 import qualified Penny.Zinc.Parser.Defaults as Defaults
 
+data DisplayOpts = DisplayOpts
+  { colorToFile :: Defaults.ColorToFile
+  , scheme :: E.Scheme
+  }
+
+toDisplayOpts :: F.FilterOpts -> DisplayOpts
+toDisplayOpts o = DisplayOpts (F.colorToFile o) (F.scheme o)
+
 parseCommandLine
   :: Defaults.T
   -> [I.Report]
   -> S.Runtime
   -> [String]
   -> Ex.Exceptional MA.Error
-     (F.GlobalResult, Either [()] (Defaults.ColorToFile, I.ParseResult))
+     (F.GlobalResult, Either [()] (DisplayOpts, I.ParseResult))
 parseCommandLine df rs rt ss =
   MA.modes (F.allOpts (S.currentTime rt)) (F.processGlobal df)
            (whatMode rt rs) ss
@@ -36,24 +45,23 @@ whatMode
   :: S.Runtime
   -> [I.Report]
   -> F.GlobalResult
-  -> Either (a -> ()) [MA.Mode (Defaults.ColorToFile, I.ParseResult)]
+  -> Either (a -> ()) [MA.Mode (DisplayOpts, I.ParseResult)]
 whatMode rt rs gr =
   case gr of
     F.NeedsHelp -> Left $ const ()
-    F.RunPenny (F.FilterOpts fty cs sf ctf) ->
+    F.RunPenny fo@(F.FilterOpts fty cs sf _ _) ->
       let prs = map snd rs
                 <*> pure rt
                 <*> pure cs
                 <*> pure fty
                 <*> pure sf
-          toCtf r = (ctf, r)
-      in Right $ map (fmap toCtf) prs
+      in Right $ map (fmap (\r -> ((toDisplayOpts fo), r))) prs
 
 handleParseResult
   :: S.Runtime
   -> [I.Report]
   -> Ex.Exceptional MA.Error
-     (a, Either b (Defaults.ColorToFile, I.ParseResult))
+     (a, Either b (DisplayOpts, I.ParseResult))
   -> IO ()
 handleParseResult rt rs r =
   let showErr e = do
@@ -68,17 +76,27 @@ handleParseResult rt rs r =
         Left _ -> do
           StrictIO.putStr (helpText rs)
           exitSuccess
-        Right (ctf, ex) -> case ex of
+        Right (dispOpts, ex) -> case ex of
           Ex.Exception s -> showErr s
           Ex.Success (fns, pr) -> do
             ledgers <- L.readLedgers fns
             (txns, pps) <- Ex.switch showErr return
                            $ L.parseLedgers ledgers
-            let term = if Defaults.unColorToFile ctf
+            let term = if Defaults.unColorToFile . colorToFile $ dispOpts
                        then Chk.TermFromEnv
                        else Chk.autoTerm rt
+                sch = scheme dispOpts
             Ex.switch (showErr . X.unpack)
-              (Chk.printChunks term) $ pr txns pps
+              (printChunks term sch) $ pr txns pps
+
+printChunks
+  :: Chk.Term
+  -> E.Scheme
+  -> [E.PreChunk]
+  -> IO ()
+printChunks t s =
+  Chk.printChunks t
+  . map (E.makeChunk s)
 
 helpText ::
   [I.Report]

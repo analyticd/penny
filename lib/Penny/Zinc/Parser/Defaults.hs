@@ -5,6 +5,8 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import qualified Data.Text as X
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Penny.Cabin.Scheme as E
+import qualified Penny.Cabin.Scheme.Dark as Dark
 
 data T =
   T { sensitive :: M.CaseSensitive
@@ -12,6 +14,7 @@ data T =
                  -> Ex.Exceptional X.Text (X.Text -> Bool)
     , currentTime :: L.DateTime
     , colorToFile :: ColorToFile
+    , scheme :: E.Scheme
     }
 
 defaultFromRuntime
@@ -22,6 +25,7 @@ defaultFromRuntime rt =
     , factory = (\c t -> return (M.within c t))
     , currentTime = S.currentTime rt
     , colorToFile = ColorToFile False
+    , scheme = Dark.scheme
     }
 
 -- | Whether to use color when standard output is not a terminal.

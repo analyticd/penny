@@ -14,6 +14,9 @@ import Data.Text (Text)
 import qualified Text.Matchers.Text as M
 import qualified System.Console.MultiArg as MA
 
+import qualified Penny.Cabin.Scheme as E
+import qualified Penny.Cabin.Scheme.Dark as Dark
+import qualified Penny.Cabin.Scheme.Light as Light
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as X
@@ -34,6 +37,7 @@ data OptResult
   | RSortSpec (Ex.Exceptional String Ly.Orderer)
   | RHelp
   | RColorToFile Defaults.ColorToFile
+  | RScheme E.Scheme
 
 isHelp :: OptResult -> Bool
 isHelp o = case o of { RHelp -> True; _ -> False }
@@ -108,6 +112,7 @@ allOpts dt =
   ++ map (fmap ROperator) Ly.operatorSpecs
   ++ [(fmap RSortSpec) Ly.sortSpecs]
   ++ [ MA.OptSpec ["help"] "h" (MA.NoArg RHelp)
+     , optScheme
      , optColorToFile ]
 
 optColorToFile :: MA.OptSpec OptResult
@@ -124,6 +129,22 @@ getColorToFile d ls =
   where
     getOpt o = case o of
       RColorToFile c -> Just c
+      _ -> Nothing
+
+optScheme :: MA.OptSpec OptResult
+optScheme = MA.OptSpec ["scheme"] "" (MA.ChoiceArg ls)
+  where
+    ls = [ ("dark", RScheme Dark.scheme)
+         , ("light", RScheme Light.scheme) ]
+
+getScheme :: Defaults.T -> [OptResult] -> E.Scheme
+getScheme d ls =
+  case mapMaybe getOpt ls of
+    [] -> Defaults.scheme d
+    xs -> last xs
+  where
+    getOpt o = case o of
+      RScheme s -> Just s
       _ -> Nothing
 
 data GlobalResult
@@ -145,6 +166,8 @@ data FilterOpts =
            -- ^ Applied to a list of Transaction, will sort and filter
            -- the transactions and assign them LibertyMeta.
 
+         , scheme :: E.Scheme
+
          , colorToFile :: Defaults.ColorToFile
          }
 
@@ -160,9 +183,10 @@ processGlobal d os =
     sortSpec <- getSortSpec os
     (toks, (rs, rf)) <- makeTokens d os
     let ctf = getColorToFile d os
+        sch = getScheme d os
         err = "could not parse filter expression."
     pdct <- Ex.fromMaybe err $ Ly.parsePredicate toks
     let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
-        fo = FilterOpts rf rs sf ctf
+        fo = FilterOpts rf rs sf sch ctf
     return $ RunPenny fo
 
