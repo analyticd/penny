@@ -221,9 +221,6 @@ Library
     , Penny.Cabin.Balance.Util
     , Penny.Cabin.Chunk
     , Penny.Cabin.Chunk.Switch
-    , Penny.Cabin.Colors
-    , Penny.Cabin.Colors.DarkBackground
-    , Penny.Cabin.Colors.LightBackground
     , Penny.Cabin.Interface
     , Penny.Cabin.Meta
     , Penny.Cabin.Options
