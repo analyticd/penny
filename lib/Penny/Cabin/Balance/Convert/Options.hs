@@ -4,8 +4,6 @@ module Penny.Cabin.Balance.Convert.Options where
 
 import qualified Penny.Cabin.Balance.Convert.Parser as P
 import qualified Penny.Cabin.Options as CO
-import qualified Penny.Cabin.Colors as Col
-import qualified Penny.Cabin.Colors.DarkBackground as Dark
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import qualified Data.Text as X
@@ -16,9 +14,7 @@ import qualified Data.Text as X
 -- the Convert report directly from your own code.
 
 data DefaultOpts = DefaultOpts
-  { drCrColors :: Col.DrCrColors
-  , baseColors :: Col.BaseColors
-  , showZeroBalances :: CO.ShowZeroBalances
+  { showZeroBalances :: CO.ShowZeroBalances
   , target :: P.Target
   , dateTime :: L.DateTime
   , sortOrder :: P.SortOrder
@@ -28,9 +24,7 @@ data DefaultOpts = DefaultOpts
 
 toParserOpts :: DefaultOpts -> P.Opts
 toParserOpts d = P.Opts
-  { P.drCrColors = drCrColors d
-  , P.baseColors = baseColors d
-  , P.showZeroBalances = showZeroBalances d
+  { P.showZeroBalances = showZeroBalances d
   , P.target = target d
   , P.dateTime = dateTime d
   , P.sortOrder = sortOrder d
@@ -39,9 +33,7 @@ toParserOpts d = P.Opts
 
 defaultOptions :: S.Runtime -> DefaultOpts
 defaultOptions rt = DefaultOpts
-  { drCrColors = Dark.drCrColors
-  , baseColors = Dark.baseColors
-  , showZeroBalances = CO.ShowZeroBalances True
+  { showZeroBalances = CO.ShowZeroBalances True
   , target = P.AutoTarget
   , dateTime = S.currentTime rt
   , sortOrder = P.Ascending

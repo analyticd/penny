@@ -11,8 +11,8 @@ module Penny.Cabin.Balance.Convert.Chunker (
 
 import Control.Applicative
   (Applicative (pure), (<$>), (<*>))
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.Chunk as Chunk
-import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Meta as Meta
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Lincoln as L
@@ -44,8 +44,8 @@ instance Applicative Columns where
 
 data PreSpec = PreSpec {
   _justification :: R.Justification
-  , _padSpec :: Chunk.TextSpec
-  , bits :: Chunk.Chunk }
+  , _padSpec :: (E.Label, E.EvenOdd)
+  , bits :: E.PreChunk }
 
 -- | When given a list of columns, determine the widest row in each
 -- column.
@@ -59,7 +59,7 @@ maxWidthPerColumn ::
   -> Columns PreSpec
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
-  f old new = max old (Chunk.chunkWidth . bits $ new)
+  f old new = max old (E.width . bits $ new)
   
 -- | Changes a single set of Columns to a set of ColumnSpec of the
 -- given width.
@@ -83,13 +83,12 @@ widthSpacerDrCr = 1
 
 colsToBits ::
   IsEven
-  -> C.BaseColors
   -> Columns R.ColumnSpec
-  -> [Chunk.Chunk]
-colsToBits isEven bc (Columns a dc q) = let
+  -> [E.PreChunk]
+colsToBits isEven (Columns a dc q) = let
   fillSpec = if isEven
-             then C.evenColors bc
-             else C.oddColors bc
+             then (E.Other, E.Even)
+             else (E.Other, E.Odd)
   spacer w = R.ColumnSpec j (Chunk.Width w) fillSpec []
   j = R.LeftJustify
   cs = a
@@ -100,21 +99,19 @@ colsToBits isEven bc (Columns a dc q) = let
        : []
   in R.row cs
 
-colsListToBits ::
-  C.BaseColors
-  -> [Columns R.ColumnSpec]
-  -> [[Chunk.Chunk]]
-colsListToBits bc = zipWith f bools where
-  f b c = colsToBits b bc c
+colsListToBits
+  :: [Columns R.ColumnSpec]
+  -> [[E.PreChunk]]
+colsListToBits = zipWith f bools where
+  f b c = colsToBits b c
   bools = iterate not True
 
-preSpecsToBits ::
-  C.BaseColors
-  -> [Columns PreSpec]
-  -> [Chunk.Chunk]
-preSpecsToBits bc =
+preSpecsToBits
+  :: [Columns PreSpec]
+  -> [E.PreChunk]
+preSpecsToBits =
   concat
-  . colsListToBits bc
+  . colsListToBits
   . resizeColumnsInList
 
 data Row = RMain MainRow | ROneCol OneColRow
@@ -152,90 +149,77 @@ data MainRow = MainRow {
 rowsToChunks ::
   (L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
-  -> C.DrCrColors
-  -> C.BaseColors
   -> [Row]
-  -> [Chunk.Chunk]
-rowsToChunks fmt dc b =
-  preSpecsToBits b
-  . rowsToColumns fmt dc b
+  -> [E.PreChunk]
+rowsToChunks fmt =
+  preSpecsToBits
+  . rowsToColumns fmt
 
 rowsToColumns ::
   (L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
 
-  -> C.DrCrColors
-  -> C.BaseColors
   -> [Row]
   -> [Columns PreSpec]
-rowsToColumns fmt dc bc rs = map (mkRow fmt dc bc) pairs
+rowsToColumns fmt rs = map (mkRow fmt) pairs
   where
     pairs = Meta.visibleNums (,) rs
 
 
 mkRow ::
   (L.Qty -> X.Text)
-  -> C.DrCrColors
-  -> C.BaseColors
   -> (Meta.VisibleNum, Row)
   -> Columns PreSpec
-mkRow fmt dc bc (vn, r) = case r of
-  RMain m -> mkMainRow fmt dc bc (vn, m)
-  ROneCol c -> mkOneColRow bc (vn, c)
+mkRow fmt (vn, r) = case r of
+  RMain m -> mkMainRow fmt (vn, m)
+  ROneCol c -> mkOneColRow (vn, c)
 
 mkOneColRow ::
-  C.BaseColors
-  -> (Meta.VisibleNum, OneColRow)
+  (Meta.VisibleNum, OneColRow)
   -> Columns PreSpec
-mkOneColRow bc (vn, (OneColRow i t)) = Columns ca cd cq
+mkOneColRow (vn, (OneColRow i t)) = Columns ca cd cq
   where
     txt = X.append indents t
     indents = X.replicate (indentAmount * max 0 i)
               (X.singleton ' ')
-    baseCol = C.colors vn bc
-    ca = PreSpec R.LeftJustify baseCol (Chunk.chunk baseCol txt)
-    cd = PreSpec R.LeftJustify baseCol (Chunk.chunk baseCol X.empty)
+    eo = E.fromVisibleNum vn
+    lbl = E.Other
+    ca = PreSpec R.LeftJustify (lbl, eo) (E.PreChunk lbl eo txt)
+    cd = PreSpec R.LeftJustify (lbl, eo) (E.PreChunk lbl eo X.empty)
     cq = cd
 
 mkMainRow ::
   (L.Qty -> X.Text)
-  -> C.DrCrColors
-  -> C.BaseColors
   -> (Meta.VisibleNum, MainRow)
   -> Columns PreSpec
-mkMainRow fmt dc bc (vn, (MainRow i acctTxt b)) = Columns ca cd cq
+mkMainRow fmt (vn, (MainRow i acctTxt b)) = Columns ca cd cq
   where
-    baseCol = C.colors vn bc
-    ca = PreSpec R.LeftJustify baseCol (Chunk.chunk baseCol txt)
+    eo = E.fromVisibleNum vn
+    lbl = E.Other
+    ca = PreSpec R.LeftJustify (lbl, eo) (E.PreChunk lbl eo txt)
       where
         txt = X.append indents acctTxt
         indents = X.replicate (indentAmount * max 0 i)
                   (X.singleton ' ')
-    cd = PreSpec R.LeftJustify baseCol cksDrCr
-    cq = PreSpec R.LeftJustify baseCol cksQty
-    (cksDrCr, cksQty) = balanceChunks fmt dc vn b
+    cd = PreSpec R.LeftJustify (lbl, eo) cksDrCr
+    cq = PreSpec R.LeftJustify (lbl, eo) cksQty
+    (cksDrCr, cksQty) = balanceChunks fmt vn b
 
 
 balanceChunks ::
   (L.Qty -> X.Text)
-  -> C.DrCrColors
   -> Meta.VisibleNum
   -> L.BottomLine
-  -> (Chunk.Chunk, Chunk.Chunk)
-balanceChunks fmt dcCol vn bl = (chkDc, chkQt)
+  -> (E.PreChunk, E.PreChunk)
+balanceChunks fmt vn bl = (chkDc, chkQt)
   where
-    ts = C.colors vn . C.bottomLineToBaseColors dcCol $ bl
-    chk = Chunk.chunk ts
-    (dcTxt, qtyTxt) = case bl of
-      L.Zero -> (X.pack "--", X.pack "--")
-      L.NonZero (L.Column dc q) ->
-        let dx = case dc of
-              L.Debit -> X.singleton '<'
-              L.Credit -> X.singleton '>'
-            qx = fmt q
-        in (dx, qx)
-    chkDc = chk dcTxt
-    chkQt = chk qtyTxt
+    eo = E.fromVisibleNum vn
+    chkDc = E.bottomLineToDrCr bl eo
+    chkQt = E.PreChunk lbl eo t
+      where
+        (lbl, t) = case bl of
+          L.Zero -> (E.Zero, X.pack "--")
+          L.NonZero (L.Column dc qt) -> (E.dcToLbl dc, fmt qt)
 
 
 indentAmount :: Int

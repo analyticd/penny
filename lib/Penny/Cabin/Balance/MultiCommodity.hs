@@ -12,8 +12,8 @@ module Penny.Cabin.Balance.MultiCommodity (
   ) where
 
 import Control.Applicative (Applicative, pure)
-import qualified Penny.Cabin.Colors as C
 import qualified Penny.Cabin.Balance.Util as U
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import qualified Data.Either as Ei
@@ -23,8 +23,6 @@ import Data.Monoid (mappend, mempty)
 import qualified Data.Text as X
 import qualified Data.Tree as E
 import qualified Penny.Cabin.Balance.MultiCommodity.Chunker as K
-import qualified Penny.Cabin.Chunk as Chunk
-import qualified Penny.Cabin.Colors.DarkBackground as CD
 import qualified Penny.Cabin.Balance.MultiCommodity.Help as H
 import qualified Penny.Cabin.Balance.MultiCommodity.Parser as P
 import qualified Penny.Cabin.Interface as I
@@ -34,27 +32,21 @@ import qualified System.Console.MultiArg as MA
 -- needed to make the report if the options are not being parsed in
 -- from the command line.
 data Opts = Opts
-  { drCrColors :: C.DrCrColors
-  , baseColors :: C.BaseColors
-  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
+  { balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
   , order :: L.SubAccount -> L.SubAccount -> Ordering
   }
 
 defaultOpts :: Opts
 defaultOpts = Opts
-  { drCrColors = CD.drCrColors
-  , baseColors = CD.baseColors
-  , balanceFormat = defaultFormat
+  { balanceFormat = defaultFormat
   , showZeroBalances = CO.ShowZeroBalances True
   , order = compare
   }
 
 defaultParseOpts :: P.ParseOpts
 defaultParseOpts = P.ParseOpts
-  { P.drCrColors = CD.drCrColors
-  , P.baseColors = CD.baseColors
-  , P.showZeroBalances = CO.ShowZeroBalances True
+  { P.showZeroBalances = CO.ShowZeroBalances True
   , P.order = compare
   }
 
@@ -62,8 +54,8 @@ fromParseOpts ::
   (L.Commodity -> L.Qty -> X.Text)
   -> P.ParseOpts
   -> Opts
-fromParseOpts fmt (P.ParseOpts dc bc szb o) =
-  Opts dc bc fmt szb o
+fromParseOpts fmt (P.ParseOpts szb o) =
+  Opts fmt szb o
 
 defaultFormat :: a -> L.Qty -> X.Text
 defaultFormat _ = X.pack . show
@@ -92,9 +84,9 @@ rows (o, b) = first:rest
 
 -- | This report is what to use if you already have your options (that
 -- is, you are not parsing them in from the command line.)
-report :: Opts -> [L.Box a] -> [Chunk.Chunk]
-report (Opts dc bc bf szb o) =
-  K.rowsToChunks bf dc bc
+report :: Opts -> [L.Box a] -> [E.PreChunk]
+report (Opts bf szb o) =
+  K.rowsToChunks bf
   . rows
   . summedSortedBalTree szb o
 

@@ -12,7 +12,6 @@ module Penny.Cabin.Balance.Convert.Parser (
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import qualified Penny.Cabin.Options as CO
-import qualified Penny.Cabin.Colors as Col
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper.Parsec as Pc
@@ -34,9 +33,7 @@ data SortBy = SortByQty | SortByName
 -- considering what is parsed in from the command line and price data,
 -- a Convert.Opts will be generated.
 data Opts = Opts
-  { drCrColors :: Col.DrCrColors
-  , baseColors :: Col.BaseColors
-  , showZeroBalances :: CO.ShowZeroBalances
+  { showZeroBalances :: CO.ShowZeroBalances
   , target :: Target
   , dateTime :: L.DateTime
   , sortOrder :: SortOrder
@@ -49,8 +46,7 @@ data Opts = Opts
 -- parsing of abbreviated long options.
 allOptSpecs :: [C.OptSpec (Opts -> Ex.Exceptional String Opts)]
 allOptSpecs =
-  [ fmap toExc parseBackground ]
-  ++ map (fmap toExc) parseZeroBalances
+  map (fmap toExc) parseZeroBalances
   ++
   [ parseCommodity
   , parseDate
@@ -59,11 +55,6 @@ allOptSpecs =
   , fmap toExc parseDescending ]
   where
     toExc f = return . f
-
-parseBackground :: C.OptSpec (Opts -> Opts)
-parseBackground = fmap f P.background
-  where
-    f (d, b) o = o { drCrColors = d, baseColors = b }
 
 parseZeroBalances :: [C.OptSpec (Opts -> Opts)]
 parseZeroBalances =

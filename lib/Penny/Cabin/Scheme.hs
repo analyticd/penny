@@ -88,35 +88,45 @@ bottomLineToDrCr bl eo = PreChunk lbl eo t
         L.Debit -> (Debit, X.singleton '<')
         L.Credit -> (Credit, X.singleton '>')
 
-bottomLineToCmdty
-  :: [(L.Commodity, L.BottomLine)]
-  -> EvenOdd
+balancesToCmdtys
+  :: EvenOdd
+  -> [(L.Commodity, L.BottomLine)]
   -> [PreChunk]
-bottomLineToCmdty ls eo =
+balancesToCmdtys eo ls =
   if null ls
   then [PreChunk Zero eo (X.pack "--")]
-  else
-    let toPc (com, bl) = PreChunk lbl eo t
-          where
-            t = L.unCommodity com
-            lbl = case bl of
-              L.Zero -> Zero
-              L.NonZero (L.Column clmDrCr _) -> dcToLbl clmDrCr
-    in map toPc ls
+  else map (bottomLineToCmdty eo) ls
+
+bottomLineToCmdty
+  :: EvenOdd
+  -> (L.Commodity, L.BottomLine)
+  -> PreChunk
+bottomLineToCmdty eo (cy, bl) = PreChunk lbl eo t
+  where
+    t = L.unCommodity cy
+    lbl = case bl of
+      L.Zero -> Zero
+      L.NonZero (L.Column clmDrCr _) -> dcToLbl clmDrCr
+
+balanceToQtys
+  :: (L.Commodity -> L.Qty -> X.Text)
+  -> EvenOdd
+  -> [(L.Commodity, L.BottomLine)]
+  -> [PreChunk]
+balanceToQtys getTxt eo ls =
+  if null ls
+  then [PreChunk Zero eo (X.pack "--")]
+  else map (bottomLineToQty getTxt eo) ls
+
 
 bottomLineToQty
-  :: (L.Commodity -> L.BottomLine -> X.Text)
-  -> [(L.Commodity, L.BottomLine)]
+  :: (L.Commodity -> L.Qty -> X.Text)
   -> EvenOdd
-  -> [PreChunk]
-bottomLineToQty getTxt ls eo =
-  if null ls
-  then [PreChunk Zero eo (X.pack "--")]
-  else
-    let toPc (com, bl) = PreChunk lbl eo t
-          where
-            t = getTxt com bl
-            lbl = case bl of
-              L.Zero -> Zero
-              L.NonZero (L.Column clmDrCr _) -> dcToLbl clmDrCr
-    in map toPc ls
+  -> (L.Commodity, L.BottomLine)
+  -> PreChunk
+bottomLineToQty getTxt eo (cy, bl) = PreChunk lbl eo t
+  where
+    (lbl, t) = case bl of
+      L.Zero -> (Zero, X.pack "--")
+      L.NonZero (L.Column clmDrCr qt) -> (dcToLbl clmDrCr, getTxt cy qt)
+

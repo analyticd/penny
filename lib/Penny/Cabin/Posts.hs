@@ -67,7 +67,6 @@ import qualified Penny.Cabin.Posts.Types as T
 import qualified Penny.Cabin.Scheme as E
 
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Balance as Bal
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as Sh
@@ -203,7 +202,7 @@ data ZincOpts = ZincOpts
     -- the quantity. Allows you to format digit grouping,
     -- radix points, perform rounding, etc.
 
-  , balanceFormat :: L.Commodity -> L.BottomLine -> X.Text
+  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
     -- ^ How to display balance totals. Similar to
     -- balanceFormat.
 
@@ -277,10 +276,8 @@ qtyAsIs p = X.pack . show . Q.qty . L.boxPostFam $ p
 
 -- | Shows the quantity of a balance. If there is no quantity, shows
 -- two dashes.
-balanceAsIs :: a -> L.BottomLine -> X.Text
-balanceAsIs _ n = case n of
-  L.Zero -> X.pack "--"
-  L.NonZero c -> X.pack . show . Bal.qty $ c
+balanceAsIs :: a -> L.Qty -> X.Text
+balanceAsIs _ = X.pack . show
 
 -- | The default width for the report.
 defaultWidth :: T.ReportWidth

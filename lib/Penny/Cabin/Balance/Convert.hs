@@ -14,8 +14,7 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Tree as E
 import qualified Data.Traversable as Tvbl
 import qualified Penny.Cabin.Options as CO
-import qualified Penny.Cabin.Colors as C
-import qualified Penny.Cabin.Chunk as Chunk
+import qualified Penny.Cabin.Scheme as Scheme
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Cabin.Balance.Convert.Chunker as K
 import qualified Penny.Cabin.Balance.Convert.Help as H
@@ -35,10 +34,8 @@ import qualified System.Console.MultiArg as MA
 -- | Options for the Convert report. These are the only options you
 -- need to use if you are supplying options programatically (as
 -- opposed to parsing them in from the command line.)
-data Opts = Opts {
-  drCrColors :: C.DrCrColors
-  , baseColors :: C.BaseColors
-  , balanceFormat :: L.Qty -> X.Text
+data Opts = Opts
+  { balanceFormat :: L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
   , sorter :: Sorter
   , target :: L.To
@@ -151,9 +148,9 @@ report ::
   Opts
   -> [L.PricePoint]
   -> [L.Box a]
-  -> Ex.Exceptional X.Text [Chunk.Chunk]
-report os@(Opts dc bc fmt _ _ _ _) ps bs =
-  fmap (K.rowsToChunks fmt dc bc)
+  -> Ex.Exceptional X.Text [Scheme.PreChunk]
+report os@(Opts fmt _ _ _ _) ps bs =
+  fmap (K.rowsToChunks fmt)
   . fmap rows
   . sumConvertSort os ps
   $ bs
@@ -206,7 +203,7 @@ sumConvertSort
   -> Ex.Exceptional X.Text ForestAndBL
 sumConvertSort os ps bs = mkResult <$> convertedFrst <*> convertedTot
   where
-    (Opts _ _ _ szb str tgt dt) = os
+    (Opts _ szb str tgt dt) = os
     bals = U.balances szb bs
     (frst, tot) = U.sumForest mempty mappend bals
     convertBal (a, bal) =
@@ -229,15 +226,15 @@ fromParsedOpts ::
   -> (L.Qty -> X.Text)
   -> P.Opts
   -> Maybe Opts
-fromParsedOpts pp fmt (P.Opts dc bc szb tgt dt so sb) =
+fromParsedOpts pp fmt (P.Opts szb tgt dt so sb) =
   case tgt of
     P.ManualTarget to ->
-      Just $ Opts dc bc fmt szb (getSorter so sb) to dt
+      Just $ Opts fmt szb (getSorter so sb) to dt
     P.AutoTarget ->
       case mostFrequent pp of
         Nothing -> Nothing
         Just to ->
-          Just $ Opts dc bc fmt szb (getSorter so sb) to dt
+          Just $ Opts fmt szb (getSorter so sb) to dt
 
 -- | Returns a function usable to sort pairs of SubAccount and
 -- BottomLine depending on how you want them sorted.

@@ -19,7 +19,7 @@ import qualified Penny.Cabin.Posts.Types as Ty
 data ChunkOpts = ChunkOpts
   { dateFormat :: Box -> X.Text
   , qtyFormat :: Box -> X.Text
-  , balanceFormat :: L.Commodity -> L.BottomLine -> X.Text
+  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , fields :: F.Fields Bool
   , subAccountLength :: A.SubAccountLength
   , payeeAllocation :: A.Alloc

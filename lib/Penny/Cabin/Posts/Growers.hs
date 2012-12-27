@@ -29,7 +29,7 @@ import qualified Penny.Lincoln.Queries as Q
 data GrowOpts = GrowOpts
   { dateFormat :: Box -> X.Text
   , qtyFormat :: Box -> X.Text
-  , balanceFormat :: L.Commodity -> L.BottomLine -> X.Text
+  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , fields :: F.Fields Bool
   }
 
@@ -265,11 +265,11 @@ getTotalCmdty i =
       eo = E.fromVisibleNum vn
       lbl = E.dcToLbl dc
       bal = Map.toList . L.unBalance . M.balance . L.boxMeta $ i
-      preChunks = E.bottomLineToCmdty bal eo
+      preChunks = E.balancesToCmdtys eo bal
   in PreSpec j ps preChunks
 
 getTotalQty ::
-  (L.Commodity -> L.BottomLine -> X.Text)
+  (L.Commodity -> L.Qty -> X.Text)
   -> Box
   -> PreSpec
 getTotalQty balFmt i =
@@ -279,7 +279,7 @@ getTotalQty balFmt i =
       ps = (E.dcToLbl dc, eo)
       eo = E.fromVisibleNum vn
       bal = Map.toList . L.unBalance . M.balance . L.boxMeta $ i
-      preChunks = E.bottomLineToQty balFmt bal eo
+      preChunks = E.balanceToQtys balFmt eo bal
   in PreSpec j ps preChunks
 
 growingFields :: F.Fields Bool -> Fields Bool
