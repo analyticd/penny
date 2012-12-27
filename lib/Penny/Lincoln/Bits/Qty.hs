@@ -76,6 +76,8 @@ newQty m p
   | m > 0  && p >= 0 = Just $ Qty m p
   | otherwise = Nothing
 
+-- | Shows a quantity, nicely formatted after accounting for both the
+-- mantissa and decimal places, e.g. @0.232@ or @232.12@ or whatever.
 instance Show Qty where
   show (Qty m e) =
     let man = show m
