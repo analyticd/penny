@@ -1,5 +1,5 @@
 -- | Zinc - the Penny command-line interface
-module Penny.Zinc (runPenny, P.T(..),
+module Penny.Zinc (runPenny, P.T(..), P.ColorToFile(..),
                    P.defaultFromRuntime) where
 
 import System.Console.MultiArg.GetArgs (getArgs)

@@ -808,6 +808,11 @@ commonAttrs t s =
       Just f -> f a
 
 
+-- | Gets the right set of terminal codes to apply the desired
+-- highlighting, bold, underlining, etc. Be sure to apply the
+-- attributes first (bold, underlining, etc) and then the
+-- colors. Setting the colors first and then the attributes seems to
+-- reset the colors, giving blank output.
 getTermCodes
   :: T.Terminal
   -> TextSpec
@@ -817,20 +822,20 @@ getTermCodes t ts = fromMaybe mempty $ do
   let TextSpec s8 s256 = ts
       Style8 f8 b8 c8 = s8
       Style256 f256 b256 c256 = s256
-      g | cols >= 256 = Just $ ( unForeground256 f256
-                                , unBackground256 b256
-                                , c256 )
-        | cols >= 8 = Just ( unForeground8 f8
-                           , unBackground8 b8
-                           , c8)
-        | otherwise = Nothing
   setFg <- T.getCapability t T.setForegroundColor
   setBg <- T.getCapability t T.setBackgroundColor
-  (fg, bg, cm) <- g
+  (fg, bg, cm) <- case () of
+    _ | cols >= 256 -> Just $ ( unForeground256 f256
+                              , unBackground256 b256
+                              , c256 )
+      | cols >= 8 -> Just ( unForeground8 f8
+                         , unBackground8 b8
+                         , c8)
+      | otherwise -> Nothing
   let oFg = maybe mempty setFg fg
       oBg = maybe mempty setBg bg
       oCm = commonAttrs t cm
-  return $ mconcat [oFg, oBg, oCm]
+  return $ mconcat [oCm, oFg, oBg]
 
 
 --

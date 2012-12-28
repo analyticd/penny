@@ -33,6 +33,7 @@ module Penny
 
     -- * Parser defaults
   , Z.T(..)
+  , Z.ColorToFile(..)
   , Z.defaultFromRuntime
 
     -- * Main function

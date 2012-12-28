@@ -1,5 +1,6 @@
 module Penny.Zinc.Parser
   ( Defaults.T(..)
+  , Defaults.ColorToFile(..)
   , Defaults.defaultFromRuntime
   , parseAndPrint
   ) where
