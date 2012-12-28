@@ -145,6 +145,9 @@ maybe a minus.
 ****** NAME
 Not balanced. The payee name.
 
+****** CHECKNUM
+Appears on checks. Not balanced.
+
 **** LEDGERBAL
 Balanced.
 

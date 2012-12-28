@@ -82,9 +82,13 @@ node = do
         T.Node (Terminal (TagName tagName) (TagData $ o:rs)) []
 
 findNodes :: Eq a => a -> Tree a -> [Tree a]
-findNodes x t@(Node l cs)
-  | x == l = [t]
-  | otherwise = concatMap (findNodes x) cs
+findNodes a = findNodesBy (== a)
+
+
+findNodesBy :: (a -> Bool) -> Tree a -> [Tree a]
+findNodesBy f t@(Node l cs)
+  | f l = [t]
+  | otherwise = concatMap (findNodesBy f) cs
 
 safeRead :: (Read r) => String -> Maybe r
 safeRead s = case reads s of
@@ -127,14 +131,15 @@ posting (Node l cs) = do
     Parent n -> return n
     _ -> Ex.throw "did not find posting tree"
   Ex.assert "did not find STMTTRN tag" $ unTagName tag == "STMTTRN"
-  (tPosted, tAmt, tId, tName) <- case cs of
-    _:t2:t3:t4:t5:[] -> return (t2, t3, t4, t5)
-    _ -> Ex.throw "did not find five child nodes"
-  pPosted <- parsePosted tPosted
-  (amtIncDec, pAmt) <- parseAmount tAmt
-  pId <- parseId tId
-  pName <- parseName tName
-  let pPayee = Y.Payee (X.empty)
+  tPosted <- findTerminal "DTPOSTED" cs
+  tAmt <- findTerminal "TRNAMT" cs
+  tId <- findTerminal "FITID" cs
+  tName <- findTerminal "NAME" cs
+  pPosted <- parseDateStr (X.unpack tPosted)
+  (amtIncDec, pAmt) <- parseAmountStr (X.unpack tAmt)
+  let pId = Y.FitId tId
+      pName = Y.Desc tName
+      pPayee = Y.Payee (X.empty)
   return $ Y.Posting pPosted pName amtIncDec pAmt pPayee pId
 
 -- | Removes the TagData from a tree, after ensuring that the TagName
@@ -161,25 +166,29 @@ terminalData n (Node l cs) = do
   Ex.assert kidsErr $ null cs
   return . X.pack . unTagData $ td
 
-parsePosted :: Tree Label -> ExS Y.Date
-parsePosted t = do
-  d <- terminalData "DTPOSTED" t
-  parseDateStr (X.unpack d)
+-- | Finds a terminal amongst a list of Trees; returns the data. Fails
+-- if there is no terminal by the given name or of the terminal has
+-- children (in which case it is not a terminal!)
+findTerminal
+  :: String
+  -- ^ The name of the terminal
 
-parseAmount :: Tree Label -> ExS (Y.IncDec, Y.Amount)
-parseAmount t = do
-  d <- terminalData "TRNAMT" t
-  parseAmountStr (X.unpack d)
+  -> [Tree Label]
+  -> ExS X.Text
+  -- ^ Returns the data from the terminal, or an error if there is no
+  -- tag by this name or if it has chlidren.
 
-parseId :: Tree Label -> ExS Y.FitId
-parseId t = do
-  d <- terminalData "FITID" t
-  return . Y.FitId $ d
-
-parseName :: Tree Label -> ExS Y.Desc
-parseName t = do
-  d <- terminalData "NAME" t
-  return . Y.Desc $ d
+findTerminal n ts = do
+  let pdct lbl = case lbl of
+        Terminal (TagName x) _ -> x == n
+        _ -> False
+  t <- case concatMap (findNodesBy pdct) ts of
+    [] -> Ex.throw $ "looking for terminal named "
+          ++ n ++ "; none found"
+    x:[] -> return x
+    _ -> Ex.throw $ "looking for terminal named "
+         ++ n ++ "; multiple matches found"
+  terminalData n t
 
 help :: String
 help = unlines
