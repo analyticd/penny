@@ -33,7 +33,7 @@ toParserOpts d = P.Opts
 
 defaultOptions :: S.Runtime -> DefaultOpts
 defaultOptions rt = DefaultOpts
-  { showZeroBalances = CO.ShowZeroBalances True
+  { showZeroBalances = CO.ShowZeroBalances False
   , target = P.AutoTarget
   , dateTime = S.currentTime rt
   , sortOrder = P.Ascending

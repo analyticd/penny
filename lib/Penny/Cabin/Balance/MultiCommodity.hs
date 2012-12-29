@@ -46,7 +46,7 @@ defaultOpts = Opts
 
 defaultParseOpts :: P.ParseOpts
 defaultParseOpts = P.ParseOpts
-  { P.showZeroBalances = CO.ShowZeroBalances True
+  { P.showZeroBalances = CO.ShowZeroBalances False
   , P.order = compare
   }
 
