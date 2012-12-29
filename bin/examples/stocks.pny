@@ -182,6 +182,8 @@
     Basis:House1:2012-12-31                             > HouseA 1
     Basis:House1:2012-12-31                             < $ 100 000.00
 
+@ 2012-12-31 HouseA $100 000.00
+
 # And some more stock purchases that we can use as examples in the
 # penny-commodities man page:
 2012-09-17 Buy stock
@@ -209,3 +211,8 @@
 @ 2012-12-18 YHOO $19.82
 
 @ 2012-12-20 YHOO $19.69
+
+# And your house is going up in value:
+
+@ 2013-01-01 HouseA $101 000.00
+@ 2013-06-01 HouseA $102 000.00

@@ -1,23 +1,20 @@
--- | Handles colors and special effects for text. This module was
--- written using the control sequences documented for xterm in
--- ctlseqs.txt, which is included in the xterm source code (on Debian
--- GNU/Linux systems, it is at
--- \/usr\/share\/doc\/xterm\/ctlseqs.txt.gz). The code in here should also
--- work for any terminal which recognizes ISO 6429 escape sequences
--- (also known as ANSI escape sequences), but only for 8 colors. This
--- module also generates sequences for 256 color xterms; though this
--- works fine with xterm, it might not work on other terminals (I
--- believe it works for other terminals commonly found on Linux
--- systems, such as gnome-terminal and Konsole, but I have not tested
--- these terminals as I do not use them.) Perhaps it also works on
--- Windows or Mac OS X systems and their terminals, though I have not
--- tested them (in particular, Windows could be problematic as not all
--- Windows terminals support ISO 6429.)
+-- | Handles colors and special effects for text. Internally this
+-- module uses the Haskell terminfo library, which links against the
+-- UNIX library of the same name, so it should work with a wide
+-- variety of UNIX terminals. This module is a layer between terminfo
+-- and the rest of Penny, allowing the Chunk internals to be swapped
+-- out and replaced. (I know this because this module previously used
+-- a home-grown implementation written based on the Xterm
+-- configuration; that implementation was swapped out and replaced
+-- with terminfo with minimal disruption.)
 --
--- In theory there are more portable ways to generate color codes,
--- such as through curses (or is it ncurses?) but support for ISO 6429
--- is widespread enough that I am prepared to say that if your
--- terminal does not support it, too bad; just use the colorless mode.
+-- However, terminfo is a UNIX thing, so at this time Penny probably
+-- would not work on a Windows based system.
+--
+-- There is an ansi-terminal library on Hackage, which does support
+-- Windows. One problem with that though is that ansi-terminal does
+-- not appear to support more than 8 colors; Chunk supports 256
+-- colors, which is very helpful for Penny.
 module Penny.Cabin.Chunk (
   -- * Colors
   Term(..),
@@ -610,11 +607,11 @@ import qualified Penny.Shield as S
 --
 
 -- | Which terminal definition to use. Use Dumb if you want to
--- suppress all colors (e.g. output is not going to a TTY.) Otherwise,
--- the terminal from the environment is used. If this terminal
--- supports 256 colors, then 256 colors are used. If this terminal
--- supports less than 256 colors, but at least 8 colors, then 8 colors
--- are used. Otherwise, no colors are used.
+-- suppress all colors (e.g. output is not going to a TTY, or you just
+-- do not like colors.) Otherwise, the terminal from the environment
+-- is used. If this terminal supports 256 colors, then 256 colors are
+-- used. If this terminal supports less than 256 colors, but at least
+-- 8 colors, then 8 colors are used. Otherwise, no colors are used.
 
 data Term = Dumb | TermFromEnv deriving (Eq, Show)
 
@@ -647,16 +644,19 @@ newtype Foreground256 = Foreground256 { unForeground256 :: Maybe T.Color }
 --
 
 -- | A chunk is some textual data coupled with a description of what
--- color the text is. The chunk knows what colors to use for both
--- foreground color and background color, in both an 8 color terminal
--- and a 256 color terminal. The chunk has only one set of color
--- descriptions. To change colors, you must use a new chunk.
+-- color the text is, attributes like whether it is bold or
+-- underlined, etc. The chunk knows what foreground and background
+-- colors and what attributes to use for both an 8 color terminal and
+-- a 256 color terminal. To change these attributes and colors, you
+-- must make a new chunk.
 --
 -- There is no way to combine chunks. To print large numbers of
 -- chunks, lazily build a list of them and then print them using
--- chunksToText.
+-- 'printChunks'.
+
 data Chunk = Chunk TextSpec Text
 
+-- | Makes new Chunks.
 chunk :: TextSpec -> Text -> Chunk
 chunk = Chunk
 

@@ -28,9 +28,9 @@
 
 # As shown above, debits are indicated with < (a less-than sign, which
 # looks like a left-pointing arrow) and credits with a > (which looks
-# like a right-pointing arrow.) So, in this transaction, you have
-# debited your Assets:Checking account by $3000, and you have credited
-# your Salary account by $3000.
+# like a right-pointing arrow.) So, in the "Spacely Sprockets"
+# transaction, you have debited your Assets:Checking account by $3000,
+# and you have credited your Salary account by $3000.
 
 # If you try to have a transaction which is NOT balanced--that is, the
 # sum of the debits is not equal to the sum of the credits--then Penny
@@ -60,11 +60,10 @@
     Expenses:Books                                      < $23.99
     Liabilities:Amex                                    > $23.99
 
-# If your transaction has only two postings, then you don't have to
-# fill in the debit or credit, quantity, and commodity for both
-# postings. You can leave it blank for one of the postings. Penny will
-# use the debit or credit, quantity, and commodity from the one that
-# you fill in to "infer" what is is for the other posting.
+# You can choose not to indicate the debit/credit, commodity, and
+# quantity for one of the postings. Penny will use the debit or
+# credit, quantity, and commodity from the one that you fill in to
+# "infer" what is is for the other posting.
 
 2012-12-02 CVS
     Expenses:Drugs                                      < $12.14
@@ -96,7 +95,7 @@
     Liabilities:Amex                                    > $28.94
 
 # If you have more than two postings, you can still leave one of them
-# without a debit or credit, commodity, or quantity, and Penny will
+# without a debit or credit, commodity, and quantity, and Penny will
 # infer what it is.
 2012-12-04 Home Depot
     Expenses:Hardware                                   < $50.00
@@ -149,8 +148,8 @@ Liabilities:Amex
 # your commodities, though what it remembers has effects in only a few
 # places. In particular, it does not affect how your reports are formatted.
 
-# Ok, so this example does not really make sense with dollars, but it
-# gives you the idea.
+# Ok, so this following example does not really make sense with
+# dollars, but it gives you the idea.
 
 2012-12-06 Flo
     Expenses:Insurance:Car                              < 230.00 $

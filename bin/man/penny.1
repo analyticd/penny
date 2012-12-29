@@ -4,9 +4,14 @@
 penny - report on postings in financial ledger
 
 .SH SYNOPSIS
-penny [posting filter expression] report name [report options] FILE...
+penny [global options] report name [report options] FILE...
 
 .SH DESCRIPTION
+
+This manual page is a complete reference for the operation of
+.BR penny .
+To get started, see
+.BR penny-getting-started (1).
 
 The
 .B penny
@@ -22,7 +27,9 @@ splits each transaction into its component postings. After this point,
 .B penny
 for the most part deals only with postings, not with transactions.
 
-You may specify a
+You may specify
+.IR "global options" .
+Most global options allow you to create a 
 .I filter expression
 that determines which postings are ultimately used for the report. The
 filter expression may also contain additional options that perform
@@ -31,6 +38,9 @@ perform text matching (for instance, you may want to use regular
 expressions) or you may specify that you want to sort the postings (by
 default, they are not sorted and are left in the order in which they
 were found in the input ledger).
+
+Other global options control the color scheme of the report and
+whether colors are used at all.
 
 Next you must specify a
 .IR report .
@@ -43,7 +53,6 @@ report and the
 .B convert
 report. Each report shows only the postings returned by the posting
 filter expression.
-
 
 You may then specify options pertaining to the report. The
 .BR postings
@@ -63,21 +72,11 @@ Finally you may specify one or more files from which to draw the
 data. If you do not specify a file, standard input is used. The report
 is always printed to standard output.
 
-By default,
-.BR penny
-sees whether its standard output is a terminal. If so,
-.BR penny 's
-output is sized to fit the width of the
-.BR COLUMNS
-environment variable, if it is set. If standard output is not a
-terminal, by default the output will be 80 characters wide. This
-behavior can be overridden on the command line.
-
 Entering the data into the ledger files is your responsibility;
 .B penny
 will never modify this data. To see how to enter data into the file,
 see the file
-.BR samplePennyFile ,
+.BR examples/starter.pny ,
 which is included inside the package for
 .BR penny-bin .
 
@@ -107,6 +106,27 @@ T}:Equals
 >=::Greater than or equal to
 /=:!=:Not equal to
 .TE
+
+.SH DISPLAY OPTIONS
+
+.TP
+.BI "--scheme " SCHEME_NAME
+Use the given color scheme. By default, two schemes are available:
+.IR dark ,
+designed for dark-background terminals, and
+.IR light .
+By default the
+.I dark
+scheme is used.
+
+.TP
+.BI "--color-to-file " "no|yes"
+Whether to use color when standard output is not a terminal. Default is
+.IR no .
+If standard output is a terminal, the maximum color capabilities of your terminal are used. (If you do not like color, preface your
+.B penny
+command with
+.IR TERM=dumb .)
 
 .SH POSTING FILTERS
 .SS Dates
@@ -380,60 +400,14 @@ sorted serial, forward component
 .B --revSorted
 sorted serial, reverse component
 
-.SS Other additional options for the balance report
-
-.TP
-.BR --color " yes|no|auto|256"
-Controls which colors are shown.
-
-.RS
-.TP
-.B yes
-always show 8 colors
-
-.TP
-.B no
-never show any colors (default)
-
-.TP
-.B auto
-show 8 or 256 colors, but only if standard output is a terminal.
-If standard output is a terminal, shows 256 colors if the value
-of the TERM environment variable is
-.IR xterm-256color ;
-otherwise, shows 8 colors.
-
-.TP
-.B 256
-always show 256 colors
-.RE
-
-.\" The following is the table that used to be used for colors. The
-.\" above text with the .RS macro and .TP lays out better.
-\".TS
-\"tab(:);
-\"lB l.
-\"yes:always show 8 colors
-\"no:never show any colors (default)
-\"auto:T{
-\"show 8 or 256 colors, but only if standard output is a terminal.
-\"If standard output is a terminal, shows 256 colors if the value
-\"of the TERM environment variable is \fIxterm-256color\fR;
-\"otherwise, shows 8 colors.
-\"T}
-\"256:always show 256 colors
-\".TE
-
-.TP
-.BR --background " light|dark"
-Pick a color scheme for a light or dark terminal background (by
-default, a dark color scheme is used.)
+.SS Other additional options for the postings report
 
 .TP
 .BI --width " num"
 Gives a hint for roughly how wide the report should be, in
-columns. Sometimes the report will be narrower than the specified
-width; however, it will never be wider than the specified width.
+columns. (By default the
+.I COLUMNS
+environment variable is used.)
 
 .TP
 .BI "--show" " field"
@@ -518,29 +492,6 @@ The
 report accepts the following options:
 
 .TP
-.BI --color " yes|no|auto|256"
-Controls how many colors to display:
-
-.TS
-tab(:);
-lB l.
-yes:always show 8 colors
-no:never show any colors (default)
-auto:T{
-show 8 or 256 colors, but only if standard output is a terminal.
-If standard output is a terminal, shows 256 colors if the value
-of the TERM environment variable is \fIxterm-256color\fR;
-otherwise, shows 8 colors.
-T}
-256:always show 256 colors
-.TE
-
-.TP
-.BI --background " light|dark"
-Use appropriate color scheme for the given terminal background
-(default: dark)
-
-.TP
 .BI --show-zero-balances
 Show balances that are zero (default)
 
@@ -566,29 +517,6 @@ accounts by their balances.  Accepts ONLY the following report
 options:
 
 .TP
-.BI --color " yes|no|auto|256"
-Controls how many colors to display:
-
-.TS
-tab(:);
-lB l.
-yes:always show 8 colors
-no:never show any colors (default)
-auto:T{
-show 8 or 256 colors, but only if standard output is a terminal.
-If standard output is a terminal, shows 256 colors if the value
-of the TERM environment variable is \fIxterm-256color\fR;
-otherwise, shows 8 colors.
-T}
-256:always show 256 colors
-.TE
-
-.TP
-.BI --background " light|dark"
-Use appropriate color scheme for the given terminal background
-(default: dark)
-
-.TP
 .BI --show-zero-balances
 Show balances that are zero (default)
 
@@ -601,7 +529,7 @@ Hide balances that are zero
 Convert all commodities to
 .IR TARGET-COMMODITY .
 By default, the commodity that appears most often as the target
-commodity in your price data is used. If there is is a tie, the price
+commodity in your price data is used. If there is a tie, the price
 closest to the end of your list of prices is used.
 
 .TP
@@ -681,7 +609,7 @@ report.)
 
 .SH SEE ALSO
 The file
-.B samplePennyFile
+.B examples/starter.pny
 in the tarball for the
 .B penny-bin
 package shows you how to write a ledger file.

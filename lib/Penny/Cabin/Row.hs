@@ -1,4 +1,27 @@
--- | Displays a single on-screen row. A row may contain multiple screen lines and multiple columns.
+-- | Displays a single on-screen row. A row may contain multiple
+-- screen lines and multiple columns.
+--
+-- This module only deals with a single row at a time. Each cell in
+-- the row can have more than one screen line; this module will make
+-- sure that the cells have appropriate padding on the bottom so that
+-- the row appears nicely. This module will also justify each cell so
+-- that its left side or right side is ragged; however, you first have
+-- to specify how wide you want the cell to be.
+--
+-- This module is a little dumber than you might first think it could
+-- be. For instance it would be possible to write a function that
+-- takes a number of rows and automatically justifies all the cells by
+-- finding the widest cell in a column. Indeed I might eventually
+-- write such a function because it might be useful in, for example,
+-- the multi-commodity balance report. However, such a function would
+-- not be useful in all cases; in particular, the Posts report is very
+-- complicated to lay out, and the automatic function described above
+-- would not do the right thing.
+--
+-- So this module offers some useful automation, even if it is at a
+-- level that is apparently lower that what is possible. Thus the
+-- present 'row' function likely will not change, even if eventually I
+-- add a 'table' function that automatically justifies many rows.
 module Penny.Cabin.Row (
   Justification(LeftJustify, RightJustify),
   ColumnSpec(ColumnSpec, justification, width, padSpec, bits),
