@@ -86,7 +86,9 @@ newtype Height = Height { _unHeight :: Int }
                  deriving (Show, Eq, Ord)
 
 height :: [[a]] -> Height
-height = Height . maximum . map length
+height xs = case xs of
+  [] -> Height 0
+  ls -> Height . maximum . map length $ ls
 
 row :: [ColumnSpec] -> [E.PreChunk]
 row =

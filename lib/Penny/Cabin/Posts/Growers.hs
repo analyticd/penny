@@ -60,7 +60,9 @@ growCells o infos = toPair <$> wanted <*> growers where
 
 widestLine :: PreSpec -> Int
 widestLine (PreSpec _ _ bs) =
-  maximum . map (R.unWidth . E.width) $ bs
+  case bs of
+    [] -> 0
+    xs -> maximum . map (R.unWidth . E.width) $ xs
 
 data PreSpec = PreSpec {
   _justification :: R.Justification

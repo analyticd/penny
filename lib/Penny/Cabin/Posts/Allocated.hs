@@ -125,12 +125,18 @@ payeeAndAcct ao bs =
                    (spacers ao) (fields ao) (reportWidth ao)
       finals = divideAvailableWidth availWidth (fields ao)
                (allocations ao)
-               (fmap maximum . fmap (fmap fst) $ allBuilders)
+               ( fmap (safeMaximum (Request 0))
+                 . fmap (fmap fst) $ allBuilders)
   in fmap (fmap (second unFinal))
      . buildSpecs finals
      . fmap (fmap snd)
      $ allBuilders
 
+
+safeMaximum :: Ord a => a -> [a] -> a
+safeMaximum d ls = case ls of
+  [] -> d
+  xs -> maximum xs
 
 payeeAndAccountSpacerWidth
   :: Fields Bool

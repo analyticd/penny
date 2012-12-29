@@ -15,10 +15,6 @@ module Penny.Cabin.Balance.Util
   , sortForest
   , sortTree
   , lastMode
-  , lastModeBy
-  , modes
-  , modesBy
-  , longestLists
   ) where
 
 import qualified Penny.Cabin.Options as CO
@@ -213,10 +209,6 @@ lastModeBy o ls =
       ls' = zip ls ([0..] :: [Int])
       o' x y = o (fst x) (fst y)
 
--- | Like modesBy but using Ord.
-modes :: Ord a => [a] -> [a]
-modes = modesBy compare
-
 -- | Finds the modes of a list.
 modesBy :: (a -> a -> Ordering) -> [a] -> [a]
 modesBy o =
@@ -226,7 +218,9 @@ modesBy o =
   . sortBy o
 
 
--- | Returns the longest lists.
+-- | Returns the longest lists. This function is partial. It is bottom
+-- if the argument list is empty. Therefore, do not export this
+-- function.
 longestLists :: [[a]] -> [[a]]
 longestLists as =
   let lengths = map (\ls -> (ls, length ls)) as

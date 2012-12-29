@@ -60,7 +60,9 @@ maxWidthPerColumn ::
   -> Columns PreSpec
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
-  f old new = max old (maximum . map E.width . bits $ new)
+  f old new = max old ( safeMaximum (R.Width 0)
+                        . map E.width . bits $ new)
+  safeMaximum d ls = if null ls then d else maximum ls
 
 -- | Changes a single set of Columns to a set of ColumnSpec of the
 -- given width.
