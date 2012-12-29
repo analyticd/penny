@@ -6,16 +6,16 @@ import qualified Penny.Cabin.Options as CO
 import qualified System.Console.MultiArg.Combinator as C
 
 
-zeroBalances :: [C.OptSpec CO.ShowZeroBalances]
-zeroBalances = [showZb, hideZb]
+zeroBalances :: C.OptSpec CO.ShowZeroBalances
+zeroBalances = C.OptSpec ["zero-balances"] "" (C.ChoiceArg ls)
   where
-    showZb = C.OptSpec ["show-zero-balances"] ""
-             (C.NoArg (CO.ShowZeroBalances True))
-    hideZb = C.OptSpec ["hide-zero-balances"] ""
-             (C.NoArg (CO.ShowZeroBalances False))
+    ls = [ ("show", CO.ShowZeroBalances True)
+         , ("hide", CO.ShowZeroBalances False) ]
 
-ascending :: C.OptSpec ()
-ascending = C.OptSpec ["ascending"] "" (C.NoArg ())
+data SortOrder = Ascending | Descending
 
-descending :: C.OptSpec ()
-descending = C.OptSpec ["descending"] "" (C.NoArg ())
+order :: C.OptSpec SortOrder
+order = C.OptSpec ["order"] "" (C.ChoiceArg ls)
+  where
+    ls = [ ("ascending", Ascending)
+         , ("descending", Descending) ]

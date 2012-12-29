@@ -3,7 +3,6 @@ module Penny.Cabin.Balance.MultiCommodity.Parser (
   , allSpecs
   ) where
 
-import Control.Applicative ((<$))
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Lincoln as L
@@ -17,21 +16,19 @@ data ParseOpts = ParseOpts
   }
 
 
-zeroBalances :: [C.OptSpec (ParseOpts -> ParseOpts)]
-zeroBalances = map (fmap toResult) P.zeroBalances
+zeroBalances :: C.OptSpec (ParseOpts -> ParseOpts)
+zeroBalances = fmap toResult P.zeroBalances
   where
     toResult szb o = o { showZeroBalances = szb }
 
-ascending :: C.OptSpec (ParseOpts -> ParseOpts)
-ascending = f <$ P.ascending
+parseOrder :: C.OptSpec (ParseOpts -> ParseOpts)
+parseOrder = fmap toResult P.order
   where
-    f o = o { order = compare }
-
-descending :: C.OptSpec (ParseOpts -> ParseOpts)
-descending = f <$ P.descending
-  where
-    f o = o { order = CO.descending compare }
-
+    toResult x o = o { order = r }
+      where
+        r = case x of
+          P.Ascending -> compare
+          P.Descending -> CO.descending compare
 
 allSpecs :: [C.OptSpec (ParseOpts -> ParseOpts)]
-allSpecs = zeroBalances ++ [ ascending , descending ]
+allSpecs = [zeroBalances, parseOrder]

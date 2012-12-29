@@ -43,8 +43,8 @@ allSpecs rt =
      , hideField
      , showAllFields
      , hideAllFields
+     , parseZeroBalances
      ]
-  ++ parseZeroBalances
 
 
 operand
@@ -217,8 +217,8 @@ hideAllFields = C.OptSpec ["hide-all"] "" (C.NoArg f)
     f st = pure $ st {fields = pure False}
 
 
-parseZeroBalances :: Applicative f => [C.OptSpec (State -> f State)]
-parseZeroBalances = map (fmap f) P.zeroBalances
+parseZeroBalances :: Applicative f => C.OptSpec (State -> f State)
+parseZeroBalances = fmap f P.zeroBalances
   where
     f szb st = pure $ st { showZeroBalances = szb }
 

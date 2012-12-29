@@ -46,19 +46,18 @@ data Opts = Opts
 -- parsing of abbreviated long options.
 allOptSpecs :: [C.OptSpec (Opts -> Ex.Exceptional String Opts)]
 allOptSpecs =
-  map (fmap toExc) parseZeroBalances
-  ++
-  [ parseCommodity
+  [ fmap toExc parseZeroBalances
+  , parseCommodity
   , parseDate
   , fmap toExc parseSort
-  , fmap toExc parseAscending
-  , fmap toExc parseDescending ]
+  , fmap toExc parseOrder ]
   where
     toExc f = return . f
 
-parseZeroBalances :: [C.OptSpec (Opts -> Opts)]
-parseZeroBalances =
-  map (fmap (\z o -> o { showZeroBalances = z })) P.zeroBalances
+parseZeroBalances :: C.OptSpec (Opts -> Opts)
+parseZeroBalances = fmap f P.zeroBalances
+  where
+    f x o = o { showZeroBalances = x }
 
 
 parseCommodity :: C.OptSpec (Opts -> Ex.Exceptional String Opts)
@@ -83,14 +82,12 @@ parseSort = C.OptSpec ["sort"] "s" (C.ChoiceArg ls)
     ls = [ ("qty", (\os -> os { sortBy = SortByQty }))
          , ("name", (\os -> os { sortBy = SortByName })) ]
 
-parseAscending :: C.OptSpec (Opts -> Opts)
-parseAscending = C.OptSpec ["ascending"] "" (C.NoArg f)
+parseOrder :: C.OptSpec (Opts -> Opts)
+parseOrder = fmap f P.order
   where
-    f os = os { sortOrder = Ascending }
-
-parseDescending :: C.OptSpec (Opts -> Opts)
-parseDescending = C.OptSpec ["descending"] "" (C.NoArg f)
-  where
-    f os = os { sortOrder = Descending }
-
+    f x o = o { sortOrder = r }
+      where
+        r = case x of
+          P.Ascending -> Ascending
+          P.Descending -> Descending
 

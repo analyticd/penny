@@ -467,16 +467,10 @@ Show all fields
 Hide all fields
 
 .TP
-.B --show-zero-balances
-Shows the balance of all commodities in the
+.BI "--zero-balances " "show|hide"
+Whether to show the balance of all commodities in the
 .IR totalDrCr ", " totalCommodity ", and " totalQty
-fields, even if that balance is zero.
-
-.TP
-.B --hide-zero-balances
-Hides the balance of commodities in the
-.IR totalDrCr ", " totalCommodity ", and " totalQty
-fields if they are zero (default)
+fields, even if that balance is zero. (default: hide)
 
 .SH BALANCE REPORT
 The
@@ -492,20 +486,12 @@ The
 report accepts the following options:
 
 .TP
-.BI --show-zero-balances
-Show balances that are zero
+.BI "--zero-balances " "show|hide"
+Whether to show balances that are zero (default: hide)
 
 .TP
-.BI --hide-zero-balances
-Hide balances that are zero (default)
-
-.TP
-.B --ascending
-Sort in ascending order by account name (default)
-
-.TP
-.B --descending
-Sort in descending order by account name
+.BI "--order " "ascending|descending"
+Sort in ascending (default) or descending order by account name
 
 .SH CONVERT REPORT
 
@@ -517,12 +503,8 @@ accounts by their balances.  Accepts ONLY the following report
 options:
 
 .TP
-.BI --show-zero-balances
-Show balances that are zero
-
-.TP
-.BI --hide-zero-balances
-Hide balances that are zero (default)
+.BI "--zero-balances " "show|hide"
+Whether to show balances that are zero (default: hide)
 
 .TP
 .BI "--commodity | -c " "TARGET-COMMODITY"
@@ -542,12 +524,8 @@ date and time is used.
 Sort balances by sub-account name (default) or by quantity
 
 .TP
-.BI --ascending
-Sort in ascending order (default)
-
-.TP
-.BI --descending
-Sort in descending order
+.BI "--order " "ascending|descending"
+Sort in ascending (default) or descending order
 
 .SH SERIALS
 
