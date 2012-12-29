@@ -64,4 +64,214 @@ Let's say you want to see the postings in your checking account.
 penny --account Assets:Checking postings starter.pny
 .EE
 
-will show you 
+does what you would expect. If you want to limit the postings to those
+before or after a certain date, try one of these:
+
+.EX
+penny -a Assets:Checking --and -d '>=' 2012-12-06 postings starter.pny
+.EE
+
+.EX
+penny -a Assets:Checking --and -d '>=' 2012=12-06 --and \\
+  -d '<' 2012-12-11 postings starter.pny
+.EE
+
+As these examples show, you can use
+.I -a
+instead of
+.IR --account ,
+and
+.I -d
+instead of
+.IR --date .
+Also, options such as
+.I -a
+and
+.I -d
+are called
+.IR operands .
+If you use more than one operand, you must join them together using
+.IR operators .
+The operators available to you are
+.IR "--not " , "--and " ", and " "--or" ,
+in that order of precedence. Here is a more complicated example that
+uses the various operators and operands:
+
+.EX
+penny -a Assets:Checking --and --open --payee 'Whole Foods' \\
+  --or --payee Comcast --close --and --date '>=' 2012-12-01 --and \\
+  --date '<' 2012-01-01 pos starter.pny
+.EE
+
+This example also shows that you can abbreviate the name of the
+report; that is, instead of
+.IR postings ,
+you can say
+.IR pos .
+You can use the shortest unambiguous abbreviation, so you could even
+simply say
+.I p
+as there is no other report that starts with a
+.IR p .
+
+On the far right side of each
+.I postings
+report is a running balance, like in a checkbook register. You may have noticed that in the examples above the running total reflects only the postings you saw in the report. Sometimes that is what you want. Other times you might want to see the total running balance, even as it is affected by the postings not shown in the report. To do this, include the filtering options
+.B after
+the word
+.I postings
+rather than before. Filtering options that are included before the word
+.I postings
+affect which postings are part of the report. Only postings that are part of the report affect the running balance. Filtering options
+.B after
+the word
+.I postings
+affect which postings are
+.B shown
+in the report. Postings that are part of the report but are not shown
+still affect the running balance.
+
+Here is an example:
+
+.EX
+penny --sort date -a Assets:Checking pos -d '>' 2012-12-10 \\
+  starter.pny
+.EE
+
+This example introduces a new option,
+.IR --sort .
+You specify the field name on which you want to sort your postings. To
+sort them in ascending order, use all lower case letters when
+specifying the name of the field. To sort in descending order,
+capitalize the first letter. By default, 
+.B penny
+does not sort your postings; it leaves them in the same order they
+were in in your ledger file. If you want to see the running balance of
+a report, it's important to make sure the postings are sorted in
+chronologial order, either because you told
+.B penny
+to sort them or because you always keep your postings in chronological
+order in your ledger file (I don't.)
+
+Here we also see that you can use the
+.I -d
+option in place of
+.IR --date .
+
+.SH SEEING THE BALANCE OF AN ACCOUNT
+
+To see the balance of your checking account, you could run
+
+.EX
+penny -a Assets:Checking pos --tail 1 starter.pny
+.EE
+
+and look at the running balance shown. This command included all the
+postings in your checking account in the postings report, but it only
+showed the last posting. (You could have used the UNIX
+.B tail
+program, but that will not always work well because sometimes a single
+posting will take up more than one line on your screen.)
+
+Another way to do it is with
+
+.EX
+penny -a Assets:Checking balance starter.pny
+.EE
+
+which shows the accounts hierarchically. The
+.I balance
+report is your friend if you want to see the balance of many accounts
+at once.
+
+.SH INCOME AND EXPENSES
+
+How does your income compare to your expenses for a certain month?
+Try:
+
+.EX
+penny --open --account-level 0 Income --or --account-level 0 Expenses \\
+  --close --and -d '>=' 2012-12-01 --and -d '<' 2013-01-01 \\
+  balance starter.pny
+.EE
+
+The
+.I --account-level
+operand takes two arguments. The first one is the number of the sub-account you wish to match. For instance, the account
+.I Expenses:Food
+has two sub-accounts: the first,
+.IR Expenses ,
+is numbered 0, and the second,
+.IR Food ,
+is numbered 1. The second argument to
+.I --account-level
+is the pattern you wish to use. All matching accounts will be part of your
+.I balance
+report. The result of this command shows your total expenses and total income, and the difference between the two is shown on the top
+.I Total
+line. (You don't have to use the
+.I --account-level
+operand, but it is more precise in this instance. Even more precise
+would have been to specify
+.I --exact
+at the beginning of the command line. Without
+.IR --exact ,
+a pattern matches if the pattern you specify is found anywhere within
+the target text.)
+
+.SH BALANCING YOUR CHECKBOOK
+
+Or, that fun task also known as "reconciling your account." First you
+want to make sure that the reconciled balance of your checking account
+is the same as what the bank says it was:
+
+.EX
+penny -a Assets:Checking --and --flag R bal starter.pny
+.EE
+
+Compare this total against the opening balance shown on your bank
+statment. If they match, good. If not, figure out why and fix it
+before proceeding. Then, find each posting shown on your bank
+statement in your ledger. Add a
+.I C
+flag to each posting. After you have found all the bank's postings in
+your ledger, run this:
+
+.EX
+penny -a Assets:Checking --and --open --flag R --or --flag C --close \\
+  bal starter.pny
+.EE
+
+The balance shown should match what is on your bank statement. If not,
+make sure you have matched up all the bank's postings with a posting
+in your file, and make sure the bank's amount matches your amount. You
+can easily see which postings you have just marked as cleared with:
+
+.EX
+penny -a Assets:Checking --and --flag C pos stater.pny
+.EE
+
+Once the balances match up, use your text editor or
+.BR penny-reconcile (1)
+to change the
+.I C
+flags to
+.I R
+flags.
+
+.SH WHAT'S YOUR NET WORTH?
+
+Try
+
+.EX
+penny -a Assets --or -a Liabilities balance starter.pny
+
+.SH WHERE TO GO FROM HERE
+
+This is enough to get you started with
+.BR penny .
+If you want to know more, see
+.BR penny (1),
+which is an exhaustive reference. Also, see
+.BR penny-suite (1),
+which lists all Penny programs and documentation.
