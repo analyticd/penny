@@ -4,7 +4,8 @@
 penny-diff - show differences between two Penny files
 
 .SH SYNOPSIS
-penny-diff [-12] FILE1 FILE2
+.B penny-diff
+[-12] FILE1 FILE2
 
 .SH DESCRIPTION
 .B penny-diff
@@ -26,7 +27,29 @@ Show only the items present in FILE1 that are not present in FILE2.
 .B -2
 Show only the items present in FILE2 that are not present in FILE1.
 
+.SH VERSUS diff(1)
+You could do this with
+.BR diff (1).
+The biggest difference is that
+.B penny-diff
+understands and parses the ledger file, while
+.B diff
+does not. Experiment with the two programs to see which works better in your situation (and take note of options in
+.B diff
+such as
+.IR -b " and " -w ,
+which can ignore some whitespace changes.)
+
 .SH EXIT STATUS
 0 if there are no differences between FILE1 and FILE2; 1 if there are
 differences; 2 if there was some problem (such as a file that could
 not be parsed.)
+
+.SH BUGS
+Please report bugs in the program or documentation to
+.MT omari@smileystation.com
+Omari Norman.
+.ME
+
+.SH SEE ALSO
+.BR penny-suite (7)
