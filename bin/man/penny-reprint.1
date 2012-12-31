@@ -1,0 +1,36 @@
+.TH penny-reprint 1
+
+.SH NAME
+penny-reprint - read and reprint Penny ledger
+
+.SH SYNOPSIS
+.B penny-reprint
+.I FILE...
+
+.SH DESCRIPTION
+
+Reads the Penny ledger(s) you specify and prints them to standard
+output, in a (hopefully) more tidy format. All comments are retained,
+but blank lines and insignicant whitespace within the transactions
+(such as the amount of whitespace between multiple tags) are ignored.
+
+If no
+.IR FILE ,
+or
+.I FILE
+is
+.IR - ,
+read standard input.
+
+.SH EXIT STATUS
+0 if everything went fine; another value if there were problems (such
+as inability to read a ledger file.)
+
+.SH BUGS
+Please report any bugs in the program or documentation to
+.MT omari@smileystation.com
+Omari Norman
+.ME
+
+.SH SEE ALSO
+.BR penny-suite (7)

@@ -266,6 +266,66 @@ Try
 .EX
 penny -a Assets --or -a Liabilities balance starter.pny
 
+.SH COLORS
+
+Output from
+.B penny
+is easier to read when it's colorful.
+.B penny
+can use up to 256 colors on your terminal. Just make sure that your
+.I TERM
+environment variable is set to a terminal that supports 256 colors. I use
+.BR xterm (1),
+which supports 256 colors, but by default
+.B xterm
+sets the
+.I TERM
+environment variable to
+.IR xterm ,
+which only supports 8 colors. To make
+.B xterm
+set the
+.I TERM
+environment variable to one that supports 256 colors, I have the following text in my
+.I ~/.Xresources
+file:
+
+.EX
+XTerm*termName: xterm-256color
+.EE
+
+After running
+
+.EX
+xrdb -merge ~/.Xresources
+.EE
+
+and launching a new
+.BR xterm ,
+the new setting should take effect. It's likely your operating system
+is already set up to automatically merge your
+.I ~/.Xresources
+file when you launch an X session.
+
+If you don't like colors, just tell
+.B penny
+that your terminal is dumb and does not support colors. Do this by
+prefixing your
+.B penny
+command with
+.IR TERM=dumb .
+By default,
+.B penny
+does not use colors if its standard output is not a terminal, though you can override this with
+.IR --color-to-file=yes .
+This can be useful if you are sending output to a pager such as
+.BR less (1)
+and you want to see colors (with
+.BR less ,
+you will want to use the
+.I -R
+option.)
+
 .SH WHERE TO GO FROM HERE
 
 This is enough to get you started with
@@ -273,5 +333,5 @@ This is enough to get you started with
 If you want to know more, see
 .BR penny (1),
 which is an exhaustive reference. Also, see
-.BR penny-suite (1),
+.BR penny-suite (7),
 which lists all Penny programs and documentation.
