@@ -273,12 +273,6 @@ Library
     , Penny.Lincoln.Transaction.Unverified
     , Penny.Shield
     , Penny.Zinc
-    , Penny.Zinc.Error
-    , Penny.Zinc.Help
-    , Penny.Zinc.Parser
-    , Penny.Zinc.Parser.Defaults
-    , Penny.Zinc.Parser.Filter
-    , Penny.Zinc.Parser.Ledgers
 
 
   ghc-options: -Wall

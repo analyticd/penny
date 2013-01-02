@@ -32,32 +32,19 @@ module Penny
     Cabin.allReportsWithDefaults
 
     -- * Parser defaults
-  , Z.T(..)
+  , Z.Defaults(..)
   , Z.ColorToFile(..)
   , Z.defaultFromRuntime
 
     -- * Main function
   , defaultPenny
-  , customPenny
-
-    -- * Other useful stuff - for custom reports
   ) where
 
 import qualified Penny.Cabin as Cabin
-import qualified Penny.Shield as S
 import qualified Penny.Zinc as Z
 
 defaultPenny :: IO ()
 defaultPenny = do
-  rt <- S.runtime
   let df = Z.defaultFromRuntime
       rs = Cabin.allReportsWithDefaults
-  Z.runPenny rt df rs
-
-customPenny
-  :: (S.Runtime -> Z.T)
-  -> [Cabin.Report]
-  -> IO ()
-customPenny gd rs = do
-  rt <- S.runtime
-  Z.runPenny rt gd rs
+  Z.runPenny df rs
