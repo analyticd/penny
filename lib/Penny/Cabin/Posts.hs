@@ -99,11 +99,10 @@ postsReport szb pdct pff co =
   . M.toBoxList szb pdct pff
 
 
-
 zincReport :: (Sh.Runtime -> ZincOpts) -> I.Report
-zincReport mkOpts = (H.help, mkMode)
+zincReport mkOpts = (H.helpStr, md)
   where
-    mkMode rt cs fty fsf = MA.Mode
+    md rt cs fty fsf = MA.Mode
       { MA.mName = "postings"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) (P.allSpecs rt)
@@ -118,7 +117,7 @@ process
   -> L.Factory
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.State -> Ex.Exceptional String P.State)]
-  -> Ex.Exceptional String ([String], I.PrintReport)
+  -> Ex.Exceptional String (Either I.HelpStr I.ArgsAndReport)
 process getOpts rt cs fty fsf ls =
   let (posArgs, clOpts) = Ei.partitionEithers ls
       os = getOpts rt
@@ -131,11 +130,11 @@ mkPrintReport
   -> ZincOpts
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> P.State
-  -> ([String], [L.Transaction]
-                -> [L.PricePoint]
-                -> Ex.Exceptional X.Text [E.PreChunk])
-mkPrintReport posArgs zo fsf st = (posArgs, f)
+  -> Either I.HelpStr I.ArgsAndReport
+mkPrintReport posArgs zo fsf st = r
   where
+    r = if P.showHelp st then Left H.helpStr else Right pr
+    pr = (posArgs, f)
     f txns _ = fmap mkChunks exPdct
       where
         exPdct = getPredicate (P.tokens st)
@@ -258,6 +257,7 @@ newParseState cs fty o = P.State
   , P.fields = fields o
   , P.width = width o
   , P.showZeroBalances = showZeroBalances o
+  , P.showHelp = False
   }
 
 -- | Shows the date of a posting in YYYY-MM-DD format.

@@ -20,13 +20,14 @@ import qualified Penny.Shield as S
 import qualified Text.Matchers.Text as M
 
 data State = State
-  {sensitive :: M.CaseSensitive
+  { sensitive :: M.CaseSensitive
   , factory :: L.Factory
   , tokens :: [Ly.Token (L.Box Ly.LibertyMeta -> Bool)]
   , postFilter :: [Ly.PostFilterFn]
   , fields :: F.Fields Bool
   , width :: Ty.ReportWidth
   , showZeroBalances :: CO.ShowZeroBalances
+  , showHelp :: Bool
   }
 
 allSpecs
@@ -44,6 +45,7 @@ allSpecs rt =
      , showAllFields
      , hideAllFields
      , parseZeroBalances
+     , optHelp
      ]
 
 
@@ -216,6 +218,10 @@ hideAllFields = C.OptSpec ["hide-all"] "" (C.NoArg f)
   where
     f st = pure $ st {fields = pure False}
 
+optHelp :: Applicative f => C.OptSpec (State -> f State)
+optHelp = fmap f P.help
+  where
+    f _ st = pure $ st { showHelp = True }
 
 parseZeroBalances :: Applicative f => C.OptSpec (State -> f State)
 parseZeroBalances = fmap f P.zeroBalances

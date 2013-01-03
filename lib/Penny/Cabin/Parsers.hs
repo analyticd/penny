@@ -19,3 +19,6 @@ order = C.OptSpec ["order"] "" (C.ChoiceArg ls)
   where
     ls = [ ("ascending", Ascending)
          , ("descending", Descending) ]
+
+help :: C.OptSpec ()
+help = C.OptSpec ["help"] "h" (C.NoArg ())

@@ -15,7 +15,15 @@ import Penny.Shield (Runtime)
 -- | The function that will print the report, and the positional
 -- arguments. If there was a problem parsing the command line options,
 -- return an Exception with an error message.
-type ParseResult = Exceptional String ([String], PrintReport)
+
+-- | Parsing the filter options can have one of two results: a help
+-- string, or a list of positional arguments and a function that
+-- prints a report. Or, the parse might fail.
+
+type PosArg = String
+type HelpStr = String
+type ArgsAndReport = ([PosArg], PrintReport)
+type ParseResult = Exceptional String (Either HelpStr ArgsAndReport)
 
 type PrintReport
   = [L.Transaction]
@@ -32,11 +40,8 @@ type PrintReport
   -- transactions has been seen.
 
 
--- | The strict Text containing a help message, and a function to make
--- the mode
-type Report = (X.Text, MakeMode)
-
-type MakeMode
+type Report = (HelpStr, MkReport)
+type MkReport
   = Runtime
   -- ^ Information only known at runtime, such as the
   -- environment. Does not include any information that is derived
@@ -56,6 +61,3 @@ type MakeMode
   -- transactions
 
   -> MA.Mode ParseResult
-  -- ^ Strict Text containing a help message, and a Mode that will
-  -- print a report.
-

@@ -29,6 +29,7 @@ toParserOpts d = P.Opts
   , P.dateTime = dateTime d
   , P.sortOrder = sortOrder d
   , P.sortBy = sortBy d
+  , P.showHelp = False
   }
 
 defaultOptions :: S.Runtime -> DefaultOpts

@@ -1,9 +1,7 @@
 module Penny.Cabin.Balance.Convert.Help where
 
-import qualified Data.Text as X
-
-help :: X.Text
-help = X.pack . unlines $ [
+help :: String
+help = unlines [
   "convert",
   "  Show account balances, after converting all amounts",
   "  to a single commodity. Accepts ONLY the following options:",

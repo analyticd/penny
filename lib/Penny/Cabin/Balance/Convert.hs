@@ -175,7 +175,7 @@ process
   -> (S.Runtime -> O.DefaultOpts)
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
-  -> Ex.Exceptional String ([String], I.PrintReport)
+  -> Ex.Exceptional String (Either I.HelpStr I.ArgsAndReport)
 process rt mkOpts fsf ls = do
   let defaultOpts = mkOpts rt
       (posArgs, parsed) = Ei.partitionEithers ls
@@ -184,12 +184,15 @@ process rt mkOpts fsf ls = do
       Ex.Exception s -> Ex.throw s
       Ex.Success g ->
         let noDefault = X.pack "no default price found"
-            pr ts pps = do
-              rptOpts <- Ex.fromMaybe noDefault $
-                fromParsedOpts pps (O.format defaultOpts) g
-              let boxes = fsf ts
-              report rptOpts pps boxes
-        in return (posArgs, pr)
+        in case fromParsedOpts pps (O.format defaultOpts) g of
+            NeedsHelp -> H.help
+            DoReport mayOpts ->
+              let pr ts pps = do
+                    rptOpts <- Ex.fromMaybe noDefault $
+                      fromParsedOpts pps (O.format defaultOpts) g
+                    let boxes = fsf ts
+                    report rptOpts pps boxes
+              in return (posArgs, pr)
 
 
 -- | Sums the balances from the bottom to the top of the tree (so that
@@ -218,6 +221,10 @@ mostFrequent :: [L.PricePoint] -> Maybe L.To
 mostFrequent = U.lastMode . map (L.to . L.price)
 
 
+data HelpOrOpts
+  = NeedsHelp
+  | DoReport (Maybe Opts)
+
 -- | Get options for the report, depending on what options were parsed
 -- from the command line. Fails if the user did not specify a
 -- commodity and mostFrequent fails.
@@ -225,9 +232,11 @@ fromParsedOpts ::
   [L.PricePoint]
   -> (L.Qty -> X.Text)
   -> P.Opts
-  -> Maybe Opts
-fromParsedOpts pp fmt (P.Opts szb tgt dt so sb) =
-  case tgt of
+  -> HelpOrOpts
+fromParsedOpts pp fmt (P.Opts szb tgt dt so sb hlp) =
+  if hlp
+  then NeedsHelp
+  else DoReport $ case tgt of
     P.ManualTarget to ->
       Just $ Opts fmt szb (getSorter so sb) to dt
     P.AutoTarget ->
