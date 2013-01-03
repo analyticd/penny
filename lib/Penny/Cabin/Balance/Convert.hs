@@ -184,12 +184,12 @@ process rt mkOpts fsf ls = do
       Ex.Exception s -> Ex.throw s
       Ex.Success g ->
         let noDefault = X.pack "no default price found"
-        in case fromParsedOpts pps (O.format defaultOpts) g of
+        in case fromParsedOpts g of
             NeedsHelp -> H.help
-            DoReport mayOpts ->
+            DoReport f ->
               let pr ts pps = do
                     rptOpts <- Ex.fromMaybe noDefault $
-                      fromParsedOpts pps (O.format defaultOpts) g
+                      f pps (O.format defaultOpts)
                     let boxes = fsf ts
                     report rptOpts pps boxes
               in return (posArgs, pr)
@@ -223,20 +223,18 @@ mostFrequent = U.lastMode . map (L.to . L.price)
 
 data HelpOrOpts
   = NeedsHelp
-  | DoReport (Maybe Opts)
+  | DoReport ([L.PricePoint] -> (L.Qty -> X.Text) -> (Maybe Opts))
 
 -- | Get options for the report, depending on what options were parsed
 -- from the command line. Fails if the user did not specify a
 -- commodity and mostFrequent fails.
-fromParsedOpts ::
-  [L.PricePoint]
-  -> (L.Qty -> X.Text)
-  -> P.Opts
+fromParsedOpts
+  :: P.Opts
   -> HelpOrOpts
-fromParsedOpts pp fmt (P.Opts szb tgt dt so sb hlp) =
+fromParsedOpts (P.Opts szb tgt dt so sb hlp) =
   if hlp
   then NeedsHelp
-  else DoReport $ case tgt of
+  else DoReport $ \pps fmt -> case tgt of
     P.ManualTarget to ->
       Just $ Opts fmt szb (getSorter so sb) to dt
     P.AutoTarget ->
