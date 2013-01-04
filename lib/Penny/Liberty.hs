@@ -24,6 +24,7 @@ module Penny.Liberty (
   parseTokenList,
   parsePredicate,
   parseInt,
+  argMatch,
 
   -- * Parsers
   Operand,
@@ -38,6 +39,7 @@ module Penny.Liberty (
   ) where
 
 import Control.Applicative ((<*>), (<$>))
+import Control.Arrow (second)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper)
 import Data.List (isPrefixOf, sortBy)
@@ -636,11 +638,23 @@ ords = ordPairs ++ uppers where
     (capitalizeFirstLetter s, flipOrder f)
 
 
-sortSpecs :: OptSpec (Ex.Exceptional String Orderer)
+ordsWithZero :: [(String, Maybe Orderer)]
+ordsWithZero = map (second Just) ords ++ [("none", Nothing)]
+
+-- | True if the first argument matches the second argument. The match
+-- on the first letter is case sensitive; the match on the other
+-- letters is not case sensitive. True if both strings are empty.
+argMatch :: String -> String -> Bool
+argMatch s1 s2 = case (s1, s2) of
+  (x:xs, y:ys) ->
+    (x == y) && ((map toUpper xs) `isPrefixOf` (map toUpper ys))
+  _ -> True
+
+sortSpecs :: OptSpec (Ex.Exceptional String (Maybe Orderer))
 sortSpecs = C.OptSpec ["sort"] ['s'] (C.OneArg f)
   where
     f a =
-      let matches = filter (\p -> a `isPrefixOf` (fst p)) ords
+      let matches = filter (\p -> a `argMatch` (fst p)) ordsWithZero
       in case matches of
         x:[] -> return $ snd x
         _ -> Ex.throw $ "invalid sort key: " ++ a

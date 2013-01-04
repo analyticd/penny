@@ -18,8 +18,8 @@ import Control.Applicative ((<$>), (<*>), pure)
 import Control.Monad (when)
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.Maybe (mapMaybe, catMaybes)
-import Data.Monoid (mappend, mconcat)
+import Data.Maybe (mapMaybe, catMaybes, fromMaybe)
+import Data.Monoid (mappend, mconcat, mempty)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
@@ -49,6 +49,19 @@ data Matcher
   | PCRE
   deriving (Eq, Show)
 
+data SortFields
+  = Payee
+  | Date
+  | Flag
+  | Number
+  | Account
+  | DrCr
+  | Qty
+  | Commodity
+  | PostingMemo
+  | TransactionMemo
+  deriving (Eq, Show, Ord)
+
 data Defaults = Defaults
   { sensitive :: M.CaseSensitive
   , matcher :: Matcher
@@ -57,6 +70,7 @@ data Defaults = Defaults
     -- ^ If Nothing, no default scheme. If the user does not pick a
     -- scheme, no colors are used.
   , moreSchemes :: [E.Scheme]
+  , sorter :: Maybe (L.PostFam -> L.PostFam -> Ordering)
   }
 
 data State = State
@@ -96,7 +110,7 @@ data OptResult
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
   | ROperator (Ly.Token (L.PostFam -> Bool))
-  | RSortSpec (Ex.Exceptional String Ly.Orderer)
+  | RSortSpec (Ex.Exceptional String (Maybe Ly.Orderer))
   | RHelp
   | RColorToFile ColorToFile
   | RScheme E.TextSpecs
@@ -116,16 +130,23 @@ getPostFilters =
       _ -> Nothing
 
 getSortSpec
-  :: [OptResult]
-  -> Ex.Exceptional String Ly.Orderer
-getSortSpec =
-  fmap mconcat
+  :: Maybe Ly.Orderer
+  -> [OptResult]
+  -> Ex.Exceptional String (Maybe Ly.Orderer)
+getSortSpec i =
+  fmap folder
   . sequence
   . mapMaybe f
   where
     f o = case o of
       RSortSpec x -> Just x
       _ -> Nothing
+    folder = foldl g i
+    g mayOrd r = case mayOrd of
+      Nothing -> Nothing
+      Just ord -> case r of
+        Nothing -> Just ord
+        Just rOld -> Just $ rOld `mappend` ord
 
 type Factory = M.CaseSensitive
              -> Text -> Ex.Exceptional Text (Text -> Bool)
@@ -235,21 +256,23 @@ data FilterOpts = FilterOpts
   }
 
 processGlobal
-  :: State
+  :: Maybe (L.PostFam -> L.PostFam -> Ordering)
+  -> State
   -> [OptResult]
   -> Ex.Exceptional String GlobalResult
-processGlobal d os =
+processGlobal srt st os =
   if any isHelp os
   then return NeedsHelp
   else do
     postFilts <- getPostFilters os
-    sortSpec <- getSortSpec os
-    (toks, (rs, rf)) <- makeTokens d os
-    let ctf = getColorToFile d os
-        sch = getScheme d os
+    maySortSpec <- getSortSpec srt os
+    (toks, (rs, rf)) <- makeTokens st os
+    let ctf = getColorToFile st os
+        sch = getScheme st os
         err = "could not parse filter expression."
     pdct <- Ex.fromMaybe err $ Ly.parsePredicate toks
-    let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
+    let sortSpec = fromMaybe mempty maySortSpec
+        sf = Ly.xactionsToFiltered pdct postFilts sortSpec
         fo = FilterOpts rf rs sf sch ctf
     return $ RunPenny fo
 
@@ -324,8 +347,9 @@ parseCommandLine
      (GlobalResult, Either [()] (DisplayOpts, I.ParseResult))
 parseCommandLine df rs rt ss =
   let initSt = stateFromDefaults df
-  in MA.modes (allOpts (S.currentTime rt) df) (processGlobal initSt)
-           (whatMode rt rs) ss
+  in MA.modes (allOpts (S.currentTime rt) df)
+              (processGlobal (sorter df) initSt)
+              (whatMode rt rs) ss
 
 whatMode
   :: S.Runtime
