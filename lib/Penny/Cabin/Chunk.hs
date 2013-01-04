@@ -646,15 +646,19 @@ autoTerm rt = case S.output rt of
 
 -- | Background color in an 8 color setting.
 newtype Background8 = Background8 { unBackground8 :: Maybe T.Color }
+  deriving (Eq, Show, Ord)
 
 -- | Background color in a 256 color setting.
 newtype Background256 = Background256 { unBackground256 :: Maybe T.Color }
+  deriving (Eq, Show, Ord)
 
 -- | Foreground color in an 8 color setting.
 newtype Foreground8 = Foreground8 { unForeground8 :: Maybe T.Color }
+  deriving (Eq, Show, Ord)
 
 -- | Foreground color in a 256 color setting.
 newtype Foreground256 = Foreground256 { unForeground256 :: Maybe T.Color }
+  deriving (Eq, Show, Ord)
 
 
 --
@@ -673,6 +677,7 @@ newtype Foreground256 = Foreground256 { unForeground256 :: Maybe T.Color }
 -- 'printChunks'.
 
 data Chunk = Chunk TextSpec Text
+  deriving (Eq, Show, Ord)
 
 -- | Makes new Chunks.
 chunk :: TextSpec -> Text -> Chunk
@@ -723,9 +728,16 @@ defaultColors term =
 -- Effects
 --
 newtype Bold = Bold { unBold :: Bool }
+  deriving (Show, Eq, Ord)
+
 newtype Underline = Underline { unUnderline :: Bool }
+  deriving (Show, Eq, Ord)
+
 newtype Flash = Flash { unFlash :: Bool }
+  deriving (Show, Eq, Ord)
+
 newtype Inverse = Inverse { unInverse :: Bool }
+  deriving (Show, Eq, Ord)
 
 --
 -- Styles
@@ -740,7 +752,7 @@ data StyleCommon = StyleCommon
   , underline :: Underline
   , flash :: Flash
   , inverse :: Inverse
-  }
+  } deriving (Show, Eq, Ord)
 
 -- | Describes text appearance (foreground and background colors, as
 -- well as other attributes such as bold) for an 8 color terminal.
@@ -748,7 +760,7 @@ data Style8 = Style8
   { foreground8 :: Foreground8
   , background8 :: Background8
   , common8 :: StyleCommon
-  }
+  } deriving (Show, Eq, Ord)
 
 -- | Describes text appearance (foreground and background colors, as
 -- well as other attributes such as bold) for a 256 color terminal.
@@ -756,7 +768,7 @@ data Style256 = Style256
   { foreground256 :: Foreground256
   , background256 :: Background256
   , common256 :: StyleCommon
-  }
+  } deriving (Show, Eq, Ord)
 
 -- | Has all bold, flash, underline, and inverse turned off.
 defaultStyleCommon :: StyleCommon
@@ -794,7 +806,7 @@ defaultStyle256 = Style256
 data TextSpec = TextSpec
   { style8 :: Style8
   , style256 :: Style256
-  }
+  } deriving (Show, Eq, Ord)
 
 -- | A TextSpec with the default colors on 8 and 256 color terminals,
 -- with all attributes turned off.

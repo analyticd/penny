@@ -39,9 +39,22 @@ getLabelValue l ls = case l of
 data EvenAndOdd a = EvenAndOdd
   { eoEven :: a
   , eoOdd :: a
-  }
+  } deriving Show
 
-type Scheme = Labels (EvenAndOdd C.TextSpec)
+type TextSpecs = Labels (EvenAndOdd C.TextSpec)
+
+data Scheme = Scheme
+  { name :: String
+    -- ^ The name of this scheme. How it will be identified on the
+    -- command line.
+
+  , description :: String
+    -- ^ A brief (one-line) description of what this scheme is, such
+    -- as @for dark background terminals@
+
+  , textSpecs :: TextSpecs
+  } deriving Show
+
 
 getEvenOdd :: EvenOdd -> EvenAndOdd a -> a
 getEvenOdd eo eao = case eo of
@@ -65,7 +78,7 @@ data PreChunk = PreChunk
 width :: PreChunk -> C.Width
 width = C.Width . X.length . text
 
-makeChunk :: Scheme -> PreChunk -> C.Chunk
+makeChunk :: TextSpecs -> PreChunk -> C.Chunk
 makeChunk s p =
   C.chunk (getEvenOddLabelValue (label p) (evenOdd p) s)
           (text p)

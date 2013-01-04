@@ -2,7 +2,6 @@
 module Penny.Cabin.Balance.Convert.Parser (
   Opts(..)
   , Target(..)
-  , Sorter
   , SortOrder(..)
   , SortBy(..)
   , allOptSpecs
@@ -21,10 +20,6 @@ import qualified Text.Parsec as Parsec
 
 -- | Is the target commodity determined by the user or automatically?
 data Target = AutoTarget | ManualTarget L.To
-
-type Sorter = (L.SubAccount, L.BottomLine)
-              -> (L.SubAccount, L.BottomLine)
-              -> Ordering
 
 data SortOrder = Ascending | Descending
 data SortBy = SortByQty | SortByName

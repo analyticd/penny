@@ -2,15 +2,12 @@
 module Penny.Zinc
   ( Defaults(..)
   , ColorToFile(..)
-  , defaultFromRuntime
   , runPenny
   ) where
 
 import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Scheme as E
-import qualified Penny.Cabin.Scheme.Dark as Dark
-import qualified Penny.Cabin.Scheme.Light as Light
 import qualified Penny.Copper as C
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as X
@@ -39,31 +36,50 @@ runPenny
 runPenny df rs = do
   rt <- S.runtime
   as <- getArgs
-  parseAndPrint (df rt) rs rt as
-
-data Defaults = Defaults
-  { sensitive :: M.CaseSensitive
-  , factory :: M.CaseSensitive -> Text
-               -> Ex.Exceptional Text (Text -> Bool)
-  , currentTime :: L.DateTime
-  , colorToFile :: ColorToFile
-  , scheme :: E.Scheme
-  }
-
-defaultFromRuntime
-  :: S.Runtime
-  -> Defaults
-defaultFromRuntime rt = Defaults
-  { sensitive = M.Insensitive
-  , factory = (\c t -> return (M.within c t))
-  , currentTime = S.currentTime rt
-  , colorToFile = ColorToFile False
-  , scheme = Dark.scheme
-  }
+  parseAndPrint (df rt) rt rs as
 
 -- | Whether to use color when standard output is not a terminal.
 newtype ColorToFile = ColorToFile { unColorToFile :: Bool }
   deriving (Eq, Show)
+
+data Matcher
+  = Within
+  | Exact
+  | TDFA
+  | PCRE
+  deriving (Eq, Show)
+
+data Defaults = Defaults
+  { sensitive :: M.CaseSensitive
+  , matcher :: Matcher
+  , colorToFile :: ColorToFile
+  , defaultScheme :: Maybe E.Scheme
+    -- ^ If Nothing, no default scheme. If the user does not pick a
+    -- scheme, no colors are used.
+  , moreSchemes :: [E.Scheme]
+  }
+
+data State = State
+  { stSensitive :: M.CaseSensitive
+  , stFactory :: M.CaseSensitive -> Text
+               -> Ex.Exceptional Text (Text -> Bool)
+  , stColorToFile :: ColorToFile
+  , stScheme :: Maybe E.TextSpecs
+  }
+
+stateFromDefaults
+  :: Defaults
+  -> State
+stateFromDefaults df = State
+  { stSensitive = sensitive df
+  , stFactory = case matcher df of
+      Within -> \c t -> return (M.within c t)
+      Exact -> \c t -> return (M.exact c t)
+      TDFA -> M.tdfa
+      PCRE -> M.pcre
+  , stColorToFile = colorToFile df
+  , stScheme = fmap E.textSpecs . defaultScheme $ df
+  }
 
 --
 -- Option parsing
@@ -83,7 +99,7 @@ data OptResult
   | RSortSpec (Ex.Exceptional String Ly.Orderer)
   | RHelp
   | RColorToFile ColorToFile
-  | RScheme E.Scheme
+  | RScheme E.TextSpecs
 
 isHelp :: OptResult -> Bool
 isHelp o = case o of { RHelp -> True; _ -> False }
@@ -137,19 +153,19 @@ makeToken o = case o of
 
 
 makeTokens
-  :: Defaults
+  :: State
   -> [OptResult]
   -> Ex.Exceptional String ( [Ly.Token (L.PostFam -> Bool)]
                            , (M.CaseSensitive, Factory) )
 makeTokens df os =
-  let initSt = (sensitive df, factory df)
+  let initSt = (stSensitive df, stFactory df)
       lsSt = mapM makeToken os
       (ls, st') = St.runState lsSt initSt
   in fmap (\xs -> (xs, st')) . sequence . catMaybes $ ls
 
 
-allOpts :: L.DateTime -> [MA.OptSpec OptResult]
-allOpts dt =
+allOpts :: L.DateTime -> Defaults -> [MA.OptSpec OptResult]
+allOpts dt df =
   map (fmap ROperand) (Ly.operandSpecs dt)
   ++ [fmap RPostFilter . fst $ Ly.postFilterSpecs]
   ++ [fmap RPostFilter . snd $ Ly.postFilterSpecs]
@@ -158,8 +174,9 @@ allOpts dt =
   ++ map (fmap ROperator) Ly.operatorSpecs
   ++ [(fmap RSortSpec) Ly.sortSpecs]
   ++ [ MA.OptSpec ["help"] "h" (MA.NoArg RHelp)
-     , optScheme
      , optColorToFile ]
+  ++ let ss = moreSchemes df
+     in if not . null $ ss then [optScheme ss] else []
 
 optColorToFile :: MA.OptSpec OptResult
 optColorToFile = MA.OptSpec ["color-to-file"] "" (MA.ChoiceArg ls)
@@ -167,27 +184,27 @@ optColorToFile = MA.OptSpec ["color-to-file"] "" (MA.ChoiceArg ls)
     ls = [ ("yes", RColorToFile $ ColorToFile True)
          , ("no", RColorToFile $ ColorToFile False) ]
 
-getColorToFile :: Defaults -> [OptResult] -> ColorToFile
+getColorToFile :: State -> [OptResult] -> ColorToFile
 getColorToFile d ls =
   case mapMaybe getOpt ls of
-    [] -> colorToFile d
+    [] -> stColorToFile d
     xs -> last xs
   where
     getOpt o = case o of
       RColorToFile c -> Just c
       _ -> Nothing
 
-optScheme :: MA.OptSpec OptResult
-optScheme = MA.OptSpec ["scheme"] "" (MA.ChoiceArg ls)
+optScheme :: [E.Scheme] -> MA.OptSpec OptResult
+optScheme ss = MA.OptSpec ["scheme"] "" (MA.ChoiceArg ls)
   where
-    ls = [ ("dark", RScheme Dark.scheme)
-         , ("light", RScheme Light.scheme) ]
+    ls = map f ss
+    f (E.Scheme n _ s) = (n, RScheme s)
 
-getScheme :: Defaults -> [OptResult] -> E.Scheme
+getScheme :: State -> [OptResult] -> Maybe E.TextSpecs
 getScheme d ls =
   case mapMaybe getOpt ls of
-    [] -> scheme d
-    xs -> last xs
+    [] -> stScheme d
+    xs -> Just $ last xs
   where
     getOpt o = case o of
       RScheme s -> Just s
@@ -212,13 +229,13 @@ data FilterOpts = FilterOpts
     -- ^ Applied to a list of Transaction, will sort and filter
     -- the transactions and assign them LibertyMeta.
 
-  , foScheme :: E.Scheme
+  , foTextSpecs :: Maybe E.TextSpecs
 
   , foColorToFile :: ColorToFile
   }
 
 processGlobal
-  :: Defaults
+  :: State
   -> [OptResult]
   -> Ex.Exceptional String GlobalResult
 processGlobal d os =
@@ -293,10 +310,10 @@ parseLedgers ls =
   in Ex.mapExceptional toErr toResult parsed
 
 
-data DisplayOpts = DisplayOpts ColorToFile E.Scheme
+data DisplayOpts = DisplayOpts ColorToFile (Maybe E.TextSpecs)
 
 toDisplayOpts :: FilterOpts -> DisplayOpts
-toDisplayOpts o = DisplayOpts (foColorToFile o) (foScheme o)
+toDisplayOpts o = DisplayOpts (foColorToFile o) (foTextSpecs o)
 
 parseCommandLine
   :: Defaults
@@ -306,7 +323,8 @@ parseCommandLine
   -> Ex.Exceptional MA.Error
      (GlobalResult, Either [()] (DisplayOpts, I.ParseResult))
 parseCommandLine df rs rt ss =
-  MA.modes (allOpts (S.currentTime rt)) (processGlobal df)
+  let initSt = stateFromDefaults df
+  in MA.modes (allOpts (S.currentTime rt) df) (processGlobal initSt)
            (whatMode rt rs) ss
 
 whatMode
@@ -327,11 +345,12 @@ whatMode rt rs gr =
 
 handleParseResult
   :: S.Runtime
+  -> Defaults
   -> [I.Report]
   -> Ex.Exceptional MA.Error
      (a, Either b (DisplayOpts, I.ParseResult))
   -> IO ()
-handleParseResult rt rs r =
+handleParseResult rt df rs r =
   let showErr e = do
         IO.hPutStr IO.stderr $ "penny: error: " ++ e
         exitFailure
@@ -341,7 +360,7 @@ handleParseResult rt rs r =
       exitFailure
     Ex.Success (_, ei) ->
       case ei of
-        Left _ ->  putStr (helpText rs) >> exitSuccess
+        Left _ ->  putStr (helpText df rs) >> exitSuccess
         Right ((DisplayOpts ctf sch), ex) -> case ex of
           Ex.Exception s -> showErr s
           Ex.Success good -> either showHelp runCmd good
@@ -359,152 +378,187 @@ handleParseResult rt rs r =
 
 printChunks
   :: Chk.Term
-  -> E.Scheme
+  -> Maybe E.TextSpecs
   -> [E.PreChunk]
   -> IO ()
-printChunks t s =
+printChunks t mayS =
   Chk.printChunks t
-  . map (E.makeChunk s)
+  . map makeChunk
+  where
+    makeChunk pc = case mayS of
+      Nothing -> Chk.chunk Chk.defaultTextSpec (E.text pc)
+      Just s -> E.makeChunk s pc
 
-helpText ::
-  [I.Report]
+helpText
+  :: Defaults
+  -> [I.Report]
   -> String
-helpText = mappend help . mconcat . fmap fst
+helpText df = mappend (help df) . mconcat . fmap fst
 
 
 parseAndPrint
   :: Defaults
-  -> [I.Report]
   -> S.Runtime
+  -> [I.Report]
   -> [String]
   -> IO ()
-parseAndPrint df rs rt ss =
-  handleParseResult rt rs
+parseAndPrint df rt rs ss =
+  handleParseResult rt df rs
   $ parseCommandLine df rs rt ss
 
-help :: String
-help = unlines [
-  "usage: penny [posting filters] report [report options] file . . .",
-  "",
-  "Posting filters",
-  "------------------------------------------",
-  "",
-  "Dates",
-  "-----",
-  "",
-  "--date cmp timespec, -d cmp timespec",
-  "  Date must be within the time frame given. timespec",
-  "  is a day or a day and a time. Valid values for cmp:",
-  "     <, >, <=, >=, ==, /=, !=",
-  "--current",
-  "  Same as \"--date <= (right now) \"",
-  "",
-  "Serials",
-  "----------------",
-  "These options take the form --option cmp num; the given",
-  "sequence number must fall within the given range. \"rev\"",
-  "in the option name indicates numbering is from end to beginning.",
-  "",
-  "--globalTransaction, --revGlobalTransaction",
-  "  All transactions, after reading the ledger files",
-  "--globalPosting, --revGlobalPosting",
-  "  All postings, after reading the leder files",
-  "--fileTransaction, --revFileTransaction",
-  "  Transactions in each ledger file, after reading the files",
-  "  (numbering restarts with each file)",
-  "--filePosting, --revFilePosting",
-  "  Postings in each ledger file, after reading the files",
-  "  (numbering restarts with each file)",
-  "",
-  "Pattern matching",
-  "----------------",
-  "",
-  "-a pattern, --account pattern",
-  "  Pattern must match colon-separated account name",
-  "--account-level num pat",
-  "  Pattern must match sub account at given level",
-  "--account-any pat",
-  "  Pattern must match sub account at any level",
-  "-p pattern, --payee pattern",
-  "  Payee must match pattern",
-  "-t pattern, --tag pattern",
-  "  Tag must match pattern",
-  "--number pattern",
-  "  Number must match pattern",
-  "--flag pattern",
-  "  Flag must match pattern",
-  "--commodity pattern",
-  "  Pattern must match colon-separated commodity name",
-  "--posting-memo pattern",
-  "  Posting memo must match pattern",
-  "--transaction-memo pattern",
-  "  Transaction memo must match pattern",
-  "",
-  "Other posting characteristics",
-  "-----------------------------",
-  "--debit",
-  "  Entry must be a debit",
-  "--credit",
-  "  Entry must be a credit",
-  "--qty cmp number",
-  "  Entry quantity must fall within given range",
-  "",
-  "Operators - from highest to lowest precedence",
-  "(all are left associative)",
-  "--------------------------",
-  "--open expr --close",
-  "  Force precedence (as in \"open\" and \"close\" parentheses)",
-  "--not expr",
-  "  True if expr is false",
-  "expr1 --and expr2 ",
-  "  True if expr and expr2 are both true",
-  "expr1 --or expr2",
-  "  True if either expr1 or expr2 is true",
-  "",
-  "Options affecting patterns",
-  "--------------------------",
-  "",
-  "-i, --case-insensitive",
-  "  Be case insensitive (default)",
-  "-I, --case-sensitive",
-  "  Be case sensitive",
-  "",
-  "--within",
-  "  Use \"within\" matcher (default)",
-  "--pcre",
-  "  Use \"pcre\" matcher",
-  "--posix",
-  "  Use \"posix\" matcher",
-  "--exact",
-  "  Use \"exact\" matcher",
-  "",
-  "Removing postings after sorting and filtering",
-  "---------------------------------------------",
-  "--head n",
-  "  Keep only the first n postings",
-  "--tail n",
-  "  Keep only the last n postings",
-  "",
-  "Sorting",
-  "-------",
-  "",
-  "-s key, --sort key",
-  "  Sort postings according to key",
-  "",
-  "Keys:",
-  "  payee, date, flag, number, account, drCr,",
-  "  qty, commodity, postingMemo, transactionMemo",
-  "",
-  "  Ascending order by default; for descending order,",
-  "  capitalize the name of the key.",
-  "",
-  "Colors",
-  "------",
-  "--color-to-file no|yes",
-  "  Whether to use color when standard output is not a",
-  "  terminal (default: no)",
-  "--scheme SCHEME_NAME",
-  "  use color scheme for report. Default available schemes:",
-  "    dark - for dark terminal background (default)",
-  "    light - for light terminal background"
+help :: Defaults -> String
+help d = unlines
+  [ "usage: penny [posting filters] report [report options] file . . ."
+  , ""
+  , "Posting filters"
+  , "------------------------------------------"
+  , ""
+  , "Dates"
+  , "-----"
+  , ""
+  , "--date cmp timespec, -d cmp timespec"
+  , "  Date must be within the time frame given. timespec"
+  , "  is a day or a day and a time. Valid values for cmp:"
+  , "     <, >, <=, >=, ==, /=, !="
+  , "--current"
+  , "  Same as \"--date <= (right now) \""
+  , ""
+  , "Serials"
+  , "----------------"
+  , "These options take the form --option cmp num; the given"
+  , "sequence number must fall within the given range. \"rev\""
+  , "in the option name indicates numbering is from end to beginning."
+  , ""
+  , "--globalTransaction, --revGlobalTransaction"
+  , "  All transactions, after reading the ledger files"
+  , "--globalPosting, --revGlobalPosting"
+  , "  All postings, after reading the leder files"
+  , "--fileTransaction, --revFileTransaction"
+  , "  Transactions in each ledger file, after reading the files"
+  , "  (numbering restarts with each file)"
+  , "--filePosting, --revFilePosting"
+  , "  Postings in each ledger file, after reading the files"
+  , "  (numbering restarts with each file)"
+  , ""
+  , "Pattern matching"
+  , "----------------"
+  , ""
+  , "-a pattern, --account pattern"
+  , "  Pattern must match colon-separated account name"
+  , "--account-level num pat"
+  , "  Pattern must match sub account at given level"
+  , "--account-any pat"
+  , "  Pattern must match sub account at any level"
+  , "-p pattern, --payee pattern"
+  , "  Payee must match pattern"
+  , "-t pattern, --tag pattern"
+  , "  Tag must match pattern"
+  , "--number pattern"
+  , "  Number must match pattern"
+  , "--flag pattern"
+  , "  Flag must match pattern"
+  , "--commodity pattern"
+  , "  Pattern must match colon-separated commodity name"
+  , "--posting-memo pattern"
+  , "  Posting memo must match pattern"
+  , "--transaction-memo pattern"
+  , "  Transaction memo must match pattern"
+  , ""
+  , "Other posting characteristics"
+  , "-----------------------------"
+  , "--debit"
+  , "  Entry must be a debit"
+  , "--credit"
+  , "  Entry must be a credit"
+  , "--qty cmp number"
+  , "  Entry quantity must fall within given range"
+  , ""
+  , "Operators - from highest to lowest precedence"
+  , "(all are left associative)"
+  , "--------------------------"
+  , "--open expr --close"
+  , "  Force precedence (as in \"open\" and \"close\" parentheses)"
+  , "--not expr"
+  , "  True if expr is false"
+  , "expr1 --and expr2 "
+  , "  True if expr and expr2 are both true"
+  , "expr1 --or expr2"
+  , "  True if either expr1 or expr2 is true"
+  , ""
+  , "Options affecting patterns"
+  , "--------------------------"
+  , ""
+
+  , "-i, --case-insensitive"
+  , "  Be case insensitive"
+    ++ ifDefault (sensitive d == M.Insensitive)
+
+  , "-I, --case-sensitive"
+  , "  Be case sensitive"
+    ++ ifDefault (sensitive d == M.Sensitive)
+
+  , ""
+
+  , "--within"
+  , "  Use \"within\" matcher"
+    ++ ifDefault (matcher d == Within)
+
+  , "--pcre"
+  , "  Use \"pcre\" matcher"
+    ++ ifDefault (matcher d == PCRE)
+
+  , "--posix"
+  , "  Use \"posix\" matcher"
+    ++ ifDefault (matcher d == TDFA)
+
+  , "--exact"
+  , "  Use \"exact\" matcher"
+    ++ ifDefault (matcher d == Exact)
+
+  , ""
+  , "Removing postings after sorting and filtering"
+  , "---------------------------------------------"
+  , "--head n"
+  , "  Keep only the first n postings"
+  , "--tail n"
+  , "  Keep only the last n postings"
+  , ""
+  , "Sorting"
+  , "-------"
+  , ""
+  , "-s key, --sort key"
+  , "  Sort postings according to key"
+  , ""
+  , "Keys:"
+  , "  payee, date, flag, number, account, drCr,"
+  , "  qty, commodity, postingMemo, transactionMemo"
+  , ""
+  , "  Ascending order by default; for descending order,"
+  , "  capitalize the name of the key."
+  , ""
+  , "Colors"
+  , "------"
+  , "default scheme: " ++
+    maybe "(none)" descScheme (defaultScheme d)
   ]
+  ++ let schs = moreSchemes d
+     in if not . null $ schs
+        then unlines $
+          [ "--scheme SCHEME_NAME"
+          , "  use color scheme for report. Available schemes:"
+          ] ++ map descScheme schs
+        else []
+  ++ unlines
+  [ "--color-to-file no|yes"
+  , "  Whether to use color when standard output is not a"
+  , "  terminal (default: " ++
+    if unColorToFile . colorToFile $ d then "yes)" else "no)"
+  ]
+
+descScheme :: E.Scheme -> String
+descScheme (E.Scheme n d _) = "    " ++ n ++ " - " ++ d
+
+-- | The string @ (default)@ if the condition is True; otherwise,
+-- nothing.
+ifDefault :: Bool -> String
+ifDefault b = if b then " (default)" else ""

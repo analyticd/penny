@@ -5,7 +5,10 @@ import qualified Penny.Cabin.Chunk.Switch as S
 import qualified Penny.Cabin.Chunk as CC
 
 scheme :: E.Scheme
-scheme = E.Labels
+scheme = E.Scheme "dark" "for dark background terminals" labels
+
+labels :: E.Labels (E.EvenAndOdd CC.TextSpec)
+labels = E.Labels
   { E.debit = E.EvenAndOdd { E.eoEven = debit evenTextSpec
                            , E.eoOdd = debit oddTextSpec }
   , E.credit = E.EvenAndOdd { E.eoEven = credit evenTextSpec
