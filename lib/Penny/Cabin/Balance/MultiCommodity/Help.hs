@@ -1,11 +1,12 @@
 module Penny.Cabin.Balance.MultiCommodity.Help where
 
-import qualified Data.Text as X
-
-help :: X.Text
-help = X.pack . unlines $ [
-  "balance, bal",
+help :: String
+help = unlines [
+  "balance",
   "  Show account balances. Accepts ONLY the following options:",
+  "",
+  "  --help, -h",
+  "    Show this help and exit",
   "",
   "  --show-zero-balances",
   "    Show balances that are zero (default)",

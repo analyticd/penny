@@ -341,20 +341,21 @@ handleParseResult rt rs r =
       exitFailure
     Ex.Success (_, ei) ->
       case ei of
-        Left _ -> do
-          TIO.putStr (helpText rs)
-          exitSuccess
+        Left _ ->  putStr (helpText rs) >> exitSuccess
         Right ((DisplayOpts ctf sch), ex) -> case ex of
           Ex.Exception s -> showErr s
-          Ex.Success (fns, pr) -> do
-            ledgers <- readLedgers fns
-            (txns, pps) <- Ex.switch showErr return
-                           $ parseLedgers ledgers
-            let term = if unColorToFile ctf
-                       then Chk.TermFromEnv
-                       else Chk.autoTerm rt
-            Ex.switch (showErr . unpack)
-              (printChunks term sch) $ pr txns pps
+          Ex.Success good -> either showHelp runCmd good
+            where
+              showHelp h = putStr h >> exitSuccess
+              runCmd (fns, pr) = do
+                ledgers <- readLedgers fns
+                (txns, pps) <- Ex.switch showErr return
+                               $ parseLedgers ledgers
+                let term = if unColorToFile ctf
+                           then Chk.TermFromEnv
+                           else Chk.autoTerm rt
+                Ex.switch (showErr . unpack)
+                  (printChunks term sch) $ pr txns pps
 
 printChunks
   :: Chk.Term
@@ -367,7 +368,7 @@ printChunks t s =
 
 helpText ::
   [I.Report]
-  -> Text
+  -> String
 helpText = mappend help . mconcat . fmap fst
 
 
@@ -381,8 +382,8 @@ parseAndPrint df rs rt ss =
   handleParseResult rt rs
   $ parseCommandLine df rs rt ss
 
-help :: Text
-help = pack $ unlines [
+help :: String
+help = unlines [
   "usage: penny [posting filters] report [report options] file . . .",
   "",
   "Posting filters",

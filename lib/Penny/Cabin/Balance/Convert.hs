@@ -182,17 +182,17 @@ process rt mkOpts fsf ls = do
       op' = foldl (>>=) (return (O.toParserOpts defaultOpts)) parsed
   case op' of
       Ex.Exception s -> Ex.throw s
-      Ex.Success g ->
+      Ex.Success g -> return $
         let noDefault = X.pack "no default price found"
         in case fromParsedOpts g of
-            NeedsHelp -> H.help
+            NeedsHelp -> Left H.help
             DoReport f ->
               let pr ts pps = do
                     rptOpts <- Ex.fromMaybe noDefault $
                       f pps (O.format defaultOpts)
                     let boxes = fsf ts
                     report rptOpts pps boxes
-              in return (posArgs, pr)
+              in Right (posArgs, pr)
 
 
 -- | Sums the balances from the bottom to the top of the tree (so that
@@ -238,7 +238,7 @@ fromParsedOpts (P.Opts szb tgt dt so sb hlp) =
     P.ManualTarget to ->
       Just $ Opts fmt szb (getSorter so sb) to dt
     P.AutoTarget ->
-      case mostFrequent pp of
+      case mostFrequent pps of
         Nothing -> Nothing
         Just to ->
           Just $ Opts fmt szb (getSorter so sb) to dt
