@@ -352,7 +352,7 @@ handleParseResult rt rs r =
                 (txns, pps) <- Ex.switch showErr return
                                $ parseLedgers ledgers
                 let term = if unColorToFile ctf
-                           then Chk.TermFromEnv
+                           then Chk.termFromEnv rt
                            else Chk.autoTerm rt
                 Ex.switch (showErr . unpack)
                   (printChunks term sch) $ pr txns pps

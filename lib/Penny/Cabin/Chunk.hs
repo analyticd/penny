@@ -19,6 +19,7 @@ module Penny.Cabin.Chunk (
   -- * Colors
   Term(..),
   autoTerm,
+  termFromEnv,
   Background8,
   Background256,
   Foreground8,
@@ -606,21 +607,38 @@ import qualified Penny.Shield as S
 -- Colors
 --
 
--- | Which terminal definition to use. Use Dumb if you want to
--- suppress all colors (e.g. output is not going to a TTY, or you just
--- do not like colors.) Otherwise, the terminal from the environment
--- is used. If this terminal supports 256 colors, then 256 colors are
--- used. If this terminal supports less than 256 colors, but at least
--- 8 colors, then 8 colors are used. Otherwise, no colors are used.
+-- | Which terminal definition to use.
+data Term
+  = Dumb
+  -- ^ Using this terminal should always succeed. This suppresses all
+  -- colors. Uesful if output is not going to a TTY, or if you just do
+  -- not like colors.
 
-data Term = Dumb | TermFromEnv deriving (Eq, Show)
+  | TermName String
+  -- ^ Use the terminal with this given name. You might get this from
+  -- the TERM environment variable, or set it explicitly. A runtime
+  -- error will result if the terminfo database does not have a
+  -- definition for this terminal. If this terminal supports 256
+  -- colors, then 256 colors are used. If this terminal supports less
+  -- than 256 colors, but at least 8 colors, then 8 colors are
+  -- used. Otherwise, no colors are used.
+  deriving (Eq, Show)
 
+
+-- | Determines which Term to use based on the TERM environment
+-- variable, regardless of whether standard output is a
+-- terminal. Uses Dumb if TERM is not set.
+termFromEnv :: S.Runtime -> Term
+termFromEnv rt = case S.term rt of
+  Just t -> TermName . S.unTerm $ t
+  Nothing -> Dumb
 
 -- | Determines which Term to use based on whether standard output is
--- a terminal.
+-- a terminal. Uses Dumb if standard output is not a terminal;
+-- otherwise, uses the TERM environment variable.
 autoTerm :: S.Runtime -> Term
 autoTerm rt = case S.output rt of
-  S.IsTTY -> TermFromEnv
+  S.IsTTY -> termFromEnv rt
   S.NotTTY -> Dumb
 
 -- For Background8, Background256, Foreground8, Foreground256: the
@@ -678,7 +696,7 @@ printChunks :: Term -> [Chunk] -> IO ()
 printChunks t cs = do
   let setup = case t of
         Dumb -> T.setupTerm "dumb"
-        TermFromEnv -> T.setupTermFromEnv
+        TermName s -> T.setupTerm s
   term <- setup
   mapM_ (printChunk term) cs
   T.runTermOutput term (defaultColors term)
