@@ -23,7 +23,6 @@ import Data.Monoid (mappend, mempty)
 import qualified Data.Text as X
 import qualified Data.Tree as E
 import qualified Penny.Cabin.Balance.MultiCommodity.Chunker as K
-import qualified Penny.Cabin.Balance.MultiCommodity.Help as H
 import qualified Penny.Cabin.Balance.MultiCommodity.Parser as P
 import qualified Penny.Cabin.Interface as I
 import qualified System.Console.MultiArg as MA
@@ -103,7 +102,7 @@ parseReport ::
   -- command line.
 
   -> I.Report
-parseReport fmt o rt = (H.help, makeMode)
+parseReport fmt o rt = (help, makeMode)
   where
     makeMode _ _ fsf = MA.Mode
       { MA.mName = "balance"
@@ -128,10 +127,34 @@ process fmt o _ fsf ls =
       mcOpts = fromParseOpts fmt os'
       pr txns _ = return $ report mcOpts (fsf txns)
   in pure $ if P.needsHelp os'
-            then Left H.help
+            then Left help
             else Right (posArgs, pr)
 
 
 -- | The MultiCommodity report, with default options.
 defaultReport :: I.Report
 defaultReport = parseReport defaultFormat defaultParseOpts
+
+------------------------------------------------------------
+-- ## Help
+------------------------------------------------------------
+help :: String
+help = unlines
+  [ "balance"
+  , "  Show account balances. Accepts ONLY the following options:"
+  , ""
+  , "  --help, -h"
+  , "    Show this help and exit"
+  , ""
+  , "  --show-zero-balances"
+  , "    Show balances that are zero (default)"
+  , "  --hide-zero-balances"
+  , "    Hide balances that are zero"
+  , ""
+  , "  --ascending"
+  , "    Sort in ascending order by account name (default)"
+  , "  --descending"
+  , "    Sort in descending order by account name"
+  , ""
+  ]
+

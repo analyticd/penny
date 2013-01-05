@@ -215,7 +215,6 @@ Library
     , Penny.Cabin.Balance.Convert.Parser
     , Penny.Cabin.Balance.MultiCommodity
     , Penny.Cabin.Balance.MultiCommodity.Chunker
-    , Penny.Cabin.Balance.MultiCommodity.Help
     , Penny.Cabin.Balance.MultiCommodity.Parser
     , Penny.Cabin.Balance.Util
     , Penny.Cabin.Chunk
