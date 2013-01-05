@@ -44,6 +44,7 @@ allOptSpecs :: [C.OptSpec (Opts -> Ex.Exceptional String Opts)]
 allOptSpecs =
   [ fmap toExc parseZeroBalances
   , parseCommodity
+  , fmap toExc parseAuto
   , parseDate
   , fmap toExc parseSort
   , fmap toExc parseOrder
@@ -64,6 +65,11 @@ parseCommodity = C.OptSpec ["commodity"] "c" (C.OneArg f)
       case Parsec.parse Pc.lvl1Cmdty "" (X.pack a1) of
         Left _ -> Ex.throw $ "invalid commodity: " ++ a1
         Right g -> return $ os { target = ManualTarget . L.To $ g }
+
+parseAuto :: C.OptSpec (Opts -> Opts)
+parseAuto = C.OptSpec ["auto-commodity"] "" (C.NoArg f)
+  where
+    f os = os { target = AutoTarget }
 
 parseDate :: C.OptSpec (Opts -> Ex.Exceptional String Opts)
 parseDate = C.OptSpec ["date"] "d" (C.OneArg f)

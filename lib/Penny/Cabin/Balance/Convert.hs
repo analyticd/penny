@@ -160,7 +160,7 @@ report os@(Opts fmt _ _ _ _) ps bs =
 cmdLineReport
   :: (S.Runtime -> O.DefaultOpts)
   -> I.Report
-cmdLineReport mkOpts rt = (help, mkMode)
+cmdLineReport mkOpts rt = (help o, mkMode)
   where
     o = mkOpts rt
     mkMode _ _ fsf = MA.Mode
@@ -179,13 +179,13 @@ process
 process rt mkOpts fsf ls = do
   let defaultOpts = mkOpts rt
       (posArgs, parsed) = Ei.partitionEithers ls
-      op' = foldl (>>=) (return (O.toParserOpts defaultOpts)) parsed
+      op' = foldl (>>=) (return (O.toParserOpts defaultOpts rt)) parsed
   case op' of
       Ex.Exception s -> Ex.throw s
       Ex.Success g -> return $
         let noDefault = X.pack "no default price found"
         in case fromParsedOpts g of
-            NeedsHelp -> Left help
+            NeedsHelp -> Left $ help defaultOpts
             DoReport f ->
               let pr ts pps = do
                     rptOpts <- Ex.fromMaybe noDefault $
@@ -279,31 +279,37 @@ cmpBottomLine (n1, bl1) (n2, bl2) =
 ------------------------------------------------------------
 -- ## Help
 ------------------------------------------------------------
-help :: String
-help = unlines $
+ifDefault :: Bool -> String
+ifDefault b = if b then " (default)" else ""
+
+help :: O.DefaultOpts -> String
+help o = unlines $
   [ "convert"
   , "  Show account balances, after converting all amounts"
   , "  to a single commodity. Accepts ONLY the following options:"
   , ""
-  , "    --color yes|no|auto|256"
-  , "    yes: show 8 colors always"
-  , "    no: never show colors (default)"
-  , "    auto: show 8 or 256 colors, but only if stdout is a terminal"
-  , "    256: show 256 colors always"
-  , "  --background light|dark"
-  , "    Use appropriate color scheme for terminal background"
-  , "      (default: dark)"
-  , ""
   , "  --show-zero-balances"
   , "    Show balances that are zero"
+    ++ ifDefault (CO.unShowZeroBalances . O.showZeroBalances $ o)
   , "  --hide-zero-balances"
   , "    Hide balances that are zero"
+    ++ ifDefault (not . CO.unShowZeroBalances . O.showZeroBalances $ o)
   , ""
   , "--commodity TARGET-COMMMODITY, -c TARGET-COMMODITY"
-  , "  Convert all commodities to TARGET-COMMODITY. By default,"
-  , "  the commodity that appears most often as the target commodity"
-  , "  in your price data is used (if there is a tie, the price closest"
-  , "  to the end of your list of prices is used)"
+  , "  Convert all commodities to TARGET-COMMODITY."
+  ] ++ case O.target o of
+        P.ManualTarget (L.To cy) ->
+          [ "  default: " ++ (X.unpack . L.unCommodity $ cy) ]
+        _ -> []
+    ++
+  [ "--auto-commodity"
+  , "  convert all commodities to the commodity that appears most"
+  , "  often as the target commodity in your price data. If"
+  , "  there is a tie, the price closest to the end of your list"
+  , "  of prices is used."
+    ++ case O.target o of
+        P.AutoTarget -> " (default)"
+        _ -> ""
   , ""
   , "--date DATE-TIME, -d DATE-TIME"
   , "  Convert prices as of the date and time given"

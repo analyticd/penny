@@ -16,27 +16,25 @@ import qualified Data.Text as X
 data DefaultOpts = DefaultOpts
   { showZeroBalances :: CO.ShowZeroBalances
   , target :: P.Target
-  , dateTime :: L.DateTime
   , sortOrder :: P.SortOrder
   , sortBy :: P.SortBy
   , format :: L.Qty -> X.Text
   }
 
-toParserOpts :: DefaultOpts -> P.Opts
-toParserOpts d = P.Opts
+toParserOpts :: DefaultOpts -> S.Runtime -> P.Opts
+toParserOpts d rt = P.Opts
   { P.showZeroBalances = showZeroBalances d
   , P.target = target d
-  , P.dateTime = dateTime d
+  , P.dateTime = S.currentTime rt
   , P.sortOrder = sortOrder d
   , P.sortBy = sortBy d
   , P.showHelp = False
   }
 
-defaultOptions :: S.Runtime -> DefaultOpts
-defaultOptions rt = DefaultOpts
+defaultOptions :: DefaultOpts
+defaultOptions = DefaultOpts
   { showZeroBalances = CO.ShowZeroBalances False
   , target = P.AutoTarget
-  , dateTime = S.currentTime rt
   , sortOrder = P.Ascending
   , sortBy = P.SortByName
   , format = X.pack . show
