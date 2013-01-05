@@ -50,6 +50,7 @@ module Penny.Cabin.Posts
   , defaultSpacerWidth
   ) where
 
+import Control.Applicative ((<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Either as Ei
 import qualified Data.Text as X
@@ -58,7 +59,6 @@ import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Posts.Chunk as C
 import qualified Penny.Cabin.Posts.Fields as F
-import qualified Penny.Cabin.Posts.Help as H
 import qualified Penny.Cabin.Posts.Meta as M
 import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Parser as P
@@ -71,6 +71,9 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as Sh
 
+import Data.List (intersperse)
+import Data.Maybe (catMaybes)
+import qualified Data.Foldable as Fdbl
 import Data.Time as Time
 import qualified System.Console.MultiArg as MA
 import System.Locale (defaultTimeLocale)
@@ -99,9 +102,10 @@ postsReport szb pdct pff co =
   . M.toBoxList szb pdct pff
 
 
-zincReport :: (Sh.Runtime -> ZincOpts) -> I.Report
-zincReport mkOpts = (H.helpStr, md)
+zincReport :: (Sh.Runtime -> ZincOpts) -> Sh.Runtime -> I.Report
+zincReport mkOpts r = (helpStr opts, md)
   where
+    opts = mkOpts r
     md rt cs fty fsf = MA.Mode
       { MA.mName = "postings"
       , MA.mIntersperse = MA.Intersperse
@@ -133,7 +137,7 @@ mkPrintReport
   -> Either I.HelpStr I.ArgsAndReport
 mkPrintReport posArgs zo fsf st = r
   where
-    r = if P.showHelp st then Left H.helpStr else Right pr
+    r = if P.showHelp st then Left $ helpStr zo else Right pr
     pr = (posArgs, f)
     f txns _ = fmap mkChunks exPdct
       where
@@ -363,3 +367,182 @@ defaultSpacerWidth =
             , S.postingQty           = 1
             , S.totalDrCr            = 1
             , S.totalCmdty           = 1 }
+
+------------------------------------------------------------
+-- ## Help
+------------------------------------------------------------
+
+ifDefault :: Bool -> String
+ifDefault b = if b then " (default)" else ""
+
+bundles :: Int -> [a] -> [[a]]
+bundles c ls
+  | c < 1 = error "bundles: argument must be positive"
+  | otherwise = case splitAt c ls of
+      (r, []) -> [r]
+      (r, rs) -> r : bundles c rs
+
+helpStr :: ZincOpts -> String
+helpStr o = unlines $
+  [ "postings report"
+  , "Show postings in order with a running balance."
+  , ""
+  , "Posting filters"
+  , "---------------"
+  , "These options affect which postings are shown in the report."
+  , "Postings not shown still affect the running balance."
+  , ""
+  , "Dates"
+  , "-----"
+  , ""
+  , "--date cmp timespec, -d cmp timespec"
+  , "  Date must be within the time frame given. timespec"
+  , "  is a day or a day and a time. Valid values for cmp:"
+  , "     <, >, <=, >=, ==, /=, !="
+  , "--current"
+  , "  Same as \"--date <= (right now) \""
+  , ""
+  , "Serials"
+  , "----------------"
+  , "These options take the form --option cmp num; the given"
+  , "sequence number must fall within the given range. \"rev\""
+  , "in the option name indicates numbering is from end to beginning."
+  , ""
+  , "--globalTransaction, --revGlobalTransaction"
+  , "  All transactions, after reading the ledger files"
+  , "--globalPosting, --revGlobalPosting"
+  , "  All postings, after reading the leder files"
+  , "--fileTransaction, --revFileTransaction"
+  , "  Transactions in each ledger file, after reading the files"
+  , "  (numbering restarts with each file)"
+  , "--filePosting, --revFilePosting"
+  , "  Postings in each ledger file, after reading the files"
+  , "  (numbering restarts with each file)"
+  , "--filtered, --revFiltered"
+  , "  All postings, after filters given in the filter"
+  , "  specification portion of the command line are"
+  , "  applied"
+  , "--sorted, --revSorted"
+  , "  All postings remaining after filtering and after"
+  , "  postings have been sorted"
+  , ""
+  , "Pattern matching"
+  , "----------------"
+  , ""
+  , "-a pattern, --account pattern"
+  , "  Pattern must match colon-separated account name"
+  , "--account-level num pat"
+  , "  Pattern must match sub account at given level"
+  , "--account-any pat"
+  , "  Pattern must match sub account at any level"
+  , "-p pattern, --payee pattern"
+  , "  Payee must match pattern"
+  , "-t pattern, --tag pattern"
+  , "  Tag must match pattern"
+  , "--number pattern"
+  , "  Number must match pattern"
+  , "--flag pattern"
+  , "  Flag must match pattern"
+  , "--commodity pattern"
+  , "  Pattern must match colon-separated commodity name"
+  , "--posting-memo pattern"
+  , "  Posting memo must match pattern"
+  , "--transaction-memo pattern"
+  , "  Transaction memo must match pattern"
+  , ""
+  , "Other posting characteristics"
+  , "-----------------------------"
+  , "--debit"
+  , "  Entry must be a debit"
+  , "--credit"
+  , "  Entry must be a credit"
+  , "--qty cmp number"
+  , "  Entry quantity must fall within given range"
+  , ""
+  , "Operators - from highest to lowest precedence"
+  , "(all are left associative)"
+  , "--------------------------"
+  , "--open expr --close"
+  , "  Force precedence (as in \"open\" and \"close\" parentheses)"
+  , "--not expr"
+  , "  True if expr is false"
+  , "expr1 --and expr2 "
+  , "  True if expr and expr2 are both true"
+  , "expr1 --or expr2"
+  , "  True if either expr1 or expr2 is true"
+  , ""
+  , "Options affecting patterns"
+  , "--------------------------"
+  , ""
+  , "-i, --case-insensitive"
+  , "  Be case insensitive"
+  , "-I, --case-sensitive"
+  , "  Be case sensitive"
+  , ""
+  , "--within"
+  , "  Use \"within\" matcher"
+  , "--pcre"
+  , "  Use \"pcre\" matcher"
+  , "--posix"
+  , "  Use \"posix\" matcher"
+  , "--exact"
+  , "  Use \"exact\" matcher"
+  , ""
+  , "Removing postings after sorting and filtering"
+  , "---------------------------------------------"
+  , "--head n"
+  , "  Keep only the first n postings"
+  , "--tail n"
+  , "  Keep only the last n postings"
+  , ""
+  , "Other options:"
+  , ""
+  , "--width num"
+  , "  Hint for roughly how wide the report should be in columns"
+  , "  (default: " ++ (show . T.unReportWidth . width $ o) ++ ")"
+  , "--show field, --hide field"
+  , "  show or hide this field, where field is one of:"
+  , "    globalTransaction, revGlobalTransaction,"
+  , "    globalPosting, revGlobalPosting,"
+  , "    fileTransaction, revFileTransaction,"
+  , "    filePosting, revFilePosting,"
+  , "    filtered, revFiltered,"
+  , "    sorted, revSorted,"
+  , "    visible, revVisible,"
+  , "    lineNum,"
+  , "    date, flag, number, payee, account,"
+  , "    postingDrCr, postingCommodity, postingQty,"
+  , "    totalDrCr, totalCommodity, totalQty,"
+  , "    tags, memo, filename"
+  , "--show-all"
+  , "  Show all fields"
+  , "--hide-all"
+  , "  Hide all fields"
+  ] ++ showDefaultFields (fields o) ++
+  [ ""
+  , "--show-zero-balances"
+  , "  Show balances that are zero"
+    ++ ifDefault (CO.unShowZeroBalances . showZeroBalances $ o)
+  , "--hide-zero-balances"
+  , "  Hide balances that are zero"
+    ++ ifDefault (not . CO.unShowZeroBalances . showZeroBalances $ o)
+  , ""
+  ]
+
+-- | Shows which fields are on by default.
+showDefaultFields :: F.Fields Bool -> [String]
+showDefaultFields i = hdr : rest
+  where
+    hdr = "Fields shown by default:"
+      ++ if null rest then " (none)" else ""
+    rest =
+      map ("  " ++)
+      . map concat
+      . map (intersperse ", ")
+      . bundles 3
+      . catMaybes
+      . Fdbl.toList
+      . toMaybes
+      $ i
+    toMaybes flds = f <$> flds <*> F.fieldNames
+    f b n = if b then Just n else Nothing

@@ -157,7 +157,7 @@ parseField str =
         if (map toLower s) == lower
         then (s, True)
         else (s, False)
-      flds = checkField <$> fieldNames
+      flds = checkField <$> F.fieldNames
   in checkFields flds
 
 
@@ -240,36 +240,3 @@ checkFields fs =
     _ -> Ex.throw "multiple matching field names"
 
 
-
-fieldNames :: F.Fields String
-fieldNames = F.Fields
-  { F.globalTransaction    = "globalTransaction"
-  , F.revGlobalTransaction = "revGlobalTransaction"
-  , F.globalPosting        = "globalPosting"
-  , F.revGlobalPosting     = "revGlobalPosting"
-  , F.fileTransaction      = "fileTransaction"
-  , F.revFileTransaction   = "revFileTransaction"
-  , F.filePosting          = "filePosting"
-  , F.revFilePosting       = "revFilePosting"
-  , F.filtered             = "filtered"
-  , F.revFiltered          = "revFiltered"
-  , F.sorted               = "sorted"
-  , F.revSorted            = "revSorted"
-  , F.visible              = "visible"
-  , F.revVisible           = "revVisible"
-  , F.lineNum              = "lineNum"
-  , F.date                 = "date"
-  , F.flag                 = "flag"
-  , F.number               = "number"
-  , F.payee                = "payee"
-  , F.account              = "account"
-  , F.postingDrCr          = "postingDrCr"
-  , F.postingCmdty         = "postingCmdty"
-  , F.postingQty           = "postingQty"
-  , F.totalDrCr            = "totalDrCr"
-  , F.totalCmdty           = "totalCmdty"
-  , F.totalQty             = "totalQty"
-  , F.tags                 = "tags"
-  , F.memo                 = "memo"
-  , F.filename             = "filename"
-  }

@@ -231,7 +231,6 @@ Library
     , Penny.Cabin.Posts.Fields
     , Penny.Cabin.Posts.Growers
     , Penny.Cabin.Posts.Chunk
-    , Penny.Cabin.Posts.Help
     , Penny.Cabin.Posts.Meta
     , Penny.Cabin.Posts.Parser
     , Penny.Cabin.Posts.Spacers

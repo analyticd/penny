@@ -164,3 +164,37 @@ instance F.Foldable Fields where
                              (f (tags t)
                               (f (memo t)
                                (f (filename t) z))))))))))))))))))))))))))))
+
+
+fieldNames :: Fields String
+fieldNames = Fields
+  { globalTransaction    = "globalTransaction"
+  , revGlobalTransaction = "revGlobalTransaction"
+  , globalPosting        = "globalPosting"
+  , revGlobalPosting     = "revGlobalPosting"
+  , fileTransaction      = "fileTransaction"
+  , revFileTransaction   = "revFileTransaction"
+  , filePosting          = "filePosting"
+  , revFilePosting       = "revFilePosting"
+  , filtered             = "filtered"
+  , revFiltered          = "revFiltered"
+  , sorted               = "sorted"
+  , revSorted            = "revSorted"
+  , visible              = "visible"
+  , revVisible           = "revVisible"
+  , lineNum              = "lineNum"
+  , date                 = "date"
+  , flag                 = "flag"
+  , number               = "number"
+  , payee                = "payee"
+  , account              = "account"
+  , postingDrCr          = "postingDrCr"
+  , postingCmdty         = "postingCmdty"
+  , postingQty           = "postingQty"
+  , totalDrCr            = "totalDrCr"
+  , totalCmdty           = "totalCmdty"
+  , totalQty             = "totalQty"
+  , tags                 = "tags"
+  , memo                 = "memo"
+  , filename             = "filename"
+  }
