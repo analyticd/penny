@@ -316,11 +316,16 @@ help o = unlines $
   , "  (by default, the current date and time is used.)"
   , ""
   , "--sort qty|name, -s qty|name"
-  , "  Sort balances by sub-account name (default) or by quantity"
+  , "  Sort balances by sub-account name"
+    ++ ifDefault (O.sortBy o == P.SortByName)
+    ++ " or by quantity"
+    ++ ifDefault (O.sortBy o == P.SortByQty)
   , "--ascending"
-  , "  Sort in ascending order (default)"
+  , "  Sort in ascending order"
+    ++ ifDefault (O.sortOrder o == P.Ascending)
   , "--descending"
   , "  Sort in descending order"
+    ++ ifDefault (O.sortOrder o == P.Descending)
   , ""
   ]
 

@@ -21,8 +21,8 @@ import qualified Text.Parsec as Parsec
 -- | Is the target commodity determined by the user or automatically?
 data Target = AutoTarget | ManualTarget L.To
 
-data SortOrder = Ascending | Descending
-data SortBy = SortByQty | SortByName
+data SortOrder = Ascending | Descending deriving (Eq, Show, Ord)
+data SortBy = SortByQty | SortByName deriving (Eq, Show, Ord)
 
 -- | Default starting options for the Convert report. After
 -- considering what is parsed in from the command line and price data,
