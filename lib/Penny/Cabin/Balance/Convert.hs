@@ -250,7 +250,11 @@ getSorter o b = flipper f
   where
     flipper = case o of
       P.Ascending -> id
-      P.Descending -> Ly.flipOrder
+      P.Descending ->
+        \g p1 p2 -> case g p1 p2 of
+            LT -> GT
+            GT -> LT
+            EQ -> EQ
     f p1@(a1, _) p2@(a2, _) = case b of
       P.SortByName -> compare a1 a2
       P.SortByQty -> cmpBottomLine p1 p2

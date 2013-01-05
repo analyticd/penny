@@ -18,13 +18,11 @@ module Penny.Liberty (
   ListLength(ListLength, unListLength),
   ItemIndex(ItemIndex, unItemIndex),
   PostFilterFn,
-  flipOrder,
   parseComparer,
   processPostFilters,
   parseTokenList,
   parsePredicate,
   parseInt,
-  argMatch,
 
   -- * Parsers
   Operand,
@@ -32,17 +30,14 @@ module Penny.Liberty (
   postFilterSpecs,
   matcherSelectSpecs,
   caseSelectSpecs,
-  operatorSpecs,
-  Orderer,
-  sortSpecs,
+  operatorSpecs
 
   ) where
 
 import Control.Applicative ((<*>), (<$>))
-import Control.Arrow (second)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper)
-import Data.List (isPrefixOf, sortBy)
+import Data.List (sortBy)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as Text
 import qualified System.Console.MultiArg.Combinator as C
@@ -54,7 +49,6 @@ import qualified Penny.Copper.Parsec as Pc
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty.Expressions as X
 
 import Text.Matchers.CaseSensitive (
@@ -592,70 +586,4 @@ parseNot = noArg X.tokNot "not" where
 operatorSpecs :: [OptSpec (X.Token (a -> Bool))]
 operatorSpecs =
   [open, close, parseAnd, parseOr, parseNot]
-
-------------------------------------------------------------
--- Sorting
-------------------------------------------------------------
-type Orderer = L.PostFam -> L.PostFam -> Ordering
-
-ordering ::
-  (Ord b)
-  => (a -> b)
-  -> (a -> a -> Ordering)
-ordering q = f where
-  f p1 p2 = compare (q p1) (q p2)
-
-
-flipOrder :: (a -> a -> Ordering) -> (a -> a -> Ordering)
-flipOrder f = f' where
-  f' p1 p2 = case f p1 p2 of
-    LT -> GT
-    GT -> LT
-    EQ -> EQ
-
-capitalizeFirstLetter :: String -> String
-capitalizeFirstLetter s = case s of
-  [] -> []
-  (x:xs) -> toUpper x : xs
-
-ordPairs :: [(String, Orderer)]
-ordPairs =
-  [ ("payee", ordering Q.payee)
-  , ("date", ordering Q.dateTime)
-  , ("flag", ordering Q.flag)
-  , ("number", ordering Q.number)
-  , ("account", ordering Q.account)
-  , ("drCr", ordering Q.drCr)
-  , ("qty", ordering Q.qty)
-  , ("commodity", ordering Q.commodity)
-  , ("postingMemo", ordering Q.postingMemo)
-  , ("transactionMemo", ordering Q.transactionMemo) ]
-
-ords :: [(String, Orderer)]
-ords = ordPairs ++ uppers where
-  uppers = map toReversed ordPairs
-  toReversed (s, f) =
-    (capitalizeFirstLetter s, flipOrder f)
-
-
-ordsWithZero :: [(String, Maybe Orderer)]
-ordsWithZero = map (second Just) ords ++ [("none", Nothing)]
-
--- | True if the first argument matches the second argument. The match
--- on the first letter is case sensitive; the match on the other
--- letters is not case sensitive. True if both strings are empty.
-argMatch :: String -> String -> Bool
-argMatch s1 s2 = case (s1, s2) of
-  (x:xs, y:ys) ->
-    (x == y) && ((map toUpper xs) `isPrefixOf` (map toUpper ys))
-  _ -> True
-
-sortSpecs :: OptSpec (Ex.Exceptional String (Maybe Orderer))
-sortSpecs = C.OptSpec ["sort"] ['s'] (C.OneArg f)
-  where
-    f a =
-      let matches = filter (\p -> a `argMatch` (fst p)) ordsWithZero
-      in case matches of
-        x:[] -> return $ snd x
-        _ -> Ex.throw $ "invalid sort key: " ++ a
 

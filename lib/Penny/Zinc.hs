@@ -12,12 +12,16 @@ import qualified Penny.Copper as C
 import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as X
 import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
 
+import Control.Arrow (second)
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Monad (when)
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Data.Char (toUpper)
+import Data.List (isPrefixOf)
 import Data.Maybe (mapMaybe, catMaybes, fromMaybe)
 import Data.Monoid (mappend, mconcat, mempty)
 import Data.Text (Text, pack, unpack)
@@ -110,7 +114,7 @@ data OptResult
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
   | ROperator (Ly.Token (L.PostFam -> Bool))
-  | RSortSpec (Ex.Exceptional String (Maybe Ly.Orderer))
+  | RSortSpec (Ex.Exceptional String (Maybe Orderer))
   | RHelp
   | RColorToFile ColorToFile
   | RScheme E.TextSpecs
@@ -130,9 +134,9 @@ getPostFilters =
       _ -> Nothing
 
 getSortSpec
-  :: Maybe Ly.Orderer
+  :: Maybe Orderer
   -> [OptResult]
-  -> Ex.Exceptional String (Maybe Ly.Orderer)
+  -> Ex.Exceptional String (Maybe Orderer)
 getSortSpec i =
   fmap folder
   . sequence
@@ -193,7 +197,7 @@ allOpts dt df =
   ++ map (fmap RMatcherSelect) Ly.matcherSelectSpecs
   ++ map (fmap RCaseSelect) Ly.caseSelectSpecs
   ++ map (fmap ROperator) Ly.operatorSpecs
-  ++ [(fmap RSortSpec) Ly.sortSpecs]
+  ++ [fmap RSortSpec sortSpecs]
   ++ [ MA.OptSpec ["help"] "h" (MA.NoArg RHelp)
      , optColorToFile ]
   ++ let ss = moreSchemes df
@@ -429,6 +433,78 @@ parseAndPrint
 parseAndPrint df rt rs ss =
   handleParseResult rt df rs
   $ parseCommandLine df rs rt ss
+
+------------------------------------------------------------
+-- ## Sorting
+------------------------------------------------------------
+type Orderer = L.PostFam -> L.PostFam -> Ordering
+
+ordering ::
+  (Ord b)
+  => (a -> b)
+  -> (a -> a -> Ordering)
+ordering q = f where
+  f p1 p2 = compare (q p1) (q p2)
+
+
+flipOrder :: (a -> a -> Ordering) -> (a -> a -> Ordering)
+flipOrder f = f' where
+  f' p1 p2 = case f p1 p2 of
+    LT -> GT
+    GT -> LT
+    EQ -> EQ
+
+capitalizeFirstLetter :: String -> String
+capitalizeFirstLetter s = case s of
+  [] -> []
+  (x:xs) -> toUpper x : xs
+
+ordPairs :: [(String, Orderer)]
+ordPairs =
+  [ ("payee", ordering Q.payee)
+  , ("date", ordering Q.dateTime)
+  , ("flag", ordering Q.flag)
+  , ("number", ordering Q.number)
+  , ("account", ordering Q.account)
+  , ("drCr", ordering Q.drCr)
+  , ("qty", ordering Q.qty)
+  , ("commodity", ordering Q.commodity)
+  , ("postingMemo", ordering Q.postingMemo)
+  , ("transactionMemo", ordering Q.transactionMemo) ]
+
+ords :: [(String, Orderer)]
+ords = ordPairs ++ uppers where
+  uppers = map toReversed ordPairs
+  toReversed (s, f) =
+    (capitalizeFirstLetter s, flipOrder f)
+
+
+ordsWithZero :: [(String, Maybe Orderer)]
+ordsWithZero = map (second Just) ords ++ [("none", Nothing)]
+
+-- | True if the first argument matches the second argument. The match
+-- on the first letter is case sensitive; the match on the other
+-- letters is not case sensitive. True if both strings are empty.
+argMatch :: String -> String -> Bool
+argMatch s1 s2 = case (s1, s2) of
+  (x:xs, y:ys) ->
+    (x == y) && ((map toUpper xs) `isPrefixOf` (map toUpper ys))
+  _ -> True
+
+sortSpecs :: MA.OptSpec (Ex.Exceptional String (Maybe Orderer))
+sortSpecs = MA.OptSpec ["sort"] ['s'] (MA.OneArg f)
+  where
+    f a =
+      let matches = filter (\p -> a `argMatch` (fst p)) ordsWithZero
+      in case matches of
+        x:[] -> return $ snd x
+        _ -> Ex.throw $ "invalid sort key: " ++ a
+
+
+
+------------------------------------------------------------
+-- ## Help
+------------------------------------------------------------
 
 help :: Defaults -> String
 help d = unlines
