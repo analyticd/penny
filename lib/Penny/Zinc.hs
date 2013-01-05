@@ -2,6 +2,9 @@
 module Penny.Zinc
   ( Defaults(..)
   , ColorToFile(..)
+  , Matcher(..)
+  , SortField(..)
+  , Direction(..)
   , runPenny
   ) where
 
@@ -20,9 +23,9 @@ import Control.Applicative ((<$>), (<*>), pure)
 import Control.Monad (when)
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.Char (toUpper)
+import Data.Char (toUpper, toLower)
 import Data.List (isPrefixOf)
-import Data.Maybe (mapMaybe, catMaybes, fromMaybe)
+import Data.Maybe (mapMaybe, catMaybes)
 import Data.Monoid (mappend, mconcat, mempty)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO as TIO
@@ -53,7 +56,7 @@ data Matcher
   | PCRE
   deriving (Eq, Show)
 
-data SortFields
+data SortField
   = Payee
   | Date
   | Flag
@@ -66,6 +69,8 @@ data SortFields
   | TransactionMemo
   deriving (Eq, Show, Ord)
 
+data Direction = Ascending | Descending deriving (Eq, Show, Ord)
+
 data Defaults = Defaults
   { sensitive :: M.CaseSensitive
   , matcher :: Matcher
@@ -74,8 +79,49 @@ data Defaults = Defaults
     -- ^ If Nothing, no default scheme. If the user does not pick a
     -- scheme, no colors are used.
   , moreSchemes :: [E.Scheme]
-  , sorter :: Maybe (L.PostFam -> L.PostFam -> Ordering)
+  , sorter :: [(SortField, Direction)]
   }
+
+sortPairToFn :: (SortField, Direction) -> Orderer
+sortPairToFn (s, d) = if d == Descending then flipOrder r else r
+  where
+    r = case s of
+      Payee -> ordering Q.payee
+      Date -> ordering Q.dateTime
+      Flag -> ordering Q.flag
+      Number -> ordering Q.number
+      Account -> ordering Q.account
+      DrCr -> ordering Q.drCr
+      Qty -> ordering Q.qty
+      Commodity -> ordering Q.commodity
+      PostingMemo -> ordering Q.postingMemo
+      TransactionMemo -> ordering Q.transactionMemo
+
+descPair :: (SortField, Direction) -> String
+descPair (i, d) = desc ++ ", " ++ dir
+  where
+    dir = case d of
+      Ascending -> "ascending"
+      Descending -> "descending"
+    desc = case show i of
+      [] -> []
+      x:xs -> toLower x : xs
+
+descSortList :: [(SortField, Direction)] -> [String]
+descSortList ls = case ls of
+  [] -> ["    No sorting performed by default"]
+  x:xs -> descFirst x : map descRest xs
+
+descFirst :: (SortField, Direction) -> String
+descFirst p = "  Default sort order: " ++ descPair p
+
+descRest :: (SortField, Direction) -> String
+descRest p = "    then: " ++ descPair p
+
+sortPairsToFn :: [(SortField, Direction)] -> Orderer
+sortPairsToFn = foldl f mempty
+  where
+    f r p = mappend (sortPairToFn p) r
 
 data State = State
   { stSensitive :: M.CaseSensitive
@@ -100,11 +146,11 @@ stateFromDefaults df = State
   }
 
 --
--- Option parsing
+-- ## Option parsing
 --
 
 --
--- OptResult, and functions dealing with it
+-- ## OptResult, and functions dealing with it
 --
 data OptResult
   = ROperand (M.CaseSensitive
@@ -134,9 +180,9 @@ getPostFilters =
       _ -> Nothing
 
 getSortSpec
-  :: Maybe Orderer
+  :: Orderer
   -> [OptResult]
-  -> Ex.Exceptional String (Maybe Orderer)
+  -> Ex.Exceptional String Orderer
 getSortSpec i =
   fmap folder
   . sequence
@@ -146,11 +192,9 @@ getSortSpec i =
       RSortSpec x -> Just x
       _ -> Nothing
     folder = foldl g i
-    g mayOrd r = case mayOrd of
-      Nothing -> Nothing
-      Just ord -> case r of
-        Nothing -> Just ord
-        Just rOld -> Just $ rOld `mappend` ord
+    g r mayOrd = case mayOrd of
+      Nothing -> mempty
+      Just ord -> ord `mappend` r
 
 type Factory = M.CaseSensitive
              -> Text -> Ex.Exceptional Text (Text -> Bool)
@@ -260,7 +304,7 @@ data FilterOpts = FilterOpts
   }
 
 processGlobal
-  :: Maybe (L.PostFam -> L.PostFam -> Ordering)
+  :: Orderer
   -> State
   -> [OptResult]
   -> Ex.Exceptional String GlobalResult
@@ -269,14 +313,13 @@ processGlobal srt st os =
   then return NeedsHelp
   else do
     postFilts <- getPostFilters os
-    maySortSpec <- getSortSpec srt os
+    sortSpec <- getSortSpec srt os
     (toks, (rs, rf)) <- makeTokens st os
     let ctf = getColorToFile st os
         sch = getScheme st os
         err = "could not parse filter expression."
     pdct <- Ex.fromMaybe err $ Ly.parsePredicate toks
-    let sortSpec = fromMaybe mempty maySortSpec
-        sf = Ly.xactionsToFiltered pdct postFilts sortSpec
+    let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
         fo = FilterOpts rf rs sf sch ctf
     return $ RunPenny fo
 
@@ -352,7 +395,7 @@ parseCommandLine
 parseCommandLine df rs rt ss =
   let initSt = stateFromDefaults df
   in MA.modes (allOpts (S.currentTime rt) df)
-              (processGlobal (sorter df) initSt)
+              (processGlobal (sortPairsToFn . sorter $ df) initSt)
               (whatMode rt rs) ss
 
 whatMode
@@ -507,7 +550,7 @@ sortSpecs = MA.OptSpec ["sort"] ['s'] (MA.OneArg f)
 ------------------------------------------------------------
 
 help :: Defaults -> String
-help d = unlines
+help d = unlines $
   [ "usage: penny [posting filters] report [report options] file . . ."
   , ""
   , "Posting filters"
@@ -635,7 +678,10 @@ help d = unlines
   , ""
   , "  Ascending order by default; for descending order,"
   , "  capitalize the name of the key."
+  , "  (use \"none\" to leave postings in ledger file order)"
   , ""
+  ] ++ descSortList (sorter d) ++
+  [ ""
   , "Colors"
   , "------"
   , "default scheme: " ++
@@ -643,12 +689,12 @@ help d = unlines
   ]
   ++ let schs = moreSchemes d
      in if not . null $ schs
-        then unlines $
+        then
           [ "--scheme SCHEME_NAME"
           , "  use color scheme for report. Available schemes:"
           ] ++ map descScheme schs
         else []
-  ++ unlines
+  ++
   [ "--color-to-file no|yes"
   , "  Whether to use color when standard output is not a"
   , "  terminal (default: " ++

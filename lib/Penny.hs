@@ -48,6 +48,7 @@ data Defaults = Defaults
   , colorToFile :: Bool
   , defaultScheme :: Maybe E.Scheme
   , additionalSchemes :: [E.Scheme]
+  , sorter :: [(Z.SortField, Z.Direction)]
 
   , balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , balanceShowZeroBalances :: Bool
