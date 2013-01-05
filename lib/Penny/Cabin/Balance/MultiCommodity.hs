@@ -25,6 +25,7 @@ import qualified Data.Tree as E
 import qualified Penny.Cabin.Balance.MultiCommodity.Chunker as K
 import qualified Penny.Cabin.Balance.MultiCommodity.Parser as P
 import qualified Penny.Cabin.Interface as I
+import qualified Penny.Cabin.Parsers as CP
 import qualified System.Console.MultiArg as MA
 
 -- | Options for making the balance report. These are the only options
@@ -46,7 +47,7 @@ defaultOpts = Opts
 defaultParseOpts :: P.ParseOpts
 defaultParseOpts = P.ParseOpts
   { P.showZeroBalances = CO.ShowZeroBalances False
-  , P.order = compare
+  , P.order = CP.Ascending
   , P.needsHelp = False
   }
 
@@ -54,8 +55,11 @@ fromParseOpts ::
   (L.Commodity -> L.Qty -> X.Text)
   -> P.ParseOpts
   -> Opts
-fromParseOpts fmt (P.ParseOpts szb o _) =
-  Opts fmt szb o
+fromParseOpts fmt (P.ParseOpts szb o _) = Opts fmt szb o'
+  where
+    o' = case o of
+       CP.Ascending -> compare
+       CP.Descending -> CO.descending compare
 
 defaultFormat :: a -> L.Qty -> X.Text
 defaultFormat _ = X.pack . show
@@ -102,7 +106,7 @@ parseReport ::
   -- command line.
 
   -> I.Report
-parseReport fmt o rt = (help, makeMode)
+parseReport fmt o rt = (help o, makeMode)
   where
     makeMode _ _ fsf = MA.Mode
       { MA.mName = "balance"
@@ -127,7 +131,7 @@ process fmt o _ fsf ls =
       mcOpts = fromParseOpts fmt os'
       pr txns _ = return $ report mcOpts (fsf txns)
   in pure $ if P.needsHelp os'
-            then Left help
+            then Left $ help o
             else Right (posArgs, pr)
 
 
@@ -138,23 +142,33 @@ defaultReport = parseReport defaultFormat defaultParseOpts
 ------------------------------------------------------------
 -- ## Help
 ------------------------------------------------------------
-help :: String
-help = unlines
+ifDefault :: Bool -> String
+ifDefault b = if b then " (default)" else ""
+
+help :: P.ParseOpts -> String
+help o = unlines
   [ "balance"
   , "  Show account balances. Accepts ONLY the following options:"
   , ""
-  , "  --help, -h"
-  , "    Show this help and exit"
+  , "--show-zero-balances"
+  , "  Show balances that are zero"
+    ++ ifDefault (CO.unShowZeroBalances . P.showZeroBalances $ o)
+  , "--hide-zero-balances"
+  , "  Hide balances that are zero"
+    ++ ifDefault ( CO.unShowZeroBalances
+                 . P.showZeroBalances $ o)
   , ""
-  , "  --show-zero-balances"
-  , "    Show balances that are zero (default)"
-  , "  --hide-zero-balances"
-  , "    Hide balances that are zero"
+  , "--ascending"
+  , "  Sort in ascending order by account name"
+    ++ ifDefault (P.order o == CP.Ascending)
+
+  , "--descending"
+  , "  Sort in descending order by account name"
+    ++ ifDefault (P.order o == CP.Descending)
+
   , ""
-  , "  --ascending"
-  , "    Sort in ascending order by account name (default)"
-  , "  --descending"
-  , "    Sort in descending order by account name"
+  , "--help, -h"
+  , "  Show this help and exit"
   , ""
   ]
 

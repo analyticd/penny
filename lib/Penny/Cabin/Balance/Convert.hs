@@ -14,6 +14,7 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Tree as E
 import qualified Data.Traversable as Tvbl
 import qualified Penny.Cabin.Options as CO
+import qualified Penny.Cabin.Parsers as CP
 import qualified Penny.Cabin.Scheme as Scheme
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Cabin.Balance.Convert.Chunker as K
@@ -158,27 +159,25 @@ report os@(Opts fmt _ _ _ _) ps bs =
 -- | Creates a report respecting the standard interface for reports
 -- whose options are parsed in from the command line.
 cmdLineReport
-  :: (S.Runtime -> O.DefaultOpts)
+  :: O.DefaultOpts
   -> I.Report
-cmdLineReport mkOpts rt = (help o, mkMode)
+cmdLineReport o rt = (help o, mkMode)
   where
-    o = mkOpts rt
     mkMode _ _ fsf = MA.Mode
       { MA.mName = "convert"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allOptSpecs
       , MA.mPosArgs = Left
-      , MA.mProcess = process rt mkOpts fsf }
+      , MA.mProcess = process rt o fsf }
 
 process
   :: S.Runtime
-  -> (S.Runtime -> O.DefaultOpts)
+  -> O.DefaultOpts
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
   -> Ex.Exceptional String (Either I.HelpStr I.ArgsAndReport)
-process rt mkOpts fsf ls = do
-  let defaultOpts = mkOpts rt
-      (posArgs, parsed) = Ei.partitionEithers ls
+process rt defaultOpts fsf ls = do
+  let (posArgs, parsed) = Ei.partitionEithers ls
       op' = foldl (>>=) (return (O.toParserOpts defaultOpts rt)) parsed
   case op' of
       Ex.Exception s -> Ex.throw s
@@ -245,12 +244,12 @@ fromParsedOpts (P.Opts szb tgt dt so sb hlp) =
 
 -- | Returns a function usable to sort pairs of SubAccount and
 -- BottomLine depending on how you want them sorted.
-getSorter :: P.SortOrder -> P.SortBy -> Sorter
+getSorter :: CP.SortOrder -> P.SortBy -> Sorter
 getSorter o b = flipper f
   where
     flipper = case o of
-      P.Ascending -> id
-      P.Descending ->
+      CP.Ascending -> id
+      CP.Descending ->
         \g p1 p2 -> case g p1 p2 of
             LT -> GT
             GT -> LT
@@ -288,11 +287,11 @@ help o = unlines $
   , "  Show account balances, after converting all amounts"
   , "  to a single commodity. Accepts ONLY the following options:"
   , ""
-  , "  --show-zero-balances"
-  , "    Show balances that are zero"
+  , "--show-zero-balances"
+  , "  Show balances that are zero"
     ++ ifDefault (CO.unShowZeroBalances . O.showZeroBalances $ o)
-  , "  --hide-zero-balances"
-  , "    Hide balances that are zero"
+  , "--hide-zero-balances"
+  , "  Hide balances that are zero"
     ++ ifDefault (not . CO.unShowZeroBalances . O.showZeroBalances $ o)
   , ""
   , "--commodity TARGET-COMMMODITY, -c TARGET-COMMODITY"
@@ -322,10 +321,14 @@ help o = unlines $
     ++ ifDefault (O.sortBy o == P.SortByQty)
   , "--ascending"
   , "  Sort in ascending order"
-    ++ ifDefault (O.sortOrder o == P.Ascending)
+    ++ ifDefault (O.sortOrder o == CP.Ascending)
   , "--descending"
   , "  Sort in descending order"
-    ++ ifDefault (O.sortOrder o == P.Descending)
+    ++ ifDefault (O.sortOrder o == CP.Descending)
+  , ""
+  , ""
+  , "--help, -h"
+  , "  Show this help and exit"
   , ""
   ]
 

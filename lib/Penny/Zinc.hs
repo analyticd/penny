@@ -5,7 +5,7 @@ module Penny.Zinc
   , Matcher(..)
   , SortField(..)
   , Direction(..)
-  , runPenny
+  , runZinc
   ) where
 
 import qualified Penny.Cabin.Chunk as Chk
@@ -36,14 +36,14 @@ import qualified System.IO as IO
 import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
 import qualified Text.Matchers.Text as M
 
-runPenny
-  :: (S.Runtime -> Defaults)
+runZinc
+  :: Defaults
+  -> S.Runtime
   -> [I.Report]
   -> IO ()
-runPenny df rs = do
-  rt <- S.runtime
+runZinc df rt rs = do
   as <- getArgs
-  parseAndPrint (df rt) rt rs as
+  parseAndPrint df rt rs as
 
 -- | Whether to use color when standard output is not a terminal.
 newtype ColorToFile = ColorToFile { unColorToFile :: Bool }

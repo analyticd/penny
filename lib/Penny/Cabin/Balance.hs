@@ -18,4 +18,4 @@ multiCommodity = MC.defaultReport
 
 -- | The default converting balance report.
 convert :: I.Report
-convert = C.cmdLineReport (const ConvOpts.defaultOptions)
+convert = C.cmdLineReport ConvOpts.defaultOptions

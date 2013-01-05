@@ -2,7 +2,6 @@
 module Penny.Cabin.Balance.Convert.Parser (
   Opts(..)
   , Target(..)
-  , SortOrder(..)
   , SortBy(..)
   , allOptSpecs
   ) where
@@ -21,7 +20,6 @@ import qualified Text.Parsec as Parsec
 -- | Is the target commodity determined by the user or automatically?
 data Target = AutoTarget | ManualTarget L.To
 
-data SortOrder = Ascending | Descending deriving (Eq, Show, Ord)
 data SortBy = SortByQty | SortByName deriving (Eq, Show, Ord)
 
 -- | Default starting options for the Convert report. After
@@ -31,7 +29,7 @@ data Opts = Opts
   { showZeroBalances :: CO.ShowZeroBalances
   , target :: Target
   , dateTime :: L.DateTime
-  , sortOrder :: SortOrder
+  , sortOrder :: P.SortOrder
   , sortBy :: SortBy
   , showHelp :: Bool
   }
@@ -88,11 +86,7 @@ parseSort = C.OptSpec ["sort"] "s" (C.ChoiceArg ls)
 parseOrder :: C.OptSpec (Opts -> Opts)
 parseOrder = fmap f P.order
   where
-    f x o = o { sortOrder = r }
-      where
-        r = case x of
-          P.Ascending -> Ascending
-          P.Descending -> Descending
+    f x o = o { sortOrder = x }
 
 parseHelp :: C.OptSpec (Opts -> Opts)
 parseHelp = fmap f P.help

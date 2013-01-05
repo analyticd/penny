@@ -39,6 +39,7 @@ module Penny.Cabin.Posts
   , defaultOptions
   , ZincOpts(..)
   , A.Alloc
+  , A.SubAccountLength(..)
   , A.alloc
   , ymd
   , qtyAsIs
@@ -48,6 +49,7 @@ module Penny.Cabin.Posts
   , widthFromRuntime
   , defaultFields
   , defaultSpacerWidth
+  , T.ReportWidth(..)
   ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -102,29 +104,26 @@ postsReport szb pdct pff co =
   . M.toBoxList szb pdct pff
 
 
-zincReport :: (Sh.Runtime -> ZincOpts) -> I.Report
-zincReport mkOpts rt = (helpStr opts, md)
+zincReport :: ZincOpts -> I.Report
+zincReport opts rt = (helpStr opts, md)
   where
-    opts = mkOpts rt
     md cs fty fsf = MA.Mode
       { MA.mName = "postings"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) (P.allSpecs rt)
       , MA.mPosArgs = Left
-      , MA.mProcess = process mkOpts rt cs fty fsf
+      , MA.mProcess = process opts cs fty fsf
       }
 
 process
-  :: (Sh.Runtime -> ZincOpts)
-  -> Sh.Runtime
+  :: ZincOpts
   -> CaseSensitive
   -> L.Factory
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.State -> Ex.Exceptional String P.State)]
   -> Ex.Exceptional String (Either I.HelpStr I.ArgsAndReport)
-process getOpts rt cs fty fsf ls =
+process os cs fty fsf ls =
   let (posArgs, clOpts) = Ei.partitionEithers ls
-      os = getOpts rt
       pState = newParseState cs fty os
       exState' = foldl (>>=) (return pState) clOpts
   in fmap (mkPrintReport posArgs os fsf) exState'
@@ -384,11 +383,12 @@ bundles c ls
 
 helpStr :: ZincOpts -> String
 helpStr o = unlines $
-  [ "postings report"
-  , "Show postings in order with a running balance."
+  [ "postings"
+  , "  Show postings in order with a running balance."
+  , "  Accepts the following options:"
   , ""
   , "Posting filters"
-  , "---------------"
+  , "==============="
   , "These options affect which postings are shown in the report."
   , "Postings not shown still affect the running balance."
   , ""
@@ -403,7 +403,7 @@ helpStr o = unlines $
   , "  Same as \"--date <= (right now) \""
   , ""
   , "Serials"
-  , "----------------"
+  , "-------"
   , "These options take the form --option cmp num; the given"
   , "sequence number must fall within the given range. \"rev\""
   , "in the option name indicates numbering is from end to beginning."
@@ -461,7 +461,7 @@ helpStr o = unlines $
   , ""
   , "Operators - from highest to lowest precedence"
   , "(all are left associative)"
-  , "--------------------------"
+  , "=========================="
   , "--open expr --close"
   , "  Force precedence (as in \"open\" and \"close\" parentheses)"
   , "--not expr"
@@ -472,7 +472,7 @@ helpStr o = unlines $
   , "  True if either expr1 or expr2 is true"
   , ""
   , "Options affecting patterns"
-  , "--------------------------"
+  , "=========================="
   , ""
   , "-i, --case-insensitive"
   , "  Be case insensitive"
@@ -489,14 +489,14 @@ helpStr o = unlines $
   , "  Use \"exact\" matcher"
   , ""
   , "Removing postings after sorting and filtering"
-  , "---------------------------------------------"
+  , "============================================="
   , "--head n"
   , "  Keep only the first n postings"
   , "--tail n"
   , "  Keep only the last n postings"
   , ""
-  , "Other options:"
-  , ""
+  , "Other options"
+  , "============="
   , "--width num"
   , "  Hint for roughly how wide the report should be in columns"
   , "  (currently: " ++ (show . T.unReportWidth . width $ o) ++ ")"

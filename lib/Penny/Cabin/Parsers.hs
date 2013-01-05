@@ -12,7 +12,7 @@ zeroBalances = C.OptSpec ["zero-balances"] "" (C.ChoiceArg ls)
     ls = [ ("show", CO.ShowZeroBalances True)
          , ("hide", CO.ShowZeroBalances False) ]
 
-data SortOrder = Ascending | Descending
+data SortOrder = Ascending | Descending deriving (Eq, Ord, Show)
 
 order :: C.OptSpec SortOrder
 order = C.OptSpec ["order"] "" (C.ChoiceArg ls)

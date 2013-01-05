@@ -5,14 +5,13 @@ module Penny.Cabin.Balance.MultiCommodity.Parser (
 
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as P
-import qualified Penny.Lincoln as L
 import qualified System.Console.MultiArg as MA
 
 -- | Options for the Balance report that have been parsed from the
 -- command line.
 data ParseOpts = ParseOpts
   { showZeroBalances :: CO.ShowZeroBalances
-  , order :: L.SubAccount -> L.SubAccount -> Ordering
+  , order :: P.SortOrder
   , needsHelp :: Bool
   }
 
@@ -30,11 +29,7 @@ zeroBalances = fmap toResult P.zeroBalances
 parseOrder :: MA.OptSpec (ParseOpts -> ParseOpts)
 parseOrder = fmap toResult P.order
   where
-    toResult x o = o { order = r }
-      where
-        r = case x of
-          P.Ascending -> compare
-          P.Descending -> CO.descending compare
+    toResult x o = o { order = x }
 
 allSpecs :: [MA.OptSpec (ParseOpts -> ParseOpts)]
 allSpecs = [parseHelp, zeroBalances, parseOrder]

@@ -3,6 +3,7 @@
 module Penny.Cabin.Balance.Convert.Options where
 
 import qualified Penny.Cabin.Balance.Convert.Parser as P
+import qualified Penny.Cabin.Parsers as CP
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
@@ -16,7 +17,7 @@ import qualified Data.Text as X
 data DefaultOpts = DefaultOpts
   { showZeroBalances :: CO.ShowZeroBalances
   , target :: P.Target
-  , sortOrder :: P.SortOrder
+  , sortOrder :: CP.SortOrder
   , sortBy :: P.SortBy
   , format :: L.Qty -> X.Text
   }
@@ -35,7 +36,7 @@ defaultOptions :: DefaultOpts
 defaultOptions = DefaultOpts
   { showZeroBalances = CO.ShowZeroBalances False
   , target = P.AutoTarget
-  , sortOrder = P.Ascending
+  , sortOrder = CP.Ascending
   , sortBy = P.SortByName
   , format = X.pack . show
   }
