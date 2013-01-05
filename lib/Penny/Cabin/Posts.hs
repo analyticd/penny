@@ -102,11 +102,11 @@ postsReport szb pdct pff co =
   . M.toBoxList szb pdct pff
 
 
-zincReport :: (Sh.Runtime -> ZincOpts) -> Sh.Runtime -> I.Report
-zincReport mkOpts r = (helpStr opts, md)
+zincReport :: (Sh.Runtime -> ZincOpts) -> I.Report
+zincReport mkOpts rt = (helpStr opts, md)
   where
-    opts = mkOpts r
-    md rt cs fty fsf = MA.Mode
+    opts = mkOpts rt
+    md cs fty fsf = MA.Mode
       { MA.mName = "postings"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) (P.allSpecs rt)
@@ -499,7 +499,7 @@ helpStr o = unlines $
   , ""
   , "--width num"
   , "  Hint for roughly how wide the report should be in columns"
-  , "  (default: " ++ (show . T.unReportWidth . width $ o) ++ ")"
+  , "  (currently: " ++ (show . T.unReportWidth . width $ o) ++ ")"
   , "--show field, --hide field"
   , "  show or hide this field, where field is one of:"
   , "    globalTransaction, revGlobalTransaction,"

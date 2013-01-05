@@ -403,12 +403,11 @@ whatMode
   -> [I.Report]
   -> GlobalResult
   -> Either (a -> ()) [MA.Mode (DisplayOpts, I.ParseResult)]
-whatMode rt rs gr =
+whatMode rt pairFns gr =
   case gr of
     NeedsHelp -> Left $ const ()
     RunPenny fo@(FilterOpts fty cs sf _ _) ->
-      let prs = map snd rs
-                <*> pure rt
+      let prs = map snd (pairFns <*> pure rt)
                 <*> pure cs
                 <*> pure fty
                 <*> pure sf
@@ -431,7 +430,7 @@ handleParseResult rt df rs r =
       exitFailure
     Ex.Success (_, ei) ->
       case ei of
-        Left _ ->  putStr (helpText df rs) >> exitSuccess
+        Left _ ->  putStr (helpText df rt rs) >> exitSuccess
         Right ((DisplayOpts ctf sch), ex) -> case ex of
           Ex.Exception s -> showErr s
           Ex.Success good -> either showHelp runCmd good
@@ -462,9 +461,13 @@ printChunks t mayS =
 
 helpText
   :: Defaults
+  -> S.Runtime
   -> [I.Report]
   -> String
-helpText df = mappend (help df) . mconcat . fmap fst
+helpText df rt pairMakers =
+  mappend (help df) . mconcat . fmap fst $ pairs
+  where
+    pairs = pairMakers <*> pure rt
 
 
 parseAndPrint

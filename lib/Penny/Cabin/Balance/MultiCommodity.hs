@@ -103,9 +103,9 @@ parseReport ::
   -- command line.
 
   -> I.Report
-parseReport fmt o = (H.help, makeMode)
+parseReport fmt o rt = (H.help, makeMode)
   where
-    makeMode rt _ _ fsf = MA.Mode
+    makeMode _ _ fsf = MA.Mode
       { MA.mName = "balance"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allSpecs

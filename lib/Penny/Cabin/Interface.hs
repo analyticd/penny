@@ -40,14 +40,9 @@ type PrintReport
   -- transactions has been seen.
 
 
-type Report = (HelpStr, MkReport)
+type Report = Runtime -> (HelpStr, MkReport)
 type MkReport
-  = Runtime
-  -- ^ Information only known at runtime, such as the
-  -- environment. Does not include any information that is derived
-  -- from parsing the command line.
-
-  -> CaseSensitive
+  = CaseSensitive
   -- ^ Result from previous parses indicating whether the user desires
   -- case sensitivity (this may have been changed in the filtering
   -- options)

@@ -17,7 +17,6 @@ import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Scheme as Scheme
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Cabin.Balance.Convert.Chunker as K
-import qualified Penny.Cabin.Balance.Convert.Help as H
 import qualified Penny.Cabin.Balance.Convert.Options as O
 import qualified Penny.Cabin.Balance.Convert.Parser as P
 import qualified Penny.Cabin.Interface as I
@@ -161,9 +160,10 @@ report os@(Opts fmt _ _ _ _) ps bs =
 cmdLineReport
   :: (S.Runtime -> O.DefaultOpts)
   -> I.Report
-cmdLineReport mkOpts = (H.help, mkMode)
+cmdLineReport mkOpts rt = (help, mkMode)
   where
-    mkMode rt _ _ fsf = MA.Mode
+    o = mkOpts rt
+    mkMode _ _ fsf = MA.Mode
       { MA.mName = "convert"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allOptSpecs
@@ -185,7 +185,7 @@ process rt mkOpts fsf ls = do
       Ex.Success g -> return $
         let noDefault = X.pack "no default price found"
         in case fromParsedOpts g of
-            NeedsHelp -> Left H.help
+            NeedsHelp -> Left help
             DoReport f ->
               let pr ts pps = do
                     rptOpts <- Ex.fromMaybe noDefault $
@@ -275,4 +275,46 @@ cmpBottomLine (n1, bl1) (n2, bl2) =
           (L.Credit, L.Credit) -> EQ
         qt = compare (Bal.qty c1) (Bal.qty c2)
         na = compare n1 n2
+
+------------------------------------------------------------
+-- ## Help
+------------------------------------------------------------
+help :: String
+help = unlines $
+  [ "convert"
+  , "  Show account balances, after converting all amounts"
+  , "  to a single commodity. Accepts ONLY the following options:"
+  , ""
+  , "    --color yes|no|auto|256"
+  , "    yes: show 8 colors always"
+  , "    no: never show colors (default)"
+  , "    auto: show 8 or 256 colors, but only if stdout is a terminal"
+  , "    256: show 256 colors always"
+  , "  --background light|dark"
+  , "    Use appropriate color scheme for terminal background"
+  , "      (default: dark)"
+  , ""
+  , "  --show-zero-balances"
+  , "    Show balances that are zero"
+  , "  --hide-zero-balances"
+  , "    Hide balances that are zero"
+  , ""
+  , "--commodity TARGET-COMMMODITY, -c TARGET-COMMODITY"
+  , "  Convert all commodities to TARGET-COMMODITY. By default,"
+  , "  the commodity that appears most often as the target commodity"
+  , "  in your price data is used (if there is a tie, the price closest"
+  , "  to the end of your list of prices is used)"
+  , ""
+  , "--date DATE-TIME, -d DATE-TIME"
+  , "  Convert prices as of the date and time given"
+  , "  (by default, the current date and time is used.)"
+  , ""
+  , "--sort qty|name, -s qty|name"
+  , "  Sort balances by sub-account name (default) or by quantity"
+  , "--ascending"
+  , "  Sort in ascending order (default)"
+  , "--descending"
+  , "  Sort in descending order"
+  , ""
+  ]
 
