@@ -145,6 +145,7 @@ defaults rt = Defaults
     -- the absolute value of the field is taken.)
   }
 
+-- | Controls which fields appear in the report by default.
 fields :: Fields Bool
 fields = Fields
   { fGlobalTransaction = False
@@ -178,6 +179,7 @@ fields = Fields
   , fFilename = False
   }
 
+-- | Controls how many spaces appear to the right of each named field.
 spacers :: Spacers Int
 spacers = Spacers
   { sGlobalTransaction = 1
