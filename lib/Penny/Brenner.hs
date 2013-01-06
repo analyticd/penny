@@ -27,6 +27,7 @@ import qualified Penny.Brenner.Database as D
 import qualified Penny.Brenner.Import as I
 import qualified Penny.Brenner.Merge as M
 import qualified Penny.Brenner.Print as P
+import Control.Applicative ((<*>))
 import qualified System.Console.MultiArg as MA
 import qualified Control.Monad.Exception.Synchronous as Ex
 import System.Exit (exitFailure)
@@ -56,7 +57,7 @@ globalOpts =
 
 data PreProc
   = NeedsHelp
-  | DoIt Y.FitAcct
+  | DoIt (Maybe Y.FitAcct)
 
 preProcessor :: Y.Config -> [Arg] -> Ex.Exceptional String PreProc
 preProcessor cf as =
@@ -67,17 +68,13 @@ preProcessor cf as =
           [] -> Nothing
           xs -> Just . last $ xs
     card <- case cardOpt of
-      Nothing -> case Y.defaultFitAcct cf of
-        Nothing -> Ex.throw $ "no financial institution account "
-                              ++ "given on command line, and no "
-                              ++ "default card provided."
-        Just c -> return c
+      Nothing -> return $ Y.defaultFitAcct cf
       Just o ->
         let pdct (Y.Name n, _) = n == X.pack o
         in case filter pdct (Y.moreFitAccts cf) of
           [] -> Ex.throw $ "financial institution account "
                            ++ o ++ " not configured."
-          (_, c):[] -> return c
+          (_, c):[] -> return $ Just c
           _ -> Ex.throw $ "more than one financial institution account "
                           ++ "named " ++ o ++ " configured."
     return $ DoIt card
@@ -88,13 +85,8 @@ whatMode
       [MA.Mode (Ex.Exceptional String (IO ()))]
 whatMode pp = case pp of
   NeedsHelp -> Left id
-  DoIt cd ->
-    Right [ C.mode cd
-          , I.mode (Y.dbLocation cd) (snd . Y.parser $ cd)
-          , M.mode cd
-          , P.mode (snd . Y.parser $ cd)
-          , D.mode (Y.dbLocation cd)
-          ]
+  DoIt mayCd ->
+    Right $ [C.mode, I.mode, M.mode, P.mode, D.mode] <*> [mayCd]
 
 
 processParseResult

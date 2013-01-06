@@ -18,31 +18,33 @@ help = unlines
 data Arg = ArgHelp | ArgPos String deriving (Eq, Show)
 
 mode
-  :: Y.DbLocation
+  :: Maybe Y.FitAcct
   -> MA.Mode (Ex.Exceptional String (IO ()))
-mode dbLoc = MA.Mode
+mode mayFa = MA.Mode
   { MA.mName = "database"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [MA.OptSpec ["help"] "h" (MA.NoArg ArgHelp)]
   , MA.mPosArgs = ArgPos
-  , MA.mProcess = processor dbLoc
+  , MA.mProcess = processor mayFa
   }
 
 processor
-  :: Y.DbLocation
+  :: Maybe Y.FitAcct
   -> [Arg]
   -> Ex.Exceptional String (IO ())
-processor dbLoc ls = f
-  where
-    f | any (== ArgHelp) ls = return (putStrLn help)
-      | any isArgPos ls = Ex.throw posArgError
-      | otherwise = return showDb
-    posArgError =
+processor mayFa ls
+  | any (== ArgHelp) ls = return (putStrLn help)
+  | any isArgPos ls = Ex.throw $
         "penny-fit database: error: this command does"
         ++ " not accept non-option arguments."
-    showDb = do
-      db <- U.quitOnError $ U.loadDb (Y.AllowNew False) dbLoc
-      mapM_ putStr . map U.showDbPair $ db
+  | otherwise = case mayFa of
+      Nothing -> Ex.throw $ "no financial institution account"
+        ++ " selected on command line, and no default"
+        ++ " financial instititution account configured."
+      Just fa -> return $ do
+        let dbLoc = Y.dbLocation fa
+        db <- U.quitOnError $ U.loadDb (Y.AllowNew False) dbLoc
+        mapM_ putStr . map U.showDbPair $ db
 
 isArgPos :: Arg -> Bool
 isArgPos (ArgPos _) = True

@@ -55,7 +55,7 @@ data Opts = Opts
   } deriving Show
 
 
-mode :: Y.FitAcct -> MA.Mode (Ex.Exceptional String (IO ()))
+mode :: Maybe Y.FitAcct -> MA.Mode (Ex.Exceptional String (IO ()))
 mode c = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
@@ -64,11 +64,16 @@ mode c = MA.Mode
   , MA.mProcess = process c
   }
 
-process :: Y.FitAcct -> [Arg] -> Ex.Exceptional String (IO ())
-process c as =
+process :: Maybe Y.FitAcct -> [Arg] -> Ex.Exceptional String (IO ())
+process mayC as =
   if any (== AHelp) as
   then return $ putStrLn help
   else do
+    c <- case mayC of
+      Just cd -> return cd
+      Nothing -> Ex.throw $ "no financial institution account given"
+                 ++ " on command line, and no default financial"
+                 ++ " institution configured."
     (csv, ls) <- case mapMaybe toPosArg as of
       [] -> Ex.throw $ "clear: you must provide a postings file."
       x:xs -> return (Y.FitFileLocation x, xs)

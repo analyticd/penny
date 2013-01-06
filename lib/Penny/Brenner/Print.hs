@@ -28,30 +28,41 @@ data Arg
   deriving (Eq, Show)
 
 mode
-  :: (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
+  :: Maybe Y.FitAcct
   -> MA.Mode (Ex.Exceptional String (IO ()))
-mode prsr = MA.Mode
+mode mayFa = MA.Mode
   { MA.mName = "print"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [MA.OptSpec ["help"] "h" (MA.NoArg ArgHelp)]
   , MA.mPosArgs = ArgFile
-  , MA.mProcess = processor prsr
+  , MA.mProcess = processor mayFa
   }
 
 processor
-  :: (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
+  :: Maybe Y.FitAcct
   -> [Arg]
   -> Ex.Exceptional String (IO ())
-processor prsr ls =
+processor mayFa ls =
   if any (== ArgHelp) ls
   then return (putStrLn help)
-  else return (mapM_ f . mapMaybe toFile $ ls)
+  else case mayFa of
+          Nothing -> Ex.throw $
+            "no financial institution account"
+            ++ " provided on command line, and no account"
+            ++ " configured by default."
+          Just fa -> return $ doPrint (snd . Y.parser $ fa) ls
+
+doPrint
+  :: (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
+  -> [Arg]
+  -> IO ()
+doPrint prsr ls = mapM_ f . mapMaybe toFile $ ls
   where
     f file = do
       r <- prsr file
       case r of
         Ex.Exception s -> do
-          IO.hPutStrLn IO.stderr $ "penny-fit import: error: " ++ s
+          IO.hPutStrLn IO.stderr $ "penny-fit print: error: " ++ s
           E.exitFailure
         Ex.Success ps -> mapM putStr . map U.showPosting $ ps
     toFile a = case a of

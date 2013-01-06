@@ -2,7 +2,7 @@ Name: penny-bin
 Version: 0.5.1.0
 Cabal-version: >=1.8
 Build-Type: Simple
-License: MIT
+License: BSD3
 Copyright: 2012 Omari Norman.
 author: Omari Norman
 maintainer: omari@smileystation.com

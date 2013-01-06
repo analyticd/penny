@@ -27,6 +27,7 @@ data ImportOpts = ImportOpts
               -> IO (Ex.Exceptional String [Y.Posting])
   }
 
+{-
 mode
   :: Y.DbLocation
   -> ( Y.FitFileLocation
@@ -42,18 +43,36 @@ mode dbLoc prsr = MA.Mode
   , MA.mPosArgs = AFitFile
   , MA.mProcess = processor dbLoc prsr
   }
+-}
 
+mode
+  :: Maybe Y.FitAcct
+  -> MA.Mode (Ex.Exceptional String (IO ()))
+mode mayFa = MA.Mode
+  { MA.mName = "import"
+  , MA.mIntersperse = MA.Intersperse
+  , MA.mOpts =
+      [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
+      , MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew)
+      ]
+  , MA.mPosArgs = AFitFile
+  , MA.mProcess = processor mayFa
+  }
 
 processor
-  :: Y.DbLocation
-  -> (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
+  :: Maybe Y.FitAcct
   -> [Arg]
   -> Ex.Exceptional String (IO ())
-processor dbLoc prsr as = do
+processor mayFa as = do
   let err s = Ex.throw $ "import: " ++ s
   if any (== AHelp) as
     then return $ putStrLn help
     else do
+      (dbLoc, prsr) <- case mayFa of
+        Nothing -> err $ "no financial institution account provided"
+          ++ " on command line, and no default financial institution"
+          ++ " account is configured."
+        Just fa -> return (Y.dbLocation fa, snd . Y.parser $ fa)
       loc <- case mapMaybe toFitFile as of
         [] -> err "you must provide a postings file to read"
         x:[] -> return (Y.FitFileLocation x)

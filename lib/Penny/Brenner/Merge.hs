@@ -28,25 +28,32 @@ data Arg
 toPosArg :: Arg -> Maybe String
 toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
 
-mode :: Y.FitAcct -> MA.Mode (Ex.Exceptional String (IO ()))
-mode c = MA.Mode
+mode :: Maybe Y.FitAcct -> MA.Mode (Ex.Exceptional String (IO ()))
+mode maybeC = MA.Mode
   { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts =
     [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
     ]
   , MA.mPosArgs = APos
-  , MA.mProcess = processor c
+  , MA.mProcess = processor maybeC
   }
 
-processor :: Y.FitAcct -> [Arg] -> Ex.Exceptional a (IO ())
-processor c as = return $
+processor :: Maybe Y.FitAcct -> [Arg] -> Ex.Exceptional a (IO ())
+processor maybeC as = return $
   if any (== AHelp) as
   then putStrLn help
-  else doMerge c (mapMaybe toPosArg as)
+  else doMerge maybeC (mapMaybe toPosArg as)
 
-doMerge :: Y.FitAcct -> [String] -> IO ()
-doMerge acct ss = do
+doMerge :: Maybe Y.FitAcct -> [String] -> IO ()
+doMerge maybeAcct ss = do
+  acct <- case maybeAcct of
+    Nothing -> do
+      IO.hPutStrLn IO.stderr $ "merge: error: no financial"
+        ++ " institution account provided on command line, and"
+        ++ " no default account configured."
+      exitFailure
+    Just ac -> return ac
   dbLs <- U.quitOnError
           $ U.loadDb (Y.AllowNew False) (Y.dbLocation acct)
   l <- C.openStdin ss
