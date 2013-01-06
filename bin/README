@@ -1,0 +1,10 @@
+This is the package with executables and documentation for Penny. To
+compile and install the binaries, running "cabal install" will work.
+
+To install the manual pages and the documentation, run
+
+./configure
+make install
+
+"configure" has all the usual options for "prefix" and the like; run
+"./configure --help" for details.

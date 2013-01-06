@@ -359,6 +359,11 @@ The postings are sorted in ascending order if the first letter of the
 key is lowercase; descending order if the first letter of the key is
 uppercase.
 
+.SH HELP
+.TP
+.B --help | -h
+Show help and exit
+
 .SH POSTINGS REPORT
 
 The
@@ -472,6 +477,10 @@ Whether to show the balance of all commodities in the
 .IR totalDrCr ", " totalCommodity ", and " totalQty
 fields, even if that balance is zero. (default: hide)
 
+.TP
+.B --help | -h
+Show help and exit
+
 .SH BALANCE REPORT
 The
 .B balance
@@ -492,6 +501,10 @@ Whether to show balances that are zero (default: hide)
 .TP
 .BI "--order " "ascending|descending"
 Sort in ascending (default) or descending order by account name
+
+.TP
+.B --help | -h
+Show help and exit
 
 .SH CONVERT REPORT
 
@@ -526,6 +539,10 @@ Sort balances by sub-account name (default) or by quantity
 .TP
 .BI "--order " "ascending|descending"
 Sort in ascending (default) or descending order
+
+.TP
+.B --help | -h
+Show help and exit
 
 .SH SERIALS
 
@@ -584,6 +601,14 @@ report. (Applies only to the
 .I postings
 report.)
 
+.SH DEFAULT OPTIONS
+This manual page often specifies defaults for various options. These
+are the defaults that come "out of the box." You may configure your
+own default options (see
+.BR penny-custom (7).)
+If you do that, the defaults you configure will be reflected in the
+output of
+.IR "penny -h" .
 
 .SH EXIT STATUS
 .B 0
@@ -591,7 +616,13 @@ if no errors;
 .B 1
 if there was a problem.
 
+.SH BUGS
+Please report any bugs in the software or documentation to
+omari@smileystation.com.
+
 .SH SEE ALSO
+.BR penny-suite (7)
+
 The file
 .B examples/starter.pny
 in the tarball for the
