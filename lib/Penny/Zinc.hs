@@ -463,9 +463,11 @@ helpText
   -> [I.Report]
   -> String
 helpText df rt pairMakers =
-  mappend (help df) . mconcat . fmap fst $ pairs
+  mappend (help df) . mconcat . map addHdr . fmap fst $ pairs
   where
     pairs = pairMakers <*> pure rt
+    addHdr s = hdr ++ s
+    hdr = unlines [ "", replicate 50 '=' ]
 
 
 parseAndPrint
@@ -687,16 +689,18 @@ help d = unlines $
   , "------"
   , "default scheme: " ++
     maybe "(none)" descScheme (defaultScheme d)
+  , ""
   ]
   ++ let schs = moreSchemes d
-     in if not . null $ schs
+     in (if not . null $ schs
         then
           [ "--scheme SCHEME_NAME"
           , "  use color scheme for report. Available schemes:"
           ] ++ map descScheme schs
-        else []
+        else [])
   ++
-  [ "--color-to-file no|yes"
+  [ ""
+  , "--color-to-file no|yes"
   , "  Whether to use color when standard output is not a"
   , "  terminal (default: " ++
     if unColorToFile . colorToFile $ d then "yes)" else "no)"

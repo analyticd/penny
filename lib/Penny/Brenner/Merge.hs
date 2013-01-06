@@ -6,6 +6,7 @@ import qualified Control.Monad.Trans.State as St
 import Data.List (find)
 import qualified Data.Map as M
 import Data.Maybe (mapMaybe, isNothing)
+import Data.Monoid (First(..), mconcat)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
@@ -89,7 +90,7 @@ filterDb ax m l = M.difference m ml
     ml = M.fromList
        . flip zip (repeat ())
        . mapMaybe toUNum
-       . filter isAmex
+       . filter inPennyAcct
        . concatMap L.postFam
        . mapMaybe toTxn
        . C.unLedger
@@ -97,14 +98,28 @@ filterDb ax m l = M.difference m ml
     toTxn t = case t of
       C.Transaction x -> Just x
       _ -> Nothing
-    isAmex p = Q.account p == (Y.unPennyAcct ax)
-    toUNum p = do
-      (L.Number n) <- Q.number p
-      (f, r) <- X.uncons n
-      guard (f == 'U')
-      case reads . X.unpack $ r of
-        (x, ""):[] -> return $ Y.UNumber x
-        _ -> Nothing
+    inPennyAcct p = Q.account p == (Y.unPennyAcct ax)
+    toUNum p = getUNumberFromTags . Q.tags $ p
+
+-- | Gets the first UNumber from a list of Tags.
+getUNumberFromTags :: L.Tags -> Maybe Y.UNumber
+getUNumberFromTags =
+  getFirst
+  . mconcat
+  . map First
+  . map getUNumberFromTag
+  . L.unTags
+
+-- | Examines a tag to see if it is a uNumber. If so, returns the
+-- UNumber. Otherwise, returns Nothing.
+getUNumberFromTag :: L.Tag -> Maybe Y.UNumber
+getUNumberFromTag (L.Tag x) = do
+  (f, r) <- X.uncons x
+  guard (f == 'U')
+  case reads . X.unpack $ r of
+    (y, ""):[] -> return $ Y.UNumber y
+    _ -> Nothing
+
 
 -- | Changes a single Item.
 changeItem
@@ -152,13 +167,15 @@ inspectAndChange acct t p = do
   case findMatch acct t p m of
     Nothing -> return L.emptyPostingChangeData
     Just (n, m') ->
-      let pcd = L.emptyPostingChangeData
-                  { L.pcNumber = Just (Just (newLincolnUNumber n)) }
+      let L.Tags oldTags = L.pTags p
+          tags' = L.Tags (oldTags ++ [newLincolnUNumber n])
+          pcd = L.emptyPostingChangeData
+                  { L.pcTags = Just tags' }
       in St.put m' >> return pcd
 
-newLincolnUNumber :: Y.UNumber -> L.Number
+newLincolnUNumber :: Y.UNumber -> L.Tag
 newLincolnUNumber a =
-  L.Number ('U' `X.cons` (X.pack . show . Y.unUNumber $ a))
+  L.Tag ('U' `X.cons` (X.pack . show . Y.unUNumber $ a))
 
 
 -- | Searches a DbMap for an AmexTxn that matches a given posting. If
@@ -240,7 +257,7 @@ newTransaction acct (u, (a, e)) = L.rTransaction rt
          else Y.unPayee . Y.payee $ a
     pennyAcct = Y.unPennyAcct . Y.pennyAcct $ acct
     p1 = (U.emptyRPosting pennyAcct (L.qty . L.amount $ e))
-          { U.rNumber = Just $ newLincolnUNumber u }
+          { U.rTags = L.Tags [newLincolnUNumber u] }
     p2 = U.emptyIPosting (Y.unDefaultAcct . Y.defaultAcct $ acct)
 
 -- | Creates new transactions for all the items remaining in the

@@ -155,7 +155,7 @@ help o = unlines
     ++ ifDefault (CO.unShowZeroBalances . P.showZeroBalances $ o)
   , "--hide-zero-balances"
   , "  Hide balances that are zero"
-    ++ ifDefault ( CO.unShowZeroBalances
+    ++ ifDefault ( not . CO.unShowZeroBalances
                  . P.showZeroBalances $ o)
   , ""
   , "--ascending"
@@ -169,6 +169,5 @@ help o = unlines
   , ""
   , "--help, -h"
   , "  Show this help and exit"
-  , ""
   ]
 

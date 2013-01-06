@@ -92,7 +92,8 @@ sees if there is a posting in the
 with a tag bearing the U-number (e.g. if the U-number is 5, it looks
 for the tag
 .IR U5 .)
-If such a posting is found,
+If a posting has more than one U-number tag, only the first is used;
+the others are ignored. If such a posting is found,
 .I merge
 moves on to the next U-number in the database.
 
@@ -143,7 +144,8 @@ does not find a match, then it will create an entirely new transaction and appen
 
 The result of
 .I merge
-is printed to standard output. You will probably want to redirect it to a new file. Use
+is printed to standard output. You will probably want to redirect it
+to a new file. Use
 .BR diff (1)
 or
 .BR penny-diff (1)
@@ -176,10 +178,11 @@ command will mark as cleared (that is, assign a
 .I C
 flag to) all postings in your LEDGER_FILEs that correspond to one of
 the postings in the FIT_FILE. It does this by matching the U-number
-tags on your postings to the U-numbers in the database. The results
-are printed to standard output; you will probably want to redirect
-this to a file. Once you have verified that things are as they should
-be, you can use
+tags on your postings to the U-numbers in the database. If a posting
+has more than one U-number tag, only the first is used; the others are
+ignored. The results are printed to standard output; you will probably
+want to redirect this to a file. Once you have verified that things
+are as they should be, you can use
 .BR penny-reconcile (1)
 to mark the cleared postings as reconciled.
 .BR penny-basics (7)

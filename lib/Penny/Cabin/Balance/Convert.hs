@@ -331,6 +331,5 @@ help o = unlines $
   , ""
   , "--help, -h"
   , "  Show this help and exit"
-  , ""
   ]
 

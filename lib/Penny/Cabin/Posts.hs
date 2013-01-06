@@ -519,6 +519,7 @@ helpStr o = unlines $
   , "  Show all fields"
   , "--hide-all"
   , "  Hide all fields"
+  , ""
   ] ++ showDefaultFields (fields o) ++
   [ ""
   , "--show-zero-balances"
@@ -528,6 +529,8 @@ helpStr o = unlines $
   , "  Hide balances that are zero"
     ++ ifDefault (not . CO.unShowZeroBalances . showZeroBalances $ o)
   , ""
+  , "--help, -h"
+  , "  Show this help and exit"
   ]
 
 -- | Shows which fields are on by default.

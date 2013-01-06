@@ -4,6 +4,7 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Applicative (pure)
 import Control.Monad (guard, mzero, when)
 import Data.Maybe (mapMaybe, fromMaybe)
+import Data.Monoid (mconcat, First(..))
 import qualified Data.Set as Set
 import qualified Data.Map as M
 import qualified Data.Text as X
@@ -158,8 +159,8 @@ changePstg
 changePstg ax p =
   fmap (fromMaybe L.emptyPostingChangeData) . MT.runMaybeT $ do
     guard (L.pAccount p == (Y.unPennyAcct ax))
-    mayUn <- maybe mzero return $ L.pNumber p
-    un <- maybe mzero return $ parseUNumber mayUn
+    let tags = L.pTags p
+    un <- maybe mzero return $ parseUNumberFromTags tags
     guard (L.pFlag p == Nothing)
     set <- lift St.get
     guard (Set.member un set)
@@ -167,8 +168,16 @@ changePstg ax p =
     return $ L.emptyPostingChangeData
              { L.pcFlag = Just (Just clearedFlag) }
 
-parseUNumber :: L.Number -> Maybe Y.UNumber
-parseUNumber (L.Number x) = do
+parseUNumberFromTags :: L.Tags -> Maybe Y.UNumber
+parseUNumberFromTags =
+  getFirst
+  . mconcat
+  . map First
+  . map parseUNumberFromTag
+  . L.unTags
+
+parseUNumberFromTag :: L.Tag -> Maybe Y.UNumber
+parseUNumberFromTag (L.Tag x) = do
   (f, xs) <- X.uncons x
   guard (f == 'U')
   case reads . X.unpack $ xs of

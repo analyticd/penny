@@ -1,11 +1,8 @@
 * Fix colors on light backgrounds - many are invisible (check, is this
   still needed?)
 
-* change penny-fit to use tags rather than numbers
-
-* change penny-fit to allow bare -h option for commands (right now it
-  fails if there is no default financial institution)
-
-* add help for color-to-file
-
 * update man pages
+
+* autoconfiscate and automake the man pages and docs
+
+* check sorting
