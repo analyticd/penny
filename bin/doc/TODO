@@ -5,3 +5,7 @@
 
 * change penny-fit to allow bare -h option for commands (right now it
   fails if there is no default financial institution)
+
+* add help for color-to-file
+
+* update man pages
