@@ -1,11 +1,7 @@
-* Clean up error messages
+* Fix colors on light backgrounds - many are invisible (check, is this
+  still needed?)
 
-* Write manual
+* change penny-fit to use tags rather than numbers
 
-* Document APIs
-
-* Add price change report
-
-* Add option to remove zero accounts from balance, posts reports
-
-* Fix colors on light backgrounds - many are invisible
+* change penny-fit to allow bare -h option for commands (right now it
+  fails if there is no default financial institution)
