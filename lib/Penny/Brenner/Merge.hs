@@ -71,9 +71,9 @@ doMerge maybeAcct ss = do
 
 help :: String
 help = unlines
-  [ "penny-amex merge: merges new transactions from database"
+  [ "penny-fit merge: merges new transactions from database"
   , "to ledger file."
-  , "usage: penny-amex merge [options] FILE..."
+  , "usage: penny-fit merge [options] FILE..."
   , "Results are printed to standard output. If no FILE, or if FILE is -,"
   , "read standard input."
   , ""
