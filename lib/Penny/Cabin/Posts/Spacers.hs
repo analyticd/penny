@@ -3,8 +3,8 @@
 -- field.
 module Penny.Cabin.Posts.Spacers where
 
-data Spacers a = Spacers {
-  globalTransaction :: a
+data Spacers a = Spacers
+  { globalTransaction :: a
   , revGlobalTransaction :: a
   , globalPosting :: a
   , revGlobalPosting :: a
@@ -19,7 +19,6 @@ data Spacers a = Spacers {
   , visible :: a
   , revVisible :: a
   , lineNum :: a
-    -- ^ The line number from the posting's metadata
   , date :: a
   , flag :: a
   , number :: a
@@ -29,5 +28,5 @@ data Spacers a = Spacers {
   , postingCmdty :: a
   , postingQty :: a
   , totalDrCr :: a
-  , totalCmdty :: a }
-  deriving (Show, Eq)
+  , totalCmdty :: a
+  } deriving (Show, Eq)

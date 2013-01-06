@@ -60,7 +60,7 @@ maxWidthPerColumn ::
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
   f old new = max old (E.width . bits $ new)
-  
+
 -- | Changes a single set of Columns to a set of ColumnSpec of the
 -- given width.
 preSpecToSpec ::
@@ -116,7 +116,7 @@ preSpecsToBits =
 
 data Row = RMain MainRow | ROneCol OneColRow
 
--- | Displays a one-column row. 
+-- | Displays a one-column row.
 data OneColRow = OneColRow {
   ocIndentation :: Int
   -- ^ Indent the text by this many levels (not by this many

@@ -35,7 +35,7 @@ import qualified System.Console.MultiArg as MA
 -- need to use if you are supplying options programatically (as
 -- opposed to parsing them in from the command line.)
 data Opts = Opts
-  { balanceFormat :: L.Qty -> X.Text
+  { balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
   , sorter :: Sorter
   , target :: L.To
@@ -121,8 +121,8 @@ data ForestAndBL = ForestAndBL {
   }
 
 -- | Converts the balance data in preparation for screen rendering.
-rows :: ForestAndBL -> [K.Row]
-rows (ForestAndBL f tot to) = first:second:rest
+rows :: ForestAndBL -> ([K.Row], L.To)
+rows (ForestAndBL f tot to) = (first:second:rest, to)
   where
     first = K.ROneCol $ K.OneColRow 0 desc
     desc = X.pack "All amounts reported in commodity: "
@@ -149,11 +149,11 @@ report ::
   -> [L.PricePoint]
   -> [L.Box a]
   -> Ex.Exceptional X.Text [Scheme.PreChunk]
-report os@(Opts fmt _ _ _ _) ps bs =
-  fmap (K.rowsToChunks fmt)
-  . fmap rows
-  . sumConvertSort os ps
-  $ bs
+report os@(Opts getFmt _ _ _ _) ps bs = do
+  fstBl <- sumConvertSort os ps bs
+  let (rs, L.To cy) = rows fstBl
+      fmt = getFmt cy
+  return $ K.rowsToChunks fmt rs
 
 
 -- | Creates a report respecting the standard interface for reports
@@ -222,7 +222,9 @@ mostFrequent = U.lastMode . map (L.to . L.price)
 
 data HelpOrOpts
   = NeedsHelp
-  | DoReport ([L.PricePoint] -> (L.Qty -> X.Text) -> (Maybe Opts))
+  | DoReport ( [L.PricePoint]
+               -> (L.Commodity -> L.Qty -> X.Text)
+               -> (Maybe Opts))
 
 -- | Get options for the report, depending on what options were parsed
 -- from the command line. Fails if the user did not specify a

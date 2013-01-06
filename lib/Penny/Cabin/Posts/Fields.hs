@@ -4,8 +4,8 @@ module Penny.Cabin.Posts.Fields where
 import Control.Applicative(Applicative(pure, (<*>)))
 import qualified Data.Foldable as F
 
-data Fields a = Fields {
-  globalTransaction :: a
+data Fields a = Fields
+  { globalTransaction :: a
   , revGlobalTransaction :: a
   , globalPosting :: a
   , revGlobalPosting :: a
@@ -20,7 +20,6 @@ data Fields a = Fields {
   , visible :: a
   , revVisible :: a
   , lineNum :: a
-    -- ^ The line number from the posting's metadata
   , date :: a
   , flag :: a
   , number :: a
@@ -34,8 +33,8 @@ data Fields a = Fields {
   , totalQty :: a
   , tags :: a
   , memo :: a
-  , filename :: a }
-  deriving (Show, Eq)
+  , filename :: a
+  } deriving (Show, Eq)
 
 instance Functor Fields where
   fmap f fa = Fields {

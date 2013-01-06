@@ -41,7 +41,7 @@ module Penny.Cabin.Posts
   , A.Alloc
   , A.SubAccountLength(..)
   , A.alloc
-  , ymd
+  , yearMonthDay
   , qtyAsIs
   , balanceAsIs
   , defaultWidth
@@ -155,7 +155,7 @@ defaultOptions rt = ZincOpts
   { fields = defaultFields
   , width = widthFromRuntime rt
   , showZeroBalances = CO.ShowZeroBalances False
-  , dateFormat = ymd
+  , dateFormat = yearMonthDay
   , qtyFormat = qtyAsIs
   , balanceFormat = balanceAsIs
   , subAccountLength = A.SubAccountLength 2
@@ -264,13 +264,14 @@ newParseState cs fty o = P.State
   }
 
 -- | Shows the date of a posting in YYYY-MM-DD format.
-ymd :: Box -> X.Text
-ymd p = X.pack (Time.formatTime defaultTimeLocale fmt d) where
-  d = L.day
-      . Q.dateTime
-      . L.boxPostFam
-      $ p
-  fmt = "%Y-%m-%d"
+yearMonthDay :: Box -> X.Text
+yearMonthDay p = X.pack (Time.formatTime defaultTimeLocale fmt d)
+  where
+    d = L.day
+        . Q.dateTime
+        . L.boxPostFam
+        $ p
+    fmt = "%Y-%m-%d"
 
 -- | Shows the quantity of a posting. Does no rounding or
 -- prettification; simply uses show on the underlying Decimal.

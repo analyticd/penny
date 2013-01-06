@@ -19,7 +19,7 @@ data DefaultOpts = DefaultOpts
   , target :: P.Target
   , sortOrder :: CP.SortOrder
   , sortBy :: P.SortBy
-  , format :: L.Qty -> X.Text
+  , format :: L.Commodity -> L.Qty -> X.Text
   }
 
 toParserOpts :: DefaultOpts -> S.Runtime -> P.Opts
@@ -38,7 +38,7 @@ defaultOptions = DefaultOpts
   , target = P.AutoTarget
   , sortOrder = CP.Ascending
   , sortBy = P.SortByName
-  , format = X.pack . show
+  , format = \_ q -> X.pack . show $ q
   }
 
 

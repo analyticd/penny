@@ -4,12 +4,12 @@ module Penny.Zinc
   , ColorToFile(..)
   , Matcher(..)
   , SortField(..)
-  , Direction(..)
   , runZinc
   ) where
 
 import qualified Penny.Cabin.Chunk as Chk
 import qualified Penny.Cabin.Interface as I
+import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Copper as C
 import qualified Penny.Liberty as Ly
@@ -69,8 +69,6 @@ data SortField
   | TransactionMemo
   deriving (Eq, Show, Ord)
 
-data Direction = Ascending | Descending deriving (Eq, Show, Ord)
-
 data Defaults = Defaults
   { sensitive :: M.CaseSensitive
   , matcher :: Matcher
@@ -79,11 +77,11 @@ data Defaults = Defaults
     -- ^ If Nothing, no default scheme. If the user does not pick a
     -- scheme, no colors are used.
   , moreSchemes :: [E.Scheme]
-  , sorter :: [(SortField, Direction)]
+  , sorter :: [(SortField, P.SortOrder)]
   }
 
-sortPairToFn :: (SortField, Direction) -> Orderer
-sortPairToFn (s, d) = if d == Descending then flipOrder r else r
+sortPairToFn :: (SortField, P.SortOrder) -> Orderer
+sortPairToFn (s, d) = if d == P.Descending then flipOrder r else r
   where
     r = case s of
       Payee -> ordering Q.payee
@@ -97,28 +95,28 @@ sortPairToFn (s, d) = if d == Descending then flipOrder r else r
       PostingMemo -> ordering Q.postingMemo
       TransactionMemo -> ordering Q.transactionMemo
 
-descPair :: (SortField, Direction) -> String
+descPair :: (SortField, P.SortOrder) -> String
 descPair (i, d) = desc ++ ", " ++ dir
   where
     dir = case d of
-      Ascending -> "ascending"
-      Descending -> "descending"
+      P.Ascending -> "ascending"
+      P.Descending -> "descending"
     desc = case show i of
       [] -> []
       x:xs -> toLower x : xs
 
-descSortList :: [(SortField, Direction)] -> [String]
+descSortList :: [(SortField, P.SortOrder)] -> [String]
 descSortList ls = case ls of
   [] -> ["    No sorting performed by default"]
   x:xs -> descFirst x : map descRest xs
 
-descFirst :: (SortField, Direction) -> String
+descFirst :: (SortField, P.SortOrder) -> String
 descFirst p = "  Default sort order: " ++ descPair p
 
-descRest :: (SortField, Direction) -> String
+descRest :: (SortField, P.SortOrder) -> String
 descRest p = "    then: " ++ descPair p
 
-sortPairsToFn :: [(SortField, Direction)] -> Orderer
+sortPairsToFn :: [(SortField, P.SortOrder)] -> Orderer
 sortPairsToFn = foldl f mempty
   where
     f r p = mappend (sortPairToFn p) r
