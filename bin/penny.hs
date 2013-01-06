@@ -210,5 +210,5 @@ spacers = Spacers
   }
 
 main :: IO ()
-main = undefined
+main = runPenny defaults
 
