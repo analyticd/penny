@@ -2,12 +2,13 @@
 # the examples in the penny-getting-started manual page.
 
 # This file, like all of Penny, assumes you have basic knowledge of
-# double-entry accounting. See penny-accounting-basics(1).
+# double-entry accounting. See penny-basics(1).
 
-# As you can see, comments begin with the # symbol. You can only
-# have single-line comments; there are no multi-line comments
-# (e.g. like <!-- --> in XML or /* */ in C.) Also, comments must
-# start at the beginning of a line.
+# As you can see, comments begin with the # symbol. You can only have
+# single-line comments; there are no multi-line comments (e.g. like
+# <!-- --> in XML or /* */ in C.) Also, comments must be the only item
+# on a line (you cannot, for example, have part of a posting on one
+# line and then a comment at the end of the same line.)
 
 # We will distinguish between *transactions* and *postings*. A posting
 # must have, at a minimum, an account, an indication of whether it is

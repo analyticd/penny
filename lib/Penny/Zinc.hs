@@ -324,7 +324,7 @@ processGlobal srt st os =
 --
 warnTerminal :: IO ()
 warnTerminal =
-  hPutStrLn stderr $ "zinc: warning: reading from standard input, "
+  hPutStrLn stderr $ "penny: warning: reading from standard input, "
   ++ "which is a terminal"
 
 data Filename =

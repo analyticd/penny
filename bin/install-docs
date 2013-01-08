@@ -20,7 +20,7 @@ doInstall() {
     done
 
     install -m755 -d $DOCDIR
-    for filename in doc/*.{org,txt}; do
+    for filename in doc/*.{org,dot}; do
         install -v -m644 $filename $DOCDIR
     done
 
