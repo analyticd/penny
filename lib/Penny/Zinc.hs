@@ -688,8 +688,8 @@ help d = unlines $
   [ ""
   , "Colors"
   , "------"
-  , "default scheme: " ++
-    maybe "(none)" descScheme (defaultScheme d)
+  , "default scheme:"
+  ,  maybe "    (none)" descScheme (defaultScheme d)
   , ""
   ]
   ++ let schs = moreSchemes d

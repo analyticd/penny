@@ -328,7 +328,6 @@ help o = unlines $
   , "  Sort in descending order"
     ++ ifDefault (O.sortOrder o == CP.Descending)
   , ""
-  , ""
   , "--help, -h"
   , "  Show this help and exit"
   ]
