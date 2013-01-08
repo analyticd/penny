@@ -1,8 +1,2 @@
-* Fix colors on light backgrounds - many are invisible (check, is this
-  still needed?)
-
-* update man pages
-
-* autoconfiscate and automake the man pages and docs
-
-* check sorting
+* fix sorting, it is broken. Also, document that default sorters stay
+  in place unless overridden (document in man page, Penny, and penny.)
