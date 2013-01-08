@@ -25,7 +25,7 @@ defaults rt = Defaults
     -- scheme. If there is no default color scheme and the user does
     -- not pick one on the command line, no colors will be used.
 
-  , additionalSchemes = [schemeDark, schemeLight]
+  , additionalSchemes = [schemeDark, schemeLight, schemePlain]
     -- ^ Additional color schemes the user can pick from on the
     -- command line.
 
@@ -277,6 +277,18 @@ darkCredit = switchForeground color8_f_cyan color256_f_45
 darkZero :: TextSpec -> TextSpec
 darkZero = switchForeground color8_f_white color256_f_15
 
+-- | Plain scheme has no colors at all.
+schemePlain :: Scheme
+schemePlain = Scheme "plain" "uses default terminal colors"
+              plainLabels
+
+plainLabels :: Labels (EvenAndOdd TextSpec)
+plainLabels = Labels
+  { debit = EvenAndOdd defaultTextSpec defaultTextSpec
+  , credit = EvenAndOdd defaultTextSpec defaultTextSpec
+  , zero = EvenAndOdd defaultTextSpec defaultTextSpec
+  , other = EvenAndOdd defaultTextSpec defaultTextSpec
+  }
 
 main :: IO ()
 main = runPenny defaults

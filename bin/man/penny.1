@@ -111,10 +111,13 @@ T}:Equals
 
 .TP
 .BI "--scheme " SCHEME_NAME
-Use the given color scheme. By default, two schemes are available:
+Use the given color scheme. By default, three schemes are available:
 .IR dark ,
-designed for dark-background terminals, and
-.IR light .
+designed for dark-background terminals,
+.IR light ,
+for light-background terminals, and
+.IR plain ,
+which uses the terminal's default colors.
 By default the
 .I dark
 scheme is used.
@@ -126,7 +129,10 @@ Whether to use color when standard output is not a terminal. Default is
 If standard output is a terminal, the maximum color capabilities of your terminal are used. (If you do not like color, preface your
 .B penny
 command with
-.IR TERM=dumb .)
+.IR TERM=dumb
+or, alternatively, use
+.BR "--scheme plain" ,
+which has the same effect.)
 
 .SH POSTING FILTERS
 .SS Dates

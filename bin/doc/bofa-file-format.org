@@ -76,7 +76,7 @@ Not balanced. Says 5959.
 Not balanced. Four-digit number.
 
 *** INTU.USERID
-Not balanced. Says "massysett"
+Not balanced. Has your Bank of America user ID.
 
 * BANKMSGSRSV1
 Balanced.
