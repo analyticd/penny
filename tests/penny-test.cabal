@@ -1,5 +1,5 @@
 Name: penny-test
-Version: 0.5.1.0
+Version: 0.6.0.0
 Cabal-version: >= 1.8
 Build-type: Simple
 License: MIT
@@ -21,7 +21,7 @@ Executable penny-test
         base ==4.*,
         explicit-exception ==0.1.*,
         parsec ==3.1.*,
-        penny-lib ==0.5.1.0,
+        penny-lib ==0.6.0.0,
         QuickCheck ==2.5.*,
         random-shuffle ==0.0.4,
         semigroups ==0.8.*,
@@ -54,7 +54,7 @@ Executable penny-gibberish
         , text ==0.11.*
         , random ==1.0.*
         , explicit-exception ==0.1.*
-        , penny-lib ==0.5.1.0
+        , penny-lib ==0.6.0.0
         , semigroups ==0.8.*
         , test-framework ==0.6.*
         , test-framework-quickcheck2 ==0.2.*

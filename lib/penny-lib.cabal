@@ -1,9 +1,9 @@
 Name: penny-lib
-Version: 0.5.1.0
+Version: 0.6.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
-Copyright: 2012 Omari Norman.
+Copyright: 2012-2013 Omari Norman.
 author: Omari Norman
 maintainer: omari@smileystation.com
 stability: Experimental
