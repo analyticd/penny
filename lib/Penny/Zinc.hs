@@ -420,7 +420,7 @@ handleParseResult
   -> IO ()
 handleParseResult rt df rs r =
   let showErr e = do
-        IO.hPutStr IO.stderr $ "penny: error: " ++ e
+        IO.hPutStrLn IO.stderr $ "penny: error: " ++ e
         exitFailure
   in case r of
     Ex.Exception e -> do

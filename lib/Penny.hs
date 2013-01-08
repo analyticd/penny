@@ -13,8 +13,8 @@ module Penny
   , E.TextSpecs
   , E.Labels(..)
   , E.EvenAndOdd(..)
-  , schemeDark
-  , schemeLight
+  , Sw.switchForeground
+  , Sw.switchBackground
   , module Penny.Cabin.Chunk
 
   -- ** Sorting
@@ -84,6 +84,7 @@ import qualified Penny.Cabin.Balance.Convert.Options as ConvOpts
 import qualified Penny.Cabin.Balance.MultiCommodity as MC
 import qualified Penny.Cabin.Balance.MultiCommodity.Parser as MP
 import Penny.Cabin.Chunk
+import qualified Penny.Cabin.Chunk.Switch as Sw
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as CabP
@@ -92,8 +93,6 @@ import qualified Penny.Cabin.Posts.Fields as PF
 import qualified Penny.Cabin.Posts.Spacers as PS
 import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Scheme as E
-import qualified Penny.Cabin.Scheme.Dark as Dark
-import qualified Penny.Cabin.Scheme.Light as Light
 import qualified Penny.Lincoln as L
 import qualified Penny.Zinc as Z
 import qualified Penny.Shield as S
@@ -256,14 +255,6 @@ convTarget :: Target -> CP.Target
 convTarget t = case t of
   AutoTarget -> CP.AutoTarget
   ManualTarget s -> CP.ManualTarget . L.To . L.Commodity . X.pack $ s
-
--- | Color scheme for dark terminals
-schemeDark :: E.Scheme
-schemeDark = Dark.scheme
-
--- | Color scheme for light terminals
-schemeLight :: E.Scheme
-schemeLight = Light.scheme
 
 allReports
   :: Defaults

@@ -209,6 +209,75 @@ spacers = Spacers
   , sTotalCmdty = 1
   }
 
+-- | The light color scheme. You can change various values below to
+-- affect the color scheme.
+schemeLight :: Scheme
+schemeLight = Scheme "light" "for light background terminals"
+              lightLabels
+
+lightLabels :: Labels (EvenAndOdd TextSpec)
+lightLabels = Labels
+  { debit = EvenAndOdd { eoEven = lightDebit lightEvenTextSpec
+                       , eoOdd = lightDebit lightOddTextSpec }
+  , credit = EvenAndOdd { eoEven = lightCredit lightEvenTextSpec
+                        , eoOdd = lightCredit lightOddTextSpec }
+  , zero = EvenAndOdd { eoEven = lightZero lightEvenTextSpec
+                      , eoOdd = lightZero lightOddTextSpec }
+  , other = EvenAndOdd { eoEven = lightEvenTextSpec
+                       , eoOdd = lightOddTextSpec }
+  }
+
+lightEvenTextSpec :: TextSpec
+lightEvenTextSpec = defaultTextSpec
+
+lightOddTextSpec :: TextSpec
+lightOddTextSpec = switchBackground color8_b_default
+                   color256_b_255 lightEvenTextSpec
+
+lightDebit :: TextSpec -> TextSpec
+lightDebit = switchForeground color8_f_magenta color256_f_52
+
+lightCredit :: TextSpec -> TextSpec
+lightCredit = switchForeground color8_f_cyan color256_f_21
+
+lightZero :: TextSpec -> TextSpec
+lightZero = switchForeground color8_f_black color256_f_0
+
+-- | The dark color scheme. You can change various values below to
+-- affect the color scheme.
+schemeDark :: Scheme
+schemeDark = Scheme "dark" "for dark background terminals"
+              darkLabels
+
+darkLabels :: Labels (EvenAndOdd TextSpec)
+darkLabels = Labels
+  { debit = EvenAndOdd { eoEven = darkDebit darkEvenTextSpec
+                       , eoOdd = darkDebit darkOddTextSpec }
+  , credit = EvenAndOdd { eoEven = darkCredit darkEvenTextSpec
+                        , eoOdd = darkCredit darkOddTextSpec }
+  , zero = EvenAndOdd { eoEven = darkZero darkEvenTextSpec
+                      , eoOdd = darkZero darkOddTextSpec }
+  , other = EvenAndOdd { eoEven = darkEvenTextSpec
+                       , eoOdd = darkOddTextSpec }
+  }
+
+darkEvenTextSpec :: TextSpec
+darkEvenTextSpec = defaultTextSpec
+
+darkOddTextSpec :: TextSpec
+darkOddTextSpec = switchBackground color8_b_default
+                   color256_b_235 darkEvenTextSpec
+
+darkDebit :: TextSpec -> TextSpec
+darkDebit = switchForeground color8_f_magenta color256_f_208
+
+darkCredit :: TextSpec -> TextSpec
+darkCredit = switchForeground color8_f_cyan color256_f_45
+
+darkZero :: TextSpec -> TextSpec
+darkZero = switchForeground color8_f_white color256_f_15
+
+
 main :: IO ()
 main = runPenny defaults
 
