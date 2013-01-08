@@ -359,6 +359,21 @@ The postings are sorted in ascending order if the first letter of the
 key is lowercase; descending order if the first letter of the key is
 uppercase.
 
+Postings by default are sorted by date in ascending order; however,
+any specification of a
+.B --sort
+option on the command line overrides this. For example,
+.B --sort payee
+sorts postings by payee from A-Z, while
+.B --sort date --sort payee
+sorts postings by date from oldest to newest and sorts postings with
+the same date in payee order from A to Z.
+
+If you want to leave postings in the order in which they appeared in
+your ledger file, use
+.BR "--sort none" .
+
+
 .SH HELP
 .TP
 .B --help | -h

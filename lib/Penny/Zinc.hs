@@ -18,7 +18,6 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
 
-import Control.Arrow (second)
 import Control.Applicative ((<$>), (<*>), pure)
 import Control.Monad (when)
 import qualified Control.Monad.Trans.State as St
@@ -26,7 +25,8 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper, toLower)
 import Data.List (isPrefixOf)
 import Data.Maybe (mapMaybe, catMaybes)
-import Data.Monoid (mappend, mconcat, mempty)
+import Data.Monoid (mappend, mconcat)
+import Data.Ord (comparing)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
@@ -78,22 +78,26 @@ data Defaults = Defaults
     -- scheme, no colors are used.
   , moreSchemes :: [E.Scheme]
   , sorter :: [(SortField, P.SortOrder)]
+    -- ^ For example, to sort by date and then by payee if the dates
+    -- are equal, use
+    --
+    -- > [(Date, Ascending), (Payee, Ascending)]
   }
 
 sortPairToFn :: (SortField, P.SortOrder) -> Orderer
 sortPairToFn (s, d) = if d == P.Descending then flipOrder r else r
   where
     r = case s of
-      Payee -> ordering Q.payee
-      Date -> ordering Q.dateTime
-      Flag -> ordering Q.flag
-      Number -> ordering Q.number
-      Account -> ordering Q.account
-      DrCr -> ordering Q.drCr
-      Qty -> ordering Q.qty
-      Commodity -> ordering Q.commodity
-      PostingMemo -> ordering Q.postingMemo
-      TransactionMemo -> ordering Q.transactionMemo
+      Payee -> comparing Q.payee
+      Date -> comparing Q.dateTime
+      Flag -> comparing Q.flag
+      Number -> comparing Q.number
+      Account -> comparing Q.account
+      DrCr -> comparing Q.drCr
+      Qty -> comparing Q.qty
+      Commodity -> comparing Q.commodity
+      PostingMemo -> comparing Q.postingMemo
+      TransactionMemo -> comparing Q.transactionMemo
 
 descPair :: (SortField, P.SortOrder) -> String
 descPair (i, d) = desc ++ ", " ++ dir
@@ -117,9 +121,7 @@ descRest :: (SortField, P.SortOrder) -> String
 descRest p = "    then: " ++ descPair p
 
 sortPairsToFn :: [(SortField, P.SortOrder)] -> Orderer
-sortPairsToFn = foldl f mempty
-  where
-    f r p = mappend (sortPairToFn p) r
+sortPairsToFn = mconcat . map sortPairToFn
 
 data State = State
   { stSensitive :: M.CaseSensitive
@@ -158,7 +160,7 @@ data OptResult
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
   | ROperator (Ly.Token (L.PostFam -> Bool))
-  | RSortSpec (Ex.Exceptional String (Maybe Orderer))
+  | RSortSpec (Ex.Exceptional String Orderer)
   | RHelp
   | RColorToFile ColorToFile
   | RScheme E.TextSpecs
@@ -181,18 +183,14 @@ getSortSpec
   :: Orderer
   -> [OptResult]
   -> Ex.Exceptional String Orderer
-getSortSpec i =
-  fmap folder
-  . sequence
-  . mapMaybe f
-  where
-    f o = case o of
-      RSortSpec x -> Just x
-      _ -> Nothing
-    folder = foldl g i
-    g r mayOrd = case mayOrd of
-      Nothing -> mempty
-      Just ord -> ord `mappend` r
+getSortSpec i ls =
+  let getSpec o = case o of
+        RSortSpec x -> Just x
+        _ -> Nothing
+      exSpecs = mapMaybe getSpec ls
+  in if null exSpecs
+     then return i
+     else fmap mconcat . sequence $ exSpecs
 
 type Factory = M.CaseSensitive
              -> Text -> Ex.Exceptional Text (Text -> Bool)
@@ -483,15 +481,20 @@ parseAndPrint df rt rs ss =
 ------------------------------------------------------------
 -- ## Sorting
 ------------------------------------------------------------
+
+-- The monoid instance of Ordering takes the first non-EQ item. For
+-- example:
+--
+-- mconcat [EQ, LT, GT] == LT.
+--
+-- If b is a monoid, then (a -> b) is also a monoid. Therefore (a -> a
+-- -> Ordering) is also a monoid. So for example to compare the first
+-- element of a pair and then by the second element only if the first
+-- element is equal:
+--
+-- mconcat [comparing fst, comparing snd]
+
 type Orderer = L.PostFam -> L.PostFam -> Ordering
-
-ordering ::
-  (Ord b)
-  => (a -> b)
-  -> (a -> a -> Ordering)
-ordering q = f where
-  f p1 p2 = compare (q p1) (q p2)
-
 
 flipOrder :: (a -> a -> Ordering) -> (a -> a -> Ordering)
 flipOrder f = f' where
@@ -507,26 +510,24 @@ capitalizeFirstLetter s = case s of
 
 ordPairs :: [(String, Orderer)]
 ordPairs =
-  [ ("payee", ordering Q.payee)
-  , ("date", ordering Q.dateTime)
-  , ("flag", ordering Q.flag)
-  , ("number", ordering Q.number)
-  , ("account", ordering Q.account)
-  , ("drCr", ordering Q.drCr)
-  , ("qty", ordering Q.qty)
-  , ("commodity", ordering Q.commodity)
-  , ("postingMemo", ordering Q.postingMemo)
-  , ("transactionMemo", ordering Q.transactionMemo) ]
+  [ ("payee", comparing Q.payee)
+  , ("date", comparing Q.dateTime)
+  , ("flag", comparing Q.flag)
+  , ("number", comparing Q.number)
+  , ("account", comparing Q.account)
+  , ("drCr", comparing Q.drCr)
+  , ("qty", comparing Q.qty)
+  , ("commodity", comparing Q.commodity)
+  , ("postingMemo", comparing Q.postingMemo)
+  , ("transactionMemo", comparing Q.transactionMemo) ]
 
 ords :: [(String, Orderer)]
-ords = ordPairs ++ uppers where
+ords = ordPairs ++ uppers ++ [none] where
   uppers = map toReversed ordPairs
   toReversed (s, f) =
     (capitalizeFirstLetter s, flipOrder f)
+  none = ("none", const . const $ EQ)
 
-
-ordsWithZero :: [(String, Maybe Orderer)]
-ordsWithZero = map (second Just) ords ++ [("none", Nothing)]
 
 -- | True if the first argument matches the second argument. The match
 -- on the first letter is case sensitive; the match on the other
@@ -537,11 +538,11 @@ argMatch s1 s2 = case (s1, s2) of
     (x == y) && ((map toUpper xs) `isPrefixOf` (map toUpper ys))
   _ -> True
 
-sortSpecs :: MA.OptSpec (Ex.Exceptional String (Maybe Orderer))
+sortSpecs :: MA.OptSpec (Ex.Exceptional String Orderer)
 sortSpecs = MA.OptSpec ["sort"] ['s'] (MA.OneArg f)
   where
     f a =
-      let matches = filter (\p -> a `argMatch` (fst p)) ordsWithZero
+      let matches = filter (\p -> a `argMatch` (fst p)) ords
       in case matches of
         x:[] -> return $ snd x
         _ -> Ex.throw $ "invalid sort key: " ++ a

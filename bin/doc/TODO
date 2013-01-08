@@ -1,2 +1,1 @@
-* fix sorting, it is broken. Also, document that default sorters stay
-  in place unless overridden (document in man page, Penny, and penny.)
+* (this file is currently empty)
