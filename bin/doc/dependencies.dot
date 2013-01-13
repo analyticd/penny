@@ -19,6 +19,8 @@ digraph G {
         Zinc -> Liberty;
         Zinc -> Lincoln;
         Zinc -> Shield;
-        Steel;
+        Wheat -> Steel;
+        Wheat -> Lincoln;
+        Wheat -> Copper;
 }
 
