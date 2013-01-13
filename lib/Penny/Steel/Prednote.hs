@@ -8,7 +8,7 @@
 module Penny.Steel.Prednote
   ( -- * Simple interface
     -- ** Pdct
-    Pdct
+    Pdct(..)
   , PdctName
 
     -- *** Creating predicates
@@ -25,7 +25,7 @@ module Penny.Steel.Prednote
 
     -- ** Test series
     -- *** Creating test series
-  , SeriesGroup
+  , SeriesGroup(..)
   , SeriesName
   , GroupName
   , seriesAtLeastN
@@ -36,10 +36,47 @@ module Penny.Steel.Prednote
   , Verbosity(..)
   , runSeries
   , showSeries
+  , SpaceCount
+  , ColorToFile
+  , ExS
   , PrednoteConf(..)
   , prednoteMain
 
     -- * Innards
+
+    -- | You can muck around in here if you want, though hopefully it
+    -- should not be necessary for ordinary use.
+
+    -- ** Types
+  , Result
+  , Info(..)
+  , InfoTree
+  , Passed
+  , SeriesResult(..)
+  , GroupResult(..)
+  , SRInfo(..)
+  , SeriesFn
+  , Group(..)
+
+    -- ** Showing
+  , Indentation
+  , showSeriesResult
+  , showGroupResult
+  , showSRInfo
+  , showResult
+  , showTree
+  , printInColor
+  , printResult
+  , printPassed
+
+  -- ** Pruning
+  , filterTree
+  , filterForest
+  , pruneSeriesResult
+  , pruneFailOnly
+  , pruneBrief
+  , pruneInteresting
+  , pruneAllFails
   ) where
 
 import Control.Applicative ((<*>), pure)
@@ -79,9 +116,9 @@ data SeriesResult a
 data GroupResult a = GroupResult GroupName [SeriesResult a]
 
 data SRInfo a = SRInfo
-  { _lrName :: SeriesName
-  , _lrPassed :: Passed
-  , _lrResults :: [(a, InfoTree)]
+  { srName :: SeriesName
+  , srPassed :: Passed
+  , srResults :: [(a, InfoTree)]
   }
 
 type SeriesFn a = [a] -> SRInfo a
@@ -111,6 +148,8 @@ data Verbosity
 
 type GroupName = String
 
+-- | A group of Series. For ordinary use you will not need to use the
+-- constructors; simply use the 'group' function as needed.
 data SeriesGroup a
   = Single (SeriesFn a)
   | Several (Group a)
