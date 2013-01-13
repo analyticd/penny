@@ -36,15 +36,25 @@ module Penny.Steel.Prednote
   , Verbosity(..)
   , runSeries
   , showSeries
+  , PrednoteConf(..)
+  , prednoteMain
 
     -- * Innards
   ) where
 
 import Control.Applicative ((<*>), pure)
 import Control.Arrow (second)
+import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe (mapMaybe, fromMaybe)
 import qualified Data.Tree as T
+import qualified System.Console.MultiArg as MA
 import qualified System.Console.Terminfo as TI
+import qualified System.Exit as Exit
+import qualified System.IO as IO
+
+------------------------------------------------------------
+-- Types
+------------------------------------------------------------
 
 type Result = Bool
 
@@ -76,6 +86,41 @@ data SRInfo a = SRInfo
 
 type SeriesFn a = [a] -> SRInfo a
 
+data Verbosity
+  = Silent
+    -- ^ Show nothing at all
+
+  | FailOnly
+    -- ^ Show only failing tests
+
+  | Brief
+  -- ^ Show only whether test succeeded or failed.
+
+  | InterestingFails
+  -- ^ Show interesting results from failed tests. Do not show results
+  -- from succeeded tests.
+
+  | AllFails
+  -- ^ Show all resuls from failed tests. Do not show results from
+  -- succeeded tests.
+
+  | AllAll
+  -- ^ Show all results from all tests, whether succeeded or failed.
+  deriving Eq
+
+
+type GroupName = String
+
+data SeriesGroup a
+  = Single (SeriesFn a)
+  | Several (Group a)
+
+data Group a = Group GroupName [SeriesGroup a]
+
+------------------------------------------------------------
+-- Creating predicates
+------------------------------------------------------------
+
 -- | Creates a new Predicate with the given name.
 pdct :: PdctName -> (a -> Bool) -> Pdct a
 pdct d p = Pdct fn
@@ -83,6 +128,10 @@ pdct d p = Pdct fn
     fn pf = T.Node n []
       where
         n = Info (p pf) d True
+
+------------------------------------------------------------
+-- Combinators
+------------------------------------------------------------
 
 -- | Succeeds only when the given test fails.
 expectFail :: Pdct a -> Pdct a
@@ -141,6 +190,10 @@ conjoin ls = Pdct fn
 
 infixr 3 .&&.
 
+------------------------------------------------------------
+-- Series
+------------------------------------------------------------
+
 -- | Passes if at least n subjects are True.
 seriesAtLeastN
   :: SeriesName
@@ -172,49 +225,6 @@ eachSubjectMustBeTrue n (Pdct t) = Single fn
         pairs = zip pfs rslts
         rslts = pure t <*> pfs
         passed = all (iResult . T.rootLabel) rslts
-
-filterTree
-  :: InfoTree
-  -> InfoTree
-filterTree (T.Node l ts) =
-  T.Node l (filterForest (interestingChildrenAre l) ts)
-
-filterForest
-  :: Bool
-  -> T.Forest Info
-  -> T.Forest Info
-filterForest b = filter ((== b) . (iResult . T.rootLabel))
-                 . map filterTree
-
-data Verbosity
-  = Silent
-    -- ^ Show nothing at all
-
-  | FailOnly
-    -- ^ Show only failing tests
-
-  | Brief
-  -- ^ Show only whether test succeeded or failed.
-
-  | InterestingFails
-  -- ^ Show interesting results from failed tests. Do not show results
-  -- from succeeded tests.
-
-  | AllFails
-  -- ^ Show all resuls from failed tests. Do not show results from
-  -- succeeded tests.
-
-  | AllAll
-  -- ^ Show all results from all tests, whether succeeded or failed.
-
-
-type GroupName = String
-
-data SeriesGroup a
-  = Single (SeriesFn a)
-  | Several (Group a)
-
-data Group a = Group GroupName [SeriesGroup a]
 
 group :: GroupName -> [SeriesGroup a] -> SeriesGroup a
 group n ts = Several $ Group n ts
@@ -299,19 +309,6 @@ showTree t i sc (T.Node (Info r n _) cs) = do
   putStrLn $ " " ++ n
   mapM_ (showTree t (i + 1) sc) cs
 
-addTreeLevel :: Int -> T.Tree a -> T.Tree (Int, a)
-addTreeLevel i (T.Node l cs) =
-  T.Node (i, l) (map (addTreeLevel (i + 1)) cs)
-
-flattenTree :: Indentation -> T.Tree [String] -> [String]
-flattenTree i (T.Node ss cs) =
-  map addSpaces ss ++ flattenForest (i + 1) cs
-  where
-    addSpaces s = replicate (spaces * i) ' ' ++ s
-
-flattenForest :: Indentation -> [T.Tree [String]] -> [String]
-flattenForest i fs = concatMap (flattenTree i) fs
-
 printInColor :: TI.Terminal -> TI.Color -> String -> IO ()
 printInColor t c s =
   case TI.getCapability t TI.withForegroundColor of
@@ -340,20 +337,32 @@ printPassed t p = do
 showSeries
   :: TI.Terminal
   -> (a -> String)
-  -> Indentation
   -> SpaceCount
   -> Verbosity
   -> SeriesResult a
   -> IO ()
-showSeries ti swr i sc v =
+showSeries ti swr sc v =
   fromMaybe (return ())
-  . fmap (showSeriesResult ti swr i sc)
+  . fmap (showSeriesResult ti swr 0 sc)
   . pruneSeriesResult v
 
 
 ------------------------------------------------------------
 -- Pruning
 ------------------------------------------------------------
+
+filterTree
+  :: InfoTree
+  -> InfoTree
+filterTree (T.Node l ts) =
+  T.Node l (filterForest (interestingChildrenAre l) ts)
+
+filterForest
+  :: Bool
+  -> T.Forest Info
+  -> T.Forest Info
+filterForest b = filter ((== b) . (iResult . T.rootLabel))
+                 . map filterTree
 
 pruneSeriesResult :: Verbosity -> SeriesResult a -> Maybe (SeriesResult a)
 pruneSeriesResult v tr = case v of
@@ -409,28 +418,208 @@ pruneAllFails tr = case tr of
     pruneSeveralResult (GroupResult n ls) =
       SeveralResult (GroupResult n (map pruneAllFails ls))
 
-showTreePair
-  :: (a -> String)
-  -> Passed
-  -> (a, InfoTree)
-  -> T.Tree [String]
-showTreePair swr psd (pf, (T.Node info cs)) = T.Node [str] cs'
+
+------------------------------------------------------------
+-- CLI
+------------------------------------------------------------
+
+type ProgName = String
+type BriefDesc = String
+type MoreHelp = [String]
+type ColorToFile = Bool
+
+help
+  :: ProgName
+  -> BriefDesc
+  -> MoreHelp
+  -> Verbosity
+  -> SpaceCount
+  -> ColorToFile
+  -> String
+help pn bd ah v sc ctf = unlines $
+  [ "usage: " ++ pn ++ "[options] ARGS"
+  , ""
+  , bd
+  , "Options:"
+  , ""
+  , "--color-to-file no|yes"
+  , "  If yes, use colors even when standard output is"
+  , "  not a terminal. (default: " ++ dCtf ++ ")"
+  , ""
+  , "--verbosity, -v VERBOSITY"
+  , "  Use the given level of verbosity. Choices:"
+  , "    silent - show nothing at all"
+  , "    fails - show only series that fail"
+  , "    brief - show only whether each series succeeded or failed"
+  , "    interesting - show interesting result from failed"
+  , "      series; for successful series, show only that they"
+  , "      succeeded"
+  , "    allFails - show all result from failed series; for"
+  , "      successful series, show only that they succeeded"
+  , "    everything - show all results from all series"
+  , "    (default: " ++ dVerb ++ ")"
+  , ""
+  , "--indentation, -i SPACES - indent each level by this many spaces"
+  , "  (default: " ++ dSc ++ ")"
+  , ""
+  , "--help, -h - show help and exit"
+  , ""
+  ] ++ ah
   where
-    str = okFail ++ " - " ++ iName info ++ swr pf
-    okFail = if psd then "OK" else "FAIL"
-    cs' = showComplexForest cs
+    dCtf = if ctf then "yes" else "no"
+    dVerb = case v of
+      Silent -> "silent"
+      FailOnly -> "fails"
+      Brief -> "brief"
+      InterestingFails -> "interesting"
+      AllFails -> "allFails"
+      AllAll -> "everything"
+    dSc = show sc
 
-showInfoTree :: T.Tree Info -> T.Tree [String]
-showInfoTree (T.Node ci ts) = T.Node [showInfo ci] ts'
+data Arg
+  = AHelp
+  | AVerbosity Verbosity
+  | AColorToFile ColorToFile
+  | AIndentation SpaceCount
+  | APosArg String
+  deriving Eq
+
+optHelp :: MA.OptSpec Arg
+optHelp = MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
+
+optVerbosity :: MA.OptSpec Arg
+optVerbosity = MA.OptSpec ["verbosity"] "v" (MA.ChoiceArg ls)
   where
-    ts' = showComplexForest ts
+    ls = fmap (second AVerbosity) $
+         [ ("silent", Silent)
+         , ("fails", FailOnly)
+         , ("brief", Brief)
+         , ("interesting", InterestingFails)
+         , ("allFails", AllFails)
+         , ("everything", AllAll)
+         ]
 
-showComplexForest :: [T.Tree Info] -> [T.Tree [String]]
-showComplexForest = map showInfoTree
-
-showInfo :: Info -> String
-showInfo i = rslt ++ " - " ++ iName i
+optColorToFile :: MA.OptSpec Arg
+optColorToFile = MA.OptSpec ["color-to-file"] "" (MA.ChoiceArg ls)
   where
-    rslt = if iResult i then "True" else "False"
+    ls = fmap (second AColorToFile) [ ("no", False), ("yes", True) ]
 
+type ExS = Ex.Exceptional String
+optIndentation :: MA.OptSpec (ExS Arg)
+optIndentation = MA.OptSpec ["indentation"] "i" (MA.OneArg f)
+  where
+    f s =
+      let err = Ex.throw $ "improper indentation argument: " ++ s
+      in case reads s of
+          (i, ""):[] ->
+            if i >= 0 then Ex.Success (AIndentation i) else err
+          _ -> err
 
+data ParseResult
+  = NeedsHelp
+  | ParseErr String
+  | Parsed Verbosity SpaceCount ColorToFile [String]
+
+-- | When passed the defaults, return the values to use, as they might
+-- have been affected by the command arguments, or return Nothing if
+-- help is needed.
+parseArgs
+  :: Verbosity
+  -> SpaceCount
+  -> ColorToFile
+  -> [String]
+  -> ParseResult
+parseArgs v sc ctf ss =
+  let exLs = MA.simple MA.Intersperse opts (return . APosArg) ss
+      opts = [ fmap return optHelp
+             , fmap return optVerbosity
+             , fmap return optColorToFile
+             , optIndentation
+             ]
+  in case exLs of
+      Ex.Exception e -> ParseErr . show $ e
+      Ex.Success ls -> case sequence ls of
+        Ex.Exception e -> ParseErr e
+        Ex.Success ls' ->
+          if AHelp `elem` ls'
+          then NeedsHelp
+          else Parsed (getVerbosity v ls') (getSpaceCount sc ls')
+                      (getColorToFile ctf ls') (getPosArg ls')
+
+getVerbosity :: Verbosity -> [Arg] -> Verbosity
+getVerbosity v as = case mapMaybe f as of
+  [] -> v
+  xs -> last xs
+  where f a = case a of { AVerbosity vb -> Just vb; _ -> Nothing }
+
+getSpaceCount :: SpaceCount -> [Arg] -> SpaceCount
+getSpaceCount sc as = case mapMaybe f as of
+  [] -> sc
+  xs -> last xs
+  where f a = case a of { AIndentation i -> Just i; _ -> Nothing }
+
+getColorToFile :: ColorToFile -> [Arg] -> ColorToFile
+getColorToFile ctf as = case mapMaybe f as of
+  [] -> ctf
+  xs -> last xs
+  where f a = case a of { AColorToFile i -> Just i; _ -> Nothing }
+
+getPosArg :: [Arg] -> [String]
+getPosArg = mapMaybe f
+  where f a = case a of { APosArg s -> Just s; _ -> Nothing }
+
+data PrednoteConf a = PrednoteConf
+  { briefDescription :: String
+  , moreHelp :: [String]
+  , verbosity :: Verbosity
+  , spaceCount :: SpaceCount
+  , colorToFile :: ColorToFile
+  , showSubject :: (a -> String)
+  , groups :: [SeriesGroup a]
+  , getSubjects :: ([String] -> IO (ExS [a]))
+  }
+
+exitWithCode :: [SeriesResult a] -> IO ()
+exitWithCode srs =
+  if and . concatMap getList $ srs
+  then Exit.exitSuccess
+  else Exit.exitFailure
+  where
+    getList res = case res of
+      SingleResult (SRInfo _ p _) -> [p]
+      SeveralResult (GroupResult _ rs) -> concatMap getList rs
+
+applyParse
+  :: ProgName
+  -> PrednoteConf a
+  -> [String]
+  -> IO (Verbosity, SpaceCount, ColorToFile, [String])
+applyParse pn c as = do
+  case parseArgs (verbosity c) (spaceCount c) (colorToFile c) as of
+    NeedsHelp -> do
+      putStrLn (help pn (briefDescription c) (moreHelp c)
+                (verbosity c) (spaceCount c) (colorToFile c))
+      Exit.exitSuccess
+    ParseErr e -> do
+      putStrLn $ pn ++ ": could not parse command line: " ++ e
+      Exit.exitFailure
+    Parsed a1 a2 a3 a4 -> return (a1, a2, a3, a4)
+
+prednoteMain :: PrednoteConf a -> IO ()
+prednoteMain c = do
+  pn <- MA.getProgName
+  as <- MA.getArgs
+  (vbsty, sc, ctf, posargs) <- applyParse pn c as
+  isTerm <- IO.hIsTerminalDevice IO.stdout
+  ti <- if isTerm || ctf
+          then TI.setupTermFromEnv
+          else TI.setupTerm "dumb"
+  exSubs <- getSubjects c posargs
+  subs <- case exSubs of
+    Ex.Exception s -> do
+      putStrLn $ pn ++ ": error processing positional arguments: " ++ s
+      Exit.exitFailure
+    Ex.Success ss -> return ss
+  let srs = map (runSeries subs) . groups $ c
+  mapM_ (showSeries ti (showSubject c) sc vbsty) srs
+  exitWithCode srs
