@@ -73,6 +73,9 @@ module Penny
     -- "Penny.Steel" - independent utilities. Depends on no other
     -- Penny components.
     --
+    -- "Penny.Wheat" - tools to use with
+    -- "Penny.Steel.Prednote". Depends on Steel, Lincoln, and Copper.
+    --
     -- "Penny.Zinc" - the Penny command-line interface. Depends on
     -- Cabin, Copper, Liberty, and Lincoln.
     --
