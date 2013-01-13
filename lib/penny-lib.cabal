@@ -1,5 +1,5 @@
 Name: penny-lib
-Version: 0.6.0.0
+Version: 0.6.0.1
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -127,6 +127,8 @@ Library
     , Penny.Lincoln.Transaction
     , Penny.Lincoln.Transaction.Unverified
     , Penny.Shield
+    , Penny.Steel
+    , Penny.Steel.Prednote
     , Penny.Zinc
 
 

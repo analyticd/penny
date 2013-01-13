@@ -67,8 +67,11 @@ module Penny
     -- "Penny.Lincoln" - the Penny core. Depends on no other Penny
     -- components.
     --
-    -- "Penny.Shield" the Penny runtime environment. Depends on
+    -- "Penny.Shield" - the Penny runtime environment. Depends on
     -- Lincoln.
+    --
+    -- "Penny.Steel" - independent utilities. Depends on no other
+    -- Penny components.
     --
     -- "Penny.Zinc" - the Penny command-line interface. Depends on
     -- Cabin, Copper, Liberty, and Lincoln.

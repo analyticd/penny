@@ -19,5 +19,6 @@ digraph G {
         Zinc -> Liberty;
         Zinc -> Lincoln;
         Zinc -> Shield;
+        Steel;
 }
 
