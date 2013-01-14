@@ -36,11 +36,8 @@ module Penny.Steel.Prednote
   , Verbosity(..)
   , runSeries
   , showSeries
+  , exitWithCode
   , SpaceCount
-  , ColorToFile
-  , ExS
-  , PrednoteConf(..)
-  , prednoteMain
 
     -- * Innards
 
@@ -81,13 +78,10 @@ module Penny.Steel.Prednote
 
 import Control.Applicative ((<*>), pure)
 import Control.Arrow (second)
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe (mapMaybe, fromMaybe)
 import qualified Data.Tree as T
-import qualified System.Console.MultiArg as MA
 import qualified System.Console.Terminfo as TI
 import qualified System.Exit as Exit
-import qualified System.IO as IO
 
 ------------------------------------------------------------
 -- Types
@@ -458,165 +452,9 @@ pruneAllFails tr = case tr of
       SeveralResult (GroupResult n (map pruneAllFails ls))
 
 
-------------------------------------------------------------
--- CLI
-------------------------------------------------------------
-
-type ProgName = String
-type BriefDesc = String
-type MoreHelp = [String]
-type ColorToFile = Bool
-
-help
-  :: ProgName
-  -> BriefDesc
-  -> MoreHelp
-  -> Verbosity
-  -> SpaceCount
-  -> ColorToFile
-  -> String
-help pn bd ah v sc ctf = unlines $
-  [ "usage: " ++ pn ++ "[options] ARGS"
-  , ""
-  , bd
-  , "Options:"
-  , ""
-  , "--color-to-file no|yes"
-  , "  If yes, use colors even when standard output is"
-  , "  not a terminal. (default: " ++ dCtf ++ ")"
-  , ""
-  , "--verbosity, -v VERBOSITY"
-  , "  Use the given level of verbosity. Choices:"
-  , "    silent - show nothing at all"
-  , "    fails - show only series that fail"
-  , "    brief - show only whether each series succeeded or failed"
-  , "    interesting - show interesting result from failed"
-  , "      series; for successful series, show only that they"
-  , "      succeeded"
-  , "    allFails - show all result from failed series; for"
-  , "      successful series, show only that they succeeded"
-  , "    everything - show all results from all series"
-  , "    (default: " ++ dVerb ++ ")"
-  , ""
-  , "--indentation, -i SPACES - indent each level by this many spaces"
-  , "  (default: " ++ dSc ++ ")"
-  , ""
-  , "--help, -h - show help and exit"
-  , ""
-  ] ++ ah
-  where
-    dCtf = if ctf then "yes" else "no"
-    dVerb = case v of
-      Silent -> "silent"
-      FailOnly -> "fails"
-      Brief -> "brief"
-      InterestingFails -> "interesting"
-      AllFails -> "allFails"
-      AllAll -> "everything"
-    dSc = show sc
-
-data Arg
-  = AHelp
-  | AVerbosity Verbosity
-  | AColorToFile ColorToFile
-  | AIndentation SpaceCount
-  | APosArg String
-  deriving Eq
-
-optHelp :: MA.OptSpec Arg
-optHelp = MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
-
-optVerbosity :: MA.OptSpec Arg
-optVerbosity = MA.OptSpec ["verbosity"] "v" (MA.ChoiceArg ls)
-  where
-    ls = fmap (second AVerbosity) $
-         [ ("silent", Silent)
-         , ("fails", FailOnly)
-         , ("brief", Brief)
-         , ("interesting", InterestingFails)
-         , ("allFails", AllFails)
-         , ("everything", AllAll)
-         ]
-
-optColorToFile :: MA.OptSpec Arg
-optColorToFile = MA.OptSpec ["color-to-file"] "" (MA.ChoiceArg ls)
-  where
-    ls = fmap (second AColorToFile) [ ("no", False), ("yes", True) ]
-
-type ExS = Ex.Exceptional String
-optIndentation :: MA.OptSpec (ExS Arg)
-optIndentation = MA.OptSpec ["indentation"] "i" (MA.OneArg f)
-  where
-    f s =
-      let err = Ex.throw $ "improper indentation argument: " ++ s
-      in case reads s of
-          (i, ""):[] ->
-            if i >= 0 then Ex.Success (AIndentation i) else err
-          _ -> err
-
-data ParseResult
-  = NeedsHelp
-  | ParseErr String
-  | Parsed Verbosity SpaceCount ColorToFile [String]
-
--- | When passed the defaults, return the values to use, as they might
--- have been affected by the command arguments, or return Nothing if
--- help is needed.
-parseArgs
-  :: Verbosity
-  -> SpaceCount
-  -> ColorToFile
-  -> [String]
-  -> ParseResult
-parseArgs v sc ctf ss =
-  let exLs = MA.simple MA.Intersperse opts (return . APosArg) ss
-      opts = [ fmap return optHelp
-             , fmap return optVerbosity
-             , fmap return optColorToFile
-             , optIndentation
-             ]
-  in case exLs of
-      Ex.Exception e -> ParseErr . show $ e
-      Ex.Success ls -> case sequence ls of
-        Ex.Exception e -> ParseErr e
-        Ex.Success ls' ->
-          if AHelp `elem` ls'
-          then NeedsHelp
-          else Parsed (getVerbosity v ls') (getSpaceCount sc ls')
-                      (getColorToFile ctf ls') (getPosArg ls')
-
-getVerbosity :: Verbosity -> [Arg] -> Verbosity
-getVerbosity v as = case mapMaybe f as of
-  [] -> v
-  xs -> last xs
-  where f a = case a of { AVerbosity vb -> Just vb; _ -> Nothing }
-
-getSpaceCount :: SpaceCount -> [Arg] -> SpaceCount
-getSpaceCount sc as = case mapMaybe f as of
-  [] -> sc
-  xs -> last xs
-  where f a = case a of { AIndentation i -> Just i; _ -> Nothing }
-
-getColorToFile :: ColorToFile -> [Arg] -> ColorToFile
-getColorToFile ctf as = case mapMaybe f as of
-  [] -> ctf
-  xs -> last xs
-  where f a = case a of { AColorToFile i -> Just i; _ -> Nothing }
-
-getPosArg :: [Arg] -> [String]
-getPosArg = mapMaybe f
-  where f a = case a of { APosArg s -> Just s; _ -> Nothing }
-
-data PrednoteConf a = PrednoteConf
-  { briefDescription :: String
-  , moreHelp :: [String]
-  , verbosity :: Verbosity
-  , spaceCount :: SpaceCount
-  , colorToFile :: ColorToFile
-  , showSubject :: (a -> String)
-  , groups :: [SeriesGroup a]
-  , getSubjects :: ([String] -> IO (ExS [a]))
-  }
+--
+-- Old
+--
 
 exitWithCode :: [SeriesResult a] -> IO ()
 exitWithCode srs =
@@ -628,37 +466,3 @@ exitWithCode srs =
       SingleResult (SRInfo _ p _) -> [p]
       SeveralResult (GroupResult _ rs) -> concatMap getList rs
 
-applyParse
-  :: ProgName
-  -> PrednoteConf a
-  -> [String]
-  -> IO (Verbosity, SpaceCount, ColorToFile, [String])
-applyParse pn c as = do
-  case parseArgs (verbosity c) (spaceCount c) (colorToFile c) as of
-    NeedsHelp -> do
-      putStrLn (help pn (briefDescription c) (moreHelp c)
-                (verbosity c) (spaceCount c) (colorToFile c))
-      Exit.exitSuccess
-    ParseErr e -> do
-      putStrLn $ pn ++ ": could not parse command line: " ++ e
-      Exit.exitFailure
-    Parsed a1 a2 a3 a4 -> return (a1, a2, a3, a4)
-
-prednoteMain :: PrednoteConf a -> IO ()
-prednoteMain c = do
-  pn <- MA.getProgName
-  as <- MA.getArgs
-  (vbsty, sc, ctf, posargs) <- applyParse pn c as
-  isTerm <- IO.hIsTerminalDevice IO.stdout
-  ti <- if isTerm || ctf
-          then TI.setupTermFromEnv
-          else TI.setupTerm "dumb"
-  exSubs <- getSubjects c posargs
-  subs <- case exSubs of
-    Ex.Exception s -> do
-      putStrLn $ pn ++ ": error processing positional arguments: " ++ s
-      Exit.exitFailure
-    Ex.Success ss -> return ss
-  let srs = map (runSeries subs) . groups $ c
-  mapM_ (showSeries ti (showSubject c) sc vbsty) srs
-  exitWithCode srs
