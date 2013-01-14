@@ -39,7 +39,7 @@ data ScreenLines = ScreenLines { unScreenLines :: Int }
 newtype ScreenWidth = ScreenWidth { unScreenWidth :: Int }
                       deriving Show
 
-data Output = IsTTY | NotTTY
+data Output = IsTTY | NotTTY deriving (Eq, Ord, Show)
 
 newtype Term = Term { unTerm :: String } deriving Show
 

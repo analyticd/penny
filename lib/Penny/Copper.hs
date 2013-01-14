@@ -9,7 +9,9 @@ module Penny.Copper
   -- * Convenience functions to read and parse files
     parse
   , open
+  , openThrow
   , openStdin
+  , openStdinThrow
 
   -- * Types for things found in ledger files
   , Y.Item(BlankLine, IComment, PricePoint, Transaction)
@@ -170,11 +172,19 @@ parse ::
   -> Ex.Exceptional ErrorMsg Y.Ledger
 parse ps = fmap addGlobalMetadata $ mapM parseFile ps
 
--- | Reads and parses the given filename. Does not do anything to
--- handle @-@ arguments; for that, see openStdin. Errors are indicated
--- by throwing an exception.
-open :: [String] -> IO Y.Ledger
-open = fmap addGlobalMetadata
+-- | Reads and parses the given filenames. Does not do anything to
+-- handle @-@ arguments; for that, see openStdin. Parse errors are
+-- indicated by returning an Exceptional. Errors from IO functions are
+-- not handled.
+open :: [String] -> IO (Ex.Exceptional ErrorMsg Y.Ledger)
+open = fmap parse . mapM getFileContents
+
+
+-- | Reads and parses the given filenames. Does not do anything to
+-- handle @-@ arguments; for that, see openStdin. Errors, including
+-- parse and IO errors, are indicated by throwing an exception.
+openThrow :: [String] -> IO Y.Ledger
+openThrow = fmap addGlobalMetadata
        . mapM (\s -> getFileContents s >>= parseAndResolve)
 
 
@@ -194,9 +204,21 @@ parseAndResolve p@(L.Filename fn, _) =
 
 -- | Reads and parses the given files. If any of the files is @-@,
 -- reads standard input. If the list of files is empty, reads standard
--- input. Errors are indicated by throwing an exception.
-openStdin :: [String] -> IO Y.Ledger
+-- input. Parse errors are indicated by returning an
+-- Exceptional. Errors from IO functions are not handled.
+openStdin :: [String] -> IO (Ex.Exceptional ErrorMsg Y.Ledger)
 openStdin ss =
+  let ls = if null ss
+           then fmap (\x -> [x]) (getFileContentsStdin "-")
+           else mapM getFileContentsStdin ss
+  in fmap parse ls
+
+-- | Reads and parses the given files. If any of the files is @-@,
+-- reads standard input. If the list of files is empty, reads standard
+-- input. Errors, including IO and parse errors, are indicated by
+-- throwing an exception.
+openStdinThrow :: [String] -> IO Y.Ledger
+openStdinThrow ss =
   let ls = if null ss
            then fmap (\x -> [x]) (getFileContentsStdin "-")
            else mapM getFileContentsStdin ss

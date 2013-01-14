@@ -57,7 +57,13 @@ doMerge maybeAcct ss = do
     Just ac -> return ac
   dbLs <- U.quitOnError
           $ U.loadDb (Y.AllowNew False) (Y.dbLocation acct)
-  l <- C.openStdin ss
+  exL <- C.openStdin ss
+  l <- case exL of
+    Ex.Exception e -> do
+      IO.hPutStrLn IO.stderr $ "could not parse ledger: "
+        ++ (X.unpack . C.unErrorMsg $ e)
+      exitFailure
+    Ex.Success g -> return g
   let dbWithEntry = fmap (pairWithEntry acct) . M.fromList $ dbLs
       (l', db') = changeItems acct
                   l (filterDb (Y.pennyAcct acct) dbWithEntry l)

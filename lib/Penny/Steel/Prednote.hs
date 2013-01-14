@@ -6,15 +6,14 @@
 -- can show you all successes and failures.
 
 module Penny.Steel.Prednote
-  ( -- * Simple interface
-    -- ** Pdct
+  ( -- * Pdct
     Pdct(..)
   , PdctName
 
-    -- *** Creating predicates
+    -- ** Creating predicates
   , pdct
 
-    -- *** Combining predicates
+    -- ** Combining predicates
   , disjoin
   , (.||.)
   , conjoin
@@ -23,57 +22,24 @@ module Penny.Steel.Prednote
   , rename
   , (<?>)
 
-    -- ** Test series
-    -- *** Creating test series
-  , SeriesGroup(..)
+    -- * Test series
+    -- ** Creating test series
+  , SeriesGroup
   , SeriesName
   , GroupName
   , seriesAtLeastN
   , eachSubjectMustBeTrue
+  , processTrueSubjects
   , group
 
-    -- *** Running test series
+    -- ** Running test series
   , Verbosity(..)
+  , SeriesResult
   , runSeries
   , showSeries
   , exitWithCode
   , SpaceCount
 
-    -- * Innards
-
-    -- | You can muck around in here if you want, though hopefully it
-    -- should not be necessary for ordinary use.
-
-    -- ** Types
-  , Result
-  , Info(..)
-  , InfoTree
-  , Passed
-  , SeriesResult(..)
-  , GroupResult(..)
-  , SRInfo(..)
-  , SeriesFn
-  , Group(..)
-
-    -- ** Showing
-  , Indentation
-  , showSeriesResult
-  , showGroupResult
-  , showSRInfo
-  , showResult
-  , showTree
-  , printInColor
-  , printResult
-  , printPassed
-
-  -- ** Pruning
-  , filterTree
-  , filterForest
-  , pruneSeriesResult
-  , pruneFailOnly
-  , pruneBrief
-  , pruneInteresting
-  , pruneAllFails
   ) where
 
 import Control.Applicative ((<*>), pure)
@@ -110,9 +76,9 @@ data SeriesResult a
 data GroupResult a = GroupResult GroupName [SeriesResult a]
 
 data SRInfo a = SRInfo
-  { srName :: SeriesName
-  , srPassed :: Passed
-  , srResults :: [(a, InfoTree)]
+  { _srName :: SeriesName
+  , _srPassed :: Passed
+  , _srResults :: [(a, InfoTree)]
   }
 
 type SeriesFn a = [a] -> SRInfo a
@@ -142,8 +108,7 @@ data Verbosity
 
 type GroupName = String
 
--- | A group of Series. For ordinary use you will not need to use the
--- constructors; simply use the 'group' function as needed.
+-- | A group of Series.
 data SeriesGroup a
   = Single (SeriesFn a)
   | Several (Group a)
@@ -258,6 +223,22 @@ eachSubjectMustBeTrue n (Pdct t) = Single fn
         pairs = zip pfs rslts
         rslts = pure t <*> pfs
         passed = all (iResult . T.rootLabel) rslts
+
+-- | Every subject is run through the test. Subjects that return True
+-- are then fed to the given function. The result of the function is
+-- the result of the test.
+processTrueSubjects
+  :: SeriesName
+  -> ([a] -> Bool)
+  -> Pdct a
+  -> SeriesGroup a
+processTrueSubjects name fp (Pdct t) = Single fn
+  where
+    fn pfs = SRInfo name r pairs
+      where
+        pairs = zip pfs rslts
+        rslts = pure t <*> pfs
+        r = fp . map fst . filter (iResult . T.rootLabel . snd) $ pairs
 
 group :: GroupName -> [SeriesGroup a] -> SeriesGroup a
 group n ts = Several $ Group n ts

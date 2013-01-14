@@ -14,21 +14,34 @@ module Penny.Wheat
   , accountLevel
   , accountAny
   , tag
+
+  , ColorToFile
+  , BaseTime
+  , WheatConf(..)
+  , wheatMain
   ) where
 
 import Control.Arrow (second)
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Data.List (intersperse)
 import Data.Maybe (mapMaybe)
 import qualified Penny.Steel.Prednote as N
 import Penny.Steel.Prednote (pdct)
+import qualified Penny.Copper as Cop
+import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
 import qualified Data.Time as T
 import qualified Text.Matchers as M
+import qualified Text.Parsec as Parsec
 import qualified System.Console.MultiArg as MA
+import qualified System.Console.Terminfo as TI
 import qualified System.Exit as Exit
+import System.Locale (defaultTimeLocale)
+import qualified System.IO as IO
+import qualified Penny.Shield as S
 
 type Pdct = N.Pdct L.PostFam
 
@@ -135,18 +148,20 @@ tag p = pdct (descItem "any tag" p) (P.tag (M.match p))
 
 type ProgName = String
 type BriefDesc = String
-type MoreHelp = [String]
 type ColorToFile = Bool
+type BaseTime = L.DateTime
+type MoreHelp = [String]
 
 help
   :: ProgName
   -> BriefDesc
-  -> MoreHelp
   -> N.Verbosity
   -> N.SpaceCount
   -> ColorToFile
+  -> BaseTime
+  -> MoreHelp
   -> String
-help pn bd ah v sc ctf = unlines $
+help pn bd v sc ctf bt mh = unlines $
   [ "usage: " ++ pn ++ "[options] ARGS"
   , ""
   , bd
@@ -169,12 +184,17 @@ help pn bd ah v sc ctf = unlines $
   , "    everything - show all results from all series"
   , "    (default: " ++ dVerb ++ ")"
   , ""
-  , "--indentation, -i SPACES - indent each level by this many spaces"
+  , "--indentation, -i SPACES"
+  , "  indent each level by this many spaces"
   , "  (default: " ++ dSc ++ ")"
+  , ""
+  , "--base-date, -d DATE"
+  , "  use this date as basis for checks"
+  , "  (default: " ++ showDateTime bt ++ ")"
   , ""
   , "--help, -h - show help and exit"
   , ""
-  ] ++ ah
+  ] ++ mh
   where
     dCtf = if ctf then "yes" else "no"
     dVerb = case v of
@@ -186,11 +206,25 @@ help pn bd ah v sc ctf = unlines $
       N.AllAll -> "everything"
     dSc = show sc
 
+showDateTime :: L.DateTime -> String
+showDateTime (L.DateTime d h m s tz) =
+  ds ++ " " ++ hmss ++ " " ++ tzs
+  where
+    ds = show d
+    hmss = hs ++ ":" ++ ms ++ ":" ++ ss
+    hs = pad0 . show . L.unHours $ h
+    ms = pad0 . show . L.unMinutes $ m
+    ss = pad0 . show . L.unSeconds $ s
+    pad0 str = if length str < 2 then str else '0':str
+    tzs = padTo4 . show . L.offsetToMins $ tz
+    padTo4 str = replicate (4 - length str) '0' ++ str
+
 data Arg
   = AHelp
   | AVerbosity N.Verbosity
   | AColorToFile ColorToFile
   | AIndentation N.SpaceCount
+  | ABaseTime L.DateTime
   | APosArg String
   deriving Eq
 
@@ -225,10 +259,20 @@ optIndentation = MA.OptSpec ["indentation"] "i" (MA.OneArg f)
             if i >= 0 then Ex.Success (AIndentation i) else err
           _ -> err
 
+optBaseTime :: MA.OptSpec (ExS Arg)
+optBaseTime = MA.OptSpec ["base-date"] "b" (MA.OneArg f)
+  where
+    f s = case Parsec.parse CP.dateTime  "" (X.pack s) of
+      Left e -> Ex.throw $ "could not parse date: " ++ show e
+      Right g -> return . ABaseTime $ g
+
+type ParsedOpts = ( N.Verbosity, N.SpaceCount,
+                    ColorToFile, BaseTime, [String])
+
 data ParseResult
   = NeedsHelp
   | ParseErr String
-  | Parsed N.Verbosity N.SpaceCount ColorToFile [String]
+  | Parsed ParsedOpts
 
 -- | When passed the defaults, return the values to use, as they might
 -- have been affected by the command arguments, or return Nothing if
@@ -237,14 +281,16 @@ parseArgs
   :: N.Verbosity
   -> N.SpaceCount
   -> ColorToFile
+  -> BaseTime
   -> [String]
   -> ParseResult
-parseArgs v sc ctf ss =
+parseArgs v sc ctf bt ss =
   let exLs = MA.simple MA.Intersperse opts (return . APosArg) ss
       opts = [ fmap return optHelp
              , fmap return optVerbosity
              , fmap return optColorToFile
              , optIndentation
+             , optBaseTime
              ]
   in case exLs of
       Ex.Exception e -> ParseErr . show $ e
@@ -253,8 +299,9 @@ parseArgs v sc ctf ss =
         Ex.Success ls' ->
           if AHelp `elem` ls'
           then NeedsHelp
-          else Parsed (getVerbosity v ls') (getSpaceCount sc ls')
-                      (getColorToFile ctf ls') (getPosArg ls')
+          else Parsed ( (getVerbosity v ls'), (getSpaceCount sc ls')
+                        , (getColorToFile ctf ls'), (getBaseTime bt ls')
+                        , (getPosArg ls'))
 
 getVerbosity :: N.Verbosity -> [Arg] -> N.Verbosity
 getVerbosity v as = case mapMaybe f as of
@@ -278,48 +325,99 @@ getPosArg :: [Arg] -> [String]
 getPosArg = mapMaybe f
   where f a = case a of { APosArg s -> Just s; _ -> Nothing }
 
+getBaseTime :: BaseTime -> [Arg] -> BaseTime
+getBaseTime bd as = case mapMaybe f as of
+  [] -> bd
+  xs -> last xs
+  where f a = case a of { ABaseTime x -> Just x; _ -> Nothing }
+
 data WheatConf = WheatConf
   { briefDescription :: String
   , moreHelp :: [String]
   , verbosity :: N.Verbosity
   , spaceCount :: N.SpaceCount
   , colorToFile :: ColorToFile
-  , groups :: [N.SeriesGroup L.PostFam]
+  , groups :: BaseTime -> [N.SeriesGroup L.PostFam]
+  , baseTime :: BaseTime
   }
 
 applyParse
   :: ProgName
   -> WheatConf
   -> [String]
-  -> IO (N.Verbosity, N.SpaceCount, ColorToFile, [String])
-applyParse pn c as = do
-  case parseArgs (verbosity c) (spaceCount c) (colorToFile c) as of
+  -> IO ParsedOpts
+applyParse pn c as =
+  case parseArgs (verbosity c) (spaceCount c)
+       (colorToFile c) (baseTime c) as of
     NeedsHelp -> do
-      putStrLn (help pn (briefDescription c) (moreHelp c)
-                (verbosity c) (spaceCount c) (colorToFile c))
+      putStrLn (help pn (briefDescription c)
+                (verbosity c) (spaceCount c) (colorToFile c) (baseTime c)
+                (moreHelp c))
       Exit.exitSuccess
     ParseErr e -> do
       putStrLn $ pn ++ ": could not parse command line: " ++ e
       Exit.exitFailure
-    Parsed a1 a2 a3 a4 -> return (a1, a2, a3, a4)
+    Parsed r -> return r
 
-{-
-prednoteMain :: PrednoteConf a -> IO ()
-prednoteMain c = do
+wheatMain :: (S.Runtime -> WheatConf) -> IO ()
+wheatMain getConf = do
+  rt <- S.runtime
   pn <- MA.getProgName
   as <- MA.getArgs
-  (vbsty, sc, ctf, posargs) <- applyParse pn c as
-  isTerm <- IO.hIsTerminalDevice IO.stdout
-  ti <- if isTerm || ctf
-          then TI.setupTermFromEnv
-          else TI.setupTerm "dumb"
-  exSubs <- getSubjects c posargs
-  subs <- case exSubs of
-    Ex.Exception s -> do
-      putStrLn $ pn ++ ": error processing positional arguments: " ++ s
-      Exit.exitFailure
-    Ex.Success ss -> return ss
-  let srs = map (runSeries subs) . groups $ c
-  mapM_ (showSeries ti (showSubject c) sc vbsty) srs
-  exitWithCode srs
--}
+  let c = getConf rt
+  (vbsty, sc, ctf, bt, posargs) <- applyParse pn c as
+  let getTerm =
+        if ctf || (S.output rt == S.IsTTY)
+        then TI.setupTermFromEnv
+        else TI.setupTerm "dumb"
+  term <- getTerm
+  items <- getItems pn posargs
+  let srs = map (N.runSeries items) (groups c bt)
+  mapM_ (N.showSeries term display sc vbsty) srs
+  N.exitWithCode srs
+
+-- | Displays a PostFam in a one line format.
+--
+-- Format:
+--
+-- File LineNo Date Payee Acct DrCr Cmdty Qty
+display :: L.PostFam -> String
+display p = concat (intersperse " " ls) ++ "\n"
+  where
+    ls = [file, lineNo, date, pye, acct, dc, cmdty, qt]
+    file = maybe (labelNo "filename") (X.unpack . L.unFilename)
+           (Q.filename p)
+    lineNo = maybe (labelNo "line number")
+             (show . L.unPostingLine) (Q.postingLine p)
+    dateFormat = "%Y-%m-%d %T %z"
+    date = T.formatTime defaultTimeLocale dateFormat
+           . T.utctDay
+           . L.toUTC
+           . Q.dateTime
+           $ p
+    pye = maybe (labelNo "payee")
+            (X.unpack . L.text) (Q.payee p)
+    acct = X.unpack . X.intercalate (X.singleton ':')
+           . map L.unSubAccount . L.unAccount . Q.account $ p
+    dc = case Q.drCr p of
+      L.Debit -> "Dr"
+      L.Credit -> "Cr"
+    cmdty = X.unpack . L.unCommodity . Q.commodity $ p
+    qt = show . Q.qty $ p
+
+labelNo :: String -> String
+labelNo s = "(no " ++ s ++ ")"
+
+getItems :: ProgName -> [String] -> IO [L.PostFam]
+getItems pn ss = Cop.openStdin ss >>= f
+  where
+    f res = case res of
+      Ex.Exception e -> do
+        IO.hPutStrLn IO.stderr $ pn
+          ++ ": error: could not parse ledgers: "
+          ++ (X.unpack . Cop.unErrorMsg $ e)
+        Exit.exitFailure
+      Ex.Success g ->
+        let toTxn i = case i of { Cop.Transaction x -> Just x; _ -> Nothing }
+        in return . concatMap L.postFam
+           . mapMaybe toTxn . Cop.unLedger $ g

@@ -93,7 +93,8 @@ runClear c os = do
   let db = M.fromList dbList
       (_, prsr) = Y.parser c
   txns <- U.quitOnError $ prsr (csvLocation os)
-  leds <- C.openStdin (ledgerLocations os)
+  exLeds <- C.openStdin (ledgerLocations os)
+  leds <- Ex.switch (fatal . X.unpack . C.unErrorMsg) return exLeds
   toClear <- case mapM (findUNumber db) txns of
     Nothing -> fatal $ "at least one posting was not found in the"
                        ++ " database. Ensure all postings have "
