@@ -40,7 +40,7 @@ Library
     , cereal ==0.3.*
     , containers ==0.4.*
     , explicit-exception ==0.1.*
-    , matchers ==0.4.*
+    , matchers ==0.5.*
     , monad-loops ==0.3.*
     , multiarg ==0.8.*
     , old-locale ==1.0.*

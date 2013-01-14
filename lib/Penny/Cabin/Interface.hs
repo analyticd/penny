@@ -5,7 +5,7 @@ module Penny.Cabin.Interface where
 import qualified Penny.Cabin.Scheme as S
 import Control.Monad.Exception.Synchronous (Exceptional)
 import qualified Data.Text as X
-import Text.Matchers.Text (CaseSensitive)
+import Text.Matchers (CaseSensitive)
 import qualified System.Console.MultiArg as MA
 
 import qualified Penny.Lincoln as L

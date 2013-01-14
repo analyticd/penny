@@ -17,7 +17,7 @@ import qualified Penny.Liberty as Ly
 import qualified Penny.Liberty.Expressions as Exp
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
-import qualified Text.Matchers.Text as M
+import qualified Text.Matchers as M
 
 data State = State
   { sensitive :: M.CaseSensitive

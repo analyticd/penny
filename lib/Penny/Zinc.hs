@@ -34,7 +34,7 @@ import System.Console.MultiArg.GetArgs (getArgs)
 import System.Exit (exitSuccess, exitFailure)
 import qualified System.IO as IO
 import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
-import qualified Text.Matchers.Text as M
+import qualified Text.Matchers as M
 
 runZinc
   :: Defaults
@@ -137,10 +137,10 @@ stateFromDefaults
 stateFromDefaults df = State
   { stSensitive = sensitive df
   , stFactory = case matcher df of
-      Within -> \c t -> return (M.within c t)
-      Exact -> \c t -> return (M.exact c t)
-      TDFA -> M.tdfa
-      PCRE -> M.pcre
+      Within -> \c t -> return (M.match $ M.within c t)
+      Exact -> \c t -> return (M.match $ M.exact c t)
+      TDFA -> \c t -> fmap M.match (M.tdfa c t)
+      PCRE -> \c t -> fmap M.match (M.pcre c t)
   , stColorToFile = colorToFile df
   , stScheme = fmap E.textSpecs . defaultScheme $ df
   }

@@ -102,7 +102,7 @@ import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Lincoln as L
 import qualified Penny.Zinc as Z
 import qualified Penny.Shield as S
-import qualified Text.Matchers.Text as Mr
+import qualified Text.Matchers as Mr
 
 -- | This type contains settings for all the reports, as well as
 -- default settings for the global options. Some of these can be

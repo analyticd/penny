@@ -51,9 +51,9 @@ import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty.Expressions as X
 
-import Text.Matchers.CaseSensitive (
+import Text.Matchers (
   CaseSensitive(Sensitive, Insensitive))
-import qualified Text.Matchers.Text as TM
+import qualified Text.Matchers as TM
 
 -- | A serial indicating how a post relates to all other postings that
 -- made it through the filtering phase.
@@ -542,16 +542,16 @@ parseSensitive =
 
 
 within :: OptSpec MatcherFactory
-within = noArg (\c t -> return (TM.within c t)) "within"
+within = noArg (\c t -> return (TM.match $ TM.within c t)) "within"
 
 pcre :: OptSpec MatcherFactory
-pcre = noArg TM.pcre "pcre"
+pcre = noArg (\c t -> fmap TM.match (TM.pcre c t)) "pcre"
 
 posix :: OptSpec MatcherFactory
-posix = noArg TM.tdfa "posix"
+posix = noArg (\c t -> fmap TM.match (TM.tdfa c t)) "posix"
 
 exact :: OptSpec MatcherFactory
-exact = noArg (\c t -> return (TM.exact c t)) "exact"
+exact = noArg (\c t -> return (TM.match $ TM.exact c t)) "exact"
 
 matcherSelectSpecs :: [OptSpec MatcherFactory]
 matcherSelectSpecs = [within, pcre, posix, exact]

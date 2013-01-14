@@ -4,7 +4,7 @@ module Penny.Lincoln.Matchers where
 
 import qualified Data.Text as X
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Text.Matchers.Text as MT
+import qualified Text.Matchers as MT
 
 type Matcher = X.Text -> Bool
 

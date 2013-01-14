@@ -79,7 +79,7 @@ import qualified Data.Foldable as Fdbl
 import Data.Time as Time
 import qualified System.Console.MultiArg as MA
 import System.Locale (defaultTimeLocale)
-import Text.Matchers.Text (CaseSensitive)
+import Text.Matchers (CaseSensitive)
 
 -- | All information needed to make a Posts report. This function
 -- never fails.
