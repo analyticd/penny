@@ -297,11 +297,10 @@ showResult
   -> Indentation
   -> Result a
   -> IO ()
-showResult term swr sc ind
-  = mapM_ (showNode term swr sc)
-  . T.flatten
-  . numberLevels ind
-  . unResult
+showResult term swr sc ind r = do
+  let nrs = numberLevels ind . unResult $ r
+  flat <- return $! T.flatten nrs
+  mapM_ (showNode term swr sc) flat
 
 showNode
   :: TI.Terminal

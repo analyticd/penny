@@ -36,7 +36,7 @@ module Penny.Wheat
   , module Data.Time
   ) where
 
-import Control.Arrow (second)
+import Control.Arrow (second, (&&&))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (intersperse)
 import Data.Maybe (mapMaybe)
@@ -416,12 +416,13 @@ wheatMain getConf = do
         else TI.setupTerm "dumb"
   ti <- getTerm
   items <- getItems pn posargs
-  let srs = map (N.runSeries items) (groups c bt)
-  rList <- return $! map N.resultList srs
-  mapM_ (N.showSeries ti display sc vbsty) srs
-  if and $ concat rList
-    then Exit.exitSuccess
-    else Exit.exitFailure
+--  let srs = map (N.runSeries items) (groups c bt)
+--  rList <- return $! map N.resultList srs
+  mapM_ (N.showSeries ti display sc vbsty)
+    $ map (N.runSeries items) (groups c bt)
+--  if and $ concat rList
+--    then Exit.exitSuccess
+--    else Exit.exitFailure
 
 -- | Displays a PostFam in a one line format.
 --
@@ -468,3 +469,13 @@ getItems pn ss = Cop.openStdin ss >>= f
         let toTxn i = case i of { Cop.Transaction x -> Just x; _ -> Nothing }
         in return . concatMap L.postFam
            . mapMaybe toTxn . Cop.unLedger $ g
+
+splitResult
+  :: TI.Terminal
+  -> (a -> String)
+  -> N.SpaceCount
+  -> N.Verbosity
+  -> N.Result a
+  -> (IO (), [N.Passed])
+splitResult ti swr sc vb = N.showSeries ti swr sc vb &&& N.resultList
+
