@@ -416,13 +416,10 @@ wheatMain getConf = do
         else TI.setupTerm "dumb"
   ti <- getTerm
   items <- getItems pn posargs
---  let srs = map (N.runSeries items) (groups c bt)
---  rList <- return $! map N.resultList srs
-  mapM_ (N.showSeries ti display sc vbsty)
-    $ map (N.runSeries items) (groups c bt)
---  if and $ concat rList
---    then Exit.exitSuccess
---    else Exit.exitFailure
+  let rslts = splitResult ti display sc vbsty
+        $ map (N.runSeries items) (groups c bt)
+  fst rslts
+  snd rslts
 
 -- | Displays a PostFam in a one line format.
 --
@@ -475,7 +472,11 @@ splitResult
   -> (a -> String)
   -> N.SpaceCount
   -> N.Verbosity
-  -> N.Result a
-  -> (IO (), [N.Passed])
-splitResult ti swr sc vb = N.showSeries ti swr sc vb &&& N.resultList
-
+  -> [N.Result a]
+  -> (IO (), IO ())
+splitResult ti swr sc vb = f1 &&& f2
+  where
+    f1 rs = mapM_ (N.showSeries ti swr sc vb) rs
+    f2 rs = if and . concatMap N.resultList $ rs
+            then Exit.exitSuccess
+            else Exit.exitFailure
