@@ -71,6 +71,11 @@ newtype Pdct a = Pdct { unPdct :: a -> InfoTree }
 type SeriesName = String
 type Passed = Bool
 
+type SRNode a = Either (SRInfo a) GroupName
+
+newtype SeriesResult a
+  = SeriesResult { unSeriesResult :: T.Tree (SRNode a) }
+
 data SeriesResult a
   = SingleResult (SRInfo a)
   | SeveralResult (GroupResult a)
@@ -373,10 +378,9 @@ showSeries
   -> Verbosity
   -> SeriesResult a
   -> IO ()
-showSeries ti swr sc v =
-  fromMaybe (return ())
-  . fmap (showSeriesResult ti swr 0 sc)
-  . pruneSeriesResult v
+showSeries ti swr sc v sr = case pruneSeriesResult v sr of
+  Nothing -> return ()
+  Just sr' -> showSeriesResult ti swr 0 sc sr'
 
 
 ------------------------------------------------------------

@@ -67,7 +67,7 @@ type Pdct = N.Pdct L.PostFam
 
 descItem :: String -> M.Matcher -> String
 descItem s m = "field: " ++ s
-               ++ " matcher description: "
+               ++ "; matcher description: "
                ++ (X.unpack $ M.matchDesc m)
 
 payee :: M.Matcher -> Pdct
@@ -232,7 +232,7 @@ help pn bd v sc ctf bt mh = unlines $
   , ""
   , "--base-date, -d DATE"
   , "  use this date as basis for checks"
-  , "  (default: " ++ showDateTime bt ++ ")"
+  , "  (currently: " ++ showDateTime bt ++ ")"
   , ""
   , "--help, -h - show help and exit"
   , ""
@@ -250,16 +250,18 @@ help pn bd v sc ctf bt mh = unlines $
 
 showDateTime :: L.DateTime -> String
 showDateTime (L.DateTime d h m s tz) =
-  ds ++ " " ++ hmss ++ " " ++ tzs
+  ds ++ " " ++ hmss ++ " " ++ showOffset
   where
     ds = show d
     hmss = hs ++ ":" ++ ms ++ ":" ++ ss
     hs = pad0 . show . L.unHours $ h
     ms = pad0 . show . L.unMinutes $ m
     ss = pad0 . show . L.unSeconds $ s
-    pad0 str = if length str < 2 then str else '0':str
-    tzs = padTo4 . show . L.offsetToMins $ tz
-    padTo4 str = replicate (4 - length str) '0' ++ str
+    pad0 str = if length str < 2 then '0':str else str
+    showOffset =
+      let (zoneHr, zoneMin) = abs (L.offsetToMins tz) `divMod` 60
+          sign = if L.offsetToMins tz < 0 then "-" else "+"
+      in sign ++ pad0 (show zoneHr) ++ pad0 (show zoneMin)
 
 data Arg
   = AHelp
@@ -416,7 +418,7 @@ wheatMain getConf = do
   items <- getItems pn posargs
   let srs = map (N.runSeries items) (groups c bt)
   mapM_ (N.showSeries ti display sc vbsty) srs
-  N.exitWithCode srs
+  --N.exitWithCode srs
 
 -- | Displays a PostFam in a one line format.
 --
@@ -424,7 +426,7 @@ wheatMain getConf = do
 --
 -- File LineNo Date Payee Acct DrCr Cmdty Qty
 display :: L.PostFam -> String
-display p = concat (intersperse " " ls) ++ "\n"
+display p = concat (intersperse " " ls)
   where
     ls = [file, lineNo, dt, pye, acct, dc, cmdty, qt]
     file = maybe (labelNo "filename") (X.unpack . L.unFilename)
