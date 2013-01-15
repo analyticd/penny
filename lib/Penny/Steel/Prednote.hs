@@ -7,7 +7,7 @@
 
 module Penny.Steel.Prednote
   ( -- * Pdct
-    Pdct(..)
+    Pdct
   , PdctName
 
     -- ** Creating predicates
@@ -36,59 +36,72 @@ module Penny.Steel.Prednote
 
     -- ** Running test series
   , Verbosity(..)
-  , SeriesResult
+  , Result
+  , SpaceCount
+  , Passed
   , runSeries
   , showSeries
-  , exitWithCode
-  , SpaceCount
+  , resultList
 
   ) where
 
 import Control.Applicative ((<*>), pure)
-import Control.Arrow (second)
-import Data.Maybe (mapMaybe, fromMaybe)
+import Data.Maybe (mapMaybe)
 import qualified Data.Tree as T
 import qualified System.Console.Terminfo as TI
-import qualified System.Exit as Exit
 
 ------------------------------------------------------------
 -- Types
 ------------------------------------------------------------
 
-type Result = Bool
+--
+-- Predicates
+--
+
+type PdctResult = Bool
 
 type PdctName = String
 
 data Info = Info
-  { iResult :: Result
+  { iResult :: PdctResult
   , iName :: PdctName
-  , interestingChildrenAre :: Bool
+  , iInterestingIf :: Bool
   }
 
 type InfoTree = T.Tree Info
 newtype Pdct a = Pdct { unPdct :: a -> InfoTree }
 
-type SeriesName = String
+--
+-- Series
+--
+type SeriesFn a = [a] -> RInfo a
+type SeriesNode a = Either (SeriesFn a) GroupName
+
+newtype SeriesGroup a
+  = SeriesGroup { unSeriesGroup :: T.Tree (SeriesNode a) }
+
+--
+-- Results
+--
+
 type Passed = Bool
 
-type SRNode a = Either (SRInfo a) GroupName
-
-newtype SeriesResult a
-  = SeriesResult { unSeriesResult :: T.Tree (SRNode a) }
-
-data SeriesResult a
-  = SingleResult (SRInfo a)
-  | SeveralResult (GroupResult a)
-
-data GroupResult a = GroupResult GroupName [SeriesResult a]
-
-data SRInfo a = SRInfo
+type SeriesName = String
+data RInfo a = RInfo
   { _srName :: SeriesName
-  , _srPassed :: Passed
+  , srPassed :: Passed
   , _srResults :: [(a, InfoTree)]
   }
 
-type SeriesFn a = [a] -> SRInfo a
+type GroupName = String
+type RNode a = Either (RInfo a) GroupName
+
+newtype Result a
+  = Result { unResult :: T.Tree (RNode a) }
+
+--
+-- Showing results
+--
 
 data Verbosity
   = Silent
@@ -112,15 +125,7 @@ data Verbosity
   -- ^ Show all results from all tests, whether succeeded or failed.
   deriving Eq
 
-
-type GroupName = String
-
--- | A group of Series.
-data SeriesGroup a
-  = Single (SeriesFn a)
-  | Several (Group a)
-
-data Group a = Group GroupName [SeriesGroup a]
+type SpaceCount = Int
 
 ------------------------------------------------------------
 -- Creating predicates
@@ -132,7 +137,7 @@ pdct d p = Pdct fn
   where
     fn pf = T.Node n []
       where
-        n = Info (p pf) d True
+        n = Info (p pf) d False
 
 -- | Always returns True.
 true :: Pdct a
@@ -140,7 +145,7 @@ true = Pdct fn
   where
     fn _ = T.Node n []
       where
-        n = Info True "always True" True
+        n = Info True "always True" False
 
 -- | Always returns False.
 false :: Pdct a
@@ -162,7 +167,7 @@ expectFail (Pdct t) = Pdct fn
     fn s = T.Node n [c]
       where
         c@(T.Node (Info rslt _ _) _) = t s
-        n = Info (not rslt) d True
+        n = Info (not rslt) d False
 
 -- | Renames a predicate.
 rename :: PdctName -> Pdct a -> Pdct a
@@ -221,9 +226,9 @@ seriesAtLeastN
   -> Int
   -> Pdct a
   -> SeriesGroup a
-seriesAtLeastN name i (Pdct t) = Single fn
+seriesAtLeastN name i (Pdct t) = SeriesGroup $ T.Node (Left fn) []
   where
-    fn pfs = SRInfo name atLeast pairs
+    fn pfs = RInfo name atLeast pairs
       where
         pairs = zip pfs rslts
         rslts = pure t <*> pfs
@@ -239,9 +244,9 @@ eachSubjectMustBeTrue
   :: SeriesName
   -> Pdct a
   -> SeriesGroup a
-eachSubjectMustBeTrue n (Pdct t) = Single fn
+eachSubjectMustBeTrue n (Pdct t) = SeriesGroup $ T.Node (Left fn) []
   where
-    fn pfs = SRInfo n passed pairs
+    fn pfs = RInfo n passed pairs
       where
         pairs = zip pfs rslts
         rslts = pure t <*> pfs
@@ -255,96 +260,110 @@ processTrueSubjects
   -> ([a] -> Bool)
   -> Pdct a
   -> SeriesGroup a
-processTrueSubjects name fp (Pdct t) = Single fn
+processTrueSubjects name fp (Pdct t) =
+  SeriesGroup $ T.Node (Left fn) []
   where
-    fn pfs = SRInfo name r pairs
+    fn pfs = RInfo name r pairs
       where
         pairs = zip pfs rslts
         rslts = pure t <*> pfs
         r = fp . map fst . filter (iResult . T.rootLabel . snd) $ pairs
 
 group :: GroupName -> [SeriesGroup a] -> SeriesGroup a
-group n ts = Several $ Group n ts
+group n ts = SeriesGroup $ T.Node (Right n) (map unSeriesGroup ts)
 
-runSeries :: [a] -> SeriesGroup a -> SeriesResult a
-runSeries pfs t = runItemTest pfs t
-  where
-    runItemTest ps i = case i of
-      Single tl -> SingleResult (tl ps)
-      Several g -> SeveralResult (runGroupTest g ps)
-    runGroupTest (Group n is) ps =
-      GroupResult n (map (runItemTest ps) is)
+runSeries :: [a] -> SeriesGroup a -> Result a
+runSeries pfs (SeriesGroup t) = Result $ fmap (toRNode pfs) t
+
+toRNode :: [a] -> SeriesNode a -> RNode a
+toRNode as n = case n of
+  Left fn -> Left $ fn as
+  Right s -> Right s
 
 ------------------------------------------------------------
 -- Showing
 ------------------------------------------------------------
 
+numberLevels :: Int -> T.Tree a -> T.Tree (Int, a)
+numberLevels i (T.Node l cs) =
+  T.Node (i, l) (map (numberLevels (i + 1)) cs)
+
 type Indentation = Int
-
-
-showSeriesResult
-  :: TI.Terminal
-  -> (a -> String)
-  -> Indentation
-  -> SpaceCount
-  -> SeriesResult a
-  -> IO ()
-showSeriesResult t swr i sc sr = case sr of
-  SingleResult si -> showSRInfo t swr i sc si
-  SeveralResult gr -> showGroupResult t swr i sc gr
-
-showGroupResult
-  :: TI.Terminal
-  -> (a -> String)
-  -> Indentation
-  -> SpaceCount
-  -> GroupResult a
-  -> IO ()
-
-showGroupResult t swr i sc (GroupResult n ts) = do
-  putStr (replicate (i * sc) ' ')
-  putStrLn n
-  mapM_ (showSeriesResult t swr i sc) ts
-
-type SpaceCount = Int
-
-showSRInfo
-  :: TI.Terminal
-  -> (a -> String)
-  -> Indentation
-  -> SpaceCount
-  -> SRInfo a
-  -> IO ()
-showSRInfo t swr i sc (SRInfo n p rs) = do
-  putStr (replicate (i * sc) ' ')
-  printPassed t p
-  putStrLn $ " " ++ n
-  mapM_ (showResult t swr (i + 1) sc) rs
 
 showResult
   :: TI.Terminal
   -> (a -> String)
-  -> Indentation
   -> SpaceCount
-  -> (a, InfoTree)
+  -> Indentation
+  -> Result a
   -> IO ()
-showResult t swr i sc (a, T.Node (Info r n _) cs) = do
-  putStr (replicate (i * sc) ' ')
-  printResult t r
-  putStrLn $ " " ++ n ++ " - " ++ swr a
-  mapM_ (showTree t (i + 1) sc) cs
+showResult term swr sc ind
+  = mapM_ (showNode term swr sc)
+  . T.flatten
+  . numberLevels ind
+  . unResult
 
-showTree
+showNode
   :: TI.Terminal
+  -> (a -> String)
+  -> SpaceCount
+  -> (Indentation, RNode a)
+  -> IO ()
+showNode term swr sc (ind, nd) = case nd of
+  Right s -> putStrLn (replicate (ind * sc) ' ' ++ s)
+  Left info -> showRInfo term swr ind sc info
+
+showRInfo
+  :: TI.Terminal
+  -> (a -> String)
   -> Indentation
   -> SpaceCount
+  -> RInfo a
+  -> IO ()
+showRInfo t swr i sc (RInfo n p rs) = do
+  putStr (replicate (i * sc) ' ')
+  printPassed t p
+  putStrLn $ " " ++ n
+  mapM_ (showPair t sc swr (i + 1)) rs
+
+showInfo
+  :: TI.Terminal
+  -> SpaceCount
+  -> (Indentation, Info)
+  -> IO ()
+showInfo term sc (ind, Info rslt s _) = do
+  putStr (replicate (ind * sc) ' ')
+  printResult term rslt
+  putStrLn s
+
+showInfoTree
+  :: TI.Terminal
+  -> SpaceCount
+  -> Indentation
   -> InfoTree
   -> IO ()
-showTree t i sc (T.Node (Info r n _) cs) = do
-  putStr (replicate (i * sc) ' ')
-  printResult t r
-  putStrLn $ " " ++ n
-  mapM_ (showTree t (i + 1) sc) cs
+showInfoTree term sc ind =
+  mapM_ (showInfo term sc)
+  . T.flatten
+  . numberLevels ind
+
+showPair
+  :: TI.Terminal
+  -> SpaceCount
+  -> (a -> String)
+  -> Indentation
+  -> (a, InfoTree)
+  -> IO ()
+showPair term sc swr ind (a, T.Node (Info r n _) cs) = do
+  putStr (replicate (ind * sc) ' ')
+  printResult term r
+  putStrLn $ " " ++ n ++ " - " ++ swr a
+  mapM_ (showInfoTree term sc (ind + 1)) cs
+
+
+--
+-- Colors
+--
 
 printInColor :: TI.Terminal -> TI.Color -> String -> IO ()
 printInColor t c s =
@@ -352,7 +371,7 @@ printInColor t c s =
     Nothing -> putStr s
     Just cap -> TI.runTermOutput t (cap c (TI.termText s))
 
-printResult :: TI.Terminal -> Result -> IO ()
+printResult :: TI.Terminal -> PdctResult -> IO ()
 printResult t r = do
   putStr "["
   if r
@@ -376,32 +395,25 @@ showSeries
   -> (a -> String)
   -> SpaceCount
   -> Verbosity
-  -> SeriesResult a
+  -> Result a
   -> IO ()
-showSeries ti swr sc v sr = case pruneSeriesResult v sr of
+showSeries ti swr sc v sr = case pruneResult v sr of
   Nothing -> return ()
-  Just sr' -> showSeriesResult ti swr 0 sc sr'
+  Just sr' -> showResult ti swr sc 0 sr'
 
 
 ------------------------------------------------------------
 -- Pruning
 ------------------------------------------------------------
 
-filterTree
-  :: InfoTree
-  -> InfoTree
-filterTree (T.Node l ts) =
-  T.Node l (filterForest (interestingChildrenAre l) ts)
+filterTree :: (a -> Bool) -> T.Tree a -> Maybe (T.Tree a)
+filterTree p (T.Node n cs) =
+  if not . p $ n
+  then Nothing
+  else Just (T.Node n (mapMaybe (filterTree p) cs))
 
-filterForest
-  :: Bool
-  -> T.Forest Info
-  -> T.Forest Info
-filterForest b = filter ((== b) . (iResult . T.rootLabel))
-                 . map filterTree
-
-pruneSeriesResult :: Verbosity -> SeriesResult a -> Maybe (SeriesResult a)
-pruneSeriesResult v tr = case v of
+pruneResult :: Verbosity -> Result a -> Maybe (Result a)
+pruneResult v tr = case v of
   Silent -> Nothing
   FailOnly -> pruneFailOnly tr
   Brief -> Just $ pruneBrief tr
@@ -409,59 +421,57 @@ pruneSeriesResult v tr = case v of
   AllFails -> Just $ pruneAllFails tr
   AllAll -> Just tr
 
-pruneFailOnly :: SeriesResult a -> Maybe (SeriesResult a)
-pruneFailOnly tr = case tr of
-  SingleResult sr -> pruneSingleResult sr
-  SeveralResult gr -> pruneSeveralResult gr
+
+pruneFailOnly :: Result a -> Maybe (Result a)
+pruneFailOnly (Result t) = case filterTree pdRNode t of
+  Nothing -> Nothing
+  Just t' -> Just . Result . fmap rmResults $ t'
   where
-    pruneSingleResult (SRInfo n p _) =
-      if p
-      then Nothing
-      else Just (SingleResult (SRInfo n p []))
-    pruneSeveralResult (GroupResult n ls) =
-      case mapMaybe pruneFailOnly ls of
-        [] -> Nothing
-        xs -> Just (SeveralResult (GroupResult n xs))
+    pdRNode r = case r of
+      Right _ -> True
+      Left ri -> not . srPassed $ ri
+    rmResults r = case r of
+      Right n -> Right n
+      Left (RInfo n p _) -> Left (RInfo n p [])
 
-pruneBrief :: SeriesResult a -> SeriesResult a
-pruneBrief tr = case tr of
-  SingleResult sr -> pruneSingleResult sr
-  SeveralResult gr -> pruneSeveralResult gr
+pruneBrief :: Result a -> Result a
+pruneBrief (Result (T.Node l cs)) = Result (T.Node l' cs')
   where
-    pruneSingleResult (SRInfo n p _) =
-      SingleResult (SRInfo n p [])
-    pruneSeveralResult (GroupResult n ls) =
-      SeveralResult (GroupResult n (map pruneBrief ls))
+    l' = case l of
+      Right n -> Right n
+      Left (RInfo n p _) -> Left $ RInfo n p []
+    cs' = map (unResult . pruneBrief . Result) cs
 
-pruneInteresting :: SeriesResult a -> SeriesResult a
-pruneInteresting tr = case tr of
-  SingleResult sr -> pruneSingleResult sr
-  SeveralResult gr -> pruneSeveralResult gr
+pruneInteresting :: Result a -> Result a
+pruneInteresting (Result (T.Node l cs)) = Result (T.Node l' cs')
   where
-    pruneSingleResult (SRInfo n p ls) =
-      SingleResult (SRInfo n p (map (second filterTree) ls))
-    pruneSeveralResult (GroupResult n ls) =
-      SeveralResult (GroupResult n (map pruneInteresting ls))
+    l' = case l of
+      Right n -> Right n
+      Left (RInfo n p rs) -> Left (RInfo n p rs')
+        where
+          rs' = mapMaybe f rs
+          f (a, t) =
+            if p
+            then Nothing
+            else case filterTree pdInfo t of
+              Nothing -> Nothing
+              Just t' -> Just (a, t')
+          pdInfo i = iResult i == iInterestingIf i
+    cs' = map (unResult . pruneInteresting . Result) cs
 
-pruneAllFails :: SeriesResult a -> SeriesResult a
-pruneAllFails tr = case tr of
-  SingleResult sr -> pruneSingleResult sr
-  SeveralResult gr -> pruneSeveralResult gr
+pruneAllFails :: Result a -> Result a
+pruneAllFails (Result (T.Node l cs)) = Result (T.Node l' cs')
   where
-    pruneSingleResult (SRInfo n p ls) =
-      let ls' = if p then [] else ls
-      in SingleResult (SRInfo n p ls')
-    pruneSeveralResult (GroupResult n ls) =
-      SeveralResult (GroupResult n (map pruneAllFails ls))
+    l' = case l of
+      Right n -> Right n
+      Left (RInfo n p rs) -> Left (RInfo n p rs')
+        where
+          rs' = if p then [] else rs
+    cs' = map (unResult . pruneAllFails . Result) cs
 
-
-exitWithCode :: [SeriesResult a] -> IO ()
-exitWithCode srs =
-  if and . concatMap getList $ srs
-  then Exit.exitSuccess
-  else Exit.exitFailure
+resultList :: Result a -> [Passed]
+resultList = mapMaybe toPassed . T.flatten . unResult
   where
-    getList res = case res of
-      SingleResult (SRInfo _ p _) -> [p]
-      SeveralResult (GroupResult _ rs) -> concatMap getList rs
-
+    toPassed e = case e of
+      Right _ -> Nothing
+      Left (RInfo _ p _) -> Just p

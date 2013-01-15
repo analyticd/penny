@@ -417,8 +417,11 @@ wheatMain getConf = do
   ti <- getTerm
   items <- getItems pn posargs
   let srs = map (N.runSeries items) (groups c bt)
+  rList <- return $! map N.resultList srs
   mapM_ (N.showSeries ti display sc vbsty) srs
-  --N.exitWithCode srs
+  if and $ concat rList
+    then Exit.exitSuccess
+    else Exit.exitFailure
 
 -- | Displays a PostFam in a one line format.
 --
