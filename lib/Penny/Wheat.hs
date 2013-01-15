@@ -1,5 +1,6 @@
 module Penny.Wheat
-  ( Pdct
+  ( -- * Basic predicates
+    Pdct
   , payee
   , number
   , flag
@@ -15,10 +16,24 @@ module Penny.Wheat
   , accountAny
   , tag
 
+  -- * Convenience predicates
+  , reconciled
+
+  -- * Other conveniences
+  , futureFirstsOfTheMonth
+
+  -- * Configuration and CLI
   , ColorToFile
   , BaseTime
   , WheatConf(..)
   , wheatMain
+
+  -- * Re-exports
+  , S.Runtime
+  , S.currentTime
+  , module Text.Matchers
+  , module Penny.Steel.Prednote
+  , module Data.Time
   ) where
 
 import Control.Arrow (second)
@@ -26,7 +41,6 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (intersperse)
 import Data.Maybe (mapMaybe)
 import qualified Penny.Steel.Prednote as N
-import Penny.Steel.Prednote (pdct)
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Lincoln.Predicates as P
@@ -42,6 +56,10 @@ import qualified System.Exit as Exit
 import System.Locale (defaultTimeLocale)
 import qualified System.IO as IO
 import qualified Penny.Shield as S
+
+import Text.Matchers
+import Penny.Steel.Prednote hiding (Pdct)
+import Data.Time
 
 type Pdct = N.Pdct L.PostFam
 
@@ -141,6 +159,30 @@ accountAny p = pdct (descItem "any sub-account" p)
 
 tag :: M.Matcher -> Pdct
 tag p = pdct (descItem "any tag" p) (P.tag (M.match p))
+
+------------------------------------------------------------
+-- Convenience predicates
+------------------------------------------------------------
+
+-- | True if a posting is reconciled.
+reconciled :: Pdct
+reconciled =
+  pdct "posting flag is exactly \"R\" (is reconciled)"
+  (maybe False ((== X.singleton 'R'). L.unFlag) . Q.flag)
+
+------------------------------------------------------------
+-- Other conveniences
+------------------------------------------------------------
+
+
+-- | A non-terminating list of starting with the first day of the
+-- first month following the given day, followed by successive first
+-- days of the month.
+futureFirstsOfTheMonth :: T.Day -> [T.Day]
+futureFirstsOfTheMonth d = iterate (T.addGregorianMonthsClip 1) d1
+  where
+    d1 = T.fromGregorian yr mo 1
+    (yr, mo, _) = T.toGregorian $ T.addGregorianMonthsClip 1 d
 
 ------------------------------------------------------------
 -- CLI
@@ -370,10 +412,10 @@ wheatMain getConf = do
         if ctf || (S.output rt == S.IsTTY)
         then TI.setupTermFromEnv
         else TI.setupTerm "dumb"
-  term <- getTerm
+  ti <- getTerm
   items <- getItems pn posargs
   let srs = map (N.runSeries items) (groups c bt)
-  mapM_ (N.showSeries term display sc vbsty) srs
+  mapM_ (N.showSeries ti display sc vbsty) srs
   N.exitWithCode srs
 
 -- | Displays a PostFam in a one line format.
@@ -384,17 +426,17 @@ wheatMain getConf = do
 display :: L.PostFam -> String
 display p = concat (intersperse " " ls) ++ "\n"
   where
-    ls = [file, lineNo, date, pye, acct, dc, cmdty, qt]
+    ls = [file, lineNo, dt, pye, acct, dc, cmdty, qt]
     file = maybe (labelNo "filename") (X.unpack . L.unFilename)
            (Q.filename p)
     lineNo = maybe (labelNo "line number")
              (show . L.unPostingLine) (Q.postingLine p)
     dateFormat = "%Y-%m-%d %T %z"
-    date = T.formatTime defaultTimeLocale dateFormat
-           . T.utctDay
-           . L.toUTC
-           . Q.dateTime
-           $ p
+    dt = T.formatTime defaultTimeLocale dateFormat
+         . T.utctDay
+         . L.toUTC
+         . Q.dateTime
+         $ p
     pye = maybe (labelNo "payee")
             (X.unpack . L.text) (Q.payee p)
     acct = X.unpack . X.intercalate (X.singleton ':')

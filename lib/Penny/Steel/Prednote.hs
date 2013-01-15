@@ -12,6 +12,8 @@ module Penny.Steel.Prednote
 
     -- ** Creating predicates
   , pdct
+  , true
+  , false
 
     -- ** Combining predicates
   , disjoin
@@ -126,6 +128,22 @@ pdct d p = Pdct fn
     fn pf = T.Node n []
       where
         n = Info (p pf) d True
+
+-- | Always returns True.
+true :: Pdct a
+true = Pdct fn
+  where
+    fn _ = T.Node n []
+      where
+        n = Info True "always True" True
+
+-- | Always returns False.
+false :: Pdct a
+false = Pdct fn
+  where
+    fn _ = T.Node n []
+      where
+        n = Info False "always False" True
 
 ------------------------------------------------------------
 -- Combinators
@@ -432,10 +450,6 @@ pruneAllFails tr = case tr of
     pruneSeveralResult (GroupResult n ls) =
       SeveralResult (GroupResult n (map pruneAllFails ls))
 
-
---
--- Old
---
 
 exitWithCode :: [SeriesResult a] -> IO ()
 exitWithCode srs =
