@@ -36,7 +36,8 @@ module Penny.Wheat
   , module Data.Time
   ) where
 
-import Control.Arrow (second, (&&&))
+import Control.Arrow (second)
+import Control.Monad (join)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (intersperse)
 import Data.Maybe (mapMaybe)
@@ -47,6 +48,7 @@ import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
+import Data.Text (Text, pack)
 import qualified Data.Time as T
 import qualified Text.Matchers as M
 import qualified Text.Parsec as Parsec
@@ -65,33 +67,34 @@ type Pdct = N.Pdct L.PostFam
 
 -- * Pattern matching fields
 
-descItem :: String -> M.Matcher -> String
-descItem s m = "field: " ++ s
-               ++ "; matcher description: "
-               ++ (X.unpack $ M.matchDesc m)
+descItem :: Text -> M.Matcher -> Text
+descItem s m = X.concat
+  [ pack "field: ", s,  pack "; matcher description: ",
+    (M.matchDesc m) ]
 
 payee :: M.Matcher -> Pdct
-payee p = pdct (descItem "payee" p) (P.payee (M.match p))
+payee p = pdct (descItem (pack "payee") p) (P.payee (M.match p))
 
 
 number :: M.Matcher -> Pdct
-number p = pdct (descItem "number" p) (P.number (M.match p))
+number p = pdct (descItem (pack "number") p) (P.number (M.match p))
 
 flag :: M.Matcher -> Pdct
-flag p = pdct (descItem "flag" p) (P.flag (M.match p))
+flag p = pdct (descItem (pack "flag") p) (P.flag (M.match p))
 
 postingMemo :: M.Matcher -> Pdct
-postingMemo p = pdct (descItem "posting memo" p)
+postingMemo p = pdct (descItem (pack "posting memo") p)
                 (P.postingMemo (M.match p))
 
 transactionMemo :: M.Matcher -> Pdct
-transactionMemo p = pdct (descItem "transaction memo" p)
+transactionMemo p = pdct (descItem (pack "transaction memo") p)
                 (P.transactionMemo (M.match p))
 
 -- * UTC times
 
 dateTime :: M.CompUTC -> T.UTCTime -> Pdct
-dateTime c t = pdct ("posting " ++ M.descUTC c t) p
+dateTime c t = pdct (pack "posting "
+                    `X.append` (pack $ M.descUTC c t)) p
   where
     p = (`cmp` t) . L.toUTC . Q.dateTime
     cmp = M.compUTCtoCmp c
@@ -105,10 +108,11 @@ data CompQty
   | QLTEQ
   | QLT
 
-descQty :: CompQty -> L.Qty -> String
-descQty c q = "quantity of posting is " ++ co ++ " " ++ show q
+descQty :: CompQty -> L.Qty -> Text
+descQty c q = X.concat [ pack "quantity of posting is ", co,
+                         pack " ", pack . show $ q]
   where
-    co = case c of
+    co = pack $ case c of
       QGT -> "greater than"
       QGTEQ -> "greater than or equal to"
       QEQ -> "equal to"
@@ -129,9 +133,9 @@ qty c q = pdct (descQty c q) p
 -- * DrCr
 
 drCr :: L.DrCr -> Pdct
-drCr dc = pdct ("posting is a " ++ desc) p
+drCr dc = pdct (pack "posting is a " `X.append` desc) p
   where
-    desc = case dc of
+    desc = pack $ case dc of
       L.Debit -> "debit"
       L.Credit -> "credit"
     p = (== dc) . Q.drCr
@@ -139,26 +143,27 @@ drCr dc = pdct ("posting is a " ++ desc) p
 -- * Commodity
 
 commodity :: M.Matcher -> Pdct
-commodity p = pdct (descItem "commodity" p) (P.commodity (M.match p))
+commodity p = pdct (descItem (pack "commodity") p) (P.commodity (M.match p))
 
 -- * Account name
 
 account :: M.Matcher -> Pdct
-account p = pdct (descItem "full account name" p)
+account p = pdct (descItem (pack "full account name") p)
             (P.account (X.singleton ':') (M.match p))
 
 accountLevel :: Int -> M.Matcher -> Pdct
-accountLevel i p = pdct (descItem ("sub-account " ++ show i) p)
+accountLevel i p = pdct (descItem ((pack "sub-account ")
+                         `X.append` (pack . show $ i)) p)
                    (P.accountLevel i (M.match p))
 
 accountAny :: M.Matcher -> Pdct
-accountAny p = pdct (descItem "any sub-account" p)
+accountAny p = pdct (descItem (pack "any sub-account") p)
                (P.accountAny (M.match p))
 
 -- * Tags
 
 tag :: M.Matcher -> Pdct
-tag p = pdct (descItem "any tag" p) (P.tag (M.match p))
+tag p = pdct (descItem (pack "any tag") p) (P.tag (M.match p))
 
 ------------------------------------------------------------
 -- Convenience predicates
@@ -167,7 +172,7 @@ tag p = pdct (descItem "any tag" p) (P.tag (M.match p))
 -- | True if a posting is reconciled.
 reconciled :: Pdct
 reconciled =
-  pdct "posting flag is exactly \"R\" (is reconciled)"
+  pdct (pack "posting flag is exactly \"R\" (is reconciled)")
   (maybe False ((== X.singleton 'R'). L.unFlag) . Q.flag)
 
 ------------------------------------------------------------
@@ -197,13 +202,14 @@ type MoreHelp = [String]
 help
   :: ProgName
   -> BriefDesc
-  -> N.Verbosity
+  -> N.PassVerbosity
+  -> N.FailVerbosity
   -> N.SpaceCount
   -> ColorToFile
   -> BaseTime
   -> MoreHelp
   -> String
-help pn bd v sc ctf bt mh = unlines $
+help pn bd pv fv sc ctf bt mh = unlines $
   [ "usage: " ++ pn ++ "[options] ARGS"
   , ""
   , bd
@@ -213,18 +219,18 @@ help pn bd v sc ctf bt mh = unlines $
   , "  If yes, use colors even when standard output is"
   , "  not a terminal. (default: " ++ dCtf ++ ")"
   , ""
-  , "--verbosity, -v VERBOSITY"
-  , "  Use the given level of verbosity. Choices:"
+  , "--pass-verbosity, -p VERBOSITY"
+  , "--fail-verbosity, -f VERBOSITY"
+  , "  Use the given level of verbosity for passing or for"
+  , "  failing tests (each may be set independently.) Choices:"
   , "    silent - show nothing at all"
-  , "    fails - show only series that fail"
-  , "    brief - show only whether each series succeeded or failed"
-  , "    interesting - show interesting result from failed"
-  , "      series; for successful series, show only that they"
-  , "      succeeded"
-  , "    allFails - show all result from failed series; for"
-  , "      successful series, show only that they succeeded"
-  , "    everything - show all results from all series"
-  , "    (default: " ++ dVerb ++ ")"
+  , "    status - show only that the test passed or failed"
+  , "    interesting - show that the test passed or failed, and"
+  , "      the interesting results of the underlying predicates"
+  , "    all - show that the test passed or failed, and all"
+  , "      results from the underlying predicates"
+  , "    (default pass verbosity: " ++ descV pv ++ ")"
+  , "    (default fail verbosity: " ++ descV fv ++ ")"
   , ""
   , "--indentation, -i SPACES"
   , "  indent each level by this many spaces"
@@ -239,13 +245,11 @@ help pn bd v sc ctf bt mh = unlines $
   ] ++ mh
   where
     dCtf = if ctf then "yes" else "no"
-    dVerb = case v of
+    descV v = case v of
       N.Silent -> "silent"
-      N.FailOnly -> "fails"
-      N.Brief -> "brief"
-      N.InterestingFails -> "interesting"
-      N.AllFails -> "allFails"
-      N.AllAll -> "everything"
+      N.Status -> "status"
+      N.Interesting -> "interesting"
+      N.All -> "all"
     dSc = show sc
 
 showDateTime :: L.DateTime -> String
@@ -265,7 +269,8 @@ showDateTime (L.DateTime d h m s tz) =
 
 data Arg
   = AHelp
-  | AVerbosity N.Verbosity
+  | APassV N.Verbosity
+  | AFailV N.Verbosity
   | AColorToFile ColorToFile
   | AIndentation N.SpaceCount
   | ABaseTime L.DateTime
@@ -275,17 +280,22 @@ data Arg
 optHelp :: MA.OptSpec Arg
 optHelp = MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
 
-optVerbosity :: MA.OptSpec Arg
-optVerbosity = MA.OptSpec ["verbosity"] "v" (MA.ChoiceArg ls)
+lsVerbosity :: [(String, N.Verbosity)]
+lsVerbosity = [ ("silent", N.Silent)
+              , ("status", N.Status)
+              , ("interesting", N.Interesting)
+              , ("all", N.All)
+              ]
+
+optPassVerbosity :: MA.OptSpec Arg
+optPassVerbosity = MA.OptSpec ["pass-verbosity"] "p" (MA.ChoiceArg ls)
   where
-    ls = fmap (second AVerbosity) $
-         [ ("silent", N.Silent)
-         , ("fails", N.FailOnly)
-         , ("brief", N.Brief)
-         , ("interesting", N.InterestingFails)
-         , ("allFails", N.AllFails)
-         , ("everything", N.AllAll)
-         ]
+    ls = fmap (second APassV) lsVerbosity
+
+optFailVerbosity :: MA.OptSpec Arg
+optFailVerbosity = MA.OptSpec ["fail-verbosity"] "f" (MA.ChoiceArg ls)
+  where
+    ls = fmap (second AFailV) lsVerbosity
 
 optColorToFile :: MA.OptSpec Arg
 optColorToFile = MA.OptSpec ["color-to-file"] "" (MA.ChoiceArg ls)
@@ -310,7 +320,7 @@ optBaseTime = MA.OptSpec ["base-date"] "b" (MA.OneArg f)
       Left e -> Ex.throw $ "could not parse date: " ++ show e
       Right g -> return . ABaseTime $ g
 
-type ParsedOpts = ( N.Verbosity, N.SpaceCount,
+type ParsedOpts = ( N.PassVerbosity, N.FailVerbosity, N.SpaceCount,
                     ColorToFile, BaseTime, [String])
 
 data ParseResult
@@ -322,16 +332,18 @@ data ParseResult
 -- have been affected by the command arguments, or return Nothing if
 -- help is needed.
 parseArgs
-  :: N.Verbosity
+  :: N.PassVerbosity
+  -> N.FailVerbosity
   -> N.SpaceCount
   -> ColorToFile
   -> BaseTime
   -> [String]
   -> ParseResult
-parseArgs v sc ctf bt ss =
+parseArgs pv fv sc ctf bt ss =
   let exLs = MA.simple MA.Intersperse opts (return . APosArg) ss
       opts = [ fmap return optHelp
-             , fmap return optVerbosity
+             , fmap return optPassVerbosity
+             , fmap return optFailVerbosity
              , fmap return optColorToFile
              , optIndentation
              , optBaseTime
@@ -343,15 +355,22 @@ parseArgs v sc ctf bt ss =
         Ex.Success ls' ->
           if AHelp `elem` ls'
           then NeedsHelp
-          else Parsed ( (getVerbosity v ls'), (getSpaceCount sc ls')
+          else Parsed ( (getPassVerbosity pv ls'), (getFailVerbosity fv ls')
+                        , (getSpaceCount sc ls')
                         , (getColorToFile ctf ls'), (getBaseTime bt ls')
                         , (getPosArg ls'))
 
-getVerbosity :: N.Verbosity -> [Arg] -> N.Verbosity
-getVerbosity v as = case mapMaybe f as of
+getPassVerbosity :: N.PassVerbosity -> [Arg] -> N.PassVerbosity
+getPassVerbosity v as = case mapMaybe f as of
   [] -> v
   xs -> last xs
-  where f a = case a of { AVerbosity vb -> Just vb; _ -> Nothing }
+  where f a = case a of { APassV vb -> Just vb; _ -> Nothing }
+
+getFailVerbosity :: N.FailVerbosity -> [Arg] -> N.FailVerbosity
+getFailVerbosity v as = case mapMaybe f as of
+  [] -> v
+  xs -> last xs
+  where f a = case a of { AFailV vb -> Just vb; _ -> Nothing }
 
 getSpaceCount :: N.SpaceCount -> [Arg] -> N.SpaceCount
 getSpaceCount sc as = case mapMaybe f as of
@@ -378,10 +397,11 @@ getBaseTime bd as = case mapMaybe f as of
 data WheatConf = WheatConf
   { briefDescription :: String
   , moreHelp :: [String]
-  , verbosity :: N.Verbosity
+  , passVerbosity :: N.PassVerbosity
+  , failVerbosity :: N.FailVerbosity
   , spaceCount :: N.SpaceCount
   , colorToFile :: ColorToFile
-  , groups :: BaseTime -> [N.SeriesGroup L.PostFam]
+  , tests :: BaseTime -> [N.Test L.PostFam]
   , baseTime :: BaseTime
   }
 
@@ -391,11 +411,12 @@ applyParse
   -> [String]
   -> IO ParsedOpts
 applyParse pn c as =
-  case parseArgs (verbosity c) (spaceCount c)
+  case parseArgs (passVerbosity c) (failVerbosity c) (spaceCount c)
        (colorToFile c) (baseTime c) as of
     NeedsHelp -> do
       putStrLn (help pn (briefDescription c)
-                (verbosity c) (spaceCount c) (colorToFile c) (baseTime c)
+                (passVerbosity c) (failVerbosity c)
+                (spaceCount c) (colorToFile c) (baseTime c)
                 (moreHelp c))
       Exit.exitSuccess
     ParseErr e -> do
@@ -409,25 +430,29 @@ wheatMain getConf = do
   pn <- MA.getProgName
   as <- MA.getArgs
   let c = getConf rt
-  (vbsty, sc, ctf, bt, posargs) <- applyParse pn c as
+  (pv, fv, sc, ctf, bt, posargs) <- applyParse pn c as
   let getTerm =
         if ctf || (S.output rt == S.IsTTY)
         then TI.setupTermFromEnv
         else TI.setupTerm "dumb"
   ti <- getTerm
-  items <- getItems pn posargs
-  let rslts = splitResult ti display sc vbsty
-        $ map (N.runSeries items) (groups c bt)
-  fst rslts
-  snd rslts
+  let runTests is = map (N.runTest pv fv is 0) (tests c bt)
+  good <- fmap and
+          . join
+          . fmap (mapM (N.showResults ti sc display))
+          . fmap runTests
+          $ getItems pn posargs
+  if good
+    then Exit.exitSuccess
+    else Exit.exitFailure
 
 -- | Displays a PostFam in a one line format.
 --
 -- Format:
 --
 -- File LineNo Date Payee Acct DrCr Cmdty Qty
-display :: L.PostFam -> String
-display p = concat (intersperse " " ls)
+display :: L.PostFam -> Text
+display p = X.pack $ concat (intersperse " " ls)
   where
     ls = [file, lineNo, dt, pye, acct, dc, cmdty, qt]
     file = maybe (labelNo "filename") (X.unpack . L.unFilename)
@@ -467,16 +492,3 @@ getItems pn ss = Cop.openStdin ss >>= f
         in return . concatMap L.postFam
            . mapMaybe toTxn . Cop.unLedger $ g
 
-splitResult
-  :: TI.Terminal
-  -> (a -> String)
-  -> N.SpaceCount
-  -> N.Verbosity
-  -> [N.Result a]
-  -> (IO (), IO ())
-splitResult ti swr sc vb = f1 &&& f2
-  where
-    f1 rs = mapM_ (N.showSeries ti swr sc vb) rs
-    f2 rs = if and . concatMap N.resultList $ rs
-            then Exit.exitSuccess
-            else Exit.exitFailure
