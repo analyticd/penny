@@ -425,6 +425,10 @@ pruneFailOnly :: Result a -> Maybe (Result a)
 pruneFailOnly (Result t) = case filterTree pdRNode t of
   Nothing -> Nothing
   Just t' -> Just . Result . fmap rmResults $ t'
+
+
+pruneSilent :: Result a -> Bool
+pruneSilent = Fdbl.foldr f True . unResult
   where
     pdRNode r = case r of
       Right _ -> True
