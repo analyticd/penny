@@ -31,11 +31,13 @@ module Penny.Steel.Prednote
   , GroupName
   , seriesAtLeastN
   , eachSubjectMustBeTrue
-  , processTrueSubjects
+v  , processTrueSubjects
   , group
 
     -- ** Running test series
   , Verbosity(..)
+  , PassVerbosity
+  , FailVerbosity
   , Result
   , SpaceCount
   , Passed
@@ -45,6 +47,7 @@ module Penny.Steel.Prednote
 
   ) where
 
+import Control.Arrow (second)
 import Control.Applicative ((<*>), pure)
 import Data.Maybe (mapMaybe)
 import qualified Data.Tree as T
@@ -93,11 +96,33 @@ data RInfo a = RInfo
   , _srResults :: [(a, InfoTree)]
   }
 
+data FRInfo a = FRInfo
+  { _frName :: SeriesName
+  , _frPassed :: Passed
+  , _frResults :: [(a, T.Tree (ShowItem, Info))]
+  }
+
+type ShowItem = Bool
 type GroupName = String
 type RNode a = Either (RInfo a) GroupName
+type FRNode a = (ShowItem, Either (FRInfo a) GroupName)
 
-newtype Result a
-  = Result { unResult :: T.Tree (RNode a) }
+data PdctInfo = PdctInfo
+  { _piResult :: PdctResult
+  , _piName :: PdctName
+  , _piInterestingIf :: Bool
+  , _piLevel :: Int
+  }
+
+data NumInfo a = NumInfo
+  { _niLevel :: Int
+  , _niShowNode :: ShowItem
+  , _niName :: SeriesName
+  , _niPassed :: Passed
+  , _niResults :: [(a, T.Tree PdctInfo)]
+  }
+
+type NumNode a = Either (NumInfo a) GroupName
 
 --
 -- Showing results
@@ -105,26 +130,13 @@ newtype Result a
 
 data Verbosity
   = Silent
-    -- ^ Show nothing at all
+  | Status
+  | Interesting
+  | All
+  deriving (Eq, Ord, Show)
 
-  | FailOnly
-    -- ^ Show only failing tests
-
-  | Brief
-  -- ^ Show only whether test succeeded or failed.
-
-  | InterestingFails
-  -- ^ Show interesting results from failed tests. Do not show results
-  -- from succeeded tests.
-
-  | AllFails
-  -- ^ Show all resuls from failed tests. Do not show results from
-  -- succeeded tests.
-
-  | AllAll
-  -- ^ Show all results from all tests, whether succeeded or failed.
-  deriving Eq
-
+type PassVerbosity = Verbosity
+type FailVerbosity = Verbosity
 type SpaceCount = Int
 
 ------------------------------------------------------------
@@ -284,9 +296,9 @@ toRNode as n = case n of
 -- Showing
 ------------------------------------------------------------
 
-numberLevels :: Int -> T.Tree a -> T.Tree (Int, a)
-numberLevels i (T.Node l cs) =
-  T.Node (i, l) (map (numberLevels (i + 1)) cs)
+numberLevels :: Int -> (Int -> a -> b) -> T.Tree a -> T.Tree b
+numberLevels i f (T.Node l cs) =
+  T.Node (f i l) (map (numberLevels' (i + 1) f) cs)
 
 type Indentation = Int
 
@@ -404,6 +416,57 @@ showSeries ti swr sc v sr = case pruneResult v sr of
 ------------------------------------------------------------
 -- Pruning
 ------------------------------------------------------------
+
+-- | Descends through a tree. If the first parameter is False, this
+-- node and all its children will be marked as False. If the first
+-- parameter is True, this node will be marked True if the predicate
+-- is True, or False (and all its children false) if it is false.
+flagTree :: Bool -> (a -> Bool) -> T.Tree a -> T.Tree (Bool, a)
+flagTree currOk p (T.Node n cs) =
+  T.Node (r, n) (map (flagTree r p) cs)
+  where
+    r = if not currOk then False else p n
+
+
+flagInfoTree
+  :: Verbosity
+  -> T.Tree Info
+  -> T.Tree (Bool, Info)
+flagInfoTree vb = flagTree True pdct
+  where
+    pdct = case vb of
+      Silent -> const False
+      Status -> const False
+      Interesting -> \i -> iResult i == iInterestingIf i
+      All -> const True
+
+flagResultTree
+  :: (PassVerbosity, FailVerbosity)
+  -> T.Tree (RNode a)
+  -> T.Tree (FRNode a)
+flagResultTree (pv, fv) (T.Node n cs) =
+  T.Node (b, n') (map (flagResultTree (pv, fv)) cs)
+  where
+    toBool v = case v of
+      Silent -> False
+      _ -> True
+    b = case n of
+      Right _ -> True
+      Left (RInfo na psd rslts) -> toBool (if psd then pv else fv)
+    n' = case n of
+      Left (RInfo na psd rslts) -> Left fri
+        where
+          fri = FRInfo na psd rslts'
+          rslts' = map (second (flagInfoTree (if b then pv else fv))) rslts
+      o -> o
+
+levelResultTree :: Int -> T.Tree (FRNode a) -> T.Tree (NumNode a)
+levelResultTree lvl = numberLevels lvl f
+  where
+    f i (si, ei) = case ei of
+      Left (FRInfo n p rs) -> NumInfo i si n p rs'
+        where
+          rs' = map (second (numberLevels 
 
 filterTree :: (a -> Bool) -> T.Tree a -> Maybe (T.Tree a)
 filterTree p (T.Node n cs) =
