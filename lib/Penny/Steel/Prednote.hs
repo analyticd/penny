@@ -8,7 +8,7 @@
 module Penny.Steel.Prednote
   ( -- * Pdct
     Pdct
-  , PdctName
+  , Name
 
     -- ** Creating predicates
   , pdct
@@ -23,106 +23,110 @@ module Penny.Steel.Prednote
   , expectFail
   , rename
   , (<?>)
+  , seeTrue
+  , seeFalse
 
-    -- * Test series
-    -- ** Creating test series
-  , SeriesGroup
-  , SeriesName
-  , GroupName
-  , seriesAtLeastN
-  , eachSubjectMustBeTrue
-v  , processTrueSubjects
-  , group
-
-    -- ** Running test series
+    -- * Tests
+    -- * Test types
+  , Pass
+  , InterestingIf
+  , FirstPdctResult(..)
+  , Test
+  , TestResult(..)
+  , GroupResult(..)
   , Verbosity(..)
   , PassVerbosity
   , FailVerbosity
-  , Result
   , SpaceCount
-  , Passed
-  , runSeries
-  , showSeries
-  , resultList
+  , Result
+
+  -- * Creating tests
+  , seriesAtLeastN
+  , eachSubjectMustBeTrue
+  , processTrueSubjects
+  , group
+
+    -- ** Running test series
+  , runTest
+  , showResults
 
   ) where
 
-import Control.Arrow (second)
 import Control.Applicative ((<*>), pure)
-import Data.Maybe (mapMaybe)
 import qualified Data.Tree as T
 import qualified System.Console.Terminfo as TI
+import qualified Data.Text as X
+import qualified Data.Text.IO as TIO
+import Data.Text (Text, pack)
 
 ------------------------------------------------------------
 -- Types
 ------------------------------------------------------------
 
 --
--- Predicates
+-- INPUT Predicates
 --
 
-type PdctResult = Bool
+type Name = Text
+type Pass = Bool
+type InterestingIf = Bool
 
-type PdctName = String
+type PdctOutput = (Pass, Name, InterestingIf)
 
-data Info = Info
-  { iResult :: PdctResult
-  , iName :: PdctName
-  , iInterestingIf :: Bool
-  }
-
-type InfoTree = T.Tree Info
-newtype Pdct a = Pdct { unPdct :: a -> InfoTree }
+newtype Pdct a = Pdct { unPdct :: a -> T.Tree PdctOutput }
 
 --
--- Series
+-- INPUT Tests
 --
-type SeriesFn a = [a] -> RInfo a
-type SeriesNode a = Either (SeriesFn a) GroupName
+type TestOutput a = (Pass, Name, [(a, T.Tree PdctOutput)])
+type TestOrGroup a = Either ([a] -> TestOutput a) Name
 
-newtype SeriesGroup a
-  = SeriesGroup { unSeriesGroup :: T.Tree (SeriesNode a) }
+newtype Test a = Test { unTest :: T.Tree (TestOrGroup a) }
 
 --
--- Results
+-- OUTPUT Predicates
 --
 
-type Passed = Bool
+type Level = Int
+type Shown = Bool
+data PdctResult = PdctResult
+  { _pdctPass :: Pass
+  , _pdctName :: Name
+  , _pdctInterestingIf :: InterestingIf
+  , _pdctLevel :: Level
+  , _pdctShown :: Shown
+  } deriving (Eq, Show)
 
-type SeriesName = String
-data RInfo a = RInfo
-  { _srName :: SeriesName
-  , srPassed :: Passed
-  , _srResults :: [(a, InfoTree)]
-  }
+--
+-- OUTPUT Tests
+--
 
-data FRInfo a = FRInfo
-  { _frName :: SeriesName
-  , _frPassed :: Passed
-  , _frResults :: [(a, T.Tree (ShowItem, Info))]
-  }
+data FirstPdctResult a = FirstPdctResult
+  { firstPass :: Pass
+  , firstName :: Name
+  , firstInterestingIf :: InterestingIf
+  , firstLevel :: Level
+  , firstShown :: Shown
+  , firstSubject :: a
+  } deriving (Eq, Show)
 
-type ShowItem = Bool
-type GroupName = String
-type RNode a = Either (RInfo a) GroupName
-type FRNode a = (ShowItem, Either (FRInfo a) GroupName)
+data TestResult a = TestResult
+  { testPass :: Pass
+  , testName :: Name
+  , testResults :: [(FirstPdctResult a, [T.Tree PdctResult])]
+  , testLevel :: Level
+  , testShown :: Shown
+  } deriving (Eq, Show)
 
-data PdctInfo = PdctInfo
-  { _piResult :: PdctResult
-  , _piName :: PdctName
-  , _piInterestingIf :: Bool
-  , _piLevel :: Int
-  }
+data GroupResult = GroupResult
+  { groupName :: Name
+  , groupLevel :: Level
+  , groupShown :: Shown
+  } deriving (Eq, Show)
 
-data NumInfo a = NumInfo
-  { _niLevel :: Int
-  , _niShowNode :: ShowItem
-  , _niName :: SeriesName
-  , _niPassed :: Passed
-  , _niResults :: [(a, T.Tree PdctInfo)]
-  }
-
-type NumNode a = Either (NumInfo a) GroupName
+newtype Result a =
+  Result { unResult :: T.Tree (Either (TestResult a) GroupResult) }
+  deriving (Eq, Show)
 
 --
 -- Showing results
@@ -144,12 +148,12 @@ type SpaceCount = Int
 ------------------------------------------------------------
 
 -- | Creates a new Predicate with the given name.
-pdct :: PdctName -> (a -> Bool) -> Pdct a
+pdct :: Name -> (a -> Bool) -> Pdct a
 pdct d p = Pdct fn
   where
     fn pf = T.Node n []
       where
-        n = Info (p pf) d False
+        n = ((p pf), d, False)
 
 -- | Always returns True.
 true :: Pdct a
@@ -157,7 +161,7 @@ true = Pdct fn
   where
     fn _ = T.Node n []
       where
-        n = Info True "always True" False
+        n = (True, pack "always True", False)
 
 -- | Always returns False.
 false :: Pdct a
@@ -165,7 +169,7 @@ false = Pdct fn
   where
     fn _ = T.Node n []
       where
-        n = Info False "always False" True
+        n = (False, pack "always False", True)
 
 ------------------------------------------------------------
 -- Combinators
@@ -175,23 +179,23 @@ false = Pdct fn
 expectFail :: Pdct a -> Pdct a
 expectFail (Pdct t) = Pdct fn
   where
-    d = "boolean not"
+    d = pack "boolean not"
     fn s = T.Node n [c]
       where
-        c@(T.Node (Info rslt _ _) _) = t s
-        n = Info (not rslt) d False
+        c@(T.Node (rslt, _, _) _) = t s
+        n = ((not rslt), d, False)
 
 -- | Renames a predicate.
-rename :: PdctName -> Pdct a -> Pdct a
+rename :: Name -> Pdct a -> Pdct a
 rename d (Pdct t) = Pdct fn
   where
     fn s = T.Node l' cs
       where
-        T.Node l cs = t s
-        l' = l { iName = d }
+        T.Node (p, _, i) cs = t s
+        l' = (p, d, i)
 
 -- | Operator version of 'rename'.
-(<?>) :: PdctName -> Pdct a -> Pdct a
+(<?>) :: Name -> Pdct a -> Pdct a
 (<?>) = rename
 infix 0 <?>
 
@@ -200,10 +204,10 @@ infix 0 <?>
 disjoin :: [Pdct a] -> Pdct a
 disjoin ls = Pdct fn
   where
-    fn pf = T.Node (Info rslt "disjunction" False) fs
+    fn pf = T.Node (rslt, pack "disjunction", False) fs
       where
         fs = map unPdct ls <*> pure pf
-        rslt = any (iResult . T.rootLabel) fs
+        rslt = any ((\(p, _, _) -> p) . T.rootLabel) fs
 
 -- | Operator version of 'disjoin', uses a generic name.
 (.||.) :: Pdct a -> Pdct a -> Pdct a
@@ -216,10 +220,10 @@ infixr 2 .||.
 conjoin :: [Pdct a] -> Pdct a
 conjoin ls = Pdct fn
   where
-    fn pf = T.Node (Info rslt "conjunction" False) fs
+    fn pf = T.Node (rslt, pack "conjunction", False) fs
       where
         fs = map unPdct ls <*> pure pf
-        rslt = all (iResult . T.rootLabel) fs
+        rslt = all ((\(p, _, _) -> p) . T.rootLabel) fs
 
 
 -- | Operator version of conjoin, uses a generic description.
@@ -228,312 +232,286 @@ conjoin ls = Pdct fn
 
 infixr 3 .&&.
 
+-- | Modifies a test so that True results are interesting.
+seeTrue :: Pdct a -> Pdct a
+seeTrue (Pdct f) = Pdct f'
+  where
+    f' x =
+      let T.Node (p, n, _) cs = f x
+      in T.Node (p, n, True) cs
+
+-- | Modifies a test so that False results are interesting.
+seeFalse :: Pdct a -> Pdct a
+seeFalse (Pdct f) = Pdct f'
+  where
+    f' x =
+      let T.Node (p, n, _) cs = f x
+      in T.Node (p, n, False) cs
+
 ------------------------------------------------------------
 -- Series
 ------------------------------------------------------------
 
+-- | True if the list is at least n elements long. Less strict than
+-- 'length'.
+atLeast :: Int -> [a] -> Bool
+atLeast x = go 0
+  where
+    go i [] = i >= x
+    go i (_:as) =
+      if i >= x
+      then True
+      else let i' = i + 1 in i' `seq` go i' as
+
 -- | Passes if at least n subjects are True.
 seriesAtLeastN
-  :: SeriesName
+  :: Name
   -> Int
   -> Pdct a
-  -> SeriesGroup a
-seriesAtLeastN name i (Pdct t) = SeriesGroup $ T.Node (Left fn) []
+  -> Test a
+seriesAtLeastN name i (Pdct t) = Test $ T.Node (Left fn) []
   where
-    fn pfs = RInfo name atLeast pairs
+    fn pfs = (atl, name, pairs)
       where
         pairs = zip pfs rslts
         rslts = pure t <*> pfs
-        atLeast = ( length
-                    . filter id
-                    . map (iResult . T.rootLabel)
-                    $ rslts
-                  ) >= i
+        atl = atLeast i
+              . filter id
+              . map ((\(p, _, _) -> p) . T.rootLabel)
+              $ rslts
 
 -- | Every subject is run through the test. Each subject must return
 -- True; otherwise the test fails.
 eachSubjectMustBeTrue
-  :: SeriesName
+  :: Name
   -> Pdct a
-  -> SeriesGroup a
-eachSubjectMustBeTrue n (Pdct t) = SeriesGroup $ T.Node (Left fn) []
+  -> Test a
+eachSubjectMustBeTrue n (Pdct t) = Test $ T.Node (Left fn) []
   where
-    fn pfs = RInfo n passed pairs
+    fn pfs = (passed, n, pairs)
       where
         pairs = zip pfs rslts
         rslts = pure t <*> pfs
-        passed = all (iResult . T.rootLabel) rslts
+        passed = all ((\(p, _, _) -> p) . T.rootLabel) rslts
 
 -- | Every subject is run through the test. Subjects that return True
 -- are then fed to the given function. The result of the function is
 -- the result of the test.
 processTrueSubjects
-  :: SeriesName
+  :: Name
   -> ([a] -> Bool)
   -> Pdct a
-  -> SeriesGroup a
-processTrueSubjects name fp (Pdct t) =
-  SeriesGroup $ T.Node (Left fn) []
+  -> Test a
+processTrueSubjects name fp (Pdct t) = Test $ T.Node (Left fn) []
   where
-    fn pfs = RInfo name r pairs
+    fn pfs = (r, name, pairs)
       where
         pairs = zip pfs rslts
         rslts = pure t <*> pfs
-        r = fp . map fst . filter (iResult . T.rootLabel . snd) $ pairs
+        r = fp . map fst
+            . filter ((\(p, _, _) -> p) . T.rootLabel . snd) $ pairs
 
-group :: GroupName -> [SeriesGroup a] -> SeriesGroup a
-group n ts = SeriesGroup $ T.Node (Right n) (map unSeriesGroup ts)
+group :: Name -> [Test a] -> Test a
+group n = Test . T.Node (Right n) . map unTest
 
-runSeries :: [a] -> SeriesGroup a -> Result a
-runSeries pfs (SeriesGroup t) = Result $ fmap (toRNode pfs) t
+runTest
+  :: PassVerbosity
+  -> FailVerbosity
+  -> [a]
+  -> CurrLevel
+  -> Test a
+  -> Result a
+runTest pv fv as l = Result . runTest' pv fv as l . unTest
 
-toRNode :: [a] -> SeriesNode a -> RNode a
-toRNode as n = case n of
-  Left fn -> Left $ fn as
-  Right s -> Right s
+type CurrLevel = Int
+
+runTest'
+  :: PassVerbosity
+  -> FailVerbosity
+  -> [a]
+  -> CurrLevel
+  -> T.Tree (TestOrGroup a)
+  -> T.Tree (Either (TestResult a) GroupResult)
+runTest' pv fv as l (T.Node ei cs) = T.Node rn cs'
+  where
+    cs' = let l' = l + 1 in l' `seq` map (runTest' pv fv as l') cs
+    rn = case ei of
+      Right g -> Right (GroupResult g l s)
+        where
+          s = case (pv, fv) of
+            (Silent, Silent) -> False
+            _ -> True
+      Left fn -> Left (runFn pv fv as l fn)
+
+runFn
+  :: PassVerbosity
+  -> FailVerbosity
+  -> [a]
+  -> CurrLevel
+  -> ([a] -> TestOutput a)
+  -> TestResult a
+runFn pv fv as l fn = TestResult psd n rs l swn
+  where
+    (psd, n, lst) = fn as
+    v = if psd then pv else fv
+    swn = case v of
+      Silent -> False
+      _ -> True
+    rs = let l' = l + 1
+         in l' `seq` map (convertPdctOutput v swn l') lst
+
+type ParentShown = Bool
+
+convertPdctOutput
+  :: Verbosity
+  -> ParentShown
+  -> CurrLevel
+  -> (a, T.Tree PdctOutput)
+  -> (FirstPdctResult a, [T.Tree PdctResult])
+convertPdctOutput v pw l (a, (T.Node n ls)) = (r1, ls')
+  where
+    (r1p, r1n, r1i) = n
+    r1 = FirstPdctResult r1p r1n r1i l swn a
+    swn = if not pw then False else case v of
+      Silent -> False
+      Status -> False
+      Interesting -> r1p == r1i
+      _ -> True
+    ls' = let l' = l + 1
+          in l' `seq` map (toPdctResult v swn l') ls
+
+toPdctResult
+  :: Verbosity
+  -> ParentShown
+  -> CurrLevel
+  -> T.Tree PdctOutput
+  -> T.Tree PdctResult
+toPdctResult v pw l (T.Node n ls) = T.Node n' ls'
+  where
+    (p, s, i) = n
+    n' = PdctResult p s i l swn
+    swn = if not pw then False else case v of
+      Silent -> False
+      Status -> False
+      Interesting -> p == i
+      All -> True
+    ls' = let l' = l + 1
+          in l' `seq` map (toPdctResult v swn l') ls
 
 ------------------------------------------------------------
 -- Showing
 ------------------------------------------------------------
 
-numberLevels :: Int -> (Int -> a -> b) -> T.Tree a -> T.Tree b
-numberLevels i f (T.Node l cs) =
-  T.Node (f i l) (map (numberLevels' (i + 1) f) cs)
+type Success = Bool
 
-type Indentation = Int
+showResults
+  :: TI.Terminal
+  -> SpaceCount
+  -> (a -> Text)
+  -> Result a
+  -> IO Success
+showResults ti sc swr
+  = fmap and
+  . mapM (showResult ti sc swr)
+  . T.flatten
+  . unResult
 
 showResult
   :: TI.Terminal
-  -> (a -> String)
   -> SpaceCount
-  -> Indentation
-  -> Result a
-  -> IO ()
-showResult term swr sc ind r = do
-  let nrs = numberLevels ind . unResult $ r
-  flat <- return $! T.flatten nrs
-  mapM_ (showNode term swr sc) flat
+  -> (a -> Text)
+  -> Either (TestResult a) GroupResult
+  -> IO Success
+showResult t sc swr =
+  either (showTestResult t sc swr) (fmap (const True) . showGroupResult sc)
 
-showNode
-  :: TI.Terminal
-  -> (a -> String)
-  -> SpaceCount
-  -> (Indentation, RNode a)
-  -> IO ()
-showNode term swr sc (ind, nd) = case nd of
-  Right s -> putStrLn (replicate (ind * sc) ' ' ++ s)
-  Left info -> showRInfo term swr ind sc info
-
-showRInfo
-  :: TI.Terminal
-  -> (a -> String)
-  -> Indentation
-  -> SpaceCount
-  -> RInfo a
-  -> IO ()
-showRInfo t swr i sc (RInfo n p rs) = do
-  putStr (replicate (i * sc) ' ')
-  printPassed t p
-  putStrLn $ " " ++ n
-  mapM_ (showPair t sc swr (i + 1)) rs
-
-showInfo
+showTestResult
   :: TI.Terminal
   -> SpaceCount
-  -> (Indentation, Info)
-  -> IO ()
-showInfo term sc (ind, Info rslt s _) = do
-  putStr (replicate (ind * sc) ' ')
-  printResult term rslt
-  putStrLn s
+  -> (a -> Text)
+  -> TestResult a
+  -> IO Success
+showTestResult ti sc swr (TestResult p n rs l s) =
+  if not s
+  then return p
+  else do
+    let ind = X.replicate (sc * l) (X.singleton ' ')
+    TIO.putStr ind
+    printOkFail ti p
+    putStr " "
+    TIO.putStrLn n
+    mapM_ (showPdctResultPair ti sc swr) rs
+    return p
 
-showInfoTree
+showPdctResultPair
   :: TI.Terminal
   -> SpaceCount
-  -> Indentation
-  -> InfoTree
+  -> (a -> Text)
+  -> (FirstPdctResult a, [T.Tree PdctResult])
   -> IO ()
-showInfoTree term sc ind =
-  mapM_ (showInfo term sc)
-  . T.flatten
-  . numberLevels ind
+showPdctResultPair ti sc swr (r1, ls)
+  | not (firstShown r1) = return ()
+  | otherwise = do
+      let ind = X.replicate (sc * l) (X.singleton ' ')
+          FirstPdctResult p n _ l _ s = r1
+      TIO.putStr ind
+      printTrueFalse ti p
+      putStr " "
+      TIO.putStr n
+      putStr " "
+      TIO.putStrLn . swr $ s
+      mapM_ (showPdctResult ti sc) . concatMap T.flatten $ ls
 
-showPair
-  :: TI.Terminal
-  -> SpaceCount
-  -> (a -> String)
-  -> Indentation
-  -> (a, InfoTree)
-  -> IO ()
-showPair term sc swr ind (a, T.Node (Info r n _) cs) = do
-  putStr (replicate (ind * sc) ' ')
-  printResult term r
-  putStrLn $ " " ++ n ++ " - " ++ swr a
-  mapM_ (showInfoTree term sc (ind + 1)) cs
+showPdctResult :: TI.Terminal -> SpaceCount -> PdctResult -> IO ()
+showPdctResult ti sc (PdctResult p n _ l s)
+  | not s = return ()
+  | otherwise = do
+      let ind = X.replicate (sc * l) (X.singleton ' ')
+      TIO.putStr ind
+      printTrueFalse ti p
+      putStr " "
+      TIO.putStrLn n
 
+showGroupResult :: SpaceCount -> GroupResult -> IO ()
+showGroupResult sc (GroupResult n l s)
+  | not s = return ()
+  | otherwise = do
+      let ind = X.replicate (sc * l) (X.singleton ' ')
+      TIO.putStr ind
+      TIO.putStrLn n
 
 --
 -- Colors
 --
 
-printInColor :: TI.Terminal -> TI.Color -> String -> IO ()
+printInColor :: TI.Terminal -> TI.Color -> Text -> IO ()
 printInColor t c s =
-  case TI.getCapability t TI.withForegroundColor of
-    Nothing -> putStr s
-    Just cap -> TI.runTermOutput t (cap c (TI.termText s))
+  case TI.getCapability t TI.setForegroundColor of
+    Nothing -> TIO.putStr s
+    Just cap -> do
+      TI.runTermOutput t (cap c)
+      TIO.putStr s
+      case TI.getCapability t TI.restoreDefaultColors of
+        Nothing -> return ()
+        Just r -> TI.runTermOutput t r
 
-printResult :: TI.Terminal -> PdctResult -> IO ()
-printResult t r = do
+printTrueFalse :: TI.Terminal -> Pass -> IO ()
+printTrueFalse t r = do
   putStr "["
   if r
     then do
-      printInColor t TI.Green "TRUE"
+      printInColor t TI.Green (pack "TRUE")
       putStr "] "
     else do
-      printInColor t TI.Red "FALSE"
+      printInColor t TI.Red (pack "FALSE")
       putStr "]"
 
-printPassed :: TI.Terminal -> Passed -> IO ()
-printPassed t p = do
+printOkFail :: TI.Terminal -> Pass -> IO ()
+printOkFail t p = do
   putStr "["
   if p
-    then printInColor t TI.Green " OK "
-    else printInColor t TI.Red "FAIL"
+    then printInColor t TI.Green (pack " OK ")
+    else printInColor t TI.Red (pack "FAIL")
   putStr "]"
 
-showSeries
-  :: TI.Terminal
-  -> (a -> String)
-  -> SpaceCount
-  -> Verbosity
-  -> Result a
-  -> IO ()
-showSeries ti swr sc v sr = case pruneResult v sr of
-  Nothing -> return ()
-  Just sr' -> showResult ti swr sc 0 sr'
 
-
-------------------------------------------------------------
--- Pruning
-------------------------------------------------------------
-
--- | Descends through a tree. If the first parameter is False, this
--- node and all its children will be marked as False. If the first
--- parameter is True, this node will be marked True if the predicate
--- is True, or False (and all its children false) if it is false.
-flagTree :: Bool -> (a -> Bool) -> T.Tree a -> T.Tree (Bool, a)
-flagTree currOk p (T.Node n cs) =
-  T.Node (r, n) (map (flagTree r p) cs)
-  where
-    r = if not currOk then False else p n
-
-
-flagInfoTree
-  :: Verbosity
-  -> T.Tree Info
-  -> T.Tree (Bool, Info)
-flagInfoTree vb = flagTree True pdct
-  where
-    pdct = case vb of
-      Silent -> const False
-      Status -> const False
-      Interesting -> \i -> iResult i == iInterestingIf i
-      All -> const True
-
-flagResultTree
-  :: (PassVerbosity, FailVerbosity)
-  -> T.Tree (RNode a)
-  -> T.Tree (FRNode a)
-flagResultTree (pv, fv) (T.Node n cs) =
-  T.Node (b, n') (map (flagResultTree (pv, fv)) cs)
-  where
-    toBool v = case v of
-      Silent -> False
-      _ -> True
-    b = case n of
-      Right _ -> True
-      Left (RInfo na psd rslts) -> toBool (if psd then pv else fv)
-    n' = case n of
-      Left (RInfo na psd rslts) -> Left fri
-        where
-          fri = FRInfo na psd rslts'
-          rslts' = map (second (flagInfoTree (if b then pv else fv))) rslts
-      o -> o
-
-levelResultTree :: Int -> T.Tree (FRNode a) -> T.Tree (NumNode a)
-levelResultTree lvl = numberLevels lvl f
-  where
-    f i (si, ei) = case ei of
-      Left (FRInfo n p rs) -> NumInfo i si n p rs'
-        where
-          rs' = map (second (numberLevels 
-
-filterTree :: (a -> Bool) -> T.Tree a -> Maybe (T.Tree a)
-filterTree p (T.Node n cs) =
-  if not . p $ n
-  then Nothing
-  else Just (T.Node n (mapMaybe (filterTree p) cs))
-
-pruneResult :: Verbosity -> Result a -> Maybe (Result a)
-pruneResult v tr = case v of
-  Silent -> Nothing
-  FailOnly -> pruneFailOnly tr
-  Brief -> Just $ pruneBrief tr
-  InterestingFails -> Just $ pruneInteresting tr
-  AllFails -> Just $ pruneAllFails tr
-  AllAll -> Just tr
-
-
-pruneFailOnly :: Result a -> Maybe (Result a)
-pruneFailOnly (Result t) = case filterTree pdRNode t of
-  Nothing -> Nothing
-  Just t' -> Just . Result . fmap rmResults $ t'
-  where
-    pdRNode r = case r of
-      Right _ -> True
-      Left ri -> not . srPassed $ ri
-    rmResults r = case r of
-      Right n -> Right n
-      Left (RInfo n p _) -> Left (RInfo n p [])
-
-pruneBrief :: Result a -> Result a
-pruneBrief (Result (T.Node l cs)) = Result (T.Node l' cs')
-  where
-    l' = case l of
-      Right n -> Right n
-      Left (RInfo n p _) -> Left $ RInfo n p []
-    cs' = map (unResult . pruneBrief . Result) cs
-
-pruneInteresting :: Result a -> Result a
-pruneInteresting (Result (T.Node l cs)) = Result (T.Node l' cs')
-  where
-    l' = case l of
-      Right n -> Right n
-      Left (RInfo n p rs) -> Left (RInfo n p rs')
-        where
-          rs' = mapMaybe f rs
-          f (a, t) =
-            if p
-            then Nothing
-            else case filterTree pdInfo t of
-              Nothing -> Nothing
-              Just t' -> Just (a, t')
-          pdInfo i = iResult i == iInterestingIf i
-    cs' = map (unResult . pruneInteresting . Result) cs
-
-pruneAllFails :: Result a -> Result a
-pruneAllFails (Result (T.Node l cs)) = Result (T.Node l' cs')
-  where
-    l' = case l of
-      Right n -> Right n
-      Left (RInfo n p rs) -> Left (RInfo n p rs')
-        where
-          rs' = if p then [] else rs
-    cs' = map (unResult . pruneAllFails . Result) cs
-
-resultList :: Result a -> [Passed]
-resultList = mapMaybe toPassed . T.flatten . unResult
-  where
-    toPassed e = case e of
-      Right _ -> Nothing
-      Left (RInfo _ p _) -> Just p
