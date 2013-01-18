@@ -52,6 +52,7 @@ module Penny.Steel.Prednote
 
   ) where
 
+import Control.Arrow ((&&&))
 import Control.Applicative ((<*>), pure)
 import qualified Data.Tree as T
 import qualified System.Console.Terminfo as TI
@@ -280,6 +281,7 @@ seriesAtLeastN name i (Pdct t) = Test $ T.Node (Left fn) []
               . map ((\(p, _, _) -> p) . T.rootLabel)
               $ rslts
 
+{-
 -- | Every subject is run through the test. Each subject must return
 -- True; otherwise the test fails.
 eachSubjectMustBeTrue
@@ -290,9 +292,24 @@ eachSubjectMustBeTrue n (Pdct t) = Test $ T.Node (Left fn) []
   where
     fn pfs = (passed, n, pairs)
       where
+        passed = all ((\(p, _, _) -> p) . T.rootLabel) rslts
         pairs = zip pfs rslts
         rslts = pure t <*> pfs
-        passed = all ((\(p, _, _) -> p) . T.rootLabel) rslts
+-}
+-- | Every subject is run through the test. Each subject must return
+-- True; otherwise the test fails.
+eachSubjectMustBeTrue
+  :: Name
+  -> Pdct a
+  -> Test a
+eachSubjectMustBeTrue n (Pdct t) = Test $ T.Node (Left fn) []
+  where
+    fn pfs =
+      let mkOut = (zip pfs)
+                  &&& (all ((\(p, _, _) -> p) . T.rootLabel))
+          toTup (pairs, passed) = (passed, n, pairs)
+          mkRslts = (pure t <*>)
+      in toTup . mkOut . mkRslts $ pfs
 
 -- | Every subject is run through the test. Subjects that return True
 -- are then fed to the given function. The result of the function is
