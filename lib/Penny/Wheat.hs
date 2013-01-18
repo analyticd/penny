@@ -11,6 +11,7 @@ module Penny.Wheat
   , qty
   , drCr
   , commodity
+  , accountIs
   , account
   , accountLevel
   , accountAny
@@ -48,6 +49,7 @@ import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
+import qualified Penny.Lincoln.Builders as Bd
 import Data.Text (Text, pack)
 import qualified Data.Time as T
 import qualified Text.Matchers as M
@@ -146,6 +148,12 @@ commodity :: M.Matcher -> Pdct
 commodity p = pdct (descItem (pack "commodity") p) (P.commodity (M.match p))
 
 -- * Account name
+
+-- | Exactly matches the given account (case sensitive).
+accountIs :: X.Text -> Pdct
+accountIs a = pdct ((pack "account name is: ") `X.append` a) f
+  where
+    f = (== Bd.account a) . Q.account
 
 account :: M.Matcher -> Pdct
 account p = pdct (descItem (pack "full account name") p)

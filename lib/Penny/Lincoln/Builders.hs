@@ -15,15 +15,14 @@ module Penny.Lincoln.Builders
   ( account
   ) where
 
-import qualified Data.List.Split as S
 import qualified Penny.Lincoln.Bits as B
-import Data.Text (pack)
+import qualified Data.Text as X
 
--- | Create an Account. You supply a single String, with colons to
+-- | Create an Account. You supply a single Text, with colons to
 -- separate the different sub-accounts.
-account :: String -> B.Account
+account :: X.Text -> B.Account
 account s =
-  if null s
+  if X.null s
   then B.Account []
-  else B.Account . map B.SubAccount . map pack . S.splitOn ":" $ s
+  else B.Account . map B.SubAccount . X.splitOn (X.singleton ':') $ s
 
