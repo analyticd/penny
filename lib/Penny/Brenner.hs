@@ -252,8 +252,8 @@ data FitAcct = FitAcct
 convertFitAcct :: FitAcct -> Y.FitAcct
 convertFitAcct (FitAcct db ax df cy gs tl sd sb ps) = Y.FitAcct
   { Y.dbLocation = Y.DbLocation . X.pack $ db
-  , Y.pennyAcct = Y.PennyAcct . Bd.account $ ax
-  , Y.defaultAcct = Y.DefaultAcct . Bd.account $ df
+  , Y.pennyAcct = Y.PennyAcct . Bd.account . X.pack $ ax
+  , Y.defaultAcct = Y.DefaultAcct . Bd.account . X.pack $ df
   , Y.currency = Y.Currency . L.Commodity . X.pack $ cy
   , Y.groupSpecs = gs
   , Y.translator = tl
