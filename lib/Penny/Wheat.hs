@@ -23,6 +23,13 @@ module Penny.Wheat
   -- * Other conveniences
   , futureFirstsOfTheMonth
 
+  -- * Account tests
+  , BoundSpec(..)
+  , DateSpec
+  , anyDate
+  , AccountSpec
+  , accountTests
+
   -- * Configuration and CLI
   , ColorToFile
   , BaseTime
@@ -41,6 +48,7 @@ import Control.Arrow (second)
 import Control.Monad (join)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (intersperse)
+import qualified Data.Map as Map
 import Data.Maybe (mapMaybe)
 import qualified Penny.Steel.Prednote as N
 import qualified Penny.Copper as Cop
@@ -204,6 +212,7 @@ futureFirstsOfTheMonth d = iterate (T.addGregorianMonthsClip 1) d1
 type ProgName = String
 type BriefDesc = String
 type ColorToFile = Bool
+type CurrTime = L.DateTime
 type BaseTime = L.DateTime
 type MoreHelp = [String]
 
@@ -409,7 +418,7 @@ data WheatConf = WheatConf
   , failVerbosity :: N.FailVerbosity
   , spaceCount :: N.SpaceCount
   , colorToFile :: ColorToFile
-  , tests :: BaseTime -> [N.Test L.PostFam]
+  , tests :: CurrTime -> BaseTime -> [N.Test L.PostFam]
   , baseTime :: BaseTime
   }
 
@@ -435,6 +444,7 @@ applyParse pn c as =
 wheatMain :: (S.Runtime -> WheatConf) -> IO ()
 wheatMain getConf = do
   rt <- S.runtime
+  let currTime = S.currentTime rt
   pn <- MA.getProgName
   as <- MA.getArgs
   let c = getConf rt
@@ -444,7 +454,7 @@ wheatMain getConf = do
         then TI.setupTermFromEnv
         else TI.setupTerm "dumb"
   ti <- getTerm
-  let runTests is = map (N.runTest pv fv is 0) (tests c bt)
+  let runTests is = map (N.runTest pv fv is 0) (tests c currTime bt)
   good <- fmap and
           . join
           . fmap (mapM (N.showResults ti sc display))
@@ -499,4 +509,60 @@ getItems pn ss = Cop.openStdin ss >>= f
         let toTxn i = case i of { Cop.Transaction x -> Just x; _ -> Nothing }
         in return . concatMap L.postFam
            . mapMaybe toTxn . Cop.unLedger $ g
+
+--
+-- Account testers
+--
+
+-- | Specifies a bound on the valid dates of an account.
+data BoundSpec
+  = Inf
+  -- ^ Infinity
+  | Bound T.UTCTime
+
+-- | A range of dates. This is closed ended on the left, open ended on
+-- the right; that is, [x, y).
+type DateSpec = (BoundSpec, BoundSpec)
+
+anyDate :: DateSpec
+anyDate = (Inf, Inf)
+
+-- | A specification for a valid account. A posting has a valid
+-- account if its name exactly matches the name given here and if it
+-- matches at least one of the DateSpec in the list. If there are no
+-- DateSpec in the list, postings in this account will never be valid.
+type AccountSpec = (L.Account, [DateSpec])
+
+-- | Returns two Test. The first Test examines the account name to see
+-- if it is valid. The second Test examines the account name for
+-- validity and, if it passes, then examines the date of the posting
+-- to ensure it matches at least one of the DateSpec.
+accountTests :: [AccountSpec] -> (N.Test L.PostFam, N.Test L.PostFam)
+accountTests as = (testAcct, testAcctAndDate)
+  where
+    acctMap = Map.fromList as
+    testAcct = N.eachSubjectMustBeTrue tn p
+      where
+        tn = X.pack "Account name is valid"
+        p = N.pdct tn fn
+        fn pf = Map.member (Q.account pf) acctMap
+    testAcctAndDate = N.eachSubjectMustBeTrue tn p
+      where
+        tn = X.pack "Account name and date is valid"
+        p = N.pdct tn fn
+        fn pf = case Map.lookup (Q.account pf) acctMap of
+          Nothing -> False
+          Just ls -> any (dateMatches (Q.dateTime pf)) ls
+
+-- | Does this date fall within the given DateSpec?
+dateMatches :: L.DateTime -> DateSpec -> Bool
+dateMatches dt (l, u) = above && below
+  where
+    ut = L.toUTC dt
+    above = case l of
+      Inf -> True
+      Bound x -> x <= ut
+    below = case u of
+      Inf -> True
+      Bound x -> ut < x
 
