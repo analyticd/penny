@@ -7,7 +7,8 @@
 
 module Penny.Steel.Prednote
   ( -- * Pdct
-    Pdct
+    Pdct(..)
+  , PdctOutput
   , Name
 
     -- ** Creating predicates
@@ -29,7 +30,7 @@ module Penny.Steel.Prednote
     -- * Tests
     -- * Test types
   , Pass
-  , InterestingIf
+  , Interesting
   , FirstPdctResult(..)
   , Test
   , TestResult(..)
@@ -70,10 +71,15 @@ import Data.Text (Text, pack)
 
 type Name = Text
 type Pass = Bool
-type InterestingIf = Bool
+type Interesting = Bool
 
-type PdctOutput = (Pass, Name, InterestingIf)
+-- | The result that the predicates return.
+type PdctOutput = (Pass, Name, Interesting)
 
+-- | A Pdct is the building block of a test. The top node of the tree
+-- holds the result of the predicate. Child nodes can hold anything
+-- you want but typically they will hold the results of other
+-- predicates that were used to compute the result.
 newtype Pdct a = Pdct { unPdct :: a -> T.Tree PdctOutput }
 
 --
@@ -93,7 +99,7 @@ type Shown = Bool
 data PdctResult = PdctResult
   { _pdctPass :: Pass
   , _pdctName :: Name
-  , _pdctInterestingIf :: InterestingIf
+  , _pdctInteresting :: Interesting
   , _pdctLevel :: Level
   , _pdctShown :: Shown
   } deriving (Eq, Show)
@@ -105,7 +111,7 @@ data PdctResult = PdctResult
 data FirstPdctResult a = FirstPdctResult
   { firstPass :: Pass
   , firstName :: Name
-  , firstInterestingIf :: InterestingIf
+  , firstInteresting :: Interesting
   , firstLevel :: Level
   , firstShown :: Shown
   , firstSubject :: a
@@ -154,7 +160,8 @@ pdct d p = Pdct fn
   where
     fn pf = T.Node n []
       where
-        n = ((p pf), d, False)
+        psd = p pf
+        n = (psd, d, not psd)
 
 -- | Always returns True.
 true :: Pdct a
@@ -170,7 +177,7 @@ false = Pdct fn
   where
     fn _ = T.Node n []
       where
-        n = (False, pack "always False", True)
+        n = (False, pack "always False", False)
 
 ------------------------------------------------------------
 -- Combinators
@@ -184,7 +191,7 @@ expectFail (Pdct t) = Pdct fn
     fn s = T.Node n [c]
       where
         c@(T.Node (rslt, _, _) _) = t s
-        n = ((not rslt), d, False)
+        n = ((not rslt), d, rslt)
 
 -- | Renames a predicate.
 rename :: Name -> Pdct a -> Pdct a
@@ -205,7 +212,7 @@ infix 0 <?>
 disjoin :: [Pdct a] -> Pdct a
 disjoin ls = Pdct fn
   where
-    fn pf = T.Node (rslt, pack "disjunction", False) fs
+    fn pf = T.Node (rslt, pack "disjunction", not rslt) fs
       where
         fs = map unPdct ls <*> pure pf
         rslt = any ((\(p, _, _) -> p) . T.rootLabel) fs
@@ -221,7 +228,7 @@ infixr 2 .||.
 conjoin :: [Pdct a] -> Pdct a
 conjoin ls = Pdct fn
   where
-    fn pf = T.Node (rslt, pack "conjunction", False) fs
+    fn pf = T.Node (rslt, pack "conjunction", not rslt) fs
       where
         fs = map unPdct ls <*> pure pf
         rslt = all ((\(p, _, _) -> p) . T.rootLabel) fs
@@ -239,7 +246,7 @@ seeTrue (Pdct f) = Pdct f'
   where
     f' x =
       let T.Node (p, n, _) cs = f x
-      in T.Node (p, n, True) cs
+      in T.Node (p, n, p) cs
 
 -- | Modifies a test so that False results are interesting.
 seeFalse :: Pdct a -> Pdct a
@@ -247,7 +254,7 @@ seeFalse (Pdct f) = Pdct f'
   where
     f' x =
       let T.Node (p, n, _) cs = f x
-      in T.Node (p, n, False) cs
+      in T.Node (p, n, not p) cs
 
 ------------------------------------------------------------
 -- Series
@@ -410,7 +417,7 @@ toPdctResult v pw l (T.Node n ls) = T.Node n' ls'
     swn = if not pw then False else case v of
       Silent -> False
       Status -> False
-      Interesting -> p == i
+      Interesting -> i
       All -> True
     ls' = let l' = l + 1
           in l' `seq` map (toPdctResult v swn l') ls
