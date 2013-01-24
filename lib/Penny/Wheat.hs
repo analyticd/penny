@@ -51,7 +51,7 @@ import Control.Monad (join, replicateM)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (intersperse)
 import qualified Data.Map as Map
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, fromMaybe)
 import qualified Penny.Steel.Prednote as N
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
@@ -595,7 +595,29 @@ capitalChangePredicate
   -> FirstPurch
   -> CurrTime
   -> N.Pdct L.PostFam
-capitalChangePredicate cy fp ct = undefined
+capitalChangePredicate cy fp ct = N.Pdct pdctFn
+  where
+    pdctFn pf = E.Node (psd, nm, int) cs
+      where
+        nm = X.pack "Account is a capital change account"
+        nodePassed (E.Node (p, _, _) _) = p
+        ac = Q.account pf
+        cs = [ capRightLength ac
+             , capFirstAccts ac
+             , capCmdtyAcct cy ac
+             , capDates fp ct ac
+             ]
+        ps = map nodePassed cs
+        psd = and ps
+        int = not psd && or ps
+
+capRightLength :: L.Account -> E.Tree N.PdctOutput
+capRightLength (L.Account ac) = E.Node (psd, nm, ii) []
+  where
+    nm = X.pack "Account has 5 sub-accounts"
+    (psd, ii) = if length ac == 5
+                then (True, False)
+                else (False, True)
 
 capFirstAccts :: L.Account -> E.Tree N.PdctOutput
 capFirstAccts ac = E.Node (psd, nm, ii) []
@@ -625,6 +647,18 @@ capDates
   :: FirstPurch -> CurrTime -> L.Account -> E.Tree N.PdctOutput
 capDates fp ct ac = E.Node (psd, nm, ii) []
   where
+    nm = X.pack "Purchase and sell dates are good"
+    tdy = T.utctDay . L.toUTC $ ct
+    (psd, ii) = fromMaybe (False, True) $ do
+      L.SubAccount a3 <- extractSubAcct 3 ac
+      L.SubAccount a4 <- extractSubAcct 4 ac
+      buy <- parseDay a3
+      sell <- parseDay a4
+      return $ if (buy >= fp || buy <= (T.addDays 30 tdy))
+        && (sell >= buy && sell <= (T.addDays 30 tdy))
+        then (True, False)
+        else (False, True)
+
 
 extractSubAcct :: Int -> L.Account -> Maybe L.SubAccount
 extractSubAcct i (L.Account ls) =
@@ -657,7 +691,7 @@ basisOrProceedsPredicate bp cy fp ct = N.Pdct func
         t4@(E.Node (psd4, _, _) _) = isRightLength ac
         cs = [t1, t2, t3]
         psd = psd1 && psd2 && psd3
-        int = not psd
+        int = not psd && or [psd1, psd2, psd3]
         nm = X.pack $ desc ++ " account is correct"
         desc = case bp of
           Basis -> "Basis"
