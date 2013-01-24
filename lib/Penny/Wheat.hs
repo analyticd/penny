@@ -33,7 +33,6 @@ module Penny.Wheat
   -- * Configuration and CLI
   , ColorToFile
   , BaseTime
-  , CurrTime
   , WheatConf(..)
   , wheatMain
 
@@ -215,7 +214,6 @@ futureFirstsOfTheMonth d = iterate (T.addGregorianMonthsClip 1) d1
 type ProgName = String
 type BriefDesc = String
 type ColorToFile = Bool
-type CurrTime = L.DateTime
 type BaseTime = L.DateTime
 type MoreHelp = [String]
 
@@ -421,7 +419,7 @@ data WheatConf = WheatConf
   , failVerbosity :: N.FailVerbosity
   , spaceCount :: N.SpaceCount
   , colorToFile :: ColorToFile
-  , tests :: CurrTime -> BaseTime -> [N.Test L.PostFam]
+  , tests :: BaseTime -> [N.Test L.PostFam]
   , baseTime :: BaseTime
   }
 
@@ -447,7 +445,6 @@ applyParse pn c as =
 wheatMain :: (S.Runtime -> WheatConf) -> IO ()
 wheatMain getConf = do
   rt <- S.runtime
-  let currTime = S.currentTime rt
   pn <- MA.getProgName
   as <- MA.getArgs
   let c = getConf rt
@@ -457,7 +454,7 @@ wheatMain getConf = do
         then TI.setupTermFromEnv
         else TI.setupTerm "dumb"
   ti <- getTerm
-  let runTests is = map (N.runTest pv fv is 0) (tests c currTime bt)
+  let runTests is = map (N.runTest pv fv is 0) (tests c bt)
   good <- fmap and
           . join
           . fmap (mapM (N.showResults ti sc display))
@@ -527,8 +524,8 @@ data BoundSpec
 -- the right; that is, [x, y).
 type DateSpec = (BoundSpec, BoundSpec)
 
-anyDate :: DateSpec
-anyDate = (Inf, Inf)
+anyDate :: [DateSpec]
+anyDate = [(Inf, Inf)]
 
 -- | A specification for a valid account. A posting has a valid
 -- account if its name exactly matches the name given here and if it
@@ -538,25 +535,80 @@ type AccountSpec = (L.Account, [DateSpec])
 
 -- | Returns a Test that examines the account name and date of a
 -- posting to ensure both are good.
-accountTests :: [AccountSpec] -> N.Test L.PostFam
-accountTests as = N.eachSubjectMustBeTrue tn p
+accountTests :: [L.Commodity] -> [AccountSpec] -> N.Test L.PostFam
+accountTests cys as = N.eachSubjectMustBeTrue tn p
   where
     tn = X.pack "Account name and date is valid"
     p = N.Pdct fn
-    fn pf = E.Node (psd, tn, i) cs
+    fn pf = E.Node (psd, nm, ii) cs
       where
         acctMap = Map.fromList as
-        (psd, i, cs) = case Map.lookup (Q.account pf) acctMap of
-          Nothing -> (False, True, [])
-          Just ls -> (dm, not dm, [c1, c2])
-            where
-              c1 = E.Node (True, tnn, False) []
-                where tnn = X.pack "Account name is valid"
-              c2 = E.Node (dm, tnn, not dm) []
-                where
-                  tnn = X.pack $ "Posting date is in " ++
-                                 "valid range for account"
-              dm = any (dateMatches (Q.dateTime pf)) ls
+        nm = X.pack $ "Account name and date is valid (either from list "
+             ++ "of accounts or for commodity)"
+        cs = acctNameDateTree acctMap pf
+             : map (flip commodityTree pf) cys
+        (psd, ii) = if any treePasses cs
+                    then (True, False)
+                    else (False, True)
+
+-- | A Tree for whether the account name and posting date is
+-- valid. Interesting only if the account name passes but the account
+-- date fails.
+acctNameDateTree
+  :: Map.Map L.Account [DateSpec]
+  -> L.PostFam
+  -> E.Tree N.PdctOutput
+acctNameDateTree mp pf = E.Node (psd, nm, ii) cs
+  where
+    nm = X.pack $ "Account name is valid and posting date in valid range"
+         ++ " for account (fixed list of accounts)"
+    ac = Q.account pf
+    (cs, psd, ii) = case Map.lookup ac mp of
+      Nothing ->
+        let nameTree = acctNameTree False
+        in ([nameTree], False, True)
+      Just dss ->
+        let nameTree = acctNameTree True
+            dateTree = allDateSpecsTree (Q.dateTime pf) dss
+            trees = [nameTree, dateTree]
+            r = all treePasses trees
+        in (trees, r, not r)
+
+-- | Creates a tree for whether a given account name is
+-- valid. Interesting if it fails.
+acctNameTree :: Bool -> E.Tree N.PdctOutput
+acctNameTree psd = E.Node (psd, nm, ii) []
+  where
+    ii = not psd
+    nm = X.pack "Account name is in list of accounts"
+
+-- | Creates a tree for a list of DateSpec. Interesting if the total
+-- test fails.
+allDateSpecsTree :: L.DateTime -> [DateSpec] -> E.Tree N.PdctOutput
+allDateSpecsTree dt dss = E.Node (psd, nm, ii) cs
+  where
+    nm = X.pack "Posting date is valid for given account"
+    psd = any treePasses cs
+    ii = not psd
+    cs = map (dateSpecTree dt) dss
+
+-- | A Tree for whether a posting date is valid for a given
+-- DateSpec. Interesting if it fails.
+dateSpecTree :: L.DateTime -> DateSpec -> E.Tree N.PdctOutput
+dateSpecTree dt ds = E.Node (psd, nm, ii) []
+  where
+    psd = dateMatches dt ds
+    nm = X.pack "Account name falls within range " `X.append`
+         showDateSpec ds
+    ii = not psd
+
+showDateSpec :: DateSpec -> X.Text
+showDateSpec (l, u) = lt `X.append` (X.pack " to ") `X.append` ut
+  where
+    (lt, ut) = (conv l, conv u)
+    conv x = case x of
+      Inf -> X.pack "<infinity>"
+      Bound t -> X.pack . show $ t
 
 -- | Does this date fall within the given DateSpec?
 dateMatches :: L.DateTime -> DateSpec -> Bool
@@ -570,46 +622,48 @@ dateMatches dt (l, u) = above && below
       Inf -> True
       Bound x -> ut < x
 
-type FirstPurch = T.Day
-
--- | Creates a predicate for commodity purchases.
---
--- When you buy a commodity, you will need to set up two additional
--- accounts: a Basis account for each purchase and a Proceeds account
--- for each sale. This function creates the necessary predicate for
--- you. It checks postings to see if they in the Basis or Proceeds
--- account for this commodity.
-
-commodityPredicate
-  :: L.Commodity
-  -- ^ The commodity you are purchasing
-  -> FirstPurch
-  -- ^ The first day you purchased the commodity
-  -> CurrTime
-  -- ^ Today
-  -> N.Pdct L.PostFam
-commodityPredicate cy fp ct = undefined
-
-capitalChangePredicate
-  :: L.Commodity
-  -> FirstPurch
-  -> CurrTime
-  -> N.Pdct L.PostFam
-capitalChangePredicate cy fp ct = N.Pdct pdctFn
+-- | Creates the commodity accounts tree. Passes if the account is a
+-- capital gain, capital loss, proceeds, or basis account. Interesting
+-- only if the overall test fails and one of the children is also
+-- interesting.
+commodityTree
+  :: L.Commodity -> L.PostFam -> E.Tree N.PdctOutput
+commodityTree cy pf = E.Node (psd, nm, int) cs
   where
-    pdctFn pf = E.Node (psd, nm, int) cs
-      where
-        nm = X.pack "Account is a capital change account"
-        nodePassed (E.Node (p, _, _) _) = p
-        ac = Q.account pf
-        cs = [ capRightLength ac
-             , capFirstAccts ac
-             , capCmdtyAcct cy ac
-             , capDates fp ct ac
-             ]
-        ps = map nodePassed cs
-        psd = and ps
-        int = not psd && or ps
+    nm = X.pack "Account corresponds to commodity: "
+         `X.append` (L.unCommodity cy)
+    cs = [ capitalChangeTree cy pf
+         , basisOrProceedsTree Basis cy pf
+         , basisOrProceedsTree Proceeds cy pf ]
+    psd = any treePasses cs
+    int = not psd && any treeInteresting cs
+
+treePasses :: E.Tree N.PdctOutput -> Bool
+treePasses (E.Node (p, _, _) _) = p
+
+treeInteresting :: E.Tree N.PdctOutput -> Bool
+treeInteresting (E.Node (_, _, i) _) = i
+
+-- | Creates a tree that tests whether the posting is a capital change
+-- account; that is, whether the first sub-accounts are Income:Capital
+-- Gain or Expenses:Capital Loss. Also tests whether the following
+-- sub-accounts are also correct. Is interesting only if the test
+-- fails and if the first sub-accounts are Income:Capital Gain or
+-- Expenses:Capital Loss.
+capitalChangeTree
+  :: L.Commodity -> L.PostFam -> E.Tree N.PdctOutput
+capitalChangeTree cy pf = E.Node (psd, nm, int) cs
+  where
+    nm = X.pack "Account is a capital change account"
+    ac = Q.account pf
+    treeFirstAccts@(E.Node (firstGood, _, _) _) = capFirstAccts ac
+    cs = [ capRightLength ac
+         , treeFirstAccts
+         , capCmdtyAcct cy ac
+         , capDates pf
+         ]
+    psd = all treePasses cs
+    int = not psd && firstGood
 
 capRightLength :: L.Account -> E.Tree N.PdctOutput
 capRightLength (L.Account ac) = E.Node (psd, nm, ii) []
@@ -638,24 +692,24 @@ capCmdtyAcct (L.Commodity cy) ac = E.Node (psd, nm, ii) []
     nm = X.pack $ "Account name has proper commodity"
     (psd, ii) = case extractSubAcct 2 ac of
       Nothing -> (False, True)
-      Just (L.SubAccount ac) ->
-        if ac == cy
+      Just (L.SubAccount x) ->
+        if x == cy
         then (True, False)
         else (False, True)
 
 capDates
-  :: FirstPurch -> CurrTime -> L.Account -> E.Tree N.PdctOutput
-capDates fp ct ac = E.Node (psd, nm, ii) []
+  :: L.PostFam -> E.Tree N.PdctOutput
+capDates pf = E.Node (psd, nm, ii) []
   where
     nm = X.pack "Purchase and sell dates are good"
-    tdy = T.utctDay . L.toUTC $ ct
+    ac = Q.account pf
+    dy = T.utctDay . L.toUTC . Q.dateTime $ pf
     (psd, ii) = fromMaybe (False, True) $ do
       L.SubAccount a3 <- extractSubAcct 3 ac
       L.SubAccount a4 <- extractSubAcct 4 ac
       buy <- parseDay a3
       sell <- parseDay a4
-      return $ if (buy >= fp || buy <= (T.addDays 30 tdy))
-        && (sell >= buy && sell <= (T.addDays 30 tdy))
+      return $ if (buy <= sell && sell == dy)
         then (True, False)
         else (False, True)
 
@@ -668,34 +722,30 @@ extractSubAcct i (L.Account ls) =
 
 data BasisOrProceeds = Basis | Proceeds
 
-basisOrProceedsPredicate
+-- | Creates a Tree for either for a Basis account or for a Proceeds
+-- account. The tree is interesting only if the Result is a failure
+-- and if the first sub-account is Basis or Proceeds (as appropriate).
+basisOrProceedsTree
   :: BasisOrProceeds
   -> L.Commodity
   -- ^ The commodity you are purchasing
-  -> FirstPurch
-  -- ^ The first day you purchased the commodity
-  -> CurrTime
-  -- ^ Today
-  -> N.Pdct L.PostFam
-basisOrProceedsPredicate bp cy fp ct = N.Pdct func
+  -> L.PostFam
+  -> E.Tree N.PdctOutput
+basisOrProceedsTree bp cy pf = E.Node (psd, nm, int) cs
   where
-    func pf = E.Node (psd, nm, int) cs
-      where
-        ac = Q.account pf
-        t1@(E.Node (psd1, _, _) _) =
-          isBasisOrProcAcct bp (extractSubAcct 0 ac)
-        t2@(E.Node (psd2, _, _) _) =
-          isRightCmdty (extractSubAcct 1 ac) cy
-        t3@(E.Node (psd3, _, _) _) =
-          isRightDay (extractSubAcct 2 ac) fp ct
-        t4@(E.Node (psd4, _, _) _) = isRightLength ac
-        cs = [t1, t2, t3]
-        psd = psd1 && psd2 && psd3
-        int = not psd && or [psd1, psd2, psd3]
-        nm = X.pack $ desc ++ " account is correct"
-        desc = case bp of
-          Basis -> "Basis"
-          Proceeds -> "Proceeds"
+    ac = Q.account pf
+    t1 = isBasisOrProcAcct bp (extractSubAcct 0 ac)
+    cs = [ t1
+         , isRightCmdty (extractSubAcct 1 ac) cy
+         , isRightDay pf
+         , isRightLength ac
+         ]
+    psd = all treePasses cs
+    int = not psd && treePasses t1
+    nm = X.pack $ desc ++ " account is correct"
+    desc = case bp of
+      Basis -> "Basis"
+      Proceeds -> "Proceeds"
 
 isRightLength :: L.Account -> E.Tree N.PdctOutput
 isRightLength (L.Account ac) = E.Node (psd, nm, int) []
@@ -736,22 +786,19 @@ isRightCmdty maySub cy = E.Node (psd, nm, int) []
                 else (False, True)
 
 isRightDay
-  :: Maybe L.SubAccount
-  -> FirstPurch
-  -> CurrTime
+  :: L.PostFam
   -> E.Tree N.PdctOutput
-isRightDay maySub fp ct = E.Node (psd, nm, int) []
+isRightDay pf = E.Node (psd, nm, int) []
   where
-    nm = X.pack "Third sub-account is in correct date range"
-    (psd, int) = case maySub of
-      Nothing -> (False, True)
-      Just (L.SubAccount sub) -> case parseDay sub of
-        Nothing -> (False, True)
-        Just dy ->
-          let maxDy = T.addDays 30 . T.utctDay . L.toUTC $ ct
-          in if dy >= fp && dy <= maxDy
-             then (True, False)
-             else (False, True)
+    nm = X.pack "Third sub-account has correct day"
+    dy = T.utctDay . L.toUTC . Q.dateTime $ pf
+    ac = Q.account pf
+    (psd, int) = fromMaybe (False, True) $ do
+      (L.SubAccount sub) <- extractSubAcct 2 ac
+      subDay <- parseDay sub
+      return $ if subDay == dy
+        then (True, False)
+        else (False, True)
 
 parseDay :: X.Text -> Maybe Day
 parseDay dateStr = case Parsec.parse p "" dateStr of
@@ -768,39 +815,3 @@ parseDay dateStr = case Parsec.parse p "" dateStr of
         Nothing -> fail "invalid date"
         Just dte -> return dte
 
-
-{-
-commodityPredicate cy dt ct = N.Pdct f
-  where
-    f pf = E.Node nd [basis, pcds]
-
-basisTree
-  :: L.Commodity
-  -> T.Day
-  -> CurrTime
-  -> L.PostFam
-  -> E.Tree E.PdctOutput
-basisTree cy dy ct pf = E.Node (psd, nm, int) ls
-  where
-    ls = [isBasis, rightDay, rightCmdty]
-    acctLs = map (Just . L.unSubAccount)
-             . L.unAccount . Q.account $ pf
-    (s1, s2, s3) = case acctLs of
-      [] -> (Nothing, Nothing, Nothing)
-      x1:[] -> (x1, Nothing, Nothing)
-      x1:x2:[] -> (x1, x2, Nothing)
-      x1:x2:x3:_ -> (x1, x2, x3)
-    isBasis = E.Node (p, n, i) []
-      where
-        (p, i) = case s1 of
-          Nothing -> (False, True)
-          Just sub -> sub == X.pack "Basis"
-        n = X.pack $ "First sub-account named 'Basis'"
-    rightDay = E.Node (p, n, i) []
-      where
-        (p, i) = case s3 of
-          Nothing -> (False, True)
-          Just sub -> case parseDay sub of
-            Nothing -> (False, True)
-            Just d -> if d >= dy && 
--}

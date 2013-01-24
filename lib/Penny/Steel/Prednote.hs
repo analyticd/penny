@@ -374,15 +374,17 @@ runFn
   -> CurrLevel
   -> ([a] -> TestOutput a)
   -> TestResult a
-runFn pv fv as l fn = TestResult psd n rs l swn
+runFn pv fv as l fn = TestResult psd n rs l showThis
   where
     (psd, n, lst) = fn as
     v = if psd then pv else fv
-    swn = case v of
-      Silent -> False
-      _ -> True
+    (showThis, showTree) = case v of
+      Silent -> (False, False)
+      Status -> (True, False)
+      Interesting -> (True, True)
+      All -> (True, True)
     rs = let l' = l + 1
-         in l' `seq` map (convertPdctOutput v swn l') lst
+         in l' `seq` map (convertPdctOutput v showTree l') lst
 
 type ParentShown = Bool
 
@@ -399,7 +401,7 @@ convertPdctOutput v pw l (a, (T.Node n ls)) = (r1, ls')
     swn = if not pw then False else case v of
       Silent -> False
       Status -> False
-      Interesting -> r1p == r1i
+      Interesting -> r1i
       _ -> True
     ls' = let l' = l + 1
           in l' `seq` map (toPdctResult v swn l') ls
