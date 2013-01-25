@@ -46,7 +46,7 @@ module Penny.Wheat
 
 import Control.Applicative
 import Control.Arrow (second)
-import Control.Monad (join, replicateM)
+import Control.Monad (join, replicateM, guard, when)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (intersperse)
 import qualified Data.Map as Map
@@ -737,7 +737,7 @@ basisOrProceedsTree bp cy pf = E.Node (psd, nm, int) cs
     t1 = isBasisOrProcAcct bp (extractSubAcct 0 ac)
     cs = [ t1
          , isRightCmdty (extractSubAcct 1 ac) cy
-         , isRightDay pf
+         , isRightDay cy pf
          , isRightLength ac
          ]
     psd = all treePasses cs
@@ -786,19 +786,22 @@ isRightCmdty maySub cy = E.Node (psd, nm, int) []
                 else (False, True)
 
 isRightDay
-  :: L.PostFam
+  :: L.Commodity
+  -> L.PostFam
   -> E.Tree N.PdctOutput
-isRightDay pf = E.Node (psd, nm, int) []
+isRightDay cy pf = E.Node (psd, nm, int) []
   where
     nm = X.pack "Third sub-account has correct day"
     dy = T.utctDay . L.toUTC . Q.dateTime $ pf
     ac = Q.account pf
+    isOriginalBasis = case Q.drCr pf of
+      L.Debit -> Q.commodity pf /= cy
+      L.Credit -> Q.commodity pf == cy
     (psd, int) = fromMaybe (False, True) $ do
       (L.SubAccount sub) <- extractSubAcct 2 ac
       subDay <- parseDay sub
-      return $ if subDay == dy
-        then (True, False)
-        else (False, True)
+      when isOriginalBasis $ guard (subDay == dy)
+      return (True, False)
 
 parseDay :: X.Text -> Maybe Day
 parseDay dateStr = case Parsec.parse p "" dateStr of
