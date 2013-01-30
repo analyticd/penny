@@ -36,9 +36,9 @@ source-repository head
 Library
   Build-depends:
       base ==4.*
-    , bytestring ==0.9.*
+    , bytestring ==0.10.*
     , cereal ==0.3.*
-    , containers ==0.4.*
+    , containers ==0.5.*
     , explicit-exception ==0.1.*
     , matchers ==0.5.*
     , monad-loops ==0.3.*
@@ -46,8 +46,8 @@ Library
     , old-locale ==1.0.*
     , parsec >= 3.1.2 && < 3.2
     , pcre-light ==0.4.*
-    , pretty-show ==1.2.*
-    , semigroups ==0.8.*
+    , pretty-show ==1.5.*
+    , semigroups ==0.9.*
     , split ==0.2.*
     , strict ==0.3.*
     , terminfo == 0.3.*
