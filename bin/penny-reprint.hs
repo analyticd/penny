@@ -24,7 +24,7 @@ groupSpecs = R.GroupSpecs R.NoGrouping R.NoGrouping
 main :: IO ()
 main = do
   as <- getArgs
-  l <- C.openStdin as
+  l <- C.openStdinThrow as
   case R.ledger groupSpecs l of
     Nothing -> error "could not render final ledger."
     Just x -> TIO.putStr x

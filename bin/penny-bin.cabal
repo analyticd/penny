@@ -1,5 +1,5 @@
 Name: penny-bin
-Version: 0.6.2.0
+Version: 0.7.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -182,7 +182,7 @@ source-repository head
 Executable penny
   Build-depends:
     base ==4.*,
-    penny-lib ==0.6.0.0
+    penny-lib ==0.7.*
 
   Main-is: penny-main.hs
   GHC-Options: -Wall
@@ -195,10 +195,10 @@ Executable penny
 Executable penny-selloff
   Build-depends:
     base == 4.*,
-    penny-lib ==0.6.0.0,
+    penny-lib ==0.7.*,
     explicit-exception ==0.1.*,
-    containers ==0.4.*,
-    semigroups ==0.8.*,
+    containers ==0.5.*,
+    semigroups ==0.9.*,
     text ==0.11.*,
     parsec ==3.1.*,
     multiarg ==0.9.*,
@@ -215,7 +215,7 @@ Executable penny-selloff
 Executable penny-diff
   Build-depends:
     base ==4.*,
-    penny-lib ==0.6.0.0,
+    penny-lib ==0.7.*,
     text ==0.11.*,
     multiarg ==0.9.*,
     explicit-exception == 0.1.*
@@ -231,8 +231,8 @@ Executable penny-diff
 Executable penny-reprint
   Build-depends:
       base ==4.*
-    , penny-lib ==0.6.0.0
-    , pretty-show ==1.2.*
+    , penny-lib ==0.7.*
+    , pretty-show ==1.5.*
     , text ==0.11.*
 
   main-is: penny-reprint.hs
@@ -243,7 +243,7 @@ Executable penny-reprint
 Executable penny-reconcile
   Build-depends:
       base ==4.*
-    , penny-lib ==0.6.0.0
+    , penny-lib ==0.7.*
     , text ==0.11.*
     , multiarg ==0.9.*
     , explicit-exception ==0.1.*
