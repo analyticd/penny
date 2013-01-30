@@ -201,7 +201,7 @@ Executable penny-selloff
     semigroups ==0.8.*,
     text ==0.11.*,
     parsec ==3.1.*,
-    multiarg ==0.8.*,
+    multiarg ==0.9.*,
     transformers ==0.3.*
 
   Main-is: penny-selloff.hs
@@ -217,7 +217,7 @@ Executable penny-diff
     base ==4.*,
     penny-lib ==0.6.0.0,
     text ==0.11.*,
-    multiarg ==0.8.*,
+    multiarg ==0.9.*,
     explicit-exception == 0.1.*
 
   Main-is: penny-diff.hs
@@ -245,7 +245,7 @@ Executable penny-reconcile
       base ==4.*
     , penny-lib ==0.6.0.0
     , text ==0.11.*
-    , multiarg ==0.8.*
+    , multiarg ==0.9.*
     , explicit-exception ==0.1.*
 
   main-is: penny-reconcile.hs
