@@ -1,1 +1,12 @@
-* (this file is currently empty)
+* Change parsers to allow for backslash-escaped characters. Most
+  likely this will involve creating a new Parsec Stream instance and
+  changing the token type. A Token could have two constructors: one
+  for unquoted characters, and one for quoted characters. The terminal
+  predicates will then take this token type as a parameter.
+
+* Allow RPN expressions as a compile-time option
+
+* Improve error messages for parse errors on expressions. Probably
+  this will involve tagging each operator and operand with location
+  information that could be used to look up the original location of
+  the operator or operand in the command line.
