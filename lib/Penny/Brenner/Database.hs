@@ -5,9 +5,9 @@ import qualified Penny.Brenner.Util as U
 import qualified System.Console.MultiArg as MA
 import qualified Control.Monad.Exception.Synchronous as Ex
 
-help :: String
+help :: String -> String
 help = unlines
-  [ "penny-fit [global-options] database [local-options]"
+  [ "usage: " ++ pn ++ " [global-options] database [local-options]"
   , "Shows the database of financial institution transactions."
   , "Does not accept any non-option arguments."
   , ""
@@ -15,11 +15,11 @@ help = unlines
   , "  --help, -h Show this help and exit."
   ]
 
-data Arg = ArgHelp | ArgPos String deriving (Eq, Show)
+data Arg = ArgPos String deriving (Eq, Show)
 
 mode
   :: Maybe Y.FitAcct
-  -> MA.Mode (Ex.Exceptional String (IO ()))
+  -> MA.Mode (IO ()))
 mode mayFa = MA.Mode
   { MA.mName = "database"
   , MA.mIntersperse = MA.Intersperse
@@ -31,17 +31,16 @@ mode mayFa = MA.Mode
 processor
   :: Maybe Y.FitAcct
   -> [Arg]
-  -> Ex.Exceptional String (IO ())
+  -> IO ()
 processor mayFa ls
-  | any (== ArgHelp) ls = return (putStrLn help)
-  | any isArgPos ls = Ex.throw $
+  | any isArgPos ls = fail $
         "penny-fit database: error: this command does"
         ++ " not accept non-option arguments."
   | otherwise = case mayFa of
-      Nothing -> Ex.throw $ "no financial institution account"
+      Nothing -> fail $ "no financial institution account"
         ++ " selected on command line, and no default"
         ++ " financial instititution account configured."
-      Just fa -> return $ do
+      Just fa -> do
         let dbLoc = Y.dbLocation fa
         db <- U.quitOnError $ U.loadDb (Y.AllowNew False) dbLoc
         mapM_ putStr . map U.showDbPair $ db

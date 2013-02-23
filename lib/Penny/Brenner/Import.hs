@@ -10,8 +10,7 @@ import qualified System.Exit as E
 
 
 data Arg
-  = AHelp
-  | AFitFile String
+  = AFitFile String
   | AAllowNew
   deriving (Eq, Show)
 
@@ -27,34 +26,14 @@ data ImportOpts = ImportOpts
               -> IO (Ex.Exceptional String [Y.Posting])
   }
 
-{-
-mode
-  :: Y.DbLocation
-  -> ( Y.FitFileLocation
-       -> IO (Ex.Exceptional String [Y.Posting]))
-  -> MA.Mode (Ex.Exceptional String (IO ()))
-mode dbLoc prsr = MA.Mode
-  { MA.mName = "import"
-  , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts =
-      [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
-      , MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew)
-      ]
-  , MA.mPosArgs = AFitFile
-  , MA.mProcess = processor dbLoc prsr
-  }
--}
-
 mode
   :: Maybe Y.FitAcct
-  -> MA.Mode (Ex.Exceptional String (IO ()))
+  -> MA.Mode (IO ())
 mode mayFa = MA.Mode
   { MA.mName = "import"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts =
-      [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
-      , MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew)
-      ]
+      [ MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew) ]
   , MA.mPosArgs = AFitFile
   , MA.mProcess = processor mayFa
   }
@@ -62,23 +41,19 @@ mode mayFa = MA.Mode
 processor
   :: Maybe Y.FitAcct
   -> [Arg]
-  -> Ex.Exceptional String (IO ())
+  -> IO ()
 processor mayFa as = do
-  let err s = Ex.throw $ "import: " ++ s
-  if any (== AHelp) as
-    then return $ putStrLn help
-    else do
-      (dbLoc, prsr) <- case mayFa of
-        Nothing -> err $ "no financial institution account provided"
-          ++ " on command line, and no default financial institution"
-          ++ " account is configured."
-        Just fa -> return (Y.dbLocation fa, snd . Y.parser $ fa)
-      loc <- case mapMaybe toFitFile as of
-        [] -> err "you must provide a postings file to read"
-        x:[] -> return (Y.FitFileLocation x)
-        _ -> err "you cannot provide more than one postings file to read"
-      let aNew = Y.AllowNew $ any (== AAllowNew) as
-      return $ doImport dbLoc (ImportOpts loc aNew prsr)
+  (dbLoc, prsr) <- case mayFa of
+    Nothing -> fail $ "no financial institution account provided"
+      ++ " on command line, and no default financial institution"
+      ++ " account is configured."
+    Just fa -> return (Y.dbLocation fa, snd . Y.parser $ fa)
+  loc <- case mapMaybe toFitFile as of
+    [] -> fail "you must provide a postings file to read"
+    x:[] -> return (Y.FitFileLocation x)
+    _ -> fail "you cannot provide more than one postings file to read"
+  let aNew = Y.AllowNew $ any (== AAllowNew) as
+  doImport dbLoc (ImportOpts loc aNew prsr)
 
 
 -- | Appends new Amex transactions to the existing list.
@@ -109,17 +84,15 @@ doImport dbLoc os = do
   txnsOld <- U.quitOnError $ U.loadDb (allowNew os) dbLoc
   parseResult <- parser os (fitFile os)
   ins <- case parseResult of
-    Ex.Exception e -> do
-      IO.hPutStrLn IO.stderr $ "penny-fit: error: " ++ e
-      E.exitFailure
+    Ex.Exception e -> fail e
     Ex.Success g -> return g
   let (new, len) = appendNew txnsOld ins
   U.saveDb dbLoc new
   putStrLn $ "imported " ++ show len ++ " new transactions."
 
-help :: String
-help = unlines
-  [ "penny-fit [global-options] import [local-options] FIT_FILE"
+help :: String -> String
+help pn = unlines
+  [ "usage: " ++ pn ++ "  [global-options] import [local-options] FIT_FILE"
   , "where FIT_FILE is the file downloaded from the financial"
   , "institution."
   , ""

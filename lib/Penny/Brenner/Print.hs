@@ -12,9 +12,9 @@ import qualified System.Exit as E
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe (mapMaybe)
 
-help :: String
-help = unlines
-  [ "penny-fit [global-options] print [local-options] FILE..."
+help :: String -> String
+help pn = unlines
+  [ "usage: " ++ pn ++ "  [global-options] print [local-options] FILE..."
   , "Parses the transactions in each FILE using the appropriate parser"
   , "and prints the parse result to standard output."
   , ""
@@ -23,17 +23,16 @@ help = unlines
   ]
 
 data Arg
-  = ArgHelp
-  | ArgFile String
+  = ArgFile String
   deriving (Eq, Show)
 
 mode
   :: Maybe Y.FitAcct
-  -> MA.Mode (Ex.Exceptional String (IO ()))
+  -> MA.Mode (IO ())
 mode mayFa = MA.Mode
   { MA.mName = "print"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [MA.OptSpec ["help"] "h" (MA.NoArg ArgHelp)]
+  , MA.mOpts = []
   , MA.mPosArgs = ArgFile
   , MA.mProcess = processor mayFa
   }
@@ -41,16 +40,14 @@ mode mayFa = MA.Mode
 processor
   :: Maybe Y.FitAcct
   -> [Arg]
-  -> Ex.Exceptional String (IO ())
+  -> IO ()
 processor mayFa ls =
-  if any (== ArgHelp) ls
-  then return (putStrLn help)
-  else case mayFa of
-          Nothing -> Ex.throw $
-            "no financial institution account"
-            ++ " provided on command line, and no account"
-            ++ " configured by default."
-          Just fa -> return $ doPrint (snd . Y.parser $ fa) ls
+  case mayFa of
+    Nothing -> fail $
+      "no financial institution account"
+      ++ " provided on command line, and no account"
+      ++ " configured by default."
+    Just fa -> doPrint (snd . Y.parser $ fa) ls
 
 doPrint
   :: (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
@@ -62,8 +59,7 @@ doPrint prsr ls = mapM_ f . mapMaybe toFile $ ls
       r <- prsr file
       case r of
         Ex.Exception s -> do
-          IO.hPutStrLn IO.stderr $ "penny-fit print: error: " ++ s
-          E.exitFailure
+          fail $ "penny-fit print: error: " ++ s
         Ex.Success ps -> mapM putStr . map U.showPosting $ ps
     toFile a = case a of
       ArgFile s -> Just (Y.FitFileLocation s)

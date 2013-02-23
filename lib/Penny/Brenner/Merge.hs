@@ -22,47 +22,38 @@ import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
 
 data Arg
-  = AHelp
-  | APos String
+  = APos String
   deriving (Eq, Show)
 
 toPosArg :: Arg -> Maybe String
 toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
 
-mode :: Maybe Y.FitAcct -> MA.Mode (Ex.Exceptional String (IO ()))
+mode :: Maybe Y.FitAcct -> MA.Mode (IO ())
 mode maybeC = MA.Mode
   { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts =
-    [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
-    ]
+  , MA.mOpts = []
   , MA.mPosArgs = APos
   , MA.mProcess = processor maybeC
   }
 
-processor :: Maybe Y.FitAcct -> [Arg] -> Ex.Exceptional a (IO ())
-processor maybeC as = return $
-  if any (== AHelp) as
-  then putStrLn help
-  else doMerge maybeC (mapMaybe toPosArg as)
+processor :: Maybe Y.FitAcct -> [Arg] -> IO ()
+processor maybeC as =
+  doMerge maybeC (mapMaybe toPosArg as)
 
 doMerge :: Maybe Y.FitAcct -> [String] -> IO ()
 doMerge maybeAcct ss = do
   acct <- case maybeAcct of
     Nothing -> do
-      IO.hPutStrLn IO.stderr $ "merge: error: no financial"
+      fail $ "no financial"
         ++ " institution account provided on command line, and"
         ++ " no default account configured."
-      exitFailure
     Just ac -> return ac
-  dbLs <- U.quitOnError
-          $ U.loadDb (Y.AllowNew False) (Y.dbLocation acct)
+  dbLs <- U.loadDb (Y.AllowNew False) (Y.dbLocation acct)
   exL <- C.openStdin ss
   l <- case exL of
     Ex.Exception e -> do
-      IO.hPutStrLn IO.stderr $ "could not parse ledger: "
-        ++ (X.unpack . C.unErrorMsg $ e)
-      exitFailure
+      fail $ "could not parse ledger: " ++ (X.unpack . C.unErrorMsg $ e)
     Ex.Success g -> return g
   let dbWithEntry = fmap (pairWithEntry acct) . M.fromList $ dbLs
       (l', db') = changeItems acct
@@ -70,15 +61,13 @@ doMerge maybeAcct ss = do
       newTxns = createTransactions acct db'
       final = C.Ledger (C.unLedger l' ++ newTxns)
   case R.ledger (Y.groupSpecs acct) final of
-    Nothing -> do
-      IO.hPutStrLn IO.stderr "Could not render final ledger."
-      exitFailure
+    Nothing -> fail "Could not render final ledger."
     Just x -> TIO.putStr x
 
 
-help :: String
-help = unlines
-  [ "penny-fit merge: merges new transactions from database"
+help :: String -> String
+help pn = unlines
+  [ "usage: " ++ pn ++ " merge: merges new transactions from database"
   , "to ledger file."
   , "usage: penny-fit merge [options] FILE..."
   , "Results are printed to standard output. If no FILE, or if FILE is -,"

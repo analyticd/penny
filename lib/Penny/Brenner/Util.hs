@@ -22,15 +22,17 @@ loadDb
   -> Y.DbLocation
   -- ^ DB location
 
-  -> IO (Ex.Exceptional String Y.DbList)
+  -> IO Y.DbList
 loadDb (Y.AllowNew allowNew) (Y.DbLocation dbLoc) = do
   eiStr <- IOE.tryIOError (BS.readFile . X.unpack $ dbLoc)
   case eiStr of
     Left e ->
       if allowNew && IOE.isDoesNotExistError e
-      then return (return [])
+      then return []
       else IOE.ioError e
-    Right g -> return . readDbTuple $ g
+    Right g -> case readDbTuple g of
+      Ex.Exception e -> fail e
+      Ex.Succes g -> return g
 
 -- | File version. Increment this when anything in the file format
 -- changes.
@@ -65,15 +67,6 @@ parseQty a = case P.parse CP.quantity "" (Y.unAmount a) of
   Left e -> error $ "could not parse quantity from string: "
             ++ (X.unpack . Y.unAmount $ a) ++ ": " ++ show e
   Right g -> g
-
-quitOnError
-  :: IO (Ex.Exceptional String a)
-  -> IO a
-quitOnError = join . fmap (Ex.switch err return)
-  where
-    err s = do
-      IO.hPutStrLn IO.stderr $ "penny-fit: error: " ++ s
-      E.exitFailure
 
 label :: String -> X.Text -> String
 label s x = s ++ ": " ++ X.unpack x ++ "\n"

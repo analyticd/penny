@@ -35,15 +35,12 @@ import qualified System.IO as IO
 
 brennerMain :: Config -> IO ()
 brennerMain cf = do
-  as <- MA.getArgs
-  pr <- MA.getProgName
   let cf' = convertConfig cf
-      r = MA.modes globalOpts (preProcessor cf') whatMode as
-  processParseResult pr cf' r
+  ioAction <- MA.modesWithHelp (help cf') globalOpts
+    (preProcessor cf')
+  ioAction
 
-data Arg
-  = AHelp
-  | AFitAcct String
+data Arg = AFitAcct String
   deriving (Eq, Show)
 
 toFitAcctOpt :: Arg -> Maybe String
@@ -51,83 +48,35 @@ toFitAcctOpt a = case a of { AFitAcct s -> Just s; _ -> Nothing }
 
 globalOpts :: [MA.OptSpec Arg]
 globalOpts =
-  [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
-  , MA.OptSpec ["fit-account"] "f" (MA.OneArg AFitAcct)
-  ]
+  [ MA.OptSpec ["fit-account"] "f" (MA.OneArg AFitAcct) ]
 
-data PreProc
-  = NeedsHelp
-  | DoIt (Maybe Y.FitAcct)
+preProcessor
+  :: Y.Config -> [Arg] -> Either (a -> IO ()) [MA.Mode (IO ())]
+preProcessor cf as = Ex.toEither . Ex.mapException (const . fail) $ do
+  let mayFiStr = case mapMaybe toFitAcctOpt as of
+        [] -> Nothing
+        xs -> Just . last $ xs
+  fi <- case mayFiStr of
+    Nothing -> return $ Y.defaultFitAcct cf
+    Just s ->
+      let pdct (Y.Name n, _) = n == X.pack o
+      in case filter pdct (Y.moreFitAccts cf) of
+           [] -> Ex.throw $
+              "financial institution account "
+              ++ o ++ " not configured."
+           (_, c):[] -> return $ Just c
+           _ -> Ex.throw $
+              "more than one financial institution account "
+              ++ "named " ++ o ++ " configured."
+  return $ [C.mode, I.mode, M.mode, P.mode, D.mode] <*> [fi]
 
-preProcessor :: Y.Config -> [Arg] -> Ex.Exceptional String PreProc
-preProcessor cf as =
-  if any (== AHelp) as
-  then return NeedsHelp
-  else do
-    let cardOpt = case mapMaybe toFitAcctOpt as of
-          [] -> Nothing
-          xs -> Just . last $ xs
-    card <- case cardOpt of
-      Nothing -> return $ Y.defaultFitAcct cf
-      Just o ->
-        let pdct (Y.Name n, _) = n == X.pack o
-        in case filter pdct (Y.moreFitAccts cf) of
-          [] -> Ex.throw $ "financial institution account "
-                           ++ o ++ " not configured."
-          (_, c):[] -> return $ Just c
-          _ -> Ex.throw $ "more than one financial institution account "
-                          ++ "named " ++ o ++ " configured."
-    return $ DoIt card
-
-whatMode
-  :: PreProc
-  -> Either (String -> String)
-      [MA.Mode (Ex.Exceptional String (IO ()))]
-whatMode pp = case pp of
-  NeedsHelp -> Left id
-  DoIt mayCd ->
-    Right $ [C.mode, I.mode, M.mode, P.mode, D.mode] <*> [mayCd]
-
-
-processParseResult
-  :: String
-  -- ^ Program name
-  -> Y.Config
-
-  -> Ex.Exceptional MA.Error
-      (a, Either b (Ex.Exceptional String (IO ())))
-  -> IO ()
-processParseResult pr cf ex =
-  case ex of
-    Ex.Exception err -> do
-      IO.hPutStr IO.stderr $ MA.formatError pr err
-      exitFailure
-    Ex.Success g -> processResult pr cf g
-
-
-processResult
-  :: String
-  -- ^ Program name
-
-  -> Y.Config
-  -> (a, Either b (Ex.Exceptional String (IO ())))
-  -> IO ()
-processResult pr cf (_, ei) =
-  case ei of
-    Left _ -> putStr (help pr cf)
-    Right ex -> case ex of
-      Ex.Exception e -> do
-        putStrLn $ pr ++ ": error: " ++ e
-        exitFailure
-      Ex.Success g -> g
-
-help ::
-  String
-  -- ^ Program name
-
-  -> Y.Config
+help
+  :: Y.Config
   -> String
-help n c = unlines ls ++ cs
+  -- ^ Program name
+
+  -> String
+help c n = unlines ls ++ cs
   where
     ls = [ "usage: " ++ n ++ " [global-options]"
             ++ " COMMAND [local-options]"
@@ -193,7 +142,7 @@ showFitAcct c =
   ++ "\n\n"
 
 
--- | Information to configure a single card account.
+-- | Information to configure a single financial institution account.
 data FitAcct = FitAcct
   { dbLocation :: String
     -- ^ Path and filename to where the database is kept. You can use

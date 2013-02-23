@@ -24,9 +24,9 @@ import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
 
 
-help :: String
-help = unlines
-  [ "usage: penny-fit clear clear [options] FIT_FILE LEDGER_FILE..."
+help :: String -> String
+help pn = unlines
+  [ "usage: " pn ++ " clear clear [options] FIT_FILE LEDGER_FILE..."
   , "Parses all postings that are in FIT_FILE. Then marks all"
   , "postings that are in the FILEs given that correspond to one"
   , "of the postings in the FIT_FILE as being cleared."
@@ -43,8 +43,7 @@ help = unlines
   ]
 
 data Arg
-  = AHelp
-  | APosArg String
+  = APosArg String
   deriving (Eq, Show)
 
 toPosArg :: Arg -> Maybe String
@@ -56,7 +55,7 @@ data Opts = Opts
   } deriving Show
 
 
-mode :: Maybe Y.FitAcct -> MA.Mode (Ex.Exceptional String (IO ()))
+mode :: Maybe Y.FitAcct -> MA.Mode (IO ())
 mode c = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
@@ -65,26 +64,18 @@ mode c = MA.Mode
   , MA.mProcess = process c
   }
 
-process :: Maybe Y.FitAcct -> [Arg] -> Ex.Exceptional String (IO ())
-process mayC as =
-  if any (== AHelp) as
-  then return $ putStrLn help
-  else do
-    c <- case mayC of
-      Just cd -> return cd
-      Nothing -> Ex.throw $ "no financial institution account given"
-                 ++ " on command line, and no default financial"
-                 ++ " institution configured."
-    (csv, ls) <- case mapMaybe toPosArg as of
-      [] -> Ex.throw $ "clear: you must provide a postings file."
-      x:xs -> return (Y.FitFileLocation x, xs)
-    let os = Opts csv ls
-    return $ runClear c os
-
-fatal :: String -> IO a
-fatal s = do
-  IO.hPutStrLn IO.stderr $ "penny-fit clear: error: " ++ s
-  exitFailure
+process :: Maybe Y.FitAcct -> [Arg] -> IO ()
+process mayC as = do
+  c <- case mayC of
+    Just cd -> return cd
+    Nothing -> fail $ "no financial institution account given"
+               ++ " on command line, and no default financial"
+               ++ " institution configured."
+  (csv, ls) <- case mapMaybe toPosArg as of
+    [] -> fail "clear: you must provide a postings file."
+    x:xs -> return (Y.FitFileLocation x, xs)
+  let os = Opts csv ls
+  return $ runClear c os
 
 runClear :: Y.FitAcct -> Opts -> IO ()
 runClear c os = do
@@ -96,17 +87,17 @@ runClear c os = do
   exLeds <- C.openStdin (ledgerLocations os)
   leds <- Ex.switch (fatal . X.unpack . C.unErrorMsg) return exLeds
   toClear <- case mapM (findUNumber db) txns of
-    Nothing -> fatal $ "at least one posting was not found in the"
+    Nothing -> fail $ "at least one posting was not found in the"
                        ++ " database. Ensure all postings have "
                        ++ "been imported and merged."
     Just ls -> return $ Set.fromList ls
   let (led', left) = changeLedger (Y.pennyAcct c) toClear leds
   when (not (Set.null left))
-    (fatal $ "some postings were not cleared. "
+    (fail $ "some postings were not cleared. "
       ++ "Those not cleared:\n" ++ ppShow left)
   case R.ledger (Y.groupSpecs c) led' of
     Nothing ->
-      fatal "could not render resulting ledger."
+      fail "could not render resulting ledger."
     Just txt -> TIO.putStr txt
 
 
