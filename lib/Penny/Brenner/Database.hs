@@ -3,10 +3,9 @@ module Penny.Brenner.Database (mode) where
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
 import qualified System.Console.MultiArg as MA
-import qualified Control.Monad.Exception.Synchronous as Ex
 
 help :: String -> String
-help = unlines
+help pn = unlines
   [ "usage: " ++ pn ++ " [global-options] database [local-options]"
   , "Shows the database of financial institution transactions."
   , "Does not accept any non-option arguments."
@@ -19,13 +18,14 @@ data Arg = ArgPos String deriving (Eq, Show)
 
 mode
   :: Maybe Y.FitAcct
-  -> MA.Mode (IO ()))
+  -> MA.Mode (IO ())
 mode mayFa = MA.Mode
   { MA.mName = "database"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [MA.OptSpec ["help"] "h" (MA.NoArg ArgHelp)]
+  , MA.mOpts = [ ]
   , MA.mPosArgs = ArgPos
   , MA.mProcess = processor mayFa
+  , MA.mHelp = help
   }
 
 processor
@@ -42,9 +42,8 @@ processor mayFa ls
         ++ " financial instititution account configured."
       Just fa -> do
         let dbLoc = Y.dbLocation fa
-        db <- U.quitOnError $ U.loadDb (Y.AllowNew False) dbLoc
+        db <- U.loadDb (Y.AllowNew False) dbLoc
         mapM_ putStr . map U.showDbPair $ db
 
 isArgPos :: Arg -> Bool
 isArgPos (ArgPos _) = True
-isArgPos _ = False

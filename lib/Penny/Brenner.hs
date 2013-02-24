@@ -30,8 +30,6 @@ import qualified Penny.Brenner.Print as P
 import Control.Applicative ((<*>))
 import qualified System.Console.MultiArg as MA
 import qualified Control.Monad.Exception.Synchronous as Ex
-import System.Exit (exitFailure)
-import qualified System.IO as IO
 
 brennerMain :: Config -> IO ()
 brennerMain cf = do
@@ -44,7 +42,7 @@ data Arg = AFitAcct String
   deriving (Eq, Show)
 
 toFitAcctOpt :: Arg -> Maybe String
-toFitAcctOpt a = case a of { AFitAcct s -> Just s; _ -> Nothing }
+toFitAcctOpt a = case a of { AFitAcct s -> Just s }
 
 globalOpts :: [MA.OptSpec Arg]
 globalOpts =
@@ -59,15 +57,15 @@ preProcessor cf as = Ex.toEither . Ex.mapException (const . fail) $ do
   fi <- case mayFiStr of
     Nothing -> return $ Y.defaultFitAcct cf
     Just s ->
-      let pdct (Y.Name n, _) = n == X.pack o
+      let pdct (Y.Name n, _) = n == X.pack s
       in case filter pdct (Y.moreFitAccts cf) of
            [] -> Ex.throw $
               "financial institution account "
-              ++ o ++ " not configured."
+              ++ s ++ " not configured."
            (_, c):[] -> return $ Just c
            _ -> Ex.throw $
               "more than one financial institution account "
-              ++ "named " ++ o ++ " configured."
+              ++ "named " ++ s ++ " configured."
   return $ [C.mode, I.mode, M.mode, P.mode, D.mode] <*> [fi]
 
 help

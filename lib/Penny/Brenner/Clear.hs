@@ -17,8 +17,6 @@ import Control.Monad.Trans.Class (lift)
 import qualified Penny.Copper.Types as Y
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
-import System.Exit (exitFailure)
-import qualified System.IO as IO
 import Text.Show.Pretty (ppShow)
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
@@ -26,7 +24,7 @@ import qualified Penny.Brenner.Util as U
 
 help :: String -> String
 help pn = unlines
-  [ "usage: " pn ++ " clear clear [options] FIT_FILE LEDGER_FILE..."
+  [ "usage: " ++ pn ++ " clear clear [options] FIT_FILE LEDGER_FILE..."
   , "Parses all postings that are in FIT_FILE. Then marks all"
   , "postings that are in the FILEs given that correspond to one"
   , "of the postings in the FIT_FILE as being cleared."
@@ -47,7 +45,7 @@ data Arg
   deriving (Eq, Show)
 
 toPosArg :: Arg -> Maybe String
-toPosArg a = case a of { APosArg s -> Just s; _ -> Nothing }
+toPosArg a = case a of { APosArg s -> Just s }
 
 data Opts = Opts
   { csvLocation :: Y.FitFileLocation
@@ -59,9 +57,10 @@ mode :: Maybe Y.FitAcct -> MA.Mode (IO ())
 mode c = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp) ]
+  , MA.mOpts = [ ]
   , MA.mPosArgs = APosArg
   , MA.mProcess = process c
+  , MA.mHelp = help
   }
 
 process :: Maybe Y.FitAcct -> [Arg] -> IO ()
@@ -75,18 +74,17 @@ process mayC as = do
     [] -> fail "clear: you must provide a postings file."
     x:xs -> return (Y.FitFileLocation x, xs)
   let os = Opts csv ls
-  return $ runClear c os
+  runClear c os
 
 runClear :: Y.FitAcct -> Opts -> IO ()
 runClear c os = do
-  dbList <- U.quitOnError
-              $ U.loadDb (Y.AllowNew False) (Y.dbLocation c)
+  dbList <- U.loadDb (Y.AllowNew False) (Y.dbLocation c)
   let db = M.fromList dbList
       (_, prsr) = Y.parser c
-  txns <- U.quitOnError $ prsr (csvLocation os)
+  txns <- fmap (Ex.switch fail return) $ prsr (csvLocation os)
   exLeds <- C.openStdin (ledgerLocations os)
-  leds <- Ex.switch (fatal . X.unpack . C.unErrorMsg) return exLeds
-  toClear <- case mapM (findUNumber db) txns of
+  leds <- Ex.switch (fail . X.unpack . C.unErrorMsg) return exLeds
+  toClear <- case mapM (findUNumber db) (concat txns) of
     Nothing -> fail $ "at least one posting was not found in the"
                        ++ " database. Ensure all postings have "
                        ++ "been imported and merged."

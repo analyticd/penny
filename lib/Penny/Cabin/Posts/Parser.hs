@@ -27,7 +27,6 @@ data State = State
   , fields :: F.Fields Bool
   , width :: Ty.ReportWidth
   , showZeroBalances :: CO.ShowZeroBalances
-  , showHelp :: Bool
   }
 
 allSpecs
@@ -45,7 +44,6 @@ allSpecs rt =
      , showAllFields
      , hideAllFields
      , parseZeroBalances
-     , optHelp
      ]
 
 
@@ -217,11 +215,6 @@ hideAllFields :: Applicative f => C.OptSpec (State -> f State)
 hideAllFields = C.OptSpec ["hide-all"] "" (C.NoArg f)
   where
     f st = pure $ st {fields = pure False}
-
-optHelp :: Applicative f => C.OptSpec (State -> f State)
-optHelp = fmap f P.help
-  where
-    f _ st = pure $ st { showHelp = True }
 
 parseZeroBalances :: Applicative f => C.OptSpec (State -> f State)
 parseZeroBalances = fmap f P.zeroBalances

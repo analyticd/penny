@@ -29,7 +29,6 @@ toParserOpts d rt = P.Opts
   , P.dateTime = S.currentTime rt
   , P.sortOrder = sortOrder d
   , P.sortBy = sortBy d
-  , P.showHelp = False
   }
 
 defaultOptions :: DefaultOpts

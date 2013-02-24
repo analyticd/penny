@@ -23,7 +23,7 @@ import Penny.Shield (Runtime)
 type PosArg = String
 type HelpStr = String
 type ArgsAndReport = ([PosArg], PrintReport)
-type ParseResult = Exceptional String (Either HelpStr ArgsAndReport)
+type ParseResult = Exceptional String ArgsAndReport
 
 type PrintReport
   = [L.Transaction]

@@ -290,7 +290,6 @@ toBalanceDefaults d = MP.ParseOpts
   { MP.showZeroBalances =
       CO.ShowZeroBalances . balanceShowZeroBalances $ d
   , MP.order = balanceOrder d
-  , MP.needsHelp = False
   }
 
 toConvertDefaults :: Defaults -> ConvOpts.DefaultOpts

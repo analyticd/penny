@@ -11,13 +11,11 @@ import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified System.IO as IO
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Lincoln.Queries as Q
-import System.Exit (exitFailure)
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
 
@@ -26,7 +24,7 @@ data Arg
   deriving (Eq, Show)
 
 toPosArg :: Arg -> Maybe String
-toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
+toPosArg a = case a of { APos s -> Just s }
 
 mode :: Maybe Y.FitAcct -> MA.Mode (IO ())
 mode maybeC = MA.Mode
@@ -35,6 +33,7 @@ mode maybeC = MA.Mode
   , MA.mOpts = []
   , MA.mPosArgs = APos
   , MA.mProcess = processor maybeC
+  , MA.mHelp = help
   }
 
 processor :: Maybe Y.FitAcct -> [Arg] -> IO ()

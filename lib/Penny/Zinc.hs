@@ -30,9 +30,6 @@ import Data.Ord (comparing)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
-import System.Console.MultiArg.GetArgs (getArgs)
-import System.Exit (exitSuccess, exitFailure)
-import qualified System.IO as IO
 import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
 import qualified Text.Matchers as M
 
@@ -42,8 +39,13 @@ runZinc
   -> [I.Report]
   -> IO ()
 runZinc df rt rs = do
-  as <- getArgs
-  parseAndPrint df rt rs as
+  let st = stateFromDefaults df
+      ord = sortPairsToFn . sorter $ df
+      hlp = helpText df rt rs
+  act <- MA.modesWithHelp hlp (allOpts (S.currentTime rt) df)
+    (processGlobal rt ord st rs)
+  act
+
 
 -- | Whether to use color when standard output is not a terminal.
 newtype ColorToFile = ColorToFile { unColorToFile :: Bool }
@@ -161,12 +163,8 @@ data OptResult
   | RCaseSelect M.CaseSensitive
   | ROperator (Ly.Token (L.PostFam -> Bool))
   | RSortSpec (Ex.Exceptional String Orderer)
-  | RHelp
   | RColorToFile ColorToFile
   | RScheme E.TextSpecs
-
-isHelp :: OptResult -> Bool
-isHelp o = case o of { RHelp -> True; _ -> False }
 
 getPostFilters
   :: [OptResult]
@@ -238,8 +236,7 @@ allOpts dt df =
   ++ map (fmap RCaseSelect) Ly.caseSelectSpecs
   ++ map (fmap ROperator) Ly.operatorSpecs
   ++ [fmap RSortSpec sortSpecs]
-  ++ [ MA.OptSpec ["help"] "h" (MA.NoArg RHelp)
-     , optColorToFile ]
+  ++ [ optColorToFile ]
   ++ let ss = moreSchemes df
      in if not . null $ ss then [optScheme ss] else []
 
@@ -275,10 +272,6 @@ getScheme d ls =
       RScheme s -> Just s
       _ -> Nothing
 
-data GlobalResult
-  = NeedsHelp
-  | RunPenny FilterOpts
-
 -- | Indicates the result of a successful parse of filtering options.
 data FilterOpts = FilterOpts
   { _resultFactory :: M.CaseSensitive
@@ -294,30 +287,58 @@ data FilterOpts = FilterOpts
     -- ^ Applied to a list of Transaction, will sort and filter
     -- the transactions and assign them LibertyMeta.
 
-  , foTextSpecs :: Maybe E.TextSpecs
+  , _foTextSpecs :: Maybe E.TextSpecs
 
-  , foColorToFile :: ColorToFile
+  , _foColorToFile :: ColorToFile
   }
 
 processGlobal
+  :: S.Runtime
+  -> Orderer
+  -> State
+  -> [I.Report]
+  -> [OptResult]
+  -> Either (a -> IO ()) [MA.Mode (IO ())]
+processGlobal rt srt st rpts os
+  = case processFiltOpts srt st os of
+      Ex.Exception s -> Left $ const (fail s)
+      Ex.Success fo -> Right $ map (makeMode rt fo) rpts
+
+
+processFiltOpts
   :: Orderer
   -> State
   -> [OptResult]
-  -> Ex.Exceptional String GlobalResult
-processGlobal srt st os =
-  if any isHelp os
-  then return NeedsHelp
-  else do
-    postFilts <- getPostFilters os
-    sortSpec <- getSortSpec srt os
-    (toks, (rs, rf)) <- makeTokens st os
-    let ctf = getColorToFile st os
-        sch = getScheme st os
-        err = "could not parse filter expression."
-    pdct <- Ex.fromMaybe err $ Ly.parsePredicate toks
-    let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
-        fo = FilterOpts rf rs sf sch ctf
-    return $ RunPenny fo
+  -> Ex.Exceptional String FilterOpts
+processFiltOpts ord st os = do
+  postFilts <- getPostFilters os
+  sortSpec <- getSortSpec ord os
+  (toks, (rs, rf)) <- makeTokens st os
+  let ctf = getColorToFile st os
+      sch = getScheme st os
+      err = "could not parse filter expression."
+  pdct <- Ex.fromMaybe err $ Ly.parsePredicate toks
+  let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
+  return $ FilterOpts rf rs sf sch ctf
+
+makeMode
+  :: S.Runtime
+  -> FilterOpts
+  -> I.Report
+  -> MA.Mode (IO ())
+makeMode rt (FilterOpts fty cs srtFilt ts ctf) r = fmap makeIO mode
+  where
+    mode = snd (r rt) cs fty srtFilt
+    makeIO parseResult = do
+      (posArgs, printRpt) <- Ex.switch fail return parseResult
+      ledgers <- readLedgers posArgs
+      (txns, pps) <- Ex.switch fail return $ parseLedgers ledgers
+      let term = if unColorToFile ctf
+                 then Chk.termFromEnv rt
+                 else Chk.autoTerm rt
+      Ex.switch (fail . unpack) (printChunks term ts)
+        $ printRpt txns pps
+
 
 --
 -- Ledger parsing
@@ -376,72 +397,6 @@ parseLedgers ls =
   in Ex.mapExceptional toErr toResult parsed
 
 
-data DisplayOpts = DisplayOpts ColorToFile (Maybe E.TextSpecs)
-
-toDisplayOpts :: FilterOpts -> DisplayOpts
-toDisplayOpts o = DisplayOpts (foColorToFile o) (foTextSpecs o)
-
-parseCommandLine
-  :: Defaults
-  -> [I.Report]
-  -> S.Runtime
-  -> [String]
-  -> Ex.Exceptional MA.Error
-     (GlobalResult, Either [()] (DisplayOpts, I.ParseResult))
-parseCommandLine df rs rt ss =
-  let initSt = stateFromDefaults df
-  in MA.modes (allOpts (S.currentTime rt) df)
-              (processGlobal (sortPairsToFn . sorter $ df) initSt)
-              (whatMode rt rs) ss
-
-whatMode
-  :: S.Runtime
-  -> [I.Report]
-  -> GlobalResult
-  -> Either (a -> ()) [MA.Mode (DisplayOpts, I.ParseResult)]
-whatMode rt pairFns gr =
-  case gr of
-    NeedsHelp -> Left $ const ()
-    RunPenny fo@(FilterOpts fty cs sf _ _) ->
-      let prs = map snd (pairFns <*> pure rt)
-                <*> pure cs
-                <*> pure fty
-                <*> pure sf
-      in Right $ map (fmap (\r -> ((toDisplayOpts fo), r))) prs
-
-handleParseResult
-  :: S.Runtime
-  -> Defaults
-  -> [I.Report]
-  -> Ex.Exceptional MA.Error
-     (a, Either b (DisplayOpts, I.ParseResult))
-  -> IO ()
-handleParseResult rt df rs r =
-  let showErr e = do
-        IO.hPutStrLn IO.stderr $ "penny: error: " ++ e
-        exitFailure
-  in case r of
-    Ex.Exception e -> do
-      IO.hPutStr IO.stderr $ MA.formatError "penny" e
-      exitFailure
-    Ex.Success (_, ei) ->
-      case ei of
-        Left _ ->  putStr (helpText df rt rs) >> exitSuccess
-        Right ((DisplayOpts ctf sch), ex) -> case ex of
-          Ex.Exception s -> showErr s
-          Ex.Success good -> either showHelp runCmd good
-            where
-              showHelp h = putStr h >> exitSuccess
-              runCmd (fns, pr) = do
-                ledgers <- readLedgers fns
-                (txns, pps) <- Ex.switch showErr return
-                               $ parseLedgers ledgers
-                let term = if unColorToFile ctf
-                           then Chk.termFromEnv rt
-                           else Chk.autoTerm rt
-                Ex.switch (showErr . unpack)
-                  (printChunks term sch) $ pr txns pps
-
 printChunks
   :: Chk.Term
   -> Maybe E.TextSpecs
@@ -460,23 +415,14 @@ helpText
   -> S.Runtime
   -> [I.Report]
   -> String
-helpText df rt pairMakers =
-  mappend (help df) . mconcat . map addHdr . fmap fst $ pairs
+  -> String
+helpText df rt pairMakers pn =
+  mappend (help df pn) . mconcat . map addHdr . fmap fst $ pairs
   where
     pairs = pairMakers <*> pure rt
     addHdr s = hdr ++ s
     hdr = unlines [ "", replicate 50 '=' ]
 
-
-parseAndPrint
-  :: Defaults
-  -> S.Runtime
-  -> [I.Report]
-  -> [String]
-  -> IO ()
-parseAndPrint df rt rs ss =
-  handleParseResult rt df rs
-  $ parseCommandLine df rs rt ss
 
 ------------------------------------------------------------
 -- ## Sorting
@@ -553,9 +499,9 @@ sortSpecs = MA.OptSpec ["sort"] ['s'] (MA.OneArg f)
 -- ## Help
 ------------------------------------------------------------
 
-help :: Defaults -> String
-help d = unlines $
-  [ "usage: penny [posting filters] report [report options] file . . ."
+help :: Defaults -> String -> String
+help d pn = unlines $
+  [ "usage: " ++ pn ++ " [posting filters] report [report options] file . . ."
   , ""
   , "Posting filters"
   , "------------------------------------------"

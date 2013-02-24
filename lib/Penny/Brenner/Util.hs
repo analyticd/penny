@@ -9,9 +9,6 @@ import qualified Data.Text as X
 import qualified Penny.Copper.Parsec as CP
 import qualified Text.Parsec as P
 import qualified Penny.Lincoln as L
-import Control.Monad (join)
-import qualified System.IO as IO
-import qualified System.Exit as E
 
 -- | Loads the database from disk. If allowNew is True, then does not
 -- fail if the file was not found.
@@ -32,7 +29,7 @@ loadDb (Y.AllowNew allowNew) (Y.DbLocation dbLoc) = do
       else IOE.ioError e
     Right g -> case readDbTuple g of
       Ex.Exception e -> fail e
-      Ex.Succes g -> return g
+      Ex.Success good -> return good
 
 -- | File version. Increment this when anything in the file format
 -- changes.

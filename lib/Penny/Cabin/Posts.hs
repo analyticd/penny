@@ -113,6 +113,7 @@ zincReport opts rt = (helpStr opts, md)
       , MA.mOpts = map (fmap Right) (P.allSpecs rt)
       , MA.mPosArgs = Left
       , MA.mProcess = process opts cs fty fsf
+      , MA.mHelp = const (helpStr opts)
       }
 
 process
@@ -121,7 +122,7 @@ process
   -> L.Factory
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.State -> Ex.Exceptional String P.State)]
-  -> Ex.Exceptional String (Either I.HelpStr I.ArgsAndReport)
+  -> Ex.Exceptional String I.ArgsAndReport
 process os cs fty fsf ls =
   let (posArgs, clOpts) = Ei.partitionEithers ls
       pState = newParseState cs fty os
@@ -133,11 +134,9 @@ mkPrintReport
   -> ZincOpts
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> P.State
-  -> Either I.HelpStr I.ArgsAndReport
-mkPrintReport posArgs zo fsf st = r
+  -> I.ArgsAndReport
+mkPrintReport posArgs zo fsf st = (posArgs, f)
   where
-    r = if P.showHelp st then Left $ helpStr zo else Right pr
-    pr = (posArgs, f)
     f txns _ = fmap mkChunks exPdct
       where
         exPdct = getPredicate (P.tokens st)
@@ -260,7 +259,6 @@ newParseState cs fty o = P.State
   , P.fields = fields o
   , P.width = width o
   , P.showZeroBalances = showZeroBalances o
-  , P.showHelp = False
   }
 
 -- | Shows the date of a posting in YYYY-MM-DD format.

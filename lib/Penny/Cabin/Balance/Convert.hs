@@ -168,14 +168,16 @@ cmdLineReport o rt = (help o, mkMode)
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allOptSpecs
       , MA.mPosArgs = Left
-      , MA.mProcess = process rt o fsf }
+      , MA.mProcess = process rt o fsf
+      , MA.mHelp = const (help o)
+      }
 
 process
   :: S.Runtime
   -> O.DefaultOpts
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
-  -> Ex.Exceptional String (Either I.HelpStr I.ArgsAndReport)
+  -> Ex.Exceptional String I.ArgsAndReport
 process rt defaultOpts fsf ls = do
   let (posArgs, parsed) = Ei.partitionEithers ls
       op' = foldl (>>=) (return (O.toParserOpts defaultOpts rt)) parsed
@@ -183,15 +185,13 @@ process rt defaultOpts fsf ls = do
       Ex.Exception s -> Ex.throw s
       Ex.Success g -> return $
         let noDefault = X.pack "no default price found"
-        in case fromParsedOpts g of
-            NeedsHelp -> Left $ help defaultOpts
-            DoReport f ->
-              let pr ts pps = do
-                    rptOpts <- Ex.fromMaybe noDefault $
-                      f pps (O.format defaultOpts)
-                    let boxes = fsf ts
-                    report rptOpts pps boxes
-              in Right (posArgs, pr)
+            f = fromParsedOpts g
+            pr ts pps = do
+              rptOpts <- Ex.fromMaybe noDefault $
+                f pps (O.format defaultOpts)
+              let boxes = fsf ts
+              report rptOpts pps boxes
+        in (posArgs, pr)
 
 
 -- | Sums the balances from the bottom to the top of the tree (so that
@@ -220,22 +220,18 @@ mostFrequent :: [L.PricePoint] -> Maybe L.To
 mostFrequent = U.lastMode . map (L.to . L.price)
 
 
-data HelpOrOpts
-  = NeedsHelp
-  | DoReport ( [L.PricePoint]
+type DoReport = [L.PricePoint]
                -> (L.Commodity -> L.Qty -> X.Text)
-               -> (Maybe Opts))
+               -> (Maybe Opts)
 
 -- | Get options for the report, depending on what options were parsed
 -- from the command line. Fails if the user did not specify a
 -- commodity and mostFrequent fails.
 fromParsedOpts
   :: P.Opts
-  -> HelpOrOpts
-fromParsedOpts (P.Opts szb tgt dt so sb hlp) =
-  if hlp
-  then NeedsHelp
-  else DoReport $ \pps fmt -> case tgt of
+  -> DoReport
+fromParsedOpts (P.Opts szb tgt dt so sb) =
+  \pps fmt -> case tgt of
     P.ManualTarget to ->
       Just $ Opts fmt szb (getSorter so sb) to dt
     P.AutoTarget ->

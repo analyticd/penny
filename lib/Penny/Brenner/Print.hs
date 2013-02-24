@@ -7,8 +7,6 @@ module Penny.Brenner.Print (mode) where
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
 import qualified System.Console.MultiArg as MA
-import qualified System.IO as IO
-import qualified System.Exit as E
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe (mapMaybe)
 
@@ -35,6 +33,7 @@ mode mayFa = MA.Mode
   , MA.mOpts = []
   , MA.mPosArgs = ArgFile
   , MA.mProcess = processor mayFa
+  , MA.mHelp = help
   }
 
 processor
@@ -63,5 +62,4 @@ doPrint prsr ls = mapM_ f . mapMaybe toFile $ ls
         Ex.Success ps -> mapM putStr . map U.showPosting $ ps
     toFile a = case a of
       ArgFile s -> Just (Y.FitFileLocation s)
-      _ -> Nothing
 

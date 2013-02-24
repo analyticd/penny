@@ -31,7 +31,6 @@ data Opts = Opts
   , dateTime :: L.DateTime
   , sortOrder :: P.SortOrder
   , sortBy :: SortBy
-  , showHelp :: Bool
   }
 
 -- | Do not be tempted to change the setup in this module so that the
@@ -45,8 +44,7 @@ allOptSpecs =
   , fmap toExc parseAuto
   , parseDate
   , fmap toExc parseSort
-  , fmap toExc parseOrder
-  , fmap toExc parseHelp ]
+  , fmap toExc parseOrder ]
   where
     toExc f = return . f
 
@@ -87,8 +85,3 @@ parseOrder :: C.OptSpec (Opts -> Opts)
 parseOrder = fmap f P.order
   where
     f x o = o { sortOrder = x }
-
-parseHelp :: C.OptSpec (Opts -> Opts)
-parseHelp = fmap f P.help
-  where
-    f _ o = o { showHelp = True }

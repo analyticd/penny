@@ -12,14 +12,8 @@ import qualified System.Console.MultiArg as MA
 data ParseOpts = ParseOpts
   { showZeroBalances :: CO.ShowZeroBalances
   , order :: P.SortOrder
-  , needsHelp :: Bool
   }
 
-
-parseHelp :: MA.OptSpec (ParseOpts -> ParseOpts)
-parseHelp = fmap f P.help
-  where
-    f _ o = o { needsHelp = True }
 
 zeroBalances :: MA.OptSpec (ParseOpts -> ParseOpts)
 zeroBalances = fmap toResult P.zeroBalances
@@ -32,4 +26,4 @@ parseOrder = fmap toResult P.order
     toResult x o = o { order = x }
 
 allSpecs :: [MA.OptSpec (ParseOpts -> ParseOpts)]
-allSpecs = [parseHelp, zeroBalances, parseOrder]
+allSpecs = [zeroBalances, parseOrder]

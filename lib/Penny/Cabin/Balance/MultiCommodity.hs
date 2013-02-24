@@ -48,14 +48,13 @@ defaultParseOpts :: P.ParseOpts
 defaultParseOpts = P.ParseOpts
   { P.showZeroBalances = CO.ShowZeroBalances False
   , P.order = CP.Ascending
-  , P.needsHelp = False
   }
 
 fromParseOpts ::
   (L.Commodity -> L.Qty -> X.Text)
   -> P.ParseOpts
   -> Opts
-fromParseOpts fmt (P.ParseOpts szb o _) = Opts fmt szb o'
+fromParseOpts fmt (P.ParseOpts szb o) = Opts fmt szb o'
   where
     o' = case o of
        CP.Ascending -> compare
@@ -114,6 +113,7 @@ parseReport fmt o rt = (help o, makeMode)
       , MA.mOpts = map (fmap Right) P.allSpecs
       , MA.mPosArgs = Left
       , MA.mProcess = process fmt o rt fsf
+      , MA.mHelp = const (help o)
       }
 
 process
@@ -123,16 +123,14 @@ process
   -> a
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.ParseOpts -> P.ParseOpts)]
-  -> f (Either I.HelpStr I.ArgsAndReport)
+  -> f I.ArgsAndReport
 process fmt o _ fsf ls =
   let (posArgs, fns) = Ei.partitionEithers ls
       mkParsedOpts = foldl (flip (.)) id fns
       os' = mkParsedOpts o
       mcOpts = fromParseOpts fmt os'
       pr txns _ = return $ report mcOpts (fsf txns)
-  in pure $ if P.needsHelp os'
-            then Left $ help o
-            else Right (posArgs, pr)
+  in pure (posArgs, pr)
 
 
 -- | The MultiCommodity report, with default options.

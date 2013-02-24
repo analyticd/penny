@@ -5,8 +5,6 @@ import Data.Maybe (mapMaybe)
 import qualified System.Console.MultiArg as MA
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
-import qualified System.IO as IO
-import qualified System.Exit as E
 
 
 data Arg
@@ -36,6 +34,7 @@ mode mayFa = MA.Mode
       [ MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew) ]
   , MA.mPosArgs = AFitFile
   , MA.mProcess = processor mayFa
+  , MA.mHelp = help
   }
 
 processor
@@ -81,7 +80,7 @@ appendNew db new = (db ++ newWithU, length newWithU)
 
 doImport :: Y.DbLocation -> ImportOpts -> IO ()
 doImport dbLoc os = do
-  txnsOld <- U.quitOnError $ U.loadDb (allowNew os) dbLoc
+  txnsOld <- U.loadDb (allowNew os) dbLoc
   parseResult <- parser os (fitFile os)
   ins <- case parseResult of
     Ex.Exception e -> fail e
