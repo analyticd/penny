@@ -566,18 +566,6 @@ help d pn = unlines $
   , "--qty cmp number"
   , "  Entry quantity must fall within given range"
   , ""
-  , "Operators - from highest to lowest precedence"
-  , "(all are left associative)"
-  , "--------------------------"
-  , "--open expr --close"
-  , "  Force precedence (as in \"open\" and \"close\" parentheses)"
-  , "--not expr"
-  , "  True if expr is false"
-  , "expr1 --and expr2 "
-  , "  True if expr and expr2 are both true"
-  , "expr1 --or expr2"
-  , "  True if either expr1 or expr2 is true"
-  , ""
   , "Options affecting patterns"
   , "--------------------------"
   , ""
@@ -651,6 +639,36 @@ help d pn = unlines $
   , "  Whether to use color when standard output is not a"
   , "  terminal (default: " ++
     if unColorToFile . colorToFile $ d then "yes)" else "no)"
+  ]
+
+helpInfix :: String
+helpInfix = unlines
+  [ "Infix Operators - from highest to lowest precedence"
+  , "(all are left associative)"
+  , "--------------------------"
+  , "--open expr --close"
+  , "  Force precedence (as in \"open\" and \"close\" parentheses)"
+  , "--not expr"
+  , "  True if expr is false"
+  , "expr1 --and expr2 "
+  , "  True if expr and expr2 are both true"
+  , "expr1 --or expr2"
+  , "  True if either expr1 or expr2 is true"
+  , ""
+  ]
+
+
+helpRPN :: String
+helpRPN = unlines
+  [ "RPN Operators"
+  , "-------------"
+  , "expr --not"
+  , "  True if expr is false"
+  , "expr1 expr2 --and"
+  , "  True if expr and expr2 are both true"
+  , "expr1 expr2 --or"
+  , "  True if either expr1 or expr2 is true"
+  , ""
   ]
 
 descScheme :: E.Scheme -> String

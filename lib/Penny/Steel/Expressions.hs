@@ -1,4 +1,14 @@
-module Penny.Steel.Expressions where
+module Penny.Steel.Expressions
+  ( ExprDesc(..)
+  , ExprError(..)
+  , parseExpression
+  , I.InfixToken(..)
+  , I.Paren(..)
+  , R.Token(..)
+  , R.Operator(..)
+  , R.Tree(..)
+  , R.RPNError(..)
+  ) where
 
 import Data.Either (partitionEithers)
 import qualified Penny.Steel.Expressions.Infix as I

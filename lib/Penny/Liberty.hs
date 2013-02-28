@@ -20,7 +20,6 @@ module Penny.Liberty (
   PostFilterFn,
   parseComparer,
   processPostFilters,
-  parseTokenList,
   parsePredicate,
   parseInt,
 
@@ -49,7 +48,7 @@ import qualified Penny.Copper.Parsec as Pc
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln as L
-import qualified Penny.Liberty.Expressions as X
+import qualified Penny.Steel.Expressions as X
 
 import Text.Matchers (
   CaseSensitive(Sensitive, Insensitive))
@@ -71,16 +70,6 @@ data LibertyMeta =
               , sortedNum :: SortedNum }
   deriving Show
 
-
--- | Parses a list of tokens. Returns Nothing if the token sequence is
--- invalid (e.g. if two operators are next to each other) or if the
--- resulting RPN expression is bad (there are tokens left on the stack
--- after parsing). Otherwise, returns the expression.
---
--- An empty list will fail to parse. The function calling this one
--- must deal with empty lists if those are a possibility.
-parseTokenList :: [X.Token a] -> Maybe a
-parseTokenList = X.evaluate
 
 -- | Parses a list of tokens to obtain a predicate. Deals with an
 -- empty list of tokens by returning a predicate that is always
@@ -581,9 +570,20 @@ parseOr = noArg X.tokOr "or"
 
 -- | not operator
 parseNot :: OptSpec (X.Token (a -> Bool))
-parseNot = noArg X.tokNot "not" where
+parseNot = noArg X.tokNot "not"
 
 operatorSpecs :: [OptSpec (X.Token (a -> Bool))]
 operatorSpecs =
   [open, close, parseAnd, parseOr, parseNot]
 
+-- Infix and RPN expression selectors
+
+parseInfix :: OptSpec X.ExprDesc
+parseInfix = noArg X.Infix "infix"
+
+parseRPN :: OptSpec X.ExprDesc
+parseRPN = noArg X.RPN "rpn"
+
+-- | Both Infix and RPN options.
+exprDesc :: [OptSpec X.ExprDesc]
+exprDesc = [ parseInfix, parseRPN ]
