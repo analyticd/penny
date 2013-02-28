@@ -32,6 +32,22 @@ processInfixToken (os, ts) t = case t of
   TokRPN tok -> return $ processRPNToken (os, ts) tok
   TokParen p -> processParen (os, ts) p
 
+
+-- | If the token is a binary operator A, then:
+--
+-- If A is left associative, while there is an operator B of higher or
+-- equal precedence than A at the top of the stack, pop B off the
+-- stack and append it to the output.
+--
+-- If A is right associative, while there is an operator B of higher
+-- precedence than A at the top of the stack, pop B off the stack and
+-- append it to the output.
+--
+-- Push A onto the stack.
+--
+-- If a token is an operand, append it to the postfix output.
+--
+-- And has higher precedence than Or.
 processRPNToken
   :: ([OpStackVal], [R.Token a])
   -> R.Token a
@@ -45,6 +61,9 @@ processRPNToken (os, ts) t = case t of
       let (os', ts') = popper os ts
       in (StkOp R.OpOr : os', ts')
 
+-- | Pops operators from the operator stack and places then in the
+-- output queue, as long as there is an And operator on the top of the
+-- operator stack.
 popper :: [OpStackVal] -> [R.Token a] -> ([OpStackVal], [R.Token a])
 popper os ts = case os of
   [] -> (os, ts)
@@ -69,6 +88,9 @@ popThroughOpen (os, ts) = case os of
     StkOp op -> popThroughOpen (vs, R.TokOperator op : ts)
     StkOpenParen -> return (vs, ts)
 
+-- | Places an open parenthesis on the top of the operator stack. For
+-- Close parenthesis, pops operators off the operator stack through
+-- the next open parenthesis on the operator stack.
 processParen
   :: ([OpStackVal], [R.Token a])
   -> Paren

@@ -25,7 +25,7 @@ data Tree a
   | ENot (Tree a)
   | EOperand String (a -> Bool)
 
-data Error a
+data RPNError a
   = InsufficientStack Operator
   | EmptyStack
   | FullStack [Tree a]
@@ -33,7 +33,7 @@ data Error a
 pushOperand :: String -> (a -> Bool) -> [Tree a] -> [Tree a]
 pushOperand s p ts = EOperand s p : ts
 
-pushOperator :: Operator -> [Tree a] -> Ex.Exceptional (Error a) [Tree a]
+pushOperator :: Operator -> [Tree a] -> Ex.Exceptional (RPNError a) [Tree a]
 pushOperator o ts = case o of
   OpAnd -> case ts of
     x:y:zs -> return $ EAnd y x : zs
@@ -45,7 +45,7 @@ pushOperator o ts = case o of
     x:zs -> return $ ENot x : zs
     _ -> Ex.throw $ InsufficientStack OpNot
 
-pushToken :: [Tree a] -> Token a -> Ex.Exceptional (Error a) [Tree a]
+pushToken :: [Tree a] -> Token a -> Ex.Exceptional (RPNError a) [Tree a]
 pushToken ts t = case t of
   TokOperand d p -> return $ pushOperand d p ts
   TokOperator o -> pushOperator o ts
@@ -53,7 +53,7 @@ pushToken ts t = case t of
 pushTokens
   :: Fdbl.Foldable f
   => f (Token a)
-  -> Ex.Exceptional (Error a) (Tree a)
+  -> Ex.Exceptional (RPNError a) (Tree a)
 pushTokens ts = do
   trees <- Fdbl.foldlM pushToken [] ts
   case trees of
@@ -68,21 +68,42 @@ evalTree t a = case t of
   ENot x -> not $ evalTree x a
   EOperand _ p -> p a
 
+type Level = Int
+type IndentAmt = Int
 
-showTree :: Tree a -> String
-showTree t = showTree' 0 t
+indent :: IndentAmt -> Level -> String -> String
+indent amt lvl s = replicate (lvl * amt) ' ' ++ s ++ "\n"
 
-indentation :: Int
-indentation = 4
+showTree :: IndentAmt -> Level -> Tree a -> String
+showTree amt lvl t = case t of
+  EAnd x y -> indent amt lvl "and" ++ showTree amt (lvl + 1) x
+                                   ++ showTree amt (lvl + 1) y
+  EOr x y -> indent amt lvl "or" ++ showTree amt (lvl + 1) x
+                                 ++ showTree amt (lvl + 1) y
+  ENot x -> indent amt lvl "not" ++ showTree amt (lvl + 1) x
+  EOperand s _ -> indent lvl amt s
 
-indent :: Int -> String -> String
-indent i s = replicate (i * indentation) ' ' ++ s ++ "\n"
-
-showTree' :: Int -> Tree a -> String
-showTree' l t = case t of
-  EAnd x y -> indent l "and" ++ showTree' (l + 1) x
-                             ++ showTree' (l + 1) y
-  EOr x y -> indent l "or" ++ showTree' (l + 1) x
-                           ++ showTree' (l + 1) y
-  ENot x -> indent l "not" ++ showTree' (l + 1) x
-  EOperand s _ -> indent l s
+verboseEval :: IndentAmt -> a -> Level -> Tree a -> (Bool, String)
+verboseEval amt a lvl t =
+  let skip = indent amt (lvl + 1) "short circuit"
+      eval = verboseEval amt a (lvl + 1)
+      idt = indent amt lvl
+  in case t of
+      EAnd x y ->
+        let l1 = idt "and"
+            (bx, l2) = eval x
+            (by, l3) = eval y
+        in (bx && by, l1 ++ l2 ++ if not bx then l3 else skip)
+      EOr x y ->
+        let l1 = idt "or"
+            (bx, l2) = eval x
+            (by, l3) = eval y
+        in (bx || by, l1 ++ l2 ++ if bx then l3 else skip)
+      ENot x ->
+        let l1 = idt "not"
+            (bx, l2) = eval x
+        in (not bx, l1 ++ l2)
+      EOperand s p ->
+        let r = p a
+            strBool = if r then "[TRUE]  " else "[FALSE] "
+        in (r, indent amt lvl (strBool ++ s))
