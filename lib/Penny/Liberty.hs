@@ -74,10 +74,13 @@ data LibertyMeta =
 -- | Parses a list of tokens to obtain a predicate. Deals with an
 -- empty list of tokens by returning a predicate that is always
 -- True. Fails if the list of tokens is not empty and the parse fails.
-parsePredicate :: [X.Token (a -> Bool)] -> Maybe (a -> Bool)
-parsePredicate ls = case ls of
-  [] -> return (const True)
-  ts -> parseTokenList ts
+parsePredicate
+  :: X.ExprDesc
+  -> [X.InfixToken a]
+  -> Ex.Exceptional (X.ExprError a) (X.Tree a)
+parsePredicate d ls = case ls of
+  [] -> return X.always
+  ts -> X.parseExpression d ls
 
 -- | Takes a list of transactions, splits them into PostingChild
 -- instances, filters them, post-filters them, sorts them, and places

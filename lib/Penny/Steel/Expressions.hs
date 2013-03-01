@@ -8,6 +8,10 @@ module Penny.Steel.Expressions
   , R.Operator(..)
   , R.Tree(..)
   , R.RPNError(..)
+  , R.always
+  , R.never
+  , (R.&&&)
+  , (R.|||)
   ) where
 
 import Data.Either (partitionEithers)

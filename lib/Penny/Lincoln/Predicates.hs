@@ -3,14 +3,39 @@
 -- | Functions that return a boolean based upon some criterion that
 -- matches something, often a PostFam. Useful when filtering
 -- Postings.
-module Penny.Lincoln.Predicates where
+module Penny.Lincoln.Predicates
+  ( Pdct(..)
+  , MakePdct
+  , payee
+  , number
+  , flag
+  , postingMemo
+  , transactionMemo
+  , Comp(..)
+  , descComp
+  , date
+  , qty
+  , drCr
+  , debit
+  , credit
+  , commodity
+  , account
+  , accountLevel
+  , accountAny
+  , tag
+  , (&&&)
+  , (|||)
+  , clonedTransactions
+  , clonedTopLines
+  , clonedPostings
+  ) where
 
 
 import Data.List (intersperse)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as X
-import Data.Time (Day)
+import qualified Data.Time as Time
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
 import qualified Penny.Lincoln.Family.Family as F
@@ -22,7 +47,7 @@ import qualified Text.Matchers as M
 -- | Predicates also come with a description, which is useful for
 -- giving diagnostics to the user.
 data Pdct = Pdct
-  { pdct :: PostFam -> Bool
+  { testPostFam :: PostFam -> Bool
   , description :: Text
   }
 
@@ -69,19 +94,8 @@ matchAny
   -> Pdct
 matchAny t f m = Pdct pd desc
   where
-    desc = makeDesc ("any of the components of " <> t) m
+    desc = makeDesc t m
     pd = any (M.match m) . textList . f
-
-matchAnyMaybe
-  :: HasTextList a
-  => Text
-  -> (PostFam -> Maybe a)
-  -> M.Matcher
-  -> Pdct
-matchAnyMaybe t f m = Pdct pd desc
-  where
-    desc = makeDesc ("any of the components of " <> t) m
-    pd = maybe False (any (M.match m) . textList) . f
 
 -- | Does the given matcher match the text that is at the given
 -- element of a HasTextList? If the HasTextList does not have a
@@ -101,22 +115,6 @@ matchLevel l d f m = Pdct pd desc
                then False
                else M.match m (ts !! l)
 
-matchMaybeLevel
-  :: HasTextList a
-  => Int
-  -> Text
-  -> (PostFam -> Maybe a)
-  -> M.Matcher
-  -> Pdct
-matchMaybeLevel l d f m = Pdct pd desc
-  where
-    desc = makeDesc ("level " <> X.pack (show l) <> " of " <> d) m
-    doMatch a = let ts = textList a
-                in if l < 0 || l >= length ts
-                   then False
-                   else M.match m (ts !! l)
-    pd = maybe False doMatch . f
-
 -- | Does the matcher match the text of the memo? Joins each line of
 -- the memo with a space.
 matchMemo
@@ -132,142 +130,111 @@ matchMemo t f m = Pdct pd desc
               . X.intercalate (X.singleton ' ')
               . B.unMemo
 
-
-
--- * Matching helpers
-
-{-
-match :: HasText a => (Text -> Bool) -> a -> Bool
-match f = f . text
-
-matchMaybe :: HasText a => (Text -> Bool) -> Maybe a -> Bool
-matchMaybe f = maybe False (match f)
-
-
-matchAny :: HasTextList a => (Text -> Bool) -> a -> Bool
-matchAny f = any f . textList
-
-matchAnyMaybe :: HasTextList a => (Text -> Bool) -> Maybe a -> Bool
-matchAnyMaybe f = maybe False (matchAny f)
-
-
--- | Does the given matcher match the text that is at the given
--- element of a HasTextList? If the HasTextList does not have a
--- sufficent number of elements to perform this test, returns False.
-matchLevel :: HasTextList a => Int -> (Text -> Bool) -> a -> Bool
-matchLevel i f a = let ts = textList a in
-  if i < 0 || i >= length ts
-  then False
-  else f (ts !! i)
-
--- | Does the matcher match the text of the memo? Joins each line of
--- the memo with a space.
-matchMemo :: (Text -> Bool) -> Maybe B.Memo -> Bool
-matchMemo f = maybe False (f . X.intercalate (X.singleton ' ') . B.unMemo)
-
-
-matchMaybeLevel ::
-  HasTextList a
-  => Int
-  -> (Text -> Bool)
-  -> Maybe a
-  -> Bool
-matchMaybeLevel i f = maybe False (matchLevel i f)
-
+matchDelimited
+  :: HasTextList a
+  => Text
+  -- ^ Separator
+  -> Text
+  -- ^ Label
+  -> (PostFam -> a)
+  -> M.Matcher
+  -> Pdct
+matchDelimited sep lbl f m = match lbl f' m
+  where
+    f' = X.concat . intersperse sep . textList . f
 
 -- * Pattern matching fields
 
-payee :: (Text -> Bool) -> PostFam -> Bool
-payee f = matchMaybe f . Q.payee
+payee :: MakePdct
+payee = matchMaybe "payee" Q.payee
 
-number :: (Text -> Bool) -> PostFam -> Bool
-number f = matchMaybe f . Q.number
+number :: MakePdct
+number = matchMaybe "number" Q.number
 
-flag :: (Text -> Bool) -> PostFam -> Bool
-flag f = matchMaybe f . Q.flag
+flag :: MakePdct
+flag = matchMaybe "flag" Q.flag
 
-postingMemo :: (Text -> Bool) -> PostFam -> Bool
-postingMemo f = matchMemo f . Q.postingMemo
+postingMemo :: MakePdct
+postingMemo = matchMemo "posting memo" Q.postingMemo
 
-transactionMemo :: (Text -> Bool) -> PostFam -> Bool
-transactionMemo f = matchMemo f . Q.transactionMemo
+transactionMemo :: MakePdct
+transactionMemo = matchMemo "transaction memo" Q.transactionMemo
 
 -- * Date
 
-date ::
-  (B.DateTime -> Bool)
-  -> PostFam
-  -> Bool
-date f c = f (Q.dateTime c)
+-- | Comparisons.
+data Comp
+  = DLT
+  -- ^ Less than
+
+  | DLTEQ
+  -- ^ Less than or equal to
+
+  | DEQ
+  -- ^ Equal to
+
+  | DGTEQ
+  -- ^ Greater than or equal to
+
+  | DGT
+  -- ^ Greater than
+  deriving Eq
+
+-- | Describes a Comp, and returns a function to actually perform
+-- comparisons.
+descComp :: Ord a => Comp -> (Text, a -> a -> Bool)
+descComp c = case c of
+  DLT -> ("less than", (<))
+  DLTEQ -> ("less than or equal to", (<=))
+  DEQ -> ("equal to", (==))
+  DGTEQ -> ("greater than or equal to", (>=))
+  DGT -> ("greater than", (>))
+
+date
+  :: Comp
+  -> Time.UTCTime
+  -> Pdct
+date c d = Pdct pd desc
+  where
+    desc = "UTC date is " <> dd <> " " <> X.pack (show d)
+    (dd, cmp) = descComp c
+    pd pf = (B.toUTC . Q.dateTime $ pf) `cmp` d
 
 
-localDay ::
-  (Day -> Bool)
-  -> PostFam
-  -> Bool
-localDay f = f . Q.localDay
+qty :: Comp -> B.Qty -> Pdct
+qty c q = Pdct pd desc
+  where
+    desc = "quantity is " <> dd <> " " <> X.pack (show q)
+    (dd, cmp) = descComp c
+    pd pf = (Q.qty pf) `cmp` q
 
--- * Qty
+drCr :: B.DrCr -> Pdct
+drCr dc = Pdct pd desc
+  where
+    desc = "entry is a " <> s
+    s = case dc of { B.Debit -> "debit"; B.Credit -> "credit" }
+    pd pf = Q.drCr pf == dc
 
-qty ::
-  (B.Qty -> Bool)
-  -> PostFam
-  -> Bool
-qty f c = f (Q.qty c)
+debit :: Pdct
+debit = drCr B.Debit
 
+credit :: Pdct
+credit = drCr B.Credit
 
--- * DrCr
-drCr :: B.DrCr -> PostFam -> Bool
-drCr dc p = dc == Q.drCr p
+commodity :: M.Matcher -> Pdct
+commodity = match "commodity" Q.commodity
 
-debit :: PostFam -> Bool
-debit p = Q.drCr p == B.Debit
+account :: M.Matcher -> Pdct
+account = matchDelimited ":" "account" Q.account
 
-credit :: PostFam -> Bool
-credit p = Q.drCr p == B.Credit
+accountLevel :: Int -> M.Matcher -> Pdct
+accountLevel i = matchLevel i "account" Q.account
 
--- * Matching delimited fields
+accountAny :: M.Matcher -> Pdct
+accountAny = matchAny "any sub-account" Q.account
 
-matchDelimited ::
-  HasTextList a
-  => Text
-  -> (Text -> Bool)
-  -> a -> Bool
-matchDelimited d f = f . X.concat . intersperse d . textList
-
--- * Commodity
-
-commodity :: (Text -> Bool) -> PostFam -> Bool
-commodity f = f . text . Q.commodity
-
-
--- * Account
-account :: Text -> (Text -> Bool) -> PostFam -> Bool
-account t f = matchDelimited t f . Q.account
-
-accountLevel :: Int -> (Text -> Bool) -> PostFam -> Bool
-accountLevel i f = matchLevel i f . Q.account
-
-accountAny :: (Text -> Bool) -> PostFam -> Bool
-accountAny f = matchAny f . Q.account
-
--- * Tags
-tag :: (Text -> Bool) -> PostFam -> Bool
-tag f = matchAny f . Q.tags
-
--- * Combining predicates
-(&&&) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
-(&&&) l r = \a -> l a && r a
-
-infixr 3 &&&
-
-(|||) :: (a -> Bool) -> (a -> Bool) -> (a -> Bool)
-(|||) l r = \a -> l a || r a
-
-infixr 2 |||
-
-
--- * Clones
+tag :: M.Matcher -> Pdct
+tag = matchAny "any tag" Q.tags
 
 -- | Returns True if these two transactions are clones; that is, if
 -- they are identical in all respects except some aspects of their
@@ -311,4 +278,4 @@ clonedPostings p1 p2 =
   && (T.pEntry p1 == T.pEntry p2)
   && (T.pMemo p1 == T.pMemo p2)
   && (T.pInferred p1 == T.pInferred p2)
--}
+
