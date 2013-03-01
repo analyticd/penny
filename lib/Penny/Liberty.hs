@@ -36,6 +36,7 @@ module Penny.Liberty (
 import Control.Applicative ((<*>), (<$>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper)
+import Data.Monoid ((<>))
 import Data.List (sortBy)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as Text
@@ -76,7 +77,7 @@ data LibertyMeta =
 -- True. Fails if the list of tokens is not empty and the parse fails.
 parsePredicate
   :: X.ExprDesc
-  -> [X.InfixToken a]
+  -> [X.Token a]
   -> Ex.Exceptional (X.ExprError a) (X.Tree a)
 parsePredicate d ls = case ls of
   [] -> return X.always
@@ -100,19 +101,22 @@ xactionsToFiltered ::
   -> [L.Transaction]
   -- ^ The transactions to work on (probably parsed in from Copper)
 
-  -> [L.Box LibertyMeta]
+  -> (Text, [L.Box LibertyMeta])
   -- ^ Sorted, filtered postings
 
-xactionsToFiltered pdct pfs s txns =
+xactionsToFiltered pdct postFilts s txns =
   let pairs = map (\i -> X.verboseEval indentAmt i 0 pdct) pfs
       pfs = concatMap L.postFam boxes
-  addSortedNum
-  . processPostFilters pfs
-  . sortBy (sorter s)
-  . addFilteredNum
-  . map toBox
-  . filter pdct
-  . concatMap L.postFam
+      txt = X.concat . map fst $ pairs
+      filtered = map snd . filter fst $ zipWith zipper pairs pfs
+      zipper (bool, _) pf = (bool, pf)
+      resultLs = addSortedNum
+                 . processPostFilters postFilts
+                 . sortBy (sorter s)
+                 . addFilteredNum
+                 . map toBox
+                 $ filtered
+  in (txt, resultLs)
 
 
 indentAmt :: X.IndentAmt
@@ -147,8 +151,8 @@ addSortedNum = L.serialItems f where
 type MatcherFactory =
   CaseSensitive
   -> Text
-  -> Ex.Exceptional Text (Text -> Bool)
-type Operand = X.Operand (L.PostFam -> Bool)
+  -> Ex.Exceptional Text TM.Matcher
+type Operand = X.Token L.PostFam
 
 newtype ListLength = ListLength { unListLength :: Int }
                      deriving (Eq, Ord, Show)
@@ -175,25 +179,23 @@ processPostFilter as fn = map fst . filter fn' $ zipped where
 ------------------------------------------------------------
 
 -- | Given a String from the command line which represents a pattern,
--- and a MatcherFactor, return a Matcher. Fails if the pattern is bad
--- (e.g. it is not a valid regular expression).
+-- the current case sensitivity, and a MatcherFactory, return a
+-- Matcher. Fails if the pattern is bad (e.g. it is not a valid
+-- regular expression).
 getMatcher ::
   String
   -> CaseSensitive
   -> MatcherFactory
-  -> Ex.Exceptional String (Text -> Bool)
+  -> Ex.Exceptional Text TM.Matcher
 
-getMatcher s cs f = Ex.mapException e (f cs (pack s))
-  where
-    e err = "bad pattern: " ++ s ++ " error message: "
-            ++ unpack err
+getMatcher s cs f = f cs (pack s)
 
--- | Parses comparers given on command line to a function. Aborts if
+-- | Parses comparers given on command line to a function. Fails if
 -- the string given is invalid.
 parseComparer ::
   (Eq a, Ord a)
   => String
-  -> Ex.Exceptional String (a -> a -> Bool)
+  -> Maybe (a -> a -> Bool)
 parseComparer t
   | t == "<" = return (<)
   | t == "<=" = return (<=)
@@ -203,13 +205,16 @@ parseComparer t
   | t == ">=" = return (>=)
   | t == "/=" = return (/=)
   | t == "!=" = return (/=)
-  | otherwise = Ex.throw $ "invalid comparer: " ++ t
+  | otherwise = Nothing
 
+-- | Parses a date from the command line. On failure, throws back the
+-- error message from the failed parse.
 parseDate :: String -> Ex.Exceptional String L.DateTime
 parseDate =
-  Ex.mapException f . Ex.fromEither . parse Pc.dateTime "" . pack
-  where
-    f msg = "invalid date: " ++ show msg
+  Ex.mapException X.pack
+  . Ex.fromEither
+  . parse Pc.dateTime ""
+  . pack
 
 date :: OptSpec (Ex.Exceptional String Operand)
 date = C.OptSpec ["date"] ['d'] (C.TwoArg f)

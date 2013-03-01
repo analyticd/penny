@@ -13,7 +13,7 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Monoid ((<>))
 
-data Token a
+data RPNToken a
   = TokOperand Text (a -> Bool)
   -- ^ The Text describes the operand, for use in error messages and
   -- for printing a diagnostic tree.
@@ -66,14 +66,14 @@ pushOperator o ts = case o of
     x:zs -> return $ ENot x : zs
     _ -> Ex.throw $ InsufficientStack OpNot
 
-pushToken :: [Tree a] -> Token a -> Ex.Exceptional (RPNError a) [Tree a]
+pushToken :: [Tree a] -> RPNToken a -> Ex.Exceptional (RPNError a) [Tree a]
 pushToken ts t = case t of
   TokOperand d p -> return $ pushOperand d p ts
   TokOperator o -> pushOperator o ts
 
 pushTokens
   :: Fdbl.Foldable f
-  => f (Token a)
+  => f (RPNToken a)
   -> Ex.Exceptional (RPNError a) (Tree a)
 pushTokens ts = do
   trees <- Fdbl.foldlM pushToken [] ts
