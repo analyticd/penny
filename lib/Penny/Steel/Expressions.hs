@@ -12,6 +12,9 @@ module Penny.Steel.Expressions
   , R.never
   , (R.&&&)
   , (R.|||)
+  , R.verboseEval
+  , R.IndentAmt
+  , R.Level
   ) where
 
 import Data.Either (partitionEithers)

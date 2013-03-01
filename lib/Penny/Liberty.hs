@@ -84,10 +84,11 @@ parsePredicate d ls = case ls of
 
 -- | Takes a list of transactions, splits them into PostingChild
 -- instances, filters them, post-filters them, sorts them, and places
--- them in Box instances with Filtered serials.
+-- them in Box instances with Filtered serials. Also returns a Text
+-- containing a description of the evalutation process.
 xactionsToFiltered ::
 
-  (L.PostFam -> Bool)
+  X.Tree L.PostFam
   -- ^ The predicate to filter the transactions
 
   -> [PostFilterFn]
@@ -102,7 +103,9 @@ xactionsToFiltered ::
   -> [L.Box LibertyMeta]
   -- ^ Sorted, filtered postings
 
-xactionsToFiltered pdct pfs s =
+xactionsToFiltered pdct pfs s txns =
+  let pairs = map (\i -> X.verboseEval indentAmt i 0 pdct) pfs
+      pfs = concatMap L.postFam boxes
   addSortedNum
   . processPostFilters pfs
   . sortBy (sorter s)
@@ -111,6 +114,9 @@ xactionsToFiltered pdct pfs s =
   . filter pdct
   . concatMap L.postFam
 
+
+indentAmt :: X.IndentAmt
+indentAmt = 4
 
 -- | Transforms a PostingChild into a Box.
 toBox :: L.PostFam -> L.Box ()
