@@ -23,8 +23,6 @@ module Penny.Lincoln.Predicates
   , accountLevel
   , accountAny
   , tag
-  , (&&&)
-  , (|||)
   , clonedTransactions
   , clonedTopLines
   , clonedPostings
@@ -178,6 +176,9 @@ data Comp
 
   | DGT
   -- ^ Greater than
+
+  | DNE
+  -- ^ Not equal to
   deriving Eq
 
 -- | Describes a Comp, and returns a function to actually perform
@@ -189,6 +190,7 @@ descComp c = case c of
   DEQ -> ("equal to", (==))
   DGTEQ -> ("greater than or equal to", (>=))
   DGT -> ("greater than", (>))
+  DNE -> ("not equal to", (/=))
 
 date
   :: Comp

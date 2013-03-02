@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- | Liberty - Penny command line parsing utilities
 --
 -- Both Cabin and Zinc share various functions that aid in parsing
@@ -9,8 +11,6 @@
 
 module Penny.Liberty (
   MatcherFactory,
-  X.evaluate,
-  X.Token(..),
   FilteredNum(FilteredNum, unFilteredNum),
   SortedNum(SortedNum, unSortedNum),
   LibertyMeta(filteredNum, sortedNum),
@@ -22,6 +22,9 @@ module Penny.Liberty (
   processPostFilters,
   parsePredicate,
   parseInt,
+  parseInfix,
+  parseRPN,
+  exprDesc,
 
   -- * Parsers
   Operand,
@@ -33,13 +36,14 @@ module Penny.Liberty (
 
   ) where
 
-import Control.Applicative ((<*>), (<$>))
+import Control.Applicative ((<*>), (<$>), pure, Applicative)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper)
 import Data.Monoid ((<>))
 import Data.List (sortBy)
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text, pack)
 import qualified Data.Text as Text
+import qualified Data.Time as Time
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Combinator (OptSpec)
 import Text.Parsec (parse)
@@ -81,7 +85,7 @@ parsePredicate
   -> Ex.Exceptional (X.ExprError a) (X.Tree a)
 parsePredicate d ls = case ls of
   [] -> return X.always
-  ts -> X.parseExpression d ls
+  _ -> X.parseExpression d ls
 
 -- | Takes a list of transactions, splits them into PostingChild
 -- instances, filters them, post-filters them, sorts them, and places
@@ -106,8 +110,8 @@ xactionsToFiltered ::
 
 xactionsToFiltered pdct postFilts s txns =
   let pairs = map (\i -> X.verboseEval indentAmt i 0 pdct) pfs
-      pfs = concatMap L.postFam boxes
-      txt = X.concat . map fst $ pairs
+      pfs = concatMap L.postFam txns
+      txt = Text.concat . map snd $ pairs
       filtered = map snd . filter fst $ zipWith zipper pairs pfs
       zipper (bool, _) pf = (bool, pf)
       resultLs = addSortedNum
@@ -152,6 +156,7 @@ type MatcherFactory =
   CaseSensitive
   -> Text
   -> Ex.Exceptional Text TM.Matcher
+
 type Operand = X.Token L.PostFam
 
 newtype ListLength = ListLength { unListLength :: Int }
@@ -186,108 +191,72 @@ getMatcher ::
   String
   -> CaseSensitive
   -> MatcherFactory
-  -> Ex.Exceptional Text TM.Matcher
+  -> Ex.Exceptional BadPatternError TM.Matcher
 
-getMatcher s cs f = f cs (pack s)
+getMatcher s cs f = Ex.mapException BadPatternError $ f cs (pack s)
 
 -- | Parses comparers given on command line to a function. Fails if
 -- the string given is invalid.
-parseComparer ::
-  (Eq a, Ord a)
-  => String
-  -> Maybe (a -> a -> Bool)
+parseComparer :: String -> Maybe P.Comp
 parseComparer t
-  | t == "<" = return (<)
-  | t == "<=" = return (<=)
-  | t == "==" = return (==)
-  | t == "=" = return (==)
-  | t == ">" = return (>)
-  | t == ">=" = return (>=)
-  | t == "/=" = return (/=)
-  | t == "!=" = return (/=)
+  | t == "<" = return P.DLT
+  | t == "<=" = return P.DLTEQ
+  | t == "==" = return P.DEQ
+  | t == "=" = return P.DEQ
+  | t == ">" = return P.DGT
+  | t == ">=" = return P.DGTEQ
+  | t == "/=" = return P.DNE
+  | t == "!=" = return P.DNE
   | otherwise = Nothing
 
 -- | Parses a date from the command line. On failure, throws back the
 -- error message from the failed parse.
-parseDate :: String -> Ex.Exceptional String L.DateTime
+parseDate :: String -> Ex.Exceptional Text Time.UTCTime
 parseDate =
-  Ex.mapException X.pack
+  Ex.mapExceptional (pack . show) L.toUTC
   . Ex.fromEither
   . parse Pc.dateTime ""
   . pack
 
-date :: OptSpec (Ex.Exceptional String Operand)
+data DateOptError
+  = DateOptBadComparer Text
+  -- ^ Bad comparer text provided; the argument is the text that was
+  -- provided.
+
+  | DateOptBadDate Text Text
+  -- ^ Bad date string provided; the first argument is the bad input,
+  -- and the second is the error message.
+
+pdctToOperand :: P.Pdct -> Operand
+pdctToOperand (P.Pdct pd d) = X.operand d pd
+
+-- | OptSpec for a date.
+date :: OptSpec (Ex.Exceptional DateOptError Operand)
 date = C.OptSpec ["date"] ['d'] (C.TwoArg f)
   where
-    f a1 a2 = g <$> parseComparer a1 <*> parseDate a2
-    g cmp dt = X.Operand (P.date (`cmp` dt))
+    f a1 a2
+      = g
+      <$> Ex.fromMaybe (DateOptBadComparer (pack a1))
+          (parseComparer a1)
+      <*> Ex.mapException (DateOptBadDate (pack a2))
+          (parseDate a2)
+    g cmp dt = pdctToOperand $ P.date cmp dt
 
 
 current :: L.DateTime -> OptSpec Operand
 current dt = C.OptSpec ["current"] [] (C.NoArg f)
   where
-    f = X.Operand (P.date (<= dt))
-
-
--- | Creates options that match against fields that are
--- colon-separated. The operand added will return True if the
--- posting's colon-separated option matches the pattern given, or
--- False if it does not.
-sepOption ::
-  String
-  -- ^ Long option name
-
-  -> Maybe Char
-  -- ^ Short option name, if there is one
-
-  -> (Text -> (Text -> Bool) -> L.PostFam -> Bool)
-  -- ^ When applied to a text that separates the different segments of
-  -- the field, a matcher, and a posting, this function returns True
-  -- if the posting matches the matcher or False if it does not.
-
-  -> OptSpec ( CaseSensitive
-               -> MatcherFactory
-               -> Ex.Exceptional String Operand )
-sepOption str mc f = C.OptSpec [str] so (C.OneArg g)
-  where
-    so = maybe [] return mc
-    g a cs fty = h <$> getMatcher a cs fty
-      where
-        h mtr = X.Operand (f sep mtr)
-
-
-sep :: Text
-sep = Text.singleton ':'
+    f = pdctToOperand $ P.date P.DLTEQ (L.toUTC dt)
 
 -- | Parses exactly one integer; fails if it cannot read exactly one.
-parseInt :: String -> Ex.Exceptional String Int
+parseInt :: String -> Maybe Int
 parseInt t =
   case reads t of
     ((i, ""):[]) -> return i
-    _ -> Ex.throw ("invalid number: " ++ t)
+    _ -> Nothing
 
--- | Creates options that take two arguments, with the first argument
--- being the level to match, and the second being the pattern that
--- should match against that level.  Adds an operand that returns True
--- if the pattern matches.
-levelOption ::
-  String
-  -- ^ Long option name
 
-  -> (Int -> (Text -> Bool) -> L.PostFam -> Bool)
-  -- ^ Applied to an integer, a matcher, and a PostingBox, this
-  -- function returns True if a particular field in the posting
-  -- matches the matcher given at the given level, or False otherwise.
-
-  -> OptSpec ( CaseSensitive
-               -> MatcherFactory
-               -> Ex.Exceptional String Operand)
-
-levelOption str f = C.OptSpec [str] [] (C.TwoArg g)
-  where
-    g a1 a2 cs fty = h <$> parseInt a1 <*> getMatcher a2 cs fty
-    h i m = X.Operand (f i m)
-
+data BadPatternError = BadPatternError Text
 
 -- | Creates options that add an operand that matches the posting if a
 -- particluar field matches the pattern given.
@@ -298,95 +267,130 @@ patternOption ::
   -> Maybe Char
   -- ^ Short option, if included
 
-  -> ((Text -> Bool) -> L.PostFam -> Bool)
-  -- ^ When applied to a matcher and a PostingBox, this function
-  -- returns True if the posting matches, or False if it does not.
+  -> (TM.Matcher -> P.Pdct)
+  -- ^ When applied to a Matcher, this function returns a predicate.
 
   -> OptSpec ( CaseSensitive
                -> MatcherFactory
-               -> Ex.Exceptional String Operand )
+               -> Ex.Exceptional BadPatternError Operand )
 patternOption str mc f = C.OptSpec [str] so (C.OneArg g)
   where
-    so = maybe [] (\c -> [c]) mc
+    so = maybe [] (:[]) mc
     g a1 cs fty = h <$> getMatcher a1 cs fty
-    h m = X.Operand (f m)
-
+    h mtchr = pdctToOperand (f mtchr)
 
 
 -- | The account option; matches if the pattern given matches the
 -- colon-separated account name.
 account :: OptSpec ( CaseSensitive
                    -> MatcherFactory
-                   -> Ex.Exceptional String Operand )
-account = sepOption "account" (Just 'a') P.account
+                   -> Ex.Exceptional BadPatternError Operand )
+account = C.OptSpec ["account"] "a" (C.OneArg f)
+  where
+    f a1 cs fty
+      = fmap (pdctToOperand . P.account)
+      $ getMatcher a1 cs fty
+
+
+data AccountLevelError
+  = AccountLevelBadLevel Text
+  | AccountLevelBadPattern BadPatternError
 
 -- | The account-level option; matches if the account at the given
 -- level matches.
 accountLevel :: OptSpec ( CaseSensitive
                         -> MatcherFactory
-                        -> Ex.Exceptional String Operand)
-accountLevel = levelOption "account-level" P.accountLevel
+                        -> Ex.Exceptional AccountLevelError Operand)
+accountLevel = C.OptSpec ["account-level"] "" (C.TwoArg f)
+  where
+    f a1 a2 cs fty = do
+      lvl <- Ex.fromMaybe (AccountLevelBadLevel (pack a1))
+             $ parseInt a1
+      mr <- Ex.mapException AccountLevelBadPattern
+            $ getMatcher a2 cs fty
+      return . pdctToOperand $ P.accountLevel lvl mr
+
 
 -- | The accountAny option; returns True if the matcher given matches
 -- a single sub-account name at any level.
 accountAny :: OptSpec ( CaseSensitive
                         -> MatcherFactory
-                        -> Ex.Exceptional String Operand )
+                        -> Ex.Exceptional BadPatternError Operand )
 accountAny = patternOption "account-any" Nothing P.accountAny
 
 -- | The payee option; returns True if the matcher matches the payee
 -- name.
 payee :: OptSpec ( CaseSensitive
                  -> MatcherFactory
-                 -> Ex.Exceptional String Operand )
+                 -> Ex.Exceptional BadPatternError Operand )
 payee = patternOption "payee" (Just 'p') P.payee
 
 tag :: OptSpec ( CaseSensitive
                  -> MatcherFactory
-                 -> Ex.Exceptional String Operand)
+                 -> Ex.Exceptional BadPatternError Operand)
 tag = patternOption "tag" (Just 't') P.tag
 
 number :: OptSpec ( CaseSensitive
                     -> MatcherFactory
-                    -> Ex.Exceptional String Operand )
+                    -> Ex.Exceptional BadPatternError Operand )
 number = patternOption "number" Nothing P.number
 
 flag :: OptSpec ( CaseSensitive
                   -> MatcherFactory
-                  -> Ex.Exceptional String Operand)
+                  -> Ex.Exceptional BadPatternError Operand)
 flag = patternOption "flag" Nothing P.flag
 
 commodity :: OptSpec ( CaseSensitive
                        -> MatcherFactory
-                       -> Ex.Exceptional String Operand)
+                       -> Ex.Exceptional BadPatternError Operand)
 commodity = patternOption "commodity" Nothing P.commodity
 
 postingMemo :: OptSpec ( CaseSensitive
                          -> MatcherFactory
-                         -> Ex.Exceptional String Operand)
+                         -> Ex.Exceptional BadPatternError Operand)
 postingMemo = patternOption "posting-memo" Nothing P.postingMemo
 
 transactionMemo :: OptSpec ( CaseSensitive
                              -> MatcherFactory
-                             -> Ex.Exceptional String Operand)
+                             -> Ex.Exceptional BadPatternError Operand)
 transactionMemo = patternOption "transaction-memo"
                   Nothing P.transactionMemo
 
 debit :: OptSpec Operand
-debit = C.OptSpec ["debit"] [] (C.NoArg (X.Operand P.debit))
+debit = C.OptSpec ["debit"] [] (C.NoArg f)
+  where
+    f = pdctToOperand P.debit
 
 credit :: OptSpec Operand
-credit = C.OptSpec ["credit"] [] (C.NoArg (X.Operand P.credit))
+credit = C.OptSpec ["credit"] [] (C.NoArg f)
+  where
+    f = pdctToOperand P.credit
 
-qtyOption :: OptSpec (Ex.Exceptional String Operand)
+data QtyError
+  = QtyBadComparer Text
+  | QtyBadQty Text Text
+  -- ^ The user passed a bad string for the quantity. The first
+  -- argument is the bad quantity given; the second is the error
+  -- message.
+
+qtyOption :: OptSpec (Ex.Exceptional QtyError Operand)
 qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
   where
-    f a1 a2 = g <$> parseComparer a1 <*> parseQty a2
-    parseQty = Ex.mapException err . Ex.fromEither
-               . parse Pc.quantity "" . pack
-    err msg = "invalid quantity: " ++ show msg
-    g cmp qty = X.Operand (P.qty (`cmp` qty))
+    f a1 a2 = do
+      comp <- Ex.fromMaybe (QtyBadComparer (pack a1))
+              $ parseComparer a1
+      qty <- Ex.mapException (QtyBadQty (pack a2) . pack . show )
+             . Ex.fromEither
+             $ parse Pc.quantity "" (pack a2)
+      return . pdctToOperand $ P.qty comp qty
 
+
+data BadSerialError
+  = BadSerialComp Text
+  -- ^ Bad input for comparer; the Text is the bad input
+
+  | BadSerialNumber Text
+  -- ^ Bad input for number; the Text is the bad input
 
 -- | Creates two options suitable for comparison of serial numbers,
 -- one for ascending, one for descending.
@@ -399,8 +403,8 @@ serialOption ::
   -> String
   -- ^ Name of the command line option, such as @global-transaction@
 
-  -> ( OptSpec (Ex.Exceptional String Operand)
-     , OptSpec (Ex.Exceptional String Operand) )
+  -> ( OptSpec (Ex.Exceptional BadSerialError Operand)
+     , OptSpec (Ex.Exceptional BadSerialError Operand) )
   -- ^ Parses both descending and ascending serial options.
 
 serialOption getSerial n = (osA, osD)
@@ -409,13 +413,17 @@ serialOption getSerial n = (osA, osD)
           (C.TwoArg (f L.forward))
     osD = C.OptSpec [addPrefix "rev" n] []
           (C.TwoArg (f L.backward))
-    f getInt a1 a2 = g <$> parseComparer a1 <*> parseInt a2
-      where
-        g cmp i =
-          let op pf = case getSerial pf of
-                Nothing -> False
-                Just ser -> getInt ser `cmp` i
-          in X.Operand op
+    f getInt a1 a2 = do
+      cmp <- Ex.fromMaybe (BadSerialComp . pack $ a1)
+             $ parseComparer a1
+      num <- Ex.fromMaybe (BadSerialNumber . pack $ a2)
+             $ parseInt a2
+      let op pf = case getSerial pf of
+            Nothing -> False
+            Just ser -> getInt ser `cmpFn` num
+          (cmpDesc, cmpFn) = P.descComp cmp
+          desc = pack n <> " is " <> cmpDesc <> " " <> (pack . show $ num)
+      return (X.operand desc op)
 
 
 -- | Takes a string, adds a prefix and capitalizes the first letter of
@@ -427,8 +435,8 @@ addPrefix pre suf = pre ++ suf' where
     "" -> ""
     x:xs -> toUpper x : xs
 
-globalTransaction :: ( OptSpec (Ex.Exceptional String Operand)
-                     , OptSpec (Ex.Exceptional String Operand) )
+globalTransaction :: ( OptSpec (Ex.Exceptional BadSerialError Operand)
+                     , OptSpec (Ex.Exceptional BadSerialError Operand) )
 globalTransaction =
   let f = fmap L.unGlobalTransaction
           . L.tGlobalTransaction
@@ -436,8 +444,8 @@ globalTransaction =
           . L.unPostFam
   in serialOption f "globalTransaction"
 
-globalPosting :: ( OptSpec (Ex.Exceptional String Operand)
-                 , OptSpec (Ex.Exceptional String Operand) )
+globalPosting :: ( OptSpec (Ex.Exceptional BadSerialError Operand)
+                 , OptSpec (Ex.Exceptional BadSerialError Operand) )
 globalPosting =
   let f = fmap L.unGlobalPosting
           . L.pGlobalPosting
@@ -445,8 +453,8 @@ globalPosting =
           . L.unPostFam
   in serialOption f "globalPosting"
 
-filePosting :: ( OptSpec (Ex.Exceptional String Operand)
-               , OptSpec (Ex.Exceptional String Operand) )
+filePosting :: ( OptSpec (Ex.Exceptional BadSerialError Operand)
+               , OptSpec (Ex.Exceptional BadSerialError Operand) )
 filePosting =
   let f = fmap L.unFilePosting
           . L.pFilePosting
@@ -454,8 +462,8 @@ filePosting =
           . L.unPostFam
   in serialOption f "filePosting"
 
-fileTransaction :: ( OptSpec (Ex.Exceptional String Operand)
-                   , OptSpec (Ex.Exceptional String Operand) )
+fileTransaction :: ( OptSpec (Ex.Exceptional BadSerialError Operand)
+                   , OptSpec (Ex.Exceptional BadSerialError Operand) )
 fileTransaction =
   let f = fmap L.unFileTransaction
           . L.tFileTransaction
@@ -463,13 +471,44 @@ fileTransaction =
           . L.unPostFam
   in serialOption f "fileTransaction"
 
-unDouble
-  :: ( OptSpec (Ex.Exceptional String Operand)
-     , OptSpec (Ex.Exceptional String Operand) )
-  -> [ OptSpec (a -> b -> Ex.Exceptional String Operand) ]
-unDouble (o1, o2) = [fmap f o1, fmap f o2]
+-- | Transforms an Exceptional inside a functor to an Exceptional with
+-- a different exception that takes two arguments.
+lift0Ex
+  :: Functor f
+  => (e -> b)
+  -> f (Ex.Exceptional e a)
+  -> f (x -> y -> Ex.Exceptional b a)
+lift0Ex convert container = fmap f container
   where
-    f = (\g _ _ -> g)
+    f ex = \_ _ -> Ex.mapException convert ex
+
+-- | Transforms a value inside a functor to a function that takes two
+-- arguments and returns an Applicative.
+lift0
+  :: (Functor f, Applicative ap)
+  => f a
+  -> f (x -> y -> ap a)
+lift0 = fmap f
+  where
+    f a = \_ _ -> pure a
+
+-- | Transforms the exception of a function inside a functor that
+-- returns an Exceptional.
+lift3
+  :: Functor f
+  => (e1 -> e2)
+  -> f (x -> y -> Ex.Exceptional e1 a)
+  -> f (x -> y -> Ex.Exceptional e2 a)
+lift3 mapE = fmap g
+  where
+    g f = \x y -> Ex.mapException mapE (f x y)
+
+data OperandError
+  = OEDateError DateOptError
+  | OEBadPatternError BadPatternError
+  | OEAccountLevelError AccountLevelError
+  | OEQtyError QtyError
+  | OEBadSerialError BadSerialError
 
 
 -- | All operand OptSpec.
@@ -477,54 +516,75 @@ operandSpecs
   :: L.DateTime
   -> [OptSpec (CaseSensitive
                -> MatcherFactory
-               -> Ex.Exceptional String Operand)]
+               -> Ex.Exceptional OperandError Operand)]
 
 operandSpecs dt =
-  [ fmap (\f _ _ -> f) date
-  , fmap (\o _ _ -> return o) (current dt)
-  , wrapFactArg account
-  , wrapFactArg accountLevel
-  , wrapFactArg accountAny
-  , wrapFactArg payee
-  , wrapFactArg tag
-  , wrapFactArg number
-  , wrapFactArg flag
-  , wrapFactArg commodity
-  , wrapFactArg postingMemo
-  , wrapFactArg transactionMemo
-  , fmap (\f _ _ -> return f) debit
-  , fmap (\f _ _  -> return f) credit
-  , fmap (\f _ _ -> f) qtyOption
+  [ lift0Ex OEDateError date
+  , lift0 (current dt)
+  , lift3 OEBadPatternError account
+  , lift3 OEAccountLevelError accountLevel
+  , lift3 OEBadPatternError accountAny
+  , lift3 OEBadPatternError payee
+  , lift3 OEBadPatternError tag
+  , lift3 OEBadPatternError number
+  , lift3 OEBadPatternError flag
+  , lift3 OEBadPatternError commodity
+  , lift3 OEBadPatternError postingMemo
+  , lift3 OEBadPatternError transactionMemo
+  , lift0 debit
+  , lift0 credit
+  , fmap (\ex -> \_ _ -> Ex.mapException OEQtyError ex) qtyOption
   ]
-  ++ unDouble globalTransaction
-  ++ unDouble globalPosting
-  ++ unDouble filePosting
-  ++ unDouble fileTransaction
-    where
-      wrapFactArg = fmap (\f cs fty -> f cs fty)
+  ++ serialSpecs
+
+serialSpecs :: [OptSpec (CaseSensitive
+                        -> MatcherFactory
+                        -> Ex.Exceptional OperandError Operand)]
+serialSpecs
+  = concat
+  $ [unDouble]
+  <*> [ globalTransaction, globalPosting,
+        filePosting, fileTransaction ]
+
+unDouble
+  :: Functor f
+  => (f (Ex.Exceptional BadSerialError a),
+      f (Ex.Exceptional BadSerialError a ))
+  -> [ f (x -> y -> Ex.Exceptional OperandError a) ]
+unDouble (o1, o2) = [fmap f o1, fmap f o2]
+  where
+    f = (\g _ _ -> Ex.mapException OEBadSerialError g)
+
 
 ------------------------------------------------------------
 -- Post filters
 ------------------------------------------------------------
 
-optHead :: OptSpec (Ex.Exceptional String PostFilterFn)
+-- | The user passed a bad number for the head or tail option. The
+-- argument is the bad number passed.
+data BadHeadTailError = BadHeadTailError Text
+
+optHead :: OptSpec (Ex.Exceptional BadHeadTailError PostFilterFn)
 optHead = C.OptSpec ["head"] [] (C.OneArg f)
   where
-    f a = g <$> parseInt a
-      where
-        g i _ ii = ii < (ItemIndex i)
+    f a = do
+      num <- Ex.fromMaybe (BadHeadTailError (pack a))
+             $ parseInt a
+      let g _ ii = ii < (ItemIndex num)
+      return g
 
-optTail :: OptSpec (Ex.Exceptional String PostFilterFn)
+optTail :: OptSpec (Ex.Exceptional BadHeadTailError PostFilterFn)
 optTail = C.OptSpec ["tail"] [] (C.OneArg f)
   where
-    f a = g <$> parseInt a
-      where
-        g i (ListLength len) (ItemIndex ii) = ii >= len - i
+    f a = do
+      num <- Ex.fromMaybe (BadHeadTailError (pack a))
+             $ parseInt a
+      let g (ListLength len) (ItemIndex ii) = ii >= len - num
+      return g
 
 
-
-postFilterSpecs :: ( OptSpec (Ex.Exceptional String PostFilterFn)
-                   , OptSpec (Ex.Exceptional String PostFilterFn) )
+postFilterSpecs :: ( OptSpec (Ex.Exceptional BadHeadTailError PostFilterFn)
+                   , OptSpec (Ex.Exceptional BadHeadTailError PostFilterFn) )
 postFilterSpecs = (optHead, optTail)
 
 ------------------------------------------------------------
@@ -545,16 +605,16 @@ parseSensitive =
 
 
 within :: OptSpec MatcherFactory
-within = noArg (\c t -> return (TM.match $ TM.within c t)) "within"
+within = noArg (\c t -> return (TM.within c t)) "within"
 
 pcre :: OptSpec MatcherFactory
-pcre = noArg (\c t -> fmap TM.match (TM.pcre c t)) "pcre"
+pcre = noArg TM.pcre "pcre"
 
 posix :: OptSpec MatcherFactory
-posix = noArg (\c t -> fmap TM.match (TM.tdfa c t)) "posix"
+posix = noArg TM.tdfa "posix"
 
 exact :: OptSpec MatcherFactory
-exact = noArg (\c t -> return (TM.match $ TM.exact c t)) "exact"
+exact = noArg (\c t -> return (TM.exact c t)) "exact"
 
 matcherSelectSpecs :: [OptSpec MatcherFactory]
 matcherSelectSpecs = [within, pcre, posix, exact]
@@ -568,25 +628,25 @@ caseSelectSpecs = [parseInsensitive, parseSensitive]
 
 -- | Open parentheses
 open :: OptSpec (X.Token a)
-open = noArg X.TokOpenParen "open"
+open = noArg X.openParen "open"
 
 -- | Close parentheses
 close :: OptSpec (X.Token a)
-close = noArg X.TokCloseParen "close"
+close = noArg X.closeParen "close"
 
 -- | and operator
-parseAnd :: OptSpec (X.Token (a -> Bool))
-parseAnd = noArg X.tokAnd "and"
+parseAnd :: OptSpec (X.Token a)
+parseAnd = noArg X.opAnd "and"
 
 -- | or operator
-parseOr :: OptSpec (X.Token (a -> Bool))
-parseOr = noArg X.tokOr "or"
+parseOr :: OptSpec (X.Token a)
+parseOr = noArg X.opOr "or"
 
 -- | not operator
-parseNot :: OptSpec (X.Token (a -> Bool))
-parseNot = noArg X.tokNot "not"
+parseNot :: OptSpec (X.Token a)
+parseNot = noArg X.opNot "not"
 
-operatorSpecs :: [OptSpec (X.Token (a -> Bool))]
+operatorSpecs :: [OptSpec (X.Token a)]
 operatorSpecs =
   [open, close, parseAnd, parseOr, parseNot]
 
