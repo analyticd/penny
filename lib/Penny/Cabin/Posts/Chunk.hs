@@ -10,7 +10,7 @@ import qualified Penny.Cabin.Posts.BottomRows as B
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Scheme as E
-import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Steel.Chunk as C
 import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X

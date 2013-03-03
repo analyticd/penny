@@ -1,6 +1,6 @@
-module Penny.Cabin.Chunk.Switch where
+module Penny.Steel.Chunk.Switch where
 
-import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Steel.Chunk as C
 
 -- | Switch the foreground colors for new ones.
 switchForeground ::

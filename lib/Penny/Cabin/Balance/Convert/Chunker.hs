@@ -12,7 +12,7 @@ module Penny.Cabin.Balance.Convert.Chunker (
 import Control.Applicative
   (Applicative (pure), (<$>), (<*>))
 import qualified Penny.Cabin.Scheme as E
-import qualified Penny.Cabin.Chunk as Chunk
+import qualified Penny.Steel.Chunk as Chunk
 import qualified Penny.Cabin.Meta as Meta
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Lincoln as L

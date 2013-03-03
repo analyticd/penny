@@ -14,8 +14,6 @@ module Penny.Shield (
   ScreenWidth,
   unScreenWidth,
   Output(IsTTY, NotTTY),
-  Term,
-  unTerm,
   Runtime,
   environment,
   currentTime,
@@ -23,13 +21,16 @@ module Penny.Shield (
   screenLines,
   screenWidth,
   term,
-  runtime)
+  runtime,
+  termFromEnv,
+  autoTerm)
   where
 
 import Control.Applicative ((<$>), (<*>))
 import qualified Data.Time as T
 import System.Environment (getEnvironment)
 import System.IO (hIsTerminalDevice, stdout)
+import qualified Penny.Steel.Chunk as C
 
 import qualified Penny.Lincoln.Bits as B
 
@@ -85,3 +86,20 @@ safeRead :: (Read a) => String -> Maybe a
 safeRead s = case reads s of
   (a, []):[] -> Just a
   _ -> Nothing
+
+-- | Determines which Chunk Term to use based on the TERM environment
+-- variable, regardless of whether standard output is a terminal. Uses
+-- Dumb if TERM is not set.
+termFromEnv :: Runtime -> C.Term
+termFromEnv rt = case term rt of
+  Just t -> C.TermName . unTerm $ t
+  Nothing -> C.Dumb
+
+-- | Determines which Chunk Term to use based on whether standard
+-- output is a terminal. Uses Dumb if standard output is not a
+-- terminal; otherwise, uses the TERM environment variable.
+autoTerm :: Runtime -> C.Term
+autoTerm rt = case output rt of
+  IsTTY -> termFromEnv rt
+  NotTTY -> C.Dumb
+

@@ -8,7 +8,7 @@
 
 module Penny.Cabin.Scheme where
 
-import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Steel.Chunk as C
 import qualified Penny.Cabin.Meta as M
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X

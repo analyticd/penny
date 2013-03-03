@@ -63,7 +63,7 @@ import qualified Data.Foldable as Fdbl
 import qualified Data.Sequence as Seq
 import qualified Data.Traversable as T
 import qualified Data.Text as X
-import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Steel.Chunk as C
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M

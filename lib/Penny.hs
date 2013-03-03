@@ -15,7 +15,7 @@ module Penny
   , E.EvenAndOdd(..)
   , Sw.switchForeground
   , Sw.switchBackground
-  , module Penny.Cabin.Chunk
+  , module Penny.Steel.Chunk
 
   -- ** Sorting
   , Z.SortField(..)
@@ -89,8 +89,8 @@ import qualified Penny.Cabin.Balance.Convert.Parser as CP
 import qualified Penny.Cabin.Balance.Convert.Options as ConvOpts
 import qualified Penny.Cabin.Balance.MultiCommodity as MC
 import qualified Penny.Cabin.Balance.MultiCommodity.Parser as MP
-import Penny.Cabin.Chunk
-import qualified Penny.Cabin.Chunk.Switch as Sw
+import Penny.Steel.Chunk
+import qualified Penny.Steel.Chunk.Switch as Sw
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as CabP

@@ -3,8 +3,8 @@
 module Penny.Cabin.Scheme.Schemes where
 
 import qualified Penny.Cabin.Scheme as E
-import qualified Penny.Cabin.Chunk as C
-import qualified Penny.Cabin.Chunk.Switch as Sw
+import qualified Penny.Steel.Chunk as C
+import qualified Penny.Steel.Chunk.Switch as Sw
 
 -- | The light color scheme. You can change various values below to
 -- affect the color scheme.

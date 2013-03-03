@@ -30,7 +30,7 @@ module Penny.Cabin.Row (
 
 import Data.List (transpose)
 import qualified Data.Text as X
-import qualified Penny.Cabin.Chunk as C
+import qualified Penny.Steel.Chunk as C
 import qualified Penny.Cabin.Scheme as E
 
 -- | How to justify cells. LeftJustify leaves the right side

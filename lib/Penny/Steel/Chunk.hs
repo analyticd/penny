@@ -15,11 +15,9 @@
 -- Windows. One problem with that though is that ansi-terminal does
 -- not appear to support more than 8 colors; Chunk supports 256
 -- colors, which is very helpful for Penny.
-module Penny.Cabin.Chunk (
+module Penny.Steel.Chunk (
   -- * Colors
   Term(..),
-  autoTerm,
-  termFromEnv,
   Background8,
   Background256,
   Foreground8,
@@ -601,7 +599,6 @@ import Data.Text (Text)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as X
 import qualified System.Console.Terminfo as T
-import qualified Penny.Shield as S
 
 --
 -- Colors
@@ -624,22 +621,6 @@ data Term
   -- used. Otherwise, no colors are used.
   deriving (Eq, Show)
 
-
--- | Determines which Term to use based on the TERM environment
--- variable, regardless of whether standard output is a
--- terminal. Uses Dumb if TERM is not set.
-termFromEnv :: S.Runtime -> Term
-termFromEnv rt = case S.term rt of
-  Just t -> TermName . S.unTerm $ t
-  Nothing -> Dumb
-
--- | Determines which Term to use based on whether standard output is
--- a terminal. Uses Dumb if standard output is not a terminal;
--- otherwise, uses the TERM environment variable.
-autoTerm :: S.Runtime -> Term
-autoTerm rt = case S.output rt of
-  S.IsTTY -> termFromEnv rt
-  S.NotTTY -> Dumb
 
 -- For Background8, Background256, Foreground8, Foreground256: the
 -- newtype wraps a Terminfo Color. If Nothing, use the default color.
@@ -707,7 +688,7 @@ printChunks t cs = do
   T.runTermOutput term (defaultColors term)
   T.runTermOutput term
     $ case T.getCapability term T.allAttributesOff of
-        Nothing -> error $ "Penny.Cabin.Chunk.printChunks: error: "
+        Nothing -> error $ "Penny.Steel.Chunk.printChunks: error: "
                    ++ "allAttributesOff failed"
         Just s -> s
 
@@ -833,7 +814,7 @@ commonAttrs t s =
         , T.protectedAttr = False
         }
   in case T.getCapability t (T.setAttributes) of
-      Nothing -> error $ "Penny.Cabin.Chunk: commonAttrs: "
+      Nothing -> error $ "Penny.Steel.Chunk: commonAttrs: "
                  ++ "capability failed; should never happen"
       Just f -> f a
 

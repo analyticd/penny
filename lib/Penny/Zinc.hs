@@ -7,7 +7,7 @@ module Penny.Zinc
   , runZinc
   ) where
 
-import qualified Penny.Cabin.Chunk as Chk
+import qualified Penny.Steel.Chunk as Chk
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Cabin.Scheme as E
