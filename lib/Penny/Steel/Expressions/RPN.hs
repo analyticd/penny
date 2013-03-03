@@ -7,12 +7,11 @@ module Penny.Steel.Expressions.RPN where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as Fdbl
-import Data.Text (Text)
 import qualified Penny.Steel.Predtree as P
 import Penny.Steel.Predtree ((&&&), (|||))
 
 data RPNToken a
-  = TokOperand Text (a -> Bool)
+  = TokOperand (P.Pdct a)
   -- ^ The Text describes the operand, for use in error messages and
   -- for printing a diagnostic tree.
   | TokOperator Operator
@@ -21,14 +20,16 @@ data Operator
   = OpAnd
   | OpOr
   | OpNot
+  deriving Show
 
 data RPNError a
   = InsufficientStack Operator
   | EmptyStack
   | FullStack [P.Pdct a]
+  deriving Show
 
-pushOperand :: Text -> (a -> Bool) -> [P.Pdct a] -> [P.Pdct a]
-pushOperand s p ts = P.operand s p : ts
+pushOperand :: P.Pdct a -> [P.Pdct a] -> [P.Pdct a]
+pushOperand p ts = p : ts
 
 pushOperator
   :: Operator
@@ -50,7 +51,7 @@ pushToken
   -> RPNToken a
   -> Ex.Exceptional (RPNError a) [P.Pdct a]
 pushToken ts t = case t of
-  TokOperand d p -> return $ pushOperand d p ts
+  TokOperand p -> return $ pushOperand p ts
   TokOperator o -> pushOperator o ts
 
 pushTokens

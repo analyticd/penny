@@ -53,7 +53,7 @@ processRPNToken
   -> R.RPNToken a
   -> ([OpStackVal], [R.RPNToken a])
 processRPNToken (os, ts) t = case t of
-  p@(R.TokOperand _ _) -> (os, p:ts)
+  p@(R.TokOperand _) -> (os, p:ts)
   R.TokOperator d -> case d of
     R.OpNot -> (StkOp R.OpNot : os, ts)
     R.OpAnd -> (StkOp R.OpAnd : os, ts)

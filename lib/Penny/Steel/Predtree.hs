@@ -34,6 +34,9 @@ type Label = Text
 -- | A tree of predicates.
 data Pdct a = Pdct Label (Node a)
 
+instance Show (Pdct a) where
+  show = X.unpack . showPdct 4 0
+
 -- | Renames the top level of the Pdct. The function you pass will be
 -- applied to the old name.
 rename :: (Text -> Text) -> Pdct a -> Pdct a

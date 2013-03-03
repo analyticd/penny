@@ -17,13 +17,12 @@ import qualified Penny.Steel.Expressions.Infix as I
 import qualified Penny.Steel.Expressions.RPN as R
 import qualified Penny.Steel.Predtree as P
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Data.Text as X
 
 -- | A single type for both RPN tokens and infix tokens.
 newtype Token a = Token { unToken :: I.InfixToken a }
 
-operand :: X.Text -> (a -> Bool) -> Token a
-operand s p = Token (I.TokRPN (R.TokOperand s p))
+operand :: P.Pdct a -> Token a
+operand p = Token (I.TokRPN (R.TokOperand p))
 
 opAnd :: Token a
 opAnd = Token (I.TokRPN (R.TokOperator R.OpAnd))
@@ -47,6 +46,7 @@ data ExprDesc
 data ExprError a = UnbalancedParen
                  | RPNErr (R.RPNError a)
                  | ParenInRPN
+                 deriving Show
 
 toksToRPN :: [Token a] -> Maybe [R.RPNToken a]
 toksToRPN toks

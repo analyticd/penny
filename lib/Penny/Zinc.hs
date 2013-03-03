@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+
 -- | Zinc - the Penny command-line interface
 module Penny.Zinc
   ( Defaults(..)
@@ -19,6 +21,7 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
 
 import Control.Applicative ((<$>), (<*>), pure)
+import qualified Control.Exception as CE
 import Control.Monad (when)
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -28,6 +31,7 @@ import Data.Maybe (mapMaybe, catMaybes)
 import Data.Monoid (mappend, mconcat)
 import Data.Ord (comparing)
 import Data.Text (Text, pack, unpack)
+import Data.Typeable (Typeable)
 import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
 import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
@@ -84,6 +88,8 @@ data Defaults = Defaults
     -- are equal, use
     --
     -- > [(Date, Ascending), (Payee, Ascending)]
+
+  , exprDesc :: X.ExprDesc
   }
 
 sortPairToFn :: (SortField, P.SortOrder) -> Orderer
@@ -127,8 +133,7 @@ sortPairsToFn = mconcat . map sortPairToFn
 
 data State = State
   { stSensitive :: M.CaseSensitive
-  , stFactory :: M.CaseSensitive -> Text
-               -> Ex.Exceptional Text (Text -> Bool)
+  , stFactory :: Factory
   , stColorToFile :: ColorToFile
   , stScheme :: Maybe E.TextSpecs
   }
@@ -139,10 +144,10 @@ stateFromDefaults
 stateFromDefaults df = State
   { stSensitive = sensitive df
   , stFactory = case matcher df of
-      Within -> \c t -> return (M.match $ M.within c t)
-      Exact -> \c t -> return (M.match $ M.exact c t)
-      TDFA -> \c t -> fmap M.match (M.tdfa c t)
-      PCRE -> \c t -> fmap M.match (M.pcre c t)
+      Within -> \c t -> return (M.within c t)
+      Exact -> \c t -> return (M.exact c t)
+      TDFA -> M.tdfa
+      PCRE -> M.pcre
   , stColorToFile = colorToFile df
   , stScheme = fmap E.textSpecs . defaultScheme $ df
   }
@@ -165,10 +170,11 @@ data OptResult
   | RSortSpec (Ex.Exceptional String Orderer)
   | RColorToFile ColorToFile
   | RScheme E.TextSpecs
+  | RExprDesc X.ExprDesc
 
 getPostFilters
   :: [OptResult]
-  -> Ex.Exceptional String [Ly.PostFilterFn]
+  -> Ex.Exceptional Ly.BadHeadTailError [Ly.PostFilterFn]
 getPostFilters =
   sequence
   . mapMaybe f
@@ -191,7 +197,7 @@ getSortSpec i ls =
      else fmap mconcat . sequence $ exSpecs
 
 type Factory = M.CaseSensitive
-             -> Text -> Ex.Exceptional Text (Text -> Bool)
+             -> Text -> Ex.Exceptional Text M.Matcher
 
 makeToken
   :: OptResult
@@ -200,8 +206,7 @@ makeToken
 makeToken o = case o of
   ROperand f -> do
     (s, fty) <- St.get
-    let g = fmap h (f s fty)
-        h (X.Operand fn) = Ly.TokOperand fn
+    let g = fmap X.operand (f s fty)
     return (Just g)
   RMatcherSelect f -> do
     (c, _) <- St.get
@@ -218,8 +223,8 @@ makeToken o = case o of
 makeTokens
   :: State
   -> [OptResult]
-  -> Ex.Exceptional String ( [Ly.Token (L.PostFam -> Bool)]
-                           , (M.CaseSensitive, Factory) )
+  -> Ex.Exceptional Ly.OperandError ( [X.Token L.PostFam]
+                                    , (M.CaseSensitive, Factory) )
 makeTokens df os =
   let initSt = (stSensitive df, stFactory df)
       lsSt = mapM makeToken os
@@ -239,6 +244,7 @@ allOpts dt df =
   ++ [ optColorToFile ]
   ++ let ss = moreSchemes df
      in if not . null $ ss then [optScheme ss] else []
+  ++ map (fmap RExprDesc) Ly.exprDesc
 
 optColorToFile :: MA.OptSpec OptResult
 optColorToFile = MA.OptSpec ["color-to-file"] "" (MA.ChoiceArg ls)
@@ -283,7 +289,8 @@ data FilterOpts = FilterOpts
     -- ^ Indicated case sensitivity, so that it can be used in
     -- subsequent parses of the command line.
 
-  , _sorterFilterer :: [L.Transaction] -> [L.Box Ly.LibertyMeta]
+  , _sorterFilterer :: [L.Transaction]
+                    -> (Text, [L.Box Ly.LibertyMeta])
     -- ^ Applied to a list of Transaction, will sort and filter
     -- the transactions and assign them LibertyMeta.
 
@@ -301,23 +308,32 @@ processGlobal
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 processGlobal rt srt st rpts os
   = case processFiltOpts srt st os of
-      Ex.Exception s -> Left $ const (fail s)
+      Ex.Exception s -> Left $ (const $ CE.throwIO s)
       Ex.Success fo -> Right $ map (makeMode rt fo) rpts
 
+
+data FiltProcessError
+  = FPOperandError Ly.OperandError
+  | FPSortSpecError String
+  | FPBadHeadTailError Ly.BadHeadTailError
+  | FPParsePredicateError (X.ExprError L.PostFam)
+  deriving (Typeable, Show)
+
+instance CE.Exception FiltProcessError
 
 processFiltOpts
   :: Orderer
   -> State
   -> [OptResult]
-  -> Ex.Exceptional String FilterOpts
+  -> Ex.Exceptional FiltProcessError FilterOpts
 processFiltOpts ord st os = do
-  postFilts <- getPostFilters os
-  sortSpec <- getSortSpec ord os
-  (toks, (rs, rf)) <- makeTokens st os
+  postFilts <- Ex.mapException FPBadHeadTailError $ getPostFilters os
+  sortSpec <- Ex.mapException FPSortSpecError $ getSortSpec ord os
+  (toks, (rs, rf)) <- Ex.mapException FPOperandError $ makeTokens st os
   let ctf = getColorToFile st os
       sch = getScheme st os
       err = "could not parse filter expression."
-  pdct <- Ex.fromMaybe err $ Ly.parsePredicate toks
+  pdct <- Ex.mapException FPParsePredicateError $ Ly.parsePredicate toks
   let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
   return $ FilterOpts rf rs sf sch ctf
 
@@ -334,8 +350,8 @@ makeMode rt (FilterOpts fty cs srtFilt ts ctf) r = fmap makeIO mode
       ledgers <- readLedgers posArgs
       (txns, pps) <- Ex.switch fail return $ parseLedgers ledgers
       let term = if unColorToFile ctf
-                 then Chk.termFromEnv rt
-                 else Chk.autoTerm rt
+                 then S.termFromEnv rt
+                 else S.autoTerm rt
       Ex.switch (fail . unpack) (printChunks term ts)
         $ printRpt txns pps
 

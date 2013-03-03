@@ -236,6 +236,7 @@ data DateOptError
   | DateOptBadDate Text Text
   -- ^ Bad date string provided; the first argument is the bad input,
   -- and the second is the error message.
+  deriving Show
 
 -- | OptSpec for a date.
 date :: OptSpec (Ex.Exceptional DateOptError Operand)
@@ -264,6 +265,7 @@ parseInt t =
 
 
 data BadPatternError = BadPatternError Text
+  deriving Show
 
 -- | Creates options that add an operand that matches the posting if a
 -- particluar field matches the pattern given.
@@ -301,6 +303,7 @@ account = C.OptSpec ["account"] "a" (C.OneArg f)
 data AccountLevelError
   = AccountLevelBadLevel Text
   | AccountLevelBadPattern BadPatternError
+  deriving Show
 
 -- | The account-level option; matches if the account at the given
 -- level matches.
@@ -374,6 +377,7 @@ data QtyError
   -- ^ The user passed a bad string for the quantity. The first
   -- argument is the bad quantity given; the second is the error
   -- message.
+  deriving Show
 
 qtyOption :: OptSpec (Ex.Exceptional QtyError Operand)
 qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
@@ -393,6 +397,7 @@ data BadSerialError
 
   | BadSerialNumber Text
   -- ^ Bad input for number; the Text is the bad input
+  deriving Show
 
 -- | Creates two options suitable for comparison of serial numbers,
 -- one for ascending, one for descending.
@@ -511,6 +516,7 @@ data OperandError
   | OEAccountLevelError AccountLevelError
   | OEQtyError QtyError
   | OEBadSerialError BadSerialError
+  deriving Show
 
 
 -- | All operand OptSpec.
@@ -565,6 +571,7 @@ unDouble (o1, o2) = [fmap f o1, fmap f o2]
 -- | The user passed a bad number for the head or tail option. The
 -- argument is the bad number passed.
 data BadHeadTailError = BadHeadTailError Text
+  deriving Show
 
 optHead :: OptSpec (Ex.Exceptional BadHeadTailError PostFilterFn)
 optHead = C.OptSpec ["head"] [] (C.OneArg f)
