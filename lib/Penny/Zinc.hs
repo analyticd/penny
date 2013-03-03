@@ -13,7 +13,7 @@ import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Copper as C
 import qualified Penny.Liberty as Ly
-import qualified Penny.Liberty.Expressions as X
+import qualified Penny.Steel.Expressions as X
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
@@ -157,11 +157,11 @@ stateFromDefaults df = State
 data OptResult
   = ROperand (M.CaseSensitive
              -> Ly.MatcherFactory
-             -> Ex.Exceptional String Ly.Operand)
-  | RPostFilter (Ex.Exceptional String Ly.PostFilterFn)
+             -> Ex.Exceptional Ly.OperandError Ly.Operand)
+  | RPostFilter (Ex.Exceptional Ly.BadHeadTailError Ly.PostFilterFn)
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
-  | ROperator (Ly.Token (L.PostFam -> Bool))
+  | ROperator (X.Token L.PostFam)
   | RSortSpec (Ex.Exceptional String Orderer)
   | RColorToFile ColorToFile
   | RScheme E.TextSpecs
@@ -196,7 +196,7 @@ type Factory = M.CaseSensitive
 makeToken
   :: OptResult
   -> St.State (M.CaseSensitive, Factory)
-              (Maybe (Ex.Exceptional String (Ly.Token (L.PostFam -> Bool))))
+              (Maybe (Ex.Exceptional Ly.OperandError (X.Token L.PostFam)))
 makeToken o = case o of
   ROperand f -> do
     (s, fty) <- St.get

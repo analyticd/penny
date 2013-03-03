@@ -4,7 +4,7 @@
 -- matches something, often a PostFam. Useful when filtering
 -- Postings.
 module Penny.Lincoln.Predicates
-  ( Pdct(..)
+  ( LPdct
   , MakePdct
   , payee
   , number
@@ -41,15 +41,11 @@ import qualified Penny.Lincoln.Queries as Q
 import Penny.Lincoln.Transaction (PostFam)
 import qualified Penny.Lincoln.Transaction as T
 import qualified Text.Matchers as M
+import qualified Penny.Steel.Predtree as P
 
--- | Predicates also come with a description, which is useful for
--- giving diagnostics to the user.
-data Pdct = Pdct
-  { testPostFam :: PostFam -> Bool
-  , description :: Text
-  }
+type LPdct = P.Pdct PostFam
 
-type MakePdct = M.Matcher -> Pdct
+type MakePdct = M.Matcher -> LPdct
 
 -- * Matching helpers
 match
@@ -59,8 +55,8 @@ match
   -> (PostFam -> a)
   -- ^ Function that returns the field being matched
   -> M.Matcher
-  -> Pdct
-match t f m = Pdct pd desc
+  -> LPdct
+match t f m = P.operand desc pd
   where
     desc = makeDesc t m
     pd = M.match m . text . f
@@ -71,8 +67,8 @@ matchMaybe
   -- ^ Description of this field
   -> (PostFam -> Maybe a)
   -> M.Matcher
-  -> Pdct
-matchMaybe t f m = Pdct pd desc
+  -> LPdct
+matchMaybe t f m = P.operand desc pd
   where
     desc = makeDesc t m
     pd = maybe False (M.match m . text) . f
@@ -89,8 +85,8 @@ matchAny
   => Text
   -> (PostFam -> a)
   -> M.Matcher
-  -> Pdct
-matchAny t f m = Pdct pd desc
+  -> LPdct
+matchAny t f m = P.operand desc pd
   where
     desc = makeDesc t m
     pd = any (M.match m) . textList . f
@@ -104,8 +100,8 @@ matchLevel
   -> Text
   -> (PostFam -> a)
   -> M.Matcher
-  -> Pdct
-matchLevel l d f m = Pdct pd desc
+  -> LPdct
+matchLevel l d f m = P.operand desc pd
   where
     desc = makeDesc ("level " <> X.pack (show l) <> " of " <> d) m
     pd pf = let ts = textList (f pf)
@@ -119,8 +115,8 @@ matchMemo
   :: Text
   -> (PostFam -> Maybe B.Memo)
   -> M.Matcher
-  -> Pdct
-matchMemo t f m = Pdct pd desc
+  -> LPdct
+matchMemo t f m = P.operand desc pd
   where
     desc = makeDesc t m
     pd = maybe False doMatch . f
@@ -136,7 +132,7 @@ matchDelimited
   -- ^ Label
   -> (PostFam -> a)
   -> M.Matcher
-  -> Pdct
+  -> LPdct
 matchDelimited sep lbl f m = match lbl f' m
   where
     f' = X.concat . intersperse sep . textList . f
@@ -195,47 +191,47 @@ descComp c = case c of
 date
   :: Comp
   -> Time.UTCTime
-  -> Pdct
-date c d = Pdct pd desc
+  -> LPdct
+date c d = P.operand desc pd
   where
     desc = "UTC date is " <> dd <> " " <> X.pack (show d)
     (dd, cmp) = descComp c
     pd pf = (B.toUTC . Q.dateTime $ pf) `cmp` d
 
 
-qty :: Comp -> B.Qty -> Pdct
-qty c q = Pdct pd desc
+qty :: Comp -> B.Qty -> LPdct
+qty c q = P.operand desc pd
   where
     desc = "quantity is " <> dd <> " " <> X.pack (show q)
     (dd, cmp) = descComp c
     pd pf = (Q.qty pf) `cmp` q
 
-drCr :: B.DrCr -> Pdct
-drCr dc = Pdct pd desc
+drCr :: B.DrCr -> LPdct
+drCr dc = P.operand desc pd
   where
     desc = "entry is a " <> s
     s = case dc of { B.Debit -> "debit"; B.Credit -> "credit" }
     pd pf = Q.drCr pf == dc
 
-debit :: Pdct
+debit :: LPdct
 debit = drCr B.Debit
 
-credit :: Pdct
+credit :: LPdct
 credit = drCr B.Credit
 
-commodity :: M.Matcher -> Pdct
+commodity :: M.Matcher -> LPdct
 commodity = match "commodity" Q.commodity
 
-account :: M.Matcher -> Pdct
+account :: M.Matcher -> LPdct
 account = matchDelimited ":" "account" Q.account
 
-accountLevel :: Int -> M.Matcher -> Pdct
+accountLevel :: Int -> M.Matcher -> LPdct
 accountLevel i = matchLevel i "account" Q.account
 
-accountAny :: M.Matcher -> Pdct
+accountAny :: M.Matcher -> LPdct
 accountAny = matchAny "any sub-account" Q.account
 
-tag :: M.Matcher -> Pdct
+tag :: M.Matcher -> LPdct
 tag = matchAny "any tag" Q.tags
 
 -- | Returns True if these two transactions are clones; that is, if

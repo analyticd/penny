@@ -14,7 +14,7 @@ import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Liberty as Ly
-import qualified Penny.Liberty.Expressions as Exp
+import qualified Penny.Steel.Expressions as Exp
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import qualified Text.Matchers as M

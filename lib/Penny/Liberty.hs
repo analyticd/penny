@@ -32,13 +32,18 @@ module Penny.Liberty (
   postFilterSpecs,
   matcherSelectSpecs,
   caseSelectSpecs,
-  operatorSpecs
+  operatorSpecs,
+
+  -- * Errors
+  OperandError(..),
+  BadHeadTailError(..)
 
   ) where
 
 import Control.Applicative ((<*>), (<$>), pure, Applicative)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper)
+import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
 import Data.List (sortBy)
 import Data.Text (Text, pack)
@@ -52,6 +57,7 @@ import qualified Penny.Copper.Parsec as Pc
 
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
+import qualified Penny.Steel.Predtree as E
 import qualified Penny.Lincoln as L
 import qualified Penny.Steel.Expressions as X
 
@@ -82,9 +88,9 @@ data LibertyMeta =
 parsePredicate
   :: X.ExprDesc
   -> [X.Token a]
-  -> Ex.Exceptional (X.ExprError a) (X.Tree a)
+  -> Ex.Exceptional (X.ExprError a) (E.Pdct a)
 parsePredicate d ls = case ls of
-  [] -> return X.always
+  [] -> return E.always
   _ -> X.parseExpression d ls
 
 -- | Takes a list of transactions, splits them into PostingChild
@@ -93,7 +99,7 @@ parsePredicate d ls = case ls of
 -- containing a description of the evalutation process.
 xactionsToFiltered ::
 
-  X.Tree L.PostFam
+  P.LPdct
   -- ^ The predicate to filter the transactions
 
   -> [PostFilterFn]
@@ -109,7 +115,11 @@ xactionsToFiltered ::
   -- ^ Sorted, filtered postings
 
 xactionsToFiltered pdct postFilts s txns =
-  let pairs = map (\i -> X.verboseEval indentAmt i 0 pdct) pfs
+  let pairMaybes = map (\i -> E.evaluate indentAmt True i 0 pdct) pfs
+      pairs = mapMaybe rmMaybe pairMaybes
+      rmMaybe (mayB, x) = case mayB of
+        Nothing -> Nothing
+        Just b -> Just (b, x)
       pfs = concatMap L.postFam txns
       txt = Text.concat . map snd $ pairs
       filtered = map snd . filter fst $ zipWith zipper pairs pfs
@@ -123,7 +133,7 @@ xactionsToFiltered pdct postFilts s txns =
   in (txt, resultLs)
 
 
-indentAmt :: X.IndentAmt
+indentAmt :: E.IndentAmt
 indentAmt = 4
 
 -- | Transforms a PostingChild into a Box.
@@ -156,8 +166,6 @@ type MatcherFactory =
   CaseSensitive
   -> Text
   -> Ex.Exceptional Text TM.Matcher
-
-type Operand = X.Token L.PostFam
 
 newtype ListLength = ListLength { unListLength :: Int }
                      deriving (Eq, Ord, Show)
@@ -218,6 +226,8 @@ parseDate =
   . parse Pc.dateTime ""
   . pack
 
+type Operand = E.Pdct L.PostFam
+
 data DateOptError
   = DateOptBadComparer Text
   -- ^ Bad comparer text provided; the argument is the text that was
@@ -226,9 +236,6 @@ data DateOptError
   | DateOptBadDate Text Text
   -- ^ Bad date string provided; the first argument is the bad input,
   -- and the second is the error message.
-
-pdctToOperand :: P.Pdct -> Operand
-pdctToOperand (P.Pdct pd d) = X.operand d pd
 
 -- | OptSpec for a date.
 date :: OptSpec (Ex.Exceptional DateOptError Operand)
@@ -240,13 +247,13 @@ date = C.OptSpec ["date"] ['d'] (C.TwoArg f)
           (parseComparer a1)
       <*> Ex.mapException (DateOptBadDate (pack a2))
           (parseDate a2)
-    g cmp dt = pdctToOperand $ P.date cmp dt
+    g cmp dt = P.date cmp dt
 
 
 current :: L.DateTime -> OptSpec Operand
 current dt = C.OptSpec ["current"] [] (C.NoArg f)
   where
-    f = pdctToOperand $ P.date P.DLTEQ (L.toUTC dt)
+    f = P.date P.DLTEQ (L.toUTC dt)
 
 -- | Parses exactly one integer; fails if it cannot read exactly one.
 parseInt :: String -> Maybe Int
@@ -267,7 +274,7 @@ patternOption ::
   -> Maybe Char
   -- ^ Short option, if included
 
-  -> (TM.Matcher -> P.Pdct)
+  -> (TM.Matcher -> P.LPdct)
   -- ^ When applied to a Matcher, this function returns a predicate.
 
   -> OptSpec ( CaseSensitive
@@ -276,8 +283,7 @@ patternOption ::
 patternOption str mc f = C.OptSpec [str] so (C.OneArg g)
   where
     so = maybe [] (:[]) mc
-    g a1 cs fty = h <$> getMatcher a1 cs fty
-    h mtchr = pdctToOperand (f mtchr)
+    g a1 cs fty = f <$> getMatcher a1 cs fty
 
 
 -- | The account option; matches if the pattern given matches the
@@ -288,7 +294,7 @@ account :: OptSpec ( CaseSensitive
 account = C.OptSpec ["account"] "a" (C.OneArg f)
   where
     f a1 cs fty
-      = fmap (pdctToOperand . P.account)
+      = fmap P.account
       $ getMatcher a1 cs fty
 
 
@@ -308,7 +314,7 @@ accountLevel = C.OptSpec ["account-level"] "" (C.TwoArg f)
              $ parseInt a1
       mr <- Ex.mapException AccountLevelBadPattern
             $ getMatcher a2 cs fty
-      return . pdctToOperand $ P.accountLevel lvl mr
+      return $ P.accountLevel lvl mr
 
 
 -- | The accountAny option; returns True if the matcher given matches
@@ -357,14 +363,10 @@ transactionMemo = patternOption "transaction-memo"
                   Nothing P.transactionMemo
 
 debit :: OptSpec Operand
-debit = C.OptSpec ["debit"] [] (C.NoArg f)
-  where
-    f = pdctToOperand P.debit
+debit = C.OptSpec ["debit"] [] (C.NoArg P.debit)
 
 credit :: OptSpec Operand
-credit = C.OptSpec ["credit"] [] (C.NoArg f)
-  where
-    f = pdctToOperand P.credit
+credit = C.OptSpec ["credit"] [] (C.NoArg P.credit)
 
 data QtyError
   = QtyBadComparer Text
@@ -382,7 +384,7 @@ qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
       qty <- Ex.mapException (QtyBadQty (pack a2) . pack . show )
              . Ex.fromEither
              $ parse Pc.quantity "" (pack a2)
-      return . pdctToOperand $ P.qty comp qty
+      return $ P.qty comp qty
 
 
 data BadSerialError
@@ -423,7 +425,7 @@ serialOption getSerial n = (osA, osD)
             Just ser -> getInt ser `cmpFn` num
           (cmpDesc, cmpFn) = P.descComp cmp
           desc = pack n <> " is " <> cmpDesc <> " " <> (pack . show $ num)
-      return (X.operand desc op)
+      return (E.operand desc op)
 
 
 -- | Takes a string, adds a prefix and capitalizes the first letter of

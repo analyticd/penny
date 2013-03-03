@@ -9,20 +9,13 @@ module Penny.Steel.Expressions
   , openParen
   , closeParen
   , parseExpression
-  , R.Tree(..)
   , R.RPNError(..)
-  , R.always
-  , R.never
-  , (R.&&&)
-  , (R.|||)
-  , R.verboseEval
-  , R.IndentAmt
-  , R.Level
   ) where
 
 import Data.Either (partitionEithers)
 import qualified Penny.Steel.Expressions.Infix as I
 import qualified Penny.Steel.Expressions.RPN as R
+import qualified Penny.Steel.Predtree as P
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 
@@ -67,7 +60,7 @@ toksToRPN toks
 parseExpression
   :: ExprDesc
   -> [Token a]
-  -> Ex.Exceptional (ExprError a) (R.Tree a)
+  -> Ex.Exceptional (ExprError a) (P.Pdct a)
 parseExpression e toks = do
   rpnToks <- case e of
     Infix -> Ex.fromMaybe UnbalancedParen

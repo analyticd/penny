@@ -101,9 +101,6 @@ Library
     , Penny.Copper.Terminals
     , Penny.Copper.Types
     , Penny.Liberty
-    , Penny.Liberty.Expressions
-    , Penny.Liberty.Expressions.Infix
-    , Penny.Liberty.Expressions.RPN
     , Penny.Lincoln
     , Penny.Lincoln.Balance
     , Penny.Lincoln.Bits

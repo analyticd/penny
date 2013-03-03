@@ -9,6 +9,7 @@ module Penny.Steel.Predtree
   , pdctAnd
   , pdctOr
   , pdctNot
+  , pNot
   , operand
   , neverFalse
   , neverTrue
@@ -17,10 +18,13 @@ module Penny.Steel.Predtree
   , Level
   , IndentAmt
   , showPdct
+  , rename
+  , eval
   , evaluate
   ) where
 
-import Data.Maybe (fromMaybe)
+import Control.Applicative ((<*>))
+import Data.Maybe (fromMaybe, isJust, catMaybes)
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Monoid ((<>), mconcat)
@@ -29,6 +33,11 @@ type Label = Text
 
 -- | A tree of predicates.
 data Pdct a = Pdct Label (Node a)
+
+-- | Renames the top level of the Pdct. The function you pass will be
+-- applied to the old name.
+rename :: (Text -> Text) -> Pdct a -> Pdct a
+rename f (Pdct l n) = Pdct (f l) n
 
 data Node a
   = And [Pdct a]
@@ -52,6 +61,9 @@ pdctOr t = Pdct t . Or
 
 pdctNot :: Text -> Pdct a -> Pdct a
 pdctNot t = Pdct t . Not
+
+pNot :: Pdct a -> Pdct a
+pNot = pdctNot (X.pack "not")
 
 -- | Creates a new operand. The Pdct is Just True or Just False, never
 -- Nothing.
@@ -120,48 +132,82 @@ labelBool :: Text -> Maybe Bool -> Text
 labelBool t b = trueFalse <> " " <> t
   where
     trueFalse = case b of
-      Nothing -> "[skip] "
-      Just bl -> if bl then "[TRUE] " else "[FALSE]"
+      Nothing -> "[discard] "
+      Just bl -> if bl then "[TRUE]    " else "[FALSE]   "
 
-evaluate :: IndentAmt -> a -> Level -> Pdct a -> (Maybe Bool, Text)
-evaluate i a lvl (Pdct l pd) = case pd of
-  And ps -> let (resBool, resTxt) = evalAnd i a (lvl + 1) ps
+type ShowDiscards = Bool
+
+-- | Evaluates a Pdct.
+eval :: Pdct a -> a -> Maybe Bool
+eval (Pdct _ n) a = case n of
+  And ps -> Just . and . catMaybes $ [flip eval a] <*> ps
+  Or ps -> Just . or . catMaybes $ [flip eval a] <*> ps
+  Not p -> fmap not $ eval p a
+  Operand f -> f a
+
+-- | Verbosely evaluates a Pdct.
+evaluate
+  :: IndentAmt
+  -- ^ Indent each level by this many spaces.
+
+  -> ShowDiscards
+  -- ^ If True, show discarded test results; otherwise, hide
+  -- them.
+
+  -> a
+  -- ^ The subject to evaluate
+
+  -> Level
+  -- ^ How many levels deep in the tree we are. Start at level 0. This
+  -- determines the level of indentation.
+  -> Pdct a
+  -> (Maybe Bool, Text)
+evaluate i sd a lvl (Pdct l pd) = case pd of
+
+  And ps -> let (resBool, resTxt) = evalAnd i sd a (lvl + 1) ps
                 txt = indent i lvl (labelBool l (Just resBool))
                         <> resTxt
             in (Just resBool, txt)
-  Or ps -> let (resBool, resTxt) = evalOr i a (lvl + 1) ps
+
+  Or ps -> let (resBool, resTxt) = evalOr i sd a (lvl + 1) ps
                txt = indent i lvl (labelBool l (Just resBool))
                         <> resTxt
            in (Just resBool, txt)
-  Not p -> let (childMayBool, childTxt) = evaluate i a (lvl + 1) p
-               thisMayBool = fmap not childMayBool
-               txt = indent i lvl (labelBool l thisMayBool)
-                        <> childTxt
-           in (thisMayBool, txt)
-  Operand p -> let res = p a
-               in (res, indent i lvl (labelBool l res))
 
-evalAnd :: IndentAmt -> a -> Level -> [Pdct a] -> (Bool, Text)
-evalAnd i a l ts = (not foundFalse, txt)
+  Not p -> let (childMayBool, childTxt) = evaluate i sd a (lvl + 1) p
+               thisMayBool = fmap not childMayBool
+               thisTxt = indent i lvl (labelBool l thisMayBool)
+               txt = if sd || isJust thisMayBool
+                     then thisTxt <> childTxt else X.empty
+           in (thisMayBool, txt)
+
+  Operand p -> let res = p a
+                   txt = indent i lvl (labelBool l res)
+               in (res, if sd || isJust res then txt else X.empty)
+
+evalAnd :: IndentAmt -> ShowDiscards -> a
+        -> Level -> [Pdct a] -> (Bool, Text)
+evalAnd i sd a l ts = (not foundFalse, txt)
   where
     (foundFalse, txt) = go ts (False, X.empty)
     go [] p = p
     go (x:xs) (fndFalse, acc) =
       if fndFalse
       then (fndFalse, acc <> indent i l "(short circuit)")
-      else let (res, cTxt) = evaluate i a l x
+      else let (res, cTxt) = evaluate i sd a l x
                fndFalse' = maybe False not res
            in go xs (fndFalse', acc <> cTxt)
 
-evalOr :: IndentAmt -> a -> Level -> [Pdct a] -> (Bool, Text)
-evalOr i a l ts = (foundTrue, txt)
+evalOr :: IndentAmt -> ShowDiscards -> a
+       -> Level -> [Pdct a] -> (Bool, Text)
+evalOr i sd a l ts = (foundTrue, txt)
   where
     (foundTrue, txt) = go ts (False, X.empty)
     go [] p = p
     go (x:xs) (fnd, acc) =
       if fnd
       then (fnd, acc <> indent i l "(short circuit)")
-      else let (res, cTxt) = evaluate i a l x
+      else let (res, cTxt) = evaluate i sd a l x
                fnd' = fromMaybe False res
            in go xs (fnd', acc <> cTxt)
 
