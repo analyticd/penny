@@ -42,6 +42,7 @@ closeParen = Token (I.TokParen I.Close)
 data ExprDesc
   = Infix
   | RPN
+  deriving (Eq, Show)
 
 data ExprError a = UnbalancedParen
                  | RPNErr (R.RPNError a)

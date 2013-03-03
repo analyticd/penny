@@ -6,6 +6,7 @@ import qualified Penny.Cabin.Scheme as S
 import Control.Monad.Exception.Synchronous (Exceptional)
 import qualified Data.Text as X
 import Text.Matchers (CaseSensitive)
+import qualified Text.Matchers as TM
 import qualified System.Console.MultiArg as MA
 
 import qualified Penny.Lincoln as L
@@ -47,7 +48,7 @@ type MkReport
   -- case sensitivity (this may have been changed in the filtering
   -- options)
 
-  -> (CaseSensitive -> X.Text -> Exceptional X.Text (X.Text -> Bool))
+  -> (CaseSensitive -> X.Text -> Exceptional X.Text TM.Matcher)
   -- ^ Result from previous parsers indicating the matcher factory the
   -- user wishes to use
 

@@ -43,11 +43,10 @@ runZinc
   -> [I.Report]
   -> IO ()
 runZinc df rt rs = do
-  let st = stateFromDefaults df
-      ord = sortPairsToFn . sorter $ df
+  let ord = sortPairsToFn . sorter $ df
       hlp = helpText df rt rs
   act <- MA.modesWithHelp hlp (allOpts (S.currentTime rt) df)
-    (processGlobal rt ord st rs)
+    (processGlobal rt ord df rs)
   act
 
 
@@ -131,27 +130,6 @@ descRest p = "    then: " ++ descPair p
 sortPairsToFn :: [(SortField, P.SortOrder)] -> Orderer
 sortPairsToFn = mconcat . map sortPairToFn
 
-data State = State
-  { stSensitive :: M.CaseSensitive
-  , stFactory :: Factory
-  , stColorToFile :: ColorToFile
-  , stScheme :: Maybe E.TextSpecs
-  }
-
-stateFromDefaults
-  :: Defaults
-  -> State
-stateFromDefaults df = State
-  { stSensitive = sensitive df
-  , stFactory = case matcher df of
-      Within -> \c t -> return (M.within c t)
-      Exact -> \c t -> return (M.exact c t)
-      TDFA -> M.tdfa
-      PCRE -> M.pcre
-  , stColorToFile = colorToFile df
-  , stScheme = fmap E.textSpecs . defaultScheme $ df
-  }
-
 --
 -- ## Option parsing
 --
@@ -182,6 +160,17 @@ getPostFilters =
     f o = case o of
       RPostFilter pf -> Just pf
       _ -> Nothing
+
+getExprDesc
+  :: Defaults
+  -> [OptResult]
+  -> X.ExprDesc
+getExprDesc df os = case mapMaybe f os of
+  [] -> exprDesc df
+  xs -> last xs
+  where
+    f (RExprDesc d) = Just d
+    f _ = Nothing
 
 getSortSpec
   :: Orderer
@@ -221,12 +210,17 @@ makeToken o = case o of
 
 
 makeTokens
-  :: State
+  :: Defaults
   -> [OptResult]
   -> Ex.Exceptional Ly.OperandError ( [X.Token L.PostFam]
                                     , (M.CaseSensitive, Factory) )
 makeTokens df os =
-  let initSt = (stSensitive df, stFactory df)
+  let initSt = (sensitive df, fty)
+      fty = case matcher df of
+        Within -> \c t -> return (M.within c t)
+        Exact -> \c t -> return (M.exact c t)
+        TDFA -> M.tdfa
+        PCRE -> M.pcre
       lsSt = mapM makeToken os
       (ls, st') = St.runState lsSt initSt
   in fmap (\xs -> (xs, st')) . sequence . catMaybes $ ls
@@ -252,10 +246,10 @@ optColorToFile = MA.OptSpec ["color-to-file"] "" (MA.ChoiceArg ls)
     ls = [ ("yes", RColorToFile $ ColorToFile True)
          , ("no", RColorToFile $ ColorToFile False) ]
 
-getColorToFile :: State -> [OptResult] -> ColorToFile
+getColorToFile :: Defaults -> [OptResult] -> ColorToFile
 getColorToFile d ls =
   case mapMaybe getOpt ls of
-    [] -> stColorToFile d
+    [] -> colorToFile d
     xs -> last xs
   where
     getOpt o = case o of
@@ -268,10 +262,10 @@ optScheme ss = MA.OptSpec ["scheme"] "" (MA.ChoiceArg ls)
     ls = map f ss
     f (E.Scheme n _ s) = (n, RScheme s)
 
-getScheme :: State -> [OptResult] -> Maybe E.TextSpecs
+getScheme :: Defaults -> [OptResult] -> Maybe E.TextSpecs
 getScheme d ls =
   case mapMaybe getOpt ls of
-    [] -> stScheme d
+    [] -> fmap E.textSpecs $ defaultScheme d
     xs -> Just $ last xs
   where
     getOpt o = case o of
@@ -280,8 +274,7 @@ getScheme d ls =
 
 -- | Indicates the result of a successful parse of filtering options.
 data FilterOpts = FilterOpts
-  { _resultFactory :: M.CaseSensitive
-                     -> Text -> Ex.Exceptional Text (Text -> Bool)
+  { _resultFactory :: Factory
     -- ^ The factory indicated, so that it can be used in
     -- subsequent parses of the same command line.
 
@@ -297,17 +290,18 @@ data FilterOpts = FilterOpts
   , _foTextSpecs :: Maybe E.TextSpecs
 
   , _foColorToFile :: ColorToFile
+  , _foExprDesc :: X.ExprDesc
   }
 
 processGlobal
   :: S.Runtime
   -> Orderer
-  -> State
+  -> Defaults
   -> [I.Report]
   -> [OptResult]
   -> Either (a -> IO ()) [MA.Mode (IO ())]
-processGlobal rt srt st rpts os
-  = case processFiltOpts srt st os of
+processGlobal rt srt df rpts os
+  = case processFiltOpts srt df os of
       Ex.Exception s -> Left $ (const $ CE.throwIO s)
       Ex.Success fo -> Right $ map (makeMode rt fo) rpts
 
@@ -323,28 +317,29 @@ instance CE.Exception FiltProcessError
 
 processFiltOpts
   :: Orderer
-  -> State
+  -> Defaults
   -> [OptResult]
   -> Ex.Exceptional FiltProcessError FilterOpts
-processFiltOpts ord st os = do
+processFiltOpts ord df os = do
   postFilts <- Ex.mapException FPBadHeadTailError $ getPostFilters os
   sortSpec <- Ex.mapException FPSortSpecError $ getSortSpec ord os
-  (toks, (rs, rf)) <- Ex.mapException FPOperandError $ makeTokens st os
-  let ctf = getColorToFile st os
-      sch = getScheme st os
-      err = "could not parse filter expression."
-  pdct <- Ex.mapException FPParsePredicateError $ Ly.parsePredicate toks
+  (toks, (rs, rf)) <- Ex.mapException FPOperandError $ makeTokens df os
+  let ctf = getColorToFile df os
+      sch = getScheme df os
+      expDsc = getExprDesc df os
+  pdct <- Ex.mapException FPParsePredicateError
+          $ Ly.parsePredicate expDsc toks
   let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
-  return $ FilterOpts rf rs sf sch ctf
+  return $ FilterOpts rf rs sf sch ctf expDsc
 
 makeMode
   :: S.Runtime
   -> FilterOpts
   -> I.Report
   -> MA.Mode (IO ())
-makeMode rt (FilterOpts fty cs srtFilt ts ctf) r = fmap makeIO mode
+makeMode rt (FilterOpts fty cs srtFilt ts ctf _) r = fmap makeIO mode
   where
-    mode = snd (r rt) cs fty srtFilt
+    mode = snd (r rt) cs fty (fmap snd srtFilt)
     makeIO parseResult = do
       (posArgs, printRpt) <- Ex.switch fail return parseResult
       ledgers <- readLedgers posArgs
@@ -611,7 +606,34 @@ help d pn = unlines $
   , "--exact"
   , "  Use \"exact\" matcher"
     ++ ifDefault (matcher d == Exact)
-
+  , ""
+  , "Infix or RPN selection"
+  , "----------------------"
+  , "--infix - use infix notation"
+    ++ ifDefault (exprDesc d == X.Infix)
+  , "-- rpn - use reverse polish notation"
+    ++ ifDefault (exprDesc d == X.RPN)
+  , ""
+  , "Infix Operators - from highest to lowest precedence"
+  , "(all are left associative)"
+  , "--------------------------"
+  , "--open expr --close"
+  , "  Force precedence (as in \"open\" and \"close\" parentheses)"
+  , "--not expr"
+  , "  True if expr is false"
+  , "expr1 --and expr2 "
+  , "  True if expr and expr2 are both true"
+  , "expr1 --or expr2"
+  , "  True if either expr1 or expr2 is true"
+  , ""
+  , "RPN Operators"
+  , "-------------"
+  , "expr --not"
+  , "  True if expr is false"
+  , "expr1 expr2 --and"
+  , "  True if expr and expr2 are both true"
+  , "expr1 expr2 --or"
+  , "  True if either expr1 or expr2 is true"
   , ""
   , "Removing postings after sorting and filtering"
   , "---------------------------------------------"
@@ -657,35 +679,6 @@ help d pn = unlines $
     if unColorToFile . colorToFile $ d then "yes)" else "no)"
   ]
 
-helpInfix :: String
-helpInfix = unlines
-  [ "Infix Operators - from highest to lowest precedence"
-  , "(all are left associative)"
-  , "--------------------------"
-  , "--open expr --close"
-  , "  Force precedence (as in \"open\" and \"close\" parentheses)"
-  , "--not expr"
-  , "  True if expr is false"
-  , "expr1 --and expr2 "
-  , "  True if expr and expr2 are both true"
-  , "expr1 --or expr2"
-  , "  True if either expr1 or expr2 is true"
-  , ""
-  ]
-
-
-helpRPN :: String
-helpRPN = unlines
-  [ "RPN Operators"
-  , "-------------"
-  , "expr --not"
-  , "  True if expr is false"
-  , "expr1 expr2 --and"
-  , "  True if expr and expr2 are both true"
-  , "expr1 expr2 --or"
-  , "  True if either expr1 or expr2 is true"
-  , ""
-  ]
 
 descScheme :: E.Scheme -> String
 descScheme (E.Scheme n d _) = "    " ++ n ++ " - " ++ d

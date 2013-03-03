@@ -256,10 +256,27 @@ The entry's quantity must fall within the given range.
 .SS Operators
 
 Each of the options above is a single operand. If you have multiple
-operands, you must join them together using operators.  These
-operators are specified below, from highest to lowest precedence. All
+operands, you must join them together using operators.  You may use
+either infix or reverse polish notation when joining operators (infix
+is the default.) When using the
+.B --infix
+or
+.B --rpn
+option, the option may appear anywhere within the posting filter
+expression.
+.
+.TP
+.B --infix
+Use infix operators (default)
+.
+.TP
+.B --rpn
+Use reverse polish notation
+.
+.SS Infix Operators
+These are the infix operators, from highest to lowest precedence. All
 operators are left associative.
-
+.
 .TP
 .BI "--open " expr " --close"
 Force precedence using parentheses. Enclose a complete expression
@@ -290,7 +307,35 @@ True if
 or
 .I expr2
 is true.
-
+.
+.SS Reverse polish notation operators
+.
+When using RPN, each of the operands shown above pushes that operand
+onto the stack. Each operand is a predicate; you can assemble these
+predicates into larger predicates. Using the
+.B --open
+or
+.B --close
+options with RPN is an error.
+.
+.TP
+.B --and
+Pops two predicates from the top of the stack, creates a new predicate
+which is true only if both predicates are true, and pushes the new
+predicate onto the stack.
+.
+.TP
+.B --or
+Pops two predicates from the top of the stack, creates a new predicate
+which is true if either predicate is true, and pushes the new
+predicate onto the stack.
+.
+.TP
+.B --not
+Pops one predicate from the top of the stack, creates a new predicate
+which is true if the origianl predicate is false, and pushes the new
+predicate onto the stack.
+.
 .SS Options affecting patterns
 
 These options affect how patterns are interpreted. The order of the
