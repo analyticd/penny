@@ -10,7 +10,8 @@ module Penny.Steel.Predtree
   , pdctOr
   , pdctNot
   , operand
-  , waffle
+  , neverFalse
+  , neverTrue
   , (&&&)
   , (|||)
   , Level
@@ -57,16 +58,29 @@ pdctNot t = Pdct t . Not
 operand :: Text -> (a -> Bool) -> Pdct a
 operand t = Pdct t . Operand . fmap Just
 
--- | Turns an existing Pdct to a waffling one. If the underlying
--- predicate returns Just True, the new Pdct also returns Just
--- True. Otherwise, the Pdct returns Nothing. (Waffles can't say no.)
--- Has no effect on non-Operand Pdct.
-waffle :: Pdct a -> Pdct a
-waffle p@(Pdct l n) = case n of
+-- | Turns an existing Pdct to one that never says False. If the
+-- underlying predicate returns Just True, the new Pdct also returns
+-- Just True. Otherwise, the Pdct returns Nothing.  Has no effect on
+-- non-Operand Pdct.
+neverFalse :: Pdct a -> Pdct a
+neverFalse p@(Pdct l n) = case n of
   Operand f ->
     let f' a = case f a of
           Nothing -> Nothing
           Just b -> if b then Just True else Nothing
+    in Pdct l (Operand f')
+  _ -> p
+
+-- | Turns an existing Pdct to one that never says True. If the
+-- underlying predicate returns Just False, the new Pdct also returns
+-- Just False. Otherwise, the Pdct returns Nothing.  Has no effect on
+-- non-Operand Pdct.
+neverTrue :: Pdct a -> Pdct a
+neverTrue p@(Pdct l n) = case n of
+  Operand f ->
+    let f' a = case f a of
+          Nothing -> Nothing
+          Just b -> if not b then Just False else Nothing
     in Pdct l (Operand f')
   _ -> p
 
