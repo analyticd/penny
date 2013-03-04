@@ -1,24 +1,5 @@
 module Penny.Wheat
   ( -- * Basic predicates
-    Pdct
-  , payee
-  , number
-  , flag
-  , postingMemo
-  , transactionMemo
-  , dateTime
-  , CompQty(..)
-  , qty
-  , drCr
-  , commodity
-  , accountIs
-  , account
-  , accountLevel
-  , accountAny
-  , tag
-
-  -- * Convenience predicates
-  , reconciled
 
   -- * Other conveniences
   , futureFirstsOfTheMonth
@@ -65,123 +46,9 @@ import Text.Matchers
 import Penny.Steel.Prednote hiding (Pdct)
 import Data.Time
 
-type Pdct = N.Pdct L.PostFam
-
--- * Pattern matching fields
-
-descItem :: Text -> M.Matcher -> Text
-descItem s m = X.concat
-  [ pack "field: ", s,  pack "; matcher description: ",
-    (M.matchDesc m) ]
-
-payee :: M.Matcher -> Pdct
-payee p = pdct (descItem (pack "payee") p) (P.payee (M.match p))
-
-
-number :: M.Matcher -> Pdct
-number p = pdct (descItem (pack "number") p) (P.number (M.match p))
-
-flag :: M.Matcher -> Pdct
-flag p = pdct (descItem (pack "flag") p) (P.flag (M.match p))
-
-postingMemo :: M.Matcher -> Pdct
-postingMemo p = pdct (descItem (pack "posting memo") p)
-                (P.postingMemo (M.match p))
-
-transactionMemo :: M.Matcher -> Pdct
-transactionMemo p = pdct (descItem (pack "transaction memo") p)
-                (P.transactionMemo (M.match p))
-
--- * UTC times
-
-dateTime :: M.CompUTC -> T.UTCTime -> Pdct
-dateTime c t = pdct (pack "posting "
-                    `X.append` (pack $ M.descUTC c t)) p
-  where
-    p = (`cmp` t) . L.toUTC . Q.dateTime
-    cmp = M.compUTCtoCmp c
-
--- * Quantities
-
-data CompQty
-  = QGT
-  | QGTEQ
-  | QEQ
-  | QLTEQ
-  | QLT
-
-descQty :: CompQty -> L.Qty -> Text
-descQty c q = X.concat [ pack "quantity of posting is ", co,
-                         pack " ", pack . show $ q]
-  where
-    co = pack $ case c of
-      QGT -> "greater than"
-      QGTEQ -> "greater than or equal to"
-      QEQ -> "equal to"
-      QLTEQ -> "less than or equal to"
-      QLT -> "less than"
-
-qty :: CompQty -> L.Qty -> Pdct
-qty c q = pdct (descQty c q) p
-  where
-    p = (`cmp` q) . Q.qty
-    cmp = case c of
-      QGT -> (>)
-      QGTEQ -> (>=)
-      QEQ -> (==)
-      QLTEQ -> (<=)
-      QLT -> (<)
-
--- * DrCr
-
-drCr :: L.DrCr -> Pdct
-drCr dc = pdct (pack "posting is a " `X.append` desc) p
-  where
-    desc = pack $ case dc of
-      L.Debit -> "debit"
-      L.Credit -> "credit"
-    p = (== dc) . Q.drCr
-
--- * Commodity
-
-commodity :: M.Matcher -> Pdct
-commodity p = pdct (descItem (pack "commodity") p) (P.commodity (M.match p))
-
--- * Account name
-
--- | Exactly matches the given account (case sensitive).
-accountIs :: X.Text -> Pdct
-accountIs a = pdct ((pack "account name is: ") `X.append` a) f
-  where
-    f = (== Bd.account a) . Q.account
-
-account :: M.Matcher -> Pdct
-account p = pdct (descItem (pack "full account name") p)
-            (P.account (X.singleton ':') (M.match p))
-
-accountLevel :: Int -> M.Matcher -> Pdct
-accountLevel i p = pdct (descItem ((pack "sub-account ")
-                         `X.append` (pack . show $ i)) p)
-                   (P.accountLevel i (M.match p))
-
-accountAny :: M.Matcher -> Pdct
-accountAny p = pdct (descItem (pack "any sub-account") p)
-               (P.accountAny (M.match p))
-
--- * Tags
-
-tag :: M.Matcher -> Pdct
-tag p = pdct (descItem (pack "any tag") p) (P.tag (M.match p))
-
-------------------------------------------------------------
--- Convenience predicates
-------------------------------------------------------------
-
--- | True if a posting is reconciled.
-reconciled :: Pdct
-reconciled =
-  pdct (pack "posting flag is exactly \"R\" (is reconciled)")
-  (maybe False ((== X.singleton 'R'). L.unFlag) . Q.flag)
+data Defaults = Defaults
+  { passVerbosity :: N.PassVerbosity
+  , failVerbosity :: N.FailVer
 
 ------------------------------------------------------------
 -- Other conveniences
@@ -276,17 +143,13 @@ showDateTime (L.DateTime d h m s tz) =
       in sign ++ pad0 (show zoneHr) ++ pad0 (show zoneMin)
 
 data Arg
-  = AHelp
-  | APassV N.Verbosity
+  = APassV N.Verbosity
   | AFailV N.Verbosity
   | AColorToFile ColorToFile
   | AIndentation N.SpaceCount
   | ABaseTime L.DateTime
   | APosArg String
   deriving Eq
-
-optHelp :: MA.OptSpec Arg
-optHelp = MA.OptSpec ["help"] "h" (MA.NoArg AHelp)
 
 lsVerbosity :: [(String, N.Verbosity)]
 lsVerbosity = [ ("silent", N.Silent)
@@ -330,11 +193,6 @@ optBaseTime = MA.OptSpec ["base-date"] "b" (MA.OneArg f)
 
 type ParsedOpts = ( N.PassVerbosity, N.FailVerbosity, N.SpaceCount,
                     ColorToFile, BaseTime, [String])
-
-data ParseResult
-  = NeedsHelp
-  | ParseErr String
-  | Parsed ParsedOpts
 
 -- | When passed the defaults, return the values to use, as they might
 -- have been affected by the command arguments, or return Nothing if

@@ -23,6 +23,7 @@ module Penny.Lincoln.Predicates
   , accountLevel
   , accountAny
   , tag
+  , reconciled
   , clonedTransactions
   , clonedTopLines
   , clonedPostings
@@ -233,6 +234,14 @@ accountAny = matchAny "any sub-account" Q.account
 
 tag :: M.Matcher -> LPdct
 tag = matchAny "any tag" Q.tags
+
+-- | True if a posting is reconciled; that is, its flag is exactly
+-- @R@.
+reconciled :: LPdct
+reconciled = P.operand d p
+  where
+    d = "posting flag is exactly \"R\" (is reconciled)"
+    p = maybe False ((== X.singleton 'R') . B.unFlag) . Q.flag
 
 -- | Returns True if these two transactions are clones; that is, if
 -- they are identical in all respects except some aspects of their
