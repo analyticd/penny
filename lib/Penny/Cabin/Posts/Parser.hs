@@ -31,7 +31,7 @@ data State = State
   }
 
 allSpecs
-  :: S.Runtime -> [MA.OptSpec (State -> Ex.Exceptional String State)]
+  :: S.Runtime -> [MA.OptSpec (State -> Ex.Exceptional Error State)]
 allSpecs rt =
   operand rt
   ++ boxFilters
@@ -50,17 +50,20 @@ allSpecs rt =
 
 operand
   :: S.Runtime
-  -> [MA.OptSpec (State -> Ex.Exceptional String State)]
+  -> [MA.OptSpec (State -> Ex.Exceptional Error State)]
 operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
   where
     f lyFn st = do
       let cs = sensitive st
           fty = factory st
-      g <- Ex.mapException show $ lyFn cs fty
+      g <- Ex.mapException EOperandError $ lyFn cs fty
       let g' = Pt.boxPdct L.boxPostFam g
           ts' = tokens st ++ [Exp.operand g']
       return $ st { tokens = ts' }
 
+
+data Error
+  = EOperandError Ly.OperandError
 
 -- | Processes a option for box-level serials.
 optBoxSerial ::
