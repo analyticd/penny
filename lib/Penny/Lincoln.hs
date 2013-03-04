@@ -212,7 +212,6 @@ module Penny.Lincoln (
   , S.nSerials
 
     -- * Matchers
-  , Matchers.Matcher
   , Matchers.Factory
 
   ) where

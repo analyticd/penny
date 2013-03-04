@@ -15,6 +15,7 @@ import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Liberty as Ly
 import qualified Penny.Steel.Expressions as Exp
+import qualified Penny.Steel.Predtree as Pt
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import qualified Text.Matchers as M
@@ -22,7 +23,7 @@ import qualified Text.Matchers as M
 data State = State
   { sensitive :: M.CaseSensitive
   , factory :: L.Factory
-  , tokens :: [Ly.Token (L.Box Ly.LibertyMeta -> Bool)]
+  , tokens :: [Exp.Token (L.Box Ly.LibertyMeta)]
   , postFilter :: [Ly.PostFilterFn]
   , fields :: F.Fields Bool
   , width :: Ty.ReportWidth
@@ -55,9 +56,9 @@ operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
     f lyFn st = do
       let cs = sensitive st
           fty = factory st
-      (Exp.Operand g) <- lyFn cs fty
-      let g' = g . L.boxPostFam
-          ts' = tokens st ++ [Exp.TokOperand g']
+      g <- Ex.mapException show $ lyFn cs fty
+      let g' = Pt.boxPdct L.boxPostFam g
+          ts' = tokens st ++ [Exp.operand g']
       return $ st { tokens = ts' }
 
 
@@ -82,7 +83,7 @@ optBoxSerial ls ss f = C.OptSpec ls ss (C.TwoArg g)
       let h box =
             let ser = f . L.boxMeta $ box
             in ser `cmp` i
-          tok = Exp.TokOperand h
+          tok = Pt.operand h
       return $ st { tokens = tokens st ++ [tok] }
 
 optFilteredNum :: C.OptSpec (State -> Ex.Exceptional String State)
@@ -145,7 +146,8 @@ parseWidth :: C.OptSpec (State -> Ex.Exceptional String State)
 parseWidth = C.OptSpec ["width"] "" (C.OneArg f)
   where
     f a1 st = do
-      i <- Ly.parseInt a1
+      i <- Ex.fromMaybe ("could not parse integer: " ++ a1)
+           $ Ly.parseInt a1
       return $ st { width = Ty.ReportWidth i }
 
 parseField :: String -> Ex.Exceptional String (F.Fields Bool)

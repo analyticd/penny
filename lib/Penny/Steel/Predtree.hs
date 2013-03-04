@@ -21,6 +21,8 @@ module Penny.Steel.Predtree
   , rename
   , eval
   , evaluate
+  , boxPdct
+  , boxNode
   ) where
 
 import Control.Applicative ((<*>))
@@ -55,6 +57,26 @@ data Node a
   -- ^ Just True is Just False and vice versa; Nothing remains Nothing.
 
   | Operand (a -> Maybe Bool)
+
+-- | Given a function that un-boxes values of type b, changes a Node
+-- from type a to type b.
+boxNode
+  :: (b -> a)
+  -> Node a
+  -> Node b
+boxNode f n = case n of
+  And ls -> And $ map (boxPdct f) ls
+  Or ls -> Or $ map (boxPdct f) ls
+  Not o -> Not $ boxPdct f o
+  Operand g -> Operand $ \b -> g (f b)
+
+-- | Given a function that un-boxes values of type b, changes a Pdct
+-- from type a to type b.
+boxPdct
+  :: (b -> a)
+  -> Pdct a
+  -> Pdct b
+boxPdct f (Pdct l n) = Pdct l $ boxNode f n
 
 pdctAnd :: Text -> [Pdct a] -> Pdct a
 pdctAnd t = Pdct t . And
