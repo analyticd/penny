@@ -46,9 +46,88 @@ import Text.Matchers
 import Penny.Steel.Prednote hiding (Pdct)
 import Data.Time
 
-data Defaults = Defaults
-  { passVerbosity :: N.PassVerbosity
-  , failVerbosity :: N.FailVer
+------------------------------------------------------------
+-- Series
+------------------------------------------------------------
+
+-- | True if the list is at least n elements long. Less strict than
+-- 'length'.
+atLeast :: Int -> [a] -> Bool
+atLeast x = go 0
+  where
+    go i [] = i >= x
+    go i (_:as) =
+      if i >= x
+      then True
+      else let i' = i + 1 in i' `seq` go i' as
+
+-- | Passes if at least n subjects are True.
+seriesAtLeastN
+  :: Name
+  -> Int
+  -> Pdct a
+  -> Test a
+seriesAtLeastN name i (Pdct t) = Test $ T.Node (Left fn) []
+  where
+    fn pfs = (atl, name, pairs)
+      where
+        pairs = zip pfs rslts
+        rslts = pure t <*> pfs
+        atl = atLeast i
+              . filter id
+              . map ((\(p, _, _) -> p) . T.rootLabel)
+              $ rslts
+
+-- | Every subject is run through the test. Each subject must return
+-- True; otherwise the test fails.
+eachSubjectMustBeTrue
+  :: Name
+  -> Pdct a
+  -> Test a
+eachSubjectMustBeTrue n (Pdct t) = Test $ T.Node (Left fn) []
+  where
+    fn pfs =
+      let mkOut = (zip pfs)
+                  &&& (all ((\(p, _, _) -> p) . T.rootLabel))
+          toTup (pairs, passed) = (passed, n, pairs)
+          mkRslts = (pure t <*>)
+      in toTup . mkOut . mkRslts $ pfs
+
+-- | Every subject is run through the test. Subjects that return True
+-- are then fed to the given function. The result of the function is
+-- the result of the test.
+processTrueSubjects
+  :: Name
+  -> ([a] -> Bool)
+  -> Pdct a
+  -> Test a
+processTrueSubjects name fp (Pdct t) = Test $ T.Node (Left fn) []
+  where
+    fn pfs = (r, name, pairs)
+      where
+        pairs = zip pfs rslts
+        rslts = pure t <*> pfs
+        r = fp . map fst
+            . filter ((\(p, _, _) -> p) . T.rootLabel . snd) $ pairs
+
+group :: Name -> [Test a] -> Test a
+group n = Test . T.Node (Right n) . map unTest
+
+--
+-- Verbosity
+--
+
+data Verbosity
+  = Silent
+  | Status
+  | Interesting
+  | All
+  deriving (Eq, Ord, Show)
+
+type PassVerbosity = Verbosity
+type FailVerbosity = Verbosity
+type SpaceCount = Int
+
 
 ------------------------------------------------------------
 -- Other conveniences
@@ -143,10 +222,10 @@ showDateTime (L.DateTime d h m s tz) =
       in sign ++ pad0 (show zoneHr) ++ pad0 (show zoneMin)
 
 data Arg
-  = APassV N.Verbosity
-  | AFailV N.Verbosity
+  = APassV Verbosity
+  | AFailV Verbosity
   | AColorToFile ColorToFile
-  | AIndentation N.SpaceCount
+  | AIndentation SpaceCount
   | ABaseTime L.DateTime
   | APosArg String
   deriving Eq
@@ -191,40 +270,36 @@ optBaseTime = MA.OptSpec ["base-date"] "b" (MA.OneArg f)
       Left e -> Ex.throw $ "could not parse date: " ++ show e
       Right g -> return . ABaseTime $ g
 
-type ParsedOpts = ( N.PassVerbosity, N.FailVerbosity, N.SpaceCount,
-                    ColorToFile, BaseTime, [String])
+data ParsedOpts = ParsedOpts
+  { pPassVerbosity :: PassVerbosity
+  , pFailVerbosity :: FailVerbosity
+  , pSpaceCount :: SpaceCount
+  , pColorToFile :: ColorToFile
+  , pBaseTime :: BaseTime
+  , pPosArgs :: [String]
+  }
 
--- | When passed the defaults, return the values to use, as they might
--- have been affected by the command arguments, or return Nothing if
--- help is needed.
+allOpts :: [MA.OptSpec (ExS Arg)]
+allOpts =
+  [ fmap return optPassVerbosity
+  , fmap return optFailVerbosity
+  , fmap return optColorToFile
+  , optIndentation
+  , optBaseTime
+  ]
+
 parseArgs
-  :: N.PassVerbosity
-  -> N.FailVerbosity
-  -> N.SpaceCount
-  -> ColorToFile
-  -> BaseTime
-  -> [String]
-  -> ParseResult
-parseArgs pv fv sc ctf bt ss =
-  let exLs = MA.simple MA.Intersperse opts (return . APosArg) ss
-      opts = [ fmap return optHelp
-             , fmap return optPassVerbosity
-             , fmap return optFailVerbosity
-             , fmap return optColorToFile
-             , optIndentation
-             , optBaseTime
-             ]
-  in case exLs of
-      Ex.Exception e -> ParseErr . show $ e
-      Ex.Success ls -> case sequence ls of
-        Ex.Exception e -> ParseErr e
-        Ex.Success ls' ->
-          if AHelp `elem` ls'
-          then NeedsHelp
-          else Parsed ( (getPassVerbosity pv ls'), (getFailVerbosity fv ls')
-                        , (getSpaceCount sc ls')
-                        , (getColorToFile ctf ls'), (getBaseTime bt ls')
-                        , (getPosArg ls'))
+  :: WheatConf
+  -> [Arg]
+  -> ParsedOpts
+parseArgs c as = ParsedOpts
+  { pPassVerbosity = getPassVerbosity (passVerbosity c) as
+  , pFailVerbosity = getFailVerbosity (failVerbosity c) as
+  , pSpaceCount = getSpaceCount (spaceCount c) as
+  , pColorToFile = getColorToFile (colorToFile c) as
+  , pBaseTime = getBaseTime (baseTime c) as
+  , pPosArgs = getPosArg as
+  }
 
 getPassVerbosity :: N.PassVerbosity -> [Arg] -> N.PassVerbosity
 getPassVerbosity v as = case mapMaybe f as of
@@ -271,24 +346,9 @@ data WheatConf = WheatConf
   , baseTime :: BaseTime
   }
 
-applyParse
-  :: ProgName
-  -> WheatConf
-  -> [String]
-  -> IO ParsedOpts
-applyParse pn c as =
-  case parseArgs (passVerbosity c) (failVerbosity c) (spaceCount c)
-       (colorToFile c) (baseTime c) as of
-    NeedsHelp -> do
-      putStrLn (help pn (briefDescription c)
-                (passVerbosity c) (failVerbosity c)
-                (spaceCount c) (colorToFile c) (baseTime c)
-                (moreHelp c))
-      Exit.exitSuccess
-    ParseErr e -> do
-      putStrLn $ pn ++ ": could not parse command line: " ++ e
-      Exit.exitFailure
-    Parsed r -> return r
+getArgsAndParse :: IO ParsedOpts
+getArgsAndParse = do
+  
 
 wheatMain :: (S.Runtime -> WheatConf) -> IO ()
 wheatMain getConf = do
