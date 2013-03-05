@@ -23,6 +23,7 @@ import Control.Monad (join)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (intersperse)
 import Data.Maybe (mapMaybe)
+import qualified Data.Tree as E
 import qualified Penny.Steel.Prednote as N
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
@@ -32,7 +33,7 @@ import qualified Penny.Lincoln as L
 import qualified Data.Text as X
 import qualified Penny.Lincoln.Builders as Bd
 import Data.Text (Text, pack)
-import qualified Data.Time as T
+import qualified Data.Time as Time
 import qualified Text.Matchers as M
 import qualified Text.Parsec as Parsec
 import qualified System.Console.MultiArg as MA
@@ -44,8 +45,38 @@ import qualified Penny.Shield as S
 
 import Text.Matchers
 import Penny.Steel.Prednote hiding (Pdct)
-import Data.Time
+import qualified Penny.Steel.Predtree as Pt
+import qualified Penny.Steel.Chunk as C
 
+--
+-- Types
+--
+
+type Pass = Bool
+type Name = Text
+data Tree a = Tree Name (Payload a)
+
+data Payload a
+  = Group [Tree a]
+  | Test (TestFunc a)
+
+type TestFunc a
+  = Pt.IndentAmt
+  -> Pt.ShowDiscards
+  -> Pt.Level
+  -> [a]
+  -> (Pass, [C.Chunk])
+
+
+group :: Name -> [Tree a] -> Tree a
+group n ts = Tree n (Group ts)
+
+test :: Name -> TestFunc a -> Tree a
+test n t = Tree n (Test t)
+
+
+
+{-
 ------------------------------------------------------------
 -- Series
 ------------------------------------------------------------
@@ -137,11 +168,11 @@ type SpaceCount = Int
 -- | A non-terminating list of starting with the first day of the
 -- first month following the given day, followed by successive first
 -- days of the month.
-futureFirstsOfTheMonth :: T.Day -> [T.Day]
-futureFirstsOfTheMonth d = iterate (T.addGregorianMonthsClip 1) d1
+futureFirstsOfTheMonth :: Time.Day -> [Time.Day]
+futureFirstsOfTheMonth d = iterate (Time.addGregorianMonthsClip 1) d1
   where
-    d1 = T.fromGregorian yr mo 1
-    (yr, mo, _) = T.toGregorian $ T.addGregorianMonthsClip 1 d
+    d1 = Time.fromGregorian yr mo 1
+    (yr, mo, _) = Time.toGregorian $ Time.addGregorianMonthsClip 1 d
 
 ------------------------------------------------------------
 -- CLI
@@ -154,19 +185,13 @@ type BaseTime = L.DateTime
 type MoreHelp = [String]
 
 help
-  :: ProgName
-  -> BriefDesc
-  -> N.PassVerbosity
-  -> N.FailVerbosity
-  -> N.SpaceCount
-  -> ColorToFile
-  -> BaseTime
-  -> MoreHelp
+  :: WheatConf
+  -> ProgName
   -> String
-help pn bd pv fv sc ctf bt mh = unlines $
+help c pn = unlines $
   [ "usage: " ++ pn ++ "[options] ARGS"
   , ""
-  , bd
+  , briefDescription c
   , "Options:"
   , ""
   , "--color-to-file no|yes"
@@ -183,8 +208,8 @@ help pn bd pv fv sc ctf bt mh = unlines $
   , "      the interesting results of the underlying predicates"
   , "    all - show that the test passed or failed, and all"
   , "      results from the underlying predicates"
-  , "    (default pass verbosity: " ++ descV pv ++ ")"
-  , "    (default fail verbosity: " ++ descV fv ++ ")"
+  , "    (default pass verbosity: " ++ descV (passVerbosity c) ++ ")"
+  , "    (default fail verbosity: " ++ descV (failVerbosity c) ++ ")"
   , ""
   , "--indentation, -i SPACES"
   , "  indent each level by this many spaces"
@@ -192,19 +217,19 @@ help pn bd pv fv sc ctf bt mh = unlines $
   , ""
   , "--base-date, -d DATE"
   , "  use this date as basis for checks"
-  , "  (currently: " ++ showDateTime bt ++ ")"
+  , "  (currently: " ++ showDateTime (baseTime c) ++ ")"
   , ""
   , "--help, -h - show help and exit"
   , ""
-  ] ++ mh
+  ] ++ moreHelp c
   where
-    dCtf = if ctf then "yes" else "no"
+    dCtf = if colorToFile c then "yes" else "no"
     descV v = case v of
       N.Silent -> "silent"
       N.Status -> "status"
       N.Interesting -> "interesting"
       N.All -> "all"
-    dSc = show sc
+    dSc = show (spaceCount c)
 
 showDateTime :: L.DateTime -> String
 showDateTime (L.DateTime d h m s tz) =
@@ -346,22 +371,30 @@ data WheatConf = WheatConf
   , baseTime :: BaseTime
   }
 
-getArgsAndParse :: IO ParsedOpts
-getArgsAndParse = do
-  
+getArgsAndParse :: WheatConf -> IO ParsedOpts
+getArgsAndParse c = do
+  pn <- MA.getProgName
+  as <- MA.simpleWithHelp (help c) MA.Intersperse allOpts APosArg
+  args <- case sequence as of
+    Ex.Exceptional s -> do
+      IO.hPutStrLn IO.stderr $ pn ++ ": error: " ++ s
+      Exit.exitFailure
+    Ex.Success g -> return g
+  return $ parseArgs c args
 
 wheatMain :: (S.Runtime -> WheatConf) -> IO ()
 wheatMain getConf = do
   rt <- S.runtime
   pn <- MA.getProgName
-  as <- MA.getArgs
   let c = getConf rt
-  (pv, fv, sc, ctf, bt, posargs) <- applyParse pn c as
+  po <- getArgsAndParse c
   let getTerm =
         if ctf || (S.output rt == S.IsTTY)
         then TI.setupTermFromEnv
         else TI.setupTerm "dumb"
   ti <- getTerm
+
+{-
   let runTests is = map (N.runTest pv fv is 0) (tests c bt)
   good <- fmap and
           . join
@@ -371,7 +404,7 @@ wheatMain getConf = do
   if good
     then Exit.exitSuccess
     else Exit.exitFailure
-
+-}
 -- | Displays a PostFam in a one line format.
 --
 -- Format:
@@ -386,8 +419,8 @@ display p = X.pack $ concat (intersperse " " ls)
     lineNo = maybe (labelNo "line number")
              (show . L.unPostingLine) (Q.postingLine p)
     dateFormat = "%Y-%m-%d %T %z"
-    dt = T.formatTime defaultTimeLocale dateFormat
-         . T.utctDay
+    dt = Time.formatTime defaultTimeLocale dateFormat
+         . Time.utctDay
          . L.toUTC
          . Q.dateTime
          $ p
@@ -418,3 +451,4 @@ getItems pn ss = Cop.openStdin ss >>= f
         in return . concatMap L.postFam
            . mapMaybe toTxn . Cop.unLedger $ g
 
+-}

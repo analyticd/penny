@@ -30,6 +30,7 @@ import Data.Maybe (fromMaybe, isJust, catMaybes)
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Monoid ((<>), mconcat)
+import qualified Penny.Steel.Chunk as C
 
 type Label = Text
 
