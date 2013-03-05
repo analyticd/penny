@@ -29,8 +29,9 @@ import Control.Applicative ((<*>))
 import Data.Maybe (fromMaybe, isJust, catMaybes)
 import Data.Text (Text)
 import qualified Data.Text as X
-import Data.Monoid ((<>), mconcat)
+import Data.Monoid ((<>), mconcat, mempty)
 import qualified Penny.Steel.Chunk as C
+import qualified Penny.Steel.Chunk.Switch as Sw
 
 type Label = Text
 
@@ -38,7 +39,7 @@ type Label = Text
 data Pdct a = Pdct Label (Node a)
 
 instance Show (Pdct a) where
-  show = X.unpack . showPdct 4 0
+  show _ = "predicate"
 
 -- | Renames the top level of the Pdct. The function you pass will be
 -- applied to the old name.
@@ -142,24 +143,45 @@ infixr 2 |||
 type Level = Int
 type IndentAmt = Int
 
-indent :: IndentAmt -> Level -> Text -> Text
-indent amt lvl s = X.replicate (lvl * amt) " " <> s <> "\n"
-
-showPdct :: IndentAmt -> Level -> Pdct a -> Text
-showPdct amt lvl (Pdct l pd) = case pd of
-  And ls -> indent amt lvl l
-            <> mconcat (map (showPdct amt (lvl + 1)) ls)
-  Or ls -> indent amt lvl l
-           <> mconcat (map (showPdct amt (lvl + 1)) ls)
-  Not t -> indent amt lvl l <> showPdct amt (lvl + 1) t
-  Operand _ -> indent amt lvl l
-
-labelBool :: Text -> Maybe Bool -> Text
-labelBool t b = trueFalse <> " " <> t
+-- | Indents text, and adds a newline to the end.
+indent :: IndentAmt -> Level -> [C.Chunk] -> [C.Chunk]
+indent amt lvl cs = idt : (cs ++ [nl])
   where
-    trueFalse = case b of
-      Nothing -> "[discard] "
-      Just bl -> if bl then "[TRUE]    " else "[FALSE]   "
+    idt = C.chunk C.defaultTextSpec
+                  (X.replicate (lvl * amt) " ")
+    nl = C.chunk C.defaultTextSpec (X.singleton '\n')
+
+defaultChunk :: Text -> C.Chunk
+defaultChunk = C.chunk C.defaultTextSpec
+
+showPdct :: IndentAmt -> Level -> Pdct a -> [C.Chunk]
+showPdct amt lvl (Pdct l pd) = case pd of
+  And ls -> indent amt lvl [defaultChunk l]
+            <> mconcat (map (showPdct amt (lvl + 1)) ls)
+  Or ls -> indent amt lvl [defaultChunk l]
+           <> mconcat (map (showPdct amt (lvl + 1)) ls)
+  Not t -> indent amt lvl [defaultChunk l]
+           <> showPdct amt (lvl + 1) t
+  Operand _ -> indent amt lvl [defaultChunk l]
+
+
+labelBool :: Text -> Maybe Bool -> [C.Chunk]
+labelBool t b = [open, trueFalse, close, blank, txt]
+  where
+    trueFalse = C.chunk ts tf
+    (tf, ts) = case b of
+      Nothing -> ("discard", Sw.switchForeground C.color8_f_yellow
+                             C.color256_f_3 C.defaultTextSpec)
+      Just bl -> if bl
+        then ("TRUE", Sw.switchForeground C.color8_f_green
+                      C.color256_f_2 C.defaultTextSpec)
+        else ("FALSE", Sw.switchForeground C.color8_f_red
+                       C.color256_f_1 C.defaultTextSpec)
+    open = C.chunk C.defaultTextSpec "["
+    close = C.chunk C.defaultTextSpec "]"
+    blank = C.chunk C.defaultTextSpec (X.replicate blankLen " ")
+    blankLen = X.length "discard" - X.length tf + 1
+    txt = C.chunk C.defaultTextSpec t
 
 type ShowDiscards = Bool
 
@@ -187,7 +209,7 @@ evaluate
   -- ^ How many levels deep in the tree we are. Start at level 0. This
   -- determines the level of indentation.
   -> Pdct a
-  -> (Maybe Bool, Text)
+  -> (Maybe Bool, [C.Chunk])
 evaluate i sd a lvl (Pdct l pd) = case pd of
 
   And ps -> let (resBool, resTxt) = evalAnd i sd a (lvl + 1) ps
@@ -204,35 +226,37 @@ evaluate i sd a lvl (Pdct l pd) = case pd of
                thisMayBool = fmap not childMayBool
                thisTxt = indent i lvl (labelBool l thisMayBool)
                txt = if sd || isJust thisMayBool
-                     then thisTxt <> childTxt else X.empty
+                     then thisTxt <> childTxt else mempty
            in (thisMayBool, txt)
 
   Operand p -> let res = p a
                    txt = indent i lvl (labelBool l res)
-               in (res, if sd || isJust res then txt else X.empty)
+               in (res, if sd || isJust res then txt else mempty)
 
 evalAnd :: IndentAmt -> ShowDiscards -> a
-        -> Level -> [Pdct a] -> (Bool, Text)
+        -> Level -> [Pdct a] -> (Bool, [C.Chunk])
 evalAnd i sd a l ts = (not foundFalse, txt)
   where
-    (foundFalse, txt) = go ts (False, X.empty)
+    (foundFalse, txt) = go ts (False, mempty)
     go [] p = p
     go (x:xs) (fndFalse, acc) =
       if fndFalse
-      then (fndFalse, acc <> indent i l "(short circuit)")
+      then (fndFalse, acc <> indent i l
+                             [defaultChunk "(short circuit)"])
       else let (res, cTxt) = evaluate i sd a l x
                fndFalse' = maybe False not res
            in go xs (fndFalse', acc <> cTxt)
 
 evalOr :: IndentAmt -> ShowDiscards -> a
-       -> Level -> [Pdct a] -> (Bool, Text)
+       -> Level -> [Pdct a] -> (Bool, [C.Chunk])
 evalOr i sd a l ts = (foundTrue, txt)
   where
-    (foundTrue, txt) = go ts (False, X.empty)
+    (foundTrue, txt) = go ts (False, mempty)
     go [] p = p
     go (x:xs) (fnd, acc) =
       if fnd
-      then (fnd, acc <> indent i l "(short circuit)")
+      then (fnd, acc <> indent i l
+                        [defaultChunk "(short circuit)"])
       else let (res, cTxt) = evaluate i sd a l x
                fnd' = fromMaybe False res
            in go xs (fnd', acc <> cTxt)

@@ -1,29 +1,10 @@
-module Penny.Wheat
-  ( -- * Basic predicates
-
-  -- * Other conveniences
-  , futureFirstsOfTheMonth
-
-  -- * Configuration and CLI
-  , ColorToFile
-  , BaseTime
-  , WheatConf(..)
-  , wheatMain
-
-  -- * Re-exports
-  , S.Runtime
-  , S.currentTime
-  , module Text.Matchers
-  , module Penny.Steel.Prednote
-  , module Data.Time
-  ) where
+module Penny.Wheat where
 
 import Control.Arrow (second)
 import Control.Monad (join)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (intersperse)
 import Data.Maybe (mapMaybe)
-import qualified Data.Tree as E
 import qualified Penny.Steel.Prednote as N
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
