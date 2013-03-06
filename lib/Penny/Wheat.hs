@@ -1,10 +1,13 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Penny.Wheat where
 
 import Control.Arrow (second)
 import Control.Monad (join)
+import Control.Monad.Loops (unfoldrM)
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified Control.Monad.Trans.State as St
 import Data.List (intersperse, unfoldr)
-import Data.Maybe (mapMaybe, catMaybes)
+import Data.Maybe (mapMaybe, catMaybes, isJust)
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Lincoln.Predicates as P
@@ -25,6 +28,21 @@ import qualified Penny.Shield as S
 
 import qualified Penny.Steel.Predtree as Pt
 import qualified Penny.Steel.Chunk as C
+import qualified Penny.Steel.Chunk.Switch as Sw
+
+------------------------------------------------------------
+-- Other conveniences
+------------------------------------------------------------
+
+
+-- | A non-terminating list of starting with the first day of the
+-- first month following the given day, followed by successive first
+-- days of the month.
+futureFirstsOfTheMonth :: Time.Day -> [Time.Day]
+futureFirstsOfTheMonth d = iterate (Time.addGregorianMonthsClip 1) d1
+  where
+    d1 = Time.fromGregorian yr mo 1
+    (yr, mo, _) = Time.toGregorian $ Time.addGregorianMonthsClip 1 d
 
 --
 -- Types
@@ -67,11 +85,18 @@ data Verbosity
   -- ^ Show subjects that are False
 
   | TrueSubjects
-  -- ^ Show subjects that are True
+  -- ^ Show subjects that are True. (This is cumulative, so False
+  -- subjects are shown too.)
 
-  | Discards
+  | DiscardedSubjects
+
+  | DiscardedPredicates
   -- ^ Show discarded results
   deriving (Eq, Ord, Show)
+
+--
+-- Helper functions
+--
 
 -- | True if the list is at least n elements long. Less strict than
 -- 'length'.
@@ -85,139 +110,127 @@ atLeast x = go 0
       else let i' = i + 1 in i' `seq` go i' as
 
 
+-- | Takes as many elements from a list as necessary until the given
+-- number of elements that have Just True as the second element of the
+-- pair are found.  Will stop processing if the number of elements is
+-- found, but does not discard elements solely because they do not
+-- satisfy the predicate. Returns the number of elements found along
+-- with the list.
+takeCount
+  :: Int
+  -- ^ Find this many elements
+  -> [(a, Maybe Bool)]
+  -> ([(a, Maybe Bool)], Int)
+takeCount i = flip St.runState 0 . unfoldrM f
+  where
+    f [] = return Nothing
+    f ((a, mb):xs) = do
+      c <- St.get
+      case () of
+        _ | c == i -> return Nothing
+          | isTrue mb -> do
+              St.put (c + 1)
+              return (Just ((a, mb), xs))
+          | otherwise -> return (Just ((a, mb), xs))
 
--- | Functions of this type are easy to turn into tests. The function
--- must return a pair, with the first value being whether the test
--- passed, and the second value being an unfolding function. The
--- unfolding function is passed a list of all subjects. The function
--- returns Nothing if it has no more results to print, or a list of
--- chunks and a list of remaining subjects if it has something to
--- print.
-type TestRunner a
-  = Pt.IndentAmt
-  -> PassVerbosity
-  -> FailVerbosity
+
+-- | Determines whether to show a subject, and shows it.
+showSubject
+  :: (a -> X.Text)
+  -> Verbosity
+  -> Pt.IndentAmt
   -> Pt.Level
-  -> [a]
-  -> (Pass, ([a] -> Maybe ([C.Chunk], [a])))
+  -> Pt.Pdct a
+  -> (a, Maybe Bool)
+  -> [C.Chunk]
+showSubject swr v i l p (s, b) =
+  let (showSubj, showDisc) = isSubjectAndDiscardsShown v b
+      renamer txt = X.concat [swr s, " - ", txt]
+      renamed = Pt.rename renamer p
+  in if showSubj
+     then snd $ Pt.evaluate i showDisc s l renamed
+     else []
 
-testRunnerToTestFunc :: TestRunner a -> TestFunc a
-testRunnerToTestFunc tr = tf
+-- | Given a Verbosity and a Maybe Boolean indicating whether a
+-- subject is True, False, or a discard, returns whether to show the
+-- subject and whether to show the discards contained within the
+-- subject.
+isSubjectAndDiscardsShown :: Verbosity -> Maybe Bool -> (Bool, Bool)
+isSubjectAndDiscardsShown v b = case v of
+  Silent -> (False, False)
+  PassFail -> (False, False)
+  FalseSubjects -> (not . isTrue $ b, False)
+  TrueSubjects -> (isJust b, False)
+  DiscardedSubjects -> (True, False)
+  DiscardedPredicates -> (True, True)
+
+
+showTestTitle :: Pt.IndentAmt -> Pt.Level -> Name -> Pass -> [C.Chunk]
+showTestTitle i l n p = [idt, open, passFail, close, blank, txt, nl]
+  where
+    passFail = C.chunk ts tf
+    idt = C.chunk C.defaultTextSpec (X.replicate (i * l) " ")
+    nl = C.chunk C.defaultTextSpec "\n"
+    (tf, ts) =
+      if p
+      then ("PASS", Sw.switchForeground C.color8_f_green
+                    C.color256_f_2 C.defaultTextSpec)
+      else ("FAIL", Sw.switchForeground C.color8_f_red
+                    C.color256_f_1 C.defaultTextSpec)
+    open = C.chunk C.defaultTextSpec "["
+    close = C.chunk C.defaultTextSpec "]"
+    blank = C.chunk C.defaultTextSpec (X.singleton ' ')
+    txt = C.chunk C.defaultTextSpec n
+
+isTrue :: Maybe Bool -> Bool
+isTrue = maybe False id
+
+--
+-- Tests
+--
+
+-- | Passes if every subject is True.
+eachSubjectMustBeTrue
+  :: Name
+  -> (a -> Text)
+  -> Pt.Pdct a
+  -> Tree a
+eachSubjectMustBeTrue n swr p = Tree n (Test tf)
   where
     tf i pv fv as lvl = (pass, cks)
       where
-        (pass, unfld) = tr i pv fv lvl as
-        cks = concat $ unfoldr unfld as
+        rslts = zip as (map (Pt.eval p) as)
+        pass = all (isTrue . snd) rslts
+        v = if pass then pv else fv
+        cks = tit ++ subjectChunks
+        tit = if v == Silent then [] else showTestTitle i lvl n pass
+        subjectChunks =
+          concatMap (showSubject swr v i (lvl + 1) p) rslts
 
-testFuncToTree :: Name -> TestFunc a -> Tree a
-testFuncToTree n tf = Tree n (Test tf)
-
-{-
 -- | Passes if at least n subjects are True.
 seriesAtLeastN
   :: Name
+  -> (a -> X.Text)
   -> Int
   -> Pt.Pdct a
   -> Tree a
-seriesAtLeastN n i p = testFuncToTree n tf
+seriesAtLeastN n swr i p = Tree n (Test tf)
   where
-    tf = testRunnerToTestFunc tr
-    tr i pv fv lvl as = (pass, unfld)
+    tf i pv fv as l = (pass, cks)
       where
-        pass
-          = atLeast i
-          . filter id
-          . catMaybes
-          . map (Pt.eval p)
-          $ as
-        unfld as = undefined
--}
+        (elems, nFound) = takeCount i (zip as (map (Pt.eval p) as))
+        pass = nFound >= i
+        v = if pass then pv else fv
+        cks = tit ++ subjectChunks
+        tit = if v == Silent then [] else showTestTitle i l n pass
+        subjectChunks =
+          concatMap (showSubject swr v i (l + 1) p) elems
+
 {-
 ------------------------------------------------------------
 -- Series
 ------------------------------------------------------------
 
-
-seriesAtLeastN
-  :: Name
-  -> Int
-  -> Pdct a
-  -> Test a
-seriesAtLeastN name i (Pdct t) = Test $ T.Node (Left fn) []
-  where
-    fn pfs = (atl, name, pairs)
-      where
-        pairs = zip pfs rslts
-        rslts = pure t <*> pfs
-        atl = atLeast i
-              . filter id
-              . map ((\(p, _, _) -> p) . T.rootLabel)
-              $ rslts
-
--- | Every subject is run through the test. Each subject must return
--- True; otherwise the test fails.
-eachSubjectMustBeTrue
-  :: Name
-  -> Pdct a
-  -> Test a
-eachSubjectMustBeTrue n (Pdct t) = Test $ T.Node (Left fn) []
-  where
-    fn pfs =
-      let mkOut = (zip pfs)
-                  &&& (all ((\(p, _, _) -> p) . T.rootLabel))
-          toTup (pairs, passed) = (passed, n, pairs)
-          mkRslts = (pure t <*>)
-      in toTup . mkOut . mkRslts $ pfs
-
--- | Every subject is run through the test. Subjects that return True
--- are then fed to the given function. The result of the function is
--- the result of the test.
-processTrueSubjects
-  :: Name
-  -> ([a] -> Bool)
-  -> Pdct a
-  -> Test a
-processTrueSubjects name fp (Pdct t) = Test $ T.Node (Left fn) []
-  where
-    fn pfs = (r, name, pairs)
-      where
-        pairs = zip pfs rslts
-        rslts = pure t <*> pfs
-        r = fp . map fst
-            . filter ((\(p, _, _) -> p) . T.rootLabel . snd) $ pairs
-
-group :: Name -> [Test a] -> Test a
-group n = Test . T.Node (Right n) . map unTest
-
---
--- Verbosity
---
-
-data Verbosity
-  = Silent
-  | Status
-  | Interesting
-  | All
-  deriving (Eq, Ord, Show)
-
-type PassVerbosity = Verbosity
-type FailVerbosity = Verbosity
-type SpaceCount = Int
-
-
-------------------------------------------------------------
--- Other conveniences
-------------------------------------------------------------
-
-
--- | A non-terminating list of starting with the first day of the
--- first month following the given day, followed by successive first
--- days of the month.
-futureFirstsOfTheMonth :: Time.Day -> [Time.Day]
-futureFirstsOfTheMonth d = iterate (Time.addGregorianMonthsClip 1) d1
-  where
-    d1 = Time.fromGregorian yr mo 1
-    (yr, mo, _) = Time.toGregorian $ Time.addGregorianMonthsClip 1 d
 
 ------------------------------------------------------------
 -- CLI
