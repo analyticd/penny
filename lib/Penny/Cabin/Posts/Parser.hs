@@ -2,6 +2,8 @@
 
 module Penny.Cabin.Posts.Parser (State(..),
                                  allSpecs,
+                                 VerboseFilter(..),
+                                 ShowExpression(..),
                                  showError) where
 
 import Control.Applicative ((<$>), pure, (<*>),
@@ -27,6 +29,12 @@ import qualified Penny.Lincoln.Predicates as Pd
 import qualified Penny.Shield as S
 import qualified Text.Matchers as M
 
+newtype VerboseFilter = VerboseFilter { unVerboseFilter :: Bool }
+  deriving (Eq, Show)
+
+newtype ShowExpression = ShowExpression { unShowExpression :: Bool }
+  deriving (Eq, Show)
+
 data State = State
   { sensitive :: M.CaseSensitive
   , factory :: L.Factory
@@ -36,6 +44,8 @@ data State = State
   , width :: Ty.ReportWidth
   , showZeroBalances :: CO.ShowZeroBalances
   , exprDesc :: Exp.ExprDesc
+  , verboseFilter :: VerboseFilter
+  , showExpression :: ShowExpression
   }
 
 allSpecs
@@ -54,6 +64,8 @@ allSpecs rt =
      , fmap (pure .) showAllFields
      , fmap (pure .) hideAllFields
      , fmap (pure .) parseZeroBalances
+     , fmap (pure .) parseShowExpression
+     , fmap (pure .) parseVerboseFilter
      ]
 
 
@@ -248,6 +260,16 @@ parseExprType :: [C.OptSpec (State -> State)]
 parseExprType = map (fmap f) [Ly.parseInfix, Ly.parseRPN]
   where
     f d st = st { exprDesc = d }
+
+parseShowExpression :: C.OptSpec (State -> State)
+parseShowExpression = fmap f Ly.showExpression
+  where
+    f _ st = st { showExpression = ShowExpression True }
+
+parseVerboseFilter :: C.OptSpec (State -> State)
+parseVerboseFilter = fmap f Ly.verboseFilter
+  where
+    f _ st = st { verboseFilter = VerboseFilter True }
 
 data BadFieldError
   = NoMatchingFields

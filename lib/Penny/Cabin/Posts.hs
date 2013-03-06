@@ -149,17 +149,18 @@ mkPrintReport
   -> I.ArgsAndReport
 mkPrintReport posArgs zo fsf st = (posArgs, f)
   where
-    f txns _ = Ex.mapExceptional showError mkChunks exPdct
-      where
-        exPdct = getPredicate (P.exprDesc st) (P.tokens st)
-        mkChunks pdct = map Right chks
-          where
-            chks = postsReport (P.showZeroBalances st) pdct
-                   (P.postFilter st) (chunkOpts st zo) boxes
-            boxes = fsf txns
+    f txns _ = Ex.mapException showError $ do
+      pdct <- Ex.mapException PdctError
+              $ getPredicate (P.exprDesc st) (P.tokens st)
+      let boxes = fsf txns
+          chks = postsReport (P.showZeroBalances st) pdct
+                 (P.postFilter st) (chunkOpts st zo) boxes
+      return . map Right $ chks
 
+data Error
+  = PdctError (Exp.ExprError (L.Box Ly.LibertyMeta))
 
-showError :: Exp.ExprError a -> X.Text
+showError :: Error -> X.Text
 showError = undefined
 
 defaultOptions
@@ -276,6 +277,8 @@ newParseState cs fty expr o = P.State
   , P.width = width o
   , P.showZeroBalances = showZeroBalances o
   , P.exprDesc = expr
+  , P.verboseFilter = P.VerboseFilter False
+  , P.showExpression = P.ShowExpression False
   }
 
 -- | Shows the date of a posting in YYYY-MM-DD format.
