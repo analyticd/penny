@@ -11,6 +11,7 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Cabin.Meta as M
 import qualified Penny.Cabin.Options as CO
+import qualified Penny.Steel.Predtree as Pe
 import Data.Monoid (mempty, mappend)
 
 -- | The Box type that is used throughout the Posts modules.
@@ -39,11 +40,11 @@ addMetadata = M.visibleNumBoxes f where
 -- the VisibleNum.
 toBoxList ::
   CO.ShowZeroBalances
-  -> (L.Box Ly.LibertyMeta -> Bool)
+  -> Pe.Pdct (L.Box Ly.LibertyMeta)
   -- ^ Removes posts from the report if applying this function to the
-  -- post returns False. Posts removed still affect the running
-  -- balance.
-  
+  -- post returns a value other than Just True. Posts removed still
+  -- affect the running balance.
+
   -> [Ly.PostFilterFn]
   -- ^ Applies these post-filters to the list of posts that results
   -- from applying the predicate above. Might remove more
@@ -54,7 +55,7 @@ toBoxList ::
 toBoxList szb pdct pff =
   addMetadata
   . Ly.processPostFilters pff
-  . filter (pdct . fmap fst)
+  . filter (maybe False id . Pe.eval pdct . fmap fst)
   . addBalances szb
 
 addBalances ::

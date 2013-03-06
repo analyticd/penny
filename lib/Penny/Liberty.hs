@@ -47,7 +47,6 @@ import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
 import Data.List (sortBy)
 import Data.Text (Text, pack)
-import qualified Data.Text as Text
 import qualified Data.Time as Time
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Combinator (OptSpec)
@@ -59,6 +58,7 @@ import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Steel.Predtree as E
 import qualified Penny.Lincoln as L
+import qualified Penny.Steel.Chunk as C
 import qualified Penny.Steel.Expressions as X
 
 import Text.Matchers (
@@ -111,7 +111,7 @@ xactionsToFiltered ::
   -> [L.Transaction]
   -- ^ The transactions to work on (probably parsed in from Copper)
 
-  -> (Text, [L.Box LibertyMeta])
+  -> ([C.Chunk], [L.Box LibertyMeta])
   -- ^ Sorted, filtered postings
 
 xactionsToFiltered pdct postFilts s txns =
@@ -121,7 +121,7 @@ xactionsToFiltered pdct postFilts s txns =
         Nothing -> Nothing
         Just b -> Just (b, x)
       pfs = concatMap L.postFam txns
-      txt = Text.concat . map snd $ pairs
+      txt = concatMap snd pairs
       filtered = map snd . filter fst $ zipWith zipper pairs pfs
       zipper (bool, _) pf = (bool, pf)
       resultLs = addSortedNum

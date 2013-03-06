@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Penny.Cabin.Posts.Parser (State(..),
-                                 allSpecs) where
+                                 allSpecs,
+                                 showError) where
 
 import Control.Applicative ((<$>), pure, (<*>),
                             Applicative)
@@ -34,6 +35,7 @@ data State = State
   , fields :: F.Fields Bool
   , width :: Ty.ReportWidth
   , showZeroBalances :: CO.ShowZeroBalances
+  , exprDesc :: Exp.ExprDesc
   }
 
 allSpecs
@@ -45,6 +47,7 @@ allSpecs rt =
   ++ (map (fmap (pure .)) matcherSelect)
   ++ (map (fmap (pure .)) caseSelect)
   ++ (map (fmap (pure .)) operator)
+  ++ map (fmap (pure .)) parseExprType
   ++ [ parseWidth
      , showField
      , hideField
@@ -76,6 +79,9 @@ data Error
   | EBadFieldError Text BadFieldError
   -- ^ The first argument is the text supplied on the command line;
   -- the second is the error.
+
+showError :: Error -> String
+showError = undefined
 
 -- | Processes a option for box-level serials.
 optBoxSerial
@@ -237,6 +243,11 @@ parseZeroBalances :: C.OptSpec (State -> State)
 parseZeroBalances = fmap f P.zeroBalances
   where
     f szb st = st { showZeroBalances = szb }
+
+parseExprType :: [C.OptSpec (State -> State)]
+parseExprType = map (fmap f) [Ly.parseInfix, Ly.parseRPN]
+  where
+    f d st = st { exprDesc = d }
 
 data BadFieldError
   = NoMatchingFields

@@ -72,6 +72,8 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as Sh
+import qualified Penny.Steel.Expressions as Exp
+import qualified Penny.Steel.Predtree as Pe
 
 import Data.List (intersperse)
 import Data.Maybe (catMaybes)
@@ -85,7 +87,7 @@ import Text.Matchers (CaseSensitive)
 -- never fails.
 postsReport ::
   CO.ShowZeroBalances
-  -> (L.Box Ly.LibertyMeta -> Bool)
+  -> (Pe.Pdct (L.Box Ly.LibertyMeta))
   -- ^ Removes posts from the report if applying this function to the
   -- post returns False. Posts removed still affect the running
   -- balance.
@@ -110,11 +112,20 @@ zincReport opts rt = (helpStr opts, md)
     md cs fty fsf = MA.Mode
       { MA.mName = "postings"
       , MA.mIntersperse = MA.Intersperse
-      , MA.mOpts = map (fmap Right) (P.allSpecs rt)
+      , MA.mOpts = specs rt
       , MA.mPosArgs = Left
       , MA.mProcess = process opts cs fty fsf
       , MA.mHelp = const (helpStr opts)
       }
+
+specs
+  :: Sh.Runtime
+  -> [MA.OptSpec (Either String (P.State -> Ex.Exceptional String P.State))]
+specs rt =
+  let ss = P.allSpecs rt
+      withErr = fmap (fmap (fmap (Ex.mapException P.showError))) ss
+  in map (fmap Right) withErr
+
 
 process
   :: ZincOpts
@@ -137,15 +148,18 @@ mkPrintReport
   -> I.ArgsAndReport
 mkPrintReport posArgs zo fsf st = (posArgs, f)
   where
-    f txns _ = fmap mkChunks exPdct
+    f txns _ = Ex.mapExceptional showError mkChunks exPdct
       where
-        exPdct = getPredicate (P.tokens st)
+        exPdct = getPredicate (P.exprDesc st) (P.tokens st)
         mkChunks pdct = chks
           where
             chks = postsReport (P.showZeroBalances st) pdct
                    (P.postFilter st) (chunkOpts st zo) boxes
             boxes = fsf txns
 
+
+showError :: Exp.ExprError a -> X.Text
+showError = undefined
 
 defaultOptions
   :: Sh.Runtime
@@ -160,19 +174,20 @@ defaultOptions rt = ZincOpts
   , subAccountLength = A.SubAccountLength 2
   , payeeAllocation = A.alloc 60
   , accountAllocation = A.alloc 40
-  , spacers = defaultSpacerWidth }
+  , spacers = defaultSpacerWidth
+  , expressionType = Exp.Infix
+  }
 
 
-getPredicate ::
-  [Ly.Token (L.Box Ly.LibertyMeta -> Bool)]
-  -> Ex.Exceptional X.Text (L.Box Ly.LibertyMeta -> Bool)
-getPredicate ts =
+getPredicate
+  :: Exp.ExprDesc
+  -> [Exp.Token (L.Box Ly.LibertyMeta)]
+  -> Ex.Exceptional (Exp.ExprError (L.Box Ly.LibertyMeta))
+                    (Pe.Pdct (L.Box Ly.LibertyMeta))
+getPredicate d ts =
   case ts of
-    [] -> return $ const True
-    ls ->
-      Ex.fromMaybe
-        (X.pack "posts report: bad posting filter expression")
-        (Ly.parseTokenList ls)
+    [] -> return $ Pe.always
+    _ -> Exp.parseExpression d ts
 
 
 -- | All the information to configure the postings report if the
@@ -227,6 +242,9 @@ data ZincOpts = ZincOpts
     -- less than or equal to zero, there will be no spacer. There is
     -- never a spacer for fields that do not appear in the report.
 
+  , expressionType :: Exp.ExprDesc
+  -- ^ Whether to use RPN or infix expressions.
+
   }
 
 chunkOpts ::
@@ -259,6 +277,7 @@ newParseState cs fty o = P.State
   , P.fields = fields o
   , P.width = width o
   , P.showZeroBalances = showZeroBalances o
+  , P.exprDesc = expressionType o
   }
 
 -- | Shows the date of a posting in YYYY-MM-DD format.
@@ -458,9 +477,16 @@ helpStr o = unlines $
   , "--qty cmp number"
   , "  Entry quantity must fall within given range"
   , ""
-  , "Operators - from highest to lowest precedence"
+  , "Infix or RPN selection"
+  , "----------------------"
+  , "--infix - use infix notation"
+    ++ ifDefault (expressionType o == Exp.Infix)
+  , "-- rpn - use reverse polish notation"
+    ++ ifDefault (expressionType o == Exp.RPN)
+  , ""
+  , "Infix Operators - from highest to lowest precedence"
   , "(all are left associative)"
-  , "=========================="
+  , "--------------------------"
   , "--open expr --close"
   , "  Force precedence (as in \"open\" and \"close\" parentheses)"
   , "--not expr"
@@ -468,6 +494,15 @@ helpStr o = unlines $
   , "expr1 --and expr2 "
   , "  True if expr and expr2 are both true"
   , "expr1 --or expr2"
+  , "  True if either expr1 or expr2 is true"
+  , ""
+  , "RPN Operators"
+  , "-------------"
+  , "expr --not"
+  , "  True if expr is false"
+  , "expr1 expr2 --and"
+  , "  True if expr and expr2 are both true"
+  , "expr1 expr2 --or"
   , "  True if either expr1 or expr2 is true"
   , ""
   , "Options affecting patterns"

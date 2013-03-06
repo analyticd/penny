@@ -283,7 +283,7 @@ data FilterOpts = FilterOpts
     -- subsequent parses of the command line.
 
   , _sorterFilterer :: [L.Transaction]
-                    -> (Text, [L.Box Ly.LibertyMeta])
+                    -> ([Chk.Chunk], [L.Box Ly.LibertyMeta])
     -- ^ Applied to a list of Transaction, will sort and filter
     -- the transactions and assign them LibertyMeta.
 

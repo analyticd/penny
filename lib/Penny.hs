@@ -21,6 +21,9 @@ module Penny
   , Z.SortField(..)
   , CabP.SortOrder(..)
 
+  -- ** Expression type
+  , Exp.ExprDesc(..)
+
   -- ** Formatting quantities
   , defaultQtyFormat
 
@@ -100,6 +103,7 @@ import qualified Penny.Cabin.Posts.Spacers as PS
 import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Lincoln as L
+import qualified Penny.Steel.Expressions as Exp
 import qualified Penny.Zinc as Z
 import qualified Penny.Shield as S
 import qualified Text.Matchers as Mr
@@ -116,6 +120,10 @@ data Defaults = Defaults
 
   , colorToFile :: Bool
     -- ^ Use colors when standard output is not a terminal?
+
+  , expressionType :: Exp.ExprDesc
+    -- ^ Use RPN or infix expressions? This affects both the posting
+    -- filter and the filter for the Postings report.
 
   , defaultScheme :: Maybe E.Scheme
     -- ^ Default color scheme. If Nothing, there is no default color
@@ -283,6 +291,7 @@ toZincDefaults d = Z.Defaults
   , Z.defaultScheme = defaultScheme d
   , Z.moreSchemes = additionalSchemes d
   , Z.sorter = sorter d
+  , Z.exprDesc = expressionType d
   }
 
 toBalanceDefaults :: Defaults -> MP.ParseOpts
@@ -318,6 +327,7 @@ toPostingsDefaults d = Ps.ZincOpts
   , Ps.accountAllocation =
       Ps.alloc . postingsAccountAllocation $ d
   , Ps.spacers = convSpacers . postingsSpacers $ d
+  , Ps.expressionType = expressionType d
   }
 
 defaultQtyFormat :: L.Qty -> X.Text
