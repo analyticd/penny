@@ -3,9 +3,8 @@ module Penny.Wheat where
 import Control.Arrow (second)
 import Control.Monad (join)
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.List (intersperse)
-import Data.Maybe (mapMaybe)
-import qualified Penny.Steel.Prednote as N
+import Data.List (intersperse, unfoldr)
+import Data.Maybe (mapMaybe, catMaybes)
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Lincoln.Predicates as P
@@ -24,8 +23,6 @@ import System.Locale (defaultTimeLocale)
 import qualified System.IO as IO
 import qualified Penny.Shield as S
 
-import Text.Matchers
-import Penny.Steel.Prednote hiding (Pdct)
 import qualified Penny.Steel.Predtree as Pt
 import qualified Penny.Steel.Chunk as C
 
@@ -43,9 +40,10 @@ data Payload a
 
 type TestFunc a
   = Pt.IndentAmt
-  -> Pt.ShowDiscards
-  -> Pt.Level
+  -> PassVerbosity
+  -> FailVerbosity
   -> [a]
+  -> Pt.Level
   -> (Pass, [C.Chunk])
 
 
@@ -55,12 +53,25 @@ group n ts = Tree n (Group ts)
 test :: Name -> TestFunc a -> Tree a
 test n t = Tree n (Test t)
 
+type PassVerbosity = Verbosity
+type FailVerbosity = Verbosity
 
+data Verbosity
+  = Silent
+  -- ^ Show nothing at all
 
-{-
-------------------------------------------------------------
--- Series
-------------------------------------------------------------
+  | PassFail
+  -- ^ Show only whether the test passed or failed
+
+  | FalseSubjects
+  -- ^ Show subjects that are False
+
+  | TrueSubjects
+  -- ^ Show subjects that are True
+
+  | Discards
+  -- ^ Show discarded results
+  deriving (Eq, Ord, Show)
 
 -- | True if the list is at least n elements long. Less strict than
 -- 'length'.
@@ -73,7 +84,60 @@ atLeast x = go 0
       then True
       else let i' = i + 1 in i' `seq` go i' as
 
+
+
+-- | Functions of this type are easy to turn into tests. The function
+-- must return a pair, with the first value being whether the test
+-- passed, and the second value being an unfolding function. The
+-- unfolding function is passed a list of all subjects. The function
+-- returns Nothing if it has no more results to print, or a list of
+-- chunks and a list of remaining subjects if it has something to
+-- print.
+type TestRunner a
+  = Pt.IndentAmt
+  -> PassVerbosity
+  -> FailVerbosity
+  -> Pt.Level
+  -> [a]
+  -> (Pass, ([a] -> Maybe ([C.Chunk], [a])))
+
+testRunnerToTestFunc :: TestRunner a -> TestFunc a
+testRunnerToTestFunc tr = tf
+  where
+    tf i pv fv as lvl = (pass, cks)
+      where
+        (pass, unfld) = tr i pv fv lvl as
+        cks = concat $ unfoldr unfld as
+
+testFuncToTree :: Name -> TestFunc a -> Tree a
+testFuncToTree n tf = Tree n (Test tf)
+
+{-
 -- | Passes if at least n subjects are True.
+seriesAtLeastN
+  :: Name
+  -> Int
+  -> Pt.Pdct a
+  -> Tree a
+seriesAtLeastN n i p = testFuncToTree n tf
+  where
+    tf = testRunnerToTestFunc tr
+    tr i pv fv lvl as = (pass, unfld)
+      where
+        pass
+          = atLeast i
+          . filter id
+          . catMaybes
+          . map (Pt.eval p)
+          $ as
+        unfld as = undefined
+-}
+{-
+------------------------------------------------------------
+-- Series
+------------------------------------------------------------
+
+
 seriesAtLeastN
   :: Name
   -> Int

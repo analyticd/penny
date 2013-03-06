@@ -17,6 +17,7 @@ module Penny.Steel.Predtree
   , (|||)
   , Level
   , IndentAmt
+  , ShowDiscards
   , showPdct
   , rename
   , eval
