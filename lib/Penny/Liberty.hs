@@ -25,6 +25,8 @@ module Penny.Liberty (
   parseInfix,
   parseRPN,
   exprDesc,
+  showExpression,
+  verboseFilter,
 
   -- * Parsers
   Operand,
@@ -670,3 +672,9 @@ parseRPN = noArg X.RPN "rpn"
 -- | Both Infix and RPN options.
 exprDesc :: [OptSpec X.ExprDesc]
 exprDesc = [ parseInfix, parseRPN ]
+
+showExpression :: OptSpec ()
+showExpression = noArg () "show-expression"
+
+verboseFilter :: OptSpec ()
+verboseFilter = noArg () "verbose-filter"

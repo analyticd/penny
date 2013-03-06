@@ -2,6 +2,7 @@
 -- anything that is a 'Report'.
 module Penny.Cabin.Interface where
 
+import qualified Penny.Steel.Expressions as Exp
 import qualified Penny.Cabin.Scheme as S
 import Control.Monad.Exception.Synchronous (Exceptional)
 import qualified Data.Text as X
@@ -51,6 +52,10 @@ type MkReport
   -> (CaseSensitive -> X.Text -> Exceptional X.Text TM.Matcher)
   -- ^ Result from previous parsers indicating the matcher factory the
   -- user wishes to use
+
+  -> Exp.ExprDesc
+  -- ^ Result from previous parsers indicating whether the user wants
+  -- RPN or infix
 
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -- ^ Result from previous parsers that will sort and filter incoming

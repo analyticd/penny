@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
 
 -- | Zinc - the Penny command-line interface
 module Penny.Zinc
@@ -16,11 +16,12 @@ import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Copper as C
 import qualified Penny.Liberty as Ly
 import qualified Penny.Steel.Expressions as X
+import qualified Penny.Steel.Predtree as Pe
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
 
-import Control.Applicative ((<$>), (<*>), pure)
+import Control.Applicative ((<$>), (<*>), pure, (<$))
 import qualified Control.Exception as CE
 import Control.Monad (when)
 import qualified Control.Monad.Trans.State as St
@@ -137,6 +138,12 @@ sortPairsToFn = mconcat . map sortPairToFn
 --
 -- ## OptResult, and functions dealing with it
 --
+newtype ShowExpression = ShowExpression Bool
+  deriving (Show, Eq)
+
+newtype VerboseFilter = VerboseFilter Bool
+  deriving (Show, Eq)
+
 data OptResult
   = ROperand (M.CaseSensitive
              -> Ly.MatcherFactory
@@ -149,6 +156,8 @@ data OptResult
   | RColorToFile ColorToFile
   | RScheme E.TextSpecs
   | RExprDesc X.ExprDesc
+  | RShowExpression
+  | RVerboseFilter
 
 getPostFilters
   :: [OptResult]
@@ -239,6 +248,9 @@ allOpts dt df =
   ++ let ss = moreSchemes df
      in if not . null $ ss then [optScheme ss] else []
   ++ map (fmap RExprDesc) Ly.exprDesc
+  ++ [ RShowExpression <$ Ly.showExpression
+     , RVerboseFilter <$ Ly.verboseFilter
+     ]
 
 optColorToFile :: MA.OptSpec OptResult
 optColorToFile = MA.OptSpec ["color-to-file"] "" (MA.ChoiceArg ls)
@@ -272,25 +284,42 @@ getScheme d ls =
       RScheme s -> Just s
       _ -> Nothing
 
+getShowExpression :: [OptResult] -> ShowExpression
+getShowExpression ls = case mapMaybe f ls of
+  [] -> ShowExpression False
+  _ -> ShowExpression True
+  where
+    f o = case o of { RShowExpression -> Just (); _ -> Nothing }
+
+getVerboseFilter :: [OptResult] -> VerboseFilter
+getVerboseFilter ls = case mapMaybe f ls of
+  [] -> VerboseFilter False
+  _ -> VerboseFilter True
+  where
+    f o = case o of { RVerboseFilter -> Just (); _ -> Nothing }
+
 -- | Indicates the result of a successful parse of filtering options.
 data FilterOpts = FilterOpts
-  { _resultFactory :: Factory
+  { foResultFactory :: Factory
     -- ^ The factory indicated, so that it can be used in
     -- subsequent parses of the same command line.
 
-  , _resultSensitive :: M.CaseSensitive
+  , foResultSensitive :: M.CaseSensitive
     -- ^ Indicated case sensitivity, so that it can be used in
     -- subsequent parses of the command line.
 
-  , _sorterFilterer :: [L.Transaction]
+  , foSorterFilterer :: [L.Transaction]
                     -> ([Chk.Chunk], [L.Box Ly.LibertyMeta])
     -- ^ Applied to a list of Transaction, will sort and filter
     -- the transactions and assign them LibertyMeta.
 
-  , _foTextSpecs :: Maybe E.TextSpecs
+  , foTextSpecs :: Maybe E.TextSpecs
 
-  , _foColorToFile :: ColorToFile
-  , _foExprDesc :: X.ExprDesc
+  , foColorToFile :: ColorToFile
+  , foExprDesc :: X.ExprDesc
+  , foPredicate :: Pe.Pdct L.PostFam
+  , foShowExpression :: ShowExpression
+  , foVerboseFilter :: VerboseFilter
   }
 
 processGlobal
@@ -327,29 +356,63 @@ processFiltOpts ord df os = do
   let ctf = getColorToFile df os
       sch = getScheme df os
       expDsc = getExprDesc df os
+      showExpr = getShowExpression os
+      verbFilt = getVerboseFilter os
   pdct <- Ex.mapException FPParsePredicateError
           $ Ly.parsePredicate expDsc toks
   let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
-  return $ FilterOpts rf rs sf sch ctf expDsc
+  return $ FilterOpts rf rs sf sch ctf expDsc pdct showExpr verbFilt
 
 makeMode
   :: S.Runtime
   -> FilterOpts
   -> I.Report
   -> MA.Mode (IO ())
-makeMode rt (FilterOpts fty cs srtFilt ts ctf _) r = fmap makeIO mode
+makeMode rt fo r = fmap makeIO mode
   where
-    mode = snd (r rt) cs fty (fmap snd srtFilt)
+    mode = snd (r rt) (foResultSensitive fo) (foResultFactory fo)
+           (foExprDesc fo) (fmap snd (foSorterFilterer fo))
     makeIO parseResult = do
       (posArgs, printRpt) <- Ex.switch fail return parseResult
       ledgers <- readLedgers posArgs
       (txns, pps) <- Ex.switch fail return $ parseLedgers ledgers
-      let term = if unColorToFile ctf
+      let term = if unColorToFile (foColorToFile fo)
                  then S.termFromEnv rt
                  else S.autoTerm rt
-      Ex.switch (fail . unpack) (printChunks term ts)
+          printer = Chk.printChunks term
+          verbFiltChunks = fst . foSorterFilterer fo $ txns
+      showFilterExpression printer (foShowExpression fo) (foPredicate fo)
+      showVerboseFilter printer (foVerboseFilter fo) verbFiltChunks
+      Ex.switch (fail . unpack) (printChunks printer (foTextSpecs fo))
         $ printRpt txns pps
 
+
+indentAmt :: Pe.IndentAmt
+indentAmt = 4
+
+showFilterExpression
+  :: ([Chk.Chunk] -> IO ())
+  -> ShowExpression
+  -> Pe.Pdct L.PostFam
+  -> IO ()
+showFilterExpression ptr (ShowExpression se) pdct =
+  if not se
+  then return ()
+  else ptr $ info : Pe.showPdct indentAmt 0 pdct
+  where
+    info = Chk.chunk Chk.defaultTextSpec "Posting filter expression:\n"
+
+showVerboseFilter
+  :: ([Chk.Chunk] -> IO ())
+  -> VerboseFilter
+  -> [Chk.Chunk]
+  -> IO ()
+showVerboseFilter ptr (VerboseFilter vb) cks =
+  if not vb
+  then return ()
+  else ptr $ info : cks
+  where
+    info = Chk.chunk Chk.defaultTextSpec "Filtering information:\n"
 
 --
 -- Ledger parsing
@@ -409,12 +472,12 @@ parseLedgers ls =
 
 
 printChunks
-  :: Chk.Term
+  :: ([Chk.Chunk] -> IO ())
   -> Maybe E.TextSpecs
   -> [E.PreChunk]
   -> IO ()
-printChunks t mayS =
-  Chk.printChunks t
+printChunks printer mayS =
+  printer
   . map makeChunk
   where
     makeChunk pc = case mayS of
@@ -634,6 +697,13 @@ help d pn = unlines $
   , "  True if expr and expr2 are both true"
   , "expr1 expr2 --or"
   , "  True if either expr1 or expr2 is true"
+  , ""
+  , "Showing expressions"
+  , "-------------------"
+  , "--show-expression"
+  , "  Show the parsed filter expression"
+  , "--verbose-filter"
+  , "  Verbosely show filtering results"
   , ""
   , "Removing postings after sorting and filtering"
   , "---------------------------------------------"

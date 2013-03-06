@@ -163,7 +163,7 @@ cmdLineReport
   -> I.Report
 cmdLineReport o rt = (help o, mkMode)
   where
-    mkMode _ _ fsf = MA.Mode
+    mkMode _ _ _ fsf = MA.Mode
       { MA.mName = "convert"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allOptSpecs

@@ -20,6 +20,12 @@ defaults rt = Defaults
   , colorToFile = False
     -- ^ Use colors when standard output is not a terminal?
 
+  , expressionType = Infix
+    -- ^ Use Infix or RPN expressions for the posting filters and for
+    -- the filters in the Postings report? Change to @RPN@ if you like
+    -- that kind of thing (I find RPN easier to enter; if you're not
+    -- familiar with it, you might become a convert.)
+
   , defaultScheme = Just schemeDark
     -- ^ Default color scheme. If Nothing, there is no default color
     -- scheme. If there is no default color scheme and the user does

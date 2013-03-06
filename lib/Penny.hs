@@ -327,7 +327,6 @@ toPostingsDefaults d = Ps.ZincOpts
   , Ps.accountAllocation =
       Ps.alloc . postingsAccountAllocation $ d
   , Ps.spacers = convSpacers . postingsSpacers $ d
-  , Ps.expressionType = expressionType d
   }
 
 defaultQtyFormat :: L.Qty -> X.Text

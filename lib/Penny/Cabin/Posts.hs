@@ -109,12 +109,12 @@ postsReport szb pdct pff co =
 zincReport :: ZincOpts -> I.Report
 zincReport opts rt = (helpStr opts, md)
   where
-    md cs fty fsf = MA.Mode
+    md cs fty expr fsf = MA.Mode
       { MA.mName = "postings"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = specs rt
       , MA.mPosArgs = Left
-      , MA.mProcess = process opts cs fty fsf
+      , MA.mProcess = process opts cs fty expr fsf
       , MA.mHelp = const (helpStr opts)
       }
 
@@ -131,12 +131,13 @@ process
   :: ZincOpts
   -> CaseSensitive
   -> L.Factory
+  -> Exp.ExprDesc
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.State -> Ex.Exceptional String P.State)]
   -> Ex.Exceptional String I.ArgsAndReport
-process os cs fty fsf ls =
+process os cs fty expr fsf ls =
   let (posArgs, clOpts) = Ei.partitionEithers ls
-      pState = newParseState cs fty os
+      pState = newParseState cs fty expr os
       exState' = foldl (>>=) (return pState) clOpts
   in fmap (mkPrintReport posArgs os fsf) exState'
 
@@ -175,7 +176,6 @@ defaultOptions rt = ZincOpts
   , payeeAllocation = A.alloc 60
   , accountAllocation = A.alloc 40
   , spacers = defaultSpacerWidth
-  , expressionType = Exp.Infix
   }
 
 
@@ -242,9 +242,6 @@ data ZincOpts = ZincOpts
     -- less than or equal to zero, there will be no spacer. There is
     -- never a spacer for fields that do not appear in the report.
 
-  , expressionType :: Exp.ExprDesc
-  -- ^ Whether to use RPN or infix expressions.
-
   }
 
 chunkOpts ::
@@ -267,9 +264,10 @@ chunkOpts s z = C.ChunkOpts
 newParseState ::
   CaseSensitive
   -> L.Factory
+  -> Exp.ExprDesc
   -> ZincOpts
   -> P.State
-newParseState cs fty o = P.State
+newParseState cs fty expr o = P.State
   { P.sensitive = cs
   , P.factory = fty
   , P.tokens = []
@@ -277,7 +275,7 @@ newParseState cs fty o = P.State
   , P.fields = fields o
   , P.width = width o
   , P.showZeroBalances = showZeroBalances o
-  , P.exprDesc = expressionType o
+  , P.exprDesc = expr
   }
 
 -- | Shows the date of a posting in YYYY-MM-DD format.
@@ -480,9 +478,8 @@ helpStr o = unlines $
   , "Infix or RPN selection"
   , "----------------------"
   , "--infix - use infix notation"
-    ++ ifDefault (expressionType o == Exp.Infix)
-  , "-- rpn - use reverse polish notation"
-    ++ ifDefault (expressionType o == Exp.RPN)
+  , "--rpn - use reverse polish notation"
+  , "  (default: use what was used in the filtering options)"
   , ""
   , "Infix Operators - from highest to lowest precedence"
   , "(all are left associative)"

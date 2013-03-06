@@ -107,7 +107,7 @@ parseReport ::
   -> I.Report
 parseReport fmt o rt = (help o, makeMode)
   where
-    makeMode _ _ fsf = MA.Mode
+    makeMode _ _ _ fsf = MA.Mode
       { MA.mName = "balance"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allSpecs
