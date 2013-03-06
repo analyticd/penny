@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- | The Penny Postings report
 --
 -- The Postings report displays postings in a tabular format designed
@@ -74,6 +76,7 @@ import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as Sh
 import qualified Penny.Steel.Expressions as Exp
 import qualified Penny.Steel.Predtree as Pe
+import qualified Penny.Steel.Chunk as Chk
 
 import Data.List (intersperse)
 import Data.Maybe (catMaybes)
@@ -153,9 +156,39 @@ mkPrintReport posArgs zo fsf st = (posArgs, f)
       pdct <- Ex.mapException PdctError
               $ getPredicate (P.exprDesc st) (P.tokens st)
       let boxes = fsf txns
-          chks = postsReport (P.showZeroBalances st) pdct
-                 (P.postFilter st) (chunkOpts st zo) boxes
-      return . map Right $ chks
+          rptChks = postsReport (P.showZeroBalances st) pdct
+                    (P.postFilter st) (chunkOpts st zo) boxes
+          expChks = showExpression (P.showExpression st) pdct
+          verbChks = showVerboseFilter (P.verboseFilter st) pdct boxes
+          chks = map Left expChks
+                 ++ map Left verbChks
+                 ++ map Right rptChks
+      return chks
+
+indentAmt :: Pe.IndentAmt
+indentAmt = 4
+
+showExpression
+  :: P.ShowExpression
+  -> Pe.Pdct (L.Box Ly.LibertyMeta)
+  -> [Chk.Chunk]
+showExpression (P.ShowExpression b) pdct =
+  if not b then [] else info : chks
+  where
+    info = Chk.chunk Chk.defaultTextSpec "Postings filter expression:\n"
+    chks = Pe.showPdct indentAmt 0 pdct
+
+showVerboseFilter
+  :: P.VerboseFilter
+  -> Pe.Pdct (L.Box Ly.LibertyMeta)
+  -> [L.Box Ly.LibertyMeta]
+  -> [Chk.Chunk]
+showVerboseFilter (P.VerboseFilter b) pdct bs =
+  if not b then [] else info : chks
+  where
+    chks = concat . map snd . map doEval $ bs
+    doEval i = Pe.evaluate indentAmt False i 0 pdct
+    info = Chk.chunk Chk.defaultTextSpec "Postings report filter:\n"
 
 data Error
   = PdctError (Exp.ExprError (L.Box Ly.LibertyMeta))
