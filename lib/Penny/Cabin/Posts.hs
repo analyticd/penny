@@ -152,7 +152,7 @@ mkPrintReport posArgs zo fsf st = (posArgs, f)
     f txns _ = Ex.mapExceptional showError mkChunks exPdct
       where
         exPdct = getPredicate (P.exprDesc st) (P.tokens st)
-        mkChunks pdct = chks
+        mkChunks pdct = map Right chks
           where
             chks = postsReport (P.showZeroBalances st) pdct
                    (P.postFilter st) (chunkOpts st zo) boxes

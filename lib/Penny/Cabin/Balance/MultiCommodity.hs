@@ -129,7 +129,7 @@ process fmt o _ fsf ls =
       mkParsedOpts = foldl (flip (.)) id fns
       os' = mkParsedOpts o
       mcOpts = fromParseOpts fmt os'
-      pr txns _ = return $ report mcOpts (fsf txns)
+      pr txns _ = return . map Right $ report mcOpts (fsf txns)
   in pure (posArgs, pr)
 
 

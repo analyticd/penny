@@ -474,15 +474,18 @@ parseLedgers ls =
 printChunks
   :: ([Chk.Chunk] -> IO ())
   -> Maybe E.TextSpecs
-  -> [E.PreChunk]
+  -> [Either Chk.Chunk E.PreChunk]
   -> IO ()
 printChunks printer mayS =
   printer
   . map makeChunk
   where
-    makeChunk pc = case mayS of
-      Nothing -> Chk.chunk Chk.defaultTextSpec (E.text pc)
-      Just s -> E.makeChunk s pc
+    makeChunk eiChkOrPc =
+      case eiChkOrPc of
+        Left c -> c
+        Right pc -> case mayS of
+          Nothing -> Chk.chunk Chk.defaultTextSpec (E.text pc)
+          Just s -> E.makeChunk s pc
 
 helpText
   :: Defaults

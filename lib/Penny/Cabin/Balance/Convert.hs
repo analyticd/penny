@@ -190,7 +190,7 @@ process rt defaultOpts fsf ls = do
               rptOpts <- Ex.fromMaybe noDefault $
                 f pps (O.format defaultOpts)
               let boxes = fsf ts
-              report rptOpts pps boxes
+              fmap (map Right) $ report rptOpts pps boxes
         in (posArgs, pr)
 
 
