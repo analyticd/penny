@@ -246,7 +246,7 @@ allOpts dt df =
   ++ [fmap RSortSpec sortSpecs]
   ++ [ optColorToFile ]
   ++ let ss = moreSchemes df
-     in if not . null $ ss then [optScheme ss] else []
+     in (if not . null $ ss then [optScheme ss] else [])
   ++ map (fmap RExprDesc) Ly.exprDesc
   ++ [ RShowExpression <$ Ly.showExpression
      , RVerboseFilter <$ Ly.verboseFilter
