@@ -127,11 +127,12 @@ parseOpts wc
 
   <*> ( many (OA.argument OA.str mempty))
 
-main :: WheatConf -> IO ()
-main wc = do
+main :: (S.Runtime -> WheatConf) -> IO ()
+main getWc = do
   pn <- getProgName
   rt <- S.runtime
   let inf = OA.fullDesc
+      wc = getWc rt
   psd <- OA.execParser (OA.info (parseOpts wc) inf)
   let term = if p_colorToFile psd || (S.output rt == S.IsTTY)
         then S.termFromEnv rt
