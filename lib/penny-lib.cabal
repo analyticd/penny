@@ -42,7 +42,7 @@ Library
     , explicit-exception ==0.1.*
     , matchers ==0.5.*
     , monad-loops ==0.3.*
-    , multiarg ==0.9.*
+    , multiarg ==0.10.*
     , old-locale ==1.0.*
     , optparse-applicative ==0.5.*
     , parsec >= 3.1.2 && < 3.2
