@@ -1,15 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- | Trees of predicates.
+--
+-- Exports 'not', which of course conflicts with the Prelude function
+-- of the same name, so you probably want to import this module
+-- qualified.
 
 module Penny.Steel.Predtree
   ( Pdct(..)
   , always
   , never
-  , pdctAnd
-  , pdctOr
-  , pdctNot
-  , pNot
+  , namedAnd
+  , namedOr
+  , namedNot
+  , not
   , operand
   , neverFalse
   , neverTrue
@@ -33,6 +37,8 @@ import qualified Data.Text as X
 import Data.Monoid ((<>), mconcat, mempty)
 import qualified Penny.Steel.Chunk as C
 import qualified Penny.Steel.Chunk.Switch as Sw
+import Prelude hiding (not)
+import qualified Prelude
 
 type Label = Text
 
@@ -81,17 +87,17 @@ boxPdct
   -> Pdct b
 boxPdct f (Pdct l n) = Pdct l $ boxNode f n
 
-pdctAnd :: Text -> [Pdct a] -> Pdct a
-pdctAnd t = Pdct t . And
+namedAnd :: Text -> [Pdct a] -> Pdct a
+namedAnd t = Pdct t . And
 
-pdctOr :: Text -> [Pdct a] -> Pdct a
-pdctOr t = Pdct t . Or
+namedOr :: Text -> [Pdct a] -> Pdct a
+namedOr t = Pdct t . Or
 
-pdctNot :: Text -> Pdct a -> Pdct a
-pdctNot t = Pdct t . Not
+namedNot :: Text -> Pdct a -> Pdct a
+namedNot t = Pdct t . Not
 
-pNot :: Pdct a -> Pdct a
-pNot = pdctNot (X.pack "not")
+not :: Pdct a -> Pdct a
+not = namedNot (X.pack "not")
 
 -- | Creates a new operand. The Pdct is Just True or Just False, never
 -- Nothing.
@@ -120,7 +126,7 @@ neverTrue p@(Pdct l n) = case n of
   Operand f ->
     let f' a = case f a of
           Nothing -> Nothing
-          Just b -> if not b then Just False else Nothing
+          Just b -> if Prelude.not b then Just False else Nothing
     in Pdct l (Operand f')
   _ -> p
 
@@ -191,7 +197,7 @@ eval :: Pdct a -> a -> Maybe Bool
 eval (Pdct _ n) a = case n of
   And ps -> Just . and . catMaybes $ [flip eval a] <*> ps
   Or ps -> Just . or . catMaybes $ [flip eval a] <*> ps
-  Not p -> fmap not $ eval p a
+  Not p -> fmap Prelude.not $ eval p a
   Operand f -> f a
 
 -- | Verbosely evaluates a Pdct.
@@ -224,7 +230,7 @@ evaluate i sd a lvl (Pdct l pd) = case pd of
            in (Just resBool, txt)
 
   Not p -> let (childMayBool, childTxt) = evaluate i sd a (lvl + 1) p
-               thisMayBool = fmap not childMayBool
+               thisMayBool = fmap Prelude.not childMayBool
                thisTxt = indent i lvl (labelBool l thisMayBool)
                txt = if sd || isJust thisMayBool
                      then thisTxt <> childTxt else mempty
@@ -236,7 +242,7 @@ evaluate i sd a lvl (Pdct l pd) = case pd of
 
 evalAnd :: IndentAmt -> ShowDiscards -> a
         -> Level -> [Pdct a] -> (Bool, [C.Chunk])
-evalAnd i sd a l ts = (not foundFalse, txt)
+evalAnd i sd a l ts = (Prelude.not foundFalse, txt)
   where
     (foundFalse, txt) = go ts (False, mempty)
     go [] p = p
@@ -245,7 +251,7 @@ evalAnd i sd a l ts = (not foundFalse, txt)
       then (fndFalse, acc <> indent i l
                              [defaultChunk "(short circuit)"])
       else let (res, cTxt) = evaluate i sd a l x
-               fndFalse' = maybe False not res
+               fndFalse' = maybe False Prelude.not res
            in go xs (fndFalse', acc <> cTxt)
 
 evalOr :: IndentAmt -> ShowDiscards -> a

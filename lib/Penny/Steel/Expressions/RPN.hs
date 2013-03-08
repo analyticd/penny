@@ -43,7 +43,7 @@ pushOperator o ts = case o of
     x:y:zs -> return $ (y ||| x) : zs
     _ -> Ex.throw $ InsufficientStack OpOr
   OpNot -> case ts of
-    x:zs -> return $ P.pNot x : zs
+    x:zs -> return $ P.not x : zs
     _ -> Ex.throw $ InsufficientStack OpNot
 
 pushToken
