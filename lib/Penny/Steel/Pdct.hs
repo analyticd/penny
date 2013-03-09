@@ -2,17 +2,15 @@
 
 -- | Trees of predicates.
 --
--- Exports 'not', which of course conflicts with the Prelude function
--- of the same name, so you probably want to import this module
--- qualified.
+-- Exports names which conflict with Prelude names, so you probably
+-- want to import this module qualified.
 
 module Penny.Steel.Pdct
   ( Pdct(..)
   , always
   , never
-  , namedAnd
-  , namedOr
-  , namedNot
+  , and
+  , or
   , not
   , operand
   , neverFalse
@@ -37,7 +35,7 @@ import qualified Data.Text as X
 import Data.Monoid ((<>), mconcat, mempty)
 import qualified Penny.Steel.Chunk as C
 import qualified Penny.Steel.Chunk.Switch as Sw
-import Prelude hiding (not)
+import Prelude hiding (not, and, or)
 import qualified Prelude
 
 type Label = Text
@@ -60,10 +58,16 @@ data Node a
 
   | Or [Pdct a]
   -- ^ At least one of the Pdct in the list must be Just True. An
-  -- empty lis or list with only Nothing is Just False.
+  -- empty list or list with only Nothing is Just False.
 
   | Not (Pdct a)
   -- ^ Just True is Just False and vice versa; Nothing remains Nothing.
+
+  | NeverFalse (Pdct a)
+  -- ^ Just True if the child is Just True; Nothing otherwise.
+
+  | NeverTrue (Pdct a)
+  -- ^ Just False if the child is Just False; Nothing otherwise.
 
   | Operand (a -> Maybe Bool)
 
@@ -77,7 +81,10 @@ boxNode f n = case n of
   And ls -> And $ map (boxPdct f) ls
   Or ls -> Or $ map (boxPdct f) ls
   Not o -> Not $ boxPdct f o
+  NeverFalse o -> NeverFalse $ boxPdct f o
+  NeverTrue o -> NeverTrue $ boxPdct f o
   Operand g -> Operand $ \b -> g (f b)
+
 
 -- | Given a function that un-boxes values of type b, changes a Pdct
 -- from type a to type b.
@@ -87,17 +94,14 @@ boxPdct
   -> Pdct b
 boxPdct f (Pdct l n) = Pdct l $ boxNode f n
 
-namedAnd :: Text -> [Pdct a] -> Pdct a
-namedAnd t = Pdct t . And
+and :: [Pdct a] -> Pdct a
+and = Pdct "and" . And
 
-namedOr :: Text -> [Pdct a] -> Pdct a
-namedOr t = Pdct t . Or
-
-namedNot :: Text -> Pdct a -> Pdct a
-namedNot t = Pdct t . Not
+or :: [Pdct a] -> Pdct a
+or = Pdct "or" . Or
 
 not :: Pdct a -> Pdct a
-not = namedNot (X.pack "not")
+not = Pdct "not" . Not
 
 -- | Creates a new operand. The Pdct is Just True or Just False, never
 -- Nothing.
@@ -109,26 +113,14 @@ operand t = Pdct t . Operand . fmap Just
 -- Just True. Otherwise, the Pdct returns Nothing.  Has no effect on
 -- non-Operand Pdct.
 neverFalse :: Pdct a -> Pdct a
-neverFalse p@(Pdct l n) = case n of
-  Operand f ->
-    let f' a = case f a of
-          Nothing -> Nothing
-          Just b -> if b then Just True else Nothing
-    in Pdct l (Operand f')
-  _ -> p
+neverFalse = Pdct "never False" . NeverFalse
 
 -- | Turns an existing Pdct to one that never says True. If the
 -- underlying predicate returns Just False, the new Pdct also returns
 -- Just False. Otherwise, the Pdct returns Nothing.  Has no effect on
 -- non-Operand Pdct.
 neverTrue :: Pdct a -> Pdct a
-neverTrue p@(Pdct l n) = case n of
-  Operand f ->
-    let f' a = case f a of
-          Nothing -> Nothing
-          Just b -> if Prelude.not b then Just False else Nothing
-    in Pdct l (Operand f')
-  _ -> p
+neverTrue = Pdct "never True" . NeverTrue
 
 
 -- | Returns a tree that is always True.
@@ -169,6 +161,10 @@ showPdct amt lvl (Pdct l pd) = case pd of
            <> mconcat (map (showPdct amt (lvl + 1)) ls)
   Not t -> indent amt lvl [defaultChunk l]
            <> showPdct amt (lvl + 1) t
+  NeverFalse t -> indent amt lvl [defaultChunk l]
+                  <> showPdct amt (lvl + 1) t
+  NeverTrue t -> indent amt lvl [defaultChunk l]
+                 <> showPdct amt (lvl + 1) t
   Operand _ -> indent amt lvl [defaultChunk l]
 
 
@@ -195,9 +191,15 @@ type ShowDiscards = Bool
 -- | Evaluates a Pdct.
 eval :: Pdct a -> a -> Maybe Bool
 eval (Pdct _ n) a = case n of
-  And ps -> Just . and . catMaybes $ [flip eval a] <*> ps
-  Or ps -> Just . or . catMaybes $ [flip eval a] <*> ps
+  And ps -> Just . Prelude.and . catMaybes $ [flip eval a] <*> ps
+  Or ps -> Just . Prelude.or . catMaybes $ [flip eval a] <*> ps
   Not p -> fmap Prelude.not $ eval p a
+  NeverFalse p -> case eval p a of
+    Nothing -> Nothing
+    Just b -> if Prelude.not b then Nothing else Just b
+  NeverTrue p -> case eval p a of
+    Nothing -> Nothing
+    Just b -> if b then Nothing else Just b
   Operand f -> f a
 
 -- | Verbosely evaluates a Pdct.
@@ -235,6 +237,26 @@ evaluate i sd a lvl (Pdct l pd) = case pd of
                txt = if sd || isJust thisMayBool
                      then thisTxt <> childTxt else mempty
            in (thisMayBool, txt)
+
+  NeverFalse p ->
+    let (childMayBool, childTxt) = evaluate i sd a (lvl + 1) p
+        thisMayBool = case childMayBool of
+          Nothing -> Nothing
+          Just b -> if Prelude.not b then Nothing else Just b
+        thisTxt = indent i lvl (labelBool l thisMayBool)
+        txt = if sd || isJust thisMayBool
+              then thisTxt <> childTxt else mempty
+    in (thisMayBool, txt)
+
+  NeverTrue p ->
+    let (childMayBool, childTxt) = evaluate i sd a (lvl + 1) p
+        thisMayBool = case childMayBool of
+          Nothing -> Nothing
+          Just b -> if b then Nothing else Just b
+        thisTxt = indent i lvl (labelBool l thisMayBool)
+        txt = if sd || isJust thisMayBool
+              then thisTxt <> childTxt else mempty
+    in (thisMayBool, txt)
 
   Operand p -> let res = p a
                    txt = indent i lvl (labelBool l res)
