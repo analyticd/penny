@@ -18,6 +18,7 @@ module Penny.Lincoln.Bits.DateTime
   , toZonedTime
   , fromZonedTime
   , sameInstant
+  , showDateTime
   ) where
 
 import qualified Data.Time as T
@@ -132,4 +133,20 @@ toUTC dt = T.localTimeToUTC tz lt
 
 sameInstant :: DateTime -> DateTime -> Bool
 sameInstant t1 t2 = toUTC t1 == toUTC t2
+
+-- | Shows a DateTime in a pretty way.
+showDateTime :: DateTime -> String
+showDateTime (DateTime d h m s tz) =
+  ds ++ " " ++ hmss ++ " " ++ showOffset
+  where
+    ds = show d
+    hmss = hs ++ ":" ++ ms ++ ":" ++ ss
+    hs = pad0 . show . unHours $ h
+    ms = pad0 . show . unMinutes $ m
+    ss = pad0 . show . unSeconds $ s
+    pad0 str = if length str < 2 then '0':str else str
+    showOffset =
+      let (zoneHr, zoneMin) = abs (offsetToMins tz) `divMod` 60
+          sign = if offsetToMins tz < 0 then "-" else "+"
+      in sign ++ pad0 (show zoneHr) ++ pad0 (show zoneMin)
 

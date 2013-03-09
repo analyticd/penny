@@ -496,3 +496,4 @@ changeTransaction c (Transaction t) =
       ps' = zipWith applyPostingChange
             (cps ++ repeat emptyPostingChangeData) ps
   in Transaction (F.Family tl' p1' p2' ps')
+

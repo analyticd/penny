@@ -30,6 +30,7 @@ module Penny.Lincoln.Bits (
   DT.toZonedTime,
   DT.fromZonedTime,
   DT.sameInstant,
+  DT.showDateTime,
 
   -- * Debits and Credits
   O.DrCr(Debit, Credit),

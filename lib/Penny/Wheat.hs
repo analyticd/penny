@@ -4,19 +4,16 @@ module Penny.Wheat where
 import Control.Applicative
 import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.List (intersperse, find, isPrefixOf)
+import Data.List (find, isPrefixOf)
 import Data.Maybe (mapMaybe, catMaybes)
 import Data.Monoid ((<>), mempty)
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
-import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
-import Data.Text (Text)
 import qualified Data.Time as Time
 import qualified Text.Parsec as Parsec
 import qualified System.Exit as Exit
-import System.Locale (defaultTimeLocale)
 import System.Environment (getProgName)
 import qualified System.IO as IO
 import qualified Penny.Shield as S
@@ -166,57 +163,6 @@ getItems pn ss = Cop.openStdin ss >>= f
         let toTxn i = case i of { Cop.Transaction x -> Just x; _ -> Nothing }
         in return . concatMap L.postFam
            . mapMaybe toTxn . Cop.unLedger $ g
---
--- Showers
---
-showDateTime :: L.DateTime -> String
-showDateTime (L.DateTime d h m s tz) =
-  ds ++ " " ++ hmss ++ " " ++ showOffset
-  where
-    ds = show d
-    hmss = hs ++ ":" ++ ms ++ ":" ++ ss
-    hs = pad0 . show . L.unHours $ h
-    ms = pad0 . show . L.unMinutes $ m
-    ss = pad0 . show . L.unSeconds $ s
-    pad0 str = if length str < 2 then '0':str else str
-    showOffset =
-      let (zoneHr, zoneMin) = abs (L.offsetToMins tz) `divMod` 60
-          sign = if L.offsetToMins tz < 0 then "-" else "+"
-      in sign ++ pad0 (show zoneHr) ++ pad0 (show zoneMin)
-
-
-
--- | Displays a PostFam in a one line format.
---
--- Format:
---
--- File LineNo Date Payee Acct DrCr Cmdty Qty
-display :: L.PostFam -> Text
-display p = X.pack $ concat (intersperse " " ls)
-  where
-    ls = [file, lineNo, dt, pye, acct, dc, cmdty, qt]
-    file = maybe (labelNo "filename") (X.unpack . L.unFilename)
-           (Q.filename p)
-    lineNo = maybe (labelNo "line number")
-             (show . L.unPostingLine) (Q.postingLine p)
-    dateFormat = "%Y-%m-%d %T %z"
-    dt = Time.formatTime defaultTimeLocale dateFormat
-         . Time.utctDay
-         . L.toUTC
-         . Q.dateTime
-         $ p
-    pye = maybe (labelNo "payee")
-            (X.unpack . L.text) (Q.payee p)
-    acct = X.unpack . X.intercalate (X.singleton ':')
-           . map L.unSubAccount . L.unAccount . Q.account $ p
-    dc = case Q.drCr p of
-      L.Debit -> "Dr"
-      L.Credit -> "Cr"
-    cmdty = X.unpack . L.unCommodity . Q.commodity $ p
-    qt = show . Q.qty $ p
-
-labelNo :: String -> String
-labelNo s = "(no " ++ s ++ ")"
 
 --
 -- Tests
@@ -225,11 +171,11 @@ eachPostingMustBeTrue
   :: TT.Name
   -> Pe.Pdct L.PostFam
   -> TT.TestTree L.PostFam
-eachPostingMustBeTrue n = TT.eachSubjectMustBeTrue n display
+eachPostingMustBeTrue n = TT.eachSubjectMustBeTrue n L.display
 
 atLeastNPostings
   :: Int
   -> TT.Name
   -> Pe.Pdct L.PostFam
   -> TT.TestTree L.PostFam
-atLeastNPostings i n = TT.seriesAtLeastN n display i
+atLeastNPostings i n = TT.seriesAtLeastN n L.display i
