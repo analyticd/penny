@@ -58,7 +58,7 @@ import qualified Penny.Copper.Parsec as Pc
 
 import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Predicates as P
-import qualified Penny.Steel.PredTree as E
+import qualified Penny.Steel.Pdct as E
 import qualified Penny.Lincoln as L
 import qualified Penny.Steel.Chunk as C
 import qualified Penny.Steel.Expressions as X

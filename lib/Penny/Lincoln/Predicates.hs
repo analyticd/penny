@@ -42,7 +42,7 @@ import qualified Penny.Lincoln.Queries as Q
 import Penny.Lincoln.Transaction (PostFam)
 import qualified Penny.Lincoln.Transaction as T
 import qualified Text.Matchers as M
-import qualified Penny.Steel.PredTree as P
+import qualified Penny.Steel.Pdct as P
 
 type LPdct = P.Pdct PostFam
 

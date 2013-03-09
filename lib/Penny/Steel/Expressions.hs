@@ -15,7 +15,7 @@ module Penny.Steel.Expressions
 import Data.Either (partitionEithers)
 import qualified Penny.Steel.Expressions.Infix as I
 import qualified Penny.Steel.Expressions.RPN as R
-import qualified Penny.Steel.PredTree as P
+import qualified Penny.Steel.Pdct as P
 import qualified Control.Monad.Exception.Synchronous as Ex
 
 -- | A single type for both RPN tokens and infix tokens.

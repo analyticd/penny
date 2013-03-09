@@ -11,7 +11,7 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Cabin.Meta as M
 import qualified Penny.Cabin.Options as CO
-import qualified Penny.Steel.PredTree as Pe
+import qualified Penny.Steel.Pdct as Pe
 import Data.Monoid (mempty, mappend)
 
 -- | The Box type that is used throughout the Posts modules.

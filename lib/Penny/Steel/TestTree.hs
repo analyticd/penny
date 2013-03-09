@@ -9,7 +9,7 @@ import qualified Data.List.Split as Sp
 
 import qualified Penny.Steel.Chunk as C
 import qualified Penny.Steel.Chunk.Switch as Sw
-import qualified Penny.Steel.PredTree as Pt
+import qualified Penny.Steel.Pdct as Pt
 
 --
 -- Types

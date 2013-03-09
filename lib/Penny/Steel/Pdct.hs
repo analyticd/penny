@@ -6,7 +6,7 @@
 -- of the same name, so you probably want to import this module
 -- qualified.
 
-module Penny.Steel.PredTree
+module Penny.Steel.Pdct
   ( Pdct(..)
   , always
   , never

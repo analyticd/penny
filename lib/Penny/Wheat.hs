@@ -22,7 +22,7 @@ import qualified System.IO as IO
 import qualified Penny.Shield as S
 
 import qualified Penny.Steel.TestTree as TT
-import qualified Penny.Steel.PredTree as Pe
+import qualified Penny.Steel.Pdct as Pe
 import qualified Penny.Steel.Chunk as C
 import qualified Options.Applicative as OA
 
