@@ -390,6 +390,9 @@ makeMode rt fo r = fmap makeIO mode
 indentAmt :: Pe.IndentAmt
 indentAmt = 4
 
+blankLine :: Chk.Chunk
+blankLine = Chk.chunk Chk.defaultTextSpec "\n"
+
 showFilterExpression
   :: ([Chk.Chunk] -> IO ())
   -> ShowExpression
@@ -398,7 +401,8 @@ showFilterExpression
 showFilterExpression ptr (ShowExpression se) pdct =
   if not se
   then return ()
-  else ptr $ info : Pe.showPdct indentAmt 0 pdct
+  else ptr $ info : blankLine :
+             (Pe.showPdct indentAmt 0 pdct ++ [blankLine])
   where
     info = Chk.chunk Chk.defaultTextSpec "Posting filter expression:\n"
 
@@ -410,7 +414,7 @@ showVerboseFilter
 showVerboseFilter ptr (VerboseFilter vb) cks =
   if not vb
   then return ()
-  else ptr $ info : cks
+  else ptr $ info : blankLine : (cks ++ [blankLine])
   where
     info = Chk.chunk Chk.defaultTextSpec "Filtering information:\n"
 

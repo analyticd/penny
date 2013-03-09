@@ -117,7 +117,9 @@ xactionsToFiltered ::
   -- ^ Sorted, filtered postings
 
 xactionsToFiltered pdct postFilts s txns =
-  let pairMaybes = map (\i -> E.evaluate indentAmt True i 0 pdct) pfs
+  let pdcts = map (makeLabeledPdct pdct) pfs
+      evaluator subj pd = E.evaluate indentAmt True subj 0 pd
+      pairMaybes = zipWith evaluator pfs pdcts
       pairs = mapMaybe rmMaybe pairMaybes
       rmMaybe (mayB, x) = case mayB of
         Nothing -> Nothing
@@ -134,6 +136,13 @@ xactionsToFiltered pdct postFilts s txns =
                  $ filtered
   in (txt, resultLs)
 
+
+-- | Creates a Pdct and prepends a one-line description of the PostFam
+-- to the Pdct's label so it can be easily identified in the output.
+makeLabeledPdct :: E.Pdct L.PostFam -> L.PostFam -> E.Pdct L.PostFam
+makeLabeledPdct pd pf = E.rename f pd
+  where
+    f old = old <> " - " <> L.display pf
 
 indentAmt :: E.IndentAmt
 indentAmt = 4
