@@ -1,16 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Penny.Steel.Predtest where
+module Penny.Steel.TestTree where
 
-import Control.Monad.Loops (unfoldrM)
-import qualified Control.Monad.Trans.State as St
 import Data.Maybe (isJust)
 import qualified Data.Text as X
 import Data.Text (Text)
+import qualified Data.List.Split as Sp
 
 import qualified Penny.Steel.Chunk as C
 import qualified Penny.Steel.Chunk.Switch as Sw
-import qualified Penny.Steel.Predtree as Pt
+import qualified Penny.Steel.PredTree as Pt
 
 --
 -- Types
@@ -22,10 +21,10 @@ type Name = Text
 -- | A tree of tests. On evaluation of the tree, the name is not shown
 -- for tests (it is only shown for groups.) However, the name is used
 -- when the tree is displayed statically, without evaluation.
-data Tree a = Tree Name (Payload a)
+data TestTree a = TestTree Name (Payload a)
 
 data Payload a
-  = Group [Tree a]
+  = Group [TestTree a]
   | Test (TestFunc a)
 
 type TestFunc a
@@ -37,11 +36,11 @@ type TestFunc a
   -> (Pass, [C.Chunk])
 
 
-group :: Name -> [Tree a] -> Tree a
-group n ts = Tree n (Group ts)
+group :: Name -> [TestTree a] -> TestTree a
+group n ts = TestTree n (Group ts)
 
-test :: Name -> TestFunc a -> Tree a
-test n t = Tree n (Test t)
+test :: Name -> TestFunc a -> TestTree a
+test n t = TestTree n (Test t)
 
 type PassVerbosity = Verbosity
 type FailVerbosity = Verbosity
@@ -69,41 +68,6 @@ data Verbosity
 --
 -- Helper functions
 --
-
--- | True if the list is at least n elements long. Less strict than
--- 'length'.
-atLeast :: Int -> [a] -> Bool
-atLeast x = go 0
-  where
-    go i [] = i >= x
-    go i (_:as) =
-      if i >= x
-      then True
-      else let i' = i + 1 in i' `seq` go i' as
-
-
--- | Takes as many elements from a list as necessary until the given
--- number of elements that have Just True as the second element of the
--- pair are found.  Will stop processing if the number of elements is
--- found, but does not discard elements solely because they do not
--- satisfy the predicate. Returns the number of elements found along
--- with the list.
-takeCount
-  :: Int
-  -- ^ Find this many elements
-  -> [(a, Maybe Bool)]
-  -> ([(a, Maybe Bool)], Int)
-takeCount i = flip St.runState 0 . unfoldrM f
-  where
-    f [] = return Nothing
-    f ((a, mb):xs) = do
-      c <- St.get
-      case () of
-        _ | c == i -> return Nothing
-          | isTrue mb -> do
-              St.put (c + 1)
-              return (Just ((a, mb), xs))
-          | otherwise -> return (Just ((a, mb), xs))
 
 
 -- | Determines whether to show a subject, and shows it.
@@ -166,8 +130,8 @@ eachSubjectMustBeTrue
   :: Name
   -> (a -> Text)
   -> Pt.Pdct a
-  -> Tree a
-eachSubjectMustBeTrue n swr p = Tree n (Test tf)
+  -> TestTree a
+eachSubjectMustBeTrue n swr p = TestTree n (Test tf)
   where
     tf i pv fv as lvl = (pass, cks)
       where
@@ -185,18 +149,21 @@ seriesAtLeastN
   -> (a -> X.Text)
   -> Int
   -> Pt.Pdct a
-  -> Tree a
-seriesAtLeastN n swr count p = Tree n (Test tf)
+  -> TestTree a
+seriesAtLeastN n swr count p = TestTree n (Test tf)
   where
     tf idnt pv fv as l = (pass, cks)
       where
-        (elems, nFound) = takeCount count (zip as (map (Pt.eval p) as))
-        pass = nFound >= count
+        pd (_, res) = isTrue res
+        resultList = take count
+                     . Sp.split (Sp.keepDelimsR (Sp.whenElt pd))
+                     $ zip as (map (Pt.eval p) as)
+        pass = length resultList >= count
         v = if pass then pv else fv
         cks = tit ++ subjectChunks
         tit = if v == Silent then [] else showTestTitle idnt l n pass
         subjectChunks =
-          concatMap (showSubject swr v idnt (l + 1) p) elems
+          concatMap (showSubject swr v idnt (l + 1) p) . concat $ resultList
 
 indent :: Pt.IndentAmt -> Pt.Level -> Text -> C.Chunk
 indent amt lvl t = C.chunk ts txt
@@ -206,26 +173,26 @@ indent amt lvl t = C.chunk ts txt
     spaces = X.replicate (amt * lvl) " "
 
 -- | Shows a tree, without evaluating it.
-showTree
+showTestTree
   :: Pt.IndentAmt
   -> Pt.Level
-  -> Tree a
+  -> TestTree a
   -> [C.Chunk]
-showTree amt l (Tree n p) = indent amt l n : children
+showTestTree amt l (TestTree n p) = indent amt l n : children
   where
     children = case p of
-      Group ts -> concatMap (showTree amt l) ts
+      Group ts -> concatMap (showTestTree amt l) ts
       Test _ -> []
 
-evalTree
+evalTestTree
   :: Pt.IndentAmt
   -> Pt.Level
   -> PassVerbosity
   -> FailVerbosity
   -> [a]
-  -> Tree a
+  -> TestTree a
   -> [Either C.Chunk (Pass, [C.Chunk])]
-evalTree i l pv fv as (Tree n p) = case p of
+evalTestTree i l pv fv as (TestTree n p) = case p of
   Test f -> [Right $ f i pv fv as l]
   Group ts -> Left (indent i l n)
-              : concatMap (evalTree i (l + 1) pv fv as) ts
+              : concatMap (evalTestTree i (l + 1) pv fv as) ts

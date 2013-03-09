@@ -7,8 +7,8 @@ module Penny.Steel.Expressions.RPN where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as Fdbl
-import qualified Penny.Steel.Predtree as P
-import Penny.Steel.Predtree ((&&&), (|||))
+import qualified Penny.Steel.PredTree as P
+import Penny.Steel.PredTree ((&&&), (|||))
 
 data RPNToken a
   = TokOperand (P.Pdct a)

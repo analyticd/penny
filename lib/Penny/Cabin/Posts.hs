@@ -75,7 +75,7 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as Sh
 import qualified Penny.Steel.Expressions as Exp
-import qualified Penny.Steel.Predtree as Pe
+import qualified Penny.Steel.PredTree as Pe
 import qualified Penny.Steel.Chunk as Chk
 
 import Data.List (intersperse)

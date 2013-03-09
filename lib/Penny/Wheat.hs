@@ -21,8 +21,8 @@ import System.Environment (getProgName)
 import qualified System.IO as IO
 import qualified Penny.Shield as S
 
-import qualified Penny.Steel.Predtest as Pt
-import qualified Penny.Steel.Predtree as Pe
+import qualified Penny.Steel.TestTree as TT
+import qualified Penny.Steel.PredTree as Pe
 import qualified Penny.Steel.Chunk as C
 import qualified Options.Applicative as OA
 
@@ -51,11 +51,11 @@ type ProgName = String
 data WheatConf = WheatConf
   { briefDescription :: String
   , moreHelp :: [String]
-  , passVerbosity :: Pt.PassVerbosity
-  , failVerbosity :: Pt.FailVerbosity
+  , passVerbosity :: TT.PassVerbosity
+  , failVerbosity :: TT.FailVerbosity
   , indentAmt :: Pe.IndentAmt
   , colorToFile :: ColorToFile
-  , tests :: [BaseTime -> Pt.Tree L.PostFam]
+  , tests :: [BaseTime -> TT.TestTree L.PostFam]
   , baseTime :: BaseTime
   }
 
@@ -68,14 +68,14 @@ parseAbbrev ls str = case find (\(s, _) -> s == str) ls of
       (_, a):[] -> Right a
       _ -> Left (OA.ErrorMsg ("invalid argument: " ++ str))
 
-parseVerbosity :: String -> Either OA.ParseError Pt.Verbosity
+parseVerbosity :: String -> Either OA.ParseError TT.Verbosity
 parseVerbosity = parseAbbrev
-  [ ("silent", Pt.Silent)
-  , ("minimal", Pt.PassFail)
-  , ("false", Pt.FalseSubjects)
-  , ("true", Pt.TrueSubjects)
-  , ("discarded", Pt.DiscardedSubjects)
-  , ("all", Pt.DiscardedPredicates)
+  [ ("silent", TT.Silent)
+  , ("minimal", TT.PassFail)
+  , ("false", TT.FalseSubjects)
+  , ("true", TT.TrueSubjects)
+  , ("discarded", TT.DiscardedSubjects)
+  , ("all", TT.DiscardedPredicates)
   ]
 
 parseColorToFile :: String -> Either OA.ParseError ColorToFile
@@ -87,8 +87,8 @@ parseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
   Right g -> Right . L.toUTC $ g
 
 data Parsed = Parsed
-  { p_passVerbosity :: Pt.PassVerbosity
-  , p_failVerbosity :: Pt.FailVerbosity
+  { p_passVerbosity :: TT.PassVerbosity
+  , p_failVerbosity :: TT.FailVerbosity
   , p_indentAmt :: Pe.IndentAmt
   , p_colorToFile :: ColorToFile
   , p_baseTime :: BaseTime
@@ -139,7 +139,7 @@ main getWc = do
         else S.autoTerm rt
   pfs <- getItems pn (p_ledgers psd)
   let tts = zipWith ($) (tests wc) (repeat (p_baseTime psd))
-      doEval = Pt.evalTree (p_indentAmt psd) 0 (p_passVerbosity psd)
+      doEval = TT.evalTestTree (p_indentAmt psd) 0 (p_passVerbosity psd)
                            (p_failVerbosity psd) pfs
       eithers = concatMap doEval tts
   passes <- mapM (showEitherChunk (C.printChunks term)) eithers
@@ -147,8 +147,8 @@ main getWc = do
 
 showEitherChunk
   :: ([C.Chunk] -> IO ())
-  -> Either C.Chunk (Pt.Pass, [C.Chunk])
-  -> IO (Maybe Pt.Pass)
+  -> Either C.Chunk (TT.Pass, [C.Chunk])
+  -> IO (Maybe TT.Pass)
 showEitherChunk f ei = case ei of
   Left ck -> f [ck] >> return Nothing
   Right (p, cs) -> f cs >> return (Just p)
@@ -222,14 +222,14 @@ labelNo s = "(no " ++ s ++ ")"
 -- Tests
 --
 eachPostingMustBeTrue
-  :: Pt.Name
+  :: TT.Name
   -> Pe.Pdct L.PostFam
-  -> Pt.Tree L.PostFam
-eachPostingMustBeTrue n = Pt.eachSubjectMustBeTrue n display
+  -> TT.TestTree L.PostFam
+eachPostingMustBeTrue n = TT.eachSubjectMustBeTrue n display
 
 atLeastNPostings
   :: Int
-  -> Pt.Name
+  -> TT.Name
   -> Pe.Pdct L.PostFam
-  -> Pt.Tree L.PostFam
-atLeastNPostings i n = Pt.seriesAtLeastN n display i
+  -> TT.TestTree L.PostFam
+atLeastNPostings i n = TT.seriesAtLeastN n display i
