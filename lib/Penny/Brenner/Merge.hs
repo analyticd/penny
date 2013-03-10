@@ -1,11 +1,11 @@
 module Penny.Brenner.Merge (mode) where
 
-import Control.Applicative (pure)
+import Control.Applicative (pure, (<|>))
 import Control.Monad (guard)
 import qualified Control.Monad.Trans.State as St
-import Data.List (find)
+import Data.List (find, sortBy, foldl')
 import qualified Data.Map as M
-import Data.Maybe (mapMaybe, isNothing)
+import Data.Maybe (mapMaybe, isNothing, fromMaybe)
 import Data.Monoid (First(..), mconcat)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
@@ -19,18 +19,21 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
 
+type NoAuto = Bool
+
 data Arg
   = APos String
+  | ANoAuto
   deriving (Eq, Show)
 
 toPosArg :: Arg -> Maybe String
-toPosArg a = case a of { APos s -> Just s }
+toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
 
 mode :: Maybe Y.FitAcct -> MA.Mode (IO ())
 mode maybeC = MA.Mode
   { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = []
+  , MA.mOpts = [MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto)]
   , MA.mPosArgs = APos
   , MA.mProcess = processor maybeC
   , MA.mHelp = help
@@ -38,10 +41,10 @@ mode maybeC = MA.Mode
 
 processor :: Maybe Y.FitAcct -> [Arg] -> IO ()
 processor maybeC as =
-  doMerge maybeC (mapMaybe toPosArg as)
+  doMerge maybeC (ANoAuto `elem` as) (mapMaybe toPosArg as)
 
-doMerge :: Maybe Y.FitAcct -> [String] -> IO ()
-doMerge maybeAcct ss = do
+doMerge :: Maybe Y.FitAcct -> NoAuto -> [String] -> IO ()
+doMerge maybeAcct noAuto ss = do
   acct <- case maybeAcct of
     Nothing -> do
       fail $ "no financial"
@@ -57,7 +60,7 @@ doMerge maybeAcct ss = do
   let dbWithEntry = fmap (pairWithEntry acct) . M.fromList $ dbLs
       (l', db') = changeItems acct
                   l (filterDb (Y.pennyAcct acct) dbWithEntry l)
-      newTxns = createTransactions acct db'
+      newTxns = createTransactions noAuto acct l dbLs db'
       final = C.Ledger (C.unLedger l' ++ newTxns)
   case R.ledger (Y.groupSpecs acct) final of
     Nothing -> fail "Could not render final ledger."
@@ -74,6 +77,7 @@ help pn = unlines
   , ""
   , "Options:"
   , "  -h, --help - show help and exit"
+  , "  -n, --no-auto - do not automatically assign payees and accounts"
   ]
 
 -- | Removes all Brenner postings that already have a Penny posting
@@ -228,10 +232,13 @@ pennyTxnMatches acct t p (_, (a, e)) =
 -- the Amex payee if that string is non empty; otherwise, uses the
 -- Amex description for the payee.
 newTransaction
-  :: Y.FitAcct
+  :: NoAuto
+  -> Y.FitAcct
+  -> UNumberLookupMap
+  -> PyeLookupMap
   -> (Y.UNumber, (Y.Posting, L.Entry))
   -> L.Transaction
-newTransaction acct (u, (a, e)) = L.rTransaction rt
+newTransaction noAuto acct mu mp (u, (a, e)) = L.rTransaction rt
   where
     rt = L.RTransaction
       { L.rtCommodity = Y.unCurrency . Y.currency $ acct
@@ -245,24 +252,109 @@ newTransaction acct (u, (a, e)) = L.rTransaction rt
       }
     tl = (U.emptyTopLine ( L.dateTimeMidnightUTC . Y.unDate
                            . Y.date $ a))
-         { U.tPayee = Just (L.Payee pa) }
-    pa = if X.null . Y.unPayee . Y.payee $ a
-         then Y.unDesc . Y.desc $ a
-         else Y.unPayee . Y.payee $ a
+         { U.tPayee = Just pa }
+    (guessedPye, guessedAcct) = guessInfo mu mp a
+    dfltPye = L.Payee $ if X.null . Y.unPayee . Y.payee $ a
+              then Y.unDesc . Y.desc $ a
+              else Y.unPayee . Y.payee $ a
+    dfltAcct = Y.unDefaultAcct . Y.defaultAcct $ acct
+    (pa, ac) =
+      if noAuto
+      then (dfltPye, dfltAcct)
+      else ( fromMaybe dfltPye guessedPye,
+             fromMaybe dfltAcct guessedAcct)
     pennyAcct = Y.unPennyAcct . Y.pennyAcct $ acct
     p1 = (U.emptyRPosting pennyAcct (L.qty . L.amount $ e))
           { U.rTags = L.Tags [newLincolnUNumber u] }
-    p2 = U.emptyIPosting (Y.unDefaultAcct . Y.defaultAcct $ acct)
+    p2 = U.emptyIPosting ac
 
 -- | Creates new transactions for all the items remaining in the
 -- DbMap. Appends a blank line after each one.
 createTransactions
-  :: Y.FitAcct
+  :: NoAuto
+  -> Y.FitAcct
+  -> C.Ledger
+  -> Y.DbList
   -> DbWithEntry
   -> [C.Item]
-createTransactions acct =
+createTransactions noAuto acct led dbLs db =
   concatMap (\i -> [i, C.BlankLine])
   . map C.Transaction
-  . map (newTransaction acct)
+  . map (newTransaction noAuto acct mu mp)
   . M.assocs
+  $ db
+  where
+    mu = makeUNumberLookup dbLs
+    mp = makePyeLookupMap (Y.pennyAcct acct) led
 
+-- | Maps financial institution postings to UNumbers. The key is the
+-- Payee of the financial institution posting, if it has one;
+-- otherwise, it is the description if it has one. The UNumbers are in
+-- a list, with UNumbers from most recent financial institution
+-- postings first.
+type UNumberLookupMap = M.Map X.Text [Y.UNumber]
+
+-- | Create a UNumberLookupMap from a DbWithEntry. Financial
+-- institution postings with higher U-numbers will come first.
+makeUNumberLookup :: Y.DbList -> UNumberLookupMap
+makeUNumberLookup = foldl' ins M.empty . mapMaybe f . sortBy g
+  where
+    ins m (k, v) = M.alter alterer k m
+      where alterer Nothing = Just [v]
+            alterer (Just ls) = Just $ v:ls
+    f (u, p) = fmap (\k -> (k, u)) $ getBestPayee p
+    g (_, p1) (_, p2) = compare (Y.date p1) (Y.date p2)
+
+-- | Given a list of keys, find the first key that is in the
+-- map. Returns Nothing if no key is in the map.
+findFirstKey :: Ord k => M.Map k v -> [k] -> Maybe v
+findFirstKey _ [] = Nothing
+findFirstKey m (k:ks) = case M.lookup k m of
+  Nothing -> findFirstKey m ks
+  Just v -> Just v
+
+-- | Given a Posting, gets the Text that will work best as a payee
+-- name. Uses the Payee field if there is one, or the Desc field if
+-- there is one; otherwise Nothing.
+getBestPayee :: Y.Posting -> Maybe X.Text
+getBestPayee p = fromPayee <|> fromDesc
+  where
+    fromPayee = let pye = Y.unPayee . Y.payee $ p
+                in if X.null pye then Nothing else Just pye
+    fromDesc = let dsc = Y.unDesc . Y.desc $ p
+               in if X.null dsc then Nothing else Just dsc
+
+-- | Maps UNumbers to payees and accounts from the ledger.
+type PyeLookupMap = M.Map Y.UNumber (Maybe L.Payee, Maybe L.Account)
+
+-- | Makes a payee lookup map. Puts those postings which match the
+-- PennyAcct and have a UNumber into the map. (If two postings match
+-- the PennyAcct and have the same UNumber, the one that appears later
+-- in the ledger file will be in the map.)
+makePyeLookupMap :: Y.PennyAcct -> C.Ledger -> PyeLookupMap
+makePyeLookupMap a l
+  = M.fromList . mapMaybe f . concatMap L.postFam . mapMaybe toPstg
+    . C.unLedger $ l
+  where
+    f pstg = do
+      guard $ (Q.account pstg) == Y.unPennyAcct a
+      u <- getUNumberFromTags . Q.tags $ pstg
+      let (L.Child _ sib sibs _) = L.unPostFam pstg
+          ac = if null sibs
+               then Just (L.pAccount sib)
+               else Nothing
+      return (u, (Q.payee pstg, ac))
+    toPstg i = case i of { C.Transaction t -> Just t; _ -> Nothing }
+
+-- | Given a UNumber and the maps, looks up the payee and account
+-- information from previous transactions if this information is
+-- available.
+guessInfo
+  :: UNumberLookupMap
+  -> PyeLookupMap
+  -> Y.Posting
+  -> (Maybe L.Payee, Maybe L.Account)
+guessInfo mu mp p = fromMaybe (Nothing, Nothing) $ do
+  pye <- getBestPayee p
+  unums <- M.lookup pye mu
+  findFirstKey mp unums

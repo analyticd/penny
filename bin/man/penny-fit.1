@@ -140,7 +140,37 @@ If
 finds a match for a financial institution posting in this way, then it
 will assign a new U-number tag to the posting. If
 .B penny-fit
-does not find a match, then it will create an entirely new transaction and append it to the end of your ledger.
+does not find a match, then it will create an entirely new transaction
+and append it to the end of your ledger.
+
+If it is creating an entirely new transaction,
+.B penny-fit
+will attempt to give the new transaction the same account and payee
+information that you have used for similar transactions in the
+past. To do this,
+.B penny-fit
+will first search through the database to find the most recent
+financial institution posting that has the same payee as the one of
+the new transaction. If one is found,
+.B penny-fit
+then searches through the postings in your ledger file to find the one
+that has the same U-number and account as the old financial
+institution posting. If it is found,
+.B penny-fit
+will assign the payee name found on the posting in the ledger to the
+new posting. Also, if the posting found in the ledger has exactly one
+sibling posting,
+.B penny-fit
+will assign the same account name from that sibling to the new
+sibling.
+
+You can turn off this automatic assignment of information by using the
+.I --no-auto
+or 
+.I -n
+option to the
+.I merge
+command.
 
 The result of
 .I merge
