@@ -49,6 +49,7 @@ import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
 import Data.List (sortBy)
 import Data.Text (Text, pack)
+import qualified Data.Text as X
 import qualified Data.Time as Time
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Combinator (OptSpec)
@@ -61,6 +62,7 @@ import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Steel.Pdct as E
 import qualified Penny.Lincoln as L
 import qualified Penny.Steel.Chunk as C
+import qualified Penny.Steel.Error as Er
 import qualified Penny.Steel.Expressions as X
 
 import Text.Matchers (
@@ -212,11 +214,17 @@ getMatcher ::
   -> MatcherFactory
   -> Ex.Exceptional BadPatternError TM.Matcher
 
-getMatcher s cs f = Ex.mapException BadPatternError $ f cs (pack s)
+getMatcher s cs f
+  = Ex.mapException (BadPatternError (pack s))
+  $ f cs (pack s)
+
+-- | Bad string given for a comparer.
+data BadComparer = BadComparer Text
+  deriving Show
 
 -- | Parses comparers given on command line to a function. Fails if
 -- the string given is invalid.
-parseComparer :: String -> Maybe P.Comp
+parseComparer :: String -> Ex.Exceptional BadComparer P.Comp
 parseComparer t
   | t == "<" = return P.DLT
   | t == "<=" = return P.DLTEQ
@@ -226,39 +234,45 @@ parseComparer t
   | t == ">=" = return P.DGTEQ
   | t == "/=" = return P.DNE
   | t == "!=" = return P.DNE
-  | otherwise = Nothing
+  | otherwise = Ex.throw $ BadComparer (pack t)
+
+-- | Bad date provided. The first argument is the bad string provided;
+-- the second argument is the error message.
+data BadDate = BadDate Text Text
+  deriving Show
 
 -- | Parses a date from the command line. On failure, throws back the
 -- error message from the failed parse.
-parseDate :: String -> Ex.Exceptional Text Time.UTCTime
-parseDate =
-  Ex.mapExceptional (pack . show) L.toUTC
+parseDate :: String -> Ex.Exceptional BadDate Time.UTCTime
+parseDate arg =
+  Ex.mapExceptional (BadDate (pack arg) . pack . show) L.toUTC
   . Ex.fromEither
   . parse Pc.dateTime ""
   . pack
+  $ arg
 
 type Operand = E.Pdct L.PostFam
 
 -- | An error when parsing the @--date@ option.
 data DateOptError
-  = DateOptBadComparer Text
+  = DateOptBadComparer BadComparer
   -- ^ Bad comparer text provided; the argument is the text that was
   -- provided.
 
-  | DateOptBadDate Text Text
+  | DateOptBadDate BadDate
   -- ^ Bad date string provided; the first argument is the bad input,
   -- and the second is the error message.
   deriving Show
 
 -- | OptSpec for a date.
-date :: OptSpec (Ex.Exceptional DateOptError Operand)
+date :: OptSpec (Ex.Exceptional (Either BadComparer BadDate) Operand)
 date = C.OptSpec ["date"] ['d'] (C.TwoArg f)
   where
     f a1 a2
       = g
-      <$> Ex.fromMaybe (DateOptBadComparer (pack a1))
+      <$> Ex.mapException DateOptBadComparer
           (parseComparer a1)
-      <*> Ex.mapException (DateOptBadDate (pack a2))
+      <*> Ex.mapException DateOptBadDate
           (parseDate a2)
     g cmp dt = P.date cmp dt
 
@@ -276,7 +290,10 @@ parseInt t =
     _ -> Nothing
 
 
-data BadPatternError = BadPatternError Text
+-- | Bad pattern supplied for a regular expression. The first argument
+-- is the bad string supplied; the second argument is the error
+-- message.
+data BadPatternError = BadPatternError Text Text
   deriving Show
 
 -- | Creates options that add an operand that matches the posting if a
@@ -392,7 +409,7 @@ credit = C.OptSpec ["credit"] [] (C.NoArg P.credit)
 -- | An error when parsing the @--qty@ option.
 data QtyError
 
-  = QtyBadComparer Text
+  = QtyBadComparer BadComparer
   -- ^ The comparer could not be parsed; the argument is the comparer
   -- the user supplied.
 
@@ -406,7 +423,7 @@ qtyOption :: OptSpec (Ex.Exceptional QtyError Operand)
 qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
   where
     f a1 a2 = do
-      comp <- Ex.fromMaybe (QtyBadComparer (pack a1))
+      comp <- Ex.mapException QtyBadComparer
               $ parseComparer a1
       qty <- Ex.mapException (QtyBadQty (pack a2) . pack . show )
              . Ex.fromEither
@@ -416,7 +433,7 @@ qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
 
 -- | An error when parsing one of the options that matches serials.
 data BadSerialError
-  = BadSerialComp Text
+  = BadSerialComp BadComparer
   -- ^ Bad input for comparer; the Text is the bad input
 
   | BadSerialNumber Text
@@ -445,7 +462,7 @@ serialOption getSerial n = (osA, osD)
     osD = C.OptSpec [addPrefix "rev" n] []
           (C.TwoArg (f L.backward))
     f getInt a1 a2 = do
-      cmp <- Ex.fromMaybe (BadSerialComp . pack $ a1)
+      cmp <- Ex.mapException BadSerialComp
              $ parseComparer a1
       num <- Ex.fromMaybe (BadSerialNumber . pack $ a2)
              $ parseInt a2
@@ -715,3 +732,5 @@ data OperandError
   -- ^ An error when parsing one of the options that matches serials.
 
   deriving Show
+
+

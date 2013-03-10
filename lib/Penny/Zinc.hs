@@ -153,7 +153,7 @@ data OptResult
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
   | ROperator (X.Token L.PostFam)
-  | RSortSpec (Ex.Exceptional String Orderer)
+  | RSortSpec (Ex.Exceptional BadSortSpec Orderer)
   | RColorToFile ColorToFile
   | RScheme E.TextSpecs
   | RExprDesc X.ExprDesc
@@ -185,7 +185,7 @@ getExprDesc df os = case mapMaybe f os of
 getSortSpec
   :: Orderer
   -> [OptResult]
-  -> Ex.Exceptional String Orderer
+  -> Ex.Exceptional BadSortSpec Orderer
 getSortSpec i ls =
   let getSpec o = case o of
         RSortSpec x -> Just x
@@ -338,7 +338,7 @@ processGlobal rt srt df rpts os
 
 data FiltProcessError
   = FPOperandError Ly.OperandError
-  | FPSortSpecError String
+  | FPSortSpecError BadSortSpec
   | FPBadHeadTailError Ly.BadHeadTailError
   | FPParsePredicateError (X.ExprError L.PostFam)
   deriving (Typeable, Show)
@@ -524,14 +524,20 @@ argMatch s1 s2 = case (s1, s2) of
     (x == y) && ((map toUpper xs) `isPrefixOf` (map toUpper ys))
   _ -> True
 
-sortSpecs :: MA.OptSpec (Ex.Exceptional String Orderer)
+-- | The user supplied a bad sort specification. The argument is the
+-- string the user supplied.
+
+data BadSortSpec = BadSortSpec Text
+  deriving (Eq, Ord, Show)
+
+sortSpecs :: MA.OptSpec (Ex.Exceptional BadSortSpec Orderer)
 sortSpecs = MA.OptSpec ["sort"] ['s'] (MA.OneArg f)
   where
     f a =
       let matches = filter (\p -> a `argMatch` (fst p)) ords
       in case matches of
         x:[] -> return $ snd x
-        _ -> Ex.throw $ "invalid sort key: " ++ a
+        _ -> Ex.throw . BadSortSpec . pack $ a
 
 
 
