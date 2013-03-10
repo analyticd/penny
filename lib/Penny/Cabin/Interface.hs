@@ -26,7 +26,12 @@ import Penny.Shield (Runtime)
 type PosArg = String
 type HelpStr = String
 type ArgsAndReport = ([PosArg], PrintReport)
-type ParseResult = Exceptional String ArgsAndReport
+
+-- | The result of parsing the arguments to a report. Failures are
+-- indicated with a Text. The name of the executable and the word
+-- @error@ will be prepended to this Text; otherwise, it is printed
+-- as-is, so be sure to include any trailing newline if needed.
+type ParseResult = Exceptional X.Text ArgsAndReport
 
 type PrintReport
   = [L.Transaction]
@@ -38,9 +43,12 @@ type PrintReport
 
   -> Exceptional X.Text [Either C.Chunk S.PreChunk]
   -- ^ The exception type is a strict Text, containing the error
-  -- message. The success type is a list of either a Chunk or a
-  -- PreChunk containing the resulting report. This allows for errors
-  -- after the list of transactions has been seen.
+-- message. The success type is a list of either a Chunk or a PreChunk
+-- containing the resulting report. This allows for errors after the
+-- list of transactions has been seen. The name of the executable and
+-- the word @error@ will be prepended to this Text; otherwise, it is
+-- printed as-is, so be sure to include any trailing newline if
+-- needed.
 
 
 type Report = Runtime -> (HelpStr, MkReport)

@@ -56,6 +56,7 @@ module Penny.Cabin.Posts
 
 import Control.Applicative ((<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Data.List.Split (chunksOf)
 import qualified Data.Either as Ei
 import Data.Monoid ((<>))
 import qualified Data.Text as X
@@ -138,12 +139,12 @@ process
   -> Exp.ExprDesc
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.State -> Ex.Exceptional String P.State)]
-  -> Ex.Exceptional String I.ArgsAndReport
+  -> Ex.Exceptional X.Text I.ArgsAndReport
 process os cs fty expr fsf ls =
   let (posArgs, clOpts) = Ei.partitionEithers ls
       pState = newParseState cs fty expr os
       exState' = foldl (>>=) (return pState) clOpts
-  in fmap (mkPrintReport posArgs os fsf) exState'
+  in fmap (mkPrintReport posArgs os fsf) (Ex.mapException X.pack exState')
 
 mkPrintReport
   :: [String]
@@ -442,13 +443,6 @@ defaultSpacerWidth =
 ifDefault :: Bool -> String
 ifDefault b = if b then " (default)" else ""
 
-bundles :: Int -> [a] -> [[a]]
-bundles c ls
-  | c < 1 = error "bundles: argument must be positive"
-  | otherwise = case splitAt c ls of
-      (r, []) -> [r]
-      (r, rs) -> r : bundles c rs
-
 helpStr :: ZincOpts -> String
 helpStr o = unlines $
   [ "postings"
@@ -625,7 +619,7 @@ showDefaultFields i = hdr : rest
       map ("  " ++)
       . map concat
       . map (intersperse ", ")
-      . bundles 3
+      . chunksOf 3
       . catMaybes
       . Fdbl.toList
       . toMaybes

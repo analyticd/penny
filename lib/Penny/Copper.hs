@@ -9,9 +9,6 @@ module Penny.Copper
   -- * Convenience functions to read and parse files
     parse
   , open
-  , openThrow
-  , openStdin
-  , openStdinThrow
 
   -- * Types for things found in ledger files
   , Y.Item(BlankLine, IComment, PricePoint, Transaction)
@@ -46,7 +43,8 @@ import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper.Render as R
 import qualified Penny.Copper.Types as Y
-import qualified System.IO.Error as E
+import System.Console.MultiArg.GetArgs (getProgName)
+import qualified System.Exit as Exit
 import qualified System.IO as IO
 
 newtype FileContents = FileContents { unFileContents :: X.Text }
@@ -172,66 +170,40 @@ parse ::
   -> Ex.Exceptional ErrorMsg Y.Ledger
 parse ps = fmap addGlobalMetadata $ mapM parseFile ps
 
--- | Reads and parses the given filenames. Does not do anything to
--- handle @-@ arguments; for that, see openStdin. Parse errors are
--- indicated by returning an Exceptional. Errors from IO functions are
--- not handled.
-open :: [String] -> IO (Ex.Exceptional ErrorMsg Y.Ledger)
-open = fmap parse . mapM getFileContents
-
-
--- | Reads and parses the given filenames. Does not do anything to
--- handle @-@ arguments; for that, see openStdin. Errors, including
--- parse and IO errors, are indicated by throwing an exception.
-openThrow :: [String] -> IO Y.Ledger
-openThrow = fmap addGlobalMetadata
-       . mapM (\s -> getFileContents s >>= parseAndResolve)
-
-
-getFileContents :: String -> IO (L.Filename, FileContents)
-getFileContents s = fmap f (TIO.readFile s)
-  where f c = (L.Filename . X.pack $ s, FileContents c)
 
 parseAndResolve :: (L.Filename, FileContents) -> IO Y.Ledger
 parseAndResolve p@(L.Filename fn, _) =
   Ex.switch err return $ parseFile p
   where
-    err (ErrorMsg x) =
-      E.ioError $ E.mkIOError E.userErrorType
-        ("could not parse file: " ++ X.unpack x)
-        Nothing (Just . X.unpack $ fn)
+    err (ErrorMsg x) = do
+      pn <- getProgName
+      let msg = pn ++ ": error: could not parse file "
+                ++ X.unpack fn ++ "\n"
+                ++ X.unpack x
+      IO.hPutStr IO.stderr msg
+      Exit.exitFailure
 
 
 -- | Reads and parses the given files. If any of the files is @-@,
 -- reads standard input. If the list of files is empty, reads standard
--- input. Parse errors are indicated by returning an
--- Exceptional. Errors from IO functions are not handled.
-openStdin :: [String] -> IO (Ex.Exceptional ErrorMsg Y.Ledger)
-openStdin ss =
+-- input. IO errors are not caught. Parse errors are printed to
+-- standard error and the program will exit with a failure.
+open :: [String] -> IO Y.Ledger
+open ss =
   let ls = if null ss
-           then fmap (\x -> [x]) (getFileContentsStdin "-")
-           else mapM getFileContentsStdin ss
-  in fmap parse ls
-
--- | Reads and parses the given files. If any of the files is @-@,
--- reads standard input. If the list of files is empty, reads standard
--- input. Errors, including IO and parse errors, are indicated by
--- throwing an exception.
-openStdinThrow :: [String] -> IO Y.Ledger
-openStdinThrow ss =
-  let ls = if null ss
-           then fmap (\x -> [x]) (getFileContentsStdin "-")
+           then fmap (:[]) (getFileContentsStdin "-")
            else mapM getFileContentsStdin ss
   in fmap addGlobalMetadata (ls >>= mapM parseAndResolve)
 
 getFileContentsStdin :: String -> IO (L.Filename, FileContents)
 getFileContentsStdin s = do
+  pn <- getProgName
   txt <- if s == "-"
           then do
                 isTerm <- IO.hIsTerminalDevice IO.stdin
                 when isTerm
                   (IO.hPutStrLn IO.stderr $
-                     "warning: reading from standard input, which"
+                     pn ++ ": warning: reading from standard input, which"
                      ++ "is a terminal.")
                 TIO.hGetContents IO.stdin
           else TIO.readFile s

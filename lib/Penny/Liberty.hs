@@ -239,6 +239,7 @@ parseDate =
 
 type Operand = E.Pdct L.PostFam
 
+-- | An error when parsing the @--date@ option.
 data DateOptError
   = DateOptBadComparer Text
   -- ^ Bad comparer text provided; the argument is the text that was
@@ -311,9 +312,15 @@ account = C.OptSpec ["account"] "a" (C.OneArg f)
       $ getMatcher a1 cs fty
 
 
+-- | An error when parsing the @--account-level@ option.
 data AccountLevelError
   = AccountLevelBadLevel Text
+  -- ^ The string provided for the level was bad; for example, it
+  -- contained a letter.
+
   | AccountLevelBadPattern BadPatternError
+  -- ^ A bad pattern was given for the account name.
+
   deriving Show
 
 -- | The account-level option; matches if the account at the given
@@ -382,8 +389,13 @@ debit = C.OptSpec ["debit"] [] (C.NoArg P.debit)
 credit :: OptSpec Operand
 credit = C.OptSpec ["credit"] [] (C.NoArg P.credit)
 
+-- | An error when parsing the @--qty@ option.
 data QtyError
+
   = QtyBadComparer Text
+  -- ^ The comparer could not be parsed; the argument is the comparer
+  -- the user supplied.
+
   | QtyBadQty Text Text
   -- ^ The user passed a bad string for the quantity. The first
   -- argument is the bad quantity given; the second is the error
@@ -402,6 +414,7 @@ qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
       return $ P.qty comp qty
 
 
+-- | An error when parsing one of the options that matches serials.
 data BadSerialError
   = BadSerialComp Text
   -- ^ Bad input for comparer; the Text is the bad input
@@ -520,15 +533,6 @@ lift3
 lift3 mapE = fmap g
   where
     g f = \x y -> Ex.mapException mapE (f x y)
-
-data OperandError
-  = OEDateError DateOptError
-  | OEBadPatternError BadPatternError
-  | OEAccountLevelError AccountLevelError
-  | OEQtyError QtyError
-  | OEBadSerialError BadSerialError
-  deriving Show
-
 
 -- | All operand OptSpec.
 operandSpecs
@@ -687,3 +691,27 @@ showExpression = noArg () "show-expression"
 
 verboseFilter :: OptSpec ()
 verboseFilter = noArg () "verbose-filter"
+
+--
+-- Errors
+--
+
+-- | An error occurred when processing the operands in a posting
+-- filter expression.
+data OperandError
+  = OEDateError DateOptError
+  -- ^ An error when parsing the @--date@ option
+
+  | OEBadPatternError BadPatternError
+  -- ^ The user provided a bad pattern for a regular expression.
+
+  | OEAccountLevelError AccountLevelError
+  -- ^ An error when parsing the @--account-level@ option.
+
+  | OEQtyError QtyError
+  -- ^ An error when parsing the @--qty@ option.
+
+  | OEBadSerialError BadSerialError
+  -- ^ An error when parsing one of the options that matches serials.
+
+  deriving Show

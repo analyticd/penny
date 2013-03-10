@@ -177,12 +177,12 @@ process
   -> O.DefaultOpts
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
-  -> Ex.Exceptional String I.ArgsAndReport
+  -> Ex.Exceptional X.Text I.ArgsAndReport
 process rt defaultOpts fsf ls = do
   let (posArgs, parsed) = Ei.partitionEithers ls
       op' = foldl (>>=) (return (O.toParserOpts defaultOpts rt)) parsed
   case op' of
-      Ex.Exception s -> Ex.throw s
+      Ex.Exception s -> Ex.throw . X.pack $ s
       Ex.Success g -> return $
         let noDefault = X.pack "no default price found"
             f = fromParsedOpts g

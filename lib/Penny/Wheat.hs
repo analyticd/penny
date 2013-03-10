@@ -3,7 +3,6 @@ module Penny.Wheat where
 
 import Control.Applicative
 import Control.Monad (when)
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (find, isPrefixOf)
 import Data.Maybe (mapMaybe, catMaybes)
 import Data.Monoid ((<>), mempty)
@@ -14,8 +13,6 @@ import qualified Data.Text as X
 import qualified Data.Time as Time
 import qualified Text.Parsec as Parsec
 import qualified System.Exit as Exit
-import System.Environment (getProgName)
-import qualified System.IO as IO
 import qualified Penny.Shield as S
 
 import qualified Penny.Steel.TestTree as TT
@@ -126,7 +123,6 @@ parseOpts wc
 
 main :: (S.Runtime -> WheatConf) -> IO ()
 main getWc = do
-  pn <- getProgName
   rt <- S.runtime
   let inf = OA.fullDesc
       wc = getWc rt
@@ -134,7 +130,7 @@ main getWc = do
   let term = if p_colorToFile psd || (S.output rt == S.IsTTY)
         then S.termFromEnv rt
         else S.autoTerm rt
-  pfs <- getItems pn (p_ledgers psd)
+  pfs <- getItems (p_ledgers psd)
   let tts = zipWith ($) (tests wc) (repeat (p_baseTime psd))
       doEval = TT.evalTestTree (p_indentAmt psd) 0 (p_passVerbosity psd)
                            (p_failVerbosity psd) pfs
@@ -150,19 +146,11 @@ showEitherChunk f ei = case ei of
   Left ck -> f [ck] >> return Nothing
   Right (p, cs) -> f cs >> return (Just p)
 
-getItems :: ProgName -> [String] -> IO [L.PostFam]
-getItems pn ss = Cop.openStdin ss >>= f
+getItems :: [String] -> IO [L.PostFam]
+getItems ss = fmap f $ Cop.open ss
   where
-    f res = case res of
-      Ex.Exception e -> do
-        IO.hPutStrLn IO.stderr $ pn
-          ++ ": error: could not parse ledgers: "
-          ++ (X.unpack . Cop.unErrorMsg $ e)
-        Exit.exitFailure
-      Ex.Success g ->
-        let toTxn i = case i of { Cop.Transaction x -> Just x; _ -> Nothing }
-        in return . concatMap L.postFam
-           . mapMaybe toTxn . Cop.unLedger $ g
+    f = concatMap L.postFam . mapMaybe toTxn . Cop.unLedger
+    toTxn i = case i of { Cop.Transaction x -> Just x; _ -> Nothing }
 
 --
 -- Tests

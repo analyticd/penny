@@ -21,21 +21,23 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
 
-import Control.Applicative ((<$>), (<*>), pure, (<$))
+import Control.Applicative ((<*>), pure, (<$))
 import qualified Control.Exception as CE
-import Control.Monad (when)
+import Control.Monad (join)
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper, toLower)
+import Data.Either (partitionEithers)
 import Data.List (isPrefixOf)
 import Data.Maybe (mapMaybe, catMaybes)
-import Data.Monoid (mappend, mconcat)
+import Data.Monoid (mappend, mconcat, (<>))
 import Data.Ord (comparing)
-import Data.Text (Text, pack, unpack)
-import Data.Typeable (Typeable)
+import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
+import Data.Typeable (Typeable)
 import qualified System.Console.MultiArg as MA
-import System.IO (hIsTerminalDevice, stdin, stderr, hPutStrLn)
+import qualified System.Exit as Exit
+import qualified System.IO as IO
 import qualified Text.Matchers as M
 
 runZinc
@@ -46,9 +48,8 @@ runZinc
 runZinc df rt rs = do
   let ord = sortPairsToFn . sorter $ df
       hlp = helpText df rt rs
-  act <- MA.modesWithHelp hlp (allOpts (S.currentTime rt) df)
+  join $ MA.modesWithHelp hlp (allOpts (S.currentTime rt) df)
     (processGlobal rt ord df rs)
-  act
 
 
 -- | Whether to use color when standard output is not a terminal.
@@ -373,9 +374,9 @@ makeMode rt fo r = fmap makeIO mode
     mode = snd (r rt) (foResultSensitive fo) (foResultFactory fo)
            (foExprDesc fo) (fmap snd (foSorterFilterer fo))
     makeIO parseResult = do
-      (posArgs, printRpt) <- Ex.switch fail return parseResult
-      ledgers <- readLedgers posArgs
-      (txns, pps) <- Ex.switch fail return $ parseLedgers ledgers
+      (posArgs, printRpt) <-
+        Ex.switch handleTextError return parseResult
+      (txns, pps) <- fmap splitLedger $ C.open posArgs
       let term = if unColorToFile (foColorToFile fo)
                  then S.termFromEnv rt
                  else S.autoTerm rt
@@ -383,9 +384,15 @@ makeMode rt fo r = fmap makeIO mode
           verbFiltChunks = fst . foSorterFilterer fo $ txns
       showFilterExpression printer (foShowExpression fo) (foPredicate fo)
       showVerboseFilter printer (foVerboseFilter fo) verbFiltChunks
-      Ex.switch (fail . unpack) (printChunks printer (foTextSpecs fo))
+      Ex.switch handleTextError (printChunks printer (foTextSpecs fo))
         $ printRpt txns pps
 
+
+handleTextError :: Text -> IO a
+handleTextError x = do
+  pn <- MA.getProgName
+  TIO.hPutStr IO.stderr $ (pack pn) <> ": error: " <> x
+  Exit.exitFailure
 
 indentAmt :: Pe.IndentAmt
 indentAmt = 4
@@ -418,62 +425,14 @@ showVerboseFilter ptr (VerboseFilter vb) cks =
   where
     info = Chk.chunk Chk.defaultTextSpec "Filtering information:\n"
 
---
--- Ledger parsing
---
-warnTerminal :: IO ()
-warnTerminal =
-  hPutStrLn stderr $ "penny: warning: reading from standard input, "
-  ++ "which is a terminal"
-
-data Filename =
-  Filename Text
-  | Stdin
-
--- | Converts a Ledgers filename to a Lincoln filename.
-convertFilename :: Filename -> L.Filename
-convertFilename (Filename x) = L.Filename x
-convertFilename Stdin = L.Filename . pack $ "<stdin>"
-
--- | Actually reads the file off disk. For now just let this crash if
--- any of the IO errors occur.
-ledgerText :: Filename -> IO Text
-ledgerText f = case f of
-  Stdin -> do
-    isTerm <- hIsTerminalDevice stdin
-    when isTerm warnTerminal
-    TIO.hGetContents stdin
-  Filename fn -> TIO.readFile (unpack fn)
-
--- | Converts a string from the command line to a Filename.
-toFilename :: String -> Filename
-toFilename s =
-  if s == "-"
-  then Stdin
-  else Filename . pack $ s
-
-readLedgers :: [String] -> IO [(Filename, Text)]
-readLedgers ss =
-  let fns = if null ss then [Stdin] else map toFilename ss
-      f fn = (\txt -> (fn, txt)) <$> ledgerText fn
-  in mapM f fns
-
-
-parseLedgers
-  :: [(Filename, Text)]
-  -> Ex.Exceptional String ([L.Transaction], [L.PricePoint])
-parseLedgers ls =
-  let toPair (f, t) = (convertFilename f, C.FileContents t)
-      parsed = C.parse (map toPair ls)
-      folder i (ts, ps) = case i of
-        C.Transaction t -> (t:ts, ps)
-        C.PricePoint p -> (ts, p:ps)
-        _ -> (ts, ps)
-      toResult (C.Ledger is) = foldr folder ([], []) is
-      toErr x = "could not parse ledger: "
-                ++ (unpack . C.unErrorMsg $ x)
-  in Ex.mapExceptional toErr toResult parsed
-
+-- | Splits a Ledger into its Transactions and PricePoints.
+splitLedger :: C.Ledger -> ([L.Transaction], [L.PricePoint])
+splitLedger = partitionEithers . mapMaybe toEither . C.unLedger
+  where
+    toEither i = case i of
+      C.Transaction t -> Just $ Left t
+      C.PricePoint p -> Just $ Right p
+      _ -> Nothing
 
 printChunks
   :: ([Chk.Chunk] -> IO ())

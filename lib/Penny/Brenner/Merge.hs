@@ -10,7 +10,6 @@ import Data.Monoid (First(..), mconcat)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
 import qualified Penny.Lincoln as L
@@ -52,11 +51,7 @@ doMerge maybeAcct noAuto ss = do
         ++ " no default account configured."
     Just ac -> return ac
   dbLs <- U.loadDb (Y.AllowNew False) (Y.dbLocation acct)
-  exL <- C.openStdin ss
-  l <- case exL of
-    Ex.Exception e -> do
-      fail $ "could not parse ledger: " ++ (X.unpack . C.unErrorMsg $ e)
-    Ex.Success g -> return g
+  l <- C.open ss
   let dbWithEntry = fmap (pairWithEntry acct) . M.fromList $ dbLs
       (l', db') = changeItems acct
                   l (filterDb (Y.pennyAcct acct) dbWithEntry l)
