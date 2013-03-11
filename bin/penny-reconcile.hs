@@ -85,7 +85,7 @@ main = do
   ls <- case os of
     NeedsHelp -> putStrLn help >> exitSuccess
     DoIt ss -> return ss
-  led <- C.openStdinThrow ls
+  led <- C.open ls
   let led' = C.mapLedger (C.mapItem id id changeTransaction) led
       rend = fromJust $ C.ledger groupSpecs led'
   TIO.putStr rend
