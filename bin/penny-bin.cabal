@@ -97,14 +97,6 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  * Uses no GHC extensions. However, the code is only tested under GHC
-    and for all practical purposes it will only run under GHC at this
-    time because it uses libraries such as Data.Text that are
-    available only under GHC. Despite this I expect I will continue to
-    avoid language extensions.
-
-  .
-
   * Tested using QuickCheck. The tests are available in the Git
     repository that also contains the main library. Not everything
     is tested, but the tests that exist so far have already rooted
@@ -161,9 +153,13 @@ description: Penny is a double-entry accounting system. It is inspired
   You can install this binary simply by typing "cabal install
   penny-bin", which will install this binary along with all the
   necessary dependencies. The penny-bin package also has all
-  documentation. You will want to start by reading the README file,
-  which will point you to additional documentation and how to install
-  it if you wish.
+  documentation. Unfortunately running "cabal install" will not
+  install the documentation, so you will need to find the downloaded
+  archive (usually in
+  "$HOME/.cabal/packages/hackage.haskell.org/penny-bin") and unpack it
+  to see the documentation. You will want to start by reading the
+  README file, which will point you to additional documentation and
+  how to install it if you wish.
 
 extra-source-files:
     install-docs

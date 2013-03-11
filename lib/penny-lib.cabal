@@ -21,8 +21,11 @@ description: Penny is a double-entry accounting system. It is inspired
   .
 
   This package is a library. To start using Penny you will want to
-  install the penny-bin package, which has the executable programs. It
-  is available on Hackage and by running "cabal install penny-bin".
+  install the penny-bin package, which has the executable programs.
+  More about the penny-bin package, along with a full sales pitch
+  for Penny and how to get started, is at
+  <http://hackage.haskell.org/package/penny-bin>. It may be installed
+  with "cabal install penny-bin".
 
   .
 
