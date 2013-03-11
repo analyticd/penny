@@ -3,7 +3,7 @@
 -- second value being another NestedMap. Functions are provided so you
 -- may query the map at any level or insert new labels (and,
 -- therefore, new keys) at any level.
-module Penny.Lincoln.NestedMap (
+module Penny.Steel.NestedMap (
   NestedMap ( NestedMap, unNestedMap ),
   empty,
   relabel,

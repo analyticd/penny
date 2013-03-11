@@ -19,7 +19,7 @@ module Penny.Cabin.Balance.Util
 
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.NestedMap as NM
+import qualified Penny.Steel.NestedMap as NM
 import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
 import Data.Ord (comparing)

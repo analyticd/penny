@@ -116,7 +116,6 @@ Library
     , Penny.Lincoln.Family.Siblings
     , Penny.Lincoln.HasText
     , Penny.Lincoln.Matchers
-    , Penny.Lincoln.NestedMap
     , Penny.Lincoln.Predicates
     , Penny.Lincoln.PriceDb
     , Penny.Lincoln.Queries
@@ -130,6 +129,7 @@ Library
     , Penny.Steel.Expressions
     , Penny.Steel.Expressions.Infix
     , Penny.Steel.Expressions.RPN
+    , Penny.Steel.NestedMap
     , Penny.Steel.Pdct
     , Penny.Steel.TestTree
     , Penny.Wheat
