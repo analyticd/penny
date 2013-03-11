@@ -125,11 +125,8 @@ zincReport opts rt = (helpStr opts, md)
 
 specs
   :: Sh.Runtime
-  -> [MA.OptSpec (Either String (P.State -> Ex.Exceptional String P.State))]
-specs rt =
-  let ss = P.allSpecs rt
-      withErr = fmap (fmap (fmap (Ex.mapException P.showError))) ss
-  in map (fmap Right) withErr
+  -> [MA.OptSpec (Either String (P.State -> Ex.Exceptional X.Text P.State))]
+specs = map (fmap Right) . P.allSpecs
 
 
 process
@@ -138,13 +135,13 @@ process
   -> L.Factory
   -> Exp.ExprDesc
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
-  -> [Either String (P.State -> Ex.Exceptional String P.State)]
+  -> [Either String (P.State -> Ex.Exceptional X.Text P.State)]
   -> Ex.Exceptional X.Text I.ArgsAndReport
 process os cs fty expr fsf ls =
   let (posArgs, clOpts) = Ei.partitionEithers ls
       pState = newParseState cs fty expr os
       exState' = foldl (>>=) (return pState) clOpts
-  in fmap (mkPrintReport posArgs os fsf) (Ex.mapException X.pack exState')
+  in fmap (mkPrintReport posArgs os fsf) exState'
 
 mkPrintReport
   :: [String]
@@ -154,9 +151,8 @@ mkPrintReport
   -> I.ArgsAndReport
 mkPrintReport posArgs zo fsf st = (posArgs, f)
   where
-    f txns _ = Ex.mapException showError $ do
-      pdct <- Ex.mapException PdctError
-              $ getPredicate (P.exprDesc st) (P.tokens st)
+    f txns _ = do
+      pdct <- getPredicate (P.exprDesc st) (P.tokens st)
       let boxes = fsf txns
           rptChks = postsReport (P.showZeroBalances st) pdct
                     (P.postFilter st) (chunkOpts st zo) boxes
@@ -207,12 +203,6 @@ makeLabeledPdct pd box = Pe.rename f pd
     f old = old <> " - " <> L.display pf
     pf = L.boxPostFam box
 
-data Error
-  = PdctError (Exp.ExprError (L.Box Ly.LibertyMeta))
-
-showError :: Error -> X.Text
-showError = undefined
-
 defaultOptions
   :: Sh.Runtime
   -> ZincOpts
@@ -230,11 +220,12 @@ defaultOptions rt = ZincOpts
   }
 
 
+type Error = X.Text
+
 getPredicate
   :: Exp.ExprDesc
   -> [Exp.Token (L.Box Ly.LibertyMeta)]
-  -> Ex.Exceptional (Exp.ExprError (L.Box Ly.LibertyMeta))
-                    (Pe.Pdct (L.Box Ly.LibertyMeta))
+  -> Ex.Exceptional Error (Pe.Pdct (L.Box Ly.LibertyMeta))
 getPredicate d ts =
   case ts of
     [] -> return $ Pe.always

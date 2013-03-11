@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Penny.Cabin.Posts.Parser (State(..),
-                                 allSpecs,
-                                 VerboseFilter(..),
-                                 ShowExpression(..),
-                                 showError) where
+module Penny.Cabin.Posts.Parser
+  ( State(..)
+  , allSpecs
+  , VerboseFilter(..)
+  , ShowExpression(..)
+  ) where
 
 import Control.Applicative ((<$>), pure, (<*>),
                             Applicative)
@@ -48,6 +49,8 @@ data State = State
   , showExpression :: ShowExpression
   }
 
+type Error = X.Text
+
 allSpecs
   :: S.Runtime -> [MA.OptSpec (State -> Ex.Exceptional Error State)]
 allSpecs rt =
@@ -77,23 +80,11 @@ operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
     f lyFn st = do
       let cs = sensitive st
           fty = factory st
-      g <- Ex.mapException EOperandError $ lyFn cs fty
+      g <- lyFn cs fty
       let g' = Pt.boxPdct L.boxPostFam g
           ts' = tokens st ++ [Exp.operand g']
       return $ st { tokens = ts' }
 
-
-data Error
-  = EOperandError Ly.OperandError
-  | EBadComparer Text
-  | EBadInt Text
-  | EHeadTail Ly.BadHeadTailError
-  | EBadFieldError Text BadFieldError
-  -- ^ The first argument is the text supplied on the command line;
-  -- the second is the error.
-
-showError :: Error -> String
-showError = undefined
 
 -- | Processes a option for box-level serials.
 optBoxSerial
@@ -108,10 +99,8 @@ optBoxSerial
 optBoxSerial nm f = C.OptSpec [nm] "" (C.TwoArg g)
   where
     g a1 a2 st = do
-      cmp <- Ex.fromMaybe (EBadComparer (X.pack a1))
-             $ Ly.parseComparer a1
-      i <- Ex.fromMaybe (EBadInt (X.pack a2))
-           $ Ly.parseInt a2
+      cmp <- Ly.parseComparer a1
+      i <- Ly.parseInt a2
       let (cmpDesc, cmpFn) = Pd.descComp cmp
           desc = "serial " <> X.pack nm <> " is " <> cmpDesc
                  <> " " <> X.pack (show i)
@@ -153,10 +142,9 @@ parsePostFilter :: [C.OptSpec (State -> Ex.Exceptional Error State)]
 parsePostFilter = [fmap f optH, fmap f optT]
   where
     (optH, optT) = Ly.postFilterSpecs
-    f exc = case exc of
-      Ex.Exception e -> const $ Ex.throw (EHeadTail e)
-      Ex.Success pf ->
-        \st -> return $ st { postFilter = postFilter st ++ [pf] }
+    f exc st = fmap g exc
+      where
+        g pff = st { postFilter = postFilter st ++ [pff] }
 
 
 matcherSelect :: [C.OptSpec (State -> State)]
@@ -179,8 +167,7 @@ parseWidth :: C.OptSpec (State -> Ex.Exceptional Error State)
 parseWidth = C.OptSpec ["width"] "" (C.OneArg f)
   where
     f a1 st = do
-      i <- Ex.fromMaybe (EBadInt (X.pack a1))
-           $ Ly.parseInt a1
+      i <- Ly.parseInt a1
       return $ st { width = Ty.ReportWidth i }
 
 parseField :: String -> Ex.Exceptional Error (F.Fields Bool)
@@ -191,7 +178,18 @@ parseField str =
         then (s, True)
         else (s, False)
       flds = checkField <$> F.fieldNames
-  in Ex.mapException (EBadFieldError (X.pack str)) $ checkFields flds
+  in case checkFields flds of
+      Ex.Exception e -> case e of
+        NoMatchingFields -> Ex.throw
+          $ "no field matches the name \"" <> X.pack str <> "\"\n"
+        MultipleMatchingFields ts -> Ex.throw
+          $ "multiple fields match the name \"" <> X.pack str
+            <> "\" matches: " <> mtchs <> "\n"
+          where
+            mtchs = X.intercalate " "
+                    . map (\x -> "\"" <> x <> "\"")
+                    $ ts
+      Ex.Success g -> return g
 
 
 -- | Turns a field on if it is True.

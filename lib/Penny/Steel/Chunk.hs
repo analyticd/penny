@@ -24,7 +24,7 @@ module Penny.Steel.Chunk (
   Foreground256,
 
   -- * Chunks
-  Chunk,
+  Chunk (chunkTextSpec, chunkText),
   chunk,
   Width(Width, unWidth),
   chunkWidth,
@@ -657,8 +657,10 @@ newtype Foreground256 = Foreground256 { unForeground256 :: Maybe T.Color }
 -- chunks, lazily build a list of them and then print them using
 -- 'printChunks'.
 
-data Chunk = Chunk TextSpec Text
-  deriving (Eq, Show, Ord)
+data Chunk = Chunk
+  { chunkTextSpec :: TextSpec
+  , chunkText :: Text
+  } deriving (Eq, Show, Ord)
 
 -- | Makes new Chunks.
 chunk :: TextSpec -> Text -> Chunk

@@ -22,7 +22,6 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
 
 import Control.Applicative ((<*>), pure, (<$))
-import qualified Control.Exception as CE
 import Control.Monad (join)
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -34,7 +33,6 @@ import Data.Monoid (mappend, mconcat, (<>))
 import Data.Ord (comparing)
 import Data.Text (Text, pack)
 import qualified Data.Text.IO as TIO
-import Data.Typeable (Typeable)
 import qualified System.Console.MultiArg as MA
 import qualified System.Exit as Exit
 import qualified System.IO as IO
@@ -145,15 +143,17 @@ newtype ShowExpression = ShowExpression Bool
 newtype VerboseFilter = VerboseFilter Bool
   deriving (Show, Eq)
 
+type Error = Text
+
 data OptResult
   = ROperand (M.CaseSensitive
              -> Ly.MatcherFactory
-             -> Ex.Exceptional Ly.OperandError Ly.Operand)
-  | RPostFilter (Ex.Exceptional Ly.BadHeadTailError Ly.PostFilterFn)
+             -> Ex.Exceptional Ly.Error Ly.Operand)
+  | RPostFilter (Ex.Exceptional Ly.Error Ly.PostFilterFn)
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
   | ROperator (X.Token L.PostFam)
-  | RSortSpec (Ex.Exceptional BadSortSpec Orderer)
+  | RSortSpec (Ex.Exceptional Error Orderer)
   | RColorToFile ColorToFile
   | RScheme E.TextSpecs
   | RExprDesc X.ExprDesc
@@ -162,7 +162,7 @@ data OptResult
 
 getPostFilters
   :: [OptResult]
-  -> Ex.Exceptional Ly.BadHeadTailError [Ly.PostFilterFn]
+  -> Ex.Exceptional Ly.Error [Ly.PostFilterFn]
 getPostFilters =
   sequence
   . mapMaybe f
@@ -185,7 +185,7 @@ getExprDesc df os = case mapMaybe f os of
 getSortSpec
   :: Orderer
   -> [OptResult]
-  -> Ex.Exceptional BadSortSpec Orderer
+  -> Ex.Exceptional Error Orderer
 getSortSpec i ls =
   let getSpec o = case o of
         RSortSpec x -> Just x
@@ -201,7 +201,7 @@ type Factory = M.CaseSensitive
 makeToken
   :: OptResult
   -> St.State (M.CaseSensitive, Factory)
-              (Maybe (Ex.Exceptional Ly.OperandError (X.Token L.PostFam)))
+              (Maybe (Ex.Exceptional Ly.Error (X.Token L.PostFam)))
 makeToken o = case o of
   ROperand f -> do
     (s, fty) <- St.get
@@ -222,8 +222,8 @@ makeToken o = case o of
 makeTokens
   :: Defaults
   -> [OptResult]
-  -> Ex.Exceptional Ly.OperandError ( [X.Token L.PostFam]
-                                    , (M.CaseSensitive, Factory) )
+  -> Ex.Exceptional Ly.Error ( [X.Token L.PostFam]
+                             , (M.CaseSensitive, Factory) )
 makeTokens df os =
   let initSt = (sensitive df, fty)
       fty = case matcher df of
@@ -332,35 +332,24 @@ processGlobal
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 processGlobal rt srt df rpts os
   = case processFiltOpts srt df os of
-      Ex.Exception s -> Left $ (const $ CE.throwIO s)
+      Ex.Exception s -> Left $ (const $ handleTextError s)
       Ex.Success fo -> Right $ map (makeMode rt fo) rpts
-
-
-data FiltProcessError
-  = FPOperandError Ly.OperandError
-  | FPSortSpecError BadSortSpec
-  | FPBadHeadTailError Ly.BadHeadTailError
-  | FPParsePredicateError (X.ExprError L.PostFam)
-  deriving (Typeable, Show)
-
-instance CE.Exception FiltProcessError
 
 processFiltOpts
   :: Orderer
   -> Defaults
   -> [OptResult]
-  -> Ex.Exceptional FiltProcessError FilterOpts
+  -> Ex.Exceptional Error FilterOpts
 processFiltOpts ord df os = do
-  postFilts <- Ex.mapException FPBadHeadTailError $ getPostFilters os
-  sortSpec <- Ex.mapException FPSortSpecError $ getSortSpec ord os
-  (toks, (rs, rf)) <- Ex.mapException FPOperandError $ makeTokens df os
+  postFilts <- getPostFilters os
+  sortSpec <- getSortSpec ord os
+  (toks, (rs, rf)) <- makeTokens df os
   let ctf = getColorToFile df os
       sch = getScheme df os
       expDsc = getExprDesc df os
       showExpr = getShowExpression os
       verbFilt = getVerboseFilter os
-  pdct <- Ex.mapException FPParsePredicateError
-          $ Ly.parsePredicate expDsc toks
+  pdct <- Ly.parsePredicate expDsc toks
   let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
   return $ FilterOpts rf rs sf sch ctf expDsc pdct showExpr verbFilt
 
@@ -524,20 +513,14 @@ argMatch s1 s2 = case (s1, s2) of
     (x == y) && ((map toUpper xs) `isPrefixOf` (map toUpper ys))
   _ -> True
 
--- | The user supplied a bad sort specification. The argument is the
--- string the user supplied.
-
-data BadSortSpec = BadSortSpec Text
-  deriving (Eq, Ord, Show)
-
-sortSpecs :: MA.OptSpec (Ex.Exceptional BadSortSpec Orderer)
+sortSpecs :: MA.OptSpec (Ex.Exceptional Error Orderer)
 sortSpecs = MA.OptSpec ["sort"] ['s'] (MA.OneArg f)
   where
     f a =
       let matches = filter (\p -> a `argMatch` (fst p)) ords
       in case matches of
         x:[] -> return $ snd x
-        _ -> Ex.throw . BadSortSpec . pack $ a
+        _ -> Ex.throw $ "bad sort specification: " <> pack a <> "\n"
 
 
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Postfix, or RPN, expression parsing.
 --
 -- This module parses RPN expressions where the operands are
@@ -9,11 +10,15 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as Fdbl
 import qualified Penny.Steel.Pdct as P
 import Penny.Steel.Pdct ((&&&), (|||))
+import Data.Monoid ((<>))
+import Data.Text (Text)
+import qualified Data.Text as X
+import qualified Penny.Steel.Chunk as C
+
+type Error = Text
 
 data RPNToken a
   = TokOperand (P.Pdct a)
-  -- ^ The Text describes the operand, for use in error messages and
-  -- for printing a diagnostic tree.
   | TokOperator Operator
 
 data Operator
@@ -22,34 +27,31 @@ data Operator
   | OpNot
   deriving Show
 
-data RPNError a
-  = InsufficientStack Operator
-  | EmptyStack
-  | FullStack [P.Pdct a]
-  deriving Show
-
 pushOperand :: P.Pdct a -> [P.Pdct a] -> [P.Pdct a]
 pushOperand p ts = p : ts
 
 pushOperator
   :: Operator
   -> [P.Pdct a]
-  -> Ex.Exceptional (RPNError a) [P.Pdct a]
+  -> Ex.Exceptional Error [P.Pdct a]
 pushOperator o ts = case o of
   OpAnd -> case ts of
     x:y:zs -> return $ (y &&& x) : zs
-    _ -> Ex.throw $ InsufficientStack OpAnd
+    _ -> Ex.throw $ err "and"
   OpOr -> case ts of
     x:y:zs -> return $ (y ||| x) : zs
-    _ -> Ex.throw $ InsufficientStack OpOr
+    _ -> Ex.throw $ err "or"
   OpNot -> case ts of
     x:zs -> return $ P.not x : zs
-    _ -> Ex.throw $ InsufficientStack OpNot
+    _ -> Ex.throw $ err "not"
+  where
+    err x = "insufficient operands to apply \"" <> x
+            <> "\" operator\n"
 
 pushToken
   :: [P.Pdct a]
   -> RPNToken a
-  -> Ex.Exceptional (RPNError a) [P.Pdct a]
+  -> Ex.Exceptional Error [P.Pdct a]
 pushToken ts t = case t of
   TokOperand p -> return $ pushOperand p ts
   TokOperator o -> pushOperator o ts
@@ -57,11 +59,16 @@ pushToken ts t = case t of
 pushTokens
   :: Fdbl.Foldable f
   => f (RPNToken a)
-  -> Ex.Exceptional (RPNError a) (P.Pdct a)
+  -> Ex.Exceptional Error (P.Pdct a)
 pushTokens ts = do
   trees <- Fdbl.foldlM pushToken [] ts
   case trees of
-    [] -> Ex.throw $ EmptyStack
+    [] -> Ex.throw $ "bad expression: no operands left on the stack\n"
     x:[] -> return x
-    xs -> Ex.throw $ FullStack xs
+    xs -> Ex.throw
+      $ "bad expression: multiple operands left on the stack:\n"
+      <> ( X.concat
+           . map C.chunkText
+           . concatMap (P.showPdct 4 0)
+           $ xs )
 
