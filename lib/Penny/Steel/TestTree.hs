@@ -156,7 +156,8 @@ seriesAtLeastN n swr count p = TestTree n (Test tf)
       where
         pd (_, res) = isTrue res
         resultList = take count
-                     . Sp.split (Sp.keepDelimsR (Sp.whenElt pd))
+                     . Sp.split ( Sp.keepDelimsR
+                                  (Sp.dropFinalBlank . Sp.whenElt $ pd))
                      $ zip as (map (Pt.eval p) as)
         pass = length resultList >= count
         v = if pass then pv else fv
