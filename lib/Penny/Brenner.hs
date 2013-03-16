@@ -13,6 +13,7 @@ module Penny.Brenner
   , Y.Translator(..)
   , L.Side(..)
   , L.SpaceBetween(..)
+  , usePayeeOrDesc
   , brennerMain
   ) where
 
@@ -193,11 +194,22 @@ data FitAcct = FitAcct
   -- The first element of the pair is a help string which should
   -- indicate how to download the data, as a helpful reminder.
 
+  , toLincolnPayee :: Y.Desc -> Y.Payee -> L.Payee
+  -- ^ Sometimes the financial institution provides Payee information,
+  -- sometimes it does not. Sometimes the Desc might have additional
+  -- information that you might want to remove. This function can be
+  -- used to do that. The resulting Lincoln Payee is used for any
+  -- transactions that are created by the merge command. The resulting
+  -- payee is also used when comparing new financial institution
+  -- postings to already existing ledger transactions in order to
+  -- guess at which payee and accounts to create in the transactions
+  -- created by the merge command.
+
 
   } deriving Show
 
 convertFitAcct :: FitAcct -> Y.FitAcct
-convertFitAcct (FitAcct db ax df cy gs tl sd sb ps) = Y.FitAcct
+convertFitAcct (FitAcct db ax df cy gs tl sd sb ps tlp) = Y.FitAcct
   { Y.dbLocation = Y.DbLocation . X.pack $ db
   , Y.pennyAcct = Y.PennyAcct . Bd.account . X.pack $ ax
   , Y.defaultAcct = Y.DefaultAcct . Bd.account . X.pack $ df
@@ -207,6 +219,7 @@ convertFitAcct (FitAcct db ax df cy gs tl sd sb ps) = Y.FitAcct
   , Y.side = sd
   , Y.spaceBetween = sb
   , Y.parser = ps
+  , Y.toLincolnPayee = tlp
   }
 
 data Config = Config
@@ -221,3 +234,10 @@ convertConfig (Config d m) = Y.Config
       let f (n, c) = (Y.Name (X.pack n), convertFitAcct c)
       in map f m
   }
+
+-- | A simple function to use for 'toLincolnPayee'. Uses the financial
+-- institution payee if it is available; otherwise, uses the financial
+-- institution description.
+usePayeeOrDesc :: Y.Desc -> Y.Payee -> L.Payee
+usePayeeOrDesc (Y.Desc d) (Y.Payee p) = L.Payee $
+  if X.null p then d else p

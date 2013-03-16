@@ -267,6 +267,17 @@ data FitAcct = FitAcct
   -- The first element of the pair is a help string which should
   -- indicate how to download the data, as a helpful reminder.
 
+  , toLincolnPayee :: Desc -> Payee -> L.Payee
+  -- ^ Sometimes the financial institution provides Payee information,
+  -- sometimes it does not. Sometimes the Desc might have additional
+  -- information that you might want to remove. This function can be
+  -- used to do that. The resulting Lincoln Payee is used for any
+  -- transactions that are created by the merge command. The resulting
+  -- payee is also used when comparing new financial institution
+  -- postings to already existing ledger transactions in order to
+  -- guess at which payee and accounts to create in the transactions
+  -- created by the merge command.
+
   }
 
 -- | Configuration for the Brenner program. You can optionally have

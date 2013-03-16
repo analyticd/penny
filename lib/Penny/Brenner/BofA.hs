@@ -1,7 +1,7 @@
 -- | Parses statements for Bank of America deposit accounts. See the
 -- help text in the 'help' function for more details. Also, the file
 -- format is documented in the file @doc\/bofa-file-format.org@.
-module Penny.Brenner.BofA (parser) where
+module Penny.Brenner.BofA (parser, getPayee) where
 
 import Control.Applicative ((<$>), (<*), (<$), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -14,6 +14,7 @@ import Text.Parsec.String (Parser)
 import qualified Data.Tree as T
 import Data.Tree (Tree(Node))
 import qualified Penny.Brenner.Types as Y
+import qualified Penny.Lincoln as L
 import qualified Data.Text as X
 
 newtype TagName = TagName { unTagName :: String }
@@ -210,3 +211,16 @@ parser = (help, psr)
                   $ "could not parse Bank of America transactions: "
                     ++ show e
         Right (_, t) -> postings t
+
+-- | For check card transactions, Bank of America changes the
+-- description so that it begins with @CHECKCARD MMDD@, where MM is
+-- the two-digit month of the transaction date, and DD is the
+-- two-digit day of the transaction date. (The posting date is used as
+-- the main date, and it is typically two days later than the
+-- transaction date.) This function strips off the @CHECKCARD MMDD@
+-- portion.
+getPayee :: Y.Desc -> L.Payee
+getPayee (Y.Desc d) = L.Payee $
+  if X.isPrefixOf (X.pack "CHECKCARD") d
+  then X.drop (length "CHECKCARD XXXX ") d
+  else d

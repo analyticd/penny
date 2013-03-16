@@ -1,6 +1,6 @@
 module Penny.Brenner.Merge (mode) where
 
-import Control.Applicative (pure, (<|>))
+import Control.Applicative (pure)
 import Control.Monad (guard)
 import qualified Control.Monad.Trans.State as St
 import Data.List (find, sortBy, foldl')
@@ -248,10 +248,9 @@ newTransaction noAuto acct mu mp (u, (a, e)) = L.rTransaction rt
     tl = (U.emptyTopLine ( L.dateTimeMidnightUTC . Y.unDate
                            . Y.date $ a))
          { U.tPayee = Just pa }
-    (guessedPye, guessedAcct) = guessInfo mu mp a
-    dfltPye = L.Payee $ if X.null . Y.unPayee . Y.payee $ a
-              then Y.unDesc . Y.desc $ a
-              else Y.unPayee . Y.payee $ a
+    getPye = Y.toLincolnPayee acct
+    (guessedPye, guessedAcct) = guessInfo getPye mu mp a
+    dfltPye = getPye (Y.desc a) (Y.payee a)
     dfltAcct = Y.unDefaultAcct . Y.defaultAcct $ acct
     (pa, ac) =
       if noAuto
@@ -279,25 +278,28 @@ createTransactions noAuto acct led dbLs db =
   . M.assocs
   $ db
   where
-    mu = makeUNumberLookup dbLs
+    mu = makeUNumberLookup (Y.toLincolnPayee acct) dbLs
     mp = makePyeLookupMap (Y.pennyAcct acct) led
 
 -- | Maps financial institution postings to UNumbers. The key is the
--- Payee of the financial institution posting, if it has one;
--- otherwise, it is the description if it has one. The UNumbers are in
--- a list, with UNumbers from most recent financial institution
--- postings first.
-type UNumberLookupMap = M.Map X.Text [Y.UNumber]
+-- Lincoln Payee of the financial institution posting, which is
+-- computed using the toLincolnPayee function in the FitAcct.  The
+-- UNumbers are in a list, with UNumbers from most recent financial
+-- institution postings first.
+type UNumberLookupMap = M.Map L.Payee [Y.UNumber]
 
 -- | Create a UNumberLookupMap from a DbWithEntry. Financial
 -- institution postings with higher U-numbers will come first.
-makeUNumberLookup :: Y.DbList -> UNumberLookupMap
-makeUNumberLookup = foldl' ins M.empty . mapMaybe f . sortBy g
+makeUNumberLookup
+  :: (Y.Desc -> Y.Payee -> L.Payee)
+  -> Y.DbList
+  -> UNumberLookupMap
+makeUNumberLookup toPye = foldl' ins M.empty . map f . sortBy g
   where
     ins m (k, v) = M.alter alterer k m
       where alterer Nothing = Just [v]
             alterer (Just ls) = Just $ v:ls
-    f (u, p) = fmap (\k -> (k, u)) $ getBestPayee p
+    f (u, p) = (toPye (Y.desc p) (Y.payee p), u)
     g (_, p1) (_, p2) = compare (Y.date p1) (Y.date p2)
 
 -- | Given a list of keys, find the first key that is in the
@@ -307,17 +309,6 @@ findFirstKey _ [] = Nothing
 findFirstKey m (k:ks) = case M.lookup k m of
   Nothing -> findFirstKey m ks
   Just v -> Just v
-
--- | Given a Posting, gets the Text that will work best as a payee
--- name. Uses the Payee field if there is one, or the Desc field if
--- there is one; otherwise Nothing.
-getBestPayee :: Y.Posting -> Maybe X.Text
-getBestPayee p = fromPayee <|> fromDesc
-  where
-    fromPayee = let pye = Y.unPayee . Y.payee $ p
-                in if X.null pye then Nothing else Just pye
-    fromDesc = let dsc = Y.unDesc . Y.desc $ p
-               in if X.null dsc then Nothing else Just dsc
 
 -- | Maps UNumbers to payees and accounts from the ledger.
 type PyeLookupMap = M.Map Y.UNumber (Maybe L.Payee, Maybe L.Account)
@@ -345,11 +336,12 @@ makePyeLookupMap a l
 -- information from previous transactions if this information is
 -- available.
 guessInfo
-  :: UNumberLookupMap
+  :: (Y.Desc -> Y.Payee -> L.Payee)
+  -> UNumberLookupMap
   -> PyeLookupMap
   -> Y.Posting
   -> (Maybe L.Payee, Maybe L.Account)
-guessInfo mu mp p = fromMaybe (Nothing, Nothing) $ do
-  pye <- getBestPayee p
-  unums <- M.lookup pye mu
+guessInfo getPye mu mp p = fromMaybe (Nothing, Nothing) $ do
+  let pstgPayee = getPye (Y.desc p) (Y.payee p)
+  unums <- M.lookup pstgPayee mu
   findFirstKey mp unums
