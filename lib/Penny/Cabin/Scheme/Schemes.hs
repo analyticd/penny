@@ -3,8 +3,8 @@
 module Penny.Cabin.Scheme.Schemes where
 
 import qualified Penny.Cabin.Scheme as E
-import qualified Penny.Steel.Chunk as C
-import qualified Penny.Steel.Chunk.Switch as Sw
+import qualified System.Console.Rainbow as R
+import System.Console.Rainbow ((.+.))
 
 -- | The light color scheme. You can change various values below to
 -- affect the color scheme.
@@ -12,7 +12,7 @@ light :: E.Scheme
 light = E.Scheme "light" "for light background terminals"
               lightLabels
 
-lightLabels :: E.Labels (E.EvenAndOdd C.TextSpec)
+lightLabels :: E.Labels (E.EvenAndOdd (R.Chunk -> R.Chunk))
 lightLabels = E.Labels
   { E.debit = E.EvenAndOdd { E.eoEven = lightDebit lightEvenTextSpec
                            , E.eoOdd = lightDebit lightOddTextSpec }
@@ -24,21 +24,20 @@ lightLabels = E.Labels
                            , E.eoOdd = lightOddTextSpec }
   }
 
-lightEvenTextSpec :: C.TextSpec
-lightEvenTextSpec = C.defaultTextSpec
+lightEvenTextSpec :: R.Chunk -> R.Chunk
+lightEvenTextSpec = id
 
-lightOddTextSpec :: C.TextSpec
-lightOddTextSpec = Sw.switchBackground C.color8_b_default
-                   C.color256_b_255 lightEvenTextSpec
+lightOddTextSpec :: R.Chunk -> R.Chunk
+lightOddTextSpec = id .+. R.color8_b_default .+. R.color256_b_255
 
-lightDebit :: C.TextSpec -> C.TextSpec
-lightDebit = Sw.switchForeground C.color8_f_magenta C.color256_f_52
+lightDebit :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
+lightDebit f = f .+. R.color8_f_magenta .+. R.color256_f_52
 
-lightCredit :: C.TextSpec -> C.TextSpec
-lightCredit = Sw.switchForeground C.color8_f_cyan C.color256_f_21
+lightCredit :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
+lightCredit f = f .+. R.color8_f_cyan .+. R.color256_f_21
 
-lightZero :: C.TextSpec -> C.TextSpec
-lightZero = Sw.switchForeground C.color8_f_black C.color256_f_0
+lightZero :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
+lightZero f = f .+. R.color8_f_black .+. R.color256_f_0
 
 -- | The dark color scheme. You can change various values below to
 -- affect the color scheme.
@@ -46,7 +45,7 @@ dark :: E.Scheme
 dark = E.Scheme "dark" "for dark background terminals"
               darkLabels
 
-darkLabels :: E.Labels (E.EvenAndOdd C.TextSpec)
+darkLabels :: E.Labels (E.EvenAndOdd (R.Chunk -> R.Chunk))
 darkLabels = E.Labels
   { E.debit = E.EvenAndOdd { E.eoEven = darkDebit darkEvenTextSpec
                            , E.eoOdd = darkDebit darkOddTextSpec }
@@ -58,32 +57,31 @@ darkLabels = E.Labels
                            , E.eoOdd = darkOddTextSpec }
   }
 
-darkEvenTextSpec :: C.TextSpec
-darkEvenTextSpec = C.defaultTextSpec
+darkEvenTextSpec :: R.Chunk -> R.Chunk
+darkEvenTextSpec = id
 
-darkOddTextSpec :: C.TextSpec
-darkOddTextSpec = Sw.switchBackground C.color8_b_default
-                   C.color256_b_235 darkEvenTextSpec
+darkOddTextSpec :: R.Chunk -> R.Chunk
+darkOddTextSpec = id .+. R.color8_b_default .+. R.color256_b_235
 
-darkDebit :: C.TextSpec -> C.TextSpec
-darkDebit = Sw.switchForeground C.color8_f_magenta C.color256_f_208
+darkDebit :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
+darkDebit f = f .+. R.color8_f_magenta .+. R.color256_f_208
 
-darkCredit :: C.TextSpec -> C.TextSpec
-darkCredit = Sw.switchForeground C.color8_f_cyan C.color256_f_45
+darkCredit :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
+darkCredit f = f .+. R.color8_f_cyan .+. R.color256_f_45
 
-darkZero :: C.TextSpec -> C.TextSpec
-darkZero = Sw.switchForeground C.color8_f_white C.color256_f_15
+darkZero :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
+darkZero f = f .+. R.color8_f_white .+. R.color256_f_15
 
 -- | Plain scheme has no colors at all.
 plain :: E.Scheme
 plain = E.Scheme "plain" "uses default terminal colors"
               plainLabels
 
-plainLabels :: E.Labels (E.EvenAndOdd C.TextSpec)
+plainLabels :: E.Labels (E.EvenAndOdd (R.Chunk -> R.Chunk))
 plainLabels = E.Labels
-  { E.debit = E.EvenAndOdd C.defaultTextSpec C.defaultTextSpec
-  , E.credit = E.EvenAndOdd C.defaultTextSpec C.defaultTextSpec
-  , E.zero = E.EvenAndOdd C.defaultTextSpec C.defaultTextSpec
-  , E.other = E.EvenAndOdd C.defaultTextSpec C.defaultTextSpec
+  { E.debit = E.EvenAndOdd id id
+  , E.credit = E.EvenAndOdd id id
+  , E.zero = E.EvenAndOdd id id
+  , E.other = E.EvenAndOdd id id
   }
 

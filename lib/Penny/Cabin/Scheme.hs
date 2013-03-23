@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Cabin color schemes
 --
 -- Each element of a Cabin report identifies what it is--a debit on an
@@ -8,10 +9,10 @@
 
 module Penny.Cabin.Scheme where
 
-import qualified Penny.Steel.Chunk as C
 import qualified Penny.Cabin.Meta as M
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
+import qualified System.Console.Rainbow as R
 
 data Label
   = Debit
@@ -41,7 +42,7 @@ data EvenAndOdd a = EvenAndOdd
   , eoOdd :: a
   } deriving Show
 
-type TextSpecs = Labels (EvenAndOdd C.TextSpec)
+type Changers = Labels (EvenAndOdd (R.Chunk -> R.Chunk))
 
 data Scheme = Scheme
   { name :: String
@@ -52,7 +53,7 @@ data Scheme = Scheme
     -- ^ A brief (one-line) description of what this scheme is, such
     -- as @for dark background terminals@
 
-  , textSpecs :: TextSpecs
+  , changers :: Changers
   } deriving Show
 
 
@@ -69,20 +70,6 @@ getEvenOddLabelValue
 getEvenOddLabelValue l eo ls =
   getEvenOdd eo (getLabelValue l ls)
 
-data PreChunk = PreChunk
-  { label :: Label
-  , evenOdd :: EvenOdd
-  , text :: X.Text
-  } deriving (Eq, Show)
-
-width :: PreChunk -> C.Width
-width = C.Width . X.length . text
-
-makeChunk :: TextSpecs -> PreChunk -> C.Chunk
-makeChunk s p =
-  C.chunk (getEvenOddLabelValue (label p) (evenOdd p) s)
-          (text p)
-
 fromVisibleNum :: M.VisibleNum -> EvenOdd
 fromVisibleNum vn =
   let s = M.unVisibleNum vn in
@@ -92,54 +79,62 @@ dcToLbl :: L.DrCr -> Label
 dcToLbl L.Debit = Debit
 dcToLbl L.Credit = Credit
 
-bottomLineToDrCr :: L.BottomLine -> EvenOdd -> PreChunk
-bottomLineToDrCr bl eo = PreChunk lbl eo t
+bottomLineToDrCr :: L.BottomLine -> EvenOdd -> Changers -> R.Chunk
+bottomLineToDrCr bl eo chgrs = md c
   where
-    (lbl, t) = case bl of
-      L.Zero -> (Zero, X.pack "--")
+    (c, md) = case bl of
+      L.Zero -> (R.plain "--", getEvenOddLabelValue Zero eo chgrs)
       L.NonZero (L.Column clmDrCr _) -> case clmDrCr of
-        L.Debit -> (Debit, X.singleton '<')
-        L.Credit -> (Credit, X.singleton '>')
+        L.Debit -> (R.plain "<", getEvenOddLabelValue Debit eo chgrs)
+        L.Credit -> (R.plain ">", getEvenOddLabelValue Credit eo chgrs)
+
 
 balancesToCmdtys
-  :: EvenOdd
+  :: Changers
+  -> EvenOdd
   -> [(L.Commodity, L.BottomLine)]
-  -> [PreChunk]
-balancesToCmdtys eo ls =
+  -> [R.Chunk]
+balancesToCmdtys chgrs eo ls =
   if null ls
-  then [PreChunk Zero eo (X.pack "--")]
-  else map (bottomLineToCmdty eo) ls
+  then [getEvenOddLabelValue Zero eo chgrs $ R.plain "--"]
+  else map (bottomLineToCmdty chgrs eo) ls
 
 bottomLineToCmdty
-  :: EvenOdd
+  :: Changers
+  -> EvenOdd
   -> (L.Commodity, L.BottomLine)
-  -> PreChunk
-bottomLineToCmdty eo (cy, bl) = PreChunk lbl eo t
+  -> R.Chunk
+bottomLineToCmdty chgrs eo (cy, bl) = md c
   where
-    t = L.unCommodity cy
+    c = R.plain . L.unCommodity $ cy
     lbl = case bl of
       L.Zero -> Zero
       L.NonZero (L.Column clmDrCr _) -> dcToLbl clmDrCr
+    md = getEvenOddLabelValue lbl eo chgrs
 
 balanceToQtys
-  :: (L.Commodity -> L.Qty -> X.Text)
+  :: Changers
+  -> (L.Commodity -> L.Qty -> X.Text)
   -> EvenOdd
   -> [(L.Commodity, L.BottomLine)]
-  -> [PreChunk]
-balanceToQtys getTxt eo ls =
+  -> [R.Chunk]
+balanceToQtys chgrs getTxt eo ls =
   if null ls
-  then [PreChunk Zero eo (X.pack "--")]
-  else map (bottomLineToQty getTxt eo) ls
+  then let md = getEvenOddLabelValue Zero eo chgrs
+       in [md (R.plain "--")]
+  else map (bottomLineToQty chgrs getTxt eo) ls
 
 
 bottomLineToQty
-  :: (L.Commodity -> L.Qty -> X.Text)
+  :: Changers
+  -> (L.Commodity -> L.Qty -> X.Text)
   -> EvenOdd
   -> (L.Commodity, L.BottomLine)
-  -> PreChunk
-bottomLineToQty getTxt eo (cy, bl) = PreChunk lbl eo t
+  -> R.Chunk
+bottomLineToQty chgrs getTxt eo (cy, bl) = md (R.plain t)
   where
     (lbl, t) = case bl of
       L.Zero -> (Zero, X.pack "--")
       L.NonZero (L.Column clmDrCr qt) -> (dcToLbl clmDrCr, getTxt cy qt)
+    md = getEvenOddLabelValue lbl eo chgrs
 

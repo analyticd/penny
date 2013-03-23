@@ -2,7 +2,6 @@
 -- anything that is a 'Report'.
 module Penny.Cabin.Interface where
 
-import qualified Penny.Steel.Chunk as C
 import qualified Penny.Steel.Expressions as Exp
 import qualified Penny.Cabin.Scheme as S
 import Control.Monad.Exception.Synchronous (Exceptional)
@@ -10,6 +9,7 @@ import qualified Data.Text as X
 import Text.Matchers (CaseSensitive)
 import qualified Text.Matchers as TM
 import qualified System.Console.MultiArg as MA
+import qualified System.Console.Rainbow as R
 
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
@@ -41,7 +41,7 @@ type PrintReport
   -- ^ PricePoints to be included in the report
 
 
-  -> Exceptional X.Text [Either C.Chunk S.PreChunk]
+  -> Exceptional X.Text [R.Chunk]
   -- ^ The exception type is a strict Text, containing the error
 -- message. The success type is a list of either a Chunk or a PreChunk
 -- containing the resulting report. This allows for errors after the
@@ -61,6 +61,10 @@ type MkReport
   -> (CaseSensitive -> X.Text -> Exceptional X.Text TM.Matcher)
   -- ^ Result from previous parsers indicating the matcher factory the
   -- user wishes to use
+
+  -> S.Changers
+  -- ^ Result from previous parsers indicating which color scheme to
+  -- use.
 
   -> Exp.ExprDesc
   -- ^ Result from previous parsers indicating whether the user wants
