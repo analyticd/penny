@@ -129,14 +129,7 @@ Library
     , Penny.Lincoln.Transaction.Unverified
     , Penny.Shield
     , Penny.Steel
-    , Penny.Steel.Chunk
-    , Penny.Steel.Chunk.Switch
-    , Penny.Steel.Expressions
-    , Penny.Steel.Expressions.Infix
-    , Penny.Steel.Expressions.RPN
     , Penny.Steel.NestedMap
-    , Penny.Steel.Pdct
-    , Penny.Steel.TestTree
     , Penny.Wheat
     , Penny.Zinc
 
