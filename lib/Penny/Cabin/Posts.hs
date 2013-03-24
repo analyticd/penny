@@ -76,9 +76,9 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as Sh
-import qualified Penny.Steel.Expressions as Exp
-import qualified Penny.Steel.Pdct as Pe
-import qualified Penny.Steel.Chunk as Chk
+import qualified Data.Prednote.Expressions as Exp
+import qualified Data.Prednote.Pdct as Pe
+import qualified System.Console.Rainbow as Chk
 
 import Data.List (intersperse)
 import Data.Maybe (catMaybes)

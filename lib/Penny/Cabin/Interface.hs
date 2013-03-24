@@ -2,7 +2,7 @@
 -- anything that is a 'Report'.
 module Penny.Cabin.Interface where
 
-import qualified Penny.Steel.Expressions as Exp
+import qualified Data.Prednote.Expressions as Exp
 import qualified Penny.Cabin.Scheme as S
 import Control.Monad.Exception.Synchronous (Exceptional)
 import qualified Data.Text as X

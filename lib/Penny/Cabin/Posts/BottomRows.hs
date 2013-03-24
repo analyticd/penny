@@ -31,7 +31,7 @@ import Data.Monoid (mappend, mempty, First(First, getFirst))
 import qualified Data.Sequence as Seq
 import qualified Data.Text as X
 import qualified Data.Traversable as T
-import qualified Penny.Steel.Chunk as C
+import qualified System.Console.Rainbow as Rb
 import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.TextFormat as TF

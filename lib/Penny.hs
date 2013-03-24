@@ -92,8 +92,7 @@ import qualified Penny.Cabin.Balance.Convert.Parser as CP
 import qualified Penny.Cabin.Balance.Convert.Options as ConvOpts
 import qualified Penny.Cabin.Balance.MultiCommodity as MC
 import qualified Penny.Cabin.Balance.MultiCommodity.Parser as MP
-import Penny.Steel.Chunk
-import qualified Penny.Steel.Chunk.Switch as Sw
+import System.Console.Rainbow
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as CabP
@@ -103,7 +102,7 @@ import qualified Penny.Cabin.Posts.Spacers as PS
 import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Lincoln as L
-import qualified Penny.Steel.Expressions as Exp
+import qualified Data.Prednote.Expressions as Exp
 import qualified Penny.Zinc as Z
 import qualified Penny.Shield as S
 import qualified Text.Matchers as Mr

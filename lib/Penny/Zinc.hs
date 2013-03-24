@@ -15,8 +15,8 @@ import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.Scheme.Schemes as Schemes
 import qualified Penny.Copper as C
 import qualified Penny.Liberty as Ly
-import qualified Penny.Steel.Expressions as X
-import qualified Penny.Steel.Pdct as Pe
+import qualified Data.Prednote.Expressions as X
+import qualified Data.Prednote.Pdct as Pe
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S

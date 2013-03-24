@@ -30,7 +30,7 @@ import Control.Applicative ((<$>), (<*>))
 import qualified Data.Time as T
 import System.Environment (getEnvironment)
 import System.IO (hIsTerminalDevice, stdout)
-import qualified Penny.Steel.Chunk as C
+import qualified System.Console.Rainbow as C
 
 import qualified Penny.Lincoln.Bits as B
 

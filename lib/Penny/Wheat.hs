@@ -3,21 +3,24 @@ module Penny.Wheat where
 
 import Control.Applicative
 import Control.Monad (when)
+import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (find, isPrefixOf)
-import Data.Maybe (mapMaybe, catMaybes)
+import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>), mempty)
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
 import qualified Data.Time as Time
+import qualified Text.Matchers as M
 import qualified Text.Parsec as Parsec
 import qualified System.Exit as Exit
+import qualified System.IO as IO
 import qualified Penny.Shield as S
 
-import qualified Penny.Steel.TestTree as TT
-import qualified Penny.Steel.Pdct as Pe
-import qualified Penny.Steel.Chunk as C
+import qualified Data.Prednote.TestTree as TT
+import qualified Data.Prednote.Pdct as Pe
+import qualified System.Console.Rainbow as Rb
 import qualified Options.Applicative as OA
 
 ------------------------------------------------------------
@@ -45,12 +48,32 @@ type ProgName = String
 data WheatConf = WheatConf
   { briefDescription :: String
   , moreHelp :: [String]
-  , passVerbosity :: TT.PassVerbosity
-  , failVerbosity :: TT.FailVerbosity
-  , indentAmt :: Pe.IndentAmt
-  , colorToFile :: ColorToFile
   , tests :: [BaseTime -> TT.TestTree L.PostFam]
+  , indentAmt :: Pe.IndentAmt
+  , passVerbosity :: TT.Verbosity
+  , failVerbosity :: TT.Verbosity
+  , groupPred :: TT.Name -> Bool
+  , testPred :: TT.Name -> Bool
+  , showSkippedTests :: Bool
+  , groupVerbosity :: TT.GroupVerbosity
+  , stopOnFail :: Bool
+  , colorToFile :: ColorToFile
   , baseTime :: BaseTime
+  , ledgers :: [String]
+  }
+
+data Parsed = Parsed
+  { p_indentAmt :: Pe.IndentAmt
+  , p_passVerbosity :: TT.Verbosity
+  , p_failVerbosity :: TT.Verbosity
+  , p_groupPred :: TT.Name -> Bool
+  , p_testPred :: TT.Name -> Bool
+  , p_showSkippedTests :: Bool
+  , p_groupVerbosity :: TT.GroupVerbosity
+  , p_stopOnFail :: Bool
+  , p_colorToFile :: ColorToFile
+  , p_baseTime :: BaseTime
+  , p_ledgers :: [String]
   }
 
 parseAbbrev :: [(String, a)] -> String -> Either OA.ParseError a
@@ -68,8 +91,7 @@ parseVerbosity = parseAbbrev
   , ("minimal", TT.PassFail)
   , ("false", TT.FalseSubjects)
   , ("true", TT.TrueSubjects)
-  , ("discarded", TT.DiscardedSubjects)
-  , ("all", TT.DiscardedPredicates)
+  , ("all", TT.Discards)
   ]
 
 parseColorToFile :: String -> Either OA.ParseError ColorToFile
@@ -80,19 +102,28 @@ parseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
   Left e -> Left (OA.ErrorMsg $ "could not parse date: " ++ show e)
   Right g -> Right . L.toUTC $ g
 
-data Parsed = Parsed
-  { p_passVerbosity :: TT.PassVerbosity
-  , p_failVerbosity :: TT.FailVerbosity
-  , p_indentAmt :: Pe.IndentAmt
-  , p_colorToFile :: ColorToFile
-  , p_baseTime :: BaseTime
-  , p_ledgers :: [String]
-  }
+parseRegexp :: String -> Either OA.ParseError (TT.Name -> Bool)
+parseRegexp s = case M.pcre M.Sensitive (X.pack s) of
+  Ex.Exception e -> Left . OA.ErrorMsg $
+    "could not parse regular expression: " ++ X.unpack e
+  Ex.Success m -> Right . M.match $ m
+
+parseGroupVerbosity :: String -> Either OA.ParseError TT.GroupVerbosity
+parseGroupVerbosity = parseAbbrev
+  [ ("silent", TT.NoGroups)
+  , ("active", TT.ActiveGroups)
+  , ("all", TT.AllGroups)
+  ]
 
 parseOpts :: WheatConf -> OA.Parser Parsed
 parseOpts wc
   = Parsed
-  <$> ( OA.nullOption
+  <$> ( OA.option
+        ( OA.long "indentation"
+        <> OA.short 'i' )
+      <|> pure (indentAmt wc) )
+
+  <*> ( OA.nullOption
         ( OA.long "pass-verbosity"
         <> OA.short 'p'
         <> OA.reader parseVerbosity )
@@ -104,10 +135,28 @@ parseOpts wc
         <> OA.reader parseVerbosity )
       <|> pure (failVerbosity wc) )
 
-  <*> ( OA.option
-        ( OA.long "indentation"
-        <> OA.short 'i' )
-      <|> pure (indentAmt wc) )
+  <*> ( OA.nullOption
+        ( OA.long "group-regexp"
+          <> OA.short 'g'
+          <> OA.reader parseRegexp )
+      <|> pure (groupPred wc) )
+
+  <*> ( OA.nullOption
+        ( OA.long "test-regexp"
+          <> OA.short 't'
+          <> OA.reader parseRegexp )
+      <|> pure (testPred wc) )
+
+  <*> ( OA.flag (showSkippedTests wc) False
+        ( OA.long "show-skipped-tests" ))
+
+  <*> ( OA.nullOption
+        ( OA.long "group-verbosity"
+          <> OA.short 'G'
+          <> OA.reader parseGroupVerbosity )
+        <|> pure (groupVerbosity wc))
+
+  <*> ( OA.flag (stopOnFail wc) True (OA.long "stop-on-failure"))
 
   <*> ( OA.nullOption
         ( OA.long "color-to-file"
@@ -119,32 +168,33 @@ parseOpts wc
         <> OA.reader parseBaseTime )
       <|> pure (baseTime wc) )
 
-  <*> ( many (OA.argument OA.str mempty))
+  <*> ( some (OA.argument OA.str mempty) <|> pure (ledgers wc))
+
+getTTOpts :: [a] -> Parsed -> TT.TestOpts a
+getTTOpts as o = TT.TestOpts
+  { TT.tIndentAmt = p_indentAmt o
+  , TT.tPassVerbosity = p_passVerbosity o
+  , TT.tFailVerbosity = p_failVerbosity o
+  , TT.tGroupPred = p_groupPred o
+  , TT.tTestPred = p_testPred o
+  , TT.tShowSkippedTests = p_showSkippedTests o
+  , TT.tGroupVerbosity = p_groupVerbosity o
+  , TT.tSubjects = as
+  , TT.tStopOnFail = p_stopOnFail o
+  }
 
 main :: (S.Runtime -> WheatConf) -> IO ()
 main getWc = do
   rt <- S.runtime
-  let inf = OA.fullDesc
-      wc = getWc rt
-  psd <- OA.execParser (OA.info (parseOpts wc) inf)
-  let term = if p_colorToFile psd || (S.output rt == S.IsTTY)
-        then S.termFromEnv rt
-        else S.autoTerm rt
+  let wc = getWc rt
+  psd <- OA.execParser (OA.info (parseOpts (getWc rt)) OA.fullDesc)
+  term <- Rb.smartTermFromEnv (p_colorToFile psd) IO.stdout
   pfs <- getItems (p_ledgers psd)
+  let ttOpts = getTTOpts pfs psd
   let tts = zipWith ($) (tests wc) (repeat (p_baseTime psd))
-      doEval = TT.evalTestTree (p_indentAmt psd) 0 (p_passVerbosity psd)
-                           (p_failVerbosity psd) pfs
-      eithers = concatMap doEval tts
-  passes <- mapM (showEitherChunk (C.printChunks term)) eithers
-  when (not . and . catMaybes $ passes) Exit.exitFailure
-
-showEitherChunk
-  :: ([C.Chunk] -> IO ())
-  -> Either C.Chunk (TT.Pass, [C.Chunk])
-  -> IO (Maybe TT.Pass)
-showEitherChunk f ei = case ei of
-  Left ck -> f [ck] >> return Nothing
-  Right (p, cs) -> f cs >> return (Just p)
+      (cks, _, nFail) = TT.runTests ttOpts 0 tts
+  Rb.printChunks term cks
+  when (nFail > 0) Exit.exitFailure
 
 getItems :: [String] -> IO [L.PostFam]
 getItems ss = fmap f $ Cop.open ss
@@ -166,4 +216,4 @@ atLeastNPostings
   -> TT.Name
   -> Pe.Pdct L.PostFam
   -> TT.TestTree L.PostFam
-atLeastNPostings i n = TT.seriesAtLeastN n L.display i
+atLeastNPostings i n = TT.nSubjectsMustBeTrue n L.display i
