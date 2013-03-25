@@ -30,6 +30,7 @@ import qualified Data.Map as M
 import qualified Data.Text as X
 import Data.Monoid (mempty, mappend, mconcat)
 import qualified System.Console.MultiArg as MA
+import qualified System.Console.Rainbow as Rb
 
 -- | Options for the Convert report. These are the only options you
 -- need to use if you are supplying options programatically (as
@@ -40,6 +41,7 @@ data Opts = Opts
   , sorter :: Sorter
   , target :: L.To
   , dateTime :: L.DateTime
+  , textFormats :: Scheme.Changers
   }
 
 -- | How to sort each line of the report. Each subaccount has only one
@@ -144,16 +146,16 @@ mainRow (l, (a, b)) = K.RMain $ K.MainRow l x b
 -- | The function for the Convert report. Use this function if you are
 -- setting the options from a program (as opposed to parsing them in
 -- from the command line.) Will fail if the balance conversions fail.
-report ::
-  Opts
+report
+  :: Opts
   -> [L.PricePoint]
   -> [L.Box a]
-  -> Ex.Exceptional X.Text [Scheme.PreChunk]
-report os@(Opts getFmt _ _ _ _) ps bs = do
+  -> Ex.Exceptional X.Text [Rb.Chunk]
+report os@(Opts getFmt _ _ _ _ txtFormats) ps bs = do
   fstBl <- sumConvertSort os ps bs
   let (rs, L.To cy) = rows fstBl
       fmt = getFmt cy
-  return $ K.rowsToChunks fmt rs
+  return $ K.rowsToChunks txtFormats fmt rs
 
 
 -- | Creates a report respecting the standard interface for reports
@@ -163,34 +165,35 @@ cmdLineReport
   -> I.Report
 cmdLineReport o rt = (help o, mkMode)
   where
-    mkMode _ _ _ fsf = MA.Mode
+    mkMode _ _ chgrs _ fsf = MA.Mode
       { MA.mName = "convert"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allOptSpecs
       , MA.mPosArgs = Left
-      , MA.mProcess = process rt o fsf
+      , MA.mProcess = process rt chgrs o fsf
       , MA.mHelp = const (help o)
       }
 
 process
   :: S.Runtime
+  -> Scheme.Changers
   -> O.DefaultOpts
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
   -> Ex.Exceptional X.Text I.ArgsAndReport
-process rt defaultOpts fsf ls = do
+process rt chgrs defaultOpts fsf ls = do
   let (posArgs, parsed) = Ei.partitionEithers ls
       op' = foldl (>>=) (return (O.toParserOpts defaultOpts rt)) parsed
   case op' of
       Ex.Exception s -> Ex.throw . X.pack $ s
       Ex.Success g -> return $
         let noDefault = X.pack "no default price found"
-            f = fromParsedOpts g
+            f = fromParsedOpts chgrs g
             pr ts pps = do
               rptOpts <- Ex.fromMaybe noDefault $
                 f pps (O.format defaultOpts)
               let boxes = fsf ts
-              fmap (map Right) $ report rptOpts pps boxes
+              report rptOpts pps boxes
         in (posArgs, pr)
 
 
@@ -205,7 +208,7 @@ sumConvertSort
   -> Ex.Exceptional X.Text ForestAndBL
 sumConvertSort os ps bs = mkResult <$> convertedFrst <*> convertedTot
   where
-    (Opts _ szb str tgt dt) = os
+    (Opts _ szb str tgt dt _) = os
     bals = U.balances szb bs
     (frst, tot) = U.sumForest mempty mappend bals
     convertBal (a, bal) =
@@ -228,17 +231,18 @@ type DoReport = [L.PricePoint]
 -- from the command line. Fails if the user did not specify a
 -- commodity and mostFrequent fails.
 fromParsedOpts
-  :: P.Opts
+  :: Scheme.Changers
+  -> P.Opts
   -> DoReport
-fromParsedOpts (P.Opts szb tgt dt so sb) =
+fromParsedOpts chgrs (P.Opts szb tgt dt so sb) =
   \pps fmt -> case tgt of
     P.ManualTarget to ->
-      Just $ Opts fmt szb (getSorter so sb) to dt
+      Just $ Opts fmt szb (getSorter so sb) to dt chgrs
     P.AutoTarget ->
       case mostFrequent pps of
         Nothing -> Nothing
         Just to ->
-          Just $ Opts fmt szb (getSorter so sb) to dt
+          Just $ Opts fmt szb (getSorter so sb) to dt chgrs
 
 -- | Returns a function usable to sort pairs of SubAccount and
 -- BottomLine depending on how you want them sorted.

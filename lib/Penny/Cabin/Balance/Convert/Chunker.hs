@@ -12,12 +12,12 @@ module Penny.Cabin.Balance.Convert.Chunker (
 import Control.Applicative
   (Applicative (pure), (<$>), (<*>))
 import qualified Penny.Cabin.Scheme as E
-import qualified Penny.Steel.Chunk as Chunk
 import qualified Penny.Cabin.Meta as Meta
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Lincoln as L
 import qualified Data.Foldable as Fdbl
 import qualified Data.Text as X
+import qualified System.Console.Rainbow as Rb
 
 type IsEven = Bool
 
@@ -45,7 +45,7 @@ instance Applicative Columns where
 data PreSpec = PreSpec {
   _justification :: R.Justification
   , _padSpec :: (E.Label, E.EvenOdd)
-  , bits :: E.PreChunk }
+  , bits :: Rb.Chunk }
 
 -- | When given a list of columns, determine the widest row in each
 -- column.
@@ -59,7 +59,7 @@ maxWidthPerColumn ::
   -> Columns PreSpec
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
-  f old new = max old (E.width . bits $ new)
+  f old new = max old (R.Width . X.length . Rb.chunkText . bits $ new)
 
 -- | Changes a single set of Columns to a set of ColumnSpec of the
 -- given width.
@@ -81,15 +81,16 @@ widthSpacerAcct = 4
 widthSpacerDrCr :: Int
 widthSpacerDrCr = 1
 
-colsToBits ::
-  IsEven
+colsToBits
+  :: E.Changers
+  -> IsEven
   -> Columns R.ColumnSpec
-  -> [E.PreChunk]
-colsToBits isEven (Columns a dc q) = let
+  -> [Rb.Chunk]
+colsToBits chgrs isEven (Columns a dc q) = let
   fillSpec = if isEven
              then (E.Other, E.Even)
              else (E.Other, E.Odd)
-  spacer w = R.ColumnSpec j (Chunk.Width w) fillSpec []
+  spacer w = R.ColumnSpec j (R.Width w) fillSpec []
   j = R.LeftJustify
   cs = a
        : spacer widthSpacerAcct
@@ -97,21 +98,23 @@ colsToBits isEven (Columns a dc q) = let
        : spacer widthSpacerDrCr
        : q
        : []
-  in R.row cs
+  in R.row chgrs cs
 
 colsListToBits
-  :: [Columns R.ColumnSpec]
-  -> [[E.PreChunk]]
-colsListToBits = zipWith f bools where
-  f b c = colsToBits b c
+  :: E.Changers
+  -> [Columns R.ColumnSpec]
+  -> [[Rb.Chunk]]
+colsListToBits chgrs = zipWith f bools where
+  f b c = colsToBits chgrs b c
   bools = iterate not True
 
 preSpecsToBits
-  :: [Columns PreSpec]
-  -> [E.PreChunk]
-preSpecsToBits =
+  :: E.Changers
+  -> [Columns PreSpec]
+  -> [Rb.Chunk]
+preSpecsToBits chgrs =
   concat
-  . colsListToBits
+  . colsListToBits chgrs
   . resizeColumnsInList
 
 data Row = RMain MainRow | ROneCol OneColRow
@@ -146,80 +149,89 @@ data MainRow = MainRow {
   }
 
 
-rowsToChunks ::
-  (L.Qty -> X.Text)
+rowsToChunks
+  :: E.Changers
+  -> (L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
   -> [Row]
-  -> [E.PreChunk]
-rowsToChunks fmt =
-  preSpecsToBits
-  . rowsToColumns fmt
+  -> [Rb.Chunk]
+rowsToChunks chgrs fmt =
+  preSpecsToBits chgrs
+  . rowsToColumns chgrs fmt
 
-rowsToColumns ::
-  (L.Qty -> X.Text)
+rowsToColumns
+  :: E.Changers
+  -> (L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
 
   -> [Row]
   -> [Columns PreSpec]
-rowsToColumns fmt rs = map (mkRow fmt) pairs
+rowsToColumns chgrs fmt rs = map (mkRow chgrs fmt) pairs
   where
     pairs = Meta.visibleNums (,) rs
 
 
-mkRow ::
-  (L.Qty -> X.Text)
+mkRow
+  :: E.Changers
+  -> (L.Qty -> X.Text)
   -> (Meta.VisibleNum, Row)
   -> Columns PreSpec
-mkRow fmt (vn, r) = case r of
-  RMain m -> mkMainRow fmt (vn, m)
-  ROneCol c -> mkOneColRow (vn, c)
+mkRow chgrs fmt (vn, r) = case r of
+  RMain m -> mkMainRow chgrs fmt (vn, m)
+  ROneCol c -> mkOneColRow chgrs (vn, c)
 
-mkOneColRow ::
-  (Meta.VisibleNum, OneColRow)
+mkOneColRow
+  :: E.Changers
+  -> (Meta.VisibleNum, OneColRow)
   -> Columns PreSpec
-mkOneColRow (vn, (OneColRow i t)) = Columns ca cd cq
+mkOneColRow chgrs (vn, (OneColRow i t)) = Columns ca cd cq
   where
     txt = X.append indents t
     indents = X.replicate (indentAmount * max 0 i)
               (X.singleton ' ')
     eo = E.fromVisibleNum vn
     lbl = E.Other
-    ca = PreSpec R.LeftJustify (lbl, eo) (E.PreChunk lbl eo txt)
-    cd = PreSpec R.LeftJustify (lbl, eo) (E.PreChunk lbl eo X.empty)
+    ca = PreSpec R.LeftJustify (lbl, eo)
+         (E.getEvenOddLabelValue lbl eo chgrs $ Rb.plain txt)
+    cd = PreSpec R.LeftJustify (lbl, eo)
+         (E.getEvenOddLabelValue lbl eo chgrs $ Rb.plain X.empty)
     cq = cd
 
-mkMainRow ::
-  (L.Qty -> X.Text)
+mkMainRow
+  :: E.Changers
+  -> (L.Qty -> X.Text)
   -> (Meta.VisibleNum, MainRow)
   -> Columns PreSpec
-mkMainRow fmt (vn, (MainRow i acctTxt b)) = Columns ca cd cq
+mkMainRow chgrs fmt (vn, (MainRow i acctTxt b)) = Columns ca cd cq
   where
+    applyFmt = E.getEvenOddLabelValue lbl eo chgrs
     eo = E.fromVisibleNum vn
     lbl = E.Other
-    ca = PreSpec R.LeftJustify (lbl, eo) (E.PreChunk lbl eo txt)
+    ca = PreSpec R.LeftJustify (lbl, eo) (applyFmt (Rb.plain txt))
       where
         txt = X.append indents acctTxt
         indents = X.replicate (indentAmount * max 0 i)
                   (X.singleton ' ')
-    cd = PreSpec R.LeftJustify (lbl, eo) cksDrCr
-    cq = PreSpec R.LeftJustify (lbl, eo) cksQty
-    (cksDrCr, cksQty) = balanceChunks fmt vn b
+    cd = PreSpec R.LeftJustify (lbl, eo) (applyFmt cksDrCr)
+    cq = PreSpec R.LeftJustify (lbl, eo) (applyFmt cksQty)
+    (cksDrCr, cksQty) = balanceChunks chgrs fmt vn b
 
 
-balanceChunks ::
-  (L.Qty -> X.Text)
+balanceChunks
+  :: E.Changers
+  -> (L.Qty -> X.Text)
   -> Meta.VisibleNum
   -> L.BottomLine
-  -> (E.PreChunk, E.PreChunk)
-balanceChunks fmt vn bl = (chkDc, chkQt)
+  -> (Rb.Chunk, Rb.Chunk)
+balanceChunks chgrs fmt vn bl = (chkDc, chkQt)
   where
     eo = E.fromVisibleNum vn
-    chkDc = E.bottomLineToDrCr bl eo
-    chkQt = E.PreChunk lbl eo t
-      where
-        (lbl, t) = case bl of
-          L.Zero -> (E.Zero, X.pack "--")
-          L.NonZero (L.Column dc qt) -> (E.dcToLbl dc, fmt qt)
+    chkDc = E.bottomLineToDrCr bl eo chgrs
+    qtFmt = E.getEvenOddLabelValue lbl eo chgrs
+    chkQt = qtFmt $ Rb.plain t
+    (lbl, t) = case bl of
+      L.Zero -> (E.Zero, X.pack "--")
+      L.NonZero (L.Column dc qt) -> (E.dcToLbl dc, fmt qt)
 
 
 indentAmount :: Int

@@ -76,9 +76,9 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as Sh
-import qualified Penny.Steel.Expressions as Exp
-import qualified Penny.Steel.Pdct as Pe
-import qualified Penny.Steel.Chunk as Chk
+import qualified Data.Prednote.Expressions as Exp
+import qualified Data.Prednote.Pdct as Pe
+import qualified System.Console.Rainbow as Rb
 
 import Data.List (intersperse)
 import Data.Maybe (catMaybes)
@@ -90,8 +90,9 @@ import Text.Matchers (CaseSensitive)
 
 -- | All information needed to make a Posts report. This function
 -- never fails.
-postsReport ::
-  CO.ShowZeroBalances
+postsReport
+  :: E.Changers
+  -> CO.ShowZeroBalances
   -> (Pe.Pdct (L.Box Ly.LibertyMeta))
   -- ^ Removes posts from the report if applying this function to the
   -- post returns False. Posts removed still affect the running
@@ -104,22 +105,22 @@ postsReport ::
 
   -> C.ChunkOpts
   -> [L.Box Ly.LibertyMeta]
-  -> [E.PreChunk]
+  -> [Rb.Chunk]
 
-postsReport szb pdct pff co =
-  C.makeChunk co
+postsReport ch szb pdct pff co =
+  C.makeChunk ch co
   . M.toBoxList szb pdct pff
 
 
 zincReport :: ZincOpts -> I.Report
 zincReport opts rt = (helpStr opts, md)
   where
-    md cs fty expr fsf = MA.Mode
+    md cs fty ch expr fsf = MA.Mode
       { MA.mName = "postings"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = specs rt
       , MA.mPosArgs = Left
-      , MA.mProcess = process opts cs fty expr fsf
+      , MA.mProcess = process opts cs fty ch expr fsf
       , MA.mHelp = const (helpStr opts)
       }
 
@@ -133,64 +134,66 @@ process
   :: ZincOpts
   -> CaseSensitive
   -> L.Factory
+  -> E.Changers
   -> Exp.ExprDesc
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.State -> Ex.Exceptional X.Text P.State)]
   -> Ex.Exceptional X.Text I.ArgsAndReport
-process os cs fty expr fsf ls =
+process os cs fty ch expr fsf ls =
   let (posArgs, clOpts) = Ei.partitionEithers ls
       pState = newParseState cs fty expr os
       exState' = foldl (>>=) (return pState) clOpts
-  in fmap (mkPrintReport posArgs os fsf) exState'
+  in fmap (mkPrintReport posArgs os ch fsf) exState'
 
 mkPrintReport
   :: [String]
   -> ZincOpts
+  -> E.Changers
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> P.State
   -> I.ArgsAndReport
-mkPrintReport posArgs zo fsf st = (posArgs, f)
+mkPrintReport posArgs zo ch fsf st = (posArgs, f)
   where
     f txns _ = do
       pdct <- getPredicate (P.exprDesc st) (P.tokens st)
       let boxes = fsf txns
-          rptChks = postsReport (P.showZeroBalances st) pdct
+          rptChks = postsReport ch (P.showZeroBalances st) pdct
                     (P.postFilter st) (chunkOpts st zo) boxes
           expChks = showExpression (P.showExpression st) pdct
           verbChks = showVerboseFilter (P.verboseFilter st) pdct boxes
-          chks = map Left expChks
-                 ++ map Left verbChks
-                 ++ map Right rptChks
+          chks = expChks
+                 ++ verbChks
+                 ++ rptChks
       return chks
 
 indentAmt :: Pe.IndentAmt
 indentAmt = 4
 
-blankLine :: Chk.Chunk
-blankLine = Chk.chunk Chk.defaultTextSpec "\n"
+blankLine :: Rb.Chunk
+blankLine = Rb.plain (X.singleton '\n')
 
 showExpression
   :: P.ShowExpression
   -> Pe.Pdct (L.Box Ly.LibertyMeta)
-  -> [Chk.Chunk]
+  -> [Rb.Chunk]
 showExpression (P.ShowExpression b) pdct =
   if not b then [] else info : blankLine : (chks ++ [blankLine])
   where
-    info = Chk.chunk Chk.defaultTextSpec "Postings filter expression:\n"
+    info = Rb.plain (X.pack "Postings filter expression:\n")
     chks = Pe.showPdct indentAmt 0 pdct
 
 showVerboseFilter
   :: P.VerboseFilter
   -> Pe.Pdct (L.Box Ly.LibertyMeta)
   -> [L.Box Ly.LibertyMeta]
-  -> [Chk.Chunk]
+  -> [Rb.Chunk]
 showVerboseFilter (P.VerboseFilter b) pdct bs =
   if not b then [] else info : blankLine : (chks ++ [blankLine])
   where
     pdcts = map (makeLabeledPdct pdct) bs
     chks = concat . map snd $ zipWith doEval bs pdcts
     doEval subj pd = Pe.evaluate indentAmt False subj 0 pd
-    info = Chk.chunk Chk.defaultTextSpec "Postings report filter:\n"
+    info = Rb.plain (X.pack "Postings report filter:\n")
 
 -- | Creates a Pdct and prepends a one-line description of the PostFam
 -- to the Pdct's label so it can be easily identified in the output.

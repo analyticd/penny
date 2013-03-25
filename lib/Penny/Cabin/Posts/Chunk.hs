@@ -10,7 +10,7 @@ import qualified Penny.Cabin.Posts.BottomRows as B
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Scheme as E
-import qualified Penny.Steel.Chunk as C
+import qualified System.Console.Rainbow as Rb
 import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
@@ -62,21 +62,22 @@ bottomOpts c g a = B.BottomOpts {
   , B.spacers = spacers c
   }
 
-makeChunk ::
-  ChunkOpts
+makeChunk
+  :: E.Changers
+  -> ChunkOpts
   -> [Box]
-  -> [E.PreChunk]
-makeChunk c bs =
+  -> [Rb.Chunk]
+makeChunk ch c bs =
   let fmapSnd = fmap (fmap snd)
       fmapFst = fmap (fmap fst)
       gFldW = fmap (fmap snd) gFlds
       aFldW = fmapSnd aFlds
-      gFlds = G.growCells (growOpts c) bs
-      aFlds = A.payeeAndAcct (allocatedOpts c gFldW) bs
-      bFlds = B.bottomRows (bottomOpts c gFldW aFldW) bs
+      gFlds = G.growCells ch (growOpts c) bs
+      aFlds = A.payeeAndAcct ch (allocatedOpts c gFldW) bs
+      bFlds = B.bottomRows ch (bottomOpts c gFldW aFldW) bs
       topCells = B.topRowCells (fmapFst gFlds) (fmap (fmap fst) aFlds)
       withSpacers = B.mergeWithSpacers topCells (spacers c)
-      topRows = makeTopRows withSpacers
+      topRows = makeTopRows ch withSpacers
       bottomRows = makeBottomRows bFlds
   in makeAllRows topRows bottomRows
 
@@ -93,8 +94,8 @@ topRowsCells t = let
     (Just pairList) -> pairList : acc
   in transpose $ Fdbl.foldr f [] (fmap toWithSpc t)
 
-makeRow :: [(R.ColumnSpec, Maybe R.ColumnSpec)] -> [E.PreChunk]
-makeRow = R.row . foldr f [] where
+makeRow :: E.Changers -> [(R.ColumnSpec, Maybe R.ColumnSpec)] -> [Rb.Chunk]
+makeRow ch = R.row ch . foldr f [] where
   f (c, mayC) acc = case mayC of
     Nothing -> c:acc
     Just spcr -> c:spcr:acc
@@ -117,29 +118,30 @@ makeEvenOddSpacers cs i = let absI = abs i in
   then map (\c -> (c, Nothing)) cs
   else let
     spcrs = cycle [Just $ mkSpcr evenTs, Just $ mkSpcr oddTs]
-    mkSpcr ts = R.ColumnSpec R.LeftJustify (C.Width absI) ts []
+    mkSpcr ts = R.ColumnSpec R.LeftJustify (R.Width absI) ts []
     evenTs = (E.Other, E.Even)
     oddTs = (E.Other, E.Odd)
     in zip cs spcrs
 
 makeTopRows
-  :: B.TopRowCells (Maybe [R.ColumnSpec], Maybe Int)
-  -> Maybe [[E.PreChunk]]
-makeTopRows trc =
+  :: E.Changers
+  -> B.TopRowCells (Maybe [R.ColumnSpec], Maybe Int)
+  -> Maybe [[Rb.Chunk]]
+makeTopRows ch trc =
   if Fdbl.all (isNothing . fst) trc
   then Nothing
-  else Just $ map makeRow . topRowsCells $ trc
+  else Just $ map (makeRow ch) . topRowsCells $ trc
 
 
 makeBottomRows ::
-  B.Fields (Maybe [[E.PreChunk]])
-  -> Maybe [[[E.PreChunk]]]
+  B.Fields (Maybe [[Rb.Chunk]])
+  -> Maybe [[[Rb.Chunk]]]
 makeBottomRows flds =
   if Fdbl.all isNothing flds
   then Nothing
   else Just . transpose . catMaybes . Fdbl.toList $ flds
 
-makeAllRows :: Maybe [[E.PreChunk]] -> Maybe [[[E.PreChunk]]] -> [E.PreChunk]
+makeAllRows :: Maybe [[Rb.Chunk]] -> Maybe [[[Rb.Chunk]]] -> [Rb.Chunk]
 makeAllRows mayrs mayrrs = case (mayrs, mayrrs) of
   (Nothing, Nothing) -> []
   (Just rs, Nothing) -> concat rs

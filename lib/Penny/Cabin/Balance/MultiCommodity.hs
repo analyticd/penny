@@ -14,6 +14,7 @@ module Penny.Cabin.Balance.MultiCommodity (
 import Control.Applicative (Applicative, pure)
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Cabin.Scheme as E
+import qualified Penny.Cabin.Scheme.Schemes as Schemes
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import qualified Data.Either as Ei
@@ -27,6 +28,7 @@ import qualified Penny.Cabin.Balance.MultiCommodity.Parser as P
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Parsers as CP
 import qualified System.Console.MultiArg as MA
+import qualified System.Console.Rainbow as R
 
 -- | Options for making the balance report. These are the only options
 -- needed to make the report if the options are not being parsed in
@@ -35,6 +37,7 @@ data Opts = Opts
   { balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
   , order :: L.SubAccount -> L.SubAccount -> Ordering
+  , textFormats :: E.Changers
   }
 
 defaultOpts :: Opts
@@ -42,6 +45,7 @@ defaultOpts = Opts
   { balanceFormat = defaultFormat
   , showZeroBalances = CO.ShowZeroBalances True
   , order = compare
+  , textFormats = Schemes.darkLabels
   }
 
 defaultParseOpts :: P.ParseOpts
@@ -50,11 +54,12 @@ defaultParseOpts = P.ParseOpts
   , P.order = CP.Ascending
   }
 
-fromParseOpts ::
-  (L.Commodity -> L.Qty -> X.Text)
+fromParseOpts
+  :: E.Changers
+  -> (L.Commodity -> L.Qty -> X.Text)
   -> P.ParseOpts
   -> Opts
-fromParseOpts fmt (P.ParseOpts szb o) = Opts fmt szb o'
+fromParseOpts chgrs fmt (P.ParseOpts szb o) = Opts fmt szb o' chgrs
   where
     o' = case o of
        CP.Ascending -> compare
@@ -87,9 +92,9 @@ rows (o, b) = first:rest
 
 -- | This report is what to use if you already have your options (that
 -- is, you are not parsing them in from the command line.)
-report :: Opts -> [L.Box a] -> [E.PreChunk]
-report (Opts bf szb o) =
-  K.rowsToChunks bf
+report :: Opts -> [L.Box a] -> [R.Chunk]
+report (Opts bf szb o chgrs) =
+  K.rowsToChunks chgrs bf
   . rows
   . summedSortedBalTree szb o
 
@@ -107,29 +112,30 @@ parseReport ::
   -> I.Report
 parseReport fmt o rt = (help o, makeMode)
   where
-    makeMode _ _ _ fsf = MA.Mode
+    makeMode _ _ chgrs _ fsf = MA.Mode
       { MA.mName = "balance"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allSpecs
       , MA.mPosArgs = Left
-      , MA.mProcess = process fmt o rt fsf
+      , MA.mProcess = process chgrs fmt o rt fsf
       , MA.mHelp = const (help o)
       }
 
 process
   :: Applicative f
-  => (L.Commodity -> L.Qty -> X.Text)
+  => E.Changers
+  -> (L.Commodity -> L.Qty -> X.Text)
   -> P.ParseOpts
   -> a
   -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
   -> [Either String (P.ParseOpts -> P.ParseOpts)]
   -> f I.ArgsAndReport
-process fmt o _ fsf ls =
+process chgrs fmt o _ fsf ls =
   let (posArgs, fns) = Ei.partitionEithers ls
       mkParsedOpts = foldl (flip (.)) id fns
       os' = mkParsedOpts o
-      mcOpts = fromParseOpts fmt os'
-      pr txns _ = return . map Right $ report mcOpts (fsf txns)
+      mcOpts = fromParseOpts chgrs fmt os'
+      pr txns _ = return $ report mcOpts (fsf txns)
   in pure (posArgs, pr)
 
 

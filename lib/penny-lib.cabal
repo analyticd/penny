@@ -50,7 +50,9 @@ Library
     , optparse-applicative ==0.5.*
     , parsec >= 3.1.2 && < 3.2
     , pcre-light ==0.4.*
+    , prednote == 0.1.*
     , pretty-show ==1.5.*
+    , rainbow ==0.1.*
     , semigroups ==0.9.*
     , split ==0.2.*
     , strict ==0.3.*
@@ -127,14 +129,7 @@ Library
     , Penny.Lincoln.Transaction.Unverified
     , Penny.Shield
     , Penny.Steel
-    , Penny.Steel.Chunk
-    , Penny.Steel.Chunk.Switch
-    , Penny.Steel.Expressions
-    , Penny.Steel.Expressions.Infix
-    , Penny.Steel.Expressions.RPN
     , Penny.Steel.NestedMap
-    , Penny.Steel.Pdct
-    , Penny.Steel.TestTree
     , Penny.Wheat
     , Penny.Zinc
 

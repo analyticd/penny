@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | Zinc - the Penny command-line interface
 module Penny.Zinc
@@ -9,14 +9,14 @@ module Penny.Zinc
   , runZinc
   ) where
 
-import qualified Penny.Steel.Chunk as Chk
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Parsers as P
 import qualified Penny.Cabin.Scheme as E
+import qualified Penny.Cabin.Scheme.Schemes as Schemes
 import qualified Penny.Copper as C
 import qualified Penny.Liberty as Ly
-import qualified Penny.Steel.Expressions as X
-import qualified Penny.Steel.Pdct as Pe
+import qualified Data.Prednote.Expressions as X
+import qualified Data.Prednote.Pdct as Pe
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
@@ -28,7 +28,7 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper, toLower)
 import Data.Either (partitionEithers)
 import Data.List (isPrefixOf)
-import Data.Maybe (mapMaybe, catMaybes)
+import Data.Maybe (mapMaybe, catMaybes, fromMaybe)
 import Data.Monoid (mappend, mconcat, (<>))
 import Data.Ord (comparing)
 import Data.Text (Text, pack)
@@ -37,6 +37,7 @@ import qualified System.Console.MultiArg as MA
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified Text.Matchers as M
+import qualified System.Console.Rainbow as R
 
 runZinc
   :: Defaults
@@ -155,7 +156,7 @@ data OptResult
   | ROperator (X.Token L.PostFam)
   | RSortSpec (Ex.Exceptional Error Orderer)
   | RColorToFile ColorToFile
-  | RScheme E.TextSpecs
+  | RScheme E.Changers
   | RExprDesc X.ExprDesc
   | RShowExpression
   | RVerboseFilter
@@ -275,10 +276,10 @@ optScheme ss = MA.OptSpec ["scheme"] "" (MA.ChoiceArg ls)
     ls = map f ss
     f (E.Scheme n _ s) = (n, RScheme s)
 
-getScheme :: Defaults -> [OptResult] -> Maybe E.TextSpecs
+getScheme :: Defaults -> [OptResult] -> Maybe E.Changers
 getScheme d ls =
   case mapMaybe getOpt ls of
-    [] -> fmap E.textSpecs $ defaultScheme d
+    [] -> fmap E.changers $ defaultScheme d
     xs -> Just $ last xs
   where
     getOpt o = case o of
@@ -310,11 +311,11 @@ data FilterOpts = FilterOpts
     -- subsequent parses of the command line.
 
   , foSorterFilterer :: [L.Transaction]
-                    -> ([Chk.Chunk], [L.Box Ly.LibertyMeta])
+                    -> ([R.Chunk], [L.Box Ly.LibertyMeta])
     -- ^ Applied to a list of Transaction, will sort and filter
     -- the transactions and assign them LibertyMeta.
 
-  , foTextSpecs :: Maybe E.TextSpecs
+  , foTextSpecs :: Maybe E.Changers
 
   , foColorToFile :: ColorToFile
   , foExprDesc :: X.ExprDesc
@@ -361,6 +362,7 @@ makeMode
 makeMode rt fo r = fmap makeIO mode
   where
     mode = snd (r rt) (foResultSensitive fo) (foResultFactory fo)
+           (fromMaybe Schemes.plainLabels . foTextSpecs $ fo)
            (foExprDesc fo) (fmap snd (foSorterFilterer fo))
     makeIO parseResult = do
       (posArgs, printRpt) <-
@@ -369,11 +371,11 @@ makeMode rt fo r = fmap makeIO mode
       let term = if unColorToFile (foColorToFile fo)
                  then S.termFromEnv rt
                  else S.autoTerm rt
-          printer = Chk.printChunks term
+          printer = R.printChunks term
           verbFiltChunks = fst . foSorterFilterer fo $ txns
       showFilterExpression printer (foShowExpression fo) (foPredicate fo)
       showVerboseFilter printer (foVerboseFilter fo) verbFiltChunks
-      Ex.switch handleTextError (printChunks printer (foTextSpecs fo))
+      Ex.switch handleTextError (R.printChunks term)
         $ printRpt txns pps
 
 
@@ -386,11 +388,11 @@ handleTextError x = do
 indentAmt :: Pe.IndentAmt
 indentAmt = 4
 
-blankLine :: Chk.Chunk
-blankLine = Chk.chunk Chk.defaultTextSpec "\n"
+blankLine :: R.Chunk
+blankLine = R.plain "\n"
 
 showFilterExpression
-  :: ([Chk.Chunk] -> IO ())
+  :: ([R.Chunk] -> IO ())
   -> ShowExpression
   -> Pe.Pdct L.PostFam
   -> IO ()
@@ -400,19 +402,19 @@ showFilterExpression ptr (ShowExpression se) pdct =
   else ptr $ info : blankLine :
              (Pe.showPdct indentAmt 0 pdct ++ [blankLine])
   where
-    info = Chk.chunk Chk.defaultTextSpec "Posting filter expression:\n"
+    info = R.plain "Posting filter expression:\n"
 
 showVerboseFilter
-  :: ([Chk.Chunk] -> IO ())
+  :: ([R.Chunk] -> IO ())
   -> VerboseFilter
-  -> [Chk.Chunk]
+  -> [R.Chunk]
   -> IO ()
 showVerboseFilter ptr (VerboseFilter vb) cks =
   if not vb
   then return ()
   else ptr $ info : blankLine : (cks ++ [blankLine])
   where
-    info = Chk.chunk Chk.defaultTextSpec "Filtering information:\n"
+    info = R.plain "Filtering information:\n"
 
 -- | Splits a Ledger into its Transactions and PricePoints.
 splitLedger :: C.Ledger -> ([L.Transaction], [L.PricePoint])
@@ -422,22 +424,6 @@ splitLedger = partitionEithers . mapMaybe toEither . C.unLedger
       C.Transaction t -> Just $ Left t
       C.PricePoint p -> Just $ Right p
       _ -> Nothing
-
-printChunks
-  :: ([Chk.Chunk] -> IO ())
-  -> Maybe E.TextSpecs
-  -> [Either Chk.Chunk E.PreChunk]
-  -> IO ()
-printChunks printer mayS =
-  printer
-  . map makeChunk
-  where
-    makeChunk eiChkOrPc =
-      case eiChkOrPc of
-        Left c -> c
-        Right pc -> case mayS of
-          Nothing -> Chk.chunk Chk.defaultTextSpec (E.text pc)
-          Just s -> E.makeChunk s pc
 
 helpText
   :: Defaults
