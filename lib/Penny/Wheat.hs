@@ -120,52 +120,70 @@ parseOpts wc
   = Parsed
   <$> ( OA.option
         ( OA.long "indentation"
-        <> OA.short 'i' )
+        <> OA.short 'i'
+        <> OA.help "amount to indent each level"
+        <> OA.metavar "SPACES" )
       <|> pure (indentAmt wc) )
 
   <*> ( OA.nullOption
         ( OA.long "pass-verbosity"
         <> OA.short 'p'
+        <> OA.help "verbosity for tests that pass"
+        <> OA.metavar "VERBOSITY"
         <> OA.reader parseVerbosity )
       <|> pure (passVerbosity wc) )
 
   <*> ( OA.nullOption
         ( OA.long "fail-verbosity"
         <> OA.short 'f'
+        <> OA.help "verbosity for tests that fail"
+        <> OA.metavar "VERBOSITY"
         <> OA.reader parseVerbosity )
       <|> pure (failVerbosity wc) )
 
   <*> ( OA.nullOption
         ( OA.long "group-regexp"
           <> OA.short 'g'
+          <> OA.help "regexp to filter groups to run"
+          <> OA.metavar "REGEXP"
           <> OA.reader parseRegexp )
       <|> pure (groupPred wc) )
 
   <*> ( OA.nullOption
         ( OA.long "test-regexp"
           <> OA.short 't'
+          <> OA.help "regexp to filter tests to run"
+          <> OA.metavar "REGEXP"
           <> OA.reader parseRegexp )
       <|> pure (testPred wc) )
 
   <*> ( OA.flag (showSkippedTests wc) False
-        ( OA.long "show-skipped-tests" ))
+        ( OA.long "hide-skipped-tests"
+          <> OA.help "hide tests that are skipped" ))
 
   <*> ( OA.nullOption
         ( OA.long "group-verbosity"
           <> OA.short 'G'
-          <> OA.reader parseGroupVerbosity )
+          <> OA.reader parseGroupVerbosity
+          <> OA.help "whether to show all group names"
+          <> OA.metavar "GROUP_VERBOSITY" )
         <|> pure (groupVerbosity wc))
 
-  <*> ( OA.flag (stopOnFail wc) True (OA.long "stop-on-failure"))
+  <*> ( OA.flag (stopOnFail wc) True
+        ( OA.long "stop-on-failure"
+          <> OA.help "stop running tests after a failure" ))
 
   <*> ( OA.nullOption
         ( OA.long "color-to-file"
-        <> OA.reader parseColorToFile )
+        <> OA.reader parseColorToFile
+        <> OA.help "use color even if standard output is a file" )
       <|> pure (colorToFile wc))
 
   <*> ( OA.nullOption
         ( OA.long "base-date"
-        <> OA.reader parseBaseTime )
+        <> OA.reader parseBaseTime
+        <> OA.help "use this date as a basis for all checks"
+        <> OA.metavar "DATE_TIME")
       <|> pure (baseTime wc) )
 
   <*> ( some (OA.argument OA.str mempty) <|> pure (ledgers wc))
@@ -187,7 +205,8 @@ main :: (S.Runtime -> WheatConf) -> IO ()
 main getWc = do
   rt <- S.runtime
   let wc = getWc rt
-  psd <- OA.execParser (OA.info (parseOpts (getWc rt)) OA.fullDesc)
+      opts = OA.info (OA.helper <*> parseOpts wc) mempty
+  psd <- OA.execParser opts
   term <- Rb.smartTermFromEnv (p_colorToFile psd) IO.stdout
   pfs <- getItems (p_ledgers psd)
   let ttOpts = getTTOpts pfs psd
