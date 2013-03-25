@@ -115,12 +115,13 @@ data AllocatedOpts = AllocatedOpts
 -- where cs is a list of all the cells, and i is the width of all the
 -- cells.
 payeeAndAcct
-  :: AllocatedOpts
+  :: E.Changers
+  -> AllocatedOpts
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
-payeeAndAcct ao bs =
+payeeAndAcct ch ao bs =
   let allBuilders =
-        T.traverse (builders (subAccountLength ao)) bs
+        T.traverse (builders ch (subAccountLength ao)) bs
       availWidth = availableWidthForAllocs (growerWidths ao)
                    (spacers ao) (fields ao) (reportWidth ao)
       finals = divideAvailableWidth availWidth (fields ao)
@@ -302,28 +303,31 @@ divideAvailableWidth (AvailableWidth aw) appear allocs rws = Fields pye act
 
 
 builders
-  :: SubAccountLength
+  :: E.Changers
+  -> SubAccountLength
   -> Box
   -> Fields (Request, Final -> R.ColumnSpec)
-builders sl b = Fields (buildPayee b) (buildAcct sl b)
+builders ch sl b = Fields (buildPayee ch b) (buildAcct ch sl b)
 
 buildPayee
-  :: Box
+  :: E.Changers
+  -> Box
   -> (Request, Final -> R.ColumnSpec)
   -- ^ Returns a tuple. The first element is the maximum width that
   -- this cell needs to display its value perfectly. The second
   -- element is a function that, when applied to an actual width,
   -- returns a ColumnSpec.
 
-buildPayee i = (maxW, mkSpec)
+buildPayee ch i = (maxW, mkSpec)
   where
     pb = L.boxPostFam i
     eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ i
     j = R.LeftJustify
     ps = (E.Other, eo)
+    md = E.getEvenOddLabelValue E.Other eo ch
     mayPye = Q.payee pb
     maxW = Request $ maybe 0 (X.length . HT.text) mayPye
-    mkSpec (Final w) = R.ColumnSpec j (C.Width w) ps sq
+    mkSpec (Final w) = R.ColumnSpec j (R.Width w) ps sq
       where
         sq = case mayPye of
           Nothing -> []
@@ -336,15 +340,17 @@ buildPayee i = (maxW, mkSpec)
                   . HT.text
                   $ pye
                 toBit (TF.Words seqTxts) =
-                  E.PreChunk E.Other eo
+                  md
+                  . Rb.plain
                   . X.unwords
                   . Fdbl.toList
                   $ seqTxts
             in fmap toBit wrapped
 
 
-buildAcct ::
-  SubAccountLength
+buildAcct
+  :: E.Changers
+  -> SubAccountLength
   -> Box
   -> (Request, Final -> R.ColumnSpec)
   -- ^ Returns a tuple. The first element is the maximum width that
@@ -352,7 +358,7 @@ buildAcct ::
   -- element is a function that, when applied to an actual width,
   -- returns a ColumnSpec.
 
-buildAcct sl i = (maxW, mkSpec)
+buildAcct ch sl i = (maxW, mkSpec)
   where
     pb = L.boxPostFam i
     eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ i
@@ -361,13 +367,15 @@ buildAcct sl i = (maxW, mkSpec)
     maxW = Request
            $ (sum . map (X.length . L.unSubAccount) $ aList)
            + max 0 (length aList - 1)
-    mkSpec (Final aw) = R.ColumnSpec R.LeftJustify (C.Width aw) ps sq
+    md = E.getEvenOddLabelValue E.Other eo ch
+    mkSpec (Final aw) = R.ColumnSpec R.LeftJustify (R.Width aw) ps sq
       where
         target = TF.Target aw
         shortest = TF.Shortest . unSubAccountLength $ sl
         ws = TF.Words . Seq.fromList . map L.unSubAccount $ aList
         (TF.Words shortened) = TF.shorten shortest target ws
-        sq = [ E.PreChunk E.Other eo
+        sq = [ md
+               . Rb.plain
                . X.concat
                . intersperse (X.singleton ':')
                . Fdbl.toList

@@ -10,12 +10,10 @@ module Penny
 
   -- ** Color schemes
   , E.Scheme(..)
-  , E.TextSpecs
+  , E.Changers
   , E.Labels(..)
   , E.EvenAndOdd(..)
-  , Sw.switchForeground
-  , Sw.switchBackground
-  , module Penny.Steel.Chunk
+  , module System.Console.Rainbow
 
   -- ** Sorting
   , Z.SortField(..)

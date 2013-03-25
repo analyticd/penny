@@ -54,13 +54,14 @@ data BottomOpts = BottomOpts
   , spacers :: S.Spacers Int
   }
 
-bottomRows ::
-  BottomOpts
+bottomRows
+  :: E.Changers
+  -> BottomOpts
   -> [Box]
-  -> Fields (Maybe [[E.PreChunk]])
-bottomRows os bs = makeRows bs pcs where
-  pcs = infoProcessors topSpecs (reportWidth os) wanted
-  wanted = requestedMakers (fields os)
+  -> Fields (Maybe [[Rb.Chunk]])
+bottomRows ch os bs = makeRows bs pcs where
+  pcs = infoProcessors ch topSpecs (reportWidth os) wanted
+  wanted = requestedMakers ch (fields os)
   topSpecs = topCellSpecs (growingWidths os) (allocatedWidths os)
              (spacers os)
 
@@ -107,66 +108,72 @@ newtype SpacerWidth = SpacerWidth Int deriving (Show, Eq)
 newtype ContentWidth = ContentWidth Int deriving (Show, Eq)
 
 
-hanging ::
-  [TopCellSpec]
+hanging
+  :: E.Changers
+  -> [TopCellSpec]
   -> Maybe ((Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
-            -> Box -> [E.PreChunk])
-hanging specs = hangingWidths specs
-                >>= return . hangingInfoProcessor
+            -> Box -> [Rb.Chunk])
+hanging ch specs = hangingWidths specs
+                >>= return . hangingInfoProcessor ch
 
-hangingInfoProcessor ::
-  Hanging Int
+hangingInfoProcessor
+  :: E.Changers
+  -> Hanging Int
   -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
   -> Box
-  -> [E.PreChunk]
-hangingInfoProcessor widths mkr info = row where
-  row = R.row [left, mid, right]
+  -> [Rb.Chunk]
+hangingInfoProcessor ch widths mkr info = row where
+  row = R.row ch [left, mid, right]
   (ts, mid) = mkr info (mainCell widths)
-  mkPad w = R.ColumnSpec R.LeftJustify (C.Width w) ts []
+  mkPad w = R.ColumnSpec R.LeftJustify (R.Width w) ts []
   left = mkPad (leftPad widths)
   right = mkPad (rightPad widths)
 
-widthOfTopColumns ::
-  [TopCellSpec]
+widthOfTopColumns
+  :: E.Changers
+  -> [TopCellSpec]
   -> Maybe ((Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
-            -> Box -> [E.PreChunk])
-widthOfTopColumns ts =
+            -> Box -> [Rb.Chunk])
+widthOfTopColumns ch ts =
   if null ts
   then Nothing
-  else Just $ makeSpecificWidth w where
+  else Just $ makeSpecificWidth ch w where
     w = Fdbl.foldl' f 0 ts
     f acc (_, maySpcWidth, (ContentWidth cw)) =
       acc + cw + maybe 0 (\(SpacerWidth sw) -> sw) maySpcWidth
 
 
-widthOfReport ::
-  Ty.ReportWidth
-  -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
-  -> Box
-  -> [E.PreChunk]
-widthOfReport (Ty.ReportWidth rw) fn info =
-  makeSpecificWidth rw fn info
-
-chooseProcessor ::
-  [TopCellSpec]
+widthOfReport
+  :: E.Changers
   -> Ty.ReportWidth
   -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
   -> Box
-  -> [E.PreChunk]
-chooseProcessor specs rw fn = let
-  firstTwo = First (hanging specs)
-             `mappend` First (widthOfTopColumns specs)
+  -> [Rb.Chunk]
+widthOfReport ch (Ty.ReportWidth rw) fn info =
+  makeSpecificWidth ch rw fn info
+
+chooseProcessor
+  :: E.Changers
+  -> [TopCellSpec]
+  -> Ty.ReportWidth
+  -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
+  -> Box
+  -> [Rb.Chunk]
+chooseProcessor ch specs rw fn = let
+  firstTwo = First (hanging ch specs)
+             `mappend` First (widthOfTopColumns ch specs)
   in case getFirst firstTwo of
-    Nothing -> widthOfReport rw fn
+    Nothing -> widthOfReport ch rw fn
     Just r -> r fn
 
-infoProcessors ::
-  [TopCellSpec]
+infoProcessors
+  :: E.Changers
+  -> [TopCellSpec]
   -> Ty.ReportWidth
   -> Fields (Maybe (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)))
-  -> Fields (Maybe (Box -> [E.PreChunk]))
-infoProcessors specs rw flds = let
-  chooser = chooseProcessor specs rw
+  -> Fields (Maybe (Box -> [Rb.Chunk]))
+infoProcessors ch specs rw flds = let
+  chooser = chooseProcessor ch specs rw
   mkProcessor mayFn = case mayFn of
     Nothing -> Nothing
     Just fn -> Just $ chooser fn
@@ -175,8 +182,8 @@ infoProcessors specs rw flds = let
 
 makeRows ::
   [Box]
-  -> Fields (Maybe (Box -> [E.PreChunk]))
-  -> Fields (Maybe [[E.PreChunk]])
+  -> Fields (Maybe (Box -> [Rb.Chunk]))
+  -> Fields (Maybe [[Rb.Chunk]])
 makeRows is flds = let
   mkRow fn = map fn is
   in fmap (fmap mkRow) flds
@@ -272,14 +279,16 @@ mergeWithSpacers t s = TopRowCells {
 
 -- | Applied to a function that, when applied to the width of a cell,
 -- returns a cell filled with data, returns a Row with that cell.
-makeSpecificWidth :: Int -> (Box -> Int -> (a, R.ColumnSpec))
-                     -> Box -> [E.PreChunk]
-makeSpecificWidth w f i = R.row [c] where
+makeSpecificWidth
+  :: E.Changers -> Int -> (Box -> Int -> (a, R.ColumnSpec))
+  -> Box -> [Rb.Chunk]
+makeSpecificWidth ch w f i = R.row ch [c] where
   (_, c) = f i w
 
 
 type Maker
-  = Box
+  = E.Changers
+  -> Box
   -> Int
   -> ((E.Label, E.EvenOdd), R.ColumnSpec)
 
@@ -289,21 +298,23 @@ makers = Fields tagsCell memoCell filenameCell
 -- | Applied to an Options, indicating which reports the user wants,
 -- returns a Fields (Maybe Maker) with a Maker in each respective
 -- field that the user wants to see.
-requestedMakers ::
-  F.Fields Bool
+requestedMakers
+  :: E.Changers
+  -> F.Fields Bool
   -> Fields (Maybe (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)))
-requestedMakers allFlds =
+requestedMakers ch allFlds =
   let flds = bottomRowsFields allFlds
-      filler b mkr = if b then Just $ mkr else Nothing
+      filler b mkr = if b then Just $ mkr ch else Nothing
   in filler <$> flds <*> makers
 
 tagsCell
-  :: Box
+  :: E.Changers
+  -> Box
   -> Int
   -> ((E.Label, E.EvenOdd), R.ColumnSpec)
-tagsCell info w = (ts, cell) where
+tagsCell ch info w = (ts, cell) where
   vn = M.visibleNum . L.boxMeta $ info
-  cell = R.ColumnSpec R.LeftJustify (C.Width w) ts cs
+  cell = R.ColumnSpec R.LeftJustify (R.Width w) ts cs
   eo = E.fromVisibleNum vn
   ts = (E.Other, eo)
   cs =
@@ -318,12 +329,14 @@ tagsCell info w = (ts, cell) where
     . Q.tags
     . L.boxPostFam
     $ info
-  toBit (TF.Words ws) = E.PreChunk E.Other eo t where
+  md = E.getEvenOddLabelValue E.Other eo ch
+  toBit (TF.Words ws) = md . Rb.plain $ t where
     t = X.concat . intersperse (X.singleton ' ') . Fdbl.toList $ ws
 
 
-memoBits :: (E.Label, E.EvenOdd) -> L.Memo -> C.Width -> [E.PreChunk]
-memoBits (lbl, eo) m (C.Width w) = cs where
+memoBits
+  :: E.Changers -> (E.Label, E.EvenOdd) -> L.Memo -> R.Width -> [Rb.Chunk]
+memoBits ch (lbl, eo) m (R.Width w) = cs where
   cs = Fdbl.toList
        . fmap toBit
        . TF.unLines
@@ -334,12 +347,14 @@ memoBits (lbl, eo) m (C.Width w) = cs where
        . X.intercalate (X.singleton ' ')
        . L.unMemo
        $ m
-  toBit (TF.Words ws) = E.PreChunk lbl eo (X.unwords . Fdbl.toList $ ws)
+  md = E.getEvenOddLabelValue lbl eo ch
+  toBit (TF.Words ws) = md . Rb.plain $ (X.unwords . Fdbl.toList $ ws)
 
 
-memoCell :: Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
-memoCell info width = (ts, cell) where
-  w = C.Width width
+memoCell
+  :: E.Changers -> Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
+memoCell ch info width = (ts, cell) where
+  w = R.Width width
   vn = M.visibleNum . L.boxMeta $ info
   eo = E.fromVisibleNum vn
   ts = (E.Other, eo)
@@ -348,19 +363,21 @@ memoCell info width = (ts, cell) where
   mayTm = Q.transactionMemo . L.boxPostFam $ info
   cs = case (mayPm, mayTm) of
     (Nothing, Nothing) -> mempty
-    (Nothing, Just tm) -> memoBits ts tm w
-    (Just pm, Nothing) -> memoBits ts pm w
-    (Just pm, Just tm) -> memoBits ts pm w `mappend` memoBits ts tm w
+    (Nothing, Just tm) -> memoBits ch ts tm w
+    (Just pm, Nothing) -> memoBits ch ts pm w
+    (Just pm, Just tm) -> memoBits ch ts pm w `mappend` memoBits ch ts tm w
 
 
-filenameCell :: Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
-filenameCell info width = (ts, cell) where
-  w = C.Width width
+filenameCell
+  :: E.Changers -> Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
+filenameCell ch info width = (ts, cell) where
+  w = R.Width width
   vn = M.visibleNum . L.boxMeta $ info
   eo = E.fromVisibleNum vn
   ts = (E.Other, eo)
   cell = R.ColumnSpec R.LeftJustify w ts cs
-  toBit n = (E.PreChunk E.Other eo)
+  md = E.getEvenOddLabelValue E.Other eo ch
+  toBit n = md . Rb.plain
             . X.drop (max 0 (X.length n - width)) $ n
   cs = case Q.filename . L.boxPostFam $ info of
     Nothing -> []

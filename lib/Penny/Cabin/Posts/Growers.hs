@@ -44,14 +44,15 @@ data GrowOpts = GrowOpts
 -- cell. Each of these widths will be at least 1; fields that were in
 -- the report but that ended up having no width are changed to
 -- Nothing.
-growCells ::
-  GrowOpts
+growCells
+  :: E.Changers
+  -> GrowOpts
   -> [Box]
   -> Fields (Maybe ([R.ColumnSpec], Int))
-growCells o infos = toPair <$> wanted <*> growers where
+growCells ch o infos = toPair <$> wanted <*> growers where
   toPair b gwr
     | b =
-      let cs = map (gwr o) infos
+      let cs = map (gwr o ch) infos
           w = Fdbl.foldl' f 0 cs where
             f acc c = max acc (widestLine c)
           cs' = map (sizer (R.Width w)) cs
@@ -63,12 +64,12 @@ widestLine :: PreSpec -> Int
 widestLine (PreSpec _ _ bs) =
   case bs of
     [] -> 0
-    xs -> maximum . map (X.length . Rb.chunkTexth) $ xs
+    xs -> maximum . map (X.length . Rb.chunkText) $ xs
 
 data PreSpec = PreSpec {
   _justification :: R.Justification
   , _padSpec :: (E.Label, E.EvenOdd)
-  , _bits :: [R.Chunk] }
+  , _bits :: [Rb.Chunk] }
 
 
 -- | Given a PreSpec and a width, create a ColumnSpec of the right
@@ -84,12 +85,12 @@ oneLine chgrs t lbl b =
       j = R.LeftJustify
       md = E.getEvenOddLabelValue lbl eo chgrs
       ck = [md $ Rb.plain t]
-  in PreSpec j (lbl, eo) [ck]
+  in PreSpec j (lbl, eo) ck
 
 
 -- | Gets a Fields with each field filled with the function that fills
 -- the cells for that field.
-growers :: Fields (GrowOpts -> Box -> PreSpec)
+growers :: Fields (GrowOpts -> E.Changers -> Box -> PreSpec)
 growers = Fields
   { globalTransaction    = const getGlobalTransaction
   , revGlobalTransaction = const getRevGlobalTransaction
@@ -106,15 +107,15 @@ growers = Fields
   , visible              = const getVisible
   , revVisible           = const getRevVisible
   , lineNum              = const getLineNum
-  , date                 = \o -> getDate (dateFormat o)
+  , date                 = \o ch -> getDate ch (dateFormat o)
   , flag                 = const getFlag
   , number               = const getNumber
   , postingDrCr          = const getPostingDrCr
   , postingCmdty         = const getPostingCmdty
-  , postingQty           = \o -> getPostingQty (qtyFormat o)
+  , postingQty           = \o ch -> getPostingQty ch (qtyFormat o)
   , totalDrCr            = const getTotalDrCr
   , totalCmdty           = const getTotalCmdty
-  , totalQty             = \o -> getTotalQty (balanceFormat o)
+  , totalQty             = \o ch -> getTotalQty ch (balanceFormat o)
   }
 
 -- | Make a left justified cell one line long that shows a serial.
@@ -166,7 +167,7 @@ getFileTransaction chgrs =
 
 getRevFileTransaction :: E.Changers -> Box -> PreSpec
 getRevFileTransaction chgrs =
-  serialCellMaybe (fmap (L.backward . L.unFileTransaction)
+  serialCellMaybe chgrs (fmap (L.backward . L.unFileTransaction)
                    . Q.fileTransaction)
 
 getFilePosting :: E.Changers -> Box -> PreSpec
@@ -204,20 +205,20 @@ getRevVisible chgrs =
   serialCell chgrs (L.backward . M.unVisibleNum . M.visibleNum)
 
 
-getLineNum :: Box -> PreSpec
-getLineNum b = oneLine t E.Other b where
+getLineNum :: E.Changers -> Box -> PreSpec
+getLineNum chgrs b = oneLine chgrs t E.Other b where
   lineTxt = pack . show . L.unPostingLine
   t = maybe empty lineTxt (Q.postingLine . L.boxPostFam $ b)
 
-getDate :: (Box -> X.Text) -> Box -> PreSpec
-getDate gd b = oneLine (gd b) E.Other b
+getDate :: E.Changers -> (Box -> X.Text) -> Box -> PreSpec
+getDate chgrs gd b = oneLine chgrs (gd b) E.Other b
 
-getFlag :: Box -> PreSpec
-getFlag i = oneLine t E.Other i where
+getFlag :: E.Changers -> Box -> PreSpec
+getFlag chgrs i = oneLine chgrs t E.Other i where
   t = maybe empty L.text (Q.flag . L.boxPostFam $ i)
 
-getNumber :: Box -> PreSpec
-getNumber i = oneLine t E.Other i where
+getNumber :: E.Changers -> Box -> PreSpec
+getNumber chgrs i = oneLine chgrs t E.Other i where
   t = maybe empty L.text (Q.number . L.boxPostFam $ i)
 
 dcTxt :: L.DrCr -> Text
@@ -226,44 +227,47 @@ dcTxt L.Credit = X.singleton '>'
 
 -- | Gives a one-line cell that is colored according to whether the
 -- posting is a debit or credit.
-coloredPostingCell :: Text -> Box -> PreSpec
-coloredPostingCell t i = PreSpec j (lbl, eo) [bit] where
+coloredPostingCell :: E.Changers -> Text -> Box -> PreSpec
+coloredPostingCell chgrs t i = PreSpec j (lbl, eo) [bit] where
   j = R.LeftJustify
   lbl = case Q.drCr . L.boxPostFam $ i of
     L.Debit -> E.Debit
     L.Credit -> E.Credit
   eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ i
-  bit = E.PreChunk lbl eo t
+  md = E.getEvenOddLabelValue lbl eo chgrs
+  bit = md $ Rb.plain t
 
 
-getPostingDrCr :: Box -> PreSpec
-getPostingDrCr i = coloredPostingCell t i where
+getPostingDrCr :: E.Changers -> Box -> PreSpec
+getPostingDrCr ch i = coloredPostingCell ch t i where
   t = dcTxt . Q.drCr . L.boxPostFam $ i
 
-getPostingCmdty :: Box -> PreSpec
-getPostingCmdty i = coloredPostingCell t i where
+getPostingCmdty :: E.Changers -> Box -> PreSpec
+getPostingCmdty ch i = coloredPostingCell ch t i where
   t = L.unCommodity . Q.commodity . L.boxPostFam $ i
 
-getPostingQty :: (Box -> X.Text) -> Box -> PreSpec
-getPostingQty qf i = coloredPostingCell (qf i) i
+getPostingQty :: E.Changers -> (Box -> X.Text) -> Box -> PreSpec
+getPostingQty ch qf i = coloredPostingCell ch (qf i) i
 
-getTotalDrCr :: Box -> PreSpec
-getTotalDrCr i =
+getTotalDrCr :: E.Changers -> Box -> PreSpec
+getTotalDrCr ch i =
   let vn = M.visibleNum . L.boxMeta $ i
       ps = (lbl, eo)
       dc = Q.drCr . L.boxPostFam $ i
       lbl = E.dcToLbl dc
       eo = E.fromVisibleNum vn
       bal = L.unBalance . M.balance . L.boxMeta $ i
+      md = E.getEvenOddLabelValue lbl eo ch
       bits =
         if Map.null bal
-        then [E.PreChunk E.Zero eo (pack "--")]
-        else fmap (flip E.bottomLineToDrCr eo) . elems $ bal
+        then [md . Rb.plain $ pack "--"]
+        else let mkChk e = E.bottomLineToDrCr e eo ch
+             in fmap mkChk . elems $ bal
       j = R.LeftJustify
   in PreSpec j ps bits
 
-getTotalCmdty :: Box -> PreSpec
-getTotalCmdty i =
+getTotalCmdty :: E.Changers -> Box -> PreSpec
+getTotalCmdty ch i =
   let vn = M.visibleNum . L.boxMeta $ i
       j = R.RightJustify
       ps = (lbl, eo)
@@ -271,21 +275,22 @@ getTotalCmdty i =
       eo = E.fromVisibleNum vn
       lbl = E.dcToLbl dc
       bal = Map.toList . L.unBalance . M.balance . L.boxMeta $ i
-      preChunks = E.balancesToCmdtys eo bal
+      preChunks = E.balancesToCmdtys ch eo bal
   in PreSpec j ps preChunks
 
-getTotalQty ::
-  (L.Commodity -> L.Qty -> X.Text)
+getTotalQty
+  :: E.Changers
+  -> (L.Commodity -> L.Qty -> X.Text)
   -> Box
   -> PreSpec
-getTotalQty balFmt i =
+getTotalQty ch balFmt i =
   let vn = M.visibleNum . L.boxMeta $ i
       j = R.LeftJustify
       dc = Q.drCr . L.boxPostFam $ i
       ps = (E.dcToLbl dc, eo)
       eo = E.fromVisibleNum vn
       bal = Map.toList . L.unBalance . M.balance . L.boxMeta $ i
-      preChunks = E.balanceToQtys balFmt eo bal
+      preChunks = E.balanceToQtys ch balFmt eo bal
   in PreSpec j ps preChunks
 
 growingFields :: F.Fields Bool -> Fields Bool
