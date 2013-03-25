@@ -221,7 +221,7 @@ schemeLight :: Scheme
 schemeLight = Scheme "light" "for light background terminals"
               lightLabels
 
-lightLabels :: Labels (EvenAndOdd TextSpec)
+lightLabels :: Labels (EvenAndOdd (Chunk -> Chunk))
 lightLabels = Labels
   { debit = EvenAndOdd { eoEven = lightDebit lightEvenTextSpec
                        , eoOdd = lightDebit lightOddTextSpec }
@@ -233,21 +233,20 @@ lightLabels = Labels
                        , eoOdd = lightOddTextSpec }
   }
 
-lightEvenTextSpec :: TextSpec
-lightEvenTextSpec = defaultTextSpec
+lightEvenTextSpec :: Chunk -> Chunk
+lightEvenTextSpec = id
 
-lightOddTextSpec :: TextSpec
-lightOddTextSpec = switchBackground color8_b_default
-                   color256_b_255 lightEvenTextSpec
+lightOddTextSpec :: Chunk -> Chunk
+lightOddTextSpec = id .+. color8_b_default .+. color256_b_255
 
-lightDebit :: TextSpec -> TextSpec
-lightDebit = switchForeground color8_f_magenta color256_f_52
+lightDebit :: (Chunk -> Chunk) -> Chunk -> Chunk
+lightDebit f = f .+. color8_f_magenta .+. color256_f_52
 
-lightCredit :: TextSpec -> TextSpec
-lightCredit = switchForeground color8_f_cyan color256_f_21
+lightCredit :: (Chunk -> Chunk) -> Chunk -> Chunk
+lightCredit f = f .+. color8_f_cyan .+. color256_f_21
 
-lightZero :: TextSpec -> TextSpec
-lightZero = switchForeground color8_f_black color256_f_0
+lightZero :: (Chunk -> Chunk) -> Chunk -> Chunk
+lightZero f = f .+. color8_f_black .+. color256_f_0
 
 -- | The dark color scheme. You can change various values below to
 -- affect the color scheme.
@@ -255,7 +254,7 @@ schemeDark :: Scheme
 schemeDark = Scheme "dark" "for dark background terminals"
               darkLabels
 
-darkLabels :: Labels (EvenAndOdd TextSpec)
+darkLabels :: Labels (EvenAndOdd (Chunk -> Chunk))
 darkLabels = Labels
   { debit = EvenAndOdd { eoEven = darkDebit darkEvenTextSpec
                        , eoOdd = darkDebit darkOddTextSpec }
@@ -267,33 +266,33 @@ darkLabels = Labels
                        , eoOdd = darkOddTextSpec }
   }
 
-darkEvenTextSpec :: TextSpec
-darkEvenTextSpec = defaultTextSpec
+darkEvenTextSpec :: Chunk -> Chunk
+darkEvenTextSpec = id
 
-darkOddTextSpec :: TextSpec
-darkOddTextSpec = switchBackground color8_b_default
-                   color256_b_235 darkEvenTextSpec
+darkOddTextSpec :: Chunk -> Chunk
+darkOddTextSpec = id .+. color8_b_default .+. color256_b_235
 
-darkDebit :: TextSpec -> TextSpec
-darkDebit = switchForeground color8_f_magenta color256_f_208
+darkDebit :: (Chunk -> Chunk) -> Chunk -> Chunk
+darkDebit f = f .+. color8_f_magenta .+. color256_f_208
 
-darkCredit :: TextSpec -> TextSpec
-darkCredit = switchForeground color8_f_cyan color256_f_45
+darkCredit :: (Chunk -> Chunk) -> Chunk -> Chunk
+darkCredit f = f .+. color8_f_cyan .+. color256_f_45
 
-darkZero :: TextSpec -> TextSpec
-darkZero = switchForeground color8_f_white color256_f_15
+darkZero :: (Chunk -> Chunk) -> Chunk -> Chunk
+darkZero f = f .+. color8_f_white .+. color256_f_15
+
 
 -- | Plain scheme has no colors at all.
 schemePlain :: Scheme
 schemePlain = Scheme "plain" "uses default terminal colors"
               plainLabels
 
-plainLabels :: Labels (EvenAndOdd TextSpec)
+plainLabels :: Labels (EvenAndOdd (Chunk -> Chunk))
 plainLabels = Labels
-  { debit = EvenAndOdd defaultTextSpec defaultTextSpec
-  , credit = EvenAndOdd defaultTextSpec defaultTextSpec
-  , zero = EvenAndOdd defaultTextSpec defaultTextSpec
-  , other = EvenAndOdd defaultTextSpec defaultTextSpec
+  { debit = EvenAndOdd id id
+  , credit = EvenAndOdd id id
+  , zero = EvenAndOdd id id
+  , other = EvenAndOdd id id
   }
 
 main :: IO ()
