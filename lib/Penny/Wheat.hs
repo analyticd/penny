@@ -173,9 +173,8 @@ parseOpts wc
         ( OA.long "stop-on-failure"
           <> OA.help "stop running tests after a failure" ))
 
-  <*> ( OA.nullOption
+  <*> ( OA.flag (colorToFile wc) True
         ( OA.long "color-to-file"
-        <> OA.reader parseColorToFile
         <> OA.help "use color even if standard output is a file" )
       <|> pure (colorToFile wc))
 
@@ -236,3 +235,48 @@ atLeastNPostings
   -> Pe.Pdct L.PostFam
   -> TT.TestTree L.PostFam
 atLeastNPostings i n = TT.nSubjectsMustBeTrue n L.display i
+
+--
+-- Help
+--
+
+help
+  :: WheatConf
+  -> String
+  -- ^ Program name
+  -> String
+help wc pn = unlines
+  [ "usage: " ++ pn ++ " [options] [FILE...]"
+  , ""
+  ]
+  ++ briefDescription wc
+  ++ unlines
+  [ ""
+  , "Options:"
+  , "  -i, --indentation AMT"
+  , "    Indent each level by this many spaces"
+  , "  -p, --pass-verbosity VERBOSITY"
+  , "    Verbosity for tests that pass (see VERBOSITY below)"
+  , "  -f, --fail-verbosity VERBOSITY"
+  , "    Verbosity for tests that fail (see VERBOSITY below"
+  , "  -g, --group-regexp REGEXP"
+  , "    Run only groups whose name matches the given"
+  , "    Perl-compatible regular expression"
+  , "  -t, --test-regexp REGEXP"
+  , "    Run only tests whose name matches the given"
+  , "    Perl-compatible regular expression"
+  , "  --hide-skipped-tests"
+  , "    Toggle whether to hide tests that are skipped"
+  , "    using the --test-regexp option"
+  , "    (does not affect groups that are skipped; see next option)"
+  , "  --G, group-verbosity GROUP_VERBOSITY"
+  , "    Control which group names are shown. Argument may be:"
+  , "      silent - do not show any group names"
+  , "      active - show group names that were not skipped"
+  , "      all - show all group names, including skipped ones"
+  , "  --stop-on-failure"
+  , "    Stop running tests after a single test fails"
+  , "  --color-to-file"
+  , "    Use color even when standard output is not a terminal"
+  ]
+
