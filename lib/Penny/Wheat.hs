@@ -22,6 +22,8 @@ import qualified Data.Prednote.TestTree as TT
 import qualified Data.Prednote.Pdct as Pe
 import qualified System.Console.Rainbow as Rb
 import qualified Options.Applicative as OA
+import System.Locale (defaultTimeLocale)
+import qualified System.Console.MultiArg as MA
 
 ------------------------------------------------------------
 -- Other conveniences
@@ -73,6 +75,7 @@ data Parsed = Parsed
   , p_stopOnFail :: Bool
   , p_colorToFile :: ColorToFile
   , p_baseTime :: BaseTime
+  , p_help :: Bool
   , p_ledgers :: [String]
   }
 
@@ -185,6 +188,8 @@ parseOpts wc
         <> OA.metavar "DATE_TIME")
       <|> pure (baseTime wc) )
 
+  <*> ( OA.switch (OA.long "help" <> OA.short 'h'))
+
   <*> ( some (OA.argument OA.str mempty) <|> pure (ledgers wc))
 
 getTTOpts :: [a] -> Parsed -> TT.TestOpts a
@@ -248,35 +253,73 @@ help
 help wc pn = unlines
   [ "usage: " ++ pn ++ " [options] [FILE...]"
   , ""
-  ]
-  ++ briefDescription wc
-  ++ unlines
-  [ ""
+  , briefDescription wc
+  , ""
   , "Options:"
   , "  -i, --indentation AMT"
   , "    Indent each level by this many spaces"
+  , "    " ++ dflt (show . indentAmt $ wc)
   , "  -p, --pass-verbosity VERBOSITY"
-  , "    Verbosity for tests that pass (see VERBOSITY below)"
+  , "    Verbosity for tests that pass. Argument may be:"
+  , "      silent - show nothing at all"
+  , "      minimal - show whether the test passed or failed"
+  , "      false - show subjects that are false"
+  , "      true - show subjects that are true or false"
+  , "      all - show all subjects"
+  , "      " ++ dflt (showVerbosity . passVerbosity $ wc)
   , "  -f, --fail-verbosity VERBOSITY"
-  , "    Verbosity for tests that fail (see VERBOSITY below"
+  , "    Verbosity for tests that fail."
+  , "    (uses same VERBOSITY options as --pass-verbosity)"
+  , "    " ++ dflt (showVerbosity . failVerbosity $ wc)
   , "  -g, --group-regexp REGEXP"
   , "    Run only groups whose name matches the given"
   , "    Perl-compatible regular expression"
+  , "    (overrides the compiled-in default)"
   , "  -t, --test-regexp REGEXP"
   , "    Run only tests whose name matches the given"
   , "    Perl-compatible regular expression"
-  , "  --hide-skipped-tests"
-  , "    Toggle whether to hide tests that are skipped"
+  , "    (overrides the compiled-in default)"
+  , "  --show-skipped-tests"
+  , "    Toggle whether to show tests that are skipped"
   , "    using the --test-regexp option"
   , "    (does not affect groups that are skipped; see next option)"
-  , "  --G, group-verbosity GROUP_VERBOSITY"
+  , "    " ++ dflt (show . showSkippedTests $ wc)
+  , "  --G, group-verbosity ARG"
   , "    Control which group names are shown. Argument may be:"
   , "      silent - do not show any group names"
   , "      active - show group names that were not skipped"
   , "      all - show all group names, including skipped ones"
+  , "      " ++ dflt (showGroupVerbosity . groupVerbosity $ wc)
   , "  --stop-on-failure"
   , "    Stop running tests after a single test fails"
+  , "    " ++ dflt (show . stopOnFail $ wc)
   , "  --color-to-file"
   , "    Use color even when standard output is not a terminal"
+  , "    " ++ dflt (show . colorToFile $ wc)
+  , "  --base-date DATE"
+  , "    Use this date as a basis for checks"
+  , "    " ++ dflt ( Time.formatTime defaultTimeLocale "%c"
+                     . baseTime $ wc)
+  , ""
   ]
+  ++ unlines (moreHelp wc)
 
+dflt :: String -> String
+dflt s = "(default: " ++ s ++ ")"
+
+showVerbosity :: TT.Verbosity -> String
+showVerbosity v = case v of
+  TT.Silent -> "silent"
+  TT.PassFail -> "minimal"
+  TT.FalseSubjects -> "false"
+  TT.TrueSubjects -> "true"
+  TT.Discards -> "all"
+
+showGroupVerbosity :: TT.GroupVerbosity -> String
+showGroupVerbosity v = case v of
+  TT.NoGroups -> "silent"
+  TT.ActiveGroups -> "active"
+  TT.AllGroups -> "all"
+
+data Arg
+  = AIndentation
