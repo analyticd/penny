@@ -21,9 +21,9 @@ import qualified Penny.Shield as S
 import qualified Data.Prednote.TestTree as TT
 import qualified Data.Prednote.Pdct as Pe
 import qualified System.Console.Rainbow as Rb
+import qualified System.Console.MultiArg as MA
 import qualified Options.Applicative as OA
 import System.Locale (defaultTimeLocale)
-import qualified System.Console.MultiArg as MA
 
 ------------------------------------------------------------
 -- Other conveniences
@@ -100,6 +100,11 @@ parseVerbosity = parseAbbrev
 parseColorToFile :: String -> Either OA.ParseError ColorToFile
 parseColorToFile = parseAbbrev [ ("no", False), ("yes", True) ]
 
+maParseBaseTime :: String -> Ex.Exceptional MA.OptArgError BaseTime
+maParseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
+  Left e -> Ex.throw (MA.ErrorMsg $ "could not parse date: " ++ show e)
+  Right g -> return . L.toUTC $ g
+
 parseBaseTime :: String -> Either OA.ParseError BaseTime
 parseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
   Left e -> Left (OA.ErrorMsg $ "could not parse date: " ++ show e)
@@ -111,11 +116,49 @@ parseRegexp s = case M.pcre M.Sensitive (X.pack s) of
     "could not parse regular expression: " ++ X.unpack e
   Ex.Success m -> Right . M.match $ m
 
+maParseRegexp :: String -> Ex.Exceptional MA.OptArgError (TT.Name -> Bool)
+maParseRegexp s = case M.pcre M.Sensitive (X.pack s) of
+  Ex.Exception e -> Ex.throw . MA.ErrorMsg $
+    "could not parse regular expression: " ++ X.unpack e
+  Ex.Success m -> return . M.match $ m
+
 parseGroupVerbosity :: String -> Either OA.ParseError TT.GroupVerbosity
 parseGroupVerbosity = parseAbbrev
   [ ("silent", TT.NoGroups)
   , ("active", TT.ActiveGroups)
   , ("all", TT.AllGroups)
+  ]
+
+allOpts :: [MA.OptSpec (Parsed -> Parsed)]
+allOpts =
+  [ MA.OptSpec ["indentation"] "i"
+    (fmap (\i p -> p { p_indentAmt = i }) (MA.OneArgE MA.reader))
+
+  , MA.OptSpec ["pass-verbosity"] "p" $ MA.ChoiceArg
+    [ ("silent", \p -> p { p_passVerbosity = TT.Silent })
+    , ("minimal", \p -> p { p_passVerbosity = TT.PassFail })
+    , ("false", \p -> p { p_passVerbosity = TT.FalseSubjects })
+    , ("true", \p -> p { p_passVerbosity = TT.TrueSubjects })
+    , ("all", \p -> p { p_passVerbosity = TT.Discards })
+    ]
+
+  , MA.OptSpec ["fail-verbosity"] "f" $ MA.ChoiceArg
+    [ ("silent", \p -> p { p_failVerbosity = TT.Silent })
+    , ("minimal", \p -> p { p_failVerbosity = TT.PassFail })
+    , ("false", \p -> p { p_failVerbosity = TT.FalseSubjects })
+    , ("true", \p -> p { p_failVerbosity = TT.TrueSubjects })
+    , ("all", \p -> p { p_failVerbosity = TT.Discards })
+    ]
+
+  , MA.OptSpec ["group-regexp"] "g"
+    (fmap (\f p -> p { p_groupPred = f }) (MA.OneArgE maParseRegexp))
+
+  , MA.OptSpec ["test-regexp"] "t"
+    (fmap (\f p -> p { p_testPred = f }) (MA.OneArgE maParseRegexp))
+
+  , MA.OptSpec ["hide-skipped-tests"] ""
+    ( MA.NoArg (\p -> p { p_showSkippedTests
+                          = not (p_showSkippedTests p) }))
   ]
 
 parseOpts :: WheatConf -> OA.Parser Parsed
@@ -321,5 +364,4 @@ showGroupVerbosity v = case v of
   TT.ActiveGroups -> "active"
   TT.AllGroups -> "all"
 
-data Arg
-  = AIndentation
+
