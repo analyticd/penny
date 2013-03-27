@@ -1,12 +1,32 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Penny.Wheat where
 
-import Control.Applicative
+-- | Wheat - Penny ledger tests
+--
+-- Wheat helps you build tests to check all the postings in your
+-- ledger. Perhaps you want to make sure all the account names are
+-- valid, or that your checking account has no unreconciled
+-- transactions. With Wheat you can easily build a command line
+-- program that will check all the postings in a ledger for you
+-- against criteria that you specify.
+
+module Penny.Wheat
+  ( -- * Configuration
+    WheatConf(..)
+
+    -- * Tests
+  , eachPostingMustBeTrue
+  , atLeastNPostings
+
+    -- * Convenience functions
+  , futureFirstsOfTheMonth
+
+    -- * Running tests
+  , main
+  ) where
+
 import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.List (find, isPrefixOf)
 import Data.Maybe (mapMaybe)
-import Data.Monoid ((<>), mempty)
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Lincoln as L
@@ -22,7 +42,6 @@ import qualified Data.Prednote.TestTree as TT
 import qualified Data.Prednote.Pdct as Pe
 import qualified System.Console.Rainbow as Rb
 import qualified System.Console.MultiArg as MA
-import qualified Options.Applicative as OA
 import System.Locale (defaultTimeLocale)
 
 ------------------------------------------------------------
@@ -43,25 +62,64 @@ futureFirstsOfTheMonth d = iterate (Time.addGregorianMonthsClip 1) d1
 -- CLI
 ------------------------------------------------------------
 
-type ColorToFile = Bool
-type BaseTime = Time.UTCTime
-type ProgName = String
-
+-- | Record holding all data to configure Wheat.
 data WheatConf = WheatConf
   { briefDescription :: String
+    -- ^ This is displayed at the beginning of the online help. It
+    -- should be a one-line description of what this program does--for
+    -- example, what it checks for.
+
   , moreHelp :: [String]
-  , tests :: [BaseTime -> TT.TestTree L.PostFam]
+    -- ^ Displayed at the end of the online help. It should be a list
+    -- of lines, wich each line not terminated by a newline
+    -- character. It is displayed at the end of the online help.
+
+  , tests :: [Time.UTCTime -> TT.TestTree L.PostFam]
+    -- ^ The actual tests to run. The UTCTime is the @base time@. Each
+    -- test may decide what to do with the base time--for example, the
+    -- test might say that all postings have to have a date on or
+    -- before that date. Or the test might just ignore the base time.
+
   , indentAmt :: Pe.IndentAmt
+    -- ^ How many spaces to indent each level in a tree of tests.
+
   , passVerbosity :: TT.Verbosity
+    -- ^ Verbosity for tests that pass
+
   , failVerbosity :: TT.Verbosity
+    -- ^ Verbosity for tests that fail
+
   , groupPred :: TT.Name -> Bool
+    -- ^ Group names are filtered with this function; a group is only
+    -- run if this function returns True.
+
   , testPred :: TT.Name -> Bool
+    -- ^ Test names are filtered with this function; a test is only
+    -- run if this function returns True.
+
   , showSkippedTests :: Bool
+    -- ^ Some tests might be skipped; see 'testPred'. This controls
+    -- whether you want to see a notification of tests that were
+    -- skipped. (Does not affect skipped groups; see 'groupVerbosity'
+    -- for that.)
+
   , groupVerbosity :: TT.GroupVerbosity
+    -- ^ Show group names? Even if you do not show the names of
+    -- groups, tests within the group will still be indented.
+
   , stopOnFail :: Bool
-  , colorToFile :: ColorToFile
-  , baseTime :: BaseTime
+    -- ^ If True, then tests will stop running immediately after a
+    -- single test fails. If False, all tests are always run.
+
+  , colorToFile :: Bool
+    -- ^ Use colors even if stdout is not a file?
+
+  , baseTime :: Time.UTCTime
+    -- ^ Tests may use this date and time as they wish; see
+    -- 'tests'. Typically you will set this to the current instant.
+
   , ledgers :: [String]
+    -- ^ Ledger files to read in from disk.
   }
 
 data Parsed = Parsed
@@ -73,61 +131,25 @@ data Parsed = Parsed
   , p_showSkippedTests :: Bool
   , p_groupVerbosity :: TT.GroupVerbosity
   , p_stopOnFail :: Bool
-  , p_colorToFile :: ColorToFile
-  , p_baseTime :: BaseTime
+  , p_colorToFile :: Bool
+  , p_baseTime :: Time.UTCTime
   , p_help :: Bool
   , p_ledgers :: [String]
   }
 
-parseAbbrev :: [(String, a)] -> String -> Either OA.ParseError a
-parseAbbrev ls str = case find (\(s, _) -> s == str) ls of
-  Nothing -> lookupAbbrev
-  Just (_, a) -> Right a
-  where
-    lookupAbbrev = case filter ((str `isPrefixOf`) . fst) ls of
-      (_, a):[] -> Right a
-      _ -> Left (OA.ErrorMsg ("invalid argument: " ++ str))
-
-parseVerbosity :: String -> Either OA.ParseError TT.Verbosity
-parseVerbosity = parseAbbrev
-  [ ("silent", TT.Silent)
-  , ("minimal", TT.PassFail)
-  , ("false", TT.FalseSubjects)
-  , ("true", TT.TrueSubjects)
-  , ("all", TT.Discards)
-  ]
-
-parseColorToFile :: String -> Either OA.ParseError ColorToFile
-parseColorToFile = parseAbbrev [ ("no", False), ("yes", True) ]
-
-maParseBaseTime :: String -> Ex.Exceptional MA.OptArgError BaseTime
-maParseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
+parseBaseTime :: String -> Ex.Exceptional MA.OptArgError Time.UTCTime
+parseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
   Left e -> Ex.throw (MA.ErrorMsg $ "could not parse date: " ++ show e)
   Right g -> return . L.toUTC $ g
 
-parseBaseTime :: String -> Either OA.ParseError BaseTime
-parseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
-  Left e -> Left (OA.ErrorMsg $ "could not parse date: " ++ show e)
-  Right g -> Right . L.toUTC $ g
-
-parseRegexp :: String -> Either OA.ParseError (TT.Name -> Bool)
+parseRegexp :: String -> Ex.Exceptional MA.OptArgError (TT.Name -> Bool)
 parseRegexp s = case M.pcre M.Sensitive (X.pack s) of
-  Ex.Exception e -> Left . OA.ErrorMsg $
-    "could not parse regular expression: " ++ X.unpack e
-  Ex.Success m -> Right . M.match $ m
-
-maParseRegexp :: String -> Ex.Exceptional MA.OptArgError (TT.Name -> Bool)
-maParseRegexp s = case M.pcre M.Sensitive (X.pack s) of
   Ex.Exception e -> Ex.throw . MA.ErrorMsg $
     "could not parse regular expression: " ++ X.unpack e
   Ex.Success m -> return . M.match $ m
 
-parseGroupVerbosity :: String -> Either OA.ParseError TT.GroupVerbosity
-parseGroupVerbosity = parseAbbrev
-  [ ("silent", TT.NoGroups)
-  , ("active", TT.ActiveGroups)
-  , ("all", TT.AllGroups)
-  ]
+parseArg :: String -> Parsed -> Parsed
+parseArg s p = p { p_ledgers = p_ledgers p ++ [s] }
 
 allOpts :: [MA.OptSpec (Parsed -> Parsed)]
 allOpts =
@@ -151,89 +173,32 @@ allOpts =
     ]
 
   , MA.OptSpec ["group-regexp"] "g"
-    (fmap (\f p -> p { p_groupPred = f }) (MA.OneArgE maParseRegexp))
+    (fmap (\f p -> p { p_groupPred = f }) (MA.OneArgE parseRegexp))
 
   , MA.OptSpec ["test-regexp"] "t"
-    (fmap (\f p -> p { p_testPred = f }) (MA.OneArgE maParseRegexp))
+    (fmap (\f p -> p { p_testPred = f }) (MA.OneArgE parseRegexp))
 
-  , MA.OptSpec ["hide-skipped-tests"] ""
+  , MA.OptSpec ["show-skipped-tests"] ""
     ( MA.NoArg (\p -> p { p_showSkippedTests
                           = not (p_showSkippedTests p) }))
+
+  , MA.OptSpec ["group-verbosity"] "G" $ MA.ChoiceArg
+    [ ("silent", \p -> p { p_groupVerbosity = TT.NoGroups })
+    , ("active", \p -> p { p_groupVerbosity = TT.ActiveGroups })
+    , ("all", \p -> p { p_groupVerbosity = TT.AllGroups })
+    ]
+
+  , MA.OptSpec ["stop-on-failure"] ""
+    ( MA.NoArg (\p -> p { p_stopOnFail
+                          = not (p_stopOnFail p) }))
+
+  , MA.OptSpec ["color-to-file"] ""
+    ( MA.NoArg (\p -> p { p_colorToFile
+                          = not (p_colorToFile p) }))
+
+  , MA.OptSpec ["base-date"] ""
+    (fmap (\d p -> p { p_baseTime = d }) (MA.OneArgE parseBaseTime))
   ]
-
-parseOpts :: WheatConf -> OA.Parser Parsed
-parseOpts wc
-  = Parsed
-  <$> ( OA.option
-        ( OA.long "indentation"
-        <> OA.short 'i'
-        <> OA.help "amount to indent each level"
-        <> OA.metavar "SPACES" )
-      <|> pure (indentAmt wc) )
-
-  <*> ( OA.nullOption
-        ( OA.long "pass-verbosity"
-        <> OA.short 'p'
-        <> OA.help "verbosity for tests that pass"
-        <> OA.metavar "VERBOSITY"
-        <> OA.reader parseVerbosity )
-      <|> pure (passVerbosity wc) )
-
-  <*> ( OA.nullOption
-        ( OA.long "fail-verbosity"
-        <> OA.short 'f'
-        <> OA.help "verbosity for tests that fail"
-        <> OA.metavar "VERBOSITY"
-        <> OA.reader parseVerbosity )
-      <|> pure (failVerbosity wc) )
-
-  <*> ( OA.nullOption
-        ( OA.long "group-regexp"
-          <> OA.short 'g'
-          <> OA.help "regexp to filter groups to run"
-          <> OA.metavar "REGEXP"
-          <> OA.reader parseRegexp )
-      <|> pure (groupPred wc) )
-
-  <*> ( OA.nullOption
-        ( OA.long "test-regexp"
-          <> OA.short 't'
-          <> OA.help "regexp to filter tests to run"
-          <> OA.metavar "REGEXP"
-          <> OA.reader parseRegexp )
-      <|> pure (testPred wc) )
-
-  <*> ( OA.flag (showSkippedTests wc) False
-        ( OA.long "hide-skipped-tests"
-          <> OA.help "hide tests that are skipped" ))
-
-  <*> ( OA.nullOption
-        ( OA.long "group-verbosity"
-          <> OA.short 'G'
-          <> OA.reader parseGroupVerbosity
-          <> OA.help "whether to show all group names"
-          <> OA.metavar "GROUP_VERBOSITY" )
-        <|> pure (groupVerbosity wc))
-
-  <*> ( OA.flag (stopOnFail wc) True
-        ( OA.long "stop-on-failure"
-          <> OA.help "stop running tests after a failure" ))
-
-  <*> ( OA.flag (colorToFile wc) True
-        ( OA.long "color-to-file"
-        <> OA.help "use color even if standard output is a file" )
-      <|> pure (colorToFile wc))
-
-  <*> ( OA.nullOption
-        ( OA.long "base-date"
-        <> OA.reader parseBaseTime
-        <> OA.help "use this date as a basis for all checks"
-        <> OA.metavar "DATE_TIME")
-      <|> pure (baseTime wc) )
-
-  <*> ( OA.switch (OA.long "help" <> OA.short 'h'))
-
-  <*> ( some (OA.argument OA.str mempty) <|> pure (ledgers wc))
 
 getTTOpts :: [a] -> Parsed -> TT.TestOpts a
 getTTOpts as o = TT.TestOpts
@@ -248,19 +213,41 @@ getTTOpts as o = TT.TestOpts
   , TT.tStopOnFail = p_stopOnFail o
   }
 
+-- | Runs Wheat tests. Prints the result to standard output. Exits
+-- unsuccessfully if the user gave bad command line options or if at
+-- least a single test failed; exits successfully if all tests
+-- succeeded.
 main :: (S.Runtime -> WheatConf) -> IO ()
 main getWc = do
   rt <- S.runtime
   let wc = getWc rt
-      opts = OA.info (OA.helper <*> parseOpts wc) mempty
-  psd <- OA.execParser opts
+  fns <- MA.simpleWithHelp (help wc) MA.Intersperse allOpts
+         parseArg
+  let fn = foldl (flip (.)) id fns
+      psd = fn (getParsedFromWheatConf wc)
   term <- Rb.smartTermFromEnv (p_colorToFile psd) IO.stdout
   pfs <- getItems (p_ledgers psd)
   let ttOpts = getTTOpts pfs psd
-  let tts = zipWith ($) (tests wc) (repeat (p_baseTime psd))
+      tts = zipWith ($) (tests wc) (repeat (p_baseTime psd))
       (cks, _, nFail) = TT.runTests ttOpts 0 tts
   Rb.printChunks term cks
   when (nFail > 0) Exit.exitFailure
+
+getParsedFromWheatConf :: WheatConf -> Parsed
+getParsedFromWheatConf w = Parsed
+  { p_indentAmt = indentAmt w
+  , p_passVerbosity = passVerbosity w
+  , p_failVerbosity = failVerbosity w
+  , p_groupPred = groupPred w
+  , p_testPred = testPred w
+  , p_showSkippedTests = showSkippedTests w
+  , p_groupVerbosity = groupVerbosity w
+  , p_stopOnFail = stopOnFail w
+  , p_colorToFile = colorToFile w
+  , p_baseTime = baseTime w
+  , p_help = False
+  , p_ledgers = ledgers w
+  }
 
 getItems :: [String] -> IO [L.PostFam]
 getItems ss = fmap f $ Cop.open ss
@@ -271,14 +258,18 @@ getItems ss = fmap f $ Cop.open ss
 --
 -- Tests
 --
+
+-- | Passes only if each posting is True.
 eachPostingMustBeTrue
   :: TT.Name
   -> Pe.Pdct L.PostFam
   -> TT.TestTree L.PostFam
 eachPostingMustBeTrue n = TT.eachSubjectMustBeTrue n L.display
 
+-- | Passes if at least a particular number of postings is True.
 atLeastNPostings
   :: Int
+  -- ^ The number of postings that must be true for the test to pass
   -> TT.Name
   -> Pe.Pdct L.PostFam
   -> TT.TestTree L.PostFam
