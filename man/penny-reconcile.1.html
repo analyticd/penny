@@ -1,0 +1,126 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Thu Mar 28 12:06:03 2013 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>penny-reconcile</title>
+
+</head>
+<body>
+
+<h1 align="center">penny-reconcile</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#VERSUS sed(1) OR YOUR TEXT EDITOR">VERSUS sed(1) OR YOUR TEXT EDITOR</a><br>
+<a href="#EXIT STATUS">EXIT STATUS</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em">penny-reconcile
+- mark cleared postings as reconciled</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-reconcile</b>
+FILE...</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Finds all
+postings in the input ledger files whose flag is exactly one
+letter: the letter <i>C</i>. Changes those flags to the
+letter <i>R</i> and prints the resulting ledger to standard
+output. This is useful when reconciling a financial
+institution account: you may first mark postings in your
+ledger that match a posting on your bank statement with a
+<i>C</i> flag. Because only postings from the current
+statement will be marked with a <i>C</i> flag, it is easier
+to use <b>penny</b>(1) to list only the postings that you
+have just cleared. Then, after ensuring that the statement
+is properly reconciled, <b>penny-reconcile</b> will
+automatically mark all the posts reconciled.</p>
+
+<p style="margin-left:11%; margin-top: 1em">If no
+<i>FILE</i>, or <i>FILE</i> is <i>-</i>, read standard
+input.</p>
+
+<h2>VERSUS sed(1) OR YOUR TEXT EDITOR
+<a name="VERSUS sed(1) OR YOUR TEXT EDITOR"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">You could do
+this with <b>sed</b>(1) or your text editor. Unlike those
+programs, <b>penny-reconcile</b> knows the structure of a
+ledger file. So <b>penny-reconcile</b> will not, for
+example, change the text <i>[C]</i> to <i>[R]</i> where the
+<i>[C]</i> appears within a comment, while a naive
+<b>sed</b>(1) script would do so. This would happen only
+rarely though, so you might be just fine using a
+query-replace function in your text editor.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Also,
+<b>penny-reconcile</b> will tidy up your ledger file--that
+is, it might rearrange or delete the non-significant
+whitespace within a transaction and posting, similar to
+<b>penny-reprint</b>(1). This might be good or bad.
+<b>sed</b>(1) or your text editor, on the other hand, will
+not do this.</p>
+
+<h2>EXIT STATUS
+<a name="EXIT STATUS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">0 if everything
+went fine; some other value if something went wrong (e.g. a
+ledger file could not be parsed.)</p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Please report
+bugs in the program or documentation to
+<a href="mailto:omari@smileystation.com">Omari
+Norman.</a></p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-suite</b>(7)</p>
+<hr>
+</body>
+</html>

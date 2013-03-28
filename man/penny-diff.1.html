@@ -1,0 +1,144 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Thu Mar 28 12:06:02 2013 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>penny-diff</title>
+
+</head>
+<body>
+
+<h1 align="center">penny-diff</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#OPTIONS">OPTIONS</a><br>
+<a href="#VERSUS diff(1)">VERSUS diff(1)</a><br>
+<a href="#EXIT STATUS">EXIT STATUS</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">penny-diff -
+show differences between two Penny files</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-diff</b>
+[-12] FILE1 FILE2</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-diff</b>
+shows the Penny items present in FILE1 that are not present
+in FILE2, as well as the items present in FILE2 that are not
+present in FILE1. An item is a transaction, a price point,
+or a single-line comment. Blank lines are ignored.
+Differences in the order of items are ignored. Because each
+single-line comment is its own item, no difference will be
+detected if the single-line comments appear in a different
+order in the two files, as long as all the same lines are
+present.</p>
+
+<h2>OPTIONS
+<a name="OPTIONS"></a>
+</h2>
+
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="3%">
+
+
+<p style="margin-top: 1em"><b>-1</b></p></td>
+<td width="8%"></td>
+<td width="78%">
+
+
+<p style="margin-top: 1em">Show only the items present in
+FILE1 that are not present in FILE2.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="3%">
+
+
+<p><b>-2</b></p></td>
+<td width="8%"></td>
+<td width="78%">
+
+
+<p>Show only the items present in FILE2 that are not
+present in FILE1.</p></td></tr>
+</table>
+
+<h2>VERSUS diff(1)
+<a name="VERSUS diff(1)"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">You could do
+this with <b>diff</b>(1). The biggest difference is that
+<b>penny-diff</b> understands and parses the ledger file,
+while <b>diff</b> does not. Experiment with the two programs
+to see which works better in your situation (and take note
+of options in <b>diff</b> such as <i>-b</i> and <i>-w</i>,
+which can ignore some whitespace changes.)</p>
+
+<h2>EXIT STATUS
+<a name="EXIT STATUS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">0 if there are
+no differences between FILE1 and FILE2; 1 if there are
+differences; 2 if there was some problem (such as a file
+that could not be parsed.)</p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Please report
+bugs in the program or documentation to
+<a href="mailto:omari@smileystation.com">Omari
+Norman.</a></p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-suite</b>(7)</p>
+<hr>
+</body>
+</html>

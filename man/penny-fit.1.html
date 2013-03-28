@@ -1,0 +1,262 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Thu Mar 28 12:06:03 2013 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>penny-fit</title>
+
+</head>
+<body>
+
+<h1 align="center">penny-fit</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#IMPORTING">IMPORTING</a><br>
+<a href="#MERGING">MERGING</a><br>
+<a href="#RECONCILING">RECONCILING</a><br>
+<a href="#OTHER COMMANDS">OTHER COMMANDS</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">penny-fit -
+Penny financial institution statements parser</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-fit</b>
+[global-options] COMMAND [local-options] ARGS</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-fit</b>
+works with data you have downloaded from your financial
+institution. It parses statements that you have downloaded
+and adds transactions from the statements to your ledger,
+skipping those that have already been added. It also helps
+you reconcile your ledger with financial institution
+statements.</p>
+
+<p style="margin-left:11%; margin-top: 1em">First you will
+have to configure and compile a <b>penny-fit</b> binary. You
+can use the <b>penny-fit-sample.hs</b> file in the
+<b>penny-bin</b> package as an example. The comments in that
+file should help you get started.</p>
+
+<h2>IMPORTING
+<a name="IMPORTING"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">To use
+<b>penny-fit</b>, first you will download the appropriate
+data from your financial institution and place it in a file.
+<i>penny-fit -h</i> will tell give you a little more
+information about the place to look on your
+institution&rsquo;s web site to download the data. Currently
+<b>penny-fit</b> can handle Bank of America and American
+Express data; maybe you can add support for more
+institutions.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Then, run
+<i>penny-fit -f ACCOUNT import FILENAME</i>. The first time
+you run this command, you will have to add the <i>--new</i>
+option after the <i>import</i> command, which allows the
+creation of a new database. Without this option, if the
+database is not found, <b>penny-fit</b> quits with an error
+message. The ACCOUNT must be a financial institution account
+that you configured in your <b>penny-fit</b> binary (if you
+configured a default account and you want to use that, you
+can omit the <i>-f</i> option.) The FILENAME is the location
+of the data that you just downloaded.</p>
+
+<p style="margin-left:11%; margin-top: 1em">The
+<i>import</i> command will examine the data that you
+downloaded. Using the unique identifiers already assigned to
+each posting by your financial institution, the
+<i>import</i> command determines whether you have already
+downloaded each particular posting. If the posting is new,
+<i>import</i> assigns a different, unique number to the
+posting. This is called a <i>U-number</i>. The U-number
+allows you to uniquely identify each posting that you
+download. The data from the financial institution, along
+with the U-number, is added to a database at the location
+specified in your configuration. <i>import</i> automatically
+skips postings that have already been processed, so you do
+not have to worry about importing duplicate postings.</p>
+
+<h2>MERGING
+<a name="MERGING"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Next you will
+want to merge new postings into your ledger. Do this by
+running <i>penny-fit -f ACCOUNT merge LEDGER_FILE...</i>
+where LEDGER_FILE is one or more filenames for your ledger
+files. <i>merge</i> examines your ledgers to see if each of
+the postings in the database for this financial institution
+is represented in your ledger. To do this it looks at the
+postings in the <i>pennyAcct</i> specified in your
+configuration. For each U-number in the database,
+<i>merge</i> sees if there is a posting in the
+<i>pennyAcct</i> with a tag bearing the U-number (e.g. if
+the U-number is 5, it looks for the tag <i>U5</i>.) If a
+posting has more than one U-number tag, only the first is
+used; the others are ignored. If such a posting is found,
+<i>merge</i> moves on to the next U-number in the
+database.</p>
+
+<p style="margin-left:11%; margin-top: 1em">If no matching
+posting is found for a U-number, <i>merge</i> sees if there
+is a matching posting that does <i>not</i> have a U-number
+tag. If there is a posting in the <i>pennyAcct</i> that has
+the same quantity and date as the financial institution
+posting, <i>merge</i> will then examine the debit or credit
+of the ledger posting. This table describes whether
+<i>penny-fit</i> will find a match:</p>
+
+
+<p align="center" style="margin-top: 1em"><img src="grohtml-308811.png" alt="Image grohtml-308811.png"></p>
+
+<p style="margin-left:11%; margin-top: 1em">If
+<b>penny-fit</b> finds a match for a financial institution
+posting in this way, then it will assign a new U-number tag
+to the posting. If <b>penny-fit</b> does not find a match,
+then it will create an entirely new transaction and append
+it to the end of your ledger.</p>
+
+<p style="margin-left:11%; margin-top: 1em">If it is
+creating an entirely new transaction, <b>penny-fit</b> will
+attempt to give the new transaction the same account and
+payee information that you have used for similar
+transactions in the past. To do this, <b>penny-fit</b> will
+first search through the database to find the most recent
+financial institution posting that has the same payee as the
+one of the new transaction. If one is found,
+<b>penny-fit</b> then searches through the postings in your
+ledger file to find the one that has the same U-number and
+account as the old financial institution posting. If it is
+found, <b>penny-fit</b> will assign the payee name found on
+the posting in the ledger to the new posting. Also, if the
+posting found in the ledger has exactly one sibling posting,
+<b>penny-fit</b> will assign the same account name from that
+sibling to the new sibling.</p>
+
+<p style="margin-left:11%; margin-top: 1em">You can turn
+off this automatic assignment of information by using the
+<i>--no-auto</i> or <i>-n</i> option to the <i>merge</i>
+command.</p>
+
+<p style="margin-left:11%; margin-top: 1em">The result of
+<i>merge</i> is printed to standard output. You will
+probably want to redirect it to a new file. Use
+<b>diff</b>(1) or <b>penny-diff</b>(1) to see what changes
+<i>merge</i> made. Typically you will need to edit the
+output somewhat.</p>
+
+<h2>RECONCILING
+<a name="RECONCILING"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Next you may
+wish to reconcile your ledger with your financial
+institution data (that is, &quot;balance the
+checkbook&quot;.) Typically the most time-consuming part of
+this process is finding the postings in your ledger that
+match the postings on your bank statement. <b>penny-fit
+clear</b> will help with this, dramatically speeding up the
+process. To do this, download data from your financial
+institution that corresponds to the data that is covered
+within the current statement period. Run <b>penny-fit
+import</b> and <b>penny-fit merge</b> as described above.
+Then run</p>
+
+<pre style="margin-left:11%; margin-top: 1em">penny-fit -f ACCOUNT clear FIT_FILE LEDGER_FILE...</pre>
+
+
+<p style="margin-left:11%; margin-top: 1em">where FIT_FILE
+is the data file you downloaded from your financial
+institution, and LEDGER_FILE contains your ledger data. The
+<i>clear</i> command will mark as cleared (that is, assign a
+<i>C</i> flag to) all postings in your LEDGER_FILEs that
+correspond to one of the postings in the FIT_FILE. It does
+this by matching the U-number tags on your postings to the
+U-numbers in the database. If a posting has more than one
+U-number tag, only the first is used; the others are
+ignored. The results are printed to standard output; you
+will probably want to redirect this to a file. Once you have
+verified that things are as they should be, you can use
+<b>penny-reconcile</b>(1) to mark the cleared postings as
+reconciled. <b>penny-basics</b>(7) has more details on how
+to use <b>penny</b> when reconciling a financial institution
+statement.</p>
+
+<h2>OTHER COMMANDS
+<a name="OTHER COMMANDS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">The
+<i>database</i> command prints the database for a particular
+financial institution to standard output in human-readable
+form (the database unfortunately is not in plain
+human-readable text.) For instance you might use this to see
+what U-number is assigned to a particular financial
+institution posting.</p>
+
+<p style="margin-left:11%; margin-top: 1em">The
+<i>print</i> command parses a downloaded file of financial
+institution data and prints the result to standard output.
+This is useful for seeing the contents of a financial
+institution data file, or for testing new parsers.</p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">To quote
+another man page: &quot;Bugs? You must be kidding, there are
+no bugs in this software. But if we happen to be wrong, send
+us an email with as much detail as possible to&quot;
+omari@smileystation.com.</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-suite</b>(7)</p>
+<hr>
+</body>
+</html>

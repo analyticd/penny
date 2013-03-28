@@ -1,0 +1,103 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Thu Mar 28 12:06:02 2013 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>penny-custom</title>
+
+</head>
+<body>
+
+<h1 align="center">penny-custom</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">penny-custom -
+creating a custom Penny program</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny</b>(1)
+does not have a configuration file. Instead, it is easy to
+compile your own <b>penny</b> binary that has the settings
+you want. The advantage of this configuration-file-free
+approach is that it is easier for me to write and means that
+I don&rsquo;t have to cook up some sort of configuration
+file format. The disadvantage is that you will need to have
+the Glasgow Haskell Compiler (GHC) installed.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Compiling your
+own <b>penny</b> program can be useful if you find yourself
+always using some settings, and you wish you could set them
+by default. (Sometimes it may be easy to do this using shell
+aliases, functions, or scripts; other times, this might not
+be so easy.) Also, there are some settings that can only be
+changed by compiling your own <b>penny</b> binary.</p>
+
+<p style="margin-left:11%; margin-top: 1em">These
+instructions will assume you have the <b>cabal</b> program
+installed and that you compiled <b>penny</b> from source
+(currently nobody distributes precompiled <b>penny</b>
+binaries, so this is a fairly safe assumption.)</p>
+
+<p style="margin-left:11%; margin-top: 1em">All you need to
+do is download the <b>penny-bin</b> package, or find out
+where the <b>penny-bin</b> package archive is on your
+system. Unpack the <b>penny-bin</b> archive, and then edit
+the <i>penny.hs</i> file. This file is commented so editing
+it should be fairly simple even if you know little or no
+Haskell.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Then, from the
+directory that has your <i>penny-main.hs</i> file, run
+<i>cabal install</i> and you should be all set, if you have
+already set up the <b>cabal</b> program to install programs
+to a location that is in your path. Alternatively, run
+<i>ghc --make -o penny penny-main.hs</i> and then you will
+have a <b>penny</b> binary in the current directory and you
+can do what you want with it.</p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Please report
+any bugs in the programs or documentation to
+omari@smileystation.com.</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-suite</b>(7)</p>
+<hr>
+</body>
+</html>

@@ -14,4 +14,150 @@ with, <a href="http://ledger-cli.org/">Ledger</a> by John Wiegley. It
 
 <p>Penny should work on any recent UNIX system.</p>
 
+<h2>Installation</h2>
+
+<p>Installing Penny is hard, sorry! It is written
+  in <a href="http://www.haskell.org">Haskell</a>, a cutting-edge
+  functional language. This means that you need
+  the <a href="http://www.haskell.org/ghc">GHC</a> Haskell
+  compiler. That alone will cost you at least 700 MB of disk space
+  (though in this age of gigabyte disks, maybe this isn't such a big
+  deal.)</p>
+
+<p>Making things worse, I use the latest GHC and the latest Haskell
+  packages rather than those in the 
+  <a href="http://www.haskell.org/platform">Haskell Platform</a>. That
+  means you'll need to install a newer release of GHC than the one
+  that is in the Haskell platform.</p>
+
+<p>Here are the steps you can take to install Penny:</p>
+
+<ol>
+  <li>Install the latest version
+  of <a href="http://www.haskell.org/ghc">GHC</a> (currently Penny is
+  developed using version 7.6.2).</li>
+
+  <li>Install <a href="http://hackage.haskell.org/trac/hackage/wiki/CabalInstall">cabal
+  install</a>, a command line tool that makes it easy to install new
+  Haskell packages. Strictly speaking you don't <i>need</i> it, but it
+  makes life much easier.</li>
+
+  <li>Run <code>cabal install penny-bin</code> as root.</li>
+
+  <li><code>cabal install</code> does not install the documentation;
+  to do that, find out where <code>cabal install</code> downloaded
+  the <code>penny-bin</code> tarball (usually this will be
+  in <code>$HOME/.cabal/packages/hackage.haskell.org/penny-bin/$PENNY_VERSION</code>.)</li>
+
+  <li>Unpack the tarball somewhere, change to the directory that gets
+  unpacked, and as root run <code>./install-docs</code>. That will put
+  the manpages in the correct places.</li>
+</ol>
+
+<h2>Documentation</h2>
+
+<p>Most of Penny's documents are written in roff for consumption by
+  your UNIX man page reader; they are also here for your
+  convenience.</p>
+
+<h3>Getting started</h3>
+
+<p><a href="man/penny-basics.7.html">penny-basics.7</a> - <b>START
+    HERE</b> - gets you started in Penny</p>
+
+<p><a href="examples/starter.pny.txt">starter.pny</a> - sample Penny file
+  format</p>
+
+<h3>Stocks and commodities</h3>
+
+<p><a href="man/penny-commodities.7.html">penny-commodities.7</a> -
+  how to use Penny to track commodities</p>
+
+<p><a href="examples/stocks.pny.txt">stocks.pny</a> - sample ledger
+  file with stocks</p>
+
+<p><a href="examples/stocks-realized.pny.txt">stocks-realized.pny</a>
+  - stocks after you have realized a capital gain or loss by selling
+  them</p>
+
+<p><a href="man/penny-selloff.1.html">penny-selloff.1</a> - using
+  Penny to calculate capital gains and losses from commodity sales</p>
+
+<h3>Customization</h3>
+
+<p><a href="man/penny-custom.7.html">penny-custom.7</a> - how you can write
+  a custom Penny binary with all your settings; requires rudimentary
+  Haskell knowledge</p>
+
+<h3>Reference</h3>
+
+<p><a href="man/penny.1.html">penny.1</a> - has all options for the
+  main <b>penny</b> program, in exhaustive detail</p>
+
+<p><a href="man/penny-suite.7.html">penny-suite.7</a> - lists all Penny man
+  pages and most documentation</p>
+
+<p><a href="examples/more-file-format-details.pny.txt">a Penny ledger
+    file showing more features of the file format</p>
+
+<h3>Miscellaneous</h3>
+
+<p><a href="man/penny-diff.1.html">penny-diff.1</a> -
+  like <a href="http://en.wikipedia.org/wiki/Diff">diff</a>, but for
+  Penny</p>
+
+<p><a href="man/penny-fit.1.html">penny-fit.1</a> - can help you
+  automatically import transactions from your bank, though it will
+  require rudimentary Haskell knowledge and the only out-of-the-box
+  support is for American Express and Bank of America.</p>
+
+<p><a href="man/penny-reconcile.1.html">penny-reconcile.1</a> - can help
+  you when reconciling your bank accounts</p>
+
+<p><a href="man/penny-reprint.1.html">penny-reprint</a> - tidies up ledger
+files</p>
+
+<h2>Hackage pages</h2>
+
+<p>Hackage is a repository of Haskell packages, sort of like CPAN if
+  you are familiar with that.</p>
+
+<ul>
+  <li><a href="http://hackage.haskell.org/package/penny-lib">penny-lib</a>
+  - the Penny library, most of the functionality is in here.</li>
+
+  <li><a href="http://hackage.haskell.org/package/penny-bin">penny-bin</a>
+  - the binaries package. This page also has a Penny sales pitch.</li>
+</ul>
+
+<h2>Development</h2>
+
+<p>Surely there are no bugs in this software! But if you find some, or
+  if you just have some nifty idea and you want me to look at it, the
+  best way to do it is by using git
+  and <a href="https://github.com/massysett/penny">Github</a>. You can
+  also <a href="mailto:omari@smileystation.com">email me</a>. I can't
+  lie, it takes me forever to respond to emails, so I apologize in
+  advance. The best thing about Github is that you can fork the code
+  and go off on your merry way; Penny's BSD style license is no
+  impediment to that and believe me, if you do that I won't be
+  offended.</p>
+
+<p>Start by rummaging around in
+  the <a href="http://hackage.haskell.org/package/penny-lib">Haddock
+  documentation for penny-lib</a>, though it is not as good as it
+  should be. Start at the top and work your way down through each
+  level of the tree.</p>
+
+<h2>Using Penny? Let me know...</h2>
+
+<p>I develop this software because I find it useful; it's the classic
+  "itch-scratching" kind of thing. So if nobody uses it, I really
+  won't mind. Buf if you do use it, and you want to let me know - even
+  if it's just to say "gnucash, hledger, and Mint are all better, what
+  are you thinking, but there are some interesting ideas buried in
+  here" - then feel free to let me know
+  on <a href="https://github.com/massysett/penny">Github</a> or
+  by <a href="mailto:omari@smileystation.com">email</a>.</p>
+
 </html>

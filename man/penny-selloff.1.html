@@ -1,0 +1,137 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Thu Mar 28 12:06:03 2013 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>penny-selloff</title>
+
+</head>
+<body>
+
+<h1 align="center">penny-selloff</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#EXIT STATUS">EXIT STATUS</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">penny-selloff -
+calculate capital gains and losses from commodity sales</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-selloff</b>
+<i>PROCEEDS-ACCOUNT FILE...</i></p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This is a
+description of how <b>penny-selloff</b> works. You will be
+lost if you have not read <b>penny-commodities</b>(7) and
+looked at the <i>stocks.pny</i> file in the <i>examples</i>
+directory of the <i>penny-bin</i> tarball.</p>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-selloff</b>
+examines the names of the sub-accounts of the
+<i>PROCEEDS-ACCOUNT</i>. The first sub-account name is
+ignored (typically it will be <i>Proceeds</i>.) The second
+sub-accont is the <i>group</i> (typically it will be the
+name of the commodity you are selling, though it does not
+have to be.) The third sub-account is the date (and,
+optionally, the time) when you sold the commodity.</p>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-selloff</b>
+then parses all the ledger files given on the command line.
+(If no files are given, or if a file is <i>-</i>, it reads
+standard input.) Then <b>penny-selloff</b> examines the
+balance of the proceeds account. It must have exactly one
+debit amount and one credit amount in the balance. The debit
+balance is the commodity you are selling. The credit balance
+is the commodity you received in return for the sale
+(typically your home currency.)</p>
+
+<p style="margin-left:11%; margin-top: 1em">Next,
+<b>penny-selloff</b> examines the balances of all accounts
+in the parsed ledger files. It finds accounts that have
+<i>Basis</i> as the first sub-account and whose second
+sub-account matches the <i>group</i> found in the proceeds
+account (again, typically this will be the name of the
+commodity you are selling, though it does not have to be.)
+The third sub-account must be a date and optional time,
+which was when the commodity was purchased. Each of these
+accounts must have one debit amount, which is the cost of
+the purchase, and a credit balance, which is the amount of
+the commodity that was purchased.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Finally,
+<b>penny-selloff</b> computes postings that will eliminate
+the balances of the <i>Basis</i> accounts. It also computes
+the capital gain or loss from each sale. The oldest
+commodities are sold first.</p>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-selloff</b>
+creates a single transaction with postings that eliminate
+the balances <i>Basis</i> accounts corresponding to the
+commodities that were sold. The transaction also contains
+postings with the capital gain or loss from each sale. This
+transaction is printed to standard output.</p>
+
+<h2>EXIT STATUS
+<a name="EXIT STATUS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">0 if everything
+went fine; non-zero if there was a problem.</p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Please report
+bugs in the program or documentation to
+<a href="mailto:omari@smileystation.com">Omari
+Norman.</a></p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-suite</b>(7),
+<b>penny-commodities</b>(7)</p>
+<hr>
+</body>
+</html>

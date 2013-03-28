@@ -1,0 +1,14 @@
+; transaction created by penny-selloff for sale on 2012-12-31
+2012-12-31 Realize gain or loss
+    {Proceeds:LUV:2012-12-31}                           < $ 4800.00
+    {Proceeds:LUV:2012-12-31}                           > LUV 300
+    {Basis:LUV:2012-10-19}                              < LUV 100
+    {Basis:LUV:2012-10-19}                              > $ 1000.00
+    {Income:Capital Gain:LUV:2012-12-31:2012-10-19}     > $ 333.33
+    {Basis:LUV:2012-11-19}                              < LUV 100
+    {Basis:LUV:2012-11-19}                              > $ 1200.00
+    {Income:Capital Gain:LUV:2012-12-31:2012-11-19}     > $ 400.00
+    {Basis:LUV:2012-12-19}                              < LUV 100
+    {Basis:LUV:2012-12-19}                              > $ 1400.00
+    {Income:Capital Gain:LUV:2012-12-31:2012-12-19}     > $ 466.67
+

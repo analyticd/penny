@@ -1,0 +1,815 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Thu Mar 28 12:06:02 2013 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>penny</title>
+
+</head>
+<body>
+
+<h1 align="center">penny</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#SYNOPSIS">SYNOPSIS</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#COMPARERS">COMPARERS</a><br>
+<a href="#DISPLAY OPTIONS">DISPLAY OPTIONS</a><br>
+<a href="#POSTING FILTERS">POSTING FILTERS</a><br>
+<a href="#SHOWING EXPRESSIONS AND RESULTS">SHOWING EXPRESSIONS AND RESULTS</a><br>
+<a href="#REMOVING POSTINGS AFTER SORTING AND FILTERING">REMOVING POSTINGS AFTER SORTING AND FILTERING</a><br>
+<a href="#SORTING">SORTING</a><br>
+<a href="#HELP">HELP</a><br>
+<a href="#POSTINGS REPORT">POSTINGS REPORT</a><br>
+<a href="#BALANCE REPORT">BALANCE REPORT</a><br>
+<a href="#CONVERT REPORT">CONVERT REPORT</a><br>
+<a href="#SERIALS">SERIALS</a><br>
+<a href="#DEFAULT OPTIONS">DEFAULT OPTIONS</a><br>
+<a href="#EXIT STATUS">EXIT STATUS</a><br>
+<a href="#BUGS">BUGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">penny - report
+on postings in financial ledger</p>
+
+<h2>SYNOPSIS
+<a name="SYNOPSIS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">penny [global
+options] report name [report options] FILE...</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This manual
+page is a complete reference for the operation of
+<b>penny</b>. To get started, see
+<b>penny-getting-started</b>(1).</p>
+
+<p style="margin-left:11%; margin-top: 1em">The
+<b>penny</b> program prepares reports based upon the
+<b>postings</b> in your ledger file. Each transaction has at
+least two postings. After <b>penny</b> verifies that your
+ledger file is <i>balanced</i> (that is, every transaction
+has debits and credits that are equal) <b>penny</b> splits
+each transaction into its component postings. After this
+point, <b>penny</b> for the most part deals only with
+postings, not with transactions.</p>
+
+<p style="margin-left:11%; margin-top: 1em">You may specify
+<i>global options</i>. Most global options allow you to
+create a <i>filter expression</i> that determines which
+postings are ultimately used for the report. The filter
+expression may also contain additional options that perform
+tasks other than filtering. For example, you may specify how
+to perform text matching (for instance, you may want to use
+regular expressions) or you may specify that you want to
+sort the postings (by default, they are not sorted and are
+left in the order in which they were found in the input
+ledger).</p>
+
+<p style="margin-left:11%; margin-top: 1em">Other global
+options control the color scheme of the report and whether
+colors are used at all.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Next you must
+specify a <i>report</i>. Currently there are three reports.
+The <b>postings</b> report shows information about each
+posting, like a checkbook register. There are two reports
+that show account balances only: the <b>balance</b> report
+and the <b>convert</b> report. Each report shows only the
+postings returned by the posting filter expression.</p>
+
+<p style="margin-left:11%; margin-top: 1em">You may then
+specify options pertaining to the report. The
+<b>postings</b> report takes many options that format its
+output and that specify which postings are shown in the
+report; however, postings that the filter expression
+returned that are not shown in the report still affect the
+running balance. This can be useful if, for example, you
+want to see the total balance in your bank account and how
+some transactions affect it but you do not want to see all
+transactions since the beginning of time. The <b>balance</b>
+and <b>convert</b> reports take many fewer options.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Finally you may
+specify one or more files from which to draw the data. If
+you do not specify a file, standard input is used. The
+report is always printed to standard output.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Entering the
+data into the ledger files is your responsibility;
+<b>penny</b> will never modify this data. To see how to
+enter data into the file, see the file
+<b>examples/starter.pny</b>, which is included inside the
+package for <b>penny-bin</b>.</p>
+
+<h2>COMPARERS
+<a name="COMPARERS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Many options
+perform comparisons; for example, the <b>--date</b> option
+compares postings to a date you specify to determine which
+postings to keep and which to reject. Where <i>comparer</i>
+appears below, you must supply one of the following strings.
+You will need to quote many of them, because many of these
+characters will have special meaning for your shell.</p>
+
+
+<p align="center" style="margin-top: 1em"><img src="grohtml-307851.png" alt="Image grohtml-307851.png"></p>
+
+<h2>DISPLAY OPTIONS
+<a name="DISPLAY OPTIONS"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>--scheme</b>
+<i>SCHEME_NAME</i></p>
+
+<p style="margin-left:22%;">Use the given color scheme. By
+default, three schemes are available: <i>dark</i>, designed
+for dark-background terminals, <i>light</i>, for
+light-background terminals, and <i>plain</i>, which uses the
+terminal&rsquo;s default colors. By default the <i>dark</i>
+scheme is used.</p>
+
+<p style="margin-left:11%;"><b>--color-to-file</b>
+<i>no|yes</i></p>
+
+<p style="margin-left:22%;">Whether to use color when
+standard output is not a terminal. Default is <i>no</i>. If
+standard output is a terminal, the maximum color
+capabilities of your terminal are used. (If you do not like
+color, preface your <b>penny</b> command with
+<i>TERM=dumb</i> or, alternatively, use <b>--scheme
+plain</b>, which has the same effect.)</p>
+
+<h2>POSTING FILTERS
+<a name="POSTING FILTERS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>Dates <br>
+--date | -d</b> <i>comparer timespec</i></p>
+
+<p style="margin-left:22%; margin-top: 1em">The date of the
+posting must be within the time frame given. <b>date</b> is
+the same format as dates in the <b>penny</b> file and is
+either a date alone, such as <b>2012-04-25</b>, or a date
+and a time, such as <b>2012-04-25 14:25 -0400</b>.</p>
+
+<p style="margin-left:11%;"><b>--current</b></p>
+
+<p style="margin-left:22%;">Same as <b>--date &lt;=</b>
+<i>right now</i></p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>Serials</b>
+<br>
+These perform matching based on serials. For more on
+serials, see the section <b>SERIALS</b> below. Each option
+takes the form <i>option comparer number</i>. <b><br>
+--globalTransaction <br>
+--revGlobalTransaction <br>
+--globalPosting <br>
+--revGlobalPosting <br>
+--fileTransaction <br>
+--revFileTransaction <br>
+--filePosting <br>
+--revFilePosting</b></p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>Pattern
+matching</b> <br>
+These options allow you to filter postings by specifying a
+pattern that must match a particular component of the
+posting. By default the simple <i>within</i> matcher is
+used, and matches are case-insensitive. <b><br>
+--account | -a</b> <i>pattern</i></p>
+
+<p style="margin-left:22%;">The sub-accounts of the account
+are separated with colons, and the match succeeds if the
+pattern matches this entire colon-separated name.</p>
+
+<p style="margin-left:11%;"><b>--account-level</b>
+<i>number pattern</i></p>
+
+<p style="margin-left:22%;">The account is separated into
+sub-accounts, which are numbered beginning at zero. The
+match succeeds if the posting has a sub-account numbered at
+the given level, and if that sub account matches the given
+pattern.</p>
+
+<p style="margin-left:11%;"><b>--account-any</b>
+<i>pattern</i></p>
+
+<p style="margin-left:22%;">The account is separated into
+sub-accounts. The match succeeds if the pattern matches any
+of a posting&rsquo;s sub-accounts.</p>
+
+<p style="margin-left:11%;"><b>--payee | -p</b>
+<i>pattern</i></p>
+
+<p style="margin-left:22%;">Succeeds if the pattern matches
+the posting&rsquo;s payee. If the posting has no payee, the
+payee of the parent transaction is used (if there is
+one).</p>
+
+<p style="margin-left:11%;"><b>--tag | -t</b>
+<i>pattern</i></p>
+
+<p style="margin-left:22%;">Succeeds if any one of the
+posting&rsquo;s tags matches the given pattern.</p>
+
+<p style="margin-left:11%;"><b>--number</b>
+<i>pattern</i></p>
+
+<p style="margin-left:22%;">Succeeds if the posting&rsquo;s
+number matches the given pattern. (This is the number that
+you specify in parentheses in your ledger file, not the line
+number or any of the serial numbers.) If the posting has no
+number, the number of the parent transaction is used (if
+there is one).</p>
+
+<p style="margin-left:11%;"><b>--flag</b>
+<i>pattern</i></p>
+
+<p style="margin-left:22%;">Succeeds if the posting&rsquo;s
+flag matches the given pattern. If the posting has no
+number, the flag of the parent transaction is used (if there
+is one).</p>
+
+<p style="margin-left:11%;"><b>--commodity</b>
+<i>pattern</i></p>
+
+<p style="margin-left:22%;">Succeeds if the posting&rsquo;s
+commodity matches the given pattern.</p>
+
+<p style="margin-left:11%;"><b>--posting-memo</b>
+<i>pattern</i></p>
+
+<p style="margin-left:22%;">The posting memo must match the
+given pattern. For the purpose of this option, the line
+breaks in the posting memo are replaced with spaces.</p>
+
+<p style="margin-left:11%;"><b>--transaction-memo</b>
+<i>pattern</i></p>
+
+<p style="margin-left:22%;">The transaction memo must match
+the given pattern. For the purpose of this option, the line
+breaks in the transaction memo are replaced with spaces.</p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>Other
+posting characteristics <br>
+--debit</b> The entry must be a debit.</p>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>--credit</b>
+The entry must be a credit.</p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>--qty</b>
+<i>comparer number</i> The entry&rsquo;s quantity must fall
+within the given range.</p>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>Operators</b>
+<br>
+Each of the options above is a single operand. If you have
+multiple operands, you must join them together using
+operators. You may use either infix or reverse polish
+notation when joining operators (infix is the default.) When
+using the <b>--infix</b> or <b>--rpn</b> option, the option
+may appear anywhere within the posting filter expression.
+<b><br>
+--infix</b></p>
+
+<p style="margin-left:22%;">Use infix operators
+(default)</p>
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="7%">
+
+
+<p><b>--rpn</b></p></td>
+<td width="4%"></td>
+<td width="41%">
+
+
+<p>Use reverse polish notation</p></td>
+<td width="37%">
+</td></tr>
+</table>
+
+<p style="margin-left:11%; margin-top: 1em"><b>Infix
+Operators</b> <br>
+These are the infix operators, from highest to lowest
+precedence. All operators are left associative. <b><br>
+--open</b> <i>expr</i> <b>--close</b></p>
+
+<p style="margin-left:22%;">Force precedence using
+parentheses. Enclose a complete expression between the
+<b>--open</b> and <b>--close</b> options.</p>
+
+<p style="margin-left:11%;"><b>--not</b> <i>expr</i></p>
+
+<p style="margin-left:22%;">True if <i>expr</i> is
+false.</p>
+
+<p style="margin-left:11%;"><i>expr1</i> <b>--and</b>
+<i>expr2</i></p>
+
+<p style="margin-left:22%;">True if <i>expr1</i> and
+<i>expr2</i> are both true.</p>
+
+<p style="margin-left:11%;"><i>expr1</i> <b>--or</b>
+<i>expr2</i></p>
+
+<p style="margin-left:22%;">True if <i>expr1</i> or
+<i>expr2</i> is true.</p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>Reverse
+polish notation operators</b> <br>
+When using RPN, each of the operands shown above pushes that
+operand onto the stack. Each operand is a predicate; you can
+assemble these predicates into larger predicates. Using the
+<b>--open</b> or <b>--close</b> options with RPN is an
+error.</p>
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="7%">
+
+
+<p><b>--and</b></p></td>
+<td width="4%"></td>
+<td width="78%">
+
+
+<p>Pops two predicates from the top of the stack, creates a
+new predicate which is true only if both predicates are
+true, and pushes the new predicate onto the stack.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="7%">
+
+
+<p><b>--or</b></p></td>
+<td width="4%"></td>
+<td width="78%">
+
+
+<p>Pops two predicates from the top of the stack, creates a
+new predicate which is true if either predicate is true, and
+pushes the new predicate onto the stack.</p></td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="7%">
+
+
+<p><b>--not</b></p></td>
+<td width="4%"></td>
+<td width="78%">
+
+
+<p>Pops one predicate from the top of the stack, creates a
+new predicate which is true if the origianl predicate is
+false, and pushes the new predicate onto the stack.</p></td></tr>
+</table>
+
+<p style="margin-left:11%; margin-top: 1em"><b>Options
+affecting patterns</b> <br>
+These options affect how patterns are interpreted. The order
+of the <b>penny</b> command line is significant; each of
+these options only affects patterns that appear after it on
+the command line. <b><br>
+-i | --case-insensitive</b></p>
+
+<p style="margin-left:22%;">Patterns are case insensitive
+(default)</p>
+
+<p style="margin-left:11%;"><b>-I |
+--case-sensitive</b></p>
+
+<p style="margin-left:22%;">Patterns are case sensitive</p>
+
+<p style="margin-left:11%;"><b>--within</b></p>
+
+<p style="margin-left:22%;">Use the &quot;within&quot;
+matcher (default), which matches if the pattern given
+appears anywhere within the target text. This is a simple
+letter-for-letter match, not a regular expression, though
+its case sensitivity is affected by the
+<b>--case-insensitive</b> and <b>--case-sensitive</b>
+options.</p>
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="9%">
+
+
+<p><b>--pcre</b></p></td>
+<td width="2%"></td>
+<td width="78%">
+
+
+<p>Use the &quot;pcre&quot; matcher, which uses
+Perl-compatible regular expressions (see
+<b>pcresyntax</b>(1) and <b>pcrepattern</b>(1))</p></td></tr>
+</table>
+
+<p style="margin-left:11%;"><b>--posix</b></p>
+
+<p style="margin-left:22%;">Use the &quot;posix&quot;
+matcher, which uses POSIX regular expressions (see
+<b>regex</b>(7))</p>
+
+<p style="margin-left:11%;"><b>--exact</b></p>
+
+<p style="margin-left:22%;">Use the &quot;exact&quot;
+matcher, which matches if the given pattern is a
+letter-for-letter match of the target text, with case
+sensitivity determined by the <b>--case-insensitive</b> and
+<b>--case-sensitive</b> options.</p>
+
+<h2>SHOWING EXPRESSIONS AND RESULTS
+<a name="SHOWING EXPRESSIONS AND RESULTS"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>&minus;&minus;show&minus;expression</b></p>
+
+<p style="margin-left:11%; margin-top: 1em">Show the parsed
+posting filter expression. <b><br>
+&minus;&minus;verbose-filter</b></p>
+
+<p style="margin-left:11%; margin-top: 1em">Verbosely show
+the results of running the posting filter. This will show
+you each posting, telling you whether the posting filter
+accepted or rejected the posting and why.</p>
+
+<h2>REMOVING POSTINGS AFTER SORTING AND FILTERING
+<a name="REMOVING POSTINGS AFTER SORTING AND FILTERING"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>--head</b>
+<i>n</i></p>
+
+<p style="margin-left:22%;">Keep only the first <i>n</i>
+postings.</p>
+
+<p style="margin-left:11%;"><b>--tail</b> <i>n</i></p>
+
+<p style="margin-left:22%;">Keep only the last <i>n</i>
+postings.</p>
+
+<h2>SORTING
+<a name="SORTING"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>--sort |
+-s</b> <i>key</i></p>
+
+<p style="margin-left:22%;">Sorts postings according to a
+key. Use multiple <b>--sort</b> options to sort by more than
+one key. Valid keys are: payee, date, flag, number, account,
+drCr, qty, commodity, postingMemo, transactionMemo.</p>
+
+<p style="margin-left:22%; margin-top: 1em">The postings
+are sorted in ascending order if the first letter of the key
+is lowercase; descending order if the first letter of the
+key is uppercase.</p>
+
+<p style="margin-left:22%; margin-top: 1em">Postings by
+default are sorted by date in ascending order; however, any
+specification of a <b>--sort</b> option on the command line
+overrides this. For example, <b>--sort payee</b> sorts
+postings by payee from A-Z, while <b>--sort date --sort
+payee</b> sorts postings by date from oldest to newest and
+sorts postings with the same date in payee order from A to
+Z.</p>
+
+<p style="margin-left:22%; margin-top: 1em">If you want to
+leave postings in the order in which they appeared in your
+ledger file, use <b>--sort none</b>.</p>
+
+<h2>HELP
+<a name="HELP"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>--help |
+-h</b></p>
+
+<p style="margin-left:22%;">Show help and exit</p>
+
+<h2>POSTINGS REPORT
+<a name="POSTINGS REPORT"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">The
+<b>postings</b> report, or <b>pos</b> for short, shows
+postings in order with a running balance. This report takes
+all the options shown above in the categories from
+&quot;Posting filters&quot; to &quot;Removing postings after
+sorting and filtering.&quot; These options affect which
+postings are shown in the report. Postings that are not
+shown in the report but which were not filtered out in the
+filtering stage still affect the report&rsquo;s running
+balance.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Additional
+options for the <b>postings</b> report:</p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>Additional
+serial filtering options</b> <br>
+These options affect which postings are shown. Postings that
+were not filtered in the filtering stage but that are not
+shown still affect the running balance. In addition to using
+the same options that are used for filtering, these
+additional options are available that are based on some
+additional serials. They take the form <i>option comparer
+number</i> . For more information on serials, see the
+<b>SERIALS</b> section below. <b><br>
+--filtered</b></p>
+
+<p style="margin-left:22%;">filtered serial, forward
+component</p>
+
+<p style="margin-left:11%;"><b>--revFiltered</b></p>
+
+<p style="margin-left:22%;">filtered serial, reverse
+component</p>
+
+<p style="margin-left:11%;"><b>--sorted</b></p>
+
+<p style="margin-left:22%;">sorted serial, forward
+component</p>
+
+<p style="margin-left:11%;"><b>--revSorted</b></p>
+
+<p style="margin-left:22%;">sorted serial, reverse
+component</p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>Other
+additional options for the postings report <br>
+--width</b> <i>num</i></p>
+
+<p style="margin-left:22%;">Gives a hint for roughly how
+wide the report should be, in columns. (By default the
+<i>COLUMNS</i> environment variable is used.)</p>
+
+<p style="margin-left:11%;"><b>--show</b> <i>field</i>
+<b><br>
+--hide</b> <i>field</i></p>
+
+<p style="margin-left:22%;">Show or hide fields from the
+displayed report. Fields are displayed in a fixed order,
+which is the same as the order that the table below is in.
+Fields with an asterisk are shown by default.</p>
+
+
+<p align="center" style="margin-top: 1em"><img src="grohtml-307852.png" alt="Image grohtml-307852.png"></p>
+
+<p style="margin-left:11%;"><b>--show-all</b></p>
+
+<p style="margin-left:22%;">Show all fields</p>
+
+<p style="margin-left:11%;"><b>--hide-all</b></p>
+
+<p style="margin-left:22%;">Hide all fields</p>
+
+<p style="margin-left:11%;"><b>--zero-balances</b>
+<i>show|hide</i></p>
+
+<p style="margin-left:22%;">Whether to show the balance of
+all commodities in the <i>totalDrCr</i>,
+<i>totalCommodity</i>, and <i>totalQty</i> fields, even if
+that balance is zero. (default: hide)</p>
+
+<p style="margin-left:11%;"><b>--help | -h</b></p>
+
+<p style="margin-left:22%;">Show help and exit</p>
+
+<h2>BALANCE REPORT
+<a name="BALANCE REPORT"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">The
+<b>balance</b> report summarizes the balances in each
+account that is represented in the postings that remain
+after the filtering specifications are carried out. You can
+use sorting specifications in the posting filter expression,
+but they will have no effect. The accounts are shown
+hierarchically.</p>
+
+<p style="margin-left:11%; margin-top: 1em">The
+<b>balance</b> report accepts the following options: <b><br>
+--zero-balances</b> <i>show|hide</i></p>
+
+<p style="margin-left:22%;">Whether to show balances that
+are zero (default: hide)</p>
+
+<p style="margin-left:11%;"><b>--order</b>
+<i>ascending|descending</i></p>
+
+<p style="margin-left:22%;">Sort in ascending (default) or
+descending order by account name</p>
+
+<p style="margin-left:11%;"><b>--help | -h</b></p>
+
+<p style="margin-left:22%;">Show help and exit</p>
+
+<h2>CONVERT REPORT
+<a name="CONVERT REPORT"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">The
+<b>convert</b> report shows account balances after
+converting all amounts to a single commodity. In addition to
+converting commodities, it also can sort accounts by their
+balances. Accepts ONLY the following report options: <b><br>
+--zero-balances</b> <i>show|hide</i></p>
+
+<p style="margin-left:22%;">Whether to show balances that
+are zero (default: hide)</p>
+
+<p style="margin-left:11%;"><b>--commodity | -c</b>
+<i>TARGET-COMMODITY</i></p>
+
+<p style="margin-left:22%;">Convert all commodities to
+<i>TARGET-COMMODITY</i>. By default, the commodity that
+appears most often as the target commodity in your price
+data is used. If there is a tie, the price closest to the
+end of your list of prices is used.</p>
+
+<p style="margin-left:11%;"><b>--date | -d</b>
+<i>DATE-TIME</i></p>
+
+<p style="margin-left:22%;">Convert prices as of the date
+and time given. By default, the current date and time is
+used.</p>
+
+<p style="margin-left:11%;"><b>--sort | -s</b>
+<i>name|qty</i></p>
+
+<p style="margin-left:22%;">Sort balances by sub-account
+name (default) or by quantity</p>
+
+<p style="margin-left:11%;"><b>--order</b>
+<i>ascending|descending</i></p>
+
+<p style="margin-left:22%;">Sort in ascending (default) or
+descending order</p>
+
+<p style="margin-left:11%;"><b>--help | -h</b></p>
+
+<p style="margin-left:22%;">Show help and exit</p>
+
+<h2>SERIALS
+<a name="SERIALS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Each posting is
+assigned several <i>serials</i>, each of which is a pair of
+ordinal numbers. The first number in the pair, or <i>forward
+component</i>, is assigned by numbering the transactions or
+postings from beginning to end beginning at zero, while the
+second number in the pair, or <i>reverse component</i>, is
+assigned by numbering the transactions or postings from end
+to beginning, beginning at zero. Here are all the serials
+that are assigned to each posting. <b><br>
+globalTransaction</b></p>
+
+<p style="margin-left:22%;">All transactions are numbered
+in order, beginning with those in the first file specified
+on the command line and ending with the last file. Occurs
+before the transactions are split into postings.</p>
+
+<p style="margin-left:11%;"><b>fileTransaction</b></p>
+
+<p style="margin-left:22%;">Like <i>globalTransaction</i>,
+but numbering restarts with each new file.</p>
+
+<p style="margin-left:11%;"><b>globalPosting</b></p>
+
+<p style="margin-left:22%;">All postings are numbered in
+order, beginning with those in the first file specified on
+the command line and ending with the last file.</p>
+
+<p style="margin-left:11%;"><b>filePosting</b></p>
+
+<p style="margin-left:22%;">Like <i>globalPosting</i>, but
+numbering restarts with each new file.</p>
+
+<p style="margin-left:11%;"><b>filtered</b></p>
+
+<p style="margin-left:22%;">Postings are numbered after
+first removing the postings as specified by the filtering
+options specified on the command line.</p>
+
+<table width="100%" border="0" rules="none" frame="void"
+       cellspacing="0" cellpadding="0">
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="9%">
+
+
+<p><b>sorted</b></p></td>
+<td width="2%"></td>
+<td width="78%">
+
+
+<p>Postings are numbered in order after the sorting options
+have been applied, which occurs after the filtering options
+have been applied.</p></td></tr>
+</table>
+
+<p style="margin-left:11%;"><b>visible</b></p>
+
+<p style="margin-left:22%;">Postings are numbered in order
+after removing the postings as specified by the options to
+the <i>postings</i> report. (Applies only to the
+<i>postings</i> report.)</p>
+
+<h2>DEFAULT OPTIONS
+<a name="DEFAULT OPTIONS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This manual
+page often specifies defaults for various options. These are
+the defaults that come &quot;out of the box.&quot; You may
+configure your own default options (see
+<b>penny-custom</b>(7).) If you do that, the defaults you
+configure will be reflected in the output of <i>penny
+-h</i>.</p>
+
+<h2>EXIT STATUS
+<a name="EXIT STATUS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>0</b> if no
+errors; <b>1</b> if there was a problem.</p>
+
+<h2>BUGS
+<a name="BUGS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Please report
+any bugs in the software or documentation to
+omari@smileystation.com.</p>
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny-suite</b>(7)</p>
+
+<p style="margin-left:11%; margin-top: 1em">The file
+<b>examples/starter.pny</b> in the tarball for the
+<b>penny-bin</b> package shows you how to write a ledger
+file.</p>
+<hr>
+</body>
+</html>
