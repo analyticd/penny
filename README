@@ -1,5 +1,12 @@
 Welcome to Penny, double-entry accounting.
 
+Penny's web pages are at:
+
+http://massysett.github.com/penny
+http://hackage.haskell.org/package/penny-bin
+http://hackage.haskell.org/package/penny-lib
+http://github.com/massysett/penny
+
 Versions that contain at least one odd number are development
 versions. They are not posted to Hackage. I try to keep the master
 branch in compilable shape. However, development versions may not pass
