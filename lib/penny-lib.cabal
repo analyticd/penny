@@ -134,6 +134,9 @@ Library
     , Penny.Wheat
     , Penny.Zinc
 
+  Other-modules:
+      Paths_penny_lib
+
 
   ghc-options: -Wall
   if flag(debug)

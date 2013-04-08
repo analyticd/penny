@@ -91,7 +91,7 @@
 
 -- * In IO monad: Print output transaction.
 
-module Main where
+module Main (main) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad (when)
@@ -112,10 +112,12 @@ import Penny.Cabin.Options (ShowZeroBalances(..))
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Copper.Render as CR
+import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Data.Map as M
 import qualified System.Console.MultiArg as MA
 import Text.Parsec as Parsec
+import qualified Paths_penny_bin as PPB
 
 groupingSpec :: CR.GroupSpecs
 groupingSpec = CR.GroupSpecs CR.NoGrouping CR.NoGrouping
@@ -126,7 +128,6 @@ data Error
   = ParseFail MA.Error
   | NoInputArgs
   | ProceedsParseFailed Parsec.ParseError
-  | NoInputFiles
   | LedgerParseError Cop.ErrorMsg
   | NoSelloffAccount
   | NotThreeSelloffSubAccounts
@@ -141,55 +142,46 @@ data Error
   | SaleDateParseFailed Parsec.ParseError
   deriving Show
 
-data ProceedsAcct = ProceedsAcct { unProceedsAcct :: L.Account }
+data ProceedsAcct = ProceedsAcct { _unProceedsAcct :: L.Account }
   deriving Show
 
-newtype InputFilename = InputFilename { unInputFilename :: String }
+newtype InputFilename = InputFilename { _unInputFilename :: String }
   deriving (Eq, Show)
 
-loadFile :: InputFilename -> IO (L.Filename, Cop.FileContents)
-loadFile (InputFilename fn) = fmap f (TIO.readFile fn)
-  where
-    f fc = (L.Filename . pack $ fn, Cop.FileContents fc)
+type MaybeShowVer = IO ()
+type Opts = (MaybeShowVer, [String])
 
-data ParseResult
-  = NeedsHelp
-  | ParseResult ProceedsAcct [InputFilename]
+posArg :: String -> Opts -> Opts
+posArg s (a, ss) = (a, s:ss)
 
-data Flag
-  = Help
-  | PosArg String
-  deriving (Show, Eq)
+allOpts :: [MA.OptSpec (Opts -> Opts)]
+allOpts = [ fmap (\a (_, ss) -> (a, ss)) $ Ly.version PPB.version ]
 
-parseCommandLine :: [String] -> Err ParseResult
-parseCommandLine ss =
-  let os = [MA.OptSpec ["help"] "h" (MA.NoArg Help)]
-  in case MA.simple MA.Intersperse os PosArg ss of
-    Ex.Exception e -> Ex.Exception . ParseFail $ e
-    Ex.Success g ->
-      if isJust . find (== Help) $ g
-      then return NeedsHelp
-      else do
-        let toArg a = case a of
-              PosArg s -> Just s
-              _ -> Nothing
-        x:xs <- case mapMaybe toArg g of
-          [] -> Ex.throw NoInputArgs
-          r -> return r
-        a <- Ex.mapException ProceedsParseFailed
-              . Ex.fromEither
-              $ Parsec.parse CP.lvl1Acct "" (pack x)
-        when (null xs) $ Ex.throw NoInputFiles
-        return $ ParseResult (ProceedsAcct a) (map InputFilename xs)
+data ParseResult = ParseResult ProceedsAcct Cop.Ledger
 
-help :: String
-help = "usage: penny-selloff PROCEEDS_ACCOUNT FILE..."
+parseCommandLine :: IO ParseResult
+parseCommandLine = do
+  as <- MA.simpleWithHelp help MA.Intersperse allOpts posArg
+  let opts = foldr ($) (return (), []) as
+  fst opts
+  x:xs <- case snd opts of
+    [] -> fail (show NoInputArgs)
+    r -> return r
+  a <- Ex.switch (fail . show . ProceedsParseFailed) return
+       . Ex.fromEither
+       $ Parsec.parse CP.lvl1Acct "" (pack x)
+  l <- Cop.open xs
+  return $ ParseResult (ProceedsAcct a) l
 
-parseFiles
-  :: [(L.Filename, Cop.FileContents)]
-  -> Err Cop.Ledger
-parseFiles ls = Ex.mapException LedgerParseError
-  $ Cop.parse ls
+
+help :: String -> String
+help pn = unlines
+  [ "usage: " ++ pn ++ " PROCEEDS_ACCOUNT FILE..."
+  , "calculate capital gains and losses from commodity sales."
+  , "Options:"
+  , "  -h, --help - show this help and exit."
+  , "  --version  - show version and exit."
+  ]
 
 calcBalances :: Cop.Ledger -> [(L.Account, L.Balance)]
 calcBalances =
@@ -347,7 +339,7 @@ newtype CostSharesSold
   deriving (Eq, Show)
 
 newtype StillToRealize
-  = StillToRealize { unStillToRealize :: L.Qty }
+  = StillToRealize { _unStillToRealize :: L.Qty }
   deriving (Eq, Show)
 
 data BasisRealiztn = BasisRealiztn
@@ -591,10 +583,10 @@ mkTxn si wcc = Ex.resolve err exTxn
 
 makeOutput
   :: ProceedsAcct
-  -> [(L.Filename, Cop.FileContents)]
+  -> Cop.Ledger
   -> Err X.Text
-makeOutput pa ps = do
-  bals <- fmap calcBalances $ parseFiles ps
+makeOutput pa ldgr = do
+  let bals = calcBalances ldgr
   si <- selloffInfo pa bals
   let basisAccts = findBasisAccounts (siGroup si) bals
   purchInfos <- mapM (purchaseInfo (siStock si) (siCurrency si))
@@ -610,14 +602,9 @@ makeOutput pa ps = do
 
 
 main :: IO ()
-main =
-  MA.getArgs
-  >>= Ex.switch (error . show) handleParseResult . parseCommandLine
+main = parseCommandLine >>= handleParseResult
 
 
 handleParseResult :: ParseResult -> IO ()
-handleParseResult pr = case pr of
-  NeedsHelp -> putStrLn help
-  ParseResult pa fs ->
-    mapM loadFile fs
-    >>= Ex.switch (error . show) TIO.putStr . makeOutput pa
+handleParseResult (ParseResult pa ldgr) =
+  Ex.switch (error . show) TIO.putStr . makeOutput pa $ ldgr

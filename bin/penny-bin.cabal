@@ -181,6 +181,7 @@ Executable penny
     penny-lib ==0.11.*
 
   Main-is: penny-main.hs
+  Other-modules: Paths_penny_bin
   GHC-Options: -Wall
   if flag(debug)
     GHC-Options: -rtsopts -auto-all -caf-all
@@ -217,6 +218,7 @@ Executable penny-diff
     explicit-exception == 0.1.*
 
   Main-is: penny-diff.hs
+  Other-modules: Paths_penny_bin
   GHC-Options: -Wall
   if flag(debug)
     GHC-Options: -rtsopts -auto-all -caf-all
@@ -227,11 +229,13 @@ Executable penny-diff
 Executable penny-reprint
   Build-depends:
       base ==4.*
+    , multiarg ==0.13.*
     , penny-lib ==0.11.*
     , pretty-show ==1.5.*
     , text ==0.11.*
 
   main-is: penny-reprint.hs
+  Other-modules: Paths_penny_bin
   ghc-options: -Wall
   if ! flag(build-reprint)
     buildable: False
@@ -245,6 +249,7 @@ Executable penny-reconcile
     , explicit-exception ==0.1.*
 
   main-is: penny-reconcile.hs
+  Other-modules: Paths_penny_bin
   ghc-options: -Wall
   if ! flag(build-reconcile)
     buildable: False

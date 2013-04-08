@@ -1,14 +1,15 @@
 module Main where
 
-import Data.Maybe (fromMaybe, mapMaybe, fromJust)
+import Data.Maybe (fromMaybe, fromJust)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import Control.Monad (guard)
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
+import qualified Penny.Liberty as Ly
 import qualified System.Console.MultiArg as MA
-import System.Exit (exitSuccess)
+import qualified Paths_penny_bin as PPB
+
 
 -- | Changes a posting to mark it reconciled, if it was already marked
 -- as cleared.
@@ -36,9 +37,9 @@ changeTransaction t =
             $ t
   in L.changeTransaction fam t
 
-help :: String
-help = unlines
-  [ "usage: penny-reconcile [-h] FILE..."
+help :: String -> String
+help pn = unlines
+  [ "usage: " ++ pn ++ " [options] FILE..."
   , "Finds all transactions and postings bearing a \"C\" flag"
   , "and changes them to a \"R\" flag in the listed FILEs."
   , "If no FILE, or if FILE is -, read standard input."
@@ -47,45 +48,34 @@ help = unlines
   , "changed."
   , ""
   , "Options:"
-  , "  -h, --help Show help and exit."
+  , "  -h, --help - Show help and exit."
+  , "  --version  - Show version and exit"
   ]
-
-toPosArg :: Arg -> Maybe String
-toPosArg a = case a of
-  APosArg s -> Just s
-  _ -> Nothing
-
-data Arg
-  = AHelp
-  | APosArg String
-  deriving (Eq, Show)
-
-data Opts
-  = NeedsHelp
-  | DoIt [String]
-  deriving Show
-
-
-parseArgs :: [String] -> Opts
-parseArgs ss =
-  let opts = [ MA.OptSpec ["help"] "h" (MA.NoArg AHelp) ]
-  in case MA.simple MA.Intersperse opts APosArg ss of
-      Ex.Exception e -> error . show $ e
-      Ex.Success g ->
-        if any (== AHelp) g
-        then NeedsHelp
-        else DoIt $ mapMaybe toPosArg g
 
 groupSpecs :: C.GroupSpecs
 groupSpecs = C.GroupSpecs C.NoGrouping C.NoGrouping
 
+-- | The first element if the pair is a no-op if the user does not
+-- need to see the version, or an IO action to print the version if
+-- the user wants to see it. The second element is the list of command
+-- line arguments.
+type Opts = (IO (), [String])
+
+allOpts :: [MA.OptSpec (Opts -> Opts)]
+allOpts = [ fmap (\act (_, ss) -> (act, ss)) $
+            Ly.version PPB.version
+          ]
+
+posArg :: String -> Opts -> Opts
+posArg s (a, ss) = (a, s:ss)
+
 main :: IO ()
 main = do
-  os <- fmap parseArgs MA.getArgs
-  ls <- case os of
-    NeedsHelp -> putStrLn help >> exitSuccess
-    DoIt ss -> return ss
-  led <- C.open ls
+  as <- MA.simpleWithHelp help MA.Intersperse allOpts posArg
+  let opts = foldr ($) (return (), []) as
+  fst opts
+  led <- C.open . snd $ opts
   let led' = C.mapLedger (C.mapItem id id changeTransaction) led
       rend = fromJust $ C.ledger groupSpecs led'
   TIO.putStr rend
+

@@ -32,6 +32,7 @@ import Data.Maybe (mapMaybe, catMaybes, fromMaybe)
 import Data.Monoid (mappend, mconcat, (<>))
 import Data.Ord (comparing)
 import Data.Text (Text, pack)
+import Data.Version (Version)
 import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
 import qualified System.Exit as Exit
@@ -40,14 +41,16 @@ import qualified Text.Matchers as M
 import qualified System.Console.Rainbow as R
 
 runZinc
-  :: Defaults
+  :: Version
+  -- ^ Version of the executable
+  -> Defaults
   -> S.Runtime
   -> [I.Report]
   -> IO ()
-runZinc df rt rs = do
+runZinc ver df rt rs = do
   let ord = sortPairsToFn . sorter $ df
       hlp = helpText df rt rs
-  join $ MA.modesWithHelp hlp (allOpts (S.currentTime rt) df)
+  join $ MA.modesWithHelp hlp (allOpts ver (S.currentTime rt) df)
     (processGlobal rt ord df rs)
 
 
@@ -160,6 +163,7 @@ data OptResult
   | RExprDesc X.ExprDesc
   | RShowExpression
   | RVerboseFilter
+  | RShowVersion (IO ())
 
 getPostFilters
   :: [OptResult]
@@ -195,6 +199,13 @@ getSortSpec i ls =
   in if null exSpecs
      then return i
      else fmap mconcat . sequence $ exSpecs
+
+getShowVersion :: [OptResult] -> Maybe (IO ())
+getShowVersion ls = case mapMaybe f ls of
+  [] -> Nothing
+  xs -> Just $ last xs
+  where
+    f o = case o of { RShowVersion i -> Just i; _ -> Nothing }
 
 type Factory = M.CaseSensitive
              -> Text -> Ex.Exceptional Text M.Matcher
@@ -237,8 +248,8 @@ makeTokens df os =
   in fmap (\xs -> (xs, st')) . sequence . catMaybes $ ls
 
 
-allOpts :: L.DateTime -> Defaults -> [MA.OptSpec OptResult]
-allOpts dt df =
+allOpts :: Version -> L.DateTime -> Defaults -> [MA.OptSpec OptResult]
+allOpts ver dt df =
   map (fmap ROperand) (Ly.operandSpecs dt)
   ++ [fmap RPostFilter . fst $ Ly.postFilterSpecs]
   ++ [fmap RPostFilter . snd $ Ly.postFilterSpecs]
@@ -252,6 +263,7 @@ allOpts dt df =
   ++ map (fmap RExprDesc) Ly.exprDesc
   ++ [ RShowExpression <$ Ly.showExpression
      , RVerboseFilter <$ Ly.verboseFilter
+     , fmap RShowVersion (Ly.version ver)
      ]
 
 optColorToFile :: MA.OptSpec OptResult
@@ -334,25 +346,32 @@ processGlobal
 processGlobal rt srt df rpts os
   = case processFiltOpts srt df os of
       Ex.Exception s -> Left $ (const $ handleTextError s)
-      Ex.Success fo -> Right $ map (makeMode rt fo) rpts
+      Ex.Success mayFo -> case mayFo of
+        Left i -> Left . const $ i
+        Right fo -> Right $ map (makeMode rt fo) rpts
 
 processFiltOpts
   :: Orderer
   -> Defaults
   -> [OptResult]
-  -> Ex.Exceptional Error FilterOpts
-processFiltOpts ord df os = do
-  postFilts <- getPostFilters os
-  sortSpec <- getSortSpec ord os
-  (toks, (rs, rf)) <- makeTokens df os
-  let ctf = getColorToFile df os
-      sch = getScheme df os
-      expDsc = getExprDesc df os
-      showExpr = getShowExpression os
-      verbFilt = getVerboseFilter os
-  pdct <- Ly.parsePredicate expDsc toks
-  let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
-  return $ FilterOpts rf rs sf sch ctf expDsc pdct showExpr verbFilt
+  -> Ex.Exceptional Error (Either (IO ()) FilterOpts)
+  -- ^ Left if the user asked to see the version; Right with the
+  -- FilterOpts otherwise.
+processFiltOpts ord df os = case getShowVersion os of
+  Just i -> return $ Left i
+  Nothing -> do
+    postFilts <- getPostFilters os
+    sortSpec <- getSortSpec ord os
+    (toks, (rs, rf)) <- makeTokens df os
+    let ctf = getColorToFile df os
+        sch = getScheme df os
+        expDsc = getExprDesc df os
+        showExpr = getShowExpression os
+        verbFilt = getVerboseFilter os
+    pdct <- Ly.parsePredicate expDsc toks
+    let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
+    return . Right $ FilterOpts rf rs sf sch
+                                ctf expDsc pdct showExpr verbFilt
 
 makeMode
   :: S.Runtime
@@ -706,6 +725,11 @@ help d pn = unlines $
   , "  Whether to use color when standard output is not a"
   , "  terminal (default: " ++
     if unColorToFile . colorToFile $ d then "yes)" else "no)"
+  , ""
+  , "Meta"
+  , "----"
+  , "--help, -h - show this help and exit"
+  , "--version - show version and exit"
   ]
 
 

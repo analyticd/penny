@@ -36,6 +36,9 @@ module Penny.Liberty (
   caseSelectSpecs,
   operatorSpecs,
 
+  -- * Version
+  version,
+
   -- * Errors
   Error
 
@@ -49,6 +52,7 @@ import Data.Monoid ((<>))
 import Data.List (sortBy)
 import Data.Text (Text, pack)
 import qualified Data.Time as Time
+import qualified System.Console.MultiArg as MA
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Combinator (OptSpec)
 import Text.Parsec (parse)
@@ -66,6 +70,10 @@ import qualified Data.Prednote.Expressions as X
 import Text.Matchers (
   CaseSensitive(Sensitive, Insensitive))
 import qualified Text.Matchers as TM
+
+import qualified Paths_penny_lib as PPL
+import qualified Data.Version as V
+import qualified System.Exit as Exit
 
 -- | A multiline Text that holds an error message.
 type Error = Text
@@ -752,3 +760,23 @@ sQtyOption = C.OptSpec ["s-qty"] [] (C.TwoArg f)
         <> (pack . show $ e)
       Right g -> pure g
 
+--
+-- Versions
+--
+
+-- | Parses the @--version@ option and returns an IO action that
+-- prints it and exits successfully. You supply the version of the
+-- executable, as there is no easy way to get that automatically.
+
+version
+  :: V.Version
+  -- ^ Version of binary
+  -> OptSpec (IO a)
+version v = C.OptSpec ["version"] [] (C.NoArg f)
+  where
+    f = do
+      pn <- MA.getProgName
+      putStrLn $ pn ++ " version " ++ V.showVersion v
+      putStrLn $ "using version " ++ V.showVersion PPL.version
+                 ++ " of penny-lib"
+      Exit.exitSuccess

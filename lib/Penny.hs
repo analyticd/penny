@@ -5,7 +5,8 @@ module Penny
 
     -- | Everything you need to create a custom Penny program is
     -- available by importing only this module.
-    Defaults(..)
+    Version(..)
+  , Defaults(..)
   , Z.Matcher(..)
 
   -- ** Color schemes
@@ -85,6 +86,7 @@ module Penny
   ) where
 
 import qualified Data.Text as X
+import Data.Version (Version(..))
 import qualified Penny.Cabin.Balance.Convert as Conv
 import qualified Penny.Cabin.Balance.Convert.Parser as CP
 import qualified Penny.Cabin.Balance.Convert.Options as ConvOpts
@@ -231,16 +233,18 @@ data Defaults = Defaults
 
 -- | Creates an IO action that you can use for the main function.
 runPenny
-  :: (S.Runtime -> Defaults)
+  :: Version
+  -- ^ Version of the executable
+  -> (S.Runtime -> Defaults)
      -- ^ runPenny will apply this function to the Runtime. This way
      -- the defaults you use can vary depending on environment
      -- variables, the terminal type, the date, etc.
   -> IO ()
-runPenny getDefaults = do
+runPenny ver getDefaults = do
   rt <- S.runtime
   let df = getDefaults rt
       rs = allReports df
-  Z.runZinc (toZincDefaults df) rt rs
+  Z.runZinc ver (toZincDefaults df) rt rs
 
 -- | The commodity to which to convert the commodities in the convert
 -- report.

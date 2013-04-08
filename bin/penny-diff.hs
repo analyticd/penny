@@ -1,11 +1,12 @@
 module Main where
 
 import qualified Control.Exception as CEx
-import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Data.Either (partitionEithers)
 import Data.Maybe (fromJust)
 import Data.List (deleteFirstsBy)
 import qualified System.Console.MultiArg as M
+import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Copper as C
@@ -16,23 +17,28 @@ import qualified Data.Text.IO as TIO
 import qualified System.Exit as E
 import qualified System.IO as IO
 
+import qualified Paths_penny_bin as PPB
+
 groupingSpecs :: CR.GroupSpecs
 groupingSpecs = CR.GroupSpecs CR.NoGrouping CR.NoGrouping
 
 main :: IO ()
 main = runPennyDiff groupingSpecs
 
-help :: String
-help = unlines
-  [ "usage: penny-diff [-12] FILE1 FILE2"
+help :: String -> String
+help pn = unlines
+  [ "usage: " ++ pn ++ " [-12] FILE1 FILE2"
   , "Shows items that exist in FILE1 but not in FILE2,"
   , "as well as items that exist in FILE2 but not in FILE1."
   , "Options:"
   , "-1 Show only items that exist in FILE1 but not in FILE2"
   , "-2 Show only items that exist in FILE2 but not in FILE1"
+  , ""
+  , "--help, -h - show this help and exit"
+  , "--version Show version and exit"
   ]
 
-data Args = ArgFile File | Filename String | Help
+data Args = ArgFile File | Filename String
   deriving (Eq, Show)
 
 data DiffsToShow = File1Only | File2Only | BothFiles
@@ -42,6 +48,12 @@ optFile1 = M.OptSpec [] "1" (M.NoArg (ArgFile File1))
 
 optFile2 :: M.OptSpec Args
 optFile2 = M.OptSpec [] "2" (M.NoArg (ArgFile File2))
+
+allOpts :: [M.OptSpec (Either (IO ()) Args)]
+allOpts = [ fmap Right optFile1
+          , fmap Right optFile2
+          , fmap Left (Ly.version PPB.version)
+          ]
 
 data File = File1 | File2
   deriving (Eq, Show)
@@ -183,26 +195,22 @@ parseFile s = do
 -- an indication of which differences to show.
 parseCommandLine :: IO (String, String, DiffsToShow)
 parseCommandLine = do
-  as <- M.getArgs
-  let parsed = M.simple
-                M.Intersperse [optFile1, optFile2] Filename as
-  ls <- case parsed of
-    Ex.Exception e ->
-      let err = "penny-diff: could not parse command line: "
-            ++ show e
-      in failure err
-    Ex.Success g -> return g
-  when (any (== Help) ls) (putStrLn help >> E.exitSuccess)
-  let toFilename a = case a of
+  as <- M.simpleWithHelp help M.Intersperse allOpts
+        (Right . Filename)
+  let (doVer, args) = partitionEithers as
+      toFilename a = case a of
         Filename s -> Just s
         _ -> Nothing
-  (fn1, fn2) <- case mapMaybe toFilename ls of
+  case doVer of
+    [] -> return ()
+    x:_ -> x
+  (fn1, fn2) <- case mapMaybe toFilename args of
     x:y:[] -> return (x, y)
     _ -> failure "penny-diff: error: you must supply two filenames."
   let getDiffs
-        | ((ArgFile File1) `elem` ls)
-          && ((ArgFile File2) `elem` ls) = BothFiles
-        | ((ArgFile File1) `elem` ls) = File1Only
-        | ((ArgFile File2) `elem` ls) = File2Only
+        | ((ArgFile File1) `elem` args)
+          && ((ArgFile File2) `elem` args) = BothFiles
+        | ((ArgFile File1) `elem` args) = File1Only
+        | ((ArgFile File2) `elem` args) = File2Only
         | otherwise = BothFiles
   return (fn1, fn2, getDiffs)
