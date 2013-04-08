@@ -93,6 +93,9 @@ instance Show Qty where
              else b ++ ['.'] ++ end
 
 
+-- | Compares Qty after equalizing their exponents.
+--
+-- > compare (newQty 15 1) (newQty 1500 3) == EQ
 instance Ord Qty where
   compare q1 q2 = compare (mantissa q1') (mantissa q2')
     where

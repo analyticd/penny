@@ -224,19 +224,12 @@ getMatcher s cs f
 
 -- | Parses comparers given on command line to a function. Fails if
 -- the string given is invalid.
-parseComparer :: String -> Ex.Exceptional Error P.Comp
-parseComparer t
-  | t == "<" = return P.DLT
-  | t == "<=" = return P.DLTEQ
-  | t == "==" = return P.DEQ
-  | t == "=" = return P.DEQ
-  | t == ">" = return P.DGT
-  | t == ">=" = return P.DGTEQ
-  | t == "/=" = return P.DNE
-  | t == "!=" = return P.DNE
-  | otherwise = Ex.throw msg
-  where
-    msg = "bad comparer: " <> pack t <> "\n"
+parseComparer
+  :: String
+  -> (Ordering -> E.Pdct a)
+  -> Ex.Exceptional Error (E.Pdct a)
+parseComparer s f = Ex.fromMaybe ("bad comparer: " <> pack s <> "\n")
+                  $ E.parseComparer (pack s) f
 
 -- | Parses a date from the command line. On failure, throws back the
 -- error message from the failed parse.
@@ -256,13 +249,15 @@ type Operand = E.Pdct L.PostFam
 date :: OptSpec (Ex.Exceptional Error Operand)
 date = C.OptSpec ["date"] ['d'] (C.TwoArg f)
   where
-    f a1 a2 = P.date <$> parseComparer a1 <*> parseDate a2
+    f a1 a2 = do
+      utct <- parseDate a2
+      parseComparer a1 (flip P.date utct)
 
 
 current :: L.DateTime -> OptSpec Operand
 current dt = C.OptSpec ["current"] [] (C.NoArg f)
   where
-    f = P.date P.DLTEQ (L.toUTC dt)
+    f = E.or [P.date LT (L.toUTC dt), P.date EQ (L.toUTC dt)]
 
 -- | Parses exactly one integer; fails if it cannot read exactly one.
 parseInt :: String -> Ex.Exceptional Error Int
@@ -370,7 +365,9 @@ credit = C.OptSpec ["credit"] [] (C.NoArg P.credit)
 qtyOption :: OptSpec (Ex.Exceptional Error Operand)
 qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
   where
-    f a1 a2 = P.qty <$> parseComparer a1 <*> parseQty a2
+    f a1 a2 = do
+      qt <- parseQty a2
+      parseComparer a1 (flip P.qty qt)
     parseQty a = case parse Pc.quantity "" (pack a) of
       Left e -> Ex.throw $ "could not parse quantity: "
         <> pack a <> " - "
@@ -401,14 +398,12 @@ serialOption getSerial n = (osA, osD)
     osD = C.OptSpec [addPrefix "rev" n] []
           (C.TwoArg (f L.backward))
     f getInt a1 a2 = do
-      cmp <- parseComparer a1
       num <- parseInt a2
-      let op pf = case getSerial pf of
-            Nothing -> False
-            Just ser -> getInt ser `cmpFn` num
-          (cmpDesc, cmpFn) = P.descComp cmp
-          desc = pack n <> " is " <> cmpDesc <> " " <> (pack . show $ num)
-      return (E.operand desc op)
+      let getPdct = E.compareByMaybe (pack . show $ num) (pack n) cmp
+          cmp l = case getSerial l of
+            Nothing -> Nothing
+            Just ser -> Just $ compare (getInt ser) num
+      parseComparer a1 getPdct
 
 
 -- | Takes a string, adds a prefix and capitalizes the first letter of

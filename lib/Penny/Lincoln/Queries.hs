@@ -1,3 +1,9 @@
+-- | Examining a PostFam for a particular component of the main
+-- posting (as opposed to the sibling postings) in the PostFam. For
+-- some components, such as the payee, the posting might have one
+-- piece of data while the TopLine has something else. These functions
+-- will examine the Posting first and, if it has no information, use
+-- the data from the TopLine if it is there.
 module Penny.Lincoln.Queries where
 
 import qualified Penny.Lincoln.Bits as B
@@ -6,6 +12,8 @@ import qualified Penny.Lincoln.Transaction as T
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 import qualified Data.Time as Time
 
+-- | Uses the data from the Posting if it is set; otherwise, use the
+-- data from the TopLine.
 best ::
   (T.Posting -> Maybe a)
   -> (T.TopLine -> Maybe a)

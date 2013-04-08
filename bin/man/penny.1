@@ -253,6 +253,75 @@ The entry must be a credit.
 .BI --qty " comparer number"
 The entry's quantity must fall within the given range.
 
+.SS Sibling postings
+
+All of the postings in a transaction are known as
+.IR siblings .
+Because every transaction has at least two postings, every posting has
+at least one sibling. The options given above examine the
+characteristics of a posting. The following options examine the
+characteristics of the siblings of a posting; the option will match
+the posting if any of its siblings match the specified
+information. Otherwise, these options behave similarly to the
+corresponding option which does not have the
+.I --s-
+prefix. Not every filter option has a corresponding
+.I --s-
+option; for example, there is no
+.I --s-date
+option because all sibling postings have the same date.
+
+.TP
+.BI "--s-globalPosting"
+
+.TP
+.BI "--s-revGlobalPosting"
+
+.TP
+.BI "--s-filePosting"
+
+.TP
+.BI "--s-revFilePosting"
+
+.TP
+.BI "--s-account"
+
+.TP
+.BI "--s-account"
+
+.TP
+.BI "--s-account-level"
+
+.TP
+.BI "--s-account-any"
+
+.TP
+.BI "--s-payee"
+
+.TP
+.BI "--s-tag"
+
+.TP
+.BI "--s-number"
+
+.TP
+.BI "--s-flag"
+
+.TP
+.BI "--s-commodity"
+
+.TP
+.BI "--s-posting-memo"
+
+.TP
+.BI "--s-debit"
+
+.TP
+.BI "--s-credit"
+
+.TP
+.BI "--s-qty"
+
 .SS Operators
 
 Each of the options above is a single operand. If you have multiple
@@ -333,7 +402,7 @@ predicate onto the stack.
 .TP
 .B --not
 Pops one predicate from the top of the stack, creates a new predicate
-which is true if the origianl predicate is false, and pushes the new
+which is true if the original predicate is false, and pushes the new
 predicate onto the stack.
 .
 .SS Options affecting patterns

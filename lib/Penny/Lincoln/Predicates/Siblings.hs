@@ -3,16 +3,15 @@
 -- | Functions that return a boolean based upon some criterion that
 -- matches something, often a PostFam. Useful when filtering
 -- Postings.
-module Penny.Lincoln.Predicates
+module Penny.Lincoln.Predicates.Siblings
   ( LPdct
   , MakePdct
   , payee
   , number
   , flag
   , postingMemo
-  , transactionMemo
-  , date
   , qty
+  , parseQty
   , drCr
   , debit
   , credit
@@ -22,9 +21,6 @@ module Penny.Lincoln.Predicates
   , accountAny
   , tag
   , reconciled
-  , clonedTransactions
-  , clonedTopLines
-  , clonedPostings
   ) where
 
 
@@ -32,13 +28,10 @@ import Data.List (intersperse)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Time as Time
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
-import qualified Penny.Lincoln.Family.Family as F
-import qualified Penny.Lincoln.Queries as Q
+import qualified Penny.Lincoln.Queries.Siblings as Q
 import Penny.Lincoln.Transaction (PostFam)
-import qualified Penny.Lincoln.Transaction as T
 import qualified Text.Matchers as M
 import qualified Data.Prednote.Pdct as P
 
@@ -51,44 +44,46 @@ match
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> a)
+  -> (PostFam -> [a])
   -- ^ Function that returns the field being matched
   -> M.Matcher
   -> LPdct
 match t f m = P.operand desc pd
   where
     desc = makeDesc t m
-    pd = M.match m . text . f
+    pd = any (M.match m) . map text . f
 
 matchMaybe
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> Maybe a)
+  -> (PostFam -> [Maybe a])
   -> M.Matcher
   -> LPdct
 matchMaybe t f m = P.operand desc pd
   where
     desc = makeDesc t m
-    pd = maybe False (M.match m . text) . f
+    pd = any (== (Just True))
+         . map (fmap (M.match m . text))
+         . f
 
 makeDesc :: Text -> M.Matcher -> Text
 makeDesc t m
-  = "subject: " <> t
-  <> " matcher: " <> M.matchDesc m
+  = "subject: " <> t <> " (any sibling posting) matcher: "
+  <> M.matchDesc m
 
 -- | Does the given matcher match any of the elements of the Texts in
 -- a HasTextList?
 matchAny
   :: HasTextList a
   => Text
-  -> (PostFam -> a)
+  -> (PostFam -> [a])
   -> M.Matcher
   -> LPdct
 matchAny t f m = P.operand desc pd
   where
     desc = makeDesc t m
-    pd = any (M.match m) . textList . f
+    pd = any (any (M.match m)) . map textList . f
 
 -- | Does the given matcher match the text that is at the given
 -- element of a HasTextList? If the HasTextList does not have a
@@ -97,28 +92,28 @@ matchLevel
   :: HasTextList a
   => Int
   -> Text
-  -> (PostFam -> a)
+  -> (PostFam -> [a])
   -> M.Matcher
   -> LPdct
 matchLevel l d f m = P.operand desc pd
   where
     desc = makeDesc ("level " <> X.pack (show l) <> " of " <> d) m
-    pd pf = let ts = textList (f pf)
-            in if l < 0 || l >= length ts
-               then False
-               else M.match m (ts !! l)
+    pd pf = let doMatch list = if l < 0 || l >= length list
+                               then False
+                               else M.match m (list !! l)
+            in any doMatch . map textList . f $ pf
 
 -- | Does the matcher match the text of the memo? Joins each line of
 -- the memo with a space.
 matchMemo
   :: Text
-  -> (PostFam -> Maybe B.Memo)
+  -> (PostFam -> [Maybe B.Memo])
   -> M.Matcher
   -> LPdct
 matchMemo t f m = P.operand desc pd
   where
     desc = makeDesc t m
-    pd = maybe False doMatch . f
+    pd = any (maybe False doMatch) . f
     doMatch = M.match m
               . X.intercalate (X.singleton ' ')
               . B.unMemo
@@ -129,12 +124,12 @@ matchDelimited
   -- ^ Separator
   -> Text
   -- ^ Label
-  -> (PostFam -> a)
+  -> (PostFam -> [a])
   -> M.Matcher
   -> LPdct
 matchDelimited sep lbl f m = match lbl f' m
   where
-    f' = X.concat . intersperse sep . textList . f
+    f' = map (X.concat . intersperse sep . textList) . f
 
 -- * Pattern matching fields
 
@@ -150,31 +145,38 @@ flag = matchMaybe "flag" Q.flag
 postingMemo :: MakePdct
 postingMemo = matchMemo "posting memo" Q.postingMemo
 
-transactionMemo :: MakePdct
-transactionMemo = matchMemo "transaction memo" Q.transactionMemo
-
--- * Date
-
-date
-  :: Ordering
-  -> Time.UTCTime
-  -> LPdct
-date ord u = P.compareBy (X.pack . show $ u)
-             "UTC date and time"
-           (\l -> compare (B.toUTC . Q.dateTime $ l) u) ord
-
-
+-- | A Pdct that returns True if @compare subject qty@ returns the
+-- given Ordering.
 qty :: Ordering -> B.Qty -> LPdct
-qty o q = P.compareBy (X.pack . show $ q) "quantity"
-          (\l -> compare (Q.qty l) q) o
+qty o q = P.operand desc pd
+  where
+    desc = "quantity of any sibling is " <> dd <> " " <> X.pack (show q)
+    dd = case o of
+      LT -> "less than"
+      GT -> "greater than"
+      EQ -> "equal to"
+    pd = any ((== o) . (`compare` q)) . Q.qty
 
+parseQty
+  :: X.Text
+  -> Maybe (B.Qty -> LPdct)
+parseQty x
+  | x == "==" = Just (qty EQ)
+  | x == "=" = Just (qty EQ)
+  | x == ">" = Just (qty GT)
+  | x == "<" = Just (qty LT)
+  | x == "/=" = Just (\q -> P.not (qty EQ q))
+  | x == "!=" = Just (\q -> P.not (qty EQ q))
+  | x == ">=" = Just (\q -> P.or [qty GT q, qty EQ q])
+  | x == "<=" = Just (\q -> P.or [qty LT q, qty EQ q])
+  | otherwise = Nothing
 
 drCr :: B.DrCr -> LPdct
 drCr dc = P.operand desc pd
   where
-    desc = "entry is a " <> s
+    desc = "entry of any sibling is a " <> s
     s = case dc of { B.Debit -> "debit"; B.Credit -> "credit" }
-    pd pf = Q.drCr pf == dc
+    pd = any (== dc) . Q.drCr
 
 debit :: LPdct
 debit = drCr B.Debit
@@ -203,48 +205,6 @@ reconciled :: LPdct
 reconciled = P.operand d p
   where
     d = "posting flag is exactly \"R\" (is reconciled)"
-    p = maybe False ((== X.singleton 'R') . B.unFlag) . Q.flag
-
--- | Returns True if these two transactions are clones; that is, if
--- they are identical in all respects except some aspects of their
--- metadata. The metadata that is disregarded when testing for clones
--- pertains to the location of the transaction. (Resembles cloned
--- sheep, which are identical but cannot be in exactly the same
--- place.)
-clonedTransactions :: T.Transaction -> T.Transaction -> Bool
-clonedTransactions a b =
-  let (F.Family ta p1a p2a psa) = T.unTransaction a
-      (F.Family tb p1b p2b psb) = T.unTransaction b
-  in clonedTopLines ta tb
-     && clonedPostings p1a p1b
-     && clonedPostings p2a p2b
-     && (length psa == length psb)
-     && (and (zipWith clonedPostings psa psb))
-
--- | Returns True if two TopLines are clones. Considers only the
--- non-metadata aspects of the TopLine; the metadata all pertains only
--- to the location of the TopLine. The DateTimes are compared based on
--- both the local time and the time zone; that is, two times that
--- refer to the same instant will not compare as identical if they
--- have different time zones.
-clonedTopLines :: T.TopLine -> T.TopLine -> Bool
-clonedTopLines t1 t2 =
-  (T.tDateTime t1 == T.tDateTime t2)
-  && (T.tFlag t1 == T.tFlag t2)
-  && (T.tNumber t1 == T.tNumber t2)
-  && (T.tPayee t2 == T.tPayee t2)
-  && (T.tMemo t1 == T.tMemo t2)
-
--- | Returns True if two Postings are clones. Considers only the
--- non-location-related aspects of the posting metadata.
-clonedPostings :: T.Posting -> T.Posting -> Bool
-clonedPostings p1 p2 =
-  (T.pPayee p1 == T.pPayee p2)
-  && (T.pNumber p1 == T.pNumber p2)
-  && (T.pFlag p1 == T.pFlag p2)
-  && (T.pAccount p1 == T.pAccount p2)
-  && (T.pTags p1 == T.pTags p2)
-  && (T.pEntry p1 == T.pEntry p2)
-  && (T.pMemo p1 == T.pMemo p2)
-  && (T.pInferred p1 == T.pInferred p2)
+    p = any (maybe False ((== X.singleton 'R') . B.unFlag))
+        . Q.flag
 

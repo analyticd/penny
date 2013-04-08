@@ -26,7 +26,6 @@ import qualified Penny.Liberty as Ly
 import qualified Data.Prednote.Expressions as Exp
 import qualified Data.Prednote.Pdct as Pt
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Predicates as Pd
 import qualified Penny.Shield as S
 import qualified Text.Matchers as M
 
@@ -99,14 +98,12 @@ optBoxSerial
 optBoxSerial nm f = C.OptSpec [nm] "" (C.TwoArg g)
   where
     g a1 a2 st = do
-      cmp <- Ly.parseComparer a1
       i <- Ly.parseInt a2
-      let (cmpDesc, cmpFn) = Pd.descComp cmp
-          desc = "serial " <> X.pack nm <> " is " <> cmpDesc
-                 <> " " <> X.pack (show i)
-          pdct box = (f . L.boxMeta $ box) `cmpFn` i
-          opnd = Pt.operand desc pdct
-          tok = Exp.operand opnd
+      let getPd = Pt.compareBy (X.pack . show $ i)
+                  ("serial " <> X.pack nm) cmp
+          cmp l = compare (f . L.boxMeta $ l) i
+      pd <- Ly.parseComparer a1 getPd
+      let tok = Exp.operand pd
       return $ st { tokens = tokens st ++ [tok] }
 
 optFilteredNum :: C.OptSpec (State -> Ex.Exceptional Error State)
