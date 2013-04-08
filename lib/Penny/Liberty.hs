@@ -55,8 +55,9 @@ import Text.Parsec (parse)
 
 import qualified Penny.Copper.Parsec as Pc
 
-import Penny.Lincoln.Family.Child (child, parent)
+import Penny.Lincoln.Family.Child (Child(Child), child, parent)
 import qualified Penny.Lincoln.Predicates as P
+import qualified Penny.Lincoln.Predicates.Siblings as PS
 import qualified Data.Prednote.Pdct as E
 import qualified Penny.Lincoln as L
 import qualified System.Console.Rainbow as C
@@ -375,7 +376,6 @@ qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
       Right g -> pure g
 
 
-
 -- | Creates two options suitable for comparison of serial numbers,
 -- one for ascending, one for descending.
 serialOption ::
@@ -394,17 +394,63 @@ serialOption ::
 serialOption getSerial n = (osA, osD)
   where
     osA = C.OptSpec [n] []
-          (C.TwoArg (f L.forward))
-    osD = C.OptSpec [addPrefix "rev" n] []
-          (C.TwoArg (f L.backward))
-    f getInt a1 a2 = do
+          (C.TwoArg (f n L.forward))
+    osD = let name = addPrefix "rev" n
+          in C.OptSpec [name] []
+             (C.TwoArg (f name L.backward))
+    f name getInt a1 a2 = do
       num <- parseInt a2
-      let getPdct = E.compareByMaybe (pack . show $ num) (pack n) cmp
+      let getPdct = E.compareByMaybe (pack . show $ num) (pack name) cmp
           cmp l = case getSerial l of
             Nothing -> Nothing
             Just ser -> Just $ compare (getInt ser) num
       parseComparer a1 getPdct
 
+
+-- | Creates two options suitable for comparison of sibling serial
+-- numbers. Similar to 'serialOption'.
+siblingSerialOption
+
+  :: (L.Posting -> Maybe L.Serial)
+  -- ^ Function that, when applied to a PostFam, returns the serial
+  -- you are interested in.
+
+  -> String
+  -- ^ Name of the command line option, such as @global-posting@
+
+  -> ( OptSpec (Ex.Exceptional Error Operand)
+     , OptSpec (Ex.Exceptional Error Operand) )
+  -- ^ Parses both descending and ascending serial options.
+
+siblingSerialOption getSerial n = (osA, osD)
+  where
+    osA = C.OptSpec ["s-" ++ n] []
+          (C.TwoArg (f n L.forward))
+    osD = let name = addPrefix "rev" n
+          in C.OptSpec ["s-" ++ name] []
+             (C.TwoArg (f name L.backward))
+    f name getInt a1 a2 = do
+      num <- parseInt a2
+      let getPdct ord = E.operand desc fn
+            where
+              desc = "any sibling serial " <> pack name
+                     <> " is " <> descCmp ord
+                     <> " " <> (pack . show $ num)
+              fn = any doCmp . getSiblings . L.unPostFam
+              doCmp p = case getSerial p of
+                Nothing -> False
+                Just ser -> compare (getInt ser) num == ord
+      parseComparer a1 getPdct
+
+
+getSiblings :: Child p c -> [c]
+getSiblings (Child _ s1 ss _) = s1:ss
+
+descCmp :: Ordering -> Text
+descCmp o = case o of
+  LT -> "less than"
+  EQ -> "equal to"
+  GT -> "greater than"
 
 -- | Takes a string, adds a prefix and capitalizes the first letter of
 -- the old string. e.g. applied to "rev" and "globalTransaction",
@@ -474,6 +520,19 @@ operandSpecs dt =
   , fmap (const . const . pure) debit
   , fmap (const . const . pure) credit
   , fmap (const . const) qtyOption
+
+  , sAccount
+  , sAccountLevel
+  , sAccountAny
+  , sPayee
+  , sTag
+  , sNumber
+  , sFlag
+  , sCommodity
+  , sPostingMemo
+  , fmap (const . const . pure) sDebit
+  , fmap (const . const. pure) sCredit
+  , fmap (const . const) sQtyOption
   ]
   ++ serialSpecs
 
@@ -484,7 +543,8 @@ serialSpecs
   = concat
   $ [unDouble]
   <*> [ globalTransaction, globalPosting,
-        filePosting, fileTransaction ]
+        filePosting, fileTransaction,
+        sGlobalPosting, sFilePosting ]
 
 unDouble
   :: Functor f
@@ -604,4 +664,91 @@ showExpression = noArg () "show-expression"
 
 verboseFilter :: OptSpec ()
 verboseFilter = noArg () "verbose-filter"
+
+--
+-- Siblings
+--
+
+sGlobalPosting :: ( OptSpec (Ex.Exceptional Error Operand)
+                  , OptSpec (Ex.Exceptional Error Operand) )
+sGlobalPosting =
+  siblingSerialOption (fmap (fmap L.unGlobalPosting) L.pGlobalPosting)
+                      "globalPosting"
+
+sFilePosting :: ( OptSpec (Ex.Exceptional Error Operand)
+                  , OptSpec (Ex.Exceptional Error Operand) )
+sFilePosting =
+  siblingSerialOption (fmap (fmap L.unFilePosting) L.pFilePosting)
+                      "filePosting"
+
+sAccount :: OptSpec ( CaseSensitive
+                    -> MatcherFactory
+                    -> Ex.Exceptional Error Operand )
+sAccount = C.OptSpec ["s-account"] "" (C.OneArg f)
+  where
+    f a1 cs fty = fmap PS.account
+                  $ getMatcher a1 cs fty
+
+sAccountLevel :: OptSpec ( CaseSensitive
+                         -> MatcherFactory
+                         -> Ex.Exceptional Error Operand )
+sAccountLevel = C.OptSpec ["s-account-level"] "" (C.TwoArg f)
+  where
+    f a1 a2 cs fty
+      = PS.accountLevel <$> parseInt a1 <*> getMatcher a2 cs fty
+
+sAccountAny :: OptSpec ( CaseSensitive
+                        -> MatcherFactory
+                        -> Ex.Exceptional Error Operand )
+sAccountAny = patternOption "s-account-any" Nothing PS.accountAny
+
+-- | The payee option; returns True if the matcher matches the payee
+-- name.
+sPayee :: OptSpec ( CaseSensitive
+                 -> MatcherFactory
+                 -> Ex.Exceptional Error Operand )
+sPayee = patternOption "s-payee" (Just 'p') PS.payee
+
+sTag :: OptSpec ( CaseSensitive
+                 -> MatcherFactory
+                 -> Ex.Exceptional Error Operand)
+sTag = patternOption "s-tag" (Just 't') PS.tag
+
+sNumber :: OptSpec ( CaseSensitive
+                    -> MatcherFactory
+                    -> Ex.Exceptional Error Operand )
+sNumber = patternOption "s-number" Nothing PS.number
+
+sFlag :: OptSpec ( CaseSensitive
+                  -> MatcherFactory
+                  -> Ex.Exceptional Error Operand)
+sFlag = patternOption "s-flag" Nothing PS.flag
+
+sCommodity :: OptSpec ( CaseSensitive
+                       -> MatcherFactory
+                       -> Ex.Exceptional Error Operand)
+sCommodity = patternOption "s-commodity" Nothing PS.commodity
+
+sPostingMemo :: OptSpec ( CaseSensitive
+                         -> MatcherFactory
+                         -> Ex.Exceptional Error Operand)
+sPostingMemo = patternOption "s-posting-memo" Nothing PS.postingMemo
+
+sDebit :: OptSpec Operand
+sDebit = C.OptSpec ["s-debit"] [] (C.NoArg PS.debit)
+
+sCredit :: OptSpec Operand
+sCredit = C.OptSpec ["s-credit"] [] (C.NoArg PS.credit)
+
+sQtyOption :: OptSpec (Ex.Exceptional Error Operand)
+sQtyOption = C.OptSpec ["s-qty"] [] (C.TwoArg f)
+  where
+    f a1 a2 = do
+      qt <- parseQty a2
+      parseComparer a1 (flip PS.qty qt)
+    parseQty a = case parse Pc.quantity "" (pack a) of
+      Left e -> Ex.throw $ "could not parse quantity: "
+        <> pack a <> " - "
+        <> (pack . show $ e)
+      Right g -> pure g
 
