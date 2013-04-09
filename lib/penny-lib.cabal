@@ -45,11 +45,11 @@ Library
     , explicit-exception ==0.1.*
     , matchers ==0.6.*
     , monad-loops ==0.3.*
-    , multiarg ==0.13.*
+    , multiarg ==0.14.*
     , old-locale ==1.0.*
     , parsec >= 3.1.2 && < 3.2
     , pcre-light ==0.4.*
-    , prednote == 0.7.*
+    , prednote == 0.8.*
     , pretty-show ==1.5.*
     , rainbow ==0.2.*
     , semigroups ==0.9.*
