@@ -26,10 +26,12 @@ module Penny.Wheat
 
 import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Data.Either (partitionEithers)
 import Data.Maybe (mapMaybe)
 import qualified Penny.Copper as Cop
 import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Lincoln as L
+import qualified Penny.Liberty as Ly
 import qualified Data.Text as X
 import qualified Data.Time as Time
 import qualified Text.Matchers as M
@@ -38,6 +40,7 @@ import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified Penny.Shield as S
 
+import qualified Data.Version as V
 import qualified Data.Prednote.TestTree as TT
 import qualified Data.Prednote.Pdct as Pe
 import qualified System.Console.Rainbow as Rb
@@ -153,24 +156,19 @@ parseArg s p = p { p_ledgers = p_ledgers p ++ [s] }
 
 allOpts :: [MA.OptSpec (Parsed -> Parsed)]
 allOpts =
+  let allChoices =
+        [ ("silent", \p -> p { p_failVerbosity = TT.Silent })
+        , ("minimal", \p -> p { p_failVerbosity = TT.PassFail })
+        , ("false", \p -> p { p_failVerbosity = TT.FalseSubjects })
+        , ("true", \p -> p { p_failVerbosity = TT.TrueSubjects })
+        , ("all", \p -> p { p_failVerbosity = TT.Discards })
+        ] in
   [ MA.OptSpec ["indentation"] "i"
     (fmap (\i p -> p { p_indentAmt = i }) (MA.OneArgE MA.reader))
 
-  , MA.OptSpec ["pass-verbosity"] "p" $ MA.ChoiceArg
-    [ ("silent", \p -> p { p_passVerbosity = TT.Silent })
-    , ("minimal", \p -> p { p_passVerbosity = TT.PassFail })
-    , ("false", \p -> p { p_passVerbosity = TT.FalseSubjects })
-    , ("true", \p -> p { p_passVerbosity = TT.TrueSubjects })
-    , ("all", \p -> p { p_passVerbosity = TT.Discards })
-    ]
+  , MA.OptSpec ["pass-verbosity"] "p" $ MA.ChoiceArg allChoices
 
-  , MA.OptSpec ["fail-verbosity"] "f" $ MA.ChoiceArg
-    [ ("silent", \p -> p { p_failVerbosity = TT.Silent })
-    , ("minimal", \p -> p { p_failVerbosity = TT.PassFail })
-    , ("false", \p -> p { p_failVerbosity = TT.FalseSubjects })
-    , ("true", \p -> p { p_failVerbosity = TT.TrueSubjects })
-    , ("all", \p -> p { p_failVerbosity = TT.Discards })
-    ]
+  , MA.OptSpec ["fail-verbosity"] "f" $ MA.ChoiceArg allChoices
 
   , MA.OptSpec ["group-regexp"] "g"
     (fmap (\f p -> p { p_groupPred = f }) (MA.OneArgE parseRegexp))
@@ -216,13 +214,22 @@ getTTOpts as o = TT.TestOpts
 -- | Runs Wheat tests. Prints the result to standard output. Exits
 -- unsuccessfully if the user gave bad command line options or if at
 -- least a single test failed; exits successfully if all tests
--- succeeded.
-main :: (S.Runtime -> WheatConf) -> IO ()
-main getWc = do
+-- succeeded. Shows the version number and exits successfully if that
+-- was requested.
+main
+  :: V.Version
+  -- ^ Version of the binary
+  -> (S.Runtime -> WheatConf) -> IO ()
+main ver getWc = do
   rt <- S.runtime
   let wc = getWc rt
-  fns <- MA.simpleWithHelp (help wc) MA.Intersperse allOpts
-         parseArg
+  parsed <- MA.simpleWithHelp (help wc) MA.Intersperse
+         (fmap Left (Ly.version ver) : (map (fmap Right) allOpts))
+         (fmap Right parseArg)
+  let (showVers, fns) = partitionEithers parsed
+  case showVers of
+    [] -> return ()
+    x:_ -> x
   let fn = foldl (flip (.)) id fns
       psd = fn (getParsedFromWheatConf wc)
   term <- Rb.smartTermFromEnv (p_colorToFile psd) IO.stdout

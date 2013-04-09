@@ -18,8 +18,11 @@ module Penny.Brenner
   ) where
 
 import qualified Penny.Brenner.Types as Y
-import Data.Maybe (mapMaybe)
+import Control.Monad (join)
+import Data.Either (partitionEithers)
 import qualified Data.Text as X
+import qualified Data.Version as V
+import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Copper.Render as R
@@ -32,33 +35,46 @@ import Control.Applicative ((<*>))
 import qualified System.Console.MultiArg as MA
 import qualified Control.Monad.Exception.Synchronous as Ex
 
-brennerMain :: Config -> IO ()
-brennerMain cf = do
+brennerMain
+  :: V.Version
+  -- ^ Binary version
+  -> Config
+  -> IO ()
+brennerMain v cf = do
   let cf' = convertConfig cf
-  ioAction <- MA.modesWithHelp (help cf') globalOpts
+  join $ MA.modesWithHelp (help cf') (globalOpts v)
     (preProcessor cf')
-  ioAction
 
-data Arg = AFitAcct String
-  deriving (Eq, Show)
-
-toFitAcctOpt :: Arg -> Maybe String
-toFitAcctOpt a = case a of { AFitAcct s -> Just s }
-
-globalOpts :: [MA.OptSpec Arg]
-globalOpts =
-  [ MA.OptSpec ["fit-account"] "f" (MA.OneArg AFitAcct) ]
+globalOpts
+  :: V.Version
+  -- ^ Binary version
+  -> [MA.OptSpec (Either (IO ()) String)]
+globalOpts v =
+  [ MA.OptSpec ["fit-account"] "f" (MA.OneArg Right)
+  , fmap Left (Ly.version v)
+  ]
 
 preProcessor
-  :: Y.Config -> [Arg] -> Either (a -> IO ()) [MA.Mode (IO ())]
-preProcessor cf as = Ex.toEither . Ex.mapException (const . fail) $ do
-  let mayFiStr = case mapMaybe toFitAcctOpt as of
-        [] -> Nothing
-        xs -> Just . last $ xs
-  fi <- case mayFiStr of
-    Nothing -> return $ Y.defaultFitAcct cf
-    Just s ->
+  :: Y.Config
+  -> [Either (IO ()) String]
+  -> Either (a -> IO ()) [MA.Mode (IO ())]
+preProcessor cf args =
+  let (vers, as) = partitionEithers args
+  in case vers of
+      [] -> makeModes cf as
+      x:_ -> Left (const x)
+
+makeModes
+  :: Y.Config
+  -> [String]
+  -- ^ Names of financial institutions given on command line
+  -> Either (a -> IO ()) [MA.Mode (IO ())]
+makeModes cf as = Ex.toEither . Ex.mapException (const . fail) $ do
+  fi <- case as of
+    [] -> return $ Y.defaultFitAcct cf
+    _ ->
       let pdct (Y.Name n, _) = n == X.pack s
+          s = last as
       in case filter pdct (Y.moreFitAccts cf) of
            [] -> Ex.throw $
               "financial institution account "

@@ -1,0 +1,12 @@
+To convert these man pages to HTML, use
+
+groff -mandoc -Thtml FILENAME
+
+This will create some extra graphics files as well. It's probably
+easiest to run this from the destination directory rather than the
+source directory so the extra files get dumped in the right place.
+
+groff seems to do a better job of this than man2html, even though
+groff is far from perfect. So don't bother trying man2html
+again. Probably the only way to improve the output on HTML is to use
+something line Asciidoc.
