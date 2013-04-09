@@ -1,5 +1,5 @@
 <!-- Creator     : groff version 1.22.2 -->
-<!-- CreationDate: Thu Mar 28 12:06:02 2013 -->
+<!-- CreationDate: Tue Apr  9 14:25:18 2013 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -29,7 +29,7 @@
 <a href="#SHOWING EXPRESSIONS AND RESULTS">SHOWING EXPRESSIONS AND RESULTS</a><br>
 <a href="#REMOVING POSTINGS AFTER SORTING AND FILTERING">REMOVING POSTINGS AFTER SORTING AND FILTERING</a><br>
 <a href="#SORTING">SORTING</a><br>
-<a href="#HELP">HELP</a><br>
+<a href="#META">META</a><br>
 <a href="#POSTINGS REPORT">POSTINGS REPORT</a><br>
 <a href="#BALANCE REPORT">BALANCE REPORT</a><br>
 <a href="#CONVERT REPORT">CONVERT REPORT</a><br>
@@ -140,7 +140,7 @@ You will need to quote many of them, because many of these
 characters will have special meaning for your shell.</p>
 
 
-<p align="center" style="margin-top: 1em"><img src="grohtml-307851.png" alt="Image grohtml-307851.png"></p>
+<p align="center" style="margin-top: 1em"><img src="grohtml-89461.png" alt="Image grohtml-89461.png"></p>
 
 <h2>DISPLAY OPTIONS
 <a name="DISPLAY OPTIONS"></a>
@@ -244,7 +244,7 @@ one).</p>
 <p style="margin-left:22%;">Succeeds if any one of the
 posting&rsquo;s tags matches the given pattern.</p>
 
-<p style="margin-left:11%;"><b>--number</b>
+<p style="margin-left:11%;"><b>--number | -n</b>
 <i>pattern</i></p>
 
 <p style="margin-left:22%;">Succeeds if the posting&rsquo;s
@@ -254,7 +254,7 @@ number or any of the serial numbers.) If the posting has no
 number, the number of the parent transaction is used (if
 there is one).</p>
 
-<p style="margin-left:11%;"><b>--flag</b>
+<p style="margin-left:11%;"><b>--flag | -f</b>
 <i>pattern</i></p>
 
 <p style="margin-left:22%;">Succeeds if the posting&rsquo;s
@@ -262,7 +262,7 @@ flag matches the given pattern. If the posting has no
 number, the flag of the parent transaction is used (if there
 is one).</p>
 
-<p style="margin-left:11%;"><b>--commodity</b>
+<p style="margin-left:11%;"><b>--commodity | -y</b>
 <i>pattern</i></p>
 
 <p style="margin-left:22%;">Succeeds if the posting&rsquo;s
@@ -284,15 +284,58 @@ breaks in the transaction memo are replaced with spaces.</p>
 
 <p style="margin-left:11%; margin-top: 1em"><b>Other
 posting characteristics <br>
---debit</b> The entry must be a debit.</p>
+--debit</b></p>
 
+<p style="margin-left:22%;">The entry must be a debit.</p>
 
-<p style="margin-left:11%; margin-top: 1em"><b>--credit</b>
-The entry must be a credit.</p>
+<p style="margin-left:11%;"><b>--credit</b></p>
 
-<p style="margin-left:11%; margin-top: 1em"><b>--qty</b>
-<i>comparer number</i> The entry&rsquo;s quantity must fall
-within the given range.</p>
+<p style="margin-left:22%;">The entry must be a credit.</p>
+
+<p style="margin-left:11%;"><b>--qty | -q</b> <i>comparer
+number</i></p>
+
+<p style="margin-left:22%;">The entry&rsquo;s quantity must
+fall within the given range.</p>
+
+<p style="margin-left:11%;"><b>--filename</b>
+<i>pattern</i></p>
+
+<p style="margin-left:22%;">The filename from which the
+entry came must match this pattern.</p>
+
+<p style="margin-left:11%; margin-top: 1em"><b>Sibling
+postings</b> <br>
+All of the postings in a transaction are known as
+<i>siblings</i>. Because every transaction has at least two
+postings, every posting has at least one sibling. The
+options given above examine the characteristics of a
+posting. The following options examine the characteristics
+of the siblings of a posting; the option will match the
+posting if any of its siblings match the specified
+information. Otherwise, these options behave similarly to
+the corresponding option which does not have the <i>--s-</i>
+prefix. Not every filter option has a corresponding
+<i>--s-</i> option; for example, there is no <i>--s-date</i>
+option because all sibling postings have the same date.
+<b><br>
+--s-globalPosting <br>
+--s-revGlobalPosting <br>
+--s-filePosting <br>
+--s-revFilePosting <br>
+--s-account <br>
+--s-account <br>
+--s-account-level <br>
+--s-account-any <br>
+--s-payee <br>
+--s-tag <br>
+--s-number <br>
+--s-flag <br>
+--s-commodity <br>
+--s-posting-memo <br>
+--s-debit <br>
+--s-credit <br>
+--s-qty</b></p>
 
 
 <p style="margin-left:11%; margin-top: 1em"><b>Operators</b>
@@ -330,25 +373,30 @@ may appear anywhere within the posting filter expression.
 Operators</b> <br>
 These are the infix operators, from highest to lowest
 precedence. All operators are left associative. <b><br>
---open</b> <i>expr</i> <b>--close</b></p>
+--open</b> <i>expr</i> <b>--close <br>
+-(</b> <i>expr</i> <b>-)</b></p>
 
 <p style="margin-left:22%;">Force precedence using
 parentheses. Enclose a complete expression between the
 <b>--open</b> and <b>--close</b> options.</p>
 
-<p style="margin-left:11%;"><b>--not</b> <i>expr</i></p>
+<p style="margin-left:11%;"><b>--not</b> <i>expr</i>
+<b><br>
+-N</b> <i>expr</i></p>
 
 <p style="margin-left:22%;">True if <i>expr</i> is
 false.</p>
 
 <p style="margin-left:11%;"><i>expr1</i> <b>--and</b>
-<i>expr2</i></p>
+<i>expr2 <br>
+expr1</i> <b>-A</b> <i>expr2</i></p>
 
 <p style="margin-left:22%;">True if <i>expr1</i> and
 <i>expr2</i> are both true.</p>
 
 <p style="margin-left:11%;"><i>expr1</i> <b>--or</b>
-<i>expr2</i></p>
+<i>expr2 <br>
+expr1</i> <b>-O</b> <i>expr2</i></p>
 
 <p style="margin-left:22%;">True if <i>expr1</i> or
 <i>expr2</i> is true.</p>
@@ -371,6 +419,15 @@ error.</p>
 <p><b>--and</b></p></td>
 <td width="4%"></td>
 <td width="78%">
+</td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="7%">
+
+
+<p><b>-A</b></p></td>
+<td width="4%"></td>
+<td width="78%">
 
 
 <p>Pops two predicates from the top of the stack, creates a
@@ -382,6 +439,15 @@ true, and pushes the new predicate onto the stack.</p></td></tr>
 
 
 <p><b>--or</b></p></td>
+<td width="4%"></td>
+<td width="78%">
+</td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="7%">
+
+
+<p><b>-O</b></p></td>
 <td width="4%"></td>
 <td width="78%">
 
@@ -397,10 +463,19 @@ pushes the new predicate onto the stack.</p></td></tr>
 <p><b>--not</b></p></td>
 <td width="4%"></td>
 <td width="78%">
+</td></tr>
+<tr valign="top" align="left">
+<td width="11%"></td>
+<td width="7%">
+
+
+<p><b>-N</b></p></td>
+<td width="4%"></td>
+<td width="78%">
 
 
 <p>Pops one predicate from the top of the stack, creates a
-new predicate which is true if the origianl predicate is
+new predicate which is true if the original predicate is
 false, and pushes the new predicate onto the stack.</p></td></tr>
 </table>
 
@@ -420,7 +495,7 @@ the command line. <b><br>
 
 <p style="margin-left:22%;">Patterns are case sensitive</p>
 
-<p style="margin-left:11%;"><b>--within</b></p>
+<p style="margin-left:11%;"><b>--within | -w</b></p>
 
 <p style="margin-left:22%;">Use the &quot;within&quot;
 matcher (default), which matches if the pattern given
@@ -430,22 +505,11 @@ its case sensitivity is affected by the
 <b>--case-insensitive</b> and <b>--case-sensitive</b>
 options.</p>
 
-<table width="100%" border="0" rules="none" frame="void"
-       cellspacing="0" cellpadding="0">
-<tr valign="top" align="left">
-<td width="11%"></td>
-<td width="9%">
+<p style="margin-left:11%;"><b>--pcre | -r</b></p>
 
-
-<p><b>--pcre</b></p></td>
-<td width="2%"></td>
-<td width="78%">
-
-
-<p>Use the &quot;pcre&quot; matcher, which uses
-Perl-compatible regular expressions (see
-<b>pcresyntax</b>(1) and <b>pcrepattern</b>(1))</p></td></tr>
-</table>
+<p style="margin-left:22%;">Use the &quot;pcre&quot;
+matcher, which uses Perl-compatible regular expressions (see
+<b>pcresyntax</b>(3) and <b>pcrepattern</b>(3))</p>
 
 <p style="margin-left:11%;"><b>--posix</b></p>
 
@@ -453,7 +517,7 @@ Perl-compatible regular expressions (see
 matcher, which uses POSIX regular expressions (see
 <b>regex</b>(7))</p>
 
-<p style="margin-left:11%;"><b>--exact</b></p>
+<p style="margin-left:11%;"><b>--exact | -x</b></p>
 
 <p style="margin-left:22%;">Use the &quot;exact&quot;
 matcher, which matches if the given pattern is a
@@ -525,15 +589,26 @@ Z.</p>
 leave postings in the order in which they appeared in your
 ledger file, use <b>--sort none</b>.</p>
 
-<h2>HELP
-<a name="HELP"></a>
+<h2>META
+<a name="META"></a>
 </h2>
 
 
 <p style="margin-left:11%; margin-top: 1em"><b>--help |
 -h</b></p>
 
-<p style="margin-left:22%;">Show help and exit</p>
+<p style="margin-left:22%;">Show help and exit. If you have
+configured a custom <b>penny</b> binary (see
+<b>penny-custom</b>(7)) you might have established defaults
+that differ from the defaults described in this manual page.
+The output of <b>penny --help</b> will reflect these
+customizations.</p>
+
+<p style="margin-left:11%;"><b>--version</b></p>
+
+<p style="margin-left:22%;">Show version of the executable
+and of the <b>penny-lib</b> library (the library might have
+a different version number).</p>
 
 <h2>POSTINGS REPORT
 <a name="POSTINGS REPORT"></a>
@@ -544,11 +619,11 @@ ledger file, use <b>--sort none</b>.</p>
 <b>postings</b> report, or <b>pos</b> for short, shows
 postings in order with a running balance. This report takes
 all the options shown above in the categories from
-&quot;Posting filters&quot; to &quot;Removing postings after
-sorting and filtering.&quot; These options affect which
-postings are shown in the report. Postings that are not
-shown in the report but which were not filtered out in the
-filtering stage still affect the report&rsquo;s running
+&quot;Posting filters&quot; through &quot;Removing postings
+after sorting and filtering.&quot; These options affect
+which postings are shown in the report. Postings that are
+not shown in the report but which were not filtered out in
+the filtering stage still affect the report&rsquo;s running
 balance.</p>
 
 <p style="margin-left:11%; margin-top: 1em">Additional
@@ -602,7 +677,7 @@ which is the same as the order that the table below is in.
 Fields with an asterisk are shown by default.</p>
 
 
-<p align="center" style="margin-top: 1em"><img src="grohtml-307852.png" alt="Image grohtml-307852.png"></p>
+<p align="center" style="margin-top: 1em"><img src="grohtml-89462.png" alt="Image grohtml-89462.png"></p>
 
 <p style="margin-left:11%;"><b>--show-all</b></p>
 

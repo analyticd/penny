@@ -1,0 +1,149 @@
+<!-- Creator     : groff version 1.22.2 -->
+<!-- CreationDate: Tue Apr  9 14:25:19 2013 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content="groff -Thtml, see www.gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<meta name="Content-Style" content="text/css">
+<style type="text/css">
+       p       { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       pre     { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       table   { margin-top: 0; margin-bottom: 0; vertical-align: top }
+       h1      { text-align: center }
+</style>
+<title>penny-examples</title>
+
+</head>
+<body>
+
+<h1 align="center">penny-examples</h1>
+
+<a href="#NAME">NAME</a><br>
+<a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#SHOWING DIFFERENT FIELDS">SHOWING DIFFERENT FIELDS</a><br>
+<a href="#FITERING BASED ON SIBLINGS">FITERING BASED ON SIBLINGS</a><br>
+<a href="#SEE ALSO">SEE ALSO</a><br>
+
+<hr>
+
+
+<h2>NAME
+<a name="NAME"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">penny-examples
+- more examples of Penny usage</p>
+
+<h2>DESCRIPTION
+<a name="DESCRIPTION"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">This page
+contains more examples of the use of <b>penny</b>(1). At
+first you will want to read <b>penny-basics</b>(1) as there
+are also many useful examples there.</p>
+
+<h2>SHOWING DIFFERENT FIELDS
+<a name="SHOWING DIFFERENT FIELDS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Each posting
+has many characteristics, called <b>fields</b>. For example,
+a posting has an account, and perhaps a payee and a flag.
+Only some fields are shown in the <b>postings</b> report by
+default; <b>penny</b>(1) tells you which ones these are, as
+well as the additional fields you can show. To show
+additional fields, use the --show option. For instance,
+showing the line numbers of a posting can be handy if you
+want to track the postings down in your ledger:</p>
+
+<pre style="margin-left:11%; margin-top: 1em">penny --account assets:checking postings \
+  --show lineNum starter.pny</pre>
+
+
+<p style="margin-left:11%; margin-top: 1em">This adds the
+line number to each posting. As you can see if you try it
+out, the option does not remove any fields. If you want to
+start from a clean slate, try the <i>--hide-all</i>
+option.</p>
+
+<p style="margin-left:11%; margin-top: 1em">The width of
+the report adjusts automatically to accomodate the fields
+you want, while fitting them to the width of your screen.
+Most fields are simply as wide as they need to be to show
+their information; however, the <i>payee</i> and
+<i>account</i> fields will wrap to multiple lines or squeeze
+themselves smaller by eliminating letters (respectively) in
+order to help the report fit in the width of your
+screen.</p>
+
+<h2>FITERING BASED ON SIBLINGS
+<a name="FITERING BASED ON SIBLINGS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em">Each
+transaction has at least two postings. The postings in a
+single transaction are called <i>siblings</i>. When
+<i>penny</i> first runs, it splits each transaction into
+postings. Then it generally deals with each posting
+independently. However, <i>penny</i> &quot;remembers&quot;
+which siblings each posting has. You can then use a
+posting&rsquo;s siblings as criteria when you are building a
+filter expression.</p>
+
+<p style="margin-left:11%; margin-top: 1em">For example,
+you want to see all the activity in your checking account.
+First you try this:</p>
+
+<pre style="margin-left:11%; margin-top: 1em">penny --account assets:checking postings starter.pny</pre>
+
+
+<p style="margin-left:11%; margin-top: 1em">This tells you
+each time your checking account is debited or
+credited--which is quite useful. But maybe you want to know
+what expenses you are paying for out of your checking
+account. The report above is not too useful for that as the
+account is always the same: <i>Assets:Checking</i>. What you
+want to see is the sibling postings each time there is
+activity in your checking account. Try this:</p>
+
+<pre style="margin-left:11%; margin-top: 1em">penny --s-account assets:checking postings starter.pny</pre>
+
+
+<p style="margin-left:11%; margin-top: 1em">This works by
+selecting each posting that has a sibling posting with the
+account <i>Assets:Checking</i>. All postings are included,
+even those that are deposits, like those from
+<i>Income:Salary</i>. If you only want to see sibling
+postings that are also in an Expenses account:</p>
+
+<pre style="margin-left:11%; margin-top: 1em">penny --s-account assets:checking \
+  --and --account expenses postings starter.pny</pre>
+
+
+<p style="margin-left:11%; margin-top: 1em">Alternatively,
+you can see each posting that has a sibling posting that is
+in the Assets:Checking account and where the posting itself
+is a debit:</p>
+
+<pre style="margin-left:11%; margin-top: 1em">penny --s-account assets:checking \
+  --and --debit postings starter.pny</pre>
+
+
+<h2>SEE ALSO
+<a name="SEE ALSO"></a>
+</h2>
+
+
+
+<p style="margin-left:11%; margin-top: 1em"><b>penny</b>(1),
+<b>penny-suite</b>(7)</p>
+<hr>
+</body>
+</html>
