@@ -28,6 +28,9 @@ instance HasText B.Payee where
 instance HasText B.Tag where
   text = B.unTag
 
+instance HasText B.Filename where
+  text = B.unFilename
+
 class HasTextList a where
   textList :: a -> [Text]
 

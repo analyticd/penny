@@ -342,17 +342,17 @@ tag = patternOption "tag" (Just 't') P.tag
 number :: OptSpec ( CaseSensitive
                     -> MatcherFactory
                     -> Ex.Exceptional Error Operand )
-number = patternOption "number" Nothing P.number
+number = patternOption "number" (Just 'n') P.number
 
 flag :: OptSpec ( CaseSensitive
                   -> MatcherFactory
                   -> Ex.Exceptional Error Operand)
-flag = patternOption "flag" Nothing P.flag
+flag = patternOption "flag" (Just 'f') P.flag
 
 commodity :: OptSpec ( CaseSensitive
                        -> MatcherFactory
                        -> Ex.Exceptional Error Operand)
-commodity = patternOption "commodity" Nothing P.commodity
+commodity = patternOption "commodity" (Just 'y') P.commodity
 
 filename :: OptSpec ( CaseSensitive
                       -> MatcherFactory
@@ -377,7 +377,7 @@ credit :: OptSpec Operand
 credit = C.OptSpec ["credit"] [] (C.NoArg P.credit)
 
 qtyOption :: OptSpec (Ex.Exceptional Error Operand)
-qtyOption = C.OptSpec ["qty"] [] (C.TwoArg f)
+qtyOption = C.OptSpec ["qty"] "q" (C.TwoArg f)
   where
     f a1 a2 = do
       qt <- parseQty a2
@@ -602,9 +602,6 @@ postFilterSpecs = (optHead, optTail)
 -- Matcher control
 ------------------------------------------------------------
 
-noArg :: a -> String -> OptSpec a
-noArg a s = C.OptSpec [s] "" (C.NoArg a)
-
 parseInsensitive :: OptSpec CaseSensitive
 parseInsensitive =
   C.OptSpec ["case-insensitive"] ['i'] (C.NoArg Insensitive)
@@ -616,16 +613,19 @@ parseSensitive =
 
 
 within :: OptSpec MatcherFactory
-within = noArg (\c t -> return (TM.within c t)) "within"
+within =
+  C.OptSpec ["within"] "w" . C.NoArg $ \c t ->
+    return (TM.within c t)
 
 pcre :: OptSpec MatcherFactory
-pcre = noArg TM.pcre "pcre"
+pcre = C.OptSpec ["pcre"] "r" (C.NoArg TM.pcre)
 
 posix :: OptSpec MatcherFactory
-posix = noArg TM.tdfa "posix"
+posix = C.OptSpec ["posix"] "" (C.NoArg TM.tdfa)
 
 exact :: OptSpec MatcherFactory
-exact = noArg (\c t -> return (TM.exact c t)) "exact"
+exact = C.OptSpec ["exact"] "x" . C.NoArg $ \c t ->
+        return (TM.exact c t)
 
 matcherSelectSpecs :: [OptSpec MatcherFactory]
 matcherSelectSpecs = [within, pcre, posix, exact]
@@ -639,23 +639,23 @@ caseSelectSpecs = [parseInsensitive, parseSensitive]
 
 -- | Open parentheses
 open :: OptSpec (X.Token a)
-open = noArg X.openParen "open"
+open = C.OptSpec ["open"] "(" (C.NoArg X.openParen)
 
 -- | Close parentheses
 close :: OptSpec (X.Token a)
-close = noArg X.closeParen "close"
+close = C.OptSpec ["close"] ")" (C.NoArg X.closeParen)
 
 -- | and operator
 parseAnd :: OptSpec (X.Token a)
-parseAnd = noArg X.opAnd "and"
+parseAnd = C.OptSpec ["and"] "A" (C.NoArg X.opAnd)
 
 -- | or operator
 parseOr :: OptSpec (X.Token a)
-parseOr = noArg X.opOr "or"
+parseOr = C.OptSpec ["or"] "O" (C.NoArg X.opOr)
 
 -- | not operator
 parseNot :: OptSpec (X.Token a)
-parseNot = noArg X.opNot "not"
+parseNot = C.OptSpec ["not"] "N" (C.NoArg X.opNot)
 
 operatorSpecs :: [OptSpec (X.Token a)]
 operatorSpecs =
@@ -664,20 +664,20 @@ operatorSpecs =
 -- Infix and RPN expression selectors
 
 parseInfix :: OptSpec X.ExprDesc
-parseInfix = noArg X.Infix "infix"
+parseInfix = C.OptSpec ["infix"] "" (C.NoArg X.Infix)
 
 parseRPN :: OptSpec X.ExprDesc
-parseRPN = noArg X.RPN "rpn"
+parseRPN = C.OptSpec ["rpn"] "" (C.NoArg X.RPN)
 
 -- | Both Infix and RPN options.
 exprDesc :: [OptSpec X.ExprDesc]
 exprDesc = [ parseInfix, parseRPN ]
 
 showExpression :: OptSpec ()
-showExpression = noArg () "show-expression"
+showExpression = C.OptSpec ["show-expression"] "" (C.NoArg ())
 
 verboseFilter :: OptSpec ()
-verboseFilter = noArg () "verbose-filter"
+verboseFilter = C.OptSpec ["verbose-filter"] "" (C.NoArg ())
 
 --
 -- Siblings
