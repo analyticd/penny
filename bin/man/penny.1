@@ -214,7 +214,7 @@ one).
 Succeeds if any one of the posting's tags matches the given pattern.
 
 .TP
-.BI --number " pattern"
+.BI "--number | -n " pattern
 Succeeds if the posting's number matches the given pattern. (This is
 the number that you specify in parentheses in your ledger file, not
 the line number or any of the serial numbers.)  If the posting has no
@@ -222,13 +222,13 @@ number, the number of the parent transaction is used (if there is
 one).
 
 .TP
-.BI --flag " pattern"
+.BI "--flag | -f " pattern
 Succeeds if the posting's flag matches the given pattern. If the
 posting has no number, the flag of the parent transaction is used
 (if there is one).
 
 .TP
-.BI --commodity " pattern"
+.BI "--commodity | -y " pattern
 Succeeds if the posting's commodity matches the given pattern.
 
 .TP
@@ -244,14 +244,21 @@ spaces.
 
 .SS Other posting characteristics
 
+.TP
 .B --debit
 The entry must be a debit.
 
+.TP
 .B --credit
 The entry must be a credit.
 
-.BI --qty " comparer number"
+.TP
+.BI "--qty | -q " "comparer number"
 The entry's quantity must fall within the given range.
+
+.TP
+.BI "--filename " pattern
+The filename from which the entry came must match this pattern.
 
 .SS Sibling postings
 
@@ -348,6 +355,8 @@ operators are left associative.
 .
 .TP
 .BI "--open " expr " --close"
+.TQ
+.BI "-( " expr " -)"
 Force precedence using parentheses. Enclose a complete expression
 between the
 .B --open
@@ -357,12 +366,16 @@ options.
 
 .TP
 .BI "--not " expr
+.TQ
+.BI "-N " expr
 True if
 .I expr
 is false.
 
 .TP
 .IB expr1 " --and " expr2
+.TQ
+.IB expr1 " -A " expr2
 True if
 .I expr1
 and
@@ -371,6 +384,8 @@ are both true.
 
 .TP
 .IB expr1 " --or " expr2
+.TQ
+.IB expr1 " -O " expr2
 True if
 .I expr1
 or
@@ -389,18 +404,24 @@ options with RPN is an error.
 .
 .TP
 .B --and
+.TQ
+.B -A
 Pops two predicates from the top of the stack, creates a new predicate
 which is true only if both predicates are true, and pushes the new
 predicate onto the stack.
 .
 .TP
 .B --or
+.TQ
+.B -O
 Pops two predicates from the top of the stack, creates a new predicate
 which is true if either predicate is true, and pushes the new
 predicate onto the stack.
 .
 .TP
 .B --not
+.TQ
+.B -N
 Pops one predicate from the top of the stack, creates a new predicate
 which is true if the original predicate is false, and pushes the new
 predicate onto the stack.
@@ -421,7 +442,7 @@ Patterns are case insensitive (default)
 Patterns are case sensitive
 
 .TP
-.B --within
+.B "--within | -w"
 Use the "within" matcher (default), which matches if the pattern given
 appears anywhere within the target text. This is a simple
 letter-for-letter match, not a regular expression, though its case
@@ -432,9 +453,9 @@ and
 options.
 
 .TP
-.B --pcre
+.B "--pcre | -r"
 Use the "pcre" matcher, which uses Perl-compatible regular expressions (see
-.BR pcresyntax "(1) and " pcrepattern (1))
+.BR pcresyntax "(3) and " pcrepattern (3))
 
 .TP
 .B --posix
@@ -442,7 +463,7 @@ Use the "posix" matcher, which uses POSIX regular expressions (see
 .BR regex (7))
 
 .TP
-.B --exact
+.B "--exact | -x"
 Use the "exact" matcher, which matches if the given pattern is a
 letter-for-letter match of the target text, with case sensitivity
 determined by the
@@ -511,10 +532,22 @@ your ledger file, use
 .BR "--sort none" .
 
 
-.SH HELP
+.SH META
 .TP
 .B --help | -h
-Show help and exit
+Show help and exit. If you have configured a custom
+.B penny
+binary (see
+.BR penny-custom (7))
+you might have established defaults that differ from the defaults
+described in this manual page. The output of
+.B penny --help
+will reflect these customizations.
+.TP
+.B --version
+Show version of the executable and of the
+.B penny-lib
+library (the library might have a different version number).
 
 .SH POSTINGS REPORT
 

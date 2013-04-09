@@ -354,6 +354,11 @@ commodity :: OptSpec ( CaseSensitive
                        -> Ex.Exceptional Error Operand)
 commodity = patternOption "commodity" Nothing P.commodity
 
+filename :: OptSpec ( CaseSensitive
+                      -> MatcherFactory
+                      -> Ex.Exceptional Error Operand )
+filename = patternOption "filename" Nothing P.filename
+
 postingMemo :: OptSpec ( CaseSensitive
                          -> MatcherFactory
                          -> Ex.Exceptional Error Operand)
@@ -525,6 +530,7 @@ operandSpecs dt =
   , commodity
   , postingMemo
   , transactionMemo
+  , filename
   , fmap (const . const . pure) debit
   , fmap (const . const . pure) credit
   , fmap (const . const) qtyOption

@@ -21,6 +21,7 @@ module Penny.Lincoln.Predicates
   , accountLevel
   , accountAny
   , tag
+  , filename
   , reconciled
   , clonedTransactions
   , clonedTopLines
@@ -146,6 +147,9 @@ number = matchMaybe "number" Q.number
 
 flag :: MakePdct
 flag = matchMaybe "flag" Q.flag
+
+filename :: MakePdct
+filename = matchMaybe "filename" Q.filename
 
 postingMemo :: MakePdct
 postingMemo = matchMemo "posting memo" Q.postingMemo
