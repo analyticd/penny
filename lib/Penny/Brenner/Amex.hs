@@ -9,7 +9,7 @@ import qualified Data.Time as Time
 import qualified Penny.Brenner.Types as Y
 import Text.Parsec.Text (Parser)
 import qualified Text.Parsec as P
-import Text.Parsec (many1, char, many, satisfy)
+import Text.Parsec (many1, char, many, satisfy, (<?>))
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -45,7 +45,7 @@ readThrough :: Char -> Parser String
 readThrough c = many (satisfy (/= c)) <* char c
 
 date :: Parser Y.Date
-date = p >>= failOnErr
+date = p >>= failOnErr <?> "date"
   where
     p = (,,)
         <$> fmap read (many1 P.digit)
@@ -60,25 +60,32 @@ date = p >>= failOnErr
 
 incDecAmount :: Parser (Y.IncDec, Y.Amount)
 incDecAmount = do
-  incDec <- (Y.Decrease <$ char '-') <|> pure Y.Increase
-  amtStr <- readThrough ','
-  case Y.mkAmount amtStr of
-    Nothing -> fail $ "could not parse amount: " ++ amtStr
-    Just a -> return (incDec, a)
+  { incDec <- (Y.Decrease <$ char '-') <|> pure Y.Increase
+  ; amtStr <- readThrough ','
+  ; case Y.mkAmount amtStr of
+      Nothing -> fail $ "could not parse amount: " ++ amtStr
+      Just a -> return (incDec, a)
+  } <?> "increase or decrease amount"
 
 doubleQuoted :: Parser String
-doubleQuoted = char '"' *> readThrough '"'
+doubleQuoted = char '"' *> readThrough '"' <?> "double quoted field"
 
 desc :: Parser Y.Desc
-desc = fmap (Y.Desc . X.pack) $ doubleQuoted <* char ','
+desc = (Y.Desc . X.pack)
+       <$> (doubleQuoted <* char ',')
+       <?> "description"
 
 payee :: Parser Y.Payee
-payee = fmap (Y.Payee . X.pack) $ doubleQuoted <* char ','
+payee = (Y.Payee . X.pack)
+        <$> (doubleQuoted <* char ',')
+        <?> "payee"
 
 amexId :: Parser Y.FitId
-amexId = fmap (Y.FitId . X.pack)
-         $ char '"' *> char '\'' *> readThrough '\''
-           <* char '"' <* char ','
+amexId = (Y.FitId . X.pack)
+         <$> ( char '"' *> char '\'' *> readThrough '\''
+               <* char '"' <* char ','
+             )
+         <?> "Amex ID"
 
 
 -- | Skips a field. Will skip a quoted field or,
@@ -96,26 +103,26 @@ skipField =
 
 -- | Parses last field (currently unknown). Parsers the EOL character.
 skipLast :: Parser ()
-skipLast = skipThrough '\n'
+skipLast = skipThrough '\n' <?> "last field"
 
 posting :: Parser Y.Posting
 posting =
   f
   <$> date                                        -- 1
-  <*  skipField                                   -- 2 Unknown
+  <*  (skipField <?> "field 2")                   -- 2 Unknown
   <*> desc                                        -- 3 Description
-  <*  skipField                                   -- 4 Unknown
-  <*  skipField                                   -- 5 Unknown
-  <*  skipField                                   -- 6 Unknown
-  <*  skipField                                   -- 7 Unknown
+  <*  (skipField <?> "field 4")                   -- 4 Unknown
+  <*  (skipField <?> "field 5")                   -- 5 Unknown
+  <*  (skipField <?> "field 6")                   -- 6 Unknown
+  <*  (skipField <?> "field 7")                   -- 7 Unknown
   <*> incDecAmount                                -- 8
-  <*  skipField                                   -- 9 Unknown
-  <*  skipField                                   -- 10 Category
+  <*  (skipField <?> "field 9")                   -- 9 Unknown
+  <*  (skipField <?> "field 10")                  -- 10 Category
   <*> payee                                       -- 11 D.B.A.
-  <*  skipField                                   -- 12 Address
-  <*  skipField                                   -- 13 Postcode
+  <*  (skipField <?> "field 12 - address")        -- 12 Address
+  <*  (skipField <?> "field 13 - postcode")       -- 13 Postcode
   <*> amexId                                      -- 14
-  <*  skipField                                   -- 15 Unknown
+  <*  (skipField <?> "field 15")                  -- 15 Unknown
   <*  skipLast                                    -- 16
   where
     f dt ds (t, a) p i = Y.Posting dt ds t a p i
