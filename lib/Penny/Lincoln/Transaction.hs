@@ -100,24 +100,6 @@ data Posting =
           }
   deriving (Eq, Show)
 
-runPosting
-  :: Monad m
-  => Posting meta m
-  -> m (Posting meta Identity)
-runPosting p = do
-  pa <- liftM Identity $ pPayee p
-  nu <- liftM Identity $ pNumber p
-  fl <- liftM Identity $ pFlag p
-  ac <- liftM Identity $ pAccount p
-  ta <- liftM Identity $ pTags p
-  en <- liftM Identity $ pEntry p
-  me <- liftM Identity $ pMemo p
-  ir <- liftM Identity $ pInferred p
-  pl <- liftM Identity $ pPostingLine p
-  fp <- liftM Identity $ pFilePosting p
-  let mt = pMeta p
-  return $ Posting pa nu fl ac ta en me ir pl fp mt
-
 -- | The TopLine holds information that applies to all the postings in
 -- a transaction (so named because in a ledger file, this information
 -- appears on the top line.)
@@ -133,23 +115,6 @@ data TopLine =
           , tGlobalTransaction :: Maybe B.GlobalTransaction
           , tFileTransaction :: Maybe B.FileTransaction }
   deriving (Eq, Show)
-
-runTopLine
-  :: Monad m
-  => TopLine meta m
-  -> m (TopLine meta Identity)
-runTopLine t = do
-  dt <- liftM Identity $ tDateTime t
-  fl <- liftM Identity $ tFlag t
-  nu <- liftM Identity $ tNumber t
-  pa <- liftM Identity $ tPayee t
-  me <- liftM Identity $ tMemo t
-  tll <- liftM Identity $ tTopLineLine t
-  tml <- liftM Identity $ tTopMemoLine t
-  fn <- liftM Identity $ tFilename t
-  ft <- liftM Identity $ tFileTransaction t
-  let mt = tMeta t
-  return $ TopLine dt fl nu pa me tll tml fn ft mt
 
 -- | All the Postings in a Transaction must produce a Total whose
 -- debits and credits are equal. That is, the Transaction must be
