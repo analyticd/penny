@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, DeriveGeneric #-}
 -- | Penny quantities. A quantity is simply a count (possibly
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
@@ -32,6 +32,8 @@ module Penny.Lincoln.Bits.Qty
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
+import qualified Data.Binary as B
+import GHC.Generics (Generic)
 import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Ord (comparing)
@@ -102,7 +104,9 @@ readInteger s = case reads s of
 -- want 'equivalent'.
 data Qty = Qty { mantissa :: Integer
                , places :: Integer
-               } deriving Eq
+               } deriving (Eq, Generic)
+
+instance B.Binary Qty
 
 type Mantissa = Integer
 type Places = Integer
