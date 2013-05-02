@@ -1,18 +1,54 @@
+{-# LANGUAGE CPP #-}
 -- | Penny quantities. A quantity is simply a count (possibly
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
-module Penny.Lincoln.Bits.Qty (
-  Qty, NumberStr(..), toQty, mantissa, places, newQty,
-  Mantissa, Places,
-  add, mult, Difference(LeftBiggerBy, RightBiggerBy, Equal),
-  equivalent, difference, allocate,
-  TotSeats, PartyVotes, SeatsWon, largestRemainderMethod) where
+module Penny.Lincoln.Bits.Qty
+  ( Qty
+  , NumberStr(..)
+  , toQty
+  , mantissa
+  , places
+  , newQty
+  , Mantissa
+  , Places
+  , add
+  , mult
+  , Difference(LeftBiggerBy, RightBiggerBy, Equal)
+  , equivalent
+  , difference
+  , allocate
+  , TotSeats
+  , PartyVotes
+  , SeatsWon
+  , largestRemainderMethod
+
+#ifdef test
+  , tests
+  , genSized
+  , genRangeInt
+#endif
+
+  ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as F
 import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Ord (comparing)
+
+#ifdef test
+import Control.Applicative ((<$>), (<*>))
+import qualified Test.QuickCheck as Q
+import Test.QuickCheck (Arbitrary(..), Gen)
+import qualified Test.Framework as TF
+import Test.Framework.Providers.QuickCheck2 (testProperty)
+
+tests :: TF.Test
+tests = TF.testGroup "Penny.Lincoln.Bits.Qty"
+  [ testProperty "mantissa is greater than zero" prop_mantissa
+  , testProperty "exponent is always at least zero" prop_exponent
+  ]
+#endif
 
 data NumberStr =
   Whole String
@@ -70,6 +106,40 @@ data Qty = Qty { mantissa :: Integer
 
 type Mantissa = Integer
 type Places = Integer
+
+#ifdef test
+
+-- | Generates Qty where the mantissa and the exponent depend on the
+-- size parameter.
+genSized :: Gen Qty
+genSized = do
+  Q.Positive m <- Q.arbitrarySizedIntegral
+  Q.NonNegative p <- Q.arbitrarySizedIntegral
+  return $ Qty m p
+
+-- | Generates Qty where the mantissa and exponent are over the range
+-- of Int, but small mantissas and exponents are generated more than
+-- large ones.
+genRangeInt :: Gen Qty
+genRangeInt =
+  Qty
+  <$> (fmap fromIntegral (Q.arbitrarySizedBoundedIntegral :: Gen Int))
+  <*> (fmap fromIntegral (Q.arbitrarySizedBoundedIntegral :: Gen Int))
+
+-- | Chooses one of 'genSized' or 'genRangeInt'.
+instance Arbitrary Qty where
+  arbitrary = Q.oneof [ genSized
+                      , genRangeInt ]
+
+-- | Mantissas are always greater than zero.
+prop_mantissa :: Qty -> Bool
+prop_mantissa q = mantissa q > 0
+
+-- | Exponent is always at least zero
+prop_exponent :: Qty -> Bool
+prop_exponent q = places q >= 0
+
+#endif
 
 newQty :: Mantissa -> Places -> Maybe Qty
 newQty m p

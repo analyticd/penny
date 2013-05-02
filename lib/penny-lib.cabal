@@ -140,6 +140,14 @@ Library
       Paths_penny_lib
 
 
+  if flag(test)
+    build-depends:
+        QuickCheck ==2.5.*
+      , test-framework ==0.8.*
+      , test-framework-quickcheck2 ==0.3.*
+
+    cpp-options: -Dtest
+
   ghc-options: -Wall
   if flag(debug)
     ghc-options: -auto-all -caf-all
@@ -148,3 +156,6 @@ Flag debug
   Description: turns on some debugging options
   Default: False
 
+Flag test
+  Description: enables QuickCheck tests
+  Default: False
