@@ -35,19 +35,19 @@ import Penny.Lincoln.Transaction (PostFam)
 import qualified Text.Matchers as M
 import qualified Data.Prednote.Pdct as P
 
-type LPdct = P.Pdct PostFam
+type LPdct tm pm = P.Pdct (PostFam tm pm)
 
-type MakePdct = M.Matcher -> LPdct
+type MakePdct tm pm = M.Matcher -> LPdct tm pm
 
 -- * Matching helpers
 match
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> [a])
+  -> (PostFam tm pm -> [a])
   -- ^ Function that returns the field being matched
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 match t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -57,9 +57,9 @@ matchMaybe
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> [Maybe a])
+  -> (PostFam tm pm -> [Maybe a])
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchMaybe t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -77,9 +77,9 @@ makeDesc t m
 matchAny
   :: HasTextList a
   => Text
-  -> (PostFam -> [a])
+  -> (PostFam tm pm -> [a])
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchAny t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -92,9 +92,9 @@ matchLevel
   :: HasTextList a
   => Int
   -> Text
-  -> (PostFam -> [a])
+  -> (PostFam tm pm -> [a])
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchLevel l d f m = P.operand desc pd
   where
     desc = makeDesc ("level " <> X.pack (show l) <> " of " <> d) m
@@ -107,9 +107,9 @@ matchLevel l d f m = P.operand desc pd
 -- the memo with a space.
 matchMemo
   :: Text
-  -> (PostFam -> [Maybe B.Memo])
+  -> (PostFam tm pm -> [Maybe B.Memo])
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchMemo t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -124,30 +124,30 @@ matchDelimited
   -- ^ Separator
   -> Text
   -- ^ Label
-  -> (PostFam -> [a])
+  -> (PostFam tm pm -> [a])
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchDelimited sep lbl f m = match lbl f' m
   where
     f' = map (X.concat . intersperse sep . textList) . f
 
 -- * Pattern matching fields
 
-payee :: MakePdct
+payee :: MakePdct tm pm
 payee = matchMaybe "payee" Q.payee
 
-number :: MakePdct
+number :: MakePdct tm pm
 number = matchMaybe "number" Q.number
 
-flag :: MakePdct
+flag :: MakePdct tm pm
 flag = matchMaybe "flag" Q.flag
 
-postingMemo :: MakePdct
+postingMemo :: MakePdct tm pm
 postingMemo = matchMemo "posting memo" Q.postingMemo
 
 -- | A Pdct that returns True if @compare subject qty@ returns the
 -- given Ordering.
-qty :: Ordering -> B.Qty -> LPdct
+qty :: Ordering -> B.Qty -> LPdct tm pm
 qty o q = P.operand desc pd
   where
     desc = "quantity of any sibling is " <> dd <> " " <> X.pack (show q)
@@ -159,7 +159,7 @@ qty o q = P.operand desc pd
 
 parseQty
   :: X.Text
-  -> Maybe (B.Qty -> LPdct)
+  -> Maybe (B.Qty -> LPdct tm pm)
 parseQty x
   | x == "==" = Just (qty EQ)
   | x == "=" = Just (qty EQ)
@@ -171,37 +171,37 @@ parseQty x
   | x == "<=" = Just (\q -> P.or [qty LT q, qty EQ q])
   | otherwise = Nothing
 
-drCr :: B.DrCr -> LPdct
+drCr :: B.DrCr -> LPdct tm pm
 drCr dc = P.operand desc pd
   where
     desc = "entry of any sibling is a " <> s
     s = case dc of { B.Debit -> "debit"; B.Credit -> "credit" }
     pd = any (== dc) . Q.drCr
 
-debit :: LPdct
+debit :: LPdct tm pm
 debit = drCr B.Debit
 
-credit :: LPdct
+credit :: LPdct tm pm
 credit = drCr B.Credit
 
-commodity :: M.Matcher -> LPdct
+commodity :: M.Matcher -> LPdct tm pm
 commodity = match "commodity" Q.commodity
 
-account :: M.Matcher -> LPdct
+account :: M.Matcher -> LPdct tm pm
 account = matchDelimited ":" "account" Q.account
 
-accountLevel :: Int -> M.Matcher -> LPdct
+accountLevel :: Int -> M.Matcher -> LPdct tm pm
 accountLevel i = matchLevel i "account" Q.account
 
-accountAny :: M.Matcher -> LPdct
+accountAny :: M.Matcher -> LPdct tm pm
 accountAny = matchAny "any sub-account" Q.account
 
-tag :: M.Matcher -> LPdct
+tag :: M.Matcher -> LPdct tm pm
 tag = matchAny "any tag" Q.tags
 
 -- | True if a posting is reconciled; that is, its flag is exactly
 -- @R@.
-reconciled :: LPdct
+reconciled :: LPdct tm pm
 reconciled = P.operand d p
   where
     d = "posting flag is exactly \"R\" (is reconciled)"

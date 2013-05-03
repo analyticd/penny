@@ -15,86 +15,77 @@ import qualified Data.Time as Time
 -- | Uses the data from the Posting if it is set; otherwise, use the
 -- data from the TopLine.
 best ::
-  (T.Posting -> Maybe a)
-  -> (T.TopLine -> Maybe a)
-  -> T.PostFam
+  (T.Posting pm -> Maybe a)
+  -> (T.TopLine tm -> Maybe a)
+  -> T.PostFam tm pm
   -> Maybe a
 best fp ft c = case fp . child . T.unPostFam $ c of
   Just r -> Just r
   Nothing -> ft . parent . T.unPostFam $ c
 
 
-payee :: T.PostFam -> Maybe B.Payee
+payee :: T.PostFam tm pm -> Maybe B.Payee
 payee = best T.pPayee T.tPayee
 
-number :: T.PostFam -> Maybe B.Number
+number :: T.PostFam tm pm -> Maybe B.Number
 number = best T.pNumber T.tNumber
 
-flag :: T.PostFam -> Maybe B.Flag
+flag :: T.PostFam tm pm -> Maybe B.Flag
 flag = best T.pFlag T.tFlag
 
-postingMemo :: T.PostFam -> Maybe B.Memo
+postingMemo :: T.PostFam tm pm -> Maybe B.Memo
 postingMemo = T.pMemo . child . T.unPostFam
 
-transactionMemo :: T.PostFam -> Maybe B.Memo
+transactionMemo :: T.PostFam tm pm -> Maybe B.Memo
 transactionMemo = T.tMemo . parent . T.unPostFam
 
-dateTime :: T.PostFam -> B.DateTime
+dateTime :: T.PostFam tm pm -> B.DateTime
 dateTime = T.tDateTime . parent . T.unPostFam
 
-localDay :: T.PostFam -> Time.Day
+localDay :: T.PostFam tm pm -> Time.Day
 localDay = B.day . dateTime
 
-account :: T.PostFam -> B.Account
+account :: T.PostFam tm pm -> B.Account
 account = T.pAccount . child . T.unPostFam
 
-tags :: T.PostFam -> B.Tags
+tags :: T.PostFam tm pm -> B.Tags
 tags = T.pTags . child . T.unPostFam
 
-entry :: T.PostFam -> B.Entry
+entry :: T.PostFam tm pm -> B.Entry
 entry = T.pEntry . child . T.unPostFam
 
-balance :: T.PostFam -> Balance
+balance :: T.PostFam tm pm -> Balance
 balance = entryToBalance . entry
 
-drCr :: T.PostFam -> B.DrCr
+drCr :: T.PostFam tm pm -> B.DrCr
 drCr = B.drCr . entry
 
-amount :: T.PostFam -> B.Amount
+amount :: T.PostFam tm pm -> B.Amount
 amount = B.amount . entry
 
-qty :: T.PostFam -> B.Qty
+qty :: T.PostFam tm pm -> B.Qty
 qty = B.qty . amount
 
-commodity :: T.PostFam -> B.Commodity
+commodity :: T.PostFam tm pm -> B.Commodity
 commodity = B.commodity . amount
 
-topMemoLine :: T.PostFam -> Maybe B.TopMemoLine
+topMemoLine :: T.PostFam tm pm -> Maybe B.TopMemoLine
 topMemoLine = T.tTopMemoLine . parent . T.unPostFam
 
-topLineLine :: T.PostFam -> Maybe B.TopLineLine
+topLineLine :: T.PostFam tm pm -> Maybe B.TopLineLine
 topLineLine = T.tTopLineLine . parent . T.unPostFam
 
-filename :: T.PostFam -> Maybe B.Filename
-filename = T.tFilename . parent . T.unPostFam
-
-globalTransaction :: T.PostFam -> Maybe B.GlobalTransaction
-globalTransaction = T.tGlobalTransaction . parent . T.unPostFam
-
-fileTransaction :: T.PostFam -> Maybe B.FileTransaction
+fileTransaction :: T.PostFam tm pm -> Maybe B.FileTransaction
 fileTransaction = T.tFileTransaction . parent . T.unPostFam
 
-postingLine :: T.PostFam -> Maybe B.PostingLine
+postingLine :: T.PostFam tm pm -> Maybe B.PostingLine
 postingLine = T.pPostingLine . child . T.unPostFam
 
-side :: T.PostFam -> Maybe B.Side
+side :: T.PostFam tm pm -> Maybe B.Side
 side = B.side . amount
 
-spaceBetween :: T.PostFam -> Maybe B.SpaceBetween
+spaceBetween :: T.PostFam tm pm -> Maybe B.SpaceBetween
 spaceBetween = B.spaceBetween . amount
 
-globalPosting :: T.PostFam -> Maybe B.GlobalPosting
-globalPosting = T.pGlobalPosting . child . T.unPostFam
-
-filePosting :: T.PostFam -> Maybe B.FilePosting
-filePosting = T.pFilePosting . child . T.unPostFam
+meta :: T.PostFam tm pm -> pm
+meta = T.pMeta . child . T.unPostFam

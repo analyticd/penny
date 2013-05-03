@@ -136,7 +136,6 @@ module Penny.Lincoln (
   , T.RTransaction(..)
   , T.rTransaction
   , T.Error ( UnbalancedError, CouldNotInferError)
-  , T.toUnverified
 
     -- ** Querying postings
   , T.Inferred(Inferred, NotInferred)
@@ -149,8 +148,8 @@ module Penny.Lincoln (
   , T.pMemo
   , T.pInferred
   , T.pPostingLine
-  , T.pGlobalPosting
   , T.pFilePosting
+  , T.pMeta
 
     -- ** Querying transactions
   , T.TopLine
@@ -161,17 +160,13 @@ module Penny.Lincoln (
   , T.tMemo
   , T.tTopLineLine
   , T.tTopMemoLine
-  , T.tFilename
-  , T.tGlobalTransaction
   , T.tFileTransaction
+  , T.tMeta
   , T.postFam
 
     -- ** Unwrapping Transactions
   , T.unTransaction
   , T.unPostFam
-
-    -- ** Transaction boxes
-  , T.Box (Box, boxMeta, boxPostFam)
 
     -- ** Changing transactions
   , T.TopLineChangeData(..)
@@ -246,12 +241,12 @@ import System.Locale (defaultTimeLocale)
 -- Format:
 --
 -- File LineNo Date Payee Acct DrCr Cmdty Qty
-display :: T.PostFam -> Text
+display :: T.PostFam tm (Maybe I.Filename) -> Text
 display p = X.pack $ concat (intersperse " " ls)
   where
     ls = [file, lineNo, dt, pye, acct, dc, cmdty, qt]
     file = maybe (labelNo "filename") (X.unpack . I.unFilename)
-           (Q.filename p)
+           (Q.meta p)
     lineNo = maybe (labelNo "line number")
              (show . I.unPostingLine) (Q.postingLine p)
     dateFormat = "%Y-%m-%d %T %z"

@@ -21,11 +21,7 @@ module Penny.Lincoln.Predicates
   , accountLevel
   , accountAny
   , tag
-  , filename
   , reconciled
-  , clonedTransactions
-  , clonedTopLines
-  , clonedPostings
   ) where
 
 
@@ -36,26 +32,24 @@ import qualified Data.Text as X
 import qualified Data.Time as Time
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
-import qualified Penny.Lincoln.Family.Family as F
 import qualified Penny.Lincoln.Queries as Q
 import Penny.Lincoln.Transaction (PostFam)
-import qualified Penny.Lincoln.Transaction as T
 import qualified Text.Matchers as M
 import qualified Data.Prednote.Pdct as P
 
-type LPdct = P.Pdct PostFam
+type LPdct tm pm = P.Pdct (PostFam tm pm)
 
-type MakePdct = M.Matcher -> LPdct
+type MakePdct tm pm = M.Matcher -> LPdct tm pm
 
 -- * Matching helpers
 match
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> a)
+  -> (PostFam tm pm -> a)
   -- ^ Function that returns the field being matched
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 match t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -65,9 +59,9 @@ matchMaybe
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> Maybe a)
+  -> (PostFam tm pm -> Maybe a)
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchMaybe t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -83,9 +77,9 @@ makeDesc t m
 matchAny
   :: HasTextList a
   => Text
-  -> (PostFam -> a)
+  -> (PostFam tm pm -> a)
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchAny t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -98,9 +92,9 @@ matchLevel
   :: HasTextList a
   => Int
   -> Text
-  -> (PostFam -> a)
+  -> (PostFam tm pm -> a)
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchLevel l d f m = P.operand desc pd
   where
     desc = makeDesc ("level " <> X.pack (show l) <> " of " <> d) m
@@ -113,9 +107,9 @@ matchLevel l d f m = P.operand desc pd
 -- the memo with a space.
 matchMemo
   :: Text
-  -> (PostFam -> Maybe B.Memo)
+  -> (PostFam tm pm -> Maybe B.Memo)
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchMemo t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -130,31 +124,28 @@ matchDelimited
   -- ^ Separator
   -> Text
   -- ^ Label
-  -> (PostFam -> a)
+  -> (PostFam tm pm -> a)
   -> M.Matcher
-  -> LPdct
+  -> LPdct tm pm
 matchDelimited sep lbl f m = match lbl f' m
   where
     f' = X.concat . intersperse sep . textList . f
 
 -- * Pattern matching fields
 
-payee :: MakePdct
+payee :: MakePdct tm pm
 payee = matchMaybe "payee" Q.payee
 
-number :: MakePdct
+number :: MakePdct tm pm
 number = matchMaybe "number" Q.number
 
-flag :: MakePdct
+flag :: MakePdct tm pm
 flag = matchMaybe "flag" Q.flag
 
-filename :: MakePdct
-filename = matchMaybe "filename" Q.filename
-
-postingMemo :: MakePdct
+postingMemo :: MakePdct tm pm
 postingMemo = matchMemo "posting memo" Q.postingMemo
 
-transactionMemo :: MakePdct
+transactionMemo :: MakePdct tm pm
 transactionMemo = matchMemo "transaction memo" Q.transactionMemo
 
 -- * Date
@@ -162,93 +153,50 @@ transactionMemo = matchMemo "transaction memo" Q.transactionMemo
 date
   :: Ordering
   -> Time.UTCTime
-  -> LPdct
+  -> LPdct tm pm
 date ord u = P.compareBy (X.pack . show $ u)
              "UTC date and time"
            (\l -> compare (B.toUTC . Q.dateTime $ l) u) ord
 
 
-qty :: Ordering -> B.Qty -> LPdct
+qty :: Ordering -> B.Qty -> LPdct tm pm
 qty o q = P.compareBy (X.pack . show $ q) "quantity"
           (\l -> compare (Q.qty l) q) o
 
 
-drCr :: B.DrCr -> LPdct
+drCr :: B.DrCr -> LPdct tm pm
 drCr dc = P.operand desc pd
   where
     desc = "entry is a " <> s
     s = case dc of { B.Debit -> "debit"; B.Credit -> "credit" }
     pd pf = Q.drCr pf == dc
 
-debit :: LPdct
+debit :: LPdct tm pm
 debit = drCr B.Debit
 
-credit :: LPdct
+credit :: LPdct tm pm
 credit = drCr B.Credit
 
-commodity :: M.Matcher -> LPdct
+commodity :: M.Matcher -> LPdct tm pm
 commodity = match "commodity" Q.commodity
 
-account :: M.Matcher -> LPdct
+account :: M.Matcher -> LPdct tm pm
 account = matchDelimited ":" "account" Q.account
 
-accountLevel :: Int -> M.Matcher -> LPdct
+accountLevel :: Int -> M.Matcher -> LPdct tm pm
 accountLevel i = matchLevel i "account" Q.account
 
-accountAny :: M.Matcher -> LPdct
+accountAny :: M.Matcher -> LPdct tm pm
 accountAny = matchAny "any sub-account" Q.account
 
-tag :: M.Matcher -> LPdct
+tag :: M.Matcher -> LPdct tm pm
 tag = matchAny "any tag" Q.tags
 
 -- | True if a posting is reconciled; that is, its flag is exactly
 -- @R@.
-reconciled :: LPdct
+reconciled :: LPdct tm pm
 reconciled = P.operand d p
   where
     d = "posting flag is exactly \"R\" (is reconciled)"
     p = maybe False ((== X.singleton 'R') . B.unFlag) . Q.flag
-
--- | Returns True if these two transactions are clones; that is, if
--- they are identical in all respects except some aspects of their
--- metadata. The metadata that is disregarded when testing for clones
--- pertains to the location of the transaction. (Resembles cloned
--- sheep, which are identical but cannot be in exactly the same
--- place.)
-clonedTransactions :: T.Transaction -> T.Transaction -> Bool
-clonedTransactions a b =
-  let (F.Family ta p1a p2a psa) = T.unTransaction a
-      (F.Family tb p1b p2b psb) = T.unTransaction b
-  in clonedTopLines ta tb
-     && clonedPostings p1a p1b
-     && clonedPostings p2a p2b
-     && (length psa == length psb)
-     && (and (zipWith clonedPostings psa psb))
-
--- | Returns True if two TopLines are clones. Considers only the
--- non-metadata aspects of the TopLine; the metadata all pertains only
--- to the location of the TopLine. The DateTimes are compared based on
--- both the local time and the time zone; that is, two times that
--- refer to the same instant will not compare as identical if they
--- have different time zones.
-clonedTopLines :: T.TopLine -> T.TopLine -> Bool
-clonedTopLines t1 t2 =
-  (T.tDateTime t1 == T.tDateTime t2)
-  && (T.tFlag t1 == T.tFlag t2)
-  && (T.tNumber t1 == T.tNumber t2)
-  && (T.tPayee t2 == T.tPayee t2)
-  && (T.tMemo t1 == T.tMemo t2)
-
--- | Returns True if two Postings are clones. Considers only the
--- non-location-related aspects of the posting metadata.
-clonedPostings :: T.Posting -> T.Posting -> Bool
-clonedPostings p1 p2 =
-  (T.pPayee p1 == T.pPayee p2)
-  && (T.pNumber p1 == T.pNumber p2)
-  && (T.pFlag p1 == T.pFlag p2)
-  && (T.pAccount p1 == T.pAccount p2)
-  && (T.pTags p1 == T.pTags p2)
-  && (T.pEntry p1 == T.pEntry p2)
-  && (T.pMemo p1 == T.pMemo p2)
-  && (T.pInferred p1 == T.pInferred p2)
 

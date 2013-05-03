@@ -392,7 +392,7 @@ tags (L.Tags ts) =
 
 -- | Renders the TopLine. Emits trailing whitespace after the newline
 -- so that the first posting is properly indented.
-topLine :: LT.TopLine -> Maybe X.Text
+topLine :: LT.TopLine tm -> Maybe X.Text
 topLine tl =
   f
   <$> renMaybe (LT.tMemo tl) transactionMemo
@@ -447,7 +447,7 @@ posting ::
   GroupSpecs
   -> Bool
   -- ^ If True, emit four spaces after the trailing newline.
-  -> L.Posting
+  -> L.Posting pm
   -> Maybe X.Text
 posting gs pad p = do
   fl <- renMaybe (LT.pFlag p) flag
@@ -494,7 +494,7 @@ formatter pad fl nu pa ac ta en me = let
 
 transaction ::
   GroupSpecs
-  -> L.Transaction
+  -> L.Transaction tm pm
   -> Maybe X.Text
 transaction gs txn = do
   let (L.Family tl p1 p2 ps) = LT.unTransaction txn
@@ -510,7 +510,7 @@ transaction gs txn = do
 
 -- * Item
 
-item :: GroupSpecs -> Y.Item -> Maybe X.Text
+item :: GroupSpecs -> Y.Item tm pm -> Maybe X.Text
 item gs i = case i of
   Y.BlankLine -> Just . X.singleton $ '\n'
   Y.IComment x -> comment x
@@ -519,5 +519,5 @@ item gs i = case i of
 
 -- * Ledger
 
-ledger :: GroupSpecs -> Y.Ledger -> Maybe X.Text
+ledger :: GroupSpecs -> Y.Ledger tm pm -> Maybe X.Text
 ledger gs (Y.Ledger is) = fmap X.concat . mapM (item gs) $ is

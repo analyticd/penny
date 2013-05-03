@@ -33,22 +33,18 @@ module Penny.Lincoln.Transaction (
   RTransaction(..),
   rTransaction,
   Error ( UnbalancedError, CouldNotInferError),
-  toUnverified,
 
   -- * Querying postings
   Inferred(Inferred, NotInferred),
   pPayee, pNumber, pFlag, pAccount, pTags,
   pEntry, pMemo, pInferred, pPostingLine,
-  pGlobalPosting, pFilePosting,
+  pFilePosting, pMeta,
 
   -- * Querying transactions
   TopLine,
   tDateTime, tFlag, tNumber, tPayee, tMemo, tTopLineLine,
-  tTopMemoLine, tFilename, tGlobalTransaction, tFileTransaction,
+  tTopMemoLine, tFileTransaction, tMeta,
   unTransaction, postFam,
-
-  -- * Box
-  Box ( Box, boxMeta, boxPostFam ),
 
   -- * Changers
 
@@ -78,7 +74,7 @@ import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Foldable as Fdbl
-import Data.Maybe ( catMaybes, fromMaybe )
+import Data.Maybe ( catMaybes )
 import qualified Data.Traversable as Tr
 import qualified Control.Monad.Trans.State.Lazy as St
 import Control.Monad.Trans.Class ( lift )
@@ -91,7 +87,7 @@ data Inferred = Inferred | NotInferred deriving (Eq, Show, Generic)
 instance B.Binary Inferred
 
 -- | Each Transaction consists of at least two Postings.
-data Posting =
+data Posting pm =
   Posting { pPayee    :: Maybe B.Payee
           , pNumber   :: Maybe B.Number
           , pFlag     :: Maybe B.Flag
@@ -101,17 +97,17 @@ data Posting =
           , pMemo     :: Maybe B.Memo
           , pInferred :: Inferred
           , pPostingLine :: Maybe B.PostingLine
-          , pGlobalPosting :: Maybe B.GlobalPosting
           , pFilePosting :: Maybe B.FilePosting
+          , pMeta :: pm
           }
   deriving (Eq, Show, Generic)
 
-instance B.Binary Posting
+instance B.Binary pm => B.Binary (Posting pm)
 
 -- | The TopLine holds information that applies to all the postings in
 -- a transaction (so named because in a ledger file, this information
 -- appears on the top line.)
-data TopLine =
+data TopLine tm =
   TopLine { tDateTime :: B.DateTime
           , tFlag     :: Maybe B.Flag
           , tNumber   :: Maybe B.Number
@@ -119,35 +115,35 @@ data TopLine =
           , tMemo     :: Maybe B.Memo
           , tTopLineLine :: Maybe B.TopLineLine
           , tTopMemoLine :: Maybe B.TopMemoLine
-          , tFilename :: Maybe B.Filename
-          , tGlobalTransaction :: Maybe B.GlobalTransaction
-          , tFileTransaction :: Maybe B.FileTransaction }
+          , tFileTransaction :: Maybe B.FileTransaction
+          , tMeta :: tm }
   deriving (Eq, Show, Generic)
 
-instance B.Binary TopLine
+instance B.Binary tm => B.Binary (TopLine tm)
 
 -- | All the Postings in a Transaction must produce a Total whose
 -- debits and credits are equal. That is, the Transaction must be
 -- balanced. No Transactions are created that are not balanced.
-newtype Transaction =
-  Transaction { unTransaction :: F.Family TopLine Posting }
+newtype Transaction tm pm =
+  Transaction { unTransaction :: F.Family (TopLine tm) (Posting pm) }
   deriving (Eq, Show, Generic)
 
-instance B.Binary Transaction
+instance (B.Binary tm, B.Binary pm) => B.Binary (Transaction tm pm)
 
 -- | Errors that can arise when making a Transaction.
 data Error = UnbalancedError
            | CouldNotInferError
            deriving (Eq, Show)
 
-newtype PostFam = PostFam { unPostFam :: C.Child TopLine Posting }
-                  deriving (Show, Generic)
+newtype PostFam tm pm = PostFam
+  { unPostFam :: C.Child (TopLine tm) (Posting pm) }
+  deriving (Show, Generic)
 
-instance B.Binary PostFam
+instance (B.Binary tm, B.Binary pm) => B.Binary (PostFam tm pm)
 
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.
-postFam :: Transaction -> [PostFam]
+postFam :: Transaction tm pm -> [PostFam tm pm]
 postFam (Transaction ps) = map PostFam . Fdbl.toList . children $ ps
 
 {- BNF-like grammar for the various sorts of allowed postings.
@@ -160,17 +156,10 @@ balancedGroup ::= "at least 2 postings. All postings have the same
 
 -}
 
--- | Deconstruct a Transaction to a family of unverified data.
-toUnverified :: Transaction -> F.Family U.TopLine U.Posting
-toUnverified = F.mapParent fp . F.mapChildren fc . unTransaction
-  where
-    fp tl = toUTopLine tl
-    fc p = toUPosting p
-
 -- | Makes transactions.
 transaction ::
-  F.Family U.TopLine U.Posting
-  -> Exceptional Error Transaction
+  F.Family (U.TopLine tm) (U.Posting pm)
+  -> Exceptional Error (Transaction tm pm)
 transaction f@(F.Family p _ _ _) = do
   let os = orphans f
       t = totalAll os
@@ -178,7 +167,7 @@ transaction f@(F.Family p _ _ _) = do
   a2 <- inferAll os t
   return $ Transaction (adopt p' a2)
 
-totalAll :: S.Siblings U.Posting
+totalAll :: S.Siblings (U.Posting pm)
          -> Bal.Balance
 totalAll =
   Fdbl.foldr1 Bal.addBalances
@@ -187,9 +176,9 @@ totalAll =
   . fmap (fmap Bal.entryToBalance . U.pEntry)
 
 infer ::
-  U.Posting
+  U.Posting pm
   -> Ex.ExceptionalT Error
-  (St.State (Maybe B.Entry)) Posting
+  (St.State (Maybe B.Entry)) (Posting pm)
 infer po =
   case U.pEntry po of
     Nothing -> do
@@ -203,8 +192,8 @@ infer po =
 
 runInfer ::
   Maybe B.Entry
-  -> S.Siblings U.Posting
-  -> Exceptional Error (S.Siblings Posting)
+  -> S.Siblings (U.Posting pm)
+  -> Exceptional Error (S.Siblings (Posting pm))
 runInfer me pos = do
   let (res, finalSt) = St.runState ext me
       ext = Ex.runExceptionalT (Tr.mapM infer pos)
@@ -215,9 +204,9 @@ runInfer me pos = do
       (Success g) -> return g
 
 inferAll ::
-  S.Siblings U.Posting
+  S.Siblings (U.Posting pm)
   -> Bal.Balance
-  -> Exceptional Error (S.Siblings Posting)
+  -> Exceptional Error (S.Siblings (Posting pm))
 inferAll pos t = do
   en <- case Bal.isBalanced t of
     Bal.Balanced -> return Nothing
@@ -225,27 +214,11 @@ inferAll pos t = do
     Bal.NotInferable -> throw UnbalancedError
   runInfer en pos
 
-toUPosting :: Posting -> U.Posting
-toUPosting p = U.Posting
-  { U.pPayee = pPayee p
-  , U.pNumber = pNumber p
-  , U.pFlag = pFlag p
-  , U.pAccount = pAccount p
-  , U.pTags = pTags p
-  , U.pEntry = case pInferred p of
-      Inferred -> Nothing
-      NotInferred -> Just (pEntry p)
-  , U.pMemo = pMemo p
-  , U.pPostingLine = pPostingLine p
-  , U.pGlobalPosting = pGlobalPosting p
-  , U.pFilePosting = pFilePosting p
-  }
 
-
-toPosting :: U.Posting
+toPosting :: U.Posting pm
              -> B.Entry
              -> Inferred
-             -> Posting
+             -> Posting pm
 toPosting u e i =
   Posting
   { pPayee    = U.pPayee u
@@ -257,26 +230,12 @@ toPosting u e i =
   , pMemo     = U.pMemo u
   , pInferred = i
   , pPostingLine = U.pPostingLine u
-  , pGlobalPosting = U.pGlobalPosting u
   , pFilePosting = U.pFilePosting u
+  , pMeta = U.pMeta u
   }
 
 
-toUTopLine :: TopLine -> U.TopLine
-toUTopLine t = U.TopLine
-  { U.tDateTime = tDateTime t
-  , U.tFlag     = tFlag t
-  , U.tNumber   = tNumber t
-  , U.tPayee    = tPayee t
-  , U.tMemo     = tMemo t
-  , U.tTopLineLine = tTopLineLine t
-  , U.tTopMemoLine = tTopMemoLine t
-  , U.tFilename = tFilename t
-  , U.tGlobalTransaction = tGlobalTransaction t
-  , U.tFileTransaction = tFileTransaction t
-  }
-
-toTopLine :: U.TopLine -> TopLine
+toTopLine :: U.TopLine tm -> TopLine tm
 toTopLine t = TopLine
   { tDateTime = U.tDateTime t
   , tFlag     = U.tFlag t
@@ -285,12 +244,11 @@ toTopLine t = TopLine
   , tMemo     = U.tMemo t
   , tTopLineLine = U.tTopLineLine t
   , tTopMemoLine = U.tTopMemoLine t
-  , tFilename = U.tFilename t
-  , tGlobalTransaction = U.tGlobalTransaction t
   , tFileTransaction = U.tFileTransaction t
+  , tMeta = U.tMeta t
   }
 
-fromRPosting :: U.RPosting -> B.Entry -> Inferred -> Posting
+fromRPosting :: U.RPosting pm -> B.Entry -> Inferred -> Posting pm
 fromRPosting u e i = Posting
   { pPayee    = U.rPayee u
   , pNumber   = U.rNumber u
@@ -301,11 +259,11 @@ fromRPosting u e i = Posting
   , pMemo     = U.rMemo u
   , pInferred = i
   , pPostingLine = U.rPostingLine u
-  , pGlobalPosting = U.rGlobalPosting u
   , pFilePosting = U.rFilePosting u
+  , pMeta = U.rMeta u
   }
 
-fromIPosting :: U.IPosting -> B.Entry -> Inferred -> Posting
+fromIPosting :: U.IPosting pm -> B.Entry -> Inferred -> Posting pm
 fromIPosting u e i = Posting
   { pPayee    = U.iPayee u
   , pNumber   = U.iNumber u
@@ -316,11 +274,11 @@ fromIPosting u e i = Posting
   , pMemo     = U.iMemo u
   , pInferred = i
   , pPostingLine = U.iPostingLine u
-  , pGlobalPosting = U.iGlobalPosting u
   , pFilePosting = U.iFilePosting u
+  , pMeta = U.iMeta u
   }
 
-data RTransaction = RTransaction
+data RTransaction tm pm = RTransaction
   { rtCommodity :: B.Commodity
     -- ^ All postings will have this same commodity
 
@@ -333,15 +291,15 @@ data RTransaction = RTransaction
   , rtDrCr :: B.DrCr
   -- ^ All postings except the inferred one will have this DrCr
 
-  , rtTopLine :: U.TopLine
+  , rtTopLine :: U.TopLine tm
 
-  , rtPosting :: U.RPosting
+  , rtPosting :: U.RPosting pm
   -- ^ You must have at least one posting whose quantity you specify
 
-  , rtMorePostings :: [U.RPosting]
+  , rtMorePostings :: [U.RPosting pm]
   -- ^ Optionally you can have additional restricted postings.
 
-  , rtIPosting :: U.IPosting
+  , rtIPosting :: U.IPosting pm
   -- ^ And at least one posting whose quantity and DrCr will be inferred
 
   } deriving Show
@@ -352,7 +310,7 @@ data RTransaction = RTransaction
 -- have no quantity specified at all and will be inferred. Creating
 -- these transactions never fails, in contrast to the transactions
 -- created by 'transaction', which can fail at runtime.
-rTransaction :: RTransaction -> Transaction
+rTransaction :: RTransaction tm pm -> Transaction tm pm
 rTransaction rt = Transaction (F.Family tl p1 p2 ps)
   where
     tl = toTopLine (rtTopLine rt)
@@ -372,119 +330,102 @@ rTransaction rt = Transaction (F.Family tl p1 p2 ps)
       [] -> (inf, [])
       x:xs -> (toPstg x, (map toPstg xs) ++ [inf])
 
--- | A box stores a family of transaction data along with
--- metadata. The transaction is stored in child form, indicating a
--- particular posting of interest. The metadata is in addition to the
--- metadata associated with the TopLine and with each posting.
-data Box m =
-  Box { boxMeta :: m
-      , boxPostFam :: PostFam }
-  deriving Show
-
-instance Functor Box where
-  fmap f (Box m pf) = Box (f m) pf
-
 -------------------------------------------------------------
 -- Changers
 -------------------------------------------------------------
 
 -- | Each field in the record is a Maybe. If Nothing, make no change
 -- to this part of the TopLine.
-data TopLineChangeData = TopLineChangeData
-  { tcDateTime :: Maybe B.DateTime
-  , tcFlag :: Maybe (Maybe B.Flag)
-  , tcNumber :: Maybe (Maybe B.Number)
-  , tcPayee :: Maybe (Maybe B.Payee)
-  , tcMemo :: Maybe (Maybe B.Memo)
-  , tcTopLineLine :: Maybe (Maybe B.TopLineLine)
-  , tcTopMemoLine :: Maybe (Maybe B.TopMemoLine)
-  , tcFilename :: Maybe (Maybe B.Filename)
-  , tcGlobalTransaction :: Maybe (Maybe B.GlobalTransaction)
-  , tcFileTransaction :: Maybe (Maybe B.FileTransaction)
-  } deriving Show
+data TopLineChangeData om nm = TopLineChangeData
+  { tcDateTime :: B.DateTime -> B.DateTime
+  , tcFlag :: Maybe B.Flag -> Maybe B.Flag
+  , tcNumber :: Maybe B.Number -> Maybe B.Number
+  , tcPayee :: Maybe B.Payee -> Maybe B.Payee
+  , tcMemo :: Maybe B.Memo -> Maybe B.Memo
+  , tcTopLineLine :: Maybe B.TopLineLine -> Maybe B.TopLineLine
+  , tcTopMemoLine :: Maybe B.TopMemoLine -> Maybe B.TopMemoLine
+  , tcFileTransaction :: Maybe B.FileTransaction -> Maybe B.FileTransaction
+  , tcMeta :: om -> nm
+  }
 
-emptyTopLineChangeData :: TopLineChangeData
-emptyTopLineChangeData = TopLineChangeData
-  { tcDateTime = Nothing
-  , tcFlag = Nothing
-  , tcNumber = Nothing
-  , tcPayee = Nothing
-  , tcMemo = Nothing
-  , tcTopLineLine = Nothing
-  , tcTopMemoLine = Nothing
-  , tcFilename = Nothing
-  , tcGlobalTransaction = Nothing
-  , tcFileTransaction = Nothing
+emptyTopLineChangeData :: (om -> tm) -> TopLineChangeData om tm
+emptyTopLineChangeData f = TopLineChangeData
+  { tcDateTime = id
+  , tcFlag = id
+  , tcNumber = id
+  , tcPayee = id
+  , tcMemo = id
+  , tcTopLineLine = id
+  , tcTopMemoLine = id
+  , tcFileTransaction = id
+  , tcMeta = f
   }
 
 
-applyTopLineChange :: TopLineChangeData -> TopLine -> TopLine
+applyTopLineChange :: TopLineChangeData om nm -> TopLine om -> TopLine nm
 applyTopLineChange c t = TopLine
-  { tDateTime = fromMaybe (tDateTime t) (tcDateTime c)
-  , tFlag = fromMaybe (tFlag t) (tcFlag c)
-  , tNumber = fromMaybe (tNumber t) (tcNumber c)
-  , tPayee = fromMaybe (tPayee t) (tcPayee c)
-  , tMemo = fromMaybe (tMemo t) (tcMemo c)
-  , tTopLineLine = fromMaybe (tTopLineLine t) (tcTopLineLine c)
-  , tTopMemoLine = fromMaybe (tTopMemoLine t) (tcTopMemoLine c)
-  , tFilename = fromMaybe (tFilename t) (tcFilename c)
-  , tGlobalTransaction = fromMaybe (tGlobalTransaction t)
-                         (tcGlobalTransaction c)
-  , tFileTransaction = fromMaybe (tFileTransaction t)
-                       (tcFileTransaction c)
+  { tDateTime = (tcDateTime c) (tDateTime t)
+  , tFlag = (tcFlag c) (tFlag t)
+  , tNumber = (tcNumber c) (tNumber t)
+  , tPayee = (tcPayee c) (tPayee t)
+  , tMemo = (tcMemo c) (tMemo t)
+  , tTopLineLine = (tcTopLineLine c) (tTopLineLine t)
+  , tTopMemoLine = (tcTopMemoLine c) (tTopMemoLine t)
+  , tFileTransaction = (tcFileTransaction c) (tFileTransaction t)
+  , tMeta = (tcMeta c) (tMeta t)
   }
 
-data PostingChangeData = PostingChangeData
-  { pcPayee :: Maybe (Maybe B.Payee)
-  , pcNumber :: Maybe (Maybe B.Number)
-  , pcFlag :: Maybe (Maybe B.Flag)
-  , pcAccount :: Maybe B.Account
-  , pcTags :: Maybe B.Tags
-  , pcMemo :: Maybe (Maybe B.Memo)
-  , pcSide :: Maybe (Maybe B.Side)
-  , pcSpaceBetween :: Maybe (Maybe B.SpaceBetween)
-  , pcPostingLine :: Maybe (Maybe B.PostingLine)
-  , pcGlobalPosting :: Maybe (Maybe B.GlobalPosting)
-  , pcFilePosting :: Maybe (Maybe B.FilePosting)
-  } deriving Show
+data PostingChangeData om nm = PostingChangeData
+  { pcPayee :: Maybe B.Payee -> Maybe B.Payee
+  , pcNumber :: Maybe B.Number -> Maybe B.Number
+  , pcFlag :: Maybe B.Flag -> Maybe B.Flag
+  , pcAccount :: B.Account -> B.Account
+  , pcTags :: B.Tags -> B.Tags
+  , pcMemo :: Maybe B.Memo ->  Maybe B.Memo
+  , pcSide :: Maybe B.Side -> Maybe B.Side
+  , pcSpaceBetween :: Maybe B.SpaceBetween -> Maybe B.SpaceBetween
+  , pcPostingLine :: Maybe B.PostingLine -> Maybe B.PostingLine
+  , pcFilePosting :: Maybe B.FilePosting -> Maybe B.FilePosting
+  , pcMeta :: om -> nm
+  }
 
-emptyPostingChangeData :: PostingChangeData
-emptyPostingChangeData = PostingChangeData
-  { pcPayee = Nothing
-  , pcNumber = Nothing
-  , pcFlag = Nothing
-  , pcAccount = Nothing
-  , pcTags = Nothing
-  , pcMemo = Nothing
-  , pcSide = Nothing
-  , pcSpaceBetween = Nothing
-  , pcPostingLine = Nothing
-  , pcGlobalPosting = Nothing
-  , pcFilePosting = Nothing
+emptyPostingChangeData :: (om -> nm) -> PostingChangeData om nm
+emptyPostingChangeData f = PostingChangeData
+  { pcPayee = id
+  , pcNumber = id
+  , pcFlag = id
+  , pcAccount = id
+  , pcTags = id
+  , pcMemo = id
+  , pcSide = id
+  , pcSpaceBetween = id
+  , pcPostingLine = id
+  , pcFilePosting = id
+  , pcMeta = f
   }
 
 
-applyPostingChange :: PostingChangeData -> Posting -> Posting
+applyPostingChange :: PostingChangeData om nm -> Posting om -> Posting nm
 applyPostingChange c p = Posting
-  { pPayee = fromMaybe (pPayee p) (pcPayee c)
-  , pNumber = fromMaybe (pNumber p) (pcNumber c)
-  , pFlag = fromMaybe (pFlag p) (pcFlag c)
-  , pAccount = fromMaybe (pAccount p) (pcAccount c)
-  , pTags = fromMaybe (pTags p) (pcTags c)
+  { pPayee = (pcPayee c) (pPayee p)
+  , pNumber = (pcNumber c) (pNumber p)
+  , pFlag = (pcFlag c) (pFlag p)
+  , pAccount = (pcAccount c) (pAccount p)
+  , pTags = (pcTags c) (pTags p)
   , pEntry = en
-  , pMemo = fromMaybe (pMemo p) (pcMemo c)
+  , pMemo =  (pcMemo c) (pMemo p)
   , pInferred = pInferred p
-  , pPostingLine = fromMaybe (pPostingLine p) (pcPostingLine c)
-  , pGlobalPosting = fromMaybe (pGlobalPosting p) (pcGlobalPosting c)
-  , pFilePosting = fromMaybe (pFilePosting p) (pcFilePosting c)
+  , pPostingLine = (pcPostingLine c) (pPostingLine p)
+  , pFilePosting = (pcFilePosting c) (pFilePosting p)
+  , pMeta = (pcMeta c) (pMeta p)
   }
   where
     enOld = pEntry p
     amOld = B.amount enOld
     en = B.Entry (B.drCr enOld) am
     am = B.Amount (B.qty amOld) (B.commodity amOld) sd sb
-    sd = fromMaybe (B.side amOld) (pcSide c)
-    sb = fromMaybe (B.spaceBetween amOld) (pcSpaceBetween c)
+    sd = (pcSide c) (B.side amOld)
+    sb = (pcSpaceBetween c) (B.spaceBetween amOld)
 
 -- | Allows you to change the parts of a transaction that can be
 -- chanaged without unbalancing the transaction. You cannot change the
@@ -498,16 +439,22 @@ applyPostingChange c p = Posting
 -- are unchanged. That is, 'changeTransaction' will never delete
 -- postings.
 changeTransaction
-  :: F.Family TopLineChangeData PostingChangeData
-  -> Transaction
-  -> Transaction
-changeTransaction c (Transaction t) =
+  :: (opm -> npm)
+  -- ^ Apply this function to change the posting metadata of left-side
+  -- postings that have no change data
+
+  -> F.Family (TopLineChangeData otm ntm) (PostingChangeData opm npm)
+
+
+  -> Transaction otm opm
+  -> Transaction ntm npm
+changeTransaction f c (Transaction t) =
   let F.Family ctl cp1 cp2 cps = c
       F.Family tl p1 p2 ps = t
       tl' = applyTopLineChange ctl tl
       p1' = applyPostingChange cp1 p1
       p2' = applyPostingChange cp2 p2
       ps' = zipWith applyPostingChange
-            (cps ++ repeat emptyPostingChangeData) ps
+            (cps ++ repeat (emptyPostingChangeData f)) ps
   in Transaction (F.Family tl' p1' p2' ps')
 

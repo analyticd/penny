@@ -19,7 +19,7 @@ module Penny.Lincoln.Transaction.Unverified where
 
 import qualified Penny.Lincoln.Bits as B
 
-data TopLine = TopLine
+data TopLine tm = TopLine
   { tDateTime :: B.DateTime
   , tFlag     :: Maybe B.Flag
   , tNumber   :: Maybe B.Number
@@ -27,12 +27,11 @@ data TopLine = TopLine
   , tMemo     :: Maybe B.Memo
   , tTopLineLine :: Maybe B.TopLineLine
   , tTopMemoLine :: Maybe B.TopMemoLine
-  , tFilename :: Maybe B.Filename
-  , tGlobalTransaction :: Maybe B.GlobalTransaction
   , tFileTransaction :: Maybe B.FileTransaction
+  , tMeta :: tm
   } deriving (Eq, Show)
 
-emptyTopLine :: B.DateTime -> TopLine
+emptyTopLine :: B.DateTime -> TopLine ()
 emptyTopLine d = TopLine
   { tDateTime = d
   , tFlag = Nothing
@@ -41,12 +40,11 @@ emptyTopLine d = TopLine
   , tMemo = Nothing
   , tTopLineLine = Nothing
   , tTopMemoLine = Nothing
-  , tFilename = Nothing
-  , tGlobalTransaction = Nothing
   , tFileTransaction = Nothing
+  , tMeta = ()
   }
 
-data Posting = Posting
+data Posting pm = Posting
   { pPayee   :: Maybe B.Payee
   , pNumber  :: Maybe B.Number
   , pFlag    :: Maybe B.Flag
@@ -55,11 +53,11 @@ data Posting = Posting
   , pEntry   :: Maybe B.Entry
   , pMemo    :: Maybe B.Memo
   , pPostingLine :: Maybe B.PostingLine
-  , pGlobalPosting :: Maybe B.GlobalPosting
   , pFilePosting :: Maybe B.FilePosting
+  , pMeta :: pm
   } deriving (Eq, Show)
 
-emptyPosting :: B.Account -> Posting
+emptyPosting :: B.Account -> Posting ()
 emptyPosting a = Posting
   { pPayee = Nothing
   , pNumber = Nothing
@@ -69,14 +67,14 @@ emptyPosting a = Posting
   , pEntry = Nothing
   , pMemo = Nothing
   , pPostingLine = Nothing
-  , pGlobalPosting = Nothing
   , pFilePosting = Nothing
+  , pMeta = ()
   }
 
 -- | A @restricted posting@ in which only the quantity is specified;
 -- the commodity and DrCr are specified when the transaction is
 -- created.
-data RPosting = RPosting
+data RPosting pm = RPosting
   { rPayee   :: Maybe B.Payee
   , rNumber  :: Maybe B.Number
   , rFlag    :: Maybe B.Flag
@@ -85,11 +83,11 @@ data RPosting = RPosting
   , rQty     :: B.Qty
   , rMemo    :: Maybe B.Memo
   , rPostingLine :: Maybe B.PostingLine
-  , rGlobalPosting :: Maybe B.GlobalPosting
   , rFilePosting :: Maybe B.FilePosting
+  , rMeta :: pm
   } deriving (Eq, Show)
 
-emptyRPosting :: B.Account -> B.Qty -> RPosting
+emptyRPosting :: B.Account -> B.Qty -> RPosting ()
 emptyRPosting a q = RPosting
   { rPayee = Nothing
   , rNumber = Nothing
@@ -99,12 +97,12 @@ emptyRPosting a q = RPosting
   , rQty = q
   , rMemo = Nothing
   , rPostingLine = Nothing
-  , rGlobalPosting = Nothing
   , rFilePosting = Nothing
+  , rMeta = ()
   }
 
 -- | An @inferred posting@ in which no quantity is specified.
-data IPosting = IPosting
+data IPosting pm = IPosting
   { iPayee   :: Maybe B.Payee
   , iNumber  :: Maybe B.Number
   , iFlag    :: Maybe B.Flag
@@ -112,11 +110,11 @@ data IPosting = IPosting
   , iTags    :: B.Tags
   , iMemo    :: Maybe B.Memo
   , iPostingLine :: Maybe B.PostingLine
-  , iGlobalPosting :: Maybe B.GlobalPosting
   , iFilePosting :: Maybe B.FilePosting
+  , iMeta :: pm
   } deriving (Eq, Show)
 
-emptyIPosting :: B.Account -> IPosting
+emptyIPosting :: B.Account -> IPosting ()
 emptyIPosting a = IPosting
   { iPayee = Nothing
   , iNumber = Nothing
@@ -125,7 +123,7 @@ emptyIPosting a = IPosting
   , iTags = B.Tags []
   , iMemo = Nothing
   , iPostingLine = Nothing
-  , iGlobalPosting = Nothing
   , iFilePosting = Nothing
+  , iMeta = ()
   }
 
