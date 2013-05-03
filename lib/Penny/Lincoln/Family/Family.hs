@@ -1,8 +1,12 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Penny.Lincoln.Family.Family where
 
 import Control.Applicative ((<$>), (<*>), pure, Applicative)
+import qualified Data.Binary as B
 import qualified Data.List as L
 import Data.Traversable (traverse)
+import GHC.Generics (Generic)
 
 -- | A Family has one parent (ah, the anomie, sorry) and at least two
 -- children.
@@ -11,7 +15,9 @@ data Family p c =
          , child1 :: c
          , child2 :: c
          , children :: [c] }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance (B.Binary p, B.Binary c) => B.Binary (Family p c)
 
 -- | Maps over all children, in order starting with child
 -- 1, then child 2, then the children in the list from left to right.

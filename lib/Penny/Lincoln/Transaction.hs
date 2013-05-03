@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 -- | Transactions, the heart of Penny. The Transaction data type is
 -- abstract, so that only this module can create Transactions. This
 -- provides assurance that if a Transaction exists, it is a valid,
@@ -70,6 +72,8 @@ import qualified Penny.Lincoln.Family.Siblings as S
 import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Lincoln.Balance as Bal
 
+import qualified Data.Binary as B
+import GHC.Generics (Generic)
 import Control.Monad.Exception.Synchronous (
   Exceptional (Exception, Success) , throw )
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -82,7 +86,9 @@ import Control.Monad.Trans.Class ( lift )
 -- | Indicates whether the entry for this posting was inferred. That
 -- is, if the user did not supply an entry for this posting, then it
 -- was inferred.
-data Inferred = Inferred | NotInferred deriving (Eq, Show)
+data Inferred = Inferred | NotInferred deriving (Eq, Show, Generic)
+
+instance B.Binary Inferred
 
 -- | Each Transaction consists of at least two Postings.
 data Posting =
@@ -98,7 +104,9 @@ data Posting =
           , pGlobalPosting :: Maybe B.GlobalPosting
           , pFilePosting :: Maybe B.FilePosting
           }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance B.Binary Posting
 
 -- | The TopLine holds information that applies to all the postings in
 -- a transaction (so named because in a ledger file, this information
@@ -114,14 +122,18 @@ data TopLine =
           , tFilename :: Maybe B.Filename
           , tGlobalTransaction :: Maybe B.GlobalTransaction
           , tFileTransaction :: Maybe B.FileTransaction }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance B.Binary TopLine
 
 -- | All the Postings in a Transaction must produce a Total whose
 -- debits and credits are equal. That is, the Transaction must be
 -- balanced. No Transactions are created that are not balanced.
 newtype Transaction =
   Transaction { unTransaction :: F.Family TopLine Posting }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance B.Binary Transaction
 
 -- | Errors that can arise when making a Transaction.
 data Error = UnbalancedError
@@ -129,7 +141,9 @@ data Error = UnbalancedError
            deriving (Eq, Show)
 
 newtype PostFam = PostFam { unPostFam :: C.Child TopLine Posting }
-                  deriving Show
+                  deriving (Show, Generic)
+
+instance B.Binary PostFam
 
 -- | Get the Postings from a Transaction, with information on the
 -- sibling Postings.

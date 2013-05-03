@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Penny.Lincoln.Family.Siblings (
   Siblings(Siblings, first, second, rest),
   collapse
@@ -10,14 +12,18 @@ import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Foldable as Foldable
 import qualified Data.Traversable as T
+import GHC.Generics (Generic)
 import Control.Applicative ((<*>), (<$>))
+import qualified Data.Binary as B
 
 -- | Describes the siblings of a family, but tells you nothing about
 -- the parent. There are always at least two Siblings.
 data Siblings a = Siblings { first :: a
                            , second :: a
                            , rest :: [a] }
-                  deriving (Eq, Show)
+                  deriving (Eq, Show, Generic)
+
+instance B.Binary a => B.Binary (Siblings a)
 
 instance S.Semigroup (Siblings a) where
   (Siblings a1 a2 ar) <> (Siblings b1 b2 br) =

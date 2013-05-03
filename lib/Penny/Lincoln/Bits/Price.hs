@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Penny.Lincoln.Bits.Price (
   From ( From, unFrom ),
   To ( To, unTo ),
@@ -8,20 +10,30 @@ module Penny.Lincoln.Bits.Price (
 
 import qualified Penny.Lincoln.Bits.Open as O
 import Penny.Lincoln.Bits.Qty (Qty, mult)
+import GHC.Generics (Generic)
+import qualified Data.Binary as B
 
 newtype From = From { unFrom :: O.Commodity }
-               deriving (Eq, Ord, Show)
+               deriving (Eq, Ord, Show, Generic)
+
+instance B.Binary From
 
 newtype To = To { unTo :: O.Commodity }
-             deriving (Eq, Ord, Show)
+             deriving (Eq, Ord, Show, Generic)
+
+instance B.Binary To
 
 newtype CountPerUnit = CountPerUnit { unCountPerUnit :: Qty }
-                       deriving (Eq, Ord, Show)
+                       deriving (Eq, Ord, Show, Generic)
+
+instance B.Binary CountPerUnit
 
 data Price = Price { from :: From
                    , to :: To
                    , countPerUnit :: CountPerUnit }
-             deriving (Eq, Ord, Show)
+             deriving (Eq, Ord, Show, Generic)
+
+instance B.Binary Price
 
 -- | Convert an amount from the From price to the To price. Fails if
 -- the From commodity in the Price is not the same as the commodity in

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 -- | Essential data types used to make Transactions and Postings.
 module Penny.Lincoln.Bits (
   -- * Accounts
@@ -88,10 +90,14 @@ import qualified Penny.Lincoln.Bits.Open as O
 import qualified Penny.Lincoln.Bits.DateTime as DT
 import qualified Penny.Lincoln.Bits.Price as Pr
 import qualified Penny.Lincoln.Bits.Qty as Q
+import qualified Data.Binary as B
+import GHC.Generics (Generic)
 
 data PricePoint = PricePoint { dateTime :: DT.DateTime
                              , price :: Pr.Price
                              , ppSide :: Maybe O.Side
                              , ppSpaceBetween :: Maybe O.SpaceBetween
                              , priceLine :: Maybe O.PriceLine }
-                  deriving (Eq, Show)
+                  deriving (Eq, Show, Generic)
+
+instance B.Binary PricePoint

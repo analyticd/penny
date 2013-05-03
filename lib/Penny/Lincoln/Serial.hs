@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Penny.Lincoln.Serial (
   Serial, forward, backward, GenSerial,
   incrementBack, getSerial, makeSerials, serialItems,
@@ -5,6 +7,8 @@ module Penny.Lincoln.Serial (
 
 import Control.Applicative (Applicative, (<*>), pure, (*>))
 import Control.Monad (ap)
+import GHC.Generics (Generic)
+import Data.Binary (Binary)
 
 data SerialSt = SerialSt
   { nextFwd :: Int
@@ -14,7 +18,9 @@ data SerialSt = SerialSt
 data Serial = Serial
   { forward :: Int
   , backward :: Int
-  } deriving (Eq, Show, Ord)
+  } deriving (Eq, Show, Ord, Generic)
+
+instance Binary Serial
 
 newtype GenSerial a = GenSerial (SerialSt -> (a, SerialSt))
 

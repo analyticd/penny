@@ -163,22 +163,29 @@ instance B.Binary PostingLine
 -- in the last file.
 newtype GlobalPosting =
   GlobalPosting { unGlobalPosting :: S.Serial }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance B.Binary GlobalPosting
 
 -- | The postings in each file are numbered in order.
 newtype FilePosting =
   FilePosting { unFilePosting :: S.Serial }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance B.Binary FilePosting
 
 -- | All transactions are numbered in order, beginning with the first
 -- transaction in the first file and ending with the last transaction
 -- in the last file.
 newtype GlobalTransaction =
   GlobalTransaction { unGlobalTransaction :: S.Serial }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+
+instance B.Binary GlobalTransaction
 
 -- | The transactions in each file are numbered in order.
 newtype FileTransaction =
   FileTransaction { unFileTransaction :: S.Serial }
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
 
+instance B.Binary FileTransaction
