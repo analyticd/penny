@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, CPP #-}
 
 -- | These are the bits that are "open"; that is, their constructors
 -- are exported. This includes most bits. Some bits that have open
@@ -15,6 +15,11 @@ import qualified Penny.Lincoln.Serial as S
 import qualified Penny.Lincoln.Bits.Qty as Q
 import qualified Data.Binary as B
 
+#ifdef test
+import Test.QuickCheck (Arbitrary)
+import qualified Test.QuickCheck as QC
+#endif
+
 newtype SubAccount =
   SubAccount { unSubAccount :: Text }
   deriving (Eq, Ord, Show)
@@ -29,9 +34,7 @@ newtype Account = Account { unAccount :: [SubAccount] }
 instance B.Binary Account
 
 data Amount = Amount { qty :: Q.Qty
-                     , commodity :: Commodity
-                     , side :: Maybe Side
-                     , spaceBetween :: Maybe SpaceBetween }
+                     , commodity :: Commodity }
               deriving (Eq, Show, Ord, Generic)
 
 instance B.Binary Amount
@@ -47,6 +50,11 @@ instance B.Binary Commodity where
 data DrCr = Debit | Credit deriving (Eq, Show, Ord, Generic)
 
 instance B.Binary DrCr
+
+#ifdef test
+instance Arbitrary DrCr where
+  arbitrary = QC.elements [Debit, Credit]
+#endif
 
 -- | Debit returns Credit; Credit returns Debit
 opposite :: DrCr -> DrCr
