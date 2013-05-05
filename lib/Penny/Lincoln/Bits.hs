@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, CPP #-}
 
 -- | Essential data types used to make Transactions and Postings.
 module Penny.Lincoln.Bits (
@@ -69,20 +69,28 @@ module Penny.Lincoln.Bits (
 
   -- * Tags
   O.Tag(Tag, unTag),
-  O.Tags(Tags, unTags),
+  O.Tags(Tags, unTags)
 
   -- * Metadata
-  O.TopLineLine(..),
-  O.TopMemoLine(..),
-  O.Side(..),
-  O.SpaceBetween(..),
-  O.Filename(..),
-  O.PriceLine(..),
-  O.PostingLine(..),
-  O.GlobalPosting(..),
-  O.FilePosting(..),
-  O.GlobalTransaction(..),
-  O.FileTransaction(..)
+  , O.TopLineLine(..)
+  , O.TopMemoLine(..)
+  , O.Side(..)
+  , O.SpaceBetween(..)
+  , O.Filename(..)
+  , O.PriceLine(..)
+  , O.PostingLine(..)
+  , O.GlobalPosting(..)
+  , O.FilePosting(..)
+  , O.GlobalTransaction(..)
+  , O.FileTransaction(..)
+
+  -- * Aggregates
+  , TopLineCore(..)
+  , TopLineFileMeta(..)
+  , TopLineData(..)
+  , PostingCore(..)
+  , PostingFileMeta(..)
+  , PostingData(..)
   ) where
 
 
@@ -93,6 +101,13 @@ import qualified Penny.Lincoln.Bits.Qty as Q
 import qualified Data.Binary as B
 import GHC.Generics (Generic)
 
+#ifdef test
+import Control.Monad (liftM4, liftM2, liftM3, liftM5)
+import Control.Applicative ((<$>), (<*>))
+import Test.QuickCheck (Arbitrary, arbitrary)
+import qualified Test.QuickCheck as QC
+#endif
+
 data PricePoint = PricePoint { dateTime :: DT.DateTime
                              , price :: Pr.Price
                              , ppSide :: Maybe O.Side
@@ -101,3 +116,100 @@ data PricePoint = PricePoint { dateTime :: DT.DateTime
                   deriving (Eq, Show, Generic)
 
 instance B.Binary PricePoint
+
+-- | Every TopLine has this data.
+data TopLineCore = TopLineCore
+  { tDateTime :: DT.DateTime
+  , tNumber :: Maybe O.Number
+  , tFlag :: Maybe O.Flag
+  , tPayee :: Maybe O.Payee
+  , tMemo :: Maybe O.Memo
+  } deriving (Eq, Show, Generic)
+
+instance B.Binary TopLineCore
+
+#ifdef test
+instance Arbitrary TopLineCore where
+  arbitrary = liftM5 TopLineCore arbitrary arbitrary arbitrary
+              arbitrary arbitrary
+#endif
+
+-- | TopLines from files have this metadata.
+data TopLineFileMeta = TopLineFileMeta
+  { tFilename :: O.Filename
+  , tTopLineLine :: O.TopLineLine
+  , tTopMemoLine :: O.TopMemoLine
+  , tFileTransaction :: O.FileTransaction
+  } deriving (Eq, Show, Generic)
+
+instance B.Binary TopLineFileMeta
+
+
+#ifdef test
+instance Arbitrary TopLineFileMeta where
+  arbitrary = liftM4 TopLineFileMeta arbitrary arbitrary
+              arbitrary arbitrary
+#endif
+
+-- | All Postings have this data.
+data PostingCore = PostingCore
+  { pPayee :: Maybe O.Payee
+  , pNumber :: Maybe O.Number
+  , pFlag :: Maybe O.Flag
+  , pAccount :: O.Account
+  , pTags :: O.Tags
+  , pMemo :: Maybe O.Memo
+  , pSide :: O.Side
+  , pSpaceBetween :: O.SpaceBetween
+  } deriving (Eq, Show, Generic)
+
+instance B.Binary PostingCore
+
+#ifdef test
+instance Arbitrary PostingCore where
+  arbitrary = PostingCore <$> arbitrary <*> arbitrary <*> arbitrary
+              <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+              <*> arbitrary
+#endif
+
+-- | Postings from files have this additional data.
+data PostingFileMeta = PostingFileMeta
+  { pPostingLine :: O.PostingLine
+  , pFilePosting :: O.FilePosting
+  } deriving (Eq, Show, Generic)
+
+instance B.Binary PostingFileMeta
+
+#ifdef test
+instance Arbitrary PostingFileMeta where
+  arbitrary = liftM2 PostingFileMeta arbitrary arbitrary
+#endif
+
+-- | All the data that a Posting might have.
+data PostingData = PostingData
+  { pdCore :: PostingCore
+  , pdFileMeta :: Maybe PostingFileMeta
+  , pdGlobal :: Maybe O.GlobalTransaction
+  } deriving (Eq, Show, Generic)
+
+instance B.Binary PostingData
+
+#ifdef test
+instance Arbitrary PostingData where
+  arbitrary = liftM3 PostingData arbitrary arbitrary arbitrary
+#endif
+
+-- | All the data that a TopLine might have.
+data TopLineData = TopLineData
+  { tlCore :: TopLineCore
+  , tlFileMeta :: Maybe TopLineFileMeta
+  , tlGlobal :: Maybe O.GlobalTransaction
+  } deriving (Eq, Show, Generic)
+
+instance B.Binary TopLineData
+
+#ifdef test
+instance Arbitrary TopLineData where
+  arbitrary = liftM3 TopLineData arbitrary arbitrary arbitrary
+#endif
+

@@ -100,27 +100,6 @@ module Penny.Lincoln (
     -- * Builders
   , Bd.account
 
-    -- * Families
-    -- ** Family types
-  , F.Family(Family)
-  , F.Child(Child)
-  , F.Siblings(Siblings)
-
-    -- ** Manipulating families
-  , F.children
-  , F.orphans
-  , F.adopt
-  , F.marryWith
-  , F.marry
-  , F.divorceWith
-  , F.divorce
-  , F.filterChildren
-  , F.find
-  , F.mapChildren
-  , F.mapChildrenA
-  , F.mapParent
-  , F.mapParentA
-
     -- * HasText
   , HT.HasText(text)
   , HT.HasTextList(textList)
@@ -128,52 +107,18 @@ module Penny.Lincoln (
     -- * Transactions
     -- ** Postings and transactions
   , T.Posting
-  , T.Transaction
-  , T.PostFam
-
-    -- ** Making and deconstructing transactions
-  , T.transaction
-  , T.RTransaction(..)
-  , T.rTransaction
-  , T.Error ( UnbalancedError, CouldNotInferError)
-
-    -- ** Querying postings
-  , T.Inferred(Inferred, NotInferred)
-  , T.pPayee
-  , T.pNumber
-  , T.pFlag
-  , T.pAccount
-  , T.pTags
+  , T.Inferred(..)
   , T.pEntry
-  , T.pMemo
   , T.pInferred
-  , T.pPostingLine
-  , T.pFilePosting
   , T.pMeta
-
-    -- ** Querying transactions
-  , T.TopLine
-  , T.tDateTime
-  , T.tFlag
-  , T.tNumber
-  , T.tPayee
-  , T.tMemo
-  , T.tTopLineLine
-  , T.tTopMemoLine
-  , T.tFileTransaction
-  , T.tMeta
-  , T.postFam
-
-    -- ** Unwrapping Transactions
+  , T.Transaction
   , T.unTransaction
-  , T.unPostFam
-
-    -- ** Changing transactions
-  , T.TopLineChangeData(..)
-  , T.emptyTopLineChangeData
-  , T.PostingChangeData(..)
-  , T.emptyPostingChangeData
-  , T.changeTransaction
+  , T.mapPostings
+  , T.transaction
+  , T.rTransaction
+  , T.View
+  , T.unView
+  , T.views
 
   -- * Metadata
   , I.TopLineLine(..)
@@ -241,18 +186,22 @@ import System.Locale (defaultTimeLocale)
 -- Format:
 --
 -- File LineNo Date Payee Acct DrCr Cmdty Qty
-display :: T.PostFam tm (Maybe I.Filename) -> Text
+display :: T.ViewedPosting -> Text
 display p = X.pack $ concat (intersperse " " ls)
   where
     ls = [file, lineNo, dt, pye, acct, dc, cmdty, qt]
     file = maybe (labelNo "filename") (X.unpack . I.unFilename)
-           (Q.meta p)
+           (fmap I.tFilename . tlFileMeta . fst $ p)
     lineNo = maybe (labelNo "line number")
-             (show . I.unPostingLine) (Q.postingLine p)
+             (show . I.unPostingLine)
+             (fmap I.pPostingLine . I.pdFileMeta
+                   . T.pMeta . T.headPosting
+                   . snd $ p)
     dateFormat = "%Y-%m-%d %T %z"
     dt = Time.formatTime defaultTimeLocale dateFormat
          . Time.utctDay
          . I.toUTC
+         . 
          . Q.dateTime
          $ p
     pye = maybe (labelNo "payee")

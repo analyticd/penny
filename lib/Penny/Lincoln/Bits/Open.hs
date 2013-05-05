@@ -282,6 +282,11 @@ newtype FilePosting =
 
 instance B.Binary FilePosting
 
+#ifdef test
+instance Arbitrary FilePosting where
+  arbitrary = fmap FilePosting arbitrary
+#endif
+
 -- | All transactions are numbered in order, beginning with the first
 -- transaction in the first file and ending with the last transaction
 -- in the last file.

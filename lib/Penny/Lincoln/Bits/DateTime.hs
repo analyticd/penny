@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, CPP #-}
 
 module Penny.Lincoln.Bits.DateTime
   ( TimeZoneOffset ( offsetToMins )
@@ -29,12 +29,23 @@ import qualified Data.Binary as B
 import Data.Binary (get, put)
 import GHC.Generics (Generic)
 
+#ifdef test
+import Control.Monad (liftM5)
+import qualified Test.QuickCheck as QC
+import Test.QuickCheck (Arbitrary, arbitrary)
+#endif
+
 -- | The number of minutes that this timezone is offset from UTC. Can
 -- be positive, negative, or zero.
 newtype TimeZoneOffset = TimeZoneOffset { offsetToMins :: Int }
                          deriving (Eq, Ord, Show, Generic)
 
 instance B.Binary TimeZoneOffset
+
+#ifdef test
+instance Arbitrary TimeZoneOffset where
+  arbitrary = fmap TimeZoneOffset (QC.choose (-840, 840))
+#endif
 
 -- | Convert minutes to a time zone offset. I'm having a hard time
 -- deciding whether to be liberal or strict in what to accept
@@ -64,6 +75,17 @@ newtype Seconds = Seconds { unSeconds :: Int }
                   deriving (Eq, Ord, Show, Generic)
 
 instance B.Binary Seconds
+
+#ifdef test
+instance Arbitrary Hours where
+  arbitrary = fmap Hours $ QC.choose (0, 23)
+
+instance Arbitrary Minutes where
+  arbitrary = fmap Minutes $ QC.choose (0, 59)
+
+instance Arbitrary Seconds where
+  arbitrary = fmap Seconds $ QC.choose (0, 60)
+#endif
 
 -- | succeeds if 0 <= x < 24
 intToHours :: Int -> Maybe Hours
@@ -108,6 +130,14 @@ data DateTime = DateTime
   , seconds :: Seconds
   , timeZone :: TimeZoneOffset
   } deriving (Eq, Ord, Show)
+
+#ifdef test
+instance Arbitrary DateTime where
+  arbitrary = liftM5 DateTime
+    ( fmap (T.ModifiedJulianDay . fromIntegral)
+      $ QC.suchThat QC.arbitraryBoundedIntegral (> (0 :: Int)))
+    arbitrary arbitrary arbitrary arbitrary
+#endif
 
 instance B.Binary DateTime where
   get = M.liftM5 DateTime (fmap T.ModifiedJulianDay B.get)

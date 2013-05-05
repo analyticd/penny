@@ -12,7 +12,9 @@ module Penny.Lincoln.Transaction
   , transaction
   , rTransaction
   , View
+  , ViewedPosting
   , unView
+  , headPosting
   , views
 
 #ifdef test
@@ -224,6 +226,15 @@ newtype View m = View { unView :: [Posting m] }
 
 views :: Transaction m -> [View m]
 views = map View . orderedPermute . unTransaction
+
+-- | Get information from the head posting in the View, which is the
+-- one you are most likely interested in.
+headPosting :: View m -> Posting m
+headPosting (View ls) = case ls of
+  [] -> error "transaction: empty view"
+  x:_ -> x
+
+type ViewedPosting = ( B.TopLineData, View B.PostingData )
 
 #ifdef test
 
