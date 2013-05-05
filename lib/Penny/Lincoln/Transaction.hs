@@ -37,7 +37,6 @@ import qualified Test.QuickCheck as QC
 import Test.QuickCheck (Gen, Arbitrary, arbitrary, (==>))
 import qualified Test.QuickCheck.Gen as Gen
 import qualified Test.QuickCheck.Poly as QC
-import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified System.Random.Shuffle as Shuffle
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework (Test, testGroup)
@@ -137,8 +136,8 @@ genBalQtys = do
   group1allocRest <- QC.listOf arbitrary
   group2alloc1 <- arbitrary
   group2allocRest <- QC.listOf arbitrary
-  let g1r1 :| g1rs = B.allocate total (group1alloc1 :| group1allocRest)
-      g2r1 :| g2rs = B.allocate total (group2alloc1 :| group2allocRest)
+  let (g1r1, g1rs) = B.allocate total (group1alloc1, group1allocRest)
+      (g2r1, g2rs) = B.allocate total (group2alloc1, group2allocRest)
   return $ (g1r1 : g1rs, g2r1 : g2rs)
 
 -- | Generates a group of balanced entries.

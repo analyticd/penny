@@ -34,15 +34,14 @@ module Penny.Lincoln.Bits.Qty
   ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Data.Foldable as F
 import qualified Data.Binary as B
 import GHC.Generics (Generic)
 import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
-import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Ord (comparing)
 
 #ifdef test
 import Control.Monad (liftM2)
+import Data.List (foldl1')
 import Data.Maybe (isJust)
 import qualified Test.QuickCheck as Q
 import Test.QuickCheck (Arbitrary(..), Gen, (==>))
@@ -59,6 +58,12 @@ tests = TF.testGroup "Penny.Lincoln.Bits.Qty"
 
   , testProperty "prop_addSubtract"
     $ Q.mapSize (min 10) prop_addSubtract
+
+  , testProperty "Sum of allocation adds up to original Qty"
+    $ Q.mapSize (min 15) prop_sumAllocate
+
+  , testProperty "Number of allocations is same as number requested"
+    $ Q.mapSize (min 15) prop_numAllocate
   ]
 #endif
 
@@ -112,8 +117,8 @@ readInteger s = case reads s of
 -- The Eq instance is derived. Therefore q1 == q2 only if q1 and q2
 -- have both the same mantissa and the same exponent. You may instead
 -- want 'equivalent'.
-data Qty = Qty { mantissa :: Integer
-               , places :: Integer
+data Qty = Qty { mantissa :: !Integer
+               , places :: !Integer
                } deriving (Eq, Generic)
 
 instance B.Binary Qty
@@ -324,37 +329,58 @@ allocate
   :: Qty
   -- ^ The result will add up to this Qty.
 
-  -> NonEmpty Qty
-  -- ^ Allocate using this list of Qty.
+  -> (Qty, [Qty])
+  -- ^ Allocate using these Qty (there must be at least one).
 
-  -> NonEmpty Qty
+  -> (Qty, [Qty])
   -- ^ The length of this list will be equal to the length of the list
   -- of allocations. Each item will correspond to the original
   -- allocation.
 
 allocate tot ls =
   let (tot', ls', e') = sameExponent tot ls
-      (tI, lsI) = (mantissa tot', fmap mantissa ls')
-      (seats, (p1 :| ps), moreE) = growTarget tI lsI
+      (tI, lsI) = (mantissa tot', mapPair mantissa ls')
+      (seats, (p1, ps), moreE) = growTarget tI lsI
       adjSeats = seats - (genericLength ps + 1)
       del = largestRemainderMethod adjSeats (p1 : ps)
       totE = e' + moreE
       r1:rs = fmap (\m -> Qty (m + 1) totE) del
-  in r1 :| rs
+  in (r1, rs)
 
+#ifdef test
+
+-- | Sum of allocation adds up to original Qty
+
+prop_sumAllocate :: Qty -> (Qty, [Qty]) -> Bool
+prop_sumAllocate tot ls =
+  let (r1, rs) = allocate tot ls
+  in foldl1' add (r1:rs) `equivalent` tot
+
+-- | Number of allocations is same as number requested
+
+prop_numAllocate :: Qty -> (Qty, [Qty]) -> Bool
+prop_numAllocate tot ls =
+  let (_, rs) = allocate tot ls
+  in length rs == length (snd ls)
+
+#endif
+
+mapPair :: (a -> b) -> (a, [a]) -> (b, [b])
+mapPair f (s, ls) = (f s, map f ls)
 
 -- | Given a list of Decimals, and a single Decimal, return Decimals
 -- that are equivalent to the original Decimals, but where all
 -- Decimals have the same exponent. Also returns new exponent.
 sameExponent
   :: Qty
-  -> NonEmpty Qty
-  -> (Qty, NonEmpty Qty, Integer)
+  -> (Qty, [Qty])
+  -> (Qty, (Qty, [Qty]), Integer)
 sameExponent dec ls =
-  let newExp = max (F.maximum . fmap places $ ls)
+  let newExp = max (maximum . fmap places $ (fst ls : snd ls))
                    (places dec)
-      dec' = increaseExponentTo newExp dec
-      ls' = fmap (increaseExponentTo newExp) ls
+      dec' = incExp dec
+      incExp = increaseExponentTo newExp
+      ls' = mapPair incExp ls
   in (dec', ls', newExp)
 
 
@@ -368,14 +394,15 @@ sameExponent dec ls =
 -- problems, as there must be at least one seat for the allocation process.
 growTarget
   :: Integer
-  -> NonEmpty Integer
-  -> (Integer, NonEmpty Integer, Integer)
+  -> (Integer, [Integer])
+  -> (Integer, (Integer, [Integer]), Integer)
 growTarget target is = go target is 0
   where
-    len = genericLength . F.toList $ is
+    len = genericLength (snd is) + 1
     go t xs c =
       let t' = t * 10 ^ c
-          xs' = fmap (\x -> x * 10 ^ c) xs
+          xs' = let f x = x * 10 ^ c
+                in mapPair f xs
       in if t' > len
          then (t', xs', c)
          else go t' xs' (c + 1)
