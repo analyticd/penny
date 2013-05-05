@@ -90,7 +90,7 @@ convert ::
   -> B.To
   -> B.Amount
   -> Ex.Exceptional PriceDbError B.Qty
-convert db dt to (B.Amount qt fr _ _)
+convert db dt to (B.Amount qt fr)
   | fr == B.unTo to = return qt
   | otherwise = do
     cpu <- fmap B.unCountPerUnit (getPrice db (B.From fr) to dt)

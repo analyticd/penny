@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, CPP #-}
 
 module Penny.Lincoln.Serial (
   Serial, forward, backward, GenSerial,
@@ -10,15 +10,28 @@ import Control.Monad (ap)
 import GHC.Generics (Generic)
 import Data.Binary (Binary)
 
+#ifdef test
+import Test.QuickCheck (Arbitrary, arbitrary)
+import qualified Test.QuickCheck as QC
+import Control.Monad (liftM2)
+#endif
+
 data SerialSt = SerialSt
   { nextFwd :: Int
   , nextBack :: Int
   } deriving Show
 
+
 data Serial = Serial
   { forward :: Int
   , backward :: Int
   } deriving (Eq, Show, Ord, Generic)
+
+#ifdef test
+instance Arbitrary Serial where
+  arbitrary = liftM2 Serial QC.arbitrarySizedBoundedIntegral
+                            QC.arbitrarySizedBoundedIntegral
+#endif
 
 instance Binary Serial
 

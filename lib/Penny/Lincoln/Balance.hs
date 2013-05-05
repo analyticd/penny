@@ -1,13 +1,13 @@
 module Penny.Lincoln.Balance (
-  Balance,
-  unBalance,
-  Balanced(Balanced, Inferable, NotInferable),
-  isBalanced,
-  entryToBalance,
-  addBalances,
-  removeZeroCommodities,
-  BottomLine(Zero, NonZero),
-  Column(Column, drCr, qty)
+    Balance
+  , unBalance
+  , Balanced(Balanced, Inferable, NotInferable)
+  , isBalanced
+  , entryToBalance
+  , addBalances
+  , removeZeroCommodities
+  , BottomLine(Zero, NonZero)
+  , Column(Column, drCr, qty)
   ) where
 
 import Data.Map ( Map )

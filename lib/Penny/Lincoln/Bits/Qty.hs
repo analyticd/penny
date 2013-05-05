@@ -21,11 +21,14 @@ module Penny.Lincoln.Bits.Qty
   , PartyVotes
   , SeatsWon
   , largestRemainderMethod
+  , qtyOne
 
 #ifdef test
   , tests
   , genSized
   , genRangeInt
+  , genMutate
+  , genEquivalent
 #endif
 
   ) where
@@ -39,9 +42,10 @@ import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Ord (comparing)
 
 #ifdef test
-import Control.Applicative ((<$>), (<*>))
+import Control.Monad (liftM2)
+import Data.Maybe (isJust)
 import qualified Test.QuickCheck as Q
-import Test.QuickCheck (Arbitrary(..), Gen)
+import Test.QuickCheck (Arbitrary(..), Gen, (==>))
 import qualified Test.Framework as TF
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 
@@ -49,6 +53,12 @@ tests :: TF.Test
 tests = TF.testGroup "Penny.Lincoln.Bits.Qty"
   [ testProperty "mantissa is greater than zero" prop_mantissa
   , testProperty "exponent is always at least zero" prop_exponent
+  , testProperty "newQty succeeds" prop_newQtySucceeds
+  , testProperty "add is commutative"
+    $ Q.mapSize (min 10) prop_commutative
+
+  , testProperty "prop_addSubtract"
+    $ Q.mapSize (min 10) prop_addSubtract
   ]
 #endif
 
@@ -117,18 +127,62 @@ type Places = Integer
 -- size parameter.
 genSized :: Gen Qty
 genSized = do
-  Q.Positive m <- Q.arbitrarySizedIntegral
-  Q.NonNegative p <- Q.arbitrarySizedIntegral
+  m <- Q.suchThat Q.arbitrarySizedIntegral (> (0 :: Integer))
+  p <- Q.suchThat Q.arbitrarySizedIntegral (>= (0 :: Integer))
   return $ Qty m p
 
 -- | Generates Qty where the mantissa and exponent are over the range
 -- of Int, but small mantissas and exponents are generated more than
 -- large ones.
 genRangeInt :: Gen Qty
-genRangeInt =
-  Qty
-  <$> (fmap fromIntegral (Q.arbitrarySizedBoundedIntegral :: Gen Int))
-  <*> (fmap fromIntegral (Q.arbitrarySizedBoundedIntegral :: Gen Int))
+genRangeInt = do
+  m <- Q.suchThat Q.arbitrarySizedBoundedIntegral (> (0 :: Int))
+  p <- Q.suchThat Q.arbitrarySizedBoundedIntegral (>= (0 :: Int))
+  return $ Qty (fromIntegral m) (fromIntegral p)
+
+-- | Mantissa 1, exponent 0
+qtyOne :: Qty
+qtyOne = Qty 1 0
+
+-- | Mutates a Qty so that it is equivalent, but possibly with a
+-- different mantissa and exponent.
+genEquivalent :: Qty -> Gen Qty
+genEquivalent (Qty m p) = do
+  expo <- Q.suchThat Q.arbitrarySizedBoundedIntegral (>= (0 :: Int))
+  let m' = m * (fromIntegral ((10 :: Int) ^ expo))
+      p' = p + (fromIntegral expo)
+  return $ Qty m' p'
+
+-- | Mutates a Qty so that it is not equivalent. Changes either the
+-- mantissa or the exponent or both.
+genMutate :: Qty -> Gen Qty
+genMutate (Qty m p) = do
+  (changeMantissa, changeExp) <-
+    Q.suchThat (liftM2 (,) arbitrary arbitrary)
+    (/= (False, False))
+  m' <- if changeMantissa then mutateAtLeast1 m else return m
+  p' <- if changeExp then mutateAtLeast0 p else return p
+  return $ Qty m' p'
+
+-- | Mutates an Integer.  The result is always at least one.
+mutateAtLeast1 :: Integer -> Gen Integer
+mutateAtLeast1 i =
+  fmap fromIntegral $ Q.suchThat Q.arbitrarySizedBoundedIntegral pdct
+  where
+    pdct = if i > (fromIntegral (maxBound :: Int))
+              || i < (fromIntegral (minBound :: Int))
+           then (>= (1 :: Int))
+           else (\r -> r >= 1 && r /= (fromIntegral i))
+
+-- | Mutates an Integer. The result is always at least zero.
+mutateAtLeast0 :: Integer -> Gen Integer
+mutateAtLeast0 i =
+  fmap fromIntegral $ Q.suchThat Q.arbitrarySizedBoundedIntegral pdct
+  where
+    pdct = if i > (fromIntegral (maxBound :: Int))
+              || i < (fromIntegral (minBound :: Int))
+           then (>= (0 :: Int))
+           else (\r -> r >= 0 && r /= (fromIntegral i))
 
 -- | Chooses one of 'genSized' or 'genRangeInt'.
 instance Arbitrary Qty where
@@ -142,6 +196,13 @@ prop_mantissa q = mantissa q > 0
 -- | Exponent is always at least zero
 prop_exponent :: Qty -> Bool
 prop_exponent q = places q >= 0
+
+-- | newQty passes if exponent is at least zero and if mantissa is
+-- greater than zero.
+
+prop_newQtySucceeds :: Mantissa -> Places -> Q.Property
+prop_newQtySucceeds m p =
+  m > 0 ==> p >= 0 ==> isJust (newQty m p)
 
 #endif
 
@@ -231,6 +292,25 @@ add :: Qty -> Qty -> Qty
 add x y =
   let ((Qty xm e), (Qty ym _)) = equalizeExponents x y
   in Qty (xm + ym) e
+
+#ifdef test
+
+-- | > x + y == y + x
+
+prop_commutative :: Qty -> Qty -> Bool
+prop_commutative q1 q2 = q1 `add` q2 == q2 `add` q1
+
+-- | Adding q2 to q1 and then taking the difference of q2 gives a
+-- LeftBiggerBy q1
+
+prop_addSubtract :: Qty -> Qty -> Bool
+prop_addSubtract q1 q2 =
+  let diff = (q1 `add` q2) `difference` q2
+  in case diff of
+      LeftBiggerBy d -> d `equivalent` q1
+      _ -> False
+
+#endif
 
 mult :: Qty -> Qty -> Qty
 mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe + ye)
