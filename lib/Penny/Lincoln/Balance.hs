@@ -7,7 +7,7 @@ module Penny.Lincoln.Balance (
   , addBalances
   , removeZeroCommodities
   , BottomLine(Zero, NonZero)
-  , Column(Column, drCr, qty)
+  , Column(Column, colDrCr, colQty)
   ) where
 
 import Data.Map ( Map )
@@ -44,10 +44,10 @@ isBalanced (Balance m) = M.foldrWithKey f Balanced m where
     (NonZero col) -> case b of
       Balanced -> let
         e = B.Entry dc a
-        dc = case drCr col of
+        dc = case colDrCr col of
           B.Debit -> B.Credit
           B.Credit -> B.Debit
-        q = qty col
+        q = colQty col
         a = B.Amount q c
         in Inferable e
       _ -> NotInferable
@@ -80,8 +80,8 @@ instance Monoid BottomLine where
              NonZero $ Column dc2 diff
            Equal -> Zero
 
-data Column = Column { drCr :: B.DrCr
-                     , qty :: B.Qty }
+data Column = Column { colDrCr :: B.DrCr
+                     , colQty :: B.Qty }
               deriving (Show, Eq)
 
 -- | Add two Balances together. Commodities are never removed from the
