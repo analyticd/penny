@@ -31,11 +31,11 @@ import qualified Data.Text as X
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
 import qualified Penny.Lincoln.Queries.Siblings as Q
-import Penny.Lincoln.Ents (ViewedEnt)
+import Penny.Lincoln.Ents (Posting)
 import qualified Text.Matchers as M
 import qualified Data.Prednote.Pdct as P
 
-type LPdct = P.Pdct ViewedEnt
+type LPdct = P.Pdct Posting
 
 type MakePdct = M.Matcher -> LPdct
 
@@ -44,7 +44,7 @@ match
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (ViewedEnt -> [a])
+  -> (Posting -> [a])
   -- ^ Function that returns the field being matched
   -> M.Matcher
   -> LPdct
@@ -57,7 +57,7 @@ matchMaybe
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (ViewedEnt -> [Maybe a])
+  -> (Posting -> [Maybe a])
   -> M.Matcher
   -> LPdct
 matchMaybe t f m = P.operand desc pd
@@ -77,7 +77,7 @@ makeDesc t m
 matchAny
   :: HasTextList a
   => Text
-  -> (ViewedEnt -> [a])
+  -> (Posting -> [a])
   -> M.Matcher
   -> LPdct
 matchAny t f m = P.operand desc pd
@@ -92,7 +92,7 @@ matchLevel
   :: HasTextList a
   => Int
   -> Text
-  -> (ViewedEnt -> [a])
+  -> (Posting -> [a])
   -> M.Matcher
   -> LPdct
 matchLevel l d f m = P.operand desc pd
@@ -107,7 +107,7 @@ matchLevel l d f m = P.operand desc pd
 -- the memo with a space.
 matchMemo
   :: Text
-  -> (ViewedEnt -> [Maybe B.Memo])
+  -> (Posting -> [Maybe B.Memo])
   -> M.Matcher
   -> LPdct
 matchMemo t f m = P.operand desc pd
@@ -124,7 +124,7 @@ matchDelimited
   -- ^ Separator
   -> Text
   -- ^ Label
-  -> (ViewedEnt -> [a])
+  -> (Posting -> [a])
   -> M.Matcher
   -> LPdct
 matchDelimited sep lbl f m = match lbl f' m

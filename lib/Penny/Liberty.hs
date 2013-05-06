@@ -59,7 +59,6 @@ import Text.Parsec (parse)
 
 import qualified Penny.Copper.Parsec as Pc
 
-import Penny.Lincoln.Family.Child (Child(Child), child, parent)
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln.Predicates.Siblings as PS
 import qualified Data.Prednote.Pdct as E
@@ -118,7 +117,7 @@ xactionsToFiltered ::
   -> [PostFilterFn]
   -- ^ Post filter specs
 
-  -> (L.PostFam -> L.PostFam -> Ordering)
+  -> (L.ViewedEnt -> L.ViewedEnt -> Ordering)
   -- ^ The sorter
 
   -> [L.Transaction]
@@ -150,7 +149,7 @@ xactionsToFiltered pdct postFilts s txns =
 
 -- | Creates a Pdct and prepends a one-line description of the PostFam
 -- to the Pdct's label so it can be easily identified in the output.
-makeLabeledPdct :: E.Pdct L.PostFam -> L.PostFam -> E.Pdct L.PostFam
+makeLabeledPdct :: E.Pdct L.ViewedEnt -> L.ViewedEnt -> E.Pdct L.ViewedEnt
 makeLabeledPdct pd pf = E.rename f pd
   where
     f old = old <> " - " <> L.display pf
@@ -159,7 +158,7 @@ indentAmt :: E.IndentAmt
 indentAmt = 4
 
 -- | Transforms a PostingChild into a Box.
-toBox :: L.PostFam -> L.Box ()
+toBox :: L.ViewedEnt -> L.Box ()
 toBox = L.Box ()
 
 -- | Takes a list of filtered boxes and adds the Filtered serials.
@@ -169,7 +168,7 @@ addFilteredNum = L.serialItems f where
   f ser = fmap (const (FilteredNum ser))
 
 -- | Wraps a PostingChild sorter to change it to a Box sorter.
-sorter :: (L.PostFam -> L.PostFam -> Ordering)
+sorter :: (L.ViewedEnt -> L.ViewedEnt -> Ordering)
           -> L.Box a
           -> L.Box b
           -> Ordering
@@ -252,7 +251,7 @@ parseDate arg =
   where
     err msg = "bad date: \"" <> pack arg <> "\" - " <> (pack . show $ msg)
 
-type Operand = E.Pdct L.PostFam
+type Operand = E.Pdct L.ViewedEnt
 
 -- | OptSpec for a date.
 date :: OptSpec (Ex.Exceptional Error Operand)
@@ -393,7 +392,7 @@ qtyOption = C.OptSpec ["qty"] "q" (C.TwoArg f)
 -- one for ascending, one for descending.
 serialOption ::
 
-  (L.PostFam -> Maybe L.Serial)
+  (L.ViewedEnt -> Maybe L.Serial)
   -- ^ Function that, when applied to a PostingChild, returns the serial
   -- you are interested in.
 

@@ -18,7 +18,7 @@ import Penny.Lincoln.Balance (Balance, entryToBalance)
 bestSibs
   :: (B.PostingCore -> Maybe a)
   -> (B.TopLineCore -> Maybe a)
-  -> E.ViewedEnt
+  -> E.Posting
   -> [Maybe a]
 bestSibs fp ft =
   map f
@@ -34,54 +34,54 @@ bestSibs fp ft =
 -- exists; otherwise Nothing.
 sibs
   :: (E.Ent B.PostingData -> a)
-  -> E.ViewedEnt
+  -> E.Posting
   -> [a]
 sibs fp = map fp . snd . fmap E.tailEnts
 
-payee :: E.ViewedEnt -> [Maybe B.Payee]
+payee :: E.Posting -> [Maybe B.Payee]
 payee = bestSibs B.pPayee B.tPayee
 
-number :: E.ViewedEnt -> [Maybe B.Number]
+number :: E.Posting -> [Maybe B.Number]
 number = bestSibs B.pNumber B.tNumber
 
-flag :: E.ViewedEnt -> [Maybe B.Flag]
+flag :: E.Posting -> [Maybe B.Flag]
 flag = bestSibs B.pFlag B.tFlag
 
-postingMemo :: E.ViewedEnt -> [Maybe B.Memo]
+postingMemo :: E.Posting -> [Maybe B.Memo]
 postingMemo = sibs (B.pMemo . B.pdCore . E.meta)
 
-account :: E.ViewedEnt -> [B.Account]
+account :: E.Posting -> [B.Account]
 account = sibs (B.pAccount . B.pdCore . E.meta)
 
-tags :: E.ViewedEnt -> [B.Tags]
+tags :: E.Posting -> [B.Tags]
 tags = sibs (B.pTags . B.pdCore . E.meta)
 
-entry :: E.ViewedEnt -> [B.Entry]
+entry :: E.Posting -> [B.Entry]
 entry = sibs E.entry
 
-balance :: E.ViewedEnt -> [Balance]
+balance :: E.Posting -> [Balance]
 balance = map entryToBalance . entry
 
-drCr :: E.ViewedEnt -> [B.DrCr]
+drCr :: E.Posting -> [B.DrCr]
 drCr = map B.drCr . entry
 
-amount :: E.ViewedEnt -> [B.Amount]
+amount :: E.Posting -> [B.Amount]
 amount = map B.amount . entry
 
-qty :: E.ViewedEnt -> [B.Qty]
+qty :: E.Posting -> [B.Qty]
 qty = map B.qty . amount
 
-commodity :: E.ViewedEnt -> [B.Commodity]
+commodity :: E.Posting -> [B.Commodity]
 commodity = map B.commodity . amount
 
-postingLine :: E.ViewedEnt -> [Maybe B.PostingLine]
+postingLine :: E.Posting -> [Maybe B.PostingLine]
 postingLine = sibs (fmap B.pPostingLine . B.pdFileMeta . E.meta)
 
-side :: E.ViewedEnt -> [Maybe B.Side]
+side :: E.Posting -> [Maybe B.Side]
 side = sibs (B.pSide . B.pdCore . E.meta)
 
-spaceBetween :: E.ViewedEnt -> [Maybe B.SpaceBetween]
+spaceBetween :: E.Posting -> [Maybe B.SpaceBetween]
 spaceBetween = sibs (B.pSpaceBetween . B.pdCore . E.meta)
 
-filePosting :: E.ViewedEnt -> [Maybe B.FilePosting]
+filePosting :: E.Posting -> [Maybe B.FilePosting]
 filePosting = sibs (fmap B.pFilePosting . B.pdFileMeta . E.meta)

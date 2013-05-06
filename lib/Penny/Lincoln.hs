@@ -43,7 +43,7 @@ import System.Locale (defaultTimeLocale)
 -- Format:
 --
 -- File LineNo Date Payee Acct DrCr Cmdty Qty
-display :: ViewedEnt -> Text
+display :: Posting -> Text
 display p = X.pack $ concat (intersperse " " ls)
   where
     ls = [file, lineNo, dt, pye, acct, dc, cmdty, qt]

@@ -12,7 +12,7 @@ module Penny.Lincoln.Ents
   , ents
   , rEnts
   , View
-  , ViewedEnt
+  , Posting
   , unView
   , headEnt
   , tailEnts
@@ -250,7 +250,7 @@ tailEnts (View ls) = case ls of
   [] -> error "ents: tailEnts: empty view"
   _:xs -> xs
 
-type ViewedEnt = ( B.TopLineData, View B.PostingData )
+type Posting = ( B.TopLineData, View B.PostingData )
 
 #ifdef test
 
