@@ -8,78 +8,80 @@
 -- return a list of five items.)
 module Penny.Lincoln.Queries.Siblings where
 
+import Control.Arrow (second, first)
 import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Lincoln.Transaction as T
+import qualified Penny.Lincoln.Ents as E
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 
 -- | For all siblings, uses information from the Posting if it is set;
 -- otherwise, uses data from the TopLine.
 bestSibs
-  :: (B.TopLineData -> Maybe a)
-  -> (T.View B.PostingData -> Maybe a)
-  -> T.ViewedPosting
+  :: (B.PostingCore -> Maybe a)
+  -> (B.TopLineCore -> Maybe a)
+  -> E.ViewedEnt
   -> [Maybe a]
-bestSibs ft fp vp =
-  let get = maybe (ft vp) Just . fp
-  in map get . 
-  let (Child _ s1 ss p) = T.unPostFam pf
-      get = maybe (ft p) Just . fp
-  in get s1 : map get ss
+bestSibs fp ft =
+  map f
+  . map (second (B.pdCore . E.meta))
+  . E.unrollSnd
+  . second E.tailEnts
+  . first B.tlCore
+  where
+    f (tl, vw) = maybe (ft tl) Just (fp vw)
+
 
 -- | For all siblings, get the information from the Posting if it
 -- exists; otherwise Nothing.
 sibs
-  :: (T.Posting pm -> a)
-  -> T.PostFam tm pm
+  :: (E.Ent B.PostingData -> a)
+  -> E.ViewedEnt
   -> [a]
-sibs fp pf =
-  let (Child _ s1 ss _) = T.unPostFam pf
-  in fp s1 : map fp ss
+sibs fp = map fp . snd . fmap E.tailEnts
 
-payee :: T.PostFam tm pm -> [Maybe B.Payee]
-payee = bestSibs T.pPayee T.tPayee
+payee :: E.ViewedEnt -> [Maybe B.Payee]
+payee = bestSibs B.pPayee B.tPayee
 
-number :: T.PostFam tm pm -> [Maybe B.Number]
-number = bestSibs T.pNumber T.tNumber
+number :: E.ViewedEnt -> [Maybe B.Number]
+number = bestSibs B.pNumber B.tNumber
 
-flag :: T.PostFam tm pm -> [Maybe B.Flag]
-flag = bestSibs T.pFlag T.tFlag
+flag :: E.ViewedEnt -> [Maybe B.Flag]
+flag = bestSibs B.pFlag B.tFlag
 
-postingMemo :: T.PostFam tm pm -> [Maybe B.Memo]
-postingMemo = sibs T.pMemo
+postingMemo :: E.ViewedEnt -> [Maybe B.Memo]
+postingMemo = sibs (B.pMemo . B.pdCore . E.meta)
 
-account :: T.PostFam tm pm -> [B.Account]
-account = sibs T.pAccount
+account :: E.ViewedEnt -> [B.Account]
+account = sibs (B.pAccount . B.pdCore . E.meta)
 
-tags :: T.PostFam tm pm -> [B.Tags]
-tags = sibs T.pTags
+tags :: E.ViewedEnt -> [B.Tags]
+tags = sibs (B.pTags . B.pdCore . E.meta)
 
-entry :: T.PostFam tm pm -> [B.Entry]
-entry = sibs T.pEntry
+entry :: E.ViewedEnt -> [B.Entry]
+entry = sibs E.entry
 
-balance :: T.PostFam tm pm -> [Balance]
+balance :: E.ViewedEnt -> [Balance]
 balance = map entryToBalance . entry
 
-drCr :: T.PostFam tm pm -> [B.DrCr]
+drCr :: E.ViewedEnt -> [B.DrCr]
 drCr = map B.drCr . entry
 
-amount :: T.PostFam tm pm -> [B.Amount]
+amount :: E.ViewedEnt -> [B.Amount]
 amount = map B.amount . entry
 
-qty :: T.PostFam tm pm -> [B.Qty]
+qty :: E.ViewedEnt -> [B.Qty]
 qty = map B.qty . amount
 
-commodity :: T.PostFam tm pm -> [B.Commodity]
+commodity :: E.ViewedEnt -> [B.Commodity]
 commodity = map B.commodity . amount
 
-postingLine :: T.PostFam tm pm -> [Maybe B.PostingLine]
-postingLine = sibs T.pPostingLine
+postingLine :: E.ViewedEnt -> [Maybe B.PostingLine]
+postingLine = sibs (fmap B.pPostingLine . B.pdFileMeta . E.meta)
 
-side :: T.PostFam tm pm -> [Maybe B.Side]
-side = map B.side . amount
+side :: E.ViewedEnt -> [Maybe B.Side]
+side = sibs (B.pSide . B.pdCore . E.meta)
 
-spaceBetween :: T.PostFam tm pm -> [Maybe B.SpaceBetween]
-spaceBetween = map B.spaceBetween . amount
+spaceBetween :: E.ViewedEnt -> [Maybe B.SpaceBetween]
+spaceBetween = sibs (B.pSpaceBetween . B.pdCore . E.meta)
 
-filePosting :: T.PostFam tm pm -> [Maybe B.FilePosting]
-filePosting = sibs T.pFilePosting
+filePosting :: E.ViewedEnt -> [Maybe B.FilePosting]
+filePosting = sibs (fmap B.pFilePosting . B.pdFileMeta . E.meta)

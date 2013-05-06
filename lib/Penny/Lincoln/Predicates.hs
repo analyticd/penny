@@ -33,23 +33,23 @@ import qualified Data.Time as Time
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
 import qualified Penny.Lincoln.Queries as Q
-import Penny.Lincoln.Transaction (PostFam)
+import Penny.Lincoln.Ents (ViewedEnt)
 import qualified Text.Matchers as M
 import qualified Data.Prednote.Pdct as P
 
-type LPdct tm pm = P.Pdct (PostFam tm pm)
+type LPdct = P.Pdct ViewedEnt
 
-type MakePdct tm pm = M.Matcher -> LPdct tm pm
+type MakePdct = M.Matcher -> LPdct
 
 -- * Matching helpers
 match
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam tm pm -> a)
+  -> (ViewedEnt -> a)
   -- ^ Function that returns the field being matched
   -> M.Matcher
-  -> LPdct tm pm
+  -> LPdct
 match t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -59,9 +59,9 @@ matchMaybe
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam tm pm -> Maybe a)
+  -> (ViewedEnt -> Maybe a)
   -> M.Matcher
-  -> LPdct tm pm
+  -> LPdct
 matchMaybe t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -77,9 +77,9 @@ makeDesc t m
 matchAny
   :: HasTextList a
   => Text
-  -> (PostFam tm pm -> a)
+  -> (ViewedEnt -> a)
   -> M.Matcher
-  -> LPdct tm pm
+  -> LPdct
 matchAny t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -92,9 +92,9 @@ matchLevel
   :: HasTextList a
   => Int
   -> Text
-  -> (PostFam tm pm -> a)
+  -> (ViewedEnt -> a)
   -> M.Matcher
-  -> LPdct tm pm
+  -> LPdct
 matchLevel l d f m = P.operand desc pd
   where
     desc = makeDesc ("level " <> X.pack (show l) <> " of " <> d) m
@@ -107,9 +107,9 @@ matchLevel l d f m = P.operand desc pd
 -- the memo with a space.
 matchMemo
   :: Text
-  -> (PostFam tm pm -> Maybe B.Memo)
+  -> (ViewedEnt -> Maybe B.Memo)
   -> M.Matcher
-  -> LPdct tm pm
+  -> LPdct
 matchMemo t f m = P.operand desc pd
   where
     desc = makeDesc t m
@@ -124,28 +124,28 @@ matchDelimited
   -- ^ Separator
   -> Text
   -- ^ Label
-  -> (PostFam tm pm -> a)
+  -> (ViewedEnt -> a)
   -> M.Matcher
-  -> LPdct tm pm
+  -> LPdct
 matchDelimited sep lbl f m = match lbl f' m
   where
     f' = X.concat . intersperse sep . textList . f
 
 -- * Pattern matching fields
 
-payee :: MakePdct tm pm
+payee :: MakePdct
 payee = matchMaybe "payee" Q.payee
 
-number :: MakePdct tm pm
+number :: MakePdct
 number = matchMaybe "number" Q.number
 
-flag :: MakePdct tm pm
+flag :: MakePdct
 flag = matchMaybe "flag" Q.flag
 
-postingMemo :: MakePdct tm pm
+postingMemo :: MakePdct
 postingMemo = matchMemo "posting memo" Q.postingMemo
 
-transactionMemo :: MakePdct tm pm
+transactionMemo :: MakePdct
 transactionMemo = matchMemo "transaction memo" Q.transactionMemo
 
 -- * Date
@@ -153,48 +153,48 @@ transactionMemo = matchMemo "transaction memo" Q.transactionMemo
 date
   :: Ordering
   -> Time.UTCTime
-  -> LPdct tm pm
+  -> LPdct
 date ord u = P.compareBy (X.pack . show $ u)
              "UTC date and time"
            (\l -> compare (B.toUTC . Q.dateTime $ l) u) ord
 
 
-qty :: Ordering -> B.Qty -> LPdct tm pm
+qty :: Ordering -> B.Qty -> LPdct
 qty o q = P.compareBy (X.pack . show $ q) "quantity"
           (\l -> compare (Q.qty l) q) o
 
 
-drCr :: B.DrCr -> LPdct tm pm
+drCr :: B.DrCr -> LPdct
 drCr dc = P.operand desc pd
   where
     desc = "entry is a " <> s
     s = case dc of { B.Debit -> "debit"; B.Credit -> "credit" }
     pd pf = Q.drCr pf == dc
 
-debit :: LPdct tm pm
+debit :: LPdct
 debit = drCr B.Debit
 
-credit :: LPdct tm pm
+credit :: LPdct
 credit = drCr B.Credit
 
-commodity :: M.Matcher -> LPdct tm pm
+commodity :: M.Matcher -> LPdct
 commodity = match "commodity" Q.commodity
 
-account :: M.Matcher -> LPdct tm pm
+account :: M.Matcher -> LPdct
 account = matchDelimited ":" "account" Q.account
 
-accountLevel :: Int -> M.Matcher -> LPdct tm pm
+accountLevel :: Int -> M.Matcher -> LPdct
 accountLevel i = matchLevel i "account" Q.account
 
-accountAny :: M.Matcher -> LPdct tm pm
+accountAny :: M.Matcher -> LPdct
 accountAny = matchAny "any sub-account" Q.account
 
-tag :: M.Matcher -> LPdct tm pm
+tag :: M.Matcher -> LPdct
 tag = matchAny "any tag" Q.tags
 
 -- | True if a posting is reconciled; that is, its flag is exactly
 -- @R@.
-reconciled :: LPdct tm pm
+reconciled :: LPdct
 reconciled = P.operand d p
   where
     d = "posting flag is exactly \"R\" (is reconciled)"

@@ -158,8 +158,8 @@ data PostingCore = PostingCore
   , pAccount :: O.Account
   , pTags :: O.Tags
   , pMemo :: Maybe O.Memo
-  , pSide :: O.Side
-  , pSpaceBetween :: O.SpaceBetween
+  , pSide :: Maybe O.Side
+  , pSpaceBetween :: Maybe O.SpaceBetween
   } deriving (Eq, Show, Generic)
 
 instance B.Binary PostingCore

@@ -7,7 +7,7 @@
 module Penny.Lincoln.Queries where
 
 import qualified Penny.Lincoln.Bits as B
-import qualified Penny.Lincoln.Transaction as T
+import qualified Penny.Lincoln.Ents as E
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 import qualified Data.Time as Time
 
@@ -15,78 +15,78 @@ import qualified Data.Time as Time
 -- data from the TopLine.
 best
   :: (B.TopLineData -> Maybe a)
-  -> (T.View B.PostingData -> Maybe a)
-  -> T.ViewedPosting
+  -> (E.View B.PostingData -> Maybe a)
+  -> E.ViewedEnt
   -> Maybe a
 best fp ft vp = case fp . fst $ vp of
   Nothing -> ft . snd $ vp
   Just r -> Just r
 
-payee :: T.ViewedPosting -> Maybe B.Payee
+payee :: E.ViewedEnt -> Maybe B.Payee
 payee = best (B.tPayee . B.tlCore)
-             (B.pPayee . B.pdCore . T.pMeta . T.headPosting)
+             (B.pPayee . B.pdCore . E.meta . E.headEnt)
 
-number :: T.ViewedPosting -> Maybe B.Number
+number :: E.ViewedEnt -> Maybe B.Number
 number = best (B.tNumber . B.tlCore)
-              (B.pNumber . B.pdCore . T.pMeta . T.headPosting)
+              (B.pNumber . B.pdCore . E.meta . E.headEnt)
 
-flag :: T.ViewedPosting -> Maybe B.Flag
+flag :: E.ViewedEnt -> Maybe B.Flag
 flag = best (B.tFlag . B.tlCore)
-            (B.pFlag . B.pdCore . T.pMeta . T.headPosting)
+            (B.pFlag . B.pdCore . E.meta . E.headEnt)
 
-postingMemo :: T.ViewedPosting -> Maybe B.Memo
-postingMemo = B.pMemo . B.pdCore . T.pMeta . T.headPosting . snd
+postingMemo :: E.ViewedEnt -> Maybe B.Memo
+postingMemo = B.pMemo . B.pdCore . E.meta . E.headEnt . snd
 
-transactionMemo :: T.ViewedPosting -> Maybe B.Memo
+transactionMemo :: E.ViewedEnt -> Maybe B.Memo
 transactionMemo =  B.tMemo . B.tlCore . fst
 
-dateTime :: T.ViewedPosting -> B.DateTime
+dateTime :: E.ViewedEnt -> B.DateTime
 dateTime = B.tDateTime . B.tlCore . fst
 
-localDay :: T.ViewedPosting -> Time.Day
+localDay :: E.ViewedEnt -> Time.Day
 localDay = B.day . dateTime
 
-account :: T.ViewedPosting -> B.Account
-account = B.pAccount . B.pdCore . T.pMeta . T.headPosting . snd
+account :: E.ViewedEnt -> B.Account
+account = B.pAccount . B.pdCore . E.meta . E.headEnt . snd
 
-tags :: T.ViewedPosting -> B.Tags
-tags = B.pTags . B.pdCore . T.pMeta . T.headPosting . snd
+tags :: E.ViewedEnt -> B.Tags
+tags = B.pTags . B.pdCore . E.meta . E.headEnt . snd
 
-entry :: T.ViewedPosting -> B.Entry
-entry = T.pEntry . T.headPosting . snd
+entry :: E.ViewedEnt -> B.Entry
+entry = E.entry . E.headEnt . snd
 
-balance :: T.ViewedPosting -> Balance
+balance :: E.ViewedEnt -> Balance
 balance = entryToBalance . entry
 
-drCr :: T.ViewedPosting -> B.DrCr
+drCr :: E.ViewedEnt -> B.DrCr
 drCr = B.drCr . entry
 
-amount :: T.ViewedPosting -> B.Amount
+amount :: E.ViewedEnt -> B.Amount
 amount = B.amount . entry
 
-qty :: T.ViewedPosting -> B.Qty
+qty :: E.ViewedEnt -> B.Qty
 qty = B.qty . amount
 
-commodity :: T.ViewedPosting -> B.Commodity
+commodity :: E.ViewedEnt -> B.Commodity
 commodity = B.commodity . amount
 
-topMemoLine :: T.ViewedPosting -> Maybe B.TopMemoLine
+topMemoLine :: E.ViewedEnt -> Maybe B.TopMemoLine
 topMemoLine = fmap B.tTopMemoLine . B.tlFileMeta . fst
 
-topLineLine :: T.ViewedPosting -> Maybe B.TopLineLine
+topLineLine :: E.ViewedEnt -> Maybe B.TopLineLine
 topLineLine = fmap B.tTopLineLine . B.tlFileMeta . fst
 
-fileTransaction :: T.ViewedPosting -> Maybe B.FileTransaction
+fileTransaction :: E.ViewedEnt -> Maybe B.FileTransaction
 fileTransaction = fmap B.tFileTransaction . B.tlFileMeta . fst
 
-postingLine :: T.ViewedPosting -> Maybe B.PostingLine
+postingLine :: E.ViewedEnt -> Maybe B.PostingLine
 postingLine = fmap B.pPostingLine . B.pdFileMeta
-              . T.pMeta . T.headPosting . snd
+              . E.meta . E.headEnt . snd
 
-side :: T.ViewedPosting -> B.Side
-side = B.pSide . B.pdCore . T.pMeta . T.headPosting . snd
+side :: E.ViewedEnt -> Maybe B.Side
+side = B.pSide . B.pdCore . E.meta . E.headEnt . snd
 
-spaceBetween :: T.ViewedPosting -> B.SpaceBetween
+spaceBetween :: E.ViewedEnt -> Maybe B.SpaceBetween
 spaceBetween = B.pSpaceBetween . B.pdCore
-               . T.pMeta . T.headPosting . snd
+               . E.meta . E.headEnt . snd
 
