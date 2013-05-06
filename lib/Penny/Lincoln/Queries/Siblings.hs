@@ -83,5 +83,15 @@ side = sibs (B.pSide . B.pdCore . E.meta)
 spaceBetween :: E.Posting -> [Maybe B.SpaceBetween]
 spaceBetween = sibs (B.pSpaceBetween . B.pdCore . E.meta)
 
+globalPosting :: E.Posting -> [Maybe B.GlobalPosting]
+globalPosting = sibs (B.pdGlobal . E.meta)
+
 filePosting :: E.Posting -> [Maybe B.FilePosting]
 filePosting = sibs (fmap B.pFilePosting . B.pdFileMeta . E.meta)
+
+globalTransaction :: E.Posting -> [Maybe B.GlobalTransaction]
+globalTransaction =
+  map B.tlGlobal
+  . map fst
+  . E.unrollSnd
+  . second E.tailEnts

@@ -61,6 +61,7 @@ import Text.Parsec (parse)
 import qualified Penny.Copper.Parsec as Pc
 
 import qualified Penny.Lincoln.Predicates as P
+import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Predicates.Siblings as PS
 import qualified Data.Prednote.Pdct as E
 import qualified Penny.Lincoln as L
@@ -141,14 +142,13 @@ processPostings
   . addFilteredNum
 
 mainFilter :: P.LPdct -> L.Posting -> ([C.Chunk], [L.Posting])
-mainFilter pdct = flip . E.filter 0 True 0 L.display pdct
+mainFilter pdct = flip . E.filter indentAmt True 0 L.display pdct
 
-addFilteredNum :: [L.Posting] -> [(FilteredNum, L.Posting)]
+addFilteredNum :: [a] -> [(FilteredNum, a)]
 addFilteredNum = L.serialItems (\s p -> (FilteredNum s, p))
 
 addSortedNum :: [(a, b)] -> [((a, SortedNum), b)]
 addSortedNum = E.serialItems (\s (a, b) -> ((a, SortedNum s), b))
-
 
 -- | Creates a Pdct and prepends a one-line description of the PostFam
 -- to the Pdct's label so it can be easily identified in the output.
@@ -370,7 +370,7 @@ qtyOption = C.OptSpec ["qty"] "q" (C.TwoArg f)
 serialOption ::
 
   (L.Posting -> Maybe L.Serial)
-  -- ^ Function that, when applied to a PostingChild, returns the serial
+  -- ^ Function that, when applied to a Posting, returns the serial
   -- you are interested in.
 
   -> String
@@ -425,15 +425,12 @@ siblingSerialOption getSerial n = (osA, osD)
               desc = "any sibling serial " <> pack name
                      <> " is " <> descCmp ord
                      <> " " <> (pack . show $ num)
-              fn = any doCmp . getSiblings . L.unPostFam
+              fn = any doCmp . L.unrollSnd . second L.tailEnts
               doCmp p = case getSerial p of
                 Nothing -> False
                 Just ser -> compare (getInt ser) num == ord
       parseComparer a1 getPdct
 
-
-getSiblings :: Child p c -> [c]
-getSiblings (Child _ s1 ss _) = s1:ss
 
 descCmp :: Ordering -> Text
 descCmp o = case o of
@@ -453,37 +450,25 @@ addPrefix pre suf = pre ++ suf' where
 globalTransaction :: ( OptSpec (Ex.Exceptional Error Operand)
                      , OptSpec (Ex.Exceptional Error Operand) )
 globalTransaction =
-  let f = fmap L.unGlobalTransaction
-          . L.tGlobalTransaction
-          . parent
-          . L.unPostFam
+  let f = fmap L.unGlobalTransaction . Q.globalTransaction
   in serialOption f "globalTransaction"
 
 globalPosting :: ( OptSpec (Ex.Exceptional Error Operand)
                  , OptSpec (Ex.Exceptional Error Operand) )
 globalPosting =
-  let f = fmap L.unGlobalPosting
-          . L.pGlobalPosting
-          . child
-          . L.unPostFam
+  let f = fmap L.unGlobalPosting . Q.globalPosting
   in serialOption f "globalPosting"
 
 filePosting :: ( OptSpec (Ex.Exceptional Error Operand)
                , OptSpec (Ex.Exceptional Error Operand) )
 filePosting =
-  let f = fmap L.unFilePosting
-          . L.pFilePosting
-          . child
-          . L.unPostFam
+  let f = fmap L.unFilePosting . Q.filePosting
   in serialOption f "filePosting"
 
 fileTransaction :: ( OptSpec (Ex.Exceptional Error Operand)
                    , OptSpec (Ex.Exceptional Error Operand) )
 fileTransaction =
-  let f = fmap L.unFileTransaction
-          . L.tFileTransaction
-          . parent
-          . L.unPostFam
+  let f = fmap L.unFileTransaction . Q.fileTransaction
   in serialOption f "fileTransaction"
 
 -- | All operand OptSpec.

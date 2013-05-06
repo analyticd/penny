@@ -188,7 +188,7 @@ instance Arbitrary PostingFileMeta where
 data PostingData = PostingData
   { pdCore :: PostingCore
   , pdFileMeta :: Maybe PostingFileMeta
-  , pdGlobal :: Maybe O.GlobalTransaction
+  , pdGlobal :: Maybe O.GlobalPosting
   } deriving (Eq, Show, Generic)
 
 instance B.Binary PostingData

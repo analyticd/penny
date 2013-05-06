@@ -11,7 +11,6 @@ import Data.List.Split (chunksOf, splitOn)
 import qualified Data.Text as X
 import Data.Text (Text, cons, snoc)
 import qualified Penny.Copper.Terminals as T
-import qualified Penny.Lincoln.Transaction as LT
 import qualified Data.Time as Time
 import qualified Penny.Copper.Types as Y
 import qualified Penny.Lincoln as L

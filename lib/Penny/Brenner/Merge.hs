@@ -13,7 +13,6 @@ import qualified System.Console.MultiArg as MA
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U

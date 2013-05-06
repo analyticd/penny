@@ -14,7 +14,6 @@ import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
 import Control.Monad (replicateM)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Lincoln as L
-import qualified Penny.Lincoln.Transaction.Unverified as U
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import qualified Data.Time as Time

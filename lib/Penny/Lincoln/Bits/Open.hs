@@ -275,6 +275,11 @@ newtype GlobalPosting =
 
 instance B.Binary GlobalPosting
 
+#ifdef test
+instance Arbitrary GlobalPosting where
+  arbitrary = fmap GlobalPosting arbitrary
+#endif
+
 -- | The postings in each file are numbered in order.
 newtype FilePosting =
   FilePosting { unFilePosting :: S.Serial }

@@ -76,8 +76,18 @@ topMemoLine = fmap B.tTopMemoLine . B.tlFileMeta . fst
 topLineLine :: E.Posting -> Maybe B.TopLineLine
 topLineLine = fmap B.tTopLineLine . B.tlFileMeta . fst
 
+globalTransaction :: E.Posting -> Maybe B.GlobalTransaction
+globalTransaction = B.tlGlobal . fst
+
 fileTransaction :: E.Posting -> Maybe B.FileTransaction
 fileTransaction = fmap B.tFileTransaction . B.tlFileMeta . fst
+
+globalPosting :: E.Posting -> Maybe B.GlobalPosting
+globalPosting = B.pdGlobal . E.meta . E.headEnt . snd
+
+filePosting :: E.Posting -> Maybe B.FilePosting
+filePosting = fmap B.pFilePosting . B.pdFileMeta . E.meta
+                   . E.headEnt . snd
 
 postingLine :: E.Posting -> Maybe B.PostingLine
 postingLine = fmap B.pPostingLine . B.pdFileMeta
