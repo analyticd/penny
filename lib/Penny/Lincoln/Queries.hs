@@ -7,85 +7,86 @@
 module Penny.Lincoln.Queries where
 
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.Family.Child (child, parent)
 import qualified Penny.Lincoln.Transaction as T
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 import qualified Data.Time as Time
 
 -- | Uses the data from the Posting if it is set; otherwise, use the
 -- data from the TopLine.
-best ::
-  (T.Posting pm -> Maybe a)
-  -> (T.TopLine tm -> Maybe a)
-  -> T.PostFam tm pm
+best
+  :: (B.TopLineData -> Maybe a)
+  -> (T.View B.PostingData -> Maybe a)
+  -> T.ViewedPosting
   -> Maybe a
-best fp ft c = case fp . child . T.unPostFam $ c of
+best fp ft vp = case fp . fst $ vp of
+  Nothing -> ft . snd $ vp
   Just r -> Just r
-  Nothing -> ft . parent . T.unPostFam $ c
 
+payee :: T.ViewedPosting -> Maybe B.Payee
+payee = best (B.tPayee . B.tlCore)
+             (B.pPayee . B.pdCore . T.pMeta . T.headPosting)
 
-payee :: T.PostFam tm pm -> Maybe B.Payee
-payee = best T.pPayee T.tPayee
+number :: T.ViewedPosting -> Maybe B.Number
+number = best (B.tNumber . B.tlCore)
+              (B.pNumber . B.pdCore . T.pMeta . T.headPosting)
 
-number :: T.PostFam tm pm -> Maybe B.Number
-number = best T.pNumber T.tNumber
+flag :: T.ViewedPosting -> Maybe B.Flag
+flag = best (B.tFlag . B.tlCore)
+            (B.pFlag . B.pdCore . T.pMeta . T.headPosting)
 
-flag :: T.PostFam tm pm -> Maybe B.Flag
-flag = best T.pFlag T.tFlag
+postingMemo :: T.ViewedPosting -> Maybe B.Memo
+postingMemo = B.pMemo . B.pdCore . T.pMeta . T.headPosting . snd
 
-postingMemo :: T.PostFam tm pm -> Maybe B.Memo
-postingMemo = T.pMemo . child . T.unPostFam
+transactionMemo :: T.ViewedPosting -> Maybe B.Memo
+transactionMemo =  B.tMemo . B.tlCore . fst
 
-transactionMemo :: T.PostFam tm pm -> Maybe B.Memo
-transactionMemo = T.tMemo . parent . T.unPostFam
+dateTime :: T.ViewedPosting -> B.DateTime
+dateTime = B.tDateTime . B.tlCore . fst
 
-dateTime :: T.PostFam tm pm -> B.DateTime
-dateTime = T.tDateTime . parent . T.unPostFam
-
-localDay :: T.PostFam tm pm -> Time.Day
+localDay :: T.ViewedPosting -> Time.Day
 localDay = B.day . dateTime
 
-account :: T.PostFam tm pm -> B.Account
-account = T.pAccount . child . T.unPostFam
+account :: T.ViewedPosting -> B.Account
+account = B.pAccount . B.pdCore . T.pMeta . T.headPosting . snd
 
-tags :: T.PostFam tm pm -> B.Tags
-tags = T.pTags . child . T.unPostFam
+tags :: T.ViewedPosting -> B.Tags
+tags = B.pTags . B.pdCore . T.pMeta . T.headPosting . snd
 
-entry :: T.PostFam tm pm -> B.Entry
-entry = T.pEntry . child . T.unPostFam
+entry :: T.ViewedPosting -> B.Entry
+entry = T.pEntry . T.headPosting . snd
 
-balance :: T.PostFam tm pm -> Balance
+balance :: T.ViewedPosting -> Balance
 balance = entryToBalance . entry
 
-drCr :: T.PostFam tm pm -> B.DrCr
+drCr :: T.ViewedPosting -> B.DrCr
 drCr = B.drCr . entry
 
-amount :: T.PostFam tm pm -> B.Amount
+amount :: T.ViewedPosting -> B.Amount
 amount = B.amount . entry
 
-qty :: T.PostFam tm pm -> B.Qty
+qty :: T.ViewedPosting -> B.Qty
 qty = B.qty . amount
 
-commodity :: T.PostFam tm pm -> B.Commodity
+commodity :: T.ViewedPosting -> B.Commodity
 commodity = B.commodity . amount
 
-topMemoLine :: T.PostFam tm pm -> Maybe B.TopMemoLine
-topMemoLine = T.tTopMemoLine . parent . T.unPostFam
+topMemoLine :: T.ViewedPosting -> Maybe B.TopMemoLine
+topMemoLine = fmap B.tTopMemoLine . B.tlFileMeta . fst
 
-topLineLine :: T.PostFam tm pm -> Maybe B.TopLineLine
-topLineLine = T.tTopLineLine . parent . T.unPostFam
+topLineLine :: T.ViewedPosting -> Maybe B.TopLineLine
+topLineLine = fmap B.tTopLineLine . B.tlFileMeta . fst
 
-fileTransaction :: T.PostFam tm pm -> Maybe B.FileTransaction
-fileTransaction = T.tFileTransaction . parent . T.unPostFam
+fileTransaction :: T.ViewedPosting -> Maybe B.FileTransaction
+fileTransaction = fmap B.tFileTransaction . B.tlFileMeta . fst
 
-postingLine :: T.PostFam tm pm -> Maybe B.PostingLine
-postingLine = T.pPostingLine . child . T.unPostFam
+postingLine :: T.ViewedPosting -> Maybe B.PostingLine
+postingLine = fmap B.pPostingLine . B.pdFileMeta
+              . T.pMeta . T.headPosting . snd
 
-side :: T.PostFam tm pm -> Maybe B.Side
-side = B.side . amount
+side :: T.ViewedPosting -> B.Side
+side = B.pSide . B.pdCore . T.pMeta . T.headPosting . snd
 
-spaceBetween :: T.PostFam tm pm -> Maybe B.SpaceBetween
-spaceBetween = B.spaceBetween . amount
+spaceBetween :: T.ViewedPosting -> B.SpaceBetween
+spaceBetween = B.pSpaceBetween . B.pdCore
+               . T.pMeta . T.headPosting . snd
 
-meta :: T.PostFam tm pm -> pm
-meta = T.pMeta . child . T.unPostFam

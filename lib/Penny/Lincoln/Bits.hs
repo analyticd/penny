@@ -105,7 +105,6 @@ import GHC.Generics (Generic)
 import Control.Monad (liftM4, liftM2, liftM3, liftM5)
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck (Arbitrary, arbitrary)
-import qualified Test.QuickCheck as QC
 #endif
 
 data PricePoint = PricePoint { dateTime :: DT.DateTime

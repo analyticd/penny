@@ -15,6 +15,7 @@ module Penny.Lincoln.Transaction
   , ViewedPosting
   , unView
   , headPosting
+  , tailPostings
   , views
 
 #ifdef test
@@ -233,6 +234,12 @@ headPosting :: View m -> Posting m
 headPosting (View ls) = case ls of
   [] -> error "transaction: empty view"
   x:_ -> x
+
+-- | Get information on sibling postings.
+tailPostings :: View m -> [Posting m]
+tailPostings (View ls) = case ls of
+  [] -> error "transaction: tailPostings: empty view"
+  _:xs -> xs
 
 type ViewedPosting = ( B.TopLineData, View B.PostingData )
 

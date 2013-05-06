@@ -9,18 +9,19 @@
 module Penny.Lincoln.Queries.Siblings where
 
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.Family.Child (Child(Child))
 import qualified Penny.Lincoln.Transaction as T
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 
 -- | For all siblings, uses information from the Posting if it is set;
 -- otherwise, uses data from the TopLine.
 bestSibs
-  :: (T.Posting pm -> Maybe a)
-  -> (T.TopLine tm -> Maybe a)
-  -> T.PostFam tm pm
+  :: (B.TopLineData -> Maybe a)
+  -> (T.View B.PostingData -> Maybe a)
+  -> T.ViewedPosting
   -> [Maybe a]
-bestSibs fp ft pf =
+bestSibs ft fp vp =
+  let get = maybe (ft vp) Just . fp
+  in map get . 
   let (Child _ s1 ss p) = T.unPostFam pf
       get = maybe (ft p) Just . fp
   in get s1 : map get ss
