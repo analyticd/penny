@@ -13,6 +13,8 @@ module Penny.Lincoln.Ents
   , rEnts
   , View
   , Posting
+  , Transaction
+  , transactionToPostings
   , unView
   , headEnt
   , tailEnts
@@ -25,6 +27,7 @@ module Penny.Lincoln.Ents
 
   ) where
 
+import Control.Arrow (second)
 import Data.Binary (Binary)
 import GHC.Generics (Generic)
 import qualified Penny.Lincoln.Bits as B
@@ -237,6 +240,10 @@ unrollSnd = unfoldr f where
   f (_, []) = Nothing
   f (a, b:bs) = Just ((a, b), (a, bs))
 
+-- | Splits a Transaction into Postings.
+transactionToPostings :: Transaction -> [Posting]
+transactionToPostings = unrollSnd . second views
+
 -- | Get information from the head posting in the View, which is the
 -- one you are most likely interested in.
 headEnt :: View m -> Ent m
@@ -250,6 +257,7 @@ tailEnts (View ls) = case ls of
   [] -> error "ents: tailEnts: empty view"
   _:xs -> xs
 
+type Transaction = ( B.TopLineData, Ents B.PostingData )
 type Posting = ( B.TopLineData, View B.PostingData )
 
 #ifdef test
@@ -282,7 +290,7 @@ ents
   -> Maybe (Ents m)
 ents ls = do
   guard . not . null $ ls
-  let makePstg = makePosting (inferredVal . map fst $ ls)
+  let makePstg = makeEnt (inferredVal . map fst $ ls)
   fmap Ents $ mapM makePstg ls
 
 rEnts
@@ -311,12 +319,12 @@ rEnts com dc (q1, m1) nonInfs lastMeta =
 -- | Changes Maybe Entries into Postings. Uses the inferred value if
 -- the Maybe Entry is Nothing. If there is no inferred value, returns
 -- Nothing.
-makePosting
+makeEnt
   :: Maybe B.Entry
   -- ^ Inferred value
   -> (Maybe B.Entry, m)
   -> Maybe (Ent m)
-makePosting mayInf (mayEn, m) = case mayEn of
+makeEnt mayInf (mayEn, m) = case mayEn of
   Nothing -> case mayInf of
     Nothing -> Nothing
     Just inf -> return $ Ent inf Inferred m

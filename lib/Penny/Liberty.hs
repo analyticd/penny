@@ -44,6 +44,7 @@ module Penny.Liberty (
 
   ) where
 
+import Control.Arrow (first, second)
 import Control.Applicative ((<*>), (<$>), pure, Applicative)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper)
@@ -107,7 +108,7 @@ parsePredicate d ls = case ls of
 
 -- | Takes a list of transactions, splits them into PostingChild
 -- instances, filters them, post-filters them, sorts them, and places
--- them in Box instances with Filtered serials. Also returns a Text
+-- them in Box instances with Filtered serials. Also returns Chunks
 -- containing a description of the evalutation process.
 xactionsToFiltered ::
 
@@ -117,71 +118,47 @@ xactionsToFiltered ::
   -> [PostFilterFn]
   -- ^ Post filter specs
 
-  -> (L.ViewedEnt -> L.ViewedEnt -> Ordering)
+  -> (L.Posting -> L.Posting -> Ordering)
   -- ^ The sorter
 
   -> [L.Transaction]
   -- ^ The transactions to work on (probably parsed in from Copper)
 
-  -> ([C.Chunk], [L.Box LibertyMeta])
+  -> ([C.Chunk], [(LibertyMeta, L.Posting)])
   -- ^ Sorted, filtered postings
 
-xactionsToFiltered pdct postFilts s txns =
-  let pdcts = map (makeLabeledPdct pdct) pfs
-      evaluator subj pd = E.evaluate indentAmt True subj 0 pd
-      pairMaybes = zipWith evaluator pfs pdcts
-      pairs = mapMaybe rmMaybe pairMaybes
-      rmMaybe (mayB, x) = case mayB of
-        Nothing -> Nothing
-        Just b -> Just (b, x)
-      pfs = concatMap L.postFam txns
-      txt = concatMap snd pairs
-      filtered = map snd . filter fst $ zipWith zipper pairs pfs
-      zipper (bool, _) pf = (bool, pf)
-      resultLs = addSortedNum
-                 . processPostFilters postFilts
-                 . sortBy (sorter s)
-                 . addFilteredNum
-                 . map toBox
-                 $ filtered
-  in (txt, resultLs)
+xactionsToFiltered pdct postFilts srtr
+  = second processPostings
+  . mainFilter pdct
+  . concatMap L.transactionToPostings
+
+processPostings :: [L.Posting] -> [(LibertyMeta, L.Posting)]
+processPostings
+  = (map . first . uncurry $ LibertyMeta)
+  . addSortedNum
+  . sortBy (\p1 p2 -> srtr (snd p1) (snd p2))
+  . processPostFilts postFilters
+  . addFilteredNum
+
+mainFilter :: P.LPdct -> L.Posting -> ([C.Chunk], [L.Posting])
+mainFilter pdct = flip . E.filter 0 True 0 L.display pdct
+
+addFilteredNum :: [L.Posting] -> [(FilteredNum, L.Posting)]
+addFilteredNum = L.serialItems (\s p -> (FilteredNum s, p))
+
+addSortedNum :: [(a, b)] -> [((a, SortedNum), b)]
+addSortedNum = E.serialItems (\s (a, b) -> ((a, SortedNum s), b))
 
 
 -- | Creates a Pdct and prepends a one-line description of the PostFam
 -- to the Pdct's label so it can be easily identified in the output.
-makeLabeledPdct :: E.Pdct L.ViewedEnt -> L.ViewedEnt -> E.Pdct L.ViewedEnt
+makeLabeledPdct :: E.Pdct L.Posting -> L.Posting -> E.Pdct L.Posting
 makeLabeledPdct pd pf = E.rename f pd
   where
     f old = old <> " - " <> L.display pf
 
 indentAmt :: E.IndentAmt
 indentAmt = 4
-
--- | Transforms a PostingChild into a Box.
-toBox :: L.ViewedEnt -> L.Box ()
-toBox = L.Box ()
-
--- | Takes a list of filtered boxes and adds the Filtered serials.
-
-addFilteredNum :: [L.Box a] -> [L.Box FilteredNum]
-addFilteredNum = L.serialItems f where
-  f ser = fmap (const (FilteredNum ser))
-
--- | Wraps a PostingChild sorter to change it to a Box sorter.
-sorter :: (L.ViewedEnt -> L.ViewedEnt -> Ordering)
-          -> L.Box a
-          -> L.Box b
-          -> Ordering
-sorter f b1 b2 = f (L.boxPostFam b1) (L.boxPostFam b2)
-
--- | Takes a list of Boxes with metadata and adds a Serial for the
--- Sorted.
-addSortedNum ::
-  [L.Box FilteredNum]
-  -> [L.Box LibertyMeta]
-addSortedNum = L.serialItems f where
-  f ser = fmap g where
-    g filtNum = LibertyMeta filtNum (SortedNum ser)
 
 type MatcherFactory =
   CaseSensitive
@@ -251,7 +228,7 @@ parseDate arg =
   where
     err msg = "bad date: \"" <> pack arg <> "\" - " <> (pack . show $ msg)
 
-type Operand = E.Pdct L.ViewedEnt
+type Operand = E.Pdct L.Posting
 
 -- | OptSpec for a date.
 date :: OptSpec (Ex.Exceptional Error Operand)
@@ -392,7 +369,7 @@ qtyOption = C.OptSpec ["qty"] "q" (C.TwoArg f)
 -- one for ascending, one for descending.
 serialOption ::
 
-  (L.ViewedEnt -> Maybe L.Serial)
+  (L.Posting -> Maybe L.Serial)
   -- ^ Function that, when applied to a PostingChild, returns the serial
   -- you are interested in.
 
