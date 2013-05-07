@@ -100,3 +100,5 @@ spaceBetween :: E.Posting -> Maybe B.SpaceBetween
 spaceBetween = B.pSpaceBetween . B.pdCore
                . E.meta . E.headEnt . snd
 
+filename :: E.Posting -> Maybe B.Filename
+filename = fmap B.tFilename . B.tlFileMeta . fst

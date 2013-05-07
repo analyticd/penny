@@ -22,6 +22,19 @@ module Penny.Lincoln.Predicates
   , accountAny
   , tag
   , reconciled
+  , filename
+
+  -- * Serials
+  , serialPdct
+  , MakeSerialPdct
+  , fwdGlobalPosting
+  , backGlobalPosting
+  , fwdFilePosting
+  , backFilePosting
+  , fwdGlobalTransaction
+  , backGlobalTransaction
+  , fwdFileTransaction
+  , backFileTransaction
   ) where
 
 
@@ -34,8 +47,10 @@ import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
 import qualified Penny.Lincoln.Queries as Q
 import Penny.Lincoln.Ents (Posting)
+import qualified Penny.Lincoln.Ents as E
 import qualified Text.Matchers as M
 import qualified Data.Prednote.Pdct as P
+import Penny.Lincoln.Serial (forward, backward)
 
 type LPdct = P.Pdct Posting
 
@@ -200,3 +215,101 @@ reconciled = P.operand d p
     d = "posting flag is exactly \"R\" (is reconciled)"
     p = maybe False ((== X.singleton 'R') . B.unFlag) . Q.flag
 
+filename :: M.Matcher -> LPdct
+filename = matchMaybe "filename" Q.filename
+
+-- | Makes Pdct based on comparisons against a particular serial.
+
+serialPdct
+  :: Text
+  -- ^ Name of the serial, e.g. @globalPosting@
+
+  -> (a -> Maybe Int)
+  -- ^ How to obtain the serial from the item being examined
+
+  -> Int
+  -- ^ The right hand side
+
+  -> Ordering
+  -- ^ The Pdct returned will be Just True if the item has a serial
+  -- and @compare ser rhs@ returns this Ordering; Just False if the
+  -- item has a srerial and @compare@ does not return this Ordering;
+  -- Nothing if the item does not have a serial.
+
+  -> P.Pdct a
+
+serialPdct name getSer i o = P.Pdct n (P.Operand f)
+  where
+    n = "serial " <> name <> " is " <> descCmp <> " "
+        <> X.pack (show i)
+    descCmp = case o of
+      EQ -> "equal to"
+      LT -> "less than"
+      GT -> "greater than"
+    f = fmap (\ser -> compare ser i == o) . getSer
+
+type MakeSerialPdct = Int -> Ordering -> P.Pdct Posting
+
+fwdGlobalPosting :: MakeSerialPdct
+fwdGlobalPosting =
+  serialPdct "fwdGlobalPosting"
+  $ fmap (forward . B.unGlobalPosting)
+  . B.pdGlobal
+  . E.meta
+  . E.headEnt
+  . snd
+
+backGlobalPosting :: MakeSerialPdct
+backGlobalPosting =
+  serialPdct "revGlobalPosting"
+  $ fmap (backward . B.unGlobalPosting)
+  . B.pdGlobal
+  . E.meta
+  . E.headEnt
+  . snd
+
+fwdFilePosting :: MakeSerialPdct
+fwdFilePosting
+  = serialPdct "fwdFilePosting"
+  $ fmap (forward . B.unFilePosting . B.pFilePosting)
+  . B.pdFileMeta
+  . E.meta
+  . E.headEnt
+  . snd
+
+backFilePosting :: MakeSerialPdct
+backFilePosting
+  = serialPdct "revFilePosting"
+  $ fmap (backward . B.unFilePosting . B.pFilePosting)
+  . B.pdFileMeta
+  . E.meta
+  . E.headEnt
+  . snd
+
+fwdGlobalTransaction :: MakeSerialPdct
+fwdGlobalTransaction
+  = serialPdct "fwdGlobalTransaction"
+  $ fmap (forward . B.unGlobalTransaction)
+  . B.tlGlobal
+  . fst
+
+backGlobalTransaction :: MakeSerialPdct
+backGlobalTransaction
+  = serialPdct "backGlobalTransaction"
+  $ fmap (backward . B.unGlobalTransaction)
+  . B.tlGlobal
+  . fst
+
+fwdFileTransaction :: MakeSerialPdct
+fwdFileTransaction
+  = serialPdct "fwdFileTransaction"
+  $ fmap (forward . B.unFileTransaction . B.tFileTransaction)
+  . B.tlFileMeta
+  . fst
+
+backFileTransaction :: MakeSerialPdct
+backFileTransaction
+  = serialPdct "backFileTransaction"
+  $ fmap (backward . B.unFileTransaction . B.tFileTransaction)
+  . B.tlFileMeta
+  . fst

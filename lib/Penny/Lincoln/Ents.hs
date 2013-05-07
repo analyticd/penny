@@ -17,6 +17,7 @@ module Penny.Lincoln.Ents
   , Transaction
   , transactionToPostings
   , unView
+  , allViews
   , headEnt
   , tailEnts
   , views
@@ -262,6 +263,10 @@ tailEnts :: View m -> [Ent m]
 tailEnts (View ls) = case ls of
   [] -> error "ents: tailEnts: empty view"
   _:xs -> xs
+
+-- | Given a single View, returns all possible alternate Views.
+allViews :: View B.PostingData -> [View B.PostingData]
+allViews = map View . orderedPermute . unView
 
 type Transaction = ( B.TopLineData, Ents B.PostingData )
 type Posting = ( B.TopLineData, View B.PostingData )

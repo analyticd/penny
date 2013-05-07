@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RankNTypes #-}
 
 -- | Liberty - Penny command line parsing utilities
 --
@@ -15,11 +15,7 @@ module Penny.Liberty (
   SortedNum(SortedNum, unSortedNum),
   LibertyMeta(filteredNum, sortedNum),
   xactionsToFiltered,
-  ListLength(ListLength, unListLength),
-  ItemIndex(ItemIndex, unItemIndex),
-  PostFilterFn,
   parseComparer,
-  processPostFilters,
   parsePredicate,
   parseInt,
   parseInfix,
@@ -48,11 +44,11 @@ import Control.Arrow (first, second)
 import Control.Applicative ((<*>), (<$>), pure, Applicative)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper)
-import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>))
 import Data.List (sortBy)
 import Data.Text (Text, pack)
 import qualified Data.Time as Time
+import Data.Tuple (swap)
 import qualified System.Console.MultiArg as MA
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Combinator (OptSpec)
@@ -111,12 +107,12 @@ parsePredicate d ls = case ls of
 -- instances, filters them, post-filters them, sorts them, and places
 -- them in Box instances with Filtered serials. Also returns Chunks
 -- containing a description of the evalutation process.
-xactionsToFiltered ::
+xactionsToFiltered
 
-  P.LPdct
+  :: P.LPdct
   -- ^ The predicate to filter the transactions
 
-  -> [PostFilterFn]
+  -> (forall a. [a] -> [a])
   -- ^ Post filter specs
 
   -> (L.Posting -> L.Posting -> Ordering)
@@ -129,61 +125,38 @@ xactionsToFiltered ::
   -- ^ Sorted, filtered postings
 
 xactionsToFiltered pdct postFilts srtr
-  = second processPostings
+  = second (processPostings srtr postFilts)
   . mainFilter pdct
   . concatMap L.transactionToPostings
 
-processPostings :: [L.Posting] -> [(LibertyMeta, L.Posting)]
 processPostings
+  :: (L.Posting -> L.Posting -> Ordering)
+  -> (forall a. [a] -> [a])
+  -> [L.Posting]
+  -> [(LibertyMeta, L.Posting)]
+processPostings srtr postFilters
   = (map . first . uncurry $ LibertyMeta)
   . addSortedNum
   . sortBy (\p1 p2 -> srtr (snd p1) (snd p2))
-  . processPostFilts postFilters
+  . postFilters
   . addFilteredNum
 
-mainFilter :: P.LPdct -> L.Posting -> ([C.Chunk], [L.Posting])
-mainFilter pdct = flip . E.filter indentAmt True 0 L.display pdct
+mainFilter :: P.LPdct -> [L.Posting] -> ([C.Chunk], [L.Posting])
+mainFilter pdct = swap . E.filter indentAmt True 0 L.display pdct
 
 addFilteredNum :: [a] -> [(FilteredNum, a)]
 addFilteredNum = L.serialItems (\s p -> (FilteredNum s, p))
 
 addSortedNum :: [(a, b)] -> [((a, SortedNum), b)]
-addSortedNum = E.serialItems (\s (a, b) -> ((a, SortedNum s), b))
-
--- | Creates a Pdct and prepends a one-line description of the PostFam
--- to the Pdct's label so it can be easily identified in the output.
-makeLabeledPdct :: E.Pdct L.Posting -> L.Posting -> E.Pdct L.Posting
-makeLabeledPdct pd pf = E.rename f pd
-  where
-    f old = old <> " - " <> L.display pf
+addSortedNum = L.serialItems (\s (a, b) -> ((a, SortedNum s), b))
 
 indentAmt :: E.IndentAmt
 indentAmt = 4
 
-type MatcherFactory =
-  CaseSensitive
+type MatcherFactory
+  = CaseSensitive
   -> Text
   -> Ex.Exceptional Text TM.Matcher
-
-newtype ListLength = ListLength { unListLength :: Int }
-                     deriving (Eq, Ord, Show)
-newtype ItemIndex = ItemIndex { unItemIndex :: Int }
-                    deriving (Eq, Ord, Show)
-
--- | Specifies options for the post-filter stage.
-type PostFilterFn = ListLength -> ItemIndex -> Bool
-
-
-processPostFilters :: [PostFilterFn] -> [a] -> [a]
-processPostFilters pfs ls = foldl processPostFilter ls pfs
-
-
-processPostFilter :: [a] -> PostFilterFn -> [a]
-processPostFilter as fn = map fst . filter fn' $ zipped where
-  len = ListLength $ length as
-  fn' (_, idx) = fn len (ItemIndex idx)
-  zipped = zip as [0..]
-
 
 ------------------------------------------------------------
 -- Operands
@@ -193,8 +166,8 @@ processPostFilter as fn = map fst . filter fn' $ zipped where
 -- the current case sensitivity, and a MatcherFactory, return a
 -- Matcher. Fails if the pattern is bad (e.g. it is not a valid
 -- regular expression).
-getMatcher ::
-  String
+getMatcher
+  :: String
   -> CaseSensitive
   -> MatcherFactory
   -> Ex.Exceptional Error TM.Matcher
@@ -399,44 +372,28 @@ serialOption getSerial n = (osA, osD)
 -- | Creates two options suitable for comparison of sibling serial
 -- numbers. Similar to 'serialOption'.
 siblingSerialOption
-
-  :: (L.Posting -> Maybe L.Serial)
-  -- ^ Function that, when applied to a PostFam, returns the serial
-  -- you are interested in.
-
-  -> String
+  :: String
   -- ^ Name of the command line option, such as @global-posting@
+
+  -> (Int -> Ordering -> E.Pdct L.Posting)
+  -- ^ Function that returns a Pdct for forward serial
+
+  -> (Int -> Ordering -> E.Pdct L.Posting)
+  -- ^ Function that returns a Pdct for reverse serial
 
   -> ( OptSpec (Ex.Exceptional Error Operand)
      , OptSpec (Ex.Exceptional Error Operand) )
   -- ^ Parses both descending and ascending serial options.
 
-siblingSerialOption getSerial n = (osA, osD)
+siblingSerialOption n fFwd fBak = (osA, osD)
   where
-    osA = C.OptSpec ["s-" ++ n] []
-          (C.TwoArg (f n L.forward))
+    osA = C.OptSpec ["s-" ++ n] [] (C.TwoArg (f fFwd))
     osD = let name = addPrefix "rev" n
-          in C.OptSpec ["s-" ++ name] []
-             (C.TwoArg (f name L.backward))
-    f name getInt a1 a2 = do
+          in C.OptSpec ["s-" ++ name] [] (C.TwoArg (f fBak))
+    f getPdct a1 a2 = do
       num <- parseInt a2
-      let getPdct ord = E.operand desc fn
-            where
-              desc = "any sibling serial " <> pack name
-                     <> " is " <> descCmp ord
-                     <> " " <> (pack . show $ num)
-              fn = any doCmp . L.unrollSnd . second L.tailEnts
-              doCmp p = case getSerial p of
-                Nothing -> False
-                Just ser -> compare (getInt ser) num == ord
-      parseComparer a1 getPdct
+      parseComparer a1 (getPdct num)
 
-
-descCmp :: Ordering -> Text
-descCmp o = case o of
-  LT -> "less than"
-  EQ -> "equal to"
-  GT -> "greater than"
 
 -- | Takes a string, adds a prefix and capitalizes the first letter of
 -- the old string. e.g. applied to "rev" and "globalTransaction",
@@ -519,7 +476,8 @@ serialSpecs
   $ [unDouble]
   <*> [ globalTransaction, globalPosting,
         filePosting, fileTransaction,
-        sGlobalPosting, sFilePosting ]
+        sGlobalPosting, sFilePosting,
+        sGlobalTransaction, sFileTransaction ]
 
 unDouble
   :: Functor f
@@ -538,25 +496,21 @@ unDouble (o1, o2) = [fmap (const . const) o1, fmap (const . const) o2]
 data BadHeadTailError = BadHeadTailError Text
   deriving Show
 
-optHead :: OptSpec (Ex.Exceptional Error PostFilterFn)
+optHead :: OptSpec (Ex.Exceptional Error ([a] -> [a]))
 optHead = C.OptSpec ["head"] [] (C.OneArg f)
   where
-    f a = do
-      num <- parseInt a
-      let g _ ii = ii < (ItemIndex num)
-      return g
+    f = fmap take . parseInt
 
-optTail :: OptSpec (Ex.Exceptional Error PostFilterFn)
+optTail :: OptSpec (Ex.Exceptional Error ([a] -> [a]))
 optTail = C.OptSpec ["tail"] [] (C.OneArg f)
   where
-    f a = do
-      num <- parseInt a
-      let g (ListLength len) (ItemIndex ii) = ii >= len - num
-      return g
+    f = fmap takeLast . parseInt
+    takeLast n xs = drop (max 0 (length xs - n)) xs
 
 
-postFilterSpecs :: ( OptSpec (Ex.Exceptional Error PostFilterFn)
-                   , OptSpec (Ex.Exceptional Error PostFilterFn) )
+postFilterSpecs
+  :: ( OptSpec (Ex.Exceptional Error ([a] -> [a]))
+     , OptSpec (Ex.Exceptional Error ([a] -> [a])))
 postFilterSpecs = (optHead, optTail)
 
 ------------------------------------------------------------
@@ -647,14 +601,27 @@ verboseFilter = C.OptSpec ["verbose-filter"] "" (C.NoArg ())
 sGlobalPosting :: ( OptSpec (Ex.Exceptional Error Operand)
                   , OptSpec (Ex.Exceptional Error Operand) )
 sGlobalPosting =
-  siblingSerialOption (fmap (fmap L.unGlobalPosting) L.pGlobalPosting)
-                      "globalPosting"
+  siblingSerialOption "globalPosting"
+                      PS.fwdGlobalPosting PS.backGlobalPosting
 
 sFilePosting :: ( OptSpec (Ex.Exceptional Error Operand)
                   , OptSpec (Ex.Exceptional Error Operand) )
 sFilePosting =
-  siblingSerialOption (fmap (fmap L.unFilePosting) L.pFilePosting)
-                      "filePosting"
+  siblingSerialOption "filePosting"
+                      PS.fwdFilePosting PS.backFilePosting
+
+sGlobalTransaction :: ( OptSpec (Ex.Exceptional Error Operand)
+                  , OptSpec (Ex.Exceptional Error Operand) )
+sGlobalTransaction =
+  siblingSerialOption "globalTransaction"
+                      PS.fwdGlobalTransaction PS.backGlobalTransaction
+
+sFileTransaction :: ( OptSpec (Ex.Exceptional Error Operand)
+                  , OptSpec (Ex.Exceptional Error Operand) )
+sFileTransaction =
+  siblingSerialOption "filePosting"
+                      PS.fwdFileTransaction PS.backFileTransaction
+
 
 sAccount :: OptSpec ( CaseSensitive
                     -> MatcherFactory
