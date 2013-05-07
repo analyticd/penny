@@ -8,6 +8,7 @@ module Penny.Lincoln.Ents
   , meta
   , Ents
   , unEnts
+  , tupleEnts
   , mapEnts
   , ents
   , rEnts
@@ -95,6 +96,11 @@ instance Binary m => Binary (Ent m)
 
 newtype Ents m = Ents { unEnts :: [Ent m] }
   deriving (Eq, Ord, Show, Generic, Functor)
+
+tupleEnts :: Ents m -> (Ent m, Ent m, [Ent m])
+tupleEnts (Ents ls) = case ls of
+  t1:t2:ts -> (t1, t2, ts)
+  _ -> error "tupleEnts: ents does not have two ents"
 
 #ifdef test
 

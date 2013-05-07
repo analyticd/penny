@@ -116,6 +116,20 @@ data PricePoint = PricePoint { dateTime :: DT.DateTime
 
 instance B.Binary PricePoint
 
+-- | All the data that a TopLine might have.
+data TopLineData = TopLineData
+  { tlCore :: TopLineCore
+  , tlFileMeta :: Maybe TopLineFileMeta
+  , tlGlobal :: Maybe O.GlobalTransaction
+  } deriving (Eq, Show, Generic)
+
+instance B.Binary TopLineData
+
+#ifdef test
+instance Arbitrary TopLineData where
+  arbitrary = liftM3 TopLineData arbitrary arbitrary arbitrary
+#endif
+
 -- | Every TopLine has this data.
 data TopLineCore = TopLineCore
   { tDateTime :: DT.DateTime
@@ -137,7 +151,7 @@ instance Arbitrary TopLineCore where
 data TopLineFileMeta = TopLineFileMeta
   { tFilename :: O.Filename
   , tTopLineLine :: O.TopLineLine
-  , tTopMemoLine :: O.TopMemoLine
+  , tTopMemoLine :: Maybe O.TopMemoLine
   , tFileTransaction :: O.FileTransaction
   } deriving (Eq, Show, Generic)
 
@@ -196,19 +210,5 @@ instance B.Binary PostingData
 #ifdef test
 instance Arbitrary PostingData where
   arbitrary = liftM3 PostingData arbitrary arbitrary arbitrary
-#endif
-
--- | All the data that a TopLine might have.
-data TopLineData = TopLineData
-  { tlCore :: TopLineCore
-  , tlFileMeta :: Maybe TopLineFileMeta
-  , tlGlobal :: Maybe O.GlobalTransaction
-  } deriving (Eq, Show, Generic)
-
-instance B.Binary TopLineData
-
-#ifdef test
-instance Arbitrary TopLineData where
-  arbitrary = liftM3 TopLineData arbitrary arbitrary arbitrary
 #endif
 

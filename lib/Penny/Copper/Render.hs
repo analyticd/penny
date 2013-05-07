@@ -5,7 +5,7 @@
 module Penny.Copper.Render where
 
 import Control.Monad (guard)
-import Control.Applicative ((<$>), (<|>), (<*>))
+import Control.Applicative ((<$>), (<|>), (<*>), pure)
 import Data.List (intersperse, intercalate)
 import Data.List.Split (chunksOf, splitOn)
 import qualified Data.Text as X
@@ -184,11 +184,13 @@ quantity gs q =
 
 -- | Render an Amount. The Format is required so that the commodity
 -- can be displayed in the right place.
-amount ::
-  GroupSpecs
+amount
+  :: GroupSpecs
+  -> Maybe L.Side
+  -> Maybe L.SpaceBetween
   -> L.Amount
   -> Maybe X.Text
-amount gs (L.Amount qt c maySd maySb) =
+amount gs maySd maySb (L.Amount qt c) =
   let q = quantity gs qt
   in do
     sd <- maySd
@@ -264,10 +266,12 @@ hoursMinsSecsZone h m s z =
 
 entry
   :: GroupSpecs
+  -> Maybe L.Side
+  -> Maybe L.SpaceBetween
   -> L.Entry
   -> Maybe X.Text
-entry gs (L.Entry dc a) = do
-  amt <- amount gs a
+entry gs sd sb (L.Entry dc a) = do
+  amt <- amount gs sd sb a
   let dcTxt = X.pack $ case dc of
         L.Debit -> "<"
         L.Credit -> ">"
@@ -366,8 +370,8 @@ price gs pp = let
   (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
   mayFromTxt = lvl3Cmdty from <|> quotedLvl1Cmdty from
   in do
-    amtTxt <- amount gs
-              (L.Amount q to (L.ppSide pp) (L.ppSpaceBetween pp))
+    amtTxt <- amount gs (L.ppSide pp) (L.ppSpaceBetween pp)
+              (L.Amount q to)
     fromTxt <- mayFromTxt
     return $
        (X.intercalate (X.singleton ' ')
@@ -391,19 +395,19 @@ tags (L.Tags ts) =
 
 -- | Renders the TopLine. Emits trailing whitespace after the newline
 -- so that the first posting is properly indented.
-topLine :: LT.TopLine tm -> Maybe X.Text
+topLine :: L.TopLineCore -> Maybe X.Text
 topLine tl =
   f
-  <$> renMaybe (LT.tMemo tl) transactionMemo
-  <*> renMaybe (LT.tFlag tl) flag
-  <*> renMaybe (LT.tNumber tl) number
-  <*> renMaybe (LT.tPayee tl) payee
+  <$> pure (dateTime (L.tDateTime tl))
+  <*> renMaybe (L.tMemo tl) transactionMemo
+  <*> renMaybe (L.tFlag tl) flag
+  <*> renMaybe (L.tNumber tl) number
+  <*> renMaybe (L.tPayee tl) payee
   where
-    f meX flX nuX paX =
+    f dtX meX flX nuX paX =
       X.concat [ meX, txtWords [dtX, flX, nuX, paX],
                  X.singleton '\n',
                  X.replicate 4 (X.singleton ' ') ]
-    dtX = dateTime (LT.tDateTime tl)
 
 -- * Posting
 
@@ -442,23 +446,24 @@ topLine tl =
 -- paramter is True. However, this is overriden if there is a memo, in
 -- which case eight spaces will be emitted. (This allows the next
 -- posting to be indented properly.)
-posting ::
-  GroupSpecs
+posting
+  :: GroupSpecs
   -> Bool
   -- ^ If True, emit four spaces after the trailing newline.
-  -> L.Posting pm
+  -> L.Ent L.PostingCore
   -> Maybe X.Text
-posting gs pad p = do
-  fl <- renMaybe (LT.pFlag p) flag
-  nu <- renMaybe (LT.pNumber p) number
-  pa <- renMaybe (LT.pPayee p) quotedLvl1Payee
-  ac <- ledgerAcct (LT.pAccount p)
-  ta <- tags (LT.pTags p)
-  me <- renMaybe (LT.pMemo p) (postingMemo pad)
-  mayEn <- case LT.pInferred p of
-    LT.Inferred -> return Nothing
-    LT.NotInferred -> return (Just . L.pEntry $ p)
-  en <- renMaybe mayEn (entry gs)
+posting gs pad ent = do
+  let p = L.meta ent
+  fl <- renMaybe (L.pFlag p) flag
+  nu <- renMaybe (L.pNumber p) number
+  pa <- renMaybe (L.pPayee p) quotedLvl1Payee
+  ac <- ledgerAcct (L.pAccount p)
+  ta <- tags (L.pTags p)
+  me <- renMaybe (L.pMemo p) (postingMemo pad)
+  let mayEn = case L.inferred ent of
+        L.Inferred -> Nothing
+        L.NotInferred -> (Just . L.entry $ ent)
+  en <- renMaybe mayEn (entry gs (L.pSide p) (L.pSpaceBetween p))
   return $ formatter pad fl nu pa ac ta en me
 
 formatter ::
@@ -491,25 +496,25 @@ formatter pad fl nu pa ac ta en me = let
 
 -- * Transaction
 
-transaction ::
-  GroupSpecs
-  -> L.Transaction tm pm
+transaction
+  :: GroupSpecs
+  -> L.Transaction
   -> Maybe X.Text
 transaction gs txn = do
-  let (L.Family tl p1 p2 ps) = LT.unTransaction txn
-  tlX <- topLine tl
-  p1X <- posting gs True p1
-  p2X <- posting gs (not . null $ ps) p2
+  tlX <- topLine . L.tlCore . fst $ txn
+  let (p1, p2, ps) = L.tupleEnts . snd $ txn
+  p1X <- posting gs True (fmap L.pdCore p1)
+  p2X <- posting gs (not . null $ ps) (fmap L.pdCore p2)
   psX <- if null ps
          then return X.empty
          else let bs = replicate (length ps - 1) True ++ [False]
               in fmap X.concat . sequence
-                 $ zipWith (posting gs) bs ps
+                 $ zipWith (posting gs) bs (map (fmap L.pdCore) ps)
   return $ X.concat [tlX, p1X, p2X, psX]
 
 -- * Item
 
-item :: GroupSpecs -> Y.Item tm pm -> Maybe X.Text
+item :: GroupSpecs -> Y.Item -> Maybe X.Text
 item gs i = case i of
   Y.BlankLine -> Just . X.singleton $ '\n'
   Y.IComment x -> comment x
@@ -518,5 +523,5 @@ item gs i = case i of
 
 -- * Ledger
 
-ledger :: GroupSpecs -> Y.Ledger tm pm -> Maybe X.Text
+ledger :: GroupSpecs -> Y.Ledger -> Maybe X.Text
 ledger gs (Y.Ledger is) = fmap X.concat . mapM (item gs) $ is

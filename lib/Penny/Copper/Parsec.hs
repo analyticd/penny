@@ -2,6 +2,7 @@
 -- documented in EBNF in the file @doc\/ledger-grammar.org@.
 module Penny.Copper.Parsec where
 
+import qualified Penny.Copper.Interface as I
 import qualified Penny.Copper.Terminals as T
 import qualified Penny.Copper.Types as Y
 import Text.Parsec.Text (Parser)
@@ -12,7 +13,6 @@ import Control.Arrow (first, second)
 import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
                             (<|>), optional)
 import Control.Monad (replicateM)
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Lincoln as L
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
@@ -102,31 +102,31 @@ spaceBetween = f <$> optional (many1 (satisfy T.white))
   where
     f = maybe L.NoSpaceBetween (const L.SpaceBetween)
 
-leftCmdtyLvl1Amt :: Parser L.Amount
+leftCmdtyLvl1Amt :: Parser (L.Amount, L.Side, L.SpaceBetween)
 leftCmdtyLvl1Amt =
   f <$> quotedLvl1Cmdty <*> spaceBetween <*> quantity
   where
-    f c s q = L.Amount q c (Just L.CommodityOnLeft) (Just s)
+    f c s q = (L.Amount q c , L.CommodityOnLeft, s)
 
-leftCmdtyLvl3Amt :: Parser L.Amount
+leftCmdtyLvl3Amt :: Parser (L.Amount, L.Side, L.SpaceBetween)
 leftCmdtyLvl3Amt = f <$> lvl3Cmdty <*> spaceBetween <*> quantity
   where
-    f c s q = L.Amount q c (Just L.CommodityOnLeft) (Just s)
+    f c s q = (L.Amount q c, L.CommodityOnLeft, s)
 
-leftSideCmdtyAmt :: Parser L.Amount
+leftSideCmdtyAmt :: Parser (L.Amount, L.Side, L.SpaceBetween)
 leftSideCmdtyAmt = leftCmdtyLvl1Amt <|> leftCmdtyLvl3Amt
 
 rightSideCmdty :: Parser L.Commodity
 rightSideCmdty = quotedLvl1Cmdty <|> lvl2Cmdty
 
-rightSideCmdtyAmt :: Parser L.Amount
+rightSideCmdtyAmt :: Parser (L.Amount, L.Side, L.SpaceBetween)
 rightSideCmdtyAmt =
   f <$> quantity <*> spaceBetween <*> rightSideCmdty
   where
-    f q s c = L.Amount q c (Just L.CommodityOnRight) (Just s)
+    f q s c = (L.Amount q c ,L.CommodityOnRight, s)
 
 
-amount :: Parser L.Amount
+amount :: Parser (L.Amount, L.Side, L.SpaceBetween)
 amount = leftSideCmdtyAmt <|> rightSideCmdtyAmt
 
 comment :: Parser Y.Comment
@@ -219,10 +219,10 @@ credit = L.Credit <$ satisfy T.greaterThan
 drCr :: Parser L.DrCr
 drCr = debit <|> credit
 
-entry :: Parser L.Entry
+entry :: Parser (L.Entry, L.Side, L.SpaceBetween)
 entry = f <$> drCr <* (many (satisfy T.white)) <*> amount
   where
-    f dc am = L.Entry dc am
+    f dc (am, sd, sb) = (L.Entry dc am, sd, sb)
 
 flag :: Parser L.Flag
 flag = (L.Flag . pack) <$ satisfy T.openSquare
@@ -275,12 +275,12 @@ lineNum = Pos.sourceLine <$> P.getPosition
 price :: Parser L.PricePoint
 price = p >>= maybe (fail msg) return
   where
-    f li dt fr (L.Amount qt to sd sb) =
+    f li dt fr (L.Amount qt to, sd, sb) =
       let cpu = L.CountPerUnit qt
       in case L.newPrice fr (L.To to) cpu of
         Nothing -> Nothing
         Just pr -> Just $ L.PricePoint dt pr
-                          sd sb (Just $ L.PriceLine li)
+                          (Just sd) (Just sb) (Just $ L.PriceLine li)
     p = f <$> lineNum <* satisfy T.atSign <* skipWhite
         <*> dateTime <* skipWhite
         <*> fromCmdty <* skipWhite
@@ -310,7 +310,7 @@ topLineFlagNum = p1 <|> p2
 skipWhite :: Parser ()
 skipWhite = () <$ many (satisfy T.white)
 
-topLine :: Parser U.TopLine
+topLine :: Parser I.ParsedTopLine
 topLine =
   f <$> optional transactionMemo
     <*> lineNum
@@ -323,13 +323,9 @@ topLine =
     <*  skipWhite
   where
     f mayMe lin dt (mayFl, mayNum) mayPy =
-      U.TopLine dt mayFl mayNum mayPy me tll tml Nothing
-      Nothing Nothing
+      ParsedTopLine dt mayNum mayFl mayPy me (L.TopLineLine lin)
       where
-        (tml, me) = case mayMe of
-          Nothing -> (Nothing, Nothing)
-          Just (l, m) -> (Just l, Just m)
-        tll = Just (L.TopLineLine lin)
+        me = fmap (\(a, b) -> (b, a)) mayMe
 
 pairedMaybes
   :: Parser (a, Maybe b)
@@ -382,7 +378,7 @@ flagNumPayee =
 postingAcct :: Parser L.Account
 postingAcct = quotedLvl1Acct <|> lvl2Acct
 
-posting :: Parser U.Posting
+posting :: Parser (L.PostingCore, L.PostingLine, Maybe L.Entry)
 posting = f <$> lineNum                <* skipWhite
             <*> optional flagNumPayee  <* skipWhite
             <*> postingAcct            <* skipWhite
@@ -392,26 +388,32 @@ posting = f <$> lineNum                <* skipWhite
             <*> optional postingMemo   <* skipWhite
   where
     f li mayFnp ac ta mayEn me =
-      U.Posting pa nu fl ac tgs mayEn me pl Nothing Nothing
+      (L.PostingCore pa nu fl ac tgs me sd sb, pl, en)
       where
         tgs = fromMaybe (L.Tags []) ta
-        pl = Just . L.PostingLine $ li
+        pl = L.PostingLine li
         (fl, nu, pa) = fromMaybe (Nothing, Nothing, Nothing) mayFnp
+        (en, sd, sb) = maybe (Nothing, Nothing, Nothing)
+          (\(a, b, c) -> (Just a, Just b, Just c)) mayEn
 
-transaction :: Parser L.Transaction
-transaction = p >>= Ex.switch (fail . show) return
-  where
-    p = L.transaction <$>
-        (L.Family <$> topLine <*> posting
-        <*> posting <*> many posting)
+transaction :: Parser ParsedTxn
+transaction = do
+  ptl <- topLine
+  let getEntPair (core, lin, mayEn) = (mayEn, (core, lin))
+  ts <- fmap (map getEntPair) $ many posting
+  ents <- maybe (fail "unbalanced transaction") return $ L.ents ts
+  return $ ParsedTxn ptl ents
 
 
-blankLine :: Parser Y.Item
-blankLine = Y.BlankLine <$ satisfy T.newline <* skipWhite
+blankLine :: Parser ()
+blankLine = () <$ satisfy T.newline <* skipWhite
 
-item :: Parser Y.Item
-item = fmap Y.IComment comment <|> fmap Y.PricePoint price
-       <|> fmap Y.Transaction transaction <|> blankLine
+item :: Parser ParsedItem
+item
+  = fmap PIComment comment
+  <|> fmap PIPricePoint price
+  <|> fmap PITransaction transaction
+  <|> (PIBlankLine <$ blankLine)
 
 ledger :: Parser Y.Ledger
-ledger = Y.Ledger <$ skipWhite <*> many item <* P.eof
+ledger = undefined

@@ -7,40 +7,12 @@ import qualified Data.Traversable as T
 import qualified Penny.Lincoln as L
 import qualified Data.Monoid as M
 
-newtype Comment = Comment { unComment :: X.Text }
-  deriving (Eq, Show)
-
 data Item
   = BlankLine
   | IComment Comment
   | PricePoint L.PricePoint
   | Transaction (L.Transaction)
   deriving Show
-
-mapItem
-  :: (Comment -> Comment)
-  -> (L.PricePoint -> L.PricePoint)
-  -> (L.Transaction -> L.Transaction)
-  -> Item
-  -> Item
-mapItem fc fp ft i = case i of
-  BlankLine -> BlankLine
-  IComment c -> IComment $ fc c
-  PricePoint p -> PricePoint $ fp p
-  Transaction t -> Transaction $ ft t
-
-mapItemA
-  :: Applicative a
-  => (Comment -> a Comment)
-  -> (L.PricePoint -> a L.PricePoint)
-  -> (L.Transaction -> a (L.Transaction))
-  -> Item
-  -> a (Item)
-mapItemA fc fp ft i = case i of
-  BlankLine -> pure BlankLine
-  IComment c -> IComment <$> fc c
-  PricePoint p -> PricePoint <$> fp p
-  Transaction t -> Transaction <$> ft t
 
 newtype Ledger = Ledger { unLedger :: [Item] }
         deriving Show

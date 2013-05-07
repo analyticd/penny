@@ -104,6 +104,7 @@ Library
     , Penny.Cabin.Scheme.Schemes
     , Penny.Cabin.TextFormat
     , Penny.Copper
+    , Penny.Copper.Interface
     , Penny.Copper.Parsec
     , Penny.Copper.Render
     , Penny.Copper.Terminals

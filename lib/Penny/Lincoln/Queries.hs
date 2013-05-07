@@ -71,7 +71,7 @@ commodity :: E.Posting -> B.Commodity
 commodity = B.commodity . amount
 
 topMemoLine :: E.Posting -> Maybe B.TopMemoLine
-topMemoLine = fmap B.tTopMemoLine . B.tlFileMeta . fst
+topMemoLine p = (B.tlFileMeta . fst $ p) >>= B.tTopMemoLine
 
 topLineLine :: E.Posting -> Maybe B.TopLineLine
 topLineLine = fmap B.tTopLineLine . B.tlFileMeta . fst
