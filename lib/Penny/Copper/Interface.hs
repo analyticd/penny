@@ -1,6 +1,8 @@
 module Penny.Copper.Interface where
 
+import qualified Penny.Steel.Sums as S
 import qualified Penny.Lincoln as L
+import qualified Data.Text as X
 
 data ParsedTopLine = ParsedTopLine
   { ptlDateTime :: L.DateTime
@@ -16,37 +18,14 @@ data ParsedTxn = ParsedTxn
   , ptEnts :: L.Ents (L.PostingCore, L.PostingLine)
   } deriving Show
 
-data ParsedItem
-  = PIComment Comment
-  | PIPricePoint L.PricePoint
-  | PITransaction ParsedTxn
-  | PIBlankLine
+data BlankLine = BlankLine
 
 newtype Comment = Comment { unComment :: X.Text }
   deriving (Eq, Show)
 
-mapItem
-  :: (Comment -> Comment)
-  -> (L.PricePoint -> L.PricePoint)
-  -> (L.Transaction -> L.Transaction)
-  -> Item
-  -> Item
-mapItem fc fp ft i = case i of
-  BlankLine -> BlankLine
-  IComment c -> IComment $ fc c
-  PricePoint p -> PricePoint $ fp p
-  Transaction t -> Transaction $ ft t
+type ParsedItem = S.S4 BlankLine Comment L.PricePoint ParsedTxn
 
-mapItemA
-  :: Applicative a
-  => (Comment -> a Comment)
-  -> (L.PricePoint -> a L.PricePoint)
-  -> (L.Transaction -> a (L.Transaction))
-  -> Item
-  -> a (Item)
-mapItemA fc fp ft i = case i of
-  BlankLine -> pure BlankLine
-  IComment c -> IComment <$> fc c
-  PricePoint p -> PricePoint <$> fp p
-  Transaction t -> Transaction <$> ft t
-
+type Parser
+  = String
+  -- ^ Filename of the file to be parsed
+  -> IO [ParsedItem]

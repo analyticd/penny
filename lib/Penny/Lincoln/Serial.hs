@@ -6,7 +6,7 @@ module Penny.Lincoln.Serial (
   nSerials ) where
 
 import Control.Applicative (Applicative, (<*>), pure, (*>))
-import Control.Monad (ap)
+import Control.Monad (ap, liftM)
 import GHC.Generics (Generic)
 import Data.Binary (Binary)
 
@@ -38,9 +38,7 @@ instance Binary Serial
 newtype GenSerial a = GenSerial (SerialSt -> (a, SerialSt))
 
 instance Functor GenSerial where
-  fmap f (GenSerial k) = GenSerial $ \s ->
-    let (a', st') = k s
-    in (f a', st')
+  fmap = liftM
 
 instance Applicative GenSerial where
   pure = return

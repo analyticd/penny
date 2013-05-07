@@ -42,7 +42,6 @@ import qualified Penny.Copper.Parsec as CP
 
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper.Render as R
-import qualified Penny.Copper.Types as Y
 import System.Console.MultiArg.GetArgs (getProgName)
 import qualified System.Exit as Exit
 import qualified System.IO as IO

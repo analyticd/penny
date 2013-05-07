@@ -12,8 +12,9 @@ import qualified Data.Text as X
 import Data.Text (Text, cons, snoc)
 import qualified Penny.Copper.Terminals as T
 import qualified Data.Time as Time
-import qualified Penny.Copper.Types as Y
+import qualified Penny.Copper.Interface as I
 import qualified Penny.Lincoln as L
+import qualified Penny.Steel.Sums as S
 
 -- * Helpers
 
@@ -209,8 +210,8 @@ amount gs maySd maySb (L.Amount qt c) =
 
 -- * Comments
 
-comment :: Y.Comment -> Maybe X.Text
-comment (Y.Comment x) =
+comment :: I.Comment -> Maybe X.Text
+comment (I.Comment x) =
   if (not . X.all T.nonNewline $ x)
   then Nothing
   else Just $ '#' `cons` x `snoc` '\n'
@@ -514,14 +515,9 @@ transaction gs txn = do
 
 -- * Item
 
-item :: GroupSpecs -> Y.Item -> Maybe X.Text
-item gs i = case i of
-  Y.BlankLine -> Just . X.singleton $ '\n'
-  Y.IComment x -> comment x
-  Y.PricePoint pp -> price gs pp
-  Y.Transaction t -> transaction gs t
-
--- * Ledger
-
-ledger :: GroupSpecs -> Y.Ledger -> Maybe X.Text
-ledger gs (Y.Ledger is) = fmap X.concat . mapM (item gs) $ is
+item
+  :: GroupSpecs
+  -> S.S4 I.BlankLine I.Comment L.PricePoint L.Transaction
+  -> Maybe X.Text
+item gs = S.caseS4 (const . Just . X.singleton $ '\n')
+                   comment (price gs) (transaction gs)

@@ -108,7 +108,6 @@ Library
     , Penny.Copper.Parsec
     , Penny.Copper.Render
     , Penny.Copper.Terminals
-    , Penny.Copper.Types
     , Penny.Liberty
     , Penny.Lincoln
     , Penny.Lincoln.Balance

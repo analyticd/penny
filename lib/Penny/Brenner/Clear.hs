@@ -14,7 +14,6 @@ import qualified Penny.Lincoln as L
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Trans.Maybe as MT
 import Control.Monad.Trans.Class (lift)
-import qualified Penny.Copper.Types as Y
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
 import Text.Show.Pretty (ppShow)

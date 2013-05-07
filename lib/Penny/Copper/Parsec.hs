@@ -3,8 +3,8 @@
 module Penny.Copper.Parsec where
 
 import qualified Penny.Copper.Interface as I
+import qualified Penny.Steel.Sums as S
 import qualified Penny.Copper.Terminals as T
-import qualified Penny.Copper.Types as Y
 import Text.Parsec.Text (Parser)
 import Text.Parsec (many, many1, satisfy)
 import qualified Text.Parsec as P
@@ -129,9 +129,9 @@ rightSideCmdtyAmt =
 amount :: Parser (L.Amount, L.Side, L.SpaceBetween)
 amount = leftSideCmdtyAmt <|> rightSideCmdtyAmt
 
-comment :: Parser Y.Comment
+comment :: Parser I.Comment
 comment =
-  (Y.Comment . pack)
+  (I.Comment . pack)
   <$ satisfy T.hash
   <*> many (satisfy T.nonNewline)
   <* satisfy T.newline
@@ -323,7 +323,7 @@ topLine =
     <*  skipWhite
   where
     f mayMe lin dt (mayFl, mayNum) mayPy =
-      ParsedTopLine dt mayNum mayFl mayPy me (L.TopLineLine lin)
+      I.ParsedTopLine dt mayNum mayFl mayPy me (L.TopLineLine lin)
       where
         me = fmap (\(a, b) -> (b, a)) mayMe
 
@@ -396,24 +396,21 @@ posting = f <$> lineNum                <* skipWhite
         (en, sd, sb) = maybe (Nothing, Nothing, Nothing)
           (\(a, b, c) -> (Just a, Just b, Just c)) mayEn
 
-transaction :: Parser ParsedTxn
+transaction :: Parser I.ParsedTxn
 transaction = do
   ptl <- topLine
   let getEntPair (core, lin, mayEn) = (mayEn, (core, lin))
   ts <- fmap (map getEntPair) $ many posting
   ents <- maybe (fail "unbalanced transaction") return $ L.ents ts
-  return $ ParsedTxn ptl ents
+  return $ I.ParsedTxn ptl ents
 
 
 blankLine :: Parser ()
 blankLine = () <$ satisfy T.newline <* skipWhite
 
-item :: Parser ParsedItem
+item :: Parser I.ParsedItem
 item
-  = fmap PIComment comment
-  <|> fmap PIPricePoint price
-  <|> fmap PITransaction transaction
-  <|> (PIBlankLine <$ blankLine)
-
-ledger :: Parser Y.Ledger
-ledger = undefined
+  = ((S.S4a I.BlankLine) <$ blankLine)
+  <|> fmap S.S4b comment
+  <|> fmap S.S4c price
+  <|> fmap S.S4d transaction
