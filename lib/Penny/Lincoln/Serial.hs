@@ -1,9 +1,7 @@
 {-# LANGUAGE DeriveGeneric, CPP #-}
 
 module Penny.Lincoln.Serial (
-  Serial, forward, backward, GenSerial,
-  incrementBack, getSerial, makeSerials, serialItems,
-  nSerials ) where
+  Serial, forward, backward, serialItems, serialSomeItems) where
 
 import Control.Applicative (Applicative, (<*>), pure, (*>))
 import Control.Monad (ap, liftM)
@@ -73,3 +71,19 @@ nSerials n =
   makeSerials $
   (sequence . replicate n $ incrementBack)
   *> (sequence . replicate n $ getSerial)
+
+serialSomeItems
+  :: (a -> Either b (Serial -> b))
+  -> [a]
+  -> [b]
+serialSomeItems f as = makeSerials k
+  where
+    k = do
+      let doIncr i = case f i of
+            Left _ -> return ()
+            Right _ -> incrementBack
+      mapM_ doIncr as
+      let addSer i = case f i of
+            Left b -> return b
+            Right add -> getSerial >>= return . add
+      mapM addSer as

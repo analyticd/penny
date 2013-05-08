@@ -12,11 +12,16 @@ import qualified Text.Parsec.Pos as Pos
 import Control.Arrow (first, second)
 import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
                             (<|>), optional)
-import Control.Monad (replicateM)
+import Control.Monad (replicateM, when)
 import qualified Penny.Lincoln as L
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
+import qualified Data.Text as X
 import qualified Data.Time as Time
+import qualified System.Exit as Exit
+import System.Environment (getProgName)
+import qualified System.IO as IO
+import qualified Data.Text.IO as TIO
 
 lvl1SubAcct :: Parser L.SubAccount
 lvl1SubAcct =
@@ -414,3 +419,39 @@ item
   <|> fmap S.S4b comment
   <|> fmap S.S4c price
   <|> fmap S.S4d transaction
+
+parse
+  :: String
+  -- ^ Name of the file to be parsed
+  -> IO (L.Filename, [I.ParsedItem])
+  -- ^ Returns items if successfully parsed. Quits and exits if the
+  -- parse fails.
+
+parse s = do
+  (fn, txt) <- getFileContentsStdin s
+  let parser = P.spaces *> P.many item <* P.spaces <* P.eof
+      filename = X.unpack . L.unFilename $ fn
+  case P.parse parser filename txt of
+    Left err -> do
+      pn <- getProgName
+      let msg = pn ++ ": error: could not parse file "
+                ++ filename ++ "\n" ++ show err
+      IO.hPutStr IO.stderr msg
+      Exit.exitFailure
+    Right g -> return (fn, g)
+
+
+getFileContentsStdin :: String -> IO (L.Filename, Text)
+getFileContentsStdin s = do
+  pn <- getProgName
+  txt <- if s == "-"
+    then do
+          isTerm <- IO.hIsTerminalDevice IO.stdin
+          when isTerm
+            (IO.hPutStrLn IO.stderr $
+               pn ++ ": warning: reading from standard input, which"
+               ++ "is a terminal.")
+          TIO.hGetContents IO.stdin
+    else TIO.readFile s
+  let fn = L.Filename . X.pack $ if s == "-" then "<stdin>" else s
+  return (fn, txt)

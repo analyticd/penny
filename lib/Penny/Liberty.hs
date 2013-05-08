@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RankNTypes #-}
+{-# LANGUAGE OverloadedStrings, CPP, Rank2Types #-}
 
 -- | Liberty - Penny command line parsing utilities
 --
@@ -68,7 +68,9 @@ import Text.Matchers (
   CaseSensitive(Sensitive, Insensitive))
 import qualified Text.Matchers as TM
 
+#ifdef incabal
 import qualified Paths_penny_lib as PPL
+#endif
 import qualified Data.Version as V
 import qualified System.Exit as Exit
 
@@ -107,6 +109,7 @@ parsePredicate d ls = case ls of
 -- instances, filters them, post-filters them, sorts them, and places
 -- them in Box instances with Filtered serials. Also returns Chunks
 -- containing a description of the evalutation process.
+
 xactionsToFiltered
 
   :: P.LPdct
@@ -711,6 +714,10 @@ version v = C.OptSpec ["version"] [] (C.NoArg f)
     f = do
       pn <- MA.getProgName
       putStrLn $ pn ++ " version " ++ V.showVersion v
+#ifdef incabal
       putStrLn $ "using version " ++ V.showVersion PPL.version
+#else
+      putStrLn $ "using testing version"
+#endif
                  ++ " of penny-lib"
       Exit.exitSuccess

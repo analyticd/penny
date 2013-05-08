@@ -126,6 +126,10 @@ instance B.Binary Qty
 type Mantissa = Integer
 type Places = Integer
 
+-- | Mantissa 1, exponent 0
+qtyOne :: Qty
+qtyOne = Qty 1 0
+
 #ifdef test
 
 -- | Generates Qty where the mantissa and the exponent depend on the
@@ -144,10 +148,6 @@ genRangeInt = do
   m <- Q.suchThat Q.arbitrarySizedBoundedIntegral (> (0 :: Int))
   p <- Q.suchThat Q.arbitrarySizedBoundedIntegral (>= (0 :: Int))
   return $ Qty (fromIntegral m) (fromIntegral p)
-
--- | Mantissa 1, exponent 0
-qtyOne :: Qty
-qtyOne = Qty 1 0
 
 -- | Mutates a Qty so that it is equivalent, but possibly with a
 -- different mantissa and exponent.

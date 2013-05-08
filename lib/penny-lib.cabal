@@ -135,6 +135,8 @@ Library
   Other-modules:
       Paths_penny_lib
 
+  if flag(incabal)
+    cpp-options: -Dincabal
 
   if flag(test)
     build-depends:
@@ -156,3 +158,7 @@ Flag debug
 Flag test
   Description: enables QuickCheck tests
   Default: False
+
+Flag incabal
+  Description: enables imports that only Cabal makes available
+  Default: True

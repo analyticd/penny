@@ -28,4 +28,4 @@ type ParsedItem = S.S4 BlankLine Comment L.PricePoint ParsedTxn
 type Parser
   = String
   -- ^ Filename of the file to be parsed
-  -> IO [ParsedItem]
+  -> IO (L.Filename, [ParsedItem])
