@@ -1,7 +1,7 @@
 module Penny.Brenner.Clear (mode) where
 
+import Control.Applicative
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Control.Applicative (pure)
 import Control.Monad (guard, mzero, when)
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Monoid (mconcat, First(..))
@@ -9,6 +9,7 @@ import qualified Data.Set as Set
 import qualified Data.Map as M
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
+import qualified Data.Traversable as Tr
 import qualified System.Console.MultiArg as MA
 import qualified Penny.Lincoln as L
 import qualified Control.Monad.Trans.State as St
@@ -91,10 +92,10 @@ runClear c os = do
   when (not (Set.null left))
     (fail $ "some postings were not cleared. "
       ++ "Those not cleared:\n" ++ ppShow left)
-  case R.ledger (Y.groupSpecs c) led' of
+  case mapM (R.item (Y.groupSpecs c)) led' of
     Nothing ->
       fail "could not render resulting ledger."
-    Just txt -> TIO.putStr txt
+    Just txts -> mapM_ TIO.putStr txts
 
 
 -- | Examines an financial institution transaction and the DbMap to
@@ -119,22 +120,23 @@ clearedFlag = L.Flag . X.singleton $ 'C'
 changeLedger
   :: Y.PennyAcct
   -> Set.Set Y.UNumber
-  -> Y.Ledger
-  -> (Y.Ledger, Set.Set Y.UNumber)
+  -> [C.LedgerItem]
+  -> ([C.LedgerItem], Set.Set Y.UNumber)
 changeLedger ax s l = St.runState k s
   where
-    k = Y.mapLedgerA f l
-    f = Y.mapItemA pure pure (changeTxn ax)
+    k = mapM f l
+    f x = case x of
+      Left t -> fmap Left $ changeTxn ax t
+      Right o -> fmap Right $ return o
 
 changeTxn
   :: Y.PennyAcct
   -> L.Transaction
   -> St.State (Set.Set Y.UNumber) L.Transaction
-changeTxn ax t = do
-  let fam = L.unTransaction t
-      fam' = L.mapParent (const L.emptyTopLineChangeData) fam
-  fam'' <- L.mapChildrenA (changePstg ax) fam'
-  return $ L.changeTransaction fam'' t
+changeTxn ax (tld, d) =
+  (,)
+  <$> pure tld
+  <*> Tr.mapM (changePstg ax) d
 
 
 -- | Sees if this posting is a posting in the right account and has a
@@ -142,19 +144,20 @@ changeTxn ax t = do
 -- already has a flag, skips it.
 changePstg
   :: Y.PennyAcct
-  -> L.Posting
-  -> St.State (Set.Set Y.UNumber) L.PostingChangeData
+  -> L.PostingData
+  -> St.State (Set.Set Y.UNumber) L.PostingData
 changePstg ax p =
-  fmap (fromMaybe L.emptyPostingChangeData) . MT.runMaybeT $ do
-    guard (L.pAccount p == (Y.unPennyAcct ax))
-    let tags = L.pTags p
+  fmap (fromMaybe p) . MT.runMaybeT $ do
+    let c = L.pdCore p
+    guard (L.pAccount c == (Y.unPennyAcct ax))
+    let tags = L.pTags c
     un <- maybe mzero return $ parseUNumberFromTags tags
-    guard (L.pFlag p == Nothing)
+    guard (L.pFlag c == Nothing)
     set <- lift St.get
     guard (Set.member un set)
     lift $ St.put (Set.delete un set)
-    return $ L.emptyPostingChangeData
-             { L.pcFlag = Just (Just clearedFlag) }
+    let c' = c { L.pFlag = Just clearedFlag }
+    return $ p { L.pdCore = c' }
 
 parseUNumberFromTags :: L.Tags -> Maybe Y.UNumber
 parseUNumberFromTags =

@@ -29,6 +29,7 @@ module Penny.Lincoln.Ents
 
   ) where
 
+import Control.Applicative
 import Control.Arrow (second)
 import Data.Binary (Binary)
 import GHC.Generics (Generic)
@@ -38,6 +39,8 @@ import Control.Monad (guard)
 import Data.Monoid (mconcat)
 import Data.List (foldl', unfoldr)
 import Data.Maybe (isNothing, catMaybes)
+import qualified Data.Traversable as Tr
+import qualified Data.Foldable as Fdbl
 
 #ifdef test
 import Control.Monad (replicateM, liftM5)
@@ -97,6 +100,17 @@ instance Binary m => Binary (Ent m)
 
 newtype Ents m = Ents { unEnts :: [Ent m] }
   deriving (Eq, Ord, Show, Generic, Functor)
+
+instance Fdbl.Foldable Ents where
+  foldr f z (Ents ls) = case ls of
+    [] -> z
+    x:xs -> f (meta x) (Fdbl.foldr f z (map meta xs))
+
+instance Tr.Traversable Ents where
+  sequenceA = fmap Ents . Tr.sequenceA . map seqEnt . unEnts
+
+seqEnt :: Applicative f => Ent (f a) -> f (Ent a)
+seqEnt (Ent e i m) = Ent <$> pure e <*> pure i <*> m
 
 tupleEnts :: Ents m -> (Ent m, Ent m, [Ent m])
 tupleEnts (Ents ls) = case ls of

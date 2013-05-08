@@ -20,61 +20,126 @@ module Penny.Copper
 
   ) where
 
-import Control.Monad (when, replicateM_)
-import Control.Applicative (pure, (*>), (<$>))
-import Data.Functor.Compose (Compose(Compose, getCompose))
-import Data.Maybe (mapMaybe)
-import Data.Monoid (mconcat)
-import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Data.Foldable as F
-import qualified Data.Text as X
-import qualified Data.Text.IO as TIO
-import qualified Text.Parsec as Parsec
+import Control.Arrow (second)
+import qualified Data.Traversable as Tr
 import qualified Penny.Copper.Parsec as CP
 import Penny.Copper.Interface
+import qualified Penny.Copper.Interface as I
 
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper.Render as R
-import System.Console.MultiArg.GetArgs (getProgName)
-import qualified System.Exit as Exit
-import qualified System.IO as IO
-import qualified Penny.Steel.Sums as S
 
 -- | Reads and parses the given files. If any of the files is @-@,
 -- reads standard input. If the list of files is empty, reads standard
 -- input. IO errors are not caught. Parse errors are printed to
 -- standard error and the program will exit with a failure.
-open :: [String] -> IO [L.Transaction]
-open = undefined
-
-type WithFilePosting
-  = (ParsedTopLine, L.Ents (L.PostingCore, L.PostingLine, L.FilePosting))
+open :: [String] -> IO [I.LedgerItem]
+open ss = fmap parsedToWrapped $ mapM CP.parse ss
 
 addFilePosting
-  :: [S.S4 a b c ParsedTxn]
-  -> [S.S4 a b c WithFilePosting]
-addFilePosting = L.serialSomeItems f where
+  :: Tr.Traversable f
+  => [Either (a, f b) c]
+  -> [Either (a, f (L.FilePosting, b)) c]
+addFilePosting = L.serialNestedItems f where
   f i = case i of
-    S.S4a x -> Left (S.S4a x)
-    S.S4b x -> Left (S.S4b x)
-    S.S4c x -> Left (S.S4c x)
-    S.S4d txn -> Right (fmap S.S4d g)
-      where
-        g ser = ( ptParsedTopLine txn
-                , fmap (\(c, l) -> (c, l, L.FilePosting ser))
-                  . ptEnts $ txn)
-
-type WithFileTransaction
-  = ( (ParsedTopLine, L.FileTransaction)
-    , L.Ents (L.PostingCore, L.PostingLine, L.FilePosting))
+    Left (a, ctnr) ->
+      Right ( ctnr
+            , (\ser ii -> (L.FilePosting ser, ii))
+            , (\res -> Left (a, res))
+            )
+    Right b -> Left (Right b)
 
 addFileTransaction
-  :: [S.S4 a b c WithFilePosting]
-  -> [S.S4 a b c WithFileTransaction]
+  :: [Either (a, b) c]
+  -> [Either ((L.FileTransaction, a), b) c]
 addFileTransaction = L.serialSomeItems f where
   f i = case i of
-    S.S4a x -> Left (S.S4a x)
-    S.S4b x -> Left (S.S4b x)
-    S.S4c x -> Left (S.S4c x)
-    S.S4d txn -> Right (fmap S.S4d g) where
-      g ser = ((fst txn, L.FileTransaction ser), snd txn)
+    Right c -> Left (Right c)
+    Left (a, b) -> Right (\ser -> Left ((L.FileTransaction ser, a), b))
+
+addGlobalTransaction
+  :: [Either (a, b) c]
+  -> [Either ((L.GlobalTransaction, a), b) c]
+addGlobalTransaction = L.serialSomeItems f where
+  f i = case i of
+    Right b -> Left (Right b)
+    Left (a, b) -> Right (\ser -> Left ((L.GlobalTransaction ser, a), b))
+
+addGlobalPosting
+  :: Tr.Traversable f
+  => [Either (a, f b) c]
+  -> [Either (a, f (L.GlobalPosting, b)) c]
+addGlobalPosting = L.serialNestedItems f where
+  f i = case i of
+    Left (a, ctnr) ->
+      Right ( ctnr
+            , (\ser ii -> (L.GlobalPosting ser, ii))
+            , (\res -> Left (a, res))
+            )
+    Right b -> Left (Right b)
+
+addFilename
+  :: L.Filename
+  -> [Either (a, b) c]
+  -> [Either ((L.Filename, a), b) c]
+addFilename fn = map (either (\(a, b) -> Left ((fn, a), b)) (Right . id))
+
+
+addFileSerials
+  :: Tr.Traversable f
+  => [Either (a, f b) c]
+  -> [Either ((L.FileTransaction, a), f (L.FilePosting, b)) c]
+addFileSerials
+  = addFilePosting
+  . addFileTransaction
+
+addFileData
+  :: Tr.Traversable f
+  => (L.Filename, [Either (a, f b) c])
+  -> [Either ((L.Filename, (L.FileTransaction, a)), f (L.FilePosting, b)) c]
+addFileData = uncurry addFilename . second addFileSerials
+
+addGlobalSerials
+  :: Tr.Traversable f
+  => [Either (a, f b) c]
+  -> [Either ((L.GlobalTransaction, a), f (L.GlobalPosting, b)) c]
+addGlobalSerials
+  = addGlobalTransaction
+  . addGlobalPosting
+
+addAllMetadata
+  :: Tr.Traversable f
+  => [(L.Filename, [Either (a, f b) c])]
+  -> [Either ((L.GlobalTransaction, (L.Filename, (L.FileTransaction, a))),
+              f (L.GlobalPosting, (L.FilePosting, b))) c]
+addAllMetadata
+  = addGlobalSerials
+  . concat
+  . map addFileData
+
+rewrapMetadata
+  :: Functor f
+  => ( (L.GlobalTransaction, (L.Filename, (L.FileTransaction, I.ParsedTopLine)))
+     , f (L.GlobalPosting, (L.FilePosting, (L.PostingCore, L.PostingLine))))
+  -> (L.TopLineData, f (L.PostingData))
+rewrapMetadata ((gt, (fn, (ft, ptl))), ctr) = (tld, fmap f ctr)
+  where
+    tld = L.TopLineData
+      tlc
+      (Just (L.TopLineFileMeta fn (I.ptlTopLineLine ptl)
+                                  (fmap snd $ I.ptlMemo ptl)
+                             ft))
+      (Just gt)
+    tlc = L.TopLineCore (I.ptlDateTime ptl) (I.ptlNumber ptl)
+                        (I.ptlFlag ptl) (I.ptlPayee ptl)
+                        (fmap fst $ I.ptlMemo ptl)
+    f (gp, (fp, (pc, pl))) = L.PostingData
+      pc
+      (Just (L.PostingFileMeta pl fp))
+      (Just gp)
+
+parsedToWrapped
+  :: [(L.Filename, [I.ParsedItem])]
+  -> [I.LedgerItem]
+parsedToWrapped = map rewrap . addAllMetadata where
+  rewrap = either (Left . rewrapMetadata) Right

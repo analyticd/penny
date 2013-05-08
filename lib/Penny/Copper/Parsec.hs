@@ -3,7 +3,6 @@
 module Penny.Copper.Parsec where
 
 import qualified Penny.Copper.Interface as I
-import qualified Penny.Steel.Sums as S
 import qualified Penny.Copper.Terminals as T
 import Text.Parsec.Text (Parser)
 import Text.Parsec (many, many1, satisfy)
@@ -407,7 +406,7 @@ transaction = do
   let getEntPair (core, lin, mayEn) = (mayEn, (core, lin))
   ts <- fmap (map getEntPair) $ many posting
   ents <- maybe (fail "unbalanced transaction") return $ L.ents ts
-  return $ I.ParsedTxn ptl ents
+  return (ptl, ents)
 
 
 blankLine :: Parser ()
@@ -415,10 +414,10 @@ blankLine = () <$ satisfy T.newline <* skipWhite
 
 item :: Parser I.ParsedItem
 item
-  = ((S.S4a I.BlankLine) <$ blankLine)
-  <|> fmap S.S4b comment
-  <|> fmap S.S4c price
-  <|> fmap S.S4d transaction
+  = fmap Left transaction
+  <|> fmap (Right . Left) price
+  <|> fmap (Right . Right . Left) comment
+  <|> (Right . Right . Right $ I.BlankLine) <$ blankLine
 
 parse
   :: String
