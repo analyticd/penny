@@ -166,9 +166,9 @@ rowsToColumns
 
   -> [Row]
   -> [Columns PreSpec]
-rowsToColumns chgrs fmt rs = map (mkRow chgrs fmt) pairs
-  where
-    pairs = Meta.visibleNums (,) rs
+rowsToColumns chgrs fmt
+  = map (mkRow chgrs fmt)
+  . L.serialItems (\ser r -> (Meta.VisibleNum ser, r))
 
 
 mkRow

@@ -16,7 +16,6 @@ import Data.Text (Text, pack, empty)
 import qualified Data.Text as X
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Meta as M
-import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Scheme as E
@@ -28,8 +27,8 @@ import qualified System.Console.Rainbow as Rb
 
 -- | All the options needed to grow the cells.
 data GrowOpts = GrowOpts
-  { dateFormat :: Box -> X.Text
-  , qtyFormat :: Box -> X.Text
+  { dateFormat :: (M.PostMeta, L.Posting) -> X.Text
+  , qtyFormat :: (M.PostMeta, L.Posting) -> X.Text
   , balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , fields :: F.Fields Bool
   }
@@ -47,7 +46,7 @@ data GrowOpts = GrowOpts
 growCells
   :: E.Changers
   -> GrowOpts
-  -> [Box]
+  -> [(M.PostMeta, L.Posting)]
   -> Fields (Maybe ([R.ColumnSpec], Int))
 growCells ch o infos = toPair <$> wanted <*> growers where
   toPair b gwr
@@ -79,9 +78,9 @@ sizer w (PreSpec j ts bs) = R.ColumnSpec j w ts bs
 
 -- | Makes a left justified cell that is only one line long. The width
 -- is unset.
-oneLine :: E.Changers -> Text -> E.Label -> Box -> PreSpec
+oneLine :: E.Changers -> Text -> E.Label -> (M.PostMeta, L.Posting) -> PreSpec
 oneLine chgrs t lbl b =
-  let eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ b
+  let eo = E.fromVisibleNum . M.visibleNum . fst $ b
       j = R.LeftJustify
       md = E.getEvenOddLabelValue lbl eo chgrs
       ck = [md $ Rb.plain t]
@@ -90,7 +89,7 @@ oneLine chgrs t lbl b =
 
 -- | Gets a Fields with each field filled with the function that fills
 -- the cells for that field.
-growers :: Fields (GrowOpts -> E.Changers -> Box -> PreSpec)
+growers :: Fields (GrowOpts -> E.Changers -> (M.PostMeta, L.Posting) -> PreSpec)
 growers = Fields
   { globalTransaction    = const getGlobalTransaction
   , revGlobalTransaction = const getRevGlobalTransaction
@@ -121,105 +120,105 @@ growers = Fields
 -- | Make a left justified cell one line long that shows a serial.
 serialCellMaybe
   :: E.Changers
-  -> (L.PostFam -> Maybe Int)
+  -> (L.Posting -> Maybe Int)
   -- ^ When applied to a Box, this function returns Just Int if the
   -- box has a serial, or Nothing if not.
 
-  -> Box -> PreSpec
+  -> (M.PostMeta, L.Posting) -> PreSpec
 serialCellMaybe chgrs f b = oneLine chgrs t E.Other b
   where
-    t = case f (L.boxPostFam b) of
+    t = case f (snd b) of
       Nothing -> X.empty
       Just i -> X.pack . show $ i
 
 serialCell
   :: E.Changers
   -> (M.PostMeta -> Int)
-  -> Box -> PreSpec
+  -> (M.PostMeta, L.Posting) -> PreSpec
 serialCell chgrs f b = oneLine chgrs t E.Other b
   where
-    t = pack . show . f . L.boxMeta $ b
+    t = pack . show . f . fst $ b
 
-getGlobalTransaction :: E.Changers -> Box -> PreSpec
+getGlobalTransaction :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getGlobalTransaction chgrs =
   serialCellMaybe chgrs (fmap (L.forward . L.unGlobalTransaction)
                         . Q.globalTransaction)
 
-getRevGlobalTransaction :: E.Changers -> Box -> PreSpec
+getRevGlobalTransaction :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getRevGlobalTransaction chgrs =
   serialCellMaybe chgrs (fmap (L.backward . L.unGlobalTransaction)
                         . Q.globalTransaction)
 
-getGlobalPosting :: E.Changers -> Box -> PreSpec
+getGlobalPosting :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getGlobalPosting chgrs =
   serialCellMaybe chgrs (fmap (L.forward . L.unGlobalPosting)
                         . Q.globalPosting)
 
-getRevGlobalPosting :: E.Changers -> Box -> PreSpec
+getRevGlobalPosting :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getRevGlobalPosting chgrs =
   serialCellMaybe chgrs (fmap (L.backward . L.unGlobalPosting)
                    . Q.globalPosting)
 
-getFileTransaction :: E.Changers -> Box -> PreSpec
+getFileTransaction :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getFileTransaction chgrs =
   serialCellMaybe chgrs (fmap (L.forward . L.unFileTransaction)
                    . Q.fileTransaction)
 
-getRevFileTransaction :: E.Changers -> Box -> PreSpec
+getRevFileTransaction :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getRevFileTransaction chgrs =
   serialCellMaybe chgrs (fmap (L.backward . L.unFileTransaction)
                    . Q.fileTransaction)
 
-getFilePosting :: E.Changers -> Box -> PreSpec
+getFilePosting :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getFilePosting chgrs =
   serialCellMaybe chgrs (fmap (L.forward . L.unFilePosting)
                    . Q.filePosting)
 
-getRevFilePosting :: E.Changers -> Box -> PreSpec
+getRevFilePosting :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getRevFilePosting chgrs =
   serialCellMaybe chgrs (fmap (L.backward . L.unFilePosting)
                    . Q.filePosting)
 
-getSorted :: E.Changers -> Box -> PreSpec
+getSorted :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getSorted chgrs =
   serialCell chgrs (L.forward . Ly.unSortedNum . M.sortedNum)
 
-getRevSorted :: E.Changers -> Box -> PreSpec
+getRevSorted :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getRevSorted chgrs =
   serialCell chgrs (L.backward . Ly.unSortedNum . M.sortedNum)
 
-getFiltered :: E.Changers -> Box -> PreSpec
+getFiltered :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getFiltered chgrs =
   serialCell chgrs (L.forward . Ly.unFilteredNum . M.filteredNum)
 
-getRevFiltered :: E.Changers -> Box -> PreSpec
+getRevFiltered :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getRevFiltered chgrs =
   serialCell chgrs (L.backward . Ly.unFilteredNum . M.filteredNum)
 
-getVisible :: E.Changers -> Box -> PreSpec
+getVisible :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getVisible chgrs =
   serialCell chgrs (L.forward . M.unVisibleNum . M.visibleNum)
 
-getRevVisible :: E.Changers -> Box -> PreSpec
+getRevVisible :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getRevVisible chgrs =
   serialCell chgrs (L.backward . M.unVisibleNum . M.visibleNum)
 
 
-getLineNum :: E.Changers -> Box -> PreSpec
+getLineNum :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getLineNum chgrs b = oneLine chgrs t E.Other b where
   lineTxt = pack . show . L.unPostingLine
-  t = maybe empty lineTxt (Q.postingLine . L.boxPostFam $ b)
+  t = maybe empty lineTxt (Q.postingLine . snd $ b)
 
-getDate :: E.Changers -> (Box -> X.Text) -> Box -> PreSpec
+getDate :: E.Changers -> ((M.PostMeta, L.Posting) -> X.Text) -> (M.PostMeta, L.Posting) -> PreSpec
 getDate chgrs gd b = oneLine chgrs (gd b) E.Other b
 
-getFlag :: E.Changers -> Box -> PreSpec
+getFlag :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getFlag chgrs i = oneLine chgrs t E.Other i where
-  t = maybe empty L.text (Q.flag . L.boxPostFam $ i)
+  t = maybe empty L.text (Q.flag . snd $ i)
 
-getNumber :: E.Changers -> Box -> PreSpec
+getNumber :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getNumber chgrs i = oneLine chgrs t E.Other i where
-  t = maybe empty L.text (Q.number . L.boxPostFam $ i)
+  t = maybe empty L.text (Q.number . snd $ i)
 
 dcTxt :: L.DrCr -> Text
 dcTxt L.Debit = X.singleton '<'
@@ -227,36 +226,36 @@ dcTxt L.Credit = X.singleton '>'
 
 -- | Gives a one-line cell that is colored according to whether the
 -- posting is a debit or credit.
-coloredPostingCell :: E.Changers -> Text -> Box -> PreSpec
+coloredPostingCell :: E.Changers -> Text -> (M.PostMeta, L.Posting) -> PreSpec
 coloredPostingCell chgrs t i = PreSpec j (lbl, eo) [bit] where
   j = R.LeftJustify
-  lbl = case Q.drCr . L.boxPostFam $ i of
+  lbl = case Q.drCr . snd $ i of
     L.Debit -> E.Debit
     L.Credit -> E.Credit
-  eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ i
+  eo = E.fromVisibleNum . M.visibleNum . fst $ i
   md = E.getEvenOddLabelValue lbl eo chgrs
   bit = md $ Rb.plain t
 
 
-getPostingDrCr :: E.Changers -> Box -> PreSpec
+getPostingDrCr :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getPostingDrCr ch i = coloredPostingCell ch t i where
-  t = dcTxt . Q.drCr . L.boxPostFam $ i
+  t = dcTxt . Q.drCr . snd $ i
 
-getPostingCmdty :: E.Changers -> Box -> PreSpec
+getPostingCmdty :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getPostingCmdty ch i = coloredPostingCell ch t i where
-  t = L.unCommodity . Q.commodity . L.boxPostFam $ i
+  t = L.unCommodity . Q.commodity . snd $ i
 
-getPostingQty :: E.Changers -> (Box -> X.Text) -> Box -> PreSpec
+getPostingQty :: E.Changers -> ((M.PostMeta, L.Posting) -> X.Text) -> (M.PostMeta, L.Posting) -> PreSpec
 getPostingQty ch qf i = coloredPostingCell ch (qf i) i
 
-getTotalDrCr :: E.Changers -> Box -> PreSpec
+getTotalDrCr :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getTotalDrCr ch i =
-  let vn = M.visibleNum . L.boxMeta $ i
+  let vn = M.visibleNum . fst $ i
       ps = (lbl, eo)
-      dc = Q.drCr . L.boxPostFam $ i
+      dc = Q.drCr . snd $ i
       lbl = E.dcToLbl dc
       eo = E.fromVisibleNum vn
-      bal = L.unBalance . M.balance . L.boxMeta $ i
+      bal = L.unBalance . M.balance . fst $ i
       md = E.getEvenOddLabelValue lbl eo ch
       bits =
         if Map.null bal
@@ -266,30 +265,30 @@ getTotalDrCr ch i =
       j = R.LeftJustify
   in PreSpec j ps bits
 
-getTotalCmdty :: E.Changers -> Box -> PreSpec
+getTotalCmdty :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getTotalCmdty ch i =
-  let vn = M.visibleNum . L.boxMeta $ i
+  let vn = M.visibleNum . fst $ i
       j = R.RightJustify
       ps = (lbl, eo)
-      dc = Q.drCr . L.boxPostFam $ i
+      dc = Q.drCr . snd $ i
       eo = E.fromVisibleNum vn
       lbl = E.dcToLbl dc
-      bal = Map.toList . L.unBalance . M.balance . L.boxMeta $ i
+      bal = Map.toList . L.unBalance . M.balance . fst $ i
       preChunks = E.balancesToCmdtys ch eo bal
   in PreSpec j ps preChunks
 
 getTotalQty
   :: E.Changers
   -> (L.Commodity -> L.Qty -> X.Text)
-  -> Box
+  -> (M.PostMeta, L.Posting)
   -> PreSpec
 getTotalQty ch balFmt i =
-  let vn = M.visibleNum . L.boxMeta $ i
+  let vn = M.visibleNum . fst $ i
       j = R.LeftJustify
-      dc = Q.drCr . L.boxPostFam $ i
+      dc = Q.drCr . snd $ i
       ps = (E.dcToLbl dc, eo)
       eo = E.fromVisibleNum vn
-      bal = Map.toList . L.unBalance . M.balance . L.boxMeta $ i
+      bal = Map.toList . L.unBalance . M.balance . fst $ i
       preChunks = E.balanceToQtys ch balFmt eo bal
   in PreSpec j ps preChunks
 

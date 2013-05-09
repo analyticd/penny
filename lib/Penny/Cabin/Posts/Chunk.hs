@@ -11,14 +11,14 @@ import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Scheme as E
 import qualified System.Console.Rainbow as Rb
-import Penny.Cabin.Posts.Meta (Box)
+import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
 import qualified Penny.Cabin.Posts.Types as Ty
 
 data ChunkOpts = ChunkOpts
-  { dateFormat :: Box -> X.Text
-  , qtyFormat :: Box -> X.Text
+  { dateFormat :: (M.PostMeta, L.Posting) -> X.Text
+  , qtyFormat :: (M.PostMeta, L.Posting) -> X.Text
   , balanceFormat :: L.Commodity -> L.Qty -> X.Text
   , fields :: F.Fields Bool
   , subAccountLength :: A.SubAccountLength
@@ -65,7 +65,7 @@ bottomOpts c g a = B.BottomOpts {
 makeChunk
   :: E.Changers
   -> ChunkOpts
-  -> [Box]
+  -> [(M.PostMeta, L.Posting)]
   -> [Rb.Chunk]
 makeChunk ch c bs =
   let fmapSnd = fmap (fmap snd)

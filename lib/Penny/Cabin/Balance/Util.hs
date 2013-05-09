@@ -57,10 +57,12 @@ tieredForest getKeys ls = fmap (fmap revSnd) . NM.toForest $ nm
 -- of each of the trees corresponds to a sub account. The label of the
 -- node tells you the sub account name and gives you a list of the
 -- postings at that level.
-tieredPostings :: [L.Box a] -> T.Forest (L.SubAccount, [L.Box a])
+tieredPostings
+  :: [(a, L.Posting)]
+  -> T.Forest (L.SubAccount, [(a, L.Posting)])
 tieredPostings = tieredForest e
   where
-    e = Fdbl.toList . L.unAccount . Q.account . L.boxPostFam
+    e = Fdbl.toList . L.unAccount . Q.account . snd
 
 -- | Keeps only Trees that match a given condition. First examines
 -- child trees to determine whether they should be retained. If a
@@ -79,7 +81,7 @@ filterForest f = mapMaybe pruneTree
 -- balances from the bottom up.
 balances ::
   CO.ShowZeroBalances
-  -> [L.Box a]
+  -> [(a, L.Posting)]
   -> T.Forest (L.SubAccount, L.Balance)
 balances (CO.ShowZeroBalances szb) =
   remover
@@ -159,9 +161,9 @@ sumTree z f (T.Node (a, s) cs) = T.Node (a, f s cSum) cs'
     (cs', cSum) = sumForest z f cs
 
 
-boxesBalance :: [L.Box a] -> L.Balance
+boxesBalance :: [(a, L.Posting)] -> L.Balance
 boxesBalance = mconcat . map L.entryToBalance . map Q.entry
-               . map L.boxPostFam
+               . map snd
 
 mapSnd :: (a -> b) -> (f, a) -> (f, b)
 mapSnd f (x, a) = (x, f a)

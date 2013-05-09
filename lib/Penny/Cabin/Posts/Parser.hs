@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, RankNTypes #-}
 
 module Penny.Cabin.Posts.Parser
   ( State(..)
@@ -9,6 +9,7 @@ module Penny.Cabin.Posts.Parser
 
 import Control.Applicative ((<$>), pure, (<*>),
                             Applicative)
+import Control.Arrow ((>>>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toLower)
 import qualified Data.Foldable as Fdbl
@@ -38,8 +39,8 @@ newtype ShowExpression = ShowExpression { unShowExpression :: Bool }
 data State = State
   { sensitive :: M.CaseSensitive
   , factory :: L.Factory
-  , tokens :: [Exp.Token (L.Box Ly.LibertyMeta)]
-  , postFilter :: [Ly.PostFilterFn]
+  , tokens :: [Exp.Token (Ly.LibertyMeta, L.Posting)]
+  , postFilter :: forall a. [a] -> [a]
   , fields :: F.Fields Bool
   , width :: Ty.ReportWidth
   , showZeroBalances :: CO.ShowZeroBalances
@@ -80,7 +81,7 @@ operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
       let cs = sensitive st
           fty = factory st
       g <- lyFn cs fty
-      let g' = Pt.boxPdct L.boxPostFam g
+      let g' = Pt.boxPdct snd g
           ts' = tokens st ++ [Exp.operand g']
       return $ st { tokens = ts' }
 
@@ -101,7 +102,7 @@ optBoxSerial nm f = C.OptSpec [nm] "" (C.TwoArg g)
       i <- Ly.parseInt a2
       let getPd = Pt.compareBy (X.pack . show $ i)
                   ("serial " <> X.pack nm) cmp
-          cmp l = compare (f . L.boxMeta $ l) i
+          cmp l = compare (f . fst $ l) i
       pd <- Ly.parseComparer a1 getPd
       let tok = Exp.operand pd
       return $ st { tokens = tokens st ++ [tok] }
@@ -141,7 +142,10 @@ parsePostFilter = [fmap f optH, fmap f optT]
     (optH, optT) = Ly.postFilterSpecs
     f exc st = fmap g exc
       where
-        g pff = st { postFilter = postFilter st ++ [pff] }
+        g pff = st { postFilter = pf' }
+          where
+            pf' :: forall a. [a] -> [a]
+            pf' = postFilter st >>> pff
 
 
 matcherSelect :: [C.OptSpec (State -> State)]
