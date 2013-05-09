@@ -77,7 +77,7 @@ data WheatConf = WheatConf
     -- of lines, wich each line not terminated by a newline
     -- character. It is displayed at the end of the online help.
 
-  , tests :: [Time.UTCTime -> TT.TestTree L.PostFam]
+  , tests :: [Time.UTCTime -> TT.TestTree L.Posting]
     -- ^ The actual tests to run. The UTCTime is the @base time@. Each
     -- test may decide what to do with the base time--for example, the
     -- test might say that all postings have to have a date on or
@@ -256,11 +256,11 @@ getParsedFromWheatConf w = Parsed
   , p_ledgers = ledgers w
   }
 
-getItems :: [String] -> IO [L.PostFam]
+getItems :: [String] -> IO [L.Posting]
 getItems ss = fmap f $ Cop.open ss
   where
-    f = concatMap L.postFam . mapMaybe toTxn . Cop.unLedger
-    toTxn i = case i of { Cop.Transaction x -> Just x; _ -> Nothing }
+    f = concatMap L.transactionToPostings
+        . mapMaybe (either Just (const Nothing))
 
 --
 -- Tests
@@ -269,8 +269,8 @@ getItems ss = fmap f $ Cop.open ss
 -- | Passes only if each posting is True.
 eachPostingMustBeTrue
   :: TT.Name
-  -> Pe.Pdct L.PostFam
-  -> TT.TestTree L.PostFam
+  -> Pe.Pdct L.Posting
+  -> TT.TestTree L.Posting
 eachPostingMustBeTrue n = TT.eachSubjectMustBeTrue n L.display
 
 -- | Passes if at least a particular number of postings is True.
@@ -278,8 +278,8 @@ atLeastNPostings
   :: Int
   -- ^ The number of postings that must be true for the test to pass
   -> TT.Name
-  -> Pe.Pdct L.PostFam
-  -> TT.TestTree L.PostFam
+  -> Pe.Pdct L.Posting
+  -> TT.TestTree L.Posting
 atLeastNPostings i n = TT.nSubjectsMustBeTrue n L.display i
 
 --
