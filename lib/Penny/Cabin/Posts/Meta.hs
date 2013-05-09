@@ -48,7 +48,7 @@ toBoxList
   -- post returns a value other than Just True. Posts removed still
   -- affect the running balance.
 
-  -> (forall a. [a] -> [a])
+  -> [Ly.PostFilterFn]
   -- ^ Applies these post-filters to the list of posts that results
   -- from applying the predicate above. Might remove more
   -- postings. Postings removed still affect the running balance.
@@ -57,7 +57,7 @@ toBoxList
   -> [(PostMeta, L.Posting)]
 toBoxList szb pdct pff
   = addMetadata
-  . pff
+  . Ly.processPostFilters pff
   . filter (maybe False id . Pe.eval pdct . snd)
   . addBalances szb
 

@@ -66,7 +66,6 @@ import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Posts.Chunk as C
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Meta as M
-import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Parser as P
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Types as T
@@ -93,7 +92,7 @@ import Text.Matchers (CaseSensitive)
 postsReport
   :: E.Changers
   -> CO.ShowZeroBalances
-  -> (Pe.Pdct (L.Box Ly.LibertyMeta))
+  -> (Pe.Pdct (Ly.LibertyMeta, L.Posting))
   -- ^ Removes posts from the report if applying this function to the
   -- post returns False. Posts removed still affect the running
   -- balance.
@@ -104,7 +103,7 @@ postsReport
   -- postings. Postings removed still affect the running balance.
 
   -> C.ChunkOpts
-  -> [L.Box Ly.LibertyMeta]
+  -> [(Ly.LibertyMeta, L.Posting)]
   -> [Rb.Chunk]
 
 postsReport ch szb pdct pff co =
@@ -136,7 +135,7 @@ process
   -> L.Factory
   -> E.Changers
   -> Exp.ExprDesc
-  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
   -> [Either String (P.State -> Ex.Exceptional X.Text P.State)]
   -> Ex.Exceptional X.Text I.ArgsAndReport
 process os cs fty ch expr fsf ls =
@@ -149,7 +148,7 @@ mkPrintReport
   :: [String]
   -> ZincOpts
   -> E.Changers
-  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
   -> P.State
   -> I.ArgsAndReport
 mkPrintReport posArgs zo ch fsf st = (posArgs, f)
@@ -174,7 +173,7 @@ blankLine = Rb.plain (X.singleton '\n')
 
 showExpression
   :: P.ShowExpression
-  -> Pe.Pdct (L.Box Ly.LibertyMeta)
+  -> Pe.Pdct ((Ly.LibertyMeta, L.Posting))
   -> [Rb.Chunk]
 showExpression (P.ShowExpression b) pdct =
   if not b then [] else info : blankLine : (chks ++ [blankLine])
@@ -184,8 +183,8 @@ showExpression (P.ShowExpression b) pdct =
 
 showVerboseFilter
   :: P.VerboseFilter
-  -> Pe.Pdct (L.Box Ly.LibertyMeta)
-  -> [L.Box Ly.LibertyMeta]
+  -> Pe.Pdct ((Ly.LibertyMeta, L.Posting))
+  -> [(Ly.LibertyMeta, L.Posting)]
   -> [Rb.Chunk]
 showVerboseFilter (P.VerboseFilter b) pdct bs =
   if not b then [] else info : blankLine : (chks ++ [blankLine])
@@ -198,13 +197,13 @@ showVerboseFilter (P.VerboseFilter b) pdct bs =
 -- | Creates a Pdct and prepends a one-line description of the PostFam
 -- to the Pdct's label so it can be easily identified in the output.
 makeLabeledPdct
-  :: Pe.Pdct (L.Box Ly.LibertyMeta)
-  -> L.Box Ly.LibertyMeta
-  -> Pe.Pdct (L.Box Ly.LibertyMeta)
+  :: Pe.Pdct ((Ly.LibertyMeta, L.Posting))
+  -> (Ly.LibertyMeta, L.Posting)
+  -> Pe.Pdct ((Ly.LibertyMeta, L.Posting))
 makeLabeledPdct pd box = Pe.rename f pd
   where
     f old = old <> " - " <> L.display pf
-    pf = L.boxPostFam box
+    pf = snd box
 
 defaultOptions
   :: Sh.Runtime
@@ -227,8 +226,8 @@ type Error = X.Text
 
 getPredicate
   :: Exp.ExprDesc
-  -> [Exp.Token (L.Box Ly.LibertyMeta)]
-  -> Ex.Exceptional Error (Pe.Pdct (L.Box Ly.LibertyMeta))
+  -> [Exp.Token ((Ly.LibertyMeta, L.Posting))]
+  -> Ex.Exceptional Error (Pe.Pdct ((Ly.LibertyMeta, L.Posting)))
 getPredicate d ts =
   case ts of
     [] -> return $ Pe.always
@@ -251,12 +250,12 @@ data ZincOpts = ZincOpts
     -- ^ Are commodities that have no balance shown in the Total fields
     -- of the report?
 
-  , dateFormat :: Box -> X.Text
+  , dateFormat :: (M.PostMeta, L.Posting) -> X.Text
     -- ^ How to display dates. This function is applied to the
     -- a PostingInfo so it has lots of information, but it
     -- should return a date for use in the Date field.
 
-  , qtyFormat :: Box -> X.Text
+  , qtyFormat :: (M.PostMeta, L.Posting) -> X.Text
     -- ^ How to display the quantity of the posting. This
     -- function is applied to a Box so it has lots of
     -- information, but it should return a formatted string of
@@ -326,19 +325,19 @@ newParseState cs fty expr o = P.State
   }
 
 -- | Shows the date of a posting in YYYY-MM-DD format.
-yearMonthDay :: Box -> X.Text
+yearMonthDay :: (M.PostMeta, L.Posting) -> X.Text
 yearMonthDay p = X.pack (Time.formatTime defaultTimeLocale fmt d)
   where
     d = L.day
         . Q.dateTime
-        . L.boxPostFam
+        . snd
         $ p
     fmt = "%Y-%m-%d"
 
 -- | Shows the quantity of a posting. Does no rounding or
 -- prettification; simply uses show on the underlying Decimal.
-qtyAsIs :: Box -> X.Text
-qtyAsIs p = X.pack . show . Q.qty . L.boxPostFam $ p
+qtyAsIs :: (M.PostMeta, L.Posting) -> X.Text
+qtyAsIs p = X.pack . show . Q.qty . snd $ p
 
 -- | Shows the quantity of a balance. If there is no quantity, shows
 -- two dashes.

@@ -71,7 +71,7 @@ defaultFormat _ = X.pack . show
 summedSortedBalTree ::
   CO.ShowZeroBalances
   -> (L.SubAccount -> L.SubAccount -> Ordering)
-  -> [L.Box a]
+  -> [(a, L.Posting)]
   -> (E.Forest (L.SubAccount, L.Balance), L.Balance)
 summedSortedBalTree szb o =
   U.sumForest mempty mappend
@@ -92,7 +92,7 @@ rows (o, b) = first:rest
 
 -- | This report is what to use if you already have your options (that
 -- is, you are not parsing them in from the command line.)
-report :: Opts -> [L.Box a] -> [R.Chunk]
+report :: Opts -> [(a, L.Posting)] -> [R.Chunk]
 report (Opts bf szb o chgrs) =
   K.rowsToChunks chgrs bf
   . rows
@@ -127,7 +127,7 @@ process
   -> (L.Commodity -> L.Qty -> X.Text)
   -> P.ParseOpts
   -> a
-  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
   -> [Either String (P.ParseOpts -> P.ParseOpts)]
   -> f I.ArgsAndReport
 process chgrs fmt o _ fsf ls =

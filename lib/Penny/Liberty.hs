@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, CPP, Rank2Types #-}
+{-# LANGUAGE OverloadedStrings, CPP #-}
 
 -- | Liberty - Penny command line parsing utilities
 --
@@ -15,7 +15,11 @@ module Penny.Liberty (
   SortedNum(SortedNum, unSortedNum),
   LibertyMeta(filteredNum, sortedNum),
   xactionsToFiltered,
+  ListLength(ListLength, unListLength),
+  ItemIndex(ItemIndex, unItemIndex),
+  PostFilterFn,
   parseComparer,
+  processPostFilters,
   parsePredicate,
   parseInt,
   parseInfix,
@@ -115,7 +119,7 @@ xactionsToFiltered
   :: P.LPdct
   -- ^ The predicate to filter the transactions
 
-  -> (forall a. [a] -> [a])
+  -> [PostFilterFn]
   -- ^ Post filter specs
 
   -> (L.Posting -> L.Posting -> Ordering)
@@ -134,14 +138,14 @@ xactionsToFiltered pdct postFilts srtr
 
 processPostings
   :: (L.Posting -> L.Posting -> Ordering)
-  -> (forall a. [a] -> [a])
+  -> [PostFilterFn]
   -> [L.Posting]
   -> [(LibertyMeta, L.Posting)]
 processPostings srtr postFilters
   = (map . first . uncurry $ LibertyMeta)
   . addSortedNum
   . sortBy (\p1 p2 -> srtr (snd p1) (snd p2))
-  . postFilters
+  . processPostFilters postFilters
   . addFilteredNum
 
 mainFilter :: P.LPdct -> [L.Posting] -> ([C.Chunk], [L.Posting])
@@ -160,6 +164,26 @@ type MatcherFactory
   = CaseSensitive
   -> Text
   -> Ex.Exceptional Text TM.Matcher
+
+newtype ListLength = ListLength { unListLength :: Int }
+                     deriving (Eq, Ord, Show)
+newtype ItemIndex = ItemIndex { unItemIndex :: Int }
+                    deriving (Eq, Ord, Show)
+
+-- | Specifies options for the post-filter stage.
+type PostFilterFn = ListLength -> ItemIndex -> Bool
+
+
+processPostFilters :: [PostFilterFn] -> [a] -> [a]
+processPostFilters pfs ls = foldl processPostFilter ls pfs
+
+
+processPostFilter :: [a] -> PostFilterFn -> [a]
+processPostFilter as fn = map fst . filter fn' $ zipped where
+  len = ListLength $ length as
+  fn' (_, idx) = fn len (ItemIndex idx)
+  zipped = zip as [0..]
+
 
 ------------------------------------------------------------
 -- Operands
@@ -499,21 +523,25 @@ unDouble (o1, o2) = [fmap (const . const) o1, fmap (const . const) o2]
 data BadHeadTailError = BadHeadTailError Text
   deriving Show
 
-optHead :: OptSpec (Ex.Exceptional Error ([a] -> [a]))
+optHead :: OptSpec (Ex.Exceptional Error PostFilterFn)
 optHead = C.OptSpec ["head"] [] (C.OneArg f)
   where
-    f = fmap take . parseInt
+    f a = do
+      num <- parseInt a
+      let g _ ii = ii < (ItemIndex num)
+      return g
 
-optTail :: OptSpec (Ex.Exceptional Error ([a] -> [a]))
+optTail :: OptSpec (Ex.Exceptional Error PostFilterFn)
 optTail = C.OptSpec ["tail"] [] (C.OneArg f)
   where
-    f = fmap takeLast . parseInt
-    takeLast n xs = drop (max 0 (length xs - n)) xs
-
+    f a = do
+      num <- parseInt a
+      let g (ListLength len) (ItemIndex ii) = ii >= len - num
+      return g
 
 postFilterSpecs
-  :: ( OptSpec (Ex.Exceptional Error ([a] -> [a]))
-     , OptSpec (Ex.Exceptional Error ([a] -> [a])))
+  :: ( OptSpec (Ex.Exceptional Error PostFilterFn)
+     , OptSpec (Ex.Exceptional Error PostFilterFn))
 postFilterSpecs = (optHead, optTail)
 
 ------------------------------------------------------------

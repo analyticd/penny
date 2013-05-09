@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, RankNTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Penny.Cabin.Posts.Parser
   ( State(..)
@@ -9,7 +9,6 @@ module Penny.Cabin.Posts.Parser
 
 import Control.Applicative ((<$>), pure, (<*>),
                             Applicative)
-import Control.Arrow ((>>>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toLower)
 import qualified Data.Foldable as Fdbl
@@ -40,7 +39,7 @@ data State = State
   { sensitive :: M.CaseSensitive
   , factory :: L.Factory
   , tokens :: [Exp.Token (Ly.LibertyMeta, L.Posting)]
-  , postFilter :: forall a. [a] -> [a]
+  , postFilter :: [Ly.PostFilterFn]
   , fields :: F.Fields Bool
   , width :: Ty.ReportWidth
   , showZeroBalances :: CO.ShowZeroBalances
@@ -142,10 +141,7 @@ parsePostFilter = [fmap f optH, fmap f optT]
     (optH, optT) = Ly.postFilterSpecs
     f exc st = fmap g exc
       where
-        g pff = st { postFilter = pf' }
-          where
-            pf' :: forall a. [a] -> [a]
-            pf' = postFilter st >>> pff
+        g pff = st { postFilter = postFilter st ++ [pff] }
 
 
 matcherSelect :: [C.OptSpec (State -> State)]

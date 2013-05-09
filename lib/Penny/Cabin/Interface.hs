@@ -70,7 +70,7 @@ type MkReport
   -- ^ Result from previous parsers indicating whether the user wants
   -- RPN or infix
 
-  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
   -- ^ Result from previous parsers that will sort and filter incoming
   -- transactions
 
