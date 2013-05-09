@@ -55,10 +55,10 @@ doMerge maybeAcct noAuto ss = do
       (l', db') = changeItems acct
                   l (filterDb (Y.pennyAcct acct) dbWithEntry l)
       newTxns = createTransactions noAuto acct l dbLs db'
-      final = C.Ledger (C.unLedger l' ++ newTxns)
-  case R.ledger (Y.groupSpecs acct) final of
+      final = l' ++ newTxns
+  case mapM (R.item (Y.groupSpecs acct)) final of
     Nothing -> fail "Could not render final ledger."
-    Just x -> TIO.putStr x
+    Just x -> mapM_ TIO.putStr x
 
 
 help :: String -> String
@@ -76,20 +76,17 @@ help pn = unlines
 
 -- | Removes all Brenner postings that already have a Penny posting
 -- with the correct uNumber.
-filterDb :: Y.PennyAcct -> DbWithEntry -> C.Ledger -> DbWithEntry
+filterDb :: Y.PennyAcct -> DbWithEntry -> [C.LedgerItem] -> DbWithEntry
 filterDb ax m l = M.difference m ml
   where
     ml = M.fromList
        . flip zip (repeat ())
        . mapMaybe toUNum
        . filter inPennyAcct
-       . concatMap L.postFam
-       . mapMaybe toTxn
+       . concatMap L.transactionToPostings
+       . mapMaybe (either Just (const Nothing))
        . C.unLedger
        $ l
-    toTxn t = case t of
-      C.Transaction x -> Just x
-      _ -> Nothing
     inPennyAcct p = Q.account p == (Y.unPennyAcct ax)
     toUNum p = getUNumberFromTags . Q.tags $ p
 
@@ -116,10 +113,10 @@ getUNumberFromTag (L.Tag x) = do
 -- | Changes a single Item.
 changeItem
   :: Y.FitAcct
-  -> C.Item
-  -> St.State DbWithEntry C.Item
+  -> C.LedgerItem
+  -> St.State DbWithEntry C.LedgerItem
 changeItem acct =
-  C.mapItemA pure pure (changeTransaction acct)
+  either (fmap Left . changeTransaction acct) (return Right)
 
 
 -- | Changes all postings that match an AmexTxn to assign them the
@@ -127,11 +124,10 @@ changeItem acct =
 -- still-unassigned AmexTxns.
 changeItems
   :: Y.FitAcct
-  -> C.Ledger
+  -> [C.LedgerItem]
   -> DbWithEntry
   -> (C.Ledger, DbWithEntry)
-changeItems acct l =
-  St.runState (C.mapLedgerA (changeItem acct) l)
+changeItems acct l = St.runState (mapM (changeItem acct) l)
 
 
 changeTransaction
