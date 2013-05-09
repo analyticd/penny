@@ -76,6 +76,9 @@ tests = TF.testGroup "Penny.Lincoln.Bits.Qty"
 
   , testProperty "Number of allocations is same as number requested"
     $ Q.mapSize (min 15) prop_numAllocate
+
+  , testProperty "Sum of largest remainder method is equal to total"
+    prop_sumLargestRemainder
   ]
 #endif
 
@@ -353,8 +356,8 @@ prop_genBalQtys :: Q.Property
 prop_genBalQtys = Q.forAll genBalQtys $ \(tot, g1, g2) ->
   case (g1, g2) of
     (x:xs, y:ys) ->
-      let sx = foldl add x xs
-          sy = foldl add y ys
+      let sx = foldl1' add (x:xs)
+          sy = foldl1' add (y:ys)
       in if sx `equivalent` sy
          then QCP.succeeded
          else let r = "Different sums. X sum: " ++ showQty sx
@@ -511,10 +514,25 @@ largestRemainderMethod ts pvs =
     Ex.assert "negative member of [PartyVotes]" (minimum pvs >= 0)
     return (allocRemainder ts . allocAuto ts $ pvs)
 
+#ifdef test
+
+-- | Sum of largest remainder method is equal to total number of seats
+prop_sumLargestRemainder
+  :: Q.Positive Integer
+  -> Q.NonEmptyList (Q.NonNegative Integer)
+  -> QCP.Property
+
+prop_sumLargestRemainder tot ls =
+  let t = Q.getPositive tot
+      l = map Q.getNonNegative . Q.getNonEmpty $ ls
+      r = largestRemainderMethod t l
+  in sum l > 0 ==> sum r == t
+#endif
+
 autoAndRemainder
   :: TotSeats -> TotVotes -> PartyVotes -> (AutoSeats, Remainder)
 autoAndRemainder ts tv pv =
-  let fI = fromIntegral
+  let fI = fromIntegral :: Integer -> Rational
       quota = if ts == 0
               then error "autoAndRemainder: zero total seats"
               else if tv == 0
