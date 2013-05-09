@@ -10,6 +10,7 @@ module Penny.Lincoln.Ents
   , unEnts
   , tupleEnts
   , mapEnts
+  , traverseEnts
   , ents
   , rEnts
   , View
@@ -108,6 +109,14 @@ instance Fdbl.Foldable Ents where
 
 instance Tr.Traversable Ents where
   sequenceA = fmap Ents . Tr.sequenceA . map seqEnt . unEnts
+
+mapEnts :: (Ent a -> b) -> Ents a -> Ents b
+mapEnts f = Ents . map f' . unEnts where
+  f' e = e { meta = f e }
+
+traverseEnts :: Applicative f => (Ent a -> f b) -> Ents a -> f (Ents b)
+traverseEnts f = fmap Ents . Tr.traverse f' . unEnts where
+  f' en@(Ent e i _) = Ent <$> pure e <*> pure i <*> f en
 
 seqEnt :: Applicative f => Ent (f a) -> f (Ent a)
 seqEnt (Ent e i m) = Ent <$> pure e <*> pure i <*> m
@@ -273,10 +282,12 @@ headEnt (View ls) = case ls of
   x:_ -> x
 
 -- | Get information on sibling postings.
-tailEnts :: View m -> [Ent m]
+tailEnts :: View m -> (Ent m, [Ent m])
 tailEnts (View ls) = case ls of
   [] -> error "ents: tailEnts: empty view"
-  _:xs -> xs
+  _:xs -> case xs of
+    [] -> error "ents: tailEnts: only one sibling"
+    s2:ss -> (s2, ss)
 
 -- | Given a single View, returns all possible alternate Views.
 allViews :: View B.PostingData -> [View B.PostingData]
@@ -303,12 +314,6 @@ orderedPermute ls = take (length ls) (iterate toTheBack ls)
   where
     toTheBack [] = []
     toTheBack (a:as) = as ++ [a]
-
-mapEnts
-  :: (Ent a -> Ent b)
-  -> Ents a
-  -> Ents b
-mapEnts f = Ents . map f . unEnts
 
 ents
   :: [(Maybe B.Entry, m)]

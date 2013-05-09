@@ -86,11 +86,15 @@ module Penny.Lincoln.Bits (
 
   -- * Aggregates
   , TopLineCore(..)
+  , emptyTopLineCore
   , TopLineFileMeta(..)
   , TopLineData(..)
+  , emptyTopLineData
   , PostingCore(..)
+  , emptyPostingCore
   , PostingFileMeta(..)
   , PostingData(..)
+  , emptyPostingData
   ) where
 
 
@@ -123,6 +127,9 @@ data TopLineData = TopLineData
   , tlGlobal :: Maybe O.GlobalTransaction
   } deriving (Eq, Show, Generic)
 
+emptyTopLineData :: DT.DateTime -> TopLineData
+emptyTopLineData dt = TopLineData (emptyTopLineCore dt) Nothing Nothing
+
 instance B.Binary TopLineData
 
 #ifdef test
@@ -138,6 +145,9 @@ data TopLineCore = TopLineCore
   , tPayee :: Maybe O.Payee
   , tMemo :: Maybe O.Memo
   } deriving (Eq, Show, Generic)
+
+emptyTopLineCore :: DT.DateTime -> TopLineCore
+emptyTopLineCore dt = TopLineCore dt Nothing Nothing Nothing Nothing
 
 instance B.Binary TopLineCore
 
@@ -176,6 +186,18 @@ data PostingCore = PostingCore
   , pSpaceBetween :: Maybe O.SpaceBetween
   } deriving (Eq, Show, Generic)
 
+emptyPostingCore :: O.Account -> PostingCore
+emptyPostingCore ac = PostingCore
+  { pPayee = Nothing
+  , pNumber = Nothing
+  , pFlag = Nothing
+  , pAccount = ac
+  , pTags = O.Tags []
+  , pMemo = Nothing
+  , pSide = Nothing
+  , pSpaceBetween = Nothing
+  }
+
 instance B.Binary PostingCore
 
 #ifdef test
@@ -204,6 +226,13 @@ data PostingData = PostingData
   , pdFileMeta :: Maybe PostingFileMeta
   , pdGlobal :: Maybe O.GlobalPosting
   } deriving (Eq, Show, Generic)
+
+emptyPostingData :: O.Account -> PostingData
+emptyPostingData ac = PostingData
+  { pdCore = emptyPostingCore ac
+  , pdFileMeta = Nothing
+  , pdGlobal = Nothing
+  }
 
 instance B.Binary PostingData
 

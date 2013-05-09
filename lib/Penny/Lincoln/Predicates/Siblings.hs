@@ -261,6 +261,7 @@ serialPdct name getSer i o = P.Pdct n (P.Operand f)
         . catMaybes
         . map getSer
         . E.unrollSnd
+        . second (\(x, xs) -> (x:xs))
         . second E.tailEnts
 
 type MakeSerialPdct = Int -> Ordering -> P.Pdct Posting

@@ -1,6 +1,6 @@
 module Penny.Brenner.Merge (mode) where
 
-import Control.Applicative (pure)
+import Control.Applicative
 import Control.Monad (guard)
 import qualified Control.Monad.Trans.State as St
 import Data.List (find, sortBy, foldl')
@@ -85,7 +85,6 @@ filterDb ax m l = M.difference m ml
        . filter inPennyAcct
        . concatMap L.transactionToPostings
        . mapMaybe (either Just (const Nothing))
-       . C.unLedger
        $ l
     inPennyAcct p = Q.account p == (Y.unPennyAcct ax)
     toUNum p = getUNumberFromTags . Q.tags $ p
@@ -116,7 +115,7 @@ changeItem
   -> C.LedgerItem
   -> St.State DbWithEntry C.LedgerItem
 changeItem acct =
-  either (fmap Left . changeTransaction acct) (return Right)
+  either (fmap Left . changeTransaction acct) (return . Right)
 
 
 -- | Changes all postings that match an AmexTxn to assign them the
@@ -126,7 +125,7 @@ changeItems
   :: Y.FitAcct
   -> [C.LedgerItem]
   -> DbWithEntry
-  -> (C.Ledger, DbWithEntry)
+  -> ([C.LedgerItem], DbWithEntry)
 changeItems acct l = St.runState (mapM (changeItem acct) l)
 
 
@@ -134,11 +133,10 @@ changeTransaction
   :: Y.FitAcct
   -> L.Transaction
   -> St.State DbWithEntry L.Transaction
-changeTransaction acct txn = do
-  let fam = L.unTransaction txn
-      fam' = L.mapParent (const L.emptyTopLineChangeData) fam
-  fam'' <- L.mapChildrenA (inspectAndChange acct txn) fam'
-  return $ L.changeTransaction fam'' txn
+changeTransaction acct txn =
+  (,)
+  <$> pure (fst txn)
+  <*> L.traverseEnts (inspectAndChange acct (fst txn)) (snd txn)
 
 -- | Inspects a posting to see if it is an Amex posting and, if so,
 -- whether it matches one of the remaining AmexTxns. If so, then
@@ -147,19 +145,20 @@ changeTransaction acct txn = do
 -- skips it.
 inspectAndChange
   :: Y.FitAcct
-  -> L.Transaction
-  -> L.Posting
-  -> St.State DbWithEntry L.PostingChangeData
-inspectAndChange acct t p = do
+  -> L.TopLineData
+  -> L.Ent L.PostingData
+  -> St.State DbWithEntry L.PostingData
+inspectAndChange acct tld p = do
   m <- St.get
-  case findMatch acct t p m of
-    Nothing -> return L.emptyPostingChangeData
+  case findMatch acct tld p m of
+    Nothing -> return (L.meta p)
     Just (n, m') ->
-      let L.Tags oldTags = L.pTags p
+      let c = L.pdCore . L.meta $ p
+          L.Tags oldTags = L.pTags c
           tags' = L.Tags (oldTags ++ [newLincolnUNumber n])
-          pcd = L.emptyPostingChangeData
-                  { L.pcTags = Just tags' }
-      in St.put m' >> return pcd
+          c' = c { L.pTags = tags' }
+          p' = (L.meta p) { L.pdCore = c' }
+      in St.put m' >> return p'
 
 newLincolnUNumber :: Y.UNumber -> L.Tag
 newLincolnUNumber a =
@@ -171,13 +170,13 @@ newLincolnUNumber a =
 -- has the match removed.
 findMatch
   :: Y.FitAcct
-  -> L.Transaction
-  -> L.Posting
+  -> L.TopLineData
+  -> L.Ent L.PostingData
   -> DbWithEntry
   -> Maybe (Y.UNumber, DbWithEntry)
-findMatch acct t p m = fmap toResult findResult
+findMatch acct tl p m = fmap toResult findResult
   where
-    findResult = find (pennyTxnMatches acct t p)
+    findResult = find (pennyTxnMatches acct tl p)
                  . M.toList $ m
     toResult (u, (_, _)) = (u, M.delete u m)
 
@@ -186,8 +185,7 @@ findMatch acct t p m = fmap toResult findResult
 pairWithEntry :: Y.FitAcct -> Y.Posting -> (Y.Posting, L.Entry)
 pairWithEntry acct p = (p, en)
   where
-    en = L.Entry dc (L.Amount qty cty (Just (Y.side acct))
-                                      (Just (Y.spaceBetween acct)))
+    en = L.Entry dc (L.Amount qty cty)
     dc = Y.translate (Y.incDec p) (Y.translator acct)
     qty = U.parseQty (Y.amount p)
     cty = Y.unCurrency . Y.currency $ acct
@@ -200,22 +198,22 @@ type DbWithEntry = M.Map Y.UNumber (Y.Posting, L.Entry)
 -- has a number.)
 pennyTxnMatches
   :: Y.FitAcct
-  -> L.Transaction
-  -> L.Posting
+  -> L.TopLineData
+  -> L.Ent L.PostingData
   -> (a, (Y.Posting, L.Entry))
   -> Bool
-pennyTxnMatches acct t p (_, (a, e)) =
+pennyTxnMatches acct tl pstg (_, (a, e)) =
   mA && noFlag && mQ && mDC && mDate && mCmdty
   where
+    p = L.pdCore . L.meta $ pstg
     mA = L.pAccount p == (Y.unPennyAcct . Y.pennyAcct $ acct)
-    mQ = L.equivalent (L.qty . L.amount . L.pEntry $ p)
+    mQ = L.equivalent (L.qty . L.amount . L.entry $ pstg)
                       (L.qty . L.amount $ e)
-    mDC = (L.drCr e) == (L.drCr . L.pEntry $ p)
-    (L.Family tl _ _ _) = L.unTransaction t
-    mDate = (L.day . L.tDateTime $ tl) == (Y.unDate . Y.date $ a)
+    mDC = (L.drCr e) == (L.drCr . L.entry $ pstg)
+    mDate = (L.day . L.tDateTime . L.tlCore $ tl) == (Y.unDate . Y.date $ a)
     noFlag = isNothing . L.pNumber $ p
-    mCmdty = (L.commodity . L.amount $ e)
-              == (Y.unCurrency . Y.currency $ acct)
+    mCmdty = (L.commodity . L.amount . L.entry $ pstg)
+             == (Y.unCurrency . Y.currency $ acct)
 
 
 -- | Creates a new transaction corresponding to a given AmexTxn. Uses
@@ -228,47 +226,42 @@ newTransaction
   -> PyeLookupMap
   -> (Y.UNumber, (Y.Posting, L.Entry))
   -> L.Transaction
-newTransaction noAuto acct mu mp (u, (a, e)) = L.rTransaction rt
-  where
-    rt = L.RTransaction
-      { L.rtCommodity = Y.unCurrency . Y.currency $ acct
-      , L.rtSide = Just . Y.side $ acct
-      , L.rtSpaceBetween = Just . Y.spaceBetween $ acct
-      , L.rtDrCr = L.drCr e
-      , L.rtTopLine = tl
-      , L.rtPosting = p1
-      , L.rtMorePostings = []
-      , L.rtIPosting = p2
-      }
-    tl = (U.emptyTopLine ( L.dateTimeMidnightUTC . Y.unDate
-                           . Y.date $ a))
-         { U.tPayee = Just pa }
-    getPye = Y.toLincolnPayee acct
-    (guessedPye, guessedAcct) = guessInfo getPye mu mp a
-    dfltPye = getPye (Y.desc a) (Y.payee a)
-    dfltAcct = Y.unDefaultAcct . Y.defaultAcct $ acct
-    (pa, ac) =
-      if noAuto
-      then (dfltPye, dfltAcct)
-      else ( fromMaybe dfltPye guessedPye,
-             fromMaybe dfltAcct guessedAcct)
-    pennyAcct = Y.unPennyAcct . Y.pennyAcct $ acct
-    p1 = (U.emptyRPosting pennyAcct (L.qty . L.amount $ e))
-          { U.rTags = L.Tags [newLincolnUNumber u] }
-    p2 = U.emptyIPosting ac
+newTransaction noAuto acct mu mp (u, (a, e)) = (tld, ents) where
+  tld = L.TopLineData tlc Nothing Nothing
+  tlc = (L.emptyTopLineCore (L.dateTimeMidnightUTC . Y.unDate . Y.date $ a))
+        { L.tPayee = Just pa }
+  (pa, ac) = if noAuto then (dfltPye, dfltAcct)
+    else ( fromMaybe dfltPye guessedPye,
+           fromMaybe dfltAcct guessedAcct)
+  (guessedPye, guessedAcct) = guessInfo (Y.toLincolnPayee acct) mu mp a
+  dfltPye = getPye (Y.desc a) (Y.payee a)
+  dfltAcct = Y.unDefaultAcct . Y.defaultAcct $ acct
+  getPye = Y.toLincolnPayee acct
+  pennyAcct = Y.unPennyAcct . Y.pennyAcct $ acct
+  p1data = L.PostingData p1core Nothing Nothing
+  p2data = L.PostingData p2core Nothing Nothing
+  p1core = (L.emptyPostingCore pennyAcct)
+           { L.pTags = L.Tags [newLincolnUNumber u]
+           , L.pSide = Just $ Y.side acct
+           , L.pSpaceBetween = Just $ Y.spaceBetween acct
+           }
+  p2core = L.emptyPostingCore ac
+  ents = L.rEnts (Y.unCurrency . Y.currency $ acct) (L.drCr e)
+                 (L.qty . L.amount $ e, p1data)
+                 [] p2data
 
 -- | Creates new transactions for all the items remaining in the
 -- DbMap. Appends a blank line after each one.
 createTransactions
   :: NoAuto
   -> Y.FitAcct
-  -> C.Ledger
+  -> [C.LedgerItem]
   -> Y.DbList
   -> DbWithEntry
-  -> [C.Item]
+  -> [C.LedgerItem]
 createTransactions noAuto acct led dbLs db =
-  concatMap (\i -> [i, C.BlankLine])
-  . map C.Transaction
+  concatMap (\i -> [i, (Right . Right . Right $ C.BlankLine)])
+  . map Left
   . map (newTransaction noAuto acct mu mp)
   . M.assocs
   $ db
@@ -312,20 +305,21 @@ type PyeLookupMap = M.Map Y.UNumber (Maybe L.Payee, Maybe L.Account)
 -- PennyAcct and have a UNumber into the map. (If two postings match
 -- the PennyAcct and have the same UNumber, the one that appears later
 -- in the ledger file will be in the map.)
-makePyeLookupMap :: Y.PennyAcct -> C.Ledger -> PyeLookupMap
+makePyeLookupMap :: Y.PennyAcct -> [C.LedgerItem] -> PyeLookupMap
 makePyeLookupMap a l
-  = M.fromList . mapMaybe f . concatMap L.postFam . mapMaybe toPstg
-    . C.unLedger $ l
+  = M.fromList . mapMaybe f . concatMap L.transactionToPostings
+    . mapMaybe toPstg
+    $ l
   where
     f pstg = do
       guard $ (Q.account pstg) == Y.unPennyAcct a
       u <- getUNumberFromTags . Q.tags $ pstg
-      let (L.Child _ sib sibs _) = L.unPostFam pstg
-          ac = if null sibs
-               then Just (L.pAccount sib)
-               else Nothing
+      let tailents = L.tailEnts . snd $ pstg
+          ac = case tailents of
+            (x, []) -> Just (L.pAccount . L.pdCore . L.meta $ x)
+            _ -> Nothing
       return (u, (Q.payee pstg, ac))
-    toPstg i = case i of { C.Transaction t -> Just t; _ -> Nothing }
+    toPstg = either Just (const Nothing)
 
 -- | Given a UNumber and the maps, looks up the payee and account
 -- information from previous transactions if this information is

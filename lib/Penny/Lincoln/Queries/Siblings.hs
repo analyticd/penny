@@ -24,6 +24,7 @@ bestSibs fp ft =
   map f
   . map (second (B.pdCore . E.meta))
   . E.unrollSnd
+  . second (\(x, xs) -> (x:xs))
   . second E.tailEnts
   . first B.tlCore
   where
@@ -36,7 +37,7 @@ sibs
   :: (E.Ent B.PostingData -> a)
   -> E.Posting
   -> [a]
-sibs fp = map fp . snd . fmap E.tailEnts
+sibs fp = map fp . snd . fmap ((\(x, xs) -> (x:xs)) . E.tailEnts)
 
 payee :: E.Posting -> [Maybe B.Payee]
 payee = bestSibs B.pPayee B.tPayee
@@ -94,4 +95,5 @@ globalTransaction =
   map B.tlGlobal
   . map fst
   . E.unrollSnd
+  . second (\(x, xs) -> (x:xs))
   . second E.tailEnts
