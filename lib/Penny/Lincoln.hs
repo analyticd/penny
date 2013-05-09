@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- | Lincoln - the Penny core
 --
 -- Penny's core types and classes are here. This module re-exports the
@@ -16,12 +17,24 @@ module Penny.Lincoln
   , module Penny.Lincoln.PriceDb
   , module Penny.Lincoln.Serial
   , display
+
+#ifdef test
+  , tests
+#endif
   ) where
 
-import Penny.Lincoln.Balance
+#ifdef test
+import Penny.Lincoln.Bits hiding (tests)
+import qualified Penny.Lincoln.Bits
+import Penny.Lincoln.Ents hiding (tests)
+import qualified Penny.Lincoln.Ents
+#else
 import Penny.Lincoln.Bits
-import Penny.Lincoln.Builders
 import Penny.Lincoln.Ents
+#endif
+
+import Penny.Lincoln.Balance
+import Penny.Lincoln.Builders
 import Penny.Lincoln.HasText
 import Penny.Lincoln.Matchers
 import Penny.Lincoln.PriceDb
@@ -33,6 +46,17 @@ import qualified Data.Text as X
 import qualified Penny.Lincoln.Queries as Q
 import qualified Data.Time as Time
 import System.Locale (defaultTimeLocale)
+
+#ifdef test
+import Test.Framework (Test, testGroup)
+
+tests :: Test
+tests = testGroup "Penny.Lincoln"
+  [ Penny.Lincoln.Bits.tests
+  , Penny.Lincoln.Ents.tests
+  ]
+
+#endif
 
 --
 -- Display

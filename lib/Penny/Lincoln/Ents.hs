@@ -53,11 +53,16 @@ import qualified Test.QuickCheck.Poly as QC
 import qualified System.Random.Shuffle as Shuffle
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework (Test, testGroup)
+import qualified Data.Map as M
+import qualified Penny.Lincoln.Bits.Qty as Qty
 
 tests :: Test
 tests = testGroup "Penny.Lincoln.Ents"
   [ testProperty "ents have at least two postings"
     $ QC.mapSize (min 10) (prop_twoPostings :: Ents QC.A -> Bool)
+
+  , testProperty "genBalEntries generates balanced groups"
+    $ QC.mapSize (min 10) prop_balEntries
 
   , testProperty "ents are always balanced"
     $ QC.mapSize (min 10) (prop_balanced :: Ents QC.A -> Bool)
@@ -165,27 +170,35 @@ instance Arbitrary NonRestricted where
     metas <- QC.vector (length es)
     return $ NonRestricted (zip es metas)
 
--- | Generates a group of balanced quantities.
-genBalQtys :: Gen ([B.Qty], [B.Qty])
-genBalQtys = do
-  total <- arbitrary
-  group1alloc1 <- arbitrary
-  group1allocRest <- QC.listOf arbitrary
-  group2alloc1 <- arbitrary
-  group2allocRest <- QC.listOf arbitrary
-  let (g1r1, g1rs) = B.allocate total (group1alloc1, group1allocRest)
-      (g2r1, g2rs) = B.allocate total (group2alloc1, group2allocRest)
-  return $ (g1r1 : g1rs, g2r1 : g2rs)
+newtype BalQtys = BalQtys { _unBalQtys :: ([B.Qty], [B.Qty]) }
+  deriving (Eq, Show)
 
 -- | Generates a group of balanced entries.
 genBalEntries :: Gen ([B.Entry])
 genBalEntries = do
-  (qDeb, qCred) <- genBalQtys
+  (_, qDeb, qCred) <- Qty.genBalQtys
   let qtysAndDrCrs = map (\en -> (B.Debit, en)) qDeb
                      ++ map (\en -> (B.Credit, en)) qCred
   cty <- arbitrary
   let mkEn (drCr, qty) = B.Entry drCr (B.Amount qty cty)
   return $ map mkEn qtysAndDrCrs
+
+newtype BalEntries = BalEntries
+  { unBalEntries :: [B.Entry] }
+  deriving (Eq, Show)
+
+instance Arbitrary BalEntries where
+  arbitrary = fmap BalEntries genBalEntries
+
+-- | genBalEntries generates groups that are balanced.
+prop_balEntries :: BalEntries -> Bool
+prop_balEntries
+  = M.null
+  . Bal.unBalance
+  . Bal.removeZeroCommodities
+  . mconcat
+  . map Bal.entryToBalance
+  . unBalEntries
 
 -- | Generates a list of entries. At most, one of these is Inferred.
 genEntriesWithInfer :: Gen [(B.Entry, Inferred)]

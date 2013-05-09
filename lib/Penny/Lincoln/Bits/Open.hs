@@ -22,11 +22,14 @@ import Control.Monad (liftM2)
 #endif
 
 #ifdef test
+
+-- | Generates a Text from valid Unicode chars.
 genText :: Gen Text
 genText = fmap X.pack $ QC.oneof [ QC.listOf ascii, QC.listOf rest ]
   where
     ascii = QC.choose (toEnum 32, toEnum 126)
-    rest = QC.choose (minBound, maxBound)
+    rest = QC.suchThat (QC.choose (minBound, maxBound))
+                       (\c -> c < '\xd800' || c > '\xdfff')
 #endif
 
 newtype SubAccount =

@@ -29,6 +29,7 @@ module Penny.Lincoln.Bits.Qty
   , genRangeInt
   , genMutate
   , genEquivalent
+  , genBalQtys
 #endif
 
   ) where
@@ -44,6 +45,7 @@ import Control.Monad (liftM2)
 import Data.List (foldl1')
 import Data.Maybe (isJust)
 import qualified Test.QuickCheck as Q
+import qualified Test.QuickCheck.Property as QCP
 import Test.QuickCheck (Arbitrary(..), Gen, (==>))
 import qualified Test.Framework as TF
 import Test.Framework.Providers.QuickCheck2 (testProperty)
@@ -56,11 +58,21 @@ tests = TF.testGroup "Penny.Lincoln.Bits.Qty"
   , testProperty "add is commutative"
     $ Q.mapSize (min 10) prop_commutative
 
+  , testProperty "equalizeExponents yields equal exponents"
+    $ Q.mapSize (min 10) prop_equalExponents
+
   , testProperty "prop_addSubtract"
     $ Q.mapSize (min 10) prop_addSubtract
 
+  , testProperty "genBalQtys generates balanced groups of quantities"
+    $ Q.mapSize (min 10) prop_genBalQtys
+
+  , testProperty ( "genBalQtys generates first group of quantities "
+                   ++  " with correct sum")
+    $ Q.mapSize (min 10) prop_genBalQtysTotalX
+
   , testProperty "Sum of allocation adds up to original Qty"
-    $ Q.mapSize (min 15) prop_sumAllocate
+    $ Q.mapSize (min 10) prop_sumAllocate
 
   , testProperty "Number of allocations is same as number requested"
     $ Q.mapSize (min 15) prop_numAllocate
@@ -252,6 +264,16 @@ equalizeExponents x y = (x', y')
       LT -> (increaseExponent (ey - ex) x, y)
       EQ -> (x, y)
 
+#ifdef test
+
+-- | equalizeExponents gives two Qty with equal exponents.
+
+prop_equalExponents :: Qty -> Qty -> Bool
+prop_equalExponents q1 q2 =
+  let (q1', q2') = equalizeExponents q1 q2
+  in places q1' == places q2'
+
+#endif
 
 -- | Increase the exponent by the amount given, so that the new Qty is
 -- equivalent to the old one. Takes the absolute value of the
@@ -299,6 +321,47 @@ add x y =
   in Qty (xm + ym) e
 
 #ifdef test
+
+-- | Generates a group of balanced quantities.
+genBalQtys :: Gen (Qty, [Qty], [Qty])
+genBalQtys = do
+  total <- arbitrary
+  group1alloc1 <- arbitrary
+  group1allocRest <- arbitrary
+  group2alloc1 <- arbitrary
+  group2allocRest <- arbitrary
+  let (g1r1, g1rs) = allocate total (group1alloc1, group1allocRest)
+      (g2r1, g2rs) = allocate total (group2alloc1, group2allocRest)
+  return $ (total, g1r1 : g1rs, g2r1 : g2rs)
+
+showQty :: Qty -> String
+showQty q = "mantissa: " ++ show (mantissa q) ++ " exponent: "
+            ++ show (places q)
+
+-- | genBalQtys generates first qty list that sum up to the given total.
+prop_genBalQtysTotalX :: Q.Property
+prop_genBalQtysTotalX = Q.forAll genBalQtys $ \(tot, g1, _) ->
+  let sx = foldl1 add g1
+  in if sx `equivalent` tot
+     then QCP.succeeded
+     else let r = "planned sum: " ++ showQty tot ++ " actual sum: "
+                  ++ showQty sx
+          in QCP.failed { QCP.reason = r }
+
+-- | genBalQtys generates a balanced group of quantities.
+prop_genBalQtys :: Q.Property
+prop_genBalQtys = Q.forAll genBalQtys $ \(tot, g1, g2) ->
+  case (g1, g2) of
+    (x:xs, y:ys) ->
+      let sx = foldl add x xs
+          sy = foldl add y ys
+      in if sx `equivalent` sy
+         then QCP.succeeded
+         else let r = "Different sums. X sum: " ++ showQty sx
+                      ++ " Y sum: " ++ showQty sy ++
+                      " planned total: " ++ showQty tot
+              in QCP.failed { QCP.reason = r }
+    _ -> QCP.failed { QCP.reason = "empty quantities list" }
 
 -- | > x + y == y + x
 

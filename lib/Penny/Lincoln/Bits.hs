@@ -95,6 +95,10 @@ module Penny.Lincoln.Bits (
   , PostingFileMeta(..)
   , PostingData(..)
   , emptyPostingData
+
+#ifdef test
+  , tests
+#endif
   ) where
 
 
@@ -109,6 +113,7 @@ import GHC.Generics (Generic)
 import Control.Monad (liftM4, liftM2, liftM3, liftM5)
 import Control.Applicative ((<$>), (<*>))
 import Test.QuickCheck (Arbitrary, arbitrary)
+import Test.Framework (Test, testGroup)
 #endif
 
 data PricePoint = PricePoint { dateTime :: DT.DateTime
@@ -239,5 +244,11 @@ instance B.Binary PostingData
 #ifdef test
 instance Arbitrary PostingData where
   arbitrary = liftM3 PostingData arbitrary arbitrary arbitrary
+
+tests :: Test
+tests = testGroup "Penny.Lincoln.Bits"
+  [ Q.tests
+  ]
+
 #endif
 

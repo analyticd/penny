@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- | Penny - extensible double-entry accounting system
 
 module Penny
@@ -48,6 +49,10 @@ module Penny
 
   -- ** Main function
   , runPenny
+
+#ifdef test
+  , tests
+#endif
 
     -- * Developer overview
 
@@ -105,6 +110,10 @@ import qualified Data.Prednote.Expressions as Exp
 import qualified Penny.Zinc as Z
 import qualified Penny.Shield as S
 import qualified Text.Matchers as Mr
+
+#ifdef test
+import Test.Framework (Test, testGroup)
+#endif
 
 -- | This type contains settings for all the reports, as well as
 -- default settings for the global options. Some of these can be
@@ -454,3 +463,9 @@ convFields f = PF.Fields
   , PF.filename = fFilename f
   }
 
+#ifdef test
+tests :: Test
+tests = testGroup "Penny"
+  [ L.tests
+  ]
+#endif

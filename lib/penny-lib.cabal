@@ -151,6 +151,45 @@ Library
   if flag(debug)
     ghc-options: -auto-all -caf-all
 
+Executable penny-test
+  Main-is: penny-test.hs
+  Build-depends:
+      base ==4.*
+    , binary ==0.7.*
+    , bytestring ==0.10.*
+    , cereal ==0.3.*
+    , containers ==0.5.*
+    , explicit-exception ==0.1.*
+    , matchers ==0.6.*
+    , monad-loops ==0.3.*
+    , multiarg ==0.14.*
+    , ofx ==0.1.*
+    , old-locale ==1.0.*
+    , parsec >= 3.1.2 && < 3.2
+    , pcre-light ==0.4.*
+    , prednote == 0.8.*
+    , pretty-show ==1.5.*
+    , rainbow ==0.2.*
+    , semigroups ==0.9.*
+    , split ==0.2.*
+    , strict ==0.3.*
+    , terminfo == 0.3.*
+    , text ==0.11.*
+    , time ==1.4.*
+    , transformers == 0.3.*
+
+    -- Test dependencies
+    , QuickCheck ==2.5.*
+    , test-framework ==0.8.*
+    , test-framework-quickcheck2 ==0.3.*
+    , random-shuffle ==0.0.4
+
+
+  if ! flag(test)
+    buildable: False
+
+  cpp-options: -Dtest
+
 Flag debug
   Description: turns on some debugging options
   Default: False
