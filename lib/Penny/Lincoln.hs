@@ -12,6 +12,7 @@ module Penny.Lincoln
   , module Penny.Lincoln.Bits
   , module Penny.Lincoln.Builders
   , module Penny.Lincoln.Ents
+  , module Penny.Lincoln.Equivalent
   , module Penny.Lincoln.HasText
   , module Penny.Lincoln.Matchers
   , module Penny.Lincoln.PriceDb
@@ -35,6 +36,7 @@ import Penny.Lincoln.Ents
 
 import Penny.Lincoln.Balance
 import Penny.Lincoln.Builders
+import Penny.Lincoln.Equivalent
 import Penny.Lincoln.HasText
 import Penny.Lincoln.Matchers
 import Penny.Lincoln.PriceDb

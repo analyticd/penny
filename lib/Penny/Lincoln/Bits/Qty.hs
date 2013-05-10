@@ -8,6 +8,8 @@ module Penny.Lincoln.Bits.Qty
   , toQty
   , mantissa
   , places
+  , prettyShowQty
+  , compareQty
   , newQty
   , Mantissa
   , Places
@@ -44,6 +46,7 @@ import qualified Penny.Lincoln.Equivalent as Ev
 import Control.Monad (liftM2)
 import Data.List (foldl1')
 import Data.Maybe (isJust, isNothing)
+import Penny.Lincoln.Equivalent ((==~))
 import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.Property as QCP
 import Test.QuickCheck (Arbitrary(..), Gen, (==>))
@@ -98,16 +101,38 @@ readInteger s = case reads s of
 -- particular posting in a transaction did not happen (for instance,
 -- that a paycheck deduction did not take place). I think the better
 -- way to handle that though would be through an addition to
--- Debit/Credit - maybe Debit/Credit/Zero. Barring the addition of
+-- Debit\/Credit - maybe Debit\/Credit\/Zero. Barring the addition of
 -- that, though, the best way to indicate a situation such as this
 -- would be through transaction memos.
 --
+-- /WARNING/ - before doing comparisons or equality tests
+--
 -- The Eq instance is derived. Therefore q1 == q2 only if q1 and q2
 -- have both the same mantissa and the same exponent. You may instead
--- want 'equivalent'.
+-- want 'equivalent'. Similarly, the Ord instance is derived. It
+-- compares based on the integral value of the mantissa and of the
+-- exponent. You may instead want 'compareQty', which compares after
+-- equalizing the exponents.
 data Qty = Qty { mantissa :: !Integer
                , places :: !Integer
-               } deriving (Eq, Generic)
+               } deriving (Eq, Generic, Show, Ord)
+
+-- | Shows a quantity, nicely formatted after accounting for both the
+-- mantissa and decimal places, e.g. @0.232@ or @232.12@ or whatever.
+prettyShowQty :: Qty -> String
+prettyShowQty q =
+  let man = show . mantissa $ q
+      e = places q
+      len = genericLength man
+      small = "0." ++ ((genericReplicate (e - len) '0') ++ man)
+  in case compare e len of
+      GT -> small
+      EQ -> small
+      LT ->
+        let (b, end) = genericSplitAt (len - e) man
+        in if e == 0
+           then man
+           else b ++ ['.'] ++ end
 
 instance Ev.Equivalent Qty where
   equivalent x y = x' == y'
@@ -232,30 +257,16 @@ newQty m p
   | m > 0  && p >= 0 = Just $ Qty m p
   | otherwise = Nothing
 
--- | Shows a quantity, nicely formatted after accounting for both the
--- mantissa and decimal places, e.g. @0.232@ or @232.12@ or whatever.
-instance Show Qty where
-  show (Qty m e) =
-    let man = show m
-        len = genericLength man
-        small = "0." ++ ((genericReplicate (e - len) '0') ++ man)
-    in case compare e len of
-        GT -> small
-        EQ -> small
-        LT ->
-          let (b, end) = genericSplitAt (len - e) man
-          in if e == 0
-             then man
-             else b ++ ['.'] ++ end
 
 
 -- | Compares Qty after equalizing their exponents.
 --
--- > compare (newQty 15 1) (newQty 1500 3) == EQ
-instance Ord Qty where
-  compare q1 q2 = compare (mantissa q1') (mantissa q2')
-    where
-      (q1', q2') = equalizeExponents q1 q2
+-- > compareQty (newQty 15 1) (newQty 1500 3) == EQ
+compareQty :: Qty -> Qty -> Ordering
+compareQty q1 q2 = compare (mantissa q1') (mantissa q2')
+  where
+    (q1', q2') = equalizeExponents q1 q2
+
 
 -- | Adjust the exponents on two Qty so they are equivalent
 -- before, but now have the same exponent.
@@ -346,7 +357,7 @@ showQty q = "mantissa: " ++ show (mantissa q) ++ " exponent: "
 prop_genBalQtysTotalX :: Q.Property
 prop_genBalQtysTotalX = Q.forAll genBalQtys $ \(tot, g1, _) ->
   let sx = foldl1 add g1
-  in if sx `equivalent` tot
+  in if sx ==~ tot
      then QCP.succeeded
      else let r = "planned sum: " ++ showQty tot ++ " actual sum: "
                   ++ showQty sx
@@ -359,7 +370,7 @@ prop_genBalQtys = Q.forAll genBalQtys $ \(tot, g1, g2) ->
     (x:xs, y:ys) ->
       let sx = foldl1' add (x:xs)
           sy = foldl1' add (y:ys)
-      in if sx `equivalent` sy
+      in if sx ==~ sy
          then QCP.succeeded
          else let r = "Different sums. X sum: " ++ showQty sx
                       ++ " Y sum: " ++ showQty sy ++
@@ -384,7 +395,7 @@ prop_addSubtract :: Qty -> Qty -> Bool
 prop_addSubtract q1 q2 =
   let diff = (q1 `add` q2) `difference` q2
   in case diff of
-      LeftBiggerBy d -> d `equivalent` q1
+      LeftBiggerBy d -> d ==~ q1
       _ -> False
 
 -- | add generates valid Qtys
@@ -401,7 +412,7 @@ prop_genOneValid = validQty . unOne
 
 -- | (x `mult` 1) `equivalent` x
 prop_multIdentity :: Qty -> One -> Bool
-prop_multIdentity x (One q1) = (x `mult` q1) `equivalent` x
+prop_multIdentity x (One q1) = (x `mult` q1) ==~ x
 
 -- | newQty fails if mantissa is less than one
 prop_newQtyBadMantissa :: Mantissa -> Places -> Q.Property
@@ -431,14 +442,14 @@ prop_genEquivalent :: Gen Bool
 prop_genEquivalent = do
   q1 <- arbitrary
   q2 <- genEquivalent q1
-  return $ q1 `equivalent` q2
+  return $ q1 ==~ q2
 
 -- | 'equivalent' fails on different Qty
 prop_genNotEquivalent :: Gen Bool
 prop_genNotEquivalent = do
   q1 <- arbitrary
   q2 <- genMutate q1
-  return . not $ q1 `equivalent` q2
+  return . not $ q1 ==~ q2
 
 -- | genEquivalent generates valid Qty
 prop_genEquivalentValid :: Qty -> Gen QCP.Result
@@ -508,7 +519,7 @@ allocate' tot ls =
 prop_sumAllocate :: Qty -> (Qty, [Qty]) -> Bool
 prop_sumAllocate tot ls =
   let (r1, rs) = allocate tot ls
-  in foldl1' add (r1:rs) `equivalent` tot
+  in foldl1' add (r1:rs) ==~ tot
 
 -- | Number of allocations is same as number requested
 

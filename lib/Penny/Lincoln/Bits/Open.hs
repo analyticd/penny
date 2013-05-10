@@ -11,6 +11,8 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Text.Encoding as XE
 import GHC.Generics (Generic)
+import qualified Penny.Lincoln.Equivalent as Ev
+import Penny.Lincoln.Equivalent ((==~))
 import qualified Penny.Lincoln.Serial as S
 import qualified Penny.Lincoln.Bits.Qty as Q
 import qualified Data.Binary as B
@@ -61,6 +63,10 @@ data Amount = Amount { qty :: Q.Qty
 
 instance B.Binary Amount
 
+instance Ev.Equivalent Amount where
+  equivalent (Amount q1 c1) (Amount q2 c2) =
+    q1 ==~ q2 && c1 == c2
+
 #ifdef test
 instance Arbitrary Amount where
   arbitrary = liftM2 Amount arbitrary arbitrary
@@ -99,6 +105,10 @@ data Entry = Entry { drCr :: DrCr
              deriving (Eq, Show, Ord, Generic)
 
 instance B.Binary Entry
+
+instance Ev.Equivalent Entry where
+  equivalent (Entry d1 a1) (Entry d2 a2) =
+    d1 == d2 && a1 ==~ a2
 
 #ifdef test
 instance Arbitrary Entry where

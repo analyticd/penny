@@ -28,6 +28,7 @@ import qualified Data.Time as T
 import qualified Data.Binary as B
 import Data.Binary (get, put)
 import GHC.Generics (Generic)
+import qualified Penny.Lincoln.Equivalent as Ev
 
 #ifdef test
 import Control.Monad (liftM5)
@@ -183,6 +184,9 @@ toUTC dt = T.localTimeToUTC tz lt
 
 sameInstant :: DateTime -> DateTime -> Bool
 sameInstant t1 t2 = toUTC t1 == toUTC t2
+
+instance Ev.Equivalent DateTime where
+  equivalent = sameInstant
 
 -- | Shows a DateTime in a pretty way.
 showDateTime :: DateTime -> String

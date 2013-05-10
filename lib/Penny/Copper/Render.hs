@@ -173,7 +173,7 @@ quantity
   -> L.Qty
   -> X.Text
 quantity gs q =
-  let qs = show q
+  let qs = L.prettyShowQty q
   in X.pack $ case splitOn "." qs of
     w:[] -> groupWhole (left gs) w
     w:d:[] ->

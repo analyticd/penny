@@ -37,6 +37,8 @@ import GHC.Generics (Generic)
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Balance as Bal
 import Control.Monad (guard)
+import qualified Penny.Lincoln.Equivalent as Ev
+import Penny.Lincoln.Equivalent ((==~))
 import Data.Monoid (mconcat)
 import Data.List (foldl', unfoldr)
 import Data.Maybe (isNothing, catMaybes)
@@ -98,6 +100,13 @@ data Ent m = Ent
   , inferred :: Inferred
   , meta :: m
   } deriving (Eq, Ord, Show, Generic)
+
+-- | Two Ents are equivalent if the entries are equivalent and the
+-- metadata is equivalent (whether the Ent is inferred or not is
+-- ignored.)
+instance Ev.Equivalent m => Ev.Equivalent (Ent m) where
+  equivalent (Ent e1 _ m1) (Ent e2 _ m2) =
+    e1 ==~ e2 && m1 ==~ m2
 
 instance Functor Ent where
   fmap f (Ent e i m) = Ent e i (f m)

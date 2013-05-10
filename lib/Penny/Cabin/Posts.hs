@@ -337,12 +337,12 @@ yearMonthDay p = X.pack (Time.formatTime defaultTimeLocale fmt d)
 -- | Shows the quantity of a posting. Does no rounding or
 -- prettification; simply uses show on the underlying Decimal.
 qtyAsIs :: (M.PostMeta, L.Posting) -> X.Text
-qtyAsIs p = X.pack . show . Q.qty . snd $ p
+qtyAsIs p = X.pack . L.prettyShowQty . Q.qty . snd $ p
 
 -- | Shows the quantity of a balance. If there is no quantity, shows
 -- two dashes.
 balanceAsIs :: a -> L.Qty -> X.Text
-balanceAsIs _ = X.pack . show
+balanceAsIs _ = X.pack . L.prettyShowQty
 
 -- | The default width for the report.
 defaultWidth :: T.ReportWidth

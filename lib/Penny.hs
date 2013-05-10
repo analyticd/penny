@@ -339,7 +339,7 @@ toPostingsDefaults d = Ps.ZincOpts
   }
 
 defaultQtyFormat :: L.Qty -> X.Text
-defaultQtyFormat = X.pack . show
+defaultQtyFormat = X.pack . L.prettyShowQty
 
 data Spacers a = Spacers
   { sGlobalTransaction :: a

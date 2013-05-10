@@ -176,7 +176,7 @@ date ord u = P.compareBy (X.pack . show $ u)
 
 qty :: Ordering -> B.Qty -> LPdct
 qty o q = P.compareBy (X.pack . show $ q) "quantity"
-          (\l -> compare (Q.qty l) q) o
+          (\l -> B.compareQty (Q.qty l) q) o
 
 
 drCr :: B.DrCr -> LPdct
