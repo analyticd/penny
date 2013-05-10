@@ -43,7 +43,7 @@ import Data.Ord (comparing)
 #ifdef test
 import Control.Monad (liftM2)
 import Data.List (foldl1')
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, isNothing)
 import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.Property as QCP
 import Test.QuickCheck (Arbitrary(..), Gen, (==>))
@@ -60,6 +60,48 @@ tests = TF.testGroup "Penny.Lincoln.Bits.Qty"
 
   , testProperty "equalizeExponents yields equal exponents"
     $ Q.mapSize (min 10) prop_equalExponents
+
+  , testProperty "equalizeExponents gives valid Qtys"
+    $ Q.mapSize (min 10) prop_validEqualExponents
+
+  , testProperty "genBalQtys generates valid Qty"
+    $ Q.mapSize (min 10) prop_genBalQtysValid
+
+  , testProperty "add generates valid Qty"
+    $ Q.mapSize (min 10) prop_addValid
+
+  , testProperty "mult generates valid Qty"
+    $ Q.mapSize (min 10) prop_multValid
+
+  , testProperty "genOne generates valid Qty"
+    $ Q.mapSize (min 10) prop_genOneValid
+
+  , testProperty "identity of multiplication"
+    $ Q.mapSize (min 10) prop_multIdentity
+
+  , testProperty "newQty fails on bad mantissa"
+    $ Q.mapSize (min 10) prop_newQtyBadMantissa
+
+  , testProperty "newQty fails on bad exponent"
+    $ Q.mapSize (min 10) prop_newQtyBadPlaces
+
+  , testProperty "difference generates valid Qty"
+    $ Q.mapSize (min 10) prop_differenceValid
+
+  , testProperty "allocate creates valid Qty"
+    $ Q.mapSize (min 10) prop_allocateValid
+
+  , testProperty "genEquivalent generates equivalent Qty"
+    $ Q.mapSize (min 10) prop_genEquivalent
+
+  , testProperty "equivalent fails on different Qty"
+    $ Q.mapSize (min 10) prop_genNotEquivalent
+
+  , testProperty "genEquivalent generates valid Qty"
+    $ Q.mapSize (min 10) prop_genEquivalentValid
+
+  , testProperty "genMutate generates valid Qty"
+    $ Q.mapSize (min 10) prop_genMutateValid
 
   , testProperty "prop_addSubtract"
     $ Q.mapSize (min 10) prop_addSubtract
@@ -78,7 +120,7 @@ tests = TF.testGroup "Penny.Lincoln.Bits.Qty"
     $ Q.mapSize (min 10) prop_sameExponent
 
   , testProperty "Number of allocations is same as number requested"
-    $ Q.mapSize (min 15) prop_numAllocate
+    $ Q.mapSize (min 10) prop_numAllocate
 
   , testProperty "Sum of largest remainder method is equal to total"
     prop_sumLargestRemainder
@@ -167,12 +209,19 @@ genRangeInt = do
   p <- Q.suchThat Q.arbitrarySizedBoundedIntegral (>= (0 :: Int))
   return $ Qty (fromIntegral m) (fromIntegral p)
 
+-- | Generates Qty with small exponents.
+genSmallExp :: Gen Qty
+genSmallExp = liftM2 Qty
+  (fmap fromIntegral $ Q.suchThat Q.arbitrarySizedBoundedIntegral
+                                  (> (0 :: Int)))
+  (fmap fromIntegral $ Q.choose (0, 4 :: Int))
+
 -- | Mutates a Qty so that it is equivalent, but possibly with a
 -- different mantissa and exponent.
 genEquivalent :: Qty -> Gen Qty
 genEquivalent (Qty m p) = do
   expo <- Q.suchThat Q.arbitrarySizedBoundedIntegral (>= (0 :: Int))
-  let m' = m * (fromIntegral ((10 :: Int) ^ expo))
+  let m' = m * (10 ^ expo)
       p' = p + (fromIntegral expo)
   return $ Qty m' p'
 
@@ -207,10 +256,21 @@ mutateAtLeast0 i =
            then (>= (0 :: Int))
            else (\r -> r >= 0 && r /= (fromIntegral i))
 
--- | Chooses one of 'genSized' or 'genRangeInt'.
+-- | Generates one, with different exponents.
+genOne :: Gen Qty
+genOne = do
+  p <- fmap fromIntegral $ Q.choose (0, 100 :: Int)
+  return (Qty (1 * 10 ^ p) p)
+
+newtype One = One { unOne :: Qty }
+  deriving (Eq, Show)
+
+instance Arbitrary One where arbitrary = fmap One genOne
+
+-- | Chooses one of 'genSized' or 'genRangeInt' or 'genSmallExp'.
 instance Arbitrary Qty where
   arbitrary = Q.oneof [ genSized
-                      , genRangeInt ]
+                      , genRangeInt, genSmallExp ]
 
 -- | Mantissas are always greater than zero.
 prop_mantissa :: Qty -> Bool
@@ -226,6 +286,11 @@ prop_exponent q = places q >= 0
 prop_newQtySucceeds :: Mantissa -> Places -> Q.Property
 prop_newQtySucceeds m p =
   m > 0 ==> p >= 0 ==> isJust (newQty m p)
+
+-- | True if this is a valid Qty; that is, the mantissa is greater
+-- than 0 and the number of places is greater than or equal to 0.
+validQty :: Qty -> Bool
+validQty (Qty m p) = m > 0 && p >= 0
 
 #endif
 
@@ -278,6 +343,12 @@ prop_equalExponents :: Qty -> Qty -> Bool
 prop_equalExponents q1 q2 =
   let (q1', q2') = equalizeExponents q1 q2
   in places q1' == places q2'
+
+-- | equalizeExponents gives valid Qtys
+prop_validEqualExponents :: Qty -> Qty -> Bool
+prop_validEqualExponents q1 q2 =
+  let (q1', q2') = equalizeExponents q1 q2
+  in validQty q1' && validQty q2'
 
 #endif
 
@@ -369,6 +440,11 @@ prop_genBalQtys = Q.forAll genBalQtys $ \(tot, g1, g2) ->
               in QCP.failed { QCP.reason = r }
     _ -> QCP.failed { QCP.reason = "empty quantities list" }
 
+-- | genBalQtys generates valid Qty
+prop_genBalQtysValid :: Q.Property
+prop_genBalQtysValid = Q.forAll genBalQtys $ \(tot, g1, g2) ->
+  validQty tot && all validQty g1 && all validQty g2
+
 -- | > x + y == y + x
 
 prop_commutative :: Qty -> Qty -> Bool
@@ -383,6 +459,73 @@ prop_addSubtract q1 q2 =
   in case diff of
       LeftBiggerBy d -> d `equivalent` q1
       _ -> False
+
+-- | add generates valid Qtys
+prop_addValid :: Qty -> Qty -> Bool
+prop_addValid q1 q2 = validQty $ q1 `add` q2
+
+-- | mult generates valid Qtys
+prop_multValid :: Qty -> Qty -> Bool
+prop_multValid q1 q2 = validQty $ q1 `mult` q2
+
+-- | genOne generates valid Qtys
+prop_genOneValid :: One -> Bool
+prop_genOneValid = validQty . unOne
+
+-- | (x `mult` 1) `equivalent` x
+prop_multIdentity :: Qty -> One -> Bool
+prop_multIdentity x (One q1) = (x `mult` q1) `equivalent` x
+
+-- | newQty fails if mantissa is less than one
+prop_newQtyBadMantissa :: Mantissa -> Places -> Q.Property
+prop_newQtyBadMantissa m p =
+  m < 1 ==> isNothing (newQty m p)
+
+-- | newQty fails if places is less than zero
+prop_newQtyBadPlaces :: Mantissa -> Places -> Q.Property
+prop_newQtyBadPlaces m p =
+  m < 0 ==> isNothing (newQty m p)
+
+-- | difference returns valid Qty
+prop_differenceValid :: Qty -> Qty -> Bool
+prop_differenceValid q1 q2 = case difference q1 q2 of
+  LeftBiggerBy r -> validQty r
+  RightBiggerBy r -> validQty r
+  Equal -> True
+
+-- | allocate returns valid Qty
+prop_allocateValid :: Qty -> (Qty, [Qty]) -> Bool
+prop_allocateValid q1 q2 =
+  let (r1, r2) = allocate q1 q2
+  in validQty r1 && all validQty r2
+
+-- | genEquivalent generates an equivalent Qty
+prop_genEquivalent :: Gen Bool
+prop_genEquivalent = do
+  q1 <- arbitrary
+  q2 <- genEquivalent q1
+  return $ q1 `equivalent` q2
+
+-- | 'equivalent' fails on different Qty
+prop_genNotEquivalent :: Gen Bool
+prop_genNotEquivalent = do
+  q1 <- arbitrary
+  q2 <- genMutate q1
+  return . not $ q1 `equivalent` q2
+
+-- | genEquivalent generates valid Qty
+prop_genEquivalentValid :: Qty -> Gen QCP.Result
+prop_genEquivalentValid q1 = do
+  q2 <- genEquivalent q1
+  if not . validQty $ q2
+    then return QCP.failed { QCP.reason = "invalid qty: " ++ showQty q2 }
+    else return QCP.succeeded
+
+-- | genMutate generates valid Qty
+prop_genMutateValid :: Qty -> Gen Bool
+prop_genMutateValid q1 = do
+  q2 <- genMutate q1
+  return . validQty $ q2
 
 #endif
 
@@ -406,27 +549,30 @@ mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe + ye)
 -- up to a given Qty. Fails if the allocation cannot be made (e.g. if
 -- it is impossible to allocate without overflowing Decimal.) The
 -- result will always add up to the given sum.
-allocate
+allocate :: Qty -> (Qty, [Qty]) -> (Qty, [Qty])
+allocate tot (q1, qs) = case allocate' tot (q1:qs) of
+  [] -> error "allocate error"
+  x:xs -> (x, xs)
+
+allocate'
   :: Qty
   -- ^ The result will add up to this Qty.
 
-  -> (Qty, [Qty])
+  -> [Qty]
   -- ^ Allocate using these Qty (there must be at least one).
 
-  -> (Qty, [Qty])
+  -> [Qty]
   -- ^ The length of this list will be equal to the length of the list
   -- of allocations. Each item will correspond to the original
   -- allocation.
 
-allocate tot ls =
-  let (tot', ls', e') = sameExponent tot ls
-      (tI, lsI) = (mantissa tot', mapPair mantissa ls')
-      (seats, (p1, ps), moreE) = growTarget tI lsI
-      adjSeats = seats - (genericLength ps + 1)
-      del = largestRemainderMethod adjSeats (p1 : ps)
-      totE = e' + moreE
-      r1:rs = fmap (\m -> Qty (m + 1) totE) del
-  in (r1, rs)
+allocate' tot ls =
+  let ((tot':ls'), e) = sameExponent (tot:ls)
+      (moreE, (_, ss)) =
+        multRemainderAllResultsAtLeast1 (mantissa tot')
+        (map mantissa ls')
+      totE = e + moreE
+  in map (\m -> Qty m totE) ss
 
 #ifdef test
 
@@ -446,59 +592,27 @@ prop_numAllocate tot ls =
 
 #endif
 
-mapPair :: (a -> b) -> (a, [a]) -> (b, [b])
-mapPair f (s, ls) = (f s, map f ls)
-
 -- | Given a list of Decimals, and a single Decimal, return Decimals
 -- that are equivalent to the original Decimals, but where all
 -- Decimals have the same exponent. Also returns new exponent.
 sameExponent
-  :: Qty
-  -> (Qty, [Qty])
-  -> (Qty, (Qty, [Qty]), Integer)
-sameExponent dec ls =
-  let newExp = max (maximum . fmap places $ (fst ls : snd ls))
-                   (places dec)
-      dec' = incExp dec
-      incExp = increaseExponentTo newExp
-      ls' = mapPair incExp ls
-  in (dec', ls', newExp)
+  :: [Qty]
+  -> ([Qty], Integer)
+sameExponent ls =
+  let newExp = maximum . fmap places $ ls
+  in (map (increaseExponentTo newExp) ls, newExp)
 
 
 #ifdef test
 
+
 -- | sameExponent gives exponents that are all the same
-prop_sameExponent :: Qty -> (Qty, [Qty]) -> Bool
-prop_sameExponent q1 qs =
-  let (r1, (rs1, rss), exp') = sameExponent q1 qs
-  in places r1 == exp'
-     && places rs1 == exp'
-     && all (\q -> places q == exp') rss
+prop_sameExponent :: [Qty] -> Bool
+prop_sameExponent qs =
+  let (rss, exp') = sameExponent qs
+  in all (\q -> places q == exp') rss
 
 #endif
-
--- | Given an Integer and a list of Integers, multiply all integers by
--- ten raised to an exponent, so that the first Integer is larger than
--- the count of the number of Integers in the list. Returns
--- the new Integer, new list of Integers, and the exponent used.
---
--- Previously this only grew the first Integer so that it was at least
--- as large as the count of Integers in the list, but this causes
--- problems, as there must be at least one seat for the allocation process.
-growTarget
-  :: Integer
-  -> (Integer, [Integer])
-  -> (Integer, (Integer, [Integer]), Integer)
-growTarget target is = go target is 0
-  where
-    len = genericLength (snd is) + 1
-    go t xs c =
-      let t' = t * 10 ^ c
-          xs' = let f x = x * 10 ^ c
-                in mapPair f xs
-      in if t' > len
-         then (t', xs', c)
-         else go t' xs' (c + 1)
 
 type Multiplier = Integer
 

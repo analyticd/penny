@@ -191,6 +191,7 @@ Executable penny-test
     buildable: False
 
   cpp-options: -Dtest
+  ghc-options: -Wall
 
 Flag debug
   Description: turns on some debugging options
