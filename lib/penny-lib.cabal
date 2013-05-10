@@ -118,6 +118,7 @@ Library
     , Penny.Lincoln.Bits.Qty
     , Penny.Lincoln.Builders
     , Penny.Lincoln.Ents
+    , Penny.Lincoln.Equivalent
     , Penny.Lincoln.HasText
     , Penny.Lincoln.Matchers
     , Penny.Lincoln.Predicates

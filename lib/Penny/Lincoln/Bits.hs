@@ -62,7 +62,7 @@ module Penny.Lincoln.Bits (
 
   -- * Quantities
   Q.Qty, Q.NumberStr(..), Q.toQty, Q.mantissa, Q.places,
-  Q.add, Q.mult, Q.difference, Q.equivalent, Q.newQty,
+  Q.add, Q.mult, Q.difference, Q.newQty,
   Q.Mantissa, Q.Places,
   Q.Difference(Q.LeftBiggerBy, Q.RightBiggerBy, Q.Equal),
   Q.allocate,

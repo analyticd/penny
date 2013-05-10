@@ -14,7 +14,6 @@ module Penny.Lincoln.Bits.Qty
   , add
   , mult
   , Difference(LeftBiggerBy, RightBiggerBy, Equal)
-  , equivalent
   , difference
   , allocate
   , TotSeats
@@ -39,6 +38,7 @@ import qualified Data.Binary as B
 import GHC.Generics (Generic)
 import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
 import Data.Ord (comparing)
+import qualified Penny.Lincoln.Equivalent as Ev
 
 #ifdef test
 import Control.Monad (liftM2)
@@ -108,6 +108,11 @@ readInteger s = case reads s of
 data Qty = Qty { mantissa :: !Integer
                , places :: !Integer
                } deriving (Eq, Generic)
+
+instance Ev.Equivalent Qty where
+  equivalent x y = x' == y'
+    where
+      (x', y') = equalizeExponents x y
 
 instance B.Binary Qty
 
@@ -296,12 +301,6 @@ increaseExponentTo :: Integer -> Qty -> Qty
 increaseExponentTo i q@(Qty _ e) =
   let diff = i - e
   in if diff >= 0 then increaseExponent diff q else q
-
--- | Compares Qty after equalizing their exponents.
-equivalent :: Qty -> Qty -> Bool
-equivalent x y = x' == y'
-  where
-    (x', y') = equalizeExponents x y
 
 data Difference =
   LeftBiggerBy Qty

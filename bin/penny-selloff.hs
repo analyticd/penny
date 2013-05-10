@@ -93,20 +93,18 @@
 
 module Main (main) where
 
+import Control.Arrow (first)
+import Control.Applicative ((<$>), (<*>), pure)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad (when)
 import qualified Control.Monad.Trans.State as St
 import Control.Monad.Trans.Class (lift)
-import Data.Foldable (toList)
 import Data.List (find)
-import Data.List.NonEmpty (NonEmpty((:|)))
-import qualified Data.List.NonEmpty as NE
 import Data.Maybe (isJust, mapMaybe, catMaybes, fromMaybe)
 import Data.Text (pack)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified Penny.Lincoln.Balance as Bal
-import qualified Penny.Lincoln.Transaction.Unverified as U
 import qualified Penny.Cabin.Balance.Util as BU
 import Penny.Cabin.Options (ShowZeroBalances(..))
 import qualified Penny.Copper as Cop
@@ -116,7 +114,7 @@ import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Data.Map as M
 import qualified System.Console.MultiArg as MA
-import Text.Parsec as Parsec
+import qualified Text.Parsec as Parsec
 import qualified Paths_penny_bin as PPB
 
 groupingSpec :: CR.GroupSpecs
@@ -128,7 +126,6 @@ data Error
   = ParseFail MA.Error
   | NoInputArgs
   | ProceedsParseFailed Parsec.ParseError
-  | LedgerParseError Cop.ErrorMsg
   | NoSelloffAccount
   | NotThreeSelloffSubAccounts
   | BadSelloffBalance
@@ -157,7 +154,7 @@ posArg s (a, ss) = (a, s:ss)
 allOpts :: [MA.OptSpec (Opts -> Opts)]
 allOpts = [ fmap (\a (_, ss) -> (a, ss)) $ Ly.version PPB.version ]
 
-data ParseResult = ParseResult ProceedsAcct Cop.Ledger
+data ParseResult = ParseResult ProceedsAcct [Cop.LedgerItem]
 
 parseCommandLine :: IO ParseResult
 parseCommandLine = do
@@ -183,17 +180,13 @@ help pn = unlines
   , "  --version  - show version and exit."
   ]
 
-calcBalances :: Cop.Ledger -> [(L.Account, L.Balance)]
+calcBalances :: [Cop.LedgerItem] -> [(L.Account, L.Balance)]
 calcBalances =
-  let toTxn i = case i of
-        Cop.Transaction t -> Just t
-        _ -> Nothing
-  in BU.flatten
-      . BU.balances (ShowZeroBalances False)
-      . map (L.Box ())
-      . concatMap L.postFam
-      . mapMaybe toTxn
-      . Cop.unLedger
+  BU.flatten
+  . BU.balances (ShowZeroBalances False)
+  . map (\p -> ((), p))
+  . concatMap L.transactionToPostings
+  . mapMaybe (either Just (const Nothing))
 
 newtype Group = Group { unGroup :: L.SubAccount }
   deriving (Show, Eq)
@@ -242,16 +235,14 @@ selloffStockCurr bal = do
         Bal.NonZero col -> Just (cy, col)
       ps = mapMaybe toPair . M.toList $ m
       findBal dc = Ex.fromMaybe BadSelloffBalance
-                    . find ((== dc) . Bal.drCr . snd)
+                    . find ((== dc) . Bal.colDrCr . snd)
                     $ ps
   (cyStock, (Bal.Column _ qtyStock)) <- findBal L.Debit
   (cyCurr, (Bal.Column _ qtyCurr)) <- findBal L.Credit
   let sellStock = SelloffStock
-        (L.Amount qtyStock cyStock
-          (Just L.CommodityOnLeft) (Just L.SpaceBetween))
+        (L.Amount qtyStock cyStock)
       sellCurr = SelloffCurrency
-        (L.Amount qtyCurr cyCurr
-          (Just L.CommodityOnLeft) (Just L.SpaceBetween))
+        (L.Amount qtyCurr cyCurr)
   return (sellStock, sellCurr)
 
 
@@ -317,7 +308,7 @@ purchaseQtys (SelloffStock sStock) (SelloffCurrency sCurr) bal = do
         Bal.NonZero col -> Just (cy, col)
       ps = mapMaybe toPair . M.toList $ m
       findBal dc = Ex.fromMaybe BadPurchaseBalance
-                    . find ((== dc) . Bal.drCr . snd)
+                    . find ((== dc) . Bal.colDrCr . snd)
                     $ ps
   (cyStock, (Bal.Column _ qtyStock)) <- findBal L.Credit
   (cyCurr, (Bal.Column _ qtyCurr)) <- findBal L.Debit
@@ -375,9 +366,9 @@ stRealizeBasis p = do
           return (Just (p, br))
 
         L.RightBiggerBy unsoldStockQty -> do
-          let alloced = L.allocate pcq (sq :| [unsoldStockQty])
+          let alloced = L.allocate pcq (sq, [unsoldStockQty])
               basisSold = case alloced of
-                x :| (_ : []) -> x
+                (x, (_ : [])) -> x
                 _ -> error "stRealizeBasis: error"
           let css' = case mayCss of
                 Nothing -> CostSharesSold basisSold
@@ -441,13 +432,27 @@ capitalChange css sc ls =
     Nothing -> return . NoChange $ ls
     Just (qt, gl) -> do
       nePurchs <- Ex.fromMaybe NoPurchaseInformation
-                  . NE.nonEmpty $ ls
-      let qtys = fmap (unPurchaseCurrencyQty . piCurrencyQty . fst)
+                  . uncons $ ls
+      let qtys = mapNE (unPurchaseCurrencyQty . piCurrencyQty . fst)
                  nePurchs
           alloced = L.allocate qt qtys
       let mkCapChange (p, br) q = (p, br, CapitalChange q)
-          r = toList $ NE.zipWith mkCapChange nePurchs alloced
+          r = flattenNE $ zipNE mkCapChange nePurchs alloced
       return $ WithCapitalChanges r gl
+
+mapNE :: (a -> b) -> (a, [a]) -> (b, [b])
+mapNE f (a, as) = (f a, map f as)
+
+flattenNE :: (a, [a]) -> [a]
+flattenNE (a, as) = a:as
+
+uncons :: [a] -> Maybe (a, [a])
+uncons as = case as of
+  [] -> Nothing
+  x:xs -> Just (x, xs)
+
+zipNE :: (a -> b -> c) -> (a, [a]) -> (b, [b]) -> (c, [c])
+zipNE f (a, as) (b, bs) = (f a b, zipWith f as bs)
 
 memo :: SaleDate -> L.Memo
 memo (SaleDate sd) =
@@ -459,17 +464,21 @@ memo (SaleDate sd) =
 payee :: L.Payee
 payee = L.Payee . pack $ "Realize gain or loss"
 
-topLine :: SaleDate -> U.TopLine
-topLine sd = (U.emptyTopLine (unSaleDate sd))
-             { U.tPayee = Just payee
-             , U.tMemo = Just . memo $ sd
+topLine :: SaleDate -> L.TopLineData
+topLine sd =
+  let core = (L.emptyTopLineCore (unSaleDate sd))
+             { L.tPayee = Just payee
+             , L.tMemo = Just . memo $ sd
              }
+  in L.TopLineData { L.tlCore = core
+                   , L.tlFileMeta = Nothing
+                   , L.tlGlobal = Nothing }
 
 basisOffsets
   :: SelloffInfo
   -> PurchaseDate
   -> BasisRealiztn
-  -> (U.Posting, U.Posting)
+  -> ((L.Entry, L.PostingData), (L.Entry, L.PostingData))
 basisOffsets s pd p = (po enDr, po enCr)
   where
     ac = L.Account [basis, grp, dt]
@@ -477,14 +486,22 @@ basisOffsets s pd p = (po enDr, po enCr)
     dt = dateToSubAcct . unPurchaseDate $ pd
     enDr = L.Entry L.Debit
            (L.Amount (unRealizedStockQty . brStockQty $ p)
-              (L.commodity . unSelloffStock . siStock $ s)
-              (Just L.CommodityOnLeft) (Just L.SpaceBetween))
+              (L.commodity . unSelloffStock . siStock $ s))
     enCr = L.Entry L.Credit
            (L.Amount (unRealizedCurrencyQty . brCurrencyQty $ p)
-              (L.commodity . unSelloffCurrency . siCurrency $ s)
-              (Just L.CommodityOnLeft) (Just L.SpaceBetween))
-    po en = (U.emptyPosting ac)
-            { U.pEntry = Just en }
+              (L.commodity . unSelloffCurrency . siCurrency $ s))
+    po en = (en, emptyPostingData ac)
+
+emptyPostingData :: L.Account -> L.PostingData
+emptyPostingData a =
+  let core = (L.emptyPostingCore a)
+        { L.pSide = Just L.CommodityOnLeft
+        , L.pSpaceBetween = Just L.SpaceBetween
+        }
+  in L.PostingData { L.pdCore = core
+                   , L.pdFileMeta = Nothing
+                   , L.pdGlobal = Nothing
+                   }
 
 dateToSubAcct :: L.DateTime -> L.SubAccount
 dateToSubAcct = L.SubAccount . CR.dateTime
@@ -519,25 +536,21 @@ capChangeEntry
   -> SelloffCurrency
   -> CapitalChange
   -> L.Entry
-capChangeEntry gl sc cc = L.Entry dc (L.Amount qt cy sd sb)
+capChangeEntry gl sc cc = L.Entry dc (L.Amount qt cy)
   where
     dc = case gl of
       Gain -> L.Credit
       Loss -> L.Debit
     cy = L.commodity . unSelloffCurrency $ sc
     qt = unCapitalChange cc
-    sd = Just L.CommodityOnLeft
-    sb = Just L.SpaceBetween
 
 capChangePstg
   :: SelloffInfo
   -> GainOrLoss
   -> CapitalChange
   -> PurchaseInfo
-  -> U.Posting
-capChangePstg si gl cc p =
-  (U.emptyPosting ac)
-  { U.pEntry = Just en }
+  -> (L.Entry, L.PostingData)
+capChangePstg si gl cc p = (en, emptyPostingData ac)
   where
     ac = capChangeAcct gl si p
     en = capChangeEntry gl (siCurrency si) cc
@@ -547,10 +560,10 @@ proceeds = L.SubAccount . pack $ "Proceeds"
 
 proceedsPstgs
   :: SelloffInfo
-  -> (U.Posting, U.Posting)
+  -> ((L.Entry, L.PostingData), (L.Entry, L.PostingData))
 proceedsPstgs si = (po dr, po cr)
   where
-    po en = (U.emptyPosting ac) { U.pEntry = Just en }
+    po en = (en, emptyPostingData ac)
     ac = L.Account [proceeds, gr, dt]
     gr = unGroup . siGroup $ si
     dt = dateToSubAcct . unSaleDate . siSaleDate $ si
@@ -562,10 +575,10 @@ mkTxn
   :: SelloffInfo
   -> WithCapitalChanges
   -> L.Transaction
-mkTxn si wcc = Ex.resolve err exTxn
+mkTxn si wcc = fromMaybe err exTxn
   where
-    err = const $ error "mkTxn: making transaction failed"
-    exTxn = L.transaction $ L.Family tl p1 p2 ps
+    err = error "mkTxn: making transaction failed"
+    exTxn = (,) <$> pure tl <*> L.ents entInputs
     tl = topLine . siSaleDate $ si
     (p1, p2) = proceedsPstgs si
     ps = case wcc of
@@ -580,10 +593,11 @@ mkTxn si wcc = Ex.resolve err exTxn
             where
               (b1, b2) = basisOffsets si (piDate p) br
               c = capChangePstg si gl cc p
+    entInputs = map (first Just) (p1:p2:ps)
 
 makeOutput
   :: ProceedsAcct
-  -> Cop.Ledger
+  -> [Cop.LedgerItem]
   -> Err X.Text
 makeOutput pa ldgr = do
   let bals = calcBalances ldgr

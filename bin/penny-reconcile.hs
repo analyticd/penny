@@ -13,29 +13,29 @@ import qualified Paths_penny_bin as PPB
 
 -- | Changes a posting to mark it reconciled, if it was already marked
 -- as cleared.
-changePosting :: L.Posting -> L.PostingChangeData
-changePosting p = fromMaybe L.emptyPostingChangeData $ do
-  fl <- L.pFlag p
+changePosting :: L.PostingData -> L.PostingData
+changePosting p = fromMaybe p $ do
+  let c = L.pdCore p
+  fl <- L.pFlag c
   guard (L.unFlag fl == X.singleton 'C')
   let fl' = L.Flag . X.singleton $ 'R'
-  return $ L.emptyPostingChangeData { L.pcFlag = Just (Just fl') }
+      c' = c { L.pFlag = Just fl' }
+  return p { L.pdCore = c' }
 
 -- | Changes a TopLine to mark it as reconciled, if it was already
 -- marked as cleared.
-changeTopLine :: L.TopLine -> L.TopLineChangeData
-changeTopLine t = fromMaybe L.emptyTopLineChangeData $ do
-  fl <- L.tFlag t
+changeTopLine :: L.TopLineData -> L.TopLineData
+changeTopLine t = fromMaybe t $ do
+  let c = L.tlCore t
+  fl <- L.tFlag c
   guard (L.unFlag fl == X.singleton 'C')
   let fl' = L.Flag . X.singleton $ 'R'
-  return $ L.emptyTopLineChangeData { L.tcFlag = Just (Just fl') }
+      c' = c { L.tFlag = Just fl' }
+  return t { L.tlCore = c' }
 
 changeTransaction :: L.Transaction -> L.Transaction
-changeTransaction t =
-  let fam = L.mapParent changeTopLine
-            . L.mapChildren changePosting
-            . L.unTransaction
-            $ t
-  in L.changeTransaction fam t
+changeTransaction (tl, es) =
+  (changeTopLine tl, fmap changePosting es)
 
 help :: String -> String
 help pn = unlines
@@ -75,7 +75,7 @@ main = do
   let opts = foldr ($) (return (), []) as
   fst opts
   led <- C.open . snd $ opts
-  let led' = C.mapLedger (C.mapItem id id changeTransaction) led
-      rend = fromJust $ C.ledger groupSpecs led'
-  TIO.putStr rend
+  let led' = map (either (Left . changeTransaction) Right) led
+      rend = fromJust $ mapM (C.item groupSpecs) led'
+  mapM_ TIO.putStr rend
 

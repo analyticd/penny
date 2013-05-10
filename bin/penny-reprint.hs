@@ -44,6 +44,6 @@ main = do
   let opts = foldr ($) (return (), []) as
   fst opts
   l <- C.open . snd $ opts
-  case R.ledger groupSpecs l of
+  case mapM (R.item groupSpecs) l of
     Nothing -> error "could not render final ledger."
-    Just x -> TIO.putStr x
+    Just x -> mapM_ TIO.putStr x
