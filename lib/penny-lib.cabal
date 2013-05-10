@@ -138,19 +138,19 @@ Library
   if flag(incabal)
     cpp-options: -Dincabal
 
-  if flag(test)
-    build-depends:
-        QuickCheck ==2.5.*
-      , test-framework ==0.7.0
-      , test-framework-quickcheck2 ==0.3.0
-      , random-shuffle ==0.0.4
-
-    cpp-options: -Dtest
-
   ghc-options: -Wall
   if flag(debug)
     ghc-options: -auto-all -caf-all
 
+  if ! flag (buildlib)
+    buildable: False
+
+-- I'm going to not list the exposed-modules for the test, and
+-- hope it works :) it seems cabal only uses this information for
+-- executables to determine what to bundle into the dist tarball.
+-- Since the test modules are all listed above for the library,
+-- this should not be a problem. However, if there are extra
+-- test modules that are not in the library, list them here.
 Executable penny-test
   Main-is: penny-test.hs
   Build-depends:
@@ -203,4 +203,8 @@ Flag test
 
 Flag incabal
   Description: enables imports that only Cabal makes available
+  Default: True
+
+Flag buildlib
+  Description: build library
   Default: True
