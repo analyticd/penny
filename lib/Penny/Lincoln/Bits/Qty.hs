@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveGeneric #-}
+{-# LANGUAGE CPP, DeriveGeneric, TemplateHaskell #-}
 -- | Penny quantities. A quantity is simply a count (possibly
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
@@ -49,82 +49,10 @@ import qualified Test.QuickCheck.Property as QCP
 import Test.QuickCheck (Arbitrary(..), Gen, (==>))
 import qualified Test.Framework as TF
 import Test.Framework.Providers.QuickCheck2 (testProperty)
+import Test.Framework.TH (testGroupGenerator)
 
 tests :: TF.Test
-tests = TF.testGroup "Penny.Lincoln.Bits.Qty"
-  [ testProperty "mantissa is greater than zero" prop_mantissa
-  , testProperty "exponent is always at least zero" prop_exponent
-  , testProperty "newQty succeeds" prop_newQtySucceeds
-  , testProperty "add is commutative"
-    $ Q.mapSize (min 10) prop_commutative
-
-  , testProperty "equalizeExponents yields equal exponents"
-    $ Q.mapSize (min 10) prop_equalExponents
-
-  , testProperty "equalizeExponents gives valid Qtys"
-    $ Q.mapSize (min 10) prop_validEqualExponents
-
-  , testProperty "genBalQtys generates valid Qty"
-    $ Q.mapSize (min 10) prop_genBalQtysValid
-
-  , testProperty "add generates valid Qty"
-    $ Q.mapSize (min 10) prop_addValid
-
-  , testProperty "mult generates valid Qty"
-    $ Q.mapSize (min 10) prop_multValid
-
-  , testProperty "genOne generates valid Qty"
-    $ Q.mapSize (min 10) prop_genOneValid
-
-  , testProperty "identity of multiplication"
-    $ Q.mapSize (min 10) prop_multIdentity
-
-  , testProperty "newQty fails on bad mantissa"
-    $ Q.mapSize (min 10) prop_newQtyBadMantissa
-
-  , testProperty "newQty fails on bad exponent"
-    $ Q.mapSize (min 10) prop_newQtyBadPlaces
-
-  , testProperty "difference generates valid Qty"
-    $ Q.mapSize (min 10) prop_differenceValid
-
-  , testProperty "allocate creates valid Qty"
-    $ Q.mapSize (min 10) prop_allocateValid
-
-  , testProperty "genEquivalent generates equivalent Qty"
-    $ Q.mapSize (min 10) prop_genEquivalent
-
-  , testProperty "equivalent fails on different Qty"
-    $ Q.mapSize (min 10) prop_genNotEquivalent
-
-  , testProperty "genEquivalent generates valid Qty"
-    $ Q.mapSize (min 10) prop_genEquivalentValid
-
-  , testProperty "genMutate generates valid Qty"
-    $ Q.mapSize (min 10) prop_genMutateValid
-
-  , testProperty "prop_addSubtract"
-    $ Q.mapSize (min 10) prop_addSubtract
-
-  , testProperty "genBalQtys generates balanced groups of quantities"
-    $ Q.mapSize (min 10) prop_genBalQtys
-
-  , testProperty ( "genBalQtys generates first group of quantities "
-                   ++  " with correct sum")
-    $ Q.mapSize (min 10) prop_genBalQtysTotalX
-
-  , testProperty "Sum of allocation adds up to original Qty"
-    $ Q.mapSize (min 10) prop_sumAllocate
-
-  , testProperty "prop_sameExponent: sameExponent gives same exponent"
-    $ Q.mapSize (min 10) prop_sameExponent
-
-  , testProperty "Number of allocations is same as number requested"
-    $ Q.mapSize (min 10) prop_numAllocate
-
-  , testProperty "Sum of largest remainder method is equal to total"
-    prop_sumLargestRemainder
-  ]
+tests = $(testGroupGenerator)
 #endif
 
 data NumberStr =

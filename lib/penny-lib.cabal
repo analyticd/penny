@@ -184,6 +184,7 @@ Executable penny-test
     , QuickCheck ==2.5.*
     , test-framework ==0.7.0
     , test-framework-quickcheck2 ==0.3.0
+    , test-framework-th ==0.2.*
     , random-shuffle ==0.0.4
 
 
