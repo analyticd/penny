@@ -61,6 +61,15 @@ data PricePoint = PricePoint { dateTime :: DT.DateTime
 
 instance B.Binary PricePoint
 
+-- | PricePoint are equivalent if the dateTime and the Price are
+-- equivalent. Other elements of the PricePoint are ignored.
+instance Ev.Equivalent PricePoint where
+  equivalent (PricePoint dx px _ _ _) (PricePoint dy py _ _ _) =
+    dx ==~ dy && px ==~ py
+  compareEv (PricePoint dx px _ _ _) (PricePoint dy py _ _ _) =
+    mconcat [ Ev.compareEv dx dy
+            , Ev.compareEv px py ]
+
 -- | All the data that a TopLine might have.
 data TopLineData = TopLineData
   { tlCore :: TopLineCore

@@ -8,6 +8,9 @@ module Penny.Lincoln.Bits.Price (
   convert,
   newPrice) where
 
+import Data.Monoid (mconcat)
+import qualified Penny.Lincoln.Equivalent as Ev
+import Penny.Lincoln.Equivalent ((==~))
 import qualified Penny.Lincoln.Bits.Open as O
 import Penny.Lincoln.Bits.Qty (Qty, mult)
 import GHC.Generics (Generic)
@@ -26,6 +29,10 @@ instance B.Binary To
 newtype CountPerUnit = CountPerUnit { unCountPerUnit :: Qty }
                        deriving (Eq, Ord, Show, Generic)
 
+instance Ev.Equivalent CountPerUnit where
+  equivalent (CountPerUnit x) (CountPerUnit y) = x ==~ y
+  compareEv (CountPerUnit x) (CountPerUnit y) = Ev.compareEv x y
+
 instance B.Binary CountPerUnit
 
 data Price = Price { from :: From
@@ -34,6 +41,19 @@ data Price = Price { from :: From
              deriving (Eq, Ord, Show, Generic)
 
 instance B.Binary Price
+
+-- | Two Price are equivalent if the From and To are equal and the
+-- CountPerUnit is equivalent.
+
+instance Ev.Equivalent Price where
+  equivalent (Price xf xt xc) (Price yf yt yc) =
+    xf == yf && xt == yt && xc ==~ yc
+
+  compareEv (Price xf xt xc) (Price yf yt yc) = mconcat
+    [ compare xf yf
+    , compare xt yt
+    , Ev.compareEv xc yc
+    ]
 
 -- | Convert an amount from the From price to the To price. Fails if
 -- the From commodity in the Price is not the same as the commodity in

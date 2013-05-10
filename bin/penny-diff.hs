@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Arrow (first, second)
 import qualified Control.Exception as CEx
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Either (partitionEithers)
@@ -8,6 +9,7 @@ import Data.List (deleteFirstsBy)
 import qualified System.Console.MultiArg as M
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
+import Penny.Lincoln ((==~))
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as CR
@@ -59,26 +61,32 @@ data File = File1 | File2
   deriving (Eq, Show)
 
 -- | All possible items, but excluding blank lines.
-data NonBlankItem
-  = Transaction L.Transaction
-  | Price L.PricePoint
-  | Comment C.Comment
-  deriving (Eq, Show)
+type NonBlankItem =
+  Either L.Transaction (Either L.PricePoint C.Comment)
+
+removeMeta
+  :: L.Transaction
+  -> (L.TopLineCore, L.Ents L.PostingCore)
+removeMeta
+  = first L.tlCore
+  . second (fmap L.pdCore)
 
 clonedNonBlankItem :: NonBlankItem -> NonBlankItem -> Bool
 clonedNonBlankItem nb1 nb2 = case (nb1, nb2) of
-  (Transaction t1, Transaction t2) -> P.clonedTransactions t1 t2
-  (Price p1, Price p2) -> p1 == p2
-  (Comment c1, Comment c2) -> c1 == c2
+  (Left t1, Left t2) -> removeMeta t1 ==~ removeMeta t2
+  (Right (Left p1), Right (Left p2)) -> p1 ==~ p2
+  (Right (Right c1), Right (Right c2)) -> c1 ==~ c2
   _ -> False
 
-toNonBlankItem :: C.Item -> Maybe NonBlankItem
-toNonBlankItem i = case i of
-  C.Transaction t -> Just (Transaction t)
-  C.PricePoint p -> Just (Price p)
-  C.IComment c -> Just (Comment c)
-  _ -> Nothing
-
+toNonBlankItem :: C.LedgerItem -> Maybe NonBlankItem
+toNonBlankItem = mapMaybe f where
+  f e = case e of
+    Left t -> Just . Left $ t
+    Right e2 -> case e2 of
+      Left p -> Just . Right . Left $ p
+      Right e3 -> case e3 of
+        Left c -> Just . Right . Right $ c
+        Right _ -> Nothing
 
 showLineNum :: File -> Int -> X.Text
 showLineNum f i = X.pack ("\n" ++ arrow ++ " " ++ show i ++ "\n")
