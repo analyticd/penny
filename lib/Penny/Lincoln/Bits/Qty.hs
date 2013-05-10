@@ -74,6 +74,9 @@ tests = TF.testGroup "Penny.Lincoln.Bits.Qty"
   , testProperty "Sum of allocation adds up to original Qty"
     $ Q.mapSize (min 10) prop_sumAllocate
 
+  , testProperty "prop_sameExponent: sameExponent gives same exponent"
+    $ Q.mapSize (min 10) prop_sameExponent
+
   , testProperty "Number of allocations is same as number requested"
     $ Q.mapSize (min 15) prop_numAllocate
 
@@ -387,6 +390,18 @@ mult :: Qty -> Qty -> Qty
 mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe + ye)
 
 
+--
+-- Allocation
+--
+-- The steps of allocation:
+--
+-- Adjust all exponents, both on the amount to be allocated and on all
+-- the votes, so that the exponents are all equal.
+--
+-- Allocate the mantissas.
+--
+-- Return the quantities with the original exponents.
+
 -- | Allocate a Qty proportionally so that the sum of the results adds
 -- up to a given Qty. Fails if the allocation cannot be made (e.g. if
 -- it is impossible to allocate without overflowing Decimal.) The
@@ -450,6 +465,18 @@ sameExponent dec ls =
   in (dec', ls', newExp)
 
 
+#ifdef test
+
+-- | sameExponent gives exponents that are all the same
+prop_sameExponent :: Qty -> (Qty, [Qty]) -> Bool
+prop_sameExponent q1 qs =
+  let (r1, (rs1, rss), exp') = sameExponent q1 qs
+  in places r1 == exp'
+     && places rs1 == exp'
+     && all (\q -> places q == exp') rss
+
+#endif
+
 -- | Given an Integer and a list of Integers, multiply all integers by
 -- ten raised to an exponent, so that the first Integer is larger than
 -- the count of the number of Integers in the list. Returns
@@ -472,6 +499,34 @@ growTarget target is = go target is 0
       in if t' > len
          then (t', xs', c)
          else go t' xs' (c + 1)
+
+type Multiplier = Integer
+
+multLargestRemainder
+  :: TotSeats
+  -> [PartyVotes]
+  -> Multiplier
+  -> (TotSeats, [SeatsWon])
+multLargestRemainder ts pv m =
+  let ts' = ts * 10 ^ m
+      pv' = map (\x -> x * 10 ^ m) pv
+  in (ts', largestRemainderMethod ts' pv')
+
+increasingMultRemainder
+  :: TotSeats
+  -> [PartyVotes]
+  -> [(Multiplier, (TotSeats, [SeatsWon]))]
+increasingMultRemainder ts pv =
+  zip [0..] (map (multLargestRemainder ts pv) [0..])
+
+multRemainderAllResultsAtLeast1
+  :: TotSeats
+  -> [PartyVotes]
+  -> (Multiplier, (TotSeats, [SeatsWon]))
+multRemainderAllResultsAtLeast1 ts pv
+  = head
+  . dropWhile (any (< 1) . snd . snd)
+  $ increasingMultRemainder ts pv
 
 -- Largest remainder method: votes for one party is divided by
 -- (total votes / number of seats). Result is an integer and a

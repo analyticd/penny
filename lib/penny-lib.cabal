@@ -141,8 +141,8 @@ Library
   if flag(test)
     build-depends:
         QuickCheck ==2.5.*
-      , test-framework ==0.8.*
-      , test-framework-quickcheck2 ==0.3.*
+      , test-framework ==0.7.0
+      , test-framework-quickcheck2 ==0.3.0
       , random-shuffle ==0.0.4
 
     cpp-options: -Dtest
@@ -178,10 +178,12 @@ Executable penny-test
     , time ==1.4.*
     , transformers == 0.3.*
 
-    -- Test dependencies
+    -- Test dependencies. test-framework has issues with newer versions,
+    -- see
+    -- https://github.com/batterseapower/test-framework/issues/34
     , QuickCheck ==2.5.*
-    , test-framework ==0.8.*
-    , test-framework-quickcheck2 ==0.3.*
+    , test-framework ==0.7.0
+    , test-framework-quickcheck2 ==0.3.0
     , random-shuffle ==0.0.4
 
 
