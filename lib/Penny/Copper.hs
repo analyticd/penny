@@ -20,8 +20,12 @@ module Penny.Copper
 
   ) where
 
+import Control.Applicative
 import Control.Arrow (second)
+import qualified Data.Binary as B
+import Data.List (isSuffixOf)
 import qualified Data.Traversable as Tr
+import qualified Data.Text as X
 import qualified Penny.Copper.Parsec as CP
 import Penny.Copper.Interface
 import qualified Penny.Copper.Interface as I
@@ -34,7 +38,16 @@ import qualified Penny.Copper.Render as R
 -- input. IO errors are not caught. Parse errors are printed to
 -- standard error and the program will exit with a failure.
 open :: [String] -> IO [I.LedgerItem]
-open ss = fmap parsedToWrapped $ mapM CP.parse ss
+open = fmap parsedToWrapped . mapM openFile
+
+openFile
+  :: String
+  -> IO (L.Filename, [I.ParsedItem])
+openFile s
+  | ".bin" `isSuffixOf` s =
+      (,) <$> pure (L.Filename . X.pack $ s)
+          <*> B.decodeFile s
+  | otherwise = CP.parse s
 
 addFilePosting
   :: Tr.Traversable f
