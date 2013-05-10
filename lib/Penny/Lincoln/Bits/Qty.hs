@@ -138,6 +138,9 @@ instance Ev.Equivalent Qty where
   equivalent x y = x' == y'
     where
       (x', y') = equalizeExponents x y
+  compareEv x y = compare x' y'
+    where
+      (x', y') = equalizeExponents x y
 
 instance B.Binary Qty
 

@@ -39,8 +39,8 @@ import qualified Penny.Lincoln.Balance as Bal
 import Control.Monad (guard)
 import qualified Penny.Lincoln.Equivalent as Ev
 import Penny.Lincoln.Equivalent ((==~))
-import Data.Monoid (mconcat)
-import Data.List (foldl', unfoldr)
+import Data.Monoid (mconcat, (<>))
+import Data.List (foldl', unfoldr, sortBy)
 import Data.Maybe (isNothing, catMaybes)
 import qualified Data.Traversable as Tr
 import qualified Data.Foldable as Fdbl
@@ -107,6 +107,8 @@ data Ent m = Ent
 instance Ev.Equivalent m => Ev.Equivalent (Ent m) where
   equivalent (Ent e1 _ m1) (Ent e2 _ m2) =
     e1 ==~ e2 && m1 ==~ m2
+  compareEv (Ent e1 _ m1) (Ent e2 _ m2) =
+    Ev.compareEv e1 e2 <> Ev.compareEv m1 m2
 
 instance Functor Ent where
   fmap f (Ent e i m) = Ent e i (f m)
@@ -115,6 +117,19 @@ instance Binary m => Binary (Ent m)
 
 newtype Ents m = Ents { unEnts :: [Ent m] }
   deriving (Eq, Ord, Show, Generic, Functor)
+
+-- | Ents are equivalent if the content Ents of each are
+-- equivalent. The order of the ents is insignificant.
+instance Ev.Equivalent m => Ev.Equivalent (Ents m) where
+  equivalent (Ents e1) (Ents e2) =
+    let (e1', e2') = (sortBy Ev.compareEv e1, sortBy Ev.compareEv e2)
+    in and $ (length e1 == length e2)
+           : zipWith Ev.equivalent e1' e2'
+
+  compareEv (Ents e1) (Ents e2) =
+    let (e1', e2') = (sortBy Ev.compareEv e1, sortBy Ev.compareEv e2)
+    in mconcat $ compare (length e1) (length e2)
+               : zipWith Ev.compareEv e1' e2'
 
 instance Fdbl.Foldable Ents where
   foldr f z (Ents ls) = case ls of

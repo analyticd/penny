@@ -7,6 +7,8 @@
 
 module Penny.Lincoln.Bits.Open where
 
+import Data.List (sort)
+import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Text.Encoding as XE
@@ -66,6 +68,8 @@ instance B.Binary Amount
 instance Ev.Equivalent Amount where
   equivalent (Amount q1 c1) (Amount q2 c2) =
     q1 ==~ q2 && c1 == c2
+  compareEv (Amount q1 c1) (Amount q2 c2) =
+    Ev.compareEv q1 q2 <> c1 `compare` c2
 
 #ifdef test
 instance Arbitrary Amount where
@@ -109,6 +113,8 @@ instance B.Binary Entry
 instance Ev.Equivalent Entry where
   equivalent (Entry d1 a1) (Entry d2 a2) =
     d1 == d2 && a1 ==~ a2
+  compareEv (Entry d1 a1) (Entry d2 a2) =
+    d1 `compare` d2 <> Ev.compareEv a1 a2
 
 #ifdef test
 instance Arbitrary Entry where
@@ -181,6 +187,13 @@ instance B.Binary Tag where
 
 newtype Tags = Tags { unTags :: [Tag] }
                deriving (Eq, Show, Ord, Generic)
+
+-- | Tags are equivalent if they have the same tags (even if in a
+-- different order).
+instance Ev.Equivalent Tags where
+  equivalent (Tags t1) (Tags t2) = sort t1 == sort t2
+  compareEv (Tags t1) (Tags t2) =
+    compare (sort t1) (sort t2)
 
 instance B.Binary Tags
 

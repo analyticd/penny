@@ -26,14 +26,21 @@ module Penny.Lincoln.Bits
   ) where
 
 
+import Data.Monoid (mconcat)
 import Penny.Lincoln.Bits.Open
 import Penny.Lincoln.Bits.DateTime
 import Penny.Lincoln.Bits.Price
+#ifdef test
 import Penny.Lincoln.Bits.Qty hiding (tests)
+#else
+import Penny.Lincoln.Bits.Qty
+#endif
 
 import qualified Penny.Lincoln.Bits.Open as O
 import qualified Penny.Lincoln.Bits.DateTime as DT
 import qualified Penny.Lincoln.Bits.Price as Pr
+import qualified Penny.Lincoln.Equivalent as Ev
+import Penny.Lincoln.Equivalent ((==~))
 import qualified Data.Binary as B
 import GHC.Generics (Generic)
 
@@ -80,6 +87,24 @@ data TopLineCore = TopLineCore
   , tMemo :: Maybe O.Memo
   } deriving (Eq, Show, Generic)
 
+-- | TopLineCore are equivalent if their dates are equivalent and if
+-- everything else is equal.
+instance Ev.Equivalent TopLineCore where
+  equivalent x y =
+    tDateTime x ==~ tDateTime y
+    && tNumber x == tNumber y
+    && tFlag x == tFlag y
+    && tPayee x == tPayee y
+    && tMemo x == tMemo y
+
+  compareEv x y = mconcat
+    [ Ev.compareEv (tDateTime x) (tDateTime y)
+    , compare (tNumber x) (tNumber y)
+    , compare (tFlag x) (tFlag y)
+    , compare (tPayee x) (tPayee y)
+    , compare (tMemo x) (tMemo y)
+    ]
+
 emptyTopLineCore :: DT.DateTime -> TopLineCore
 emptyTopLineCore dt = TopLineCore dt Nothing Nothing Nothing Nothing
 
@@ -119,6 +144,25 @@ data PostingCore = PostingCore
   , pSide :: Maybe O.Side
   , pSpaceBetween :: Maybe O.SpaceBetween
   } deriving (Eq, Show, Generic)
+
+-- | Two PostingCore are equivalent if the Tags are equivalent and the
+-- other data is equal, exlucing the Side and the SpaceBetween, which are not considered at all.
+instance Ev.Equivalent PostingCore where
+  equivalent (PostingCore p1 n1 f1 a1 t1 m1 _ _)
+             (PostingCore p2 n2 f2 a2 t2 m2 _ _)
+    = p1 == p2 && n1 == n2 && f1 == f2
+    && a1 == a2 && t1 ==~ t2 && m1 == m2
+
+  compareEv (PostingCore p1 n1 f1 a1 t1 m1 _ _)
+            (PostingCore p2 n2 f2 a2 t2 m2 _ _)
+    = mconcat
+        [ compare p1 p2
+        , compare n1 n2
+        , compare f1 f2
+        , compare a1 a2
+        , Ev.compareEv t1 t2
+        , compare m1 m2
+        ]
 
 emptyPostingCore :: O.Account -> PostingCore
 emptyPostingCore ac = PostingCore

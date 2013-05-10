@@ -187,6 +187,7 @@ sameInstant t1 t2 = toUTC t1 == toUTC t2
 
 instance Ev.Equivalent DateTime where
   equivalent = sameInstant
+  compareEv x y = compare (toUTC x) (toUTC y)
 
 -- | Shows a DateTime in a pretty way.
 showDateTime :: DateTime -> String
