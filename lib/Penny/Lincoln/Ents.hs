@@ -1,11 +1,41 @@
 {-# LANGUAGE DeriveGeneric, DeriveFunctor, CPP #-}
 
+-- | Containers for entries.
+--
+-- This module is the key guardian of the core principle of
+-- double-entry accounting, which is that debits and credits must
+-- always balance. An 'Ent' is a container for an 'Entry'. An 'Entry'
+-- holds a 'DrCr' and an 'Amount' which, in turn, holds a 'Commodity'
+-- and a 'Qty'. For a given 'Commodity' in a particular transaction,
+-- the sum of the debits must always be equal to the sum of the
+-- credits.
+--
+-- In addition to the 'Entry', the 'Ent' holds information about
+-- whether the particular 'Entry' it holds is inferred or not. An Ent
+-- is @inferred@ if the user did not supply the entry, but Penny was
+-- able to deduce its 'Entry' because proper entries were supplied for
+-- all the other postings in the transaction. The 'Ent' also holds
+-- arbitrary metadata--which will typically be other information about
+-- the particular posting, such as the payee, account, etc.
+--
+-- A collection of 'Ent' is an 'Ents'. This module will only create an
+-- 'Ent' as part of an 'Ents' (though you can later separate the 'Ent'
+-- from its other 'Ents' if you like.) In any given 'Ents', all of the
+-- 'Ent' collectively have a zero balance.
+--
+-- This module also contains type synonyms used to represent a
+-- Posting, which is an Ent bundled with its sibling Ents, and a
+-- Transaction.
+
 module Penny.Lincoln.Ents
-  ( Inferred(..)
+  ( -- * Ent
+    Inferred(..)
   , Ent
   , entry
   , inferred
   , meta
+
+  -- * Ents
   , Ents
   , unEnts
   , tupleEnts
@@ -13,6 +43,8 @@ module Penny.Lincoln.Ents
   , traverseEnts
   , ents
   , rEnts
+
+  -- * Views
   , View
   , Posting
   , Transaction
