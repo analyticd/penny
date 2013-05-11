@@ -45,12 +45,9 @@ module Penny.Lincoln.Ents
   , rEnts
 
   -- * Views
-  , View
   , Posting(..)
   , Transaction(..)
   , transactionToPostings
-  , unView
-  , allViews
   , headEnt
   , tailEnts
   , views
@@ -325,11 +322,8 @@ genNonRestricted = do
 
 instance Binary m => Binary (Ents m)
 
-newtype View m = View { unView :: [Ent m] }
-  deriving (Eq, Ord, Show, Functor)
-
-views :: Ents m -> [View m]
-views = map View . orderedPermute . unEnts
+views :: Ents m -> [Ents m]
+views = map Ents . orderedPermute . unEnts
 
 -- | > unrollSnd (undefined, []) == []
 --   > unrollSnd (1, [1,2,3]) = [(1,1), (1,2), (1,3)]
@@ -346,29 +340,25 @@ transactionToPostings =
 
 -- | Get information from the head posting in the View, which is the
 -- one you are most likely interested in.
-headEnt :: View m -> Ent m
-headEnt (View ls) = case ls of
+headEnt :: Ents m -> Ent m
+headEnt (Ents ls) = case ls of
   [] -> error "ents: empty view"
   x:_ -> x
 
 -- | Get information on sibling postings.
-tailEnts :: View m -> (Ent m, [Ent m])
-tailEnts (View ls) = case ls of
+tailEnts :: Ents m -> (Ent m, [Ent m])
+tailEnts (Ents ls) = case ls of
   [] -> error "ents: tailEnts: empty view"
   _:xs -> case xs of
     [] -> error "ents: tailEnts: only one sibling"
     s2:ss -> (s2, ss)
-
--- | Given a single View, returns all possible alternate Views.
-allViews :: View B.PostingData -> [View B.PostingData]
-allViews = map View . orderedPermute . unView
 
 newtype Transaction = Transaction
   { unTransaction :: ( B.TopLineData, Ents B.PostingData ) }
   deriving (Eq, Show)
 
 newtype Posting = Posting
-  { unPosting :: ( B.TopLineData, View B.PostingData ) }
+  { unPosting :: ( B.TopLineData, Ents B.PostingData ) }
   deriving (Eq, Show)
 
 #ifdef test

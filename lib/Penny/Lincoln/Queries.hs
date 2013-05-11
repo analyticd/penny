@@ -15,7 +15,7 @@ import qualified Data.Time as Time
 -- data from the TopLine.
 best
   :: (B.TopLineData -> Maybe a)
-  -> (E.View B.PostingData -> Maybe a)
+  -> (E.Ents B.PostingData -> Maybe a)
   -> E.Posting
   -> Maybe a
 best fp ft vp = case fp . fst . E.unPosting $ vp of
