@@ -1,8 +1,6 @@
 module Main where
 
 import Control.Arrow (first, second)
-import qualified Control.Exception as CEx
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Either (partitionEithers)
 import Data.Maybe (fromJust)
 import Data.List (deleteFirstsBy)
@@ -10,7 +8,6 @@ import qualified System.Console.MultiArg as M
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import Penny.Lincoln ((==~))
-import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as CR
 import Data.Maybe (mapMaybe)
@@ -75,18 +72,14 @@ clonedNonBlankItem :: NonBlankItem -> NonBlankItem -> Bool
 clonedNonBlankItem nb1 nb2 = case (nb1, nb2) of
   (Left t1, Left t2) -> removeMeta t1 ==~ removeMeta t2
   (Right (Left p1), Right (Left p2)) -> p1 ==~ p2
-  (Right (Right c1), Right (Right c2)) -> c1 ==~ c2
+  (Right (Right c1), Right (Right c2)) -> c1 == c2
   _ -> False
 
 toNonBlankItem :: C.LedgerItem -> Maybe NonBlankItem
-toNonBlankItem = mapMaybe f where
-  f e = case e of
-    Left t -> Just . Left $ t
-    Right e2 -> case e2 of
-      Left p -> Just . Right . Left $ p
-      Right e3 -> case e3 of
-        Left c -> Just . Right . Right $ c
-        Right _ -> Nothing
+toNonBlankItem =
+  either (Just . Left)
+    (either (Just . Right . Left)
+      (either (Just . Right . Right) (const Nothing)))
 
 showLineNum :: File -> Int -> X.Text
 showLineNum f i = X.pack ("\n" ++ arrow ++ " " ++ show i ++ "\n")
@@ -107,12 +100,11 @@ renderTransaction
   -> Maybe X.Text
 renderTransaction gs f t = fmap addHeader $ CR.transaction gs t
   where
-    (L.Family tl _ _ _) = L.unTransaction t
-    lin = case L.tMemo tl of
-      Nothing -> L.unTopLineLine . fromJust
-                 . L.tTopLineLine $ tl
-      Just _ -> L.unTopMemoLine . fromJust
-                . L.tTopMemoLine $ tl
+    lin = case L.tMemo . L.tlCore . fst $ t of
+      Nothing -> L.unTopLineLine . L.tTopLineLine . fromJust
+                 . L.tlFileMeta . fst $ t
+      Just _ -> L.unTopMemoLine . fromJust . L.tTopMemoLine . fromJust
+                . L.tlFileMeta . fst $ t
     addHeader x = (showLineNum f lin) `X.append` x
 
 renderPrice :: CR.GroupSpecs -> File -> L.PricePoint -> Maybe X.Text
@@ -122,16 +114,14 @@ renderPrice gs f p = fmap addHeader $ CR.price gs p
     addHeader x = (showLineNum f lin) `X.append` x
 
 renderNonBlankItem :: CR.GroupSpecs -> File -> NonBlankItem -> Maybe X.Text
-renderNonBlankItem gs f n = case n of
-  Transaction t -> renderTransaction gs f t
-  Price p -> renderPrice gs f p
-  Comment c -> CR.comment c
+renderNonBlankItem gs f =
+  either (renderTransaction gs f) (either (renderPrice gs f) (CR.comment))
 
 runPennyDiff :: CR.GroupSpecs -> IO ()
 runPennyDiff co = do
   (f1, f2, dts) <- parseCommandLine
-  l1 <- parseFile f1
-  l2 <- parseFile f2
+  l1 <- C.open [f1]
+  l2 <- C.open [f2]
   let (r1, r2) = doDiffs l1 l2
   showDiffs co dts (r1, r2)
   case (r1, r2) of
@@ -175,29 +165,15 @@ showNonBlankItem co f nbi = maybe e TIO.putStr
 -- but not in file2, and snd p is items that appear in file2 but not
 -- in file1.
 doDiffs
-  :: C.Ledger
-  -> C.Ledger
+  :: [C.LedgerItem]
+  -> [C.LedgerItem]
   -> ([NonBlankItem], [NonBlankItem])
 doDiffs l1 l2 = (r1, r2)
   where
-    mkNbList = mapMaybe toNonBlankItem . C.unLedger
+    mkNbList = mapMaybe toNonBlankItem
     (nb1, nb2) = (mkNbList l1, mkNbList l2)
     df = deleteFirstsBy clonedNonBlankItem
     (r1, r2) = (nb1 `df` nb2, nb2 `df` nb1)
-
-parseFile :: String -> IO C.Ledger
-parseFile s = do
-  eiTxt <- CEx.try $ TIO.readFile s
-  txt <- case eiTxt of
-    Left e -> failure (show (e :: IOError))
-    Right g -> return g
-  let fn = L.Filename . X.pack $ s
-      c = C.FileContents txt
-      parsed = C.parse [(fn, c)]
-  case parsed of
-    Ex.Exception e -> failure (show e)
-    Ex.Success g -> return g
-
 
 -- | Returns a tuple with the first filename, the second filename, and
 -- an indication of which differences to show.
