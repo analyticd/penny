@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveFunctor, CPP, TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric, DeriveFunctor, CPP #-}
 
 -- | Containers for entries.
 --
@@ -86,6 +86,10 @@ import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.Framework (Test, testGroup)
 import qualified Data.Map as M
 import qualified Penny.Lincoln.Bits.Qty as Qty
+
+-- Test.Framework.TH is having problems with some of the polymorphic
+-- properties, so stick with the manual tests until this is worked
+-- out.
 
 tests :: Test
 tests = testGroup "Penny.Lincoln.Ents"
