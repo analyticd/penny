@@ -27,6 +27,7 @@ bestSibs fp ft =
   . second (\(x, xs) -> (x:xs))
   . second E.tailEnts
   . first B.tlCore
+  . E.unPosting
   where
     f (tl, vw) = maybe (ft tl) Just (fp vw)
 
@@ -38,6 +39,7 @@ sibs
   -> E.Posting
   -> [a]
 sibs fp = map fp . snd . fmap ((\(x, xs) -> (x:xs)) . E.tailEnts)
+          . E.unPosting
 
 payee :: E.Posting -> [Maybe B.Payee]
 payee = bestSibs B.pPayee B.tPayee
@@ -97,3 +99,4 @@ globalTransaction =
   . E.unrollSnd
   . second (\(x, xs) -> (x:xs))
   . second E.tailEnts
+  . E.unPosting

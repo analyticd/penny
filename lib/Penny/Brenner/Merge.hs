@@ -134,9 +134,11 @@ changeTransaction
   -> L.Transaction
   -> St.State DbWithEntry L.Transaction
 changeTransaction acct txn =
-  (,)
-  <$> pure (fst txn)
-  <*> L.traverseEnts (inspectAndChange acct (fst txn)) (snd txn)
+  (\tl es -> L.Transaction (tl, es))
+  <$> pure (fst . L.unTransaction $ txn)
+  <*> L.traverseEnts (inspectAndChange acct
+                      (fst . L.unTransaction $ txn))
+                      (snd . L.unTransaction $ txn)
 
 -- | Inspects a posting to see if it is an Amex posting and, if so,
 -- whether it matches one of the remaining AmexTxns. If so, then
@@ -226,7 +228,7 @@ newTransaction
   -> PyeLookupMap
   -> (Y.UNumber, (Y.Posting, L.Entry))
   -> L.Transaction
-newTransaction noAuto acct mu mp (u, (a, e)) = (tld, ents) where
+newTransaction noAuto acct mu mp (u, (a, e)) = L.Transaction (tld, ents) where
   tld = L.TopLineData tlc Nothing Nothing
   tlc = (L.emptyTopLineCore (L.dateTimeMidnightUTC . Y.unDate . Y.date $ a))
         { L.tPayee = Just pa }
@@ -314,7 +316,7 @@ makePyeLookupMap a l
     f pstg = do
       guard $ (Q.account pstg) == Y.unPennyAcct a
       u <- getUNumberFromTags . Q.tags $ pstg
-      let tailents = L.tailEnts . snd $ pstg
+      let tailents = L.tailEnts . snd . L.unPosting $ pstg
           ac = case tailents of
             (x, []) -> Just (L.pAccount . L.pdCore . L.meta $ x)
             _ -> Nothing

@@ -501,8 +501,8 @@ transaction
   -> L.Transaction
   -> Maybe X.Text
 transaction gs txn = do
-  tlX <- topLine . L.tlCore . fst $ txn
-  let (p1, p2, ps) = L.tupleEnts . snd $ txn
+  tlX <- topLine . L.tlCore . fst . L.unTransaction $ txn
+  let (p1, p2, ps) = L.tupleEnts . snd . L.unTransaction $ txn
   p1X <- posting gs True (fmap L.pdCore p1)
   p2X <- posting gs (not . null $ ps) (fmap L.pdCore p2)
   psX <- if null ps

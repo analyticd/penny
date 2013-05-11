@@ -74,7 +74,7 @@ display p = X.pack $ concat (intersperse " " ls)
   where
     ls = [file, lineNo, dt, pye, acct, dc, cmdty, qt]
     file = maybe (labelNo "filename") (X.unpack . unFilename)
-           (fmap tFilename . tlFileMeta . fst $ p)
+           (fmap tFilename . tlFileMeta . fst . unPosting $ p)
     lineNo = maybe (labelNo "line number")
              (show . unPostingLine)
              (Q.postingLine p)

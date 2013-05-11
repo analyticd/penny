@@ -133,8 +133,8 @@ changeTxn
   :: Y.PennyAcct
   -> L.Transaction
   -> St.State (Set.Set Y.UNumber) L.Transaction
-changeTxn ax (tld, d) =
-  (,)
+changeTxn ax (L.Transaction (tld, d)) =
+  (\tl es -> L.Transaction (tl, es))
   <$> pure tld
   <*> Tr.mapM (changePstg ax) d
 

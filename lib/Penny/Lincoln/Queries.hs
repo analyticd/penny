@@ -18,8 +18,8 @@ best
   -> (E.View B.PostingData -> Maybe a)
   -> E.Posting
   -> Maybe a
-best fp ft vp = case fp . fst $ vp of
-  Nothing -> ft . snd $ vp
+best fp ft vp = case fp . fst . E.unPosting $ vp of
+  Nothing -> ft . snd . E.unPosting $ vp
   Just r -> Just r
 
 payee :: E.Posting -> Maybe B.Payee
@@ -35,25 +35,25 @@ flag = best (B.tFlag . B.tlCore)
             (B.pFlag . B.pdCore . E.meta . E.headEnt)
 
 postingMemo :: E.Posting -> Maybe B.Memo
-postingMemo = B.pMemo . B.pdCore . E.meta . E.headEnt . snd
+postingMemo = B.pMemo . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 
 transactionMemo :: E.Posting -> Maybe B.Memo
-transactionMemo =  B.tMemo . B.tlCore . fst
+transactionMemo =  B.tMemo . B.tlCore . fst . E.unPosting
 
 dateTime :: E.Posting -> B.DateTime
-dateTime = B.tDateTime . B.tlCore . fst
+dateTime = B.tDateTime . B.tlCore . fst . E.unPosting
 
 localDay :: E.Posting -> Time.Day
 localDay = B.day . dateTime
 
 account :: E.Posting -> B.Account
-account = B.pAccount . B.pdCore . E.meta . E.headEnt . snd
+account = B.pAccount . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 
 tags :: E.Posting -> B.Tags
-tags = B.pTags . B.pdCore . E.meta . E.headEnt . snd
+tags = B.pTags . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 
 entry :: E.Posting -> B.Entry
-entry = E.entry . E.headEnt . snd
+entry = E.entry . E.headEnt . snd . E.unPosting
 
 balance :: E.Posting -> Balance
 balance = entryToBalance . entry
@@ -71,34 +71,34 @@ commodity :: E.Posting -> B.Commodity
 commodity = B.commodity . amount
 
 topMemoLine :: E.Posting -> Maybe B.TopMemoLine
-topMemoLine p = (B.tlFileMeta . fst $ p) >>= B.tTopMemoLine
+topMemoLine p = (B.tlFileMeta . fst . E.unPosting $ p) >>= B.tTopMemoLine
 
 topLineLine :: E.Posting -> Maybe B.TopLineLine
-topLineLine = fmap B.tTopLineLine . B.tlFileMeta . fst
+topLineLine = fmap B.tTopLineLine . B.tlFileMeta . fst . E.unPosting
 
 globalTransaction :: E.Posting -> Maybe B.GlobalTransaction
-globalTransaction = B.tlGlobal . fst
+globalTransaction = B.tlGlobal . fst . E.unPosting
 
 fileTransaction :: E.Posting -> Maybe B.FileTransaction
-fileTransaction = fmap B.tFileTransaction . B.tlFileMeta . fst
+fileTransaction = fmap B.tFileTransaction . B.tlFileMeta . fst . E.unPosting
 
 globalPosting :: E.Posting -> Maybe B.GlobalPosting
-globalPosting = B.pdGlobal . E.meta . E.headEnt . snd
+globalPosting = B.pdGlobal . E.meta . E.headEnt . snd . E.unPosting
 
 filePosting :: E.Posting -> Maybe B.FilePosting
 filePosting = fmap B.pFilePosting . B.pdFileMeta . E.meta
-                   . E.headEnt . snd
+                   . E.headEnt . snd . E.unPosting
 
 postingLine :: E.Posting -> Maybe B.PostingLine
 postingLine = fmap B.pPostingLine . B.pdFileMeta
-              . E.meta . E.headEnt . snd
+              . E.meta . E.headEnt . snd . E.unPosting
 
 side :: E.Posting -> Maybe B.Side
-side = B.pSide . B.pdCore . E.meta . E.headEnt . snd
+side = B.pSide . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 
 spaceBetween :: E.Posting -> Maybe B.SpaceBetween
 spaceBetween = B.pSpaceBetween . B.pdCore
-               . E.meta . E.headEnt . snd
+               . E.meta . E.headEnt . snd . E.unPosting
 
 filename :: E.Posting -> Maybe B.Filename
-filename = fmap B.tFilename . B.tlFileMeta . fst
+filename = fmap B.tFilename . B.tlFileMeta . fst . E.unPosting

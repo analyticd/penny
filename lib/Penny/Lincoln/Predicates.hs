@@ -258,6 +258,7 @@ fwdGlobalPosting =
   . E.meta
   . E.headEnt
   . snd
+  . E.unPosting
 
 backGlobalPosting :: MakeSerialPdct
 backGlobalPosting =
@@ -267,6 +268,7 @@ backGlobalPosting =
   . E.meta
   . E.headEnt
   . snd
+  . E.unPosting
 
 fwdFilePosting :: MakeSerialPdct
 fwdFilePosting
@@ -276,6 +278,7 @@ fwdFilePosting
   . E.meta
   . E.headEnt
   . snd
+  . E.unPosting
 
 backFilePosting :: MakeSerialPdct
 backFilePosting
@@ -285,6 +288,7 @@ backFilePosting
   . E.meta
   . E.headEnt
   . snd
+  . E.unPosting
 
 fwdGlobalTransaction :: MakeSerialPdct
 fwdGlobalTransaction
@@ -292,6 +296,7 @@ fwdGlobalTransaction
   $ fmap (forward . B.unGlobalTransaction)
   . B.tlGlobal
   . fst
+  . E.unPosting
 
 backGlobalTransaction :: MakeSerialPdct
 backGlobalTransaction
@@ -299,6 +304,7 @@ backGlobalTransaction
   $ fmap (backward . B.unGlobalTransaction)
   . B.tlGlobal
   . fst
+  . E.unPosting
 
 fwdFileTransaction :: MakeSerialPdct
 fwdFileTransaction
@@ -306,6 +312,7 @@ fwdFileTransaction
   $ fmap (forward . B.unFileTransaction . B.tFileTransaction)
   . B.tlFileMeta
   . fst
+  . E.unPosting
 
 backFileTransaction :: MakeSerialPdct
 backFileTransaction
@@ -313,3 +320,4 @@ backFileTransaction
   $ fmap (backward . B.unFileTransaction . B.tFileTransaction)
   . B.tlFileMeta
   . fst
+  . E.unPosting

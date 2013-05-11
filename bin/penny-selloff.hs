@@ -578,7 +578,8 @@ mkTxn
 mkTxn si wcc = fromMaybe err exTxn
   where
     err = error "mkTxn: making transaction failed"
-    exTxn = (,) <$> pure tl <*> L.ents entInputs
+    exTxn = (\topl es -> L.Transaction (topl, es))
+            <$> pure tl <*> L.ents entInputs
     tl = topLine . siSaleDate $ si
     (p1, p2) = proceedsPstgs si
     ps = case wcc of

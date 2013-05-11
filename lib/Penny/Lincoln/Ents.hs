@@ -46,8 +46,8 @@ module Penny.Lincoln.Ents
 
   -- * Views
   , View
-  , Posting
-  , Transaction
+  , Posting(..)
+  , Transaction(..)
   , transactionToPostings
   , unView
   , allViews
@@ -341,7 +341,8 @@ unrollSnd = unfoldr f where
 
 -- | Splits a Transaction into Postings.
 transactionToPostings :: Transaction -> [Posting]
-transactionToPostings = unrollSnd . second views
+transactionToPostings =
+  map Posting . unrollSnd . second views . unTransaction
 
 -- | Get information from the head posting in the View, which is the
 -- one you are most likely interested in.
@@ -362,8 +363,13 @@ tailEnts (View ls) = case ls of
 allViews :: View B.PostingData -> [View B.PostingData]
 allViews = map View . orderedPermute . unView
 
-type Transaction = ( B.TopLineData, Ents B.PostingData )
-type Posting = ( B.TopLineData, View B.PostingData )
+newtype Transaction = Transaction
+  { unTransaction :: ( B.TopLineData, Ents B.PostingData ) }
+  deriving (Eq, Show)
+
+newtype Posting = Posting
+  { unPosting :: ( B.TopLineData, View B.PostingData ) }
+  deriving (Eq, Show)
 
 #ifdef test
 

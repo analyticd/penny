@@ -263,6 +263,7 @@ serialPdct name getSer i o = P.Pdct n (P.Operand f)
         . E.unrollSnd
         . second (\(x, xs) -> (x:xs))
         . second E.tailEnts
+        . E.unPosting
 
 type MakeSerialPdct = Int -> Ordering -> P.Pdct Posting
 

@@ -67,6 +67,7 @@ removeMeta
 removeMeta
   = first L.tlCore
   . second (fmap L.pdCore)
+  . L.unTransaction
 
 clonedNonBlankItem :: NonBlankItem -> NonBlankItem -> Bool
 clonedNonBlankItem nb1 nb2 = case (nb1, nb2) of
@@ -100,11 +101,11 @@ renderTransaction
   -> Maybe X.Text
 renderTransaction gs f t = fmap addHeader $ CR.transaction gs t
   where
-    lin = case L.tMemo . L.tlCore . fst $ t of
+    lin = case L.tMemo . L.tlCore . fst . L.unTransaction $ t of
       Nothing -> L.unTopLineLine . L.tTopLineLine . fromJust
-                 . L.tlFileMeta . fst $ t
+                 . L.tlFileMeta . fst . L.unTransaction $ t
       Just _ -> L.unTopMemoLine . fromJust . L.tTopMemoLine . fromJust
-                . L.tlFileMeta . fst $ t
+                . L.tlFileMeta . fst . L.unTransaction $ t
     addHeader x = (showLineNum f lin) `X.append` x
 
 renderPrice :: CR.GroupSpecs -> File -> L.PricePoint -> Maybe X.Text

@@ -142,4 +142,4 @@ parsedToWrapped
   :: [(L.Filename, [I.ParsedItem])]
   -> [I.LedgerItem]
 parsedToWrapped = map rewrap . addAllMetadata where
-  rewrap = either (Left . rewrapMetadata) Right
+  rewrap = either (Left . L.Transaction . rewrapMetadata) Right

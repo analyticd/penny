@@ -34,8 +34,8 @@ changeTopLine t = fromMaybe t $ do
   return t { L.tlCore = c' }
 
 changeTransaction :: L.Transaction -> L.Transaction
-changeTransaction (tl, es) =
-  (changeTopLine tl, fmap changePosting es)
+changeTransaction (L.Transaction (tl, es)) =
+  L.Transaction (changeTopLine tl, fmap changePosting es)
 
 help :: String -> String
 help pn = unlines
