@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveFunctor, CPP #-}
+{-# LANGUAGE DeriveGeneric, DeriveFunctor, CPP, TemplateHaskell #-}
 
 -- | Containers for entries.
 --
@@ -43,13 +43,13 @@ module Penny.Lincoln.Ents
   , traverseEnts
   , ents
   , rEnts
+  , headEnt
+  , tailEnts
 
-  -- * Views
+  -- * Postings and transactions
   , Posting(..)
   , Transaction(..)
   , transactionToPostings
-  , headEnt
-  , tailEnts
   , views
   , unrollSnd
 
