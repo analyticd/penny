@@ -5,7 +5,6 @@ module Penny.Lincoln.Bits.Price (
   , To ( To, unTo )
   , CountPerUnit ( CountPerUnit, unCountPerUnit )
   , Price ( from, to, countPerUnit )
-  , convert
   , newPrice
 
 #ifdef test
@@ -17,7 +16,7 @@ import Data.Monoid (mconcat)
 import qualified Penny.Lincoln.Equivalent as Ev
 import Penny.Lincoln.Equivalent ((==~))
 import qualified Penny.Lincoln.Bits.Open as O
-import Penny.Lincoln.Bits.Qty (Qty, mult)
+import Penny.Lincoln.Bits.Qty (Qty)
 import GHC.Generics (Generic)
 import qualified Data.Binary as B
 
@@ -93,16 +92,6 @@ instance Ev.Equivalent Price where
     , compare xt yt
     , Ev.compareEv xc yc
     ]
-
--- | Convert an amount from the From price to the To price. Fails if
--- the From commodity in the Price is not the same as the commodity in
--- the Amount.
-convert :: Price -> O.Amount -> Maybe O.Amount
-convert p (O.Amount q c) =
-  if (unFrom . from $ p) /= c
-  then Nothing
-  else let q' = q `mult` (unCountPerUnit . countPerUnit $ p)
-       in Just (O.Amount q' (unTo . to $ p))
 
 -- | Succeeds only if From and To are different commodities.
 newPrice :: From -> To -> CountPerUnit -> Maybe Price

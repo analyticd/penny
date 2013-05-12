@@ -155,7 +155,8 @@ Library
 Executable penny-test
   Main-is: penny-test.hs
   other-modules:
-      Penny.Copper.Gen.Terminals
+      Penny.Copper.Gen.Parsers
+    , Penny.Copper.Gen.Terminals
   Build-depends:
       base ==4.*
     , binary ==0.7.*
