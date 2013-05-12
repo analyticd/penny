@@ -29,11 +29,12 @@ module Penny.Lincoln.Bits
 import Data.Monoid (mconcat)
 import Penny.Lincoln.Bits.Open
 import Penny.Lincoln.Bits.DateTime
-import Penny.Lincoln.Bits.Price
 #ifdef test
 import Penny.Lincoln.Bits.Qty hiding (tests)
+import Penny.Lincoln.Bits.Price hiding (tests)
 #else
 import Penny.Lincoln.Bits.Qty
+import Penny.Lincoln.Bits.Price
 #endif
 
 import qualified Penny.Lincoln.Bits.Open as O
@@ -58,6 +59,12 @@ data PricePoint = PricePoint { dateTime :: DT.DateTime
                              , ppSpaceBetween :: Maybe O.SpaceBetween
                              , priceLine :: Maybe O.PriceLine }
                   deriving (Eq, Show, Generic)
+
+#ifdef test
+instance Arbitrary PricePoint where
+  arbitrary = liftM5 PricePoint arbitrary arbitrary arbitrary
+                     arbitrary arbitrary
+#endif
 
 instance B.Binary PricePoint
 
@@ -230,6 +237,7 @@ instance Arbitrary PostingData where
 tests :: Test
 tests = testGroup "Penny.Lincoln.Bits"
   [ Q.tests
+  , Pr.tests
   ]
 
 #endif

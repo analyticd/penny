@@ -154,6 +154,8 @@ Library
 -- test modules that are not in the library, list them here.
 Executable penny-test
   Main-is: penny-test.hs
+  other-modules:
+      Penny.Copper.Gen.Terminals
   Build-depends:
       base ==4.*
     , binary ==0.7.*
