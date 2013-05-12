@@ -1,5 +1,5 @@
--- | Examining a PostFam for a particular component of the main
--- posting (as opposed to the sibling postings) in the PostFam. For
+-- | Examining a Posting for a particular component of the main
+-- posting (as opposed to the sibling postings) in the Posting. For
 -- some components, such as the payee, the posting might have one
 -- piece of data while the TopLine has something else. These functions
 -- will examine the Posting first and, if it has no information, use

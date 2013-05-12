@@ -123,15 +123,23 @@ tests = testGroup "Penny.Lincoln.Ents"
 
 #endif
 
+-- | An Ent is inferred if the user did not supply an entry for it and
+-- Penny was able to infer the correct entry. Otherwise it is not
+-- inferred.
 data Inferred = Inferred | NotInferred
   deriving (Eq, Ord, Show, Generic)
 
 instance Binary Inferred
 
+-- | Information about an entry, along with whether it is inferred and
+-- its metadata.
 data Ent m = Ent
   { entry :: B.Entry
+  -- ^ The entry from an Ent
   , inferred :: Inferred
+  -- ^ Whether the entry was inferred
   , meta :: m
+  -- ^ The metadata accompanying an Ent
   } deriving (Eq, Ord, Show, Generic)
 
 -- | Two Ents are equivalent if the entries are equivalent and the
@@ -172,10 +180,17 @@ instance Fdbl.Foldable Ents where
 instance Tr.Traversable Ents where
   sequenceA = fmap Ents . Tr.sequenceA . map seqEnt . unEnts
 
+-- | Alter the metadata Ents, while examining the Ents themselves. If
+-- you only want to change the metadata and you don't need to examine
+-- the other contents of the Ent, use the Functor instance. You cannot
+-- change non-metadata aspects of the Ent.
 mapEnts :: (Ent a -> b) -> Ents a -> Ents b
 mapEnts f = Ents . map f' . unEnts where
   f' e = e { meta = f e }
 
+-- | Alter the metadata of Ents while examing their contents. If you
+-- do not need to examine their contents, use the Traversable
+-- instance.
 traverseEnts :: Applicative f => (Ent a -> f b) -> Ents a -> f (Ents b)
 traverseEnts f = fmap Ents . Tr.traverse f' . unEnts where
   f' en@(Ent e i _) = Ent <$> pure e <*> pure i <*> f en
@@ -183,6 +198,8 @@ traverseEnts f = fmap Ents . Tr.traverse f' . unEnts where
 seqEnt :: Applicative f => Ent (f a) -> f (Ent a)
 seqEnt (Ent e i m) = Ent <$> pure e <*> pure i <*> m
 
+-- | Every Ents alwas contains at least two ents, and possibly
+-- additional ones.
 tupleEnts :: Ents m -> (Ent m, Ent m, [Ent m])
 tupleEnts (Ents ls) = case ls of
   t1:t2:ts -> (t1, t2, ts)
@@ -326,6 +343,10 @@ genNonRestricted = do
 
 instance Binary m => Binary (Ents m)
 
+-- | In a Posting, the Ent at the front of the list of Ents is the
+-- main posting. There are additional postings. This function
+-- rearranges the Ents multiple times so that each posting is at the
+-- head of the list exactly once.
 views :: Ents m -> [Ents m]
 views = map Ents . orderedPermute . unEnts
 
@@ -343,13 +364,14 @@ transactionToPostings =
   map Posting . unrollSnd . second views . unTransaction
 
 -- | Get information from the head posting in the View, which is the
--- one you are most likely interested in.
+-- one you are most likely interested in. This never fails, as every
+-- Ents has at least two postings.
 headEnt :: Ents m -> Ent m
 headEnt (Ents ls) = case ls of
   [] -> error "ents: empty view"
   x:_ -> x
 
--- | Get information on sibling postings.
+-- | Get information on sibling Ents.
 tailEnts :: Ents m -> (Ent m, [Ent m])
 tailEnts (Ents ls) = case ls of
   [] -> error "ents: tailEnts: empty view"
@@ -357,10 +379,15 @@ tailEnts (Ents ls) = case ls of
     [] -> error "ents: tailEnts: only one sibling"
     s2:ss -> (s2, ss)
 
+-- | A Transaction and a Posting are identical on the inside, but they
+-- have different semantic meanings so they are wrapped in newtypes.
 newtype Transaction = Transaction
   { unTransaction :: ( B.TopLineData, Ents B.PostingData ) }
   deriving (Eq, Show)
 
+-- | In a Posting, the Ent yielded by 'headEnt' will be the posting of
+-- interest. The other sibling postings are also available for
+-- inspection.
 newtype Posting = Posting
   { unPosting :: ( B.TopLineData, Ents B.PostingData ) }
   deriving (Eq, Show)
@@ -384,6 +411,9 @@ orderedPermute ls = take (length ls) (iterate toTheBack ls)
     toTheBack [] = []
     toTheBack (a:as) = as ++ [a]
 
+-- | Creates an 'Ents'. At most, one of the Maybe Entry can be Nothing
+-- and this function will infer the remaining Entry. This function
+-- fails if it cannot create a balanced Ents.
 ents
   :: [(Maybe B.Entry, m)]
   -> Maybe (Ents m)
@@ -392,6 +422,10 @@ ents ls = do
   let makePstg = makeEnt (inferredVal . map fst $ ls)
   fmap Ents $ mapM makePstg ls
 
+-- | Creates 'Ents'. Unlike 'ents' this function never fails because
+-- you are restricted in the inputs that you can give it. It will
+-- always infer the last Entry. All Entries except one will have the
+-- same DrCr; the last, inferred one will have the opposite DrCr.
 rEnts
   :: B.Commodity
   -- ^ Commodity for all postings
