@@ -133,10 +133,14 @@ data DateTime = DateTime
   } deriving (Eq, Ord, Show)
 
 #ifdef test
+genDay :: QC.Gen T.Day
+genDay = fmap T.ModifiedJulianDay $ QC.choose (b, e)
+  where
+    b = T.toModifiedJulianDay $ T.fromGregorian 1000 01 01
+    e = T.toModifiedJulianDay $ T.fromGregorian 3000 01 01
+
 instance Arbitrary DateTime where
-  arbitrary = liftM5 DateTime
-    ( fmap (T.ModifiedJulianDay . fromIntegral)
-      $ QC.suchThat QC.arbitraryBoundedIntegral (> (0 :: Int)))
+  arbitrary = liftM5 DateTime genDay
     arbitrary arbitrary arbitrary arbitrary
 #endif
 

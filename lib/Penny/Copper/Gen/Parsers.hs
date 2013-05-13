@@ -2,6 +2,7 @@ module Penny.Copper.Gen.Parsers where
 
 import Data.List (nubBy, genericSplitAt, genericReplicate)
 import qualified Penny.Lincoln as L
+import qualified Penny.Copper as C
 import qualified Data.Text as X
 import Data.Text (pack, cons, snoc)
 import qualified Penny.Copper.Gen.Terminals as T
@@ -192,7 +193,7 @@ renderQtyWithThinSpaces q = do
   return $ renderQty withSpaces
 
 -- | How many digits does this number have?
-howManyDigits :: Integer -> Integer
+howManyDigits :: Integral i => i -> i
 howManyDigits i
   | i == 0 = 1
   | otherwise =
@@ -220,3 +221,94 @@ renderQty (l, mr) = (pack l) `X.append` r
       Nothing -> X.empty
       Just rn -> '.' `X.cons` (X.pack rn)
 
+--
+-- * Amounts
+--
+
+white :: Gen X.Text
+white = fmap pack (G.listOf T.white)
+
+spaceBetween :: X.Text -> L.SpaceBetween
+spaceBetween x = if X.null x then L.NoSpaceBetween else L.SpaceBetween
+
+leftCmdtyLvl1Amt
+  :: QuotedLvl1Cmdty
+  -> (L.Qty, X.Text)
+  -> Gen (L.Amount, X.Text)
+leftCmdtyLvl1Amt (QuotedLvl1Cmdty c xc) (q, xq) = do
+  ws <- white
+  let amt = L.Amount q c
+  return (amt, X.concat [xc, ws, xq])
+
+leftCmdtyLvl3Amt
+  :: Lvl3Cmdty
+  -> (L.Qty, X.Text)
+  -> Gen (L.Amount, X.Text)
+leftCmdtyLvl3Amt (Lvl3Cmdty c xc) (q, xq) = do
+  ws <- white
+  let amt = L.Amount q c
+  return (amt, X.concat [xc, ws, xq])
+
+leftSideCmdtyAmt
+  :: Either QuotedLvl1Cmdty Lvl3Cmdty
+  -> (L.Qty, X.Text)
+  -> Gen (L.Amount, X.Text)
+leftSideCmdtyAmt c q = case c of
+  Left l1 -> leftCmdtyLvl1Amt l1 q
+  Right l3 -> leftCmdtyLvl3Amt l3 q
+
+rightSideCmdty :: Gen (Either QuotedLvl1Cmdty Lvl2Cmdty)
+rightSideCmdty = G.oneof
+  [ fmap Left quotedLvl1Cmdty
+  , fmap Right lvl2Cmdty ]
+
+rightSideCmdtyAmt
+  :: Either QuotedLvl1Cmdty Lvl2Cmdty
+  -> (L.Qty, X.Text)
+  -> Gen (L.Amount, X.Text)
+rightSideCmdtyAmt cty (q, xq) = do
+  ws <- white
+  let (c, xc) = case cty of
+        Left (QuotedLvl1Cmdty ct x) -> (ct, x)
+        Right (Lvl2Cmdty ct x) -> (ct, x)
+      xr = X.concat [xq, ws, xc]
+      amt = L.Amount q c
+  return (amt, xr)
+
+amount
+  :: Cmdty
+  -> (L.Qty, X.Text)
+  -> Gen (L.Amount, X.Text)
+amount c q = case c of
+  L1 l1 -> G.oneof [ leftSideCmdtyAmt (Left l1) q
+                   , rightSideCmdtyAmt (Left l1) q ]
+  L2 l2 -> rightSideCmdtyAmt (Right l2) q
+  L3 l3 -> leftSideCmdtyAmt (Right l3) q
+
+--
+-- * Comments
+--
+
+comment :: Gen (C.Comment, X.Text)
+comment = do
+  x <- fmap pack $ G.listOf T.nonNewline
+  ws <- white
+  let txt = ('#' `cons` x `snoc` '\n') `X.append` ws
+  return (C.Comment x, txt)
+
+-- | Optionally add leading zeroes to an integer, if it has only one
+-- digit.
+withLeadingZeroes :: (Integral i, Show i) => i -> X.Text
+withLeadingZeroes i
+  | howManyDigits i < 2 = X.pack $ '0' : show i
+  | otherwise = X.pack $ show i
+
+--
+-- DateTime
+--
+
+{-
+dateTime :: Gen (L.DateTime, X.Text)
+dateTime = do
+  d <- arbitrary
+-}
