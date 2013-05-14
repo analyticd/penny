@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, CPP, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 
 module Penny.Lincoln.Bits.Price (
     From ( From, unFrom )

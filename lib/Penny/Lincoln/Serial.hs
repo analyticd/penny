@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, CPP #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Penny.Lincoln.Serial (
   Serial, forward, backward, serialItems, serialSomeItems,

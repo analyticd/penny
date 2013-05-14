@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveFunctor, CPP #-}
+{-# LANGUAGE DeriveGeneric, DeriveFunctor #-}
 
 -- | Containers for entries.
 --

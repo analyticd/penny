@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 -- | Penny - extensible double-entry accounting system
 
 module Penny
@@ -49,10 +48,6 @@ module Penny
 
   -- ** Main function
   , runPenny
-
-#ifdef test
-  , tests
-#endif
 
     -- * Developer overview
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, CPP #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | Essential data types used to make Transactions and Postings.
 module Penny.Lincoln.Bits
