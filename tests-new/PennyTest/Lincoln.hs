@@ -50,7 +50,7 @@ genRangeInt = do
 -- | Generates Qty with small exponents.
 genSmallExp :: Gen L.Qty
 genSmallExp = do
-  m <- (fmap fromIntegral $ Q.suchThat Q.arbitrarySizedBoundedIntegral
+  m <- (fmap fromIntegral $ Q.suchThat Q.arbitrarySizedIntegral
                                   (> (0 :: Int)))
   p <- (fmap fromIntegral $ Q.choose (0, 4 :: Int))
   maybe (failMsg "genSmallExp") return $ L.newQty m p
