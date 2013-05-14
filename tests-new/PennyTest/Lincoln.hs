@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module PennyTest.Lincoln where
 
@@ -11,12 +12,15 @@ import qualified Data.Time as T
 import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.Gen as QG
 import qualified Test.QuickCheck.Property as QCP
+import qualified Test.QuickCheck.All as A
 import Test.QuickCheck (Gen, Arbitrary, arbitrary, (==>))
 import qualified Penny.Lincoln as L
 import Penny.Lincoln.Equivalent ((==~))
 import Data.Text (Text)
 import qualified Data.Text as X
 import System.Random.Shuffle (shuffle')
+import Test.Framework (Test, testGroup)
+import Test.Framework.Providers.QuickCheck2 (testProperty)
 
 --
 -- # Qty
@@ -125,14 +129,19 @@ validQty :: L.Qty -> Bool
 validQty q = L.mantissa q > 0 && L.places q >= 0
 
 
+maxSizeList :: Arbitrary a => Int -> Gen [a]
+maxSizeList i = Q.sized $ \s -> do
+  len <- Q.choose (0, min s i)
+  Q.vector len
+
 -- | Generates a group of balanced quantities.
 genBalQtys :: Gen (L.Qty, [L.Qty], [L.Qty])
-genBalQtys = do
+genBalQtys = maxSize 5 $ do
   total <- arbitrary
   group1alloc1 <- arbitrary
-  group1allocRest <- arbitrary
+  group1allocRest <- maxSizeList 1
   group2alloc1 <- arbitrary
-  group2allocRest <- arbitrary
+  group2allocRest <- maxSizeList 1
   let (g1r1, g1rs) = L.allocate total (group1alloc1, group1allocRest)
       (g2r1, g2rs) = L.allocate total (group2alloc1, group2allocRest)
   return $ (total, g1r1 : g1rs, g2r1 : g2rs)
@@ -301,9 +310,13 @@ instance Arbitrary L.DateTime where
 -- # Open
 --
 
+maxSize :: Int -> Gen a -> Gen a
+maxSize i g = Q.sized $ \s -> Q.resize (min i s) g
+
 -- | Generates a Text from valid Unicode chars.
 genText :: Gen Text
-genText = fmap X.pack $ Q.oneof [ Q.listOf ascii, Q.listOf rest ]
+genText = maxSize 5
+  $ fmap X.pack $ Q.oneof [ Q.listOf ascii, Q.listOf rest ]
   where
     ascii = Q.choose (toEnum 32, toEnum 126)
     rest = Q.suchThat (Q.choose (minBound, maxBound))
@@ -463,17 +476,25 @@ prop_balEntries
 prop_numViews :: L.Ents m -> Bool
 prop_numViews t = (length . L.views $ t) == (length . L.unEnts $ t)
 
--- | Generates unrestricted ents. Assumes 'genEntriesWithInfer'
--- works as it should ('prop_ents' tests this.)
+newtype NonRestricted a = NonRestricted
+  { unNonRestricted :: [(Maybe L.Entry, a)] }
+  deriving (Eq, Show)
+
+instance Arbitrary a => Arbitrary (NonRestricted a) where
+  arbitrary = do
+    ls <- genEntriesWithInfer
+    metas <- Q.vector (length ls)
+    let mkPair (en, inf) mt = case inf of
+          L.Inferred -> (Nothing, mt)
+          L.NotInferred -> (Just en, mt)
+    return . NonRestricted $ zipWith mkPair ls metas
+
 genNonRestricted :: Arbitrary a => Gen (L.Ents a)
-genNonRestricted = do
-  ls <- genEntriesWithInfer
-  metas <- Q.vector (length ls)
-  let mkPair (en, inf) mt = case inf of
-        L.Inferred -> (Nothing, mt)
-        L.NotInferred -> (Just en, mt)
-      args = zipWith mkPair ls metas
-  maybe (failMsg "genNonRestricted") return $ L.ents args
+genNonRestricted =
+  arbitrary
+  >>= maybe (failMsg "genNonRestricted") return
+      . L.ents
+      . unNonRestricted
 
 instance Arbitrary a => Arbitrary (L.Ents a) where
   arbitrary = Q.oneof [ genNonRestricted
@@ -499,39 +520,43 @@ prop_inferred t =
   (length . filter (== L.Inferred) . map L.inferred . L.unEnts $ t)
   < 2
 
-newtype BalQtys = BalQtys { _unBalQtys :: ([B.Qty], [B.Qty]) }
+newtype BalQtys = BalQtys { _unBalQtys :: ([L.Qty], [L.Qty]) }
   deriving (Eq, Show)
-
-newtype BalEntries = BalEntries
-  { unBalEntries :: [B.Entry] }
-  deriving (Eq, Show)
-
-instance Arbitrary BalEntries where
-  arbitrary = fmap BalEntries genBalEntries
 
 -- | 'ents' makes ents as it should. Also tests whether
 -- the 'Arbitrary' instance of 'NonRestricted' is behaving as it
 -- should.
 
-prop_ents :: Q.Property
-prop_ents (NonRestricted ls) = isJust $ ents ls
+prop_ents :: NonRestricted a -> Bool
+prop_ents (NonRestricted ls) = isJust $ L.ents ls
 
 -- | NonRestricted makes ents with two postings
-prop_entsTwoPostings :: NonRestricted -> Bool
-prop_entsTwoPostings (NonRestricted ls) = case ents ls of
+prop_entsTwoPostings :: NonRestricted a -> Bool
+prop_entsTwoPostings (NonRestricted ls) = case L.ents ls of
   Nothing -> False
   Just t -> prop_twoPostings t
 
 -- | 'rEnts' behaves as it should
 
 prop_rEnts
-  :: B.Commodity
-  -> B.DrCr
-  -> (B.Qty, QC.A)
-  -> [(B.Qty, QC.A)]
-  -> QC.A
+  :: L.Commodity
+  -> L.DrCr
+  -> (L.Qty, a)
+  -> [(L.Qty, a)]
+  -> a
   -> Bool
 prop_rEnts c dc pr ls mt =
-  let t = rEnts c dc pr ls mt
+  let t = L.rEnts c dc pr ls mt
   in prop_twoPostings t && prop_balanced t && prop_inferred t
 
+qtyTests :: Test
+qtyTests = testGroup "Qty" []
+
+runTests = $(A.quickCheckAll)
+
+{-
+entTests :: Test
+entTests = testGroup "Ents"
+  [ testProperty "prop_rEnts" prop_rEnts
+  ]
+-}
