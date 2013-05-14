@@ -1,9 +1,10 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, GeneralizedNewtypeDeriving #-}
 
 module PennyTest.Lincoln where
 
-import Control.Monad (liftM2, liftM5, replicateM, guard)
+import Control.Applicative ((<$>), (<*>))
+import Control.Monad (liftM2, liftM5, liftM4, liftM3, replicateM, guard)
 import Data.List (foldl1')
 import Data.Maybe (isJust, isNothing, catMaybes)
 import qualified Data.Map as M
@@ -19,8 +20,6 @@ import Penny.Lincoln.Equivalent ((==~))
 import Data.Text (Text)
 import qualified Data.Text as X
 import System.Random.Shuffle (shuffle')
-import Test.Framework (Test, testGroup)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
 
 --
 -- # Qty
@@ -34,7 +33,7 @@ failMsg s = fail $ s ++ ": generation failed"
 -- mantissas are not a problem, but big exponents quickly make the
 -- tests practically un-runnable.
 genReasonableExp :: Gen L.Qty
-genReasonableExp = Q.sized $ \s -> do
+genReasonableExp = do
   m <- Q.suchThat Q.arbitrarySizedBoundedIntegral (> (0 :: Int))
   p <- Q.choose (0 :: Int, 5)
   maybe (failMsg "genSmallSized") return
@@ -90,7 +89,7 @@ genOne = do
 
 -- | Chooses one of 'genSized' or 'genRangeInt' or 'genSmallExp'.
 instance Arbitrary L.Qty where
-  arbitrary = Q.oneof [ genSmallSized, genSmallExp ]
+  arbitrary = Q.oneof [ genReasonableExp ]
 
 -- | Mantissas are always greater than zero.
 prop_mantissa :: L.Qty -> Bool
@@ -533,8 +532,64 @@ prop_rEnts c dc pr ls mt =
   let t = L.rEnts c dc pr ls mt
   in prop_twoPostings t && prop_balanced t && prop_inferred t
 
-qtyTests :: Test
-qtyTests = testGroup "Qty" []
-
+runTests :: IO Bool
 runTests = $(A.forAllProperties) (Q.quickCheckWithResult Q.stdArgs)
 
+--
+-- # Price
+--
+
+instance Arbitrary L.From
+instance Arbitrary L.To
+instance Arbitrary L.CountPerUnit
+
+instance Arbitrary L.Price where
+  arbitrary = do
+    (f, t) <- Q.suchThat arbitrary (\(f, t) -> L.unFrom f /= L.unTo t)
+    c <- arbitrary
+    maybe (failMsg "price") return $ L.newPrice f t c
+
+-- | All Prices have from and to commodities that are different.
+prop_price :: L.Price -> Bool
+prop_price p = (L.unFrom . L.from $ p)
+               /= (L.unTo . L.to $ p)
+
+-- | newPrice succeeds if From and To are different
+prop_newPriceDifferent :: L.CountPerUnit -> Q.Property
+prop_newPriceDifferent cpu =
+  Q.forAll (Q.suchThat arbitrary (\(L.From f, L.To t) -> f /= t)) $
+  \(f, t) -> isJust (L.newPrice f t cpu)
+
+-- | newPrice fails if From and To are the same
+prop_newPriceSame :: L.From -> L.CountPerUnit -> Bool
+prop_newPriceSame (L.From fr) cpu =
+  isNothing (L.newPrice (L.From fr) (L.To fr) cpu)
+
+--
+-- # Bits
+--
+instance Arbitrary L.PricePoint where
+  arbitrary = liftM5 L.PricePoint arbitrary arbitrary arbitrary
+              arbitrary arbitrary
+
+instance Arbitrary L.TopLineData where
+  arbitrary = liftM3 L.TopLineData arbitrary arbitrary arbitrary
+
+instance Arbitrary L.TopLineCore where
+  arbitrary = liftM5 L.TopLineCore arbitrary arbitrary arbitrary
+              arbitrary arbitrary
+
+instance Arbitrary L.TopLineFileMeta where
+  arbitrary = liftM4 L.TopLineFileMeta arbitrary arbitrary arbitrary
+              arbitrary
+
+instance Arbitrary L.PostingCore where
+  arbitrary = L.PostingCore <$> arbitrary <*> arbitrary <*> arbitrary
+              <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+              <*> arbitrary
+
+instance Arbitrary L.PostingFileMeta where
+  arbitrary = liftM2 L.PostingFileMeta arbitrary arbitrary
+
+instance Arbitrary L.PostingData where
+  arbitrary = liftM3 L.PostingData arbitrary arbitrary arbitrary

@@ -12,12 +12,6 @@ import qualified Data.Foldable as Fdbl
 import GHC.Generics (Generic)
 import Data.Binary (Binary)
 
-#ifdef test
-import Test.QuickCheck (Arbitrary, arbitrary)
-import qualified Test.QuickCheck as QC
-import Control.Monad (liftM2)
-#endif
-
 data SerialSt = SerialSt
   { nextFwd :: Int
   , nextBack :: Int
@@ -28,12 +22,6 @@ data Serial = Serial
   { forward :: Int
   , backward :: Int
   } deriving (Eq, Show, Ord, Generic)
-
-#ifdef test
-instance Arbitrary Serial where
-  arbitrary = liftM2 Serial QC.arbitrarySizedBoundedIntegral
-                            QC.arbitrarySizedBoundedIntegral
-#endif
 
 instance Binary Serial
 

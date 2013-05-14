@@ -19,23 +19,14 @@ module Penny.Lincoln.Bits
   , PostingFileMeta(..)
   , PostingData(..)
   , emptyPostingData
-
-#ifdef test
-  , tests
-#endif
   ) where
 
 
 import Data.Monoid (mconcat)
 import Penny.Lincoln.Bits.Open
 import Penny.Lincoln.Bits.DateTime
-#ifdef test
-import Penny.Lincoln.Bits.Qty hiding (tests)
-import Penny.Lincoln.Bits.Price hiding (tests)
-#else
 import Penny.Lincoln.Bits.Qty
 import Penny.Lincoln.Bits.Price
-#endif
 
 import qualified Penny.Lincoln.Bits.Open as O
 import qualified Penny.Lincoln.Bits.DateTime as DT
@@ -45,26 +36,12 @@ import Penny.Lincoln.Equivalent ((==~))
 import qualified Data.Binary as B
 import GHC.Generics (Generic)
 
-#ifdef test
-import Control.Monad (liftM4, liftM2, liftM3, liftM5)
-import Control.Applicative ((<$>), (<*>))
-import Test.QuickCheck (Arbitrary, arbitrary)
-import Test.Framework (Test, testGroup)
-import qualified Penny.Lincoln.Bits.Qty as Q
-#endif
-
 data PricePoint = PricePoint { dateTime :: DT.DateTime
                              , price :: Pr.Price
                              , ppSide :: Maybe O.Side
                              , ppSpaceBetween :: Maybe O.SpaceBetween
                              , priceLine :: Maybe O.PriceLine }
                   deriving (Eq, Show, Generic)
-
-#ifdef test
-instance Arbitrary PricePoint where
-  arbitrary = liftM5 PricePoint arbitrary arbitrary arbitrary
-                     arbitrary arbitrary
-#endif
 
 instance B.Binary PricePoint
 
@@ -88,11 +65,6 @@ emptyTopLineData :: DT.DateTime -> TopLineData
 emptyTopLineData dt = TopLineData (emptyTopLineCore dt) Nothing Nothing
 
 instance B.Binary TopLineData
-
-#ifdef test
-instance Arbitrary TopLineData where
-  arbitrary = liftM3 TopLineData arbitrary arbitrary arbitrary
-#endif
 
 -- | Every TopLine has this data.
 data TopLineCore = TopLineCore
@@ -126,12 +98,6 @@ emptyTopLineCore dt = TopLineCore dt Nothing Nothing Nothing Nothing
 
 instance B.Binary TopLineCore
 
-#ifdef test
-instance Arbitrary TopLineCore where
-  arbitrary = liftM5 TopLineCore arbitrary arbitrary arbitrary
-              arbitrary arbitrary
-#endif
-
 -- | TopLines from files have this metadata.
 data TopLineFileMeta = TopLineFileMeta
   { tFilename :: O.Filename
@@ -142,12 +108,6 @@ data TopLineFileMeta = TopLineFileMeta
 
 instance B.Binary TopLineFileMeta
 
-
-#ifdef test
-instance Arbitrary TopLineFileMeta where
-  arbitrary = liftM4 TopLineFileMeta arbitrary arbitrary
-              arbitrary arbitrary
-#endif
 
 -- | All Postings have this data.
 data PostingCore = PostingCore
@@ -194,13 +154,6 @@ emptyPostingCore ac = PostingCore
 
 instance B.Binary PostingCore
 
-#ifdef test
-instance Arbitrary PostingCore where
-  arbitrary = PostingCore <$> arbitrary <*> arbitrary <*> arbitrary
-              <*> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
-              <*> arbitrary
-#endif
-
 -- | Postings from files have this additional data.
 data PostingFileMeta = PostingFileMeta
   { pPostingLine :: O.PostingLine
@@ -208,11 +161,6 @@ data PostingFileMeta = PostingFileMeta
   } deriving (Eq, Show, Generic)
 
 instance B.Binary PostingFileMeta
-
-#ifdef test
-instance Arbitrary PostingFileMeta where
-  arbitrary = liftM2 PostingFileMeta arbitrary arbitrary
-#endif
 
 -- | All the data that a Posting might have.
 data PostingData = PostingData
@@ -229,16 +177,4 @@ emptyPostingData ac = PostingData
   }
 
 instance B.Binary PostingData
-
-#ifdef test
-instance Arbitrary PostingData where
-  arbitrary = liftM3 PostingData arbitrary arbitrary arbitrary
-
-tests :: Test
-tests = testGroup "Penny.Lincoln.Bits"
-  [ Q.tests
-  , Pr.tests
-  ]
-
-#endif
 
