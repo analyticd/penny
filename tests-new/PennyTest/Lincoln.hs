@@ -29,38 +29,29 @@ import Test.Framework.Providers.QuickCheck2 (testProperty)
 failMsg :: Monad m => String -> m a
 failMsg s = fail $ s ++ ": generation failed"
 
--- | Generates Qty where the mantissa and the exponent depend on the
--- size parameter.
-genSized :: Gen L.Qty
-genSized = do
-  m <- Q.suchThat Q.arbitrarySizedIntegral (> (0 :: Integer))
-  p <- Q.suchThat Q.arbitrarySizedIntegral (>= (0 :: Integer))
-  maybe (failMsg "genSized") return $ L.newQty m p
-
--- | Generates Qty where the mantissa and exponent are over the range
--- of Int, but small mantissas and exponents are generated more than
--- large ones.
-genRangeInt :: Gen L.Qty
-genRangeInt = do
+-- | Generates Qty with the exponent restricted to a reasonable
+-- size. Currently this means it is between 0 and 5, inclusive. Big
+-- mantissas are not a problem, but big exponents quickly make the
+-- tests practically un-runnable.
+genReasonableExp :: Gen L.Qty
+genReasonableExp = Q.sized $ \s -> do
   m <- Q.suchThat Q.arbitrarySizedBoundedIntegral (> (0 :: Int))
-  p <- Q.suchThat Q.arbitrarySizedBoundedIntegral (>= (0 :: Int))
-  maybe (failMsg "genRangeInt") return
+  p <- Q.choose (0 :: Int, 5)
+  maybe (failMsg "genSmallSized") return
     $ L.newQty (fromIntegral m) (fromIntegral p)
 
--- | Generates Qty with small exponents.
-genSmallExp :: Gen L.Qty
-genSmallExp = do
-  m <- (fmap fromIntegral $ Q.suchThat Q.arbitrarySizedIntegral
-                                  (> (0 :: Int)))
-  p <- (fmap fromIntegral $ Q.choose (0, 4 :: Int))
-  maybe (failMsg "genSmallExp") return $ L.newQty m p
+maxExponent :: Integer
+maxExponent = 5
+
+genExponent :: Gen Integer
+genExponent = Q.choose (0, maxExponent)
 
 -- | Mutates a Qty so that it is equivalent, but possibly with a
 -- different mantissa and exponent.
 genEquivalent :: L.Qty -> Gen L.Qty
 genEquivalent q = do
   let (m, p) = (L.mantissa q, L.places q)
-  expo <- Q.suchThat Q.arbitrarySizedBoundedIntegral (>= (0 :: Int))
+  expo <- genExponent
   let m' = m * (10 ^ expo)
       p' = p + (fromIntegral expo)
   maybe (failMsg "genEquivalent") return $ L.newQty m' p'
@@ -74,7 +65,7 @@ genMutate q = do
     Q.suchThat (liftM2 (,) arbitrary arbitrary)
     (/= (False, False))
   m' <- if changeMantissa then mutateAtLeast1 m else return m
-  p' <- if changeExp then mutateAtLeast0 p else return p
+  p' <- if changeExp then mutateExponent p else return p
   maybe (failMsg "genMutate") return $ L.newQty m' p'
 
 -- | Mutates an Integer.  The result is always at least one.
@@ -88,25 +79,18 @@ mutateAtLeast1 i =
            else (\r -> r >= 1 && r /= (fromIntegral i))
 
 -- | Mutates an Integer. The result is always at least zero.
-mutateAtLeast0 :: Integer -> Gen Integer
-mutateAtLeast0 i =
-  fmap fromIntegral $ Q.suchThat Q.arbitrarySizedBoundedIntegral pdct
-  where
-    pdct = if i > (fromIntegral (maxBound :: Int))
-              || i < (fromIntegral (minBound :: Int))
-           then (>= (0 :: Int))
-           else (\r -> r >= 0 && r /= (fromIntegral i))
+mutateExponent :: Integer -> Gen Integer
+mutateExponent i = Q.suchThat (Q.choose (0, maxExponent)) (/= i)
 
 -- | Generates one, with different exponents.
 genOne :: Gen L.Qty
 genOne = do
-  p <- fmap fromIntegral $ Q.choose (0, 100 :: Int)
+  p <- Q.choose (0, maxExponent)
   maybe (failMsg "genOne") return $ L.newQty (1 * 10 ^ p) p
 
 -- | Chooses one of 'genSized' or 'genRangeInt' or 'genSmallExp'.
 instance Arbitrary L.Qty where
-  arbitrary = Q.oneof [ genSized
-                      , genRangeInt, genSmallExp ]
+  arbitrary = Q.oneof [ genSmallSized, genSmallExp ]
 
 -- | Mantissas are always greater than zero.
 prop_mantissa :: L.Qty -> Bool
@@ -139,9 +123,9 @@ genBalQtys :: Gen (L.Qty, [L.Qty], [L.Qty])
 genBalQtys = maxSize 5 $ do
   total <- arbitrary
   group1alloc1 <- arbitrary
-  group1allocRest <- maxSizeList 1
+  group1allocRest <- arbitrary
   group2alloc1 <- arbitrary
-  group2allocRest <- maxSizeList 1
+  group2allocRest <- arbitrary
   let (g1r1, g1rs) = L.allocate total (group1alloc1, group1allocRest)
       (g2r1, g2rs) = L.allocate total (group2alloc1, group2allocRest)
   return $ (total, g1r1 : g1rs, g2r1 : g2rs)
@@ -552,11 +536,5 @@ prop_rEnts c dc pr ls mt =
 qtyTests :: Test
 qtyTests = testGroup "Qty" []
 
-runTests = $(A.quickCheckAll)
+runTests = $(A.forAllProperties) (Q.quickCheckWithResult Q.stdArgs)
 
-{-
-entTests :: Test
-entTests = testGroup "Ents"
-  [ testProperty "prop_rEnts" prop_rEnts
-  ]
--}

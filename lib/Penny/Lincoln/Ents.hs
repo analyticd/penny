@@ -52,11 +52,6 @@ module Penny.Lincoln.Ents
   , transactionToPostings
   , views
   , unrollSnd
-
-#ifdef test
-  , tests
-#endif
-
   ) where
 
 import Control.Applicative
@@ -73,55 +68,6 @@ import Data.List (foldl', unfoldr, sortBy)
 import Data.Maybe (isNothing, catMaybes)
 import qualified Data.Traversable as Tr
 import qualified Data.Foldable as Fdbl
-
-#ifdef test
-import Control.Monad (replicateM, liftM5)
-import Data.Maybe (isJust)
-import qualified Test.QuickCheck as QC
-import Test.QuickCheck (Gen, Arbitrary, arbitrary, (==>))
-import qualified Test.QuickCheck.Gen as Gen
-import qualified Test.QuickCheck.Poly as QC
-import qualified System.Random.Shuffle as Shuffle
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.Framework (Test, testGroup)
-import qualified Data.Map as M
-import qualified Penny.Lincoln.Bits.Qty as Qty
-
--- Test.Framework.TH is having problems with some of the polymorphic
--- properties, so stick with the manual tests until this is worked
--- out.
-
-tests :: Test
-tests = testGroup "Penny.Lincoln.Ents"
-  [ testProperty "ents have at least two postings"
-    $ QC.mapSize (min 10) (prop_twoPostings :: Ents QC.A -> Bool)
-
-  , testProperty "genBalEntries generates balanced groups"
-    $ QC.mapSize (min 10) prop_balEntries
-
-  , testProperty "ents are always balanced"
-    $ QC.mapSize (min 10) (prop_balanced :: Ents QC.A -> Bool)
-
-  , testProperty "ents have no more than one inferred posting"
-    $ QC.mapSize (min 10) (prop_inferred :: Ents QC.A -> Bool)
-
-  , testProperty "genEntriesWithInfer creates inferable data"
-    $ QC.mapSize (min 10) prop_genEntries
-
-  , testProperty "ents function and NonRestricted behave properly"
-    $ QC.mapSize (min 10) prop_ents
-
-  , testProperty "NonRestricted makes two postings"
-    $ QC.mapSize (min 10) prop_entsTwoPostings
-
-  , testProperty "rEnts behaves as it should"
-    $ QC.mapSize (min 10) prop_rEnts
-
-  , testProperty "views gives as many views as there are postings"
-    $ QC.mapSize (min 10) (prop_numViews :: Ents QC.A -> Bool)
-  ]
-
-#endif
 
 -- | An Ent is inferred if the user did not supply an entry for it and
 -- Penny was able to infer the correct entry. Otherwise it is not
@@ -204,10 +150,6 @@ tupleEnts :: Ents m -> (Ent m, Ent m, [Ent m])
 tupleEnts (Ents ls) = case ls of
   t1:t2:ts -> (t1, t2, ts)
   _ -> error "tupleEnts: ents does not have two ents"
-
-#ifdef test
-
-#endif
 
 instance Binary m => Binary (Ents m)
 
