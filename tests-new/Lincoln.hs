@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE TemplateHaskell, GeneralizedNewtypeDeriving #-}
 
-module PennyTest.Lincoln where
+module Lincoln where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Monad (liftM2, liftM5, liftM4, liftM3, replicateM, guard)
@@ -536,9 +536,12 @@ prop_rEnts c dc pr ls mt =
 -- # Price
 --
 
-instance Arbitrary L.From
-instance Arbitrary L.To
-instance Arbitrary L.CountPerUnit
+instance Arbitrary L.From where
+  arbitrary = fmap L.From arbitrary
+instance Arbitrary L.To where
+  arbitrary = fmap L.To arbitrary
+instance Arbitrary L.CountPerUnit where
+  arbitrary = fmap L.CountPerUnit arbitrary
 
 instance Arbitrary L.Price where
   arbitrary = do
