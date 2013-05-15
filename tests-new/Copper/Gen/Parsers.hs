@@ -5,7 +5,7 @@ import Control.Arrow (first)
 import Control.Monad.Trans.Class (lift)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List ( genericSplitAt, genericReplicate
-                 , nubBy )
+                 , nubBy, unfoldr)
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
 import qualified Data.List.NonEmpty as NE
@@ -174,107 +174,56 @@ uniqueCmdtys = G.sized $ \s -> do
 -- * Quantities
 --
 
-genBalQtys :: GenT ([(L.Qty, X.Text)], [(L.Qty, X.Text)])
-genBalQtys = do
-  origQtys <- listOf1 (qtyWithRendering TQ.anyGen)
-  let tot = foldl1 L.add . map fst $ origQtys
-  (v1:vr) <- listOf1 (TQ.mkQtyG TQ.anyGen)
-  let newQtys = NE.toList $ L.allocate tot (v1 :| vr)
-  newRenders <- mapM renderQtyWithThinSpaces newQtys
-  return (origQtys, zip newQtys newRenders)
 
+type Mantissa = Integer
+type Places = Integer
 
--- | Given the digits that are before and after the decimal point,
--- generate a base rendering. If q is a qty, then show q will always
--- return the same string. However, when being parsed from a file, a
--- text representation of that Qty might have small variations. For
--- example, 0.1 might also be entered as .1, or 123 might also be
--- entered as 123. (note that 123 cannot be entered as 123.0, as these
--- are the same number.) There might also be leading zeroes, as these
--- do not affect the number's final value (trailing zeroes do.) This
--- function returns a random generation that takes these variations
--- into account.
---
--- Returned is a pair. The first element is what to show to the left
--- of the decimal point. The second element is a Maybe, which is
--- Nothing if there is no decimal point and nothing after it, a Just
--- (empty string) if there is a decimal point, but nothing to show
--- after it, or a Just non-empty string if there is a decimal point
--- and something to show after it.
---
---  There will be no digit grouping.
-baseRender
-  :: (String, String)
-  -> Ex.ExceptionalT P.Result Gen (String, Maybe String)
-baseRender (l, r) = do
-  l' <- lift $ Q.sized $ \s -> do
-          n <- G.oneof [return 0, G.choose (0, s)]
-          return (replicate n '0' ++ l)
-  r' <- case r of
-    "" -> do
-      showDot <- lift Q.arbitrary
-      return $ if showDot then Just "" else Nothing
-    _ -> return . Just $ r
-  case (l, r) of
-    ("", "") -> Ex.throwT P.failed { P.reason = e }
-      where e = "quantity rendering has no digits."
-    _ -> return $ (l', r')
+-- | Renders a Qty. There is always a radix point. There is no digit
+-- grouping, and no leading zero if the number is less than 1.
+baseQtyRender :: L.Qty -> String
+baseQtyRender q = reverse $ unfoldr unfolder (L.mantissa q) (L.places q)
 
+-- | Randomly intersperses a quantity rendering with thin spaces. Does
+-- not always insert thin spaces at all.
+addThinSpaces :: String -> Gen String
+addThinSpaces s = do
+  doAdd <- arbitrary
+  if doAdd
+    then interleave (G.frequency [(4, Nothing), (1, Just '\x2009')]) s
+    else return s
 
--- | Given a Qty, return the digits that are before and after the
--- decimal point.
-qtyDigits :: L.Qty -> (String, String)
-qtyDigits q =
-  let (m, p) = (L.mantissa q, L.places q)
-      nd = TQ.numOfDigits m
-      (l, r) = genericSplitAt (nd - p) (show m)
-  in if p > nd
-     then (l, genericReplicate (p - nd) '0' ++ r)
-     else (l, r)
+-- | Sometimes strips off a trailing period from a Qty rendering, if
+-- there is one.
+stripLastPeriod :: String -> Gen String
+stripLastPeriod s
+  | last s == '.' = do
+      doStrip <- arbitrary
+      return $ if doStrip then init s else s
+  | otherwise = return s
 
+-- | Sometimes adds some leading zeroes to a Qty rendering.
+addLeadingZeroes :: String -> Gen String
+addLeadingZeroes s = do
+  doAdd <- arbitrary
+  ls <- if doAdd then Q.listOf1 (return '0') else return ""
+  return $ ls ++ s
 
--- | Randomly add some thin spaces to a string. Does not always add
--- thin spaces at all.
-addThinSpaces :: (String, Maybe String) -> Gen (String, Maybe String)
-addThinSpaces (s, ms) = do
-  addLeft <- Q.arbitrary
-  addRight <- Q.arbitrary
-  let genThin = G.elements [Nothing, Just '\x2009']
-  l <- if addLeft then interleave genThin s else return s
-  r <- case ms of
-    Nothing -> return Nothing
-    Just sr -> fmap Just $
-               if addRight then interleave genThin sr else return sr
-  return (l, r)
+unfolder :: (Mantissa, Places) -> Maybe (Char, (Mantissa, Places))
+unfolder (m, p)
+  | m <= 0 && p < 0 = Nothing
+  | p == 0 = Just ('.', (m, p - 1))
+  | m <= 0 = Just ('0', (m, p - 1))
+  | otherwise =
+      let (m', dig) = m `quotRem` 10
+      in Just (head . show $ dig, (m', p - 1))
 
-
-renderQty :: (String, Maybe String) -> X.Text
-renderQty (l, mr) = (pack l) `X.append` r
-  where
-    r = case mr of
-      Nothing -> X.empty
-      Just rn -> '.' `X.cons` (X.pack rn)
-
-renderQtyWithThinSpaces :: L.Qty -> GenT X.Text
-renderQtyWithThinSpaces q = do
-  let qd = qtyDigits q
-  baseR <- baseRender qd
-  withSpaces <- lift $ addThinSpaces baseR
-  return $ renderQty withSpaces
-
--- | Given a generator for a mantissa and an exponent, return a Qty
--- and a string that should parse to that Qty. Half of these strings
--- will have thin spaces included; half will not.
-qtyWithRendering
-  :: Gen (L.Mantissa, L.Places)
-  -> Ex.ExceptionalT P.Result Gen (L.Qty, X.Text)
-qtyWithRendering g = do
-  q <- TQ.mkQtyG g
-  x <- renderQtyWithThinSpaces q
-  return (q, x)
-
-quantity :: Ex.ExceptionalT P.Result Gen (L.Qty, X.Text)
-quantity = qtyWithRendering TQ.anyGen
+quantity :: Gen (L.Qty, X.Text)
+quantity = do
+  q <- arbitrary
+  let base = baseQtyRender q
+  rendered <- addThinSpaces base >>= stripLastPeriod
+              >>= addLeadingZeroes
+  return (q, X.pack rendered)
 
 --
 -- * Amounts
@@ -286,27 +235,25 @@ spaceBetween x = if X.null x then L.NoSpaceBetween else L.SpaceBetween
 leftCmdtyLvl1Amt
   :: QuotedLvl1Cmdty
   -> (L.Qty, X.Text)
-  -> Gen (L.Amount, X.Text)
+  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
 leftCmdtyLvl1Amt (QuotedLvl1Cmdty c xc) (q, xq) = do
   ws <- white
   let amt = L.Amount q c
-            (Just L.CommodityOnLeft) (Just (spaceBetween ws))
-  return (amt, X.concat [xc, ws, xq])
+  return ((amt, X.concat [xc, ws, xq]), spaceBetween ws)
 
 leftCmdtyLvl3Amt
   :: Lvl3Cmdty
   -> (L.Qty, X.Text)
-  -> Gen (L.Amount, X.Text)
+  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
 leftCmdtyLvl3Amt (Lvl3Cmdty c xc) (q, xq) = do
   ws <- white
-  let amt = L.Amount q c (Just L.CommodityOnLeft)
-            (Just (spaceBetween ws))
-  return (amt, X.concat [xc, ws, xq])
+  let amt = L.Amount q c
+  return ((amt, X.concat [xc, ws, xq]), spaceBetween ws)
 
 leftSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl3Cmdty
   -> (L.Qty, X.Text)
-  -> Gen (L.Amount, X.Text)
+  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
 leftSideCmdtyAmt c q = case c of
   Left l1 -> leftCmdtyLvl1Amt l1 q
   Right l3 -> leftCmdtyLvl3Amt l3 q
@@ -319,24 +266,25 @@ rightSideCmdty = G.oneof
 rightSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl2Cmdty
   -> (L.Qty, X.Text)
-  -> Gen (L.Amount, X.Text)
+  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
 rightSideCmdtyAmt cty (q, xq) = do
   ws <- white
   let (c, xc) = case cty of
         Left (QuotedLvl1Cmdty ct x) -> (ct, x)
         Right (Lvl2Cmdty ct x) -> (ct, x)
       xr = X.concat [xq, ws, xc]
-      amt = L.Amount q c (Just L.CommodityOnRight)
-            (Just (spaceBetween ws))
-  return (amt, xr)
+      amt = L.Amount q c
+  return ((amt, xr), spaceBetween ws)
 
 
 amount
   :: Cmdty
   -> (L.Qty, X.Text)
-  -> Gen (L.Amount, X.Text)
+  -> Gen ((L.Amount, X.Text), L.SpaceBetween, L.Side)
 amount c q = case c of
-  L1 l1 -> G.oneof [ leftSideCmdtyAmt (Left l1) q
+  L1 l1 -> G.oneof
+    [ fmap (\(p, s) -> (p, 
+G.oneof [ leftSideCmdtyAmt (Left l1) q
                    , rightSideCmdtyAmt (Left l1) q ]
   L2 l2 -> rightSideCmdtyAmt (Right l2) q
   L3 l3 -> leftSideCmdtyAmt (Right l3) q
