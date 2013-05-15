@@ -24,6 +24,7 @@ import qualified Test.QuickCheck.Gen as G
 import Test.QuickCheck.Gen (Gen)
 import qualified Test.QuickCheck.Property as P
 import qualified Test.QuickCheck as Q
+import Test.QuickCheck (arbitrary)
 
 --
 -- * Helpers
@@ -181,7 +182,7 @@ type Places = Integer
 -- | Renders a Qty. There is always a radix point. There is no digit
 -- grouping, and no leading zero if the number is less than 1.
 baseQtyRender :: L.Qty -> String
-baseQtyRender q = reverse $ unfoldr unfolder (L.mantissa q) (L.places q)
+baseQtyRender q = reverse $ unfoldr unfolder ((L.mantissa q), (L.places q))
 
 -- | Randomly intersperses a quantity rendering with thin spaces. Does
 -- not always insert thin spaces at all.
@@ -189,7 +190,8 @@ addThinSpaces :: String -> Gen String
 addThinSpaces s = do
   doAdd <- arbitrary
   if doAdd
-    then interleave (G.frequency [(4, Nothing), (1, Just '\x2009')]) s
+    then interleave (G.frequency [ (4, return Nothing)
+                                 , (1, return $ Just '\x2009')]) s
     else return s
 
 -- | Sometimes strips off a trailing period from a Qty rendering, if
@@ -277,18 +279,23 @@ rightSideCmdtyAmt cty (q, xq) = do
   return ((amt, xr), spaceBetween ws)
 
 
+
+
 amount
   :: Cmdty
   -> (L.Qty, X.Text)
   -> Gen ((L.Amount, X.Text), L.SpaceBetween, L.Side)
-amount c q = case c of
-  L1 l1 -> G.oneof
-    [ fmap (\(p, s) -> (p, 
-G.oneof [ leftSideCmdtyAmt (Left l1) q
-                   , rightSideCmdtyAmt (Left l1) q ]
-  L2 l2 -> rightSideCmdtyAmt (Right l2) q
-  L3 l3 -> leftSideCmdtyAmt (Right l3) q
-
+amount c q =
+  let mkTrip sd (p, b) = (p, b, sd)
+  in case c of
+      L1 l1 -> G.oneof
+        [ fmap (mkTrip L.CommodityOnLeft) (leftSideCmdtyAmt (Left l1) q)
+        , fmap (mkTrip L.CommodityOnRight) (rightSideCmdtyAmt (Left l1) q)
+        ]
+      L2 l2 -> fmap (mkTrip L.CommodityOnRight)
+                    (rightSideCmdtyAmt (Right l2) q)
+      L3 l3 -> fmap (mkTrip L.CommodityOnLeft)
+                    (leftSideCmdtyAmt (Right l3) q)
 
 --
 -- * Comments
@@ -321,40 +328,43 @@ day = do
   i <- G.choose (1, 28)
   return (i, leadingZero i)
 
+throwMaybe :: Monad m => String -> Maybe a -> m a
+throwMaybe s = maybe (fail $ "could not generate " ++ s) return
 
-date :: Ex.ExceptionalT P.Result Gen (Time.Day, X.Text)
+date :: Gen (Time.Day, X.Text)
 date = do
-  (y, yTxt) <- lift year
-  (m, mTxt) <- lift month
-  (d, dTxt) <- lift day
+  (y, yTxt) <- year
+  (m, mTxt) <- month
+  (d, dTxt) <- day
   dt <- throwMaybe "date" $ Time.fromGregorianValid y m d
-  s1 <- lift T.dateSep
-  s2 <- lift T.dateSep
+  s1 <- T.dateSep
+  s2 <- T.dateSep
   let x = (yTxt `snoc` s1) `X.append` (mTxt `snoc` s2) `X.append` dTxt
   return (dt, x)
 
-hours :: Ex.ExceptionalT P.Result Gen (L.Hours, X.Text)
+
+hours :: Gen (L.Hours, X.Text)
 hours =  do
-  h <- lift $ G.choose (0, 23)
+  h <- G.choose (0, 23)
   hr <- throwMaybe "hours" (L.intToHours h)
   let x = leadingZero h
   return (hr, x)
 
-minutes :: Ex.ExceptionalT P.Result Gen (L.Minutes, X.Text)
+minutes :: Gen (L.Minutes, X.Text)
 minutes = do
-  m <- lift $ G.choose (0, 59)
+  m <- G.choose (0, 59)
   mi <- throwMaybe "minutes" (L.intToMinutes m)
   return (mi, ':' `cons` leadingZero m)
 
-seconds :: Ex.ExceptionalT P.Result Gen (L.Seconds, X.Text)
+seconds :: Gen (L.Seconds, X.Text)
 seconds = do
-  s <- lift $ G.choose (0, 59)
+  s <- G.choose (0, 59)
   let _types = s :: Int
   se <- throwMaybe "seconds" (L.intToSeconds (fromIntegral s))
   return (se, ':' `cons` leadingZero s)
 
-time :: Ex.ExceptionalT P.Result Gen
-        ((L.Hours, L.Minutes, Maybe L.Seconds), X.Text)
+{-
+time :: Gen ((L.Hours, L.Minutes, Maybe L.Seconds), X.Text)
 time = do
   (h, ht) <- hours
   (m, mt) <- minutes
@@ -762,3 +772,4 @@ ledger = f <$> lift white <*> (listOf item)
     f ws is = ( C.Ledger . map fst $ is
               , ws `X.append` (X.concat . map snd $ is))
 
+-}
