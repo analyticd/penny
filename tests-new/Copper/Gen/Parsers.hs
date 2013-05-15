@@ -30,6 +30,13 @@ import Test.QuickCheck (arbitrary)
 -- * Helpers
 --
 
+optional :: Gen (a, X.Text) -> Gen (Maybe a, X.Text)
+optional g = do
+  b <- arbitrary
+  if b
+    then fmap (first Just) g
+    else return (Nothing, X.empty)
+
 interleave :: Gen (Maybe a) -> [a] -> Gen [a]
 interleave g ls = case ls of
   [] -> return []
@@ -363,7 +370,7 @@ seconds = do
   se <- throwMaybe "seconds" (L.intToSeconds (fromIntegral s))
   return (se, ':' `cons` leadingZero s)
 
-{-
+
 time :: Gen ((L.Hours, L.Minutes, Maybe L.Seconds), X.Text)
 time = do
   (h, ht) <- hours
@@ -372,6 +379,7 @@ time = do
   let x = ht `X.append` mt `X.append` st
   return ((h, m, s), x)
 
+{-
 tzSign :: Gen (Int -> Int, X.Text)
 tzSign = do
   s <- Q.arbitrary
