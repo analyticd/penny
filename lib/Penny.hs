@@ -106,10 +106,6 @@ import qualified Penny.Zinc as Z
 import qualified Penny.Shield as S
 import qualified Text.Matchers as Mr
 
-#ifdef test
-import Test.Framework (Test, testGroup)
-#endif
-
 -- | This type contains settings for all the reports, as well as
 -- default settings for the global options. Some of these can be
 -- overridden on the command line.
@@ -457,10 +453,3 @@ convFields f = PF.Fields
   , PF.memo = fMemo f
   , PF.filename = fFilename f
   }
-
-#ifdef test
-tests :: Test
-tests = testGroup "Penny"
-  [ L.tests
-  ]
-#endif

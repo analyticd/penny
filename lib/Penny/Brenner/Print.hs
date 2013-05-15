@@ -31,7 +31,7 @@ mode mayFa = MA.Mode
   { MA.mName = "print"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = []
-  , MA.mPosArgs = ArgFile
+  , MA.mPosArgs = return . ArgFile
   , MA.mProcess = processor mayFa
   , MA.mHelp = help
   }

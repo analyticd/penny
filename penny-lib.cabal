@@ -46,7 +46,7 @@ Library
     , explicit-exception ==0.1.*
     , matchers ==0.6.*
     , monad-loops ==0.3.*
-    , multiarg ==0.14.*
+    , multiarg ==0.15.*
     , ofx ==0.2.*
     , old-locale ==1.0.*
     , parsec >= 3.1.2 && < 3.2
@@ -136,6 +136,8 @@ Library
   Other-modules:
       Paths_penny_lib
 
+  hs-source-dirs: lib
+
   if flag(incabal)
     cpp-options: -Dincabal
 
@@ -154,48 +156,21 @@ Library
 -- test modules that are not in the library, list them here.
 Executable penny-test
   Main-is: penny-test.hs
-  other-modules:
-      Penny.Copper.Gen.Parsers
-    , Penny.Copper.Gen.Terminals
+  hs-source-dirs: tests-new lib
   Build-depends:
       base ==4.*
-    , binary ==0.7.*
-    , bytestring ==0.10.*
-    , cereal ==0.3.*
-    , containers ==0.5.*
     , explicit-exception ==0.1.*
-    , matchers ==0.6.*
-    , monad-loops ==0.3.*
-    , multiarg ==0.14.*
-    , ofx ==0.2.*
-    , old-locale ==1.0.*
-    , parsec >= 3.1.2 && < 3.2
-    , pcre-light ==0.4.*
-    , prednote == 0.8.*
-    , pretty-show ==1.5.*
-    , rainbow ==0.2.*
-    , semigroups ==0.9.*
-    , split ==0.2.*
-    , strict ==0.3.*
-    , terminfo == 0.3.*
-    , text ==0.11.*
-    , time ==1.4.*
-    , transformers == 0.3.*
+    , multiarg ==0.15.*
 
     -- Test dependencies. test-framework has issues with newer versions,
     -- see
     -- https://github.com/batterseapower/test-framework/issues/34
     , QuickCheck ==2.5.*
-    , test-framework ==0.7.0
-    , test-framework-quickcheck2 ==0.3.0
-    , test-framework-th ==0.2.*
     , random-shuffle ==0.0.4
-
 
   if ! flag(test)
     buildable: False
 
-  cpp-options: -Dtest
   ghc-options: -Wall
 
 Flag debug

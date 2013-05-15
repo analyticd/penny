@@ -116,7 +116,7 @@ parseReport fmt o rt = (help o, makeMode)
       { MA.mName = "balance"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allSpecs
-      , MA.mPosArgs = Left
+      , MA.mPosArgs = return . Left
       , MA.mProcess = process chgrs fmt o rt fsf
       , MA.mHelp = const (help o)
       }

@@ -118,7 +118,7 @@ zincReport opts rt = (helpStr opts, md)
       { MA.mName = "postings"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = specs rt
-      , MA.mPosArgs = Left
+      , MA.mPosArgs = return . Left
       , MA.mProcess = process opts cs fty ch expr fsf
       , MA.mHelp = const (helpStr opts)
       }

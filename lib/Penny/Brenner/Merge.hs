@@ -32,7 +32,7 @@ mode maybeC = MA.Mode
   { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto)]
-  , MA.mPosArgs = APos
+  , MA.mPosArgs = return . APos
   , MA.mProcess = processor maybeC
   , MA.mHelp = help
   }

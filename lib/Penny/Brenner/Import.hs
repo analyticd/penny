@@ -32,7 +32,7 @@ mode mayFa = MA.Mode
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts =
       [ MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew) ]
-  , MA.mPosArgs = AFitFile
+  , MA.mPosArgs = return . AFitFile
   , MA.mProcess = processor mayFa
   , MA.mHelp = help
   }

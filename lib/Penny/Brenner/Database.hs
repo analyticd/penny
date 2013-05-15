@@ -23,7 +23,7 @@ mode mayFa = MA.Mode
   { MA.mName = "database"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [ ]
-  , MA.mPosArgs = ArgPos
+  , MA.mPosArgs = return . ArgPos
   , MA.mProcess = processor mayFa
   , MA.mHelp = help
   }

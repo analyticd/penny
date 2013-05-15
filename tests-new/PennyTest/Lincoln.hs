@@ -532,9 +532,6 @@ prop_rEnts c dc pr ls mt =
   let t = L.rEnts c dc pr ls mt
   in prop_twoPostings t && prop_balanced t && prop_inferred t
 
-runTests :: IO Bool
-runTests = $(A.forAllProperties) (Q.quickCheckWithResult Q.stdArgs)
-
 --
 -- # Price
 --
@@ -593,3 +590,10 @@ instance Arbitrary L.PostingFileMeta where
 
 instance Arbitrary L.PostingData where
   arbitrary = liftM3 L.PostingData arbitrary arbitrary arbitrary
+
+--
+-- # runTests
+--
+runTests :: (Q.Property -> IO Q.Result) -> IO Bool
+runTests = $(A.forAllProperties)
+

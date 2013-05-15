@@ -58,7 +58,7 @@ mode c = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [ ]
-  , MA.mPosArgs = APosArg
+  , MA.mPosArgs = return . APosArg
   , MA.mProcess = process c
   , MA.mHelp = help
   }

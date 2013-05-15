@@ -140,12 +140,12 @@ data Parsed = Parsed
   , p_ledgers :: [String]
   }
 
-parseBaseTime :: String -> Ex.Exceptional MA.OptArgError Time.UTCTime
+parseBaseTime :: String -> Ex.Exceptional MA.InputError Time.UTCTime
 parseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
   Left e -> Ex.throw (MA.ErrorMsg $ "could not parse date: " ++ show e)
   Right g -> return . L.toUTC $ g
 
-parseRegexp :: String -> Ex.Exceptional MA.OptArgError (TT.Name -> Bool)
+parseRegexp :: String -> Ex.Exceptional MA.InputError (TT.Name -> Bool)
 parseRegexp s = case M.pcre M.Sensitive (X.pack s) of
   Ex.Exception e -> Ex.throw . MA.ErrorMsg $
     "could not parse regular expression: " ++ X.unpack e
@@ -225,7 +225,7 @@ main ver getWc = do
   let wc = getWc rt
   parsed <- MA.simpleWithHelp (help wc) MA.Intersperse
          (fmap Left (Ly.version ver) : (map (fmap Right) allOpts))
-         (fmap Right parseArg)
+         (return . (fmap Right parseArg))
   let (showVers, fns) = partitionEithers parsed
   case showVers of
     [] -> return ()

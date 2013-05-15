@@ -169,7 +169,7 @@ cmdLineReport o rt = (help o, mkMode)
       { MA.mName = "convert"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allOptSpecs
-      , MA.mPosArgs = Left
+      , MA.mPosArgs = return . Left
       , MA.mProcess = process rt chgrs o fsf
       , MA.mHelp = const (help o)
       }
