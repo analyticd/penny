@@ -8,7 +8,7 @@ import Text.Parsec.Text (Parser)
 import Text.Parsec (many, many1, satisfy)
 import qualified Text.Parsec as P
 import qualified Text.Parsec.Pos as Pos
-import Control.Arrow (first, second)
+import Control.Applicative.Permutation (runPerms, maybeAtom)
 import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
                             (<|>), optional)
 import Control.Monad (replicateM, when)
@@ -331,53 +331,11 @@ topLine =
       where
         me = fmap (\(a, b) -> (b, a)) mayMe
 
-pairedMaybes
-  :: Parser (a, Maybe b)
-  -> Parser (Maybe a, b)
-  -> Parser (Maybe a, Maybe b)
-pairedMaybes p1 p2 =
-  (fmap (first Just) p1) <|> (fmap (second Just) p2)
-
-parsePair
-  :: Parser a
-  -> Parser b
-  -> Parser (Maybe a, Maybe b)
-parsePair a b = pairedMaybes aFirst bFirst
-  where
-    aFirst = (,) <$> a <* skipWhite <*> optional b
-    bFirst = flip (,) <$> b <* skipWhite <*> optional a
-
-parseTriple
-  :: Parser a
-  -> Parser b
-  -> Parser c
-  -> Parser (a, Maybe b, Maybe c)
-parseTriple a b c =
-  f
-  <$> a
-  <* skipWhite
-  <*> optional (parsePair b c)
-  where
-    f ra mayRbc = case mayRbc of
-      Nothing -> (ra, Nothing, Nothing)
-      Just (rb, rc) -> (ra, rb, rc)
-
-
-flagFirst :: Parser (L.Flag, Maybe L.Number, Maybe L.Payee)
-flagFirst = parseTriple flag number quotedLvl1Payee
-
-numberFirst :: Parser (L.Number, Maybe L.Flag, Maybe L.Payee)
-numberFirst = parseTriple number flag quotedLvl1Payee
-
-payeeFirst :: Parser (L.Payee, Maybe L.Flag, Maybe L.Number)
-payeeFirst = parseTriple quotedLvl1Payee flag number
-
 flagNumPayee :: Parser (Maybe L.Flag, Maybe L.Number, Maybe L.Payee)
-flagNumPayee =
-  ((\(f, n, p) -> (Just f, n, p)) <$> flagFirst)
-  <|> ((\(n, f, p) -> (f, Just n, p)) <$> numberFirst)
-  <|> ((\(p, f, n) -> (f, n, Just p)) <$> payeeFirst)
-
+flagNumPayee = runPerms
+  ( (,,) <$> maybeAtom (flag <* skipWhite)
+         <*> maybeAtom (number <* skipWhite)
+         <*> maybeAtom (quotedLvl1Payee <* skipWhite) )
 
 postingAcct :: Parser L.Account
 postingAcct = quotedLvl1Acct <|> lvl2Acct
