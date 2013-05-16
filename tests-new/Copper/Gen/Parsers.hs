@@ -234,6 +234,15 @@ quantity = do
               >>= addLeadingZeroes
   return (q, X.pack rendered)
 
+renderQty :: L.Qty -> Gen X.Text
+renderQty q =
+  let base = baseQtyRender q
+  in fmap X.pack $ addThinSpaces base >>= stripLastPeriod
+                   >>= addLeadingZeroes
+
+qtyWithRendering :: L.Qty -> Gen (L.Qty, X.Text)
+qtyWithRendering q = fmap (\x -> (q, x)) (renderQty q)
+
 --
 -- * Amounts
 --
@@ -379,7 +388,6 @@ time = do
   let x = ht `X.append` mt `X.append` st
   return ((h, m, s), x)
 
-{-
 tzSign :: Gen (Int -> Int, X.Text)
 tzSign = do
   s <- Q.arbitrary
@@ -392,27 +400,27 @@ tzNumber = do
   i <- G.choose (0, 840)
   return (i, X.justifyRight 4 '0' (pack . show $ i))
 
-timeZone :: Ex.ExceptionalT P.Result Gen (L.TimeZoneOffset, X.Text)
+timeZone :: Gen (L.TimeZoneOffset, X.Text)
 timeZone = do
-  (s, st) <- lift tzSign
-  (n, nt) <- lift tzNumber
+  (s, st) <- tzSign
+  (n, nt) <- tzNumber
   o <- throwMaybe "time zone" (L.minsToOffset (s n))
   return (o, st `X.append` nt)
 
 timeWithZone ::
-  Ex.ExceptionalT P.Result Gen
+  Gen
   ((L.Hours, L.Minutes, Maybe L.Seconds, Maybe L.TimeZoneOffset), X.Text)
 timeWithZone = do
   ((h, m, mays), xt) <- time
-  ws <- lift white
+  ws <- white
   (o, xo) <- optional timeZone
   let x = xt `X.append` ws `X.append` xo
   return ((h, m, mays, o), x)
 
-dateTime :: Ex.ExceptionalT P.Result Gen (L.DateTime, X.Text)
+dateTime :: Gen (L.DateTime, X.Text)
 dateTime = do
   (d, xd) <- date
-  w <- lift white
+  w <- white
   (t, xt) <- optional timeWithZone
   let ((h, m, s), tz) = case t of
         Nothing -> (L.midnight, L.noOffset)
@@ -439,19 +447,24 @@ drCr = G.oneof [debit, credit]
 -- * Entry
 --
 
-genEntryGroup :: Cmdty -> GenT [(L.Entry, X.Text)]
+genEntryGroup
+  :: Cmdty
+  -> Gen [((L.Entry, X.Text), L.SpaceBetween, L.Side)]
 genEntryGroup c = do
-  dr <- lift debit
-  cr <- lift credit
-  (dqs, cqs) <- genBalQtys
-  des <- lift $ mapM (entry c dr) dqs
-  ces <- lift $ mapM (entry c cr) cqs
+  dr <- debit
+  cr <- credit
+  (_, dq, cq) <- TL.genBalQtys
+  let rndr q = fmap (\x -> (q, x)) (renderQty q)
+  dqWithX <- mapM rndr dq
+  cqWithX <- mapM rndr cq
+  des <- mapM (entry c dr) dqWithX
+  ces <- mapM (entry c cr) cqWithX
   return $ des ++ ces
 
 
-genEntryGroups :: GenT [(L.Entry, X.Text)]
+genEntryGroups :: Gen [((L.Entry, X.Text), L.SpaceBetween, L.Side)]
 genEntryGroups = do
-  cs <- lift uniqueCmdtys
+  cs <- uniqueCmdtys
   fmap concat . mapM genEntryGroup $ cs
 
 
@@ -459,13 +472,12 @@ entry
   :: Cmdty
   -> (L.DrCr, X.Text)
   -> (L.Qty, X.Text)
-  -> Gen (L.Entry, X.Text)
+  -> Gen ((L.Entry, X.Text), L.SpaceBetween, L.Side)
 entry c (d, xd) q = f <$> white <*> amount c q
   where
-    f w (a, xa) = (L.Entry d a, x)
+    f w ((a, xa), sb, sd) = ((L.Entry d a, x), sb, sd)
       where
         x = X.concat [xd, w, xa]
-
 --
 -- * Flag
 --
@@ -536,6 +548,7 @@ lvl2Payee = do
 -- * Price
 --
 
+
 fromCmdty
   :: Either QuotedLvl1Cmdty Lvl2Cmdty
   -> (L.From, X.Text)
@@ -544,23 +557,25 @@ fromCmdty e = case e of
   Right (Lvl2Cmdty c x) -> (L.From c, x)
 
 
-price :: GenT (L.PricePoint, X.Text)
+
+price :: Gen (L.PricePoint, X.Text)
 price = do
-  atSign <- lift T.atSign
-  wsAt <- lift white
-  fr <- lift genCmdty
+  atSign <- T.atSign
+  wsAt <- white
+  fr <- genCmdty
   (dt, xdt) <- dateTime
-  ws1 <- lift white
+  ws1 <- white
   let (fc, xfc) = unwrapCmdty fr
-  ws2 <- fmap pack (lift $ G.listOf1 T.white)
-  q <- qtyWithRendering TQ.anyGen
+  ws2 <- fmap pack (G.listOf1 T.white)
+  qty <- arbitrary
+  q <- qtyWithRendering qty
   let pdct x = unwrapCmdty x /= unwrapCmdty fr
-  toCmdty <- suchThatMaybe (lift genCmdty) pdct
-  (L.Amount toQ t sd sb, xam) <- lift $ amount toCmdty q
+  toCmdty <- Q.suchThat genCmdty pdct
+  (((L.Amount toQ t), xam), sb, sd) <- amount toCmdty q
   let (to, cpu) = (L.To t, L.CountPerUnit toQ)
   p <- throwMaybe "price" (L.newPrice (L.From fc) to cpu)
-  ws3 <- lift white
-  let pp = L.PricePoint dt p sd sb Nothing
+  ws3 <- white
+  let pp = L.PricePoint dt p (Just sd) (Just sb) Nothing
       x = X.concat [ X.singleton atSign, wsAt, xdt, ws1, xfc,
                      ws2, xam, X.singleton '\n', ws3]
   return (pp, x)
@@ -588,22 +603,22 @@ topLinePayee :: Gen (L.Payee, X.Text)
 topLinePayee = G.oneof [quotedLvl1Payee, lvl2Payee]
 
 topLineFlagNum :: Gen ((Maybe L.Flag, Maybe L.Number), X.Text)
-topLineFlagNum = f <$> optionalG flag <*> white <*> optionalG number
+topLineFlagNum = f <$> optional flag <*> white <*> optional number
   where
     f (fl, xfl) ws (nu, xnu) = ((fl, nu), X.concat [xfl, ws, xnu])
 
 
-topLine :: GenT (U.TopLine, X.Text)
-topLine = do
-  (me, xme) <- optional (lift transactionMemo)
+
+topLineCore :: Gen (L.TopLineCore, X.Text)
+topLineCore = do
+  (me, xme) <- optional transactionMemo
   (dt, xdt) <- dateTime
-  w1 <- lift white
-  ((fl, nu), xfn) <- lift topLineFlagNum
-  w2 <- lift white
-  (pa, xp) <- optional (lift topLinePayee)
-  w3 <- lift white
-  let tl = U.TopLine dt fl nu pa me Nothing Nothing Nothing
-           Nothing Nothing
+  w1 <- white
+  ((fl, nu), xfn) <- topLineFlagNum
+  w2 <- white
+  (pa, xp) <- optional topLinePayee
+  w3 <- white
+  let tl = L.TopLineCore dt nu fl pa me
       x = X.concat [xme, xdt, w1, xfn, w2, xp, X.singleton '\n', w3]
   return (tl, x)
 
@@ -620,11 +635,11 @@ genPair ga gb = do
   w <- white
   let aFirst = do
         (a, xa) <- ga
-        (b, xb) <- optionalG gb
+        (b, xb) <- optional gb
         return ((Just a, b), X.concat [xa, w, xb])
       bFirst = do
         (b, xb) <- gb
-        (a, xa) <- optionalG ga
+        (a, xa) <- optional ga
         return ((a, Just b), X.concat [xb, w, xa])
   Q.oneof [aFirst, bFirst]
 
@@ -636,7 +651,7 @@ genTriple
   -> Gen ((a, Maybe b, Maybe c), X.Text)
 genTriple ga gb gc = do
   (a, xa) <- ga
-  (mayPair, xbc) <- optionalG $ genPair gb gc
+  (mayPair, xbc) <- optional $ genPair gb gc
   let (mb, mc) = fromMaybe (Nothing, Nothing) mayPair
   w <- white
   return ((a, mb, mc), X.concat [xa, w, xbc])
@@ -663,9 +678,10 @@ flagNumPayee = Q.oneof
 postingAcct :: Gen (L.Account, X.Text)
 postingAcct = G.oneof [quotedLvl1Acct, lvl2Acct]
 
+{-
 posting
- :: Maybe (L.Entry, X.Text)
- -> Gen (U.Posting, X.Text)
+ :: Maybe ((L.Entry, X.Text), L.SpaceBetween, L.Side)
+ -> Gen (L.PostingCore, X.Text)
 posting mayEn = do
   (mayFnp, xfnp) <- optionalG flagNumPayee
   let (fl, nu, pa) = fromMaybe (Nothing, Nothing, Nothing) mayFnp
