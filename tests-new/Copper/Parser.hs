@@ -217,8 +217,12 @@ prop_fromCmdty = do
   let (fr, x) = GP.fromCmdty cy
   return $ doParse CP.fromCmdty fr x
 
-prop_price =
-  parseProp CP.price GP.price id
+prop_price = Q.forAll GP.price $ \(pp, x) ->
+  let pd pp' = L.dateTime pp == L.dateTime pp'
+               && L.price pp == L.price pp'
+               && L.ppSide pp == L.ppSide pp'
+               && L.ppSpaceBetween pp == L.ppSpaceBetween pp'
+  in doParse' CP.price (show pp) pd x
 
 prop_tag =
   parseProp CP.tag GP.tag id

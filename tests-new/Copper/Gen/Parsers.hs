@@ -2,12 +2,13 @@ module Copper.Gen.Parsers where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first)
-import Data.List (nubBy, unfoldr, permutations)
+import Data.List (nubBy, unfoldr, permutations, intersperse)
+import Data.List.Split (splitOn)
 import Data.Monoid (mconcat, First(First))
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
 import qualified Data.Time as Time
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, catMaybes)
 
 import qualified System.Random.Shuffle as Shuffle
 import qualified Lincoln as TL
@@ -31,15 +32,9 @@ optional g = do
     else return (Nothing, X.empty)
 
 interleave :: Gen (Maybe a) -> [a] -> Gen [a]
-interleave g ls = case ls of
-  [] -> return []
-  a:[] -> return [a]
-  a:as -> do
-    r <- g
-    rest <- interleave g as
-    return $ case r of
-      Nothing -> a:rest
-      Just rt -> a:rt:rest
+interleave g ls =
+  let withGens = intersperse g (map (return . Just) ls)
+  in fmap catMaybes . sequence $ withGens
 
 leadingZero :: Show s => s -> X.Text
 leadingZero s =
@@ -184,15 +179,27 @@ type Places = Integer
 baseQtyRender :: L.Qty -> String
 baseQtyRender q = reverse $ unfoldr unfolder ((L.mantissa q), (L.places q))
 
--- | Randomly intersperses a quantity rendering with thin spaces. Does
--- not always insert thin spaces at all.
-addThinSpaces :: String -> Gen String
-addThinSpaces s = do
+-- | Randomly intersperses a string with thin spaces.
+addSpacesToString :: String -> Gen String
+addSpacesToString s = do
   doAdd <- arbitrary
   if doAdd
     then interleave (G.frequency [ (4, return Nothing)
                                  , (1, return $ Just '\x2009')]) s
     else return s
+
+-- | Randomly intersperses a quantity rendering with thin spaces. Does
+-- not always insert thin spaces at all.
+addThinSpaces :: String -> Gen String
+addThinSpaces s = do
+  let split = splitOn "." s
+  case split of
+    x:y:[] -> do
+      x' <- addSpacesToString x
+      y' <- addSpacesToString y
+      return $ x' ++ "." ++ y'
+    x:[] -> addSpacesToString x
+    _ -> error "addThinSpaces: error"
 
 -- | Sometimes strips off a trailing period from a Qty rendering, if
 -- there is one.
@@ -222,10 +229,8 @@ unfolder (m, p)
 quantity :: Gen (L.Qty, X.Text)
 quantity = do
   q <- arbitrary
-  let base = baseQtyRender q
-  rendered <- addThinSpaces base >>= stripLastPeriod
-              >>= addLeadingZeroes
-  return (q, X.pack rendered)
+  rendered <- renderQty q
+  return (q, rendered)
 
 renderQty :: L.Qty -> Gen X.Text
 renderQty q =
