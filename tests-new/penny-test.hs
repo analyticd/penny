@@ -1,6 +1,7 @@
 module Main where
 
 import qualified Lincoln as L
+import qualified Copper as C
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified System.Console.MultiArg as MA
 import qualified System.Exit as Exit
@@ -46,4 +47,4 @@ main = do
     else Exit.exitFailure
 
 allTests :: [(Q.Property -> IO Q.Result) -> IO Bool]
-allTests = [ L.runTests ]
+allTests = [ L.runTests ] ++ C.tests

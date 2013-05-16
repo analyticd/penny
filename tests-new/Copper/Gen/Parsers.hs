@@ -2,7 +2,8 @@ module Copper.Gen.Parsers where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first)
-import Data.List (nubBy, unfoldr)
+import Data.List (nubBy, unfoldr, permutations)
+import Data.Monoid (mconcat, First(First))
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
 import qualified Data.Time as Time
@@ -619,53 +620,32 @@ topLineCore = do
 --
 
 
-genPair
-  :: Gen (a, X.Text)
-  -> Gen (b, X.Text)
-  -> Gen ((Maybe a, Maybe b), X.Text)
-genPair ga gb = do
-  w <- white
-  let aFirst = do
-        (a, xa) <- ga
-        (b, xb) <- optional gb
-        return ((Just a, b), X.concat [xa, w, xb])
-      bFirst = do
-        (b, xb) <- gb
-        (a, xa) <- optional ga
-        return ((a, Just b), X.concat [xb, w, xa])
-  Q.oneof [aFirst, bFirst]
+pairToMaybe :: Gen (a, X.Text) -> Gen (First a, X.Text)
+pairToMaybe g = do
+  b <- arbitrary
+  if b then fmap (first (First . Just)) g
+       else return (First Nothing, X.empty)
 
-
-genTriple
-  :: Gen (a, X.Text)
-  -> Gen (b, X.Text)
-  -> Gen (c, X.Text)
-  -> Gen ((a, Maybe b, Maybe c), X.Text)
-genTriple ga gb gc = do
-  (a, xa) <- ga
-  (mayPair, xbc) <- optional $ genPair gb gc
-  let (mb, mc) = fromMaybe (Nothing, Nothing) mayPair
-  w <- white
-  return ((a, mb, mc), X.concat [xa, w, xbc])
-
-
-flagFirst :: Gen ((L.Flag, Maybe L.Number, Maybe L.Payee), X.Text)
-flagFirst = genTriple flag number quotedLvl1Payee
-
-numberFirst :: Gen ((L.Number, Maybe L.Flag, Maybe L.Payee), X.Text)
-numberFirst = genTriple number flag quotedLvl1Payee
-
-payeeFirst :: Gen ((L.Payee, Maybe L.Flag, Maybe L.Number), X.Text)
-payeeFirst = genTriple quotedLvl1Payee flag number
-
+pstgMetaGens
+  :: [Gen ((First L.Flag, First L.Number, First L.Payee), X.Text)]
+pstgMetaGens =
+  [ fmap (\(f, x) -> ((f, First Nothing, First Nothing), x))
+    $ pairToMaybe flag
+  , fmap (\(f, x) -> ((First Nothing, f, First Nothing), x))
+    $ pairToMaybe number
+  , fmap (\(f, x) -> ((First Nothing, First Nothing, f), x))
+    $ pairToMaybe quotedLvl1Payee
+  ]
 
 flagNumPayee
   :: Gen ((Maybe L.Flag, Maybe L.Number, Maybe L.Payee), X.Text)
-flagNumPayee = Q.oneof
-  [ fmap (first (\(f, n, p) -> (Just f, n, p))) flagFirst
-  , fmap (first (\(n, f, p) -> (f, Just n, p))) numberFirst
-  , fmap (first (\(p, f, n) -> (f, n, Just p))) payeeFirst ]
 
+flagNumPayee = do
+  let perms = permutations pstgMetaGens
+  perm <- Q.elements perms
+  trips <- sequence perm
+  let ((First f, First n, First p), x) = mconcat trips
+  return ((f, n, p), x)
 
 postingAcct :: Gen (L.Account, X.Text)
 postingAcct = G.oneof [quotedLvl1Acct, lvl2Acct]
