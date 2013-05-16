@@ -2,18 +2,11 @@ module Copper.Gen.Parsers where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first)
-import Control.Monad.Trans.Class (lift)
-import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.List ( genericSplitAt, genericReplicate
-                 , nubBy, unfoldr)
+import Data.List (nubBy, unfoldr)
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
-import qualified Data.List.NonEmpty as NE
-import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Data.Time as Time
-import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
-import Data.Monoid (mconcat)
 
 import qualified System.Random.Shuffle as Shuffle
 import qualified Lincoln as TL
@@ -22,7 +15,6 @@ import qualified Data.Text as X
 import Data.Text (pack, snoc, cons)
 import qualified Test.QuickCheck.Gen as G
 import Test.QuickCheck.Gen (Gen)
-import qualified Test.QuickCheck.Property as P
 import qualified Test.QuickCheck as Q
 import Test.QuickCheck (arbitrary)
 
@@ -678,12 +670,11 @@ flagNumPayee = Q.oneof
 postingAcct :: Gen (L.Account, X.Text)
 postingAcct = G.oneof [quotedLvl1Acct, lvl2Acct]
 
-{-
 posting
  :: Maybe ((L.Entry, X.Text), L.SpaceBetween, L.Side)
- -> Gen (L.PostingCore, X.Text)
+ -> Gen ((L.PostingCore, X.Text), Maybe L.Entry)
 posting mayEn = do
-  (mayFnp, xfnp) <- optionalG flagNumPayee
+  (mayFnp, xfnp) <- optional flagNumPayee
   let (fl, nu, pa) = fromMaybe (Nothing, Nothing, Nothing) mayFnp
   ws1 <- white
   (ac, xa) <- postingAcct
@@ -701,73 +692,47 @@ posting mayEn = do
   ws3 <- white
   ws4 <- white
   ws5 <- white
-  let (en, xe) = case mayEn of
-        Nothing -> (Nothing, X.empty)
-        Just (jEn, jXe) -> (Just jEn, jXe)
-      po = U.Posting pa nu fl ac ts en pm Nothing Nothing Nothing
+  let (en, xe, sd, sb) = case mayEn of
+        Nothing -> (Nothing, X.empty, Nothing, Nothing)
+        Just ((jEn, jXe), jSd, jSb) -> (Just jEn, jXe, Just jSd, Just jSb)
+      po = L.PostingCore pa nu fl ac ts pm sb sd
       txt = X.concat
             [ xfnp, ws1, xa, ws2, xt, ws3, xe,
               X.singleton '\n', ws4, xm, ws5]
-  return (po, txt)
+  return ((po, txt), en)
 
-
-postings :: GenT [(U.Posting, X.Text)]
+postings :: Gen [((L.PostingCore, X.Text), Maybe L.Entry)]
 postings = do
   egs <- genEntryGroups
-  removeEn <- lift Q.arbitrary
+  removeEn <- Q.arbitrary
   ps <- if removeEn
         then do
-          p1 <- lift $ posting Nothing
-          ps <- lift . mapM posting . map Just . tail $ egs
+          p1 <- posting Nothing
+          ps <- mapM posting . map Just . tail $ egs
           return (p1:ps)
-        else lift . mapM posting . map Just $ egs
-  lift . shuffle $ ps
+        else mapM posting . map Just $ egs
+  shuffle ps
 
 
 --
 -- * Transaction
 --
 
--- | Ensures that the balance of all the postings of a transaction is
--- zero. Returns True if balance is zero; False otherwise.
-zeroBalTransaction :: L.Transaction -> Bool
-zeroBalTransaction t =
-  let (L.Family _ p1 p2 ps) = L.unTransaction t
-      psAll = p1:p2:ps
-      bal = L.unBalance
-            . L.removeZeroCommodities
-            . mconcat
-            . map L.entryToBalance
-            . map L.pEntry
-            $ psAll
-  in M.null bal
-
-checkTransaction :: L.Transaction -> GenT ()
-checkTransaction t =
-  if zeroBalTransaction t
-  then return ()
-  else Ex.throwT P.failed { P.reason = r }
-  where
-    r = "transaction balance is not zero: " ++ show t
-
-transaction :: GenT (L.Transaction, X.Text)
+transaction :: Gen ((L.TopLineCore, L.Ents L.PostingCore), X.Text)
 transaction = do
-  (tl, xtl) <- topLine
+  (tl, xtl) <- topLineCore
   pstgs <- postings
-  let x = xtl `X.append` (X.concat . map snd $ pstgs)
-      p1:p2:ps = pstgs
-      fam = L.Family tl (fst p1) (fst p2) (map fst ps)
-  case L.transaction fam of
-    Ex.Exception e ->
-      let r = "failed to create transaction: " ++ show e
-      in Ex.throwT P.failed { P.reason = r }
-    Ex.Success g -> checkTransaction g >> return (g, x)
+  let x = xtl `X.append` (X.concat . map (snd . fst) $ pstgs)
+      es = map (\((pc, _), mayEn) -> (mayEn, pc)) pstgs
+  case L.ents es of
+    Nothing -> fail "failed to create transaction."
+    Just r -> return ((tl, r), x)
 
 --
 -- * BlankLine
 --
 
-blankLine :: Gen (C.Item, X.Text)
+blankLine :: Gen (C.BlankLine, X.Text)
 blankLine = fmap f white
   where
     f ws = (C.BlankLine, '\n' `cons` ws)
@@ -778,22 +743,29 @@ blankLine = fmap f white
 --
 
 
-item :: GenT (C.Item, X.Text)
-item = oneof [ c, p, t, b ]
-  where
-    c = lift . fmap (\(com, x) -> (C.IComment com, x)) $ comment
-    p = fmap (\(pr, x) -> (C.PricePoint pr, x)) price
-    t = fmap (\(tr, x) -> (C.Transaction tr, x)) transaction
-    b = lift blankLine
+type TestItem
+  = Either (L.TopLineCore, L.Ents L.PostingCore)
+  ( Either L.PricePoint
+  ( Either C.Comment
+  ( Either C.BlankLine
+  ())))
+
+item :: Gen (TestItem, X.Text)
+item = Q.oneof
+  [ fmap (\(c, x) -> (Right . Right . Left $ c, x)) comment
+  , fmap (\(p, x) -> (Right . Left $ p, x)) price
+  , fmap (\(t, x) -> (Left t, x)) transaction
+  , fmap (\(b, x) -> (Right . Right . Right . Left $ b, x)) blankLine
+  ]
 
 --
 -- * Ledger
 --
 
-ledger :: GenT (C.Ledger, X.Text)
-ledger = f <$> lift white <*> (listOf item)
+ledger :: Gen ([TestItem], X.Text)
+ledger = f <$> white <*> Q.listOf item
   where
-    f ws is = ( C.Ledger . map fst $ is
+    f ws is = (map fst is
               , ws `X.append` (X.concat . map snd $ is))
 
--}
+
