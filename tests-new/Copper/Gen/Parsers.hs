@@ -1,7 +1,8 @@
 module Copper.Gen.Parsers where
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative
 import Control.Arrow (first)
+import qualified Control.Monad as Mo
 import Data.List (nubBy, unfoldr, permutations, intersperse)
 import Data.List.Split (splitOn)
 import Data.Monoid (mconcat, First(First))
@@ -754,3 +755,31 @@ ledger = f <$> white <*> Q.listOf item
               , ws `X.append` (X.concat . map snd $ is))
 
 
+--
+-- Basement
+--
+
+newtype GenA a = GenA { unGenA :: Gen (Maybe (a, X.Text)) }
+
+instance Monad GenA where
+  return a = GenA (return (Just (a, X.empty)))
+  GenA l >>= f = GenA $ do
+    mayR <- l
+    case mayR of
+      Nothing -> return Nothing
+      Just (a, x) -> do
+        let (GenA k) = f a
+        mayK <- k
+        case mayK of
+          Nothing -> return Nothing
+          Just (b, x') -> return (Just (b, X.append x x'))
+
+instance Functor GenA where
+  fmap = Mo.liftM
+
+instance Applicative GenA where
+  pure = return
+  (<*>) = Mo.ap
+
+instance Alternative GenA where
+  empty = GenA
