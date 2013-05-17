@@ -5,9 +5,8 @@ import qualified Control.Applicative as Ap
 import qualified Control.Applicative.Permutation as Perm
 import Control.Arrow (first)
 import qualified Control.Monad as Mo
-import Data.List (nubBy, unfoldr, permutations, intersperse)
+import Data.List (nubBy, unfoldr, intersperse)
 import Data.List.Split (splitOn)
-import Data.Monoid (mconcat, First(First))
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
 import qualified Data.Time as Time
@@ -628,32 +627,20 @@ topLineCore = do
 --
 
 
-pairToMaybe :: Gen (a, X.Text) -> Gen (First a, X.Text)
-pairToMaybe g = do
-  b <- arbitrary
-  if b then fmap (first (First . Just)) g
-       else return (First Nothing, X.empty)
-
-pstgMetaGens
-  :: [Gen ((First L.Flag, First L.Number, First L.Payee), X.Text)]
-pstgMetaGens =
-  [ fmap (\(f, x) -> ((f, First Nothing, First Nothing), x))
-    $ pairToMaybe flag
-  , fmap (\(f, x) -> ((First Nothing, f, First Nothing), x))
-    $ pairToMaybe number
-  , fmap (\(f, x) -> ((First Nothing, First Nothing, f), x))
-    $ pairToMaybe quotedLvl1Payee
-  ]
-
 flagNumPayee
   :: Gen ((Maybe L.Flag, Maybe L.Number, Maybe L.Payee), X.Text)
+flagNumPayee =
+  fmap (first (fromMaybe (Nothing, Nothing, Nothing)))
+  . unGenA
+  $ wrappedFlagNumPayee
 
-flagNumPayee = do
-  let perms = permutations pstgMetaGens
-  perm <- Q.elements perms
-  trips <- sequence perm
-  let ((First f, First n, First p), x) = mconcat trips
-  return ((f, n, p), x)
+wrappedFlagNumPayee
+  :: GenA (Maybe L.Flag, Maybe L.Number, Maybe L.Payee)
+wrappedFlagNumPayee = Perm.runPerms $
+  (,,)
+  <$> Perm.maybeAtom (liftGen flag)
+  <*> Perm.maybeAtom (liftGen number)
+  <*> Perm.maybeAtom (liftGen quotedLvl1Payee)
 
 postingAcct :: Gen (L.Account, X.Text)
 postingAcct = G.oneof [quotedLvl1Acct, lvl2Acct]
@@ -761,6 +748,16 @@ ledger = f <$> white <*> Q.listOf item
 -- Basement
 --
 
+liftGen :: Gen (a, X.Text) -> GenA a
+liftGen g = GenA $ do
+  b <- arbitrary
+  if b
+    then do
+      (a, x) <- g
+      ws <- white
+      return (Just a, X.append x ws)
+    else return (Nothing, X.empty)
+
 newtype GenA a = GenA { unGenA :: Gen (Maybe a, X.Text) }
 
 instance Monad GenA where
@@ -768,12 +765,12 @@ instance Monad GenA where
   GenA l >>= f = GenA $ do
     (mayA, x) <- l
     case mayA of
-      Nothing -> return (Nothing, x)
+      Nothing -> return (Nothing, X.empty)
       Just a -> do
         let (GenA r) = f a
         (mayB, x') <- r
         case mayB of
-          Nothing -> return (Nothing, x)
+          Nothing -> return (Nothing, X.empty)
           Just b -> return $ (Just b, X.append x x')
 
 instance Ap.Applicative GenA where
@@ -788,4 +785,9 @@ instance Ap.Alternative GenA where
   GenA l <|> GenA r = GenA $ do
     (mayL, x) <- l
     (mayR, y) <- r
-    return $ (mayL <|> mayR, X.append x y)
+    let rx = case (mayL, mayR) of
+          (Nothing, Nothing) -> X.empty
+          (Just _, Nothing) -> x
+          (Nothing, Just _) -> y
+          (Just _, Just _) -> x
+    return $ (mayL <|> mayR, rx)
