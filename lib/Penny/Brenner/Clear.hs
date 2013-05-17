@@ -89,10 +89,11 @@ runClear c os = do
                        ++ "been imported and merged."
     Just ls -> return $ Set.fromList ls
   let (led', left) = changeLedger (Y.pennyAcct c) toClear leds
+      led'' = map C.stripMeta led'
   when (not (Set.null left))
     (fail $ "some postings were not cleared. "
       ++ "Those not cleared:\n" ++ ppShow left)
-  case mapM (R.item (Y.groupSpecs c)) led' of
+  case mapM (R.item (Y.groupSpecs c)) led'' of
     Nothing ->
       fail "could not render resulting ledger."
     Just txts -> mapM_ TIO.putStr txts

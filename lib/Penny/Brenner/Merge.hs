@@ -56,7 +56,7 @@ doMerge maybeAcct noAuto ss = do
                   l (filterDb (Y.pennyAcct acct) dbWithEntry l)
       newTxns = createTransactions noAuto acct l dbLs db'
       final = l' ++ newTxns
-  case mapM (R.item (Y.groupSpecs acct)) final of
+  case mapM (R.item (Y.groupSpecs acct)) (map C.stripMeta final) of
     Nothing -> fail "Could not render final ledger."
     Just x -> mapM_ TIO.putStr x
 

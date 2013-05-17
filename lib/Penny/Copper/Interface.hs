@@ -17,6 +17,10 @@ data ParsedTopLine = ParsedTopLine
   , ptlTopLineLine :: L.TopLineLine
   } deriving (Show, Generic)
 
+toTopLineCore :: ParsedTopLine -> L.TopLineCore
+toTopLineCore (ParsedTopLine dt nu fl pa me _)
+  = L.TopLineCore dt nu fl pa (fmap fst me)
+
 instance B.Binary ParsedTopLine
 
 type ParsedTxn = (ParsedTopLine , L.Ents (L.PostingCore, L.PostingLine))
@@ -47,3 +51,14 @@ type Parser
   = String
   -- ^ Filename of the file to be parsed
   -> IO (L.Filename, [ParsedItem])
+
+-- | Changes a ledger item to remove metadata.
+stripMeta
+  :: LedgerItem
+  ->  Either (L.TopLineCore, L.Ents L.PostingCore)
+     (Either L.PricePoint
+     (Either Comment BlankLine))
+stripMeta =
+  either (\t -> let (tl, es) = L.unTransaction t
+                in Left (L.tlCore tl, fmap L.pdCore es)) Right
+

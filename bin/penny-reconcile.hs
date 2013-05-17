@@ -71,11 +71,11 @@ posArg s (a, ss) = (a, s:ss)
 
 main :: IO ()
 main = do
-  as <- MA.simpleWithHelp help MA.Intersperse allOpts posArg
+  as <- MA.simpleWithHelp help MA.Intersperse allOpts (fmap return posArg)
   let opts = foldr ($) (return (), []) as
   fst opts
   led <- C.open . snd $ opts
   let led' = map (either (Left . changeTransaction) Right) led
-      rend = fromJust $ mapM (C.item groupSpecs) led'
+      rend = fromJust $ mapM (C.item groupSpecs) (map C.stripMeta led')
   mapM_ TIO.putStr rend
 

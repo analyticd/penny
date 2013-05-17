@@ -99,7 +99,7 @@ renderTransaction
   -> File
   -> L.Transaction
   -> Maybe X.Text
-renderTransaction gs f t = fmap addHeader $ CR.transaction gs t
+renderTransaction gs f t = fmap addHeader $ CR.transaction gs (noMeta t)
   where
     lin = case L.tMemo . L.tlCore . fst . L.unTransaction $ t of
       Nothing -> L.unTopLineLine . L.tTopLineLine . fromJust
@@ -107,6 +107,8 @@ renderTransaction gs f t = fmap addHeader $ CR.transaction gs t
       Just _ -> L.unTopMemoLine . fromJust . L.tTopMemoLine . fromJust
                 . L.tlFileMeta . fst . L.unTransaction $ t
     addHeader x = (showLineNum f lin) `X.append` x
+    noMeta txn = let (tl, es) = L.unTransaction txn
+                 in (L.tlCore tl, fmap L.pdCore es)
 
 renderPrice :: CR.GroupSpecs -> File -> L.PricePoint -> Maybe X.Text
 renderPrice gs f p = fmap addHeader $ CR.price gs p
@@ -181,7 +183,7 @@ doDiffs l1 l2 = (r1, r2)
 parseCommandLine :: IO (String, String, DiffsToShow)
 parseCommandLine = do
   as <- M.simpleWithHelp help M.Intersperse allOpts
-        (Right . Filename)
+        (return . Right . Filename)
   let (doVer, args) = partitionEithers as
       toFilename a = case a of
         Filename s -> Just s

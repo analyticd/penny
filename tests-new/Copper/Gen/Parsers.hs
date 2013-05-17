@@ -2,9 +2,10 @@ module Copper.Gen.Parsers where
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first)
-import Data.List (nubBy, unfoldr, permutations, intersperse)
+import qualified Control.Monad.Trans.Writer as W
+import Control.Monad.Trans.Class (lift)
+import Data.List (nubBy, unfoldr, intersperse)
 import Data.List.Split (splitOn)
-import Data.Monoid (mconcat, First(First))
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
 import qualified Data.Time as Time
@@ -50,6 +51,7 @@ surround o c m g = do
   return (m x, o `cons` x `snoc` c)
 
 shuffle :: [a] -> Gen [a]
+shuffle [] = return []
 shuffle ls = G.MkGen $ \g _ -> Shuffle.shuffle' ls (length ls) g
 
 white :: Gen X.Text
@@ -625,32 +627,27 @@ topLineCore = do
 --
 
 
-pairToMaybe :: Gen (a, X.Text) -> Gen (First a, X.Text)
-pairToMaybe g = do
-  b <- arbitrary
-  if b then fmap (first (First . Just)) g
-       else return (First Nothing, X.empty)
-
-pstgMetaGens
-  :: [Gen ((First L.Flag, First L.Number, First L.Payee), X.Text)]
-pstgMetaGens =
-  [ fmap (\(f, x) -> ((f, First Nothing, First Nothing), x))
-    $ pairToMaybe flag
-  , fmap (\(f, x) -> ((First Nothing, f, First Nothing), x))
-    $ pairToMaybe number
-  , fmap (\(f, x) -> ((First Nothing, First Nothing, f), x))
-    $ pairToMaybe quotedLvl1Payee
-  ]
+liftMaybeGen :: Gen (a, X.Text) -> W.WriterT [X.Text] Gen (Maybe a)
+liftMaybeGen g = do
+  b <- lift arbitrary
+  if b
+    then do
+      (r, x) <- lift g
+      ws <- lift white
+      W.tell [X.append x ws]
+      return (Just r)
+    else return Nothing
 
 flagNumPayee
   :: Gen ((Maybe L.Flag, Maybe L.Number, Maybe L.Payee), X.Text)
-
 flagNumPayee = do
-  let perms = permutations pstgMetaGens
-  perm <- Q.elements perms
-  trips <- sequence perm
-  let ((First f, First n, First p), x) = mconcat trips
-  return ((f, n, p), x)
+  (r, ls) <- W.runWriterT
+             $ (,,)
+             <$> liftMaybeGen flag
+             <*> liftMaybeGen number
+             <*> liftMaybeGen quotedLvl1Payee
+  ls' <- shuffle ls
+  return (r, X.concat ls')
 
 postingAcct :: Gen (L.Account, X.Text)
 postingAcct = G.oneof [quotedLvl1Acct, lvl2Acct]

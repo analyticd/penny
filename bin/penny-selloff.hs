@@ -158,7 +158,8 @@ data ParseResult = ParseResult ProceedsAcct [Cop.LedgerItem]
 
 parseCommandLine :: IO ParseResult
 parseCommandLine = do
-  as <- MA.simpleWithHelp help MA.Intersperse allOpts posArg
+  as <- MA.simpleWithHelp help MA.Intersperse allOpts
+        (fmap return posArg)
   let opts = foldr ($) (return (), []) as
   fst opts
   x:xs <- case snd opts of
@@ -612,6 +613,8 @@ makeOutput pa ldgr = do
     . (`X.snoc` '\n')
     . fromMaybe (error "makeOutput: transaction did not render")
     . CR.transaction groupingSpec
+    . (\t -> let (tl, es) = L.unTransaction t
+             in (L.tlCore tl, fmap L.pdCore es))
     . mkTxn si
     $ wcc
 

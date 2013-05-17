@@ -498,25 +498,27 @@ formatter pad fl nu pa ac ta en me = let
 
 transaction
   :: GroupSpecs
-  -> L.Transaction
+  -> (L.TopLineCore, L.Ents L.PostingCore)
   -> Maybe X.Text
 transaction gs txn = do
-  tlX <- topLine . L.tlCore . fst . L.unTransaction $ txn
-  let (p1, p2, ps) = L.tupleEnts . snd . L.unTransaction $ txn
-  p1X <- posting gs True (fmap L.pdCore p1)
-  p2X <- posting gs (not . null $ ps) (fmap L.pdCore p2)
+  tlX <- topLine . fst $ txn
+  let (p1, p2, ps) = L.tupleEnts . snd $ txn
+  p1X <- posting gs True p1
+  p2X <- posting gs (not . null $ ps) p2
   psX <- if null ps
          then return X.empty
          else let bs = replicate (length ps - 1) True ++ [False]
               in fmap X.concat . sequence
-                 $ zipWith (posting gs) bs (map (fmap L.pdCore) ps)
+                 $ zipWith (posting gs) bs ps
   return $ X.concat [tlX, p1X, p2X, psX]
 
 -- * Item
 
 item
   :: GroupSpecs
-  -> I.LedgerItem
+  ->  Either (L.TopLineCore, L.Ents L.PostingCore)
+     (Either L.PricePoint
+     (Either I.Comment I.BlankLine))
   -> Maybe X.Text
 item gs =
   either (transaction gs)

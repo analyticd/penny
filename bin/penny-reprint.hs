@@ -40,10 +40,10 @@ allOpts = [ fmap (\a (_, ss) -> (a, ss))
 
 main :: IO ()
 main = do
-  as <- MA.simpleWithHelp help MA.Intersperse allOpts posArg
+  as <- MA.simpleWithHelp help MA.Intersperse allOpts (fmap return posArg)
   let opts = foldr ($) (return (), []) as
   fst opts
   l <- C.open . snd $ opts
-  case mapM (R.item groupSpecs) l of
+  case mapM (R.item groupSpecs) (map C.stripMeta l) of
     Nothing -> error "could not render final ledger."
     Just x -> mapM_ TIO.putStr x
