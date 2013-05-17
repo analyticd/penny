@@ -16,6 +16,7 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
+import qualified Penny.Steel.Sums as S
 
 type NoAuto = Bool
 
@@ -84,7 +85,8 @@ filterDb ax m l = M.difference m ml
        . mapMaybe toUNum
        . filter inPennyAcct
        . concatMap L.transactionToPostings
-       . mapMaybe (either Just (const Nothing))
+       . ( let cn = const Nothing
+           in mapMaybe (S.caseS4 Just cn cn cn))
        $ l
     inPennyAcct p = Q.account p == (Y.unPennyAcct ax)
     toUNum p = getUNumberFromTags . Q.tags $ p
@@ -115,7 +117,8 @@ changeItem
   -> C.LedgerItem
   -> St.State DbWithEntry C.LedgerItem
 changeItem acct =
-  either (fmap Left . changeTransaction acct) (return . Right)
+  S.caseS4 (fmap S.S4a . changeTransaction acct)
+           (return . S.S4b) (return . S.S4c) (return . S.S4d)
 
 
 -- | Changes all postings that match an AmexTxn to assign them the
@@ -262,8 +265,8 @@ createTransactions
   -> DbWithEntry
   -> [C.LedgerItem]
 createTransactions noAuto acct led dbLs db =
-  concatMap (\i -> [i, (Right . Right . Right $ C.BlankLine)])
-  . map Left
+  concatMap (\i -> [i, S.S4d C.BlankLine])
+  . map S.S4a
   . map (newTransaction noAuto acct mu mp)
   . M.assocs
   $ db
@@ -321,7 +324,7 @@ makePyeLookupMap a l
             (x, []) -> Just (L.pAccount . L.pdCore . L.meta $ x)
             _ -> Nothing
       return (u, (Q.payee pstg, ac))
-    toPstg = either Just (const Nothing)
+    toPstg = let cn = const Nothing in S.caseS4 Just cn cn cn
 
 -- | Given a UNumber and the maps, looks up the payee and account
 -- information from previous transactions if this information is

@@ -14,6 +14,7 @@ import qualified Penny.Copper.Terminals as T
 import qualified Data.Time as Time
 import qualified Penny.Copper.Interface as I
 import qualified Penny.Lincoln as L
+import qualified Penny.Steel.Sums as S
 
 -- * Helpers
 
@@ -516,12 +517,14 @@ transaction gs txn = do
 
 item
   :: GroupSpecs
-  ->  Either (L.TopLineCore, L.Ents L.PostingCore)
-     (Either L.PricePoint
-     (Either I.Comment I.BlankLine))
+  -> S.S4 (L.TopLineCore, L.Ents L.PostingCore)
+          L.PricePoint
+          I.Comment
+          I.BlankLine
   -> Maybe X.Text
 item gs =
-  either (transaction gs)
-         (either (price gs)
-                 (either comment (const (Just (X.pack "\n")))))
+  S.caseS4 (transaction gs)
+           (price gs)
+           comment
+           (const (Just (X.pack "\n")))
 

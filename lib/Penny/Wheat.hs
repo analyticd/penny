@@ -39,6 +39,7 @@ import qualified Text.Parsec as Parsec
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified Penny.Shield as S
+import qualified Penny.Steel.Sums as Su
 
 import qualified Data.Version as V
 import qualified Data.Prednote.TestTree as TT
@@ -260,7 +261,8 @@ getItems :: [String] -> IO [L.Posting]
 getItems ss = fmap f $ Cop.open ss
   where
     f = concatMap L.transactionToPostings
-        . mapMaybe (either Just (const Nothing))
+        . mapMaybe ( let cn = const Nothing
+                     in Su.caseS4 Just cn cn cn)
 
 --
 -- Tests

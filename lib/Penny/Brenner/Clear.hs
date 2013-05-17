@@ -12,6 +12,7 @@ import qualified Data.Text.IO as TIO
 import qualified Data.Traversable as Tr
 import qualified System.Console.MultiArg as MA
 import qualified Penny.Lincoln as L
+import qualified Penny.Steel.Sums as S
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Trans.Maybe as MT
 import Control.Monad.Trans.Class (lift)
@@ -127,8 +128,10 @@ changeLedger ax s l = St.runState k s
   where
     k = mapM f l
     f x = case x of
-      Left t -> fmap Left $ changeTxn ax t
-      Right o -> fmap Right $ return o
+      S.S4a t -> fmap S.S4a $ changeTxn ax t
+      S.S4b z -> fmap S.S4b $ return z
+      S.S4c z -> fmap S.S4c $ return z
+      S.S4d z -> fmap S.S4d $ return z
 
 changeTxn
   :: Y.PennyAcct

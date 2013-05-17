@@ -13,6 +13,7 @@ import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
                             (<|>), optional)
 import Control.Monad (replicateM, when)
 import qualified Penny.Lincoln as L
+import qualified Penny.Steel.Sums as S
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import qualified Data.Text as X
@@ -372,10 +373,10 @@ blankLine = () <$ satisfy T.newline <* skipWhite
 
 item :: Parser I.ParsedItem
 item
-  = fmap Left transaction
-  <|> fmap (Right . Left) price
-  <|> fmap (Right . Right . Left) comment
-  <|> (Right . Right . Right $ I.BlankLine) <$ blankLine
+  = fmap S.S4a transaction
+  <|> fmap S.S4b price
+  <|> fmap S.S4c comment
+  <|> (S.S4d I.BlankLine) <$ blankLine
 
 parse
   :: String

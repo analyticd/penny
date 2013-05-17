@@ -7,6 +7,7 @@ import qualified Data.Text as X
 import qualified Data.Text.Encoding as XE
 import GHC.Generics (Generic)
 import qualified Data.Binary as B
+import qualified Penny.Steel.Sums as S
 
 data ParsedTopLine = ParsedTopLine
   { ptlDateTime :: L.DateTime
@@ -37,15 +38,11 @@ instance B.Binary Comment where
   get = fmap (Comment . XE.decodeUtf8) B.get
   put = B.put . XE.encodeUtf8 . unComment
 
-type ParsedItem
-  =  Either ParsedTxn
-    (Either L.PricePoint
-    (Either Comment BlankLine))
+type ParsedItem =
+  S.S4 ParsedTxn L.PricePoint Comment BlankLine
 
-type LedgerItem
-  =  Either L.Transaction
-    (Either L.PricePoint
-    (Either Comment BlankLine))
+type LedgerItem =
+  S.S4 L.Transaction L.PricePoint Comment BlankLine
 
 type Parser
   = String
@@ -55,10 +52,11 @@ type Parser
 -- | Changes a ledger item to remove metadata.
 stripMeta
   :: LedgerItem
-  ->  Either (L.TopLineCore, L.Ents L.PostingCore)
-     (Either L.PricePoint
-     (Either Comment BlankLine))
-stripMeta =
-  either (\t -> let (tl, es) = L.unTransaction t
-                in Left (L.tlCore tl, fmap L.pdCore es)) Right
+  -> S.S4 (L.TopLineCore, L.Ents L.PostingCore)
+          L.PricePoint
+          Comment
+          BlankLine
+stripMeta = S.mapS4 f id id id where
+  f t = let (tl, es) = L.unTransaction t
+        in (L.tlCore tl, fmap L.pdCore es)
 

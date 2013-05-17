@@ -20,6 +20,7 @@ import qualified Data.Prednote.Pdct as Pe
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
+import qualified Penny.Steel.Sums as Su
 
 import Control.Applicative ((<*>), pure, (<$))
 import Control.Monad (join)
@@ -439,8 +440,8 @@ showVerboseFilter ptr (VerboseFilter vb) cks =
 splitLedger :: [C.LedgerItem] -> ([L.Transaction], [L.PricePoint])
 splitLedger = partitionEithers . mapMaybe toEither
   where
-    toEither = either (Just . Left)
-                      (either (Just . Right) (const Nothing))
+    toEither = Su.caseS4 (Just  . Left) (Just . Right)
+                         (const Nothing) (const Nothing)
 
 helpText
   :: Defaults
