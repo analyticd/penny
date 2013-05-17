@@ -2,6 +2,7 @@ module Copper.Gen.Parsers where
 
 import Control.Applicative ((<$>), (<*>), (<|>))
 import qualified Control.Applicative as Ap
+import qualified Control.Applicative.Permutation as Perm
 import Control.Arrow (first)
 import qualified Control.Monad as Mo
 import Data.List (nubBy, unfoldr, permutations, intersperse)
@@ -760,20 +761,20 @@ ledger = f <$> white <*> Q.listOf item
 -- Basement
 --
 
-newtype GenA a = GenA { unGenA :: Gen (Maybe (a, X.Text)) }
+newtype GenA a = GenA { unGenA :: Gen (Maybe a, X.Text) }
 
 instance Monad GenA where
-  return a = GenA $ return (Just (a, X.empty))
+  return a = GenA $ return (Just a, X.empty)
   GenA l >>= f = GenA $ do
-    mayA <- l
+    (mayA, x) <- l
     case mayA of
-      Nothing -> return Nothing
-      Just (a, x) -> do
+      Nothing -> return (Nothing, x)
+      Just a -> do
         let (GenA r) = f a
-        mayB <- r
+        (mayB, x') <- r
         case mayB of
-          Nothing -> return Nothing
-          Just (b, x') -> return $ Just (b, X.append x x')
+          Nothing -> return (Nothing, x)
+          Just b -> return $ (Just b, X.append x x')
 
 instance Ap.Applicative GenA where
   pure = return
@@ -783,8 +784,8 @@ instance Functor GenA where
   fmap = Mo.liftM
 
 instance Ap.Alternative GenA where
-  empty = GenA $ return Nothing
+  empty = GenA $ return (Nothing, X.empty)
   GenA l <|> GenA r = GenA $ do
-    mayL <- l
-    mayR <- r
-    return $ mayL <|> mayR
+    (mayL, x) <- l
+    (mayR, y) <- r
+    return $ (mayL <|> mayR, X.append x y)
