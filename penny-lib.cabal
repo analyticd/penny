@@ -158,7 +158,7 @@ Library
 -- test modules that are not in the library, list them here.
 Executable penny-test
   Main-is: penny-test.hs
-  hs-source-dirs: tests-new lib
+  hs-source-dirs: tests lib
   Build-depends:
       base ==4.*
     , action-permutations ==0.0.0.0
@@ -199,7 +199,7 @@ Executable penny-test
 
 Executable penny-gibberish
   Main-is: penny-gibberish.hs
-  hs-source-dirs: tests-new lib
+  hs-source-dirs: tests lib
   Build-depends:
       base ==4.*
     , action-permutations ==0.0.0.0
