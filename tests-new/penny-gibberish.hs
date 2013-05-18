@@ -15,10 +15,11 @@ help :: String -> String
 help pn = unlines
   [ "usage: " ++ pn ++ " [options]"
   , "Print a nonsensical but valid Penny file to standard output."
+  , "Uses modified generators that only make printable ASCII."
   , "Options:"
   , "  -s, --size INT"
   , "      QuickCheck size parameter. Bigger numbers give more"
-  , "      gibberish. (default: 100)"
+  , "      gibberish. (default: 5)"
   , "  -c, --count INT"
   , "      Number of items (transactions, comments, prices, and"
   , "      blank lines, total) to output. (default: 100)"
@@ -41,7 +42,7 @@ data Opts = Opts
   } deriving Show
 
 defaultOpts :: Opts
-defaultOpts = Opts 100 100 R.NoGrouping R.NoGrouping
+defaultOpts = Opts 5 100 R.NoGrouping R.NoGrouping
 
 options :: [MA.OptSpec (Opts -> Opts)]
 options =
