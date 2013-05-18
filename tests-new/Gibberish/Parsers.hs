@@ -558,19 +558,20 @@ fromCmdty e = case e of
   Right (Lvl2Cmdty c x) -> (L.From c, x)
 
 
-
 price :: Gen (L.PricePoint, X.Text)
 price = do
   atSign <- T.atSign
   wsAt <- white
-  fr <- genCmdty
+  fr <- G.oneof [ fmap Left lvl3Cmdty, fmap Right quotedLvl1Cmdty ]
   (dt, xdt) <- dateTime
   ws1 <- white
-  let (fc, xfc) = unwrapCmdty fr
+  let (fc, xfc) = case fr of
+        Left (Lvl3Cmdty c x) -> (c, x)
+        Right (QuotedLvl1Cmdty c x) -> (c, x)
   ws2 <- fmap pack (G.listOf1 T.white)
   qty <- arbitrary
   q <- qtyWithRendering qty
-  let pdct x = unwrapCmdty x /= unwrapCmdty fr
+  let pdct x = (fst . unwrapCmdty $ x) /= fc
   toCmdty <- Q.suchThat genCmdty pdct
   (((L.Amount toQ t), xam), sb, sd) <- amount toCmdty q
   let (to, cpu) = (L.To t, L.CountPerUnit toQ)
