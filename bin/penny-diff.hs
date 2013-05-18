@@ -10,6 +10,7 @@ import qualified Penny.Lincoln as L
 import Penny.Lincoln ((==~))
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as CR
+import qualified Penny.Steel.Sums as S
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
@@ -59,7 +60,7 @@ data File = File1 | File2
 
 -- | All possible items, but excluding blank lines.
 type NonBlankItem =
-  Either L.Transaction (Either L.PricePoint C.Comment)
+  S.S3 L.Transaction L.PricePoint C.Comment
 
 removeMeta
   :: L.Transaction
@@ -71,16 +72,14 @@ removeMeta
 
 clonedNonBlankItem :: NonBlankItem -> NonBlankItem -> Bool
 clonedNonBlankItem nb1 nb2 = case (nb1, nb2) of
-  (Left t1, Left t2) -> removeMeta t1 ==~ removeMeta t2
-  (Right (Left p1), Right (Left p2)) -> p1 ==~ p2
-  (Right (Right c1), Right (Right c2)) -> c1 == c2
+  (S.S3a t1, S.S3a t2) -> removeMeta t1 ==~ removeMeta t2
+  (S.S3b p1, S.S3b p2) -> p1 ==~ p2
+  (S.S3c c1, S.S3c c2) -> c1 == c2
   _ -> False
 
 toNonBlankItem :: C.LedgerItem -> Maybe NonBlankItem
-toNonBlankItem =
-  either (Just . Left)
-    (either (Just . Right . Left)
-      (either (Just . Right . Right) (const Nothing)))
+toNonBlankItem = S.caseS4 (Just . S.S3a) (Just . S.S3b) (Just . S.S3c)
+                          (const Nothing)
 
 showLineNum :: File -> Int -> X.Text
 showLineNum f i = X.pack ("\n" ++ arrow ++ " " ++ show i ++ "\n")
@@ -118,7 +117,7 @@ renderPrice gs f p = fmap addHeader $ CR.price gs p
 
 renderNonBlankItem :: CR.GroupSpecs -> File -> NonBlankItem -> Maybe X.Text
 renderNonBlankItem gs f =
-  either (renderTransaction gs f) (either (renderPrice gs f) (CR.comment))
+  S.caseS3 (renderTransaction gs f) (renderPrice gs f) CR.comment
 
 runPennyDiff :: CR.GroupSpecs -> IO ()
 runPennyDiff co = do

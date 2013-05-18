@@ -105,6 +105,7 @@ import Data.Text (pack)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified Penny.Lincoln.Balance as Bal
+import qualified Penny.Steel.Sums as S
 import qualified Penny.Cabin.Balance.Util as BU
 import Penny.Cabin.Options (ShowZeroBalances(..))
 import qualified Penny.Copper as Cop
@@ -187,7 +188,8 @@ calcBalances =
   . BU.balances (ShowZeroBalances False)
   . map (\p -> ((), p))
   . concatMap L.transactionToPostings
-  . mapMaybe (either Just (const Nothing))
+  . mapMaybe (S.caseS4 Just (const Nothing) (const Nothing)
+              (const Nothing))
 
 newtype Group = Group { unGroup :: L.SubAccount }
   deriving (Show, Eq)

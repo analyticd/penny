@@ -8,7 +8,6 @@ import Control.Monad (replicateM)
 import qualified Copper.Gen.Parsers as P
 import qualified Penny.Copper.Render as R
 import qualified System.Exit as Exit
-import Data.Maybe (mapMaybe)
 import qualified Data.Text.IO as TIO
 import qualified System.IO as IO
 
@@ -89,17 +88,7 @@ main = do
            . replicateM (optCount os)
            $ P.item
       gs = R.GroupSpecs (optLeft os) (optRight os)
-      toRendItem i = case i of
-        Left p -> Just $ Left p
-        Right r1 -> case r1 of
-          Left pp -> Just . Right . Left $ pp
-          Right r2 -> case r2 of
-            Left co -> Just . Right . Right . Left $ co
-            Right r3 -> case r3 of
-              Left bl -> Just . Right . Right . Right $ bl
-              Right _ -> Nothing
-      is' = mapMaybe toRendItem is
-      x = mapM (R.item gs) is'
+      x = mapM (R.item gs) is
   case x of
     Nothing -> do
       IO.hPutStrLn IO.stderr $ pn ++ ": error: could not render ledger."

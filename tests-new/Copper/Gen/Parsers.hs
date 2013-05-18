@@ -10,6 +10,7 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
 import qualified Data.Time as Time
 import Data.Maybe (fromMaybe, catMaybes)
+import qualified Penny.Steel.Sums as S
 
 import qualified System.Random.Shuffle as Shuffle
 import qualified Lincoln as TL
@@ -726,18 +727,17 @@ blankLine = fmap f white
 
 
 type TestItem
-  = Either (L.TopLineCore, L.Ents L.PostingCore)
-  ( Either L.PricePoint
-  ( Either C.Comment
-  ( Either C.BlankLine
-  ())))
+  = S.S4 (L.TopLineCore, L.Ents L.PostingCore)
+         L.PricePoint
+         C.Comment
+         C.BlankLine
 
 item :: Gen (TestItem, X.Text)
 item = Q.oneof
-  [ fmap (\(c, x) -> (Right . Right . Left $ c, x)) comment
-  , fmap (\(p, x) -> (Right . Left $ p, x)) price
-  , fmap (\(t, x) -> (Left t, x)) transaction
-  , fmap (\(b, x) -> (Right . Right . Right . Left $ b, x)) blankLine
+  [ fmap (\(c, x) -> (S.S4c c, x)) comment
+  , fmap (\(p, x) -> (S.S4b p, x)) price
+  , fmap (\(t, x) -> (S.S4a t, x)) transaction
+  , fmap (\(b, x) -> (S.S4d b, x)) blankLine
   ]
 
 --

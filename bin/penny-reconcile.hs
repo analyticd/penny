@@ -7,6 +7,7 @@ import Control.Monad (guard)
 import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
+import qualified Penny.Steel.Sums as S
 import qualified System.Console.MultiArg as MA
 import qualified Paths_penny_bin as PPB
 
@@ -75,7 +76,7 @@ main = do
   let opts = foldr ($) (return (), []) as
   fst opts
   led <- C.open . snd $ opts
-  let led' = map (either (Left . changeTransaction) Right) led
+  let led' = map (S.mapS4 changeTransaction id id id) led
       rend = fromJust $ mapM (C.item groupSpecs) (map C.stripMeta led')
   mapM_ TIO.putStr rend
 
