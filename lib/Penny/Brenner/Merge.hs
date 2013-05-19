@@ -28,18 +28,18 @@ data Arg
 toPosArg :: Arg -> Maybe String
 toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
 
-mode :: Maybe Y.FitAcct -> MA.Mode (IO ())
-mode maybeC = MA.Mode
+mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
+mode = MA.Mode
   { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto)]
   , MA.mPosArgs = return . APos
-  , MA.mProcess = processor maybeC
+  , MA.mProcess = processor
   , MA.mHelp = help
   }
 
-processor :: Maybe Y.FitAcct -> [Arg] -> IO ()
-processor maybeC as =
+processor :: [Arg] -> Maybe Y.FitAcct -> IO ()
+processor as maybeC =
   doMerge maybeC (ANoAuto `elem` as) (mapMaybe toPosArg as)
 
 doMerge :: Maybe Y.FitAcct -> NoAuto -> [String] -> IO ()

@@ -34,9 +34,8 @@ data ImportOpts = ImportOpts
   }
 
 mode
-  :: Maybe Y.FitAcct
-  -> MA.Mode (IO ())
-mode mayFa = MA.Mode
+  :: MA.Mode (Maybe Y.FitAcct -> IO ())
+mode = MA.Mode
   { MA.mName = "import"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts =
@@ -46,15 +45,15 @@ mode mayFa = MA.Mode
           return $ AUNumber i
       ]
   , MA.mPosArgs = return . AFitFile
-  , MA.mProcess = processor mayFa
+  , MA.mProcess = processor
   , MA.mHelp = help
   }
 
 processor
-  :: Maybe Y.FitAcct
-  -> [Arg]
+  :: [Arg]
+  -> Maybe Y.FitAcct
   -> IO ()
-processor mayFa as = do
+processor as mayFa = do
   (dbLoc, prsr) <- case mayFa of
     Nothing -> fail $ "no financial institution account provided"
       ++ " on command line, and no default financial institution"

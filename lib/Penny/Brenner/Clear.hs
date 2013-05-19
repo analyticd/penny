@@ -54,18 +54,18 @@ data Opts = Opts
   } deriving Show
 
 
-mode :: Maybe Y.FitAcct -> MA.Mode (IO ())
-mode c = MA.Mode
+mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
+mode = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [ ]
   , MA.mPosArgs = return . APosArg
-  , MA.mProcess = process c
+  , MA.mProcess = process
   , MA.mHelp = help
   }
 
-process :: Maybe Y.FitAcct -> [Arg] -> IO ()
-process mayC as = do
+process :: [Arg] -> Maybe Y.FitAcct -> IO ()
+process as mayC = do
   c <- case mayC of
     Just cd -> return cd
     Nothing -> fail $ "no financial institution account given"

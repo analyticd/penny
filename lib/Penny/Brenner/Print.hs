@@ -25,22 +25,21 @@ data Arg
   deriving (Eq, Show)
 
 mode
-  :: Maybe Y.FitAcct
-  -> MA.Mode (IO ())
-mode mayFa = MA.Mode
+  :: MA.Mode (Maybe Y.FitAcct -> IO ())
+mode = MA.Mode
   { MA.mName = "print"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = []
   , MA.mPosArgs = return . ArgFile
-  , MA.mProcess = processor mayFa
+  , MA.mProcess = processor
   , MA.mHelp = help
   }
 
 processor
-  :: Maybe Y.FitAcct
-  -> [Arg]
+  :: [Arg]
+  -> Maybe Y.FitAcct
   -> IO ()
-processor mayFa ls =
+processor ls mayFa =
   case mayFa of
     Nothing -> fail $
       "no financial institution account"

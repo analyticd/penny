@@ -125,7 +125,8 @@ makeModes cf as = Ex.toEither . Ex.mapException (const . fail) $ do
            _ -> Ex.throw $
               "more than one financial institution account "
               ++ "named " ++ X.unpack s ++ " configured."
-  return $ [C.mode, I.mode, M.mode, P.mode, D.mode] <*> [fi]
+  let ms = [C.mode, I.mode, M.mode, P.mode, D.mode]
+  return . map (fmap ($ fi)) $ ms
 
 -- | Help for a pre-compiled configuration.
 help

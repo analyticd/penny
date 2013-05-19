@@ -16,23 +16,21 @@ help pn = unlines
 
 data Arg = ArgPos String deriving (Eq, Show)
 
-mode
-  :: Maybe Y.FitAcct
-  -> MA.Mode (IO ())
-mode mayFa = MA.Mode
+mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
+mode = MA.Mode
   { MA.mName = "database"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [ ]
   , MA.mPosArgs = return . ArgPos
-  , MA.mProcess = processor mayFa
+  , MA.mProcess = processor
   , MA.mHelp = help
   }
 
 processor
-  :: Maybe Y.FitAcct
-  -> [Arg]
+  :: [Arg]
+  -> Maybe Y.FitAcct
   -> IO ()
-processor mayFa ls
+processor ls mayFa
   | any isArgPos ls = fail $
         "penny-fit database: error: this command does"
         ++ " not accept non-option arguments."
