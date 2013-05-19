@@ -4,6 +4,11 @@
 module Penny.Brenner.OFX (parser, DescSign(..), ParserFn) where
 
 import Control.Applicative
+import Control.Arrow (first)
+import qualified Control.Monad.Error as E
+import Data.Functor.Identity (Identity(..))
+import qualified Data.ConfigFile as CF
+import Data.Char (toLower)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (isPrefixOf)
 import qualified Data.OFX as O
@@ -11,7 +16,12 @@ import qualified Data.Text as X
 import qualified Data.Time as T
 import qualified Penny.Brenner.Types as Y
 import qualified Text.Parsec as P
-
+import qualified Penny.Lincoln.Builders as Bd
+import qualified Penny.Lincoln as L
+import qualified Penny.Copper.Render as R
+import System.Environment (getProgName)
+import qualified System.Exit as Exit
+import qualified System.IO as IO
 
 type ParserFn
   = Y.FitFileLocation
@@ -28,29 +38,26 @@ data DescSign
 parser
   :: String
   -- ^ Help string
-  -> DescSign
   -> (String, ParserFn)
-parser help d = (help, loadIncoming d)
+parser help = (help, loadIncoming)
 
 loadIncoming
-  :: DescSign
-  -> Y.FitFileLocation
+  :: Y.FitFileLocation
   -> IO (Ex.Exceptional String [Y.Posting])
-loadIncoming d (Y.FitFileLocation fn) = do
+loadIncoming (Y.FitFileLocation fn) = do
   contents <- readFile fn
   return $
     ( Ex.mapException show
       . Ex.fromEither
       $ P.parse O.ofxFile fn contents )
     >>= O.transactions
-    >>= mapM (txnToPosting d)
+    >>= mapM txnToPosting
 
 
 txnToPosting
-  :: DescSign
-  -> O.Transaction
+  :: O.Transaction
   -> Ex.Exceptional String Y.Posting
-txnToPosting d t = Y.Posting
+txnToPosting t = Y.Posting
   <$> pure (Y.Date ( T.utctDay . T.zonedTimeToUTC
                    . O.txDTPOSTED $ t))
   <*> pure (Y.Desc X.empty)
@@ -65,15 +72,145 @@ txnToPosting d t = Y.Posting
   where
     amtStr = O.txTRNAMT t
     incDec =
-      if "-" `isPrefixOf` amtStr
-      then case d of
-            PosIsIncrease -> Y.Decrease
-            PosIsDecrease -> Y.Increase
-      else case d of
-            PosIsIncrease -> Y.Increase
-            PosIsDecrease -> Y.Decrease
+      if "-" `isPrefixOf` amtStr then Y.Decrease else Y.Increase
     amt = case amtStr of
       [] -> Ex.throw "empty amount"
       x:xs -> let str = if x == '-' || x == '+' then xs else amtStr
               in Ex.fromMaybe ("could not parse amount: " ++ amtStr)
                  $ Y.mkAmount str
+
+-- Uses ErrorT rather than Either because Either is an orphan instance
+type Parser a = CF.ConfigParser -> E.ErrorT CF.CPError Identity a
+
+type FitName = String
+
+institutions :: Parser [FitName]
+institutions = return . CF.sections
+
+dbLocation :: FitName -> Parser Y.DbLocation
+dbLocation n cf =
+  let cf' = cf { CF.usedefault = False }
+  in pullString "file" Y.DbLocation n cf
+
+pennyAcct :: FitName -> Parser Y.PennyAcct
+pennyAcct = pullString "pennyAcct" (Y.PennyAcct . Bd.account)
+
+defaultAcct :: FitName -> Parser Y.DefaultAcct
+defaultAcct = pullString "defaultAcct" (Y.DefaultAcct . Bd.account)
+
+currency :: FitName -> Parser Y.Currency
+currency = pullString "currency" (Y.Currency . L.Commodity)
+
+type FieldName = String
+groupSpec :: FieldName -> FitName -> Parser R.GroupSpec
+groupSpec = pullList
+  [ ("none", R.NoGrouping), ("large", R.GroupLarge),
+    ("all", R.GroupAll) ]
+
+groupSpecs :: FitName -> Parser R.GroupSpecs
+groupSpecs n cf = R.GroupSpecs
+  <$> groupSpec "groupLeft" n cf
+  <*> groupSpec "groupRight" n cf
+
+translator :: FitName -> Parser Y.Translator
+translator = pullList [ ("debit", Y.IncreaseIsDebit)
+                      , ("credit", Y.IncreaseIsCredit) ]
+                      "increaseIs"
+
+side :: FitName -> Parser L.Side
+side = pullList [ ("left", L.CommodityOnLeft)
+                , ("right", L.CommodityOnRight) ]
+                "commodityOn"
+
+spaceBetween :: FitName -> Parser L.SpaceBetween
+spaceBetween = pullList [ ("false", L.NoSpaceBetween)
+                        , ("true", L.SpaceBetween) ]
+                        "spaceBetween"
+
+moreInfo :: FitName -> Parser String
+moreInfo n cf = CF.get cf n "info"
+
+pullList
+  :: [(String, a)]
+  -- ^ Mapping of config string to values
+
+  -> String
+  -- ^ Field name
+  -> FitName
+  -> Parser a
+pullList ls field n p = do
+  s <- fmap (map toLower) $ CF.get p n field
+  case lookup s (map (first (map toLower)) ls) of
+    Nothing -> fail $ "bad value for field " ++ field
+                      ++ ": " ++ s
+    Just v -> return v
+
+pullString
+  :: String
+  -- ^ Section name
+  -> (X.Text -> a)
+  -- ^ Builds type
+  -> FitName
+  -> Parser a
+pullString sect mkType n cp =
+  fmap (mkType . X.pack)
+  $ CF.get cp n sect
+
+getParser
+  :: FitName
+  -> Parser (String, ParserFn)
+getParser n cf = fmap parser $ moreInfo n cf
+
+parseFitAcct :: FitName -> Parser Y.FitAcct
+parseFitAcct n cf = Y.FitAcct
+  <$> dbLocation n cf
+  <*> pennyAcct n cf
+  <*> defaultAcct n cf
+  <*> currency n cf
+  <*> groupSpecs n cf
+  <*> translator n cf
+  <*> side n cf
+  <*> spaceBetween n cf
+  <*> getParser n cf
+  <*> pure (\_ (Y.Payee p) -> L.Payee p)
+
+parseFitAccts :: Parser [(Y.Name, Y.FitAcct)]
+parseFitAccts cf =
+  let secs = CF.sections cf
+      getAcct n = (,) <$> pure (Y.Name . X.pack $ n)
+                      <*> parseFitAcct n cf
+  in mapM getAcct secs
+
+parseConfig :: Parser Y.Config
+parseConfig cf = do
+  accts <- parseFitAccts cf
+  if CF.has_option cf "DEFAULT" "defaultFitAcct"
+    then do
+      dflt <- fmap (Y.Name . X.pack)
+              $ CF.get cf "DEFAULT" "defaultFitAcct"
+      case lookup dflt accts of
+        Nothing -> fail $ "default financial institution account "
+                        ++ "not found: "
+                        ++ (X.unpack . Y.unName $ dflt)
+        Just x -> return (Y.Config (Just x) accts)
+    else return $ Y.Config Nothing accts
+
+errExit :: Show e => Either e g -> IO g
+errExit ei = do
+  pn <- getProgName
+  case ei of
+    Left e -> do
+      IO.hPutStrLn IO.stderr $
+        pn ++ ": error: could not parse configuration file: "
+           ++ show e
+      Exit.exitFailure
+    Right g -> return g
+
+parseOFXConfigFile
+  :: String
+  -- ^ File location
+  -> IO Y.Config
+parseOFXConfigFile p =
+  CF.readfile CF.emptyCP p
+  >>= errExit . runIdentity . E.runErrorT
+  >>= errExit . runIdentity . E.runErrorT . parseConfig
