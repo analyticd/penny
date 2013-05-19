@@ -45,6 +45,7 @@ Library
     , cereal ==0.3.*
     , containers ==0.5.*
     , ConfigFile ==1.1.*
+    , directory ==1.2.*
     , explicit-exception ==0.1.*
     , matchers ==0.6.*
     , monad-loops ==0.3.*

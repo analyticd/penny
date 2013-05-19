@@ -1,7 +1,12 @@
 -- | Parses any OFX 1.0-series file. Uses the parser from the ofx
 -- package.
 
-module Penny.Brenner.OFX (parser, DescSign(..), ParserFn) where
+module Penny.Brenner.OFX
+  ( parser
+  , DescSign(..)
+  , ParserFn
+  , parseOFXConfigFile
+  ) where
 
 import Control.Applicative
 import Control.Arrow (first)
@@ -192,7 +197,7 @@ parseConfig cf = do
         Nothing -> fail $ "default financial institution account "
                         ++ "not found: "
                         ++ (X.unpack . Y.unName $ dflt)
-        Just x -> return (Y.Config (Just x) accts)
+        Just x -> return (Y.Config (Just (dflt, x)) accts)
     else return $ Y.Config Nothing accts
 
 errExit :: Show e => Either e g -> IO g

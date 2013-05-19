@@ -287,7 +287,7 @@ data FitAcct = FitAcct
 -- command line.
 
 data Config = Config
-  { defaultFitAcct :: Maybe FitAcct
+  { defaultFitAcct :: Maybe (Name, FitAcct)
   , moreFitAccts :: [(Name, FitAcct)]
   }
 

@@ -30,14 +30,17 @@ import qualified Penny.Brenner.Clear as C
 import qualified Penny.Brenner.Database as D
 import qualified Penny.Brenner.Import as I
 import qualified Penny.Brenner.Merge as M
+import qualified Penny.Brenner.OFX as O
 import qualified Penny.Brenner.Print as P
 import qualified Penny.Brenner.Util as U
-import Control.Applicative ((<*>))
+import Control.Applicative ((<*>), (<|>))
 import qualified System.Console.MultiArg as MA
+import System.Directory (getHomeDirectory)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 
+-- | Brenner, with a pre-compiled configuration.
 brennerMain
   :: V.Version
   -- ^ Binary version
@@ -79,15 +82,23 @@ newtype FitAcctName = FitAcctName
 globalOptsDynamic
   :: V.Version
   -- ^ Binary version
-  -> [MA.OptSpec (Either (IO ()) (Either ConfigLocation FitAcctName)) ]
+  -> [MA.OptSpec (Either (Y.Config -> IO ())
+                 (Either ConfigLocation FitAcctName)) ]
 globalOptsDynamic v =
-  [ fmap Left (Ly.version v)
+  [ fmap (Left . const) (Ly.version v)
 
   , MA.OptSpec ["config-file"] "c"
     (MA.OneArg (Right . Left . ConfigLocation))
 
   , MA.OptSpec ["fit-account"] "f"
     (MA.OneArg (Right . Right . FitAcctName . Y.Name . X.pack))
+
+  , let showHelp conf = do
+          pn <- MA.getProgName
+          IO.putStr (help conf pn)
+          Exit.exitSuccess
+    in MA.OptSpec ["help"] "h" (MA.NoArg (Left showHelp))
+
   ]
 
 -- | Pre-processes global options for a pre-compiled configuration.
@@ -103,18 +114,73 @@ preProcessor cf args =
 
 -- | Pre-processes global options for a dynamic configuration.
 preProcessorDynamic
-  :: [Either (IO ()) (Either ConfigLocation FitAcctName)]
+  :: [Either (Y.Config -> IO ()) (Either ConfigLocation FitAcctName)]
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 preProcessorDynamic args =
   let (versOrHelp, as) = partitionEithers args
   in case versOrHelp of
     x:_ -> Left (const x)
-    [] -> makeModesDynamic as
+    [] -> Right $ makeModesDynamic as
 
 makeModesDynamic
   :: [Either ConfigLocation FitAcctName]
-  -> Either (a -> IO ()) [MA.Mode (IO ())]
-makeModesDynamic = undefined
+  -> [MA.Mode (IO ())]
+makeModesDynamic ls =
+  let mkAct = applyAcctInMode ls
+  in map (fmap mkAct) allModes
+
+getConfigLocation
+  :: [Either ConfigLocation a]
+  -> IO ConfigLocation
+getConfigLocation ls =
+  let (cs, _) = partitionEithers ls
+  in case cs of
+      [] -> do
+        home <- getHomeDirectory
+        return . ConfigLocation $ home ++ "/.penny-ofx.ini"
+      xs -> return $ last xs
+
+applyAcctInMode
+  :: [Either ConfigLocation FitAcctName]
+  -> (Y.FitAcct -> IO ())
+  -> IO ()
+applyAcctInMode ls act = do
+  configLoc <- getConfigLocation ls
+  conf <- getDynamicConfig configLoc
+  acct <- getDynamicDefaultFitAcct ls conf
+  act acct
+
+getDynamicConfig :: ConfigLocation -> IO Y.Config
+getDynamicConfig (ConfigLocation s) = O.parseOFXConfigFile s
+
+getDynamicDefaultFitAcct
+  :: [Either a FitAcctName]
+  -> Y.Config
+  -> IO Y.FitAcct
+getDynamicDefaultFitAcct ls c =
+  let (_, cs) = partitionEithers ls
+  in case cs of
+      [] -> case Y.defaultFitAcct c of
+        Nothing -> errExit $ "no financial institution account"
+          ++ " selected on command line, and no default"
+          ++ " financial instititution account configured."
+        Just (_, a) -> return a
+      fs ->
+        let name = unFitAcctName . last $ fs
+            confDflt = maybe Nothing
+              (\(n, a) -> if n == name then Just a else Nothing)
+              $ Y.defaultFitAcct c
+            confExtra = lookup name . Y.moreFitAccts $ c
+        in case confDflt <|> confExtra of
+            Nothing -> errExit $ "financial institution account not "
+              ++ "configured: " ++ (X.unpack . Y.unName $ name)
+            Just a -> return a
+
+errExit :: String -> IO a
+errExit s = do
+  pn <- MA.getProgName
+  IO.hPutStrLn IO.stderr $ pn ++ ": error: " ++ s
+  Exit.exitFailure
 
 -- | Makes modes for a pre-compiled configuration.
 makeModes
@@ -122,13 +188,13 @@ makeModes
   -> [FitAcctName]
   -- ^ Names of financial institutions given on command line
   -> Either (a -> IO ()) [MA.Mode (IO ())]
-makeModes cf as = Ex.toEither . Ex.mapException (const . fail) $ do
+makeModes cf as = Ex.toEither . Ex.mapException (const . errExit) $ do
   fi <- case as of
     [] -> case Y.defaultFitAcct cf of
-      Nothing -> fail $ "no financial institution account"
+      Nothing -> Ex.throw $ "no financial institution account"
         ++ " selected on command line, and no default"
         ++ " financial instititution account configured."
-      Just a -> return a
+      Just a -> return . snd $ a
     _ ->
       let pdct (Y.Name n, _) = n == s
           FitAcctName (Y.Name s) = last as
@@ -140,8 +206,10 @@ makeModes cf as = Ex.toEither . Ex.mapException (const . fail) $ do
            _ -> Ex.throw $
               "more than one financial institution account "
               ++ "named " ++ X.unpack s ++ " configured."
-  let ms = [C.mode, I.mode, M.mode, P.mode, D.mode]
-  return . map (fmap ($ fi)) $ ms
+  return . map (fmap ($ fi)) $ allModes
+
+allModes :: [MA.Mode (Y.FitAcct -> IO ())]
+allModes = [C.mode, I.mode, M.mode, P.mode, D.mode]
 
 -- | Help for a pre-compiled configuration.
 help
@@ -174,7 +242,7 @@ help c n = unlines ls ++ cs
          ]
     showPair (Y.Name a, cd) = "Additional financial institution "
       ++ "account: " ++ X.unpack a ++ "\n" ++ showFitAcct cd
-    cs = showDefaultFitAcct (Y.defaultFitAcct c)
+    cs = showDefaultFitAcct (fmap snd . Y.defaultFitAcct $ c)
          ++ more
     more = if null (Y.moreFitAccts c)
            then "No additional financial institution accounts\n"
@@ -298,13 +366,14 @@ convertFitAcct (FitAcct db ax df cy gs tl sd sb ps tlp) = Y.FitAcct
   }
 
 data Config = Config
-  { defaultFitAcct :: Maybe FitAcct
+  { defaultFitAcct :: Maybe (String, FitAcct)
   , moreFitAccts :: [(String, FitAcct)]
   } deriving Show
 
 convertConfig :: Config -> Y.Config
 convertConfig (Config d m) = Y.Config
-  { Y.defaultFitAcct = fmap convertFitAcct d
+  { Y.defaultFitAcct =
+      fmap (\(s, a) -> (Y.Name . X.pack $ s, convertFitAcct a)) d
   , Y.moreFitAccts =
       let f (n, c) = (Y.Name (X.pack n), convertFitAcct c)
       in map f m
