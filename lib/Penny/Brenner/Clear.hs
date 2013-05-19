@@ -43,10 +43,10 @@ help pn = unlines
 
 data Arg
   = APosArg String
-  deriving (Eq, Show)
+  | AHelp (IO ())
 
 toPosArg :: Arg -> Maybe String
-toPosArg a = case a of { APosArg s -> Just s }
+toPosArg a = case a of { APosArg s -> Just s; _ -> Nothing }
 
 data Opts = Opts
   { csvLocation :: Y.FitFileLocation
@@ -54,23 +54,19 @@ data Opts = Opts
   } deriving Show
 
 
-mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
+mode :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [ ]
+  , MA.mOpts = [ fmap AHelp (U.help help) ]
   , MA.mPosArgs = return . APosArg
   , MA.mProcess = process
   , MA.mHelp = help
   }
 
-process :: [Arg] -> Maybe Y.FitAcct -> IO ()
-process as mayC = do
-  c <- case mayC of
-    Just cd -> return cd
-    Nothing -> fail $ "no financial institution account given"
-               ++ " on command line, and no default financial"
-               ++ " institution configured."
+process :: [Arg] -> Y.FitAcct -> IO ()
+process as c = do
+  U.printHelp (\a -> case a of { AHelp h -> Just h; _ -> Nothing }) as
   (csv, ls) <- case mapMaybe toPosArg as of
     [] -> fail "clear: you must provide a postings file."
     x:xs -> return (Y.FitFileLocation x, xs)

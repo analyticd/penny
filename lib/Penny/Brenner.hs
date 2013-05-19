@@ -31,9 +31,12 @@ import qualified Penny.Brenner.Database as D
 import qualified Penny.Brenner.Import as I
 import qualified Penny.Brenner.Merge as M
 import qualified Penny.Brenner.Print as P
+import qualified Penny.Brenner.Util as U
 import Control.Applicative ((<*>))
 import qualified System.Console.MultiArg as MA
 import qualified Control.Monad.Exception.Synchronous as Ex
+import qualified System.Exit as Exit
+import qualified System.IO as IO
 
 brennerMain
   :: V.Version
@@ -42,18 +45,26 @@ brennerMain
   -> IO ()
 brennerMain v cf = do
   let cf' = convertConfig cf
-  join $ MA.modesWithHelp (help cf') (globalOpts v)
-    (preProcessor cf')
+  pn <- MA.getProgName
+  as <- MA.getArgs
+  case MA.modes (globalOpts cf' v) (preProcessor cf') as of
+    Ex.Exception e -> do
+      IO.hPutStr IO.stderr . MA.formatError pn $ e
+      Exit.exitFailure
+    Ex.Success g -> g
 
 -- | Parses global options for a pre-compiled configuration.
 globalOpts
-  :: V.Version
+  :: Y.Config
+  -> V.Version
   -- ^ Binary version
   -> [MA.OptSpec (Either (IO ()) FitAcctName)]
-globalOpts v =
+globalOpts cf v =
   [ MA.OptSpec ["fit-account"] "f"
   (MA.OneArg (Right . FitAcctName . Y.Name . X.pack))
   , fmap Left (Ly.version v)
+
+  , fmap Left $ U.help (help cf)
   ]
 
 newtype ConfigLocation = ConfigLocation
@@ -113,7 +124,11 @@ makeModes
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 makeModes cf as = Ex.toEither . Ex.mapException (const . fail) $ do
   fi <- case as of
-    [] -> return $ Y.defaultFitAcct cf
+    [] -> case Y.defaultFitAcct cf of
+      Nothing -> fail $ "no financial institution account"
+        ++ " selected on command line, and no default"
+        ++ " financial instititution account configured."
+      Just a -> return a
     _ ->
       let pdct (Y.Name n, _) = n == s
           FitAcctName (Y.Name s) = last as
@@ -121,7 +136,7 @@ makeModes cf as = Ex.toEither . Ex.mapException (const . fail) $ do
            [] -> Ex.throw $
               "financial institution account "
               ++ X.unpack s ++ " not configured."
-           (_, c):[] -> return $ Just c
+           (_, c):[] -> return c
            _ -> Ex.throw $
               "more than one financial institution account "
               ++ "named " ++ X.unpack s ++ " configured."

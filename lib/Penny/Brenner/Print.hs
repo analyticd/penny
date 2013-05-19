@@ -22,14 +22,14 @@ help pn = unlines
 
 data Arg
   = ArgFile String
-  deriving (Eq, Show)
+  | ArgHelp (IO ())
 
 mode
-  :: MA.Mode (Maybe Y.FitAcct -> IO ())
+  :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "print"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = []
+  , MA.mOpts = [fmap ArgHelp $ U.help help]
   , MA.mPosArgs = return . ArgFile
   , MA.mProcess = processor
   , MA.mHelp = help
@@ -37,15 +37,12 @@ mode = MA.Mode
 
 processor
   :: [Arg]
-  -> Maybe Y.FitAcct
+  -> Y.FitAcct
   -> IO ()
-processor ls mayFa =
-  case mayFa of
-    Nothing -> fail $
-      "no financial institution account"
-      ++ " provided on command line, and no account"
-      ++ " configured by default."
-    Just fa -> doPrint (snd . Y.parser $ fa) ls
+processor ls fa = do
+  U.printHelp (\a -> case a of { ArgHelp x -> Just x; _ -> Nothing })
+              ls
+  doPrint (snd . Y.parser $ fa) ls
 
 doPrint
   :: (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
@@ -61,4 +58,5 @@ doPrint prsr ls = mapM_ f . mapMaybe toFile $ ls
         Ex.Success ps -> mapM putStr . map U.showPosting $ ps
     toFile a = case a of
       ArgFile s -> Just (Y.FitFileLocation s)
+      _ -> Nothing
 

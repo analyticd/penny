@@ -11,7 +11,7 @@ data Arg
   = AFitFile String
   | AAllowNew
   | AUNumber Integer
-  deriving (Eq, Show)
+  | AHelp (IO ())
 
 toFitFile :: Arg -> Maybe String
 toFitFile a = case a of
@@ -34,7 +34,7 @@ data ImportOpts = ImportOpts
   }
 
 mode
-  :: MA.Mode (Maybe Y.FitAcct -> IO ())
+  :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "import"
   , MA.mIntersperse = MA.Intersperse
@@ -43,6 +43,7 @@ mode = MA.Mode
       , MA.OptSpec ["unumber"] "u" . MA.OneArgE $ \s -> do
           i <- MA.reader s
           return $ AUNumber i
+      , fmap AHelp (U.help help)
       ]
   , MA.mPosArgs = return . AFitFile
   , MA.mProcess = processor
@@ -51,19 +52,18 @@ mode = MA.Mode
 
 processor
   :: [Arg]
-  -> Maybe Y.FitAcct
+  -> Y.FitAcct
   -> IO ()
-processor as mayFa = do
-  (dbLoc, prsr) <- case mayFa of
-    Nothing -> fail $ "no financial institution account provided"
-      ++ " on command line, and no default financial institution"
-      ++ " account is configured."
-    Just fa -> return (Y.dbLocation fa, snd . Y.parser $ fa)
+processor as fa = do
+  U.printHelp (\a -> case a of { AHelp x -> Just x; _ -> Nothing })
+              as
+  let (dbLoc, prsr) = (Y.dbLocation fa, snd . Y.parser $ fa)
   loc <- case mapMaybe toFitFile as of
     [] -> fail "you must provide a postings file to read"
     x:[] -> return (Y.FitFileLocation x)
     _ -> fail "you cannot provide more than one postings file to read"
-  let aNew = Y.AllowNew $ any (== AAllowNew) as
+  let aNew = Y.AllowNew
+        $ any (\a -> case a of { AAllowNew -> True; _ -> False }) as
       maybeNewU = toNewUNumber as
   doImport dbLoc (ImportOpts loc aNew prsr maybeNewU)
 
