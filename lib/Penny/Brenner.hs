@@ -45,18 +45,44 @@ brennerMain v cf = do
   join $ MA.modesWithHelp (help cf') (globalOpts v)
     (preProcessor cf')
 
+-- | Parses global options for a pre-compiled configuration.
 globalOpts
   :: V.Version
   -- ^ Binary version
-  -> [MA.OptSpec (Either (IO ()) String)]
+  -> [MA.OptSpec (Either (IO ()) FitAcctName)]
 globalOpts v =
-  [ MA.OptSpec ["fit-account"] "f" (MA.OneArg Right)
+  [ MA.OptSpec ["fit-account"] "f"
+  (MA.OneArg (Right . FitAcctName . Y.Name . X.pack))
   , fmap Left (Ly.version v)
   ]
 
+newtype ConfigLocation = ConfigLocation
+  { unConfigLocation :: String }
+  deriving (Eq, Show)
+
+newtype FitAcctName = FitAcctName
+  { unFitAcctName :: Y.Name }
+  deriving (Eq, Show)
+
+-- | Parses global options for a dynamic configuration.
+globalOptsDynamic
+  :: V.Version
+  -- ^ Binary version
+  -> [MA.OptSpec (Either (IO ()) (Either ConfigLocation FitAcctName)) ]
+globalOptsDynamic v =
+  [ fmap Left (Ly.version v)
+
+  , MA.OptSpec ["config-file"] "c"
+    (MA.OneArg (Right . Left . ConfigLocation))
+
+  , MA.OptSpec ["fit-account"] "f"
+    (MA.OneArg (Right . Right . FitAcctName . Y.Name . X.pack))
+  ]
+
+-- | Pre-processes global options for a pre-compiled configuration.
 preProcessor
   :: Y.Config
-  -> [Either (IO ()) String]
+  -> [Either (IO ()) FitAcctName]
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 preProcessor cf args =
   let (vers, as) = partitionEithers args
@@ -64,27 +90,44 @@ preProcessor cf args =
       [] -> makeModes cf as
       x:_ -> Left (const x)
 
+-- | Pre-processes global options for a dynamic configuration.
+preProcessorDynamic
+  :: [Either (IO ()) (Either ConfigLocation FitAcctName)]
+  -> Either (a -> IO ()) [MA.Mode (IO ())]
+preProcessorDynamic args =
+  let (versOrHelp, as) = partitionEithers args
+  in case versOrHelp of
+    x:_ -> Left (const x)
+    [] -> makeModesDynamic as
+
+makeModesDynamic
+  :: [Either ConfigLocation FitAcctName]
+  -> Either (a -> IO ()) [MA.Mode (IO ())]
+makeModesDynamic = undefined
+
+-- | Makes modes for a pre-compiled configuration.
 makeModes
   :: Y.Config
-  -> [String]
+  -> [FitAcctName]
   -- ^ Names of financial institutions given on command line
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 makeModes cf as = Ex.toEither . Ex.mapException (const . fail) $ do
   fi <- case as of
     [] -> return $ Y.defaultFitAcct cf
     _ ->
-      let pdct (Y.Name n, _) = n == X.pack s
-          s = last as
+      let pdct (Y.Name n, _) = n == s
+          FitAcctName (Y.Name s) = last as
       in case filter pdct (Y.moreFitAccts cf) of
            [] -> Ex.throw $
               "financial institution account "
-              ++ s ++ " not configured."
+              ++ X.unpack s ++ " not configured."
            (_, c):[] -> return $ Just c
            _ -> Ex.throw $
               "more than one financial institution account "
-              ++ "named " ++ s ++ " configured."
+              ++ "named " ++ X.unpack s ++ " configured."
   return $ [C.mode, I.mode, M.mode, P.mode, D.mode] <*> [fi]
 
+-- | Help for a pre-compiled configuration.
 help
   :: Y.Config
   -> String
