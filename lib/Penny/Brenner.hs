@@ -15,15 +15,16 @@ module Penny.Brenner
   , L.SpaceBetween(..)
   , usePayeeOrDesc
   , brennerMain
+  , brennerDynamic
   ) where
 
 import qualified Penny.Brenner.Types as Y
-import Control.Monad (join)
 import Data.Either (partitionEithers)
 import qualified Data.Text as X
 import qualified Data.Version as V
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
+import qualified Penny.Steel.Sums as S
 import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Copper.Render as R
 import qualified Penny.Brenner.Clear as C
@@ -33,7 +34,7 @@ import qualified Penny.Brenner.Merge as M
 import qualified Penny.Brenner.OFX as O
 import qualified Penny.Brenner.Print as P
 import qualified Penny.Brenner.Util as U
-import Control.Applicative ((<*>), (<|>))
+import Control.Applicative ((<|>))
 import qualified System.Console.MultiArg as MA
 import System.Directory (getHomeDirectory)
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -56,6 +57,20 @@ brennerMain v cf = do
       Exit.exitFailure
     Ex.Success g -> g
 
+-- | Brenner with a dynamic configuration.
+brennerDynamic
+  :: V.Version
+  -- ^ Binary version
+  -> IO ()
+brennerDynamic v = do
+  pn <- MA.getProgName
+  as <- MA.getArgs
+  case MA.modes (globalOptsDynamic v) preProcessorDynamic as of
+    Ex.Exception e -> do
+      IO.hPutStr IO.stderr . MA.formatError pn $ e
+      Exit.exitFailure
+    Ex.Success g -> g
+
 -- | Parses global options for a pre-compiled configuration.
 globalOpts
   :: Y.Config
@@ -71,7 +86,7 @@ globalOpts cf v =
   ]
 
 newtype ConfigLocation = ConfigLocation
-  { unConfigLocation :: String }
+  { _unConfigLocation :: String }
   deriving (Eq, Show)
 
 newtype FitAcctName = FitAcctName
@@ -82,22 +97,24 @@ newtype FitAcctName = FitAcctName
 globalOptsDynamic
   :: V.Version
   -- ^ Binary version
-  -> [MA.OptSpec (Either (Y.Config -> IO ())
-                 (Either ConfigLocation FitAcctName)) ]
+  -> [MA.OptSpec (S.S4 (IO ())
+                       (Y.Config -> IO ())
+                       ConfigLocation
+                       FitAcctName)]
 globalOptsDynamic v =
-  [ fmap (Left . const) (Ly.version v)
-
-  , MA.OptSpec ["config-file"] "c"
-    (MA.OneArg (Right . Left . ConfigLocation))
-
-  , MA.OptSpec ["fit-account"] "f"
-    (MA.OneArg (Right . Right . FitAcctName . Y.Name . X.pack))
+  [ fmap S.S4a (Ly.version v)
 
   , let showHelp conf = do
           pn <- MA.getProgName
           IO.putStr (help conf pn)
           Exit.exitSuccess
-    in MA.OptSpec ["help"] "h" (MA.NoArg (Left showHelp))
+    in MA.OptSpec ["help"] "h" (MA.NoArg (S.S4b showHelp))
+
+  , MA.OptSpec ["config-file"] "c"
+    (MA.OneArg (S.S4c . ConfigLocation))
+
+  , MA.OptSpec ["fit-account"] "f"
+    (MA.OneArg (S.S4d . FitAcctName . Y.Name . X.pack))
 
   ]
 
@@ -114,67 +131,68 @@ preProcessor cf args =
 
 -- | Pre-processes global options for a dynamic configuration.
 preProcessorDynamic
-  :: [Either (Y.Config -> IO ()) (Either ConfigLocation FitAcctName)]
+  :: [S.S4 (IO ()) (Y.Config -> IO ()) ConfigLocation FitAcctName]
   -> Either (a -> IO ()) [MA.Mode (IO ())]
-preProcessorDynamic args =
-  let (versOrHelp, as) = partitionEithers args
-  in case versOrHelp of
-    x:_ -> Left (const x)
-    [] -> Right $ makeModesDynamic as
+preProcessorDynamic ls =
+  let (vs, hs, cs, fs) = S.partitionS4 ls
+      mkAct = applyAcctInMode cs fs
+  in case vs of
+      x:[] -> Left (const x)
+      _ -> case hs of
+        [] -> Right $ map (fmap mkAct) allModes
+        xs ->
+          let act = do
+                configLoc <- getConfigLocation cs
+                conf <- getDynamicConfig configLoc
+                last xs conf
+          in Left (const act)
 
-makeModesDynamic
-  :: [Either ConfigLocation FitAcctName]
-  -> [MA.Mode (IO ())]
-makeModesDynamic ls =
-  let mkAct = applyAcctInMode ls
-  in map (fmap mkAct) allModes
-
-getConfigLocation
-  :: [Either ConfigLocation a]
-  -> IO ConfigLocation
-getConfigLocation ls =
-  let (cs, _) = partitionEithers ls
-  in case cs of
-      [] -> do
-        home <- getHomeDirectory
-        return . ConfigLocation $ home ++ "/.penny-ofx.ini"
-      xs -> return $ last xs
-
-applyAcctInMode
-  :: [Either ConfigLocation FitAcctName]
-  -> (Y.FitAcct -> IO ())
-  -> IO ()
-applyAcctInMode ls act = do
-  configLoc <- getConfigLocation ls
-  conf <- getDynamicConfig configLoc
-  acct <- getDynamicDefaultFitAcct ls conf
-  act acct
 
 getDynamicConfig :: ConfigLocation -> IO Y.Config
 getDynamicConfig (ConfigLocation s) = O.parseOFXConfigFile s
 
+getConfigLocation
+  :: [ConfigLocation]
+  -> IO ConfigLocation
+getConfigLocation cs =
+  case cs of
+    [] -> do
+      home <- getHomeDirectory
+      return . ConfigLocation $ home ++ "/.penny-ofx.ini"
+    xs -> return $ last xs
+
+applyAcctInMode
+  :: [ConfigLocation]
+  -> [FitAcctName]
+  -> (Y.FitAcct -> IO ())
+  -> IO ()
+applyAcctInMode lsc lsf act = do
+  configLoc <- getConfigLocation lsc
+  conf <- getDynamicConfig configLoc
+  acct <- getDynamicDefaultFitAcct lsf conf
+  act acct
+
 getDynamicDefaultFitAcct
-  :: [Either a FitAcctName]
+  :: [FitAcctName]
   -> Y.Config
   -> IO Y.FitAcct
-getDynamicDefaultFitAcct ls c =
-  let (_, cs) = partitionEithers ls
-  in case cs of
-      [] -> case Y.defaultFitAcct c of
-        Nothing -> errExit $ "no financial institution account"
-          ++ " selected on command line, and no default"
-          ++ " financial instititution account configured."
-        Just (_, a) -> return a
-      fs ->
-        let name = unFitAcctName . last $ fs
-            confDflt = maybe Nothing
-              (\(n, a) -> if n == name then Just a else Nothing)
-              $ Y.defaultFitAcct c
-            confExtra = lookup name . Y.moreFitAccts $ c
-        in case confDflt <|> confExtra of
-            Nothing -> errExit $ "financial institution account not "
-              ++ "configured: " ++ (X.unpack . Y.unName $ name)
-            Just a -> return a
+getDynamicDefaultFitAcct cs c =
+  case cs of
+    [] -> case Y.defaultFitAcct c of
+      Nothing -> errExit $ "no financial institution account"
+        ++ " selected on command line, and no default"
+        ++ " financial instititution account configured."
+      Just (_, a) -> return a
+    fs ->
+      let name = unFitAcctName . last $ fs
+          confDflt = maybe Nothing
+            (\(n, a) -> if n == name then Just a else Nothing)
+            $ Y.defaultFitAcct c
+          confExtra = lookup name . Y.moreFitAccts $ c
+      in case confDflt <|> confExtra of
+          Nothing -> errExit $ "financial institution account not "
+            ++ "configured: " ++ (X.unpack . Y.unName $ name)
+          Just a -> return a
 
 errExit :: String -> IO a
 errExit s = do

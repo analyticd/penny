@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | Anonymous sum types.
 
@@ -6,11 +6,6 @@ module Penny.Steel.Sums where
 
 import Data.Binary (Binary)
 import GHC.Generics (Generic)
-
-#ifdef test
-import Test.QuickCheck (Arbitrary, arbitrary)
-import qualified Test.QuickCheck as Q
-#endif
 
 data S3 a b c
   = S3a a
@@ -28,6 +23,23 @@ data S4 a b c d
   deriving (Eq, Ord, Show, Generic)
 
 instance (Binary a, Binary b, Binary c, Binary d) => Binary (S4 a b c d)
+
+partitionS3 :: [S3 a b c] -> ([a], [b], [c])
+partitionS3 = foldr f ([], [], [])
+  where
+    f i (as, bs, cs) = case i of
+      S3a a -> (a:as, bs, cs)
+      S3b b -> (as, b:bs, cs)
+      S3c c -> (as, bs, c:cs)
+
+partitionS4 :: [S4 a b c d] -> ([a], [b], [c], [d])
+partitionS4 = foldr f ([], [], [], [])
+  where
+    f i (as, bs, cs, ds) = case i of
+      S4a a -> (a:as, bs, cs, ds)
+      S4b b -> (as, b:bs, cs, ds)
+      S4c c -> (as, bs, c:cs, ds)
+      S4d d -> (as, bs, cs, d:ds)
 
 caseS3 :: (a -> d) -> (b -> d) -> (c -> d) -> S3 a b c -> d
 caseS3 fa fb fc s3 = case s3 of
@@ -64,17 +76,3 @@ mapS4a
 mapS4a a b c d = caseS4 (fmap S4a . a) (fmap S4b . b) (fmap S4c . c)
                         (fmap S4d . d)
 
-
-#ifdef test
-instance (Arbitrary a, Arbitrary b, Arbitrary c)
-         => Arbitrary (S3 a b c) where
-  arbitrary = Q.oneof
-    [ fmap S3a arbitrary, fmap S3b arbitrary, fmap S3c arbitrary ]
-
-instance (Arbitrary a, Arbitrary b, Arbitrary c, Arbitrary d)
-         => Arbitrary (S4 a b c d) where
-  arbitrary = Q.oneof
-    [ fmap S4a arbitrary, fmap S4b arbitrary, fmap S4c arbitrary
-    , fmap S4d arbitrary ]
-
-#endif
