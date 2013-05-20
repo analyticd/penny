@@ -12,7 +12,9 @@ module Penny.Brenner.Types
   , DbList
   , Posting(..)
   , DbLocation(..)
-  , Name(..)
+  , FitAcctName(..)
+  , FitAcctDesc(..)
+  , ParserDesc(..)
   , PennyAcct(..)
   , Translator(..)
   , DefaultAcct(..)
@@ -196,8 +198,16 @@ instance S.Serialize Posting where
 newtype DbLocation = DbLocation { unDbLocation :: Text }
   deriving (Eq, Show)
 
+-- | Text description of the financial institution account.
+newtype FitAcctDesc = FitAcctDesc { unFitAcctDesc :: Text }
+  deriving (Eq, Show)
+
+-- | Text description of the parser itself.
+newtype ParserDesc = ParserDesc { unParserDesc :: Text }
+  deriving (Eq, Show)
+
 -- | A name used to refer to a batch of settings.
-newtype Name = Name { unName :: Text }
+newtype FitAcctName = FitAcctName { unFitAcctName :: Text }
   deriving (Eq, Show)
 
 -- | The Penny account holding postings for this financial
@@ -236,7 +246,9 @@ newtype Currency = Currency { unCurrency :: L.Commodity }
 -- | A batch of settings representing a single financial institution
 -- account.
 data FitAcct = FitAcct
-  { dbLocation :: DbLocation
+  { fitAcctName :: FitAcctName
+  , fitAcctDesc :: FitAcctDesc
+  , dbLocation :: DbLocation
   , pennyAcct :: PennyAcct
   , defaultAcct :: DefaultAcct
   , currency :: Currency
@@ -251,7 +263,7 @@ data FitAcct = FitAcct
   -- ^ When creating new transactions, is there a space between the
   -- commodity and the quantity
 
-  , parser :: ( String
+  , parser :: ( ParserDesc
               , FitFileLocation -> IO (Ex.Exceptional String [Posting]))
   -- ^ Parses a file of transactions from the financial
   -- institution. The function must open the file and parse it. This
@@ -264,8 +276,7 @@ data FitAcct = FitAcct
   -- if any of the IO functions throw you can simply not handle the
   -- exceptions.
   --
-  -- The first element of the pair is a help string which should
-  -- indicate how to download the data, as a helpful reminder.
+  -- The first element of the pair gives information about the parser.
 
   , toLincolnPayee :: Desc -> Payee -> L.Payee
   -- ^ Sometimes the financial institution provides Payee information,
@@ -287,8 +298,8 @@ data FitAcct = FitAcct
 -- command line.
 
 data Config = Config
-  { defaultFitAcct :: Maybe (Name, FitAcct)
-  , moreFitAccts :: [(Name, FitAcct)]
+  { defaultFitAcct :: Maybe FitAcct
+  , moreFitAccts :: [FitAcct]
   }
 
 newtype FitFileLocation = FitFileLocation { unFitFileLocation :: String }

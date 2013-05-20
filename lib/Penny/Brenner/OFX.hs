@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Parses any OFX 1.0-series file. Uses the parser from the ofx
 -- package.
 
@@ -15,7 +16,7 @@ import Data.Functor.Identity (Identity(..))
 import qualified Data.ConfigFile as CF
 import Data.Char (toLower)
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.List (isPrefixOf)
+import Data.List (isPrefixOf, find)
 import qualified Data.OFX as O
 import qualified Data.Text as X
 import qualified Data.Time as T
@@ -40,11 +41,19 @@ data DescSign
   = PosIsIncrease
   | PosIsDecrease
 
-parser
-  :: String
-  -- ^ Help string
-  -> (String, ParserFn)
-parser help = (help, loadIncoming)
+parser :: ( Y.ParserDesc, ParserFn )
+parser = (Y.ParserDesc d, loadIncoming)
+  where
+    d = X.unlines
+      [ "Parses OFX 1.0-series files."
+      , "Open Financial Exchange (OFX) is a standard format"
+      , "for providing financial information. It is documented"
+      , "at http://www.ofx.net"
+      , "This parser also handles QFX files, which are OFX"
+      , "files with minor additions by the makers of Quicken."
+      , "Many banks make this format available with the label"
+      , "\"Download to Quicken\" or similar."
+      ]
 
 loadIncoming
   :: Y.FitFileLocation
@@ -129,8 +138,8 @@ spaceBetween = pullList [ ("false", L.NoSpaceBetween)
                         , ("true", L.SpaceBetween) ]
                         "space_between"
 
-moreInfo :: FitName -> Parser String
-moreInfo n cf = CF.get cf n "info"
+fitAcctDesc :: FitName -> Parser Y.FitAcctDesc
+fitAcctDesc n cf = pullString "more_info" Y.FitAcctDesc n cf
 
 pullList
   :: [(String, a)]
@@ -158,14 +167,11 @@ pullString sect mkType n cp =
   fmap (mkType . X.pack)
   $ CF.get cp n sect
 
-getParser
-  :: FitName
-  -> Parser (String, ParserFn)
-getParser n cf = fmap parser $ moreInfo n cf
-
 parseFitAcct :: FitName -> Parser Y.FitAcct
 parseFitAcct n cf = Y.FitAcct
-  <$> dbLocation n cf
+  <$> pure (Y.FitAcctName . X.pack $ n)
+  <*> fitAcctDesc n cf
+  <*> dbLocation n cf
   <*> pennyAcct n cf
   <*> defaultAcct n cf
   <*> currency n cf
@@ -173,28 +179,24 @@ parseFitAcct n cf = Y.FitAcct
   <*> translator n cf
   <*> side n cf
   <*> spaceBetween n cf
-  <*> getParser n cf
+  <*> pure parser
   <*> pure (\_ (Y.Payee p) -> L.Payee p)
 
-parseFitAccts :: Parser [(Y.Name, Y.FitAcct)]
-parseFitAccts cf =
-  let secs = CF.sections cf
-      getAcct n = (,) <$> pure (Y.Name . X.pack $ n)
-                      <*> parseFitAcct n cf
-  in mapM getAcct secs
+parseFitAccts :: Parser [Y.FitAcct]
+parseFitAccts cf = mapM (\n -> parseFitAcct n cf) $ CF.sections cf
 
 parseConfig :: Parser Y.Config
 parseConfig cf = do
   accts <- parseFitAccts cf
   if CF.has_option cf "DEFAULT" "default_fit_acct"
     then do
-      dflt <- fmap (Y.Name . X.pack)
+      dflt <- fmap (Y.FitAcctName . X.pack)
               $ CF.get cf "DEFAULT" "default_fit_acct"
-      case lookup dflt accts of
+      case find (\a -> Y.fitAcctName a == dflt) accts of
         Nothing -> fail $ "default financial institution account "
                         ++ "not found: "
-                        ++ (X.unpack . Y.unName $ dflt)
-        Just x -> return (Y.Config (Just (dflt, x)) accts)
+                        ++ (X.unpack . Y.unFitAcctName $ dflt)
+        Just x -> return (Y.Config (Just x) accts)
     else return $ Y.Config Nothing accts
 
 errExit :: Show e => Either e g -> IO g
