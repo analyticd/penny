@@ -189,6 +189,20 @@ Executable penny
   if ! flag(build-penny)
     buildable: False
 
+Executable penny-ofx
+  Build-depends:
+    base ==4.*,
+    penny-lib ==0.13.*
+
+  Main-is: penny-ofx.hs
+  Other-modules: Paths_penny_bin
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
+  if ! flag(build-ofx)
+    buildable: False
+
 Executable penny-selloff
   Build-depends:
     base == 4.*,
@@ -277,4 +291,8 @@ Flag build-reprint
 
 Flag build-reconcile
   Description: Build the penny-reconcile executable
+  Default: True
+
+Flag build-ofx
+  Description: Build the penny-ofx executable
   Default: True

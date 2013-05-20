@@ -82,7 +82,7 @@ globalOpts cf v =
   (MA.OneArg (Right . FitAcctName . Y.Name . X.pack))
   , fmap Left (Ly.version v)
 
-  , fmap Left $ U.help (help cf)
+  , fmap Left $ U.help (help Nothing cf)
   ]
 
 newtype ConfigLocation = ConfigLocation
@@ -98,15 +98,15 @@ globalOptsDynamic
   :: V.Version
   -- ^ Binary version
   -> [MA.OptSpec (S.S4 (IO ())
-                       (Y.Config -> IO ())
+                       (ConfigLocation -> Y.Config -> IO ())
                        ConfigLocation
                        FitAcctName)]
 globalOptsDynamic v =
   [ fmap S.S4a (Ly.version v)
 
-  , let showHelp conf = do
+  , let showHelp loc conf = do
           pn <- MA.getProgName
-          IO.putStr (help conf pn)
+          IO.putStr (help (Just loc) conf pn)
           Exit.exitSuccess
     in MA.OptSpec ["help"] "h" (MA.NoArg (S.S4b showHelp))
 
@@ -131,7 +131,9 @@ preProcessor cf args =
 
 -- | Pre-processes global options for a dynamic configuration.
 preProcessorDynamic
-  :: [S.S4 (IO ()) (Y.Config -> IO ()) ConfigLocation FitAcctName]
+  :: [S.S4 (IO ())
+           (ConfigLocation -> Y.Config -> IO ())
+           ConfigLocation FitAcctName]
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 preProcessorDynamic ls =
   let (vs, hs, cs, fs) = S.partitionS4 ls
@@ -144,7 +146,7 @@ preProcessorDynamic ls =
           let act = do
                 configLoc <- getConfigLocation cs
                 conf <- getDynamicConfig configLoc
-                last xs conf
+                last xs configLoc conf
           in Left (const act)
 
 
@@ -157,8 +159,9 @@ getConfigLocation
 getConfigLocation cs =
   case cs of
     [] -> do
+      pn <- MA.getProgName
       home <- getHomeDirectory
-      return . ConfigLocation $ home ++ "/.penny-ofx.ini"
+      return . ConfigLocation $ home ++ "/." ++ pn ++ ".ini"
     xs -> return $ last xs
 
 applyAcctInMode
@@ -231,12 +234,16 @@ allModes = [C.mode, I.mode, M.mode, P.mode, D.mode]
 
 -- | Help for a pre-compiled configuration.
 help
-  :: Y.Config
+  :: Maybe ConfigLocation
+  -- ^ If running with a dynamic configuration, this is the default
+  -- location of the configuration file. If a static configuration,
+  -- Nothing.
+  -> Y.Config
   -> String
   -- ^ Program name
 
   -> String
-help c n = unlines ls ++ cs
+help mayConf c n = unlines ls ++ cs
   where
     ls = [ "usage: " ++ n ++ " [global-options]"
             ++ " COMMAND [local-options]"
@@ -254,10 +261,13 @@ help c n = unlines ls ++ cs
          , "  Use one of the Additional Financial Institution"
          , "  Accounts shown below. If this option does not appear,"
          , "  the default account is used if there is one."
-         , "-h, --help"
-         , "  Show help and exit"
-         , ""
-         ]
+         ] ++ case mayConf of
+                Nothing -> []
+                Just (ConfigLocation l) ->
+                  [ "-c, --config-file FILENAME"
+                  , "  Specify configuration file (default: "
+                    ++ l ++ ")"
+                  ]
     showPair (Y.Name a, cd) = "Additional financial institution "
       ++ "account: " ++ X.unpack a ++ "\n" ++ showFitAcct cd
     cs = showDefaultFitAcct (fmap snd . Y.defaultFitAcct $ c)

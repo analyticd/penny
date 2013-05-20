@@ -89,19 +89,16 @@ type Parser a = CF.ConfigParser -> E.ErrorT CF.CPError Identity a
 
 type FitName = String
 
-institutions :: Parser [FitName]
-institutions = return . CF.sections
-
 dbLocation :: FitName -> Parser Y.DbLocation
 dbLocation n cf =
   let cf' = cf { CF.usedefault = False }
-  in pullString "file" Y.DbLocation n cf
+  in pullString "file" Y.DbLocation n cf'
 
 pennyAcct :: FitName -> Parser Y.PennyAcct
-pennyAcct = pullString "pennyAcct" (Y.PennyAcct . Bd.account)
+pennyAcct = pullString "penny_acct" (Y.PennyAcct . Bd.account)
 
 defaultAcct :: FitName -> Parser Y.DefaultAcct
-defaultAcct = pullString "defaultAcct" (Y.DefaultAcct . Bd.account)
+defaultAcct = pullString "default_acct" (Y.DefaultAcct . Bd.account)
 
 currency :: FitName -> Parser Y.Currency
 currency = pullString "currency" (Y.Currency . L.Commodity)
@@ -114,23 +111,23 @@ groupSpec = pullList
 
 groupSpecs :: FitName -> Parser R.GroupSpecs
 groupSpecs n cf = R.GroupSpecs
-  <$> groupSpec "groupLeft" n cf
-  <*> groupSpec "groupRight" n cf
+  <$> groupSpec "group_left" n cf
+  <*> groupSpec "group_right" n cf
 
 translator :: FitName -> Parser Y.Translator
 translator = pullList [ ("debit", Y.IncreaseIsDebit)
                       , ("credit", Y.IncreaseIsCredit) ]
-                      "increaseIs"
+                      "increase_is"
 
 side :: FitName -> Parser L.Side
 side = pullList [ ("left", L.CommodityOnLeft)
                 , ("right", L.CommodityOnRight) ]
-                "commodityOn"
+                "commodity_on"
 
 spaceBetween :: FitName -> Parser L.SpaceBetween
 spaceBetween = pullList [ ("false", L.NoSpaceBetween)
                         , ("true", L.SpaceBetween) ]
-                        "spaceBetween"
+                        "space_between"
 
 moreInfo :: FitName -> Parser String
 moreInfo n cf = CF.get cf n "info"
@@ -189,10 +186,10 @@ parseFitAccts cf =
 parseConfig :: Parser Y.Config
 parseConfig cf = do
   accts <- parseFitAccts cf
-  if CF.has_option cf "DEFAULT" "defaultFitAcct"
+  if CF.has_option cf "DEFAULT" "default_fit_acct"
     then do
       dflt <- fmap (Y.Name . X.pack)
-              $ CF.get cf "DEFAULT" "defaultFitAcct"
+              $ CF.get cf "DEFAULT" "default_fit_acct"
       case lookup dflt accts of
         Nothing -> fail $ "default financial institution account "
                         ++ "not found: "
