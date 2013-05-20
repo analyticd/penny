@@ -74,6 +74,7 @@ Library
     , Penny.Brenner.Clear
     , Penny.Brenner.Database
     , Penny.Brenner.Import
+    , Penny.Brenner.Info
     , Penny.Brenner.Merge
     , Penny.Brenner.OFX
     , Penny.Brenner.Print

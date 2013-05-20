@@ -25,7 +25,7 @@ import qualified Penny.Brenner.Util as U
 
 help :: String -> String
 help pn = unlines
-  [ "usage: " ++ pn ++ " clear clear [options] FIT_FILE LEDGER_FILE..."
+  [ "usage: " ++ pn ++ " clear [options] FIT_FILE LEDGER_FILE..."
   , "Parses all postings that are in FIT_FILE. Then marks all"
   , "postings that are in the FILEs given that correspond to one"
   , "of the postings in the FIT_FILE as being cleared."
