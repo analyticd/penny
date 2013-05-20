@@ -15,13 +15,12 @@ help pn = unlines
   ]
 
 data Arg = ArgPos String
-         | ArgHelp (IO ())
 
 mode :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "database"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [fmap ArgHelp (U.help help)]
+  , MA.mOpts = []
   , MA.mPosArgs = return . ArgPos
   , MA.mProcess = processor
   , MA.mHelp = help
@@ -32,16 +31,10 @@ processor
   -> Y.FitAcct
   -> IO ()
 processor ls fa
-  | any isArgPos ls = fail $
+  | not . null $ ls = fail $
         "penny-fit database: error: this command does"
         ++ " not accept non-option arguments."
   | otherwise = do
         let dbLoc = Y.dbLocation fa
-        U.printHelp
-          (\a -> case a of { ArgHelp act -> Just act; _ -> Nothing }) ls
         db <- U.loadDb (Y.AllowNew False) dbLoc
         mapM_ putStr . map U.showDbPair $ db
-
-isArgPos :: Arg -> Bool
-isArgPos (ArgPos _) = True
-isArgPos _ = False

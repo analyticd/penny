@@ -19,6 +19,7 @@ module Penny.Brenner
   ) where
 
 import qualified Penny.Brenner.Types as Y
+import Control.Monad (join)
 import Data.Either (partitionEithers)
 import Data.List (find)
 import qualified Data.Text as X
@@ -50,13 +51,8 @@ brennerMain
   -> IO ()
 brennerMain v cf = do
   let cf' = convertConfig cf
-  pn <- MA.getProgName
-  as <- MA.getArgs
-  case MA.modes (globalOpts cf' v) (preProcessor cf') as of
-    Ex.Exception e -> do
-      IO.hPutStr IO.stderr . MA.formatError pn $ e
-      Exit.exitFailure
-    Ex.Success g -> g
+  join $ MA.modesWithHelp (help False) (globalOpts v)
+                          (preProcessor cf')
 
 -- | Brenner with a dynamic configuration.
 brennerDynamic
@@ -81,8 +77,6 @@ globalOpts v =
   [ MA.OptSpec ["fit-account"] "f"
   (MA.OneArg (Right . Y.FitAcctName . X.pack))
   , fmap Left (Ly.version v)
-
-  , fmap Left $ U.help (help False)
   ]
 
 newtype ConfigLocation = ConfigLocation
@@ -93,24 +87,17 @@ newtype ConfigLocation = ConfigLocation
 globalOptsDynamic
   :: V.Version
   -- ^ Binary version
-  -> [MA.OptSpec (S.S4 (IO ())
-                       (ConfigLocation -> Y.Config -> IO ())
+  -> [MA.OptSpec (S.S3 (IO ())
                        ConfigLocation
                        Y.FitAcctName)]
 globalOptsDynamic v =
-  [ fmap S.S4a (Ly.version v)
-
-  , let showHelp loc conf = do
-          pn <- MA.getProgName
-          IO.putStr (help True pn)
-          Exit.exitSuccess
-    in MA.OptSpec ["help"] "h" (MA.NoArg (S.S4b showHelp))
+  [ fmap S.S3a (Ly.version v)
 
   , MA.OptSpec ["config-file"] "c"
-    (MA.OneArg (S.S4c . ConfigLocation))
+    (MA.OneArg (S.S3b . ConfigLocation))
 
   , MA.OptSpec ["fit-account"] "f"
-    (MA.OneArg (S.S4d . Y.FitAcctName . X.pack))
+    (MA.OneArg (S.S3c . Y.FitAcctName . X.pack))
 
   ]
 
@@ -127,23 +114,14 @@ preProcessor cf args =
 
 -- | Pre-processes global options for a dynamic configuration.
 preProcessorDynamic
-  :: [S.S4 (IO ())
-           (ConfigLocation -> Y.Config -> IO ())
-           ConfigLocation Y.FitAcctName]
+  :: [S.S3 (IO ()) ConfigLocation Y.FitAcctName]
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 preProcessorDynamic ls =
-  let (vs, hs, cs, fs) = S.partitionS4 ls
+  let (vs, cs, fs) = S.partitionS3 ls
       mkAct = applyAcctInMode cs fs
   in case vs of
-      x:[] -> Left (const x)
-      _ -> case hs of
-        [] -> Right $ map (fmap mkAct) allModes
-        xs ->
-          let act = do
-                configLoc <- getConfigLocation cs
-                conf <- getDynamicConfig configLoc
-                last xs configLoc conf
-          in Left (const act)
+      [] -> Right $ map (fmap mkAct) allModes
+      x:_ -> Left (const x)
 
 
 getDynamicConfig :: ConfigLocation -> IO Y.Config

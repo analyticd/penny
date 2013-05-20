@@ -11,7 +11,6 @@ data Arg
   = AFitFile String
   | AAllowNew
   | AUNumber Integer
-  | AHelp (IO ())
 
 toFitFile :: Arg -> Maybe String
 toFitFile a = case a of
@@ -43,7 +42,6 @@ mode = MA.Mode
       , MA.OptSpec ["unumber"] "u" . MA.OneArgE $ \s -> do
           i <- MA.reader s
           return $ AUNumber i
-      , fmap AHelp (U.help help)
       ]
   , MA.mPosArgs = return . AFitFile
   , MA.mProcess = processor
@@ -55,8 +53,6 @@ processor
   -> Y.FitAcct
   -> IO ()
 processor as fa = do
-  U.printHelp (\a -> case a of { AHelp x -> Just x; _ -> Nothing })
-              as
   let (dbLoc, prsr) = (Y.dbLocation fa, snd . Y.parser $ fa)
   loc <- case mapMaybe toFitFile as of
     [] -> fail "you must provide a postings file to read"

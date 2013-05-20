@@ -23,12 +23,7 @@ type NoAuto = Bool
 data Arg
   = APos String
   | ANoAuto
-  | AHelp (IO ())
-
-instance Eq Arg where
-  (APos x) == (APos y) = x == y
-  ANoAuto == ANoAuto = True
-  _ == _ = False
+  deriving (Eq, Show)
 
 toPosArg :: Arg -> Maybe String
 toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
@@ -37,16 +32,14 @@ mode :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [ MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto)
-               , fmap AHelp (U.help help) ]
+  , MA.mOpts = [ MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto) ]
   , MA.mPosArgs = return . APos
   , MA.mProcess = processor
   , MA.mHelp = help
   }
 
 processor :: [Arg] -> Y.FitAcct -> IO ()
-processor as c = do
-  U.printHelp (\a -> case a of { AHelp x -> Just x; _ -> Nothing }) as
+processor as c =
   doMerge c (ANoAuto `elem` as) (mapMaybe toPosArg as)
 
 doMerge :: Y.FitAcct -> NoAuto -> [String] -> IO ()

@@ -43,10 +43,9 @@ help pn = unlines
 
 data Arg
   = APosArg String
-  | AHelp (IO ())
 
 toPosArg :: Arg -> Maybe String
-toPosArg a = case a of { APosArg s -> Just s; _ -> Nothing }
+toPosArg a = case a of { APosArg s -> Just s }
 
 data Opts = Opts
   { csvLocation :: Y.FitFileLocation
@@ -58,7 +57,7 @@ mode :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [ fmap AHelp (U.help help) ]
+  , MA.mOpts = []
   , MA.mPosArgs = return . APosArg
   , MA.mProcess = process
   , MA.mHelp = help
@@ -66,7 +65,6 @@ mode = MA.Mode
 
 process :: [Arg] -> Y.FitAcct -> IO ()
 process as c = do
-  U.printHelp (\a -> case a of { AHelp h -> Just h; _ -> Nothing }) as
   (csv, ls) <- case mapMaybe toPosArg as of
     [] -> fail "clear: you must provide a postings file."
     x:xs -> return (Y.FitFileLocation x, xs)

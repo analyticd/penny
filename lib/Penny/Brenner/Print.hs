@@ -22,14 +22,13 @@ help pn = unlines
 
 data Arg
   = ArgFile String
-  | ArgHelp (IO ())
 
 mode
   :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "print"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [fmap ArgHelp $ U.help help]
+  , MA.mOpts = []
   , MA.mPosArgs = return . ArgFile
   , MA.mProcess = processor
   , MA.mHelp = help
@@ -39,10 +38,7 @@ processor
   :: [Arg]
   -> Y.FitAcct
   -> IO ()
-processor ls fa = do
-  U.printHelp (\a -> case a of { ArgHelp x -> Just x; _ -> Nothing })
-              ls
-  doPrint (snd . Y.parser $ fa) ls
+processor ls fa = doPrint (snd . Y.parser $ fa) ls
 
 doPrint
   :: (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
