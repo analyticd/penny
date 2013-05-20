@@ -32,10 +32,10 @@ import qualified Penny.Copper.Render as R
 import qualified Penny.Brenner.Clear as C
 import qualified Penny.Brenner.Database as D
 import qualified Penny.Brenner.Import as I
+import qualified Penny.Brenner.Info as Info
 import qualified Penny.Brenner.Merge as M
 import qualified Penny.Brenner.OFX as O
 import qualified Penny.Brenner.Print as P
-import qualified Penny.Brenner.Util as U
 import Control.Applicative ((<|>))
 import qualified System.Console.MultiArg as MA
 import System.Directory (getHomeDirectory)
@@ -105,7 +105,7 @@ preProcessor
 preProcessor cf args =
   let (vers, as) = partitionEithers args
   in case vers of
-      [] -> makeModes cf as
+      [] -> makeModes Nothing cf as
       x:_ -> Left (const x)
 
 -- | Pre-processes global options for a dynamic configuration.
@@ -139,13 +139,13 @@ getConfigLocation cs =
 applyAcctInMode
   :: [Y.ConfigLocation]
   -> [Y.FitAcctName]
-  -> (Y.FitAcct -> IO ())
+  -> ModeFunc
   -> IO ()
 applyAcctInMode lsc lsf act = do
   configLoc <- getConfigLocation lsc
   conf <- getDynamicConfig configLoc
   acct <- getDynamicDefaultFitAcct lsf conf
-  act acct
+  act (Just configLoc) conf acct
 
 getDynamicDefaultFitAcct
   :: [Y.FitAcctName]
@@ -178,11 +178,12 @@ errExit s = do
 
 -- | Makes modes for a pre-compiled configuration.
 makeModes
-  :: Y.Config
+  :: Maybe Y.ConfigLocation
+  -> Y.Config
   -> [Y.FitAcctName]
   -- ^ Names of financial institutions given on command line
   -> Either (a -> IO ()) [MA.Mode (IO ())]
-makeModes cf as = Ex.toEither . Ex.mapException (const . errExit) $ do
+makeModes cl cf as = Ex.toEither . Ex.mapException (const . errExit) $ do
   fi <- case as of
     [] -> case Y.defaultFitAcct cf of
       Nothing -> Ex.throw $ "no financial institution account"
@@ -201,10 +202,19 @@ makeModes cf as = Ex.toEither . Ex.mapException (const . errExit) $ do
               "more than one financial institution account "
               ++ "named " ++ (X.unpack . Y.unFitAcctName $ s)
               ++ " configured."
-  return . map (fmap ($ fi)) $ allModes
+  return . map (fmap (\f -> f cl cf fi)) $ allModes
 
-allModes :: [MA.Mode (Y.FitAcct -> IO ())]
-allModes = [C.mode, I.mode, M.mode, P.mode, D.mode]
+type ModeFunc
+  = Maybe Y.ConfigLocation
+  -> Y.Config
+  -> Y.FitAcct
+  -> IO ()
+
+allModes :: [MA.Mode ModeFunc]
+allModes =
+  fmap (\f cl cf _ -> f cl cf) Info.mode
+  : map (fmap (const . const))
+        [C.mode, I.mode, M.mode, P.mode, D.mode]
 
 -- | Help for a pre-compiled configuration.
 help
@@ -236,16 +246,6 @@ help dyn n = unlines ls
                   [ "-c, --config-file FILENAME"
                   , "  Specify configuration file location"
                   ]
-
-label :: String -> String -> String
-label l o = "  " ++ l ++ ": " ++ o ++ "\n"
-
-showAccount :: L.Account -> String
-showAccount =
-  X.unpack
-  . X.intercalate (X.singleton ':')
-  . map L.unSubAccount
-  . L.unAccount
 
 -- | Information to configure a single financial institution account.
 data FitAcct = FitAcct

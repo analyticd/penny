@@ -3,34 +3,12 @@ module Penny.Brenner.Util where
 import Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Brenner.Types as Y
 import qualified Data.ByteString as BS
-import Data.Maybe (mapMaybe)
 import qualified System.IO.Error as IOE
 import qualified Data.Serialize as S
 import qualified Data.Text as X
 import qualified Penny.Copper.Parsec as CP
 import qualified Text.Parsec as P
 import qualified Penny.Lincoln as L
-import qualified System.Console.MultiArg as MA
-import qualified System.Exit as Exit
-
--- | An option for help.
-
-help
-  :: (String -> String)
-  -- ^ Function that, when applied to the name of the program,
-  -- returns a help string
-  -> MA.OptSpec (IO ())
-help getHelp = MA.OptSpec ["help"] "h" (MA.NoArg a) where
-  a = do
-    pn <- MA.getProgName
-    putStr (getHelp pn)
-    Exit.exitSuccess
-
-printHelp :: (a -> Maybe (IO ())) -> [a] -> IO ()
-printHelp f as = case mapMaybe f as of
-  [] -> return ()
-  x:_ -> x
-
 
 -- | Loads the database from disk. If allowNew is True, then does not
 -- fail if the file was not found.
