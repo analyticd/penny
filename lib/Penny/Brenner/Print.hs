@@ -54,5 +54,4 @@ doPrint prsr ls = mapM_ f . mapMaybe toFile $ ls
         Ex.Success ps -> mapM putStr . map U.showPosting $ ps
     toFile a = case a of
       ArgFile s -> Just (Y.FitFileLocation s)
-      _ -> Nothing
 

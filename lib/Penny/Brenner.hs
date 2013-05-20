@@ -79,22 +79,18 @@ globalOpts v =
   , fmap Left (Ly.version v)
   ]
 
-newtype ConfigLocation = ConfigLocation
-  { _unConfigLocation :: String }
-  deriving (Eq, Show)
-
 -- | Parses global options for a dynamic configuration.
 globalOptsDynamic
   :: V.Version
   -- ^ Binary version
   -> [MA.OptSpec (S.S3 (IO ())
-                       ConfigLocation
+                       Y.ConfigLocation
                        Y.FitAcctName)]
 globalOptsDynamic v =
   [ fmap S.S3a (Ly.version v)
 
   , MA.OptSpec ["config-file"] "c"
-    (MA.OneArg (S.S3b . ConfigLocation))
+    (MA.OneArg (S.S3b . Y.ConfigLocation . X.pack))
 
   , MA.OptSpec ["fit-account"] "f"
     (MA.OneArg (S.S3c . Y.FitAcctName . X.pack))
@@ -114,7 +110,7 @@ preProcessor cf args =
 
 -- | Pre-processes global options for a dynamic configuration.
 preProcessorDynamic
-  :: [S.S3 (IO ()) ConfigLocation Y.FitAcctName]
+  :: [S.S3 (IO ()) Y.ConfigLocation Y.FitAcctName]
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 preProcessorDynamic ls =
   let (vs, cs, fs) = S.partitionS3 ls
@@ -124,22 +120,24 @@ preProcessorDynamic ls =
       x:_ -> Left (const x)
 
 
-getDynamicConfig :: ConfigLocation -> IO Y.Config
-getDynamicConfig (ConfigLocation s) = O.parseOFXConfigFile s
+getDynamicConfig :: Y.ConfigLocation -> IO Y.Config
+getDynamicConfig (Y.ConfigLocation s) =
+  O.parseOFXConfigFile . X.unpack $ s
 
 getConfigLocation
-  :: [ConfigLocation]
-  -> IO ConfigLocation
+  :: [Y.ConfigLocation]
+  -> IO Y.ConfigLocation
 getConfigLocation cs =
   case cs of
     [] -> do
       pn <- MA.getProgName
       home <- getHomeDirectory
-      return . ConfigLocation $ home ++ "/." ++ pn ++ ".ini"
+      return . Y.ConfigLocation . X.pack
+        $ home ++ "/." ++ pn ++ ".ini"
     xs -> return $ last xs
 
 applyAcctInMode
-  :: [ConfigLocation]
+  :: [Y.ConfigLocation]
   -> [Y.FitAcctName]
   -> (Y.FitAcct -> IO ())
   -> IO ()
