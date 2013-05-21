@@ -1,7 +1,7 @@
-.TH penny-ofx 7
+.TH penny-ofx 1
 .
 .SH NAME
-penny-ofx - Penny OFX statement parser
+penny-ofx - Penny Open Financial Exchange statement parser
 .
 .SH SYNOPSIS
 .B penny-ofx
@@ -27,7 +27,8 @@ OFX stands for
 .
 Many financial institutions make OFX files available.
 .
-The easiest thing to look for is a file for
+The easiest thing to look for on your financial institution's website
+is a file for
 .IR "Quicken Web Connect" ,
 which is just an OFX file with some minor additions by the makers of
 Quicken.
@@ -37,13 +38,14 @@ can parse these files as-is.
 .
 .SH CONFIGURING penny-ofx
 .
-First you will have to configure and compile a
-.B penny-ofx
-binary.
+First you will have to configure
+.BR penny-ofx .
 .
 You can use the
 .B penny-ofx-sample.ini
 file in the
+.I doc
+directory of the
 .B penny-bin
 package as an example. The comments in that file should help you get
 started. Place the configuration file at

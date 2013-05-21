@@ -166,6 +166,7 @@ extra-source-files:
   , README
   , doc/*.org
   , doc/*.dot
+  , doc/*.ini
   , examples/*.pny
   , man/*.1
   , man/*.7
