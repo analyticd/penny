@@ -49,6 +49,10 @@ help pn = unlines
   , "changed."
   , ""
   , "Options:"
+  , "  --output FILENAME, -o FILENAME"
+  , "    send output to FILENAME rather than standard output"
+  , "    (multiple -o options are allowed; use \"-\" for standard"
+  , "     output)"
   , "  -h, --help - Show help and exit."
   , "  --version  - Show version and exit"
   ]
@@ -56,27 +60,24 @@ help pn = unlines
 groupSpecs :: C.GroupSpecs
 groupSpecs = C.GroupSpecs C.NoGrouping C.NoGrouping
 
--- | The first element if the pair is a no-op if the user does not
--- need to see the version, or an IO action to print the version if
--- the user wants to see it. The second element is the list of command
--- line arguments.
-type Opts = (IO (), [String])
+type ShowVer = IO ()
+type Printer = X.Text -> IO ()
+type PosArg = String
+type Arg = S.S3 ShowVer Printer PosArg
 
-allOpts :: [MA.OptSpec (Opts -> Opts)]
-allOpts = [ fmap (\act (_, ss) -> (act, ss)) $
-            Ly.version PPB.version
-          ]
-
-posArg :: String -> Opts -> Opts
-posArg s (a, ss) = (a, s:ss)
+allOpts :: [MA.OptSpec Arg]
+allOpts =
+  [ fmap S.S3a $ Ly.version PPB.version
+  , fmap S.S3b Ly.output
+  ]
 
 main :: IO ()
 main = do
-  as <- MA.simpleWithHelp help MA.Intersperse allOpts (fmap return posArg)
-  let opts = foldr ($) (return (), []) as
-  fst opts
-  led <- C.open . snd $ opts
+  as <- MA.simpleWithHelp help MA.Intersperse allOpts (fmap return S.S3c)
+  let (showVer, printers, posArgs) = S.partitionS3 as
+  sequence_ showVer
+  led <- C.open posArgs
   let led' = map (S.mapS4 changeTransaction id id id) led
       rend = fromJust $ mapM (C.item groupSpecs) (map C.stripMeta led')
-  mapM_ TIO.putStr rend
+  let txt = X.concat rend in txt `seq` (Ly.processOutput printers txt)
 

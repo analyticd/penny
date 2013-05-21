@@ -3,8 +3,9 @@ module Main where
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
 import qualified Penny.Liberty as Ly
-import qualified Data.Text.IO as TIO
+import qualified Data.Text as X
 import qualified System.Console.MultiArg as MA
+import qualified Penny.Steel.Sums as S
 
 import qualified Paths_penny_bin as PPB
 
@@ -21,6 +22,10 @@ help pn = unlines
   , "Result is printed to standard output."
   , ""
   , "Options:"
+  , "  --output FILENAME, -o FILENAME"
+  , "    send output to FILENAME rather than standard output"
+  , "    (multiple -o options are allowed; use \"-\" for standard"
+  , "     output)"
   , "  --help, -h - show help and exit"
   , "  --version  - show version and exit"
   ]
@@ -29,21 +34,25 @@ groupSpecs :: R.GroupSpecs
 groupSpecs = R.GroupSpecs R.NoGrouping R.NoGrouping
 
 type MaybeShowVer = IO ()
-type Opts = (MaybeShowVer, [String])
+type Printer = X.Text -> IO ()
+type PosArg = String
 
-posArg :: String -> Opts -> Opts
-posArg s (a, ss) = (a, s:ss)
+type Arg = S.S3 MaybeShowVer Printer PosArg
 
-allOpts :: [MA.OptSpec (Opts -> Opts)]
-allOpts = [ fmap (\a (_, ss) -> (a, ss))
-            $ Ly.version PPB.version ]
+allOpts :: [MA.OptSpec Arg]
+allOpts =
+  [ fmap S.S3a $ Ly.version PPB.version
+  , fmap S.S3b $ Ly.output
+  ]
 
 main :: IO ()
 main = do
-  as <- MA.simpleWithHelp help MA.Intersperse allOpts (fmap return posArg)
-  let opts = foldr ($) (return (), []) as
-  fst opts
-  l <- C.open . snd $ opts
+  as <- MA.simpleWithHelp help MA.Intersperse allOpts (fmap return S.S3c)
+  let (showVers, printers, posArgs) = S.partitionS3 as
+  sequence_ showVers
+  l <- C.open posArgs
   case mapM (R.item groupSpecs) (map C.stripMeta l) of
     Nothing -> error "could not render final ledger."
-    Just x -> mapM_ TIO.putStr x
+    Just x ->
+      let txt = X.concat x
+      in txt `seq` (Ly.processOutput printers txt)
