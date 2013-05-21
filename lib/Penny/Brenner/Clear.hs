@@ -11,6 +11,7 @@ import qualified Data.Text as X
 import qualified Data.Traversable as Tr
 import qualified System.Console.MultiArg as MA
 import qualified Penny.Lincoln as L
+import qualified Penny.Liberty as Ly
 import qualified Penny.Steel.Sums as S
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Trans.Maybe as MT
@@ -63,7 +64,7 @@ mode :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [fmap AOutput U.output]
+  , MA.mOpts = [fmap AOutput Ly.output]
   , MA.mPosArgs = return . APosArg
   , MA.mProcess = process
   , MA.mHelp = help
@@ -74,7 +75,7 @@ process as c = do
   (csv, ls) <- case mapMaybe toPosArg as of
     [] -> fail "clear: you must provide a postings file."
     x:xs -> return (Y.FitFileLocation x, xs)
-  let os = Opts csv ls (U.processOutput . mapMaybe toOutput $ as)
+  let os = Opts csv ls (Ly.processOutput . mapMaybe toOutput $ as)
   runClear c os
 
 runClear :: Y.FitAcct -> Opts -> IO ()

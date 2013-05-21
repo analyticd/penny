@@ -12,6 +12,7 @@ import qualified System.Console.MultiArg as MA
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
 import qualified Penny.Lincoln as L
+import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
@@ -40,7 +41,7 @@ mode = MA.Mode
   { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
   , MA.mOpts = [ MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto)
-               , fmap AOutput U.output
+               , fmap AOutput Ly.output
                ]
   , MA.mPosArgs = return . APos
   , MA.mProcess = processor
@@ -51,7 +52,7 @@ processor :: [Arg] -> Y.FitAcct -> IO ()
 processor as c =
   doMerge c
           (ANoAuto `elem` as)
-          (U.processOutput . mapMaybe toOutput $ as)
+          (Ly.processOutput . mapMaybe toOutput $ as)
           (mapMaybe toPosArg as)
 
 doMerge
