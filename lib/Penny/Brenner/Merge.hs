@@ -1,7 +1,6 @@
 module Penny.Brenner.Merge (mode) where
 
 import Control.Applicative
-import Control.DeepSeq (deepseq)
 import Control.Monad (guard)
 import qualified Control.Monad.Trans.State as St
 import Data.List (find, sortBy, foldl')
@@ -73,7 +72,9 @@ doMerge acct noAuto printer ss = do
       final = l' ++ newTxns
   case mapM (R.item (Y.groupSpecs acct)) (map C.stripMeta final) of
     Nothing -> fail "Could not render final ledger."
-    Just x -> x `deepseq` mapM_ printer x
+    Just txts ->
+      let txt = X.concat txts
+      in txt `seq` printer txt
 
 
 help :: String -> String
