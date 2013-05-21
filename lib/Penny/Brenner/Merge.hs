@@ -8,7 +8,6 @@ import qualified Data.Map as M
 import Data.Maybe (mapMaybe, isNothing, fromMaybe)
 import Data.Monoid (First(..), mconcat)
 import qualified Data.Text as X
-import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
@@ -23,16 +22,26 @@ type NoAuto = Bool
 data Arg
   = APos String
   | ANoAuto
-  deriving (Eq, Show)
+  | AOutput (X.Text -> IO ())
+
+instance Eq Arg where
+  APos l == APos r = l == r
+  ANoAuto == ANoAuto = True
+  _ == _ = False
 
 toPosArg :: Arg -> Maybe String
 toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
+
+toOutput :: Arg -> Maybe (X.Text -> IO ())
+toOutput a = case a of { AOutput x -> Just x; _ -> Nothing }
 
 mode :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [ MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto) ]
+  , MA.mOpts = [ MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto)
+               , fmap AOutput U.output
+               ]
   , MA.mPosArgs = return . APos
   , MA.mProcess = processor
   , MA.mHelp = help
@@ -40,10 +49,20 @@ mode = MA.Mode
 
 processor :: [Arg] -> Y.FitAcct -> IO ()
 processor as c =
-  doMerge c (ANoAuto `elem` as) (mapMaybe toPosArg as)
+  doMerge c
+          (ANoAuto `elem` as)
+          (U.processOutput . mapMaybe toOutput $ as)
+          (mapMaybe toPosArg as)
 
-doMerge :: Y.FitAcct -> NoAuto -> [String] -> IO ()
-doMerge acct noAuto ss = do
+doMerge
+  :: Y.FitAcct
+  -> NoAuto
+  -> (X.Text -> IO ())
+  -- ^ Function to handle the output
+  -> [String]
+  -- ^ Ledger filenames to open
+  -> IO ()
+doMerge acct noAuto printer ss = do
   dbLs <- U.loadDb (Y.AllowNew False) (Y.dbLocation acct)
   l <- C.open ss
   let dbWithEntry = fmap (pairWithEntry acct) . M.fromList $ dbLs
@@ -53,7 +72,7 @@ doMerge acct noAuto ss = do
       final = l' ++ newTxns
   case mapM (R.item (Y.groupSpecs acct)) (map C.stripMeta final) of
     Nothing -> fail "Could not render final ledger."
-    Just x -> mapM_ TIO.putStr x
+    Just x -> mapM_ printer x
 
 
 help :: String -> String
@@ -65,8 +84,10 @@ help pn = unlines
   , "read standard input."
   , ""
   , "Options:"
-  , "  -h, --help - show help and exit"
   , "  -n, --no-auto - do not automatically assign payees and accounts"
+  , "  -o, --output FILENAME - send output to FILENAME"
+  , "     (default: send to standard output)"
+  , "  -h, --help - show help and exit"
   ]
 
 -- | Removes all Brenner postings that already have a Penny posting

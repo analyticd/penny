@@ -8,7 +8,6 @@ import Data.Monoid (mconcat, First(..))
 import qualified Data.Set as Set
 import qualified Data.Map as M
 import qualified Data.Text as X
-import qualified Data.Text.IO as TIO
 import qualified Data.Traversable as Tr
 import qualified System.Console.MultiArg as MA
 import qualified Penny.Lincoln as L
@@ -38,18 +37,25 @@ help pn = unlines
   , "read standard input."
   , ""
   , "Options:"
+  , "  -o, --output FILENAME - send output to FILENAME"
+  , "     (default: send to standard output)"
   , "  -h, --help - show help and exit"
   ]
 
 data Arg
   = APosArg String
+  | AOutput (X.Text -> IO ())
 
 toPosArg :: Arg -> Maybe String
-toPosArg a = case a of { APosArg s -> Just s }
+toPosArg a = case a of { APosArg s -> Just s; _ -> Nothing }
+
+toOutput :: Arg -> Maybe (X.Text -> IO ())
+toOutput a = case a of { AOutput x -> Just x; _ -> Nothing }
 
 data Opts = Opts
   { csvLocation :: Y.FitFileLocation
   , ledgerLocations :: [String]
+  , printer :: X.Text -> IO ()
   } deriving Show
 
 
@@ -57,7 +63,7 @@ mode :: MA.Mode (Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = []
+  , MA.mOpts = [fmap AOutput U.output]
   , MA.mPosArgs = return . APosArg
   , MA.mProcess = process
   , MA.mHelp = help
@@ -68,7 +74,7 @@ process as c = do
   (csv, ls) <- case mapMaybe toPosArg as of
     [] -> fail "clear: you must provide a postings file."
     x:xs -> return (Y.FitFileLocation x, xs)
-  let os = Opts csv ls
+  let os = Opts csv ls (U.processOutput . mapMaybe toOutput $ as)
   runClear c os
 
 runClear :: Y.FitAcct -> Opts -> IO ()
@@ -91,7 +97,7 @@ runClear c os = do
   case mapM (R.item (Y.groupSpecs c)) led'' of
     Nothing ->
       fail "could not render resulting ledger."
-    Just txts -> mapM_ TIO.putStr txts
+    Just txts -> mapM_ (printer os) txts
 
 
 -- | Examines an financial institution transaction and the DbMap to

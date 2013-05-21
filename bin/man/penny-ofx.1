@@ -247,9 +247,19 @@ command.
 .P
 The result of
 .I merge
-is printed to standard output.
+is printed to standard output, unless you use the
+.I --output FILENAME
+or
+.I -o FILENAME
+option, in which case the output is sent to
+.IR FILENAME .
 .
-You will probably want to redirect it to a new file.
+You can use multiple
+.I -o
+options.
+.
+To explicitly send output to standard output, use
+.IR "-o -" .
 .
 Use
 .BR diff (1)
@@ -306,8 +316,13 @@ tags on your postings to the U-numbers in the database.
 If a posting has more than one U-number tag, only the first is used;
 the others are ignored.
 .
-The results are printed to standard output; you will probably
-want to redirect this to a file.
+As with the 
+.I merge
+command, the results are printed to standard output unless you use the
+.I --output FILENAME
+or
+.I -o FILENAME
+option.
 .
 Once you have verified that things are as they should be, you can use
 .BR penny-reconcile (1)
@@ -340,8 +355,21 @@ This is useful for seeing the
 contents of a financial institution data file, or for testing new
 parsers.
 .
+Each command has a
+.I -h
+and a
+.I --help
+option.
+.
+For example, you can run
+.IR "penny-ofx clear --help" .
+You can also get help for all of
+.I penny-ofx
+with
+.IR "penny-ofx --help" .
 .SH BUGS
-To quote another man page: "Bugs? You must be kidding, there are no
+To quote another man page: "Bugs?
+You must be kidding, there are no
 bugs in this software.
 .
 But if we happen to be wrong, send us an email
