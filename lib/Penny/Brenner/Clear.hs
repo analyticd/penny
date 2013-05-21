@@ -1,6 +1,7 @@
 module Penny.Brenner.Clear (mode) where
 
 import Control.Applicative
+import Control.DeepSeq (deepseq)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad (guard, mzero, when)
 import Data.Maybe (mapMaybe, fromMaybe)
@@ -97,7 +98,7 @@ runClear c os = do
   case mapM (R.item (Y.groupSpecs c)) led'' of
     Nothing ->
       fail "could not render resulting ledger."
-    Just txts -> mapM_ (printer os) txts
+    Just txts -> txts `deepseq` mapM_ (printer os) txts
 
 
 -- | Examines an financial institution transaction and the DbMap to

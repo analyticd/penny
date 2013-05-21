@@ -6,28 +6,45 @@ import qualified Data.ByteString as BS
 import qualified System.IO.Error as IOE
 import qualified Data.Serialize as S
 import qualified Data.Text as X
+import qualified Data.Text.Encoding as XE
 import qualified Data.Text.IO as TIO
 import qualified Penny.Copper.Parsec as CP
 import qualified Text.Parsec as P
 import qualified Penny.Lincoln as L
 import qualified System.Console.MultiArg as MA
+import qualified System.IO as IO
 
 -- | An option for where the user would like to send output.
+output :: MA.OptSpec (X.Text -> IO ())
+output = MA.OptSpec ["output"] "o" . MA.OneArg $ \s x ->
+  if s == "-"
+    then TIO.putStr x
+    else do
+      h <- IO.openFile s IO.WriteMode
+      IO.hPutStr h . X.unpack $ x
+      IO.hClose h
+
+{-
+This code DOES NOT WORK. It is the obvious choice. It works fine
+when sending text to stdout, but it does not work when sending text to
+files. Much of the text is omitted. Why is unclear.
+
 output :: MA.OptSpec (X.Text -> IO ())
 output = MA.OptSpec ["output"] "o" . MA.OneArg $ \s ->
   if s == "-"
     then TIO.putStr
     else TIO.writeFile s
+-}
 
 -- | Given a list of output options, returns a single IO action to
 -- write to all given files. If the list was empty, returns an IO
--- action that writes to standard output. Ensures that the argument
--- Text is fully evaluated before running the IO action.
+-- action that writes to standard output.
+
 processOutput :: [X.Text -> IO ()] -> X.Text -> IO ()
-processOutput ls =
+processOutput ls x =
   if null ls
-  then TIO.putStr
-  else \x -> x `seq` sequence_ . map ($ x) $ ls
+  then TIO.putStr x
+  else sequence_ . map ($ x) $ ls
 
 -- | Loads the database from disk. If allowNew is True, then does not
 -- fail if the file was not found.
