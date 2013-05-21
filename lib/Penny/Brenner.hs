@@ -59,14 +59,9 @@ brennerDynamic
   :: V.Version
   -- ^ Binary version
   -> IO ()
-brennerDynamic v = do
-  pn <- MA.getProgName
-  as <- MA.getArgs
-  case MA.modes (globalOptsDynamic v) preProcessorDynamic as of
-    Ex.Exception e -> do
-      IO.hPutStr IO.stderr . MA.formatError pn $ e
-      Exit.exitFailure
-    Ex.Success g -> g
+brennerDynamic v =
+  join $ MA.modesWithHelp (help True) (globalOptsDynamic v)
+         preProcessorDynamic
 
 -- | Parses global options for a pre-compiled configuration.
 globalOpts
@@ -239,11 +234,13 @@ help dyn n = unlines ls
          , ""
          , "Global Options:"
          , "-f, --fit-account ACCOUNT"
-         , "  Use one of the Additional Financial Institution"
-         , "  Accounts shown below. If this option does not appear,"
+         , "  use the given financial institution account"
+         , "  (use the \"info\" command to see which are available)."
+         , "  If this option does not appear,"
          , "  the default account is used if there is one."
-         ] ++ if dyn then [] else
-                  [ "-c, --config-file FILENAME"
+         ] ++ if not dyn then [] else
+                  [ ""
+                  , "-c, --config-file FILENAME"
                   , "  Specify configuration file location"
                   ]
 
