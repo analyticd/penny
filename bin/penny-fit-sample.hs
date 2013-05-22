@@ -9,8 +9,6 @@
 module Main where
 
 import Penny.Brenner
-import qualified Penny.Brenner.Amex
-import qualified Penny.Brenner.BofA
 
 -- | The Config type configures all the financial institution accounts.
 config :: Config
@@ -22,20 +20,29 @@ config = Config
     -- an account by default; I want to be required to explicitly
     -- state an account, so I put Nothing here.
 
-  , moreFitAccts = [ ("amex", amex)
-                   , ("chkh", houseChecking)
-                   , ("chko", omariChecking)
-                   ]
+  , moreFitAccts = [ visa, checking, saving ]
     -- ^ This is a list of financial institution accounts in addition
-    -- to the default (if you have one.) Each of these is a pair. The
-    -- first element is a string with the name of the account, as you
-    -- will specify it from the command line. The second element is a
-    -- FitAcct that configures the account.
+    -- to the default (if you have one.)
   }
 
-amex :: FitAcct
-amex = FitAcct
-  { dbLocation = "/home/massysett/ledger/amex-db"
+visa :: FitAcct
+visa = FitAcct
+  { fitAcctName = "visa"
+    -- ^ This is the name by which you will identify this account on
+    -- the command line (it will be case sensitive). You pick
+    -- financial institution accounts by using the @-f@ option.
+
+  , fitAcctDesc = unlines
+      [ "Main Visa card account."
+      , "To find the downloads, log in and then click on"
+      , "Statements --> Download --> Quicken."
+      ]
+    -- ^ A description of the financial institution account. This
+    -- appears when you use the @info@ command, so you can put
+    -- information in here like where to find the downloads on the
+    -- bank website.
+
+  , dbLocation = "/home/massysett/ledger/visa"
     -- ^ The location of the database of financial institution
     -- postings. You can make this path relative, in which case it is
     -- interpreted relative to the current directory at runtime, or
@@ -103,33 +110,50 @@ amex = FitAcct
     -- put a space between the commodity and the quantity. Accordingly
     -- your choices here are SpaceBetween or NoSpaceBetween.
 
-  , parser = Penny.Brenner.Amex.parser
+  , parser = ofxParser
     -- ^ This determines how to parse the data you have
-    -- downloaded. Currently there are only two parsers:
-    -- Penny.Brenner.Amex.parser, and Penny.Brenner.BofA.parser. If
-    -- you know Haskell you can write new parsers for your bank. Look
-    -- at the Haddocks for Penny.Brenner to get started, and use the
-    -- two existing parsers for guidance. If you write new parsers,
-    -- feel free to give them names within the Penny.Brenner namespace
-    -- and upload them to Hackage so that others can use them.
+    -- downloaded. Currently there is only one parser, which handles
+    -- OFX data. Many financial institutions provide OFX data so this
+    -- will get you a long way. If you want to write additional
+    -- parsers you can provide your own function of this type (perhaps
+    -- your bank only provides CSV files, for example.)
+
+  , toLincolnPayee = usePayeeOrDesc
+  -- ^ Sometimes the financial institution provides Payee information,
+  -- sometimes it does not. Sometimes the Desc might have additional
+  -- information that you might want to remove. This function can be
+  -- used to do that. The resulting Lincoln Payee is used for any
+  -- transactions that are created by the merge command. The resulting
+  -- payee is also used when comparing new financial institution
+  -- postings to already existing ledger transactions in order to
+  -- guess at which payee and accounts to create in the transactions
+  -- created by the merge command.
+  --
+  -- 'usePayeeOrDesc' simply uses the payee if it is available;
+  -- otherwise, it uses the description. (Many banks provide
+  -- descriptions only and do not provide separate payee information.)
   }
 
-houseChecking :: FitAcct
-houseChecking = FitAcct
-  { dbLocation = "/home/massysett/ledger/house-checking-db"
-  , pennyAcct = "Assets:Current:Checking:House"
+checking :: FitAcct
+checking = FitAcct
+  { fitAcctName = "checking"
+  , fitAcctDesc = "Main checking account."
+  , dbLocation = "/home/massysett/ledger/checking"
+  , pennyAcct = "Assets:Current:Checking"
   , defaultAcct = "Expenses:Unclassified"
   , currency = "$"
   , groupSpecs = GroupSpecs NoGrouping NoGrouping
   , translator = IncreaseIsDebit
   , side = CommodityOnLeft
   , spaceBetween = NoSpaceBetween
-  , parser = Penny.Brenner.BofA.parser
+  , parser = ofxParser
   }
 
-omariChecking :: FitAcct
-omariChecking = FitAcct
-  { dbLocation = "/home/massysett/ledger/omari-checking-db"
+saving :: FitAcct
+saving = FitAcct
+  { fitAcctName = "saving"
+  , fitAcctDesc = "Main saving account."
+  , dbLocation = "/home/massysett/ledger/saving"
   , pennyAcct = "Assets:Current:Checking:Omari"
   , defaultAcct = "Expenses:Unclassified"
   , currency = "$"
@@ -137,8 +161,10 @@ omariChecking = FitAcct
   , translator = IncreaseIsDebit
   , side = CommodityOnLeft
   , spaceBetween = NoSpaceBetween
-  , parser = Penny.Brenner.BofA.parser
+  , parser = ofxParser
   }
 
+-- | Always leave these two lines the same (unless you know what you
+-- are doing of course).
 main :: IO ()
 main = brennerMain config

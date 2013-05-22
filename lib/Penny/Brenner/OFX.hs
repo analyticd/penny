@@ -2,11 +2,7 @@
 -- | Parses any OFX 1.0-series file. Uses the parser from the ofx
 -- package.
 
-module Penny.Brenner.OFX
-  ( parser
-  , DescSign(..)
-  , ParserFn
-  ) where
+module Penny.Brenner.OFX (parser) where
 
 import Control.Applicative
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -17,19 +13,8 @@ import qualified Data.Time as T
 import qualified Penny.Brenner.Types as Y
 import qualified Text.Parsec as P
 
-type ParserFn
-  = Y.FitFileLocation
-  -> IO (Ex.Exceptional String [Y.Posting])
-
--- | Do positive amounts increase or decrease the balance of the
--- account? According to the OFX spec, amounts should always be
--- positive if (from the customer's perspective) they increase the
--- balance of the account, but not all OFX providers conform to this.
-data DescSign
-  = PosIsIncrease
-  | PosIsDecrease
-
-parser :: ( Y.ParserDesc, ParserFn )
+-- | Parser for OFX files.
+parser :: ( Y.ParserDesc, Y.ParserFn )
 parser = (Y.ParserDesc d, loadIncoming)
   where
     d = X.unlines

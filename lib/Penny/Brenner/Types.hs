@@ -24,6 +24,7 @@ module Penny.Brenner.Types
   , Config(..)
   , FitFileLocation(..)
   , AllowNew(..)
+  , ParserFn
   ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -331,3 +332,9 @@ newtype FitFileLocation = FitFileLocation { unFitFileLocation :: String }
 
 newtype AllowNew = AllowNew { unAllowNew :: Bool }
   deriving (Show, Eq)
+
+-- | All parsers must be of this type.
+type ParserFn
+  = FitFileLocation
+  -> IO (Ex.Exceptional String [Posting])
+

@@ -15,6 +15,7 @@ module Penny.Brenner
   , L.SpaceBetween(..)
   , usePayeeOrDesc
   , brennerMain
+  , ofxParser
   ) where
 
 import qualified Penny.Brenner.Types as Y
@@ -31,6 +32,7 @@ import qualified Penny.Brenner.Database as D
 import qualified Penny.Brenner.Import as I
 import qualified Penny.Brenner.Info as Info
 import qualified Penny.Brenner.Merge as M
+import qualified Penny.Brenner.OFX as O
 import qualified Penny.Brenner.Print as P
 import qualified Penny.Brenner.Util as U
 import qualified System.Console.MultiArg as MA
@@ -255,3 +257,7 @@ convertConfig (Config d m) = Y.Config
 usePayeeOrDesc :: Y.Desc -> Y.Payee -> L.Payee
 usePayeeOrDesc (Y.Desc d) (Y.Payee p) = L.Payee $
   if X.null p then d else p
+
+-- | Parser for OFX data.
+ofxParser :: (Y.ParserDesc, Y.ParserFn)
+ofxParser = O.parser

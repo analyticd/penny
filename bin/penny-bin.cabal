@@ -53,9 +53,10 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  * A program, penny-ofx, to process downloads of Open Financial
-    Exchange data from your financial institution. penny-ofx will
-    merge new transactions into your ledger automatically.
+  * You can easily build a program to process downloads of Open
+    Financial Exchange data from your financial institution. Your
+    program will merge new transactions into your ledger
+    automatically.
 
   .
 

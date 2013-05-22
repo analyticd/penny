@@ -3,6 +3,7 @@
 module Penny.Cabin.Posts.Parser
   ( State(..)
   , allSpecs
+  , Error
   , VerboseFilter(..)
   , ShowExpression(..)
   ) where

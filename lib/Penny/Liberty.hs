@@ -404,7 +404,7 @@ serialOption getSerial n = (osA, osD)
 
 
 -- | Creates two options suitable for comparison of sibling serial
--- numbers. Similar to 'serialOption'.
+-- numbers. Similar to serialOption.
 siblingSerialOption
   :: String
   -- ^ Name of the command line option, such as @global-posting@
