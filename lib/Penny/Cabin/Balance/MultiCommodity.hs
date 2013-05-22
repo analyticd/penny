@@ -66,7 +66,7 @@ fromParseOpts chgrs fmt (P.ParseOpts szb o) = Opts fmt szb o' chgrs
        CP.Descending -> CO.descending compare
 
 defaultFormat :: a -> L.Qty -> X.Text
-defaultFormat _ = X.pack . show
+defaultFormat _ = X.pack . L.prettyShowQty
 
 summedSortedBalTree ::
   CO.ShowZeroBalances
