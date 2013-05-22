@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 -- | This file is a sample of how to configure penny-fit. You will
 -- have to adapt it for your own needs. Rename the file to
 -- FILENAME.hs, where FILENAME is the name you want for your program
@@ -9,6 +10,7 @@
 module Main where
 
 import Penny.Brenner
+import Data.Version
 
 -- | The Config type configures all the financial institution accounts.
 config :: Config
@@ -146,6 +148,7 @@ checking = FitAcct
   , translator = IncreaseIsDebit
   , side = CommodityOnLeft
   , spaceBetween = NoSpaceBetween
+  , toLincolnPayee = usePayeeOrDesc
   , parser = ofxParser
   }
 
@@ -161,10 +164,19 @@ saving = FitAcct
   , translator = IncreaseIsDebit
   , side = CommodityOnLeft
   , spaceBetween = NoSpaceBetween
+  , toLincolnPayee = usePayeeOrDesc
   , parser = ofxParser
   }
+
+-- Leave things below this line alone (unless you know what you're
+-- doing of course.)
+
+-- brennerMain requires that you supply a version. You can edit this
+-- as you see fit, or use the version that Cabal supplies.
+version :: Version
+version = Version [1] []
 
 -- | Always leave these two lines the same (unless you know what you
 -- are doing of course).
 main :: IO ()
-main = brennerMain config
+main = brennerMain version config

@@ -36,7 +36,7 @@ process cf cn = TIO.putStr $ showInfo cf cn
 
 showInfo :: Maybe Y.ConfigLocation -> Y.Config -> X.Text
 showInfo cf cn =
-  maybe "These settings compiled into your program\n\n"
+  maybe "These settings are compiled into your program.\n\n"
         (\l -> label "From configuration file at" (L.text l) <> "\n\n")
         cf
   <> showConfig cn
