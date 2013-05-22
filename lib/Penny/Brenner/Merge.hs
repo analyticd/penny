@@ -36,7 +36,7 @@ toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
 toOutput :: Arg -> Maybe (X.Text -> IO ())
 toOutput a = case a of { AOutput x -> Just x; _ -> Nothing }
 
-mode :: MA.Mode (Y.FitAcct -> IO ())
+mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "merge"
   , MA.mIntersperse = MA.Intersperse
@@ -48,9 +48,10 @@ mode = MA.Mode
   , MA.mHelp = help
   }
 
-processor :: [Arg] -> Y.FitAcct -> IO ()
-processor as c =
-  doMerge c
+processor :: [Arg] -> Maybe Y.FitAcct -> IO ()
+processor as mayFa = do
+  fa <- U.getFitAcct mayFa
+  doMerge fa
           (ANoAuto `elem` as)
           (Ly.processOutput . mapMaybe toOutput $ as)
           (mapMaybe toPosArg as)

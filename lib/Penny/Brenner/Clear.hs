@@ -60,7 +60,7 @@ data Opts = Opts
   } deriving Show
 
 
-mode :: MA.Mode (Y.FitAcct -> IO ())
+mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
@@ -70,13 +70,14 @@ mode = MA.Mode
   , MA.mHelp = help
   }
 
-process :: [Arg] -> Y.FitAcct -> IO ()
-process as c = do
+process :: [Arg] -> Maybe Y.FitAcct -> IO ()
+process as mayFa = do
+  fa <- U.getFitAcct mayFa
   (csv, ls) <- case mapMaybe toPosArg as of
     [] -> fail "clear: you must provide a postings file."
     x:xs -> return (Y.FitFileLocation x, xs)
   let os = Opts csv ls (Ly.processOutput . mapMaybe toOutput $ as)
-  runClear c os
+  runClear fa os
 
 runClear :: Y.FitAcct -> Opts -> IO ()
 runClear c os = do

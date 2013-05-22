@@ -16,7 +16,7 @@ help pn = unlines
 
 data Arg = ArgPos String
 
-mode :: MA.Mode (Y.FitAcct -> IO ())
+mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "database"
   , MA.mIntersperse = MA.Intersperse
@@ -28,13 +28,14 @@ mode = MA.Mode
 
 processor
   :: [Arg]
-  -> Y.FitAcct
+  -> Maybe Y.FitAcct
   -> IO ()
-processor ls fa
+processor ls mayFa
   | not . null $ ls = fail $
         "penny-fit database: error: this command does"
         ++ " not accept non-option arguments."
   | otherwise = do
+        fa <- U.getFitAcct mayFa
         let dbLoc = Y.dbLocation fa
         db <- U.loadDb (Y.AllowNew False) dbLoc
         mapM_ putStr . map U.showDbPair $ db

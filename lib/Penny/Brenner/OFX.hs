@@ -6,28 +6,16 @@ module Penny.Brenner.OFX
   ( parser
   , DescSign(..)
   , ParserFn
-  , parseOFXConfigFile
   ) where
 
 import Control.Applicative
-import Control.Arrow (first)
-import qualified Control.Monad.Error as E
-import Data.Functor.Identity (Identity(..))
-import qualified Data.ConfigFile as CF
-import Data.Char (toLower)
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Data.List (isPrefixOf, find)
+import Data.List (isPrefixOf)
 import qualified Data.OFX as O
 import qualified Data.Text as X
 import qualified Data.Time as T
 import qualified Penny.Brenner.Types as Y
 import qualified Text.Parsec as P
-import qualified Penny.Lincoln.Builders as Bd
-import qualified Penny.Lincoln as L
-import qualified Penny.Copper.Render as R
-import System.Environment (getProgName)
-import qualified System.Exit as Exit
-import qualified System.IO as IO
 
 type ParserFn
   = Y.FitFileLocation
@@ -93,128 +81,3 @@ txnToPosting t = Y.Posting
               in Ex.fromMaybe ("could not parse amount: " ++ amtStr)
                  $ Y.mkAmount str
 
--- Uses ErrorT rather than Either because Either is an orphan instance
-type Parser a = CF.ConfigParser -> E.ErrorT CF.CPError Identity a
-
-type FitName = String
-
-dbLocation :: FitName -> Parser Y.DbLocation
-dbLocation n cf =
-  let cf' = cf { CF.usedefault = False }
-  in pullString "file" Y.DbLocation n cf'
-
-pennyAcct :: FitName -> Parser Y.PennyAcct
-pennyAcct = pullString "penny_acct" (Y.PennyAcct . Bd.account)
-
-defaultAcct :: FitName -> Parser Y.DefaultAcct
-defaultAcct = pullString "default_acct" (Y.DefaultAcct . Bd.account)
-
-currency :: FitName -> Parser Y.Currency
-currency = pullString "currency" (Y.Currency . L.Commodity)
-
-type FieldName = String
-groupSpec :: FieldName -> FitName -> Parser R.GroupSpec
-groupSpec = pullList
-  [ ("none", R.NoGrouping), ("large", R.GroupLarge),
-    ("all", R.GroupAll) ]
-
-groupSpecs :: FitName -> Parser R.GroupSpecs
-groupSpecs n cf = R.GroupSpecs
-  <$> groupSpec "group_left" n cf
-  <*> groupSpec "group_right" n cf
-
-translator :: FitName -> Parser Y.Translator
-translator = pullList [ ("debit", Y.IncreaseIsDebit)
-                      , ("credit", Y.IncreaseIsCredit) ]
-                      "increase_is"
-
-side :: FitName -> Parser L.Side
-side = pullList [ ("left", L.CommodityOnLeft)
-                , ("right", L.CommodityOnRight) ]
-                "commodity_on"
-
-spaceBetween :: FitName -> Parser L.SpaceBetween
-spaceBetween = pullList [ ("false", L.NoSpaceBetween)
-                        , ("true", L.SpaceBetween) ]
-                        "space_between"
-
-fitAcctDesc :: FitName -> Parser Y.FitAcctDesc
-fitAcctDesc n cf = pullString "more_info" Y.FitAcctDesc n cf
-
-pullList
-  :: [(String, a)]
-  -- ^ Mapping of config string to values
-
-  -> String
-  -- ^ Field name
-  -> FitName
-  -> Parser a
-pullList ls field n p = do
-  s <- fmap (map toLower) $ CF.get p n field
-  case lookup s (map (first (map toLower)) ls) of
-    Nothing -> fail $ "bad value for field " ++ field
-                      ++ ": " ++ s
-    Just v -> return v
-
-pullString
-  :: String
-  -- ^ Section name
-  -> (X.Text -> a)
-  -- ^ Builds type
-  -> FitName
-  -> Parser a
-pullString sect mkType n cp =
-  fmap (mkType . X.pack)
-  $ CF.get cp n sect
-
-parseFitAcct :: FitName -> Parser Y.FitAcct
-parseFitAcct n cf = Y.FitAcct
-  <$> pure (Y.FitAcctName . X.pack $ n)
-  <*> fitAcctDesc n cf
-  <*> dbLocation n cf
-  <*> pennyAcct n cf
-  <*> defaultAcct n cf
-  <*> currency n cf
-  <*> groupSpecs n cf
-  <*> translator n cf
-  <*> side n cf
-  <*> spaceBetween n cf
-  <*> pure parser
-  <*> pure (\_ (Y.Payee p) -> L.Payee p)
-
-parseFitAccts :: Parser [Y.FitAcct]
-parseFitAccts cf = mapM (\n -> parseFitAcct n cf) $ CF.sections cf
-
-parseConfig :: Parser Y.Config
-parseConfig cf = do
-  accts <- parseFitAccts cf
-  if CF.has_option cf "DEFAULT" "default_fit_acct"
-    then do
-      dflt <- fmap (Y.FitAcctName . X.pack)
-              $ CF.get cf "DEFAULT" "default_fit_acct"
-      case find (\a -> Y.fitAcctName a == dflt) accts of
-        Nothing -> fail $ "default financial institution account "
-                        ++ "not found: "
-                        ++ (X.unpack . Y.unFitAcctName $ dflt)
-        Just x -> return (Y.Config (Just x) accts)
-    else return $ Y.Config Nothing accts
-
-errExit :: Show e => Either e g -> IO g
-errExit ei = do
-  pn <- getProgName
-  case ei of
-    Left e -> do
-      IO.hPutStrLn IO.stderr $
-        pn ++ ": error: could not parse configuration file: "
-           ++ show e
-      Exit.exitFailure
-    Right g -> return g
-
-parseOFXConfigFile
-  :: String
-  -- ^ File location
-  -> IO Y.Config
-parseOFXConfigFile p =
-  CF.readfile CF.emptyCP p
-  >>= errExit . runIdentity . E.runErrorT
-  >>= errExit . runIdentity . E.runErrorT . parseConfig

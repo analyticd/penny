@@ -24,7 +24,7 @@ data Arg
   = ArgFile String
 
 mode
-  :: MA.Mode (Y.FitAcct -> IO ())
+  :: MA.Mode (Maybe Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "print"
   , MA.mIntersperse = MA.Intersperse
@@ -36,9 +36,11 @@ mode = MA.Mode
 
 processor
   :: [Arg]
-  -> Y.FitAcct
+  -> Maybe Y.FitAcct
   -> IO ()
-processor ls fa = doPrint (snd . Y.parser $ fa) ls
+processor ls mayFa = do
+  fa <- U.getFitAcct mayFa
+  doPrint (snd . Y.parser $ fa) ls
 
 doPrint
   :: (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))

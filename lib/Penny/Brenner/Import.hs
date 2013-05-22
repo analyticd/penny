@@ -33,7 +33,7 @@ data ImportOpts = ImportOpts
   }
 
 mode
-  :: MA.Mode (Y.FitAcct -> IO ())
+  :: MA.Mode (Maybe Y.FitAcct -> IO ())
 mode = MA.Mode
   { MA.mName = "import"
   , MA.mIntersperse = MA.Intersperse
@@ -50,9 +50,10 @@ mode = MA.Mode
 
 processor
   :: [Arg]
-  -> Y.FitAcct
+  -> Maybe Y.FitAcct
   -> IO ()
-processor as fa = do
+processor as mayFa = do
+  fa <- U.getFitAcct mayFa
   let (dbLoc, prsr) = (Y.dbLocation fa, snd . Y.parser $ fa)
   loc <- case mapMaybe toFitFile as of
     [] -> fail "you must provide a postings file to read"

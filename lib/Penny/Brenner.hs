@@ -15,18 +15,15 @@ module Penny.Brenner
   , L.SpaceBetween(..)
   , usePayeeOrDesc
   , brennerMain
-  , brennerDynamic
   ) where
 
 import qualified Penny.Brenner.Types as Y
 import Control.Monad (join)
 import Data.Either (partitionEithers)
-import Data.List (find)
 import qualified Data.Text as X
 import qualified Data.Version as V
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
-import qualified Penny.Steel.Sums as S
 import qualified Penny.Lincoln.Builders as Bd
 import qualified Penny.Copper.Render as R
 import qualified Penny.Brenner.Clear as C
@@ -34,14 +31,10 @@ import qualified Penny.Brenner.Database as D
 import qualified Penny.Brenner.Import as I
 import qualified Penny.Brenner.Info as Info
 import qualified Penny.Brenner.Merge as M
-import qualified Penny.Brenner.OFX as O
 import qualified Penny.Brenner.Print as P
-import Control.Applicative ((<|>))
+import qualified Penny.Brenner.Util as U
 import qualified System.Console.MultiArg as MA
-import System.Directory (getHomeDirectory)
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified System.Exit as Exit
-import qualified System.IO as IO
 
 -- | Brenner, with a pre-compiled configuration.
 brennerMain
@@ -54,15 +47,6 @@ brennerMain v cf = do
   join $ MA.modesWithHelp (help False) (globalOpts v)
                           (preProcessor cf')
 
--- | Brenner with a dynamic configuration.
-brennerDynamic
-  :: V.Version
-  -- ^ Binary version
-  -> IO ()
-brennerDynamic v =
-  join $ MA.modesWithHelp (help True) (globalOptsDynamic v)
-         preProcessorDynamic
-
 -- | Parses global options for a pre-compiled configuration.
 globalOpts
   :: V.Version
@@ -72,24 +56,6 @@ globalOpts v =
   [ MA.OptSpec ["fit-account"] "f"
   (MA.OneArg (Right . Y.FitAcctName . X.pack))
   , fmap Left (Ly.version v)
-  ]
-
--- | Parses global options for a dynamic configuration.
-globalOptsDynamic
-  :: V.Version
-  -- ^ Binary version
-  -> [MA.OptSpec (S.S3 (IO ())
-                       Y.ConfigLocation
-                       Y.FitAcctName)]
-globalOptsDynamic v =
-  [ fmap S.S3a (Ly.version v)
-
-  , MA.OptSpec ["config-file"] "c"
-    (MA.OneArg (S.S3b . Y.ConfigLocation . X.pack))
-
-  , MA.OptSpec ["fit-account"] "f"
-    (MA.OneArg (S.S3c . Y.FitAcctName . X.pack))
-
   ]
 
 -- | Pre-processes global options for a pre-compiled configuration.
@@ -103,74 +69,6 @@ preProcessor cf args =
       [] -> makeModes Nothing cf as
       x:_ -> Left (const x)
 
--- | Pre-processes global options for a dynamic configuration.
-preProcessorDynamic
-  :: [S.S3 (IO ()) Y.ConfigLocation Y.FitAcctName]
-  -> Either (a -> IO ()) [MA.Mode (IO ())]
-preProcessorDynamic ls =
-  let (vs, cs, fs) = S.partitionS3 ls
-      mkAct = applyAcctInMode cs fs
-  in case vs of
-      [] -> Right $ map (fmap mkAct) allModes
-      x:_ -> Left (const x)
-
-
-getDynamicConfig :: Y.ConfigLocation -> IO Y.Config
-getDynamicConfig (Y.ConfigLocation s) =
-  O.parseOFXConfigFile . X.unpack $ s
-
-getConfigLocation
-  :: [Y.ConfigLocation]
-  -> IO Y.ConfigLocation
-getConfigLocation cs =
-  case cs of
-    [] -> do
-      pn <- MA.getProgName
-      home <- getHomeDirectory
-      return . Y.ConfigLocation . X.pack
-        $ home ++ "/." ++ pn ++ ".ini"
-    xs -> return $ last xs
-
-applyAcctInMode
-  :: [Y.ConfigLocation]
-  -> [Y.FitAcctName]
-  -> ModeFunc
-  -> IO ()
-applyAcctInMode lsc lsf act = do
-  configLoc <- getConfigLocation lsc
-  conf <- getDynamicConfig configLoc
-  acct <- getDynamicDefaultFitAcct lsf conf
-  act (Just configLoc) conf acct
-
-getDynamicDefaultFitAcct
-  :: [Y.FitAcctName]
-  -> Y.Config
-  -> IO Y.FitAcct
-getDynamicDefaultFitAcct cs c =
-  case cs of
-    [] -> case Y.defaultFitAcct c of
-      Nothing -> errExit $ "no financial institution account"
-        ++ " selected on command line, and no default"
-        ++ " financial instititution account configured."
-      Just a -> return a
-    fs ->
-      let name = last fs
-          pd a = Y.fitAcctName a == name
-          confDflt = maybe Nothing
-            (\a -> if pd a then Just a else Nothing)
-            $ Y.defaultFitAcct c
-          confExtra = find pd . Y.moreFitAccts $ c
-      in case confDflt <|> confExtra of
-          Nothing -> errExit $ "financial institution account not "
-            ++ "configured: " ++ (X.unpack . Y.unFitAcctName $ name)
-          Just a -> return a
-
-errExit :: String -> IO a
-errExit s = do
-  pn <- MA.getProgName
-  IO.hPutStrLn IO.stderr $ pn ++ ": error: " ++ s
-  Exit.exitFailure
-
 -- | Makes modes for a pre-compiled configuration.
 makeModes
   :: Maybe Y.ConfigLocation
@@ -178,31 +76,35 @@ makeModes
   -> [Y.FitAcctName]
   -- ^ Names of financial institutions given on command line
   -> Either (a -> IO ()) [MA.Mode (IO ())]
-makeModes cl cf as = Ex.toEither . Ex.mapException (const . errExit) $ do
-  fi <- case as of
-    [] -> case Y.defaultFitAcct cf of
-      Nothing -> Ex.throw $ "no financial institution account"
-        ++ " selected on command line, and no default"
-        ++ " financial instititution account configured."
-      Just a -> return a
+makeModes cl cf as = Ex.toEither . Ex.mapException (const . U.errExit) $ do
+  mayFi <- case as of
+    [] -> return $ Y.defaultFitAcct cf
     _ ->
       let pdct a = Y.fitAcctName a == s
           s = last as
-      in case filter pdct (Y.moreFitAccts cf) of
+          toFilter = case Y.defaultFitAcct cf of
+            Nothing -> Y.moreFitAccts cf
+            Just d -> d : Y.moreFitAccts cf
+      in case filter pdct toFilter of
            [] -> Ex.throw $
               "financial institution account "
               ++ (X.unpack . Y.unFitAcctName $ s) ++ " not configured."
-           c:[] -> return c
+           c:[] -> return $ Just c
            _ -> Ex.throw $
               "more than one financial institution account "
               ++ "named " ++ (X.unpack . Y.unFitAcctName $ s)
               ++ " configured."
-  return . map (fmap (\f -> f cl cf fi)) $ allModes
+  return . map (fmap (\f -> f cl cf mayFi)) $ allModes
 
+-- | Each mode takes a Maybe FitAcct. Even if every mode needs a
+-- FitAcct to function, they take a Maybe FitAcct because otherwise
+-- the user will not even get online help if a FitAcct is not
+-- supplied. Each mode must fail on its own if it actually needs a
+-- FitAcct.
 type ModeFunc
   = Maybe Y.ConfigLocation
   -> Y.Config
-  -> Y.FitAcct
+  -> Maybe Y.FitAcct
   -> IO ()
 
 allModes :: [MA.Mode ModeFunc]
