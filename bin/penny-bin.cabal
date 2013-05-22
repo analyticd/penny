@@ -1,5 +1,5 @@
 Name: penny-bin
-Version: 0.13.0.0
+Version: 0.14.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -187,7 +187,7 @@ source-repository head
 Executable penny
   Build-depends:
     base ==4.*,
-    penny-lib ==0.13.*
+    penny-lib ==0.14.*
 
   Main-is: penny-main.hs
   Other-modules: Paths_penny_bin
@@ -198,24 +198,10 @@ Executable penny
   if ! flag(build-penny)
     buildable: False
 
-Executable penny-ofx
-  Build-depends:
-    base ==4.*,
-    penny-lib ==0.13.*
-
-  Main-is: penny-ofx.hs
-  Other-modules: Paths_penny_bin
-  GHC-Options: -Wall
-  if flag(debug)
-    GHC-Options: -rtsopts -auto-all -caf-all
-
-  if ! flag(build-ofx)
-    buildable: False
-
 Executable penny-selloff
   Build-depends:
     base == 4.*,
-    penny-lib ==0.13.*,
+    penny-lib ==0.14.*,
     explicit-exception ==0.1.*,
     containers ==0.5.*,
     semigroups ==0.9.*,
@@ -235,7 +221,7 @@ Executable penny-selloff
 Executable penny-diff
   Build-depends:
     base ==4.*,
-    penny-lib ==0.13.*,
+    penny-lib ==0.14.*,
     text ==0.11.*,
     multiarg ==0.16.*,
     explicit-exception == 0.1.*
@@ -253,7 +239,7 @@ Executable penny-reprint
   Build-depends:
       base ==4.*
     , multiarg ==0.16.*
-    , penny-lib ==0.13.*
+    , penny-lib ==0.14.*
     , pretty-show ==1.5.*
     , text ==0.11.*
 
@@ -266,7 +252,7 @@ Executable penny-reprint
 Executable penny-reconcile
   Build-depends:
       base ==4.*
-    , penny-lib ==0.13.*
+    , penny-lib ==0.14.*
     , text ==0.11.*
     , multiarg ==0.16.*
     , explicit-exception ==0.1.*
@@ -302,6 +288,3 @@ Flag build-reconcile
   Description: Build the penny-reconcile executable
   Default: True
 
-Flag build-ofx
-  Description: Build the penny-ofx executable
-  Default: True
