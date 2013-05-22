@@ -2,7 +2,6 @@ module Main where
 
 import Data.Maybe (fromMaybe, fromJust)
 import qualified Data.Text as X
-import qualified Data.Text.IO as TIO
 import Control.Monad (guard)
 import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
