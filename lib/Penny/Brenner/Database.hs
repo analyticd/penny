@@ -14,36 +14,28 @@ help pn = unlines
   , "  --help, -h Show this help and exit."
   ]
 
-data Arg = ArgPos String deriving (Eq, Show)
+data Arg = ArgPos String
 
-mode
-  :: Maybe Y.FitAcct
-  -> MA.Mode (IO ())
-mode mayFa = MA.Mode
+mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
+mode = MA.Mode
   { MA.mName = "database"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [ ]
-  , MA.mPosArgs = ArgPos
-  , MA.mProcess = processor mayFa
+  , MA.mOpts = []
+  , MA.mPosArgs = return . ArgPos
+  , MA.mProcess = processor
   , MA.mHelp = help
   }
 
 processor
-  :: Maybe Y.FitAcct
-  -> [Arg]
+  :: [Arg]
+  -> Maybe Y.FitAcct
   -> IO ()
-processor mayFa ls
-  | any isArgPos ls = fail $
+processor ls mayFa
+  | not . null $ ls = fail $
         "penny-fit database: error: this command does"
         ++ " not accept non-option arguments."
-  | otherwise = case mayFa of
-      Nothing -> fail $ "no financial institution account"
-        ++ " selected on command line, and no default"
-        ++ " financial instititution account configured."
-      Just fa -> do
+  | otherwise = do
+        fa <- U.getFitAcct mayFa
         let dbLoc = Y.dbLocation fa
         db <- U.loadDb (Y.AllowNew False) dbLoc
         mapM_ putStr . map U.showDbPair $ db
-
-isArgPos :: Arg -> Bool
-isArgPos (ArgPos _) = True

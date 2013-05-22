@@ -20,6 +20,7 @@ module Penny.Shield (
   output,
   screenLines,
   screenWidth,
+  Term,
   term,
   runtime,
   termFromEnv,

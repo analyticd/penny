@@ -1,20 +1,21 @@
 module Penny.Brenner.Clear (mode) where
 
+import Control.Applicative
 import qualified Control.Monad.Exception.Synchronous as Ex
-import Control.Applicative (pure)
 import Control.Monad (guard, mzero, when)
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Monoid (mconcat, First(..))
 import qualified Data.Set as Set
 import qualified Data.Map as M
 import qualified Data.Text as X
-import qualified Data.Text.IO as TIO
+import qualified Data.Traversable as Tr
 import qualified System.Console.MultiArg as MA
 import qualified Penny.Lincoln as L
+import qualified Penny.Liberty as Ly
+import qualified Penny.Steel.Sums as S
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Trans.Maybe as MT
 import Control.Monad.Trans.Class (lift)
-import qualified Penny.Copper.Types as Y
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
 import Text.Show.Pretty (ppShow)
@@ -24,7 +25,7 @@ import qualified Penny.Brenner.Util as U
 
 help :: String -> String
 help pn = unlines
-  [ "usage: " ++ pn ++ " clear clear [options] FIT_FILE LEDGER_FILE..."
+  [ "usage: " ++ pn ++ " clear [options] FIT_FILE LEDGER_FILE..."
   , "Parses all postings that are in FIT_FILE. Then marks all"
   , "postings that are in the FILEs given that correspond to one"
   , "of the postings in the FIT_FILE as being cleared."
@@ -37,44 +38,46 @@ help pn = unlines
   , "read standard input."
   , ""
   , "Options:"
+  , "  -o, --output FILENAME - send output to FILENAME"
+  , "     (default: send to standard output)"
   , "  -h, --help - show help and exit"
   ]
 
 data Arg
   = APosArg String
-  deriving (Eq, Show)
+  | AOutput (X.Text -> IO ())
 
 toPosArg :: Arg -> Maybe String
-toPosArg a = case a of { APosArg s -> Just s }
+toPosArg a = case a of { APosArg s -> Just s; _ -> Nothing }
+
+toOutput :: Arg -> Maybe (X.Text -> IO ())
+toOutput a = case a of { AOutput x -> Just x; _ -> Nothing }
 
 data Opts = Opts
   { csvLocation :: Y.FitFileLocation
   , ledgerLocations :: [String]
+  , printer :: X.Text -> IO ()
   } deriving Show
 
 
-mode :: Maybe Y.FitAcct -> MA.Mode (IO ())
-mode c = MA.Mode
+mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
+mode = MA.Mode
   { MA.mName = "clear"
   , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [ ]
-  , MA.mPosArgs = APosArg
-  , MA.mProcess = process c
+  , MA.mOpts = [fmap AOutput Ly.output]
+  , MA.mPosArgs = return . APosArg
+  , MA.mProcess = process
   , MA.mHelp = help
   }
 
-process :: Maybe Y.FitAcct -> [Arg] -> IO ()
-process mayC as = do
-  c <- case mayC of
-    Just cd -> return cd
-    Nothing -> fail $ "no financial institution account given"
-               ++ " on command line, and no default financial"
-               ++ " institution configured."
+process :: [Arg] -> Maybe Y.FitAcct -> IO ()
+process as mayFa = do
+  fa <- U.getFitAcct mayFa
   (csv, ls) <- case mapMaybe toPosArg as of
     [] -> fail "clear: you must provide a postings file."
     x:xs -> return (Y.FitFileLocation x, xs)
-  let os = Opts csv ls
-  runClear c os
+  let os = Opts csv ls (Ly.processOutput . mapMaybe toOutput $ as)
+  runClear fa os
 
 runClear :: Y.FitAcct -> Opts -> IO ()
 runClear c os = do
@@ -89,13 +92,16 @@ runClear c os = do
                        ++ "been imported and merged."
     Just ls -> return $ Set.fromList ls
   let (led', left) = changeLedger (Y.pennyAcct c) toClear leds
+      led'' = map C.stripMeta led'
   when (not (Set.null left))
     (fail $ "some postings were not cleared. "
       ++ "Those not cleared:\n" ++ ppShow left)
-  case R.ledger (Y.groupSpecs c) led' of
+  case mapM (R.item (Y.groupSpecs c)) led'' of
     Nothing ->
       fail "could not render resulting ledger."
-    Just txt -> TIO.putStr txt
+    Just txts ->
+      let glued = X.concat txts
+      in glued `seq` printer os glued
 
 
 -- | Examines an financial institution transaction and the DbMap to
@@ -120,22 +126,25 @@ clearedFlag = L.Flag . X.singleton $ 'C'
 changeLedger
   :: Y.PennyAcct
   -> Set.Set Y.UNumber
-  -> Y.Ledger
-  -> (Y.Ledger, Set.Set Y.UNumber)
+  -> [C.LedgerItem]
+  -> ([C.LedgerItem], Set.Set Y.UNumber)
 changeLedger ax s l = St.runState k s
   where
-    k = Y.mapLedgerA f l
-    f = Y.mapItemA pure pure (changeTxn ax)
+    k = mapM f l
+    f x = case x of
+      S.S4a t -> fmap S.S4a $ changeTxn ax t
+      S.S4b z -> fmap S.S4b $ return z
+      S.S4c z -> fmap S.S4c $ return z
+      S.S4d z -> fmap S.S4d $ return z
 
 changeTxn
   :: Y.PennyAcct
   -> L.Transaction
   -> St.State (Set.Set Y.UNumber) L.Transaction
-changeTxn ax t = do
-  let fam = L.unTransaction t
-      fam' = L.mapParent (const L.emptyTopLineChangeData) fam
-  fam'' <- L.mapChildrenA (changePstg ax) fam'
-  return $ L.changeTransaction fam'' t
+changeTxn ax (L.Transaction (tld, d)) =
+  (\tl es -> L.Transaction (tl, es))
+  <$> pure tld
+  <*> Tr.mapM (changePstg ax) d
 
 
 -- | Sees if this posting is a posting in the right account and has a
@@ -143,19 +152,20 @@ changeTxn ax t = do
 -- already has a flag, skips it.
 changePstg
   :: Y.PennyAcct
-  -> L.Posting
-  -> St.State (Set.Set Y.UNumber) L.PostingChangeData
+  -> L.PostingData
+  -> St.State (Set.Set Y.UNumber) L.PostingData
 changePstg ax p =
-  fmap (fromMaybe L.emptyPostingChangeData) . MT.runMaybeT $ do
-    guard (L.pAccount p == (Y.unPennyAcct ax))
-    let tags = L.pTags p
+  fmap (fromMaybe p) . MT.runMaybeT $ do
+    let c = L.pdCore p
+    guard (L.pAccount c == (Y.unPennyAcct ax))
+    let tags = L.pTags c
     un <- maybe mzero return $ parseUNumberFromTags tags
-    guard (L.pFlag p == Nothing)
+    guard (L.pFlag c == Nothing)
     set <- lift St.get
     guard (Set.member un set)
     lift $ St.put (Set.delete un set)
-    return $ L.emptyPostingChangeData
-             { L.pcFlag = Just (Just clearedFlag) }
+    let c' = c { L.pFlag = Just clearedFlag }
+    return $ p { L.pdCore = c' }
 
 parseUNumberFromTags :: L.Tags -> Maybe Y.UNumber
 parseUNumberFromTags =

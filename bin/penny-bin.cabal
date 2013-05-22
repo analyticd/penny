@@ -1,5 +1,5 @@
 Name: penny-bin
-Version: 0.12.0.0
+Version: 0.14.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -50,6 +50,13 @@ description: Penny is a double-entry accounting system. It is inspired
     categorize your postings. For instance, you might have vacation
     related postings in several different accounts, but you can give
     them all a \"vacation\" tag.
+
+  .
+
+  * You can easily build a program to process downloads of Open
+    Financial Exchange data from your financial institution. Your
+    program will merge new transactions into your ledger
+    automatically.
 
   .
 
@@ -166,6 +173,8 @@ extra-source-files:
   , README
   , doc/*.org
   , doc/*.dot
+  , doc/*.ini
+  , doc/*.hs
   , examples/*.pny
   , man/*.1
   , man/*.7
@@ -178,7 +187,7 @@ source-repository head
 Executable penny
   Build-depends:
     base ==4.*,
-    penny-lib ==0.12.*
+    penny-lib ==0.14.*
 
   Main-is: penny-main.hs
   Other-modules: Paths_penny_bin
@@ -192,13 +201,13 @@ Executable penny
 Executable penny-selloff
   Build-depends:
     base == 4.*,
-    penny-lib ==0.12.*,
+    penny-lib ==0.14.*,
     explicit-exception ==0.1.*,
     containers ==0.5.*,
     semigroups ==0.9.*,
     text ==0.11.*,
     parsec ==3.1.*,
-    multiarg ==0.14.*,
+    multiarg ==0.16.*,
     transformers ==0.3.*
 
   Main-is: penny-selloff.hs
@@ -212,9 +221,9 @@ Executable penny-selloff
 Executable penny-diff
   Build-depends:
     base ==4.*,
-    penny-lib ==0.12.*,
+    penny-lib ==0.14.*,
     text ==0.11.*,
-    multiarg ==0.14.*,
+    multiarg ==0.16.*,
     explicit-exception == 0.1.*
 
   Main-is: penny-diff.hs
@@ -229,8 +238,8 @@ Executable penny-diff
 Executable penny-reprint
   Build-depends:
       base ==4.*
-    , multiarg ==0.14.*
-    , penny-lib ==0.12.*
+    , multiarg ==0.16.*
+    , penny-lib ==0.14.*
     , pretty-show ==1.5.*
     , text ==0.11.*
 
@@ -243,9 +252,9 @@ Executable penny-reprint
 Executable penny-reconcile
   Build-depends:
       base ==4.*
-    , penny-lib ==0.12.*
+    , penny-lib ==0.14.*
     , text ==0.11.*
-    , multiarg ==0.14.*
+    , multiarg ==0.16.*
     , explicit-exception ==0.1.*
 
   main-is: penny-reconcile.hs
@@ -278,3 +287,4 @@ Flag build-reprint
 Flag build-reconcile
   Description: Build the penny-reconcile executable
   Default: True
+

@@ -1,5 +1,5 @@
--- | Examining a PostFam for a particular component of the main
--- posting (as opposed to the sibling postings) in the PostFam. For
+-- | Examining a Posting for a particular component of the main
+-- posting (as opposed to the sibling postings) in the Posting. For
 -- some components, such as the payee, the posting might have one
 -- piece of data while the TopLine has something else. These functions
 -- will examine the Posting first and, if it has no information, use
@@ -7,94 +7,98 @@
 module Penny.Lincoln.Queries where
 
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.Family.Child (child, parent)
-import qualified Penny.Lincoln.Transaction as T
+import qualified Penny.Lincoln.Ents as E
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 import qualified Data.Time as Time
 
 -- | Uses the data from the Posting if it is set; otherwise, use the
 -- data from the TopLine.
-best ::
-  (T.Posting -> Maybe a)
-  -> (T.TopLine -> Maybe a)
-  -> T.PostFam
+best
+  :: (B.TopLineData -> Maybe a)
+  -> (E.Ents B.PostingData -> Maybe a)
+  -> E.Posting
   -> Maybe a
-best fp ft c = case fp . child . T.unPostFam $ c of
+best fp ft vp = case fp . fst . E.unPosting $ vp of
+  Nothing -> ft . snd . E.unPosting $ vp
   Just r -> Just r
-  Nothing -> ft . parent . T.unPostFam $ c
 
+payee :: E.Posting -> Maybe B.Payee
+payee = best (B.tPayee . B.tlCore)
+             (B.pPayee . B.pdCore . E.meta . E.headEnt)
 
-payee :: T.PostFam -> Maybe B.Payee
-payee = best T.pPayee T.tPayee
+number :: E.Posting -> Maybe B.Number
+number = best (B.tNumber . B.tlCore)
+              (B.pNumber . B.pdCore . E.meta . E.headEnt)
 
-number :: T.PostFam -> Maybe B.Number
-number = best T.pNumber T.tNumber
+flag :: E.Posting -> Maybe B.Flag
+flag = best (B.tFlag . B.tlCore)
+            (B.pFlag . B.pdCore . E.meta . E.headEnt)
 
-flag :: T.PostFam -> Maybe B.Flag
-flag = best T.pFlag T.tFlag
+postingMemo :: E.Posting -> Maybe B.Memo
+postingMemo = B.pMemo . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 
-postingMemo :: T.PostFam -> Maybe B.Memo
-postingMemo = T.pMemo . child . T.unPostFam
+transactionMemo :: E.Posting -> Maybe B.Memo
+transactionMemo =  B.tMemo . B.tlCore . fst . E.unPosting
 
-transactionMemo :: T.PostFam -> Maybe B.Memo
-transactionMemo = T.tMemo . parent . T.unPostFam
+dateTime :: E.Posting -> B.DateTime
+dateTime = B.tDateTime . B.tlCore . fst . E.unPosting
 
-dateTime :: T.PostFam -> B.DateTime
-dateTime = T.tDateTime . parent . T.unPostFam
-
-localDay :: T.PostFam -> Time.Day
+localDay :: E.Posting -> Time.Day
 localDay = B.day . dateTime
 
-account :: T.PostFam -> B.Account
-account = T.pAccount . child . T.unPostFam
+account :: E.Posting -> B.Account
+account = B.pAccount . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 
-tags :: T.PostFam -> B.Tags
-tags = T.pTags . child . T.unPostFam
+tags :: E.Posting -> B.Tags
+tags = B.pTags . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 
-entry :: T.PostFam -> B.Entry
-entry = T.pEntry . child . T.unPostFam
+entry :: E.Posting -> B.Entry
+entry = E.entry . E.headEnt . snd . E.unPosting
 
-balance :: T.PostFam -> Balance
+balance :: E.Posting -> Balance
 balance = entryToBalance . entry
 
-drCr :: T.PostFam -> B.DrCr
+drCr :: E.Posting -> B.DrCr
 drCr = B.drCr . entry
 
-amount :: T.PostFam -> B.Amount
+amount :: E.Posting -> B.Amount
 amount = B.amount . entry
 
-qty :: T.PostFam -> B.Qty
+qty :: E.Posting -> B.Qty
 qty = B.qty . amount
 
-commodity :: T.PostFam -> B.Commodity
+commodity :: E.Posting -> B.Commodity
 commodity = B.commodity . amount
 
-topMemoLine :: T.PostFam -> Maybe B.TopMemoLine
-topMemoLine = T.tTopMemoLine . parent . T.unPostFam
+topMemoLine :: E.Posting -> Maybe B.TopMemoLine
+topMemoLine p = (B.tlFileMeta . fst . E.unPosting $ p) >>= B.tTopMemoLine
 
-topLineLine :: T.PostFam -> Maybe B.TopLineLine
-topLineLine = T.tTopLineLine . parent . T.unPostFam
+topLineLine :: E.Posting -> Maybe B.TopLineLine
+topLineLine = fmap B.tTopLineLine . B.tlFileMeta . fst . E.unPosting
 
-filename :: T.PostFam -> Maybe B.Filename
-filename = T.tFilename . parent . T.unPostFam
+globalTransaction :: E.Posting -> Maybe B.GlobalTransaction
+globalTransaction = B.tlGlobal . fst . E.unPosting
 
-globalTransaction :: T.PostFam -> Maybe B.GlobalTransaction
-globalTransaction = T.tGlobalTransaction . parent . T.unPostFam
+fileTransaction :: E.Posting -> Maybe B.FileTransaction
+fileTransaction = fmap B.tFileTransaction . B.tlFileMeta . fst . E.unPosting
 
-fileTransaction :: T.PostFam -> Maybe B.FileTransaction
-fileTransaction = T.tFileTransaction . parent . T.unPostFam
+globalPosting :: E.Posting -> Maybe B.GlobalPosting
+globalPosting = B.pdGlobal . E.meta . E.headEnt . snd . E.unPosting
 
-postingLine :: T.PostFam -> Maybe B.PostingLine
-postingLine = T.pPostingLine . child . T.unPostFam
+filePosting :: E.Posting -> Maybe B.FilePosting
+filePosting = fmap B.pFilePosting . B.pdFileMeta . E.meta
+                   . E.headEnt . snd . E.unPosting
 
-side :: T.PostFam -> Maybe B.Side
-side = B.side . amount
+postingLine :: E.Posting -> Maybe B.PostingLine
+postingLine = fmap B.pPostingLine . B.pdFileMeta
+              . E.meta . E.headEnt . snd . E.unPosting
 
-spaceBetween :: T.PostFam -> Maybe B.SpaceBetween
-spaceBetween = B.spaceBetween . amount
+side :: E.Posting -> Maybe B.Side
+side = B.pSide . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 
-globalPosting :: T.PostFam -> Maybe B.GlobalPosting
-globalPosting = T.pGlobalPosting . child . T.unPostFam
+spaceBetween :: E.Posting -> Maybe B.SpaceBetween
+spaceBetween = B.pSpaceBetween . B.pdCore
+               . E.meta . E.headEnt . snd . E.unPosting
 
-filePosting :: T.PostFam -> Maybe B.FilePosting
-filePosting = T.pFilePosting . child . T.unPostFam
+filename :: E.Posting -> Maybe B.Filename
+filename = fmap B.tFilename . B.tlFileMeta . fst . E.unPosting

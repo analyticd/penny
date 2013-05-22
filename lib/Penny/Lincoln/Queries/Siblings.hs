@@ -8,80 +8,95 @@
 -- return a list of five items.)
 module Penny.Lincoln.Queries.Siblings where
 
+import Control.Arrow (second, first)
 import qualified Penny.Lincoln.Bits as B
-import Penny.Lincoln.Family.Child (Child(Child))
-import qualified Penny.Lincoln.Transaction as T
+import qualified Penny.Lincoln.Ents as E
 import Penny.Lincoln.Balance (Balance, entryToBalance)
 
 -- | For all siblings, uses information from the Posting if it is set;
 -- otherwise, uses data from the TopLine.
 bestSibs
-  :: (T.Posting -> Maybe a)
-  -> (T.TopLine -> Maybe a)
-  -> T.PostFam
+  :: (B.PostingCore -> Maybe a)
+  -> (B.TopLineCore -> Maybe a)
+  -> E.Posting
   -> [Maybe a]
-bestSibs fp ft pf =
-  let (Child _ s1 ss p) = T.unPostFam pf
-      get = maybe (ft p) Just . fp
-  in get s1 : map get ss
+bestSibs fp ft =
+  map f
+  . map (second (B.pdCore . E.meta))
+  . E.unrollSnd
+  . second (\(x, xs) -> (x:xs))
+  . second E.tailEnts
+  . first B.tlCore
+  . E.unPosting
+  where
+    f (tl, vw) = maybe (ft tl) Just (fp vw)
+
 
 -- | For all siblings, get the information from the Posting if it
 -- exists; otherwise Nothing.
 sibs
-  :: (T.Posting -> a)
-  -> T.PostFam
+  :: (E.Ent B.PostingData -> a)
+  -> E.Posting
   -> [a]
-sibs fp pf =
-  let (Child _ s1 ss _) = T.unPostFam pf
-  in fp s1 : map fp ss
+sibs fp = map fp . snd . fmap ((\(x, xs) -> (x:xs)) . E.tailEnts)
+          . E.unPosting
 
-payee :: T.PostFam -> [Maybe B.Payee]
-payee = bestSibs T.pPayee T.tPayee
+payee :: E.Posting -> [Maybe B.Payee]
+payee = bestSibs B.pPayee B.tPayee
 
-number :: T.PostFam -> [Maybe B.Number]
-number = bestSibs T.pNumber T.tNumber
+number :: E.Posting -> [Maybe B.Number]
+number = bestSibs B.pNumber B.tNumber
 
-flag :: T.PostFam -> [Maybe B.Flag]
-flag = bestSibs T.pFlag T.tFlag
+flag :: E.Posting -> [Maybe B.Flag]
+flag = bestSibs B.pFlag B.tFlag
 
-postingMemo :: T.PostFam -> [Maybe B.Memo]
-postingMemo = sibs T.pMemo
+postingMemo :: E.Posting -> [Maybe B.Memo]
+postingMemo = sibs (B.pMemo . B.pdCore . E.meta)
 
-account :: T.PostFam -> [B.Account]
-account = sibs T.pAccount
+account :: E.Posting -> [B.Account]
+account = sibs (B.pAccount . B.pdCore . E.meta)
 
-tags :: T.PostFam -> [B.Tags]
-tags = sibs T.pTags
+tags :: E.Posting -> [B.Tags]
+tags = sibs (B.pTags . B.pdCore . E.meta)
 
-entry :: T.PostFam -> [B.Entry]
-entry = sibs T.pEntry
+entry :: E.Posting -> [B.Entry]
+entry = sibs E.entry
 
-balance :: T.PostFam -> [Balance]
+balance :: E.Posting -> [Balance]
 balance = map entryToBalance . entry
 
-drCr :: T.PostFam -> [B.DrCr]
+drCr :: E.Posting -> [B.DrCr]
 drCr = map B.drCr . entry
 
-amount :: T.PostFam -> [B.Amount]
+amount :: E.Posting -> [B.Amount]
 amount = map B.amount . entry
 
-qty :: T.PostFam -> [B.Qty]
+qty :: E.Posting -> [B.Qty]
 qty = map B.qty . amount
 
-commodity :: T.PostFam -> [B.Commodity]
+commodity :: E.Posting -> [B.Commodity]
 commodity = map B.commodity . amount
 
-postingLine :: T.PostFam -> [Maybe B.PostingLine]
-postingLine = sibs T.pPostingLine
+postingLine :: E.Posting -> [Maybe B.PostingLine]
+postingLine = sibs (fmap B.pPostingLine . B.pdFileMeta . E.meta)
 
-side :: T.PostFam -> [Maybe B.Side]
-side = map B.side . amount
+side :: E.Posting -> [Maybe B.Side]
+side = sibs (B.pSide . B.pdCore . E.meta)
 
-spaceBetween :: T.PostFam -> [Maybe B.SpaceBetween]
-spaceBetween = map B.spaceBetween . amount
+spaceBetween :: E.Posting -> [Maybe B.SpaceBetween]
+spaceBetween = sibs (B.pSpaceBetween . B.pdCore . E.meta)
 
-globalPosting :: T.PostFam -> [Maybe B.GlobalPosting]
-globalPosting = sibs T.pGlobalPosting
+globalPosting :: E.Posting -> [Maybe B.GlobalPosting]
+globalPosting = sibs (B.pdGlobal . E.meta)
 
-filePosting :: T.PostFam -> [Maybe B.FilePosting]
-filePosting = sibs T.pFilePosting
+filePosting :: E.Posting -> [Maybe B.FilePosting]
+filePosting = sibs (fmap B.pFilePosting . B.pdFileMeta . E.meta)
+
+globalTransaction :: E.Posting -> [Maybe B.GlobalTransaction]
+globalTransaction =
+  map B.tlGlobal
+  . map fst
+  . E.unrollSnd
+  . second (\(x, xs) -> (x:xs))
+  . second E.tailEnts
+  . E.unPosting

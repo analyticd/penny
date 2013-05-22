@@ -7,205 +7,157 @@
 module Penny.Copper
   (
   -- * Convenience functions to read and parse files
-    parse
-  , open
+  open
 
   -- * Types for things found in ledger files
-  , Y.Item(BlankLine, IComment, PricePoint, Transaction)
-  , Y.mapItem
-  , Y.mapItemA
-  , Y.Ledger(Ledger, unLedger)
-  , Y.mapLedger
-  , Y.mapLedgerA
-  , Y.Comment(Comment, unComment)
-  , FileContents(FileContents, unFileContents)
-  , ErrorMsg (unErrorMsg)
+  , module Penny.Copper.Interface
 
   -- * Rendering
   , R.GroupSpec(..)
   , R.GroupSpecs(..)
-  , R.ledger
+  , R.item
+
 
   ) where
 
-import Control.Monad (when, replicateM_)
-import Control.Applicative (pure, (*>), (<$>))
-import Data.Functor.Compose (Compose(Compose, getCompose))
-import Data.Maybe (mapMaybe)
-import Data.Monoid (mconcat)
-import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Data.Foldable as F
-import qualified Data.Text as X
-import qualified Data.Text.IO as TIO
-import qualified Text.Parsec as Parsec
+import Control.Arrow (second)
+import qualified Data.Traversable as Tr
 import qualified Penny.Copper.Parsec as CP
+import qualified Penny.Steel.Sums as S
+import Penny.Copper.Interface
+import qualified Penny.Copper.Interface as I
 
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper.Render as R
-import qualified Penny.Copper.Types as Y
-import System.Console.MultiArg.GetArgs (getProgName)
-import qualified System.Exit as Exit
-import qualified System.IO as IO
-
-newtype FileContents = FileContents { unFileContents :: X.Text }
-                       deriving (Eq, Show)
-
-newtype ErrorMsg = ErrorMsg { unErrorMsg :: X.Text }
-                   deriving (Eq, Show)
-
-parseFile ::
-  (L.Filename, FileContents)
-  -> Ex.Exceptional ErrorMsg Y.Ledger
-parseFile (fn, (FileContents c)) =
-  let p = fmap (addFileMetadata fn) CP.ledger
-      fnStr = X.unpack . L.unFilename $ fn
-  in case Parsec.parse p fnStr c of
-    Left err -> Ex.throw (ErrorMsg . X.pack . show $ err)
-    Right g -> return g
-
-addFileTransaction
-  :: L.Filename
-  -> L.Transaction
-  -> L.GenSerial L.Transaction
-addFileTransaction fn t = f <$> L.getSerial
-  where
-    f ser = L.changeTransaction fam t
-      where
-        fam = L.Family tl e e []
-        e = L.emptyPostingChangeData
-        tl = L.emptyTopLineChangeData
-             { L.tcFileTransaction =
-                Just (Just $ L.FileTransaction ser)
-             , L.tcFilename =
-                Just (Just fn) }
-
-addFilePosting
-  :: L.Transaction
-  -> L.GenSerial L.Transaction
-addFilePosting t = f <$> (L.mapChildrenA g (L.unTransaction t))
-  where
-    f fam = L.changeTransaction
-            (L.mapParent (const L.emptyTopLineChangeData) fam) t
-    g = const $ fmap h L.getSerial
-      where h ser = L.emptyPostingChangeData
-              { L.pcFilePosting = Just (Just (L.FilePosting ser)) }
-
-addFileMetadataTxn
-  :: L.Filename
-  -> L.Transaction
-  -> Compose L.GenSerial L.GenSerial L.Transaction
-addFileMetadataTxn fn t = Compose $ do
-  t' <- addFileTransaction fn t
-  return (addFilePosting t')
-
-toPostings :: L.Transaction -> [L.Posting]
-toPostings = F.toList . L.orphans . L.unTransaction
-
-initCntTxn :: [a] -> L.GenSerial ()
-initCntTxn ts = replicateM_ (length ts) L.incrementBack
-
-initCntPstg :: [Y.Item] -> L.GenSerial ()
-initCntPstg fs = replicateM_ (length ls) L.incrementBack
-  where
-    ls = concatMap toPostings . mapMaybe toTxn $ fs
-
-toTxn :: Y.Item -> Maybe L.Transaction
-toTxn i = case i of
-  Y.Transaction t -> Just t
-  _ -> Nothing
-
-addFileMetadata :: L.Filename -> Y.Ledger -> Y.Ledger
-addFileMetadata fn a@(Y.Ledger ls) =
-  (L.makeSerials . (initCntPstg ls *>))
-  . (L.makeSerials . (initCntTxn ls *>))
-  . getCompose
-  . Y.mapLedgerA (Y.mapItemA pure pure (addFileMetadataTxn fn))
-  $ a
-
-
-addGlobalTransaction
-  :: L.Transaction
-  -> L.GenSerial L.Transaction
-addGlobalTransaction t = f <$> L.getSerial
-  where
-    f ser = L.changeTransaction fam t
-      where
-        fam = L.Family tl e e []
-        e = L.emptyPostingChangeData
-        tl = L.emptyTopLineChangeData
-             { L.tcGlobalTransaction =
-               Just (Just $ L.GlobalTransaction ser) }
-
-addGlobalPosting
-  :: L.Transaction
-  -> L.GenSerial L.Transaction
-addGlobalPosting t = f <$> (L.mapChildrenA g (L.unTransaction t))
-  where
-    f fam = L.changeTransaction
-            (L.mapParent (const L.emptyTopLineChangeData) fam) t
-    g = const $ fmap h L.getSerial
-      where
-        h ser = L.emptyPostingChangeData
-          { L.pcGlobalPosting = Just (Just (L.GlobalPosting ser)) }
-
-addGlobalMetadataTxn ::
-  L.Transaction
-  -> Compose L.GenSerial L.GenSerial L.Transaction
-addGlobalMetadataTxn t = Compose $ do
-  t' <- addGlobalTransaction t
-  return (addGlobalPosting t')
-
-addGlobalMetadata :: [Y.Ledger] -> Y.Ledger
-addGlobalMetadata ls =
-  (L.makeSerials . (initCntPstg ls' *>))
-  . (L.makeSerials . (initCntTxn ls' *>))
-  . getCompose
-  . Y.mapLedgerA (Y.mapItemA pure pure addGlobalMetadataTxn)
-  $ a
-  where
-    a@(Y.Ledger ls') = mconcat ls
-
-parse ::
-  [(L.Filename, FileContents)]
-  -> Ex.Exceptional ErrorMsg Y.Ledger
-parse ps = fmap addGlobalMetadata $ mapM parseFile ps
-
-
-parseAndResolve :: (L.Filename, FileContents) -> IO Y.Ledger
-parseAndResolve p@(L.Filename fn, _) =
-  Ex.switch err return $ parseFile p
-  where
-    err (ErrorMsg x) = do
-      pn <- getProgName
-      let msg = pn ++ ": error: could not parse file "
-                ++ X.unpack fn ++ "\n"
-                ++ X.unpack x
-      IO.hPutStr IO.stderr msg
-      Exit.exitFailure
-
 
 -- | Reads and parses the given files. If any of the files is @-@,
 -- reads standard input. If the list of files is empty, reads standard
 -- input. IO errors are not caught. Parse errors are printed to
 -- standard error and the program will exit with a failure.
-open :: [String] -> IO Y.Ledger
-open ss =
-  let ls = if null ss
-           then fmap (:[]) (getFileContentsStdin "-")
-           else mapM getFileContentsStdin ss
-  in fmap addGlobalMetadata (ls >>= mapM parseAndResolve)
+open :: [String] -> IO [I.LedgerItem]
+open ss = fmap parsedToWrapped $ mapM CP.parse ss
 
-getFileContentsStdin :: String -> IO (L.Filename, FileContents)
-getFileContentsStdin s = do
-  pn <- getProgName
-  txt <- if s == "-"
-          then do
-                isTerm <- IO.hIsTerminalDevice IO.stdin
-                when isTerm
-                  (IO.hPutStrLn IO.stderr $
-                     pn ++ ": warning: reading from standard input, which"
-                     ++ "is a terminal.")
-                TIO.hGetContents IO.stdin
-          else TIO.readFile s
-  let fn = L.Filename . X.pack $ if s == "-" then "<stdin>" else s
-  return (fn, FileContents txt)
+addFilePosting
+  :: Tr.Traversable f
+  => [S.S4 (a, f b) x y z]
+  -> [S.S4 (a, f (L.FilePosting, b)) x y z]
+addFilePosting = L.serialNestedItems f where
+  f i = case i of
+    S.S4a (a, ctnr) ->
+      Right ( ctnr
+            , (\ser ii -> (L.FilePosting ser, ii))
+            , (\res -> S.S4a (a, res))
+            )
+    S.S4b x -> Left (S.S4b x)
+    S.S4c x -> Left (S.S4c x)
+    S.S4d x -> Left (S.S4d x)
+
+addFileTransaction
+  :: [S.S4 (a, b) x y z]
+  -> [S.S4 ((L.FileTransaction, a), b) x y z]
+addFileTransaction = L.serialSomeItems f where
+  f i = case i of
+    S.S4a (a, b) -> Right (\ser -> S.S4a ((L.FileTransaction ser, a), b))
+    S.S4b x -> Left (S.S4b x)
+    S.S4c x -> Left (S.S4c x)
+    S.S4d x -> Left (S.S4d x)
+
+addGlobalTransaction
+  :: [S.S4 (a, b) x y z]
+  -> [S.S4 ((L.GlobalTransaction, a), b) x y z]
+addGlobalTransaction = L.serialSomeItems f where
+  f i = case i of
+    S.S4a (a, b) -> Right (\ser -> S.S4a ((L.GlobalTransaction ser, a), b))
+    S.S4b x -> Left (S.S4b x)
+    S.S4c x -> Left (S.S4c x)
+    S.S4d x -> Left (S.S4d x)
+
+addGlobalPosting
+  :: Tr.Traversable f
+  => [S.S4 (a, f b) x y z]
+  -> [S.S4 (a, f (L.GlobalPosting, b)) x y z]
+addGlobalPosting = L.serialNestedItems f where
+  f i = case i of
+    S.S4a (a, ctnr) ->
+      Right ( ctnr
+            , (\ser ii -> (L.GlobalPosting ser, ii))
+            , (\res -> S.S4a (a, res))
+            )
+    S.S4b x -> Left (S.S4b x)
+    S.S4c x -> Left (S.S4c x)
+    S.S4d x -> Left (S.S4d x)
+
+addFilename
+  :: L.Filename
+  -> [S.S4 (a, b) x y z]
+  -> [S.S4 ((L.Filename, a), b) x y z]
+addFilename fn = map f where
+  f i = case i of
+    S.S4a (a, b) -> S.S4a ((fn, a), b)
+    S.S4b x -> S.S4b x
+    S.S4c x -> S.S4c x
+    S.S4d x -> S.S4d x
+
+addFileSerials
+  :: Tr.Traversable f
+  => [S.S4 (a, f b) x y z]
+  -> [S.S4 ((L.FileTransaction, a), f (L.FilePosting, b)) x y z]
+addFileSerials
+  = addFilePosting
+  . addFileTransaction
+
+addFileData
+  :: Tr.Traversable f
+  => (L.Filename, [S.S4 (a, f b) x y z])
+  -> [S.S4 ((L.Filename, (L.FileTransaction, a)), f (L.FilePosting, b)) x y z]
+addFileData = uncurry addFilename . second addFileSerials
+
+addGlobalSerials
+  :: Tr.Traversable f
+  => [S.S4 (a, f b) x y z]
+  -> [S.S4 ((L.GlobalTransaction, a), f (L.GlobalPosting, b)) x y z]
+addGlobalSerials
+  = addGlobalTransaction
+  . addGlobalPosting
+
+addAllMetadata
+  :: Tr.Traversable f
+  => [(L.Filename, [S.S4 (a, f b) x y z])]
+  -> [S.S4 ((L.GlobalTransaction, (L.Filename, (L.FileTransaction, a))),
+              f (L.GlobalPosting, (L.FilePosting, b))) x y z]
+addAllMetadata
+  = addGlobalSerials
+  . concat
+  . map addFileData
+
+rewrapMetadata
+  :: Functor f
+  => ( (L.GlobalTransaction, (L.Filename, (L.FileTransaction, I.ParsedTopLine)))
+     , f (L.GlobalPosting, (L.FilePosting, (L.PostingCore, L.PostingLine))))
+  -> (L.TopLineData, f (L.PostingData))
+rewrapMetadata ((gt, (fn, (ft, ptl))), ctr) = (tld, fmap f ctr)
+  where
+    tld = L.TopLineData
+      tlc
+      (Just (L.TopLineFileMeta fn (I.ptlTopLineLine ptl)
+                                  (fmap snd $ I.ptlMemo ptl)
+                             ft))
+      (Just gt)
+    tlc = L.TopLineCore (I.ptlDateTime ptl) (I.ptlNumber ptl)
+                        (I.ptlFlag ptl) (I.ptlPayee ptl)
+                        (fmap fst $ I.ptlMemo ptl)
+    f (gp, (fp, (pc, pl))) = L.PostingData
+      pc
+      (Just (L.PostingFileMeta pl fp))
+      (Just gp)
+
+parsedToWrapped
+  :: [(L.Filename, [I.ParsedItem])]
+  -> [I.LedgerItem]
+parsedToWrapped = map rewrap . addAllMetadata where
+  rewrap i = case i of
+    S.S4a x -> S.S4a (L.Transaction . rewrapMetadata $ x)
+    S.S4b x -> S.S4b x
+    S.S4c x -> S.S4c x
+    S.S4d x -> S.S4d x
+

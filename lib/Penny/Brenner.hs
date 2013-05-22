@@ -15,6 +15,7 @@ module Penny.Brenner
   , L.SpaceBetween(..)
   , usePayeeOrDesc
   , brennerMain
+  , ofxParser
   ) where
 
 import qualified Penny.Brenner.Types as Y
@@ -29,12 +30,15 @@ import qualified Penny.Copper.Render as R
 import qualified Penny.Brenner.Clear as C
 import qualified Penny.Brenner.Database as D
 import qualified Penny.Brenner.Import as I
+import qualified Penny.Brenner.Info as Info
 import qualified Penny.Brenner.Merge as M
+import qualified Penny.Brenner.OFX as O
 import qualified Penny.Brenner.Print as P
-import Control.Applicative ((<*>))
+import qualified Penny.Brenner.Util as U
 import qualified System.Console.MultiArg as MA
 import qualified Control.Monad.Exception.Synchronous as Ex
 
+-- | Brenner, with a pre-compiled configuration.
 brennerMain
   :: V.Version
   -- ^ Binary version
@@ -42,63 +46,91 @@ brennerMain
   -> IO ()
 brennerMain v cf = do
   let cf' = convertConfig cf
-  join $ MA.modesWithHelp (help cf') (globalOpts v)
-    (preProcessor cf')
+  join $ MA.modesWithHelp (help False) (globalOpts v)
+                          (preProcessor cf')
 
+-- | Parses global options for a pre-compiled configuration.
 globalOpts
   :: V.Version
   -- ^ Binary version
-  -> [MA.OptSpec (Either (IO ()) String)]
+  -> [MA.OptSpec (Either (IO ()) Y.FitAcctName)]
 globalOpts v =
-  [ MA.OptSpec ["fit-account"] "f" (MA.OneArg Right)
+  [ MA.OptSpec ["fit-account"] "f"
+  (MA.OneArg (Right . Y.FitAcctName . X.pack))
   , fmap Left (Ly.version v)
   ]
 
+-- | Pre-processes global options for a pre-compiled configuration.
 preProcessor
   :: Y.Config
-  -> [Either (IO ()) String]
+  -> [Either (IO ()) Y.FitAcctName]
   -> Either (a -> IO ()) [MA.Mode (IO ())]
 preProcessor cf args =
   let (vers, as) = partitionEithers args
   in case vers of
-      [] -> makeModes cf as
+      [] -> makeModes Nothing cf as
       x:_ -> Left (const x)
 
+-- | Makes modes for a pre-compiled configuration.
 makeModes
-  :: Y.Config
-  -> [String]
+  :: Maybe Y.ConfigLocation
+  -> Y.Config
+  -> [Y.FitAcctName]
   -- ^ Names of financial institutions given on command line
   -> Either (a -> IO ()) [MA.Mode (IO ())]
-makeModes cf as = Ex.toEither . Ex.mapException (const . fail) $ do
-  fi <- case as of
+makeModes cl cf as = Ex.toEither . Ex.mapException (const . U.errExit) $ do
+  mayFi <- case as of
     [] -> return $ Y.defaultFitAcct cf
     _ ->
-      let pdct (Y.Name n, _) = n == X.pack s
+      let pdct a = Y.fitAcctName a == s
           s = last as
-      in case filter pdct (Y.moreFitAccts cf) of
+          toFilter = case Y.defaultFitAcct cf of
+            Nothing -> Y.moreFitAccts cf
+            Just d -> d : Y.moreFitAccts cf
+      in case filter pdct toFilter of
            [] -> Ex.throw $
               "financial institution account "
-              ++ s ++ " not configured."
-           (_, c):[] -> return $ Just c
+              ++ (X.unpack . Y.unFitAcctName $ s) ++ " not configured."
+           c:[] -> return $ Just c
            _ -> Ex.throw $
               "more than one financial institution account "
-              ++ "named " ++ s ++ " configured."
-  return $ [C.mode, I.mode, M.mode, P.mode, D.mode] <*> [fi]
+              ++ "named " ++ (X.unpack . Y.unFitAcctName $ s)
+              ++ " configured."
+  return . map (fmap (\f -> f cl cf mayFi)) $ allModes
 
+-- | Each mode takes a Maybe FitAcct. Even if every mode needs a
+-- FitAcct to function, they take a Maybe FitAcct because otherwise
+-- the user will not even get online help if a FitAcct is not
+-- supplied. Each mode must fail on its own if it actually needs a
+-- FitAcct.
+type ModeFunc
+  = Maybe Y.ConfigLocation
+  -> Y.Config
+  -> Maybe Y.FitAcct
+  -> IO ()
+
+allModes :: [MA.Mode ModeFunc]
+allModes =
+  fmap (\f cl cf _ -> f cl cf) Info.mode
+  : map (fmap (const . const))
+        [C.mode, I.mode, M.mode, P.mode, D.mode]
+
+-- | Help for a pre-compiled configuration.
 help
-  :: Y.Config
+  :: Bool
+  -- ^ True if running under a dynamic configuration
   -> String
   -- ^ Program name
 
   -> String
-help c n = unlines ls ++ cs
+help dyn n = unlines ls
   where
     ls = [ "usage: " ++ n ++ " [global-options]"
             ++ " COMMAND [local-options]"
             ++ " ARGS..."
          , ""
          , "where COMMAND is one of:"
-         , "import, merge, clear, database, print"
+         , "import, merge, clear, database, print, info"
          , ""
          , "For help on an individual command and its"
            ++ " local options, use "
@@ -106,60 +138,28 @@ help c n = unlines ls ++ cs
          , ""
          , "Global Options:"
          , "-f, --fit-account ACCOUNT"
-         , "  Use one of the Additional Financial Institution"
-         , "  Accounts shown below. If this option does not appear,"
+         , "  use the given financial institution account"
+         , "  (use the \"info\" command to see which are available)."
+         , "  If this option does not appear,"
          , "  the default account is used if there is one."
-         , "-h, --help"
-         , "  Show help and exit"
-         , ""
-         ]
-    showPair (Y.Name a, cd) = "Additional financial institution "
-      ++ "account: " ++ X.unpack a ++ "\n" ++ showFitAcct cd
-    cs = showDefaultFitAcct (Y.defaultFitAcct c)
-         ++ more
-    more = if null (Y.moreFitAccts c)
-           then "No additional financial institution accounts\n"
-           else concatMap showPair . Y.moreFitAccts $ c
-
-showDefaultFitAcct :: Maybe Y.FitAcct -> String
-showDefaultFitAcct mc = case mc of
-  Nothing -> "No default financial institution account\n"
-  Just c -> "Default financial institution account:\n" ++ showFitAcct c
-
-label :: String -> String -> String
-label l o = "  " ++ l ++ ": " ++ o ++ "\n"
-
-showAccount :: L.Account -> String
-showAccount =
-  X.unpack
-  . X.intercalate (X.singleton ':')
-  . map L.unSubAccount
-  . L.unAccount
-
-showFitAcct :: Y.FitAcct -> String
-showFitAcct c =
-  label "Database location"
-    (X.unpack . Y.unDbLocation . Y.dbLocation $ c)
-
-  ++ label "Penny account"
-     (showAccount . Y.unPennyAcct . Y.pennyAcct $ c)
-
-  ++ label "Account for new offsetting postings"
-     (showAccount . Y.unDefaultAcct . Y.defaultAcct $ c)
-
-  ++ label "Currency"
-     (X.unpack . L.unCommodity . Y.unCurrency . Y.currency $ c)
-
-  ++ "\n"
-
-  ++ "More information about the parser:\n"
-  ++ (fst . Y.parser $ c)
-  ++ "\n\n"
-
+         ] ++ if not dyn then [] else
+                  [ ""
+                  , "-c, --config-file FILENAME"
+                  , "  Specify configuration file location"
+                  ]
 
 -- | Information to configure a single financial institution account.
 data FitAcct = FitAcct
-  { dbLocation :: String
+  { fitAcctName :: String
+    -- ^ Name for this financial institution account, e.g. @House
+    -- Checking@ or @Megabank@.
+
+  , fitAcctDesc :: String
+    -- ^ Additional information about this financial institution
+    -- account. Here I put information on where to find the statments
+    -- for download on the website.
+
+  , dbLocation :: String
     -- ^ Path and filename to where the database is kept. You can use
     -- an absolute or relative path (if it is relative, it will be
     -- resolved relative to the current directory at runtime.)
@@ -194,7 +194,7 @@ data FitAcct = FitAcct
   -- ^ When creating new transactions, is there a space between the
   -- commodity and the quantity
 
-  , parser :: ( String
+  , parser :: ( Y.ParserDesc
               , Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
   -- ^ Parses a file of transactions from the financial
   -- institution. The function must open the file and parse it. This
@@ -225,8 +225,10 @@ data FitAcct = FitAcct
   } deriving Show
 
 convertFitAcct :: FitAcct -> Y.FitAcct
-convertFitAcct (FitAcct db ax df cy gs tl sd sb ps tlp) = Y.FitAcct
-  { Y.dbLocation = Y.DbLocation . X.pack $ db
+convertFitAcct (FitAcct fn fd db ax df cy gs tl sd sb ps tlp) = Y.FitAcct
+  { Y.fitAcctName = Y.FitAcctName . X.pack $ fn
+  , Y.fitAcctDesc = Y.FitAcctDesc . X.pack $ fd
+  , Y.dbLocation = Y.DbLocation . X.pack $ db
   , Y.pennyAcct = Y.PennyAcct . Bd.account . X.pack $ ax
   , Y.defaultAcct = Y.DefaultAcct . Bd.account . X.pack $ df
   , Y.currency = Y.Currency . L.Commodity . X.pack $ cy
@@ -240,15 +242,13 @@ convertFitAcct (FitAcct db ax df cy gs tl sd sb ps tlp) = Y.FitAcct
 
 data Config = Config
   { defaultFitAcct :: Maybe FitAcct
-  , moreFitAccts :: [(String, FitAcct)]
+  , moreFitAccts :: [FitAcct]
   } deriving Show
 
 convertConfig :: Config -> Y.Config
 convertConfig (Config d m) = Y.Config
   { Y.defaultFitAcct = fmap convertFitAcct d
-  , Y.moreFitAccts =
-      let f (n, c) = (Y.Name (X.pack n), convertFitAcct c)
-      in map f m
+  , Y.moreFitAccts = map convertFitAcct m
   }
 
 -- | A simple function to use for 'toLincolnPayee'. Uses the financial
@@ -257,3 +257,7 @@ convertConfig (Config d m) = Y.Config
 usePayeeOrDesc :: Y.Desc -> Y.Payee -> L.Payee
 usePayeeOrDesc (Y.Desc d) (Y.Payee p) = L.Payee $
   if X.null p then d else p
+
+-- | Parser for OFX data.
+ofxParser :: (Y.ParserDesc, Y.ParserFn)
+ofxParser = O.parser

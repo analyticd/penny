@@ -21,11 +21,20 @@ module Penny.Lincoln.Predicates
   , accountLevel
   , accountAny
   , tag
-  , filename
   , reconciled
-  , clonedTransactions
-  , clonedTopLines
-  , clonedPostings
+  , filename
+
+  -- * Serials
+  , serialPdct
+  , MakeSerialPdct
+  , fwdGlobalPosting
+  , backGlobalPosting
+  , fwdFilePosting
+  , backFilePosting
+  , fwdGlobalTransaction
+  , backGlobalTransaction
+  , fwdFileTransaction
+  , backFileTransaction
   ) where
 
 
@@ -36,14 +45,14 @@ import qualified Data.Text as X
 import qualified Data.Time as Time
 import qualified Penny.Lincoln.Bits as B
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
-import qualified Penny.Lincoln.Family.Family as F
 import qualified Penny.Lincoln.Queries as Q
-import Penny.Lincoln.Transaction (PostFam)
-import qualified Penny.Lincoln.Transaction as T
+import Penny.Lincoln.Ents (Posting)
+import qualified Penny.Lincoln.Ents as E
 import qualified Text.Matchers as M
 import qualified Data.Prednote.Pdct as P
+import Penny.Lincoln.Serial (forward, backward)
 
-type LPdct = P.Pdct PostFam
+type LPdct = P.Pdct Posting
 
 type MakePdct = M.Matcher -> LPdct
 
@@ -52,7 +61,7 @@ match
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> a)
+  -> (Posting -> a)
   -- ^ Function that returns the field being matched
   -> M.Matcher
   -> LPdct
@@ -65,7 +74,7 @@ matchMaybe
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> Maybe a)
+  -> (Posting -> Maybe a)
   -> M.Matcher
   -> LPdct
 matchMaybe t f m = P.operand desc pd
@@ -83,7 +92,7 @@ makeDesc t m
 matchAny
   :: HasTextList a
   => Text
-  -> (PostFam -> a)
+  -> (Posting -> a)
   -> M.Matcher
   -> LPdct
 matchAny t f m = P.operand desc pd
@@ -98,7 +107,7 @@ matchLevel
   :: HasTextList a
   => Int
   -> Text
-  -> (PostFam -> a)
+  -> (Posting -> a)
   -> M.Matcher
   -> LPdct
 matchLevel l d f m = P.operand desc pd
@@ -113,7 +122,7 @@ matchLevel l d f m = P.operand desc pd
 -- the memo with a space.
 matchMemo
   :: Text
-  -> (PostFam -> Maybe B.Memo)
+  -> (Posting -> Maybe B.Memo)
   -> M.Matcher
   -> LPdct
 matchMemo t f m = P.operand desc pd
@@ -130,7 +139,7 @@ matchDelimited
   -- ^ Separator
   -> Text
   -- ^ Label
-  -> (PostFam -> a)
+  -> (Posting -> a)
   -> M.Matcher
   -> LPdct
 matchDelimited sep lbl f m = match lbl f' m
@@ -147,9 +156,6 @@ number = matchMaybe "number" Q.number
 
 flag :: MakePdct
 flag = matchMaybe "flag" Q.flag
-
-filename :: MakePdct
-filename = matchMaybe "filename" Q.filename
 
 postingMemo :: MakePdct
 postingMemo = matchMemo "posting memo" Q.postingMemo
@@ -170,7 +176,7 @@ date ord u = P.compareBy (X.pack . show $ u)
 
 qty :: Ordering -> B.Qty -> LPdct
 qty o q = P.compareBy (X.pack . show $ q) "quantity"
-          (\l -> compare (Q.qty l) q) o
+          (\l -> B.compareQty (Q.qty l) q) o
 
 
 drCr :: B.DrCr -> LPdct
@@ -209,46 +215,109 @@ reconciled = P.operand d p
     d = "posting flag is exactly \"R\" (is reconciled)"
     p = maybe False ((== X.singleton 'R') . B.unFlag) . Q.flag
 
--- | Returns True if these two transactions are clones; that is, if
--- they are identical in all respects except some aspects of their
--- metadata. The metadata that is disregarded when testing for clones
--- pertains to the location of the transaction. (Resembles cloned
--- sheep, which are identical but cannot be in exactly the same
--- place.)
-clonedTransactions :: T.Transaction -> T.Transaction -> Bool
-clonedTransactions a b =
-  let (F.Family ta p1a p2a psa) = T.unTransaction a
-      (F.Family tb p1b p2b psb) = T.unTransaction b
-  in clonedTopLines ta tb
-     && clonedPostings p1a p1b
-     && clonedPostings p2a p2b
-     && (length psa == length psb)
-     && (and (zipWith clonedPostings psa psb))
+filename :: M.Matcher -> LPdct
+filename = matchMaybe "filename" Q.filename
 
--- | Returns True if two TopLines are clones. Considers only the
--- non-metadata aspects of the TopLine; the metadata all pertains only
--- to the location of the TopLine. The DateTimes are compared based on
--- both the local time and the time zone; that is, two times that
--- refer to the same instant will not compare as identical if they
--- have different time zones.
-clonedTopLines :: T.TopLine -> T.TopLine -> Bool
-clonedTopLines t1 t2 =
-  (T.tDateTime t1 == T.tDateTime t2)
-  && (T.tFlag t1 == T.tFlag t2)
-  && (T.tNumber t1 == T.tNumber t2)
-  && (T.tPayee t2 == T.tPayee t2)
-  && (T.tMemo t1 == T.tMemo t2)
+-- | Makes Pdct based on comparisons against a particular serial.
 
--- | Returns True if two Postings are clones. Considers only the
--- non-location-related aspects of the posting metadata.
-clonedPostings :: T.Posting -> T.Posting -> Bool
-clonedPostings p1 p2 =
-  (T.pPayee p1 == T.pPayee p2)
-  && (T.pNumber p1 == T.pNumber p2)
-  && (T.pFlag p1 == T.pFlag p2)
-  && (T.pAccount p1 == T.pAccount p2)
-  && (T.pTags p1 == T.pTags p2)
-  && (T.pEntry p1 == T.pEntry p2)
-  && (T.pMemo p1 == T.pMemo p2)
-  && (T.pInferred p1 == T.pInferred p2)
+serialPdct
+  :: Text
+  -- ^ Name of the serial, e.g. @globalPosting@
 
+  -> (a -> Maybe Int)
+  -- ^ How to obtain the serial from the item being examined
+
+  -> Int
+  -- ^ The right hand side
+
+  -> Ordering
+  -- ^ The Pdct returned will be Just True if the item has a serial
+  -- and @compare ser rhs@ returns this Ordering; Just False if the
+  -- item has a srerial and @compare@ does not return this Ordering;
+  -- Nothing if the item does not have a serial.
+
+  -> P.Pdct a
+
+serialPdct name getSer i o = P.Pdct n (P.Operand f)
+  where
+    n = "serial " <> name <> " is " <> descCmp <> " "
+        <> X.pack (show i)
+    descCmp = case o of
+      EQ -> "equal to"
+      LT -> "less than"
+      GT -> "greater than"
+    f = fmap (\ser -> compare ser i == o) . getSer
+
+type MakeSerialPdct = Int -> Ordering -> P.Pdct Posting
+
+fwdGlobalPosting :: MakeSerialPdct
+fwdGlobalPosting =
+  serialPdct "fwdGlobalPosting"
+  $ fmap (forward . B.unGlobalPosting)
+  . B.pdGlobal
+  . E.meta
+  . E.headEnt
+  . snd
+  . E.unPosting
+
+backGlobalPosting :: MakeSerialPdct
+backGlobalPosting =
+  serialPdct "revGlobalPosting"
+  $ fmap (backward . B.unGlobalPosting)
+  . B.pdGlobal
+  . E.meta
+  . E.headEnt
+  . snd
+  . E.unPosting
+
+fwdFilePosting :: MakeSerialPdct
+fwdFilePosting
+  = serialPdct "fwdFilePosting"
+  $ fmap (forward . B.unFilePosting . B.pFilePosting)
+  . B.pdFileMeta
+  . E.meta
+  . E.headEnt
+  . snd
+  . E.unPosting
+
+backFilePosting :: MakeSerialPdct
+backFilePosting
+  = serialPdct "revFilePosting"
+  $ fmap (backward . B.unFilePosting . B.pFilePosting)
+  . B.pdFileMeta
+  . E.meta
+  . E.headEnt
+  . snd
+  . E.unPosting
+
+fwdGlobalTransaction :: MakeSerialPdct
+fwdGlobalTransaction
+  = serialPdct "fwdGlobalTransaction"
+  $ fmap (forward . B.unGlobalTransaction)
+  . B.tlGlobal
+  . fst
+  . E.unPosting
+
+backGlobalTransaction :: MakeSerialPdct
+backGlobalTransaction
+  = serialPdct "backGlobalTransaction"
+  $ fmap (backward . B.unGlobalTransaction)
+  . B.tlGlobal
+  . fst
+  . E.unPosting
+
+fwdFileTransaction :: MakeSerialPdct
+fwdFileTransaction
+  = serialPdct "fwdFileTransaction"
+  $ fmap (forward . B.unFileTransaction . B.tFileTransaction)
+  . B.tlFileMeta
+  . fst
+  . E.unPosting
+
+backFileTransaction :: MakeSerialPdct
+backFileTransaction
+  = serialPdct "backFileTransaction"
+  $ fmap (backward . B.unFileTransaction . B.tFileTransaction)
+  . B.tlFileMeta
+  . fst
+  . E.unPosting

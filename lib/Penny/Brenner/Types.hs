@@ -11,8 +11,11 @@ module Penny.Brenner.Types
   , DbMap
   , DbList
   , Posting(..)
+  , ConfigLocation(..)
   , DbLocation(..)
-  , Name(..)
+  , FitAcctName(..)
+  , FitAcctDesc(..)
+  , ParserDesc(..)
   , PennyAcct(..)
   , Translator(..)
   , DefaultAcct(..)
@@ -21,6 +24,7 @@ module Penny.Brenner.Types
   , Config(..)
   , FitFileLocation(..)
   , AllowNew(..)
+  , ParserFn
   ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -192,19 +196,45 @@ instance S.Serialize Posting where
         <*> S.get
         <*> S.get
 
+-- | Where is a configuration file
+newtype ConfigLocation = ConfigLocation
+  { unConfigLocation :: Text }
+  deriving (Eq, Show)
+
+instance L.HasText ConfigLocation where text = unConfigLocation
+
 -- | Where is the database of postings?
 newtype DbLocation = DbLocation { unDbLocation :: Text }
   deriving (Eq, Show)
 
--- | A name used to refer to a batch of settings.
-newtype Name = Name { unName :: Text }
+instance L.HasText DbLocation where text = unDbLocation
+
+-- | Text description of the financial institution account.
+newtype FitAcctDesc = FitAcctDesc { unFitAcctDesc :: Text }
   deriving (Eq, Show)
+
+instance L.HasText FitAcctDesc where text = unFitAcctDesc
+
+-- | Text description of the parser itself.
+newtype ParserDesc = ParserDesc { unParserDesc :: Text }
+  deriving (Eq, Show)
+
+instance L.HasText ParserDesc where text = unParserDesc
+
+-- | A name used to refer to a batch of settings.
+newtype FitAcctName = FitAcctName { unFitAcctName :: Text }
+  deriving (Eq, Show)
+
+instance L.HasText FitAcctName where text = unFitAcctName
 
 -- | The Penny account holding postings for this financial
 -- institution. For instance it might be @Assets:Checking@ if this is
 -- your checking account, @Liabilities:Credit Card@, or whatever.
 newtype PennyAcct = PennyAcct { unPennyAcct :: L.Account }
   deriving (Eq, Show)
+
+instance L.HasTextList PennyAcct where
+  textList = L.textList . unPennyAcct
 
 -- | What the financial institution shows as an increase or decrease
 -- has to be recorded as a debit or credit in the PennyAcct.
@@ -229,14 +259,21 @@ data Translator
 newtype DefaultAcct = DefaultAcct { unDefaultAcct :: L.Account }
   deriving (Eq, Show)
 
+instance L.HasTextList DefaultAcct where
+  textList = L.textList . unDefaultAcct
+
 -- | The currency for all transactions, e.g. @$@.
 newtype Currency = Currency { unCurrency :: L.Commodity }
   deriving (Eq, Show)
 
+instance L.HasText Currency where text = L.text . unCurrency
+
 -- | A batch of settings representing a single financial institution
 -- account.
 data FitAcct = FitAcct
-  { dbLocation :: DbLocation
+  { fitAcctName :: FitAcctName
+  , fitAcctDesc :: FitAcctDesc
+  , dbLocation :: DbLocation
   , pennyAcct :: PennyAcct
   , defaultAcct :: DefaultAcct
   , currency :: Currency
@@ -251,7 +288,7 @@ data FitAcct = FitAcct
   -- ^ When creating new transactions, is there a space between the
   -- commodity and the quantity
 
-  , parser :: ( String
+  , parser :: ( ParserDesc
               , FitFileLocation -> IO (Ex.Exceptional String [Posting]))
   -- ^ Parses a file of transactions from the financial
   -- institution. The function must open the file and parse it. This
@@ -264,8 +301,7 @@ data FitAcct = FitAcct
   -- if any of the IO functions throw you can simply not handle the
   -- exceptions.
   --
-  -- The first element of the pair is a help string which should
-  -- indicate how to download the data, as a helpful reminder.
+  -- The first element of the pair gives information about the parser.
 
   , toLincolnPayee :: Desc -> Payee -> L.Payee
   -- ^ Sometimes the financial institution provides Payee information,
@@ -288,7 +324,7 @@ data FitAcct = FitAcct
 
 data Config = Config
   { defaultFitAcct :: Maybe FitAcct
-  , moreFitAccts :: [(Name, FitAcct)]
+  , moreFitAccts :: [FitAcct]
   }
 
 newtype FitFileLocation = FitFileLocation { unFitFileLocation :: String }
@@ -296,3 +332,9 @@ newtype FitFileLocation = FitFileLocation { unFitFileLocation :: String }
 
 newtype AllowNew = AllowNew { unAllowNew :: Bool }
   deriving (Show, Eq)
+
+-- | All parsers must be of this type.
+type ParserFn
+  = FitFileLocation
+  -> IO (Ex.Exceptional String [Posting])
+

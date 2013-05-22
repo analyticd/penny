@@ -67,7 +67,6 @@ import qualified System.Console.Rainbow as Rb
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
-import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Cabin.Scheme as E
@@ -117,7 +116,7 @@ data AllocatedOpts = AllocatedOpts
 payeeAndAcct
   :: E.Changers
   -> AllocatedOpts
-  -> [Box]
+  -> [(M.PostMeta, L.Posting)]
   -> Fields (Maybe ([R.ColumnSpec], Int))
 payeeAndAcct ch ao bs =
   let allBuilders =
@@ -305,13 +304,13 @@ divideAvailableWidth (AvailableWidth aw) appear allocs rws = Fields pye act
 builders
   :: E.Changers
   -> SubAccountLength
-  -> Box
+  -> (M.PostMeta, L.Posting)
   -> Fields (Request, Final -> R.ColumnSpec)
 builders ch sl b = Fields (buildPayee ch b) (buildAcct ch sl b)
 
 buildPayee
   :: E.Changers
-  -> Box
+  -> (M.PostMeta, L.Posting)
   -> (Request, Final -> R.ColumnSpec)
   -- ^ Returns a tuple. The first element is the maximum width that
   -- this cell needs to display its value perfectly. The second
@@ -320,8 +319,8 @@ buildPayee
 
 buildPayee ch i = (maxW, mkSpec)
   where
-    pb = L.boxPostFam i
-    eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ i
+    pb = snd i
+    eo = E.fromVisibleNum . M.visibleNum . fst $ i
     j = R.LeftJustify
     ps = (E.Other, eo)
     md = E.getEvenOddLabelValue E.Other eo ch
@@ -351,7 +350,7 @@ buildPayee ch i = (maxW, mkSpec)
 buildAcct
   :: E.Changers
   -> SubAccountLength
-  -> Box
+  -> (M.PostMeta, L.Posting)
   -> (Request, Final -> R.ColumnSpec)
   -- ^ Returns a tuple. The first element is the maximum width that
   -- this cell needs to display its value perfectly. The second
@@ -360,8 +359,8 @@ buildAcct
 
 buildAcct ch sl i = (maxW, mkSpec)
   where
-    pb = L.boxPostFam i
-    eo = E.fromVisibleNum . M.visibleNum . L.boxMeta $ i
+    pb = snd i
+    eo = E.fromVisibleNum . M.visibleNum . fst $ i
     ps = (E.Other, eo)
     aList = L.unAccount . Q.account $ pb
     maxW = Request

@@ -1,6 +1,7 @@
 module Penny.Lincoln.HasText where
 
 import Data.Text (Text)
+import qualified Data.Text as X
 
 import qualified Penny.Lincoln.Bits as B
 
@@ -33,6 +34,19 @@ instance HasText B.Filename where
 
 class HasTextList a where
   textList :: a -> [Text]
+
+-- | Wraps instances of HasTextList and provides a delimiter; the
+-- result is an instance of HasText.
+data Delimited a = Delimited
+  { delimiter :: Text
+  , delimited :: a
+  } deriving (Eq, Show)
+
+instance HasTextList a => HasTextList (Delimited a) where
+  textList = textList . delimited
+
+instance HasTextList a => HasText (Delimited a) where
+  text a = X.intercalate (delimiter a) . textList . delimited $ a
 
 instance HasTextList B.Account where
   textList = map text . B.unAccount

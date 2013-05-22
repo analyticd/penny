@@ -20,6 +20,7 @@ import qualified Data.Prednote.Pdct as Pe
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
+import qualified Penny.Steel.Sums as Su
 
 import Control.Applicative ((<*>), pure, (<$))
 import Control.Monad (join)
@@ -156,7 +157,7 @@ data OptResult
   | RPostFilter (Ex.Exceptional Ly.Error Ly.PostFilterFn)
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
-  | ROperator (X.Token L.PostFam)
+  | ROperator (X.Token L.Posting)
   | RSortSpec (Ex.Exceptional Error Orderer)
   | RColorToFile ColorToFile
   | RScheme E.Changers
@@ -213,7 +214,7 @@ type Factory = M.CaseSensitive
 makeToken
   :: OptResult
   -> St.State (M.CaseSensitive, Factory)
-              (Maybe (Ex.Exceptional Ly.Error (X.Token L.PostFam)))
+              (Maybe (Ex.Exceptional Ly.Error (X.Token L.Posting)))
 makeToken o = case o of
   ROperand f -> do
     (s, fty) <- St.get
@@ -234,7 +235,7 @@ makeToken o = case o of
 makeTokens
   :: Defaults
   -> [OptResult]
-  -> Ex.Exceptional Ly.Error ( [X.Token L.PostFam]
+  -> Ex.Exceptional Ly.Error ( [X.Token L.Posting]
                              , (M.CaseSensitive, Factory) )
 makeTokens df os =
   let initSt = (sensitive df, fty)
@@ -323,7 +324,7 @@ data FilterOpts = FilterOpts
     -- subsequent parses of the command line.
 
   , foSorterFilterer :: [L.Transaction]
-                    -> ([R.Chunk], [L.Box Ly.LibertyMeta])
+                    -> ([R.Chunk], [(Ly.LibertyMeta, L.Posting)])
     -- ^ Applied to a list of Transaction, will sort and filter
     -- the transactions and assign them LibertyMeta.
 
@@ -331,7 +332,7 @@ data FilterOpts = FilterOpts
 
   , foColorToFile :: ColorToFile
   , foExprDesc :: X.ExprDesc
-  , foPredicate :: Pe.Pdct L.PostFam
+  , foPredicate :: Pe.Pdct L.Posting
   , foShowExpression :: ShowExpression
   , foVerboseFilter :: VerboseFilter
   }
@@ -413,7 +414,7 @@ blankLine = R.plain "\n"
 showFilterExpression
   :: ([R.Chunk] -> IO ())
   -> ShowExpression
-  -> Pe.Pdct L.PostFam
+  -> Pe.Pdct L.Posting
   -> IO ()
 showFilterExpression ptr (ShowExpression se) pdct =
   if not se
@@ -436,13 +437,11 @@ showVerboseFilter ptr (VerboseFilter vb) cks =
     info = R.plain "Filtering information:\n"
 
 -- | Splits a Ledger into its Transactions and PricePoints.
-splitLedger :: C.Ledger -> ([L.Transaction], [L.PricePoint])
-splitLedger = partitionEithers . mapMaybe toEither . C.unLedger
+splitLedger :: [C.LedgerItem] -> ([L.Transaction], [L.PricePoint])
+splitLedger = partitionEithers . mapMaybe toEither
   where
-    toEither i = case i of
-      C.Transaction t -> Just $ Left t
-      C.PricePoint p -> Just $ Right p
-      _ -> Nothing
+    toEither = Su.caseS4 (Just  . Left) (Just . Right)
+                         (const Nothing) (const Nothing)
 
 helpText
   :: Defaults
@@ -474,7 +473,7 @@ helpText df rt pairMakers pn =
 --
 -- mconcat [comparing fst, comparing snd]
 
-type Orderer = L.PostFam -> L.PostFam -> Ordering
+type Orderer = L.Posting -> L.Posting -> Ordering
 
 flipOrder :: (a -> a -> Ordering) -> (a -> a -> Ordering)
 flipOrder f = f' where

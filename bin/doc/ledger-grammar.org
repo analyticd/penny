@@ -241,22 +241,18 @@ transaction memo.
 
 * FlagNumberPayee
 
-<numberPayee> ::= <number> White* <quotedLvl1Payee>?
-<payeeNumber> ::= <quotedLvl1Payee> White* <number>?
-<afterFlag> ::= <numberPayee> | <payeeNumber>
-<flagFirst> ::= <flag> White* <afterFlag>?
+Here we add an additional element to the specification. Square
+brackets denote permutations. Elements inside may occur in any order.
 
-<flagPayee> ::= <flag> White* <quotedLvl1Payee>?
-<payeeFlag> ::= <quotedLvl1Payee> White* <flag>?
-<afterNumber> ::= <flagPayee> | <payeeFlag>
-<numberFirst> ::= <number> White* <afterNumber>?
+<flagWhite> ::= <flag> White*
+<numWhite> ::= <number> White*
+<payeeWhite> ::= <payee> White*
 
-<numberFlag> ::= <number> White* <flag>?
-<flagNumber> ::= <flag> White* <number>?
-<afterPayee> ::= <numberFlag> <flagNumber>
-<payeeFirst> ::= <quotedLvl1Payee> White* <afterPayee>?
+<flagOpt> ::= <flagWhite>?
+<numOpt> ::= <numWhite>?
+<payeeOpt> ::= <payeeWhite>?
 
-<flagNumPayee> ::= <flagFirst> | <numberFirst> | <payeeFirst>
+<flagNumPayee> ::= [ <flagOpt> <numOpt> <payeeOpt> ]
 
 * Posting
 

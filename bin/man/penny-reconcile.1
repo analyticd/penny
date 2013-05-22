@@ -1,12 +1,13 @@
 .TH penny-reconcile 1
-
+.
 .SH NAME
 penny-reconcile - mark cleared postings as reconciled
-
+.
 .SH SYNOPSIS
 .B penny-reconcile
+[options]
 FILE...
-
+.
 .SH DESCRIPTION
 Finds all postings in the input ledger files whose flag is exactly one
 letter: the letter
@@ -18,25 +19,47 @@ when reconciling a financial institution account: you may first mark
 postings in your ledger that match a posting on your bank statement
 with a
 .I C
-flag. Because only postings from the current statement will be marked with a
+flag.
+.
+Because only postings from the current statement will be marked with a
 .I C
 flag, it is easier to use
 .BR penny (1)
-to list only the postings that you have just cleared.  Then, after
+to list only the postings that you have just cleared.
+.
+Then, after
 ensuring that the statement is properly reconciled,
 .B penny-reconcile
 will automatically mark all the posts reconciled.
-
+.
 If no
 .IR FILE ", or " FILE " is " - ,
 read standard input.
-
+.
+.SH OPTIONS
+.
+.TP
+.IR "--output FILENAME", " -o FILENAME"
+.
+send output to
+.I FILENAME
+instead of standard output.
+.
+You can use multiple
+.I --output
+options; to explicitly print to standard output, use
+.IR "--output -" .
+.
 .SH VERSUS sed(1) OR YOUR TEXT EDITOR
 You could do this with
 .BR sed (1)
-or your text editor. Unlike those programs,
+or your text editor.
+.
+Unlike those programs,
 .B penny-reconcile
-knows the structure of a ledger file. So
+knows the structure of a ledger file.
+.
+So
 .B penny-reconcile
 will not, for example, change the text
 .IR [C] " to " [R]
@@ -44,9 +67,11 @@ where the
 .I [C]
 appears within a comment, while a naive
 .BR sed (1)
-script would do so. This would happen only rarely though, so you might
+script would do so.
+.
+This would happen only rarely though, so you might
 be just fine using a query-replace function in your text editor.
-
+.
 Also,
 .B penny-reconcile
 will tidy up your ledger file--that is, it might rearrange or delete
@@ -55,16 +80,16 @@ the non-significant whitespace within a transaction and posting, similar to
 This might be good or bad.
 .BR sed (1)
 or your text editor, on the other hand, will not do this.
-
+.
 .SH EXIT STATUS
 0 if everything went fine; some other value if something went wrong
 (e.g. a ledger file could not be parsed.)
-
+.
 .SH BUGS
 Please report bugs in the program or documentation to
 .MT omari@smileystation.com
 Omari Norman.
 .ME
-
+.
 .SH SEE ALSO
 .BR penny-suite (7)

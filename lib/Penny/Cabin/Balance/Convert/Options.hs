@@ -37,7 +37,7 @@ defaultOptions = DefaultOpts
   , target = P.AutoTarget
   , sortOrder = CP.Ascending
   , sortBy = P.SortByName
-  , format = \_ q -> X.pack . show $ q
+  , format = \_ q -> X.pack . L.prettyShowQty $ q
   }
 
 

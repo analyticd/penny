@@ -9,7 +9,7 @@ module Penny.Lincoln.PriceDb (
   addPrice,
   getPrice,
   PriceDbError(FromNotFound, ToNotFound, CpuNotFound),
-  convert
+  convertAsOf
   ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -84,13 +84,13 @@ getPrice (PriceDb db) fr to dt = do
 -- already in the To commodity, simply returns what was passed in. Can
 -- fail and throw PriceDbError. Internally uses 'getPrice', so read its
 -- documentation for details on how price lookup works.
-convert ::
+convertAsOf ::
   PriceDb
   -> B.DateTime
   -> B.To
   -> B.Amount
   -> Ex.Exceptional PriceDbError B.Qty
-convert db dt to (B.Amount qt fr _ _)
+convertAsOf db dt to (B.Amount qt fr)
   | fr == B.unTo to = return qt
   | otherwise = do
     cpu <- fmap B.unCountPerUnit (getPrice db (B.From fr) to dt)

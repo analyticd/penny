@@ -21,21 +21,37 @@ module Penny.Lincoln.Predicates.Siblings
   , accountAny
   , tag
   , reconciled
+
+  -- * Serials
+  , serialPdct
+  , MakeSerialPdct
+  , fwdGlobalPosting
+  , backGlobalPosting
+  , fwdFilePosting
+  , backFilePosting
+  , fwdGlobalTransaction
+  , backGlobalTransaction
+  , fwdFileTransaction
+  , backFileTransaction
   ) where
 
 
+import Control.Arrow (second)
 import Data.List (intersperse)
+import Data.Maybe (catMaybes)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Penny.Lincoln.Bits as B
+import qualified Penny.Lincoln.Ents as E
+import Penny.Lincoln.Serial (forward, backward)
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
 import qualified Penny.Lincoln.Queries.Siblings as Q
-import Penny.Lincoln.Transaction (PostFam)
+import Penny.Lincoln.Ents (Posting)
 import qualified Text.Matchers as M
 import qualified Data.Prednote.Pdct as P
 
-type LPdct = P.Pdct PostFam
+type LPdct = P.Pdct Posting
 
 type MakePdct = M.Matcher -> LPdct
 
@@ -44,7 +60,7 @@ match
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> [a])
+  -> (Posting -> [a])
   -- ^ Function that returns the field being matched
   -> M.Matcher
   -> LPdct
@@ -57,7 +73,7 @@ matchMaybe
   :: HasText a
   => Text
   -- ^ Description of this field
-  -> (PostFam -> [Maybe a])
+  -> (Posting -> [Maybe a])
   -> M.Matcher
   -> LPdct
 matchMaybe t f m = P.operand desc pd
@@ -77,7 +93,7 @@ makeDesc t m
 matchAny
   :: HasTextList a
   => Text
-  -> (PostFam -> [a])
+  -> (Posting -> [a])
   -> M.Matcher
   -> LPdct
 matchAny t f m = P.operand desc pd
@@ -92,7 +108,7 @@ matchLevel
   :: HasTextList a
   => Int
   -> Text
-  -> (PostFam -> [a])
+  -> (Posting -> [a])
   -> M.Matcher
   -> LPdct
 matchLevel l d f m = P.operand desc pd
@@ -107,7 +123,7 @@ matchLevel l d f m = P.operand desc pd
 -- the memo with a space.
 matchMemo
   :: Text
-  -> (PostFam -> [Maybe B.Memo])
+  -> (Posting -> [Maybe B.Memo])
   -> M.Matcher
   -> LPdct
 matchMemo t f m = P.operand desc pd
@@ -124,7 +140,7 @@ matchDelimited
   -- ^ Separator
   -> Text
   -- ^ Label
-  -> (PostFam -> [a])
+  -> (Posting -> [a])
   -> M.Matcher
   -> LPdct
 matchDelimited sep lbl f m = match lbl f' m
@@ -208,3 +224,105 @@ reconciled = P.operand d p
     p = any (maybe False ((== X.singleton 'R') . B.unFlag))
         . Q.flag
 
+--
+-- Serials
+--
+
+-- | Makes Pdct based on comparisons against a particular serial.
+
+serialPdct
+  :: Text
+  -- ^ Name of the serial, e.g. @globalPosting@
+
+  -> ((B.TopLineData, E.Ent B.PostingData) -> Maybe Int)
+  -- ^ How to obtain the serial from the item being examined
+
+  -> Int
+  -- ^ The right hand side
+
+  -> Ordering
+  -- ^ The Pdct returned will be Just True if the item has a serial
+  -- and @compare ser rhs@ returns this Ordering; Just False if the
+  -- item has a srerial and @compare@ does not return this Ordering;
+  -- Nothing if the item does not have a serial.
+
+  -> P.Pdct E.Posting
+
+serialPdct name getSer i o = P.Pdct n (P.Operand f)
+  where
+    n = "serial " <> name <> " is " <> descCmp <> " "
+        <> X.pack (show i)
+    descCmp = case o of
+      EQ -> "equal to"
+      LT -> "less than"
+      GT -> "greater than"
+    f = Just
+        . any (\ser -> compare ser i == o )
+        . catMaybes
+        . map getSer
+        . E.unrollSnd
+        . second (\(x, xs) -> (x:xs))
+        . second E.tailEnts
+        . E.unPosting
+
+type MakeSerialPdct = Int -> Ordering -> P.Pdct Posting
+
+fwdGlobalPosting :: MakeSerialPdct
+fwdGlobalPosting =
+  serialPdct "fwdGlobalPosting"
+  $ fmap (forward . B.unGlobalPosting)
+  . B.pdGlobal
+  . E.meta
+  . snd
+
+backGlobalPosting :: MakeSerialPdct
+backGlobalPosting =
+  serialPdct "revGlobalPosting"
+  $ fmap (backward . B.unGlobalPosting)
+  . B.pdGlobal
+  . E.meta
+  . snd
+
+fwdFilePosting :: MakeSerialPdct
+fwdFilePosting
+  = serialPdct "fwdFilePosting"
+  $ fmap (forward . B.unFilePosting . B.pFilePosting)
+  . B.pdFileMeta
+  . E.meta
+  . snd
+
+backFilePosting :: MakeSerialPdct
+backFilePosting
+  = serialPdct "revFilePosting"
+  $ fmap (backward . B.unFilePosting . B.pFilePosting)
+  . B.pdFileMeta
+  . E.meta
+  . snd
+
+fwdGlobalTransaction :: MakeSerialPdct
+fwdGlobalTransaction
+  = serialPdct "fwdGlobalTransaction"
+  $ fmap (forward . B.unGlobalTransaction)
+  . B.tlGlobal
+  . fst
+
+backGlobalTransaction :: MakeSerialPdct
+backGlobalTransaction
+  = serialPdct "backGlobalTransaction"
+  $ fmap (backward . B.unGlobalTransaction)
+  . B.tlGlobal
+  . fst
+
+fwdFileTransaction :: MakeSerialPdct
+fwdFileTransaction
+  = serialPdct "fwdFileTransaction"
+  $ fmap (forward . B.unFileTransaction . B.tFileTransaction)
+  . B.tlFileMeta
+  . fst
+
+backFileTransaction :: MakeSerialPdct
+backFileTransaction
+  = serialPdct "backFileTransaction"
+  $ fmap (backward . B.unFileTransaction . B.tFileTransaction)
+  . B.tlFileMeta
+  . fst

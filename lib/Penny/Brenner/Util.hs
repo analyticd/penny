@@ -9,6 +9,25 @@ import qualified Data.Text as X
 import qualified Penny.Copper.Parsec as CP
 import qualified Text.Parsec as P
 import qualified Penny.Lincoln as L
+import qualified System.Exit as Exit
+import qualified System.Console.MultiArg as MA
+import qualified System.IO as IO
+
+-- | Print an error message and exit.
+errExit :: String -> IO a
+errExit s = do
+  pn <- MA.getProgName
+  IO.hPutStrLn IO.stderr $ pn ++ ": error: " ++ s
+  Exit.exitFailure
+
+-- | Gets the FitAcct, if it was provided. If it was not provided,
+-- exit with an error message.
+getFitAcct :: Maybe Y.FitAcct -> IO Y.FitAcct
+getFitAcct ma = case ma of
+  Nothing -> errExit $ "no default financial institution account, "
+             ++ "and no financial institution account provided"
+             ++ " on command line."
+  Just a -> return a
 
 -- | Loads the database from disk. If allowNew is True, then does not
 -- fail if the file was not found.

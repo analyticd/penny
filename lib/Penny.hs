@@ -31,7 +31,6 @@ module Penny
   , CP.SortBy(..)
 
   -- ** Postings report options
-  , M.Box
   , Fields(..)
   , Spacers(..)
   , widthFromRuntime
@@ -184,10 +183,10 @@ data Defaults = Defaults
     -- ^ Show zero balances in the postings report? If True, show
     -- them; if False, hide them.
 
-  , postingsDateFormat :: M.Box -> X.Text
+  , postingsDateFormat :: (M.PostMeta, L.Posting) -> X.Text
     -- ^ How to format dates in the postings report.
 
-  , postingsQtyFormat :: M.Box -> X.Text
+  , postingsQtyFormat :: (M.PostMeta, L.Posting) -> X.Text
     -- ^ How to format quantities in the balance report. This function
     -- is used when showing the quantity for the posting itself, and
     -- not the quantity for the totals columns (for that, see
@@ -331,7 +330,7 @@ toPostingsDefaults d = Ps.ZincOpts
   }
 
 defaultQtyFormat :: L.Qty -> X.Text
-defaultQtyFormat = X.pack . show
+defaultQtyFormat = X.pack . L.prettyShowQty
 
 data Spacers a = Spacers
   { sGlobalTransaction :: a
@@ -454,4 +453,3 @@ convFields f = PF.Fields
   , PF.memo = fMemo f
   , PF.filename = fFilename f
   }
-

@@ -79,8 +79,8 @@ convertOne db dt to (cty, bl) =
     L.Zero -> return L.Zero
     L.NonZero (L.Column dc qt) -> Ex.mapExceptional e g ex
       where
-        ex = L.convert db dt to am
-        am = L.Amount qt cty Nothing Nothing
+        ex = L.convertAsOf db dt to am
+        am = L.Amount qt cty
         e = convertError to (L.From cty)
         g r = L.NonZero (L.Column dc r)
 
@@ -149,7 +149,7 @@ mainRow (l, (a, b)) = K.RMain $ K.MainRow l x b
 report
   :: Opts
   -> [L.PricePoint]
-  -> [L.Box a]
+  -> [(a, L.Posting)]
   -> Ex.Exceptional X.Text [Rb.Chunk]
 report os@(Opts getFmt _ _ _ _ txtFormats) ps bs = do
   fstBl <- sumConvertSort os ps bs
@@ -169,7 +169,7 @@ cmdLineReport o rt = (help o, mkMode)
       { MA.mName = "convert"
       , MA.mIntersperse = MA.Intersperse
       , MA.mOpts = map (fmap Right) P.allOptSpecs
-      , MA.mPosArgs = Left
+      , MA.mPosArgs = return . Left
       , MA.mProcess = process rt chgrs o fsf
       , MA.mHelp = const (help o)
       }
@@ -178,7 +178,7 @@ process
   :: S.Runtime
   -> Scheme.Changers
   -> O.DefaultOpts
-  -> ([L.Transaction] -> [L.Box Ly.LibertyMeta])
+  -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
   -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
   -> Ex.Exceptional X.Text I.ArgsAndReport
 process rt chgrs defaultOpts fsf ls = do
@@ -204,7 +204,7 @@ process rt chgrs defaultOpts fsf ls = do
 sumConvertSort
   :: Opts
   -> [L.PricePoint]
-  -> [L.Box a]
+  -> [(a, L.Posting)]
   -> Ex.Exceptional X.Text ForestAndBL
 sumConvertSort os ps bs = mkResult <$> convertedFrst <*> convertedTot
   where
@@ -269,12 +269,12 @@ cmpBottomLine (n1, bl1) (n2, bl2) =
     (L.NonZero c1, L.NonZero c2) ->
       mconcat [dc, qt, na]
       where
-        dc = case (Bal.drCr c1, Bal.drCr c2) of
+        dc = case (Bal.colDrCr c1, Bal.colDrCr c2) of
           (L.Debit, L.Debit) -> EQ
           (L.Debit, L.Credit) -> LT
           (L.Credit, L.Debit) -> GT
           (L.Credit, L.Credit) -> EQ
-        qt = compare (Bal.qty c1) (Bal.qty c2)
+        qt = compare (Bal.colQty c1) (Bal.colQty c2)
         na = compare n1 n2
 
 ------------------------------------------------------------

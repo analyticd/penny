@@ -3,6 +3,7 @@
 module Penny.Cabin.Posts.Parser
   ( State(..)
   , allSpecs
+  , Error
   , VerboseFilter(..)
   , ShowExpression(..)
   ) where
@@ -38,7 +39,7 @@ newtype ShowExpression = ShowExpression { unShowExpression :: Bool }
 data State = State
   { sensitive :: M.CaseSensitive
   , factory :: L.Factory
-  , tokens :: [Exp.Token (L.Box Ly.LibertyMeta)]
+  , tokens :: [Exp.Token (Ly.LibertyMeta, L.Posting)]
   , postFilter :: [Ly.PostFilterFn]
   , fields :: F.Fields Bool
   , width :: Ty.ReportWidth
@@ -80,7 +81,7 @@ operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
       let cs = sensitive st
           fty = factory st
       g <- lyFn cs fty
-      let g' = Pt.boxPdct L.boxPostFam g
+      let g' = Pt.boxPdct snd g
           ts' = tokens st ++ [Exp.operand g']
       return $ st { tokens = ts' }
 
@@ -101,7 +102,7 @@ optBoxSerial nm f = C.OptSpec [nm] "" (C.TwoArg g)
       i <- Ly.parseInt a2
       let getPd = Pt.compareBy (X.pack . show $ i)
                   ("serial " <> X.pack nm) cmp
-          cmp l = compare (f . L.boxMeta $ l) i
+          cmp l = compare (f . fst $ l) i
       pd <- Ly.parseComparer a1 getPd
       let tok = Exp.operand pd
       return $ st { tokens = tokens st ++ [tok] }

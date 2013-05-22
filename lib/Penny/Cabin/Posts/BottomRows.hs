@@ -39,7 +39,6 @@ import qualified Penny.Cabin.Posts.Allocated as A
 import qualified Penny.Cabin.Posts.Fields as F
 import qualified Penny.Cabin.Posts.Growers as G
 import qualified Penny.Cabin.Posts.Meta as M
-import Penny.Cabin.Posts.Meta (Box)
 import qualified Penny.Cabin.Posts.Spacers as S
 import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Lincoln as L
@@ -57,7 +56,7 @@ data BottomOpts = BottomOpts
 bottomRows
   :: E.Changers
   -> BottomOpts
-  -> [Box]
+  -> [(M.PostMeta, L.Posting)]
   -> Fields (Maybe [[Rb.Chunk]])
 bottomRows ch os bs = makeRows bs pcs where
   pcs = infoProcessors ch topSpecs (reportWidth os) wanted
@@ -111,16 +110,16 @@ newtype ContentWidth = ContentWidth Int deriving (Show, Eq)
 hanging
   :: E.Changers
   -> [TopCellSpec]
-  -> Maybe ((Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
-            -> Box -> [Rb.Chunk])
+  -> Maybe (((M.PostMeta, L.Posting) -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
+            -> (M.PostMeta, L.Posting) -> [Rb.Chunk])
 hanging ch specs = hangingWidths specs
                 >>= return . hangingInfoProcessor ch
 
 hangingInfoProcessor
   :: E.Changers
   -> Hanging Int
-  -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
-  -> Box
+  -> ((M.PostMeta, L.Posting) -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
+  -> (M.PostMeta, L.Posting)
   -> [Rb.Chunk]
 hangingInfoProcessor ch widths mkr info = row where
   row = R.row ch [left, mid, right]
@@ -132,8 +131,8 @@ hangingInfoProcessor ch widths mkr info = row where
 widthOfTopColumns
   :: E.Changers
   -> [TopCellSpec]
-  -> Maybe ((Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
-            -> Box -> [Rb.Chunk])
+  -> Maybe (((M.PostMeta, L.Posting) -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
+            -> (M.PostMeta, L.Posting) -> [Rb.Chunk])
 widthOfTopColumns ch ts =
   if null ts
   then Nothing
@@ -146,8 +145,8 @@ widthOfTopColumns ch ts =
 widthOfReport
   :: E.Changers
   -> Ty.ReportWidth
-  -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
-  -> Box
+  -> ((M.PostMeta, L.Posting) -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
+  -> (M.PostMeta, L.Posting)
   -> [Rb.Chunk]
 widthOfReport ch (Ty.ReportWidth rw) fn info =
   makeSpecificWidth ch rw fn info
@@ -156,8 +155,8 @@ chooseProcessor
   :: E.Changers
   -> [TopCellSpec]
   -> Ty.ReportWidth
-  -> (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
-  -> Box
+  -> ((M.PostMeta, L.Posting) -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec))
+  -> (M.PostMeta, L.Posting)
   -> [Rb.Chunk]
 chooseProcessor ch specs rw fn = let
   firstTwo = First (hanging ch specs)
@@ -170,8 +169,8 @@ infoProcessors
   :: E.Changers
   -> [TopCellSpec]
   -> Ty.ReportWidth
-  -> Fields (Maybe (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)))
-  -> Fields (Maybe (Box -> [Rb.Chunk]))
+  -> Fields (Maybe ((M.PostMeta, L.Posting) -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)))
+  -> Fields (Maybe ((M.PostMeta, L.Posting) -> [Rb.Chunk]))
 infoProcessors ch specs rw flds = let
   chooser = chooseProcessor ch specs rw
   mkProcessor mayFn = case mayFn of
@@ -181,8 +180,8 @@ infoProcessors ch specs rw flds = let
 
 
 makeRows ::
-  [Box]
-  -> Fields (Maybe (Box -> [Rb.Chunk]))
+  [(M.PostMeta, L.Posting)]
+  -> Fields (Maybe ((M.PostMeta, L.Posting) -> [Rb.Chunk]))
   -> Fields (Maybe [[Rb.Chunk]])
 makeRows is flds = let
   mkRow fn = map fn is
@@ -280,15 +279,15 @@ mergeWithSpacers t s = TopRowCells {
 -- | Applied to a function that, when applied to the width of a cell,
 -- returns a cell filled with data, returns a Row with that cell.
 makeSpecificWidth
-  :: E.Changers -> Int -> (Box -> Int -> (a, R.ColumnSpec))
-  -> Box -> [Rb.Chunk]
+  :: E.Changers -> Int -> ((M.PostMeta, L.Posting) -> Int -> (a, R.ColumnSpec))
+  -> (M.PostMeta, L.Posting) -> [Rb.Chunk]
 makeSpecificWidth ch w f i = R.row ch [c] where
   (_, c) = f i w
 
 
 type Maker
   = E.Changers
-  -> Box
+  -> (M.PostMeta, L.Posting)
   -> Int
   -> ((E.Label, E.EvenOdd), R.ColumnSpec)
 
@@ -301,7 +300,7 @@ makers = Fields tagsCell memoCell filenameCell
 requestedMakers
   :: E.Changers
   -> F.Fields Bool
-  -> Fields (Maybe (Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)))
+  -> Fields (Maybe ((M.PostMeta, L.Posting) -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)))
 requestedMakers ch allFlds =
   let flds = bottomRowsFields allFlds
       filler b mkr = if b then Just $ mkr ch else Nothing
@@ -309,11 +308,11 @@ requestedMakers ch allFlds =
 
 tagsCell
   :: E.Changers
-  -> Box
+  -> (M.PostMeta, L.Posting)
   -> Int
   -> ((E.Label, E.EvenOdd), R.ColumnSpec)
 tagsCell ch info w = (ts, cell) where
-  vn = M.visibleNum . L.boxMeta $ info
+  vn = M.visibleNum . fst $ info
   cell = R.ColumnSpec R.LeftJustify (R.Width w) ts cs
   eo = E.fromVisibleNum vn
   ts = (E.Other, eo)
@@ -327,7 +326,7 @@ tagsCell ch info w = (ts, cell) where
     . map (X.cons '*')
     . HT.textList
     . Q.tags
-    . L.boxPostFam
+    . snd
     $ info
   md = E.getEvenOddLabelValue E.Other eo ch
   toBit (TF.Words ws) = md . Rb.plain $ t where
@@ -352,15 +351,15 @@ memoBits ch (lbl, eo) m (R.Width w) = cs where
 
 
 memoCell
-  :: E.Changers -> Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
+  :: E.Changers -> (M.PostMeta, L.Posting) -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
 memoCell ch info width = (ts, cell) where
   w = R.Width width
-  vn = M.visibleNum . L.boxMeta $ info
+  vn = M.visibleNum . fst $ info
   eo = E.fromVisibleNum vn
   ts = (E.Other, eo)
   cell = R.ColumnSpec R.LeftJustify w ts cs
-  mayPm = Q.postingMemo . L.boxPostFam $ info
-  mayTm = Q.transactionMemo . L.boxPostFam $ info
+  mayPm = Q.postingMemo . snd $ info
+  mayTm = Q.transactionMemo . snd $ info
   cs = case (mayPm, mayTm) of
     (Nothing, Nothing) -> mempty
     (Nothing, Just tm) -> memoBits ch ts tm w
@@ -369,17 +368,17 @@ memoCell ch info width = (ts, cell) where
 
 
 filenameCell
-  :: E.Changers -> Box -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
+  :: E.Changers -> (M.PostMeta, L.Posting) -> Int -> ((E.Label, E.EvenOdd), R.ColumnSpec)
 filenameCell ch info width = (ts, cell) where
   w = R.Width width
-  vn = M.visibleNum . L.boxMeta $ info
+  vn = M.visibleNum . fst $ info
   eo = E.fromVisibleNum vn
   ts = (E.Other, eo)
   cell = R.ColumnSpec R.LeftJustify w ts cs
   md = E.getEvenOddLabelValue E.Other eo ch
   toBit n = md . Rb.plain
             . X.drop (max 0 (X.length n - width)) $ n
-  cs = case Q.filename . L.boxPostFam $ info of
+  cs = case Q.filename . snd $ info of
     Nothing -> []
     Just fn -> [toBit . L.unFilename $ fn]
 

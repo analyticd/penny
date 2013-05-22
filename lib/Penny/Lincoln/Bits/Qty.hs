@@ -1,18 +1,36 @@
+{-# LANGUAGE DeriveGeneric #-}
 -- | Penny quantities. A quantity is simply a count (possibly
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
-module Penny.Lincoln.Bits.Qty (
-  Qty, NumberStr(..), toQty, mantissa, places, newQty,
-  Mantissa, Places,
-  add, mult, Difference(LeftBiggerBy, RightBiggerBy, Equal),
-  equivalent, difference, allocate,
-  TotSeats, PartyVotes, SeatsWon, largestRemainderMethod) where
+module Penny.Lincoln.Bits.Qty
+  ( Qty
+  , NumberStr(..)
+  , toQty
+  , mantissa
+  , places
+  , prettyShowQty
+  , compareQty
+  , newQty
+  , Mantissa
+  , Places
+  , add
+  , mult
+  , Difference(LeftBiggerBy, RightBiggerBy, Equal)
+  , difference
+  , allocate
+  , TotSeats
+  , PartyVotes
+  , SeatsWon
+  , largestRemainderMethod
+  , qtyOne
+  ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Data.Foldable as F
+import qualified Data.Binary as B
+import GHC.Generics (Generic)
 import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
-import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Ord (comparing)
+import qualified Penny.Lincoln.Equivalent as Ev
 
 data NumberStr =
   Whole String
@@ -57,49 +75,74 @@ readInteger s = case reads s of
 -- particular posting in a transaction did not happen (for instance,
 -- that a paycheck deduction did not take place). I think the better
 -- way to handle that though would be through an addition to
--- Debit/Credit - maybe Debit/Credit/Zero. Barring the addition of
+-- Debit\/Credit - maybe Debit\/Credit\/Zero. Barring the addition of
 -- that, though, the best way to indicate a situation such as this
 -- would be through transaction memos.
 --
+-- /WARNING/ - before doing comparisons or equality tests
+--
 -- The Eq instance is derived. Therefore q1 == q2 only if q1 and q2
 -- have both the same mantissa and the same exponent. You may instead
--- want 'equivalent'.
-data Qty = Qty { mantissa :: Integer
-               , places :: Integer
-               } deriving Eq
+-- want 'equivalent'. Similarly, the Ord instance is derived. It
+-- compares based on the integral value of the mantissa and of the
+-- exponent. You may instead want 'compareQty', which compares after
+-- equalizing the exponents.
+data Qty = Qty { mantissa :: !Integer
+               , places :: !Integer
+               } deriving (Eq, Generic, Show, Ord)
+
+-- | Shows a quantity, nicely formatted after accounting for both the
+-- mantissa and decimal places, e.g. @0.232@ or @232.12@ or whatever.
+prettyShowQty :: Qty -> String
+prettyShowQty q =
+  let man = show . mantissa $ q
+      e = places q
+      len = genericLength man
+      small = "0." ++ ((genericReplicate (e - len) '0') ++ man)
+  in case compare e len of
+      GT -> small
+      EQ -> small
+      LT ->
+        let (b, end) = genericSplitAt (len - e) man
+        in if e == 0
+           then man
+           else b ++ ['.'] ++ end
+
+instance Ev.Equivalent Qty where
+  equivalent x y = x' == y'
+    where
+      (x', y') = equalizeExponents x y
+  compareEv x y = compare x' y'
+    where
+      (x', y') = equalizeExponents x y
+
+instance B.Binary Qty
 
 type Mantissa = Integer
 type Places = Integer
+
+-- | Mantissa 1, exponent 0
+qtyOne :: Qty
+qtyOne = Qty 1 0
+
+
+
 
 newQty :: Mantissa -> Places -> Maybe Qty
 newQty m p
   | m > 0  && p >= 0 = Just $ Qty m p
   | otherwise = Nothing
 
--- | Shows a quantity, nicely formatted after accounting for both the
--- mantissa and decimal places, e.g. @0.232@ or @232.12@ or whatever.
-instance Show Qty where
-  show (Qty m e) =
-    let man = show m
-        len = genericLength man
-        small = "0." ++ ((genericReplicate (e - len) '0') ++ man)
-    in case compare e len of
-        GT -> small
-        EQ -> small
-        LT ->
-          let (b, end) = genericSplitAt (len - e) man
-          in if e == 0
-             then man
-             else b ++ ['.'] ++ end
 
 
 -- | Compares Qty after equalizing their exponents.
 --
--- > compare (newQty 15 1) (newQty 1500 3) == EQ
-instance Ord Qty where
-  compare q1 q2 = compare (mantissa q1') (mantissa q2')
-    where
-      (q1', q2') = equalizeExponents q1 q2
+-- > compareQty (newQty 15 1) (newQty 1500 3) == EQ
+compareQty :: Qty -> Qty -> Ordering
+compareQty q1 q2 = compare (mantissa q1') (mantissa q2')
+  where
+    (q1', q2') = equalizeExponents q1 q2
+
 
 -- | Adjust the exponents on two Qty so they are equivalent
 -- before, but now have the same exponent.
@@ -111,7 +154,6 @@ equalizeExponents x y = (x', y')
       GT -> (x, increaseExponent (ex - ey) y)
       LT -> (increaseExponent (ey - ex) x, y)
       EQ -> (x, y)
-
 
 -- | Increase the exponent by the amount given, so that the new Qty is
 -- equivalent to the old one. Takes the absolute value of the
@@ -129,12 +171,6 @@ increaseExponentTo :: Integer -> Qty -> Qty
 increaseExponentTo i q@(Qty _ e) =
   let diff = i - e
   in if diff >= 0 then increaseExponent diff q else q
-
--- | Compares Qty after equalizing their exponents.
-equivalent :: Qty -> Qty -> Bool
-equivalent x y = x' == y'
-  where
-    (x', y') = equalizeExponents x y
 
 data Difference =
   LeftBiggerBy Qty
@@ -158,73 +194,96 @@ add x y =
   let ((Qty xm e), (Qty ym _)) = equalizeExponents x y
   in Qty (xm + ym) e
 
+
+
 mult :: Qty -> Qty -> Qty
 mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe + ye)
 
+
+--
+-- Allocation
+--
+-- The steps of allocation:
+--
+-- Adjust all exponents, both on the amount to be allocated and on all
+-- the votes, so that the exponents are all equal.
+--
+-- Allocate the mantissas.
+--
+-- Return the quantities with the original exponents.
 
 -- | Allocate a Qty proportionally so that the sum of the results adds
 -- up to a given Qty. Fails if the allocation cannot be made (e.g. if
 -- it is impossible to allocate without overflowing Decimal.) The
 -- result will always add up to the given sum.
-allocate
+allocate :: Qty -> (Qty, [Qty]) -> (Qty, [Qty])
+allocate tot (q1, qs) = case allocate' tot (q1:qs) of
+  [] -> error "allocate error"
+  x:xs -> (x, xs)
+
+allocate'
   :: Qty
   -- ^ The result will add up to this Qty.
 
-  -> NonEmpty Qty
-  -- ^ Allocate using this list of Qty.
+  -> [Qty]
+  -- ^ Allocate using these Qty (there must be at least one).
 
-  -> NonEmpty Qty
+  -> [Qty]
   -- ^ The length of this list will be equal to the length of the list
   -- of allocations. Each item will correspond to the original
   -- allocation.
 
-allocate tot ls =
-  let (tot', ls', e') = sameExponent tot ls
-      (tI, lsI) = (mantissa tot', fmap mantissa ls')
-      (seats, (p1 :| ps), moreE) = growTarget tI lsI
-      adjSeats = seats - (genericLength ps + 1)
-      del = largestRemainderMethod adjSeats (p1 : ps)
-      totE = e' + moreE
-      r1:rs = fmap (\m -> Qty (m + 1) totE) del
-  in r1 :| rs
+allocate' tot ls =
+  let ((tot':ls'), e) = sameExponent (tot:ls)
+      (moreE, (_, ss)) =
+        multRemainderAllResultsAtLeast1 (mantissa tot')
+        (map mantissa ls')
+      totE = e + moreE
+  in map (\m -> Qty m totE) ss
+
 
 
 -- | Given a list of Decimals, and a single Decimal, return Decimals
 -- that are equivalent to the original Decimals, but where all
 -- Decimals have the same exponent. Also returns new exponent.
 sameExponent
-  :: Qty
-  -> NonEmpty Qty
-  -> (Qty, NonEmpty Qty, Integer)
-sameExponent dec ls =
-  let newExp = max (F.maximum . fmap places $ ls)
-                   (places dec)
-      dec' = increaseExponentTo newExp dec
-      ls' = fmap (increaseExponentTo newExp) ls
-  in (dec', ls', newExp)
+  :: [Qty]
+  -> ([Qty], Integer)
+sameExponent ls =
+  let newExp = maximum . fmap places $ ls
+  in (map (increaseExponentTo newExp) ls, newExp)
 
 
--- | Given an Integer and a list of Integers, multiply all integers by
--- ten raised to an exponent, so that the first Integer is larger than
--- the count of the number of Integers in the list. Returns
--- the new Integer, new list of Integers, and the exponent used.
---
--- Previously this only grew the first Integer so that it was at least
--- as large as the count of Integers in the list, but this causes
--- problems, as there must be at least one seat for the allocation process.
-growTarget
-  :: Integer
-  -> NonEmpty Integer
-  -> (Integer, NonEmpty Integer, Integer)
-growTarget target is = go target is 0
-  where
-    len = genericLength . F.toList $ is
-    go t xs c =
-      let t' = t * 10 ^ c
-          xs' = fmap (\x -> x * 10 ^ c) xs
-      in if t' > len
-         then (t', xs', c)
-         else go t' xs' (c + 1)
+
+
+
+type Multiplier = Integer
+
+multLargestRemainder
+  :: TotSeats
+  -> [PartyVotes]
+  -> Multiplier
+  -> (TotSeats, [SeatsWon])
+multLargestRemainder ts pv m =
+  let ts' = ts * 10 ^ m
+      pv' = map (\x -> x * 10 ^ m) pv
+  in (ts', largestRemainderMethod ts' pv')
+
+increasingMultRemainder
+  :: TotSeats
+  -> [PartyVotes]
+  -> [(Multiplier, (TotSeats, [SeatsWon]))]
+increasingMultRemainder ts pv =
+  zip [0..] (map (multLargestRemainder ts pv) [0..])
+
+multRemainderAllResultsAtLeast1
+  :: TotSeats
+  -> [PartyVotes]
+  -> (Multiplier, (TotSeats, [SeatsWon]))
+multRemainderAllResultsAtLeast1 ts pv
+  = head
+  . dropWhile (any (< 1) . snd . snd)
+  $ increasingMultRemainder ts pv
 
 -- Largest remainder method: votes for one party is divided by
 -- (total votes / number of seats). Result is an integer and a
@@ -267,10 +326,11 @@ largestRemainderMethod ts pvs =
     Ex.assert "negative member of [PartyVotes]" (minimum pvs >= 0)
     return (allocRemainder ts . allocAuto ts $ pvs)
 
+
 autoAndRemainder
   :: TotSeats -> TotVotes -> PartyVotes -> (AutoSeats, Remainder)
 autoAndRemainder ts tv pv =
-  let fI = fromIntegral
+  let fI = fromIntegral :: Integer -> Rational
       quota = if ts == 0
               then error "autoAndRemainder: zero total seats"
               else if tv == 0
