@@ -20,6 +20,7 @@ have already been added.
 It also helps you reconcile your ledger with
 financial institution statements.
 .
+.P
 First you will have to configure and compile a
 .B penny-fit
 binary.
@@ -60,6 +61,7 @@ will tell give you a little more information about the place to look
 on your institution's web site to download the data, if you have
 configured that information in your binary.
 .
+.P
 Then, run
 .IR "penny-fit -f ACCOUNT import FILENAME" .
 The first time you run this command, you will have to add the
@@ -84,6 +86,7 @@ option).
 The FILENAME is the location of the data that you just
 downloaded.
 .
+.P
 The
 .I import
 command will examine the data that you downloaded.
@@ -156,8 +159,8 @@ posting,
 .I merge
 will then examine the debit or credit of the ledger posting.
 .
-This
-table describes whether
+.P
+This table describes whether
 .I penny-fit
 will find a match:
 .
@@ -195,6 +198,7 @@ If
 does not find a match, then it will create an entirely new transaction
 and append it to the end of your ledger.
 .
+.P
 If it is creating an entirely new transaction,
 .B penny-fit
 will attempt to give the new transaction the same account and payee
@@ -230,6 +234,7 @@ option to the
 .I merge
 command.
 .
+.P
 The result of
 .I merge
 is printed to standard output, unless you use the
@@ -283,6 +288,7 @@ as described above. Then run
 penny-fit -f ACCOUNT clear FIT_FILE LEDGER_FILE...
 .EE
 .
+.P
 where FIT_FILE is the data file you downloaded from your financial
 institution, and LEDGER_FILE contains your ledger data.
 .
@@ -300,6 +306,7 @@ If a posting
 has more than one U-number tag, only the first is used; the others are
 ignored.
 .
+.P
 As with the 
 .I merge
 command, the results are printed to standard output unless you use the
@@ -317,8 +324,9 @@ to mark the cleared postings as reconciled.
 has more details on how to use
 .B penny
 when reconciling a financial institution statement.
-
+.
 .SH OTHER COMMANDS
+.
 The
 .I database
 command prints the database for a particular financial institution to
@@ -329,6 +337,7 @@ For instance you might use this to
 see what U-number is assigned to a particular financial institution
 posting.
 .
+.P
 The
 .I print
 command parses a downloaded file of financial institution data and
@@ -347,9 +356,18 @@ and a
 .I --help
 option.
 .
+There is also a global
+.I --help
+option, as in
+.IR "penny-fit --help" .
+.
 .SH BUGS
-To quote another man page: "Bugs? You must be kidding, there are no
-bugs in this software. But if we happen to be wrong, send us an email
+To quote another man page: "Bugs?
+.
+You must be kidding, there are no
+bugs in this software.
+.
+But if we happen to be wrong, send us an email
 with as much detail as possible to" omari@smileystation.com.
 .
 .SH SEE ALSO
