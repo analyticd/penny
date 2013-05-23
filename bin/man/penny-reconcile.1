@@ -14,7 +14,10 @@ letter: the letter
 .IR C .
 Changes those flags to the letter
 .I R
-and prints the resulting ledger to standard output. This is useful
+and prints the resulting ledger to standard output.
+.
+.P
+This is useful
 when reconciling a financial institution account: you may first mark
 postings in your ledger that match a posting on your bank statement
 with a
@@ -32,6 +35,7 @@ ensuring that the statement is properly reconciled,
 .B penny-reconcile
 will automatically mark all the posts reconciled.
 .
+.P
 If no
 .IR FILE ", or " FILE " is " - ,
 read standard input.
@@ -72,6 +76,7 @@ script would do so.
 This would happen only rarely though, so you might
 be just fine using a query-replace function in your text editor.
 .
+.P
 Also,
 .B penny-reconcile
 will tidy up your ledger file--that is, it might rearrange or delete
