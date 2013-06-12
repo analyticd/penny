@@ -1,6 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | Parses any OFX 1.0-series file. Uses the parser from the ofx
 -- package.
+--
+-- The Postings that this module returns /always/ have an empty
+-- Description field. Information from the OFX Payee field is placed
+-- into the Payee field of the Posting record.
 
 module Penny.Brenner.OFX (parser) where
 
