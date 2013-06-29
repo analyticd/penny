@@ -238,16 +238,16 @@ lightEvenTextSpec :: Chunk -> Chunk
 lightEvenTextSpec = id
 
 lightOddTextSpec :: Chunk -> Chunk
-lightOddTextSpec = id .+. color8_b_default .+. color256_b_255
+lightOddTextSpec = (<> (c8_b_default <> c256_b_255))
 
 lightDebit :: (Chunk -> Chunk) -> Chunk -> Chunk
-lightDebit f = f .+. color8_f_magenta .+. color256_f_52
+lightDebit f c = f c <> c8_f_magenta <> c256_f_52
 
 lightCredit :: (Chunk -> Chunk) -> Chunk -> Chunk
-lightCredit f = f .+. color8_f_cyan .+. color256_f_21
+lightCredit f c = f c <> c8_f_cyan <> c256_f_21
 
 lightZero :: (Chunk -> Chunk) -> Chunk -> Chunk
-lightZero f = f .+. color8_f_black .+. color256_f_0
+lightZero f c = f c <> c8_f_black <> c256_f_0
 
 -- | The dark color scheme. You can change various values below to
 -- affect the color scheme.
@@ -271,16 +271,16 @@ darkEvenTextSpec :: Chunk -> Chunk
 darkEvenTextSpec = id
 
 darkOddTextSpec :: Chunk -> Chunk
-darkOddTextSpec = id .+. color8_b_default .+. color256_b_235
+darkOddTextSpec = (<> (c8_b_default <> c256_b_235))
 
 darkDebit :: (Chunk -> Chunk) -> Chunk -> Chunk
-darkDebit f = f .+. color8_f_magenta .+. color256_f_208
+darkDebit f c = f c <> c8_f_magenta <> c256_f_208
 
 darkCredit :: (Chunk -> Chunk) -> Chunk -> Chunk
-darkCredit f = f .+. color8_f_cyan .+. color256_f_45
+darkCredit f c = f c <> c8_f_cyan <> c256_f_45
 
 darkZero :: (Chunk -> Chunk) -> Chunk -> Chunk
-darkZero f = f .+. color8_f_white .+. color256_f_15
+darkZero f c = f c <> c8_f_white <> c256_f_15
 
 
 -- | Plain scheme has no colors at all.
