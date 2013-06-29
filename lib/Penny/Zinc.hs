@@ -391,11 +391,11 @@ makeMode rt fo r = fmap makeIO mode
       let term = if unColorToFile (foColorToFile fo)
                  then S.termFromEnv rt
                  else S.autoTerm rt
-          printer = R.printChunks term
+          printer = R.putChunks term
           verbFiltChunks = fst . foSorterFilterer fo $ txns
       showFilterExpression printer (foShowExpression fo) (foPredicate fo)
       showVerboseFilter printer (foVerboseFilter fo) verbFiltChunks
-      Ex.switch handleTextError (R.printChunks term)
+      Ex.switch handleTextError (R.putChunks term)
         $ printRpt txns pps
 
 
@@ -409,7 +409,7 @@ indentAmt :: Pe.IndentAmt
 indentAmt = 4
 
 blankLine :: R.Chunk
-blankLine = R.plain "\n"
+blankLine = "\n"
 
 showFilterExpression
   :: ([R.Chunk] -> IO ())
@@ -422,7 +422,7 @@ showFilterExpression ptr (ShowExpression se) pdct =
   else ptr $ info : blankLine :
              (Pe.showPdct indentAmt 0 pdct ++ [blankLine])
   where
-    info = R.plain "Posting filter expression:\n"
+    info = "Posting filter expression:\n"
 
 showVerboseFilter
   :: ([R.Chunk] -> IO ())
@@ -434,7 +434,7 @@ showVerboseFilter ptr (VerboseFilter vb) cks =
   then return ()
   else ptr $ info : blankLine : (cks ++ [blankLine])
   where
-    info = R.plain "Filtering information:\n"
+    info = "Filtering information:\n"
 
 -- | Splits a Ledger into its Transactions and PricePoints.
 splitLedger :: [C.LedgerItem] -> ([L.Transaction], [L.PricePoint])

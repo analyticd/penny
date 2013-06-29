@@ -58,6 +58,7 @@ module Penny.Cabin.Posts.Allocated (
 import Control.Applicative(Applicative((<*>), pure), (<$>))
 import Control.Arrow (second)
 import Data.Maybe (catMaybes, isJust)
+import Data.Monoid (mempty)
 import Data.List (intersperse)
 import qualified Data.Foldable as Fdbl
 import qualified Data.Sequence as Seq
@@ -340,7 +341,7 @@ buildPayee ch i = (maxW, mkSpec)
                   $ pye
                 toBit (TF.Words seqTxts) =
                   md
-                  . Rb.plain
+                  . Rb.Chunk mempty
                   . X.unwords
                   . Fdbl.toList
                   $ seqTxts
@@ -374,7 +375,7 @@ buildAcct ch sl i = (maxW, mkSpec)
         ws = TF.Words . Seq.fromList . map L.unSubAccount $ aList
         (TF.Words shortened) = TF.shorten shortest target ws
         sq = [ md
-               . Rb.plain
+               . Rb.Chunk mempty
                . X.concat
                . intersperse (X.singleton ':')
                . Fdbl.toList

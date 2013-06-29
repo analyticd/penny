@@ -238,7 +238,7 @@ main ver getWc = do
   let ttOpts = getTTOpts pfs psd
       tts = zipWith ($) (tests wc) (repeat (p_baseTime psd))
       (cks, _, nFail) = TT.runTests ttOpts 0 tts
-  Rb.printChunks term cks
+  Rb.putChunks term cks
   when (nFail > 0) Exit.exitFailure
 
 getParsedFromWheatConf :: WheatConf -> Parsed

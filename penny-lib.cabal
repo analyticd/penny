@@ -1,5 +1,5 @@
 Name: penny-lib
-Version: 0.14.0.1
+Version: 0.15.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -46,19 +46,15 @@ Library
     , containers ==0.5.*
     , explicit-exception ==0.1.*
     , matchers ==0.6.*
-    , monad-loops ==0.3.*
     , multiarg ==0.16.*
     , ofx ==0.2.*
     , old-locale ==1.0.*
     , parsec >= 3.1.2 && < 3.2
-    , pcre-light ==0.4.*
-    , prednote == 0.8.*
+    , prednote == 0.10.*
     , pretty-show ==1.5.*
-    , rainbow ==0.2.*
+    , rainbow ==0.4.*
     , semigroups ==0.9.*
     , split ==0.2.*
-    , strict ==0.3.*
-    , terminfo == 0.3.*
     , text ==0.11.*
     , time ==1.4.*
     , transformers == 0.3.*
@@ -173,9 +169,9 @@ Executable penny-test
     , old-locale ==1.0.*
     , parsec >= 3.1.2 && < 3.2
     , pcre-light ==0.4.*
-    , prednote == 0.8.*
+    , prednote == 0.10.*
     , pretty-show ==1.5.*
-    , rainbow ==0.2.*
+    , rainbow ==0.4.*
     , semigroups ==0.9.*
     , split ==0.2.*
     , strict ==0.3.*
@@ -214,9 +210,9 @@ Executable penny-gibberish
     , old-locale ==1.0.*
     , parsec >= 3.1.2 && < 3.2
     , pcre-light ==0.4.*
-    , prednote == 0.8.*
+    , prednote == 0.10.*
     , pretty-show ==1.5.*
-    , rainbow ==0.2.*
+    , rainbow ==0.4.*
     , semigroups ==0.9.*
     , split ==0.2.*
     , strict ==0.3.*

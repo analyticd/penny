@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Creates the output Chunks for the Balance report for both
 -- multi-commodity reports.
 
@@ -13,6 +14,7 @@ import qualified Penny.Cabin.Meta as Meta
 import qualified Penny.Cabin.Row as R
 import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Lincoln as L
+import Data.Monoid (mempty)
 import qualified Data.Foldable as Fdbl
 import qualified Data.Text as X
 import qualified System.Console.Rainbow as Rb
@@ -61,7 +63,7 @@ maxWidthPerColumn ::
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
   f old new = max old ( safeMaximum (R.Width 0)
-                        . map (R.Width . X.length . Rb.chunkText)
+                        . map (R.Width . X.length . Rb._text)
                         . bits $ new)
   safeMaximum d ls = if null ls then d else maximum ls
 
@@ -177,7 +179,7 @@ mkColumn chgrs fmt (vn, (Row i acctTxt bs)) = Columns ca cd cc cq
     lbl = E.Other
     eo = E.fromVisibleNum vn
     applyFmt = E.getEvenOddLabelValue lbl eo chgrs
-    ca = PreSpec R.LeftJustify (lbl, eo) [applyFmt $ Rb.plain txt]
+    ca = PreSpec R.LeftJustify (lbl, eo) [applyFmt $ Rb.Chunk mempty txt]
       where
         txt = X.append indents acctTxt
         indents = X.replicate (indentAmount * max 0 i)
@@ -202,7 +204,7 @@ balanceChunksEmpty
   -> ([Rb.Chunk], [Rb.Chunk], [Rb.Chunk])
 balanceChunksEmpty chgrs eo = (dash, dash, dash)
   where
-    dash = [E.getEvenOddLabelValue E.Other eo chgrs $ Rb.plain (X.pack "--")]
+    dash = [E.getEvenOddLabelValue E.Other eo chgrs $ "--"]
 
 balanceChunks
   :: E.Changers

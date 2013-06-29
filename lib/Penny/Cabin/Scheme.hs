@@ -9,6 +9,7 @@
 
 module Penny.Cabin.Scheme where
 
+import Data.Monoid (mempty)
 import qualified Penny.Cabin.Meta as M
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
@@ -83,10 +84,10 @@ bottomLineToDrCr :: L.BottomLine -> EvenOdd -> Changers -> R.Chunk
 bottomLineToDrCr bl eo chgrs = md c
   where
     (c, md) = case bl of
-      L.Zero -> (R.plain "--", getEvenOddLabelValue Zero eo chgrs)
+      L.Zero -> ("--", getEvenOddLabelValue Zero eo chgrs)
       L.NonZero (L.Column clmDrCr _) -> case clmDrCr of
-        L.Debit -> (R.plain "<", getEvenOddLabelValue Debit eo chgrs)
-        L.Credit -> (R.plain ">", getEvenOddLabelValue Credit eo chgrs)
+        L.Debit -> ("<", getEvenOddLabelValue Debit eo chgrs)
+        L.Credit -> (">", getEvenOddLabelValue Credit eo chgrs)
 
 
 balancesToCmdtys
@@ -96,7 +97,7 @@ balancesToCmdtys
   -> [R.Chunk]
 balancesToCmdtys chgrs eo ls =
   if null ls
-  then [getEvenOddLabelValue Zero eo chgrs $ R.plain "--"]
+  then [getEvenOddLabelValue Zero eo chgrs $ "--"]
   else map (bottomLineToCmdty chgrs eo) ls
 
 bottomLineToCmdty
@@ -106,7 +107,7 @@ bottomLineToCmdty
   -> R.Chunk
 bottomLineToCmdty chgrs eo (cy, bl) = md c
   where
-    c = R.plain . L.unCommodity $ cy
+    c = R.Chunk mempty . L.unCommodity $ cy
     lbl = case bl of
       L.Zero -> Zero
       L.NonZero (L.Column clmDrCr _) -> dcToLbl clmDrCr
@@ -121,7 +122,7 @@ balanceToQtys
 balanceToQtys chgrs getTxt eo ls =
   if null ls
   then let md = getEvenOddLabelValue Zero eo chgrs
-       in [md (R.plain "--")]
+       in [md "--"]
   else map (bottomLineToQty chgrs getTxt eo) ls
 
 
@@ -131,7 +132,7 @@ bottomLineToQty
   -> EvenOdd
   -> (L.Commodity, L.BottomLine)
   -> R.Chunk
-bottomLineToQty chgrs getTxt eo (cy, bl) = md (R.plain t)
+bottomLineToQty chgrs getTxt eo (cy, bl) = md (R.Chunk mempty t)
   where
     (lbl, t) = case bl of
       L.Zero -> (Zero, X.pack "--")

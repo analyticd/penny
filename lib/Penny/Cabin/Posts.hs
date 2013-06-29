@@ -169,7 +169,7 @@ indentAmt :: Pe.IndentAmt
 indentAmt = 4
 
 blankLine :: Rb.Chunk
-blankLine = Rb.plain (X.singleton '\n')
+blankLine = "\n"
 
 showExpression
   :: P.ShowExpression
@@ -178,7 +178,7 @@ showExpression
 showExpression (P.ShowExpression b) pdct =
   if not b then [] else info : blankLine : (chks ++ [blankLine])
   where
-    info = Rb.plain (X.pack "Postings filter expression:\n")
+    info = "Postings filter expression:\n"
     chks = Pe.showPdct indentAmt 0 pdct
 
 showVerboseFilter
@@ -192,7 +192,7 @@ showVerboseFilter (P.VerboseFilter b) pdct bs =
     pdcts = map (makeLabeledPdct pdct) bs
     chks = concat . map snd $ zipWith doEval bs pdcts
     doEval subj pd = Pe.evaluate indentAmt False subj 0 pd
-    info = Rb.plain (X.pack "Postings report filter:\n")
+    info = "Postings report filter:\n"
 
 -- | Creates a Pdct and prepends a one-line description of the PostFam
 -- to the Pdct's label so it can be easily identified in the output.

@@ -2,9 +2,9 @@
 
 module Penny.Cabin.Scheme.Schemes where
 
+import Data.Monoid ( (<>) )
 import qualified Penny.Cabin.Scheme as E
 import qualified System.Console.Rainbow as R
-import System.Console.Rainbow ((.+.))
 
 -- | The light color scheme. You can change various values below to
 -- affect the color scheme.
@@ -28,16 +28,16 @@ lightEvenTextSpec :: R.Chunk -> R.Chunk
 lightEvenTextSpec = id
 
 lightOddTextSpec :: R.Chunk -> R.Chunk
-lightOddTextSpec = id .+. R.color8_b_default .+. R.color256_b_255
+lightOddTextSpec = (<> (R.c8_b_default <> R.c256_b_255))
 
 lightDebit :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
-lightDebit f = f .+. R.color8_f_magenta .+. R.color256_f_52
+lightDebit f c = f c <> R.c8_f_magenta <> R.c256_f_52
 
 lightCredit :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
-lightCredit f = f .+. R.color8_f_cyan .+. R.color256_f_21
+lightCredit f c = f c <> R.c8_f_cyan <> R.c256_f_21
 
 lightZero :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
-lightZero f = f .+. R.color8_f_black .+. R.color256_f_0
+lightZero f c = f c <> R.c8_f_black <> R.c256_f_0
 
 -- | The dark color scheme. You can change various values below to
 -- affect the color scheme.
@@ -61,16 +61,16 @@ darkEvenTextSpec :: R.Chunk -> R.Chunk
 darkEvenTextSpec = id
 
 darkOddTextSpec :: R.Chunk -> R.Chunk
-darkOddTextSpec = id .+. R.color8_b_default .+. R.color256_b_235
+darkOddTextSpec = (<> (R.c8_b_default <> R.c256_b_235))
 
 darkDebit :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
-darkDebit f = f .+. R.color8_f_magenta .+. R.color256_f_208
+darkDebit f c = f c <> R.c8_f_magenta <> R.c256_f_208
 
 darkCredit :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
-darkCredit f = f .+. R.color8_f_cyan .+. R.color256_f_45
+darkCredit f c = f c <> R.c8_f_cyan <> R.c256_f_45
 
 darkZero :: (R.Chunk -> R.Chunk) -> R.Chunk -> R.Chunk
-darkZero f = f .+. R.color8_f_white .+. R.color256_f_15
+darkZero f c = f c <> R.c8_f_white <> R.c256_f_15
 
 -- | Plain scheme has no colors at all.
 plain :: E.Scheme

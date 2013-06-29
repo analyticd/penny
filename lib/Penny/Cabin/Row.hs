@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Displays a single on-screen row. A row may contain multiple
 -- screen lines and multiple columns.
 --
@@ -29,6 +30,7 @@ module Penny.Cabin.Row (
   row ) where
 
 import Data.List (transpose)
+import Data.Monoid (mempty)
 import qualified Data.Text as X
 import qualified Penny.Cabin.Scheme as E
 import qualified System.Console.Rainbow as R
@@ -75,8 +77,8 @@ justify
   -> JustifiedCell
 justify (Width w) j l eo chgrs pc = JustifiedCell (left, right)
   where
-    origWidth = X.length . R.chunkText $ pc
-    pad = E.getEvenOddLabelValue l eo chgrs $ R.plain t
+    origWidth = X.length . R._text $ pc
+    pad = E.getEvenOddLabelValue l eo chgrs . R.Chunk mempty $ t
     t = X.replicate (max 0 (w - origWidth)) (X.singleton ' ')
     (left, right) = case j of
       LeftJustify -> (pc, pad)
@@ -114,9 +116,9 @@ bottomPad chgrs jcs = PaddedColumns pcs where
   toPaddedColumn (JustifiedColumn cs (Width w) (lbl, eo)) =
     let l = length cs
         nPads = max 0 $ h - l
-        pad = E.getEvenOddLabelValue lbl eo chgrs $ R.plain t
+        pad = E.getEvenOddLabelValue lbl eo chgrs . R.Chunk mempty $ t
         t = X.replicate w (X.singleton ' ')
-        pads = replicate nPads $ JustifiedCell (R.plain X.empty, pad)
+        pads = replicate nPads $ JustifiedCell (mempty, pad)
     in cs ++ pads
 
 
@@ -128,7 +130,7 @@ toCellRowsWithNewlines :: CellsByRow -> CellRowsWithNewlines
 toCellRowsWithNewlines (CellsByRow bs) =
   CellRowsWithNewlines bs' where
     bs' = foldr f [] bs
-    newline = JustifiedCell (R.plain X.empty, R.plain (X.singleton '\n'))
+    newline = JustifiedCell (mempty, "\n")
     f cells acc = (cells ++ [newline]) : acc
 
 

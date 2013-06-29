@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Calculates cells that "grow to fit." These cells grow to fit the
 -- widest cell in the column. No information is ever truncated from
 -- these cells (what use is a truncated dollar amount?)
@@ -11,7 +12,7 @@ import qualified Data.Foldable as Fdbl
 import Data.Map (elems)
 import qualified Data.Map as Map
 import qualified Data.Semigroup as Semi
-import Data.Semigroup ((<>))
+import Data.Semigroup ((<>), mempty)
 import Data.Text (Text, pack, empty)
 import qualified Data.Text as X
 import qualified Penny.Cabin.Posts.Fields as F
@@ -63,7 +64,7 @@ widestLine :: PreSpec -> Int
 widestLine (PreSpec _ _ bs) =
   case bs of
     [] -> 0
-    xs -> maximum . map (X.length . Rb.chunkText) $ xs
+    xs -> maximum . map (X.length . Rb._text) $ xs
 
 data PreSpec = PreSpec {
   _justification :: R.Justification
@@ -83,7 +84,7 @@ oneLine chgrs t lbl b =
   let eo = E.fromVisibleNum . M.visibleNum . fst $ b
       j = R.LeftJustify
       md = E.getEvenOddLabelValue lbl eo chgrs
-      ck = [md $ Rb.plain t]
+      ck = [md $ Rb.Chunk mempty t]
   in PreSpec j (lbl, eo) ck
 
 
@@ -234,7 +235,7 @@ coloredPostingCell chgrs t i = PreSpec j (lbl, eo) [bit] where
     L.Credit -> E.Credit
   eo = E.fromVisibleNum . M.visibleNum . fst $ i
   md = E.getEvenOddLabelValue lbl eo chgrs
-  bit = md $ Rb.plain t
+  bit = md $ Rb.Chunk mempty t
 
 
 getPostingDrCr :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
@@ -259,7 +260,7 @@ getTotalDrCr ch i =
       md = E.getEvenOddLabelValue lbl eo ch
       bits =
         if Map.null bal
-        then [md . Rb.plain $ pack "--"]
+        then [md "--"]
         else let mkChk e = E.bottomLineToDrCr e eo ch
              in fmap mkChk . elems $ bal
       j = R.LeftJustify
