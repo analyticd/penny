@@ -104,7 +104,9 @@ import qualified Penny.Copper.Render as R
 -- input. IO errors are not caught. Parse errors are printed to
 -- standard error and the program will exit with a failure.
 open :: [String] -> IO [I.LedgerItem]
-open ss = fmap parsedToWrapped $ mapM CP.parse ss
+open ss
+  | null ss = fmap (parsedToWrapped . (:[])) CP.parseStdinOnly
+  | otherwise = fmap parsedToWrapped $ mapM CP.parseFromFilename ss
 
 addFilePosting
   :: Tr.Traversable f

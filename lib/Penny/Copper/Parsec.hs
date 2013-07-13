@@ -12,6 +12,7 @@ import Control.Applicative.Permutation (runPerms, maybeAtom)
 import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
                             (<|>), optional)
 import Control.Monad (replicateM, when)
+import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Lincoln as L
 import qualified Penny.Steel.Sums as S
 import Data.Maybe (fromMaybe)
@@ -378,38 +379,63 @@ item
   <|> fmap S.S4c comment
   <|> (S.S4d I.BlankLine) <$ blankLine
 
-parse
-  :: String
-  -- ^ Name of the file to be parsed
-  -> IO (L.Filename, [I.ParsedItem])
-  -- ^ Returns items if successfully parsed. Quits and exits if the
-  -- parse fails.
 
-parse s = do
-  (fn, txt) <- getFileContentsStdin s
+parse
+  :: Text
+  -- ^ Contents of file to be parsed
+
+  -> Ex.Exceptional String [I.ParsedItem]
+  -- ^ Returns items if successfully parsed; otherwise, returns an error message.
+
+parse s =
   let parser = P.spaces *> P.many item <* P.spaces <* P.eof
-      filename = X.unpack . L.unFilename $ fn
-  case P.parse parser filename txt of
-    Left err -> do
-      pn <- getProgName
-      let msg = pn ++ ": error: could not parse file "
-                ++ filename ++ "\n" ++ show err
-      IO.hPutStr IO.stderr msg
-      Exit.exitFailure
-    Right g -> return (fn, g)
+  in Ex.mapException show . Ex.fromEither
+     $ P.parse parser "" s
+
+
+getStdin :: IO Text
+getStdin = do
+  pn <- getProgName
+  isTerm <- IO.hIsTerminalDevice IO.stdin
+  when isTerm
+       (IO.hPutStrLn IO.stderr $
+        pn ++ ": warning: reading from standard input, which"
+           ++ "is a terminal.")
+  TIO.hGetContents IO.stdin
 
 
 getFileContentsStdin :: String -> IO (L.Filename, Text)
 getFileContentsStdin s = do
-  pn <- getProgName
   txt <- if s == "-"
-    then do
-          isTerm <- IO.hIsTerminalDevice IO.stdin
-          when isTerm
-            (IO.hPutStrLn IO.stderr $
-               pn ++ ": warning: reading from standard input, which"
-               ++ "is a terminal.")
-          TIO.hGetContents IO.stdin
+    then getStdin
     else TIO.readFile s
   let fn = L.Filename . X.pack $ if s == "-" then "<stdin>" else s
   return (fn, txt)
+
+
+parseStdinOnly :: IO (L.Filename, [I.ParsedItem])
+parseStdinOnly = do
+  txt <- getStdin
+  case parse txt of
+    Ex.Exception err -> handleParseError "standard input" err
+    Ex.Success g -> return (L.Filename . X.pack $ "<stdin>", g)
+
+parseFromFilename :: String -> IO (L.Filename, [I.ParsedItem])
+parseFromFilename s = do
+  (fn, txt) <- getFileContentsStdin s
+  case parse txt of
+    Ex.Exception err ->
+      handleParseError (X.unpack . L.unFilename $ fn) err
+    Ex.Success g -> return (fn, g)
+
+handleParseError
+  :: Show s
+  => String
+  -- ^ Filename
+  -> s
+  -> IO a
+handleParseError fn e = do
+  pn <- getProgName
+  IO.hPutStr IO.stderr $ pn
+        ++ ": error: could not parse " ++ fn ++ ": " ++ show e
+  Exit.exitFailure
