@@ -385,7 +385,8 @@ parse
   -- ^ Contents of file to be parsed
 
   -> Ex.Exceptional String [I.ParsedItem]
-  -- ^ Returns items if successfully parsed; otherwise, returns an error message.
+  -- ^ Returns items if successfully parsed; otherwise, returns an
+  -- error message.
 
 parse s =
   let parser = P.spaces *> P.many item <* P.spaces <* P.eof
@@ -400,7 +401,7 @@ getStdin = do
   when isTerm
        (IO.hPutStrLn IO.stderr $
         pn ++ ": warning: reading from standard input, which"
-           ++ "is a terminal.")
+           ++ " is a terminal.")
   TIO.hGetContents IO.stdin
 
 
