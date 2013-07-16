@@ -430,13 +430,13 @@ parseFromFilename s = do
     Ex.Success g -> return (fn, g)
 
 handleParseError
-  :: Show s
-  => String
+  :: String
   -- ^ Filename
-  -> s
+  -> String
   -> IO a
 handleParseError fn e = do
   pn <- getProgName
-  IO.hPutStr IO.stderr $ pn
-        ++ ": error: could not parse " ++ fn ++ ": " ++ show e
+  IO.hPutStrLn IO.stderr $ pn
+        ++ ": error: could not parse " ++ fn ++ ":"
+  IO.hPutStrLn IO.stderr e
   Exit.exitFailure
