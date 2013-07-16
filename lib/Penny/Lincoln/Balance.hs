@@ -2,9 +2,10 @@ module Penny.Lincoln.Balance (
     Balance
   , unBalance
   , Balanced(Balanced, Inferable, NotInferable)
-  , isBalanced
+  , balanced
+  , isInferable
   , entryToBalance
-  , addBalances
+  , entriesToBalanced
   , removeZeroCommodities
   , BottomLine(Zero, NonZero)
   , Column(Column, colDrCr, colQty)
@@ -12,8 +13,7 @@ module Penny.Lincoln.Balance (
 
 import Data.Map ( Map )
 import qualified Data.Map as M
-import Data.Monoid ( Monoid, mempty, mappend )
-import qualified Data.Semigroup as Semi
+import Data.Monoid ( Monoid, mempty, mappend, mconcat )
 
 import Penny.Lincoln.Bits (
   add, difference, Difference(LeftBiggerBy, RightBiggerBy, Equal))
@@ -30,15 +30,17 @@ newtype Balance = Balance (Map B.Commodity BottomLine)
 unBalance :: Balance -> Map B.Commodity BottomLine
 unBalance (Balance m) = m
 
--- | Returned by 'isBalanced'.
+-- | Returned by 'balanced'.
 data Balanced = Balanced
               | Inferable B.Entry
               | NotInferable
               deriving (Show, Eq)
 
--- | Is this balance balanced?
-isBalanced :: Balance -> Balanced
-isBalanced (Balance m) = M.foldrWithKey f Balanced m where
+-- | Computes whether a Balance map is Balanced.
+--
+-- > balanced mempty == Balanced
+balanced :: Balance -> Balanced
+balanced (Balance m) = M.foldrWithKey f Balanced m where
   f c n b = case n of
     Zero -> b
     (NonZero col) -> case b of
@@ -52,11 +54,22 @@ isBalanced (Balance m) = M.foldrWithKey f Balanced m where
         in Inferable e
       _ -> NotInferable
 
+isInferable :: Balanced -> Bool
+isInferable (Inferable _) = True
+isInferable _ = False
+
 -- | Converts an Entry to a Balance.
 entryToBalance :: B.Entry -> Balance
 entryToBalance (B.Entry dc am) = Balance $ M.singleton c no where
   c = B.commodity am
   no = NonZero (Column dc (B.qty am))
+
+-- | Converts multiple Entries to a Balanced.
+entriesToBalanced :: [B.Entry] -> Balanced
+entriesToBalanced
+  = balanced
+  . mconcat
+  . map entryToBalance
 
 data BottomLine = Zero
             | NonZero Column
@@ -84,20 +97,16 @@ data Column = Column { colDrCr :: B.DrCr
                      , colQty :: B.Qty }
               deriving (Show, Eq)
 
+
 -- | Add two Balances together. Commodities are never removed from the
 -- balance, even if their balance is zero. Instead, they are left in
 -- the balance. Sometimes you want to know that a commodity was in the
 -- account but its balance is now zero.
-addBalances :: Balance -> Balance -> Balance
-addBalances (Balance t1) (Balance t2) =
-    Balance $ M.unionWith mappend t1 t2
-
-instance Semi.Semigroup Balance where
-  (<>) = addBalances
-
 instance Monoid Balance where
   mempty = Balance M.empty
-  mappend = addBalances
+  mappend (Balance t1) (Balance t2) =
+    Balance $ M.unionWith mappend t1 t2
+
 
 -- | Removes zero balances from a Balance.
 removeZeroCommodities :: Balance -> Balance

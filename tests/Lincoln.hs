@@ -7,8 +7,7 @@ import Control.Applicative ((<$>), (<*>))
 import Control.Monad (liftM2, liftM5, liftM4, liftM3, replicateM, guard)
 import Data.List (foldl1')
 import Data.Maybe (isJust, isNothing, catMaybes)
-import qualified Data.Map as M
-import Data.Monoid (mconcat)
+import Data.Monoid (mempty)
 import qualified Data.Time as T
 import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.Gen as QG
@@ -408,7 +407,7 @@ genBalEntries = do
                      ++ map (\en -> (L.Credit, en)) qCred
   cty <- arbitrary
   let mkEn (drCr, qty) = L.Entry drCr (L.Amount qty cty)
-  return $ map mkEn qtysAndDrCrs
+  shuffle $ map mkEn qtysAndDrCrs
 
 newtype BalEntries = BalEntries
   { unBalEntries :: [L.Entry] }
@@ -434,11 +433,7 @@ genEntriesWithInfer = do
 inferredVal :: [Maybe L.Entry] -> Maybe L.Entry
 inferredVal ls = do
   guard ((length . filter id . map isNothing $ ls) == 1)
-  let bal = mconcat
-            . map L.entryToBalance
-            . catMaybes
-            $ ls
-  case L.isBalanced bal of
+  case L.entriesToBalanced . catMaybes $ ls of
     L.Inferable e -> Just e
     _ -> Nothing
 
@@ -453,11 +448,8 @@ prop_genEntries = Q.forAll genEntriesWithInfer $
 -- | genBalEntries generates groups that are balanced.
 prop_balEntries :: BalEntries -> Bool
 prop_balEntries
-  = M.null
-  . L.unBalance
-  . L.removeZeroCommodities
-  . mconcat
-  . map L.entryToBalance
+  = (== L.Balanced)
+  . L.entriesToBalanced
   . unBalEntries
 
 -- | 'views' gives as many views as there were postings
@@ -495,13 +487,11 @@ prop_twoPostings e = length (L.unEnts e) > 1
 
 -- | Ents are always balanced
 prop_balanced :: L.Ents a -> Bool
-prop_balanced t = L.isBalanced bal == L.Balanced
-  where
-    bal = mconcat
-          . map L.entryToBalance
-          . map L.entry
-          . L.unEnts
-          $ t
+prop_balanced
+  = (== L.Balanced)
+  . L.entriesToBalanced
+  . map L.entry
+  . L.unEnts
 
 -- | Ents contain no more than one inferred posting
 prop_inferred :: L.Ents a -> Bool
@@ -545,9 +535,7 @@ genNotInferable :: Arbitrary a => Gen [(Maybe L.Entry, a)]
 genNotInferable = QG.suchThat gen notInf
   where
     notInf ls =
-      let bal = L.isBalanced
-                . mconcat
-                . map L.entryToBalance
+      let bal = L.entriesToBalanced
                 . catMaybes
                 . map fst
                 $ ls
@@ -628,6 +616,212 @@ instance Arbitrary L.PostingFileMeta where
 
 instance Arbitrary L.PostingData where
   arbitrary = liftM3 L.PostingData arbitrary arbitrary arbitrary
+
+--
+-- # Balance
+--
+
+-- | The Balanced of an empty Balance is always Balanced.
+prop_emptyBalance :: Bool
+prop_emptyBalance = L.balanced mempty == L.Balanced
+
+-- | The Balanced of a list of Entry where all the commodities are the
+-- same is always Balanced or Inferable.
+prop_entriesSameCommodity
+  :: [(L.Qty, L.DrCr)]
+  -- ^ The Qty and DrCr of each Entry
+
+  -> L.Commodity
+  -- ^ Single Commodity for all Entry
+
+  -> Bool
+
+prop_entriesSameCommodity ls cy =
+  let mkEntry (qt, dc) = L.Entry dc (L.Amount qt cy)
+      entries = map mkEntry ls
+  in case L.entriesToBalanced entries of
+      L.Balanced -> True
+      L.Inferable _ -> True
+      _ -> False
+
+-- | Two Commodities that are not the same.
+newtype CommodityPair = CommodityPair
+  { unCommodityPair :: (L.Commodity, L.Commodity) }
+  deriving (Eq, Show)
+
+instance Arbitrary CommodityPair where
+  arbitrary =
+    CommodityPair <$> QG.suchThat gen (\(c1, c2) -> c1 /= c2)
+    where
+      gen = (,) <$> arbitrary <*> arbitrary
+
+-- | The Balanced where there is at least one Entry of one commodity
+-- and exactly one Entry of another commodity is either Inferable or
+-- NotInferable.
+
+prop_entriesTwoCommodities
+  :: Q.NonEmptyList (L.Qty, L.DrCr)
+  -- ^ Qty and DrCr of the group of Entry that has at least one Entry
+
+  -> (L.Qty, L.DrCr)
+  -- ^ Qty and DrCr of the group that has exactly one Entry
+
+  -> CommodityPair
+
+  -> Bool
+
+prop_entriesTwoCommodities (Q.NonEmpty qd1) qd2 cp =
+  let mkEntry cy (q, dc) = L.Entry dc (L.Amount q cy)
+      g1 = map (mkEntry (fst . unCommodityPair $ cp)) qd1
+      g2 = mkEntry (snd . unCommodityPair $ cp) qd2
+      balanced = L.entriesToBalanced $ g2:g1
+  in case balanced of
+      L.Balanced -> False
+      _ -> True
+
+
+-- | Mutates a Commodity.
+mutateCommodity :: L.Commodity -> Gen L.Commodity
+mutateCommodity (L.Commodity cy) =
+  L.Commodity <$> QG.suchThat genText (\c -> c /= cy)
+
+
+
+-- | mutateCommodity behaves as it should
+prop_mutateCommodity :: L.Commodity -> Gen Bool
+prop_mutateCommodity c = do
+  c' <- mutateCommodity c
+  return $ c /= c'
+
+-- | Mutating the commodity of a balanced group of entries results in
+-- an NotInferable balance.
+newtype NotInferableFromBalanced = NotInferableFromBalanced
+  { unNotInferableFromBalanced :: [L.Entry] }
+  deriving (Eq, Show)
+
+instance Arbitrary NotInferableFromBalanced where
+  arbitrary = do
+    BalEntries ls <- arbitrary
+    let en = head ls
+    cy' <- mutateCommodity . L.commodity . L.amount $ en
+    let en' = L.Entry (L.drCr en) (L.Amount (L.qty . L.amount $ en)
+                                            cy')
+    fmap NotInferableFromBalanced . shuffle $ en' : tail ls
+
+
+-- | NotInferableFromBalanced behaves as it should
+prop_notInferableFromBalanced :: NotInferableFromBalanced -> Bool
+prop_notInferableFromBalanced
+  = (== L.NotInferable)
+  . L.entriesToBalanced
+  . unNotInferableFromBalanced
+
+-- | Mutating the DrCr of a Balanced group yields an Inferable.
+newtype InferableMutatedDrCr = InferableMutatedDrCr
+  { unInferableMutatedDrCr :: [L.Entry] }
+  deriving (Eq, Show)
+
+instance Arbitrary InferableMutatedDrCr where
+  arbitrary = do
+    BalEntries ls <- arbitrary
+    let en = head ls
+        dc' = L.opposite . L.drCr $ en
+        en' = L.Entry dc' (L.amount en)
+    fmap InferableMutatedDrCr . shuffle $ en' : tail ls
+
+-- | InferableMutatedDrCr behaves as it should
+prop_inferableMutatedDrCr :: InferableMutatedDrCr -> Bool
+prop_inferableMutatedDrCr
+  = L.isInferable
+  . L.entriesToBalanced
+  . unInferableMutatedDrCr
+
+-- | Mutating the Qty of a Balanced group yields an Inferable.
+newtype InferableMutatedQty = InferableMutatedQty
+  { unInferableMutatedQty :: [L.Entry] }
+  deriving (Eq, Show)
+
+instance Arbitrary InferableMutatedQty where
+  arbitrary = do
+    BalEntries ls <- arbitrary
+    let en = head ls
+        am = L.amount en
+        cy = L.commodity am
+    q <- genMutate . L.qty $ am
+    let en' = L.Entry (L.drCr en) (L.Amount q cy)
+    fmap InferableMutatedQty . shuffle $ en' : tail ls
+
+-- | InferableMutatedQty behaves as it should
+prop_inferableMutatedQty :: InferableMutatedQty -> Bool
+prop_inferableMutatedQty
+  = L.isInferable
+  . L.entriesToBalanced
+  . unInferableMutatedQty
+
+-- | A mix of InferableMutatedQty and InferableMutatedDrCr
+newtype InferableGroup = InferableGroup
+  { unInferableGroup :: [L.Entry] }
+  deriving (Eq, Show)
+
+instance Arbitrary InferableGroup where
+  arbitrary
+    = InferableGroup
+    <$> Q.oneof [ fmap unInferableMutatedDrCr arbitrary
+                , fmap unInferableMutatedQty arbitrary ]
+
+-- | NotInferable groups, generated at random
+newtype NotInferableRandom = NotInferableRandom
+  { unNotInferableRandom :: [L.Entry] }
+  deriving (Eq, Show)
+
+instance Arbitrary NotInferableRandom where
+  arbitrary = fmap NotInferableRandom $ Q.suchThat arbitrary pd
+    where
+      pd = (== L.NotInferable) . L.entriesToBalanced
+
+-- | A mix of NotInferableFromBalanced and NotInferableRandom
+newtype NotInferableGroup = NotInferableGroup
+  { unNotInferableGroup :: [L.Entry] }
+  deriving (Eq, Show)
+
+instance Arbitrary NotInferableGroup where
+  arbitrary = NotInferableGroup
+    <$> Q.oneof [ fmap unNotInferableRandom arbitrary
+                , fmap unNotInferableFromBalanced arbitrary ]
+
+-- | Any number of BalEntries is Balanced
+prop_balEntriesBalanced :: [BalEntries] -> Bool
+prop_balEntriesBalanced
+  = (== L.Balanced)
+  . L.entriesToBalanced
+  . concat
+  . map unBalEntries
+
+-- | Any number of BalEntries and one Inferable is Inferable
+prop_balEntriesAndInferable :: [BalEntries] -> InferableGroup -> Bool
+prop_balEntriesAndInferable bals inf
+  = L.isInferable
+  . L.entriesToBalanced
+  . (++ unInferableGroup inf)
+  . concat
+  . map unBalEntries
+  $ bals
+
+-- | Any number of BalEntries and one NotInferable is not inferable
+prop_balEntriesAndNotInferable
+  :: [BalEntries] -> NotInferableGroup -> Bool
+prop_balEntriesAndNotInferable bals notInf
+  = (== L.NotInferable)
+  . L.entriesToBalanced
+  . (++ unNotInferableGroup notInf)
+  . concat
+  . map unBalEntries
+  $ bals
+
+--
+-- # ents fails properly
+--
+
 
 --
 -- # runTests

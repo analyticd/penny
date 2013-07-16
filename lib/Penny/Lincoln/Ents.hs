@@ -65,7 +65,7 @@ import qualified Penny.Lincoln.Equivalent as Ev
 import Penny.Lincoln.Equivalent ((==~))
 import Data.Monoid (mconcat, (<>))
 import Data.List (foldl', unfoldr, sortBy)
-import Data.Maybe (isNothing, catMaybes)
+import Data.Maybe (catMaybes)
 import qualified Data.Traversable as Tr
 import qualified Data.Foldable as Fdbl
 
@@ -220,8 +220,21 @@ ents
   -> Maybe (Ents m)
 ents ls = do
   guard . not . null $ ls
-  let makePstg = makeEnt (inferredVal . map fst $ ls)
-  fmap Ents $ mapM makePstg ls
+  let nNoEntries = length . filter (== Nothing) . map fst $ ls
+  case Bal.entriesToBalanced . catMaybes . map fst $ ls of
+    Bal.NotInferable -> Nothing
+    Bal.Inferable e -> do
+      guard $ nNoEntries == 1
+      let makeEnt (mayEn, mt) = case mayEn of
+            Nothing -> Ent e Inferred mt
+            Just en -> Ent en NotInferred mt
+      return . Ents $ map makeEnt ls
+    Bal.Balanced ->
+      let makeEnt (mayEn, mt) = case mayEn of
+            Nothing -> Nothing
+            Just en -> Just $ Ent en NotInferred mt
+      in fmap Ents $ mapM makeEnt ls
+
 
 -- | Creates 'Ents'. Unlike 'ents' this function never fails because
 -- you are restricted in the inputs that you can give it. It will
@@ -250,29 +263,3 @@ rEnts com dc (q1, m1) nonInfs lastMeta =
   in Ents $ p1:ps ++ [lastPstg]
 
 
--- | Changes Maybe Entries into Postings. Uses the inferred value if
--- the Maybe Entry is Nothing. If there is no inferred value, returns
--- Nothing.
-makeEnt
-  :: Maybe B.Entry
-  -- ^ Inferred value
-  -> (Maybe B.Entry, m)
-  -> Maybe (Ent m)
-makeEnt mayInf (mayEn, m) = case mayEn of
-  Nothing -> case mayInf of
-    Nothing -> Nothing
-    Just inf -> return $ Ent inf Inferred m
-  Just en -> return $ Ent en NotInferred m
-
-
--- | Gets a single inferred entry from a balance, if possible.
-inferredVal :: [Maybe B.Entry] -> Maybe B.Entry
-inferredVal ls = do
-  guard ((length . filter id . map isNothing $ ls) == 1)
-  let bal = mconcat
-            . map Bal.entryToBalance
-            . catMaybes
-            $ ls
-  case Bal.isBalanced bal of
-    Bal.Inferable e -> Just e
-    _ -> Nothing
