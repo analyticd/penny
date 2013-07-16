@@ -67,6 +67,18 @@ genMutate q = do
   p' <- if changeExp then mutateExponent p else return p
   maybe (failMsg "genMutate") return $ L.newQty m' p'
 
+-- | genMutate generates non-equivalent quantities
+prop_genMutate :: L.Qty -> Gen Bool
+prop_genMutate q = fmap f $ genMutate q
+  where
+    f q' = not $ q ==~ q'
+
+-- | genEquivalent generates equivalent quantities
+prop_genEquivalent :: L.Qty -> Gen Bool
+prop_genEquivalent q = fmap f $ genEquivalent q
+  where
+    f q' = q ==~ q'
+
 -- | Mutates an Integer.  The result is always at least one.
 mutateAtLeast1 :: Integer -> Gen Integer
 mutateAtLeast1 i =
@@ -212,12 +224,6 @@ prop_allocateValid :: L.Qty -> (L.Qty, [L.Qty]) -> Bool
 prop_allocateValid q1 q2 =
   let (r1, r2) = L.allocate q1 q2
   in validQty r1 && all validQty r2
-
--- | genEquivalent generates an equivalent Qty
-prop_genEquivalent :: L.Qty -> Gen Bool
-prop_genEquivalent q1 = do
-  q2 <- genEquivalent q1
-  return $ q1 ==~ q2
 
 -- | 'equivalent' fails on different Qty
 prop_genNotEquivalent :: L.Qty -> Gen Bool
@@ -531,6 +537,35 @@ prop_rEnts
 prop_rEnts c dc pr ls mt =
   let t = L.rEnts c dc pr ls mt
   in prop_twoPostings t && prop_balanced t && prop_inferred t
+
+-- Testing that 'ents' fails when it should
+
+-- | Generates a group of entries that are not balanced or inferable
+genNotInferable :: Arbitrary a => Gen [(Maybe L.Entry, a)]
+genNotInferable = QG.suchThat gen notInf
+  where
+    notInf ls =
+      let bal = L.isBalanced
+                . mconcat
+                . map L.entryToBalance
+                . catMaybes
+                . map fst
+                $ ls
+      in bal == L.NotInferable
+    gen = QG.listOf $ (,) <$> arbitrary <*> arbitrary
+
+
+newtype NotInferable a = NotInferable
+  { unNotBalanced :: [(Maybe L.Entry, a)] }
+  deriving (Eq, Show)
+
+instance Arbitrary a => Arbitrary (NotInferable a) where
+  arbitrary = NotInferable <$> genNotInferable
+
+-- | 'ents' fails when given non-inferable entries
+prop_entsNonInferable :: Arbitrary a => NotInferable a -> Bool
+prop_entsNonInferable (NotInferable ls) =
+  isNothing $ L.ents ls
 
 --
 -- # Price
