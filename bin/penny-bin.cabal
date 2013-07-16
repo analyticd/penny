@@ -1,5 +1,5 @@
 Name: penny-bin
-Version: 0.16.0.0
+Version: 0.16.0.2
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -173,7 +173,6 @@ extra-source-files:
   , README
   , doc/*.org
   , doc/*.dot
-  , doc/*.ini
   , doc/*.hs
   , examples/*.pny
   , man/*.1
