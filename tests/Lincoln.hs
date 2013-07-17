@@ -822,6 +822,24 @@ prop_balEntriesAndNotInferable bals notInf
 -- # ents fails properly
 --
 
+pairWithInts :: [a] -> Gen [(a, Int)]
+pairWithInts ls = fmap (zip ls) (Q.vector (length ls))
+
+-- | 'ents' fails when given NonInferableGroup
+prop_noEntsNotInferableGroup
+  :: Q.NonEmptyList NotInferableGroup
+
+  -> Maybe (Maybe L.Entry)
+  -- ^ Optionally throws in another Maybe Entry; ents should fail
+  -- regardless of whether another entry is present or not
+
+  -> Gen Bool
+prop_noEntsNotInferableGroup nib mayMayEnt = do
+  let es = map Just . concat . map unNotInferableGroup
+           . Q.getNonEmpty $ nib
+      esWithExtra = maybe es (: es) mayMayEnt
+  esWithInts <- pairWithInts esWithExtra
+  return . isNothing . L.ents $ esWithInts
 
 --
 -- # runTests
