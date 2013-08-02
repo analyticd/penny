@@ -68,5 +68,5 @@ display p = X.pack $ concat (intersperse " " ls)
       Debit -> "Dr"
       Credit -> "Cr"
     cmdty = X.unpack . unCommodity . Q.commodity $ p
-    qt = show . Q.qty $ p
+    qt = prettyShowQty . Q.qty $ p
     labelNo s = "(no " ++ s ++ ")"
