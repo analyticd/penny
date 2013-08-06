@@ -156,7 +156,14 @@ processPostings srtr postFilters
   . addFilteredNum
 
 mainFilter :: P.LPdct -> [L.Posting] -> ([C.Chunk], [L.Posting])
-mainFilter pdct = swap . E.filter indentAmt True 0 L.display pdct
+mainFilter pdct ps = (cs, map fst filtered)
+  where
+    rslts = zip ps (map (flip E.evaluate pdct) ps)
+    showTop (pstg, rslt) = E.showTopResult (L.display pstg) indentAmt
+                                           False rslt
+    filtered = filter (E.rBool . snd) rslts
+    cs = concatMap showTop filtered
+
 
 addFilteredNum :: [a] -> [(FilteredNum, a)]
 addFilteredNum = L.serialItems (\s p -> (FilteredNum s, p))
