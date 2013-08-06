@@ -39,6 +39,7 @@ module Penny.Lincoln.Predicates
 
 
 import Data.List (intersperse)
+import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as X
@@ -231,14 +232,12 @@ serialPdct
   -- ^ The right hand side
 
   -> Ordering
-  -- ^ The Pdct returned will be Just True if the item has a serial
-  -- and @compare ser rhs@ returns this Ordering; Just False if the
-  -- item has a srerial and @compare@ does not return this Ordering;
-  -- Nothing if the item does not have a serial.
+  -- ^ The Pdct returned will be True if the item has a serial
+  -- and @compare ser rhs@ returns this Ordering; False otherwise.
 
   -> P.Pdct a
 
-serialPdct name getSer i o = P.Pdct n (P.Operand f)
+serialPdct name getSer i o = P.operand n f
   where
     n = "serial " <> name <> " is " <> descCmp <> " "
         <> X.pack (show i)
@@ -246,7 +245,8 @@ serialPdct name getSer i o = P.Pdct n (P.Operand f)
       EQ -> "equal to"
       LT -> "less than"
       GT -> "greater than"
-    f = fmap (\ser -> compare ser i == o) . getSer
+    f = fromMaybe False . fmap (\ser -> compare ser i == o)
+        . getSer
 
 type MakeSerialPdct = Int -> Ordering -> P.Pdct Posting
 

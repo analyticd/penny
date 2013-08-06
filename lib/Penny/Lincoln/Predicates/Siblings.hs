@@ -248,7 +248,7 @@ serialPdct
 
   -> P.Pdct E.Posting
 
-serialPdct name getSer i o = P.Pdct n (P.Operand f)
+serialPdct name getSer i o = P.operand n f
   where
     n = "serial " <> name <> " is " <> descCmp <> " "
         <> X.pack (show i)
@@ -256,8 +256,7 @@ serialPdct name getSer i o = P.Pdct n (P.Operand f)
       EQ -> "equal to"
       LT -> "less than"
       GT -> "greater than"
-    f = Just
-        . any (\ser -> compare ser i == o )
+    f = any (\ser -> compare ser i == o )
         . catMaybes
         . map getSer
         . E.unrollSnd
