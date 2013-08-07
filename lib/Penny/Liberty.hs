@@ -155,13 +155,7 @@ processPostings srtr postFilters
   . addFilteredNum
 
 mainFilter :: P.LPdct -> [L.Posting] -> ([C.Chunk], [L.Posting])
-mainFilter pdct ps = (cs, map fst filtered)
-  where
-    rslts = zip ps (map (flip E.evaluate pdct) ps)
-    showTop (pstg, rslt) = E.showTopResult (L.display pstg) indentAmt
-                                           False rslt
-    filtered = filter (E.rBool . snd) rslts
-    cs = concatMap showTop filtered
+mainFilter pdct = E.verboseFilter L.display indentAmt False pdct
 
 
 addFilteredNum :: [a] -> [(FilteredNum, a)]
@@ -402,40 +396,11 @@ serialOption getSerial n = (osA, osD)
              (C.TwoArg (f name L.backward))
     f name getInt a1 a2 = do
       num <- parseInt a2
-      let getPdct = compareByMaybe (pack . show $ num) (pack name) cmp
+      let getPdct = E.compareByMaybe (pack . show $ num) (pack name) cmp
           cmp l = case getSerial l of
             Nothing -> Nothing
             Just ser -> Just $ compare (getInt ser) num
       parseComparer a1 getPdct
-
--- | Builds a Pdct for items that might fail to return a comparison.
-compareByMaybe
-  :: Text
-  -- ^ How to show the item being compared
-
-  -> Text
-  -- ^ Description of type of thing being matched
-
-  -> (a -> Maybe Ordering)
-  -- ^ How to compare against right hand side. If Nothing, a Pdct that
-  -- always returns False is returned.
-
-  -> Ordering
-  -- ^ Ordering that must result for the Pdct to be True
-
-  -> E.Pdct a
-
-compareByMaybe itemDesc typeDesc cmp ord =
-  E.Pdct l (const False) (E.Operand f)
-  where
-    l = typeDesc <> " is " <> cmpDesc <> " " <> itemDesc
-    cmpDesc = case ord of
-      LT -> "less than"
-      GT -> "greater than"
-      EQ -> "equal to"
-    f subj = case cmp subj of
-      Nothing -> False
-      Just ord' -> ord == ord'
 
 
 -- | Creates two options suitable for comparison of sibling serial

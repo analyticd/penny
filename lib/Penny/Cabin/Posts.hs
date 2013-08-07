@@ -58,7 +58,6 @@ import Control.Applicative ((<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List.Split (chunksOf)
 import qualified Data.Either as Ei
-import Data.Monoid ((<>))
 import qualified Data.Text as X
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Options as CO
@@ -189,21 +188,10 @@ showVerboseFilter
 showVerboseFilter (P.VerboseFilter b) pdct bs =
   if not b then [] else info : blankLine : (chks ++ [blankLine])
   where
-    pdcts = map (makeLabeledPdct pdct) bs
-    chks = concat . map snd $ zipWith doEval bs pdcts
-    doEval subj pd = Pe.evaluate indentAmt False subj 0 pd
+    chks =
+      fst
+      $ Pe.verboseFilter (L.display . snd) indentAmt False pdct bs
     info = "Postings report filter:\n"
-
--- | Creates a Pdct and prepends a one-line description of the PostFam
--- to the Pdct's label so it can be easily identified in the output.
-makeLabeledPdct
-  :: Pe.Pdct ((Ly.LibertyMeta, L.Posting))
-  -> (Ly.LibertyMeta, L.Posting)
-  -> Pe.Pdct ((Ly.LibertyMeta, L.Posting))
-makeLabeledPdct pd box = Pe.rename f pd
-  where
-    f old = old <> " - " <> L.display pf
-    pf = snd box
 
 defaultOptions
   :: Sh.Runtime
