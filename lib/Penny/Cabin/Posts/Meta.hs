@@ -58,7 +58,7 @@ toBoxList
 toBoxList szb pdct pff
   = addMetadata
   . Ly.processPostFilters pff
-  . filter (Pe.rBool . flip Pe.eval pdct)
+  . filter (Pe.rBool . flip Pe.evaluate pdct . snd)
   . addBalances szb
 
 addBalances

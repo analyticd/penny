@@ -183,7 +183,7 @@ showExpression (P.ShowExpression b) pdct =
 
 showVerboseFilter
   :: P.VerboseFilter
-  -> Pe.Pdct ((Ly.LibertyMeta, L.Posting))
+  -> Pe.Pdct (Ly.LibertyMeta, L.Posting)
   -> [(Ly.LibertyMeta, L.Posting)]
   -> [Rb.Chunk]
 showVerboseFilter (P.VerboseFilter b) pdct bs =

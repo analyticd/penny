@@ -24,7 +24,6 @@ module Penny.Wheat
   , main
   ) where
 
-import Control.Monad (when)
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Either (partitionEithers)
 import Data.Maybe (mapMaybe)
@@ -144,8 +143,8 @@ allOpts =
 -- corresponding to the ledger files provided on the command line.
 parseArgs :: V.Version -> WheatConf -> IO (WheatConf, [String])
 parseArgs ver c = do
-  parsed <- MA.simpleWithHelp (help w) MA.Intersperse
-         (fmap Left (Ly.version ver) : (map (fmap (Right . Left) allOpts)))
+  parsed <- MA.simpleWithHelp (help c) MA.Intersperse
+         (fmap Left (Ly.version ver) : (map (fmap (Right . Left)) allOpts))
          (return . Right . Right)
   let (showVers, optsAndArgs) = partitionEithers parsed
   case showVers of
@@ -169,17 +168,33 @@ main
 main ver getWc = do
   rt <- S.runtime
   (conf, args) <- parseArgs ver (getWc rt)
-  term <- Rb.smartTermFromEnv (colorToFile psd) IO.stdout
+  term <- Rb.smartTermFromEnv (colorToFile conf) IO.stdout
   pstgs <- getItems args
+  let tsts = filter ((testPred conf) . TT.testName)
+             . map ($ (L.toUTC . S.currentTime $ rt))
+             . tests
+             $ conf
+  bs <- mapM (runTest conf pstgs term) tsts
+  if and bs
+    then Exit.exitSuccess
+    else Exit.exitFailure
 
-  -- # Start here
-
-  pfs <- getItems (p_ledgers psd)
-  let ttOpts = getTTOpts pfs psd
-      tts = zipWith ($) (tests wc) (repeat (p_baseTime psd))
-      (cks, _, nFail) = TT.runTests ttOpts 0 tts
+-- | Shows the result of a test. Exits with a failure if stopOnFail is
+-- set and if the test failed. Otherwise, returns whether the test
+-- succeeded or failed.
+runTest
+  :: WheatConf
+  -> [L.Posting]
+  -> Rb.Term
+  -> TT.Test L.Posting
+  -> IO Bool
+runTest c ps term test = do
+  let rslt = TT.evalTest test ps
+      cks = TT.showResult (indentAmt c) L.display (verbosity c) rslt
   Rb.putChunks term cks
-  when (nFail > 0) Exit.exitFailure
+  if stopOnFail c && not (TT.resultPass rslt)
+    then Exit.exitFailure
+    else return (TT.resultPass rslt)
 
 getItems :: [String] -> IO [L.Posting]
 getItems ss = fmap f $ Cop.open ss
@@ -196,8 +211,8 @@ getItems ss = fmap f $ Cop.open ss
 eachPostingMustBeTrue
   :: TT.Name
   -> Pe.Pdct L.Posting
-  -> TT.TestTree L.Posting
-eachPostingMustBeTrue n = TT.eachSubjectMustBeTrue n L.display
+  -> TT.Test L.Posting
+eachPostingMustBeTrue n pd = TT.eachSubjectMustBeTrue pd n
 
 -- | Passes if at least a particular number of postings is True.
 atLeastNPostings
@@ -205,8 +220,8 @@ atLeastNPostings
   -- ^ The number of postings that must be true for the test to pass
   -> TT.Name
   -> Pe.Pdct L.Posting
-  -> TT.TestTree L.Posting
-atLeastNPostings i n = TT.nSubjectsMustBeTrue n L.display i
+  -> TT.Test L.Posting
+atLeastNPostings i n pd = TT.nSubjectsMustBeTrue pd n i
 
 --
 -- Help
@@ -226,37 +241,10 @@ help wc pn = unlines
   , "  -i, --indentation AMT"
   , "    Indent each level by this many spaces"
   , "    " ++ dflt (show . indentAmt $ wc)
-  , "  -p, --pass-verbosity VERBOSITY"
-  , "    Verbosity for tests that pass. Argument may be:"
-  , "      silent - show nothing at all"
-  , "      minimal - show whether the test passed or failed"
-  , "      false - show subjects that are false"
-  , "      true - show subjects that are true or false"
-  , "      all - show all subjects"
-  , "      " ++ dflt (showVerbosity . passVerbosity $ wc)
-  , "  -f, --fail-verbosity VERBOSITY"
-  , "    Verbosity for tests that fail."
-  , "    (uses same VERBOSITY options as --pass-verbosity)"
-  , "    " ++ dflt (showVerbosity . failVerbosity $ wc)
-  , "  -g, --group-regexp REGEXP"
-  , "    Run only groups whose name matches the given"
-  , "    Perl-compatible regular expression"
-  , "    (overrides the compiled-in default)"
   , "  -t, --test-regexp REGEXP"
   , "    Run only tests whose name matches the given"
   , "    Perl-compatible regular expression"
   , "    (overrides the compiled-in default)"
-  , "  --show-skipped-tests"
-  , "    Toggle whether to show tests that are skipped"
-  , "    using the --test-regexp option"
-  , "    (does not affect groups that are skipped; see next option)"
-  , "    " ++ dflt (show . showSkippedTests $ wc)
-  , "  --G, group-verbosity ARG"
-  , "    Control which group names are shown. Argument may be:"
-  , "      silent - do not show any group names"
-  , "      active - show group names that were not skipped"
-  , "      all - show all group names, including skipped ones"
-  , "      " ++ dflt (showGroupVerbosity . groupVerbosity $ wc)
   , "  --stop-on-failure"
   , "    Stop running tests after a single test fails"
   , "    " ++ dflt (show . stopOnFail $ wc)
@@ -273,19 +261,4 @@ help wc pn = unlines
 
 dflt :: String -> String
 dflt s = "(default: " ++ s ++ ")"
-
-showVerbosity :: TT.Verbosity -> String
-showVerbosity v = case v of
-  TT.Silent -> "silent"
-  TT.PassFail -> "minimal"
-  TT.FalseSubjects -> "false"
-  TT.TrueSubjects -> "true"
-  TT.Discards -> "all"
-
-showGroupVerbosity :: TT.GroupVerbosity -> String
-showGroupVerbosity v = case v of
-  TT.NoGroups -> "silent"
-  TT.ActiveGroups -> "active"
-  TT.AllGroups -> "all"
-
 
