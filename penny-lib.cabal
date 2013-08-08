@@ -1,5 +1,5 @@
 Name: penny-lib
-Version: 0.18.0.0
+Version: 0.20.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -50,7 +50,7 @@ Library
     , ofx ==0.2.*
     , old-locale ==1.0.*
     , parsec >= 3.1.2 && < 3.2
-    , prednote == 0.12.*
+    , prednote == 0.14.*
     , pretty-show ==1.5.*
     , rainbow ==0.4.*
     , semigroups ==0.9.*
@@ -154,40 +154,20 @@ Library
 Executable penny-test
   Main-is: penny-test.hs
   hs-source-dirs: tests lib
-  Build-depends:
-      base ==4.*
-    , action-permutations ==0.0.0.0
-    , binary ==0.7.*
-    , bytestring ==0.10.*
-    , cereal ==0.3.*
-    , containers ==0.5.*
-    , explicit-exception ==0.1.*
-    , matchers ==0.6.*
-    , monad-loops ==0.3.*
-    , multiarg ==0.16.*
-    , ofx ==0.2.*
-    , old-locale ==1.0.*
-    , parsec >= 3.1.2 && < 3.2
-    , pcre-light ==0.4.*
-    , prednote == 0.12.*
-    , pretty-show ==1.5.*
-    , rainbow ==0.4.*
-    , semigroups ==0.9.*
-    , split ==0.2.*
-    , strict ==0.3.*
-    , terminfo == 0.3.*
-    , text ==0.11.*
-    , time ==1.4.*
-    , transformers == 0.3.*
 
+  -- Be sure the build-depends are listed within the if block;
+  -- otherwise, cabal install will always include these
+  -- build-dependencies in any build, even non-test builds.
 
-    -- Test dependencies. test-framework has issues with newer versions,
-    -- see
-    -- https://github.com/batterseapower/test-framework/issues/34
-    , QuickCheck ==2.5.*
-    , random-shuffle ==0.0.4
+  -- Test dependencies. test-framework has issues with newer versions,
+  -- see
+  -- https://github.com/batterseapower/test-framework/issues/34
+  if flag(test)
+    build-depends:
+        QuickCheck ==2.5.*
+      , random-shuffle ==0.0.4
 
-  if ! flag(test)
+  else
     buildable: False
 
   ghc-options: -Wall
@@ -195,41 +175,12 @@ Executable penny-test
 Executable penny-gibberish
   Main-is: penny-gibberish.hs
   hs-source-dirs: tests lib
-  Build-depends:
-      base ==4.*
-    , action-permutations ==0.0.0.0
-    , binary ==0.7.*
-    , bytestring ==0.10.*
-    , cereal ==0.3.*
-    , containers ==0.5.*
-    , explicit-exception ==0.1.*
-    , matchers ==0.6.*
-    , monad-loops ==0.3.*
-    , multiarg ==0.16.*
-    , ofx ==0.2.*
-    , old-locale ==1.0.*
-    , parsec >= 3.1.2 && < 3.2
-    , pcre-light ==0.4.*
-    , prednote == 0.12.*
-    , pretty-show ==1.5.*
-    , rainbow ==0.4.*
-    , semigroups ==0.9.*
-    , split ==0.2.*
-    , strict ==0.3.*
-    , terminfo == 0.3.*
-    , text ==0.11.*
-    , time ==1.4.*
-    , transformers == 0.3.*
 
-
-    -- Test dependencies. test-framework has issues with newer versions,
-    -- see
-    -- https://github.com/batterseapower/test-framework/issues/34
-    , QuickCheck ==2.5.*
-    , random-shuffle ==0.0.4
-    , random ==1.0.*
-
-  if ! flag(test)
+  if flag(test)
+    build-depends:
+        QuickCheck ==2.5.*
+      , random-shuffle ==0.0.4
+  else
     buildable: False
 
   ghc-options: -Wall
