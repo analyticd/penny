@@ -20,26 +20,25 @@ help pn = unlines
   , "  -h, --help - show help and exit"
   ]
 
-mode :: MA.Mode (Maybe Y.ConfigLocation -> Y.Config -> IO ())
-mode = MA.Mode
-  { MA.mName = "info"
-  , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = []
-  , MA.mPosArgs = const . Ex.throw . MA.ErrorMsg
-    $ "this mode does not accept positional arguments"
-  , MA.mProcess = const process
-  , MA.mHelp = help
-  }
+mode :: Y.Config -> Y.Mode
+mode = MA.modeHelp
+  "info"               -- Mode name
+  help                 -- Help function
+  (\_ _ -> process cf) -- Processing function
+  []                   -- Options
+  MA.Intersperse       -- Interspersion
+  processPa            -- Posarg processor
+  where
+    processPa = const . Ex.throw . MA.ErrorMsg
+      $ "this mode does not accept positional arguments"
 
-process :: Maybe Y.ConfigLocation -> Y.Config -> IO ()
-process cf cn = TIO.putStr $ showInfo cf cn
+process :: Y.Config -> IO ()
+process cn cf = TIO.putStr $ showInfo cf cn
 
-showInfo :: Maybe Y.ConfigLocation -> Y.Config -> X.Text
-showInfo cf cn =
-  maybe "These settings are compiled into your program.\n\n"
-        (\l -> label "From configuration file at" (L.text l) <> "\n\n")
-        cf
-  <> showConfig cn
+showInfo :: Y.Config -> X.Text
+showInfo cf =
+  "These settings are compiled into your program.\n\n"
+  <> showConfig cf
 
 showConfig :: Y.Config -> X.Text
 showConfig (Y.Config dflt more) =

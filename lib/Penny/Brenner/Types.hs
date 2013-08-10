@@ -11,7 +11,6 @@ module Penny.Brenner.Types
   , DbMap
   , DbList
   , Posting(..)
-  , ConfigLocation(..)
   , DbLocation(..)
   , FitAcctName(..)
   , FitAcctDesc(..)
@@ -25,6 +24,7 @@ module Penny.Brenner.Types
   , FitFileLocation(..)
   , AllowNew(..)
   , ParserFn
+  , Mode
   ) where
 
 import Control.Applicative ((<$>), (<*>))
@@ -36,6 +36,10 @@ import qualified Penny.Lincoln as L
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.Encoding as E
 import qualified Data.Serialize as S
+import qualified System.Console.MultiArg as MA
+
+-- | The type of all Brenner MultiArg modes.
+type Mode = MA.Mode (Maybe FitAcct) (MA.ProgramName -> String) (IO ())
 
 -- | The date reported by the financial institution.
 newtype Date = Date { unDate :: Time.Day }
@@ -195,13 +199,6 @@ instance S.Serialize Posting where
         <*> S.get
         <*> S.get
         <*> S.get
-
--- | Where is a configuration file
-newtype ConfigLocation = ConfigLocation
-  { unConfigLocation :: Text }
-  deriving (Eq, Show)
-
-instance L.HasText ConfigLocation where text = unConfigLocation
 
 -- | Where is the database of postings?
 newtype DbLocation = DbLocation { unDbLocation :: Text }

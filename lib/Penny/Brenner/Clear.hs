@@ -60,18 +60,18 @@ data Opts = Opts
   } deriving Show
 
 
-mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
-mode = MA.Mode
-  { MA.mName = "clear"
-  , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [fmap AOutput Ly.output]
-  , MA.mPosArgs = return . APosArg
-  , MA.mProcess = process
-  , MA.mHelp = help
-  }
+mode :: Y.Mode
+mode = MA.modeHelp
+  "clear"                  -- Mode name
+  help                     -- Help function
+  process                  -- Processor
+  [fmap AOutput Ly.output] -- Options
+  MA.Intersperse           -- interspersion
+  (return . APosArg)       -- Posarg processor
 
-process :: [Arg] -> Maybe Y.FitAcct -> IO ()
-process as mayFa = do
+
+process :: Maybe Y.FitAcct -> [Arg] -> IO ()
+process mayFa as = do
   fa <- U.getFitAcct mayFa
   (csv, ls) <- case mapMaybe toPosArg as of
     [] -> fail "clear: you must provide a postings file."

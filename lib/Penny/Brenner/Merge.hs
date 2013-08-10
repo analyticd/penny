@@ -36,20 +36,21 @@ toPosArg a = case a of { APos s -> Just s; _ -> Nothing }
 toOutput :: Arg -> Maybe (X.Text -> IO ())
 toOutput a = case a of { AOutput x -> Just x; _ -> Nothing }
 
-mode :: MA.Mode (Maybe Y.FitAcct -> IO ())
-mode = MA.Mode
-  { MA.mName = "merge"
-  , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = [ MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto)
-               , fmap AOutput Ly.output
-               ]
-  , MA.mPosArgs = return . APos
-  , MA.mProcess = processor
-  , MA.mHelp = help
-  }
+mode :: Y.Mode
+mode = MA.modeHelp
+  "merge"
+  help
+  processor
+  opts
+  MA.Intersperse
+  (return . APosArg)
+  where
+    opts = [ MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto)
+           , fmap AOutput Ly.output
+           ]
 
-processor :: [Arg] -> Maybe Y.FitAcct -> IO ()
-processor as mayFa = do
+processor :: Maybe Y.FitAcct -> [Arg] -> IO ()
+processor mayFa as = do
   fa <- U.getFitAcct mayFa
   doMerge fa
           (ANoAuto `elem` as)

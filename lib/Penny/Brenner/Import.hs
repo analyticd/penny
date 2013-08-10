@@ -32,27 +32,27 @@ data ImportOpts = ImportOpts
   , newUNumber :: Maybe Integer
   }
 
-mode
-  :: MA.Mode (Maybe Y.FitAcct -> IO ())
-mode = MA.Mode
-  { MA.mName = "import"
-  , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts =
+mode :: Y.Mode
+mode = MA.modeHelp
+  "import"            -- Mode name
+  help                -- Help function
+  processor           -- Processing function
+  opts                -- Options
+  MA.Intersperse      -- Interspersion
+  (return . AFitFile) -- Posarg processor
+  where
+    opts =
       [ MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew)
       , MA.OptSpec ["unumber"] "u" . MA.OneArgE $ \s -> do
           i <- MA.reader s
           return $ AUNumber i
       ]
-  , MA.mPosArgs = return . AFitFile
-  , MA.mProcess = processor
-  , MA.mHelp = help
-  }
 
 processor
-  :: [Arg]
-  -> Maybe Y.FitAcct
+  :: Maybe Y.FitAcct
+  -> [Arg]
   -> IO ()
-processor as mayFa = do
+processor mayFa as = do
   fa <- U.getFitAcct mayFa
   let (dbLoc, prsr) = (Y.dbLocation fa, snd . Y.parser $ fa)
   loc <- case mapMaybe toFitFile as of

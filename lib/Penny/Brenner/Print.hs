@@ -23,22 +23,20 @@ help pn = unlines
 data Arg
   = ArgFile String
 
-mode
-  :: MA.Mode (Maybe Y.FitAcct -> IO ())
-mode = MA.Mode
-  { MA.mName = "print"
-  , MA.mIntersperse = MA.Intersperse
-  , MA.mOpts = []
-  , MA.mPosArgs = return . ArgFile
-  , MA.mProcess = processor
-  , MA.mHelp = help
-  }
+mode :: Y.Mode
+mode = MA.modeHelp
+  "print"
+  help
+  processor
+  []
+  MA.Intersperse
+  (return . ArgFile)
 
 processor
-  :: [Arg]
-  -> Maybe Y.FitAcct
+  :: Maybe Y.FitAcct
+  -> [Arg]
   -> IO ()
-processor ls mayFa = do
+processor mayFa ls = do
   fa <- U.getFitAcct mayFa
   doPrint (snd . Y.parser $ fa) ls
 
