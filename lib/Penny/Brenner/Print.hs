@@ -24,10 +24,10 @@ data Arg
   = ArgFile String
 
 mode :: Y.Mode
-mode = MA.modeHelp
+mode mayFa = MA.modeHelp
   "print"
   help
-  processor
+  (processor mayFa)
   []
   MA.Intersperse
   (return . ArgFile)

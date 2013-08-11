@@ -39,7 +39,7 @@ import qualified Data.Serialize as S
 import qualified System.Console.MultiArg as MA
 
 -- | The type of all Brenner MultiArg modes.
-type Mode = MA.Mode (Maybe FitAcct) (MA.ProgramName -> String) (IO ())
+type Mode = Maybe FitAcct -> MA.Mode (MA.ProgName -> String) (IO ())
 
 -- | The date reported by the financial institution.
 newtype Date = Date { unDate :: Time.Day }

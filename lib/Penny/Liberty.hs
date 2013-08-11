@@ -82,7 +82,6 @@ import qualified Text.Matchers as TM
 import qualified Paths_penny_lib as PPL
 #endif
 import qualified Data.Version as V
-import qualified System.Exit as Exit
 
 -- | A multiline Text that holds an error message.
 type Error = Text
@@ -736,26 +735,22 @@ sQtyOption = C.OptSpec ["s-qty"] [] (C.TwoArg f)
 -- Versions
 --
 
--- | Parses the @--version@ option and returns an IO action that
--- prints it and exits successfully. You supply the version of the
--- executable, as there is no easy way to get that automatically.
+-- | Prints the binary's version and the version of the library, and exits successfully.
 
 version
   :: V.Version
-  -- ^ Version of binary
-  -> OptSpec (IO a)
-version v = C.OptSpec ["version"] [] (C.NoArg f)
-  where
-    f = do
-      pn <- MA.getProgName
-      putStrLn $ pn ++ " version " ++ V.showVersion v
+  -> String
+  -- ^ Program name
+  -> String
+version v pn = unlines
+  [ pn ++ " version " ++ V.showVersion v
 #ifdef incabal
-      putStrLn $ "using version " ++ V.showVersion PPL.version
+  , "using version " ++ V.showVersion PPL.version
 #else
-      putStrLn $ "using testing version"
+  , "using testing version"
 #endif
-                 ++ " of penny-lib"
-      Exit.exitSuccess
+    ++ " of penny-lib"
+  ]
 
 -- | An option for where the user would like to send output.
 output :: MA.OptSpec (X.Text -> IO ())

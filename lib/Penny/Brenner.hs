@@ -19,8 +19,6 @@ module Penny.Brenner
   ) where
 
 import qualified Penny.Brenner.Types as Y
-import Control.Monad (join)
-import Data.Either (partitionEithers)
 import qualified Data.Text as X
 import qualified Data.Version as V
 import qualified Penny.Liberty as Ly
@@ -34,8 +32,9 @@ import qualified Penny.Brenner.Info as Info
 import qualified Penny.Brenner.Merge as M
 import qualified Penny.Brenner.OFX as O
 import qualified Penny.Brenner.Print as P
-import qualified Penny.Brenner.Util as U
 import qualified System.Console.MultiArg as MA
+import System.Environment (getProgName)
+import qualified System.Exit as Exit
 import qualified Control.Monad.Exception.Synchronous as Ex
 
 -- | Brenner, with a pre-compiled configuration.
@@ -46,44 +45,37 @@ brennerMain
   -> IO ()
 brennerMain v cf = do
   let cf' = convertConfig cf
-  join $ MA.modesWithHelp (help False) (globalOpts v)
-                          (preProcessor cf')
+  pn <- getProgName
+  ei <- MA.modesIO (globalOpts v) (preProcessor cf')
+  case ei of
+    Left showHelp -> putStr (showHelp pn) >> Exit.exitSuccess
+    Right g -> g
+
+type GetHelp = MA.ProgName -> String
 
 -- | Parses global options for a pre-compiled configuration.
 globalOpts
   :: V.Version
   -- ^ Binary version
-  -> [MA.OptSpec (Either (IO ()) Y.FitAcctName)]
-globalOpts v =
+  -> MA.Opts GetHelp Y.FitAcctName
+globalOpts v = MA.optsHelpVersion help (Ly.version v)
   [ MA.OptSpec ["fit-account"] "f"
-  (MA.OneArg (Right . Y.FitAcctName . X.pack))
-  , fmap Left (Ly.version v)
+               (MA.OneArg (Y.FitAcctName . X.pack))
   ]
 
 -- | Pre-processes global options for a pre-compiled configuration.
 preProcessor
   :: Y.Config
-  -> [Either (IO ()) Y.FitAcctName]
-  -> Either (a -> IO ()) [MA.Mode (IO ())]
-preProcessor cf args =
-  let (vers, as) = partitionEithers args
-  in case vers of
-      [] -> makeModes Nothing cf as
-      x:_ -> Left (const x)
-
--- | Makes modes for a pre-compiled configuration.
-makeModes
-  :: Maybe Y.ConfigLocation
-  -> Y.Config
   -> [Y.FitAcctName]
-  -- ^ Names of financial institutions given on command line
-  -> Either (a -> IO ()) [MA.Mode (IO ())]
-makeModes cl cf as = Ex.toEither . Ex.mapException (const . U.errExit) $ do
-  mayFi <- case as of
+  -> Ex.Exceptional String
+      (Either (IO ())
+              [MA.Mode (MA.ProgName -> String) (IO ())])
+preProcessor cf args = do
+  mayFi <- case args of
     [] -> return $ Y.defaultFitAcct cf
     _ ->
       let pdct a = Y.fitAcctName a == s
-          s = last as
+          s = last args
           toFilter = case Y.defaultFitAcct cf of
             Nothing -> Y.moreFitAccts cf
             Just d -> d : Y.moreFitAccts cf
@@ -96,34 +88,33 @@ makeModes cl cf as = Ex.toEither . Ex.mapException (const . U.errExit) $ do
               "more than one financial institution account "
               ++ "named " ++ (X.unpack . Y.unFitAcctName $ s)
               ++ " configured."
-  return . map (fmap (\f -> f cl cf mayFi)) $ allModes
+  return . Right $ allModes cf mayFi
 
 -- | Each mode takes a Maybe FitAcct. Even if every mode needs a
 -- FitAcct to function, they take a Maybe FitAcct because otherwise
 -- the user will not even get online help if a FitAcct is not
 -- supplied. Each mode must fail on its own if it actually needs a
 -- FitAcct.
-type ModeFunc
-  = Maybe Y.ConfigLocation
-  -> Y.Config
-  -> Maybe Y.FitAcct
-  -> IO ()
 
-allModes :: [MA.Mode ModeFunc]
-allModes =
-  fmap (\f cl cf _ -> f cl cf) Info.mode
-  : map (fmap (const . const))
-        [C.mode, I.mode, M.mode, P.mode, D.mode]
+allModes
+  :: Y.Config
+  -> Maybe Y.FitAcct
+  -> [MA.Mode (MA.ProgName -> String) (IO ())]
+allModes c a =
+  [ C.mode a
+  , I.mode a
+  , Info.mode c
+  , M.mode a
+  , P.mode a
+  , D.mode a ]
 
 -- | Help for a pre-compiled configuration.
 help
-  :: Bool
-  -- ^ True if running under a dynamic configuration
-  -> String
+  :: String
   -- ^ Program name
 
   -> String
-help dyn n = unlines ls
+help n = unlines ls
   where
     ls = [ "usage: " ++ n ++ " [global-options]"
             ++ " COMMAND [local-options]"
@@ -142,11 +133,7 @@ help dyn n = unlines ls
          , "  (use the \"info\" command to see which are available)."
          , "  If this option does not appear,"
          , "  the default account is used if there is one."
-         ] ++ if not dyn then [] else
-                  [ ""
-                  , "-c, --config-file FILENAME"
-                  , "  Specify configuration file location"
-                  ]
+         ]
 
 -- | Information to configure a single financial institution account.
 data FitAcct = FitAcct

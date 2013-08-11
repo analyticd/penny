@@ -17,10 +17,10 @@ help pn = unlines
 data Arg = ArgPos String
 
 mode :: Y.Mode
-mode = MA.modeHelp
+mode mayFa = MA.modeHelp
   "database"        -- Mode name
   help              -- Help function
-  processor         -- Processing function
+  (processor mayFa) -- Processing function
   []                -- Options
   MA.Intersperse    -- Interspersion
   (return . ArgPos) -- Posarg processor

@@ -33,10 +33,10 @@ data ImportOpts = ImportOpts
   }
 
 mode :: Y.Mode
-mode = MA.modeHelp
+mode mayFa = MA.modeHelp
   "import"            -- Mode name
   help                -- Help function
-  processor           -- Processing function
+  (processor mayFa)   -- Processing function
   opts                -- Options
   MA.Intersperse      -- Interspersion
   (return . AFitFile) -- Posarg processor

@@ -20,11 +20,11 @@ help pn = unlines
   , "  -h, --help - show help and exit"
   ]
 
-mode :: Y.Config -> Y.Mode
-mode = MA.modeHelp
+mode :: Y.Config -> MA.Mode (MA.ProgName -> String) (IO ())
+mode cf = MA.modeHelp
   "info"               -- Mode name
   help                 -- Help function
-  (\_ _ -> process cf) -- Processing function
+  (const (process cf)) -- Processing function
   []                   -- Options
   MA.Intersperse       -- Interspersion
   processPa            -- Posarg processor
@@ -33,7 +33,7 @@ mode = MA.modeHelp
       $ "this mode does not accept positional arguments"
 
 process :: Y.Config -> IO ()
-process cn cf = TIO.putStr $ showInfo cf cn
+process cf = TIO.putStr $ showInfo cf
 
 showInfo :: Y.Config -> X.Text
 showInfo cf =

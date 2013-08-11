@@ -10,13 +10,13 @@ import qualified Penny.Copper.Parsec as CP
 import qualified Text.Parsec as P
 import qualified Penny.Lincoln as L
 import qualified System.Exit as Exit
-import qualified System.Console.MultiArg as MA
 import qualified System.IO as IO
+import System.Environment (getProgName)
 
 -- | Print an error message and exit.
 errExit :: String -> IO a
 errExit s = do
-  pn <- MA.getProgName
+  pn <- getProgName
   IO.hPutStrLn IO.stderr $ pn ++ ": error: " ++ s
   Exit.exitFailure
 

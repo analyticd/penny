@@ -61,10 +61,10 @@ data Opts = Opts
 
 
 mode :: Y.Mode
-mode = MA.modeHelp
+mode mayFa = MA.modeHelp
   "clear"                  -- Mode name
   help                     -- Help function
-  process                  -- Processor
+  (process mayFa)          -- Processor
   [fmap AOutput Ly.output] -- Options
   MA.Intersperse           -- interspersion
   (return . APosArg)       -- Posarg processor

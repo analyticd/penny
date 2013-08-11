@@ -37,13 +37,13 @@ toOutput :: Arg -> Maybe (X.Text -> IO ())
 toOutput a = case a of { AOutput x -> Just x; _ -> Nothing }
 
 mode :: Y.Mode
-mode = MA.modeHelp
+mode mayFa = MA.modeHelp
   "merge"
   help
-  processor
+  (processor mayFa)
   opts
   MA.Intersperse
-  (return . APosArg)
+  (return . APos)
   where
     opts = [ MA.OptSpec ["no-auto"] "n" (MA.NoArg ANoAuto)
            , fmap AOutput Ly.output

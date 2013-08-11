@@ -143,14 +143,10 @@ allOpts =
 -- corresponding to the ledger files provided on the command line.
 parseArgs :: V.Version -> WheatConf -> IO (WheatConf, [String])
 parseArgs ver c = do
-  parsed <- MA.simpleWithHelp (help c) MA.Intersperse
-         (fmap Left (Ly.version ver) : (map (fmap (Right . Left)) allOpts))
-         (return . Right . Right)
-  let (showVers, optsAndArgs) = partitionEithers parsed
-  case showVers of
-    [] -> return ()
-    x:_ -> x
-  let (opts, args) = partitionEithers optsAndArgs
+  parsed <- MA.simpleHelpVersion (help c) (Ly.version ver)
+            (map (fmap Right) allOpts) MA.Intersperse
+            (return . Left)
+  let (args, opts) = partitionEithers parsed
       fn = foldl (flip (.)) id opts
       c' = fn c
   return (c', args)

@@ -74,4 +74,4 @@ type MkReport
   -- ^ Result from previous parsers that will sort and filter incoming
   -- transactions
 
-  -> MA.Mode ParseResult
+  -> MA.Mode (MA.ProgName -> String) ParseResult
