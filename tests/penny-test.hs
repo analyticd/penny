@@ -34,8 +34,8 @@ options =
 
 main :: IO ()
 main = do
-  opts <- MA.simpleWithHelp help MA.Intersperse
-          options
+  opts <- MA.simpleHelp help options
+          MA.Intersperse
           ( const . Ex.Exception . MA.ErrorMsg
             $ "this command does not accept positional arguments")
   let args = foldl (flip (.)) id opts Q.stdArgs

@@ -81,7 +81,7 @@ parse os = foldl (flip (.)) id os defaultOpts
 main :: IO ()
 main = do
   pn <- MA.getProgName
-  os <- fmap parse $ MA.simpleWithHelp help MA.Intersperse options
+  os <- fmap parse $ MA.simpleHelp help options MA.Intersperse
                      posArg
   gen <- Rand.getStdGen
   let is = (\g -> G.unGen g gen (optSize os))
