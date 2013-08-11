@@ -165,14 +165,14 @@ cmdLineReport
   -> I.Report
 cmdLineReport o rt = (help o, mkMode)
   where
-    mkMode _ _ chgrs _ fsf = MA.Mode
-      { MA.mName = "convert"
-      , MA.mIntersperse = MA.Intersperse
-      , MA.mOpts = map (fmap Right) P.allOptSpecs
-      , MA.mPosArgs = return . Left
-      , MA.mProcess = process rt chgrs o fsf
-      , MA.mHelp = const (help o)
-      }
+    mkMode _ _ chgrs _ fsf = MA.modeHelp
+      "convert"
+      (const (help o))
+      (process rt chgrs o fsf)
+      (map (fmap Right) P.allOptSpecs)
+      MA.Intersperse
+      (return . Left)
+
 
 process
   :: S.Runtime

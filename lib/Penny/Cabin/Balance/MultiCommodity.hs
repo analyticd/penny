@@ -112,14 +112,13 @@ parseReport ::
   -> I.Report
 parseReport fmt o rt = (help o, makeMode)
   where
-    makeMode _ _ chgrs _ fsf = MA.Mode
-      { MA.mName = "balance"
-      , MA.mIntersperse = MA.Intersperse
-      , MA.mOpts = map (fmap Right) P.allSpecs
-      , MA.mPosArgs = return . Left
-      , MA.mProcess = process chgrs fmt o rt fsf
-      , MA.mHelp = const (help o)
-      }
+    makeMode _ _ chgrs _ fsf = MA.modeHelp
+      "balance"
+      (const (help o))
+      (process chgrs fmt o rt fsf)
+      (map (fmap Right) P.allSpecs)
+      MA.Intersperse
+      (return . Left)
 
 process
   :: Applicative f

@@ -23,7 +23,6 @@ import qualified Penny.Shield as S
 import qualified Penny.Steel.Sums as Su
 
 import Control.Applicative ((<*>), pure, (<$))
-import Control.Monad (join)
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper, toLower)
@@ -32,7 +31,7 @@ import Data.List (isPrefixOf)
 import Data.Maybe (mapMaybe, catMaybes, fromMaybe)
 import Data.Monoid (mappend, mconcat, (<>))
 import Data.Ord (comparing)
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, unpack)
 import Data.Version (Version)
 import qualified Data.Text.IO as TIO
 import qualified System.Console.MultiArg as MA
@@ -51,8 +50,15 @@ runZinc
 runZinc ver df rt rs = do
   let ord = sortPairsToFn . sorter $ df
       hlp = helpText df rt rs
-  join $ MA.modesWithHelp hlp (allOpts ver (S.currentTime rt) df)
-    (processGlobal rt ord df rs)
+      globals = MA.optsHelpVersion hlp (Ly.version ver)
+                (allOpts (S.currentTime rt) df)
+  ei <- MA.modesIO globals (processGlobal rt ord df rs)
+  case ei of
+    Left h -> do
+      pn <- MA.getProgName
+      putStr (h pn)
+      Exit.exitSuccess
+    Right act -> act
 
 
 -- | Whether to use color when standard output is not a terminal.
@@ -164,7 +170,6 @@ data OptResult
   | RExprDesc X.ExprDesc
   | RShowExpression
   | RVerboseFilter
-  | RShowVersion (IO ())
 
 getPostFilters
   :: [OptResult]
@@ -200,13 +205,6 @@ getSortSpec i ls =
   in if null exSpecs
      then return i
      else fmap mconcat . sequence $ exSpecs
-
-getShowVersion :: [OptResult] -> Maybe (IO ())
-getShowVersion ls = case mapMaybe f ls of
-  [] -> Nothing
-  xs -> Just $ last xs
-  where
-    f o = case o of { RShowVersion i -> Just i; _ -> Nothing }
 
 type Factory = M.CaseSensitive
              -> Text -> Ex.Exceptional Text M.Matcher
@@ -249,8 +247,8 @@ makeTokens df os =
   in fmap (\xs -> (xs, st')) . sequence . catMaybes $ ls
 
 
-allOpts :: Version -> L.DateTime -> Defaults -> [MA.OptSpec OptResult]
-allOpts ver dt df =
+allOpts :: L.DateTime -> Defaults -> [MA.OptSpec OptResult]
+allOpts dt df =
   map (fmap ROperand) (Ly.operandSpecs dt)
   ++ [fmap RPostFilter . fst $ Ly.postFilterSpecs]
   ++ [fmap RPostFilter . snd $ Ly.postFilterSpecs]
@@ -264,7 +262,6 @@ allOpts ver dt df =
   ++ map (fmap RExprDesc) Ly.exprDesc
   ++ [ RShowExpression <$ Ly.showExpression
      , RVerboseFilter <$ Ly.verboseFilter
-     , fmap RShowVersion (Ly.version ver)
      ]
 
 optColorToFile :: MA.OptSpec OptResult
@@ -343,42 +340,37 @@ processGlobal
   -> Defaults
   -> [I.Report]
   -> [OptResult]
-  -> Either (a -> IO ()) [MA.Mode (IO ())]
+  -> Ex.Exceptional String
+      (Either a [MA.Mode (MA.ProgName -> String) (IO ())])
 processGlobal rt srt df rpts os
   = case processFiltOpts srt df os of
-      Ex.Exception s -> Left $ (const $ handleTextError s)
-      Ex.Success mayFo -> case mayFo of
-        Left i -> Left . const $ i
-        Right fo -> Right $ map (makeMode rt fo) rpts
+      Ex.Exception s -> Ex.throw s
+      Ex.Success fo -> return . Right $ map (makeMode rt fo) rpts
 
 processFiltOpts
   :: Orderer
   -> Defaults
   -> [OptResult]
-  -> Ex.Exceptional Error (Either (IO ()) FilterOpts)
-  -- ^ Left if the user asked to see the version; Right with the
-  -- FilterOpts otherwise.
-processFiltOpts ord df os = case getShowVersion os of
-  Just i -> return $ Left i
-  Nothing -> do
-    postFilts <- getPostFilters os
-    sortSpec <- getSortSpec ord os
-    (toks, (rs, rf)) <- makeTokens df os
-    let ctf = getColorToFile df os
-        sch = getScheme df os
-        expDsc = getExprDesc df os
-        showExpr = getShowExpression os
-        verbFilt = getVerboseFilter os
-    pdct <- Ly.parsePredicate expDsc toks
-    let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
-    return . Right $ FilterOpts rf rs sf sch
-                                ctf expDsc pdct showExpr verbFilt
+  -> Ex.Exceptional String FilterOpts
+processFiltOpts ord df os = Ex.mapException unpack $ do
+  postFilts <- getPostFilters os
+  sortSpec <- getSortSpec ord os
+  (toks, (rs, rf)) <- makeTokens df os
+  let ctf = getColorToFile df os
+      sch = getScheme df os
+      expDsc = getExprDesc df os
+      showExpr = getShowExpression os
+      verbFilt = getVerboseFilter os
+  pdct <- Ly.parsePredicate expDsc toks
+  let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
+  return $ FilterOpts rf rs sf sch
+                      ctf expDsc pdct showExpr verbFilt
 
 makeMode
   :: S.Runtime
   -> FilterOpts
   -> I.Report
-  -> MA.Mode (IO ())
+  -> MA.Mode (MA.ProgName -> String) (IO ())
 makeMode rt fo r = fmap makeIO mode
   where
     mode = snd (r rt) (foResultSensitive fo) (foResultFactory fo)

@@ -43,12 +43,12 @@ type PrintReport
 
   -> Exceptional X.Text [R.Chunk]
   -- ^ The exception type is a strict Text, containing the error
--- message. The success type is a list of either a Chunk or a PreChunk
--- containing the resulting report. This allows for errors after the
--- list of transactions has been seen. The name of the executable and
--- the word @error@ will be prepended to this Text; otherwise, it is
--- printed as-is, so be sure to include any trailing newline if
--- needed.
+  -- message. The success type is a list of either a Chunk or a PreChunk
+  -- containing the resulting report. This allows for errors after the
+  -- list of transactions has been seen. The name of the executable and
+  -- the word @error@ will be prepended to this Text; otherwise, it is
+  -- printed as-is, so be sure to include any trailing newline if
+  -- needed.
 
 
 type Report = Runtime -> (HelpStr, MkReport)

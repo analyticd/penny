@@ -116,23 +116,10 @@ zincReport opts rt = (helpStr opts, md)
     md cs fty ch expr fsf = MA.modeHelp
       "postings"
       (const (helpStr opts))
-      
-      { MA.mName = "postings"
-      , MA.mIntersperse = MA.Intersperse
-      , MA.mOpts = specs rt
-      , MA.mPosArgs = return . Left
-      , MA.mProcess = process opts cs fty ch expr fsf
-      , MA.mHelp = const (helpStr opts)
-      }
-
-    md cs fty ch expr fsf = MA.Mode
-      { MA.mName = "postings"
-      , MA.mIntersperse = MA.Intersperse
-      , MA.mOpts = specs rt
-      , MA.mPosArgs = return . Left
-      , MA.mProcess = process opts cs fty ch expr fsf
-      , MA.mHelp = const (helpStr opts)
-      }
+      (process opts cs fty ch expr fsf)
+      (specs rt)
+      MA.Intersperse
+      (return . Left)
 
 specs
   :: Sh.Runtime
