@@ -1,7 +1,6 @@
 module Main where
 
 import Control.Arrow (first, second)
-import Data.Either (partitionEithers)
 import Data.Maybe (fromJust)
 import Data.List (deleteFirstsBy)
 import qualified System.Console.MultiArg as M
@@ -49,11 +48,8 @@ optFile1 = M.OptSpec [] "1" (M.NoArg (ArgFile File1))
 optFile2 :: M.OptSpec Args
 optFile2 = M.OptSpec [] "2" (M.NoArg (ArgFile File2))
 
-allOpts :: [M.OptSpec (Either (IO ()) Args)]
-allOpts = [ fmap Right optFile1
-          , fmap Right optFile2
-          , fmap Left (Ly.version PPB.version)
-          ]
+allOpts :: [M.OptSpec Args]
+allOpts = [ optFile1 , optFile2 ]
 
 data File = File1 | File2
   deriving (Eq, Show)
@@ -181,22 +177,19 @@ doDiffs l1 l2 = (r1, r2)
 -- an indication of which differences to show.
 parseCommandLine :: IO (String, String, DiffsToShow)
 parseCommandLine = do
-  as <- M.simpleWithHelp help M.Intersperse allOpts
-        (return . Right . Filename)
-  let (doVer, args) = partitionEithers as
-      toFilename a = case a of
+  as <- M.simpleHelpVersion help (Ly.version PPB.version)
+        allOpts M.Intersperse
+        (return . Filename)
+  let toFilename a = case a of
         Filename s -> Just s
         _ -> Nothing
-  case doVer of
-    [] -> return ()
-    x:_ -> x
-  (fn1, fn2) <- case mapMaybe toFilename args of
+  (fn1, fn2) <- case mapMaybe toFilename as of
     x:y:[] -> return (x, y)
     _ -> failure "penny-diff: error: you must supply two filenames."
   let getDiffs
-        | ((ArgFile File1) `elem` args)
-          && ((ArgFile File2) `elem` args) = BothFiles
-        | ((ArgFile File1) `elem` args) = File1Only
-        | ((ArgFile File2) `elem` args) = File2Only
+        | ((ArgFile File1) `elem` as)
+          && ((ArgFile File2) `elem` as) = BothFiles
+        | ((ArgFile File1) `elem` as) = File1Only
+        | ((ArgFile File2) `elem` as) = File2Only
         | otherwise = BothFiles
   return (fn1, fn2, getDiffs)

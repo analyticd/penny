@@ -1,5 +1,6 @@
 module Main where
 
+import Data.Either (partitionEithers)
 import Data.Maybe (fromMaybe, fromJust)
 import qualified Data.Text as X
 import Control.Monad (guard)
@@ -59,22 +60,18 @@ help pn = unlines
 groupSpecs :: C.GroupSpecs
 groupSpecs = C.GroupSpecs C.NoGrouping C.NoGrouping
 
-type ShowVer = IO ()
 type Printer = X.Text -> IO ()
 type PosArg = String
-type Arg = S.S3 ShowVer Printer PosArg
+type Arg = Either Printer PosArg
 
 allOpts :: [MA.OptSpec Arg]
-allOpts =
-  [ fmap S.S3a $ Ly.version PPB.version
-  , fmap S.S3b Ly.output
-  ]
+allOpts = [ fmap Left Ly.output ]
 
 main :: IO ()
 main = do
-  as <- MA.simpleWithHelp help MA.Intersperse allOpts (fmap return S.S3c)
-  let (showVer, printers, posArgs) = S.partitionS3 as
-  sequence_ showVer
+  as <- MA.simpleHelpVersion help (Ly.version PPB.version)
+        allOpts MA.Intersperse (return . Right)
+  let (printers, posArgs) = partitionEithers as
   led <- C.open posArgs
   let led' = map (S.mapS4 changeTransaction id id id) led
       rend = fromJust $ mapM (C.item groupSpecs) (map C.stripMeta led')

@@ -146,24 +146,13 @@ data ProceedsAcct = ProceedsAcct { _unProceedsAcct :: L.Account }
 newtype InputFilename = InputFilename { _unInputFilename :: String }
   deriving (Eq, Show)
 
-type MaybeShowVer = IO ()
-type Opts = (MaybeShowVer, [String])
-
-posArg :: String -> Opts -> Opts
-posArg s (a, ss) = (a, s:ss)
-
-allOpts :: [MA.OptSpec (Opts -> Opts)]
-allOpts = [ fmap (\a (_, ss) -> (a, ss)) $ Ly.version PPB.version ]
-
 data ParseResult = ParseResult ProceedsAcct [Cop.LedgerItem]
 
 parseCommandLine :: IO ParseResult
 parseCommandLine = do
-  as <- MA.simpleWithHelp help MA.Intersperse allOpts
-        (fmap return posArg)
-  let opts = foldr ($) (return (), []) as
-  fst opts
-  x:xs <- case snd opts of
+  as <- MA.simpleHelpVersion help (Ly.version PPB.version)
+        [] MA.Intersperse return
+  x:xs <- case as of
     [] -> fail (show NoInputArgs)
     r -> return r
   a <- Ex.switch (fail . show . ProceedsParseFailed) return

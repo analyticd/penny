@@ -1,11 +1,11 @@
 module Main where
 
+import Data.Either (partitionEithers)
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
 import qualified Penny.Liberty as Ly
 import qualified Data.Text as X
 import qualified System.Console.MultiArg as MA
-import qualified Penny.Steel.Sums as S
 
 import qualified Paths_penny_bin as PPB
 
@@ -33,23 +33,20 @@ help pn = unlines
 groupSpecs :: R.GroupSpecs
 groupSpecs = R.GroupSpecs R.NoGrouping R.NoGrouping
 
-type MaybeShowVer = IO ()
 type Printer = X.Text -> IO ()
 type PosArg = String
 
-type Arg = S.S3 MaybeShowVer Printer PosArg
+type Arg = Either Printer PosArg
 
 allOpts :: [MA.OptSpec Arg]
-allOpts =
-  [ fmap S.S3a $ Ly.version PPB.version
-  , fmap S.S3b $ Ly.output
-  ]
+allOpts = [ fmap Left Ly.output ]
 
 main :: IO ()
 main = do
-  as <- MA.simpleWithHelp help MA.Intersperse allOpts (fmap return S.S3c)
-  let (showVers, printers, posArgs) = S.partitionS3 as
-  sequence_ showVers
+  as <- MA.simpleHelpVersion help (Ly.version PPB.version)
+        allOpts MA.Intersperse
+        (return . Right)
+  let (printers, posArgs) = partitionEithers as
   l <- C.open posArgs
   case mapM (R.item groupSpecs) (map C.stripMeta l) of
     Nothing -> error "could not render final ledger."
