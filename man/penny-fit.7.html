@@ -1,5 +1,5 @@
-<!-- Creator     : groff version 1.22.2 -->
-<!-- CreationDate: Tue Apr  9 14:25:18 2013 -->
+<!-- Creator     : groff version 1.21 -->
+<!-- CreationDate: Thu Aug 15 00:41:08 2013 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -67,8 +67,17 @@ statements.</p>
 <p style="margin-left:11%; margin-top: 1em">First you will
 have to configure and compile a <b>penny-fit</b> binary. You
 can use the <b>penny-fit-sample.hs</b> file in the
-<b>penny-bin</b> package as an example. The comments in that
-file should help you get started.</p>
+<i>doc</i> directory of the <b>penny-bin</b> package as an
+example. Alternatively, if you know your way around Haskell,
+see the Haddock documentation for the <i>Penny.Brenner</i>
+module. The comments in that file should help you get
+started.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Currently Penny
+includes a parser for Open Financial Exchange, or OFX, data.
+Many banks make information available in this format, as
+Quicken and the now-defunct Microsoft Money both support the
+format.</p>
 
 <h2>IMPORTING
 <a name="IMPORTING"></a>
@@ -78,12 +87,10 @@ file should help you get started.</p>
 <p style="margin-left:11%; margin-top: 1em">To use
 <b>penny-fit</b>, first you will download the appropriate
 data from your financial institution and place it in a file.
-<i>penny-fit -h</i> will tell give you a little more
+<i>penny-fit info</i> will tell give you a little more
 information about the place to look on your
-institution&rsquo;s web site to download the data. Currently
-<b>penny-fit</b> can handle Bank of America and American
-Express data; maybe you can add support for more
-institutions.</p>
+institution&rsquo;s web site to download the data, if you
+have configured that information in your binary.</p>
 
 <p style="margin-left:11%; margin-top: 1em">Then, run
 <i>penny-fit -f ACCOUNT import FILENAME</i>. The first time
@@ -94,7 +101,7 @@ database is not found, <b>penny-fit</b> quits with an error
 message. The ACCOUNT must be a financial institution account
 that you configured in your <b>penny-fit</b> binary (if you
 configured a default account and you want to use that, you
-can omit the <i>-f</i> option.) The FILENAME is the location
+can omit the <i>-f</i> option). The FILENAME is the location
 of the data that you just downloaded.</p>
 
 <p style="margin-left:11%; margin-top: 1em">The
@@ -128,23 +135,22 @@ postings in the <i>pennyAcct</i> specified in your
 configuration. For each U-number in the database,
 <i>merge</i> sees if there is a posting in the
 <i>pennyAcct</i> with a tag bearing the U-number (e.g. if
-the U-number is 5, it looks for the tag <i>U5</i>.) If a
+the U-number is 5, it looks for the tag <i>U5</i>). If a
 posting has more than one U-number tag, only the first is
 used; the others are ignored. If such a posting is found,
-<i>merge</i> moves on to the next U-number in the
-database.</p>
+<i>merge</i> moves on to the next U-number in the database.
+If no matching posting is found for a U-number, <i>merge</i>
+sees if there is a matching posting that does <i>not</i>
+have a U-number tag. If there is a posting in the
+<i>pennyAcct</i> that has the same quantity and date as the
+financial institution posting, <i>merge</i> will then
+examine the debit or credit of the ledger posting.</p>
 
-<p style="margin-left:11%; margin-top: 1em">If no matching
-posting is found for a U-number, <i>merge</i> sees if there
-is a matching posting that does <i>not</i> have a U-number
-tag. If there is a posting in the <i>pennyAcct</i> that has
-the same quantity and date as the financial institution
-posting, <i>merge</i> will then examine the debit or credit
-of the ledger posting. This table describes whether
-<i>penny-fit</i> will find a match:</p>
+<p style="margin-left:11%; margin-top: 1em">This table
+describes whether <i>penny-fit</i> will find a match:</p>
 
 
-<p align="center" style="margin-top: 1em"><img src="grohtml-89841.png" alt="Image grohtml-89841.png"></p>
+<p align="center" style="margin-top: 1em"><img src="grohtml-189701.png" alt="Image grohtml-189701.png"></p>
 
 <p style="margin-left:11%; margin-top: 1em">If
 <b>penny-fit</b> finds a match for a financial institution
@@ -168,19 +174,18 @@ found, <b>penny-fit</b> will assign the payee name found on
 the posting in the ledger to the new posting. Also, if the
 posting found in the ledger has exactly one sibling posting,
 <b>penny-fit</b> will assign the same account name from that
-sibling to the new sibling.</p>
-
-<p style="margin-left:11%; margin-top: 1em">You can turn
-off this automatic assignment of information by using the
-<i>--no-auto</i> or <i>-n</i> option to the <i>merge</i>
-command.</p>
+sibling to the new sibling. You can turn off this automatic
+assignment of information by using the <i>--no-auto</i> or
+<i>-n</i> option to the <i>merge</i> command.</p>
 
 <p style="margin-left:11%; margin-top: 1em">The result of
-<i>merge</i> is printed to standard output. You will
-probably want to redirect it to a new file. Use
-<b>diff</b>(1) or <b>penny-diff</b>(1) to see what changes
-<i>merge</i> made. Typically you will need to edit the
-output somewhat.</p>
+<i>merge</i> is printed to standard output, unless you use
+the <i>--output FILENAME</i> or <i>-o FILENAME</i> option,
+in which case the output is sent to <i>FILENAME</i>. You can
+use multiple <i>-o</i> options. To explicitly send output to
+standard output, use <i>-o -</i>. Use <b>diff</b>(1) or
+<b>penny-diff</b>(1) to see what changes <i>merge</i> made.
+Typically you will need to edit the output somewhat.</p>
 
 <h2>RECONCILING
 <a name="RECONCILING"></a>
@@ -190,7 +195,7 @@ output somewhat.</p>
 <p style="margin-left:11%; margin-top: 1em">Next you may
 wish to reconcile your ledger with your financial
 institution data (that is, &quot;balance the
-checkbook&quot;.) Typically the most time-consuming part of
+checkbook&quot;). Typically the most time-consuming part of
 this process is finding the postings in your ledger that
 match the postings on your bank statement. <b>penny-fit
 clear</b> will help with this, dramatically speeding up the
@@ -212,12 +217,16 @@ correspond to one of the postings in the FIT_FILE. It does
 this by matching the U-number tags on your postings to the
 U-numbers in the database. If a posting has more than one
 U-number tag, only the first is used; the others are
-ignored. The results are printed to standard output; you
-will probably want to redirect this to a file. Once you have
-verified that things are as they should be, you can use
-<b>penny-reconcile</b>(1) to mark the cleared postings as
-reconciled. <b>penny-basics</b>(7) has more details on how
-to use <b>penny</b> when reconciling a financial institution
+ignored.</p>
+
+<p style="margin-left:11%; margin-top: 1em">As with the
+<i>merge</i> command, the results are printed to standard
+output unless you use the <i>--output FILENAME</i> or <i>-o
+FILENAME</i> option. Once you have verified that things are
+as they should be, you can use <b>penny-reconcile</b>(1) to
+mark the cleared postings as reconciled.
+<b>penny-basics</b>(7) has more details on how to use
+<b>penny</b> when reconciling a financial institution
 statement.</p>
 
 <h2>OTHER COMMANDS
@@ -229,7 +238,7 @@ statement.</p>
 <i>database</i> command prints the database for a particular
 financial institution to standard output in human-readable
 form (the database unfortunately is not in plain
-human-readable text.) For instance you might use this to see
+human-readable text). For instance you might use this to see
 what U-number is assigned to a particular financial
 institution posting.</p>
 
@@ -238,6 +247,11 @@ institution posting.</p>
 institution data and prints the result to standard output.
 This is useful for seeing the contents of a financial
 institution data file, or for testing new parsers.</p>
+
+<p style="margin-left:11%; margin-top: 1em">Every
+<b>penny-fit</b> command has a <i>-h</i> and a <i>--help</i>
+option. There is also a global <i>--help</i> option, as in
+<i>penny-fit --help</i>.</p>
 
 <h2>BUGS
 <a name="BUGS"></a>

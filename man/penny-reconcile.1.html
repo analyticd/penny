@@ -1,5 +1,5 @@
-<!-- Creator     : groff version 1.22.2 -->
-<!-- CreationDate: Tue Apr  9 14:25:18 2013 -->
+<!-- Creator     : groff version 1.21 -->
+<!-- CreationDate: Thu Aug 15 00:41:08 2013 -->
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -23,6 +23,7 @@
 <a href="#NAME">NAME</a><br>
 <a href="#SYNOPSIS">SYNOPSIS</a><br>
 <a href="#DESCRIPTION">DESCRIPTION</a><br>
+<a href="#OPTIONS">OPTIONS</a><br>
 <a href="#VERSUS sed(1) OR YOUR TEXT EDITOR">VERSUS sed(1) OR YOUR TEXT EDITOR</a><br>
 <a href="#EXIT STATUS">EXIT STATUS</a><br>
 <a href="#BUGS">BUGS</a><br>
@@ -47,7 +48,7 @@
 
 
 <p style="margin-left:11%; margin-top: 1em"><b>penny-reconcile</b>
-FILE...</p>
+[options] FILE...</p>
 
 <h2>DESCRIPTION
 <a name="DESCRIPTION"></a>
@@ -58,19 +59,35 @@ FILE...</p>
 postings in the input ledger files whose flag is exactly one
 letter: the letter <i>C</i>. Changes those flags to the
 letter <i>R</i> and prints the resulting ledger to standard
-output. This is useful when reconciling a financial
-institution account: you may first mark postings in your
-ledger that match a posting on your bank statement with a
-<i>C</i> flag. Because only postings from the current
-statement will be marked with a <i>C</i> flag, it is easier
-to use <b>penny</b>(1) to list only the postings that you
-have just cleared. Then, after ensuring that the statement
-is properly reconciled, <b>penny-reconcile</b> will
-automatically mark all the posts reconciled.</p>
+output.</p>
+
+<p style="margin-left:11%; margin-top: 1em">This is useful
+when reconciling a financial institution account: you may
+first mark postings in your ledger that match a posting on
+your bank statement with a <i>C</i> flag. Because only
+postings from the current statement will be marked with a
+<i>C</i> flag, it is easier to use <b>penny</b>(1) to list
+only the postings that you have just cleared. Then, after
+ensuring that the statement is properly reconciled,
+<b>penny-reconcile</b> will automatically mark all the posts
+reconciled.</p>
 
 <p style="margin-left:11%; margin-top: 1em">If no
 <i>FILE</i>, or <i>FILE</i> is <i>-</i>, read standard
 input.</p>
+
+<h2>OPTIONS
+<a name="OPTIONS"></a>
+</h2>
+
+
+<p style="margin-left:11%; margin-top: 1em"><i>--output
+FILENAME</i>, <i>-o FILENAME</i></p>
+
+<p style="margin-left:22%;">send output to <i>FILENAME</i>
+instead of standard output. You can use multiple
+<i>--output</i> options; to explicitly print to standard
+output, use <i>--output -</i>.</p>
 
 <h2>VERSUS sed(1) OR YOUR TEXT EDITOR
 <a name="VERSUS sed(1) OR YOUR TEXT EDITOR"></a>
