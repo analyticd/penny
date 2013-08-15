@@ -31,26 +31,13 @@ compares to Ledger and to <a href="http://hledger.org">hledger</a></p>
   functional language. This means that you need
   the <a href="http://www.haskell.org/ghc">GHC</a> Haskell
   compiler. That alone will cost you at least 700 MB of disk space
-  (though in this age of gigabyte disks, maybe this isn't such a big
+  (though in this age of terabyte disks, maybe this isn't such a big
   deal.)</p>
-
-<p>Making things worse, I use the latest GHC and the latest Haskell
-  packages rather than those in the 
-  <a href="http://www.haskell.org/platform">Haskell Platform</a>. That
-  means you'll need to install a newer release of GHC than the one
-  that is in the Haskell platform.</p>
 
 <p>Here are the steps you can take to install Penny:</p>
 
 <ol>
-  <li>Install the latest version
-  of <a href="http://www.haskell.org/ghc">GHC</a> (currently Penny is
-  developed using version 7.6.2).</li>
-
-  <li>Install <a href="http://hackage.haskell.org/trac/hackage/wiki/CabalInstall">cabal
-  install</a>, a command line tool that makes it easy to install new
-  Haskell packages. Strictly speaking you don't <i>need</i> it, but it
-  makes life much easier.</li>
+  <li>Install the <a href="http://www.haskell.org/platform/">Haskell Platform</a>, version 2013.2.0.0</li>
 
   <li>Run <code>cabal install penny-bin</code> as root.</li>
 
@@ -62,6 +49,12 @@ compares to Ledger and to <a href="http://hledger.org">hledger</a></p>
   <li>Unpack the tarball somewhere, change to the directory that gets
   unpacked, and as root run <code>./install-docs</code>. That will put
   the manpages in the correct places.</li>
+</ol>
+
+<p>If you have problems installing
+Penny, <a href="mailto:omari@smileystation.com">let me know</a> and
+I'll see if I can help.</p>
+
 </ol>
 
 <h2>Documentation</h2>
