@@ -10,3 +10,12 @@ groff seems to do a better job of this than man2html, even though
 groff is far from perfect. So don't bother trying man2html
 again. Probably the only way to improve the output on HTML is to use
 something line Asciidoc.
+
+To convert to PDF, use
+
+groff -mandoc -t -Tps FILENAME
+
+which handles tables much better. The disadvantage is, well, it's
+PDF. The output goes to standard output.  Then, use ps2pdf to convert
+the PS to PDF.  To make ps2pdf read standard input, you must use the -
+option; then specify the output file.
