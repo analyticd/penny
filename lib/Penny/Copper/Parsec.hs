@@ -2,6 +2,8 @@
 -- documented in EBNF in the file @doc\/ledger-grammar.org@.
 module Penny.Copper.Parsec where
 
+-- # Imports
+
 import qualified Penny.Copper.Interface as I
 import qualified Penny.Copper.Terminals as T
 import Text.Parsec.Text (Parser)
@@ -13,6 +15,7 @@ import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
                             (<|>), optional)
 import Control.Monad (replicateM, when)
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Penny.Lincoln as L
 import qualified Penny.Steel.Sums as S
 import Data.Maybe (fromMaybe)
@@ -23,6 +26,13 @@ import qualified System.Exit as Exit
 import System.Environment (getProgName)
 import qualified System.IO as IO
 import qualified Data.Text.IO as TIO
+
+-- # Helpers
+
+nonEmpty :: Parser a -> Parser (NonEmpty a)
+nonEmpty p = (:|) <$> p <*> many p
+
+-- # Accounts
 
 lvl1SubAcct :: Parser L.SubAccount
 lvl1SubAcct =
@@ -64,6 +74,8 @@ lvl2Acct =
 ledgerAcct :: Parser L.Account
 ledgerAcct = quotedLvl1Acct <|> lvl2Acct
 
+-- # Commodities
+
 lvl1Cmdty :: Parser L.Commodity
 lvl1Cmdty = (L.Commodity . pack) <$> many1 (satisfy T.lvl1CmdtyChar)
 
@@ -80,28 +92,56 @@ lvl2Cmdty =
 lvl3Cmdty :: Parser L.Commodity
 lvl3Cmdty = (L.Commodity . pack) <$> many1 (satisfy T.lvl3CmdtyChar)
 
-digitGroup :: Parser [Char]
-digitGroup = satisfy T.thinSpace *> many1 (satisfy T.digit)
+-- # Quantities
 
-digitSequence :: Parser [Char]
-digitSequence =
-  (++) <$> many1 (satisfy T.digit)
-  <*> (concat <$> (many digitGroup))
-
-digitPostSequence :: Parser (Maybe [Char])
-digitPostSequence = satisfy T.period *> optional digitSequence
-
-quantity :: Parser L.Qty
-quantity = p >>= failOnErr
+digit :: Parser L.Digit
+digit = (P.choice . map f $ zip ['0'..'9'] [minBound..maxBound])
+  <?> "digit"
   where
-    p = (L.RadFrac <$> (satisfy T.period *> digitSequence))
-        <|> (f <$> digitSequence <*> optional digitPostSequence)
-    f digSeq maybePostSeq = case maybePostSeq of
-      Nothing -> L.Whole digSeq
-      Just ps ->
-        maybe (L.WholeRad digSeq) (L.WholeRadFrac digSeq) ps
-    failOnErr = maybe (fail msg) return . L.toQty
-    msg = "could not read quantity; zero quantities not allowed"
+    f (s, d) = d <$ P.char s
+
+digitList :: Parser L.DigitList
+digitList = L.DigitList <$> nonEmpty digit
+
+groupPart :: Parser a -> Parser (a, L.DigitList)
+groupPart p = (,) <$> p <*> digitList
+
+groupedDigits :: Parser a -> Parser (L.GroupedDigits a)
+groupedDigits p
+  = L.GroupedDigits <$> digitList <*> many (groupPart p)
+
+-- | Parses a sequence of grouped digits, followed by an optional
+-- radix point, followed by an optional additional sequence of grouped
+-- digits.  Numbers such as .25 are not allowed; instead,
+-- the user must enter 0.25. Also not allowed is something like
+-- "25.". Intsead, if the user enters a radix, there must be a
+-- character after it.
+digitsRadDigits
+  :: Parser a
+  -- ^ Parses a single grouping character
+  -> Parser void
+  -- ^ Parses a radix point
+  -> Parser (L.GroupedDigits a, Maybe (L.GroupedDigits a))
+digitsRadDigits gc r = do
+  g1 <- groupedDigits gc
+  maybeRad <- optional r
+  case maybeRad of
+    Nothing -> return (g1, Nothing)
+    Just _ -> do
+      g2 <- groupedDigits gc
+      return (g1, Just g2)
+
+-- | Parses an unquoted QtyRep.
+unquotedQtyRep :: Parser QtyRep
+unquotedQtyRep = do
+  let gc = P.choice [ L.PGThinSpace <$ P.char '\x2009'
+                    , L.PGComma <$ P.char ',' ]
+      r = P.char '.'
+  (g1, mayg2) <- digitsRadDigits gc r
+  case mayg2 of
+    
+
+-- # Amounts
 
 spaceBetween :: Parser L.SpaceBetween
 spaceBetween = f <$> optional (many1 (satisfy T.white))
@@ -135,6 +175,8 @@ rightSideCmdtyAmt =
 amount :: Parser (L.Amount, L.Side, L.SpaceBetween)
 amount = leftSideCmdtyAmt <|> rightSideCmdtyAmt
 
+-- # Comments
+
 comment :: Parser I.Comment
 comment =
   (I.Comment . pack)
@@ -142,6 +184,8 @@ comment =
   <*> many (satisfy T.nonNewline)
   <* satisfy T.newline
   <* many (satisfy T.white)
+
+-- # Dates and times
 
 year :: Parser Integer
 year = read <$> replicateM 4 P.digit
@@ -216,6 +260,8 @@ dateTime =
                 z = fromMaybe L.noOffset mayTz
             in ((hr, mn, sec), z)
 
+-- # Debit and credit
+
 debit :: Parser L.DrCr
 debit = L.Debit <$ satisfy T.lessThan
 
@@ -225,14 +271,22 @@ credit = L.Credit <$ satisfy T.greaterThan
 drCr :: Parser L.DrCr
 drCr = debit <|> credit
 
+-- # Entries
+
 entry :: Parser (L.Entry, L.Side, L.SpaceBetween)
 entry = f <$> drCr <* (many (satisfy T.white)) <*> amount
   where
     f dc (am, sd, sb) = (L.Entry dc am, sd, sb)
 
+-- # Flag
+
 flag :: Parser L.Flag
 flag = (L.Flag . pack) <$ satisfy T.openSquare
   <*> many (satisfy T.flagChar) <* satisfy (T.closeSquare)
+
+-- # Memos
+
+-- ## Posting memo
 
 postingMemoLine :: Parser Text
 postingMemoLine =
@@ -243,6 +297,8 @@ postingMemoLine =
 
 postingMemo :: Parser L.Memo
 postingMemo = L.Memo <$> many1 postingMemoLine
+
+-- ## Transaction memo
 
 transactionMemoLine :: Parser Text
 transactionMemoLine =
@@ -257,10 +313,14 @@ transactionMemo = f <$> lineNum <*> many1 transactionMemoLine
                , L.Memo ls)
 
 
+-- # Number
+
 number :: Parser L.Number
 number =
   L.Number . pack <$ satisfy T.openParen
   <*> many (satisfy T.numberChar) <* satisfy T.closeParen
+
+-- # Payees
 
 lvl1Payee :: Parser L.Payee
 lvl1Payee = L.Payee . pack <$> many (satisfy T.quotedPayeeChar)
@@ -271,6 +331,8 @@ quotedLvl1Payee = satisfy T.tilde *> lvl1Payee <* satisfy T.tilde
 lvl2Payee :: Parser L.Payee
 lvl2Payee = (\c cs -> L.Payee (pack (c:cs))) <$> satisfy T.letter
             <*> many (satisfy T.nonNewline)
+
+-- # Prices
 
 fromCmdty :: Parser L.From
 fromCmdty = L.From <$> (quotedLvl1Cmdty <|> lvl2Cmdty)
@@ -294,12 +356,16 @@ price = p >>= maybe (fail msg) return
     msg = "could not parse price, make sure the from and to commodities "
           ++ "are different"
 
+-- # Tags
+
 tag :: Parser L.Tag
 tag = L.Tag . pack <$ satisfy T.asterisk <*> many (satisfy T.tagChar)
       <* many (satisfy T.white)
 
 tags :: Parser L.Tags
 tags = (\t ts -> L.Tags (t:ts)) <$> tag <*> many tag
+
+-- # TopLine
 
 topLinePayee :: Parser L.Payee
 topLinePayee = quotedLvl1Payee <|> lvl2Payee
@@ -333,6 +399,8 @@ topLine =
       where
         me = fmap (\(a, b) -> (b, a)) mayMe
 
+-- # Postings
+
 flagNumPayee :: Parser (Maybe L.Flag, Maybe L.Number, Maybe L.Payee)
 flagNumPayee = runPerms
   ( (,,) <$> maybeAtom (flag <* skipWhite)
@@ -360,6 +428,8 @@ posting = f <$> lineNum                <* skipWhite
         (en, sd, sb) = maybe (Nothing, Nothing, Nothing)
           (\(a, b, c) -> (Just a, Just b, Just c)) mayEn
 
+-- # Transaction
+
 transaction :: Parser I.ParsedTxn
 transaction = do
   ptl <- topLine
@@ -369,8 +439,12 @@ transaction = do
   return (ptl, ents)
 
 
+-- # Blank line
+
 blankLine :: Parser ()
 blankLine = () <$ satisfy T.newline <* skipWhite
+
+-- # Item
 
 item :: Parser I.ParsedItem
 item
@@ -379,6 +453,8 @@ item
   <|> fmap S.S4c comment
   <|> (S.S4d I.BlankLine) <$ blankLine
 
+
+-- # Parsing
 
 parse
   :: Text

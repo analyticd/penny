@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
 -- | Penny quantities. A quantity is simply a count (possibly
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
@@ -18,6 +17,9 @@ module Penny.Lincoln.Bits.Qty
   , whole
   , frac
   , wholeFrac
+  , wholeOrFrac
+  , WholeOrFracResult
+  , wholeOrFracToQtyRep
 
   , WholeOnly
   , unWholeOnly
@@ -28,7 +30,6 @@ module Penny.Lincoln.Bits.Qty
   , QtyRep(..)
 
   -- ** Converting between quantity representations and quantities
-  , repToQty
   , qtyToRep
   , qtyToRepNoGrouping
   , qtyToRepGrouped
@@ -40,8 +41,7 @@ module Penny.Lincoln.Bits.Qty
 
   -- * Other stuff
   , Qty
-  , NumberStr(..)
-  , toQty
+  , HasQty(..)
   , mantissa
   , places
   , prettyShowQty
@@ -62,12 +62,12 @@ module Penny.Lincoln.Bits.Qty
   ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
-import qualified Data.Binary as B
-import GHC.Generics (Generic)
 import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
-import Data.List.NonEmpty (NonEmpty, toList)
+import Data.List.NonEmpty (NonEmpty((:|)), toList)
+import Data.Semigroup(Semigroup((<>), sconcat))
 import Data.Ord (comparing)
 import qualified Penny.Lincoln.Equivalent as Ev
+import Penny.Lincoln.Equivalent (Equivalent(..), (==~))
 import qualified Penny.Steel.Sums as S
 
 data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
@@ -111,10 +111,21 @@ instance Grouper CommaGrp where
 newtype DigitList = DigitList { unDigitList :: NonEmpty Digit }
   deriving (Eq, Show, Ord)
 
+instance Semigroup DigitList where
+  DigitList l1 <> DigitList l2 = DigitList $ l1 <> l2
+
 class Digits a where
   digits :: a -> DigitList
 
--- | All of the digits on a single side of a radix point.
+instance Digits DigitList where
+  digits = id
+
+instance Digits (GroupedDigits a) where
+  digits (GroupedDigits d1 dr) = sconcat (d1 :| map snd dr)
+
+-- | All of the digits on a single side of a radix point. Typically
+-- this is parameterized on a type that represents the grouping
+-- character.
 data GroupedDigits a = GroupedDigits
   { dsFirstPart :: DigitList
   -- ^ The first chunk of digits
@@ -126,7 +137,10 @@ data GroupedDigits a = GroupedDigits
 
 -- | A quantity representation that has both a whole number and a
 -- fractional part. Abstract because there must be a non-zero digit in
--- here somewhere, which 'wholeFrac' checks for.
+-- here somewhere, which 'wholeFrac' checks for.  Typically this is
+-- parameterized on an instance of the Digits class, such as DigitList
+-- or GroupedDigits.  This allows separate types for values that
+-- cannot be grouped as well as those that can.
 data WholeFrac a = WholeFrac
   { whole :: a
   , frac :: a
@@ -149,25 +163,64 @@ digitsHasNonZero = any (/= D0) . toList . unDigitList . digits
 
 -- | A quantity representation that has a whole part only. Abstract
 -- because there must be a non-zero digit in here somewhere, which
--- 'wholeOnly' checks for.
+-- 'wholeOnly' checks for.  Typically this is parameterized on an
+-- instance of the Digits class, such as DigitList or GroupedDigits.
 newtype WholeOnly a = WholeOnly { unWholeOnly :: a }
   deriving (Eq, Show, Ord)
 
 wholeOnly :: Digits a => a -> Maybe (WholeOnly a)
 wholeOnly d = if digitsHasNonZero d then Just (WholeOnly d) else Nothing
 
+-- | Typically this is parameterized on an instance of the Digits
+-- class, such as DigitList or GroupedDigits.
 newtype WholeOrFrac a = WholeOrFrac
   { unWholeOrFrac :: Either (WholeOnly a) (WholeFrac a) }
   deriving (Eq, Show, Ord)
 
+wholeOrFrac
+  :: GroupedDigits a
+  -- ^ What's before the radix point
+
+  -> Maybe (GroupedDigits a)
+  -- ^ What's after the radix point (if anything)
+
+  -> Maybe (Either (WholeOrFrac DigitList)
+                   (WholeOrFrac (GroupedDigits a)))
+wholeOrFrac g@(GroupedDigits l1 lr) mayAft = case mayAft of
+  Nothing -> case lr of
+    [] -> fmap (Left . WholeOrFrac . Left) $ wholeOnly l1
+    _ -> fmap (Right . WholeOrFrac . Left) $ wholeOnly g
+  Just aft@(GroupedDigits r1 rr) -> case (lr, rr) of
+    ([], []) -> fmap (Left . WholeOrFrac . Right) $ wholeFrac l1 r1
+    _ -> fmap (Right . WholeOrFrac . Right) $ wholeFrac g aft
+
+
 data Radix = Period | Comma
   deriving (Eq, Show, Ord)
+
+type WholeOrFracResult a = Either (WholeOrFrac DigitList)
+                                  (WholeOrFrac (GroupedDigits a))
+
+wholeOrFracToQtyRep
+  :: Either (WholeOrFracResult PeriodGrp) (WholeOrFracResult CommaGrp)
+  -> QtyRep
+wholeOrFracToQtyRep e = case e of
+  Left p -> case p of
+    Left dl -> QNoGrouping dl Period
+    Right gd -> QGrouped (Left gd)
+  Right c -> case c of
+    Left dl -> QNoGrouping dl Comma
+    Right gd -> QGrouped (Right gd)
 
 data QtyRep
   = QNoGrouping (WholeOrFrac DigitList) Radix
   | QGrouped (Either (WholeOrFrac (GroupedDigits PeriodGrp))
                      (WholeOrFrac (GroupedDigits CommaGrp)))
   deriving (Eq, Show, Ord)
+
+instance Equivalent QtyRep where
+  equivalent x y = toQty x ==~ toQty y
+  compareEv x y = Ev.compareEv (toQty x) (toQty y)
 
 qtyToRepNoGrouping :: Qty -> WholeOrFrac DigitList
 qtyToRepNoGrouping = undefined
@@ -197,9 +250,14 @@ qtyToRep
   -> QtyRep
 qtyToRep = undefined
 
--- | Converts a quantity representation to a quantity.
-repToQty :: QtyRep -> Qty
-repToQty = undefined
+class HasQty a where
+  toQty :: a -> Qty
+
+instance HasQty QtyRep where
+  toQty = undefined
+
+instance HasQty Qty where
+  toQty = id
 
 renderRep :: QtyRep -> String
 renderRep = undefined
@@ -215,39 +273,6 @@ renderNoGrouping
   -> WholeOrFrac DigitList
   -> String
 renderNoGrouping = undefined
-
-data NumberStr =
-  Whole String
-  -- ^ A whole number only. No radix point.
-  | WholeRad String
-    -- ^ A whole number and a radix point, but nothing after the radix
-    -- point.
-  | WholeRadFrac String String
-    -- ^ A whole number and something after the radix point.
-  | RadFrac String
-    -- ^ A radix point and a fractional value after it, but nothing
-    -- before the radix point.
-  deriving Show
-
-
--- | Converts strings to Qty. Fails if any of the strings have
--- non-digits, or if any are negative, or if the result is not greater
--- than zero, or if the strings are empty.
-toQty :: NumberStr -> Maybe Qty
-toQty ns = case ns of
-  Whole s -> fmap (\m -> Qty m 0) (readInteger s)
-  WholeRad s -> fmap (\m -> Qty m 0) (readInteger s)
-  WholeRadFrac w f -> fromWholeRadFrac w f
-  RadFrac f -> fromWholeRadFrac "0" f
-  where
-    fromWholeRadFrac w f =
-      fmap (\m -> Qty m (genericLength f)) (readInteger (w ++ f))
-
--- | Reads non-negative integers only.
-readInteger :: String -> Maybe Integer
-readInteger s = case reads s of
-  (i, ""):[] -> if i < 0 then Nothing else Just i
-  _ -> Nothing
 
 -- | A quantity is always greater than zero. Various odd questions
 -- happen if quantities can be zero. For instance, what if you have a
@@ -273,7 +298,7 @@ readInteger s = case reads s of
 -- equalizing the exponents.
 data Qty = Qty { mantissa :: !Integer
                , places :: !Integer
-               } deriving (Eq, Show, Ord, Generic)
+               } deriving (Eq, Show, Ord)
 
 -- | Shows a quantity, nicely formatted after accounting for both the
 -- mantissa and decimal places, e.g. @0.232@ or @232.12@ or whatever.
@@ -299,8 +324,6 @@ instance Ev.Equivalent Qty where
   compareEv x y = compare x' y'
     where
       (x', y') = equalizeExponents x y
-
-instance B.Binary Qty
 
 type Mantissa = Integer
 type Places = Integer

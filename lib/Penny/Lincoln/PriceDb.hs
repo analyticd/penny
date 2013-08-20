@@ -85,14 +85,15 @@ getPrice (PriceDb db) fr to dt = do
 -- fail and throw PriceDbError. Internally uses 'getPrice', so read its
 -- documentation for details on how price lookup works.
 convertAsOf ::
-  PriceDb
+  B.HasQty q
+  => PriceDb
   -> B.DateTime
   -> B.To
-  -> B.Amount
+  -> B.Amount q
   -> Ex.Exceptional PriceDbError B.Qty
 convertAsOf db dt to (B.Amount qt fr)
-  | fr == B.unTo to = return qt
+  | fr == B.unTo to = return . B.toQty $ qt
   | otherwise = do
     cpu <- fmap B.unCountPerUnit (getPrice db (B.From fr) to dt)
-    let qt' = B.mult cpu qt
+    let qt' = B.mult (B.toQty cpu) (B.toQty qt)
     return qt'

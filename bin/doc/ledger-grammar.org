@@ -16,6 +16,7 @@ NonAscii = { x ∈ NonNewline | x > U+007f }
 Letter = UpperCaseAscii ∪ LowerCaseAscii ∪ NonAscii
 Dollar = { '$' }
 Colon = { ':' }
+Comma = { ',' }
 OpenCurly = { '{' }
 CloseCurly = { '}' }
 OpenSquare = { '[' }
@@ -105,6 +106,18 @@ Lvl3CmdtyChar = Letter ∪ Dollar
 <lvl3Cmdty> ::= Lvl3CmdtyChar+
 
 * Quantities
+
+<digListSpace> ::= Space Digit+
+<digListThinSpace> ::= ThinSpace Digit+
+<digListComma> ::= Comma Digit+
+<digListPeriod> ::= Period Digit+
+
+<digGrpSpace> ::= Digit+ <digListSpace>+
+<digGrpThinSpace> ::= Digit+ <digListThinSpace>+
+<digGrpComma> ::= Digit+ <digListComma>+
+<digGrpPeriod> ::= Digit+ <digListPeriod>+
+
+
 
 <digitGroup> ::= ThinSpace Digit+
 <digitSequence> ::= Digit+ <digitGroup>*

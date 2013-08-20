@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor #-}
 
 -- | Containers for entries.
 --
@@ -29,10 +29,8 @@
 
 module Penny.Lincoln.Ents
   ( -- * Ent
-    Inferred(..)
-  , Ent
+    Ent
   , entry
-  , inferred
   , meta
 
   -- * Ents
@@ -56,8 +54,6 @@ module Penny.Lincoln.Ents
 
 import Control.Applicative
 import Control.Arrow (second)
-import Data.Binary (Binary)
-import GHC.Generics (Generic)
 import qualified Penny.Lincoln.Bits as B
 import qualified Penny.Lincoln.Balance as Bal
 import Control.Monad (guard)
@@ -69,41 +65,34 @@ import Data.Maybe (catMaybes)
 import qualified Data.Traversable as Tr
 import qualified Data.Foldable as Fdbl
 
--- | An Ent is inferred if the user did not supply an entry for it and
--- Penny was able to infer the correct entry. Otherwise it is not
--- inferred.
-data Inferred = Inferred | NotInferred
-  deriving (Eq, Ord, Show, Generic)
-
-instance Binary Inferred
 
 -- | Information about an entry, along with whether it is inferred and
 -- its metadata.
 data Ent m = Ent
-  { entry :: B.Entry
-  -- ^ The entry from an Ent
-  , inferred :: Inferred
-  -- ^ Whether the entry was inferred
+  { entry :: Either (B.Entry B.QtyRep) (B.Entry B.Qty)
+  -- ^ The entry from an Ent.  If the Ent is inferred--that is, if the
+  -- user did not supply an entry for it and Penny was able to infer
+  -- the entry--this will be a Right with the inferred Entry.
+  -- Commodity.  Otherwise, this is a Left with the Entry.
+
   , meta :: m
   -- ^ The metadata accompanying an Ent
-  } deriving (Eq, Ord, Show, Generic)
+  } deriving (Eq, Ord, Show)
 
 -- | Two Ents are equivalent if the entries are equivalent and the
 -- metadata is equivalent (whether the Ent is inferred or not is
 -- ignored.)
 instance Ev.Equivalent m => Ev.Equivalent (Ent m) where
-  equivalent (Ent e1 _ m1) (Ent e2 _ m2) =
-    e1 ==~ e2 && m1 ==~ m2
-  compareEv (Ent e1 _ m1) (Ent e2 _ m2) =
+  equivalent (Ent e1 m1) (Ent e2 m2) = e1 ==~ e2 && m1 ==~ m2
+
+  compareEv (Ent e1 m1) (Ent e2 m2) =
     Ev.compareEv e1 e2 <> Ev.compareEv m1 m2
 
 instance Functor Ent where
-  fmap f (Ent e i m) = Ent e i (f m)
-
-instance Binary m => Binary (Ent m)
+  fmap f (Ent e m) = Ent e (f m)
 
 newtype Ents m = Ents { unEnts :: [Ent m] }
-  deriving (Eq, Ord, Show, Generic, Functor)
+  deriving (Eq, Ord, Show, Functor)
 
 -- | Ents are equivalent if the content Ents of each are
 -- equivalent. The order of the ents is insignificant.
@@ -139,10 +128,10 @@ mapEnts f = Ents . map f' . unEnts where
 -- instance.
 traverseEnts :: Applicative f => (Ent a -> f b) -> Ents a -> f (Ents b)
 traverseEnts f = fmap Ents . Tr.traverse f' . unEnts where
-  f' en@(Ent e i _) = Ent <$> pure e <*> pure i <*> f en
+  f' en@(Ent e _) = Ent <$> pure e <*> f en
 
 seqEnt :: Applicative f => Ent (f a) -> f (Ent a)
-seqEnt (Ent e i m) = Ent <$> pure e <*> pure i <*> m
+seqEnt (Ent e m) = Ent <$> pure e <*> m
 
 -- | Every Ents alwas contains at least two ents, and possibly
 -- additional ones.
@@ -150,8 +139,6 @@ tupleEnts :: Ents m -> (Ent m, Ent m, [Ent m])
 tupleEnts (Ents ls) = case ls of
   t1:t2:ts -> (t1, t2, ts)
   _ -> error "tupleEnts: ents does not have two ents"
-
-instance Binary m => Binary (Ents m)
 
 -- | In a Posting, the Ent at the front of the list of Ents is the
 -- main posting. There are additional postings. This function
@@ -216,7 +203,7 @@ orderedPermute ls = take (length ls) (iterate toTheBack ls)
 -- and this function will infer the remaining Entry. This function
 -- fails if it cannot create a balanced Ents.
 ents
-  :: [(Maybe B.Entry, m)]
+  :: [(Maybe (B.Entry B.QtyRep), m)]
   -> Maybe (Ents m)
 ents ls = do
   guard . not . null $ ls
@@ -226,13 +213,13 @@ ents ls = do
     Bal.Inferable e -> do
       guard $ nNoEntries == 1
       let makeEnt (mayEn, mt) = case mayEn of
-            Nothing -> Ent e Inferred mt
-            Just en -> Ent en NotInferred mt
+            Nothing -> Ent (Right e) mt
+            Just en -> Ent (Left en) mt
       return . Ents $ map makeEnt ls
     Bal.Balanced ->
       let makeEnt (mayEn, mt) = case mayEn of
             Nothing -> Nothing
-            Just en -> Just $ Ent en NotInferred mt
+            Just en -> Just $ Ent (Left en) mt
       in fmap Ents $ mapM makeEnt ls
 
 
@@ -245,21 +232,21 @@ rEnts
   -- ^ Commodity for all postings
   -> B.DrCr
   -- ^ DrCr for all non-inferred postings
-  -> (B.Qty, m)
+  -> (B.QtyRep, m)
   -- ^ Non-inferred posting 1
-  -> [(B.Qty, m)]
+  -> [(B.QtyRep, m)]
   -- ^ Remaining non-inferred postings
   -> m
   -- ^ Metadata for inferred posting
   -> Ents m
 rEnts com dc (q1, m1) nonInfs lastMeta =
-  let tot = foldl' B.add q1 . map fst $ nonInfs
+  let tot = foldl' B.add (B.toQty q1)
+            . map (B.toQty . fst) $ nonInfs
       p1 = makePstg (q1, m1)
       ps = map makePstg nonInfs
-      makePstg (q, m) = Ent (B.Entry dc (B.Amount q com))
-                                NotInferred m
-      lastPstg = Ent (B.Entry (B.opposite dc) (B.Amount tot com))
-                         Inferred lastMeta
+      makePstg (q, m) = Ent (Left (B.Entry dc (B.Amount q com))) m
+      lastPstg = Ent (Right (B.Entry (B.opposite dc)
+                                     (B.Amount tot com))) lastMeta
   in Ents $ p1:ps ++ [lastPstg]
 
 

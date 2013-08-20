@@ -32,7 +32,7 @@ unBalance (Balance m) = m
 
 -- | Returned by 'balanced'.
 data Balanced = Balanced
-              | Inferable B.Entry
+              | Inferable (B.Entry B.Qty)
               | NotInferable
               deriving (Show, Eq)
 
@@ -45,13 +45,11 @@ balanced (Balance m) = M.foldrWithKey f Balanced m where
     Zero -> b
     (NonZero col) -> case b of
       Balanced -> let
-        e = B.Entry dc a
         dc = case colDrCr col of
           B.Debit -> B.Credit
           B.Credit -> B.Debit
         q = colQty col
-        a = B.Amount q c
-        in Inferable e
+        in Inferable (B.Entry dc (B.Amount q c))
       _ -> NotInferable
 
 isInferable :: Balanced -> Bool
@@ -59,13 +57,13 @@ isInferable (Inferable _) = True
 isInferable _ = False
 
 -- | Converts an Entry to a Balance.
-entryToBalance :: B.Entry -> Balance
+entryToBalance :: B.HasQty q => B.Entry q -> Balance
 entryToBalance (B.Entry dc am) = Balance $ M.singleton c no where
   c = B.commodity am
-  no = NonZero (Column dc (B.qty am))
+  no = NonZero (Column dc (B.toQty . B.qty $ am))
 
 -- | Converts multiple Entries to a Balanced.
-entriesToBalanced :: [B.Entry] -> Balanced
+entriesToBalanced :: B.HasQty q => [B.Entry q] -> Balanced
 entriesToBalanced
   = balanced
   . mconcat

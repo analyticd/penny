@@ -52,23 +52,24 @@ account = B.pAccount . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 tags :: E.Posting -> B.Tags
 tags = B.pTags . B.pdCore . E.meta . E.headEnt . snd . E.unPosting
 
-entry :: E.Posting -> B.Entry
+entry :: E.Posting -> Either (B.Entry B.QtyRep) (B.Entry B.Qty)
 entry = E.entry . E.headEnt . snd . E.unPosting
 
 balance :: E.Posting -> Balance
-balance = entryToBalance . entry
+balance = either entryToBalance entryToBalance . entry
 
 drCr :: E.Posting -> B.DrCr
-drCr = B.drCr . entry
+drCr = either B.drCr B.drCr . entry
 
-amount :: E.Posting -> B.Amount
-amount = B.amount . entry
+amount :: E.Posting -> Either (B.Amount B.QtyRep) (B.Amount B.Qty)
+amount = either (Left . B.amount) (Right . B.amount) . entry
 
+-- | Every Posting either has a Qty or it can be computed from its QtyRep.
 qty :: E.Posting -> B.Qty
-qty = B.qty . amount
+qty = either (B.toQty . B.qty) (B.toQty . B.qty) . amount
 
 commodity :: E.Posting -> B.Commodity
-commodity = B.commodity . amount
+commodity = either B.commodity B.commodity . amount
 
 topMemoLine :: E.Posting -> Maybe B.TopMemoLine
 topMemoLine p = (B.tlFileMeta . fst . E.unPosting $ p) >>= B.tTopMemoLine

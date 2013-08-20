@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
-
 module Penny.Lincoln.Bits.Price (
     From ( From, unFrom )
   , To ( To, unTo )
@@ -12,35 +10,26 @@ import Data.Monoid (mconcat)
 import qualified Penny.Lincoln.Equivalent as Ev
 import Penny.Lincoln.Equivalent ((==~))
 import qualified Penny.Lincoln.Bits.Open as O
-import Penny.Lincoln.Bits.Qty (Qty)
-import GHC.Generics (Generic)
-import qualified Data.Binary as B
+import Penny.Lincoln.Bits.Qty (QtyRep)
+
 
 newtype From = From { unFrom :: O.Commodity }
-  deriving (Eq, Ord, Show, Generic)
-
-instance B.Binary From
+  deriving (Eq, Ord, Show)
 
 newtype To = To { unTo :: O.Commodity }
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show)
 
-instance B.Binary To
-
-newtype CountPerUnit = CountPerUnit { unCountPerUnit :: Qty }
-  deriving (Eq, Ord, Show, Generic)
+newtype CountPerUnit = CountPerUnit { unCountPerUnit :: QtyRep }
+  deriving (Eq, Ord, Show)
 
 instance Ev.Equivalent CountPerUnit where
   equivalent (CountPerUnit x) (CountPerUnit y) = x ==~ y
   compareEv (CountPerUnit x) (CountPerUnit y) = Ev.compareEv x y
 
-instance B.Binary CountPerUnit
-
 data Price = Price { from :: From
                    , to :: To
                    , countPerUnit :: CountPerUnit }
-             deriving (Eq, Ord, Show, Generic)
-
-instance B.Binary Price
+             deriving (Eq, Ord, Show)
 
 -- | Two Price are equivalent if the From and To are equal and the
 -- CountPerUnit is equivalent.

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Penny.Lincoln.Bits.DateTime
   ( TimeZoneOffset ( offsetToMins )
   , minsToOffset
@@ -23,19 +21,13 @@ module Penny.Lincoln.Bits.DateTime
   , showDateTime
   ) where
 
-import qualified Control.Monad as M
 import qualified Data.Time as T
-import qualified Data.Binary as B
-import Data.Binary (get, put)
-import GHC.Generics (Generic)
 import qualified Penny.Lincoln.Equivalent as Ev
 
 -- | The number of minutes that this timezone is offset from UTC. Can
 -- be positive, negative, or zero.
 newtype TimeZoneOffset = TimeZoneOffset { offsetToMins :: Int }
-                         deriving (Eq, Ord, Show, Generic)
-
-instance B.Binary TimeZoneOffset
+                         deriving (Eq, Ord, Show)
 
 -- | Convert minutes to a time zone offset. I'm having a hard time
 -- deciding whether to be liberal or strict in what to accept
@@ -52,19 +44,13 @@ noOffset :: TimeZoneOffset
 noOffset = TimeZoneOffset 0
 
 newtype Hours = Hours { unHours :: Int }
-                deriving (Eq, Ord, Show, Generic)
-
-instance B.Binary Hours
+                deriving (Eq, Ord, Show)
 
 newtype Minutes = Minutes { unMinutes :: Int }
-                  deriving (Eq, Ord, Show, Generic)
-
-instance B.Binary Minutes
+                  deriving (Eq, Ord, Show)
 
 newtype Seconds = Seconds { unSeconds :: Int }
-                  deriving (Eq, Ord, Show, Generic)
-
-instance B.Binary Seconds
+                  deriving (Eq, Ord, Show)
 
 -- | succeeds if 0 <= x < 24
 intToHours :: Int -> Maybe Hours
@@ -109,12 +95,6 @@ data DateTime = DateTime
   , seconds :: Seconds
   , timeZone :: TimeZoneOffset
   } deriving (Eq, Ord, Show)
-
-instance B.Binary DateTime where
-  get = M.liftM5 DateTime (fmap T.ModifiedJulianDay B.get)
-                 get get get get
-  put (DateTime d h m s t) =
-    put (T.toModifiedJulianDay d) >> put h >> put m >> put s >> put t
 
 dateTimeMidnightUTC :: T.Day -> DateTime
 dateTimeMidnightUTC d = DateTime d h m s z

@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 -- | Essential data types used to make Transactions and Postings.
 module Penny.Lincoln.Bits
   ( module Penny.Lincoln.Bits.Open
@@ -33,17 +31,14 @@ import qualified Penny.Lincoln.Bits.DateTime as DT
 import qualified Penny.Lincoln.Bits.Price as Pr
 import qualified Penny.Lincoln.Equivalent as Ev
 import Penny.Lincoln.Equivalent ((==~))
-import qualified Data.Binary as B
-import GHC.Generics (Generic)
 
 data PricePoint = PricePoint { dateTime :: DT.DateTime
                              , price :: Pr.Price
                              , ppSide :: Maybe O.Side
                              , ppSpaceBetween :: Maybe O.SpaceBetween
                              , priceLine :: Maybe O.PriceLine }
-                  deriving (Eq, Show, Generic)
+                  deriving (Eq, Show)
 
-instance B.Binary PricePoint
 
 -- | PricePoint are equivalent if the dateTime and the Price are
 -- equivalent. Other elements of the PricePoint are ignored.
@@ -59,12 +54,10 @@ data TopLineData = TopLineData
   { tlCore :: TopLineCore
   , tlFileMeta :: Maybe TopLineFileMeta
   , tlGlobal :: Maybe O.GlobalTransaction
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
 emptyTopLineData :: DT.DateTime -> TopLineData
 emptyTopLineData dt = TopLineData (emptyTopLineCore dt) Nothing Nothing
-
-instance B.Binary TopLineData
 
 -- | Every TopLine has this data.
 data TopLineCore = TopLineCore
@@ -73,7 +66,7 @@ data TopLineCore = TopLineCore
   , tFlag :: Maybe O.Flag
   , tPayee :: Maybe O.Payee
   , tMemo :: Maybe O.Memo
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
 -- | TopLineCore are equivalent if their dates are equivalent and if
 -- everything else is equal.
@@ -96,17 +89,13 @@ instance Ev.Equivalent TopLineCore where
 emptyTopLineCore :: DT.DateTime -> TopLineCore
 emptyTopLineCore dt = TopLineCore dt Nothing Nothing Nothing Nothing
 
-instance B.Binary TopLineCore
-
 -- | TopLines from files have this metadata.
 data TopLineFileMeta = TopLineFileMeta
   { tFilename :: O.Filename
   , tTopLineLine :: O.TopLineLine
   , tTopMemoLine :: Maybe O.TopMemoLine
   , tFileTransaction :: O.FileTransaction
-  } deriving (Eq, Show, Generic)
-
-instance B.Binary TopLineFileMeta
+  } deriving (Eq, Show)
 
 
 -- | All Postings have this data.
@@ -119,7 +108,7 @@ data PostingCore = PostingCore
   , pMemo :: Maybe O.Memo
   , pSide :: Maybe O.Side
   , pSpaceBetween :: Maybe O.SpaceBetween
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
 -- | Two PostingCore are equivalent if the Tags are equivalent and the
 -- other data is equal, exlucing the Side and the SpaceBetween, which are not considered at all.
@@ -152,22 +141,19 @@ emptyPostingCore ac = PostingCore
   , pSpaceBetween = Nothing
   }
 
-instance B.Binary PostingCore
-
 -- | Postings from files have this additional data.
 data PostingFileMeta = PostingFileMeta
   { pPostingLine :: O.PostingLine
   , pFilePosting :: O.FilePosting
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
-instance B.Binary PostingFileMeta
 
 -- | All the data that a Posting might have.
 data PostingData = PostingData
   { pdCore :: PostingCore
   , pdFileMeta :: Maybe PostingFileMeta
   , pdGlobal :: Maybe O.GlobalPosting
-  } deriving (Eq, Show, Generic)
+  } deriving (Eq, Show)
 
 emptyPostingData :: O.Account -> PostingData
 emptyPostingData ac = PostingData
@@ -175,6 +161,4 @@ emptyPostingData ac = PostingData
   , pdFileMeta = Nothing
   , pdGlobal = Nothing
   }
-
-instance B.Binary PostingData
 
