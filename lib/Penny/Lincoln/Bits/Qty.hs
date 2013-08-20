@@ -3,7 +3,43 @@
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
 module Penny.Lincoln.Bits.Qty
-  ( Qty
+  (
+  -- * Quantity representations
+  -- ** Components of quantity representations
+    Digit(..)
+  , DigitList(..)
+  , Digits(..)
+  , Grouper(..)
+  , PeriodGrp(..)
+  , CommaGrp(..)
+  , GroupedDigits(..)
+
+  , WholeFrac
+  , whole
+  , frac
+  , wholeFrac
+
+  , WholeOnly
+  , unWholeOnly
+  , wholeOnly
+
+  , WholeOrFrac(..)
+  , Radix(..)
+  , QtyRep(..)
+
+  -- ** Converting between quantity representations and quantities
+  , repToQty
+  , qtyToRep
+  , qtyToRepNoGrouping
+  , qtyToRepGrouped
+
+  -- ** Rendering quantity representations
+  , renderRep
+  , renderGrouped
+  , renderNoGrouping
+
+  -- * Other stuff
+  , Qty
   , NumberStr(..)
   , toQty
   , mantissa
@@ -29,8 +65,156 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Binary as B
 import GHC.Generics (Generic)
 import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
+import Data.List.NonEmpty (NonEmpty, toList)
 import Data.Ord (comparing)
 import qualified Penny.Lincoln.Equivalent as Ev
+import qualified Penny.Steel.Sums as S
+
+data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
+  deriving (Eq, Ord, Show, Enum, Bounded)
+
+-- | The digit grouping character when the radix is a period.
+data PeriodGrp
+  = PGSpace
+  -- ^ ASCII space
+  | PGThinSpace
+  -- ^ Unicode code point 0x2009
+  | PGComma
+  -- ^ Comma
+  deriving (Eq, Show, Ord)
+
+-- | The digit grouping character when the radix is a comma.
+data CommaGrp
+  = CGSpace
+  -- ^ ASCII space
+  | CGThinSpace
+  -- ^ Unicode code point 0x2009
+  | CGPeriod
+  -- ^ Period
+  deriving (Eq, Show, Ord)
+
+class Grouper a where
+  groupChar :: a -> Char
+
+instance Grouper PeriodGrp where
+  groupChar c = case c of
+    PGSpace -> ' '
+    PGThinSpace -> '\x2009'
+    PGComma -> ','
+
+instance Grouper CommaGrp where
+  groupChar c = case c of
+    CGSpace -> ' '
+    CGThinSpace -> '\x2009'
+    CGPeriod -> '.'
+
+newtype DigitList = DigitList { unDigitList :: NonEmpty Digit }
+  deriving (Eq, Show, Ord)
+
+class Digits a where
+  digits :: a -> DigitList
+
+-- | All of the digits on a single side of a radix point.
+data GroupedDigits a = GroupedDigits
+  { dsFirstPart :: DigitList
+  -- ^ The first chunk of digits
+  , dsNextParts :: [(a, DigitList)]
+  -- ^ Optional subsequent chunks of digits. Each is a grouping
+  -- character followed by additional digits.
+  } deriving (Eq, Show, Ord)
+
+
+-- | A quantity representation that has both a whole number and a
+-- fractional part. Abstract because there must be a non-zero digit in
+-- here somewhere, which 'wholeFrac' checks for.
+data WholeFrac a = WholeFrac
+  { whole :: a
+  , frac :: a
+  } deriving (Eq, Show, Ord)
+
+wholeFrac
+  :: Digits a
+  => a
+  -- ^ Whole part
+  -> a
+  -- ^ Fractional part
+  -> Maybe (WholeFrac a)
+  -- ^ If there is no non-zero digit present, Nothing. Otherwise,
+  -- returns the appropriate WholeFrac.
+wholeFrac w f = if digitsHasNonZero w || digitsHasNonZero f
+  then (Just (WholeFrac w f)) else Nothing
+
+digitsHasNonZero :: Digits a => a -> Bool
+digitsHasNonZero = any (/= D0) . toList . unDigitList . digits
+
+-- | A quantity representation that has a whole part only. Abstract
+-- because there must be a non-zero digit in here somewhere, which
+-- 'wholeOnly' checks for.
+newtype WholeOnly a = WholeOnly { unWholeOnly :: a }
+  deriving (Eq, Show, Ord)
+
+wholeOnly :: Digits a => a -> Maybe (WholeOnly a)
+wholeOnly d = if digitsHasNonZero d then Just (WholeOnly d) else Nothing
+
+newtype WholeOrFrac a = WholeOrFrac
+  { unWholeOrFrac :: Either (WholeOnly a) (WholeFrac a) }
+  deriving (Eq, Show, Ord)
+
+data Radix = Period | Comma
+  deriving (Eq, Show, Ord)
+
+data QtyRep
+  = QNoGrouping (WholeOrFrac DigitList) Radix
+  | QGrouped (Either (WholeOrFrac (GroupedDigits PeriodGrp))
+                     (WholeOrFrac (GroupedDigits CommaGrp)))
+  deriving (Eq, Show, Ord)
+
+qtyToRepNoGrouping :: Qty -> WholeOrFrac DigitList
+qtyToRepNoGrouping = undefined
+
+
+-- Digit grouping.  Here are the rules.
+--
+-- No digits to the right of the decimal point are ever grouped.  For
+-- now I will consider this a rare enough case that I will not bother
+-- with it.
+--
+-- Digits to the left of the decimal point are grouped as follows:
+--
+-- No grouping is performed unless the entire number (including the
+-- fractional portion) is at least five digits long.  That means that
+-- 1234.5 is grouped into 1,234.5 but 1234 is not grouped.
+--
+-- Grouping is performed on the whole part only, and digits are
+-- grouped every third place.
+
+qtyToRepGrouped :: g -> Qty -> WholeOrFrac (GroupedDigits g)
+qtyToRepGrouped = undefined
+
+qtyToRep
+  :: S.S3 Radix PeriodGrp CommaGrp
+  -> Qty
+  -> QtyRep
+qtyToRep = undefined
+
+-- | Converts a quantity representation to a quantity.
+repToQty :: QtyRep -> Qty
+repToQty = undefined
+
+renderRep :: QtyRep -> String
+renderRep = undefined
+
+renderGrouped
+  :: Grouper g
+  => WholeOrFrac (GroupedDigits g)
+  -> String
+renderGrouped = undefined
+
+renderNoGrouping
+  :: Radix
+  -> WholeOrFrac DigitList
+  -> String
+renderNoGrouping = undefined
 
 data NumberStr =
   Whole String
@@ -89,7 +273,7 @@ readInteger s = case reads s of
 -- equalizing the exponents.
 data Qty = Qty { mantissa :: !Integer
                , places :: !Integer
-               } deriving (Eq, Generic, Show, Ord)
+               } deriving (Eq, Show, Ord, Generic)
 
 -- | Shows a quantity, nicely formatted after accounting for both the
 -- mantissa and decimal places, e.g. @0.232@ or @232.12@ or whatever.
