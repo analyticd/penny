@@ -73,7 +73,7 @@ doMerge acct noAuto printer ss = do
                   l (filterDb (Y.pennyAcct acct) dbWithEntry l)
       newTxns = createTransactions noAuto acct l dbLs db'
       final = l' ++ newTxns
-  case mapM (R.item (Y.groupSpecs acct)) (map C.stripMeta final) of
+  case mapM R.item (map C.stripMeta final) of
     Nothing -> fail "Could not render final ledger."
     Just txts ->
       let txt = X.concat txts
@@ -207,7 +207,7 @@ findMatch acct tl p m = fmap toResult findResult
 
 -- | Pairs each association in a DbMap with an Entry representing the
 -- transaction's entry in the ledger.
-pairWithEntry :: Y.FitAcct -> Y.Posting -> (Y.Posting, L.Entry)
+pairWithEntry :: Y.FitAcct -> Y.Posting -> (Y.Posting, L.Entry L.Qty)
 pairWithEntry acct p = (p, en)
   where
     en = L.Entry dc (L.Amount qty cty)
@@ -215,7 +215,7 @@ pairWithEntry acct p = (p, en)
     qty = U.parseQty (Y.amount p)
     cty = Y.unCurrency . Y.currency $ acct
 
-type DbWithEntry = M.Map Y.UNumber (Y.Posting, L.Entry)
+type DbWithEntry = M.Map Y.UNumber (Y.Posting, L.Entry L.Qty)
 
 -- | Does the given Penny transaction match this posting? Makes sure
 -- that the account, quantity, date, commodity, and DrCr match, and
@@ -225,21 +225,28 @@ pennyTxnMatches
   :: Y.FitAcct
   -> L.TopLineData
   -> L.Ent L.PostingData
-  -> (a, (Y.Posting, L.Entry))
+  -> (a, (Y.Posting, L.Entry L.Qty))
   -> Bool
 pennyTxnMatches acct tl pstg (_, (a, e)) =
   mA && noFlag && mQ && mDC && mDate && mCmdty
   where
     p = L.pdCore . L.meta $ pstg
     mA = L.pAccount p == (Y.unPennyAcct . Y.pennyAcct $ acct)
-    mQ = L.equivalent (L.qty . L.amount . L.entry $ pstg)
+    mQ = L.equivalent (eitherToQty . L.entry $ pstg)
                       (L.qty . L.amount $ e)
-    mDC = (L.drCr e) == (L.drCr . L.entry $ pstg)
+    mDC = (L.drCr e) == (either L.drCr L.drCr . L.entry $ pstg)
     mDate = (L.day . L.tDateTime . L.tlCore $ tl) == (Y.unDate . Y.date $ a)
     noFlag = isNothing . L.pNumber $ p
-    mCmdty = (L.commodity . L.amount . L.entry $ pstg)
+    mCmdty = (eitherToCmdty . L.entry $ pstg)
              == (Y.unCurrency . Y.currency $ acct)
 
+
+eitherToCmdty :: Either (L.Entry a) (L.Entry b) -> L.Commodity
+eitherToCmdty = either (L.commodity . L.amount) (L.commodity . L.amount)
+
+eitherToQty :: Either (L.Entry L.QtyRep) (L.Entry L.Qty) -> L.Qty
+eitherToQty = either (L.toQty . L.qty . L.amount)
+                     (L.toQty . L.qty . L.amount)
 
 -- | Creates a new transaction corresponding to a given AmexTxn. Uses
 -- the Amex payee if that string is non empty; otherwise, uses the
@@ -249,9 +256,10 @@ newTransaction
   -> Y.FitAcct
   -> UNumberLookupMap
   -> PyeLookupMap
-  -> (Y.UNumber, (Y.Posting, L.Entry))
+  -> (Y.UNumber, (Y.Posting, L.Entry L.Qty))
   -> L.Transaction
-newTransaction noAuto acct mu mp (u, (a, e)) = L.Transaction (tld, ents) where
+newTransaction noAuto acct mu mp (u, (a, e))
+  = L.Transaction (tld, ents) where
   tld = L.TopLineData tlc Nothing Nothing
   tlc = (L.emptyTopLineCore (L.dateTimeMidnightUTC . Y.unDate . Y.date $ a))
         { L.tPayee = Just pa }
@@ -272,8 +280,9 @@ newTransaction noAuto acct mu mp (u, (a, e)) = L.Transaction (tld, ents) where
            }
   p2core = L.emptyPostingCore ac
   ents = L.rEnts (Y.unCurrency . Y.currency $ acct) (L.drCr e)
-                 (L.qty . L.amount $ e, p1data)
+                 (L.qtyToRep gs . L.qty . L.amount $ e, p1data)
                  [] p2data
+  gs = Y.qtySpec acct
 
 -- | Creates new transactions for all the items remaining in the
 -- DbMap. Appends a blank line after each one.

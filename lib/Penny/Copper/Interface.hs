@@ -1,12 +1,7 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 module Penny.Copper.Interface where
 
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
-import qualified Data.Text.Encoding as XE
-import GHC.Generics (Generic)
-import qualified Data.Binary as B
 import qualified Penny.Steel.Sums as S
 
 data ParsedTopLine = ParsedTopLine
@@ -16,27 +11,19 @@ data ParsedTopLine = ParsedTopLine
   , ptlPayee :: Maybe L.Payee
   , ptlMemo :: Maybe (L.Memo, L.TopMemoLine)
   , ptlTopLineLine :: L.TopLineLine
-  } deriving (Show, Generic)
+  } deriving (Show)
 
 toTopLineCore :: ParsedTopLine -> L.TopLineCore
 toTopLineCore (ParsedTopLine dt nu fl pa me _)
   = L.TopLineCore dt nu fl pa (fmap fst me)
 
-instance B.Binary ParsedTopLine
-
 type ParsedTxn = (ParsedTopLine , L.Ents (L.PostingCore, L.PostingLine))
 
 data BlankLine = BlankLine
-  deriving (Eq, Show, Generic)
-
-instance B.Binary BlankLine
+  deriving (Eq, Show)
 
 newtype Comment = Comment { unComment :: X.Text }
   deriving (Eq, Show)
-
-instance B.Binary Comment where
-  get = fmap (Comment . XE.decodeUtf8) B.get
-  put = B.put . XE.encodeUtf8 . unComment
 
 type ParsedItem =
   S.S4 ParsedTxn L.PricePoint Comment BlankLine

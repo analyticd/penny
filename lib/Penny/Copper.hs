@@ -82,8 +82,6 @@ module Penny.Copper
   , module Penny.Copper.Interface
 
   -- * Rendering
-  , R.GroupSpec(..)
-  , R.GroupSpecs(..)
   , R.item
 
 

@@ -31,11 +31,11 @@ import Control.Applicative ((<$>), (<*>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Map as M
 import qualified Data.Time as Time
-import qualified Penny.Copper.Render as R
 import qualified Penny.Lincoln as L
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.Encoding as E
 import qualified Data.Serialize as S
+import qualified Penny.Steel.Sums as Su
 import qualified System.Console.MultiArg as MA
 
 -- | The type of all Brenner MultiArg modes.
@@ -274,7 +274,10 @@ data FitAcct = FitAcct
   , pennyAcct :: PennyAcct
   , defaultAcct :: DefaultAcct
   , currency :: Currency
-  , groupSpecs :: R.GroupSpecs
+
+  , qtySpec :: Su.S3 L.Radix L.PeriodGrp L.CommaGrp
+  -- ^ How to turn Qty into QtyRep.
+
   , translator :: Translator
 
   , side :: L.Side

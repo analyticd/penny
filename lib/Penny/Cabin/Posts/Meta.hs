@@ -73,7 +73,8 @@ balanceAccum
   -> (a, L.Posting)
   -> (L.Balance, (L.Balance, (a, L.Posting)))
 balanceAccum (CO.ShowZeroBalances szb) balOld (x, po) =
-  let balThis = L.entryToBalance . Q.entry $ po
+  let balThis = either L.entryToBalance L.entryToBalance
+                . Q.entry $ po
       balNew = mappend balOld balThis
       balNoZeroes = L.removeZeroCommodities balNew
       bal' = if szb then balNew else balNoZeroes

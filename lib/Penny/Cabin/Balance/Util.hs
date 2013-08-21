@@ -162,8 +162,11 @@ sumTree z f (T.Node (a, s) cs) = T.Node (a, f s cSum) cs'
 
 
 boxesBalance :: [(a, L.Posting)] -> L.Balance
-boxesBalance = mconcat . map L.entryToBalance . map Q.entry
-               . map snd
+boxesBalance
+  = mconcat
+  . map (either L.entryToBalance L.entryToBalance)
+  . map Q.entry
+  . map snd
 
 mapSnd :: (a -> b) -> (f, a) -> (f, b)
 mapSnd f (x, a) = (x, f a)

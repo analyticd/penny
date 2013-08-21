@@ -79,10 +79,10 @@ saveDb (Y.DbLocation p) = BS.writeFile (X.unpack p) . saveDbTuple
 -- digits. All these values should parse. So if there is a problem it
 -- is a programmer error. Apply error.
 parseQty :: Y.Amount -> L.Qty
-parseQty a = case P.parse CP.quantity "" (Y.unAmount a) of
+parseQty a = case P.parse CP.unquotedQtyRep "" (Y.unAmount a) of
   Left e -> error $ "could not parse quantity from string: "
             ++ (X.unpack . Y.unAmount $ a) ++ ": " ++ show e
-  Right g -> g
+  Right g -> L.toQty g
 
 label :: String -> X.Text -> String
 label s x = s ++ ": " ++ X.unpack x ++ "\n"

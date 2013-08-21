@@ -59,23 +59,23 @@ account = sibs (B.pAccount . B.pdCore . E.meta)
 tags :: E.Posting -> [B.Tags]
 tags = sibs (B.pTags . B.pdCore . E.meta)
 
-entry :: E.Posting -> [B.Entry]
+entry :: E.Posting -> [Either (B.Entry B.QtyRep) (B.Entry B.Qty)]
 entry = sibs E.entry
 
 balance :: E.Posting -> [Balance]
-balance = map entryToBalance . entry
+balance = map (either entryToBalance entryToBalance) . entry
 
 drCr :: E.Posting -> [B.DrCr]
-drCr = map B.drCr . entry
+drCr = map (either B.drCr B.drCr) . entry
 
-amount :: E.Posting -> [B.Amount]
-amount = map B.amount . entry
+amount :: E.Posting -> [Either (B.Amount B.QtyRep) (B.Amount B.Qty)]
+amount = map (either (Left . B.amount) (Right . B.amount)) . entry
 
 qty :: E.Posting -> [B.Qty]
-qty = map B.qty . amount
+qty = map (either (B.toQty . B.qty) (B.toQty . B.qty)) . amount
 
 commodity :: E.Posting -> [B.Commodity]
-commodity = map B.commodity . amount
+commodity = map (either B.commodity B.commodity) . amount
 
 postingLine :: E.Posting -> [Maybe B.PostingLine]
 postingLine = sibs (fmap B.pPostingLine . B.pdFileMeta . E.meta)

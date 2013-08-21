@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 -- | Renders Penny data in a format that can be parsed by
 -- "Penny.Copper.Parsec". These functions render text that is
 -- compliant with the EBNF grammar which is at
@@ -6,8 +8,9 @@ module Penny.Copper.Render where
 
 import Control.Monad (guard)
 import Control.Applicative ((<$>), (<|>), (<*>), pure)
-import Data.List (intersperse, intercalate)
-import Data.List.Split (chunksOf, splitOn)
+import Data.List (intersperse)
+import Data.List.NonEmpty (toList)
+import Data.Monoid ((<>))
 import qualified Data.Text as X
 import Data.Text (Text, cons, snoc)
 import qualified Penny.Copper.Terminals as T
@@ -115,84 +118,107 @@ lvl3Cmdty (L.Commodity c) =
 
 -- * Quantities
 
--- | Specifies how to perform digit grouping when rendering a
--- quantity. All grouping groups into groups of 3 digits.
-data GroupSpec =
-  NoGrouping
-  -- ^ Do not perform any digit grouping
-  | GroupLarge
-    -- ^ Group digits, but only if the number to be grouped is greater
-    -- than 9,999 (if grouping the whole part) or if there are more
-    -- than 4 decimal places (if grouping the fractional part).
-  | GroupAll
-    -- ^ Group digits whenever there are at least four decimal places.
-  deriving (Eq, Show)
+digit :: L.Digit -> Text
+digit d = case d of
+  { L.D0 -> "0"; L.D1 -> "1"; L.D2 -> "2"; L.D3 -> "3"; L.D4 -> "4";
+    L.D5 -> "5"; L.D6 -> "6"; L.D7 -> "7"; L.D8 -> "8"; L.D9 -> "9" }
+
+radix :: L.Radix -> Text
+radix r = case r of { L.Comma -> ","; L.Period -> "." }
+
+digitList :: L.DigitList -> X.Text
+digitList = X.concat . toList . fmap digit . L.unDigitList
+
+groupedDigits
+  :: L.Grouper a
+  => L.GroupedDigits a
+  -> Text
+groupedDigits (L.GroupedDigits d ds)
+  = digitList d <> (X.concat . map f $ ds)
+  where
+    f (c, cs) = (X.singleton $ L.groupChar c) <> digitList cs
+
+wholeOnlyDigitList :: L.WholeOnly L.DigitList -> Text
+wholeOnlyDigitList = digitList . L.unWholeOnly
+
+wholeOnlyGroupedDigits
+  :: L.Grouper a
+  => L.WholeOnly (L.GroupedDigits a)
+  -> Text
+wholeOnlyGroupedDigits = groupedDigits . L.unWholeOnly
+
+wholeFracDigitList
+  :: L.Radix
+  -> L.WholeFrac L.DigitList
+  -> Text
+wholeFracDigitList r wf
+  = digitList (L.whole wf) <> radix r <> digitList (L.frac wf)
+
+wholeFracGroupedDigits
+  :: L.Grouper a
+  => L.Radix
+  -> L.WholeFrac (L.GroupedDigits a)
+  -> Text
+wholeFracGroupedDigits r wf
+  = groupedDigits (L.whole wf) <> radix r
+  <> groupedDigits (L.frac wf)
+
+wholeOrFracGrouped
+  :: L.Grouper a
+  => L.Radix
+  -> L.WholeOrFrac (L.GroupedDigits a)
+  -> Text
+wholeOrFracGrouped r
+  = either wholeOnlyGroupedDigits (wholeFracGroupedDigits r)
+  . L.unWholeOrFrac
+
+wholeOrFracDigitList
+  :: L.Radix
+  -> L.WholeOrFrac L.DigitList
+  -> Text
+wholeOrFracDigitList r
+  = either wholeOnlyDigitList (wholeFracDigitList r)
+  . L.unWholeOrFrac
 
 
-data GroupSpecs = GroupSpecs
-  { left :: GroupSpec
-  , right :: GroupSpec
-  } deriving Show
+hasSpace :: L.WholeOrFrac (L.GroupedDigits L.PeriodGrp) -> Bool
+hasSpace (L.WholeOrFrac ei) = case ei of
+  Left w -> grpHasSpace . L.unWholeOnly $ w
+  Right wf -> grpHasSpace (L.whole wf) || grpHasSpace (L.frac wf)
+  where
+    grpHasSpace grp = L.PGSpace `elem` (map fst . L.dsNextParts $ grp)
 
 
-grouper :: String
-grouper = "\x2009"
+qtyRep :: L.QtyRep -> Text
+qtyRep q = case q of
+  L.QNoGrouping wf r -> b <> wholeOrFracDigitList r wf <> e
+    where
+      (b, e) = case r of
+        L.Period -> ("", "")
+        L.Comma -> ("[", "]")
+  L.QGrouped ei ->
+    b
+    <> either (wholeOrFracGrouped L.Period)
+              (wholeOrFracGrouped L.Comma) ei
+    <> e
+    where
+      (b, e) = case ei of
+        Left wf ->
+          if hasSpace wf then ("{", "}") else ("", "")
+        Right _ -> ("[", "]")
 
-radix :: String
-radix = "."
-
--- | Performs grouping for amounts to the left of the radix point.
-groupWhole :: GroupSpec -> String -> String
-groupWhole gs o = let
-  grouped = intercalate grouper
-            . reverse
-            . map reverse
-            . chunksOf 3
-            . reverse
-            $ o
-  in case gs of
-    NoGrouping -> o
-    GroupLarge -> if length o > 4 then grouped else o
-    GroupAll -> grouped
-
--- | Performs grouping for amounts to the right of the radix point.
-groupDecimal :: GroupSpec -> String -> String
-groupDecimal gs o = let
-  grouped = intercalate grouper
-            . chunksOf 3
-            $ o
-  in case gs of
-    NoGrouping -> o
-    GroupLarge -> if length o > 4 then grouped else o
-    GroupAll -> grouped
-
--- | Renders an unquoted Qty. Performs digit grouping as requested.
-quantity
-  :: GroupSpecs
-  -- ^ Group for the portion to the left and right of the radix point?
-
-  -> L.Qty
-  -> X.Text
-quantity gs q =
-  let qs = L.prettyShowQty q
-  in X.pack $ case splitOn "." qs of
-    w:[] -> groupWhole (left gs) w
-    w:d:[] ->
-      groupWhole (left gs) w ++ radix ++ groupDecimal (right gs) d
-    _ -> error "Qty.hs: rendering error"
 
 -- * Amounts
 
 -- | Render an Amount. The Format is required so that the commodity
 -- can be displayed in the right place.
 amount
-  :: GroupSpecs
-  -> Maybe L.Side
+  :: Maybe L.Side
   -> Maybe L.SpaceBetween
-  -> L.Amount
+  -> L.Amount L.QtyRep
   -> Maybe X.Text
-amount gs maySd maySb (L.Amount qt c) =
-  let q = quantity gs qt
+amount maySd maySb (L.Amount qt c) =
+  let q = qtyRep qt
   in do
     sd <- maySd
     sb <- maySb
@@ -266,13 +292,12 @@ hoursMinsSecsZone h m s z =
 -- * Entries
 
 entry
-  :: GroupSpecs
-  -> Maybe L.Side
+  :: Maybe L.Side
   -> Maybe L.SpaceBetween
-  -> L.Entry
+  -> L.Entry L.QtyRep
   -> Maybe X.Text
-entry gs sd sb (L.Entry dc a) = do
-  amt <- amount gs sd sb a
+entry sd sb (L.Entry dc a) = do
+  amt <- amount sd sb a
   let dcTxt = X.pack $ case dc of
         L.Debit -> "<"
         L.Credit -> ">"
@@ -360,18 +385,17 @@ payee p = lvl2Payee p <|> quotedLvl1Payee p
 
 -- * Prices
 
-price ::
-  GroupSpecs
-  -> L.PricePoint
+price
+  :: L.PricePoint
   -> Maybe X.Text
-price gs pp = let
+price pp = let
   dateTxt = dateTime (L.dateTime pp)
   (L.From from) = L.from . L.price $ pp
   (L.To to) = L.to . L.price $ pp
   (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
   mayFromTxt = lvl3Cmdty from <|> quotedLvl1Cmdty from
   in do
-    amtTxt <- amount gs (L.ppSide pp) (L.ppSpaceBetween pp)
+    amtTxt <- amount (L.ppSide pp) (L.ppSpaceBetween pp)
               (L.Amount q to)
     fromTxt <- mayFromTxt
     return $
@@ -448,12 +472,11 @@ topLine tl =
 -- which case eight spaces will be emitted. (This allows the next
 -- posting to be indented properly.)
 posting
-  :: GroupSpecs
-  -> Bool
+  :: Bool
   -- ^ If True, emit four spaces after the trailing newline.
   -> L.Ent L.PostingCore
   -> Maybe X.Text
-posting gs pad ent = do
+posting pad ent = do
   let p = L.meta ent
   fl <- renMaybe (L.pFlag p) flag
   nu <- renMaybe (L.pNumber p) number
@@ -461,14 +484,14 @@ posting gs pad ent = do
   ac <- ledgerAcct (L.pAccount p)
   ta <- tags (L.pTags p)
   me <- renMaybe (L.pMemo p) (postingMemo pad)
-  let mayEn = case L.inferred ent of
-        L.Inferred -> Nothing
-        L.NotInferred -> (Just . L.entry $ ent)
-  en <- renMaybe mayEn (entry gs (L.pSide p) (L.pSpaceBetween p))
+  let mayEn = case L.entry ent of
+        Left en -> Just en
+        Right _ -> Nothing
+  en <- renMaybe mayEn (entry (L.pSide p) (L.pSpaceBetween p))
   return $ formatter pad fl nu pa ac ta en me
 
-formatter ::
-  Bool      -- ^ If True, emit four trailing spaces if no memo or
+formatter
+  :: Bool   -- ^ If True, emit four trailing spaces if no memo or
             -- eight trailing spaces if there is a memo.
   -> X.Text -- ^ Flag
   -> X.Text -- ^ Number
@@ -498,33 +521,31 @@ formatter pad fl nu pa ac ta en me = let
 -- * Transaction
 
 transaction
-  :: GroupSpecs
-  -> (L.TopLineCore, L.Ents L.PostingCore)
+  :: (L.TopLineCore, L.Ents L.PostingCore)
   -> Maybe X.Text
-transaction gs txn = do
+transaction txn = do
   tlX <- topLine . fst $ txn
   let (p1, p2, ps) = L.tupleEnts . snd $ txn
-  p1X <- posting gs True p1
-  p2X <- posting gs (not . null $ ps) p2
+  p1X <- posting True p1
+  p2X <- posting (not . null $ ps) p2
   psX <- if null ps
          then return X.empty
          else let bs = replicate (length ps - 1) True ++ [False]
               in fmap X.concat . sequence
-                 $ zipWith (posting gs) bs ps
+                 $ zipWith posting bs ps
   return $ X.concat [tlX, p1X, p2X, psX]
 
 -- * Item
 
 item
-  :: GroupSpecs
-  -> S.S4 (L.TopLineCore, L.Ents L.PostingCore)
+  :: S.S4 (L.TopLineCore, L.Ents L.PostingCore)
           L.PricePoint
           I.Comment
           I.BlankLine
   -> Maybe X.Text
-item gs =
-  S.caseS4 (transaction gs)
-           (price gs)
+item =
+  S.caseS4 transaction
+           price
            comment
            (const (Just (X.pack "\n")))
 

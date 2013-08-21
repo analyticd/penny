@@ -7,7 +7,7 @@ import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import Data.Monoid ((<>))
 import qualified Penny.Lincoln as L
-import qualified Penny.Copper.Render as R
+import qualified Penny.Steel.Sums as S
 import qualified System.Console.MultiArg as MA
 
 help :: String -> String
@@ -72,11 +72,8 @@ showFitAcct c =
   , label "Penny account" (L.text . L.Delimited ":" . Y.pennyAcct $ c)
   , label "Default account" (L.text . L.Delimited ":" . Y.defaultAcct $ c)
   , label "Currency" (L.text . Y.currency $ c)
-  , label "Group amounts to left of decimal point"
-    (showGroupLeft . R.left . Y.groupSpecs $ c)
-
-  , label "Group amounts to right of decimal point"
-    (showGroupRight . R.right . Y.groupSpecs $ c)
+  , label "Radix point and digit grouping"
+    (showQtySpec . Y.qtySpec $ c)
 
   , label "Financial institution increases are"
     (showTranslator . Y.translator $ c)
@@ -90,17 +87,17 @@ showFitAcct c =
   <> "Parser description:\n"
   <> (L.text . fst . Y.parser $ c)
 
-showGroupLeft :: R.GroupSpec -> X.Text
-showGroupLeft s = case s of
-  R.NoGrouping -> "never"
-  R.GroupLarge -> "when greater than 9,999"
-  R.GroupAll -> "always"
+showQtySpec :: S.S3 L.Radix L.PeriodGrp L.CommaGrp -> X.Text
+showQtySpec s = case s of
+  S.S3a r -> "no digit grouping, use radix point: '"
+             <> (X.singleton . L.showRadix $ r) <> "'"
+  S.S3b p -> "group digits using: '"
+             <> (X.singleton . L.groupChar $ p)
+             <> "', radix point: '.'"
+  S.S3c c -> "group digits using: '"
+             <> (X.singleton . L.groupChar $ c)
+             <> "', radix point: ','"
 
-showGroupRight :: R.GroupSpec -> X.Text
-showGroupRight s = case s of
-  R.NoGrouping -> "never"
-  R.GroupLarge -> "when mor than four decimal places"
-  R.GroupAll -> "always"
 
 showTranslator :: Y.Translator -> X.Text
 showTranslator y = case y of

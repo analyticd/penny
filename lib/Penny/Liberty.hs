@@ -364,11 +364,9 @@ qtyOption = C.OptSpec ["qty"] "q" (C.TwoArg f)
     f a1 a2 = do
       qt <- parseQty a2
       parseComparer a1 (flip P.qty qt)
-    parseQty a = case parse Pc.quantity "" (pack a) of
-      Left e -> Ex.throw $ "could not parse quantity: "
-        <> pack a <> " - "
-        <> (pack . show $ e)
-      Right g -> pure g
+    parseQty a = case parse Pc.unquotedQtyRepWithSpaces "" (pack a) of
+      Left _ -> Ex.throw $ "failed to parse quantity"
+      Right g -> pure . L.toQty $ g
 
 
 -- | Creates two options suitable for comparison of serial numbers,
@@ -725,11 +723,9 @@ sQtyOption = C.OptSpec ["s-qty"] [] (C.TwoArg f)
     f a1 a2 = do
       qt <- parseQty a2
       parseComparer a1 (flip PS.qty qt)
-    parseQty a = case parse Pc.quantity "" (pack a) of
-      Left e -> Ex.throw $ "could not parse quantity: "
-        <> pack a <> " - "
-        <> (pack . show $ e)
-      Right g -> pure g
+    parseQty a = case parse Pc.unquotedQtyRepWithSpaces "" (pack a) of
+      Left _ -> Ex.throw "could not parse quantity"
+      Right g -> pure . L.toQty $ g
 
 --
 -- Versions

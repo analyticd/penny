@@ -27,6 +27,7 @@ module Penny.Lincoln.Bits.Qty
 
   , WholeOrFrac(..)
   , Radix(..)
+  , showRadix
   , QtyRep(..)
 
   -- ** Converting between quantity representations and quantities
@@ -197,6 +198,9 @@ wholeOrFrac g@(GroupedDigits l1 lr) mayAft = case mayAft of
 
 data Radix = Period | Comma
   deriving (Eq, Show, Ord)
+
+showRadix :: Radix -> Char
+showRadix r = case r of { Period -> '.'; Comma -> ',' }
 
 type WholeOrFracResult a = Either (WholeOrFrac DigitList)
                                   (WholeOrFrac (GroupedDigits a))

@@ -7,7 +7,7 @@ module Penny.Copper.Parsec where
 import qualified Penny.Copper.Interface as I
 import qualified Penny.Copper.Terminals as T
 import Text.Parsec.Text (Parser)
-import Text.Parsec (many, many1, satisfy)
+import Text.Parsec (many, many1, satisfy, (<?>))
 import qualified Text.Parsec as P
 import qualified Text.Parsec.Pos as Pos
 import Control.Applicative.Permutation (runPerms, maybeAtom)
@@ -132,14 +132,64 @@ digitsRadDigits gc r = do
       return (g1, Just g2)
 
 -- | Parses an unquoted QtyRep.
-unquotedQtyRep :: Parser QtyRep
+unquotedQtyRep :: Parser L.QtyRep
 unquotedQtyRep = do
   let gc = P.choice [ L.PGThinSpace <$ P.char '\x2009'
                     , L.PGComma <$ P.char ',' ]
       r = P.char '.'
   (g1, mayg2) <- digitsRadDigits gc r
-  case mayg2 of
-    
+  case L.wholeOrFrac g1 mayg2 of
+    Nothing -> fail "failed to parse quantity"
+    Just ei -> return . L.wholeOrFracToQtyRep . Left $ ei
+
+-- | Parses an unquoted QtyRep that also has spaces. Use only when
+-- parsing command line items.
+unquotedQtyRepWithSpaces :: Parser L.QtyRep
+unquotedQtyRepWithSpaces = do
+  let gc = P.choice [ L.PGThinSpace <$ P.char '\x2009'
+                    , L.PGComma <$ P.char ','
+                    , L.PGSpace <$ P.char ' ' ]
+      r = P.char '.'
+  (g1, mayg2) <- digitsRadDigits gc r
+  case L.wholeOrFrac g1 mayg2 of
+    Nothing -> fail "failed to parse quantity"
+    Just ei -> return . L.wholeOrFracToQtyRep . Left $ ei
+
+-- | Parses a QtyRep that is quoted with square braces. This is a
+-- QtyRep that uses a comma as the radix point.
+quotedCommaQtyRep :: Parser L.QtyRep
+quotedCommaQtyRep = do
+  let gc = P.choice [ L.CGThinSpace <$ P.char '\x2009'
+                    , L.CGSpace <$ P.char ' '
+                    , L.CGPeriod <$ P.char '.' ]
+      r = P.char ','
+  _ <- P.char '['
+  (g1, mayg2) <- digitsRadDigits gc r
+  _ <- P.char ']'
+  case L.wholeOrFrac g1 mayg2 of
+    Nothing -> fail "failed to parse quantity"
+    Just ei -> return . L.wholeOrFracToQtyRep . Right $ ei
+
+-- | Parses a QtyRep that is quoted with curly braces. This is a
+-- QtyRep that uses a period as the radix point. Unlike an unquoted
+-- QtyRep this can include spaces.
+quotedPeriodQtyRep :: Parser L.QtyRep
+quotedPeriodQtyRep = do
+  let gc = P.choice [ L.PGThinSpace <$ P.char '\x2009'
+                    , L.PGComma <$ P.char ','
+                    , L.PGSpace <$ P.char ' '
+                    ]
+      r = P.char '.'
+  _ <- P.char '{'
+  (g1, mayg2) <- digitsRadDigits gc r
+  _ <- P.char '}'
+  case L.wholeOrFrac g1 mayg2 of
+    Nothing -> fail "failed to parse quantity"
+    Just ei -> return . L.wholeOrFracToQtyRep . Left $ ei
+
+qtyRep :: Parser L.QtyRep
+qtyRep = unquotedQtyRep <|> quotedPeriodQtyRep <|> quotedCommaQtyRep
+         <?> "quantity"
 
 -- # Amounts
 
@@ -148,31 +198,31 @@ spaceBetween = f <$> optional (many1 (satisfy T.white))
   where
     f = maybe L.NoSpaceBetween (const L.SpaceBetween)
 
-leftCmdtyLvl1Amt :: Parser (L.Amount, L.Side, L.SpaceBetween)
+leftCmdtyLvl1Amt :: Parser (L.Amount L.QtyRep, L.Side, L.SpaceBetween)
 leftCmdtyLvl1Amt =
-  f <$> quotedLvl1Cmdty <*> spaceBetween <*> quantity
+  f <$> quotedLvl1Cmdty <*> spaceBetween <*> qtyRep
   where
     f c s q = (L.Amount q c , L.CommodityOnLeft, s)
 
-leftCmdtyLvl3Amt :: Parser (L.Amount, L.Side, L.SpaceBetween)
-leftCmdtyLvl3Amt = f <$> lvl3Cmdty <*> spaceBetween <*> quantity
+leftCmdtyLvl3Amt :: Parser (L.Amount L.QtyRep, L.Side, L.SpaceBetween)
+leftCmdtyLvl3Amt = f <$> lvl3Cmdty <*> spaceBetween <*> qtyRep
   where
     f c s q = (L.Amount q c, L.CommodityOnLeft, s)
 
-leftSideCmdtyAmt :: Parser (L.Amount, L.Side, L.SpaceBetween)
+leftSideCmdtyAmt :: Parser (L.Amount L.QtyRep, L.Side, L.SpaceBetween)
 leftSideCmdtyAmt = leftCmdtyLvl1Amt <|> leftCmdtyLvl3Amt
 
 rightSideCmdty :: Parser L.Commodity
 rightSideCmdty = quotedLvl1Cmdty <|> lvl2Cmdty
 
-rightSideCmdtyAmt :: Parser (L.Amount, L.Side, L.SpaceBetween)
+rightSideCmdtyAmt :: Parser (L.Amount L.QtyRep, L.Side, L.SpaceBetween)
 rightSideCmdtyAmt =
-  f <$> quantity <*> spaceBetween <*> rightSideCmdty
+  f <$> qtyRep <*> spaceBetween <*> rightSideCmdty
   where
-    f q s c = (L.Amount q c ,L.CommodityOnRight, s)
+    f q s c = (L.Amount q c, L.CommodityOnRight, s)
 
 
-amount :: Parser (L.Amount, L.Side, L.SpaceBetween)
+amount :: Parser (L.Amount L.QtyRep, L.Side, L.SpaceBetween)
 amount = leftSideCmdtyAmt <|> rightSideCmdtyAmt
 
 -- # Comments
@@ -273,7 +323,7 @@ drCr = debit <|> credit
 
 -- # Entries
 
-entry :: Parser (L.Entry, L.Side, L.SpaceBetween)
+entry :: Parser (L.Entry L.QtyRep, L.Side, L.SpaceBetween)
 entry = f <$> drCr <* (many (satisfy T.white)) <*> amount
   where
     f dc (am, sd, sb) = (L.Entry dc am, sd, sb)
@@ -410,7 +460,7 @@ flagNumPayee = runPerms
 postingAcct :: Parser L.Account
 postingAcct = quotedLvl1Acct <|> lvl2Acct
 
-posting :: Parser (L.PostingCore, L.PostingLine, Maybe L.Entry)
+posting :: Parser (L.PostingCore, L.PostingLine, Maybe (L.Entry L.QtyRep))
 posting = f <$> lineNum                <* skipWhite
             <*> optional flagNumPayee  <* skipWhite
             <*> postingAcct            <* skipWhite

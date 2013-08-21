@@ -246,7 +246,11 @@ getPostingCmdty :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getPostingCmdty ch i = coloredPostingCell ch t i where
   t = L.unCommodity . Q.commodity . snd $ i
 
-getPostingQty :: E.Changers -> ((M.PostMeta, L.Posting) -> X.Text) -> (M.PostMeta, L.Posting) -> PreSpec
+getPostingQty
+  :: E.Changers
+  -> ((M.PostMeta, L.Posting) -> X.Text)
+  -> (M.PostMeta, L.Posting)
+  -> PreSpec
 getPostingQty ch qf i = coloredPostingCell ch (qf i) i
 
 getTotalDrCr :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec

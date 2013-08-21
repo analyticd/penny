@@ -25,6 +25,9 @@ data Amount q = Amount
   , commodity :: Commodity }
   deriving (Eq, Show, Ord)
 
+instance Functor Amount where
+  fmap f (Amount q c) = Amount (f q) c
+
 instance Ev.Equivalent q => Ev.Equivalent (Amount q) where
   equivalent (Amount q1 c1) (Amount q2 c2) =
     q1 ==~ q2 && c1 == c2
@@ -48,6 +51,9 @@ data Entry q = Entry
   { drCr :: DrCr
   , amount :: Amount q }
   deriving (Eq, Show, Ord)
+
+instance Functor Entry where
+  fmap f (Entry d a) = Entry d (fmap f a)
 
 instance Ev.Equivalent q => Ev.Equivalent (Entry q) where
   equivalent (Entry d1 a1) (Entry d2 a2) =

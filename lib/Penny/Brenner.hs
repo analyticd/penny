@@ -8,8 +8,10 @@
 module Penny.Brenner
   ( FitAcct(..)
   , Config(..)
-  , R.GroupSpecs(..)
-  , R.GroupSpec(..)
+  , Su.S3(..)
+  , L.Radix(..)
+  , L.PeriodGrp(..)
+  , L.CommaGrp(..)
   , Y.Translator(..)
   , L.Side(..)
   , L.SpaceBetween(..)
@@ -24,7 +26,6 @@ import qualified Data.Version as V
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Builders as Bd
-import qualified Penny.Copper.Render as R
 import qualified Penny.Brenner.Clear as C
 import qualified Penny.Brenner.Database as D
 import qualified Penny.Brenner.Import as I
@@ -32,6 +33,7 @@ import qualified Penny.Brenner.Info as Info
 import qualified Penny.Brenner.Merge as M
 import qualified Penny.Brenner.OFX as O
 import qualified Penny.Brenner.Print as P
+import qualified Penny.Steel.Sums as Su
 import qualified System.Console.MultiArg as MA
 import System.Environment (getProgName)
 import qualified System.Exit as Exit
@@ -164,10 +166,9 @@ data FitAcct = FitAcct
   , currency :: String
     -- ^ The commodity for the currency of your card (e.g. @$@).
 
-  , groupSpecs :: R.GroupSpecs
-    -- ^ How to group digits when printing the resulting ledger. All
-    -- quantities (not just those affected by this program) will be
-    -- formatted using this specification.
+  , qtySpec :: Su.S3 L.Radix L.PeriodGrp L.CommaGrp
+    -- ^ How to group digits when printing the resulting ledger.
+    -- This affects only the postings created from the statement.
 
   , translator :: Y.Translator
     -- ^ See the documentation under the 'Translator' type for
@@ -219,7 +220,7 @@ convertFitAcct (FitAcct fn fd db ax df cy gs tl sd sb ps tlp) = Y.FitAcct
   , Y.pennyAcct = Y.PennyAcct . Bd.account . X.pack $ ax
   , Y.defaultAcct = Y.DefaultAcct . Bd.account . X.pack $ df
   , Y.currency = Y.Currency . L.Commodity . X.pack $ cy
-  , Y.groupSpecs = gs
+  , Y.qtySpec = gs
   , Y.translator = tl
   , Y.side = sd
   , Y.spaceBetween = sb
