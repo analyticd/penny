@@ -35,6 +35,7 @@ import qualified Data.Text as X
 import qualified Penny.Lincoln.Queries as Q
 import qualified Data.Time as Time
 import System.Locale (defaultTimeLocale)
+import qualified Penny.Steel.Sums as S
 
 --
 -- Display
@@ -45,8 +46,12 @@ import System.Locale (defaultTimeLocale)
 -- Format:
 --
 -- File LineNo Date Payee Acct DrCr Cmdty Qty
-display :: Posting -> Text
-display p = X.pack $ concat (intersperse " " ls)
+display
+  :: S.S3 Radix PeriodGrp CommaGrp
+  -- ^ How to format Qty that do not have a QtyRep
+  -> Posting
+  -> Text
+display fmt p = X.pack $ concat (intersperse " " ls)
   where
     ls = [file, lineNo, dt, pye, acct, dc, cmdty, qt]
     file = maybe (labelNo "filename") (X.unpack . unFilename)
@@ -68,5 +73,5 @@ display p = X.pack $ concat (intersperse " " ls)
       Debit -> "Dr"
       Credit -> "Cr"
     cmdty = X.unpack . unCommodity . Q.commodity $ p
-    qt = prettyShowQty . Q.qty $ p
+    qt = X.unpack . showQtyRep . either id (qtyToRep fmt) . Q.eiQty $ p
     labelNo s = "(no " ++ s ++ ")"

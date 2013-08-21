@@ -104,7 +104,13 @@ import qualified Penny.Lincoln as L
 import qualified Data.Prednote.Expressions as Exp
 import qualified Penny.Zinc as Z
 import qualified Penny.Shield as S
+import qualified Penny.Steel.Sums as Su
 import qualified Text.Matchers as Mr
+
+-- | A function used to format quantities.
+type FormatQty
+  = [L.Posting]
+  -- ^ Every posting
 
 -- | This type contains settings for all the reports, as well as
 -- default settings for the global options. Some of these can be

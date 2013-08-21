@@ -64,9 +64,12 @@ drCr = either B.drCr B.drCr . entry
 amount :: E.Posting -> Either (B.Amount B.QtyRep) (B.Amount B.Qty)
 amount = either (Left . B.amount) (Right . B.amount) . entry
 
+eiQty :: E.Posting -> Either B.QtyRep B.Qty
+eiQty = either (Left . B.qty) (Right . B.qty) . amount
+
 -- | Every Posting either has a Qty or it can be computed from its QtyRep.
 qty :: E.Posting -> B.Qty
-qty = either (B.toQty . B.qty) (B.toQty . B.qty) . amount
+qty = either B.toQty B.toQty . eiQty
 
 commodity :: E.Posting -> B.Commodity
 commodity = either B.commodity B.commodity . amount

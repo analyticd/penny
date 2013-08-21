@@ -38,13 +38,13 @@ module Penny.Lincoln.Bits.Qty
 
   -- ** Rendering quantity representations
   , showQtyRep
+  , bestRadGroup
 
   -- * Other stuff
   , Qty
   , HasQty(..)
   , mantissa
   , places
-  , prettyShowQty
   , compareQty
   , newQty
   , Mantissa
@@ -61,10 +61,12 @@ module Penny.Lincoln.Bits.Qty
   , qtyOne
   ) where
 
+-- # Imports
+
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Text (Text)
 import qualified Data.Text as X
-import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
+import Data.List (genericLength, sortBy)
 import Data.List.NonEmpty (NonEmpty((:|)), toList)
 import qualified Data.Semigroup(Semigroup(..))
 import Data.Semigroup(sconcat)
@@ -230,6 +232,19 @@ instance Equivalent QtyRep where
 qtyToRepNoGrouping :: Qty -> WholeOrFrac DigitList
 qtyToRepNoGrouping = undefined
 
+-- | Given a list of QtyRep, determine the most common radix and
+-- grouping that are used.  If a single QtyRep is grouped, then the
+-- result is also grouped.  The most common grouping character
+-- determines which grouping character is used.
+--
+-- If no QtyRep are grouped, then the most common radix point is used
+-- and the result is not grouped.
+--
+-- If there is no radix point found, returns Nothing.
+bestRadGroup
+  :: [QtyRep]
+  -> Maybe (S.S3 Radix PeriodGrp CommaGrp)
+bestRadGroup = undefined
 
 -- Digit grouping.  Here are the rules.
 --
@@ -363,23 +378,6 @@ data Qty = Qty { mantissa :: !Integer
                , places :: !Integer
                } deriving (Eq, Show, Ord)
 
--- | Shows a quantity, nicely formatted after accounting for both the
--- mantissa and decimal places, e.g. @0.232@ or @232.12@ or whatever.
-prettyShowQty :: Qty -> String
-prettyShowQty q =
-  let man = show . mantissa $ q
-      e = places q
-      len = genericLength man
-      small = "0." ++ ((genericReplicate (e - len) '0') ++ man)
-  in case compare e len of
-      GT -> small
-      EQ -> small
-      LT ->
-        let (b, end) = genericSplitAt (len - e) man
-        in if e == 0
-           then man
-           else b ++ ['.'] ++ end
-
 instance Ev.Equivalent Qty where
   equivalent x y = x' == y'
     where
@@ -396,13 +394,10 @@ qtyOne :: Qty
 qtyOne = Qty 1 0
 
 
-
-
 newQty :: Mantissa -> Places -> Maybe Qty
 newQty m p
   | m > 0  && p >= 0 = Just $ Qty m p
   | otherwise = Nothing
-
 
 
 -- | Compares Qty after equalizing their exponents.
