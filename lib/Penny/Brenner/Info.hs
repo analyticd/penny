@@ -90,7 +90,7 @@ showFitAcct c =
 showQtySpec :: S.S3 L.Radix L.PeriodGrp L.CommaGrp -> X.Text
 showQtySpec s = case s of
   S.S3a r -> "no digit grouping, use radix point: '"
-             <> (X.singleton . L.showRadix $ r) <> "'"
+             <> (L.showRadix r) <> "'"
   S.S3b p -> "group digits using: '"
              <> (X.singleton . L.groupChar $ p)
              <> "', radix point: '.'"

@@ -9,7 +9,6 @@ module Penny.Copper.Render where
 import Control.Monad (guard)
 import Control.Applicative ((<$>), (<|>), (<*>), pure)
 import Data.List (intersperse)
-import Data.List.NonEmpty (toList)
 import Data.Monoid ((<>))
 import qualified Data.Text as X
 import Data.Text (Text, cons, snoc)
@@ -118,68 +117,16 @@ lvl3Cmdty (L.Commodity c) =
 
 -- * Quantities
 
-digit :: L.Digit -> Text
-digit d = case d of
-  { L.D0 -> "0"; L.D1 -> "1"; L.D2 -> "2"; L.D3 -> "3"; L.D4 -> "4";
-    L.D5 -> "5"; L.D6 -> "6"; L.D7 -> "7"; L.D8 -> "8"; L.D9 -> "9" }
-
-radix :: L.Radix -> Text
-radix r = case r of { L.Comma -> ","; L.Period -> "." }
-
-digitList :: L.DigitList -> X.Text
-digitList = X.concat . toList . fmap digit . L.unDigitList
-
-groupedDigits
-  :: L.Grouper a
-  => L.GroupedDigits a
-  -> Text
-groupedDigits (L.GroupedDigits d ds)
-  = digitList d <> (X.concat . map f $ ds)
+qtyRep :: L.QtyRep -> Text
+qtyRep q = b <> L.showQtyRep q <> e
   where
-    f (c, cs) = (X.singleton $ L.groupChar c) <> digitList cs
-
-wholeOnlyDigitList :: L.WholeOnly L.DigitList -> Text
-wholeOnlyDigitList = digitList . L.unWholeOnly
-
-wholeOnlyGroupedDigits
-  :: L.Grouper a
-  => L.WholeOnly (L.GroupedDigits a)
-  -> Text
-wholeOnlyGroupedDigits = groupedDigits . L.unWholeOnly
-
-wholeFracDigitList
-  :: L.Radix
-  -> L.WholeFrac L.DigitList
-  -> Text
-wholeFracDigitList r wf
-  = digitList (L.whole wf) <> radix r <> digitList (L.frac wf)
-
-wholeFracGroupedDigits
-  :: L.Grouper a
-  => L.Radix
-  -> L.WholeFrac (L.GroupedDigits a)
-  -> Text
-wholeFracGroupedDigits r wf
-  = groupedDigits (L.whole wf) <> radix r
-  <> groupedDigits (L.frac wf)
-
-wholeOrFracGrouped
-  :: L.Grouper a
-  => L.Radix
-  -> L.WholeOrFrac (L.GroupedDigits a)
-  -> Text
-wholeOrFracGrouped r
-  = either wholeOnlyGroupedDigits (wholeFracGroupedDigits r)
-  . L.unWholeOrFrac
-
-wholeOrFracDigitList
-  :: L.Radix
-  -> L.WholeOrFrac L.DigitList
-  -> Text
-wholeOrFracDigitList r
-  = either wholeOnlyDigitList (wholeFracDigitList r)
-  . L.unWholeOrFrac
-
+    (b, e) = case q of
+      L.QNoGrouping _ r -> case r of
+        L.Period -> ("", "")
+        L.Comma -> ("[", "]")
+      L.QGrouped ei -> case ei of
+        Left wf -> if hasSpace wf then ("{", "}") else ("", "")
+        Right _ -> ("[", "]")
 
 hasSpace :: L.WholeOrFrac (L.GroupedDigits L.PeriodGrp) -> Bool
 hasSpace (L.WholeOrFrac ei) = case ei of
@@ -187,25 +134,6 @@ hasSpace (L.WholeOrFrac ei) = case ei of
   Right wf -> grpHasSpace (L.whole wf) || grpHasSpace (L.frac wf)
   where
     grpHasSpace grp = L.PGSpace `elem` (map fst . L.dsNextParts $ grp)
-
-
-qtyRep :: L.QtyRep -> Text
-qtyRep q = case q of
-  L.QNoGrouping wf r -> b <> wholeOrFracDigitList r wf <> e
-    where
-      (b, e) = case r of
-        L.Period -> ("", "")
-        L.Comma -> ("[", "]")
-  L.QGrouped ei ->
-    b
-    <> either (wholeOrFracGrouped L.Period)
-              (wholeOrFracGrouped L.Comma) ei
-    <> e
-    where
-      (b, e) = case ei of
-        Left wf ->
-          if hasSpace wf then ("{", "}") else ("", "")
-        Right _ -> ("[", "]")
 
 
 -- * Amounts

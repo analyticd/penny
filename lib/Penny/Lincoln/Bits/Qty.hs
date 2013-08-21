@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | Penny quantities. A quantity is simply a count (possibly
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
@@ -36,9 +37,7 @@ module Penny.Lincoln.Bits.Qty
   , qtyToRepGrouped
 
   -- ** Rendering quantity representations
-  , renderRep
-  , renderGrouped
-  , renderNoGrouping
+  , showQtyRep
 
   -- * Other stuff
   , Qty
@@ -63,9 +62,13 @@ module Penny.Lincoln.Bits.Qty
   ) where
 
 import qualified Control.Monad.Exception.Synchronous as Ex
+import Data.Text (Text)
+import qualified Data.Text as X
 import Data.List (genericLength, genericReplicate, genericSplitAt, sortBy)
 import Data.List.NonEmpty (NonEmpty((:|)), toList)
-import Data.Semigroup(Semigroup((<>), sconcat))
+import qualified Data.Semigroup(Semigroup(..))
+import Data.Semigroup(sconcat)
+import Data.Monoid ((<>))
 import Data.Ord (comparing)
 import qualified Penny.Lincoln.Equivalent as Ev
 import Penny.Lincoln.Equivalent (Equivalent(..), (==~))
@@ -112,8 +115,9 @@ instance Grouper CommaGrp where
 newtype DigitList = DigitList { unDigitList :: NonEmpty Digit }
   deriving (Eq, Show, Ord)
 
-instance Semigroup DigitList where
-  DigitList l1 <> DigitList l2 = DigitList $ l1 <> l2
+instance Data.Semigroup.Semigroup DigitList where
+  (<>) (DigitList l1) (DigitList l2) =
+    DigitList $ l1 Data.Semigroup.<> l2
 
 class Digits a where
   digits :: a -> DigitList
@@ -199,9 +203,6 @@ wholeOrFrac g@(GroupedDigits l1 lr) mayAft = case mayAft of
 data Radix = Period | Comma
   deriving (Eq, Show, Ord)
 
-showRadix :: Radix -> Char
-showRadix r = case r of { Period -> '.'; Comma -> ',' }
-
 type WholeOrFracResult a = Either (WholeOrFrac DigitList)
                                   (WholeOrFrac (GroupedDigits a))
 
@@ -263,20 +264,78 @@ instance HasQty QtyRep where
 instance HasQty Qty where
   toQty = id
 
-renderRep :: QtyRep -> String
-renderRep = undefined
+showDigit :: Digit -> Text
+showDigit d = case d of
+  { D0 -> "0"; D1 -> "1"; D2 -> "2"; D3 -> "3"; D4 -> "4";
+    D5 -> "5"; D6 -> "6"; D7 -> "7"; D8 -> "8"; D9 -> "9" }
 
-renderGrouped
-  :: Grouper g
-  => WholeOrFrac (GroupedDigits g)
-  -> String
-renderGrouped = undefined
+showRadix :: Radix -> Text
+showRadix r = case r of { Comma -> ","; Period -> "." }
 
-renderNoGrouping
+showDigitList :: DigitList -> X.Text
+showDigitList = X.concat . toList . fmap showDigit . unDigitList
+
+showGroupedDigits
+  :: Grouper a
+  => GroupedDigits a
+  -> Text
+showGroupedDigits (GroupedDigits d ds)
+  = showDigitList d <> (X.concat . map f $ ds)
+  where
+    f (c, cs) = (X.singleton $ groupChar c) <> showDigitList cs
+
+showWholeOnlyDigitList :: WholeOnly DigitList -> Text
+showWholeOnlyDigitList = showDigitList . unWholeOnly
+
+showWholeOnlyGroupedDigits
+  :: Grouper a
+  => WholeOnly (GroupedDigits a)
+  -> Text
+showWholeOnlyGroupedDigits = showGroupedDigits . unWholeOnly
+
+showWholeFracDigitList
+  :: Radix
+  -> WholeFrac DigitList
+  -> Text
+showWholeFracDigitList r wf
+  = showDigitList (whole wf) <> showRadix r <> showDigitList (frac wf)
+
+showWholeFracGroupedDigits
+  :: Grouper a
+  => Radix
+  -> WholeFrac (GroupedDigits a)
+  -> Text
+showWholeFracGroupedDigits r wf
+  = showGroupedDigits (whole wf) <> showRadix r
+  <> showGroupedDigits (frac wf)
+
+wholeOrFracGrouped
+  :: Grouper a
+  => Radix
+  -> WholeOrFrac (GroupedDigits a)
+  -> Text
+wholeOrFracGrouped r
+  = either showWholeOnlyGroupedDigits (showWholeFracGroupedDigits r)
+  . unWholeOrFrac
+
+wholeOrFracDigitList
   :: Radix
   -> WholeOrFrac DigitList
-  -> String
-renderNoGrouping = undefined
+  -> Text
+wholeOrFracDigitList r
+  = either showWholeOnlyDigitList (showWholeFracDigitList r)
+  . unWholeOrFrac
+
+
+
+
+showQtyRep :: QtyRep -> Text
+showQtyRep q = case q of
+  QNoGrouping wf r -> wholeOrFracDigitList r wf
+  QGrouped ei ->
+    either (wholeOrFracGrouped Period)
+           (wholeOrFracGrouped Comma) ei
+
 
 -- | A quantity is always greater than zero. Various odd questions
 -- happen if quantities can be zero. For instance, what if you have a
