@@ -29,8 +29,7 @@ import qualified System.Console.Rainbow as Rb
 -- | All the options needed to grow the cells.
 data GrowOpts = GrowOpts
   { dateFormat :: (M.PostMeta, L.Posting) -> X.Text
-  , qtyFormat :: (M.PostMeta, L.Posting) -> X.Text
-  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
+  , qtyFormat :: L.Amount L.Qty -> X.Text
   , fields :: F.Fields Bool
   }
 
@@ -115,7 +114,7 @@ growers = Fields
   , postingQty           = \o ch -> getPostingQty ch (qtyFormat o)
   , totalDrCr            = const getTotalDrCr
   , totalCmdty           = const getTotalCmdty
-  , totalQty             = \o ch -> getTotalQty ch (balanceFormat o)
+  , totalQty             = \o ch -> getTotalQty ch (qtyFormat o)
   }
 
 -- | Make a left justified cell one line long that shows a serial.
@@ -248,10 +247,14 @@ getPostingCmdty ch i = coloredPostingCell ch t i where
 
 getPostingQty
   :: E.Changers
-  -> ((M.PostMeta, L.Posting) -> X.Text)
+  -> (L.Amount L.Qty -> X.Text) -- ((M.PostMeta, L.Posting) -> X.Text)
   -> (M.PostMeta, L.Posting)
   -> PreSpec
-getPostingQty ch qf i = coloredPostingCell ch (qf i) i
+getPostingQty ch qf i = coloredPostingCell ch qtyStr i
+  where
+    qtyStr = case (L.entry . L.headEnt . snd . L.unPosting . snd $ i) of
+      Left qr -> L.showQtyRep . L.qty . L.amount $ qr
+      Right q -> qf . L.amount $ q
 
 getTotalDrCr :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec
 getTotalDrCr ch i =
@@ -284,7 +287,7 @@ getTotalCmdty ch i =
 
 getTotalQty
   :: E.Changers
-  -> (L.Commodity -> L.Qty -> X.Text)
+  -> (L.Amount L.Qty -> X.Text)
   -> (M.PostMeta, L.Posting)
   -> PreSpec
 getTotalQty ch balFmt i =

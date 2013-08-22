@@ -121,7 +121,10 @@ parsePredicate d ls = case ls of
 
 xactionsToFiltered
 
-  :: P.LPdct
+  :: (L.Amount L.Qty -> X.Text)
+  -- ^ How to format quantities
+
+  -> P.LPdct
   -- ^ The predicate to filter the transactions
 
   -> [PostFilterFn]
@@ -136,9 +139,9 @@ xactionsToFiltered
   -> ([C.Chunk], [(LibertyMeta, L.Posting)])
   -- ^ Sorted, filtered postings
 
-xactionsToFiltered pdct postFilts srtr
+xactionsToFiltered fmt pdct postFilts srtr
   = second (processPostings srtr postFilts)
-  . mainFilter pdct
+  . mainFilter fmt pdct
   . concatMap L.transactionToPostings
 
 processPostings
@@ -153,8 +156,14 @@ processPostings srtr postFilters
   . processPostFilters postFilters
   . addFilteredNum
 
-mainFilter :: P.LPdct -> [L.Posting] -> ([C.Chunk], [L.Posting])
-mainFilter pdct = E.verboseFilter L.display indentAmt False pdct
+mainFilter
+  :: (L.Amount L.Qty -> X.Text)
+  -- ^ How to format quantities
+  -> P.LPdct
+  -> [L.Posting]
+  -> ([C.Chunk], [L.Posting])
+mainFilter fmt pdct = E.verboseFilter (L.display fmt)
+                                      indentAmt False pdct
 
 
 addFilteredNum :: [a] -> [(FilteredNum, a)]

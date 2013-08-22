@@ -5,9 +5,7 @@ module Penny.Cabin.Balance.Convert.Options where
 import qualified Penny.Cabin.Balance.Convert.Parser as P
 import qualified Penny.Cabin.Parsers as CP
 import qualified Penny.Cabin.Options as CO
-import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
-import qualified Data.Text as X
 
 -- | Default options for the Convert report. This record is used as
 -- the starting point when parsing in options from the command
@@ -19,7 +17,6 @@ data DefaultOpts = DefaultOpts
   , target :: P.Target
   , sortOrder :: CP.SortOrder
   , sortBy :: P.SortBy
-  , format :: L.Commodity -> L.Qty -> X.Text
   }
 
 toParserOpts :: DefaultOpts -> S.Runtime -> P.Opts
@@ -37,7 +34,6 @@ defaultOptions = DefaultOpts
   , target = P.AutoTarget
   , sortOrder = CP.Ascending
   , sortBy = P.SortByName
-  , format = \_ q -> X.pack . L.prettyShowQty $ q
   }
 
 

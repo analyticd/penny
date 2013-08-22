@@ -115,7 +115,7 @@ bottomLineToCmdty chgrs eo (cy, bl) = md c
 
 balanceToQtys
   :: Changers
-  -> (L.Commodity -> L.Qty -> X.Text)
+  -> (L.Amount L.Qty -> X.Text)
   -> EvenOdd
   -> [(L.Commodity, L.BottomLine)]
   -> [R.Chunk]
@@ -128,7 +128,7 @@ balanceToQtys chgrs getTxt eo ls =
 
 bottomLineToQty
   :: Changers
-  -> (L.Commodity -> L.Qty -> X.Text)
+  -> (L.Amount L.Qty -> X.Text)
   -> EvenOdd
   -> (L.Commodity, L.BottomLine)
   -> R.Chunk
@@ -136,6 +136,7 @@ bottomLineToQty chgrs getTxt eo (cy, bl) = md (R.Chunk mempty t)
   where
     (lbl, t) = case bl of
       L.Zero -> (Zero, X.pack "--")
-      L.NonZero (L.Column clmDrCr qt) -> (dcToLbl clmDrCr, getTxt cy qt)
+      L.NonZero (L.Column clmDrCr qt) ->
+        (dcToLbl clmDrCr, getTxt (L.Amount qt cy))
     md = getEvenOddLabelValue lbl eo chgrs
 

@@ -149,7 +149,7 @@ data Row = Row
 
 rowsToChunks
   :: E.Changers
-  -> (L.Commodity -> L.Qty -> X.Text)
+  -> (L.Amount L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
   -> [Row]
   -> [Rb.Chunk]
@@ -159,7 +159,7 @@ rowsToChunks chgrs fmt =
 
 rowsToColumns
   :: E.Changers
-  -> (L.Commodity -> L.Qty -> X.Text)
+  -> (L.Amount L.Qty -> X.Text)
   -- ^ How to format a balance to allow for digit grouping
 
   -> [Row]
@@ -171,7 +171,7 @@ rowsToColumns chgrs fmt
 
 mkColumn
   :: E.Changers
-  -> (L.Commodity -> L.Qty -> X.Text)
+  -> (L.Amount L.Qty -> X.Text)
   -> (Meta.VisibleNum, Row)
   -> Columns PreSpec
 mkColumn chgrs fmt (vn, (Row i acctTxt bs)) = Columns ca cd cc cq
@@ -208,7 +208,7 @@ balanceChunksEmpty chgrs eo = (dash, dash, dash)
 
 balanceChunks
   :: E.Changers
-  -> (L.Commodity -> L.Qty -> X.Text)
+  -> (L.Amount L.Qty -> X.Text)
   -> E.EvenOdd
   -> (L.Commodity, L.BottomLine)
   -> (Rb.Chunk, Rb.Chunk, Rb.Chunk)

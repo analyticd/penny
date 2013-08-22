@@ -18,8 +18,7 @@ import qualified Penny.Cabin.Posts.Types as Ty
 
 data ChunkOpts = ChunkOpts
   { dateFormat :: (M.PostMeta, L.Posting) -> X.Text
-  , qtyFormat :: (M.PostMeta, L.Posting) -> X.Text
-  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
+  , qtyFormat :: L.Amount L.Qty -> X.Text
   , fields :: F.Fields Bool
   , subAccountLength :: A.SubAccountLength
   , payeeAllocation :: A.Alloc
@@ -32,7 +31,6 @@ growOpts :: ChunkOpts -> G.GrowOpts
 growOpts c = G.GrowOpts
   { G.dateFormat = dateFormat c
   , G.qtyFormat = qtyFormat c
-  , G.balanceFormat = balanceFormat c
   , G.fields = fields c
   }
 

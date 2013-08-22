@@ -100,6 +100,7 @@ import qualified Penny.Cabin.Posts.Fields as PF
 import qualified Penny.Cabin.Posts.Spacers as PS
 import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Scheme as E
+import qualified Penny.Copper as Cop
 import qualified Penny.Lincoln as L
 import qualified Data.Prednote.Expressions as Exp
 import qualified Penny.Zinc as Z
@@ -109,8 +110,11 @@ import qualified Text.Matchers as Mr
 
 -- | A function used to format quantities.
 type FormatQty
-  = [L.Posting]
-  -- ^ Every posting
+  = [Cop.LedgerItem]
+  -- ^ All parsed items
+
+  -> L.Amount L.Qty
+  -> X.Text
 
 -- | This type contains settings for all the reports, as well as
 -- default settings for the global options. Some of these can be
@@ -148,9 +152,10 @@ data Defaults = Defaults
     -- If this list is empty, then by default postings are left in the
     -- same order as they appear in the ledger files.
 
-  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
-    -- ^ How to format balances in the balance report. Change this
-    -- function if, for example, you want to allow for digit grouping.
+  , formatQty :: FormatQty
+    -- ^ How to format quantities. This affects only quantities that
+    -- are not parsed from the ledger.  Examples include calculated
+    -- totals and inferred quantities.  Affects all reports.
 
   , balanceShowZeroBalances :: Bool
     -- ^ Show zero balances in the balance report? If True, show them;
@@ -174,10 +179,6 @@ data Defaults = Defaults
   , convertSortBy :: CP.SortBy
     -- ^ Sort by account or by quantity in the convert report.
 
-  , convertFormat :: L.Commodity -> L.Qty -> X.Text
-    -- ^ How to format balances in the convert report. For instance,
-    -- this function might perform digit grouping.
-
   , postingsFields :: Fields Bool
     -- ^ Fields to show by default in the postings report.
 
@@ -191,16 +192,6 @@ data Defaults = Defaults
 
   , postingsDateFormat :: (M.PostMeta, L.Posting) -> X.Text
     -- ^ How to format dates in the postings report.
-
-  , postingsQtyFormat :: (M.PostMeta, L.Posting) -> X.Text
-    -- ^ How to format quantities in the balance report. This function
-    -- is used when showing the quantity for the posting itself, and
-    -- not the quantity for the totals columns (for that, see
-    -- postingsBalanceFormat.) For example this function might perform
-    -- digit grouping.
-
-  , postingsBalanceFormat :: L.Commodity -> L.Qty -> X.Text
-    -- ^ How to format balance totals in the postings report.
 
   , postingsSubAccountLength :: Int
     -- ^ Account names in the postings report are shortened if

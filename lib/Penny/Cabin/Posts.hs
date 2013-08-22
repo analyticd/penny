@@ -44,8 +44,6 @@ module Penny.Cabin.Posts
   , A.SubAccountLength(..)
   , A.alloc
   , yearMonthDay
-  , qtyAsIs
-  , balanceAsIs
   , defaultWidth
   , columnsVarToWidth
   , widthFromRuntime
@@ -157,7 +155,8 @@ mkPrintReport posArgs zo ch fsf st = (posArgs, f)
           rptChks = postsReport ch (P.showZeroBalances st) pdct
                     (P.postFilter st) (chunkOpts st zo) boxes
           expChks = showExpression (P.showExpression st) pdct
-          verbChks = showVerboseFilter (P.verboseFilter st) pdct boxes
+          verbChks = showVerboseFilter (qtyFormat zo) (P.verboseFilter st)
+                                       pdct boxes
           chks = expChks
                  ++ verbChks
                  ++ rptChks
@@ -180,28 +179,29 @@ showExpression (P.ShowExpression b) pdct =
     chks = Pe.showPdct indentAmt 0 pdct
 
 showVerboseFilter
-  :: P.VerboseFilter
+  :: (L.Amount L.Qty -> X.Text)
+  -> P.VerboseFilter
   -> Pe.Pdct (Ly.LibertyMeta, L.Posting)
   -> [(Ly.LibertyMeta, L.Posting)]
   -> [Rb.Chunk]
-showVerboseFilter (P.VerboseFilter b) pdct bs =
+showVerboseFilter fmt (P.VerboseFilter b) pdct bs =
   if not b then [] else info : blankLine : (chks ++ [blankLine])
   where
     chks =
       fst
-      $ Pe.verboseFilter (L.display . snd) indentAmt False pdct bs
+      $ Pe.verboseFilter ((L.display fmt) . snd) indentAmt False pdct bs
     info = "Postings report filter:\n"
 
 defaultOptions
-  :: Sh.Runtime
+  :: (L.Amount L.Qty -> X.Text)
+  -> Sh.Runtime
   -> ZincOpts
-defaultOptions rt = ZincOpts
+defaultOptions fmt rt = ZincOpts
   { fields = defaultFields
   , width = widthFromRuntime rt
   , showZeroBalances = CO.ShowZeroBalances False
   , dateFormat = yearMonthDay
-  , qtyFormat = qtyAsIs
-  , balanceFormat = balanceAsIs
+  , qtyFormat = fmt
   , subAccountLength = A.SubAccountLength 2
   , payeeAllocation = A.alloc 60
   , accountAllocation = A.alloc 40
@@ -242,16 +242,9 @@ data ZincOpts = ZincOpts
     -- a PostingInfo so it has lots of information, but it
     -- should return a date for use in the Date field.
 
-  , qtyFormat :: (M.PostMeta, L.Posting) -> X.Text
-    -- ^ How to display the quantity of the posting. This
-    -- function is applied to a Box so it has lots of
-    -- information, but it should return a formatted string of
-    -- the quantity. Allows you to format digit grouping,
-    -- radix points, perform rounding, etc.
-
-  , balanceFormat :: L.Commodity -> L.Qty -> X.Text
-    -- ^ How to display balance totals. Similar to
-    -- balanceFormat.
+  , qtyFormat :: L.Amount L.Qty -> X.Text
+    -- ^ How to display the quantity of the posting if it was not
+    -- parsed from the ledger.
 
   , subAccountLength :: A.SubAccountLength
     -- ^ When shortening the names of sub accounts to make
@@ -282,7 +275,6 @@ chunkOpts ::
 chunkOpts s z = C.ChunkOpts
   { C.dateFormat = dateFormat z
   , C.qtyFormat = qtyFormat z
-  , C.balanceFormat = balanceFormat z
   , C.fields = P.fields s
   , C.subAccountLength = subAccountLength z
   , C.payeeAllocation = payeeAllocation z
@@ -320,16 +312,6 @@ yearMonthDay p = X.pack (Time.formatTime defaultTimeLocale fmt d)
         . snd
         $ p
     fmt = "%Y-%m-%d"
-
--- | Shows the quantity of a posting. Does no rounding or
--- prettification; simply uses show on the underlying Decimal.
-qtyAsIs :: (M.PostMeta, L.Posting) -> X.Text
-qtyAsIs p = X.pack . L.prettyShowQty . Q.qty . snd $ p
-
--- | Shows the quantity of a balance. If there is no quantity, shows
--- two dashes.
-balanceAsIs :: a -> L.Qty -> X.Text
-balanceAsIs _ = X.pack . L.prettyShowQty
 
 -- | The default width for the report.
 defaultWidth :: T.ReportWidth

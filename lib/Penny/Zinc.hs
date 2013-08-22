@@ -100,6 +100,7 @@ data Defaults = Defaults
     -- > [(Date, Ascending), (Payee, Ascending)]
 
   , exprDesc :: X.ExprDesc
+  , formatQty :: L.Amount L.Qty -> Text
   }
 
 sortPairToFn :: (SortField, P.SortOrder) -> Orderer
@@ -362,7 +363,7 @@ processFiltOpts ord df os = Ex.mapException unpack $ do
       showExpr = getShowExpression os
       verbFilt = getVerboseFilter os
   pdct <- Ly.parsePredicate expDsc toks
-  let sf = Ly.xactionsToFiltered pdct postFilts sortSpec
+  let sf = Ly.xactionsToFiltered (formatQty df) pdct postFilts sortSpec
   return $ FilterOpts rf rs sf sch
                       ctf expDsc pdct showExpr verbFilt
 

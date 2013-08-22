@@ -36,7 +36,7 @@ import qualified System.Console.Rainbow as Rb
 -- need to use if you are supplying options programatically (as
 -- opposed to parsing them in from the command line.)
 data Opts = Opts
-  { balanceFormat :: L.Commodity -> L.Qty -> X.Text
+  { balanceFormat :: L.Amount L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
   , sorter :: Sorter
   , target :: L.To
@@ -48,16 +48,16 @@ data Opts = Opts
 -- BottomLine (unlike in the MultiCommodity report, where each
 -- subaccount may have more than one BottomLine, one for each
 -- commodity.)
-type Sorter =
-  (L.SubAccount, L.BottomLine)
+type Sorter
+  = (L.SubAccount, L.BottomLine)
   -> (L.SubAccount, L.BottomLine)
   -> Ordering
 
 -- | Converts all commodities in a Balance to a single commodity and
 -- combines all the BottomLines into one. Fails with an error message
 -- if no conversion data is available.
-convertBalance ::
-  L.PriceDb
+convertBalance
+  :: L.PriceDb
   -> L.DateTime
   -> L.To
   -> L.Balance
@@ -68,8 +68,8 @@ convertBalance db dt to bal = fmap mconcat r
 
 -- | Converts a single BottomLine to a new commodity. Fails with an
 -- error message if no conversion data is available.
-convertOne ::
-  L.PriceDb
+convertOne
+  :: L.PriceDb
   -> L.DateTime
   -> L.To
   -> (L.Commodity, L.BottomLine)
@@ -85,8 +85,8 @@ convertOne db dt to (cty, bl) =
         g r = L.NonZero (L.Column dc r)
 
 -- | Creates an error message for conversion errors.
-convertError ::
-  L.To
+convertError
+  :: L.To
   -> L.From
   -> L.PriceDbError
   -> X.Text
@@ -154,34 +154,36 @@ report
 report os@(Opts getFmt _ _ _ _ txtFormats) ps bs = do
   fstBl <- sumConvertSort os ps bs
   let (rs, L.To cy) = rows fstBl
-      fmt = getFmt cy
+      fmt q = getFmt (L.Amount q cy)
   return $ K.rowsToChunks txtFormats fmt rs
 
 
 -- | Creates a report respecting the standard interface for reports
 -- whose options are parsed in from the command line.
 cmdLineReport
-  :: O.DefaultOpts
+  :: (L.Amount L.Qty -> X.Text)
+  -> O.DefaultOpts
   -> I.Report
-cmdLineReport o rt = (help o, mkMode)
+cmdLineReport fmt o rt = (help o, mkMode)
   where
     mkMode _ _ chgrs _ fsf = MA.modeHelp
       "convert"
       (const (help o))
-      (process rt chgrs o fsf)
+      (process fmt rt chgrs o fsf)
       (map (fmap Right) P.allOptSpecs)
       MA.Intersperse
       (return . Left)
 
 
 process
-  :: S.Runtime
+  :: (L.Amount L.Qty -> X.Text)
+  -> S.Runtime
   -> Scheme.Changers
   -> O.DefaultOpts
   -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
   -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
   -> Ex.Exceptional X.Text I.ArgsAndReport
-process rt chgrs defaultOpts fsf ls = do
+process fmt rt chgrs defaultOpts fsf ls = do
   let (posArgs, parsed) = Ei.partitionEithers ls
       op' = foldl (>>=) (return (O.toParserOpts defaultOpts rt)) parsed
   case op' of
@@ -191,7 +193,7 @@ process rt chgrs defaultOpts fsf ls = do
             f = fromParsedOpts chgrs g
             pr ts pps = do
               rptOpts <- Ex.fromMaybe noDefault $
-                f pps (O.format defaultOpts)
+                f pps fmt
               let boxes = fsf ts
               report rptOpts pps boxes
         in (posArgs, pr)
@@ -223,9 +225,10 @@ mostFrequent :: [L.PricePoint] -> Maybe L.To
 mostFrequent = U.lastMode . map (L.to . L.price)
 
 
-type DoReport = [L.PricePoint]
-               -> (L.Commodity -> L.Qty -> X.Text)
-               -> (Maybe Opts)
+type DoReport
+  = [L.PricePoint]
+  -> (L.Amount L.Qty -> X.Text)
+  -> (Maybe Opts)
 
 -- | Get options for the report, depending on what options were parsed
 -- from the command line. Fails if the user did not specify a

@@ -105,6 +105,9 @@ data WheatConf = WheatConf
     -- ^ Tests may use this date and time as they wish; see
     -- 'tests'. Typically you will set this to the current instant.
 
+  , formatQty :: [Cop.LedgerItem] -> L.Amount L.Qty -> X.Text
+  -- ^ How to format quantities
+
   }
 
 parseBaseTime :: String -> Ex.Exceptional MA.InputError Time.UTCTime
@@ -165,12 +168,14 @@ main ver getWc = do
   rt <- S.runtime
   (conf, args) <- parseArgs ver (getWc rt)
   term <- Rb.smartTermFromEnv (colorToFile conf) IO.stdout
-  pstgs <- getItems args
+  items <- Cop.open args
+  let pstgs = getItems items
+      formatter = formatQty conf items
   let tsts = filter ((testPred conf) . TT.testName)
              . map ($ (L.toUTC . S.currentTime $ rt))
              . tests
              $ conf
-  bs <- mapM (runTest conf pstgs term) tsts
+  bs <- mapM (runTest formatter conf pstgs term) tsts
   if and bs
     then Exit.exitSuccess
     else Exit.exitFailure
@@ -179,25 +184,26 @@ main ver getWc = do
 -- set and if the test failed. Otherwise, returns whether the test
 -- succeeded or failed.
 runTest
-  :: WheatConf
+  :: (L.Amount L.Qty -> X.Text)
+  -> WheatConf
   -> [L.Posting]
   -> Rb.Term
   -> TT.Test L.Posting
   -> IO Bool
-runTest c ps term test = do
+runTest fmt c ps term test = do
   let rslt = TT.evalTest test ps
-      cks = TT.showResult (indentAmt c) L.display (verbosity c) rslt
+      cks = TT.showResult (indentAmt c) (L.display fmt)
+                          (verbosity c) rslt
   Rb.putChunks term cks
   if stopOnFail c && not (TT.resultPass rslt)
     then Exit.exitFailure
     else return (TT.resultPass rslt)
 
-getItems :: [String] -> IO [L.Posting]
-getItems ss = fmap f $ Cop.open ss
-  where
-    f = concatMap L.transactionToPostings
-        . mapMaybe ( let cn = const Nothing
-                     in Su.caseS4 Just cn cn cn)
+getItems :: [Cop.LedgerItem] -> [L.Posting]
+getItems
+  = concatMap L.transactionToPostings
+  . mapMaybe ( let cn = const Nothing
+               in Su.caseS4 Just cn cn cn)
 
 --
 -- Tests

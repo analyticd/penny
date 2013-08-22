@@ -35,7 +35,8 @@ type ParseResult = Exceptional X.Text ArgsAndReport
 
 type PrintReport
   = [L.Transaction]
-  -- ^ All transactions; the report must sort and filter them
+  -- ^ All transactions to be included in the report. The report must
+  -- sort and filter them
 
   -> [L.PricePoint]
   -- ^ PricePoints to be included in the report

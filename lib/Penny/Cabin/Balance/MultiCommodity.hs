@@ -5,7 +5,6 @@ module Penny.Cabin.Balance.MultiCommodity (
   Opts(..),
   defaultOpts,
   defaultParseOpts,
-  defaultFormat,
   parseReport,
   defaultReport,
   report
@@ -34,15 +33,15 @@ import qualified System.Console.Rainbow as R
 -- needed to make the report if the options are not being parsed in
 -- from the command line.
 data Opts = Opts
-  { balanceFormat :: L.Commodity -> L.Qty -> X.Text
+  { balanceFormat :: L.Amount L.Qty -> X.Text
   , showZeroBalances :: CO.ShowZeroBalances
   , order :: L.SubAccount -> L.SubAccount -> Ordering
   , textFormats :: E.Changers
   }
 
-defaultOpts :: Opts
-defaultOpts = Opts
-  { balanceFormat = defaultFormat
+defaultOpts :: (L.Amount L.Qty -> X.Text) -> Opts
+defaultOpts fmt = Opts
+  { balanceFormat = fmt
   , showZeroBalances = CO.ShowZeroBalances True
   , order = compare
   , textFormats = Schemes.darkLabels
@@ -56,7 +55,7 @@ defaultParseOpts = P.ParseOpts
 
 fromParseOpts
   :: E.Changers
-  -> (L.Commodity -> L.Qty -> X.Text)
+  -> (L.Amount L.Qty -> X.Text)
   -> P.ParseOpts
   -> Opts
 fromParseOpts chgrs fmt (P.ParseOpts szb o) = Opts fmt szb o' chgrs
@@ -64,9 +63,6 @@ fromParseOpts chgrs fmt (P.ParseOpts szb o) = Opts fmt szb o' chgrs
     o' = case o of
        CP.Ascending -> compare
        CP.Descending -> CO.descending compare
-
-defaultFormat :: a -> L.Qty -> X.Text
-defaultFormat _ = X.pack . L.prettyShowQty
 
 summedSortedBalTree ::
   CO.ShowZeroBalances
@@ -100,8 +96,8 @@ report (Opts bf szb o chgrs) =
 
 -- | The MultiCommodity report with configurable options that have
 -- been parsed from the command line.
-parseReport ::
-  (L.Commodity -> L.Qty -> X.Text)
+parseReport
+  :: (L.Amount L.Qty -> X.Text)
   -- ^ How to format balances. For instance you can use this to
   -- perform commodity-sensitive digit grouping.
 
@@ -123,7 +119,7 @@ parseReport fmt o rt = (help o, makeMode)
 process
   :: Applicative f
   => E.Changers
-  -> (L.Commodity -> L.Qty -> X.Text)
+  -> (L.Amount L.Qty -> X.Text)
   -> P.ParseOpts
   -> a
   -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
@@ -139,8 +135,8 @@ process chgrs fmt o _ fsf ls =
 
 
 -- | The MultiCommodity report, with default options.
-defaultReport :: I.Report
-defaultReport = parseReport defaultFormat defaultParseOpts
+defaultReport :: (L.Amount L.Qty -> X.Text) -> I.Report
+defaultReport fmt = parseReport fmt defaultParseOpts
 
 ------------------------------------------------------------
 -- ## Help

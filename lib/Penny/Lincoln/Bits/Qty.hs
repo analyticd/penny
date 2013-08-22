@@ -342,8 +342,6 @@ wholeOrFracDigitList r
   . unWholeOrFrac
 
 
-
-
 showQtyRep :: QtyRep -> Text
 showQtyRep q = case q of
   QNoGrouping wf r -> wholeOrFracDigitList r wf
