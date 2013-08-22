@@ -66,8 +66,11 @@ module Penny.Lincoln.Bits.Qty
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Text (Text)
 import qualified Data.Text as X
-import Data.List (genericLength, sortBy)
-import Data.List.NonEmpty (NonEmpty((:|)), toList)
+import Data.Ord(Down(..), comparing)
+import Data.List (genericLength, genericReplicate, sortBy, group, sort)
+import Data.List.Split (chunksOf)
+import Data.List.NonEmpty (NonEmpty((:|)), toList, nonEmpty)
+import Data.Maybe (fromMaybe)
 import qualified Data.Semigroup(Semigroup(..))
 import Data.Semigroup(sconcat)
 import Data.Monoid ((<>))
@@ -229,8 +232,36 @@ instance Equivalent QtyRep where
   equivalent x y = toQty x ==~ toQty y
   compareEv x y = Ev.compareEv (toQty x) (toQty y)
 
+-- | Converts an Integer to a list of digits.
+intToDigits :: Integer -> NonEmpty Digit
+intToDigits
+  = fmap intToDigit
+  . fromMaybe (error "intToDigits: show made empty list")
+  . nonEmpty
+  . show
+  where
+    intToDigit c = case c of
+      { '0' -> D0; '1' -> D1; '2' -> D2; '3' -> D3; '4' -> D4;
+        '5' -> D5; '6' -> D6; '7' -> D7; '8' -> D8; '9' -> D9;
+        _ -> error "intToDigits: show made non-digit character" }
+
+prependNonEmpty :: [a] -> NonEmpty a -> NonEmpty a
+prependNonEmpty [] x = x
+prependNonEmpty (x:xs) (y1 :| ys) = x :| (xs ++ (y1 : ys))
+
 qtyToRepNoGrouping :: Qty -> WholeOrFrac DigitList
-qtyToRepNoGrouping = undefined
+qtyToRepNoGrouping q =
+  let sig = intToDigits . signif $ q
+      e = places q
+      len = genericLength . toList $ sig
+  in WholeOrFrac $ if e == 0
+     then Left (WholeOnly (DigitList sig))
+     else let leadZeroes = genericReplicate (e - len) D0
+              w = DigitList $ D0 :| []
+              f = DigitList $ prependNonEmpty leadZeroes sig
+          in Right (WholeFrac w f)
+
+
 
 -- | Given a list of QtyRep, determine the most common radix and
 -- grouping that are used.  If a single QtyRep is grouped, then the
@@ -245,6 +276,32 @@ bestRadGroup
   :: [QtyRep]
   -> Maybe (S.S3 Radix PeriodGrp CommaGrp)
 bestRadGroup = undefined
+
+modes :: Ord a => [a] -> [a]
+modes
+  = map (head . snd)
+  . sortBy (comparing (Down . fst))
+  . map (\ls -> (length ls, ls))
+  . group
+  . sort
+
+-- | Groups digits, using the given split character.
+groupDigits
+  :: NonEmpty a
+  -> (NonEmpty a, [NonEmpty a])
+  -- ^ The first group of digits, and any subsequent groups.
+groupDigits
+  = toPair
+  . reverse
+  . map reverse
+  . chunksOf 3
+  . reverse
+  . toList
+  where
+    toPair [] = error "groupDigits: chunksOf produced empty list"
+    toPair (x:xs) = (ne x, map ne xs)
+    ne = fromMaybe (error $ "groupDigits: chunksOf produced"
+                            ++ " empty inner list") . nonEmpty
 
 -- Digit grouping.  Here are the rules.
 --
@@ -262,19 +319,75 @@ bestRadGroup = undefined
 -- grouped every third place.
 
 qtyToRepGrouped :: g -> Qty -> WholeOrFrac (GroupedDigits g)
-qtyToRepGrouped = undefined
+qtyToRepGrouped g q = WholeOrFrac
+  $ case unWholeOrFrac $ qtyToRepNoGrouping q of
+    Left (WholeOnly (DigitList ds)) ->
+      Left $ WholeOnly (mkWholeGroups ds)
+    Right (WholeFrac w f) ->
+      Right $ mkWholeFracGroups (unDigitList w) (unDigitList f)
+    where
+      mkGroups ds =
+        let (g1, gs) = groupDigits ds
+            mkGrp dl = (g, DigitList dl)
+        in GroupedDigits (DigitList g1) (map mkGrp gs)
+      mkWholeGroups ds = if (length . toList $ ds) > maxUngrouped
+                         then mkGroups ds
+                         else GroupedDigits (DigitList ds) []
+      mkWholeFracGroups w f = WholeFrac w' f'
+        where
+          f' = GroupedDigits (DigitList f) []
+          w' = if (length . toList $ w) + (length . toList $ f)
+                    > maxUngrouped
+               then mkGroups w
+               else GroupedDigits (DigitList w) []
+      maxUngrouped = 4
 
 qtyToRep
   :: S.S3 Radix PeriodGrp CommaGrp
   -> Qty
   -> QtyRep
-qtyToRep = undefined
+qtyToRep x q = case x of
+  S.S3a r -> QNoGrouping (qtyToRepNoGrouping q) r
+  S.S3b g -> QGrouped . Left $ qtyToRepGrouped g q
+  S.S3c g -> QGrouped . Right $ qtyToRepGrouped g q
 
 class HasQty a where
   toQty :: a -> Qty
 
+
+
+digitToInt :: Digit -> Integer
+digitToInt d = case d of
+  { D0 -> 0; D1 -> 1; D2 -> 2; D3 -> 3; D4 -> 4; D5 -> 5;
+    D6 -> 6; D7 -> 7; D8 -> 8; D9 -> 9 }
+
+digitsToInt :: DigitList -> Integer
+digitsToInt
+  = sum
+  . map (\(e, s) -> s * 10 ^ e)
+  . zip ([0..] :: [Integer])
+  . map digitToInt
+  . reverse
+  . toList
+  . unDigitList
+
 instance HasQty QtyRep where
-  toQty = undefined
+  toQty q = case q of
+    QNoGrouping (WholeOrFrac ei) _ -> case ei of
+      Left (WholeOnly ds) -> Qty (digitsToInt ds) 0
+      Right (WholeFrac w f) -> Qty sig ex
+        where
+          sig = digitsToInt ((Data.Semigroup.<>) w f)
+          ex = genericLength . toList . unDigitList $ f
+    QGrouped ei -> either groupedToQty groupedToQty ei
+
+groupedToQty :: WholeOrFrac (GroupedDigits a) -> Qty
+groupedToQty (WholeOrFrac ei) = case ei of
+  Left (WholeOnly g) -> Qty (digitsToInt . digits $ g) 0
+  Right (WholeFrac w f) -> Qty sig ex
+    where
+      sig = digitsToInt ((Data.Semigroup.<>) (digits w) (digits f))
+      ex = genericLength . toList . unDigitList . digits $ f
 
 instance HasQty Qty where
   toQty = id
