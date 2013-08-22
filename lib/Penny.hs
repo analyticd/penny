@@ -82,7 +82,11 @@ module Penny
     -- bin/doc/dependencies.dot in the Penny git repository.
   ) where
 
+import Data.Ord (comparing)
+import Data.List (sortBy, groupBy)
+import Data.Maybe (mapMaybe, fromMaybe)
 import qualified Data.Text as X
+import qualified Data.Map as Map
 import Data.Version (Version(..))
 import qualified Penny.Cabin.Balance.Convert as Conv
 import qualified Penny.Cabin.Balance.Convert.Parser as CP
@@ -255,6 +259,10 @@ data Defaults = Defaults
 -- all commodities is used.  If it's impossible to determine a radix
 -- point from all commodities, then the given default radix point and
 -- digit grouping (if desired) is used.
+--
+-- This function builds a map internally which holds all the
+-- formatting information; it might be expensive to build, so the
+-- function is written to be partially applied.
 
 qtyFormatter
   :: Su.S3 L.Radix L.PeriodGrp L.CommaGrp
@@ -266,7 +274,56 @@ qtyFormatter
   -- given grouping character.
 
   -> FormatQty
-qtyFormatter = undefined
+qtyFormatter df ls =
+  let m = formattingMap ls
+  in \a -> let fmt = fromMaybe df (Map.lookup (L.commodity a) m)
+           in L.showQtyRep . L.qtyToRep fmt . L.qty $ a
+
+
+-- | Returns a map of each commodity in the ledger and the grouping to
+-- use for it.
+formattingMap
+  :: [Cop.LedgerItem]
+  -> Map.Map L.Commodity (Su.S3 L.Radix L.PeriodGrp L.CommaGrp)
+formattingMap
+  = Map.fromList
+  . mapMaybe formatCmdty
+  . groupBy (\x y -> fst x == fst y)
+  . sortBy (comparing fst)
+  . allQtyRep
+
+-- | Given a list of (Commodity, QtyRep) pairs, get a single pair of
+-- the commodity and the grouping that should be used for this
+-- commodity. The input list must not be empty. Returns Nothing if no
+-- group data can be ascertained.
+formatCmdty
+  :: [(L.Commodity, L.QtyRep)]
+  -> Maybe (L.Commodity, Su.S3 L.Radix L.PeriodGrp L.CommaGrp)
+formatCmdty ls = case L.bestRadGroup . map snd $ ls of
+  Nothing -> Nothing
+  Just r -> Just (fst . head $ ls, r)
+
+-- | Given a list of LedgerItem, create a list of pairs of commodities
+-- and QtyRep.
+allQtyRep :: [Cop.LedgerItem] -> [(L.Commodity, L.QtyRep)]
+allQtyRep = concatMap toPairs
+  where
+    toPairs i = case i of
+      Su.S4a t ->
+        mapMaybe toEntPair
+        . L.unEnts
+        . snd
+        . L.unTransaction
+        $ t
+      Su.S4b p ->
+        [( L.unTo . L.to . L.price $ p
+        , L.unCountPerUnit . L.countPerUnit . L.price $ p)]
+      _ -> []
+
+toEntPair :: L.Ent m -> Maybe (L.Commodity, L.QtyRep)
+toEntPair e = case L.entry e of
+  Left en -> Just (L.commodity . L.amount $ en, L.qty . L.amount $ en)
+  Right _ -> Nothing
 
 -- | Creates an IO action that you can use for the main function.
 runPenny

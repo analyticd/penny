@@ -75,7 +75,6 @@ import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import qualified Data.Semigroup(Semigroup(..))
 import Data.Semigroup(sconcat)
 import Data.Monoid ((<>))
-import Data.Ord (comparing)
 import qualified Penny.Lincoln.Equivalent as Ev
 import Penny.Lincoln.Equivalent (Equivalent(..), (==~))
 import qualified Penny.Steel.Sums as S
