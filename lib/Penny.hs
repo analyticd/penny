@@ -33,6 +33,9 @@ module Penny
   , widthFromRuntime
   , Ps.yearMonthDay
 
+  -- ** Formatting quantities
+  , qtyFormatter
+
   -- ** Runtime
   , S.Runtime
   , S.environment
@@ -96,6 +99,7 @@ import qualified Penny.Cabin.Posts.Spacers as PS
 import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Copper as Cop
+import qualified Penny.Steel.Sums as Su
 import qualified Penny.Lincoln as L
 import qualified Data.Prednote.Expressions as Exp
 import qualified Penny.Zinc as Z
@@ -220,6 +224,49 @@ data Defaults = Defaults
     -- Spacers should be a non-negative integer (although currently
     -- the absolute value of the field is taken.)
   }
+
+-- | Provides a function to use in the 'formatQty' field. This formats
+-- quantities that were not parsed in the ledger.  It first consults a
+-- list of all items that were parsed from the ledger.  It examines
+-- these items to determine if another item with the same commodity
+-- already exists in the ledger.
+--
+-- If other items with the same commodity exist in the ledger, the
+-- radix point most frequently occurring amongst those items is
+-- used. If at least one of these items (with this radix point) also
+-- has grouped digits, then the quantity will be formatted with
+-- grouped digits; otherwise, no digit grouping is performed. If digit
+-- grouping is performed, it is done according to the following rules:
+--
+-- * only digits to the left of the radix point are grouped
+--
+-- * grouping is performed only if the number has at least five
+-- digits. Therefore, 1234 is not grouped, but 1,234.5 is grouped, as
+-- is 12,345
+--
+-- * the character most frequently appearing as a grouping character
+-- (for this particular commodity and radix point) is used to perform
+-- grouping
+--
+-- * digits are grouped into groups of 3 digits
+--
+-- If a radix point cannot be determined from the quantities for a
+-- given commodity, then the radix point appearing most frequently for
+-- all commodities is used.  If it's impossible to determine a radix
+-- point from all commodities, then the given default radix point and
+-- digit grouping (if desired) is used.
+
+qtyFormatter
+  :: Su.S3 L.Radix L.PeriodGrp L.CommaGrp
+  -- ^ What to do if no radix or grouping information can be
+  -- determined from the ledger.  Pass Radix if you want to use a
+  -- radix point but no grouping; a PeriodGrp if you want to use a
+  -- period for a radix point and the given grouping character, or a
+  -- CommaGrp if you want to use a comma for a radix point and the
+  -- given grouping character.
+
+  -> FormatQty
+qtyFormatter = undefined
 
 -- | Creates an IO action that you can use for the main function.
 runPenny

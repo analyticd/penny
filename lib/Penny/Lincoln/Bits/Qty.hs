@@ -43,11 +43,11 @@ module Penny.Lincoln.Bits.Qty
   -- * Other stuff
   , Qty
   , HasQty(..)
-  , mantissa
+  , signif
   , places
   , compareQty
   , newQty
-  , Mantissa
+  , Signif
   , Places
   , add
   , mult
@@ -367,12 +367,12 @@ showQtyRep q = case q of
 -- /WARNING/ - before doing comparisons or equality tests
 --
 -- The Eq instance is derived. Therefore q1 == q2 only if q1 and q2
--- have both the same mantissa and the same exponent. You may instead
+-- have both the same significand and the same exponent. You may instead
 -- want 'equivalent'. Similarly, the Ord instance is derived. It
--- compares based on the integral value of the mantissa and of the
+-- compares based on the integral value of the significand and of the
 -- exponent. You may instead want 'compareQty', which compares after
 -- equalizing the exponents.
-data Qty = Qty { mantissa :: !Integer
+data Qty = Qty { signif :: !Integer
                , places :: !Integer
                } deriving (Eq, Show, Ord)
 
@@ -384,15 +384,15 @@ instance Ev.Equivalent Qty where
     where
       (x', y') = equalizeExponents x y
 
-type Mantissa = Integer
+type Signif = Integer
 type Places = Integer
 
--- | Mantissa 1, exponent 0
+-- | Significand 1, exponent 0
 qtyOne :: Qty
 qtyOne = Qty 1 0
 
 
-newQty :: Mantissa -> Places -> Maybe Qty
+newQty :: Signif -> Places -> Maybe Qty
 newQty m p
   | m > 0  && p >= 0 = Just $ Qty m p
   | otherwise = Nothing
@@ -402,7 +402,7 @@ newQty m p
 --
 -- > compareQty (newQty 15 1) (newQty 1500 3) == EQ
 compareQty :: Qty -> Qty -> Ordering
-compareQty q1 q2 = compare (mantissa q1') (mantissa q2')
+compareQty q1 q2 = compare (signif q1') (signif q2')
   where
     (q1', q2') = equalizeExponents q1 q2
 
@@ -446,7 +446,7 @@ data Difference =
 difference :: Qty -> Qty -> Difference
 difference x y =
   let (x', y') = equalizeExponents x y
-      (mx, my) = (mantissa x', mantissa y')
+      (mx, my) = (signif x', signif y')
   in case compare mx my of
     GT -> LeftBiggerBy (Qty (mx - my) (places x'))
     LT -> RightBiggerBy (Qty (my - mx) (places x'))
@@ -471,7 +471,7 @@ mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe + ye)
 -- Adjust all exponents, both on the amount to be allocated and on all
 -- the votes, so that the exponents are all equal.
 --
--- Allocate the mantissas.
+-- Allocate the significands.
 --
 -- Return the quantities with the original exponents.
 
@@ -499,8 +499,8 @@ allocate'
 allocate' tot ls =
   let ((tot':ls'), e) = sameExponent (tot:ls)
       (moreE, (_, ss)) =
-        multRemainderAllResultsAtLeast1 (mantissa tot')
-        (map mantissa ls')
+        multRemainderAllResultsAtLeast1 (signif tot')
+        (map signif ls')
       totE = e + moreE
   in map (\m -> Qty m totE) ss
 
