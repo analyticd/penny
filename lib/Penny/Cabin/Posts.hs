@@ -149,13 +149,13 @@ mkPrintReport
   -> I.ArgsAndReport
 mkPrintReport posArgs zo ch fsf st = (posArgs, f)
   where
-    f txns _ = do
+    f fmt txns _ = do
       pdct <- getPredicate (P.exprDesc st) (P.tokens st)
       let boxes = fsf txns
           rptChks = postsReport ch (P.showZeroBalances st) pdct
-                    (P.postFilter st) (chunkOpts st zo) boxes
+                    (P.postFilter st) (chunkOpts fmt st zo) boxes
           expChks = showExpression (P.showExpression st) pdct
-          verbChks = showVerboseFilter (qtyFormat zo) (P.verboseFilter st)
+          verbChks = showVerboseFilter fmt (P.verboseFilter st)
                                        pdct boxes
           chks = expChks
                  ++ verbChks
@@ -193,15 +193,13 @@ showVerboseFilter fmt (P.VerboseFilter b) pdct bs =
     info = "Postings report filter:\n"
 
 defaultOptions
-  :: (L.Amount L.Qty -> X.Text)
-  -> Sh.Runtime
+  :: Sh.Runtime
   -> ZincOpts
-defaultOptions fmt rt = ZincOpts
+defaultOptions rt = ZincOpts
   { fields = defaultFields
   , width = widthFromRuntime rt
   , showZeroBalances = CO.ShowZeroBalances False
   , dateFormat = yearMonthDay
-  , qtyFormat = fmt
   , subAccountLength = A.SubAccountLength 2
   , payeeAllocation = A.alloc 60
   , accountAllocation = A.alloc 40
@@ -242,10 +240,6 @@ data ZincOpts = ZincOpts
     -- a PostingInfo so it has lots of information, but it
     -- should return a date for use in the Date field.
 
-  , qtyFormat :: L.Amount L.Qty -> X.Text
-    -- ^ How to display the quantity of the posting if it was not
-    -- parsed from the ledger.
-
   , subAccountLength :: A.SubAccountLength
     -- ^ When shortening the names of sub accounts to make
     -- them fit, they will be this long.
@@ -268,13 +262,14 @@ data ZincOpts = ZincOpts
 
   }
 
-chunkOpts ::
-  P.State
+chunkOpts
+  :: (L.Amount L.Qty -> X.Text)
+  -> P.State
   -> ZincOpts
   -> C.ChunkOpts
-chunkOpts s z = C.ChunkOpts
+chunkOpts fmt s z = C.ChunkOpts
   { C.dateFormat = dateFormat z
-  , C.qtyFormat = qtyFormat z
+  , C.qtyFormat = fmt
   , C.fields = P.fields s
   , C.subAccountLength = subAccountLength z
   , C.payeeAllocation = payeeAllocation z

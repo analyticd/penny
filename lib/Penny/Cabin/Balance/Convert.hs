@@ -161,29 +161,27 @@ report os@(Opts getFmt _ _ _ _ txtFormats) ps bs = do
 -- | Creates a report respecting the standard interface for reports
 -- whose options are parsed in from the command line.
 cmdLineReport
-  :: (L.Amount L.Qty -> X.Text)
-  -> O.DefaultOpts
+  :: O.DefaultOpts
   -> I.Report
-cmdLineReport fmt o rt = (help o, mkMode)
+cmdLineReport o rt = (help o, mkMode)
   where
     mkMode _ _ chgrs _ fsf = MA.modeHelp
       "convert"
       (const (help o))
-      (process fmt rt chgrs o fsf)
+      (process rt chgrs o fsf)
       (map (fmap Right) P.allOptSpecs)
       MA.Intersperse
       (return . Left)
 
 
 process
-  :: (L.Amount L.Qty -> X.Text)
-  -> S.Runtime
+  :: S.Runtime
   -> Scheme.Changers
   -> O.DefaultOpts
   -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
   -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
   -> Ex.Exceptional X.Text I.ArgsAndReport
-process fmt rt chgrs defaultOpts fsf ls = do
+process rt chgrs defaultOpts fsf ls = do
   let (posArgs, parsed) = Ei.partitionEithers ls
       op' = foldl (>>=) (return (O.toParserOpts defaultOpts rt)) parsed
   case op' of
@@ -191,7 +189,7 @@ process fmt rt chgrs defaultOpts fsf ls = do
       Ex.Success g -> return $
         let noDefault = X.pack "no default price found"
             f = fromParsedOpts chgrs g
-            pr ts pps = do
+            pr fmt ts pps = do
               rptOpts <- Ex.fromMaybe noDefault $
                 f pps fmt
               let boxes = fsf ts

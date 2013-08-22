@@ -23,9 +23,6 @@ module Penny
   -- ** Expression type
   , Exp.ExprDesc(..)
 
-  -- ** Formatting quantities
-  , defaultQtyFormat
-
   -- ** Convert report options
   , Target(..)
   , CP.SortBy(..)
@@ -35,8 +32,6 @@ module Penny
   , Spacers(..)
   , widthFromRuntime
   , Ps.yearMonthDay
-  , Ps.qtyAsIs
-  , Ps.balanceAsIs
 
   -- ** Runtime
   , S.Runtime
@@ -105,7 +100,6 @@ import qualified Penny.Lincoln as L
 import qualified Data.Prednote.Expressions as Exp
 import qualified Penny.Zinc as Z
 import qualified Penny.Shield as S
-import qualified Penny.Steel.Sums as Su
 import qualified Text.Matchers as Mr
 
 -- | A function used to format quantities.
@@ -275,7 +269,7 @@ allReports df =
       cd = toConvertDefaults df
       pd = toPostingsDefaults df
   in [ Ps.zincReport pd
-     , MC.parseReport (balanceFormat df) bd
+     , MC.parseReport bd
      , Conv.cmdLineReport cd
      ]
 
@@ -289,6 +283,7 @@ toZincDefaults d = Z.Defaults
   , Z.moreSchemes = additionalSchemes d
   , Z.sorter = sorter d
   , Z.exprDesc = expressionType d
+  , Z.formatQty = formatQty d
   }
 
 toBalanceDefaults :: Defaults -> MP.ParseOpts
@@ -305,7 +300,6 @@ toConvertDefaults d = ConvOpts.DefaultOpts
   , ConvOpts.target = convTarget . convertTarget $ d
   , ConvOpts.sortOrder = convertOrder d
   , ConvOpts.sortBy = convertSortBy d
-  , ConvOpts.format = convertFormat d
   }
 
 toPostingsDefaults :: Defaults -> Ps.ZincOpts
@@ -315,8 +309,6 @@ toPostingsDefaults d = Ps.ZincOpts
   , Ps.showZeroBalances =
       CO.ShowZeroBalances . postingsShowZeroBalances $ d
   , Ps.dateFormat = postingsDateFormat d
-  , Ps.qtyFormat = postingsQtyFormat d
-  , Ps.balanceFormat = postingsBalanceFormat d
   , Ps.subAccountLength =
       Ps.SubAccountLength . postingsSubAccountLength $ d
   , Ps.payeeAllocation =
@@ -325,9 +317,6 @@ toPostingsDefaults d = Ps.ZincOpts
       Ps.alloc . postingsAccountAllocation $ d
   , Ps.spacers = convSpacers . postingsSpacers $ d
   }
-
-defaultQtyFormat :: L.Qty -> X.Text
-defaultQtyFormat = X.pack . L.prettyShowQty
 
 data Spacers a = Spacers
   { sGlobalTransaction :: a

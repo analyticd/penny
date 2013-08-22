@@ -34,7 +34,13 @@ type ArgsAndReport = ([PosArg], PrintReport)
 type ParseResult = Exceptional X.Text ArgsAndReport
 
 type PrintReport
-  = [L.Transaction]
+  = (L.Amount L.Qty -> X.Text)
+  -- ^ Function that gives a rendering for quantities that are not
+  -- already formatted.  This function is passed as part of
+  -- PrintReport because it allows the function to be built after the
+  -- ledger has already been parsed.
+
+  -> [L.Transaction]
   -- ^ All transactions to be included in the report. The report must
   -- sort and filter them
 

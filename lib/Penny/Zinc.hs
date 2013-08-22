@@ -100,7 +100,7 @@ data Defaults = Defaults
     -- > [(Date, Ascending), (Payee, Ascending)]
 
   , exprDesc :: X.ExprDesc
-  , formatQty :: L.Amount L.Qty -> Text
+  , formatQty :: [C.LedgerItem] -> L.Amount L.Qty -> Text
   }
 
 sortPairToFn :: (SortField, P.SortOrder) -> Orderer
@@ -322,9 +322,12 @@ data FilterOpts = FilterOpts
     -- subsequent parses of the command line.
 
   , foSorterFilterer :: [L.Transaction]
-                    -> ([R.Chunk], [(Ly.LibertyMeta, L.Posting)])
-    -- ^ Applied to a list of Transaction, will sort and filter
-    -- the transactions and assign them LibertyMeta.
+                     -> ( (L.Amount L.Qty -> Text) -> [R.Chunk]
+                          , [(Ly.LibertyMeta, L.Posting)])
+    -- ^ Applied to a list of Transaction, will sort and filter the
+    -- transactions and assign them LibertyMeta. Also, returns a
+    -- function that, when applied to a function that will format
+    -- quantities, returns a verbose description of what was filtered.
 
   , foTextSpecs :: Maybe E.Changers
 
@@ -346,7 +349,8 @@ processGlobal
 processGlobal rt srt df rpts os
   = case processFiltOpts srt df os of
       Ex.Exception s -> Ex.throw s
-      Ex.Success fo -> return . Right $ map (makeMode rt fo) rpts
+      Ex.Success fo ->
+        return . Right $ map (makeMode (formatQty df) rt fo) rpts
 
 processFiltOpts
   :: Orderer
@@ -363,16 +367,17 @@ processFiltOpts ord df os = Ex.mapException unpack $ do
       showExpr = getShowExpression os
       verbFilt = getVerboseFilter os
   pdct <- Ly.parsePredicate expDsc toks
-  let sf = Ly.xactionsToFiltered (formatQty df) pdct postFilts sortSpec
+  let sf ls = Ly.xactionsToFiltered pdct postFilts sortSpec ls
   return $ FilterOpts rf rs sf sch
                       ctf expDsc pdct showExpr verbFilt
 
 makeMode
-  :: S.Runtime
+  :: ([C.LedgerItem] -> L.Amount L.Qty -> Text)
+  -> S.Runtime
   -> FilterOpts
   -> I.Report
   -> MA.Mode (MA.ProgName -> String) (IO ())
-makeMode rt fo r = fmap makeIO mode
+makeMode mkFmt rt fo r = fmap makeIO mode
   where
     mode = snd (r rt) (foResultSensitive fo) (foResultFactory fo)
            (fromMaybe Schemes.plainLabels . foTextSpecs $ fo)
@@ -380,16 +385,18 @@ makeMode rt fo r = fmap makeIO mode
     makeIO parseResult = do
       (posArgs, printRpt) <-
         Ex.switch handleTextError return parseResult
-      (txns, pps) <- fmap splitLedger $ C.open posArgs
-      let term = if unColorToFile (foColorToFile fo)
+      items <- C.open posArgs
+      let fmt = mkFmt items
+          (txns, pps) = splitLedger items
+          term = if unColorToFile (foColorToFile fo)
                  then S.termFromEnv rt
                  else S.autoTerm rt
           printer = R.putChunks term
-          verbFiltChunks = fst . foSorterFilterer fo $ txns
+          verbFiltChunks = (fst . foSorterFilterer fo $ txns) fmt
       showFilterExpression printer (foShowExpression fo) (foPredicate fo)
       showVerboseFilter printer (foVerboseFilter fo) verbFiltChunks
       Ex.switch handleTextError (R.putChunks term)
-        $ printRpt txns pps
+        $ printRpt fmt txns pps
 
 
 handleTextError :: Text -> IO a

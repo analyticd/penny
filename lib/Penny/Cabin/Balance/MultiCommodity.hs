@@ -97,21 +97,17 @@ report (Opts bf szb o chgrs) =
 -- | The MultiCommodity report with configurable options that have
 -- been parsed from the command line.
 parseReport
-  :: (L.Amount L.Qty -> X.Text)
-  -- ^ How to format balances. For instance you can use this to
-  -- perform commodity-sensitive digit grouping.
-
-  -> P.ParseOpts
+  :: P.ParseOpts
   -- ^ Default options for the report. These can be overriden on the
   -- command line.
 
   -> I.Report
-parseReport fmt o rt = (help o, makeMode)
+parseReport o rt = (help o, makeMode)
   where
     makeMode _ _ chgrs _ fsf = MA.modeHelp
       "balance"
       (const (help o))
-      (process chgrs fmt o rt fsf)
+      (process chgrs o rt fsf)
       (map (fmap Right) P.allSpecs)
       MA.Intersperse
       (return . Left)
@@ -119,24 +115,24 @@ parseReport fmt o rt = (help o, makeMode)
 process
   :: Applicative f
   => E.Changers
-  -> (L.Amount L.Qty -> X.Text)
   -> P.ParseOpts
   -> a
   -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
   -> [Either String (P.ParseOpts -> P.ParseOpts)]
   -> f I.ArgsAndReport
-process chgrs fmt o _ fsf ls =
+process chgrs o _ fsf ls =
   let (posArgs, fns) = Ei.partitionEithers ls
       mkParsedOpts = foldl (flip (.)) id fns
       os' = mkParsedOpts o
-      mcOpts = fromParseOpts chgrs fmt os'
-      pr txns _ = return $ report mcOpts (fsf txns)
+      pr fmt txns _ = return $ report mcOpts (fsf txns)
+        where
+          mcOpts = fromParseOpts chgrs fmt os'
   in pure (posArgs, pr)
 
 
 -- | The MultiCommodity report, with default options.
-defaultReport :: (L.Amount L.Qty -> X.Text) -> I.Report
-defaultReport fmt = parseReport fmt defaultParseOpts
+defaultReport :: I.Report
+defaultReport = parseReport defaultParseOpts
 
 ------------------------------------------------------------
 -- ## Help

@@ -121,10 +121,7 @@ parsePredicate d ls = case ls of
 
 xactionsToFiltered
 
-  :: (L.Amount L.Qty -> X.Text)
-  -- ^ How to format quantities
-
-  -> P.LPdct
+  :: P.LPdct
   -- ^ The predicate to filter the transactions
 
   -> [PostFilterFn]
@@ -136,12 +133,13 @@ xactionsToFiltered
   -> [L.Transaction]
   -- ^ The transactions to work on (probably parsed in from Copper)
 
-  -> ([C.Chunk], [(LibertyMeta, L.Posting)])
+  -> ( (L.Amount L.Qty -> X.Text) -> [C.Chunk]
+     , [(LibertyMeta, L.Posting)])
   -- ^ Sorted, filtered postings
 
-xactionsToFiltered fmt pdct postFilts srtr
+xactionsToFiltered pdct postFilts srtr
   = second (processPostings srtr postFilts)
-  . mainFilter fmt pdct
+  . mainFilter pdct
   . concatMap L.transactionToPostings
 
 processPostings
@@ -157,13 +155,14 @@ processPostings srtr postFilters
   . addFilteredNum
 
 mainFilter
-  :: (L.Amount L.Qty -> X.Text)
-  -- ^ How to format quantities
-  -> P.LPdct
+  :: P.LPdct
   -> [L.Posting]
-  -> ([C.Chunk], [L.Posting])
-mainFilter fmt pdct = E.verboseFilter (L.display fmt)
-                                      indentAmt False pdct
+  -> ((L.Amount L.Qty -> X.Text) -> [C.Chunk], [L.Posting])
+mainFilter pdct pstgs = (getChks, ps')
+  where
+    ps' = E.filter pdct pstgs
+    getChks fmt = fst $ E.verboseFilter (L.display fmt) indentAmt
+                        False pdct pstgs
 
 
 addFilteredNum :: [a] -> [(FilteredNum, a)]

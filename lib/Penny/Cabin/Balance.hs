@@ -11,13 +11,11 @@ import qualified Penny.Cabin.Balance.MultiCommodity as MC
 import qualified Penny.Cabin.Interface as I
 import qualified Penny.Cabin.Balance.Convert as C
 import qualified Penny.Cabin.Balance.Convert.Options as ConvOpts
-import qualified Penny.Lincoln as L
-import qualified Data.Text as X
 
 -- | The default multi-commodity balance report.
-multiCommodity :: (L.Amount L.Qty -> X.Text) -> I.Report
+multiCommodity :: I.Report
 multiCommodity = MC.defaultReport
 
 -- | The default converting balance report.
-convert :: (L.Amount L.Qty -> X.Text) -> I.Report
-convert fmt = C.cmdLineReport fmt ConvOpts.defaultOptions
+convert :: I.Report
+convert = C.cmdLineReport ConvOpts.defaultOptions
