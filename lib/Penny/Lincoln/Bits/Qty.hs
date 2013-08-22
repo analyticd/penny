@@ -63,6 +63,7 @@ module Penny.Lincoln.Bits.Qty
 
 -- # Imports
 
+import Control.Applicative ((<|>))
 import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Text (Text)
 import qualified Data.Text as X
@@ -70,7 +71,7 @@ import Data.Ord(Down(..), comparing)
 import Data.List (genericLength, genericReplicate, sortBy, group, sort)
 import Data.List.Split (chunksOf)
 import Data.List.NonEmpty (NonEmpty((:|)), toList, nonEmpty)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import qualified Data.Semigroup(Semigroup(..))
 import Data.Semigroup(sconcat)
 import Data.Monoid ((<>))
@@ -275,7 +276,54 @@ qtyToRepNoGrouping q =
 bestRadGroup
   :: [QtyRep]
   -> Maybe (S.S3 Radix PeriodGrp CommaGrp)
-bestRadGroup = undefined
+bestRadGroup ls = fromGrouping <|> fromRadix
+  where
+    grpToRadix q = case q of
+      QNoGrouping _ _ -> Nothing
+      QGrouped e -> Just $ either (const Period) (const Comma) e
+    mostCommonGrpRad = mode . mapMaybe grpToRadix $ ls
+    fromGrouping = do
+      rad <- mostCommonGrpRad
+      case rad of
+        Period -> fmap S.S3b . mostCommonPeriodGrp $ ls
+        Comma -> fmap S.S3c . mostCommonCommaGrp $ ls
+    fromRadix = fmap S.S3a . mode . mapMaybe noGrpToRadix $ ls
+    noGrpToRadix q = case q of
+      QNoGrouping _ r -> Just r
+      _ -> Nothing
+
+mostCommonPeriodGrp :: [QtyRep] -> Maybe PeriodGrp
+mostCommonPeriodGrp
+  = mode
+  . concatMap f
+  where
+    f q = case q of
+      QNoGrouping _ _ -> []
+      QGrouped e -> case e of
+        Left (WholeOrFrac ei) -> case ei of
+          Left _ -> []
+          Right (WholeFrac g1 g2) -> getSeps g1 ++ getSeps g2
+        Right _ -> []
+
+mostCommonCommaGrp :: [QtyRep] -> Maybe CommaGrp
+mostCommonCommaGrp
+  = mode
+  . concatMap f
+  where
+    f q = case q of
+      QNoGrouping _ _ -> []
+      QGrouped e -> case e of
+        Left _ -> []
+        Right (WholeOrFrac ei) -> case ei of
+          Left _ -> []
+          Right (WholeFrac g1 g2) -> getSeps g1 ++ getSeps g2
+
+getSeps :: GroupedDigits a -> [a]
+getSeps (GroupedDigits _ ls) = map fst ls
+
+
+mode :: Ord a => [a] -> Maybe a
+mode = listToMaybe . modes
 
 modes :: Ord a => [a] -> [a]
 modes
