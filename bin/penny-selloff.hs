@@ -118,9 +118,6 @@ import qualified System.Console.MultiArg as MA
 import qualified Text.Parsec as Parsec
 import qualified Paths_penny_bin as PPB
 
-groupingSpec :: CR.GroupSpecs
-groupingSpec = CR.GroupSpecs CR.NoGrouping CR.NoGrouping
-
 type Err = Ex.Exceptional Error
 
 data Error
@@ -603,7 +600,7 @@ makeOutput pa ldgr = do
   return
     . (`X.snoc` '\n')
     . fromMaybe (error "makeOutput: transaction did not render")
-    . CR.transaction groupingSpec
+    . CR.transaction
     . (\t -> let (tl, es) = L.unTransaction t
              in (L.tlCore tl, fmap L.pdCore es))
     . mkTxn si

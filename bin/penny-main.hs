@@ -46,10 +46,10 @@ defaults rt = Defaults
     -- If this list is empty, then by default postings are left in the
     -- same order as they appear in the ledger files.
 
-  , balanceFormat = const defaultQtyFormat
-    -- ^ How to format balances in the balance report. Change this
-    -- function if, for example, you want to allow for digit
-    -- grouping. The default function does not perform digit grouping.
+  , formatQty = qtyFormatter $ S3a Period
+    -- ^ How to format quantities. This affects only quantities that
+    -- are not parsed from the ledger.  Examples include calculated
+    -- totals and inferred quantities.  Affects all reports.
 
   , balanceShowZeroBalances = False
     -- ^ Show zero balances in the balance report? If True, show them;
@@ -86,11 +86,6 @@ defaults rt = Defaults
     -- SortByQty
     -- SortByName
 
-  , convertFormat = const defaultQtyFormat
-    -- ^ How to format balances in the convert report. For instance,
-    -- this function might perform digit grouping. The default
-    -- function does not perform any digit grouping.
-
   , postingsFields = fields
     -- ^ Fields to show by default in the postings report.
 
@@ -112,9 +107,6 @@ defaults rt = Defaults
     -- not the quantity for the totals columns (for that, see
     -- postingsBalanceFormat.) For example this function might perform
     -- digit grouping.
-
-  , postingsBalanceFormat = balanceAsIs
-    -- ^ How to format balance totals in the postings report.
 
   , postingsSubAccountLength = 2
     -- ^ Account names in the postings report are shortened if

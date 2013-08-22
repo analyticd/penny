@@ -34,6 +34,7 @@ module Penny
   , Ps.yearMonthDay
 
   -- ** Formatting quantities
+  , module Penny.Steel.Sums
   , qtyFormatter
 
   -- ** Runtime
@@ -103,6 +104,7 @@ import qualified Penny.Cabin.Posts.Spacers as PS
 import qualified Penny.Cabin.Posts.Meta as M
 import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Copper as Cop
+import Penny.Steel.Sums
 import qualified Penny.Steel.Sums as Su
 import qualified Penny.Lincoln as L
 import qualified Data.Prednote.Expressions as Exp
