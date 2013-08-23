@@ -623,7 +623,7 @@ instance Arbitrary a => Arbitrary (NotInferable a) where
 -- | 'ents' fails when given non-inferable entries
 prop_entsNonInferable :: Arbitrary a => NotInferable a -> Bool
 prop_entsNonInferable (NotInferable ls) =
-  isNothing $ L.ents ls
+  isNothing . L.ents . map (first (fmap Right)) $ ls
 
 --
 -- # Price
@@ -909,7 +909,8 @@ prop_noEntsNotInferableGroup nib mayMayEnt = do
            . Q.getNonEmpty $ nib
       esWithExtra = maybe es (: es) mayMayEnt
   esWithInts <- pairWithInts esWithExtra
-  return . isNothing . L.ents $ esWithInts
+  return . isNothing . L.ents . map (first (fmap Right))
+         $ esWithInts
 
 --
 -- # runTests
