@@ -4,9 +4,12 @@
 module Lincoln where
 
 import Control.Applicative ((<$>), (<*>))
+import Control.Arrow (first)
 import Control.Monad (liftM2, liftM5, liftM4, liftM3, replicateM, guard)
 import Data.List (foldl1')
 import Data.Maybe (isJust, isNothing, catMaybes)
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty((:|)))
 import Data.Monoid (mempty)
 import qualified Data.Time as T
 import qualified Test.QuickCheck as Q
@@ -19,6 +22,7 @@ import Penny.Lincoln.Equivalent ((==~))
 import Data.Text (Text)
 import qualified Data.Text as X
 import System.Random.Shuffle (shuffle')
+import qualified Penny.Steel.Sums as Su
 
 --
 -- # Qty
@@ -29,7 +33,7 @@ failMsg s = fail $ s ++ ": generation failed"
 
 -- | Generates Qty with the exponent restricted to a reasonable
 -- size. Currently this means it is between 0 and 5, inclusive. Big
--- mantissas are not a problem, but big exponents quickly make the
+-- significands are not a problem, but big exponents quickly make the
 -- tests practically un-runnable.
 genReasonableExp :: Gen L.Qty
 genReasonableExp = do
@@ -45,24 +49,24 @@ genExponent :: Gen Integer
 genExponent = Q.choose (0, maxExponent)
 
 -- | Mutates a Qty so that it is equivalent, but possibly with a
--- different mantissa and exponent.
+-- different significand and exponent.
 genEquivalent :: L.Qty -> Gen L.Qty
 genEquivalent q = do
-  let (m, p) = (L.mantissa q, L.places q)
+  let (m, p) = (L.signif q, L.places q)
   expo <- genExponent
   let m' = m * (10 ^ expo)
       p' = p + (fromIntegral expo)
   maybe (failMsg "genEquivalent") return $ L.newQty m' p'
 
 -- | Mutates a Qty so that it is not equivalent. Changes either the
--- mantissa or the exponent or both.
+-- significand or the exponent or both.
 genMutate :: L.Qty -> Gen L.Qty
 genMutate q = do
-  let (m, p) = (L.mantissa q, L.places q)
-  (changeMantissa, changeExp) <-
+  let (m, p) = (L.signif q, L.places q)
+  (changeSignif, changeExp) <-
     Q.suchThat (liftM2 (,) arbitrary arbitrary)
     (/= (False, False))
-  m' <- if changeMantissa then mutateAtLeast1 m else return m
+  m' <- if changeSignif then mutateAtLeast1 m else return m
   p' <- if changeExp then mutateExponent p else return p
   maybe (failMsg "genMutate") return $ L.newQty m' p'
 
@@ -102,25 +106,25 @@ genOne = do
 instance Arbitrary L.Qty where
   arbitrary = Q.oneof [ genReasonableExp ]
 
--- | Mantissas are always greater than zero.
-prop_mantissa :: L.Qty -> Bool
-prop_mantissa q = L.mantissa q > 0
+-- | Significands are always greater than zero.
+prop_significand :: L.Qty -> Bool
+prop_significand q = L.signif q > 0
 
 -- | Exponent is always at least zero
 prop_exponent :: L.Qty -> Bool
 prop_exponent q = L.places q >= 0
 
--- | newQty passes if exponent is at least zero and if mantissa is
+-- | newQty passes if exponent is at least zero and if significand is
 -- greater than zero.
 
-prop_newQtySucceeds :: L.Mantissa -> L.Places -> Q.Property
+prop_newQtySucceeds :: L.Signif -> L.Places -> Q.Property
 prop_newQtySucceeds m p =
   m > 0 ==> p >= 0 ==> isJust (L.newQty m p)
 
--- | True if this is a valid Qty; that is, the mantissa is greater
+-- | True if this is a valid Qty; that is, the significand is greater
 -- than 0 and the number of places is greater than or equal to 0.
 validQty :: L.Qty -> Bool
-validQty q = L.mantissa q > 0 && L.places q >= 0
+validQty q = L.signif q > 0 && L.places q >= 0
 
 
 maxSizeList :: Arbitrary a => Int -> Gen [a]
@@ -201,13 +205,13 @@ prop_genOneValid = validQty . unOne
 prop_multIdentity :: L.Qty -> One -> Bool
 prop_multIdentity x (One q1) = (x `L.mult` q1) ==~ x
 
--- | newQty fails if mantissa is less than one
-prop_newQtyBadMantissa :: L.Mantissa -> L.Places -> Q.Property
-prop_newQtyBadMantissa m p =
+-- | newQty fails if significand is less than one
+prop_newQtyBadSignificand :: L.Signif -> L.Places -> Q.Property
+prop_newQtyBadSignificand m p =
   m < 1 ==> isNothing (L.newQty m p)
 
 -- | newQty fails if places is less than zero
-prop_newQtyBadPlaces :: L.Mantissa -> L.Places -> Q.Property
+prop_newQtyBadPlaces :: L.Signif -> L.Places -> Q.Property
 prop_newQtyBadPlaces m p =
   m < 0 ==> isNothing (L.newQty m p)
 
@@ -231,11 +235,11 @@ prop_genNotEquivalent q1 = do
   return . not $ q1 ==~ q2
 
 -- | newQty succeeds and fails as it should, and generates valid Qty
-prop_newQty :: L.Mantissa -> L.Places -> Bool
+prop_newQty :: L.Signif -> L.Places -> Bool
 prop_newQty m p = case (m > 0, p >= 0) of
   (True, True) -> case L.newQty m p of
     Nothing -> False
-    Just q -> L.mantissa q == m && L.places q == p
+    Just q -> L.signif q == m && L.places q == p
   _ -> isNothing (L.newQty m p)
 
 -- | Sum of allocation adds up to original Qty
@@ -263,6 +267,64 @@ prop_sumLargestRemainder tot ls =
       l = map Q.getNonNegative . Q.getNonEmpty $ ls
       r = L.largestRemainderMethod t l
   in sum l > 0 ==> sum r == t
+
+--
+-- # QtyRep
+--
+
+instance Arbitrary L.Digit where
+  arbitrary = Q.elements [minBound..maxBound]
+
+instance Arbitrary L.PeriodGrp where
+  arbitrary = Q.elements [minBound..maxBound]
+
+instance Arbitrary L.CommaGrp where
+  arbitrary = Q.elements [minBound..maxBound]
+
+instance Arbitrary a => Arbitrary (NonEmpty a) where
+  arbitrary = (:|) <$> arbitrary <*> arbitrary
+
+instance Arbitrary L.DigitList where
+  arbitrary = fmap L.DigitList arbitrary
+
+instance Arbitrary a => Arbitrary (L.GroupedDigits a) where
+  arbitrary = L.GroupedDigits <$> arbitrary <*> arbitrary
+
+digitsHasNonZero :: L.Digits a => a -> Bool
+digitsHasNonZero = any (/= L.D0) . NE.toList . L.unDigitList . L.digits
+
+instance (Arbitrary a, L.Digits a) => Arbitrary (L.WholeFrac a) where
+  arbitrary = do
+    let hasNonZero (x, y) = digitsHasNonZero x || digitsHasNonZero y
+    (w, f) <- arbitrary `Q.suchThat` hasNonZero
+    case L.wholeFrac w f of
+      Nothing -> error "failed to generate WholeFrac"
+      Just wf -> return wf
+
+instance (Arbitrary a, L.Digits a) => Arbitrary (L.WholeOnly a) where
+  arbitrary = do
+    w <- arbitrary `Q.suchThat` digitsHasNonZero
+    case L.wholeOnly w of
+      Nothing -> error "failed to generate WholeOnly"
+      Just x -> return x
+
+instance (Arbitrary a, L.Digits a) => Arbitrary (L.WholeOrFrac a) where
+  arbitrary = fmap L.WholeOrFrac arbitrary
+
+instance Arbitrary L.Radix where
+  arbitrary = Q.elements [minBound..maxBound]
+
+instance Arbitrary L.QtyRep where
+  arbitrary = Q.oneof [grp, noGrp]
+    where
+      grp = liftM2 L.QNoGrouping arbitrary arbitrary
+      noGrp = fmap L.QGrouped arbitrary
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c)
+         => Arbitrary (Su.S3 a b c) where
+  arbitrary = Q.oneof [ fmap Su.S3a arbitrary
+                      , fmap Su.S3b arbitrary
+                      , fmap Su.S3c arbitrary ]
 
 --
 -- # DateTime
@@ -316,7 +378,7 @@ instance Arbitrary L.SubAccount where
 instance Arbitrary L.Account where
   arbitrary = fmap L.Account arbitrary
 
-instance Arbitrary L.Amount where
+instance Arbitrary q => Arbitrary (L.Amount q) where
   arbitrary = liftM2 L.Amount arbitrary arbitrary
 
 instance Arbitrary L.Commodity where
@@ -325,7 +387,7 @@ instance Arbitrary L.Commodity where
 instance Arbitrary L.DrCr where
   arbitrary = Q.elements [L.Debit, L.Credit]
 
-instance Arbitrary L.Entry where
+instance Arbitrary q => Arbitrary (L.Entry q) where
   arbitrary = liftM2 L.Entry arbitrary arbitrary
 
 instance Arbitrary L.Flag where
@@ -400,7 +462,7 @@ genRestricted = liftM5 L.rEnts arbitrary arbitrary arbitrary
                 arbitrary arbitrary
 
 -- | Generates a group of balanced entries.
-genBalEntries :: Gen ([L.Entry])
+genBalEntries :: Gen ([L.Entry L.Qty])
 genBalEntries = do
   (_, qDeb, qCred) <- genBalQtys
   let qtysAndDrCrs = map (\en -> (L.Debit, en)) qDeb
@@ -410,27 +472,29 @@ genBalEntries = do
   shuffle $ map mkEn qtysAndDrCrs
 
 newtype BalEntries = BalEntries
-  { unBalEntries :: [L.Entry] }
+  { unBalEntries :: [L.Entry L.Qty] }
   deriving (Eq, Show)
 
 instance Arbitrary BalEntries where
   arbitrary = fmap BalEntries genBalEntries
 
+type Inferred = Bool
+
 -- | Generates a list of entries. At most, one of these is Inferred.
-genEntriesWithInfer :: Gen [(L.Entry, L.Inferred)]
+genEntriesWithInfer :: Gen [(L.Entry L.Qty, Inferred)]
 genEntriesWithInfer = do
   nGroups <- Q.suchThat Q.arbitrarySizedIntegral (> 0)
   entries <- fmap concat $ replicateM nGroups genBalEntries
   makeNothing <- arbitrary
   let entries' = if makeNothing
-        then (head entries, L.Inferred)
-             : map (\en -> (en, L.NotInferred)) (tail entries)
-        else map (\en -> (en, L.NotInferred)) entries
+        then (head entries, True)
+             : map (\en -> (en, False)) (tail entries)
+        else map (\en -> (en, False)) entries
   shuffle entries'
 
 
 -- | Gets a single inferred entry from a balance, if possible.
-inferredVal :: [Maybe L.Entry] -> Maybe L.Entry
+inferredVal :: [Maybe (L.Entry L.Qty)] -> Maybe (L.Entry L.Qty)
 inferredVal ls = do
   guard ((length . filter id . map isNothing $ ls) == 1)
   case L.entriesToBalanced . catMaybes $ ls of
@@ -440,10 +504,10 @@ inferredVal ls = do
 -- | genEntriesWithInfer is inferable
 prop_genEntries :: Q.Property
 prop_genEntries = Q.forAll genEntriesWithInfer $
-  \ps -> L.Inferred `elem` (map snd ps)
+  \ps -> True `elem` (map snd ps)
          ==> isJust (inferredVal (map toEn ps))
   where
-    toEn (en, inf) = if inf == L.Inferred then Nothing else Just en
+    toEn (en, inf) = if inf then Nothing else Just en
 
 -- | genBalEntries generates groups that are balanced.
 prop_balEntries :: BalEntries -> Bool
@@ -458,16 +522,15 @@ prop_numViews :: L.Ents m -> Bool
 prop_numViews t = (length . L.views $ t) == (length . L.unEnts $ t)
 
 newtype NonRestricted a = NonRestricted
-  { unNonRestricted :: [(Maybe L.Entry, a)] }
+  { unNonRestricted :: [(Maybe (L.Entry L.Qty), a)] }
   deriving (Eq, Show)
 
 instance Arbitrary a => Arbitrary (NonRestricted a) where
   arbitrary = do
     ls <- genEntriesWithInfer
     metas <- Q.vector (length ls)
-    let mkPair (en, inf) mt = case inf of
-          L.Inferred -> (Nothing, mt)
-          L.NotInferred -> (Just en, mt)
+    let mkPair (en, inf) mt = if inf
+          then (Nothing, mt) else (Just en, mt)
     return . NonRestricted $ zipWith mkPair ls metas
 
 genNonRestricted :: Arbitrary a => Gen (L.Ents a)
@@ -475,6 +538,7 @@ genNonRestricted =
   arbitrary
   >>= maybe (failMsg "genNonRestricted") return
       . L.ents
+      . map (first (fmap Right))
       . unNonRestricted
 
 instance Arbitrary a => Arbitrary (L.Ents a) where
@@ -490,13 +554,14 @@ prop_balanced :: L.Ents a -> Bool
 prop_balanced
   = (== L.Balanced)
   . L.entriesToBalanced
+  . map (either (fmap L.toQty) id)
   . map L.entry
   . L.unEnts
 
 -- | Ents contain no more than one inferred posting
 prop_inferred :: L.Ents a -> Bool
 prop_inferred t =
-  (length . filter (== L.Inferred) . map L.inferred . L.unEnts $ t)
+  (length . filter id . map L.inferred . L.unEnts $ t)
   < 2
 
 newtype BalQtys = BalQtys { _unBalQtys :: ([L.Qty], [L.Qty]) }
@@ -507,13 +572,18 @@ newtype BalQtys = BalQtys { _unBalQtys :: ([L.Qty], [L.Qty]) }
 -- should.
 
 prop_ents :: NonRestricted a -> Bool
-prop_ents (NonRestricted ls) = isJust $ L.ents ls
+prop_ents (NonRestricted ls)
+  = isJust
+  . L.ents
+  . map (first (fmap Right))
+  $ ls
 
 -- | NonRestricted makes ents with two postings
 prop_entsTwoPostings :: NonRestricted a -> Bool
-prop_entsTwoPostings (NonRestricted ls) = case L.ents ls of
-  Nothing -> False
-  Just t -> prop_twoPostings t
+prop_entsTwoPostings (NonRestricted ls)
+  = case L.ents . map (first (fmap Right)) $ ls of
+      Nothing -> False
+      Just t -> prop_twoPostings t
 
 -- | 'rEnts' behaves as it should
 
@@ -525,13 +595,13 @@ prop_rEnts
   -> a
   -> Bool
 prop_rEnts c dc pr ls mt =
-  let t = L.rEnts c dc pr ls mt
+  let t = L.rEnts c dc (first Right pr) (map (first Right) ls) mt
   in prop_twoPostings t && prop_balanced t && prop_inferred t
 
 -- Testing that 'ents' fails when it should
 
 -- | Generates a group of entries that are not balanced or inferable
-genNotInferable :: Arbitrary a => Gen [(Maybe L.Entry, a)]
+genNotInferable :: Arbitrary a => Gen [(Maybe (L.Entry L.Qty), a)]
 genNotInferable = QG.suchThat gen notInf
   where
     notInf ls =
@@ -544,7 +614,7 @@ genNotInferable = QG.suchThat gen notInf
 
 
 newtype NotInferable a = NotInferable
-  { unNotBalanced :: [(Maybe L.Entry, a)] }
+  { unNotBalanced :: [(Maybe (L.Entry L.Qty), a)] }
   deriving (Eq, Show)
 
 instance Arbitrary a => Arbitrary (NotInferable a) where
@@ -696,7 +766,7 @@ prop_mutateCommodity c = do
 -- | Mutating the commodity of a balanced group of entries results in
 -- an NotInferable balance.
 newtype NotInferableFromBalanced = NotInferableFromBalanced
-  { unNotInferableFromBalanced :: [L.Entry] }
+  { unNotInferableFromBalanced :: [L.Entry L.Qty] }
   deriving (Eq, Show)
 
 instance Arbitrary NotInferableFromBalanced where
@@ -718,7 +788,7 @@ prop_notInferableFromBalanced
 
 -- | Mutating the DrCr of a Balanced group yields an Inferable.
 newtype InferableMutatedDrCr = InferableMutatedDrCr
-  { unInferableMutatedDrCr :: [L.Entry] }
+  { unInferableMutatedDrCr :: [L.Entry L.Qty] }
   deriving (Eq, Show)
 
 instance Arbitrary InferableMutatedDrCr where
@@ -738,7 +808,7 @@ prop_inferableMutatedDrCr
 
 -- | Mutating the Qty of a Balanced group yields an Inferable.
 newtype InferableMutatedQty = InferableMutatedQty
-  { unInferableMutatedQty :: [L.Entry] }
+  { unInferableMutatedQty :: [L.Entry L.Qty] }
   deriving (Eq, Show)
 
 instance Arbitrary InferableMutatedQty where
@@ -760,7 +830,7 @@ prop_inferableMutatedQty
 
 -- | A mix of InferableMutatedQty and InferableMutatedDrCr
 newtype InferableGroup = InferableGroup
-  { unInferableGroup :: [L.Entry] }
+  { unInferableGroup :: [L.Entry L.Qty] }
   deriving (Eq, Show)
 
 instance Arbitrary InferableGroup where
@@ -771,7 +841,7 @@ instance Arbitrary InferableGroup where
 
 -- | NotInferable groups, generated at random
 newtype NotInferableRandom = NotInferableRandom
-  { unNotInferableRandom :: [L.Entry] }
+  { unNotInferableRandom :: [L.Entry L.Qty] }
   deriving (Eq, Show)
 
 instance Arbitrary NotInferableRandom where
@@ -781,7 +851,7 @@ instance Arbitrary NotInferableRandom where
 
 -- | A mix of NotInferableFromBalanced and NotInferableRandom
 newtype NotInferableGroup = NotInferableGroup
-  { unNotInferableGroup :: [L.Entry] }
+  { unNotInferableGroup :: [L.Entry L.Qty] }
   deriving (Eq, Show)
 
 instance Arbitrary NotInferableGroup where
@@ -829,7 +899,7 @@ pairWithInts ls = fmap (zip ls) (Q.vector (length ls))
 prop_noEntsNotInferableGroup
   :: Q.NonEmptyList NotInferableGroup
 
-  -> Maybe (Maybe L.Entry)
+  -> Maybe (Maybe (L.Entry L.Qty))
   -- ^ Optionally throws in another Maybe Entry; ents should fail
   -- regardless of whether another entry is present or not
 

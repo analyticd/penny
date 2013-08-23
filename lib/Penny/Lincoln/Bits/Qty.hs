@@ -90,7 +90,7 @@ data PeriodGrp
   -- ^ Unicode code point 0x2009
   | PGComma
   -- ^ Comma
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show, Ord, Enum, Bounded)
 
 -- | The digit grouping character when the radix is a comma.
 data CommaGrp
@@ -100,7 +100,7 @@ data CommaGrp
   -- ^ Unicode code point 0x2009
   | CGPeriod
   -- ^ Period
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show, Ord, Enum, Bounded)
 
 class Grouper a where
   groupChar :: a -> Char
@@ -206,7 +206,7 @@ wholeOrFrac g@(GroupedDigits l1 lr) mayAft = case mayAft of
 
 
 data Radix = Period | Comma
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Show, Ord, Enum, Bounded)
 
 type WholeOrFracResult a = Either (WholeOrFrac DigitList)
                                   (WholeOrFrac (GroupedDigits a))
