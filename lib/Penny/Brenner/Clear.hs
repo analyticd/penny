@@ -96,7 +96,7 @@ runClear c os = do
   when (not (Set.null left))
     (fail $ "some postings were not cleared. "
       ++ "Those not cleared:\n" ++ ppShow left)
-  case mapM R.item led'' of
+  case mapM (R.item Nothing) led'' of
     Nothing ->
       fail "could not render resulting ledger."
     Just txts ->

@@ -483,7 +483,7 @@ posting = f <$> lineNum                <* skipWhite
 transaction :: Parser I.ParsedTxn
 transaction = do
   ptl <- topLine
-  let getEntPair (core, lin, mayEn) = (mayEn, (core, lin))
+  let getEntPair (core, lin, mayEn) = (fmap Left mayEn, (core, lin))
   ts <- fmap (map getEntPair) $ many posting
   ents <- maybe (fail "unbalanced transaction") return $ L.ents ts
   return (ptl, ents)

@@ -32,6 +32,7 @@ module Penny.Lincoln.Ents
     Ent
   , entry
   , meta
+  , inferred
 
   -- * Ents
   , Ents
@@ -73,23 +74,25 @@ data Ent m = Ent
   -- ^ The entry from an Ent.  If the Ent is inferred--that is, if the
   -- user did not supply an entry for it and Penny was able to infer
   -- the entry--this will be a Right with the inferred Entry.
-  -- Commodity.  Otherwise, this is a Left with the Entry.
 
   , meta :: m
   -- ^ The metadata accompanying an Ent
+
+  , inferred :: Bool
+  -- ^ True if the entry was inferred.
   } deriving (Eq, Ord, Show)
 
 -- | Two Ents are equivalent if the entries are equivalent and the
 -- metadata is equivalent (whether the Ent is inferred or not is
 -- ignored.)
 instance Ev.Equivalent m => Ev.Equivalent (Ent m) where
-  equivalent (Ent e1 m1) (Ent e2 m2) = e1 ==~ e2 && m1 ==~ m2
+  equivalent (Ent e1 m1 _) (Ent e2 m2 _) = e1 ==~ e2 && m1 ==~ m2
 
-  compareEv (Ent e1 m1) (Ent e2 m2) =
+  compareEv (Ent e1 m1 _) (Ent e2 m2 _) =
     Ev.compareEv e1 e2 <> Ev.compareEv m1 m2
 
 instance Functor Ent where
-  fmap f (Ent e m) = Ent e (f m)
+  fmap f (Ent e m i) = Ent e (f m) i
 
 newtype Ents m = Ents { unEnts :: [Ent m] }
   deriving (Eq, Ord, Show, Functor)
@@ -128,10 +131,10 @@ mapEnts f = Ents . map f' . unEnts where
 -- instance.
 traverseEnts :: Applicative f => (Ent a -> f b) -> Ents a -> f (Ents b)
 traverseEnts f = fmap Ents . Tr.traverse f' . unEnts where
-  f' en@(Ent e _) = Ent <$> pure e <*> f en
+  f' en@(Ent e _ i) = Ent <$> pure e <*> f en <*> pure i
 
 seqEnt :: Applicative f => Ent (f a) -> f (Ent a)
-seqEnt (Ent e m) = Ent <$> pure e <*> m
+seqEnt (Ent e m i) = Ent <$> pure e <*> m <*> pure i
 
 -- | Every Ents alwas contains at least two ents, and possibly
 -- additional ones.
@@ -203,23 +206,27 @@ orderedPermute ls = take (length ls) (iterate toTheBack ls)
 -- and this function will infer the remaining Entry. This function
 -- fails if it cannot create a balanced Ents.
 ents
-  :: [(Maybe (B.Entry B.QtyRep), m)]
+  :: [(Maybe (Either (B.Entry B.QtyRep) (B.Entry B.Qty)), m)]
   -> Maybe (Ents m)
 ents ls = do
   guard . not . null $ ls
   let nNoEntries = length . filter (== Nothing) . map fst $ ls
-  case Bal.entriesToBalanced . catMaybes . map fst $ ls of
+  case Bal.entriesToBalanced
+       . map (either (fmap B.toQty) id)
+       . catMaybes
+       . map fst
+       $ ls of
     Bal.NotInferable -> Nothing
     Bal.Inferable e -> do
       guard $ nNoEntries == 1
       let makeEnt (mayEn, mt) = case mayEn of
-            Nothing -> Ent (Right e) mt
-            Just en -> Ent (Left en) mt
+            Nothing -> Ent (Right e) mt True
+            Just en -> Ent en mt False
       return . Ents $ map makeEnt ls
     Bal.Balanced ->
       let makeEnt (mayEn, mt) = case mayEn of
             Nothing -> Nothing
-            Just en -> Just $ Ent (Left en) mt
+            Just en -> Just $ Ent en mt False
       in fmap Ents $ mapM makeEnt ls
 
 
@@ -232,21 +239,23 @@ rEnts
   -- ^ Commodity for all postings
   -> B.DrCr
   -- ^ DrCr for all non-inferred postings
-  -> (B.QtyRep, m)
+  -> (Either B.QtyRep B.Qty, m)
   -- ^ Non-inferred posting 1
-  -> [(B.QtyRep, m)]
+  -> [(Either B.QtyRep B.Qty, m)]
   -- ^ Remaining non-inferred postings
   -> m
   -- ^ Metadata for inferred posting
   -> Ents m
 rEnts com dc (q1, m1) nonInfs lastMeta =
-  let tot = foldl' B.add (B.toQty q1)
-            . map (B.toQty . fst) $ nonInfs
+  let tot = foldl' B.add (either B.toQty id q1)
+            . map (either B.toQty id . fst) $ nonInfs
       p1 = makePstg (q1, m1)
       ps = map makePstg nonInfs
-      makePstg (q, m) = Ent (Left (B.Entry dc (B.Amount q com))) m
+      makeEntry = either (\q -> Left (B.Entry dc (B.Amount q com)))
+                         (\q -> Right (B.Entry dc (B.Amount q com)))
+      makePstg (q, m) = Ent (makeEntry q) m False
       lastPstg = Ent (Right (B.Entry (B.opposite dc)
-                                     (B.Amount tot com))) lastMeta
+                                     (B.Amount tot com))) lastMeta True
   in Ents $ p1:ps ++ [lastPstg]
 
 

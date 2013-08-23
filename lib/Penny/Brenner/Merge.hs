@@ -73,7 +73,7 @@ doMerge acct noAuto printer ss = do
                   l (filterDb (Y.pennyAcct acct) dbWithEntry l)
       newTxns = createTransactions noAuto acct l dbLs db'
       final = l' ++ newTxns
-  case mapM R.item (map C.stripMeta final) of
+  case mapM (R.item Nothing) (map C.stripMeta final) of
     Nothing -> fail "Could not render final ledger."
     Just txts ->
       let txt = X.concat txts
@@ -280,7 +280,7 @@ newTransaction noAuto acct mu mp (u, (a, e))
            }
   p2core = L.emptyPostingCore ac
   ents = L.rEnts (Y.unCurrency . Y.currency $ acct) (L.drCr e)
-                 (L.qtyToRep gs . L.qty . L.amount $ e, p1data)
+                 (Left . L.qtyToRep gs . L.qty . L.amount $ e, p1data)
                  [] p2data
   gs = Y.qtySpec acct
 

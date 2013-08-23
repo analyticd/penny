@@ -141,26 +141,35 @@ hasSpace (L.WholeOrFrac ei) = case ei of
 -- | Render an Amount. The Format is required so that the commodity
 -- can be displayed in the right place.
 amount
-  :: Maybe L.Side
+  :: Maybe (L.Amount L.Qty -> S.S3 L.Radix L.PeriodGrp L.CommaGrp)
+  -- ^ If Just, render entries that are NOT inferred and that do not
+  -- have a QtyRep.  If Nothing, fail if an entry is NOT inferred and
+  -- does not have a QtyRep.  (Inferred entries are always rendered
+  -- without an entry.)
+  -> Maybe L.Side
   -> Maybe L.SpaceBetween
-  -> L.Amount L.QtyRep
+  -> Either (L.Amount L.QtyRep) (L.Amount L.Qty)
   -> Maybe X.Text
-amount maySd maySb (L.Amount qt c) =
-  let q = qtyRep qt
-  in do
-    sd <- maySd
-    sb <- maySb
-    let ws = case sb of
-          L.SpaceBetween -> X.singleton ' '
-          L.NoSpaceBetween -> X.empty
-    (l, r) <- case sd of
-          L.CommodityOnLeft -> do
-            cx <- lvl3Cmdty c <|> quotedLvl1Cmdty c
-            return (cx, q)
-          L.CommodityOnRight -> do
-            cx <- lvl2Cmdty c <|> quotedLvl1Cmdty c
-            return (q, cx)
-    return $ X.concat [l, ws, r]
+amount mayFmt maySd maySb ei = do
+  (q, c) <- case ei of
+    Left a -> return (qtyRep . L.qty $ a, L.commodity a)
+    Right a -> case mayFmt of
+      Nothing -> Nothing
+      Just f -> return ( qtyRep . L.qtyToRep (f a) . L.qty $ a,
+                         L.commodity a)
+  sd <- maySd
+  sb <- maySb
+  let ws = case sb of
+        L.SpaceBetween -> X.singleton ' '
+        L.NoSpaceBetween -> X.empty
+  (l, r) <- case sd of
+        L.CommodityOnLeft -> do
+          cx <- lvl3Cmdty c <|> quotedLvl1Cmdty c
+          return (cx, q)
+        L.CommodityOnRight -> do
+          cx <- lvl2Cmdty c <|> quotedLvl1Cmdty c
+          return (q, cx)
+  return $ X.concat [l, ws, r]
 
 -- * Comments
 
@@ -220,13 +229,20 @@ hoursMinsSecsZone h m s z =
 -- * Entries
 
 entry
-  :: Maybe L.Side
+  :: Maybe (L.Amount L.Qty -> S.S3 L.Radix L.PeriodGrp L.CommaGrp)
+  -- ^ If Just, render entries that are NOT inferred and that do not
+  -- have a QtyRep.  If Nothing, fail if an entry is NOT inferred and
+  -- does not have a QtyRep.  (Inferred entries are always rendered
+  -- without an entry.)
+  -> Maybe L.Side
   -> Maybe L.SpaceBetween
-  -> L.Entry L.QtyRep
+  -> Either (L.Entry L.QtyRep) (L.Entry L.Qty)
   -> Maybe X.Text
-entry sd sb (L.Entry dc a) = do
-  amt <- amount sd sb a
-  let dcTxt = X.pack $ case dc of
+entry mayFmt sd sb ei = do
+  amt <- amount mayFmt sd sb
+                (either (Left . L.amount) (Right . L.amount) ei)
+  let dc = either L.drCr L.drCr ei
+      dcTxt = X.pack $ case dc of
         L.Debit -> "<"
         L.Credit -> ">"
   return $ X.append (X.snoc dcTxt ' ') amt
@@ -323,8 +339,8 @@ price pp = let
   (L.CountPerUnit q) = L.countPerUnit . L.price $ pp
   mayFromTxt = lvl3Cmdty from <|> quotedLvl1Cmdty from
   in do
-    amtTxt <- amount (L.ppSide pp) (L.ppSpaceBetween pp)
-              (L.Amount q to)
+    amtTxt <- amount Nothing (L.ppSide pp) (L.ppSpaceBetween pp)
+              (Left (L.Amount q to))
     fromTxt <- mayFromTxt
     return $
        (X.intercalate (X.singleton ' ')
@@ -400,11 +416,16 @@ topLine tl =
 -- which case eight spaces will be emitted. (This allows the next
 -- posting to be indented properly.)
 posting
-  :: Bool
+  :: Maybe (L.Amount L.Qty -> S.S3 L.Radix L.PeriodGrp L.CommaGrp)
+  -- ^ If Just, render entries that are NOT inferred and that do not
+  -- have a QtyRep.  If Nothing, fail if an entry is NOT inferred and
+  -- does not have a QtyRep.  (Inferred entries are always rendered
+  -- without an entry.)
+  -> Bool
   -- ^ If True, emit four spaces after the trailing newline.
   -> L.Ent L.PostingCore
   -> Maybe X.Text
-posting pad ent = do
+posting maySpec pad ent = do
   let p = L.meta ent
   fl <- renMaybe (L.pFlag p) flag
   nu <- renMaybe (L.pNumber p) number
@@ -412,10 +433,8 @@ posting pad ent = do
   ac <- ledgerAcct (L.pAccount p)
   ta <- tags (L.pTags p)
   me <- renMaybe (L.pMemo p) (postingMemo pad)
-  let mayEn = case L.entry ent of
-        Left en -> Just en
-        Right _ -> Nothing
-  en <- renMaybe mayEn (entry (L.pSide p) (L.pSpaceBetween p))
+  let mayEn = if L.inferred ent then Nothing else Just $ L.entry ent
+  en <- renMaybe mayEn (entry maySpec (L.pSide p) (L.pSpaceBetween p))
   return $ formatter pad fl nu pa ac ta en me
 
 formatter
@@ -449,30 +468,40 @@ formatter pad fl nu pa ac ta en me = let
 -- * Transaction
 
 transaction
-  :: (L.TopLineCore, L.Ents L.PostingCore)
+  :: Maybe (L.Amount L.Qty -> S.S3 L.Radix L.PeriodGrp L.CommaGrp)
+  -- ^ If Just, render entries that are NOT inferred and that do not
+  -- have a QtyRep.  If Nothing, fail if an entry is NOT inferred and
+  -- does not have a QtyRep.  (Inferred entries are always rendered
+  -- without an entry.)
+  -> (L.TopLineCore, L.Ents L.PostingCore)
   -> Maybe X.Text
-transaction txn = do
+transaction mayFmt txn = do
   tlX <- topLine . fst $ txn
   let (p1, p2, ps) = L.tupleEnts . snd $ txn
-  p1X <- posting True p1
-  p2X <- posting (not . null $ ps) p2
+  p1X <- posting mayFmt True p1
+  p2X <- posting mayFmt (not . null $ ps) p2
   psX <- if null ps
          then return X.empty
          else let bs = replicate (length ps - 1) True ++ [False]
               in fmap X.concat . sequence
-                 $ zipWith posting bs ps
+                 $ zipWith (posting mayFmt) bs ps
   return $ X.concat [tlX, p1X, p2X, psX]
 
 -- * Item
 
 item
-  :: S.S4 (L.TopLineCore, L.Ents L.PostingCore)
+  :: Maybe (L.Amount L.Qty -> S.S3 L.Radix L.PeriodGrp L.CommaGrp)
+  -- ^ If Just, render entries that are NOT inferred and that do not
+  -- have a QtyRep.  If Nothing, fail if an entry is NOT inferred and
+  -- does not have a QtyRep.  (Inferred entries are always rendered
+  -- without an entry.)
+  -> S.S4 (L.TopLineCore, L.Ents L.PostingCore)
           L.PricePoint
           I.Comment
           I.BlankLine
   -> Maybe X.Text
-item =
-  S.caseS4 transaction
+item mayFmt =
+  S.caseS4 (transaction mayFmt)
            price
            comment
            (const (Just (X.pack "\n")))
