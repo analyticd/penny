@@ -10,11 +10,14 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
 import qualified Data.Time as Time
 import Data.Maybe (fromMaybe, catMaybes)
+import Data.Monoid ((<>))
 import qualified Penny.Steel.Sums as S
 
 import qualified System.Random.Shuffle as Shuffle
 import qualified Lincoln as TL
 import qualified Copper.Gen.Terminals as T
+import qualified Data.List.NonEmpty as NE
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Text as X
 import Data.Text (pack, snoc, cons)
 import qualified Test.QuickCheck.Gen as G
@@ -174,8 +177,50 @@ uniqueCmdtys = G.sized $ \s -> do
 --
 
 
-type Mantissa = Integer
+type Signif = Integer
 type Places = Integer
+
+class Ast a where
+  ast :: Gen (a, X.Text)
+
+instance Ast L.Digit where
+  ast = Q.elements . map (\(d, c) -> (d, X.singleton c)) $
+    zip [L.D0..L.D9] ['0'..'9']
+
+genNonEmpty :: Gen a -> Gen (NonEmpty a)
+genNonEmpty g = (:|) <$> g <*> Q.listOf g
+
+instance Ast L.DigitList where
+  ast = fmap f ast
+    where
+      f ls = ( L.DigitList . fmap fst $ ls
+             , X.concat . NE.toList . fmap snd $ ls)
+
+instance Ast L.PeriodGrp where
+  ast = Q.elements . map (first X.singleton)
+    $ [(' ', PGSpace), ('\x2009', PGThinSpace), (',', PGComma)]
+
+instance Ast L.CommaGrp where
+  ast = Q.elements . map (first X.singleton)
+    $ [(' ', CGSpace), ('\x2009', CGThinSpace), ('.', CGPeriod)]
+
+instance Ast a => Ast (L.GroupedDigits a) where
+  ast = do
+    (d1a, d1x) <- ast
+    (dsa, dsx) <- fmap unzip $ Q.listOf ast
+    (ssa, ssx) <- fmap unzip $ Q.vectorOf (length dsa) ast
+    let ra = L.GroupedDigits d1a (zip ssa dsa)
+        rx = d1x <> (X.concat (map toTxt (zip ssx dsx)))
+        toTxt (x1, x2) = x1 <> x2
+    return (ra, rx)
+
+wholeFrac :: Ast a => L.Radix -> Gen (L.WholeFrac a, X.Text)
+wholeFrac r = do
+  (rad, radX) <- ast
+  (w, wX) <- ast
+  (f, fX) <- ast
+  return (L.WholeFrac w f, wX <> radX <> fX)
+
 
 -- | Renders a Qty. There is always a radix point. There is no digit
 -- grouping, and no leading zero if the number is less than 1.
