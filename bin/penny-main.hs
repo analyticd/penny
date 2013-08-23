@@ -101,13 +101,6 @@ defaults rt = Defaults
   , postingsDateFormat = yearMonthDay
     -- ^ How to format dates in the postings report.
 
-  , postingsQtyFormat = qtyAsIs
-    -- ^ How to format quantities in the balance report. This function
-    -- is used when showing the quantity for the posting itself, and
-    -- not the quantity for the totals columns (for that, see
-    -- postingsBalanceFormat.) For example this function might perform
-    -- digit grouping.
-
   , postingsSubAccountLength = 2
     -- ^ Account names in the postings report are shortened if
     -- necessary in order to help the report fit within the allotted

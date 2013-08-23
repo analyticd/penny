@@ -30,9 +30,6 @@ help pn = unlines
   , "  --version  - show version and exit"
   ]
 
-groupSpecs :: R.GroupSpecs
-groupSpecs = R.GroupSpecs R.NoGrouping R.NoGrouping
-
 type Printer = X.Text -> IO ()
 type PosArg = String
 
@@ -48,7 +45,7 @@ main = do
         (return . Right)
   let (printers, posArgs) = partitionEithers as
   l <- C.open posArgs
-  case mapM (R.item groupSpecs) (map C.stripMeta l) of
+  case mapM (R.item Nothing) (map C.stripMeta l) of
     Nothing -> error "could not render final ledger."
     Just x ->
       let txt = X.concat x

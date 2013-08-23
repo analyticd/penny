@@ -117,6 +117,7 @@ import qualified Data.Map as M
 import qualified System.Console.MultiArg as MA
 import qualified Text.Parsec as Parsec
 import qualified Paths_penny_bin as PPB
+import qualified Penny as P
 
 type Err = Ex.Exceptional Error
 
@@ -183,11 +184,11 @@ newtype Group = Group { unGroup :: L.SubAccount }
 newtype SaleDate = SaleDate { unSaleDate :: L.DateTime }
   deriving (Show, Eq)
 
-newtype SelloffStock = SelloffStock { unSelloffStock :: L.Amount }
+newtype SelloffStock = SelloffStock { unSelloffStock :: L.Amount L.Qty }
   deriving (Show, Eq)
 
 newtype SelloffCurrency
-  = SelloffCurrency { unSelloffCurrency :: L.Amount }
+  = SelloffCurrency { unSelloffCurrency :: L.Amount L.Qty }
   deriving (Show, Eq)
 
 data SelloffInfo = SelloffInfo
@@ -467,7 +468,7 @@ basisOffsets
   :: SelloffInfo
   -> PurchaseDate
   -> BasisRealiztn
-  -> ((L.Entry, L.PostingData), (L.Entry, L.PostingData))
+  -> ((L.Entry L.Qty, L.PostingData), (L.Entry L.Qty, L.PostingData))
 basisOffsets s pd p = (po enDr, po enCr)
   where
     ac = L.Account [basis, grp, dt]
@@ -524,7 +525,7 @@ capChangeEntry
   :: GainOrLoss
   -> SelloffCurrency
   -> CapitalChange
-  -> L.Entry
+  -> L.Entry L.Qty
 capChangeEntry gl sc cc = L.Entry dc (L.Amount qt cy)
   where
     dc = case gl of
@@ -538,7 +539,7 @@ capChangePstg
   -> GainOrLoss
   -> CapitalChange
   -> PurchaseInfo
-  -> (L.Entry, L.PostingData)
+  -> (L.Entry L.Qty, L.PostingData)
 capChangePstg si gl cc p = (en, emptyPostingData ac)
   where
     ac = capChangeAcct gl si p
@@ -549,7 +550,7 @@ proceeds = L.SubAccount . pack $ "Proceeds"
 
 proceedsPstgs
   :: SelloffInfo
-  -> ((L.Entry, L.PostingData), (L.Entry, L.PostingData))
+  -> ((L.Entry L.Qty, L.PostingData), (L.Entry L.Qty, L.PostingData))
 proceedsPstgs si = (po dr, po cr)
   where
     po en = (en, emptyPostingData ac)
@@ -583,7 +584,7 @@ mkTxn si wcc = fromMaybe err exTxn
             where
               (b1, b2) = basisOffsets si (piDate p) br
               c = capChangePstg si gl cc p
-    entInputs = map (first Just) (p1:p2:ps)
+    entInputs = map (first (Just . Right)) (p1:p2:ps)
 
 makeOutput
   :: ProceedsAcct
@@ -591,6 +592,7 @@ makeOutput
   -> Err X.Text
 makeOutput pa ldgr = do
   let bals = calcBalances ldgr
+      formatter = P.getQtyFormat defaultRadGroup ldgr
   si <- selloffInfo pa bals
   let basisAccts = findBasisAccounts (siGroup si) bals
   purchInfos <- mapM (purchaseInfo (siStock si) (siCurrency si))
@@ -600,7 +602,7 @@ makeOutput pa ldgr = do
   return
     . (`X.snoc` '\n')
     . fromMaybe (error "makeOutput: transaction did not render")
-    . CR.transaction
+    . (CR.transaction (Just formatter))
     . (\t -> let (tl, es) = L.unTransaction t
              in (L.tlCore tl, fmap L.pdCore es))
     . mkTxn si
@@ -614,3 +616,6 @@ main = parseCommandLine >>= handleParseResult
 handleParseResult :: ParseResult -> IO ()
 handleParseResult (ParseResult pa ldgr) =
   Ex.switch (error . show) TIO.putStr . makeOutput pa $ ldgr
+
+defaultRadGroup :: S.S3 L.Radix L.PeriodGrp L.CommaGrp
+defaultRadGroup = S.S3a L.Period

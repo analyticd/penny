@@ -57,9 +57,6 @@ help pn = unlines
   , "  --version  - Show version and exit"
   ]
 
-groupSpecs :: C.GroupSpecs
-groupSpecs = C.GroupSpecs C.NoGrouping C.NoGrouping
-
 type Printer = X.Text -> IO ()
 type PosArg = String
 type Arg = Either Printer PosArg
@@ -74,6 +71,6 @@ main = do
   let (printers, posArgs) = partitionEithers as
   led <- C.open posArgs
   let led' = map (S.mapS4 changeTransaction id id id) led
-      rend = fromJust $ mapM (C.item groupSpecs) (map C.stripMeta led')
+      rend = fromJust $ mapM (C.item Nothing) (map C.stripMeta led')
   let txt = X.concat rend in txt `seq` (Ly.processOutput printers txt)
 

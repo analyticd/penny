@@ -34,8 +34,12 @@ module Penny
   , Ps.yearMonthDay
 
   -- ** Formatting quantities
-  , module Penny.Steel.Sums
+  , S3(..)
   , qtyFormatter
+  , getQtyFormat
+  , L.Radix(..)
+  , L.PeriodGrp(..)
+  , L.CommaGrp(..)
 
   -- ** Runtime
   , S.Runtime
@@ -277,9 +281,26 @@ qtyFormatter
 
   -> FormatQty
 qtyFormatter df ls =
+  let getFmt = getQtyFormat df ls
+  in \a -> L.showQtyRep . L.qtyToRep (getFmt a) . L.qty $ a
+
+-- | Obtains radix and grouping information for a particular commodity
+-- and quantity, but does not actually perform the formatting.
+getQtyFormat
+  :: Su.S3 L.Radix L.PeriodGrp L.CommaGrp
+  -- ^ What to do if no radix or grouping information can be
+  -- determined from the ledger.  Pass Radix if you want to use a
+  -- radix point but no grouping; a PeriodGrp if you want to use a
+  -- period for a radix point and the given grouping character, or a
+  -- CommaGrp if you want to use a comma for a radix point and the
+  -- given grouping character.
+
+  -> [Cop.LedgerItem]
+  -> L.Amount L.Qty
+  -> Su.S3 L.Radix L.PeriodGrp L.CommaGrp
+getQtyFormat df ls =
   let m = formattingMap ls
-  in \a -> let fmt = fromMaybe df (Map.lookup (L.commodity a) m)
-           in L.showQtyRep . L.qtyToRep fmt . L.qty $ a
+  in \a -> fromMaybe df (Map.lookup (L.commodity a) m)
 
 
 -- | Returns a map of each commodity in the ledger and the grouping to

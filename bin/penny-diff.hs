@@ -4,7 +4,6 @@ import Control.Arrow (first, second)
 import Data.Maybe (fromJust)
 import Data.List (deleteFirstsBy)
 import qualified System.Console.MultiArg as M
-import qualified Penny as P
 import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln as L
 import Penny.Lincoln ((==~))
@@ -91,7 +90,7 @@ renderTransaction
   :: File
   -> L.Transaction
   -> Maybe X.Text
-renderTransaction gs f t = fmap addHeader $ CR.transaction (noMeta t)
+renderTransaction f t = fmap addHeader $ CR.transaction Nothing (noMeta t)
   where
     lin = case L.tMemo . L.tlCore . fst . L.unTransaction $ t of
       Nothing -> L.unTopLineLine . L.tTopLineLine . fromJust
@@ -102,19 +101,18 @@ renderTransaction gs f t = fmap addHeader $ CR.transaction (noMeta t)
     noMeta txn = let (tl, es) = L.unTransaction txn
                  in (L.tlCore tl, fmap L.pdCore es)
 
-renderPrice :: CR.GroupSpecs -> File -> L.PricePoint -> Maybe X.Text
-renderPrice gs f p = fmap addHeader $ CR.price gs p
+renderPrice :: File -> L.PricePoint -> Maybe X.Text
+renderPrice f p = fmap addHeader $ CR.price p
   where
     lin = L.unPriceLine . fromJust . L.priceLine $ p
     addHeader x = (showLineNum f lin) `X.append` x
 
 renderNonBlankItem
-  :: (L.Amount L.Qty -> X.Text)
-  -> File
+  :: File
   -> NonBlankItem
   -> Maybe X.Text
-renderNonBlankItem gs f =
-  S.caseS3 (renderTransaction gs f) (renderPrice gs f) CR.comment
+renderNonBlankItem f =
+  S.caseS3 (renderTransaction f) (renderPrice f) CR.comment
 
 runPennyDiff :: IO ()
 runPennyDiff = do
@@ -122,44 +120,41 @@ runPennyDiff = do
   l1 <- C.open [f1]
   l2 <- C.open [f2]
   let (r1, r2) = doDiffs l1 l2
-  showDiffs co dts (r1, r2)
+  showDiffs dts (r1, r2)
   case (r1, r2) of
     ([], []) -> E.exitSuccess
     _ -> E.exitWith (E.ExitFailure 1)
 
 showDiffs
-  :: (L.Amount L.Qty -> X.Text)
-  -> DiffsToShow
+  :: DiffsToShow
   -> ([NonBlankItem], [NonBlankItem])
   -> IO ()
-showDiffs fmt dts (l1, l2) =
+showDiffs dts (l1, l2) =
   case dts of
     File1Only -> showFile1
     File2Only -> showFile2
     BothFiles -> showFile1 >> showFile2
   where
-    showFile1 = showNonBlankItems fmt File1 l1
-    showFile2 = showNonBlankItems fmt File2 l2
+    showFile1 = showNonBlankItems File1 l1
+    showFile2 = showNonBlankItems File2 l2
 
 failure :: String -> IO a
 failure s = IO.hPutStrLn IO.stderr s
   >> E.exitWith (E.ExitFailure 2)
 
 showNonBlankItems
-  :: (L.Amount L.Qty -> X.Text)
-  -> File
+  :: File
   -> [NonBlankItem]
   -> IO ()
-showNonBlankItems fmt f ls =
-  mapM_ (showNonBlankItem fmt f) ls
+showNonBlankItems f ls =
+  mapM_ (showNonBlankItem f) ls
 
 showNonBlankItem
-  :: (L.Amount L.Qty -> X.Text)
-  -> File
+  :: File
   -> NonBlankItem
   -> IO ()
-showNonBlankItem fmt f nbi = maybe e TIO.putStr
-  (renderNonBlankItem fmt f nbi)
+showNonBlankItem f nbi = maybe e TIO.putStr
+  (renderNonBlankItem f nbi)
   where
     e = failure $ "could not render item: " ++ show nbi
 
