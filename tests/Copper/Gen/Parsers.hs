@@ -23,7 +23,7 @@ import Data.Text (pack, snoc, cons)
 import qualified Test.QuickCheck.Gen as G
 import Test.QuickCheck.Gen (Gen)
 import qualified Test.QuickCheck as Q
-import Test.QuickCheck (arbitrary)
+import Test.QuickCheck (arbitrary, suchThat)
 
 --
 -- * Helpers
@@ -177,6 +177,10 @@ uniqueCmdtys = G.sized $ \s -> do
 --
 
 
+--
+-- ## QtyRep
+--
+
 type Signif = Integer
 type Places = Integer
 
@@ -185,24 +189,30 @@ class Ast a where
 
 instance Ast L.Digit where
   ast = Q.elements . map (\(d, c) -> (d, X.singleton c)) $
-    zip [L.D0..L.D9] ['0'..'9']
+    zip [L.D0 .. L.D9] ['0'..'9']
 
 genNonEmpty :: Gen a -> Gen (NonEmpty a)
 genNonEmpty g = (:|) <$> g <*> Q.listOf g
 
 instance Ast L.DigitList where
-  ast = fmap f ast
+  ast = fmap f (genNonEmpty ast)
     where
       f ls = ( L.DigitList . fmap fst $ ls
              , X.concat . NE.toList . fmap snd $ ls)
 
 instance Ast L.PeriodGrp where
-  ast = Q.elements . map (first X.singleton)
-    $ [(' ', PGSpace), ('\x2009', PGThinSpace), (',', PGComma)]
+  ast
+    = fmap f
+    . Q.elements
+    $ [(' ', L.PGSpace), ('\x2009', L.PGThinSpace), (',', L.PGComma)]
+    where
+      f (c, e) = (e, X.singleton c)
 
 instance Ast L.CommaGrp where
-  ast = Q.elements . map (first X.singleton)
-    $ [(' ', CGSpace), ('\x2009', CGThinSpace), ('.', CGPeriod)]
+  ast = fmap f . Q.elements
+    $ [(' ', L.CGSpace), ('\x2009', L.CGThinSpace), ('.', L.CGPeriod)]
+    where
+      f (c, e) = (e, X.singleton c)
 
 instance Ast a => Ast (L.GroupedDigits a) where
   ast = do
@@ -214,6 +224,69 @@ instance Ast a => Ast (L.GroupedDigits a) where
         toTxt (x1, x2) = x1 <> x2
     return (ra, rx)
 
+
+wholeFrac
+  :: (L.Digits a, Ast a)
+  => L.Radix
+  -> Gen (L.WholeFrac a, X.Text)
+wholeFrac rad = do
+  let hasNonZero (x, y) =
+        TL.digitsHasNonZero (fst x) || TL.digitsHasNonZero (fst y)
+  ((wa, wx), (fa, fx)) <- ((,) <$> ast <*> ast) `suchThat` hasNonZero
+  let r = fromMaybe (error "wholeFracDigits: wholeFrac failed")
+        (L.wholeFrac wa fa)
+      rx = wx <> repRadix rad <> fx
+  return (r, rx)
+
+instance (Ast a, L.Digits a) => Ast (L.WholeOnly a) where
+  ast = do
+    (wa, wx) <- ast `suchThat` (TL.digitsHasNonZero . fst)
+    let r = fromMaybe (error "generating WholeOnly failed")
+                      (L.wholeOnly wa)
+    return (r, wx)
+
+wholeOrFrac
+  :: (L.Digits a, Ast a)
+  => L.Radix
+  -> Gen (L.WholeOrFrac a, X.Text)
+wholeOrFrac r = do
+  left <- arbitrary
+  if left
+    then do
+      (w, x) <- ast
+      return (L.WholeOrFrac . Left $ w, x)
+    else do
+      (w, x) <- wholeFrac r
+      return (L.WholeOrFrac . Right $ w, x)
+
+instance Ast L.QtyRep where
+  ast = do
+    grouped <- arbitrary
+    if grouped
+      then do
+        left <- arbitrary
+        if left
+          then do
+            (wf, x) <- wholeOrFrac L.Period
+            return (L.QGrouped (Left wf), x)
+          else do
+            (wf, x) <- wholeOrFrac L.Comma
+            return (L.QGrouped (Right wf), x)
+      else do
+        rx <- arbitrary
+        (wf, x) <- wholeOrFrac rx
+        return (L.QNoGrouping wf rx, x)
+
+repRadix :: L.Radix -> X.Text
+repRadix r = X.singleton $ case r of
+  L.Comma -> ','
+  L.Period -> '.'
+
+--
+-- ## Qty
+--
+
+{-
 wholeFrac :: Ast a => L.Radix -> Gen (L.WholeFrac a, X.Text)
 wholeFrac r = do
   (rad, radX) <- ast
@@ -798,3 +871,4 @@ ledger = f <$> white <*> Q.listOf item
               , ws `X.append` (X.concat . map snd $ is))
 
 
+-}
