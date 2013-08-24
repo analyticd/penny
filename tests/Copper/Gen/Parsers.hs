@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Copper.Gen.Parsers where
 
 import Control.Applicative ((<$>), (<*>))
@@ -8,6 +9,7 @@ import Data.List (nubBy, unfoldr, intersperse)
 import Data.List.Split (splitOn)
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
+import qualified Penny.Copper.Render as CR
 import qualified Data.Time as Time
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Monoid ((<>))
@@ -282,86 +284,19 @@ repRadix r = X.singleton $ case r of
   L.Comma -> ','
   L.Period -> '.'
 
---
--- ## Qty
---
+-- | A quantity represenstation with the necessary quoting.
+newtype QuotedQtyRep = QuotedQtyRep
+  { unQuotedQtyRep :: L.QtyRep }
+  deriving Show
+
+instance Ast QuotedQtyRep where
+  ast = do
+    (w, x) <- ast
+    let (b, e) = CR.quoteQtyRep w
+    return (QuotedQtyRep w, b <> x <> e)
+
 
 {-
-wholeFrac :: Ast a => L.Radix -> Gen (L.WholeFrac a, X.Text)
-wholeFrac r = do
-  (rad, radX) <- ast
-  (w, wX) <- ast
-  (f, fX) <- ast
-  return (L.WholeFrac w f, wX <> radX <> fX)
-
-
--- | Renders a Qty. There is always a radix point. There is no digit
--- grouping, and no leading zero if the number is less than 1.
-baseQtyRender :: L.Qty -> String
-baseQtyRender q = reverse $ unfoldr unfolder ((L.mantissa q), (L.places q))
-
--- | Randomly intersperses a string with thin spaces.
-addSpacesToString :: String -> Gen String
-addSpacesToString s = do
-  doAdd <- arbitrary
-  if doAdd
-    then interleave (G.frequency [ (4, return Nothing)
-                                 , (1, return $ Just '\x2009')]) s
-    else return s
-
--- | Randomly intersperses a quantity rendering with thin spaces. Does
--- not always insert thin spaces at all.
-addThinSpaces :: String -> Gen String
-addThinSpaces s = do
-  let split = splitOn "." s
-  case split of
-    x:y:[] -> do
-      x' <- addSpacesToString x
-      y' <- addSpacesToString y
-      return $ x' ++ "." ++ y'
-    x:[] -> addSpacesToString x
-    _ -> error "addThinSpaces: error"
-
--- | Sometimes strips off a trailing period from a Qty rendering, if
--- there is one.
-stripLastPeriod :: String -> Gen String
-stripLastPeriod s
-  | last s == '.' = do
-      doStrip <- arbitrary
-      return $ if doStrip then init s else s
-  | otherwise = return s
-
--- | Sometimes adds some leading zeroes to a Qty rendering.
-addLeadingZeroes :: String -> Gen String
-addLeadingZeroes s = do
-  doAdd <- arbitrary
-  ls <- if doAdd then Q.listOf1 (return '0') else return ""
-  return $ ls ++ s
-
-unfolder :: (Mantissa, Places) -> Maybe (Char, (Mantissa, Places))
-unfolder (m, p)
-  | m <= 0 && p < 0 = Nothing
-  | p == 0 = Just ('.', (m, p - 1))
-  | m <= 0 = Just ('0', (m, p - 1))
-  | otherwise =
-      let (m', dig) = m `quotRem` 10
-      in Just (head . show $ dig, (m', p - 1))
-
-quantity :: Gen (L.Qty, X.Text)
-quantity = do
-  q <- arbitrary
-  rendered <- renderQty q
-  return (q, rendered)
-
-renderQty :: L.Qty -> Gen X.Text
-renderQty q =
-  let base = baseQtyRender q
-  in fmap X.pack $ addThinSpaces base >>= stripLastPeriod
-                   >>= addLeadingZeroes
-
-qtyWithRendering :: L.Qty -> Gen (L.Qty, X.Text)
-qtyWithRendering q = fmap (\x -> (q, x)) (renderQty q)
-
 --
 -- * Amounts
 --

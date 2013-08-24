@@ -117,16 +117,20 @@ lvl3Cmdty (L.Commodity c) =
 
 -- * Quantities
 
+-- | Gets the characters necessary to quote a qtyRep.
+quoteQtyRep :: L.QtyRep -> (Text, Text)
+quoteQtyRep q = case q of
+  L.QNoGrouping _ r -> case r of
+    L.Period -> ("", "")
+    L.Comma -> ("[", "]")
+  L.QGrouped ei -> case ei of
+    Left wf -> if hasSpace wf then ("{", "}") else ("", "")
+    Right _ -> ("[", "]")
+
 qtyRep :: L.QtyRep -> Text
 qtyRep q = b <> L.showQtyRep q <> e
   where
-    (b, e) = case q of
-      L.QNoGrouping _ r -> case r of
-        L.Period -> ("", "")
-        L.Comma -> ("[", "]")
-      L.QGrouped ei -> case ei of
-        Left wf -> if hasSpace wf then ("{", "}") else ("", "")
-        Right _ -> ("[", "]")
+    (b, e) = quoteQtyRep q
 
 hasSpace :: L.WholeOrFrac (L.GroupedDigits L.PeriodGrp) -> Bool
 hasSpace (L.WholeOrFrac ei) = case ei of
