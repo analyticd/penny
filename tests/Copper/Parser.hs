@@ -71,8 +71,7 @@ prop_lvl3Cmdty =
   in parseProp CP.lvl3Cmdty gen id
 
 
-prop_quantity =
-  parseProp CP.quantity GP.quantity id
+prop_qtyRep = parseProp CP.qtyRep GP.ast id
 
 doParse
   :: (Show a, Eq a)
@@ -99,34 +98,40 @@ doParse' p b pd x = case P.parse (p <* P.eof) "" x of
 
 prop_leftCmdtyLvl1Amt = do
   cy <- GP.quotedLvl1Cmdty
-  q <- GP.quantity
-  ((a, x), sb) <- GP.leftCmdtyLvl1Amt cy q
+  q <- Q.arbitrary
+  qr <- GP.renderQty q
+  ((a, x), sb) <- GP.leftCmdtyLvl1Amt cy qr
   return $ doParse CP.leftCmdtyLvl1Amt (a, L.CommodityOnLeft, sb) x
+
 
 prop_leftCmdtyLvl3Amt = do
   cy <- GP.lvl3Cmdty
-  q <- GP.quantity
-  ((a, x), sb) <- GP.leftCmdtyLvl3Amt cy q
+  q <- Q.arbitrary
+  qr <- GP.renderQty q
+  ((a, x), sb) <- GP.leftCmdtyLvl3Amt cy qr
   return $ doParse CP.leftCmdtyLvl3Amt (a, L.CommodityOnLeft, sb) x
 
 prop_leftSideCmdtyAmt = do
   cy <- Q.oneof [ fmap Left GP.quotedLvl1Cmdty
                 , fmap Right GP.lvl3Cmdty ]
-  q <- GP.quantity
-  ((a, x), sb) <- GP.leftSideCmdtyAmt cy q
+  q <- Q.arbitrary
+  qr <- GP.renderQty q
+  ((a, x), sb) <- GP.leftSideCmdtyAmt cy qr
   return $ doParse CP.leftSideCmdtyAmt (a, L.CommodityOnLeft, sb) x
 
 prop_rightSideCmdtyAmt = do
   cy <- Q.oneof [ fmap Left GP.quotedLvl1Cmdty
                 , fmap Right GP.lvl2Cmdty ]
-  q <- GP.quantity
-  ((a, x), sb) <- GP.rightSideCmdtyAmt cy q
+  q <- Q.arbitrary
+  qr <- GP.renderQty q
+  ((a, x), sb) <- GP.rightSideCmdtyAmt cy qr
   return $ doParse CP.rightSideCmdtyAmt (a, L.CommodityOnRight, sb) x
 
 prop_amount = do
   cy <- GP.genCmdty
-  q <- GP.quantity
-  ((a, x), sb, sd) <- GP.amount cy q
+  q <- Q.arbitrary
+  qr <- GP.renderQty q
+  ((a, x), sb, sd) <- GP.amount cy qr
   return $ doParse CP.amount (a, sd, sb) x
 
 prop_comment =
@@ -180,8 +185,9 @@ prop_drCr =
 prop_entry = do
   cy <- GP.genCmdty
   dc <- GP.drCr
-  q <- GP.quantity
-  ((en, x), sb, sd) <- GP.entry cy dc q
+  q <- Q.arbitrary
+  qr <- GP.renderQty q
+  ((en, x), sb, sd) <- GP.entry cy dc qr
   return $ doParse CP.entry (en, sd, sb) x
 
 prop_flag =
@@ -255,8 +261,9 @@ prop_posting = do
     then do
       cy <- GP.genCmdty
       dc <- GP.drCr
-      q <- GP.quantity
-      en <- GP.entry cy dc q
+      q <- Q.arbitrary
+      qr <- GP.renderQty q
+      en <- GP.entry cy dc qr
       GP.posting (Just en)
     else GP.posting Nothing
   let pd (pc', _, mayEn') = pc' == pc && mayEn' == mayEn
@@ -269,3 +276,4 @@ prop_transaction = do
 
 runTests :: (Q.Property -> IO Q.Result) -> IO Bool
 runTests = $(A.forAllProperties)
+

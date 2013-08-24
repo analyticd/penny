@@ -77,24 +77,16 @@ prop_lvl3Cmdty =
   renParse R.lvl3Cmdty P.lvl3Cmdty
   (fmap (\(G.Lvl3Cmdty c _) -> (c, ())) G.lvl3Cmdty)
 
-instance Arbitrary R.GroupSpec where
-  arbitrary = Q.elements [R.NoGrouping, R.GroupLarge, R.GroupAll]
 
-instance Arbitrary R.GroupSpecs where
-  arbitrary = R.GroupSpecs <$> arbitrary <*> arbitrary
-
-prop_quantity = do
-  gs <- arbitrary
-  (q, _) <- G.quantity
-  return $ doParse (fmap Just (R.quantity gs)) P.quantity q
+prop_qtyRep = do
+  qr <- arbitrary
+  return $ doParse (fmap Just R.qtyRep) P.qtyRep qr
 
 prop_amount = do
-  gs <- arbitrary
   cy <- G.genCmdty
-  q <- G.quantity
-  let rend (am, sd, sb) = R.amount gs (Just sd) (Just sb) am
-      gen = fmap (\ ((am, _), sb, sd) -> (am, sd, sb)) (G.amount cy q)
-  r <- gen
+  qr <- G.ast
+  let rend (am, sd, sb) = R.amount Nothing (Just sd) (Just sb) (Left am)
+  r <- fmap (\ ((am, _), sb, sd) -> (am, sd, sb)) (G.amount cy qr)
   return $ doParse rend P.amount r
 
 prop_comment =
@@ -104,12 +96,12 @@ prop_dateTime =
   renParse (fmap Just R.dateTime) P.dateTime G.dateTime
 
 prop_entry = do
-  gs <- arbitrary
   cy <- G.genCmdty
   dc <- G.drCr
-  qt <- G.quantity
-  let rend (iEn, iSd, iSb) = R.entry gs (Just iSd) (Just iSb) iEn
-  ((en, _), sb, sd) <- G.entry cy dc qt
+  qr <- G.ast
+  let rend (iEn, iSd, iSb) = R.entry Nothing (Just iSd) (Just iSb)
+                                     (Left iEn)
+  ((en, _), sb, sd) <- G.entry cy dc qr
   return $ doParse rend P.entry (en, sd, sb)
 
 prop_flag =
@@ -144,10 +136,8 @@ prop_lvl2Payee =
   renParse R.lvl2Payee P.lvl2Payee G.lvl2Payee
 
 prop_price = do
-  gs <- arbitrary
   (pr, _) <- G.price
-  let rend = R.price gs
-  return $ doParseWithPdct priceEq rend P.price pr
+  return $ doParseWithPdct priceEq R.price P.price pr
 
 prop_tag =
   renParse R.tag P.tag G.tag
@@ -164,8 +154,7 @@ toTopLine (I.ParsedTopLine dt nu fl pa me _) =
 
 
 prop_transaction = do
-  gs <- arbitrary
-  let rend = R.transaction gs
+  let rend = R.transaction Nothing
       toPair (tl, es) = (toTopLine tl, fmap fst es)
   (genTx, _) <- G.transaction
   return $ doParse rend (fmap toPair P.transaction) genTx

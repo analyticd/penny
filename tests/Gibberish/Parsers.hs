@@ -4,8 +4,7 @@ import Control.Applicative ((<$>), (<*>))
 import Control.Arrow (first)
 import qualified Control.Monad.Trans.Writer as W
 import Control.Monad.Trans.Class (lift)
-import Data.List (nubBy, unfoldr, intersperse)
-import Data.List.Split (splitOn)
+import Data.List (nubBy, intersperse)
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
 import qualified Data.Time as Time
@@ -21,6 +20,7 @@ import qualified Test.QuickCheck.Gen as G
 import Test.QuickCheck.Gen (Gen)
 import qualified Test.QuickCheck as Q
 import Test.QuickCheck (arbitrary)
+import qualified Copper.Gen.Parsers
 
 --
 -- * Helpers
@@ -177,72 +177,8 @@ uniqueCmdtys = G.sized $ \s -> do
 type Mantissa = Integer
 type Places = Integer
 
--- | Renders a Qty. There is always a radix point. There is no digit
--- grouping, and no leading zero if the number is less than 1.
-baseQtyRender :: L.Qty -> String
-baseQtyRender q = reverse $ unfoldr unfolder ((L.mantissa q), (L.places q))
-
--- | Randomly intersperses a string with thin spaces.
-addSpacesToString :: String -> Gen String
-addSpacesToString s = do
-  doAdd <- arbitrary
-  if doAdd
-    then interleave (G.frequency [ (4, return Nothing)
-                                 , (1, return $ Just '\x2009')]) s
-    else return s
-
--- | Randomly intersperses a quantity rendering with thin spaces. Does
--- not always insert thin spaces at all.
-addThinSpaces :: String -> Gen String
-addThinSpaces s = do
-  let split = splitOn "." s
-  case split of
-    x:y:[] -> do
-      x' <- addSpacesToString x
-      y' <- addSpacesToString y
-      return $ x' ++ "." ++ y'
-    x:[] -> addSpacesToString x
-    _ -> error "addThinSpaces: error"
-
--- | Sometimes strips off a trailing period from a Qty rendering, if
--- there is one.
-stripLastPeriod :: String -> Gen String
-stripLastPeriod s
-  | last s == '.' = do
-      doStrip <- arbitrary
-      return $ if doStrip then init s else s
-  | otherwise = return s
-
--- | Sometimes adds some leading zeroes to a Qty rendering.
-addLeadingZeroes :: String -> Gen String
-addLeadingZeroes s = do
-  doAdd <- arbitrary
-  ls <- if doAdd then Q.listOf1 (return '0') else return ""
-  return $ ls ++ s
-
-unfolder :: (Mantissa, Places) -> Maybe (Char, (Mantissa, Places))
-unfolder (m, p)
-  | m <= 0 && p < 0 = Nothing
-  | p == 0 = Just ('.', (m, p - 1))
-  | m <= 0 = Just ('0', (m, p - 1))
-  | otherwise =
-      let (m', dig) = m `quotRem` 10
-      in Just (head . show $ dig, (m', p - 1))
-
-quantity :: Gen (L.Qty, X.Text)
-quantity = do
-  q <- arbitrary
-  rendered <- renderQty q
-  return (q, rendered)
-
 renderQty :: L.Qty -> Gen X.Text
-renderQty q =
-  let base = baseQtyRender q
-  in fmap X.pack $ addThinSpaces base >>= stripLastPeriod
-                   >>= addLeadingZeroes
-
-qtyWithRendering :: L.Qty -> Gen (L.Qty, X.Text)
-qtyWithRendering q = fmap (\x -> (q, x)) (renderQty q)
+renderQty = fmap snd . Copper.Gen.Parsers.renderQty
 
 --
 -- * Amounts
@@ -253,8 +189,8 @@ spaceBetween x = if X.null x then L.NoSpaceBetween else L.SpaceBetween
 
 leftCmdtyLvl1Amt
   :: QuotedLvl1Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween)
 leftCmdtyLvl1Amt (QuotedLvl1Cmdty c xc) (q, xq) = do
   ws <- white
   let amt = L.Amount q c
@@ -262,8 +198,8 @@ leftCmdtyLvl1Amt (QuotedLvl1Cmdty c xc) (q, xq) = do
 
 leftCmdtyLvl3Amt
   :: Lvl3Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween)
 leftCmdtyLvl3Amt (Lvl3Cmdty c xc) (q, xq) = do
   ws <- white
   let amt = L.Amount q c
@@ -271,8 +207,8 @@ leftCmdtyLvl3Amt (Lvl3Cmdty c xc) (q, xq) = do
 
 leftSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl3Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween)
 leftSideCmdtyAmt c q = case c of
   Left l1 -> leftCmdtyLvl1Amt l1 q
   Right l3 -> leftCmdtyLvl3Amt l3 q
@@ -284,8 +220,8 @@ rightSideCmdty = G.oneof
 
 rightSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl2Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween)
 rightSideCmdtyAmt cty (q, xq) = do
   ws <- white
   let (c, xc) = case cty of
@@ -300,8 +236,8 @@ rightSideCmdtyAmt cty (q, xq) = do
 
 amount
   :: Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween, L.Side)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween, L.Side)
 amount c q =
   let mkTrip sd (p, b) = (p, b, sd)
   in case c of
@@ -450,20 +386,19 @@ drCr = G.oneof [debit, credit]
 
 genEntryGroup
   :: Cmdty
-  -> Gen [((L.Entry, X.Text), L.SpaceBetween, L.Side)]
+  -> Gen [((L.Entry L.QtyRep, X.Text), L.SpaceBetween, L.Side)]
 genEntryGroup c = do
   dr <- debit
   cr <- credit
   (_, dq, cq) <- TL.genBalQtys
-  let rndr q = fmap (\x -> (q, x)) (renderQty q)
-  dqWithX <- mapM rndr dq
-  cqWithX <- mapM rndr cq
+  dqWithX <- mapM Copper.Gen.Parsers.renderQty dq
+  cqWithX <- mapM Copper.Gen.Parsers.renderQty cq
   des <- mapM (entry c dr) dqWithX
   ces <- mapM (entry c cr) cqWithX
   return $ des ++ ces
 
 
-genEntryGroups :: Gen [((L.Entry, X.Text), L.SpaceBetween, L.Side)]
+genEntryGroups :: Gen [((L.Entry L.QtyRep, X.Text), L.SpaceBetween, L.Side)]
 genEntryGroups = do
   cs <- uniqueCmdtys
   fmap concat . mapM genEntryGroup $ cs
@@ -472,8 +407,8 @@ genEntryGroups = do
 entry
   :: Cmdty
   -> (L.DrCr, X.Text)
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Entry, X.Text), L.SpaceBetween, L.Side)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Entry L.QtyRep, X.Text), L.SpaceBetween, L.Side)
 entry c (d, xd) q = f <$> white <*> amount c q
   where
     f w ((a, xa), sb, sd) = ((L.Entry d a, x), sb, sd)
@@ -570,7 +505,7 @@ price = do
         Right (QuotedLvl1Cmdty c x) -> (c, x)
   ws2 <- fmap pack (G.listOf1 T.white)
   qty <- arbitrary
-  q <- qtyWithRendering qty
+  q <- Copper.Gen.Parsers.renderQty qty
   let pdct x = (fst . unwrapCmdty $ x) /= fc
   toCmdty <- Q.suchThat genCmdty pdct
   (((L.Amount toQ t), xam), sb, sd) <- amount toCmdty q
@@ -655,8 +590,8 @@ postingAcct :: Gen (L.Account, X.Text)
 postingAcct = G.oneof [quotedLvl1Acct, lvl2Acct]
 
 posting
- :: Maybe ((L.Entry, X.Text), L.SpaceBetween, L.Side)
- -> Gen ((L.PostingCore, X.Text), Maybe L.Entry)
+ :: Maybe ((L.Entry L.QtyRep, X.Text), L.SpaceBetween, L.Side)
+ -> Gen ((L.PostingCore, X.Text), Maybe (L.Entry L.QtyRep))
 posting mayEn = do
   (mayFnp, xfnp) <- optional flagNumPayee
   let (fl, nu, pa) = fromMaybe (Nothing, Nothing, Nothing) mayFnp
@@ -685,7 +620,7 @@ posting mayEn = do
               X.singleton '\n', ws4, xm, ws5]
   return ((po, txt), en)
 
-postings :: Gen [((L.PostingCore, X.Text), Maybe L.Entry)]
+postings :: Gen [((L.PostingCore, X.Text), Maybe (L.Entry L.QtyRep))]
 postings = do
   egs <- genEntryGroups
   removeEn <- Q.arbitrary
@@ -707,7 +642,7 @@ transaction = do
   (tl, xtl) <- topLineCore
   pstgs <- postings
   let x = xtl `X.append` (X.concat . map (snd . fst) $ pstgs)
-      es = map (\((pc, _), mayEn) -> (mayEn, pc)) pstgs
+      es = map (\((pc, _), mayEn) -> (fmap Left mayEn, pc)) pstgs
   case L.ents es of
     Nothing -> fail "failed to create transaction."
     Just r -> return ((tl, r), x)

@@ -1,12 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Copper.Gen.Parsers where
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>), (<*>), pure)
 import Control.Arrow (first)
 import qualified Control.Monad.Trans.Writer as W
 import Control.Monad.Trans.Class (lift)
-import Data.List (nubBy, unfoldr, intersperse)
-import Data.List.Split (splitOn)
+import Data.List (nubBy, intersperse)
 import qualified Penny.Lincoln as L
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as CR
@@ -263,40 +262,41 @@ wholeOrFrac r = do
 
 instance Ast L.QtyRep where
   ast = do
-    grouped <- arbitrary
-    if grouped
-      then do
-        left <- arbitrary
-        if left
-          then do
-            (wf, x) <- wholeOrFrac L.Period
-            return (L.QGrouped (Left wf), x)
-          else do
-            (wf, x) <- wholeOrFrac L.Comma
-            return (L.QGrouped (Right wf), x)
-      else do
-        rx <- arbitrary
-        (wf, x) <- wholeOrFrac rx
-        return (L.QNoGrouping wf rx, x)
+    (qr, x) <- do
+      grouped <- arbitrary
+      if grouped
+        then do
+          left <- arbitrary
+          if left
+            then do
+              (wf, x) <- wholeOrFrac L.Period
+              return (L.QGrouped (Left wf), x)
+            else do
+              (wf, x) <- wholeOrFrac L.Comma
+              return (L.QGrouped (Right wf), x)
+        else do
+          rx <- arbitrary
+          (wf, x) <- wholeOrFrac rx
+          return (L.QNoGrouping wf rx, x)
+    let (b, e) = CR.quoteQtyRep qr
+    return (qr, b <> x <> e)
 
 repRadix :: L.Radix -> X.Text
 repRadix r = X.singleton $ case r of
   L.Comma -> ','
   L.Period -> '.'
 
--- | A quantity represenstation with the necessary quoting.
-newtype QuotedQtyRep = QuotedQtyRep
-  { unQuotedQtyRep :: L.QtyRep }
-  deriving Show
 
-instance Ast QuotedQtyRep where
-  ast = do
-    (w, x) <- ast
-    let (b, e) = CR.quoteQtyRep w
-    return (QuotedQtyRep w, b <> x <> e)
+-- | Generate a random representation for a Qty.
+representQty :: L.Qty -> Gen L.QtyRep
+representQty q = L.qtyToRep <$> arbitrary <*> pure q
+
+renderQty :: L.Qty -> Gen (L.QtyRep, X.Text)
+renderQty q = do
+  qr <- representQty q
+  return (qr, CR.qtyRep qr)
 
 
-{-
 --
 -- * Amounts
 --
@@ -306,26 +306,28 @@ spaceBetween x = if X.null x then L.NoSpaceBetween else L.SpaceBetween
 
 leftCmdtyLvl1Amt
   :: QuotedLvl1Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween)
 leftCmdtyLvl1Amt (QuotedLvl1Cmdty c xc) (q, xq) = do
   ws <- white
   let amt = L.Amount q c
   return ((amt, X.concat [xc, ws, xq]), spaceBetween ws)
 
+
 leftCmdtyLvl3Amt
   :: Lvl3Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween)
 leftCmdtyLvl3Amt (Lvl3Cmdty c xc) (q, xq) = do
   ws <- white
   let amt = L.Amount q c
   return ((amt, X.concat [xc, ws, xq]), spaceBetween ws)
 
+
 leftSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl3Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween)
 leftSideCmdtyAmt c q = case c of
   Left l1 -> leftCmdtyLvl1Amt l1 q
   Right l3 -> leftCmdtyLvl3Amt l3 q
@@ -335,10 +337,11 @@ rightSideCmdty = G.oneof
   [ fmap Left quotedLvl1Cmdty
   , fmap Right lvl2Cmdty ]
 
+
 rightSideCmdtyAmt
   :: Either QuotedLvl1Cmdty Lvl2Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween)
 rightSideCmdtyAmt cty (q, xq) = do
   ws <- white
   let (c, xc) = case cty of
@@ -349,12 +352,10 @@ rightSideCmdtyAmt cty (q, xq) = do
   return ((amt, xr), spaceBetween ws)
 
 
-
-
 amount
   :: Cmdty
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Amount, X.Text), L.SpaceBetween, L.Side)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Amount L.QtyRep, X.Text), L.SpaceBetween, L.Side)
 amount c q =
   let mkTrip sd (p, b) = (p, b, sd)
   in case c of
@@ -488,6 +489,7 @@ dateTime = do
 -- * DrCr
 --
 
+
 debit :: Gen (L.DrCr, X.Text)
 debit = (\x -> (L.Debit, X.singleton x)) <$> T.lessThan
 
@@ -501,37 +503,40 @@ drCr = G.oneof [debit, credit]
 -- * Entry
 --
 
-genEntryGroup
-  :: Cmdty
-  -> Gen [((L.Entry, X.Text), L.SpaceBetween, L.Side)]
-genEntryGroup c = do
-  dr <- debit
-  cr <- credit
-  (_, dq, cq) <- TL.genBalQtys
-  let rndr q = fmap (\x -> (q, x)) (renderQty q)
-  dqWithX <- mapM rndr dq
-  cqWithX <- mapM rndr cq
-  des <- mapM (entry c dr) dqWithX
-  ces <- mapM (entry c cr) cqWithX
-  return $ des ++ ces
-
-
-genEntryGroups :: Gen [((L.Entry, X.Text), L.SpaceBetween, L.Side)]
-genEntryGroups = do
-  cs <- uniqueCmdtys
-  fmap concat . mapM genEntryGroup $ cs
-
 
 entry
   :: Cmdty
   -> (L.DrCr, X.Text)
-  -> (L.Qty, X.Text)
-  -> Gen ((L.Entry, X.Text), L.SpaceBetween, L.Side)
+  -> (L.QtyRep, X.Text)
+  -> Gen ((L.Entry L.QtyRep, X.Text), L.SpaceBetween, L.Side)
 entry c (d, xd) q = f <$> white <*> amount c q
   where
     f w ((a, xa), sb, sd) = ((L.Entry d a, x), sb, sd)
       where
         x = X.concat [xd, w, xa]
+
+
+genEntryGroup
+  :: Cmdty
+  -> Gen [((L.Entry L.QtyRep, X.Text), L.SpaceBetween, L.Side)]
+genEntryGroup c = do
+  dr <- debit
+  cr <- credit
+  (_, dq, cq) <- TL.genBalQtys
+  dqWithX <- mapM renderQty dq
+  cqWithX <- mapM renderQty cq
+  des <- mapM (entry c dr) dqWithX
+  ces <- mapM (entry c cr) cqWithX
+  return $ des ++ ces
+
+
+genEntryGroups
+  :: Gen [((L.Entry L.QtyRep, X.Text), L.SpaceBetween, L.Side)]
+genEntryGroups = do
+  cs <- uniqueCmdtys
+  fmap concat . mapM genEntryGroup $ cs
+
+
 --
 -- * Flag
 --
@@ -598,6 +603,7 @@ lvl2Payee = do
   let x = l1 `cons` ls
   return (L.Payee x, x)
 
+
 --
 -- * Price
 --
@@ -609,7 +615,6 @@ fromCmdty
 fromCmdty e = case e of
   Left (QuotedLvl1Cmdty c x) -> (L.From c, x)
   Right (Lvl2Cmdty c x) -> (L.From c, x)
-
 
 
 price :: Gen (L.PricePoint, X.Text)
@@ -624,7 +629,7 @@ price = do
         Right (QuotedLvl1Cmdty c x) -> (c, x)
   ws2 <- fmap pack (G.listOf1 T.white)
   qty <- arbitrary
-  q <- qtyWithRendering qty
+  q <- renderQty qty
   let pdct x = (fst . unwrapCmdty $ x) /= fc
   toCmdty <- Q.suchThat genCmdty pdct
   (((L.Amount toQ t), xam), sb, sd) <- amount toCmdty q
@@ -635,6 +640,7 @@ price = do
       x = X.concat [ X.singleton atSign, wsAt, xdt, ws1, xfc,
                      ws2, xam, X.singleton '\n', ws3]
   return (pp, x)
+
 
 --
 -- * Tags
@@ -664,7 +670,6 @@ topLineFlagNum = f <$> optional flag <*> white <*> optional number
     f (fl, xfl) ws (nu, xnu) = ((fl, nu), X.concat [xfl, ws, xnu])
 
 
-
 topLineCore :: Gen (L.TopLineCore, X.Text)
 topLineCore = do
   (me, xme) <- optional transactionMemo
@@ -677,6 +682,7 @@ topLineCore = do
   let tl = L.TopLineCore dt nu fl pa me
       x = X.concat [xme, xdt, w1, xfn, w2, xp, X.singleton '\n', w3]
   return (tl, x)
+
 
 --
 -- * Posting
@@ -708,9 +714,10 @@ flagNumPayee = do
 postingAcct :: Gen (L.Account, X.Text)
 postingAcct = G.oneof [quotedLvl1Acct, lvl2Acct]
 
+
 posting
- :: Maybe ((L.Entry, X.Text), L.SpaceBetween, L.Side)
- -> Gen ((L.PostingCore, X.Text), Maybe L.Entry)
+ :: Maybe ((L.Entry L.QtyRep, X.Text), L.SpaceBetween, L.Side)
+ -> Gen ((L.PostingCore, X.Text), Maybe (L.Entry L.QtyRep))
 posting mayEn = do
   (mayFnp, xfnp) <- optional flagNumPayee
   let (fl, nu, pa) = fromMaybe (Nothing, Nothing, Nothing) mayFnp
@@ -739,7 +746,8 @@ posting mayEn = do
               X.singleton '\n', ws4, xm, ws5]
   return ((po, txt), en)
 
-postings :: Gen [((L.PostingCore, X.Text), Maybe L.Entry)]
+
+postings :: Gen [((L.PostingCore, X.Text), Maybe (L.Entry L.QtyRep))]
 postings = do
   egs <- genEntryGroups
   removeEn <- Q.arbitrary
@@ -756,15 +764,17 @@ postings = do
 -- * Transaction
 --
 
+
 transaction :: Gen ((L.TopLineCore, L.Ents L.PostingCore), X.Text)
 transaction = do
   (tl, xtl) <- topLineCore
   pstgs <- postings
   let x = xtl `X.append` (X.concat . map (snd . fst) $ pstgs)
-      es = map (\((pc, _), mayEn) -> (mayEn, pc)) pstgs
+      es = map (\((pc, _), mayEn) -> (fmap Left mayEn, pc)) pstgs
   case L.ents es of
     Nothing -> fail "failed to create transaction."
     Just r -> return ((tl, r), x)
+
 
 --
 -- * BlankLine
@@ -806,4 +816,4 @@ ledger = f <$> white <*> Q.listOf item
               , ws `X.append` (X.concat . map snd $ is))
 
 
--}
+
