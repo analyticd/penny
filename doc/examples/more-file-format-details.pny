@@ -2,9 +2,6 @@
 # you are interested, or if you are getting error messages you don't
 # understand when you use penny on your file.
 
-# A complete EBNF grammar for the file format is in the file
-# doc/ledger-file-format.org.
-
 # Use a Unicode file format when you save your data. Penny works with
 # UTF-8, which is the de-facto standard Unicode encoding on Unix
 # systems. If you do not want to bother with Unicode, it's best to use
