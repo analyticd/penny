@@ -223,23 +223,6 @@ Liabilities:Amex
     Expenses:Food *vacation2012                         < $87.00
     Liabilities:Amex
 
-# People in different countries use different characters for the radix
-# point (decimal point) and to separate digits into groups. Penny
-# imposes a single uniform way to represent the radix point and digit
-# grouping. As you have seen above, use the full stop character
-# (period) to represent the radix point.
-
-# If you want to group digits, use the Unicode thin space
-# character. This is Unicode code point 2009. Most editors will render
-# it the same way they render a space, but it's not the same
-# character. Different editors will have different ways to enter this
-# character; in Emacs, press C-x 8 <ret> 2009. In Vim, in insert mode
-# press Ctrl-V, then u2009. That looks like this:
-
-2012-12-16 Import savings
-    {Equity:Opening Balances}                           > $32 985.23
-    Assets:Savings
-
 # That's everything you need to get started recording your data with
 # Penny. If you want to track multiple commodities (for instance
 # stocks, or the price of your real estate) look at the stocks.pny
@@ -247,6 +230,10 @@ Liabilities:Amex
 
 # Here are some more transactions that will provide useful fodder for
 # the manual pages:
+
+2012-12-16 Import savings
+    {Equity:Opening Balances}                           > $32985.23
+    Assets:Savings
 
 2013-01-02 Conoco
     Expenses:Gas                                        < $54.22
