@@ -168,7 +168,11 @@ data FitAcct = FitAcct
 
   , qtySpec :: Su.S3 L.Radix L.PeriodGrp L.CommaGrp
     -- ^ How to group digits when printing the resulting ledger.
-    -- This affects only the postings created from the statement.
+    --
+    -- Penny remembers the formatting of quantities entered in your
+    -- ledger.  However, quantities imported from your bank statement
+    -- do not have formatting to remember, so you have to tell Penny
+    -- how to format them.
 
   , translator :: Y.Translator
     -- ^ See the documentation under the 'Translator' type for

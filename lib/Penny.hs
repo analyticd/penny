@@ -35,6 +35,7 @@ module Penny
 
   -- ** Formatting quantities
   , S3(..)
+  , FormatQty
   , qtyFormatter
   , getQtyFormat
   , L.Radix(..)

@@ -65,31 +65,30 @@ visa = FitAcct
   , currency = "$"
     -- ^ All postings will be in this currency
 
-  , groupSpecs = GroupSpecs NoGrouping NoGrouping
-    -- ^ When penny-fit reprints your ledger, it uses this to
-    -- determine how to perform digit grouping for the quantities in
-    -- the output. This takes the form
+  , qtySpec = S3a Period
+    -- ^ How to group digits when printing the resulting ledger.
     --
-    -- GroupSpecs G1 G2
+    -- Penny remembers the formatting of quantities entered in your
+    -- ledger.  However, quantities imported from your bank statement
+    -- do not have formatting to remember, so you have to tell Penny
+    -- how to format them.
     --
-    -- where G1 and G2 can each be
+    -- The default choice, S3a Period, formats quantities so that the
+    -- radix point is a period and so that there is no digit
+    -- grouping. Thus the amount 24435.80 will be rendered as
+    -- 24435.80
     --
-    -- NoGrouping, GroupLarge, or GroupAll
+    -- Other possible choices include:
     --
-    -- G1 specifies how to group digits to the left of the decimal
-    -- point. G2 specifies how to group digits to the right of the
-    -- decimal point. All grouping creates groups of three digits.
+    -- S3b PGComma
+    -- formats quantities so the radix point is a period
+    -- and the grouping character is the comma, so 24435.80 renders as
+    -- 24,435.80
     --
-    -- NoGrouping means do not do any digit grouping at
-    -- all.
-    --
-    -- GroupLarge means perform digit grouping, but only if the
-    -- number to be grouped is greater than 9,999 (if grouping to the
-    -- left of the decimal point) or if there are more than 4 decimal
-    -- places (if grouping to the right of the decimal point.)
-    --
-    -- GroupAll means group whenever there are at least four digits to
-    -- be grouped.
+    -- S3c CGSpace formats quantities so the radix point is a comma
+    -- and the grouping character is a space, so that 24435.80 renders
+    -- as 24 435,80 (in your ledger file, this will have to appear in
+    -- quotes as [24 435,80])
 
   , translator = IncreaseIsCredit
     -- ^ Postings from your financial institution are specified in
@@ -144,7 +143,7 @@ checking = FitAcct
   , pennyAcct = "Assets:Current:Checking"
   , defaultAcct = "Expenses:Unclassified"
   , currency = "$"
-  , groupSpecs = GroupSpecs NoGrouping NoGrouping
+  , qtySpec = S3a Period
   , translator = IncreaseIsDebit
   , side = CommodityOnLeft
   , spaceBetween = NoSpaceBetween
@@ -160,7 +159,7 @@ saving = FitAcct
   , pennyAcct = "Assets:Current:Checking:Omari"
   , defaultAcct = "Expenses:Unclassified"
   , currency = "$"
-  , groupSpecs = GroupSpecs NoGrouping NoGrouping
+  , qtySpec = S3a Period
   , translator = IncreaseIsDebit
   , side = CommodityOnLeft
   , spaceBetween = NoSpaceBetween

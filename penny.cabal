@@ -158,10 +158,10 @@ description: Penny is a double-entry accounting system. It is inspired
 
   .
 
-  Unfortunately running "cabal install" will not
+  Unfortunately running \"cabal install\" will not
   install the documentation, so you will need to find the downloaded
   archive (usually in
-  "$HOME/.cabal/packages/hackage.haskell.org/penny") and unpack it
+  \"$HOME/.cabal/packages/hackage.haskell.org/penny\") and unpack it
   to see the documentation. You will want to start by reading the
   README file, which will point you to additional documentation and
   how to install it if you wish.
