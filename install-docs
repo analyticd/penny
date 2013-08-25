@@ -14,18 +14,18 @@ DOCDIR=$PREFIX/share/doc/penny
 doInstall() {
     for suffix in 1 7; do
         install -m755 -d $MANDIR/man${suffix}
-        for filename in man/*.${suffix}; do
+        for filename in doc/man/*.${suffix}; do
             install -v -m644 $filename $MANDIR/man${suffix}
         done
     done
 
     install -m755 -d $DOCDIR
-    for filename in doc/*.{org,dot,hs}; do
+    for filename in doc/*.org doc/*.dot doc/*.hs; do
         install -v -m644 $filename $DOCDIR
     done
 
     install -m755 -d $DOCDIR/examples
-    for filename in examples/*; do
+    for filename in doc/examples/*; do
         install -v -m644 $filename $DOCDIR/examples
     done
 }
@@ -39,12 +39,12 @@ remove() {
     done
     rmdir -v -p $MANDIR
 
-    for filename in doc/*.{org,txt}; do
+    for filename in doc/*.org doc/*.dot doc/*.hs; do
         rm -v $DOCDIR/"$(basename $filename)"
     done
     rmdir -v -p $DOCDIR
 
-    for filename in examples/*; do
+    for filename in doc/examples/*; do
         rm -v $DOCDIR/examples/"$(basename $filename)"
     done
     rmdir -v -p $DOCDIR/examples
