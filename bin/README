@@ -1,3 +1,0 @@
-This is the package with executables and documentation for Penny. To
-compile and install the binaries, running "cabal install" will work.
-
