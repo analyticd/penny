@@ -39,12 +39,14 @@ compares to Ledger and to <a href="http://hledger.org">hledger</a></p>
 <ol>
   <li>Install the <a href="http://www.haskell.org/platform/">Haskell Platform</a>, version 2013.2.0.0</li>
 
-  <li>Run <code>cabal install penny-bin</code> as root.</li>
+  <li>Run <code>cabal install penny</code> as root, or
+  <code>cabal install --user penny</code> as a non-privileged
+  user.</li>
 
   <li><code>cabal install</code> does not install the documentation;
   to do that, find out where <code>cabal install</code> downloaded
   the <code>penny-bin</code> tarball (usually this will be
-  in <code>$HOME/.cabal/packages/hackage.haskell.org/penny-bin/$PENNY_VERSION</code>.)</li>
+  in <code>$HOME/.cabal/packages/hackage.haskell.org/penny/$PENNY_VERSION</code>.)</li>
 
   <li>Unpack the tarball somewhere, change to the directory that gets
   unpacked, and as root run <code>./install-docs</code>. That will put
