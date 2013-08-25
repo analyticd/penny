@@ -132,6 +132,13 @@ maxSizeList i = Q.sized $ \s -> do
   len <- Q.choose (0, min s i)
   Q.vector len
 
+-- | Changing a Qty to a QtyRep and back gives the same Qty.
+prop_qtyToRep
+  :: Su.S3 L.Radix L.PeriodGrp L.CommaGrp
+  -> L.Qty
+  -> Bool
+prop_qtyToRep s q = L.toQty (L.qtyToRep s q) == q
+
 -- | Generates a group of balanced quantities.
 genBalQtys :: Gen (L.Qty, [L.Qty], [L.Qty])
 genBalQtys = maxSize 5 $ do

@@ -68,15 +68,17 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Ord(Down(..), comparing)
-import Data.List (genericLength, genericReplicate, sortBy, group, sort)
+import Data.List ( genericLength, genericReplicate, sortBy, group, sort,
+                   genericSplitAt )
 import Data.List.Split (chunksOf)
 import Data.List.NonEmpty (NonEmpty((:|)), toList, nonEmpty)
+import qualified Data.List.NonEmpty as NE
 import Data.Maybe (fromMaybe, listToMaybe, mapMaybe)
 import qualified Data.Semigroup(Semigroup(..))
 import Data.Semigroup(sconcat)
 import Data.Monoid ((<>))
 import qualified Penny.Lincoln.Equivalent as Ev
-import Penny.Lincoln.Equivalent (Equivalent(..), (==~))
+import Penny.Lincoln.Equivalent (Equivalent(..))
 import qualified Penny.Steel.Sums as S
 
 data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
@@ -229,7 +231,7 @@ data QtyRep
   deriving (Eq, Show, Ord)
 
 instance Equivalent QtyRep where
-  equivalent x y = toQty x ==~ toQty y
+  equivalent x y = showQtyRep x == showQtyRep y
   compareEv x y = Ev.compareEv (toQty x) (toQty y)
 
 -- | Converts an Integer to a list of digits.
@@ -256,9 +258,18 @@ qtyToRepNoGrouping q =
       len = genericLength . toList $ sig
   in WholeOrFrac $ if e == 0
      then Left (WholeOnly (DigitList sig))
-     else let leadZeroes = genericReplicate (e - len) D0
-              w = DigitList $ D0 :| []
-              f = DigitList $ prependNonEmpty leadZeroes sig
+     else if e < len
+          then let prefixLen = len - e
+                   (pfx, sfx) = genericSplitAt prefixLen . toList $ sig
+                   ne = fromMaybe
+                        (error "qtyToRepNoGrouping: nonEmpty failed")
+                        . NE.nonEmpty
+                   (pfxNE, sfxNE) = (ne pfx, ne sfx)
+                   (w, f) = (DigitList pfxNE, DigitList sfxNE)
+               in Right (WholeFrac w f)
+          else let leadZeroes = genericReplicate (e - len) D0
+                   w = DigitList $ D0 :| []
+                   f = DigitList $ prependNonEmpty leadZeroes sig
           in Right (WholeFrac w f)
 
 

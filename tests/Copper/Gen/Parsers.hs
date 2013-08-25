@@ -771,8 +771,10 @@ transaction = do
   pstgs <- postings
   let x = xtl `X.append` (X.concat . map (snd . fst) $ pstgs)
       es = map (\((pc, _), mayEn) -> (fmap Left mayEn, pc)) pstgs
+      _types = es :: [ ( Maybe (Either (L.Entry L.QtyRep) a)
+                       , L.PostingCore)]
   case L.ents es of
-    Nothing -> fail "failed to create transaction."
+    Nothing -> fail $ "failed to create transaction: " ++ show pstgs
     Just r -> return ((tl, r), x)
 
 

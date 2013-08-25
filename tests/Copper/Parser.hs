@@ -7,6 +7,7 @@ import qualified Copper.Gen.Parsers as GP
 import qualified Penny.Copper.Parsec as CP
 import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
+import Penny.Lincoln ((==~))
 import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.All as A
 import qualified Test.QuickCheck.Property as QCP
@@ -26,6 +27,21 @@ parseProp p g f = Q.forAll g $ \(b, x) ->
     Left e -> QCP.failed { QCP.reason = "parse failed: " ++ show e }
     Right gd ->
       if f gd == b
+      then QCP.succeeded
+      else QCP.failed { QCP.reason = "result not identical to expected: "
+                                     ++ show (f gd) }
+
+parsePropEv
+  :: (L.Equivalent b, Show b)
+  => P.Parser a
+  -> Gen (b, X.Text)
+  -> (a -> b)
+  -> Q.Property
+parsePropEv p g f = Q.forAll g $ \(b, x) ->
+  case P.parse (p <* P.eof) "" x of
+    Left e -> QCP.failed { QCP.reason = "parse failed: " ++ show e }
+    Right gd ->
+      if f gd ==~ b
       then QCP.succeeded
       else QCP.failed { QCP.reason = "result not identical to expected: "
                                      ++ show (f gd) }
@@ -71,7 +87,7 @@ prop_lvl3Cmdty =
   in parseProp CP.lvl3Cmdty gen id
 
 
-prop_qtyRep = parseProp CP.qtyRep GP.ast id
+prop_qtyRep = parsePropEv CP.qtyRep GP.ast id
 
 doParse
   :: (Show a, Eq a)
@@ -80,6 +96,14 @@ doParse
   -> X.Text
   -> QCP.Result
 doParse p a x = doParse' p (show a) (== a) x
+
+doParseEv
+  :: (Show a, L.Equivalent a)
+  => P.Parser a
+  -> a
+  -> X.Text
+  -> QCP.Result
+doParseEv p a x = doParse' p (show a) (==~ a) x
 
 doParse'
   :: Show a
@@ -101,7 +125,7 @@ prop_leftCmdtyLvl1Amt = do
   q <- Q.arbitrary
   qr <- GP.renderQty q
   ((a, x), sb) <- GP.leftCmdtyLvl1Amt cy qr
-  return $ doParse CP.leftCmdtyLvl1Amt (a, L.CommodityOnLeft, sb) x
+  return $ doParseEv CP.leftCmdtyLvl1Amt (a, L.CommodityOnLeft, sb) x
 
 
 prop_leftCmdtyLvl3Amt = do
@@ -109,7 +133,7 @@ prop_leftCmdtyLvl3Amt = do
   q <- Q.arbitrary
   qr <- GP.renderQty q
   ((a, x), sb) <- GP.leftCmdtyLvl3Amt cy qr
-  return $ doParse CP.leftCmdtyLvl3Amt (a, L.CommodityOnLeft, sb) x
+  return $ doParseEv CP.leftCmdtyLvl3Amt (a, L.CommodityOnLeft, sb) x
 
 prop_leftSideCmdtyAmt = do
   cy <- Q.oneof [ fmap Left GP.quotedLvl1Cmdty
@@ -117,7 +141,7 @@ prop_leftSideCmdtyAmt = do
   q <- Q.arbitrary
   qr <- GP.renderQty q
   ((a, x), sb) <- GP.leftSideCmdtyAmt cy qr
-  return $ doParse CP.leftSideCmdtyAmt (a, L.CommodityOnLeft, sb) x
+  return $ doParseEv CP.leftSideCmdtyAmt (a, L.CommodityOnLeft, sb) x
 
 prop_rightSideCmdtyAmt = do
   cy <- Q.oneof [ fmap Left GP.quotedLvl1Cmdty
@@ -125,14 +149,14 @@ prop_rightSideCmdtyAmt = do
   q <- Q.arbitrary
   qr <- GP.renderQty q
   ((a, x), sb) <- GP.rightSideCmdtyAmt cy qr
-  return $ doParse CP.rightSideCmdtyAmt (a, L.CommodityOnRight, sb) x
+  return $ doParseEv CP.rightSideCmdtyAmt (a, L.CommodityOnRight, sb) x
 
 prop_amount = do
   cy <- GP.genCmdty
   q <- Q.arbitrary
   qr <- GP.renderQty q
   ((a, x), sb, sd) <- GP.amount cy qr
-  return $ doParse CP.amount (a, sd, sb) x
+  return $ doParseEv CP.amount (a, sd, sb) x
 
 prop_comment =
   parseProp CP.comment GP.comment id
@@ -188,7 +212,7 @@ prop_entry = do
   q <- Q.arbitrary
   qr <- GP.renderQty q
   ((en, x), sb, sd) <- GP.entry cy dc qr
-  return $ doParse CP.entry (en, sd, sb) x
+  return $ doParseEv CP.entry (en, sd, sb) x
 
 prop_flag =
   parseProp CP.flag GP.flag id
@@ -225,7 +249,7 @@ prop_fromCmdty = do
 
 prop_price = Q.forAll GP.price $ \(pp, x) ->
   let pd pp' = L.dateTime pp == L.dateTime pp'
-               && L.price pp == L.price pp'
+               && L.price pp ==~ L.price pp'
                && L.ppSide pp == L.ppSide pp'
                && L.ppSpaceBetween pp == L.ppSpaceBetween pp'
   in doParse' CP.price (show pp) pd x
@@ -266,12 +290,14 @@ prop_posting = do
       en <- GP.entry cy dc qr
       GP.posting (Just en)
     else GP.posting Nothing
-  let pd (pc', _, mayEn') = pc' == pc && mayEn' == mayEn
+  let pd (pc', _, mayEn') = pc' == pc && mayEn' ==~ mayEn
   return $ doParse' CP.posting (show (pc, mayEn)) pd x
 
 prop_transaction = do
   ((tlc, es), x) <- GP.transaction
-  let pd (ptl, es') = (parsedTopLineToCore ptl, fmap fst es') == (tlc, es)
+  let pd (ptl, es') =
+        parsedTopLineToCore ptl == tlc
+        && (fmap fst es' ==~ es)
   return $ doParse' CP.transaction (show (tlc, es)) pd x
 
 runTests :: (Q.Property -> IO Q.Result) -> IO Bool

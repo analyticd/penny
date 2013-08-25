@@ -15,10 +15,28 @@ class Equivalent a where
 (==~) = equivalent
 infix 4 ==~
 
+instance Equivalent a => Equivalent (Maybe a) where
+  equivalent a b = case (a, b) of
+    (Just x, Just y) -> x ==~ y
+    (Nothing, Nothing) -> True
+    _ -> False
+  compareEv a b = case (a, b) of
+    (Just x, Just y) -> compareEv x y
+    (Nothing, Nothing) -> EQ
+    (Just _, Nothing) -> GT
+    (Nothing, Just _) -> LT
+
 instance (Equivalent a, Equivalent b) => Equivalent (a, b) where
   equivalent (a1, b1) (a2, b2) = a1 ==~ a2 && b1 ==~ b2
   compareEv (a1, b1) (a2, b2) =
     compareEv a1 a2 <> compareEv b1 b2
+
+instance (Equivalent a, Equivalent b, Equivalent c) =>
+  Equivalent (a, b, c) where
+    equivalent (a1, b1, c1) (a2, b2, c2) = a1 ==~ a2
+      && b1 ==~ b2 && c1 ==~ c2
+    compareEv (a1, b1, c1) (a2, b2, c2) =
+      compareEv a1 a2 <> compareEv b1 b2 <> compareEv c1 c2
 
 instance (Equivalent a, Equivalent b) => Equivalent (Either a b) where
   equivalent e1 e2 = case (e1, e2) of

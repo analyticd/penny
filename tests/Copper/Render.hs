@@ -3,12 +3,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Copper.Render where
 
-import Control.Applicative ((<*), (<$>), (<*>))
+import Control.Applicative ((<*))
 import qualified Copper.Gen.Parsers as G
 import qualified Penny.Copper.Interface as I
 import qualified Penny.Copper.Render as R
 import qualified Penny.Copper.Parsec as P
 import qualified Penny.Lincoln as L
+import Penny.Lincoln ((==~))
 import qualified Text.Parsec as Ps
 import qualified Text.Parsec.Text as Ps
 import qualified Test.QuickCheck as Q
@@ -56,6 +57,14 @@ doParse
   -> QCP.Result
 doParse = doParseWithPdct (==)
 
+doParseEv
+  :: (L.Equivalent a, Show a)
+  => (a -> Maybe Text)
+  -> Ps.Parser a
+  -> a
+  -> QCP.Result
+doParseEv = doParseWithPdct (==~)
+
 prop_quotedLvl1Acct =
   renParse R.quotedLvl1Acct P.quotedLvl1Acct G.quotedLvl1Acct
 
@@ -80,14 +89,14 @@ prop_lvl3Cmdty =
 
 prop_qtyRep = do
   qr <- arbitrary
-  return $ doParse (fmap Just R.qtyRep) P.qtyRep qr
+  return $ doParseEv (fmap Just R.qtyRep) P.qtyRep qr
 
 prop_amount = do
   cy <- G.genCmdty
   qr <- G.ast
   let rend (am, sd, sb) = R.amount Nothing (Just sd) (Just sb) (Left am)
   r <- fmap (\ ((am, _), sb, sd) -> (am, sd, sb)) (G.amount cy qr)
-  return $ doParse rend P.amount r
+  return $ doParseEv rend P.amount r
 
 prop_comment =
   renParse R.comment P.comment G.comment
@@ -102,7 +111,7 @@ prop_entry = do
   let rend (iEn, iSd, iSb) = R.entry Nothing (Just iSd) (Just iSb)
                                      (Left iEn)
   ((en, _), sb, sd) <- G.entry cy dc qr
-  return $ doParse rend P.entry (en, sd, sb)
+  return $ doParseEv rend P.entry (en, sd, sb)
 
 prop_flag =
   renParse R.flag P.flag G.flag
@@ -157,12 +166,12 @@ prop_transaction = do
   let rend = R.transaction Nothing
       toPair (tl, es) = (toTopLine tl, fmap fst es)
   (genTx, _) <- G.transaction
-  return $ doParse rend (fmap toPair P.transaction) genTx
+  return $ doParseEv rend (fmap toPair P.transaction) genTx
 
 priceEq :: L.PricePoint -> L.PricePoint -> Bool
 priceEq (L.PricePoint xdt xpr xsd xsb _)
         (L.PricePoint ydt ypr ysd ysb _)
-  = xdt == ydt && xpr == ypr && xsd == ysd && xsb == ysb
+  = xdt == ydt && xpr ==~ ypr && xsd == ysd && xsb == ysb
 
 runTests :: (Q.Property -> IO Q.Result) -> IO Bool
 runTests = $(A.forAllProperties)

@@ -108,12 +108,21 @@ data Side
   | CommodityOnRight
   deriving (Eq, Show, Ord)
 
+instance Ev.Equivalent Side where
+  equivalent = (==)
+  compareEv = compare
+
 -- | There may or may not be a space in between the commodity and the
 -- quantity.
 data SpaceBetween
   = SpaceBetween
   | NoSpaceBetween
   deriving (Eq, Show, Ord)
+
+
+instance Ev.Equivalent SpaceBetween where
+  equivalent = (==)
+  compareEv = compare
 
 -- | The name of the file in which a transaction appears.
 newtype Filename = Filename { unFilename :: X.Text }
