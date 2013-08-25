@@ -193,8 +193,8 @@ Executable penny-test
 Executable penny-gibberish
   Main-is: penny-gibberish.hs
   other-modules:
-      Gibberish.Parsers
-    , Gibberish.Terminals
+      Copper.Gen.Parsers
+    , Copper.Gen.Terminals
   hs-source-dirs: tests
 
   if flag(test)

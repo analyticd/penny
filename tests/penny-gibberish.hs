@@ -5,7 +5,7 @@ import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Test.QuickCheck.Gen as G
 import qualified System.Random as Rand
 import Control.Monad (replicateM)
-import qualified Gibberish.Parsers as P
+import qualified Copper.Gen.Parsers as P
 import qualified Penny.Copper.Render as R
 import qualified System.Exit as Exit
 import qualified Data.Text.IO as TIO
