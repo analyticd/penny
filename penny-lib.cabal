@@ -12,25 +12,10 @@ bug-reports: omari@smileystation.com
 Category: Console, Finance
 License-File: LICENSE
 
-synopsis: Extensible double-entry accounting system - library
+synopsis: Deprecated - use penny package instead
 
-description: Penny is a double-entry accounting system. It is inspired
-  by, but incompatible with, John Wiegley's Ledger, which is available
-  at <http://ledger-cli.org/>.
-
-  .
-
-  This package is a library. To start using Penny you will want to
-  install the penny-bin package, which has the executable programs.
-  More about the penny-bin package, along with a full sales pitch
-  for Penny and how to get started, is at
-  <http://hackage.haskell.org/package/penny-bin>. It may be installed
-  with "cabal install penny-bin".
-
-  .
-
-  The Penny library is a full system to work with double-entry
-  accounting transactions and postings and to make reports with them.
+description:
+  This package is now deprecated.  Use the penny package instead.
 
 source-repository head
   type: git
