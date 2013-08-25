@@ -145,15 +145,16 @@ Library
   if ! flag (buildlib)
     buildable: False
 
--- I'm going to not list the exposed-modules for the test, and
--- hope it works :) it seems cabal only uses this information for
--- executables to determine what to bundle into the dist tarball.
--- Since the test modules are all listed above for the library,
--- this should not be a problem. However, if there are extra
--- test modules that are not in the library, list them here.
 Executable penny-test
   Main-is: penny-test.hs
-  hs-source-dirs: tests lib
+  other-modules:
+      Copper
+    , Copper.Gen.Parsers
+    , Copper.Gen.Terminals
+    , Copper.Parser
+    , Copper.Render
+    , Lincoln
+  hs-source-dirs: tests
 
   -- Be sure the build-depends are listed within the if block;
   -- otherwise, cabal install will always include these
@@ -165,28 +166,21 @@ Executable penny-test
   -- Test dependencies. test-framework has issues with newer versions,
   -- see
   -- https://github.com/batterseapower/test-framework/issues/34
+
+  -- For details on why penny is a dependency here, see
+  -- http://stackoverflow.com/questions/6711151
+
   if flag(test)
     build-depends:
-        QuickCheck ==2.5.*
+        penny-lib
+      , QuickCheck ==2.5.*
       , random-shuffle ==0.0.4
 
       , base ==4.*
-      , action-permutations ==0.0.0.0
-      , binary ==0.7.*
-      , bytestring ==0.10.*
-      , cereal ==0.3.*
-      , containers ==0.5.*
       , explicit-exception ==0.1.*
-      , matchers ==0.6.*
       , multiarg ==0.18.*
-      , ofx ==0.2.*
-      , old-locale ==1.0.*
       , parsec >= 3.1.2 && < 3.2
-      , prednote == 0.14.*
-      , pretty-show ==1.5.*
-      , rainbow ==0.4.*
       , semigroups ==0.9.*
-      , split ==0.2.*
       , text ==0.11.*
       , time ==1.4.*
       , transformers == 0.3.*
@@ -198,34 +192,25 @@ Executable penny-test
 
 Executable penny-gibberish
   Main-is: penny-gibberish.hs
-  hs-source-dirs: tests lib
+  other-modules:
+      Gibberish.Parsers
+    , Gibberish.Terminals
+  hs-source-dirs: tests
 
   if flag(test)
     build-depends:
-        QuickCheck ==2.5.*
-      , random-shuffle ==0.0.4
-      , random ==1.0.*
+          penny-lib
+        , QuickCheck ==2.5.*
+        , random-shuffle ==0.0.4
+        , random ==1.0.*
 
-      , base ==4.*
-      , action-permutations ==0.0.0.0
-      , binary ==0.7.*
-      , bytestring ==0.10.*
-      , cereal ==0.3.*
-      , containers ==0.5.*
-      , explicit-exception ==0.1.*
-      , matchers ==0.6.*
-      , multiarg ==0.18.*
-      , ofx ==0.2.*
-      , old-locale ==1.0.*
-      , parsec >= 3.1.2 && < 3.2
-      , prednote == 0.14.*
-      , pretty-show ==1.5.*
-      , rainbow ==0.4.*
-      , semigroups ==0.9.*
-      , split ==0.2.*
-      , text ==0.11.*
-      , time ==1.4.*
-      , transformers == 0.3.*
+        , base ==4.*
+        , explicit-exception ==0.1.*
+        , multiarg ==0.18.*
+        , semigroups ==0.9.*
+        , text ==0.11.*
+        , time ==1.4.*
+        , transformers == 0.3.*
 
   else
     buildable: False
