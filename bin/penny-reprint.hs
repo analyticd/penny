@@ -7,7 +7,7 @@ import qualified Penny.Liberty as Ly
 import qualified Data.Text as X
 import qualified System.Console.MultiArg as MA
 
-import qualified Paths_penny_bin as PPB
+import qualified Paths_penny as PPB
 
 help :: String -> String
 help pn = unlines

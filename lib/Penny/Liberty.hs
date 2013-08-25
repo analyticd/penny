@@ -79,7 +79,7 @@ import Text.Matchers (
 import qualified Text.Matchers as TM
 
 #ifdef incabal
-import qualified Paths_penny_lib as PPL
+import qualified Paths_penny as PPL
 #endif
 import qualified Data.Version as V
 

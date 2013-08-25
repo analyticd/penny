@@ -1,7 +1,7 @@
 module Main where
 
 import Penny
-import qualified Paths_penny_bin as PPB
+import qualified Paths_penny as PPB
 
 -- | This type contains settings for all the reports, as well as
 -- default settings for the global options. Some of these can be

@@ -116,7 +116,7 @@ import qualified Penny.Lincoln as L
 import qualified Data.Map as M
 import qualified System.Console.MultiArg as MA
 import qualified Text.Parsec as Parsec
-import qualified Paths_penny_bin as PPB
+import qualified Paths_penny as PPB
 import qualified Penny as P
 
 type Err = Ex.Exceptional Error

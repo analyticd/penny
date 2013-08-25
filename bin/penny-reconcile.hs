@@ -9,7 +9,7 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
 import qualified Penny.Steel.Sums as S
 import qualified System.Console.MultiArg as MA
-import qualified Paths_penny_bin as PPB
+import qualified Paths_penny as PPB
 
 
 -- | Changes a posting to mark it reconciled, if it was already marked

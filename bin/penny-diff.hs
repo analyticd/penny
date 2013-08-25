@@ -16,7 +16,7 @@ import qualified Data.Text.IO as TIO
 import qualified System.Exit as E
 import qualified System.IO as IO
 
-import qualified Paths_penny_bin as PPB
+import qualified Paths_penny as PPB
 
 main :: IO ()
 main = runPennyDiff

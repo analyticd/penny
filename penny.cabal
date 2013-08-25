@@ -166,13 +166,23 @@ description: Penny is a double-entry accounting system. It is inspired
   README file, which will point you to additional documentation and
   how to install it if you wish.
 
+extra-source-files:
+    install-docs
+  , README
+  , doc/*.org
+  , doc/*.dot
+  , doc/*.hs
+  , doc/examples/*.pny
+  , doc/man/*.1
+  , doc/man/*.7
+
 source-repository head
   type: git
   location: git://github.com/massysett/penny.git
 
 Library
   Build-depends:
-      base ==4.*
+      base ==4.6.*
     , action-permutations ==0.0.0.0
     , binary ==0.7.*
     , bytestring ==0.10.*
@@ -265,7 +275,7 @@ Library
     , Penny.Zinc
 
   Other-modules:
-      Paths_penny_lib
+      Paths_penny
 
   hs-source-dirs: lib
 
@@ -276,8 +286,110 @@ Library
   if flag(debug)
     ghc-options: -auto-all -caf-all
 
-  if ! flag (buildlib)
+Executable penny
+  Build-depends:
+      penny
+    , base ==4.6.*
+
+  hs-source-dirs: bin
+  Main-is: penny-main.hs
+  Other-modules: Paths_penny
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
+  if ! flag(build-penny)
     buildable: False
+
+Flag build-penny
+  Description: Build the penny executable
+  Default: True
+
+Executable penny-selloff
+  Build-depends:
+      penny
+    , base == 4.6.*
+    , explicit-exception ==0.1.*
+    , containers ==0.5.*
+    , semigroups ==0.9.*
+    , text ==0.11.*
+    , parsec ==3.1.*
+    , multiarg ==0.18.*
+    , transformers ==0.3.*
+
+  other-modules: Paths_penny
+  hs-source-dirs: bin
+  Main-is: penny-selloff.hs
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
+  if ! flag(build-selloff)
+    buildable: False
+
+Flag build-selloff
+  Description: Build the penny-selloff executable
+  Default: True
+
+Executable penny-diff
+  Build-depends:
+      penny
+    , base ==4.6.*
+    , text ==0.11.*
+    , multiarg ==0.18.*
+    , explicit-exception == 0.1.*
+
+  hs-source-dirs: bin
+  Main-is: penny-diff.hs
+  Other-modules: Paths_penny
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
+  if ! flag(build-diff)
+    buildable: False
+
+Flag build-diff
+  Description: Build the penny-diff executable
+  Default: True
+
+Executable penny-reprint
+  Build-depends:
+      penny
+    , base ==4.6.*
+    , multiarg ==0.18.*
+    , pretty-show ==1.5.*
+    , text ==0.11.*
+
+  hs-source-dirs: bin
+  main-is: penny-reprint.hs
+  Other-modules: Paths_penny
+  ghc-options: -Wall
+  if ! flag(build-reprint)
+    buildable: False
+
+Flag build-reprint
+  Description: Build the penny-reprint executable
+  Default: True
+
+Executable penny-reconcile
+  Build-depends:
+      penny
+    , base ==4.6.*
+    , text ==0.11.*
+    , multiarg ==0.18.*
+    , explicit-exception ==0.1.*
+
+  hs-source-dirs: bin
+  main-is: penny-reconcile.hs
+  Other-modules: Paths_penny
+  ghc-options: -Wall
+  if ! flag(build-reconcile)
+    buildable: False
+
+Flag build-reconcile
+  Description: Build the penny-reconcile executable
+  Default: True
 
 Executable penny-test
   Main-is: penny-test.hs
@@ -310,7 +422,7 @@ Executable penny-test
       , QuickCheck ==2.5.*
       , random-shuffle ==0.0.4
 
-      , base ==4.*
+      , base ==4.6.*
       , explicit-exception ==0.1.*
       , multiarg ==0.18.*
       , parsec >= 3.1.2 && < 3.2
@@ -338,7 +450,7 @@ Executable penny-gibberish
         , random-shuffle ==0.0.4
         , random ==1.0.*
 
-        , base ==4.*
+        , base ==4.6.*
         , explicit-exception ==0.1.*
         , multiarg ==0.18.*
         , semigroups ==0.9.*
@@ -363,6 +475,3 @@ Flag incabal
   Description: enables imports that only Cabal makes available
   Default: True
 
-Flag buildlib
-  Description: build library
-  Default: True
