@@ -19,7 +19,7 @@ import qualified Penny.Liberty as Ly
 import qualified Data.Either as Ei
 import qualified Data.Map as M
 import qualified Penny.Cabin.Options as CO
-import Data.Monoid (mappend, mempty)
+import Data.Monoid (mappend, mempty, (<>))
 import qualified Data.Text as X
 import qualified Data.Tree as E
 import qualified Penny.Cabin.Balance.MultiCommodity.Chunker as K
@@ -69,11 +69,13 @@ summedSortedBalTree ::
   -> (L.SubAccount -> L.SubAccount -> Ordering)
   -> [(a, L.Posting)]
   -> (E.Forest (L.SubAccount, L.Balance), L.Balance)
-summedSortedBalTree szb o =
-  U.sumForest mempty mappend
-  . U.sortForest o'
-  . U.balances szb
+summedSortedBalTree szb o ps = (forest, bal)
   where
+    (topBal, unsorted) = U.balances szb ps
+    (forest, forestSum) = U.sumForest mempty mappend
+                        . U.sortForest o'
+                        $ unsorted
+    bal = topBal <> forestSum
     o' x y = o (fst x) (fst y)
 
 rows ::

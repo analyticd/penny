@@ -268,7 +268,6 @@ Library
     , Penny.Lincoln.Serial
     , Penny.Shield
     , Penny.Steel
-    , Penny.Steel.NestedMap
     , Penny.Steel.Sums
     , Penny.Wheat
     , Penny.Zinc

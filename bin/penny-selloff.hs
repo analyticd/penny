@@ -170,8 +170,8 @@ help pn = unlines
   ]
 
 calcBalances :: [Cop.LedgerItem] -> [(L.Account, L.Balance)]
-calcBalances =
-  BU.flatten
+calcBalances
+  = BU.flatten
   . BU.balances (ShowZeroBalances False)
   . map (\p -> ((), p))
   . concatMap L.transactionToPostings

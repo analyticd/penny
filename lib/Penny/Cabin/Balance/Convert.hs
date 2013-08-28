@@ -28,7 +28,7 @@ import qualified Penny.Shield as S
 import qualified Data.Either as Ei
 import qualified Data.Map as M
 import qualified Data.Text as X
-import Data.Monoid (mempty, mappend, mconcat)
+import Data.Monoid (mempty, mappend, mconcat, (<>))
 import qualified System.Console.MultiArg as MA
 import qualified System.Console.Rainbow as Rb
 
@@ -209,13 +209,13 @@ sumConvertSort
 sumConvertSort os ps bs = mkResult <$> convertedFrst <*> convertedTot
   where
     (Opts _ szb str tgt dt _) = os
-    bals = U.balances szb bs
-    (frst, tot) = U.sumForest mempty mappend bals
+    (topTot, unsorted) = U.balances szb bs
+    (sorted, frstTot) = U.sumForest mempty mappend unsorted
     convertBal (a, bal) =
         (\bl -> (a, bl)) <$> convertBalance db dt tgt bal
     db = buildDb ps
-    convertedFrst = mapM (Tvbl.mapM convertBal) frst
-    convertedTot = convertBalance db dt tgt tot
+    convertedFrst = mapM (Tvbl.mapM convertBal) sorted
+    convertedTot = convertBalance db dt tgt (frstTot <> topTot)
     mkResult f t = ForestAndBL (U.sortForest str f) t tgt
 
 -- | Determine the most frequent To commodity.

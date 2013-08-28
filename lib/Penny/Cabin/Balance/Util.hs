@@ -17,11 +17,11 @@ module Penny.Cabin.Balance.Util
   , lastMode
   ) where
 
-import Control.Arrow (second)
+import Control.Arrow (second, first)
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Lincoln as L
-import qualified Penny.Steel.NestedMap as NM
-import qualified Data.Foldable as Fdbl
+import Data.Tuple (swap)
+import Data.Either (partitionEithers)
 import qualified Data.Map as M
 import Data.Ord (comparing)
 import Data.List (sortBy, maximumBy, groupBy)
@@ -30,41 +30,16 @@ import Data.Maybe (mapMaybe)
 import qualified Data.Tree as T
 import qualified Penny.Lincoln.Queries as Q
 
--- | Constructs a forest sorted into tiers based on lists of keys that
--- are extracted from the elements.
-tieredForest ::
-  Ord k
-  => (a -> [k])
-  -- ^ Extracts a key from the elements we are putting in the tree. If
-  -- this function returns an empty list for any element, the element
-  -- will not appear in the tiered forest.
-  -> [a]
-  -> T.Forest (k, [a])
-tieredForest getKeys
-  = fmap (second reverse)
-  . NM.toForest
-  . foldr f NM.empty
-  where
-    f a m = NM.relabel m ps
-      where
-        ps = case getKeys a of
-          [] -> []
-          ks ->
-            let mkInitPair k = (k, maybe [] id)
-                mkLastPair k = (k, maybe [a] (a:))
-            in (map mkInitPair . init $ ks)
-               ++ [(mkLastPair (last ks))]
-
 -- | Takes a list of postings and puts them into a Forest. Each level
 -- of each of the trees corresponds to a sub account. The label of the
 -- node tells you the sub account name and gives you a list of the
 -- postings at that level.
 tieredPostings
   :: [(a, L.Posting)]
-  -> T.Forest (L.SubAccount, [(a, L.Posting)])
-tieredPostings = tieredForest e
+  -> ([(a, L.Posting)], T.Forest (L.SubAccount, [(a, L.Posting)]))
+tieredPostings = second (map (fmap swap)) . tieredForest e
   where
-    e = Fdbl.toList . L.unAccount . Q.account . snd
+    e = L.unAccount . Q.account . snd
 
 -- | Keeps only Trees that match a given condition. First examines
 -- child trees to determine whether they should be retained. If a
@@ -81,32 +56,37 @@ filterForest f = mapMaybe pruneTree
 -- | Puts all Boxes into a Tree and sums the balances. Removes
 -- accounts that have empty balances if requested. Does NOT sum
 -- balances from the bottom up.
-balances ::
-  CO.ShowZeroBalances
+balances
+  :: CO.ShowZeroBalances
   -> [(a, L.Posting)]
-  -> T.Forest (L.SubAccount, L.Balance)
-balances (CO.ShowZeroBalances szb) =
-  remover
-  . map (fmap (mapSnd boxesBalance))
+  -> (L.Balance, T.Forest (L.SubAccount, L.Balance))
+balances (CO.ShowZeroBalances szb)
+  = first boxesBalance
+  . second remover
+  . second (map (fmap (second boxesBalance)))
   . tieredPostings
   where
     remover =
       if szb
       then id
       else filterForest (not . M.null . L.unBalance . snd)
-           . map (fmap (mapSnd L.removeZeroCommodities))
+           . map (fmap (second L.removeZeroCommodities))
 
 
 -- | Takes a tree of Balances (like what is produced by the 'balances'
 -- function) and produces a flat list of accounts with the balance of
--- each account.
+-- each account. Also adds in the first balance, which is for Accounts
+-- that have no sub-accounts.
 flatten
-  :: T.Forest (L.SubAccount, L.Balance)
+  :: (L.Balance, T.Forest (L.SubAccount, L.Balance))
   -> [(L.Account, L.Balance)]
-flatten =
-  concatMap T.flatten
-  . map (fmap toPair) . forestWithParents
+flatten (top, frst) = (L.Account [], top) : rest
   where
+    rest
+      = concatMap T.flatten
+      . map (fmap toPair)
+      . forestWithParents
+      $ frst
     toPair ((s, b), ls) =
       case reverse . map fst $ ls of
         [] -> (L.Account [s], b)
@@ -170,9 +150,6 @@ boxesBalance
   . map Q.entry
   . map snd
 
-mapSnd :: (a -> b) -> (f, a) -> (f, b)
-mapSnd f (x, a) = (x, f a)
-
 -- | Label each level of a Tree with an integer indicating how deep it
 -- is. The top node of the tree is level 0.
 labelLevels :: T.Tree a -> T.Tree (Int, a)
@@ -233,3 +210,63 @@ longestLists as =
   let lengths = map (\ls -> (ls, length ls)) as
       maxLen = maximum . map snd $ lengths
   in map fst . filter (\(_, len) -> len == maxLen) $ lengths
+
+--
+-- # Tiered forest
+--
+
+-- | Places items into a tiered forest.
+tieredForest
+  :: Ord b
+  => (a -> [b])
+  -- ^ Function that, when applied to an item, returns a list.  The
+  -- items will be placed into a tiered forest according to each list.
+
+  -> [a]
+  -- ^ List of items to put into the forest
+
+  -> ([a], T.Forest ([a], b))
+  -- ^ fst is the list of items for which the function returned an
+  -- empty list. The forest includes all other items.
+tieredForest f
+  = second forest
+  . groupByHead
+  . sortBy (comparing snd)
+  . map (\a -> (a, f a))
+
+tree
+  :: Eq b
+  => b
+  -> ([a], [(b, [(a, [b])])])
+  -> T.Tree ([a], b)
+tree lbl (as, rest) = T.Node (as, lbl) (forest rest)
+
+forest
+  :: Eq b
+  => [(b, [(a, [b])])]
+  -> T.Forest ([a], b)
+forest = map (uncurry tree . second groupByHead)
+
+groupByHead
+  :: Eq b
+  => [(a, [b])]
+  -> ([a], [(b, [(a, [b])])])
+groupByHead
+  = second groupPairs
+  . partitionEithers
+  . map pluckHead
+
+pluckHead
+  :: (a, [b])
+  -> Either a (b, (a, [b]))
+pluckHead (a, []) = Left a
+pluckHead (a, b:bs) = Right (b, (a, bs))
+
+groupPairs
+  :: Eq a
+  => [(a, b)]
+  -> [(a, [b])]
+groupPairs
+  = map (\ls -> (fst . head $ ls, map snd ls))
+  . groupBy (\x y -> fst x == fst y)
+
