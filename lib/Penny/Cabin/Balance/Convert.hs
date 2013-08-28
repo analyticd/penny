@@ -28,7 +28,7 @@ import qualified Penny.Shield as S
 import qualified Data.Either as Ei
 import qualified Data.Map as M
 import qualified Data.Text as X
-import Data.Monoid (mempty, mappend, mconcat, (<>))
+import Data.Monoid (mconcat, (<>))
 import qualified System.Console.MultiArg as MA
 import qualified System.Console.Rainbow as Rb
 
@@ -210,7 +210,7 @@ sumConvertSort os ps bs = mkResult <$> convertedFrst <*> convertedTot
   where
     (Opts _ szb str tgt dt _) = os
     (topTot, unsorted) = U.balances szb bs
-    (sorted, frstTot) = U.sumForest mempty mappend unsorted
+    (sorted, frstTot) = U.sumForest unsorted
     convertBal (a, bal) =
         (\bl -> (a, bl)) <$> convertBalance db dt tgt bal
     db = buildDb ps

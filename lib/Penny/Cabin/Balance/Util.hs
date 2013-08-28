@@ -25,7 +25,7 @@ import Data.Either (partitionEithers)
 import qualified Data.Map as M
 import Data.Ord (comparing)
 import Data.List (sortBy, maximumBy, groupBy)
-import Data.Monoid (mconcat, Monoid)
+import Data.Monoid (mconcat, Monoid, mempty, mappend)
 import Data.Maybe (mapMaybe)
 import qualified Data.Tree as T
 import qualified Penny.Lincoln.Queries as Q
@@ -114,33 +114,23 @@ forestWithParents = map (treeWithParentsR [])
 -- element is the forest, but with the second element of each node
 -- replaced with the sum of that node and all its children. The second
 -- element is the sum of all the second elements in the forest.
-sumForest ::
-  s
-  -- ^ Zero
-
-  -> (s -> s -> s)
-  -- ^ Combiner
-
-  -> T.Forest (a, s)
+sumForest
+  :: Monoid s
+  => T.Forest (a, s)
   -> (T.Forest (a, s), s)
-sumForest z f ts = (ts', s)
+sumForest ts = (ts', s)
   where
-    ts' = map (sumTree z f) ts
-    s = foldr f z . map (snd . T.rootLabel) $ ts'
+    ts' = map sumTree ts
+    s = foldr mappend mempty . map (snd . T.rootLabel) $ ts'
 
 -- | Sums a tree from the bottom up.
-sumTree ::
-  s
-  -- ^ Zero
-
-  -> (s -> s -> s)
-  -- ^ Combiner
-
-  ->  T.Tree (a, s)
+sumTree
+  :: Monoid s
+  => T.Tree (a, s)
   -> T.Tree (a, s)
-sumTree z f (T.Node (a, s) cs) = T.Node (a, f s cSum) cs'
+sumTree (T.Node (a, s) cs) = T.Node (a, mappend s cSum) cs'
   where
-    (cs', cSum) = sumForest z f cs
+    (cs', cSum) = sumForest cs
 
 
 boxesBalance :: [(a, L.Posting)] -> L.Balance
