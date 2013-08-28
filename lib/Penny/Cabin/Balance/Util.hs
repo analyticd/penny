@@ -17,6 +17,7 @@ module Penny.Cabin.Balance.Util
   , lastMode
   ) where
 
+import Control.Arrow (second)
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Lincoln as L
 import qualified Penny.Steel.NestedMap as NM
@@ -39,10 +40,11 @@ tieredForest ::
   -- will not appear in the tiered forest.
   -> [a]
   -> T.Forest (k, [a])
-tieredForest getKeys ls = fmap (fmap revSnd) . NM.toForest $ nm
+tieredForest getKeys
+  = fmap (second reverse)
+  . NM.toForest
+  . foldr f NM.empty
   where
-    revSnd (a, xs) = (a, reverse xs)
-    nm = foldr f NM.empty ls
     f a m = NM.relabel m ps
       where
         ps = case getKeys a of
