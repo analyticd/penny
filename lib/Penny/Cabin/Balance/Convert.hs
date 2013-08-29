@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- | The Convert report. This report converts all account balances to
 -- a single commodity, which must be specified.
 
@@ -121,6 +122,24 @@ data ForestAndBL = ForestAndBL {
   , _tbTotal :: L.BottomLine
   , _tbTo :: L.To
   }
+
+-- | Similar to a BottomLine but contains percentage data rather than
+-- a quantity.
+data Percent
+  = PctZero
+  | PctNonZero PctColumn
+  deriving (Eq, Show)
+
+data PctColumn = PctColumn
+  { pctDrCr :: L.DrCr
+  , pctAmount :: Double
+  } deriving (Eq, Show)
+
+convertToPercents
+  :: E.Forest (L.SubAccount, L.BottomLine)
+  -> E.Forest (L.SubAccount, Percent)
+convertToPercents = undefined
+
 
 -- | Converts the balance data in preparation for screen rendering.
 rows :: ForestAndBL -> ([K.Row], L.To)
@@ -278,6 +297,18 @@ cmpBottomLine (n1, bl1) (n2, bl2) =
         qt = compare (Bal.colQty c1) (Bal.colQty c2)
         na = compare n1 n2
 
+-- | Displays a RealFrac, rounded to the specified number of decimal
+-- places.
+dispRounded :: RealFrac a => Int -> a -> X.Text
+dispRounded p
+  = (\x -> let (b, e) = X.splitAt (X.length x - p) x
+           in if p == 0 then x else b <> "." <> e)
+  . X.pack
+  . show
+  . (round :: RealFrac a => a -> Integer)
+  . (* 10 ^ p)
+
+
 ------------------------------------------------------------
 -- ## Help
 ------------------------------------------------------------
@@ -328,6 +359,12 @@ help o = unlines $
   , "--descending"
   , "  Sort in descending order"
     ++ ifDefault (O.sortOrder o == CP.Descending)
+  , ""
+  , "--percent, -%"
+  , "  Show each account total as a percentage of the parent account"
+  , "--round PLACES, -r PLACES"
+  , "  Like --percent, but round to this many decimal places"
+  , "  rather than the default 2 places"
   , ""
   , "--help, -h"
   , "  Show this help and exit"
