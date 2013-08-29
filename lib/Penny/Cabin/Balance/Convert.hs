@@ -19,6 +19,7 @@ import qualified Penny.Cabin.Parsers as CP
 import qualified Penny.Cabin.Scheme as Scheme
 import qualified Penny.Cabin.Balance.Util as U
 import qualified Penny.Cabin.Balance.Convert.Chunker as K
+import qualified Penny.Cabin.Balance.Convert.ChunkerPct as KP
 import qualified Penny.Cabin.Balance.Convert.Options as O
 import qualified Penny.Cabin.Balance.Convert.Parser as P
 import qualified Penny.Cabin.Interface as I
@@ -38,7 +39,11 @@ import qualified System.Console.Rainbow as Rb
 -- need to use if you are supplying options programatically (as
 -- opposed to parsing them in from the command line.)
 data Opts = Opts
-  { balanceFormat :: L.Amount L.Qty -> X.Text
+  { format :: Either (L.Amount L.Qty -> X.Text) P.RoundTo
+  -- ^ If you want a convert report that shows a single commodity,
+  -- pass a Left showing how to display each amount.  If you want a
+  -- convert report that shows percentages, pass a Right here with how
+  -- many places to round to.
   , showZeroBalances :: CO.ShowZeroBalances
   , sorter :: Sorter
   , target :: L.To
@@ -124,14 +129,9 @@ data ForestAndBL = ForestAndBL {
   , _tbTo :: L.To
   }
 
-data Percent = Percent
-  { pctDrCr :: L.DrCr
-  , pctAmount :: Double
-  } deriving (Eq, Show)
-
 forestToPercents
   :: E.Forest (L.SubAccount, L.BottomLine)
-  -> E.Forest (L.SubAccount, Maybe Percent)
+  -> E.Forest (L.SubAccount, Maybe KP.Percent)
 forestToPercents ls =
   let tot = sumBottomLines . map (snd . E.rootLabel) $ ls
   in map (treeToPercent tot) ls
@@ -140,7 +140,7 @@ treeToPercent
   :: Maybe L.Qty
   -- ^ Sum of all BottomLines at this level
   -> E.Tree (L.SubAccount, L.BottomLine)
-  -> E.Tree (L.SubAccount, Maybe Percent)
+  -> E.Tree (L.SubAccount, Maybe KP.Percent)
 treeToPercent qty (E.Node (acct, bl) cs) = E.Node (acct, mayPct) cs'
   where
     mayPct = maybe Nothing (flip bottomLineToPercent bl) qty
@@ -154,30 +154,34 @@ bottomLineToQty b = case b of
 sumBottomLines :: [L.BottomLine] -> Maybe L.Qty
 sumBottomLines ls = case catMaybes . map bottomLineToQty $ ls of
   [] -> Nothing
-  x:xs -> Just $ foldl (\x y -> L.add x (snd y)) (snd x) xs
+  x:xs -> Just $ foldl (\a b -> L.add a (snd b)) (snd x) xs
 
 bottomLineToPercent
   :: L.Qty
   -- ^ Sum of all All BottomLines in this level
   -> L.BottomLine
   -- ^ This BottomLine
-  -> Maybe Percent
+  -> Maybe KP.Percent
 bottomLineToPercent tot bl = fmap f . bottomLineToQty $ bl
   where
-    f (dc, q) = Percent dc (L.divide q tot)
+    f (dc, q) = KP.Percent dc (L.divide q tot)
 
 
 -- | Converts rows for a percentage report.
 rowsPct
-  :: L.BottomLine
-  -- ^ Total
-  -> L.To
+  :: L.To
   -- ^ To commodity
-  -> Int
-  -- ^ Round to this many decimal places
-  -> E.Forest (L.SubAccount, Maybe Percent)
-  -> ([K.Row], L.To)
-rowsPct = undefined
+  -> E.Forest (L.SubAccount, Maybe KP.Percent)
+  -> [KP.Row]
+rowsPct to frt = first:rest
+  where
+    first = KP.ROneCol $ KP.OneColRow 0 desc
+    desc = "All amounts reported in percents in commodity: "
+           <> (L.unCommodity . L.unTo $ to)
+    rest = map mainRowPct
+         . concatMap E.flatten
+         . map U.labelLevels
+         $ frt
 
 -- | Converts the balance data in preparation for screen rendering.
 rows :: ForestAndBL -> ([K.Row], L.To)
@@ -195,6 +199,9 @@ rows (ForestAndBL f tot to) = (first:second:rest, to)
            $ f
 
 
+mainRowPct :: (Int, (L.SubAccount, Maybe KP.Percent)) -> KP.Row
+mainRowPct (l, (a, p)) = KP.RMain $ KP.MainRow l (L.text a) p
+
 mainRow :: (Int, (L.SubAccount, L.BottomLine)) -> K.Row
 mainRow (l, (a, b)) = K.RMain $ K.MainRow l x b
   where
@@ -208,11 +215,18 @@ report
   -> [L.PricePoint]
   -> [(a, L.Posting)]
   -> Ex.Exceptional X.Text [Rb.Chunk]
-report os@(Opts getFmt _ _ _ _ txtFormats) ps bs = do
+report os@(Opts eiFmt _ _ tgt _ txtFormats) ps bs = do
   fstBl <- sumConvertSort os ps bs
-  let (rs, L.To cy) = rows fstBl
-      fmt q = getFmt (L.Amount q cy)
-  return $ K.rowsToChunks txtFormats fmt rs
+  return $ case eiFmt of
+    Left getFmt ->
+      let (rs, L.To cy) = rows fstBl
+          fmt q = getFmt (L.Amount q cy)
+      in K.rowsToChunks txtFormats fmt rs
+    Right rnd ->
+      let frt = forestToPercents (_tbForest fstBl)
+          rws = rowsPct tgt frt
+      in KP.rowsToChunks txtFormats rnd rws
+
 
 
 -- | Creates a report respecting the standard interface for reports
@@ -226,7 +240,7 @@ cmdLineReport o rt = (help o, mkMode)
       "convert"
       (const (help o))
       (process rt chgrs o fsf)
-      (map (fmap Right) P.allOptSpecs)
+      (map (fmap Right) (map (fmap (fmap return)) P.allOptSpecs))
       MA.Intersperse
       (return . Left)
 
@@ -292,15 +306,16 @@ fromParsedOpts
   :: Scheme.Changers
   -> P.Opts
   -> DoReport
-fromParsedOpts chgrs (P.Opts szb tgt dt so sb) =
-  \pps fmt -> case tgt of
-    P.ManualTarget to ->
-      Just $ Opts fmt szb (getSorter so sb) to dt chgrs
-    P.AutoTarget ->
-      case mostFrequent pps of
-        Nothing -> Nothing
-        Just to ->
-          Just $ Opts fmt szb (getSorter so sb) to dt chgrs
+fromParsedOpts chgrs (P.Opts szb tgt dt so sb mayRnd) pps fmtAmt =
+  let fmt = maybe (Left fmtAmt) Right mayRnd
+  in case tgt of
+       P.ManualTarget to ->
+         Just $ Opts fmt szb (getSorter so sb) to dt chgrs
+       P.AutoTarget ->
+         case mostFrequent pps of
+           Nothing -> Nothing
+           Just to ->
+             Just $ Opts fmt szb (getSorter so sb) to dt chgrs
 
 -- | Returns a function usable to sort pairs of SubAccount and
 -- BottomLine depending on how you want them sorted.
@@ -334,17 +349,6 @@ cmpBottomLine (n1, bl1) (n2, bl2) =
           (L.Credit, L.Credit) -> EQ
         qt = compare (Bal.colQty c1) (Bal.colQty c2)
         na = compare n1 n2
-
--- | Displays a RealFrac, rounded to the specified number of decimal
--- places.
-dispRounded :: RealFrac a => Int -> a -> X.Text
-dispRounded p
-  = (\x -> let (b, e) = X.splitAt (X.length x - p) x
-           in if p == 0 then x else b <> "." <> e)
-  . X.pack
-  . show
-  . (round :: RealFrac a => a -> Integer)
-  . (* 10 ^ p)
 
 
 ------------------------------------------------------------
@@ -402,7 +406,7 @@ help o = unlines $
   , "  Show each account total as a percentage of the parent account"
   , "--round PLACES, -r PLACES"
   , "  Like --percent, but round to this many decimal places"
-  , "  rather than the default 2 places"
+  , "  rather than the default 0 places"
   , ""
   , "--help, -h"
   , "  Show this help and exit"

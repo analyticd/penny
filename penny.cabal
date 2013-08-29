@@ -218,6 +218,7 @@ Library
     , Penny.Cabin.Balance
     , Penny.Cabin.Balance.Convert
     , Penny.Cabin.Balance.Convert.Chunker
+    , Penny.Cabin.Balance.Convert.ChunkerPct
     , Penny.Cabin.Balance.Convert.Options
     , Penny.Cabin.Balance.Convert.Parser
     , Penny.Cabin.Balance.MultiCommodity
@@ -260,6 +261,7 @@ Library
     , Penny.Lincoln.Equivalent
     , Penny.Lincoln.HasText
     , Penny.Lincoln.Matchers
+    , Penny.Lincoln.Natural
     , Penny.Lincoln.Predicates
     , Penny.Lincoln.Predicates.Siblings
     , Penny.Lincoln.PriceDb

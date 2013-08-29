@@ -1,30 +1,30 @@
 {-# LANGUAGE OverloadedStrings #-}
--- | Creates the output Chunks for the Balance report for both
--- multi-commodity reports.
-
-module Penny.Cabin.Balance.MultiCommodity.Chunker (
-  Row(..),
-  rowsToChunks
+module Penny.Cabin.Balance.Convert.ChunkerPct
+  ( MainRow(..)
+  , OneColRow(..)
+  , Row(..)
+  , Percent(..)
+  , rowsToChunks
   ) where
 
 
 import Control.Applicative
   (Applicative (pure), (<$>), (<*>))
+import Data.Monoid (mempty, (<>))
+import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.Meta as Meta
 import qualified Penny.Cabin.Row as R
-import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Lincoln as L
-import Data.Monoid (mempty)
 import qualified Data.Foldable as Fdbl
 import qualified Data.Text as X
 import qualified System.Console.Rainbow as Rb
+import Penny.Cabin.Balance.Convert.Parser (RoundTo, unRoundTo)
 
 type IsEven = Bool
 
 data Columns a = Columns {
   acct :: a
   , drCr :: a
-  , commodity :: a
   , quantity :: a
   } deriving Show
 
@@ -32,23 +32,21 @@ instance Functor Columns where
   fmap f c = Columns {
     acct = f (acct c)
     , drCr = f (drCr c)
-    , commodity = f (commodity c)
     , quantity = f (quantity c)
     }
 
 instance Applicative Columns where
-  pure a = Columns a a a a
+  pure a = Columns a a a
   fn <*> fa = Columns {
     acct = (acct fn) (acct fa)
     , drCr = (drCr fn) (drCr fa)
-    , commodity = (commodity fn) (commodity fa)
     , quantity = (quantity fn) (quantity fa)
      }
 
 data PreSpec = PreSpec {
   _justification :: R.Justification
   , _padSpec :: (E.Label, E.EvenOdd)
-  , bits :: [Rb.Chunk] }
+  , bits :: Rb.Chunk }
 
 -- | When given a list of columns, determine the widest row in each
 -- column.
@@ -62,10 +60,7 @@ maxWidthPerColumn ::
   -> Columns PreSpec
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
-  f old new = max old ( safeMaximum (R.Width 0)
-                        . map (R.Width . X.length . Rb._text)
-                        . bits $ new)
-  safeMaximum d ls = if null ls then d else maximum ls
+  f old new = max old (R.Width . X.length . Rb._text . bits $ new)
 
 -- | Changes a single set of Columns to a set of ColumnSpec of the
 -- given width.
@@ -74,29 +69,25 @@ preSpecToSpec ::
   -> Columns PreSpec
   -> Columns R.ColumnSpec
 preSpecToSpec ws p = f <$> ws <*> p where
-  f width (PreSpec j ps bs) = R.ColumnSpec j width ps bs
+  f width (PreSpec j ps bs) = R.ColumnSpec j width ps [bs]
 
 resizeColumnsInList :: [Columns PreSpec] -> [Columns R.ColumnSpec]
 resizeColumnsInList cs = map (preSpecToSpec w) cs where
   w = maxWidths cs
 
 
--- Step 9
 widthSpacerAcct :: Int
 widthSpacerAcct = 4
 
 widthSpacerDrCr :: Int
 widthSpacerDrCr = 1
 
-widthSpacerCommodity :: Int
-widthSpacerCommodity = 1
-
 colsToBits
   :: E.Changers
   -> IsEven
   -> Columns R.ColumnSpec
   -> [Rb.Chunk]
-colsToBits chgrs isEven (Columns a dc c q) = let
+colsToBits chgrs isEven (Columns a dc q) = let
   fillSpec = if isEven
              then (E.Other, E.Even)
              else (E.Other, E.Odd)
@@ -106,8 +97,6 @@ colsToBits chgrs isEven (Columns a dc c q) = let
        : spacer widthSpacerAcct
        : dc
        : spacer widthSpacerDrCr
-       : c
-       : spacer widthSpacerCommodity
        : q
        : []
   in R.row chgrs cs
@@ -129,97 +118,139 @@ preSpecsToBits chgrs =
   . colsListToBits chgrs
   . resizeColumnsInList
 
+data Row = RMain MainRow | ROneCol OneColRow
+
+-- | Displays a one-column row.
+data OneColRow = OneColRow {
+  ocIndentation :: Int
+  -- ^ Indent the text by this many levels (not by this many
+  -- spaces; this number is multiplied by another number in the
+  -- Chunker source to arrive at the final indentation amount)
+
+  , ocText :: X.Text
+  -- ^ Text for the left column
+  }
+
+data Percent = Percent
+  { pctDrCr :: L.DrCr
+  , pctAmount :: Double
+  } deriving (Eq, Show)
+
+
+-- | Displays a RealFrac, rounded to the specified number of decimal
+-- places.
+dispRounded :: RealFrac a => RoundTo -> a -> X.Text
+dispRounded rnd
+  = (\x -> let (b, e) = X.splitAt (X.length x - p) x
+               p = L.unNonNegative . unRoundTo $ rnd
+           in if p == 0 then x else b <> "." <> e)
+  . X.pack
+  . show
+  . (round :: RealFrac a => a -> Integer)
+  . (* 10 ^ (L.unNonNegative . unRoundTo $ rnd))
+
 -- | Displays a single account in a Balance report. In a
 -- single-commodity report, this account will only be one screen line
 -- long. In a multi-commodity report, it might be multiple lines long,
 -- with one screen line for each commodity.
-data Row = Row
-  { indentation :: Int
+data MainRow = MainRow {
+  mrIndentation :: Int
   -- ^ Indent the account name by this many levels (not by this many
   -- spaces; this number is multiplied by another number in the
   -- Chunker source to arrive at the final indentation amount)
 
-  , accountTxt :: X.Text
-    -- ^ Text for the name of the account
+  , mrText :: X.Text
+  -- ^ Text for the name of the account
 
-  , balances :: [(L.Commodity, L.BottomLine)]
-    -- ^ Commodity balances. If this list is empty, dashes are
-    -- displayed for the DrCr, Commodity, and Qty.
+  , mrPercent :: Maybe Percent
+  -- ^ If Nothing, display dashes for the percent.
   }
+
 
 rowsToChunks
   :: E.Changers
-  -> (L.Amount L.Qty -> X.Text)
-  -- ^ How to format a balance to allow for digit grouping
+  -> RoundTo
+  -- ^ Round by this many places
   -> [Row]
   -> [Rb.Chunk]
-rowsToChunks chgrs fmt =
+rowsToChunks chgrs rnd =
   preSpecsToBits chgrs
-  . rowsToColumns chgrs fmt
+  . rowsToColumns chgrs rnd
 
 rowsToColumns
   :: E.Changers
-  -> (L.Amount L.Qty -> X.Text)
-  -- ^ How to format a balance to allow for digit grouping
+  -> RoundTo
+  -- ^ Round by this many places
 
   -> [Row]
   -> [Columns PreSpec]
-rowsToColumns chgrs fmt
-  = map (mkColumn chgrs fmt)
-  . L.serialItems (\ser a -> (Meta.VisibleNum ser, a))
+rowsToColumns chgrs rnd
+  = map (mkRow chgrs rnd)
+  . L.serialItems (\ser r -> (Meta.VisibleNum ser, r))
 
 
-mkColumn
+mkRow
   :: E.Changers
-  -> (L.Amount L.Qty -> X.Text)
+  -> RoundTo
   -> (Meta.VisibleNum, Row)
   -> Columns PreSpec
-mkColumn chgrs fmt (vn, (Row i acctTxt bs)) = Columns ca cd cc cq
+mkRow chgrs rnd (vn, r) = case r of
+  RMain m -> mkMainRow chgrs rnd (vn, m)
+  ROneCol c -> mkOneColRow chgrs (vn, c)
+
+mkOneColRow
+  :: E.Changers
+  -> (Meta.VisibleNum, OneColRow)
+  -> Columns PreSpec
+mkOneColRow chgrs (vn, (OneColRow i t)) = Columns ca cd cq
   where
-    lbl = E.Other
+    txt = X.append indents t
+    indents = X.replicate (indentAmount * max 0 i)
+              (X.singleton ' ')
     eo = E.fromVisibleNum vn
+    lbl = E.Other
+    ca = PreSpec R.LeftJustify (lbl, eo)
+         (E.getEvenOddLabelValue lbl eo chgrs . Rb.Chunk mempty $ txt)
+    cd = PreSpec R.LeftJustify (lbl, eo)
+         (E.getEvenOddLabelValue lbl eo chgrs mempty)
+    cq = cd
+
+mkMainRow
+  :: E.Changers
+  -> RoundTo
+  -> (Meta.VisibleNum, MainRow)
+  -> Columns PreSpec
+mkMainRow chgrs rnd (vn, (MainRow i acctTxt b)) = Columns ca cd cq
+  where
     applyFmt = E.getEvenOddLabelValue lbl eo chgrs
-    ca = PreSpec R.LeftJustify (lbl, eo) [applyFmt $ Rb.Chunk mempty txt]
+    eo = E.fromVisibleNum vn
+    lbl = E.Other
+    ca = PreSpec R.LeftJustify (lbl, eo) (applyFmt (Rb.Chunk mempty txt))
       where
         txt = X.append indents acctTxt
         indents = X.replicate (indentAmount * max 0 i)
                   (X.singleton ' ')
-    cd = PreSpec R.LeftJustify (lbl, eo) cksDrCr
-    cc = PreSpec R.RightJustify (lbl, eo) cksCmdty
-    cq = PreSpec R.LeftJustify (lbl, eo) cksQty
-    (cksDrCr, cksCmdty, cksQty) =
-      if null bs
-      then balanceChunksEmpty chgrs eo
-      else
-        let balChks = map (balanceChunks chgrs fmt eo) bs
-            cDrCr = map (\(a, _, _) -> a) balChks
-            cCmdty = map (\(_, a, _) -> a) balChks
-            cQty = map (\(_, _, a) -> a) balChks
-        in (cDrCr, cCmdty, cQty)
+    cd = PreSpec R.LeftJustify (lbl, eo) (applyFmt cksDrCr)
+    cq = PreSpec R.LeftJustify (lbl, eo) (applyFmt cksQty)
+    (cksDrCr, cksQty) = balanceChunks chgrs rnd vn b
 
-
-balanceChunksEmpty
-  :: E.Changers
-  -> E.EvenOdd
-  -> ([Rb.Chunk], [Rb.Chunk], [Rb.Chunk])
-balanceChunksEmpty chgrs eo = (dash, dash, dash)
-  where
-    dash = [E.getEvenOddLabelValue E.Other eo chgrs $ "--"]
 
 balanceChunks
   :: E.Changers
-  -> (L.Amount L.Qty -> X.Text)
-  -> E.EvenOdd
-  -> (L.Commodity, L.BottomLine)
-  -> (Rb.Chunk, Rb.Chunk, Rb.Chunk)
-balanceChunks chgrs fmt eo (cty, bl) = (chkDc, chkCt, chkQt)
+  -> RoundTo
+  -> Meta.VisibleNum
+  -> Maybe Percent
+  -> (Rb.Chunk, Rb.Chunk)
+balanceChunks chgrs rnd vn pct = (chkDc, chkQt)
   where
-    chkDc = E.bottomLineToDrCr dc eo chgrs
-    dc = case bl of
-      L.Zero -> Nothing
-      L.NonZero c -> Just $ L.colDrCr c
-    chkCt = E.bottomLineToCmdty chgrs eo (cty, bl)
-    chkQt = E.bottomLineToQty chgrs fmt eo (cty, bl)
+    eo = E.fromVisibleNum vn
+    chkDc = E.bottomLineToDrCr (fmap pctDrCr pct) eo chgrs
+    qtFmt = E.getEvenOddLabelValue lbl eo chgrs
+    chkQt = qtFmt $ Rb.Chunk mempty t
+    (lbl, t) = case pct of
+      Nothing -> (E.Zero, X.pack "--")
+      Just (Percent dc qt) ->
+        (E.dcToLbl dc, dispRounded rnd . (* 100) $ qt)
 
 
 indentAmount :: Int

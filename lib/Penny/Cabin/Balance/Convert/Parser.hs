@@ -3,6 +3,7 @@ module Penny.Cabin.Balance.Convert.Parser (
   Opts(..)
   , Target(..)
   , SortBy(..)
+  , RoundTo(..)
   , allOptSpecs
   ) where
 
@@ -16,6 +17,10 @@ import qualified Penny.Copper.Parsec as Pc
 import qualified System.Console.MultiArg.Combinator as C
 import qualified Text.Parsec as Parsec
 
+
+-- | Round to this many decimal places in the Percent report.
+newtype RoundTo = RoundTo { unRoundTo :: L.NonNegative }
+  deriving (Eq, Show, Ord)
 
 -- | Is the target commodity determined by the user or automatically?
 data Target = AutoTarget | ManualTarget L.To
@@ -31,22 +36,25 @@ data Opts = Opts
   , dateTime :: L.DateTime
   , sortOrder :: P.SortOrder
   , sortBy :: SortBy
+  , percentRpt :: Maybe RoundTo
+  -- ^ If the user wants a percentage report, set this.
   }
 
 -- | Do not be tempted to change the setup in this module so that the
 -- individual functions such as parseColor and parseBackground return
 -- parsers rather than OptSpec. Such an arrangement breaks the correct
 -- parsing of abbreviated long options.
-allOptSpecs :: [C.OptSpec (Opts -> Ex.Exceptional String Opts)]
+allOptSpecs :: [C.OptSpec (Opts -> Opts)]
 allOptSpecs =
-  [ fmap toExc parseZeroBalances
+  [ parseZeroBalances
   , parseCommodity
-  , fmap toExc parseAuto
+  , parseAuto
   , parseDate
-  , fmap toExc parseSort
-  , fmap toExc parseOrder ]
-  where
-    toExc f = return . f
+  , parseSort
+  , parseOrder
+  , parsePct
+  , parseRound
+  ]
 
 parseZeroBalances :: C.OptSpec (Opts -> Opts)
 parseZeroBalances = fmap f P.zeroBalances
@@ -54,26 +62,26 @@ parseZeroBalances = fmap f P.zeroBalances
     f x o = o { showZeroBalances = x }
 
 
-parseCommodity :: C.OptSpec (Opts -> Ex.Exceptional String Opts)
-parseCommodity = C.OptSpec ["commodity"] "c" (C.OneArg f)
+parseCommodity :: C.OptSpec (Opts -> Opts)
+parseCommodity = C.OptSpec ["commodity"] "c" (C.OneArgE f)
   where
-    f a1 os =
+    f a1 =
       case Parsec.parse Pc.lvl1Cmdty "" (X.pack a1) of
-        Left _ -> Ex.throw $ "invalid commodity: " ++ a1
-        Right g -> return $ os { target = ManualTarget . L.To $ g }
+        Left _ -> Ex.throw . C.ErrorMsg $ "invalid commodity"
+        Right g -> return $ \os -> os { target = ManualTarget . L.To $ g }
 
 parseAuto :: C.OptSpec (Opts -> Opts)
 parseAuto = C.OptSpec ["auto-commodity"] "" (C.NoArg f)
   where
     f os = os { target = AutoTarget }
 
-parseDate :: C.OptSpec (Opts -> Ex.Exceptional String Opts)
-parseDate = C.OptSpec ["date"] "d" (C.OneArg f)
+parseDate :: C.OptSpec (Opts -> Opts)
+parseDate = C.OptSpec ["date"] "d" (C.OneArgE f)
   where
-    f a1 os =
+    f a1 =
       case Parsec.parse Pc.dateTime "" (X.pack a1) of
-        Left _ -> Ex.throw $ "invalid date: " ++ a1
-        Right g -> return $ os { dateTime = g }
+        Left _ -> Ex.throw . C.ErrorMsg $ "invalid date"
+        Right g -> return $ \os -> os { dateTime = g }
 
 parseSort :: C.OptSpec (Opts -> Opts)
 parseSort = C.OptSpec ["sort"] "s" (C.ChoiceArg ls)
@@ -85,3 +93,19 @@ parseOrder :: C.OptSpec (Opts -> Opts)
 parseOrder = fmap f P.order
   where
     f x o = o { sortOrder = x }
+
+parsePct :: C.OptSpec (Opts -> Opts)
+parsePct = C.OptSpec ["percent"] "%" (C.NoArg f)
+  where
+    f o = o { percentRpt = Just (RoundTo . maybe e id . L.nonNegative $ 0) }
+    e = error $ "Penny.Cabin.Balance.Convert.Parser.parsePct: "
+                ++ "error: zero is not non-negative"
+
+parseRound :: C.OptSpec (Opts -> Opts)
+parseRound = C.OptSpec ["round"] "r" (C.OneArgE f)
+  where
+    f a = do
+      i <- C.reader a
+      case L.nonNegative i of
+        Nothing -> Ex.throw . C.ErrorMsg $ "argument is negative"
+        Just g -> return $ \o -> o { percentRpt = Just (RoundTo g) }

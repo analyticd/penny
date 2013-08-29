@@ -268,7 +268,11 @@ getTotalDrCr ch i =
       bits =
         if Map.null bal
         then [md "--"]
-        else let mkChk e = E.bottomLineToDrCr e eo ch
+        else let mkChk e = E.bottomLineToDrCr mayDc eo ch
+                  where
+                    mayDc = case e of
+                      L.Zero -> Nothing
+                      L.NonZero c -> Just $ L.colDrCr c
              in fmap mkChk . elems $ bal
       j = R.LeftJustify
   in PreSpec j ps bits

@@ -14,6 +14,7 @@ module Penny.Lincoln
   , module Penny.Lincoln.Equivalent
   , module Penny.Lincoln.HasText
   , module Penny.Lincoln.Matchers
+  , module Penny.Lincoln.Natural
   , module Penny.Lincoln.PriceDb
   , module Penny.Lincoln.Serial
   , display
@@ -26,6 +27,7 @@ import Penny.Lincoln.Builders
 import Penny.Lincoln.Equivalent
 import Penny.Lincoln.HasText
 import Penny.Lincoln.Matchers
+import Penny.Lincoln.Natural
 import Penny.Lincoln.PriceDb
 import Penny.Lincoln.Serial
 

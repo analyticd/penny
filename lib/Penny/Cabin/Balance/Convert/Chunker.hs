@@ -227,7 +227,10 @@ balanceChunks
 balanceChunks chgrs fmt vn bl = (chkDc, chkQt)
   where
     eo = E.fromVisibleNum vn
-    chkDc = E.bottomLineToDrCr bl eo chgrs
+    chkDc = E.bottomLineToDrCr mayDc eo chgrs
+    mayDc = case bl of
+      L.Zero -> Nothing
+      L.NonZero c -> Just $ L.colDrCr c
     qtFmt = E.getEvenOddLabelValue lbl eo chgrs
     chkQt = qtFmt $ Rb.Chunk mempty t
     (lbl, t) = case bl of

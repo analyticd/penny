@@ -80,12 +80,12 @@ dcToLbl :: L.DrCr -> Label
 dcToLbl L.Debit = Debit
 dcToLbl L.Credit = Credit
 
-bottomLineToDrCr :: L.BottomLine -> EvenOdd -> Changers -> R.Chunk
-bottomLineToDrCr bl eo chgrs = md c
+bottomLineToDrCr :: Maybe L.DrCr -> EvenOdd -> Changers -> R.Chunk
+bottomLineToDrCr mayDc eo chgrs = md c
   where
-    (c, md) = case bl of
-      L.Zero -> ("--", getEvenOddLabelValue Zero eo chgrs)
-      L.NonZero (L.Column clmDrCr _) -> case clmDrCr of
+    (c, md) = case mayDc of
+      Nothing -> ("--", getEvenOddLabelValue Zero eo chgrs)
+      Just dc -> case dc of
         L.Debit -> ("<", getEvenOddLabelValue Debit eo chgrs)
         L.Credit -> (">", getEvenOddLabelValue Credit eo chgrs)
 
