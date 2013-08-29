@@ -239,8 +239,8 @@ cmdLineReport o rt = (help o, mkMode)
     mkMode _ _ chgrs _ fsf = MA.modeHelp
       "convert"
       (const (help o))
-      (process rt chgrs o fsf)
-      (map (fmap Right) (map (fmap (fmap return)) P.allOptSpecs))
+      (return . process rt chgrs o fsf)
+      (map (fmap Right) P.allOptSpecs)
       MA.Intersperse
       (return . Left)
 
@@ -250,22 +250,18 @@ process
   -> Scheme.Changers
   -> O.DefaultOpts
   -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
-  -> [Either String (P.Opts -> Ex.Exceptional String P.Opts)]
-  -> Ex.Exceptional X.Text I.ArgsAndReport
-process rt chgrs defaultOpts fsf ls = do
+  -> [Either String (P.Opts -> P.Opts)]
+  -> I.ArgsAndReport
+process rt chgrs defaultOpts fsf ls =
   let (posArgs, parsed) = Ei.partitionEithers ls
-      op' = foldl (>>=) (return (O.toParserOpts defaultOpts rt)) parsed
-  case op' of
-      Ex.Exception s -> Ex.throw . X.pack $ s
-      Ex.Success g -> return $
-        let noDefault = X.pack "no default price found"
-            f = fromParsedOpts chgrs g
-            pr fmt ts pps = do
-              rptOpts <- Ex.fromMaybe noDefault $
-                f pps fmt
-              let boxes = fsf ts
-              report rptOpts pps boxes
-        in (posArgs, pr)
+      op' = foldl (flip (.)) id parsed (O.toParserOpts defaultOpts rt)
+      noDefault = X.pack "no default price found"
+      f = fromParsedOpts chgrs op'
+      pr fmt ts pps = do
+        rptOpts <- Ex.fromMaybe noDefault $ f pps fmt
+        let boxes = fsf ts
+        report rptOpts pps boxes
+  in (posArgs, pr)
 
 
 -- | Sums the balances from the bottom to the top of the tree (so that
