@@ -1,2 +1,0 @@
-language: haskell
-script: cabal configure -ftest && cabal build && ./dist/build/penny-test/penny-test
