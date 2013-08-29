@@ -642,7 +642,7 @@ mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe + ye)
 divide :: Fractional a => Qty -> Qty -> a
 divide q1 q2 = toFloat q1 / toFloat q2
   where
-    toFloat (Qty s p) = fromIntegral s * 10 ^ (negate p)
+    toFloat (Qty s p) = fromIntegral s / (10 ^ p)
 
 
 --

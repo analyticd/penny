@@ -391,12 +391,11 @@ help o = unlines $
     ++ ifDefault (O.sortBy o == P.SortByName)
     ++ " or by quantity"
     ++ ifDefault (O.sortBy o == P.SortByQty)
-  , "--ascending"
-  , "  Sort in ascending order"
-    ++ ifDefault (O.sortOrder o == CP.Ascending)
-  , "--descending"
-  , "  Sort in descending order"
-    ++ ifDefault (O.sortOrder o == CP.Descending)
+  , "--order ascending|descending"
+  , "  Sort order (default: "
+       ++ if O.sortOrder o == CP.Ascending
+          then "ascending" else "descending"
+       ++ ")"
   , ""
   , "--percent, -%"
   , "  Show each account total as a percentage of the parent account"

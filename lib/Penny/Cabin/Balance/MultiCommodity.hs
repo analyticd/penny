@@ -155,13 +155,11 @@ help o = unlines
     ++ ifDefault ( not . CO.unShowZeroBalances
                  . P.showZeroBalances $ o)
   , ""
-  , "--ascending"
-  , "  Sort in ascending order by account name"
-    ++ ifDefault (P.order o == CP.Ascending)
-
-  , "--descending"
-  , "  Sort in descending order by account name"
-    ++ ifDefault (P.order o == CP.Descending)
+  , "--order ascending|descending"
+  , "  Sort in this order by account name (default: "
+    ++ if P.order o == CP.Ascending
+       then "ascending" else "descending"
+    ++ ")"
 
   , ""
   , "--help, -h"
