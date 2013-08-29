@@ -576,17 +576,15 @@ within =
     return (TM.within c t)
 
 pcre :: OptSpec MatcherFactory
-pcre = C.OptSpec ["pcre"] "r" (C.NoArg TM.pcre)
-
-posix :: OptSpec MatcherFactory
-posix = C.OptSpec ["posix"] "" (C.NoArg TM.tdfa)
+pcre = C.OptSpec ["pcre"] "r"
+  (C.NoArg (\cs x -> Ex.fromEither $ TM.pcre cs x))
 
 exact :: OptSpec MatcherFactory
 exact = C.OptSpec ["exact"] "x" . C.NoArg $ \c t ->
         return (TM.exact c t)
 
 matcherSelectSpecs :: [OptSpec MatcherFactory]
-matcherSelectSpecs = [within, pcre, posix, exact]
+matcherSelectSpecs = [within, pcre, exact]
 
 caseSelectSpecs :: [OptSpec CaseSensitive]
 caseSelectSpecs = [parseInsensitive, parseSensitive]

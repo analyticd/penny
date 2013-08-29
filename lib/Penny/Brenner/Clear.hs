@@ -57,7 +57,7 @@ data Opts = Opts
   { csvLocation :: Y.FitFileLocation
   , ledgerLocations :: [String]
   , printer :: X.Text -> IO ()
-  } deriving Show
+  }
 
 
 mode :: Y.Mode

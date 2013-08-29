@@ -214,7 +214,7 @@ data FitAcct = FitAcct
   -- created by the merge command.
 
 
-  } deriving Show
+  }
 
 convertFitAcct :: FitAcct -> Y.FitAcct
 convertFitAcct (FitAcct fn fd db ax df cy gs tl sd sb ps tlp) = Y.FitAcct
@@ -235,7 +235,7 @@ convertFitAcct (FitAcct fn fd db ax df cy gs tl sd sb ps tlp) = Y.FitAcct
 data Config = Config
   { defaultFitAcct :: Maybe FitAcct
   , moreFitAccts :: [FitAcct]
-  } deriving Show
+  }
 
 convertConfig :: Config -> Y.Config
 convertConfig (Config d m) = Y.Config

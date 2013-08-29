@@ -55,7 +55,7 @@ data Scheme = Scheme
     -- as @for dark background terminals@
 
   , changers :: Changers
-  } deriving Show
+  }
 
 
 getEvenOdd :: EvenOdd -> EvenAndOdd a -> a

@@ -6,7 +6,10 @@
 -- Description field. Information from the OFX Payee field is placed
 -- into the Payee field of the Posting record.
 
-module Penny.Brenner.OFX (parser) where
+module Penny.Brenner.OFX
+  ( parser
+  , prepassParser
+  ) where
 
 import Control.Applicative
 import qualified Control.Monad.Exception.Synchronous as Ex
@@ -19,7 +22,17 @@ import qualified Text.Parsec as P
 
 -- | Parser for OFX files.
 parser :: ( Y.ParserDesc, Y.ParserFn )
-parser = (Y.ParserDesc d, loadIncoming)
+parser = prepassParser id
+
+
+-- | Parser for OFX files.  Any incoming data is first filtered
+-- through the given function.  This allows you to correct broken
+-- OFX statements.  For example, Bank of America issues OFX files that
+-- do not properly escape ampersands.  Using this function you can
+-- change every ampersand to something properly escaped (or just
+-- change it to the word \"and\".)
+prepassParser :: (String -> String) -> ( Y.ParserDesc, Y.ParserFn )
+prepassParser f = (Y.ParserDesc d, loadIncoming f)
   where
     d = X.unlines
       [ "Parses OFX 1.0-series files."
@@ -33,15 +46,17 @@ parser = (Y.ParserDesc d, loadIncoming)
       ]
 
 loadIncoming
-  :: Y.FitFileLocation
+  :: (String -> String)
+  -- ^ Prepass function
+  -> Y.FitFileLocation
   -> IO (Ex.Exceptional String [Y.Posting])
-loadIncoming (Y.FitFileLocation fn) = do
-  contents <- readFile fn
+loadIncoming pp (Y.FitFileLocation fn) = do
+  contents <- fmap pp $ readFile fn
   return $
     ( Ex.mapException show
       . Ex.fromEither
       $ P.parse O.ofxFile fn contents )
-    >>= O.transactions
+    >>= (Ex.fromEither . O.transactions)
     >>= mapM txnToPosting
 
 

@@ -68,7 +68,6 @@ newtype ColorToFile = ColorToFile { unColorToFile :: Bool }
 data Matcher
   = Within
   | Exact
-  | TDFA
   | PCRE
   deriving (Eq, Show)
 
@@ -241,8 +240,7 @@ makeTokens df os =
       fty = case matcher df of
         Within -> \c t -> return (M.within c t)
         Exact -> \c t -> return (M.exact c t)
-        TDFA -> M.tdfa
-        PCRE -> M.pcre
+        PCRE -> \c t -> Ex.fromEither $ M.pcre c t
       lsSt = mapM makeToken os
       (ls, st') = St.runState lsSt initSt
   in fmap (\xs -> (xs, st')) . sequence . catMaybes $ ls
@@ -641,10 +639,6 @@ help d pn = unlines $
   , "-r, --pcre"
   , "  Use \"pcre\" matcher"
     ++ ifDefault (matcher d == PCRE)
-
-  , "--posix"
-  , "  Use \"posix\" matcher"
-    ++ ifDefault (matcher d == TDFA)
 
   , "-x, --exact"
   , "  Use \"exact\" matcher"

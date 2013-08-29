@@ -117,9 +117,9 @@ parseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
 
 parseRegexp :: String -> Ex.Exceptional MA.InputError (TT.Name -> Bool)
 parseRegexp s = case M.pcre M.Sensitive (X.pack s) of
-  Ex.Exception e -> Ex.throw . MA.ErrorMsg $
+  Left e -> Ex.throw . MA.ErrorMsg $
     "could not parse regular expression: " ++ X.unpack e
-  Ex.Success m -> return . M.match $ m
+  Right m -> return . M.match $ m
 
 allOpts :: [MA.OptSpec (WheatConf -> WheatConf)]
 allOpts =

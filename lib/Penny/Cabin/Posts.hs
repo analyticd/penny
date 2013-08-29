@@ -517,8 +517,6 @@ helpStr o = unlines $
   , "  Use \"within\" matcher"
   , "--pcre"
   , "  Use \"pcre\" matcher"
-  , "--posix"
-  , "  Use \"posix\" matcher"
   , "--exact"
   , "  Use \"exact\" matcher"
   , ""
