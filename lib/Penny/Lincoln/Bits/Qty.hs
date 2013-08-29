@@ -51,6 +51,7 @@ module Penny.Lincoln.Bits.Qty
   , Places
   , add
   , mult
+  , divide
   , Difference(LeftBiggerBy, RightBiggerBy, Equal)
   , difference
   , allocate
@@ -632,6 +633,16 @@ add x y =
 
 mult :: Qty -> Qty -> Qty
 mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe + ye)
+
+
+-- | Division. There can be no division by zero errors, as a Qty is
+-- never zero.  Converting to a floating-point number destroys
+-- precision, so be sure this is what you want.  Sometimes it is
+-- useful where precision is not needed (e.g. percentages).
+divide :: Fractional a => Qty -> Qty -> a
+divide q1 q2 = toFloat q1 / toFloat q2
+  where
+    toFloat (Qty s p) = fromIntegral s * 10 ^ (negate p)
 
 
 --

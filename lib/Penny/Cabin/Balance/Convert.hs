@@ -29,6 +29,7 @@ import qualified Penny.Shield as S
 import qualified Data.Either as Ei
 import qualified Data.Map as M
 import qualified Data.Text as X
+import Data.Maybe (catMaybes)
 import Data.Monoid (mconcat, (<>))
 import qualified System.Console.MultiArg as MA
 import qualified System.Console.Rainbow as Rb
@@ -123,23 +124,60 @@ data ForestAndBL = ForestAndBL {
   , _tbTo :: L.To
   }
 
--- | Similar to a BottomLine but contains percentage data rather than
--- a quantity.
-data Percent
-  = PctZero
-  | PctNonZero PctColumn
-  deriving (Eq, Show)
-
-data PctColumn = PctColumn
+data Percent = Percent
   { pctDrCr :: L.DrCr
   , pctAmount :: Double
   } deriving (Eq, Show)
 
-convertToPercents
+forestToPercents
   :: E.Forest (L.SubAccount, L.BottomLine)
-  -> E.Forest (L.SubAccount, Percent)
-convertToPercents = undefined
+  -> E.Forest (L.SubAccount, Maybe Percent)
+forestToPercents ls =
+  let tot = sumBottomLines . map (snd . E.rootLabel) $ ls
+  in map (treeToPercent tot) ls
 
+treeToPercent
+  :: Maybe L.Qty
+  -- ^ Sum of all BottomLines at this level
+  -> E.Tree (L.SubAccount, L.BottomLine)
+  -> E.Tree (L.SubAccount, Maybe Percent)
+treeToPercent qty (E.Node (acct, bl) cs) = E.Node (acct, mayPct) cs'
+  where
+    mayPct = maybe Nothing (flip bottomLineToPercent bl) qty
+    cs' = forestToPercents cs
+
+bottomLineToQty :: L.BottomLine -> Maybe (L.DrCr, L.Qty)
+bottomLineToQty b = case b of
+  L.Zero -> Nothing
+  L.NonZero (L.Column dc q) -> Just (dc, q)
+
+sumBottomLines :: [L.BottomLine] -> Maybe L.Qty
+sumBottomLines ls = case catMaybes . map bottomLineToQty $ ls of
+  [] -> Nothing
+  x:xs -> Just $ foldl (\x y -> L.add x (snd y)) (snd x) xs
+
+bottomLineToPercent
+  :: L.Qty
+  -- ^ Sum of all All BottomLines in this level
+  -> L.BottomLine
+  -- ^ This BottomLine
+  -> Maybe Percent
+bottomLineToPercent tot bl = fmap f . bottomLineToQty $ bl
+  where
+    f (dc, q) = Percent dc (L.divide q tot)
+
+
+-- | Converts rows for a percentage report.
+rowsPct
+  :: L.BottomLine
+  -- ^ Total
+  -> L.To
+  -- ^ To commodity
+  -> Int
+  -- ^ Round to this many decimal places
+  -> E.Forest (L.SubAccount, Maybe Percent)
+  -> ([K.Row], L.To)
+rowsPct = undefined
 
 -- | Converts the balance data in preparation for screen rendering.
 rows :: ForestAndBL -> ([K.Row], L.To)
