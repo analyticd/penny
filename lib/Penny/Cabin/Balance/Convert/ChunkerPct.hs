@@ -10,7 +10,7 @@ module Penny.Cabin.Balance.Convert.ChunkerPct
 
 import Control.Applicative
   (Applicative (pure), (<$>), (<*>))
-import Data.Monoid (mempty, (<>))
+import Data.Monoid (mempty)
 import qualified Penny.Cabin.Scheme as E
 import qualified Penny.Cabin.Meta as Meta
 import qualified Penny.Cabin.Row as R
@@ -19,6 +19,7 @@ import qualified Data.Foldable as Fdbl
 import qualified Data.Text as X
 import qualified System.Console.Rainbow as Rb
 import Penny.Cabin.Balance.Convert.Parser (RoundTo, unRoundTo)
+import Text.Printf (printf)
 
 type IsEven = Bool
 
@@ -137,17 +138,12 @@ data Percent = Percent
   } deriving (Eq, Show)
 
 
--- | Displays a RealFrac, rounded to the specified number of decimal
+-- | Displays a Double, rounded to the specified number of decimal
 -- places.
-dispRounded :: RealFrac a => RoundTo -> a -> X.Text
+dispRounded :: RoundTo -> Double -> X.Text
 dispRounded rnd
-  = (\x -> let (b, e) = X.splitAt (X.length x - p) x
-               p = L.unNonNegative . unRoundTo $ rnd
-           in if p == 0 then x else b <> "." <> e)
-  . X.pack
-  . show
-  . (round :: RealFrac a => a -> Integer)
-  . (* 10 ^ (L.unNonNegative . unRoundTo $ rnd))
+  = X.pack
+  . printf ("%." ++ show (L.unNonNegative . unRoundTo $ rnd) ++ "f")
 
 -- | Displays a single account in a Balance report. In a
 -- single-commodity report, this account will only be one screen line
