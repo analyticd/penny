@@ -4,25 +4,18 @@
 
 module Penny.Steel.Sums where
 
-import Data.Binary (Binary)
-import GHC.Generics (Generic)
-
 data S3 a b c
   = S3a a
   | S3b b
   | S3c c
-  deriving (Eq, Ord, Show, Generic)
-
-instance (Binary a, Binary b, Binary c) => Binary (S3 a b c)
+  deriving (Eq, Ord, Show)
 
 data S4 a b c d
   = S4a a
   | S4b b
   | S4c c
   | S4d d
-  deriving (Eq, Ord, Show, Generic)
-
-instance (Binary a, Binary b, Binary c, Binary d) => Binary (S4 a b c d)
+  deriving (Eq, Ord, Show)
 
 partitionS3 :: [S3 a b c] -> ([a], [b], [c])
 partitionS3 = foldr f ([], [], [])

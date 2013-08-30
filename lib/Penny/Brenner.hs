@@ -18,6 +18,7 @@ module Penny.Brenner
   , usePayeeOrDesc
   , brennerMain
   , ofxParser
+  , ofxPrepassParser
   ) where
 
 import qualified Penny.Brenner.Types as Y
@@ -252,3 +253,12 @@ usePayeeOrDesc (Y.Desc d) (Y.Payee p) = L.Payee $
 -- | Parser for OFX data.
 ofxParser :: (Y.ParserDesc, Y.ParserFn)
 ofxParser = O.parser
+
+-- | Parser for OFX data, with a prepass phase.  Any incoming data is
+-- first filtered through the given function.  This allows you to
+-- correct broken OFX statements.  For example, Bank of America issues
+-- OFX files that do not properly escape ampersands.  Using this
+-- function you can change every ampersand to something properly
+-- escaped (or just change it to the word \"and\".)
+ofxPrepassParser :: (String -> String) -> (Y.ParserDesc, Y.ParserFn)
+ofxPrepassParser = O.prepassParser

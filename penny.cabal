@@ -1,5 +1,5 @@
 Name: penny
-Version: 0.27.0.0
+Version: 0.28.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -183,16 +183,15 @@ Library
   Build-depends:
       base ==4.6.*
     , action-permutations ==0.0.0.0
-    , binary ==0.7.*
     , bytestring ==0.10.*
     , cereal ==0.3.*
     , containers ==0.5.*
-    , matchers ==0.9.*
-    , multiarg ==0.19.*
-    , ofx ==0.3.*
+    , matchers ==0.10.*
+    , multiarg ==0.22.*
+    , ofx ==0.4.*
     , old-locale ==1.0.*
     , parsec >= 3.1.2 && < 3.2
-    , prednote == 0.15.*
+    , prednote == 0.16.*
     , pretty-show ==1.5.*
     , rainbow ==0.4.*
     , semigroups ==0.9.*
@@ -313,7 +312,7 @@ Executable penny-selloff
     , semigroups ==0.9.*
     , text ==0.11.*
     , parsec ==3.1.*
-    , multiarg ==0.19.*
+    , multiarg ==0.22.*
     , transformers ==0.3.*
 
   other-modules: Paths_penny
@@ -335,7 +334,7 @@ Executable penny-diff
       penny
     , base ==4.6.*
     , text ==0.11.*
-    , multiarg ==0.19.*
+    , multiarg ==0.22.*
 
   hs-source-dirs: bin
   Main-is: penny-diff.hs
@@ -355,7 +354,7 @@ Executable penny-reprint
   Build-depends:
       penny
     , base ==4.6.*
-    , multiarg ==0.19.*
+    , multiarg ==0.22.*
     , pretty-show ==1.5.*
     , text ==0.11.*
 
@@ -375,7 +374,7 @@ Executable penny-reconcile
       penny
     , base ==4.6.*
     , text ==0.11.*
-    , multiarg ==0.19.*
+    , multiarg ==0.22.*
 
   hs-source-dirs: bin
   main-is: penny-reconcile.hs
@@ -420,7 +419,7 @@ Executable penny-test
       , random-shuffle ==0.0.4
 
       , base ==4.6.*
-      , multiarg ==0.19.*
+      , multiarg ==0.22.*
       , parsec >= 3.1.2 && < 3.2
       , semigroups ==0.9.*
       , text ==0.11.*
@@ -447,7 +446,7 @@ Executable penny-gibberish
         , random ==1.0.*
 
         , base ==4.6.*
-        , multiarg ==0.19.*
+        , multiarg ==0.22.*
         , semigroups ==0.9.*
         , text ==0.11.*
         , time ==1.4.*

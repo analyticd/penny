@@ -9,8 +9,6 @@ import Control.Monad (ap, liftM, replicateM_)
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as Tr
 import qualified Data.Foldable as Fdbl
-import GHC.Generics (Generic)
-import Data.Binary (Binary)
 
 data SerialSt = SerialSt
   { nextFwd :: Int
@@ -21,9 +19,7 @@ data SerialSt = SerialSt
 data Serial = Serial
   { forward :: Int
   , backward :: Int
-  } deriving (Eq, Show, Ord, Generic)
-
-instance Binary Serial
+  } deriving (Eq, Show, Ord)
 
 newtype GenSerial a = GenSerial (SerialSt -> (a, SerialSt))
 
