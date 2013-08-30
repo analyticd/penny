@@ -37,7 +37,6 @@ import qualified Penny.Steel.Sums as Su
 import qualified System.Console.MultiArg as MA
 import System.Environment (getProgName)
 import qualified System.Exit as Exit
-import qualified Control.Monad.Exception.Synchronous as Ex
 
 -- | Brenner, with a pre-compiled configuration.
 brennerMain
@@ -187,7 +186,7 @@ data FitAcct = FitAcct
   -- commodity and the quantity
 
   , parser :: ( Y.ParserDesc
-              , Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
+              , Y.FitFileLocation -> IO (Either String [Y.Posting]))
   -- ^ Parses a file of transactions from the financial
   -- institution. The function must open the file and parse it. This
   -- is in the IO monad not only because the function must open the

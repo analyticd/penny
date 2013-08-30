@@ -2,7 +2,6 @@ module Main where
 
 import qualified Lincoln as L
 import qualified Copper as C
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified System.Console.MultiArg as MA
 import qualified System.Exit as Exit
 import qualified Test.QuickCheck as Q
@@ -36,7 +35,7 @@ main :: IO ()
 main = do
   opts <- MA.simpleHelp help options
           MA.Intersperse
-          ( const . Ex.Exception . MA.ErrorMsg
+          ( const . Left . MA.ErrorMsg
             $ "this command does not accept positional arguments")
   let args = foldl (flip (.)) id opts Q.stdArgs
       runner = Q.quickCheckWithResult args

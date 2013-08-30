@@ -51,7 +51,6 @@ module Penny.Liberty (
 
 import Control.Arrow (first, second)
 import Control.Applicative ((<*>), (<$>), pure, Applicative)
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper)
 import Data.Monoid ((<>))
 import Data.List (sortBy)
@@ -109,10 +108,10 @@ data LibertyMeta =
 parsePredicate
   :: X.ExprDesc
   -> [X.Token a]
-  -> Ex.Exceptional Error (E.Pdct a)
+  -> Either Error (E.Pdct a)
 parsePredicate d ls = case ls of
   [] -> return E.always
-  _ -> Ex.fromEither $ X.parseExpression d ls
+  _ -> X.parseExpression d ls
 
 -- | Takes a list of transactions, splits them into PostingChild
 -- instances, filters them, post-filters them, sorts them, and places
@@ -177,7 +176,7 @@ indentAmt = 4
 type MatcherFactory
   = CaseSensitive
   -> Text
-  -> Ex.Exceptional Text TM.Matcher
+  -> Either Text TM.Matcher
 
 newtype ListLength = ListLength { unListLength :: Int }
                      deriving (Eq, Ord, Show)
@@ -211,10 +210,10 @@ getMatcher
   :: String
   -> CaseSensitive
   -> MatcherFactory
-  -> Ex.Exceptional Error TM.Matcher
+  -> Either Error TM.Matcher
 
 getMatcher s cs f
-  = Ex.mapException mkError
+  = either (Left . mkError) Right
   $ f cs (pack s)
   where
     mkError eMsg = "bad pattern: \"" <> pack s <> " - " <> eMsg
@@ -226,16 +225,15 @@ getMatcher s cs f
 parseComparer
   :: String
   -> (Ordering -> E.Pdct a)
-  -> Ex.Exceptional Error (E.Pdct a)
-parseComparer s f = Ex.fromMaybe ("bad comparer: " <> pack s <> "\n")
-                  $ E.parseComparer (pack s) f
+  -> Either Error (E.Pdct a)
+parseComparer s f = maybe (Left ("bad comparer: " <> pack s <> "\n"))
+                          Right $ E.parseComparer (pack s) f
 
 -- | Parses a date from the command line. On failure, throws back the
 -- error message from the failed parse.
-parseDate :: String -> Ex.Exceptional Error Time.UTCTime
+parseDate :: String -> Either Error Time.UTCTime
 parseDate arg =
-  Ex.mapExceptional err L.toUTC
-  . Ex.fromEither
+  either (Left . err) (Right . L.toUTC)
   . parse Pc.dateTime ""
   . pack
   $ arg
@@ -245,7 +243,7 @@ parseDate arg =
 type Operand = E.Pdct L.Posting
 
 -- | OptSpec for a date.
-date :: OptSpec (Ex.Exceptional Error Operand)
+date :: OptSpec (Either Error Operand)
 date = C.OptSpec ["date"] ['d'] (C.TwoArg f)
   where
     f a1 a2 = do
@@ -259,11 +257,11 @@ current dt = C.OptSpec ["current"] [] (C.NoArg f)
     f = E.or [P.date LT (L.toUTC dt), P.date EQ (L.toUTC dt)]
 
 -- | Parses exactly one integer; fails if it cannot read exactly one.
-parseInt :: String -> Ex.Exceptional Error Int
+parseInt :: String -> Either Error Int
 parseInt t =
   case reads t of
     ((i, ""):[]) -> return i
-    _ -> Ex.throw $ "could not parse integer: \"" <> pack t <> "\"\n"
+    _ -> Left $ "could not parse integer: \"" <> pack t <> "\"\n"
 
 
 -- | Creates options that add an operand that matches the posting if a
@@ -280,7 +278,7 @@ patternOption ::
 
   -> OptSpec ( CaseSensitive
                -> MatcherFactory
-               -> Ex.Exceptional Error Operand )
+               -> Either Error Operand )
 patternOption str mc f = C.OptSpec [str] so (C.OneArg g)
   where
     so = maybe [] (:[]) mc
@@ -291,7 +289,7 @@ patternOption str mc f = C.OptSpec [str] so (C.OneArg g)
 -- colon-separated account name.
 account :: OptSpec ( CaseSensitive
                    -> MatcherFactory
-                   -> Ex.Exceptional Error Operand )
+                   -> Either Error Operand )
 account = C.OptSpec ["account"] "a" (C.OneArg f)
   where
     f a1 cs fty
@@ -303,7 +301,7 @@ account = C.OptSpec ["account"] "a" (C.OneArg f)
 -- level matches.
 accountLevel :: OptSpec ( CaseSensitive
                         -> MatcherFactory
-                        -> Ex.Exceptional Error Operand)
+                        -> Either Error Operand)
 accountLevel = C.OptSpec ["account-level"] "" (C.TwoArg f)
   where
     f a1 a2 cs fty
@@ -314,49 +312,49 @@ accountLevel = C.OptSpec ["account-level"] "" (C.TwoArg f)
 -- a single sub-account name at any level.
 accountAny :: OptSpec ( CaseSensitive
                         -> MatcherFactory
-                        -> Ex.Exceptional Error Operand )
+                        -> Either Error Operand )
 accountAny = patternOption "account-any" Nothing P.accountAny
 
 -- | The payee option; returns True if the matcher matches the payee
 -- name.
 payee :: OptSpec ( CaseSensitive
                  -> MatcherFactory
-                 -> Ex.Exceptional Error Operand )
+                 -> Either Error Operand )
 payee = patternOption "payee" (Just 'p') P.payee
 
 tag :: OptSpec ( CaseSensitive
                  -> MatcherFactory
-                 -> Ex.Exceptional Error Operand)
+                 -> Either Error Operand)
 tag = patternOption "tag" (Just 't') P.tag
 
 number :: OptSpec ( CaseSensitive
                     -> MatcherFactory
-                    -> Ex.Exceptional Error Operand )
+                    -> Either Error Operand )
 number = patternOption "number" (Just 'n') P.number
 
 flag :: OptSpec ( CaseSensitive
                   -> MatcherFactory
-                  -> Ex.Exceptional Error Operand)
+                  -> Either Error Operand)
 flag = patternOption "flag" (Just 'f') P.flag
 
 commodity :: OptSpec ( CaseSensitive
                        -> MatcherFactory
-                       -> Ex.Exceptional Error Operand)
+                       -> Either Error Operand)
 commodity = patternOption "commodity" (Just 'y') P.commodity
 
 filename :: OptSpec ( CaseSensitive
                       -> MatcherFactory
-                      -> Ex.Exceptional Error Operand )
+                      -> Either Error Operand )
 filename = patternOption "filename" Nothing P.filename
 
 postingMemo :: OptSpec ( CaseSensitive
                          -> MatcherFactory
-                         -> Ex.Exceptional Error Operand)
+                         -> Either Error Operand)
 postingMemo = patternOption "posting-memo" Nothing P.postingMemo
 
 transactionMemo :: OptSpec ( CaseSensitive
                              -> MatcherFactory
-                             -> Ex.Exceptional Error Operand)
+                             -> Either Error Operand)
 transactionMemo = patternOption "transaction-memo"
                   Nothing P.transactionMemo
 
@@ -366,14 +364,14 @@ debit = C.OptSpec ["debit"] [] (C.NoArg P.debit)
 credit :: OptSpec Operand
 credit = C.OptSpec ["credit"] [] (C.NoArg P.credit)
 
-qtyOption :: OptSpec (Ex.Exceptional Error Operand)
+qtyOption :: OptSpec (Either Error Operand)
 qtyOption = C.OptSpec ["qty"] "q" (C.TwoArg f)
   where
     f a1 a2 = do
       qt <- parseQty a2
       parseComparer a1 (flip P.qty qt)
     parseQty a = case parse Pc.unquotedQtyRepWithSpaces "" (pack a) of
-      Left _ -> Ex.throw $ "failed to parse quantity"
+      Left _ -> Left $ "failed to parse quantity"
       Right g -> pure . L.toQty $ g
 
 
@@ -388,8 +386,8 @@ serialOption ::
   -> String
   -- ^ Name of the command line option, such as @global-transaction@
 
-  -> ( OptSpec (Ex.Exceptional Error Operand)
-     , OptSpec (Ex.Exceptional Error Operand) )
+  -> ( OptSpec (Either Error Operand)
+     , OptSpec (Either Error Operand) )
   -- ^ Parses both descending and ascending serial options.
 
 serialOption getSerial n = (osA, osD)
@@ -420,8 +418,8 @@ siblingSerialOption
   -> (Int -> Ordering -> E.Pdct L.Posting)
   -- ^ Function that returns a Pdct for reverse serial
 
-  -> ( OptSpec (Ex.Exceptional Error Operand)
-     , OptSpec (Ex.Exceptional Error Operand) )
+  -> ( OptSpec (Either Error Operand)
+     , OptSpec (Either Error Operand) )
   -- ^ Parses both descending and ascending serial options.
 
 siblingSerialOption n fFwd fBak = (osA, osD)
@@ -443,26 +441,26 @@ addPrefix pre suf = pre ++ suf' where
     "" -> ""
     x:xs -> toUpper x : xs
 
-globalTransaction :: ( OptSpec (Ex.Exceptional Error Operand)
-                     , OptSpec (Ex.Exceptional Error Operand) )
+globalTransaction :: ( OptSpec (Either Error Operand)
+                     , OptSpec (Either Error Operand) )
 globalTransaction =
   let f = fmap L.unGlobalTransaction . Q.globalTransaction
   in serialOption f "globalTransaction"
 
-globalPosting :: ( OptSpec (Ex.Exceptional Error Operand)
-                 , OptSpec (Ex.Exceptional Error Operand) )
+globalPosting :: ( OptSpec (Either Error Operand)
+                 , OptSpec (Either Error Operand) )
 globalPosting =
   let f = fmap L.unGlobalPosting . Q.globalPosting
   in serialOption f "globalPosting"
 
-filePosting :: ( OptSpec (Ex.Exceptional Error Operand)
-               , OptSpec (Ex.Exceptional Error Operand) )
+filePosting :: ( OptSpec (Either Error Operand)
+               , OptSpec (Either Error Operand) )
 filePosting =
   let f = fmap L.unFilePosting . Q.filePosting
   in serialOption f "filePosting"
 
-fileTransaction :: ( OptSpec (Ex.Exceptional Error Operand)
-                   , OptSpec (Ex.Exceptional Error Operand) )
+fileTransaction :: ( OptSpec (Either Error Operand)
+                   , OptSpec (Either Error Operand) )
 fileTransaction =
   let f = fmap L.unFileTransaction . Q.fileTransaction
   in serialOption f "fileTransaction"
@@ -472,7 +470,7 @@ operandSpecs
   :: L.DateTime
   -> [OptSpec (CaseSensitive
                -> MatcherFactory
-               -> Ex.Exceptional Error Operand)]
+               -> Either Error Operand)]
 
 operandSpecs dt =
   [ fmap (const . const) date
@@ -509,7 +507,7 @@ operandSpecs dt =
 
 serialSpecs :: [OptSpec (CaseSensitive
                         -> MatcherFactory
-                        -> Ex.Exceptional Error Operand)]
+                        -> Either Error Operand)]
 serialSpecs
   = concat
   $ [unDouble]
@@ -520,9 +518,9 @@ serialSpecs
 
 unDouble
   :: Functor f
-  => (f (Ex.Exceptional Error a),
-      f (Ex.Exceptional Error a ))
-  -> [ f (x -> y -> Ex.Exceptional Error a) ]
+  => (f (Either Error a),
+      f (Either Error a ))
+  -> [ f (x -> y -> Either Error a) ]
 unDouble (o1, o2) = [fmap (const . const) o1, fmap (const . const) o2]
 
 
@@ -535,7 +533,7 @@ unDouble (o1, o2) = [fmap (const . const) o1, fmap (const . const) o2]
 data BadHeadTailError = BadHeadTailError Text
   deriving Show
 
-optHead :: OptSpec (Ex.Exceptional Error PostFilterFn)
+optHead :: OptSpec (Either Error PostFilterFn)
 optHead = C.OptSpec ["head"] [] (C.OneArg f)
   where
     f a = do
@@ -543,7 +541,7 @@ optHead = C.OptSpec ["head"] [] (C.OneArg f)
       let g _ ii = ii < (ItemIndex num)
       return g
 
-optTail :: OptSpec (Ex.Exceptional Error PostFilterFn)
+optTail :: OptSpec (Either Error PostFilterFn)
 optTail = C.OptSpec ["tail"] [] (C.OneArg f)
   where
     f a = do
@@ -552,8 +550,8 @@ optTail = C.OptSpec ["tail"] [] (C.OneArg f)
       return g
 
 postFilterSpecs
-  :: ( OptSpec (Ex.Exceptional Error PostFilterFn)
-     , OptSpec (Ex.Exceptional Error PostFilterFn))
+  :: ( OptSpec (Either Error PostFilterFn)
+     , OptSpec (Either Error PostFilterFn))
 postFilterSpecs = (optHead, optTail)
 
 ------------------------------------------------------------
@@ -577,7 +575,7 @@ within =
 
 pcre :: OptSpec MatcherFactory
 pcre = C.OptSpec ["pcre"] "r"
-  (C.NoArg (\cs x -> Ex.fromEither $ TM.pcre cs x))
+  (C.NoArg (\cs x -> TM.pcre cs x))
 
 exact :: OptSpec MatcherFactory
 exact = C.OptSpec ["exact"] "x" . C.NoArg $ \c t ->
@@ -639,26 +637,26 @@ verboseFilter = C.OptSpec ["verbose-filter"] "" (C.NoArg ())
 -- Siblings
 --
 
-sGlobalPosting :: ( OptSpec (Ex.Exceptional Error Operand)
-                  , OptSpec (Ex.Exceptional Error Operand) )
+sGlobalPosting :: ( OptSpec (Either Error Operand)
+                  , OptSpec (Either Error Operand) )
 sGlobalPosting =
   siblingSerialOption "globalPosting"
                       PS.fwdGlobalPosting PS.backGlobalPosting
 
-sFilePosting :: ( OptSpec (Ex.Exceptional Error Operand)
-                  , OptSpec (Ex.Exceptional Error Operand) )
+sFilePosting :: ( OptSpec (Either Error Operand)
+                  , OptSpec (Either Error Operand) )
 sFilePosting =
   siblingSerialOption "filePosting"
                       PS.fwdFilePosting PS.backFilePosting
 
-sGlobalTransaction :: ( OptSpec (Ex.Exceptional Error Operand)
-                  , OptSpec (Ex.Exceptional Error Operand) )
+sGlobalTransaction :: ( OptSpec (Either Error Operand)
+                  , OptSpec (Either Error Operand) )
 sGlobalTransaction =
   siblingSerialOption "globalTransaction"
                       PS.fwdGlobalTransaction PS.backGlobalTransaction
 
-sFileTransaction :: ( OptSpec (Ex.Exceptional Error Operand)
-                  , OptSpec (Ex.Exceptional Error Operand) )
+sFileTransaction :: ( OptSpec (Either Error Operand)
+                  , OptSpec (Either Error Operand) )
 sFileTransaction =
   siblingSerialOption "filePosting"
                       PS.fwdFileTransaction PS.backFileTransaction
@@ -666,7 +664,7 @@ sFileTransaction =
 
 sAccount :: OptSpec ( CaseSensitive
                     -> MatcherFactory
-                    -> Ex.Exceptional Error Operand )
+                    -> Either Error Operand )
 sAccount = C.OptSpec ["s-account"] "" (C.OneArg f)
   where
     f a1 cs fty = fmap PS.account
@@ -674,7 +672,7 @@ sAccount = C.OptSpec ["s-account"] "" (C.OneArg f)
 
 sAccountLevel :: OptSpec ( CaseSensitive
                          -> MatcherFactory
-                         -> Ex.Exceptional Error Operand )
+                         -> Either Error Operand )
 sAccountLevel = C.OptSpec ["s-account-level"] "" (C.TwoArg f)
   where
     f a1 a2 cs fty
@@ -682,39 +680,39 @@ sAccountLevel = C.OptSpec ["s-account-level"] "" (C.TwoArg f)
 
 sAccountAny :: OptSpec ( CaseSensitive
                         -> MatcherFactory
-                        -> Ex.Exceptional Error Operand )
+                        -> Either Error Operand )
 sAccountAny = patternOption "s-account-any" Nothing PS.accountAny
 
 -- | The payee option; returns True if the matcher matches the payee
 -- name.
 sPayee :: OptSpec ( CaseSensitive
                  -> MatcherFactory
-                 -> Ex.Exceptional Error Operand )
+                 -> Either Error Operand )
 sPayee = patternOption "s-payee" (Just 'p') PS.payee
 
 sTag :: OptSpec ( CaseSensitive
                  -> MatcherFactory
-                 -> Ex.Exceptional Error Operand)
+                 -> Either Error Operand)
 sTag = patternOption "s-tag" (Just 't') PS.tag
 
 sNumber :: OptSpec ( CaseSensitive
                     -> MatcherFactory
-                    -> Ex.Exceptional Error Operand )
+                    -> Either Error Operand )
 sNumber = patternOption "s-number" Nothing PS.number
 
 sFlag :: OptSpec ( CaseSensitive
                   -> MatcherFactory
-                  -> Ex.Exceptional Error Operand)
+                  -> Either Error Operand)
 sFlag = patternOption "s-flag" Nothing PS.flag
 
 sCommodity :: OptSpec ( CaseSensitive
                        -> MatcherFactory
-                       -> Ex.Exceptional Error Operand)
+                       -> Either Error Operand)
 sCommodity = patternOption "s-commodity" Nothing PS.commodity
 
 sPostingMemo :: OptSpec ( CaseSensitive
                          -> MatcherFactory
-                         -> Ex.Exceptional Error Operand)
+                         -> Either Error Operand)
 sPostingMemo = patternOption "s-posting-memo" Nothing PS.postingMemo
 
 sDebit :: OptSpec Operand
@@ -723,14 +721,14 @@ sDebit = C.OptSpec ["s-debit"] [] (C.NoArg PS.debit)
 sCredit :: OptSpec Operand
 sCredit = C.OptSpec ["s-credit"] [] (C.NoArg PS.credit)
 
-sQtyOption :: OptSpec (Ex.Exceptional Error Operand)
+sQtyOption :: OptSpec (Either Error Operand)
 sQtyOption = C.OptSpec ["s-qty"] [] (C.TwoArg f)
   where
     f a1 a2 = do
       qt <- parseQty a2
       parseComparer a1 (flip PS.qty qt)
     parseQty a = case parse Pc.unquotedQtyRepWithSpaces "" (pack a) of
-      Left _ -> Ex.throw "could not parse quantity"
+      Left _ -> Left "could not parse quantity"
       Right g -> pure . L.toQty $ g
 
 --

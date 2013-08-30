@@ -24,7 +24,6 @@ import qualified Penny.Steel.Sums as Su
 
 import Control.Applicative ((<*>), pure, (<$))
 import qualified Control.Monad.Trans.State as St
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toUpper, toLower)
 import Data.Either (partitionEithers)
 import Data.List (isPrefixOf)
@@ -159,12 +158,12 @@ type Error = Text
 data OptResult
   = ROperand (M.CaseSensitive
              -> Ly.MatcherFactory
-             -> Ex.Exceptional Ly.Error Ly.Operand)
-  | RPostFilter (Ex.Exceptional Ly.Error Ly.PostFilterFn)
+             -> Either Ly.Error Ly.Operand)
+  | RPostFilter (Either Ly.Error Ly.PostFilterFn)
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
   | ROperator (X.Token L.Posting)
-  | RSortSpec (Ex.Exceptional Error Orderer)
+  | RSortSpec (Either Error Orderer)
   | RColorToFile ColorToFile
   | RScheme E.Changers
   | RExprDesc X.ExprDesc
@@ -173,7 +172,7 @@ data OptResult
 
 getPostFilters
   :: [OptResult]
-  -> Ex.Exceptional Ly.Error [Ly.PostFilterFn]
+  -> Either Ly.Error [Ly.PostFilterFn]
 getPostFilters =
   sequence
   . mapMaybe f
@@ -196,7 +195,7 @@ getExprDesc df os = case mapMaybe f os of
 getSortSpec
   :: Orderer
   -> [OptResult]
-  -> Ex.Exceptional Error Orderer
+  -> Either Error Orderer
 getSortSpec i ls =
   let getSpec o = case o of
         RSortSpec x -> Just x
@@ -207,12 +206,12 @@ getSortSpec i ls =
      else fmap mconcat . sequence $ exSpecs
 
 type Factory = M.CaseSensitive
-             -> Text -> Ex.Exceptional Text M.Matcher
+             -> Text -> Either Text M.Matcher
 
 makeToken
   :: OptResult
   -> St.State (M.CaseSensitive, Factory)
-              (Maybe (Ex.Exceptional Ly.Error (X.Token L.Posting)))
+              (Maybe (Either Ly.Error (X.Token L.Posting)))
 makeToken o = case o of
   ROperand f -> do
     (s, fty) <- St.get
@@ -233,14 +232,14 @@ makeToken o = case o of
 makeTokens
   :: Defaults
   -> [OptResult]
-  -> Ex.Exceptional Ly.Error ( [X.Token L.Posting]
+  -> Either Ly.Error ( [X.Token L.Posting]
                              , (M.CaseSensitive, Factory) )
 makeTokens df os =
   let initSt = (sensitive df, fty)
       fty = case matcher df of
         Within -> \c t -> return (M.within c t)
         Exact -> \c t -> return (M.exact c t)
-        PCRE -> \c t -> Ex.fromEither $ M.pcre c t
+        PCRE -> \c t -> M.pcre c t
       lsSt = mapM makeToken os
       (ls, st') = St.runState lsSt initSt
   in fmap (\xs -> (xs, st')) . sequence . catMaybes $ ls
@@ -346,16 +345,16 @@ processGlobal
       (Either a [MA.Mode (MA.ProgName -> String) (IO ())])
 processGlobal rt srt df rpts os
   = case processFiltOpts srt df os of
-      Ex.Exception s -> Left s
-      Ex.Success fo ->
+      Left s -> Left s
+      Right fo ->
         return . Right $ map (makeMode (formatQty df) rt fo) rpts
 
 processFiltOpts
   :: Orderer
   -> Defaults
   -> [OptResult]
-  -> Ex.Exceptional String FilterOpts
-processFiltOpts ord df os = Ex.mapException unpack $ do
+  -> Either String FilterOpts
+processFiltOpts ord df os = either (Left . unpack) Right $ do
   postFilts <- getPostFilters os
   sortSpec <- getSortSpec ord os
   (toks, (rs, rf)) <- makeTokens df os
@@ -382,7 +381,7 @@ makeMode mkFmt rt fo r = fmap makeIO mode
            (foExprDesc fo) (fmap snd (foSorterFilterer fo))
     makeIO parseResult = do
       (posArgs, printRpt) <-
-        Ex.switch handleTextError return parseResult
+        either handleTextError return parseResult
       items <- C.open posArgs
       let fmt = mkFmt items
           (txns, pps) = splitLedger items
@@ -393,7 +392,7 @@ makeMode mkFmt rt fo r = fmap makeIO mode
           verbFiltChunks = (fst . foSorterFilterer fo $ txns) fmt
       showFilterExpression printer (foShowExpression fo) (foPredicate fo)
       showVerboseFilter printer (foVerboseFilter fo) verbFiltChunks
-      Ex.switch handleTextError (R.putChunks term)
+      either handleTextError (R.putChunks term)
         $ printRpt fmt txns pps
 
 
@@ -515,14 +514,14 @@ argMatch s1 s2 = case (s1, s2) of
     (x == y) && ((map toUpper xs) `isPrefixOf` (map toUpper ys))
   _ -> True
 
-sortSpecs :: MA.OptSpec (Ex.Exceptional Error Orderer)
+sortSpecs :: MA.OptSpec (Either Error Orderer)
 sortSpecs = MA.OptSpec ["sort"] ['s'] (MA.OneArg f)
   where
     f a =
       let matches = filter (\p -> a `argMatch` (fst p)) ords
       in case matches of
         x:[] -> return $ snd x
-        _ -> Ex.throw $ "bad sort specification: " <> pack a <> "\n"
+        _ -> Left $ "bad sort specification: " <> pack a <> "\n"
 
 
 

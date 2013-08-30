@@ -53,7 +53,6 @@ module Penny.Cabin.Posts
   ) where
 
 import Control.Applicative ((<$>), (<*>))
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List.Split (chunksOf)
 import qualified Data.Either as Ei
 import qualified Data.Text as X
@@ -121,7 +120,7 @@ zincReport opts rt = (helpStr opts, md)
 
 specs
   :: Sh.Runtime
-  -> [MA.OptSpec (Either String (P.State -> Ex.Exceptional X.Text P.State))]
+  -> [MA.OptSpec (Either String (P.State -> Either X.Text P.State))]
 specs = map (fmap Right) . P.allSpecs
 
 
@@ -132,8 +131,8 @@ process
   -> E.Changers
   -> Exp.ExprDesc
   -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
-  -> [Either String (P.State -> Ex.Exceptional X.Text P.State)]
-  -> Ex.Exceptional X.Text I.ArgsAndReport
+  -> [Either String (P.State -> Either X.Text P.State)]
+  -> Either X.Text I.ArgsAndReport
 process os cs fty ch expr fsf ls =
   let (posArgs, clOpts) = Ei.partitionEithers ls
       pState = newParseState cs fty expr os
@@ -149,7 +148,7 @@ mkPrintReport
   -> I.ArgsAndReport
 mkPrintReport posArgs zo ch fsf st = (posArgs, f)
   where
-    f fmt txns _ = Ex.fromEither $ do
+    f fmt txns _ = do
       pdct <- getPredicate (P.exprDesc st) (P.tokens st)
       let boxes = fsf txns
           rptChks = postsReport ch (P.showZeroBalances st) pdct

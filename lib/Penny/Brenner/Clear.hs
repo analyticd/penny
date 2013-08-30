@@ -1,7 +1,6 @@
 module Penny.Brenner.Clear (mode) where
 
 import Control.Applicative
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad (guard, mzero, when)
 import Data.Maybe (mapMaybe, fromMaybe)
 import Data.Monoid (mconcat, First(..))
@@ -84,7 +83,7 @@ runClear c os = do
   dbList <- U.loadDb (Y.AllowNew False) (Y.dbLocation c)
   let db = M.fromList dbList
       (_, prsr) = Y.parser c
-  txns <- fmap (Ex.switch fail return) $ prsr (csvLocation os)
+  txns <- fmap (either fail return) $ prsr (csvLocation os)
   leds <- C.open (ledgerLocations os)
   toClear <- case mapM (findUNumber db) (concat txns) of
     Nothing -> fail $ "at least one posting was not found in the"

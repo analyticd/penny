@@ -11,7 +11,6 @@ module Penny.Cabin.Balance.Convert (
   ) where
 
 import Control.Applicative ((<$>), (<*>))
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Tree as E
 import qualified Data.Traversable as Tvbl
 import qualified Penny.Cabin.Options as CO
@@ -68,7 +67,7 @@ convertBalance
   -> L.DateTime
   -> L.To
   -> L.Balance
-  -> Ex.Exceptional X.Text L.BottomLine
+  -> Either X.Text L.BottomLine
 convertBalance db dt to bal = fmap mconcat r
   where
     r = mapM (convertOne db dt to) . M.assocs . L.unBalance $ bal
@@ -80,11 +79,11 @@ convertOne
   -> L.DateTime
   -> L.To
   -> (L.Commodity, L.BottomLine)
-  -> Ex.Exceptional X.Text L.BottomLine
+  -> Either X.Text L.BottomLine
 convertOne db dt to (cty, bl) =
   case bl of
     L.Zero -> return L.Zero
-    L.NonZero (L.Column dc qt) -> Ex.mapExceptional e g ex
+    L.NonZero (L.Column dc qt) -> either (Left . e) (Right . g) ex
       where
         ex = L.convertAsOf db dt to am
         am = L.Amount qt cty
@@ -214,7 +213,7 @@ report
   :: Opts
   -> [L.PricePoint]
   -> [(a, L.Posting)]
-  -> Ex.Exceptional X.Text [Rb.Chunk]
+  -> Either X.Text [Rb.Chunk]
 report os@(Opts eiFmt _ _ tgt _ txtFormats) ps bs = do
   fstBl <- sumConvertSort os ps bs
   return $ case eiFmt of
@@ -258,7 +257,7 @@ process rt chgrs defaultOpts fsf ls =
       noDefault = X.pack "no default price found"
       f = fromParsedOpts chgrs op'
       pr fmt ts pps = do
-        rptOpts <- Ex.fromMaybe noDefault $ f pps fmt
+        rptOpts <- maybe (Left noDefault) Right $ f pps fmt
         let boxes = fsf ts
         report rptOpts pps boxes
   in (posArgs, pr)
@@ -272,7 +271,7 @@ sumConvertSort
   :: Opts
   -> [L.PricePoint]
   -> [(a, L.Posting)]
-  -> Ex.Exceptional X.Text ForestAndBL
+  -> Either X.Text ForestAndBL
 sumConvertSort os ps bs = mkResult <$> convertedFrst <*> convertedTot
   where
     (Opts _ szb str tgt dt _) = os

@@ -95,8 +95,8 @@ module Main (main) where
 
 import Control.Arrow (first)
 import Control.Applicative ((<$>), (<*>), pure)
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Control.Monad (when)
+import qualified Control.Monad.Trans.Either as Ei
 import qualified Control.Monad.Trans.State as St
 import Control.Monad.Trans.Class (lift)
 import Data.List (find)
@@ -119,7 +119,7 @@ import qualified Text.Parsec as Parsec
 import qualified Paths_penny as PPB
 import qualified Penny as P
 
-type Err = Ex.Exceptional Error
+type Err = Either Error
 
 data Error
   = ParseFail MA.Error
@@ -153,8 +153,7 @@ parseCommandLine = do
   x:xs <- case as of
     [] -> fail (show NoInputArgs)
     r -> return r
-  a <- Ex.switch (fail . show . ProceedsParseFailed) return
-       . Ex.fromEither
+  a <- either (fail . show . ProceedsParseFailed) return
        $ Parsec.parse CP.lvl1Acct "" (pack x)
   l <- Cop.open xs
   return $ ParseResult (ProceedsAcct a) l
@@ -202,16 +201,15 @@ selloffInfo
   :: ProceedsAcct -> [(L.Account, L.Balance)] -> Err SelloffInfo
 selloffInfo (ProceedsAcct pa) bals = do
   bal <- fmap snd
-          . Ex.fromMaybe NoSelloffAccount
+          . maybe (Left NoSelloffAccount) Right
           . find ((== pa) . fst)
           $ bals
   (g, d) <- case L.unAccount pa of
     _ : s2 : s3 : [] -> return (s2, s3)
-    _ -> Ex.throw NotThreeSelloffSubAccounts
+    _ -> Left NotThreeSelloffSubAccounts
   (sStock, sCurr) <- selloffStockCurr bal
   date <- fmap SaleDate
-          . Ex.mapException SaleDateParseFailed
-          . Ex.fromEither
+          . either (Left . SaleDateParseFailed) Right
           . Parsec.parse CP.dateTime ""
           $ (L.text d)
   return $ SelloffInfo (Group g) date sStock sCurr
@@ -219,12 +217,12 @@ selloffInfo (ProceedsAcct pa) bals = do
 selloffStockCurr :: L.Balance -> Err (SelloffStock, SelloffCurrency)
 selloffStockCurr bal = do
   let m = L.unBalance bal
-  when (M.size m /= 2) $ Ex.throw BadSelloffBalance
+  when (M.size m /= 2) $ Left BadSelloffBalance
   let toPair (cy, bl) = case bl of
         Bal.Zero -> Nothing
         Bal.NonZero col -> Just (cy, col)
       ps = mapMaybe toPair . M.toList $ m
-      findBal dc = Ex.fromMaybe BadSelloffBalance
+      findBal dc = maybe (Left BadSelloffBalance) Right
                     . find ((== dc) . Bal.colDrCr . snd)
                     $ ps
   (cyStock, (Bal.Column _ qtyStock)) <- findBal L.Debit
@@ -276,9 +274,8 @@ purchaseInfo
 purchaseInfo sStock sCurr (ss, bal) = do
   dateSub <- case ss of
     s1:[] -> return s1
-    _ -> Ex.throw $ NotThreePurchaseSubAccounts ss
-  date <- Ex.mapException BadPurchaseDate
-          . Ex.fromEither
+    _ -> Left $ NotThreePurchaseSubAccounts ss
+  date <- either (Left . BadPurchaseDate) Right
           . Parsec.parse CP.dateTime ""
           . L.text
           $ dateSub
@@ -292,18 +289,18 @@ purchaseQtys
   -> Err (PurchaseStockQty, PurchaseCurrencyQty)
 purchaseQtys (SelloffStock sStock) (SelloffCurrency sCurr) bal = do
   let m = L.unBalance bal
-  when (M.size m /= 2) $ Ex.throw BadPurchaseBalance
+  when (M.size m /= 2) $ Left BadPurchaseBalance
   let toPair (cy, bl) = case bl of
         Bal.Zero -> Nothing
         Bal.NonZero col -> Just (cy, col)
       ps = mapMaybe toPair . M.toList $ m
-      findBal dc = Ex.fromMaybe BadPurchaseBalance
+      findBal dc = maybe (Left BadPurchaseBalance) Right
                     . find ((== dc) . Bal.colDrCr . snd)
                     $ ps
   (cyStock, (Bal.Column _ qtyStock)) <- findBal L.Credit
   (cyCurr, (Bal.Column _ qtyCurr)) <- findBal L.Debit
-  when (cyStock /= L.commodity sStock) $ Ex.throw BadPurchaseBalance
-  when (cyCurr /= L.commodity sCurr) $ Ex.throw BadPurchaseBalance
+  when (cyStock /= L.commodity sStock) $ Left BadPurchaseBalance
+  when (cyCurr /= L.commodity sCurr) $ Left BadPurchaseBalance
   return (PurchaseStockQty qtyStock, PurchaseCurrencyQty qtyCurr)
 
 
@@ -332,7 +329,7 @@ data BasisRealiztn = BasisRealiztn
 -- basis cannot be allocated.
 stRealizeBasis
   :: PurchaseInfo
-  -> Ex.ExceptionalT Error
+  -> Ei.EitherT Error
      (St.State (Maybe CostSharesSold, Maybe StillToRealize))
      (Maybe (PurchaseInfo, BasisRealiztn))
 stRealizeBasis p = do
@@ -387,11 +384,11 @@ realizeBases sellStck ps = do
   let stReal = Just . StillToRealize . L.qty
                . unSelloffStock $ sellStck
       (exRs, (mayCss, mayTr)) = St.runState
-        (Ex.runExceptionalT (mapM stRealizeBasis ps))
+        (Ei.runEitherT (mapM stRealizeBasis ps))
         (Nothing, stReal)
   rs <- exRs
-  when (isJust mayTr) $ Ex.throw InsufficientSharePurchases
-  css <- Ex.fromMaybe ZeroCostSharesSold mayCss
+  when (isJust mayTr) $ Left InsufficientSharePurchases
+  css <- maybe (Left ZeroCostSharesSold) Right mayCss
   return (catMaybes rs, css)
 
 newtype CapitalChange = CapitalChange { unCapitalChange :: L.Qty }
@@ -421,7 +418,7 @@ capitalChange css sc ls =
   in case mayGainLoss of
     Nothing -> return . NoChange $ ls
     Just (qt, gl) -> do
-      nePurchs <- Ex.fromMaybe NoPurchaseInformation
+      nePurchs <- maybe (Left NoPurchaseInformation) Right
                   . uncons $ ls
       let qtys = mapNE (unPurchaseCurrencyQty . piCurrencyQty . fst)
                  nePurchs
@@ -615,7 +612,7 @@ main = parseCommandLine >>= handleParseResult
 
 handleParseResult :: ParseResult -> IO ()
 handleParseResult (ParseResult pa ldgr) =
-  Ex.switch (error . show) TIO.putStr . makeOutput pa $ ldgr
+  either (error . show) TIO.putStr . makeOutput pa $ ldgr
 
 defaultRadGroup :: S.S3 L.Radix L.PeriodGrp L.CommaGrp
 defaultRadGroup = S.S3a L.Period

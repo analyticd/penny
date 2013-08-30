@@ -12,7 +12,6 @@ module Penny.Lincoln.PriceDb (
   convertAsOf
   ) where
 
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Map as M
 import qualified Data.Time as T
 import qualified Penny.Lincoln.Bits as B
@@ -65,17 +64,17 @@ getPrice ::
   -> B.From
   -> B.To
   -> B.DateTime
-  -> Ex.Exceptional PriceDbError B.CountPerUnit
+  -> Either PriceDbError B.CountPerUnit
 getPrice (PriceDb db) fr to dt = do
   let utc = B.toUTC dt
-  toMap <- Ex.fromMaybe FromNotFound $ M.lookup fr db
-  cpuMap <- Ex.fromMaybe ToNotFound $ M.lookup to toMap
+  toMap <- maybe (Left FromNotFound) Right $ M.lookup fr db
+  cpuMap <- maybe (Left ToNotFound) Right $ M.lookup to toMap
   let (lower, exact, _) = M.splitLookup utc cpuMap
   case exact of
     Just c -> return c
     Nothing ->
       if M.null lower
-      then Ex.throw CpuNotFound
+      then Left CpuNotFound
       else return . snd . M.findMax $ lower
 
 
@@ -90,7 +89,7 @@ convertAsOf ::
   -> B.DateTime
   -> B.To
   -> B.Amount q
-  -> Ex.Exceptional PriceDbError B.Qty
+  -> Either PriceDbError B.Qty
 convertAsOf db dt to (B.Amount qt fr)
   | fr == B.unTo to = return . B.toQty $ qt
   | otherwise = do

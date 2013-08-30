@@ -7,7 +7,6 @@ module Penny.Brenner.Print (mode) where
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
 import qualified System.Console.MultiArg as MA
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe (mapMaybe)
 
 help :: String -> String
@@ -41,7 +40,7 @@ processor mayFa ls = do
   doPrint (snd . Y.parser $ fa) ls
 
 doPrint
-  :: (Y.FitFileLocation -> IO (Ex.Exceptional String [Y.Posting]))
+  :: (Y.FitFileLocation -> IO (Either String [Y.Posting]))
   -> [Arg]
   -> IO ()
 doPrint prsr ls = mapM_ f . mapMaybe toFile $ ls
@@ -49,9 +48,9 @@ doPrint prsr ls = mapM_ f . mapMaybe toFile $ ls
     f file = do
       r <- prsr file
       case r of
-        Ex.Exception s -> do
+        Left s -> do
           fail $ "penny-fit print: error: " ++ s
-        Ex.Success ps -> mapM putStr . map U.showPosting $ ps
+        Right ps -> mapM putStr . map U.showPosting $ ps
     toFile a = case a of
       ArgFile s -> Just (Y.FitFileLocation s)
 

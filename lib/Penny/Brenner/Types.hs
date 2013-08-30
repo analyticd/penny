@@ -28,7 +28,6 @@ module Penny.Brenner.Types
   ) where
 
 import Control.Applicative ((<$>), (<*>))
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Map as M
 import qualified Data.Time as Time
 import qualified Penny.Lincoln as L
@@ -289,7 +288,7 @@ data FitAcct = FitAcct
   -- commodity and the quantity
 
   , parser :: ( ParserDesc
-              , FitFileLocation -> IO (Ex.Exceptional String [Posting]))
+              , FitFileLocation -> IO (Either String [Posting]))
   -- ^ Parses a file of transactions from the financial
   -- institution. The function must open the file and parse it. This
   -- is in the IO monad not only because the function must open the
@@ -336,5 +335,5 @@ newtype AllowNew = AllowNew { unAllowNew :: Bool }
 -- | All parsers must be of this type.
 type ParserFn
   = FitFileLocation
-  -> IO (Ex.Exceptional String [Posting])
+  -> IO (Either String [Posting])
 

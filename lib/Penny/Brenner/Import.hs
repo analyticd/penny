@@ -1,7 +1,6 @@
 module Penny.Brenner.Import (mode) where
 
 import Control.Applicative ((<|>))
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Maybe (mapMaybe)
 import qualified System.Console.MultiArg as MA
 import qualified Penny.Brenner.Types as Y
@@ -28,7 +27,7 @@ data ImportOpts = ImportOpts
   { fitFile :: Y.FitFileLocation
   , allowNew :: Y.AllowNew
   , parser :: Y.FitFileLocation
-              -> IO (Ex.Exceptional String [Y.Posting])
+              -> IO (Either String [Y.Posting])
   , newUNumber :: Maybe Integer
   }
 
@@ -111,8 +110,8 @@ doImport dbLoc os = do
   txnsOld <- U.loadDb (allowNew os) dbLoc
   parseResult <- parser os (fitFile os)
   ins <- case parseResult of
-    Ex.Exception e -> fail e
-    Ex.Success g -> return g
+    Left e -> fail e
+    Right g -> return g
   (new, len) <- case appendNew (newUNumber os) txnsOld ins of
     Just r -> return r
     Nothing -> fail "invalid new U number given."

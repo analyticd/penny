@@ -1,6 +1,5 @@
 module Penny.Brenner.Util where
 
-import Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Brenner.Types as Y
 import qualified Data.ByteString as BS
 import qualified System.IO.Error as IOE
@@ -47,8 +46,8 @@ loadDb (Y.AllowNew allowNew) (Y.DbLocation dbLoc) = do
       then return []
       else IOE.ioError e
     Right g -> case readDbTuple g of
-      Ex.Exception e -> fail e
-      Ex.Success good -> return good
+      Left e -> fail e
+      Right good -> return good
 
 -- | File version. Increment this when anything in the file format
 -- changes.
@@ -60,12 +59,14 @@ brenner = "penny.brenner"
 
 readDbTuple
   :: BS.ByteString
-  -> Ex.Exceptional String Y.DbList
+  -> Either String Y.DbList
 readDbTuple bs = do
-  (s, v, ls) <- Ex.fromEither $ S.decode bs
-  Ex.assert "database file format not recognized." $ s == brenner
-  Ex.assert "wrong database version." $ v == version
+  (s, v, ls) <- S.decode bs
+  assert "database file format not recognized." $ s == brenner
+  assert "wrong database version." $ v == version
   return ls
+  where
+    assert e b = if b then Right () else Left e
 
 saveDbTuple :: Y.DbList -> BS.ByteString
 saveDbTuple ls = S.encode (brenner, version, ls)

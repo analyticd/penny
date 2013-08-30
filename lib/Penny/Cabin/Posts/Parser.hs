@@ -10,7 +10,6 @@ module Penny.Cabin.Posts.Parser
 
 import Control.Applicative ((<$>), pure, (<*>),
                             Applicative)
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Char (toLower)
 import qualified Data.Foldable as Fdbl
 import Data.Monoid ((<>))
@@ -52,7 +51,7 @@ data State = State
 type Error = X.Text
 
 allSpecs
-  :: S.Runtime -> [MA.OptSpec (State -> Ex.Exceptional Error State)]
+  :: S.Runtime -> [MA.OptSpec (State -> Either Error State)]
 allSpecs rt =
   operand rt
   ++ boxFilters
@@ -74,7 +73,7 @@ allSpecs rt =
 
 operand
   :: S.Runtime
-  -> [MA.OptSpec (State -> Ex.Exceptional Error State)]
+  -> [MA.OptSpec (State -> Either Error State)]
 operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
   where
     f lyFn st = do
@@ -94,7 +93,7 @@ optBoxSerial
   -> (Ly.LibertyMeta -> Int)
   -- ^ Pulls the serial from the PostMeta
 
-  -> C.OptSpec (State -> Ex.Exceptional Error State)
+  -> C.OptSpec (State -> Either Error State)
 
 optBoxSerial nm f = C.OptSpec [nm] "" (C.TwoArg g)
   where
@@ -107,27 +106,27 @@ optBoxSerial nm f = C.OptSpec [nm] "" (C.TwoArg g)
       let tok = Exp.operand pd
       return $ st { tokens = tokens st ++ [tok] }
 
-optFilteredNum :: C.OptSpec (State -> Ex.Exceptional Error State)
+optFilteredNum :: C.OptSpec (State -> Either Error State)
 optFilteredNum = optBoxSerial "filtered" f
   where
     f = L.forward . Ly.unFilteredNum . Ly.filteredNum
 
-optRevFilteredNum :: C.OptSpec (State -> Ex.Exceptional Error State)
+optRevFilteredNum :: C.OptSpec (State -> Either Error State)
 optRevFilteredNum = optBoxSerial "revFiltered" f
   where
     f = L.backward . Ly.unFilteredNum . Ly.filteredNum
 
-optSortedNum :: C.OptSpec (State -> Ex.Exceptional Error State)
+optSortedNum :: C.OptSpec (State -> Either Error State)
 optSortedNum = optBoxSerial "sorted" f
   where
     f = L.forward . Ly.unSortedNum . Ly.sortedNum
 
-optRevSortedNum :: C.OptSpec (State -> Ex.Exceptional Error State)
+optRevSortedNum :: C.OptSpec (State -> Either Error State)
 optRevSortedNum = optBoxSerial "revSorted" f
   where
     f = L.backward . Ly.unSortedNum . Ly.sortedNum
 
-boxFilters :: [C.OptSpec (State -> Ex.Exceptional Error State)]
+boxFilters :: [C.OptSpec (State -> Either Error State)]
 boxFilters =
   [ optFilteredNum
   , optRevFilteredNum
@@ -136,7 +135,7 @@ boxFilters =
   ]
 
 
-parsePostFilter :: [C.OptSpec (State -> Ex.Exceptional Error State)]
+parsePostFilter :: [C.OptSpec (State -> Either Error State)]
 parsePostFilter = [fmap f optH, fmap f optT]
   where
     (optH, optT) = Ly.postFilterSpecs
@@ -161,14 +160,14 @@ operator = map (fmap f) Ly.operatorSpecs
   where
     f oo st = st { tokens = tokens st ++ [oo] }
 
-parseWidth :: C.OptSpec (State -> Ex.Exceptional Error State)
+parseWidth :: C.OptSpec (State -> Either Error State)
 parseWidth = C.OptSpec ["width"] "" (C.OneArg f)
   where
     f a1 st = do
       i <- Ly.parseInt a1
       return $ st { width = Ty.ReportWidth i }
 
-parseField :: String -> Ex.Exceptional Error (F.Fields Bool)
+parseField :: String -> Either Error (F.Fields Bool)
 parseField str =
   let lower = map toLower str
       checkField s =
@@ -177,17 +176,17 @@ parseField str =
         else (s, False)
       flds = checkField <$> F.fieldNames
   in case checkFields flds of
-      Ex.Exception e -> case e of
-        NoMatchingFields -> Ex.throw
+      Left e -> case e of
+        NoMatchingFields -> Left
           $ "no field matches the name \"" <> X.pack str <> "\"\n"
-        MultipleMatchingFields ts -> Ex.throw
+        MultipleMatchingFields ts -> Left
           $ "multiple fields match the name \"" <> X.pack str
             <> "\" matches: " <> mtchs <> "\n"
           where
             mtchs = X.intercalate " "
                     . map (\x -> "\"" <> x <> "\"")
                     $ ts
-      Ex.Success g -> return g
+      Right g -> return g
 
 
 -- | Turns a field on if it is True.
@@ -221,7 +220,7 @@ fieldOff old new = f <$> old <*> new
     f o False = o
     f _ True = False
 
-showField :: C.OptSpec (State -> Ex.Exceptional Error State)
+showField :: C.OptSpec (State -> Either Error State)
 showField = C.OptSpec ["show"] "" (C.OneArg f)
   where
     f a1 st = do
@@ -229,7 +228,7 @@ showField = C.OptSpec ["show"] "" (C.OneArg f)
       let newFl = fieldOn (fields st) fl
       return $ st { fields = newFl }
 
-hideField :: C.OptSpec (State -> Ex.Exceptional Error State)
+hideField :: C.OptSpec (State -> Either Error State)
 hideField = C.OptSpec ["hide"] "" (C.OneArg f)
   where
     f a1 st = do
@@ -275,12 +274,12 @@ data BadFieldError
 -- | Checks the fields with the True value to ensure there is only one.
 checkFields ::
   F.Fields (String, Bool)
-  -> Ex.Exceptional BadFieldError (F.Fields Bool)
+  -> Either BadFieldError (F.Fields Bool)
 checkFields fs =
   let f (s, b) ls = if b then s:ls else ls
   in case Fdbl.foldr f [] fs of
-    [] -> Ex.throw NoMatchingFields
+    [] -> Left NoMatchingFields
     _:[] -> return (snd <$> fs)
-    ms -> Ex.throw . MultipleMatchingFields . map X.pack $ ms
+    ms -> Left . MultipleMatchingFields . map X.pack $ ms
 
 

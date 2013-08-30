@@ -4,7 +4,6 @@ module Penny.Cabin.Interface where
 
 import qualified Data.Prednote.Expressions as Exp
 import qualified Penny.Cabin.Scheme as S
-import Control.Monad.Exception.Synchronous (Exceptional)
 import qualified Data.Text as X
 import Text.Matchers (CaseSensitive)
 import qualified Text.Matchers as TM
@@ -31,7 +30,7 @@ type ArgsAndReport = ([PosArg], PrintReport)
 -- indicated with a Text. The name of the executable and the word
 -- @error@ will be prepended to this Text; otherwise, it is printed
 -- as-is, so be sure to include any trailing newline if needed.
-type ParseResult = Exceptional X.Text ArgsAndReport
+type ParseResult = Either X.Text ArgsAndReport
 
 type PrintReport
   = (L.Amount L.Qty -> X.Text)
@@ -48,7 +47,7 @@ type PrintReport
   -- ^ PricePoints to be included in the report
 
 
-  -> Exceptional X.Text [R.Chunk]
+  -> Either X.Text [R.Chunk]
   -- ^ The exception type is a strict Text, containing the error
   -- message. The success type is a list of either a Chunk or a PreChunk
   -- containing the resulting report. This allows for errors after the
@@ -65,7 +64,7 @@ type MkReport
   -- case sensitivity (this may have been changed in the filtering
   -- options)
 
-  -> (CaseSensitive -> X.Text -> Exceptional X.Text TM.Matcher)
+  -> (CaseSensitive -> X.Text -> Either X.Text TM.Matcher)
   -- ^ Result from previous parsers indicating the matcher factory the
   -- user wishes to use
 

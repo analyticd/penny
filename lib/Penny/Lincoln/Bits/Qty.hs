@@ -65,7 +65,6 @@ module Penny.Lincoln.Bits.Qty
 -- # Imports
 
 import Control.Applicative ((<|>))
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Ord(Down(..), comparing)
@@ -765,12 +764,14 @@ largestRemainderMethod
 
 largestRemainderMethod ts pvs =
   let err s = error $ "largestRemainderMethod: error: " ++ s
-  in Ex.resolve err $ do
-    Ex.assert "TotalSeats not positive" (ts > 0)
-    Ex.assert "sum of [PartyVotes] not positive" (sum pvs > 0)
-    Ex.assert "negative member of [PartyVotes]" (minimum pvs >= 0)
+  in either err id $ do
+    assert "TotalSeats not positive" (ts > 0)
+    assert "sum of [PartyVotes] not positive" (sum pvs > 0)
+    assert "negative member of [PartyVotes]" (minimum pvs >= 0)
     return (allocRemainder ts . allocAuto ts $ pvs)
 
+assert :: e -> Bool -> Either e ()
+assert e b = if b then Right () else Left e
 
 autoAndRemainder
   :: TotSeats -> TotVotes -> PartyVotes -> (AutoSeats, Remainder)

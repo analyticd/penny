@@ -13,7 +13,6 @@ import Control.Applicative.Permutation (runPerms, maybeAtom)
 import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
                             (<|>), optional)
 import Control.Monad (replicateM, when)
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Penny.Lincoln as L
 import qualified Penny.Steel.Sums as S
@@ -509,13 +508,13 @@ parse
   :: Text
   -- ^ Contents of file to be parsed
 
-  -> Ex.Exceptional String [I.ParsedItem]
+  -> Either String [I.ParsedItem]
   -- ^ Returns items if successfully parsed; otherwise, returns an
   -- error message.
 
 parse s =
   let parser = P.spaces *> P.many item <* P.spaces <* P.eof
-  in Ex.mapException show . Ex.fromEither
+  in either (Left . show) Right
      $ P.parse parser "" s
 
 
@@ -543,16 +542,16 @@ parseStdinOnly :: IO (L.Filename, [I.ParsedItem])
 parseStdinOnly = do
   txt <- getStdin
   case parse txt of
-    Ex.Exception err -> handleParseError "standard input" err
-    Ex.Success g -> return (L.Filename . X.pack $ "<stdin>", g)
+    Left err -> handleParseError "standard input" err
+    Right g -> return (L.Filename . X.pack $ "<stdin>", g)
 
 parseFromFilename :: String -> IO (L.Filename, [I.ParsedItem])
 parseFromFilename s = do
   (fn, txt) <- getFileContentsStdin s
   case parse txt of
-    Ex.Exception err ->
+    Left err ->
       handleParseError (X.unpack . L.unFilename $ fn) err
-    Ex.Success g -> return (fn, g)
+    Right g -> return (fn, g)
 
 handleParseError
   :: String

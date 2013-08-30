@@ -1,7 +1,6 @@
 module Main where
 
 import qualified System.Console.MultiArg as MA
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Test.QuickCheck.Gen as G
 import qualified System.Random as Rand
 import Control.Monad (replicateM)
@@ -38,18 +37,18 @@ options =
   [ MA.OptSpec ["size"] "s" . MA.OneArgE $ \s -> do
       i <- MA.reader s
       if i < 1
-        then Ex.throw (MA.ErrorMsg "non-positive size parameter")
+        then Left (MA.ErrorMsg "non-positive size parameter")
         else return (\os -> os { optSize = i })
 
   , MA.OptSpec ["count"] "c" . MA.OneArgE $ \s -> do
       i <- MA.reader s
       if i < 1
-        then Ex.throw (MA.ErrorMsg "non-positive count parameter")
+        then Left (MA.ErrorMsg "non-positive count parameter")
         else return (\os -> os { optCount = i })
   ]
 
-posArg :: a -> Ex.Exceptional MA.InputError b
-posArg _ = Ex.throw (MA.ErrorMsg "no non-option arguments accepted")
+posArg :: a -> Either MA.InputError b
+posArg _ = Left (MA.ErrorMsg "no non-option arguments accepted")
 
 parse :: [(Opts -> Opts)] -> Opts
 parse os = foldl (flip (.)) id os defaultOpts

@@ -12,7 +12,6 @@ module Penny.Brenner.OFX
   ) where
 
 import Control.Applicative
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.List (isPrefixOf)
 import qualified Data.OFX as O
 import qualified Data.Text as X
@@ -49,20 +48,19 @@ loadIncoming
   :: (String -> String)
   -- ^ Prepass function
   -> Y.FitFileLocation
-  -> IO (Ex.Exceptional String [Y.Posting])
+  -> IO (Either String [Y.Posting])
 loadIncoming pp (Y.FitFileLocation fn) = do
   contents <- fmap pp $ readFile fn
   return $
-    ( Ex.mapException show
-      . Ex.fromEither
+    ( either (Left . show) Right
       $ P.parse O.ofxFile fn contents )
-    >>= (Ex.fromEither . O.transactions)
+    >>= O.transactions
     >>= mapM txnToPosting
 
 
 txnToPosting
   :: O.Transaction
-  -> Ex.Exceptional String Y.Posting
+  -> Either String Y.Posting
 txnToPosting t = Y.Posting
   <$> pure (Y.Date ( T.utctDay . T.zonedTimeToUTC
                    . O.txDTPOSTED $ t))
@@ -80,8 +78,8 @@ txnToPosting t = Y.Posting
     incDec =
       if "-" `isPrefixOf` amtStr then Y.Decrease else Y.Increase
     amt = case amtStr of
-      [] -> Ex.throw "empty amount"
+      [] -> Left "empty amount"
       x:xs -> let str = if x == '-' || x == '+' then xs else amtStr
-              in Ex.fromMaybe ("could not parse amount: " ++ amtStr)
-                 $ Y.mkAmount str
+              in maybe (Left ("could not parse amount: " ++ amtStr))
+                       Right $ Y.mkAmount str
 
