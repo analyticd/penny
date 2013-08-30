@@ -8,7 +8,6 @@ module Penny.Cabin.Balance.Convert.Parser (
   ) where
 
 
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Data.Text as X
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Cabin.Parsers as P
@@ -67,7 +66,7 @@ parseCommodity = C.OptSpec ["commodity"] "c" (C.OneArgE f)
   where
     f a1 =
       case Parsec.parse Pc.lvl1Cmdty "" (X.pack a1) of
-        Left _ -> Ex.throw . C.ErrorMsg $ "invalid commodity"
+        Left _ -> Left . C.ErrorMsg $ "invalid commodity"
         Right g -> return $ \os -> os { target = ManualTarget . L.To $ g }
 
 parseAuto :: C.OptSpec (Opts -> Opts)
@@ -80,7 +79,7 @@ parseDate = C.OptSpec ["date"] "d" (C.OneArgE f)
   where
     f a1 =
       case Parsec.parse Pc.dateTime "" (X.pack a1) of
-        Left _ -> Ex.throw . C.ErrorMsg $ "invalid date"
+        Left _ -> Left . C.ErrorMsg $ "invalid date"
         Right g -> return $ \os -> os { dateTime = g }
 
 parseSort :: C.OptSpec (Opts -> Opts)
@@ -107,5 +106,5 @@ parseRound = C.OptSpec ["round"] "r" (C.OneArgE f)
     f a = do
       i <- C.reader a
       case L.nonNegative i of
-        Nothing -> Ex.throw . C.ErrorMsg $ "argument is negative"
+        Nothing -> Left . C.ErrorMsg $ "argument is negative"
         Just g -> return $ \o -> o { percentRpt = Just (RoundTo g) }

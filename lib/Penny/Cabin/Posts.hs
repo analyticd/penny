@@ -149,7 +149,7 @@ mkPrintReport
   -> I.ArgsAndReport
 mkPrintReport posArgs zo ch fsf st = (posArgs, f)
   where
-    f fmt txns _ = do
+    f fmt txns _ = Ex.fromEither $ do
       pdct <- getPredicate (P.exprDesc st) (P.tokens st)
       let boxes = fsf txns
           rptChks = postsReport ch (P.showZeroBalances st) pdct
@@ -212,7 +212,7 @@ type Error = X.Text
 getPredicate
   :: Exp.ExprDesc
   -> [Exp.Token ((Ly.LibertyMeta, L.Posting))]
-  -> Ex.Exceptional Error (Pe.Pdct ((Ly.LibertyMeta, L.Posting)))
+  -> Either Error (Pe.Pdct ((Ly.LibertyMeta, L.Posting)))
 getPredicate d ts =
   case ts of
     [] -> return $ Pe.always

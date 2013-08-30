@@ -69,7 +69,7 @@ globalOpts v = MA.optsHelpVersion help (Ly.version v)
 preProcessor
   :: Y.Config
   -> [Y.FitAcctName]
-  -> Ex.Exceptional String
+  -> Either String
       (Either (IO ())
               [MA.Mode (MA.ProgName -> String) (IO ())])
 preProcessor cf args = do
@@ -82,11 +82,11 @@ preProcessor cf args = do
             Nothing -> Y.moreFitAccts cf
             Just d -> d : Y.moreFitAccts cf
       in case filter pdct toFilter of
-           [] -> Ex.throw $
+           [] -> Left $
               "financial institution account "
               ++ (X.unpack . Y.unFitAcctName $ s) ++ " not configured."
            c:[] -> return $ Just c
-           _ -> Ex.throw $
+           _ -> Left $
               "more than one financial institution account "
               ++ "named " ++ (X.unpack . Y.unFitAcctName $ s)
               ++ " configured."

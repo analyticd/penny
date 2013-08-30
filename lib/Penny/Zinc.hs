@@ -342,11 +342,11 @@ processGlobal
   -> Defaults
   -> [I.Report]
   -> [OptResult]
-  -> Ex.Exceptional String
+  -> Either String
       (Either a [MA.Mode (MA.ProgName -> String) (IO ())])
 processGlobal rt srt df rpts os
   = case processFiltOpts srt df os of
-      Ex.Exception s -> Ex.throw s
+      Ex.Exception s -> Left s
       Ex.Success fo ->
         return . Right $ map (makeMode (formatQty df) rt fo) rpts
 

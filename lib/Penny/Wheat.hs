@@ -24,7 +24,6 @@ module Penny.Wheat
   , main
   ) where
 
-import qualified Control.Monad.Exception.Synchronous as Ex
 import Data.Either (partitionEithers)
 import Data.Maybe (mapMaybe)
 import qualified Penny.Copper as Cop
@@ -110,14 +109,14 @@ data WheatConf = WheatConf
 
   }
 
-parseBaseTime :: String -> Ex.Exceptional MA.InputError Time.UTCTime
+parseBaseTime :: String -> Either MA.InputError Time.UTCTime
 parseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
-  Left e -> Ex.throw (MA.ErrorMsg $ "could not parse date: " ++ show e)
+  Left e -> Left (MA.ErrorMsg $ "could not parse date: " ++ show e)
   Right g -> return . L.toUTC $ g
 
-parseRegexp :: String -> Ex.Exceptional MA.InputError (TT.Name -> Bool)
+parseRegexp :: String -> Either MA.InputError (TT.Name -> Bool)
 parseRegexp s = case M.pcre M.Sensitive (X.pack s) of
-  Left e -> Ex.throw . MA.ErrorMsg $
+  Left e -> Left . MA.ErrorMsg $
     "could not parse regular expression: " ++ X.unpack e
   Right m -> return . M.match $ m
 

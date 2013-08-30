@@ -112,7 +112,7 @@ parsePredicate
   -> Ex.Exceptional Error (E.Pdct a)
 parsePredicate d ls = case ls of
   [] -> return E.always
-  _ -> X.parseExpression d ls
+  _ -> Ex.fromEither $ X.parseExpression d ls
 
 -- | Takes a list of transactions, splits them into PostingChild
 -- instances, filters them, post-filters them, sorts them, and places

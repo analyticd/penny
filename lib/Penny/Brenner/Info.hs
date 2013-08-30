@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Brenner.Info (mode) where
 
-import qualified Control.Monad.Exception.Synchronous as Ex
 import qualified Penny.Brenner.Types as Y
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
@@ -29,7 +28,7 @@ mode cf = MA.modeHelp
   MA.Intersperse       -- Interspersion
   processPa            -- Posarg processor
   where
-    processPa = const . Ex.throw . MA.ErrorMsg
+    processPa = const . Left . MA.ErrorMsg
       $ "this mode does not accept positional arguments"
 
 process :: Y.Config -> IO ()
