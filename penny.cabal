@@ -1,5 +1,5 @@
 Name: penny
-Version: 0.28.0.0
+Version: 0.29.0.0
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -387,7 +387,8 @@ Flag build-reconcile
   Description: Build the penny-reconcile executable
   Default: True
 
-Executable penny-test
+Test-Suite penny-test
+  type: exitcode-stdio-1.0
   Main-is: penny-test.hs
   other-modules:
       Copper
@@ -412,22 +413,18 @@ Executable penny-test
   -- For details on why penny is a dependency here, see
   -- http://stackoverflow.com/questions/6711151
 
-  if flag(test)
-    build-depends:
-        penny
-      , QuickCheck ==2.5.*
-      , random-shuffle ==0.0.4
+  build-depends:
+      penny
+    , QuickCheck ==2.5.*
+    , random-shuffle ==0.0.4
 
-      , base ==4.6.*
-      , multiarg ==0.22.*
-      , parsec >= 3.1.2 && < 3.2
-      , semigroups ==0.9.*
-      , text ==0.11.*
-      , time ==1.4.*
-      , transformers == 0.3.*
-
-  else
-    buildable: False
+    , base ==4.6.*
+    , multiarg ==0.22.*
+    , parsec >= 3.1.2 && < 3.2
+    , semigroups ==0.9.*
+    , text ==0.11.*
+    , time ==1.4.*
+    , transformers == 0.3.*
 
   ghc-options: -Wall
 
