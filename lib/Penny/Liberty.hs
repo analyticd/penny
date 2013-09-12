@@ -22,6 +22,7 @@ module Penny.Liberty (
   processPostFilters,
   parsePredicate,
   parseInt,
+  parseIntMA,
   parseInfix,
   parseRPN,
   exprDesc,
@@ -59,8 +60,10 @@ import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified Data.Time as Time
 import qualified System.Console.MultiArg as MA
+import System.Console.MultiArg (InputError(..))
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Combinator (OptSpec)
+import Text.Read (readMaybe)
 import Text.Parsec (parse)
 
 import qualified Penny.Copper.Parsec as Pc
@@ -225,25 +228,26 @@ getMatcher s cs f
 parseComparer
   :: String
   -> (Ordering -> E.Pdct a)
-  -> Either Error (E.Pdct a)
-parseComparer s f = maybe (Left ("bad comparer: " <> pack s <> "\n"))
-                          Right $ E.parseComparer (pack s) f
+  -> Either InputError (E.Pdct a)
+parseComparer s f
+  = maybe (Left . MA.ErrorMsg $ "bad comparer")
+          Right $ E.parseComparer (pack s) f
 
 -- | Parses a date from the command line. On failure, throws back the
 -- error message from the failed parse.
-parseDate :: String -> Either Error Time.UTCTime
+parseDate :: String -> Either InputError Time.UTCTime
 parseDate arg =
   either (Left . err) (Right . L.toUTC)
   . parse Pc.dateTime ""
   . pack
   $ arg
   where
-    err msg = "bad date: \"" <> pack arg <> "\" - " <> (pack . show $ msg)
+    err msg = MA.ErrorMsg $ "bad date - " <> show msg
 
 type Operand = E.Pdct L.Posting
 
 -- | OptSpec for a date.
-date :: OptSpec (Either Error Operand)
+date :: OptSpec Operand
 date = C.OptSpec ["date"] ['d'] (C.TwoArg f)
   where
     f a1 a2 = do
@@ -259,10 +263,15 @@ current dt = C.OptSpec ["current"] [] (C.NoArg f)
 -- | Parses exactly one integer; fails if it cannot read exactly one.
 parseInt :: String -> Either Error Int
 parseInt t =
-  case reads t of
-    ((i, ""):[]) -> return i
-    _ -> Left $ "could not parse integer: \"" <> pack t <> "\"\n"
+  case readMaybe t of
+    Just i -> return i
+    _ -> Left $ "could not parse integer: \"" <> pack t <> "\""
 
+
+parseIntMA :: String -> Either MA.InputError Int
+parseIntMA t
+  = maybe (Left (ErrorMsg "could not parse integer")) Right
+  $ readMaybe t
 
 -- | Creates options that add an operand that matches the posting if a
 -- particluar field matches the pattern given.
@@ -282,7 +291,7 @@ patternOption ::
 patternOption str mc f = C.OptSpec [str] so (C.OneArg g)
   where
     so = maybe [] (:[]) mc
-    g a1 cs fty = f <$> getMatcher a1 cs fty
+    g a1 = return $ \cs fty -> f <$> getMatcher a1 cs fty
 
 
 -- | The account option; matches if the pattern given matches the
@@ -292,9 +301,7 @@ account :: OptSpec ( CaseSensitive
                    -> Either Error Operand )
 account = C.OptSpec ["account"] "a" (C.OneArg f)
   where
-    f a1 cs fty
-      = fmap P.account
-      $ getMatcher a1 cs fty
+    f a1 = return $ \cs fty -> fmap P.account (getMatcher a1 cs fty)
 
 
 -- | The account-level option; matches if the account at the given
@@ -304,8 +311,8 @@ accountLevel :: OptSpec ( CaseSensitive
                         -> Either Error Operand)
 accountLevel = C.OptSpec ["account-level"] "" (C.TwoArg f)
   where
-    f a1 a2 cs fty
-      = P.accountLevel <$> parseInt a1 <*> getMatcher a2 cs fty
+    f a1 a2 = return $ \cs fty ->
+      P.accountLevel <$> parseInt a1 <*> getMatcher a2 cs fty
 
 
 -- | The accountAny option; returns True if the matcher given matches
@@ -364,14 +371,14 @@ debit = C.OptSpec ["debit"] [] (C.NoArg P.debit)
 credit :: OptSpec Operand
 credit = C.OptSpec ["credit"] [] (C.NoArg P.credit)
 
-qtyOption :: OptSpec (Either Error Operand)
+qtyOption :: OptSpec Operand
 qtyOption = C.OptSpec ["qty"] "q" (C.TwoArg f)
   where
     f a1 a2 = do
       qt <- parseQty a2
       parseComparer a1 (flip P.qty qt)
     parseQty a = case parse Pc.unquotedQtyRepWithSpaces "" (pack a) of
-      Left _ -> Left $ "failed to parse quantity"
+      Left _ -> Left . ErrorMsg $ "failed to parse quantity"
       Right g -> pure . L.toQty $ g
 
 
@@ -386,8 +393,8 @@ serialOption ::
   -> String
   -- ^ Name of the command line option, such as @global-transaction@
 
-  -> ( OptSpec (Either Error Operand)
-     , OptSpec (Either Error Operand) )
+  -> ( OptSpec Operand
+     , OptSpec Operand )
   -- ^ Parses both descending and ascending serial options.
 
 serialOption getSerial n = (osA, osD)
@@ -398,7 +405,7 @@ serialOption getSerial n = (osA, osD)
           in C.OptSpec [name] []
              (C.TwoArg (f name L.backward))
     f name getInt a1 a2 = do
-      num <- parseInt a2
+      num <- parseIntMA a2
       let getPdct = E.compareByMaybe (pack . show $ num) (pack name) cmp
           cmp l = case getSerial l of
             Nothing -> Nothing
@@ -418,8 +425,8 @@ siblingSerialOption
   -> (Int -> Ordering -> E.Pdct L.Posting)
   -- ^ Function that returns a Pdct for reverse serial
 
-  -> ( OptSpec (Either Error Operand)
-     , OptSpec (Either Error Operand) )
+  -> ( OptSpec Operand
+     , OptSpec Operand )
   -- ^ Parses both descending and ascending serial options.
 
 siblingSerialOption n fFwd fBak = (osA, osD)
@@ -428,7 +435,7 @@ siblingSerialOption n fFwd fBak = (osA, osD)
     osD = let name = addPrefix "rev" n
           in C.OptSpec ["s-" ++ name] [] (C.TwoArg (f fBak))
     f getPdct a1 a2 = do
-      num <- parseInt a2
+      num <- parseIntMA a2
       parseComparer a1 (getPdct num)
 
 
@@ -441,26 +448,26 @@ addPrefix pre suf = pre ++ suf' where
     "" -> ""
     x:xs -> toUpper x : xs
 
-globalTransaction :: ( OptSpec (Either Error Operand)
-                     , OptSpec (Either Error Operand) )
+globalTransaction :: ( OptSpec Operand
+                     , OptSpec Operand )
 globalTransaction =
   let f = fmap L.unGlobalTransaction . Q.globalTransaction
   in serialOption f "globalTransaction"
 
-globalPosting :: ( OptSpec (Either Error Operand)
-                 , OptSpec (Either Error Operand) )
+globalPosting :: ( OptSpec Operand
+                 , OptSpec Operand )
 globalPosting =
   let f = fmap L.unGlobalPosting . Q.globalPosting
   in serialOption f "globalPosting"
 
-filePosting :: ( OptSpec (Either Error Operand)
-               , OptSpec (Either Error Operand) )
+filePosting :: ( OptSpec Operand
+               , OptSpec Operand )
 filePosting =
   let f = fmap L.unFilePosting . Q.filePosting
   in serialOption f "filePosting"
 
-fileTransaction :: ( OptSpec (Either Error Operand)
-                   , OptSpec (Either Error Operand) )
+fileTransaction :: ( OptSpec Operand
+                   , OptSpec Operand )
 fileTransaction =
   let f = fmap L.unFileTransaction . Q.fileTransaction
   in serialOption f "fileTransaction"
@@ -473,7 +480,7 @@ operandSpecs
                -> Either Error Operand)]
 
 operandSpecs dt =
-  [ fmap (const . const) date
+  [ fmap (const . const) (fmap Right date)
   , fmap (const . const . pure) (current dt)
   , account
   , accountLevel
@@ -488,7 +495,7 @@ operandSpecs dt =
   , filename
   , fmap (const . const . pure) debit
   , fmap (const . const . pure) credit
-  , fmap (const . const) qtyOption
+  , fmap (const . const) (fmap Right qtyOption)
 
   , sAccount
   , sAccountLevel
@@ -501,7 +508,7 @@ operandSpecs dt =
   , sPostingMemo
   , fmap (const . const . pure) sDebit
   , fmap (const . const. pure) sCredit
-  , fmap (const . const) sQtyOption
+  , fmap (const . const) (fmap Right sQtyOption)
   ]
   ++ serialSpecs
 
@@ -518,10 +525,11 @@ serialSpecs
 
 unDouble
   :: Functor f
-  => (f (Either Error a),
-      f (Either Error a ))
+  => (f a, f a)
   -> [ f (x -> y -> Either Error a) ]
-unDouble (o1, o2) = [fmap (const . const) o1, fmap (const . const) o2]
+unDouble (o1, o2) =
+  [ fmap (const . const) (fmap Right o1)
+  , fmap (const . const) (fmap Right o2)]
 
 
 ------------------------------------------------------------
@@ -533,25 +541,24 @@ unDouble (o1, o2) = [fmap (const . const) o1, fmap (const . const) o2]
 data BadHeadTailError = BadHeadTailError Text
   deriving Show
 
-optHead :: OptSpec (Either Error PostFilterFn)
+optHead :: OptSpec PostFilterFn
 optHead = C.OptSpec ["head"] [] (C.OneArg f)
   where
     f a = do
-      num <- parseInt a
+      num <- parseIntMA a
       let g _ ii = ii < (ItemIndex num)
       return g
 
-optTail :: OptSpec (Either Error PostFilterFn)
+optTail :: OptSpec PostFilterFn
 optTail = C.OptSpec ["tail"] [] (C.OneArg f)
   where
     f a = do
-      num <- parseInt a
+      num <- parseIntMA a
       let g (ListLength len) (ItemIndex ii) = ii >= len - num
       return g
 
 postFilterSpecs
-  :: ( OptSpec (Either Error PostFilterFn)
-     , OptSpec (Either Error PostFilterFn))
+  :: ( OptSpec PostFilterFn , OptSpec PostFilterFn)
 postFilterSpecs = (optHead, optTail)
 
 ------------------------------------------------------------
@@ -637,26 +644,26 @@ verboseFilter = C.OptSpec ["verbose-filter"] "" (C.NoArg ())
 -- Siblings
 --
 
-sGlobalPosting :: ( OptSpec (Either Error Operand)
-                  , OptSpec (Either Error Operand) )
+sGlobalPosting :: ( OptSpec Operand
+                  , OptSpec Operand )
 sGlobalPosting =
   siblingSerialOption "globalPosting"
                       PS.fwdGlobalPosting PS.backGlobalPosting
 
-sFilePosting :: ( OptSpec (Either Error Operand)
-                  , OptSpec (Either Error Operand) )
+sFilePosting :: ( OptSpec Operand
+                  , OptSpec Operand )
 sFilePosting =
   siblingSerialOption "filePosting"
                       PS.fwdFilePosting PS.backFilePosting
 
-sGlobalTransaction :: ( OptSpec (Either Error Operand)
-                  , OptSpec (Either Error Operand) )
+sGlobalTransaction :: ( OptSpec Operand
+                  , OptSpec Operand )
 sGlobalTransaction =
   siblingSerialOption "globalTransaction"
                       PS.fwdGlobalTransaction PS.backGlobalTransaction
 
-sFileTransaction :: ( OptSpec (Either Error Operand)
-                  , OptSpec (Either Error Operand) )
+sFileTransaction :: ( OptSpec Operand
+                  , OptSpec Operand )
 sFileTransaction =
   siblingSerialOption "filePosting"
                       PS.fwdFileTransaction PS.backFileTransaction
@@ -667,16 +674,16 @@ sAccount :: OptSpec ( CaseSensitive
                     -> Either Error Operand )
 sAccount = C.OptSpec ["s-account"] "" (C.OneArg f)
   where
-    f a1 cs fty = fmap PS.account
-                  $ getMatcher a1 cs fty
+    f a1 = return $ \cs fty -> fmap PS.account
+                                    $ getMatcher a1 cs fty
 
 sAccountLevel :: OptSpec ( CaseSensitive
                          -> MatcherFactory
                          -> Either Error Operand )
 sAccountLevel = C.OptSpec ["s-account-level"] "" (C.TwoArg f)
   where
-    f a1 a2 cs fty
-      = PS.accountLevel <$> parseInt a1 <*> getMatcher a2 cs fty
+    f a1 a2 = return $ \cs fty
+      -> PS.accountLevel <$> parseInt a1 <*> getMatcher a2 cs fty
 
 sAccountAny :: OptSpec ( CaseSensitive
                         -> MatcherFactory
@@ -721,14 +728,14 @@ sDebit = C.OptSpec ["s-debit"] [] (C.NoArg PS.debit)
 sCredit :: OptSpec Operand
 sCredit = C.OptSpec ["s-credit"] [] (C.NoArg PS.credit)
 
-sQtyOption :: OptSpec (Either Error Operand)
+sQtyOption :: OptSpec Operand
 sQtyOption = C.OptSpec ["s-qty"] [] (C.TwoArg f)
   where
     f a1 a2 = do
       qt <- parseQty a2
       parseComparer a1 (flip PS.qty qt)
     parseQty a = case parse Pc.unquotedQtyRepWithSpaces "" (pack a) of
-      Left _ -> Left "could not parse quantity"
+      Left _ -> Left . ErrorMsg $ "could not parse quantity"
       Right g -> pure . L.toQty $ g
 
 --
@@ -754,7 +761,7 @@ version v pn = unlines
 
 -- | An option for where the user would like to send output.
 output :: MA.OptSpec (X.Text -> IO ())
-output = MA.OptSpec ["output"] "o" . MA.OneArg $ \s ->
+output = MA.OptSpec ["output"] "o" . MA.OneArg $ \s -> return $
   if s == "-"
     then TIO.putStr
     else TIO.writeFile s

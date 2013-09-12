@@ -51,29 +51,29 @@ data State = State
 type Error = X.Text
 
 allSpecs
-  :: S.Runtime -> [MA.OptSpec (State -> Either Error State)]
+  :: S.Runtime -> [MA.OptSpec (State -> State)]
 allSpecs rt =
   operand rt
   ++ boxFilters
   ++ parsePostFilter
-  ++ (map (fmap (pure .)) matcherSelect)
-  ++ (map (fmap (pure .)) caseSelect)
-  ++ (map (fmap (pure .)) operator)
-  ++ map (fmap (pure .)) parseExprType
+  ++ matcherSelect
+  ++ caseSelect
+  ++ operator
+  ++ parseExprType
   ++ [ parseWidth
      , showField
      , hideField
-     , fmap (pure .) showAllFields
-     , fmap (pure .) hideAllFields
-     , fmap (pure .) parseZeroBalances
-     , fmap (pure .) parseShowExpression
-     , fmap (pure .) parseVerboseFilter
+     , showAllFields
+     , hideAllFields
+     , parseZeroBalances
+     , parseShowExpression
+     , parseVerboseFilter
      ]
 
 
 operand
   :: S.Runtime
-  -> [MA.OptSpec (State -> Either Error State)]
+  -> [MA.OptSpec (State -> State)]
 operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
   where
     f lyFn st = do
@@ -93,40 +93,40 @@ optBoxSerial
   -> (Ly.LibertyMeta -> Int)
   -- ^ Pulls the serial from the PostMeta
 
-  -> C.OptSpec (State -> Either Error State)
+  -> C.OptSpec (State -> State)
 
 optBoxSerial nm f = C.OptSpec [nm] "" (C.TwoArg g)
   where
-    g a1 a2 st = do
-      i <- Ly.parseInt a2
+    g a1 a2 = do
+      i <- Ly.parseIntMA a2
       let getPd = Pt.compareBy (X.pack . show $ i)
                   ("serial " <> X.pack nm) cmp
           cmp l = compare (f . fst $ l) i
       pd <- Ly.parseComparer a1 getPd
       let tok = Exp.operand pd
-      return $ st { tokens = tokens st ++ [tok] }
+      return $ \st -> st { tokens = tokens st ++ [tok] }
 
-optFilteredNum :: C.OptSpec (State -> Either Error State)
+optFilteredNum :: C.OptSpec (State -> State)
 optFilteredNum = optBoxSerial "filtered" f
   where
     f = L.forward . Ly.unFilteredNum . Ly.filteredNum
 
-optRevFilteredNum :: C.OptSpec (State -> Either Error State)
+optRevFilteredNum :: C.OptSpec (State -> State)
 optRevFilteredNum = optBoxSerial "revFiltered" f
   where
     f = L.backward . Ly.unFilteredNum . Ly.filteredNum
 
-optSortedNum :: C.OptSpec (State -> Either Error State)
+optSortedNum :: C.OptSpec (State -> State)
 optSortedNum = optBoxSerial "sorted" f
   where
     f = L.forward . Ly.unSortedNum . Ly.sortedNum
 
-optRevSortedNum :: C.OptSpec (State -> Either Error State)
+optRevSortedNum :: C.OptSpec (State -> State)
 optRevSortedNum = optBoxSerial "revSorted" f
   where
     f = L.backward . Ly.unSortedNum . Ly.sortedNum
 
-boxFilters :: [C.OptSpec (State -> Either Error State)]
+boxFilters :: [C.OptSpec (State -> State)]
 boxFilters =
   [ optFilteredNum
   , optRevFilteredNum
@@ -135,7 +135,7 @@ boxFilters =
   ]
 
 
-parsePostFilter :: [C.OptSpec (State -> Either Error State)]
+parsePostFilter :: [C.OptSpec (State -> State)]
 parsePostFilter = [fmap f optH, fmap f optT]
   where
     (optH, optT) = Ly.postFilterSpecs
@@ -160,14 +160,14 @@ operator = map (fmap f) Ly.operatorSpecs
   where
     f oo st = st { tokens = tokens st ++ [oo] }
 
-parseWidth :: C.OptSpec (State -> Either Error State)
+parseWidth :: C.OptSpec (State -> State)
 parseWidth = C.OptSpec ["width"] "" (C.OneArg f)
   where
-    f a1 st = do
-      i <- Ly.parseInt a1
-      return $ st { width = Ty.ReportWidth i }
+    f a1 = do
+      i <- Ly.parseIntMA a1
+      return $ \st -> st { width = Ty.ReportWidth i }
 
-parseField :: String -> Either Error (F.Fields Bool)
+parseField :: String -> Either MA.InputError (F.Fields Bool)
 parseField str =
   let lower = map toLower str
       checkField s =
@@ -177,11 +177,11 @@ parseField str =
       flds = checkField <$> F.fieldNames
   in case checkFields flds of
       Left e -> case e of
-        NoMatchingFields -> Left
-          $ "no field matches the name \"" <> X.pack str <> "\"\n"
+        NoMatchingFields -> Left . MA.ErrorMsg
+          $ "no matching fields"
         MultipleMatchingFields ts -> Left
-          $ "multiple fields match the name \"" <> X.pack str
-            <> "\" matches: " <> mtchs <> "\n"
+          $ "multiple matching fields: "
+            <> mtchs <> "\n"
           where
             mtchs = X.intercalate " "
                     . map (\x -> "\"" <> x <> "\"")
@@ -220,21 +220,24 @@ fieldOff old new = f <$> old <*> new
     f o False = o
     f _ True = False
 
-showField :: C.OptSpec (State -> Either Error State)
+showField :: C.OptSpec (State -> State)
 showField = C.OptSpec ["show"] "" (C.OneArg f)
   where
-    f a1 st = do
+    f a1 = do
       fl <- parseField a1
-      let newFl = fieldOn (fields st) fl
-      return $ st { fields = newFl }
+      return $ \st ->
+        let newFl = fieldOn (fields st) fl
+        in st { fields = newFl }
 
-hideField :: C.OptSpec (State -> Either Error State)
+
+hideField :: C.OptSpec (State -> State)
 hideField = C.OptSpec ["hide"] "" (C.OneArg f)
   where
-    f a1 st = do
+    f a1 = do
       fl <- parseField a1
-      let newFl = fieldOff (fields st) fl
-      return $ st { fields = newFl }
+      return $ \st ->
+        let newFl = fieldOff (fields st) fl
+        in st { fields = newFl }
 
 showAllFields :: C.OptSpec (State -> State)
 showAllFields = C.OptSpec ["show-all"] "" (C.NoArg f)

@@ -159,7 +159,7 @@ data OptResult
   = ROperand (M.CaseSensitive
              -> Ly.MatcherFactory
              -> Either Ly.Error Ly.Operand)
-  | RPostFilter (Either Ly.Error Ly.PostFilterFn)
+  | RPostFilter Ly.PostFilterFn
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
   | ROperator (X.Token L.Posting)

@@ -62,7 +62,7 @@ globalOpts
   -> MA.Opts GetHelp Y.FitAcctName
 globalOpts v = MA.optsHelpVersion help (Ly.version v)
   [ MA.OptSpec ["fit-account"] "f"
-               (MA.OneArg (Y.FitAcctName . X.pack))
+               (MA.OneArg (return . Y.FitAcctName . X.pack))
   ]
 
 -- | Pre-processes global options for a pre-compiled configuration.

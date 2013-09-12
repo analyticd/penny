@@ -123,10 +123,10 @@ parseRegexp s = case M.pcre M.Sensitive (X.pack s) of
 allOpts :: [MA.OptSpec (WheatConf -> WheatConf)]
 allOpts =
   [ MA.OptSpec ["indentation"] "i"
-    (fmap (\i p -> p { indentAmt = i }) (MA.OneArgE MA.reader))
+    (fmap (\i p -> p { indentAmt = i }) (MA.OneArg MA.reader))
 
   , MA.OptSpec ["test-regexp"] "t"
-    (fmap (\f p -> p { testPred = f }) (MA.OneArgE parseRegexp))
+    (fmap (\f p -> p { testPred = f }) (MA.OneArg parseRegexp))
 
   , MA.OptSpec ["stop-on-failure"] ""
     ( MA.NoArg (\p -> p { stopOnFail
@@ -137,7 +137,7 @@ allOpts =
                           = not (colorToFile p) }))
 
   , MA.OptSpec ["base-date"] ""
-    (fmap (\d p -> p { baseTime = d }) (MA.OneArgE parseBaseTime))
+    (fmap (\d p -> p { baseTime = d }) (MA.OneArg parseBaseTime))
   ]
 
 -- | Applied to the default WheatConf, returns a new WheatConf based

@@ -42,7 +42,7 @@ mode mayFa = MA.modeHelp
   where
     opts =
       [ MA.OptSpec ["new"] "n" (MA.NoArg AAllowNew)
-      , MA.OptSpec ["unumber"] "u" . MA.OneArgE $ \s -> do
+      , MA.OptSpec ["unumber"] "u" . MA.OneArg $ \s -> do
           i <- MA.reader s
           return $ AUNumber i
       ]

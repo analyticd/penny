@@ -62,7 +62,7 @@ parseZeroBalances = fmap f P.zeroBalances
 
 
 parseCommodity :: C.OptSpec (Opts -> Opts)
-parseCommodity = C.OptSpec ["commodity"] "c" (C.OneArgE f)
+parseCommodity = C.OptSpec ["commodity"] "c" (C.OneArg f)
   where
     f a1 =
       case Parsec.parse Pc.lvl1Cmdty "" (X.pack a1) of
@@ -75,7 +75,7 @@ parseAuto = C.OptSpec ["auto-commodity"] "" (C.NoArg f)
     f os = os { target = AutoTarget }
 
 parseDate :: C.OptSpec (Opts -> Opts)
-parseDate = C.OptSpec ["date"] "d" (C.OneArgE f)
+parseDate = C.OptSpec ["date"] "d" (C.OneArg f)
   where
     f a1 =
       case Parsec.parse Pc.dateTime "" (X.pack a1) of
@@ -101,7 +101,7 @@ parsePct = C.OptSpec ["percent"] "%" (C.NoArg f)
                 ++ "error: zero is not non-negative"
 
 parseRound :: C.OptSpec (Opts -> Opts)
-parseRound = C.OptSpec ["round"] "r" (C.OneArgE f)
+parseRound = C.OptSpec ["round"] "r" (C.OneArg f)
   where
     f a = do
       i <- C.reader a
