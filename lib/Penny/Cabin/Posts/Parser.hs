@@ -51,16 +51,16 @@ data State = State
 type Error = X.Text
 
 allSpecs
-  :: S.Runtime -> [MA.OptSpec (State -> State)]
+  :: S.Runtime -> [MA.OptSpec (State -> Either Error State)]
 allSpecs rt =
   operand rt
-  ++ boxFilters
-  ++ parsePostFilter
-  ++ matcherSelect
-  ++ caseSelect
-  ++ operator
-  ++ parseExprType
-  ++ [ parseWidth
+  ++ listToErr boxFilters
+  ++ listToErr parsePostFilter
+  ++ listToErr matcherSelect
+  ++ listToErr caseSelect
+  ++ listToErr operator
+  ++ listToErr parseExprType
+  ++ listToErr [ parseWidth
      , showField
      , hideField
      , showAllFields
@@ -69,11 +69,13 @@ allSpecs rt =
      , parseShowExpression
      , parseVerboseFilter
      ]
+  where
+    listToErr = map (fmap (fmap return))
 
 
 operand
   :: S.Runtime
-  -> [MA.OptSpec (State -> State)]
+  -> [MA.OptSpec (State -> Either Error State)]
 operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
   where
     f lyFn st = do
@@ -139,9 +141,7 @@ parsePostFilter :: [C.OptSpec (State -> State)]
 parsePostFilter = [fmap f optH, fmap f optT]
   where
     (optH, optT) = Ly.postFilterSpecs
-    f exc st = fmap g exc
-      where
-        g pff = st { postFilter = postFilter st ++ [pff] }
+    f pff st = st { postFilter = postFilter st ++ [pff] }
 
 
 matcherSelect :: [C.OptSpec (State -> State)]
@@ -179,9 +179,9 @@ parseField str =
       Left e -> case e of
         NoMatchingFields -> Left . MA.ErrorMsg
           $ "no matching fields"
-        MultipleMatchingFields ts -> Left
+        MultipleMatchingFields ts -> Left . MA.ErrorMsg
           $ "multiple matching fields: "
-            <> mtchs <> "\n"
+            <> X.unpack mtchs <> "\n"
           where
             mtchs = X.intercalate " "
                     . map (\x -> "\"" <> x <> "\"")

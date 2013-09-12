@@ -153,8 +153,6 @@ newtype ShowExpression = ShowExpression Bool
 newtype VerboseFilter = VerboseFilter Bool
   deriving (Show, Eq)
 
-type Error = Text
-
 data OptResult
   = ROperand (M.CaseSensitive
              -> Ly.MatcherFactory
@@ -163,19 +161,15 @@ data OptResult
   | RMatcherSelect Ly.MatcherFactory
   | RCaseSelect M.CaseSensitive
   | ROperator (X.Token L.Posting)
-  | RSortSpec (Either Error Orderer)
+  | RSortSpec Orderer
   | RColorToFile ColorToFile
   | RScheme E.Changers
   | RExprDesc X.ExprDesc
   | RShowExpression
   | RVerboseFilter
 
-getPostFilters
-  :: [OptResult]
-  -> Either Ly.Error [Ly.PostFilterFn]
-getPostFilters =
-  sequence
-  . mapMaybe f
+getPostFilters :: [OptResult] -> [Ly.PostFilterFn]
+getPostFilters = mapMaybe f
   where
     f o = case o of
       RPostFilter pf -> Just pf
@@ -195,15 +189,15 @@ getExprDesc df os = case mapMaybe f os of
 getSortSpec
   :: Orderer
   -> [OptResult]
-  -> Either Error Orderer
+  -> Orderer
 getSortSpec i ls =
   let getSpec o = case o of
         RSortSpec x -> Just x
         _ -> Nothing
       exSpecs = mapMaybe getSpec ls
   in if null exSpecs
-     then return i
-     else fmap mconcat . sequence $ exSpecs
+     then i
+     else mconcat exSpecs
 
 type Factory = M.CaseSensitive
              -> Text -> Either Text M.Matcher
@@ -355,8 +349,8 @@ processFiltOpts
   -> [OptResult]
   -> Either String FilterOpts
 processFiltOpts ord df os = either (Left . unpack) Right $ do
-  postFilts <- getPostFilters os
-  sortSpec <- getSortSpec ord os
+  let postFilts = getPostFilters os
+      sortSpec = getSortSpec ord os
   (toks, (rs, rf)) <- makeTokens df os
   let ctf = getColorToFile df os
       sch = getScheme df os
@@ -514,14 +508,14 @@ argMatch s1 s2 = case (s1, s2) of
     (x == y) && ((map toUpper xs) `isPrefixOf` (map toUpper ys))
   _ -> True
 
-sortSpecs :: MA.OptSpec (Either Error Orderer)
+sortSpecs :: MA.OptSpec Orderer
 sortSpecs = MA.OptSpec ["sort"] ['s'] (MA.OneArg f)
   where
     f a =
       let matches = filter (\p -> a `argMatch` (fst p)) ords
       in case matches of
         x:[] -> return $ snd x
-        _ -> Left $ "bad sort specification: " <> pack a <> "\n"
+        _ -> Left . MA.ErrorMsg $ "bad sort specification"
 
 
 
