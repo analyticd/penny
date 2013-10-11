@@ -78,14 +78,14 @@ module Penny
     -- "Penny.Steel" - independent utilities. Depends on no other
     -- Penny components.
     --
-    -- "Penny.Wheat" - tools to use with
-    -- "Penny.Steel.Prednote". Depends on Steel, Lincoln, and Copper.
+    -- "Penny.Wheat" - helping you build your own programs to check
+    -- your ledger.  Depends on Steel, Lincoln, and Copper.
     --
     -- "Penny.Zinc" - the Penny command-line interface. Depends on
     -- Cabin, Copper, Liberty, and Lincoln.
     --
     -- The dependencies are represented as a dot file in
-    -- bin/doc/dependencies.dot in the Penny git repository.
+    -- @doc\/dependencies.dot@ in the Penny git repository.
   ) where
 
 import Data.Ord (comparing)
