@@ -60,16 +60,16 @@
 # quantities.
 
 ########################################
-## - USE UNICODE
+## - USE UTF-8
 
-# Use a Unicode file format when you save your data. Penny works with
-# UTF-8, which is the de-facto standard Unicode encoding on Unix
-# systems. If you do not want to bother with Unicode, it's best to use
-# just the ASCII subset of Unicode. Using a non-Unicode encoding might
-# work, but I have not tested that. Also, if you want to put digit
-# grouping characters in your penny file, Unicode is your only option,
-# as the Unicode thin space (U+2009) is the only digit grouping
-# character you can use.
+# Use a the UTF-8 Unicode file format when you save your data. UTF-8
+# which is the de-facto standard Unicode encoding on Unix systems. If
+# you do not want to bother with Unicode, it's best to use just the
+# ASCII subset of Unicode.  Since a valid ASCII file is also a valid
+# UTF-8 file, you will be fine.  Using a non-Unicode encoding might
+# work, but I have not tested that.  Also, using a non-UTF8 Unicode
+# encoding might work too, but I have not tested that either.  The
+# best thing to do is use UTF-8.
 
 # If you have no idea what all this encoding stuff is about, the first
 # thing to remember is that there is no such thing as plain text. Read
@@ -97,7 +97,7 @@
 # the DD.
 
 # All dates and times are considered to be UTC. If you provide a time,
-# you may optionall specify the time zone offset by using a leading
+# you may optionally specify the time zone offset by using a leading
 # plus or a leading minus.
 
 # Here are some sample postings with various dates and times.
@@ -121,12 +121,13 @@
 # Usually you can write information in your ledger file without using
 # characters to indicate which field is which. However, sometimes if
 # you want to use slightly more unusual characters, you have to
-# surround that field with characters. The canonical guide to what you
-# must do is in the bin/doc/ledger-grammar.org file. Here are the highlights:
+# surround that field with characters. Right now all the exact rules
+# are available only by examining the source code (sorry).  Here are
+# the highlights:
 
 # Accounts can be unquoted if the very first character of the account
 # is a letter (capital or lower-case, A-Z or a-z) or any character
-# above Unicode code point 127 (e.g. ñ, or é, or í, or...). In
+# above Unicode code point 127 (e.g. ñ, or é, or í.). In
 # addition every other character may be nearly any character except a
 # space or an asterisk. Otherwise, you must surround your account with
 # curly braces. Example:
