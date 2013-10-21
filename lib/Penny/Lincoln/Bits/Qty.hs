@@ -1,7 +1,45 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 -- | Penny quantities. A quantity is simply a count (possibly
 -- fractional) of something. It does not have a commodity or a
 -- Debit/Credit.
+--
+-- Quantities are always greater than zero, even if infinitesimally so.
+--
+-- There are two main types in this module: a quantity representation,
+-- or 'QtyRep', and a quantity, or 'Qty'.  To understand the
+-- difference, consider these numbers:
+--
+-- > 1364.25
+-- > 1,364.25
+-- > 1 364.25
+-- > 1.364,25
+-- > 1364,25
+--
+-- These are all different ways to represent the same quantity.  Each
+-- is a different quantity representation, or 'QtyRep'.  A 'QtyRep'
+-- stores information about each digit, each digit grouping character
+-- (which may be a comma, thin space, or period) and the radix point,
+-- if present (which may be a period or a comma.)
+--
+-- A 'QtyRep' can be converted to a 'Qty' with 'toQty'.  A 'Qty' is a
+-- quantity stripped of attributes related to its representation.  No
+-- floating point types are in a 'Qty'; internally, a 'Qty' consists
+-- of an integral significand and an integer representing the number
+-- of decimal places.  Though each 'QtyRep' is convertible to one and
+-- only one 'Qty', a single 'Qty' can correspond to several 'QtyRep'.
+-- For example, each of the quantity representations shown above would
+-- return identical 'Qty' after being converted with 'toQty'.
+--
+-- You can only perform arithmetic using 'Qty', not 'QtyRep'.  You can
+-- add or multiply 'Qty', which yields the result you would expect.
+-- You cannot perform ordinary subtraction on 'Qty', as this might
+-- yield a result which is less than or equal to zero; remember that
+-- 'Qty' and 'QtyRep' are always greater than zero, even if
+-- infinitesimally so.  Instead, 'difference' will tell you if there
+-- is a difference between two 'Qty' and, if so, which is greater and
+-- by how much.
+
 module Penny.Lincoln.Bits.Qty
   (
   -- * Quantity representations
@@ -40,7 +78,7 @@ module Penny.Lincoln.Bits.Qty
   , showQtyRep
   , bestRadGroup
 
-  -- * Other stuff
+  -- * Qty
   , Qty
   , HasQty(..)
   , signif
@@ -49,12 +87,16 @@ module Penny.Lincoln.Bits.Qty
   , newQty
   , Signif
   , Places
+
+  -- ** Arithmetic
   , add
   , mult
   , divide
   , Difference(LeftBiggerBy, RightBiggerBy, Equal)
   , difference
   , allocate
+
+  -- * Integer allocations
   , TotSeats
   , PartyVotes
   , SeatsWon
@@ -104,6 +146,8 @@ data CommaGrp
   -- ^ Period
   deriving (Eq, Show, Ord, Enum, Bounded)
 
+-- | Converting a type that represents a digit grouping character to
+-- the underlying character itself.
 class Grouper a where
   groupChar :: a -> Char
 
@@ -189,6 +233,9 @@ newtype WholeOrFrac a = WholeOrFrac
   { unWholeOrFrac :: Either (WholeOnly a) (WholeFrac a) }
   deriving (Eq, Show, Ord)
 
+type WholeOrFracResult a = Either (WholeOrFrac DigitList)
+                                  (WholeOrFrac (GroupedDigits a))
+
 wholeOrFrac
   :: GroupedDigits a
   -- ^ What's before the radix point
@@ -196,8 +243,7 @@ wholeOrFrac
   -> Maybe (GroupedDigits a)
   -- ^ What's after the radix point (if anything)
 
-  -> Maybe (Either (WholeOrFrac DigitList)
-                   (WholeOrFrac (GroupedDigits a)))
+  -> Maybe (WholeOrFracResult a)
 wholeOrFrac g@(GroupedDigits l1 lr) mayAft = case mayAft of
   Nothing -> case lr of
     [] -> fmap (Left . WholeOrFrac . Left) $ wholeOnly l1
@@ -209,9 +255,6 @@ wholeOrFrac g@(GroupedDigits l1 lr) mayAft = case mayAft of
 
 data Radix = Period | Comma
   deriving (Eq, Show, Ord, Enum, Bounded)
-
-type WholeOrFracResult a = Either (WholeOrFrac DigitList)
-                                  (WholeOrFrac (GroupedDigits a))
 
 wholeOrFracToQtyRep
   :: Either (WholeOrFracResult PeriodGrp) (WholeOrFracResult CommaGrp)
@@ -526,26 +569,22 @@ showQtyRep q = case q of
 -- debit whose quantity is zero? Does it require a balancing credit
 -- that is also zero? And how can you have a debit of zero anyway?
 --
--- I can imagine situations where a quantity of zero might be useful;
--- for instance maybe you want to specifically indicate that a
--- particular posting in a transaction did not happen (for instance,
--- that a paycheck deduction did not take place). I think the better
--- way to handle that though would be through an addition to
--- Debit\/Credit - maybe Debit\/Credit\/Zero. Barring the addition of
--- that, though, the best way to indicate a situation such as this
--- would be through transaction memos.
---
 -- /WARNING/ - before doing comparisons or equality tests
 --
 -- The Eq instance is derived. Therefore q1 == q2 only if q1 and q2
--- have both the same significand and the same exponent. You may instead
--- want 'equivalent'. Similarly, the Ord instance is derived. It
--- compares based on the integral value of the significand and of the
--- exponent. You may instead want 'compareQty', which compares after
--- equalizing the exponents.
-data Qty = Qty { signif :: !Integer
-               , places :: !Integer
-               } deriving (Eq, Show, Ord)
+-- have both the same significand and the same number of places. You
+-- may instead want 'equivalent'. Similarly, the Ord instance is
+-- derived. It compares based on the integral value of the significand
+-- and of the exponent. You may instead want 'compareQty', which
+-- compares after equalizing the exponents.
+data Qty = Qty
+  { signif :: !Integer
+  -- ^ The significand.
+
+  , places :: !Integer
+  -- ^ The number of decimal places.  For instance, in @1.500@, the
+  -- significand is 1500 and the number of places is 3.
+  } deriving (Eq, Show, Ord)
 
 instance Ev.Equivalent Qty where
   equivalent x y = x' == y'
@@ -563,6 +602,8 @@ qtyOne :: Qty
 qtyOne = Qty 1 0
 
 
+-- | Ensures that the significand is greater than zero and the number
+-- of decimal places is at least zero.
 newQty :: Signif -> Places -> Maybe Qty
 newQty m p
   | m > 0  && p >= 0 = Just $ Qty m p
@@ -578,8 +619,8 @@ compareQty q1 q2 = compare (signif q1') (signif q2')
     (q1', q2') = equalizeExponents q1 q2
 
 
--- | Adjust the exponents on two Qty so they are equivalent
--- before, but now have the same exponent.
+-- | Adjust the exponents on two Qty so they are equivalent to what
+-- they were before, but now have the same exponent.
 equalizeExponents :: Qty -> Qty -> (Qty, Qty)
 equalizeExponents x y = (x', y')
   where
@@ -630,6 +671,7 @@ add x y =
 
 
 
+-- | Multiplication
 mult :: Qty -> Qty -> Qty
 mult (Qty xm xe) (Qty ym ye) = Qty (xm * ym) (xe + ye)
 
