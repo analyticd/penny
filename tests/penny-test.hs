@@ -20,12 +20,12 @@ help pn = unlines
 
 options :: [MA.OptSpec (Q.Args -> Q.Args)]
 options =
-  [ MA.OptSpec ["size"] "s" . MA.OneArgE $ \s -> do
+  [ MA.OptSpec ["size"] "s" . MA.OneArg $ \s -> do
       i <- MA.reader s
       let f a = a { Q.maxSize = i }
       return f
 
-  , MA.OptSpec ["count"] "n" . MA.OneArgE $ \s -> do
+  , MA.OptSpec ["count"] "n" . MA.OneArg $ \s -> do
       i <- MA.reader s
       let f a = a { Q.maxSuccess = i }
       return f
