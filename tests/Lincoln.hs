@@ -10,7 +10,7 @@ import Data.List (foldl1')
 import Data.Maybe (isJust, isNothing, catMaybes)
 import qualified Data.List.NonEmpty as NE
 import Data.List.NonEmpty (NonEmpty((:|)))
-import Data.Monoid (mempty)
+import Data.Monoid (mempty, (<>))
 import qualified Data.Time as T
 import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.Gen as QG
@@ -698,9 +698,25 @@ instance Arbitrary L.PostingData where
 -- # Balance
 --
 
+instance Arbitrary L.Balance where
+  arbitrary = L.entryToBalance <$> (arbitrary :: Gen (L.Entry L.Qty))
+
+-- | Adding Balances is commutative
+prop_addBalancesCommutative :: L.Balance -> L.Balance -> Bool
+prop_addBalancesCommutative x y = (x <> y) == (y <> x)
+
+-- | Adding Balances is associative
+prop_addBalancesAssociative
+  :: L.Balance -> L.Balance -> L.Balance -> Bool
+prop_addBalancesAssociative x y z = (x <> (y <> z)) == ((x <> y) <> z)
+
+-- | A mempty balance behaves as it should
+prop_balMempty :: L.Balance -> Bool
+prop_balMempty b = (b <> mempty) == b
+
 -- | The Balanced of an empty Balance is always Balanced.
-prop_emptyBalance :: Bool
-prop_emptyBalance = L.balanced mempty == L.Balanced
+prop_emptyBalance :: QCP.Property
+prop_emptyBalance = QCP.once $ L.balanced mempty == L.Balanced
 
 -- | The Balanced of a list of Entry where all the commodities are the
 -- same is always Balanced or Inferable.
