@@ -181,24 +181,43 @@ source-repository head
 
 Library
   Build-depends:
+      -- base - tracks Haskell Platform.
+      -- Haskell Platform 2013.2.0.0 is base 4.6.0.1
       base ==4.6.*
-    , action-permutations ==0.0.0.0
-    , bytestring ==0.10.*
-    , cereal ==0.3.*
-    , containers ==0.5.*
-    , matchers ==0.12.*
-    , multiarg ==0.24.*
-    , ofx ==0.4.*
-    , old-locale ==1.0.*
-    , parsec >= 3.1.2 && < 3.2
-    , prednote == 0.16.*
-    , pretty-show ==1.5.*
-    , rainbow ==0.4.*
-    , semigroups ==0.9.*
-    , split ==0.2.*
-    , text ==0.11.*
-    , time ==1.4.*
-    , transformers == 0.3.*
+
+    -- Haskell Platform packages.  These must always track the most
+    -- recent Haskell Platform.  Make no effort to support older
+    -- releases of Haskell Platform.  Newer dependencies may be
+    -- added on an as-needed basis, as long as the dependencies in
+    -- the most recent Haskell Platform are still supported.
+    --
+    -- Parsec - must use at least 3.1.2; it added an instance for
+    -- Text.  Therefore '3.1.*' would not suffice.
+
+    -- Package                  Version             HP version
+    , bytestring                ==0.10.*            -- 0.10.0.2
+    , containers                ==0.5.*             -- 0.4.2.1
+    , old-locale                ==1.0.*             -- 1.0.0.5
+    , parsec                    >= 3.1.2 && < 3.2   -- 3.1.3
+    , split                     ==0.2.*             -- 0.2.2
+    , text                      ==0.11.*            -- 0.11.3.1
+    , time                      ==1.4.*             -- 1.4.0.1
+    , transformers              ==0.3.*             -- 0.3.0.0
+
+    -- Packages I maintain.  Track the latest version.
+    -- Package                  Version
+    , matchers                  ==0.12.*
+    , multiarg                  ==0.24.*
+    , ofx                       ==0.4.*
+    , prednote                  ==0.16.*
+    , rainbow                   ==0.4.*
+
+    -- Other packages.  Track the latest version.
+    -- Package                  Version
+    , action-permutations       ==0.0.0.0
+    , cereal                    ==0.3.*
+    , pretty-show               ==1.5.*
+    , semigroups                ==0.9.*
 
   Exposed-modules:
       Penny
