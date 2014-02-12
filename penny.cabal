@@ -193,16 +193,19 @@ Library
     --
     -- Parsec - must use at least 3.1.2; it added an instance for
     -- Text.  Therefore '3.1.*' would not suffice.
+    --
+    -- Do not try to put comments on same line as data; Cabal does
+    -- not allow this.
 
-    -- Package                  Version             HP version
-    , bytestring                ==0.10.*            -- 0.10.0.2
-    , containers                ==0.5.*             -- 0.4.2.1
-    , old-locale                ==1.0.*             -- 1.0.0.5
-    , parsec                    >= 3.1.2 && < 3.2   -- 3.1.3
-    , split                     ==0.2.*             -- 0.2.2
-    , text                      ==0.11.*            -- 0.11.3.1
-    , time                      ==1.4.*             -- 1.4.0.1
-    , transformers              ==0.3.*             -- 0.3.0.0
+    -- Package                  Version
+    , bytestring                ==0.10.*
+    , containers                ==0.5.*
+    , old-locale                ==1.0.*
+    , parsec                    >= 3.1.2 && < 3.2
+    , split                     ==0.2.*
+    , text                      ==0.11.*
+    , time                      ==1.4.*
+    , transformers              ==0.3.*
 
     -- Packages I maintain.  Track the latest version.
     -- Package                  Version
@@ -216,6 +219,7 @@ Library
     -- Package                  Version
     , action-permutations       ==0.0.0.0
     , cereal                    ==0.3.*
+    , either                    ==3.4.*
     , pretty-show               ==1.5.*
     , semigroups                ==0.9.*
 
@@ -265,6 +269,11 @@ Library
     , Penny.Copper.Parsec
     , Penny.Copper.Render
     , Penny.Copper.Terminals
+    , Penny.Denver
+    , Penny.Denver.Diff
+    , Penny.Denver.Reprint
+    , Penny.Denver.Selloff
+    , Penny.Denver.Reconcile
     , Penny.Liberty
     , Penny.Lincoln
     , Penny.Lincoln.Balance
@@ -302,109 +311,6 @@ Library
   ghc-options: -Wall
   if flag(debug)
     ghc-options: -auto-all -caf-all
-
-Executable penny
-  Build-depends:
-      penny
-    , base ==4.6.*
-
-  hs-source-dirs: bin
-  Main-is: penny-main.hs
-  Other-modules: Paths_penny
-  GHC-Options: -Wall
-  if flag(debug)
-    GHC-Options: -rtsopts -auto-all -caf-all
-
-  if ! flag(build-penny)
-    buildable: False
-
-Flag build-penny
-  Description: Build the penny executable
-  Default: True
-
-Executable penny-selloff
-  Build-depends:
-      penny
-    , base == 4.6.*
-    , containers ==0.5.*
-    , either ==3.4.*
-    , semigroups ==0.9.*
-    , text ==0.11.*
-    , parsec ==3.1.*
-    , multiarg ==0.24.*
-    , transformers ==0.3.*
-
-  other-modules: Paths_penny
-  hs-source-dirs: bin
-  Main-is: penny-selloff.hs
-  GHC-Options: -Wall
-  if flag(debug)
-    GHC-Options: -rtsopts -auto-all -caf-all
-
-  if ! flag(build-selloff)
-    buildable: False
-
-Flag build-selloff
-  Description: Build the penny-selloff executable
-  Default: True
-
-Executable penny-diff
-  Build-depends:
-      penny
-    , base ==4.6.*
-    , text ==0.11.*
-    , multiarg ==0.24.*
-
-  hs-source-dirs: bin
-  Main-is: penny-diff.hs
-  Other-modules: Paths_penny
-  GHC-Options: -Wall
-  if flag(debug)
-    GHC-Options: -rtsopts -auto-all -caf-all
-
-  if ! flag(build-diff)
-    buildable: False
-
-Flag build-diff
-  Description: Build the penny-diff executable
-  Default: True
-
-Executable penny-reprint
-  Build-depends:
-      penny
-    , base ==4.6.*
-    , multiarg ==0.24.*
-    , pretty-show ==1.5.*
-    , text ==0.11.*
-
-  hs-source-dirs: bin
-  main-is: penny-reprint.hs
-  Other-modules: Paths_penny
-  ghc-options: -Wall
-  if ! flag(build-reprint)
-    buildable: False
-
-Flag build-reprint
-  Description: Build the penny-reprint executable
-  Default: True
-
-Executable penny-reconcile
-  Build-depends:
-      penny
-    , base ==4.6.*
-    , text ==0.11.*
-    , multiarg ==0.24.*
-
-  hs-source-dirs: bin
-  main-is: penny-reconcile.hs
-  Other-modules: Paths_penny
-  ghc-options: -Wall
-  if ! flag(build-reconcile)
-    buildable: False
-
-Flag build-reconcile
-  Description: Build the penny-reconcile executable
-  Default: True
 
 Test-Suite penny-test
   type: exitcode-stdio-1.0
@@ -472,6 +378,85 @@ Executable penny-gibberish
     buildable: False
 
   ghc-options: -Wall
+
+Executable penny
+  Build-depends: penny, base
+
+  hs-source-dirs: bin
+  Main-is: penny-main.hs
+  Other-modules: Paths_penny
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
+  if ! flag(build-penny)
+    buildable: False
+
+Flag build-penny
+  Description: Build the penny executable
+  Default: True
+
+Executable penny-selloff
+  Build-depends: penny, base
+
+  other-modules: Paths_penny
+  hs-source-dirs: bin
+  Main-is: penny-selloff.hs
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
+  if ! flag(build-selloff)
+    buildable: False
+
+Flag build-selloff
+  Description: Build the penny-selloff executable
+  Default: True
+
+Executable penny-diff
+  Build-depends: penny, base
+
+  hs-source-dirs: bin
+  Main-is: penny-diff.hs
+  Other-modules: Paths_penny
+  GHC-Options: -Wall
+  if flag(debug)
+    GHC-Options: -rtsopts -auto-all -caf-all
+
+  if ! flag(build-diff)
+    buildable: False
+
+Flag build-diff
+  Description: Build the penny-diff executable
+  Default: True
+
+Executable penny-reprint
+  Build-depends: penny, base
+
+  hs-source-dirs: bin
+  main-is: penny-reprint.hs
+  Other-modules: Paths_penny
+  ghc-options: -Wall
+  if ! flag(build-reprint)
+    buildable: False
+
+Flag build-reprint
+  Description: Build the penny-reprint executable
+  Default: True
+
+Executable penny-reconcile
+  Build-depends: penny, base
+
+  hs-source-dirs: bin
+  main-is: penny-reconcile.hs
+  Other-modules: Paths_penny
+  ghc-options: -Wall
+  if ! flag(build-reconcile)
+    buildable: False
+
+Flag build-reconcile
+  Description: Build the penny-reconcile executable
+  Default: True
 
 Flag debug
   Description: turns on some debugging options
