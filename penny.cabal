@@ -208,7 +208,7 @@ Library
 
     -- Packages I maintain.  Track the latest version.
     -- Package                  Version
-    , matchers                  ==0.12.*
+    , matchers                  ==0.14.*
     , multiarg                  ==0.24.*
     , ofx                       ==0.4.*
     , prednote                  ==0.18.*
