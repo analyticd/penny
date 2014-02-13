@@ -3,7 +3,9 @@ Welcome to Penny, double-entry accounting.
 Penny's web pages are at:
 
 http://massysett.github.com/penny
+
 http://hackage.haskell.org/package/penny
+
 http://github.com/massysett/penny
 
 Versions that contain at least one odd number are development
