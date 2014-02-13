@@ -41,3 +41,5 @@ may interest you.
 Though I do use this program to maintain all my financial records, it
 is still relatively new and no one but me has tested it. Use at your
 own risk.
+
+[![Build Status](https://travis-ci.org/massysett/penny.png?branch=master)](https://travis-ci.org/massysett/penny)
