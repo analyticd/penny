@@ -22,7 +22,7 @@ import Penny.Lincoln.Equivalent ((==~))
 import Data.Text (Text)
 import qualified Data.Text as X
 import System.Random.Shuffle (shuffle')
-import qualified Penny.Steel.Sums as Su
+import qualified Data.Sums as Su
 
 --
 -- # Qty

@@ -343,6 +343,7 @@ Test-Suite penny-test
 
     -- Packages I maintain
     , multiarg ==0.24.*
+    , anonymous-sums ==0.2.*
 
     -- Other packages
     , QuickCheck >=2.5

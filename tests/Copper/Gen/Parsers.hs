@@ -12,7 +12,7 @@ import qualified Penny.Copper.Render as CR
 import qualified Data.Time as Time
 import Data.Maybe (fromMaybe, catMaybes)
 import Data.Monoid ((<>))
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 
 import qualified System.Random.Shuffle as Shuffle
 import qualified Lincoln as TL
