@@ -7,7 +7,7 @@ import Control.Monad (guard)
 import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 import qualified System.Console.MultiArg as MA
 import qualified Paths_penny as PPB
 

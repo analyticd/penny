@@ -14,7 +14,7 @@ import Data.Text (pack)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import qualified Penny.Lincoln.Balance as Bal
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 import qualified Penny.Cabin.Balance.Util as BU
 import Penny.Cabin.Options (ShowZeroBalances(..))
 import qualified Penny.Copper as Cop

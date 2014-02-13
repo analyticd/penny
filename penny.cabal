@@ -213,6 +213,7 @@ Library
     , ofx                       ==0.4.*
     , prednote                  ==0.18.*
     , rainbow                   ==0.6.*
+    , anonymous-sums            ==0.2.*
 
     -- Other packages.  Track the latest version.
     -- Package                  Version
@@ -295,7 +296,6 @@ Library
     , Penny.Lincoln.Serial
     , Penny.Shield
     , Penny.Steel
-    , Penny.Steel.Sums
     , Penny.Wheat
     , Penny.Zinc
 

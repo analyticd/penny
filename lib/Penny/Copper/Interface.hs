@@ -2,7 +2,7 @@ module Penny.Copper.Interface where
 
 import qualified Penny.Lincoln as L
 import qualified Data.Text as X
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 
 data ParsedTopLine = ParsedTopLine
   { ptlDateTime :: L.DateTime

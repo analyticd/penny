@@ -16,7 +16,7 @@ import qualified Penny.Liberty as Ly
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 
 type NoAuto = Bool
 

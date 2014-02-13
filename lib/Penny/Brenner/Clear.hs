@@ -11,7 +11,7 @@ import qualified Data.Traversable as Tr
 import qualified System.Console.MultiArg as MA
 import qualified Penny.Lincoln as L
 import qualified Penny.Liberty as Ly
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 import qualified Control.Monad.Trans.State as St
 import qualified Control.Monad.Trans.Maybe as MT
 import Control.Monad.Trans.Class (lift)

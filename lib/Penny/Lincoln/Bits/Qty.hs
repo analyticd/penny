@@ -121,7 +121,7 @@ import Data.Semigroup(sconcat)
 import Data.Monoid ((<>))
 import qualified Penny.Lincoln.Equivalent as Ev
 import Penny.Lincoln.Equivalent (Equivalent(..))
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 
 data Digit = D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
   deriving (Eq, Ord, Show, Enum, Bounded)

@@ -90,7 +90,7 @@ module Penny.Copper
 import Control.Arrow (second)
 import qualified Data.Traversable as Tr
 import qualified Penny.Copper.Parsec as CP
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 import Penny.Copper.Interface
 import qualified Penny.Copper.Interface as I
 

@@ -20,7 +20,7 @@ import qualified Data.Prednote.Pdct as Pe
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
-import qualified Penny.Steel.Sums as Su
+import qualified Data.Sums as Su
 
 import Control.Applicative ((<*>), pure, (<$))
 import qualified Control.Monad.Trans.State as St

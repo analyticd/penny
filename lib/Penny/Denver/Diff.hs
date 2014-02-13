@@ -9,7 +9,7 @@ import qualified Penny.Lincoln as L
 import Penny.Lincoln ((==~))
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as CR
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as X
 import qualified Data.Text.IO as TIO

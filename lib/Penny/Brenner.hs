@@ -34,7 +34,7 @@ import qualified Penny.Brenner.Info as Info
 import qualified Penny.Brenner.Merge as M
 import qualified Penny.Brenner.OFX as O
 import qualified Penny.Brenner.Print as P
-import qualified Penny.Steel.Sums as Su
+import qualified Data.Sums as Su
 import qualified System.Console.MultiArg as MA
 import System.Environment (getProgName)
 import qualified System.Exit as Exit

@@ -15,7 +15,7 @@ import Control.Applicative ((<$>), (<$), (<*>), (*>), (<*),
 import Control.Monad (replicateM, when)
 import Data.List.NonEmpty (NonEmpty((:|)))
 import qualified Penny.Lincoln as L
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
 import qualified Data.Text as X

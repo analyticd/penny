@@ -37,7 +37,7 @@ import qualified Text.Parsec as Parsec
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified Penny.Shield as S
-import qualified Penny.Steel.Sums as Su
+import qualified Data.Sums as Su
 
 import qualified Data.Version as V
 import qualified Data.Prednote.Test as TT

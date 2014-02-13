@@ -6,7 +6,7 @@ import qualified Data.Text as X
 import qualified Data.Text.IO as TIO
 import Data.Monoid ((<>))
 import qualified Penny.Lincoln as L
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 import qualified System.Console.MultiArg as MA
 
 help :: String -> String

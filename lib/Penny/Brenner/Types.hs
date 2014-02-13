@@ -34,7 +34,7 @@ import qualified Penny.Lincoln as L
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.Encoding as E
 import qualified Data.Serialize as S
-import qualified Penny.Steel.Sums as Su
+import qualified Data.Sums as Su
 import qualified System.Console.MultiArg as MA
 
 -- | The type of all Brenner MultiArg modes.

@@ -16,7 +16,7 @@ import qualified Penny.Copper.Terminals as T
 import qualified Data.Time as Time
 import qualified Penny.Copper.Interface as I
 import qualified Penny.Lincoln as L
-import qualified Penny.Steel.Sums as S
+import qualified Data.Sums as S
 
 -- * Helpers
 
