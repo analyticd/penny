@@ -77,7 +77,7 @@ justify
   -> JustifiedCell
 justify (Width w) j l eo chgrs pc = JustifiedCell (left, right)
   where
-    origWidth = X.length . R._text $ pc
+    origWidth = X.length . R.text $ pc
     pad = E.getEvenOddLabelValue l eo chgrs . R.Chunk mempty $ t
     t = X.replicate (max 0 (w - origWidth)) (X.singleton ' ')
     (left, right) = case j of

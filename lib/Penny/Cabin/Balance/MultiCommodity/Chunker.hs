@@ -63,7 +63,7 @@ maxWidthPerColumn ::
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
   f old new = max old ( safeMaximum (R.Width 0)
-                        . map (R.Width . X.length . Rb._text)
+                        . map (R.Width . X.length . Rb.text)
                         . bits $ new)
   safeMaximum d ls = if null ls then d else maximum ls
 

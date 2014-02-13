@@ -63,7 +63,7 @@ widestLine :: PreSpec -> Int
 widestLine (PreSpec _ _ bs) =
   case bs of
     [] -> 0
-    xs -> maximum . map (X.length . Rb._text) $ xs
+    xs -> maximum . map (X.length . Rb.text) $ xs
 
 data PreSpec = PreSpec {
   _justification :: R.Justification

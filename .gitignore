@@ -1,3 +1,5 @@
 dist/
 SourceGraph/
 .autogit
+.cabal-sandbox/
+cabal.sandbox.config
