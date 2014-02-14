@@ -45,7 +45,7 @@ Library
   Build-depends:
       -- base - tracks Haskell Platform.
       -- Haskell Platform 2013.2.0.0 is base 4.6.0.1
-      base >= pv_base && < 5
+      base >= pv_base && < pv_base_max
 
     -- Haskell Platform packages
     -- Currently, minimum versions reflect Haskell Platform 2013.2.0.0
@@ -66,32 +66,32 @@ Library
     -- not allow this.
 
     -- Package                  Version
-    , bytestring                >=0.10.0.2
-    , containers                >=0.4.2.1
-    , old-locale                >=1.0.0.5
-    , parsec                    >=3.1.3
-    , split                     >=0.2.2
-    , text                      >=0.11.3.1
-    , time                      >=1.4.0.1
-    , transformers              >=0.3.0.0
+    , bytestring                >= pv_bytestring
+    , containers                >= pv_containers
+    , old-locale                >= pv_old_locale
+    , parsec                    >= pv_parsec
+    , split                     >= pv_split
+    , text                      >= pv_text
+    , time                      >= pv_time
+    , transformers              >= pv_transformers
 
     -- Packages I maintain.  Track the latest version.
     -- Package                  Version
-    , anonymous-sums            ==0.2.*
-    , matchers                  ==0.14.*
-    , multiarg                  ==0.24.*
-    , ofx                       ==0.4.*
-    , prednote                  ==0.18.*
-    , rainbow                   ==0.6.*
+    , anonymous-sums            >= pv_anonymous_sums && < pv_anonymous_sums_max
+    , matchers                  >= pv_matchers && < pv_matchers_max
+    , multiarg                  >= pv_multiarg && < pv_multiarg_max
+    , ofx                       >= pv_ofx && < pv_ofx_max
+    , prednote                  >= pv_prednote && < pv_prednote_max
+    , rainbow                   >= pv_rainbow && < pv_rainbow_max
 
     -- Other packages.  Try to keep dependencies as loose as
     -- possible.  Newer uploads might cause breakage, unfortunately.
     -- Package                  Version
-    , action-permutations       ==0.0.0.0
-    , cereal                    >=0.3.5.2
-    , either                    >=3.4.1
-    , pretty-show               >=1.5
-    , semigroups                >=0.9.2
+    , action-permutations       == pv_action_permutations
+    , cereal                    >= pv_cereal
+    , either                    >= pv_either
+    , pretty-show               >= pv_pretty_show
+    , semigroups                >= pv_semigroups
 
   Exposed-modules:
       Penny
@@ -209,20 +209,20 @@ Test-Suite penny-test
 
   build-depends:
       penny
-    , base ==4.6.*
+    , base            >= pv_base && < pv_base_max
 
     -- Packages I maintain
-    , multiarg ==0.24.*
-    , anonymous-sums ==0.2.*
+    , multiarg        >= pv_multiarg && < pv_multiarg_max
+    , anonymous-sums  >= pv_anonymous_sums && < pv_anonymous_sums_max
 
     -- Other packages
-    , QuickCheck >=2.5
-    , random-shuffle ==0.0.4
-    , parsec >= 3.1.3
-    , semigroups >=0.9.2
-    , text >=0.11.3.1
-    , time >=1.4.0.1
-    , transformers >=0.3.0.0
+    , QuickCheck      >= pv_QuickCheck
+    , random-shuffle  >= pv_random_shuffle
+    , parsec          >= pv_parsec
+    , semigroups      >= pv_semigroups
+    , text            >= pv_text
+    , time            >= pv_time
+    , transformers    >= pv_transformers
 
   ghc-options: -Wall
 
@@ -236,19 +236,19 @@ Executable penny-gibberish
   if flag(build-gibberish)
     build-depends:
           penny
-        , base ==4.6.*
+        , base            >= pv_base && < pv_base_max
 
         -- Packages I maintain
-        , multiarg ==0.24.*
+        , multiarg        >= pv_multiarg && < pv_multiarg_max
 
         -- Other packages
-        , QuickCheck >=2.5
-        , random-shuffle ==0.0.4
-        , random >=1.0.1.1
-        , semigroups >=0.9.2
-        , text >=0.11.3.1
-        , time >=1.4.0.1
-        , transformers >= 0.3.0.0
+        , QuickCheck      >= pv_QuickCheck
+        , random-shuffle  >= pv_random_shuffle
+        , random          >= pv_random
+        , semigroups      >= pv_semigroups
+        , text            >= pv_text
+        , time            >= pv_time
+        , transformers    >= pv_transformers
 
   else
     buildable: False
