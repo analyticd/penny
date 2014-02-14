@@ -44,4 +44,24 @@ Though I do use this program to maintain all my financial records, it
 is still relatively new and no one but me has tested it. Use at your
 own risk.
 
+Dependencies
+------------
+
+cabal install will take care of all Haskell dependencies for you;
+however, there are also at least two C libraries you will need to
+install as Penny depends on other Haskell libraries that use these C
+libraries.  You will need to make sure you have the "development"
+package installed if you use many Linux distributions; a few
+distributors, such as Arch, Slackware, and Gentoo, generally don't
+ship separate "development" packages so that won't apply to you.
+The C libraries are:
+
+* pcre - http://www.pcre.org/ - on Debian GNU/Linux systems this
+  package is called `libpcre3-dev`
+
+* curses - on GNU systems this is known as ncurses,
+  http://www.gnu.org/software/ncurses/ Perhaps other, non-GNU curses
+  implementations will work as well; I do not know.  On Debian
+  GNU/Linux systems, install `libncurses5-dev`.
+
 [![Build Status](https://travis-ci.org/massysett/penny.png?branch=master)](https://travis-ci.org/massysett/penny)
