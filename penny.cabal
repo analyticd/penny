@@ -31,6 +31,8 @@ extra-source-files:
   , doc/man/*.1
   , doc/man/*.7
   , known-working-dependencies.txt
+  , versions.m4
+  , Makefile
 
 source-repository head
   type: git
