@@ -168,7 +168,7 @@ description: Penny is a double-entry accounting system. It is inspired
 
 extra-source-files:
     install-docs
-  , README
+  , README.md
   , doc/*.dot
   , doc/*.hs
   , doc/examples/*.pny
