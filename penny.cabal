@@ -1,5 +1,5 @@
 Name: penny
-Version: 0.32.0.0
+Version: 0.32.0.1
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -14,157 +14,13 @@ License-File: LICENSE
 
 synopsis: Extensible double-entry accounting system
 
-description: Penny is a double-entry accounting system. It is inspired
-  by, but incompatible with, John Wiegley's Ledger, which is available
-  at <http://ledger-cli.org/>. Installing this package with cabal
-  install will install the executable program and the necessary
-  libraries.
-
+description:
+  Penny is a double-entry accounting system.  You keep your records in a
+  plain-text file, and Penny gives you useful reports in your UNIX shell.
   .
-
-  * Penny is a double-entry accounting system. It uses traditional
-  accounting terminology, such as the terms \"Debit\" and
-  \"Credit\". If you need a refresher on the basics of double-entry
-  accounting, pick up a used accounting textbook from your favorite
-  bookseller (they can be had cheaply, for less than ten U.S. dollars
-  including shipping) or check out
-  <http://www.principlesofaccounting.com/>, a great free online text.
-
+  For more information, please see
   .
-
-  * Penny is based around "Penny.Lincoln", a core library to represent
-    transactions and postings and their components, such as their
-    amounts and whether they are debits and credits. You can use
-    Lincoln all by itself even if you don't use the other components
-    of Penny, which you may find handy if you are a Haskell
-    programmer. I wrote Penny because I wanted a precise library to
-    represent my accounting data so I could analyze it programatically
-    and verify its consistency.
-
-  .
-
-  * Penny's command line interface and its reports give you
-    great flexibility to filter and sort postings. Each posting
-    within a transaction may have its own flags assigned (e.g. to
-    indicate whether the posting is cleared) and each posting may have
-    infinite \"tags\" assigned to it, giving you another way to
-    categorize your postings. For instance, you might have vacation
-    related postings in several different accounts, but you can give
-    them all a \"vacation\" tag.
-
-  .
-
-  * You can easily build a program to process downloads of Open
-    Financial Exchange data from your financial institution. Your
-    program will merge new transactions into your ledger
-    automatically.
-
-  .
-
-  * Full Unicode support.
-
-  .
-
-  * Penny's reports have color baked in from the beginning. You do not
-    have to use color, which is handy if you are sending
-    output to a file or if, well, you just don't like color.
-
-  .
-
-  * Penny's reports automatically adjust themselves to the width of
-    your screen. You can easily specify how much or how little data to
-    see with command line options.
-
-  .
-
-  * Penny handles multiple commodities (for example, multiple
-    currencies, stocks and bonds, tracking other assets, etc.) in an
-    easy and transparent way that is consistent with double-entry
-    accounting principles. It embraces the philosophy outlined in this
-    tutorial on multiple commodity accounting:
-    <http://www.mscs.dal.ca/~selinger/accounting/tutorial.html>.
-
-  .
-
-  * Penny stores amounts using only integers.  This ensures the
-    accuracy of your data, as using floating point values to represent
-    money is a bad idea. Here is one explanation:
-    <http://stackoverflow.com/questions/3730019/why-not-use-double-or-float-to-represent-currency>. The
-    use of integer arithmetic also makes Penny simpler internally, as
-    there is no need for arbitrary rounding to compensate for the
-    bizarre and inaccurate results that sometimes arise from the use of
-    floating-point values to represent currencies.
-
-  .
-
-  * Freely licensed under the MIT license. If you take this code,
-    improve it, lock it up and make it proprietary, and sell it,
-    AWESOME! I haven't lost anything because I still have my code and,
-    what's more, then maybe I can buy your product and not have to
-    maintain this one any more!
-
-  .
-
-  * Tested using QuickCheck. The tests are available in the Git
-    repository that also contains the main library. Not everything
-    is tested, but the tests that exist so far have already rooted
-    out some strange corner-case bugs.
-
-  .
-
-  Non-features / disadvantages:
-
-  .
-
-  * Written in Haskell. Yes, I think Haskell is the best tool ever,
-    but its compiler is not as commonly installed as compilers for C
-    or C++, and non-Haskellers will probably find Penny to be more
-    difficult to install than Ledger, as the latter is written in C++.
-
-  .
-
-  * Handling commodities requires that you set up multiple accounts;
-    some might find this cumbersome.
-
-  .
-
-  * Young and not well tested yet.
-
-  .
-
-  * Runs only on Unix-like operating systems.
-
-  .
-
-  * Full Penny functionality is available without a Haskell compiler;
-    you could even use a pre-compiled binary.  However, Penny does not
-    read configuration files at runtime; instead, to change the
-    default settings, you will need to have GHC installed so that you
-    can compile a custom binary.
-
-  .
-
-  * Can be slow and memory hungry with large data sets. I have a
-    ledger file with about 28,000 lines. On my least capable machine
-    (which has an Intel Core 2 Duo at 1.6 GHz) this takes about 1.4
-    seconds to parse. Not horrible but not instantaneous
-    either. Generating a report about all these transactions can take
-    about seven seconds and a little less than 300 MB of memory. I
-    have eliminated all the obvious slowness from the code and
-    attempted a rewrite of the parser, which made no difference; other
-    ideas to speed up Penny with large data sets would involve
-    substantial changes and this is not at the top of my list because
-    the program is currently usable with relatively recent hardware.
-
-  .
-
-  Unfortunately running \"cabal install\" will not
-  install the documentation, so you will need to find the downloaded
-  archive (usually in
-  \"$HOME/.cabal/packages/hackage.haskell.org/penny\") and unpack it
-  to see the documentation. You will want to start by reading the
-  README file, which will point you to additional documentation and
-  how to install it if you wish.
+  <http://www.github.com/massysett/penny>
 
 extra-source-files:
     install-docs
