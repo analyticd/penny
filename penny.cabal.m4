@@ -45,7 +45,7 @@ Library
   Build-depends:
       -- base - tracks Haskell Platform.
       -- Haskell Platform 2013.2.0.0 is base 4.6.0.1
-      base ==4.6.*
+      base >= pv_base && < 5
 
     -- Haskell Platform packages
     -- Currently, minimum versions reflect Haskell Platform 2013.2.0.0
