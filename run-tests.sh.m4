@@ -10,6 +10,15 @@ set -v
 # cabal install --only-dependencies --enable-tests first, then cabal
 # build, then run the tests manually.
 
+ghc --version
+git rev-parse HEAD
+date
+
+# make dist directory
+rm -rf test-dist
+cabal sdist --output-directory=test-dist
+cd test-dist
+
 cabal sandbox delete || true
 cabal sandbox init
 cabal install \
@@ -41,8 +50,7 @@ cabal install \
     '--constraint=random         ==pv_random' \
     '--constraint=random-shuffle ==pv_random_shuffle' \
     '--constraint=semigroups     ==pv_semigroups'
-echo run-tests.sh - here is the state of the package cache
-echo before building penny:
+echo run-tests.sh - package cache before build:
 cabal sandbox hc-pkg list
 
 # the cabal install --only-dependencies does NOT configure
