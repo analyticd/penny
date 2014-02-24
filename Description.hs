@@ -14,11 +14,55 @@ import qualified Distribution.PackageDescription as D
 import qualified Distribution.Version as D
 import qualified Distribution.License as D
 import qualified Distribution.ModuleName as D
+import qualified Language.Haskell.Extension as D
 
 versionA = 0
 versionB = 32
 versionC = 0
 versionD = 1
+
+-- # Dependencies
+
+-- ## Base
+baseLowestVersion = [4, 6, 0, 0]
+baseHighestVersion = [5]
+
+base = D.Dependency (D.PackageName "base") ver
+  where
+    ver = D.intersectVersionRanges lower upper
+    lower = D.thisVersion $ D.Version baseLowestVersion []
+    upper = D.thisVersion $ D.Version baseHighestVersion []
+
+-- ## Penny itself
+pennyDep = D.Dependency (D.PackageName "penny") D.anyVersion
+
+-- ## Omari dependencies
+
+anonymous_sums          = dep "anonymous-sums"            [0,4,0,0]
+matchers                = dep "matchers"                  [0,14,0,2]
+multiarg                = dep "multiarg"                  [0,24,0,4]
+ofx                     = dep "ofx"                       [0,4,0,2]
+prednote                = dep "prednote"                  [0,18,0,4]
+rainbow                 = dep "rainbow"                   [0,6,0,4]
+
+-- ## Other dependencies
+
+action_permutations     = dep "action-permutations"       [0,0,0,0]
+bytestring              = dep "bytestring"                [0,10,0,2]
+cereal                  = dep "cereal"                    [0,3,5,2]
+containers              = dep "containers"                [0,4,2,1]
+eitherPkg               = dep "either"                    [3,4,1]
+old_locale              = dep "old-locale"                [1,0,0,5]
+parsec                  = dep "parsec"                    [3,1,3]
+pretty_show             = dep "pretty-show"               [1,5,0,0]
+quickcheck              = dep "QuickCheck"                [2,5]
+random                  = dep "random"                    [1,0,0,0]
+random_shuffle          = dep "random-shuffle"            [0,0,4]
+semigroups              = dep "semigroups"                [0,9,2]
+split                   = dep "split"                     [0,2,2]
+text                    = dep "text"                      [0,11,3,1]
+time                    = dep "time"                      [1,4,0,1]
+transformers            = dep "transformers"              [0,3,0,0]
 
 name = D.PackageName "penny"
 version = D.Version [versionA, versionB, versionC, versionD] []
@@ -74,9 +118,207 @@ description = unlines
   , "<http://www.github.com/massysett/penny>"
   ]
 
+library = D.Library
+  { D.exposedModules = modulesToList [] libModules
+  , D.libExposed = True
+  , D.libBuildInfo = libBuildInfo
+  }
+
+defaultBuildInfo = D.emptyBuildInfo
+  { D.buildable = True
+  , D.otherModules = [ D.fromString "Paths_penny" ]
+  , D.defaultLanguage = Just D.Haskell2010
+  , D.options = [(D.GHC, ["-Wall"])]
+  , D.ghcProfOptions = ["-auto-all", "-caf-all"]
+  }
+
+libBuildInfo = defaultBuildInfo
+  { D.hsSourceDirs = ["lib"]
+  }
+
+libDepends =
+  [ base
+  , bytestring
+  , containers
+  , old_locale
+  , parsec
+  , split
+  , text
+  , time
+  , transformers
+  , anonymous_sums
+  , matchers
+  , multiarg
+  , ofx
+  , prednote
+  , rainbow
+  , action_permutations
+  , cereal
+  , eitherPkg
+  , pretty_show
+  , semigroups
+  ]
+
+-- # Executables
+
 executables = undefined
-library = undefined
-testSuites = undefined
+
+-- ## Gibberish
+exeGibberish = D.emptyExecutable
+  { D.modulePath = "penny-gibberish.hs"
+  , D.buildInfo = buildInfoGibberish
+  }
+
+depsGibberish =
+  [ pennyDep
+  , base
+  , multiarg
+  , quickcheck
+  , random_shuffle
+  , random
+  , semigroups
+  , text
+  , time
+  , transformers
+  ]
+
+buildInfoGibberish = defaultBuildInfo
+  { D.hsSourceDirs = ["tests"]
+  }
+
+-- ## Simple executable
+simpleExecutable
+  :: FilePath
+  -- ^ path to Main module
+  -> D.Executable
+simpleExecutable mp = D.emptyExecutable
+  { D.modulePath = mp
+  , D.buildInfo = defaultBuildInfo
+    { D.hsSourceDirs = ["bin"]
+    }
+  }
+
+exePenny = simpleExecutable "penny-main.hs"
+exeSelloff = simpleExecutable "penny-selloff.hs"
+exeDiff = simpleExecutable "penny-diff.hs"
+exeReprint = simpleExecutable "penny-reprint.hs"
+exeReconcile = simpleExecutable "penny-reconcile.hs"
+exeDeps = [ pennyDep, base ]
+
+-- # Test suite
+
+modsTest =
+  concatMap (modulesToList []) (
+    parent "Copper" (
+      parent "Gen" (
+        leaf "Parsers":
+        leaf "Terminals":
+        []
+      ):
+
+      leaf "Parser":
+      leaf "Render":
+      []
+    ):
+
+    leaf "Lincoln":
+    []
+  )
+
+buildInfoTest = defaultBuildInfo
+  { D.hsSourceDirs = ["tests"]
+
+  , D.targetBuildDepends =
+    [ pennyDep
+    , base
+    , multiarg
+    , anonymous_sums
+    , quickcheck
+    , random_shuffle
+    , parsec
+    , semigroups
+    , text
+    , time
+    , transformers
+    ]
+  }
+
+testSuite = D.TestSuite
+  { D.testName = ""
+  , D.testInterface = D.TestSuiteExeV10
+      (D.Version [1,0] []) "penny-test.hs"
+  , D.testBuildInfo = buildInfoTest
+  , D.testEnabled = True
+  }
+
+testSuites = [ testSuite ]
+
+-- # Flags
+
+exeFlag
+  :: String
+  -- ^ Executable name
+  -> D.Flag
+exeFlag n = D.MkFlag
+  { D.flagName = D.FlagName $ "build-" ++ n
+  , D.flagDescription = "build the " ++ n ++ " executable"
+  , D.flagDefault = True
+  , D.flagManual = True
+  }
+
+flagPenny = exeFlag "penny"
+flagSelloff = exeFlag "penny-selloff"
+flagDiff = exeFlag "penny-diff"
+flagReprint = exeFlag "penny-reprint"
+flagReconcile = exeFlag "penny-reconcile"
+
+flagInCabal = D.MkFlag
+  { D.flagName = D.FlagName "incabal"
+  , D.flagDescription = "enables imports Cabal makes available"
+  , D.flagDefault = True
+  , D.flagManual = True
+  }
+
+flags = [ flagPenny, flagSelloff, flagDiff, flagReprint,
+          flagReconcile, flagInCabal ]
+
+-- # Conditional Library Tree
+libraryTree :: D.CondTree D.ConfVar [D.Dependency] D.Library
+libraryTree = D.CondNode
+  { D.condTreeData = library
+  , D.condTreeConstraints = libDepends
+  , D.condTreeComponents = [subtree]
+  }
+  where
+    subtree = (cond, tree, Nothing)
+    cond = D.Var (D.Flag (D.FlagName "incabal"))
+    tree = D.CondNode
+      { D.condTreeData = D.emptyLibrary
+        { D.exposedModules = []
+        , D.libExposed = True
+        , D.libBuildInfo = D.emptyBuildInfo
+          { D.buildable = True
+          , D.cppOptions = ["-Dincabal"]
+          }
+        }
+      , D.condTreeConstraints = []
+      , D.condTreeComponents = []
+      }
+
+executableTree
+  :: String
+  -- ^ Executable name
+  -> [D.Dependency]
+  -- ^ Dependencies
+  -> D.Executable
+  -> (String, D.CondTree D.ConfVar [D.Dependency] D.Executable)
+executableTree name deps exe = (name, tree)
+  where
+    tree = D.CondNode exe deps []
+
+executableTrees = undefined
+
+-- # other stuff
 extraSrcFiles =
   [ "install-docs"
   , "README.md"
@@ -88,70 +330,76 @@ extraSrcFiles =
   ]
 
 libModules :: Modules
-libModules =
-  parent "Penny" $
+libModules = parent "Penny"
+  (
 
-    [ parent "Brenner" $
+    parent "Brenner" (
       map leaf [ "Clear", "Database", "Import", "Info",
                  "Merge", "OFX", "Print", "Types", "Util" ]
+    ):
 
-    , parent "Cabin"
-      [ parent "Balance" $
+    parent "Cabin" (
+      parent "Balance" (
 
-        [ parent "Convert" $
+        parent "Convert" (
           map leaf [ "Chunker", "ChunkerPct", "Options", "Parser" ]
+        ):
 
-        , parent "MultiCommodity" $
+        parent "MultiCommodity" (
           map leaf [ "Chunker", "Parser" ]
+        ):
 
-        , leaf "Util"
+        leaf "Util":
+        []
+      ): -- Balance
 
-        ] -- Balance
+      map leaf [ "Interface", "Meta", "Options", "Parsers" ] ++
 
-        ++ map leaf [ "Interface", "Meta", "Options", "Parsers" ]
-        ++
+      parent "Posts" (
+        map leaf [ "Allocated", "BottomRows", "Fields", "Growers",
+                   "Chunk", "Meta", "Parser", "Spacers", "Types" ]
+      ):
 
-        [ parent "Posts" $
-          map leaf [ "Allocated", "BottomRows", "Fields", "Growers",
-                     "Chunk", "Meta", "Parser", "Spacers", "Types" ]
+      leaf "Row":
+      
+      parent "Scheme" [ leaf "Schemes" ]:
+      leaf "TextFormat":
+      []
+    ) -- Cabin
+    :
 
-        , leaf "Row"
-        , parent "Scheme" [ leaf "Schemes" ]
-        , leaf "TextFormat"
-        ] -- Posts
-
-      ] -- Cabin
-
-    , parent "Copper" $
+    parent "Copper" (
       map leaf [ "Interface", "Parsec", "Render", "Terminals" ]
+    ):
 
-    , parent "Denver" $
+    parent "Denver" (
       map leaf [ "Diff", "Reprint", "Selloff", "Reconcile" ]
+    ):
 
-    , leaf "Liberty"
+    leaf "Liberty" :
 
-    , parent "Lincoln" $
+    parent "Lincoln" (
 
-          leaf "Balance"
+      leaf "Balance":
 
-        : parent "Bits" (map leaf [ "DateTime", "Open", "Price", "Qty" ])
+      parent "Bits" (map leaf [ "DateTime", "Open", "Price", "Qty" ]):
 
-        : map leaf [ "Builders", "Ents", "Equivalent", "HasText",
-                      "Matchers", "Natural" ]
+      map leaf [ "Builders", "Ents", "Equivalent", "HasText",
+                  "Matchers", "Natural" ] ++
 
-        ++ parent "Predicates" [leaf "Siblings"]
+      parent "Predicates" [leaf "Siblings"]:
 
-        : leaf "PriceDb"
+      leaf "PriceDb":
 
-        : parent "Queries" [leaf "Siblings"]
+      parent "Queries" [leaf "Siblings"]:
 
-        : leaf "Serial"
+      leaf "Serial":
 
-        : []
+      []
+    ):
+    map leaf [ "Shield", "Steel", "Wheat", "Zinc" ]
 
-    ]
-
-    ++ map leaf [ "Shield", "Steel", "Wheat", "Zinc" ]
+  ) -- Penny
 
 --
 -- Helper functions
@@ -186,3 +434,8 @@ modulesToList ns (Node (b, n) cs)
   where
     restMods = concatMap (modulesToList (n:ns)) cs
     thisMod = D.fromString . concat . intersperse "." . reverse $ n:ns
+
+dep :: String -> [Int] -> D.Dependency
+dep n vs = D.Dependency (D.PackageName n) (D.orLaterVersion ver)
+  where
+    ver = D.Version vs []
