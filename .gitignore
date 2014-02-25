@@ -4,3 +4,4 @@ SourceGraph/
 .cabal-sandbox/
 cabal.sandbox.config
 test-dist/
+penny.cabal
