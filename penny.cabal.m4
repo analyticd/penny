@@ -30,7 +30,6 @@ extra-source-files:
   , doc/examples/*.pny
   , doc/man/*.1
   , doc/man/*.7
-  , known-working-dependencies.txt
   , versions.m4
   , Makefile
 
@@ -40,28 +39,9 @@ source-repository head
 
 Library
 
-  -- If updating any of these dependencies, remember to update
-  -- test dependencies too.
   Build-depends:
-      -- base - tracks Haskell Platform.
-      -- Haskell Platform 2013.2.0.0 is base 4.6.0.1
       base >= pv_base && < pv_base_max
 
-    -- Haskell Platform packages
-    -- Currently, minimum versions reflect Haskell Platform 2013.2.0.0
-    -- Parsec - must use at least 3.1.2; it added an instance for
-    -- Text.  Therefore '3.1.*' would not suffice.
-    --
-    -- If you are having problems getting Penny to build due to
-    -- dependencies and you can't fix it by using a cabal sandbox,
-    -- please let me know via email or Github.
-    --
-    -- Eventually I would like to test to make sure that the package
-    -- builds with the minimum possible version of each dependency;
-    -- developing a test for this would take a little while.
-    -- Meanwhile, I do include a list of known working dependencies
-    -- for this release in the file known-working-dependencies.txt.
-    --
     -- Do not try to put comments on same line as data; Cabal does
     -- not allow this.
 
@@ -75,17 +55,16 @@ Library
     , time                      >= pv_time
     , transformers              >= pv_transformers
 
-    -- Packages I maintain.  Track the latest version.
+    -- Omari packages
     -- Package                  Version
-    , anonymous-sums            >= pv_anonymous_sums && < pv_anonymous_sums_max
-    , matchers                  >= pv_matchers && < pv_matchers_max
-    , multiarg                  >= pv_multiarg && < pv_multiarg_max
-    , ofx                       >= pv_ofx && < pv_ofx_max
-    , prednote                  >= pv_prednote && < pv_prednote_max
-    , rainbow                   >= pv_rainbow && < pv_rainbow_max
+    , anonymous-sums            >= pv_anonymous_sums
+    , matchers                  >= pv_matchers
+    , multiarg                  >= pv_multiarg
+    , ofx                       >= pv_ofx
+    , prednote                  >= pv_prednote
+    , rainbow                   >= pv_rainbow
 
-    -- Other packages.  Try to keep dependencies as loose as
-    -- possible.  Newer uploads might cause breakage, unfortunately.
+    -- Other packages
     -- Package                  Version
     , action-permutations       == pv_action_permutations
     , cereal                    >= pv_cereal
@@ -193,17 +172,6 @@ Test-Suite penny-test
     , Lincoln
   hs-source-dirs: tests
 
-  -- Be sure the build-depends are listed within the if block;
-  -- otherwise, cabal install will always include these
-  -- build-dependencies in any build, even non-test builds. However,
-  -- you still have to list all the build-depends--the library
-  -- build-depends are included for dependency resolving purposes but
-  -- not for building purposes.
-
-  -- Test dependencies. test-framework has issues with newer versions,
-  -- see
-  -- https://github.com/batterseapower/test-framework/issues/34
-
   -- For details on why penny is a dependency here, see
   -- http://stackoverflow.com/questions/6711151
 
@@ -212,8 +180,8 @@ Test-Suite penny-test
     , base            >= pv_base && < pv_base_max
 
     -- Packages I maintain
-    , multiarg        >= pv_multiarg && < pv_multiarg_max
-    , anonymous-sums  >= pv_anonymous_sums && < pv_anonymous_sums_max
+    , multiarg        >= pv_multiarg
+    , anonymous-sums  >= pv_anonymous_sums
 
     -- Other packages
     , QuickCheck      >= pv_QuickCheck
@@ -239,7 +207,7 @@ Executable penny-gibberish
         , base            >= pv_base && < pv_base_max
 
         -- Packages I maintain
-        , multiarg        >= pv_multiarg && < pv_multiarg_max
+        , multiarg        >= pv_multiarg
 
         -- Other packages
         , QuickCheck      >= pv_QuickCheck
