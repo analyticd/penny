@@ -31,10 +31,10 @@ base = D.Dependency (D.PackageName "base") ver
   where
     ver = D.intersectVersionRanges lower upper
     lower = D.thisVersion $ D.Version baseLowestVersion []
-    upper = D.thisVersion $ D.Version baseHighestVersion []
+    upper = D.earlierVersion $ D.Version baseHighestVersion []
 
 -- ## Penny itself
-pennyDep = D.Dependency (D.PackageName "penny") D.anyVersion
+pennyDep = D.Dependency (D.PackageName "penny") $ D.thisVersion version
 
 -- ## Omari dependencies
 
@@ -93,18 +93,12 @@ packageDescription = D.emptyPackageDescription
   , D.synopsis = synopsis
   , D.description = description
   , D.category = "Console, Finance"
-  , D.customFieldsPD = []
-  , D.buildDepends = []
   , D.specVersionRaw = Left $ D.Version [1, 14] []
   , D.buildType = Just D.Custom
   , D.library = Just library
   , D.executables = executables
   , D.testSuites = testSuites
-  , D.benchmarks = []
-  , D.dataFiles = []
-  , D.dataDir = ""
   , D.extraSrcFiles = extraSrcFiles
-  , D.extraTmpFiles = []
   }
 
 synopsis = "Extensible double-entry accounting system"
