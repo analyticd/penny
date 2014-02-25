@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 -- | Penny Cabal package description
 --
 -- Penny used to use an ordinary .cabal file, but it was growing
@@ -30,7 +31,7 @@ baseHighestVersion = [5]
 base = D.Dependency (D.PackageName "base") ver
   where
     ver = D.intersectVersionRanges lower upper
-    lower = D.thisVersion $ D.Version baseLowestVersion []
+    lower = D.orLaterVersion $ D.Version baseLowestVersion []
     upper = D.earlierVersion $ D.Version baseHighestVersion []
 
 -- ## Penny itself
@@ -240,6 +241,7 @@ exeGibberish = D.emptyExecutable
 depsGibberish =
   [ pennyDep
   , base
+  , anonymous_sums
   , multiarg
   , quickcheck
   , random_shuffle
@@ -252,6 +254,7 @@ depsGibberish =
 
 buildInfoGibberish = defaultBuildInfo
   { D.hsSourceDirs = ["tests"]
+  , D.otherModules = modsTest
   }
 
 -- ## Simple executable
@@ -293,7 +296,9 @@ modsTest =
     []
   )
 
-buildInfoTest = defaultBuildInfo { D.hsSourceDirs = ["tests"] }
+buildInfoTest = defaultBuildInfo
+  { D.hsSourceDirs = ["tests"]
+  , D.otherModules = D.otherModules defaultBuildInfo ++ modsTest }
 
 testDeps = 
   [ pennyDep
@@ -338,6 +343,7 @@ flagSelloff = exeFlag "penny-selloff"
 flagDiff = exeFlag "penny-diff"
 flagReprint = exeFlag "penny-reprint"
 flagReconcile = exeFlag "penny-reconcile"
+flagGibberish = (exeFlag "penny-gibberish") { D.flagDefault = False }
 
 flagInCabal = D.MkFlag
   { D.flagName = D.FlagName "incabal"
@@ -347,7 +353,7 @@ flagInCabal = D.MkFlag
   }
 
 flags = [ flagPenny, flagSelloff, flagDiff, flagReprint,
-          flagReconcile, flagInCabal ]
+          flagReconcile, flagInCabal, flagGibberish ]
 
 -- # Conditional Library Tree
 libraryTree :: D.CondTree D.ConfVar [D.Dependency] D.Library
@@ -377,13 +383,18 @@ libraryTree = D.CondNode
 executableTree
   :: String
   -- ^ Executable name
+  -> Maybe (D.Condition D.ConfVar,
+            D.CondTree D.ConfVar [D.Dependency] D.Executable)
   -> [D.Dependency]
   -- ^ Dependencies
   -> D.Executable
   -> (String, D.CondTree D.ConfVar [D.Dependency] D.Executable)
-executableTree name deps exe = (name, tree)
+executableTree nm mayCond deps exe = (nm, tree)
   where
-    tree = D.CondNode exe deps []
+    tree = D.CondNode exe deps ls
+    ls = case mayCond of
+      Nothing -> []
+      Just (c, t) -> [(c, t, Nothing)]
 
 executableTrees =
   gibb:
@@ -394,17 +405,22 @@ executableTrees =
         , ("penny-reconcile", exeReconcile)
         ]
   where
-    gibb = (name, tree)
+    gibb = (nm, tree)
       where
-        name = "penny-gibberish"
+        nm = "penny-gibberish"
         tree = D.CondNode exeGibberish depsGibberish []
-    f (n, ex) = (n, D.CondNode ex exeDeps [])
+    f (n, ex) = executableTree n (Just flagPair) exeDeps ex
+      where
+        flagPair = (cond, tr)
+        cond = D.Var . D.Flag . D.FlagName . flagName $ n
+        tr = D.CondNode D.emptyExecutable [] []
+    flagName a = "build-" ++ a
 
 -- # Test suite trees
 
-testSuiteTrees = [(name, tree)]
+testSuiteTrees = [(nm, tree)]
   where
-    name = "penny-test"
+    nm = "penny-test"
     tree = D.CondNode testSuite testDeps []
 
 -- # Generic description
@@ -435,8 +451,8 @@ ghc762 = ghc 7 6 2
 -- hierarchy.
 type Modules = Tree (Bool, String)
 
-shell :: String -> [Modules] -> Modules
-shell n = Node (False, n)
+_shell :: String -> [Modules] -> Modules
+_shell n = Node (False, n)
 
 parent :: String -> [Modules] -> Modules
 parent n = Node (True, n)

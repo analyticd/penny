@@ -34,13 +34,13 @@ defaultOpts = Opts 5 100
 
 options :: [MA.OptSpec (Opts -> Opts)]
 options =
-  [ MA.OptSpec ["size"] "s" . MA.OneArgE $ \s -> do
+  [ MA.OptSpec ["size"] "s" . MA.OneArg $ \s -> do
       i <- MA.reader s
       if i < 1
         then Left (MA.ErrorMsg "non-positive size parameter")
         else return (\os -> os { optSize = i })
 
-  , MA.OptSpec ["count"] "c" . MA.OneArgE $ \s -> do
+  , MA.OptSpec ["count"] "c" . MA.OneArg $ \s -> do
       i <- MA.reader s
       if i < 1
         then Left (MA.ErrorMsg "non-positive count parameter")

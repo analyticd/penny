@@ -3,5 +3,4 @@ SourceGraph/
 .autogit
 .cabal-sandbox/
 cabal.sandbox.config
-penny.cabal
 test-dist/
