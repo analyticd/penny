@@ -4,7 +4,7 @@
 -- difficult to maintain due to large amounts of redundancy in the
 -- file.  Writing it in Haskell brings the flexibility of Haskell to
 -- bear on the problem.
-module Description where
+module Description (genericDescription) where
 
 import Data.Tree
 import Data.List
@@ -118,18 +118,92 @@ description = unlines
   , "<http://www.github.com/massysett/penny>"
   ]
 
+extraSrcFiles =
+  [ "install-docs"
+  , "README.md"
+  , "doc/*.dot"
+  , "doc/*.hs"
+  , "doc/examples/*.pny"
+  , "doc/man/*.1"
+  , "doc/man/*.7"
+  ]
+
+libModules :: Modules
+libModules = parent "Penny"
+  (
+
+    parent "Brenner" (
+      map leaf [ "Clear", "Database", "Import", "Info",
+                 "Merge", "OFX", "Print", "Types", "Util" ]
+    ):
+
+    parent "Cabin" (
+      parent "Balance" (
+
+        parent "Convert" (
+          map leaf [ "Chunker", "ChunkerPct", "Options", "Parser" ]
+        ):
+
+        parent "MultiCommodity" (
+          map leaf [ "Chunker", "Parser" ]
+        ):
+
+        leaf "Util":
+        []
+      ): -- Balance
+
+      map leaf [ "Interface", "Meta", "Options", "Parsers" ] ++
+
+      parent "Posts" (
+        map leaf [ "Allocated", "BottomRows", "Fields", "Growers",
+                   "Chunk", "Meta", "Parser", "Spacers", "Types" ]
+      ):
+
+      leaf "Row":
+      
+      parent "Scheme" [ leaf "Schemes" ]:
+      leaf "TextFormat":
+      []
+    ) -- Cabin
+    :
+
+    parent "Copper" (
+      map leaf [ "Interface", "Parsec", "Render", "Terminals" ]
+    ):
+
+    parent "Denver" (
+      map leaf [ "Diff", "Reprint", "Selloff", "Reconcile" ]
+    ):
+
+    leaf "Liberty" :
+
+    parent "Lincoln" (
+
+      leaf "Balance":
+
+      parent "Bits" (map leaf [ "DateTime", "Open", "Price", "Qty" ]):
+
+      map leaf [ "Builders", "Ents", "Equivalent", "HasText",
+                  "Matchers", "Natural" ] ++
+
+      parent "Predicates" [leaf "Siblings"]:
+
+      leaf "PriceDb":
+
+      parent "Queries" [leaf "Siblings"]:
+
+      leaf "Serial":
+
+      []
+    ):
+    map leaf [ "Shield", "Steel", "Wheat", "Zinc" ]
+
+  ) -- Penny
+
 library = D.Library
   { D.exposedModules = modulesToList [] libModules
   , D.libExposed = True
   , D.libBuildInfo = libBuildInfo
-  }
-
-defaultBuildInfo = D.emptyBuildInfo
-  { D.buildable = True
-  , D.otherModules = [ D.fromString "Paths_penny" ]
-  , D.defaultLanguage = Just D.Haskell2010
-  , D.options = [(D.GHC, ["-Wall"])]
-  , D.ghcProfOptions = ["-auto-all", "-caf-all"]
   }
 
 libBuildInfo = defaultBuildInfo
@@ -225,23 +299,22 @@ modsTest =
     []
   )
 
-buildInfoTest = defaultBuildInfo
-  { D.hsSourceDirs = ["tests"]
+buildInfoTest = defaultBuildInfo { D.hsSourceDirs = ["tests"] }
 
-  , D.targetBuildDepends =
-    [ pennyDep
-    , base
-    , multiarg
-    , anonymous_sums
-    , quickcheck
-    , random_shuffle
-    , parsec
-    , semigroups
-    , text
-    , time
-    , transformers
-    ]
-  }
+testDeps = 
+  [ pennyDep
+  , base
+  , multiarg
+  , anonymous_sums
+  , quickcheck
+  , random_shuffle
+  , parsec
+  , semigroups
+  , text
+  , time
+  , transformers
+  ]
+
 
 testSuite = D.TestSuite
   { D.testName = ""
@@ -305,6 +378,8 @@ libraryTree = D.CondNode
       , D.condTreeComponents = []
       }
 
+-- # Executable trees
+
 executableTree
   :: String
   -- ^ Executable name
@@ -316,90 +391,38 @@ executableTree name deps exe = (name, tree)
   where
     tree = D.CondNode exe deps []
 
-executableTrees = undefined
+executableTrees =
+  gibb:
+  map f [ ("penny", exePenny)
+        , ("penny-selloff", exeSelloff)
+        , ("penny-diff", exeDiff)
+        , ("penny-reprint", exeReprint)
+        , ("penny-reconcile", exeReconcile)
+        ]
+  where
+    gibb = (name, tree)
+      where
+        name = "penny-gibberish"
+        tree = D.CondNode exeGibberish depsGibberish []
+    f (n, ex) = (n, D.CondNode ex exeDeps [])
 
--- # other stuff
-extraSrcFiles =
-  [ "install-docs"
-  , "README.md"
-  , "doc/*.dot"
-  , "doc/*.hs"
-  , "doc/examples/*.pny"
-  , "doc/man/*.1"
-  , "doc/man/*.7"
-  ]
+-- # Test suite trees
 
-libModules :: Modules
-libModules = parent "Penny"
-  (
+testSuiteTrees = [(name, tree)]
+  where
+    name = "penny-test"
+    tree = D.CondNode testSuite testDeps []
 
-    parent "Brenner" (
-      map leaf [ "Clear", "Database", "Import", "Info",
-                 "Merge", "OFX", "Print", "Types", "Util" ]
-    ):
-
-    parent "Cabin" (
-      parent "Balance" (
-
-        parent "Convert" (
-          map leaf [ "Chunker", "ChunkerPct", "Options", "Parser" ]
-        ):
-
-        parent "MultiCommodity" (
-          map leaf [ "Chunker", "Parser" ]
-        ):
-
-        leaf "Util":
-        []
-      ): -- Balance
-
-      map leaf [ "Interface", "Meta", "Options", "Parsers" ] ++
-
-      parent "Posts" (
-        map leaf [ "Allocated", "BottomRows", "Fields", "Growers",
-                   "Chunk", "Meta", "Parser", "Spacers", "Types" ]
-      ):
-
-      leaf "Row":
-      
-      parent "Scheme" [ leaf "Schemes" ]:
-      leaf "TextFormat":
-      []
-    ) -- Cabin
-    :
-
-    parent "Copper" (
-      map leaf [ "Interface", "Parsec", "Render", "Terminals" ]
-    ):
-
-    parent "Denver" (
-      map leaf [ "Diff", "Reprint", "Selloff", "Reconcile" ]
-    ):
-
-    leaf "Liberty" :
-
-    parent "Lincoln" (
-
-      leaf "Balance":
-
-      parent "Bits" (map leaf [ "DateTime", "Open", "Price", "Qty" ]):
-
-      map leaf [ "Builders", "Ents", "Equivalent", "HasText",
-                  "Matchers", "Natural" ] ++
-
-      parent "Predicates" [leaf "Siblings"]:
-
-      leaf "PriceDb":
-
-      parent "Queries" [leaf "Siblings"]:
-
-      leaf "Serial":
-
-      []
-    ):
-    map leaf [ "Shield", "Steel", "Wheat", "Zinc" ]
-
-  ) -- Penny
+-- # Generic description
+genericDescription :: D.GenericPackageDescription
+genericDescription = D.GenericPackageDescription
+  { D.packageDescription = packageDescription
+  , D.genPackageFlags = flags
+  , D.condLibrary = Just libraryTree
+  , D.condExecutables = executableTrees
+  , D.condTestSuites = testSuiteTrees
+  , D.condBenchmarks = []
+  }
 
 --
 -- Helper functions
@@ -439,3 +462,12 @@ dep :: String -> [Int] -> D.Dependency
 dep n vs = D.Dependency (D.PackageName n) (D.orLaterVersion ver)
   where
     ver = D.Version vs []
+
+defaultBuildInfo = D.emptyBuildInfo
+  { D.buildable = True
+  , D.otherModules = [ D.fromString "Paths_penny" ]
+  , D.defaultLanguage = Just D.Haskell2010
+  , D.options = [(D.GHC, ["-Wall"])]
+  , D.ghcProfOptions = ["-auto-all", "-caf-all"]
+  }
+
