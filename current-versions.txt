@@ -1,7 +1,7 @@
 This package was tested to work with these dependency
 versions and compiler version.
 These are the default versions fetched by cabal install.
-Tested as of: 2014-02-26 04:45:01.485689 UTC
+Tested as of: 2014-02-26 15:23:34.179482 UTC
 Path to compiler: ghc-7.6.3
 Compiler description: 7.6.3
 
@@ -32,7 +32,7 @@ Compiler description: 7.6.3
     time-1.4.0.1
     unix-2.6.0.1
 
-/home/massysett/penny/sunlight-17001/db:
+/home/massysett/penny/sunlight-13826/db:
     MonadRandom-0.1.13
     QuickCheck-2.6
     action-permutations-0.0.0.0
