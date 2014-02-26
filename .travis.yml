@@ -1,7 +1,13 @@
 language: haskell
-script:
+before_install:
   - make penny.cabal
+
+install:
   - cabal install --only-dependencies
+
+before_script:
   - cabal configure --enable-tests
+
+script:
   - cabal build
   - dist/build/penny-test/penny-test
