@@ -835,14 +835,16 @@ newtype InferableMutatedQty = InferableMutatedQty
   deriving (Eq, Show)
 
 instance Arbitrary InferableMutatedQty where
-  arbitrary = do
-    BalEntries ls <- arbitrary
-    let en = head ls
-        am = L.amount en
-        cy = L.commodity am
-    q <- genMutate . L.qty $ am
-    let en' = L.Entry (L.drCr en) (L.Amount q cy)
-    fmap InferableMutatedQty . shuffle $ en' : tail ls
+  arbitrary = go `QG.suchThat` prop_inferableMutatedQty
+    where
+      go = do
+        BalEntries ls <- arbitrary
+        let en = head ls
+            am = L.amount en
+            cy = L.commodity am
+        q <- genMutate . L.qty $ am
+        let en' = L.Entry (L.drCr en) (L.Amount q cy)
+        fmap InferableMutatedQty . shuffle $ en' : tail ls
 
 -- | InferableMutatedQty behaves as it should
 prop_inferableMutatedQty :: InferableMutatedQty -> Bool
