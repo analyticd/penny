@@ -6,4 +6,7 @@ penny.cabal: penny.cabal.m4 versions.m4
 clean:
 	rm -f penny.cabal
 
+minimum-versions.txt : penny.cabal sunlight-test.hs
+	runghc sunlight-test.hs
+
 .PHONY: clean

@@ -1,7 +1,7 @@
 divert(-1)
 
 # Penny version
-define(`pv_penny', `0.32.0.1')
+define(`pv_penny', `0.32.0.2')
 
 # Haskell Platform
 define(`pv_base', `4.5.0.0')
