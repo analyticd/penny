@@ -109,7 +109,7 @@ module Penny.Lincoln.Bits.Qty
 import Control.Applicative ((<|>))
 import Data.Text (Text)
 import qualified Data.Text as X
-import Data.Ord(Down(..), comparing)
+import Data.Ord(comparing)
 import Data.List ( genericLength, genericReplicate, sortBy, group, sort,
                    genericSplitAt )
 import Data.List.Split (chunksOf)
@@ -377,6 +377,17 @@ getSeps (GroupedDigits _ ls) = map fst ls
 
 mode :: Ord a => [a] -> Maybe a
 mode = listToMaybe . modes
+
+newtype Down a = Down a
+
+instance Eq a => Eq (Down a) where
+  (==) (Down x) (Down y) = x == y
+
+instance Ord a => Ord (Down a) where
+  compare (Down x) (Down y) = case compare x y of
+    LT -> GT
+    GT -> LT
+    _ -> EQ
 
 modes :: Ord a => [a] -> [a]
 modes

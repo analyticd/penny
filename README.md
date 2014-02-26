@@ -78,18 +78,29 @@ The C libraries are:
   implementations will work as well; I do not know.  On Debian
   GNU/Linux systems, install `libncurses5-dev`.
 
+## Haskell compiler
+
+You will need to get the Glasgow Haskell Compiler.  Most Linux
+distributors package it, or you might be able to get it from the
+[GHC website](http://www.haskell.org/ghc).  Penny has been tested
+with GHC versions 7.4.1 and 7.6.3; any version between those two
+versions should also work.
+
+## Cabal tool
+
+The [Cabal tool](http://www.haskell.org/cabal/download.html) will
+help you get the Haskell dependencies you need.
+
+An easy way to get both GHC and the Cabal tool is to get the 
+[Haskell Platform](http://www.haskell.org/platform/).  Currently,
+versions 2013.2.0.0 or version 2012.4.0.0 should both work.
 
 ## Penny itself
 
-To install Penny, get the latest version of the
-[Haskell Platform](http://www.haskell.org/platform/)
-currently version 2013.2.0.0.  Then do:
+To install Penny, just do:
 
     cabal update
     cabal install --enable-tests penny
-
-If you use a Linux distribution, see if your distributor has already
-packaged the Haskell Platform for you.
 
 I encourage you to run the tests, so the above commands will do
 that, but if you want to skip them, instead just do
@@ -149,11 +160,35 @@ Github.)
 
 # Version numbers
 
-Versions are numbered like this: A.B.C.D.  I try to follow the
-Haskell Package Versioning Policy, or PVP.  Also, all official
-releases have only even numbers for each of A, B, C, and D.
+Versions are numbered like this: A.B.C.D.  All regular releases that
+are ready for use have only even numbers for each of A, B, C, and D.
 Development releases have an odd number in at least one of A, B, C,
 or D.
+
+`A` is currently `0` and probably won't change soon.
+
+I change `B` whenever I make a breaking change in the library, which
+is quite often; or
+
+I change `C` when I add functions to the library; or
+
+I change `D` when I fix bugs, add documentation, or make adjustments
+to the specification of which packages Penny depends on.
+
+# Dependency documentation and bugs
+
+Since the Haskell libraries Penny depends upon can move along
+quickly, and because Haskell packages can weave complex dependency
+graphs, sometimes Penny might not build for you.  There is no
+silver bullet solution to this; if you have build problems, please
+report them to me via email or Github.  Also, note that there are
+two files in the Penny package that can help you diagnose issues:
+
+* The `minimum-versions.txt` file will show the oldest software
+  dependencies that are known to work with Penny; and
+
+* The `current-versions.txt` file will show more recent dependencies
+  that are also known to work with Penny.
 
 # Test status
 

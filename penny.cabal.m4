@@ -1,3 +1,7 @@
+-- The penny.cabal file is generated using m4, the penny.cabal.m4
+-- file, and the versions.m4 file.  The Makefile will generate
+-- penny.cabal for you.
+
 Name: penny
 Version: pv_penny
 Cabal-version: >=1.8
@@ -32,6 +36,9 @@ extra-source-files:
   , doc/man/*.7
   , versions.m4
   , Makefile
+  , current-versions.txt
+  , minimum-versions.txt
+  , penny.cabal.m4
 
 source-repository head
   type: git

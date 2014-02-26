@@ -63,7 +63,6 @@ import qualified System.Console.MultiArg as MA
 import System.Console.MultiArg (InputError(..))
 import qualified System.Console.MultiArg.Combinator as C
 import System.Console.MultiArg.Combinator (OptSpec)
-import Text.Read (readMaybe)
 import Text.Parsec (parse)
 
 import qualified Penny.Copper.Parsec as Pc
@@ -259,6 +258,11 @@ current :: L.DateTime -> OptSpec Operand
 current dt = C.OptSpec ["current"] [] (C.NoArg f)
   where
     f = E.or [P.date LT (L.toUTC dt), P.date EQ (L.toUTC dt)]
+
+readMaybe :: Read a => String -> Maybe a
+readMaybe s = case reads s of
+  (i, ""):[] -> return i
+  _ -> Nothing
 
 -- | Parses exactly one integer; fails if it cannot read exactly one.
 parseInt :: String -> Either Error Int
