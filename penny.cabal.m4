@@ -1,5 +1,5 @@
 Name: penny
-Version: 0.32.0.1
+Version: pv_penny
 Cabal-version: >=1.8
 Build-Type: Simple
 License: BSD3
@@ -176,7 +176,7 @@ Test-Suite penny-test
   -- http://stackoverflow.com/questions/6711151
 
   build-depends:
-      penny
+      penny           == pv_penny
     , base            >= pv_base && < pv_base_max
 
     -- Packages I maintain
@@ -203,7 +203,7 @@ Executable penny-gibberish
 
   if flag(build-gibberish)
     build-depends:
-          penny
+          penny           == pv_penny
         , base            >= pv_base && < pv_base_max
 
         -- Packages I maintain
@@ -228,7 +228,9 @@ Flag build-gibberish
   Default: False
 
 Executable penny
-  Build-depends: penny, base
+  Build-depends:
+      penny ==pv_penny
+    , base >= pv_base && < pv_base_max
 
   hs-source-dirs: bin
   Main-is: penny-main.hs
@@ -245,7 +247,9 @@ Flag build-penny
   Default: True
 
 Executable penny-selloff
-  Build-depends: penny, base
+  Build-depends:
+      penny == pv_penny
+    , base >= pv_base && < pv_base_max
 
   other-modules: Paths_penny
   hs-source-dirs: bin
@@ -262,7 +266,9 @@ Flag build-selloff
   Default: True
 
 Executable penny-diff
-  Build-depends: penny, base
+  Build-depends:
+      penny == pv_penny
+    , base >= pv_base && < pv_base_max
 
   hs-source-dirs: bin
   Main-is: penny-diff.hs
@@ -279,7 +285,9 @@ Flag build-diff
   Default: True
 
 Executable penny-reprint
-  Build-depends: penny, base
+  Build-depends:
+      penny == pv_penny
+    , base >= pv_base && < pv_base_max
 
   hs-source-dirs: bin
   main-is: penny-reprint.hs
@@ -293,7 +301,9 @@ Flag build-reprint
   Default: True
 
 Executable penny-reconcile
-  Build-depends: penny, base
+  Build-depends:
+      penny == pv_penny
+    , base >= pv_base && < pv_base_max
 
   hs-source-dirs: bin
   main-is: penny-reconcile.hs

@@ -1,5 +1,8 @@
 divert(-1)
 
+# Penny version
+define(`pv_penny', `0.32.0.1')
+
 # Haskell Platform
 define(`pv_base', `4.6.0.1')
 define(`pv_base_max', `5')
