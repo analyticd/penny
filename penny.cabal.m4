@@ -65,10 +65,10 @@ Library
     -- Omari packages
     -- Package                  Version
     , anonymous-sums            >= pv_anonymous_sums
-    , matchers                  >= pv_matchers
-    , multiarg                  >= pv_multiarg
+    , matchers                  >= pv_matchers                && < pv_matchers_max
+    , multiarg                  >= pv_multiarg                && < pv_multiarg_max
     , ofx                       >= pv_ofx
-    , prednote                  >= pv_prednote
+    , prednote                  >= pv_prednote                && < pv_prednote_max
     , rainbow                   >= pv_rainbow
 
     -- Other packages
@@ -187,7 +187,7 @@ Test-Suite penny-test
     , base            >= pv_base && < pv_base_max
 
     -- Packages I maintain
-    , multiarg        >= pv_multiarg
+    , multiarg        >= pv_multiarg                          && < pv_multiarg_max
     , anonymous-sums  >= pv_anonymous_sums
 
     -- Other packages
@@ -214,7 +214,7 @@ Executable penny-gibberish
         , base            >= pv_base && < pv_base_max
 
         -- Packages I maintain
-        , multiarg        >= pv_multiarg
+        , multiarg        >= pv_multiarg                      && < pv_multiarg_max
 
         -- Other packages
         , QuickCheck      >= pv_QuickCheck

@@ -1,7 +1,7 @@
 divert(-1)
 
 # Penny version
-define(`pv_penny', `0.32.0.3')
+define(`pv_penny', `0.32.0.4')
 
 # Haskell Platform
 define(`pv_base', `4.5.0.0')
@@ -19,9 +19,12 @@ define(`pv_transformers', `0.3.0.0')
 # Packages I maintain
 define(`pv_anonymous_sums', `0.4.0.0')
 define(`pv_matchers', `0.14.0.2')
+define(`pv_matchers_max', `0.15.0.0')
 define(`pv_multiarg', `0.24.0.4')
+define(`pv_multiarg_max', `0.25.0.0')
 define(`pv_ofx', `0.4.0.2')
 define(`pv_prednote', `0.18.0.4')
+define(`pv_prednote_max', `0.19.0.0')
 define(`pv_rainbow', `0.6.0.4')
 
 # Other packages
