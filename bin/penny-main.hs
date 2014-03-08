@@ -1,6 +1,7 @@
 module Main where
 
 import Penny
+import Data.Monoid
 import qualified Paths_penny as PPB
 
 -- | This type contains settings for all the reports, as well as

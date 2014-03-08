@@ -1,7 +1,7 @@
 divert(-1)
 
 # Penny version
-define(`pv_penny', `0.32.0.4')
+define(`pv_penny', `0.32.0.6')
 
 # Haskell Platform
 define(`pv_base', `4.5.0.0')
@@ -25,7 +25,7 @@ define(`pv_multiarg_max', `0.25.0.0')
 define(`pv_ofx', `0.4.0.2')
 define(`pv_prednote', `0.18.0.4')
 define(`pv_prednote_max', `0.19.0.0')
-define(`pv_rainbow', `0.6.0.4')
+define(`pv_rainbow', `0.12.0.0')
 
 # Other packages
 define(`pv_action_permutations', `0.0.0.0')

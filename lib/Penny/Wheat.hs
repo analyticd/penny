@@ -166,7 +166,10 @@ main
 main ver getWc = do
   rt <- S.runtime
   (conf, args) <- parseArgs ver (getWc rt)
-  term <- Rb.smartTermFromEnv (colorToFile conf) IO.stdout
+  term <-
+    if colorToFile conf
+    then Rb.termFromEnv
+    else Rb.smartTermFromEnv IO.stdout
   items <- Cop.open args
   let pstgs = getItems items
       formatter = formatQty conf items

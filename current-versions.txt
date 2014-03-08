@@ -1,7 +1,7 @@
 This package was tested to work with these dependency
 versions and compiler version.
 These are the default versions fetched by cabal install.
-Tested as of: 2014-03-01 19:18:06.035563 UTC
+Tested as of: 2014-03-08 16:46:54.566824 UTC
 Path to compiler: ghc-7.6.3
 Compiler description: 7.6.3
 
@@ -32,7 +32,7 @@ Compiler description: 7.6.3
     time-1.4.0.1
     unix-2.6.0.1
 
-/home/massysett/penny/sunlight-31079/db:
+/home/massysett/penny/sunlight-4368/db:
     MonadRandom-0.1.13
     QuickCheck-2.6
     action-permutations-0.0.0.0
@@ -55,7 +55,7 @@ Compiler description: 7.6.3
     penny-0.32.0.4
     prednote-0.18.0.4
     pretty-show-1.6.7
-    rainbow-0.6.0.4
+    rainbow-0.12.0.0
     random-1.0.1.1
     random-shuffle-0.0.4
     semigroupoids-4.0
@@ -63,7 +63,7 @@ Compiler description: 7.6.3
     split-0.2.2
     tagged-0.7
     terminfo-0.4.0.0
-    text-1.1.0.0
+    text-1.1.0.1
     transformers-0.3.0.0
     transformers-base-0.4.1
     transformers-compat-0.1.1.1
