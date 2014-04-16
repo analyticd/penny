@@ -178,7 +178,7 @@ indentAmt = 4
 type MatcherFactory
   = CaseSensitive
   -> Text
-  -> Either Text TM.Matcher
+  -> Either Text (E.Predbox Text)
 
 newtype ListLength = ListLength { unListLength :: Int }
                      deriving (Eq, Ord, Show)
@@ -212,7 +212,7 @@ getMatcher
   :: String
   -> CaseSensitive
   -> MatcherFactory
-  -> Either Error TM.Matcher
+  -> Either Error (E.Predbox Text)
 
 getMatcher s cs f
   = either (Left . mkError) Right
@@ -286,7 +286,7 @@ patternOption ::
   -> Maybe Char
   -- ^ Short option, if included
 
-  -> (TM.Matcher -> P.LPdct)
+  -> (E.Predbox Text -> P.LPdct)
   -- ^ When applied to a Matcher, this function returns a predicate.
 
   -> OptSpec ( CaseSensitive

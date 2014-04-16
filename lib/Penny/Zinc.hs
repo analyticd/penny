@@ -200,7 +200,7 @@ getSortSpec i ls =
      else mconcat exSpecs
 
 type Factory = M.CaseSensitive
-             -> Text -> Either Text M.Matcher
+             -> Text -> Either Text (Pe.Predbox Text)
 
 makeToken
   :: OptResult

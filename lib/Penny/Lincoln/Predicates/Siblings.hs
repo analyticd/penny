@@ -48,45 +48,48 @@ import Penny.Lincoln.Serial (forward, backward)
 import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
 import qualified Penny.Lincoln.Queries.Siblings as Q
 import Penny.Lincoln.Ents (Posting)
-import qualified Text.Matchers as M
 import qualified Data.Prednote as P
 
 type LPdct = P.Predbox Posting
 
-type MakePdct = M.Matcher -> LPdct
+type MakePdct = P.Predbox Text -> LPdct
 
 -- * Matching helpers
+
+eval :: P.Predbox a -> a -> Bool
+eval pb = P.rBool . P.evaluate pb
+
 match
   :: HasText a
   => Text
   -- ^ Description of this field
   -> (Posting -> [a])
   -- ^ Function that returns the field being matched
-  -> M.Matcher
+  -> P.Predbox Text
   -> LPdct
 match t f m = P.predicate desc pd
   where
     desc = makeDesc t m
-    pd = any (M.match m) . map text . f
+    pd = any (eval m) . map text . f
 
 matchMaybe
   :: HasText a
   => Text
   -- ^ Description of this field
   -> (Posting -> [Maybe a])
-  -> M.Matcher
+  -> P.Predbox Text
   -> LPdct
 matchMaybe t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = any (== (Just True))
-         . map (fmap (M.match m . text))
+         . map (fmap (eval m . text))
          . f
 
-makeDesc :: Text -> M.Matcher -> Text
+makeDesc :: Text -> P.Predbox Text -> Text
 makeDesc t m
   = "subject: " <> t <> " (any sibling posting) matcher: "
-  <> M.matchDesc m
+  <> P.pLabel m
 
 -- | Does the given matcher match any of the elements of the Texts in
 -- a HasTextList?
@@ -94,12 +97,12 @@ matchAny
   :: HasTextList a
   => Text
   -> (Posting -> [a])
-  -> M.Matcher
+  -> P.Predbox Text
   -> LPdct
 matchAny t f m = P.predicate desc pd
   where
     desc = makeDesc t m
-    pd = any (any (M.match m)) . map textList . f
+    pd = any (any (eval m)) . map textList . f
 
 -- | Does the given matcher match the text that is at the given
 -- element of a HasTextList? If the HasTextList does not have a
@@ -109,14 +112,14 @@ matchLevel
   => Int
   -> Text
   -> (Posting -> [a])
-  -> M.Matcher
+  -> P.Predbox Text
   -> LPdct
 matchLevel l d f m = P.predicate desc pd
   where
     desc = makeDesc ("level " <> X.pack (show l) <> " of " <> d) m
     pd pf = let doMatch list = if l < 0 || l >= length list
                                then False
-                               else M.match m (list !! l)
+                               else eval m (list !! l)
             in any doMatch . map textList . f $ pf
 
 -- | Does the matcher match the text of the memo? Joins each line of
@@ -124,13 +127,13 @@ matchLevel l d f m = P.predicate desc pd
 matchMemo
   :: Text
   -> (Posting -> [Maybe B.Memo])
-  -> M.Matcher
+  -> P.Predbox Text
   -> LPdct
 matchMemo t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = any (maybe False doMatch) . f
-    doMatch = M.match m
+    doMatch = eval m
               . X.intercalate (X.singleton ' ')
               . B.unMemo
 
@@ -141,7 +144,7 @@ matchDelimited
   -> Text
   -- ^ Label
   -> (Posting -> [a])
-  -> M.Matcher
+  -> P.Predbox Text
   -> LPdct
 matchDelimited sep lbl f m = match lbl f' m
   where
@@ -200,19 +203,19 @@ debit = drCr B.Debit
 credit :: LPdct
 credit = drCr B.Credit
 
-commodity :: M.Matcher -> LPdct
+commodity :: P.Predbox Text -> LPdct
 commodity = match "commodity" Q.commodity
 
-account :: M.Matcher -> LPdct
+account :: P.Predbox Text -> LPdct
 account = matchDelimited ":" "account" Q.account
 
-accountLevel :: Int -> M.Matcher -> LPdct
+accountLevel :: Int -> P.Predbox Text -> LPdct
 accountLevel i = matchLevel i "account" Q.account
 
-accountAny :: M.Matcher -> LPdct
+accountAny :: P.Predbox Text -> LPdct
 accountAny = matchAny "any sub-account" Q.account
 
-tag :: M.Matcher -> LPdct
+tag :: P.Predbox Text -> LPdct
 tag = matchAny "any tag" Q.tags
 
 -- | True if a posting is reconciled; that is, its flag is exactly

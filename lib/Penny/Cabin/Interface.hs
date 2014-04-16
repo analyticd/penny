@@ -4,9 +4,9 @@ module Penny.Cabin.Interface where
 
 import qualified Data.Prednote.Expressions as Exp
 import qualified Penny.Cabin.Scheme as S
+import qualified Data.Prednote as Pd
 import qualified Data.Text as X
 import Text.Matchers (CaseSensitive)
-import qualified Text.Matchers as TM
 import qualified System.Console.MultiArg as MA
 import qualified System.Console.Rainbow as R
 
@@ -64,7 +64,7 @@ type MkReport
   -- case sensitivity (this may have been changed in the filtering
   -- options)
 
-  -> (CaseSensitive -> X.Text -> Either X.Text TM.Matcher)
+  -> (CaseSensitive -> X.Text -> Either X.Text (Pd.Predbox X.Text))
   -- ^ Result from previous parsers indicating the matcher factory the
   -- user wishes to use
 

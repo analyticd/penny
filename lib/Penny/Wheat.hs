@@ -117,7 +117,7 @@ parseRegexp :: String -> Either MA.InputError (Pd.Name -> Bool)
 parseRegexp s = case M.pcre M.Sensitive (X.pack s) of
   Left e -> Left . MA.ErrorMsg $
     "could not parse regular expression: " ++ X.unpack e
-  Right m -> return . M.match $ m
+  Right m -> return (\n -> Pd.rBool (Pd.evaluate m n))
 
 allOpts :: [MA.OptSpec (WheatConf -> WheatConf)]
 allOpts =

@@ -168,6 +168,7 @@ Library
   ghc-options: -Wall
   if flag(debug)
     ghc-options: -auto-all -caf-all
+  default-language: Haskell2010
 
 Test-Suite penny-test
   type: exitcode-stdio-1.0
@@ -180,6 +181,7 @@ Test-Suite penny-test
     , Copper.Render
     , Lincoln
   hs-source-dirs: tests
+  default-language: Haskell2010
 
   -- For details on why penny is a dependency here, see
   -- http://stackoverflow.com/questions/6711151
@@ -209,6 +211,7 @@ Executable penny-gibberish
       Copper.Gen.Parsers
     , Copper.Gen.Terminals
   hs-source-dirs: tests
+  default-language: Haskell2010
 
   if flag(build-gibberish)
     build-depends:
@@ -245,6 +248,7 @@ Executable penny
   Main-is: penny-main.hs
   Other-modules: Paths_penny
   GHC-Options: -Wall
+  default-language: Haskell2010
   if flag(debug)
     GHC-Options: -rtsopts -auto-all -caf-all
 
@@ -263,6 +267,7 @@ Executable penny-selloff
   other-modules: Paths_penny
   hs-source-dirs: bin
   Main-is: penny-selloff.hs
+  default-language: Haskell2010
   GHC-Options: -Wall
   if flag(debug)
     GHC-Options: -rtsopts -auto-all -caf-all
@@ -283,6 +288,7 @@ Executable penny-diff
   Main-is: penny-diff.hs
   Other-modules: Paths_penny
   GHC-Options: -Wall
+  default-language: Haskell2010
   if flag(debug)
     GHC-Options: -rtsopts -auto-all -caf-all
 
@@ -302,6 +308,7 @@ Executable penny-reprint
   main-is: penny-reprint.hs
   Other-modules: Paths_penny
   ghc-options: -Wall
+  default-language: Haskell2010
   if ! flag(build-reprint)
     buildable: False
 
@@ -316,6 +323,7 @@ Executable penny-reconcile
 
   hs-source-dirs: bin
   main-is: penny-reconcile.hs
+  default-language: Haskell2010
   Other-modules: Paths_penny
   ghc-options: -Wall
   if ! flag(build-reconcile)

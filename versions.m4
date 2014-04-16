@@ -17,7 +17,7 @@ define(`pv_transformers', `0.3.0.0')              define(`pv_transformers_max', 
 
 # Packages I maintain
 define(`pv_anonymous_sums', `0.4.0.0')            define(`pv_anonymous_sums_max', `0.5')
-define(`pv_matchers', `0.14.0.2')                 define(`pv_matchers_max', `0.19')
+define(`pv_matchers', `0.18.0.0')                 define(`pv_matchers_max', `0.19')
 define(`pv_multiarg', `0.24.0.4')                 define(`pv_multiarg_max', `0.27.0.0')
 define(`pv_ofx', `0.4.0.2')                       define(`pv_ofx_max', `0.5')
 define(`pv_prednote', `0.22.0.2')                 define(`pv_prednote_max', `0.23')
