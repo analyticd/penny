@@ -4,7 +4,7 @@
 
 Name: penny
 Version: pv_penny
-Cabal-version: >=1.8
+Cabal-version: >=1.14
 Build-Type: Simple
 License: BSD3
 Copyright: 2012-2014 Omari Norman.
@@ -53,13 +53,13 @@ Library
     -- not allow this.
 
     -- Package                  Version
-    , bytestring                >= pv_bytestring
-    , containers                >= pv_containers
-    , old-locale                >= pv_old_locale
-    , parsec                    >= pv_parsec
-    , split                     >= pv_split
-    , text                      >= pv_text
-    , time                      >= pv_time
+    , bytestring                >= pv_bytestring              && < pv_bytestring_max
+    , containers                >= pv_containers              && < pv_containers_max
+    , old-locale                >= pv_old_locale              && < pv_old_locale_max
+    , parsec                    >= pv_parsec                  && < pv_parsec_max
+    , split                     >= pv_split                   && < pv_split_max
+    , text                      >= pv_text                    && < pv_text_max
+    , time                      >= pv_time                    && < pv_time_max
     , transformers              >= pv_transformers
 
     -- Omari packages
@@ -74,12 +74,12 @@ Library
 
     -- Other packages
     -- Package                  Version
-    , action-permutations       == pv_action_permutations
-    , cereal                    >= pv_cereal
-    , contravariant             >= pv_contravariant
-    , either                    >= pv_either
-    , pretty-show               >= pv_pretty_show
-    , semigroups                >= pv_semigroups
+    , action-permutations       >= pv_action_permutations     && < pv_action_permutations_max
+    , cereal                    >= pv_cereal                  && < pv_cereal_max
+    , contravariant             >= pv_contravariant           && < pv_contravariant_max
+    , either                    >= pv_either                  && < pv_either_max
+    , pretty-show               >= pv_pretty_show             && < pv_pretty_show_max
+    , semigroups                >= pv_semigroups              && < pv_semigroups_max
 
   Exposed-modules:
       Penny
@@ -186,20 +186,20 @@ Test-Suite penny-test
 
   build-depends:
       penny           == pv_penny
-    , base            >= pv_base && < pv_base_max
+    , base            >= pv_base                              && < pv_base_max
 
     -- Packages I maintain
     , multiarg        >= pv_multiarg                          && < pv_multiarg_max
-    , anonymous-sums  >= pv_anonymous_sums
+    , anonymous-sums  >= pv_anonymous_sums                    && < pv_anonymous_sums_max
 
     -- Other packages
-    , QuickCheck      >= pv_QuickCheck
-    , random-shuffle  >= pv_random_shuffle
-    , parsec          >= pv_parsec
-    , semigroups      >= pv_semigroups
-    , text            >= pv_text
-    , time            >= pv_time
-    , transformers    >= pv_transformers
+    , QuickCheck      >= pv_QuickCheck                        && < pv_QuickCheck_max
+    , random-shuffle  == pv_random_shuffle
+    , parsec          >= pv_parsec                            && < pv_parsec_max
+    , semigroups      >= pv_semigroups                        && < pv_semigroups_max
+    , text            >= pv_text                              && < pv_text_max
+    , time            >= pv_time                              && < pv_time_max
+    , transformers    >= pv_transformers                      && < pv_transformers_max
 
   ghc-options: -Wall
 
@@ -213,19 +213,19 @@ Executable penny-gibberish
   if flag(build-gibberish)
     build-depends:
           penny           == pv_penny
-        , base            >= pv_base && < pv_base_max
+        , base            >= pv_base                          && < pv_base_max
 
         -- Packages I maintain
         , multiarg        >= pv_multiarg                      && < pv_multiarg_max
 
         -- Other packages
-        , QuickCheck      >= pv_QuickCheck
-        , random-shuffle  >= pv_random_shuffle
-        , random          >= pv_random
-        , semigroups      >= pv_semigroups
-        , text            >= pv_text
-        , time            >= pv_time
-        , transformers    >= pv_transformers
+        , QuickCheck      >= pv_QuickCheck                    && < pv_QuickCheck_max
+        , random-shuffle  == pv_random_shuffle
+        , random          >= pv_random                        && < pv_random_max
+        , semigroups      >= pv_semigroups                    && < pv_semigroups_max
+        , text            >= pv_text                          && < pv_text_max
+        , time            >= pv_time                          && < pv_time_max
+        , transformers    >= pv_transformers                  && < pv_transformers_max
 
   else
     buildable: False
@@ -239,7 +239,7 @@ Flag build-gibberish
 Executable penny
   Build-depends:
       penny ==pv_penny
-    , base >= pv_base && < pv_base_max
+    , base >= pv_base                                         && < pv_base_max
 
   hs-source-dirs: bin
   Main-is: penny-main.hs
@@ -258,7 +258,7 @@ Flag build-penny
 Executable penny-selloff
   Build-depends:
       penny == pv_penny
-    , base >= pv_base && < pv_base_max
+    , base >= pv_base                                         && < pv_base_max
 
   other-modules: Paths_penny
   hs-source-dirs: bin
@@ -277,7 +277,7 @@ Flag build-selloff
 Executable penny-diff
   Build-depends:
       penny == pv_penny
-    , base >= pv_base && < pv_base_max
+    , base >= pv_base                                         && < pv_base_max
 
   hs-source-dirs: bin
   Main-is: penny-diff.hs
@@ -296,7 +296,7 @@ Flag build-diff
 Executable penny-reprint
   Build-depends:
       penny == pv_penny
-    , base >= pv_base && < pv_base_max
+    , base >= pv_base                                         && < pv_base_max
 
   hs-source-dirs: bin
   main-is: penny-reprint.hs
@@ -312,7 +312,7 @@ Flag build-reprint
 Executable penny-reconcile
   Build-depends:
       penny == pv_penny
-    , base >= pv_base && < pv_base_max
+    , base >= pv_base                                         && < pv_base_max
 
   hs-source-dirs: bin
   main-is: penny-reconcile.hs
