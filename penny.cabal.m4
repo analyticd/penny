@@ -197,6 +197,8 @@ Test-Suite penny-test
 
     -- Other packages
     , QuickCheck      >= pv_QuickCheck                        && < pv_QuickCheck_max
+    , tasty           >= pv_tasty                             && < pv_tasty_max
+    , tasty-quickcheck >= pv_tasty_quickcheck                 && < pv_tasty_quickcheck_max
     , random-shuffle  == pv_random_shuffle
     , parsec          >= pv_parsec                            && < pv_parsec_max
     , semigroups      >= pv_semigroups                        && < pv_semigroups_max

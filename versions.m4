@@ -32,5 +32,7 @@ define(`pv_either', `3.4.1')                      define(`pv_either_max', `4.2')
 define(`pv_random', `1.0.0.0')                    define(`pv_random_max', `1.1')
 define(`pv_random_shuffle', `0.0.4')
 define(`pv_semigroups', `0.9.2')                  define(`pv_semigroups_max', `0.14')
+define(`pv_tasty', `0.8')                         define(`pv_tasty_max', `0.9')
+define(`pv_tasty_quickcheck', `0.8')              define(`pv_tasty_quickcheck_max', `0.9')
 
 divert(1)dnl

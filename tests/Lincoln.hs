@@ -23,6 +23,8 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import System.Random.Shuffle (shuffle')
 import qualified Data.Sums as Su
+import Test.Tasty.QuickCheck (testProperty)
+import Test.Tasty (testGroup, TestTree)
 
 --
 -- # Qty
@@ -525,7 +527,7 @@ prop_balEntries
 
 -- | 'views' gives as many views as there were postings
 
-prop_numViews :: L.Ents m -> Bool
+prop_numViews :: L.Ents Integer -> Bool
 prop_numViews t = (length . L.views $ t) == (length . L.unEnts $ t)
 
 newtype NonRestricted a = NonRestricted
@@ -553,11 +555,11 @@ instance Arbitrary a => Arbitrary (L.Ents a) where
                        , genRestricted ]
 
 -- | Ents always have at least two postings
-prop_twoPostings :: L.Ents a -> Bool
+prop_twoPostings :: L.Ents Integer -> Bool
 prop_twoPostings e = length (L.unEnts e) > 1
 
 -- | Ents are always balanced
-prop_balanced :: L.Ents a -> Bool
+prop_balanced :: L.Ents Integer -> Bool
 prop_balanced
   = (== L.Balanced)
   . L.entriesToBalanced
@@ -566,7 +568,7 @@ prop_balanced
   . L.unEnts
 
 -- | Ents contain no more than one inferred posting
-prop_inferred :: L.Ents a -> Bool
+prop_inferred :: L.Ents Integer -> Bool
 prop_inferred t =
   (length . filter id . map L.inferred . L.unEnts $ t)
   < 2
@@ -578,7 +580,7 @@ newtype BalQtys = BalQtys { _unBalQtys :: ([L.Qty], [L.Qty]) }
 -- the 'Arbitrary' instance of 'NonRestricted' is behaving as it
 -- should.
 
-prop_ents :: NonRestricted a -> Bool
+prop_ents :: NonRestricted Integer -> Bool
 prop_ents (NonRestricted ls)
   = isJust
   . L.ents
@@ -586,7 +588,7 @@ prop_ents (NonRestricted ls)
   $ ls
 
 -- | NonRestricted makes ents with two postings
-prop_entsTwoPostings :: NonRestricted a -> Bool
+prop_entsTwoPostings :: NonRestricted Integer -> Bool
 prop_entsTwoPostings (NonRestricted ls)
   = case L.ents . map (first (fmap Right)) $ ls of
       Nothing -> False
@@ -597,9 +599,9 @@ prop_entsTwoPostings (NonRestricted ls)
 prop_rEnts
   :: L.Commodity
   -> L.DrCr
-  -> (L.Qty, a)
-  -> [(L.Qty, a)]
-  -> a
+  -> (L.Qty, Integer)
+  -> [(L.Qty, Integer)]
+  -> Integer
   -> Bool
 prop_rEnts c dc pr ls mt =
   let t = L.rEnts c dc (first Right pr) (map (first Right) ls) mt
@@ -628,7 +630,7 @@ instance Arbitrary a => Arbitrary (NotInferable a) where
   arbitrary = NotInferable <$> genNotInferable
 
 -- | 'ents' fails when given non-inferable entries
-prop_entsNonInferable :: Arbitrary a => NotInferable a -> Bool
+prop_entsNonInferable :: NotInferable Integer -> Bool
 prop_entsNonInferable (NotInferable ls) =
   isNothing . L.ents . map (first (fmap Right)) $ ls
 
@@ -943,3 +945,57 @@ prop_noEntsNotInferableGroup nib mayMayEnt = do
 runTests :: (Q.Property -> IO Q.Result) -> IO Bool
 runTests = $(A.forAllProperties)
 
+
+testTree :: TestTree
+testTree = testGroup "Lincoln"
+  [ testProperty "prop_genMutate" prop_genMutate
+  , testProperty "prop_genEquivalent" prop_genEquivalent
+  , testProperty "prop_significand" prop_significand
+  , testProperty "prop_exponent" prop_exponent
+  , testProperty "prop_newQtySucceeds" prop_newQtySucceeds
+  , testProperty "prop_qtyToRep" prop_qtyToRep
+  , testProperty "prop_genBalQtysTotalX" prop_genBalQtysTotalX
+  , testProperty "prop_genBalQtys" prop_genBalQtys
+  , testProperty "prop_commutative" prop_commutative
+  , testProperty "prop_addSubtract" prop_addSubtract
+  , testProperty "prop_addValid" prop_addValid
+  , testProperty "prop_multValid" prop_multValid
+  , testProperty "prop_genOneValid" prop_genOneValid
+  , testProperty "prop_multIdentity" prop_multIdentity
+  , testProperty "prop_newQtyBadSignificand" prop_newQtyBadSignificand
+  , testProperty "prop_newQtyBadPlaces" prop_newQtyBadPlaces
+  , testProperty "prop_differenceValid" prop_differenceValid
+  , testProperty "prop_allocateValid" prop_allocateValid
+  , testProperty "prop_genNotEquivalent" prop_genNotEquivalent
+  , testProperty "prop_newQty" prop_newQty
+  , testProperty "prop_sumAllocate" prop_sumAllocate
+  , testProperty "prop_numAllocate" prop_numAllocate
+  , testProperty "prop_sumLargestRemainder" prop_sumLargestRemainder
+  , testProperty "prop_genEntries" prop_genEntries
+  , testProperty "prop_balEntries" prop_balEntries
+  , testProperty "prop_numViews" prop_numViews
+  , testProperty "prop_twoPostings" prop_twoPostings
+  , testProperty "prop_balanced" prop_balanced
+  , testProperty "prop_inferred" prop_inferred
+  , testProperty "prop_ents" prop_ents
+  , testProperty "prop_entsTwoPostings" prop_entsTwoPostings
+  , testProperty "prop_rEnts" prop_rEnts
+  , testProperty "prop_entsNonInferable" prop_entsNonInferable
+  , testProperty "prop_price" prop_price
+  , testProperty "prop_newPriceDifferent" prop_newPriceDifferent
+  , testProperty "prop_newPriceSame" prop_newPriceSame
+  , testProperty "prop_addBalancesCommutative" prop_addBalancesCommutative
+  , testProperty "prop_addBalancesAssociative" prop_addBalancesAssociative
+  , testProperty "prop_balMempty" prop_balMempty
+  , testProperty "prop_emptyBalance" prop_emptyBalance
+  , testProperty "prop_entriesSameCommodity" prop_entriesSameCommodity
+  , testProperty "prop_entriesTwoCommodities" prop_entriesTwoCommodities
+  , testProperty "prop_mutateCommodity" prop_mutateCommodity
+  , testProperty "prop_notInferableFromBalanced" prop_notInferableFromBalanced
+  , testProperty "prop_inferableMutatedDrCr" prop_inferableMutatedDrCr
+  , testProperty "prop_inferableMutatedQty" prop_inferableMutatedQty
+  , testProperty "prop_balEntriesBalanced" prop_balEntriesBalanced
+  , testProperty "prop_balEntriesAndInferable" prop_balEntriesAndInferable
+  , testProperty "prop_balEntriesAndNotInferable" prop_balEntriesAndNotInferable
+  , testProperty "prop_noEntsNotInferableGroup" prop_noEntsNotInferableGroup
+  ]
