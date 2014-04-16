@@ -40,6 +40,7 @@ extra-source-files:
   , current-versions.txt
   , minimum-versions.txt
   , penny.cabal.m4
+  , changelog
 
 source-repository head
   type: git
