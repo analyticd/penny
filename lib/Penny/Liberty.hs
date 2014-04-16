@@ -70,7 +70,7 @@ import qualified Penny.Copper.Parsec as Pc
 import qualified Penny.Lincoln.Predicates as P
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Lincoln.Predicates.Siblings as PS
-import qualified Data.Prednote.Pdct as E
+import qualified Data.Prednote as E
 import qualified Penny.Lincoln as L
 import qualified System.Console.Rainbow as C
 import qualified Data.Prednote.Expressions as X
@@ -110,7 +110,7 @@ data LibertyMeta =
 parsePredicate
   :: X.ExprDesc
   -> [X.Token a]
-  -> Either Error (E.Pdct a)
+  -> Either Error (E.Predbox a)
 parsePredicate d ls = case ls of
   [] -> return E.always
   _ -> X.parseExpression d ls
@@ -226,8 +226,8 @@ getMatcher s cs f
 -- the string given is invalid.
 parseComparer
   :: String
-  -> (Ordering -> E.Pdct a)
-  -> Either InputError (E.Pdct a)
+  -> (Ordering -> E.Predbox a)
+  -> Either InputError (E.Predbox a)
 parseComparer s f
   = maybe (Left . MA.ErrorMsg $ "bad comparer")
           Right $ E.parseComparer (pack s) f
@@ -243,7 +243,7 @@ parseDate arg =
   where
     err msg = MA.ErrorMsg $ "bad date - " <> show msg
 
-type Operand = E.Pdct L.Posting
+type Operand = E.Predbox L.Posting
 
 -- | OptSpec for a date.
 date :: OptSpec Operand
@@ -423,10 +423,10 @@ siblingSerialOption
   :: String
   -- ^ Name of the command line option, such as @global-posting@
 
-  -> (Int -> Ordering -> E.Pdct L.Posting)
+  -> (Int -> Ordering -> E.Predbox L.Posting)
   -- ^ Function that returns a Pdct for forward serial
 
-  -> (Int -> Ordering -> E.Pdct L.Posting)
+  -> (Int -> Ordering -> E.Predbox L.Posting)
   -- ^ Function that returns a Pdct for reverse serial
 
   -> ( OptSpec Operand

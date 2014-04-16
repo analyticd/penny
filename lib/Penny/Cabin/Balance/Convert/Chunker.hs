@@ -60,7 +60,7 @@ maxWidthPerColumn ::
   -> Columns PreSpec
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
-  f old new = max old (R.Width . X.length . Rb.text . bits $ new)
+  f old new = max old (R.Width . sum . map X.length . Rb.text . bits $ new)
 
 -- | Changes a single set of Columns to a set of ColumnSpec of the
 -- given width.
@@ -193,7 +193,8 @@ mkOneColRow chgrs (vn, (OneColRow i t)) = Columns ca cd cq
     eo = E.fromVisibleNum vn
     lbl = E.Other
     ca = PreSpec R.LeftJustify (lbl, eo)
-         (E.getEvenOddLabelValue lbl eo chgrs . Rb.Chunk mempty $ txt)
+         (E.getEvenOddLabelValue lbl eo chgrs . Rb.Chunk mempty . (:[])
+            $ txt)
     cd = PreSpec R.LeftJustify (lbl, eo)
          (E.getEvenOddLabelValue lbl eo chgrs mempty)
     cq = cd
@@ -208,7 +209,7 @@ mkMainRow chgrs fmt (vn, (MainRow i acctTxt b)) = Columns ca cd cq
     applyFmt = E.getEvenOddLabelValue lbl eo chgrs
     eo = E.fromVisibleNum vn
     lbl = E.Other
-    ca = PreSpec R.LeftJustify (lbl, eo) (applyFmt (Rb.Chunk mempty txt))
+    ca = PreSpec R.LeftJustify (lbl, eo) (applyFmt (Rb.Chunk mempty [txt]))
       where
         txt = X.append indents acctTxt
         indents = X.replicate (indentAmount * max 0 i)
@@ -232,7 +233,7 @@ balanceChunks chgrs fmt vn bl = (chkDc, chkQt)
       L.Zero -> Nothing
       L.NonZero c -> Just $ L.colDrCr c
     qtFmt = E.getEvenOddLabelValue lbl eo chgrs
-    chkQt = qtFmt $ Rb.Chunk mempty t
+    chkQt = qtFmt $ Rb.Chunk mempty [t]
     (lbl, t) = case bl of
       L.Zero -> (E.Zero, X.pack "--")
       L.NonZero (L.Column dc qt) -> (E.dcToLbl dc, fmt qt)

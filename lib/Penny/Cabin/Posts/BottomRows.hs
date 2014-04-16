@@ -329,7 +329,7 @@ tagsCell ch info w = (ts, cell) where
     . snd
     $ info
   md = E.getEvenOddLabelValue E.Other eo ch
-  toBit (TF.Words ws) = md . Rb.Chunk mempty $ t where
+  toBit (TF.Words ws) = md . Rb.Chunk mempty . (:[]) $ t where
     t = X.concat . intersperse (X.singleton ' ') . Fdbl.toList $ ws
 
 
@@ -347,7 +347,7 @@ memoBits ch (lbl, eo) m (R.Width w) = cs where
        . L.unMemo
        $ m
   md = E.getEvenOddLabelValue lbl eo ch
-  toBit (TF.Words ws) = md . Rb.Chunk mempty
+  toBit (TF.Words ws) = md . Rb.Chunk mempty . (:[])
                         $ (X.unwords . Fdbl.toList $ ws)
 
 
@@ -377,7 +377,7 @@ filenameCell ch info width = (ts, cell) where
   ts = (E.Other, eo)
   cell = R.ColumnSpec R.LeftJustify w ts cs
   md = E.getEvenOddLabelValue E.Other eo ch
-  toBit n = md . Rb.Chunk mempty
+  toBit n = md . Rb.Chunk mempty . (:[])
             . X.drop (max 0 (X.length n - width)) $ n
   cs = case Q.filename . snd $ info of
     Nothing -> []

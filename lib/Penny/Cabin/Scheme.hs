@@ -107,7 +107,7 @@ bottomLineToCmdty
   -> R.Chunk
 bottomLineToCmdty chgrs eo (cy, bl) = md c
   where
-    c = R.Chunk mempty . L.unCommodity $ cy
+    c = R.Chunk mempty . (:[]) . L.unCommodity $ cy
     lbl = case bl of
       L.Zero -> Zero
       L.NonZero (L.Column clmDrCr _) -> dcToLbl clmDrCr
@@ -132,7 +132,7 @@ bottomLineToQty
   -> EvenOdd
   -> (L.Commodity, L.BottomLine)
   -> R.Chunk
-bottomLineToQty chgrs getTxt eo (cy, bl) = md (R.Chunk mempty t)
+bottomLineToQty chgrs getTxt eo (cy, bl) = md (R.Chunk mempty [t])
   where
     (lbl, t) = case bl of
       L.Zero -> (Zero, X.pack "--")

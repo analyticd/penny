@@ -67,14 +67,16 @@ Library
     , anonymous-sums            >= pv_anonymous_sums
     , matchers                  >= pv_matchers                && < pv_matchers_max
     , multiarg                  >= pv_multiarg                && < pv_multiarg_max
-    , ofx                       >= pv_ofx
+    , ofx                       >= pv_ofx                     && < pv_ofx_max
     , prednote                  >= pv_prednote                && < pv_prednote_max
-    , rainbow                   >= pv_rainbow
+    , rainbow                   >= pv_rainbow                 && < pv_rainbow_max
+    , rainbox                   >= pv_rainbox                 && < pv_rainbox_max
 
     -- Other packages
     -- Package                  Version
     , action-permutations       == pv_action_permutations
     , cereal                    >= pv_cereal
+    , contravariant             >= pv_contravariant
     , either                    >= pv_either
     , pretty-show               >= pv_pretty_show
     , semigroups                >= pv_semigroups

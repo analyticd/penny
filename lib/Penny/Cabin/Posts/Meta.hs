@@ -11,7 +11,7 @@ import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Cabin.Meta as M
 import qualified Penny.Cabin.Options as CO
-import qualified Data.Prednote.Pdct as Pe
+import qualified Data.Prednote as Pe
 import Data.Monoid (mempty, mappend)
 
 data PostMeta = PostMeta
@@ -43,7 +43,7 @@ addMetadata = L.serialItems f where
 -- the VisibleNum.
 toBoxList
   :: CO.ShowZeroBalances
-  -> Pe.Pdct (Ly.LibertyMeta, L.Posting)
+  -> Pe.Predbox (Ly.LibertyMeta, L.Posting)
   -- ^ Removes posts from the report if applying this function to the
   -- post returns a value other than Just True. Posts removed still
   -- affect the running balance.
@@ -58,7 +58,7 @@ toBoxList
 toBoxList szb pdct pff
   = addMetadata
   . Ly.processPostFilters pff
-  . filter (Pe.rBool . flip Pe.evaluate pdct . snd)
+  . filter (Pe.rBool . Pe.evaluate pdct . snd)
   . addBalances szb
 
 addBalances

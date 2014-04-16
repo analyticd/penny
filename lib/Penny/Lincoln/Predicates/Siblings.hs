@@ -49,9 +49,9 @@ import Penny.Lincoln.HasText (HasText, text, HasTextList, textList)
 import qualified Penny.Lincoln.Queries.Siblings as Q
 import Penny.Lincoln.Ents (Posting)
 import qualified Text.Matchers as M
-import qualified Data.Prednote.Pdct as P
+import qualified Data.Prednote as P
 
-type LPdct = P.Pdct Posting
+type LPdct = P.Predbox Posting
 
 type MakePdct = M.Matcher -> LPdct
 
@@ -64,7 +64,7 @@ match
   -- ^ Function that returns the field being matched
   -> M.Matcher
   -> LPdct
-match t f m = P.operand desc pd
+match t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = any (M.match m) . map text . f
@@ -76,7 +76,7 @@ matchMaybe
   -> (Posting -> [Maybe a])
   -> M.Matcher
   -> LPdct
-matchMaybe t f m = P.operand desc pd
+matchMaybe t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = any (== (Just True))
@@ -96,7 +96,7 @@ matchAny
   -> (Posting -> [a])
   -> M.Matcher
   -> LPdct
-matchAny t f m = P.operand desc pd
+matchAny t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = any (any (M.match m)) . map textList . f
@@ -111,7 +111,7 @@ matchLevel
   -> (Posting -> [a])
   -> M.Matcher
   -> LPdct
-matchLevel l d f m = P.operand desc pd
+matchLevel l d f m = P.predicate desc pd
   where
     desc = makeDesc ("level " <> X.pack (show l) <> " of " <> d) m
     pd pf = let doMatch list = if l < 0 || l >= length list
@@ -126,7 +126,7 @@ matchMemo
   -> (Posting -> [Maybe B.Memo])
   -> M.Matcher
   -> LPdct
-matchMemo t f m = P.operand desc pd
+matchMemo t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = any (maybe False doMatch) . f
@@ -164,7 +164,7 @@ postingMemo = matchMemo "posting memo" Q.postingMemo
 -- | A Pdct that returns True if @compare subject qty@ returns the
 -- given Ordering.
 qty :: Ordering -> B.Qty -> LPdct
-qty o q = P.operand desc pd
+qty o q = P.predicate desc pd
   where
     desc = "quantity of any sibling is " <> dd <> " " <> X.pack (show q)
     dd = case o of
@@ -188,7 +188,7 @@ parseQty x
   | otherwise = Nothing
 
 drCr :: B.DrCr -> LPdct
-drCr dc = P.operand desc pd
+drCr dc = P.predicate desc pd
   where
     desc = "entry of any sibling is a " <> s
     s = case dc of { B.Debit -> "debit"; B.Credit -> "credit" }
@@ -218,7 +218,7 @@ tag = matchAny "any tag" Q.tags
 -- | True if a posting is reconciled; that is, its flag is exactly
 -- @R@.
 reconciled :: LPdct
-reconciled = P.operand d p
+reconciled = P.predicate d p
   where
     d = "posting flag is exactly \"R\" (is reconciled)"
     p = any (maybe False ((== X.singleton 'R') . B.unFlag))
@@ -246,9 +246,9 @@ serialPdct
   -- item has a srerial and @compare@ does not return this Ordering;
   -- Nothing if the item does not have a serial.
 
-  -> P.Pdct E.Posting
+  -> P.Predbox E.Posting
 
-serialPdct name getSer i o = P.operand n f
+serialPdct name getSer i o = P.predicate n f
   where
     n = "serial " <> name <> " is " <> descCmp <> " "
         <> X.pack (show i)
@@ -264,7 +264,7 @@ serialPdct name getSer i o = P.operand n f
         . second E.tailEnts
         . E.unPosting
 
-type MakeSerialPdct = Int -> Ordering -> P.Pdct Posting
+type MakeSerialPdct = Int -> Ordering -> P.Predbox Posting
 
 fwdGlobalPosting :: MakeSerialPdct
 fwdGlobalPosting =

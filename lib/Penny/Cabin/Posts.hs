@@ -71,8 +71,7 @@ import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Liberty as Ly
 import qualified Penny.Shield as Sh
-import qualified Data.Prednote.Expressions as Exp
-import qualified Data.Prednote.Pdct as Pe
+import qualified Data.Prednote as Pd
 import qualified System.Console.Rainbow as Rb
 
 import Data.List (intersperse)
@@ -88,7 +87,7 @@ import Text.Matchers (CaseSensitive)
 postsReport
   :: E.Changers
   -> CO.ShowZeroBalances
-  -> (Pe.Pdct (Ly.LibertyMeta, L.Posting))
+  -> (Pd.Predbox (Ly.LibertyMeta, L.Posting))
   -- ^ Removes posts from the report if applying this function to the
   -- post returns False. Posts removed still affect the running
   -- balance.
@@ -129,7 +128,7 @@ process
   -> CaseSensitive
   -> L.Factory
   -> E.Changers
-  -> Exp.ExprDesc
+  -> Pd.ExprDesc
   -> ([L.Transaction] -> [(Ly.LibertyMeta, L.Posting)])
   -> [Either String (P.State -> Either X.Text P.State)]
   -> Either X.Text I.ArgsAndReport
@@ -161,7 +160,7 @@ mkPrintReport posArgs zo ch fsf st = (posArgs, f)
                  ++ rptChks
       return chks
 
-indentAmt :: Pe.IndentAmt
+indentAmt :: Pd.IndentAmt
 indentAmt = 4
 
 blankLine :: Rb.Chunk
@@ -169,18 +168,18 @@ blankLine = "\n"
 
 showExpression
   :: P.ShowExpression
-  -> Pe.Pdct ((Ly.LibertyMeta, L.Posting))
+  -> Pd.Predbox ((Ly.LibertyMeta, L.Posting))
   -> [Rb.Chunk]
 showExpression (P.ShowExpression b) pdct =
   if not b then [] else info : blankLine : (chks ++ [blankLine])
   where
     info = "Postings filter expression:\n"
-    chks = Pe.showPdct indentAmt 0 pdct
+    chks = Pd.showPredbox indentAmt 0 pdct
 
 showVerboseFilter
   :: (L.Amount L.Qty -> X.Text)
   -> P.VerboseFilter
-  -> Pe.Pdct (Ly.LibertyMeta, L.Posting)
+  -> Pd.Predbox (Ly.LibertyMeta, L.Posting)
   -> [(Ly.LibertyMeta, L.Posting)]
   -> [Rb.Chunk]
 showVerboseFilter fmt (P.VerboseFilter b) pdct bs =
@@ -188,7 +187,7 @@ showVerboseFilter fmt (P.VerboseFilter b) pdct bs =
   where
     chks =
       fst
-      $ Pe.verboseFilter ((L.display fmt) . snd) indentAmt False pdct bs
+      $ Pd.verboseFilter ((L.display fmt) . snd) indentAmt False pdct bs
     info = "Postings report filter:\n"
 
 defaultOptions
@@ -209,13 +208,13 @@ defaultOptions rt = ZincOpts
 type Error = X.Text
 
 getPredicate
-  :: Exp.ExprDesc
-  -> [Exp.Token ((Ly.LibertyMeta, L.Posting))]
-  -> Either Error (Pe.Pdct ((Ly.LibertyMeta, L.Posting)))
+  :: Pd.ExprDesc
+  -> [Pd.Token ((Ly.LibertyMeta, L.Posting))]
+  -> Either Error (Pd.Predbox ((Ly.LibertyMeta, L.Posting)))
 getPredicate d ts =
   case ts of
-    [] -> return $ Pe.always
-    _ -> Exp.parseExpression d ts
+    [] -> return $ Pd.always
+    _ -> Pd.parseExpression d ts
 
 
 -- | All the information to configure the postings report if the
@@ -281,7 +280,7 @@ chunkOpts fmt s z = C.ChunkOpts
 newParseState ::
   CaseSensitive
   -> L.Factory
-  -> Exp.ExprDesc
+  -> Pd.ExprDesc
   -> ZincOpts
   -> P.State
 newParseState cs fty expr o = P.State

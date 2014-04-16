@@ -63,7 +63,7 @@ maxWidthPerColumn ::
   -> Columns R.Width
 maxWidthPerColumn w p = f <$> w <*> p where
   f old new = max old ( safeMaximum (R.Width 0)
-                        . map (R.Width . X.length . Rb.text)
+                        . map (R.Width . sum . map X.length . Rb.text)
                         . bits $ new)
   safeMaximum d ls = if null ls then d else maximum ls
 
@@ -179,7 +179,7 @@ mkColumn chgrs fmt (vn, (Row i acctTxt bs)) = Columns ca cd cc cq
     lbl = E.Other
     eo = E.fromVisibleNum vn
     applyFmt = E.getEvenOddLabelValue lbl eo chgrs
-    ca = PreSpec R.LeftJustify (lbl, eo) [applyFmt $ Rb.Chunk mempty txt]
+    ca = PreSpec R.LeftJustify (lbl, eo) [applyFmt $ Rb.Chunk mempty [txt]]
       where
         txt = X.append indents acctTxt
         indents = X.replicate (indentAmount * max 0 i)

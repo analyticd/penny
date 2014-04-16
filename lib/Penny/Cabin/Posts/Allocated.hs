@@ -342,6 +342,7 @@ buildPayee ch i = (maxW, mkSpec)
                 toBit (TF.Words seqTxts) =
                   md
                   . Rb.Chunk mempty
+                  . (:[])
                   . X.unwords
                   . Fdbl.toList
                   $ seqTxts
@@ -376,6 +377,7 @@ buildAcct ch sl i = (maxW, mkSpec)
         (TF.Words shortened) = TF.shorten shortest target ws
         sq = [ md
                . Rb.Chunk mempty
+               . (:[])
                . X.concat
                . intersperse (X.singleton ':')
                . Fdbl.toList

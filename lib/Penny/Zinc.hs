@@ -16,7 +16,7 @@ import qualified Penny.Cabin.Scheme.Schemes as Schemes
 import qualified Penny.Copper as C
 import qualified Penny.Liberty as Ly
 import qualified Data.Prednote.Expressions as X
-import qualified Data.Prednote.Pdct as Pe
+import qualified Data.Prednote as Pe
 import qualified Penny.Lincoln as L
 import qualified Penny.Lincoln.Queries as Q
 import qualified Penny.Shield as S
@@ -324,7 +324,7 @@ data FilterOpts = FilterOpts
 
   , foColorToFile :: ColorToFile
   , foExprDesc :: X.ExprDesc
-  , foPredicate :: Pe.Pdct L.Posting
+  , foPredicate :: Pe.Predbox L.Posting
   , foShowExpression :: ShowExpression
   , foVerboseFilter :: VerboseFilter
   }
@@ -405,13 +405,13 @@ blankLine = "\n"
 showFilterExpression
   :: ([R.Chunk] -> IO ())
   -> ShowExpression
-  -> Pe.Pdct L.Posting
+  -> Pe.Predbox L.Posting
   -> IO ()
 showFilterExpression ptr (ShowExpression se) pdct =
   if not se
   then return ()
   else ptr $ info : blankLine :
-             (Pe.showPdct indentAmt 0 pdct ++ [blankLine])
+             (Pe.showPredbox indentAmt 0 pdct ++ [blankLine])
   where
     info = "Posting filter expression:\n"
 

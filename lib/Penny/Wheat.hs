@@ -40,8 +40,7 @@ import qualified Penny.Shield as S
 import qualified Data.Sums as Su
 
 import qualified Data.Version as V
-import qualified Data.Prednote.Test as TT
-import qualified Data.Prednote.Pdct as Pe
+import qualified Data.Prednote as Pd
 import qualified System.Console.Rainbow as Rb
 import qualified System.Console.MultiArg as MA
 import System.Locale (defaultTimeLocale)
@@ -76,20 +75,20 @@ data WheatConf = WheatConf
     -- of lines, wich each line not terminated by a newline
     -- character. It is displayed at the end of the online help.
 
-  , tests :: [Time.UTCTime -> TT.Test L.Posting]
+  , tests :: [Time.UTCTime -> Pd.Test L.Posting]
     -- ^ The actual tests to run. The UTCTime is the @base time@. Each
     -- test may decide what to do with the base time--for example, the
     -- test might say that all postings have to have a date on or
     -- before that date. Or the test might just ignore the base time.
 
-  , indentAmt :: Pe.IndentAmt
+  , indentAmt :: Pd.IndentAmt
     -- ^ How many spaces to indent each level in a tree of tests.
 
-  , verbosity :: Maybe TT.TestVerbosity
+  , verbosity :: Maybe Pd.TestVerbosity
     -- ^ If Just, use this verbosity. If Nothing, use the default
     -- verbosity provided by the tests themselves.
 
-  , testPred :: TT.Name -> Bool
+  , testPred :: Pd.Name -> Bool
     -- ^ Test names are filtered with this function; a test is only
     -- run if this function returns True.
 
@@ -114,7 +113,7 @@ parseBaseTime s = case Parsec.parse CP.dateTime  "" (X.pack s) of
   Left e -> Left (MA.ErrorMsg $ "could not parse date: " ++ show e)
   Right g -> return . L.toUTC $ g
 
-parseRegexp :: String -> Either MA.InputError (TT.Name -> Bool)
+parseRegexp :: String -> Either MA.InputError (Pd.Name -> Bool)
 parseRegexp s = case M.pcre M.Sensitive (X.pack s) of
   Left e -> Left . MA.ErrorMsg $
     "could not parse regular expression: " ++ X.unpack e
@@ -173,7 +172,7 @@ main ver getWc = do
   items <- Cop.open args
   let pstgs = getItems items
       formatter = formatQty conf items
-  let tsts = filter ((testPred conf) . TT.testName)
+  let tsts = filter ((testPred conf) . Pd.testName)
              . map ($ (L.toUTC . S.currentTime $ rt))
              . tests
              $ conf
@@ -190,16 +189,16 @@ runTest
   -> WheatConf
   -> [L.Posting]
   -> Rb.Term
-  -> TT.Test L.Posting
+  -> Pd.Test L.Posting
   -> IO Bool
 runTest fmt c ps term test = do
-  let rslt = TT.evalTest test ps
-      cks = TT.showResult (indentAmt c) (L.display fmt)
-                          (verbosity c) rslt
+  let rslt = Pd.evalTest test ps
+      cks = Pd.showTestResult (indentAmt c) (L.display fmt)
+                              (verbosity c) rslt
   Rb.putChunks term cks
-  if stopOnFail c && not (TT.resultPass rslt)
+  if stopOnFail c && not (Pd.resultPass rslt)
     then Exit.exitFailure
-    else return (TT.resultPass rslt)
+    else return (Pd.resultPass rslt)
 
 getItems :: [Cop.LedgerItem] -> [L.Posting]
 getItems
@@ -213,19 +212,19 @@ getItems
 
 -- | Passes only if each posting is True.
 eachPostingMustBeTrue
-  :: TT.Name
-  -> Pe.Pdct L.Posting
-  -> TT.Test L.Posting
-eachPostingMustBeTrue n pd = TT.eachSubjectMustBeTrue pd n
+  :: Pd.Name
+  -> Pd.Predbox L.Posting
+  -> Pd.Test L.Posting
+eachPostingMustBeTrue n pd = Pd.eachSubjectMustBeTrue pd n
 
 -- | Passes if at least a particular number of postings is True.
 atLeastNPostings
   :: Int
   -- ^ The number of postings that must be true for the test to pass
-  -> TT.Name
-  -> Pe.Pdct L.Posting
-  -> TT.Test L.Posting
-atLeastNPostings i n pd = TT.nSubjectsMustBeTrue pd n i
+  -> Pd.Name
+  -> Pd.Predbox L.Posting
+  -> Pd.Test L.Posting
+atLeastNPostings i n pd = Pd.nSubjectsMustBeTrue pd n i
 
 --
 -- Help

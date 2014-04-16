@@ -63,7 +63,7 @@ widestLine :: PreSpec -> Int
 widestLine (PreSpec _ _ bs) =
   case bs of
     [] -> 0
-    xs -> maximum . map (X.length . Rb.text) $ xs
+    xs -> maximum . map (sum . map X.length . Rb.text) $ xs
 
 data PreSpec = PreSpec {
   _justification :: R.Justification
@@ -83,7 +83,7 @@ oneLine chgrs t lbl b =
   let eo = E.fromVisibleNum . M.visibleNum . fst $ b
       j = R.LeftJustify
       md = E.getEvenOddLabelValue lbl eo chgrs
-      ck = [md $ Rb.Chunk mempty t]
+      ck = [md $ Rb.Chunk mempty [t]]
   in PreSpec j (lbl, eo) ck
 
 
@@ -234,7 +234,7 @@ coloredPostingCell chgrs t i = PreSpec j (lbl, eo) [bit] where
     L.Credit -> E.Credit
   eo = E.fromVisibleNum . M.visibleNum . fst $ i
   md = E.getEvenOddLabelValue lbl eo chgrs
-  bit = md $ Rb.Chunk mempty t
+  bit = md $ Rb.Chunk mempty [t]
 
 
 getPostingDrCr :: E.Changers -> (M.PostMeta, L.Posting) -> PreSpec

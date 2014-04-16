@@ -11,6 +11,7 @@ module Penny.Cabin.Posts.Parser
 import Control.Applicative ((<$>), pure, (<*>),
                             Applicative)
 import Data.Char (toLower)
+import Data.Functor.Contravariant (contramap)
 import qualified Data.Foldable as Fdbl
 import Data.Monoid ((<>))
 import Data.Text (Text)
@@ -24,7 +25,7 @@ import qualified Penny.Cabin.Posts.Types as Ty
 import qualified Penny.Cabin.Options as CO
 import qualified Penny.Liberty as Ly
 import qualified Data.Prednote.Expressions as Exp
-import qualified Data.Prednote.Pdct as Pt
+import qualified Data.Prednote as Pt
 import qualified Penny.Lincoln as L
 import qualified Penny.Shield as S
 import qualified Text.Matchers as M
@@ -82,7 +83,7 @@ operand rt = map (fmap f) (Ly.operandSpecs (S.currentTime rt))
       let cs = sensitive st
           fty = factory st
       g <- lyFn cs fty
-      let g' = Pt.boxPdct snd g
+      let g' = contramap snd g
           ts' = tokens st ++ [Exp.operand g']
       return $ st { tokens = ts' }
 

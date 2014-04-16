@@ -77,8 +77,8 @@ justify
   -> JustifiedCell
 justify (Width w) j l eo chgrs pc = JustifiedCell (left, right)
   where
-    origWidth = X.length . R.text $ pc
-    pad = E.getEvenOddLabelValue l eo chgrs . R.Chunk mempty $ t
+    origWidth = sum . map X.length . R.text $ pc
+    pad = E.getEvenOddLabelValue l eo chgrs . R.Chunk mempty $ [t]
     t = X.replicate (max 0 (w - origWidth)) (X.singleton ' ')
     (left, right) = case j of
       LeftJustify -> (pc, pad)
@@ -116,7 +116,7 @@ bottomPad chgrs jcs = PaddedColumns pcs where
   toPaddedColumn (JustifiedColumn cs (Width w) (lbl, eo)) =
     let l = length cs
         nPads = max 0 $ h - l
-        pad = E.getEvenOddLabelValue lbl eo chgrs . R.Chunk mempty $ t
+        pad = E.getEvenOddLabelValue lbl eo chgrs . R.Chunk mempty $ [t]
         t = X.replicate w (X.singleton ' ')
         pads = replicate nPads $ JustifiedCell (mempty, pad)
     in cs ++ pads

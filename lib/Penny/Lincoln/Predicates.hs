@@ -50,10 +50,10 @@ import qualified Penny.Lincoln.Queries as Q
 import Penny.Lincoln.Ents (Posting)
 import qualified Penny.Lincoln.Ents as E
 import qualified Text.Matchers as M
-import qualified Data.Prednote.Pdct as P
+import qualified Data.Prednote as P
 import Penny.Lincoln.Serial (forward, backward)
 
-type LPdct = P.Pdct Posting
+type LPdct = P.Predbox Posting
 
 type MakePdct = M.Matcher -> LPdct
 
@@ -66,7 +66,7 @@ match
   -- ^ Function that returns the field being matched
   -> M.Matcher
   -> LPdct
-match t f m = P.operand desc pd
+match t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = M.match m . text . f
@@ -78,7 +78,7 @@ matchMaybe
   -> (Posting -> Maybe a)
   -> M.Matcher
   -> LPdct
-matchMaybe t f m = P.operand desc pd
+matchMaybe t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = maybe False (M.match m . text) . f
@@ -96,7 +96,7 @@ matchAny
   -> (Posting -> a)
   -> M.Matcher
   -> LPdct
-matchAny t f m = P.operand desc pd
+matchAny t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = any (M.match m) . textList . f
@@ -111,7 +111,7 @@ matchLevel
   -> (Posting -> a)
   -> M.Matcher
   -> LPdct
-matchLevel l d f m = P.operand desc pd
+matchLevel l d f m = P.predicate desc pd
   where
     desc = makeDesc ("level " <> X.pack (show l) <> " of " <> d) m
     pd pf = let ts = textList (f pf)
@@ -126,7 +126,7 @@ matchMemo
   -> (Posting -> Maybe B.Memo)
   -> M.Matcher
   -> LPdct
-matchMemo t f m = P.operand desc pd
+matchMemo t f m = P.predicate desc pd
   where
     desc = makeDesc t m
     pd = maybe False doMatch . f
@@ -181,7 +181,7 @@ qty o q = P.compareBy (X.pack . show $ q) "quantity"
 
 
 drCr :: B.DrCr -> LPdct
-drCr dc = P.operand desc pd
+drCr dc = P.predicate desc pd
   where
     desc = "entry is a " <> s
     s = case dc of { B.Debit -> "debit"; B.Credit -> "credit" }
@@ -211,7 +211,7 @@ tag = matchAny "any tag" Q.tags
 -- | True if a posting is reconciled; that is, its flag is exactly
 -- @R@.
 reconciled :: LPdct
-reconciled = P.operand d p
+reconciled = P.predicate d p
   where
     d = "posting flag is exactly \"R\" (is reconciled)"
     p = maybe False ((== X.singleton 'R') . B.unFlag) . Q.flag
@@ -235,9 +235,9 @@ serialPdct
   -- ^ The Pdct returned will be True if the item has a serial
   -- and @compare ser rhs@ returns this Ordering; False otherwise.
 
-  -> P.Pdct a
+  -> P.Predbox a
 
-serialPdct name getSer i o = P.operand n f
+serialPdct name getSer i o = P.predicate n f
   where
     n = "serial " <> name <> " is " <> descCmp <> " "
         <> X.pack (show i)
@@ -248,7 +248,7 @@ serialPdct name getSer i o = P.operand n f
     f = fromMaybe False . fmap (\ser -> compare ser i == o)
         . getSer
 
-type MakeSerialPdct = Int -> Ordering -> P.Pdct Posting
+type MakeSerialPdct = Int -> Ordering -> P.Predbox Posting
 
 fwdGlobalPosting :: MakeSerialPdct
 fwdGlobalPosting =
