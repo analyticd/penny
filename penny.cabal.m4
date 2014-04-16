@@ -80,7 +80,6 @@ Library
     , cereal                    >= pv_cereal                  && < pv_cereal_max
     , contravariant             >= pv_contravariant           && < pv_contravariant_max
     , either                    >= pv_either                  && < pv_either_max
-    , pretty-show               >= pv_pretty_show             && < pv_pretty_show_max
     , semigroups                >= pv_semigroups              && < pv_semigroups_max
 
   Exposed-modules:
@@ -193,11 +192,12 @@ Test-Suite penny-test
     , base            >= pv_base                              && < pv_base_max
 
     -- Packages I maintain
-    , multiarg        >= pv_multiarg                          && < pv_multiarg_max
     , anonymous-sums  >= pv_anonymous_sums                    && < pv_anonymous_sums_max
 
     -- Other packages
     , QuickCheck      >= pv_QuickCheck                        && < pv_QuickCheck_max
+    , tasty           >= pv_tasty                             && < pv_tasty_max
+    , tasty-quickcheck >= pv_tasty_quickcheck                 && < pv_tasty_quickcheck_max
     , random-shuffle  == pv_random_shuffle
     , parsec          >= pv_parsec                            && < pv_parsec_max
     , semigroups      >= pv_semigroups                        && < pv_semigroups_max

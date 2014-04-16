@@ -2,7 +2,9 @@ module Copper where
 
 import qualified Copper.Parser as P
 import qualified Copper.Render as R
-import qualified Test.QuickCheck as Q
+import Test.Tasty (testGroup, TestTree)
 
-tests :: [(Q.Property -> IO Q.Result) -> IO Bool]
-tests = [P.runTests, R.runTests]
+testTree :: TestTree
+testTree = testGroup "Copper"
+  [ P.testTree, R.testTree ]
+

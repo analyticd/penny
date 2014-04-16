@@ -1,10 +1,10 @@
 divert(-1)
 
 # Penny version
-define(`pv_penny', `0.32.0.8')
+define(`pv_penny', `0.32.0.10')
 
 # Haskell Platform
-define(`pv_base', `4.5.0.0')                      define(`pv_base_max', `4.7')
+define(`pv_base', `4.5.0.0')                      define(`pv_base_max', `4.8')
 define(`pv_bytestring', `0.9.2.1')                define(`pv_bytestring_max', `0.11')
 define(`pv_containers', `0.4.2.1')                define(`pv_containers_max', `0.6')
 define(`pv_old_locale', `1.0.0.4')                define(`pv_old_locale_max', `1.1')
@@ -29,9 +29,10 @@ define(`pv_contravariant', `0.2.0.1')             define(`pv_contravariant_max',
 define(`pv_action_permutations', `0.0.0.0')       define(`pv_action_permutations_max', `0.0.0.2')
 define(`pv_cereal', `0.3.5.2')                    define(`pv_cereal_max', `0.5')
 define(`pv_either', `3.4.1')                      define(`pv_either_max', `4.2')
-define(`pv_pretty_show', `1.5')                   define(`pv_pretty_show_max', `1.7')
 define(`pv_random', `1.0.0.0')                    define(`pv_random_max', `1.1')
 define(`pv_random_shuffle', `0.0.4')
 define(`pv_semigroups', `0.9.2')                  define(`pv_semigroups_max', `0.14')
+define(`pv_tasty', `0.8')                         define(`pv_tasty_max', `0.9')
+define(`pv_tasty_quickcheck', `0.8')              define(`pv_tasty_quickcheck_max', `0.9')
 
 divert(1)dnl

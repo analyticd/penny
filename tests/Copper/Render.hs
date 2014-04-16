@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures
                 -fno-warn-orphans #-}
-{-# LANGUAGE TemplateHaskell #-}
 module Copper.Render where
 
 import Control.Applicative ((<*))
@@ -13,10 +12,11 @@ import Penny.Lincoln ((==~))
 import qualified Text.Parsec as Ps
 import qualified Text.Parsec.Text as Ps
 import qualified Test.QuickCheck as Q
-import qualified Test.QuickCheck.All as A
 import qualified Test.QuickCheck.Property as QCP
-import Test.QuickCheck (Gen, arbitrary, Arbitrary)
+import Test.QuickCheck (Gen, arbitrary)
 import Data.Text (Text)
+import Test.Tasty.QuickCheck (testProperty)
+import Test.Tasty (testGroup, TestTree)
 
 renParse
   :: (Eq a, Show a)
@@ -173,5 +173,30 @@ priceEq (L.PricePoint xdt xpr xsd xsb _)
         (L.PricePoint ydt ypr ysd ysb _)
   = xdt == ydt && xpr ==~ ypr && xsd == ysd && xsb == ysb
 
-runTests :: (Q.Property -> IO Q.Result) -> IO Bool
-runTests = $(A.forAllProperties)
+testTree :: TestTree
+testTree = testGroup "Render"
+  [ testProperty "prop_quotedLvl1Acct" prop_quotedLvl1Acct
+  , testProperty "prop_lvl2Acct" prop_lvl2Acct
+  , testProperty "prop_ledgerAcct" prop_ledgerAcct
+  , testProperty "prop_quotedLvl1Cmdty" prop_quotedLvl1Cmdty
+  , testProperty "prop_lvl2Cmdty" prop_lvl2Cmdty
+  , testProperty "prop_lvl3Cmdty" prop_lvl3Cmdty
+  , testProperty "prop_qtyRep" prop_qtyRep
+  , testProperty "prop_amount" prop_amount
+  , testProperty "prop_comment" prop_comment
+  , testProperty "prop_dateTime" prop_dateTime
+  , testProperty "prop_entry" prop_entry
+  , testProperty "prop_flag" prop_flag
+  , testProperty "prop_postingMemoLine" prop_postingMemoLine
+  , testProperty "prop_postingMemo" prop_postingMemo
+  , testProperty "prop_transactionMemoLine" prop_transactionMemoLine
+  , testProperty "prop_transactionMemo" prop_transactionMemo
+  , testProperty "prop_number" prop_number
+  , testProperty "prop_quotedLvl1Payee" prop_quotedLvl1Payee
+  , testProperty "prop_lvl2Payee" prop_lvl2Payee
+  , testProperty "prop_price" prop_price
+  , testProperty "prop_tag" prop_tag
+  , testProperty "prop_tags" prop_tags
+  , testProperty "prop_topLineCore" prop_topLineCore
+  , testProperty "prop_transaction" prop_transaction
+  ]
