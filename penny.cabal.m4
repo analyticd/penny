@@ -80,7 +80,6 @@ Library
     , cereal                    >= pv_cereal                  && < pv_cereal_max
     , contravariant             >= pv_contravariant           && < pv_contravariant_max
     , either                    >= pv_either                  && < pv_either_max
-    , pretty-show               >= pv_pretty_show             && < pv_pretty_show_max
     , semigroups                >= pv_semigroups              && < pv_semigroups_max
 
   Exposed-modules:

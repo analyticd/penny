@@ -17,7 +17,6 @@ import qualified Control.Monad.Trans.Maybe as MT
 import Control.Monad.Trans.Class (lift)
 import qualified Penny.Copper as C
 import qualified Penny.Copper.Render as R
-import Text.Show.Pretty (ppShow)
 import qualified Penny.Brenner.Types as Y
 import qualified Penny.Brenner.Util as U
 
@@ -94,7 +93,7 @@ runClear c os = do
       led'' = map C.stripMeta led'
   when (not (Set.null left))
     (fail $ "some postings were not cleared. "
-      ++ "Those not cleared:\n" ++ ppShow left)
+      ++ "Those not cleared:\n" ++ show left)
   case mapM (R.item Nothing) led'' of
     Nothing ->
       fail "could not render resulting ledger."
