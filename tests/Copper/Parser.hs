@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-{-# LANGUAGE TemplateHaskell #-}
 module Copper.Parser where
 
 import Control.Applicative ((<*))
@@ -9,12 +8,13 @@ import qualified Penny.Copper as C
 import qualified Penny.Lincoln as L
 import Penny.Lincoln ((==~))
 import qualified Test.QuickCheck as Q
-import qualified Test.QuickCheck.All as A
 import qualified Test.QuickCheck.Property as QCP
 import Test.QuickCheck (Gen)
 import qualified Text.Parsec as P
 import qualified Text.Parsec.Text as P
 import qualified Data.Text as X
+import Test.Tasty.QuickCheck (testProperty)
+import Test.Tasty (testGroup, TestTree)
 
 parseProp
   :: (Eq b, Show b)
@@ -300,6 +300,62 @@ prop_transaction = do
         && (fmap fst es' ==~ es)
   return $ doParse' CP.transaction (show (tlc, es)) pd x
 
-runTests :: (Q.Property -> IO Q.Result) -> IO Bool
-runTests = $(A.forAllProperties)
-
+testTree :: TestTree
+testTree = testGroup "Parser"
+  [ testProperty "prop_lvl1SubAcct" prop_lvl1SubAcct
+  , testProperty "prop_lvl1FirstSubAcct" prop_lvl1FirstSubAcct
+  , testProperty "prop_lvl1OtherSubAcct" prop_lvl1OtherSubAcct
+  , testProperty "prop_lvl1Acct" prop_lvl1Acct
+  , testProperty "prop_quotedLvl1Acct" prop_quotedLvl1Acct
+  , testProperty "prop_lvl2FirstSubAcct" prop_lvl2FirstSubAcct
+  , testProperty "prop_lvl2OtherSubAcct" prop_lvl2OtherSubAcct
+  , testProperty "prop_lvl2Acct" prop_lvl2Acct
+  , testProperty "prop_ledgerAcct" prop_ledgerAcct
+  , testProperty "prop_lvl1Cmdty" prop_lvl1Cmdty
+  , testProperty "prop_quotedLvl1Cmdty" prop_quotedLvl1Cmdty
+  , testProperty "prop_lvl2Cmdty" prop_lvl2Cmdty
+  , testProperty "prop_lvl3Cmdty" prop_lvl3Cmdty
+  , testProperty "prop_qtyRep" prop_qtyRep
+  , testProperty "prop_leftCmdtyLvl1Amt" prop_leftCmdtyLvl1Amt
+  , testProperty "prop_leftCmdtyLvl3Amt" prop_leftCmdtyLvl3Amt
+  , testProperty "prop_leftSideCmdtyAmt" prop_leftSideCmdtyAmt
+  , testProperty "prop_rightSideCmdtyAmt" prop_rightSideCmdtyAmt
+  , testProperty "prop_amount" prop_amount
+  , testProperty "prop_comment" prop_comment
+  , testProperty "prop_year" prop_year
+  , testProperty "prop_month" prop_month
+  , testProperty "prop_day" prop_day
+  , testProperty "prop_date" prop_date
+  , testProperty "prop_hours" prop_hours
+  , testProperty "prop_minutes" prop_minutes
+  , testProperty "prop_seconds" prop_seconds
+  , testProperty "prop_time" prop_time
+  , testProperty "prop_tzNumber" prop_tzNumber
+  , testProperty "prop_timeZone" prop_timeZone
+  , testProperty "prop_timeWithZone" prop_timeWithZone
+  , testProperty "prop_dateTime" prop_dateTime
+  , testProperty "prop_debit" prop_debit
+  , testProperty "prop_credit" prop_credit
+  , testProperty "prop_drCr" prop_drCr
+  , testProperty "prop_entry" prop_entry
+  , testProperty "prop_flag" prop_flag
+  , testProperty "prop_postingMemoLine" prop_postingMemoLine
+  , testProperty "prop_postingMemo" prop_postingMemo
+  , testProperty "prop_transactionMemoLine" prop_transactionMemoLine
+  , testProperty "prop_transactionMemo" prop_transactionMemo
+  , testProperty "prop_number" prop_number
+  , testProperty "prop_lvl1Payee" prop_lvl1Payee
+  , testProperty "prop_quotedLvl1Payee" prop_quotedLvl1Payee
+  , testProperty "prop_lvl2Payee" prop_lvl2Payee
+  , testProperty "prop_fromCmdty" prop_fromCmdty
+  , testProperty "prop_price" prop_price
+  , testProperty "prop_tag" prop_tag
+  , testProperty "prop_tags" prop_tags
+  , testProperty "prop_topLinePayee" prop_topLinePayee
+  , testProperty "prop_topLineFlagNum" prop_topLineFlagNum
+  , testProperty "prop_topLineCore" prop_topLineCore
+  , testProperty "prop_flagNumPayee" prop_flagNumPayee
+  , testProperty "prop_postingAcct" prop_postingAcct
+  , testProperty "prop_posting" prop_posting
+  , testProperty "prop_transaction" prop_transaction
+  ]

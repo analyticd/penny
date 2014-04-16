@@ -192,7 +192,6 @@ Test-Suite penny-test
     , base            >= pv_base                              && < pv_base_max
 
     -- Packages I maintain
-    , multiarg        >= pv_multiarg                          && < pv_multiarg_max
     , anonymous-sums  >= pv_anonymous_sums                    && < pv_anonymous_sums_max
 
     -- Other packages

@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE TemplateHaskell, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Lincoln where
 
@@ -15,7 +15,6 @@ import qualified Data.Time as T
 import qualified Test.QuickCheck as Q
 import qualified Test.QuickCheck.Gen as QG
 import qualified Test.QuickCheck.Property as QCP
-import qualified Test.QuickCheck.All as A
 import Test.QuickCheck (Gen, Arbitrary, arbitrary, (==>))
 import qualified Penny.Lincoln as L
 import Penny.Lincoln.Equivalent ((==~))
@@ -938,12 +937,6 @@ prop_noEntsNotInferableGroup nib mayMayEnt = do
   esWithInts <- pairWithInts esWithExtra
   return . isNothing . L.ents . map (first (fmap Right))
          $ esWithInts
-
---
--- # runTests
---
-runTests :: (Q.Property -> IO Q.Result) -> IO Bool
-runTests = $(A.forAllProperties)
 
 
 testTree :: TestTree
