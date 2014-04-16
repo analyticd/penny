@@ -15,6 +15,7 @@ homepage: http://www.github.com/massysett/penny
 bug-reports: omari@smileystation.com
 Category: Console, Finance
 License-File: LICENSE
+tested-with: GHC ==7.4.1, GHC ==7.6.3
 
 synopsis: Extensible double-entry accounting system
 
