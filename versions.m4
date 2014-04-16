@@ -1,7 +1,7 @@
 divert(-1)
 
 # Penny version
-define(`pv_penny', `0.32.0.7')
+define(`pv_penny', `0.32.0.8')
 
 # Haskell Platform
 define(`pv_base', `4.5.0.0')
@@ -12,7 +12,7 @@ define(`pv_old_locale', `1.0.0.4')
 define(`pv_parsec', `3.1.3')
 define(`pv_QuickCheck', `2.6')
 define(`pv_split', `0.2.2')
-define(`pv_text', `0.11.2.0')
+define(`pv_text', `0.11.3.1')
 define(`pv_time', `1.4')
 define(`pv_transformers', `0.3.0.0')
 
