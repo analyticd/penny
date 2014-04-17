@@ -708,8 +708,21 @@ prop_addBalancesCommutative x y = (x <> y) == (y <> x)
 
 -- | Adding Balances is associative
 prop_addBalancesAssociative
-  :: L.Balance -> L.Balance -> L.Balance -> Bool
-prop_addBalancesAssociative x y z = (x <> (y <> z)) == ((x <> y) <> z)
+  :: L.Balance -> L.Balance -> L.Balance -> Q.Property
+prop_addBalancesAssociative x y z = Q.printTestCase desc good
+  where
+    lhs = x <> (y <> z)
+    rhs = (x <> y) <> z
+    good = lhs == rhs
+    desc = labeledList [ ("x", show x), ("y", show y),
+            ("z", show z), ("lhs", show lhs),
+            ("rhs", show rhs) ]
+
+labeledList :: [(String, String)] -> String
+labeledList = concat . map f
+  where
+    f (lbl, s) = lbl ++ ": " ++ s ++ "\n"
+
 
 -- | A mempty balance behaves as it should
 prop_balMempty :: L.Balance -> Bool
