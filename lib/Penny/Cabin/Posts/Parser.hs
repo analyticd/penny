@@ -8,8 +8,7 @@ module Penny.Cabin.Posts.Parser
   , ShowExpression(..)
   ) where
 
-import Control.Applicative ((<$>), pure, (<*>),
-                            Applicative)
+import Control.Applicative ((<$>), pure, (<*>))
 import Data.Char (toLower)
 import Data.Functor.Contravariant (contramap)
 import qualified Data.Foldable as Fdbl

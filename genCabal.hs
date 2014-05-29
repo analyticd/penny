@@ -4,11 +4,15 @@
 module Main (main) where
 
 import qualified Cartel as A
+import Prelude hiding (either)
 
 version :: A.Version
 version = A.Version [0,33,0,0]
 
 -- Packages
+
+penny :: A.Package
+penny = A.Package "penny" (Just (A.Leaf (A.Constraint EQ version)))
 
 base :: A.Package
 base = A.closedOpen "base" [4,5,0,0] [4,8]
@@ -53,6 +57,19 @@ either = A.closedOpen "either" [3,4,1] [4,2]
 semigroups :: A.Package
 semigroups = A.closedOpen "semigroups" [0,9,2] [0,14]
 
+quickcheck :: A.Package
+quickcheck = A.closedOpen "QuickCheck" [2,6] [2,7]
+
+tasty :: A.Package
+tasty = A.closedOpen "tasty" [0,8] [0,9]
+
+tasty_quickcheck :: A.Package
+tasty_quickcheck = A.closedOpen "tasty-quickcheck" [0,8] [0,9]
+
+random_shuffle :: A.Package
+random_shuffle = A.exactly "random-shuffle" [0,0,4]
+
+
 -- Omari packages
 
 anonymous_sums :: A.Package
@@ -81,6 +98,10 @@ rainbox = A.nextBreaking "rainbox" [0,4,0,2]
 ghcOptions :: [String]
 ghcOptions = ["-Wall"]
 
+flags :: [A.Flag]
+flags =
+  [ A.Flag "debug" "turns on debugging options" False True ]
+
 libraryDepends :: [A.Package]
 libraryDepends =
   [ base
@@ -108,13 +129,13 @@ libraryDepends =
 
 testedWith :: [(A.Compiler, A.ConstrTree)]
 testedWith =
-  let ghc v = (A.GHC, A.Leaf EQ (A.Version v))
+  let ghc v = (A.GHC, A.Leaf (A.Constraint EQ (A.Version v)))
   in map ghc [[7,4,1], [7,6,3], [7,8,2]]
 
 repo :: A.Repository
 repo = A.Repository
   { A.repoVcs = A.Git
-  , A.repoKind = A.Head Nothing
+  , A.repoKind = A.Head
   , A.repoLocation = "https://github.com/massysett/penny.git"
   , A.repoBranch = "master"
   , A.repoTag = ""
@@ -167,17 +188,79 @@ properties = A.properties
   , A.prExtraSourceFiles = extraSourceFiles
   }
 
+commonBuildInfo :: [A.BuildInfoField]
+commonBuildInfo =
+  [ A.GHCOptions ghcOptions
+  , A.DefaultLanguage A.Haskell2010
+  ]
+
+commonOptions :: A.Field a => [a]
+commonOptions = cond : map A.buildInfo commonBuildInfo
+  where
+    cond = A.conditional $ A.CondBlock (A.CLeaf . A.CFlag $ "debug")
+      [ A.buildInfo (A.GHCOptions ["-auto-all", "-caf-all"]) ]
+      []
+
 library
   :: [String]
   -- ^ Library modules
   -> A.Library
-library ms = A.Library
+library ms = A.Library $
   [ A.LibExposedModules ms
+  , A.buildInfo $ A.OtherModules ["Paths_penny"]
   , A.LibExposed True
-  , A.LibConditional $
-      A.CondBlock (A.CLeaf (A.CFlag "incabal"))
-      [ A.LibInfo $ A.C
+  , A.buildInfo (A.HsSourceDirs ["lib"])
+  , A.buildInfo $ A.BuildDepends libraryDepends
   ]
 
+  ++ commonOptions
+
+pennyTestDepends :: [A.Package]
+pennyTestDepends =
+  [ penny
+  , base
+  , anonymous_sums
+  , quickcheck
+  , tasty
+  , tasty_quickcheck
+  , random_shuffle
+  , parsec
+  , semigroups
+  , text
+  , time
+  , transformers
+  ]
+
+pennyTest
+  :: [String]
+  -- ^ Test modules
+  -> A.TestSuite
+pennyTest ms = A.TestSuite "penny-test" $
+  [ A.TestType $ A.ExitcodeStdio "penny-test.hs"
+  , A.buildInfo $ A.OtherModules ms
+  , A.buildInfo $ A.BuildDepends pennyTestDepends
+  , A.buildInfo $ A.HsSourceDirs ["tests"]
+  ]
+
+  ++ commonOptions
+
+cabal
+  :: [String]
+  -- ^ Library modules
+  -> [String]
+  -- ^ Test modules
+  -> A.Cabal
+cabal libMods testMods = A.cabal
+  { A.cProperties = properties
+  , A.cRepositories = [repo]
+  , A.cFlags = flags
+  , A.cLibrary = Just (library libMods)
+  , A.cTestSuites = [pennyTest testMods]
+  }
+
 main :: IO ()
-main = undefined
+main = do
+  libMods <- A.modules "lib"
+  testMods <- A.modules "tests"
+  let c = cabal libMods testMods
+  A.render "genCabal.hs" c

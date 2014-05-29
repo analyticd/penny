@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, CPP #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 -- | Liberty - Penny command line parsing utilities
 --
@@ -51,7 +51,7 @@ module Penny.Liberty (
   ) where
 
 import Control.Arrow (first, second)
-import Control.Applicative ((<*>), (<$>), pure, Applicative)
+import Control.Applicative ((<*>), (<$>), pure)
 import Data.Char (toUpper)
 import Data.Monoid ((<>))
 import Data.List (sortBy)
@@ -79,9 +79,7 @@ import Text.Matchers (
   CaseSensitive(Sensitive, Insensitive))
 import qualified Text.Matchers as TM
 
-#ifdef incabal
 import qualified Paths_penny as PPL
-#endif
 import qualified Data.Version as V
 
 -- | A multiline Text that holds an error message.
@@ -755,11 +753,7 @@ version
   -> String
 version v pn = unlines
   [ pn ++ " version " ++ V.showVersion v
-#ifdef incabal
   , "using version " ++ V.showVersion PPL.version
-#else
-  , "using testing version"
-#endif
     ++ " of penny-lib"
   ]
 
