@@ -69,6 +69,8 @@ tasty_quickcheck = A.closedOpen "tasty-quickcheck" [0,8] [0,9]
 random_shuffle :: A.Package
 random_shuffle = A.exactly "random-shuffle" [0,0,4]
 
+random :: A.Package
+random = A.closedOpen "random" [1,0,0,0] [1,1]
 
 -- Omari packages
 
@@ -100,7 +102,10 @@ ghcOptions = ["-Wall"]
 
 flags :: [A.Flag]
 flags =
-  [ A.Flag "debug" "turns on debugging options" False True ]
+  [ A.Flag "debug" "turns on debugging options" False True
+  , manualFlag "build-penny-gibberish" "Build the penny-gibberish executable"
+      False
+  ]
 
 libraryDepends :: [A.Package]
 libraryDepends =
@@ -198,7 +203,7 @@ commonOptions :: A.Field a => [a]
 commonOptions = cond : map A.buildInfo commonBuildInfo
   where
     cond = A.conditional $ A.CondBlock (A.CLeaf . A.CFlag $ "debug")
-      [ A.buildInfo (A.GHCOptions ["-auto-all", "-caf-all"]) ]
+      [ A.buildInfo (A.GHCOptions ["-auto-all", "-caf-all", "-rtsopts"]) ]
       []
 
 library
@@ -236,13 +241,80 @@ pennyTest
   -- ^ Test modules
   -> A.TestSuite
 pennyTest ms = A.TestSuite "penny-test" $
-  [ A.TestType $ A.ExitcodeStdio "penny-test.hs"
+  [ A.TestType A.ExitcodeStdio
+  , A.TestMainIs "penny-test.hs"
   , A.buildInfo $ A.OtherModules ms
   , A.buildInfo $ A.BuildDepends pennyTestDepends
   , A.buildInfo $ A.HsSourceDirs ["tests"]
   ]
 
   ++ commonOptions
+
+pennyGibberishDepends :: [A.Package]
+pennyGibberishDepends =
+  [ penny
+  , base
+  , multiarg
+  , quickcheck
+  , random_shuffle
+  , random
+  , semigroups
+  , text
+  , time
+  , transformers
+  ]
+
+executable
+  :: String
+  -- ^ Executable name
+  -> String
+  -- ^ Main-is file
+  -> (A.Flag, A.Executable)
+executable n mi = (fl, ex)
+  where
+    ex = A.Executable n $
+      [ A.ExeMainIs $ mi ++ ".hs"
+      , A.buildInfo $ A.OtherModules ["Paths_penny"]
+      , A.buildInfo $ A.HsSourceDirs ["bin"]
+      , A.buildInfo $ A.BuildDepends [ penny, base ]
+      , A.conditional $ A.CondBlock (A.CLeaf (A.CFlag ("build-" ++ n)))
+          [ A.buildInfo $ A.Buildable True ]
+          [ A.buildInfo $ A.Buildable False ]
+      ] ++ commonOptions
+
+    fl = manualFlag ("build-" ++ n)
+      ("build the " ++ n ++ " executable") True
+
+pennyGibberish
+  :: [String]
+  -- ^ Test modules
+  -> A.Executable
+pennyGibberish ms = A.Executable "penny-gibberish" $
+  [ A.ExeMainIs "penny-gibberish.hs"
+  , A.buildInfo $ A.OtherModules ms
+  , A.buildInfo $ A.BuildDepends pennyGibberishDepends
+  , A.buildInfo $ A.HsSourceDirs ["tests"]
+  , A.conditional $ A.CondBlock (A.CLeaf (A.CFlag "build-penny-gibberish"))
+      [ A.buildInfo $ A.Buildable True ]
+      [ A.buildInfo $ A.Buildable False ]
+  ]
+
+  ++ commonOptions
+
+manualFlag
+  :: String
+  -- ^ Name
+  -> String
+  -- ^ Description
+  -> Bool
+  -- ^ Default
+  -> A.Flag
+manualFlag n ds df = A.flag
+  { A.flName = n
+  , A.flDescription = ds
+  , A.flDefault = df
+  , A.flManual = True
+  }
 
 cabal
   :: [String]
@@ -253,10 +325,16 @@ cabal
 cabal libMods testMods = A.cabal
   { A.cProperties = properties
   , A.cRepositories = [repo]
-  , A.cFlags = flags
+  , A.cFlags = flags ++ flgs
   , A.cLibrary = Just (library libMods)
   , A.cTestSuites = [pennyTest testMods]
+  , A.cExecutables = pennyGibberish testMods : exes
   }
+  where
+    (flgs, exes) = unzip . map (uncurry executable) $
+      ("penny", "penny-main") : map same ["penny-selloff",
+        "penny-diff", "penny-reprint", "penny-reconcile" ]
+    same x = (x, x)
 
 main :: IO ()
 main = do
