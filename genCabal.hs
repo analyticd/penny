@@ -1,5 +1,5 @@
 -- | Uses Cartel to generate the Cabal file.  Written for Cartel
--- version 0.2.0.0.
+-- version 0.10.0.0.
 
 module Main (main) where
 
@@ -22,6 +22,9 @@ bytestring = A.closedOpen "bytestring" [0,9,2,1] [0,11]
 
 containers :: A.Package
 containers = A.closedOpen "containers" [0,4,2,1] [0,6]
+
+deka :: A.Package
+deka = A.nextBreaking "deka" [0,6,0,0]
 
 old_locale :: A.Package
 old_locale = A.closedOpen "old-locale" [1,0,0,4] [1,1]
@@ -100,6 +103,21 @@ rainbox = A.nextBreaking "rainbox" [0,4,0,2]
 ghcOptions :: [String]
 ghcOptions = ["-Wall"]
 
+manualFlag
+  :: String
+  -- ^ Name
+  -> String
+  -- ^ Description
+  -> Bool
+  -- ^ Default
+  -> A.Flag
+manualFlag n ds df = A.empty
+  { A.flName = n
+  , A.flDescription = ds
+  , A.flDefault = df
+  , A.flManual = True
+  }
+
 flags :: [A.Flag]
 flags =
   [ A.Flag "debug" "turns on debugging options" False True
@@ -112,6 +130,7 @@ libraryDepends =
   [ base
   , bytestring
   , containers
+  , deka
   , old_locale
   , parsec
   , split
@@ -165,7 +184,7 @@ extraSourceFiles =
   ]
 
 properties :: A.Properties
-properties = A.properties
+properties = A.empty
   { A.prName = "penny"
   , A.prVersion = version
   , A.prCabalVersion = (1,14)
@@ -193,17 +212,17 @@ properties = A.properties
   , A.prExtraSourceFiles = extraSourceFiles
   }
 
-commonBuildInfo :: [A.BuildInfoField]
+commonBuildInfo :: A.Field a => [a]
 commonBuildInfo =
-  [ A.GHCOptions ghcOptions
-  , A.DefaultLanguage A.Haskell2010
+  [ A.ghcOptions ghcOptions
+  , A.defaultLanguage A.Haskell2010
   ]
 
 commonOptions :: A.Field a => [a]
-commonOptions = cond : map A.buildInfo commonBuildInfo
+commonOptions = cond : commonBuildInfo
   where
-    cond = A.conditional $ A.CondBlock (A.CLeaf . A.CFlag $ "debug")
-      [ A.buildInfo (A.GHCOptions ["-auto-all", "-caf-all", "-rtsopts"]) ]
+    cond = A.cif (A.flag "debug")
+      [ (A.ghcOptions ["-auto-all", "-caf-all", "-rtsopts"]) ]
       []
 
 library
@@ -212,10 +231,10 @@ library
   -> A.Library
 library ms = A.Library $
   [ A.LibExposedModules ms
-  , A.buildInfo $ A.OtherModules ["Paths_penny"]
+  , A.otherModules ["Paths_penny"]
   , A.LibExposed True
-  , A.buildInfo (A.HsSourceDirs ["lib"])
-  , A.buildInfo $ A.BuildDepends libraryDepends
+  , A.hsSourceDirs ["lib"]
+  , A.buildDepends libraryDepends
   ]
 
   ++ commonOptions
@@ -243,9 +262,9 @@ pennyTest
 pennyTest ms = A.TestSuite "penny-test" $
   [ A.TestType A.ExitcodeStdio
   , A.TestMainIs "penny-test.hs"
-  , A.buildInfo $ A.OtherModules ms
-  , A.buildInfo $ A.BuildDepends pennyTestDepends
-  , A.buildInfo $ A.HsSourceDirs ["tests"]
+  , A.otherModules ms
+  , A.buildDepends pennyTestDepends
+  , A.hsSourceDirs ["tests"]
   ]
 
   ++ commonOptions
@@ -274,12 +293,12 @@ executable n mi = (fl, ex)
   where
     ex = A.Executable n $
       [ A.ExeMainIs $ mi ++ ".hs"
-      , A.buildInfo $ A.OtherModules ["Paths_penny"]
-      , A.buildInfo $ A.HsSourceDirs ["bin"]
-      , A.buildInfo $ A.BuildDepends [ penny, base ]
-      , A.conditional $ A.CondBlock (A.CLeaf (A.CFlag ("build-" ++ n)))
-          [ A.buildInfo $ A.Buildable True ]
-          [ A.buildInfo $ A.Buildable False ]
+      , A.otherModules ["Paths_penny"]
+      , A.hsSourceDirs ["bin"]
+      , A.buildDepends [ penny, base ]
+      , A.cif (A.flag ("build-" ++ n))
+          [ A.buildable True ]
+          [ A.buildable False ]
       ] ++ commonOptions
 
     fl = manualFlag ("build-" ++ n)
@@ -291,30 +310,15 @@ pennyGibberish
   -> A.Executable
 pennyGibberish ms = A.Executable "penny-gibberish" $
   [ A.ExeMainIs "penny-gibberish.hs"
-  , A.buildInfo $ A.OtherModules ms
-  , A.buildInfo $ A.BuildDepends pennyGibberishDepends
-  , A.buildInfo $ A.HsSourceDirs ["tests"]
-  , A.conditional $ A.CondBlock (A.CLeaf (A.CFlag "build-penny-gibberish"))
-      [ A.buildInfo $ A.Buildable True ]
-      [ A.buildInfo $ A.Buildable False ]
+  , A.otherModules ms
+  , A.buildDepends pennyGibberishDepends
+  , A.hsSourceDirs ["tests"]
+  , A.cif (A.flag "build-penny-gibberish")
+      [ A.buildable True ]
+      [ A.buildable False ]
   ]
 
   ++ commonOptions
-
-manualFlag
-  :: String
-  -- ^ Name
-  -> String
-  -- ^ Description
-  -> Bool
-  -- ^ Default
-  -> A.Flag
-manualFlag n ds df = A.flag
-  { A.flName = n
-  , A.flDescription = ds
-  , A.flDefault = df
-  , A.flManual = True
-  }
 
 cabal
   :: [String]
@@ -322,7 +326,7 @@ cabal
   -> [String]
   -- ^ Test modules
   -> A.Cabal
-cabal libMods testMods = A.cabal
+cabal libMods testMods = A.empty
   { A.cProperties = properties
   , A.cRepositories = [repo]
   , A.cFlags = flags ++ flgs
