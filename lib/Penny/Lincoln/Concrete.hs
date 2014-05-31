@@ -1,6 +1,6 @@
 module Penny.Lincoln.Concrete where
 
-import qualified Penny.Lincoln.Abstract as A
+import qualified Penny.Lincoln.Rep as A
 import qualified Deka.Dec as D
 import Data.Monoid ((<>))
 import Prelude hiding (negate)

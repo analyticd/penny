@@ -1,7 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
-module Penny.Lincoln.Abstract where
+module Penny.Lincoln.Rep where
 
 import qualified Deka.Native.Abstract as A
+import Penny.Lincoln.Lane
 
 -- | A group of digits, with at least one digit being non-zero.
 
@@ -26,6 +27,9 @@ data ChainL a = ChainL
   , clGrouper :: a
   } deriving (Eq, Ord, Show)
 
+newtype ChainsL a = ChainsL { unChainsL :: [ChainL a] }
+  deriving (Eq, Ord, Show)
+
 -- | A group of digits with a grouping character; the digits appear
 -- to the right of the grouping character.
 
@@ -34,12 +38,15 @@ data ChainR a = ChainR
   , crVoll :: Voll
   } deriving (Eq, Ord, Show)
 
+newtype ChainsR a = ChainsR { unChainsR :: [ChainR a] }
+  deriving (Eq, Ord, Show)
+
 -- | A group of digits with a non-zero digit, surrounded by other
 -- grouped digits.
 data Clatch a = Clatch
-  { ctLeft :: [ChainL a]
+  { ctLeft :: ChainsL a
   , ctCenter :: Lot
-  , ctRight :: [ChainR a]
+  , ctRight :: ChainsR a
   } deriving (Eq, Ord, Show)
 
 -- | A whole number, with no radix point.
@@ -50,7 +57,7 @@ newtype Whole a = Whole { unWhole :: Clatch a }
 
 data Flock a = Flock
   { flFirst :: Voll
-  , flRest :: [ChainR a]
+  , flRest :: ChainsR a
   } deriving (Eq, Ord, Show)
 
 -- | A non-zero number with a radix point; the portion to the left
@@ -110,11 +117,14 @@ data Basket a = Basket
   , bkEggs :: Eggs
   } deriving (Eq, Ord, Show)
 
+newtype Baskets a = Baskets { unBaskets :: [Basket a] }
+  deriving (Eq, Ord, Show)
+
 -- | A non-empty group of zeroes, with optional additional groups.
 
 data Coop a = Coop
   { cpEggs :: Eggs
-  , cpBaskets :: [Basket a]
+  , cpBaskets :: Baskets a
   } deriving (Eq, Ord, Show)
 
 -- | A zero number with a whole part only.
@@ -142,8 +152,20 @@ data Zero a
   | ZWingR (WingR a)
   deriving (Eq, Ord, Show)
 
-data Side
-  = Debit
-  | Credit
+data Quant a = Quant
+  { qNonZero :: NonZero a
+  , qSide :: Side
+  } deriving (Eq, Ord, Show)
+
+instance Sided (Quant a) where
+  side = qSide
+
+data Amount a
+  = AQuant (Quant a)
+  | AZero (Zero a)
   deriving (Eq, Ord, Show)
 
+instance Laned (Amount a) where
+  lane a = case a of
+    AQuant q -> NonCenter . qSide $ q
+    AZero _ -> Center
