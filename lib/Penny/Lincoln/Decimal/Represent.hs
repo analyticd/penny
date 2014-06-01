@@ -10,10 +10,12 @@ import Prelude hiding (exponent)
 -- | Represents a number, without any digit grouping.
 
 ungrouped
-  :: (HasCoefficient a, HasExponent a, Laned a)
+  :: (HasExponent a, Laned a)
   => a
   -> Rep b
-ungrouped = undefined
+ungrouped a = case lane a of
+  Center -> RZero $ ungroupedZero (exponent a)
+  NonCenter (s, d) -> RQuant $ ungroupedNonZero (exponent a) s d
 
 ungroupedZero :: Exponent -> Zero a
 ungroupedZero = undefined
@@ -39,7 +41,16 @@ ungroupedNonZero = undefined
 -- insert your preferred grouping character.
 
 grouped
-  :: (HasCoefficient a, HasExponent a)
+  :: (HasExponent a, Laned a)
   => a
   -> Rep ()
-grouped = undefined
+grouped a = case lane a of
+  Center -> RZero $ ungroupedZero (exponent a)
+  NonCenter (s, d) -> RQuant $ groupedNonZero (exponent a) s d
+
+groupedNonZero
+  :: Exponent
+  -> Side
+  -> Decuple
+  -> Quant ()
+groupedNonZero = undefined

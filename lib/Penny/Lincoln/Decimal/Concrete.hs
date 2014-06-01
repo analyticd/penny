@@ -2,7 +2,6 @@ module Penny.Lincoln.Decimal.Concrete
   ( Concrete
   , unConcrete
   , HasConcrete(..)
-  , compute
   , add
   , subt
   , mult
@@ -24,8 +23,14 @@ newtype Concrete = Concrete { unConcrete :: D.Dec }
 instance Laned Concrete where
   lane (Concrete d)
     | D.isZero d = Center
-    | D.isPositive d = NonCenter Debit
-    | otherwise = NonCenter Credit
+    | D.isPositive d = NonCenter (Debit, dc)
+    | otherwise = NonCenter (Credit, dc)
+    where
+      dc = case DN.value . DN.decToAbstract $ d of
+        DN.Finite c _ -> case DN.unCoefficient c of
+          DN.Plenus dcple -> dcple
+          _ -> error "Concrete.Laned: invalid decoded"
+        _ -> error "Concrete.Laned: impossible number type"
 
 instance N.HasExponent Concrete where
   exponent (Concrete d) = case DN.value a of

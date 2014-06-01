@@ -173,26 +173,47 @@ instance HasExponent (A.PunctaL a) where
 instance HasExponent (A.PunctaR a) where
   exponent = widthToExp . width . A.prRight
 
-class HasCoefficient a where
-  coefficient :: a -> D.Coefficient
+class HasDecuple a where
+  decuple :: a -> D.Decuple
 
-instance HasCoefficient (A.Whole a) where
-  coefficient = D.Coefficient . D.Plenus .
-    clatchToDecuple . A.unWhole
+instance HasDecuple (A.Clatch a) where
+  decuple = clatchToDecuple
 
-instance HasCoefficient (A.PunctaL a) where
-  coefficient (A.PunctaL c f) =
-    D.Coefficient . D.Plenus $ addMaybeRDecuple l r
+instance HasDecuple (A.Whole a) where
+  decuple = clatchToDecuple . A.unWhole
+
+instance HasDecuple (A.PunctaL a) where
+  decuple (A.PunctaL c f) = addMaybeRDecuple l r
     where
       l = clatchToDecuple c
       r = join . fmap flockToDecuple $ f
 
-instance HasCoefficient (A.PunctaR a) where
-  coefficient (A.PunctaR f c) =
-    D.Coefficient . D.Plenus $ addMaybeLDecuple l r
+instance HasDecuple (A.PunctaR a) where
+  decuple (A.PunctaR f c) = addMaybeLDecuple l r
     where
       l = join . fmap flockToDecuple $ f
       r = clatchToDecuple c
+
+instance HasDecuple (A.NonZero a) where
+  decuple r = case r of
+    A.WholeOnly a -> decuple a
+    A.NZLeft a -> decuple a
+    A.NZRight a -> decuple a
+
+instance HasDecuple (A.Quant a) where
+  decuple = decuple . A.qNonZero
+
+class HasCoefficient a where
+  coefficient :: a -> D.Coefficient
+
+instance HasCoefficient (A.Whole a) where
+  coefficient = D.Coefficient . D.Plenus . decuple
+
+instance HasCoefficient (A.PunctaL a) where
+  coefficient = D.Coefficient . D.Plenus . decuple
+
+instance HasCoefficient (A.PunctaR a) where
+  coefficient = D.Coefficient . D.Plenus . decuple
 
 instance HasCoefficient (A.NonZero a) where
   coefficient r = case r of

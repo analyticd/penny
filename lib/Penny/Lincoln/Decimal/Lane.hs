@@ -1,14 +1,15 @@
 module Penny.Lincoln.Decimal.Lane where
 
 import Deka.Native
+import qualified Penny.Lincoln.Decimal.Native as LN
 import Penny.Lincoln.Decimal.Side
 import Penny.Lincoln.Decimal.Rep
 
 data Lane
   = Center
-  | NonCenter Side
-  -- | NonCenter (Side, Decuple)
+  | NonCenter (Side, Decuple)
   deriving (Eq, Ord, Show)
+  -- NonCenter (Side, Decuple)
 
 class Sided a where
   side :: a -> Side
@@ -19,9 +20,10 @@ class Laned a where
 
 instance Laned (Rep a) where
   lane a = case a of
-    RQuant q -> NonCenter . qSide $ q
+    RQuant q -> NonCenter (qSide $ q, LN.decuple q)
     RZero _ -> Center
 
 instance Sided (Quant a) where
   side = qSide
+  decuple = LN.decuple
 
