@@ -2,7 +2,7 @@
 module Penny.Lincoln.Decimal.Rep where
 
 import qualified Deka.Native.Abstract as A
-import Penny.Lincoln.Decimal.Lane
+import Penny.Lincoln.Decimal.Side
 import Penny.Lincoln.Nats
 
 -- | A group of digits, with at least one digit being non-zero.
@@ -197,9 +197,6 @@ data Quant a = Quant
 instance Functor Quant where
   fmap f (Quant z s) = Quant (fmap f z) s
 
-instance Sided (Quant a) where
-  side = qSide
-
 data Rep a
   = RQuant (Quant a)
   | RZero (Zero a)
@@ -209,10 +206,5 @@ instance Functor Rep where
   fmap f r = case r of
     RQuant q -> RQuant (fmap f q)
     RZero z -> RZero (fmap f z)
-
-instance Laned (Rep a) where
-  lane a = case a of
-    RQuant q -> NonCenter . qSide $ q
-    RZero _ -> Center
 
 

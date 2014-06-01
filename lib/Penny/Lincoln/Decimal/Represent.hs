@@ -3,6 +3,7 @@ module Penny.Lincoln.Decimal.Represent where
 import Penny.Lincoln.Decimal.Native
 import Penny.Lincoln.Decimal.Rep
 import Deka.Native
+import Penny.Lincoln.Decimal.Side
 import Penny.Lincoln.Decimal.Lane
 import Prelude hiding (exponent)
 

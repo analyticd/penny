@@ -15,6 +15,7 @@ import qualified Deka.Native as DN
 import qualified Penny.Lincoln.Decimal.Native as N
 import qualified Deka.Dec as D
 import Penny.Lincoln.Decimal.Lane
+import Penny.Lincoln.Decimal.Side
 import Prelude hiding (negate, exponent)
 
 newtype Concrete = Concrete { unConcrete :: D.Dec }
