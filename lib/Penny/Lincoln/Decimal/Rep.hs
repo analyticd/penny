@@ -1,8 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
-module Penny.Lincoln.Rep where
+module Penny.Lincoln.Decimal.Rep where
 
 import qualified Deka.Native.Abstract as A
-import Penny.Lincoln.Lane
+import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Nats
 
 -- | A group of digits, with at least one digit being non-zero.

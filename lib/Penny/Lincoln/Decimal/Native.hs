@@ -1,6 +1,6 @@
-module Penny.Lincoln.Native where
+module Penny.Lincoln.Decimal.Native where
 
-import qualified Penny.Lincoln.Rep as A
+import qualified Penny.Lincoln.Decimal.Rep as A
 import qualified Deka.Native.Abstract as D
 import qualified Deka.Dec as D (PosNeg(..))
 import Prelude hiding (exponent)

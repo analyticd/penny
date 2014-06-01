@@ -1,4 +1,4 @@
-module Penny.Lincoln.Grouper where
+module Penny.Lincoln.Decimal.Grouper where
 
 class Grouper a where
   groupChar :: a -> Char

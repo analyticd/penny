@@ -1,4 +1,6 @@
-module Penny.Lincoln.Lane where
+module Penny.Lincoln.Decimal.Lane where
+
+import Deka.Native
 
 data Side
   = Debit
@@ -7,11 +9,12 @@ data Side
 
 data Lane
   = Center
-  | NonCenter Side
+  | NonCenter (Side, Decuple)
   deriving (Eq, Ord, Show)
 
 class Sided a where
   side :: a -> Side
+  decuple :: a -> Decuple
 
 class Laned a where
   lane :: a -> Lane

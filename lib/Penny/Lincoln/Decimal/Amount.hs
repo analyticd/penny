@@ -1,8 +1,8 @@
-module Penny.Lincoln.Amount where
+module Penny.Lincoln.Decimal.Amount where
 
-import Penny.Lincoln.Concrete
-import Penny.Lincoln.Rep
-import Penny.Lincoln.Lane
+import Penny.Lincoln.Decimal.Concrete
+import Penny.Lincoln.Decimal.Rep
+import Penny.Lincoln.Decimal.Lane
 
 data Amount a
   = ARep (Rep a)

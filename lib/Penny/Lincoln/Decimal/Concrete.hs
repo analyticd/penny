@@ -1,4 +1,4 @@
-module Penny.Lincoln.Concrete
+module Penny.Lincoln.Decimal.Concrete
   ( Concrete
   , unConcrete
   , HasConcrete(..)
@@ -9,12 +9,13 @@ module Penny.Lincoln.Concrete
   , negate
   ) where
 
-import qualified Penny.Lincoln.Rep as A
+import qualified Penny.Lincoln.Decimal.Rep as A
 import qualified Deka.Native.Abstract as DN
-import qualified Penny.Lincoln.Native as N
+import qualified Deka.Native as DN
+import qualified Penny.Lincoln.Decimal.Native as N
 import qualified Deka.Dec as D
-import Penny.Lincoln.Lane
-import Prelude hiding (negate)
+import Penny.Lincoln.Decimal.Lane
+import Prelude hiding (negate, exponent)
 
 newtype Concrete = Concrete { unConcrete :: D.Dec }
   deriving Show
@@ -24,6 +25,20 @@ instance Laned Concrete where
     | D.isZero d = Center
     | D.isPositive d = NonCenter Debit
     | otherwise = NonCenter Credit
+
+instance N.HasExponent Concrete where
+  exponent (Concrete d) = case DN.value a of
+    DN.Finite _ e -> e
+    _ -> error "Concrete.HasExponent: invalid Dec"
+    where
+      a = DN.decToAbstract d
+
+instance N.HasCoefficient Concrete where
+  coefficient (Concrete d) = case DN.value a of
+    DN.Finite c _ -> c
+    _ -> error "Concrete.HasCoefficient: invalid Dec"
+    where
+      a = DN.decToAbstract d
 
 class HasConcrete a where
   concrete :: a -> Concrete
@@ -42,7 +57,7 @@ compute :: D.Ctx a -> a
 compute c
   | fl == D.emptyFlags = r
   | otherwise = error
-        "Penny.Lincoln.Concrete: computation out of range"
+        "Penny.Lincoln.Decimal.Concrete: computation out of range"
   where
     (r, fl) = D.runCtxStatus c
 
