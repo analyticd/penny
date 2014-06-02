@@ -93,7 +93,7 @@ data PunctaL a = PunctaL
 instance Functor PunctaL where
   fmap f (PunctaL l r) = PunctaL (fmap f l) (fmap (fmap f) r)
 
--- | A non-zero number with a radix point; the portion to the left
+-- | A non-zero number with a radix point; the portion to the right
 -- of the radix point has a non-zero digit.
 
 data PunctaR a = PunctaR

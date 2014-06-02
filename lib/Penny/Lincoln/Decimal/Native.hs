@@ -2,7 +2,6 @@ module Penny.Lincoln.Decimal.Native where
 
 import qualified Penny.Lincoln.Decimal.Rep as A
 import qualified Deka.Native.Abstract as D
-import qualified Deka.Dec as D (PosNeg(..))
 import Prelude hiding (exponent)
 import Control.Monad (join)
 import Penny.Lincoln.Nats (countPositive)
@@ -89,14 +88,22 @@ punctaRtoDecuple (A.PunctaR mayFl cl) = case mayFl of
   where
     rt = clatchToDecuple cl
 
+-- | An exponent.  Penny only recognizes negative or zero exponents.
+
+newtype Exponent = Exponent { unExponent :: Maybe D.Decuple }
+  deriving (Eq, Ord, Show)
+
 class HasExponent a where
-  exponent :: a -> D.Exponent
+  exponent :: a -> Exponent
 
 instance HasExponent (A.Whole a) where
-  exponent _ = D.Exponent D.Cero
+  exponent _ = Exponent Nothing
 
 class HasWidth a where
   width :: a -> Int
+
+instance HasWidth D.Decuple where
+  width (D.Decuple _ ds) = length ds + 1
 
 instance HasWidth A.Voll where
   width (A.Voll _ ds) = length ds + 1
@@ -160,12 +167,8 @@ instance HasWidth (A.WingR a) where
   width a = width (A.wrRight a) +
     (fromMaybe 0 . fmap width . A.wrLeft $ a)
 
-widthToExp :: Int -> D.Exponent
-widthToExp = D.Exponent . changeSign . D.intToFirmado
-  where
-    changeSign f = case f of
-      D.Cero -> D.Cero
-      D.Completo _ d -> D.Completo D.Neg d
+widthToExp :: Int -> Exponent
+widthToExp = Exponent . fmap snd . D.intToDecuple
 
 instance HasExponent (A.PunctaL a) where
   exponent = widthToExp . maybe 0 width . A.plRight

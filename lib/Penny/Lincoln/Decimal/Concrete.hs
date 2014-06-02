@@ -34,7 +34,11 @@ instance Laned Concrete where
 
 instance N.HasExponent Concrete where
   exponent (Concrete d) = case DN.value a of
-    DN.Finite _ e -> e
+    DN.Finite _ e -> case DN.unExponent e of
+      DN.Cero -> N.Exponent Nothing
+      DN.Completo s dc -> case s of
+        D.Pos -> error "Concrete.HasExponent: impossible sign"
+        D.Neg -> N.Exponent (Just dc)
     _ -> error "Concrete.HasExponent: invalid Dec"
     where
       a = DN.decToAbstract d
@@ -73,7 +77,9 @@ instance HasConcrete (A.Rep a) where
       (dec, fl) = DN.abstractToDec abstract
       abstract = DN.Abstract sgn $ DN.Finite coe ex
       coe = N.coefficient r
-      ex = N.exponent r
+      ex = DN.Exponent $ case N.unExponent $ N.exponent r of
+        Nothing -> DN.Cero
+        Just dc -> DN.Completo D.Neg dc
       sgn = case r of
         A.RQuant q -> case A.qSide q of
           Debit -> D.Sign0
