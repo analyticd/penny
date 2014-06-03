@@ -96,6 +96,7 @@ instance HasCoefficient Concrete where
     where
       a = DN.decToAbstract d
 
+-- | Things that can be converted to a concrete representation.
 class HasConcrete a where
   concrete :: a -> Concrete
 
@@ -142,18 +143,22 @@ zero = Concrete . compute $ D.fromByteString "0"
 one :: Concrete
 one = Concrete . compute $ D.fromByteString "1"
 
+-- | Ordinary addition.
 add :: Concrete -> Concrete -> Concrete
 add (Concrete x) (Concrete y) = Concrete . compute $
   D.add x y
 
+-- | Ordinary subtraction.
 subt :: Concrete -> Concrete -> Concrete
 subt (Concrete x) (Concrete y) = Concrete . compute $
   D.subtract x y
 
+-- | Ordinary multiplication.
 mult :: Concrete -> Concrete -> Concrete
 mult (Concrete x) (Concrete y) = Concrete . compute $
   D.multiply x y
 
+-- | Flips 'Debit' to 'Credit' and vice versa; zeroes are unchanged.
 negate :: Concrete -> Concrete
 negate (Concrete x) = Concrete . compute $ D.minus x
 

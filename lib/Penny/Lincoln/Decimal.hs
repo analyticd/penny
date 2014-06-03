@@ -67,8 +67,7 @@ module Penny.Lincoln.Decimal
   ) where
 
 import Penny.Lincoln.Decimal.Components
-import Penny.Lincoln.Decimal.Represent.Ungrouped
-import Penny.Lincoln.Decimal.Represent.Grouped
+import Penny.Lincoln.Decimal.Represent
 import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Side
