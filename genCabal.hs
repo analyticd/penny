@@ -42,7 +42,7 @@ time :: A.Package
 time = A.closedOpen "time" [1,4] [1,5]
 
 transformers :: A.Package
-transformers = A.closedOpen "transformers" [0,3,0,0] [0,4]
+transformers = A.closedOpen "transformers" [0,3,0,0] [0,5]
 
 action_permutations :: A.Package
 action_permutations = A.closedOpen "action-permutations"
@@ -52,16 +52,16 @@ cereal :: A.Package
 cereal = A.closedOpen "cereal" [0,3,5,2] [0,5]
 
 contravariant :: A.Package
-contravariant = A.closedOpen "contravariant" [0,2,0,1] [0,5]
+contravariant = A.closedOpen "contravariant" [0,2,0,1] [0,7]
 
 either :: A.Package
-either = A.closedOpen "either" [3,4,1] [4,2]
+either = A.closedOpen "either" [3,4,1] [4,4]
 
 semigroups :: A.Package
-semigroups = A.closedOpen "semigroups" [0,9,2] [0,14]
+semigroups = A.closedOpen "semigroups" [0,9,2] [0,16]
 
 quickcheck :: A.Package
-quickcheck = A.closedOpen "QuickCheck" [2,6] [2,7]
+quickcheck = A.closedOpen "QuickCheck" [2,7] [2,8]
 
 tasty :: A.Package
 tasty = A.closedOpen "tasty" [0,8] [0,9]

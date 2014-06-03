@@ -709,7 +709,7 @@ prop_addBalancesCommutative x y = (x <> y) == (y <> x)
 -- | Adding Balances is associative
 prop_addBalancesAssociative
   :: L.Balance -> L.Balance -> L.Balance -> Q.Property
-prop_addBalancesAssociative x y z = Q.printTestCase desc good
+prop_addBalancesAssociative x y z = Q.counterexample desc good
   where
     lhs = x <> (y <> z)
     rhs = (x <> y) <> z
