@@ -14,12 +14,9 @@ import qualified Penny.Lincoln.Decimal.Whole as W
 -- grouping:
 --
 -- * Digits to the left of the radix are grouped only if there are
--- at least five digits.
+-- at least five digits to the left of the radix.
 --
 -- * Digits to the right of the radix are never grouped.
---
--- The unit type is used as the groupng character; use 'fmap' to
--- insert your preferred grouping character.
 
 grouped
   :: (HasExponent a, Laned a)

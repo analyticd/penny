@@ -1,11 +1,32 @@
+{-# LANGUAGE OverloadedStrings #-}
+-- | The 'Concrete' data type and associated functions.  These
+-- are concrete numbers, together with a 'Lane' (that is, whether it
+-- is a debit, credit, or zero.)  These numbers cannot be rendered
+-- as strings; for that, you will need to convert them to a 'Rep'.
+-- However, 'Concrete' types are the only ones with which you can
+-- perform arithmetic.
 module Penny.Lincoln.Decimal.Concrete
-  ( Concrete
+  ( 
+  -- * The 'Concrete' type 
+    Concrete
   , unConcrete
+
+  -- * Conversions
   , HasConcrete(..)
+
+  -- * Arithmetic
   , add
   , subt
   , mult
   , negate
+
+  -- * Monoids
+  , Add(..)
+  , Mult(..)
+
+  -- * Constants
+  , zero
+  , one
   ) where
 
 import Penny.Lincoln.Decimal.Abstract
@@ -18,13 +39,24 @@ import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Side
 import Prelude hiding (negate, exponent)
 import qualified Prelude
+import Data.Monoid(Monoid(..))
 
+-- | Concrete representation of a number, together with a 'Lane'
+-- (that is, wehther it is a 'Debit', 'Credit', or neither.)  A
+-- 'Concrete' cannot be rendered as a string; for that, use the
+-- functions in "Penny.Lincoln.Decimal.Represent" to convert the
+-- 'Concrete' to a 'Abstract' and then use
+-- 'Penny.Lincoln.Decimal.render'.
 newtype Concrete = Concrete { unConcrete :: D.Dec }
   deriving Show
 
+-- | Larger numbers are greater than smaller numbers and, for
+-- example, @1.00000@ is less than @1.0@.
 instance Ord Concrete where
   compare (Concrete x) (Concrete y) = D.compareTotal x y
 
+-- | Numbers with the same coefficient but different exponents are
+-- not equivalent; for example, @1.00000@ is not equal to @1.0@.
 instance Eq Concrete where
   x == y = compare x y == EQ
 
@@ -104,6 +136,12 @@ instance HasConcrete Rep where
 instance HasConcrete Abstract where
   concrete = concrete . absRep
 
+zero :: Concrete
+zero = Concrete . compute $ D.fromByteString "0"
+
+one :: Concrete
+one = Concrete . compute $ D.fromByteString "1"
+
 add :: Concrete -> Concrete -> Concrete
 add (Concrete x) (Concrete y) = Concrete . compute $
   D.add x y
@@ -118,3 +156,19 @@ mult (Concrete x) (Concrete y) = Concrete . compute $
 
 negate :: Concrete -> Concrete
 negate (Concrete x) = Concrete . compute $ D.minus x
+
+-- | Monoid under addition
+newtype Add = Add { unAdd :: Concrete }
+  deriving (Eq, Ord, Show)
+
+instance Monoid Add where
+  mempty = Add zero
+  mappend (Add x) (Add y) = Add $ x `add` y
+
+-- | Monoid under multiplication
+newtype Mult = Mult { unMult :: Concrete }
+  deriving (Eq, Ord, Show)
+
+instance Monoid Mult where
+  mempty = Mult one
+  mappend (Mult x) (Mult y) = Mult $ x `mult` y

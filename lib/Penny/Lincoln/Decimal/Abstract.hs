@@ -8,6 +8,7 @@ import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Side
 import Prelude hiding (exponent)
 
+-- | An abstract non-zero number.
 data NonZero
   = NZWhole Whole
   | NZFrac Frac
@@ -28,6 +29,8 @@ instance HasExponent NonZero where
     NZWhole w -> exponent w
     NZFrac f -> exponent f
 
+-- | An abstract non-zero number, along with a 'Side' to describe
+-- whether it is a 'Debit' or 'Credit'.
 data Figure = Figure
   { figSide :: Side
   , figNonZero :: NonZero
@@ -48,9 +51,18 @@ instance HasCoefficient Figure where
 instance HasExponent Figure where
   exponent = exponent . figNonZero
 
+-- | Abstract representation of a number.  Contains the number
+-- itself as well as information about whether the number, if a
+-- 'Figure', is a 'Debit' or 'Credit'.
 data Rep
   = RFigure Figure
+  -- ^ Non-zero numbers.  These are necessarily a 'Debit' or
+  -- 'Credit', which is stored in the 'Figure'.
   | RZero Zero
+  -- ^ Zero numbers.  Not all 'Zero' are the same, as @0.0@ is not
+  -- the same as @0.00@ (preserving this information is necessary so
+  -- taht some operations obey the monoid laws.)  Zeroes do not have
+  -- a 'Side'.
   deriving (Eq, Ord, Show)
 
 instance Laned Rep where
@@ -68,15 +80,24 @@ instance HasExponent Rep where
     RFigure f -> exponent f
     RZero z -> exponent z
 
+-- | What radix character and grouping character to use.
 data RadGroup
   = PeriodComma
+  -- ^ Period radix, comma grouping
   | PeriodSpace
+  -- ^ Period radix, space grouping
   | PeriodThinSpace
+  -- ^ Period radix, thin space grouping
   | CommaPeriod
+  -- ^ Comma radix, period grouping
   | CommaSpace
+  -- ^ Comma radix, space grouping
   | CommaThinSpace
+  -- ^ Comma radix, thin space grouping
   deriving (Eq, Ord, Show)
 
+-- | Abstract representation of a number, along with what characters
+-- to use for the radix point and the digit grouping character.
 data Abstract = Abstract
   { absRep :: Rep
   , absRadGroup :: RadGroup

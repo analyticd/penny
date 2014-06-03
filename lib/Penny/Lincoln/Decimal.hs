@@ -21,12 +21,58 @@
 -- number itself (the quantity) but also about the 'Side'; that is,
 -- whether the number is a 'Debit', 'Credit', or 'Center'.
 --
--- A single type, 'Amount', can hold either a 'Rep' or a 'Concrete'.
+-- A single type, 'Amount', can hold either a 'Amount' or a 'Concrete'.
+--
+-- Most types in this hierarchy are instances of 'Eq' and 'Ord'.
+-- Most of these instances are derived.  They will not tell you
+-- anything about how two numbers relate on the number line.
+-- Exception: 'Concrete' has 'Eq' and 'Ord' instances based upon a
+-- total ordering.  Larger numbers are greater than smaller numbers,
+-- and (for example) @1.0000@ is less than @1.0@.
+--
+-- This module re-exports everything you need to work with 'Amount',
+-- 'Abstract', and 'Concrete'.  If you need to manipulate components of
+-- these types, you will have to import modules from within the
+-- hierarchy.
 
-module Penny.Lincoln.Decimal where
+module Penny.Lincoln.Decimal
+  ( -- * Basic components
+    Side(..)
+  , Lane(..)
+  , Laned(..)
 
+  -- * Abstract
+  , Rep
+  , Abstract
+
+  -- * Concrete
+  , Concrete
+  , add
+  , subt
+  , mult
+  , negate
+
+  -- * Conversions
+  , HasConcrete(..)
+  , RadGroup(..)
+  , grouped
+  , ungrouped
+
+  -- * Rendering
+  , Renderable(..)
+
+  -- * Amount
+  , Amount(..)
+
+  ) where
+
+import Penny.Lincoln.Decimal.Components
+import Penny.Lincoln.Decimal.Represent.Ungrouped
+import Penny.Lincoln.Decimal.Represent.Grouped
 import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Side
 import Penny.Lincoln.Decimal.Amount
 import Penny.Lincoln.Decimal.Lane
+import Penny.Lincoln.Decimal.Render
+import Prelude hiding (negate)
