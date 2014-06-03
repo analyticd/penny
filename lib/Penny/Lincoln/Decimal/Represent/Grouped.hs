@@ -8,7 +8,7 @@ import qualified Penny.Lincoln.Decimal.Represent.Ungrouped as U
 import Prelude hiding (exponent)
 import Deka.Native.Abstract hiding (Exponent(..))
 import Data.List.Split (chunksOf)
-import qualified Penny.Lincoln.Decimal.Whole as W
+import qualified Penny.Lincoln.Decimal.Masuno as M
 
 -- | Represents a number, with digit grouping.  Rules for digit
 -- grouping:
@@ -33,12 +33,12 @@ grouped a = case lane a of
 -- own group.  No grouping at all is performed if the MSG has less
 -- than five digits.
 
-groupMSG :: W.MSG -> (W.MSG, [W.LSG])
-groupMSG (W.MSG nv decems)
-  | length decems < 4 = (W.MSG nv decems, [])
+groupMSG :: M.MSG -> (M.MSG, [M.LSG])
+groupMSG (M.MSG nv decems)
+  | length decems < 4 = (M.MSG nv decems, [])
   | otherwise = case groupsOf3 decems of
       [] -> error "groupMSG: error 1"
-      dg1:xs -> (W.MSG nv msgRest, lsgs)
+      dg1:xs -> (M.MSG nv msgRest, lsgs)
         where
           (msgRest, lsgs) = case dg1 of
             x:[] -> ([x], map mkLSG xs)
@@ -46,7 +46,7 @@ groupMSG (W.MSG nv decems)
             _ -> ([], map mkLSG (dg1:xs))
           mkLSG digs = case digs of
             [] -> error "groupMSG: error 2"
-            a:as -> W.LSG a as
+            a:as -> M.LSG a as
 
 groupedNonZero
   :: Exponent
@@ -56,14 +56,14 @@ groupedNonZero
 groupedNonZero expn sd dc = Figure sd $
   case figNonZero $ U.ungroupedNonZero expn sd dc of
 
-    NZWhole (W.Whole ei) -> case ei of
-      Left (W.WholeOnly msg _) ->
-        NZWhole (W.Whole (Left (W.WholeOnly msg' lsgs)))
+    NZMasuno (M.Masuno ei) -> case ei of
+      Left (M.Monly msg _) ->
+        NZMasuno (M.Masuno (Left (M.Monly msg' lsgs)))
         where
           (msg', lsgs) = groupMSG msg
 
-      Right (W.WholeFrac msg _ fgs) ->
-        NZWhole (W.Whole (Right (W.WholeFrac msg' lsgs fgs)))
+      Right (M.Fracuno msg _ fgs) ->
+        NZMasuno (M.Masuno (Right (M.Fracuno msg' lsgs fgs)))
         where
           (msg', lsgs) = groupMSG msg
 

@@ -1,7 +1,7 @@
 module Penny.Lincoln.Decimal.Abstract where
 
 import Penny.Lincoln.Decimal.Zero
-import Penny.Lincoln.Decimal.Whole
+import Penny.Lincoln.Decimal.Masuno
 import Penny.Lincoln.Decimal.Frac
 import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Decimal.Lane
@@ -10,23 +10,23 @@ import Prelude hiding (exponent)
 
 -- | An abstract non-zero number.
 data NonZero
-  = NZWhole Whole
+  = NZMasuno Masuno
   | NZFrac Frac
   deriving (Eq, Ord, Show)
 
 instance HasDecuple NonZero where
   decuple z = case z of
-    NZWhole w -> decuple w
+    NZMasuno w -> decuple w
     NZFrac f -> decuple f
 
 instance HasCoefficient NonZero where
   coefficient z = case z of
-    NZWhole w -> coefficient w
+    NZMasuno w -> coefficient w
     NZFrac f -> coefficient f
 
 instance HasExponent NonZero where
   exponent z = case z of
-    NZWhole w -> exponent w
+    NZMasuno w -> exponent w
     NZFrac f -> exponent f
 
 -- | An abstract non-zero number, along with a 'Side' to describe

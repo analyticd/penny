@@ -5,7 +5,7 @@ import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Zero
 import Penny.Lincoln.Decimal.Side
-import qualified Penny.Lincoln.Decimal.Whole as W
+import qualified Penny.Lincoln.Decimal.Masuno as M
 import qualified Penny.Lincoln.Decimal.Frac as F
 import Deka.Native.Abstract hiding (Exponent(..))
 import Penny.Lincoln.Natural
@@ -38,17 +38,17 @@ ungroupedNonZero
   -> Figure
 ungroupedNonZero ex sd dc
   | e < 0 = error "ungroupedNonZero: negative exponent"
-  | e == 0 = Figure sd . NZWhole . W.Whole . Left $ wholeOnly
+  | e == 0 = Figure sd . NZMasuno . M.Masuno . Left $ wholeOnly
   | e >= decupleLen = Figure sd . NZFrac $ frac
-  | otherwise = Figure sd . NZWhole . W.Whole . Right $ wholeFrac
+  | otherwise = Figure sd . NZMasuno . M.Masuno . Right $ wholeFrac
   where
     e = unNonNegative . unExponent $ ex
     Decuple msd rest = dc
     decupleLen = length rest + 1
 
-    wholeOnly = W.WholeOnly msg []
+    wholeOnly = M.Monly msg []
       where
-        msg = W.MSG msd rest
+        msg = M.MSG msd rest
 
     frac = F.Frac True [] msg []
       where
@@ -56,12 +56,12 @@ ungroupedNonZero ex sd dc
         nZeroes = maybe (error "ungroupedNonZero: error 1") id
           . nonNegative $ e - decupleLen
 
-    wholeFrac = W.WholeFrac msg [] [fg]
+    wholeFrac = M.Fracuno msg [] [fg]
       where
         nOnLeft = decupleLen - e
         (leftLessSigDigs, rtDigs) = splitAt (nOnLeft - 1) rest
-        msg = W.MSG msd leftLessSigDigs
+        msg = M.MSG msd leftLessSigDigs
         fg = case rtDigs of
           [] -> error "ungroupedNonZero: error 2"
-          x:xs -> W.FG x xs
+          x:xs -> M.FG x xs
 

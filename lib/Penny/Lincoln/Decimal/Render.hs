@@ -4,7 +4,7 @@
 module Penny.Lincoln.Decimal.Render where
 
 import Penny.Lincoln.Decimal.Abstract
-import qualified Penny.Lincoln.Decimal.Whole as W
+import qualified Penny.Lincoln.Decimal.Masuno as M
 import qualified Penny.Lincoln.Decimal.Frac as F
 import Deka.Native.Abstract hiding (Abstract(..))
 import Data.List (intersperse)
@@ -28,23 +28,23 @@ class RenderableRG a where
 instance Renderable Abstract where
   render (Abstract r rg) = case r of
     RFigure f -> case figNonZero f of
-      NZWhole w -> renderRG rg w
+      NZMasuno w -> renderRG rg w
       NZFrac fr -> renderRG rg fr
     RZero z -> renderRG rg z
 
-instance RenderableRG W.Whole where
+instance RenderableRG M.Masuno where
   renderRG rg =
     either (renderRG rg) (renderRG rg)
-    . W.unWhole
+    . M.unMasuno
 
-instance RenderableRG W.WholeOnly where
-  renderRG r (W.WholeOnly msg lsgs) =
+instance RenderableRG M.Monly where
+  renderRG r (M.Monly msg lsgs) =
     concat . intersperse ((:[]) . grouper $ r)
     $ render msg : map render lsgs
 
 
-instance RenderableRG W.WholeFrac where
-  renderRG r (W.WholeFrac msg lsgs fgs)
+instance RenderableRG M.Fracuno where
+  renderRG r (M.Fracuno msg lsgs fgs)
     = whole ++ rad ++ frac
     where
       rad = (:[]) . radix $ r
@@ -96,14 +96,14 @@ instance RenderableRG F.Frac where
       lead = if lz then "0" else ""
       rad = (:[]) . radix $ rg
 
-instance Renderable W.MSG where
-  render (W.MSG nv ds) = novemToChar nv : map decemToChar ds
+instance Renderable M.MSG where
+  render (M.MSG nv ds) = novemToChar nv : map decemToChar ds
 
-instance Renderable W.LSG where
-  render (W.LSG d1 ds) = map decemToChar (d1:ds)
+instance Renderable M.LSG where
+  render (M.LSG d1 ds) = map decemToChar (d1:ds)
 
-instance Renderable W.FG where
-  render (W.FG d1 ds) = map decemToChar (d1:ds)
+instance Renderable M.FG where
+  render (M.FG d1 ds) = map decemToChar (d1:ds)
 
 radix :: RadGroup -> Char
 radix r = case r of
