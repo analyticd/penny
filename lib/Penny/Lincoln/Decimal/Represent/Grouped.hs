@@ -1,15 +1,14 @@
 module Penny.Lincoln.Decimal.Represent.Grouped where
 
-import Penny.Lincoln.Decimal.Native
-import Penny.Lincoln.Decimal.Rep
-import Deka.Native hiding (Exponent, unExponent)
-import Deka.Native.Abstract hiding (Exponent, unExponent)
-import Penny.Lincoln.Decimal.Side
+import Penny.Lincoln.Decimal.Components
+import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Lane
-import Prelude hiding (exponent)
-import Data.Maybe
+import Penny.Lincoln.Decimal.Side
 import qualified Penny.Lincoln.Decimal.Represent.Ungrouped as U
+import Prelude hiding (exponent)
+import Deka.Native.Abstract hiding (Exponent(..))
 import Data.List.Split (chunksOf)
+import qualified Penny.Lincoln.Decimal.Whole as W
 
 -- | Represents a number, with digit grouping.  Rules for digit
 -- grouping:
@@ -25,73 +24,56 @@ import Data.List.Split (chunksOf)
 grouped
   :: (HasExponent a, Laned a)
   => a
-  -> Rep ()
+  -> Rep
 grouped a = case lane a of
   Center -> RZero $ U.ungroupedZero (exponent a)
-  NonCenter (s, d) -> RQuant $ groupedNonZero (exponent a) s d
+  NonCenter (s, d) -> RFigure $ groupedNonZero (exponent a) s d
 
--- | Groups digits for non-zero numbers.  If all digits will appear
--- to the right of the radix point, then no grouping will occur and
--- therefore 'U.punctaRungrouped' is applied.
+-- | Splits a single MSG group into a group of MSG and less
+-- significant digits.  First all LSD are split into groups of 3.
+-- Then, if the most significant resulting group has 1 or 2 digits,
+-- it is placed into the MSG.  Otherwise,  the MSD will be in its
+-- own group.  No grouping at all is performed if the MSG has less
+-- than five digits.
+
+groupMSG :: W.MSG -> (W.MSG, [W.LSG])
+groupMSG (W.MSG nv decems)
+  | length decems < 4 = (W.MSG nv decems, [])
+  | otherwise = case groupsOf3 decems of
+      [] -> error "groupMSG: error 1"
+      dg1:xs -> (W.MSG nv msgRest, lsgs)
+        where
+          (msgRest, lsgs) = case dg1 of
+            x:[] -> ([x], map mkLSG xs)
+            x:y:[] -> ([x,y], map mkLSG xs)
+            _ -> ([], map mkLSG (dg1:xs))
+          mkLSG digs = case digs of
+            [] -> error "groupMSG: error 2"
+            a:as -> W.LSG a as
+
 groupedNonZero
   :: Exponent
   -> Side
   -> Decuple
-  -> Quant ()
-groupedNonZero e s d = Quant nz s
-  where
-    nz | dcplLen > iExp = NZLeft $ punctaLgrouped iExp d
-       | otherwise = NZRight $ U.punctaRungrouped iExp d
-    dcplLen = width d
-    iExp = fromMaybe 0 . fmap decupleToInt . unExponent $ e
+  -> Figure
+groupedNonZero expn sd dc = Figure sd $
+  case figNonZero $ U.ungroupedNonZero expn sd dc of
 
--- | Use this function only where the length of the 'Decuple' is
--- greater than the size of the exponent; that is, when at least one
--- significant digit will appear to the left of the radix point.
-punctaLgrouped
-  :: Int
-  -- ^ Exponent value
-  -> Decuple
-  -> PunctaL ()
-punctaLgrouped e d = PunctaL cltch mayFl
-  where
-    cltch = Clatch (ChainsL []) lot chnsR
-    lot = Lot [] nv decems1
-    (nv, decems1, chnsR, mayFl) = punctaLgroupedNovemDecems e d
+    NZWhole (W.Whole ei) -> case ei of
+      Left (W.WholeOnly msg _) ->
+        NZWhole (W.Whole (Left (W.WholeOnly msg' lsgs)))
+        where
+          (msg', lsgs) = groupMSG msg
 
--- | Used by 'punctaLgrouped' to compute various groups of digits.
-punctaLgroupedNovemDecems
-  :: Int
-  -- ^ Exponent value
-  -> Decuple
-  -> (Novem, [Decem], ChainsR (), Maybe (Flock ()))
-  -- ^ MSD, Decem in first group, remaining groups, right of radix
-punctaLgroupedNovemDecems expnt dcple =
-  let Decuple nv decemsAll = dcple
-      nOnLeft = width dcple - expnt
-      (decemOnLeft, decemOnRight) = splitAt (nOnLeft - 1) decemsAll
-      mayFl = case decemOnRight of
-        [] -> Nothing
-        x:xs -> Just (Flock vl (ChainsR []))
-          where
-            vl = Voll x xs
-      (decemGroup1, grps)
-        | length decemOnLeft < 4 = (decemOnLeft, ChainsR [])
-        | otherwise =
-            let (g1, gr) = case groupsOf3 decemOnLeft of
-                  [] -> error "punctaLgroupedNovemDecems: error 1"
-                  x:xs -> (x, xs)
-                mkChain ls = case ls of
-                  [] -> error "punctaLgroupedNovemDecems: error 2"
-                  x:xs -> ChainR () (Voll x xs)
-                chains = map mkChain gr
-            in (g1, ChainsR chains)
-  in (nv, decemGroup1, grps, mayFl)
+      Right (W.WholeFrac msg _ fgs) ->
+        NZWhole (W.Whole (Right (W.WholeFrac msg' lsgs fgs)))
+        where
+          (msg', lsgs) = groupMSG msg
 
+    o -> o
 
 -- | Splits a list into groups of 3.  If it doesn't divide evenly,
 -- parts at the front will be shorter.
 
 groupsOf3 :: [a] -> [[a]]
 groupsOf3 = map reverse . reverse . chunksOf 3 . reverse
-

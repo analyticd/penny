@@ -8,7 +8,7 @@ module Penny.Lincoln.Decimal.Concrete
   , negate
   ) where
 
-import Penny.Lincoln.Decimal.Digits
+import Penny.Lincoln.Decimal.Abstract
 import qualified Deka.Native.Abstract as DN
 import qualified Deka.Native as DN
 import Penny.Lincoln.Decimal.Components
@@ -17,6 +17,7 @@ import qualified Deka.Dec as D
 import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Side
 import Prelude hiding (negate, exponent)
+import qualified Prelude
 
 newtype Concrete = Concrete { unConcrete :: D.Dec }
   deriving Show
@@ -92,15 +93,16 @@ instance HasConcrete Rep where
         NonCenter (sd, dc) -> (s, DN.Plenus dc)
           where
             s = case sd of { Debit -> D.Sign0; Credit -> D.Sign1 }
-      ex = DN.Exponent . DN.intToFirmado . unNonNegative
+      ex = DN.Exponent . DN.intToFirmado
+        . Prelude.negate . unNonNegative
         . unExponent . exponent $ r
       abstract = DN.Abstract sgn $ DN.Finite (DN.Coefficient aut) ex
       (dec, fl) = DN.abstractToDec abstract
       d | fl == D.emptyFlags = dec
         | otherwise = error "repToConcrete: value out of range"
 
-instance HasConcrete Digits where
-  concrete = concrete . digRep
+instance HasConcrete Abstract where
+  concrete = concrete . absRep
 
 add :: Concrete -> Concrete -> Concrete
 add (Concrete x) (Concrete y) = Concrete . compute $

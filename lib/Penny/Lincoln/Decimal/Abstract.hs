@@ -1,4 +1,4 @@
-module Penny.Lincoln.Decimal.Digits where
+module Penny.Lincoln.Decimal.Abstract where
 
 import Penny.Lincoln.Decimal.Zero
 import Penny.Lincoln.Decimal.Whole
@@ -77,16 +77,16 @@ data RadGroup
   | CommaThinSpace
   deriving (Eq, Ord, Show)
 
-data Digits = Digits
-  { digRep :: Rep
-  , digRadGroup :: RadGroup
+data Abstract = Abstract
+  { absRep :: Rep
+  , absRadGroup :: RadGroup
   } deriving (Eq, Ord, Show)
 
-instance Laned Digits where
-  lane = lane . digRep
+instance Laned Abstract where
+  lane = lane . absRep
 
-instance HasCoefficient Digits where
-  coefficient = coefficient . digRep
+instance HasCoefficient Abstract where
+  coefficient = coefficient . absRep
 
-instance HasExponent Digits where
-  exponent = exponent . digRep
+instance HasExponent Abstract where
+  exponent = exponent . absRep
