@@ -13,5 +13,5 @@ class HasExponent a where
 class HasCoefficient a where
   coefficient :: a -> Coefficient
 
-class HasWidth a where
-  width :: a -> Int
+class HasDecuple a where
+  decuple :: a -> Decuple

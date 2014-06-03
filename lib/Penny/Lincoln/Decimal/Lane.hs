@@ -1,29 +1,17 @@
 module Penny.Lincoln.Decimal.Lane where
 
 import Deka.Native
-import qualified Penny.Lincoln.Decimal.Native as LN
 import Penny.Lincoln.Decimal.Side
-import Penny.Lincoln.Decimal.Rep
+import Penny.Lincoln.Decimal.Components
 
 data Lane
   = Center
   | NonCenter (Side, Decuple)
   deriving (Eq, Ord, Show)
-  -- NonCenter (Side, Decuple)
 
-class Sided a where
+class HasDecuple a => Sided a where
   side :: a -> Side
-  decuple :: a -> Decuple
 
 class Laned a where
   lane :: a -> Lane
-
-instance Laned (Rep a) where
-  lane a = case a of
-    RQuant q -> NonCenter (qSide $ q, LN.decuple q)
-    RZero _ -> Center
-
-instance Sided (Quant a) where
-  side = qSide
-  decuple = LN.decuple
 

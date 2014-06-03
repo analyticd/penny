@@ -8,10 +8,11 @@ module Penny.Lincoln.Decimal.Concrete
   , negate
   ) where
 
-import qualified Penny.Lincoln.Decimal.Rep as A
+import Penny.Lincoln.Decimal.Digits
 import qualified Deka.Native.Abstract as DN
 import qualified Deka.Native as DN
-import qualified Penny.Lincoln.Decimal.Native as N
+import Penny.Lincoln.Decimal.Components
+import Penny.Lincoln.Natural
 import qualified Deka.Dec as D
 import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Side
@@ -19,6 +20,12 @@ import Prelude hiding (negate, exponent)
 
 newtype Concrete = Concrete { unConcrete :: D.Dec }
   deriving Show
+
+instance Ord Concrete where
+  compare (Concrete x) (Concrete y) = D.compareTotal x y
+
+instance Eq Concrete where
+  x == y = compare x y == EQ
 
 instance Laned Concrete where
   lane (Concrete d)
@@ -32,18 +39,24 @@ instance Laned Concrete where
           _ -> error "Concrete.Laned: invalid decoded"
         _ -> error "Concrete.Laned: impossible number type"
 
-instance N.HasExponent Concrete where
+instance HasExponent Concrete where
   exponent (Concrete d) = case DN.value a of
     DN.Finite _ e -> case DN.unExponent e of
-      DN.Cero -> N.Exponent Nothing
+      DN.Cero -> Exponent . maybe (error "Concrete.HasExponent: error 1")
+        id . nonNegative $ 0
+
       DN.Completo s dc -> case s of
         D.Pos -> error "Concrete.HasExponent: impossible sign"
-        D.Neg -> N.Exponent (Just dc)
+        D.Neg -> Exponent
+          . maybe (error "Concrete.HasExponent: error 2") id
+          . nonNegative
+          . DN.decupleToInt
+          $ dc
     _ -> error "Concrete.HasExponent: invalid Dec"
     where
       a = DN.decToAbstract d
 
-instance N.HasCoefficient Concrete where
+instance HasCoefficient Concrete where
   coefficient (Concrete d) = case DN.value a of
     DN.Finite c _ -> c
     _ -> error "Concrete.HasCoefficient: invalid Dec"
@@ -71,22 +84,23 @@ compute c
   where
     (r, fl) = D.runCtxStatus c
 
-instance HasConcrete (A.Rep a) where
+instance HasConcrete Rep where
   concrete r = Concrete d
     where
+      (sgn, aut) = case lane r of
+        Center -> (D.Sign0, DN.Nil)
+        NonCenter (sd, dc) -> (s, DN.Plenus dc)
+          where
+            s = case sd of { Debit -> D.Sign0; Credit -> D.Sign1 }
+      ex = DN.Exponent . DN.intToFirmado . unNonNegative
+        . unExponent . exponent $ r
+      abstract = DN.Abstract sgn $ DN.Finite (DN.Coefficient aut) ex
       (dec, fl) = DN.abstractToDec abstract
-      abstract = DN.Abstract sgn $ DN.Finite coe ex
-      coe = N.coefficient r
-      ex = DN.Exponent $ case N.unExponent $ N.exponent r of
-        Nothing -> DN.Cero
-        Just dc -> DN.Completo D.Neg dc
-      sgn = case r of
-        A.RQuant q -> case A.qSide q of
-          Debit -> D.Sign0
-          Credit -> D.Sign1
-        A.RZero _ -> D.Sign0
       d | fl == D.emptyFlags = dec
         | otherwise = error "repToConcrete: value out of range"
+
+instance HasConcrete Digits where
+  concrete = concrete . digRep
 
 add :: Concrete -> Concrete -> Concrete
 add (Concrete x) (Concrete y) = Concrete . compute $
@@ -102,4 +116,3 @@ mult (Concrete x) (Concrete y) = Concrete . compute $
 
 negate :: Concrete -> Concrete
 negate (Concrete x) = Concrete . compute $ D.minus x
-
