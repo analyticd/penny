@@ -16,7 +16,7 @@ import Prelude hiding (exponent)
 ungrouped
   :: (HasExponent a, Laned a)
   => a
-  -> Rep
+  -> (Rep b)
 ungrouped a = case lane a of
   Center -> RZero $ ungroupedZero (exponent a)
   NonCenter (s, d) -> RFigure $ ungroupedNonZero (exponent a) s d
@@ -33,9 +33,9 @@ ungroupedZero ex
 
 ungroupedNonZero
   :: Exponent
-  -> Side
+  -> a
   -> Decuple
-  -> Figure
+  -> Figure a
 ungroupedNonZero ex sd dc
   | e < 0 = error "ungroupedNonZero: negative exponent"
   | e == 0 = Figure sd . NZMasuno . M.Masuno . Left $ wholeOnly

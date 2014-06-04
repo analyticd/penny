@@ -25,7 +25,7 @@ class RenderableRG a where
 -- | The 'Lane' is not rendered; rather, only
 -- the digits with appropriate grouping characters are rendered.
 
-instance Renderable Abstract where
+instance Renderable (Abstract a) where
   render (Abstract r rg) = case r of
     RFigure f -> case figNonZero f of
       NZMasuno w -> renderRG rg w

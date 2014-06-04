@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Penny.Lincoln.Decimal.Abstract where
 
 import Penny.Lincoln.Decimal.Zero
@@ -29,33 +30,34 @@ instance HasExponent NonZero where
     NZMasuno w -> exponent w
     NZFrac f -> exponent f
 
--- | An abstract non-zero number, along with a 'Side' to describe
--- whether it is a 'Debit' or 'Credit'.
-data Figure = Figure
-  { figSide :: Side
+-- | An abstract non-zero number, along with data that determines
+-- its side.  For an amount, this will be a Side; for a Price, this
+-- will be a PosNeg.
+data Figure a = Figure
+  { figPolarity :: a
   , figNonZero :: NonZero
   } deriving (Eq, Ord, Show)
 
-instance Sided Figure where
-  side = figSide
+instance Sided (Figure Side) where
+  side = figPolarity
 
-instance Laned Figure where
-  lane f = NonCenter (figSide f, decuple . figNonZero $ f)
+instance Functor Figure where
+  fmap f (Figure p n) = Figure (f p) n
 
-instance HasDecuple Figure where
+instance HasDecuple (Figure a) where
   decuple = decuple . figNonZero
 
-instance HasCoefficient Figure where
+instance HasCoefficient (Figure a) where
   coefficient = coefficient . figNonZero
 
-instance HasExponent Figure where
+instance HasExponent (Figure a) where
   exponent = exponent . figNonZero
 
 -- | Abstract representation of a number.  Contains the number
--- itself as well as information about whether the number, if a
--- 'Figure', is a 'Debit' or 'Credit'.
-data Rep
-  = RFigure Figure
+-- itself as well as information about the polarity of the number,
+-- if it is not zero.
+data Rep a
+  = RFigure (Figure a)
   -- ^ Non-zero numbers.  These are necessarily a 'Debit' or
   -- 'Credit', which is stored in the 'Figure'.
   | RZero Zero
@@ -65,17 +67,12 @@ data Rep
   -- a 'Side'.
   deriving (Eq, Ord, Show)
 
-instance Laned Rep where
-  lane r = case r of
-    RFigure f -> lane f
-    RZero _ -> Center
-
-instance HasCoefficient Rep where
+instance HasCoefficient (Rep a) where
   coefficient a = case a of
     RFigure f -> coefficient f
     RZero z -> coefficient z
 
-instance HasExponent Rep where
+instance HasExponent (Rep a) where
   exponent a = case a of
     RFigure f -> exponent f
     RZero z -> exponent z
@@ -98,16 +95,13 @@ data RadGroup
 
 -- | Abstract representation of a number, along with what characters
 -- to use for the radix point and the digit grouping character.
-data Abstract = Abstract
-  { absRep :: Rep
+data Abstract a = Abstract
+  { absRep :: Rep a
   , absRadGroup :: RadGroup
   } deriving (Eq, Ord, Show)
 
-instance Laned Abstract where
-  lane = lane . absRep
-
-instance HasCoefficient Abstract where
+instance HasCoefficient (Abstract a) where
   coefficient = coefficient . absRep
 
-instance HasExponent Abstract where
+instance HasExponent (Abstract a) where
   exponent = exponent . absRep
