@@ -1,9 +1,11 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Penny.Lincoln.Decimal.Amount where
 
 import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Equivalent
+import Penny.Lincoln.Decimal.Side
 
 -- | An amount is either an 'Abstract' or a 'Concrete'.  All
 -- 'Amount' embody a decimal number along with a 'Lane' (that is, a
@@ -16,7 +18,7 @@ import Penny.Lincoln.Equivalent
 -- rendered as a string) using the functions in
 -- "Penny.Lincoln.Decimal.Represent".
 data Amount
-  = AAbstract Abstract
+  = AAbstract (Abstract Side)
   | AConcrete Concrete
   deriving (Eq, Ord, Show)
 
@@ -25,7 +27,7 @@ instance HasConcrete Amount where
     AAbstract d -> concrete d
     AConcrete c -> concrete c
 
-instance Laned Amount where
+instance Laned Amount Side where
   lane r = case r of
     AAbstract a -> lane a
     AConcrete c -> lane c

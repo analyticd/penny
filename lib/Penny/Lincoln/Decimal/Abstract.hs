@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 module Penny.Lincoln.Decimal.Abstract where
 
 import Penny.Lincoln.Decimal.Zero
@@ -77,6 +77,11 @@ instance HasExponent (Rep a) where
     RFigure f -> exponent f
     RZero z -> exponent z
 
+instance Laned (Rep Side) Side where
+  lane r = case r of
+    RFigure f -> NonCenter (side f, decuple f)
+    RZero _ -> Center
+
 -- | What radix character and grouping character to use.
 data RadGroup
   = PeriodComma
@@ -94,11 +99,15 @@ data RadGroup
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Abstract representation of a number, along with what characters
--- to use for the radix point and the digit grouping character.
+-- to use for the radix point and the digit grouping character.  Is
+-- parameterized on the polarity.
 data Abstract a = Abstract
   { absRep :: Rep a
   , absRadGroup :: RadGroup
   } deriving (Eq, Ord, Show)
+
+instance Laned (Abstract Side) Side where
+  lane = lane . absRep
 
 instance HasCoefficient (Abstract a) where
   coefficient = coefficient . absRep

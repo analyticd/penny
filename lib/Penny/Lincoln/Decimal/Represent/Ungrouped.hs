@@ -4,7 +4,6 @@ import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Zero
-import Penny.Lincoln.Decimal.Side
 import qualified Penny.Lincoln.Decimal.Masuno as M
 import qualified Penny.Lincoln.Decimal.Frac as F
 import Deka.Native.Abstract hiding (Exponent(..))
@@ -14,9 +13,9 @@ import Prelude hiding (exponent)
 -- | Represents a number, without any digit grouping.
 
 ungrouped
-  :: (HasExponent a, Laned a)
+  :: (HasExponent a, Laned a b)
   => a
-  -> (Rep b)
+  -> Rep b
 ungrouped a = case lane a of
   Center -> RZero $ ungroupedZero (exponent a)
   NonCenter (s, d) -> RFigure $ ungroupedNonZero (exponent a) s d

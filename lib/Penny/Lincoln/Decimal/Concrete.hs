@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, MultiParamTypeClasses,
+    FlexibleInstances #-}
 -- | The 'Concrete' data type and associated functions.  These
 -- are concrete numbers, together with a 'Lane' (that is, whether it
 -- is a debit, credit, or zero.)  These numbers cannot be rendered
@@ -34,7 +35,7 @@ newtype Concrete = Concrete { unConcrete :: Normal }
 instance Equivalent Concrete where
   compareEv (Concrete x) (Concrete y) = compareEv x y
 
-instance Laned Concrete where
+instance Laned Concrete Side where
   lane (Concrete d) = case signedDecuple d of
     Nothing -> Center
     Just (s, dc) -> NonCenter (sd, dc)
@@ -59,7 +60,7 @@ instance HasConcrete Concrete where
 instance HasConcrete Dec where
   concrete = Concrete . normal
 
-instance HasConcrete Rep where
+instance HasConcrete (Rep Side) where
   concrete r = Concrete d
     where
       d = normal p
@@ -72,7 +73,7 @@ instance HasConcrete Rep where
           Debit -> Sign0
           Credit -> Sign1
 
-instance HasConcrete Abstract where
+instance HasConcrete (Abstract Side) where
   concrete = concrete . absRep
 
 -- | Ordinary addition.

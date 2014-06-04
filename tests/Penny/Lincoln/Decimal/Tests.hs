@@ -4,6 +4,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck (testProperty)
 import Test.QuickCheck
 import qualified Penny.Lincoln.Decimal.Abstract.Generators as G
+import qualified Penny.Lincoln.Decimal.Side.Generators as G
 import Penny.Lincoln.Decimal
 import Builders
 
@@ -20,7 +21,7 @@ testTree = testGroup "Penny.Lincoln.Decimal.Tests"
 -- concrete each time
 invertAbstractGrouped :: Property
 invertAbstractGrouped = 
-  forAll G.abstract $ \a ->
+  forAll (G.abstract G.side) $ \a ->
   forAll G.radGroup $ \rg ->
   let c = concrete a
   in inversion (grouped rg) concrete c
@@ -29,7 +30,7 @@ invertAbstractGrouped =
 -- concrete each time
 invertAbstractUngrouped :: Property
 invertAbstractUngrouped = 
-  forAll G.abstract $ \a ->
+  forAll (G.abstract G.side) $ \a ->
   forAll G.radGroup $ \rg ->
   let c = concrete a
   in inversion (ungrouped rg) concrete c

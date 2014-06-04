@@ -3,7 +3,6 @@ module Penny.Lincoln.Decimal.Represent.Grouped where
 import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Lane
-import Penny.Lincoln.Decimal.Side
 import qualified Penny.Lincoln.Decimal.Represent.Ungrouped as U
 import Prelude hiding (exponent)
 import Deka.Native.Abstract hiding (Exponent(..))
@@ -19,9 +18,9 @@ import qualified Penny.Lincoln.Decimal.Masuno as M
 -- * Digits to the right of the radix are never grouped.
 
 grouped
-  :: (HasExponent a, Laned a)
+  :: (HasExponent a, Laned a b)
   => a
-  -> Rep
+  -> Rep b
 grouped a = case lane a of
   Center -> RZero $ U.ungroupedZero (exponent a)
   NonCenter (s, d) -> RFigure $ groupedNonZero (exponent a) s d
@@ -50,9 +49,9 @@ groupMSG (M.MSG nv decems)
 
 groupedNonZero
   :: Exponent
-  -> Side
+  -> a
   -> Decuple
-  -> Figure
+  -> Figure a
 groupedNonZero expn sd dc = Figure sd $
   case figNonZero $ U.ungroupedNonZero expn sd dc of
 
