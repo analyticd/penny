@@ -337,7 +337,8 @@ cabal libMods testMods = A.empty
   , A.cFlags = flags ++ flgs
   , A.cLibrary = Just (library libMods)
   , A.cTestSuites = [pennyTest libMods testMods]
-  , A.cExecutables = pennyGibberish libMods testMods : exes
+  --, A.cExecutables = pennyGibberish libMods testMods : exes
+  , A.cExecutables = []
   }
   where
     (flgs, exes) = unzip . map (uncurry (executable libMods)) $

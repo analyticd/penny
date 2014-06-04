@@ -1,12 +1,13 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 module Main where
 
-import qualified Lincoln as L
-import qualified Copper as C
-import Test.Tasty (testGroup, TestTree, defaultMain)
-
-testTree :: TestTree
-testTree = testGroup "Penny"
-  [ L.testTree, C.testTree ]
+import Deka.Native.Abstract.Generators
+import Deka.Dec.Generators
+import Penny.Lincoln.Decimal.Masuno.Generators
+import Penny.Lincoln.Decimal.Frac.Generators
+import Penny.Lincoln.Natural.Generators
+import Penny.Lincoln.Decimal.Lane.Generators
+import Penny.Lincoln.Decimal.Side.Generators
 
 main :: IO ()
-main = defaultMain testTree
+main = undefined
