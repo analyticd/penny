@@ -38,6 +38,7 @@
 module Penny.Lincoln.Decimal
   ( -- * Basic components
     Side(..)
+  , opposite
   , Lane(..)
   , Laned(..)
 
