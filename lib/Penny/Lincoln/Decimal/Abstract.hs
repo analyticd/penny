@@ -94,7 +94,7 @@ data RadGroup
   -- ^ Comma radix, space grouping
   | CommaThinSpace
   -- ^ Comma radix, thin space grouping
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Enum, Bounded)
 
 -- | Abstract representation of a number, along with what characters
 -- to use for the radix point and the digit grouping character.
