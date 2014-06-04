@@ -1,0 +1,4 @@
+#!/bin/sh
+
+runghc genCabal.hs > penny.cabal
+runghc genTests.hs > tests/penny-test.hs
