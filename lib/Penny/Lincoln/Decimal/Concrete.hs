@@ -10,6 +10,8 @@ module Penny.Lincoln.Decimal.Concrete
   -- * The 'Concrete' type 
     Concrete
   , unConcrete
+  , simpleCompare
+  , simpleEq
 
   -- * Conversions
   , HasConcrete(..)
@@ -40,6 +42,7 @@ import Penny.Lincoln.Decimal.Side
 import Prelude hiding (negate, exponent)
 import qualified Prelude
 import Data.Monoid(Monoid(..))
+import Penny.Lincoln.Equivalent
 
 -- | Concrete representation of a number, together with a 'Lane'
 -- (that is, wehther it is a 'Debit', 'Credit', or neither.)  A
@@ -59,6 +62,30 @@ instance Ord Concrete where
 -- not equivalent; for example, @1.00000@ is not equal to @1.0@.
 instance Eq Concrete where
   x == y = compare x y == EQ
+
+-- | If you use 'compare' on two 'Concrete', the comparison is based
+-- upon a total ordering so that, for example, @3.5@ is greater than
+-- @3.5000@.  'simpleCompare' compares so that @3.5@ is equal to
+-- @3.5000@.
+
+simpleCompare :: Concrete -> Concrete -> Ordering
+simpleCompare (Concrete x) (Concrete y) = compute $ do
+  r <- D.compare x y
+  return $ case () of
+    _ | D.isZero r -> EQ
+      | D.isPositive r -> GT
+      | otherwise -> LT
+
+-- | Like 'simpleCompare' but for equality.
+
+simpleEq :: Concrete -> Concrete -> Bool
+simpleEq x y = simpleCompare x y == EQ
+
+-- | Uses 'simpleCompare' and 'simpleEq'.
+
+instance Equivalent Concrete where
+  equivalent = simpleEq
+  compareEv = simpleCompare
 
 instance Laned Concrete where
   lane (Concrete d)

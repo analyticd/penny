@@ -3,6 +3,7 @@ module Penny.Lincoln.Decimal.Amount where
 import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Lane
+import Penny.Lincoln.Equivalent
 
 -- | An amount is either an 'Abstract' or a 'Concrete'.  All
 -- 'Amount' embody a decimal number along with a 'Lane' (that is, a
@@ -28,3 +29,17 @@ instance Laned Amount where
   lane r = case r of
     AAbstract a -> lane a
     AConcrete c -> lane c
+
+-- | Two 'Amount' are equivalent if, after converting any abstract
+-- representation to a concrete one, the concrete representations
+-- are equivalent.
+
+instance Equivalent Amount where
+  compareEv x y = compareEv xc yc
+    where
+      xc = case x of
+        AAbstract a -> concrete a
+        AConcrete a -> a
+      yc = case y of
+        AAbstract a -> concrete a
+        AConcrete a -> a
