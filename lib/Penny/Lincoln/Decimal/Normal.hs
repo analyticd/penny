@@ -11,8 +11,16 @@ module Penny.Lincoln.Decimal.Normal
 
   -- * Conversions
   , HasNormal(..)
+  , D.Sign(..)
+  , D.PosNeg(..)
+  , signedDecuple
   , Params(..)
   , params
+
+  -- * Arithmetic
+  -- | 'Normal' is also an instance of 'Num', so you can perform
+  -- ordinary arithmetic on it and convert it using 'fromInteger'.
+  , negate
 
   -- * Constants
   , one
@@ -38,6 +46,8 @@ import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Natural
 import qualified Data.ByteString.Char8 as BS8
 import Data.Monoid
+import Prelude hiding (negate)
+import qualified Prelude
 
 -- | A 'Normal' wraps a 'Deka.Dec.Dec'.  It is possible for
 -- arithmetic operations to exceed the available limits of the Deka
@@ -147,6 +157,18 @@ params (Normal d) = Params sgn coe ex
             . DN.unExponent $ e
       _ -> error "params: bad number value"
 
+-- | Gets the 'D.PosNeg' and 'DN.Decuple' of a non-zero 'Normal';
+-- returns 'Nothing' for a zero 'Normal'.
+signedDecuple :: Normal -> Maybe (D.PosNeg, DN.Decuple)
+signedDecuple n = case DN.unCoefficient . pmCoefficient $ pm of
+  DN.Nil -> Nothing
+  DN.Plenus dc -> Just (pn, dc)
+  where
+    pm = params n
+    pn = case pmSign pm of
+      D.Sign0 -> D.Pos
+      D.Sign1 -> D.Neg
+
 -- | Things that can be converted to a Normal representation.
 class HasNormal a where
   normal :: a -> Normal
@@ -166,6 +188,9 @@ zero = Normal . compute $ D.fromByteString "0"
 
 one :: Normal
 one = Normal . compute $ D.fromByteString "1"
+
+negate :: Normal -> Normal
+negate = Normal . compute . D.minus . unNormal
 
 instance HasNormal Params where
   normal a = Normal d
