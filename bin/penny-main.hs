@@ -10,35 +10,35 @@ import qualified Paths_penny as PPB
 defaults :: Runtime -> Defaults
 defaults rt = Defaults
   { caseSensitive = False
-    -- ^ Whether the matcher is case sensitive by default
+    -- Whether the matcher is case sensitive by default
 
   , matcher = Within
-    -- ^ Which matcher to use. Your choices:
+    -- Which matcher to use. Your choices:
     -- Within
     -- Exact
     -- TDFA (regular expressions, POSIX semantics)
     -- PCRE (regular expressions, PCRE semantics)
 
   , colorToFile = False
-    -- ^ Use colors when standard output is not a terminal?
+    -- Use colors when standard output is not a terminal?
 
   , expressionType = Infix
-    -- ^ Use Infix or RPN expressions for the posting filters and for
+    -- Use Infix or RPN expressions for the posting filters and for
     -- the filters in the Postings report? Change to @RPN@ if you like
     -- that kind of thing (I find RPN easier to enter; if you're not
     -- familiar with it, you might become a convert.)
 
   , defaultScheme = Just schemeDark
-    -- ^ Default color scheme. If Nothing, there is no default color
+    -- Default color scheme. If Nothing, there is no default color
     -- scheme. If there is no default color scheme and the user does
     -- not pick one on the command line, no colors will be used.
 
   , additionalSchemes = [schemeDark, schemeLight, schemePlain]
-    -- ^ Additional color schemes the user can pick from on the
+    -- Additional color schemes the user can pick from on the
     -- command line.
 
   , sorter = [(Date, Ascending)]
-    -- ^ Postings are sorted in this order by default. For example, if
+    -- Postings are sorted in this order by default. For example, if
     -- the first pair is (Date, Ascending), then postings are first
     -- sorted by date in ascending order. If the second pair is
     -- (Payee, Ascending), then postings with the same date are then
@@ -48,25 +48,25 @@ defaults rt = Defaults
     -- same order as they appear in the ledger files.
 
   , formatQty = qtyFormatter $ S3a Period
-    -- ^ How to format quantities. This affects only quantities that
+    -- How to format quantities. This affects only quantities that
     -- are not parsed from the ledger.  Examples include calculated
     -- totals and inferred quantities.  Affects all reports.
 
   , balanceShowZeroBalances = False
-    -- ^ Show zero balances in the balance report? If True, show them;
+    -- Show zero balances in the balance report? If True, show them;
     -- if False, hide them.
 
   , balanceOrder = Ascending
-    -- ^ Whether to sort the accounts in ascending or descending order
+    -- Whether to sort the accounts in ascending or descending order
     -- by account name in the balance report. Your choices: Ascending
     -- or Descending.
 
   , convertShowZeroBalances = False
-    -- ^ Show zero balances in the convert report? If True, show them;
+    -- Show zero balances in the convert report? If True, show them;
     -- if False, hide them.
 
   , convertTarget = AutoTarget
-    -- ^ The commodity to which to convert the commodities in the
+    -- The commodity to which to convert the commodities in the
     -- convert report. Your choices:
     --
     -- AutoTarget - selects a target commodity automatically, based on
@@ -78,32 +78,32 @@ defaults rt = Defaults
     -- ManualTarget CMDTY_NAME - always use the given commodity.
 
   , convertOrder = Ascending
-    -- ^ Sort the convert report in ascending or descending order.
+    -- Sort the convert report in ascending or descending order.
 
   , convertSortBy = SortByName
-    -- ^ Sort by account or by quantity in the convert report. Your
+    -- Sort by account or by quantity in the convert report. Your
     -- choices:
     --
     -- SortByQty
     -- SortByName
 
   , postingsFields = fields
-    -- ^ Fields to show by default in the postings report.
+    -- Fields to show by default in the postings report.
 
   , postingsWidth = widthFromRuntime rt
-    -- ^ The postings report is roughly this wide by default. Use
+    -- The postings report is roughly this wide by default. Use
     -- @widthFromRuntime rt@ if you want to use the current width of
     -- your terminal.
 
   , postingsShowZeroBalances = False
-    -- ^ Show zero balances in the postings report? If True, show
+    -- Show zero balances in the postings report? If True, show
     -- them; if False, hide them.
 
   , postingsDateFormat = yearMonthDay
-    -- ^ How to format dates in the postings report.
+    -- How to format dates in the postings report.
 
   , postingsSubAccountLength = 2
-    -- ^ Account names in the postings report are shortened if
+    -- Account names in the postings report are shortened if
     -- necessary in order to help the report fit within the allotted
     -- width (see postingsWidth). Account names are only shortened as
     -- much as is necessary for them to fit; however, each sub-account
@@ -112,7 +112,7 @@ defaults rt = Defaults
     -- This number should be a non-negative integer.
 
   , postingsPayeeAllocation = 40
-    -- ^ postingsPayeeAllocation and postingsAccountAllocation
+    -- postingsPayeeAllocation and postingsAccountAllocation
     -- determine how much space is allotted to the payee and account
     -- fields in the postings report. These fields are variable
     -- width. After space for most other fields is allotted, space is
@@ -128,10 +128,10 @@ defaults rt = Defaults
     -- program will crash at runtime.
 
   , postingsAccountAllocation = 60
-    -- ^ See postingsPayeeAllocation above for an explanation
+    -- See postingsPayeeAllocation above for an explanation
 
   , postingsSpacers = spacers
-    -- ^ Determines the number of spaces that appears to the right of
+    -- Determines the number of spaces that appears to the right of
     -- each named field; for example, sPayee indicates how many spaces
     -- will appear to the right of the payee field. Each field of the
     -- Spacers should be a non-negative integer (although currently

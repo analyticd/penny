@@ -1,5 +1,16 @@
 -- | Uses Cartel to generate the Cabal file.  Written for Cartel
 -- version 0.10.0.0.
+--
+-- Currently generates a Cabal file that does NOT use the cabal
+-- feature that allows executables to depend on the library
+-- contained in the same package.  The "cabal haddock --executables"
+-- command is having trouble with this feature:
+--
+-- https://github.com/haskell/cabal/issues/1919
+--
+-- By not depending on the library, the build times go up.  Also,
+-- this introduces redundancy to the Cabal file, but since Cartel
+-- handles that well it's not such a problem.
 
 module Main (main) where
 
@@ -239,63 +250,55 @@ library ms = A.Library $
 
   ++ commonOptions
 
+-- | Also includes the 'libraryDepends'
 pennyTestDepends :: [A.Package]
 pennyTestDepends =
-  [ penny
-  , base
-  , anonymous_sums
+  [ anonymous_sums
   , quickcheck
   , tasty
   , tasty_quickcheck
   , random_shuffle
-  , parsec
-  , semigroups
-  , text
-  , time
-  , transformers
-  ]
+  ] ++ libraryDepends
 
 pennyTest
   :: [String]
+  -- ^ Library modules
+  -> [String]
   -- ^ Test modules
   -> A.TestSuite
-pennyTest ms = A.TestSuite "penny-test" $
+pennyTest libMods ms = A.TestSuite "penny-test" $
   [ A.TestType A.ExitcodeStdio
   , A.TestMainIs "penny-test.hs"
-  , A.otherModules ms
+  , A.otherModules $ ms ++ libMods
   , A.buildDepends pennyTestDepends
-  , A.hsSourceDirs ["tests"]
+  , A.hsSourceDirs ["tests", "lib"]
   ]
 
   ++ commonOptions
 
+-- | Also includes the 'libraryDepends'
 pennyGibberishDepends :: [A.Package]
 pennyGibberishDepends =
-  [ penny
-  , base
-  , multiarg
-  , quickcheck
+  [ quickcheck
   , random_shuffle
   , random
-  , semigroups
-  , text
-  , time
-  , transformers
-  ]
+  ] ++ libraryDepends
 
 executable
-  :: String
+  :: [String]
+  -- ^ Library modules
+  -> String
   -- ^ Executable name
   -> String
   -- ^ Main-is file
   -> (A.Flag, A.Executable)
-executable n mi = (fl, ex)
+executable libMods n mi = (fl, ex)
   where
     ex = A.Executable n $
       [ A.ExeMainIs $ mi ++ ".hs"
-      , A.otherModules ["Paths_penny"]
-      , A.hsSourceDirs ["bin"]
-      , A.buildDepends [ penny, base ]
+      , A.otherModules $ "Paths_penny" : libMods
+      , A.hsSourceDirs ["bin", "lib"]
+      , A.buildDepends libraryDepends
       , A.cif (A.flag ("build-" ++ n))
           [ A.buildable True ]
           [ A.buildable False ]
@@ -306,13 +309,15 @@ executable n mi = (fl, ex)
 
 pennyGibberish
   :: [String]
+  -- ^ Library modules
+  -> [String]
   -- ^ Test modules
   -> A.Executable
-pennyGibberish ms = A.Executable "penny-gibberish" $
+pennyGibberish libMods ms = A.Executable "penny-gibberish" $
   [ A.ExeMainIs "penny-gibberish.hs"
-  , A.otherModules ms
+  , A.otherModules $ libMods ++ ms
   , A.buildDepends pennyGibberishDepends
-  , A.hsSourceDirs ["tests"]
+  , A.hsSourceDirs ["tests", "lib"]
   , A.cif (A.flag "build-penny-gibberish")
       [ A.buildable True ]
       [ A.buildable False ]
@@ -331,11 +336,11 @@ cabal libMods testMods = A.empty
   , A.cRepositories = [repo]
   , A.cFlags = flags ++ flgs
   , A.cLibrary = Just (library libMods)
-  , A.cTestSuites = [pennyTest testMods]
-  , A.cExecutables = pennyGibberish testMods : exes
+  , A.cTestSuites = [pennyTest libMods testMods]
+  , A.cExecutables = pennyGibberish libMods testMods : exes
   }
   where
-    (flgs, exes) = unzip . map (uncurry executable) $
+    (flgs, exes) = unzip . map (uncurry (executable libMods)) $
       ("penny", "penny-main") : map same ["penny-selloff",
         "penny-diff", "penny-reprint", "penny-reconcile" ]
     same x = (x, x)
