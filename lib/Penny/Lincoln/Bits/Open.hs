@@ -24,6 +24,12 @@ newtype Commodity =
   Commodity { unCommodity :: Text }
   deriving (Eq, Ord, Show)
 
+newtype From = From { unFrom :: Commodity }
+  deriving (Eq, Ord, Show)
+
+newtype To = To { unTo :: Commodity }
+  deriving (Eq, Ord, Show)
+
 data Entry = Entry
   { amount :: Amount
   , commodity :: Commodity

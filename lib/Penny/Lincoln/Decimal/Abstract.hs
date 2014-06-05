@@ -7,6 +7,7 @@ import Penny.Lincoln.Decimal.Frac
 import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Side
+import Deka.Dec (PosNeg(..))
 import Prelude hiding (exponent)
 
 -- | An abstract non-zero number.
@@ -79,7 +80,12 @@ instance HasExponent (Rep a) where
 
 instance Laned (Rep Side) Side where
   lane r = case r of
-    RFigure f -> NonCenter (side f, decuple f)
+    RFigure f -> NonCenter (figPolarity f, decuple f)
+    RZero _ -> Center
+
+instance Laned (Rep PosNeg) PosNeg where
+  lane r = case r of
+    RFigure f -> NonCenter (figPolarity f, decuple f)
     RZero _ -> Center
 
 -- | What radix character and grouping character to use.
@@ -107,6 +113,9 @@ data Abstract a = Abstract
   } deriving (Eq, Ord, Show)
 
 instance Laned (Abstract Side) Side where
+  lane = lane . absRep
+
+instance Laned (Abstract PosNeg) PosNeg where
   lane = lane . absRep
 
 instance HasCoefficient (Abstract a) where
