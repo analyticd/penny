@@ -6,7 +6,6 @@ import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Equivalent
 import Deka.Dec(PosNeg(..))
-import Penny.Lincoln.Decimal.Amount
 import qualified Penny.Lincoln.Decimal.Concrete as C
 import qualified Penny.Lincoln.Decimal.Multiplier as M
 
@@ -53,8 +52,8 @@ instance Equivalent Exchange where
 -- dollars.  (This is rather like your apples being a liability,
 -- like toxic waste.)
 
-convert :: Exchange -> Amount -> Amount
-convert e a = AConcrete c'
+convert :: Multiplier -> C.Concrete -> C.Concrete
+convert e cAmount = c'
   where
     c' = changeSign $ C.mult cAmount cExch
     changeSign = case lane e of
@@ -62,6 +61,4 @@ convert e a = AConcrete c'
       NonCenter (s, _) -> case s of
         Pos -> id
         Neg -> C.negate
-    cAmount = C.concrete a
-    cExch = C.Concrete . M.unMultiplier
-      . multiplier $ e
+    cExch = C.Concrete . M.unMultiplier $ e
