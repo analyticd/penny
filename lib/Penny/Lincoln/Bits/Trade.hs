@@ -1,4 +1,4 @@
-module Penny.Lincoln.Decimal.Trade
+module Penny.Lincoln.Bits.Trade
   ( Trade
   , from
   , to

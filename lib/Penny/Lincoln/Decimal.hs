@@ -65,6 +65,11 @@ module Penny.Lincoln.Decimal
   -- * Amount
   , Amount(..)
 
+  -- * Multiplier and exchange
+  , PosNeg(..)
+  , Exchange(..)
+  , convert
+
   ) where
 
 import Penny.Lincoln.Decimal.Components
@@ -75,4 +80,6 @@ import Penny.Lincoln.Decimal.Side
 import Penny.Lincoln.Decimal.Amount
 import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Render
+import Penny.Lincoln.Decimal.Exchange
+import Deka.Dec (PosNeg(..))
 import Prelude hiding (negate)
