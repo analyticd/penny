@@ -6,23 +6,7 @@ import Deka.Native.Abstract hiding (Exponent(..))
 import Prelude hiding (exponent)
 import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Natural
-
--- | Most significant group.
-
-data MSG = MSG
-  { msgMSD :: Novem
-  -- ^ Most sigificant digit
-
-  , msdLSD :: [Decem]
-  -- ^ Less significant digits
-  } deriving (Eq, Ord, Show)
-
--- | Less significant groups.
-
-data LSG = LSG
-  { lsgFirst :: Decem
-  , lsgRest :: [Decem]
-  } deriving (Eq, Ord, Show)
+import Penny.Lincoln.Decimal.Groups
 
 -- | Fractional groups.
 

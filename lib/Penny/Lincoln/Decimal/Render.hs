@@ -4,6 +4,7 @@
 module Penny.Lincoln.Decimal.Render where
 
 import Penny.Lincoln.Decimal.Abstract
+import Penny.Lincoln.Decimal.Groups
 import qualified Penny.Lincoln.Decimal.Masuno as M
 import qualified Penny.Lincoln.Decimal.Frac as F
 import Deka.Native.Abstract hiding (Abstract(..))
@@ -79,14 +80,14 @@ instance Renderable Z.Group where
 instance Renderable F.Zeroes where
   render = flip replicate '0' . unPositive . F.unZeroes
 
-instance Renderable F.MSG where
-  render (F.MSG zz msd lsd) =
-    lead ++ ((:[]) . novemToChar $ msd) ++ map decemToChar lsd
+instance Renderable F.ZeroesMSG where
+  render (F.ZeroesMSG zz msg) =
+    lead ++ render msg
     where
       lead = flip replicate '0' . unNonNegative $ zz
 
-instance Renderable F.LSG where
-  render (F.LSG d1 ds) = map decemToChar (d1:ds)
+instance Renderable LSG where
+  render (LSG d1 ds) = map decemToChar (d1:ds)
 
 instance RenderableRG F.Frac where
   renderRG rg (F.Frac lz ld ms ls) =
@@ -96,11 +97,8 @@ instance RenderableRG F.Frac where
       lead = if lz then "0" else ""
       rad = (:[]) . radix $ rg
 
-instance Renderable M.MSG where
-  render (M.MSG nv ds) = novemToChar nv : map decemToChar ds
-
-instance Renderable M.LSG where
-  render (M.LSG d1 ds) = map decemToChar (d1:ds)
+instance Renderable MSG where
+  render (MSG nv ds) = novemToChar nv : map decemToChar ds
 
 instance Renderable M.FG where
   render (M.FG d1 ds) = map decemToChar (d1:ds)

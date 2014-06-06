@@ -36,63 +36,31 @@
 -- hierarchy.
 
 module Penny.Lincoln.Decimal
-  ( -- * Basic components
-    Side(..)
-  , PosNeg(..)
-  , Opposite(..)
-  , Lane(..)
-  , HasCoefficient(..)
-  , HasExponent(..)
-  , Signed(..)
-
-  -- * Abstract
-  , Rep
-  , Abstract
-  , Laneless(..)
-  , Lessrad(..)
-
-  -- * Concrete
-  , Normal(..)
-  , Qty(..)
-  , Exchange
-  , qtyLane
-  , exchLane
-  , negate
-  , isZero
-
-  -- * Conversions
-  , RadGroup(..)
-  , grouped
-  , ungrouped
-  , exchange
-  , normal
-  , decToNormal
-
-  -- * Rendering
-  , Renderable(..)
-
+  ( module Penny.Lincoln.Decimal.Abstract
+  , module Penny.Lincoln.Decimal.Components
+  , module Penny.Lincoln.Decimal.Concrete
+  , module Penny.Lincoln.Decimal.Exchange
+  , module Penny.Lincoln.Decimal.Frac
+  , module Penny.Lincoln.Decimal.Groups
+  , module Penny.Lincoln.Decimal.Laneless
+  , module Penny.Lincoln.Decimal.Masuno
+  , module Penny.Lincoln.Decimal.Normal
+  , module Penny.Lincoln.Decimal.Render
+  , module Penny.Lincoln.Decimal.Represent
+  , module Penny.Lincoln.Decimal.Zero
   ) where
 
-import Penny.Lincoln.Decimal.Components hiding (Abstract)
-import Penny.Lincoln.Decimal.Represent
-import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Abstract
-import Penny.Lincoln.Decimal.Render
-import Penny.Lincoln.Decimal.Normal
+import Penny.Lincoln.Decimal.Components
+import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Exchange
+import Penny.Lincoln.Decimal.Frac
+import Penny.Lincoln.Decimal.Groups
+import Penny.Lincoln.Decimal.Laneless
+import Penny.Lincoln.Decimal.Masuno
+import Penny.Lincoln.Decimal.Normal
+import Penny.Lincoln.Decimal.Render
+import Penny.Lincoln.Decimal.Represent
 import Penny.Lincoln.Decimal.Zero
-import Deka.Dec (PosNeg(..))
-import Prelude hiding (negate)
 
--- | A quantity (either zero or non-zero) without any lane
--- information.
 
-data Laneless
-  = LNZ NonZero
-  | LZ Zero
-  deriving (Eq, Ord, Show)
-
-data Lessrad = Lessrad
-  { lrLaneless :: Laneless
-  , lrRadGroup :: RadGroup
-  } deriving (Eq, Show, Ord)

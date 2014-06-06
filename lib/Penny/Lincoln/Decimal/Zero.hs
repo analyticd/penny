@@ -23,7 +23,7 @@ newtype Group = Group { unGroup :: Positive }
 -- | A zero with groups of zeroes after the radix point.
 
 data GroupedZero = GroupedZero
-  { leadingZero :: Bool
+  { gzLeadingZero :: Bool
   -- ^ If True, show a zero to the left of the radix point.
   , group1 :: Group
   , groupRest :: [Group]

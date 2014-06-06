@@ -59,7 +59,7 @@ exchLane = genericLane f . unExchange
 
 genericLane :: (D.Sign -> a) -> Normal -> Lane a
 genericLane f n = case D.unCoefficient . pmCoefficient $ p of
-  Nil -> Center
+  D.Nil -> Center
   D.Plenus dc -> NonCenter (f . pmSign $ p, dc)
   where
     p = params n

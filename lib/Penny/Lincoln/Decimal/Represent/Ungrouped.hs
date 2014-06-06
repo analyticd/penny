@@ -3,10 +3,12 @@ module Penny.Lincoln.Decimal.Represent.Ungrouped where
 import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Zero
+import Penny.Lincoln.Decimal.Groups
 import qualified Penny.Lincoln.Decimal.Masuno as M
 import qualified Penny.Lincoln.Decimal.Frac as F
 import Penny.Lincoln.Natural
 import Prelude hiding (exponent)
+import qualified Deka.Native.Abstract as D
 
 -- | Represents a number, without any digit grouping.
 
@@ -31,7 +33,7 @@ ungroupedZero ex
 ungroupedNonZero
   :: Exponent
   -> a
-  -> Decuple
+  -> D.Decuple
   -> Figure a
 ungroupedNonZero ex sd dc
   | e < 0 = error "ungroupedNonZero: negative exponent"
@@ -40,16 +42,16 @@ ungroupedNonZero ex sd dc
   | otherwise = Figure sd . NZMasuno . M.Masuno . Right $ wholeFrac
   where
     e = unNonNegative . unExponent $ ex
-    Decuple msd rest = dc
+    D.Decuple msd rest = dc
     decupleLen = length rest + 1
 
     wholeOnly = M.Monly msg []
       where
-        msg = M.MSG msd rest
+        msg = MSG msd rest
 
     frac = F.Frac True [] msg []
       where
-        msg = F.MSG nZeroes msd rest
+        msg = F.ZeroesMSG nZeroes (MSG msd rest)
         nZeroes = maybe (error "ungroupedNonZero: error 1") id
           . nonNegative $ e - decupleLen
 
@@ -57,7 +59,7 @@ ungroupedNonZero ex sd dc
       where
         nOnLeft = decupleLen - e
         (leftLessSigDigs, rtDigs) = splitAt (nOnLeft - 1) rest
-        msg = M.MSG msd leftLessSigDigs
+        msg = MSG msd leftLessSigDigs
         fg = case rtDigs of
           [] -> error "ungroupedNonZero: error 2"
           x:xs -> M.FG x xs

@@ -10,7 +10,6 @@ module Penny.Lincoln.Decimal.Components
   , PosNeg(..)
   , Sign(..)
   , Signed(..)
-  , module Deka.Native.Abstract
   ) where
 
 import Penny.Lincoln.Natural

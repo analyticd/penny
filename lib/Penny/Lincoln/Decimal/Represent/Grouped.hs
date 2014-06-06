@@ -6,6 +6,8 @@ import qualified Penny.Lincoln.Decimal.Represent.Ungrouped as U
 import Prelude hiding (exponent)
 import Data.List.Split (chunksOf)
 import qualified Penny.Lincoln.Decimal.Masuno as M
+import Penny.Lincoln.Decimal.Groups
+import qualified Deka.Native.Abstract as D
 
 -- | Represents a number, with digit grouping.  Rules for digit
 -- grouping:
@@ -30,12 +32,12 @@ grouped e a = case a of
 -- own group.  No grouping at all is performed if the MSG has less
 -- than five digits.
 
-groupMSG :: M.MSG -> (M.MSG, [M.LSG])
-groupMSG (M.MSG nv decems)
-  | length decems < 4 = (M.MSG nv decems, [])
+groupMSG :: MSG -> (MSG, [LSG])
+groupMSG (MSG nv decems)
+  | length decems < 4 = (MSG nv decems, [])
   | otherwise = case groupsOf3 decems of
       [] -> error "groupMSG: error 1"
-      dg1:xs -> (M.MSG nv msgRest, lsgs)
+      dg1:xs -> (MSG nv msgRest, lsgs)
         where
           (msgRest, lsgs) = case dg1 of
             x:[] -> ([x], map mkLSG xs)
@@ -43,12 +45,12 @@ groupMSG (M.MSG nv decems)
             _ -> ([], map mkLSG (dg1:xs))
           mkLSG digs = case digs of
             [] -> error "groupMSG: error 2"
-            a:as -> M.LSG a as
+            a:as -> LSG a as
 
 groupedNonZero
   :: Exponent
   -> a
-  -> Decuple
+  -> D.Decuple
   -> Figure a
 groupedNonZero expn sd dc = Figure sd $
   case figNonZero $ U.ungroupedNonZero expn sd dc of

@@ -3,7 +3,7 @@ module Penny.Lincoln.Decimal.Abstract where
 import Penny.Lincoln.Decimal.Zero
 import Penny.Lincoln.Decimal.Masuno
 import Penny.Lincoln.Decimal.Frac
-import Penny.Lincoln.Decimal.Components hiding (Abstract)
+import Penny.Lincoln.Decimal.Components
 import Prelude hiding (exponent)
 
 -- | An abstract non-zero number.
