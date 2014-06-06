@@ -1,11 +1,13 @@
-module Penny.Lincoln.Bits.Trade
+module Penny.Lincoln.Pricing.Trade
   ( Trade
+  , From(..)
+  , To(..)
   , from
   , to
   , trade
   ) where
 
-import Penny.Lincoln.Bits.Open
+import Penny.Lincoln.Common
 
 data Trade = Trade
   { from :: From
@@ -18,3 +20,10 @@ trade :: From -> To -> Maybe Trade
 trade (From f) (To t)
   | f == t = Nothing
   | otherwise = Just $ Trade (From f) (To t)
+
+newtype From = From { unFrom :: Commodity }
+  deriving (Eq, Ord, Show)
+
+newtype To = To { unTo :: Commodity }
+  deriving (Eq, Ord, Show)
+

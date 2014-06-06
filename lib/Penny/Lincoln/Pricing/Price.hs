@@ -1,15 +1,8 @@
-module Penny.Lincoln.Price where
+module Penny.Lincoln.Pricing.Price where
 
-import Penny.Lincoln.Price.Trade
+import Penny.Lincoln.Pricing.Trade
 import Penny.Lincoln.Common
 import Penny.Lincoln.Decimal
-import Penny.
-
-newtype From = From { unFrom :: Commodity }
-  deriving (Eq, Ord, Show)
-
-newtype To = To { unTo :: Commodity }
-  deriving (Eq, Ord, Show)
 
 data Price a = Price
   { pTrade :: Trade
@@ -30,6 +23,7 @@ instance Functor PricePoint where
 data PriceMeta = PriceMeta
   { arrangement :: Arrangement
   , line :: Line
+  , filename :: Filename
   } deriving (Eq, Ord, Show)
 
 newtype ExchangeA = ExchangeA { unExchangeA :: Abstract PosNeg }

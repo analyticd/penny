@@ -1,6 +1,8 @@
 -- | Things common to Posting and to TopLine.
 module Penny.Lincoln.Pieces where
 
+import Data.Text (Text)
+
 -- | There is one item in the list for each line of the memo. Do not
 -- include newlines in the texts themselves. However there is nothing
 -- to enforce this convention.

@@ -1,9 +1,9 @@
-module Penny.Lincoln.PriceDb where
+module Penny.Lincoln.Pricing.Db where
 
 import qualified Data.Map as M
 import Data.Time
 import Penny.Lincoln.Decimal
-import Penny.Lincoln.Bits.Open
+import Penny.Lincoln.Pricing.Trade
 
 type ExchMap = M.Map UTCTime Exchange
 type ToMap = M.Map To ExchMap
