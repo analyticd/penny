@@ -10,12 +10,13 @@ module Penny.Lincoln.Decimal.Normal
   , simpleEq
 
   -- * Conversions
-  , HasNormal(..)
   , D.Sign(..)
   , D.PosNeg(..)
   , signedDecuple
   , Params(..)
   , params
+  , normal
+  , decToNormal
 
   -- * Arithmetic
   -- | 'Normal' is also an instance of 'Num', so you can perform
@@ -37,7 +38,6 @@ module Penny.Lincoln.Decimal.Normal
   ) where
 
 import Data.Typeable
-import Deka.Dec hiding (Normal, compare)
 import qualified Deka.Dec as D
 import qualified Deka.Native as DN
 import qualified Deka.Native.Abstract as DN
@@ -47,7 +47,7 @@ import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Natural
 import qualified Data.ByteString.Char8 as BS8
 import Data.Monoid
-import Prelude hiding (negate)
+import Prelude hiding (negate, exponent)
 import qualified Prelude
 
 -- | A 'Normal' wraps a 'Deka.Dec.Dec'.  It is possible for
@@ -59,23 +59,23 @@ newtype ArithmeticError =
 
 instance Exception ArithmeticError
 
-compute :: Ctx a -> a
+compute :: D.Ctx a -> a
 compute c
-  | fl == emptyFlags = r
+  | fl == D.emptyFlags = r
   | otherwise = throw $ ArithmeticError "computation out of range"
   where
-    (r, fl) = runCtxStatus c
+    (r, fl) = D.runCtxStatus c
 
 -- | A normal, signed, finite decimal number.  Like 'Deka.Dec.Dec',
 -- it has a coefficient and an exponent; however, the exponent is
 -- always less than or equal to zero.
-newtype Normal = Normal { unNormal :: Dec }
+newtype Normal = Normal { unNormal :: D.Dec }
   deriving Show
 
 -- | Larger numbers are greater than smaller numbers and, for
 -- example, @1.00000@ is less than @1.0@.
 instance Ord Normal where
-  compare (Normal x) (Normal y) = compareTotal x y
+  compare (Normal x) (Normal y) = D.compareTotal x y
 
 -- | Numbers with the same coefficient but different exponents are
 -- not equivalent; for example, @1.00000@ is not equal to @1.0@.
@@ -92,7 +92,7 @@ simpleCompare (Normal x) (Normal y) = compute $ do
   r <- D.compare x y
   return $ case () of
     _ | D.isZero r -> EQ
-      | isPositive r -> GT
+      | D.isPositive r -> GT
       | otherwise -> LT
 
 -- | Like 'simpleCompare' but for equality.
@@ -130,9 +130,14 @@ instance HasCoefficient Normal where
     where
       a = DN.decToAbstract d
 
+instance Signed Normal where
+  sign (Normal d)
+    | D.isSigned d = Sign1
+    | otherwise = Sign0
+
 -- | Three parameters that define any Normal number.
 data Params = Params
-  { pmSign :: Sign
+  { pmSign :: D.Sign
   , pmCoefficient :: DN.Coefficient
   , pmExponent :: Exponent
   } deriving (Eq, Ord, Show)
@@ -142,6 +147,9 @@ instance HasCoefficient Params where
 
 instance HasExponent Params where
   exponent = pmExponent
+
+instance Signed Params where
+  sign = pmSign
 
 params :: Normal -> Params
 params (Normal d) = Params sgn coe ex
@@ -170,19 +178,28 @@ signedDecuple n = case DN.unCoefficient . pmCoefficient $ pm of
       D.Sign0 -> D.Pos
       D.Sign1 -> D.Neg
 
--- | Things that can be converted to a Normal representation.
-class HasNormal a where
-  normal :: a -> Normal
+normal
+  :: (HasCoefficient a, HasExponent a, Signed a)
+  => a
+  -> Normal
+normal a = Normal d
+  where
+    abstract = DN.Abstract (sign a)
+      $ DN.Finite (coefficient a) ex
+    d | fl == D.emptyFlags = dec
+      | otherwise = throw
+          $ ArithmeticError "normal: value out of range"
+    (dec, fl) = DN.abstractToDec abstract
+    ex = DN.Exponent . DN.intToFirmado
+      . Prelude.negate . unNonNegative
+      . unExponent . exponent $ a
 
-instance HasNormal Normal where
-  normal = id
 
-instance HasNormal Dec where
-  normal a
-    | finite = Normal a
-    | otherwise = throw $ ArithmeticError "not a normal number"
-    where
-      finite = compute . isNormal $ a
+-- | Fails if the Dec is not normal.
+decToNormal :: D.Dec -> Maybe Normal
+decToNormal a
+  | compute . D.isNormal $ a = Just $ Normal a
+  | otherwise = Nothing
 
 zero :: Normal
 zero = Normal . compute $ D.fromByteString "0"
@@ -196,29 +213,16 @@ negate = Normal . compute . D.minus . unNormal
 isZero :: Normal -> Bool
 isZero (Normal d) = D.isZero d
 
-instance HasNormal Params where
-  normal a = Normal d
-    where
-      abstract = DN.Abstract (pmSign a)
-        $ DN.Finite (pmCoefficient a) ex
-      d | fl == emptyFlags = dec
-        | otherwise = throw
-            $ ArithmeticError "normal: value out of range"
-      (dec, fl) = DN.abstractToDec abstract
-      ex = DN.Exponent . DN.intToFirmado
-        . Prelude.negate . unNonNegative
-        . unExponent . pmExponent $ a
-
 instance Num Normal where
   (Normal x) + (Normal y) = Normal . compute $ D.add x y
   (Normal x) * (Normal y) = Normal . compute $ D.multiply x y
   (Normal x) - (Normal y) = Normal . compute $ D.subtract x y
   abs (Normal x) = Normal . compute $ D.abs x
   signum (Normal x) = Normal . compute $ case () of
-    _ | D.isNegative x -> fromByteString "-1"
-      | D.isZero x -> fromByteString "0"
-      | otherwise -> fromByteString "1"
-  fromInteger = Normal . compute . fromByteString
+    _ | D.isNegative x -> D.fromByteString "-1"
+      | D.isZero x -> D.fromByteString "0"
+      | otherwise -> D.fromByteString "1"
+  fromInteger = Normal . compute . D.fromByteString
     . BS8.pack . show
 
 -- | Monoid under addition

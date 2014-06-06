@@ -3,6 +3,7 @@ module Penny.Lincoln.Decimal.Abstract where
 import Penny.Lincoln.Decimal.Zero
 import Penny.Lincoln.Decimal.Masuno
 import Penny.Lincoln.Decimal.Frac
+import Penny.Lincoln.Decimal.Components hiding (Abstract)
 import Prelude hiding (exponent)
 
 -- | An abstract non-zero number.
@@ -11,6 +12,16 @@ data NonZero
   | NZFrac Frac
   deriving (Eq, Ord, Show)
 
+instance HasExponent NonZero where
+  exponent x = case x of
+    NZMasuno m -> exponent m
+    NZFrac f -> exponent f
+
+instance HasCoefficient NonZero where
+  coefficient x = case x of
+    NZMasuno m -> coefficient m
+    NZFrac f -> coefficient f
+
 -- | An abstract non-zero number, along with data that determines
 -- its side.  For an amount, this will be a Side; for a Price, this
 -- will be a PosNeg.
@@ -18,6 +29,15 @@ data Figure a = Figure
   { figPolarity :: a
   , figNonZero :: NonZero
   } deriving (Eq, Ord, Show)
+
+instance HasExponent (Figure a) where
+  exponent = exponent . figNonZero
+
+instance HasCoefficient (Figure a) where
+  coefficient = coefficient . figNonZero
+
+instance Signed a => Signed (Figure a) where
+  sign = sign . figPolarity
 
 instance Functor Figure where
   fmap f (Figure p n) = Figure (f p) n
@@ -35,6 +55,21 @@ data Rep a
   -- taht some operations obey the monoid laws.)  Zeroes do not have
   -- a 'Side'.
   deriving (Eq, Ord, Show)
+
+instance HasCoefficient (Rep a) where
+  coefficient x = case x of
+    RFigure f -> coefficient f
+    RZero z -> coefficient z
+
+instance HasExponent (Rep a) where
+  exponent x = case x of
+    RFigure f -> exponent f
+    RZero z -> exponent z
+
+instance Signed a => Signed (Rep a) where
+  sign x = case x of
+    RFigure f -> sign f
+    RZero _ -> Sign0
 
 -- | What radix character and grouping character to use.
 data RadGroup
@@ -60,3 +95,11 @@ data Abstract a = Abstract
   , absRadGroup :: RadGroup
   } deriving (Eq, Ord, Show)
 
+instance HasExponent (Abstract a) where
+  exponent = exponent . absRep
+
+instance HasCoefficient (Abstract a) where
+  coefficient = coefficient . absRep
+
+instance Signed a => Signed (Abstract a) where
+  sign = sign . absRep

@@ -41,6 +41,9 @@ module Penny.Lincoln.Decimal
   , PosNeg(..)
   , Opposite(..)
   , Lane(..)
+  , HasCoefficient(..)
+  , HasExponent(..)
+  , Signed(..)
 
   -- * Abstract
   , Rep
@@ -57,10 +60,11 @@ module Penny.Lincoln.Decimal
 
   -- * Conversions
   , RadGroup(..)
-  , HasNormal(..)
   , grouped
   , ungrouped
   , exchange
+  , normal
+  , decToNormal
 
   -- * Rendering
   , Renderable(..)

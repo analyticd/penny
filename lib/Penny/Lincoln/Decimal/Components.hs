@@ -8,12 +8,15 @@ module Penny.Lincoln.Decimal.Components
   , Side(..)
   , Opposite(..)
   , PosNeg(..)
+  , Sign(..)
+  , Signed(..)
   , module Deka.Native.Abstract
   ) where
 
 import Penny.Lincoln.Natural
-import Deka.Native.Abstract hiding (Exponent(..))
+import Deka.Native.Abstract hiding (Exponent(..), sign)
 import Deka.Dec (PosNeg(..))
+import Deka.Dec (Sign(..))
 import Prelude hiding (exponent)
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
@@ -62,3 +65,16 @@ instance Opposite PosNeg where
   opposite a = case a of
     Pos -> Neg
     Neg -> Pos
+
+class Signed a where
+  sign :: a -> Sign
+
+instance Signed PosNeg where
+  sign a = case a of
+    Pos -> Sign0
+    Neg -> Sign1
+
+instance Signed Side where
+  sign a = case a of
+    Debit -> Sign0
+    Credit -> Sign1

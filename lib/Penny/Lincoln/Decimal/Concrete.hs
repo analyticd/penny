@@ -8,14 +8,40 @@ module Penny.Lincoln.Decimal.Concrete where
 
 import Penny.Lincoln.Decimal.Normal
 import Penny.Lincoln.Decimal.Components
+import Penny.Lincoln.Equivalent
 import qualified Deka.Dec as D
 import qualified Deka.Native as D
+import Prelude hiding (exponent)
 
 newtype Qty = Qty { unQty :: Normal }
   deriving (Eq, Ord, Show)
 
+instance HasCoefficient Qty where
+  coefficient = coefficient . unQty
+
+instance HasExponent Qty where
+  exponent = exponent . unQty
+
+instance Signed Qty where
+  sign = sign . unQty
+
+instance Equivalent Qty where
+  compareEv (Qty x) (Qty y) = compareEv x y
+
 newtype Exchange = Exchange { unExchange :: Normal }
   deriving (Eq, Ord, Show)
+
+instance Equivalent Exchange where
+  compareEv (Exchange x) (Exchange y) = compareEv x y
+
+instance HasCoefficient Exchange where
+  coefficient = coefficient . unExchange
+
+instance HasExponent Exchange where
+  exponent = exponent . unExchange
+
+instance Signed Exchange where
+  sign = sign . unExchange
 
 qtyLane :: Qty -> Lane Side
 qtyLane = genericLane f . unQty
