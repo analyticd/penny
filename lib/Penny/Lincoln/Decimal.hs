@@ -40,21 +40,12 @@ module Penny.Lincoln.Decimal
     Side(..)
   , opposite
   , Lane(..)
-  , Laned(..)
 
   -- * Abstract
   , Rep
   , Abstract
 
-  -- * Concrete
-  , Concrete
-  , add
-  , subt
-  , mult
-  , negate
-
   -- * Conversions
-  , HasConcrete(..)
   , RadGroup(..)
   , grouped
   , ungrouped
@@ -67,19 +58,14 @@ module Penny.Lincoln.Decimal
 
   -- * Multiplier and exchange
   , PosNeg(..)
-  , Exchange(..)
-  , convert
 
   ) where
 
-import Penny.Lincoln.Decimal.Components
+import Penny.Lincoln.Decimal.Components hiding (Abstract)
 import Penny.Lincoln.Decimal.Represent
 import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Abstract
-import Penny.Lincoln.Decimal.Side
 import Penny.Lincoln.Decimal.Amount
-import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Render
-import Penny.Lincoln.Decimal.Exchange
 import Deka.Dec (PosNeg(..))
 import Prelude hiding (negate)

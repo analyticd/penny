@@ -4,7 +4,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck (testProperty)
 import Test.QuickCheck
 import qualified Penny.Lincoln.Decimal.Abstract.Generators as G
-import qualified Penny.Lincoln.Decimal.Side.Generators as G
+import qualified Penny.Lincoln.Decimal.Components.Generators as G
 import Penny.Lincoln.Decimal
 import Builders
 

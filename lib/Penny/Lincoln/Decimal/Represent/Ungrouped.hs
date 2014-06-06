@@ -1,24 +1,22 @@
 module Penny.Lincoln.Decimal.Represent.Ungrouped where
 
 import Penny.Lincoln.Decimal.Components
-import Penny.Lincoln.Decimal.Lane
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Zero
 import qualified Penny.Lincoln.Decimal.Masuno as M
 import qualified Penny.Lincoln.Decimal.Frac as F
-import Deka.Native.Abstract hiding (Exponent(..))
 import Penny.Lincoln.Natural
 import Prelude hiding (exponent)
 
 -- | Represents a number, without any digit grouping.
 
 ungrouped
-  :: (HasExponent a, Laned a b)
-  => a
-  -> Rep b
-ungrouped a = case lane a of
-  Center -> RZero $ ungroupedZero (exponent a)
-  NonCenter (s, d) -> RFigure $ ungroupedNonZero (exponent a) s d
+  :: Exponent
+  -> Lane a
+  -> Rep a
+ungrouped e a = case a of
+  Center -> RZero $ ungroupedZero e
+  NonCenter (s, d) -> RFigure $ ungroupedNonZero e s d
 
 ungroupedZero :: Exponent -> Zero
 ungroupedZero ex

@@ -30,11 +30,12 @@ newtype From = From { unFrom :: Commodity }
 newtype To = To { unTo :: Commodity }
   deriving (Eq, Ord, Show)
 
-data Entry = Entry
-  { amount :: Amount
+data Entry a = Entry
+  { amount :: a
   , commodity :: Commodity
   } deriving (Eq, Ord, Show)
 
+{-
 -- | Two 'Entry' are equivalent if they have the exact same
 -- 'Commodity' (this is case sensitive) and if they have equivalent
 -- 'Amount'.  When comparing, the 'Amount' are compared first, and
@@ -43,7 +44,7 @@ data Entry = Entry
 instance Equivalent Entry where
   compareEv (Entry a1 c1) (Entry a2 c2) =
     compareEv a1 a2 <> compare c1 c2
-
+-}
 newtype Flag = Flag { unFlag :: Text }
              deriving (Eq, Show, Ord)
 

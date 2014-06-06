@@ -7,8 +7,6 @@ import Test.Tasty.QuickCheck (testProperty)
 import qualified Penny.Lincoln.Decimal.Concrete.Generators as G
 import Penny.Lincoln.Decimal.Concrete
 import Prelude hiding (negate)
-import Penny.Lincoln.Decimal.Lane
-import Penny.Lincoln.Decimal.Side
 
 testTree :: TestTree
 testTree = testGroup "Penny.Lincoln.Decimal.Concrete.Tests"

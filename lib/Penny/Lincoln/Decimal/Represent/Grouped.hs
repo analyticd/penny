@@ -2,10 +2,8 @@ module Penny.Lincoln.Decimal.Represent.Grouped where
 
 import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Decimal.Abstract
-import Penny.Lincoln.Decimal.Lane
 import qualified Penny.Lincoln.Decimal.Represent.Ungrouped as U
 import Prelude hiding (exponent)
-import Deka.Native.Abstract hiding (Exponent(..))
 import Data.List.Split (chunksOf)
 import qualified Penny.Lincoln.Decimal.Masuno as M
 
@@ -18,12 +16,12 @@ import qualified Penny.Lincoln.Decimal.Masuno as M
 -- * Digits to the right of the radix are never grouped.
 
 grouped
-  :: (HasExponent a, Laned a b)
-  => a
-  -> Rep b
-grouped a = case lane a of
-  Center -> RZero $ U.ungroupedZero (exponent a)
-  NonCenter (s, d) -> RFigure $ groupedNonZero (exponent a) s d
+  :: Exponent
+  -> Lane a
+  -> Rep a
+grouped e a = case a of
+  Center -> RZero $ U.ungroupedZero e
+  NonCenter (s, d) -> RFigure $ groupedNonZero e s d
 
 -- | Splits a single MSG group into a group of MSG and less
 -- significant digits.  First all LSD are split into groups of 3.

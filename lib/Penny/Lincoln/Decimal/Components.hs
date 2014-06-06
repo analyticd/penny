@@ -1,8 +1,19 @@
 -- | Basic components of all numbers.
-module Penny.Lincoln.Decimal.Components where
+module Penny.Lincoln.Decimal.Components
+  ( Exponent(..)
+  , HasExponent(..)
+  , HasCoefficient(..)
+  , HasDecuple(..)
+  , Lane(..)
+  , Side(..)
+  , Opposite(..)
+  , PosNeg(..)
+  , module Deka.Native.Abstract
+  ) where
 
 import Penny.Lincoln.Natural
 import Deka.Native.Abstract hiding (Exponent(..))
+import Deka.Dec (PosNeg(..))
 import Prelude hiding (exponent)
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
@@ -20,7 +31,34 @@ class HasExponent a where
 class HasCoefficient a where
   coefficient :: a -> Coefficient
 
--- | Things that are non-zero have a 'Decuple' in their
--- 'Coefficient'.
 class HasDecuple a where
   decuple :: a -> Decuple
+
+-- | Represents whether something is 'Center' or is off to the side,
+-- with an accompanying 'Decuple' for the non-zero coefficient.
+data Lane a
+  = Center
+
+  | NonCenter (a, Decuple)
+  -- ^ Anything that is not 'Center' must also have a
+  -- non-zero coefficient, which is the 'Decuple'.
+
+  deriving (Eq, Ord, Show)
+
+data Side
+  = Debit
+  | Credit
+  deriving (Eq, Ord, Show)
+
+class Opposite a where
+  opposite :: a -> a
+
+instance Opposite Side where
+  opposite a = case a of
+    Debit -> Credit
+    Credit -> Debit
+
+instance Opposite PosNeg where
+  opposite a = case a of
+    Pos -> Neg
+    Neg -> Pos
