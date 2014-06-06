@@ -21,6 +21,7 @@ module Penny.Lincoln.Decimal.Normal
   -- | 'Normal' is also an instance of 'Num', so you can perform
   -- ordinary arithmetic on it and convert it using 'fromInteger'.
   , negate
+  , Penny.Lincoln.Decimal.Normal.isZero
 
   -- * Constants
   , one
@@ -90,7 +91,7 @@ simpleCompare :: Normal -> Normal -> Ordering
 simpleCompare (Normal x) (Normal y) = compute $ do
   r <- D.compare x y
   return $ case () of
-    _ | isZero r -> EQ
+    _ | D.isZero r -> EQ
       | isPositive r -> GT
       | otherwise -> LT
 
@@ -191,6 +192,9 @@ one = Normal . compute $ D.fromByteString "1"
 
 negate :: Normal -> Normal
 negate = Normal . compute . D.minus . unNormal
+
+isZero :: Normal -> Bool
+isZero (Normal d) = D.isZero d
 
 instance HasNormal Params where
   normal a = Normal d

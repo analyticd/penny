@@ -1,7 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Penny.Lincoln.Decimal.Amount where
 
-import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Abstract
 
 -- | An amount is either an 'Abstract' or a 'Concrete'.  All

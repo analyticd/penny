@@ -48,12 +48,16 @@ module Penny.Lincoln.Decimal
 
   -- * Concrete
   , Normal(..)
-  , Qty
+  , Qty(..)
   , Exchange
+  , qtyLane
+  , exchLane
   , negate
+  , isZero
 
   -- * Conversions
   , RadGroup(..)
+  , HasNormal(..)
   , grouped
   , ungrouped
   , exchange

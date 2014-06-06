@@ -8,8 +8,8 @@ data TopLine = TopLine
   { tlDateTime :: DateTime
   , tlMemo :: Memo
   , tlNumber :: Number
-  , tlPayee :: Payee
   , tlFlag :: Flag
+  , tlPayee :: Payee
   } deriving (Eq, Ord, Show)
 
 data TopLineMeta = TopLineMeta

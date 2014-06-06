@@ -1,8 +1,9 @@
-module Penny.Lincoln.Posting where
+module Penny.Lincoln.PostingData where
 
 import Data.Text (Text)
 import Penny.Lincoln.Common
 import Penny.Lincoln.Equivalent
+import Penny.Lincoln.Pieces
 import Penny.Lincoln.Serial
 import Data.Monoid
 import Data.List (sort)
@@ -61,4 +62,12 @@ instance Equivalent Tags where
   equivalent (Tags t1) (Tags t2) = sort t1 == sort t2
   compareEv (Tags t1) (Tags t2) =
     compare (sort t1) (sort t2)
+
+data PostingData = PostingData
+  { pstgMemo :: Memo
+  , pstgNumber :: Number
+  , pstgFlag :: Flag
+  , pstgPayee :: Payee
+  , pstgTags :: Tags
+  } deriving (Eq, Ord, Show)
 
