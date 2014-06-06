@@ -1,81 +1,7 @@
 -- | Balanced sets.  This module is the guardian of the core principle
 -- of double-entry accounting, which is that all transactions must be
 -- balanced.
-module Penny.Lincoln.Ents where
-
-import Penny.Lincoln.Balance
-import Penny.Lincoln.Common
-import Penny.Lincoln.Decimal
-import Data.Maybe
-import Control.Monad
-import Data.List (find)
-import qualified Data.Map as M
-import Prelude hiding (exponent, negate)
-import qualified Penny.Lincoln.Trio as T
-
-data Entrio
-  = SQC (Abstract Side) Arrangement
-  | SQ (Abstract Side)
-  | SC
-  | S
-  | QC Lessrad Arrangement
-  | Q Lessrad
-  | C
-  | N
-  deriving (Eq, Ord, Show)
-
--- | Information from a single entry.  Always contains a 'Commodity'
--- and a 'Qty' which holds the quantity information in concrete form.
--- There is also a 'Maybe' 'Record', which is 'Just' only if the
--- 'ents' function was originally supplied with a 'Record'.  This
--- holds the quantity and commodity information as they were
--- originally written.
---
--- There is also arbitrary metadata.
-data Ent a = Ent
-  { entSide :: Side
-  , entConcrete :: Qty
-  , entCommodity :: Commodity
-  , entrio :: Entrio
-  , entMeta :: a
-  } deriving (Eq, Ord, Show)
-
-instance Functor Ent where
-  fmap f e = e { entMeta = f (entMeta e) }
-
-newtype Ents a = Ents { unEnts :: [Ent a] }
-  deriving (Eq, Ord, Show)
-
-instance Functor Ents where
-  fmap f = Ents . map (fmap f) . unEnts
-
-
-data ErrorCode
-  = ErrorCode
-  deriving (Eq, Ord, Show)
-
-data Error = Error
-  { errCode :: ErrorCode
-  , errTrio :: T.Trio
-  , errBalances :: Balances
-  } deriving (Eq, Ord, Show)
-
-procTrio
-  :: Balances
-  -> T.Trio
-  -> a
-  -> Either Error (Balances, Ent a)
-procTrio = undefined
-{-
-procTrio bal trio meta = case trio of
-
-  T.SQC abt cy ar -> Right (bal', Ent sd q cy ent meta)
-    where
--}
-
-
-
-{-
+module Penny.Lincoln.EntsOld
   ( Record(..)
   , Ent
   , entCommodity
@@ -87,6 +13,56 @@ procTrio bal trio meta = case trio of
   , ents
   , rearrange
   ) where
+
+import Penny.Lincoln.Balance
+import Penny.Lincoln.Common
+import Penny.Lincoln.Decimal
+import Data.Maybe
+import Control.Monad
+import Data.List (find)
+import qualified Data.Map as M
+import Prelude hiding (exponent, negate)
+
+-- | A written record of an entry, like what you would get from a
+-- ledger file.  Holds the abstract (which represents both the
+-- quantity and the side) and the arrangement.
+data Record = Record
+  { rAbstract :: Abstract Side
+  , rArrange :: Arrangement
+  } deriving (Eq, Ord, Show)
+
+instance HasExponent Record where
+  exponent = exponent . rAbstract
+
+instance HasCoefficient Record where
+  coefficient = coefficient . rAbstract
+
+instance Signed Record where
+  sign = sign . rAbstract
+
+-- | Information from a single entry.  Always contains a 'Commodity'
+-- and a 'Qty' which holds the quantity information in concrete form.
+-- There is also a 'Maybe' 'Record', which is 'Just' only if the
+-- 'ents' function was originally supplied with a 'Record'.  This
+-- holds the quantity and commodity information as they were
+-- originally written.
+--
+-- There is also arbitrary metadata.
+data Ent a = Ent
+  { entCommodity :: Commodity
+  , entAbstract :: Maybe Record
+  , entConcrete :: Qty
+  , entMeta :: a
+  } deriving (Eq, Ord, Show)
+
+instance Functor Ent where
+  fmap f e = e { entMeta = f (entMeta e) }
+
+newtype Ents a = Ents { unEnts :: [Ent a] }
+  deriving (Eq, Ord, Show)
+
+instance Functor Ents where
+  fmap f = Ents . map (fmap f) . unEnts
 
 rearrange :: Arrangement -> Ent a -> Ent a
 rearrange a (Ent c r q m) = Ent c r' q m
@@ -176,4 +152,3 @@ inferQty c b = case M.assocs . unBalances . onlyUnbalanced $ b of
 needsNoInference :: Balances -> Bool
 needsNoInference = M.null . unBalances . onlyUnbalanced
 
--}

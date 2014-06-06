@@ -48,6 +48,8 @@ module Penny.Lincoln.Decimal
   -- * Abstract
   , Rep
   , Abstract
+  , Laneless(..)
+  , Lessrad(..)
 
   -- * Concrete
   , Normal(..)
@@ -69,18 +71,28 @@ module Penny.Lincoln.Decimal
   -- * Rendering
   , Renderable(..)
 
-  -- * Amount
-  , Amount(..)
-
   ) where
 
 import Penny.Lincoln.Decimal.Components hiding (Abstract)
 import Penny.Lincoln.Decimal.Represent
 import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Abstract
-import Penny.Lincoln.Decimal.Amount
 import Penny.Lincoln.Decimal.Render
 import Penny.Lincoln.Decimal.Normal
 import Penny.Lincoln.Decimal.Exchange
+import Penny.Lincoln.Decimal.Zero
 import Deka.Dec (PosNeg(..))
 import Prelude hiding (negate)
+
+-- | A quantity (either zero or non-zero) without any lane
+-- information.
+
+data Laneless
+  = LNZ NonZero
+  | LZ Zero
+  deriving (Eq, Ord, Show)
+
+data Lessrad = Lessrad
+  { lrLaneless :: Laneless
+  , lrRadGroup :: RadGroup
+  } deriving (Eq, Show, Ord)
