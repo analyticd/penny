@@ -34,6 +34,9 @@ bytestring = A.closedOpen "bytestring" [0,9,2,1] [0,11]
 containers :: A.Package
 containers = A.closedOpen "containers" [0,4,2,1] [0,6]
 
+bifunctors :: A.Package
+bifunctors = A.closedOpen "bifunctors" [0,1] [4,2]
+
 deka :: A.Package
 deka = A.nextBreaking "deka" [0,6,0,0]
 
@@ -139,6 +142,7 @@ flags =
 libraryDepends :: [A.Package]
 libraryDepends =
   [ base
+  , bifunctors
   , bytestring
   , containers
   , deka

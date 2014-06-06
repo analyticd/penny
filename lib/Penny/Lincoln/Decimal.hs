@@ -38,26 +38,31 @@
 module Penny.Lincoln.Decimal
   ( -- * Basic components
     Side(..)
-  , opposite
+  , PosNeg(..)
+  , Opposite(..)
   , Lane(..)
 
   -- * Abstract
   , Rep
   , Abstract
 
+  -- * Concrete
+  , Normal(..)
+  , Qty
+  , Exchange
+  , negate
+
   -- * Conversions
   , RadGroup(..)
   , grouped
   , ungrouped
+  , exchange
 
   -- * Rendering
   , Renderable(..)
 
   -- * Amount
   , Amount(..)
-
-  -- * Multiplier and exchange
-  , PosNeg(..)
 
   ) where
 
@@ -67,5 +72,7 @@ import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Abstract
 import Penny.Lincoln.Decimal.Amount
 import Penny.Lincoln.Decimal.Render
+import Penny.Lincoln.Decimal.Normal
+import Penny.Lincoln.Decimal.Exchange
 import Deka.Dec (PosNeg(..))
 import Prelude hiding (negate)

@@ -1,4 +1,4 @@
-module Penny.Lincoln.Bits.DateTime
+module Penny.Lincoln.Common.DateTime
   ( TimeZoneOffset ( offsetToMins )
   , minsToOffset
   , noOffset
