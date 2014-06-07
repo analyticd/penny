@@ -2,15 +2,24 @@
 -- of double-entry accounting, which is that all transactions must be
 -- balanced.
 module Penny.Lincoln.Ents
-  ( Ent
+  ( 
+  -- * Ent
+    Ent
   , entConcrete
   , entCommodity
   , entTrio
   , entMeta
+  , Entrio(..)
+  , entToTrio
+  , rearrange
+
+  -- * Ents
   , Ents
   , unEnts
   , ents
-  , Entrio(..)
+  , rEnts
+
+  -- * Errors
   , Error(..)
   , EntError(..)
   , ErrorCode(..)
@@ -30,6 +39,12 @@ import Prelude hiding (exponent, negate)
 import qualified Penny.Lincoln.Trio as T
 import Data.Monoid
 
+-- | Fields in the 'Ent' capture some of the information that was
+-- passed along in the 'T.Trio'.  'Entrio' captures the remaining
+-- information from the 'T.Trio' that other fields in the 'Ent' does
+-- not capture, so that it is possible to reconstruct the original
+-- 'T.Trio' from the 'Ent' alone.  Each of the constructors here
+-- corresponds to one of the constructors in 'T.Trio'.
 data Entrio
   = SZC NZGrouped Arrangement
   | SZ NZGrouped
@@ -43,22 +58,41 @@ data Entrio
 
 -- | Information from a single entry.  Always contains a 'Commodity'
 -- and a 'Qty' which holds the quantity information in concrete form.
--- There is also a 'Maybe' 'Record', which is 'Just' only if the
--- 'ents' function was originally supplied with a 'Record'.  This
--- holds the quantity and commodity information as they were
--- originally written.
+-- There is also an 'Entrio', which holds the information necessary to
+-- rebuild 'T.Trio' from the 'Ent'.
 --
--- There is also arbitrary metadata.
+-- This is abstract, so only functions in this module may build an 'Ent'.
+--
+-- There is also arbitrary metadata.  Because 'Ent' is abstract, you
+-- cannot build new 'Ent' or change the data in an existing 'Ent',
+-- with two exceptions: you can use 'fmap' to change the metadata, and
+-- you can use 'rearrange' to change the 'Arrangement' if there is
+-- one.  Changing any other data would risk unbalancing the 'Ents'.
 data Ent a = Ent
+
   { entConcrete :: Qty
+  -- ^ The concrete representation of the abstract non-zero quantity.
+
   , entCommodity :: Commodity
+
   , entTrio :: Entrio
+  -- ^ Holds information necessary to rebuild the original 'T.Trio';
+  -- see 'Entrio'.
+
   , entMeta :: a
+  -- ^ Whatever metadata you wish; typically this will be information
+  -- about the posting, such as its account and tags.
+
   } deriving (Eq, Ord, Show)
 
 instance Functor Ent where
   fmap f e = e { entMeta = f (entMeta e) }
 
+-- | Zero or more 'Ent'.  Together they are balanced; that is, every
+-- 'Debit' of a particular 'Commodity' is offset by an equal number of
+-- 'Credit's of the same 'Commodity', and vice versa.
+--
+-- 'Ents' is a 'Monoid'.
 newtype Ents a = Ents { unEnts :: [Ent a] }
   deriving (Eq, Ord, Show)
 
@@ -69,6 +103,34 @@ instance Monoid (Ents a) where
   mempty = Ents []
   mappend (Ents x) (Ents y) = Ents $ x ++ y
 
+entToTrio :: Ent a -> (T.Trio, a)
+entToTrio (Ent q cy entro mt) = (tri, mt)
+  where
+    tri = case entro of
+      SZC nzg ar -> T.SZC s nzg cy ar
+      SZ nzg -> T.SZ s nzg
+      SC -> T.SC s cy
+      S -> T.S s
+      ZC nzg ar -> T.ZC nzg cy ar
+      Z nzg -> T.Z nzg
+      C -> T.C cy
+      E -> T.E
+    s = case qtySide q of
+      Nothing -> error "ents: qty has no side"
+      Just sd -> sd
+
+-- | Change the 'Arrangement' in an 'Ent'.  Does nothing if the 'Ent'
+-- has no 'Arrangement' to begin with.
+rearrange :: Arrangement -> Ent a -> Ent a
+rearrange a' e = e { entTrio = e' }
+  where
+    e' = case entTrio e of
+      SZC g _ -> SZC g a'
+      ZC g _ -> ZC g a'
+      x -> x
+
+-- | Different errors that may arise when processing a single 'T.Trio'
+-- for conversion to an 'Ent'.
 data ErrorCode
   = SCWrongSide
   | SWrongSide
@@ -78,15 +140,26 @@ data ErrorCode
   | QQtyTooBig
   deriving (Eq, Ord, Show)
 
+-- | An error occurred while attempting to create an 'Ent'.
 data EntError = EntError
   { errCode :: ErrorCode
+  -- ^ The exact nature of the error.
+
   , errTrio :: T.Trio
+  -- ^ The 'T.Trio' that caused the error.
+
   , errBalances :: M.Map Commodity (Side, Qty)
+  -- ^ The balances that existed at the time the error occurred.
   } deriving (Eq, Ord, Show)
 
+-- | An error arose while attempting to create an 'Ents'.  The error
+-- may have arose while processing an individual 'T.Trio' to an 'Ent'.
+-- Or, processing of all 'Ent's may have succeeded, but if the total
+-- of all the postings is not balanced, an error occurs.
 newtype Error = Error { unError :: Either EntError UnbalancedAtEnd }
   deriving (Eq, Ord, Show)
 
+-- | The total of all 'Ent' is not balanced.
 data UnbalancedAtEnd = UnbalancedAtEnd
   { uaeBalances :: M.Map Commodity (Side, Qty) }
   deriving (Eq, Ord, Show)
@@ -112,6 +185,8 @@ procEntM (tri, mta) = do
       lift $ put bal'
       return r
 
+-- | Only creates an 'Ents' if all the 'T.Trio' are balanced.  See
+-- 'T.Trio' for more information on the rules this function follows.
 ents :: [(T.Trio, a)] -> Either Error (Ents a)
 ents ls =
   let (finalEi, finalBal) = flip runState emptyBalances
@@ -201,10 +276,9 @@ procTrio bal trio = case trio of
 
   where
 
-    -- Looks up a commodity in the given 'Balances'.  First, removes all
-    -- balanced commodities from the 'Balances'.  Then finds the requested
-    -- commodity and returns its balance.  Fails if the requested
-    -- commodity is not present.
+    -- Looks up a commodity in the given 'Balances'.  Then finds the
+    -- requested commodity and returns its balance.  Fails if the
+    -- requested commodity is not present.
 
     lookupCommodity :: Commodity -> Either EntError (Side, Qty)
     lookupCommodity cy = case M.lookup cy bal of
@@ -220,106 +294,39 @@ procTrio bal trio = case trio of
       (cy, (s, q)):[] -> Right (cy, s, q)
       _ -> Left $ EntError MultipleCommoditiesInBalance trio bal
 
+-- | Creates 'Ents' but, unlike 'ents', never fails.  To make this
+-- guarantee, 'rEnts' puts restrictions on its arguments.
 
-{-
-  ( Record(..)
-  , Ent
-  , entCommodity
-  , entAbstract
-  , entConcrete
-  , entMeta
-  , Ents
-  , unEnts
-  , ents
-  , rearrange
-  ) where
+rEnts
+  :: Side
+  -- ^ All postings that you supply are on this 'Side'
 
-rearrange :: Arrangement -> Ent a -> Ent a
-rearrange a (Ent c r q m) = Ent c r' q m
+  -> Commodity
+  -- ^ All postings will have this same 'Commodity'
+
+  -> Arrangement
+  -- ^ All postings except for the inferred one will use this
+  -- 'Arrangement'
+
+  -> a
+  -- ^ Metadata for inferred posting
+
+  -> [(NZGrouped, a)]
+  -- ^ Each non-zero number, and its corresponding metadata
+
+  -> Ents a
+  -- ^ The resulting 'Ents'.  If the list of 'NZGrouped' was
+  -- non-empty, then a single inferred posting is at the end to
+  -- balance out the other non-zero postings.  Each 'Ent' has an
+  -- 'Entrio' of 'SZC', except for the inferred posting, which is 'E'.
+
+rEnts s cy ar mt ls
+  | null ls = Ents []
+  | otherwise = Ents $ zipWith mkEnt qs ls ++ [inferred]
   where
-    r' = case r of
-      Nothing -> Nothing
-      Just (Record ab _) -> Just (Record ab a)
-
--- | Creates an 'Ents' only if the data is balanced.
-ents
-  :: [(Commodity, Maybe (Either Record Qty), a)]
-  -> Maybe (Ents a)
-ents ls = do
-  let conc = map concretize ls
-      bals = balances . map (\(c, _, q, a) -> (c, q, a)) $ conc
-  inf <- inferable bals . map (\(c, _, q, _) -> (c, q)) $ conc
-  es <- mkEnts inf conc
-  return $ Ents es
-
-mkEnts
-  :: Maybe Qty
-  -> [(Commodity, Maybe Record, Maybe Qty, a)]
-  -> Maybe [Ent a]
-mkEnts mq = mapM mkE
-  where
-    mkE (c, mayR, mayQ, a) = case mayQ of
-      Just q -> Just $ Ent c mayR q a
-      Nothing -> case mq of
-        Nothing -> Nothing
-        Just q -> Just $ Ent c mayR q a
-
-
-concretize
-  :: (Commodity, Maybe (Either Record Qty), a)
-  -> (Commodity, Maybe Record, Maybe Qty, a)
-concretize (cy, mayEi, a) = (cy, mayRec, mayQty, a)
-  where
-    (mayRec, mayQty) = case mayEi of
-      Nothing -> (Nothing, Nothing)
-      Just ei -> case ei of
-        Left rc -> (Just rc, Just . Qty . normal . rAbstract $ rc)
-        Right q -> (Nothing, Just q)
-
-
-balances :: [(Commodity, Maybe Qty, a)] -> Balances
-balances = foldl adder emptyBalances
-  where
-    adder bal (c, mq, _) = case mq of
-      Nothing -> bal
-      Just q -> addEntry c q bal
-
--- | Finds the single inferable quantity, if there is one.  Fails if
--- the list is not balanced and there is no single inferable quantity.
--- If the list is balanced, returns Just Nothing.  If the list is not
--- balanced but has a single inferable entry, returns the new quantity.
-
-inferable :: Balances -> [(Commodity, Maybe Qty)] -> Maybe (Maybe Qty)
-inferable bals ls =
-  let mayCyToInfer = fmap fst $ find (isNothing . snd) ls
-  in case mayCyToInfer of
-      Nothing -> if needsNoInference bals
-        then return Nothing
-        else mzero
-      Just cy -> case inferQty cy bals of
-        Nothing -> mzero
-        Just q -> return (Just q)
-
--- | When passed a commodity to infer, returns the inferred quantity.
--- Fails if:
---
--- * The 'Balances' is already balanced
---
--- * The 'Balances' has more than one commodity that is not balanced
---
--- * The 'Balances' has one commodity to infer, but it does not match
--- the commodity passed in.
-
-inferQty :: Commodity -> Balances -> Maybe Qty
-inferQty c b = case M.assocs . unBalances . onlyUnbalanced $ b of
-  [] -> Nothing
-  (c', q):[]
-    | c' /= c -> Nothing
-    | otherwise -> Just . Qty . negate . unQty $ q
-  _ -> Nothing
-
--- | Make sure that a Balances needs no inference.
-needsNoInference :: Balances -> Bool
-needsNoInference = M.null . unBalances . onlyUnbalanced
-
--}
+    qs = map mkQ . map fst $ ls
+    mkQ nzg = Qty . normal $ Params (sign s) (coefficient nzg)
+      (exponent nzg)
+    offset = Qty . negate . sum . map unQty $ qs
+    inferred = Ent offset cy E mt
+    mkEnt q (nzg, m) = Ent q cy (SZC nzg ar) m
