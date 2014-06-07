@@ -94,9 +94,9 @@ procTrio bal trio mta = case trio of
         q = Qty $ normal prms
         etro = SQ nzg
 
-  T.SC s cy -> case lookupCommodity cy bal of
-    Nothing -> Left $ Error CommodityNotFound trio bal
-    Just (sBal, q)
+  T.SC s cy -> case lookupCommodity cy of
+    Left e -> Left e
+    Right (sBal, q)
       | sBal /= opposite s -> Left $ Error SCWrongSide trio bal
       | otherwise -> Right (bal', Ent q' cy etro mta)
       where
@@ -114,9 +114,9 @@ procTrio bal trio mta = case trio of
         q' = Qty . negate . unQty $ q
         etro = S
 
-  T.QC nzg cy ar -> case lookupCommodity cy bal of
-    Nothing -> Left $ Error CommodityNotFound trio bal
-    Just (s, _) -> Right (bal', Ent q cy etro mta)
+  T.QC nzg cy ar -> case lookupCommodity cy of
+    Left e -> Left e
+    Right (s, _) -> Right (bal', Ent q cy etro mta)
       where
         q = Qty $ normal pms
         pms = Params (sign . opposite $ s) (coefficient nzg)
@@ -136,9 +136,9 @@ procTrio bal trio mta = case trio of
         etro = Q nzg
         bal' = bal <> balance cy q'
 
-  T.C cy -> case lookupCommodity cy bal of
-    Nothing -> Left $ Error CommodityNotFound trio bal
-    Just (_, balQ) -> Right (bal', Ent q' cy etro mta)
+  T.C cy -> case lookupCommodity cy of
+    Left e -> Left e
+    Right (_, balQ) -> Right (bal', Ent q' cy etro mta)
       where
         q' = Qty . negate . unQty $ balQ
         etro = C
@@ -152,22 +152,26 @@ procTrio bal trio mta = case trio of
         etro = N
         bal' = bal <> balance cy q'
 
--- | Looks up a commodity in the given 'Balances'.  First, removes all
--- balanced commodities from the 'Balances'.  Then finds the requested
--- commodity and returns its balance.  Fails if the requested
--- commodity is not present.
+  where
 
-lookupCommodity :: Commodity -> Balances -> Maybe (Side, Qty)
-lookupCommodity cy = M.lookup cy . onlyUnbalanced
+    -- Looks up a commodity in the given 'Balances'.  First, removes all
+    -- balanced commodities from the 'Balances'.  Then finds the requested
+    -- commodity and returns its balance.  Fails if the requested
+    -- commodity is not present.
 
--- | Gets a single commodity from the given 'Balances', if it has just
--- a single commodity.
+    lookupCommodity :: Commodity -> Either Error (Side, Qty)
+    lookupCommodity cy = case M.lookup cy . onlyUnbalanced $ bal of
+      Nothing -> Left $ Error CommodityNotFound trio bal
+      Just (s, q) -> return (s, q)
 
-singleCommodity :: Balances -> Either ErrorCode (Commodity, Side, Qty)
-singleCommodity bals = case M.assocs . onlyUnbalanced $ bals of
-  [] -> Left NoCommoditiesInBalance
-  (cy, (s, q)):[] -> Right (cy, s, q)
-  _ -> Left MultipleCommoditiesInBalance
+    -- Gets a single commodity from the given 'Balances', if it has just
+    -- a single commodity.
+
+    singleCommodity :: Balances -> Either ErrorCode (Commodity, Side, Qty)
+    singleCommodity bals = case M.assocs . onlyUnbalanced $ bals of
+      [] -> Left NoCommoditiesInBalance
+      (cy, (s, q)):[] -> Right (cy, s, q)
+      _ -> Left MultipleCommoditiesInBalance
 
 {-
   T.SC s cy -> case M.assocs . onlyUnbalanced $ bal of
