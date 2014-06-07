@@ -85,8 +85,8 @@ procTrio bal trio mta = case trio of
       q = Qty $ normal prms
       etro = SQC nzg ar
 
-  T.SQ s nzg -> case singleCommodity bal of
-    Left e -> Left $ Error e trio bal
+  T.SQ s nzg -> case singleCommodity of
+    Left e -> Left e
     Right (cy, _, _) -> Right (bal', Ent q cy etro mta)
       where
         bal' = bal <> balance cy q
@@ -104,8 +104,8 @@ procTrio bal trio mta = case trio of
         q' = Qty . negate . unQty $ q
         etro = SC
 
-  T.S s -> case singleCommodity bal of
-    Left e -> Left $ Error e trio bal
+  T.S s -> case singleCommodity of
+    Left e -> Left e
     Right (cy, sBal, q)
       | sBal /= opposite s -> Left $ Error SWrongSide trio bal
       | otherwise -> Right (bal', Ent q' cy etro mta)
@@ -124,8 +124,8 @@ procTrio bal trio mta = case trio of
         etro = QC nzg ar
         bal' = bal <> balance cy q
 
-  T.Q nzg -> case singleCommodity bal of
-    Left e -> Left $ Error e trio bal
+  T.Q nzg -> case singleCommodity of
+    Left e -> Left e
     Right (cy, s, balQ)
       | abs (unQty q') > abs (unQty balQ) -> Left $ Error
           QQtyTooBig trio bal
@@ -144,8 +144,8 @@ procTrio bal trio mta = case trio of
         etro = C
         bal' = bal <> balance cy q'
 
-  T.N -> case singleCommodity bal of
-    Left e -> Left $ Error e trio bal
+  T.N -> case singleCommodity of
+    Left e -> Left e
     Right (cy, _, balQ) -> Right (bal', Ent q' cy etro mta)
       where
         q' = Qty . negate . unQty $ balQ
@@ -167,11 +167,11 @@ procTrio bal trio mta = case trio of
     -- Gets a single commodity from the given 'Balances', if it has just
     -- a single commodity.
 
-    singleCommodity :: Balances -> Either ErrorCode (Commodity, Side, Qty)
-    singleCommodity bals = case M.assocs . onlyUnbalanced $ bals of
-      [] -> Left NoCommoditiesInBalance
+    singleCommodity :: Either Error (Commodity, Side, Qty)
+    singleCommodity = case M.assocs . onlyUnbalanced $ bal of
+      [] -> Left $ Error NoCommoditiesInBalance trio bal
       (cy, (s, q)):[] -> Right (cy, s, q)
-      _ -> Left MultipleCommoditiesInBalance
+      _ -> Left $ Error MultipleCommoditiesInBalance trio bal
 
 {-
   T.SC s cy -> case M.assocs . onlyUnbalanced $ bal of
