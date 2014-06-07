@@ -1,13 +1,30 @@
 -- | Balanced sets.  This module is the guardian of the core principle
 -- of double-entry accounting, which is that all transactions must be
 -- balanced.
-module Penny.Lincoln.Ents where
+module Penny.Lincoln.Ents
+  ( Ent
+  , entConcrete
+  , entCommodity
+  , entTrio
+  , entMeta
+  , Ents
+  , unEnts
+  , ents
+  , Entrio(..)
+  , Error(..)
+  , EntError(..)
+  , ErrorCode(..)
+  , UnbalancedAtEnd(..)
+  ) where
 
 import Penny.Lincoln.Balance
 import Penny.Lincoln.Common
 import Penny.Lincoln.Decimal
 import Data.Maybe
 import Control.Monad
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State
+import Control.Monad.Trans.Either
 import qualified Data.Map as M
 import Prelude hiding (exponent, negate)
 import qualified Penny.Lincoln.Trio as T
@@ -50,14 +67,8 @@ instance Functor Ents where
 
 
 data ErrorCode
-  = SQNoCommodities
-  | SQMultipleCommodities
-  | SCNoCommodities
-  | SCWrongCommodity
-  | SCWrongSide
-  | SCMultipleCommodities
-  | SNoCommodities
-  | SWrongCommodity
+  -- = SQNoCommodities
+  = SCWrongSide
   | SWrongSide
   | CommodityNotFound
   | NoCommoditiesInBalance
@@ -65,11 +76,51 @@ data ErrorCode
   | QQtyTooBig
   deriving (Eq, Ord, Show)
 
-data Error = Error
+data EntError = EntError
   { errCode :: ErrorCode
   , errTrio :: T.Trio
-  , errBalances :: Balances
+  , errBalances :: M.Map Commodity (Side, Qty)
   } deriving (Eq, Ord, Show)
+
+newtype Error = Error { unError :: Either EntError UnbalancedAtEnd }
+  deriving (Eq, Ord, Show)
+
+data UnbalancedAtEnd = UnbalancedAtEnd
+  { uaeBalances :: M.Map Commodity (Side, Qty) }
+  deriving (Eq, Ord, Show)
+
+procEnt
+  :: Balances
+  -> (T.Trio, a)
+  -> Either EntError (Balances, Ent a)
+procEnt bals (tri, mta) = fmap f $ procTrio unbals tri
+  where
+    unbals = onlyUnbalanced bals
+    f (q, cy) = (bals', ent)
+      where
+        ent = Ent q cy (buildEntrio tri) mta
+        bals' = bals <> balance cy q
+
+procEntM :: (T.Trio, a) -> EitherT EntError (State Balances) (Ent a)
+procEntM (tri, mta) = do
+  bal <- lift get
+  case procEnt bal (tri, mta) of
+    Left e -> left e
+    Right (bal', r) -> do
+      lift $ put bal'
+      return r
+
+ents :: [(T.Trio, a)] -> Either Error (Ents a)
+ents ls =
+  let (finalEi, finalBal) = flip runState emptyBalances
+       . runEitherT . mapM procEntM $ ls
+  in case finalEi of
+      Left e -> Left . Error . Left $ e
+      Right es
+        | M.null unbals -> Right (Ents es)
+        | otherwise -> Left . Error . Right . UnbalancedAtEnd $ unbals
+        where
+          unbals = onlyUnbalanced finalBal
 
 buildEntrio :: T.Trio -> Entrio
 buildEntrio t = case t of
@@ -83,9 +134,9 @@ buildEntrio t = case t of
   T.N -> N
 
 procTrio
-  :: Balances
+  :: M.Map Commodity (Side, Qty)
   -> T.Trio
-  -> Either Error (Qty, Commodity)
+  -> Either EntError (Qty, Commodity)
 procTrio bal trio = case trio of
 
   T.SQC s nzg cy _ -> Right (q, cy)
@@ -103,7 +154,7 @@ procTrio bal trio = case trio of
   T.SC s cy -> case lookupCommodity cy of
     Left e -> Left e
     Right (sBal, q)
-      | sBal /= opposite s -> Left $ Error SCWrongSide trio bal
+      | sBal /= opposite s -> Left $ EntError SCWrongSide trio bal
       | otherwise -> Right (q', cy)
       where
         q' = Qty . negate . unQty $ q
@@ -111,7 +162,7 @@ procTrio bal trio = case trio of
   T.S s -> case singleCommodity of
     Left e -> Left e
     Right (cy, sBal, q)
-      | sBal /= opposite s -> Left $ Error SWrongSide trio bal
+      | sBal /= opposite s -> Left $ EntError SWrongSide trio bal
       | otherwise -> Right (q', cy)
       where
         q' = Qty . negate . unQty $ q
@@ -127,7 +178,7 @@ procTrio bal trio = case trio of
   T.Q nzg -> case singleCommodity of
     Left e -> Left e
     Right (cy, s, balQ)
-      | abs (unQty q') > abs (unQty balQ) -> Left $ Error
+      | abs (unQty q') > abs (unQty balQ) -> Left $ EntError
           QQtyTooBig trio bal
       | otherwise -> Right (q', cy)
       where
@@ -153,19 +204,19 @@ procTrio bal trio = case trio of
     -- commodity and returns its balance.  Fails if the requested
     -- commodity is not present.
 
-    lookupCommodity :: Commodity -> Either Error (Side, Qty)
-    lookupCommodity cy = case M.lookup cy . onlyUnbalanced $ bal of
-      Nothing -> Left $ Error CommodityNotFound trio bal
+    lookupCommodity :: Commodity -> Either EntError (Side, Qty)
+    lookupCommodity cy = case M.lookup cy bal of
+      Nothing -> Left $ EntError CommodityNotFound trio bal
       Just (s, q) -> return (s, q)
 
     -- Gets a single commodity from the given 'Balances', if it has just
     -- a single commodity.
 
-    singleCommodity :: Either Error (Commodity, Side, Qty)
-    singleCommodity = case M.assocs . onlyUnbalanced $ bal of
-      [] -> Left $ Error NoCommoditiesInBalance trio bal
+    singleCommodity :: Either EntError (Commodity, Side, Qty)
+    singleCommodity = case M.assocs bal of
+      [] -> Left $ EntError NoCommoditiesInBalance trio bal
       (cy, (s, q)):[] -> Right (cy, s, q)
-      _ -> Left $ Error MultipleCommoditiesInBalance trio bal
+      _ -> Left $ EntError MultipleCommoditiesInBalance trio bal
 
 
 {-
