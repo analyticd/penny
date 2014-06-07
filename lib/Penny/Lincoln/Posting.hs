@@ -2,6 +2,10 @@ module Penny.Lincoln.Posting where
 
 import Data.Text (Text)
 import Penny.Lincoln.Common
+import Penny.Lincoln.Equivalent
+import Penny.Lincoln.Serial
+import Data.List (sort)
+import Penny.Lincoln.Pieces
 
 newtype SubAccount =
   SubAccount { unSubAccount :: Text }
