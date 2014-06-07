@@ -67,7 +67,6 @@ instance Functor Ents where
 
 
 data ErrorCode
-  -- = SQNoCommodities
   = SCWrongSide
   | SWrongSide
   | CommodityNotFound
