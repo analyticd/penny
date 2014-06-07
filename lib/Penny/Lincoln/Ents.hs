@@ -85,20 +85,18 @@ buildEntrio t = case t of
 procTrio
   :: Balances
   -> T.Trio
-  -> Either Error (Balances, Qty, Commodity)
+  -> Either Error (Qty, Commodity)
 procTrio bal trio = case trio of
 
-  T.SQC s nzg cy _ -> Right (bal', q, cy)
+  T.SQC s nzg cy _ -> Right (q, cy)
     where
-      bal' = bal <> balance cy q
       prms = Params (sign s) (coefficient nzg) (exponent nzg)
       q = Qty $ normal prms
 
   T.SQ s nzg -> case singleCommodity of
     Left e -> Left e
-    Right (cy, _, _) -> Right (bal', q, cy)
+    Right (cy, _, _) -> Right (q, cy)
       where
-        bal' = bal <> balance cy q
         prms = Params (sign s) (coefficient nzg) (exponent nzg)
         q = Qty $ normal prms
 
@@ -106,53 +104,47 @@ procTrio bal trio = case trio of
     Left e -> Left e
     Right (sBal, q)
       | sBal /= opposite s -> Left $ Error SCWrongSide trio bal
-      | otherwise -> Right (bal', q', cy)
+      | otherwise -> Right (q', cy)
       where
-        bal' = bal <> balance cy q'
         q' = Qty . negate . unQty $ q
 
   T.S s -> case singleCommodity of
     Left e -> Left e
     Right (cy, sBal, q)
       | sBal /= opposite s -> Left $ Error SWrongSide trio bal
-      | otherwise -> Right (bal', q', cy)
+      | otherwise -> Right (q', cy)
       where
-        bal' = bal <> balance cy q'
         q' = Qty . negate . unQty $ q
 
   T.QC nzg cy _ -> case lookupCommodity cy of
     Left e -> Left e
-    Right (s, _) -> Right (bal', q, cy)
+    Right (s, _) -> Right (q, cy)
       where
         q = Qty $ normal pms
         pms = Params (sign . opposite $ s) (coefficient nzg)
                 (exponent nzg)
-        bal' = bal <> balance cy q
 
   T.Q nzg -> case singleCommodity of
     Left e -> Left e
     Right (cy, s, balQ)
       | abs (unQty q') > abs (unQty balQ) -> Left $ Error
           QQtyTooBig trio bal
-      | otherwise -> Right (bal', q', cy)
+      | otherwise -> Right (q', cy)
       where
         q' = Qty . normal $ Params (sign . opposite $ s)
           (coefficient nzg) (exponent nzg)
-        bal' = bal <> balance cy q'
 
   T.C cy -> case lookupCommodity cy of
     Left e -> Left e
-    Right (_, balQ) -> Right (bal', q', cy)
+    Right (_, balQ) -> Right (q', cy)
       where
         q' = Qty . negate . unQty $ balQ
-        bal' = bal <> balance cy q'
 
   T.N -> case singleCommodity of
     Left e -> Left e
-    Right (cy, _, balQ) -> Right (bal', q', cy)
+    Right (cy, _, balQ) -> Right (q', cy)
       where
         q' = Qty . negate . unQty $ balQ
-        bal' = bal <> balance cy q'
 
   where
 
@@ -175,19 +167,6 @@ procTrio bal trio = case trio of
       (cy, (s, q)):[] -> Right (cy, s, q)
       _ -> Left $ Error MultipleCommoditiesInBalance trio bal
 
-{-
-  T.SC s cy -> case M.assocs . onlyUnbalanced $ bal of
-    [] -> Left $ Error SCNoCommodities trio bal
-    (balCy, (balS, balQ)):[]
-      | balCy /= cy -> Left $ Error SCWrongCommodity trio bal
-      | balS /= opposite s -> Left $ Error SCWrongSide trio bal
-      | otherwise -> Right (bal', Ent q cy etro mta)
-      where
-        bal' = bal <> balance cy q
-        q = Qty . negate . unQty $ balQ
-        etro = SC
-    _ -> Left $ Error SCMultipleCommodities trio bal
--}
 
 {-
   ( Record(..)
