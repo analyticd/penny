@@ -31,14 +31,14 @@ import qualified Penny.Lincoln.Trio as T
 import Data.Monoid
 
 data Entrio
-  = SQC NZGrouped Arrangement
-  | SQ NZGrouped
+  = SZC NZGrouped Arrangement
+  | SZ NZGrouped
   | SC
   | S
-  | QC NZGrouped Arrangement
-  | Q NZGrouped
+  | ZC NZGrouped Arrangement
+  | Z NZGrouped
   | C
-  | N
+  | E
   deriving (Eq, Ord, Show)
 
 -- | Information from a single entry.  Always contains a 'Commodity'
@@ -65,6 +65,9 @@ newtype Ents a = Ents { unEnts :: [Ent a] }
 instance Functor Ents where
   fmap f = Ents . map (fmap f) . unEnts
 
+instance Monoid (Ents a) where
+  mempty = Ents []
+  mappend (Ents x) (Ents y) = Ents $ x ++ y
 
 data ErrorCode
   = SCWrongSide
@@ -123,14 +126,14 @@ ents ls =
 
 buildEntrio :: T.Trio -> Entrio
 buildEntrio t = case t of
-  T.SQC _ nzg _ ar -> SQC nzg ar
-  T.SQ _ nzg -> SQ nzg
+  T.SZC _ nzg _ ar -> SZC nzg ar
+  T.SZ _ nzg -> SZ nzg
   T.SC _ _ -> SC
   T.S _ -> S
-  T.QC nzg _ ar -> QC nzg ar
-  T.Q nzg -> Q nzg
+  T.ZC nzg _ ar -> ZC nzg ar
+  T.Z nzg -> Z nzg
   T.C _ -> C
-  T.N -> N
+  T.E -> E
 
 procTrio
   :: M.Map Commodity (Side, Qty)
@@ -138,12 +141,12 @@ procTrio
   -> Either EntError (Qty, Commodity)
 procTrio bal trio = case trio of
 
-  T.SQC s nzg cy _ -> Right (q, cy)
+  T.SZC s nzg cy _ -> Right (q, cy)
     where
       prms = Params (sign s) (coefficient nzg) (exponent nzg)
       q = Qty $ normal prms
 
-  T.SQ s nzg -> case singleCommodity of
+  T.SZ s nzg -> case singleCommodity of
     Left e -> Left e
     Right (cy, _, _) -> Right (q, cy)
       where
@@ -166,7 +169,7 @@ procTrio bal trio = case trio of
       where
         q' = Qty . negate . unQty $ q
 
-  T.QC nzg cy _ -> case lookupCommodity cy of
+  T.ZC nzg cy _ -> case lookupCommodity cy of
     Left e -> Left e
     Right (s, _) -> Right (q, cy)
       where
@@ -174,7 +177,7 @@ procTrio bal trio = case trio of
         pms = Params (sign . opposite $ s) (coefficient nzg)
                 (exponent nzg)
 
-  T.Q nzg -> case singleCommodity of
+  T.Z nzg -> case singleCommodity of
     Left e -> Left e
     Right (cy, s, balQ)
       | abs (unQty q') > abs (unQty balQ) -> Left $ EntError
@@ -190,7 +193,7 @@ procTrio bal trio = case trio of
       where
         q' = Qty . negate . unQty $ balQ
 
-  T.N -> case singleCommodity of
+  T.E -> case singleCommodity of
     Left e -> Left e
     Right (cy, _, balQ) -> Right (q', cy)
       where

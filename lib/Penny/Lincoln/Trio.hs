@@ -4,12 +4,12 @@ import Penny.Lincoln.Decimal
 import Penny.Lincoln.Common
 
 data Trio
-  = SQC Side NZGrouped Commodity Arrangement
-  | SQ Side NZGrouped
+  = SZC Side NZGrouped Commodity Arrangement
+  | SZ Side NZGrouped
   | SC Side Commodity
   | S Side
-  | QC NZGrouped Commodity Arrangement
-  | Q NZGrouped
+  | ZC NZGrouped Commodity Arrangement
+  | Z NZGrouped
   | C Commodity
-  | N
+  | E
   deriving (Eq, Ord, Show)
