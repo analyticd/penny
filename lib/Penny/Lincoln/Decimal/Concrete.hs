@@ -50,12 +50,28 @@ qtyLane = genericLane f . unQty
       D.Sign0 -> Debit
       D.Sign1 -> Credit
 
+qtySide :: Qty -> Maybe Side
+qtySide (Qty n)
+  | isZero n = Nothing
+  | s == Sign0 = Just Debit
+  | otherwise = Just Credit
+  where
+    s = sign n
+
 exchLane :: Exchange -> Lane PosNeg
 exchLane = genericLane f . unExchange
   where
     f s = case s of
       D.Sign0 -> Pos
       D.Sign1 -> Neg
+
+exchPosNeg :: Exchange -> Maybe PosNeg
+exchPosNeg (Exchange n)
+  | isZero n = Nothing
+  | s == Sign0 = Just Pos
+  | otherwise = Just Neg
+  where
+    s = sign n
 
 genericLane :: (D.Sign -> a) -> Normal -> Lane a
 genericLane f n = case D.unCoefficient . pmCoefficient $ p of

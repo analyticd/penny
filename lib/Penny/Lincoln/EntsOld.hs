@@ -1,7 +1,8 @@
 -- | Balanced sets.  This module is the guardian of the core principle
 -- of double-entry accounting, which is that all transactions must be
 -- balanced.
-module Penny.Lincoln.EntsOld
+module Penny.Lincoln.EntsOld where
+{-
   ( Record(..)
   , Ent
   , entCommodity
@@ -152,3 +153,4 @@ inferQty c b = case M.assocs . unBalances . onlyUnbalanced $ b of
 needsNoInference :: Balances -> Bool
 needsNoInference = M.null . unBalances . onlyUnbalanced
 
+-}

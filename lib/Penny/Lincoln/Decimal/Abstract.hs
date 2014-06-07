@@ -30,6 +30,9 @@ data Figure a = Figure
   , figNonZero :: NonZero
   } deriving (Eq, Ord, Show)
 
+instance Wrapped Figure where
+  unwrap = figPolarity
+
 instance HasExponent (Figure a) where
   exponent = exponent . figNonZero
 
@@ -55,6 +58,11 @@ data Rep a
   -- taht some operations obey the monoid laws.)  Zeroes do not have
   -- a 'Side'.
   deriving (Eq, Ord, Show)
+
+instance MaybeWrapped Rep where
+  maybeUnwrap r = case r of
+    RFigure f -> Just $ unwrap f
+    RZero _ -> Nothing
 
 instance HasCoefficient (Rep a) where
   coefficient x = case x of
@@ -87,6 +95,20 @@ data RadGroup
   -- ^ Comma radix, thin space grouping
   deriving (Eq, Ord, Show, Enum, Bounded)
 
+-- | An abstract non-zero number, together with the characters to use
+-- for the radix point and digit grouping character.
+
+data NZGrouped = NZGrouped
+  { nzgNonZero :: NonZero
+  , nzgRadGroup :: RadGroup
+  } deriving (Eq, Ord, Show)
+
+instance HasExponent NZGrouped where
+  exponent = exponent . nzgNonZero
+
+instance HasCoefficient NZGrouped where
+  coefficient = coefficient . nzgNonZero
+
 -- | Abstract representation of a number, along with what characters
 -- to use for the radix point and the digit grouping character.  Is
 -- parameterized on the polarity.
@@ -94,6 +116,9 @@ data Abstract a = Abstract
   { absRep :: Rep a
   , absRadGroup :: RadGroup
   } deriving (Eq, Ord, Show)
+
+instance MaybeWrapped Abstract where
+  maybeUnwrap = maybeUnwrap . absRep
 
 instance HasExponent (Abstract a) where
   exponent = exponent . absRep

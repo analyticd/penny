@@ -8,18 +8,18 @@ import Penny.Lincoln.Common
 import Penny.Lincoln.Decimal
 import Data.Maybe
 import Control.Monad
-import Data.List (find)
 import qualified Data.Map as M
 import Prelude hiding (exponent, negate)
 import qualified Penny.Lincoln.Trio as T
+import Data.Monoid
 
 data Entrio
-  = SQC (Abstract Side) Arrangement
-  | SQ (Abstract Side)
+  = SQC NZGrouped Arrangement
+  | SQ NZGrouped
   | SC
   | S
-  | QC Lessrad Arrangement
-  | Q Lessrad
+  | QC NZGrouped Arrangement
+  | Q NZGrouped
   | C
   | N
   deriving (Eq, Ord, Show)
@@ -33,8 +33,7 @@ data Entrio
 --
 -- There is also arbitrary metadata.
 data Ent a = Ent
-  { entSide :: Side
-  , entConcrete :: Qty
+  { entConcrete :: Qty
   , entCommodity :: Commodity
   , entrio :: Entrio
   , entMeta :: a
@@ -51,7 +50,19 @@ instance Functor Ents where
 
 
 data ErrorCode
-  = ErrorCode
+  = SQNoCommodities
+  | SQMultipleCommodities
+  | SCNoCommodities
+  | SCWrongCommodity
+  | SCWrongSide
+  | SCMultipleCommodities
+  | SNoCommodities
+  | SWrongCommodity
+  | SWrongSide
+  | CommodityNotFound
+  | NoCommoditiesInBalance
+  | MultipleCommoditiesInBalance
+  | QQtyTooBig
   deriving (Eq, Ord, Show)
 
 data Error = Error
@@ -65,15 +76,112 @@ procTrio
   -> T.Trio
   -> a
   -> Either Error (Balances, Ent a)
-procTrio = undefined
-{-
-procTrio bal trio meta = case trio of
+procTrio bal trio mta = case trio of
 
-  T.SQC abt cy ar -> Right (bal', Ent sd q cy ent meta)
+  T.SQC s nzg cy ar -> Right (bal', Ent q cy etro mta)
     where
+      bal' = bal <> balance cy q
+      prms = Params (sign s) (coefficient nzg) (exponent nzg)
+      q = Qty $ normal prms
+      etro = SQC nzg ar
+
+  T.SQ s nzg -> case singleCommodity bal of
+    Left e -> Left $ Error e trio bal
+    Right (cy, _, _) -> Right (bal', Ent q cy etro mta)
+      where
+        bal' = bal <> balance cy q
+        prms = Params (sign s) (coefficient nzg) (exponent nzg)
+        q = Qty $ normal prms
+        etro = SQ nzg
+
+  T.SC s cy -> case lookupCommodity cy bal of
+    Nothing -> Left $ Error CommodityNotFound trio bal
+    Just (sBal, q)
+      | sBal /= opposite s -> Left $ Error SCWrongSide trio bal
+      | otherwise -> Right (bal', Ent q' cy etro mta)
+      where
+        bal' = bal <> balance cy q'
+        q' = Qty . negate . unQty $ q
+        etro = SC
+
+  T.S s -> case singleCommodity bal of
+    Left e -> Left $ Error e trio bal
+    Right (cy, sBal, q)
+      | sBal /= opposite s -> Left $ Error SWrongSide trio bal
+      | otherwise -> Right (bal', Ent q' cy etro mta)
+      where
+        bal' = bal <> balance cy q'
+        q' = Qty . negate . unQty $ q
+        etro = S
+
+  T.QC nzg cy ar -> case lookupCommodity cy bal of
+    Nothing -> Left $ Error CommodityNotFound trio bal
+    Just (s, _) -> Right (bal', Ent q cy etro mta)
+      where
+        q = Qty $ normal pms
+        pms = Params (sign . opposite $ s) (coefficient nzg)
+                (exponent nzg)
+        etro = QC nzg ar
+        bal' = bal <> balance cy q
+
+  T.Q nzg -> case singleCommodity bal of
+    Left e -> Left $ Error e trio bal
+    Right (cy, s, balQ)
+      | abs (unQty q') > abs (unQty balQ) -> Left $ Error
+          QQtyTooBig trio bal
+      | otherwise -> Right (bal', Ent q' cy etro mta)
+      where
+        q' = Qty . normal $ Params (sign . opposite $ s)
+          (coefficient nzg) (exponent nzg)
+        etro = Q nzg
+        bal' = bal <> balance cy q'
+
+  T.C cy -> case lookupCommodity cy bal of
+    Nothing -> Left $ Error CommodityNotFound trio bal
+    Just (_, balQ) -> Right (bal', Ent q' cy etro mta)
+      where
+        q' = Qty . negate . unQty $ balQ
+        etro = C
+        bal' = bal <> balance cy q'
+
+  T.N -> case singleCommodity bal of
+    Left e -> Left $ Error e trio bal
+    Right (cy, _, balQ) -> Right (bal', Ent q' cy etro mta)
+      where
+        q' = Qty . negate . unQty $ balQ
+        etro = N
+        bal' = bal <> balance cy q'
+
+-- | Looks up a commodity in the given 'Balances'.  First, removes all
+-- balanced commodities from the 'Balances'.  Then finds the requested
+-- commodity and returns its balance.  Fails if the requested
+-- commodity is not present.
+
+lookupCommodity :: Commodity -> Balances -> Maybe (Side, Qty)
+lookupCommodity cy = M.lookup cy . onlyUnbalanced
+
+-- | Gets a single commodity from the given 'Balances', if it has just
+-- a single commodity.
+
+singleCommodity :: Balances -> Either ErrorCode (Commodity, Side, Qty)
+singleCommodity bals = case M.assocs . onlyUnbalanced $ bals of
+  [] -> Left NoCommoditiesInBalance
+  (cy, (s, q)):[] -> Right (cy, s, q)
+  _ -> Left MultipleCommoditiesInBalance
+
+{-
+  T.SC s cy -> case M.assocs . onlyUnbalanced $ bal of
+    [] -> Left $ Error SCNoCommodities trio bal
+    (balCy, (balS, balQ)):[]
+      | balCy /= cy -> Left $ Error SCWrongCommodity trio bal
+      | balS /= opposite s -> Left $ Error SCWrongSide trio bal
+      | otherwise -> Right (bal', Ent q cy etro mta)
+      where
+        bal' = bal <> balance cy q
+        q = Qty . negate . unQty $ balQ
+        etro = SC
+    _ -> Left $ Error SCMultipleCommodities trio bal
 -}
-
-
 
 {-
   ( Record(..)

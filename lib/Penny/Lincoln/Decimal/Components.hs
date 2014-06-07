@@ -10,6 +10,8 @@ module Penny.Lincoln.Decimal.Components
   , PosNeg(..)
   , Sign(..)
   , Signed(..)
+  , Wrapped(..)
+  , MaybeWrapped(..)
   ) where
 
 import Penny.Lincoln.Natural
@@ -47,6 +49,11 @@ data Lane a
 
   deriving (Eq, Ord, Show)
 
+instance MaybeWrapped Lane where
+  maybeUnwrap a = case a of
+    Center -> Nothing
+    NonCenter (x, _) -> Just x
+
 data Side
   = Debit
   | Credit
@@ -77,3 +84,9 @@ instance Signed Side where
   sign a = case a of
     Debit -> Sign0
     Credit -> Sign1
+
+class Wrapped c where
+  unwrap :: c a -> a
+
+class MaybeWrapped c where
+  maybeUnwrap :: c a -> Maybe a

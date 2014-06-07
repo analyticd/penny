@@ -4,12 +4,22 @@ import qualified Data.Map as M
 import Penny.Lincoln.Common
 import Penny.Lincoln.Decimal
 import qualified Data.Foldable as F
+import Data.Monoid
 
 newtype Balances = Balances { unBalances :: M.Map Commodity Qty }
   deriving (Eq, Ord, Show)
 
+instance Monoid Balances where
+  mempty = emptyBalances
+  mappend (Balances x) (Balances y) = Balances $ M.unionWith f x y
+    where
+      f (Qty a) (Qty b) = Qty $ a + b
+
 emptyBalances :: Balances
 emptyBalances = Balances M.empty
+
+balance :: Commodity -> Qty -> Balances
+balance c = Balances . M.singleton c
 
 addEntry
   :: Commodity
@@ -26,6 +36,10 @@ isBalanced :: Balances -> Bool
 isBalanced = F.all (isZero . unQty) . unBalances
 
 -- | Removes all balanced commodity-qty pairs from the map.
-onlyUnbalanced :: Balances -> Balances
-onlyUnbalanced = Balances . M.filter (not . isZero . unQty)
-  . unBalances
+onlyUnbalanced :: Balances -> M.Map Commodity (Side, Qty)
+onlyUnbalanced = M.mapMaybe f . unBalances
+  where
+    f q = case qtySide q of
+      Nothing -> Nothing
+      Just s -> Just (s, q)
+
