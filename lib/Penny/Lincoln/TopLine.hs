@@ -4,7 +4,7 @@ import Penny.Lincoln.Common
 import Penny.Lincoln.Pieces
 import Penny.Lincoln.Serial
 
-data TopLine = TopLine
+data TopLineData = TopLineData
   { tlDateTime :: DateTime
   , tlMemo :: Memo
   , tlNumber :: Number
@@ -25,4 +25,9 @@ data TopLineMeta = TopLineMeta
   -- ^ The transactions in each fhile are numbered in order.
 
   , tlmFilename :: Filename
+  } deriving (Eq, Ord, Show)
+
+data TopLine = TopLine
+  { tlData :: TopLineData
+  , tlMeta :: Maybe TopLineMeta
   } deriving (Eq, Ord, Show)

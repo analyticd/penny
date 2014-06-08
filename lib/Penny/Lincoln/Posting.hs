@@ -6,22 +6,23 @@ import Penny.Lincoln.Equivalent
 import Penny.Lincoln.Serial
 import Data.List (sort)
 import Penny.Lincoln.Pieces
+import Penny.Lincoln.HasText
 
 newtype SubAccount =
   SubAccount { unSubAccount :: Text }
   deriving (Eq, Ord, Show)
 
+instance HasText SubAccount where
+  text = unSubAccount
+
 newtype Account = Account { unAccount :: [SubAccount] }
                   deriving (Eq, Show, Ord)
 
+instance HasTextList Account where
+  textList = map unSubAccount . unAccount
+
 data PostingMeta = PostingMeta
-  { topLine :: Line
-    -- ^ The line number that the TopLine starts on, excluding the
-    -- memo accompanying the TopLine
-  , topMemo :: Line
-    -- ^ The line number that the memo accompanying the TopLine starts
-    -- on
-  , pstgLine :: Line
+  { pstgLine :: Line
 
   , globalSerial :: Serial
   -- ^ All postings are numbered in order, beginning with the first
@@ -30,16 +31,19 @@ data PostingMeta = PostingMeta
 
   , fileSerial :: Serial
   -- ^ The postings in each file are numbered in order.
-
-  , filename :: Filename
-    -- ^ The file in which the posting appears
   } deriving (Eq, Ord, Show)
 
 newtype Tag = Tag { unTag :: Text }
                   deriving (Eq, Show, Ord)
 
+instance HasText Tag where
+  text = unTag
+
 newtype Tags = Tags { unTags :: [Tag] }
                deriving (Eq, Show, Ord)
+
+instance HasTextList Tags where
+  textList = map unTag . unTags
 
 -- | Tags are equivalent if they have the same tags (even if in a
 -- different order).
@@ -54,5 +58,11 @@ data PostingData = PostingData
   , pstgFlag :: Flag
   , pstgPayee :: Payee
   , pstgTags :: Tags
+  , pstgAccount :: Account
+  } deriving (Eq, Ord, Show)
+
+data Posting = Posting
+  { pstgData :: PostingData
+  , pstgMeta :: Maybe PostingMeta
   } deriving (Eq, Ord, Show)
 

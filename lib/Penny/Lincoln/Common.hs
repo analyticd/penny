@@ -4,7 +4,6 @@
 module Penny.Lincoln.Common
   ( module Penny.Lincoln.Common.DateTime
   , Commodity(..)
-  , Bundle(..)
   , Line(..)
   , Orient(..)
   , SpaceBetween(..)
@@ -14,20 +13,14 @@ module Penny.Lincoln.Common
 
 import Data.Text (Text)
 import Penny.Lincoln.Common.DateTime
-import Data.Bifunctor
+import Penny.Lincoln.HasText
 
 newtype Commodity =
   Commodity { unCommodity :: Text }
   deriving (Eq, Ord, Show)
 
--- | Bundles an item up with its metadata.
-data Bundle p m = Bundle
-  { payload :: p
-  , meta :: m
-  } deriving (Eq, Ord, Show)
-
-instance Bifunctor Bundle where
-  bimap f g (Bundle p m) = Bundle (f p) (g m)
+instance HasText Commodity where
+  text = unCommodity
 
 -- | The line something appears on in a file.
 newtype Line = Line { unLine :: Int }
@@ -57,3 +50,5 @@ data Arrangement = Arrangement
 newtype Filename = Filename { unFilename :: Text }
   deriving (Eq, Ord, Show)
 
+instance HasText Filename where
+  text = unFilename

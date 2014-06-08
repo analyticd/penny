@@ -24,6 +24,19 @@ module Penny.Lincoln.Ents
   , EntError(..)
   , ErrorCode(..)
   , UnbalancedAtEnd(..)
+
+  -- * Views
+  , View
+  , view
+  , allViews
+  , unView
+  , viewLeft
+  , viewCurrent
+  , viewRight
+  , moveLeft
+  , moveRight
+  , changeCurrent
+  , changeCurrentMeta
   ) where
 
 import Penny.Lincoln.Balance
@@ -103,8 +116,8 @@ instance Monoid (Ents a) where
   mempty = Ents []
   mappend (Ents x) (Ents y) = Ents $ x ++ y
 
-entToTrio :: Ent a -> (T.Trio, a)
-entToTrio (Ent q cy entro mt) = (tri, mt)
+entToTrio :: Ent a -> T.Trio
+entToTrio (Ent q cy entro _) = tri
   where
     tri = case entro of
       SZC nzg ar -> T.SZC s nzg cy ar
@@ -330,3 +343,44 @@ rEnts s cy ar mt ls
     offset = Qty . negate . sum . map unQty $ qs
     inferred = Ent offset cy E mt
     mkEnt q (nzg, m) = Ent q cy (SZC nzg ar) m
+
+data View a = View
+  { viewLeft :: [Ent a]
+  , viewCurrent :: Ent a
+  , viewRight :: [Ent a]
+  } deriving (Eq, Ord, Show)
+
+instance Functor View where
+  fmap f (View l c r) = View (map (fmap f) l) (fmap f c)
+    (map (fmap f) r)
+
+view :: Ents a -> Maybe (View a)
+view (Ents es) = case es of
+  [] -> Nothing
+  x:xs -> Just $ View [] x xs
+
+allViews :: Ents a -> [View a]
+allViews = go [] . unEnts
+  where
+    go l curr = case curr of
+      [] -> []
+      x:xs -> View l x xs : go (x:l) xs
+
+unView :: View a -> Ents a
+unView (View l c r) = Ents $ reverse l ++ c:r
+
+moveLeft :: View a -> Maybe (View a)
+moveLeft (View l c r) = case l of
+  [] -> Nothing
+  x:xs -> Just $ View xs x (c:r)
+
+moveRight :: View a -> Maybe (View a)
+moveRight (View l c r) = case r of
+  [] -> Nothing
+  x:xs -> Just $ View (c:l) x xs
+
+changeCurrent :: (Ent a -> Ent a) -> View a -> View a
+changeCurrent f (View l c r) = View l (f c) r
+
+changeCurrentMeta :: (a -> a) -> View a -> View a
+changeCurrentMeta f (View l c r) = View l (fmap f c) r
