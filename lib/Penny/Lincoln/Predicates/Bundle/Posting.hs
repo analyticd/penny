@@ -12,6 +12,12 @@ import Penny.Lincoln.Ents
 import Penny.Lincoln.Posting
 import Penny.Lincoln.Pieces
 import Penny.Lincoln.Trio
+import Penny.Lincoln.Decimal
+import Penny.Lincoln.Common
+import Penny.Lincoln.Serial
+
+label :: String -> Predbox a -> Predbox a
+label s = rename ((X.pack s <> X.pack " - ") <>)
 
 textField
   :: HasText a
@@ -22,6 +28,14 @@ textField
   -> Predbox Text
   -> Predbox Bundle
 textField n f = label n . contramap (text . f)
+
+textListField
+  :: HasTextList a
+  => String
+  -> (Bundle -> a)
+  -> Predbox [Text]
+  -> Predbox Bundle
+textListField n f = label n . contramap (textList . f)
 
 ent :: Predbox (Ent Posting) -> Predbox Bundle
 ent = contramap Q.ent
@@ -38,9 +52,6 @@ postingMeta = contramap Q.postingMeta
 trio :: Predbox Trio -> Predbox Bundle
 trio = contramap Q.trio
 
-label :: String -> Predbox a -> Predbox a
-label s = rename ((X.pack s <> X.pack " - ") <>)
-
 memo :: Predbox Text -> Predbox Bundle
 memo = label "memo" . contramap f
   where
@@ -55,5 +66,27 @@ flag = textField "flag" Q.flag
 payee :: Predbox Text -> Predbox Bundle
 payee = textField "payee" Q.payee
 
-tags :: Predbox Text -> Predbox Bundle
-tags = undefined
+tags :: Predbox [Text] -> Predbox Bundle
+tags = textListField "tags" Q.tags
+
+qty :: Predbox Qty -> Predbox Bundle
+qty = label "qty" . contramap Q.qty
+
+commodity :: Predbox Text -> Predbox Bundle
+commodity = textField "commodity" Q.commodity
+
+entrio :: Predbox Entrio -> Predbox Bundle
+entrio = label "entrio" . contramap Q.entrio
+
+account :: Predbox [Text] -> Predbox Bundle
+account = textListField "account" Q.account
+
+line :: Predbox (Maybe Int) -> Predbox Bundle
+line = label "line" . contramap (fmap unLine . Q.line)
+
+globalSerial :: Predbox (Maybe Serial) -> Predbox Bundle
+globalSerial = label "global serial" . contramap Q.globalSerial
+
+fileSerial :: Predbox (Maybe Serial) -> Predbox Bundle
+fileSerial = label "file serial" . contramap Q.fileSerial
+
