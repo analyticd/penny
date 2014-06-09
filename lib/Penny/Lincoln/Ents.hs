@@ -2,7 +2,7 @@
 -- of double-entry accounting, which is that all transactions must be
 -- balanced.
 module Penny.Lincoln.Ents
-  ( 
+  (
   -- * Ent
     Ent
   , entConcrete
@@ -33,6 +33,7 @@ module Penny.Lincoln.Ents
   , viewLeft
   , viewCurrent
   , viewRight
+  , siblings
   , moveLeft
   , moveRight
   , changeCurrent
@@ -353,6 +354,9 @@ data View a = View
 instance Functor View where
   fmap f (View l c r) = View (map (fmap f) l) (fmap f c)
     (map (fmap f) r)
+
+siblings :: View a -> [Ent a]
+siblings (View l _ r) = reverse l ++ r
 
 view :: Ents a -> Maybe (View a)
 view (Ents es) = case es of
