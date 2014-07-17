@@ -1,9 +1,8 @@
--- | The 'Concrete' data type and associated functions.  These
--- are concrete numbers, together with a 'Lane' (that is, whether it
--- is a debit, credit, or zero.)  These numbers cannot be rendered
--- as strings; for that, you will need to convert them to a 'Rep'.
--- However, 'Concrete' types are the only ones with which you can
--- perform arithmetic.
+-- | Concrete data types for numbers.  Because they are concrete, you
+--  can perform arithmetic with them.  You can also determine their
+--  polarity; for a 'Qty', the polarity is a 'Side'; for a 'Exchange',
+--  the polarity is a 'PosNeg'.  Concrete types cannot be rendered as
+--  strings; for that, you will need to convert them to a 'Rep'.
 module Penny.Lincoln.Decimal.Concrete where
 
 import Penny.Lincoln.Decimal.Normal
@@ -13,6 +12,8 @@ import qualified Deka.Dec as D
 import qualified Deka.Native as D
 import Prelude hiding (exponent)
 
+-- | Quantities.  Used in postings.  This is a 'Normal' number that
+-- can be a 'Debit', 'Credit', or neither (which is zero).
 newtype Qty = Qty { unQty :: Normal }
   deriving (Eq, Ord, Show)
 
@@ -28,6 +29,11 @@ instance Signed Qty where
 instance Equivalent Qty where
   compareEv (Qty x) (Qty y) = compareEv x y
 
+-- | Represents an exchange between two different comodities.  For
+-- instance, to represent that one euro is worth two dollars, you
+-- could use an 'Exchange' of @2@.  An 'Exchange' can be either 'Pos'
+-- or 'Neg'.  See 'Penny.Lincoln.Decimal.Exchange.exchange' for more
+-- details on the significance of the 'PosNeg' in the 'Exchange'.
 newtype Exchange = Exchange { unExchange :: Normal }
   deriving (Eq, Ord, Show)
 

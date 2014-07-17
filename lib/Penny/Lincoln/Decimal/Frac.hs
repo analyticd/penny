@@ -1,3 +1,4 @@
+-- | Abstract representation of fractional values.
 module Penny.Lincoln.Decimal.Frac where
 
 import Deka.Native.Abstract hiding (Exponent(..))
@@ -10,12 +11,15 @@ import Penny.Lincoln.Decimal.Groups
 newtype Zeroes = Zeroes { unZeroes :: Positive }
   deriving (Eq, Ord, Show)
 
--- | An MSG that can also have leading zeroes.
+-- | An MSG (that is, Most Significant Group) that can also have
+-- leading zeroes.
 data ZeroesMSG = ZeroesMSG
   { zmsgLeadZeroes :: NonNegative
   , zmsgMSG :: MSG
   } deriving (Eq, Ord, Show)
 
+-- | A value that has only a fractional component; that is, its
+-- absolute value is greater than zero, but less than one.
 data Frac = Frac
   { fracLeadingZero :: Bool
   -- ^ If True, show a zero to the left of the radix point.

@@ -1,3 +1,4 @@
+-- | Exchanging one commodity for another.
 module Penny.Lincoln.Decimal.Exchange where
 
 import Penny.Lincoln.Decimal.Normal

@@ -1,3 +1,7 @@
+-- | Abstract numbers.  An abstract number's type reflects the digit
+-- grouping characters used, as well as the number's polarity (that
+-- is, whether it is 'Pos' or 'Neg' for 'Exchange', or 'Debit' or
+-- 'Credit' for 'Qty'.)
 module Penny.Lincoln.Decimal.Abstract where
 
 import Penny.Lincoln.Decimal.Zero

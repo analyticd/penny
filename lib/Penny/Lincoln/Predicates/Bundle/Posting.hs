@@ -1,7 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Penny.Lincoln.Predicates.Bundle.Posting where
 
 import qualified Penny.Lincoln.Queries.Bundle.Posting as Q
-import Data.Prednote.Predbox
+import Prednote
+import qualified Prednote as P
 import Penny.Lincoln.HasText
 import Penny.Lincoln.Transaction
 import Data.Monoid
@@ -16,60 +18,64 @@ import Penny.Lincoln.Decimal
 import Penny.Lincoln.Common
 import Penny.Lincoln.Serial
 
-label :: String -> Predbox a -> Predbox a
-label s = rename ((X.pack s <> X.pack " - ") <>)
-
 textField
   :: HasText a
   => String
   -- ^ Name of field
   -> (Bundle -> a)
-  -- ^ Gets the field from the bundle
-  -> Predbox Text
-  -> Predbox Bundle
-textField n f = label n . contramap (text . f)
+  -> Pred Text
+  -> Pred Bundle
+textField n f = P.wrap (X.pack n) dyn w
+  where
+    dyn a = X.pack n <> " - " <> X.pack (show . text . w $ a)
+    w = text . f
 
 textListField
   :: HasTextList a
   => String
+  -- ^ Name of field
   -> (Bundle -> a)
-  -> Predbox [Text]
-  -> Predbox Bundle
-textListField n f = label n . contramap (textList . f)
+  -> Pred [Text]
+  -> Pred Bundle
+textListField n f = P.wrap (X.pack n) dyn w
+  where
+    dyn a = X.pack n <> " - " <> X.pack (show . textList . w $ a)
+    w = textList . f
 
-ent :: Predbox (Ent Posting) -> Predbox Bundle
-ent = contramap Q.ent
+ent :: Pred (Ent Posting) -> Pred Bundle
+ent = P.wrap "ent" (const "ent") Q.ent
 
-posting :: Predbox Posting -> Predbox Bundle
-posting = contramap Q.posting
+posting :: Pred Posting -> Pred Bundle
+posting = P.wrap "posting" (const "posting") Q.posting
 
-postingData :: Predbox PostingData -> Predbox Bundle
-postingData = contramap Q.postingData
+postingData :: Pred PostingData -> Pred Bundle
+postingData = P.wrap "postingData" (const "postingData") Q.postingData
 
-postingMeta :: Predbox (Maybe PostingMeta) -> Predbox Bundle
-postingMeta = contramap Q.postingMeta
+postingMeta :: Pred (Maybe PostingMeta) -> Pred Bundle
+postingMeta = P.wrap "postingMeta" (const "postingMeta") Q.postingMeta
 
-trio :: Predbox Trio -> Predbox Bundle
-trio = contramap Q.trio
+trio :: Pred Trio -> Pred Bundle
+trio = P.wrap "trio" (const "trio") Q.trio
 
-memo :: Predbox Text -> Predbox Bundle
-memo = label "memo" . contramap f
+memo :: Pred Text -> Pred Bundle
+memo = P.wrap "memo" (const "memo") f
   where
     f = X.concat . map (<> X.pack "\n") . unMemo . Q.memo
 
-number :: Predbox Text -> Predbox Bundle
+number :: Pred Text -> Pred Bundle
 number = textField "number" Q.number
 
-flag :: Predbox Text -> Predbox Bundle
+flag :: Pred Text -> Pred Bundle
 flag = textField "flag" Q.flag
 
-payee :: Predbox Text -> Predbox Bundle
+payee :: Pred Text -> Pred Bundle
 payee = textField "payee" Q.payee
 
-tags :: Predbox [Text] -> Predbox Bundle
+tags :: Pred [Text] -> Pred Bundle
 tags = textListField "tags" Q.tags
 
-qty :: Predbox Qty -> Predbox Bundle
+{-
+qty :: Pred Qty -> Pred Bundle
 qty = label "qty" . contramap Q.qty
 
 commodity :: Predbox Text -> Predbox Bundle
@@ -90,3 +96,4 @@ globalSerial = label "global serial" . contramap Q.globalSerial
 fileSerial :: Predbox (Maybe Serial) -> Predbox Bundle
 fileSerial = label "file serial" . contramap Q.fileSerial
 
+-}

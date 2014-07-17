@@ -8,20 +8,32 @@
 -- the number.  In addition, only 'Abstract' can be rendered as a
 -- string.
 --
--- Concrete representations have type 'Concrete'.  These know
--- nothing about digit grouping or radix point representations.  You
--- also cannot render them as strings (there is a 'Show' instance,
--- but it is for debugging only.)  However, 'Concrete' is the type
--- you must use to perform arithmetic.  You can transform any
--- 'Abstract' to a 'Concrete', and the reverse is also true,
--- although when you transform a 'Concrete' to an 'Abstract'  you
--- have to decide whether you want digit grouping or not.
+-- Concrete representations are 'Normal'.  They must be normal
+-- numbers; no infinities or not-a-number values are allowed.
+-- Internally they are signed decimal numbers.  These know nothing
+-- about digit grouping or radix point representations.  You also
+-- cannot render them as strings (there is a 'Show' instance, but it
+-- is for debugging only.)  However, concrete types are the ones you must
+-- use to perform arithmetic.  You can transform any 'Abstract' to a
+-- concrete type, and the reverse is also true, although when you
+-- transform a concrete type to an 'Abstract' you have to decide whether
+-- you want digit grouping or not.
+--
+-- There are two types of concrete representations: 'Qty' and
+-- 'Exchange'.  A 'Qty' is used in postings; an 'Exchange' in prices.
+-- An 'Exchange' can be 'Pos' or "Neg' or zero, while a 'Qty' can be a
+-- 'Debit' or 'Credit' or zero.  Not all zeroes are alike; the number
+-- of decimal places is preserved.
+--
+-- The types of 'Abstract' numbers allow you to statically determine
+-- whether you have a zero value or a non-zero value and an
+-- accompanyin polarity.  The types of concrete numbers do not allow
+-- this; you have to examine them at runtime to determine whether they
+-- have polarity.
 --
 -- Both 'Concrete' and 'Abstract' store information not only about the
 -- number itself (the quantity) but also about the 'Side'; that is,
 -- whether the number is a 'Debit', 'Credit', or 'Center'.
---
--- A single type, 'Amount', can hold either a 'Amount' or a 'Concrete'.
 --
 -- Most types in this hierarchy are instances of 'Eq' and 'Ord'.
 -- Most of these instances are derived.  They will not tell you
@@ -30,10 +42,10 @@
 -- total ordering.  Larger numbers are greater than smaller numbers,
 -- and (for example) @1.0000@ is less than @1.0@.
 --
--- This module re-exports everything you need to work with 'Amount',
--- 'Abstract', and 'Concrete'.  If you need to manipulate components of
--- these types, you will have to import modules from within the
--- hierarchy.
+-- This module re-exports everything you need to work with 'Abstract',
+-- 'Normal', 'Qty', and 'Exchange'.  If you need to manipulate
+-- components of these types, you will have to import modules from
+-- within the hierarchy.
 
 module Penny.Lincoln.Decimal
   ( module Penny.Lincoln.Decimal.Abstract
