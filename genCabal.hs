@@ -95,7 +95,7 @@ anonymous_sums :: A.Package
 anonymous_sums = A.nextBreaking "anonymous-sums" [0,4,0,0]
 
 matchers :: A.Package
-matchers = A.nextBreaking "matchers" [0,18,0,0]
+matchers = A.nextBreaking "matchers" [0,20,0,0]
 
 multiarg :: A.Package
 multiarg = A.closedOpen "multiarg" [0,24,0,4] [0,27,0,0]
