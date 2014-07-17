@@ -1,3 +1,5 @@
+-- | Abstract representations of zeroes.
+
 module Penny.Lincoln.Decimal.Zero where
 
 import Deka.Native.Abstract hiding (Exponent(..))

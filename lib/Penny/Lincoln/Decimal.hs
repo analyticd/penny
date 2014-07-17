@@ -54,7 +54,6 @@ module Penny.Lincoln.Decimal
   , module Penny.Lincoln.Decimal.Exchange
   , module Penny.Lincoln.Decimal.Frac
   , module Penny.Lincoln.Decimal.Groups
-  , module Penny.Lincoln.Decimal.Laneless
   , module Penny.Lincoln.Decimal.Masuno
   , module Penny.Lincoln.Decimal.Normal
   , module Penny.Lincoln.Decimal.Render
@@ -68,7 +67,6 @@ import Penny.Lincoln.Decimal.Concrete
 import Penny.Lincoln.Decimal.Exchange
 import Penny.Lincoln.Decimal.Frac
 import Penny.Lincoln.Decimal.Groups
-import Penny.Lincoln.Decimal.Laneless
 import Penny.Lincoln.Decimal.Masuno
 import Penny.Lincoln.Decimal.Normal
 import Penny.Lincoln.Decimal.Render
