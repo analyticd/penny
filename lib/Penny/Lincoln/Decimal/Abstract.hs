@@ -132,3 +132,32 @@ instance HasCoefficient (Abstract a) where
 
 instance Signed a => Signed (Abstract a) where
   sign = sign . absRep
+
+-- | Abstract representation of a Qty.
+
+newtype AbsQ = AbsQ { unAbsQ :: Abstract Side }
+  deriving (Eq, Ord, Show)
+
+instance HasExponent AbsQ where
+  exponent = exponent . unAbsQ
+
+instance HasCoefficient AbsQ where
+  coefficient = coefficient . unAbsQ
+
+instance Signed AbsQ where
+  sign = sign . unAbsQ
+
+-- | Abstract representation of an Exchange.
+
+newtype AbsE = AbsE { unAbsE :: Abstract PosNeg }
+  deriving (Eq, Ord, Show)
+
+instance HasExponent AbsE where
+  exponent = exponent . unAbsE
+
+instance HasCoefficient AbsE where
+  coefficient = coefficient . unAbsE
+
+instance Signed AbsE where
+  sign = sign . unAbsE
+

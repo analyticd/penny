@@ -10,7 +10,9 @@ import qualified Penny.Lincoln.Decimal.Frac as F
 import Deka.Native.Abstract hiding (Abstract(..))
 import Data.List (intersperse)
 import qualified Penny.Lincoln.Decimal.Zero as Z
+import Penny.Lincoln.Decimal.Components
 import Penny.Lincoln.Natural
+import Penny.Lincoln.Decimal.Concrete
 
 -- | Things that can be rendered.
 
@@ -102,6 +104,37 @@ instance Renderable MSG where
 
 instance Renderable M.FG where
   render (M.FG d1 ds) = map decemToChar (d1:ds)
+
+-- | A single character, either @<@ for 'Debit' or @>@ for 'Credit'.
+
+instance Renderable Side where
+  render s = case s of
+    Debit -> "<"
+    Credit -> ">"
+
+-- | A single character, either @+@ or @-@.
+instance Renderable PosNeg where
+  render s = case s of
+    Pos -> "+"
+    Neg -> "-"
+
+-- | Renders the Side, then a space, then the 'Abstract'.
+instance Renderable AbsQ where
+  render (AbsQ a) = sd ++ render a
+    where
+      sd = case maybeUnwrap a of
+        Nothing -> ""
+        Just s -> render s ++ " "
+
+-- | Renders the PosNeg and then the 'Abstract'.
+instance Renderable AbsE where
+  render (AbsE a) = sd ++ render a
+    where
+      sd = case maybeUnwrap a of
+        Nothing -> ""
+        Just s -> case s of
+          Pos -> ""
+          Neg -> "-"
 
 radix :: RadGroup -> Char
 radix r = case r of

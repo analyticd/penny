@@ -74,6 +74,15 @@ payee = textField "payee" Q.payee
 tags :: Pred [Text] -> Pred Bundle
 tags = textListField "tags" Q.tags
 
+qty
+  :: RadGroup
+  -- ^ Radix point and grouping character to use.  This is used only
+  -- for displaying the Qty in the Pred.
+
+  -> Pred Normal
+  -> Pred Bundle
+qty = undefined
+
 {-
 qty :: Pred Qty -> Pred Bundle
 qty = label "qty" . contramap Q.qty
