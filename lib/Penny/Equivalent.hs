@@ -1,4 +1,4 @@
-module Penny.Lincoln.Equivalent where
+module Penny.Equivalent where
 
 import Data.Monoid ((<>))
 

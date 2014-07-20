@@ -1,0 +1,27 @@
+module Penny.Numbers.Qty where
+
+import Penny.Numbers.Babel
+import Penny.Numbers.Concrete
+import Deka.Dec (Sign(..))
+import Penny.Numbers.Abstract.RadGroup
+import Penny.Numbers.Abstract.Aggregates
+
+newtype Qty = Qty { unQty :: Concrete }
+  deriving (Eq, Ord, Show)
+
+data Side = Debit | Credit
+  deriving (Eq, Ord, Show)
+
+concreteQty :: Ungrouped Side r -> Qty
+concreteQty = Qty . toConcrete f
+  where
+    f s = case s of
+      Debit -> Sign0
+      Credit -> Sign1
+
+abstractQty :: Radix r -> Qty -> Ungrouped Side r
+abstractQty r = fromConcrete f r . unQty
+  where
+    f s = case s of
+      Sign0 -> Debit
+      Sign1 -> Credit
