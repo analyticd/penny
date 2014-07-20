@@ -39,7 +39,6 @@ import Data.Typeable
 import qualified Deka.Dec as D
 import qualified Deka.Native as DN
 import Control.Exception
-import Penny.Equivalent
 import qualified Data.ByteString.Char8 as BS8
 import Data.Monoid
 import Prelude hiding (negate, exponent)
@@ -93,12 +92,6 @@ simpleCompare (Concrete x) (Concrete y) = compute $ do
 
 simpleEq :: Concrete -> Concrete -> Bool
 simpleEq x y = simpleCompare x y == EQ
-
--- | Uses 'simpleCompare' and 'simpleEq'.
-
-instance Equivalent Concrete where
-  equivalent = simpleEq
-  compareEv = simpleCompare
 
 -- | Fails if the Dec is not normal.
 decToConcrete :: D.Dec -> Maybe Concrete
