@@ -20,27 +20,26 @@ import Data.List.Split (chunksOf)
 
 group
   :: (forall a. a -> Group g a)
-  -> Ungrouped r p
-  -> Either (Ungrouped r p) (Grouped r g p)
-group g o@(Ungrouped plr) = case plr of
-  Center _ -> Left o
-  OffCenter p nz -> groupNonZero g p nz
+  -> UngroupedUnpolar r
+  -> Either (UngroupedUnpolar r) (GroupedUnpolar r g)
+group g o@(UngroupedUnpolar plr) = case plr of
+  S2a _ -> Left o
+  S2b nz -> groupNonZero g nz
 
 groupNonZero
   :: (forall a. a -> Group g a)
-  -> p
   -> UngroupedNonZero r
-  -> Either (Ungrouped r p) (Grouped r g p)
-groupNonZero grp plr o@(UngroupedNonZero s3) = case s3 of
+  -> Either (UngroupedUnpolar r) (GroupedUnpolar r g)
+groupNonZero grp o@(UngroupedNonZero s3) = case s3 of
   S3a (UNWhole nvdcs@(NovDecs _ ds))
     | length ds < 4 -> noGroup
-    | otherwise -> Right (Grouped (OffCenter plr gnz))
+    | otherwise -> Right (GroupedUnpolar (S2b gnz))
     where
       gnz = GroupedNonZero (S5a (groupNovDecs grp nvdcs))
 
   S3b (UNWholeRadix nvdcs@(NovDecs _ ds) rd mayRt)
     | length ds < 4 -> noGroup
-    | otherwise -> Right (Grouped (OffCenter plr gnz))
+    | otherwise -> Right (GroupedUnpolar (S2b gnz))
     where
       gnz = GroupedNonZero (S5b glr)
       glr = MasunoGroupedLeftRad (groupNovDecs grp nvdcs) rd suf
@@ -48,7 +47,7 @@ groupNonZero grp plr o@(UngroupedNonZero s3) = case s3 of
 
   S3c _ -> noGroup
   where
-    noGroup = Left (Ungrouped (OffCenter plr o))
+    noGroup = Left (UngroupedUnpolar (S2b o))
 
 groupNovDecs
   :: (forall a. a -> Group g a)
@@ -64,10 +63,9 @@ groupNovDecs grp (NovDecs nv ds) = MasunoGroupedLeft g1 g2 gs
 
 
 ungroup
-  :: Grouped r g p
-  -> Ungrouped r p
-ungroup (Grouped plr) = case plr of
-  Center _ -> undefined
+  :: GroupedUnpolar r g
+  -> UngroupedUnpolar r
+ungroup = undefined
 
 -- | Splits a list into groups of 3.  If it doesn't divide evenly,
 -- parts at the front will be shorter.

@@ -12,11 +12,11 @@ fromConcrete
   -- ^ How to obtain the polarity.
   -> Radix r
   -> Concrete
-  -> Ungrouped p r
+  -> UngroupedPolar p r
 fromConcrete = undefined
 
 toConcrete
   :: (p -> Sign)
-  -> Ungrouped p r
+  -> UngroupedPolar p r
   -> Concrete
 toConcrete = undefined

@@ -18,7 +18,7 @@ opposite s = case s of
   Debit -> Credit
   Credit -> Debit
 
-concreteQty :: Ungrouped Side r -> Qty
+concreteQty :: UngroupedPolar Side r -> Qty
 concreteQty = Qty . toConcrete f
   where
     f s = case s of
@@ -34,7 +34,7 @@ qtySide (Qty c)
   where
     d = unConcrete c
 
-abstractQty :: Radix r -> Qty -> Ungrouped Side r
+abstractQty :: Radix r -> Qty -> UngroupedPolar Side r
 abstractQty r = fromConcrete f r . unQty
   where
     f s = case s of
