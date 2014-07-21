@@ -10,6 +10,7 @@ module Penny.Numbers.Abstract.Aggregates
   , UngroupedUnpolar(..)
   , UngroupedPolar(..)
   , neutralizeUngrouped
+  , polarizeUngrouped
 
   -- * Grouped - low-level aggregates
 
@@ -21,11 +22,13 @@ module Penny.Numbers.Abstract.Aggregates
   , GroupedUnpolar(..)
   , GroupedPolar(..)
   , neutralizeGrouped
+  , polarizeGrouped
 
   -- * All unpolar and polar
   , Unpolar(..)
   , Polar(..)
   , neutralize
+  , polarize
 
   -- * All abstract types, polar and unpolar
   , Abstract(..)
@@ -72,6 +75,9 @@ newtype UngroupedPolar r p = UngroupedPolar
 neutralizeUngrouped :: UngroupedPolar r p -> UngroupedUnpolar r
 neutralizeUngrouped = undefined
 
+polarizeUngrouped :: p -> UngroupedUnpolar r -> UngroupedPolar r p
+polarizeUngrouped = undefined
+
 -- # Grouped
 
 -- No need for a GroupedZero group - there is only one type
@@ -97,6 +103,9 @@ newtype GroupedPolar r g p = GroupedPolar
 neutralizeGrouped :: GroupedPolar r g p -> GroupedUnpolar r g
 neutralizeGrouped = undefined
 
+polarizeGrouped :: p -> GroupedUnpolar r g -> GroupedPolar r g p
+polarizeGrouped = undefined
+
 -- # Unpolar
 
 newtype Unpolar r g = Unpolar
@@ -111,6 +120,9 @@ newtype Polar r g p = Polar
 
 neutralize :: Polar r g p -> Unpolar r g
 neutralize = undefined
+
+polarize :: p -> Unpolar r g -> Polar r g p
+polarize = undefined
 
 -- # All abstract types, polar and unpolar
 
