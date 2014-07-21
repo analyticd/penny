@@ -19,6 +19,9 @@ import Penny.Numbers.Qty
 -- quantity; @C@ for a 'Commodity', @S@ for @Side@, @U@ for unsigned
 -- abstract quantity 'Z' for @NZGrouped@, 'C' for @Commodity@, and 'E'
 -- for @Empty@.
+--
+-- The first type parameter is a signed abstract type; the second type
+-- parameter is an unsigned abstract type.
 
 data Trio a b
   = QC a Commodity Arrangement

@@ -13,6 +13,11 @@ newtype Qty = Qty { unQty :: Concrete }
 data Side = Debit | Credit
   deriving (Eq, Ord, Show)
 
+opposite :: Side -> Side
+opposite s = case s of
+  Debit -> Credit
+  Credit -> Debit
+
 concreteQty :: Ungrouped Side r -> Qty
 concreteQty = Qty . toConcrete f
   where
