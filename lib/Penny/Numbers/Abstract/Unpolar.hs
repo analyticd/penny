@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 -- | Unpolar abstract numbers.
 module Penny.Numbers.Abstract.Unpolar where
 
@@ -7,8 +8,26 @@ import Penny.Numbers.Abstract.RadGroup
 data NonNegative = Zero | Plus NonNegative
   deriving (Eq, Ord, Show)
 
+intToNonNegative :: Integral a => a -> Maybe NonNegative
+intToNonNegative a
+  | a < 0 = Nothing
+  | otherwise = Just $ go Zero a
+  where
+    go soFar i
+      | i == 0 = soFar
+      | otherwise = go (Plus soFar) (pred i)
+
 data Positive = One | Succ Positive
   deriving (Eq, Ord, Show)
+
+intToPositive :: Integral a => a -> Maybe Positive
+intToPositive a
+  | a < 1 = Nothing
+  | otherwise = Just $ go One a
+  where
+    go soFar i
+      | i == 1 = soFar
+      | otherwise = go (Succ soFar) (pred i)
 
 data NovDecs = NovDecs Novem [Decem]
   deriving (Eq, Ord, Show)
@@ -20,6 +39,9 @@ data ZeroesNovDecs = ZeroesNovDecs
   } deriving (Eq, Ord, Show)
 
 data DecDecs = DecDecs Decem [Decem]
+  deriving (Eq, Ord, Show)
+
+newtype HasZeroDigit = HasZeroDigit { unHasZeroDigit :: Bool }
   deriving (Eq, Ord, Show)
 
 data ZeroDigit = ZeroDigit
