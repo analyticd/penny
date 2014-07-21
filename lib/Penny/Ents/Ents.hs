@@ -7,6 +7,7 @@ import Data.Monoid
 import qualified Penny.Ents.Trio as T
 import qualified Data.Map as M
 import Penny.Numbers.Concrete
+import qualified Deka.Native.Abstract as DN
 import Prelude hiding (negate)
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
@@ -107,7 +108,7 @@ data UnbalancedAtEnd = UnbalancedAtEnd
 
 procEnt
   :: (a -> Qty)
-  -> (b -> Side -> Qty)
+  -> (b -> (DN.Coefficient, Exponent))
   -> Balances
   -> (T.Trio a b, m)
   -> Either (EntError a b) (Balances, Ent a b m)
@@ -122,7 +123,7 @@ procEnt fa fb bals (tri, mta) = fmap f $ procTrio fa fb unbals tri
 
 procEntM
   :: (a -> Qty)
-  -> (b -> Side -> Qty)
+  -> (b -> (DN.Coefficient, Exponent))
   -> (T.Trio a b, m)
   -> EitherT (EntError a b) (State Balances) (Ent a b m)
 procEntM fa fb (tri, mta) = do
@@ -138,7 +139,7 @@ procEntM fa fb (tri, mta) = do
 -- 'T.Trio' for more information on the rules this function follows.
 ents
   :: (a -> Qty)
-  -> (b -> Side -> Qty)
+  -> (b -> (DN.Coefficient, Exponent))
   -> [(T.Trio a b, m)]
   -> Either (Error a b) (Ents a b m)
 ents fa fb ls =
@@ -166,7 +167,7 @@ buildEntrio t = case t of
 
 procTrio
   :: (a -> Qty)
-  -> (b -> Side -> Qty)
+  -> (b -> (DN.Coefficient, Exponent))
   -> M.Map Commodity (Side, Qty)
   -> T.Trio a b
   -> Either (EntError a b) (Qty, Commodity)
@@ -197,7 +198,10 @@ procTrio fa fb bal trio = case trio of
 
   T.UC b cy _ -> case lookupCommodity cy of
     Left e -> Left e
-    Right (s, _) -> Right (fb b (opposite s), cy)
+    Right (s, _) -> Right (q, cy)
+      where
+        (c, e) = fb b
+        q = Qty . concrete $ Params (sideToSign (opposite s)) c e
 
   T.U b -> case singleCommodity of
     Left e -> Left e
@@ -206,7 +210,8 @@ procTrio fa fb bal trio = case trio of
           QQtyTooBig trio bal
       | otherwise -> Right (q', cy)
       where
-        q' = fb b (opposite s)
+        (c, e) = fb b
+        q' = Qty . concrete $ Params (sideToSign (opposite s)) c e
 
   T.C cy -> case lookupCommodity cy of
     Left e -> Left e

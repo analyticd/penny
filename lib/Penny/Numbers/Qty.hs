@@ -40,3 +40,11 @@ abstractQty r = fromConcrete f r . unQty
     f s = case s of
       Sign0 -> Debit
       Sign1 -> Credit
+
+signToSide :: Sign -> Side
+signToSide Sign0 = Debit
+signToSide Sign1 = Credit
+
+sideToSign :: Side -> Sign
+sideToSign Debit = Sign0
+sideToSign Credit = Sign1
