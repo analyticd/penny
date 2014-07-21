@@ -1,6 +1,6 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 module Penny.Ents.Ents where
 
+import Penny.Balance
 import Penny.Common
 import Penny.Numbers.Qty
 import Data.Monoid
@@ -8,6 +8,9 @@ import qualified Penny.Ents.Trio as T
 import qualified Data.Map as M
 import Penny.Numbers.Concrete
 import Prelude hiding (negate)
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.State
+import Control.Monad.Trans.Either
 
 data Entrio a b
   = QC a Arrangement
@@ -102,19 +105,52 @@ data UnbalancedAtEnd = UnbalancedAtEnd
   deriving (Eq, Ord, Show)
 
 
-{-
 procEnt
-  :: Balances
-  -> (T.Trio, a)
-  -> Either EntError (Balances, Ent a)
-procEnt bals (tri, mta) = fmap f $ procTrio unbals tri
+  :: (a -> Qty)
+  -> (b -> Side -> Qty)
+  -> Balances
+  -> (T.Trio a b, m)
+  -> Either (EntError a b) (Balances, Ent a b m)
+procEnt fa fb bals (tri, mta) = fmap f $ procTrio fa fb unbals tri
   where
     unbals = onlyUnbalanced bals
     f (q, cy) = (bals', ent)
       where
         ent = Ent q cy (buildEntrio tri) mta
         bals' = bals <> balance cy q
--}
+
+
+procEntM
+  :: (a -> Qty)
+  -> (b -> Side -> Qty)
+  -> (T.Trio a b, m)
+  -> EitherT (EntError a b) (State Balances) (Ent a b m)
+procEntM fa fb (tri, mta) = do
+  bal <- lift get
+  case procEnt fa fb bal (tri, mta) of
+    Left e -> left e
+    Right (bal', r) -> do
+      lift $ put bal'
+      return r
+
+
+-- | Only creates an 'Ents' if all the 'T.Trio' are balanced.  See
+-- 'T.Trio' for more information on the rules this function follows.
+ents
+  :: (a -> Qty)
+  -> (b -> Side -> Qty)
+  -> [(T.Trio a b, m)]
+  -> Either (Error a b) (Ents a b m)
+ents fa fb ls =
+  let (finalEi, finalBal) = flip runState emptyBalances
+       . runEitherT . mapM (procEntM fa fb) $ ls
+  in case finalEi of
+      Left e -> Left . Error . Left $ e
+      Right es
+        | M.null unbals -> Right (Ents es)
+        | otherwise -> Left . Error . Right . UnbalancedAtEnd $ unbals
+        where
+          unbals = onlyUnbalanced finalBal
 
 
 buildEntrio :: T.Trio a b -> Entrio a b
@@ -129,8 +165,7 @@ buildEntrio t = case t of
   T.E -> E
 
 procTrio
-  :: forall a b
-  .  (a -> Qty)
+  :: (a -> Qty)
   -> (b -> Side -> Qty)
   -> M.Map Commodity (Side, Qty)
   -> T.Trio a b
@@ -191,7 +226,7 @@ procTrio fa fb bal trio = case trio of
     -- requested commodity and returns its balance.  Fails if the
     -- requested commodity is not present.
 
-    lookupCommodity :: Commodity -> Either (EntError a b) (Side, Qty)
+    -- lookupCommodity :: Commodity -> Either (EntError a b) (Side, Qty)
     lookupCommodity cy = case M.lookup cy bal of
       Nothing -> Left $ EntError CommodityNotFound trio bal
       Just (s, q) -> return (s, q)
@@ -199,7 +234,7 @@ procTrio fa fb bal trio = case trio of
     -- Gets a single commodity from the given 'Balances', if it has just
     -- a single commodity.
 
-    singleCommodity :: Either (EntError a b) (Commodity, Side, Qty)
+    -- singleCommodity :: Either (EntError a b) (Commodity, Side, Qty)
     singleCommodity = case M.assocs bal of
       [] -> Left $ EntError NoCommoditiesInBalance trio bal
       (cy, (s, q)):[] -> Right (cy, s, q)
