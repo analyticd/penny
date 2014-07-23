@@ -82,50 +82,51 @@ polarizeUngrouped = undefined
 
 -- No need for a GroupedZero group - there is only one type
 
-newtype GroupedNonZero r g = GroupedNonZero
-  { unGroupedNonZero :: S5 (MasunoGroupedLeft g)
-                           (MasunoGroupedLeftRad r g)
-                           (MasunoGroupedRight r g)
-                           (FracunoFirstGroupZ r g)
-                           (FracunoFirstGroupNZ r g) }
+newtype GroupedNonZero r = GroupedNonZero
+  { unGroupedNonZero :: S5 (MasunoGroupedLeft r)
+                           (MasunoGroupedLeftRad r)
+                           (MasunoGroupedRight r)
+                           (FracunoFirstGroupZ r)
+                           (FracunoFirstGroupNZ r) }
   deriving (Eq, Ord, Show)
 
 -- ## Grouped - polar and unpolar
 
-newtype GroupedUnpolar r g = GroupedUnpolar
-  { unGroupedUnpolar :: S2 (GZ r g) (GroupedNonZero r g) }
+newtype GroupedUnpolar r = GroupedUnpolar
+  { unGroupedUnpolar :: S2 (GZ r) (GroupedNonZero r) }
   deriving (Eq, Ord, Show)
 
-newtype GroupedPolar r g p = GroupedPolar
-  { unGroupedPolar :: Polarity (GZ r g) (GroupedNonZero r g) p }
+newtype GroupedPolar r p = GroupedPolar
+  { unGroupedPolar :: Polarity (GZ r) (GroupedNonZero r) p }
   deriving (Eq, Ord, Show)
 
-neutralizeGrouped :: GroupedPolar r g p -> GroupedUnpolar r g
+neutralizeGrouped :: GroupedPolar r p -> GroupedUnpolar r
 neutralizeGrouped = undefined
 
-polarizeGrouped :: p -> GroupedUnpolar r g -> GroupedPolar r g p
+polarizeGrouped :: p -> GroupedUnpolar r -> GroupedPolar r p
 polarizeGrouped = undefined
 
 -- # Unpolar
 
-newtype Unpolar r g = Unpolar
-  { unUnpolar :: S2 (UngroupedUnpolar r) (GroupedUnpolar r g) }
+newtype Unpolar r = Unpolar
+  { unUnpolar :: S2 (UngroupedUnpolar r) (GroupedUnpolar r) }
   deriving (Eq, Ord, Show)
 
 -- # Polar
 
-newtype Polar r g p = Polar
-  { unPolar :: S2 (UngroupedPolar r p) (GroupedPolar r g p) }
+newtype Polar r p = Polar
+  { unPolar :: S2 (UngroupedPolar r p) (GroupedPolar r p) }
   deriving (Eq, Ord, Show)
 
-neutralize :: Polar r g p -> Unpolar r g
+neutralize :: Polar r p -> Unpolar r
 neutralize = undefined
 
-polarize :: p -> Unpolar r g -> Polar r g p
+polarize :: p -> Unpolar r -> Polar r p
 polarize = undefined
 
 -- # All abstract types, polar and unpolar
 
-newtype Abstract r g p = Abstract
-  { unAbstract :: S2 (Unpolar r g) (Polar r g p) }
+newtype Abstract r p = Abstract
+  { unAbstract :: S2 (Unpolar r) (Polar r p) }
   deriving (Eq, Ord, Show)
+

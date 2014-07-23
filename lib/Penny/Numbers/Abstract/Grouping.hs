@@ -19,17 +19,17 @@ import Data.List.Split (chunksOf)
 -- more than one digit to the left of the radix point.
 
 group
-  :: (forall a. a -> Group g a)
+  :: (forall a. a -> Group r a)
   -> UngroupedUnpolar r
-  -> Either (UngroupedUnpolar r) (GroupedUnpolar r g)
+  -> Either (UngroupedUnpolar r) (GroupedUnpolar r)
 group g o@(UngroupedUnpolar plr) = case plr of
   S2a _ -> Left o
   S2b nz -> groupNonZero g nz
 
 groupNonZero
-  :: (forall a. a -> Group g a)
+  :: (forall a. a -> Group r a)
   -> UngroupedNonZero r
-  -> Either (UngroupedUnpolar r) (GroupedUnpolar r g)
+  -> Either (UngroupedUnpolar r) (GroupedUnpolar r)
 groupNonZero grp o@(UngroupedNonZero s3) = case s3 of
   S3a (UNWhole nvdcs@(NovDecs _ ds))
     | length ds < 4 -> noGroup
@@ -63,7 +63,7 @@ groupNovDecs grp (NovDecs nv ds) = MasunoGroupedLeft g1 g2 gs
 
 
 ungroup
-  :: GroupedUnpolar r g
+  :: GroupedUnpolar r
   -> UngroupedUnpolar r
 ungroup = undefined
 
@@ -72,16 +72,6 @@ ungroup = undefined
 
 groupsOf3 :: [a] -> [[a]]
 groupsOf3 = map reverse . reverse . chunksOf 3 . reverse
-
--- | Prepends a single item.  If prepending will make the list at the
--- head longer than 3 items, creates a new chunk of items.
-
-prepend :: a -> [[a]] -> [[a]]
-prepend a as = case as of
-  [] -> [[a]]
-  x:xs
-    | length x < 3 -> (a : x) : xs
-    | otherwise -> [a] : x : xs
 
 -- | Makes sure the first list has no more than 2 items.
 

@@ -71,8 +71,8 @@ data UZTrailing r = UZTrailing ZeroDigit (Radix r) (Maybe Zeroes)
 
 -- Grouped - zero
 
-data GZ r g = GZ (Maybe ZeroDigit) (Radix r) Zeroes (Group g Zeroes)
-                 [Group g Zeroes]
+data GZ r = GZ (Maybe ZeroDigit) (Radix r) Zeroes (Group r Zeroes)
+                 [Group r Zeroes]
   deriving (Eq, Ord, Show)
 
 -- Grouped - non-zero
@@ -80,23 +80,23 @@ data GZ r g = GZ (Maybe ZeroDigit) (Radix r) Zeroes (Group g Zeroes)
 -- Grouped - greater than or equal to one
 
 -- | Greater than or equal to one, grouped on left side.  No radix.
-data MasunoGroupedLeft g =
-  MasunoGroupedLeft NovDecs (Group g DecDecs) [Group g DecDecs]
+data MasunoGroupedLeft r =
+  MasunoGroupedLeft NovDecs (Group r DecDecs) [Group r DecDecs]
   deriving (Eq, Ord, Show)
 
 -- | Greater than or equal to one, grouped on left side, with radix.
 -- Optional grouping on right side.
-data MasunoGroupedLeftRad r g =
-  MasunoGroupedLeftRad (MasunoGroupedLeft g)
+data MasunoGroupedLeftRad r =
+  MasunoGroupedLeftRad (MasunoGroupedLeft r)
                        (Radix r)
-                       (Maybe (DecDecs, [Group g DecDecs]))
+                       (Maybe (DecDecs, [Group r DecDecs]))
   deriving (Eq, Ord, Show)
 
 -- | Greater than or equal to one, grouped on right side only.
 
-data MasunoGroupedRight r g =
+data MasunoGroupedRight r =
   MasunoGroupedRight (NovDecs) (Radix r)
-                     DecDecs (Group g DecDecs) [Group g DecDecs]
+                     DecDecs (Group r DecDecs) [Group r DecDecs]
   deriving (Eq, Ord, Show)
 
 -- Grouped - less than one
@@ -104,17 +104,17 @@ data MasunoGroupedRight r g =
 -- | Less than one, first group is zeroes only.  Optional leading
 -- zero.
 
-data FracunoFirstGroupZ r g =
+data FracunoFirstGroupZ r =
   FracunoFirstGroupZ (Maybe ZeroDigit) (Radix r)
-                     Zeroes [Group g Zeroes]
-                     (Group g ZeroesNovDecs) [Group g DecDecs]
+                     Zeroes [Group r Zeroes]
+                     (Group r ZeroesNovDecs) [Group r DecDecs]
   deriving (Eq, Ord, Show)
 
 -- | Less than one, first group has non-zero digit.  Optional leading
 -- zero.
-data FracunoFirstGroupNZ r g =
+data FracunoFirstGroupNZ r =
   FracunoFirstGroupNZ (Maybe ZeroDigit) (Radix r)
-                      ZeroesNovDecs (Group g DecDecs)
-                      [Group g DecDecs]
+                      ZeroesNovDecs (Group r DecDecs)
+                      [Group r DecDecs]
   deriving (Eq, Ord, Show)
 

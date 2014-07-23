@@ -6,17 +6,13 @@ import Data.Sums
 import Penny.Numbers.Qty
 
 newtype UngroupedUnpolar = UngroupedUnpolar
-  { unUngroupedUnpolar :: S2 (A.UngroupedUnpolar (Radix Period))
-                             (A.UngroupedUnpolar (Radix Comma))
+  { unUngroupedUnpolar :: S2 (A.UngroupedUnpolar Period)
+                             (A.UngroupedUnpolar Comma)
   } deriving (Eq, Ord, Show)
 
-newtype UngroupedPolar = UngroupedPolar
-  { unUngroupedPolar :: S2 (A.UngroupedPolar (Radix Period) Side)
-                           (A.UngroupedPolar (Radix Comma) Side)
+newtype UngroupedPolar p = UngroupedPolar
+  { unUngroupedPolar :: S2 (A.UngroupedPolar Period p)
+                           (A.UngroupedPolar Comma p)
   } deriving (Eq, Ord, Show)
 
-newtype GroupedNonZero = GroupedNonZero
-  { unGroupedNonZero :: S4
-    (A.GroupedNonZero Period Comma)
-    (A.GroupedNonZero 
-    
+

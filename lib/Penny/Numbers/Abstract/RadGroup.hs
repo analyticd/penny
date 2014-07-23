@@ -2,9 +2,6 @@ module Penny.Numbers.Abstract.RadGroup
   ( -- * Radix and grouping character types
     Period
   , Comma
-  , Thin
-  , Space
-  , Under
 
   -- * Radix point
   , Radix
@@ -16,11 +13,17 @@ module Penny.Numbers.Abstract.RadGroup
   , Group
   , groupPayload
   , grouper
-  , groupPeriod
-  , groupComma
-  , groupThin
-  , groupSpace
-  , groupUnder
+  -- ** With 'Period' as the radix point character
+  , gpComma
+  , gpSpace
+  , gpThin
+  , gpUnder
+
+  -- * With 'Comma' as the radix point character
+  , gcPeriod
+  , gcSpace
+  , gcThin
+  , gcUnder
   ) where
 
 data Radix r = Radix { unRadix :: Char }
@@ -52,19 +55,28 @@ radPeriod = Radix '.'
 radComma :: Radix Comma
 radComma = Radix ','
 
-groupPeriod :: b -> Group Period b
-groupPeriod = Group '.'
+gpComma :: b -> Group Period b
+gpComma = Group ','
 
-groupComma :: b -> Group Comma b
-groupComma = Group ','
+gpSpace :: b -> Group Period b
+gpSpace = Group ' '
 
-groupThin :: b -> Group Thin b
-groupThin = Group '\x2009'
+gpThin :: b -> Group Period b
+gpThin = Group '\x2009'
 
-groupSpace :: b -> Group Space b
-groupSpace = Group ' '
+gpUnder :: b -> Group Period b
+gpUnder = Group '_'
 
-groupUnder :: b -> Group Under b
-groupUnder = Group '_'
+gcPeriod :: b -> Group Comma b
+gcPeriod = Group '.'
+
+gcSpace :: b -> Group Comma b
+gcSpace = Group ' '
+
+gcThin :: b -> Group Comma b
+gcThin = Group '\x2009'
+
+gcUnder :: b -> Group Comma b
+gcUnder = Group '_'
 
 
