@@ -1,6 +1,7 @@
 module Penny.Numbers.Abstract.Aggregates
   ( -- * Polarity
     Polarity(..)
+  , casePolarity
 
     -- * Ungrouped - low-level aggregates
   , UngroupedZero(..)
@@ -9,8 +10,8 @@ module Penny.Numbers.Abstract.Aggregates
   -- * Ungrouped - polar and unpolar
   , UngroupedUnpolar(..)
   , UngroupedPolar(..)
-  , neutralizeUngrouped
-  , polarizeUngrouped
+  , neutralizeUngroupedPolar
+  , polarizeUngroupedUnpolar
 
   -- * Grouped - low-level aggregates
 
@@ -21,14 +22,16 @@ module Penny.Numbers.Abstract.Aggregates
   -- * Grouped - polar and unpolar
   , GroupedUnpolar(..)
   , GroupedPolar(..)
-  , neutralizeGrouped
-  , polarizeGrouped
+  , neutralizeGroupedPolar
+  , polarizeGroupedUnpolar
+  , ungroupGroupedPolar
 
   -- * All unpolar and polar
   , Unpolar(..)
   , Polar(..)
-  , neutralize
-  , polarize
+  , neutralizePolar
+  , polarizeUnpolar
+  , ungroupPolar
 
   -- * All abstract types, polar and unpolar
   , Abstract(..)
@@ -48,6 +51,11 @@ data Polarity n o p
   = Center n
   | OffCenter p o
   deriving (Eq, Ord, Show)
+
+casePolarity :: (n -> r) -> (p -> o -> r) -> Polarity n o p -> r
+casePolarity fn fo a = case a of
+  Center n -> fn n
+  OffCenter p o -> fo p o
 
 -- # Ungrouped
 
@@ -72,11 +80,11 @@ newtype UngroupedPolar r p = UngroupedPolar
   { unUngroupedPolar :: Polarity (UngroupedZero r) (UngroupedNonZero r) p }
   deriving (Eq, Ord, Show)
 
-neutralizeUngrouped :: UngroupedPolar r p -> UngroupedUnpolar r
-neutralizeUngrouped = undefined
+neutralizeUngroupedPolar :: UngroupedPolar r p -> UngroupedUnpolar r
+neutralizeUngroupedPolar = undefined
 
-polarizeUngrouped :: p -> UngroupedUnpolar r -> UngroupedPolar r p
-polarizeUngrouped = undefined
+polarizeUngroupedUnpolar :: p -> UngroupedUnpolar r -> UngroupedPolar r p
+polarizeUngroupedUnpolar = undefined
 
 -- # Grouped
 
@@ -100,11 +108,15 @@ newtype GroupedPolar r p = GroupedPolar
   { unGroupedPolar :: Polarity (GZ r) (GroupedNonZero r) p }
   deriving (Eq, Ord, Show)
 
-neutralizeGrouped :: GroupedPolar r p -> GroupedUnpolar r
-neutralizeGrouped = undefined
 
-polarizeGrouped :: p -> GroupedUnpolar r -> GroupedPolar r p
-polarizeGrouped = undefined
+neutralizeGroupedPolar :: GroupedPolar r p -> GroupedUnpolar r
+neutralizeGroupedPolar = undefined
+
+polarizeGroupedUnpolar :: p -> GroupedUnpolar r -> GroupedPolar r p
+polarizeGroupedUnpolar = undefined
+
+ungroupGroupedPolar :: GroupedPolar r p -> UngroupedPolar r p
+ungroupGroupedPolar = undefined
 
 -- # Unpolar
 
@@ -118,11 +130,14 @@ newtype Polar r p = Polar
   { unPolar :: S2 (UngroupedPolar r p) (GroupedPolar r p) }
   deriving (Eq, Ord, Show)
 
-neutralize :: Polar r p -> Unpolar r
-neutralize = undefined
+neutralizePolar :: Polar r p -> Unpolar r
+neutralizePolar = undefined
 
-polarize :: p -> Unpolar r -> Polar r p
-polarize = undefined
+polarizeUnpolar :: p -> Unpolar r -> Polar r p
+polarizeUnpolar = undefined
+
+ungroupPolar :: Polar r p -> UngroupedPolar r p
+ungroupPolar = undefined
 
 -- # All abstract types, polar and unpolar
 

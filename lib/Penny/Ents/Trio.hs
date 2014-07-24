@@ -2,6 +2,8 @@ module Penny.Ents.Trio where
 
 import Penny.Common
 import Penny.Numbers.Qty
+import Penny.Numbers.Abstract.Aggregates
+import Penny.Numbers.Abstract.RadGroup
 
 -- | When building entries using the "Penny.Ents.Ents" module, you may
 -- specify any of the 'Side', 'Commodity', a signed abstract quantity,
@@ -23,12 +25,13 @@ import Penny.Numbers.Qty
 -- The first type parameter is a signed abstract type; the second type
 -- parameter is an unsigned abstract type.
 
-data Trio a b
-  = QC a Commodity Arrangement
+data Trio
+  = QC (Either (Polar Period Side) (Polar Comma Side))
+       Commodity Arrangement
   -- ^ Specify a quantity, commodity, and how they are arranged, and a
   -- corresponding entry is always recorded.
 
-  | Q a
+  | Q (Either (Polar Period Side) (Polar Comma Side))
   -- ^ Specify a quantity only.  If there is exactly one commodity in
   -- the balance, use it to infer the missing commodity.
 
@@ -44,14 +47,14 @@ data Trio a b
   -- specified here, then record an entry that offests the commodity
   -- in the balance.
 
-  | UC b Commodity Arrangement
+  | UC (Either (Unpolar Period) (Unpolar Comma)) Commodity Arrangement
   -- ^ Specify an unsigned abstract quantity only and a 'Commodity'
   -- and how they are arranged.  If the given 'Commodity' is present
   -- in the balance, then offset the 'Commodity' by the unsigned
   -- amount given.  You must also specify how the unsigned quantity
   -- and the 'Commodity' are arranged.
 
-  | U b
+  | U (Either (Unpolar Period) (Unpolar Comma))
   -- ^ Specify an unsigned quantity only.  If there is one commodity
   -- in the balance, and the absolute value of its quantity is less
   -- than the absolute value of the unsigned quantity, then offset the

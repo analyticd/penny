@@ -12,39 +12,41 @@ import Prelude hiding (negate)
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Either
+import Penny.Numbers.Abstract.Aggregates
+import Penny.Numbers.Abstract.RadGroup
 
-data Entrio a b
-  = QC a Arrangement
-  | Q a
+data Entrio
+  = QC (Either (Abstract Period Side) (Abstract Comma Side)) Arrangement
+  | Q (Either (Abstract Period Side) (Abstract Comma Side))
   | SC
   | S
-  | UC b Arrangement
-  | U b
+  | UC (Either (Unpolar Period) (Unpolar Comma)) Arrangement
+  | U (Either (Unpolar Period) (Unpolar Comma))
   | C
   | E
   deriving (Eq, Ord, Show)
 
-data Ent a b m = Ent
+data Ent m = Ent
   { entQty :: Qty
   , entCommodity :: Commodity
-  , entTrio :: Entrio a b
+  , entTrio :: Entrio
   , entMeta :: m
   } deriving (Eq, Ord, Show)
 
-instance Functor (Ent a b) where
+instance Functor Ent where
   fmap f e = e { entMeta = f (entMeta e) }
 
-newtype Ents a b m = Ents { unEnts :: [Ent a b m] }
+newtype Ents m = Ents { unEnts :: [Ent m] }
   deriving (Eq, Ord, Show)
 
-instance Functor (Ents a b) where
+instance Functor Ents where
   fmap f = Ents . map (fmap f) . unEnts
 
-instance Monoid (Ents a b m) where
+instance Monoid (Ents m) where
   mempty = Ents []
   mappend (Ents x) (Ents y) = Ents $ x ++ y
 
-entToTrio :: Ent a b m -> T.Trio a b
+entToTrio :: Ent m -> T.Trio
 entToTrio (Ent q c t _) = case t of
   QC a ar -> T.QC a c ar
   Q a -> T.Q a
@@ -61,7 +63,7 @@ entToTrio (Ent q c t _) = case t of
 
 -- | Change the 'Arrangement' in an 'Ent'.  Does nothing if the 'Ent'
 -- has no 'Arrangement' to begin with.
-rearrange :: Arrangement -> Ent a b m -> Ent a b m
+rearrange :: Arrangement -> Ent m -> Ent m
 rearrange a' e = e { entTrio = e' }
   where
     e' = case entTrio e of
@@ -81,11 +83,11 @@ data ErrorCode
   deriving (Eq, Ord, Show)
 
 -- | An error occurred while attempting to create an 'Ent'.
-data EntError a b = EntError
+data EntError = EntError
   { errCode :: ErrorCode
   -- ^ The exact nature of the error.
 
-  , errTrio :: T.Trio a b
+  , errTrio :: T.Trio
   -- ^ The 'T.Trio' that caused the error.
 
   , errBalances :: M.Map Commodity (Side, Qty)
@@ -96,8 +98,8 @@ data EntError a b = EntError
 -- may have arose while processing an individual 'T.Trio' to an 'Ent'.
 -- Or, processing of all 'Ent's may have succeeded, but if the total
 -- of all the postings is not balanced, an error occurs.
-newtype Error a b
-  = Error { unError :: Either (EntError a b) UnbalancedAtEnd }
+newtype Error
+  = Error { unError :: Either EntError UnbalancedAtEnd }
   deriving (Eq, Ord, Show)
 
 -- | The total of all 'Ent' is not balanced.
@@ -107,12 +109,10 @@ data UnbalancedAtEnd = UnbalancedAtEnd
 
 
 procEnt
-  :: (a -> Qty)
-  -> (b -> (DN.Coefficient, Exponent))
-  -> Balances
-  -> (T.Trio a b, m)
-  -> Either (EntError a b) (Balances, Ent a b m)
-procEnt fa fb bals (tri, mta) = fmap f $ procTrio fa fb unbals tri
+  :: Balances
+  -> (T.Trio, m)
+  -> Either EntError (Balances, Ent m)
+procEnt bals (tri, mta) = fmap f $ procTrio unbals tri
   where
     unbals = onlyUnbalanced bals
     f (q, cy) = (bals', ent)
@@ -122,13 +122,11 @@ procEnt fa fb bals (tri, mta) = fmap f $ procTrio fa fb unbals tri
 
 
 procEntM
-  :: (a -> Qty)
-  -> (b -> (DN.Coefficient, Exponent))
-  -> (T.Trio a b, m)
-  -> EitherT (EntError a b) (State Balances) (Ent a b m)
-procEntM fa fb (tri, mta) = do
+  :: (T.Trio, m)
+  -> EitherT EntError (State Balances) (Ent m)
+procEntM (tri, mta) = do
   bal <- lift get
-  case procEnt fa fb bal (tri, mta) of
+  case procEnt bal (tri, mta) of
     Left e -> left e
     Right (bal', r) -> do
       lift $ put bal'
@@ -138,13 +136,11 @@ procEntM fa fb (tri, mta) = do
 -- | Only creates an 'Ents' if all the 'T.Trio' are balanced.  See
 -- 'T.Trio' for more information on the rules this function follows.
 ents
-  :: (a -> Qty)
-  -> (b -> (DN.Coefficient, Exponent))
-  -> [(T.Trio a b, m)]
+  :: [(T.Trio a b, m)]
   -> Either (Error a b) (Ents a b m)
-ents fa fb ls =
+ents ls =
   let (finalEi, finalBal) = flip runState emptyBalances
-       . runEitherT . mapM (procEntM fa fb) $ ls
+       . runEitherT . mapM procEntM $ ls
   in case finalEi of
       Left e -> Left . Error . Left $ e
       Right es
@@ -154,7 +150,7 @@ ents fa fb ls =
           unbals = onlyUnbalanced finalBal
 
 
-buildEntrio :: T.Trio a b -> Entrio a b
+buildEntrio :: T.Trio -> Entrio
 buildEntrio t = case t of
   T.QC a _ ar -> QC a ar
   T.Q a -> Q a
