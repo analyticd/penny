@@ -25,6 +25,7 @@ module Penny.Numbers.Abstract.Aggregates
   , neutralizeGroupedPolar
   , polarizeGroupedUnpolar
   , ungroupGroupedPolar
+  , ungroupGroupedUnpolar
 
   -- * All unpolar and polar
   , Unpolar(..)
@@ -32,6 +33,7 @@ module Penny.Numbers.Abstract.Aggregates
   , neutralizePolar
   , polarizeUnpolar
   , ungroupPolar
+  , ungroupUnpolar
 
   -- * All abstract types, polar and unpolar
   , Abstract(..)
@@ -118,6 +120,9 @@ polarizeGroupedUnpolar = undefined
 ungroupGroupedPolar :: GroupedPolar r p -> UngroupedPolar r p
 ungroupGroupedPolar = undefined
 
+ungroupGroupedUnpolar :: GroupedUnpolar r -> UngroupedUnpolar r
+ungroupGroupedUnpolar = undefined
+
 -- # Unpolar
 
 newtype Unpolar r = Unpolar
@@ -138,6 +143,9 @@ polarizeUnpolar = undefined
 
 ungroupPolar :: Polar r p -> UngroupedPolar r p
 ungroupPolar = undefined
+
+ungroupUnpolar :: Unpolar r -> UngroupedUnpolar r
+ungroupUnpolar = undefined
 
 -- # All abstract types, polar and unpolar
 

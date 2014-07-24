@@ -18,6 +18,15 @@ opposite s = case s of
   Debit -> Credit
   Credit -> Debit
 
+polarToQty :: Polar r Side -> Qty
+polarToQty = ungroupedPolarToQty . ungroupPolar
+
+unpolarToQty :: Side -> Unpolar r -> Qty
+unpolarToQty s = ungroupedUnpolarToQty s . ungroupUnpolar
+
+groupedPolarToQty :: GroupedPolar r Side -> Qty
+groupedPolarToQty = ungroupedPolarToQty . ungroupGroupedPolar
+
 ungroupedPolarToQty :: UngroupedPolar r Side -> Qty
 ungroupedPolarToQty = Qty . toConcrete f
   where
@@ -28,6 +37,9 @@ ungroupedPolarToQty = Qty . toConcrete f
 ungroupedUnpolarToQty :: Side -> UngroupedUnpolar r -> Qty
 ungroupedUnpolarToQty s = ungroupedPolarToQty
   . polarizeUngroupedUnpolar s
+
+groupedUnpolarToQty :: Side -> GroupedUnpolar r -> Qty
+groupedUnpolarToQty s = ungroupedUnpolarToQty s . ungroupGroupedUnpolar
 
 qtySide :: Qty -> Maybe Side
 qtySide (Qty c)

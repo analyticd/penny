@@ -136,8 +136,8 @@ procEntM (tri, mta) = do
 -- | Only creates an 'Ents' if all the 'T.Trio' are balanced.  See
 -- 'T.Trio' for more information on the rules this function follows.
 ents
-  :: [(T.Trio a b, m)]
-  -> Either (Error a b) (Ents a b m)
+  :: [(T.Trio, m)]
+  -> Either Error (Ents m)
 ents ls =
   let (finalEi, finalBal) = flip runState emptyBalances
        . runEitherT . mapM procEntM $ ls
@@ -170,15 +170,13 @@ procTrio bal trio = case trio of
 
   T.QC a cy _ -> Right (q, cy)
     where
-      q = either (ungroupedPolarToQty . ungroupPolar)
-                 (ungroupedPolarToQty . ungroupPolar) a
+      q = either polarToQty polarToQty a
 
   T.Q a -> case singleCommodity of
     Left e -> Left e
     Right (cy, _, _) -> Right (q, cy)
       where
-        q = either (ungroupedPolarToQty . ungroupPolar)
-                   (ungroupedPolarToQty . ungroupPolar) a
+        q = either polarToQty polarToQty a
 
   T.SC s cy -> case lookupCommodity cy of
     Left e -> Left e
@@ -200,8 +198,8 @@ procTrio bal trio = case trio of
     Left e -> Left e
     Right (s, _) -> Right (q, cy)
       where
-        (c, e) = fb b
-        q = Qty . concrete $ Params (sideToSign (opposite s)) c e
+        s' = opposite s
+        q = either (unpolarToQty s') (unpolarToQty s') b
 
   T.U b -> case singleCommodity of
     Left e -> Left e
@@ -210,8 +208,8 @@ procTrio bal trio = case trio of
           QQtyTooBig trio bal
       | otherwise -> Right (q', cy)
       where
-        (c, e) = fb b
-        q' = Qty . concrete $ Params (sideToSign (opposite s)) c e
+        s' = opposite s
+        q' = either (unpolarToQty s') (unpolarToQty s') b
 
   T.C cy -> case lookupCommodity cy of
     Left e -> Left e
