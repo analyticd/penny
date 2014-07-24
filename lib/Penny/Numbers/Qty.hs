@@ -18,12 +18,16 @@ opposite s = case s of
   Debit -> Credit
   Credit -> Debit
 
-concreteQty :: UngroupedPolar Side r -> Qty
-concreteQty = Qty . toConcrete f
+ungroupedPolarToQty :: UngroupedPolar r Side -> Qty
+ungroupedPolarToQty = Qty . toConcrete f
   where
     f s = case s of
       Debit -> Sign0
       Credit -> Sign1
+
+ungroupedUnpolarToQty :: Side -> UngroupedUnpolar r -> Qty
+ungroupedUnpolarToQty s = ungroupedPolarToQty
+  . polarizeUngroupedUnpolar s
 
 qtySide :: Qty -> Maybe Side
 qtySide (Qty c)
@@ -34,7 +38,7 @@ qtySide (Qty c)
   where
     d = unConcrete c
 
-abstractQty :: Radix r -> Qty -> UngroupedPolar Side r
+abstractQty :: Radix r -> Qty -> UngroupedPolar r Side
 abstractQty r = fromConcrete f r . unQty
   where
     f s = case s of

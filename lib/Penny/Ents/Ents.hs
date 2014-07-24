@@ -162,19 +162,23 @@ buildEntrio t = case t of
   T.E -> E
 
 procTrio
-  :: (a -> Qty)
-  -> (b -> (DN.Coefficient, Exponent))
-  -> M.Map Commodity (Side, Qty)
-  -> T.Trio a b
-  -> Either (EntError a b) (Qty, Commodity)
+  :: M.Map Commodity (Side, Qty)
+  -> T.Trio
+  -> Either EntError (Qty, Commodity)
 
-procTrio fa fb bal trio = case trio of
+procTrio bal trio = case trio of
 
-  T.QC a cy _ -> Right (fa a, cy)
+  T.QC a cy _ -> Right (q, cy)
+    where
+      q = either (ungroupedPolarToQty . ungroupPolar)
+                 (ungroupedPolarToQty . ungroupPolar) a
 
   T.Q a -> case singleCommodity of
     Left e -> Left e
-    Right (cy, _, _) -> Right (fa a, cy)
+    Right (cy, _, _) -> Right (q, cy)
+      where
+        q = either (ungroupedPolarToQty . ungroupPolar)
+                   (ungroupedPolarToQty . ungroupPolar) a
 
   T.SC s cy -> case lookupCommodity cy of
     Left e -> Left e

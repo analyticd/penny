@@ -12,14 +12,14 @@ newtype Exch = Exch { unExch :: Concrete }
 data PluMin = Plus | Minus
   deriving (Eq, Ord, Show)
 
-concreteExch :: UngroupedPolar PluMin r -> Exch
+concreteExch :: UngroupedPolar r PluMin -> Exch
 concreteExch = Exch . toConcrete f
   where
     f s = case s of
       Plus -> Sign0
       Minus -> Sign1
 
-abstractExch :: Radix r -> Exch -> UngroupedPolar PluMin r
+abstractExch :: Radix r -> Exch -> UngroupedPolar r PluMin
 abstractExch r = fromConcrete f r . unExch
   where
     f s = case s of
