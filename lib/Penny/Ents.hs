@@ -1,7 +1,7 @@
 -- | Balanced sets.  This module is the guardian of the core principle
 -- of double-entry accounting, which is that all transactions must be
 -- balanced.
-module Penny.Ents.Ents
+module Penny.Ents
   (
   -- * Ent
     Ent
@@ -45,7 +45,7 @@ import Penny.Balance
 import Penny.Common
 import Penny.Numbers.Qty
 import Data.Monoid
-import qualified Penny.Ents.Trio as T
+import qualified Penny.Trio as T
 import qualified Data.Map as M
 import Penny.Numbers.Concrete
 import Prelude hiding (negate)

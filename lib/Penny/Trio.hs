@@ -1,4 +1,4 @@
-module Penny.Ents.Trio where
+module Penny.Trio where
 
 import Penny.Common
 import Penny.Numbers.Qty

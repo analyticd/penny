@@ -2,7 +2,7 @@ module Penny.Transaction where
 
 import Penny.TopLine
 import Penny.Posting
-import Penny.Ent
+import Penny.Ents
 
 data Transaction = Transaction
   { txnTopLine :: TopLine
