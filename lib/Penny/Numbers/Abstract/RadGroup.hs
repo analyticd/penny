@@ -13,17 +13,13 @@ module Penny.Numbers.Abstract.RadGroup
   , Group
   , groupPayload
   , grouper
-  -- ** With 'Period' as the radix point character
-  , gpComma
-  , gpSpace
-  , gpThin
-  , gpUnder
 
-  -- * With 'Comma' as the radix point character
-  , gcPeriod
-  , gcSpace
-  , gcThin
-  , gcUnder
+  , comma
+  , period
+  , space
+  , thin
+  , under
+
   ) where
 
 data Radix r = Radix { unRadix :: Char }
@@ -55,28 +51,18 @@ radPeriod = Radix '.'
 radComma :: Radix Comma
 radComma = Radix ','
 
-gpComma :: b -> Group Period b
-gpComma = Group ','
+comma :: b -> Group Period b
+comma = Group ','
 
-gpSpace :: b -> Group Period b
-gpSpace = Group ' '
+period :: b -> Group Comma b
+period = Group '.'
 
-gpThin :: b -> Group Period b
-gpThin = Group '\x2009'
+space :: b -> Group a b
+space = Group ' '
 
-gpUnder :: b -> Group Period b
-gpUnder = Group '_'
+thin :: b -> Group a b
+thin = Group '\x2009'
 
-gcPeriod :: b -> Group Comma b
-gcPeriod = Group '.'
-
-gcSpace :: b -> Group Comma b
-gcSpace = Group ' '
-
-gcThin :: b -> Group Comma b
-gcThin = Group '\x2009'
-
-gcUnder :: b -> Group Comma b
-gcUnder = Group '_'
-
+under :: b -> Group a b
+under = Group '_'
 
