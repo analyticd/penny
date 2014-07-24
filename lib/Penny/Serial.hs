@@ -1,8 +1,13 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Penny.Lincoln.Serial (
-  Serial, forward, backward, serialItems, serialSomeItems,
-  serialNestedItems) where
+module Penny.Serial
+  ( Serial
+  , forward
+  , backward
+  , serialItems
+  , serialSomeItems
+  , serialNestedItems
+  ) where
 
 import Control.Applicative (Applicative, (<*>), pure, (*>))
 import Control.Monad (ap, liftM, replicateM_)

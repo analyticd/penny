@@ -1,4 +1,4 @@
-module Penny.Lincoln.Bits.DateTime
+module Penny.DateTime
   ( TimeZoneOffset ( offsetToMins )
   , minsToOffset
   , noOffset
@@ -22,7 +22,6 @@ module Penny.Lincoln.Bits.DateTime
   ) where
 
 import qualified Data.Time as T
-import qualified Penny.Lincoln.Equivalent as Ev
 
 -- | The number of minutes that this timezone is offset from UTC. Can
 -- be positive, negative, or zero.
@@ -30,10 +29,10 @@ newtype TimeZoneOffset = TimeZoneOffset { offsetToMins :: Int }
                          deriving (Eq, Ord, Show)
 
 -- | Convert minutes to a time zone offset. I'm having a hard time
--- deciding whether to be liberal or strict in what to accept
--- here. Currently it is somewhat strict in that it will fail if
--- absolute value is greater than 840 minutes; currently the article
--- at http://en.wikipedia.org/wiki/List_of_time_zones_by_UTC_offset
+-- deciding whether to be liberal or strict in what to accept here.
+-- Currently it is somewhat strict in that it will fail if absolute
+-- value is greater than 840 minutes; currently the article at
+-- <http://en.wikipedia.org/wiki/List_of_time_zones_by_UTC_offset>
 -- says there is no offset greater than 14 hours, or 840 minutes.
 minsToOffset :: Int -> Maybe TimeZoneOffset
 minsToOffset m = if abs m > 840
@@ -134,10 +133,6 @@ toUTC dt = T.localTimeToUTC tz lt
 
 sameInstant :: DateTime -> DateTime -> Bool
 sameInstant t1 t2 = toUTC t1 == toUTC t2
-
-instance Ev.Equivalent DateTime where
-  equivalent = sameInstant
-  compareEv x y = compare (toUTC x) (toUTC y)
 
 -- | Shows a DateTime in a pretty way.
 showDateTime :: DateTime -> String

@@ -1,4 +1,45 @@
-module Penny.Ents.Ents where
+-- | Balanced sets.  This module is the guardian of the core principle
+-- of double-entry accounting, which is that all transactions must be
+-- balanced.
+module Penny.Ents.Ents
+  (
+  -- * Ent
+    Ent
+  , entQty
+  , entCommodity
+  , entTrio
+  , entMeta
+  , Entrio(..)
+  , entToTrio
+  , rearrange
+
+  -- * Ents
+  , Ents
+  , unEnts
+  , ents
+  , rEnts
+
+  -- * Errors
+  , Error(..)
+  , EntError(..)
+  , ErrorCode(..)
+  , UnbalancedAtEnd(..)
+
+  -- * Views
+  , View
+  , view
+  , allViews
+  , unView
+  , viewLeft
+  , viewCurrent
+  , viewRight
+  , siblings
+  , moveLeft
+  , moveRight
+  , changeCurrent
+  , changeCurrentMeta
+  ) where
+
 
 import Penny.Balance
 import Penny.Common
@@ -15,6 +56,12 @@ import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.RadGroup
 import Data.Either.Combinators
 
+-- | Fields in the 'Ent' capture some of the information that was
+-- passed along in the 'T.Trio'.  'Entrio' captures the remaining
+-- information from the 'T.Trio' that other fields in the 'Ent' does
+-- not capture, so that it is possible to reconstruct the original
+-- 'T.Trio' from the 'Ent' alone.  Each of the constructors here
+-- corresponds to one of the constructors in 'T.Trio'.
 data Entrio
   = QC (Either (Polar Period Side) (Polar Comma Side)) Arrangement
   | Q (Either (Polar Period Side) (Polar Comma Side))
@@ -26,16 +73,41 @@ data Entrio
   | E
   deriving (Eq, Ord, Show)
 
+-- | Information from a single entry.  Always contains a 'Commodity'
+-- and a 'Qty' which holds the quantity information in concrete form.
+-- There is also an 'Entrio', which holds the information necessary to
+-- rebuild 'T.Trio' from the 'Ent'.
+--
+-- This is abstract, so only functions in this module may build an 'Ent'.
+--
+-- There is also arbitrary metadata.  Because 'Ent' is abstract, you
+-- cannot build new 'Ent' or change the data in an existing 'Ent',
+-- with two exceptions: you can use 'fmap' to change the metadata, and
+-- you can use 'rearrange' to change the 'Arrangement' if there is
+-- one.  Changing any other data would risk unbalancing the 'Ents'.
 data Ent m = Ent
   { entQty :: Qty
+  -- ^ Concrete representation of the abstract quantity
+
   , entCommodity :: Commodity
   , entTrio :: Entrio
+  -- ^ Holds information necessary to rebuild the original 'T.Trio';
+  -- see 'Entrio'.
+
   , entMeta :: m
+  -- ^ Whatever metadata you wish; typically this will be information
+  -- about the posting, such as its account and tags.
+
   } deriving (Eq, Ord, Show)
 
 instance Functor Ent where
   fmap f e = e { entMeta = f (entMeta e) }
 
+-- | Zero or more 'Ent'.  Together they are balanced; that is, every
+-- 'Debit' of a particular 'Commodity' is offset by an equal number of
+-- 'Credit's of the same 'Commodity', and vice versa.
+--
+-- 'Ents' is a 'Monoid'.
 newtype Ents m = Ents { unEnts :: [Ent m] }
   deriving (Eq, Ord, Show)
 
@@ -282,3 +354,73 @@ rEnts s cy ar mt ls
       where
         ei' = mapBoth (polarizeUnpolar s) (polarizeUnpolar s) ei
 
+-- | A single 'Ent' with information about how it relates to
+-- surrounding 'Ent' in the 'Ents'.
+data View a = View
+  { viewLeft :: [Ent a]
+  -- ^ These 'Ent' are to the left of the 'viewCurrent' 'Ent'.  Closer
+  -- 'Ent' are at the head of the list.
+
+  , viewCurrent :: Ent a
+  -- ^ The 'Ent' you are currently viewing
+
+  , viewRight :: [Ent a]
+  -- ^ These 'Ent' are to the right of the 'viewCurrent' 'Ent'.
+  -- Closer 'Ent' are at the head of the list.
+
+  } deriving (Eq, Ord, Show)
+
+instance Functor View where
+  fmap f (View l c r) = View (map (fmap f) l) (fmap f c)
+    (map (fmap f) r)
+
+-- | All 'Ent' that neighbor the 'viewCurrent' 'Ent'.  The list is
+-- ordered with all 'Ent' from left to right; the 'viewCurrent' 'Ent'
+-- is not in the resulting list.
+siblings :: View a -> [Ent a]
+siblings (View l _ r) = reverse l ++ r
+
+-- | A 'View' of the head 'Ent' in the 'Ents'.  Is 'Nothing' if the
+-- 'Ents' is empty.
+view :: Ents a -> Maybe (View a)
+view (Ents es) = case es of
+  [] -> Nothing
+  x:xs -> Just $ View [] x xs
+
+-- | A single 'View' for each 'Ent' in the 'Ents'.
+allViews :: Ents a -> [View a]
+allViews = go [] . unEnts
+  where
+    go l curr = case curr of
+      [] -> []
+      x:xs -> View l x xs : go (x:l) xs
+
+-- | Recreate the 'Ents' from a 'View'.
+unView :: View a -> Ents a
+unView (View l c r) = Ents $ reverse l ++ c:r
+
+-- | Get a new 'View' of the 'Ent' to the left of the 'viewCurrent'
+-- 'Ent'.  Is 'Nothing' if the input 'View' is already of the leftmost
+-- 'Ent'.
+moveLeft :: View a -> Maybe (View a)
+moveLeft (View l c r) = case l of
+  [] -> Nothing
+  x:xs -> Just $ View xs x (c:r)
+
+-- | Get a new 'View' of the 'Ent' to the right of the 'viewCurrent'
+-- 'Ent'.  Is 'Nothing' if the input 'View' is already of the
+-- rightmost 'Ent'.
+moveRight :: View a -> Maybe (View a)
+moveRight (View l c r) = case r of
+  [] -> Nothing
+  x:xs -> Just $ View (c:l) x xs
+
+-- | Returns a 'View' whose 'viewCurrent' 'Ent' has been transformed
+-- by the given function.
+changeCurrent :: (Ent a -> Ent a) -> View a -> View a
+changeCurrent f (View l c r) = View l (f c) r
+
+-- | Returns a 'View' where the metadata in the 'viewCurrent' 'Ent'
+-- has been transformed by the given function.
+changeCurrentMeta :: (a -> a) -> View a -> View a
+changeCurrentMeta f (View l c r) = View l (fmap f c) r
