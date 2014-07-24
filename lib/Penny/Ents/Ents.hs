@@ -7,17 +7,17 @@ import Data.Monoid
 import qualified Penny.Ents.Trio as T
 import qualified Data.Map as M
 import Penny.Numbers.Concrete
-import qualified Deka.Native.Abstract as DN
 import Prelude hiding (negate)
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Either
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.RadGroup
+import Data.Either.Combinators
 
 data Entrio
-  = QC (Either (Abstract Period Side) (Abstract Comma Side)) Arrangement
-  | Q (Either (Abstract Period Side) (Abstract Comma Side))
+  = QC (Either (Polar Period Side) (Polar Comma Side)) Arrangement
+  | Q (Either (Polar Period Side) (Polar Comma Side))
   | SC
   | S
   | UC (Either (Unpolar Period) (Unpolar Comma)) Arrangement
@@ -244,7 +244,6 @@ procTrio bal trio = case trio of
       _ -> Left $ EntError MultipleCommoditiesInBalance trio bal
 
 
-{-
 -- | Creates 'Ents' but, unlike 'ents', never fails.  To make this
 -- guarantee, 'rEnts' puts restrictions on its arguments.
 
@@ -259,34 +258,27 @@ rEnts
   -- ^ All postings except for the inferred one will use this
   -- 'Arrangement'
 
-  -> m
+  -> a
   -- ^ Metadata for inferred posting
 
-  -> [(DN.Coefficient, Exponent, 
+  -> [(Either (Unpolar Period) (Unpolar Comma), a)]
+  -- ^ Each non-zero member, and its corresponding metadata
 
-  -> [(u, m)]
-  -- ^ Each unsigned number, and its corresponding metadata
-
-  -> (u -> (DN.Coefficient, Exponent))
-  -- ^ How to get the unsinged information from the unsigned number
-
-  -> Ents a u m
+  -> Ents a
   -- ^ The resulting 'Ents'.  If the list of 'NZGrouped' was
   -- non-empty, then a single inferred posting is at the end to
   -- balance out the other non-zero postings.  Each 'Ent' has an
   -- 'Entrio' of 'SZC', except for the inferred posting, which is 'E'.
--}
-rEnts = undefined
-{-
 
 rEnts s cy ar mt ls
   | null ls = Ents []
   | otherwise = Ents $ zipWith mkEnt qs ls ++ [inferred]
   where
     qs = map mkQ . map fst $ ls
-    mkQ nzg = Qty . normal $ Params (sign s) (coefficient nzg)
-      (exponent nzg)
+    mkQ = either (unpolarToQty s) (unpolarToQty s)
     offset = Qty . negate . sum . map unQty $ qs
     inferred = Ent offset cy E mt
-    mkEnt q (nzg, m) = Ent q cy (SZC nzg ar) m
--}
+    mkEnt q (ei, m) = Ent q cy (QC ei' ar) m
+      where
+        ei' = mapBoth (polarizeUnpolar s) (polarizeUnpolar s) ei
+
