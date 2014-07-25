@@ -3,8 +3,8 @@
 module Penny.Numbers.Abstract.Unpolar where
 
 import Data.Sequence (Seq)
-import Deka.Native.Abstract
 import Penny.Numbers.Abstract.RadGroup
+import Deka.Native (Novem(..), Decem(..))
 
 data NonNegative = Zero | Plus NonNegative
   deriving (Eq, Ord, Show)
@@ -69,11 +69,10 @@ data NovDecs = NovDecs
 
 data ZeroesNovDecs = ZeroesNovDecs
   { zndZeroes :: NonNegative
-  , zndMSD :: Novem
-  , zndTrailing :: [Decem]
+  , zndNovDecs :: NovDecs
   } deriving (Eq, Ord, Show)
 
-data DecDecs = DecDecs Decem [Decem]
+data DecDecs = DecDecs Decem (Seq Decem)
   deriving (Eq, Ord, Show)
 
 newtype HasZeroDigit = HasZeroDigit { unHasZeroDigit :: Bool }
@@ -87,10 +86,10 @@ data Zeroes = Zeroes Positive
 
 -- Ungrouped - non-zero
 
-data UNWhole = UNWhole Decuple
+data UNWhole = UNWhole NovDecs
   deriving (Eq, Ord, Show)
 
-data UNWholeRadix r = UNWholeRadix Decuple (Radix r) (Maybe DecDecs)
+data UNWholeRadix r = UNWholeRadix NovDecs (Radix r) (Maybe DecDecs)
   deriving (Eq, Ord, Show)
 
 data UNRadFrac r = UNRadFrac (Maybe ZeroDigit) (Radix r) ZeroesNovDecs
@@ -107,7 +106,7 @@ data UZTrailing r = UZTrailing ZeroDigit (Radix r) (Maybe Zeroes)
 -- Grouped - zero
 
 data GZ r = GZ (Maybe ZeroDigit) (Radix r) Zeroes (Group r Zeroes)
-                 [Group r Zeroes]
+                 (Seq (Group r Zeroes))
   deriving (Eq, Ord, Show)
 
 -- Grouped - non-zero
@@ -116,7 +115,7 @@ data GZ r = GZ (Maybe ZeroDigit) (Radix r) Zeroes (Group r Zeroes)
 
 -- | Greater than or equal to one, grouped on left side.  No radix.
 data MasunoGroupedLeft r =
-  MasunoGroupedLeft Decuple (Group r DecDecs) [Group r DecDecs]
+  MasunoGroupedLeft NovDecs (Group r DecDecs) (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)
 
 -- | Greater than or equal to one, grouped on left side, with radix.
@@ -124,14 +123,14 @@ data MasunoGroupedLeft r =
 data MasunoGroupedLeftRad r =
   MasunoGroupedLeftRad (MasunoGroupedLeft r)
                        (Radix r)
-                       (Maybe (DecDecs, [Group r DecDecs]))
+                       (Maybe (DecDecs, Seq (Group r DecDecs)))
   deriving (Eq, Ord, Show)
 
 -- | Greater than or equal to one, grouped on right side only.
 
 data MasunoGroupedRight r =
-  MasunoGroupedRight (Decuple) (Radix r)
-                     DecDecs (Group r DecDecs) [Group r DecDecs]
+  MasunoGroupedRight (NovDecs) (Radix r)
+                     DecDecs (Group r DecDecs) (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)
 
 -- Grouped - less than one
@@ -141,8 +140,8 @@ data MasunoGroupedRight r =
 
 data FracunoFirstGroupZ r =
   FracunoFirstGroupZ (Maybe ZeroDigit) (Radix r)
-                     Zeroes [Group r Zeroes]
-                     (Group r ZeroesNovDecs) [Group r DecDecs]
+                     Zeroes (Seq (Group r Zeroes))
+                     (Group r ZeroesNovDecs) (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)
 
 -- | Less than one, first group has non-zero digit.  Optional leading
@@ -150,6 +149,6 @@ data FracunoFirstGroupZ r =
 data FracunoFirstGroupNZ r =
   FracunoFirstGroupNZ (Maybe ZeroDigit) (Radix r)
                       ZeroesNovDecs (Group r DecDecs)
-                      [Group r DecDecs]
+                      (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)
 

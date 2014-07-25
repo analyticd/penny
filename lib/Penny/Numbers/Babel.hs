@@ -10,6 +10,7 @@ import Data.Sums
 import Deka.Dec (Sign)
 import qualified Deka.Native.Abstract as DN
 import Data.Maybe
+import qualified Data.Sequence as S
 
 fromConcrete
   :: (Sign -> p)
@@ -36,7 +37,10 @@ ungroupedNonZero
   -> Exponent
   -> UngroupedNonZero r
 ungroupedNonZero rdx dcple expnt = UngroupedNonZero $ case expnt of
-  ExpZero -> S3a $ UNWhole dcple
+  ExpZero -> S3a $ UNWhole (NovDecs nv dcs)
+    where
+      DN.Decuple nv ls = dcple
+      dcs = S.fromList ls
   _ -> undefined
 
 exponentToUngroupedZero
