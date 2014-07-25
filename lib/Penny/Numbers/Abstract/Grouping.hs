@@ -1,6 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 module Penny.Numbers.Abstract.Grouping (group, ungroup) where
 
+import Deka.Native
 import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.RadGroup
@@ -31,13 +32,13 @@ groupNonZero
   -> UngroupedNonZero r
   -> Either (UngroupedUnpolar r) (GroupedUnpolar r)
 groupNonZero grp o@(UngroupedNonZero s3) = case s3 of
-  S3a (UNWhole nvdcs@(NovDecs _ ds))
+  S3a (UNWhole nvdcs@(Decuple _ ds))
     | length ds < 4 -> noGroup
     | otherwise -> Right (GroupedUnpolar (S2b gnz))
     where
       gnz = GroupedNonZero (S5a (groupNovDecs grp nvdcs))
 
-  S3b (UNWholeRadix nvdcs@(NovDecs _ ds) rd mayRt)
+  S3b (UNWholeRadix nvdcs@(Decuple _ ds) rd mayRt)
     | length ds < 4 -> noGroup
     | otherwise -> Right (GroupedUnpolar (S2b gnz))
     where
@@ -51,12 +52,12 @@ groupNonZero grp o@(UngroupedNonZero s3) = case s3 of
 
 groupNovDecs
   :: (forall a. a -> Group g a)
-  -> NovDecs
+  -> Decuple
   -> MasunoGroupedLeft g
-groupNovDecs grp (NovDecs nv ds) = MasunoGroupedLeft g1 g2 gs
+groupNovDecs grp (Decuple nv ds) = MasunoGroupedLeft g1 g2 gs
   where
     ds1:ds2:dss = headNoMoreThan2 . groupsOf3 $ ds
-    g1 = NovDecs nv ds1
+    g1 = Decuple nv ds1
     mkGrp ls = grp $ DecDecs (head ls) (tail ls)
     g2 = mkGrp ds2
     gs = map mkGrp dss

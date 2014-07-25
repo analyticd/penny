@@ -2,11 +2,44 @@
 -- | Unpolar abstract numbers.
 module Penny.Numbers.Abstract.Unpolar where
 
-import Deka.Native
+import Data.Sequence (Seq)
+import Deka.Native.Abstract
 import Penny.Numbers.Abstract.RadGroup
 
 data NonNegative = Zero | Plus NonNegative
   deriving (Eq, Ord, Show)
+
+{-
+-- | Splits a Decuple according to the contents of an exponent.
+splitDecuple
+  :: Decuple
+  -- ^ The exponent
+  -> Decuple
+  -- ^ Decuple to split
+  -> Either (Decuple, Maybe DecDecs) (ZeroesNovDecs)
+  -- ^ If the exponent is greater than or equal to the number of
+  -- digits in the Decuple to split, returns a Right; otherwise,
+  -- returns a Left
+
+splitDecuple expt (Decuple nv dcs)
+  = finish $ go exptInt [] (reverse dcs)
+  where
+    exptInt = decupleToInt expt
+    _types = exptInt :: Integer
+
+    go e dsSoFar ds
+      | e < 0 = error "splitDecuple: negative"
+      | e == 0 = (0, dsSoFar, ds)
+      | otherwise = case ds of
+          [] -> (e, dsSoFar, [])
+          x:xs -> go (pred e) (x : dsSoFar) xs
+
+    finish (e, dsSoFar, dsRem) = case reverse dsRem of
+      [] -> case intToNonNegative (pred e) of
+        Nothing -> Left (Decuple nv dsSoFar, Nothing)
+        Just nn -> Right (ZeroesNovDecs nn nv dsSoFar)
+      x:xs -> Left (Decuple nv dsSoFar, Just (DecDecs x xs))
+-}
 
 intToNonNegative :: Integral a => a -> Maybe NonNegative
 intToNonNegative a
@@ -29,8 +62,10 @@ intToPositive a
       | i == 1 = soFar
       | otherwise = go (Succ soFar) (pred i)
 
-data NovDecs = NovDecs Novem [Decem]
-  deriving (Eq, Ord, Show)
+data NovDecs = NovDecs
+  { ndNovem :: Novem
+  , ndDecems :: Seq Decem
+  } deriving (Eq, Ord, Show)
 
 data ZeroesNovDecs = ZeroesNovDecs
   { zndZeroes :: NonNegative
@@ -52,10 +87,10 @@ data Zeroes = Zeroes Positive
 
 -- Ungrouped - non-zero
 
-data UNWhole = UNWhole NovDecs
+data UNWhole = UNWhole Decuple
   deriving (Eq, Ord, Show)
 
-data UNWholeRadix r = UNWholeRadix NovDecs (Radix r) (Maybe DecDecs)
+data UNWholeRadix r = UNWholeRadix Decuple (Radix r) (Maybe DecDecs)
   deriving (Eq, Ord, Show)
 
 data UNRadFrac r = UNRadFrac (Maybe ZeroDigit) (Radix r) ZeroesNovDecs
@@ -81,7 +116,7 @@ data GZ r = GZ (Maybe ZeroDigit) (Radix r) Zeroes (Group r Zeroes)
 
 -- | Greater than or equal to one, grouped on left side.  No radix.
 data MasunoGroupedLeft r =
-  MasunoGroupedLeft NovDecs (Group r DecDecs) [Group r DecDecs]
+  MasunoGroupedLeft Decuple (Group r DecDecs) [Group r DecDecs]
   deriving (Eq, Ord, Show)
 
 -- | Greater than or equal to one, grouped on left side, with radix.
@@ -95,7 +130,7 @@ data MasunoGroupedLeftRad r =
 -- | Greater than or equal to one, grouped on right side only.
 
 data MasunoGroupedRight r =
-  MasunoGroupedRight (NovDecs) (Radix r)
+  MasunoGroupedRight (Decuple) (Radix r)
                      DecDecs (Group r DecDecs) [Group r DecDecs]
   deriving (Eq, Ord, Show)
 

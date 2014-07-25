@@ -35,7 +35,9 @@ ungroupedNonZero
   -> DN.Decuple
   -> Exponent
   -> UngroupedNonZero r
-ungroupedNonZero = undefined
+ungroupedNonZero rdx dcple expnt = UngroupedNonZero $ case expnt of
+  ExpZero -> S3a $ UNWhole dcple
+  _ -> undefined
 
 exponentToUngroupedZero
   :: Radix r
