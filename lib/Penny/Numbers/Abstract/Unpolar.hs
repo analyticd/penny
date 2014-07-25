@@ -4,21 +4,20 @@ module Penny.Numbers.Abstract.Unpolar where
 
 import Data.Sequence (Seq)
 import Penny.Numbers.Abstract.RadGroup
-import Deka.Native (Novem(..), Decem(..))
+import Deka.Native.Abstract
+import Data.Maybe
 
-data NonNegative = Zero | Plus NonNegative
+data NonNegative = Zero | Plus !Positive
   deriving (Eq, Ord, Show)
 
 intToNonNegative :: Integral a => a -> Maybe NonNegative
 intToNonNegative a
   | a < 0 = Nothing
-  | otherwise = Just $ go Zero a
-  where
-    go soFar i
-      | i == 0 = soFar
-      | otherwise = go (Plus soFar) (pred i)
+  | a == 0 = Just Zero
+  | otherwise = Just . Plus
+      . fromMaybe (error "intToNonNegative: error") . intToPositive $ a
 
-data Positive = One | Succ Positive
+data Positive = One | Succ !Positive
   deriving (Eq, Ord, Show)
 
 intToPositive :: Integral a => a -> Maybe Positive
@@ -29,6 +28,23 @@ intToPositive a
     go soFar i
       | i == 1 = soFar
       | otherwise = go (Succ soFar) (pred i)
+
+novemToPositive :: Novem -> Positive
+novemToPositive n = case n of
+  D1 -> One
+  D2 -> Succ One
+  D3 -> Succ . Succ $ One
+  D4 -> Succ . Succ . Succ $ One
+  D5 -> Succ . Succ . Succ . Succ $ One
+  D6 -> Succ . Succ . Succ . Succ . Succ $ One
+  D7 -> Succ . Succ . Succ . Succ . Succ . Succ $ One
+  D8 -> Succ . Succ . Succ . Succ . Succ . Succ . Succ $ One
+  D9 -> Succ . Succ . Succ . Succ . Succ . Succ . Succ . Succ $ One
+
+decemToNonNegative :: Decem -> NonNegative
+decemToNonNegative d = case d of
+  D0 -> Zero
+  Nonem n -> Plus . novemToPositive $ n
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
 -- positive exponents because there is no unambiguous way to
@@ -44,6 +60,16 @@ data NovDecs = NovDecs
   { ndNovem :: Novem
   , ndDecems :: Seq Decem
   } deriving (Eq, Ord, Show)
+
+novDecsToPositive :: NovDecs -> Positive
+novDecsToPositive (NovDecs n ds) = finish $ go 0 Zero ds
+  where
+    (finish, go) = undefined
+
+loop :: Integer -> (a -> a) -> a -> a
+loop !i f a
+  | i <= 0 = a
+  | otherwise = loop (i - 1) f (f a)
 
 -- | Coefficients.  Different from Deka coefficients in form but not
 -- substance.
