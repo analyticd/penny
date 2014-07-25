@@ -11,6 +11,8 @@ module Penny.Numbers.Concrete
   , simpleEq
 
   -- * Conversions
+  , NovDecs(..)
+  , Coefficient(..)
   , Exponent(..)
   , Params(..)
   , params
@@ -42,6 +44,9 @@ import Control.Exception
 import qualified Data.ByteString.Char8 as BS8
 import Data.Monoid
 import Prelude hiding (negate, exponent)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as S
+import qualified Data.Foldable as Fdbl
 
 -- | A 'Concrete' wraps a 'Deka.Dec.Dec'.  It is possible for
 -- arithmetic operations to exceed the available limits of the Deka
@@ -146,18 +151,48 @@ instance Monoid Mult where
 
 data Exponent
   = ExpZero
-  | ExpNegative DN.Decuple
+  | ExpNegative NovDecs
   deriving (Eq, Ord, Show)
+
+data NovDecs = NovDecs
+  { ndNovem :: DN.Novem
+  , ndDecems :: Seq DN.Decem
+  } deriving (Eq, Ord, Show)
+
+-- | Coefficients.  Different from Deka coefficients in form but not
+-- substance.
+
+data Coefficient
+  = CoeZero
+  | CoeNonZero NovDecs
+  deriving (Eq, Ord, Show)
+
+novDecsToDecuple :: NovDecs -> DN.Decuple
+novDecsToDecuple (NovDecs nv ds) = DN.Decuple nv (Fdbl.toList ds)
+
+decupleToNovDecs :: DN.Decuple -> NovDecs
+decupleToNovDecs (DN.Decuple nv ds) = NovDecs nv (S.fromList ds)
+
+dekaCoefficientToPenny :: DN.Coefficient -> Coefficient
+dekaCoefficientToPenny (DN.Coefficient c) = case c of
+  DN.Nil -> CoeZero
+  DN.Plenus dc -> CoeNonZero (decupleToNovDecs dc)
+
+pennyCoefficientToDeka :: Coefficient -> DN.Coefficient
+pennyCoefficientToDeka c = DN.Coefficient $ case c of
+  CoeZero -> DN.Nil
+  CoeNonZero nv -> DN.Plenus (novDecsToDecuple nv)
+
 
 -- | Three parameters that define any Concrete number.
 data Params = Params
   { pmSign :: D.Sign
-  , pmCoefficient :: DN.Coefficient
+  , pmCoefficient :: Coefficient
   , pmExponent :: Exponent
   } deriving (Eq, Ord, Show)
 
 params :: Concrete -> Params
-params (Concrete d) = Params sgn coe ex
+params (Concrete d) = Params sgn (dekaCoefficientToPenny coe) ex
   where
     DN.Abstract sgn val = DN.decToAbstract d
     (coe, ex) = case val of
@@ -167,17 +202,18 @@ params (Concrete d) = Params sgn coe ex
             DN.Cero -> ExpZero
             DN.Completo pn dc
               | pn == D.Pos -> error "params: positive exponent"
-              | otherwise -> ExpNegative dc
+              | otherwise -> ExpNegative . decupleToNovDecs $ dc
       _ -> error "params: bad number value"
 
 concrete :: Params -> Concrete
 concrete a = Concrete d
   where
     abstract = DN.Abstract (pmSign a)
-      $ DN.Finite (pmCoefficient a) (DN.Exponent ex)
+      $ DN.Finite (pennyCoefficientToDeka . pmCoefficient $ a)
+                  (DN.Exponent ex)
     ex = case pmExponent a of
       ExpZero -> DN.Cero
-      ExpNegative dc -> DN.Completo D.Neg dc
+      ExpNegative nv -> DN.Completo D.Neg (novDecsToDecuple nv)
     d | fl == D.emptyFlags = dec
       | otherwise = throw
           $ ArithmeticError "concrete: value out of range"

@@ -10,7 +10,6 @@ import Data.Sums
 import Deka.Dec (Sign)
 import qualified Deka.Native.Abstract as DN
 import Data.Maybe
-import qualified Data.Sequence as S
 
 fromConcrete
   :: (Sign -> p)
@@ -20,9 +19,9 @@ fromConcrete
   -> UngroupedPolar r p
 fromConcrete getP rdx conc = UngroupedPolar plrty
   where
-    plrty = case DN.unCoefficient coe of
-      DN.Nil -> Center uz
-      DN.Plenus dc -> OffCenter plr unz
+    plrty = case coe of
+      CoeZero -> Center uz
+      CoeNonZero dc -> OffCenter plr unz
         where
           unz = ungroupedNonZero rdx dc ex
       where
@@ -33,14 +32,11 @@ fromConcrete getP rdx conc = UngroupedPolar plrty
 
 ungroupedNonZero
   :: Radix r
-  -> DN.Decuple
+  -> NovDecs
   -> Exponent
   -> UngroupedNonZero r
 ungroupedNonZero rdx dcple expnt = UngroupedNonZero $ case expnt of
-  ExpZero -> S3a $ UNWhole (NovDecs nv dcs)
-    where
-      DN.Decuple nv ls = dcple
-      dcs = S.fromList ls
+  ExpZero -> S3a $ UNWhole dcple
   _ -> undefined
 
 exponentToUngroupedZero

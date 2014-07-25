@@ -7,6 +7,7 @@ import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.RadGroup
 import Data.Sums
+import Penny.Numbers.Concrete (NovDecs(..))
 
 -- | Groups digits.  Rules for digit grouping:
 --

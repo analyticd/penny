@@ -4,42 +4,11 @@ module Penny.Numbers.Abstract.Unpolar where
 
 import Data.Sequence (Seq)
 import Penny.Numbers.Abstract.RadGroup
-import Deka.Native (Novem(..), Decem(..))
+import Deka.Native (Decem(..))
+import Penny.Numbers.Concrete
 
 data NonNegative = Zero | Plus NonNegative
   deriving (Eq, Ord, Show)
-
-{-
--- | Splits a Decuple according to the contents of an exponent.
-splitDecuple
-  :: Decuple
-  -- ^ The exponent
-  -> Decuple
-  -- ^ Decuple to split
-  -> Either (Decuple, Maybe DecDecs) (ZeroesNovDecs)
-  -- ^ If the exponent is greater than or equal to the number of
-  -- digits in the Decuple to split, returns a Right; otherwise,
-  -- returns a Left
-
-splitDecuple expt (Decuple nv dcs)
-  = finish $ go exptInt [] (reverse dcs)
-  where
-    exptInt = decupleToInt expt
-    _types = exptInt :: Integer
-
-    go e dsSoFar ds
-      | e < 0 = error "splitDecuple: negative"
-      | e == 0 = (0, dsSoFar, ds)
-      | otherwise = case ds of
-          [] -> (e, dsSoFar, [])
-          x:xs -> go (pred e) (x : dsSoFar) xs
-
-    finish (e, dsSoFar, dsRem) = case reverse dsRem of
-      [] -> case intToNonNegative (pred e) of
-        Nothing -> Left (Decuple nv dsSoFar, Nothing)
-        Just nn -> Right (ZeroesNovDecs nn nv dsSoFar)
-      x:xs -> Left (Decuple nv dsSoFar, Just (DecDecs x xs))
--}
 
 intToNonNegative :: Integral a => a -> Maybe NonNegative
 intToNonNegative a
@@ -61,11 +30,6 @@ intToPositive a
     go soFar i
       | i == 1 = soFar
       | otherwise = go (Succ soFar) (pred i)
-
-data NovDecs = NovDecs
-  { ndNovem :: Novem
-  , ndDecems :: Seq Decem
-  } deriving (Eq, Ord, Show)
 
 data ZeroesNovDecs = ZeroesNovDecs
   { zndZeroes :: NonNegative
