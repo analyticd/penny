@@ -40,11 +40,11 @@ module Penny.Numbers.Concrete
 import Data.Typeable
 import qualified Deka.Dec as D
 import qualified Deka.Native as DN
+import Penny.Numbers.Abstract.Unpolar
 import Control.Exception
 import qualified Data.ByteString.Char8 as BS8
 import Data.Monoid
 import Prelude hiding (negate, exponent)
-import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import qualified Data.Foldable as Fdbl
 
@@ -143,29 +143,6 @@ newtype Mult = Mult { unMult :: Concrete }
 instance Monoid Mult where
   mempty = Mult one
   mappend (Mult x) (Mult y) = Mult $ x * y
-
--- | Exponents.  Unlike exponents in Deka, Penny does not use
--- positive exponents because there is no unambiguous way to
--- represent them using ordinary notation.  All exponents are either
--- negative or zero.
-
-data Exponent
-  = ExpZero
-  | ExpNegative NovDecs
-  deriving (Eq, Ord, Show)
-
-data NovDecs = NovDecs
-  { ndNovem :: DN.Novem
-  , ndDecems :: Seq DN.Decem
-  } deriving (Eq, Ord, Show)
-
--- | Coefficients.  Different from Deka coefficients in form but not
--- substance.
-
-data Coefficient
-  = CoeZero
-  | CoeNonZero NovDecs
-  deriving (Eq, Ord, Show)
 
 novDecsToDecuple :: NovDecs -> DN.Decuple
 novDecsToDecuple (NovDecs nv ds) = DN.Decuple nv (Fdbl.toList ds)

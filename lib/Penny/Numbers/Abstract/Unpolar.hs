@@ -4,8 +4,7 @@ module Penny.Numbers.Abstract.Unpolar where
 
 import Data.Sequence (Seq)
 import Penny.Numbers.Abstract.RadGroup
-import Deka.Native (Decem(..))
-import Penny.Numbers.Concrete
+import Deka.Native (Novem(..), Decem(..))
 
 data NonNegative = Zero | Plus NonNegative
   deriving (Eq, Ord, Show)
@@ -30,6 +29,29 @@ intToPositive a
     go soFar i
       | i == 1 = soFar
       | otherwise = go (Succ soFar) (pred i)
+
+-- | Exponents.  Unlike exponents in Deka, Penny does not use
+-- positive exponents because there is no unambiguous way to
+-- represent them using ordinary notation.  All exponents are either
+-- negative or zero.
+
+data Exponent
+  = ExpZero
+  | ExpNegative NovDecs
+  deriving (Eq, Ord, Show)
+
+data NovDecs = NovDecs
+  { ndNovem :: Novem
+  , ndDecems :: Seq Decem
+  } deriving (Eq, Ord, Show)
+
+-- | Coefficients.  Different from Deka coefficients in form but not
+-- substance.
+
+data Coefficient
+  = CoeZero
+  | CoeNonZero NovDecs
+  deriving (Eq, Ord, Show)
 
 data ZeroesNovDecs = ZeroesNovDecs
   { zndZeroes :: NonNegative
