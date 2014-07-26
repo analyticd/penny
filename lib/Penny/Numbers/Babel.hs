@@ -8,8 +8,6 @@ import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Concrete
 import Data.Sums
 import Deka.Dec (Sign)
-import qualified Deka.Native.Abstract as DN
-import Data.Maybe
 
 fromConcrete
   :: (Sign -> p)
@@ -45,13 +43,8 @@ exponentToUngroupedZero
   -> UngroupedZero r
 exponentToUngroupedZero rdx expnt = UngroupedZero $ case expnt of
   ExpZero -> S2a (UZBare ZeroDigit)
-  ExpNegative dc -> fromMaybe (error msg) $ do
-    let i = DN.decupleToInt dc
-        _types = i :: Integer
-    p <- intToPositive i
-    return $ S2b (UZTrailing ZeroDigit rdx (Just $ Zeroes p))
-    where
-      msg = "exponentToUngroupedZero: error"
+  ExpNegative nd ->
+    S2b . UZTrailing ZeroDigit rdx . Just . Zeroes . novDecsToPos $ nd
 
 toConcrete
   :: (p -> Sign)

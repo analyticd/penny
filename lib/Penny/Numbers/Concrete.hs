@@ -11,9 +11,6 @@ module Penny.Numbers.Concrete
   , simpleEq
 
   -- * Conversions
-  , NovDecs(..)
-  , Coefficient(..)
-  , Exponent(..)
   , Params(..)
   , params
   , concrete

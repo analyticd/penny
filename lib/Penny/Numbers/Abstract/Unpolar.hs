@@ -2,49 +2,11 @@
 -- | Unpolar abstract numbers.
 module Penny.Numbers.Abstract.Unpolar where
 
-import Data.Sequence (Seq)
+import Data.Sequence (Seq, ViewR(..))
+import qualified Data.Sequence as S
 import Penny.Numbers.Abstract.RadGroup
+import Penny.Numbers.Natural
 import Deka.Native.Abstract
-import Data.Maybe
-
-data NonNegative = Zero | Plus !Positive
-  deriving (Eq, Ord, Show)
-
-intToNonNegative :: Integral a => a -> Maybe NonNegative
-intToNonNegative a
-  | a < 0 = Nothing
-  | a == 0 = Just Zero
-  | otherwise = Just . Plus
-      . fromMaybe (error "intToNonNegative: error") . intToPositive $ a
-
-data Positive = One | Succ !Positive
-  deriving (Eq, Ord, Show)
-
-intToPositive :: Integral a => a -> Maybe Positive
-intToPositive a
-  | a < 1 = Nothing
-  | otherwise = Just $ go One a
-  where
-    go soFar i
-      | i == 1 = soFar
-      | otherwise = go (Succ soFar) (pred i)
-
-novemToPositive :: Novem -> Positive
-novemToPositive n = case n of
-  D1 -> One
-  D2 -> Succ One
-  D3 -> Succ . Succ $ One
-  D4 -> Succ . Succ . Succ $ One
-  D5 -> Succ . Succ . Succ . Succ $ One
-  D6 -> Succ . Succ . Succ . Succ . Succ $ One
-  D7 -> Succ . Succ . Succ . Succ . Succ . Succ $ One
-  D8 -> Succ . Succ . Succ . Succ . Succ . Succ . Succ $ One
-  D9 -> Succ . Succ . Succ . Succ . Succ . Succ . Succ . Succ $ One
-
-decemToNonNegative :: Decem -> NonNegative
-decemToNonNegative d = case d of
-  D0 -> Zero
-  Nonem n -> Plus . novemToPositive $ n
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
 -- positive exponents because there is no unambiguous way to
@@ -61,15 +23,27 @@ data NovDecs = NovDecs
   , ndDecems :: Seq Decem
   } deriving (Eq, Ord, Show)
 
-novDecsToPositive :: NovDecs -> Positive
-novDecsToPositive (NovDecs n ds) = finish $ go 0 Zero ds
+novDecsToPos :: NovDecs -> Pos
+novDecsToPos (NovDecs nv ds) = finish $ go Zero Zero ds
   where
-    (finish, go) = undefined
 
-loop :: Integer -> (a -> a) -> a -> a
-loop !i f a
-  | i <= 0 = a
-  | otherwise = loop (i - 1) f (f a)
+    go acc places sq = case S.viewr sq of
+      EmptyR -> (acc, places)
+      rest :> dig -> go acc' (nextNonNeg places) rest
+        where
+          acc' = addNonNeg acc
+               . multNonNeg (decemToNonNeg dig)
+               . expNonNeg tenNonNeg
+               $ places
+
+    finish (acc, places) = case acc of
+      Zero -> thisPlace
+      NonZero p -> addPos p thisPlace
+      where
+        thisPlace = case places of
+          Zero -> novemToPos nv
+          NonZero plPos ->
+            multPos (novemToPos nv) . expPos tenPos $ plPos
 
 -- | Coefficients.  Different from Deka coefficients in form but not
 -- substance.
@@ -80,7 +54,7 @@ data Coefficient
   deriving (Eq, Ord, Show)
 
 data ZeroesNovDecs = ZeroesNovDecs
-  { zndZeroes :: NonNegative
+  { zndZeroes :: NonNeg
   , zndNovDecs :: NovDecs
   } deriving (Eq, Ord, Show)
 
@@ -93,7 +67,7 @@ newtype HasZeroDigit = HasZeroDigit { unHasZeroDigit :: Bool }
 data ZeroDigit = ZeroDigit
   deriving (Eq, Ord, Show)
 
-data Zeroes = Zeroes Positive
+data Zeroes = Zeroes Pos
   deriving (Eq, Ord, Show)
 
 -- Ungrouped - non-zero
