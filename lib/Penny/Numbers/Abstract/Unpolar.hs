@@ -1,13 +1,16 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE EmptyDataDecls #-}
 -- | Unpolar abstract numbers.
 module Penny.Numbers.Abstract.Unpolar where
 
 import Data.Maybe
-import Data.Sequence (Seq, ViewR(..), ViewL(..))
+import Control.Monad (join)
+import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|))
 import qualified Data.Sequence as S
 import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Natural
 import Deka.Native.Abstract
+import qualified Data.Foldable as F
+import Data.Monoid
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
 -- positive exponents because there is no unambiguous way to
@@ -79,39 +82,53 @@ data ZeroesNovDecs = ZeroesNovDecs
 data DecDecs = DecDecs Decem (Seq Decem)
   deriving (Eq, Ord, Show)
 
+flattenDecDecs :: DecDecs -> Seq Decem
+flattenDecDecs (DecDecs d1 ds) = d1 <| ds
+
 newtype HasZeroDigit = HasZeroDigit { unHasZeroDigit :: Bool }
   deriving (Eq, Ord, Show)
 
 data ZeroDigit = ZeroDigit
   deriving (Eq, Ord, Show)
 
-data Zeroes = Zeroes Pos
+newtype Zeroes = Zeroes { unZeroes :: Pos }
   deriving (Eq, Ord, Show)
+
+addZeroes :: Zeroes -> Zeroes -> Zeroes
+addZeroes (Zeroes x) (Zeroes y) = Zeroes $ addPos x y
 
 -- Ungrouped - non-zero
 
-data UNWhole = UNWhole NovDecs
+newtype UNWhole = UNWhole { unUNWhole :: NovDecs }
   deriving (Eq, Ord, Show)
 
 data UNWholeRadix r = UNWholeRadix NovDecs (Radix r) (Maybe DecDecs)
   deriving (Eq, Ord, Show)
 
-data UNRadFrac r = UNRadFrac (Maybe ZeroDigit) (Radix r) ZeroesNovDecs
+data UNRadFrac r = UNRadFrac HasZeroDigit (Radix r) ZeroesNovDecs
   deriving (Eq, Ord, Show)
 
 -- Ungrouped - zero
 
-data UZBare = UZBare ZeroDigit
+-- | An ungrouped zero; consists only of the zero digit.
+data UZZeroOnly = UZZeroOnly
   deriving (Eq, Ord, Show)
 
-data UZTrailing r = UZTrailing ZeroDigit (Radix r) (Maybe Zeroes)
+data UZTrailing r = UZTrailing HasZeroDigit (Radix r) (Maybe Zeroes)
   deriving (Eq, Ord, Show)
 
 -- Grouped - zero
 
-data GZ r = GZ (Maybe ZeroDigit) (Radix r) Zeroes (Group r Zeroes)
+data GZ r = GZ HasZeroDigit (Radix r) Zeroes (Group r Zeroes)
                  (Seq (Group r Zeroes))
   deriving (Eq, Ord, Show)
+
+ungroupGZ :: GZ r -> UZTrailing r
+ungroupGZ (GZ _ rdx z1 g1 gs) =
+  UZTrailing (HasZeroDigit True) rdx (Just zs)
+  where
+    zs = F.foldl' addZeroes (addZeroes z1 . groupPayload $ g1)
+      . fmap groupPayload $ gs
 
 -- Grouped - non-zero
 
@@ -122,6 +139,13 @@ data MasunoGroupedLeft r =
   MasunoGroupedLeft NovDecs (Group r DecDecs) (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)
 
+ungroupMasunoGroupedLeft
+  :: MasunoGroupedLeft r
+  -> UNWhole
+ungroupMasunoGroupedLeft (MasunoGroupedLeft (NovDecs nv ds) g1 gs) =
+  UNWhole . NovDecs nv $ ds <> flattenDecDecs (groupPayload g1)
+    <> join (fmap (flattenDecDecs . groupPayload) gs)
+
 -- | Greater than or equal to one, grouped on left side, with radix.
 -- Optional grouping on right side.
 data MasunoGroupedLeftRad r =
@@ -130,6 +154,17 @@ data MasunoGroupedLeftRad r =
                        (Maybe (DecDecs, Seq (Group r DecDecs)))
   deriving (Eq, Ord, Show)
 
+ungroupMasunoGroupedLeftRad
+  :: MasunoGroupedLeftRad r
+  -> UNWholeRadix r
+ungroupMasunoGroupedLeftRad (MasunoGroupedLeftRad mgl rdx may) =
+  UNWholeRadix nd rdx may'
+  where
+    nd = unUNWhole $ ungroupMasunoGroupedLeft mgl
+    may' = fmap ungroupPair may
+    ungroupPair (DecDecs d1 ds, sq) = DecDecs d1 (ds <>
+      join (fmap (flattenDecDecs . groupPayload) sq))
+
 -- | Greater than or equal to one, grouped on right side only.
 
 data MasunoGroupedRight r =
@@ -137,21 +172,45 @@ data MasunoGroupedRight r =
                      DecDecs (Group r DecDecs) (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)
 
+ungroupMasunoGroupedRight
+  :: MasunoGroupedRight r
+  -> UNWholeRadix r
+ungroupMasunoGroupedRight (MasunoGroupedRight nd rdx dd1 g1 gs) =
+  UNWholeRadix nd rdx (Just dd')
+  where
+    DecDecs d1 ds = dd1
+    dd' = DecDecs d1 (ds <> flattenDecDecs (groupPayload g1)
+      <> join (fmap (flattenDecDecs . groupPayload) gs))
+
 -- Grouped - less than one
 
 -- | Less than one, first group is zeroes only.  Optional leading
 -- zero.
 
 data FracunoFirstGroupZ r =
-  FracunoFirstGroupZ (Maybe ZeroDigit) (Radix r)
+  FracunoFirstGroupZ HasZeroDigit (Radix r)
                      Zeroes (Seq (Group r Zeroes))
                      (Group r ZeroesNovDecs) (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)
 
+ungroupFracunoFirstGroupZ
+  :: FracunoFirstGroupZ r
+  -> UNRadFrac r
+ungroupFracunoFirstGroupZ = undefined
+{-
+ungroupedFracunoFirstGroupZ
+  (FracunoFirstGroupZ hzd rdx zs szs g1 gs) =
+  UNRadFrac hzd rdx znd
+  where
+    znd = ZeroesNovDecs zeros nd
+    zeros = NonZero . unZeroes
+      . F.foldl' addZeroes (addZeroes zs . groupPayload $ g1)
+      . fmap groupPayload $ gs
+-}
 -- | Less than one, first group has non-zero digit.  Optional leading
 -- zero.
 data FracunoFirstGroupNZ r =
-  FracunoFirstGroupNZ (Maybe ZeroDigit) (Radix r)
+  FracunoFirstGroupNZ HasZeroDigit (Radix r)
                       ZeroesNovDecs (Group r DecDecs)
                       (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)

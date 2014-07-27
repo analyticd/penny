@@ -65,7 +65,7 @@ finishUngroupedNonZero
   -> S3 a (UNWholeRadix r) (UNRadFrac r)
 finishUngroupedNonZero nv rdx ei = case ei of
   Left (plcs, dcsSoFar) ->
-    S3c . UNRadFrac (Just ZeroDigit) rdx . ZeroesNovDecs z $
+    S3c . UNRadFrac (HasZeroDigit True) rdx . ZeroesNovDecs z $
       NovDecs nv dcsSoFar
     where
       z = case plcs of
@@ -86,9 +86,10 @@ exponentToUngroupedZero
   -> Exponent
   -> UngroupedZero r
 exponentToUngroupedZero rdx expnt = UngroupedZero $ case expnt of
-  ExpZero -> S2a (UZBare ZeroDigit)
+  ExpZero -> S2a UZZeroOnly
   ExpNegative nd ->
-    S2b . UZTrailing ZeroDigit rdx . Just . Zeroes . novDecsToPos $ nd
+    S2b . UZTrailing (HasZeroDigit True) rdx
+    . Just . Zeroes . novDecsToPos $ nd
 
 toConcrete
   :: (p -> Sign)
@@ -109,7 +110,7 @@ ungroupedZeroCoeExp
   :: UngroupedZero r
   -> (Coefficient, Exponent)
 ungroupedZeroCoeExp (UngroupedZero sm) = case sm of
-  S2a (UZBare _) -> (CoeZero, ExpZero)
+  S2a UZZeroOnly -> (CoeZero, ExpZero)
   S2b (UZTrailing _ _ mz) -> (CoeZero, expt)
     where
       expt = case mz of

@@ -62,7 +62,7 @@ casePolarity fn fo a = case a of
 -- # Ungrouped
 
 newtype UngroupedZero r
-  = UngroupedZero { unUngroupedZero :: S2 UZBare (UZTrailing r) }
+  = UngroupedZero { unUngroupedZero :: S2 UZZeroOnly (UZTrailing r) }
   deriving (Eq, Ord, Show)
 
 newtype UngroupedNonZero r
@@ -83,10 +83,15 @@ newtype UngroupedPolar r p = UngroupedPolar
   deriving (Eq, Ord, Show)
 
 neutralizeUngroupedPolar :: UngroupedPolar r p -> UngroupedUnpolar r
-neutralizeUngroupedPolar = undefined
+neutralizeUngroupedPolar (UngroupedPolar py) = UngroupedUnpolar $ case py of
+  Center uz -> S2a uz
+  OffCenter _ unz -> S2b unz
 
 polarizeUngroupedUnpolar :: p -> UngroupedUnpolar r -> UngroupedPolar r p
-polarizeUngroupedUnpolar = undefined
+polarizeUngroupedUnpolar p (UngroupedUnpolar s) =
+  UngroupedPolar $ case s of
+    S2a uz -> Center uz
+    S2b unz -> OffCenter p unz
 
 -- # Grouped
 
@@ -112,10 +117,14 @@ newtype GroupedPolar r p = GroupedPolar
 
 
 neutralizeGroupedPolar :: GroupedPolar r p -> GroupedUnpolar r
-neutralizeGroupedPolar = undefined
+neutralizeGroupedPolar (GroupedPolar py) = GroupedUnpolar $ case py of
+  Center gz -> S2a gz
+  OffCenter _ o -> S2b o
 
 polarizeGroupedUnpolar :: p -> GroupedUnpolar r -> GroupedPolar r p
-polarizeGroupedUnpolar = undefined
+polarizeGroupedUnpolar p (GroupedUnpolar s) = GroupedPolar $ case s of
+  S2a gz -> Center gz
+  S2b o -> OffCenter p o
 
 ungroupGroupedPolar :: GroupedPolar r p -> UngroupedPolar r p
 ungroupGroupedPolar = undefined
