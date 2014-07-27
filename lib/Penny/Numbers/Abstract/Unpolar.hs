@@ -2,7 +2,8 @@
 -- | Unpolar abstract numbers.
 module Penny.Numbers.Abstract.Unpolar where
 
-import Data.Sequence (Seq, ViewR(..))
+import Data.Maybe
+import Data.Sequence (Seq, ViewR(..), ViewL(..))
 import qualified Data.Sequence as S
 import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Natural
@@ -22,6 +23,23 @@ data NovDecs = NovDecs
   { ndNovem :: Novem
   , ndDecems :: Seq Decem
   } deriving (Eq, Ord, Show)
+
+posToNovDecs :: Pos -> NovDecs
+posToNovDecs = finish . S.unfoldl unfolder . NonZero
+  where
+    unfolder nn
+      | qt == Zero = Nothing
+      | otherwise = Just (qt, dg)
+      where
+        (qt, rm) = divNonNegByPos nn tenPos
+        dg = fromMaybe (error "posToNovDecs: error: digit greater than 9")
+          . nonNegToDecem $ rm
+
+    finish acc = case S.viewl acc of
+      EmptyL -> error "posToNovDecs: error: empty accumulator"
+      beg :< rest -> case beg of
+        D0 -> error "posToNovDecs: error: zero first digit"
+        Nonem n -> NovDecs n rest
 
 novDecsToPos :: NovDecs -> Pos
 novDecsToPos (NovDecs nv ds) = finish $ go Zero Zero ds
