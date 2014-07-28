@@ -3,7 +3,7 @@
 -- http://www.github.com/massysett/cartel
 --
 -- Script name used to generate: genCabal.hs
--- Generated on: 2014-07-28 12:39:42.569359 EDT
+-- Generated on: 2014-07-28 17:29:24.940512 EDT
 -- Cartel library version: 0.10.0.2
 name: penny-tests
 version: 0.33.0.0
@@ -44,10 +44,13 @@ Library
     , Data.Sequence.Generators
     , Data.Sequence.Shrinkers
     , Penny.Numbers.Abstract.RadGroup.Generators
+    , Penny.Numbers.Abstract.RadGroup.Shrinkers
     , Penny.Numbers.Abstract.Unpolar.Generators
     , Penny.Numbers.Natural.Coarbitrary
     , Penny.Numbers.Natural.Generators
     , Penny.Numbers.Natural.Shrinkers
+    , Prelude.Generators
+    , Prelude.Shrinkers
   exposed: True
   hs-source-dirs:
       lib
