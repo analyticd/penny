@@ -23,7 +23,7 @@ fromConcrete getP rdx conc = UngroupedPolar plrty
   where
     plrty = case coe of
       CoeZero -> Center uz
-      CoeNonZero dc -> OffCenter plr unz
+      CoeNonZero dc -> OffCenter unz plr
         where
           unz = ungroupedNonZero rdx dc ex
       where
@@ -102,7 +102,7 @@ toConcrete getSign (UngroupedPolar plrty) =
       Center uz -> (Sign0, c, e)
         where
           (c, e) = ungroupedZeroCoeExp uz
-      OffCenter sd unz -> (getSign sd, c, e)
+      OffCenter unz sd -> (getSign sd, c, e)
         where
           (c, e) = ungroupedNonZeroCoeExp unz
 

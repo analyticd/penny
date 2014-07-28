@@ -2,6 +2,7 @@ module Penny.Numbers.Abstract.Aggregates
   ( -- * Polarity
     Polarity(..)
   , casePolarity
+  , mapPolarity
 
     -- * Ungrouped - low-level aggregates
   , UngroupedZero(..)
@@ -51,13 +52,22 @@ import Penny.Numbers.Abstract.Unpolar
 -- itself, e.g. Debit or Credit.
 data Polarity n o p
   = Center n
-  | OffCenter p o
+  | OffCenter o p
   deriving (Eq, Ord, Show)
 
-casePolarity :: (n -> r) -> (p -> o -> r) -> Polarity n o p -> r
+casePolarity :: (n -> r) -> (o -> p -> r) -> Polarity n o p -> r
 casePolarity fn fo a = case a of
   Center n -> fn n
   OffCenter p o -> fo p o
+
+mapPolarity
+  :: (n -> n')
+  -> (o -> o')
+  -> Polarity n o p
+  -> Polarity n' o' p
+mapPolarity fn fo py = case py of
+  Center n -> Center (fn n)
+  OffCenter o p -> OffCenter (fo o) p
 
 -- # Ungrouped
 
@@ -85,13 +95,13 @@ newtype UngroupedPolar r p = UngroupedPolar
 neutralizeUngroupedPolar :: UngroupedPolar r p -> UngroupedUnpolar r
 neutralizeUngroupedPolar (UngroupedPolar py) = UngroupedUnpolar $ case py of
   Center uz -> S2a uz
-  OffCenter _ unz -> S2b unz
+  OffCenter unz _ -> S2b unz
 
 polarizeUngroupedUnpolar :: p -> UngroupedUnpolar r -> UngroupedPolar r p
 polarizeUngroupedUnpolar p (UngroupedUnpolar s) =
   UngroupedPolar $ case s of
     S2a uz -> Center uz
-    S2b unz -> OffCenter p unz
+    S2b unz -> OffCenter unz p
 
 -- # Grouped
 
@@ -119,12 +129,12 @@ newtype GroupedPolar r p = GroupedPolar
 neutralizeGroupedPolar :: GroupedPolar r p -> GroupedUnpolar r
 neutralizeGroupedPolar (GroupedPolar py) = GroupedUnpolar $ case py of
   Center gz -> S2a gz
-  OffCenter _ o -> S2b o
+  OffCenter o _ -> S2b o
 
 polarizeGroupedUnpolar :: p -> GroupedUnpolar r -> GroupedPolar r p
 polarizeGroupedUnpolar p (GroupedUnpolar s) = GroupedPolar $ case s of
   S2a gz -> Center gz
-  S2b o -> OffCenter p o
+  S2b o -> OffCenter o p
 
 ungroupGroupedPolar :: GroupedPolar r p -> UngroupedPolar r p
 ungroupGroupedPolar = undefined

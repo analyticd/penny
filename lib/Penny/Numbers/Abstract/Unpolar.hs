@@ -85,6 +85,13 @@ data DecDecs = DecDecs Decem (Seq Decem)
 flattenDecDecs :: DecDecs -> Seq Decem
 flattenDecDecs (DecDecs d1 ds) = d1 <| ds
 
+flattenGroupedDecDecs
+  :: Seq (Group r DecDecs)
+  -> Seq Decem
+flattenGroupedDecDecs
+  = join
+  . fmap (flattenDecDecs . groupPayload)
+
 newtype HasZeroDigit = HasZeroDigit { unHasZeroDigit :: Bool }
   deriving (Eq, Ord, Show)
 
@@ -144,7 +151,7 @@ ungroupMasunoGroupedLeft
   -> UNWhole
 ungroupMasunoGroupedLeft (MasunoGroupedLeft (NovDecs nv ds) g1 gs) =
   UNWhole . NovDecs nv $ ds <> flattenDecDecs (groupPayload g1)
-    <> join (fmap (flattenDecDecs . groupPayload) gs)
+    <> flattenGroupedDecDecs gs
 
 -- | Greater than or equal to one, grouped on left side, with radix.
 -- Optional grouping on right side.
@@ -163,7 +170,7 @@ ungroupMasunoGroupedLeftRad (MasunoGroupedLeftRad mgl rdx may) =
     nd = unUNWhole $ ungroupMasunoGroupedLeft mgl
     may' = fmap ungroupPair may
     ungroupPair (DecDecs d1 ds, sq) = DecDecs d1 (ds <>
-      join (fmap (flattenDecDecs . groupPayload) sq))
+      flattenGroupedDecDecs sq)
 
 -- | Greater than or equal to one, grouped on right side only.
 
@@ -180,7 +187,7 @@ ungroupMasunoGroupedRight (MasunoGroupedRight nd rdx dd1 g1 gs) =
   where
     DecDecs d1 ds = dd1
     dd' = DecDecs d1 (ds <> flattenDecDecs (groupPayload g1)
-      <> join (fmap (flattenDecDecs . groupPayload) gs))
+      <> flattenGroupedDecDecs gs)
 
 -- Grouped - less than one
 
@@ -196,17 +203,21 @@ data FracunoFirstGroupZ r =
 ungroupFracunoFirstGroupZ
   :: FracunoFirstGroupZ r
   -> UNRadFrac r
-ungroupFracunoFirstGroupZ = undefined
-{-
-ungroupedFracunoFirstGroupZ
-  (FracunoFirstGroupZ hzd rdx zs szs g1 gs) =
-  UNRadFrac hzd rdx znd
+ungroupFracunoFirstGroupZ fnz = UNRadFrac hzd rdx znd
   where
-    znd = ZeroesNovDecs zeros nd
-    zeros = NonZero . unZeroes
-      . F.foldl' addZeroes (addZeroes zs . groupPayload $ g1)
-      . fmap groupPayload $ gs
--}
+    FracunoFirstGroupZ hzd rdx zz1 zzs gz1 dds = fnz
+    zzTot = F.foldl add zz . fmap groupPayload $ zzs
+      where
+        zz = case zndZeroes . groupPayload $ gz1 of
+          Zero -> zz1
+          NonZero p -> add zz1 . Zeroes $ p
+        add = addZeroes
+    znd = ZeroesNovDecs (NonZero . unZeroes $ zzTot) nd
+    nd = NovDecs nd1 dd
+    NovDecs nd1 dd1 = zndNovDecs . groupPayload $ gz1
+    dd = dd1 <> flattenGroupedDecDecs dds
+
+
 -- | Less than one, first group has non-zero digit.  Optional leading
 -- zero.
 data FracunoFirstGroupNZ r =
@@ -215,3 +226,13 @@ data FracunoFirstGroupNZ r =
                       (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)
 
+ungroupFracunoFirstGroupNZ
+  :: FracunoFirstGroupNZ r
+  -> UNRadFrac r
+ungroupFracunoFirstGroupNZ fnz = UNRadFrac hzd rdx znd'
+  where
+    FracunoFirstGroupNZ hzd rdx znd g1 gs = fnz
+    ZeroesNovDecs nzz (NovDecs nv dd1) = znd
+    dds = dd1 <> flattenDecDecs (groupPayload g1)
+      <> flattenGroupedDecDecs gs
+    znd' = ZeroesNovDecs nzz (NovDecs nv dds)
