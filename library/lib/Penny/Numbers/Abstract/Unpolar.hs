@@ -12,6 +12,11 @@ import Deka.Native.Abstract
 import qualified Data.Foldable as F
 import Data.Monoid
 
+data NovDecs = NovDecs
+  { ndNovem :: Novem
+  , ndDecems :: Seq Decem
+  } deriving (Eq, Ord, Show)
+
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
 -- positive exponents because there is no unambiguous way to
 -- represent them using ordinary notation.  All exponents are either
@@ -21,11 +26,6 @@ data Exponent
   = ExpZero
   | ExpNegative NovDecs
   deriving (Eq, Ord, Show)
-
-data NovDecs = NovDecs
-  { ndNovem :: Novem
-  , ndDecems :: Seq Decem
-  } deriving (Eq, Ord, Show)
 
 posToNovDecs :: Pos -> NovDecs
 posToNovDecs = finish . S.unfoldl unfolder . NonZero

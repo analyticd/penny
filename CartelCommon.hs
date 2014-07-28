@@ -2,10 +2,13 @@ module CartelCommon where
 
 import qualified Cartel as A
 
--- Packages
+versionInts :: [Int]
+versionInts = [0,33,0,0]
 
-penny :: A.Package
-penny = A.Package "penny" (Just (A.Leaf (A.Constraint EQ version)))
+version :: A.Version
+version = A.Version versionInts
+
+-- Packages
 
 base :: A.Package
 base = A.closedOpen "base" [4,5,0,0] [4,8]
@@ -88,10 +91,16 @@ rainbow = A.nextBreaking "rainbow" [0,14,0,0]
 rainbox :: A.Package
 rainbox = A.nextBreaking "rainbox" [0,4,0,2]
 
--- End Packages
+quickpull :: A.Package
+quickpull = A.nextBreaking "quickpull" [0,2,0,0]
 
-version :: A.Version
-version = A.Version [0,33,0,0]
+penny :: A.Package
+penny = A.exactly "penny" versionInts
+
+dekaTests :: A.Package
+dekaTests = A.nextBreaking "deka-tests" [0,6,0,0]
+
+-- End Packages
 
 ghcOptions :: [String]
 ghcOptions = ["-Wall"]
@@ -159,11 +168,4 @@ commonBuildInfo =
   [ A.ghcOptions ghcOptions
   , A.defaultLanguage A.Haskell2010
   ]
-
-commonOptions :: A.Field a => [a]
-commonOptions = cond : commonBuildInfo
-  where
-    cond = A.cif (A.flag "debug")
-      [ (A.ghcOptions ["-auto-all", "-caf-all", "-rtsopts"]) ]
-      []
 

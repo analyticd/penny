@@ -1,0 +1,62 @@
+-- This Cabal file generated using the Cartel library.
+-- Cartel is available at:
+-- http://www.github.com/massysett/cartel
+--
+-- Script name used to generate: genCabal.hs
+-- Generated on: 2014-07-28 12:39:42.569359 EDT
+-- Cartel library version: 0.10.0.2
+name: penny-tests
+version: 0.33.0.0
+cabal-version: >= 1.14
+build-type: Simple
+license: BSD3
+license-file: LICENSE
+copyright: 2012 - 2014 Omari Norman
+author: Omari Norman
+maintainer: omari@smileystation.com
+stability: Experimental
+homepage: http://www.github.com/massysett/penny
+bug-reports: omari@smileystation.com
+synopsis: Extensible double-entry accounting system - tests
+description:
+  Penny is a double-entry accounting system.  You keep your records
+  in a plain-text file, and Penny gives you useful reports in
+  your UNIX shell.
+  .
+  For more information, please see
+  .
+  <http://www.github.com/massysett/penny>
+  .
+  This package contains a library with QuickCheck
+  generators, and executables to test the main
+  Penny library.
+category: Console, Finance
+tested-with: GHC == 7.4.1, GHC == 7.6.3, GHC == 7.8.2
+
+source-repository head
+  type: git
+  location: https://github.com/massysett/penny.git
+  branch: master
+
+Library
+  exposed-modules:
+      Data.Sequence.Coarbitrary
+    , Data.Sequence.Generators
+    , Data.Sequence.Shrinkers
+    , Penny.Numbers.Abstract.RadGroup.Generators
+    , Penny.Numbers.Abstract.Unpolar.Generators
+    , Penny.Numbers.Natural.Coarbitrary
+    , Penny.Numbers.Natural.Generators
+    , Penny.Numbers.Natural.Shrinkers
+  exposed: True
+  hs-source-dirs:
+      lib
+  build-depends:
+      base ((> 4.5.0.0 || == 4.5.0.0) && < 4.8)
+    , penny == 0.33.0.0
+    , QuickCheck ((> 2.7 || == 2.7) && < 2.8)
+    , containers ((> 0.4.2.1 || == 0.4.2.1) && < 0.6)
+    , deka-tests ((> 0.6.0.0 || == 0.6.0.0) && < 0.7)
+  ghc-options:
+      -Wall
+  default-language: Haskell2010

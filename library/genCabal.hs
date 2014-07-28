@@ -18,6 +18,13 @@ import qualified Cartel as A
 import Prelude hiding (either)
 import CartelCommon
 
+commonOptions :: A.Field a => [a]
+commonOptions = cond : commonBuildInfo
+  where
+    cond = A.cif (A.flag "debug")
+      [ (A.ghcOptions ["-auto-all", "-caf-all", "-rtsopts"]) ]
+      []
+
 flags :: [A.Flag]
 flags =
   [ A.Flag "debug" "turns on debugging options" False True
@@ -61,8 +68,6 @@ extraSourceFiles =
   , "doc/examples/*.pny"
   , "doc/man/*.1"
   , "doc/man/*.7"
-  , "versions.m4"
-  , "Makefile"
   , "current-versions.txt"
   , "minimum-versions.txt"
   , "changelog"

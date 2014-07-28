@@ -30,6 +30,9 @@ data Group a b = Group
   , groupPayload :: b
   } deriving (Eq, Ord, Show)
 
+instance Functor (Group a) where
+  fmap f (Group g p) = Group g (f p)
+
 data Period = Period
   deriving (Eq, Ord, Show)
 
