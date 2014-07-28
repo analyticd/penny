@@ -137,10 +137,30 @@ polarizeGroupedUnpolar p (GroupedUnpolar s) = GroupedPolar $ case s of
   S2b o -> OffCenter o p
 
 ungroupGroupedPolar :: GroupedPolar r p -> UngroupedPolar r p
-ungroupGroupedPolar = undefined
+ungroupGroupedPolar = UngroupedPolar . mapPolarity fn fo . unGroupedPolar
+  where
+    fn = UngroupedZero . S2b . ungroupGZ
+    fo = UngroupedNonZero
+      . caseS5 (S3a . ungroupMasunoGroupedLeft)
+               (S3b . ungroupMasunoGroupedLeftRad)
+               (S3b . ungroupMasunoGroupedRight)
+               (S3c . ungroupFracunoFirstGroupZ)
+               (S3c . ungroupFracunoFirstGroupNZ)
+      . unGroupedNonZero
 
 ungroupGroupedUnpolar :: GroupedUnpolar r -> UngroupedUnpolar r
-ungroupGroupedUnpolar = undefined
+ungroupGroupedUnpolar
+  = UngroupedUnpolar . mapS2 fz fnz . unGroupedUnpolar
+  where
+    fz = UngroupedZero . S2b . ungroupGZ
+    fnz = UngroupedNonZero
+      . caseS5 (S3a . ungroupMasunoGroupedLeft)
+               (S3b . ungroupMasunoGroupedLeftRad)
+               (S3b . ungroupMasunoGroupedRight)
+               (S3c . ungroupFracunoFirstGroupZ)
+               (S3c . ungroupFracunoFirstGroupNZ)
+      . unGroupedNonZero
+
 
 -- # Unpolar
 
@@ -155,16 +175,27 @@ newtype Polar r p = Polar
   deriving (Eq, Ord, Show)
 
 neutralizePolar :: Polar r p -> Unpolar r
-neutralizePolar = undefined
+neutralizePolar
+  = Unpolar
+  . mapS2 neutralizeUngroupedPolar neutralizeGroupedPolar
+  . unPolar
 
 polarizeUnpolar :: p -> Unpolar r -> Polar r p
-polarizeUnpolar = undefined
+polarizeUnpolar p
+  = Polar
+  . mapS2 (polarizeUngroupedUnpolar p) (polarizeGroupedUnpolar p)
+  . unUnpolar
+
 
 ungroupPolar :: Polar r p -> UngroupedPolar r p
-ungroupPolar = undefined
+ungroupPolar
+  = caseS2 id ungroupGroupedPolar
+  . unPolar
 
 ungroupUnpolar :: Unpolar r -> UngroupedUnpolar r
-ungroupUnpolar = undefined
+ungroupUnpolar
+  = caseS2 id ungroupGroupedUnpolar
+  . unUnpolar
 
 -- # All abstract types, polar and unpolar
 

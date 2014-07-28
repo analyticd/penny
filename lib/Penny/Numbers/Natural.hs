@@ -1,6 +1,7 @@
 module Penny.Numbers.Natural where
 
 import Deka.Native.Abstract
+import qualified Data.Foldable as F
 
 data Pos = One | Succ Pos
   deriving (Eq, Ord, Show)
@@ -109,3 +110,6 @@ tenNonNeg = nextNonNeg . decemToNonNeg . Nonem $ D9
 
 tenPos :: Pos
 tenPos = Succ . novemToPos $ D9
+
+length :: F.Foldable f => f a -> NonNeg
+length = F.foldl' (\a _ -> nextNonNeg a) Zero

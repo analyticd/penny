@@ -2,6 +2,7 @@
 
 module Penny.Numbers.Babel where
 
+import Data.Monoid
 import Data.Sequence
 import Deka.Native.Abstract (Novem, Decem)
 import qualified Data.Sequence as S
@@ -10,6 +11,7 @@ import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Concrete
 import Penny.Numbers.Natural
+import qualified Penny.Numbers.Natural as N
 import Data.Sums
 import Deka.Dec (Sign(..))
 
@@ -120,4 +122,26 @@ ungroupedZeroCoeExp (UngroupedZero sm) = case sm of
 ungroupedNonZeroCoeExp
   :: UngroupedNonZero r
   -> (Coefficient, Exponent)
-ungroupedNonZeroCoeExp = undefined
+ungroupedNonZeroCoeExp (UngroupedNonZero s3) = case s3 of
+
+  S3a (UNWhole nd) -> (CoeNonZero nd, ExpZero)
+
+  S3b (UNWholeRadix nd _ mayDD) -> (CoeNonZero nd', expt)
+    where
+      NovDecs nv dd = nd
+      dr = maybe S.empty flattenDecDecs mayDD
+      dd' = dd <> dr
+      nd' = NovDecs nv dd'
+      expt = case N.length dr of
+        Zero -> ExpZero
+        NonZero p -> ExpNegative . posToNovDecs $ p
+
+  S3c (UNRadFrac _ _ (ZeroesNovDecs zz nd)) -> (CoeNonZero nd, expt)
+      where
+        NovDecs _ ds = nd
+        lenNovDecs = case N.length ds of
+          Zero -> One
+          NonZero p -> Succ p
+        expt = ExpNegative . posToNovDecs $ case zz of
+          Zero -> lenNovDecs
+          NonZero x -> addPos x lenNovDecs
