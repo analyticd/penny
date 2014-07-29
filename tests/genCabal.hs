@@ -10,6 +10,7 @@ libraryDepends =
   , C.quickcheck
   , C.containers
   , C.dekaTests
+  , C.barecheck
   ]
 
 properties :: A.Properties

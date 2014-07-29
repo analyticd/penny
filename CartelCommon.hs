@@ -100,6 +100,9 @@ penny = A.exactly "penny" versionInts
 dekaTests :: A.Package
 dekaTests = A.nextBreaking "deka-tests" [0,6,0,0]
 
+barecheck :: A.Package
+barecheck = A.nextBreaking "barecheck" [0,2,0,0]
+
 -- End Packages
 
 ghcOptions :: [String]
