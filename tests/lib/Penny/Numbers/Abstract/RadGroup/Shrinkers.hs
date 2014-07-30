@@ -11,3 +11,6 @@ group
   -- ^ Group to shrink
   -> [Group a b]
 group fs fk = map fk . fs . groupPayload
+
+radix :: Radix r -> [Radix r]
+radix _ = []
