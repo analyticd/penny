@@ -11,6 +11,7 @@ libraryDepends =
   , C.containers
   , C.dekaTests
   , C.barecheck
+  , C.anonymous_sums_tests
   ]
 
 properties :: A.Properties

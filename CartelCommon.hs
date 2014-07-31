@@ -73,6 +73,9 @@ random = A.closedOpen "random" [1,0,0,0] [1,1]
 anonymous_sums :: A.Package
 anonymous_sums = A.nextBreaking "anonymous-sums" [0,4,0,0]
 
+anonymous_sums_tests :: A.Package
+anonymous_sums_tests = A.nextBreaking "anonymous-sums-tests" [0,4,0,0]
+
 matchers :: A.Package
 matchers = A.nextBreaking "matchers" [0,20,0,0]
 
