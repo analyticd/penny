@@ -3,6 +3,7 @@ module Penny.Transaction where
 import Penny.TopLine
 import Penny.Posting
 import Penny.Ents
+import Data.Sequence (Seq)
 
 data Transaction = Transaction
   { txnTopLine :: TopLine
@@ -14,8 +15,8 @@ data Bundle = Bundle
   , bunView :: View Posting
   } deriving (Eq, Ord, Show)
 
-bundles :: Transaction -> [Bundle]
-bundles (Transaction tl es) = map mkBundle . allViews $ es
+bundles :: Transaction -> Seq Bundle
+bundles (Transaction tl es) = fmap mkBundle . allViews $ es
   where
     mkBundle v = Bundle tl v
 

@@ -27,7 +27,8 @@ module Penny.Ents
 
   -- * Views
   , View
-  , view
+  , viewL
+  , viewR
   , allViews
   , unView
   , viewLeft
@@ -40,6 +41,8 @@ module Penny.Ents
   , changeCurrentMeta
   ) where
 
+
+-- # Imports
 
 import Penny.Balance
 import Penny.Common
@@ -55,6 +58,10 @@ import Control.Monad.Trans.Either
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.RadGroup
 import Data.Either.Combinators
+import Data.Sequence (Seq, (|>), (<|), ViewL(..), ViewR(..))
+import qualified Data.Sequence as S
+import qualified Data.Traversable as Tr
+import qualified Data.Foldable as F
 
 -- | Fields in the 'Ent' capture some of the information that was
 -- passed along in the 'T.Trio'.  'Entrio' captures the remaining
@@ -108,15 +115,15 @@ instance Functor Ent where
 -- 'Credit's of the same 'Commodity', and vice versa.
 --
 -- 'Ents' is a 'Monoid'.
-newtype Ents m = Ents { unEnts :: [Ent m] }
+newtype Ents m = Ents { unEnts :: Seq (Ent m) }
   deriving (Eq, Ord, Show)
 
 instance Functor Ents where
-  fmap f = Ents . map (fmap f) . unEnts
+  fmap f = Ents . fmap (fmap f) . unEnts
 
 instance Monoid (Ents m) where
-  mempty = Ents []
-  mappend (Ents x) (Ents y) = Ents $ x ++ y
+  mempty = Ents S.empty
+  mappend (Ents x) (Ents y) = Ents $ x <> y
 
 entToTrio :: Ent m -> T.Trio
 entToTrio (Ent q c t _) = case t of
@@ -208,11 +215,11 @@ procEntM (tri, mta) = do
 -- | Only creates an 'Ents' if all the 'T.Trio' are balanced.  See
 -- 'T.Trio' for more information on the rules this function follows.
 ents
-  :: [(T.Trio, m)]
+  :: Seq (T.Trio, m)
   -> Either Error (Ents m)
 ents ls =
   let (finalEi, finalBal) = flip runState emptyBalances
-       . runEitherT . mapM procEntM $ ls
+       . runEitherT . Tr.mapM procEntM $ ls
   in case finalEi of
       Left e -> Left . Error . Left $ e
       Right es
@@ -333,7 +340,7 @@ rEnts
   -> a
   -- ^ Metadata for inferred posting
 
-  -> [(Either (Unpolar Period) (Unpolar Comma), a)]
+  -> Seq (Either (Unpolar Period) (Unpolar Comma), a)
   -- ^ Each non-zero member, and its corresponding metadata
 
   -> Ents a
@@ -343,12 +350,12 @@ rEnts
   -- 'Entrio' of 'SZC', except for the inferred posting, which is 'E'.
 
 rEnts s cy ar mt ls
-  | null ls = Ents []
-  | otherwise = Ents $ zipWith mkEnt qs ls ++ [inferred]
+  | S.null ls = Ents S.empty
+  | otherwise = Ents $ S.zipWith mkEnt qs ls |> inferred
   where
-    qs = map mkQ . map fst $ ls
+    qs = fmap (mkQ . fst) ls
     mkQ = either (unpolarToQty s) (unpolarToQty s)
-    offset = Qty . negate . sum . map unQty $ qs
+    offset = Qty . negate . F.sum . fmap unQty $ qs
     inferred = Ent offset cy E mt
     mkEnt q (ei, m) = Ent q cy (QC ei' ar) m
       where
@@ -357,63 +364,71 @@ rEnts s cy ar mt ls
 -- | A single 'Ent' with information about how it relates to
 -- surrounding 'Ent' in the 'Ents'.
 data View a = View
-  { viewLeft :: [Ent a]
+  { viewLeft :: Seq (Ent a)
   -- ^ These 'Ent' are to the left of the 'viewCurrent' 'Ent'.  Closer
-  -- 'Ent' are at the head of the list.
+  -- 'Ent' are at the right end of the 'Seq'.
 
   , viewCurrent :: Ent a
   -- ^ The 'Ent' you are currently viewing
 
-  , viewRight :: [Ent a]
+  , viewRight :: Seq (Ent a)
   -- ^ These 'Ent' are to the right of the 'viewCurrent' 'Ent'.
-  -- Closer 'Ent' are at the head of the list.
+  -- Closer 'Ent' are at the left end of the 'Seq'.
 
   } deriving (Eq, Ord, Show)
 
 instance Functor View where
-  fmap f (View l c r) = View (map (fmap f) l) (fmap f c)
-    (map (fmap f) r)
+  fmap f (View l c r) = View (fmap (fmap f) l) (fmap f c)
+    (fmap (fmap f) r)
 
 -- | All 'Ent' that neighbor the 'viewCurrent' 'Ent'.  The list is
 -- ordered with all 'Ent' from left to right; the 'viewCurrent' 'Ent'
 -- is not in the resulting list.
-siblings :: View a -> [Ent a]
-siblings (View l _ r) = reverse l ++ r
+siblings :: View a -> Seq (Ent a)
+siblings (View l _ r) = l <> r
 
 -- | A 'View' of the head 'Ent' in the 'Ents'.  Is 'Nothing' if the
 -- 'Ents' is empty.
-view :: Ents a -> Maybe (View a)
-view (Ents es) = case es of
-  [] -> Nothing
-  x:xs -> Just $ View [] x xs
+viewL :: Ents a -> Maybe (View a)
+viewL (Ents es) = case S.viewl es of
+  EmptyL -> Nothing
+  x :< xs -> Just $ View S.empty x xs
+
+-- | A 'View' of the last 'Ent' in the 'Ents'.  Is 'Nothing' if the
+-- 'Ents is empty.
+viewR :: Ents a -> Maybe (View a)
+viewR (Ents es) = case S.viewr es of
+  EmptyR -> Nothing
+  xs :> x -> Just $ View xs x S.empty
 
 -- | A single 'View' for each 'Ent' in the 'Ents'.
-allViews :: Ents a -> [View a]
-allViews = go [] . unEnts
+allViews :: Ents a -> Seq (View a)
+allViews = go S.empty . unEnts
   where
-    go l curr = case curr of
-      [] -> []
-      x:xs -> View l x xs : go (x:l) xs
+    go l curr = case S.viewl curr of
+      EmptyL -> S.empty
+      x :< xs -> View l x xs <| go (x <| l) xs
+
 
 -- | Recreate the 'Ents' from a 'View'.
 unView :: View a -> Ents a
-unView (View l c r) = Ents $ reverse l ++ c:r
+unView (View l c r) = Ents $ l <> S.singleton c <> r
 
 -- | Get a new 'View' of the 'Ent' to the left of the 'viewCurrent'
 -- 'Ent'.  Is 'Nothing' if the input 'View' is already of the leftmost
 -- 'Ent'.
 moveLeft :: View a -> Maybe (View a)
-moveLeft (View l c r) = case l of
-  [] -> Nothing
-  x:xs -> Just $ View xs x (c:r)
+moveLeft (View l c r) = case S.viewr l of
+  EmptyR -> Nothing
+  xs :> x -> Just $ View xs x (c <| r)
 
 -- | Get a new 'View' of the 'Ent' to the right of the 'viewCurrent'
 -- 'Ent'.  Is 'Nothing' if the input 'View' is already of the
 -- rightmost 'Ent'.
 moveRight :: View a -> Maybe (View a)
-moveRight (View l c r) = case r of
-  [] -> Nothing
-  x:xs -> Just $ View (c:l) x xs
+moveRight (View l c r) = case S.viewl r of
+  EmptyL -> Nothing
+  x :< xs -> Just $ View (l |> c) x xs
 
 -- | Returns a 'View' whose 'viewCurrent' 'Ent' has been transformed
 -- by the given function.
