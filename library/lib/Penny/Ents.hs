@@ -18,6 +18,9 @@ module Penny.Ents
   , unEnts
   , ents
   , rEnts
+  , mapV
+  , sequence
+  , sequenceR
 
   -- * Errors
   , Error(..)
@@ -51,7 +54,7 @@ import Data.Monoid
 import qualified Penny.Trio as T
 import qualified Data.Map as M
 import Penny.Numbers.Concrete
-import Prelude hiding (negate)
+import Prelude hiding (negate, sequence)
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import Control.Monad.Trans.Either
@@ -62,6 +65,7 @@ import Data.Sequence (Seq, (|>), (<|), ViewL(..), ViewR(..))
 import qualified Data.Sequence as S
 import qualified Data.Traversable as Tr
 import qualified Data.Foldable as F
+import Control.Applicative
 
 -- | Fields in the 'Ent' capture some of the information that was
 -- passed along in the 'T.Trio'.  'Entrio' captures the remaining
@@ -124,6 +128,43 @@ instance Functor Ents where
 instance Monoid (Ents m) where
   mempty = Ents S.empty
   mappend (Ents x) (Ents y) = Ents $ x <> y
+
+instance F.Foldable Ents where
+  foldr f z = F.foldr f z . fmap entMeta . unEnts
+
+instance Tr.Traversable Ents where
+  sequenceA = sequence
+
+-- | Run each action in an 'Ents' from left to right.
+sequence :: Applicative f => Ents (f a) -> f (Ents a)
+sequence = fmap Ents . go . unEnts
+  where
+    go es = case S.viewl es of
+      EmptyL -> pure S.empty
+      (Ent q c e m) :< xs ->
+        (<|) <$> (Ent q c e <$> m)
+             <*> go xs
+
+-- | 'sequence' in reverse; that is, run each action in an 'Ents' from
+-- right to left.
+sequenceR :: Applicative f => Ents (f a) -> f (Ents a)
+sequenceR = fmap Ents . go . unEnts
+  where
+    go es = case S.viewr es of
+      EmptyR -> pure S.empty
+      xs :> (Ent q c e m) ->
+        (flip (|>)) <$> (Ent q c e <$> m) <*> go xs
+
+-- | Change the metadata on each 'Ent', using a function that has a
+-- view of the entire 'Ent'.  Like 'fmap' but gives a view of the
+-- whole 'Ent' rather than just the metadata.
+mapV :: (Ent a -> b) -> Ents a -> Ents b
+mapV f = Ents . go . unEnts
+  where
+    go s = case S.viewl s of
+      EmptyL -> S.empty
+      w@(Ent q c e _) :< xs -> Ent q c e (f w) <| go xs
+
 
 entToTrio :: Ent m -> T.Trio
 entToTrio (Ent q c t _) = case t of
@@ -380,6 +421,21 @@ data View a = View
 instance Functor View where
   fmap f (View l c r) = View (fmap (fmap f) l) (fmap f c)
     (fmap (fmap f) r)
+
+instance F.Foldable View where
+  foldr f z (View l c r) = F.foldr f z
+    (fmap entMeta $ l <> S.singleton c <> r)
+
+instance Tr.Traversable View where
+  sequenceA v = View
+    <$> trSeq (viewLeft v)
+    <*> trEnt (viewCurrent v)
+    <*> trSeq (viewRight v)
+    where
+      trEnt (Ent q c e m) = Ent q c e <$> m
+      trSeq sq = case S.viewl sq of
+        EmptyL -> pure S.empty
+        e :< es -> (<|) <$> trEnt e <*> trSeq es
 
 -- | All 'Ent' that neighbor the 'viewCurrent' 'Ent'.  The list is
 -- ordered with all 'Ent' from left to right; the 'viewCurrent' 'Ent'

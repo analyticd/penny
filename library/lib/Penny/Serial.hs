@@ -10,7 +10,7 @@ module Penny.Serial
   ) where
 
 import Control.Applicative (Applicative, (<*>), pure, (*>))
-import Control.Monad (ap, liftM, replicateM_)
+import Control.Monad (ap, liftM)
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as Tr
 import qualified Data.Foldable as Fdbl
@@ -56,34 +56,34 @@ makeSerials :: GenSerial a -> a
 makeSerials (GenSerial k) =
   let (r, _) = k (SerialSt 0 0) in r
 
-serialItems :: (Serial -> a -> b) -> [a] -> [b]
-serialItems f as = zipWith f (nSerials (length as)) as
-
-nSerials :: Int -> [Serial]
-nSerials n =
-  makeSerials $
-  (sequence . replicate n $ incrementBack)
-  *> (sequence . replicate n $ getSerial)
+serialItems :: Traversable t => (Serial -> a -> b) -> t a -> t b
+serialItems f c = makeSerials $ do
+  _ <- Tr.traverse (const incrementBack) c
+  let k a = do
+        s <- getSerial
+        return $ f s a
+  Tr.traverse k c
 
 serialSomeItems
-  :: (a -> Either b (Serial -> b))
-  -> [a]
-  -> [b]
+  :: Traversable t
+  => (a -> Either b (Serial -> b))
+  -> t a
+  -> t b
 serialSomeItems f as = makeSerials k
   where
     k = do
       let doIncr i = case f i of
             Left _ -> return ()
             Right _ -> incrementBack
-      mapM_ doIncr as
+      _ <- Tr.mapM doIncr as
       let addSer i = case f i of
             Left b -> return b
             Right add -> getSerial >>= return . add
-      mapM addSer as
+      Tr.mapM addSer as
 
 -- | Adds serials to items that are nested within other items.
 serialNestedItems
-  :: Traversable f
+  :: (Traversable f, Traversable t)
   => (a -> Either b ((f c), (Serial -> c -> d), (f d -> b)))
   -- ^ When applied to each item, this function returns Left if the
   -- item does not need a serial, or Right if it has items that need
@@ -91,26 +91,27 @@ serialNestedItems
   -- serials, the function that applies serials to each item, and a
   -- function to re-wrap the container with the serialed items.
 
-  -> [a]
-  -> [b]
+  -> t a
+  -> t b
 serialNestedItems getEi as = makeSerials k
   where
     k = do
       serialNestedIncrBack getEi as
-      mapM (serialNestedAddSerials getEi) as
+      Tr.mapM (serialNestedAddSerials getEi) as
 
 -- | Increments the back serial by the needed number of items.
 serialNestedIncrBack
-  :: Fdbl.Foldable f
+  :: (Fdbl.Foldable f, Tr.Traversable t)
   => (a -> Either b (f c, x, y))
-  -> [a]
+  -> t a
   -> GenSerial ()
-serialNestedIncrBack f = mapM_ doIncr where
+serialNestedIncrBack f t = Tr.mapM doIncr t *> pure () where
   doIncr i = case f i of
     Left _ -> return ()
     Right (ctnr, _, _) ->
       let len = length . Fdbl.toList $ ctnr
-      in replicateM_ len incrementBack
+      in (Tr.sequenceA . replicate len $ incrementBack)
+         *> pure ()
 
 -- | Assigns serials to nested items.
 serialNestedAddSerials
