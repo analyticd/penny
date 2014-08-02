@@ -1,4 +1,4 @@
-{-# LANGUAGE EmptyDataDecls #-}
+{-# LANGUAGE EmptyDataDecls, BangPatterns #-}
 -- | Unpolar abstract numbers.
 module Penny.Numbers.Abstract.Unpolar where
 
@@ -17,15 +17,14 @@ data NovDecs = NovDecs
   , ndDecems :: Seq Decem
   } deriving (Eq, Ord, Show)
 
--- | Exponents.  Unlike exponents in Deka, Penny does not use
--- positive exponents because there is no unambiguous way to
--- represent them using ordinary notation.  All exponents are either
--- negative or zero.
-
-data Exponent
-  = ExpZero
-  | ExpNegative NovDecs
-  deriving (Eq, Ord, Show)
+novDecsToInt :: Integral a => NovDecs -> a
+novDecsToInt (NovDecs n ds) = finish $ go 0 (0 :: Int) ds
+  where
+    go !acc !plcs sq = case S.viewr sq of
+      EmptyR -> (acc, plcs)
+      xs :> x ->
+        go (acc + decemToInt x * 10 ^ plcs) (succ plcs) xs
+    finish (acc, plcs) = acc + novemToInt n * 10 ^ plcs
 
 posToNovDecs :: Pos -> NovDecs
 posToNovDecs = finish . S.unfoldl unfolder . NonZero
@@ -65,6 +64,16 @@ novDecsToPos (NovDecs nv ds) = finish $ go Zero Zero ds
           Zero -> novemToPos nv
           NonZero plPos ->
             multPos (novemToPos nv) . expPos tenPos $ plPos
+
+-- | Exponents.  Unlike exponents in Deka, Penny does not use
+-- positive exponents because there is no unambiguous way to
+-- represent them using ordinary notation.  All exponents are either
+-- negative or zero.
+
+data Exponent
+  = ExpZero
+  | ExpNegative NovDecs
+  deriving (Eq, Ord, Show)
 
 -- | Coefficients.  Different from Deka coefficients in form but not
 -- substance.
