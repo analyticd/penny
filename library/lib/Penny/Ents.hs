@@ -1,6 +1,6 @@
--- | Balanced sets.  This module is the guardian of the core principle
--- of double-entry accounting, which is that all transactions must be
--- balanced.
+-- | Sets of entries.  Though every 'Ent' in an 'Ents' is valid, the
+-- entire set is not necessarily balanced; for balanced sets, see
+-- "Penny.Balanced".
 module Penny.Ents
   (
   -- * Ent
@@ -16,17 +16,16 @@ module Penny.Ents
   -- * Ents
   , Ents
   , entsSeq
-  , ents
+  , entsBal
+  , appendEnt
   , rEnts
   , mapV
   , sequence
   , sequenceR
 
   -- * Errors
-  , Error(..)
   , EntError(..)
   , ErrorCode(..)
-  , UnbalancedAtEnd(..)
 
   -- * Views
   , View
@@ -37,6 +36,7 @@ module Penny.Ents
   , viewLeft
   , viewCurrent
   , viewRight
+  , viewBalance
   , siblings
   , moveLeft
   , moveRight
@@ -55,9 +55,6 @@ import qualified Penny.Trio as T
 import qualified Data.Map as M
 import Penny.Numbers.Concrete
 import Prelude hiding (negate, sequence)
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.State
-import Control.Monad.Trans.Either
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.RadGroup
 import Data.Either.Combinators
@@ -119,12 +116,12 @@ instance Functor Ent where
 -- 'Credit's of the same 'Commodity', and vice versa.
 --
 -- 'Ents' is a 'Monoid'.
-newtype Ents m = Ents { entsSeq :: Seq (Ent m)
-                      , entsBal :: Balances }
+data Ents m = Ents { entsSeq :: Seq (Ent m)
+                   , entsBal :: Balances }
   deriving (Eq, Ord, Show)
 
 instance Functor Ents where
-  fmap f (Ents sq bl) Ents (fmap (fmap f) sq) bl
+  fmap f (Ents sq bl) = Ents (fmap (fmap f) sq) bl
 
 instance Monoid (Ents m) where
   mempty = Ents mempty mempty
@@ -211,23 +208,9 @@ data EntError = EntError
   , errTrio :: T.Trio
   -- ^ The 'T.Trio' that caused the error.
 
-  , errBalances :: M.Map Commodity (Side, Qty)
+  , errBalances :: Imbalances
   -- ^ The balances that existed at the time the error occurred.
   } deriving (Eq, Ord, Show)
-
--- | An error arose while attempting to create an 'Ents'.  The error
--- may have arose while processing an individual 'T.Trio' to an 'Ent'.
--- Or, processing of all 'Ent's may have succeeded, but if the total
--- of all the postings is not balanced, an error occurs.
-newtype Error
-  = Error { unError :: Either EntError UnbalancedAtEnd }
-  deriving (Eq, Ord, Show)
-
--- | The total of all 'Ent' is not balanced.
-data UnbalancedAtEnd = UnbalancedAtEnd
-  { uaeBalances :: M.Map Commodity (Side, Qty) }
-  deriving (Eq, Ord, Show)
-
 
 procEnt
   :: Balances
@@ -242,33 +225,13 @@ procEnt bals (tri, mta) = fmap f $ procTrio unbals tri
         bals' = bals <> balance cy q
 
 
-procEntM
-  :: (T.Trio, m)
-  -> EitherT EntError (State Balances) (Ent m)
-procEntM (tri, mta) = do
-  bal <- lift get
-  case procEnt bal (tri, mta) of
-    Left e -> left e
-    Right (bal', r) -> do
-      lift $ put bal'
-      return r
-
-
--- | Only creates an 'Ents' if all the 'T.Trio' are balanced.  See
--- 'T.Trio' for more information on the rules this function follows.
-ents
-  :: Seq (T.Trio, m)
-  -> Either Error (Ents m)
-ents ls =
-  let (finalEi, finalBal) = flip runState emptyBalances
-       . runEitherT . Tr.mapM procEntM $ ls
-  in case finalEi of
-      Left e -> Left . Error . Left $ e
-      Right es
-        | M.null unbals -> Right (Ents es)
-        | otherwise -> Left . Error . Right . UnbalancedAtEnd $ unbals
-        where
-          unbals = onlyUnbalanced finalBal
+appendEnt
+  :: Ents m
+  -> (T.Trio, m)
+  -> Either EntError (Ents m)
+appendEnt (Ents s b) p = case procEnt b p of
+  Left e -> Left e
+  Right (b', e) -> Right $ Ents (s |> e) b'
 
 
 buildEntrio :: T.Trio -> Entrio
@@ -283,7 +246,7 @@ buildEntrio t = case t of
   T.E -> E
 
 procTrio
-  :: M.Map Commodity (Side, Qty)
+  :: Imbalances
   -> T.Trio
   -> Either EntError (Qty, Commodity)
 
@@ -351,7 +314,7 @@ procTrio bal trio = case trio of
     -- requested commodity is not present.
 
     -- lookupCommodity :: Commodity -> Either (EntError a b) (Side, Qty)
-    lookupCommodity cy = case M.lookup cy bal of
+    lookupCommodity cy = case M.lookup cy . unImbalances $ bal of
       Nothing -> Left $ EntError CommodityNotFound trio bal
       Just (s, q) -> return (s, q)
 
@@ -359,13 +322,13 @@ procTrio bal trio = case trio of
     -- a single commodity.
 
     -- singleCommodity :: Either (EntError a b) (Commodity, Side, Qty)
-    singleCommodity = case M.assocs bal of
+    singleCommodity = case M.assocs . unImbalances $ bal of
       [] -> Left $ EntError NoCommoditiesInBalance trio bal
       (cy, (s, q)):[] -> Right (cy, s, q)
       _ -> Left $ EntError MultipleCommoditiesInBalance trio bal
 
 
--- | Creates 'Ents' but, unlike 'ents', never fails.  To make this
+-- | Creates 'Ents' but, unlike 'appendEnt', never fails.  To make this
 -- guarantee, 'rEnts' puts restrictions on its arguments.
 
 rEnts
@@ -392,9 +355,12 @@ rEnts
   -- 'Entrio' of 'SZC', except for the inferred posting, which is 'E'.
 
 rEnts s cy ar mt ls
-  | S.null ls = Ents S.empty
-  | otherwise = Ents $ S.zipWith mkEnt qs ls |> inferred
+  | S.null ls = Ents mempty mempty
+  | otherwise = Ents sq bl
   where
+    sq = S.zipWith mkEnt qs ls |> inferred
+    bl = mconcat . F.toList . fmap (uncurry balance)
+      . fmap (\e -> (entCommodity e, entQty e)) $ sq
     qs = fmap (mkQ . fst) ls
     mkQ = either (unpolarToQty s) (unpolarToQty s)
     offset = Qty . negate . F.sum . fmap unQty $ qs
@@ -417,14 +383,17 @@ data View a = View
   -- ^ These 'Ent' are to the right of the 'viewCurrent' 'Ent'.
   -- Closer 'Ent' are at the left end of the 'Seq'.
 
+  , viewBalance :: Balances
+  -- ^ The balance of all 'Ent' in the 'View'.
+
   } deriving (Eq, Ord, Show)
 
 instance Functor View where
-  fmap f (View l c r) = View (fmap (fmap f) l) (fmap f c)
-    (fmap (fmap f) r)
+  fmap f (View l c r b) = View (fmap (fmap f) l) (fmap f c)
+    (fmap (fmap f) r) b
 
 instance F.Foldable View where
-  foldr f z (View l c r) = F.foldr f z
+  foldr f z (View l c r _) = F.foldr f z
     (fmap entMeta $ l <> S.singleton c <> r)
 
 instance Tr.Traversable View where
@@ -432,6 +401,7 @@ instance Tr.Traversable View where
     <$> trSeq (viewLeft v)
     <*> trEnt (viewCurrent v)
     <*> trSeq (viewRight v)
+    <*> pure (viewBalance v)
     where
       trEnt (Ent q c e m) = Ent q c e <$> m
       trSeq sq = case S.viewl sq of
@@ -442,57 +412,57 @@ instance Tr.Traversable View where
 -- ordered with all 'Ent' from left to right; the 'viewCurrent' 'Ent'
 -- is not in the resulting list.
 siblings :: View a -> Seq (Ent a)
-siblings (View l _ r) = l <> r
+siblings (View l _ r _) = l <> r
 
 -- | A 'View' of the head 'Ent' in the 'Ents'.  Is 'Nothing' if the
 -- 'Ents' is empty.
 viewL :: Ents a -> Maybe (View a)
-viewL (Ents es) = case S.viewl es of
+viewL (Ents es b) = case S.viewl es of
   EmptyL -> Nothing
-  x :< xs -> Just $ View S.empty x xs
+  x :< xs -> Just $ View S.empty x xs b
 
 -- | A 'View' of the last 'Ent' in the 'Ents'.  Is 'Nothing' if the
 -- 'Ents is empty.
 viewR :: Ents a -> Maybe (View a)
-viewR (Ents es) = case S.viewr es of
+viewR (Ents es b) = case S.viewr es of
   EmptyR -> Nothing
-  xs :> x -> Just $ View xs x S.empty
+  xs :> x -> Just $ View xs x S.empty b
 
 -- | A single 'View' for each 'Ent' in the 'Ents'.
 allViews :: Ents a -> Seq (View a)
-allViews = go S.empty . unEnts
+allViews (Ents sq b) = go S.empty sq
   where
     go l curr = case S.viewl curr of
       EmptyL -> S.empty
-      x :< xs -> View l x xs <| go (x <| l) xs
+      x :< xs -> View l x xs b <| go (x <| l) xs
 
 
 -- | Recreate the 'Ents' from a 'View'.
 unView :: View a -> Ents a
-unView (View l c r) = Ents $ l <> S.singleton c <> r
+unView (View l c r b) = Ents (l <> S.singleton c <> r) b
 
 -- | Get a new 'View' of the 'Ent' to the left of the 'viewCurrent'
 -- 'Ent'.  Is 'Nothing' if the input 'View' is already of the leftmost
 -- 'Ent'.
 moveLeft :: View a -> Maybe (View a)
-moveLeft (View l c r) = case S.viewr l of
+moveLeft (View l c r b) = case S.viewr l of
   EmptyR -> Nothing
-  xs :> x -> Just $ View xs x (c <| r)
+  xs :> x -> Just $ View xs x (c <| r) b
 
 -- | Get a new 'View' of the 'Ent' to the right of the 'viewCurrent'
 -- 'Ent'.  Is 'Nothing' if the input 'View' is already of the
 -- rightmost 'Ent'.
 moveRight :: View a -> Maybe (View a)
-moveRight (View l c r) = case S.viewl r of
+moveRight (View l c r b) = case S.viewl r of
   EmptyL -> Nothing
-  x :< xs -> Just $ View (l |> c) x xs
+  x :< xs -> Just $ View (l |> c) x xs b
 
 -- | Returns a 'View' whose 'viewCurrent' 'Ent' has been transformed
 -- by the given function.
 changeCurrent :: (Ent a -> Ent a) -> View a -> View a
-changeCurrent f (View l c r) = View l (f c) r
+changeCurrent f (View l c r b) = View l (f c) r b
 
 -- | Returns a 'View' where the metadata in the 'viewCurrent' 'Ent'
 -- has been transformed by the given function.
 changeCurrentMeta :: (a -> a) -> View a -> View a
-changeCurrentMeta f (View l c r) = View l (fmap f c) r
+changeCurrentMeta f (View l c r b) = View l (fmap f c) r b

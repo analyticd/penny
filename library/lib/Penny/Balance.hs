@@ -1,4 +1,13 @@
-module Penny.Balance where
+module Penny.Balance
+  ( Balances(..)
+  , emptyBalances
+  , balance
+  , addEntry
+  , isBalanced
+  , Imbalances
+  , unImbalances
+  , onlyUnbalanced
+  ) where
 
 import qualified Data.Map as M
 import Penny.Common
@@ -37,9 +46,13 @@ addEntry c q = Balances . M.alter f c . unBalances
 isBalanced :: Balances -> Bool
 isBalanced = F.all (D.isZero . unConcrete . unQty) . unBalances
 
+newtype Imbalances = Imbalances
+  { unImbalances :: M.Map Commodity (Side, Qty) }
+  deriving (Eq, Ord, Show)
+
 -- | Removes all balanced commodity-qty pairs from the map.
-onlyUnbalanced :: Balances -> M.Map Commodity (Side, Qty)
-onlyUnbalanced = M.mapMaybe f . unBalances
+onlyUnbalanced :: Balances -> Imbalances
+onlyUnbalanced = Imbalances . M.mapMaybe f . unBalances
   where
     f q = case qtySide q of
       Nothing -> Nothing

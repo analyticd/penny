@@ -2,12 +2,12 @@ module Penny.Transaction where
 
 import Penny.TopLine
 import Penny.Posting
-import Penny.Ents
+import Penny.Balanced
 import Data.Sequence (Seq)
 
 data Transaction = Transaction
   { txnTopLine :: TopLine
-  , txnEnts :: Ents Posting
+  , txnEnts :: Balanced Posting
   } deriving (Eq, Ord, Show)
 
 data Bundle = Bundle
@@ -21,4 +21,4 @@ bundles (Transaction tl es) = fmap mkBundle . allViews $ es
     mkBundle v = Bundle tl v
 
 bundleToTransaction :: Bundle -> Transaction
-bundleToTransaction (Bundle tl v) = Transaction tl (unView v)
+bundleToTransaction (Bundle tl v) = Transaction tl (viewToBalanced v)
