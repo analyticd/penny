@@ -15,7 +15,7 @@ module Penny.Ents
 
   -- * Ents
   , Ents
-  , unEnts
+  , entsSeq
   , ents
   , rEnts
   , mapV
@@ -119,25 +119,26 @@ instance Functor Ent where
 -- 'Credit's of the same 'Commodity', and vice versa.
 --
 -- 'Ents' is a 'Monoid'.
-newtype Ents m = Ents { unEnts :: Seq (Ent m) }
+newtype Ents m = Ents { entsSeq :: Seq (Ent m)
+                      , entsBal :: Balances }
   deriving (Eq, Ord, Show)
 
 instance Functor Ents where
-  fmap f = Ents . fmap (fmap f) . unEnts
+  fmap f (Ents sq bl) Ents (fmap (fmap f) sq) bl
 
 instance Monoid (Ents m) where
-  mempty = Ents S.empty
-  mappend (Ents x) (Ents y) = Ents $ x <> y
+  mempty = Ents mempty mempty
+  mappend (Ents s1 b1) (Ents s2 b2) = Ents (s1 <> s2) (b1 <> b2)
 
 instance F.Foldable Ents where
-  foldr f z = F.foldr f z . fmap entMeta . unEnts
+  foldr f z = F.foldr f z . fmap entMeta . entsSeq
 
 instance Tr.Traversable Ents where
   sequenceA = sequence
 
 -- | Run each action in an 'Ents' from left to right.
 sequence :: Applicative f => Ents (f a) -> f (Ents a)
-sequence = fmap Ents . go . unEnts
+sequence (Ents sq bl) = fmap (flip Ents bl) . go $ sq
   where
     go es = case S.viewl es of
       EmptyL -> pure S.empty
@@ -148,7 +149,7 @@ sequence = fmap Ents . go . unEnts
 -- | 'sequence' in reverse; that is, run each action in an 'Ents' from
 -- right to left.
 sequenceR :: Applicative f => Ents (f a) -> f (Ents a)
-sequenceR = fmap Ents . go . unEnts
+sequenceR (Ents sq bl) = fmap (flip Ents bl) . go $ sq
   where
     go es = case S.viewr es of
       EmptyR -> pure S.empty
@@ -159,7 +160,7 @@ sequenceR = fmap Ents . go . unEnts
 -- view of the entire 'Ent'.  Like 'fmap' but gives a view of the
 -- whole 'Ent' rather than just the metadata.
 mapV :: (Ent a -> b) -> Ents a -> Ents b
-mapV f = Ents . go . unEnts
+mapV f (Ents sq bl) = flip Ents bl . go $ sq
   where
     go s = case S.viewl s of
       EmptyL -> S.empty
