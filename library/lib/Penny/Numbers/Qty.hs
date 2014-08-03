@@ -3,6 +3,7 @@ module Penny.Numbers.Qty where
 import Penny.Numbers.Babel
 import Penny.Numbers.Concrete
 import Deka.Dec (Sign(..))
+import qualified Deka.Dec as D
 import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.Unpolar
@@ -75,3 +76,12 @@ signToSide Sign1 = Credit
 sideToSign :: Side -> Sign
 sideToSign Debit = Sign0
 sideToSign Credit = Sign1
+
+qtySide :: Qty -> Maybe Side
+qtySide (Qty c)
+  | D.isZero d = Nothing
+  | D.isPositive d = Just Debit
+  | D.isNegative d = Just Credit
+  | otherwise = error "qtyToSide: error"
+  where
+    d = unConcrete c

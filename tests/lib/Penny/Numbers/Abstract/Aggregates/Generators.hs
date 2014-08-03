@@ -111,9 +111,3 @@ polarCommaSide = polar side (return radComma) groupComma
 polarEitherRadix :: Gen (Either (Polar Period Side) (Polar Comma Side))
 polarEitherRadix = either polarPeriodSide polarCommaSide
 
--- | Generates a Polar that is non-zero.
-polarNonZero :: Gen (Either (Polar Period Side) (Polar Comma Side))
-polarNonZero = polarEitherRadix `suchThat` pd
-  where
-    pd ei = case ei of
-      Left (Polar s2) -> case s2 of
