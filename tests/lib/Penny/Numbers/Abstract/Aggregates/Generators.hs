@@ -12,7 +12,6 @@ import Test.QuickCheck
 import Control.Monad
 import Prelude.Generators
 import Prelude hiding (either)
-import Data.Sums
 
 polarity
   :: (Int, Gen n)
@@ -108,6 +107,16 @@ polarPeriodSide = polar side (return radPeriod) groupPeriod
 polarCommaSide :: Gen (Polar Comma Side)
 polarCommaSide = polar side (return radComma) groupComma
 
+polarPeriodUnit :: Gen (Polar Period ())
+polarPeriodUnit = polar (return ()) (return radPeriod) groupPeriod
+
+polarCommaUnit :: Gen (Polar Comma ())
+polarCommaUnit = polar (return ()) (return radComma) groupComma
+
 polarEitherRadix :: Gen (Either (Polar Period Side) (Polar Comma Side))
 polarEitherRadix = either polarPeriodSide polarCommaSide
+
+polarEitherRadixUnit
+  :: Gen (Either (Polar Period ()) (Polar Comma ()))
+polarEitherRadixUnit = either polarPeriodUnit polarCommaUnit
 

@@ -9,19 +9,14 @@ module Penny.Balanced
   , entsBal
   , appendEnt
   , appendQCEnt
-  , rEnts
-  , mapV
-  , sequence
-  , sequenceR
-
-  -- * Errors
-  , EntError(..)
-  , ErrorCode(..)
 
   -- * Balanced
   , Balanced
   , balancedEnts
   , balanced
+  , mapV
+  , rBalanced
+  , mapEnts
 
   -- * Views
   , View
@@ -64,6 +59,25 @@ import Penny.Ent
 data Balanced m = Balanced { balancedEnts :: Seq (Ent m) }
   deriving (Eq, Ord, Show)
 
+instance Functor Balanced where
+  fmap f (Balanced sq) = Balanced (fmap (fmap f) sq)
+
+instance Monoid (Balanced m) where
+  mempty = Balanced mempty
+  mappend (Balanced l) (Balanced r) = Balanced $ l <> r
+
+instance F.Foldable Balanced where
+  foldr f z = F.foldr f z . fmap entMeta . balancedEnts
+
+instance Tr.Traversable Balanced where
+  sequenceA = fmap Balanced . go . balancedEnts
+    where
+      go es = case S.viewl es of
+        EmptyL -> pure S.empty
+        e :< xs ->
+          (<|) <$> Tr.sequenceA e <*> go xs
+
+
 -- | Zero or more 'Ent'.  Not necessarily balanced; maintains its own
 -- running balance.
 data Ents m = Ents { entsSeq :: Seq (Ent m)
@@ -81,7 +95,13 @@ instance F.Foldable Ents where
   foldr f z = F.foldr f z . fmap entMeta . entsSeq
 
 instance Tr.Traversable Ents where
-  sequenceA = sequence
+  sequenceA (Ents sq bl) = fmap (flip Ents bl) . go $ sq
+    where
+      go es = case S.viewl es of
+        EmptyL -> pure S.empty
+        e :< xs ->
+          (<|) <$> Tr.sequenceA e <*> go xs
+
 
 balanced :: Ents m -> Either Imbalances (Balanced m)
 balanced (Ents sq bl)
@@ -90,30 +110,19 @@ balanced (Ents sq bl)
   where
     imb = onlyUnbalanced bl
 
--- | Run each action in an 'Ents' from left to right.
-sequence :: Applicative f => Ents (f a) -> f (Ents a)
-sequence (Ents sq bl) = fmap (flip Ents bl) . go $ sq
+-- | Transform each 'Ent'.  Currently useful only with 'rearrange'.
+mapEnts :: (Ent a -> Ent b) -> Balanced a -> Balanced b
+mapEnts f (Balanced es) = Balanced $ go es
   where
-    go es = case S.viewl es of
-      EmptyL -> pure S.empty
-      e :< xs ->
-        (<|) <$> Tr.sequenceA e <*> go xs
-
--- | 'sequence' in reverse; that is, run each action in an 'Ents' from
--- right to left.
-sequenceR :: Applicative f => Ents (f a) -> f (Ents a)
-sequenceR (Ents sq bl) = fmap (flip Ents bl) . go $ sq
-  where
-    go es = case S.viewr es of
-      EmptyR -> pure S.empty
-      xs :> e ->
-        (flip (|>)) <$> Tr.sequenceA e <*> go xs
+    go sq = case S.viewl sq of
+      EmptyL -> mempty
+      e :< rest -> f e <| go rest
 
 -- | Change the metadata on each 'Ent', using a function that has a
 -- view of the entire 'Ent'.  Like 'fmap' but gives a view of the
 -- whole 'Ent' rather than just the metadata.
-mapV :: (Ent a -> b) -> Ents a -> Ents b
-mapV f (Ents sq bl) = flip Ents bl . go $ sq
+mapV :: (Ent a -> b) -> Balanced a -> Balanced b
+mapV f = Balanced . go . balancedEnts
   where
     go s = case S.viewl s of
       EmptyL -> S.empty
@@ -141,9 +150,9 @@ appendQCEnt ei cy ar m (Ents sq bl) = Ents (sq |> e') bl'
     bl' = bl <> balance (entCommodity e') (entQty e')
 
 -- | Creates 'Ents' but, unlike 'appendEnt', never fails.  To make this
--- guarantee, 'rEnts' puts restrictions on its arguments.
+-- guarantee, 'rBalanced' puts restrictions on its arguments.
 
-rEnts
+rBalanced
   :: Side
   -- ^ All postings that you supply are on this 'Side'
 
@@ -166,7 +175,7 @@ rEnts
   -- balance out the other non-zero postings.  Each 'Ent' has an
   -- 'Entrio' of 'SZC', except for the inferred posting, which is 'E'.
 
-rEnts s cy ar mt ls
+rBalanced s cy ar mt ls
   | S.null ls = Balanced mempty
   | otherwise = Balanced $ sq |> inferred
   where

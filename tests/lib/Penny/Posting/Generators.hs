@@ -28,5 +28,6 @@ postingData =
   <*> tags
   <*> account
 
-posting :: Gen (Maybe PostingMeta) -> Gen Posting
-posting pm = Posting <$> postingData <*> pm
+-- | Generates a 'Posting' with no metadata.
+posting :: Gen Posting
+posting = Posting <$> postingData <*> pure Nothing

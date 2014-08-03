@@ -10,4 +10,6 @@ topLineData :: Gen TopLineData
 topLineData = liftM5 TopLineData dateTime memo
   number flag payee
 
-
+-- | Generates 'TopLine' with no metadata.
+topLine :: Gen TopLine
+topLine = liftM2 TopLine topLineData (return Nothing)

@@ -19,9 +19,3 @@ trio = oneof
   , fmap C commodity
   , return E
   ]
-
--- | Generates a Trio that will create an Ents with one commodity in
--- the inbalances.
-
-oneCommodity :: Gen Trio
-oneCommodity = undefined
