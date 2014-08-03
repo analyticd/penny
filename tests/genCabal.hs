@@ -42,17 +42,36 @@ library ms = A.Library $
 
   ++ C.commonBuildInfo
 
+executable
+  :: [String]
+  -- ^ Test library modules
+  -> [String]
+  -- ^ Executable modules
+  -> A.Executable
+executable ts es = A.Executable "penny-test" $
+  [ A.ExeMainIs "penny-test.hs"
+  , A.buildDepends $ libraryDepends ++ [C.quickpull]
+  , A.otherModules $ ts ++ es
+  , A.hsSourceDirs ["lib", "exe"]
+  ]
+
+  ++ C.commonBuildInfo
+
 cabal
   :: [String]
   -- ^ Library modules
+  -> [String]
+  -- ^ Executable modules
   -> A.Cabal
-cabal libMods = A.empty
+cabal libMods exeMods = A.empty
   { A.cProperties = properties
   , A.cRepositories = [C.repo]
   , A.cLibrary = Just (library libMods)
+  , A.cExecutables = [executable libMods exeMods]
   }
 
 main :: IO ()
 main = do
   libMods <- A.modules "lib"
-  A.render "genCabal.hs" $ cabal libMods
+  exeMods <- A.modules "exe"
+  A.render "genCabal.hs" $ cabal libMods exeMods
