@@ -21,4 +21,4 @@ bundles (Transaction tl es) = fmap mkBundle . allViews $ es
     mkBundle v = Bundle tl v
 
 bundleToTransaction :: Bundle -> Transaction
-bundleToTransaction (Bundle tl v) = Transaction tl (viewToBalanced v)
+bundleToTransaction (Bundle tl v) = Transaction tl (unView v)
