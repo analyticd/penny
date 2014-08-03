@@ -11,6 +11,7 @@ module Penny.Ent
   , mkEnt
   , mkQCEnt
   , mkEEnt
+  , rearrange
   ) where
 
 import Penny.Common
@@ -20,6 +21,8 @@ import Penny.Numbers.Abstract.RadGroup
 import qualified Penny.Trio as T
 import Penny.Balance
 import qualified Data.Map as M
+import qualified Data.Foldable as F
+import qualified Data.Traversable as T
 
 -- | Information from a single entry.  Always contains a 'Commodity'
 -- and a 'Qty' which holds the quantity information in concrete form.
@@ -50,6 +53,12 @@ data Ent m = Ent
 
 instance Functor Ent where
   fmap f e = e { entMeta = f (entMeta e) }
+
+instance F.Foldable Ent where
+  foldr f z (Ent _ _ _ m) = f m z
+
+instance T.Traversable Ent where
+  sequenceA (Ent q c e m) = fmap (Ent q c e) m
 
 -- | Fields in the 'Ent' capture some of the information that was
 -- passed along in the 'T.Trio'.  'Entrio' captures the remaining
@@ -118,10 +127,10 @@ buildEntrio t = case t of
   T.E -> E
 
 mkEnt
-  :: Imbalances
-  -> (T.Trio, m)
+  :: (T.Trio, m)
+  -> Imbalances
   -> Either EntError (Ent m)
-mkEnt imb (tri, mt) = case procTrio imb tri of
+mkEnt (tri, mt) imb = case procTrio imb tri of
   Left e -> Left e
   Right (q, c) -> Right (Ent q c (buildEntrio tri) mt)
 
@@ -137,12 +146,20 @@ mkQCEnt ei cy ar mt = Ent q cy (buildEntrio tri) mt
     tri = T.QC ei cy ar
 
 mkEEnt
-  :: (Commodity, NonZero)
+  :: (Commodity, Qty)
   -> m
   -> Ent m
-mkEEnt (cy, nz) mt = Ent q cy E mt
+mkEEnt (cy, q) mt = Ent q cy E mt
+
+-- | Change the 'Arrangement' in an 'Ent'.  Does nothing if the 'Ent'
+-- has no 'Arrangement' to begin with.
+rearrange :: Arrangement -> Ent m -> Ent m
+rearrange a' e = e { entTrio = e' }
   where
-    q = paramsToQty . nonZeroToQtyParams $ nz
+    e' = case entTrio e of
+      QC a _ -> QC a a'
+      UC b _ -> UC b a'
+      x -> x
 
 procTrio
   :: Imbalances

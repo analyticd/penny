@@ -3,21 +3,12 @@
 -- "Penny.Balanced".
 module Penny.Ents
   (
-  -- * Ent
-    Ent
-  , entQty
-  , entCommodity
-  , entTrio
-  , entMeta
-  , Entrio(..)
-  , entToTrio
-  , rearrange
-
   -- * Ents
-  , Ents
+    Ents
   , entsSeq
   , entsBal
   , appendEnt
+  , appendQCEnt
   , rEnts
   , mapV
   , sequence
@@ -26,6 +17,11 @@ module Penny.Ents
   -- * Errors
   , EntError(..)
   , ErrorCode(..)
+
+  -- * Balanced
+  , Balanced
+  , balancedEnts
+  , balanced
 
   -- * Views
   , View
@@ -36,7 +32,6 @@ module Penny.Ents
   , viewLeft
   , viewCurrent
   , viewRight
-  , viewBalance
   , siblings
   , moveLeft
   , moveRight
@@ -51,24 +46,26 @@ import Penny.Balance
 import Penny.Common
 import Penny.Numbers.Qty
 import Data.Monoid
-import qualified Penny.Trio as T
-import qualified Data.Map as M
-import Penny.Numbers.Concrete
 import Prelude hiding (negate, sequence)
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.RadGroup
-import Data.Either.Combinators
 import Data.Sequence (Seq, (|>), (<|), ViewL(..), ViewR(..))
 import qualified Data.Sequence as S
 import qualified Data.Traversable as Tr
 import qualified Data.Foldable as F
+import qualified Data.Map as M
 import Control.Applicative
+import Penny.Ent
 
--- | Zero or more 'Ent'.  Together they are balanced; that is, every
+-- | Zero or more 'Ent'; always balanced.  That is, every
 -- 'Debit' of a particular 'Commodity' is offset by an equal number of
 -- 'Credit's of the same 'Commodity', and vice versa.
---
--- 'Ents' is a 'Monoid'.
+
+data Balanced m = Balanced { balancedEnts :: Seq (Ent m) }
+  deriving (Eq, Ord, Show)
+
+-- | Zero or more 'Ent'.  Not necessarily balanced; maintains its own
+-- running balance.
 data Ents m = Ents { entsSeq :: Seq (Ent m)
                    , entsBal :: Balances }
   deriving (Eq, Ord, Show)
@@ -86,15 +83,21 @@ instance F.Foldable Ents where
 instance Tr.Traversable Ents where
   sequenceA = sequence
 
+balanced :: Ents m -> Either Imbalances (Balanced m)
+balanced (Ents sq bl)
+  | M.null (unImbalances imb) = Left imb
+  | otherwise = Right (Balanced sq)
+  where
+    imb = onlyUnbalanced bl
+
 -- | Run each action in an 'Ents' from left to right.
 sequence :: Applicative f => Ents (f a) -> f (Ents a)
 sequence (Ents sq bl) = fmap (flip Ents bl) . go $ sq
   where
     go es = case S.viewl es of
       EmptyL -> pure S.empty
-      (Ent q c e m) :< xs ->
-        (<|) <$> (Ent q c e <$> m)
-             <*> go xs
+      e :< xs ->
+        (<|) <$> Tr.sequenceA e <*> go xs
 
 -- | 'sequence' in reverse; that is, run each action in an 'Ents' from
 -- right to left.
@@ -103,8 +106,8 @@ sequenceR (Ents sq bl) = fmap (flip Ents bl) . go $ sq
   where
     go es = case S.viewr es of
       EmptyR -> pure S.empty
-      xs :> (Ent q c e m) ->
-        (flip (|>)) <$> (Ent q c e <$> m) <*> go xs
+      xs :> e ->
+        (flip (|>)) <$> Tr.sequenceA e <*> go xs
 
 -- | Change the metadata on each 'Ent', using a function that has a
 -- view of the entire 'Ent'.  Like 'fmap' but gives a view of the
@@ -114,40 +117,28 @@ mapV f (Ents sq bl) = flip Ents bl . go $ sq
   where
     go s = case S.viewl s of
       EmptyL -> S.empty
-      w@(Ent q c e _) :< xs -> Ent q c e (f w) <| go xs
-
-
--- | Change the 'Arrangement' in an 'Ent'.  Does nothing if the 'Ent'
--- has no 'Arrangement' to begin with.
-rearrange :: Arrangement -> Ent m -> Ent m
-rearrange a' e = e { entTrio = e' }
-  where
-    e' = case entTrio e of
-      QC a _ -> QC a a'
-      UC b _ -> UC b a'
-      x -> x
-
-procEnt
-  :: Balances
-  -> (T.Trio, m)
-  -> Either EntError (Balances, Ent m)
-procEnt bals (tri, mta) = fmap f $ procTrio unbals tri
-  where
-    unbals = onlyUnbalanced bals
-    f (q, cy) = (bals', ent)
-      where
-        ent = Ent q cy (buildEntrio tri) mta
-        bals' = bals <> balance cy q
-
+      w :< xs -> (fmap (const (f w)) w) <| go xs
 
 appendEnt
-  :: Ents m
-  -> (T.Trio, m)
-  -> Either EntError (Ents m)
-appendEnt (Ents s b) p = case procEnt b p of
-  Left e -> Left e
-  Right (b', e) -> Right $ Ents (s |> e) b'
+  :: (Imbalances -> (Either a (Ent m)))
+  -> Ents m
+  -> Either a (Ents m)
+appendEnt f (Ents sq bl) = fmap go $ f (onlyUnbalanced bl)
+  where
+    go e' = Ents (sq |> e')
+      (bl <> balance (entCommodity e') (entQty e'))
 
+appendQCEnt
+  :: Either (Polar Period Side) (Polar Comma Side)
+  -> Commodity
+  -> Arrangement
+  -> m
+  -> Ents m
+  -> Ents m
+appendQCEnt ei cy ar m (Ents sq bl) = Ents (sq |> e') bl'
+  where
+    e' = mkQCEnt ei cy ar m
+    bl' = bl <> balance (entCommodity e') (entQty e')
 
 -- | Creates 'Ents' but, unlike 'appendEnt', never fails.  To make this
 -- guarantee, 'rEnts' puts restrictions on its arguments.
@@ -166,32 +157,23 @@ rEnts
   -> a
   -- ^ Metadata for inferred posting
 
-  -> Seq (Either (Unpolar Period) (Unpolar Comma), a)
-  -- ^ Each non-zero member, and its corresponding metadata
+  -> Seq (Either (Polar Period ()) (Polar Comma ()), a)
+  -- ^ Each initial member, and its corresponding metadata
 
-  -> Ents a
+  -> Balanced a
   -- ^ The resulting 'Ents'.  If the list of 'NZGrouped' was
   -- non-empty, then a single inferred posting is at the end to
   -- balance out the other non-zero postings.  Each 'Ent' has an
   -- 'Entrio' of 'SZC', except for the inferred posting, which is 'E'.
 
 rEnts s cy ar mt ls
-  | S.null ls = Ents mempty mempty
-  | otherwise = Ents sq bl
+  | S.null ls = Balanced mempty
+  | otherwise = Balanced $ sq |> inferred
   where
-    sq = S.zipWith mkEnt qs ls |> inferred
-    bl = mconcat . F.toList . fmap (uncurry balance)
-      . fmap (\e -> (entCommodity e, entQty e)) $ sq
-    qs = fmap (mkQ . fst) ls
-    mkQ = either (unpolarToQty s) (unpolarToQty s)
-    offset = Qty . negate . F.sum . fmap unQty $ qs
-    inferred = Ent offset cy E mt
-    mkEnt q (ei, m) = Ent q cy (QC ei' ar) m
-      where
-        ei' = mapBoth (polarizeUnpolar s) (polarizeUnpolar s) ei
+    (sq, inferred) = undefined
 
 -- | A single 'Ent' with information about how it relates to
--- surrounding 'Ent' in the 'Ents'.
+-- surrounding 'Ent' in the 'Balanced'.
 data View a = View
   { viewLeft :: Seq (Ent a)
   -- ^ These 'Ent' are to the left of the 'viewCurrent' 'Ent'.  Closer
@@ -204,86 +186,81 @@ data View a = View
   -- ^ These 'Ent' are to the right of the 'viewCurrent' 'Ent'.
   -- Closer 'Ent' are at the left end of the 'Seq'.
 
-  , viewBalance :: Balances
-  -- ^ The balance of all 'Ent' in the 'View'.
-
   } deriving (Eq, Ord, Show)
 
 instance Functor View where
-  fmap f (View l c r b) = View (fmap (fmap f) l) (fmap f c)
-    (fmap (fmap f) r) b
+  fmap f (View l c r) = View (fmap (fmap f) l) (fmap f c)
+    (fmap (fmap f) r)
 
 instance F.Foldable View where
-  foldr f z (View l c r _) = F.foldr f z
+  foldr f z (View l c r) = F.foldr f z
     (fmap entMeta $ l <> S.singleton c <> r)
 
 instance Tr.Traversable View where
   sequenceA v = View
     <$> trSeq (viewLeft v)
-    <*> trEnt (viewCurrent v)
+    <*> Tr.sequenceA (viewCurrent v)
     <*> trSeq (viewRight v)
-    <*> pure (viewBalance v)
     where
-      trEnt (Ent q c e m) = Ent q c e <$> m
       trSeq sq = case S.viewl sq of
         EmptyL -> pure S.empty
-        e :< es -> (<|) <$> trEnt e <*> trSeq es
+        e :< es -> (<|) <$> Tr.sequenceA e <*> trSeq es
 
 -- | All 'Ent' that neighbor the 'viewCurrent' 'Ent'.  The list is
 -- ordered with all 'Ent' from left to right; the 'viewCurrent' 'Ent'
 -- is not in the resulting list.
 siblings :: View a -> Seq (Ent a)
-siblings (View l _ r _) = l <> r
+siblings (View l _ r) = l <> r
 
--- | A 'View' of the head 'Ent' in the 'Ents'.  Is 'Nothing' if the
--- 'Ents' is empty.
-viewL :: Ents a -> Maybe (View a)
-viewL (Ents es b) = case S.viewl es of
+-- | A 'View' of the head 'Ent' in the 'Balanced'.  Is 'Nothing' if the
+-- 'Balanced' is empty.
+viewL :: Balanced a -> Maybe (View a)
+viewL (Balanced es) = case S.viewl es of
   EmptyL -> Nothing
-  x :< xs -> Just $ View S.empty x xs b
+  x :< xs -> Just $ View S.empty x xs
 
--- | A 'View' of the last 'Ent' in the 'Ents'.  Is 'Nothing' if the
--- 'Ents is empty.
-viewR :: Ents a -> Maybe (View a)
-viewR (Ents es b) = case S.viewr es of
+-- | A 'View' of the last 'Ent' in the 'Balanced'.  Is 'Nothing' if the
+-- 'Balanced' is empty.
+viewR :: Balanced a -> Maybe (View a)
+viewR (Balanced es) = case S.viewr es of
   EmptyR -> Nothing
-  xs :> x -> Just $ View xs x S.empty b
+  xs :> x -> Just $ View xs x S.empty
 
--- | A single 'View' for each 'Ent' in the 'Ents'.
-allViews :: Ents a -> Seq (View a)
-allViews (Ents sq b) = go S.empty sq
+-- | A single 'View' for each 'Ent' in the 'Balanced'.
+allViews :: Balanced a -> Seq (View a)
+allViews (Balanced sq) = go S.empty sq
   where
     go l curr = case S.viewl curr of
       EmptyL -> S.empty
-      x :< xs -> View l x xs b <| go (x <| l) xs
+      x :< xs -> View l x xs <| go (x <| l) xs
 
 
--- | Recreate the 'Ents' from a 'View'.
-unView :: View a -> Ents a
-unView (View l c r b) = Ents (l <> S.singleton c <> r) b
+-- | Recreate the 'Balanced' from a 'View'.
+unView :: View a -> Balanced a
+unView (View l c r) = Balanced (l <> S.singleton c <> r)
 
 -- | Get a new 'View' of the 'Ent' to the left of the 'viewCurrent'
 -- 'Ent'.  Is 'Nothing' if the input 'View' is already of the leftmost
 -- 'Ent'.
 moveLeft :: View a -> Maybe (View a)
-moveLeft (View l c r b) = case S.viewr l of
+moveLeft (View l c r) = case S.viewr l of
   EmptyR -> Nothing
-  xs :> x -> Just $ View xs x (c <| r) b
+  xs :> x -> Just $ View xs x (c <| r)
 
 -- | Get a new 'View' of the 'Ent' to the right of the 'viewCurrent'
 -- 'Ent'.  Is 'Nothing' if the input 'View' is already of the
 -- rightmost 'Ent'.
 moveRight :: View a -> Maybe (View a)
-moveRight (View l c r b) = case S.viewl r of
+moveRight (View l c r) = case S.viewl r of
   EmptyL -> Nothing
-  x :< xs -> Just $ View (l |> c) x xs b
+  x :< xs -> Just $ View (l |> c) x xs
 
 -- | Returns a 'View' whose 'viewCurrent' 'Ent' has been transformed
 -- by the given function.
 changeCurrent :: (Ent a -> Ent a) -> View a -> View a
-changeCurrent f (View l c r b) = View l (f c) r b
+changeCurrent f (View l c r) = View l (f c) r
 
 -- | Returns a 'View' where the metadata in the 'viewCurrent' 'Ent'
 -- has been transformed by the given function.
 changeCurrentMeta :: (a -> a) -> View a -> View a
-changeCurrentMeta f (View l c r b) = View l (fmap f c) r b
+changeCurrentMeta f (View l c r) = View l (fmap f c) r
