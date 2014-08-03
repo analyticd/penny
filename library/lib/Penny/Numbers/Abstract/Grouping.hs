@@ -23,29 +23,27 @@ import Data.Sums
 group
   :: (forall a. a -> Group r a)
   -> UngroupedUnpolar r
-  -> Either (UngroupedUnpolar r) (GroupedUnpolar r)
-group g o@(UngroupedUnpolar plr) = case plr of
-  S2a _ -> Left o
+  -> Maybe (GroupedUnpolar r)
+group g (UngroupedUnpolar plr) = case plr of
+  S2a _ -> Nothing
   S2b nz -> groupNonZero g nz
 
 groupNonZero
   :: (forall a. a -> Group r a)
   -> UngroupedNonZero r
-  -> Either (UngroupedUnpolar r) (GroupedUnpolar r)
-groupNonZero grp o@(UngroupedNonZero s3) = case s3 of
+  -> Maybe (GroupedUnpolar r)
+groupNonZero grp (UngroupedNonZero s3) = case s3 of
   S3a (UNWhole nds) -> case groupNovDecs grp nds of
-    Nothing -> noGroup
-    Just gr -> Right (GroupedUnpolar (S2b (GroupedNonZero (S5a gr))))
+    Nothing -> Nothing
+    Just gr -> Just (GroupedUnpolar (S2b (GroupedNonZero (S5a gr))))
 
   S3b (UNWholeRadix nd rdx mdd) -> case groupNovDecs grp nd of
-    Nothing -> noGroup
-    Just gr -> Right (GroupedUnpolar (S2b (GroupedNonZero (S5b glr))))
+    Nothing -> Nothing
+    Just gr -> Just (GroupedUnpolar (S2b (GroupedNonZero (S5b glr))))
       where
         glr = masunoGroupedLeftRad gr rdx mdd
 
-  S3c _ -> noGroup
-  where
-    noGroup = Left (UngroupedUnpolar (S2b o))
+  S3c _ -> Nothing
 
 masunoGroupedLeftRad
   :: MasunoGroupedLeft r
