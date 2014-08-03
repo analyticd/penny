@@ -2,9 +2,14 @@ module Penny.Numbers.Abstract.Aggregates.Coarbitrary where
 
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.Unpolar.Coarbitrary
+import Penny.Numbers.Abstract.RadGroup
 import Test.QuickCheck
 import Barecheck.Util
 import Data.Sums.Coarbitrary
+import Prelude.Coarbitrary
+import Prelude hiding (either)
+import Penny.Numbers.Qty
+import Penny.Numbers.Qty.Coarbitrary
 
 polarity
   :: (n -> Gen r -> Gen r)
@@ -64,3 +69,17 @@ polar fp (Polar s) = s2 (ungroupedPolar fp) (groupedPolar fp) s
 abstract
   :: (p -> Gen b -> Gen b) -> Abstract r p -> Gen b -> Gen b
 abstract fp (Abstract s) = s2 unpolar (polar fp) s
+
+unpolarEitherRadix
+  :: Either (Unpolar Period) (Unpolar Comma) -> Gen b -> Gen b
+unpolarEitherRadix = either unpolar unpolar
+
+polarPeriodSide :: Polar a Side -> Gen b -> Gen b
+polarPeriodSide = polar side
+
+polarCommaSide :: Polar a Side -> Gen b -> Gen b
+polarCommaSide = polar side
+
+polarEitherRadix
+  :: Either (Polar a Side) (Polar b Side) -> Gen c -> Gen c
+polarEitherRadix = either (polar side) (polar side)

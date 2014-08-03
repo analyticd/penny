@@ -6,6 +6,10 @@ import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.Unpolar.Shrinkers
 import Prelude.Shrinkers
 import Data.Sums.Shrinkers
+import Penny.Numbers.Qty
+import Penny.Numbers.Qty.Shrinkers
+import Penny.Numbers.Abstract.RadGroup.Shrinkers
+import Prelude hiding (either)
 
 polarity
   :: (n -> [n])
@@ -87,3 +91,25 @@ abstract
   -> [Abstract r p]
 abstract sp g (Abstract a) = fmap Abstract $
   s2 (unpolar g) (polar sp g) a
+
+unpolarPeriod :: Unpolar Period -> [Unpolar Period]
+unpolarPeriod = unpolar comma
+
+unpolarComma :: Unpolar Comma -> [Unpolar Comma]
+unpolarComma = unpolar period
+
+unpolarEitherRadix
+  :: Either (Unpolar Period) (Unpolar Comma)
+  -> [Either (Unpolar Period) (Unpolar Comma)]
+unpolarEitherRadix = either unpolarPeriod unpolarComma
+
+polarPeriodSide :: Polar Period Side -> [Polar Period Side]
+polarPeriodSide = polar (const []) comma
+
+polarCommaSide :: Polar Comma Side -> [Polar Comma Side]
+polarCommaSide = polar (const []) period
+
+polarEitherRadix
+  :: Either (Polar Period Side) (Polar Comma Side)
+  -> [Either (Polar Period Side) (Polar Comma Side)]
+polarEitherRadix = either polarPeriodSide polarCommaSide

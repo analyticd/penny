@@ -1,12 +1,18 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes, NoImplicitPrelude #-}
 module Penny.Numbers.Abstract.Aggregates.Generators where
 
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.Unpolar.Generators
 import Penny.Numbers.Abstract.RadGroup
+import Penny.Numbers.Abstract.RadGroup.Generators
+import Penny.Numbers.Qty
+import Penny.Numbers.Qty.Generators
 import Data.Sums.Generators
 import Test.QuickCheck
 import Control.Monad
+import Prelude.Generators
+import Prelude hiding (either)
+import Data.Sums
 
 polarity
   :: (Int, Gen n)
@@ -86,3 +92,28 @@ abstract
   -> Gen (Abstract r p)
 abstract p r g = fmap Abstract $
   s2 (1, (unpolar r g)) (3, (polar p r g))
+
+unpolarPeriod :: Gen (Unpolar Period)
+unpolarPeriod = unpolar (return radPeriod) groupPeriod
+
+unpolarComma :: Gen (Unpolar Comma)
+unpolarComma = unpolar (return radComma) groupComma
+
+unpolarEitherRadix :: Gen (Either (Unpolar Period) (Unpolar Comma))
+unpolarEitherRadix = either unpolarPeriod unpolarComma
+
+polarPeriodSide :: Gen (Polar Period Side)
+polarPeriodSide = polar side (return radPeriod) groupPeriod
+
+polarCommaSide :: Gen (Polar Comma Side)
+polarCommaSide = polar side (return radComma) groupComma
+
+polarEitherRadix :: Gen (Either (Polar Period Side) (Polar Comma Side))
+polarEitherRadix = either polarPeriodSide polarCommaSide
+
+-- | Generates a Polar that is non-zero.
+polarNonZero :: Gen (Either (Polar Period Side) (Polar Comma Side))
+polarNonZero = polarEitherRadix `suchThat` pd
+  where
+    pd ei = case ei of
+      Left (Polar s2) -> case s2 of
