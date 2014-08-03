@@ -1,21 +1,15 @@
-module Penny.Balance
-  ( Balances(..)
-  , emptyBalances
-  , balance
-  , addEntry
-  , isBalanced
-  , Imbalances
-  , unImbalances
-  , onlyUnbalanced
-  ) where
+module Penny.Balance where
 
 import qualified Data.Map as M
+import Data.Maybe
 import Penny.Common
 import Penny.Numbers.Qty
 import Penny.Numbers.Concrete
 import qualified Data.Foldable as F
 import Data.Monoid
 import qualified Deka.Dec as D
+import Penny.Numbers.Abstract.Unpolar
+import Control.Arrow (second)
 
 newtype Balances = Balances { unBalances :: M.Map Commodity Qty }
   deriving (Eq, Ord, Show)
@@ -46,15 +40,28 @@ addEntry c q = Balances . M.alter f c . unBalances
 isBalanced :: Balances -> Bool
 isBalanced = F.all (D.isZero . unConcrete . unQty) . unBalances
 
+data NonZero = NonZero
+  { nzCoeff :: NovDecs
+  , nzExp :: Exponent
+  , nzSide :: Side
+  } deriving (Eq, Ord, Show)
+
+qtyParamsToNonZero :: QtyParams -> Maybe NonZero
+qtyParamsToNonZero (QtyParams may e) = case may of
+  Nothing -> Nothing
+  Just (s, nd) -> Just $ NonZero nd e s
+
+nonZeroToQtyParams :: NonZero -> QtyParams
+nonZeroToQtyParams (NonZero nd e s) = QtyParams (Just (s, nd)) e
+
 newtype Imbalances = Imbalances
-  { unImbalances :: M.Map Commodity (Side, Qty) }
+  { unImbalances :: M.Map Commodity NonZero }
   deriving (Eq, Ord, Show)
 
 -- | Removes all balanced commodity-qty pairs from the map.
 onlyUnbalanced :: Balances -> Imbalances
-onlyUnbalanced = Imbalances . M.mapMaybe f . unBalances
+onlyUnbalanced = Imbalances . M.fromList . mapMaybe f
+  . map (second qtyToParams) . M.toList . unBalances
   where
-    f q = case qtySide q of
-      Nothing -> Nothing
-      Just s -> Just (s, q)
+    f (c, p) = fmap (\nz -> (c, nz)) $ qtyParamsToNonZero p
 

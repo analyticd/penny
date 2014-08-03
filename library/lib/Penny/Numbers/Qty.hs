@@ -3,9 +3,9 @@ module Penny.Numbers.Qty where
 import Penny.Numbers.Babel
 import Penny.Numbers.Concrete
 import Deka.Dec (Sign(..))
-import qualified Deka.Dec as D
 import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Abstract.Aggregates
+import Penny.Numbers.Abstract.Unpolar
 
 newtype Qty = Qty { unQty :: Concrete }
   deriving (Eq, Ord, Show)
@@ -41,14 +41,25 @@ ungroupedUnpolarToQty s = ungroupedPolarToQty
 groupedUnpolarToQty :: Side -> GroupedUnpolar r -> Qty
 groupedUnpolarToQty s = ungroupedUnpolarToQty s . ungroupGroupedUnpolar
 
-qtySide :: Qty -> Maybe Side
-qtySide (Qty c)
-  | D.isZero d = Nothing
-  | D.isPositive d = Just Debit
-  | D.isNegative d = Just Credit
-  | otherwise = error "qtySide: bad concrete"
+data QtyParams = QtyParams
+  { qpCoeff :: Maybe (Side, NovDecs)
+  , qpExponent :: Exponent
+  } deriving (Eq, Ord, Show)
+
+qtyToParams :: Qty -> QtyParams
+qtyToParams (Qty c) = QtyParams mc e
   where
-    d = unConcrete c
+    Params s coe e = params c
+    mc = case coe of
+      CoeZero -> Nothing
+      CoeNonZero nd -> Just (signToSide s, nd)
+
+paramsToQty :: QtyParams -> Qty
+paramsToQty (QtyParams mc e) = Qty . concrete $ Params s c e
+  where
+    (s, c) = case mc of
+      Nothing -> (Sign0, CoeZero)
+      Just (sd, nd) -> (sideToSign sd, CoeNonZero nd)
 
 abstractQty :: Radix r -> Qty -> UngroupedPolar r Side
 abstractQty r = fromConcrete f r . unQty
