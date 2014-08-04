@@ -19,14 +19,6 @@ import Data.Sums
 -- As a corollary, zero values are never grouped, as they never have
 -- more than one digit to the left of the radix point.
 
-group
-  :: Grouper r
-  -> UngroupedUnpolar r
-  -> Maybe (GroupedUnpolar r)
-group g (UngroupedUnpolar plr) = case plr of
-  S2a _ -> Nothing
-  S2b nz -> fmap (GroupedUnpolar . S2b) $ groupNonZero g nz
-
 groupNonZero
   :: Grouper r
   -> UngroupedNonZero r

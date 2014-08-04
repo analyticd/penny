@@ -21,22 +21,13 @@ prop_tenThousandNovDecs = once $ groupNovDecs comma nd === Just mgl
     mgl = MasunoGroupedLeft (NovDecs D1 (S.singleton D0))
       (Group comma (DecDecs D0 (S.fromList [D0, D0]))) S.empty
 
--- | ungrouped -> grouped -> ungrouped, for Period
-
-prop_groupRoundTripPeriod :: Property
-prop_groupRoundTripPeriod =
-  forAll G.grouperPeriod $ \grp ->
-  forAllShrink (G.ungroupedUnpolar (return radPeriod))
-    S.ungroupedUnpolar $ \uu ->
-  let r = group grp uu in
-  isJust r ==> ungroupGroupedUnpolar (fromJust r) === uu
-
 -- | ungrouped -> grouped -> ungrouped
 
 prop_groupNonZeroRoundTrip :: Property
 prop_groupNonZeroRoundTrip =
   forAll G.grouperComma $ \grp ->
-  forAll (G.ungroupedNonZero (return radComma)) $ \unz ->
+  forAllShrink (G.ungroupedNonZero (return radComma))
+    S.ungroupedNonZero $ \unz ->
   let r = groupNonZero grp unz in
   isJust r ==> ungroupGroupedNonZero (fromJust r) === unz
 
@@ -45,18 +36,17 @@ prop_groupNonZeroRoundTrip =
 prop_groupingSuccessOrFailure :: Property
 prop_groupingSuccessOrFailure =
   forAll G.grouperComma $ \grp ->
-  forAll (G.ungroupedUnpolar (return radComma)) $ \uu ->
-  let r = group grp uu in
-  case unUngroupedUnpolar uu of
-    S2a _ -> isNothing r
-    S2b (UngroupedNonZero unz) -> case unz of
-      S3a (UNWhole (NovDecs _ ds))
-        | S.length ds > 3 -> isJust r
-        | otherwise -> isNothing r
-      S3b (UNWholeRadix (NovDecs _ ds) _ _)
-        | S.length ds > 3 -> isJust r
-        | otherwise -> isNothing r
-      S3c _ -> isNothing r
+  forAllShrink (G.ungroupedNonZero (return radComma))
+    S.ungroupedNonZero $ \uu ->
+  let r = groupNonZero grp uu in
+  case unUngroupedNonZero uu of
+    S3a (UNWhole (NovDecs _ ds))
+      | S.length ds > 3 -> isJust r
+      | otherwise -> isNothing r
+    S3b (UNWholeRadix (NovDecs _ ds) _ _)
+      | S.length ds > 3 -> isJust r
+      | otherwise -> isNothing r
+    S3c _ -> isNothing r
 
 -- | groupsOf3 produces groups that, when ungrouped, give original
 -- sequence
