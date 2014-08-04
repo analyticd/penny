@@ -1,14 +1,9 @@
-{-# LANGUAGE RankNTypes #-}
 module Penny.Numbers.Abstract.Aggregates.Shrinkers where
 
-import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.Unpolar.Shrinkers
 import Prelude.Shrinkers
 import Data.Sums.Shrinkers
-import Penny.Numbers.Qty
-import Penny.Numbers.Qty.Shrinkers
-import Penny.Numbers.Abstract.RadGroup.Shrinkers
 import Prelude hiding (either)
 
 polarity
@@ -44,72 +39,52 @@ ungroupedPolar sp (UngroupedPolar p) = fmap UngroupedPolar $
   polarity ungroupedZero ungroupedNonZero sp p
 
 groupedNonZero
-  :: (forall b. b -> Group r b)
-  -> GroupedNonZero r
+  :: GroupedNonZero r
   -> [GroupedNonZero r]
-groupedNonZero g (GroupedNonZero s) = fmap GroupedNonZero $
-  s5 (masunoGroupedLeft g) (masunoGroupedLeftRad g)
-     (masunoGroupedRight g) (fracunoFirstGroupZ g)
-     (fracunoFirstGroupNZ g) s
+groupedNonZero (GroupedNonZero s) = fmap GroupedNonZero $
+  s5 masunoGroupedLeft masunoGroupedLeftRad
+     masunoGroupedRight fracunoFirstGroupZ
+     fracunoFirstGroupNZ s
 
 
 
 groupedUnpolar
-  :: (forall b. b -> Group r b)
-  -> GroupedUnpolar r
+  :: GroupedUnpolar r
   -> [GroupedUnpolar r]
-groupedUnpolar g (GroupedUnpolar s) = fmap GroupedUnpolar $
-  s2 (gZ g) (groupedNonZero g) s
+groupedUnpolar (GroupedUnpolar s) = fmap GroupedUnpolar $
+  s2 gZ groupedNonZero s
 
 groupedPolar
   :: (p -> [p])
-  -> (forall b. b -> Group r b)
   -> GroupedPolar r p
   -> [GroupedPolar r p]
-groupedPolar sp g (GroupedPolar s) = fmap GroupedPolar $
-  polarity (gZ g) (groupedNonZero g) sp s
+groupedPolar sp (GroupedPolar s) = fmap GroupedPolar $
+  polarity gZ groupedNonZero sp s
 
 unpolar
-  :: (forall b. b -> Group r b)
-  -> Unpolar r
+  :: Unpolar r
   -> [Unpolar r]
-unpolar g (Unpolar s) = fmap Unpolar $
-  s2 ungroupedUnpolar (groupedUnpolar g) s
+unpolar (Unpolar s) = fmap Unpolar $
+  s2 ungroupedUnpolar groupedUnpolar s
 
 polar
-  :: (p -> [p])
-  -> (forall b. b -> Group r b)
-  -> Polar r p
+  :: Polar r p
   -> [Polar r p]
-polar sp g (Polar s) = fmap Polar $
-  s2 (ungroupedPolar sp) (groupedPolar sp g) s
+polar (Polar s) = fmap Polar $
+  s2 (ungroupedPolar (const [])) (groupedPolar (const [])) s
 
 abstract
-  :: (p -> [p])
-  -> (forall b. b -> Group r b)
-  -> Abstract r p
+  :: Abstract r p
   -> [Abstract r p]
-abstract sp g (Abstract a) = fmap Abstract $
-  s2 (unpolar g) (polar sp g) a
-
-unpolarPeriod :: Unpolar Period -> [Unpolar Period]
-unpolarPeriod = unpolar comma
-
-unpolarComma :: Unpolar Comma -> [Unpolar Comma]
-unpolarComma = unpolar period
+abstract (Abstract a) = fmap Abstract $
+  s2 unpolar polar a
 
 unpolarEitherRadix
-  :: Either (Unpolar Period) (Unpolar Comma)
-  -> [Either (Unpolar Period) (Unpolar Comma)]
-unpolarEitherRadix = either unpolarPeriod unpolarComma
-
-polarPeriodSide :: Polar Period Side -> [Polar Period Side]
-polarPeriodSide = polar (const []) comma
-
-polarCommaSide :: Polar Comma Side -> [Polar Comma Side]
-polarCommaSide = polar (const []) period
+  :: Either (Unpolar a) (Unpolar b)
+  -> [Either (Unpolar a) (Unpolar b)]
+unpolarEitherRadix = either unpolar unpolar
 
 polarEitherRadix
-  :: Either (Polar Period Side) (Polar Comma Side)
-  -> [Either (Polar Period Side) (Polar Comma Side)]
-polarEitherRadix = either polarPeriodSide polarCommaSide
+  :: Either (Polar a s) (Polar b s)
+  -> [Either (Polar a s) (Polar b s)]
+polarEitherRadix = either polar polar

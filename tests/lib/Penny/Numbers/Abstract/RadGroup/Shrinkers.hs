@@ -5,12 +5,10 @@ import Penny.Numbers.Abstract.RadGroup
 group
   :: (b -> [b])
   -- ^ Shrinks the payload
-  -> (b -> Group a b)
-  -- ^ Constructs members of the group
   -> Group a b
   -- ^ Group to shrink
   -> [Group a b]
-group fs fk = map fk . fs . groupPayload
+group fs (Group g p) = map (Group g) . fs $ p
 
 radix :: Radix r -> [Radix r]
 radix _ = []

@@ -1,20 +1,17 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 module Penny.Pricing.Price.Shrinkers where
 
 import Penny.Pricing.Trade.Shrinkers
 import Prelude.Shrinkers
-import Prelude hiding (either)
-import Penny.Numbers.Exchange.Shrinkers
 import Penny.Numbers.Abstract.Aggregates.Shrinkers
 import Penny.Pricing.Price hiding (price, arrangement, line, filename)
-import Penny.Numbers.Abstract.RadGroup
 import Penny.DateTime.Shrinkers
 import Penny.Common.Shrinkers
 
 price :: Price -> [Price]
 price (Price t e) =
   [ Price t' e' | (t', e') <-
-    tuple2 trade (either (polar pluMin comma) (polar pluMin period))
-                 (t, e) ]
+    tuple2 trade (either polar polar) (t, e) ]
 
 pricePoint :: PricePoint -> [PricePoint]
 pricePoint (PricePoint p d) =

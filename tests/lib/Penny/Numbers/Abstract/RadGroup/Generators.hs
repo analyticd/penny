@@ -5,17 +5,17 @@ import Penny.Numbers.Abstract.RadGroup
 
 group
   :: Gen b
-  -> Gen (b -> Group a b)
-  -> Gen (Group a b)
+  -> Gen (Grouper r)
+  -> Gen (Group r b)
 group gb gf = do
-  f <- gf
   b <- gb
-  return $ f b
+  f <- gf
+  return $ Group f b
 
-groupPeriod :: Gen (b -> Group Period b)
-groupPeriod = elements
+grouperPeriod :: Gen (Grouper Period)
+grouperPeriod = elements
   [ comma, space, thin, under ]
 
-groupComma :: Gen (b -> Group Comma b)
-groupComma = elements
+grouperComma :: Gen (Grouper Comma)
+grouperComma = elements
   [ period, space, thin, under ]

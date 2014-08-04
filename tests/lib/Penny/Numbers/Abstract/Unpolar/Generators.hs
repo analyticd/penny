@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Penny.Numbers.Abstract.Unpolar.Generators where
 
 import Test.QuickCheck
@@ -9,7 +9,6 @@ import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Abstract.RadGroup.Generators
 import Control.Monad
 import Data.Sequence.Generators
-import Prelude hiding (seq, exponent)
 import qualified Prelude.Generators as PG
 
 novDecs :: Gen NovDecs
@@ -55,13 +54,13 @@ uZTrailing r = liftM3 UZTrailing hasZeroDigit r (PG.maybe zeroes)
 
 gZ
   :: Gen (Radix r)
-  -> (forall a. Gen (a -> Group r a))
+  -> Gen (Grouper r)
   -> Gen (GZ r)
 gZ r g = liftM5 GZ hasZeroDigit r zeroes (group zeroes g)
   (seq (group zeroes g))
 
 masunoGroupedLeft
-  :: (forall a. Gen (a -> Group r a))
+  :: Gen (Grouper r)
   -> Gen (MasunoGroupedLeft r)
 masunoGroupedLeft g =
   liftM3 MasunoGroupedLeft novDecs (group decDecs g)
@@ -69,7 +68,7 @@ masunoGroupedLeft g =
 
 masunoGroupedLeftRad
   :: Gen (Radix r)
-  -> (forall a. Gen (a -> Group r a))
+  -> Gen (Grouper r)
   -> Gen (MasunoGroupedLeftRad r)
 masunoGroupedLeftRad r g = liftM3 MasunoGroupedLeftRad
   (masunoGroupedLeft g) r
@@ -77,14 +76,14 @@ masunoGroupedLeftRad r g = liftM3 MasunoGroupedLeftRad
 
 masunoGroupedRight
   :: Gen (Radix r)
-  -> (forall a. Gen (a -> Group r a))
+  -> Gen (Grouper r)
   -> Gen (MasunoGroupedRight r)
 masunoGroupedRight r g = liftM5 MasunoGroupedRight
   novDecs r decDecs (group decDecs g) (seq (group decDecs g))
 
 fracunoFirstGroupZ
   :: Gen (Radix r)
-  -> (forall a. Gen (a -> Group r a))
+  -> Gen (Grouper r)
   -> Gen (FracunoFirstGroupZ r)
 fracunoFirstGroupZ r g
   = FracunoFirstGroupZ
@@ -97,7 +96,7 @@ fracunoFirstGroupZ r g
 
 fracunoFirstGroupNZ
   :: Gen (Radix r)
-  -> (forall a. Gen (a -> Group r a))
+  -> Gen (Grouper r)
   -> Gen (FracunoFirstGroupNZ r)
 fracunoFirstGroupNZ r g = liftM5 FracunoFirstGroupNZ
   hasZeroDigit r zeroesNovDecs (group decDecs g)

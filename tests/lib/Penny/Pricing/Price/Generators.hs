@@ -15,8 +15,8 @@ import Penny.Common.Generators
 
 price :: Gen Price
 price = liftM2 Price trade
-  (either (polar pluMin (return radPeriod) groupPeriod)
-          (polar pluMin (return radComma) groupComma))
+  (either (polar pluMin (return radPeriod) grouperPeriod)
+          (polar pluMin (return radComma) grouperComma))
 
 pricePoint :: Gen PricePoint
 pricePoint = liftM2 PricePoint price dateTime

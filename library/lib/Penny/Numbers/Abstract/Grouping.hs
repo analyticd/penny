@@ -1,4 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
 module Penny.Numbers.Abstract.Grouping (group) where
 
 import Data.Sequence (Seq, ViewL(..), ViewR(..), (<|))
@@ -21,7 +20,7 @@ import Data.Sums
 -- more than one digit to the left of the radix point.
 
 group
-  :: (forall a. a -> Group r a)
+  :: Grouper r
   -> UngroupedUnpolar r
   -> Maybe (GroupedUnpolar r)
 group g (UngroupedUnpolar plr) = case plr of
@@ -29,7 +28,7 @@ group g (UngroupedUnpolar plr) = case plr of
   S2b nz -> groupNonZero g nz
 
 groupNonZero
-  :: (forall a. a -> Group r a)
+  :: Grouper r
   -> UngroupedNonZero r
   -> Maybe (GroupedUnpolar r)
 groupNonZero grp (UngroupedNonZero s3) = case s3 of
@@ -56,7 +55,7 @@ masunoGroupedLeftRad mgl rdx mdd =
     mayDD = fmap (\dd -> (dd, S.empty)) mdd
 
 groupNovDecs
-  :: (forall a. a -> Group r a)
+  :: Grouper r
   -> NovDecs
   -> Maybe (MasunoGroupedLeft r)
 groupNovDecs g (NovDecs nv decs) =
@@ -73,7 +72,8 @@ groupNovDecs g (NovDecs nv decs) =
             _ -> error "groupWhole: too many groups"
         where
           msd nds =
-            Just (MasunoGroupedLeft (NovDecs nv nds) (g gr1) (fmap g r2))
+            Just (MasunoGroupedLeft (NovDecs nv nds)
+              (Group g gr1) (fmap (Group g) r2))
 
   where
     makeGroup (a1, m1) = case m1 of

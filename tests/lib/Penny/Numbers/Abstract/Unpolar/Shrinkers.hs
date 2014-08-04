@@ -1,4 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
 module Penny.Numbers.Abstract.Unpolar.Shrinkers where
 
 import Test.QuickCheck
@@ -9,7 +8,6 @@ import qualified Prelude.Shrinkers as S
 import Prelude hiding (exponent)
 import qualified Penny.Numbers.Natural.Shrinkers as S
 import qualified Penny.Numbers.Abstract.RadGroup.Shrinkers as S
-import Penny.Numbers.Abstract.RadGroup
 
 novDecs :: NovDecs -> [NovDecs]
 novDecs (NovDecs n ds) =
@@ -70,61 +68,56 @@ uZTrailing (UZTrailing hzd rdx mz) =
   [ UZTrailing hzd' rdx' mz' | (hzd', rdx', mz') <-
       S.tuple3 hasZeroDigit S.radix (S.maybe zeroes) (hzd, rdx, mz) ]
 
-gZ :: (forall b. b -> Group r b) -> GZ r -> [GZ r]
-gZ fg (GZ hzd rdx zz g1 gs) =
+gZ :: GZ r -> [GZ r]
+gZ (GZ hzd rdx zz g1 gs) =
   [ GZ hzd' rdx' zz' g1' gs' | (hzd', rdx', zz', g1', gs') <-
-      S.tuple5 hasZeroDigit S.radix zeroes (S.group zeroes fg)
-               (S.seq (S.group zeroes fg)) (hzd, rdx, zz, g1, gs) ]
+      S.tuple5 hasZeroDigit S.radix zeroes (S.group zeroes)
+               (S.seq (S.group zeroes)) (hzd, rdx, zz, g1, gs) ]
 
 masunoGroupedLeft
-  :: (forall b. b -> Group r b)
-  -> MasunoGroupedLeft r
+  :: MasunoGroupedLeft r
   -> [MasunoGroupedLeft r]
-masunoGroupedLeft fg (MasunoGroupedLeft nd g1 gs) =
+masunoGroupedLeft (MasunoGroupedLeft nd g1 gs) =
   [ MasunoGroupedLeft nd' g1' gs' | (nd', g1', gs') <-
-      S.tuple3 novDecs (S.group decDecs fg) (S.seq (S.group decDecs fg))
+      S.tuple3 novDecs (S.group decDecs) (S.seq (S.group decDecs))
                (nd, g1, gs) ]
 
 masunoGroupedLeftRad
-  :: (forall b. b -> Group r b)
-  -> MasunoGroupedLeftRad r
+  :: MasunoGroupedLeftRad r
   -> [MasunoGroupedLeftRad r]
-masunoGroupedLeftRad fg (MasunoGroupedLeftRad mgl rdx may) =
+masunoGroupedLeftRad (MasunoGroupedLeftRad mgl rdx may) =
   [ MasunoGroupedLeftRad mgl' rdx' may' | (mgl', rdx', may') <-
-      S.tuple3 (masunoGroupedLeft fg) S.radix
-               (S.maybe (S.tuple2 decDecs (S.seq (S.group decDecs fg))))
+      S.tuple3 (masunoGroupedLeft) S.radix
+               (S.maybe (S.tuple2 decDecs (S.seq (S.group decDecs))))
                (mgl, rdx, may) ]
 
 masunoGroupedRight
-  :: (forall b. b -> Group r b)
-  -> MasunoGroupedRight r
+  :: MasunoGroupedRight r
   -> [MasunoGroupedRight r]
-masunoGroupedRight fg (MasunoGroupedRight nd rdx dd g1 gs) =
+masunoGroupedRight (MasunoGroupedRight nd rdx dd g1 gs) =
   [ MasunoGroupedRight nd' rdx' dd' g1' gs' | (nd', rdx', dd', g1', gs') <-
-      S.tuple5 novDecs S.radix decDecs (S.group decDecs fg)
-               (S.seq (S.group decDecs fg))
+      S.tuple5 novDecs S.radix decDecs (S.group decDecs)
+               (S.seq (S.group decDecs))
                (nd, rdx, dd, g1, gs) ]
 
 fracunoFirstGroupZ
-  :: (forall b. b -> Group r b)
-  -> FracunoFirstGroupZ r
+  :: FracunoFirstGroupZ r
   -> [FracunoFirstGroupZ r]
-fracunoFirstGroupZ fg (FracunoFirstGroupZ hzd rdx zz sz g1 ss) =
+fracunoFirstGroupZ (FracunoFirstGroupZ hzd rdx zz sz g1 ss) =
   [ FracunoFirstGroupZ hzd' rdx' zz' sz' g1' ss'
     | (hzd', rdx', zz', sz', (g1', ss')) <-
-    S.tuple5 hasZeroDigit S.radix zeroes (S.seq (S.group zeroes fg))
-             (S.tuple2 (S.group zeroesNovDecs fg)
-                       (S.seq (S.group decDecs fg)))
+    S.tuple5 hasZeroDigit S.radix zeroes (S.seq (S.group zeroes))
+             (S.tuple2 (S.group zeroesNovDecs)
+                       (S.seq (S.group decDecs)))
              (hzd, rdx, zz, sz, (g1, ss)) ]
 
 fracunoFirstGroupNZ
-  :: (forall b. b -> Group r b)
-  -> FracunoFirstGroupNZ r
+  :: FracunoFirstGroupNZ r
   -> [FracunoFirstGroupNZ r]
-fracunoFirstGroupNZ fg (FracunoFirstGroupNZ hzd rdx znd g1 gs) =
+fracunoFirstGroupNZ (FracunoFirstGroupNZ hzd rdx znd g1 gs) =
   [ FracunoFirstGroupNZ hzd' rdx' znd' g1' gs'
     | (hzd', rdx', znd', g1', gs') <-
       S.tuple5 hasZeroDigit S.radix zeroesNovDecs
-               (S.group decDecs fg)
-               (S.seq (S.group decDecs fg))
+               (S.group decDecs)
+               (S.seq (S.group decDecs))
                (hzd, rdx, znd, g1, gs) ]

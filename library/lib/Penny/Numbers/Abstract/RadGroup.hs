@@ -10,9 +10,9 @@ module Penny.Numbers.Abstract.RadGroup
   , radComma
 
   -- * Grouping
-  , Group
-  , groupPayload
-  , grouper
+  , Grouper
+  , unGrouper
+  , Group(..)
 
   , comma
   , period
@@ -25,8 +25,11 @@ module Penny.Numbers.Abstract.RadGroup
 data Radix r = Radix { unRadix :: Char }
   deriving (Eq, Ord, Show)
 
-data Group a b = Group
-  { grouper :: Char
+data Grouper r = Grouper { unGrouper :: Char }
+  deriving (Eq, Ord, Show)
+
+data Group r b = Group
+  { grouper :: Grouper r
   , groupPayload :: b
   } deriving (Eq, Ord, Show)
 
@@ -54,18 +57,18 @@ radPeriod = Radix '.'
 radComma :: Radix Comma
 radComma = Radix ','
 
-comma :: b -> Group Period b
-comma = Group ','
+comma :: Grouper Period
+comma = Grouper ','
 
-period :: b -> Group Comma b
-period = Group '.'
+period :: Grouper Comma
+period = Grouper '.'
 
-space :: b -> Group a b
-space = Group ' '
+space :: Grouper a
+space = Grouper ' '
 
-thin :: b -> Group a b
-thin = Group '\x2009'
+thin :: Grouper a
+thin = Grouper '\x2009'
 
-under :: b -> Group a b
-under = Group '_'
+under :: Grouper a
+under = Grouper '_'
 
