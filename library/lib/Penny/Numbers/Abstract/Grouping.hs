@@ -1,4 +1,4 @@
-module Penny.Numbers.Abstract.Grouping (group) where
+module Penny.Numbers.Abstract.Grouping where
 
 import Data.Sequence (Seq, ViewL(..), ViewR(..), (<|))
 import qualified Data.Sequence as S

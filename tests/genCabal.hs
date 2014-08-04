@@ -14,6 +14,7 @@ libraryDepends =
   , C.anonymous_sums
   , C.anonymous_sums_tests
   , C.time
+  , C.deka
   ]
 
 properties :: A.Properties
