@@ -25,20 +25,20 @@ group
   -> Maybe (GroupedUnpolar r)
 group g (UngroupedUnpolar plr) = case plr of
   S2a _ -> Nothing
-  S2b nz -> groupNonZero g nz
+  S2b nz -> fmap (GroupedUnpolar . S2b) $ groupNonZero g nz
 
 groupNonZero
   :: Grouper r
   -> UngroupedNonZero r
-  -> Maybe (GroupedUnpolar r)
+  -> Maybe (GroupedNonZero r)
 groupNonZero grp (UngroupedNonZero s3) = case s3 of
   S3a (UNWhole nds) -> case groupNovDecs grp nds of
     Nothing -> Nothing
-    Just gr -> Just (GroupedUnpolar (S2b (GroupedNonZero (S5a gr))))
+    Just gr -> Just (GroupedNonZero (S5a gr))
 
   S3b (UNWholeRadix nd rdx mdd) -> case groupNovDecs grp nd of
     Nothing -> Nothing
-    Just gr -> Just (GroupedUnpolar (S2b (GroupedNonZero (S5b glr))))
+    Just gr -> Just (GroupedNonZero (S5b glr))
       where
         glr = masunoGroupedLeftRad gr rdx mdd
 
@@ -79,12 +79,14 @@ groupNovDecs g (NovDecs nv decs) =
     makeGroup (a1, m1) = case m1 of
       Nothing -> DecDecs a1 S.empty
       Just (a2, m2) -> case m2 of
-        Nothing -> DecDecs a2 (S.singleton a1)
-        Just a3 -> DecDecs a3 (a2 <| a2 <| S.empty)
+        Nothing -> DecDecs a1 (S.singleton a2)
+        Just a3 -> DecDecs a1 (a2 <| a3 <| S.empty)
 
 
 groupsOf3
   :: ((a, Maybe (a, Maybe a)) -> b)
+  -- ^ Takes 1, 2, or 3 digits and places them into a group.  The most
+  -- significant digit is on the left side.
   -> Seq a
   -> Seq b
 groupsOf3 f = go S.empty
@@ -94,6 +96,6 @@ groupsOf3 f = go S.empty
       r1 :> a1 -> case S.viewr r1 of
         EmptyR -> f (a1, Nothing) <| soFar
         r2 :> a2 -> case S.viewr r2 of
-          EmptyR -> f (a1, Just (a2, Nothing)) <| soFar
+          EmptyR -> f (a2, Just (a1, Nothing)) <| soFar
           r3 :> a3 ->
-            go ((f (a1, Just (a2, Just a3))) <| soFar) r3
+            go ((f (a3, Just (a2, Just a1))) <| soFar) r3

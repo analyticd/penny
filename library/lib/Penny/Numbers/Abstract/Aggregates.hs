@@ -19,6 +19,7 @@ module Penny.Numbers.Abstract.Aggregates
   -- | There is no need for a GroupedZero group, as there is only one
   -- type of grouped zero.
   , GroupedNonZero(..)
+  , ungroupGroupedNonZero
 
   -- * Grouped - polar and unpolar
   , GroupedUnpolar(..)
@@ -115,6 +116,16 @@ newtype GroupedNonZero r = GroupedNonZero
                            (FracunoFirstGroupNZ r) }
   deriving (Eq, Ord, Show)
 
+ungroupGroupedNonZero :: GroupedNonZero r -> UngroupedNonZero r
+ungroupGroupedNonZero
+  = UngroupedNonZero
+  . caseS5 (S3a . ungroupMasunoGroupedLeft)
+           (S3b . ungroupMasunoGroupedLeftRad)
+           (S3b . ungroupMasunoGroupedRight)
+           (S3c . ungroupFracunoFirstGroupZ)
+           (S3c . ungroupFracunoFirstGroupNZ)
+  . unGroupedNonZero
+
 -- ## Grouped - polar and unpolar
 
 newtype GroupedUnpolar r = GroupedUnpolar
@@ -140,26 +151,14 @@ ungroupGroupedPolar :: GroupedPolar r p -> UngroupedPolar r p
 ungroupGroupedPolar = UngroupedPolar . mapPolarity fn fo . unGroupedPolar
   where
     fn = UngroupedZero . S2b . ungroupGZ
-    fo = UngroupedNonZero
-      . caseS5 (S3a . ungroupMasunoGroupedLeft)
-               (S3b . ungroupMasunoGroupedLeftRad)
-               (S3b . ungroupMasunoGroupedRight)
-               (S3c . ungroupFracunoFirstGroupZ)
-               (S3c . ungroupFracunoFirstGroupNZ)
-      . unGroupedNonZero
+    fo = ungroupGroupedNonZero
 
 ungroupGroupedUnpolar :: GroupedUnpolar r -> UngroupedUnpolar r
 ungroupGroupedUnpolar
   = UngroupedUnpolar . mapS2 fz fnz . unGroupedUnpolar
   where
     fz = UngroupedZero . S2b . ungroupGZ
-    fnz = UngroupedNonZero
-      . caseS5 (S3a . ungroupMasunoGroupedLeft)
-               (S3b . ungroupMasunoGroupedLeftRad)
-               (S3b . ungroupMasunoGroupedRight)
-               (S3c . ungroupFracunoFirstGroupZ)
-               (S3c . ungroupFracunoFirstGroupNZ)
-      . unGroupedNonZero
+    fnz = ungroupGroupedNonZero
 
 
 -- # Unpolar
