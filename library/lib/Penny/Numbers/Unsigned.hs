@@ -8,8 +8,14 @@ module Penny.Numbers.Unsigned
   , ten
   , monus
   , allocate
+  , zero
+  , coefficientToUnsigned
+  , exponentToUnsigned
   ) where
 
+import Penny.Numbers.Concrete
+import Penny.Numbers.Abstract.Unpolar
+import Deka.Dec.Abstract
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F
 import Data.Sequence (Seq, ViewL(..), (<|))
@@ -107,3 +113,16 @@ allocFinal (Unsigned tot) sq = go rmdr sq
           (this, leftOver')
             | leftOver > 0 = (succ intl, pred leftOver)
             | otherwise = (intl, leftOver)
+
+zero :: Unsigned
+zero = Unsigned 0
+
+coefficientToUnsigned :: Coefficient -> Unsigned
+coefficientToUnsigned c = case c of
+  CoeZero -> Zero
+  CoeNonZero nd -> Unsigned $ novDecsToInt nd
+
+exponentToUnsigned :: Exponent -> Unsigned
+exponentToUnsigned e = case e of
+  ExpZero -> Zero
+  ExpNonZero nd -> Unsigned $ novDecsToInt nd

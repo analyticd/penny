@@ -1,5 +1,6 @@
 module Penny.Numbers.Allocator where
 
+import Penny.Numbers.Concrete
 import Penny.Numbers.Unsigned
 import qualified Data.Foldable as F
 
@@ -31,3 +32,6 @@ equalizeExponents ls = fmap adjust ls
     adjust n = subtractFromExponent diff n
       where
         diff = monus target (naExponent n)
+
+coeffExpToNabst :: Coefficient -> Exponent -> Nabst
+coeffExpToNabst = undefined
