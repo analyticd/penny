@@ -9,16 +9,15 @@ module Penny.Numbers.Unsigned
   , monus
   , allocate
   , zero
-  , coefficientToUnsigned
-  , exponentToUnsigned
+  , novDecsToUnsigned
+  , unsignedToNovDecs
   ) where
 
-import Penny.Numbers.Concrete
 import Penny.Numbers.Abstract.Unpolar
-import Deka.Dec.Abstract
+import Deka.Native.Abstract
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F
-import Data.Sequence (Seq, ViewL(..), (<|))
+import Data.Sequence (Seq, ViewL(..), (<|), (|>))
 import Data.Ord
 
 newtype Unsigned = Unsigned { unUnsigned :: Integer }
@@ -117,12 +116,25 @@ allocFinal (Unsigned tot) sq = go rmdr sq
 zero :: Unsigned
 zero = Unsigned 0
 
-coefficientToUnsigned :: Coefficient -> Unsigned
-coefficientToUnsigned c = case c of
-  CoeZero -> Zero
-  CoeNonZero nd -> Unsigned $ novDecsToInt nd
+novDecsToUnsigned :: NovDecs -> Unsigned
+novDecsToUnsigned = Unsigned . novDecsToInt
 
-exponentToUnsigned :: Exponent -> Unsigned
-exponentToUnsigned e = case e of
-  ExpZero -> Zero
-  ExpNonZero nd -> Unsigned $ novDecsToInt nd
+unsignedToNovDecs :: Unsigned -> Maybe NovDecs
+unsignedToNovDecs (Unsigned start)
+  | start == 0 = Nothing
+  | otherwise = Just . finish $ go start
+  where
+    finish sq = case S.viewl sq of
+      EmptyL -> error "unsignedToNovDecs: empty sequence"
+      x :< xs -> case x of
+        Nonem n -> NovDecs n xs
+        _ -> error "unsignedToNovDecs: leading zero"
+
+    go i = rest |> this
+      where
+        rest | qt == 0 = S.empty
+             | otherwise = go qt
+        (qt, rm) = i `divMod` 10
+        this = case intToDecem rm of
+          Just dc -> dc
+          Nothing -> error "unsignedToNovDecs: bad remainder"
