@@ -10,8 +10,8 @@ import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Concrete
-import Penny.Numbers.Natural
-import qualified Penny.Numbers.Natural as N
+import Penny.Numbers.NaturalOld
+import qualified Penny.Numbers.NaturalOld as N
 import Data.Sums
 import Deka.Dec (Sign(..))
 

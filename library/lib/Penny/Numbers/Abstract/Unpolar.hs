@@ -2,64 +2,14 @@
 -- | Unpolar abstract numbers.
 module Penny.Numbers.Abstract.Unpolar where
 
-import Data.Maybe
 import Control.Monad (join)
-import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|))
-import qualified Data.Sequence as S
+import Data.Sequence (Seq, (<|))
 import Penny.Numbers.Abstract.RadGroup
-import Penny.Numbers.Natural
+import Penny.Numbers.NaturalOld
 import Deka.Native.Abstract
 import qualified Data.Foldable as F
 import Data.Monoid
 import Penny.Numbers.Concrete
-
-novDecsToInt :: Integral a => NovDecs -> a
-novDecsToInt (NovDecs n ds) = finish $ go 0 (0 :: Int) ds
-  where
-    go !acc !plcs sq = case S.viewr sq of
-      EmptyR -> (acc, plcs)
-      xs :> x ->
-        go (acc + decemToInt x * 10 ^ plcs) (succ plcs) xs
-    finish (acc, plcs) = acc + novemToInt n * 10 ^ plcs
-
-posToNovDecs :: Pos -> NovDecs
-posToNovDecs = finish . S.unfoldl unfolder . NonZero
-  where
-    unfolder nn
-      | qt == Zero = Nothing
-      | otherwise = Just (qt, dg)
-      where
-        (qt, rm) = divNonNegByPos nn tenPos
-        dg = fromMaybe (error "posToNovDecs: error: digit greater than 9")
-          . nonNegToDecem $ rm
-
-    finish acc = case S.viewl acc of
-      EmptyL -> error "posToNovDecs: error: empty accumulator"
-      beg :< rest -> case beg of
-        D0 -> error "posToNovDecs: error: zero first digit"
-        Nonem n -> NovDecs n rest
-
-novDecsToPos :: NovDecs -> Pos
-novDecsToPos (NovDecs nv ds) = finish $ go Zero Zero ds
-  where
-
-    go acc places sq = case S.viewr sq of
-      EmptyR -> (acc, places)
-      rest :> dig -> go acc' (nextNonNeg places) rest
-        where
-          acc' = addNonNeg acc
-               . multNonNeg (decemToNonNeg dig)
-               . expNonNeg tenNonNeg
-               $ places
-
-    finish (acc, places) = case acc of
-      Zero -> thisPlace
-      NonZero p -> addPos p thisPlace
-      where
-        thisPlace = case places of
-          Zero -> novemToPos nv
-          NonZero plPos ->
-            multPos (novemToPos nv) . expPos tenPos $ plPos
 
 data ZeroesNovDecs = ZeroesNovDecs
   { zndZeroes :: NonNeg

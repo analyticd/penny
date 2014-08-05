@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable, OverloadedStrings, BangPatterns #-}
 -- | Concrete numbers.  Also has facilities to get the abstract
 -- components of any concrete number, and to convert an abstract,
 -- ungrouped number to a concrete number.
@@ -12,6 +12,9 @@ module Penny.Numbers.Concrete
 
   -- * Conversions
   , NovDecs(..)
+  , novDecsToInt
+  , novDecsToDecuple
+  , decupleToNovDecs
   , Coefficient(..)
   , Exponent(..)
   , Params(..)
@@ -40,12 +43,13 @@ module Penny.Numbers.Concrete
 import Data.Typeable
 import qualified Deka.Dec as D
 import qualified Deka.Native as DN
-import Deka.Native.Abstract (Novem(..), Decem(..))
+import Deka.Native.Abstract
+  (Novem(..), Decem(..), decemToInt, novemToInt)
 import Control.Exception
 import qualified Data.ByteString.Char8 as BS8
 import Data.Monoid
 import Prelude hiding (negate, exponent)
-import Data.Sequence (Seq)
+import Data.Sequence (Seq, ViewR(..))
 import qualified Data.Sequence as S
 import qualified Data.Foldable as Fdbl
 
@@ -144,6 +148,15 @@ newtype Mult = Mult { unMult :: Concrete }
 instance Monoid Mult where
   mempty = Mult one
   mappend (Mult x) (Mult y) = Mult $ x * y
+
+novDecsToInt :: Integral a => NovDecs -> a
+novDecsToInt (NovDecs n ds) = finish $ go 0 (0 :: Int) ds
+  where
+    go !acc !plcs sq = case S.viewr sq of
+      EmptyR -> (acc, plcs)
+      xs :> x ->
+        go (acc + decemToInt x * 10 ^ plcs) (succ plcs) xs
+    finish (acc, plcs) = acc + novemToInt n * 10 ^ plcs
 
 novDecsToDecuple :: NovDecs -> DN.Decuple
 novDecsToDecuple (NovDecs nv ds) = DN.Decuple nv (Fdbl.toList ds)
