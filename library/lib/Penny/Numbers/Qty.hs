@@ -6,7 +6,6 @@ import Deka.Dec (Sign(..))
 import qualified Deka.Dec as D
 import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Abstract.Aggregates
-import Penny.Numbers.Abstract.Unpolar
 
 newtype Qty = Qty { unQty :: Concrete }
   deriving (Eq, Ord, Show)

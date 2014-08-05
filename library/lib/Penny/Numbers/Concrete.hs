@@ -11,6 +11,9 @@ module Penny.Numbers.Concrete
   , simpleEq
 
   -- * Conversions
+  , NovDecs(..)
+  , Coefficient(..)
+  , Exponent(..)
   , Params(..)
   , params
   , concrete
@@ -37,11 +40,12 @@ module Penny.Numbers.Concrete
 import Data.Typeable
 import qualified Deka.Dec as D
 import qualified Deka.Native as DN
-import Penny.Numbers.Abstract.Unpolar
+import Deka.Native.Abstract (Novem(..), Decem(..))
 import Control.Exception
 import qualified Data.ByteString.Char8 as BS8
 import Data.Monoid
 import Prelude hiding (negate, exponent)
+import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import qualified Data.Foldable as Fdbl
 
@@ -156,6 +160,29 @@ pennyCoefficientToDeka :: Coefficient -> DN.Coefficient
 pennyCoefficientToDeka c = DN.Coefficient $ case c of
   CoeZero -> DN.Nil
   CoeNonZero nv -> DN.Plenus (novDecsToDecuple nv)
+
+data NovDecs = NovDecs
+  { ndNovem :: Novem
+  , ndDecems :: Seq Decem
+  } deriving (Eq, Ord, Show)
+
+-- | Exponents.  Unlike exponents in Deka, Penny does not use
+-- positive exponents because there is no unambiguous way to
+-- represent them using ordinary notation.  All exponents are either
+-- negative or zero.
+
+data Exponent
+  = ExpZero
+  | ExpNegative NovDecs
+  deriving (Eq, Ord, Show)
+
+-- | Coefficients.  Different from Deka coefficients in form but not
+-- substance.
+
+data Coefficient
+  = CoeZero
+  | CoeNonZero NovDecs
+  deriving (Eq, Ord, Show)
 
 
 -- | Three parameters that define any Concrete number.

@@ -13,6 +13,7 @@ module Penny.Numbers.Unsigned
   , unsignedToNovDecs
   ) where
 
+import Penny.Numbers.Concrete hiding (zero)
 import Penny.Numbers.Abstract.Unpolar
 import Deka.Native.Abstract
 import qualified Data.Sequence as S

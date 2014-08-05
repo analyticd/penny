@@ -2,6 +2,7 @@ module Penny.Numbers.Abstract.Grouping where
 
 import Data.Sequence (Seq, ViewL(..), ViewR(..), (<|))
 import qualified Data.Sequence as S
+import Penny.Numbers.Concrete
 import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.RadGroup

@@ -8,7 +8,6 @@ import Penny.Numbers.Concrete
 import qualified Data.Foldable as F
 import Data.Monoid
 import qualified Deka.Dec as D
-import Penny.Numbers.Abstract.Unpolar
 import Control.Arrow (second)
 
 newtype Balances = Balances { unBalances :: M.Map Commodity Qty }

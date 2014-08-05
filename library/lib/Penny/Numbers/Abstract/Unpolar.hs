@@ -11,11 +11,7 @@ import Penny.Numbers.Natural
 import Deka.Native.Abstract
 import qualified Data.Foldable as F
 import Data.Monoid
-
-data NovDecs = NovDecs
-  { ndNovem :: Novem
-  , ndDecems :: Seq Decem
-  } deriving (Eq, Ord, Show)
+import Penny.Numbers.Concrete
 
 novDecsToInt :: Integral a => NovDecs -> a
 novDecsToInt (NovDecs n ds) = finish $ go 0 (0 :: Int) ds
@@ -64,24 +60,6 @@ novDecsToPos (NovDecs nv ds) = finish $ go Zero Zero ds
           Zero -> novemToPos nv
           NonZero plPos ->
             multPos (novemToPos nv) . expPos tenPos $ plPos
-
--- | Exponents.  Unlike exponents in Deka, Penny does not use
--- positive exponents because there is no unambiguous way to
--- represent them using ordinary notation.  All exponents are either
--- negative or zero.
-
-data Exponent
-  = ExpZero
-  | ExpNegative NovDecs
-  deriving (Eq, Ord, Show)
-
--- | Coefficients.  Different from Deka coefficients in form but not
--- substance.
-
-data Coefficient
-  = CoeZero
-  | CoeNonZero NovDecs
-  deriving (Eq, Ord, Show)
 
 data ZeroesNovDecs = ZeroesNovDecs
   { zndZeroes :: NonNeg
