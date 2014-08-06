@@ -10,8 +10,8 @@ import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Concrete
-import Penny.Numbers.NaturalOld
-import qualified Penny.Numbers.NaturalOld as N
+import Penny.Numbers.Natural
+import qualified Penny.Numbers.Natural as N
 import Data.Sums
 import Deka.Dec (Sign(..))
 
@@ -55,9 +55,9 @@ goUngroupedNonZero
   -> Either (Pos, Seq Decem) (Seq Decem, Seq Decem)
 goUngroupedNonZero dcsSoFar plcs co = case S.viewr co of
   EmptyR -> Left (plcs, dcsSoFar)
-  rest :> dig -> case plcs of
-    One -> Right (dig <| dcsSoFar, rest)
-    Succ p -> goUngroupedNonZero (dig <| dcsSoFar) p rest
+  rest :> dig -> case prevPos plcs of
+    Nothing -> Right (dig <| dcsSoFar, rest)
+    Just p -> goUngroupedNonZero (dig <| dcsSoFar) p rest
 
 
 finishUngroupedNonZero
@@ -70,9 +70,9 @@ finishUngroupedNonZero nv rdx ei = case ei of
     S3c . UNRadFrac (HasZeroDigit True) rdx . ZeroesNovDecs z $
       NovDecs nv dcsSoFar
     where
-      z = case plcs of
-        One -> Zero
-        Succ p -> NonZero p
+      z = case prevPos plcs of
+        Nothing -> zeroNonNeg
+        Just p -> posToNonNeg p
 
   Right (dcsSoFar, rest) -> S3b $
     UNWholeRadix (NovDecs nv rest) rdx (Just dd)
@@ -132,16 +132,16 @@ ungroupedNonZeroCoeExp (UngroupedNonZero s3) = case s3 of
       dr = maybe S.empty flattenDecDecs mayDD
       dd' = dd <> dr
       nd' = NovDecs nv dd'
-      expt = case N.length dr of
-        Zero -> ExpZero
-        NonZero p -> ExpNegative . posToNovDecs $ p
+      expt = case nonNegToPos $ N.length dr of
+        Nothing -> ExpZero
+        Just p -> ExpNegative . posToNovDecs $ p
 
   S3c (UNRadFrac _ _ (ZeroesNovDecs zz nd)) -> (CoeNonZero nd, expt)
       where
         NovDecs _ ds = nd
-        lenNovDecs = case N.length ds of
-          Zero -> One
-          NonZero p -> Succ p
-        expt = ExpNegative . posToNovDecs $ case zz of
-          Zero -> lenNovDecs
-          NonZero x -> addPos x lenNovDecs
+        lenNovDecs = case nonNegToPos $ N.length ds of
+          Nothing -> onePos
+          Just p -> nextPos p
+        expt = ExpNegative . posToNovDecs $ case nonNegToPos zz of
+          Nothing -> lenNovDecs
+          Just x -> addPos x lenNovDecs

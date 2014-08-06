@@ -5,7 +5,7 @@ module Penny.Numbers.Abstract.Unpolar where
 import Control.Monad (join)
 import Data.Sequence (Seq, (<|))
 import Penny.Numbers.Abstract.RadGroup
-import Penny.Numbers.NaturalOld
+import Penny.Numbers.Natural
 import Deka.Native.Abstract
 import qualified Data.Foldable as F
 import Data.Monoid
@@ -145,11 +145,11 @@ ungroupFracunoFirstGroupZ fnz = UNRadFrac hzd rdx znd
     FracunoFirstGroupZ hzd rdx zz1 zzs gz1 dds = fnz
     zzTot = F.foldl add zz . fmap groupPayload $ zzs
       where
-        zz = case zndZeroes . groupPayload $ gz1 of
-          Zero -> zz1
-          NonZero p -> add zz1 . Zeroes $ p
+        zz = case nonNegToPos . zndZeroes . groupPayload $ gz1 of
+          Nothing -> zz1
+          Just p -> add zz1 . Zeroes $ p
         add = addZeroes
-    znd = ZeroesNovDecs (NonZero . unZeroes $ zzTot) nd
+    znd = ZeroesNovDecs (posToNonNeg . unZeroes $ zzTot) nd
     nd = NovDecs nd1 dd
     NovDecs nd1 dd1 = zndNovDecs . groupPayload $ gz1
     dd = dd1 <> flattenGroupedDecDecs dds

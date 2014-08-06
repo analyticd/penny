@@ -1,4 +1,45 @@
-module Penny.Numbers.Natural where
+module Penny.Numbers.Natural
+  ( Pos
+  , unPos
+  , pos
+  , addPos
+  , multPos
+  , prevPos
+  , nextPos
+  , novemToPos
+  , posToNovem
+
+  , NonNeg
+  , unNonNeg
+  , nonNeg
+  , posToNonNeg
+  , nonNegToPos
+  , addNonNeg
+  , multNonNeg
+  , monusNonNeg
+  , subtPos
+  , expPos
+  , nextNonNeg
+  , subtPosFromNonNeg
+  , divNonNegByPos
+  , expNonNeg
+  , decemToNonNeg
+  , nonNegToDecem
+
+  , novDecsToNonNeg
+  , nonNegToNovDecs
+  , posToNovDecs
+  , novDecsToPos
+
+  , nonNegZero
+  , tenNonNeg
+  , tenPos
+  , zeroNonNeg
+  , onePos
+
+  , length
+  , allocate
+  ) where
 
 import Data.Maybe
 import Data.Ord (comparing)
@@ -7,6 +48,8 @@ import qualified Data.Foldable as F
 import Penny.Numbers.Concrete
 import Data.Sequence (Seq, ViewL(..), (<|), (|>), ViewR(..))
 import qualified Data.Sequence as S
+import Prelude hiding (length)
+import qualified Prelude
 
 data Pos = Pos { unPos :: Integer }
   deriving (Eq, Ord, Show)
@@ -22,11 +65,21 @@ addPos (Pos x) (Pos y) = Pos $ x + y
 multPos :: Pos -> Pos -> Pos
 multPos (Pos x) (Pos y) = Pos $ x * y
 
+prevPos :: Pos -> Maybe Pos
+prevPos (Pos i)
+  | i == 1 = Nothing
+  | otherwise = Just . Pos $ pred i
+
 data NonNeg = NonNeg { unNonNeg :: Integer }
   deriving (Eq, Ord, Show)
 
 posToNonNeg :: Pos -> NonNeg
 posToNonNeg (Pos i) = NonNeg i
+
+nonNegToPos :: NonNeg -> Maybe Pos
+nonNegToPos (NonNeg i)
+  | i < 1 = Nothing
+  | otherwise = Just $ Pos i
 
 nonNeg :: Integer -> Maybe NonNeg
 nonNeg i
@@ -69,6 +122,9 @@ posToNovem (Pos p)
 nextNonNeg :: NonNeg -> NonNeg
 nextNonNeg (NonNeg x) = NonNeg $ succ x
 
+nextPos :: Pos -> Pos
+nextPos (Pos x) = Pos $ succ x
+
 subtPosFromNonNeg :: NonNeg -> Pos -> Maybe NonNeg
 subtPosFromNonNeg (NonNeg x) (Pos y)
   | y > x = Nothing
@@ -105,6 +161,9 @@ tenPos = Pos 10
 
 zeroNonNeg :: NonNeg
 zeroNonNeg = NonNeg 0
+
+onePos :: Pos
+onePos = Pos 1
 
 length :: F.Foldable f => f a -> NonNeg
 length = NonNeg . fromIntegral . Prelude.length . F.toList
@@ -180,16 +239,16 @@ allocFinal (NonNeg tot) sq = go rmdr sq
             | leftOver > 0 = (succ intl, pred leftOver)
             | otherwise = (intl, leftOver)
 
-unsignedToNovDecs :: NonNeg -> Maybe NovDecs
-unsignedToNovDecs (NonNeg start)
+nonNegToNovDecs :: NonNeg -> Maybe NovDecs
+nonNegToNovDecs (NonNeg start)
   | start == 0 = Nothing
   | otherwise = Just . finish $ go start
   where
     finish sq = case S.viewl sq of
-      EmptyL -> error "unsignedToNovDecs: empty sequence"
+      EmptyL -> error "nonNegToNovDecs: empty sequence"
       x :< xs -> case x of
         Nonem n -> NovDecs n xs
-        _ -> error "unsignedToNovDecs: leading zero"
+        _ -> error "nonNegToNovDecs: leading zero"
 
     go i = rest |> this
       where
@@ -198,7 +257,7 @@ unsignedToNovDecs (NonNeg start)
         (qt, rm) = i `divMod` 10
         this = case intToDecem rm of
           Just dc -> dc
-          Nothing -> error "unsignedToNovDecs: bad remainder"
+          Nothing -> error "nonNegToNovDecs: bad remainder"
 
 posToNovDecs :: Pos -> NovDecs
 posToNovDecs = finish . S.unfoldl unfolder . posToNonNeg
