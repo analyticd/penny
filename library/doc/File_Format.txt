@@ -1,0 +1,21 @@
+Here's an overview of the file structure:
+
+; transaction memo
+date {time} (number) [flag] payee
+    ~payee~ (number) [flag] {Account1:Account2} *tag < $15.00
+      'posting memo
+    Account3                                         > $ 15.00
+    Account4                                         < V200 [238,56]
+    Account5                                         > 238.56V200
+    Account6:Account7                                < 922,904 €
+
+# Comment.  Next is a price.
+
+@ date {time} € $1.32
+
+In the top line:
+
+Times are optional and are surrounded with curly braces.  Numbers and
+flags are optional and surrounded by parentheses and square braces,
+respectively. Payees are not quoted and end at the end of the line.
+
