@@ -42,11 +42,13 @@ newtype Payee = Payee { unPayee :: Text }
 newtype Flag = Flag { unFlag :: Text }
              deriving (Eq, Show, Ord)
 
--- | The line something appears on in a file.
-newtype Line = Line { unLine :: Int }
+-- | The location of an item.  In a file, this is generally going to
+-- be a line number.
+newtype Location = Location { unLine :: Int }
   deriving (Eq, Ord, Show)
 
--- | The name of the file in which a transaction appears.
-newtype Filename = Filename { unFilename :: Text }
+-- | A name for a collection of transactions.  If they are from a
+-- file, this will generally be the filename.
+newtype Clxn = Clxn { unClxn :: Text }
   deriving (Eq, Ord, Show)
 

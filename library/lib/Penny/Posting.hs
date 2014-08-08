@@ -1,5 +1,6 @@
 module Penny.Posting where
 
+import Penny.Trio
 import Data.Text (Text)
 import Penny.Common
 import Penny.Serial
@@ -11,35 +12,29 @@ newtype SubAccount =
 newtype Account = Account { unAccount :: [SubAccount] }
                   deriving (Eq, Show, Ord)
 
-data PostingMeta = PostingMeta
-  { pstgLine :: Line
-
-  , globalSerial :: Serial
-  -- ^ All postings are numbered in order, beginning with the first
-  -- posting in the first file and ending with the last posting in the
-  -- last file.
-
-  , fileSerial :: Serial
-  -- ^ The postings in each file are numbered in order.
-  } deriving (Eq, Ord, Show)
-
 newtype Tag = Tag { unTag :: Text }
                   deriving (Eq, Show, Ord)
 
 newtype Tags = Tags { unTags :: [Tag] }
                deriving (Eq, Show, Ord)
 
-data PostingData = PostingData
+data Posting = Posting
   { pstgMemo :: Memo
   , pstgNumber :: Number
   , pstgFlag :: Flag
   , pstgPayee :: Payee
   , pstgTags :: Tags
   , pstgAccount :: Account
-  } deriving (Eq, Ord, Show)
+  , pstgLocation :: Location
+  , pstgGlobalSerial :: Serial
+  -- ^ All postings are numbered in order, beginning with the first
+  -- posting in the first file and ending with the last posting in the
+  -- last file.
 
-data Posting = Posting
-  { pstgData :: PostingData
-  , pstgMeta :: Maybe PostingMeta
+  , pstgClxnSerial :: Serial
+  -- ^ The postings in each collection are numbered in order.
+
+  , pstgTrio :: Trio
+
   } deriving (Eq, Ord, Show)
 

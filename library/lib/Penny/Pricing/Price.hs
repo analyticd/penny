@@ -8,17 +8,11 @@ import Penny.Numbers.Exchange
 import Penny.DateTime
 
 data Price = Price
-  { pTrade :: Trade
-  , pExchange :: Either (Polar Period PluMin) (Polar Comma PluMin)
+  { priTrade :: Trade
+  , priExchange :: Either (Polar Period PluMin) (Polar Comma PluMin)
+  , priDate :: DateTime
+  , priArrangement :: Arrangement
+  , priLocation :: Location
+  , priClxn :: Clxn
   } deriving (Eq, Ord, Show)
 
-data PricePoint = PricePoint
-  { price :: Price
-  , priceDate :: DateTime
-  } deriving (Eq, Ord, Show)
-
-data PriceMeta = PriceMeta
-  { arrangement :: Arrangement
-  , line :: Line
-  , filename :: Filename
-  } deriving (Eq, Ord, Show)

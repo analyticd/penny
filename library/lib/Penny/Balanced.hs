@@ -140,13 +140,12 @@ appendEnt f (Ents sq bl) = fmap go $ f (onlyUnbalanced bl)
 appendQCEnt
   :: Either (Polar Period Side) (Polar Comma Side)
   -> Commodity
-  -> Arrangement
   -> m
   -> Ents m
   -> Ents m
-appendQCEnt ei cy ar m (Ents sq bl) = Ents (sq |> e') bl'
+appendQCEnt ei cy m (Ents sq bl) = Ents (sq |> e') bl'
   where
-    e' = mkQCEnt ei cy ar m
+    e' = mkQCEnt ei cy m
     bl' = bl <> balance (entCommodity e') (entQty e')
 
 -- | Creates 'Ents' but, unlike 'appendEnt', never fails.  To make this
@@ -158,10 +157,6 @@ rBalanced
 
   -> Commodity
   -- ^ All postings will have this same 'Commodity'
-
-  -> Arrangement
-  -- ^ All postings except for the inferred one will use this
-  -- 'Arrangement'
 
   -> a
   -- ^ Metadata for inferred posting
@@ -175,7 +170,7 @@ rBalanced
   -- balance out the other non-zero postings.  Each 'Ent' has an
   -- 'Entrio' of 'SZC', except for the inferred posting, which is 'E'.
 
-rBalanced s cy ar mt ls
+rBalanced s cy mt ls
   | S.null ls = Balanced mempty
   | otherwise = Balanced $ sq |> inferred
   where
