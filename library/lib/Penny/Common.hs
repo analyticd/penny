@@ -44,7 +44,7 @@ newtype Flag = Flag { unFlag :: Text }
 
 -- | The location of an item.  In a file, this is generally going to
 -- be a line number.
-newtype Location = Location { unLine :: Int }
+newtype Location = Location { unLocation :: Int }
   deriving (Eq, Ord, Show)
 
 -- | A name for a collection of transactions.  If they are from a

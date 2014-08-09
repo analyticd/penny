@@ -4,18 +4,19 @@ import Penny.Trio
 import Data.Text (Text)
 import Penny.Common
 import Penny.Serial
+import Data.Sequence (Seq)
 
 newtype SubAccount =
   SubAccount { unSubAccount :: Text }
   deriving (Eq, Ord, Show)
 
-newtype Account = Account { unAccount :: [SubAccount] }
+newtype Account = Account { unAccount :: Seq SubAccount }
                   deriving (Eq, Show, Ord)
 
 newtype Tag = Tag { unTag :: Text }
                   deriving (Eq, Show, Ord)
 
-newtype Tags = Tags { unTags :: [Tag] }
+newtype Tags = Tags { unTags :: Seq Tag }
                deriving (Eq, Show, Ord)
 
 data Posting = Posting

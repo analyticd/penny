@@ -42,6 +42,7 @@ import Penny.Common
 import Penny.Numbers.Qty
 import Data.Monoid
 import Prelude hiding (negate, sequence)
+import Penny.Numbers.Concrete
 import Penny.Numbers.Abstract.Aggregates
 import Penny.Numbers.Abstract.RadGroup
 import Data.Sequence (Seq, (|>), (<|), ViewL(..), ViewR(..))
@@ -161,7 +162,7 @@ rBalanced
   -> a
   -- ^ Metadata for inferred posting
 
-  -> Seq (Either (Polar Period ()) (Polar Comma ()), a)
+  -> Seq (Either (Unpolar Period) (Unpolar Comma), a)
   -- ^ Each initial member, and its corresponding metadata
 
   -> Balanced a
@@ -170,11 +171,18 @@ rBalanced
   -- balance out the other non-zero postings.  Each 'Ent' has an
   -- 'Entrio' of 'SZC', except for the inferred posting, which is 'E'.
 
-rBalanced s cy mt ls
+rBalanced s cy meta ls
   | S.null ls = Balanced mempty
   | otherwise = Balanced $ sq |> inferred
   where
-    (sq, inferred) = undefined
+    sq = fmap mkE ls
+    mkE (ei, mt) = Ent q cy mt
+      where
+        q = either (unpolarToQty s) (unpolarToQty s) ei
+    inferred = Ent q cy meta
+      where
+        q = Qty . negate . F.foldl' (+) zero
+          . fmap (unQty . entQty) $ sq
 
 -- | A single 'Ent' with information about how it relates to
 -- surrounding 'Ent' in the 'Balanced'.
