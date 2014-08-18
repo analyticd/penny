@@ -1,5 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Penny.Copper.Account.Quoted where
+module Penny.Copper.Account.Quoted
+  ( QuotedAccount
+  , unQuotedAccount
+  , accountToQuotedAccount
+  ) where
 
 import Control.Applicative hiding (many)
 import Data.List (intersperse)

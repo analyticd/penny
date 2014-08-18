@@ -90,7 +90,7 @@ commodity :: Pred Text -> Pred Commodity
 commodity = rewrap "commodity" (const X.empty) unCommodity
 
 memo :: Pred Text -> Pred Memo
-memo = fanAny unMemo
+memo = fanAny (F.toList . unMemo)
 
 number :: Pred Text -> Pred Number
 number = rewrap "number" (const X.empty) unNumber

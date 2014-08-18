@@ -2,6 +2,7 @@
 module Penny.Common where
 
 import Data.Text (Text)
+import Data.Sequence (Seq)
 
 newtype Commodity =
   Commodity { unCommodity :: Text }
@@ -30,7 +31,7 @@ data Arrangement = Arrangement
 -- | There is one item in the list for each line of the memo. Do not
 -- include newlines in the texts themselves. However there is nothing
 -- to enforce this convention.
-newtype Memo = Memo { unMemo :: [Text] }
+newtype Memo = Memo { unMemo :: Seq Text }
              deriving (Eq, Show, Ord)
 
 newtype Number = Number { unNumber :: Text }
