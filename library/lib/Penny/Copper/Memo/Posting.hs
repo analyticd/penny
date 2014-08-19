@@ -28,10 +28,10 @@ instance Renderable PostingMemo where
   render (PostingMemo (Memo xs)) =
     X.concat . F.toList . fmap renderLine $ xs
     where
-      renderLine x = "'" <> x <> "\n"
+      renderLine x = ";" <> x <> "\n"
 
   parse = fmap (PostingMemo . Memo . fromList) $ many postingLine
     where
       postingLine =
         fmap X.pack
-        $ char '\'' *> many (satisfy (/= '\n')) <* char '\n'
+        $ char ';' *> many (satisfy (/= '\n')) <* char '\n'

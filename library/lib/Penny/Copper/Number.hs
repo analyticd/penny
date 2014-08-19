@@ -28,8 +28,11 @@ toCopperNumber (C.Number n)
 
 instance Renderable Number where
   render (Number (C.Number x)) = "(" <> x <> ")"
-  parse = fmap (Number . C.Number . X.pack) $
-    many (satisfy (not . banned))
+  parse = do
+    _ <- char '('
+    xs <- many (satisfy (not . banned))
+    _ <- char ')'
+    return . Number . C.Number . X.pack $ xs
 
 banned :: Char -> Bool
 banned c =

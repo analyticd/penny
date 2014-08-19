@@ -3,9 +3,10 @@ Here's an overview of the file structure:
 ; transaction memo
 date {time} (number) [flag] payee
     ~payee~ (number) [flag] {Account1:Account2} *tag < $15.00
-      'posting memo
+      ;posting memo
     Account3                                         > $ 15.00
-    Account4                                         < V200 [238,56]
+    Account4                                         < V200 '238,56'
+    {Long:Account Name}                              > "$132 500.54"
     Account5                                         > 238.56V200
     Account6:Account7                                < 922,904 €
 
@@ -19,3 +20,30 @@ Times are optional and are surrounded with curly braces.  Numbers and
 flags are optional and surrounded by parentheses and square braces,
 respectively. Payees are not quoted and end at the end of the line.
 
+Quantities: may include a commodity in the same word, but only if it
+is a currency symbol.  Otherwise, the commodity must appear in a
+separate word.
+
+List of special characters
+--------------------------
+
+Special character                       Role
+-----------------                       ----
+Digit (first column)                    Date
+Digit (any other column)                Quantity, period radix, non-space grouping
+Letter                                  Account
+{} (posting line)                       Account
+{} (top line)                           Time
+[]                                      Flag
+~~ (posting line)                       Payee
+<>                                      Debit, credit
+''                                      Quantity, comma radix
+""                                      Quantity, period radix
+^^                                      Commodity
+*                                       Tag
+()                                      Number
+Unicode currency symbol                 Commodity
+; (first column)                        Transaction memo
+; (any other column)                    Posting memo
+#                                       Comment
+@                                       Price
