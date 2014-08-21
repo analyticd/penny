@@ -7,9 +7,9 @@ import Penny.DateTime
 data TopLine = TopLine
   { tlDateTime :: DateTime
   , tlMemo :: Memo
-  , tlNumber :: Number
-  , tlFlag :: Flag
-  , tlPayee :: Payee
+  , tlNumber :: Maybe Number
+  , tlFlag :: Maybe Flag
+  , tlPayee :: Maybe Payee
   , tlLocation :: Location
   , tlClxn :: Clxn
   , tlGlobalSer :: Serial

@@ -4,7 +4,6 @@ import Control.Monad
 import Penny.Numbers.Natural
 import qualified Penny.Numbers.Natural as N
 import Text.Parsec hiding (parse)
-import Data.List (genericReplicate)
 import qualified Data.Text as X
 import Penny.Copper.Render
 import Data.Monoid
@@ -13,8 +12,12 @@ newtype Spaces = Spaces { unSpaces :: Pos }
   deriving (Eq, Ord, Show)
 
 instance Renderable Spaces where
-  render = X.pack . flip genericReplicate ' '
-    . unPos . unSpaces
+  render (Spaces p)
+    | ip > fromIntegral (maxBound :: Int) =
+        error "render spaces: too many spaces!"
+    | otherwise = X.replicate (fromIntegral ip) (X.singleton ' ')
+    where
+      ip = unPos p
   parse = do
     c <- many1 (char ' ')
     case nonNegToPos $ N.length c of

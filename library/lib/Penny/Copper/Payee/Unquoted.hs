@@ -7,6 +7,7 @@ module Penny.Copper.Payee.Unquoted
 -- Imports
 
 import Text.Parsec
+import Control.Monad
 import Penny.Common
 import qualified Data.Text as X
 import Penny.Copper.Render
@@ -14,7 +15,7 @@ import Penny.Copper.Render
 -- | An unquoted payee may appear only in a TopLine.  The first
 -- character may not be an opening curly brace, opening parenthesis,
 -- open square brace, space, or newline.  Subsequent characters may
--- not be a newline.  Can be completely empty.
+-- not be a newline.  Must have at least one character.
 
 newtype UnquotedPayee = UnquotedPayee { unUnquotedPayee :: Payee }
   deriving (Eq, Ord, Show)
@@ -34,7 +35,7 @@ bannedOtherChar c
 
 payeeToUnquotedPayee :: Payee -> Maybe UnquotedPayee
 payeeToUnquotedPayee (Payee x) = case X.uncons x of
-  Nothing -> Just (UnquotedPayee (Payee X.empty))
+  Nothing -> Nothing
   Just (a, as)
     | bannedFirstChar a -> Nothing
     | X.all (not . bannedOtherChar) as -> Just (UnquotedPayee (Payee x))
@@ -42,11 +43,7 @@ payeeToUnquotedPayee (Payee x) = case X.uncons x of
 
 instance Renderable UnquotedPayee where
   render (UnquotedPayee (Payee x)) = x
-  parse = do
-    l1 <- optionMaybe (satisfy (not . bannedFirstChar))
-    case l1 of
-      Nothing -> return (UnquotedPayee (Payee X.empty))
-      Just l -> do
-        ls <- many (satisfy (not . bannedOtherChar))
-        return . UnquotedPayee . Payee $
-          X.cons l (X.pack ls)
+  parse = liftM2 f (satisfy (not . bannedFirstChar))
+                   (many (satisfy (not . bannedOtherChar)))
+    where
+      f l1 ls = UnquotedPayee (Payee (X.cons l1 (X.pack ls)))

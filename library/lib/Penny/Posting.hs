@@ -21,9 +21,9 @@ newtype Tags = Tags { unTags :: Seq Tag }
 
 data Posting = Posting
   { pstgMemo :: Memo
-  , pstgNumber :: Number
-  , pstgFlag :: Flag
-  , pstgPayee :: Payee
+  , pstgNumber :: Maybe Number
+  , pstgFlag :: Maybe Flag
+  , pstgPayee :: Maybe Payee
   , pstgTags :: Tags
   , pstgAccount :: Account
   , pstgLocation :: Location

@@ -1,9 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Penny.Copper.Memo.Transaction
-  ( TransactionMemo
-  , unTransactionMemo
-  , memoToTransactionMemo
+  ( TransactionMemoLine
+  , unTransactionMemoLine
+  , toTransactionMemoLine
   ) where
 
 import Control.Applicative hiding (many)
@@ -15,7 +15,7 @@ import Penny.Copper.Render
 import Data.Monoid
 import Data.Sequence
 
--- | A memo accompanying a transaction.  Each item in the 'Memo' has
+-- | A line in a memo accompanying a transaction.  Each item in the 'Memo' has
 -- no newlines.  Can be completely empty.
 
 newtype TransactionMemo = TransactionMemo { unTransactionMemo :: Memo }
