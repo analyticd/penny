@@ -40,7 +40,7 @@ instance Renderable QuotedAccount where
     . X.concat . intersperse ":" . F.toList
     . fmap unSubAccount . unAccount . unQuotedAccount
 
-  parse =
+  parser =
     (QuotedAccount . Account . S.fromList)
     <$ char '{'
     <*> sepBy subAccount (char ':')

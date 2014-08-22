@@ -68,5 +68,5 @@ nonFirstSubAccount =
 
 instance Renderable UnquotedAccount where
   render = flip X.snoc ' ' . renderAccount . unUnquotedAccount
-  parse = fmap UnquotedAccount $ parseAccount <* char ' '
+  parser = fmap UnquotedAccount $ parseAccount <* char ' '
 

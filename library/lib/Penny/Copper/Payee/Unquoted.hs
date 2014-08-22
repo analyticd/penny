@@ -43,7 +43,7 @@ payeeToUnquotedPayee (Payee x) = case X.uncons x of
 
 instance Renderable UnquotedPayee where
   render (UnquotedPayee (Payee x)) = x
-  parse = liftM2 f (satisfy (not . bannedFirstChar))
+  parser = liftM2 f (satisfy (not . bannedFirstChar))
                    (many (satisfy (not . bannedOtherChar)))
     where
       f l1 ls = UnquotedPayee (Payee (X.cons l1 (X.pack ls)))

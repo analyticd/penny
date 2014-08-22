@@ -28,7 +28,7 @@ banned c
 
 instance Renderable Flag where
   render (Flag (P.Flag x)) = "[" <> x <> "]"
-  parse =
+  parser =
     char '['
     *> fmap (Flag . P.Flag . X.pack) (many (satisfy (not . banned)))
     <* char ']'

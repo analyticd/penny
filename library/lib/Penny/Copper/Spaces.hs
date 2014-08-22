@@ -18,7 +18,7 @@ instance Renderable Spaces where
     | otherwise = X.replicate (fromIntegral ip) (X.singleton ' ')
     where
       ip = unPos p
-  parse = do
+  parser = do
     c <- many1 (char ' ')
     case nonNegToPos $ N.length c of
       Nothing -> error "spaces: parse: error"
@@ -34,4 +34,4 @@ instance Functor PreSpace where
 
 instance Renderable a => Renderable (PreSpace a) where
   render (PreSpace s d) = render s <> render d
-  parse = liftM2 PreSpace parse parse
+  parser = liftM2 PreSpace parser parser

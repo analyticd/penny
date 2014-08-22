@@ -23,7 +23,7 @@ toMemoLine x
 instance Renderable MemoLine where
   render (MemoLine x) = ";" <> x <> "\n"
 
-  parse =
+  parser =
     char ';'
     *> (fmap (MemoLine . X.pack) (many (satisfy (/= '\n'))))
     <* char '\n'

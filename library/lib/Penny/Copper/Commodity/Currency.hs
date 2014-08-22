@@ -25,6 +25,6 @@ commodityToCurrency (Commodity x) = case X.uncons x of
 
 instance Renderable Currency where
   render (Currency (Commodity x)) = x
-  parse = fmap (Currency . Commodity . X.singleton) $ satisfy f
+  parser = fmap (Currency . Commodity . X.singleton) $ satisfy f
     where
       f c = generalCategory c == CurrencySymbol

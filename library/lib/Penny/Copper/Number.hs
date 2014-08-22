@@ -28,7 +28,7 @@ toCopperNumber (C.Number n)
 
 instance Renderable Number where
   render (Number (C.Number x)) = "(" <> x <> ")"
-  parse = do
+  parser = do
     _ <- char '('
     xs <- many (satisfy (not . banned))
     _ <- char ')'

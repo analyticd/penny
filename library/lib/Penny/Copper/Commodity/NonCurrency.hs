@@ -32,6 +32,6 @@ banned c =
 
 instance Renderable NonCurrency where
   render (NonCurrency (Commodity x)) = x
-  parse =
+  parser =
     fmap (NonCurrency . Commodity . X.pack) $
       (liftM2 (:) letter (many (satisfy (not . banned))))
