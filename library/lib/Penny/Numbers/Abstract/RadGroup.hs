@@ -1,31 +1,40 @@
 module Penny.Numbers.Abstract.RadGroup
   ( -- * Radix and grouping character types
-    Period
-  , Comma
+    Period(..)
+  , Comma(..)
 
   -- * Radix point
   , Radix
-  , unRadix
   , radPeriod
   , radComma
 
   -- * Grouping
-  , Grouper
-  , unGrouper
+  , Grouper(..)
   , Group(..)
-
-  , comma
-  , period
-  , space
-  , thin
-  , under
 
   ) where
 
-data Radix r = Radix { unRadix :: Char }
+data Radix r = Radix
   deriving (Eq, Ord, Show)
 
-data Grouper r = Grouper { unGrouper :: Char }
+data Grouper a
+  = Space
+  | Thin
+  | Under
+  | Unique a
+  deriving (Eq, Ord, Show)
+
+instance Functor Grouper where
+  fmap f a = case a of
+    Unique x -> Unique (f x)
+    Space -> Space
+    Thin -> Thin
+    Under -> Under
+
+data Period = Comma
+  deriving (Eq, Ord, Show)
+
+data Comma = Period
   deriving (Eq, Ord, Show)
 
 data Group r b = Group
@@ -36,39 +45,9 @@ data Group r b = Group
 instance Functor (Group a) where
   fmap f (Group g p) = Group g (f p)
 
-data Period = Period
-  deriving (Eq, Ord, Show)
-
-data Comma = Comma
-  deriving (Eq, Ord, Show)
-
-data Thin = Thin
-  deriving (Eq, Ord, Show)
-
-data Space = Space
-  deriving (Eq, Ord, Show)
-
-data Under = Under
-  deriving (Eq, Ord, Show)
-
 radPeriod :: Radix Period
-radPeriod = Radix '.'
+radPeriod = Radix
 
 radComma :: Radix Comma
-radComma = Radix ','
-
-comma :: Grouper Period
-comma = Grouper ','
-
-period :: Grouper Comma
-period = Grouper '.'
-
-space :: Grouper a
-space = Grouper ' '
-
-thin :: Grouper a
-thin = Grouper '\x2009'
-
-under :: Grouper a
-under = Grouper '_'
+radComma = Radix
 
