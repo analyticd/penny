@@ -92,7 +92,9 @@ data ARZeroes r
   -- ^ There is nothing after the first set of zeroes.
   | ARZGroupsZ (Group r Zeroes) (Seq (Group r Zeroes)) (ARZNext r)
   -- ^ There is at least one group of zeroes after the first set of
-  -- zeroes.
+  -- zeroes. FIXME - this is not predictive; after parsing a separator
+  -- in the last group, the entire parser will fail if a zero does not
+  -- follow, which is not desirable
   | ARZNovDecs NovDecs (Seq (Group r DecDecs))
   -- ^ Immediately after the first zeroes, without a grouping
   -- character, is a 'NovDecs', followed by optional groups.

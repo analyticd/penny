@@ -4,12 +4,20 @@ module Penny.Copper.Unpolar.Convert where
 
 import Penny.Copper.Unpolar.Tree
 import Penny.Numbers.Abstract.Unpolar hiding (Zeroes)
+import qualified Penny.Numbers.Abstract.Unpolar as U
 import Penny.Numbers.Abstract.Aggregates
 import Data.Sums
 import Penny.Numbers.Concrete
 import Penny.Numbers.Abstract.RadGroup
 import Data.Sequence (Seq, (<|))
 import qualified Data.Sequence as S
+import qualified Penny.Numbers.Natural as N
+
+toNumbersZeroes :: Zeroes -> U.Zeroes
+toNumbersZeroes (Zeroes _ sq) =
+  U.Zeroes $ case N.nonNegToPos . N.length $ sq of
+    Nothing -> N.onePos
+    Just ps -> N.nextPos ps
 
 nDF1RadixDigitsFromNDF1Radix
   :: NovDecs
@@ -23,7 +31,7 @@ nDF1RadixDigitsFromNDF1Radix nd rad dd ndf = case ndf of
     . S3b $ UNWholeRadix nd rad (Just dd)
 
   NDF1RadixDigitsGroups g1 gs ->
-    Unpolar . S2b . GroupedUnpolar . S2b . GroupedNonZero . S5c
+    Unpolar . S2b . GroupedUnpolar . S2b . GroupedNonZero . S6c
     $ MasunoGroupedRight nd rad dd g1 gs
 
 nDF1RadixFromNDF1
@@ -46,7 +54,7 @@ nDF1Group
 nDF1Group nd g1 gs x = case x of
   NDF1GroupEnd ->
     Unpolar . S2b . GroupedUnpolar . S2b . GroupedNonZero
-    . S5a $ MasunoGroupedLeft nd g1 gs
+    . S6a $ MasunoGroupedLeft nd g1 gs
   NDF1GroupRadix rd ndfr -> nDF1RadixFromNDF1Group nd g1 gs rd ndfr
 
 nDF1RadixFromNDF1Group
@@ -58,7 +66,7 @@ nDF1RadixFromNDF1Group
   -> Unpolar r
 nDF1RadixFromNDF1Group nd g1 gs rd ndf1 = case ndf1 of
   NDF1RadixEnd -> Unpolar . S2b . GroupedUnpolar . S2b . GroupedNonZero
-    . S5b $ MasunoGroupedLeftRad mgl rd Nothing
+    . S6b $ MasunoGroupedLeftRad mgl rd Nothing
   NDF1RadixDigits dd ndfRd ->
     nDF1RadixDigitsFromNDF1Group nd g1 gs rd dd ndfRd
   where
@@ -74,7 +82,7 @@ nDF1RadixDigitsFromNDF1Group
   -> Unpolar r
 nDF1RadixDigitsFromNDF1Group nd g1 gs rd dd ndf =
   Unpolar . S2b . GroupedUnpolar
-  . S2b . GroupedNonZero . S5b
+  . S2b . GroupedNonZero . S6b
   $ MasunoGroupedLeftRad mgl rd (Just (dd, sq))
   where
     mgl = MasunoGroupedLeft nd g1 gs
@@ -106,6 +114,16 @@ aRZNext
   -> ARZNext r
   -> Unpolar r
 aRZNext hzd rdx zs g1 gs x = Unpolar . S2b . GroupedUnpolar $ case x of
-  ARZNEnd -> S2a $ GZ hzd rdx zs g1 gs
-  ARZNNovDecs nd dd -> S2b . GroupedNonZero $ FracunoFirstGroupZ
-    hzd rdx zs g1
+  ARZNEnd -> S2a $ GZ hzd rdx zs' g1' gs'
+  ARZNNovDecs nd dd -> S2b . GroupedNonZero . S6f
+    $ FracunoFirstGroupZNovDecs hzd rdx zs' g1' gs' nd dd
+  ARZNGroups gmz sq -> S2b . GroupedNonZero . S6d
+    $ FracunoFirstGroupZ hzd rdx zs' (g1' <| gs') (fmap convGmz gmz) sq
+  where
+    zs' = toNumbersZeroes zs
+    g1' = fmap toNumbersZeroes g1
+    gs' = fmap (fmap toNumbersZeroes) gs
+    convGmz (mz, nd) = ZeroesNovDecs zz nd
+      where
+        zz = maybe N.nonNegZero
+          (N.nonNegToPos . U.unZeroes . toNumbersZeroes) mz

@@ -109,21 +109,23 @@ polarizeUngroupedUnpolar p (UngroupedUnpolar s) =
 -- No need for a GroupedZero group - there is only one type
 
 newtype GroupedNonZero r = GroupedNonZero
-  { unGroupedNonZero :: S5 (MasunoGroupedLeft r)
+  { unGroupedNonZero :: S6 (MasunoGroupedLeft r)
                            (MasunoGroupedLeftRad r)
                            (MasunoGroupedRight r)
                            (FracunoFirstGroupZ r)
-                           (FracunoFirstGroupNZ r) }
+                           (FracunoFirstGroupNZ r)
+                           (FracunoFirstGroupZNovDecs r) }
   deriving (Eq, Ord, Show)
 
 ungroupGroupedNonZero :: GroupedNonZero r -> UngroupedNonZero r
 ungroupGroupedNonZero
   = UngroupedNonZero
-  . caseS5 (S3a . ungroupMasunoGroupedLeft)
+  . caseS6 (S3a . ungroupMasunoGroupedLeft)
            (S3b . ungroupMasunoGroupedLeftRad)
            (S3b . ungroupMasunoGroupedRight)
            (S3c . ungroupFracunoFirstGroupZ)
            (S3c . ungroupFracunoFirstGroupNZ)
+           (S3c . ungroupFracunoFirstGroupZNovDecs)
   . unGroupedNonZero
 
 -- ## Grouped - polar and unpolar

@@ -27,11 +27,11 @@ groupNonZero
 groupNonZero grp (UngroupedNonZero s3) = case s3 of
   S3a (UNWhole nds) -> case groupNovDecs grp nds of
     Nothing -> Nothing
-    Just gr -> Just (GroupedNonZero (S5a gr))
+    Just gr -> Just (GroupedNonZero (S6a gr))
 
   S3b (UNWholeRadix nd rdx mdd) -> case groupNovDecs grp nd of
     Nothing -> Nothing
-    Just gr -> Just (GroupedNonZero (S5b glr))
+    Just gr -> Just (GroupedNonZero (S6b glr))
       where
         glr = masunoGroupedLeftRad gr rdx mdd
 

@@ -129,12 +129,27 @@ ungroupMasunoGroupedRight (MasunoGroupedRight nd rdx dd1 g1 gs) =
 -- Grouped - less than one
 
 -- | Less than one, first group is zeroes only.  Optional leading
--- zero.
+-- zero.  Immediately after the last group of zeroes (without being
+-- prefixed by a grouping character) is a NovDecs, followed by
+-- optional additional groups.
 
+data FracunoFirstGroupZNovDecs r =
+  FracunoFirstGroupZNovDecs HasZeroDigit (Radix r)
+  Zeroes (Group r Zeroes) (Seq (Group r Zeroes)) NovDecs
+  (Seq (Group r DecDecs))
+  deriving (Eq, Ord, Show)
+
+ungroupFracunoFirstGroupZNovDecs
+  :: FracunoFirstGroupZNovDecs r
+  -> UNRadFrac r
+ungroupFracunoFirstGroupZNovDecs = undefined
+
+-- | Less than one, first group is zeroes only.  Optional leading
+-- zero.  After the last group of zeroes is a group with optional
+-- zeroes, followed by a NovDecs.  Optional additional groups follow.
 data FracunoFirstGroupZ r =
-  FracunoFirstGroupZ HasZeroDigit (Radix r)
-                     Zeroes (Seq (Group r Zeroes))
-                     (Group r ZeroesNovDecs) (Seq (Group r DecDecs))
+  FracunoFirstGroupZ HasZeroDigit (Radix r) Zeroes
+  (Seq (Group r Zeroes)) (Group r ZeroesNovDecs) (Seq (Group r DecDecs))
   deriving (Eq, Ord, Show)
 
 ungroupFracunoFirstGroupZ
