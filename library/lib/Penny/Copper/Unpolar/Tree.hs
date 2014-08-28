@@ -8,17 +8,8 @@ import Penny.Numbers.Concrete (NovDecs)
 import Penny.Numbers.Abstract.Unpolar hiding (Zeroes)
 import Deka.Native.Abstract
 
--- | A single zero.
-data Zero = Zero
-  deriving (Eq, Ord, Show)
-
 -- | One or more zeroes.
 data Zeroes = Zeroes Zero (Seq Zero)
-  deriving (Eq, Ord, Show)
-
--- | A non-empty set that starts with something of one type and
--- concludes with a list of items of a different type.
-data NE a b = NE a (Seq b)
   deriving (Eq, Ord, Show)
 
 data Start r
