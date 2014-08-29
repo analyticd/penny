@@ -43,9 +43,6 @@ month i
   | i > 12 = Nothing
   | otherwise = Just $ Month i
 
-instance Renderable Month where
-  render = pad0 . unMonth
-
 pad0 :: Show a => a -> X.Text
 pad0 a = X.pack str
   where

@@ -11,8 +11,7 @@ module Penny.Numbers.Concrete
   , simpleEq
 
   -- * Conversions
-  , NovDecs(..)
-  , novDecsToInt
+  , NE(..)
   , novDecsToDecuple
   , decupleToNovDecs
   , Coefficient(..)
@@ -44,14 +43,14 @@ import Data.Typeable
 import qualified Deka.Dec as D
 import qualified Deka.Native as DN
 import Deka.Native.Abstract
-  (Novem(..), Decem(..), decemToInt, novemToInt)
+  (Novem(..), Decem(..))
 import Control.Exception
 import qualified Data.ByteString.Char8 as BS8
 import Data.Monoid
 import Prelude hiding (negate, exponent)
-import Data.Sequence (Seq, ViewR(..))
 import qualified Data.Sequence as S
 import qualified Data.Foldable as Fdbl
+import Penny.Numbers.Natural
 
 -- | A 'Concrete' wraps a 'Deka.Dec.Dec'.  It is possible for
 -- arithmetic operations to exceed the available limits of the Deka
@@ -69,9 +68,9 @@ compute c
   where
     (r, fl) = D.runCtxStatus c
 
--- | A normal, signed, finite decimal number.  Like 'Deka.Dec.Dec',
--- it has a coefficient and an exponent; however, the exponent is
--- always less than or equal to zero.
+-- | A normal, signed, finite decimal number.  Like 'Deka.Dec.Dec', it
+-- has a coefficient and an exponent; however, the exponent is always
+-- less than or equal to zero.  No negative zeroes are allowed.
 newtype Concrete = Concrete { unConcrete :: D.Dec }
   deriving Show
 
@@ -103,9 +102,14 @@ simpleCompare (Concrete x) (Concrete y) = compute $ do
 simpleEq :: Concrete -> Concrete -> Bool
 simpleEq x y = simpleCompare x y == EQ
 
--- | Fails if the Dec is not normal.
+-- In next function, note that D.isNormal will return False if the
+-- number is zero.
+
+-- | Fails if the Dec is not normal, or if it is the negative zero.
 decToConcrete :: D.Dec -> Maybe Concrete
 decToConcrete a
+  | D.isSigned a && D.isZero a = Nothing
+  | D.isZero a = Just $ Concrete a
   | compute . D.isNormal $ a = Just $ Concrete a
   | otherwise = Nothing
 
@@ -149,35 +153,22 @@ instance Monoid Mult where
   mempty = Mult one
   mappend (Mult x) (Mult y) = Mult $ x * y
 
-novDecsToInt :: Integral a => NovDecs -> a
-novDecsToInt (NovDecs n ds) = finish $ go 0 (0 :: Int) ds
-  where
-    go !acc !plcs sq = case S.viewr sq of
-      EmptyR -> (acc, plcs)
-      xs :> x ->
-        go (acc + decemToInt x * 10 ^ plcs) (succ plcs) xs
-    finish (acc, plcs) = acc + novemToInt n * 10 ^ plcs
+novDecsToDecuple :: NE Novem Decem -> DN.Decuple
+novDecsToDecuple (NE nv ds) = DN.Decuple nv (Fdbl.toList ds)
 
-novDecsToDecuple :: NovDecs -> DN.Decuple
-novDecsToDecuple (NovDecs nv ds) = DN.Decuple nv (Fdbl.toList ds)
+decupleToNovDecs :: DN.Decuple -> NE Novem Decem
+decupleToNovDecs (DN.Decuple nv ds) = NE nv (S.fromList ds)
 
-decupleToNovDecs :: DN.Decuple -> NovDecs
-decupleToNovDecs (DN.Decuple nv ds) = NovDecs nv (S.fromList ds)
-
-dekaCoefficientToPenny :: DN.Coefficient -> Coefficient
-dekaCoefficientToPenny (DN.Coefficient c) = case c of
+dekaCoefficientToPenny :: D.Sign -> DN.Coefficient -> Coefficient
+dekaCoefficientToPenny sgn (DN.Coefficient c) = case c of
   DN.Nil -> CoeZero
-  DN.Plenus dc -> CoeNonZero (decupleToNovDecs dc)
+  DN.Plenus dc -> CoeNonZero (decupleToNovDecs dc) sgn
 
-pennyCoefficientToDeka :: Coefficient -> DN.Coefficient
-pennyCoefficientToDeka c = DN.Coefficient $ case c of
-  CoeZero -> DN.Nil
-  CoeNonZero nv -> DN.Plenus (novDecsToDecuple nv)
-
-data NovDecs = NovDecs
-  { ndNovem :: Novem
-  , ndDecems :: Seq Decem
-  } deriving (Eq, Ord, Show)
+pennyCoefficientToDeka :: Coefficient -> (DN.Coefficient, D.Sign)
+pennyCoefficientToDeka c = case c of
+  CoeZero -> (DN.Coefficient DN.Nil, D.Sign0)
+  CoeNonZero nv sg ->
+    (DN.Coefficient $ DN.Plenus (novDecsToDecuple nv), sg)
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
 -- positive exponents because there is no unambiguous way to
@@ -186,27 +177,28 @@ data NovDecs = NovDecs
 
 data Exponent
   = ExpZero
-  | ExpNegative NovDecs
+  | ExpNegative (NE Novem Decem)
   deriving (Eq, Ord, Show)
 
--- | Coefficients.  Different from Deka coefficients in form but not
--- substance.
+-- | Coefficients.  Unlike Deka coefficients, these carry the sign of
+-- the number.
 
 data Coefficient
   = CoeZero
-  | CoeNonZero NovDecs
+  -- ^ All 'CoeZero' have a 'D.Sign' of 'D.Sign0'; that is, no
+  -- negative zeroes are allowed.
+  | CoeNonZero (NE Novem Decem) D.Sign
   deriving (Eq, Ord, Show)
 
 
 -- | Three parameters that define any Concrete number.
 data Params = Params
-  { pmSign :: D.Sign
-  , pmCoefficient :: Coefficient
+  { pmCoefficient :: Coefficient
   , pmExponent :: Exponent
   } deriving (Eq, Ord, Show)
 
 params :: Concrete -> Params
-params (Concrete d) = Params sgn (dekaCoefficientToPenny coe) ex
+params (Concrete d) = Params (dekaCoefficientToPenny sgn coe) ex
   where
     DN.Abstract sgn val = DN.decToAbstract d
     (coe, ex) = case val of
@@ -222,9 +214,9 @@ params (Concrete d) = Params sgn (dekaCoefficientToPenny coe) ex
 concrete :: Params -> Concrete
 concrete a = Concrete d
   where
-    abstract = DN.Abstract (pmSign a)
-      $ DN.Finite (pennyCoefficientToDeka . pmCoefficient $ a)
-                  (DN.Exponent ex)
+    abstract = DN.Abstract sgn fin
+    (coe, sgn) = pennyCoefficientToDeka . pmCoefficient $ a
+    fin = DN.Finite coe (DN.Exponent ex)
     ex = case pmExponent a of
       ExpZero -> DN.Cero
       ExpNegative nv -> DN.Completo D.Neg (novDecsToDecuple nv)

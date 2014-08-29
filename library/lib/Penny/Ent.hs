@@ -33,7 +33,7 @@ instance F.Foldable Ent where
 instance T.Traversable Ent where
   sequenceA (Ent q c m) = fmap (Ent q c) m
 
-{-
+
 -- | Different errors that may arise when processing a single 'T.Trio'
 -- for conversion to an 'Ent'.
 data ErrorCode
@@ -165,4 +165,4 @@ procTrio bal trio = case trio of
       _ -> Left $ EntError MultipleCommoditiesInBalance trio bal
 
 
--}
+

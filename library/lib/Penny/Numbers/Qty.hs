@@ -4,9 +4,10 @@ import Penny.Numbers.Babel
 import Penny.Numbers.Concrete
 import Deka.Dec (Sign(..))
 import qualified Deka.Dec as D
+import Deka.Native.Abstract hiding (Exponent)
 import Penny.Numbers.Abstract.RadGroup
-import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Abstract.Polar
+import Penny.Numbers.Abstract.Grouping
 
 newtype Qty = Qty { unQty :: Concrete }
   deriving (Eq, Ord, Show)
@@ -21,47 +22,40 @@ opposite s = case s of
 
 
 polarToQty :: Polar r Side -> Qty
-polarToQty = ungroupedPolarToQty . ungroup
+polarToQty = ungroupedPolarToQty . ungroupPolar
 
 groupedPolarToQty :: Grouped r Side -> Qty
-groupedPolarToQty = ungroupedPolarToQty . ungroupGroupedPolar
+groupedPolarToQty = ungroupedPolarToQty . ungroupGrouped
 
 ungroupedPolarToQty :: Ungrouped r Side -> Qty
-ungroupedPolarToQty = Qty . toConcrete f
+ungroupedPolarToQty = Qty . concrete . ungroupedToParams f
   where
     f s = case s of
       Debit -> Sign0
       Credit -> Sign1
 
-ungroupedUnpolarToQty :: Side -> Ungrouped r -> Qty
-ungroupedUnpolarToQty s = ungroupedPolarToQty
-  . polarizeUngroupedUnpolar s
-
-groupedUnpolarToQty :: Side -> Grouped r -> Qty
-groupedUnpolarToQty s = ungroupedUnpolarToQty s . ungroupGroupedUnpolar
-
 data QtyParams = QtyParams
-  { qpCoeff :: Maybe (Side, NovDecs)
+  { qpCoeff :: Maybe (Side, NE Novem Decem)
   , qpExponent :: Exponent
   } deriving (Eq, Ord, Show)
 
 qtyToParams :: Qty -> QtyParams
 qtyToParams (Qty c) = QtyParams mc e
   where
-    Params s coe e = params c
+    Params coe e = params c
     mc = case coe of
       CoeZero -> Nothing
-      CoeNonZero nd -> Just (signToSide s, nd)
+      CoeNonZero nd s -> Just (signToSide s, nd)
 
 paramsToQty :: QtyParams -> Qty
-paramsToQty (QtyParams mc e) = Qty . concrete $ Params s c e
+paramsToQty (QtyParams mc e) = Qty . concrete $ Params c e
   where
-    (s, c) = case mc of
-      Nothing -> (Sign0, CoeZero)
-      Just (sd, nd) -> (sideToSign sd, CoeNonZero nd)
+    c = case mc of
+      Nothing -> CoeZero
+      Just (sd, ne) -> CoeNonZero ne (sideToSign sd)
 
 abstractQty :: Radix r -> Qty -> Ungrouped r Side
-abstractQty r = fromConcrete f r . unQty
+abstractQty r = paramsToUngrouped f r . params . unQty
   where
     f s = case s of
       Sign0 -> Debit

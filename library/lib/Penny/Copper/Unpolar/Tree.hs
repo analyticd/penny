@@ -5,6 +5,7 @@ import Data.Sequence (Seq)
 import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Abstract.Unpolar hiding (Zeroes)
 import Deka.Native.Abstract
+import Penny.Numbers.Concrete
 
 -- | One or more zeroes.
 data Zeroes = Zeroes Zero (Seq Zero)

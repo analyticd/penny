@@ -30,7 +30,7 @@ mapPolarity fn fo py = case py of
 newtype Polar r p = Polar { unPolar :: Polarity (Nil r) (Brim r) p }
   deriving (Eq, Ord, Show)
 
-newtype Ungrouped r p = Unpolar
+newtype Ungrouped r p = Ungrouped
   { unUngrouped :: Polarity (NilUngrouped r) (BrimUngrouped r) p }
   deriving (Eq, Ord, Show)
 
@@ -38,5 +38,3 @@ newtype Grouped r p = Grouped
   { unGrouped :: Polarity (NilGrouped r) (BrimGrouped r) p }
   deriving (Eq, Ord, Show)
 
-ungroup :: Grouped r p -> Ungrouped r p
-ungroup = undefined

@@ -2,19 +2,10 @@
 -- | Unpolar abstract numbers.
 module Penny.Numbers.Abstract.Unpolar where
 
-import Control.Monad (join)
-import Data.Sequence (Seq, (<|))
+import Data.Sequence (Seq)
 import Penny.Numbers.Abstract.RadGroup
 import Penny.Numbers.Natural
 import Deka.Native.Abstract
-import qualified Data.Foldable as F
-import Data.Monoid
-import Penny.Numbers.Concrete
-
--- | A non-empty set that starts with something of one type and
--- concludes with a list of items of a different type.
-data NE a b = NE a (Seq b)
-  deriving (Eq, Ord, Show)
 
 -- | A single zero.
 data Zero = Zero
@@ -100,6 +91,9 @@ data BrimGrouped r
   | BGFracuno (BG4 r)
   deriving (Eq, Ord, Show)
 
+-- | Inside a 'BGMasuno'.  At this point, the first group of digits on
+-- the left side of the radix point has been seen.  No radix point or
+-- additional groups have yet been seen.
 data BG1 r
   = BG1GroupOnLeft r (NE Decem Decem)
                    (Seq (r, (NE Decem Decem)))
@@ -108,6 +102,9 @@ data BG1 r
                     (Seq (r, (NE Decem Decem)))
   deriving (Eq, Ord, Show)
 
+-- | Inside a 'BG1GroupOnLeft'.  At this point, everything on the left
+-- side of the radix point has been seen; 'BG2' determines whether
+-- there is a radix point or not.
 data BG2 r
   = BG2End
   | BG2Radix (Radix r) (BG3 r)
@@ -115,7 +112,7 @@ data BG2 r
 
 data BG3 r
   = BG3End
-  | BG3AfterRad (NE Novem Decem) (Seq (r, (NE Decem Decem)))
+  | BG3AfterRad (NE Decem Decem) (Seq (r, (NE Decem Decem)))
   deriving (Eq, Ord, Show)
 
 -- | Inside a 'BGFracuno'.

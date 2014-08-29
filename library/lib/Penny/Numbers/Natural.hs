@@ -1,5 +1,8 @@
+{-# LANGUAGE BangPatterns #-}
 module Penny.Numbers.Natural
-  ( Pos
+  ( NE(..)
+  , flatten
+  , Pos
   , unPos
   , pos
   , addPos
@@ -27,6 +30,7 @@ module Penny.Numbers.Natural
   , nonNegToDecem
 
   , novDecsToNonNeg
+  , novDecsToInt
   , nonNegToNovDecs
   , posToNovDecs
   , novDecsToPos
@@ -38,6 +42,7 @@ module Penny.Numbers.Natural
   , onePos
 
   , length
+  , lengthNE
   , allocate
   ) where
 
@@ -45,11 +50,21 @@ import Data.Maybe
 import Data.Ord (comparing)
 import Deka.Native.Abstract
 import qualified Data.Foldable as F
-import Penny.Numbers.Concrete
 import Data.Sequence (Seq, ViewL(..), (<|), (|>), ViewR(..))
 import qualified Data.Sequence as S
 import Prelude hiding (length)
 import qualified Prelude
+
+-- | A non-empty set that starts with something of one type and
+-- concludes with a list of items of a different type.
+data NE a b = NE a (Seq b)
+  deriving (Eq, Ord, Show)
+
+flatten :: NE a a -> Seq a
+flatten (NE a b) = a <| b
+
+lengthNE :: NE a b -> Pos
+lengthNE (NE _ sq) = Pos . succ . fromIntegral . S.length $ sq
 
 data Pos = Pos { unPos :: Integer }
   deriving (Eq, Ord, Show)
@@ -168,8 +183,17 @@ onePos = Pos 1
 length :: F.Foldable f => f a -> NonNeg
 length = NonNeg . fromIntegral . Prelude.length . F.toList
 
-novDecsToNonNeg :: NovDecs -> NonNeg
+novDecsToNonNeg :: NE Novem Decem -> NonNeg
 novDecsToNonNeg = NonNeg . novDecsToInt
+
+novDecsToInt :: Integral a => NE Novem Decem -> a
+novDecsToInt (NE n ds) = finish $ go 0 (0 :: Int) ds
+  where
+    go !acc !plcs sq = case S.viewr sq of
+      EmptyR -> (acc, plcs)
+      xs :> x ->
+        go (acc + decemToInt x * 10 ^ plcs) (succ plcs) xs
+    finish (acc, plcs) = acc + novemToInt n * 10 ^ plcs
 
 -- | Allocate unsigned numbers.
 allocate
@@ -239,7 +263,7 @@ allocFinal (NonNeg tot) sq = go rmdr sq
             | leftOver > 0 = (succ intl, pred leftOver)
             | otherwise = (intl, leftOver)
 
-nonNegToNovDecs :: NonNeg -> Maybe NovDecs
+nonNegToNovDecs :: NonNeg -> Maybe (NE Novem Decem)
 nonNegToNovDecs (NonNeg start)
   | start == 0 = Nothing
   | otherwise = Just . finish $ go start
@@ -247,7 +271,7 @@ nonNegToNovDecs (NonNeg start)
     finish sq = case S.viewl sq of
       EmptyL -> error "nonNegToNovDecs: empty sequence"
       x :< xs -> case x of
-        Nonem n -> NovDecs n xs
+        Nonem n -> NE n xs
         _ -> error "nonNegToNovDecs: leading zero"
 
     go i = rest |> this
@@ -259,7 +283,7 @@ nonNegToNovDecs (NonNeg start)
           Just dc -> dc
           Nothing -> error "nonNegToNovDecs: bad remainder"
 
-posToNovDecs :: Pos -> NovDecs
+posToNovDecs :: Pos -> NE Novem Decem
 posToNovDecs = finish . S.unfoldl unfolder . posToNonNeg
   where
     unfolder nn
@@ -274,10 +298,10 @@ posToNovDecs = finish . S.unfoldl unfolder . posToNonNeg
       EmptyL -> error "posToNovDecs: error: empty accumulator"
       beg :< rest -> case beg of
         D0 -> error "posToNovDecs: error: zero first digit"
-        Nonem n -> NovDecs n rest
+        Nonem n -> NE n rest
 
-novDecsToPos :: NovDecs -> Pos
-novDecsToPos (NovDecs nv ds) = finish $ go zeroNonNeg zeroNonNeg ds
+novDecsToPos :: NE Novem Decem -> Pos
+novDecsToPos (NE nv ds) = finish $ go zeroNonNeg zeroNonNeg ds
   where
 
     go acc places sq = case S.viewr sq of

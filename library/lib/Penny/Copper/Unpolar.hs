@@ -1,23 +1,20 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 module Penny.Copper.Unpolar where
 
-import Control.Applicative ((<$), (<$>), many, (<|>), (<*>))
+import Control.Applicative ((<$), (<$>), many, (<|>))
 import Deka.Native.Abstract (Novem(..), Decem(..))
 import Prelude
   ( Eq
   , Ord
   , Show
-  , undefined
   , ($)
   , fmap
   )
-import Penny.Numbers.Concrete (NovDecs(..))
 import Text.Parsec.Text (Parser)
 --import Text.Parsec.Prim
 import Text.Parsec.Char (char)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
-import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Abstract.RadGroup
   ( Radix(..)
   , Period(..)

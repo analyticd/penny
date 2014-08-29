@@ -9,6 +9,7 @@ import qualified Data.Foldable as F
 import Data.Monoid
 import qualified Deka.Dec as D
 import Control.Arrow (second)
+import Deka.Native.Abstract hiding (Exponent)
 
 newtype Balances = Balances { unBalances :: M.Map Commodity Qty }
   deriving (Eq, Ord, Show)
@@ -40,7 +41,7 @@ isBalanced :: Balances -> Bool
 isBalanced = F.all (D.isZero . unConcrete . unQty) . unBalances
 
 data NonZero = NonZero
-  { nzCoeff :: NovDecs
+  { nzCoeff :: NE Novem Decem
   , nzExp :: Exponent
   , nzSide :: Side
   } deriving (Eq, Ord, Show)
