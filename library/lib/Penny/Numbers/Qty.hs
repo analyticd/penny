@@ -5,7 +5,8 @@ import Penny.Numbers.Concrete
 import Deka.Dec (Sign(..))
 import qualified Deka.Dec as D
 import Penny.Numbers.Abstract.RadGroup
-import Penny.Numbers.Abstract.Aggregates
+import Penny.Numbers.Abstract.Unpolar
+import Penny.Numbers.Abstract.Polar
 
 newtype Qty = Qty { unQty :: Concrete }
   deriving (Eq, Ord, Show)
@@ -18,27 +19,25 @@ opposite s = case s of
   Debit -> Credit
   Credit -> Debit
 
+
 polarToQty :: Polar r Side -> Qty
-polarToQty = ungroupedPolarToQty . ungroupPolar
+polarToQty = ungroupedPolarToQty . ungroup
 
-unpolarToQty :: Side -> Unpolar r -> Qty
-unpolarToQty s = ungroupedUnpolarToQty s . ungroupUnpolar
-
-groupedPolarToQty :: GroupedPolar r Side -> Qty
+groupedPolarToQty :: Grouped r Side -> Qty
 groupedPolarToQty = ungroupedPolarToQty . ungroupGroupedPolar
 
-ungroupedPolarToQty :: UngroupedPolar r Side -> Qty
+ungroupedPolarToQty :: Ungrouped r Side -> Qty
 ungroupedPolarToQty = Qty . toConcrete f
   where
     f s = case s of
       Debit -> Sign0
       Credit -> Sign1
 
-ungroupedUnpolarToQty :: Side -> UngroupedUnpolar r -> Qty
+ungroupedUnpolarToQty :: Side -> Ungrouped r -> Qty
 ungroupedUnpolarToQty s = ungroupedPolarToQty
   . polarizeUngroupedUnpolar s
 
-groupedUnpolarToQty :: Side -> GroupedUnpolar r -> Qty
+groupedUnpolarToQty :: Side -> Grouped r -> Qty
 groupedUnpolarToQty s = ungroupedUnpolarToQty s . ungroupGroupedUnpolar
 
 data QtyParams = QtyParams
@@ -61,7 +60,7 @@ paramsToQty (QtyParams mc e) = Qty . concrete $ Params s c e
       Nothing -> (Sign0, CoeZero)
       Just (sd, nd) -> (sideToSign sd, CoeNonZero nd)
 
-abstractQty :: Radix r -> Qty -> UngroupedPolar r Side
+abstractQty :: Radix r -> Qty -> Ungrouped r Side
 abstractQty r = fromConcrete f r . unQty
   where
     f s = case s of
@@ -84,3 +83,4 @@ qtySide (Qty c)
   | otherwise = error "qtyToSide: error"
   where
     d = unConcrete c
+

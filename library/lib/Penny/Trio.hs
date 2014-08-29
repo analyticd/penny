@@ -2,7 +2,8 @@ module Penny.Trio where
 
 import Penny.Common
 import Penny.Numbers.Qty
-import Penny.Numbers.Abstract.Aggregates
+import Penny.Numbers.Abstract.Polar
+import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Abstract.RadGroup
 
 -- | When building entries using the "Penny.Ents" module, you may

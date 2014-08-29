@@ -45,6 +45,10 @@ data NonZero = NonZero
   , nzSide :: Side
   } deriving (Eq, Ord, Show)
 
+newtype Imbalances = Imbalances
+  { unImbalances :: M.Map Commodity NonZero }
+  deriving (Eq, Ord, Show)
+
 qtyParamsToNonZero :: QtyParams -> Maybe NonZero
 qtyParamsToNonZero (QtyParams may e) = case may of
   Nothing -> Nothing
@@ -53,14 +57,11 @@ qtyParamsToNonZero (QtyParams may e) = case may of
 nonZeroToQtyParams :: NonZero -> QtyParams
 nonZeroToQtyParams (NonZero nd e s) = QtyParams (Just (s, nd)) e
 
-newtype Imbalances = Imbalances
-  { unImbalances :: M.Map Commodity NonZero }
-  deriving (Eq, Ord, Show)
-
 -- | Removes all balanced commodity-qty pairs from the map.
 onlyUnbalanced :: Balances -> Imbalances
 onlyUnbalanced = Imbalances . M.fromList . mapMaybe f
   . map (second qtyToParams) . M.toList . unBalances
   where
     f (c, p) = fmap (\nz -> (c, nz)) $ qtyParamsToNonZero p
+
 

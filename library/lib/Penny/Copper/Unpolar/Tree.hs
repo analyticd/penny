@@ -2,9 +2,7 @@
 module Penny.Copper.Unpolar.Tree where
 
 import Data.Sequence (Seq)
-import Data.Sums
 import Penny.Numbers.Abstract.RadGroup
-import Penny.Numbers.Concrete (NovDecs)
 import Penny.Numbers.Abstract.Unpolar hiding (Zeroes)
 import Deka.Native.Abstract
 
@@ -27,7 +25,7 @@ data Masuno1 r
 
 data Masuno1Radix1 r
   = Masuno1Radix1End
-  | Masuno1Radix1Digs (NE Decem Decem) (Seq (Group r (NE Decem Decem)))
+  | Masuno1Radix1Digs (NE Decem Decem) (Seq (r, (NE Decem Decem)))
   deriving (Eq, Ord, Show)
 
 -- # Values leading with 0
@@ -60,7 +58,7 @@ data LZ3 r
   -- ^ A 'Novem' is seen immediately after the sequence of zeroes.
   -- The result is a non-zero value.  However, no groups have been
   -- seen yet.
-  | LZ3Group (Group r (LZ6 r))
+  | LZ3Group r (LZ6 r)
   -- ^ A group occurs next.  It's not yet known whether this group is
   -- a zero or non-zero group.
   deriving (Eq, Ord, Show)
@@ -70,7 +68,7 @@ data LZ3 r
 data LZ4 r
   = LZ4End
   -- ^ End here.  The result is a non-zero, ungrouped value.
-  | LZ4Groups (Group r (NE Decem Decem)) (Seq (Group r (NE Decem Decem)))
+  | LZ4Groups r (NE Decem Decem) (Seq (r, (NE Decem Decem)))
   -- ^ Groups occur.  The result is a non-zero, grouped value.
   deriving (Eq, Ord, Show)
 
@@ -80,14 +78,14 @@ data LZ4 r
 data LZ5 r
   = LZ5End
   -- ^ End here.  The result is a non-zero, ungrouped value.
-  | LZ5Groups (Group r (NE Decem Decem)) (Seq (Group r (NE Decem Decem)))
+  | LZ5Groups r (NE Decem Decem) (Seq (r, (NE Decem Decem)))
   -- ^ Groups occur.  The result is a non-zero, grouped value.
   deriving (Eq, Ord, Show)
 
 -- | Inside of an LZ3Group.  At this point, we know that the string
 -- has groups.  However, it might still contain all zeroes.
 data LZ6 r
-  = LZ6NovDecs (NE Novem Decem) (Seq (Group r (NE Decem Decem)))
+  = LZ6NovDecs (NE Novem Decem) (Seq (r, (NE Decem Decem)))
   -- ^ This group starts off with a non-zero value.  There might be
   -- additional groups.  The result is a grouped, non-zero value.
   | LZ6Zeroes (NE Zero Zero) (LZ7 r)
@@ -99,10 +97,10 @@ data LZ6 r
 data LZ7 r
   = LZ7End
   -- ^ End here.  The result is a grouped, non-zero value.
-  | LZ7NovDecs (NE Novem Decem) (Seq (Group r (NE Decem Decem)))
+  | LZ7NovDecs (NE Novem Decem) (Seq (r, (NE Decem Decem)))
   -- ^ A 'Novem' appears.  There might be additional groups.  The
   -- result is a grouped, non-zero value.
-  | LZ7Group (Group r (LZ6 r))
+  | LZ7Group (r, (LZ6 r))
   -- ^ An additional group appears.
   deriving (Eq, Ord, Show)
 

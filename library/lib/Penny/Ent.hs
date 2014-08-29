@@ -2,13 +2,14 @@ module Penny.Ent where
 
 import Penny.Common
 import Penny.Numbers.Qty
-import Penny.Numbers.Abstract.Aggregates
+import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Abstract.RadGroup
 import qualified Penny.Trio as T
 import Penny.Balance
 import qualified Data.Map as M
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
+import Penny.Numbers.Abstract.Polar
 
 -- | Information from a single entry.
 
@@ -32,6 +33,7 @@ instance F.Foldable Ent where
 instance T.Traversable Ent where
   sequenceA (Ent q c m) = fmap (Ent q c) m
 
+{-
 -- | Different errors that may arise when processing a single 'T.Trio'
 -- for conversion to an 'Ent'.
 data ErrorCode
@@ -163,3 +165,4 @@ procTrio bal trio = case trio of
       _ -> Left $ EntError MultipleCommoditiesInBalance trio bal
 
 
+-}

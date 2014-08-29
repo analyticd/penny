@@ -7,7 +7,7 @@ import Data.Sequence
 import Deka.Native.Abstract (Novem, Decem)
 import qualified Data.Sequence as S
 import Penny.Numbers.Abstract.RadGroup
-import Penny.Numbers.Abstract.Aggregates
+import Penny.Numbers.Abstract.Polar
 import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Concrete
 import Penny.Numbers.Natural
@@ -20,8 +20,11 @@ fromConcrete
   -- ^ How to obtain the polarity.
   -> Radix r
   -> Concrete
-  -> UngroupedPolar r p
-fromConcrete getP rdx conc = UngroupedPolar plrty
+  -> Ungrouped r p
+fromConcrete getP rdx conc = undefined
+
+{-
+ UngroupedPolar plrty
   where
     plrty = case coe of
       CoeZero -> Center uz
@@ -32,8 +35,9 @@ fromConcrete getP rdx conc = UngroupedPolar plrty
         (Params sgn coe ex) = params conc
         plr = getP sgn
         uz = exponentToUngroupedZero rdx ex
+-}
 
-
+{-
 ungroupedNonZero
   :: Radix r
   -> NovDecs
@@ -145,3 +149,4 @@ ungroupedNonZeroCoeExp (UngroupedNonZero s3) = case s3 of
         expt = ExpNegative . posToNovDecs $ case nonNegToPos zz of
           Nothing -> lenNovDecs
           Just x -> addPos x lenNovDecs
+-}

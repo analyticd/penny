@@ -4,7 +4,6 @@ import Penny.Numbers.Babel
 import Penny.Numbers.Concrete
 import Deka.Dec (Sign(..))
 import Penny.Numbers.Abstract.RadGroup
-import Penny.Numbers.Abstract.Aggregates
 
 newtype Exch = Exch { unExch :: Concrete }
   deriving (Eq, Ord, Show)
@@ -12,6 +11,7 @@ newtype Exch = Exch { unExch :: Concrete }
 data PluMin = Plus | Minus
   deriving (Eq, Ord, Show)
 
+{-
 concreteExch :: UngroupedPolar r PluMin -> Exch
 concreteExch = Exch . toConcrete f
   where
@@ -25,3 +25,4 @@ abstractExch r = fromConcrete f r . unExch
     f s = case s of
       Sign0 -> Plus
       Sign1 -> Minus
+-}

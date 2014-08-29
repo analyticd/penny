@@ -61,7 +61,7 @@ data NilGrouped r
   | NGNoLeadingZero (NG1 r)
   deriving (Eq, Ord, Show)
 
-data NG1 r = NG1 (Radix r) (Group r Zeroes) (Seq (Group r Zeroes))
+data NG1 r = NG1 (Radix r) r Zeroes (Seq (r, Zeroes))
   deriving (Eq, Ord, Show)
 
 -- # Brim
@@ -101,11 +101,11 @@ data BrimGrouped r
   deriving (Eq, Ord, Show)
 
 data BG1 r
-  = BG1GroupOnLeft (Group r (NE Decem Decem))
-                   (Seq (Group r (NE Decem Decem)))
+  = BG1GroupOnLeft r (NE Decem Decem)
+                   (Seq (r, (NE Decem Decem)))
                    (BG2 r)
   | BG1GroupOnRight (Radix r) (NE Decem Decem)
-                    (Seq (Group r (NE Decem Decem)))
+                    (Seq (r, (NE Decem Decem)))
   deriving (Eq, Ord, Show)
 
 data BG2 r
@@ -115,7 +115,7 @@ data BG2 r
 
 data BG3 r
   = BG3End
-  | BG3AfterRad (NE Novem Decem) (Seq (Group r (NE Decem Decem)))
+  | BG3AfterRad (NE Novem Decem) (Seq (r, (NE Decem Decem)))
   deriving (Eq, Ord, Show)
 
 -- | Inside a 'BGFracuno'.
@@ -126,7 +126,7 @@ data BG4 r = BG4 (Maybe Zero) (Radix r) (BG5 r)
 -- greater than zero.  So far an optional leading zero has been seen,
 -- as well as a mandatory radix point.
 data BG5 r
-  = BG5Novem (NE Novem Decem) (Seq (Group r (NE Decem Decem)))
+  = BG5Novem (NE Novem Decem) (Seq (r, (NE Decem Decem)))
   | BG5Zeroes Zeroes (BG6 r)
   deriving (Eq, Ord, Show)
 
@@ -136,12 +136,12 @@ data BG5 r
 --
 -- This also may be inside of a 'BG7Zeroes'.
 data BG6 r
-  = BG6Novem (NE Novem Decem) (Seq (Group r (NE Decem Decem)))
-  | BG6Group (Group r (BG7 r))
+  = BG6Novem (NE Novem Decem) (Seq (r, (NE Decem Decem)))
+  | BG6Group r (BG7 r)
   deriving (Eq, Ord, Show)
 
 -- |  Inside a 'BG6Group'.
 data BG7 r
   = BG7Zeroes Zeroes (BG6 r)
-  | BG7Novem (NE Novem Decem) (Seq (Group r (NE Decem Decem)))
+  | BG7Novem (NE Novem Decem) (Seq (r, (NE Decem Decem)))
   deriving (Eq, Ord, Show)

@@ -43,7 +43,7 @@ import Penny.Numbers.Qty
 import Data.Monoid
 import Prelude hiding (negate, sequence)
 import Penny.Numbers.Concrete
-import Penny.Numbers.Abstract.Aggregates
+import Penny.Numbers.Abstract.Polar
 import Penny.Numbers.Abstract.RadGroup
 import Data.Sequence (Seq, (|>), (<|), ViewL(..), ViewR(..))
 import qualified Data.Sequence as S

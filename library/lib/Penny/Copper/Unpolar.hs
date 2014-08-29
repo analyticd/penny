@@ -17,13 +17,12 @@ import Text.Parsec.Text (Parser)
 import Text.Parsec.Char (char)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
-import Penny.Numbers.Abstract.Unpolar (DecDecs(..))
+import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Abstract.RadGroup
-  ( Radix
+  ( Radix(..)
   , Period(..)
   , Comma(..)
   , Grouper(..)
-  , Group(Group)
   )
 import qualified Penny.Numbers.Abstract.RadGroup as RG
 
@@ -54,19 +53,13 @@ decem =
       D0 <$ char '0'
   <|> Nonem <$> novem
 
-novDecs :: Parser NovDecs
-novDecs = NovDecs <$> novem <*> sequence decem
-
-decDecs :: Parser DecDecs
-decDecs = DecDecs <$> decem <*> sequence decem
-
 -- # Radix and grouping
 
 radPeriod :: Parser (Radix Period)
-radPeriod = RG.radPeriod <$ char '.'
+radPeriod = RG.Radix <$ char '.'
 
 radComma :: Parser (Radix Comma)
-radComma = RG.radComma <$ char ','
+radComma = RG.Radix <$ char ','
 
 grouper :: Parser a -> Parser (Grouper a)
 grouper p =
@@ -80,7 +73,4 @@ grouperComma = grouper (Period <$ char '.')
 
 grouperPeriod :: Parser (Grouper Period)
 grouperPeriod = grouper (Comma <$ char ',')
-
-group :: Parser (Grouper a) -> Parser b -> Parser (Group a b)
-group g p = Group <$> g <*> p
 
