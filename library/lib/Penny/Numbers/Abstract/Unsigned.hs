@@ -1,6 +1,6 @@
 {-# LANGUAGE EmptyDataDecls, BangPatterns #-}
--- | Unpolar abstract numbers.
-module Penny.Numbers.Abstract.Unpolar where
+-- | Unsigned abstract numbers.
+module Penny.Numbers.Abstract.Unsigned where
 
 import Data.Sequence (Seq)
 import Penny.Numbers.Abstract.RadGroup
@@ -14,7 +14,7 @@ data Zero = Zero
 data Zeroes = Zeroes { unZeroes :: Pos }
   deriving (Eq, Ord, Show)
 
-data Unpolar r
+data Unsigned r
   = Nil (Nil r)
   | Brim (Brim r)
   deriving (Eq, Ord, Show)

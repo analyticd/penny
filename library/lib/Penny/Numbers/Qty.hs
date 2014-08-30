@@ -6,8 +6,10 @@ import Deka.Dec (Sign(..))
 import qualified Deka.Dec as D
 import Deka.Native.Abstract hiding (Exponent)
 import Penny.Numbers.Abstract.RadGroup
-import Penny.Numbers.Abstract.Polar
+import Penny.Numbers.Abstract.Signed
+import Penny.Numbers.Abstract.Unsigned
 import Penny.Numbers.Abstract.Grouping
+import Penny.Numbers.Natural
 
 newtype Qty = Qty { unQty :: Concrete }
   deriving (Eq, Ord, Show)
@@ -21,18 +23,21 @@ opposite s = case s of
   Credit -> Debit
 
 
-polarToQty :: Polar r Side -> Qty
-polarToQty = ungroupedPolarToQty . ungroupPolar
+signedToQty :: Signed r Side -> Qty
+signedToQty = ungroupedSignedToQty . ungroupSigned
 
-groupedPolarToQty :: Grouped r Side -> Qty
-groupedPolarToQty = ungroupedPolarToQty . ungroupGrouped
+groupedSignedToQty :: SignedGrouped r Side -> Qty
+groupedSignedToQty = ungroupedSignedToQty . ungroupGrouped
 
-ungroupedPolarToQty :: Ungrouped r Side -> Qty
-ungroupedPolarToQty = Qty . concrete . ungroupedToParams f
+ungroupedSignedToQty :: SignedUngrouped r Side -> Qty
+ungroupedSignedToQty = Qty . concrete . ungroupedToParams f
   where
     f s = case s of
       Debit -> Sign0
       Credit -> Sign1
+
+brimToQty :: Side -> Brim r -> Qty
+brimToQty s = signedToQty . brimToSigned s
 
 data QtyParams = QtyParams
   { qpCoeff :: Maybe (Side, NE Novem Decem)
@@ -54,7 +59,7 @@ paramsToQty (QtyParams mc e) = Qty . concrete $ Params c e
       Nothing -> CoeZero
       Just (sd, ne) -> CoeNonZero ne (sideToSign sd)
 
-abstractQty :: Radix r -> Qty -> Ungrouped r Side
+abstractQty :: Radix r -> Qty -> SignedUngrouped r Side
 abstractQty r = paramsToUngrouped f r . params . unQty
   where
     f s = case s of

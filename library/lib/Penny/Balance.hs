@@ -10,6 +10,7 @@ import Data.Monoid
 import qualified Deka.Dec as D
 import Control.Arrow (second)
 import Deka.Native.Abstract hiding (Exponent)
+import Penny.Numbers.Natural
 
 newtype Balances = Balances { unBalances :: M.Map Commodity Qty }
   deriving (Eq, Ord, Show)

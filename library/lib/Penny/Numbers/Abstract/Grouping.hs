@@ -1,6 +1,6 @@
 module Penny.Numbers.Abstract.Grouping where
 
-import Penny.Numbers.Abstract.Unpolar
+import Penny.Numbers.Abstract.Unsigned
 import qualified Data.Foldable as F
 import Penny.Numbers.Natural
 import Penny.Numbers.Abstract.RadGroup
@@ -8,21 +8,35 @@ import Deka.Native.Abstract
 import qualified Data.Sequence as S
 import Data.Sequence (Seq, (<|))
 import Data.Monoid
-import Penny.Numbers.Abstract.Polar
+import Penny.Numbers.Abstract.Signed
 
 ungroupGrouped
-  :: Grouped r p
-  -> Ungrouped r p
-ungroupGrouped (Grouped plrty) = Ungrouped $ case plrty of
+  :: SignedGrouped r p
+  -> SignedUngrouped r p
+ungroupGrouped (SignedGrouped plrty) = SignedUngrouped $ case plrty of
   Center ng -> Center . ungroupNilGrouped $ ng
   OffCenter oc sd -> OffCenter (ungroupBrimGrouped oc) sd
 
-ungroupPolar
-  :: Polar r p
-  -> Ungrouped r p
-ungroupPolar (Polar plrty) = Ungrouped $ case plrty of
+ungroupSigned
+  :: Signed r p
+  -> SignedUngrouped r p
+ungroupSigned (Signed plrty) = SignedUngrouped $ case plrty of
   Center nil -> Center . ungroupNil $ nil
   OffCenter o p -> OffCenter (ungroupBrim o) p
+
+ungroupedToPolar
+  :: SignedUngrouped r p
+  -> Signed r p
+ungroupedToPolar (SignedUngrouped py) = Signed $ case py of
+  Center nu -> Center (NilUngrouped nu)
+  OffCenter bu s -> OffCenter (BrimUngrouped bu) s
+
+groupedToPolar
+  :: SignedGrouped r p
+  -> Signed r p
+groupedToPolar (SignedGrouped py) = Signed $ case py of
+  Center ng -> Center (NilGrouped ng)
+  OffCenter bg s -> OffCenter (BrimGrouped bg) s
 
 ungroupNil
   :: Nil r

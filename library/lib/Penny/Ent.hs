@@ -2,14 +2,13 @@ module Penny.Ent where
 
 import Penny.Common
 import Penny.Numbers.Qty
-import Penny.Numbers.Abstract.Unpolar
 import Penny.Numbers.Abstract.RadGroup
 import qualified Penny.Trio as T
 import Penny.Balance
 import qualified Data.Map as M
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
-import Penny.Numbers.Abstract.Polar
+import Penny.Numbers.Abstract.Signed
 
 -- | Information from a single entry.
 
@@ -66,13 +65,13 @@ mkEnt (tri, mt) imb = case procTrio imb tri of
   Right (q, c) -> Right (Ent q c mt)
 
 mkQCEnt
-  :: Either (Polar Period Side) (Polar Comma Side)
+  :: Either (Signed Period Side) (Signed Comma Side)
   -> Commodity
   -> m
   -> Ent m
 mkQCEnt ei cy mt = Ent q cy mt
   where
-    q = either polarToQty polarToQty ei
+    q = either signedToQty signedToQty ei
 
 mkEEnt
   :: (Commodity, Qty)
@@ -89,13 +88,13 @@ procTrio bal trio = case trio of
 
   T.QC a cy _ -> Right (q, cy)
     where
-      q = either polarToQty polarToQty a
+      q = either signedToQty signedToQty a
 
   T.Q a -> case singleCommodity of
     Left e -> Left e
     Right (cy, _, _) -> Right (q, cy)
       where
-        q = either polarToQty polarToQty a
+        q = either signedToQty signedToQty a
 
   T.SC s cy -> case lookupCommodity cy of
     Left e -> Left e
@@ -118,7 +117,7 @@ procTrio bal trio = case trio of
     Right (s, _) -> Right (q, cy)
       where
         s' = opposite s
-        q = either (unpolarToQty s') (unpolarToQty s') b
+        q = either (brimToQty s') (brimToQty s') b
 
   T.U b -> case singleCommodity of
     Left e -> Left e
@@ -128,7 +127,7 @@ procTrio bal trio = case trio of
       | otherwise -> Right (q', cy)
       where
         s' = opposite s
-        q' = either (unpolarToQty s') (unpolarToQty s') b
+        q' = either (brimToQty s') (brimToQty s') b
 
   T.C cy -> case lookupCommodity cy of
     Left e -> Left e

@@ -43,7 +43,7 @@ import Penny.Numbers.Qty
 import Data.Monoid
 import Prelude hiding (negate, sequence)
 import Penny.Numbers.Concrete
-import Penny.Numbers.Abstract.Polar
+import Penny.Numbers.Abstract.Signed
 import Penny.Numbers.Abstract.RadGroup
 import Data.Sequence (Seq, (|>), (<|), ViewL(..), ViewR(..))
 import qualified Data.Sequence as S
@@ -52,6 +52,7 @@ import qualified Data.Foldable as F
 import qualified Data.Map as M
 import Control.Applicative
 import Penny.Ent
+import Penny.Numbers.Abstract.Unsigned
 
 -- | Zero or more 'Ent'; always balanced.  That is, every
 -- 'Debit' of a particular 'Commodity' is offset by an equal number of
@@ -139,7 +140,7 @@ appendEnt f (Ents sq bl) = fmap go $ f (onlyUnbalanced bl)
       (bl <> balance (entCommodity e') (entQty e'))
 
 appendQCEnt
-  :: Either (Polar Period Side) (Polar Comma Side)
+  :: Either (Signed Period Side) (Signed Comma Side)
   -> Commodity
   -> m
   -> Ents m
@@ -162,7 +163,7 @@ rBalanced
   -> a
   -- ^ Metadata for inferred posting
 
-  -> Seq (Either (Unpolar Period) (Unpolar Comma), a)
+  -> Seq (Either (Brim Period) (Brim Comma), a)
   -- ^ Each initial member, and its corresponding metadata
 
   -> Balanced a
@@ -178,7 +179,7 @@ rBalanced s cy meta ls
     sq = fmap mkE ls
     mkE (ei, mt) = Ent q cy mt
       where
-        q = either (unpolarToQty s) (unpolarToQty s) ei
+        q = either (brimToQty s) (brimToQty s) ei
     inferred = Ent q cy meta
       where
         q = Qty . negate . F.foldl' (+) zero

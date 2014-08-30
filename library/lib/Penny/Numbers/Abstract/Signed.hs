@@ -1,6 +1,6 @@
-module Penny.Numbers.Abstract.Polar where
+module Penny.Numbers.Abstract.Signed where
 
-import Penny.Numbers.Abstract.Unpolar
+import Penny.Numbers.Abstract.Unsigned
 
 -- # Polarity
 
@@ -27,14 +27,26 @@ mapPolarity fn fo py = case py of
   Center n -> Center (fn n)
   OffCenter o p -> OffCenter (fo o) p
 
-newtype Polar r p = Polar { unPolar :: Polarity (Nil r) (Brim r) p }
+newtype Signed r p = Signed { unSigned :: Polarity (Nil r) (Brim r) p }
   deriving (Eq, Ord, Show)
 
-newtype Ungrouped r p = Ungrouped
-  { unUngrouped :: Polarity (NilUngrouped r) (BrimUngrouped r) p }
+newtype SignedUngrouped r p = SignedUngrouped
+  { unSignedUngrouped :: Polarity (NilUngrouped r) (BrimUngrouped r) p }
   deriving (Eq, Ord, Show)
 
-newtype Grouped r p = Grouped
-  { unGrouped :: Polarity (NilGrouped r) (BrimGrouped r) p }
+newtype SignedGrouped r p = SignedGrouped
+  { unSignedGrouped :: Polarity (NilGrouped r) (BrimGrouped r) p }
   deriving (Eq, Ord, Show)
 
+signNeutral :: Unsigned r -> Maybe (Signed r p)
+signNeutral u = case u of
+  Nil n -> Just . Signed $ Center n
+  _ -> Nothing
+
+signOffCenter :: p -> Unsigned r -> Maybe (Signed r p)
+signOffCenter s u = case u of
+  Brim b -> Just . Signed $ OffCenter b s
+  _ -> Nothing
+
+brimToSigned :: p -> Brim r -> Signed r p
+brimToSigned p b = Signed $ OffCenter b p

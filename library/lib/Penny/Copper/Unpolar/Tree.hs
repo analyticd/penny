@@ -3,9 +3,9 @@ module Penny.Copper.Unpolar.Tree where
 
 import Data.Sequence (Seq)
 import Penny.Numbers.Abstract.RadGroup
-import Penny.Numbers.Abstract.Unpolar hiding (Zeroes)
+import Penny.Numbers.Abstract.Unsigned hiding (Zeroes)
 import Deka.Native.Abstract
-import Penny.Numbers.Concrete
+import Penny.Numbers.Natural
 
 -- | One or more zeroes.
 data Zeroes = Zeroes Zero (Seq Zero)

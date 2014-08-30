@@ -2,8 +2,8 @@ module Penny.Trio where
 
 import Penny.Common
 import Penny.Numbers.Qty
-import Penny.Numbers.Abstract.Polar
-import Penny.Numbers.Abstract.Unpolar
+import Penny.Numbers.Abstract.Signed
+import Penny.Numbers.Abstract.Unsigned
 import Penny.Numbers.Abstract.RadGroup
 
 -- | When building entries using the "Penny.Ents" module, you may
@@ -24,7 +24,7 @@ import Penny.Numbers.Abstract.RadGroup
 -- for @Empty@.
 
 data Trio
-  = QC (Either (Polar Period Side) (Polar Comma Side))
+  = QC (Either (Signed Period Side) (Signed Comma Side))
        Commodity Arrangement
   -- ^ Specify a quantity, commodity, and how they are arranged, and a
   -- corresponding entry is always recorded.
@@ -33,7 +33,7 @@ data Trio
   --
   -- Postconditions: the balance is appropriately affected.
 
-  | Q (Either (Polar Period Side) (Polar Comma Side))
+  | Q (Either (Signed Period Side) (Signed Comma Side))
   -- ^ Specify a quantity only.
   --
   -- Preconditions: there is exactly one commodity in the imbalances.
@@ -58,7 +58,7 @@ data Trio
   --
   -- Postconditions: the imbalances is empty.
 
-  | UC (Either (Unpolar Period) (Unpolar Comma)) Commodity Arrangement
+  | UC (Either (Brim Period) (Brim Comma)) Commodity Arrangement
   -- ^ Specify an unsigned abstract quantity only and a 'Commodity'
   -- and how they are arranged.
   --
@@ -67,7 +67,7 @@ data Trio
   -- Postconditions: the given commodity in the imbalances either has
   -- its absolute value reduced or it flips to the opposite side.
 
-  | U (Either (Unpolar Period) (Unpolar Comma))
+  | U (Either (Brim Period) (Brim Comma))
   -- ^ Specify an unsigned quantity only.
   --
   -- Preconditions: the imbalances contains exactly one commodity, and

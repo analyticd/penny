@@ -11,7 +11,6 @@ module Penny.Numbers.Concrete
   , simpleEq
 
   -- * Conversions
-  , NE(..)
   , novDecsToDecuple
   , decupleToNovDecs
   , Coefficient(..)
