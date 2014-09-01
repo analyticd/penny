@@ -56,16 +56,17 @@ ungroupBrim b = case b of
 -- one.
 ungroupNilGrouped :: NilGrouped r -> NilUngrouped r
 ungroupNilGrouped ng = case ng of
-  NGLeadingZero z (NG1 rdx _ zs sq) ->
+  NGLeadingZero z (NG1 rdx zs1 _ zs2 sq) ->
     NULeadingZero z (NU1Radix rdx (NU2Zeroes zz))
     where
-      zz = F.foldl' add zs sq
+      zz = F.foldl' add (zs1 `addZ` zs2) sq
 
-  NGNoLeadingZero (NG1 rdx _ zs sq) -> NUNoLeadingZero rdx zz
+  NGNoLeadingZero (NG1 rdx zs1 _ zs2 sq) -> NUNoLeadingZero rdx zz
     where
-      zz = F.foldl' add zs sq
+      zz = F.foldl' add (zs1 `addZ` zs2) sq
   where
-    add (Zeroes x) (_, (Zeroes y)) = Zeroes $ addPos x y
+    add x (_, y) = addZ x y
+    addZ (Zeroes x) (Zeroes y) = Zeroes $ addPos x y
 
 -- | Ungroups a 'BrimGrouped'.  Retains the leading zero if there is
 -- one.
@@ -135,7 +136,7 @@ ungroupBG4 (BG4 mz rdx bg5) = (mz, rdx, ungroupBG5 bg5)
 
 ungroupBG5 :: BG5 r -> (Maybe Zeroes, NE Novem Decem)
 ungroupBG5 bg5 = case bg5 of
-  BG5Novem ne sq -> (Nothing, flattenNovDecsSeq ne sq)
+  BG5Novem ne sq -> (Nothing, flattenNovDecsSeq ne (flatten sq))
   BG5Zeroes zs bg6 -> ungroupBG6 (Just zs) bg6
 
 ungroupBG7
@@ -144,7 +145,7 @@ ungroupBG7
   -> BG7 r
   -> (Maybe Zeroes, NE Novem Decem)
 ungroupBG7 mayzs bg7 = case bg7 of
-  BG7Zeroes (Zeroes zs) bg6 -> ungroupBG6 mayzs' bg6
+  BG7Zeroes (Zeroes zs) bg8 -> ungroupBG8 mayzs' bg8
     where
       mayzs' = case mayzs of
         Nothing -> Just (Zeroes zs)
@@ -157,10 +158,17 @@ ungroupBG6
   -> BG6 r
   -> (Maybe Zeroes, NE Novem Decem)
 ungroupBG6 mayzs bg6 = case bg6 of
-  BG6Novem ne sq -> (mayzs, flattenNovDecsSeq ne sq)
+  BG6Novem ne sq -> (mayzs, flattenNovDecsSeq ne (flatten sq))
   BG6Group _ bg7 -> ungroupBG7 mayzs bg7
 
-
+ungroupBG8
+  :: Maybe Zeroes
+  -- ^ Zeroes seen so far
+  -> BG8 r
+  -> (Maybe Zeroes, NE Novem Decem)
+ungroupBG8 mayZ bg8 = case bg8 of
+  BG8Novem ne sq -> (mayZ, flattenNovDecsSeq ne sq)
+  BG8Group _ bg7 -> ungroupBG7 mayZ bg7
 
 -- Groups digits.  Rules for digit grouping:
 --

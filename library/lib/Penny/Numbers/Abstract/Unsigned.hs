@@ -52,7 +52,7 @@ data NilGrouped r
   | NGNoLeadingZero (NG1 r)
   deriving (Eq, Ord, Show)
 
-data NG1 r = NG1 (Radix r) r Zeroes (Seq (r, Zeroes))
+data NG1 r = NG1 (Radix r) Zeroes r Zeroes (Seq (r, Zeroes))
   deriving (Eq, Ord, Show)
 
 -- # Brim
@@ -123,22 +123,32 @@ data BG4 r = BG4 (Maybe Zero) (Radix r) (BG5 r)
 -- greater than zero.  So far an optional leading zero has been seen,
 -- as well as a mandatory radix point.
 data BG5 r
-  = BG5Novem (NE Novem Decem) (Seq (r, (NE Decem Decem)))
+  = BG5Novem (NE Novem Decem) (NE (r, (NE Decem Decem)) (r, NE Decem Decem))
   | BG5Zeroes Zeroes (BG6 r)
   deriving (Eq, Ord, Show)
 
 -- | Inside a 'BG5Zeroes'.  This is a fractional value of less than
 -- one, but greater than zero.  So far seen is an optional leading
 -- zero, mandatory radix point, and a run of zeroes.
---
--- This also may be inside of a 'BG7Zeroes'.
 data BG6 r
-  = BG6Novem (NE Novem Decem) (Seq (r, (NE Decem Decem)))
+  = BG6Novem (NE Novem Decem) (NE (r, (NE Decem Decem)) (r, NE Decem Decem))
   | BG6Group r (BG7 r)
   deriving (Eq, Ord, Show)
 
--- |  Inside a 'BG6Group'.
+-- | Inside a 'BG6Group'.  This is a fractional value of less than
+-- one, but greater than zero.  So far seen is an optional leading
+-- zero, mandatory radix point, a run of zeroes, and a grouping
+-- character.
 data BG7 r
-  = BG7Zeroes Zeroes (BG6 r)
+  = BG7Zeroes Zeroes (BG8 r)
   | BG7Novem (NE Novem Decem) (Seq (r, (NE Decem Decem)))
+  deriving (Eq, Ord, Show)
+
+-- | Inside a 'BG7Zeroes'.  This is a fractional value of less than
+-- one, but greater than zero.  So far seen is an optional leading
+-- zero, mandatory radix point, a run of zeroes, a grouping character,
+-- and more zeroes.
+data BG8 r
+  = BG8Novem (NE Novem Decem) (Seq (r, NE Decem Decem))
+  | BG8Group r (BG7 r)
   deriving (Eq, Ord, Show)

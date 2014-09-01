@@ -1,5 +1,5 @@
 -- | Tree to parse unpolar numbers.
-module Penny.Copper.Unpolar.Tree where
+module Penny.Copper.Tree.Unsigned where
 
 import Data.Sequence (Seq)
 import Penny.Numbers.Abstract.RadGroup
