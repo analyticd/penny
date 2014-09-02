@@ -140,7 +140,7 @@ procLZ7 rdx zs grp grpZs sq lz7 = case lz7 of
     . U.NG1 rdx (toUZeroes zs) grp (toUZeroes grpZs) $ sq'
     where
       sq' = fmap (\(r, zz) -> (r, toUZeroes zz)) sq
-  T.LZ7Group (r, lz6) -> procLZ6Recurse rdx zs grp grpZs sq r lz6
+  T.LZ7Group r lz6 -> procLZ6Recurse rdx zs grp grpZs sq r lz6
 
   T.LZ7NovDecs nd sq2 -> U.Brim . U.BrimGrouped . U.BGFracuno
     . U.BG4 (Just U.Zero) rdx . U.BG5Zeroes (toUZeroes zs)
@@ -160,4 +160,133 @@ makeZeroGroupsThenNovDecs sqz ne sqd = go sqz
         . go $ sq'
 
 leadRadix :: Radix r -> T.LR1 r -> U.Unsigned r
-leadRadix = undefined
+leadRadix rdx lr1 = case lr1 of
+  T.LR1Zero zs lz3 -> execLZ3 rdx zs lz3
+  T.LR1NonZero nd lz4 -> execLZ4 rdx nd lz4
+
+-- | Processes an LZ3 where there is a leading radix.
+execLZ3
+  :: Radix r
+  -> NE U.Zero U.Zero
+  -> T.LZ3 r
+  -> U.Unsigned r
+execLZ3 rdx zs lz3 = case lz3 of
+  T.LZ3End -> U.Nil . U.NilUngrouped . U.NUNoLeadingZero rdx
+    . toUZeroes $ zs
+  T.LZ3NovDecs nd lz5 -> execLZ5 rdx zs nd lz5
+  T.LZ3Group r lz6 -> execLZ6 rdx zs r lz6
+
+execLZ4
+  :: Radix r
+  -> NE Novem Decem
+  -> T.LZ4 r
+  -> U.Unsigned r
+execLZ4 rdx ne lz4 = case lz4 of
+  T.LZ4End -> U.Brim . U.BrimUngrouped . U.BUFracuno
+    . U.BU2NoLeadingZero rdx . U.BU3NoZeroes $ ne
+  T.LZ4Groups r g1 gs -> U.Brim . U.BrimGrouped . U.BGFracuno
+    . U.BG4 Nothing rdx
+    $ U.BG5Novem ne (NE (r, g1) gs)
+
+execLZ5
+  :: Radix r
+  -> NE U.Zero U.Zero
+  -> NE Novem Decem
+  -> T.LZ5 r
+  -> U.Unsigned r
+execLZ5 rdx zs nd lz5 = case lz5 of
+  T.LZ5End -> U.Brim . U.BrimUngrouped . U.BUFracuno
+    . U.BU2NoLeadingZero rdx . U.BU3Zeroes (toUZeroes zs) $ nd
+  T.LZ5Groups r g1 gs -> U.Brim . U.BrimGrouped . U.BGFracuno
+    . U.BG4 Nothing rdx . U.BG5Zeroes (toUZeroes zs)
+    . U.BG6Novem nd $ NE (r, g1) gs
+
+
+execLZ6
+  :: Radix r
+  -> NE U.Zero U.Zero
+  -> r
+  -> T.LZ6 r
+  -> U.Unsigned r
+execLZ6 rdx zs r lz6 = case lz6 of
+  T.LZ6NovDecs nd sq -> U.Brim . U.BrimGrouped . U.BGFracuno
+    . U.BG4 Nothing rdx . U.BG5Zeroes (toUZeroes zs)
+    . U.BG6Group r . U.BG7Novem nd $ sq
+  T.LZ6Zeroes zs2 lz7 -> execLZ7 rdx zs r zs2 lz7
+
+execLZ7
+  :: Radix r
+  -> NE U.Zero U.Zero
+  -> r
+  -> NE U.Zero U.Zero
+  -> T.LZ7 r
+  -> U.Unsigned r
+execLZ7 rdx zs1 r zs2 lz7 = case lz7 of
+  T.LZ7End -> U.Nil . U.NilGrouped . U.NGNoLeadingZero
+    . U.NG1 rdx (toUZeroes zs1) r (toUZeroes zs2) $ S.empty
+  T.LZ7NovDecs nd sq -> U.Brim . U.BrimGrouped . U.BGFracuno
+    . U.BG4 Nothing rdx . U.BG5Zeroes (toUZeroes zs1)
+    . U.BG6Group r . U.BG7Zeroes (toUZeroes zs2)
+    . U.BG8Novem nd $ sq
+  T.LZ7Group r2 lz6 -> execLZ6Recurse rdx zs1 r zs2 S.empty r2 lz6
+
+execLZ6Recurse
+  :: Radix r
+  -> NE U.Zero U.Zero
+  -> r
+  -> NE U.Zero U.Zero
+  -> Seq (r, NE U.Zero U.Zero)
+  -> r
+  -> T.LZ6 r
+  -> U.Unsigned r
+execLZ6Recurse rdx zs1 r1 zs2 sqz r2 lz6 = case lz6 of
+  T.LZ6NovDecs nd sqd -> U.Brim . U.BrimGrouped . U.BGFracuno
+    . U.BG4 Nothing rdx . U.BG5Zeroes (toUZeroes zs1)
+    . U.BG6Group r1 . U.BG7Zeroes (toUZeroes zs2)
+    . U.BG8Group r2 $ execBG7Zeroes sqz nd sqd
+  T.LZ6Zeroes nez lz7 -> execLZ7Recurse rdx zs1 r1 zs2
+    (sqz |> (r2, nez)) lz7
+
+execBG7Zeroes
+  :: Seq (r, NE U.Zero U.Zero)
+  -> NE Novem Decem
+  -> Seq (r, NE Decem Decem)
+  -> U.BG7 r
+execBG7Zeroes sqz ne sqd = go sqz
+  where
+    go sq = case viewl sq of
+      EmptyL -> U.BG7Novem ne sqd
+      (r, zs) :< sq' -> U.BG7Zeroes (toUZeroes zs)
+        . U.BG8Group r $ go sq'
+
+
+execLZ7Recurse
+  :: Radix r
+  -> NE U.Zero U.Zero
+  -> r
+  -> NE U.Zero U.Zero
+  -> Seq (r, NE U.Zero U.Zero)
+  -> T.LZ7 r
+  -> U.Unsigned r
+execLZ7Recurse rdx zs1 r zs2 sqz lz7 = case lz7 of
+  T.LZ7End -> U.Nil . U.NilGrouped . U.NGNoLeadingZero
+    . U.NG1 rdx (toUZeroes zs1) r (toUZeroes zs2)
+    . fmap (\(x, ne) -> (x, toUZeroes ne)) $ sqz
+  T.LZ7NovDecs nd sqd -> U.Brim . U.BrimGrouped . U.BGFracuno
+    . U.BG4 Nothing rdx . U.BG5Zeroes (toUZeroes zs1)
+    . U.BG6Group r . U.BG7Zeroes (toUZeroes zs2)
+    $ execBG8Zeroes sqz nd sqd
+  T.LZ7Group r2 lz6 -> execLZ6Recurse rdx zs1 r zs2 sqz r2 lz6
+
+
+execBG8Zeroes
+  :: Seq (r, NE U.Zero U.Zero)
+  -> NE Novem Decem
+  -> Seq (r, NE Decem Decem)
+  -> U.BG8 r
+execBG8Zeroes sqz ned sqd = go sqz
+  where
+    go sq = case viewl sq of
+      EmptyL -> U.BG8Novem ned sqd
+      (r, nez) :< sq' -> U.BG8Group r . U.BG7Zeroes (toUZeroes nez)
+        . go $ sq'

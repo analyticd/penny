@@ -97,11 +97,11 @@ data LZ6 r
 -- might still contain all zeroes.
 data LZ7 r
   = LZ7End
-  -- ^ End here.  The result is a grouped, non-zero value.
+  -- ^ End here.  The result is a grouped, zero value.
   | LZ7NovDecs (NE Novem Decem) (Seq (r, (NE Decem Decem)))
   -- ^ A 'Novem' appears.  There might be additional groups.  The
   -- result is a grouped, non-zero value.
-  | LZ7Group (r, (LZ6 r))
+  | LZ7Group r (LZ6 r)
   -- ^ An additional group appears.
   deriving (Eq, Ord, Show)
 
