@@ -1,20 +1,8 @@
 module Penny.Copper.Convert.Posting where
 
 import Penny.Copper.Tree.Posting
-import Penny.Copper.Tree.Memo.Posting
 import Data.Sequence
 import qualified Data.Sequence as S
-import Penny.Numbers.Natural
-import Penny.Copper.Tree.Flag
-import Penny.Copper.Tree.Number
-import Penny.Copper.Tree.Payee.Posting
-import qualified Penny.Copper.Tree.Account.Unquoted as AU
-import qualified Penny.Copper.Tree.Account.Quoted as AQ
-import Penny.Copper.Tree.Tag
-import Penny.Copper.Tree.Side
-import Penny.Copper.Tree.Commodity
-import Penny.Copper.Tree.Currency
-import Penny.Copper.Tree.Amount
 import Penny.Trio
 import qualified Penny.Trio as E
 import qualified Penny.Common as C
@@ -48,6 +36,8 @@ convertToPosting is = do
     C.Posting { C.pstgMemo = mem
               , C.pstgNumber = scNumber acc
               , C.pstgFlag = scFlag acc
+              , C.pstgPayee = scPayee acc
+              , C.pstgTags = C.Tags $ scTags acc
               , C.pstgAccount = account
               , C.pstgLocation = loc
               , C.pstgGlobalSerial = glbl
