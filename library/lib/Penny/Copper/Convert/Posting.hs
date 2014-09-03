@@ -24,6 +24,36 @@ import qualified Penny.Numbers.Abstract.Unsigned as C
 import qualified Penny.Numbers.Abstract.Signed as C
 import qualified Penny.Copper.Convert.Fields as F
 import Penny.Numbers.Abstract.RadGroup
+import qualified Penny.Serial as C
+
+type MakePosting
+  = C.Memo
+  -> C.Location
+  -> C.Serial
+  -- ^ Global serial
+  -> C.Serial
+  -- ^ Collection serial
+  -> C.Posting
+
+convertToPosting
+  :: Seq Item
+  -> Either Error MakePosting
+convertToPosting is = do
+  acc <- scanItems is
+  tri <- finalizeTrio acc
+  account <- case scAccount acc of
+    Nothing -> Left NoAccount
+    Just a -> return a
+  return $ \mem loc glbl clxn ->
+    C.Posting { C.pstgMemo = mem
+              , C.pstgNumber = scNumber acc
+              , C.pstgFlag = scFlag acc
+              , C.pstgAccount = account
+              , C.pstgLocation = loc
+              , C.pstgGlobalSerial = glbl
+              , C.pstgClxnSerial = clxn
+              , C.pstgTrio = tri
+              }
 
 -- | Used to scan a sequence of Item.
 
@@ -61,9 +91,19 @@ data Error
   | AlreadyAmount
   | DualCommodities
   | NumberIsZero
+  | NoAccount
   deriving (Eq, Ord, Show)
 
-
+scanItems
+  :: Seq Item
+  -> Either Error ScanAcc
+scanItems= go 0 emptyScanAcc
+  where
+    go ix acc sq = case S.viewl sq of
+      EmptyL -> Right acc
+      i :< sq' -> case scanItem ix acc i of
+        Left e -> Left e
+        Right acc' -> go (succ ix) acc' sq'
 
 scanItem :: Int -> ScanAcc -> Item -> Either Error ScanAcc
 scanItem ix c i = case i of
@@ -109,7 +149,9 @@ scanItem ix c i = case i of
 
 
 finalizeTrio :: ScanAcc -> Either Error Trio
-finalizeTrio = undefined
+finalizeTrio sa = do
+  fa <- finalAmount sa
+  finalAmountToTrio (scDrCr sa) fa
 
 data FinalAmount
   = NoAmount
