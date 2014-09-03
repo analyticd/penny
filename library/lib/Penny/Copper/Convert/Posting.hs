@@ -21,6 +21,7 @@ import qualified Penny.Common as C
 import qualified Penny.Posting as C
 import qualified Penny.Numbers.Qty as C
 import qualified Penny.Numbers.Abstract.Unsigned as C
+import qualified Penny.Numbers.Abstract.Signed as C
 import qualified Penny.Copper.Convert.Fields as F
 import Penny.Numbers.Abstract.RadGroup
 
@@ -59,6 +60,7 @@ data Error
   | AlreadyCommodity
   | AlreadyAmount
   | DualCommodities
+  | NumberIsZero
   deriving (Eq, Ord, Show)
 
 
@@ -118,6 +120,60 @@ data FinalAmount
       (Either (C.Unsigned Period) (C.Unsigned Comma))
       C.Commodity
 
+finalAmountToTrio
+  :: Maybe C.Side
+  -> FinalAmount
+  -> Either Error E.Trio
+finalAmountToTrio mayS fin = case fin of
+  NoAmount -> case mayS of
+    Nothing -> Right E.E
+    Just s -> Right $ E.S s
+
+  CommodityOnly c -> case mayS of
+    Nothing -> Right $ E.C c
+    Just s -> Right $ E.SC s c
+
+  UnsignedOnly ei -> case mayS of
+    Nothing -> fmap E.U $ eitherUnsignedToBrim ei
+    Just s -> fmap E.Q $ eitherUnsignedToSigned s ei
+
+  UnsignedCy ar ei cy -> case mayS of
+    Nothing -> do
+      brim <- eitherUnsignedToBrim ei
+      return $ E.UC brim cy ar
+    Just s -> do
+      signed <- eitherUnsignedToSigned s ei
+      return $ E.QC signed cy ar
+
+eitherUnsignedToSigned
+  :: C.Side
+  -> Either (C.Unsigned a) (C.Unsigned b)
+  -> Either Error (Either (C.Signed a C.Side) (C.Signed b C.Side))
+eitherUnsignedToSigned s
+  = either (fmap Left . unsignedToSigned s)
+           (fmap Right . unsignedToSigned s)
+
+unsignedToSigned
+  :: C.Side
+  -> C.Unsigned a
+  -> Either Error (C.Signed a C.Side)
+unsignedToSigned s = maybe (Left NumberIsZero) Right
+  . C.signOffCenter s
+
+eitherUnsignedToBrim
+  :: Either (C.Unsigned Period) (C.Unsigned Comma)
+  -> Either Error (Either (C.Brim Period) (C.Brim Comma))
+eitherUnsignedToBrim ei = case ei of
+  Left p -> fmap Left $ unsignedToBrim p
+  Right c -> fmap Right $ unsignedToBrim c
+
+unsignedToBrim
+  :: C.Unsigned a
+  -> Either Error (C.Brim a)
+unsignedToBrim u = case u of
+  C.Nil _ -> Left NumberIsZero
+  C.Brim b -> Right b
+
 finalAmount :: ScanAcc -> Either Error FinalAmount
 finalAmount sc = case scCommodity sc of
   Nothing -> case scAmount sc of
@@ -147,25 +203,26 @@ finalAmount sc = case scCommodity sc of
 
   Just (cy, cyIx) -> case scAmount sc of
     Nothing -> Right (CommodityOnly cy)
-    Just (ei, _) -> case ei of
-      Left (F.ACLeft pre) -> Left $ DualCommodities
+    Just (ei, amIx) -> case ei of
+      Left (F.ACLeft _) -> Left DualCommodities
+      Left (F.ACRight (F.ConvPostCurrency u mayC)) -> case mayC of
+        Just _ -> Left DualCommodities
+        Nothing -> Right
+          $ UnsignedCy (arrangement cyIx amIx) (Left u) cy
+      Right (F.ACRight (F.ConvPostCurrency u mayC)) -> case mayC of
+        Just _ -> Left DualCommodities
+        Nothing -> Right
+          $ UnsignedCy (arrangement cyIx amIx) (Right u) cy
+      Right (F.ACLeft _) -> Left DualCommodities
 
-{-
-      Left (F.ACRight post) -> case F.postCommodity post of
-        Nothing -> UnsignedOnly (Left . F.postUnsigned $ post)
-        Just cy -> UnsignedCy
-          (C.Arrangement C.CommodityOnRight C.NoSpaceBetween)
-          (Left . F.postUnsigned $ post) cy
+arrangement
+  :: Int
+  -- ^ Index of the commodity
+  -> Int
+  -- ^ Index of the amount
+  -> C.Arrangement
+arrangement c a = C.Arrangement o C.SpaceBetween
+  where
+    o | c > a = C.CommodityOnRight
+      | otherwise = C.CommodityOnLeft
 
-      Right (F.ACLeft pre) ->
-        UnsignedCy (C.Arrangement C.CommodityOnLeft C.NoSpaceBetween)
-                   (Right . F.preUnsigned $ pre)
-                   (F.preCommodity pre)
-
-      Right (F.ACRight post) -> case F.postCommodity post of
-        Nothing -> UnsignedOnly (Right . F.postUnsigned $ post)
-        Just cy -> UnsignedCy
-          (C.Arrangement C.CommodityOnRight C.NoSpaceBetween)
-          (Right . F.postUnsigned $ post) cy
-
--}
