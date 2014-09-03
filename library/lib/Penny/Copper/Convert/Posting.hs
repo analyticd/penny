@@ -23,10 +23,10 @@ type MakePosting
   -- ^ Collection serial
   -> C.Posting
 
-convertToPosting
+itemsToPosting
   :: Seq Item
   -> Either Error MakePosting
-convertToPosting is = do
+itemsToPosting is = do
   acc <- scanItems is
   tri <- finalizeTrio acc
   account <- case scAccount acc of
