@@ -1,5 +1,8 @@
 module Penny.Copper.Convert.Fields where
 
+import qualified Penny.Copper.Tree.Date as T
+import qualified Penny.Copper.Tree.Digit as T
+import qualified Penny.Copper.Tree.Digits as T
 import qualified Penny.Copper.Tree.Flag as T
 import qualified Penny.Copper.Tree.Number as T
 import qualified Penny.Copper.Tree.Payee.Posting as PP
@@ -20,6 +23,7 @@ import Penny.Numbers.Abstract.RadGroup
 import Data.Sequence (Seq, (<|))
 import Penny.Numbers.Natural
 import Penny.Copper.Convert.Unsigned (toUnsigned)
+import qualified Data.Time as Time
 
 packSeq
   :: (X.Text -> a)
@@ -110,3 +114,31 @@ amountComma :: T.AmountComma -> AmountConv Comma
 amountComma (T.AmountComma _ ac2) = case ac2 of
   T.AC2Currency p _ -> ACLeft . preCurrency $ p
   T.AC2Start p _ -> ACRight . postCurrency $ p
+
+digits4 :: T.Digits4 -> Int
+digits4 (T.Digits4 d3 d2 d1 d0)
+  = di d3 * 1000
+  + di d2 * 100
+  + di d1 * 10
+  + di d0
+  where
+    di = T.digitToInt
+
+digits1or2 :: T.Digits1or2 -> Int
+digits1or2 (T.Digits1or2 x y) = case y of
+  Nothing -> di x
+  Just d0 -> di x * 10 + di d0
+  where
+    di = T.digitToInt
+
+data DateError
+  = InvalidDate
+  deriving (Eq, Ord, Show)
+
+date :: T.Date -> Either DateError Time.Day
+date (T.Date yd _ md _ dd) = maybe (Left InvalidDate)
+  Right $ Time.fromGregorianValid y m d
+  where
+    y = fromIntegral $ digits4 yd
+    m = digits1or2 md
+    d = digits1or2 dd
