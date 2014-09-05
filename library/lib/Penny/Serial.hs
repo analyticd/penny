@@ -1,9 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Penny.Serial
-  ( Serial
-  , forward
-  , backward
+  ( Serial(..)
   , serialItems
   , serialSomeItems
   , serialNestedItems
