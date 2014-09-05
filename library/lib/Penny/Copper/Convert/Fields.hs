@@ -6,6 +6,7 @@ import qualified Penny.Copper.Tree.Digits as T
 import qualified Penny.Copper.Tree.Flag as T
 import qualified Penny.Copper.Tree.Number as T
 import qualified Penny.Copper.Tree.Payee.Posting as PP
+import qualified Penny.Copper.Tree.Payee.TopLine as PT
 import qualified Penny.Copper.Tree.Account.Unquoted as AU
 import qualified Penny.Copper.Tree.Account.Quoted as AQ
 import qualified Penny.Copper.Tree.Tag as T
@@ -13,6 +14,7 @@ import qualified Penny.Copper.Tree.Commodity as T
 import qualified Penny.Copper.Tree.Side as T
 import qualified Penny.Copper.Tree.Currency as T
 import qualified Penny.Copper.Tree.Amount as T
+import qualified Penny.Copper.Tree.Tokens as T
 import qualified Penny.Common as C
 import qualified Penny.Posting as C
 import qualified Penny.Numbers.Qty as C
@@ -24,6 +26,9 @@ import Data.Sequence (Seq, (<|))
 import Penny.Numbers.Natural
 import Penny.Copper.Convert.Unsigned (toUnsigned)
 import qualified Data.Time as Time
+import qualified Penny.DateTime as C
+import qualified Data.Sums as S
+import Control.Monad
 
 packSeq
   :: (X.Text -> a)
@@ -40,6 +45,11 @@ toNumber (T.Number _ sq _) = packSeq C.Number T.unNumberChar sq
 
 postingPayeeToPayee :: PP.Payee -> C.Payee
 postingPayeeToPayee (PP.Payee _ sq _) = packSeq C.Payee PP.unPayeeChar sq
+
+topLinePayeeToPayee :: PT.Payee -> C.Payee
+topLinePayeeToPayee (PT.Payee (NE c1 cs))
+  = C.Payee $ PT.unPayeeFirstChar c1 `X.cons`
+  (X.pack . F.toList . fmap PT.unPayeeNextChar $ cs)
 
 unquotedAccountToAccount :: AU.Account -> C.Account
 unquotedAccountToAccount (AU.Account (NE a1 as))
@@ -133,6 +143,10 @@ digits1or2 (T.Digits1or2 x y) = case y of
 
 data DateError
   = InvalidDate
+  | InvalidHours
+  | InvalidMinutes
+  | InvalidSeconds
+  | InvalidOffset
   deriving (Eq, Ord, Show)
 
 date :: T.Date -> Either DateError Time.Day
@@ -142,3 +156,55 @@ date (T.Date yd _ md _ dd) = maybe (Left InvalidDate)
     y = fromIntegral $ digits4 yd
     m = digits1or2 md
     d = digits1or2 dd
+
+hours :: T.Digits1or2 -> Either DateError C.Hours
+hours = maybe (Left InvalidHours) Right . C.intToHours
+  . digits1or2
+
+minutes :: T.Digits1or2 -> Either DateError C.Minutes
+minutes = maybe (Left InvalidMinutes) Right . C.intToMinutes
+  . digits1or2
+
+seconds :: T.Digits1or2 -> Either DateError C.Seconds
+seconds = maybe (Left InvalidSeconds) Right . C.intToSeconds
+  . digits1or2
+
+timeZone :: T.TimeZone -> Either DateError C.TimeZoneOffset
+timeZone (T.TimeZone hp d4 _) = maybe (Left InvalidOffset) Right
+  . C.minsToOffset . doSign . digits4 $ d4
+  where
+    doSign = case hp of
+      S.S2a T.Hyphen -> negate
+      S.S2b T.Plus -> id
+
+time
+  :: T.Time
+  -> Either DateError (C.Hours, C.Minutes, C.Seconds, C.TimeZoneOffset)
+time (T.Time _ dH _ dM t2) = do
+  h <- hours dH
+  m <- minutes dM
+  (s, o) <- case t2 of
+    T.Time2End _ -> return (C.zeroSeconds, C.noOffset)
+    T.Time2Space _ t3 -> time3 t3
+    T.Time2Next t3 -> time3 t3
+  return (h, m, s, o)
+
+time3 :: T.Time3 -> Either DateError (C.Seconds, C.TimeZoneOffset)
+time3 t3 = case t3 of
+  T.Time3Seconds _ dS t4 -> liftM2 (,) (seconds dS) (time4 t4)
+  T.Time3Zone tz -> liftM2 (,) (return C.zeroSeconds) (timeZone tz)
+
+time4 :: T.Time4 -> Either DateError C.TimeZoneOffset
+time4 t4 = case t4 of
+  T.Time4Zone tz -> timeZone tz
+  T.Time4Space _ tz -> timeZone tz
+  T.Time4End _ -> return C.noOffset
+
+dateTime :: T.Date -> Maybe T.Time -> Either DateError C.DateTime
+dateTime d mt = do
+  dy <- date d
+  (h, m, s, o) <- case mt of
+    Nothing -> return
+      (C.zeroHours, C.zeroMinutes, C.zeroSeconds, C.noOffset)
+    Just t -> time t
+  return $ C.DateTime dy h m s o
