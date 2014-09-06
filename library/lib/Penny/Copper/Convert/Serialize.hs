@@ -3,16 +3,12 @@ module Penny.Copper.Convert.Serialize where
 import Penny.Serial
 import qualified Penny.Copper.Convert.Locate as L
 import qualified Penny.Common as C
-import qualified Penny.Copper.Package as P
 import Data.Sequence
 import qualified Data.Sequence as S
 import qualified Penny.Copper.Tree.Memo.Transaction as TM
 import qualified Penny.Copper.Tree.Memo.Posting as PM
 import qualified Penny.Copper.Tree.Posting as T
 import qualified Penny.Copper.Tree.TopLine as T
-import qualified Penny.Copper.Tree.File as T
-import qualified Penny.Copper.Tree.Line as T
-import Data.Sums
 
 serialize :: L.Packages1 -> Packages2
 serialize = step1Packages . step0Packages
