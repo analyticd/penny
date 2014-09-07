@@ -20,7 +20,7 @@
 -- with their memo lines, and the top lines with their associated
 -- postings.
 --
--- 4.  Convert.  Converts Penny.Copper.Tree top lines and postings to
+-- 4.  Transform.  Converts Penny.Copper.Tree top lines and postings to
 -- mainline top lines and postings.
 --
 -- 5.  Validate.  Create balanced transactions.

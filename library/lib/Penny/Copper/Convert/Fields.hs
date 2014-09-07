@@ -15,6 +15,10 @@ import qualified Penny.Copper.Tree.Side as T
 import qualified Penny.Copper.Tree.Currency as T
 import qualified Penny.Copper.Tree.Amount as T
 import qualified Penny.Copper.Tree.Tokens as T
+import qualified Penny.Copper.Tree.Memo.Transaction as TM
+import qualified Penny.Copper.Tree.Memo.Posting as PM
+import qualified Penny.Copper.Tree.NonNewline as NN
+import qualified Penny.Copper.Tree.PreSpace as PS
 import qualified Penny.Common as C
 import qualified Penny.Posting as C
 import qualified Penny.Numbers.Qty as C
@@ -208,3 +212,14 @@ dateTime d mt = do
       (C.zeroHours, C.zeroMinutes, C.zeroSeconds, C.noOffset)
     Just t -> time t
   return $ C.DateTime dy h m s o
+
+transactionMemo :: Seq TM.Memo -> C.Memo
+transactionMemo = C.Memo . fmap toText
+  where
+    toText (TM.Memo _ sq _) = packSeq id NN.unNonNewline sq
+
+postingMemo :: Seq PM.Memo -> C.Memo
+postingMemo = C.Memo . fmap toText
+  where
+    toText (PM.Memo (PS.PreSpace _ (_, sq, _))) =
+      packSeq id NN.unNonNewline sq
