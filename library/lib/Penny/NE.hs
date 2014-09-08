@@ -2,8 +2,8 @@ module Penny.NE where
 
 import qualified Data.Sequence as Seq
 import Data.Sequence ((<|))
-import qualified Penny.Pos as Pos
-import qualified Penny.NonNeg as NonNeg
+import qualified Penny.NonZero as NonZero
+import qualified Penny.Unsigned as Unsigned
 
 data T a b = T
   { first :: a
@@ -13,5 +13,5 @@ data T a b = T
 toSeq :: T a a -> Seq.Seq a
 toSeq (T f r) = f <| r
 
-length :: T a b -> Pos.T
-length (T _ b) = Pos.one `Pos.addNonNeg` (NonNeg.length b)
+length :: T a b -> NonZero.T
+length (T _ b) = NonZero.one `NonZero.addUnsigned` (Unsigned.length b)

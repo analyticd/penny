@@ -1,15 +1,16 @@
-module Penny.NonNeg
+-- | Integral unsigned numbers; includes zero.
+module Penny.Unsigned
   ( T
   -- * Conversions
   , toInteger
   , fromInteger
-  , fromPos
+  , fromNonZero
   , fromNovem
   , fromDecem
 
   -- * Arithmetic
   , add
-  , addPos
+  , addNonZero
   , mult
   , monus
   , subt
@@ -45,22 +46,22 @@ import Prelude hiding
   , length
   )
 import qualified Prelude
-import qualified Penny.Pos as Pos
-import Penny.NonNeg.Internal
+import qualified Penny.NonZero as NonZero
+import Penny.Unsigned.Internal
 
 fromInteger :: Integer -> Maybe T
 fromInteger i
   | i >= 0 = Just . T $ i
   | otherwise = Nothing
 
-fromPos :: Pos.T -> T
-fromPos = T . Pos.toInteger
+fromNonZero :: NonZero.T -> T
+fromNonZero = T . NonZero.toInteger
 
 add :: T -> T -> T
 add (T x) (T y) = T $ x + y
 
-addPos :: T -> Pos.T -> T
-addPos (T x) p = T $ x + Pos.toInteger p
+addNonZero :: T -> NonZero.T -> T
+addNonZero (T x) p = T $ x + NonZero.toInteger p
 
 mult :: T -> T -> T
 mult (T x) (T y) = T $ x * y
@@ -84,10 +85,10 @@ pred (T x)
   | x < 0 = Nothing
   | otherwise = Just . T . Prelude.pred $ x
 
-div :: T -> Pos.T -> (T, T)
+div :: T -> NonZero.T -> (T, T)
 div (T x) py = (T q, T r)
   where
-    (q, r) = x `divMod` (Pos.toInteger py)
+    (q, r) = x `divMod` (NonZero.toInteger py)
 
 zero :: T
 zero = T 0

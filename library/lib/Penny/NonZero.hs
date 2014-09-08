@@ -1,18 +1,18 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 -- | Positive numbers.  This module exports everything but the
 -- constructor.
-module Penny.Pos
+module Penny.NonZero
   ( T
   -- * Conversions
   , toInteger
   , fromInteger
-  , fromNonNeg
+  , fromUnsigned
   , fromNovem
   , fromDecem
 
   -- * Arithmetic
   , add
-  , addNonNeg
+  , addUnsigned
   , mult
   , pred
   , succ
@@ -38,8 +38,8 @@ import Prelude hiding
   , succ
   )
 import qualified Prelude
-import qualified Penny.NonNeg.Type as NonNeg
-import Penny.Pos.Internal
+import qualified Penny.Unsigned.Type as Unsigned
+import Penny.NonZero.Internal
 import Deka.Native.Abstract
 
 fromInteger :: Integer -> Maybe T
@@ -47,12 +47,12 @@ fromInteger i
   | i < 1 = Nothing
   | otherwise = Just . T $ i
 
-fromNonNeg :: NonNeg.T -> Maybe T
-fromNonNeg x
+fromUnsigned :: Unsigned.T -> Maybe T
+fromUnsigned x
   | xi > 0 = Just . T $ xi
   | otherwise = Nothing
   where
-    xi = NonNeg.toInteger x
+    xi = Unsigned.toInteger x
 
 fromNovem :: Novem -> T
 fromNovem = T . novemToInt
@@ -65,8 +65,8 @@ fromDecem d = case d of
 add :: T -> T -> T
 add (T x) (T y) = T $ x + y
 
-addNonNeg :: T -> NonNeg.T -> T
-addNonNeg (T x) y = T $ x + NonNeg.toInteger y
+addUnsigned :: T -> Unsigned.T -> T
+addUnsigned (T x) y = T $ x + Unsigned.toInteger y
 
 mult :: T -> T -> T
 mult (T x) (T y) = T $ x * y

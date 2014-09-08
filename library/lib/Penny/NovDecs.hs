@@ -2,12 +2,19 @@ module Penny.NovDecs where
 
 import Deka.Native.Abstract
 import qualified Penny.Decems as Decems
-import qualified Penny.Pos as Pos
+import qualified Penny.NonZero as NonZero
+import qualified Deka.Native as DN
 
 data T = T
   { novem :: Novem
   , decems :: Decems.T
   } deriving (Eq, Ord, Show)
 
-toPos :: T -> Pos.T
-toPos (T n d) = Pos.addNonNeg (Pos.fromNovem n) (Decems.toNonNeg d)
+toNonZero :: T -> NonZero.T
+toNonZero (T n d) = NonZero.addUnsigned (NonZero.fromNovem n) (Decems.toUnsigned d)
+
+toDecuple :: T -> DN.Decuple
+toDecuple (T n ds) = DN.Decuple n (Decems.toList ds)
+
+fromDecuple :: DN.Decuple -> T
+fromDecuple (DN.Decuple nv ds) = T nv (Decems.fromList ds)
