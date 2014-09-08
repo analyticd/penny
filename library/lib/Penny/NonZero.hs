@@ -18,7 +18,6 @@ module Penny.NonZero
   , succ
 
   -- * Constants
-  , zero
   , one
   , two
   , three
@@ -78,9 +77,6 @@ pred (T x)
 
 succ :: T -> T
 succ (T x) = T $ Prelude.succ x
-
-zero :: T
-zero = T 0
 
 one :: T
 one = T 1

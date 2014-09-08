@@ -3,27 +3,20 @@
 -- components of any concrete number, and to convert an abstract,
 -- ungrouped number to a concrete number.
 
-module Penny.Concrete where
-
-{-
+module Penny.Concrete
   ( -- * Concrete numbers
-    Concrete
-  , unConcrete
+    T
+  , toDec
   , simpleCompare
   , simpleEq
 
   -- * Conversions
-  , novDecsToDecuple
-  , decupleToNovDecs
-  , Coefficient(..)
-  , Exponent(..)
-  , Params(..)
-  , params
-  , concrete
-  , decToConcrete
+  , fromDec
+  , toCement
+  , fromCement
 
   -- * Arithmetic
-  -- | 'Normal' is also an instance of 'Num', so you can perform
+  -- | 'T' is also an instance of 'Num', so you can perform
   -- ordinary arithmetic on it and convert it using 'fromInteger'.
   , negate
   , isZero
@@ -31,49 +24,44 @@ module Penny.Concrete where
   -- * Constants
   , one
   , zero
-
-  -- * Monoids
-  , Add(..)
-  , Mult(..)
-
-  -- * Errors
-  , ArithmeticError(..)
   ) where
 
-import Data.Typeable
 import qualified Deka.Dec as D
 import qualified Deka.Native as DN
-import Deka.Native.Abstract
-  (Novem(..), Decem(..))
 import Control.Exception
 import qualified Data.ByteString.Char8 as BS8
-import Data.Monoid
 import Prelude hiding (negate, exponent)
-import qualified Data.Sequence as S
-import qualified Data.Foldable as Fdbl
-import Penny.Numbers.Natural
+import qualified Penny.ArithmeticError as Error
+import qualified Penny.Cement as Cement
+import qualified Penny.Coefficient as Coeff
+import qualified Penny.Exponent as Exp
+import qualified Penny.NovDecs as NovDecs
+
+-- End Imports
 
 compute :: D.Ctx a -> a
 compute c
   | fl == D.emptyFlags = r
-  | otherwise = throw $ ArithmeticError "computation out of range"
+  | otherwise = throw $ Error.T "computation out of range"
   where
     (r, fl) = D.runCtxStatus c
+
 
 -- | A normal, signed, finite decimal number.  Like 'Deka.Dec.Dec', it
 -- has a coefficient and an exponent; however, the exponent is always
 -- less than or equal to zero.  No negative zeroes are allowed.
-newtype Concrete = Concrete { unConcrete :: D.Dec }
+newtype T = T { toDec :: D.Dec }
   deriving Show
+
 
 -- | Larger numbers are greater than smaller numbers and, for
 -- example, @1.00000@ is less than @1.0@.
-instance Ord Concrete where
-  compare (Concrete x) (Concrete y) = D.compareTotal x y
+instance Ord T where
+  compare (T x) (T y) = D.compareTotal x y
 
 -- | Numbers with the same coefficient but different exponents are
 -- not equivalent; for example, @1.00000@ is not equal to @1.0@.
-instance Eq Concrete where
+instance Eq T where
   x == y = compare x y == EQ
 
 -- | If you use 'compare' on two 'Concrete', the comparison is based
@@ -81,8 +69,8 @@ instance Eq Concrete where
 -- @3.5000@.  'simpleCompare' compares so that @3.5@ is equal to
 -- @3.5000@.
 
-simpleCompare :: Concrete -> Concrete -> Ordering
-simpleCompare (Concrete x) (Concrete y) = compute $ do
+simpleCompare :: T -> T -> Ordering
+simpleCompare (T x) (T y) = compute $ do
   r <- D.compare x y
   return $ case () of
     _ | D.isZero r -> EQ
@@ -91,70 +79,73 @@ simpleCompare (Concrete x) (Concrete y) = compute $ do
 
 -- | Like 'simpleCompare' but for equality.
 
-simpleEq :: Concrete -> Concrete -> Bool
+simpleEq :: T -> T -> Bool
 simpleEq x y = simpleCompare x y == EQ
 
 -- In next function, note that D.isNormal will return False if the
 -- number is zero.
 
 -- | Fails if the Dec is not normal, or if it is the negative zero.
-decToConcrete :: D.Dec -> Maybe Concrete
-decToConcrete a
+fromDec :: D.Dec -> Maybe T
+fromDec a
   | D.isSigned a && D.isZero a = Nothing
-  | D.isZero a = Just $ Concrete a
-  | compute . D.isNormal $ a = Just $ Concrete a
+  | D.isZero a = Just $ T a
+  | compute . D.isNormal $ a = Just $ T a
   | otherwise = Nothing
 
-zero :: Concrete
-zero = Concrete . compute $ D.fromByteString "0"
 
-one :: Concrete
-one = Concrete . compute $ D.fromByteString "1"
+zero :: T
+zero = T . compute $ D.fromByteString "0"
 
-negate :: Concrete -> Concrete
-negate = Concrete . compute . D.minus . unConcrete
+one :: T
+one = T . compute $ D.fromByteString "1"
 
-isZero :: Concrete -> Bool
-isZero (Concrete d) = D.isZero d
+negate :: T -> T
+negate = T . compute . D.minus . toDec
 
-instance Num Concrete where
-  (Concrete x) + (Concrete y) = Concrete . compute $ D.add x y
-  (Concrete x) * (Concrete y) = Concrete . compute $ D.multiply x y
-  (Concrete x) - (Concrete y) = Concrete . compute $ D.subtract x y
-  abs (Concrete x) = Concrete . compute $ D.abs x
-  signum (Concrete x) = Concrete . compute $ case () of
+isZero :: T -> Bool
+isZero (T d) = D.isZero d
+
+-- | Results from opeations in 'Num' may be out of range; if this
+-- happens, the function will throw 'Error.T'.
+instance Num T where
+  (T x) + (T y) = T . compute $ D.add x y
+  (T x) * (T y) = T . compute $ D.multiply x y
+  (T x) - (T y) = T . compute $ D.subtract x y
+  abs (T x) = T . compute $ D.abs x
+  signum (T x) = T . compute $ case () of
     _ | D.isNegative x -> D.fromByteString "-1"
       | D.isZero x -> D.fromByteString "0"
       | otherwise -> D.fromByteString "1"
-  fromInteger = Concrete . compute . D.fromByteString
+  fromInteger = T . compute . D.fromByteString
     . BS8.pack . show
 
-params :: Concrete -> Params
-params (Concrete d) = Params (dekaCoefficientToPenny sgn coe) ex
+
+toCement :: T -> Cement.T
+toCement (T d) = Cement.T (Coeff.fromDeka sgn coe) ex
   where
     DN.Abstract sgn val = DN.decToAbstract d
     (coe, ex) = case val of
       DN.Finite c e -> (c, expnt)
         where
           expnt = case DN.unExponent e of
-            DN.Cero -> ExpZero
+            DN.Cero -> Exp.Zero
             DN.Completo pn dc
               | pn == D.Pos -> error "params: positive exponent"
-              | otherwise -> ExpNegative . decupleToNovDecs $ dc
+              | otherwise -> Exp.Negative . NovDecs.fromDecuple $ dc
       _ -> error "params: bad number value"
 
-concrete :: Params -> Concrete
-concrete a = Concrete d
+fromCement :: Cement.T -> T
+fromCement a = T d
   where
     abstract = DN.Abstract sgn fin
-    (coe, sgn) = pennyCoefficientToDeka . pmCoefficient $ a
+    (coe, sgn) = Coeff.toDeka . Cement.coefficient $ a
     fin = DN.Finite coe (DN.Exponent ex)
-    ex = case pmExponent a of
-      ExpZero -> DN.Cero
-      ExpNegative nv -> DN.Completo D.Neg (novDecsToDecuple nv)
+    ex = case Cement.exponent a of
+      Exp.Zero -> DN.Cero
+      Exp.Negative nv -> DN.Completo D.Neg (NovDecs.toDecuple nv)
     d | fl == D.emptyFlags = dec
       | otherwise = throw
-          $ ArithmeticError "concrete: value out of range"
+          $ Error.T "concrete: value out of range"
     (dec, fl) = DN.abstractToDec abstract
 
--}

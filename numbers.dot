@@ -1,0 +1,33 @@
+digraph numbers {
+  /* Primitives */
+  Novem;
+  Decem;
+  Sign;
+
+  /* NovDecs */
+  NovDecs -> Novem;
+  NovDecs -> Decem;
+
+  /* Coefficient */
+  Coefficient -> NovDecs;
+  Coefficient -> Sign;
+
+  /* Exponent */
+  Exponent -> NovDecs;
+
+  /* Cement */
+  Cement -> { Coefficient; Exponent }
+  
+  /* Pebble */
+  Pebble -> Cement;
+
+  /* Qty */
+  Qty -> Pebble;
+
+  /* Stone */
+  Stone -> Cement;
+
+  /* Exchange */
+  Exchange -> Stone;
+
+}
