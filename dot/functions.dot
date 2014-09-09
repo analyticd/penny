@@ -7,6 +7,8 @@ digraph functions {
   // Concrete
   Concrete -> Cement [label="Concrete.toCement"];
   Cement -> Concrete [label="Concrete.fromCement"];
+  // there is no Dec->Concrete; that is partial
+  Concrete -> Dec [label="Concrete.toDec"];
 
   // NovDecs
   NovDecs -> NonZero [label="NovDecs.toNonZero"];

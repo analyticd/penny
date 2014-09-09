@@ -34,11 +34,10 @@ digraph types {
   Commodity -> Text;
 
   // Concrete
-  Concrete -> Dec;
+  Concrete;
 
   // Decems
   Seq_Decem [label="Seq Decem"];
-  Seq_Decem -> Decem;
   Decems -> Seq_Decem;
 
   // Exchange
@@ -69,11 +68,10 @@ digraph types {
 
   // Memo
   Seq_Bar [label="Seq Bar"];
-  Seq_Bar -> Bar;
   Memo -> Seq_Bar;
 
   // NonZero
-  NonZero -> Integer;
+  NonZero;
 
   // NovDecs
   NovDecs -> Novem;
@@ -140,6 +138,6 @@ digraph types {
   Stone -> Gravel_PluMin;
 
   // Unsigned
-  Unsigned -> Integer;
+  Unsigned;
 
 }
