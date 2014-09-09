@@ -26,7 +26,7 @@ fromBalances = T . M.fromList . mapMaybe f . M.toList . Bal.toMap
 toBalances :: T -> Bal.T
 toBalances = Bal.T . fmap f . toMap
   where
-    f = Qty.fromConcrete
+    f = Qty.T
       . Concrete.fromCement
       . Pebble.toCement
       . Quark.toPebble

@@ -3,8 +3,6 @@ digraph functions {
   // Exchange
   Exchange -> Concrete [label="Exchange.toConcrete"];
   Concrete -> Exchange [label="Exchange.T"];
-  Stone -> Exchange [label="Exchange.fromStone"];
-  Exchange -> Stone [label="Exchange.toStone"];
 
   // Concrete
   Concrete -> Cement [label="Concrete.toCement"];
@@ -18,8 +16,6 @@ digraph functions {
   // Qty
   Qty -> Concrete [label="Qty.toConcrete"];
   Concrete -> Qty [label="Qty.T"];
-  Pebble -> Qty [label="Qty.fromPebble"];
-  Qty -> Pebble [label="Qty.toPebble"];
 
   // Pebble
   Pebble -> Cement [label="Qty.toCement"];
