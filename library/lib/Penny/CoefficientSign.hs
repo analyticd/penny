@@ -1,4 +1,4 @@
-module Penny.CoeSign where
+module Penny.CoefficientSign where
 
 import qualified Deka.Native as DN
 import qualified Deka.Dec as D

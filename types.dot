@@ -1,0 +1,64 @@
+digraph types {
+  Novem;
+  Decem;
+  Sign;
+
+  Seq_Decem [label="Seq Decem"];
+  Seq_Decem -> Decem;
+
+  Decems -> Seq_Decem;
+
+  NovDecs -> Novem;
+  NovDecs -> Decems;
+
+  // Coefficient
+  Coefficient_Zero [shape=box, label="Zero"];
+  Coefficient_NonZero [shape=box, label="NonZero"];
+  Coefficient -> Coefficient_Zero [style=dotted];
+  Coefficient -> Coefficient_NonZero [style=dotted];
+  Coefficient_NonZero -> NovDecs;
+  Coefficient_NonZero -> Sign;
+
+  // Exponent
+  Exponent_Zero [shape=box, label="Zero"];
+  Exponent_Negative [shape=box, label="Negative"];
+  Exponent_Negative -> NovDecs;
+  Exponent -> Exponent_Negative [style=dotted];
+  Exponent -> Exponent_Zero [style=dotted];
+
+  // Cement
+  Cement -> Coefficient;
+  Cement -> Exponent;
+
+  // Concrete
+  Dec;
+  Concrete -> Dec;
+
+  // Qty
+  Qty -> Concrete;
+
+  // Pebble
+  Gravel_Side [label="Gravel Side"];
+  Pebble -> Gravel_Side;
+
+  // Balances
+  Commodity;
+  Map_Commodity_Qty [label="Map Commodity Qty"];
+  Map_Commodity_Qty -> Commodity;
+  Map_Commodity_Qty -> Qty;
+  Balances -> Map_Commodity_Qty;
+
+  // Quark
+  Quant_Side [label="Quant Side"];
+  Quant_Side -> Coefficient;
+  Quant_Side -> Exponent;
+  Quant_Side -> Side;
+  Quark -> Quant_Side;
+
+  // Imbalances
+  Map_Commodity_Quark [label="Map Commodity Quark"];
+  Map_Commodity_Quark -> Commodity;
+  Map_Commodity_Quark -> Quark;
+  Imbalances -> Map_Commodity_Quark;
+
+}  

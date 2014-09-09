@@ -3,7 +3,7 @@
 module Penny.Quant where
 
 import qualified Penny.NovDecs as NovDecs
-import qualified Penny.Exponent as Exp
+import qualified Penny.Exp as Exp
 import qualified Penny.Gravel as Gravel
 
 -- | Components of a non-zero 'Penny.Qty.T'.

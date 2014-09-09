@@ -33,9 +33,10 @@ import qualified Data.ByteString.Char8 as BS8
 import Prelude hiding (negate, exponent)
 import qualified Penny.ArithmeticError as Error
 import qualified Penny.Cement as Cement
-import qualified Penny.Coefficient as Coeff
-import qualified Penny.Exponent as Exp
+import qualified Penny.Coeff as Coeff
+import qualified Penny.Exp as Exp
 import qualified Penny.NovDecs as NovDecs
+import qualified Penny.CoefficientSign as CoeffSign
 
 -- End Imports
 
@@ -122,9 +123,10 @@ instance Num T where
 
 
 toCement :: T -> Cement.T
-toCement (T d) = Cement.T (Coeff.fromDeka sgn coe) ex
+toCement (T d) = Cement.T (Coeff.fromCoefficientSign ce) ex
   where
     DN.Abstract sgn val = DN.decToAbstract d
+    ce = CoeffSign.T coe sgn
     (coe, ex) = case val of
       DN.Finite c e -> (c, expnt)
         where
@@ -139,7 +141,7 @@ fromCement :: Cement.T -> T
 fromCement a = T d
   where
     abstract = DN.Abstract sgn fin
-    (coe, sgn) = Coeff.toDeka . Cement.coefficient $ a
+    CoeffSign.T coe sgn = Coeff.toCoefficientSign . Cement.coefficient $ a
     fin = DN.Finite coe (DN.Exponent ex)
     ex = case Cement.exponent a of
       Exp.Zero -> DN.Cero

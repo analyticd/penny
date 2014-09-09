@@ -1,10 +1,11 @@
 module Penny.Gravel where
 
 import qualified Penny.NovDecs as NovDecs
-import qualified Penny.Exponent as Exponent
+import qualified Penny.Exp as Exponent
 import qualified Penny.Cement as Cement
-import qualified Penny.Coefficient as Coefficient
+import qualified Penny.Coeff as Coefficient
 import Deka.Dec
+import qualified Penny.NovSign as NovSign
 
 -- | Components of a sided concrete type, such as 'Penny.Qty.T'.  The
 -- type might be zero, in which case it has no coefficient and no
@@ -21,7 +22,7 @@ toCement toSign (T mayC e) = Cement.T c e
   where
     c = case mayC of
       Nothing -> Coefficient.Zero
-      Just (s, nd) -> Coefficient.NonZero nd (toSign s)
+      Just (s, nd) -> Coefficient.NonZero $ NovSign.T nd (toSign s)
 
 fromCement :: (Sign -> a) -> Cement.T -> T a
 fromCement fromSign c = T mayCoe ex
@@ -29,4 +30,5 @@ fromCement fromSign c = T mayCoe ex
     Cement.T coe ex = c
     mayCoe = case coe of
       Coefficient.Zero -> Nothing
-      Coefficient.NonZero nd sgn -> Just (fromSign sgn, nd)
+      Coefficient.NonZero (NovSign.T nd sgn) ->
+        Just (fromSign sgn, nd)

@@ -1,7 +1,7 @@
 module Penny.Cement where
 
-import qualified Penny.Coefficient as Coefficient
-import qualified Penny.Exponent as Exponent
+import qualified Penny.Coeff as Coefficient
+import qualified Penny.Exp as Exponent
 import Prelude hiding (exponent)
 
 -- | The two ingredients that define a concrete number.  Cement is not

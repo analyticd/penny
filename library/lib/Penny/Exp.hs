@@ -1,4 +1,4 @@
-module Penny.Exponent where
+module Penny.Exp where
 
 import qualified Penny.NovDecs as NovDecs
 
