@@ -8,7 +8,7 @@ import qualified Penny.Gravel as Gravel
 
 -- | Components of a non-zero 'Penny.Qty.T'.
 data T a = T
-  { coefficient :: NovDecs.T
+  { novDecs :: NovDecs.T
   , exponent :: Exp.T
   , side :: a
   } deriving (Eq, Ord, Show)

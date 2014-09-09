@@ -1,0 +1,145 @@
+digraph types {
+  // ArithmeticError
+  ArithmeticError -> String;
+
+  // Arrangement
+  Arrangement -> Orient;
+  Arrangement -> SpaceBetween;
+
+  // Balances
+  Bal_Map [label="Map Commodity Qty"];
+  Bal_Map -> Commodity;
+  Bal_Map -> Qty;
+  Balances -> Bal_Map;
+
+  // Bar
+  Bar -> Text;
+
+  // Cement
+  Cement -> { Coeff; Exp }
+
+  /* Coeff */
+
+  Coeff_Zero [shape=box, label="Zero"];
+  Coeff_NonZero [shape=box, label="NonZero"];
+  Coeff -> Coeff_Zero [style=dotted];
+  Coeff -> Coeff_NonZero [style=dotted];
+  Coeff_NonZero -> NovDecs;
+  Coeff_NonZero -> Sign;
+
+  // CoefficientSign
+  CoefficientSign -> { Coefficient; Sign }
+
+  // Commodity
+  Commodity -> Text;
+
+  // Concrete
+  Concrete -> Dec;
+
+  // Decems
+  Seq_Decem [label="Seq Decem"];
+  Seq_Decem -> Decem;
+  Decems -> Seq_Decem;
+
+  // Exchange
+  Exchange -> Concrete;
+
+  /* Exp */
+  Exp -> NovDecs;
+  Exp_Zero [shape=box, label="Zero"];
+  Exp_Negative [shape=box, label="Negative"];
+  Exp -> Exp_Zero [style=dotted];
+  Exp -> Exp_Negative [style=dotted];
+  Exp_Negative -> NovDecs;
+
+  // Flag
+  Flag -> Text;
+
+  // Gravel
+  // skip for now
+
+  // Imbalances
+  Imbalances_Map [label="Map Commodity Quark"]
+  Imbalances_Map -> Commodity;
+  Imbalances_Map -> Quark;
+  Imbalances -> Imbalances_Map;
+
+  // Location
+  Location -> Int;
+
+  // Memo
+  Seq_Bar [label="Seq Bar"];
+  Seq_Bar -> Bar;
+  Memo -> Seq_Bar;
+
+  // NonZero
+  NonZero -> Integer;
+
+  // NovDecs
+  NovDecs -> Novem;
+  NovDecs -> Decems;
+
+  // NovSign
+  NovSign -> NovDecs;
+  NovSign -> Sign;
+
+  // Number
+  Number -> Text;
+
+  // Orient
+  Orient;
+
+  // Payee
+  Payee -> Text;
+
+  // Pebble
+  Gravel_Side [label="Gravel Side"];
+  Gravel_Side -> Gravel_Side_MaybePair;
+  Gravel_Side -> Exp;
+  Gravel_Side_MaybePair -> Gravel_Side_Nothing [style=dotted];
+  Gravel_Side_Nothing [shape=box,label="Nothing"];
+  Gravel_Side_MaybePair -> Gravel_Side_Just [style=dotted];
+  Gravel_Side_Just [shape=box,label="Just"];
+  Gravel_Side_Just -> Gravel_Side_Pair;
+  Gravel_Side_Pair -> Side;
+  Gravel_Side_Pair -> NovDecs;
+  Pebble -> Gravel_Side;
+
+  // PluMin
+  PluMin;
+
+  // Qty
+  Qty -> Concrete;
+
+  // Quant - skip for now
+
+  // Quark
+  Quark -> Quant_Side;
+  Quant_Side [label="Quant Side"];
+  Quant_Side -> NovDecs;
+  Quant_Side -> Exp;
+  Quant_Side -> Side;
+
+  // Side
+  Side;
+
+  // SpaceBetween
+  SpaceBetween -> Bool;
+
+  // Stone
+  Gravel_PluMin [label="Gravel PluMin"];
+  Gravel_PluMin -> Gravel_PluMin_MaybePair;
+  Gravel_PluMin -> Exp;
+  Gravel_PluMin_MaybePair -> Gravel_PluMin_Nothing [style=dotted];
+  Gravel_PluMin_Nothing [shape=box,label="Nothing"];
+  Gravel_PluMin_MaybePair -> Gravel_PluMin_Just [style=dotted];
+  Gravel_PluMin_Just [shape=box,label="Just"];
+  Gravel_PluMin_Just -> Gravel_PluMin_Pair;
+  Gravel_PluMin_Pair -> PluMin;
+  Gravel_PluMin_Pair -> NovDecs;
+  Stone -> Gravel_PluMin;
+
+  // Unsigned
+  Unsigned -> Integer;
+
+}

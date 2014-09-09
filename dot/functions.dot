@@ -1,0 +1,32 @@
+digraph functions {
+
+  // Exchange
+  Exchange -> Concrete [label="Exchange.toConcrete"];
+  Concrete -> Exchange [label="Exchange.T"];
+  Stone -> Exchange [label="Exchange.fromStone"];
+  Exchange -> Stone [label="Exchange.toStone"];
+
+  // Concrete
+  Concrete -> Cement [label="Concrete.toCement"];
+  Cement -> Concrete [label="Concrete.fromCement"];
+
+  // NovDecs
+  NovDecs -> NonZero [label="NovDecs.toNonZero"];
+  NovDecs -> Decuple [label="NovDecs.toDecuple"];
+  Decuple -> NovDecs [label="NovDecs.fromDecuple"];
+
+  // Qty
+  Qty -> Concrete [label="Qty.toConcrete"];
+  Concrete -> Qty [label="Qty.T"];
+  Pebble -> Qty [label="Qty.fromPebble"];
+  Qty -> Pebble [label="Qty.toPebble"];
+
+  // Pebble
+  Pebble -> Cement [label="Qty.toCement"];
+  Cement -> Pebble [label="Qty.fromCement"];
+
+  // Stone
+  Stone -> Cement [label="Stone.toCement"];
+  Cement -> Stone [label="Stone.fromCement"];
+
+}
