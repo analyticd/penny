@@ -1,4 +1,4 @@
-module Penny.BU where
+module Penny.BrimUngrouped where
 
 import qualified Penny.Nodbu as Nodbu
 import qualified Penny.BU2 as BU2

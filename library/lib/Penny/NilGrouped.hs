@@ -1,5 +1,5 @@
 -- | NilGrouped
-module Penny.NG where
+module Penny.NilGrouped where
 
 import qualified Penny.Zng as Zng
 import qualified Penny.NG1 as NG1

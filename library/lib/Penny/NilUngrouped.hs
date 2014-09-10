@@ -1,4 +1,4 @@
-module Penny.NU where
+module Penny.NilUngrouped where
 
 import qualified Penny.Znu1 as Znu1
 import qualified Penny.RadZ as RadZ

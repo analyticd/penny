@@ -1,7 +1,7 @@
 module Penny.Nil where
 
-import qualified Penny.NU as NU
-import qualified Penny.NG as NG
+import qualified Penny.NilUngrouped as NU
+import qualified Penny.NilGrouped as NG
 
 data T r
   = Ungrouped (NU.T r)
