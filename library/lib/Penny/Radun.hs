@@ -1,9 +1,9 @@
 module Penny.Radun where
 
 import qualified Penny.Radix as Rad
-import qualified Penny.NU2 as NU2
+import qualified Penny.Zeroes as Zeroes
 
 data T r = T
   { radix :: Rad.T r
-  , nu2 :: NU2.T
+  , mayZeroes :: Maybe Zeroes.T
   } deriving (Eq, Ord, Show)
