@@ -1,1 +1,4 @@
 *.pdf
+types
+*.hi
+*.o
