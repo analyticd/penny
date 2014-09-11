@@ -205,25 +205,15 @@ arrangement
   -> Dot Tycon
 arrangement o s = product (kind1 "Arrangement.T") [o, s]
 
-brimUngrouped
-  :: Tycon
-  -- ^ Nodbu
-  -> Tycon
-  -- ^ BU2
-  -> Dot Tycon
-brimUngrouped n b = tycon (copyUp "BrimUngrouped.T" n)
-  [ ("Masuno", [n]), ("Fracuno", [b])]
-
-
 bg1
   :: Tycon
   -- ^ Grouper
   -> Tycon
-  -- ^ DecDecsMayGroups
+  -- ^ DecDecsMayGroups r
   -> Tycon
-  -- ^ Maybe BG2
+  -- ^ Maybe (BG2 r)
   -> Tycon
-  -- ^ Radix
+  -- ^ Radix r
   -> Dot Tycon
 bg1 g d b r = tycon (copyTy "BG1.T" g)
   [ ("GroupOnLeft", [g, d, b]), ("GroupOnRight", [r, d])]
@@ -298,12 +288,22 @@ brimGrouped
   :: Tycon
   -- ^ NovDecs
   -> Tycon
-  -- ^ BG1
+  -- ^ BG1 r
   -> Tycon
-  -- ^ BG4
+  -- ^ BG4 r
   -> Dot Tycon
 brimGrouped n b1 b4 = tycon (copyUp "BrimGrouped.T" b1)
   [("Masuno", [n, b1]), ("Fracuno", [b4])]
+
+brimUngrouped
+  :: Tycon
+  -- ^ Nodbu r
+  -> Tycon
+  -- ^ BU2 r
+  -> Dot Tycon
+brimUngrouped n b = tycon (copyUp "BrimUngrouped.T" n)
+  [ ("Masuno", [n]), ("Fracuno", [b])]
+
 
 bu2
   :: Tycon
@@ -335,7 +335,7 @@ decDecsMayGroups
   :: Tycon
   -- ^ DecDecs
   -> Tycon
-  -- ^ SeqDecs
+  -- ^ SeqDecs r
   -> Dot Tycon
 decDecsMayGroups d s = product (copyUp "DecDecsMayGroups.T" s) [d, s]
 
@@ -413,7 +413,7 @@ nodbu
   :: Tycon
   -- ^ NovDecs
   -> Tycon
-  -- ^ Maybe Radem
+  -- ^ Maybe (Radem r)
   -> Dot Tycon
 nodbu n r = product (copyUp2 "Nodbu.T" r) [n, r]
 
@@ -478,6 +478,12 @@ radix
   -> Dot Tycon
 radix s = nullary (Typename "Radix.T" [s])
 
+radCom :: Dot Tycon
+radCom = nullary (Typename "RadPer.T" [])
+
+radPer :: Dot Tycon
+radPer = nullary (Typename "RadCom.T" [])
+
 
 radun
   :: Tycon
@@ -499,7 +505,9 @@ seqDecs
   :: Typename
   -- ^ Parameterized type
   -> Dot Tycon
-seqDecs ty = seq (Typename "DecsGroup.T" [ty])
+seqDecs ty = do
+  sq <- seq (Typename "DecsGroup.T" [ty])
+  oneConst (copyUp2 "SeqDecs.T" sq) sq
 
 seqDecsNE
   :: Tycon
