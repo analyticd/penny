@@ -138,8 +138,8 @@ copyUp2
 copyUp2 n = Typename n . tyParam . get . tyParam . tyName
   where
     get ls = case ls of
-      [] -> error $ "copyUp2 failed on typename " ++ n
       x:[] -> x
+      _ -> error $ "copyUp2 failed on typename " ++ n
 
 --
 -- Primitives and non-Penny types
@@ -392,12 +392,12 @@ nil nu ng = tycon (copyUp "Nil.T" nu)
 
 nilGrouped
   :: Tycon
-  -- ^ Zng
+  -- ^ Zng r
   -> Tycon
-  -- ^ NG1
+  -- ^ NG1 r
   -> Dot Tycon
-nilGrouped zng ng1 = tycon (copyUp "NilGrouped.T" zng)
-  [ ("LeadingZero", [zng]), ("NoLeadingZero", [ng1]) ]
+nilGrouped z n = tycon (copyUp "NilGrouped.T" z)
+  [ ("LeadingZero", [z]), ("NoLeadingZero", [n]) ]
 
 nilUngrouped
   :: Tycon
@@ -415,7 +415,7 @@ nodbu
   -> Tycon
   -- ^ Maybe Radem
   -> Dot Tycon
-nodbu n r = product (copyUp "Nodbu.T" r) [n, r]
+nodbu n r = product (copyUp2 "Nodbu.T" r) [n, r]
 
 nodecs3
   :: Tycon
@@ -548,7 +548,7 @@ zng
   -> Tycon
   -- ^ NG1
   -> Dot Tycon
-zng z ng1 = product (copyUp "Zng.T" ng1) [z, ng1]
+zng z n = product (copyUp "Zng.T" n) [z, n]
 
 znu1
   :: Tycon

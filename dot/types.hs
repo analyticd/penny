@@ -1,4 +1,5 @@
 {-# LANGUAGE RecursiveDo #-}
+{-# OPTIONS_GHC -fno-warn-unused-binds #-}
 module Main where
 
 
@@ -8,6 +9,41 @@ import Prelude hiding
   ( maybe
   , product
   )
+
+nilGrouped
+  :: T.Tycon
+  -- ^ Radix a
+  -> T.Tycon
+  -- ^ Zeroes
+  -> T.Tycon
+  -- ^ Grouper
+  -> T.Tycon
+  -- ^ Zero
+  -> Dot T.Tycon
+nilGrouped radix zeroes grouper zero = mdo
+  nilGrouped <- T.nilGrouped zng ng1
+  zng <- T.zng zero ng1
+  ng1 <- T.ng1 radix zeroes grouper seq_groups
+  seq_groups <- T.seq (T.copyTy "ZGroup.T" grouper)
+  return nilGrouped
+
+nilUngrouped
+  :: T.Tycon
+  -- ^ Radix a
+  -> T.Tycon
+  -- ^ Zero
+  -> T.Tycon
+  -- ^ Zeroes
+  -> T.Tycon
+  -- ^ Maybe Zeroes
+  -> Dot T.Tycon
+nilUngrouped radix zero zeroes maybe_zeroes = mdo
+  nilUngrouped <- T.nilUngrouped znu1 radZ
+  znu1 <- T.znu1 zero maybe_radun
+  radun <- T.radun radix maybe_zeroes
+  maybe_radun <- T.maybe radun
+  radZ <- T.radZ radix zeroes
+  return nilUngrouped
 
 main :: IO ()
 main = putStr . showDot $ mdo
