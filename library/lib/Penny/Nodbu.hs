@@ -1,9 +1,9 @@
 module Penny.Nodbu where
 
 import qualified Penny.NovDecs as NovDecs
-import qualified Penny.BU1 as BU1
+import qualified Penny.Radem as Radem
 
 data T r = T
   { novDecs :: NovDecs.T
-  , bu1 :: BU1.T r
+  , mayRadem :: Maybe (Radem.T r)
   } deriving (Eq, Ord, Show)
