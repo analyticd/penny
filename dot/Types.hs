@@ -8,7 +8,9 @@ import Prelude hiding
   , product
   , either
   , seq
+  , map
   )
+import qualified Prelude
 
 -- | Data constructor.
 dacon
@@ -37,8 +39,8 @@ typenameToString (Typename s ts)
   = concat
   . intersperse " "
   . (s:)
-  . map (\n -> "(" ++ n ++ ")")
-  . map typenameToString
+  . Prelude.map (\n -> "(" ++ n ++ ")")
+  . Prelude.map typenameToString
   $ ts
 
 data Tycon = Tycon
@@ -99,14 +101,15 @@ tuplabel
   :: [Typename]
   -> Typename
 tuplabel ls =
-  Typename ( "(" ++ (concat . intersperse ", " . map typenameToString $ ls)
+  Typename ( "(" ++ (concat . intersperse ", "
+             . Prelude.map typenameToString $ ls)
              ++ ")") []
 
 tuple2
   :: Tycon
   -> Tycon
   -> Dot Tycon
-tuple2 x y = product (tuplabel . map tyName $ [x, y]) [x, y]
+tuple2 x y = product (tuplabel . Prelude.map tyName $ [x, y]) [x, y]
 
 -- | Builds a Typename that is parameterized on a given type.
 copyTy
@@ -154,11 +157,19 @@ either
   -> Tycon
   -- ^ Right
   -> Dot Tycon
-either l r = tycon (Typename "Either" (map tyName [l, r]))
+either l r = tycon (Typename "Either" (Prelude.map tyName [l, r]))
   [("Left", [l]), ("Right", [r])]
 
 int :: Dot Tycon
 int = opaque (kind1 "Int")
+
+map
+  :: Typename
+  -- ^ Key type
+  -> Typename
+  -- ^ Value type
+  -> Dot Tycon
+map k v = opaque (Typename "Map" [k, v])
 
 maybe
   :: Tycon
@@ -323,6 +334,9 @@ bu3
 bu3 z n = tycon (kind1 "BU3.T")
   [("Zeroes", [z]), ("NoZeroes", [n])]
 
+concrete :: Dot Tycon
+concrete = opaque (Typename "Concrete.T" [])
+
 decDecs
   :: Tycon
   -- ^ Decem
@@ -437,7 +451,7 @@ novDecs
 novDecs n d = product (kind1 "NovDecs.T") [n, d]
 
 novem :: Dot Tycon
-novem = tycon (kind1 "Novem") . map f $ ([1..9] :: [Int])
+novem = tycon (kind1 "Novem") . Prelude.map f $ ([1..9] :: [Int])
   where
     f num = ('D' : show num, [])
 
@@ -452,8 +466,8 @@ novSeqDecsNE n s = product (copyUp "NovSeqDecsNE.T" s) [n, s]
 orient :: Dot Tycon
 orient
   = tycon (kind1 "Orient.T")
-  . map empty
-  . map ("Orient.CommodityOn" ++)
+  . Prelude.map empty
+  . Prelude.map ("Orient.CommodityOn" ++)
   $ ["Left", "Right"]
 
 radbu
