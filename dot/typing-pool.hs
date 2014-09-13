@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import qualified Typist.Typedesc as Td
@@ -18,47 +19,120 @@ name :: String -> Iden.T
 name = Iden.fromString
 
 maybe :: Ty.T -> Td.T
-maybe = Type1.toTypedesc $ Type1.T (name "Prelude.Maybe")
+maybe = Type1.toTypedesc $ Type1.T "Prelude.Maybe"
   [ Ctor.empty "Nothing"
   , Ctor.T "Just" [Kind1.Var0]
   ]
 
+radix :: Ty.T -> Td.T
+radix = Type1.toTypedesc $ Type1.T "Penny.Radix.T"
+  [ Ctor.empty "T" ]
+
 either :: Ty.T -> Ty.T -> Td.T
-either = Type2.toTypedesc $ Type2.T (name "Prelude.Either")
-  [ Ctor.T "Left" [Kind2.Var0]
-  , Ctor.T "Right" [Kind2.Var1]
-  ]
+either t1 t2 = Td.T (Ty.T "Prelude.Either" [t1, t2]) ctors
+  where
+    ctors = [ Ctor.T "Left" [t1]
+            , Ctor.T "Right" [t2] ]
+
+radZ :: Ty.T -> Td.T
+radZ ty = Type1.toTypedesc t ty
+  where
+    t = Type1.T "Penny.RadZ.T"
+        [ Ctor.T "T" [ Kind1.Con $ Ty.T "Penny.Radix.T" [ty]
+                     , Kind1.Con $ Ty.T "Penny.Zeroes.T" [] ]]
+
+radCom :: Ty.T
+radCom = Ty.T "Penny.RadCom.T" []
+
+radPer :: Ty.T
+radPer = Ty.T "Penny.RadPer.T" []
 
 types :: [Td.T]
 types =
-  [ Nov.nullary (name "Deka.Native.Abstract.Decem")
-    [ Ctor.T "D0" []
-    , Ctor.T "Nonem" [Ty.T (name "Deka.Native.Abstract.Novem") []]
+  [
+  -- Seq Decem
+    Td.opaque (Ty.T "Data.Sequence.Seq"
+                [Ty.T "Deka.Native.Abstract.Decem" []])
+
+  , Nov.nullary "Deka.Dec.Sign"
+    [ Ctor.empty "Sign0"
+    , Ctor.empty "Sign1"
     ]
 
-  , Nov.nullary (name "Deka.Native.Abstract.Novem") . map Ctor.empty
+  , Nov.nullary "Deka.Native.Abstract.Decem"
+    [ Ctor.T "D0" []
+    , Ctor.T "Nonem" [Ty.T "Deka.Native.Abstract.Novem" []]
+    ]
+
+  , Nov.nullary "Deka.Native.Abstract.Novem" . map Ctor.empty
     . map ('D':)
     . map show $ [1 .. 9 :: Int]
 
-  , Nov.opaque (name "Penny.Concrete.T")
-  , Nov.wrapper (name "Penny.Qty.T") (Ty.T (name "Penny.Concrete.T") [])
+  , Nov.product "Penny.Cement.T"
+    [ Ty.T "Penny.Coeff.T" []
+    , Ty.T "Penny.Exp.T" []
+    ]
 
-  , Nov.nullary (name "Prelude.Bool")
+  , Nov.nullary "Penny.Exp.T"
+    [ Ctor.empty "Zero"
+    , Ctor.T "Negative" [Ty.T "Penny.NovDecs.T" []]
+    ]
+
+  , Nov.nullary "Penny.Coeff.T"
+    [ Ctor.empty "Zero"
+    , Ctor.T "NonZero" [Ty.T "Penny.NovSign.T" []]
+    ]
+
+  , Nov.opaque "Penny.Concrete.T"
+  , Nov.wrapper "Penny.Decems.T" (Ty.T "Data.Sequence.Seq"
+                [Ty.T "Deka.Native.Abstract.Decem" []])
+
+  , Nov.opaque "Penny.NonZero.T"
+
+  , Nov.product "Penny.NovSign.T"
+    [ Ty.T "Penny.NovDecs.T" []
+    , Ty.T "Deka.Dec.Sign" []
+    ]
+
+  , Nov.product "Penny.NovDecs.T"
+    [ Ty.T "Deka.Native.Abstract.Novem" []
+    , Ty.T "Penny.Decems.T" []
+    ]
+
+  , Nov.nullary "Penny.RadCom.T"
+    [ Ctor.T "T" [] ]
+
+  -- Radix RadCom
+  , radix (Ty.T "Penny.RadCom.T" [])
+  , Nov.nullary "Penny.RadPer.T"
+    [ Ctor.T "T" [] ]
+
+  -- Radix RadPer
+  , radix (Ty.T "Penny.RadPer.T" [])
+
+  , Nov.wrapper "Penny.Qty.T" (Ty.T "Penny.Concrete.T" [])
+  , Nov.wrapper "Penny.Zeroes.T" (Ty.T "Penny.NonZero.T" [])
+
+  , radZ radCom
+  , radZ radPer
+
+  , Nov.nullary "Prelude.Bool"
     [ Ctor.empty "True"
     , Ctor.empty "False"
     ]
 
-  , Nov.opaque (name "Prelude.Int")
+  , Nov.opaque "Prelude.Int"
 
   -- Maybe Int
-  , maybe (Ty.T (name "Prelude.Int") [])
+  , maybe (Ty.T "Prelude.Int" [])
 
   -- Maybe Bool
-  , maybe (Ty.T (name "Prelude.Bool") [])
+  , maybe (Ty.T "Prelude.Bool" [])
 
   -- Either Int Bool
-  , either (Ty.T (name "Prelude.Int") [])
-           (Ty.T (name "Prelude.Bool") [])
+  , either (Ty.T "Prelude.Int" [])
+           (Ty.T "Prelude.Bool" [])
+
   ]
 
 main :: IO ()

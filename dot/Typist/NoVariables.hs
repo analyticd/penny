@@ -13,6 +13,15 @@ nullary
   -> Td.T
 nullary n ts = Td.T (Ty.T n []) ts
 
+product
+  :: Identifier.T
+  -- ^ Type name
+  -> [Ty.T]
+  -- ^ Each contained type
+  -> Td.T
+product n = Td.T (Ty.T n []) . (:[])
+  . Ctor.T (Identifier.name n)
+
 -- | A newtype.
 wrapper
   :: Identifier.T

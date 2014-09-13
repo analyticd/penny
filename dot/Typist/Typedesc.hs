@@ -2,7 +2,6 @@ module Typist.Typedesc where
 
 import qualified Typist.Typename as Ty
 import qualified Typist.Constructor as Ctor
-import Data.List (intersperse)
 
 data T = T
   { name :: Ty.T
@@ -21,10 +20,7 @@ dotifyCtor
   -- ctor.
 dotifyCtor cn t = (unlines $ line1 : map f (Ctor.fields t), nameThis)
   where
-    labelThis = case Ctor.fields t of
-      [] -> Ctor.name t
-      xs -> quote . concat . intersperse " "
-        . (Ctor.name t :) . map Ty.toString $ xs
+    labelThis = Ctor.name t
     line1 = nameThis ++ " [shape=box, label=" ++ labelThis ++ "];"
     f dest = nameThis ++ " -> " ++ quote (Ty.toString dest) ++ ";"
     nameThis = quote $ Ty.toString cn ++ " "
