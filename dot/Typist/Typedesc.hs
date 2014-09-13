@@ -20,7 +20,7 @@ dotify :: T -> String
 dotify t = concat $ line1 : map f (ctors t)
   where
     nameThis = quote $ Ty.toString (name t)
-    line1 = nameThis ++ ";\n"
+    line1 = nameThis ++ " [color=black];\n"
     f ct = ctorNode ++ ctorEdges ++ edgeToCtor
       where
         ctorId = Ctor.identify (name t) (Ctor.name ct)
@@ -32,6 +32,7 @@ dotify t = concat $ line1 : map f (ctors t)
 dotifyList :: [T] -> String
 dotifyList ts =
   "digraph G {\n"
+  ++ "node [color=red];\n"
   ++ concatMap dotify ts
   ++ "}\n"
 

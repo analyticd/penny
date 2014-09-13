@@ -25,7 +25,8 @@ node
   -> String
   -- ^ Ctor name
   -> String
-node idy n = quote idy ++ " [shape=box, label=" ++ n ++ "];\n"
+node idy n = quote idy ++ " [shape=box, label=" ++ n ++
+  ", color=black" ++ "];\n"
 
 edges
   :: String
