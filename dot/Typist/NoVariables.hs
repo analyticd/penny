@@ -12,6 +12,15 @@ nullary
   -> Td.T
 nullary n ts = Td.T (Ty.T n []) ts
 
+-- | A newtype.
+wrapper
+  :: String
+  -- ^ Type name
+  -> Ty.T
+  -- ^ Wrapped type
+  -> Td.T
+wrapper n t = nullary n [Ctor.T n [t]]
+
 opaque
   :: String
   -- ^ Type name

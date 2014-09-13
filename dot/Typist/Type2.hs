@@ -10,7 +10,7 @@ data T = T
   , ctors :: [Ctor.T K2.T]
   } deriving (Eq, Ord, Show)
 
-toTypedesc :: Ty.T -> Ty.T -> T -> Typedesc.T
-toTypedesc t0 t1 t = Typedesc.T (name t) [t0, t1] cs
+toTypedesc :: T -> Ty.T -> Ty.T -> Typedesc.T
+toTypedesc t t0 t1 = Typedesc.T (Ty.T (name t) [t0, t1]) cs
   where
     cs = fmap (fmap (K2.merge t0 t1)) . ctors $ t
