@@ -5,15 +5,74 @@ import qualified Typist.Typedesc as Td
 import qualified Typist.Typename as Ty
 import qualified Typist.NoVariables as Nov
 import qualified Typist.Constructor as Ctor
-import qualified Typist.Identifier as Iden
 import Prelude hiding
   ( maybe
   , either
   , seq
   )
 
-name :: String -> Iden.T
-name = Iden.fromString
+anna :: Ty.T -> Td.T
+anna ty = Td.T (Ty.T "Penny.Anna.T" [ty]) ctors
+  where
+    ctors = [ Ctor.T "Nil" [(Ty.T "Penny.Nil.T" [ty])]
+            , Ctor.T "Brim" [(Ty.T "Penny.Brim.T" [ty])]
+            ]
+
+bg1 :: Ty.T -> Td.T
+bg1 ty = Td.T (Ty.T "Penny.BG1.T" [ty]) ctors
+  where
+    ctors =
+      [ Ctor.T "GroupOnLeft"
+        [ ty, Ty.T "Penny.DecDecsMayGroups.T" [ty]
+        , Ty.T "Prelude.Maybe" [Ty.T "Penny.BG2.T" [ty]]
+        ]
+      , Ctor.T "GroupOnRight"
+        [ Ty.T "Penny.Radix.T" [ty]
+        , Ty.T "Penny.DecDecsMayGroups.T" [ty]
+        ]
+      ]
+
+bg2 :: Ty.T -> Td.T
+bg2 ty = Td.product (Ty.T "Penny.BG2.T" [ty])
+  [ Ty.T "Penny.Radix.T" [ty]
+  , Ty.T "Prelude.Maybe" [Ty.T "Penny.DecDecsMayGroups.T" [ty]]
+  ]
+
+bg4 :: Ty.T -> Td.T
+bg4 ty = Td.product (Ty.T "Penny.BG4.T" [ty])
+  [ Ty.T "Prelude.Maybe" [Ty.T "Penny.Zero.T" []]
+  , Ty.T "Penny.Radix.T" [ty]
+  , Ty.T "Penny.BG5.T" [ty]
+  ]
+
+bg5 :: Ty.T -> Td.T
+bg5 ty = Td.T (Ty.T "Penny.BG5.T" [ty])
+  [ Ctor.T "Novem"
+    [ Ty.T "Penny.NovSeqDecsNE.T" [ty] ]
+  , Ctor.T "Zeroes"
+    [ Ty.T "Penny.Zeroes.T" []
+    , Ty.T "Penny.BG6.T" [ty]
+    ]
+  ]
+
+bg6 :: Ty.T -> Td.T
+bg6 ty = Td.T (Ty.T "Penny.BG6.T" [ty])
+  [ Ctor.T "Novem"
+    [ Ty.T "Penny.NovSeqDecsNE.T" [ty] ]
+  , Ctor.T "Group"
+    [ ty, Ty.T "Penny.BG7.T" [ty] ]
+  ]
+
+bg7 :: Ty.T -> Td.T
+bg7 ty = Td.T (Ty.T "Penny.BG7.T" [ty])
+  [ Ctor.T "LeadZeroes"
+    [ Ty.T "Penny.Zeroes.T" []
+    , Ty.T "Prelude.Either" [ty, Ty.T "Penny.BG7.T" [ty]]
+    , Ty.T "Penny.Nodecs3.T" [ty]
+    ]
+  , Ctor.T "LeadNovem" [Ty.T "Penny.Nodecs3.T" [ty]]
+  ]
+
 
 nilUngrouped :: Ty.T -> Td.T
 nilUngrouped ty = Td.T (Ty.T "Penny.NilUngrouped.T" [ty]) ctors
@@ -44,15 +103,14 @@ either t1 t2 = Td.T (Ty.T "Prelude.Either" [t1, t2]) ctors
             , Ctor.T "Right" [t2] ]
 
 ng1 :: Ty.T -> Td.T
-ng1 ty = Td.T (Ty.T "Penny.NG1.T" [ty]) [Ctor.T "T" cs]
-  where
-    cs = [ Ty.T "Penny.Radix.T" [ty]
-         , Ty.T "Penny.Zeroes.T" []
-         , ty
-         , Ty.T "Penny.Zeroes.T" []
-         , Ty.T "Data.Sequence.Seq"
-            [ Ty.T "Penny.ZGroup.T" [ty] ]
-         ]
+ng1 ty = Td.product (Ty.T "Penny.NG1.T" [ty])
+  [ Ty.T "Penny.Radix.T" [ty]
+  , Ty.T "Penny.Zeroes.T" []
+  , ty
+  , Ty.T "Penny.Zeroes.T" []
+  , Ty.T "Data.Sequence.Seq"
+    [ Ty.T "Penny.ZGroup.T" [ty] ]
+  ]
 
 nil :: Ty.T -> Td.T
 nil ty = Td.T (Ty.T "Penny.Nil.T" [ty]) cs
@@ -62,7 +120,7 @@ nil ty = Td.T (Ty.T "Penny.Nil.T" [ty]) cs
          ]
 
 nilGrouped :: Ty.T -> Td.T
-nilGrouped ty = Td.T (Ty.T "Penny.NilGrouped" [ty]) cs
+nilGrouped ty = Td.T (Ty.T "Penny.NilGrouped.T" [ty]) cs
   where
     cs = [ Ctor.T "LeadingZero" [Ty.T "Penny.Zng.T" [ty]]
          , Ctor.T "NoLeadingZero" [Ty.T "Penny.NG1.T" [ty]]
@@ -128,6 +186,42 @@ types =
     . map show $ [1 .. 9 :: Int]
 
   -- Begin Penny
+
+  , Nov.wrapper "Penny.Account.T"
+      (Ty.T "Data.Sequence.Seq" [Ty.T "Penny.SubAccount.T" []])
+
+  , Nov.unit "Penny.Ampersand.T"
+  , anna radCom
+  , anna radPer
+  , Nov.unit "Penny.Apostrophe.T"
+  , Nov.wrapper "Penny.ArithmeticError"
+      (Ty.T "Prelude.String" [])
+  , Nov.product "Penny.Arrangement.T"
+      [ Ty.noParams "Penny.Orient.T"
+      , Ty.noParams "Penny.SpaceBetween.T"
+      ]
+  , Nov.unit "Penny.Asterisk.T"
+  , Nov.unit "Penny.AtSign.T"
+
+  , bg1 radCom
+  , bg1 radPer
+
+  , bg2 radCom
+  , bg2 radPer
+
+  , bg4 radCom
+  , bg4 radPer
+
+  , bg5 radCom
+  , bg5 radPer
+
+  , bg6 radCom
+  , bg6 radPer
+
+  , bg7 radCom
+  , bg7 radPer
+
+  -- START HERE
 
   , Nov.product "Penny.Cement.T"
     [ Ty.T "Penny.Coeff.T" []

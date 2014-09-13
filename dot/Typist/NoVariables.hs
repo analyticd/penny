@@ -5,6 +5,9 @@ import qualified Typist.Typename as Ty
 import qualified Typist.Constructor as Ctor
 import qualified Typist.Identifier as Identifier
 
+unit :: Identifier.T -> Td.T
+unit idy = nullary idy [Ctor.T (Identifier.name idy) []]
+
 nullary
   :: Identifier.T
   -- ^ Type name

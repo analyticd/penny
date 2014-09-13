@@ -2,6 +2,7 @@ module Typist.Typedesc where
 
 import qualified Typist.Typename as Ty
 import qualified Typist.Constructor as Ctor
+import qualified Typist.Identifier as Identifier
 
 data T = T
   { name :: Ty.T
@@ -12,6 +13,8 @@ abstract :: Ty.T -> T
 abstract n = T n []
 
 
+product :: Ty.T -> [Ty.T] -> T
+product n ts = T n [Ctor.T (Identifier.name . Ty.name $ n) ts]
 
 quote :: String -> String
 quote s = "\"" ++ s ++ "\""
