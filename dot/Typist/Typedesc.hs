@@ -5,25 +5,30 @@ import qualified Typist.Constructor as Ctor
 import Data.List (intersperse)
 
 data T = T
-  { name :: String
-  , params :: [Ty.T]
+  { name :: Ty.T
   , ctors :: [Ctor.T Ty.T]
   } deriving (Eq, Ord, Show)
 
-nullary
-  :: String
-  -- ^ Type name
-  -> [(String, [Ty.T])]
-  -- ^ Each constructor and its fields
-  -> T
-nullary n cs = T n [] (map (uncurry Ctor.T) cs)
+opaque :: Ty.T -> T
+opaque n = T n []
 
-dotifyCtor :: Ctor.T Ty.T -> String
-dotifyCtor t = unlines $ line1 : map f (Ctor.fields t)
+dotifyCtor
+  :: Ty.T
+  -- ^ Name of type containing the ctor.
+  -> Ctor.T Ty.T
+  -> (String, String)
+  -- ^ fst is the dottified text; snd is the name of the node for this
+  -- ctor.
+dotifyCtor cn t = (unlines $ line1 : map f (Ctor.fields t), nameThis)
   where
-    nameThis = quote . Ctor.name $ t
-    line1 = nameThis ++ " [shape=box];"
+    labelThis = case Ctor.fields t of
+      [] -> Ctor.name t
+      xs -> quote . concat . intersperse " "
+        . (Ctor.name t :) . map Ty.toString $ xs
+    line1 = nameThis ++ " [shape=box, label=" ++ labelThis ++ "];"
     f dest = nameThis ++ " -> " ++ quote (Ty.toString dest) ++ ";"
+    nameThis = quote $ Ty.toString cn ++ " "
+      ++ Ctor.name t
 
 quote :: String -> String
 quote s = "\"" ++ s ++ "\""
@@ -31,10 +36,14 @@ quote s = "\"" ++ s ++ "\""
 dotify :: T -> String
 dotify t = unlines $ line1 : map f (ctors t)
   where
-    nameThis = typeNode (name t) (params t)
+    nameThis = quote $ Ty.toString (name t)
     line1 = nameThis ++ ";"
-    f (Ctor.T cName cFlds) = nameThis ++ " -> "
-       ++ typeNode cName cFlds ++ " [style=dotted];"
+    f ct =
+       ctorTxt
+       ++ nameThis ++ " -> "
+       ++ ctorNodeName ++ " [style=dotted];"
+      where
+        (ctorTxt, ctorNodeName) = dotifyCtor (name t) ct
 
 dotifyList :: [T] -> String
 dotifyList ts =
@@ -42,15 +51,3 @@ dotifyList ts =
   ++ concatMap dotify ts
   ++ "}\n"
 
-typeNode
-  :: String
-  -- ^ Type name
-  -> [Ty.T]
-  -- ^ Type parameters
-  -> String
-  -- ^ Quoted node name
-typeNode n ts = quote $ n ++ rest
-  where
-    rest = case ts of
-      [] -> ""
-      _ -> " " ++ (concat . intersperse " " . map Ty.toString $ ts)

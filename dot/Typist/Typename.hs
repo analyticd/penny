@@ -15,5 +15,5 @@ toString (T n ts) = case ts of
     f c | null (params c) = name c
         | otherwise = "(" ++ toString c ++ ")"
 
-nullary :: String -> T
-nullary s = T s []
+noParams :: String -> T
+noParams s = T s []

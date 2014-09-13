@@ -7,3 +7,6 @@ data T a = T
 
 instance Functor T where
   fmap f (T n fs) = T n (fmap f fs)
+
+empty :: String -> T a
+empty s = T s []
