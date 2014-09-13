@@ -5,41 +5,29 @@ import qualified Typist.Constructor as Ctor
 
 data T = T
   { name :: Ty.T
-  , ctors :: [Ctor.T Ty.T]
+  , ctors :: [Ctor.T]
   } deriving (Eq, Ord, Show)
 
-opaque :: Ty.T -> T
-opaque n = T n []
+abstract :: Ty.T -> T
+abstract n = T n []
 
-dotifyCtor
-  :: Ty.T
-  -- ^ Name of type containing the ctor.
-  -> Ctor.T Ty.T
-  -> (String, String)
-  -- ^ fst is the dottified text; snd is the name of the node for this
-  -- ctor.
-dotifyCtor cn t = (unlines $ line1 : map f (Ctor.fields t), nameThis)
-  where
-    labelThis = Ctor.name t
-    line1 = nameThis ++ " [shape=box, label=" ++ labelThis ++ "];"
-    f dest = nameThis ++ " -> " ++ quote (Ty.toString dest) ++ ";"
-    nameThis = quote $ Ty.toString cn ++ " "
-      ++ Ctor.name t
+
 
 quote :: String -> String
 quote s = "\"" ++ s ++ "\""
 
 dotify :: T -> String
-dotify t = unlines $ line1 : map f (ctors t)
+dotify t = concat $ line1 : map f (ctors t)
   where
     nameThis = quote $ Ty.toString (name t)
-    line1 = nameThis ++ ";"
-    f ct =
-       ctorTxt
-       ++ nameThis ++ " -> "
-       ++ ctorNodeName ++ " [style=dotted];"
+    line1 = nameThis ++ ";\n"
+    f ct = ctorNode ++ ctorEdges ++ edgeToCtor
       where
-        (ctorTxt, ctorNodeName) = dotifyCtor (name t) ct
+        ctorId = Ctor.identify (name t) (Ctor.name ct)
+        ctorNode = Ctor.node ctorId (Ctor.name ct)
+        ctorEdges = Ctor.edges ctorId (Ctor.fields ct)
+        edgeToCtor = nameThis ++ " -> " ++ quote ctorId ++
+          " [style=dotted];\n"
 
 dotifyList :: [T] -> String
 dotifyList ts =

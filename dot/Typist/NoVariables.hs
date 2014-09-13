@@ -8,7 +8,7 @@ import qualified Typist.Identifier as Identifier
 nullary
   :: Identifier.T
   -- ^ Type name
-  -> [Ctor.T Ty.T]
+  -> [Ctor.T]
   -- ^ Each constructor
   -> Td.T
 nullary n ts = Td.T (Ty.T n []) ts
@@ -31,8 +31,8 @@ wrapper
   -> Td.T
 wrapper n t = nullary n [Ctor.T (Identifier.name n) [t]]
 
-opaque
+abstract
   :: Identifier.T
   -- ^ Type name
   -> Td.T
-opaque n = Td.opaque (Ty.T n [])
+abstract n = Td.abstract (Ty.T n [])

@@ -5,10 +5,6 @@ import qualified Typist.Typedesc as Td
 import qualified Typist.Typename as Ty
 import qualified Typist.NoVariables as Nov
 import qualified Typist.Constructor as Ctor
-import qualified Typist.Type1 as Type1
-import qualified Typist.Kind1 as Kind1
-import qualified Typist.Type2 as Type2
-import qualified Typist.Kind2 as Kind2
 import qualified Typist.Identifier as Iden
 import Prelude hiding
   ( maybe
@@ -19,14 +15,16 @@ name :: String -> Iden.T
 name = Iden.fromString
 
 maybe :: Ty.T -> Td.T
-maybe = Type1.toTypedesc $ Type1.T "Prelude.Maybe"
-  [ Ctor.empty "Nothing"
-  , Ctor.T "Just" [Kind1.Var0]
-  ]
+maybe t1 = Td.T (Ty.T "Prelude.Maybe" [t1]) ctors
+  where
+    ctors = [ Ctor.empty "Nothing"
+            , Ctor.T "Just" [t1]
+            ]
 
 radix :: Ty.T -> Td.T
-radix = Type1.toTypedesc $ Type1.T "Penny.Radix.T"
-  [ Ctor.empty "T" ]
+radix ty = Td.T (Ty.T "Penny.Radix.T" [ty]) ctors
+  where
+    ctors = [ Ctor.empty "T" ]
 
 either :: Ty.T -> Ty.T -> Td.T
 either t1 t2 = Td.T (Ty.T "Prelude.Either" [t1, t2]) ctors
@@ -35,11 +33,10 @@ either t1 t2 = Td.T (Ty.T "Prelude.Either" [t1, t2]) ctors
             , Ctor.T "Right" [t2] ]
 
 radZ :: Ty.T -> Td.T
-radZ ty = Type1.toTypedesc t ty
+radZ ty = Td.T (Ty.T "Penny.RadZ.T" [ty]) ctors
   where
-    t = Type1.T "Penny.RadZ.T"
-        [ Ctor.T "T" [ Kind1.Con $ Ty.T "Penny.Radix.T" [ty]
-                     , Kind1.Con $ Ty.T "Penny.Zeroes.T" [] ]]
+    ctors = [ Ctor.T "T" [ Ty.T "Penny.Radix.T" [ty]
+                         , Ty.T "Penny.Zeroes.T" [] ]]
 
 radCom :: Ty.T
 radCom = Ty.T "Penny.RadCom.T" []
@@ -51,7 +48,7 @@ types :: [Td.T]
 types =
   [
   -- Seq Decem
-    Td.opaque (Ty.T "Data.Sequence.Seq"
+    Td.abstract (Ty.T "Data.Sequence.Seq"
                 [Ty.T "Deka.Native.Abstract.Decem" []])
 
   , Nov.nullary "Deka.Dec.Sign"
@@ -83,11 +80,11 @@ types =
     , Ctor.T "NonZero" [Ty.T "Penny.NovSign.T" []]
     ]
 
-  , Nov.opaque "Penny.Concrete.T"
+  , Nov.abstract "Penny.Concrete.T"
   , Nov.wrapper "Penny.Decems.T" (Ty.T "Data.Sequence.Seq"
                 [Ty.T "Deka.Native.Abstract.Decem" []])
 
-  , Nov.opaque "Penny.NonZero.T"
+  , Nov.abstract "Penny.NonZero.T"
 
   , Nov.product "Penny.NovSign.T"
     [ Ty.T "Penny.NovDecs.T" []
@@ -121,7 +118,7 @@ types =
     , Ctor.empty "False"
     ]
 
-  , Nov.opaque "Prelude.Int"
+  , Nov.abstract "Prelude.Int"
 
   -- Maybe Int
   , maybe (Ty.T "Prelude.Int" [])

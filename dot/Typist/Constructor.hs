@@ -1,12 +1,42 @@
 module Typist.Constructor where
 
-data T a = T
+import qualified Typist.Typename as Ty
+
+data T = T
   { name :: String
-  , fields :: [a]
+  , fields :: [Ty.T]
   } deriving (Eq, Ord, Show)
 
-instance Functor T where
-  fmap f (T n fs) = T n (fmap f fs)
-
-empty :: String -> T a
+empty :: String -> T
 empty s = T s []
+
+-- | Produces a dot identifier.  Not quoted.
+identify
+  :: Ty.T
+  -- ^ Name of type containing this ctor.
+  -> String
+  -- ^ Ctor name
+  -> String
+identify ty t = Ty.toString ty ++ " " ++ t
+
+node
+  :: String
+  -- ^ Dot identifier
+  -> String
+  -- ^ Ctor name
+  -> String
+node idy n = quote idy ++ " [shape=box, label=" ++ n ++ "];\n"
+
+edges
+  :: String
+  -- ^ Dot identifier
+  -> [Ty.T]
+  -- ^ Component types
+  -> String
+edges idy = unlines . map f
+  where
+    f ty = quote idy ++ " -> " ++ quote (Ty.toString ty) ++ ";"
+
+quote :: String -> String
+quote s = "\"" ++ s ++ "\""
+
