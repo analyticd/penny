@@ -4,9 +4,10 @@ import qualified Typist.Kind1 as K1
 import qualified Typist.Constructor as Ctor
 import qualified Typist.Typedesc as Typedesc
 import qualified Typist.Typename as Ty
+import qualified Typist.Identifier as Identifier
 
 data T = T
-  { name :: String
+  { name :: Identifier.T
   , ctors :: [Ctor.T K1.T]
   } deriving (Eq, Ord, Show)
 

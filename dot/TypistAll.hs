@@ -11,3 +11,4 @@ import qualified Typist.Type2
 import qualified Typist.Type3
 import qualified Typist.Typedesc
 import qualified Typist.Typename
+import qualified Typist.Identifier

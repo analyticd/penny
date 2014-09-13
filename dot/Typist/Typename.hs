@@ -1,19 +1,21 @@
 module Typist.Typename where
 
 import Data.List (intersperse)
+import qualified Typist.Identifier as Identifier
 
 data T = T
-  { name :: String
+  { name :: Identifier.T
   , params :: [T]
   } deriving (Eq, Ord, Show)
 
 toString :: T -> String
 toString (T n ts) = case ts of
-  [] -> n
-  _ -> n ++ " " ++ (concat . intersperse " " . map f $ ts)
+  [] -> ns
+  _ -> ns ++ " " ++ (concat . intersperse " " . map f $ ts)
   where
-    f c | null (params c) = name c
+    f c | null (params c) = toString c
         | otherwise = "(" ++ toString c ++ ")"
+    ns = Identifier.toString n
 
-noParams :: String -> T
+noParams :: Identifier.T -> T
 noParams s = T s []
