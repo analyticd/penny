@@ -1,0 +1,22 @@
+-- | Numbers - how numbers work in Penny
+--
+-- Representing numbers accurately is a considerable challenge in
+-- Penny.  Wherever possible, Penny uses the type system to help meet
+-- this challenge, so that the data types closely reflect the
+-- constraints on data.  To the maximum extent possible, this means
+-- that modules export all constructors and that the structure of the
+-- types themselves represent constraints; I made types abstract only
+-- as a last resort.  This simplifies testing and documentation, but
+-- it does mean there are a huge number of types involved.
+--
+-- Numbers can roughly be divided into three categories: abstract,
+-- concrete, and parse trees.
+--
+-- Abstract types use the type system to represent the presence or
+-- absence of digit grouping characters, the type of the radix point
+-- (comma or period), and whether the value is zero or non-zero.
+-- Types in this classification include:
+--
+-- * "Penny.Signed", contains either a zero value or a non-zero value
+-- along with a polarity (such as a "Penny.Side" or a "Penny.PluMin".
+module Penny.Docs.Numbers where
