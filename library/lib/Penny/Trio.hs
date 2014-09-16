@@ -1,12 +1,10 @@
 module Penny.Trio where
 
-import qualified Penny.Brim as Brim
-import qualified Penny.Signed as Signed
-import qualified Penny.RadPer as RadPer
-import qualified Penny.RadCom as RadCom
 import qualified Penny.Commodity as Commodity
 import qualified Penny.Arrangement as Arrangement
 import qualified Penny.Side as Side
+import qualified Penny.Cabin as Cabin
+import qualified Penny.Philly as Philly
 
 -- | When building entries using the "Penny.Ents" module, you may
 -- specify any of the 'Side.T', 'Commodity.T', a signed abstract quantity,
@@ -26,8 +24,7 @@ import qualified Penny.Side as Side
 -- for @Empty@.
 
 data T
-  = QC (Either (Signed.T RadPer.T Side.T) (Signed.T RadCom.T Side.T))
-       Commodity.T Arrangement.T
+  = QC Cabin.T Commodity.T Arrangement.T
   -- ^ Specify a quantity, commodity, and how they are arranged, and a
   -- corresponding entry is always recorded.
   --
@@ -36,7 +33,7 @@ data T
   -- Postconditions: the balance is appropriately affected.
 
 
-  | Q (Either (Signed.T RadPer.T Side.T) (Signed.T RadCom.T RadCom.T))
+  | Q Cabin.T
   -- ^ Specify a quantity only.
   --
   -- Preconditions: there is exactly one commodity in the imbalances.
@@ -62,8 +59,7 @@ data T
   -- Postconditions: the imbalances is empty.
 
 
-  | UC (Either (Brim.T RadPer.T) (Brim.T RadCom.T)) Commodity.T
-       Arrangement.T
+  | UC Philly.T Commodity.T Arrangement.T
   -- ^ Specify an unsigned abstract quantity only and a 'Commodity'
   -- and how they are arranged.
   --
@@ -72,7 +68,7 @@ data T
   -- Postconditions: the given commodity in the imbalances either has
   -- its absolute value reduced or it flips to the opposite side.
 
-  | U (Either (Brim.T RadPer.T) (Brim.T RadCom.T))
+  | U Philly.T
   -- ^ Specify an unsigned quantity only.
   --
   -- Preconditions: the imbalances contains exactly one commodity, and
