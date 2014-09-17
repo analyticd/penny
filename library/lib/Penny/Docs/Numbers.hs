@@ -36,8 +36,8 @@
 -- * "Penny.Exchange", contains an exchange, which is a number that
 -- states the value of one commodity in terms of a different commodity
 --
--- Parse tree types represent the results of parsing.  They can be
--- converted to a representation type.  Parse tree types include:
---
--- * "Penny.Wheat", a 
+-- Parse tree types represent the results of parsing.  A parse tree
+-- captures not only a representation but also an optional commodity.
+-- Parse trees are rooted at "Penny.Wheat".
+
 module Penny.Docs.Numbers where
