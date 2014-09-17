@@ -42,8 +42,3 @@
 
 module Penny.Docs.Numbers where
 
-{-
-
-(* EBNF grammar for number parse trees.
-
-Wheat
