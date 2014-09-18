@@ -21,7 +21,7 @@ fi
 
 oldFileName="${1//.//}.hs"
 newFileName="${2//.//}.hs"
-newDirName="$(basename "$newFileName")"
+newDirName="$(dirname "$newFileName")"
 oldModNameRegex="${1//./\\.}"
 
 mkdir -p "$newDirName"
