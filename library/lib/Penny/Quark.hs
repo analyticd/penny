@@ -1,7 +1,7 @@
 module Penny.Quark where
 
 import qualified Penny.Quant as Q
-import qualified Penny.Side as Side
+import qualified Penny.Lincoln.Side as Side
 import qualified Penny.Pebble as Pebble
 
 newtype T = T { toQuant :: Q.T Side.T }

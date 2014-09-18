@@ -1,8 +1,8 @@
-module Penny.DateTime where
+module Penny.Lincoln.DateTime where
 
 import Data.Time
-import qualified Penny.Hours as Hours
-import qualified Penny.Minutes as Minutes
+import qualified Penny.Lincoln.Hours as Hours
+import qualified Penny.Lincoln.Minutes as Minutes
 import qualified Penny.Seconds as Seconds
 import qualified Penny.TimeZoneOffset as TimeZoneOffset
 

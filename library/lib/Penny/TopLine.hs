@@ -1,12 +1,12 @@
 module Penny.TopLine where
 
-import qualified Penny.DateTime as DateTime
+import qualified Penny.Lincoln.DateTime as DateTime
 import qualified Penny.Memo as Memo
 import qualified Penny.Number as Number
-import qualified Penny.Flag as Flag
-import qualified Penny.Payee as Payee
+import qualified Penny.Lincoln.Flag as Flag
+import qualified Penny.Lincoln.Payee as Payee
 import qualified Penny.Location as Location
-import qualified Penny.Clxn as Clxn
+import qualified Penny.Lincoln.Clxn as Clxn
 import qualified Penny.Serial as Serial
 
 data T = T

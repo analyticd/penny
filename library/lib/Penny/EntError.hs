@@ -1,7 +1,7 @@
 module Penny.EntError where
 
 import qualified Penny.EntCode as EntCode
-import qualified Penny.Trio as Trio
+import qualified Penny.Lincoln.Trio as Trio
 import qualified Penny.Imbalances as Imbalances
 
 -- | An error occurred while attempting to create an 'Ent'.

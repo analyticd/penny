@@ -1,4 +1,4 @@
-module Penny.Minutes
+module Penny.Lincoln.Minutes
   ( T
   , toInt
   , fromInt

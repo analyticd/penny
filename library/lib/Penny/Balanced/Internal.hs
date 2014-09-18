@@ -3,7 +3,7 @@ module Penny.Balanced.Internal where
 
 import Data.Sequence
 import qualified Data.Sequence as S
-import qualified Penny.Ent as Ent
+import qualified Penny.Lincoln.Ent as Ent
 import Data.Monoid
 import Data.Traversable
 import Data.Foldable

@@ -31,4 +31,4 @@ sed -i "s/^module $oldModNameRegex/module $2/" "$newFileName"
 
 # change imports
 find . -name '*.hs' \
-    -exec sed -r -i "s/^(import( qualified)? )${oldModNameRegex}( |$)/\1$2/" {} \;
+    -exec sed -r -i "s/^(import( qualified)? )${oldModNameRegex}( |$)/\1$2\3/" {} \;

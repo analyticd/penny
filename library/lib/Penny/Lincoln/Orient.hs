@@ -1,4 +1,4 @@
-module Penny.Orient where
+module Penny.Lincoln.Orient where
 
 data T
   = CommodityOnLeft

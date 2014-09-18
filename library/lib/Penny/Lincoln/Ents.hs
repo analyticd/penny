@@ -1,4 +1,4 @@
-module Penny.Ents
+module Penny.Lincoln.Ents
   ( T
   , ents
   , bals
@@ -6,7 +6,7 @@ module Penny.Ents
 
 import Data.Sequence (Seq, viewl, ViewL(..), (<|))
 import qualified Penny.Balances as Bals
-import qualified Penny.Ent as Ent
+import qualified Penny.Lincoln.Ent as Ent
 import Data.Monoid
 import Data.Foldable
 import qualified Data.Foldable as F

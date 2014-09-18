@@ -1,8 +1,8 @@
-module Penny.Trio where
+module Penny.Lincoln.Trio where
 
 import qualified Penny.Commodity as Commodity
-import qualified Penny.Arrangement as Arrangement
-import qualified Penny.Side as Side
+import qualified Penny.Lincoln.Arrangement as Arrangement
+import qualified Penny.Lincoln.Side as Side
 import qualified Penny.Cabin as Cabin
 import qualified Penny.Philly as Philly
 

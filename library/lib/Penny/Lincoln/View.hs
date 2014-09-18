@@ -1,7 +1,7 @@
-module Penny.View where
+module Penny.Lincoln.View where
 
 import Data.Sequence
-import qualified Penny.Ent as Ent
+import qualified Penny.Lincoln.Ent as Ent
 
 data T a = T
   { left :: Seq (Ent.T a)

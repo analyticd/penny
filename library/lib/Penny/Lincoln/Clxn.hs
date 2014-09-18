@@ -1,4 +1,4 @@
-module Penny.Clxn where
+module Penny.Lincoln.Clxn where
 
 import Data.Text
 

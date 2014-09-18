@@ -1,4 +1,4 @@
-module Penny.Payee where
+module Penny.Lincoln.Flag where
 
 import Data.Text
 

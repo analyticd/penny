@@ -1,14 +1,14 @@
-module Penny.Posting where
+module Penny.Lincoln.Posting where
 
 import qualified Penny.Memo as Memo
 import qualified Penny.Number as Number
-import qualified Penny.Flag as Flag
-import qualified Penny.Payee as Payee
+import qualified Penny.Lincoln.Flag as Flag
+import qualified Penny.Lincoln.Payee as Payee
 import qualified Penny.Tags as Tags
 import qualified Penny.Account as Account
 import qualified Penny.Location as Location
 import qualified Penny.Serial as Serial
-import qualified Penny.Trio as Trio
+import qualified Penny.Lincoln.Trio as Trio
 
 data T = T
   { memo :: Memo.T

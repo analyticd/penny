@@ -1,4 +1,4 @@
-module Penny.Side where
+module Penny.Lincoln.Side where
 
 import Deka.Dec
 

@@ -1,4 +1,4 @@
-module Penny.Ent where
+module Penny.Lincoln.Ent where
 
 import qualified Penny.Qty as Qty
 import qualified Penny.Commodity as Commodity

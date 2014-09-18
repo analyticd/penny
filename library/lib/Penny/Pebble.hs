@@ -1,7 +1,7 @@
 module Penny.Pebble where
 
 import qualified Penny.Gravel as Gravel
-import qualified Penny.Side as Side
+import qualified Penny.Lincoln.Side as Side
 import qualified Penny.Cement as Cement
 
 newtype T = T { toGravel :: Gravel.T Side.T }
