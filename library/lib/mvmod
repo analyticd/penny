@@ -25,7 +25,7 @@ newDirName="$(dirname "$newFileName")"
 oldModNameRegex="${1//./\\.}"
 
 mkdir -p "$newDirName"
-mv -T "$oldFileName" "$newFileName"
+mv "$oldFileName" "$newFileName"
 
 # change header in moved module
 sed -i "s/^module $oldModNameRegex/module $2/" "$newFileName"
