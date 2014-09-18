@@ -1,7 +1,7 @@
 module Penny.Arrangement where
 
 import qualified Penny.Orient as O
-import qualified Penny.Copper.Char.SpaceBetween as S
+import qualified Penny.SpaceBetween as S
 
 data T = T
   { orient :: O.T
