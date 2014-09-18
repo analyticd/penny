@@ -1,4 +1,4 @@
-module Penny.Char.SubAccount.Quoted
+module Penny.Tree.SubAccount.Unquoted.Char.Next
   ( T
   , toChar
   , fromChar
@@ -9,5 +9,5 @@ data T = T { toChar :: Char }
 
 fromChar :: Char -> Maybe T
 fromChar c
-  | c /= ':' && c /= '\n' && c /= '}' = Just $ T c
+  | c /= ':' && c /= '\n' && c /= ' ' = Just $ T c
   | otherwise = Nothing
