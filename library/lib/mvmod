@@ -12,6 +12,7 @@
 # mvmod Penny.Name.Old Penny.New.Name
 
 set -e
+set -v
 
 if [[ $# -ne 2 ]]; then
     echo "mvmod: usage: mvmod old-name new-name" 1>&2
