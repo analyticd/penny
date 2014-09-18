@@ -2,7 +2,7 @@ module Penny.Tree.SubAccount.Unquoted.Next where
 
 import qualified Penny.Tree.SubAccount.Unquoted.Char.Next as NextC
 import Data.Sequence (Seq)
-import qualified Penny.Colon as Colon
+import qualified Penny.Copper.Char.Colon as Colon
 
 data T = T
   { colon :: Colon.T

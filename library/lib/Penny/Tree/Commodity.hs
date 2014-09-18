@@ -1,6 +1,6 @@
 module Penny.Tree.Commodity where
 
-import qualified Penny.Caret as Caret
+import qualified Penny.Copper.Char.Caret as Caret
 import qualified Penny.Char.Commodity as CharC
 import Data.Sequence (Seq)
 

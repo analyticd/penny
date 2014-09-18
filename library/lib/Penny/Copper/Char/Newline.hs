@@ -1,4 +1,4 @@
-module Penny.Plus where
+module Penny.Copper.Char.Newline where
 
 data T = T
   deriving (Eq, Ord, Show)
