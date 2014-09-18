@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Renames a module from the name given in $1 to the name given in $2.
+# Moves the module to the appropriate new location in the file tree,
+# changes the module name in the file itself, and changes all imports
+# in the hierarchy.
+
+# Works only with .hs files; does not work with literate Haskell
+# files, Alex files, etc.
+
+# Sample usage:
+# mvmod Penny.Name.Old Penny.New.Name
+
+set -e
+
+if [[ $# -ne 2 ]]; then
+    echo "mvmod: usage: mvmod old-name new-name" 1>&2
+    exit 1
+fi
+
+oldFileName="${1//.//}.hs"
+newFileName="${2//.//}.hs"
+newDirName="$(basename "$newFileName")"
+oldModNameRegex="${1//./\\.}"
+
+mkdir -p "$newDirName"
+mv -T "$oldFileName" "$newFileName"
+
+# change header in moved module
+sed -i "s/^module $oldModNameRegex/module $2/" "$newFileName"
+
+# change imports
+find . -name '*.hs' \
+    -exec sed -r -i "s/^(import( qualified)? )${oldModNameRegex}/\1$2/" {} \;
