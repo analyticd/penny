@@ -1,4 +1,4 @@
-module Penny.Char.Currency
+module Penny.Copper.Currency
   ( T
   , toChar
   , fromChar
