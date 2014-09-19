@@ -3,7 +3,7 @@ module Penny.Lincoln.Trio where
 import qualified Penny.Commodity as Commodity
 import qualified Penny.Lincoln.Arrangement as Arrangement
 import qualified Penny.Lincoln.Side as Side
-import qualified Penny.Cabin as Cabin
+import qualified Penny.Lincoln.Muddy as Cabin
 import qualified Penny.Philly as Philly
 
 -- | When building entries using the "Penny.Ents" module, you may

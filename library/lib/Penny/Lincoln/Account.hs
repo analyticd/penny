@@ -1,4 +1,4 @@
-module Penny.Account where
+module Penny.Lincoln.Account where
 
 import Data.Sequence
 import qualified Penny.SubAccount as SubAccount

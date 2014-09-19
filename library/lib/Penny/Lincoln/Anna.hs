@@ -1,5 +1,5 @@
 -- | Abstract, unsigned numbers.
-module Penny.Anna where
+module Penny.Lincoln.Anna where
 
 import qualified Penny.Brim as Brim
 import qualified Penny.Nil as Nil

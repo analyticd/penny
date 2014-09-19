@@ -1,4 +1,4 @@
-module Penny.Zinc where
+module Penny.Lincoln.Walker where
 
 import qualified Penny.Legend as Lincoln
 import qualified Penny.Lincoln.Side as Side

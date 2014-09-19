@@ -1,7 +1,7 @@
-module Penny.Cabin where
+module Penny.Lincoln.Muddy where
 
 import qualified Penny.Janus as Janus
-import qualified Penny.Zinc as Zinc
+import qualified Penny.Lincoln.Walker as Zinc
 
 newtype T = T
   { toJanus :: Janus.T Zinc.T }
