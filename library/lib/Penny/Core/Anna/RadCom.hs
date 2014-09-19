@@ -1,4 +1,4 @@
-module Penny.Core.RadCom where
+module Penny.Core.Anna.RadCom where
 
 data T = T
   deriving (Eq, Ord, Show)

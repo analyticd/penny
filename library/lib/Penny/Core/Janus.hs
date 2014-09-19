@@ -1,6 +1,6 @@
 module Penny.Core.Janus where
 
-import qualified Penny.Core.RadCom as RadCom
+import qualified Penny.Core.Anna.RadCom as RadCom
 import qualified Penny.Core.Anna.RadPer as RadPer
 
 data T a
