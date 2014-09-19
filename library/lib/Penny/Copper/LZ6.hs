@@ -2,7 +2,7 @@ module Penny.Copper.LZ6 where
 
 import qualified Penny.Lincoln.Anna as NovDecs
 import qualified Penny.Lincoln.Anna.DecDecs as DecDecs
-import qualified Penny.Zeroes as Zeroes
+import qualified Penny.Lincoln.Anna.Zeroes as Zeroes
 import Data.Sequence (Seq)
 
 data T a

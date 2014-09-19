@@ -1,7 +1,7 @@
 module Penny.Lincoln.Anna.BG4 where
 
-import qualified Penny.Zero as Zero
-import qualified Penny.Radix as Radix
+import qualified Penny.Lincoln.Anna.Zero as Zero
+import qualified Penny.Lincoln.Anna.Radix as Radix
 import qualified Penny.Lincoln.Anna.BG5 as BG5
 
 data T r = T

@@ -2,7 +2,7 @@ module Penny.Lincoln.Ent.Error where
 
 import qualified Penny.Lincoln.Ent.Code as EntCode
 import qualified Penny.Lincoln.Trio as Trio
-import qualified Penny.Imbalances as Imbalances
+import qualified Penny.Lincoln.Imbalances as Imbalances
 
 -- | An error occurred while attempting to create an 'Ent'.
 data T = T

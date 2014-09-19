@@ -1,7 +1,7 @@
 module Penny.Lincoln.Anna.BG2 where
 
 import qualified Penny.Lincoln.Anna.DecDecsMayGroups as DecDecsMayGroups
-import qualified Penny.Radix as Radix
+import qualified Penny.Lincoln.Anna.Radix as Radix
 
 data T r = T
   { radix :: Radix.T r

@@ -1,9 +1,9 @@
 module Penny.Lincoln.Anna.NG1 where
 
-import qualified Penny.Radix as Radix
-import qualified Penny.Zeroes as Zeroes
+import qualified Penny.Lincoln.Anna.Radix as Radix
+import qualified Penny.Lincoln.Anna.Zeroes as Zeroes
 import Data.Sequence (Seq)
-import qualified Penny.ZGroup as ZGroup
+import qualified Penny.Lincoln.Anna.ZGroup as ZGroup
 
 data T r = T
   { radix :: Radix.T r

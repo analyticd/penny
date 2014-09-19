@@ -1,7 +1,7 @@
 module Penny.Lincoln.Anna.BU2 where
 
-import qualified Penny.Zerabu as Zerabu
-import qualified Penny.Radbu as Radbu
+import qualified Penny.Lincoln.Anna.Zerabu as Zerabu
+import qualified Penny.Lincoln.Radbu as Radbu
 
 data T r
   = LeadingZero (Zerabu.T r)

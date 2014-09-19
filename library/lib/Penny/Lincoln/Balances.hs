@@ -2,7 +2,7 @@ module Penny.Lincoln.Balances where
 
 import qualified Data.Map as M
 import qualified Penny.Lincoln.Commodity as Cy
-import qualified Penny.Qty as Q
+import qualified Penny.Lincoln.Qty as Q
 import qualified Penny.Lincoln.Concrete as C
 import qualified Data.Foldable as F
 import qualified Deka.Dec as D

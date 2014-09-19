@@ -1,7 +1,7 @@
 module Penny.Copper.LZ2 where
 
 import qualified Penny.Lincoln.Anna as NovDecs
-import qualified Penny.Zeroes as Zeroes
+import qualified Penny.Lincoln.Anna.Zeroes as Zeroes
 import qualified Penny.Copper.LZ3 as LZ3
 import qualified Penny.Copper.LZ4 as LZ4
 

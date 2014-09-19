@@ -2,7 +2,7 @@ module Penny.Copper.LeadRadix where
 
 import qualified Penny.Lincoln.Anna as NovDecs
 import qualified Penny.Lincoln.Anna.DecDecsMayGroups as DecDecsMayGroups
-import qualified Penny.Zeroes as Zeroes
+import qualified Penny.Lincoln.Anna.Zeroes as Zeroes
 import qualified Penny.Copper.NovDecsOrGroup as NovDecsOrGroup
 
 -- | Parse tree that leads with a radix point.

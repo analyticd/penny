@@ -4,10 +4,10 @@ import qualified Penny.Lincoln.Memo as Memo
 import qualified Penny.Lincoln.Number as Number
 import qualified Penny.Lincoln.Flag as Flag
 import qualified Penny.Lincoln.Payee as Payee
-import qualified Penny.Tags as Tags
+import qualified Penny.Lincoln.Tags as Tags
 import qualified Penny.Lincoln.Account as Account
 import qualified Penny.Lincoln.Location as Location
-import qualified Penny.Serial as Serial
+import qualified Penny.Lincoln.Serial as Serial
 import qualified Penny.Lincoln.Trio as Trio
 
 data T = T

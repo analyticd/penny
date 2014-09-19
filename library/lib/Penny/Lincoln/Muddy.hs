@@ -1,6 +1,6 @@
 module Penny.Lincoln.Muddy where
 
-import qualified Penny.Janus as Janus
+import qualified Penny.Lincoln.Janus as Janus
 import qualified Penny.Lincoln.Walker as Zinc
 
 newtype T = T

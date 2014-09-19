@@ -1,7 +1,7 @@
 module Penny.Lincoln.Anna.NovSeqDecsNE where
 
 import qualified Penny.Lincoln.Anna as NovDecs
-import qualified Penny.SeqDecsNE as SeqDecsNE
+import qualified Penny.Lincoln.Anna.SeqDecsNE as SeqDecsNE
 
 data T r = T
   { novDecs :: NovDecs.T

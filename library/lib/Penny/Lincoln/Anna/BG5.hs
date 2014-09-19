@@ -2,7 +2,7 @@ module Penny.Lincoln.Anna.BG5 where
 
 import qualified Penny.Lincoln.Anna.NovSeqDecsNE as NovSeqDecsNE
 import qualified Penny.Lincoln.Anna.BG6 as BG6
-import qualified Penny.Zeroes as Zeroes
+import qualified Penny.Lincoln.Anna.Zeroes as Zeroes
 
 data T r
   = Novem (NovSeqDecsNE.T r)

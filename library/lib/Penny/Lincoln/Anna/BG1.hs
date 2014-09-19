@@ -1,6 +1,6 @@
 module Penny.Lincoln.Anna.BG1 where
 
-import qualified Penny.Radix as Radix
+import qualified Penny.Lincoln.Anna.Radix as Radix
 import qualified Penny.Lincoln.Anna.DecDecsMayGroups as DecDecsMayGroups
 import qualified Penny.Lincoln.Anna.BG2 as BG2
 

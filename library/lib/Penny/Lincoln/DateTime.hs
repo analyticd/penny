@@ -3,8 +3,8 @@ module Penny.Lincoln.DateTime where
 import Data.Time
 import qualified Penny.Lincoln.Hours as Hours
 import qualified Penny.Lincoln.Minutes as Minutes
-import qualified Penny.Seconds as Seconds
-import qualified Penny.TimeZoneOffset as TimeZoneOffset
+import qualified Penny.Lincoln.Seconds as Seconds
+import qualified Penny.Lincoln.TimeZoneOffset as TimeZoneOffset
 
 data T = T
   { day :: Day

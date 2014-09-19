@@ -1,7 +1,7 @@
 module Penny.Copper.NovDecsOrZero where
 
-import qualified Penny.Zeroes as Zeroes
-import qualified Penny.Anna.NovSeqDecs as NovSeqDecs
+import qualified Penny.Lincoln.Anna.Zeroes as Zeroes
+import qualified Penny.Lincoln.Anna.NovSeqDecs as NovSeqDecs
 
 -- | Parse tree for a value that begins with a novem or a zero.
 data T r

@@ -1,6 +1,6 @@
 module Penny.Lincoln.Bundle where
 
-import qualified Penny.TopLine as TopLine
+import qualified Penny.Lincoln.TopLine as TopLine
 import qualified Penny.Lincoln.View as View
 import qualified Penny.Lincoln.Posting as Posting
 

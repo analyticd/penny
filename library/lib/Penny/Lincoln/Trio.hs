@@ -4,7 +4,7 @@ import qualified Penny.Lincoln.Commodity as Commodity
 import qualified Penny.Lincoln.Arrangement as Arrangement
 import qualified Penny.Lincoln.Side as Side
 import qualified Penny.Lincoln.Muddy as Cabin
-import qualified Penny.Philly as Philly
+import qualified Penny.Lincoln.Philly as Philly
 
 -- | When building entries using the "Penny.Ents" module, you may
 -- specify any of the 'Side.T', 'Commodity.T', a signed abstract quantity,

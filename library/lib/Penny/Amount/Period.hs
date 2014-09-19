@@ -1,7 +1,7 @@
 module Penny.Amount.Period where
 
 import qualified Penny.Amount as Amount
-import qualified Penny.RadPer as RadPer
+import qualified Penny.Lincoln.Anna.RadPer as RadPer
 
 -- | An Amount with a period as a radix.
 

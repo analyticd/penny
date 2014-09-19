@@ -1,7 +1,7 @@
 module Penny.Lincoln.Anna.Nil.Ungrouped where
 
-import qualified Penny.Znu1 as Znu1
-import qualified Penny.RadZ as RadZ
+import qualified Penny.Lincoln.Anna.Znu1 as Znu1
+import qualified Penny.Lincoln.Anna.RadZ as RadZ
 
 data T r
   = LeadingZero (Znu1.T r)
