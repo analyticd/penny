@@ -1,7 +1,7 @@
 module Penny.Amount.Pre where
 
-import qualified Penny.Copper.Currency as Currency
-import qualified Penny.Copper.Lewis as Wheat
+import qualified Penny.Tree.Currency as Currency
+import qualified Penny.Tree.Lewis as Wheat
 
 -- | A parse tree where the currency is on the left, followed by a
 -- representation.
