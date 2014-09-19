@@ -1,11 +1,11 @@
 module Penny.Imbalances where
 
-import qualified Penny.Commodity as Cy
+import qualified Penny.Lincoln.Commodity as Cy
 import qualified Data.Map as M
-import qualified Penny.Balances as Bal
+import qualified Penny.Lincoln.Balances as Bal
 import qualified Penny.Qty as Qty
 import Data.Maybe
-import qualified Penny.Concrete as Concrete
+import qualified Penny.Lincoln.Concrete as Concrete
 import qualified Penny.Quark as Quark
 import qualified Penny.Pebble as Pebble
 

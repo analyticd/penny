@@ -1,7 +1,7 @@
 module Penny.Transaction where
 
 import qualified Penny.TopLine as TopLine
-import qualified Penny.Balanced as Balanced
+import qualified Penny.Lincoln.Balanced as Balanced
 import qualified Penny.Lincoln.Posting as Posting
 
 data T = T

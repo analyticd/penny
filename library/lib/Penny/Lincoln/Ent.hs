@@ -1,7 +1,7 @@
 module Penny.Lincoln.Ent where
 
 import qualified Penny.Qty as Qty
-import qualified Penny.Commodity as Commodity
+import qualified Penny.Lincoln.Commodity as Commodity
 import Data.Foldable
 import Data.Traversable
 

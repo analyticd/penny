@@ -1,7 +1,7 @@
 module Penny.Amount.Post where
 
 import qualified Penny.Char.Currency as Currency
-import qualified Penny.Wheat as Wheat
+import qualified Penny.Copper.Lewis as Wheat
 
 -- | A parse tree where the representation is on the right, followed
 -- by an optional commodity.

@@ -1,8 +1,8 @@
 module Penny.Stone where
 
-import qualified Penny.Gravel as Gravel
+import qualified Penny.Lincoln.Gravel as Gravel
 import qualified Penny.PluMin as PluMin
-import qualified Penny.Cement as Cement
+import qualified Penny.Lincoln.Cement as Cement
 
 newtype T = T { toGravel :: Gravel.T PluMin.T }
   deriving (Eq, Ord, Show)

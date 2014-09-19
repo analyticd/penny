@@ -1,6 +1,6 @@
 module Penny.Lincoln.Walker where
 
-import qualified Penny.Legend as Lincoln
+import qualified Penny.Lincoln.Stokely as Lincoln
 import qualified Penny.Lincoln.Side as Side
 
 newtype T r

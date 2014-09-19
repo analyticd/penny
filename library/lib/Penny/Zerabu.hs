@@ -1,7 +1,7 @@
 module Penny.Zerabu where
 
 import qualified Penny.Radix as Radix
-import qualified Penny.BU3 as BU3
+import qualified Penny.Lincoln.Anna.BU3 as BU3
 import qualified Penny.Zero as Zero
 
 data T r = T

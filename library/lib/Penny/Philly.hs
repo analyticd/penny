@@ -1,7 +1,7 @@
 module Penny.Philly where
 
 import qualified Penny.Janus as Janus
-import qualified Penny.Brim as Brim
+import qualified Penny.Lincoln.Brim as Brim
 
 data T = T
   { toJanus :: Janus.T Brim.T }

@@ -1,6 +1,6 @@
 module Penny.Lincoln.Trio where
 
-import qualified Penny.Commodity as Commodity
+import qualified Penny.Lincoln.Commodity as Commodity
 import qualified Penny.Lincoln.Arrangement as Arrangement
 import qualified Penny.Lincoln.Side as Side
 import qualified Penny.Lincoln.Muddy as Cabin

@@ -5,7 +5,7 @@ module Penny.Lincoln.Ents
   ) where
 
 import Data.Sequence (Seq, viewl, ViewL(..), (<|))
-import qualified Penny.Balances as Bals
+import qualified Penny.Lincoln.Balances as Bals
 import qualified Penny.Lincoln.Ent as Ent
 import Data.Monoid
 import Data.Foldable

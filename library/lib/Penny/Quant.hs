@@ -2,9 +2,9 @@
 
 module Penny.Quant where
 
-import qualified Penny.NovDecs as NovDecs
-import qualified Penny.Exp as Exp
-import qualified Penny.Gravel as Gravel
+import qualified Penny.Lincoln.Anna as NovDecs
+import qualified Penny.Lincoln.Exp as Exp
+import qualified Penny.Lincoln.Gravel as Gravel
 
 -- | Components of a non-zero 'Penny.Qty.T'.
 data T a = T

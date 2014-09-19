@@ -1,7 +1,7 @@
 module Penny.Zenod where
 
 import qualified Penny.Zeroes as Zeroes
-import qualified Penny.NovDecs as NovDecs
+import qualified Penny.Lincoln.Anna as NovDecs
 
 data T = T
   { zeroes :: Zeroes.T
