@@ -1,4 +1,4 @@
-module Penny.Lincoln where
+module Penny.Legend where
 
 import qualified Penny.Polarity as Polarity
 import qualified Penny.Nil as Nil

@@ -1,6 +1,6 @@
 module Penny.Zinc where
 
-import qualified Penny.Lincoln as Lincoln
+import qualified Penny.Legend as Lincoln
 import qualified Penny.Lincoln.Side as Side
 
 newtype T r
