@@ -3,9 +3,11 @@ module Penny.Tree.Digit
   , toChar
   , fromChar
   , toInt
+  , parser
   ) where
 
 import Data.Char
+import Penny.Tree.Parsec
 
 data T = T { toChar :: Char }
   deriving (Eq, Ord, Show)
@@ -17,3 +19,6 @@ fromChar c
 
 toInt :: T -> Int
 toInt (T c) = digitToInt c
+
+parser :: Parser T
+parser = accept "digit" fromChar

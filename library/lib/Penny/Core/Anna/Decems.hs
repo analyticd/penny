@@ -6,9 +6,13 @@ import Data.Sequence
 import qualified Data.Sequence as S
 import qualified Penny.Natural.Unsigned as N
 import qualified Data.Foldable as F
+import qualified Penny.Tree.Parsec as P
 
 newtype T = T { toSeq :: Seq Decem }
   deriving (Eq, Ord, Show)
+
+parser :: P.Parser T
+parser = fmap T $ P.seq (P.decem)
 
 toUnsigned :: T -> N.T
 toUnsigned = go N.zero N.zero . toSeq

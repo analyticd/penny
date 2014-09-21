@@ -10,6 +10,7 @@ import qualified Penny.Tree.Time as Time
 import qualified Penny.Tree.Currency as Currency
 import qualified Penny.Tree.Commodity as Commodity
 import qualified Penny.Tree.Price.Price2 as Price2
+import qualified Penny.Tree.Newline as Newline
 
 data T = T
   { ampersand :: PostSpace.T Ampersand.T
@@ -17,5 +18,6 @@ data T = T
   , time :: Maybe (PostSpace.T Time.T)
   , from :: PostSpace.T (Either Currency.T Commodity.T)
   , price2 :: Price2.T
+  , newline :: Newline.T
   } deriving (Eq, Ord, Show)
 

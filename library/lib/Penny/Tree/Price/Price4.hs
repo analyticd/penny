@@ -4,7 +4,6 @@ import qualified Penny.Tree.Currency as Currency
 import qualified Penny.Tree.Commodity as Commodity
 import qualified Penny.Tree.Lewis as Lewis
 import qualified Penny.Core.Anna.RadCom as RadCom
-import qualified Penny.Tree.Newline as Newline
 import qualified Penny.Tree.Spaces as Spaces
 import qualified Penny.Tree.Price.Price6 as Price6
 import qualified Penny.Tree.Square.Close as Close
@@ -16,10 +15,8 @@ data T
               (Maybe Spaces.T)
               (Lewis.T RadCom.T)
               Close.T
-              Newline.T
   -- ^ A commodity or currency appears right away
   | Lewis (Lewis.T RadCom.T)
           (Maybe Spaces.T)
           Price6.T
-          Newline.T
   deriving (Eq, Ord, Show)

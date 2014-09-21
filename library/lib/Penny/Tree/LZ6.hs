@@ -4,6 +4,8 @@ import qualified Penny.Core.Anna as NovDecs
 import qualified Penny.Core.Anna.DecDecs as DecDecs
 import qualified Penny.Core.Anna.Zeroes as Zeroes
 import Data.Sequence (Seq)
+import Text.Parsec.Text
+
 
 data T a
   = Novem NovDecs.T (Seq (a, DecDecs.T))
@@ -11,3 +13,4 @@ data T a
          (Maybe (Either (NovDecs.T, Seq (a, DecDecs.T))
                         (a, T a)))
   deriving (Eq, Ord, Show)
+
