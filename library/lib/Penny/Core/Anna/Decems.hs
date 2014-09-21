@@ -30,3 +30,6 @@ toList = F.toList . toSeq
 
 fromList :: [Decem] -> T
 fromList = T . S.fromList
+
+empty :: T
+empty = T S.empty

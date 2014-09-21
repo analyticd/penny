@@ -5,12 +5,13 @@ import Data.Sequence (Seq)
 import Control.Applicative
 import qualified Penny.Tree.Parsec as P
 import Text.Parsec.Text
+import qualified Penny.Core.Anna.DecDecs as DecDecs
 
 data T a
-  = T N.Decem (Seq N.Decem) (Seq (a, N.Decem, (Seq N.Decem)))
+  = T DecDecs.T (Seq (a, DecDecs.T))
   deriving (Eq, Ord, Show)
 
 parser :: Parser a -> Parser (T a)
 parser pa =
-  T <$> P.decem <*> P.seq (P.decem)
-  <*> P.seq ((,,) <$> pa <*> P.decem <*> P.seq P.decem)
+  T <$> DecDecs.parser
+  <*> P.seq ((,) <$> pa <*> DecDecs.parser)
