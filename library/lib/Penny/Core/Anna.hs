@@ -5,5 +5,5 @@ import qualified Penny.Core.Anna.Brim as Brim
 
 data T a
   = Nil (Nil.T a)
-  | Grouped (Grouped.T a)
+  | Brim (Brim.T a)
   deriving (Eq, Ord, Show)
