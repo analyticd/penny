@@ -2,7 +2,7 @@
 
 module Penny.Core.Anna.BrimGrouped where
 
-import qualified Penny.Core.Anna as NovDecs
+import qualified Penny.Core.Anna.NovDecs as NovDecs
 import qualified Penny.Core.Anna.BG1 as BG1
 import qualified Penny.Core.Anna.BG4 as BG4
 

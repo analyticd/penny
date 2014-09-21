@@ -1,6 +1,6 @@
 module Penny.Core.Exp where
 
-import qualified Penny.Core.Anna as NovDecs
+import qualified Penny.Core.Anna.NovDecs as NovDecs
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
 -- positive exponents because there is no unambiguous way to

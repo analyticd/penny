@@ -1,6 +1,6 @@
 module Penny.Core.Anna.Nodbu where
 
-import qualified Penny.Core.Anna as NovDecs
+import qualified Penny.Core.Anna.NovDecs as NovDecs
 import qualified Penny.Core.Anna.Radem as Radem
 
 data T r = T

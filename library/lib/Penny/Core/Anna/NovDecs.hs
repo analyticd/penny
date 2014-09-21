@@ -1,4 +1,4 @@
-module Penny.Core.Anna where
+module Penny.Core.Anna.NovDecs where
 
 import Deka.Native.Abstract
 import qualified Penny.Core.Anna.Decems as Decems

@@ -2,7 +2,7 @@
 
 module Penny.Core.Quant where
 
-import qualified Penny.Core.Anna as NovDecs
+import qualified Penny.Core.Anna.NovDecs as NovDecs
 import qualified Penny.Core.Exp as Exp
 import qualified Penny.Core.Gravel as Gravel
 

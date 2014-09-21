@@ -35,7 +35,7 @@ import qualified Penny.Core.ArithmeticError as Error
 import qualified Penny.Core.Cement as Cement
 import qualified Penny.Core.Coeff as Coeff
 import qualified Penny.Core.Exp as Exp
-import qualified Penny.Core.Anna as NovDecs
+import qualified Penny.Core.Anna.NovDecs as NovDecs
 import qualified Penny.Core.CoefficientSign as CoeffSign
 
 -- End Imports

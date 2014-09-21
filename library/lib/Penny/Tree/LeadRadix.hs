@@ -1,6 +1,6 @@
 module Penny.Tree.LeadRadix where
 
-import qualified Penny.Core.Anna as NovDecs
+import qualified Penny.Core.Anna.NovDecs as NovDecs
 import qualified Penny.Core.Anna.DecDecsMayGroups as DecDecsMayGroups
 import qualified Penny.Core.Anna.Zeroes as Zeroes
 import qualified Penny.Tree.NovDecsOrGroup as NovDecsOrGroup

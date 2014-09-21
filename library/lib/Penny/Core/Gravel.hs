@@ -1,6 +1,6 @@
 module Penny.Core.Gravel where
 
-import qualified Penny.Core.Anna as NovDecs
+import qualified Penny.Core.Anna.NovDecs as NovDecs
 import qualified Penny.Core.Exp as Exponent
 import qualified Penny.Core.Cement as Cement
 import qualified Penny.Core.Coeff as Coefficient
