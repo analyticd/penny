@@ -17,8 +17,8 @@ import Control.Applicative
 import qualified Penny.Core.Anna.Radix as Radix
 import qualified Penny.Core.Anna.Radun as Radun
 import qualified Penny.Core.Anna as Anna
-import qualified Penny.Core.Anna.BrimUngrouped as BrimUngrouped
-import qualified Penny.Core.Anna.BrimGrouped as BrimGrouped
+import qualified Penny.Core.Anna.BrimUngrouped as BrimU
+import qualified Penny.Core.Anna.BrimGrouped as BrimG
 import qualified Penny.Core.Anna.Brim as Brim
 import qualified Penny.Core.Anna.NovDecs as NovDecs
 import qualified Penny.Core.Anna.Nodbu as Nodbu
@@ -61,6 +61,14 @@ parser pr pa =
   <|> Zero <$> Zero.parser <*> optional (LZ1.parser pr pa)
   <|> Radix <$> pr <*> LR1.parser pa
 
+lewis'Novem
+  :: Maybe (Masuno1.T a)
+  -> Either (NovDecs.T -> BrimU.T a) (NovDecs.T -> BrimG.T a)
+lewis'Novem my = case my of
+  Nothing -> Left $ \nd -> BrimU.Masuno (Nodbu.T nd Nothing)
+  Just (Masuno1.T rdx maym1r1) -> undefined
+
+{-
 toAnna :: T a -> Anna.T a
 toAnna t = case t of
   Novem nd1 mayMas -> Anna.Brim $ case mayMas of
@@ -144,7 +152,7 @@ procLZ6Recurse sq (zs, g) lz6 = case S.viewl sq of
           BG7.LeadZeroes zs' (Right (Nodecs3.T nd sd)))))
         Right (g', lz6') -> procLZ6Recurse (sq |> (zs, g)) (zs', g') lz6'
   (zsl, gl) :< rest -> undefined
-
+-}
 {-
 case lz6 of
   LZ6.Novem nd sd -> case S.viewl sq of
