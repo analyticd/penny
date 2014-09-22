@@ -63,6 +63,34 @@ parser pr pa =
   <|> Radix <$> pr <*> LR1.parser pa
 
 toAnna :: T a -> Anna.T a
+
+toAnna (Radix radix (LR1.Zero zeroes Nothing)) =
+  Anna.Nil . Nil.Ungrouped . NilU.NoLeadingZero
+  . RadZ.T radix $ zeroes
+
+toAnna (Radix radix (LR1.Zero zeroes
+  (Just (LZ3.Novem novDecs Nothing)))) =
+  Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
+  . Radbu.T radix . BU3.Zeroes . Zenod.T zeroes $ novDecs
+
+toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Novem novDecs
+  (Just seqDecsNE))))) =
+  Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
+  . BG5.Zeroes zeroes . BG6.Novem . NovSeqDecsNE.T novDecs $ seqDecsNE
+
+toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
+  (LZ6.Novem novDecs seqDecs))))) = undefined
+
+
+toAnna (Radix radix (LR1.Novem novDecs Nothing)) =
+  Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
+  . Radbu.T radix . BU3.NoZeroes $ novDecs
+
+toAnna (Radix radix (LR1.Novem novDecs (Just seqDecsNE))) =
+  Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
+  . BG5.Novem . NovSeqDecsNE.T novDecs $ seqDecsNE
+
+
 toAnna t = case t of
   Novem nd1 mayMas -> Anna.Brim $ case mayMas of
     Nothing -> Brim.Ungrouped . BrimU.Masuno
@@ -161,26 +189,3 @@ toAnna t = case t of
             . NovSeqDecsNE.T nd
             $ seqDecsNE
 
-  Radix radix (LR1.Zero zeroes Nothing) ->
-    Anna.Nil . Nil.Ungrouped . NilU.NoLeadingZero
-    . RadZ.T radix $ zeroes
-
-  Radix radix (LR1.Zero zeroes (Just (LZ3.Novem novDecs Nothing))) ->
-    Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
-    . Radbu.T radix . BU3.Zeroes . Zenod.T zeroes $ novDecs
-
-  Radix radix (LR1.Zero zeroes (Just (LZ3.Novem novDecs
-    (Just seqDecsNE)))) ->
-    Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
-    . BG5.Zeroes zeroes . BG6.Novem . NovSeqDecsNE.T novDecs $ seqDecsNE
-
-  Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
-    (LZ6.Novem novDecs seqDecs)))) -> undefined
-
-  Radix radix (LR1.Novem novDecs Nothing) ->
-    Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
-    . Radbu.T radix . BU3.NoZeroes $ novDecs
-
-  Radix radix (LR1.Novem novDecs (Just seqDecsNE)) ->
-    Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
-    . BG5.Novem . NovSeqDecsNE.T novDecs $ seqDecsNE

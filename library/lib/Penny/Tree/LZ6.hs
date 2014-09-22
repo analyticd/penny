@@ -8,6 +8,7 @@ import qualified Penny.Tree.Parsec as P
 import Text.Parsec (choice)
 import qualified Penny.Core.Anna.SeqDecs as SeqDecs
 
+-- TODO change Novem to take a Maybe SeqDecsNE.T
 data T a
   = Novem NovDecs.T (SeqDecs.T a)
   | Zero Zeroes.T
