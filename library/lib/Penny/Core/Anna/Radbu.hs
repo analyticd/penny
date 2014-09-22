@@ -1,4 +1,4 @@
-module Penny.Core.Radbu where
+module Penny.Core.Anna.Radbu where
 
 import qualified Penny.Core.Anna.Radix as Radix
 import qualified Penny.Core.Anna.BU3 as BU3

@@ -8,7 +8,7 @@ import qualified Penny.Core.Anna.Zero as Zero
 import qualified Penny.Tree.LZ1 as LZ1
 import qualified Penny.Tree.LZ2 as LZ2
 import qualified Penny.Tree.LZ3 as LZ3
-import qualified Penny.Tree.LZ4 as LZ4
+import qualified Penny.Tree.LZ6 as LZ6
 import qualified Penny.Tree.LZ6.Runner as Runner
 import qualified Penny.Tree.LZ6.Collector as Collector
 import qualified Penny.Tree.LZ6.Zero as LZ6.Zero
@@ -17,6 +17,7 @@ import Text.Parsec.Text
 import Control.Applicative
 import qualified Penny.Core.Anna.Radix as Radix
 import qualified Penny.Core.Anna.Radun as Radun
+import qualified Penny.Core.Anna.Radbu as Radbu
 import qualified Penny.Core.Anna as Anna
 import qualified Penny.Core.Anna.BrimUngrouped as BrimU
 import qualified Penny.Core.Anna.BrimGrouped as BrimG
@@ -25,6 +26,7 @@ import qualified Penny.Core.Anna.NovDecs as NovDecs
 import qualified Penny.Core.Anna.Nodbu as Nodbu
 import qualified Penny.Core.Anna.Decems as Decems
 import qualified Penny.Core.Anna.Radem as Radem
+import qualified Penny.Core.Anna.RadZ as RadZ
 import qualified Penny.Core.Anna.DecDecs as DecDecs
 import qualified Penny.Core.Anna.BG1 as BG1
 import qualified Penny.Core.Anna.BG4 as BG4
@@ -33,8 +35,6 @@ import qualified Penny.Core.Anna.BG6 as BG6
 import qualified Penny.Core.Anna.BG7 as BG7
 import qualified Penny.Core.Anna.NovSeqDecsNE as NovSeqDecsNE
 import qualified Penny.Core.Anna.Nodecs3 as Nodecs3
-import qualified Penny.Core.Anna.SeqDecsNE as SeqDecsNE
-import qualified Penny.Core.Anna.SeqDecs as SeqDecs
 import qualified Penny.Core.Anna.Nil.Ungrouped as NilU
 import qualified Penny.Core.Anna.Nil.Grouped as NilG
 import qualified Penny.Core.Anna.Znu1 as Znu1
@@ -91,11 +91,10 @@ toAnna t = case t of
               Nothing -> Anna.Brim . Brim.Ungrouped
                 . BrimU.Fracuno . BU2.LeadingZero
                 $ Zerabu.T z1 rdx (BU3.Zeroes (Zenod.T zs nd))
-              Just (LZ4.T g1 gs) -> Anna.Brim . Brim.Grouped
+              Just seqDecsNE -> Anna.Brim . Brim.Grouped
                 . BrimG.Fracuno
                 $ BG4.T (Just z1) rdx (BG5.Zeroes zs
-                  (BG6.Novem (NovSeqDecsNE.T nd
-                    (SeqDecsNE.T g1 (SeqDecs.T gs)))))
+                  (BG6.Novem (NovSeqDecsNE.T nd seqDecsNE)))
 
             -- We know we're grouped
             LZ3.Group g lz6 ->
@@ -154,12 +153,34 @@ toAnna t = case t of
             . Zerabu.T z1 rdx
             . BU3.NoZeroes $ nd
 
-          Just (LZ4.T decsGroup1 decsGroupSq) -> Anna.Brim
+          Just seqDecsNE -> Anna.Brim
             . Brim.Grouped
             . BrimG.Fracuno
             . BG4.T (Just z1) rdx
             . BG5.Novem
             . NovSeqDecsNE.T nd
-            . SeqDecsNE.T decsGroup1
-            . SeqDecs.T
-            $ decsGroupSq
+            $ seqDecsNE
+
+  Radix radix (LR1.Zero zeroes Nothing) ->
+    Anna.Nil . Nil.Ungrouped . NilU.NoLeadingZero
+    . RadZ.T radix $ zeroes
+
+  Radix radix (LR1.Zero zeroes (Just (LZ3.Novem novDecs Nothing))) ->
+    Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
+    . Radbu.T radix . BU3.Zeroes . Zenod.T zeroes $ novDecs
+
+  Radix radix (LR1.Zero zeroes (Just (LZ3.Novem novDecs
+    (Just seqDecsNE)))) ->
+    Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
+    . BG5.Zeroes zeroes . BG6.Novem . NovSeqDecsNE.T novDecs $ seqDecsNE
+
+  Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
+    (LZ6.Novem novDecs seqDecs)))) -> undefined
+
+  Radix radix (LR1.Novem novDecs Nothing) ->
+    Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
+    . Radbu.T radix . BU3.NoZeroes $ novDecs
+
+  Radix radix (LR1.Novem novDecs (Just seqDecsNE)) ->
+    Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
+    . BG5.Novem . NovSeqDecsNE.T novDecs $ seqDecsNE
