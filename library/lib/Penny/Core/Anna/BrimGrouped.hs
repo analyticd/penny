@@ -8,5 +8,5 @@ import qualified Penny.Core.Anna.BG4 as BG4
 
 data T r
   = Masuno NovDecs.T (BG1.T r)
-  | Fraucno (BG4.T r)
+  | Fracuno (BG4.T r)
   deriving (Eq, Ord, Show)

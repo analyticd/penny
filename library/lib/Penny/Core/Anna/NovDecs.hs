@@ -25,3 +25,4 @@ fromDecuple (DN.Decuple nv ds) = T nv (Decems.fromList ds)
 
 parser :: Parser T
 parser = T <$> P.novem <*> Decems.parser
+
