@@ -81,8 +81,38 @@ toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Novem novDecs
   Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
   . BG5.Zeroes zeroes . BG6.Novem . NovSeqDecsNE.T novDecs $ seqDecsNE
 
+-- The view pattern in the go function will emit a bogus
+-- non-exhaustive pattern warning - see GHC version 7.8.3 manual
+-- section 14.2.1
 toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
-  (Runner.runFold -> Collector.T sqz z))))) = undefined
+  (Runner.runFold -> Collector.T sqz (LZ6.Zero.Novem nd Nothing)))))) =
+  Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
+  . BG5.Zeroes zeroes . BG6.Group grpr1 . go $ sqz
+  where
+    go (S.viewl -> EmptyL) = BG7.LeadNovem . Nodecs3.T nd $ SeqDecs.empty
+    go (S.viewl -> (zeroes', grpr') :< rest) =
+      BG7.LeadZeroes zeroes' (Left (grpr', go rest))
+
+-- The view pattern in the go function will emit a bogus
+-- non-exhaustive pattern warning - see GHC version 7.8.3 manual
+-- section 14.2.1
+toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
+  (Runner.runFold -> Collector.T sqz (LZ6.Zero.Novem nd (Just grps))))))) =
+  Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
+  . BG5.Zeroes zeroes . BG6.Group grpr1 . go $ sqz
+  where
+    go (S.viewl -> EmptyL) = BG7.LeadNovem . Nodecs3.T nd
+      . SeqDecsNE.toSeqDecs $ grps
+    go (S.viewl -> (zeroes', grpr') :< rest) =
+      BG7.LeadZeroes zeroes' (Left (grpr', go rest))
+
+toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
+  (Runner.runFold -> Collector.T sqz (LZ6.Zero.ZeroOnly zeroes2)))))) =
+  Anna.Nil . Nil.Grouped . NilG.NoLeadingZero
+  . uncurry (NG1.T radix zeroes grpr1) . go $ sqz
+  where
+    go = undefined
+
 
 toAnna (Radix radix (LR1.Novem novDecs Nothing)) =
   Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
