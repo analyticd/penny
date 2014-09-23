@@ -6,20 +6,21 @@ import Text.Parsec.Text
 import Control.Applicative
 import qualified Penny.Tree.Parsec as P
 import Text.Parsec (choice)
-import qualified Penny.Core.Anna.SeqDecs as SeqDecs
+import qualified Penny.Core.Anna.SeqDecsNE as SeqDecsNE
 
--- TODO change Novem to take a Maybe SeqDecsNE.T
 data T a
-  = Novem NovDecs.T (SeqDecs.T a)
+  = Novem NovDecs.T (Maybe (SeqDecsNE.T a))
   | Zero Zeroes.T
-         (Maybe (Either (NovDecs.T, SeqDecs.T a)
+         (Maybe (Either (NovDecs.T, Maybe (SeqDecsNE.T a))
                         (a, T a)))
   deriving (Eq, Ord, Show)
 
 parser :: Parser a -> Parser (T a)
 parser pa = choice
-  [ Novem <$> NovDecs.parser <*> SeqDecs.parser pa
+  [ Novem <$> NovDecs.parser <*> optional (SeqDecsNE.parser pa)
   , Zero <$> Zeroes.parser
-    <*> optional (P.either ((,) <$> NovDecs.parser <*> SeqDecs.parser pa)
+    <*> optional
+        (P.either ((,) <$> NovDecs.parser
+                       <*> optional (SeqDecsNE.parser pa))
                            ((,) <$> pa <*> parser pa))
   ]

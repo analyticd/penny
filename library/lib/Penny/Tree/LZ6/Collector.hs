@@ -1,7 +1,6 @@
 module Penny.Tree.LZ6.Collector where
 
-import Data.Sequence (Seq, ViewL(..))
-import qualified Data.Sequence as S
+import Data.Sequence (Seq)
 import qualified Penny.Tree.LZ6.Zero as Zero
 import qualified Penny.Core.Anna.Zeroes as Zeroes
 

@@ -35,6 +35,8 @@ import qualified Penny.Core.Anna.BG5 as BG5
 import qualified Penny.Core.Anna.BG6 as BG6
 import qualified Penny.Core.Anna.BG7 as BG7
 import qualified Penny.Core.Anna.NovSeqDecsNE as NovSeqDecsNE
+import qualified Penny.Core.Anna.SeqDecsNE as SeqDecsNE
+import qualified Penny.Core.Anna.SeqDecs as SeqDecs
 import qualified Penny.Core.Anna.Nodecs3 as Nodecs3
 import qualified Penny.Core.Anna.Nil.Ungrouped as NilU
 import qualified Penny.Core.Anna.Nil.Grouped as NilG
@@ -80,8 +82,7 @@ toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Novem novDecs
   . BG5.Zeroes zeroes . BG6.Novem . NovSeqDecsNE.T novDecs $ seqDecsNE
 
 toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
-  (LZ6.Novem novDecs seqDecs))))) = undefined
-
+  (Runner.runFold -> Collector.T sqz z))))) = undefined
 
 toAnna (Radix radix (LR1.Novem novDecs Nothing)) =
   Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
@@ -142,7 +143,8 @@ toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
   $ go sqq
   where
     go sq' = case S.viewl sq' of
-      EmptyL -> BG7.LeadNovem . Nodecs3.T nd $ sq
+      EmptyL -> BG7.LeadNovem . Nodecs3.T nd
+        . maybe SeqDecs.empty SeqDecsNE.toSeqDecs $ sq
       (zeroes, grp) :< xs -> BG7.LeadZeroes zeroes
         . Left $ (grp, go xs)
 
@@ -165,7 +167,7 @@ toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
 
 toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
   (LZ3.Group g (Runner.runFold -> Collector.T sqq
-  (LZ6.Zero.ZeroNovSeq zeroes novDecs seqDecs))))))))) =
+  (LZ6.Zero.ZeroNovSeq zeroes novDecs maySeqDecsNE))))))))) =
   Anna.Brim
   . Brim.Grouped
   . BrimG.Fracuno
@@ -177,7 +179,8 @@ toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
     go sq' = case S.viewl sq' of
       EmptyL -> BG7.LeadZeroes zeroes
         . Right
-        $ Nodecs3.T novDecs seqDecs
+        . Nodecs3.T novDecs . maybe SeqDecs.empty SeqDecsNE.toSeqDecs
+        $ maySeqDecsNE
       (zeroes', grp') :< xs -> BG7.LeadZeroes zeroes'
         . Left . (,) grp' $ go xs
 
