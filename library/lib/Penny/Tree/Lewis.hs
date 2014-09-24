@@ -8,7 +8,6 @@ import qualified Penny.Core.Anna.Zero as Zero
 import qualified Penny.Tree.LZ1 as LZ1
 import qualified Penny.Tree.LZ2 as LZ2
 import qualified Penny.Tree.LZ3 as LZ3
-import qualified Penny.Tree.LZ6 as LZ6
 import qualified Penny.Tree.LZ6.Runner as Runner
 import qualified Penny.Tree.LZ6.Collector as Collector
 import qualified Penny.Tree.LZ6.Zero as LZ6.Zero
@@ -139,12 +138,15 @@ toAnna (Novem nd1 (Just (Masuno1.T rdx Nothing))) =
 
 
 toAnna (Novem nd1 (Just (Masuno1.T rdx
-  (Just (Masuno1Radix1.T dds groupsC))))) =
-  case S.viewl groupsC of
-    EmptyL -> Anna.Brim . Brim.Ungrouped . BrimU.Masuno
-      $ Nodbu.T nd1 (Just (Radem.T rdx (DecDecs.toDecems dds)))
-    grp1 :< grpRest -> Anna.Brim . Brim.Grouped $ BrimG.Masuno nd1
-      (BG1.GroupOnRight rdx dds grp1 grpRest)
+  (Just (Masuno1Radix1.T dds []))))) =
+  Anna.Brim . Brim.Ungrouped . BrimU.Masuno
+  $ Nodbu.T nd1 (Just (Radem.T rdx (DecDecs.toDecems dds)))
+
+
+toAnna (Novem nd1 (Just (Masuno1.T rdx
+  (Just (Masuno1Radix1.T dds (grp1:grpRest)))))) =
+  Anna.Brim . Brim.Grouped $ BrimG.Masuno nd1
+  (BG1.GroupOnRight rdx dds grp1 (S.fromList grpRest))
 
 
 toAnna (Zero z1 Nothing) = Anna.Nil . Nil.Ungrouped
