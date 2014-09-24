@@ -1,4 +1,3 @@
-{-# LANGuAGE ViewPatterns #-}
 module Penny.Tree.Lewis where
 
 import Data.Sequence (ViewL(..), (<|))
@@ -81,37 +80,46 @@ toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Novem novDecs
   Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
   . BG5.Zeroes zeroes . BG6.Novem . NovSeqDecsNE.T novDecs $ seqDecsNE
 
--- The view pattern in the go function will emit a bogus
--- non-exhaustive pattern warning - see GHC version 7.8.3 manual
--- section 14.2.1
-toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
-  (Runner.runFold -> Collector.T sqz (LZ6.Zero.Novem nd Nothing)))))) =
-  Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
-  . BG5.Zeroes zeroes . BG6.Group grpr1 . go $ sqz
-  where
-    go (S.viewl -> EmptyL) = BG7.LeadNovem . Nodecs3.T nd $ SeqDecs.empty
-    go (S.viewl -> (zeroes', grpr') :< rest) =
-      BG7.LeadZeroes zeroes' (Left (grpr', go rest))
 
--- The view pattern in the go function will emit a bogus
--- non-exhaustive pattern warning - see GHC version 7.8.3 manual
--- section 14.2.1
-toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
-  (Runner.runFold -> Collector.T sqz (LZ6.Zero.Novem nd (Just grps))))))) =
-  Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
-  . BG5.Zeroes zeroes . BG6.Group grpr1 . go $ sqz
-  where
-    go (S.viewl -> EmptyL) = BG7.LeadNovem . Nodecs3.T nd
-      . SeqDecsNE.toSeqDecs $ grps
-    go (S.viewl -> (zeroes', grpr') :< rest) =
-      BG7.LeadZeroes zeroes' (Left (grpr', go rest))
+toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1 lz6)))) =
+  let Collector.T sqz lzZero = Runner.runFold lz6 in
+  case lzZero of
+    LZ6.Zero.Novem nd Nothing -> Anna.Brim . Brim.Grouped
+      . BrimG.Fracuno . BG4.T Nothing radix
+      . BG5.Zeroes zeroes . BG6.Group grpr1 . go $ sqz
+      where
+        go sq = case S.viewl sq of
+          EmptyL -> BG7.LeadNovem . Nodecs3.T nd $ SeqDecs.empty
+          (zeroes', grpr') :< rest ->
+            BG7.LeadZeroes zeroes' (Left (grpr', go rest))
 
-toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1
-  (Runner.runFold -> Collector.T sqz (LZ6.Zero.ZeroOnly zeroes2)))))) =
-  Anna.Nil . Nil.Grouped . NilG.NoLeadingZero
-  . uncurry (NG1.T radix zeroes grpr1) . go $ sqz
-  where
-    go = undefined
+    LZ6.Zero.Novem nd (Just grps) -> Anna.Brim . Brim.Grouped
+      . BrimG.Fracuno . BG4.T Nothing radix
+      . BG5.Zeroes zeroes . BG6.Group grpr1 . go $ sqz
+      where
+        go sqC = case S.viewl sqC of
+          EmptyL -> BG7.LeadNovem . Nodecs3.T nd
+            . SeqDecsNE.toSeqDecs $ grps
+          (zeroes', grpr') :< rest -> BG7.LeadZeroes zeroes'
+            (Left (grpr', go rest))
+
+    LZ6.Zero.ZeroOnly zeroes2 -> Anna.Nil . Nil.Grouped
+      . NilG.NoLeadingZero
+      . NG1.T radix zeroes grpr1 zeroes' $ groups
+      where
+        (zeroes', groups) = case S.viewl sqz of
+          EmptyL -> (zeroes2, S.empty)
+          (zs, g) :< rest -> (zs, go g rest)
+            where
+              go gr sqnce = case S.viewl sqnce of
+                EmptyL -> S.singleton (ZGroup.T gr zeroes2)
+                (zs', g') :< rs -> ZGroup.T gr zs' <| go g' rs
+
+    LZ6.Zero.ZeroNovSeq zeroes2 novDecs maySeqDecsNE ->
+      Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
+      . BG5.Zeroes zeroes . BG6.Group grpr1
+      . BG7.LeadZeroes zeroes2 . Right . Nodecs3.T novDecs
+      . maybe SeqDecs.empty SeqDecsNE.toSeqDecs $ maySeqDecsNE
 
 
 toAnna (Radix radix (LR1.Novem novDecs Nothing)) =
@@ -129,15 +137,15 @@ toAnna (Novem nd1 (Just (Masuno1.T rdx Nothing))) =
   Anna.Brim . Brim.Ungrouped . BrimU.Masuno
   $ Nodbu.T nd1 (Just (Radem.T rdx Decems.empty))
 
-toAnna (Novem nd1 (Just (Masuno1.T rdx
-  (Just (Masuno1Radix1.T dds (S.viewl -> EmptyL)))))) =
-  Anna.Brim . Brim.Ungrouped . BrimU.Masuno
-  $ Nodbu.T nd1 (Just (Radem.T rdx (DecDecs.toDecems dds)))
 
 toAnna (Novem nd1 (Just (Masuno1.T rdx
-  (Just (Masuno1Radix1.T dds (S.viewl -> grp1 :< grpRest)))))) =
-  Anna.Brim . Brim.Grouped $ BrimG.Masuno nd1
-  (BG1.GroupOnRight rdx dds grp1 grpRest)
+  (Just (Masuno1Radix1.T dds groupsC))))) =
+  case S.viewl groupsC of
+    EmptyL -> Anna.Brim . Brim.Ungrouped . BrimU.Masuno
+      $ Nodbu.T nd1 (Just (Radem.T rdx (DecDecs.toDecems dds)))
+    grp1 :< grpRest -> Anna.Brim . Brim.Grouped $ BrimG.Masuno nd1
+      (BG1.GroupOnRight rdx dds grp1 grpRest)
+
 
 toAnna (Zero z1 Nothing) = Anna.Nil . Nil.Ungrouped
   . NilU.LeadingZero $ Znu1.T z1 Nothing
@@ -162,57 +170,55 @@ toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
     (BG6.Novem (NovSeqDecsNE.T nd seqDecsNE)))
 
 toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
-  (LZ3.Group g (Runner.runFold -> Collector.T sqq
-  (LZ6.Zero.Novem nd sq))))))))) =
-  Anna.Brim
-  . Brim.Grouped
-  . BrimG.Fracuno
-  . BG4.T (Just z1) rdx
-  . BG5.Zeroes zs
-  . BG6.Group g
-  $ go sqq
-  where
-    go sq' = case S.viewl sq' of
-      EmptyL -> BG7.LeadNovem . Nodecs3.T nd
-        . maybe SeqDecs.empty SeqDecsNE.toSeqDecs $ sq
-      (zeroes, grp) :< xs -> BG7.LeadZeroes zeroes
-        . Left $ (grp, go xs)
+  (LZ3.Group g lz6))))))) =
+  let Collector.T sqq lz6Zero = Runner.runFold lz6 in
+  case lz6Zero of
+    LZ6.Zero.Novem nd sq -> Anna.Brim
+      . Brim.Grouped
+      . BrimG.Fracuno
+      . BG4.T (Just z1) rdx
+      . BG5.Zeroes zs
+      . BG6.Group g
+      $ go sqq
+      where
+        go sq' = case S.viewl sq' of
+          EmptyL -> BG7.LeadNovem . Nodecs3.T nd
+            . maybe SeqDecs.empty SeqDecsNE.toSeqDecs $ sq
+          (zeroes, grp) :< xs -> BG7.LeadZeroes zeroes
+            . Left $ (grp, go xs)
 
-toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
-  (LZ3.Group g (Runner.runFold -> Collector.T sqq
-  (LZ6.Zero.ZeroOnly zeroes))))))))) =
-  Anna.Nil
-  . Nil.Grouped
-  . NilG.LeadingZero
-  . Zng.T z1
-  . uncurry (NG1.T rdx zs g)
-  $ case S.viewl sqq of
-      EmptyL -> (zeroes, S.empty)
-      (zgroupA, gA) :< xs -> (zgroupA, go gA xs)
-        where
-          go gr groups = case S.viewl groups of
-            EmptyL -> S.singleton (ZGroup.T gr zeroes)
-            (zgroupB, gB) :< bs ->
-              ZGroup.T gr zgroupB <| go gB bs
+    LZ6.Zero.ZeroOnly zeroes ->
+      Anna.Nil
+      . Nil.Grouped
+      . NilG.LeadingZero
+      . Zng.T z1
+      . uncurry (NG1.T rdx zs g)
+      $ case S.viewl sqq of
+          EmptyL -> (zeroes, S.empty)
+          (zgroupA, gA) :< xs -> (zgroupA, go gA xs)
+            where
+              go gr groups = case S.viewl groups of
+                EmptyL -> S.singleton (ZGroup.T gr zeroes)
+                (zgroupB, gB) :< bs ->
+                  ZGroup.T gr zgroupB <| go gB bs
 
-toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
-  (LZ3.Group g (Runner.runFold -> Collector.T sqq
-  (LZ6.Zero.ZeroNovSeq zeroes novDecs maySeqDecsNE))))))))) =
-  Anna.Brim
-  . Brim.Grouped
-  . BrimG.Fracuno
-  . BG4.T (Just z1) rdx
-  . BG5.Zeroes zs
-  . BG6.Group g
-  $ go sqq
-  where
-    go sq' = case S.viewl sq' of
-      EmptyL -> BG7.LeadZeroes zeroes
-        . Right
-        . Nodecs3.T novDecs . maybe SeqDecs.empty SeqDecsNE.toSeqDecs
-        $ maySeqDecsNE
-      (zeroes', grp') :< xs -> BG7.LeadZeroes zeroes'
-        . Left . (,) grp' $ go xs
+    LZ6.Zero.ZeroNovSeq zeroes novDecs maySeqDecsNE ->
+      Anna.Brim
+      . Brim.Grouped
+      . BrimG.Fracuno
+      . BG4.T (Just z1) rdx
+      . BG5.Zeroes zs
+      . BG6.Group g
+      $ go sqq
+      where
+        go sq' = case S.viewl sq' of
+          EmptyL -> BG7.LeadZeroes zeroes
+            . Right
+            . Nodecs3.T novDecs . maybe SeqDecs.empty SeqDecsNE.toSeqDecs
+            $ maySeqDecsNE
+          (zeroes', grp') :< xs -> BG7.LeadZeroes zeroes'
+            . Left . (,) grp' $ go xs
+
 
 toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Novem nd Nothing))))) =
   Anna.Brim
