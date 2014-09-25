@@ -1,6 +1,6 @@
 module Penny.Tree.Lewis where
 
-import Data.Sequence (ViewL(..), (<|))
+import Data.Sequence ((<|))
 import qualified Data.Sequence as S
 import qualified Penny.Tree.Masuno1 as Masuno1
 import qualified Penny.Tree.Masuno1Radix1 as Masuno1Radix1
@@ -87,32 +87,30 @@ toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1 lz6)))) =
       . BrimG.Fracuno . BG4.T Nothing radix
       . BG5.Zeroes zeroes . BG6.Group grpr1 . go $ sqz
       where
-        go sq = case S.viewl sq of
-          EmptyL -> BG7.LeadNovem . Nodecs3.T nd $ SeqDecs.empty
-          (zeroes', grpr') :< rest ->
-            BG7.LeadZeroes zeroes' (Left (grpr', go rest))
+        go [] = BG7.LeadNovem . Nodecs3.T nd $ SeqDecs.empty
+        go ((zeroes', grpr') : rest) =
+          BG7.LeadZeroes zeroes' (Left (grpr', go rest))
+
 
     LZ6.Zero.Novem nd (Just grps) -> Anna.Brim . Brim.Grouped
       . BrimG.Fracuno . BG4.T Nothing radix
       . BG5.Zeroes zeroes . BG6.Group grpr1 . go $ sqz
       where
-        go sqC = case S.viewl sqC of
-          EmptyL -> BG7.LeadNovem . Nodecs3.T nd
-            . SeqDecsNE.toSeqDecs $ grps
-          (zeroes', grpr') :< rest -> BG7.LeadZeroes zeroes'
-            (Left (grpr', go rest))
+        go [] = BG7.LeadNovem . Nodecs3.T nd
+          . SeqDecsNE.toSeqDecs $ grps
+        go ((zeroes', grpr') : rest) = BG7.LeadZeroes zeroes'
+          (Left (grpr', go rest))
 
     LZ6.Zero.ZeroOnly zeroes2 -> Anna.Nil . Nil.Grouped
       . NilG.NoLeadingZero
-      . NG1.T radix zeroes grpr1 zeroes' $ groups
+      . NG1.T radix zeroes grpr1 zeroes' . S.fromList $ groups
       where
-        (zeroes', groups) = case S.viewl sqz of
-          EmptyL -> (zeroes2, S.empty)
-          (zs, g) :< rest -> (zs, go g rest)
+        (zeroes', groups) = case sqz of
+          [] -> (zeroes2, [])
+          (zs, g) : rest -> (zs, go g rest)
             where
-              go gr sqnce = case S.viewl sqnce of
-                EmptyL -> S.singleton (ZGroup.T gr zeroes2)
-                (zs', g') :< rs -> ZGroup.T gr zs' <| go g' rs
+              go gr [] = [ZGroup.T gr zeroes2]
+              go gr ((zs', g') : rs) = ZGroup.T gr zs' : go g' rs
 
     LZ6.Zero.ZeroNovSeq zeroes2 novDecs maySeqDecsNE ->
       Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
@@ -181,13 +179,14 @@ toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
       . BG4.T (Just z1) rdx
       . BG5.Zeroes zs
       . BG6.Group g
-      $ go sqq
+      . go
+      $ sqq
       where
-        go sq' = case S.viewl sq' of
-          EmptyL -> BG7.LeadNovem . Nodecs3.T nd
-            . maybe SeqDecs.empty SeqDecsNE.toSeqDecs $ sq
-          (zeroes, grp) :< xs -> BG7.LeadZeroes zeroes
-            . Left $ (grp, go xs)
+        go [] = BG7.LeadNovem . Nodecs3.T nd
+          . maybe SeqDecs.empty SeqDecsNE.toSeqDecs $ sq
+        go ((zeroes, grp) : xs) = BG7.LeadZeroes zeroes
+          . Left $ (grp, go xs)
+
 
     LZ6.Zero.ZeroOnly zeroes ->
       Anna.Nil
@@ -195,13 +194,13 @@ toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
       . NilG.LeadingZero
       . Zng.T z1
       . uncurry (NG1.T rdx zs g)
-      $ case S.viewl sqq of
-          EmptyL -> (zeroes, S.empty)
-          (zgroupA, gA) :< xs -> (zgroupA, go gA xs)
+      $ case sqq of
+          [] -> (zeroes, S.empty)
+          (zgroupA, gA) : xs -> (zgroupA, go gA xs)
             where
-              go gr groups = case S.viewl groups of
-                EmptyL -> S.singleton (ZGroup.T gr zeroes)
-                (zgroupB, gB) :< bs ->
+              go gr groups = case groups of
+                [] -> S.singleton (ZGroup.T gr zeroes)
+                (zgroupB, gB) : bs ->
                   ZGroup.T gr zgroupB <| go gB bs
 
     LZ6.Zero.ZeroNovSeq zeroes novDecs maySeqDecsNE ->
@@ -213,12 +212,12 @@ toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
       . BG6.Group g
       $ go sqq
       where
-        go sq' = case S.viewl sq' of
-          EmptyL -> BG7.LeadZeroes zeroes
+        go sq' = case sq' of
+          [] -> BG7.LeadZeroes zeroes
             . Right
             . Nodecs3.T novDecs . maybe SeqDecs.empty SeqDecsNE.toSeqDecs
             $ maySeqDecsNE
-          (zeroes', grp') :< xs -> BG7.LeadZeroes zeroes'
+          (zeroes', grp') : xs -> BG7.LeadZeroes zeroes'
             . Left . (,) grp' $ go xs
 
 

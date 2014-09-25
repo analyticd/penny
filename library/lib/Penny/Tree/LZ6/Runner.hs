@@ -5,8 +5,6 @@ import qualified Penny.Tree.LZ6.Zero as Zero
 import Prelude hiding (foldr)
 import qualified Penny.Tree.LZ6 as LZ6
 import qualified Penny.Core.Anna.Zeroes as Zeroes
-import Data.Sequence ((<|))
-import qualified Data.Sequence as S
 
 foldr
   :: (Zeroes.T -> a -> b -> b)
@@ -24,5 +22,5 @@ foldr f fz lz6 = case lz6 of
 runFold :: LZ6.T a -> Collector.T a
 runFold = foldr ff fz
   where
-    ff zs a (Collector.T sq z) = Collector.T ((zs, a) <| sq) z
-    fz = Collector.T S.empty
+    ff zs a (Collector.T sq z) = Collector.T ((zs, a) : sq) z
+    fz = Collector.T []
