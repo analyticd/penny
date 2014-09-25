@@ -12,7 +12,8 @@ import qualified Penny.Tree.Side as Side
 -- will be parsed as an Ingot
 import qualified Penny.Tree.Commodity as Commodity
 import qualified Penny.Tree.Ingot as Ingot
-
+import Control.Applicative
+import Text.Parsec.Text
 
 data T
   = T0 Flag.T
@@ -25,3 +26,15 @@ data T
   | T7 Commodity.T
   | T8 Ingot.T
   deriving (Eq, Ord, Show)
+
+parser :: Parser T
+parser
+  = T0 <$> Flag.parser
+  <|> T1 <$> Number.parser
+  <|> T2 <$> Payee.parser
+  <|> T3 <$> Account.Unquoted.parser
+  <|> T4 <$> Account.Quoted.parser
+  <|> T5 <$> Tag.parser
+  <|> T6 <$> Side.parser
+  <|> T7 <$> Commodity.parser
+  <|> T8 <$> Ingot.parser

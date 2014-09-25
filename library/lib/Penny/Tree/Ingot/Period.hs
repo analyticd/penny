@@ -12,8 +12,17 @@ module Penny.Tree.Ingot.Period where
 import qualified Penny.Tree.Lewis as Lewis
 import qualified Penny.Core.Anna.RadPer as RadPer
 import qualified Penny.Tree.Currency as Currency
+import Control.Applicative
+import Text.Parsec.Text
 
 data T
   = Currency Currency.T (Maybe (Lewis.T RadPer.T))
   | Lewis (Lewis.T RadPer.T) (Maybe Currency.T)
   deriving (Eq, Ord, Show)
+
+parser :: Parser T
+parser
+  = Currency <$> Currency.parser
+             <*> optional (Lewis.parser RadPer.parseRadix RadPer.parser)
+  <|> Lewis <$> Lewis.parser RadPer.parseRadix RadPer.parser
+            <*> optional Currency.parser
