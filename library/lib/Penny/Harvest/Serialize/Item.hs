@@ -12,10 +12,10 @@ import qualified Penny.Core.Serial as Serial
 import qualified Penny.Harvest.Locate.Located as Located
 
 data T
-  = T0 MemoT.T
-  | T1 TopLine.T SerialL.T SerialG.T
-  | T2 Posting.T SerialL.T SerialG.T
-  | T3 MemoP.T
+  = MemoT MemoT.T
+  | TopLine TopLine.T SerialL.T SerialG.T
+  | Posting Posting.T SerialL.T SerialG.T
+  | MemoP MemoP.T
   deriving (Eq, Ord, Show)
 
 -- | Applied to a "Penny.Harvest.Locate.Item", returns a nested
@@ -31,7 +31,7 @@ harvest
   -> State.T (State.T (State.T (State.T (Located.T T))))
 
 harvest ((Located.T loc (Locate.Item.T0 memo)))
-  = return . return . return . return . Located.T loc . T0 $ memo
+  = return . return . return . return . Located.T loc . MemoT $ memo
 
 harvest ((Located.T loc (Locate.Item.T1 tl))) = do
   fwdTopLocal <- State.topLineFwd
@@ -41,7 +41,7 @@ harvest ((Located.T loc (Locate.Item.T1 tl))) = do
       fwdTopGlobal <- State.topLineFwd
       return $ do
         revTopGlobal <- State.topLineRev
-        return . Located.T loc $ T1 tl
+        return . Located.T loc $ TopLine tl
           (SerialL.T (Serial.T fwdTopLocal revTopLocal))
           (SerialG.T (Serial.T fwdTopGlobal revTopGlobal))
 
@@ -53,9 +53,9 @@ harvest ((Located.T loc (Locate.Item.T2 ps))) = do
       fwdPstGlobal <- State.topLineFwd
       return $ do
         revPstGlobal <- State.topLineRev
-        return . Located.T loc $ T2 ps
+        return . Located.T loc $ Posting ps
           (SerialL.T (Serial.T fwdPstLocal revPstLocal))
           (SerialG.T (Serial.T fwdPstGlobal revPstGlobal))
 
 harvest ((Located.T loc (Locate.Item.T3 memo)))
-  = return . return . return . return . Located.T loc . T3 $ memo
+  = return . return . return . return . Located.T loc . MemoP $ memo
