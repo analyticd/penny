@@ -9,3 +9,4 @@ data T = T { toSeq :: Seq Package.T }
 
 harvest :: Tree.Packages.T -> T
 harvest (Tree.Packages.T sq) = T (fmap Package.harvest sq)
+
