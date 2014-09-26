@@ -6,10 +6,10 @@ import qualified Penny.Tree.TopLine as TopLine
 import qualified Penny.Tree.Posting as Posting
 import qualified Penny.Core.Serial.Global as SerialG
 import qualified Penny.Core.Serial.Local as SerialL
-import qualified Penny.Harvest.Serialize.State as State
 import qualified Penny.Harvest.Locate.Item as Locate.Item
-import qualified Control.Monad.Trans.State as St
+import qualified Penny.Harvest.Serialize.State as State
 import qualified Penny.Core.Serial as Serial
+import qualified Penny.Harvest.Locate.Located as Located
 
 data T
   = T0 MemoT.T
@@ -19,32 +19,43 @@ data T
   deriving (Eq, Ord, Show)
 
 -- | Applied to a "Penny.Harvest.Locate.Item", returns a nested
--- stateful computation.  The outer state computation holds
--- information on the forward serials.  The inner state computation
--- holds information on the reverse serials.  When running the state
--- computations, first the outer computation is run to compute the
--- forward serials; then, the resulting inner computations are run to
--- obtain the reverse serials.
-harvest :: Locate.Item.T -> St.State State.T (St.State State.T T)
+-- stateful computation.  From outermost to innermost, these stateful
+-- computations compute:
+--
+-- * forward serials, local
+-- * reverse serials, local
+-- * forward serials, global
+-- * reverse serials, global
+harvest
+  :: Located.T Locate.Item.T
+  -> State.T (State.T (State.T (State.T (Located.T T))))
 
-harvest (Locate.Item.T0 memo) = return (return $ T0 memo)
+harvest ((Located.T loc (Locate.Item.T0 memo)))
+  = return . return . return . return . Located.T loc . T0 $ memo
 
-harvest (Locate.Item.T1 tl) = do
-  (State.T fwdLocalTop _ fwdGlobalTop _) <- St.get
-  St.modify State.incrTopLine
+harvest ((Located.T loc (Locate.Item.T1 tl))) = do
+  fwdTopLocal <- State.topLineFwd
   return $ do
-    (State.T backLocalTop _ backGlobalTop _) <- St.get
-    St.modify State.decrTopLine
-    return $ T1 tl (SerialL.T (Serial.T fwdLocalTop backLocalTop))
-                   (SerialG.T (Serial.T fwdGlobalTop backGlobalTop))
+    revTopLocal <- State.topLineRev
+    return $ do
+      fwdTopGlobal <- State.topLineFwd
+      return $ do
+        revTopGlobal <- State.topLineRev
+        return . Located.T loc $ T1 tl
+          (SerialL.T (Serial.T fwdTopLocal revTopLocal))
+          (SerialG.T (Serial.T fwdTopGlobal revTopGlobal))
 
-harvest (Locate.Item.T2 ps) = do
-  State.T _ fwdLocalPstg _ fwdGlobalPstg <- St.get
-  St.modify State.incrPosting
+harvest ((Located.T loc (Locate.Item.T2 ps))) = do
+  fwdPstLocal <- State.topLineFwd
   return $ do
-    State.T _ backLocalPstg _ backGlobalPstg <- St.get
-    St.modify State.decrPosting
-    return $ T2 ps (SerialL.T (Serial.T fwdLocalPstg backLocalPstg))
-                   (SerialG.T (Serial.T fwdGlobalPstg backGlobalPstg))
+    revPstLocal <- State.topLineRev
+    return $ do
+      fwdPstGlobal <- State.topLineFwd
+      return $ do
+        revPstGlobal <- State.topLineRev
+        return . Located.T loc $ T2 ps
+          (SerialL.T (Serial.T fwdPstLocal revPstLocal))
+          (SerialG.T (Serial.T fwdPstGlobal revPstGlobal))
 
-harvest (Locate.Item.T3 m) = return (return $ T3 m)
+harvest ((Located.T loc (Locate.Item.T3 memo)))
+  = return . return . return . return . Located.T loc . T3 $ memo
