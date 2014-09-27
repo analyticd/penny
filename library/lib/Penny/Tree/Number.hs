@@ -7,6 +7,9 @@ import qualified Penny.Tree.Number.Char as Char
 import Control.Applicative
 import Text.Parsec.Text
 import qualified Data.Sequence as S
+import Data.Foldable (toList)
+import qualified Data.Text as X
+import qualified Penny.Core.Number as Number
 
 data T = T Open.T (Seq Char.T) Close.T
   deriving (Eq, Ord, Show)
@@ -17,3 +20,6 @@ parser
   <$> Open.parser
   <*> fmap S.fromList (many Char.parser)
   <*> Close.parser
+
+toCore :: T -> Number.T
+toCore (T _ sq _) = Number.T . X.pack . toList . fmap Char.toChar $ sq

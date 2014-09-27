@@ -9,3 +9,8 @@ data T = T D.T (Maybe D.T)
 
 parser :: Parser T
 parser = liftM2 T D.parser (optional D.parser)
+
+toInt :: T -> Int
+toInt (T dFst may2nd) = case may2nd of
+  Nothing -> D.toInt dFst
+  Just scnd -> D.toInt dFst * 10 + D.toInt scnd

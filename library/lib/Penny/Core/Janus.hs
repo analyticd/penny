@@ -3,6 +3,8 @@ module Penny.Core.Janus where
 import qualified Penny.Core.Anna.RadCom as RadCom
 import qualified Penny.Core.Anna.RadPer as RadPer
 
+-- | Anything that may be parameterized on a
+-- 'Penny.Core.Anna.RadCom.T' or on a 'Penny.Core.Anna.RadPer.T'.
 data T a
   = Comma (a RadCom.T)
   | Period (a RadPer.T)

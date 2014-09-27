@@ -8,15 +8,15 @@ import Control.Applicative
 import Text.Parsec.Text
 
 data T
-  = T0 Date.T
-  | T1 Time.T
-  | T2 Flag.T
-  | T3 Number.T
+  = Date Date.T
+  | Time Time.T
+  | Flag Flag.T
+  | Number Number.T
   deriving (Eq, Ord, Show)
 
 parser :: Parser T
 parser
-  = T0 <$> Date.parser
-  <|> T1 <$> Time.parser
-  <|> T2 <$> Flag.parser
-  <|> T3 <$> Number.parser
+  = Date <$> Date.parser
+  <|> Time <$> Time.parser
+  <|> Flag <$> Flag.parser
+  <|> Number <$> Number.parser

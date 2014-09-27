@@ -7,7 +7,8 @@ import qualified Penny.Core.Payee as Payee
 import qualified Penny.Core.Tags as Tags
 import qualified Penny.Core.Account as Account
 import qualified Penny.Core.Location as Location
-import qualified Penny.Core.Serial as Serial
+import qualified Penny.Core.Serial.Global as Global
+import qualified Penny.Core.Serial.Local as Local
 import qualified Penny.Core.Trio as Trio
 
 data T = T
@@ -18,7 +19,7 @@ data T = T
   , tags :: Tags.T
   , account :: Account.T
   , location :: Location.T
-  , globalSerial :: Serial.T
-  , clxnSerial :: Serial.T
+  , global :: Global.T
+  , local :: Local.T
   , trio :: Trio.T
   } deriving (Eq, Ord, Show)

@@ -1,10 +1,13 @@
 module Penny.Core.Muddy where
 
 import qualified Penny.Core.Janus as Janus
-import qualified Penny.Core.Walker as Zinc
+import qualified Penny.Core.Walker as Walker
 
+-- | Number representations that may be zero or non-zero and may have
+-- a radix point and grouping character of either
+-- 'Penny.Core.Anna.RadCom.T' or 'Penny.Core.Anna.RadPer.T'.
 newtype T = T
-  { toJanus :: Janus.T Zinc.T }
+  { toJanus :: Janus.T Walker.T }
 
 
 instance Eq T where

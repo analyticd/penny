@@ -6,6 +6,9 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Control.Applicative
 import Text.Parsec.Text
+import qualified Penny.Core.Payee as Payee
+import qualified Data.Text as X
+import Data.Foldable (toList)
 
 data T = T
   { first :: First.T
@@ -14,3 +17,7 @@ data T = T
 
 parser :: Parser T
 parser = T <$> First.parser <*> fmap S.fromList (many Next.parser)
+
+toCore :: T -> Payee.T
+toCore (T f rs) = Payee.T $ First.toChar f `X.cons`
+  (X.pack . toList . fmap Next.toChar $ rs)

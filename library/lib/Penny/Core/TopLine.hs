@@ -7,7 +7,8 @@ import qualified Penny.Core.Flag as Flag
 import qualified Penny.Core.Payee as Payee
 import qualified Penny.Core.Location as Location
 import qualified Penny.Core.Clxn as Clxn
-import qualified Penny.Core.Serial as Serial
+import qualified Penny.Core.Serial.Global as Global
+import qualified Penny.Core.Serial.Local as Local
 
 data T = T
   { dateTime :: DateTime.T
@@ -17,6 +18,6 @@ data T = T
   , payee :: Maybe Payee.T
   , location :: Location.T
   , clxn :: Clxn.T
-  , globalSerial :: Serial.T
-  , clxnSerial :: Serial.T
+  , global :: Global.T
+  , local :: Local.T
   } deriving (Eq, Ord, Show)

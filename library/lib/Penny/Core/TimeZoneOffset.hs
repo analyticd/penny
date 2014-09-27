@@ -2,6 +2,7 @@ module Penny.Core.TimeZoneOffset
   ( T
   , toInt
   , fromInt
+  , zero
   ) where
 
 data T = T { toInt :: Int }
@@ -11,3 +12,6 @@ fromInt :: Int -> Maybe T
 fromInt i
   | abs i > 840 = Nothing
   | otherwise = Just . T $ i
+
+zero :: T
+zero = T 0
