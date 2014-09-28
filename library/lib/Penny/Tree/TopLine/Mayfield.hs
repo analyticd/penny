@@ -21,22 +21,21 @@ import qualified Penny.Core.Location as Location
 import qualified Penny.Core.Clxn as Clxn
 import qualified Penny.Core.Serial.Global as Global
 import qualified Penny.Core.Serial.Local as Local
-import qualified Penny.Tree.Date as Date
 import qualified Penny.Tree.Time as Time
 import qualified Penny.Core.Payee as Payee
 import qualified Penny.Core.DateTime as DateTime
 import qualified Penny.Core.TopLine as TopLine
 
 data T = T
-  { date :: Maybe Day
-  , time :: Maybe (Hours.T, Minutes.T, Seconds.T, TZO.T)
+  { time :: Maybe (Hours.T, Minutes.T, Seconds.T, TZO.T)
   , flag :: Maybe Flag.T
   , number :: Maybe Number.T
   } deriving (Eq, Ord, Show)
 
 toCore
   :: Seq Item.T
-  -> Either Error.T ( Maybe Payee.T
+  -> Either Error.T ( Day
+                      -> Maybe Payee.T
                       -> Memo.T
                       -> Location.T
                       -> Clxn.T
@@ -44,16 +43,10 @@ toCore
                       -> Local.T
                       -> TopLine.T )
 toCore sq = do
-  t <- Fdbl.foldlM addItem (T Nothing Nothing Nothing Nothing) sq
+  t <- Fdbl.foldlM addItem (T Nothing Nothing Nothing) sq
   finish t
 
 addItem :: T -> Item.T -> Either Error.T T
-addItem t (Item.Date d) = do
-  dy <- either (Left . Error.BadDate) Right . Date.toDay $ d
-  case date t of
-    Nothing -> return $ t { date = Just dy }
-    Just _ -> Left Error.DuplicateDate
-
 addItem mayfield (Item.Time t) = do
   ti <- either (Left . Error.BadTime) Right . Time.toCore $ t
   case time mayfield of
@@ -69,21 +62,20 @@ addItem mayfield (Item.Number num) = case number mayfield of
   Just _ -> Left Error.DuplicateNumber
 
 
-finish :: T -> Either Error.T ( Maybe Payee.T
+finish :: T -> Either Error.T ( Day
+                                -> Maybe Payee.T
                                 -> Memo.T
                                 -> Location.T
                                 -> Clxn.T
                                 -> Global.T
                                 -> Local.T
                                 -> TopLine.T )
-finish t = case date t of
-  Nothing -> Left Error.NoDate
-  Just day ->
-    let (hr, mi, sec, tzo) = case time t of
-          Nothing -> (Hours.zero, Minutes.zero, Seconds.zero,
-                      TZO.zero)
-          Just (h, m, s, ti) -> (h, m, s, ti)
-        dt = DateTime.T day hr mi sec tzo
-        r pye memo loc clxn glbl locl = TopLine.T dt
-          memo (number t) (flag t) pye loc clxn glbl locl
-    in return r
+finish t =
+  let (hr, mi, sec, tzo) = case time t of
+        Nothing -> (Hours.zero, Minutes.zero, Seconds.zero,
+                    TZO.zero)
+        Just (h, m, s, ti) -> (h, m, s, ti)
+      r day pye memo loc clxn glbl locl = TopLine.T
+        (DateTime.T day hr mi sec tzo)
+        memo (number t) (flag t) pye loc clxn glbl locl
+  in return r

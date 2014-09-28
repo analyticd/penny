@@ -16,25 +16,25 @@ import Control.Applicative
 import Text.Parsec.Text
 
 data T
-  = T0 Flag.T
-  | T1 Number.T
-  | T2 Payee.T
-  | T3 Account.Unquoted.T
-  | T4 Account.Quoted.T
-  | T5 Tag.T
-  | T6 Side.T
-  | T7 Commodity.T
-  | T8 Ingot.T
+  = Flag Flag.T
+  | Number Number.T
+  | Payee Payee.T
+  | Unquoted Account.Unquoted.T
+  | Quoted Account.Quoted.T
+  | Tag Tag.T
+  | Side Side.T
+  | Commodity Commodity.T
+  | Ingot Ingot.T
   deriving (Eq, Ord, Show)
 
 parser :: Parser T
 parser
-  = T0 <$> Flag.parser
-  <|> T1 <$> Number.parser
-  <|> T2 <$> Payee.parser
-  <|> T3 <$> Account.Unquoted.parser
-  <|> T4 <$> Account.Quoted.parser
-  <|> T5 <$> Tag.parser
-  <|> T6 <$> Side.parser
-  <|> T7 <$> Commodity.parser
-  <|> T8 <$> Ingot.parser
+  = Flag <$> Flag.parser
+  <|> Number <$> Number.parser
+  <|> Payee <$> Payee.parser
+  <|> Unquoted <$> Account.Unquoted.parser
+  <|> Quoted <$> Account.Quoted.parser
+  <|> Tag <$> Tag.parser
+  <|> Side <$> Side.parser
+  <|> Commodity <$> Commodity.parser
+  <|> Ingot <$> Ingot.parser

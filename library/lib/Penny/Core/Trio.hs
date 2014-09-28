@@ -3,7 +3,7 @@ module Penny.Core.Trio where
 import qualified Penny.Core.Commodity as Commodity
 import qualified Penny.Core.Arrangement as Arrangement
 import qualified Penny.Core.Side as Side
-import qualified Penny.Core.Muddy as Cabin
+import qualified Penny.Core.Muddy as Muddy
 import qualified Penny.Core.Philly as Philly
 
 -- | When building entries using the "Penny.Ents" module, you may
@@ -24,7 +24,7 @@ import qualified Penny.Core.Philly as Philly
 -- for @Empty@.
 
 data T
-  = QC Cabin.T Commodity.T Arrangement.T
+  = QC Muddy.T Commodity.T Arrangement.T
   -- ^ Specify a quantity, commodity, and how they are arranged, and a
   -- corresponding entry is always recorded.
   --
@@ -33,7 +33,7 @@ data T
   -- Postconditions: the balance is appropriately affected.
 
 
-  | Q Cabin.T
+  | Q Muddy.T
   -- ^ Specify a quantity only.
   --
   -- Preconditions: there is exactly one commodity in the imbalances.

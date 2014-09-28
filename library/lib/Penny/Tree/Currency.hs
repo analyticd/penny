@@ -3,10 +3,13 @@ module Penny.Tree.Currency
   , toChar
   , fromChar
   , parser
+  , toCommodity
   ) where
 
 import Data.Char
 import Penny.Tree.Parsec
+import qualified Data.Text as X
+import qualified Penny.Core.Commodity as Commodity
 
 newtype T = T { toChar :: Char }
   deriving (Eq, Ord, Show)
@@ -18,3 +21,6 @@ fromChar c
 
 parser :: Parser T
 parser = accept "currency symbol" fromChar
+
+toCommodity :: T -> Commodity.T
+toCommodity (T c) = Commodity.T . X.singleton $ c
