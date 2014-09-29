@@ -1,7 +1,7 @@
 module Penny.Core.Gravel where
 
-import qualified Penny.Core.Anna.NovDecs as NovDecs
-import qualified Penny.Core.Exp as Exponent
+import qualified Penny.Core.NovDecs as NovDecs
+import qualified Penny.Core.Exp as Exp
 import qualified Penny.Core.Cement as Cement
 import qualified Penny.Core.Coeff as Coefficient
 import Deka.Dec
@@ -14,7 +14,7 @@ import qualified Penny.Core.NovSign as NovSign
 -- between, for example, @0@ and @0.000@.)
 data T a = T
   { coefficient :: Maybe (a, NovDecs.T)
-  , exponent :: Exponent.T
+  , exponent :: Exp.T
   } deriving (Eq, Ord, Show)
 
 toCement :: (a -> Sign) -> T a -> Cement.T

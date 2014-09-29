@@ -1,6 +1,6 @@
-module Penny.Core.Anna.DecDecs where
+module Penny.Core.DecDecs where
 
-import qualified Penny.Core.Anna.Decems as Decems
+import qualified Penny.Core.Decems as Decems
 import Deka.Native
 import qualified Penny.Tree.Parsec as P
 import Control.Monad

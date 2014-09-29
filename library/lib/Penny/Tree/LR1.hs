@@ -1,7 +1,7 @@
 module Penny.Tree.LR1 where
 
 import qualified Penny.Core.Anna.Zeroes as Zeroes
-import qualified Penny.Core.Anna.NovDecs as NovDecs
+import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Tree.LZ3 as LZ3
 import qualified Penny.Core.Anna.SeqDecsNE as SeqDecsNE
 import Text.Parsec.Text

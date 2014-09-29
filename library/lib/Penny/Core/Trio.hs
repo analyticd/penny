@@ -1,13 +1,12 @@
 module Penny.Core.Trio where
 
 import qualified Penny.Core.Commodity as Commodity
-import qualified Penny.Core.Arrangement as Arrangement
 import qualified Penny.Core.Side as Side
-import qualified Penny.Core.Muddy as Muddy
-import qualified Penny.Core.Philly as Philly
 import qualified Penny.Core.Ent as Ent
 import qualified Penny.Core.Imbalances as Imbalances
 import qualified Penny.Core.Trio.Error as Error
+import qualified Penny.Core.Pebble as Pebble
+import qualified Penny.Core.Quant as Quant
 
 -- | When building entries using the "Penny.Ents" module, you may
 -- specify any of the 'Side.T', 'Commodity.T', a signed abstract quantity,
@@ -27,7 +26,7 @@ import qualified Penny.Core.Trio.Error as Error
 -- for @Empty@.
 
 data T
-  = QC Muddy.T Commodity.T Arrangement.T
+  = QC Pebble.T Commodity.T
   -- ^ Specify a quantity, commodity, and how they are arranged, and a
   -- corresponding entry is always recorded.
   --
@@ -36,7 +35,7 @@ data T
   -- Postconditions: the balance is appropriately affected.
 
 
-  | Q Muddy.T
+  | Q Pebble.T
   -- ^ Specify a quantity only.
   --
   -- Preconditions: there is exactly one commodity in the imbalances.
@@ -62,7 +61,7 @@ data T
   -- Postconditions: the imbalances is empty.
 
 
-  | UC Philly.T Commodity.T Arrangement.T
+  | UC (Quant.T ()) Commodity.T
   -- ^ Specify an unsigned abstract quantity only and a 'Commodity'
   -- and how they are arranged.
   --
@@ -71,7 +70,7 @@ data T
   -- Postconditions: the given commodity in the imbalances either has
   -- its absolute value reduced or it flips to the opposite side.
 
-  | U Philly.T
+  | U (Quant.T ())
   -- ^ Specify an unsigned quantity only.
   --
   -- Preconditions: the imbalances contains exactly one commodity, and

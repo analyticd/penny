@@ -1,6 +1,6 @@
 module Penny.Tree.LZ3 where
 
-import qualified Penny.Core.Anna.NovDecs as NovDecs
+import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Core.Anna.SeqDecsNE as SeqDecsNE
 import qualified Penny.Tree.LZ6 as LZ6
 import Control.Applicative

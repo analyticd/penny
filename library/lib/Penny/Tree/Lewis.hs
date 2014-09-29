@@ -21,12 +21,12 @@ import qualified Penny.Core.Anna as Anna
 import qualified Penny.Core.Anna.BrimUngrouped as BrimU
 import qualified Penny.Core.Anna.BrimGrouped as BrimG
 import qualified Penny.Core.Anna.Brim as Brim
-import qualified Penny.Core.Anna.NovDecs as NovDecs
+import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Core.Anna.Nodbu as Nodbu
-import qualified Penny.Core.Anna.Decems as Decems
+import qualified Penny.Core.Decems as Decems
 import qualified Penny.Core.Anna.Radem as Radem
 import qualified Penny.Core.Anna.RadZ as RadZ
-import qualified Penny.Core.Anna.DecDecs as DecDecs
+import qualified Penny.Core.DecDecs as DecDecs
 import qualified Penny.Core.Anna.BG1 as BG1
 import qualified Penny.Core.Anna.BG4 as BG4
 import qualified Penny.Core.Anna.BG5 as BG5

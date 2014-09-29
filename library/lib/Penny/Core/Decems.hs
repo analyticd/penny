@@ -1,5 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
-module Penny.Core.Anna.Decems where
+module Penny.Core.Decems where
 
 import Deka.Native.Abstract
 import Data.Sequence

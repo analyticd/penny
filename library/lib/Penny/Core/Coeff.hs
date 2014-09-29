@@ -1,7 +1,7 @@
 module Penny.Core.Coeff where
 
 import qualified Deka.Dec as D
-import qualified Penny.Core.Anna.NovDecs as NovDecs
+import qualified Penny.Core.NovDecs as NovDecs
 import qualified Deka.Native as DN
 import qualified Penny.Core.NovSign as NovSign
 import qualified Penny.Core.CoefficientSign as CS

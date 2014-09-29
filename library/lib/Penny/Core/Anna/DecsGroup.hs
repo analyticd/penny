@@ -1,6 +1,6 @@
 module Penny.Core.Anna.DecsGroup where
 
-import qualified Penny.Core.Anna.DecDecs as DecDecs
+import qualified Penny.Core.DecDecs as DecDecs
 import Text.Parsec.Text
 import Control.Applicative
 

@@ -1,6 +1,6 @@
 module Penny.Tree.LZ6 where
 
-import qualified Penny.Core.Anna.NovDecs as NovDecs
+import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Core.Anna.Zeroes as Zeroes
 import Text.Parsec.Text
 import Control.Applicative

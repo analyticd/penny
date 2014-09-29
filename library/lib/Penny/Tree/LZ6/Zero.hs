@@ -1,6 +1,6 @@
 module Penny.Tree.LZ6.Zero where
 
-import qualified Penny.Core.Anna.NovDecs as NovDecs
+import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Core.Anna.SeqDecsNE as SeqDecsNE
 import qualified Penny.Core.Anna.Zeroes as Zeroes
 import Prelude hiding (foldr)

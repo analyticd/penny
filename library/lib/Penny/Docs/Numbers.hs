@@ -69,21 +69,29 @@
 --
 -- Skeletal types include:
 --
--- 'Penny.Core.Gravel.T', holds the components of a sided concrete
+-- * 'Penny.Core.Cement.T', holds the components of a
+-- 'Penny.Core.Concrete.T'.  The polarity is always contained in the
+-- 'Penny.Core.Coeff.T'.
+--
+-- * 'Penny.Core.Gravel.T', holds the components of a sided concrete
 -- type.  Contains an optional coefficient (if no coefficient, the
 -- value is zero) and an exponent.  Non-zero values also hold a
--- parameterizable side.
+-- parameterizable side; use a binary type (such as a 'Bool' or, more
+-- likely, a 'Penny.Core.Side.T' or a 'Penny.Core.PluMin.T') to
+-- indicate the polarity of the type or, to indicate that the type is
+-- unsigned, you can use '()'.
 --
--- 'Penny.Core.Pebble.T', a 'Penny.Core.Gravel.T' parameterized on a
+-- * 'Penny.Core.Pebble.T', a 'Penny.Core.Gravel.T' parameterized on a
 -- 'Penny.Core.Side.T'.
 --
--- 'Penny.Core.Quark.T', contains the elements of a non-zero number,
+-- * 'Penny.Core.Quark.T', contains the elements of a non-zero number,
 -- including a polarity.  The polarity is a 'Penny.Core.Side.T'.
 --
--- 'Penny.Core.Quant.T' contins the elements of a non-zero number,
--- including a polarity; the polarity is parameterizable.
+-- * 'Penny.Core.Quant.T' contins the elements of a non-zero number,
+-- including a polarity; the polarity is parameterizable.  To indicate
+-- that the number has no polarity, you can use '()' for the polarity.
 --
--- 'Penny.Core.Rock.T', holds the components of a sided concrete type
+-- * 'Penny.Core.Rock.T', holds the components of a sided concrete type
 -- that must be non-zero.  Contains a non-zero coefficient, a side,
 -- and an exponent.
 

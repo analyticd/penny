@@ -14,3 +14,7 @@ parser :: Parser T
 parser = f <$ char '0' <*> many (char '0')
   where
     f zs = T $ NonZero.addUnsigned NonZero.one (Unsigned.length zs)
+
+numDigits :: T -> NonZero.T
+numDigits = toNonZero
+

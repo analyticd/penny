@@ -1,6 +1,6 @@
 module Penny.Tree.NovDecsOrGroup where
 
-import qualified Penny.Core.Anna.NovDecs as NovDecs
+import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Core.Anna.DecDecsMayGroups as DecDecsMayGroups
 import qualified Penny.Tree.NovDecsOrZero as NovDecsOrZero
 
