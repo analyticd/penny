@@ -30,3 +30,6 @@ toBalances = Bal.T . fmap f . toMap
       . Concrete.fromCement
       . Pebble.toCement
       . Quark.toPebble
+
+null :: T -> Bool
+null (T m) = M.null m

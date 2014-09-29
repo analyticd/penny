@@ -5,6 +5,9 @@ import qualified Penny.Core.Arrangement as Arrangement
 import qualified Penny.Core.Side as Side
 import qualified Penny.Core.Muddy as Muddy
 import qualified Penny.Core.Philly as Philly
+import qualified Penny.Core.Ent as Ent
+import qualified Penny.Core.Imbalances as Imbalances
+import qualified Penny.Core.Trio.Error as Error
 
 -- | When building entries using the "Penny.Ents" module, you may
 -- specify any of the 'Side.T', 'Commodity.T', a signed abstract quantity,
@@ -94,3 +97,5 @@ data T
 
   deriving (Eq, Ord, Show)
 
+toEnt :: Imbalances.T -> T -> a -> Either Error.T (Ent.T a)
+toEnt = undefined

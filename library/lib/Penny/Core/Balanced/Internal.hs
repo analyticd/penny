@@ -10,6 +10,7 @@ import Data.Foldable
 import qualified Data.Foldable as F
 import Control.Applicative
 
+-- | A balanced collection of 'Penny.Core.Ent.T'.
 data T m = T { toSeq :: Seq (Ent.T m) }
   deriving (Eq, Ord, Show)
 

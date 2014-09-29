@@ -25,10 +25,10 @@ parser
   <*> fmap S.fromList (many (PreSpace.parser Item.parser))
   <*> Newline.parser
 
-harvest :: T -> Either Error.T ( Memo.T
+toCore :: T -> Either Error.T ( Memo.T
                                  -> Location.T
                                  -> Global.T
                                  -> Local.T
                                  -> Posting.T )
-harvest (T _ seqnce _)
+toCore (T _ seqnce _)
   = Mayfield.procItems (fmap PreSpace.payload seqnce)

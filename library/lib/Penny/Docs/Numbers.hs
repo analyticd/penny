@@ -10,17 +10,34 @@
 -- it does mean there are a huge number of types involved.
 --
 -- Numbers can roughly be divided into three categories:
--- representation, concrete, and parse trees.
+-- representation, concrete, parse trees, and skeletals.
 --
 -- Representation types use the type system to represent the presence
 -- or absence of digit grouping characters, the type of the radix
 -- point (comma or period), and whether the value is zero or non-zero.
 -- Types in this classification include:
 --
--- * "Penny.Cabin", contains either a zero value or a non-zero value
--- along with a "Penny.Side" polarity.
+-- * 'Penny.Core.Muddy.T', may be zero or non-zero.  Has a radix point
+-- and a grouping character of either 'Penny.Core.Anna.RadCom.T' or
+-- 'Penny.Core.Anna.RadPer.T'.  The most general representation type.
 --
--- * "Penny.Philly", contains a non-zero value only.
+-- * 'Penny.Core.Janus.T', holds any type that may be parameterized on a
+-- 'Penny.Core.Anna.RadCom.T' or a 'Penny.Core.Anna.RadPer.T'.  This
+-- is just a container type.
+--
+-- * 'Penny.Core.Walker.T', may be zero or non-zero.  Parameterized on
+-- the type of the radix point and grouping character.
+--
+-- * 'Penny.Core.Stokely.T', may be zero or non-zero.  Parameterized
+-- on the type of the radix point and grouping character, and on the
+-- polarity (generally a 'Penny.Core.Side.T' or a
+-- 'Penny.Core.PluMin.T'.
+--
+-- * 'Penny.Core.Polarity.T', holds neutral or non-neutral types.
+-- This is just a container type.
+--
+-- * 'Penny.Philly.T', contains a non-zero value only, with either a
+-- period or comma radix.
 --
 -- * "Penny.Anna", contains either a zero value or a non-zero value,
 -- with no polarity.
@@ -38,7 +55,37 @@
 --
 -- Parse tree types represent the results of parsing.  A parse tree
 -- captures not only a representation but also an optional commodity.
--- Parse trees are rooted at "Penny.Wheat".
+-- Parse trees are rooted at 'Penny.Tree.Lewis.T'.
+--
+-- Skeletal types hold the components of a concrete type.  You cannot
+-- perform math on skeletal types; to perform math, convert the
+-- skeletal type to a concrete type.  Unlike representations,
+-- skeletals contain no information about digit grouping or the
+-- appearance of the radix point.  For example, a skeletal might
+-- consist of a coefficient and an exponent, which tells you nothing
+-- about what the radix point looks like.  Unlike concrete types,
+-- skeletals are all native Haskell so you can perform pattern
+-- matching on them.
+--
+-- Skeletal types include:
+--
+-- 'Penny.Core.Gravel.T', holds the components of a sided concrete
+-- type.  Contains an optional coefficient (if no coefficient, the
+-- value is zero) and an exponent.  Non-zero values also hold a
+-- parameterizable side.
+--
+-- 'Penny.Core.Pebble.T', a 'Penny.Core.Gravel.T' parameterized on a
+-- 'Penny.Core.Side.T'.
+--
+-- 'Penny.Core.Quark.T', contains the elements of a non-zero number,
+-- including a polarity.  The polarity is a 'Penny.Core.Side.T'.
+--
+-- 'Penny.Core.Quant.T' contins the elements of a non-zero number,
+-- including a polarity; the polarity is parameterizable.
+--
+-- 'Penny.Core.Rock.T', holds the components of a sided concrete type
+-- that must be non-zero.  Contains a non-zero coefficient, a side,
+-- and an exponent.
 
 module Penny.Docs.Numbers where
 

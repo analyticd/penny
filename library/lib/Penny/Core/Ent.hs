@@ -5,6 +5,15 @@ import qualified Penny.Core.Commodity as Commodity
 import Data.Foldable
 import Data.Traversable
 
+-- | A single entry, consisting of a 'Penny.Core.Qty.T',
+-- 'Penny.Core.Commodity.T', and arbitrary metadata.
+--
+-- See also:
+--
+-- * 'Penny.Core.Ents.T', a collection of 'T' (not necessarily
+-- balanced)
+--
+-- * 'Penny.Core.Balanced.T', a balanced collection of 'T'
 data T m = T
   { qty :: Qty.T
   , commodity :: Commodity.T

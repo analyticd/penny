@@ -7,7 +7,8 @@ import qualified Penny.Harvest.Serialize.Packages as Packages
 import qualified Penny.Harvest.Collect.State as State
 import qualified Penny.Harvest.Collect.Error as Error
 import qualified Penny.Harvest.Collect.Good as Good
-import qualified Penny.Harvest.Collect.TransactionMemos as TransactionMemos
+import qualified Penny.Harvest.Collect.Memo.Transaction as Memo.Transaction
+import qualified Penny.Harvest.Collect.Memo.Posting as Memo.Posting
 import qualified Data.Sequence as S
 import Data.Sequence (Seq, (|>), ViewL(..))
 import qualified Penny.Harvest.Collect.AfterTopLine as AfterTopLine
@@ -21,28 +22,28 @@ process
   -> (State.T, Either (Located.T Error.T) Good.T)
 
 process (Located.T loc (Item.MemoT memo)) State.Empty =
-  ( State.TxnMemos . TransactionMemos.T
+  ( State.TxnMemos . Memo.Transaction.T
     . S.singleton . Located.T loc $ memo
   , Right Good.NoOutput )
 
 process (Located.T loc (Item.MemoT memo)) (State.TxnMemos tm) =
-  ( State.TxnMemos . TransactionMemos.addMemo tm $ (Located.T loc memo)
+  ( State.TxnMemos . Memo.Transaction.addMemo tm $ (Located.T loc memo)
   , Right Good.NoOutput
   )
 
 process (Located.T loc (Item.MemoT m)) (State.AfterTopLine atl) =
-  ( State.TxnMemos $ TransactionMemos.T (S.singleton (Located.T loc m))
+  ( State.TxnMemos $ Memo.Transaction.T (S.singleton (Located.T loc m))
   , Right $ Good.TopLine atl
   )
 
 process (Located.T loc (Item.MemoT tm)) (State.AfterPosting afp) =
-  ( State.TxnMemos . TransactionMemos.T . S.singleton
+  ( State.TxnMemos . Memo.Transaction.T . S.singleton
     . Located.T loc $ tm
   , Right . Good.Postings $ afp )
 
 process (Located.T loc (Item.TopLine tl local global)) State.Empty =
   ( State.AfterTopLine $ AfterTopLine.T
-    (TransactionMemos.T S.empty) (Located.T loc tl)
+    (Memo.Transaction.T S.empty) (Located.T loc tl)
     local global
   , Right Good.NoOutput
   )
@@ -56,7 +57,7 @@ process (Located.T loc (Item.TopLine tl local global))
 
 process (Located.T loc (Item.TopLine tl local global))
   (State.AfterTopLine atl) =
-  ( State.AfterTopLine $ AfterTopLine.T (TransactionMemos.T S.empty)
+  ( State.AfterTopLine $ AfterTopLine.T (Memo.Transaction.T S.empty)
       (Located.T loc tl) local global
   , Right $ Good.TopLine atl
   )
@@ -64,7 +65,7 @@ process (Located.T loc (Item.TopLine tl local global))
 process (Located.T loc (Item.TopLine tl local global))
   (State.AfterPosting afp) =
   ( State.AfterTopLine $ AfterTopLine.T
-      (TransactionMemos.T S.empty)
+      (Memo.Transaction.T S.empty)
       (Located.T loc tl)
       local global
   , Right . Good.Postings $ afp
@@ -83,14 +84,14 @@ process (Located.T loc (Item.Posting p local global))
   , Right Good.NoOutput
   )
   where
-    pb = PostingBox.T (Located.T loc p) local global S.empty
+    pb = PostingBox.T (Located.T loc p) local global Memo.Posting.empty
 
 process (Located.T loc (Item.Posting p local global))
   (State.AfterPosting afp) =
   ( State.AfterPosting $ AfterPosting.T
       (AfterPosting.topLine afp)
       ((AfterPosting.postings afp) |> AfterPosting.last afp)
-      (PostingBox.T (Located.T loc p) local global S.empty)
+      (PostingBox.T (Located.T loc p) local global Memo.Posting.empty)
   , Right Good.NoOutput
   )
 
@@ -106,9 +107,8 @@ process (Located.T loc (Item.MemoP _)) (State.AfterTopLine _) =
 process (Located.T loc (Item.MemoP m)) (State.AfterPosting afp) =
   ( State.AfterPosting
     $ afp { AfterPosting.last = (AfterPosting.last afp)
-            { PostingBox.memos = (PostingBox.memos
-                (AfterPosting.last afp)) |>
-                Located.T loc m } }
+            { PostingBox.memos = Memo.Posting.addMemo (PostingBox.memos
+                (AfterPosting.last afp)) (Located.T loc m) } }
   , Right Good.NoOutput
   )
 
