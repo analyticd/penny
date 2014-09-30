@@ -38,7 +38,7 @@ import Prelude hiding
   , succ
   )
 import qualified Prelude
-import qualified Penny.Natural.Unsigned.Type as Unsigned
+import qualified Penny.Natural.Unsigned.Internal as Unsigned
 import Penny.Natural.NonZero.Internal
 import Deka.Native.Abstract
 

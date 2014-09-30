@@ -33,3 +33,7 @@ toDecDecs (T d1 ds) = DecDecs.T (Nonem d1) ds
 
 appendDecems :: T -> Decems.T -> T
 appendDecems (T n ds1) ds2 = T n (ds1 <> ds2)
+
+numDigits :: T -> NonZero.T
+numDigits (T _ ds) = NonZero.one `NonZero.addUnsigned`
+  (Decems.numDigits ds)

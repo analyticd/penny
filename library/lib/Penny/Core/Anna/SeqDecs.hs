@@ -32,5 +32,5 @@ numDigits :: T a -> Unsigned.T
 numDigits (T sqn) = case S.viewl sqn of
   EmptyL -> Unsigned.zero
   x :< xs -> NonZero.toUnsigned
-    $ F.foldl (\dg nz -> DecsGroup.numDigits `NonZero.add` nz)
+    $ F.foldl (\nz dg -> DecsGroup.numDigits dg `NonZero.add` nz)
       (DecsGroup.numDigits x) xs
