@@ -8,6 +8,7 @@ import qualified Deka.Native as DN
 import qualified Penny.Tree.Parsec as P
 import Text.Parsec.Text
 import Control.Applicative
+import Data.Monoid
 
 data T = T
   { novem :: Novem
@@ -29,3 +30,6 @@ parser = T <$> P.novem <*> Decems.parser
 
 toDecDecs :: T -> DecDecs.T
 toDecDecs (T d1 ds) = DecDecs.T (Nonem d1) ds
+
+appendDecems :: T -> Decems.T -> T
+appendDecems (T n ds1) ds2 = T n (ds1 <> ds2)

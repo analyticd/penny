@@ -18,3 +18,5 @@ parser = f <$ char '0' <*> many (char '0')
 numDigits :: T -> NonZero.T
 numDigits = toNonZero
 
+append :: T -> T -> T
+append (T a) (T b) = T $ NonZero.add a b

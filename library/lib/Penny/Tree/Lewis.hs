@@ -144,7 +144,7 @@ toAnna (Novem nd1 (Just (Masuno1.T rdx
 toAnna (Novem nd1 (Just (Masuno1.T rdx
   (Just (Masuno1Radix1.T dds (grp1:grpRest)))))) =
   Anna.Brim . Brim.Grouped $ BrimG.Masuno nd1
-  (BG1.GroupOnRight rdx dds grp1 (S.fromList grpRest))
+  (BG1.GroupOnRight rdx dds grp1 (SeqDecs.T . S.fromList $ grpRest))
 
 
 toAnna (Zero z1 Nothing) = Anna.Nil . Nil.Ungrouped

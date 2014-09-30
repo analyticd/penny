@@ -36,21 +36,4 @@ toStokelyNonpolar (Brim _) = Nothing
 toStokelyNonpolar (Nil n) = Just . Stokely.T . Polarity.Center $ n
 
 toGravel :: T r -> Gravel.T ()
-toGravel (Nil (Nil.Ungrouped (Nil.Ungrouped.LeadingZero
-  (Znu1.T _ Nothing)))) = Gravel.T Nothing Exp.Zero
-
-toGravel (Nil (Nil.Ungrouped (Nil.Ungrouped.LeadingZero
-  (Znu1.T _ (Just (Radun.T _rdx Nothing)))))) = Gravel.T Nothing Exp.Zero
-
-toGravel (Nil (Nil.Ungrouped (Nil.Ungrouped.LeadingZero
-  (Znu1.T _ (Just (Radun.T _rdx (Just (Zeroes.T nz)))))))) =
-  Gravel.T Nothing . Exp.fromUnsigned . Unsigned.fromNonZero $ nz
-
-toGravel (Nil (Nil.Ungrouped (Nil.Ungrouped.NoLeadingZero
-  (RadZ.T _rdx zs)))) =
-  Gravel.T Nothing . Exp.fromUnsigned . Unsigned.fromNonZero
-  . Zeroes.numDigits $ zs
-
-toGravel (Nil (Nil.Grouped (Nil.Grouped.LeadingZero (Zng.T _
-  (NG1.T _rdx zs1 _ zs2 zsgs))))) = undefined
-
+toGravel = undefined

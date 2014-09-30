@@ -7,6 +7,7 @@ module Penny.Natural.NonZero
   , toInteger
   , fromInteger
   , fromUnsigned
+  , toUnsigned
   , fromNovem
   , fromDecem
 
@@ -52,6 +53,9 @@ fromUnsigned x
   | otherwise = Nothing
   where
     xi = Unsigned.toInteger x
+
+toUnsigned :: T -> Unsigned.T
+toUnsigned (T a) = Unsigned.T a
 
 fromNovem :: Novem -> T
 fromNovem = T . novemToInt
