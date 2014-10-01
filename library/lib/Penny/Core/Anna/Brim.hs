@@ -17,6 +17,17 @@ import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Natural.Unsigned as Unsigned
 import qualified Penny.Natural.NonZero as NonZero
 import qualified Penny.Core.Anna.Nodecs3 as Nodecs3
+import qualified Penny.Core.DecDecs as DecDecs
+import qualified Penny.Core.Anna.DecsGroup as DecsGroup
+import qualified Penny.Core.Anna.SeqDecs as SeqDecs
+import qualified Penny.Core.Anna.Nodbu as Nodbu
+import qualified Penny.Core.Anna.Radem as Radem
+import qualified Penny.Core.Decems as Decems
+import qualified Penny.Core.Anna.BU2 as BU2
+import qualified Penny.Core.Anna.BU3 as BU3
+import qualified Penny.Core.Anna.Zerabu as Zerabu
+import qualified Penny.Core.Anna.Radbu as Radbu
+import qualified Penny.Core.Anna.Zenod as Zenod
 import Data.Monoid
 
 data T r
@@ -47,6 +58,21 @@ toGravel (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
       ( DecDecsMayGroups.toDecems ddMayGroups
         <> DecDecsMayGroups.toDecems ddmg2 )
 
+
+toGravel (Grouped (BG.Masuno novDecs
+  (BG1.GroupOnRight _rdx decDecs decsGroup seqDecs)))
+  = Gravel.T (Just ((), nd'))
+  . Exp.fromUnsigned
+  . Unsigned.fromNonZero
+  . NonZero.add (DecDecs.numDigits decDecs)
+  . NonZero.addUnsigned (DecsGroup.numDigits decsGroup)
+  . SeqDecs.numDigits
+  $ seqDecs
+  where
+    nd' = novDecs
+      `NovDecs.appendDecems` (DecDecs.toDecems decDecs)
+      `NovDecs.appendDecems` (DecsGroup.toDecems decsGroup)
+      `NovDecs.appendDecems` (SeqDecs.toDecems seqDecs)
 
 toGravel (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Novem nsdne))))
   = Gravel.T (Just ((), NovSeqDecsNE.toNovDecs nsdne))
@@ -83,4 +109,49 @@ toGravel (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Zeroes zs1
           = getNodecs3 b7'
         getNodecs3 (BG7.LeadZeroes _ (Right nd3)) = nd3
         getNodecs3 (BG7.LeadNovem nd3) = nd3
+
+toGravel (Ungrouped (BU.Masuno (Nodbu.T nd Nothing)))
+  = Gravel.T (Just ((), nd)) Exp.Zero
+
+
+toGravel (Ungrouped (BU.Masuno (Nodbu.T nd (Just (Radem.T _rdx decems)))))
+  = Gravel.T (Just ((), nd `NovDecs.appendDecems` decems))
+  . Exp.fromUnsigned
+  . Decems.numDigits
+  $ decems
+
+
+toGravel (Ungrouped (BU.Fracuno (BU2.LeadingZero (Zerabu.T _ _rdx
+  (BU3.Zeroes (Zenod.T zs nd)))))) =
+  Gravel.T (Just ((), nd))
+  . Exp.fromUnsigned
+  . Unsigned.fromNonZero
+  . NonZero.add (Zeroes.numDigits zs)
+  . NovDecs.numDigits
+  $ nd
+
+toGravel (Ungrouped (BU.Fracuno (BU2.LeadingZero (Zerabu.T _ _rdx
+  (BU3.NoZeroes nd))))) =
+  Gravel.T (Just ((), nd))
+  . Exp.fromUnsigned
+  . Unsigned.fromNonZero
+  . NovDecs.numDigits
+  $ nd
+
+toGravel (Ungrouped (BU.Fracuno (BU2.NoLeadingZero (Radbu.T _rdx
+  (BU3.Zeroes (Zenod.T zs nd)))))) =
+  Gravel.T (Just ((), nd))
+  . Exp.fromUnsigned
+  . Unsigned.fromNonZero
+  . NonZero.add (Zeroes.numDigits zs)
+  . NovDecs.numDigits
+  $ nd
+
+toGravel (Ungrouped (BU.Fracuno (BU2.NoLeadingZero (Radbu.T _rdx
+  (BU3.NoZeroes nd))))) =
+  Gravel.T (Just ((), nd))
+  . Exp.fromUnsigned
+  . Unsigned.fromNonZero
+  . NovDecs.numDigits
+  $ nd
 
