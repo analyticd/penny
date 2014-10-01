@@ -7,9 +7,9 @@ data T
   | Credit
   deriving (Eq, Ord, Show)
 
-flip :: T -> T
-flip Debit = Credit
-flip Credit = Debit
+opposite :: T -> T
+opposite Debit = Credit
+opposite Credit = Debit
 
 fromSign :: Sign -> T
 fromSign Sign0 = Debit

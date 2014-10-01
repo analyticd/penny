@@ -15,3 +15,9 @@ fromPebble = fmap T . Quant.fromGravel . Pebble.toGravel
 
 toPebble :: T -> Pebble.T
 toPebble = Pebble.fromGravel . Quant.toGravel . toQuant
+
+offset :: T -> T
+offset (T (Quant.T n e s)) = T (Quant.T n e (Side.opposite s))
+
+side :: T -> Side.T
+side = Quant.side . toQuant
