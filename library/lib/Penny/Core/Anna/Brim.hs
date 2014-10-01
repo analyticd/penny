@@ -10,7 +10,6 @@ import qualified Penny.Core.Anna.BG6 as BG6
 import qualified Penny.Core.Anna.BG7 as BG7
 import qualified Penny.Core.Anna.Zeroes as Zeroes
 import qualified Penny.Core.Anna.NovSeqDecsNE as NovSeqDecsNE
-import qualified Penny.Core.Gravel as Gravel
 import qualified Penny.Core.Anna.DecDecsMayGroups as DecDecsMayGroups
 import qualified Penny.Core.Exp as Exp
 import qualified Penny.Core.NovDecs as NovDecs
@@ -27,29 +26,30 @@ import qualified Penny.Core.Anna.BU2 as BU2
 import qualified Penny.Core.Anna.BU3 as BU3
 import qualified Penny.Core.Anna.Zenod as Zenod
 import Data.Monoid
+import qualified Penny.Core.CoeffExp as CoeffExp
 
 data T r
   = Grouped (BG.T r)
   | Ungrouped (BU.T r)
   deriving (Eq, Ord, Show)
 
-toGravel :: T r -> Gravel.T ()
-toGravel (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
-  ddMayGroups Nothing))) = Gravel.T (Just ((), nd')) Exp.Zero
+toCoeffExp :: T r -> CoeffExp.T
+toCoeffExp (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
+  ddMayGroups Nothing))) = CoeffExp.T nd' Exp.Zero
   where
     nd' = novDecs `NovDecs.appendDecems`
       (DecDecsMayGroups.toDecems ddMayGroups)
 
-toGravel (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
+toCoeffExp (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
   ddMayGroups (Just (BG2.T _rdx Nothing))))) =
-  Gravel.T (Just ((), nd')) Exp.Zero
+  CoeffExp.T nd' Exp.Zero
   where
     nd' = novDecs `NovDecs.appendDecems`
       (DecDecsMayGroups.toDecems ddMayGroups)
 
-toGravel (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
+toCoeffExp (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
   ddMayGroups (Just (BG2.T _rdx (Just ddmg2)))))) =
-  Gravel.T (Just ((), nd')) . Exp.fromUnsigned . Unsigned.fromNonZero
+  CoeffExp.T nd' . Exp.fromUnsigned . Unsigned.fromNonZero
   . DecDecsMayGroups.numDigits $ ddmg2
   where
     nd' = novDecs `NovDecs.appendDecems`
@@ -57,9 +57,9 @@ toGravel (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
         <> DecDecsMayGroups.toDecems ddmg2 )
 
 
-toGravel (Grouped (BG.Masuno novDecs
+toCoeffExp (Grouped (BG.Masuno novDecs
   (BG1.GroupOnRight _rdx decDecs decsGroup seqDecs)))
-  = Gravel.T (Just ((), nd'))
+  = CoeffExp.T nd'
   . Exp.fromUnsigned
   . Unsigned.fromNonZero
   . NonZero.add (DecDecs.numDigits decDecs)
@@ -72,24 +72,24 @@ toGravel (Grouped (BG.Masuno novDecs
       `NovDecs.appendDecems` (DecsGroup.toDecems decsGroup)
       `NovDecs.appendDecems` (SeqDecs.toDecems seqDecs)
 
-toGravel (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Novem nsdne))))
-  = Gravel.T (Just ((), NovSeqDecsNE.toNovDecs nsdne))
+toCoeffExp (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Novem nsdne))))
+  = CoeffExp.T (NovSeqDecsNE.toNovDecs nsdne)
   . Exp.fromUnsigned . Unsigned.fromNonZero
   . NovSeqDecsNE.numDigits $ nsdne
 
 
-toGravel (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Zeroes zs1
+toCoeffExp (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Zeroes zs1
   (BG6.Novem nsdne)))))
-  = Gravel.T (Just ((), NovSeqDecsNE.toNovDecs nsdne))
+  = CoeffExp.T (NovSeqDecsNE.toNovDecs nsdne)
   . Exp.fromUnsigned . Unsigned.fromNonZero
   . NonZero.add (Zeroes.numDigits zs1)
   . NovSeqDecsNE.numDigits
   $ nsdne
 
 
-toGravel (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Zeroes zs1
+toCoeffExp (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Zeroes zs1
   (BG6.Group _ bg7))))) =
-  Gravel.T (Just ((), Nodecs3.toNovDecs nodecs3))
+  CoeffExp.T (Nodecs3.toNovDecs nodecs3)
   . Exp.fromUnsigned . Unsigned.fromNonZero
   . NonZero.add (Zeroes.numDigits zs1)
   $ bg7NumDigits
@@ -108,29 +108,29 @@ toGravel (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Zeroes zs1
         getNodecs3 (BG7.LeadZeroes _ (Right nd3)) = nd3
         getNodecs3 (BG7.LeadNovem nd3) = nd3
 
-toGravel (Ungrouped (BU.Masuno (Nodbu.T nd Nothing)))
-  = Gravel.T (Just ((), nd)) Exp.Zero
+toCoeffExp (Ungrouped (BU.Masuno (Nodbu.T nd Nothing)))
+  = CoeffExp.T nd Exp.Zero
 
 
-toGravel (Ungrouped (BU.Masuno (Nodbu.T nd (Just (Radem.T _rdx decems)))))
-  = Gravel.T (Just ((), nd `NovDecs.appendDecems` decems))
+toCoeffExp (Ungrouped (BU.Masuno (Nodbu.T nd (Just (Radem.T _rdx decems)))))
+  = CoeffExp.T (nd `NovDecs.appendDecems` decems)
   . Exp.fromUnsigned
   . Decems.numDigits
   $ decems
 
 
-toGravel (Ungrouped (BU.Fracuno (BU2.T _ _rdx
+toCoeffExp (Ungrouped (BU.Fracuno (BU2.T _ _rdx
   (BU3.Zeroes (Zenod.T zs nd))))) =
-  Gravel.T (Just ((), nd))
+  CoeffExp.T nd
   . Exp.fromUnsigned
   . Unsigned.fromNonZero
   . NonZero.add (Zeroes.numDigits zs)
   . NovDecs.numDigits
   $ nd
 
-toGravel (Ungrouped (BU.Fracuno (BU2.T _ _rdx
+toCoeffExp (Ungrouped (BU.Fracuno (BU2.T _ _rdx
   (BU3.NoZeroes nd)))) =
-  Gravel.T (Just ((), nd))
+  CoeffExp.T nd
   . Exp.fromUnsigned
   . Unsigned.fromNonZero
   . NovDecs.numDigits

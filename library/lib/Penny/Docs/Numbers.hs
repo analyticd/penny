@@ -81,6 +81,9 @@
 -- indicate the polarity of the type or, to indicate that the type is
 -- unsigned, you can use '()'.
 --
+-- * 'Penny.Core.CoeffExp', contains a non-zero coefficient and an
+-- exponent; these are the components of a non-zero concrete type.
+--
 -- * 'Penny.Core.Silt.T', holds the components of a sided concrete
 -- type that is polar.  Always contains a coefficient, an exponent,
 -- and a parameterizable side.

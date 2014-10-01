@@ -6,6 +6,7 @@ import qualified Penny.Core.Cement as Cement
 import qualified Penny.Core.Coeff as Coefficient
 import Deka.Dec
 import qualified Penny.Core.NovSign as NovSign
+import qualified Penny.Core.Polarity as Polarity
 
 -- | Components of a sided concrete type, such as 'Penny.Qty.T'.  The
 -- type might be zero, in which case it has no coefficient and no
@@ -13,22 +14,23 @@ import qualified Penny.Core.NovSign as NovSign
 -- is zero or not, it always has an exponent (this differentiates
 -- between, for example, @0@ and @0.000@.)
 data T a = T
-  { coefficient :: Maybe (a, NovDecs.T)
-  , exponent :: Exp.T
+  { exp :: Exp.T
+  , polarity :: Polarity.T () NovDecs.T a
   } deriving (Eq, Ord, Show)
 
 toCement :: (a -> Sign) -> T a -> Cement.T
-toCement toSign (T mayC e) = Cement.T c e
+toCement toSign (T e plrty) = Cement.T c e
   where
-    c = case mayC of
-      Nothing -> Coefficient.Zero
-      Just (s, nd) -> Coefficient.NonZero $ NovSign.T nd (toSign s)
+    c = case plrty of
+      Polarity.Center _ -> Coefficient.Zero
+      Polarity.OffCenter nd s -> Coefficient.NonZero
+        $ NovSign.T nd (toSign s)
 
 fromCement :: (Sign -> a) -> Cement.T -> T a
-fromCement fromSign c = T mayCoe ex
+fromCement fromSign c = T ex plrty
   where
     Cement.T coe ex = c
-    mayCoe = case coe of
-      Coefficient.Zero -> Nothing
+    plrty = case coe of
+      Coefficient.Zero -> Polarity.Center ()
       Coefficient.NonZero (NovSign.T nd sgn) ->
-        Just (fromSign sgn, nd)
+        Polarity.OffCenter nd (fromSign sgn)

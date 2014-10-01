@@ -5,6 +5,7 @@ import qualified Penny.Core.Anna.Brim as Brim
 import qualified Penny.Core.Stokely as Stokely
 import qualified Penny.Core.Polarity as Polarity
 import qualified Penny.Core.Gravel as Gravel
+import qualified Penny.Core.CoeffExp as CoeffExp
 
 data T a
   = Nil (Nil.T a)
@@ -26,5 +27,7 @@ toStokelyNonpolar (Brim _) = Nothing
 toStokelyNonpolar (Nil n) = Just . Stokely.T . Polarity.Center $ n
 
 toGravel :: T r -> Gravel.T ()
-toGravel (Nil nil) = Nil.toGravel nil
-toGravel (Brim brim) = Brim.toGravel brim
+toGravel (Nil nil) = Gravel.T (Nil.toExp nil) (Polarity.Center ())
+toGravel (Brim brim) = Gravel.T ex (Polarity.OffCenter coe ())
+  where
+    CoeffExp.T coe ex = Brim.toCoeffExp brim
