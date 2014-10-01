@@ -2,6 +2,7 @@ module Penny.Core.Philly where
 
 import qualified Penny.Core.Janus as Janus
 import qualified Penny.Core.Anna.Brim as Brim
+import qualified Penny.Core.Quark as Quark
 
 -- | Representations that may have either a period or comma radix, and
 -- are non-zero.

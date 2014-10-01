@@ -84,10 +84,6 @@
 -- * 'Penny.Core.CoeffExp', contains a non-zero coefficient and an
 -- exponent; these are the components of a non-zero concrete type.
 --
--- * 'Penny.Core.Silt.T', holds the components of a sided concrete
--- type that is polar.  Always contains a coefficient, an exponent,
--- and a parameterizable side.
---
 -- * 'Penny.Core.Pebble.T', a 'Penny.Core.Gravel.T' parameterized on a
 -- 'Penny.Core.Side.T'.
 --
@@ -97,10 +93,6 @@
 -- * 'Penny.Core.Quant.T' contins the elements of a non-zero number,
 -- including a polarity; the polarity is parameterizable.  To indicate
 -- that the number has no polarity, you can use '()' for the polarity.
---
--- * 'Penny.Core.Rock.T', holds the components of a sided concrete type
--- that must be non-zero.  Contains a non-zero coefficient, a side,
--- and an exponent.
 
 module Penny.Docs.Numbers where
 
