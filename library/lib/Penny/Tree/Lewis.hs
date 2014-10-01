@@ -16,7 +16,6 @@ import Text.Parsec.Text
 import Control.Applicative
 import qualified Penny.Core.Anna.Radix as Radix
 import qualified Penny.Core.Anna.Radun as Radun
-import qualified Penny.Core.Anna.Radbu as Radbu
 import qualified Penny.Core.Anna as Anna
 import qualified Penny.Core.Anna.BrimUngrouped as BrimU
 import qualified Penny.Core.Anna.BrimGrouped as BrimG
@@ -44,7 +43,6 @@ import qualified Penny.Core.Anna.NG1 as NG1
 import qualified Penny.Core.Anna.Nil as Nil
 import qualified Penny.Core.Anna.BU2 as BU2
 import qualified Penny.Core.Anna.BU3 as BU3
-import qualified Penny.Core.Anna.Zerabu as Zerabu
 import qualified Penny.Core.Anna.Zenod as Zenod
 import qualified Penny.Core.Anna.ZGroup as ZGroup
 
@@ -71,8 +69,8 @@ toAnna (Radix radix (LR1.Zero zeroes Nothing)) =
 
 toAnna (Radix radix (LR1.Zero zeroes
   (Just (LZ3.Novem novDecs Nothing)))) =
-  Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
-  . Radbu.T radix . BU3.Zeroes . Zenod.T zeroes $ novDecs
+  Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.T Nothing radix
+  . BU3.Zeroes . Zenod.T zeroes $ novDecs
 
 toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Novem novDecs
   (Just seqDecsNE))))) =
@@ -120,8 +118,8 @@ toAnna (Radix radix (LR1.Zero zeroes (Just (LZ3.Group grpr1 lz6)))) =
 
 
 toAnna (Radix radix (LR1.Novem novDecs Nothing)) =
-  Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.NoLeadingZero
-  . Radbu.T radix . BU3.NoZeroes $ novDecs
+  Anna.Brim . Brim.Ungrouped . BrimU.Fracuno . BU2.T Nothing radix
+  . BU3.NoZeroes $ novDecs
 
 toAnna (Radix radix (LR1.Novem novDecs (Just seqDecsNE))) =
   Anna.Brim . Brim.Grouped . BrimG.Fracuno . BG4.T Nothing radix
@@ -160,8 +158,8 @@ toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs Nothing))))) =
 
 toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
   (LZ3.Novem nd Nothing))))))) = Anna.Brim . Brim.Ungrouped
-  . BrimU.Fracuno . BU2.LeadingZero
-  $ Zerabu.T z1 rdx (BU3.Zeroes (Zenod.T zs nd))
+  . BrimU.Fracuno . BU2.T (Just z1) rdx
+  . BU3.Zeroes . Zenod.T zs $ nd
 
 toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Zero zs (Just
   (LZ3.Novem nd (Just seqDecsNE)))))))) = Anna.Brim . Brim.Grouped
@@ -225,8 +223,7 @@ toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Novem nd Nothing))))) =
   Anna.Brim
   . Brim.Ungrouped
   . BrimU.Fracuno
-  . BU2.LeadingZero
-  . Zerabu.T z1 rdx
+  . BU2.T (Just z1) rdx
   . BU3.NoZeroes $ nd
 
 toAnna (Zero z1 (Just (LZ1.T rdx (Just (LZ2.Novem nd

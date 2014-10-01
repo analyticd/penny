@@ -7,5 +7,5 @@ data T n o p
   -- ^ This object is neutral.
   | OffCenter o p
   -- ^ This object is not neutral.  The second field indicates the
-  -- polarity of hte object, while the first is the object itself.
+  -- polarity of the object, while the first is the object itself.
   deriving (Eq, Ord, Show)

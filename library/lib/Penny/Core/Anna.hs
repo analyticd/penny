@@ -1,20 +1,10 @@
 module Penny.Core.Anna where
 
 import qualified Penny.Core.Anna.Nil as Nil
-import qualified Penny.Core.Anna.Nil.Ungrouped as Nil.Ungrouped
-import qualified Penny.Core.Anna.Nil.Grouped as Nil.Grouped
-import qualified Penny.Core.Anna.Znu1 as Znu1
-import qualified Penny.Core.Anna.Zeroes as Zeroes
-import qualified Penny.Core.Exp as Exp
-import qualified Penny.Core.Anna.Radun as Radun
-import qualified Penny.Core.Anna.RadZ as RadZ
-import qualified Penny.Core.Anna.Zng as Zng
-import qualified Penny.Core.Anna.NG1 as NG1
 import qualified Penny.Core.Anna.Brim as Brim
 import qualified Penny.Core.Stokely as Stokely
 import qualified Penny.Core.Polarity as Polarity
 import qualified Penny.Core.Gravel as Gravel
-import qualified Penny.Natural.Unsigned as Unsigned
 
 data T a
   = Nil (Nil.T a)
@@ -36,4 +26,5 @@ toStokelyNonpolar (Brim _) = Nothing
 toStokelyNonpolar (Nil n) = Just . Stokely.T . Polarity.Center $ n
 
 toGravel :: T r -> Gravel.T ()
-toGravel = undefined
+toGravel (Nil nil) = Nil.toGravel nil
+toGravel (Brim brim) = Brim.toGravel brim
