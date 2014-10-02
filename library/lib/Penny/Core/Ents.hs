@@ -5,6 +5,8 @@ module Penny.Core.Ents
   , appendEnt
   , prependEnt
   , empty
+  , appendTrio
+  , prependTrio
   ) where
 
 import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>))
@@ -16,6 +18,9 @@ import Data.Foldable
 import qualified Data.Foldable as F
 import Data.Traversable
 import Control.Applicative hiding (empty)
+import qualified Penny.Core.Trio as Trio
+import qualified Penny.Core.Trio.Error as Trio.Error
+import qualified Penny.Core.Imbalances as Imbalances
 
 -- | A collection of 'Penny.Core.Ent.T', along with the
 -- 'Penny.Core.Balances.T' of those 'Penny.Core.Ent.T'.  The
@@ -53,3 +58,15 @@ prependEnt e (T s b) = T (e <| s)
 
 empty :: T a
 empty = T S.empty Bals.empty
+
+appendTrio :: a -> T a -> Trio.T -> Either Trio.Error.T (T a)
+appendTrio a t@(T _ bal) trio =
+  case Trio.toEnt (Imbalances.fromBalances bal) trio a of
+    Left e -> Left e
+    Right e -> Right $ appendEnt t e
+
+prependTrio :: a -> Trio.T -> T a -> Either Trio.Error.T (T a)
+prependTrio a trio t@(T _ bal) =
+  case Trio.toEnt (Imbalances.fromBalances bal) trio a of
+    Left e -> Left e
+    Right e -> Right $ prependEnt e t
