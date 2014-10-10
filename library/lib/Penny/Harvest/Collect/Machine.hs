@@ -1,3 +1,4 @@
+-- | Finite state machine to collect postings into transactions.
 module Penny.Harvest.Collect.Machine where
 
 import qualified Penny.Harvest.Locate.Located as Located
@@ -87,6 +88,7 @@ process (Located.T loc (Item.Posting p local global))
   )
   where
     pb = PostingBox.T (Located.T loc p) local global Memo.Posting.empty
+
 
 process (Located.T loc (Item.Posting p local global))
   (State.AfterPosting afp) =
