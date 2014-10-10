@@ -6,6 +6,8 @@ import qualified Penny.Harvest.Serialize.Package as Package
 import qualified Penny.Harvest.Serialize.Packages as Packages
 import qualified Penny.Harvest.Collect.State as State
 import qualified Penny.Harvest.Collect.Error as Error
+import qualified Penny.Harvest.Collect.Error.Inline as Error.Inline
+import qualified Penny.Harvest.Collect.Error.Final as Error.Final
 import qualified Penny.Harvest.Collect.Good as Good
 import qualified Penny.Harvest.Collect.Memo.Transaction as Memo.Transaction
 import qualified Penny.Harvest.Collect.Memo.Posting as Memo.Posting
@@ -19,7 +21,7 @@ import qualified Penny.Harvest.Collect.Result as Result
 process
   :: Located.T Item.T
   -> State.T
-  -> (State.T, Either (Located.T Error.T) Good.T)
+  -> (State.T, Either (Located.T Error.Inline.T) Good.T)
 
 process (Located.T loc (Item.MemoT memo)) State.Empty =
   ( State.TxnMemos . Memo.Transaction.T
@@ -72,11 +74,11 @@ process (Located.T loc (Item.TopLine tl local global))
   )
 
 process (Located.T loc (Item.Posting _ _ _)) State.Empty =
-  ( State.Empty, Left (Located.T loc Error.PostingWithoutTopLine ))
+  ( State.Empty, Left (Located.T loc Error.Inline.PostingWithoutTopLine ))
 
 process (Located.T loc (Item.Posting _ _ _))
   (State.TxnMemos _) =
-  ( State.Empty, Left (Located.T loc Error.PostingWithoutTopLine ))
+  ( State.Empty, Left (Located.T loc Error.Inline.PostingWithoutTopLine ))
 
 process (Located.T loc (Item.Posting p local global))
   (State.AfterTopLine atl) =
@@ -96,13 +98,13 @@ process (Located.T loc (Item.Posting p local global))
   )
 
 process (Located.T loc (Item.MemoP _)) State.Empty =
-  ( State.Empty, Left (Located.T loc Error.PostingMemoWithoutPosting))
+  ( State.Empty, Left (Located.T loc Error.Inline.PostingMemoWithoutPosting))
 
 process (Located.T loc (Item.MemoP _)) (State.TxnMemos _) =
-  ( State.Empty, Left (Located.T loc Error.PostingMemoWithoutPosting))
+  ( State.Empty, Left (Located.T loc Error.Inline.PostingMemoWithoutPosting))
 
 process (Located.T loc (Item.MemoP _)) (State.AfterTopLine _) =
-  ( State.Empty, Left (Located.T loc Error.PostingMemoWithoutPosting))
+  ( State.Empty, Left (Located.T loc Error.Inline.PostingMemoWithoutPosting))
 
 process (Located.T loc (Item.MemoP m)) (State.AfterPosting afp) =
   ( State.AfterPosting
@@ -112,14 +114,14 @@ process (Located.T loc (Item.MemoP m)) (State.AfterPosting afp) =
   , Right Good.NoOutput
   )
 
-destroy :: State.T -> Either Error.T Good.T
+destroy :: State.T -> Either Error.Final.T Good.T
 destroy State.Empty = Right Good.NoOutput
-destroy (State.TxnMemos _) = Left Error.TransactionMemoWithoutTopLine
+destroy (State.TxnMemos _) = Left Error.Final.TransactionMemoWithoutTopLine
 destroy (State.AfterTopLine atl) = Right $ Good.TopLine atl
 destroy (State.AfterPosting app) = Right $ Good.Postings app
 
 collectPackage :: Package.T -> Result.T
-collectPackage (Package.T cl sqnc) = Result.T cl es fin gs
+collectPackage (Package.T cl sqnc) = Result.T cl (Error.T es fin) gs
   where
     (fin, es, gs) = runMachine sqnc
 
@@ -128,8 +130,8 @@ collectPackages = fmap collectPackage . Packages.toSeq
 
 runMachine
   :: Seq (Located.T Item.T)
-  -> ( Maybe Error.T
-     , Seq (Located.T Error.T)
+  -> ( Maybe Error.Final.T
+     , Seq (Located.T Error.Inline.T)
      , Seq (Either AfterTopLine.T AfterPosting.T) )
 runMachine items = (finalErr, errors, allGoods)
   where

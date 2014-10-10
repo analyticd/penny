@@ -2,7 +2,6 @@ module Penny.Harvest.Transform.Optimus where
 
 import qualified Penny.Core.Clxn as Clxn
 import Data.Sequence (Seq)
-import qualified Penny.Harvest.Locate.Located as Located
 import qualified Penny.Harvest.Collect.Error as Collect.Error
 import qualified Penny.Harvest.Collect.AfterTopLine as AfterTopLine
 import qualified Penny.Harvest.Collect.AfterPosting as AfterPosting
@@ -14,13 +13,12 @@ import qualified Penny.Harvest.Collect.PostingBox as PostingBox
 
 data T = T
   { clxn :: Clxn.T
-  , collectionErrors :: Seq (Located.T Collect.Error.T)
-  , collectionFinalError :: Maybe Collect.Error.T
+  , collectionError :: Collect.Error.T
   , transactions :: Seq (Either Error.T Transaction.T)
   } deriving (Eq, Ord, Show)
 
 fromResult :: Result.T -> T
-fromResult (Result.T clx ers fin gs) = T clx ers fin txns
+fromResult (Result.T clx ers gs) = T clx ers txns
   where
     txns = fmap f gs
     f (Left afterTopLine) = case AfterTopLine.toCore afterTopLine of
