@@ -1,7 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 module Penny.Core.Decems where
 
-import Deka.Native.Abstract
+import qualified Penny.Natural.Decem as Decem
 import Data.Sequence
 import qualified Data.Sequence as S
 import qualified Penny.Natural.Unsigned as N
@@ -10,21 +10,21 @@ import qualified Penny.Tree.Parsec as P
 import Data.Monoid
 import qualified Penny.Natural.Unsigned as Unsigned
 
-newtype T = T { toSeq :: Seq Decem }
+newtype T = T { toSeq :: Seq Decem.T }
   deriving (Eq, Ord, Show)
 
 instance Monoid T where
   mempty = T S.empty
   mappend (T a) (T b) = T $ a <> b
 
-cons :: Decem -> T -> T
+cons :: Decem.T -> T -> T
 cons d (T s) = T (d <| s)
 
-snoc :: T -> Decem -> T
+snoc :: T -> Decem.T -> T
 snoc (T s) d = T (s |> d)
 
 parser :: P.Parser T
-parser = fmap T $ P.seq (P.decem)
+parser = fmap T $ P.seq Decem.parser
 
 toUnsigned :: T -> N.T
 toUnsigned = go N.zero N.zero . toSeq
@@ -37,10 +37,10 @@ toUnsigned = go N.zero N.zero . toSeq
             N.add acc $
             N.mult (N.fromDecem x) (N.exp N.ten places)
 
-toList :: T -> [Decem]
+toList :: T -> [Decem.T]
 toList = F.toList . toSeq
 
-fromList :: [Decem] -> T
+fromList :: [Decem.T] -> T
 fromList = T . S.fromList
 
 empty :: T

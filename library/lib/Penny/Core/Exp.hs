@@ -2,6 +2,7 @@ module Penny.Core.Exp where
 
 import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Natural.Unsigned as Unsigned
+import qualified Penny.Natural.NonZero as NonZero
 import Deka.Native.Abstract
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
@@ -15,6 +16,6 @@ data T
   deriving (Eq, Ord, Show)
 
 fromUnsigned :: Unsigned.T -> T
-fromUnsigned u = case intToDecuple . Unsigned.toInteger $ u of
+fromUnsigned u = case NonZero.fromUnsigned u of
   Nothing -> Zero
-  Just (_, dc) -> Negative . NovDecs.fromDecuple $ dc
+  Just nz -> Negative . NovDecs.fromNonZero $ nz

@@ -35,7 +35,8 @@ module Penny.Natural.Unsigned
   ) where
 
 import qualified Data.Foldable as F
-import Deka.Native.Abstract
+import qualified Penny.Natural.Decem as Decem
+import qualified Penny.Natural.Novem as Novem
 import Prelude hiding
   ( toInteger
   , fromInteger
@@ -126,8 +127,8 @@ ten = T 10
 length :: F.Foldable f => f a -> T
 length = T . fromIntegral . Prelude.length . F.toList
 
-fromNovem :: Novem -> T
-fromNovem = T . novemToInt
+fromNovem :: Novem.T -> T
+fromNovem = T . Novem.toInt
 
-fromDecem :: Decem -> T
-fromDecem = T . decemToInt
+fromDecem :: Decem.T -> T
+fromDecem = T . Decem.toInt

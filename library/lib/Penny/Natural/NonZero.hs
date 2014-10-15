@@ -40,7 +40,8 @@ import Prelude hiding
 import qualified Prelude
 import qualified Penny.Natural.Unsigned.Internal as Unsigned
 import Penny.Natural.NonZero.Internal
-import Deka.Native.Abstract
+import qualified Penny.Natural.Novem as Novem
+import qualified Penny.Natural.Decem as Decem
 
 fromInteger :: Integer -> Maybe T
 fromInteger i
@@ -57,12 +58,12 @@ fromUnsigned x
 toUnsigned :: T -> Unsigned.T
 toUnsigned (T a) = Unsigned.T a
 
-fromNovem :: Novem -> T
-fromNovem = T . novemToInt
+fromNovem :: Novem.T -> T
+fromNovem = T . Novem.toInt
 
-fromDecem :: Decem -> Maybe T
+fromDecem :: Decem.T -> Maybe T
 fromDecem d = case d of
-  Nonem n -> Just $ fromNovem n
+  Decem.Novem n -> Just $ fromNovem n
   _ -> Nothing
 
 add :: T -> T -> T
