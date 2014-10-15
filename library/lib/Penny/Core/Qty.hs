@@ -10,10 +10,10 @@ fromConcrete :: Concrete.T -> T
 fromConcrete = T
 
 toCement :: T -> Cement.T
-toCement = Concrete.toCement . toConcrete
+toCement = Cement.fromConcrete . toConcrete
 
 fromCement :: Cement.T -> T
-fromCement = fromConcrete . Concrete.fromCement
+fromCement = fromConcrete . Cement.toConcrete
 
-simpleCompare :: T -> T -> Ordering
-simpleCompare (T x) (T y) = Concrete.simpleCompare x y
+compareEquiv :: T -> T -> Ordering
+compareEquiv (T x) (T y) = Concrete.compareEquiv x y

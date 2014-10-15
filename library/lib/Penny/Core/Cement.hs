@@ -2,6 +2,7 @@ module Penny.Core.Cement where
 
 import qualified Penny.Core.Coeff as Coeff
 import qualified Penny.Core.Exp as Exp
+import qualified Penny.Core.Concrete as Concrete
 import Prelude hiding (exponent)
 
 -- | The two ingredients that define a concrete number.  Cement is not
@@ -13,3 +14,8 @@ data T = T
   , exponent :: Exp.T
   } deriving (Eq, Ord, Show)
 
+fromConcrete :: Concrete.T -> T
+fromConcrete = undefined
+
+toConcrete :: T -> Concrete.T
+toConcrete = undefined
