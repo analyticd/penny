@@ -13,12 +13,12 @@ import Prelude hiding
   , fromInteger
   )
 import qualified Prelude
-
+import qualified Penny.Core.Exp as Exp
 import qualified Penny.Natural.Unsigned as Unsigned
 
 data T = T
   { coefficient :: Integer
-  , exponent :: Unsigned.T
+  , exponent :: Exp.T
   } deriving (Eq, Ord, Show)
 
 isZero :: T -> Bool
@@ -43,13 +43,13 @@ equalizeExponents x y
 -- exponent has the given value.  Does nothing if the exponent is
 -- already less than or equal to the given value.
 decreaseExponent
-  :: Unsigned.T
+  :: Exp.T
   -- ^ Decrease to this exponent
   -> T
   -> T
-decreaseExponent tgt (T coe ex) = case Unsigned.subt tgt ex of
-  Nothing -> T coe ex
-  Just diff -> T (coe * 10 ^ (Unsigned.toInteger diff)) tgt
+decreaseExponent (Exp.T tgt) (T coe (Exp.T ex)) = case Unsigned.subt tgt ex of
+  Nothing -> T coe (Exp.T ex)
+  Just diff -> T (coe * 10 ^ (Unsigned.toInteger diff)) (Exp.T tgt)
 
 add :: T -> T -> T
 add x y = T (cx + cy) ex
@@ -62,16 +62,16 @@ subt x y = T (cx - cy) ex
     (T cx ex, T cy _) = equalizeExponents x y
 
 mult :: T -> T -> T
-mult (T cx ex) (T cy ey) = T (cx * cy) (Unsigned.add ex ey)
+mult (T cx ex) (T cy ey) = T (cx * cy) (Exp.add ex ey)
 
 abs :: T -> T
 abs (T c e) = T (Prelude.abs c) e
 
 signum :: T -> T
-signum (T c _) = T (Prelude.signum c) (Unsigned.zero)
+signum (T c _) = T (Prelude.signum c) (Exp.zero)
 
 fromInteger :: Integer -> T
-fromInteger i = T i Unsigned.zero
+fromInteger i = T i Exp.zero
 
 instance Prelude.Num T where
   x + y = add x y

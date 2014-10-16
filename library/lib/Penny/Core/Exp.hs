@@ -1,20 +1,20 @@
 module Penny.Core.Exp where
 
-import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Natural.Unsigned as Unsigned
-import qualified Penny.Natural.NonZero as NonZero
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
 -- positive exponents because there is no unambiguous way to
 -- represent them using ordinary notation.  All exponents are either
 -- negative or zero.
 
-data T
-  = Zero
-  | Negative NovDecs.T
+newtype T = T { toUnsigned :: Unsigned.T }
   deriving (Eq, Ord, Show)
 
+add :: T -> T -> T
+add (T x) (T y) = T (Unsigned.add x y)
+
+zero :: T
+zero = T Unsigned.zero
+
 fromUnsigned :: Unsigned.T -> T
-fromUnsigned u = case NonZero.fromUnsigned u of
-  Nothing -> Zero
-  Just nz -> Negative . NovDecs.fromNonZero $ nz
+fromUnsigned = T

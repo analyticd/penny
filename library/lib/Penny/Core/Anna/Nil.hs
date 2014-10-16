@@ -20,10 +20,10 @@ data T r
 
 toExp :: T r -> Exp.T
 toExp (Ungrouped (NU.LeadingZero
-  (Znu1.T _ Nothing))) = Exp.Zero
+  (Znu1.T _ Nothing))) = Exp.zero
 
 toExp (Ungrouped (NU.LeadingZero
-  (Znu1.T _ (Just (Radun.T _rdx Nothing))))) = Exp.Zero
+  (Znu1.T _ (Just (Radun.T _rdx Nothing))))) = Exp.zero
 
 toExp (Ungrouped (NU.LeadingZero
   (Znu1.T _ (Just (Radun.T _rdx (Just (Zeroes.T nz))))))) =

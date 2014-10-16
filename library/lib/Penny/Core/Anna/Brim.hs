@@ -35,14 +35,14 @@ data T r
 
 toCoeffExp :: T r -> CoeffExp.T
 toCoeffExp (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
-  ddMayGroups Nothing))) = CoeffExp.T nd' Exp.Zero
+  ddMayGroups Nothing))) = CoeffExp.T nd' Exp.zero
   where
     nd' = novDecs `NovDecs.appendDecems`
       (DecDecsMayGroups.toDecems ddMayGroups)
 
 toCoeffExp (Grouped (BG.Masuno novDecs (BG1.GroupOnLeft _
   ddMayGroups (Just (BG2.T _rdx Nothing))))) =
-  CoeffExp.T nd' Exp.Zero
+  CoeffExp.T nd' Exp.zero
   where
     nd' = novDecs `NovDecs.appendDecems`
       (DecDecsMayGroups.toDecems ddMayGroups)
@@ -109,7 +109,7 @@ toCoeffExp (Grouped (BG.Fracuno (BG4.T _ _rdx (BG5.Zeroes zs1
         getNodecs3 (BG7.LeadNovem nd3) = nd3
 
 toCoeffExp (Ungrouped (BU.Masuno (Nodbu.T nd Nothing)))
-  = CoeffExp.T nd Exp.Zero
+  = CoeffExp.T nd Exp.zero
 
 
 toCoeffExp (Ungrouped (BU.Masuno (Nodbu.T nd (Just (Radem.T _rdx decems)))))
