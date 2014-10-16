@@ -22,9 +22,6 @@ containers = A.closedOpen "containers" [0,4,2,1] [0,6]
 bifunctors :: A.Package
 bifunctors = A.closedOpen "bifunctors" [0,1] [4,2]
 
-deka :: A.Package
-deka = A.nextBreaking "deka" [0,6,0,0]
-
 old_locale :: A.Package
 old_locale = A.closedOpen "old-locale" [1,0,0,4] [1,1]
 

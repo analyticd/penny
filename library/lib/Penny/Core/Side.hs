@@ -1,6 +1,6 @@
 module Penny.Core.Side where
 
-import Deka.Dec
+import qualified Penny.Core.Sign as Sign
 
 data T
   = Debit
@@ -11,10 +11,10 @@ opposite :: T -> T
 opposite Debit = Credit
 opposite Credit = Debit
 
-fromSign :: Sign -> T
-fromSign Sign0 = Debit
-fromSign Sign1 = Credit
+fromSign :: Sign.T -> T
+fromSign Sign.Pos = Debit
+fromSign Sign.Neg = Credit
 
-toSign :: T -> Sign
-toSign Debit = Sign0
-toSign Credit = Sign1
+toSign :: T -> Sign.T
+toSign Debit = Sign.Pos
+toSign Credit = Sign.Neg

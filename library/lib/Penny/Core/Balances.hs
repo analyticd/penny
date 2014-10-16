@@ -3,9 +3,7 @@ module Penny.Core.Balances where
 import qualified Data.Map as M
 import qualified Penny.Core.Commodity as Commodity
 import qualified Penny.Core.Qty as Qty
-import qualified Penny.Core.Concrete as Concrete
 import qualified Data.Foldable as F
-import qualified Deka.Dec as D
 import Data.Monoid
 
 newtype T = T { toMap :: M.Map Commodity.T Qty.T }
@@ -31,4 +29,4 @@ addEntry c q = T . M.alter f c . toMap
       Just (Qty.T l) -> Just . Qty.T $ l + Qty.toConcrete q
 
 isBalanced :: T -> Bool
-isBalanced = F.all (D.isZero . Concrete.toDec .Qty.toConcrete) . toMap
+isBalanced = F.all Qty.isZero . toMap

@@ -165,7 +165,7 @@ phillyIsSmallerAbsoluteValue
   -> Quark.T
   -> Either Error.T ()
 phillyIsSmallerAbsoluteValue phil qk
-  | Concrete.simpleCompare (abs . Qty.toConcrete $ p)
+  | Concrete.compareEquiv (abs . Qty.toConcrete $ p)
       (abs . Qty.toConcrete $ q) == LT = Right ()
   | otherwise = Left (Error.UnsignedTooLarge phil qk)
   where

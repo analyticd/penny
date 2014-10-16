@@ -17,3 +17,6 @@ fromCement = fromConcrete . Cement.toConcrete
 
 compareEquiv :: T -> T -> Ordering
 compareEquiv (T x) (T y) = Concrete.compareEquiv x y
+
+isZero :: T -> Bool
+isZero = Concrete.isZero . toConcrete

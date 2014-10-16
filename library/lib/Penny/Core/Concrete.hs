@@ -21,6 +21,9 @@ data T = T
   , exponent :: Unsigned.T
   } deriving (Eq, Ord, Show)
 
+isZero :: T -> Bool
+isZero (T c _) = c == 0
+
 -- | Compares two 'T' after equalizing their exponents.
 compareEquiv :: T -> T -> Ordering
 compareEquiv x y = Prelude.compare (coefficient x') (coefficient y')

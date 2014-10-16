@@ -5,7 +5,7 @@ import qualified Data.Map as M
 import qualified Penny.Core.Balances as Bal
 import qualified Penny.Core.Qty as Qty
 import Data.Maybe
-import qualified Penny.Core.Concrete as Concrete
+import qualified Penny.Core.Cement as Cement
 import qualified Penny.Core.Quark as Quark
 import qualified Penny.Core.Pebble as Pebble
 
@@ -18,7 +18,7 @@ fromBalances = T . M.fromList . mapMaybe f . M.toList . Bal.toMap
     f (cy, qt) =
       case Quark.fromPebble
       . Pebble.fromCement
-      . Concrete.toCement
+      . Cement.fromConcrete
       . Qty.toConcrete $ qt of
         Nothing -> Nothing
         Just quant -> Just (cy, quant)
@@ -27,7 +27,7 @@ toBalances :: T -> Bal.T
 toBalances = Bal.T . fmap f . toMap
   where
     f = Qty.T
-      . Concrete.fromCement
+      . Cement.toConcrete
       . Pebble.toCement
       . Quark.toPebble
 

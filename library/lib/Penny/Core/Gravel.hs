@@ -4,9 +4,9 @@ import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Core.Exp as Exp
 import qualified Penny.Core.Cement as Cement
 import qualified Penny.Core.Coeff as Coeff
-import Deka.Dec
 import qualified Penny.Core.NovSign as NovSign
 import qualified Penny.Core.Polarity as Polarity
+import qualified Penny.Core.Sign as Sign
 
 -- | Components of a sided concrete type, such as 'Penny.Qty.T'.  The
 -- type might be zero, in which case it has no coefficient and no
@@ -18,7 +18,7 @@ data T a = T
   , polarity :: Polarity.T () NovDecs.T a
   } deriving (Eq, Ord, Show)
 
-toCement :: (a -> Sign) -> T a -> Cement.T
+toCement :: (a -> Sign.T) -> T a -> Cement.T
 toCement toSign (T e plrty) = Cement.T c e
   where
     c = case plrty of
@@ -26,7 +26,7 @@ toCement toSign (T e plrty) = Cement.T c e
       Polarity.OffCenter nd s -> Coeff.NonZero
         $ NovSign.T nd (toSign s)
 
-fromCement :: (Sign -> a) -> Cement.T -> T a
+fromCement :: (Sign.T -> a) -> Cement.T -> T a
 fromCement fromSign c = T ex plrty
   where
     Cement.T coe ex = c

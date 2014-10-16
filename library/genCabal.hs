@@ -38,7 +38,6 @@ libraryDepends =
   , bifunctors
   , bytestring
   , containers
-  , deka
   , old_locale
   , parsec
   , split

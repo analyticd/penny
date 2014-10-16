@@ -3,7 +3,6 @@ module Penny.Core.Exp where
 import qualified Penny.Core.NovDecs as NovDecs
 import qualified Penny.Natural.Unsigned as Unsigned
 import qualified Penny.Natural.NonZero as NonZero
-import Deka.Native.Abstract
 
 -- | Exponents.  Unlike exponents in Deka, Penny does not use
 -- positive exponents because there is no unambiguous way to
