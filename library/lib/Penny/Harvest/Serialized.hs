@@ -1,7 +1,5 @@
 module Penny.Harvest.Serialized where
 
-import qualified Penny.Core.Clxn as Clxn
-import qualified Penny.Harvest.Serialized.Package as Package
 import Data.Sequence (Seq, (|>))
 import qualified Data.Sequence as S
 import qualified Penny.Harvest.Zoned as Zoned
@@ -12,18 +10,15 @@ import qualified Penny.Harvest.Serialized.State as State
 import qualified Penny.Harvest.Zoned.Located as Located
 import qualified Penny.Harvest.Serialized.Item as Item
 
-data T = T { toSeq :: Seq Package.T }
+data T = T { toSeq :: Seq (Located.T Item.T) }
   deriving (Eq, Ord, Show)
 
-fromZoned :: Seq (Clxn.T, Zoned.T) -> T
-fromZoned pairs
-  = T
-  . S.zipWith Package.T (fmap fst pairs)
+fromZoned :: Seq Zoned.T -> Seq T
+fromZoned
+  = fmap T
   . globals
   . fmap locals
   . fmap Zoned.items
-  . fmap snd
-  $ pairs
 
 
 fwdGlobal
