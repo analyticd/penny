@@ -2,23 +2,22 @@ module Penny.Harvest.Transform.Optimus where
 
 import qualified Penny.Core.Clxn as Clxn
 import Data.Sequence (Seq)
-import qualified Penny.Harvest.Collect.Error as Collect.Error
 import qualified Penny.Harvest.Collect.AfterTopLine as AfterTopLine
 import qualified Penny.Harvest.Collect.AfterPosting as AfterPosting
 import qualified Penny.Harvest.Transform.Error as Error
 import qualified Penny.Core.Transaction as Transaction
-import qualified Penny.Harvest.Collect.Result as Result
 import qualified Data.Traversable as Tr
 import qualified Penny.Harvest.Collect.PostingBox as PostingBox
 
-data T = T
-  { clxn :: Clxn.T
-  , collectionError :: Collect.Error.T
-  , transactions :: Seq (Either Error.T Transaction.T)
+newtype T = T
+  { transactions :: Seq (Either Error.T Transaction.T)
   } deriving (Eq, Ord, Show)
 
-fromResult :: Result.T -> T
-fromResult (Result.T clx ers gs) = T clx ers txns
+fromResult
+  :: Clxn.T
+  -> Seq (Either AfterTopLine.T AfterPosting.T)
+  -> T
+fromResult clx gs = T txns
   where
     txns = fmap f gs
     f (Left afterTopLine) = case AfterTopLine.toCore afterTopLine of
