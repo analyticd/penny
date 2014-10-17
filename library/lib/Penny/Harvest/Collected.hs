@@ -1,10 +1,8 @@
 -- | Finite state machine to collect postings into transactions.
 module Penny.Harvest.Collected where
 
-import qualified Penny.Core.Clxn as Clxn
 import qualified Penny.Harvest.Zoned.Located as Located
-import qualified Penny.Harvest.Zoned.Item as Item
-import qualified Penny.Harvest.Zoned as Zoned
+import qualified Penny.Harvest.Serialized.Item as Item
 import qualified Penny.Harvest.Collected.State as State
 import qualified Penny.Harvest.Collected.Error as Error
 import qualified Penny.Harvest.Collected.Error.Inline as Error.Inline
@@ -19,16 +17,15 @@ import qualified Penny.Harvest.Collected.AfterPosting as AfterPosting
 import qualified Penny.Harvest.Collected.PostingBox as PostingBox
 
 data T = T
-  { clxn :: Clxn.T
-  , error :: Error.T
+  { error :: Error.T
   , goods :: Seq (Either AfterTopLine.T AfterPosting.T)
   } deriving (Eq, Ord, Show)
 
-
-collect :: Zoned.T -> T
-collect (Zoned.T cl sqnc) = T cl (Error.T es fin) gs
+fromSerializedItems :: Seq (Located.T Item.T) -> T
+fromSerializedItems sqnc = T (Error.T es fin) gs
   where
     (fin, es, gs) = runMachine sqnc
+
 
 process
   :: Located.T Item.T

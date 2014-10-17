@@ -1,7 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 module Penny.Harvest.Zoned where
 
-import qualified Penny.Core.Clxn as Clxn
 import qualified Penny.Core.Location as Location
 import qualified Penny.Harvest.Zoned.Located as Located
 import Data.Sequence (Seq, ViewL(..), (<|))
@@ -11,13 +10,12 @@ import qualified Penny.Tree.File as File
 import qualified Penny.Tree.Line as Line
 import qualified Penny.Harvest.Zoned.Item as Item
 
-data T = T
-  { clxn :: Clxn.T
-  , items :: Seq (Located.T Item.T)
+newtype T = T
+  { items :: Seq (Located.T Item.T)
   } deriving (Eq, Ord, Show)
 
 harvest :: Tree.Package.T -> T
-harvest (Tree.Package.T clx (File.T lns _)) = T clx locs
+harvest (Tree.Package.T _ (File.T lns _)) = T locs
   where
     locs = go 0 lns
     go !lineNum sq = case S.viewl sq of
