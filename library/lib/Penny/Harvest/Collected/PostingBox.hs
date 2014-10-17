@@ -1,6 +1,6 @@
 module Penny.Harvest.Collected.PostingBox where
 
-import qualified Penny.Harvest.Locate.Located as Located
+import qualified Penny.Harvest.Zoned.Located as Located
 import qualified Penny.Core.Serial.Global as Global
 import qualified Penny.Core.Serial.Local as Local
 import qualified Penny.Harvest.Collected.Memo.Posting as Memo

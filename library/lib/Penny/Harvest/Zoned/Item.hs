@@ -1,4 +1,4 @@
-module Penny.Harvest.Locate.Item where
+module Penny.Harvest.Zoned.Item where
 
 import qualified Penny.Tree.Memo.Transaction as MemoT
 import qualified Penny.Tree.Memo.Posting as MemoP

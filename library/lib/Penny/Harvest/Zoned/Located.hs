@@ -1,4 +1,4 @@
-module Penny.Harvest.Locate.Located where
+module Penny.Harvest.Zoned.Located where
 
 import qualified Penny.Core.Location as Location
 import qualified Data.Foldable as Foldable

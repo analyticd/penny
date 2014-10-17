@@ -1,6 +1,6 @@
 module Penny.Harvest.Collected.Memo.Posting where
 
-import qualified Penny.Harvest.Locate.Located as Located
+import qualified Penny.Harvest.Zoned.Located as Located
 import qualified Penny.Tree.Memo.Posting as Memo.Posting
 import Data.Sequence (Seq, (|>))
 import qualified Data.Sequence as S

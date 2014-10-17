@@ -2,9 +2,9 @@
 module Penny.Harvest.Collected where
 
 import qualified Penny.Core.Clxn as Clxn
-import qualified Penny.Harvest.Locate.Located as Located
-import qualified Penny.Harvest.Serialized.Item as Item
-import qualified Penny.Harvest.Serialized.Package as Package
+import qualified Penny.Harvest.Zoned.Located as Located
+import qualified Penny.Harvest.Zoned.Item as Item
+import qualified Penny.Harvest.Zoned as Zoned
 import qualified Penny.Harvest.Collected.State as State
 import qualified Penny.Harvest.Collected.Error as Error
 import qualified Penny.Harvest.Collected.Error.Inline as Error.Inline
@@ -25,8 +25,8 @@ data T = T
   } deriving (Eq, Ord, Show)
 
 
-collect :: Package.T -> T
-collect (Package.T cl sqnc) = T cl (Error.T es fin) gs
+collect :: Zoned.T -> T
+collect (Zoned.T cl sqnc) = T cl (Error.T es fin) gs
   where
     (fin, es, gs) = runMachine sqnc
 

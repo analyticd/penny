@@ -1,15 +1,15 @@
 {-# LANGUAGE BangPatterns #-}
-module Penny.Harvest.Locate.Package where
+module Penny.Harvest.Zoned where
 
-import qualified Penny.Harvest.Locate.Item as Item
 import qualified Penny.Core.Clxn as Clxn
 import qualified Penny.Core.Location as Location
-import qualified Penny.Harvest.Locate.Located as Located
+import qualified Penny.Harvest.Zoned.Located as Located
 import Data.Sequence (Seq, ViewL(..), (<|))
 import qualified Data.Sequence as S
 import qualified Penny.Tree.Package as Tree.Package
 import qualified Penny.Tree.File as File
 import qualified Penny.Tree.Line as Line
+import qualified Penny.Harvest.Zoned.Item as Item
 
 data T = T
   { clxn :: Clxn.T

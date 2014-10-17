@@ -4,7 +4,7 @@ import qualified Penny.Harvest.Collected.Memo.Transaction as Memos
 import qualified Penny.Tree.TopLine as Tree.TopLine
 import qualified Penny.Core.Serial.Global as Global
 import qualified Penny.Core.Serial.Local as Local
-import qualified Penny.Harvest.Locate.Located as Located
+import qualified Penny.Harvest.Zoned.Located as Located
 import qualified Penny.Tree.TopLine.Error as Error
 import qualified Penny.Core.TopLine as Core.TopLine
 import qualified Penny.Core.Clxn as Clxn
