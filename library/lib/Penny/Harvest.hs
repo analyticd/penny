@@ -3,16 +3,16 @@
 --
 -- There are five steps to this process:
 --
--- 1.  Locate.  Associates each line in each collection with its
+-- 1.  Zoning.  Associates each line in each collection with its
 -- associated line number.  Retains only posting memo lines,
 -- transaction memo lines, transaction lines, and posting lines;
 -- discards all other lines.  The main function is
--- 'Penny.Harvest.Locate.Packages.harvest'.
+-- 'Penny.Harvest.Zoned.fromLines'.
 --
--- 2.  Serialize.  Associates posting lines with global and collection
--- serials, and top lines with global and collection serials.  The
--- main function is
--- 'Penny.Harvest.Serialize.Packages.fromLocatePackages'.
+-- 2.  Serialization.  Associates posting lines with global and
+-- collection serials, and top lines with global and collection
+-- serials.  The main function is
+-- 'Penny.Harvest.Serialized.fromZoned'.
 --
 -- Each of the following steps can fail.  If a step fails, keep the
 -- failure message, but proceed to act upon as many more items as
