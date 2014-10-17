@@ -1,7 +1,7 @@
-module Penny.Harvest.Collect.AfterPosting where
+module Penny.Harvest.Collected.AfterPosting where
 
-import qualified Penny.Harvest.Collect.AfterTopLine as AfterTopLine
-import qualified Penny.Harvest.Collect.PostingBox as PostingBox
+import qualified Penny.Harvest.Collected.AfterTopLine as AfterTopLine
+import qualified Penny.Harvest.Collected.PostingBox as PostingBox
 import Data.Sequence (Seq)
 
 -- | At least one posting has already been seen; currently

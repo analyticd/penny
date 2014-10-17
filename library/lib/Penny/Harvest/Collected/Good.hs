@@ -1,7 +1,7 @@
-module Penny.Harvest.Collect.Good where
+module Penny.Harvest.Collected.Good where
 
-import qualified Penny.Harvest.Collect.AfterTopLine as AfterTopLine
-import qualified Penny.Harvest.Collect.AfterPosting as AfterPosting
+import qualified Penny.Harvest.Collected.AfterTopLine as AfterTopLine
+import qualified Penny.Harvest.Collected.AfterPosting as AfterPosting
 import Data.Sequence (Seq, (|>))
 
 data T

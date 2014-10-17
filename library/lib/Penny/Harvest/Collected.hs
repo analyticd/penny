@@ -1,23 +1,23 @@
 -- | Finite state machine to collect postings into transactions.
-module Penny.Harvest.Collect.Machine where
+module Penny.Harvest.Collected where
 
 import qualified Penny.Harvest.Locate.Located as Located
 import qualified Penny.Harvest.Serialize.Item as Item
 import qualified Penny.Harvest.Serialize.Package as Package
 import qualified Penny.Harvest.Serialize.Packages as Packages
-import qualified Penny.Harvest.Collect.State as State
-import qualified Penny.Harvest.Collect.Error as Error
-import qualified Penny.Harvest.Collect.Error.Inline as Error.Inline
-import qualified Penny.Harvest.Collect.Error.Final as Error.Final
-import qualified Penny.Harvest.Collect.Good as Good
-import qualified Penny.Harvest.Collect.Memo.Transaction as Memo.Transaction
-import qualified Penny.Harvest.Collect.Memo.Posting as Memo.Posting
+import qualified Penny.Harvest.Collected.State as State
+import qualified Penny.Harvest.Collected.Error as Error
+import qualified Penny.Harvest.Collected.Error.Inline as Error.Inline
+import qualified Penny.Harvest.Collected.Error.Final as Error.Final
+import qualified Penny.Harvest.Collected.Good as Good
+import qualified Penny.Harvest.Collected.Memo.Transaction as Memo.Transaction
+import qualified Penny.Harvest.Collected.Memo.Posting as Memo.Posting
 import qualified Data.Sequence as S
 import Data.Sequence (Seq, (|>), ViewL(..))
-import qualified Penny.Harvest.Collect.AfterTopLine as AfterTopLine
-import qualified Penny.Harvest.Collect.AfterPosting as AfterPosting
-import qualified Penny.Harvest.Collect.PostingBox as PostingBox
-import qualified Penny.Harvest.Collect.Result as Result
+import qualified Penny.Harvest.Collected.AfterTopLine as AfterTopLine
+import qualified Penny.Harvest.Collected.AfterPosting as AfterPosting
+import qualified Penny.Harvest.Collected.PostingBox as PostingBox
+import qualified Penny.Harvest.Collected.Result as Result
 
 process
   :: Located.T Item.T

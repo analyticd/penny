@@ -1,4 +1,4 @@
-module Penny.Harvest.Collect.Memo.Transaction where
+module Penny.Harvest.Collected.Memo.Transaction where
 
 import qualified Penny.Harvest.Locate.Located as Located
 import qualified Penny.Tree.Memo.Transaction as Memo.Transaction

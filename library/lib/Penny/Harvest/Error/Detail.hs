@@ -1,8 +1,8 @@
 module Penny.Harvest.Error.Detail where
 
 import Text.Parsec
-import qualified Penny.Harvest.Collect.Error.Inline as Inline
-import qualified Penny.Harvest.Collect.Error.Final as Final
+import qualified Penny.Harvest.Collected.Error.Inline as Inline
+import qualified Penny.Harvest.Collected.Error.Final as Final
 import qualified Penny.Harvest.Locate.Located as Located
 import qualified Penny.Harvest.Transformed.Error as Transformed
 

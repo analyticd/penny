@@ -2,12 +2,12 @@ module Penny.Harvest.Transformed where
 
 import qualified Penny.Core.Clxn as Clxn
 import Data.Sequence (Seq)
-import qualified Penny.Harvest.Collect.AfterTopLine as AfterTopLine
-import qualified Penny.Harvest.Collect.AfterPosting as AfterPosting
+import qualified Penny.Harvest.Collected.AfterTopLine as AfterTopLine
+import qualified Penny.Harvest.Collected.AfterPosting as AfterPosting
 import qualified Penny.Harvest.Transformed.Error as Error
 import qualified Penny.Core.Transaction as Transaction
 import qualified Data.Traversable as Tr
-import qualified Penny.Harvest.Collect.PostingBox as PostingBox
+import qualified Penny.Harvest.Collected.PostingBox as PostingBox
 
 newtype T = T
   { transactions :: Seq (Either Error.T Transaction.T)

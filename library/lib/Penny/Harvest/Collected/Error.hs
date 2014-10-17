@@ -1,7 +1,7 @@
-module Penny.Harvest.Collect.Error where
+module Penny.Harvest.Collected.Error where
 
-import qualified Penny.Harvest.Collect.Error.Inline as Error.Inline
-import qualified Penny.Harvest.Collect.Error.Final as Error.Final
+import qualified Penny.Harvest.Collected.Error.Inline as Error.Inline
+import qualified Penny.Harvest.Collected.Error.Final as Error.Final
 import qualified Penny.Harvest.Locate.Located as Located
 import Data.Sequence (Seq)
 

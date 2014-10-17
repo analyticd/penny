@@ -1,6 +1,6 @@
-module Penny.Harvest.Collect.AfterTopLine where
+module Penny.Harvest.Collected.AfterTopLine where
 
-import qualified Penny.Harvest.Collect.Memo.Transaction as Memos
+import qualified Penny.Harvest.Collected.Memo.Transaction as Memos
 import qualified Penny.Tree.TopLine as Tree.TopLine
 import qualified Penny.Core.Serial.Global as Global
 import qualified Penny.Core.Serial.Local as Local

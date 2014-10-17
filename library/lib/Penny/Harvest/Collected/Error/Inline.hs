@@ -1,4 +1,4 @@
-module Penny.Harvest.Collect.Error.Inline where
+module Penny.Harvest.Collected.Error.Inline where
 
 -- | Errors that occur while collecting lines.
 data T

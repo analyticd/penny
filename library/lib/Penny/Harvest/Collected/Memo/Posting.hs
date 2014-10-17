@@ -1,4 +1,4 @@
-module Penny.Harvest.Collect.Memo.Posting where
+module Penny.Harvest.Collected.Memo.Posting where
 
 import qualified Penny.Harvest.Locate.Located as Located
 import qualified Penny.Tree.Memo.Posting as Memo.Posting

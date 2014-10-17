@@ -1,9 +1,9 @@
 module Penny.Harvest.Transformed.Error where
 
 import qualified Penny.Tree.TopLine.Error as TopLine.Error
-import qualified Penny.Harvest.Collect.AfterTopLine as AfterTopLine
+import qualified Penny.Harvest.Collected.AfterTopLine as AfterTopLine
 import qualified Penny.Tree.Posting.Error as Posting.Error
-import qualified Penny.Harvest.Collect.PostingBox as PostingBox
+import qualified Penny.Harvest.Collected.PostingBox as PostingBox
 import qualified Penny.Core.Transaction.Error as Transaction.Error
 import qualified Data.Sequence as S
 import qualified Penny.Core.TopLine as TopLine

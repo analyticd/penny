@@ -1,4 +1,4 @@
-module Penny.Harvest.Collect.Error.Final where
+module Penny.Harvest.Collected.Error.Final where
 
 -- | Errors that occur after all lines are processed.
 data T
