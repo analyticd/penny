@@ -1,4 +1,4 @@
-module Penny.Harvest.Serialize.State where
+module Penny.Harvest.Serialized.State where
 
 import Control.Applicative
 import Control.Monad

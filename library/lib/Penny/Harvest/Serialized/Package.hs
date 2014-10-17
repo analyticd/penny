@@ -1,6 +1,6 @@
-module Penny.Harvest.Serialize.Package where
+module Penny.Harvest.Serialized.Package where
 
-import qualified Penny.Harvest.Serialize.Item as Item
+import qualified Penny.Harvest.Serialized.Item as Item
 import qualified Penny.Core.Clxn as Clxn
 import qualified Penny.Harvest.Locate.Located as Located
 import Data.Sequence (Seq)

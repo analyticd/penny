@@ -3,8 +3,8 @@ module Penny.Harvest.Collected where
 
 import qualified Penny.Core.Clxn as Clxn
 import qualified Penny.Harvest.Locate.Located as Located
-import qualified Penny.Harvest.Serialize.Item as Item
-import qualified Penny.Harvest.Serialize.Package as Package
+import qualified Penny.Harvest.Serialized.Item as Item
+import qualified Penny.Harvest.Serialized.Package as Package
 import qualified Penny.Harvest.Collected.State as State
 import qualified Penny.Harvest.Collected.Error as Error
 import qualified Penny.Harvest.Collected.Error.Inline as Error.Inline

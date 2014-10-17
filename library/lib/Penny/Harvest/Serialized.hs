@@ -1,6 +1,6 @@
-module Penny.Harvest.Serialize.Packages where
+module Penny.Harvest.Serialized where
 
-import qualified Penny.Harvest.Serialize.Package as Package
+import qualified Penny.Harvest.Serialized.Package as Package
 import Data.Sequence (Seq, (|>))
 import qualified Data.Sequence as S
 import qualified Penny.Harvest.Locate.Packages as Locate.Packages
@@ -8,9 +8,9 @@ import qualified Penny.Harvest.Locate.Package as Locate.Package
 import qualified Data.Traversable as Tr
 import qualified Data.Foldable as Fdbl
 import qualified Penny.Harvest.Locate.Item as Locate.Item
-import qualified Penny.Harvest.Serialize.State as State
+import qualified Penny.Harvest.Serialized.State as State
 import qualified Penny.Harvest.Locate.Located as Located
-import qualified Penny.Harvest.Serialize.Item as Item
+import qualified Penny.Harvest.Serialized.Item as Item
 
 data T = T { toSeq :: Seq Package.T }
   deriving (Eq, Ord, Show)

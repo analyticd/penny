@@ -1,4 +1,4 @@
-module Penny.Harvest.Serialize.Item where
+module Penny.Harvest.Serialized.Item where
 
 import qualified Penny.Tree.Memo.Transaction as MemoT
 import qualified Penny.Tree.Memo.Posting as MemoP
@@ -7,7 +7,7 @@ import qualified Penny.Tree.Posting as Posting
 import qualified Penny.Core.Serial.Global as SerialG
 import qualified Penny.Core.Serial.Local as SerialL
 import qualified Penny.Harvest.Locate.Item as Locate.Item
-import qualified Penny.Harvest.Serialize.State as State
+import qualified Penny.Harvest.Serialized.State as State
 import qualified Penny.Core.Serial as Serial
 import qualified Penny.Harvest.Locate.Located as Located
 
