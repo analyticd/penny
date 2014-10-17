@@ -1,10 +1,10 @@
 -- | Finite state machine to collect postings into transactions.
 module Penny.Harvest.Collected where
 
+import qualified Penny.Core.Clxn as Clxn
 import qualified Penny.Harvest.Locate.Located as Located
 import qualified Penny.Harvest.Serialize.Item as Item
 import qualified Penny.Harvest.Serialize.Package as Package
-import qualified Penny.Harvest.Serialize.Packages as Packages
 import qualified Penny.Harvest.Collected.State as State
 import qualified Penny.Harvest.Collected.Error as Error
 import qualified Penny.Harvest.Collected.Error.Inline as Error.Inline
@@ -17,7 +17,18 @@ import Data.Sequence (Seq, (|>), ViewL(..))
 import qualified Penny.Harvest.Collected.AfterTopLine as AfterTopLine
 import qualified Penny.Harvest.Collected.AfterPosting as AfterPosting
 import qualified Penny.Harvest.Collected.PostingBox as PostingBox
-import qualified Penny.Harvest.Collected.Result as Result
+
+data T = T
+  { clxn :: Clxn.T
+  , error :: Error.T
+  , goods :: Seq (Either AfterTopLine.T AfterPosting.T)
+  } deriving (Eq, Ord, Show)
+
+
+collect :: Package.T -> T
+collect (Package.T cl sqnc) = T cl (Error.T es fin) gs
+  where
+    (fin, es, gs) = runMachine sqnc
 
 process
   :: Located.T Item.T
@@ -122,14 +133,6 @@ destroy (State.TxnMemos _) = Left Error.Final.TransactionMemoWithoutTopLine
 destroy (State.AfterTopLine atl) = Right $ Good.TopLine atl
 destroy (State.AfterPosting app) = Right $ Good.Postings app
 
-collectPackage :: Package.T -> Result.T
-collectPackage (Package.T cl sqnc) = Result.T cl (Error.T es fin) gs
-  where
-    (fin, es, gs) = runMachine sqnc
-
-collectPackages :: Packages.T -> Seq Result.T
-collectPackages = fmap collectPackage . Packages.toSeq
-
 runMachine
   :: Seq (Located.T Item.T)
   -> ( Maybe Error.Final.T
@@ -137,7 +140,7 @@ runMachine
      , Seq (Either AfterTopLine.T AfterPosting.T) )
 runMachine items = (finalErr, errors, allGoods)
   where
-    (stFin, errors, goods) = go items State.Empty S.empty S.empty
+    (stFin, errors, gds) = go items State.Empty S.empty S.empty
     go sq st es gs = case S.viewl sq of
       EmptyL -> (st, es, gs)
       x :< xs -> go xs st' es' gs'
@@ -147,6 +150,6 @@ runMachine items = (finalErr, errors, allGoods)
             Left err -> (es |> err, gs)
             Right g -> (es, Good.appendToSeq gs g)
     (finalErr, allGoods) = case destroy stFin of
-      Left e -> (Just e, goods)
-      Right g -> (Nothing, Good.appendToSeq goods g)
+      Left e -> (Just e, gds)
+      Right g -> (Nothing, Good.appendToSeq gds g)
 
