@@ -4,7 +4,7 @@ import Text.Parsec
 import qualified Penny.Harvest.Collect.Error.Inline as Inline
 import qualified Penny.Harvest.Collect.Error.Final as Final
 import qualified Penny.Harvest.Locate.Located as Located
-import qualified Penny.Harvest.Transform.Error as Transform
+import qualified Penny.Harvest.Transformed.Error as Transformed
 
 data T
   = Parsec ParseError
@@ -13,6 +13,6 @@ data T
   -- ^ Error while collecting lines
   | CollectFinal Final.T
   -- ^ Error after all lines have been collected
-  | Transform Transform.T
+  | Transform Transformed.T
   -- ^ Error during transformation
   deriving Show

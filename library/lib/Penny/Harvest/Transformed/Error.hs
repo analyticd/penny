@@ -1,4 +1,4 @@
-module Penny.Harvest.Transform.Error where
+module Penny.Harvest.Transformed.Error where
 
 import qualified Penny.Tree.TopLine.Error as TopLine.Error
 import qualified Penny.Harvest.Collect.AfterTopLine as AfterTopLine
