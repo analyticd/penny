@@ -1,9 +1,9 @@
 module Penny.Harvest.Error where
 
-import qualified Penny.Harvest.Error.Ding as Ding
-import Data.Sequence (Seq)
+import qualified Penny.Core.Clxn as Clxn
+import qualified Penny.Harvest.Error.Detail as Detail
 
 data T = T
-  { first :: Ding.T
-  , rest :: Seq Ding.T
+  { clxn :: Clxn.T
+  , detail :: Detail.T
   } deriving Show
