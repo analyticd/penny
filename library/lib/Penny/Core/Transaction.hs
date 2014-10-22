@@ -15,8 +15,11 @@ data T = T
 noPostings :: TopLine.T -> T
 noPostings tl = T tl Balanced.empty
 
-fromPostings :: Foldable f
-  => TopLine.T -> f Posting.T -> Either Error.T T
+fromPostings
+  :: Foldable f
+  => TopLine.T
+  -> f Posting.T
+  -> Either Error.T T
 fromPostings tl ls = do
   es <- foldlM folder Ents.empty ls
   case Balanced.fromEnts es of

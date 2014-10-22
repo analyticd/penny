@@ -1,7 +1,7 @@
 module Penny.Core.Balanced
   ( T
   , fromEnts
-  , toSeq
+  , toSeq -- :: T a -> Seq (Ent.T a)
   , empty
   ) where
 

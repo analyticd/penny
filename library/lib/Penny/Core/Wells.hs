@@ -4,7 +4,7 @@ module Penny.Core.Wells where
 import qualified Penny.Core.Serial as Serial
 import qualified Penny.Core.Fortune as Fortune
 
--- | A 'Penny.Core.Posting.T', combined with some additional serials
+-- | A 'Penny.Core.Fortune.T', combined with some additional serials
 -- and a running balance.  This type is used only for postings that
 -- are visible in the report.
 

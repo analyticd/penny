@@ -1,15 +1,23 @@
-module Penny.Core.Bundle where
+module Penny.Core.Bundle
+  ( T
+  , up
+  , down
+  , toTransaction
+  ) where
 
-import qualified Penny.Core.TopLine as TopLine
-import qualified Penny.Core.View as View
-import qualified Penny.Core.Posting as Posting
+import Penny.Core.Bundle.Internal
 import qualified Penny.Core.Transaction as Transaction
-import Data.Sequence (Seq)
+import qualified Penny.Core.Balanced.Internal as Balanced.Internal
+import Data.Sequence ((|>))
+import qualified Penny.Core.View as View
+import Data.Monoid
 
-data T = T
-  { topLine :: TopLine.T
-  , postings :: View.T Posting.T
-  } deriving (Eq, Ord, Show)
+up :: T -> Maybe T
+up (T t v) = fmap (T t) . View.moveLeft $ v
 
-fromTransaction :: Transaction.T -> Seq T
-fromTransaction
+down :: T -> Maybe T
+down (T t v) = fmap (T t) . View.moveRight $ v
+
+toTransaction :: T -> Transaction.T
+toTransaction (T t (View.T l c r))
+  = Transaction.T t (Balanced.Internal.T ((l |> c) <> r))
