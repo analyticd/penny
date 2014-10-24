@@ -3,6 +3,8 @@ module Penny.Core.Bundle
   , up
   , down
   , toTransaction
+  , topLine
+  , postings
   ) where
 
 import Penny.Core.Bundle.Internal

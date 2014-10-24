@@ -16,5 +16,5 @@ serials = go 0
   where
     go !l !h
       | h <= 0 = Seq.empty
-      | otherwise = T l h <| go (succ l) (pred h)
+      | otherwise = T l (h - 1) <| go (succ l) (pred h)
 

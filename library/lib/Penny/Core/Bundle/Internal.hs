@@ -8,6 +8,5 @@ import qualified Penny.Core.Posting as Posting
 -- 'Penny.Core.TopLine.T' and sibling postings.
 data T = T
   { topLine :: TopLine.T
-  , postings :: View.T Posting.T
+  , postings :: View.T  Posting.T
   } deriving (Eq, Ord, Show)
-
