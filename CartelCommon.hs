@@ -86,7 +86,7 @@ prednote :: A.Package
 prednote = A.nextBreaking "prednote" [0,24,2,0]
 
 rainbow :: A.Package
-rainbow = A.nextBreaking "rainbow" [0,14,0,0]
+rainbow = A.nextBreaking "rainbow" [0,16,2,0]
 
 rainbox :: A.Package
 rainbox = A.nextBreaking "rainbox" [0,4,0,2]
