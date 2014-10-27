@@ -3,8 +3,8 @@ module Penny.Core.Wells where
 
 import qualified Penny.Core.Serial as Serial
 import qualified Penny.Core.Fortune as Fortune
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
+import qualified Data.Foldable as F
+import qualified Penny.Core.TopLine as TopLine
 
 -- | A 'Penny.Core.Fortune.T', combined with some additional serials
 -- and a running balance.  This type is used only for postings that
@@ -20,10 +20,13 @@ data T = T
   -- the report's running balance.
   } deriving (Eq, Ord, Show)
 
-filterFortunes
-  :: (Fortune.T -> Bool)
-  -> Seq Fortune.T
-  -> Seq T
-filterFortunes p =
-  (\fs -> Seq.zipWith T fs (Serial.serials (Seq.length fs)))
-  . Seq.filter p
+topLine :: T -> TopLine.T
+topLine = Fortune.topLine . fortune
+
+-- | Create a list of 'T' from a list of 'Fortune.T'.  Presumably the
+-- list of 'Fortune.T' has already been filtered.  The input list must
+-- be finite.
+
+fromFortuneList :: [Fortune.T] -> [T]
+fromFortuneList fs =
+  zipWith T fs (F.toList $ Serial.serials (length fs))

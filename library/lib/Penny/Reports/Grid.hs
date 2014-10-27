@@ -2,7 +2,6 @@ module Penny.Reports.Grid where
 
 import qualified Penny.Core.Wells as Wells
 import Rainbox
-import Rainbox.Box (Box)
 import Data.Sequence (Seq)
 import qualified Data.Foldable as F
 

@@ -86,10 +86,10 @@ prednote :: A.Package
 prednote = A.nextBreaking "prednote" [0,26,0,0]
 
 rainbow :: A.Package
-rainbow = A.nextBreaking "rainbow" [0,16,2,0]
+rainbow = A.nextBreaking "rainbow" [0,18,0,0]
 
 rainbox :: A.Package
-rainbox = A.nextBreaking "rainbox" [0,6,0,0]
+rainbox = A.nextBreaking "rainbox" [0,8,0,0]
 
 quickpull :: A.Package
 quickpull = A.nextBreaking "quickpull" [0,2,0,0]
