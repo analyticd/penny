@@ -50,7 +50,7 @@ libraryDepends =
   , either
   , semigroups
   , anonymous_sums
-  , matchers
+  -- , matchers
   , multiarg
   , ofx
   , prednote

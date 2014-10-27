@@ -83,13 +83,13 @@ ofx :: A.Package
 ofx = A.nextBreaking "ofx" [0,4,0,2]
 
 prednote :: A.Package
-prednote = A.nextBreaking "prednote" [0,24,2,0]
+prednote = A.nextBreaking "prednote" [0,26,0,0]
 
 rainbow :: A.Package
 rainbow = A.nextBreaking "rainbow" [0,16,2,0]
 
 rainbox :: A.Package
-rainbox = A.nextBreaking "rainbox" [0,4,0,2]
+rainbox = A.nextBreaking "rainbox" [0,6,0,0]
 
 quickpull :: A.Package
 quickpull = A.nextBreaking "quickpull" [0,2,0,0]
