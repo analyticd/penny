@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveDataTypeable, OverloadedStrings, BangPatterns, NoImplicitPrelude #-}
 -- | Concrete numbers.  Also has facilities to get the abstract
 -- components of any concrete number, and to convert an abstract,
 -- ungrouped number to a concrete number.

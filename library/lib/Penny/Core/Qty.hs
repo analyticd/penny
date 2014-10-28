@@ -3,6 +3,9 @@ module Penny.Core.Qty where
 import qualified Penny.Core.Concrete as Concrete
 import qualified Penny.Core.Cement as Cement
 
+-- | A Qty is concrete, meaning that you can perform arithmetic with
+-- it.  However, it is not intended to be represented for the user
+-- on-screen.
 newtype T = T { toConcrete :: Concrete.T }
   deriving (Eq, Ord, Show)
 
