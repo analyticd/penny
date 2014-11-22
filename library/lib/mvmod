@@ -36,10 +36,10 @@ EOF
 for file in $(find . -name '*.hs'); do
 
 ed $file <<EOF
-%s/^import ${oldModNameRegex} /import $2 /
-%s/^import ${oldModNameRegex}$/import $2/
-%s/^import qualified ${oldModNameRegex} /import qualified $2 /
-%s/^import qualified ${oldModNameRegex}$/import qualified $2/
+g/./%s/^import ${oldModNameRegex} /import $2 /
+g/./%s/^import ${oldModNameRegex}$/import $2/
+g/./%s/^import qualified ${oldModNameRegex} /import qualified $2 /
+g/./%s/^import qualified ${oldModNameRegex}$/import qualified $2/
 w
 q
 EOF
