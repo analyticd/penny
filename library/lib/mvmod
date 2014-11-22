@@ -27,8 +27,20 @@ mkdir -p "$newDirName"
 mv "$oldFileName" "$newFileName"
 
 # change header in moved module
-sed -i "s/^module $oldModNameRegex/module $2/" "$newFileName"
+ed "$newFileName" <<EOF
+%s/^module ${oldModNameRegex}/module $2/
+w
+q
+EOF
 
-# change imports
-find . -name '*.hs' \
-    -exec sed -r -i "s/^(import( qualified)? )${oldModNameRegex}( |$)/\1$2\3/" {} \;
+for file in $(find . -name '*.hs'); do
+
+ed $file <<EOF
+%s/^import ${oldModNameRegex} /import $2 /
+%s/^import ${oldModNameRegex}$/import $2/
+%s/^import qualified ${oldModNameRegex} /import qualified $2 /
+%s/^import qualified ${oldModNameRegex}$/import qualified $2/
+w
+q
+EOF
+done
