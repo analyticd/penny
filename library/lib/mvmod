@@ -27,7 +27,7 @@ mkdir -p "$newDirName"
 mv "$oldFileName" "$newFileName"
 
 # change header in moved module
-ed "$newFileName" <<EOF
+ed -s "$newFileName" <<EOF
 %s/^module ${oldModNameRegex}/module $2/
 w
 q
@@ -35,7 +35,7 @@ EOF
 
 for file in $(find . -name '*.hs'); do
 
-ed $file <<EOF
+ed -s $file <<EOF
 g/./%s/^import ${oldModNameRegex} /import $2 /
 g/./%s/^import ${oldModNameRegex}$/import $2/
 g/./%s/^import qualified ${oldModNameRegex} /import qualified $2 /
