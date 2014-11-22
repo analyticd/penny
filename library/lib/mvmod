@@ -11,6 +11,12 @@
 # Sample usage:
 # mvmod Penny.Name.Old Penny.New.Name
 
+# In an attempt to maintain compatibility across UNIX systems, this
+# script uses bash rather than sh in the shebang line.  Also, uses ed
+# rather than in-place sed, because the behavior of in-place sed
+# varies across GNU and BSD systems.  However, the regular expressions
+# supported by ed are very basic.
+
 set -e
 
 if [[ $# -ne 2 ]]; then
@@ -34,6 +40,9 @@ q
 EOF
 
 for file in $(find . -name '*.hs'); do
+
+# the extra g command in the front suppresses errors if the substitute
+# string is not found.
 
 ed -s $file <<EOF
 g/./%s/^import ${oldModNameRegex} /import $2 /
