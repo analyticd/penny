@@ -1,7 +1,0 @@
-* Add runtime configuration parsing for Brenner
-
-* Change Brenner data store to sqlite
-
-* Eliminate possibility of negative numbers in Brenner postings. Or,
-  store ONLY whether the number is negative or positive, and do NOT
-  store separate increase/decrease information.
