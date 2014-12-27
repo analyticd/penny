@@ -3,11 +3,11 @@ module Penny.Lincoln.Natural.Internal where
 import Penny.Lincoln.Digits
 import Data.Foldable (Foldable, toList)
 
-newtype NonZero = NonZero { nonZeroToInteger :: Integer }
+newtype Positive = Positive { positiveToInteger :: Integer }
   deriving (Eq, Ord, Show)
 
-instance OneToNine NonZero where
-  fromNovem = NonZero . digitToInt
+instance OneToNine Positive where
+  fromNovem = Positive . digitToInt
 
 newtype Unsigned = Unsigned { unsignedToInteger :: Integer }
   deriving (Eq, Ord, Show)
@@ -29,17 +29,17 @@ class Natural a where
 ten :: (OneToNine a, Natural a) => a
 ten = fromNovem D1 `add` fromNovem D9
 
-instance Natural NonZero where
-  next (NonZero i) = NonZero (succ i)
-  prev (NonZero i)
-    | i > 1 = Just $ NonZero (pred i)
+instance Natural Positive where
+  next (Positive i) = Positive (succ i)
+  prev (Positive i)
+    | i > 1 = Just $ Positive (pred i)
     | otherwise = Nothing
-  naturalToInteger (NonZero i) = i
+  naturalToInteger (Positive i) = i
   integerToNatural i
     | i < 1 = Nothing
-    | otherwise = Just . NonZero $ i
-  add (NonZero x) (NonZero y) = NonZero $ x + y
-  mult (NonZero x) (NonZero y) = NonZero $ x * y
+    | otherwise = Just . Positive $ i
+  add (Positive x) (Positive y) = Positive $ x + y
+  mult (Positive x) (Positive y) = Positive $ x * y
 
 instance Natural Unsigned where
   next (Unsigned i) = Unsigned (succ i)
@@ -53,8 +53,8 @@ instance Natural Unsigned where
   add (Unsigned x) (Unsigned y) = Unsigned $ x + y
   mult (Unsigned x) (Unsigned y) = Unsigned $ x * y
 
-addNonZeroToUnsigned :: Unsigned -> NonZero -> Unsigned
-addNonZeroToUnsigned (Unsigned x) (NonZero y) = Unsigned $ x + y
+addPositiveToUnsigned :: Unsigned -> Positive -> Unsigned
+addPositiveToUnsigned (Unsigned x) (Positive y) = Unsigned $ x + y
 
 monus :: Unsigned -> Unsigned -> Unsigned
 monus (Unsigned x) (Unsigned y) = Unsigned . max 0 $ x - y
@@ -68,22 +68,22 @@ subt (Unsigned x) (Unsigned y)
 pow :: Unsigned -> Unsigned -> Unsigned
 pow (Unsigned x) (Unsigned y) = Unsigned $ x ^ y
 
-divide :: Unsigned -> NonZero -> (Unsigned, Unsigned)
-divide (Unsigned x) (NonZero y) = (Unsigned q, Unsigned r)
+divide :: Unsigned -> Positive -> (Unsigned, Unsigned)
+divide (Unsigned x) (Positive y) = (Unsigned q, Unsigned r)
   where
     (q, r) = x `divMod` y
 
 length :: Foldable f => f a -> Unsigned
 length = Unsigned . fromIntegral . Prelude.length . toList
 
-unsignedToNonZero :: Unsigned -> Maybe NonZero
-unsignedToNonZero (Unsigned u)
-  | u > 0 = Just . NonZero $ u
+unsignedToPositive :: Unsigned -> Maybe Positive
+unsignedToPositive (Unsigned u)
+  | u > 0 = Just . Positive $ u
   | otherwise = Nothing
 
-nonZeroToUnsigned :: NonZero -> Unsigned
-nonZeroToUnsigned (NonZero n) = Unsigned n
+positiveToUnsigned :: Positive -> Unsigned
+positiveToUnsigned (Positive n) = Unsigned n
 
-addUnsignedToNonZero :: NonZero -> Unsigned -> NonZero
-addUnsignedToNonZero (NonZero x) (Unsigned y) = NonZero $ x + y
+addUnsignedToPositive :: Positive -> Unsigned -> Positive
+addUnsignedToPositive (Positive x) (Unsigned y) = Positive $ x + y
 

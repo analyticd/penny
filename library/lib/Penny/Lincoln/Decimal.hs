@@ -90,3 +90,13 @@ instance Ord Semantic where
   compare (Semantic x) (Semantic y) =
     let (Decimal mx _, Decimal my _) = equalizeExponents x y
     in compare mx my
+
+data DecUnsigned
+  = DecUnsigned !Unsigned !Unsigned
+  -- ^ @DecUnsigned a b@, where
+  --
+  -- @a@ is the significand, and
+  --
+  -- @b@ is the exponent
+  deriving (Eq, Ord, Show)
+

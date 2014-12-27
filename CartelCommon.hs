@@ -17,6 +17,12 @@ base = C.closedOpen "base" [4,7,0,0] [4,8]
 penny :: C.Package
 penny = C.exactly "penny" versionInts
 
+text :: C.Package
+text = C.closedOpen "text" [1,2] [1,3]
+
+containers :: C.Package
+containers = C.closedOpen "containers" [0,5] [0,6]
+
 -- Options
 
 ghcOptions :: [String]
@@ -72,7 +78,11 @@ baseProperties = C.empty
   }
 
 libraryDepends :: [C.Package]
-libraryDepends = [ base ]
+libraryDepends =
+  [ base
+  , text
+  , containers
+  ]
 
 commonOptions :: C.Field a => [a]
 commonOptions = cond : commonBuildInfo

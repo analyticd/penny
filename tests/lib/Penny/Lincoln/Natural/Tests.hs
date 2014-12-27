@@ -1,19 +1,19 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 module Penny.Lincoln.Natural.Tests where
 
-import Test.QuickCheck hiding (NonZero)
+import Test.QuickCheck hiding (NonZero, Positive)
 import qualified Test.QuickCheck as Q
 import Penny.Lincoln.Natural
 
-newtype NonZeroA = NonZeroA NonZero
+newtype PositiveA = PositiveA Positive
   deriving (Eq, Ord, Show)
 
-instance Arbitrary NonZeroA where
+instance Arbitrary PositiveA where
   arbitrary = do
-    Q.NonZero i <- arbitrary
+    Q.Positive i <- arbitrary
     case integerToNatural (abs i) of
-      Nothing -> fail "could not generate NonZeroA"
-      Just n -> return $ NonZeroA n
+      Nothing -> fail "could not generate PositiveA"
+      Just n -> return $ PositiveA n
 
 newtype UnsignedA = UnsignedA Unsigned
   deriving (Eq, Ord, Show)
@@ -33,7 +33,7 @@ nextPrevGivesSameNumber a = case prev . next $ a of
 prop_nextPrevGivesSameNumberUnsigned (UnsignedA x)
   = nextPrevGivesSameNumber x
 
-prop_nextPrevGivesSameNumberNonZero (NonZeroA x)
+prop_nextPrevGivesSameNumberPositive (PositiveA x)
   = nextPrevGivesSameNumber x
 
 addIsAssociative :: (Eq a, Natural a, Show a) => a -> a -> a -> Property
@@ -43,7 +43,7 @@ addIsAssociative x y z =
 prop_addIsAssociativeUnsigned (UnsignedA x) (UnsignedA y) (UnsignedA z) =
   addIsAssociative x y z
 
-prop_addIsAssociativeNonZero (NonZeroA x) (NonZeroA y) (NonZeroA z) =
+prop_addIsAssociativePositive (PositiveA x) (PositiveA y) (PositiveA z) =
   addIsAssociative x y z
 
 addIsCommutative :: (Eq a, Natural a, Show a) => a -> a -> Property
@@ -56,7 +56,7 @@ multIsAssociative x y z =
 prop_multIsAssociativeUnsigned (UnsignedA x) (UnsignedA y) (UnsignedA z)
   = multIsAssociative x y z
 
-prop_multIsAssociativeNonZero (NonZeroA x) (NonZeroA y) (NonZeroA z)
+prop_multIsAssociativePositive (PositiveA x) (PositiveA y) (PositiveA z)
   = multIsAssociative x y z
 
 prop_monusReturnsValidUnsigned (UnsignedA x) (UnsignedA y) =

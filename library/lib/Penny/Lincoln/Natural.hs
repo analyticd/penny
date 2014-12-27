@@ -1,6 +1,6 @@
 module Penny.Lincoln.Natural
   ( Natural(..)
-  , NonZero
+  , Positive
   , Unsigned
 
   -- * Constants
@@ -12,8 +12,8 @@ module Penny.Lincoln.Natural
 
   -- * Arithmetic
   -- | For additional arithmetic, use the 'Natural' methods.
-  , addNonZeroToUnsigned
-  , addUnsignedToNonZero
+  , addPositiveToUnsigned
+  , addUnsignedToPositive
   , monus
   , subt
   , pow
@@ -23,8 +23,8 @@ module Penny.Lincoln.Natural
   , length
 
   -- * Conversions
-  , nonZeroToUnsigned
-  , unsignedToNonZero
+  , positiveToUnsigned
+  , unsignedToPositive
   ) where
 
 import Penny.Lincoln.Natural.Internal
