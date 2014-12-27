@@ -51,7 +51,7 @@ increaseExponent u (Decimal m e) = Decimal m' e'
 --
 -- Then the following properties hold:
 --
--- > ex == ey
+-- > ex' == ey'
 -- > x' == x || y' == y
 -- > ex' >= ex
 -- > ey' >= ey
