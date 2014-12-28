@@ -41,14 +41,20 @@ instance Parseable Novem where
 instance Parseable Decem where
   parser = (D0 <$ char '0') <|> fmap Nonem parser
 
+instance Parseable Grouper where
+  parser = ThinSpace <$ char '\x2009'
+    <|> Underscore <$ char '_'
+
 instance Parseable RadCom where
-  parser = fmap (const RadCom) $ char '.'
+  parser = Period <$ char '.'
+    <|> RCGrouper <$> parser
 
 instance Parseable (Radix RadCom) where
   parser = fmap (const Radix) $ char ','
 
 instance Parseable RadPer where
-  parser = fmap (const RadPer) $ char ','
+  parser = Comma <$ char ','
+    <|> RPGrouper <$> parser
 
 instance Parseable (Radix RadPer) where
   parser = fmap (const Radix) $ char '.'

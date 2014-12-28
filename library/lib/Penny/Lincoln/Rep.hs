@@ -1,5 +1,12 @@
 {-# LANGUAGE FlexibleContexts #-}
+
 -- | Number representations.
+--
+-- These types contain a context-free grammar for number
+-- representations.  A number representation is not suitable for
+-- arithmetic; however, it \"remembers\" exactly how the user entered
+-- a number, complete with grouping characters and the radix point
+-- (which may be a period or a comma.)
 module Penny.Lincoln.Rep where
 
 import Data.Sequence (Seq)
@@ -12,19 +19,36 @@ import Penny.Lincoln.Side
 data Radix a = Radix
   deriving (Eq, Ord, Show)
 
--- | A radix point of a comma.
-data RadCom = RadCom
+data Grouper
+  = ThinSpace
+  | Underscore
   deriving (Eq, Ord, Show)
 
-period :: RadCom
-period = RadCom
+-- | A radix point of a comma.  This type serves two purposes: when
+-- used as a type parameter for a 'Radix', it represents that the
+-- radix point is a comma.  When used alone, it represents a grouping
+-- character, which may be a period or other grouping character.
+data RadCom
+  = Period
+  -- ^ When used as a grouping character, a RadCom can be a period
+  | RCGrouper Grouper
+  -- ^ When used as a grouping character, a RadCom can also be a
+  -- 'ThinSpace' or an 'Underscore'.
+  deriving (Eq, Ord, Show)
 
+-- | A radix point of a period.  This type serves two purposes: when
+-- used as a type parameter for a 'Radix', it represents that the
+-- radix point is a period.  When used alone, it represents a grouping
+-- character, which may be a comma or other grouping character.
 -- | A radix point of a period.
-data RadPer = RadPer
-  deriving (Eq, Ord, Show)
+data RadPer
+  = Comma
+  -- ^ When used as a grouping character, a RadPer can be a comma
+  | RPGrouper Grouper
+  -- ^ When used as a grouping character, a RadPer can also be a
+  -- 'ThinSpace' or an 'Underscore'.
 
-comma :: RadPer
-comma = RadPer
+  deriving (Eq, Ord, Show)
 
 -- | A single zero.
 data Zero = Zero
