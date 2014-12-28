@@ -1,7 +1,11 @@
 module Penny.Lincoln.Decimal where
 
 import Penny.Lincoln.Natural
+import qualified Penny.Lincoln.Natural as N
+import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
+import Control.Monad (join)
+import Data.Sequence ((<|))
 
 -- | Decimal numbers.  The precision is limited only by the machine's
 -- available memory (or, more realistically, by how big a number the
@@ -99,4 +103,25 @@ data DecUnsigned
   --
   -- @b@ is the exponent
   deriving (Eq, Ord, Show)
+
+-- | Class for things that can be converted to a 'Decimal'.
+class HasDecimal a where
+  toDecimal :: a -> Decimal
+
+instance HasDecimal (NilUngrouped r) where
+  toDecimal nu = Decimal 0 expt
+    where
+      expt = case nu of
+        NUZero _ Nothing -> fromDecem D0
+        NUZero _ (Just (_, Nothing)) -> fromDecem D0
+        NUZero _ (Just (_, Just (_, zs))) -> next (N.length zs)
+        NURadix (_, _, zs) -> next (N.length zs)
+
+instance HasDecimal (Nil r) where
+  toDecimal nil = case nil of
+    NilUngrouped nu -> toDecimal nu
+    NilGrouped _ _ _ zs1 _ _ zs2 zss -> Decimal 0
+      . next . next . add (N.length zs1) . add (N.length zs2)
+      . N.length . join
+      . fmap (\(_, _, sq) -> Zero <| sq) $ zss
 
