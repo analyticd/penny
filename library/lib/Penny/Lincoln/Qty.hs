@@ -2,6 +2,7 @@ module Penny.Lincoln.Qty where
 
 import Penny.Lincoln.Decimal
 import Penny.Lincoln.Natural
+import Penny.Lincoln.Side
 
 newtype Qty = Qty Decimal
   deriving (Eq, Ord, Show)
@@ -14,9 +15,6 @@ instance Num Qty where
   abs (Qty x) = Qty (abs x)
   signum (Qty x) = Qty (signum x)
   fromInteger i = Qty (fromInteger i)
-
-data Side = Debit | Credit
-  deriving (Eq, Ord, Show)
 
 side :: Qty -> Maybe Side
 side (Qty (Decimal sig _))

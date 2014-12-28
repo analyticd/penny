@@ -1,10 +1,11 @@
 module Penny.Lincoln.Trio where
 
 import Penny.Lincoln.Commodity
-import Penny.Lincoln.Qty
+import Penny.Lincoln.Side
+import Penny.Lincoln.Rep
 
 data Trio
-  = QC Qty Commodity
+  = QC QtyNeutralOrNonNeutralAnyRadix Commodity
   -- ^ Specify a quantity and commodity and a corresponding entry is
   -- always recorded.
   --
@@ -12,7 +13,7 @@ data Trio
   --
   -- Postconditions: the balance is appropriately affected.
 
-  | Q Qty
+  | Q QtyNeutralOrNonNeutralAnyRadix
   -- ^ Specify a quantity only.
   --
   -- Preconditions: there is exactly one commodity in the imbalances.
@@ -39,7 +40,7 @@ data Trio
   --
   -- Postconditions: the imbalances is empty.
 
-  | UC QtyUnsigned Commodity
+  | UC QtyNonNeutralAnyRadix Commodity
   -- ^ Specify an unsigned abstract quantity only and a 'Commodity'
   -- and how they are arranged.
   --
@@ -49,7 +50,7 @@ data Trio
   -- its absolute value reduced or it flips to the opposite side.
 
 
-  | U QtyUnsigned
+  | U QtyNonNeutralAnyRadix
   -- ^ Specify an unsigned quantity only.
   --
   -- Preconditions: the imbalances contains exactly one commodity, and

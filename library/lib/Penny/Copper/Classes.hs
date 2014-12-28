@@ -8,8 +8,6 @@ import Text.Parsec.Text
 import Text.Parsec.Char
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
-import qualified Penny.Lincoln.Natural as N
-import Penny.Lincoln.Natural
 
 -- | Things that can be parsed.
 
@@ -58,39 +56,6 @@ instance Parseable (Radix RadPer) where
 instance Parseable Zero where
   parser = fmap (const Zero) $ char '0'
 
-instance Parseable Zeroes where
-  parser = f <$ char '0' <*> many (char '0')
-    where
-      f zs = Zeroes $ addUnsignedToPositive (fromNovem D1) (N.length zs)
-
 instance Parseable a => Parseable (Seq a) where
   parser = fmap Seq.fromList $ many parser
-
-instance Parseable Decems where
-  parser = fmap Decems parser
-
-instance Parseable DecDecs where
-  parser = DecDecs <$> parser <*> parser
-
-instance ParseableG DecDecsGrouped where
-  parserG pg = DecDecsGrouped <$> pg <*> parser
-
-instance ParseableG SeqDecDecsGrouped where
-  parserG pg = fmap (SeqDecDecsGrouped . Seq.fromList)
-    . many . parserG $ pg
-
-instance ParseableG DecDecsMayGroups where
-  parserG pg = DecDecsMayGroups <$> parser <*> parserG pg
-
-instance ParseableRG BrimGrouped2 where
-  parserRG pr pg = BrimGrouped2 <$> pr <*> optional (parserG pg)
-
-instance ParseableRG BrimGrouped1 where
-  parserRG pr pg =
-    (BG1GroupOnLeft <$> pg <*> parserG pg <*> optional (parserRG pr pg))
-    <|> (BG1GroupOnRight <$> pr <*> parser <*> parserG pg <*> parserG pg)
-
-instance Parseable NovDecs where
-  parser = NovDecs <$> parser <*> parser
-
 
