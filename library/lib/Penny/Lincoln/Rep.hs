@@ -57,8 +57,13 @@ data Zero = Zero
 -- # Nil
 
 data Nil r
-  = NilUngrouped (NilUngrouped r)
-  | NilGrouped (Maybe Zero) (Radix r) Zero (Seq Zero) r Zero (Seq Zero)
+  = NilU (NilUngrouped r)
+  | NilG (NilGrouped r)
+  deriving (Eq, Ord, Show)
+
+data NilGrouped r
+  = NilGrouped (Maybe Zero) (Radix r)
+               Zero (Seq Zero) r Zero (Seq Zero)
                (Seq (r, Zero, Seq Zero))
   deriving (Eq, Ord, Show)
 

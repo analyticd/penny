@@ -14,6 +14,9 @@ data Ents m = Ents
   , entsToBalances :: Balances
   } deriving (Eq, Ord, Show)
 
+newtype Balanced m = Balanced { balancedToSeqEnt :: Seq (Ent m) }
+  deriving (Eq, Ord, Show)
+
 instance Functor Ents where
   fmap f (Ents s b) = Ents (fmap (fmap f) s) b
 

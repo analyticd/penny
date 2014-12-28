@@ -5,7 +5,8 @@ import qualified Penny.Lincoln.Natural as N
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
 import Control.Monad (join)
-import Data.Sequence ((<|))
+import Data.Sequence ((<|), (|>), Seq)
+import qualified Data.Sequence as S
 import Data.Monoid
 
 -- | Decimal numbers.  The precision is limited only by the machine's
@@ -119,6 +120,9 @@ data DecPositive
 class HasDecimal a where
   toDecimal :: a -> Decimal
 
+instance HasDecimal DecPositive where
+  toDecimal (DecPositive sig expt) = Decimal (naturalToInteger sig) expt
+
 instance HasDecimal (NilUngrouped r) where
   toDecimal nu = Decimal 0 expt
     where
@@ -130,8 +134,11 @@ instance HasDecimal (NilUngrouped r) where
 
 instance HasDecimal (Nil r) where
   toDecimal nil = case nil of
-    NilUngrouped nu -> toDecimal nu
-    NilGrouped _ _ _ zs1 _ _ zs2 zss -> Decimal 0
+    NilU nu -> toDecimal nu
+    NilG ng -> toDecimal ng
+
+instance HasDecimal (NilGrouped r) where
+  toDecimal (NilGrouped _ _ _ zs1 _ _ zs2 zss) = Decimal 0
       . next . next . add (N.length zs1) . add (N.length zs2)
       . N.length . join
       . fmap (\(_, _, sq) -> Zero <| sq) $ zss
@@ -196,3 +203,31 @@ instance HasDecPositive (BrimGrouped r) where
       expt = next . add (N.length ds4) . next . add (N.length ds7)
         . N.length . toDecs $ sq8
 
+  toDecPositive (BGLessThanOne _z1 _rdx2
+    (BG5Zero _z3 zs4 (BG6Novem nv5 ds6 _g7 dc8 ds9 sq10)))
+    = DecPositive sig expt
+    where
+      sig = novDecsToPositive nv5 . (ds6 <>) . (dc8 <|) . (<> ds9)
+        . toDecs $ sq10
+      toDecs = join . fmap (\(_, d, ds) -> d <| ds)
+      expt = next . add (N.length zs4) . next . add (N.length ds6)
+        . next . add (N.length ds9) . N.length . toDecs $ sq10
+
+  toDecPositive (BGLessThanOne _z1 _rdx2
+    (BG5Zero _z3 zs4 (BG6Group _g1 bg7))) = DecPositive sig expt
+    where
+      sig = novDecsToPositive bg7nv bg7ds
+      expt = next . add (N.length zs4) . N.length $ bg7zs
+      (bg7zs, bg7nv, bg7ds) = unfurlBG7 bg7
+
+unfurlBG7 :: BG7 r -> (Seq Zero, Novem, Seq Decem)
+unfurlBG7 = goBG7 S.empty
+  where
+    goBG7 zsSoFar (BG7Zeroes z1 zs bg8) =
+      goBG8 ((zsSoFar |> z1) <> zs) bg8
+    goBG7 zsSoFar (BG7Novem nv ds sq) =
+      (zsSoFar, nv, ds <> toDecs sq)
+    toDecs = join . fmap (\(_, d, ds) -> d <| ds)
+    goBG8 zsSoFar (BG8Novem nv ds sq) =
+      (zsSoFar, nv, ds <> toDecs sq)
+    goBG8 zsSoFar (BG8Group _ bg7) = goBG7 zsSoFar bg7

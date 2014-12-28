@@ -26,6 +26,9 @@ containers = C.closedOpen "containers" [0,5] [0,6]
 parsec :: C.Package
 parsec = C.closedOpen "parsec" [3,1,7] [3,2]
 
+time :: C.Package
+time = C.closedOpen "time" [1,4] [1,5]
+
 -- Options
 
 ghcOptions :: [String]
@@ -86,6 +89,7 @@ libraryDepends =
   , text
   , containers
   , parsec
+  , time
   ]
 
 commonOptions :: C.Field a => [a]
