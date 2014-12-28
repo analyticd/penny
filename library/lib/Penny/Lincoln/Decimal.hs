@@ -6,6 +6,7 @@ import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
 import Control.Monad (join)
 import Data.Sequence ((<|))
+import Data.Monoid
 
 -- | Decimal numbers.  The precision is limited only by the machine's
 -- available memory (or, more realistically, by how big a number the
@@ -95,6 +96,7 @@ instance Ord Semantic where
     let (Decimal mx _, Decimal my _) = equalizeExponents x y
     in compare mx my
 
+-- | Decimals that are unsigned; they may be zero.
 data DecUnsigned
   = DecUnsigned !Unsigned !Unsigned
   -- ^ @DecUnsigned a b@, where
@@ -103,6 +105,15 @@ data DecUnsigned
   --
   -- @b@ is the exponent
   deriving (Eq, Ord, Show)
+
+-- | Decimals that are positive; they may not be zero.
+data DecPositive
+  = DecPositive !Positive !Unsigned
+  -- ^ @DecPositive a b@, where
+  --
+  -- @a@ is the significand, and
+  --
+  -- @b@ is the exponent
 
 -- | Class for things that can be converted to a 'Decimal'.
 class HasDecimal a where
@@ -124,4 +135,64 @@ instance HasDecimal (Nil r) where
       . next . next . add (N.length zs1) . add (N.length zs2)
       . N.length . join
       . fmap (\(_, _, sq) -> Zero <| sq) $ zss
+
+class HasDecPositive a where
+  toDecPositive :: a -> DecPositive
+
+instance HasDecPositive (BrimUngrouped r) where
+
+  toDecPositive (BUGreaterThanOne nv ds1 Nothing)
+    = DecPositive (novDecsToPositive nv ds1) (fromDecem D0)
+
+  toDecPositive (BUGreaterThanOne nv ds1 (Just (_, ds2)))
+    = DecPositive (novDecsToPositive nv (ds1 <> ds2))
+                  (N.length ds2)
+
+  toDecPositive (BULessThanOne _ _ zs1 nv ds)
+    = DecPositive (novDecsToPositive nv ds)
+                  (add (N.length zs1) . next . N.length $ ds)
+
+instance HasDecPositive (BrimGrouped r) where
+
+  toDecPositive (BGGreaterThanOne nv ds1
+    (BG1GroupOnLeft _ d1 ds2 dss Nothing))
+    = DecPositive sig expt
+    where
+      sig = novDecsToPositive nv . (ds1 <>) . (d1 <|) . (ds2 <>)
+        . join . fmap (\(_, d, ds) -> d <| ds) $ dss
+      expt = fromDecem D0
+
+  toDecPositive (BGGreaterThanOne nv ds1
+    (BG1GroupOnLeft _ d1 ds2 dss
+    (Just (_, Nothing)))) = DecPositive sig expt
+    where
+      sig = novDecsToPositive nv . (ds1 <>) . (d1 <|) . (ds2 <>)
+        . join . fmap (\(_, d, ds) -> d <| ds) $ dss
+      expt = fromDecem D0
+
+  toDecPositive (BGGreaterThanOne nv ds1
+    (BG1GroupOnLeft _ d1 ds2 dss1
+    (Just (_, Just (d2, ds3, dss2))))) = DecPositive sig expt
+    where
+      sig = novDecsToPositive nv . (ds1 <>) . (d1 <|) . (ds2 <>)
+        . (toDecs dss1 <>) . (d2 <|) . (ds3 <>) . toDecs $ dss2
+      expt = next . add (N.length ds3) . N.length . toDecs $ dss2
+      toDecs = join . fmap (\(_, d, ds) -> d <| ds)
+
+  toDecPositive (BGGreaterThanOne nv1 ds2
+    (BG1GroupOnRight _rdx3 d4 ds5 dss6)) = DecPositive sig expt
+    where
+      sig = novDecsToPositive nv1 . (ds2 <>) . (d4 <|) . (ds5 <>)
+        . toDecs $ dss6
+      toDecs = join . fmap (\(_, d, ds) -> d <| ds)
+      expt = next . add (N.length ds5) . N.length . toDecs $ dss6
+
+  toDecPositive (BGLessThanOne _z1 _rdx2
+    (BG5Novem nv3 ds4 _g5 d6 ds7 sq8)) = DecPositive sig expt
+    where
+      sig = novDecsToPositive nv3 . (ds4 <>) . (d6 <|) . (ds7 <>)
+        . toDecs $ sq8
+      toDecs = join . fmap (\(_, d, ds) -> d <| ds)
+      expt = next . add (N.length ds4) . next . add (N.length ds7)
+        . N.length . toDecs $ sq8
 

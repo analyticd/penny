@@ -25,6 +25,7 @@ module Penny.Lincoln.Natural
   -- * Conversions
   , positiveToUnsigned
   , unsignedToPositive
+  , novDecsToPositive
   ) where
 
 import Penny.Lincoln.Natural.Internal

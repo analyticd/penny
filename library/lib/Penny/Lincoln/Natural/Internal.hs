@@ -1,7 +1,9 @@
+{-# LANGUAGE BangPatterns #-}
 module Penny.Lincoln.Natural.Internal where
 
 import Penny.Lincoln.Rep.Digits
 import Data.Foldable (Foldable, toList)
+import Data.Sequence (Seq, ViewR(..), viewr)
 
 newtype Positive = Positive { positiveToInteger :: Integer }
   deriving (Eq, Ord, Show)
@@ -87,3 +89,10 @@ positiveToUnsigned (Positive n) = Unsigned n
 addUnsignedToPositive :: Positive -> Unsigned -> Positive
 addUnsignedToPositive (Positive x) (Unsigned y) = Positive $ x + y
 
+novDecsToPositive :: Novem -> Seq Decem -> Positive
+novDecsToPositive n = Positive . finish . go (0 :: Int) 0
+  where
+    go !places !tot sq = case viewr sq of
+      EmptyR -> (places, tot)
+      xs :> x -> go (succ places) ((digitToInt x * 10 ^ places) + tot) xs
+    finish (places, tot) = (digitToInt n * 10 ^ places) + tot
