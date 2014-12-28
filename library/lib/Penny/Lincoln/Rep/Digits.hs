@@ -1,4 +1,4 @@
-module Penny.Lincoln.Digits where
+module Penny.Lincoln.Rep.Digits where
 
 data Novem
   = D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
@@ -12,7 +12,7 @@ data Decem
 class OneToNine a where
   fromNovem :: Novem -> a
 
-class OneToNine a => Zero a where
+class OneToNine a => HasZero a where
   fromDecem :: Decem -> a
 
 class Digit a where
@@ -35,3 +35,5 @@ instance Digit Decem where
   intToDigit n = case n of
     0 -> Just D0
     x -> fmap Nonem $ intToDigit x
+
+

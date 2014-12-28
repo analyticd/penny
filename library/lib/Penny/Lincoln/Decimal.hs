@@ -1,7 +1,7 @@
 module Penny.Lincoln.Decimal where
 
 import Penny.Lincoln.Natural
-import Penny.Lincoln.Digits
+import Penny.Lincoln.Rep.Digits
 
 -- | Decimal numbers.  The precision is limited only by the machine's
 -- available memory (or, more realistically, by how big a number the

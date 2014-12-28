@@ -1,6 +1,6 @@
 module Penny.Lincoln.Natural.Internal where
 
-import Penny.Lincoln.Digits
+import Penny.Lincoln.Rep.Digits
 import Data.Foldable (Foldable, toList)
 
 newtype Positive = Positive { positiveToInteger :: Integer }
@@ -15,7 +15,7 @@ newtype Unsigned = Unsigned { unsignedToInteger :: Integer }
 instance OneToNine Unsigned where
   fromNovem = Unsigned . digitToInt
 
-instance Zero Unsigned where
+instance HasZero Unsigned where
   fromDecem = Unsigned . digitToInt
 
 class Natural a where

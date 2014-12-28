@@ -23,6 +23,9 @@ text = C.closedOpen "text" [1,2] [1,3]
 containers :: C.Package
 containers = C.closedOpen "containers" [0,5] [0,6]
 
+parsec :: C.Package
+parsec = C.closedOpen "parsec" [3,1,7] [3,2]
+
 -- Options
 
 ghcOptions :: [String]
@@ -82,6 +85,7 @@ libraryDepends =
   [ base
   , text
   , containers
+  , parsec
   ]
 
 commonOptions :: C.Field a => [a]
