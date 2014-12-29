@@ -7,3 +7,10 @@ integerToNonZero :: Integer -> Maybe NonZero
 integerToNonZero i
   | i == 0 = Nothing
   | otherwise = Just . NonZero $ i
+
+addNonZero :: NonZero -> NonZero -> Maybe NonZero
+addNonZero (NonZero x) (NonZero y)
+  | r == 0 = Nothing
+  | otherwise = Just . NonZero $ r
+  where
+    r = x + y

@@ -3,6 +3,7 @@ module Penny.Lincoln.Qty where
 import Penny.Lincoln.Decimal
 import Penny.Lincoln.Natural
 import Penny.Lincoln.Side
+import Penny.Lincoln.Rep
 
 newtype Qty = Qty Decimal
   deriving (Eq, Ord, Show)
@@ -44,5 +45,5 @@ qtyUnsignedToQtyNoSide (QtyUnsigned (DecUnsigned sig expt))
 class HasQty a where
   toQty :: a -> Qty
 
-instance HasQty QtyNeutralOrNonNeutral where
+instance HasQty (QtyNeutralOrNonNeutral a) where
   toQty = undefined

@@ -11,7 +11,7 @@ import qualified Data.Traversable as T
 
 data Ents m = Ents
   { entsToSeqEnt :: Seq (Ent m)
-  , entsToBalances :: Balances
+  , entsToImbalances :: Imbalances
   } deriving (Eq, Ord, Show)
 
 newtype Balanced m = Balanced { balancedToSeqEnt :: Seq (Ent m) }
@@ -37,9 +37,9 @@ instance T.Traversable Ents where
 
 appendEnt :: Ents a -> Ent a -> Ents a
 appendEnt (Ents s b) e@(Ent q c _) = Ents (s |> e)
-  (b <> balancesFromPair q c)
+  (b <> imbalancesFromPair q c)
 
 prependEnt :: Ent a -> Ents a -> Ents a
 prependEnt e@(Ent q c _) (Ents s b) = Ents (e <| s)
-  (b <> balancesFromPair q c)
+  (b <> imbalancesFromPair q c)
 

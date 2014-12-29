@@ -1,7 +1,7 @@
 module Penny.Lincoln.Ents
   ( Ents
   , entsToSeqEnt
-  , entsToBalances
+  , entsToImbalances
   , appendEnt
   , prependEnt
   , Balanced
