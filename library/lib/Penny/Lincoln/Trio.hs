@@ -1,5 +1,7 @@
 module Penny.Lincoln.Trio where
 
+import Penny.Lincoln.Ent
+import Penny.Lincoln.Decimal
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.Side
 import Penny.Lincoln.Rep
@@ -79,3 +81,20 @@ data Trio
 
   deriving (Eq, Ord, Show)
 
+data TrioError
+  = NoImbalances
+  | MultipleImbalances (Commodity, DecNonZero) (Commodity, DecNonZero)
+                       [(Commodity, DecNonZero)]
+  | CommodityNotFound Commodity
+  | BalanceIsSameSide Side
+  | UnsignedTooLarge QtyNonNeutralAnyRadix DecNonZero
+  deriving (Eq, Ord, Show)
+
+qtyAndCommodityToEnt
+  :: QtyNeutralOrNonNeutralAnyRadix
+  -> Commodity
+  -> a
+  -> Ent a
+qtyAndCommodityToEnt qnr cy a = Ent q cy a
+  where
+    q = undefined

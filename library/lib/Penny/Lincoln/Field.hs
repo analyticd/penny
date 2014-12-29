@@ -10,6 +10,7 @@ newtype Label = Label Text
 
 data Payload
   = PayDate DateTime
+  | PayText Text
   | PayTexts (Seq Text)
   | PayDecimal Decimal
   deriving (Eq, Ord, Show)

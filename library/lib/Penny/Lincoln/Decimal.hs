@@ -2,6 +2,7 @@ module Penny.Lincoln.Decimal where
 
 import Penny.Lincoln.Natural
 import qualified Penny.Lincoln.Natural as N
+import Penny.Lincoln.NonZero
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
 import Control.Monad (join)
@@ -96,6 +97,20 @@ instance Ord Semantic where
   compare (Semantic x) (Semantic y) =
     let (Decimal mx _, Decimal my _) = equalizeExponents x y
     in compare mx my
+
+-- | Decimals whose significand is never zero.
+
+data DecNonZero = DecNonZero !NonZero Unsigned
+  deriving (Eq, Ord, Show)
+
+decNonZeroToDecimal :: DecNonZero -> Decimal
+decNonZeroToDecimal (DecNonZero nz u) = Decimal (nonZeroToInteger nz) u
+
+decimalToDecNonZero :: Decimal -> Maybe DecNonZero
+decimalToDecNonZero (Decimal signif expt) = case integerToNonZero signif of
+  Nothing -> Nothing
+  Just nz -> Just $ DecNonZero nz expt
+
 
 -- | Decimals that are unsigned; they may be zero.
 data DecUnsigned

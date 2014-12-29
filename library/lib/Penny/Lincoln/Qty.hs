@@ -40,3 +40,9 @@ qtyUnsignedToQtyNoSide (QtyUnsigned (DecUnsigned sig expt))
   | naturalToInteger sig == 0 = Just
       (Qty (Decimal 0 expt))
   | otherwise = Nothing
+
+class HasQty a where
+  toQty :: a -> Qty
+
+instance HasQty QtyNeutralOrNonNeutral where
+  toQty = undefined

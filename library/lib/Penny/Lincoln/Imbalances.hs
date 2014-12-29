@@ -1,7 +1,7 @@
 module Penny.Lincoln.Imbalances where
 
 import qualified Data.Map as M
-import Penny.Lincoln.DecNonZero
+import Penny.Lincoln.Decimal
 import Penny.Lincoln.Balances
 import Penny.Lincoln.Commodity
 import Data.Maybe (mapMaybe)
