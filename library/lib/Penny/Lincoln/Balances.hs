@@ -29,7 +29,7 @@ isBalanced (Balances m) = F.all isZero m
   where
     isZero (Qty (Decimal signif _)) = signif == 0
 
-newtype Imbalances = Imbalances (M.Map Commodity DecNonZero)
+newtype Imbalances = Imbalances (M.Map Commodity QtyNonZero)
   deriving (Eq, Ord, Show)
 
 imbalancesFromPair :: Qty -> Commodity -> Imbalances
@@ -38,13 +38,11 @@ imbalancesFromPair q c = balancesToImbalances $ balancesFromPair q c
 balancesToImbalances :: Balances -> Imbalances
 balancesToImbalances (Balances m)
   = Imbalances
-  . M.mapMaybe f $ m
-  where
-    f (Qty q) = decimalToDecNonZero q
+  . M.mapMaybe qtyToQtyNonZero $ m
 
 imbalancesToBalances :: Imbalances -> Balances
 imbalancesToBalances (Imbalances m)
-  = Balances . fmap (Qty . decNonZeroToDecimal) $ m
+  = Balances . fmap qtyNonZeroToQty $ m
 
 instance Monoid Imbalances where
   mempty = Imbalances M.empty

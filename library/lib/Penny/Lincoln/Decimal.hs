@@ -9,6 +9,7 @@ import Control.Monad (join)
 import Data.Sequence ((<|), (|>), Seq)
 import qualified Data.Sequence as S
 import Data.Monoid
+import Penny.Lincoln.Offset
 
 -- | Decimal numbers.  The precision is limited only by the machine's
 -- available memory (or, more realistically, by how big a number the
@@ -36,6 +37,7 @@ data Decimal
   --
   -- > Decimal 200 . fromNovem $ D2
   deriving (Eq, Ord, Show)
+
 
 -- | @increaseExponent d e@ returns a 'Decimal' @d'@ whose exponent is
 -- equal to @e@; if the exponent of @d@ is greater than or equal to
@@ -103,6 +105,9 @@ instance Ord Semantic where
 data DecNonZero = DecNonZero !NonZero Unsigned
   deriving (Eq, Ord, Show)
 
+instance HasOffset DecNonZero where
+  offset (DecNonZero sig expt) = DecNonZero (offset sig) expt
+
 decNonZeroToDecimal :: DecNonZero -> Decimal
 decNonZeroToDecimal (DecNonZero nz u) = Decimal (nonZeroToInteger nz) u
 
@@ -135,31 +140,37 @@ data DecPositive
 class HasDecimal a where
   toDecimal :: a -> Decimal
 
+class HasExponent a where
+  toExponent :: a -> Unsigned
+
 instance HasDecimal DecPositive where
   toDecimal (DecPositive sig expt) = Decimal (naturalToInteger sig) expt
 
-instance HasDecimal (NilUngrouped r) where
-  toDecimal nu = Decimal 0 expt
-    where
-      expt = case nu of
-        NUZero _ Nothing -> fromDecem D0
-        NUZero _ (Just (_, Nothing)) -> fromDecem D0
-        NUZero _ (Just (_, Just (_, zs))) -> next (N.length zs)
-        NURadix (_, _, zs) -> next (N.length zs)
+instance HasExponent (NilUngrouped r) where
+  toExponent nu = case nu of
+    NUZero _ Nothing -> fromDecem D0
+    NUZero _ (Just (_, Nothing)) -> fromDecem D0
+    NUZero _ (Just (_, Just (_, zs))) -> next (N.length zs)
+    NURadix (_, _, zs) -> next (N.length zs)
 
-instance HasDecimal (Nil r) where
-  toDecimal nil = case nil of
-    NilU nu -> toDecimal nu
-    NilG ng -> toDecimal ng
+instance HasExponent (Nil r) where
+  toExponent nil = case nil of
+    NilU nu -> toExponent nu
+    NilG ng -> toExponent ng
 
-instance HasDecimal (NilGrouped r) where
-  toDecimal (NilGrouped _ _ _ zs1 _ _ zs2 zss) = Decimal 0
-      . next . next . add (N.length zs1) . add (N.length zs2)
+instance HasExponent (NilGrouped r) where
+  toExponent (NilGrouped _ _ _ zs1 _ _ zs2 zss) =
+      next . next . add (N.length zs1) . add (N.length zs2)
       . N.length . join
       . fmap (\(_, _, sq) -> Zero <| sq) $ zss
 
 class HasDecPositive a where
   toDecPositive :: a -> DecPositive
+
+-- | Strips the sign from the 'DecNonZero'.
+instance HasDecPositive DecNonZero where
+  toDecPositive (DecNonZero sig expt) =
+    DecPositive (nonZeroToPositive sig) expt
 
 instance HasDecPositive (BrimUngrouped r) where
 
@@ -246,3 +257,12 @@ unfurlBG7 = goBG7 S.empty
     goBG8 zsSoFar (BG8Novem nv ds sq) =
       (zsSoFar, nv, ds <> toDecs sq)
     goBG8 zsSoFar (BG8Group _ bg7) = goBG7 zsSoFar bg7
+
+instance HasDecPositive (Brim a) where
+  toDecPositive (BrimGrouped a) = toDecPositive a
+  toDecPositive (BrimUngrouped a) = toDecPositive a
+
+instance HasDecPositive QtyNonNeutralAnyRadix where
+  toDecPositive (QtyNonNeutralAnyRadix ei) =
+    either toDecPositive toDecPositive ei
+

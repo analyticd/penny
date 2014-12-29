@@ -3,11 +3,26 @@ module Penny.Lincoln.Trio where
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Decimal
 import Penny.Lincoln.Commodity
+import Penny.Lincoln.Balances
 import Penny.Lincoln.Side
 import Penny.Lincoln.Rep
+import Penny.Lincoln.Qty
+import Penny.Lincoln.Offset
+import qualified Data.Map as M
+
+data Orient
+  = CommodityOnLeft
+  | CommodityOnRight
+  deriving (Eq, Ord, Show)
+
+newtype SpaceBetween = SpaceBetween Bool
+  deriving (Eq, Ord, Show)
+
+data Arrangement = Arrangement Orient SpaceBetween
+  deriving (Eq, Ord, Show)
 
 data Trio
-  = QC QtyNeutralOrNonNeutralAnyRadix Commodity
+  = QC QtyNeutralOrNonNeutralAnyRadix Commodity Arrangement
   -- ^ Specify a quantity and commodity and a corresponding entry is
   -- always recorded.
   --
@@ -42,7 +57,7 @@ data Trio
   --
   -- Postconditions: the imbalances is empty.
 
-  | UC QtyNonNeutralAnyRadix Commodity
+  | UC QtyNonNeutralAnyRadix Commodity Arrangement
   -- ^ Specify an unsigned abstract quantity only and a 'Commodity'
   -- and how they are arranged.
   --
@@ -83,11 +98,11 @@ data Trio
 
 data TrioError
   = NoImbalances
-  | MultipleImbalances (Commodity, DecNonZero) (Commodity, DecNonZero)
-                       [(Commodity, DecNonZero)]
+  | MultipleImbalances (Commodity, QtyNonZero) (Commodity, QtyNonZero)
+                       [(Commodity, QtyNonZero)]
   | CommodityNotFound Commodity
   | BalanceIsSameSide Side
-  | UnsignedTooLarge QtyNonNeutralAnyRadix DecNonZero
+  | UnsignedTooLarge QtyNonNeutralAnyRadix QtyNonZero
   deriving (Eq, Ord, Show)
 
 qtyAndCommodityToEnt
@@ -95,6 +110,45 @@ qtyAndCommodityToEnt
   -> Commodity
   -> a
   -> Ent a
-qtyAndCommodityToEnt qnr cy a = Ent q cy a
+qtyAndCommodityToEnt qnr cy a = Ent (toQty qnr) cy a
+
+toEnt :: Imbalances -> Trio -> Either TrioError (a -> Ent a)
+
+toEnt _ (QC qnr cy _) = Right $ qtyAndCommodityToEnt qnr cy
+
+toEnt imb (Q qnr) = fmap f $ oneCommodity imb
   where
-    q = undefined
+    f (cy, _) = Ent (toQty qnr) cy
+
+toEnt imb (SC s cy) = do
+  qnz <- lookupCommodity imb cy
+  let qtSide = qtyNonZeroSide qnz
+  notSameSide qtSide s
+  return $ Ent (toQty . offset $ qnz) cy
+
+qnrIsSmallerAbsoluteValue
+  :: QtyNonNeutralAnyRadix
+  -> QtyNonZero
+  -> Either TrioError ()
+qnrIsSmallerAbsoluteValue qnr dnz
+  | qnr' < dnz' = return ()
+  | otherwise = Left $ UnsignedTooLarge qnr dnz
+  where
+    qnr' = Semantic . toDecimal . toDecPositive $ qnr
+    dnz' = Semantic . toDecimal . toDecPositive $ dnz
+
+notSameSide :: Side -> Side -> Either TrioError ()
+notSameSide x y
+  | x == y = Left $ BalanceIsSameSide x
+  | otherwise = return ()
+
+oneCommodity :: Imbalances -> Either TrioError (Commodity, QtyNonZero)
+oneCommodity (Imbalances imb) = case M.toList imb of
+  [] -> Left NoImbalances
+  (cy, q):[] -> return (cy, q)
+  x:y:xs -> Left $ MultipleImbalances x y xs
+
+lookupCommodity :: Imbalances -> Commodity -> Either TrioError QtyNonZero
+lookupCommodity (Imbalances imb) cy = case M.lookup cy imb of
+  Nothing -> Left $ CommodityNotFound cy
+  Just dnz -> return dnz

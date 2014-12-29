@@ -3,6 +3,7 @@ module Penny.Lincoln.NonZero
   , nonZeroToInteger
   , integerToNonZero
   , addNonZero
+  , nonZeroToPositive
   ) where
 
 import Penny.Lincoln.NonZero.Internal

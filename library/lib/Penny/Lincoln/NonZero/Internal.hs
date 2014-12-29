@@ -1,5 +1,8 @@
 module Penny.Lincoln.NonZero.Internal where
 
+import Penny.Lincoln.Natural.Internal
+import Penny.Lincoln.Offset
+
 newtype NonZero = NonZero { nonZeroToInteger :: Integer }
   deriving (Eq, Ord, Show)
 
@@ -14,3 +17,10 @@ addNonZero (NonZero x) (NonZero y)
   | otherwise = Just . NonZero $ r
   where
     r = x + y
+
+-- | Strips the sign from the 'NonZero'.
+nonZeroToPositive :: NonZero -> Positive
+nonZeroToPositive (NonZero i) = Positive (abs i)
+
+instance HasOffset NonZero where
+  offset (NonZero i) = NonZero . negate $ i
