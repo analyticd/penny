@@ -126,16 +126,48 @@ toEnt imb (SC s cy) = do
   notSameSide qtSide s
   return $ Ent (toQty . offset $ qnz) cy
 
+toEnt imb (S s) = do
+  (cy, qnz) <- oneCommodity imb
+  let qtSide = qtyNonZeroSide qnz
+  notSameSide s qtSide
+  return $ Ent (toQty . offset $ qnz) cy
+
+
+toEnt imb (UC qnr cy _) = do
+  qnz <- lookupCommodity imb cy
+  let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
+        . toDecPositive $ qnr
+  return $ Ent q cy
+
+toEnt imb (U qnr) = do
+  (cy, qnz) <- oneCommodity imb
+  qnrIsSmallerAbsoluteValue qnr qnz
+  let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
+        . toDecPositive $ qnr
+  return $ Ent q cy
+
+toEnt imb (C cy) = do
+  qnz <- lookupCommodity imb cy
+  let q = toQty . offset $ qnz
+  return $ Ent q cy
+
+toEnt imb E = do
+  (cy, qnz) <- oneCommodity imb
+  let q = toQty . offset $ qnz
+  return $ Ent q cy
+
+
 qnrIsSmallerAbsoluteValue
   :: QtyNonNeutralAnyRadix
   -> QtyNonZero
   -> Either TrioError ()
-qnrIsSmallerAbsoluteValue qnr dnz
-  | qnr' < dnz' = return ()
-  | otherwise = Left $ UnsignedTooLarge qnr dnz
+qnrIsSmallerAbsoluteValue qnr qnz
+  | qnr' < qnz' = return ()
+  | otherwise = Left $ UnsignedTooLarge qnr qnz
   where
     qnr' = Semantic . toDecimal . toDecPositive $ qnr
-    dnz' = Semantic . toDecimal . toDecPositive $ dnz
+    qnz' = Semantic . toDecimal . toDecPositive
+      . (\(QtyNonZero dnz) -> dnz) $ qnz
 
 notSameSide :: Side -> Side -> Either TrioError ()
 notSameSide x y

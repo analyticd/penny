@@ -4,8 +4,20 @@ module Penny.Lincoln.Ents
   , entsToImbalances
   , appendEnt
   , prependEnt
+  , appendTrio
+  , prependTrio
   , Balanced
   , balancedToSeqEnt
+  , entsToBalanced
+  , ImbalancedError(..)
+  , View
+  , entsLeft
+  , thisEnt
+  , entsRight
+  , moveLeft
+  , moveRight
+  , allViews
+  , viewToBalanced
   ) where
 
 import Penny.Lincoln.Ents.Internal

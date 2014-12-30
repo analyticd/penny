@@ -177,7 +177,8 @@ newtype QtyNeutralOrNonNeutralAnyRadix
 -- Same as old Philly
 
 -- | Qty representations that are non-neutral and have a radix that is
--- either a period or a comma.
+-- either a period or a comma.  Though they are non-neutral, they do
+-- not have a side.
 
 newtype QtyNonNeutralAnyRadix
   = QtyNonNeutralAnyRadix
