@@ -74,14 +74,14 @@ decPositiveToQty :: Side -> DecPositive -> Qty
 decPositiveToQty s (DecPositive pos expt)
   = Qty $ Decimal (addSign s . naturalToInteger $ pos) expt
 
-instance HasQty (QtyNeutralOrNonNeutral a) where
-  toQty (QtyNeutralOrNonNeutral (NilOrBrim cof)) = case cof of
+instance HasQty (QtyRep a) where
+  toQty (QtyRep (NilOrBrimPolar cof)) = case cof of
     Center nil -> Qty . Decimal 0 . toExponent $ nil
     OffCenter brim s -> Qty . addSign s . toDecimal
       . toDecPositive $ brim
 
-instance HasQty QtyRep where
-  toQty (QtyRep ei) = case ei of
+instance HasQty QtyRepAnyRadix where
+  toQty (QtyRepAnyRadix ei) = case ei of
     Left q -> toQty q
     Right q -> toQty q
 

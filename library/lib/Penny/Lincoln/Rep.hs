@@ -39,16 +39,16 @@ module Penny.Lincoln.Rep
   -- | These types aggregate other types.
   , CenterOrOffCenter(..)
   , changeOffCenterType
-  , NilOrBrim(..)
+  , NilOrBrimPolar(..)
+  , NilOrBrimScalar(..)
+  , NilOrBrimScalarAnyRadix(..)
   , RepNonNeutralNoSide(..)
 
   -- * Qty types
   --
-  -- | These types represent quantities (as opposed to prices). TODO
-  -- shouldn't QtyNonNeutralAnyRadix not be a Qty, because it doesn't
-  -- have a side?
-  , QtyNeutralOrNonNeutral(..)
+  -- | These types represent quantities (as opposed to prices).
   , QtyRep(..)
+  , QtyRepAnyRadix(..)
   ) where
 
 import Data.Sequence (Seq)
@@ -181,17 +181,32 @@ changeOffCenterType
 changeOffCenterType _ (Center _) = Nothing
 changeOffCenterType p' (OffCenter o _) = Just $ OffCenter o p'
 
+-- | Number representations that may be neutral or non-neutral.  The
+-- type variable is the type of the radix point and grouping
+-- character.  Unlike 'NilOrBrimPolar', a 'NilOrBrimScalar' does not
+-- have a polarity.
+
+newtype NilOrBrimScalar r
+  = NilOrBrimScalar (Either (Nil r) (Brim r))
+  deriving (Eq, Ord, Show)
+
+-- | Number types that may be neutral or non-neutral, with either a
+-- comma or period radix.  Does not have a polarity.
+newtype NilOrBrimScalarAnyRadix
+  = NilOrBrimScalarAnyRadix (Either (NilOrBrimScalar RadCom)
+                                    (NilOrBrimScalar RadPer))
+  deriving (Eq, Ord, Show)
+
 -- Same as old Stokely
 
 -- | Number representations that may be neutral or, alternatively, may
 -- be non-neutral.  The first type variable is the type of the radix
--- point and grouping character; see, for example,
--- "Penny.Core.Anna.RadCom" or "Penny.Core.Anna.RadPer".  The second
--- type variable is the polarity; see, for example, "Penny.Core.Side"
--- or "Penny.Core.PluMin".
+-- point and grouping character; see, for example, 'RadCom' or
+-- 'RadPer'.  The second type variable is the polarity; see, for
+-- example, 'Penny.Lincoln.Side.Side'.
 
-newtype NilOrBrim r p
-  = NilOrBrim (CenterOrOffCenter (Nil r) (Brim r) p)
+newtype NilOrBrimPolar r p
+  = NilOrBrimPolar (CenterOrOffCenter (Nil r) (Brim r) p)
   deriving (Eq, Ord, Show)
 
 -- Same as old Walker
@@ -200,23 +215,24 @@ newtype NilOrBrim r p
 -- variable is the type of the radix point and grouping character;
 -- see, for example, 'RadCom' or 'RadPer'.  If non-neutral, also
 -- contains a 'Side'.
+--
+-- This is a complete representation of a quantity; that is, it can
+-- represent any quantity.
 
-newtype QtyNeutralOrNonNeutral r
-  = QtyNeutralOrNonNeutral (NilOrBrim r Side)
+newtype QtyRep r
+  = QtyRep (NilOrBrimPolar r Side)
   deriving (Eq, Ord, Show)
 
 -- Same as old Muddy
 
 -- | Qty representations that may be neutral or non-neutral and have a
 -- radix that is either a period or a comma.  If non-neutral, also
--- contains a 'Side'.  This is the broadest kind of QtyRep and can
--- represent any quantity; other types that are more restrictive have
--- their restrictions noted in their names.
+-- contains a 'Side'.
 
-newtype QtyRep
-  = QtyRep
-    (Either (QtyNeutralOrNonNeutral RadCom)
-            (QtyNeutralOrNonNeutral RadPer))
+newtype QtyRepAnyRadix
+  = QtyRepAnyRadix
+    (Either (QtyRep RadCom)
+            (QtyRep RadPer))
   deriving (Eq, Ord, Show)
 
 -- Same as old Philly

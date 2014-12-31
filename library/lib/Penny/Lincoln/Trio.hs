@@ -22,7 +22,7 @@ data Arrangement = Arrangement Orient SpaceBetween
   deriving (Eq, Ord, Show)
 
 data Trio
-  = QC QtyRep Commodity Arrangement
+  = QC QtyRepAnyRadix Commodity Arrangement
   -- ^ Specify a quantity and commodity and a corresponding entry is
   -- always recorded.
   --
@@ -30,7 +30,7 @@ data Trio
   --
   -- Postconditions: the balance is appropriately affected.
 
-  | Q QtyRep
+  | Q QtyRepAnyRadix
   -- ^ Specify a quantity only.
   --
   -- Preconditions: there is exactly one commodity in the imbalances.
@@ -106,7 +106,7 @@ data TrioError
   deriving (Eq, Ord, Show)
 
 qtyAndCommodityToEnt
-  :: QtyRep
+  :: QtyRepAnyRadix
   -> Commodity
   -> a
   -> Ent a

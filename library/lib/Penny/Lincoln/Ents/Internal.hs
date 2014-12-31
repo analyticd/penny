@@ -13,6 +13,7 @@ import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import Penny.Lincoln.Trio
 import qualified Data.Map as M
+import Penny.Lincoln.Side
 
 data Ents m = Ents
   { entsToSeqEnt :: Seq (Ent m)
@@ -128,3 +129,15 @@ allViews (Balanced sq) = go S.empty sq
 
 viewToBalanced :: View a -> Balanced a
 viewToBalanced (View l c r) = Balanced $ (l |> c) <> r
+
+restrictedBalanced
+  :: Commodity
+  -- ^ All postings will have this commodity.
+  -> Side
+  -- ^ Each posting (except the last one) will have this side.
+  -> Seq (NilOrBrimScalarAnyRadix, Arrangement, a)
+  -- ^ Each posting, along with its metadata and 'Arrangement'.
+  -> a
+  -- ^ Metadata for the last posting
+  -> Balanaced (a, Trio)
+restrictedBalanced = undefined
