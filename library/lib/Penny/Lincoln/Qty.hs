@@ -80,8 +80,8 @@ instance HasQty (QtyNeutralOrNonNeutral a) where
     OffCenter brim s -> Qty . addSign s . toDecimal
       . toDecPositive $ brim
 
-instance HasQty QtyNeutralOrNonNeutralAnyRadix where
-  toQty (QtyNeutralOrNonNeutralAnyRadix ei) = case ei of
+instance HasQty QtyRep where
+  toQty (QtyRep ei) = case ei of
     Left q -> toQty q
     Right q -> toQty q
 

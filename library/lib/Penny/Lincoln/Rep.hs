@@ -7,7 +7,49 @@
 -- arithmetic; however, it \"remembers\" exactly how the user entered
 -- a number, complete with grouping characters and the radix point
 -- (which may be a period or a comma.)
-module Penny.Lincoln.Rep where
+module Penny.Lincoln.Rep
+  ( -- * Radix and grouping
+    Radix(..)
+  , Grouper(..)
+  , RadCom(..)
+  , RadPer(..)
+
+  -- * Zero
+  , Zero(..)
+
+  -- * Nil representations
+  -- | These represent numbers whose significand is zero.
+  , Nil(..)
+  , NilGrouped(..)
+  , NilUngrouped(..)
+
+  -- * Brim representations
+  --
+  -- | These represent numbers whose significand is other than zero.
+  , Brim(..)
+  , BrimGrouped(..)
+  , BrimUngrouped(..)
+  , BG1(..)
+  , BG5(..)
+  , BG6(..)
+  , BG7(..)
+  , BG8(..)
+
+  -- * Aggregate types
+  -- | These types aggregate other types.
+  , CenterOrOffCenter(..)
+  , changeOffCenterType
+  , NilOrBrim(..)
+  , RepNonNeutralNoSide(..)
+
+  -- * Qty types
+  --
+  -- | These types represent quantities (as opposed to prices). TODO
+  -- shouldn't QtyNonNeutralAnyRadix not be a Qty, because it doesn't
+  -- have a side?
+  , QtyNeutralOrNonNeutral(..)
+  , QtyRep(..)
+  ) where
 
 import Data.Sequence (Seq)
 import Penny.Lincoln.Rep.Digits
@@ -154,10 +196,10 @@ newtype NilOrBrim r p
 
 -- Same as old Walker
 
--- | Qty representations that may be neutral or non-neutral.  The
--- type variable is the type of the radix point and grouping
--- character; see, for example, 'Penny.Core.Anna.RadCom.T' or
--- 'Penny.Core.Anna.RadPer.T'.
+-- | Qty representations that may be neutral or non-neutral.  The type
+-- variable is the type of the radix point and grouping character;
+-- see, for example, 'RadCom' or 'RadPer'.  If non-neutral, also
+-- contains a 'Side'.
 
 newtype QtyNeutralOrNonNeutral r
   = QtyNeutralOrNonNeutral (NilOrBrim r Side)
@@ -166,21 +208,24 @@ newtype QtyNeutralOrNonNeutral r
 -- Same as old Muddy
 
 -- | Qty representations that may be neutral or non-neutral and have a
--- radix that is either a period or a comma.
+-- radix that is either a period or a comma.  If non-neutral, also
+-- contains a 'Side'.  This is the broadest kind of QtyRep and can
+-- represent any quantity; other types that are more restrictive have
+-- their restrictions noted in their names.
 
-newtype QtyNeutralOrNonNeutralAnyRadix
-  = QtyNeutralOrNonNeutralAnyRadix
+newtype QtyRep
+  = QtyRep
     (Either (QtyNeutralOrNonNeutral RadCom)
             (QtyNeutralOrNonNeutral RadPer))
   deriving (Eq, Ord, Show)
 
 -- Same as old Philly
 
--- | Qty representations that are non-neutral and have a radix that is
+-- | Representations that are non-neutral and have a radix that is
 -- either a period or a comma.  Though they are non-neutral, they do
 -- not have a side.
 
-newtype QtyNonNeutralAnyRadix
-  = QtyNonNeutralAnyRadix
+newtype RepNonNeutralNoSide
+  = RepNonNeutralNoSide
     (Either (Brim RadCom) (Brim RadPer))
     deriving (Eq, Ord, Show)

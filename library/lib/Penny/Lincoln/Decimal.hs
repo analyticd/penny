@@ -262,7 +262,7 @@ instance HasDecPositive (Brim a) where
   toDecPositive (BrimGrouped a) = toDecPositive a
   toDecPositive (BrimUngrouped a) = toDecPositive a
 
-instance HasDecPositive QtyNonNeutralAnyRadix where
-  toDecPositive (QtyNonNeutralAnyRadix ei) =
+instance HasDecPositive RepNonNeutralNoSide where
+  toDecPositive (RepNonNeutralNoSide ei) =
     either toDecPositive toDecPositive ei
 

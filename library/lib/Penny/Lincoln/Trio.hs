@@ -22,7 +22,7 @@ data Arrangement = Arrangement Orient SpaceBetween
   deriving (Eq, Ord, Show)
 
 data Trio
-  = QC QtyNeutralOrNonNeutralAnyRadix Commodity Arrangement
+  = QC QtyRep Commodity Arrangement
   -- ^ Specify a quantity and commodity and a corresponding entry is
   -- always recorded.
   --
@@ -30,7 +30,7 @@ data Trio
   --
   -- Postconditions: the balance is appropriately affected.
 
-  | Q QtyNeutralOrNonNeutralAnyRadix
+  | Q QtyRep
   -- ^ Specify a quantity only.
   --
   -- Preconditions: there is exactly one commodity in the imbalances.
@@ -57,7 +57,7 @@ data Trio
   --
   -- Postconditions: the imbalances is empty.
 
-  | UC QtyNonNeutralAnyRadix Commodity Arrangement
+  | UC RepNonNeutralNoSide Commodity Arrangement
   -- ^ Specify an unsigned abstract quantity only and a 'Commodity'
   -- and how they are arranged.
   --
@@ -67,7 +67,7 @@ data Trio
   -- its absolute value reduced or it flips to the opposite side.
 
 
-  | U QtyNonNeutralAnyRadix
+  | U RepNonNeutralNoSide
   -- ^ Specify an unsigned quantity only.
   --
   -- Preconditions: the imbalances contains exactly one commodity, and
@@ -102,11 +102,11 @@ data TrioError
                        [(Commodity, QtyNonZero)]
   | CommodityNotFound Commodity
   | BalanceIsSameSide Side
-  | UnsignedTooLarge QtyNonNeutralAnyRadix QtyNonZero
+  | UnsignedTooLarge RepNonNeutralNoSide QtyNonZero
   deriving (Eq, Ord, Show)
 
 qtyAndCommodityToEnt
-  :: QtyNeutralOrNonNeutralAnyRadix
+  :: QtyRep
   -> Commodity
   -> a
   -> Ent a
@@ -158,7 +158,7 @@ toEnt imb E = do
 
 
 qnrIsSmallerAbsoluteValue
-  :: QtyNonNeutralAnyRadix
+  :: RepNonNeutralNoSide
   -> QtyNonZero
   -> Either TrioError ()
 qnrIsSmallerAbsoluteValue qnr qnz

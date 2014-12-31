@@ -58,6 +58,7 @@ instance T.Traversable Balanced where
         e :< xs ->
           (<|) <$> T.sequenceA e <*> go xs
 
+
 appendEnt :: Ents a -> Ent a -> Ents a
 appendEnt (Ents s b) e@(Ent q c _) = Ents (s |> e)
   (b <> imbalancesFromPair q c)
