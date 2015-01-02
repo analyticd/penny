@@ -51,11 +51,11 @@ qtyUnsignedToQtyWithSide :: Side -> QtyUnsigned -> Maybe Qty
 qtyUnsignedToQtyWithSide s (QtyUnsigned (DecUnsigned sig expt))
   | naturalToInteger sig == 0 = Nothing
   | otherwise = Just
-      (Qty (Decimal (addSign s . naturalToInteger $ sig) expt))
+      (Qty (Decimal (addSideSign s . naturalToInteger $ sig) expt))
 
-addSign :: Num a => Side -> a -> a
-addSign Debit = negate
-addSign Credit = id
+addSideSign :: Num a => Side -> a -> a
+addSideSign Debit = negate
+addSideSign Credit = id
 
 qtyUnsignedToQtyNoSide :: QtyUnsigned -> Maybe Qty
 qtyUnsignedToQtyNoSide (QtyUnsigned (DecUnsigned sig expt))
@@ -72,12 +72,12 @@ instance HasQty QtyNonZero where
 
 decPositiveToQty :: Side -> DecPositive -> Qty
 decPositiveToQty s (DecPositive pos expt)
-  = Qty $ Decimal (addSign s . naturalToInteger $ pos) expt
+  = Qty $ Decimal (addSideSign s . naturalToInteger $ pos) expt
 
 instance HasQty (QtyRep a) where
   toQty (QtyRep (NilOrBrimPolar cof)) = case cof of
     Center nil -> Qty . Decimal 0 . toExponent $ nil
-    OffCenter brim s -> Qty . addSign s . toDecimal
+    OffCenter brim s -> Qty . addSideSign s . toDecimal
       . toDecPositive $ brim
 
 instance HasQty QtyRepAnyRadix where

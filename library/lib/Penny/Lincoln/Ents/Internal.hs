@@ -14,6 +14,7 @@ import qualified Data.Traversable as T
 import Penny.Lincoln.Trio
 import qualified Data.Map as M
 import Penny.Lincoln.Side
+import Penny.Lincoln.Rep
 
 data Ents m = Ents
   { entsToSeqEnt :: Seq (Ent m)
@@ -120,6 +121,28 @@ moveRight (View l c r) = case viewl r of
   EmptyL -> Nothing
   x :< xs -> Just $ View (l |> c) x xs
 
+-- siblingViews - careful - each sibling view must contain the 'Ent'
+-- for the current 'View', but the returned 'Seq' cannot itself
+-- include the current 'View'
+
+-- | A 'Seq' of 'View' that are siblings of this 'View'.
+siblingViews :: View a -> Seq (View a)
+siblingViews (View l c r) = go S.empty pairs
+  where
+    pairs = ( (fmap (\e -> (True, e)) l)
+              |> (False, c) )
+            <> fmap (\e -> (True, e)) r
+    go soFar sq = case viewl sq of
+      EmptyL -> soFar
+      (use, e) :< rest
+        | not use -> go soFar sq
+        | otherwise -> this <| go (soFar |> this) rest
+        where
+          this = View l' e r'
+          l' = fmap thisEnt soFar
+          r' = fmap snd rest
+
+
 allViews :: Balanced a -> Seq (View a)
 allViews (Balanced sq) = go S.empty sq
   where
@@ -130,6 +153,9 @@ allViews (Balanced sq) = go S.empty sq
 viewToBalanced :: View a -> Balanced a
 viewToBalanced (View l c r) = Balanced $ (l |> c) <> r
 
+-- | Creates 'Balanced' sets of 'Ent'.  Unlike 'entsToBalanced' this
+-- function never fails.  To accomplish this, it places greater
+-- restrictions on its arguments than does 'entsToBalanced'.
 restrictedBalanced
   :: Commodity
   -- ^ All postings will have this commodity.
@@ -139,5 +165,20 @@ restrictedBalanced
   -- ^ Each posting, along with its metadata and 'Arrangement'.
   -> a
   -- ^ Metadata for the last posting
-  -> Balanaced (a, Trio)
-restrictedBalanced = undefined
+  -> Balanced (a, Trio)
+  -- ^ Each posting given in the 'Seq' above will have a corresponding
+  -- value in the 'Seq' in this 'Balanced'.  Each of these 'Ent' will
+  -- have a 'Trio' whose constructor is 'QC'.  In addition, there will
+  -- be a final 'Ent' whose 'Trio' is constructed with 'E'.  This
+  -- final 'Ent' will always be appended even if it is not necessary;
+  -- that is, its 'Qty' may have a significand of 0.
+restrictedBalanced cy s sq metaLast = Balanced (begin |> end)
+  where
+    begin = fmap f sq
+    f (rep, ar, meta) = Ent (toQty q) cy (meta, tri)
+      where
+        q = nilOrBrimScalarAnyRadixToQty s rep
+        tri = QC q cy ar
+    end = Ent (negate tot) cy (metaLast, E)
+    tot = F.foldl' (+) (fromInteger 0) . fmap (\(Ent q _ _) -> q)
+      $ begin

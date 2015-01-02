@@ -7,12 +7,27 @@ module Penny.Lincoln.DateTime
   , Zone
   , zoneToInt
   , intToZone
+  , dateTimeToUTC
   ) where
 
 import Data.Time
 
+-- | An instant in time.  This is a local time.  The 'Eq' and 'Ord'
+-- instances are derived, so they aren't useful for determining
+-- whether two 'DateTime' refer to the same instant in time; for that,
+-- convert the times to UTC times using 'dateTimeToUTC' and then
+-- compare those.
 data DateTime = DateTime Day Hours Minutes Seconds Zone
   deriving (Eq, Ord, Show)
+
+dateTimeToUTC :: DateTime -> UTCTime
+dateTimeToUTC (DateTime day hrs (Minutes mins) (Seconds secs) zone)
+  = localTimeToUTC zn lcl
+  where
+    zn = TimeZone (zoneToInt zone) False ""
+    lcl = LocalTime day tod
+    tod = TimeOfDay (fromEnum hrs) (fromEnum mins)
+      (fromInteger . fromIntegral . fromEnum $ secs)
 
 data Hours = H0 | H1 | H2 | H3 | H4 | H5 | H6 | H7 | H8 | H9
   | H10 | H11 | H12 | H13 | H14 | H15 | H16 | H17 | H18

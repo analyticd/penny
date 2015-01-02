@@ -42,6 +42,7 @@ module Penny.Lincoln.Rep
   , NilOrBrimPolar(..)
   , NilOrBrimScalar(..)
   , NilOrBrimScalarAnyRadix(..)
+  , nilOrBrimScalarAnyRadixToQty
   , RepNonNeutralNoSide(..)
 
   -- * Qty types
@@ -49,11 +50,18 @@ module Penny.Lincoln.Rep
   -- | These types represent quantities (as opposed to prices).
   , QtyRep(..)
   , QtyRepAnyRadix(..)
+
+  -- * Exch types
+  --
+  -- | These types represent exchanges.
+  , ExchRep(..)
+  , ExchRepAnyRadix(..)
   ) where
 
 import Data.Sequence (Seq)
 import Penny.Lincoln.Rep.Digits
 import Penny.Lincoln.Side
+import Penny.Lincoln.PluMin
 
 -- | A radix point.  The type is parameterized on a type that
 -- represents the character used for the radix point.
@@ -197,6 +205,27 @@ newtype NilOrBrimScalarAnyRadix
                                     (NilOrBrimScalar RadPer))
   deriving (Eq, Ord, Show)
 
+-- | Adds polarity to a 'NilOrBrimScalarAnyRadix' to transform it to a
+-- 'QtyRepAnyRadix'.  Nil values do not receive a polarity; all other
+-- values are assigned to the given 'Side'.
+nilOrBrimScalarAnyRadixToQty
+  :: Side
+  -- ^ Assign this 'Side' to polar values
+  -> NilOrBrimScalarAnyRadix
+  -> QtyRepAnyRadix
+nilOrBrimScalarAnyRadixToQty s (NilOrBrimScalarAnyRadix e) =
+  QtyRepAnyRadix e'
+  where
+    e' = case e of
+      Left (NilOrBrimScalar (Left nilCom)) ->
+        Left (QtyRep (NilOrBrimPolar (Center nilCom)))
+      Left (NilOrBrimScalar (Right brimCom)) ->
+        Left (QtyRep (NilOrBrimPolar (OffCenter brimCom s)))
+      Right (NilOrBrimScalar (Left nilPer)) ->
+        Right (QtyRep (NilOrBrimPolar (Center nilPer)))
+      Right (NilOrBrimScalar (Right brimPer)) ->
+        Right (QtyRep (NilOrBrimPolar (OffCenter brimPer s)))
+
 -- Same as old Stokely
 
 -- | Number representations that may be neutral or, alternatively, may
@@ -208,6 +237,19 @@ newtype NilOrBrimScalarAnyRadix
 newtype NilOrBrimPolar r p
   = NilOrBrimPolar (CenterOrOffCenter (Nil r) (Brim r) p)
   deriving (Eq, Ord, Show)
+
+-- Same as old Philly
+
+-- | Representations that are non-neutral and have a radix that is
+-- either a period or a comma.  Though they are non-neutral, they do
+-- not have a side.
+
+newtype RepNonNeutralNoSide
+  = RepNonNeutralNoSide
+    (Either (Brim RadCom) (Brim RadPer))
+    deriving (Eq, Ord, Show)
+
+-- # Qty representations
 
 -- Same as old Walker
 
@@ -235,13 +277,23 @@ newtype QtyRepAnyRadix
             (QtyRep RadPer))
   deriving (Eq, Ord, Show)
 
--- Same as old Philly
+-- # Exch representations
 
--- | Representations that are non-neutral and have a radix that is
--- either a period or a comma.  Though they are non-neutral, they do
--- not have a side.
+-- | Exch representations that may be neutral or non-neutral.  The type
+-- variable is the type of the radix point and grouping character;
+-- see, for example, 'RadCom' or 'RadPer'.  If non-neutral, also
+-- contains a 'PluMin'.
+--
+-- This is a complete representation of an 'Penny.Lincoln.Exch.Exch';
+-- that is, it can represent any 'Penny.Lincoln.Exch.Exch'.
 
-newtype RepNonNeutralNoSide
-  = RepNonNeutralNoSide
-    (Either (Brim RadCom) (Brim RadPer))
-    deriving (Eq, Ord, Show)
+newtype ExchRep r = ExchRep (NilOrBrimPolar r PluMin)
+  deriving (Eq, Ord, Show)
+
+-- | Exch representations that may have a radix of 'RadCom' or
+-- 'RadPer' and may be neutral or non-neutral.  If non-neutral, also
+-- contains a 'PluMin'.
+
+newtype ExchRepAnyRadix = ExchRepAnyRadix
+  (Either (ExchRep RadCom) (ExchRep RadPer))
+  deriving (Eq, Ord, Show)

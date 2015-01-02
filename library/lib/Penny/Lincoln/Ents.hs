@@ -17,7 +17,9 @@ module Penny.Lincoln.Ents
   , moveLeft
   , moveRight
   , allViews
+  , siblingViews
   , viewToBalanced
+  , restrictedBalanced
   ) where
 
 import Penny.Lincoln.Ents.Internal
