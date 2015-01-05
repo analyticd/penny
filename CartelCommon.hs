@@ -32,6 +32,9 @@ time = C.closedOpen "time" [1,4] [1,5]
 transformers :: C.Package
 transformers = C.closedOpen "transformers" [0,4] [0,5]
 
+prednote :: C.Package
+prednote = C.closedOpen "prednote" [0,26] [0,27]
+
 -- Options
 
 ghcOptions :: [String]
@@ -94,6 +97,7 @@ libraryDepends =
   , parsec
   , time
   , transformers
+  , prednote
   ]
 
 commonOptions :: C.Field a => [a]
