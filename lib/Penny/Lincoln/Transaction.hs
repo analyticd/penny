@@ -255,8 +255,9 @@ assignPstgRev lbl pstg = do
 -}
 
 makeSerials
-  :: Seq (Seq (Balanced a))
-  -> Seq (Seq (Balanced (a, Serial), Serial))
+  :: (T.Traversable t1, T.Traversable t2, T.Traversable t3)
+  => t1 (t2 (t3 a))
+  -> t1 (t2 (t3 (a, Serial), Serial))
 makeSerials = makeTxnSerials . makePstgSerials
 
 makeFwd :: State Integer Tree
@@ -272,8 +273,9 @@ makeRev = do
   return $ scalarChild "reverse" this
 
 makeTxnSerials
-  :: Seq (Seq a)
-  -> Seq (Seq (a, Serial))
+  :: (T.Traversable t1, T.Traversable t2)
+  => t1 (t2 a)
+  -> t1 (t2 (a, Serial))
 makeTxnSerials
   = fmap (fmap repack)
   . makeGlobalTxnSerials
@@ -283,8 +285,9 @@ makeTxnSerials
       (a, Serial $ treeChildren "serials" (Seq.fromList [g, f]))
 
 makeGlobalTxnSerials
-  :: Seq (Seq a)
-  -> Seq (Seq (a, GlblSer))
+  :: (T.Traversable t1, T.Traversable t2)
+  => t1 (t2 a)
+  -> t1 (t2 (a, GlblSer))
 makeGlobalTxnSerials sq = fst . flip runState 0 $
   (T.mapM (T.mapM assignToFwd) sq)
   >>= T.mapM (T.mapM assignToRev)
@@ -296,8 +299,9 @@ makeGlobalTxnSerials sq = fst . flip runState 0 $
                          (Seq.fromList [fwd, tree]))
 
 makeFileTxnSerials
-  :: Seq a
-  -> Seq (a, FileSer)
+  :: T.Traversable t
+  => t a
+  -> t (a, FileSer)
 makeFileTxnSerials sq = fst . flip runState 0 $
   (T.mapM assignToFwd sq)
   >>= T.mapM assignToRev
@@ -312,8 +316,9 @@ newtype Serial = Serial Tree
   deriving (Eq, Ord, Show)
 
 makePstgSerials
-  :: Seq (Seq (Balanced a))
-  -> Seq (Seq (Balanced (a, Serial)))
+  :: (T.Traversable t1, T.Traversable t2, T.Traversable t3)
+  => t1 (t2 (t3 a))
+  -> t1 (t2 (t3 (a, Serial)))
 makePstgSerials
   = fmap (fmap (fmap repack))
   . makeGlobalPstgSerials
@@ -327,8 +332,9 @@ newtype GlblSer = GlblSer Tree
   deriving (Eq, Ord, Show)
 
 makeGlobalPstgSerials
-  :: Seq (Seq (Balanced a))
-  -> Seq (Seq (Balanced (a, GlblSer)))
+  :: (T.Traversable t1, T.Traversable t2, T.Traversable t3)
+  => t1 (t2 (t3 a))
+  -> t1 (t2 (t3 (a, GlblSer)))
 makeGlobalPstgSerials sq = fst . flip runState 0 $
   (T.mapM (T.mapM (T.mapM assignToFwd)) sq)
   >>= T.mapM (T.mapM (T.mapM assignToRev))
@@ -345,8 +351,9 @@ newtype FileSer = FileSer Tree
   deriving (Eq, Ord, Show)
 
 makeFilePstgSerials
-  :: Seq (Balanced a)
-  -> Seq (Balanced (a, FileSer))
+  :: (T.Traversable t1, T.Traversable t2)
+  => t1 (t2 a)
+  -> t1 (t2 (a, FileSer))
 makeFilePstgSerials sq = fst . flip runState 0 $
   (T.mapM (T.mapM assignToFwd) sq)
   >>= T.mapM (T.mapM assignToRev)
@@ -363,8 +370,9 @@ newtype IndexSer = IndexSer Tree
   deriving (Eq, Ord, Show)
 
 makeIndexSerials
-  :: Balanced a
-  -> Balanced (a, IndexSer)
+  :: T.Traversable t
+  => t a
+  -> t (a, IndexSer)
 makeIndexSerials bl = fst . flip runState 0 $
   (T.mapM assignFwd bl)
   >>= T.mapM assignRev
