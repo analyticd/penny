@@ -5,15 +5,17 @@ import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
 import Data.Map (Map)
 import Data.Sequence (Seq, viewl, ViewL(..))
+import qualified Data.Sequence as Seq
 import Data.Monoid
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import qualified Data.Map as M
+import Data.Text (Text)
 
-newtype TopLine = TopLine (Map Label Payload)
+newtype TopLine = TopLine Forest
   deriving (Eq, Ord, Show)
 
-data PstgMeta = PstgMeta (Map Label Payload) Trio
+data PstgMeta = PstgMeta Forest Trio
   deriving (Eq, Ord, Show)
 
 -- | A balanced set of postings, along with common metadata for all
@@ -89,6 +91,8 @@ addSerials
   -- ^ There is one input Seq for each file.  The inner Seq contains
   -- the transactions to which to assign serials.
   -> Seq (Seq Transaction)
+addSerials = undefined
+{-
 addSerials = addGlobalSerials . fmap addFileSerials
 
 -- | Adds global serials only.
@@ -248,3 +252,128 @@ assignPstgRev lbl pstg = do
   this <- get
   return $ addPstgSerial lbl this pstg
 
+-}
+
+makeSerials
+  :: Seq (Seq (Balanced a))
+  -> Seq (Seq (Balanced (a, Serial), Serial))
+makeSerials = makeTxnSerials . makePstgSerials
+
+makeFwd :: State Integer Tree
+makeFwd = do
+  this <- get
+  modify succ
+  return $ scalarChild "forward" this
+
+makeRev :: State Integer Tree
+makeRev = do
+  modify pred
+  this <- get
+  return $ scalarChild "reverse" this
+
+makeTxnSerials
+  :: Seq (Seq a)
+  -> Seq (Seq (a, Serial))
+makeTxnSerials
+  = fmap (fmap repack)
+  . makeGlobalTxnSerials
+  . fmap makeFileTxnSerials
+  where
+    repack ((a, FileSer f), GlblSer g) =
+      (a, Serial $ treeChildren "serials" (Seq.fromList [g, f]))
+
+makeGlobalTxnSerials
+  :: Seq (Seq a)
+  -> Seq (Seq (a, GlblSer))
+makeGlobalTxnSerials sq = fst . flip runState 0 $
+  (T.mapM (T.mapM assignToFwd) sq)
+  >>= T.mapM (T.mapM assignToRev)
+  where
+    assignToFwd a = do { tree <- makeFwd; return (a, tree) }
+    assignToRev (a, fwd) = do
+      tree <- makeRev
+      return (a, GlblSer $ treeChildren "global"
+                         (Seq.fromList [fwd, tree]))
+
+makeFileTxnSerials
+  :: Seq a
+  -> Seq (a, FileSer)
+makeFileTxnSerials sq = fst . flip runState 0 $
+  (T.mapM assignToFwd sq)
+  >>= T.mapM assignToRev
+  where
+    assignToFwd a = do { tree <- makeFwd; return (a, tree) }
+    assignToRev (a, fwd) = do
+      tree <- makeRev
+      return (a, FileSer $ treeChildren "file"
+                 (Seq.fromList [fwd, tree]))
+
+newtype Serial = Serial Tree
+  deriving (Eq, Ord, Show)
+
+makePstgSerials
+  :: Seq (Seq (Balanced a))
+  -> Seq (Seq (Balanced (a, Serial)))
+makePstgSerials
+  = fmap (fmap (fmap repack))
+  . makeGlobalPstgSerials
+  . fmap (makeFilePstgSerials)
+  . fmap (fmap makeIndexSerials)
+  where
+    repack (((a, IndexSer i), FileSer f), GlblSer g)
+      = (a, Serial $ treeChildren "serials" (Seq.fromList [g, f, i]))
+
+newtype GlblSer = GlblSer Tree
+  deriving (Eq, Ord, Show)
+
+makeGlobalPstgSerials
+  :: Seq (Seq (Balanced a))
+  -> Seq (Seq (Balanced (a, GlblSer)))
+makeGlobalPstgSerials sq = fst . flip runState 0 $
+  (T.mapM (T.mapM (T.mapM assignToFwd)) sq)
+  >>= T.mapM (T.mapM (T.mapM assignToRev))
+  where
+    assignToFwd a = do
+      tree <- makeFwd
+      return (a, tree)
+    assignToRev (a, serFwd) = do
+      tree <- makeRev
+      return (a, GlblSer $ treeChildren "global"
+                           (Seq.fromList [serFwd, tree]))
+
+newtype FileSer = FileSer Tree
+  deriving (Eq, Ord, Show)
+
+makeFilePstgSerials
+  :: Seq (Balanced a)
+  -> Seq (Balanced (a, FileSer))
+makeFilePstgSerials sq = fst . flip runState 0 $
+  (T.mapM (T.mapM assignToFwd) sq)
+  >>= T.mapM (T.mapM assignToRev)
+  where
+    assignToFwd a = do
+      tree <- makeFwd
+      return (a, tree)
+    assignToRev (a, serFwd) = do
+      tree <- makeRev
+      return (a, FileSer $ treeChildren "file"
+                           (Seq.fromList [serFwd, tree]))
+
+newtype IndexSer = IndexSer Tree
+  deriving (Eq, Ord, Show)
+
+makeIndexSerials
+  :: Balanced a
+  -> Balanced (a, IndexSer)
+makeIndexSerials bl = fst . flip runState 0 $
+  (T.mapM assignFwd bl)
+  >>= T.mapM assignRev
+  where
+    assignFwd a = do
+      tree <- makeFwd
+      return (a, tree)
+    assignRev (a, fwdSer) = do
+      tree <- makeRev
+      let tree' = treeChildren "index"
+                    (Seq.fromList [fwdSer, tree])
+      return $ (a, IndexSer tree')

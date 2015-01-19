@@ -1,4 +1,0 @@
-#!/bin/sh
-
-runghc genCabal.hs > penny-tests.cabal
-quickpull lib > progs/Decrees.hs
