@@ -92,167 +92,7 @@ addSerials
   -- the transactions to which to assign serials.
   -> Seq (Seq Transaction)
 addSerials = undefined
-{-
-addSerials = addGlobalSerials . fmap addFileSerials
 
--- | Adds global serials only.
-addGlobalSerials
-  :: Seq (Seq Transaction)
-  -> Seq (Seq Transaction)
-addGlobalSerials = addGlobalTxnSerials . addGlobalPstgSerials
-
--- | Adds global transaction serials.
-addGlobalTxnSerials
-  :: Seq (Seq Transaction)
-  -> Seq (Seq Transaction)
-addGlobalTxnSerials txns = flip evalState 0 $ assignFwd >>= assignRev
-  where
-    assignFwd = T.traverse assignOuter txns
-      where
-        assignOuter = T.traverse assignInner
-          where
-            assignInner = assignTxnFwd fwdTxnGlobalSerial
-
-    assignRev txns' = T.traverse assignOuter txns'
-      where
-        assignOuter inner = T.traverse assignInner inner
-          where
-            assignInner = assignTxnRev revTxnGlobalSerial
-
--- | Adds global posting serials.
-addGlobalPstgSerials
-  :: Seq (Seq Transaction)
-  -> Seq (Seq Transaction)
-addGlobalPstgSerials txns = flip evalState 0 $ assignFwd >>= assignRev
-  where
-    assignFwd = T.traverse assignOuter txns
-      where
-        assignOuter = T.traverse assignInner
-          where
-            assignInner (Transaction tl bal) = fmap (Transaction tl)
-              $ T.traverse assignPstg bal
-              where
-                assignPstg = assignPstgFwd fwdPstgGlobalSerial
-
-    assignRev txns' = T.traverse assignOuter txns'
-      where
-        assignOuter = T.traverse assignInner
-          where
-            assignInner (Transaction tl bal) = fmap (Transaction tl)
-              $ T.traverse assignPstg bal
-              where
-                assignPstg = assignPstgRev revPstgGlobalSerial
-
--- | Adds file serials only.
-
-addFileSerials
-  :: Seq Transaction
-  -> Seq Transaction
-addFileSerials
-  = fmap addPstgIndexSerials
-  . addFileTxnSerials
-  . addFilePstgSerials
-
--- | Adds file posting serials.
-addFileTxnSerials
-  :: Seq Transaction
-  -> Seq Transaction
-addFileTxnSerials txns = flip evalState 0 $ assignFwd >>= assignRev
-  where
-    assignFwd = T.traverse assign txns
-      where
-        assign = assignTxnFwd fwdPstgFileSerial
-
-    assignRev = T.traverse assign
-      where
-        assign = assignTxnRev revPstgFileSerial
-
-addFilePstgSerials
-  :: Seq Transaction
-  -> Seq Transaction
-addFilePstgSerials txns = flip evalState 0 $ assignFwd >>= assignRev
-  where
-    assignFwd = T.traverse assign txns
-      where
-        assign (Transaction tl bal) = fmap (Transaction tl)
-          $ T.traverse innerAssign bal
-          where
-            innerAssign = assignPstgFwd fwdPstgFileSerial
-
-    assignRev = T.traverse assign
-      where
-        assign (Transaction tl bal) = fmap (Transaction tl)
-          $ T.traverse innerAssign bal
-          where
-            innerAssign = assignPstgRev revPstgFileSerial
-
-addPstgIndexSerials :: Transaction -> Transaction
-addPstgIndexSerials (Transaction tl bal) =
-  Transaction tl . flip evalState 0 $ assignFwd >>= assignRev
-  where
-    assignFwd = T.traverse assign bal
-      where
-        assign = assignPstgFwd fwdPstgIndexSerial
-    assignRev = T.traverse assign
-      where
-        assign = assignPstgRev revPstgIndexSerial
-
-addTxnSerial
-  :: Label
-  -> Integer
-  -> Transaction
-  -> Transaction
-addTxnSerial lbl i (Transaction (TopLine tl) bal) = Transaction tl' bal
-  where
-    tl' = TopLine $ M.insert lbl val tl
-    val = PayDecimal . fromInteger $ i
-
-addPstgSerial
-  :: Label
-  -> Integer
-  -> PstgMeta
-  -> PstgMeta
-addPstgSerial lbl i (PstgMeta fields tri) = PstgMeta fields' tri
-  where
-    fields' = M.insert lbl (PayDecimal . fromInteger $ i) fields
-
-assignTxnFwd
-  :: Label
-  -> Transaction
-  -> State Integer Transaction
-assignTxnFwd lbl txn = do
-  this <- get
-  modify succ
-  return $ addTxnSerial lbl this txn
-
-assignTxnRev
-  :: Label
-  -> Transaction
-  -> State Integer Transaction
-assignTxnRev lbl txn = do
-  modify pred
-  this <- get
-  return $ addTxnSerial lbl this txn
-
-assignPstgFwd
-  :: Label
-  -> PstgMeta
-  -> State Integer PstgMeta
-assignPstgFwd lbl pstg = do
-  this <- get
-  modify succ
-  return $ addPstgSerial lbl this pstg
-
-assignPstgRev
-  :: Label
-  -> PstgMeta
-  -> State Integer PstgMeta
-assignPstgRev lbl pstg = do
-  modify pred
-  this <- get
-  return $ addPstgSerial lbl this pstg
-
--}
 
 makeSerials
   :: (T.Traversable t1, T.Traversable t2, T.Traversable t3)
@@ -290,13 +130,7 @@ makeGlobalTxnSerials
   -> t1 (t2 (a, GlblSer))
 makeGlobalTxnSerials sq = fst . flip runState 0 $
   (T.mapM (T.mapM assignToFwd) sq)
-  >>= T.mapM (T.mapM assignToRev)
-  where
-    assignToFwd a = do { tree <- makeFwd; return (a, tree) }
-    assignToRev (a, fwd) = do
-      tree <- makeRev
-      return (a, GlblSer $ treeChildren "global"
-                         (Seq.fromList [fwd, tree]))
+  >>= T.mapM (T.mapM (assignToRev "global" GlblSer))
 
 makeFileTxnSerials
   :: T.Traversable t
@@ -304,13 +138,7 @@ makeFileTxnSerials
   -> t (a, FileSer)
 makeFileTxnSerials sq = fst . flip runState 0 $
   (T.mapM assignToFwd sq)
-  >>= T.mapM assignToRev
-  where
-    assignToFwd a = do { tree <- makeFwd; return (a, tree) }
-    assignToRev (a, fwd) = do
-      tree <- makeRev
-      return (a, FileSer $ treeChildren "file"
-                 (Seq.fromList [fwd, tree]))
+  >>= T.mapM (assignToRev "file" FileSer)
 
 newtype Serial = Serial Tree
   deriving (Eq, Ord, Show)
@@ -337,34 +165,18 @@ makeGlobalPstgSerials
   -> t1 (t2 (t3 (a, GlblSer)))
 makeGlobalPstgSerials sq = fst . flip runState 0 $
   (T.mapM (T.mapM (T.mapM assignToFwd)) sq)
-  >>= T.mapM (T.mapM (T.mapM assignToRev))
-  where
-    assignToFwd a = do
-      tree <- makeFwd
-      return (a, tree)
-    assignToRev (a, serFwd) = do
-      tree <- makeRev
-      return (a, GlblSer $ treeChildren "global"
-                           (Seq.fromList [serFwd, tree]))
+  >>= T.mapM (T.mapM (T.mapM (assignToRev "global" GlblSer)))
 
 newtype FileSer = FileSer Tree
   deriving (Eq, Ord, Show)
 
 makeFilePstgSerials
   :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 a)
-  -> t1 (t2 (a, FileSer))
+  => t1 (t2 b)
+  -> t1 (t2 (b, FileSer))
 makeFilePstgSerials sq = fst . flip runState 0 $
   (T.mapM (T.mapM assignToFwd) sq)
-  >>= T.mapM (T.mapM assignToRev)
-  where
-    assignToFwd a = do
-      tree <- makeFwd
-      return (a, tree)
-    assignToRev (a, serFwd) = do
-      tree <- makeRev
-      return (a, FileSer $ treeChildren "file"
-                           (Seq.fromList [serFwd, tree]))
+  >>= T.mapM (T.mapM (assignToRev "file" FileSer))
 
 newtype IndexSer = IndexSer Tree
   deriving (Eq, Ord, Show)
@@ -374,14 +186,20 @@ makeIndexSerials
   => t a
   -> t (a, IndexSer)
 makeIndexSerials bl = fst . flip runState 0 $
-  (T.mapM assignFwd bl)
-  >>= T.mapM assignRev
-  where
-    assignFwd a = do
-      tree <- makeFwd
-      return (a, tree)
-    assignRev (a, fwdSer) = do
-      tree <- makeRev
-      let tree' = treeChildren "index"
-                    (Seq.fromList [fwdSer, tree])
-      return $ (a, IndexSer tree')
+  (T.mapM assignToFwd bl)
+  >>= T.mapM (assignToRev "index" IndexSer)
+
+keepFst :: Monad m => m b -> a -> m (a, b)
+keepFst m a = do { b <- m; return (a, b) }
+
+assignToFwd :: a -> State Integer (a, Tree)
+assignToFwd = keepFst makeFwd
+
+assignToRev :: String -> (Tree -> b) -> (a, Tree) -> State Integer (a, b)
+assignToRev lbl mkB (a, fwd) = do
+  tree <- makeRev
+  let tree' = treeChildren lbl (Seq.fromList [fwd, tree])
+  return (a, mkB tree')
+
+secondM :: Monad m => (a -> m b) -> (d, a) -> m (d, b)
+secondM f (d, a) = do { b <- f a; return (d, b) }
