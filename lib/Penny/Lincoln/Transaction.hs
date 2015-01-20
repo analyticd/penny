@@ -1,5 +1,6 @@
 module Penny.Lincoln.Transaction where
 
+import Control.Arrow (second)
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
@@ -96,8 +97,8 @@ addSerials = undefined
 
 makeSerials
   :: (T.Traversable t1, T.Traversable t2, T.Traversable t3)
-  => t1 (t2 (t3 a))
-  -> t1 (t2 (t3 (a, Serial), Serial))
+  => t1 (t2 (a, (t3 b)))
+  -> t1 (t2 ((a, (t3 (b, Serial))), Serial))
 makeSerials = makeTxnSerials . makePstgSerials
 
 makeFwd :: State Integer Tree
@@ -114,69 +115,73 @@ makeRev = do
 
 makeTxnSerials
   :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 a)
-  -> t1 (t2 (a, Serial))
-makeTxnSerials
-  = fmap (fmap repack)
+  => t1 (t2 (a, b))
+  -> t1 (t2 ((a, b), Serial))
+makeTxnSerials = undefined
+{-
+  = fmap (fmap (second repack))
   . makeGlobalTxnSerials
   . fmap makeFileTxnSerials
   where
     repack ((a, FileSer f), GlblSer g) =
       (a, Serial $ treeChildren "serials" (Seq.fromList [g, f]))
-
+-}
 makeGlobalTxnSerials
   :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 a)
-  -> t1 (t2 (a, GlblSer))
+  => t1 (t2 (a, b))
+  -> t1 (t2 ((a, b), GlblSer))
 makeGlobalTxnSerials sq = fst . flip runState 0 $
   (T.mapM (T.mapM assignToFwd) sq)
   >>= T.mapM (T.mapM (assignToRev "global" GlblSer))
 
 makeFileTxnSerials
   :: T.Traversable t
-  => t a
-  -> t (a, FileSer)
+  => t (a, b)
+  -> t (a, (b, FileSer))
+makeFileTxnSerials = undefined
+{-
 makeFileTxnSerials sq = fst . flip runState 0 $
-  (T.mapM assignToFwd sq)
-  >>= T.mapM (assignToRev "file" FileSer)
-
+  (secondM (T.mapM assignToFwd) sq)
+  >>= secondM (T.mapM (assignToRev "file" FileSer))
+-}
 newtype Serial = Serial Tree
   deriving (Eq, Ord, Show)
 
 makePstgSerials
   :: (T.Traversable t1, T.Traversable t2, T.Traversable t3)
-  => t1 (t2 (t3 a))
-  -> t1 (t2 (t3 (a, Serial)))
+  => t1 (t2 (a, (t3 b)))
+  -> t1 (t2 (a, (t3 (b, Serial))))
 makePstgSerials
-  = fmap (fmap (fmap repack))
+  = fmap (fmap (second (fmap repack)))
   . makeGlobalPstgSerials
-  . fmap (makeFilePstgSerials)
-  . fmap (fmap makeIndexSerials)
+  . fmap makeFilePstgSerials
+  . fmap (fmap (second makeIndexSerials))
   where
-    repack (((a, IndexSer i), FileSer f), GlblSer g)
-      = (a, Serial $ treeChildren "serials" (Seq.fromList [g, f, i]))
+    repack (((b, IndexSer i), FileSer f), GlblSer g) =
+      (b, Serial $ treeChildren "serials" (Seq.fromList [g, f, i]))
+
 
 newtype GlblSer = GlblSer Tree
   deriving (Eq, Ord, Show)
 
 makeGlobalPstgSerials
   :: (T.Traversable t1, T.Traversable t2, T.Traversable t3)
-  => t1 (t2 (t3 a))
-  -> t1 (t2 (t3 (a, GlblSer)))
-makeGlobalPstgSerials sq = fst . flip runState 0 $
-  (T.mapM (T.mapM (T.mapM assignToFwd)) sq)
-  >>= T.mapM (T.mapM (T.mapM (assignToRev "global" GlblSer)))
+  => t1 (t2 (a, (t3 b)))
+  -> t1 (t2 (a, (t3 (b, GlblSer))))
+makeGlobalPstgSerials sqnce = fst . flip runState 0 $
+  (mapGlobalPstg makeFwd sqnce)
+  >>= mapGlobalPstgRev makeRev (wrapTree "global" GlblSer)
 
 newtype FileSer = FileSer Tree
   deriving (Eq, Ord, Show)
 
 makeFilePstgSerials
   :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 b)
-  -> t1 (t2 (b, FileSer))
+  => t1 (a, (t2 b))
+  -> t1 (a, (t2 (b, FileSer)))
 makeFilePstgSerials sq = fst . flip runState 0 $
-  (T.mapM (T.mapM assignToFwd) sq)
-  >>= T.mapM (T.mapM (assignToRev "file" FileSer))
+  (T.mapM (secondM (T.mapM assignToFwd)) sq)
+  >>= T.mapM (secondM (T.mapM (assignToRev "file" FileSer)))
 
 newtype IndexSer = IndexSer Tree
   deriving (Eq, Ord, Show)
@@ -203,3 +208,33 @@ assignToRev lbl mkB (a, fwd) = do
 
 secondM :: Monad m => (a -> m b) -> (d, a) -> m (d, b)
 secondM f (d, a) = do { b <- f a; return (d, b) }
+
+mapGlobalPstg
+  :: (Monad m, T.Traversable t1, T.Traversable t2, T.Traversable t3)
+  => m c
+  -> t1 (t2 (a, t3 b))
+  -> m (t1 (t2 (a, t3 (b, c))))
+mapGlobalPstg m = T.mapM (T.mapM f)
+  where
+    inner b = do
+      c <- m
+      return (b, c)
+    f = secondM (T.mapM inner)
+
+mapGlobalPstgRev
+  :: (Monad m, T.Traversable t1, T.Traversable t2, T.Traversable t3)
+  => m d
+  -> (c -> d -> e)
+  -> t1 (t2 (a, t3 (b, c)))
+  -> m (t1 (t2 (a, t3 (b, e))))
+mapGlobalPstgRev m comb = T.mapM (T.mapM f)
+  where
+    inner (b, c) = do
+      d <- m
+      return (b, comb c d)
+    f = secondM (T.mapM inner)
+
+wrapTree :: String -> (Tree -> a) -> Tree -> Tree -> a
+wrapTree lbl wrp t1 t2 = wrp tre
+  where
+    tre = treeChildren lbl (Seq.fromList [t1, t2])
