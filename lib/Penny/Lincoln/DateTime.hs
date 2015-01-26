@@ -1,5 +1,8 @@
 module Penny.Lincoln.DateTime
-  ( DateTime(..)
+  ( Date
+  , dateToDay
+  , Time(..)
+  , DateTime(..)
   , Hours(..)
   , Minutes(..)
   , Seconds(..)
@@ -10,23 +13,29 @@ module Penny.Lincoln.DateTime
   , dateTimeToUTC
   ) where
 
-import Data.Time
+import qualified Data.Time as T
+
+newtype Date = Date { dateToDay :: T.Day }
+  deriving (Eq, Ord, Show)
+
+data Time = Time Hours Minutes Seconds
+  deriving (Eq, Ord, Show)
 
 -- | An instant in time.  This is a local time.  The 'Eq' and 'Ord'
 -- instances are derived, so they aren't useful for determining
 -- whether two 'DateTime' refer to the same instant in time; for that,
 -- convert the times to UTC times using 'dateTimeToUTC' and then
 -- compare those.
-data DateTime = DateTime Day Hours Minutes Seconds Zone
+data DateTime = DateTime T.Day Hours Minutes Seconds Zone
   deriving (Eq, Ord, Show)
 
-dateTimeToUTC :: DateTime -> UTCTime
+dateTimeToUTC :: DateTime -> T.UTCTime
 dateTimeToUTC (DateTime day hrs (Minutes mins) (Seconds secs) zone)
-  = localTimeToUTC zn lcl
+  = T.localTimeToUTC zn lcl
   where
-    zn = TimeZone (zoneToInt zone) False ""
-    lcl = LocalTime day tod
-    tod = TimeOfDay (fromEnum hrs) (fromEnum mins)
+    zn = T.TimeZone (zoneToInt zone) False ""
+    lcl = T.LocalTime day tod
+    tod = T.TimeOfDay (fromEnum hrs) (fromEnum mins)
       (fromInteger . fromIntegral . fromEnum $ secs)
 
 data Hours = H0 | H1 | H2 | H3 | H4 | H5 | H6 | H7 | H8 | H9

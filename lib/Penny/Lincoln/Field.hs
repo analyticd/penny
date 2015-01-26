@@ -2,7 +2,6 @@
 module Penny.Lincoln.Field where
 
 import Data.Text
-import Penny.Lincoln.Decimal
 import Penny.Lincoln.DateTime
 import Data.Monoid
 import Data.Sequence (Seq)
@@ -27,10 +26,11 @@ treeChildren s1 = Tree (scalar s1) . Forest
 
 data Scalar
   = Chars Text
-  | Date DateTime
-  | Number Decimal
+  | SDate Date
+  | STime Time
+  | SZone Zone
+  | SInt Integer
   | Binary Bool
-  | Null
   deriving (Eq, Ord, Show)
 
 class Field a where
@@ -45,20 +45,20 @@ instance Field String where
 instance Field Text where
   scalar = Chars
 
-instance Field DateTime where
-  scalar = Date
+instance Field Date where
+  scalar = SDate
 
-instance Field Decimal where
-  scalar = Number
+instance Field Time where
+  scalar = STime
+
+instance Field Zone where
+  scalar = SZone
 
 instance Field Integer where
-  scalar = Number . fromInteger
+  scalar = SInt
 
 instance Field Bool where
   scalar = Binary
-
-instance Field () where
-  scalar () = Null
 
 memo :: Text
 memo = "memo"

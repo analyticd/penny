@@ -4,14 +4,11 @@ import Control.Arrow (second)
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
-import Data.Map (Map)
 import Data.Sequence (Seq, viewl, ViewL(..))
 import qualified Data.Sequence as Seq
 import Data.Monoid
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
-import qualified Data.Map as M
-import Data.Text (Text)
 
 newtype TopLine = TopLine Forest
   deriving (Eq, Ord, Show)

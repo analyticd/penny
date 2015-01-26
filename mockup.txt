@@ -1,0 +1,11 @@
+2014-01-02 payee ["The Behnke Nursery Co"] flag [True] tags [Garden]
+  { account [Assets Current Checking] tags [Vacation Plants] > $32.00
+  # This is a comment
+  , account [Expenses Plants] < $ 48.22
+  }
+
+# or maybe this?
+2014-01-02 payee ["The Behnke Nursery Co"] flag [True] tags [Garden]
+  { > $24.40 [ account [Assets Current Checking] 101 ]
+  , [ account [Expenses Plants] tags [Vacation] ]
+  }

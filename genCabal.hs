@@ -18,6 +18,9 @@ text = closedOpen "text" [1,2] [1,3]
 containers :: Package
 containers = closedOpen "containers" [0,5] [0,6]
 
+uuParsing :: Package
+uuParsing = closedOpen "uu-parsinglib" [2,8,1] [2,9]
+
 parsec :: Package
 parsec = closedOpen "parsec" [3,1,7] [3,2]
 
@@ -41,7 +44,7 @@ libraryDepends =
   [ base
   , text
   , containers
-  , parsec
+  , uuParsing
   , time
   , transformers
   , prednote
