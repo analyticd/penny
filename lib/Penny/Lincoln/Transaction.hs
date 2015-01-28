@@ -5,15 +5,14 @@ import Penny.Lincoln.Ents
 import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
 import Data.Sequence (Seq, viewl, ViewL(..))
-import qualified Data.Sequence as Seq
 import Data.Monoid
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 
-newtype TopLine = TopLine Forest
+newtype TopLine = TopLine [Tree]
   deriving (Eq, Ord, Show)
 
-data PstgMeta = PstgMeta Forest Trio
+data PstgMeta = PstgMeta [Tree] Trio
   deriving (Eq, Ord, Show)
 
 -- | A balanced set of postings, along with common metadata for all
@@ -155,7 +154,7 @@ makePstgSerials
   . fmap (fmap (second makeIndexSerials))
   where
     repack (((b, IndexSer i), FileSer f), GlblSer g) =
-      (b, Serial $ treeChildren "serials" (Seq.fromList [g, f, i]))
+      (b, Serial $ treeChildren "serials" [g, f, i])
 
 
 newtype GlblSer = GlblSer Tree
@@ -200,7 +199,7 @@ assignToFwd = keepFst makeFwd
 assignToRev :: String -> (Tree -> b) -> (a, Tree) -> State Integer (a, b)
 assignToRev lbl mkB (a, fwd) = do
   tree <- makeRev
-  let tree' = treeChildren lbl (Seq.fromList [fwd, tree])
+  let tree' = treeChildren lbl [fwd, tree]
   return (a, mkB tree')
 
 secondM :: Monad m => (a -> m b) -> (d, a) -> m (d, b)
@@ -234,4 +233,4 @@ mapGlobalPstgRev m comb = T.mapM (T.mapM f)
 wrapTree :: String -> (Tree -> a) -> Tree -> Tree -> a
 wrapTree lbl wrp t1 t2 = wrp tre
   where
-    tre = treeChildren lbl (Seq.fromList [t1, t2])
+    tre = treeChildren lbl [t1, t2]

@@ -3,26 +3,16 @@ module Penny.Lincoln.Field where
 
 import Data.Text
 import Penny.Lincoln.DateTime
-import Data.Monoid
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 
-data Tree = Tree Scalar Forest
+data Tree = Tree Scalar [Tree]
   deriving (Eq, Ord, Show)
-
-newtype Forest = Forest (Seq Tree)
-  deriving (Eq, Ord, Show)
-
-instance Monoid Forest where
-  mempty = Forest Seq.empty
-  mappend (Forest x) (Forest y) = Forest (x <> y)
 
 scalarChild :: (Field a, Field b) => a -> b -> Tree
-scalarChild s1 s2 = Tree (scalar s1)
-  (Forest (Seq.singleton (Tree (scalar s2) (Forest Seq.empty))))
+scalarChild s1 s2 = Tree (scalar s1) [Tree (scalar s2) []]
 
-treeChildren :: Field a => a -> Seq Tree -> Tree
-treeChildren s1 = Tree (scalar s1) . Forest
+
+treeChildren :: Field a => a -> [Tree] -> Tree
+treeChildren s1 = Tree (scalar s1)
 
 data Scalar
   = Chars Text
