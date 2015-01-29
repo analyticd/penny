@@ -92,8 +92,3 @@ instance Applicative Sql where
 
 instance Ledger Sql TxnId TreeId PostingId where
 
-filterTxns
-  :: Ledger l tx tr ps
-  => [tx]
-  -> l [tx]
-filterTxns = undefined

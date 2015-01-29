@@ -113,15 +113,15 @@ makeTxnSerials
   :: (T.Traversable t1, T.Traversable t2)
   => t1 (t2 (a, b))
   -> t1 (t2 ((a, b), Serial))
-makeTxnSerials = undefined
-{-
+makeTxnSerials
   = fmap (fmap (second repack))
-  . makeGlobalTxnSerials
   . fmap makeFileTxnSerials
+  . makeGlobalTxnSerials
   where
-    repack ((a, FileSer f), GlblSer g) =
-      (a, Serial $ treeChildren "serials" (Seq.fromList [g, f]))
--}
+    repack (GlblSer glbl, FileSer file) =
+      Serial $ treeChildren "transaction" [glbl, file]
+
+
 makeGlobalTxnSerials
   :: (T.Traversable t1, T.Traversable t2)
   => t1 (t2 (a, b))
@@ -134,12 +134,11 @@ makeFileTxnSerials
   :: T.Traversable t
   => t (a, b)
   -> t (a, (b, FileSer))
-makeFileTxnSerials = undefined
-{-
 makeFileTxnSerials sq = fst . flip runState 0 $
-  (secondM (T.mapM assignToFwd) sq)
-  >>= secondM (T.mapM (assignToRev "file" FileSer))
--}
+  (T.mapM (secondM assignToFwd) sq)
+  >>= T.mapM (secondM (assignToRev "file" FileSer))
+
+
 newtype Serial = Serial Tree
   deriving (Eq, Ord, Show)
 
