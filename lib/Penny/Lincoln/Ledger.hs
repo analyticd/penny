@@ -13,17 +13,6 @@ import qualified Data.Foldable as Fdbl
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Ent
 
-class Ledger l txn tree posting where
-  transactions :: l [txn]
-  transactionMeta :: txn -> l [tree]
-  scalar :: tree -> l Scalar
-  children :: tree -> l [tree]
-  postings :: txn -> l [posting]
-  postingTrees :: posting -> l [tree]
-  postingTrio :: posting -> l Trio
-  postingQty :: posting -> l Qty
-  postingCommodity :: posting -> l Commodity
-
 class TransactionS l txn where
   transactions :: l [txn]
 
@@ -35,7 +24,7 @@ class TreeS l tree where
    children :: tree -> l [tree]
 
 class PostingS l txn posting where
-  postings = txn -> l [posting]
+  postings :: txn -> l [posting]
 
 class PostingTreeS l posting tree where
   postingTrees :: posting -> l [tree]
@@ -72,14 +61,24 @@ balancedToPostings = Fdbl.toList . fmap f . balancedToSeqEnt
   where
     f (Ent q cy (PstgMeta ts tri)) = Posting ts tri q cy
 
-instance Monad m => Ledger (Plain m) Transaction Tree Posting where
+instance Monad m => TransactionS (Plain m) Transaction where
   transactions = Plain $ return
+
+instance Monad m => TransactionMetaS (Plain m) Transaction Tree where
   transactionMeta (Transaction (TopLine ts) _) = Plain . const . return $ ts
-  scalar (Tree n _) = Plain . const . return $ n
+
+instance Monad m => TreeS (Plain m) Tree where
+  label (Tree n _) = Plain . const . return $ n
   children (Tree _ cs) = Plain . const . return $ cs
+
+instance Monad m => PostingS (Plain m) Transaction Posting where
   postings (Transaction _ bal) = Plain . const
     . return . balancedToPostings $ bal
+
+instance Monad m => PostingTreeS (Plain m) Posting Tree where
   postingTrees (Posting ts _ _ _) = Plain . const . return $ ts
+
+instance Monad m => PostingDataS (Plain m) Posting where
   postingTrio (Posting _ tr _ _) = Plain . const . return $ tr
   postingQty (Posting _ _ q _) = Plain . const . return $ q
   postingCommodity (Posting _ _ _ cy) = Plain . const . return $ cy
@@ -111,14 +110,8 @@ instance Applicative Sql where
   pure = return
   (<*>) = ap
 
-instance Ledger Sql TxnId TreeId PostingId where
-  transactions = undefined
-  transactionMeta = undefined
-  scalar = undefined
-  children = undefined
-  postings = undefined
-  postingTrees = undefined
-  postingTrio = undefined
-  postingQty = undefined
-  postingCommodity = undefined
-
+filterTxnMeta
+  :: TransactionMetaS l txn tree
+  => [txn]
+  -> l [txn]
+filterTxnMeta = undefined
