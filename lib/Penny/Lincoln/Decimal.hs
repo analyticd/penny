@@ -151,7 +151,7 @@ instance HasExponent (NilUngrouped r) where
     NUZero _ Nothing -> fromDecem D0
     NUZero _ (Just (_, Nothing)) -> fromDecem D0
     NUZero _ (Just (_, Just (_, zs))) -> next (N.length zs)
-    NURadix (_, _, zs) -> next (N.length zs)
+    NURadix _ _ zs -> next (N.length zs)
 
 instance HasExponent (Nil r) where
   toExponent nil = case nil of

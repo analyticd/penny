@@ -119,7 +119,7 @@ data NilGrouped r
 
 data NilUngrouped r
   = NUZero Zero (Maybe (Radix r, Maybe (Zero, Seq Zero)))
-  | NURadix (Radix r, Zero, Seq Zero)
+  | NURadix (Radix r) Zero (Seq Zero)
   deriving (Eq, Ord, Show)
 
 -- # Brim

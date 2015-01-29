@@ -33,6 +33,9 @@ transformers = closedOpen "transformers" [0,3] [0,5]
 prednote :: Package
 prednote = closedOpen "prednote" [0,28] [0,29]
 
+semigroups :: Package
+semigroups = closedOpen "semigroups" [0,16,1] [0,17]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
