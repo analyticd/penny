@@ -14,15 +14,36 @@ import Penny.Lincoln.Ents
 import Penny.Lincoln.Ent
 
 class Ledger l txn tree posting where
-  transactions :: Monad m => l m [txn]
-  transactionMeta :: Monad m => txn -> l m [tree]
-  scalar :: Monad m => tree -> l m Scalar
-  children :: Monad m => tree -> l m [tree]
-  postings :: Monad m => txn -> l m [posting]
-  postingTrees :: Monad m => posting -> l m [tree]
-  postingTrio :: Monad m => posting -> l m Trio
-  postingQty :: Monad m => posting -> l m Qty
-  postingCommodity :: Monad m => posting -> l m Commodity
+  transactions :: l [txn]
+  transactionMeta :: txn -> l [tree]
+  scalar :: tree -> l Scalar
+  children :: tree -> l [tree]
+  postings :: txn -> l [posting]
+  postingTrees :: posting -> l [tree]
+  postingTrio :: posting -> l Trio
+  postingQty :: posting -> l Qty
+  postingCommodity :: posting -> l Commodity
+
+class TransactionS l txn where
+  transactions :: l [txn]
+
+class TransactionMetaS l txn tree where
+  transactionMeta :: txn -> l [tree]
+
+class TreeS l tree where
+   label :: tree -> l Scalar
+   children :: tree -> l [tree]
+
+class PostingS l txn posting where
+  postings = txn -> l [posting]
+
+class PostingTreeS l posting tree where
+  postingTrees :: posting -> l [tree]
+
+class PostingDataS l posting where
+  postingTrio :: posting -> l Trio
+  postingQty :: posting -> l Qty
+  postingCommodity :: posting -> l Commodity
 
 data Plain m a = Plain ([Transaction] -> m a)
 
@@ -51,7 +72,7 @@ balancedToPostings = Fdbl.toList . fmap f . balancedToSeqEnt
   where
     f (Ent q cy (PstgMeta ts tri)) = Posting ts tri q cy
 
-instance Ledger Plain Transaction Tree Posting where
+instance Monad m => Ledger (Plain m) Transaction Tree Posting where
   transactions = Plain $ return
   transactionMeta (Transaction (TopLine ts) _) = Plain . const . return $ ts
   scalar (Tree n _) = Plain . const . return $ n
@@ -74,5 +95,30 @@ newtype PostingId = PostingId Int
 
 data SqlState = SqlState
 
-data Sql m a = Sql (SqlState -> IO (m a))
+data Sql a = Sql (SqlState -> IO a)
+
+instance Functor Sql where
+  fmap f (Sql k) = Sql $ \st -> fmap f (k st)
+
+instance Monad Sql where
+  return a = Sql $ \_ -> return a
+  (Sql l) >>= k = Sql $ \st -> do
+    a <- l st
+    let Sql kr = k a
+    kr st
+
+instance Applicative Sql where
+  pure = return
+  (<*>) = ap
+
+instance Ledger Sql TxnId TreeId PostingId where
+  transactions = undefined
+  transactionMeta = undefined
+  scalar = undefined
+  children = undefined
+  postings = undefined
+  postingTrees = undefined
+  postingTrio = undefined
+  postingQty = undefined
+  postingCommodity = undefined
 
