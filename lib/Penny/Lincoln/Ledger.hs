@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
 module Penny.Lincoln.Ledger where
 
 import Control.Monad
@@ -13,34 +13,13 @@ import qualified Data.Foldable as Fdbl
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Ent
 
-class Ledger l txn tree posting where
+class Ledger l txn tree posting | l -> txn, l -> tree, l -> posting where
   transactions :: l [txn]
   transactionMeta :: txn -> l [tree]
   scalar :: tree -> l Scalar
   children :: tree -> l [tree]
   postings :: txn -> l [posting]
   postingTrees :: posting -> l [tree]
-  postingTrio :: posting -> l Trio
-  postingQty :: posting -> l Qty
-  postingCommodity :: posting -> l Commodity
-
-class TransactionS l txn where
-  transactions :: l [txn]
-
-class TransactionMetaS l txn tree where
-  transactionMeta :: txn -> l [tree]
-
-class TreeS l tree where
-   label :: tree -> l Scalar
-   children :: tree -> l [tree]
-
-class PostingS l txn posting where
-  postings = txn -> l [posting]
-
-class PostingTreeS l posting tree where
-  postingTrees :: posting -> l [tree]
-
-class PostingDataS l posting where
   postingTrio :: posting -> l Trio
   postingQty :: posting -> l Qty
   postingCommodity :: posting -> l Commodity
@@ -112,13 +91,9 @@ instance Applicative Sql where
   (<*>) = ap
 
 instance Ledger Sql TxnId TreeId PostingId where
-  transactions = undefined
-  transactionMeta = undefined
-  scalar = undefined
-  children = undefined
-  postings = undefined
-  postingTrees = undefined
-  postingTrio = undefined
-  postingQty = undefined
-  postingCommodity = undefined
 
+filterTxns
+  :: Ledger l tx tr ps
+  => [tx]
+  -> l [tx]
+filterTxns = undefined
