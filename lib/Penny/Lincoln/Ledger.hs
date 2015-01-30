@@ -15,16 +15,20 @@ import qualified Data.Foldable as Fdbl
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Ent
 
-class Ledger l txn tree posting | l -> txn, l -> tree, l -> posting where
-  transactions :: l [txn]
-  transactionMeta :: txn -> l [tree]
-  scalar :: tree -> l Scalar
-  children :: tree -> l [tree]
-  postings :: txn -> l [posting]
-  postingTrees :: posting -> l [tree]
-  postingTrio :: posting -> l Trio
-  postingQty :: posting -> l Qty
-  postingCommodity :: posting -> l Commodity
+class Ledger l where
+  type TransactionL
+  type TreeL
+  type PostingL
+
+  transactions :: l [TransactionL]
+  transactionMeta :: TransactionL -> l [TreeL]
+  scalar :: TreeL -> l Scalar
+  children :: TreeL -> l [TreeL]
+  postings :: TransactionL -> l [PostingL]
+  postingTrees :: PostingL -> l [TreeL]
+  postingTrio :: PostingL -> l Trio
+  postingQty :: PostingL -> l Qty
+  postingCommodity :: PostingL -> l Commodity
 
 data Plain m a = Plain ([Transaction] -> m a)
 
@@ -53,7 +57,11 @@ balancedToPostings = Fdbl.toList . fmap f . balancedToSeqEnt
   where
     f (Ent q cy (PstgMeta ts tri)) = Posting ts tri q cy
 
-instance Monad m => Ledger (Plain m) Transaction Tree Posting where
+instance Monad m => Ledger (Plain m) where
+  type TransactionL = Transaction
+  type TreeL = Tree
+  type PostingL = Posting
+
   transactions = Plain $ return
   transactionMeta (Transaction (TopLine ts) _) = Plain . const . return $ ts
   scalar (Tree n _) = Plain . const . return $ n
@@ -92,17 +100,5 @@ instance Applicative Sql where
   pure = return
   (<*>) = ap
 
-instance Ledger Sql TxnId TreeId PostingId where
+instance Ledger Sql where
 
-class LedgerF l where
-  type Txn
-  type TreeF
-  type PostingF
-  transactionsF :: l [Txn]
-  transactionMetaF :: Txn -> l [TreeF]
-
-instance Monad m => LedgerF (Plain m) where
-  type Txn = Transaction
-  type TreeF = Tree
-  transactionsF = Plain $ return
-  transactionMetaF (Transaction (TopLine ts) _) = Plain . const . return $ ts
