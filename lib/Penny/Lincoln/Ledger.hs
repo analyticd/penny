@@ -1,4 +1,6 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies,
+             TypeFamilies #-}
+
 module Penny.Lincoln.Ledger where
 
 import Control.Monad
@@ -92,3 +94,15 @@ instance Applicative Sql where
 
 instance Ledger Sql TxnId TreeId PostingId where
 
+class LedgerF l where
+  type Txn
+  type TreeF
+  type PostingF
+  transactionsF :: l [Txn]
+  transactionMetaF :: Txn -> l [TreeF]
+
+instance Monad m => LedgerF (Plain m) where
+  type Txn = Transaction
+  type TreeF = Tree
+  transactionsF = Plain $ return
+  transactionMetaF (Transaction (TopLine ts) _) = Plain . const . return $ ts

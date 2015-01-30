@@ -9,7 +9,6 @@ import Penny.Lincoln.Rep.Digits
 import Penny.Copper.Intervals
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
-import Penny.Lincoln.Field
 
 data Located a = Located LineColPosA a
   deriving (Eq, Ord, Show)
@@ -149,11 +148,13 @@ data White
   = Space
   | Tab
   | WhiteNewline
+  | WhiteComment Comment
   deriving (Eq, Ord, Show)
 
 pWhite :: Parser White
 pWhite = Space <$ pSym ' ' <|> Tab <$ pSym '\t'
   <|> WhiteNewline <$ pSym '\n'
+  <|> WhiteComment <$> parser
 
 data Whites = Whites White [White]
   deriving (Eq, Ord, Show)
@@ -204,7 +205,7 @@ unquotedStringChar
   = Intervals [range minBound maxBound]
   . map singleton
   $ [ ' ', '\\', '\n', '\t', '{', '}', '[', ']', '\'', '"',
-      '#']
+      '#', '@', '`']
 
 pUnquotedStringChar :: Parser UnquotedStringChar
 pUnquotedStringChar = UnquotedStringChar
@@ -324,6 +325,7 @@ data TrioA
   -- ^ Non-sided non-neutral quantity only
   | CA CommodityA
   -- ^ Commodity only
+  deriving (Eq, Ord, Show)
 
 pTrioA :: Parser TrioA
 pTrioA = QcCyOnLeftA <$> pFs parser <*> pFs pCommodityA <*> pNonNeutral
@@ -396,4 +398,60 @@ data TopLineA = TopLineA TreeA [Bs TreeA]
 pTopLineA :: Parser TopLineA
 pTopLineA = TopLineA <$> pTreeA <*> many (pBs pTreeA)
 
-data PostingA = PostingA (Located (Maybe (Fs TrioA)))
+data PostingA
+  = PostingTrioFirst (Located (Fs TrioA)) (Maybe BracketedForest)
+  | PostingNoTrio BracketedForest
+  deriving (Eq, Ord, Show)
+
+pPostingA :: Parser PostingA
+pPostingA
+  = PostingTrioFirst <$> pLocated (pFs pTrioA)
+                     <*> optional pBracketedForest
+  <|> PostingNoTrio <$> pBracketedForest
+
+data OpenCurly = OpenCurly
+  deriving (Eq, Ord, Show)
+
+pOpenCurly :: Parser OpenCurly
+pOpenCurly = OpenCurly <$ pSym '{'
+
+data CloseCurly = CloseCurly
+  deriving (Eq, Ord, Show)
+
+pCloseCurly :: Parser CloseCurly
+pCloseCurly = CloseCurly <$ pSym '}'
+
+data CommaA = CommaA
+  deriving (Eq, Ord, Show)
+
+pCommaA :: Parser CommaA
+pCommaA = CommaA <$ pSym ','
+
+data PostingsA = PostingsA (Fs OpenCurly)
+  (Maybe (Fs PostingList)) CloseCurly
+  deriving (Eq, Ord, Show)
+
+pPostingsA :: Parser PostingsA
+pPostingsA = PostingsA <$> pFs pOpenCurly
+  <*> optional (pFs pPostingList) <*> pCloseCurly
+
+data PostingList = PostingList (Located (Fs PostingA))
+  [(CommaA, Bs (Located PostingA))]
+  deriving (Eq, Ord, Show)
+
+pPostingList :: Parser PostingList
+pPostingList = PostingList <$> pLocated (pFs pPostingA)
+  <*> many ((,) <$> pCommaA <*> pBs (pLocated pPostingA))
+
+data TransactionA
+  = TransactionWithTopLine (Located TopLineA)
+      (Maybe (Bs PostingsA))
+  | TransactionNoTopLine PostingsA
+  deriving (Eq, Ord, Show)
+
+pTransactionA :: Parser TransactionA
+pTransactionA
+  = TransactionWithTopLine <$> pLocated pTopLineA
+      <*> optional (pBs pPostingsA)
+  <|> TransactionNoTopLine <$> pPostingsA
+
