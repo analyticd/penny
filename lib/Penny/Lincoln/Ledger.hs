@@ -1,5 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies,
-             TypeFamilies #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Penny.Lincoln.Ledger where
 
@@ -15,12 +14,13 @@ import qualified Data.Foldable as Fdbl
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Ent
 
-class Ledger l where
+class (Applicative l, Functor l, Monad l) => Ledger l where
+  type SourceL
   type TransactionL
   type TreeL
   type PostingL
 
-  transactions :: l [TransactionL]
+  transactions :: SourceL -> l [TransactionL]
   transactionMeta :: TransactionL -> l [TreeL]
   scalar :: TreeL -> l Scalar
   children :: TreeL -> l [TreeL]
@@ -57,7 +57,7 @@ balancedToPostings = Fdbl.toList . fmap f . balancedToSeqEnt
   where
     f (Ent q cy (PstgMeta ts tri)) = Posting ts tri q cy
 
-instance Monad m => Ledger (Plain m) where
+instance (Applicative m, Monad m) => Ledger (Plain m) where
   type TransactionL = Transaction
   type TreeL = Tree
   type PostingL = Posting
@@ -102,3 +102,8 @@ instance Applicative Sql where
 
 instance Ledger Sql where
 
+allQtys :: Ledger l => l [Qty]
+allQtys = do
+  txns <- transactions
+  pstgs <- fmap concat . mapM postings $ txns
+  mapM postingQty pstgs
