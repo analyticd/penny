@@ -20,7 +20,6 @@ data Scalar
   | STime Time
   | SZone Zone
   | SInt Integer
-  | Binary Bool
   deriving (Eq, Ord, Show)
 
 class Field a where
@@ -46,9 +45,6 @@ instance Field Zone where
 
 instance Field Integer where
   scalar = SInt
-
-instance Field Bool where
-  scalar = Binary
 
 memo :: Text
 memo = "memo"

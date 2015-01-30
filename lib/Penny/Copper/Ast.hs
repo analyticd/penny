@@ -4,19 +4,35 @@ import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
 import Text.ParserCombinators.UU.Core
 import Penny.Copper.Classes
+import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
 import Penny.Copper.Intervals
 import Penny.Lincoln.Side
+import Penny.Lincoln.PluMin
+import Penny.Lincoln.Field
 
-data Located a = Located LineColPos a LineColPos
-  deriving Show
-
--- | Something that might be followed by spaces.
-data Ps a = Ps a (Maybe Whites)
+data Located a = Located LineColPosA a
   deriving (Eq, Ord, Show)
 
+pLocated :: Parser a -> Parser (Located a)
+pLocated p = Located <$> pPos <*> p
+
+-- | Something that might be followed by spaces.
+data Fs a = Fs a (Maybe Whites)
+  deriving (Eq, Ord, Show)
+
+pFs :: Parser a -> Parser (Fs a)
+pFs p = Fs <$> p <*> optional pWhites
+
+-- | Something that might be preceded by spaces.
+data Bs a = Bs (Maybe Whites) a
+  deriving (Eq, Ord, Show)
+
+pBs :: Parser a -> Parser (Bs a)
+pBs p = Bs <$> optional pWhites <*> p
+
 instance Functor Located where
-  fmap f (Located l1 a l2) = Located l1 (f a) l2
+  fmap f (Located l1 a) = Located l1 (f a)
 
 rangeToParser :: Intervals Char -> Parser Char
 rangeToParser i = case intervalsToTuples i of
@@ -57,7 +73,7 @@ instance Parseable Comment where
     <*> pNewline
 
 instance Parseable a => Parseable (Located a) where
-  parser = Located <$> pPos <*> parser <*> pPos
+  parser = Located <$> pPos <*> parser
 
 data DigitsFour = DigitsFour Decem Decem Decem Decem
   deriving (Eq, Ord, Show)
@@ -74,7 +90,8 @@ instance Parseable Digits1or2 where
 data DateSep = DateSlash | DateHyphen
   deriving (Eq, Ord, Show)
 
-data DateA = DateA DigitsFour DateSep Digits1or2 DateSep Digits1or2
+data DateA = DateA
+  DigitsFour DateSep Digits1or2 DateSep Digits1or2
   deriving (Eq, Ord, Show)
 
 pDateSep :: Parser DateSep
@@ -90,24 +107,19 @@ data Colon = Colon
 pColon :: Parser Colon
 pColon = Colon <$ pSym ':'
 
-data TimeA = TimeA Digits1or2 Colon Digits1or2 (Maybe (Colon, Digits1or2))
+data TimeA = TimeA
+  Digits1or2 Colon Digits1or2 (Maybe (Colon, Digits1or2))
   deriving (Eq, Ord, Show)
 
 instance Parseable TimeA where
   parser = TimeA <$> parser <*> pColon <*> parser
     <*> optional ((,) <$> pColon <*> parser)
 
-data ZonePlusMinus = ZonePlus | ZoneMinus
-  deriving (Eq, Ord, Show)
-
-pZonePlusMinus :: Parser ZonePlusMinus
-pZonePlusMinus = ZonePlus <$ pSym '+' <|> ZoneMinus <$ pSym '-'
-
-data ZoneA = ZoneA ZonePlusMinus DigitsFour
+data ZoneA = ZoneA Backtick PluMin DigitsFour
   deriving (Eq, Ord, Show)
 
 instance Parseable ZoneA where
-  parser = ZoneA <$> pZonePlusMinus <*> parser
+  parser = ZoneA <$> pBacktick <*> pPluMin <*> parser
 
 stringChar :: Intervals Char
 stringChar = Intervals [range minBound maxBound]
@@ -259,8 +271,129 @@ pCommodityA :: Parser CommodityA
 pCommodityA = CommodityA <$>
   (Left <$> pUnquotedCommodity <|> Right <$> pQuotedCommodity)
 
-data RepNonNeutralNoSideA
-  = NonNeutralCom 
+data Backtick = Backtick
+  deriving (Eq, Ord, Show)
 
+pBacktick :: Parser Backtick
+pBacktick = Backtick <$ pSym '`'
+
+data NonNeutral
+  = NonNeutralRadCom Backtick (Brim RadCom)
+  | NonNeutralRadPer (Brim RadPer)
+  deriving (Eq, Ord, Show)
+
+pNonNeutral :: Parser NonNeutral
+pNonNeutral
+  = NonNeutralRadCom <$> pBacktick <*> parserRG parser parser
+  <|> NonNeutralRadPer <$> parserRG parser parser
+
+data NeutralOrNon
+  = NeutralOrNonRadCom Backtick (Either (Nil RadCom) (Brim RadCom))
+  | NeutralOrNonRadPer (Either (Nil RadPer) (Brim RadPer))
+  deriving (Eq, Ord, Show)
+
+pNeutralOrNon :: Parser NeutralOrNon
+pNeutralOrNon
+  = NeutralOrNonRadCom <$> pBacktick <*>
+      (Left <$> parserRG parser parser
+        <|> Right <$> parserRG parser parser)
+  <|> NeutralOrNonRadPer <$>
+      (Left <$> parserRG parser parser
+        <|> Right <$> parserRG parser parser)
+
+-- | Trio.  There is nothing corresponding to 'Penny.Lincoln.Trio.E'
+-- as this would screw up the spacing, and generally productions in
+-- the AST should actually produce something.  Instead,
+-- 'Penny.Lincoln.Trio.E' is indicated by the absense of any 'TrioA'.
 data TrioA
-  = TrioA1 (Ps Side) (Ps CommodityA)
+  = QcCyOnLeftA (Fs Side) (Fs CommodityA) NonNeutral
+  -- ^ Non neutral, commodity on left
+  | QcCyOnRightA (Fs Side) (Fs NonNeutral) CommodityA
+  -- ^ Non neutral, commodity on right
+  | QA (Fs Side) NeutralOrNon
+  -- ^ Qty with side only
+  | SCA (Fs Side) CommodityA
+  -- ^ Side and commodity
+  | SA Side
+  -- ^ Side only
+  | UcCyOnLeftA (Fs CommodityA) NonNeutral
+  -- ^ Unsigned quantity and commodity only, commodity on left
+  | UcCyOnRightA (Fs NonNeutral) CommodityA
+  -- ^ Unsigned quantity and commodity only, commodity on right
+  | UA NonNeutral
+  -- ^ Non-sided non-neutral quantity only
+  | CA CommodityA
+  -- ^ Commodity only
+
+pTrioA :: Parser TrioA
+pTrioA = QcCyOnLeftA <$> pFs parser <*> pFs pCommodityA <*> pNonNeutral
+  <|> QcCyOnRightA <$> pFs parser <*> pFs pNonNeutral <*> pCommodityA
+  <|> QA <$> pFs parser <*> pNeutralOrNon
+  <|> SCA <$> pFs parser <*> pCommodityA
+  <|> SA <$> parser
+  <|> UcCyOnLeftA <$> pFs pCommodityA <*> pNonNeutral
+  <|> UcCyOnRightA <$> pFs pNonNeutral <*> pCommodityA
+  <|> UA <$> pNonNeutral
+  <|> CA <$> pCommodityA
+
+data OpenSquare = OpenSquare
+  deriving (Eq, Ord, Show)
+
+pOpenSquare :: Parser OpenSquare
+pOpenSquare = OpenSquare <$ pSym '['
+
+data CloseSquare = CloseSquare
+  deriving (Eq, Ord, Show)
+
+pCloseSquare :: Parser CloseSquare
+pCloseSquare = CloseSquare <$ pSym ']'
+
+data IntegerA = IntegerA (Maybe PluMin)
+  (Either Zero (Novem, [Decem]))
+  deriving (Eq, Ord, Show)
+
+pIntegerA :: Parser IntegerA
+pIntegerA = IntegerA <$> optional pPluMin <*>
+  (Left <$> parser <|> Right <$> ((,) <$> parser <*> parser))
+
+data ScalarA
+  = ScalarUnquotedString UnquotedString
+  | ScalarQuotedString QuotedString
+  | ScalarDate DateA
+  | ScalarTime TimeA
+  | ScalarZone ZoneA
+  | ScalarInt IntegerA
+  deriving (Eq, Ord, Show)
+
+pScalarA :: Parser ScalarA
+pScalarA = choice
+  [ ScalarDate <$> parser
+  , ScalarTime <$> parser
+  , ScalarZone <$> parser
+  , ScalarInt <$> pIntegerA
+  , ScalarQuotedString <$> pQuotedString
+  , ScalarUnquotedString <$> pUnquotedString
+  ]
+
+
+data BracketedForest = BracketedForest
+  (Fs OpenSquare) (Fs TreeA) CloseSquare
+  deriving (Eq, Ord, Show)
+
+pBracketedForest :: Parser BracketedForest
+pBracketedForest = BracketedForest <$> pFs pOpenSquare
+  <*> pFs pTreeA <*> pCloseSquare
+
+data TreeA = TreeA (Located ScalarA) (Maybe (Bs BracketedForest))
+  deriving (Eq, Ord, Show)
+
+pTreeA :: Parser TreeA
+pTreeA = TreeA <$> pLocated pScalarA <*> optional (pBs pBracketedForest)
+
+data TopLineA = TopLineA TreeA [Bs TreeA]
+  deriving (Eq, Ord, Show)
+
+pTopLineA :: Parser TopLineA
+pTopLineA = TopLineA <$> pTreeA <*> many (pBs pTreeA)
+
+data PostingA = PostingA (Located (Maybe (Fs TrioA)))

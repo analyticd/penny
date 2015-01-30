@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, RankNTypes #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, RankNTypes,
+             MultiParamTypeClasses #-}
 module Penny.Copper.Classes where
 
 import Control.Applicative
@@ -9,8 +10,20 @@ import Text.ParserCombinators.UU.Core hiding (Zero)
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
 import Penny.Lincoln.Side
+import Penny.Lincoln.PluMin
 
-type Parser = P (Str Char String LineColPos)
+-- | The 'LineColPos' that ships with uu-parsinglib is not an instance
+-- of 'Eq'; having an 'Eq' instance can help enormously with testing
+data LineColPosA = LineColPosA !Int !Int !Int
+  deriving (Eq, Ord, Show)
+
+instance IsLocationUpdatedBy LineColPosA Char where
+  advance (LineColPosA lin ps ab) c = case c of
+    '\n' -> LineColPosA (lin + 1) 0 (ab + 1)
+    '\t' -> LineColPosA lin (ps + 8 - (ps - 1) `mod` 8) (ab + 1)
+    _ -> LineColPosA lin (ps + 1) (ab + 1)
+
+type Parser = P (Str Char String LineColPosA)
 
 -- | Things that can be parsed.
 
@@ -215,10 +228,12 @@ instance ParseableRG NilOrBrimScalar where
   parserRG pr pg = fmap NilOrBrimScalar $ Left <$> parserRG pr pg
     <|> Right <$> parserRG pr pg
 
-{-
-instance Parseable NilOrBrimScalarAnyRadix where
-  parser = fmap NilOrBrimScalarAnyRadix $
-    Left <$> parserRG parser parser
-    <|> Right <$> parserRG parser parser
--}
+pPluMin :: Parser PluMin
+pPluMin = Plus <$ pSym '+' <|> Minus <$ pSym '-'
+
+instance Parseable PluMin where
+  parser = pPluMin
+
+instance Parseable a => Parseable [a] where
+  parser = many parser
 
