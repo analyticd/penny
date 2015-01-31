@@ -64,12 +64,12 @@ pCommentChar = CommentChar <$> rangeToParser commentChar
 data Comment = Comment Hash [CommentChar] Newline
   deriving (Eq, Ord, Show)
 
-instance Parseable Comment where
-  parser
-    = Comment
-    <$> pHash
-    <*> many pCommentChar
-    <*> pNewline
+pComment :: Parser Comment
+pComment
+  = Comment
+  <$> pHash
+  <*> many pCommentChar
+  <*> pNewline
 
 instance Parseable a => Parseable (Located a) where
   parser = Located <$> pPos <*> parser
@@ -77,14 +77,14 @@ instance Parseable a => Parseable (Located a) where
 data DigitsFour = DigitsFour Decem Decem Decem Decem
   deriving (Eq, Ord, Show)
 
-instance Parseable DigitsFour where
-  parser = DigitsFour <$> parser <*> parser <*> parser <*> parser
+pDigitsFour :: Parser DigitsFour
+pDigitsFour = DigitsFour <$> pDecem <*> pDecem <*> pDecem <*> pDecem
 
 data Digits1or2 = Digits1or2 Decem (Maybe Decem)
   deriving (Eq, Ord, Show)
 
-instance Parseable Digits1or2 where
-  parser = Digits1or2 <$> parser <*> optional parser
+pDigits1or2 :: Parser Digits1or2
+pDigits1or2 = Digits1or2 <$> pDecem <*> optional pDecem
 
 data DateSep = DateSlash | DateHyphen
   deriving (Eq, Ord, Show)
@@ -96,9 +96,9 @@ data DateA = DateA
 pDateSep :: Parser DateSep
 pDateSep = DateSlash <$ pSym '/' <|> DateHyphen <$ pSym '-'
 
-instance Parseable DateA where
-  parser = DateA <$> parser <*> pDateSep
-                 <*> parser <*> pDateSep <*> parser
+pDateA :: Parser DateA
+pDateA = DateA <$> pDigitsFour <*> pDateSep
+               <*> pDigits1or2 <*> pDateSep <*> pDigits1or2
 
 data Colon = Colon
   deriving (Eq, Ord, Show)
@@ -111,14 +111,14 @@ data TimeA = TimeA
   deriving (Eq, Ord, Show)
 
 instance Parseable TimeA where
-  parser = TimeA <$> parser <*> pColon <*> parser
-    <*> optional ((,) <$> pColon <*> parser)
+  parser = TimeA <$> pDigits1or2 <*> pColon <*> pDigits1or2
+    <*> optional ((,) <$> pColon <*> pDigits1or2)
 
 data ZoneA = ZoneA Backtick PluMin DigitsFour
   deriving (Eq, Ord, Show)
 
 instance Parseable ZoneA where
-  parser = ZoneA <$> pBacktick <*> pPluMin <*> parser
+  parser = ZoneA <$> pBacktick <*> pPluMin <*> pDigitsFour
 
 stringChar :: Intervals Char
 stringChar = Intervals [range minBound maxBound]
@@ -154,7 +154,7 @@ data White
 pWhite :: Parser White
 pWhite = Space <$ pSym ' ' <|> Tab <$ pSym '\t'
   <|> WhiteNewline <$ pSym '\n'
-  <|> WhiteComment <$> parser
+  <|> WhiteComment <$> pComment
 
 data Whites = Whites White [White]
   deriving (Eq, Ord, Show)
@@ -285,8 +285,8 @@ data NonNeutral
 
 pNonNeutral :: Parser NonNeutral
 pNonNeutral
-  = NonNeutralRadCom <$> pBacktick <*> parserRG parser parser
-  <|> NonNeutralRadPer <$> parserRG parser parser
+  = NonNeutralRadCom <$> pBacktick <*> pBrim pRadixRadCom pRadCom
+  <|> NonNeutralRadPer <$> pBrim pRadixRadPer pRadPer
 
 data NeutralOrNon
   = NeutralOrNonRadCom Backtick (Either (Nil RadCom) (Brim RadCom))
@@ -296,11 +296,11 @@ data NeutralOrNon
 pNeutralOrNon :: Parser NeutralOrNon
 pNeutralOrNon
   = NeutralOrNonRadCom <$> pBacktick <*>
-      (Left <$> parserRG parser parser
-        <|> Right <$> parserRG parser parser)
+      (Left <$> pNil pRadixRadCom pRadCom
+        <|> Right <$> pBrim pRadixRadCom pRadCom)
   <|> NeutralOrNonRadPer <$>
-      (Left <$> parserRG parser parser
-        <|> Right <$> parserRG parser parser)
+      (Left <$> pNil pRadixRadPer pRadPer
+        <|> Right <$> pBrim pRadixRadPer pRadPer)
 
 -- | Trio.  There is nothing corresponding to 'Penny.Lincoln.Trio.E'
 -- as this would screw up the spacing, and generally productions in
@@ -328,11 +328,11 @@ data TrioA
   deriving (Eq, Ord, Show)
 
 pTrioA :: Parser TrioA
-pTrioA = QcCyOnLeftA <$> pFs parser <*> pFs pCommodityA <*> pNonNeutral
-  <|> QcCyOnRightA <$> pFs parser <*> pFs pNonNeutral <*> pCommodityA
-  <|> QA <$> pFs parser <*> pNeutralOrNon
-  <|> SCA <$> pFs parser <*> pCommodityA
-  <|> SA <$> parser
+pTrioA = QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityA <*> pNonNeutral
+  <|> QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityA
+  <|> QA <$> pFs pSide <*> pNeutralOrNon
+  <|> SCA <$> pFs pSide <*> pCommodityA
+  <|> SA <$> pSide
   <|> UcCyOnLeftA <$> pFs pCommodityA <*> pNonNeutral
   <|> UcCyOnRightA <$> pFs pNonNeutral <*> pCommodityA
   <|> UA <$> pNonNeutral
@@ -356,7 +356,7 @@ data IntegerA = IntegerA (Maybe PluMin)
 
 pIntegerA :: Parser IntegerA
 pIntegerA = IntegerA <$> optional pPluMin <*>
-  (Left <$> parser <|> Right <$> ((,) <$> parser <*> parser))
+  (Left <$> pZero <|> Right <$> ((,) <$> pNovem <*> many pDecem))
 
 data ScalarA
   = ScalarUnquotedString UnquotedString
@@ -369,7 +369,7 @@ data ScalarA
 
 pScalarA :: Parser ScalarA
 pScalarA = choice
-  [ ScalarDate <$> parser
+  [ ScalarDate <$> pDateA
   , ScalarTime <$> parser
   , ScalarZone <$> parser
   , ScalarInt <$> pIntegerA
@@ -455,3 +455,52 @@ pTransactionA
       <*> optional (pBs pPostingsA)
   <|> TransactionNoTopLine <$> pPostingsA
 
+data AtSign = AtSign
+  deriving (Eq, Ord, Show)
+
+pAtSign :: Parser AtSign
+pAtSign = AtSign <$ pSym '@'
+
+data PriceA = PriceA (Fs AtSign) (Located (Fs DateA))
+  (Maybe (Located (Fs TimeA))) (Maybe (Located (Fs ZoneA)))
+  (Fs CommodityA) ExchA
+  deriving (Eq, Ord, Show)
+
+pPriceA :: Parser PriceA
+pPriceA = PriceA <$> pFs pAtSign <*> pLocated (pFs pDateA)
+  <*> optional (pLocated (pFs parser))
+  <*> optional (pLocated (pFs parser))
+  <*> pFs pCommodityA <*> pExchA
+
+data ExchA
+  = ExchACy (Fs CommodityA) (Maybe (Fs PluMin)) NeutralOrNon
+  | ExchAQty (Maybe (Fs PluMin)) (Fs NeutralOrNon) CommodityA
+  deriving (Eq, Ord, Show)
+
+pExchA :: Parser ExchA
+pExchA = ExchACy <$> pFs pCommodityA <*> optional (pFs pPluMin)
+               <*> pNeutralOrNon
+  <|> ExchAQty <$> optional (pFs pPluMin) <*> pFs pNeutralOrNon
+               <*> pCommodityA
+
+data FileItem = FileItem (Located (Either PriceA TransactionA))
+  deriving (Eq, Ord, Show)
+
+pFileItem :: Parser FileItem
+pFileItem = FileItem
+  <$> pLocated ((Left <$> pPriceA) <|> (Right <$> pTransactionA))
+
+data FileItems = FileItems FileItem [Bs FileItem]
+  deriving (Eq, Ord, Show)
+
+pFileItems :: Parser FileItems
+pFileItems = FileItems <$> pFileItem <*> many (pBs pFileItem)
+
+data File
+  = FileNoLeadingWhite (Fs FileItems)
+  | FileLeadingWhite Whites (Maybe (Fs FileItems))
+
+pFile :: Parser File
+pFile
+  = FileNoLeadingWhite <$> pFs pFileItems
+  <|> FileLeadingWhite <$> pWhites <*> (optional (pFs pFileItems))

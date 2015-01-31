@@ -1,21 +1,27 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, MultiParamTypeClasses, FunctionalDependencies #-}
 module Test where
 
--- Is this orthodox?  This associated type family is not indexed.
+type family R (a :: * -> *) :: *
+type instance R Maybe = Int
 
-class C e where
-  type Result
-  get :: e Result
+class C' a where
+  -- type family R a
+  getInt' :: a Int
+  getBool' :: R a -> a Bool
 
-instance C Maybe where
-  type Result = Int
-  get = Just 3
+instance C' Maybe where
+  -- type R Maybe = Int
+  getInt' = Just 3
+  getBool' i = Just $ i < 10
 
--- How would you do it with a non-associated indexed type family?
+printer :: IO ()
+printer = print $ (getBool' 5 :: Maybe Bool)
 
-type family ResultA a
-type instance ResultA (Maybe a) = Int
+class C a b | a -> b where
+  getInt :: a Int
+  getBool :: b -> a Bool
 
-class C' e where
-  get' :: e Int
+instance C Maybe Int where
+  getInt = Just 3
+  getBool i = Just $ i < 10
 

@@ -49,184 +49,185 @@ class ParseableRG a where
   parserRG :: Parser (Radix g) -> Parser g -> Parser (a g)
 
 
-instance Parseable Novem where
-  parser =
-    (D1 <$ pSym '1')
-    <|> (D2 <$ pSym '2')
-    <|> (D3 <$ pSym '3')
-    <|> (D4 <$ pSym '4')
-    <|> (D5 <$ pSym '5')
-    <|> (D6 <$ pSym '6')
-    <|> (D7 <$ pSym '7')
-    <|> (D8 <$ pSym '8')
-    <|> (D9 <$ pSym '9')
+pNovem :: Parser Novem
+pNovem =
+  (D1 <$ pSym '1')
+  <|> (D2 <$ pSym '2')
+  <|> (D3 <$ pSym '3')
+  <|> (D4 <$ pSym '4')
+  <|> (D5 <$ pSym '5')
+  <|> (D6 <$ pSym '6')
+  <|> (D7 <$ pSym '7')
+  <|> (D8 <$ pSym '8')
+  <|> (D9 <$ pSym '9')
 
-instance Parseable Decem where
-  parser = (D0 <$ pSym '0') <|> fmap Nonem parser
+pDecem :: Parser Decem
+pDecem = (D0 <$ pSym '0') <|> fmap Nonem pNovem
 
-instance Parseable Grouper where
-  parser = ThinSpace <$ pSym '\x2009'
+pGrouper :: Parser Grouper
+pGrouper = ThinSpace <$ pSym '\x2009'
     <|> Underscore <$ pSym '_'
 
-instance Parseable RadCom where
-  parser = Period <$ pSym '.'
-    <|> RCGrouper <$> parser
+pRadCom :: Parser RadCom
+pRadCom = Period <$ pSym '.'
+    <|> RCGrouper <$> pGrouper
 
-instance Parseable (Radix RadCom) where
-  parser = fmap (const Radix) $ pSym ','
+pRadixRadCom :: Parser (Radix RadCom)
+pRadixRadCom = Radix <$ pSym ','
 
-instance Parseable RadPer where
-  parser = Comma <$ pSym ','
-    <|> RPGrouper <$> parser
+pRadPer :: Parser RadPer
+pRadPer = Comma <$ pSym ','
+    <|> RPGrouper <$> pGrouper
 
-instance Parseable (Radix RadPer) where
-  parser = fmap (const Radix) $ pSym '.'
+pRadixRadPer :: Parser (Radix RadPer)
+pRadixRadPer = Radix <$ pSym '.'
 
-instance Parseable a => Parseable (Seq a) where
-  parser = fmap Seq.fromList $ many parser
+pSeq :: Parser a -> Parser (Seq a)
+pSeq p = fmap Seq.fromList $ many p
 
-instance Parseable Side where
-  parser = Debit <$ pSym '<' <|> Credit <$ pSym '>'
+pSide :: Parser Side
+pSide = Debit <$ pSym '<' <|> Credit <$ pSym '>'
 
-instance Parseable Zero where
-  parser = Zero <$ pSym '0'
+pZero :: Parser Zero
+pZero = Zero <$ pSym '0'
 
-instance ParseableRG NilGrouped where
-  parserRG pr pg =
-    NilGrouped
-    <$> optional parser -- Zero
-    <*> pr              -- radix
-    <*> parser          -- Zero
-    <*> parser          -- Seq Zero
-    <*> pg              -- Grouper
-    <*> parser          -- Zero
-    <*> parser          -- Seq Zero
-    <*> (Seq.fromList <$> many ((,,) <$> pg <*> parser <*> parser))
+pSeqDecs :: Parser g -> Parser (Seq (g, Decem, Seq Decem))
+pSeqDecs pg = pSeq ((,,) <$> pg <*> pDecem <*> pSeq pDecem)
 
-instance ParseableR NilUngrouped where
-  parserR pr = pNUZero <|> pNURadix
-    where
-      pNUZero = NUZero
-        <$> parser -- Zero
-        <*> optional
-              ((,) <$> pr
-                   <*> optional ((,) <$> parser <*> parser))
-      pNURadix = NURadix
-        <$> pr
-        <*> parser -- Zero
-        <*> parser -- Seq Zero
+pNilGrouped :: Parser (Radix r) -> Parser r -> Parser (NilGrouped r)
+pNilGrouped pr pg =
+  NilGrouped
+  <$> optional pZero
+  <*> pr
+  <*> pZero
+  <*> pSeq pZero
+  <*> pg
+  <*> pZero
+  <*> pSeq pZero
+  <*> pSeq ((,,) <$> pg <*> pZero <*> pSeq pZero)
 
-instance ParseableG BG7 where
-  parserG pg = pZero <|> pNovem
-    where
-      pZero = BG7Zeroes
-        <$> parser     -- Zero
-        <*> parser     -- Seq Zero
-        <*> parserG pg -- BG8
-      pNovem = BG7Novem
-        <$> parser     -- Novem
-        <*> parser     -- Seq Decem
-        <*> fmap Seq.fromList
-            (many ((,,) <$> pg <*> parser <*> parser))
+pNilUngrouped :: Parser (Radix r) -> Parser (NilUngrouped r)
+pNilUngrouped pr = pNUZero <|> pNURadix
+  where
+    pNUZero = NUZero
+      <$> pZero
+      <*> optional
+            ((,) <$> pr
+                 <*> optional ((,) <$> pZero <*> pSeq pZero))
+    pNURadix = NURadix
+      <$> pr
+      <*> pZero
+      <*> pSeq pZero
 
-instance ParseableG BG8 where
-  parserG pg = pNovem <|> pGroup
-    where
-      pNovem = BG8Novem
-        <$> parser -- Novem
-        <*> parser -- Seq Decem
-        <*> fmap Seq.fromList
-            (many ((,,) <$> pg <*> parser <*> parser))
-      pGroup = BG8Group
-        <$> pg
-        <*> parserG pg
+pBG7 :: Parser r -> Parser (BG7 r)
+pBG7 pg = pz <|> pn
+  where
+    pz = BG7Zeroes
+      <$> pZero
+      <*> pSeq pZero
+      <*> pBG8 pg
+    pn = BG7Novem
+      <$> pNovem
+      <*> pSeq pDecem
+      <*> pSeqDecs pg
 
-instance ParseableG BG6 where
-  parserG pg = pNovem <|> pGroup
-    where
-      pNovem = BG6Novem
-        <$> parser -- Novem
-        <*> parser -- Seq Decem
-        <*> pg
-        <*> parser -- Decem
-        <*> parser -- Seq Decem
-        <*> fmap Seq.fromList
-            (many ((,,) <$> pg <*> parser <*> parser))
-      pGroup = BG6Group <$> pg <*> parserG pg
 
-instance ParseableG BG5 where
-  parserG pg = pNovem <|> pZero
-    where
-      pNovem = BG5Novem
-        <$> parser -- Novem
-        <*> parser -- Seq Decem
-        <*> pg
-        <*> parser -- Decem
-        <*> parser -- Seq Decem
-        <*> fmap Seq.fromList
-            (many ((,,) <$> pg <*> parser <*> parser))
-      pZero = BG5Zero
-        <$> parser -- Zero
-        <*> parser -- Seq Zero
-        <*> parserG pg -- BG6
+pBG8 :: Parser r -> Parser (BG8 r)
+pBG8 pg = pnv <|> pgrp
+  where
+    pnv = BG8Novem
+      <$> pNovem
+      <*> pSeq pDecem
+      <*> pSeqDecs pg
+    pgrp = BG8Group
+      <$> pg
+      <*> pBG7 pg
 
-instance ParseableRG BG1 where
-  parserRG pr pg = onLeft <|> onRight
-    where
-      onLeft = BG1GroupOnLeft
-        <$> pg
-        <*> parser -- Decem
-        <*> parser -- Seq Decem
-        <*> (Seq.fromList <$> many ((,,) <$> pg <*> parser <*> parser))
-        <*> optional
-            ( (,) <$> pr <*> optional
-                (((,,) <$> parser <*> parser <*>
-                       ( Seq.fromList
-                         <$> many ((,,) <$> pg <*> parser <*> parser)))))
-      onRight = BG1GroupOnRight
-        <$> pr
-        <*> parser -- Decem
-        <*> parser -- Seq Decem
-        <*> fmap Seq.fromList
-            (many ((,,) <$> pg <*> parser <*> parser))
+pBG6 :: Parser r -> Parser (BG6 r)
+pBG6 pg = pnv <|> pgrp
+  where
+    pnv = BG6Novem
+      <$> pNovem
+      <*> pSeq pDecem
+      <*> pg
+      <*> pDecem
+      <*> pSeq pDecem
+      <*> pSeqDecs pg
+    pgrp = BG6Group <$> pg <*> pBG7 pg
 
-instance ParseableR BrimUngrouped where
-  parserR pr = gtOne <|> ltOne
-    where
-      gtOne = BUGreaterThanOne
-        <$> parser -- Novem
-        <*> parser -- Seq Decem
-        <*> optional ((,) <$> pr <*> parser)
-      ltOne = BULessThanOne
-        <$> optional parser -- Zero
-        <*> pr
-        <*> parser -- Seq Zero
-        <*> parser -- Novem
-        <*> parser -- Seq Decem
+pBG5 :: Parser r -> Parser (BG5 r)
+pBG5 pg = pnv <|> pz
+  where
+    pnv = BG5Novem
+      <$> pNovem
+      <*> pSeq pDecem
+      <*> pg
+      <*> pDecem
+      <*> pSeq pDecem
+      <*> pSeqDecs pg
+    pz = BG5Zero
+      <$> pZero
+      <*> pSeq pZero
+      <*> pBG6 pg
 
-instance ParseableRG BrimGrouped where
-  parserRG pr pg = gtOne <|> ltOne
-    where
-      gtOne = BGGreaterThanOne
-        <$> parser -- Novem
-        <*> parser -- Seq Decem
-        <*> parserRG pr pg -- BG1
-      ltOne = BGLessThanOne
-        <$> optional parser -- Zero
-        <*> pr
-        <*> parserG pg -- BG5
+pBG1 :: Parser (Radix r) -> Parser r -> Parser (BG1 r)
+pBG1 pr pg = onLeft <|> onRight
+  where
+    onLeft = BG1GroupOnLeft
+      <$> pg
+      <*> pDecem
+      <*> pSeq pDecem
+      <*> pSeqDecs pg
+      <*> optional
+          ( (,) <$> pr <*> optional
+              (((,,) <$> pDecem <*> pSeq pDecem <*> pSeqDecs pg)))
 
-instance ParseableRG Brim where
-  parserRG pr pg = BrimGrouped <$> parserRG pr pg
-    <|> BrimUngrouped <$> parserR pr
+    onRight = BG1GroupOnRight
+      <$> pr
+      <*> pDecem
+      <*> pSeq pDecem
+      <*> pSeqDecs pg
 
-instance ParseableRG Nil where
-  parserRG pr pg = NilU <$> parserR pr
-    <|> NilG <$> parserRG pr pg
+pBrimUngrouped :: Parser (Radix r) -> Parser (BrimUngrouped r)
+pBrimUngrouped pr = gtOne <|> ltOne
+  where
+    gtOne = BUGreaterThanOne
+      <$> pNovem
+      <*> pSeq pDecem
+      <*> optional ((,) <$> pr <*> pSeq pDecem)
+    ltOne = BULessThanOne
+      <$> optional pZero
+      <*> pr
+      <*> pSeq pZero
+      <*> pNovem
+      <*> pSeq pDecem
 
-instance ParseableRG NilOrBrimScalar where
-  parserRG pr pg = fmap NilOrBrimScalar $ Left <$> parserRG pr pg
-    <|> Right <$> parserRG pr pg
+pBrimGrouped :: Parser (Radix r) -> Parser r -> Parser (BrimGrouped r)
+pBrimGrouped pr pg = gtOne <|> ltOne
+  where
+    gtOne = BGGreaterThanOne
+      <$> pNovem
+      <*> pSeq pDecem
+      <*> pBG1 pr pg -- BG1
+    ltOne = BGLessThanOne
+      <$> optional pZero
+      <*> pr
+      <*> pBG5 pg
+
+pBrim :: Parser (Radix r) -> Parser r -> Parser (Brim r)
+pBrim pr pg = BrimGrouped <$> pBrimGrouped pr pg
+    <|> BrimUngrouped <$> pBrimUngrouped pr
+
+pNil :: Parser (Radix r) -> Parser r -> Parser (Nil r)
+pNil pr pg = NilU <$> pNilUngrouped pr
+    <|> NilG <$> pNilGrouped pr pg
+
+pNilOrBrimScalar
+  :: Parser (Radix r)
+  -> Parser r
+  -> Parser (NilOrBrimScalar r)
+pNilOrBrimScalar pr pg = fmap NilOrBrimScalar $ Left <$> pNil pr pg
+    <|> Right <$> pBrim pr pg
 
 pPluMin :: Parser PluMin
 pPluMin = Plus <$ pSym '+' <|> Minus <$ pSym '-'
