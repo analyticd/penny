@@ -3,7 +3,6 @@ module Penny.Copper.Ast where
 import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
 import Text.ParserCombinators.UU.Core
-import Penny.Copper.Classes
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
 import Penny.Copper.Terminals
@@ -83,9 +82,6 @@ pComment
   <*> many pCommentChar
   <*> pNewline
 
-instance Parseable a => Parseable (Located a) where
-  parser = Located <$> pPos <*> parser
-
 data DigitsFour = DigitsFour Decem Decem Decem Decem
   deriving (Eq, Ord, Show)
 
@@ -140,8 +136,6 @@ data TimeA = TimeA
   Digits1or2 Colon Digits1or2 (Maybe (Colon, Digits1or2))
   deriving (Eq, Ord, Show)
 
-instance Parseable TimeA where parser = pTimeA
-
 pTimeA :: Parser TimeA
 pTimeA = TimeA <$> pDigits1or2 <*> pColon <*> pDigits1or2
     <*> optional ((,) <$> pColon <*> pDigits1or2)
@@ -156,8 +150,6 @@ data ZoneA = ZoneA Backtick PluMin DigitsFour
 rZoneA :: ZoneA -> ShowS
 rZoneA (ZoneA b0 p1 d2)
   = rBacktick b0 . rPluMin p1 . rDigitsFour d2
-
-instance Parseable ZoneA where parser = pZoneA
 
 pZoneA :: Parser ZoneA
 pZoneA = ZoneA <$> pBacktick <*> pPluMin <*> pDigitsFour
@@ -458,8 +450,8 @@ data ScalarA
 pScalarA :: Parser ScalarA
 pScalarA
   = ScalarDate <$> pDateA
-  <|> ScalarTime <$> parser
-  <|> ScalarZone <$> parser
+  <|> ScalarTime <$> pTimeA
+  <|> ScalarZone <$> pZoneA
   <|> ScalarInt <$> pIntegerA
   <|> ScalarQuotedString <$> pQuotedString
   <|> ScalarUnquotedString <$> pUnquotedString
@@ -608,8 +600,8 @@ data PriceA = PriceA (Fs AtSign) (Located (Fs DateA))
 
 pPriceA :: Parser PriceA
 pPriceA = PriceA <$> pFs pAtSign <*> pLocated (pFs pDateA)
-  <*> optional (pLocated (pFs parser))
-  <*> optional (pLocated (pFs parser))
+  <*> optional (pLocated (pFs pTimeA))
+  <*> optional (pLocated (pFs pZoneA))
   <*> pFs pCommodityA <*> pExchA
 
 rPriceA :: PriceA -> ShowS

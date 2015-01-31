@@ -46,7 +46,6 @@ import Penny.Copper.Intervals
 import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
 import Penny.Copper.Parser
-import Penny.Copper.Classes
 
 rangeToParser :: Intervals Char -> Parser Char
 rangeToParser i = case intervalsToTuples i of
@@ -71,9 +70,6 @@ pCommentChar = CommentChar <$> rangeToParser ivlCommentChar
 rCommentChar :: CommentChar -> ShowS
 rCommentChar (CommentChar c) = (c:)
 
-instance Parseable CommentChar where parser = pCommentChar
-instance Renderable CommentChar where render = rCommentChar
-
 ivlNonEscapedChar :: Intervals Char
 ivlNonEscapedChar = Intervals [range minBound maxBound]
   . map singleton $ bads
@@ -93,9 +89,6 @@ pNonEscapedChar = NonEscapedChar <$> rangeToParser ivlNonEscapedChar
 
 rNonEscapedChar :: NonEscapedChar -> ShowS
 rNonEscapedChar (NonEscapedChar c) = (c:)
-
-instance Parseable NonEscapedChar where parser = pNonEscapedChar
-instance Renderable NonEscapedChar where render = rNonEscapedChar
 
 ivlUSCharOpt :: Intervals Char
 ivlUSCharOpt
@@ -120,9 +113,6 @@ pUSCharOpt = USCharOpt
 rUSCharOpt :: USCharOpt -> ShowS
 rUSCharOpt (USCharOpt c) = (c:)
 
-instance Parseable USCharOpt where parser = pUSCharOpt
-instance Renderable USCharOpt where render = rUSCharOpt
-
 ivlUSCharReq :: Intervals Char
 ivlUSCharReq = addExcluded (range '0' '9') ivlUSCharOpt
 
@@ -139,9 +129,6 @@ pUSCharReq = USCharReq <$> rangeToParser ivlUSCharReq
 
 rUSCharReq :: USCharReq -> ShowS
 rUSCharReq (USCharReq c) = (c:)
-
-instance Parseable USCharReq where parser = pUSCharReq
-instance Renderable USCharReq where render = rUSCharReq
 
 newtype UnquotedCommodityFirstChar
   = UnquotedCommodityFirstChar { unquotedCommodityFirstCharToChar :: Char }
@@ -163,11 +150,6 @@ pUnquotedCommodityFirstChar = UnquotedCommodityFirstChar <$>
 
 rUnquotedCommodityFirstChar :: UnquotedCommodityFirstChar -> ShowS
 rUnquotedCommodityFirstChar (UnquotedCommodityFirstChar c) = (c:)
-
-instance Parseable UnquotedCommodityFirstChar where
-  parser = pUnquotedCommodityFirstChar
-instance Renderable UnquotedCommodityFirstChar where
-  render = rUnquotedCommodityFirstChar
 
 -- | Terminal symbols existing over a range of characters.
 class RangeTerm a where
