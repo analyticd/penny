@@ -16,12 +16,19 @@ module Penny.Copper.Terminals
   , rNonEscapedChar
 
   -- * Unquoted string characters
-  , ivlUnquotedStringChar
-  , UnquotedStringChar
-  , unquotedStringChar
-  , unquotedStringCharToChar
-  , pUnquotedStringChar
-  , rUnquotedStringChar
+  , ivlUSCharOpt
+  , USCharOpt
+  , usCharOpt
+  , usCharOptToChar
+  , pUSCharOpt
+  , rUSCharOpt
+
+  , ivlUSCharReq
+  , USCharReq
+  , usCharReq
+  , usCharReqToChar
+  , pUSCharReq
+  , rUSCharReq
 
   -- * Unquoted commodity first character
   , ivlUnquotedCommodityFirstChar
@@ -38,8 +45,8 @@ module Penny.Copper.Terminals
 import Penny.Copper.Intervals
 import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
-import Penny.Copper.Classes
 import Penny.Copper.Parser
+import Penny.Copper.Classes
 
 rangeToParser :: Intervals Char -> Parser Char
 rangeToParser i = case intervalsToTuples i of
@@ -64,6 +71,9 @@ pCommentChar = CommentChar <$> rangeToParser ivlCommentChar
 rCommentChar :: CommentChar -> ShowS
 rCommentChar (CommentChar c) = (c:)
 
+instance Parseable CommentChar where parser = pCommentChar
+instance Renderable CommentChar where render = rCommentChar
+
 ivlNonEscapedChar :: Intervals Char
 ivlNonEscapedChar = Intervals [range minBound maxBound]
   . map singleton $ bads
@@ -84,35 +94,61 @@ pNonEscapedChar = NonEscapedChar <$> rangeToParser ivlNonEscapedChar
 rNonEscapedChar :: NonEscapedChar -> ShowS
 rNonEscapedChar (NonEscapedChar c) = (c:)
 
-ivlUnquotedStringChar :: Intervals Char
-ivlUnquotedStringChar
+instance Parseable NonEscapedChar where parser = pNonEscapedChar
+instance Renderable NonEscapedChar where render = rNonEscapedChar
+
+ivlUSCharOpt :: Intervals Char
+ivlUSCharOpt
   = Intervals [range minBound maxBound]
   . map singleton
   $ [ ' ', '\\', '\n', '\t', '{', '}', '[', ']', '\'', '"',
-      '#', '@', '`']
+      '#', '@', '`' ]
 
-newtype UnquotedStringChar = UnquotedStringChar
-  { unquotedStringCharToChar :: Char }
+newtype USCharOpt = USCharOpt
+  { usCharOptToChar :: Char }
   deriving (Eq, Ord, Show)
 
-unquotedStringChar :: Char -> Maybe UnquotedStringChar
-unquotedStringChar c
-  | c `inIntervals` ivlUnquotedStringChar = Just (UnquotedStringChar c)
+usCharOpt :: Char -> Maybe USCharOpt
+usCharOpt c
+  | c `inIntervals` ivlUSCharOpt = Just (USCharOpt c)
   | otherwise = Nothing
 
-pUnquotedStringChar :: Parser UnquotedStringChar
-pUnquotedStringChar = UnquotedStringChar
-  <$> rangeToParser ivlUnquotedStringChar
+pUSCharOpt :: Parser USCharOpt
+pUSCharOpt = USCharOpt
+  <$> rangeToParser ivlUSCharOpt
 
-rUnquotedStringChar :: UnquotedStringChar -> ShowS
-rUnquotedStringChar (UnquotedStringChar c) = (c:)
+rUSCharOpt :: USCharOpt -> ShowS
+rUSCharOpt (USCharOpt c) = (c:)
+
+instance Parseable USCharOpt where parser = pUSCharOpt
+instance Renderable USCharOpt where render = rUSCharOpt
+
+ivlUSCharReq :: Intervals Char
+ivlUSCharReq = addExcluded (range '0' '9') ivlUSCharOpt
+
+newtype USCharReq = USCharReq { usCharReqToChar :: Char }
+  deriving (Eq, Ord, Show)
+
+usCharReq :: Char -> Maybe USCharReq
+usCharReq c
+  | c `inIntervals` ivlUSCharReq = Just . USCharReq $ c
+  | otherwise = Nothing
+
+pUSCharReq :: Parser USCharReq
+pUSCharReq = USCharReq <$> rangeToParser ivlUSCharReq
+
+rUSCharReq :: USCharReq -> ShowS
+rUSCharReq (USCharReq c) = (c:)
+
+instance Parseable USCharReq where parser = pUSCharReq
+instance Renderable USCharReq where render = rUSCharReq
 
 newtype UnquotedCommodityFirstChar
   = UnquotedCommodityFirstChar { unquotedCommodityFirstCharToChar :: Char }
   deriving (Eq, Ord, Show)
 
 ivlUnquotedCommodityFirstChar :: Intervals Char
-ivlUnquotedCommodityFirstChar = ivlUnquotedStringChar `remove`
+ivlUnquotedCommodityFirstChar = ivlUSCharOpt `remove`
   included [range '0' '9']
 
 unquotedCommodityFirstChar :: Char -> Maybe UnquotedCommodityFirstChar
@@ -127,6 +163,11 @@ pUnquotedCommodityFirstChar = UnquotedCommodityFirstChar <$>
 
 rUnquotedCommodityFirstChar :: UnquotedCommodityFirstChar -> ShowS
 rUnquotedCommodityFirstChar (UnquotedCommodityFirstChar c) = (c:)
+
+instance Parseable UnquotedCommodityFirstChar where
+  parser = pUnquotedCommodityFirstChar
+instance Renderable UnquotedCommodityFirstChar where
+  render = rUnquotedCommodityFirstChar
 
 -- | Terminal symbols existing over a range of characters.
 class RangeTerm a where
@@ -147,11 +188,11 @@ instance RangeTerm NonEscapedChar where
   termToChar = nonEscapedCharToChar
   pRangeTerm = pNonEscapedChar
 
-instance RangeTerm UnquotedStringChar where
-  termIntervals = const ivlUnquotedStringChar
-  termFromChar = unquotedStringChar
-  termToChar = unquotedStringCharToChar
-  pRangeTerm = pUnquotedStringChar
+instance RangeTerm USCharOpt where
+  termIntervals = const ivlUSCharOpt
+  termFromChar = usCharOpt
+  termToChar = usCharOptToChar
+  pRangeTerm = pUSCharOpt
 
 instance RangeTerm UnquotedCommodityFirstChar where
   termIntervals = const ivlUnquotedCommodityFirstChar
