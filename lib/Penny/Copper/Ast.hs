@@ -6,19 +6,33 @@ import Text.ParserCombinators.UU.Core
 import Penny.Copper.Classes
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
-import Penny.Copper.Intervals
+import Penny.Copper.Terminals
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
+import Penny.Copper.Parser
+import Penny.Copper.LincolnTypes
 
 data Located a = Located LineColPosA a
   deriving (Eq, Ord, Show)
 
+instance Functor Located where
+  fmap f (Located l1 a) = Located l1 (f a)
+
 pLocated :: Parser a -> Parser (Located a)
 pLocated p = Located <$> pPos <*> p
+
+rLocated :: (a -> ShowS) -> Located a -> ShowS
+rLocated f (Located _ a) = f a
 
 -- | Something that might be followed by spaces.
 data Fs a = Fs a (Maybe Whites)
   deriving (Eq, Ord, Show)
+
+rFs :: (a -> ShowS) -> Fs a -> ShowS
+rFs f (Fs a mw) = f a . rMaybe rWhites mw
+
+instance Functor Fs where
+  fmap f (Fs a w) = Fs (f a) w
 
 pFs :: Parser a -> Parser (Fs a)
 pFs p = Fs <$> p <*> optional pWhites
@@ -27,20 +41,11 @@ pFs p = Fs <$> p <*> optional pWhites
 data Bs a = Bs (Maybe Whites) a
   deriving (Eq, Ord, Show)
 
+instance Functor Bs where
+  fmap f (Bs w a) = Bs w (f a)
+
 pBs :: Parser a -> Parser (Bs a)
 pBs p = Bs <$> optional pWhites <*> p
-
-instance Functor Located where
-  fmap f (Located l1 a) = Located l1 (f a)
-
-rangeToParser :: Intervals Char -> Parser Char
-rangeToParser i = case intervalsToTuples i of
-  [] -> error "rangeToParser: empty interval"
-  xs -> foldl1 (<|>) . map pRange $ xs
-
-commentChar :: Intervals Char
-commentChar = included [range minBound maxBound]
-  `remove` alone '\n'
 
 -- | Octothorpe
 data Hash = Hash
@@ -49,20 +54,24 @@ data Hash = Hash
 pHash :: Parser Hash
 pHash = Hash <$ pSym '#'
 
+rHash :: Hash -> ShowS
+rHash Hash = ('#':)
+
 data Newline = Newline
   deriving (Eq, Ord, Show)
 
 pNewline :: Parser Newline
 pNewline = Newline <$ pSym '\n'
 
-newtype CommentChar = CommentChar Char
-  deriving (Eq, Ord, Show)
-
-pCommentChar :: Parser CommentChar
-pCommentChar = CommentChar <$> rangeToParser commentChar
+rNewline :: Newline -> ShowS
+rNewline Newline = ('\n':)
 
 data Comment = Comment Hash [CommentChar] Newline
   deriving (Eq, Ord, Show)
+
+rComment :: Comment -> ShowS
+rComment (Comment h0 cs1 n2) = rHash h0 . rList rCommentChar cs1
+  . rNewline n2
 
 pComment :: Parser Comment
 pComment
@@ -80,11 +89,18 @@ data DigitsFour = DigitsFour Decem Decem Decem Decem
 pDigitsFour :: Parser DigitsFour
 pDigitsFour = DigitsFour <$> pDecem <*> pDecem <*> pDecem <*> pDecem
 
+rDigitsFour :: DigitsFour -> ShowS
+rDigitsFour (DigitsFour d0 d1 d2 d3) = rDecem d0
+  . rDecem d1 . rDecem d2 . rDecem d3
+
 data Digits1or2 = Digits1or2 Decem (Maybe Decem)
   deriving (Eq, Ord, Show)
 
 pDigits1or2 :: Parser Digits1or2
 pDigits1or2 = Digits1or2 <$> pDecem <*> optional pDecem
+
+rDigits1or2 :: Digits1or2 -> ShowS
+rDigits1or2 (Digits1or2 d0 m1) = rDecem d0 . rMaybe rDecem m1
 
 data DateSep = DateSlash | DateHyphen
   deriving (Eq, Ord, Show)
@@ -95,6 +111,10 @@ data DateA = DateA
 
 pDateSep :: Parser DateSep
 pDateSep = DateSlash <$ pSym '/' <|> DateHyphen <$ pSym '-'
+
+rDateSep :: DateSep -> ShowS
+rDateSep DateSlash = ('/':)
+rDateSep DateHyphen = ('-':)
 
 pDateA :: Parser DateA
 pDateA = DateA <$> pDigitsFour <*> pDateSep
@@ -120,23 +140,11 @@ data ZoneA = ZoneA Backtick PluMin DigitsFour
 instance Parseable ZoneA where
   parser = ZoneA <$> pBacktick <*> pPluMin <*> pDigitsFour
 
-stringChar :: Intervals Char
-stringChar = Intervals [range minBound maxBound]
-  . map singleton $ bads
-  where
-    bads = ['\\', '\n', '"']
-
 data DoubleQuote = DoubleQuote
   deriving (Eq, Ord, Show)
 
 pDoubleQuote :: Parser DoubleQuote
 pDoubleQuote = DoubleQuote <$ pSym '"'
-
-newtype NonEscapedChar = NonEscapedChar Char
-  deriving (Eq, Ord, Show)
-
-pNonEscapedChar :: Parser NonEscapedChar
-pNonEscapedChar = NonEscapedChar <$> rangeToParser stringChar
 
 data Backslash = Backslash
   deriving (Eq, Ord, Show)
@@ -156,8 +164,18 @@ pWhite = Space <$ pSym ' ' <|> Tab <$ pSym '\t'
   <|> WhiteNewline <$ pSym '\n'
   <|> WhiteComment <$> pComment
 
+rWhite :: White -> ShowS
+rWhite w = case w of
+  Space -> (' ':)
+  Tab -> ('\t':)
+  WhiteNewline -> ('\n':)
+  WhiteComment c -> rComment c
+
 data Whites = Whites White [White]
   deriving (Eq, Ord, Show)
+
+rWhites :: Whites -> ShowS
+rWhites (Whites w ws) = rWhite w . rList rWhite ws
 
 pWhites :: Parser Whites
 pWhites = Whites <$> pWhite <*> many pWhite
@@ -197,20 +215,6 @@ pQuotedString = QuotedString
   <*> many pQuotedChar
   <*> pDoubleQuote
 
-newtype UnquotedStringChar = UnquotedStringChar Char
-  deriving (Eq, Ord, Show)
-
-unquotedStringChar :: Intervals Char
-unquotedStringChar
-  = Intervals [range minBound maxBound]
-  . map singleton
-  $ [ ' ', '\\', '\n', '\t', '{', '}', '[', ']', '\'', '"',
-      '#', '@', '`']
-
-pUnquotedStringChar :: Parser UnquotedStringChar
-pUnquotedStringChar = UnquotedStringChar
-  <$> rangeToParser unquotedStringChar
-
 data UnquotedString
   = UnquotedString UnquotedStringChar [UnquotedStringChar]
   deriving (Eq, Ord, Show)
@@ -237,18 +241,6 @@ choice ps = foldr (<|>) empty . zipWith micro ps $ [1..]
 -- The commodity can be a quoted string, which is most flexible.  It
 -- can also be a non-quoted string; in this case, it must not begin
 -- with a digit (the other characters may be digits.)
-
-newtype UnquotedCommodityFirstChar
-  = UnquotedCommodityFirstChar Char
-  deriving (Eq, Ord, Show)
-
-unquotedCommodityFirstChar :: Intervals Char
-unquotedCommodityFirstChar = unquotedStringChar `remove`
-  included [range '0' '9']
-
-pUnquotedCommodityFirstChar :: Parser UnquotedCommodityFirstChar
-pUnquotedCommodityFirstChar = UnquotedCommodityFirstChar <$>
-  rangeToParser unquotedCommodityFirstChar
 
 data UnquotedCommodity
   = UnquotedCommodity UnquotedCommodityFirstChar [UnquotedStringChar]

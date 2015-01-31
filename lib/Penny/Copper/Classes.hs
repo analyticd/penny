@@ -4,26 +4,12 @@ module Penny.Copper.Classes where
 
 import Control.Applicative
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
-import Text.ParserCombinators.UU.Core hiding (Zero)
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Rep.Digits
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
-
--- | The 'LineColPos' that ships with uu-parsinglib is not an instance
--- of 'Eq'; having an 'Eq' instance can help enormously with testing
-data LineColPosA = LineColPosA !Int !Int !Int
-  deriving (Eq, Ord, Show)
-
-instance IsLocationUpdatedBy LineColPosA Char where
-  advance (LineColPosA lin ps ab) c = case c of
-    '\n' -> LineColPosA (lin + 1) 0 (ab + 1)
-    '\t' -> LineColPosA lin (ps + 8 - (ps - 1) `mod` 8) (ab + 1)
-    _ -> LineColPosA lin (ps + 1) (ab + 1)
-
-type Parser = P (Str Char String LineColPosA)
+import Penny.Copper.LincolnTypes
+import Penny.Copper.Parser
 
 -- | Things that can be parsed.
 
@@ -48,193 +34,97 @@ class ParseableG a where
 class ParseableRG a where
   parserRG :: Parser (Radix g) -> Parser g -> Parser (a g)
 
+instance Parseable Novem where parser = pNovem
+instance Renderable Novem where render = rNovem
 
-pNovem :: Parser Novem
-pNovem =
-  (D1 <$ pSym '1')
-  <|> (D2 <$ pSym '2')
-  <|> (D3 <$ pSym '3')
-  <|> (D4 <$ pSym '4')
-  <|> (D5 <$ pSym '5')
-  <|> (D6 <$ pSym '6')
-  <|> (D7 <$ pSym '7')
-  <|> (D8 <$ pSym '8')
-  <|> (D9 <$ pSym '9')
+instance Parseable Decem where parser = pDecem
+instance Renderable Decem where render = rDecem
 
-pDecem :: Parser Decem
-pDecem = (D0 <$ pSym '0') <|> fmap Nonem pNovem
+instance Parseable Grouper where parser = pGrouper
+instance Renderable Grouper where render = rGrouper
 
-pGrouper :: Parser Grouper
-pGrouper = ThinSpace <$ pSym '\x2009'
-    <|> Underscore <$ pSym '_'
+instance Parseable RadCom where parser = pRadCom
+instance Renderable RadCom where render = rRadCom
 
-pRadCom :: Parser RadCom
-pRadCom = Period <$ pSym '.'
-    <|> RCGrouper <$> pGrouper
+instance Parseable (Radix RadCom) where parser = pRadixRadCom
+instance Renderable (Radix RadCom) where render = rRadixRadCom
 
-pRadixRadCom :: Parser (Radix RadCom)
-pRadixRadCom = Radix <$ pSym ','
+instance Parseable RadPer where parser = pRadPer
+instance Renderable RadPer where render = rRadPer
 
-pRadPer :: Parser RadPer
-pRadPer = Comma <$ pSym ','
-    <|> RPGrouper <$> pGrouper
+instance Parseable (Radix RadPer) where parser = pRadixRadPer
+instance Renderable (Radix RadPer) where render = rRadixRadPer
 
-pRadixRadPer :: Parser (Radix RadPer)
-pRadixRadPer = Radix <$ pSym '.'
+instance Parseable r => Parseable (Seq r) where parser = pSeq parser
+instance Renderable r => Renderable (Seq r) where render = rSeq render
 
-pSeq :: Parser a -> Parser (Seq a)
-pSeq p = fmap Seq.fromList $ many p
+instance Parseable Side where parser = pSide
+instance Renderable Side where render = rSide
 
-pSide :: Parser Side
-pSide = Debit <$ pSym '<' <|> Credit <$ pSym '>'
+instance Parseable Zero where parser = pZero
+instance Renderable Zero where render = rZero
 
-pZero :: Parser Zero
-pZero = Zero <$ pSym '0'
+instance ParseableRG NilGrouped where parserRG = pNilGrouped
+instance RenderableRG NilGrouped where renderRG = rNilGrouped
 
-pSeqDecs :: Parser g -> Parser (Seq (g, Decem, Seq Decem))
-pSeqDecs pg = pSeq ((,,) <$> pg <*> pDecem <*> pSeq pDecem)
+instance ParseableR NilUngrouped where parserR = pNilUngrouped
+instance RenderableR NilUngrouped where renderR = rNilUngrouped
 
-pNilGrouped :: Parser (Radix r) -> Parser r -> Parser (NilGrouped r)
-pNilGrouped pr pg =
-  NilGrouped
-  <$> optional pZero
-  <*> pr
-  <*> pZero
-  <*> pSeq pZero
-  <*> pg
-  <*> pZero
-  <*> pSeq pZero
-  <*> pSeq ((,,) <$> pg <*> pZero <*> pSeq pZero)
+instance ParseableG BG7 where parserG = pBG7
+instance RenderableG BG7 where renderG = rBG7
 
-pNilUngrouped :: Parser (Radix r) -> Parser (NilUngrouped r)
-pNilUngrouped pr = pNUZero <|> pNURadix
-  where
-    pNUZero = NUZero
-      <$> pZero
-      <*> optional
-            ((,) <$> pr
-                 <*> optional ((,) <$> pZero <*> pSeq pZero))
-    pNURadix = NURadix
-      <$> pr
-      <*> pZero
-      <*> pSeq pZero
+instance ParseableG BG8 where parserG = pBG8
+instance RenderableG BG8 where renderG = rBG8
 
-pBG7 :: Parser r -> Parser (BG7 r)
-pBG7 pg = pz <|> pn
-  where
-    pz = BG7Zeroes
-      <$> pZero
-      <*> pSeq pZero
-      <*> pBG8 pg
-    pn = BG7Novem
-      <$> pNovem
-      <*> pSeq pDecem
-      <*> pSeqDecs pg
+instance ParseableG BG6 where parserG = pBG6
+instance RenderableG BG6 where renderG = rBG6
 
+instance ParseableG BG5 where parserG = pBG5
+instance RenderableG BG5 where renderG = rBG5
 
-pBG8 :: Parser r -> Parser (BG8 r)
-pBG8 pg = pnv <|> pgrp
-  where
-    pnv = BG8Novem
-      <$> pNovem
-      <*> pSeq pDecem
-      <*> pSeqDecs pg
-    pgrp = BG8Group
-      <$> pg
-      <*> pBG7 pg
+instance ParseableRG BG1 where parserRG = pBG1
+instance RenderableRG BG1 where renderRG = rBG1
 
-pBG6 :: Parser r -> Parser (BG6 r)
-pBG6 pg = pnv <|> pgrp
-  where
-    pnv = BG6Novem
-      <$> pNovem
-      <*> pSeq pDecem
-      <*> pg
-      <*> pDecem
-      <*> pSeq pDecem
-      <*> pSeqDecs pg
-    pgrp = BG6Group <$> pg <*> pBG7 pg
+instance ParseableR BrimUngrouped where parserR = pBrimUngrouped
+instance RenderableR BrimUngrouped where renderR = rBrimUngrouped
 
-pBG5 :: Parser r -> Parser (BG5 r)
-pBG5 pg = pnv <|> pz
-  where
-    pnv = BG5Novem
-      <$> pNovem
-      <*> pSeq pDecem
-      <*> pg
-      <*> pDecem
-      <*> pSeq pDecem
-      <*> pSeqDecs pg
-    pz = BG5Zero
-      <$> pZero
-      <*> pSeq pZero
-      <*> pBG6 pg
+instance ParseableRG BrimGrouped where parserRG = pBrimGrouped
+instance RenderableRG BrimGrouped where renderRG = rBrimGrouped
 
-pBG1 :: Parser (Radix r) -> Parser r -> Parser (BG1 r)
-pBG1 pr pg = onLeft <|> onRight
-  where
-    onLeft = BG1GroupOnLeft
-      <$> pg
-      <*> pDecem
-      <*> pSeq pDecem
-      <*> pSeqDecs pg
-      <*> optional
-          ( (,) <$> pr <*> optional
-              (((,,) <$> pDecem <*> pSeq pDecem <*> pSeqDecs pg)))
+instance ParseableRG Brim where parserRG = pBrim
+instance RenderableRG Brim where renderRG = rBrim
 
-    onRight = BG1GroupOnRight
-      <$> pr
-      <*> pDecem
-      <*> pSeq pDecem
-      <*> pSeqDecs pg
+instance ParseableRG Nil where parserRG = pNil
+instance RenderableRG Nil where renderRG = rNil
 
-pBrimUngrouped :: Parser (Radix r) -> Parser (BrimUngrouped r)
-pBrimUngrouped pr = gtOne <|> ltOne
-  where
-    gtOne = BUGreaterThanOne
-      <$> pNovem
-      <*> pSeq pDecem
-      <*> optional ((,) <$> pr <*> pSeq pDecem)
-    ltOne = BULessThanOne
-      <$> optional pZero
-      <*> pr
-      <*> pSeq pZero
-      <*> pNovem
-      <*> pSeq pDecem
+instance ParseableRG NilOrBrimScalar where parserRG = pNilOrBrimScalar
+instance RenderableRG NilOrBrimScalar where renderRG = rNilOrBrimScalar
 
-pBrimGrouped :: Parser (Radix r) -> Parser r -> Parser (BrimGrouped r)
-pBrimGrouped pr pg = gtOne <|> ltOne
-  where
-    gtOne = BGGreaterThanOne
-      <$> pNovem
-      <*> pSeq pDecem
-      <*> pBG1 pr pg -- BG1
-    ltOne = BGLessThanOne
-      <$> optional pZero
-      <*> pr
-      <*> pBG5 pg
+instance Parseable PluMin where parser = pPluMin
+instance Renderable PluMin where render = rPluMin
 
-pBrim :: Parser (Radix r) -> Parser r -> Parser (Brim r)
-pBrim pr pg = BrimGrouped <$> pBrimGrouped pr pg
-    <|> BrimUngrouped <$> pBrimUngrouped pr
+instance Parseable a => Parseable [a] where parser = many parser
+instance Renderable a => Renderable [a] where
+  render = foldr (.) id . fmap render
 
-pNil :: Parser (Radix r) -> Parser r -> Parser (Nil r)
-pNil pr pg = NilU <$> pNilUngrouped pr
-    <|> NilG <$> pNilGrouped pr pg
+-- | Things that can be rendered.
 
-pNilOrBrimScalar
-  :: Parser (Radix r)
-  -> Parser r
-  -> Parser (NilOrBrimScalar r)
-pNilOrBrimScalar pr pg = fmap NilOrBrimScalar $ Left <$> pNil pr pg
-    <|> Right <$> pBrim pr pg
+class Renderable a where
+  render :: a -> ShowS
 
-pPluMin :: Parser PluMin
-pPluMin = Plus <$ pSym '+' <|> Minus <$ pSym '-'
+-- | Things that can be rendered, but they must be passed a renderer
+-- for the radix point.
+class RenderableR a where
+  renderR :: (Radix r -> ShowS) -> a r -> ShowS
 
-instance Parseable PluMin where
-  parser = pPluMin
+-- | Things that can be rendered, but they must be passed a renderer
+-- for a grouping character.
 
-instance Parseable a => Parseable [a] where
-  parser = many parser
+class RenderableG a where
+  renderG :: (r -> ShowS) -> a r -> ShowS
+
+-- | Things that can be rendered, but they must be passed renderers
+-- for a grouping character and a radix point.
+class RenderableRG a where
+  renderRG :: (Radix r -> ShowS) -> (r -> ShowS) -> a r -> ShowS
 

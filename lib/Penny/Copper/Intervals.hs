@@ -25,6 +25,7 @@ module Penny.Copper.Intervals
   , addExcluded
   , remove
   , splitIntervals
+  , inIntervals
   , intervalsToTuples
   ) where
 
@@ -205,6 +206,10 @@ splitIntervals
   => Intervals a
   -> [Interval a]
 splitIntervals (Intervals is es) = removeExcludes (standardize is) es
+
+-- | 'True' if the given element is a member of the 'Intervals'.
+inIntervals :: (Enum a, Ord a) => a -> Intervals a -> Bool
+inIntervals a = any (inInterval a) . splitIntervals
 
 {- |
 
