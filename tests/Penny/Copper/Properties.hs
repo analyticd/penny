@@ -72,14 +72,23 @@ prop_QuotedString = testR
 prop_UnquotedString :: UnquotedString -> Bool
 prop_UnquotedString = testR
 
-prop_UnquotedCommodity :: UnquotedCommodity -> Bool
-prop_UnquotedCommodity = testR
+prop_UnquotedCommodityOnLeft :: UnquotedCommodityOnLeft -> Bool
+prop_UnquotedCommodityOnLeft = testR
+
+prop_UnquotedCommodityOnRight :: UnquotedCommodityOnRight -> Bool
+prop_UnquotedCommodityOnRight = testR
 
 prop_QuotedCommodity :: QuotedCommodity -> Bool
 prop_QuotedCommodity = testR
 
 prop_CommodityA :: CommodityA -> Bool
 prop_CommodityA = testR
+
+prop_CommodityOnLeft :: CommodityOnLeft -> Bool
+prop_CommodityOnLeft = testR
+
+prop_CommodityOnRight :: CommodityOnRight -> Bool
+prop_CommodityOnRight = testR
 
 prop_Backtick :: Backtick -> Bool
 prop_Backtick = testR

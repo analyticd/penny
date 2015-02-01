@@ -117,14 +117,27 @@ instance Renderable QuotedString where render = rQuotedString
 instance Parseable UnquotedString where parser = pUnquotedString
 instance Renderable UnquotedString where render = rUnquotedString
 
-instance Parseable UnquotedCommodity where parser = pUnquotedCommodity
-instance Renderable UnquotedCommodity where render = rUnquotedCommodity
+instance Parseable UnquotedCommodityOnLeft where
+  parser = pUnquotedCommodityOnLeft
+instance Renderable UnquotedCommodityOnLeft where
+  render = rUnquotedCommodityOnLeft
+
+instance Parseable UnquotedCommodityOnRight where
+  parser = pUnquotedCommodityOnRight
+instance Renderable UnquotedCommodityOnRight where
+  render = rUnquotedCommodityOnRight
 
 instance Parseable QuotedCommodity where parser = pQuotedCommodity
 instance Renderable QuotedCommodity where render = rQuotedCommodity
 
 instance Parseable CommodityA where parser = pCommodityA
 instance Renderable CommodityA where render = rCommodityA
+
+instance Parseable CommodityOnLeft where parser = pCommodityOnLeft
+instance Renderable CommodityOnLeft where render = rCommodityOnLeft
+
+instance Parseable CommodityOnRight where parser = pCommodityOnRight
+instance Renderable CommodityOnRight where render = rCommodityOnRight
 
 instance Parseable Backtick where parser = pBacktick
 instance Renderable Backtick where render = rBacktick
@@ -228,14 +241,8 @@ instance Renderable CommentChar where render = rCommentChar
 instance Parseable NonEscapedChar where parser = pNonEscapedChar
 instance Renderable NonEscapedChar where render = rNonEscapedChar
 
-instance Parseable USCharOpt where parser = pUSCharOpt
-instance Renderable USCharOpt where render = rUSCharOpt
-
-instance Parseable USCharReq where parser = pUSCharReq
-instance Renderable USCharReq where render = rUSCharReq
-
-instance Parseable UnquotedCommodityFirstChar where parser = pUnquotedCommodityFirstChar
-instance Renderable UnquotedCommodityFirstChar where render = rUnquotedCommodityFirstChar
+instance Parseable USCharNonDigit where parser = pUSCharNonDigit
+instance Renderable USCharNonDigit where render = rUSCharNonDigit
 
 instance ParseableG BG7 where parserG = pBG7
 instance RenderableG BG7 where renderG = rBG7

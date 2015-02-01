@@ -3,6 +3,7 @@ module Penny.Copper.Ast where
 import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
 import Text.ParserCombinators.UU.Core
+import Text.ParserCombinators.UU.Derived
 import Penny.Lincoln.Rep
 import Penny.Copper.Terminals
 import Penny.Lincoln.Side
@@ -254,16 +255,19 @@ rQuotedString (QuotedString q0 cs1 q2)
   = rDoubleQuote q0 . rList rQuotedChar cs1 . rDoubleQuote q2
 
 data UnquotedString
-  = UnquotedString [USCharOpt] USCharReq [USCharOpt]
+  = UnquotedString [Decem] USCharNonDigit [Either USCharNonDigit Decem]
   deriving (Eq, Ord, Show)
 
 pUnquotedString :: Parser UnquotedString
 pUnquotedString = UnquotedString
-  <$> pList pUSCharOpt <*> pUSCharReq <*> pList pUSCharOpt
+  <$> pList pDecem <*> pUSCharNonDigit
+  <*> pList (Left <$> pUSCharNonDigit <|> Right <$> pDecem)
+
 
 rUnquotedString :: UnquotedString -> ShowS
-rUnquotedString (UnquotedString ls0 c1 ls2) =
-  rList rUSCharOpt ls0 . rUSCharReq c1 . rList rUSCharOpt ls2
+rUnquotedString (UnquotedString ds0 c1 ei2) =
+  rList rDecem ds0 . rUSCharNonDigit c1
+  . rList (either rUSCharNonDigit rDecem) ei2
 
 -- Parsing the Trio
 --
@@ -276,20 +280,59 @@ rUnquotedString (UnquotedString ls0 c1 ls2) =
 -- Otherwise, it must be Nil.
 --
 -- The commodity can be a quoted string, which is most flexible.  It
--- can also be a non-quoted string; in this case, it must not begin
--- with a digit (the other characters may be digits.)
+-- can also be a non-quoted string.  In this case, if the unquoted
+-- commodity is on the left, it may contain only non-digit characters.
+-- If the unquoted commodity is on the right, it must start with a
+-- non-digit character, but following characters may be digits.
 
-data UnquotedCommodity
-  = UnquotedCommodity UnquotedCommodityFirstChar [USCharOpt]
+data UnquotedCommodityOnLeft
+  = UnquotedCommodityOnLeft USCharNonDigit [USCharNonDigit]
   deriving (Eq, Ord, Show)
 
-pUnquotedCommodity :: Parser UnquotedCommodity
-pUnquotedCommodity = UnquotedCommodity
-  <$> pUnquotedCommodityFirstChar <*> many pUSCharOpt
+pUnquotedCommodityOnLeft :: Parser UnquotedCommodityOnLeft
+pUnquotedCommodityOnLeft = UnquotedCommodityOnLeft
+  <$> pUSCharNonDigit <*> many pUSCharNonDigit
 
-rUnquotedCommodity :: UnquotedCommodity -> ShowS
-rUnquotedCommodity (UnquotedCommodity c0 ls1)
-  = rUnquotedCommodityFirstChar c0 . rList rUSCharOpt ls1
+rUnquotedCommodityOnLeft :: UnquotedCommodityOnLeft -> ShowS
+rUnquotedCommodityOnLeft (UnquotedCommodityOnLeft c0 ls1)
+  = rUSCharNonDigit c0 . rList rUSCharNonDigit ls1
+
+data UnquotedCommodityOnRight
+  = UnquotedCommodityOnRight USCharNonDigit [Either USCharNonDigit Decem]
+  deriving (Eq, Ord, Show)
+
+pUnquotedCommodityOnRight :: Parser UnquotedCommodityOnRight
+pUnquotedCommodityOnRight = UnquotedCommodityOnRight
+  <$> pUSCharNonDigit
+  <*> many (Left <$> pUSCharNonDigit <|> Right <$> pDecem)
+
+rUnquotedCommodityOnRight :: UnquotedCommodityOnRight -> ShowS
+rUnquotedCommodityOnRight (UnquotedCommodityOnRight d0 ls1)
+  = rUSCharNonDigit d0 . rList (either rUSCharNonDigit rDecem) ls1
+
+newtype CommodityOnLeft
+  = CommodityOnLeft (Either UnquotedCommodityOnLeft QuotedCommodity)
+  deriving (Eq, Ord, Show)
+
+pCommodityOnLeft :: Parser CommodityOnLeft
+pCommodityOnLeft = CommodityOnLeft
+  <$> pEither pUnquotedCommodityOnLeft pQuotedCommodity
+
+rCommodityOnLeft :: CommodityOnLeft -> ShowS
+rCommodityOnLeft (CommodityOnLeft ei)
+  = either rUnquotedCommodityOnLeft rQuotedCommodity ei
+
+newtype CommodityOnRight
+  = CommodityOnRight (Either UnquotedCommodityOnRight QuotedCommodity)
+  deriving (Eq, Ord, Show)
+
+pCommodityOnRight :: Parser CommodityOnRight
+pCommodityOnRight = CommodityOnRight
+  <$> pEither pUnquotedCommodityOnRight pQuotedCommodity
+
+rCommodityOnRight :: CommodityOnRight -> ShowS
+rCommodityOnRight (CommodityOnRight ei)
+  = either rUnquotedCommodityOnRight rQuotedCommodity ei
 
 newtype QuotedCommodity = QuotedCommodity QuotedString
   deriving (Eq, Ord, Show)
@@ -301,15 +344,16 @@ rQuotedCommodity :: QuotedCommodity -> ShowS
 rQuotedCommodity (QuotedCommodity q0) = rQuotedString q0
 
 newtype CommodityA
-  = CommodityA (Either UnquotedCommodity QuotedCommodity)
+  = CommodityA (Either UnquotedCommodityOnRight QuotedCommodity)
   deriving (Eq, Ord, Show)
 
 pCommodityA :: Parser CommodityA
 pCommodityA = CommodityA <$>
-  (Left <$> pUnquotedCommodity <|> Right <$> pQuotedCommodity)
+  (Left <$> pUnquotedCommodityOnRight <|> Right <$> pQuotedCommodity)
 
 rCommodityA :: CommodityA -> ShowS
-rCommodityA (CommodityA ei) = either rUnquotedCommodity rQuotedCommodity ei
+rCommodityA (CommodityA ei)
+  = either rUnquotedCommodityOnRight rQuotedCommodity ei
 
 data Backtick = Backtick
   deriving (Eq, Ord, Show)
@@ -361,9 +405,9 @@ rNeutralOrNon x = case x of
 -- the AST should actually produce something.  Instead,
 -- 'Penny.Lincoln.Trio.E' is indicated by the absense of any 'TrioA'.
 data TrioA
-  = QcCyOnLeftA (Fs Side) (Fs CommodityA) NonNeutral
+  = QcCyOnLeftA (Fs Side) (Fs CommodityOnLeft) NonNeutral
   -- ^ Non neutral, commodity on left
-  | QcCyOnRightA (Fs Side) (Fs NonNeutral) CommodityA
+  | QcCyOnRightA (Fs Side) (Fs NonNeutral) CommodityOnRight
   -- ^ Non neutral, commodity on right
   | QA (Fs Side) NeutralOrNon
   -- ^ Qty with side only
@@ -371,9 +415,9 @@ data TrioA
   -- ^ Side and commodity
   | SA Side
   -- ^ Side only
-  | UcCyOnLeftA (Fs CommodityA) NonNeutral
+  | UcCyOnLeftA (Fs CommodityOnLeft) NonNeutral
   -- ^ Unsigned quantity and commodity only, commodity on left
-  | UcCyOnRightA (Fs NonNeutral) CommodityA
+  | UcCyOnRightA (Fs NonNeutral) CommodityOnRight
   -- ^ Unsigned quantity and commodity only, commodity on right
   | UA NonNeutral
   -- ^ Non-sided non-neutral quantity only
@@ -382,27 +426,28 @@ data TrioA
   deriving (Eq, Ord, Show)
 
 pTrioA :: Parser TrioA
-pTrioA = QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityA <*> pNonNeutral
-  <|> QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityA
+pTrioA
+  = QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityOnLeft <*> pNonNeutral
+  <|> QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityOnRight
   <|> QA <$> pFs pSide <*> pNeutralOrNon
   <|> SCA <$> pFs pSide <*> pCommodityA
   <|> SA <$> pSide
-  <|> UcCyOnLeftA <$> pFs pCommodityA <*> pNonNeutral
-  <|> UcCyOnRightA <$> pFs pNonNeutral <*> pCommodityA
+  <|> UcCyOnLeftA <$> pFs pCommodityOnLeft <*> pNonNeutral
+  <|> UcCyOnRightA <$> pFs pNonNeutral <*> pCommodityOnRight
   <|> UA <$> pNonNeutral
   <|> CA <$> pCommodityA
 
 rTrioA :: TrioA -> ShowS
 rTrioA x = case x of
-  QcCyOnLeftA s0 c1 n1 -> rFs rSide s0 . rFs rCommodityA c1
+  QcCyOnLeftA s0 c1 n1 -> rFs rSide s0 . rFs rCommodityOnLeft c1
     . rNonNeutral n1
   QcCyOnRightA s0 n1 c2 -> rFs rSide s0 . rFs rNonNeutral n1
-    . rCommodityA c2
+    . rCommodityOnRight c2
   QA s0 n1 -> rFs rSide s0 . rNeutralOrNon n1
   SCA s0 c1 -> rFs rSide s0 . rCommodityA c1
   SA s -> rSide s
-  UcCyOnLeftA c0 n1 -> rFs rCommodityA c0 . rNonNeutral n1
-  UcCyOnRightA n0 c1 -> rFs rNonNeutral n0 . rCommodityA c1
+  UcCyOnLeftA c0 n1 -> rFs rCommodityOnLeft c0 . rNonNeutral n1
+  UcCyOnRightA n0 c1 -> rFs rNonNeutral n0 . rCommodityOnRight c1
   UA n -> rNonNeutral n
   CA c -> rCommodityA c
 

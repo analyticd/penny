@@ -16,27 +16,12 @@ module Penny.Copper.Terminals
   , rNonEscapedChar
 
   -- * Unquoted string characters
-  , ivlUSCharOpt
-  , USCharOpt
-  , usCharOpt
-  , usCharOptToChar
-  , pUSCharOpt
-  , rUSCharOpt
-
-  , ivlUSCharReq
-  , USCharReq
-  , usCharReq
-  , usCharReqToChar
-  , pUSCharReq
-  , rUSCharReq
-
-  -- * Unquoted commodity first character
-  , ivlUnquotedCommodityFirstChar
-  , UnquotedCommodityFirstChar
-  , unquotedCommodityFirstChar
-  , unquotedCommodityFirstCharToChar
-  , pUnquotedCommodityFirstChar
-  , rUnquotedCommodityFirstChar
+  , ivlUSCharNonDigit
+  , USCharNonDigit
+  , usCharNonDigit
+  , usCharNonDigitToChar
+  , pUSCharNonDigit
+  , rUSCharNonDigit
 
   -- * Typeclass
   , RangeTerm(..)
@@ -90,66 +75,28 @@ pNonEscapedChar = NonEscapedChar <$> rangeToParser ivlNonEscapedChar
 rNonEscapedChar :: NonEscapedChar -> ShowS
 rNonEscapedChar (NonEscapedChar c) = (c:)
 
-ivlUSCharOpt :: Intervals Char
-ivlUSCharOpt
+ivlUSCharNonDigit :: Intervals Char
+ivlUSCharNonDigit
   = Intervals [range minBound maxBound]
   . map singleton
   $ [ ' ', '\\', '\n', '\t', '{', '}', '[', ']', '\'', '"',
-      '#', '@', '`' ]
+      '#', '@', '`' ] ++ ['0'..'9']
 
-newtype USCharOpt = USCharOpt
-  { usCharOptToChar :: Char }
+newtype USCharNonDigit = USCharNonDigit
+  { usCharNonDigitToChar :: Char }
   deriving (Eq, Ord, Show)
 
-usCharOpt :: Char -> Maybe USCharOpt
-usCharOpt c
-  | c `inIntervals` ivlUSCharOpt = Just (USCharOpt c)
+usCharNonDigit :: Char -> Maybe USCharNonDigit
+usCharNonDigit c
+  | c `inIntervals` ivlUSCharNonDigit = Just (USCharNonDigit c)
   | otherwise = Nothing
 
-pUSCharOpt :: Parser USCharOpt
-pUSCharOpt = USCharOpt
-  <$> rangeToParser ivlUSCharOpt
+pUSCharNonDigit :: Parser USCharNonDigit
+pUSCharNonDigit = USCharNonDigit
+  <$> rangeToParser ivlUSCharNonDigit
 
-rUSCharOpt :: USCharOpt -> ShowS
-rUSCharOpt (USCharOpt c) = (c:)
-
-ivlUSCharReq :: Intervals Char
-ivlUSCharReq = addExcluded (range '0' '9') ivlUSCharOpt
-
-newtype USCharReq = USCharReq { usCharReqToChar :: Char }
-  deriving (Eq, Ord, Show)
-
-usCharReq :: Char -> Maybe USCharReq
-usCharReq c
-  | c `inIntervals` ivlUSCharReq = Just . USCharReq $ c
-  | otherwise = Nothing
-
-pUSCharReq :: Parser USCharReq
-pUSCharReq = USCharReq <$> rangeToParser ivlUSCharReq
-
-rUSCharReq :: USCharReq -> ShowS
-rUSCharReq (USCharReq c) = (c:)
-
-newtype UnquotedCommodityFirstChar
-  = UnquotedCommodityFirstChar { unquotedCommodityFirstCharToChar :: Char }
-  deriving (Eq, Ord, Show)
-
-ivlUnquotedCommodityFirstChar :: Intervals Char
-ivlUnquotedCommodityFirstChar = ivlUSCharOpt `remove`
-  included [range '0' '9']
-
-unquotedCommodityFirstChar :: Char -> Maybe UnquotedCommodityFirstChar
-unquotedCommodityFirstChar c
-  | c `inIntervals` ivlUnquotedCommodityFirstChar =
-      Just . UnquotedCommodityFirstChar $ c
-  | otherwise = Nothing
-
-pUnquotedCommodityFirstChar :: Parser UnquotedCommodityFirstChar
-pUnquotedCommodityFirstChar = UnquotedCommodityFirstChar <$>
-  rangeToParser ivlUnquotedCommodityFirstChar
-
-rUnquotedCommodityFirstChar :: UnquotedCommodityFirstChar -> ShowS
-rUnquotedCommodityFirstChar (UnquotedCommodityFirstChar c) = (c:)
+rUSCharNonDigit :: USCharNonDigit -> ShowS
+rUSCharNonDigit (USCharNonDigit c) = (c:)
 
 -- | Terminal symbols existing over a range of characters.
 class RangeTerm a where
@@ -170,15 +117,9 @@ instance RangeTerm NonEscapedChar where
   termToChar = nonEscapedCharToChar
   pRangeTerm = pNonEscapedChar
 
-instance RangeTerm USCharOpt where
-  termIntervals = const ivlUSCharOpt
-  termFromChar = usCharOpt
-  termToChar = usCharOptToChar
-  pRangeTerm = pUSCharOpt
-
-instance RangeTerm UnquotedCommodityFirstChar where
-  termIntervals = const ivlUnquotedCommodityFirstChar
-  termFromChar = unquotedCommodityFirstChar
-  termToChar = unquotedCommodityFirstCharToChar
-  pRangeTerm = pUnquotedCommodityFirstChar
+instance RangeTerm USCharNonDigit where
+  termIntervals = const ivlUSCharNonDigit
+  termFromChar = usCharNonDigit
+  termToChar = usCharNonDigitToChar
+  pRangeTerm = pUSCharNonDigit
 

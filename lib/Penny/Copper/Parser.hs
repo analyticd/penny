@@ -27,9 +27,6 @@ pSeq p = fmap Seq.fromList $ many p
 rSeq :: (a -> ShowS) -> Seq a -> ShowS
 rSeq f = Fdbl.foldr (.) id . fmap f
 
-pList :: Parser a -> Parser [a]
-pList = many
-
 rList :: (a -> ShowS) -> [a] -> ShowS
 rList f = foldr (.) id . fmap f
 

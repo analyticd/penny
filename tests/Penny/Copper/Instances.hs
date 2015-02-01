@@ -29,14 +29,8 @@ instance Arbitrary CommentChar where
 instance Arbitrary NonEscapedChar where
   arbitrary = selectTerminal nonEscapedChar
 
-instance Arbitrary USCharOpt where
-  arbitrary = selectTerminal usCharOpt
-
-instance Arbitrary USCharReq where
-  arbitrary = selectTerminal usCharReq
-
-instance Arbitrary UnquotedCommodityFirstChar where
-  arbitrary = selectTerminal unquotedCommodityFirstChar
+instance Arbitrary USCharNonDigit where
+  arbitrary = selectTerminal usCharNonDigit
 
 -- Parser
 
@@ -66,9 +60,12 @@ $(derive makeArbitrary ''EscSeq)
 $(derive makeArbitrary ''QuotedChar)
 $(derive makeArbitrary ''QuotedString)
 $(derive makeArbitrary ''UnquotedString)
-$(derive makeArbitrary ''UnquotedCommodity)
+$(derive makeArbitrary ''UnquotedCommodityOnLeft)
+$(derive makeArbitrary ''UnquotedCommodityOnRight)
 $(derive makeArbitrary ''QuotedCommodity)
 $(derive makeArbitrary ''CommodityA)
+$(derive makeArbitrary ''CommodityOnLeft)
+$(derive makeArbitrary ''CommodityOnRight)
 $(derive makeArbitrary ''Backtick)
 $(derive makeArbitrary ''NonNeutral)
 $(derive makeArbitrary ''NeutralOrNon)
