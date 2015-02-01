@@ -1,6 +1,5 @@
 module Penny.Lincoln.DateTime
-  ( Date
-  , dateToDay
+  ( Date(..)
   , Time(..)
   , DateTime(..)
   , Hours(..)
@@ -26,11 +25,11 @@ data Time = Time Hours Minutes Seconds
 -- whether two 'DateTime' refer to the same instant in time; for that,
 -- convert the times to UTC times using 'dateTimeToUTC' and then
 -- compare those.
-data DateTime = DateTime T.Day Hours Minutes Seconds Zone
+data DateTime = DateTime Date Hours Minutes Seconds Zone
   deriving (Eq, Ord, Show)
 
 dateTimeToUTC :: DateTime -> T.UTCTime
-dateTimeToUTC (DateTime day hrs (Minutes mins) (Seconds secs) zone)
+dateTimeToUTC (DateTime (Date day) hrs (Minutes mins) (Seconds secs) zone)
   = T.localTimeToUTC zn lcl
   where
     zn = T.TimeZone (zoneToInt zone) False ""

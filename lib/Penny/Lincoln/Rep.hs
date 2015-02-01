@@ -56,6 +56,9 @@ module Penny.Lincoln.Rep
   -- | These types represent exchanges.
   , ExchRep(..)
   , ExchRepAnyRadix(..)
+
+  -- * Digits
+  , module Penny.Lincoln.Rep.Digits
   ) where
 
 import Data.Sequence (Seq)
@@ -72,6 +75,7 @@ data Radix a = Radix
 data Grouper
   = ThinSpace
   | Underscore
+  | GrSpace
   deriving (Eq, Ord, Show)
 
 -- | A radix point of a comma.  This type serves two purposes: when

@@ -1,3 +1,4 @@
 #!/bin/sh
 
+quickpull tests > tests/Decrees.hs
 runghc genCabal.hs > penny.cabal

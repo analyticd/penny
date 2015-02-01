@@ -14,22 +14,22 @@ classesKind0 s =
 
 classesGroupOnly :: String -> [String]
 classesGroupOnly s =
-  [ "instance ParseableG (" ++ s ++ " a) where parserG = p" ++ s
-  , "instance RenderableG (" ++ s ++ " a) where renderG = r" ++ s
+  [ "instance ParseableG " ++ s ++ " where parserG = p" ++ s
+  , "instance RenderableG " ++ s ++ " where renderG = r" ++ s
   , ""
   ]
 
 classesRadixAndGrouper :: String -> [String]
 classesRadixAndGrouper s =
-  [ "instance ParseableRG (" ++ s ++ " a) where parserRG = p" ++ s
-  , "instance RenderableRG (" ++ s ++ " a) where renderRG = p" ++ s
+  [ "instance ParseableRG " ++ s ++ " where parserRG = p" ++ s
+  , "instance RenderableRG " ++ s ++ " where renderRG = r" ++ s
   , ""
   ]
 
 classesRadixOnly :: String -> [String]
 classesRadixOnly s =
-  [ "instance ParseableR (" ++ s ++ " a) where parserR = p" ++ s
-  , "instance RenderableR (" ++ s ++ " a) where renderR = p" ++ s
+  [ "instance ParseableR " ++ s ++ " where parserR = p" ++ s
+  , "instance RenderableR " ++ s ++ " where renderR = r" ++ s
   , ""
   ]
 

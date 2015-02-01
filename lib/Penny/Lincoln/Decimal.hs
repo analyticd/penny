@@ -4,7 +4,6 @@ import Penny.Lincoln.Natural
 import qualified Penny.Lincoln.Natural as N
 import Penny.Lincoln.NonZero
 import Penny.Lincoln.Rep
-import Penny.Lincoln.Rep.Digits
 import Control.Monad (join)
 import Data.Sequence ((<|), (|>), Seq)
 import qualified Data.Sequence as S
@@ -246,17 +245,17 @@ instance HasDecPositive (BrimGrouped r) where
       expt = next . add (N.length zs4) . N.length $ bg7zs
       (bg7zs, bg7nv, bg7ds) = unfurlBG7 bg7
 
-unfurlBG7 :: BG7 r -> (Seq Zero, Novem, Seq Decem)
-unfurlBG7 = goBG7 S.empty
-  where
-    goBG7 zsSoFar (BG7Zeroes z1 zs bg8) =
-      goBG8 ((zsSoFar |> z1) <> zs) bg8
-    goBG7 zsSoFar (BG7Novem nv ds sq) =
-      (zsSoFar, nv, ds <> toDecs sq)
-    toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-    goBG8 zsSoFar (BG8Novem nv ds sq) =
-      (zsSoFar, nv, ds <> toDecs sq)
-    goBG8 zsSoFar (BG8Group _ bg7) = goBG7 zsSoFar bg7
+      unfurlBG7 :: BG7 r -> (Seq Zero, Novem, Seq Decem)
+      unfurlBG7 = goBG7 S.empty
+        where
+          goBG7 zsSoFar (BG7Zeroes z1 zs bg8) =
+            goBG8 ((zsSoFar |> z1) <> zs) bg8
+          goBG7 zsSoFar (BG7Novem nv ds sq) =
+            (zsSoFar, nv, ds <> toDecs sq)
+          toDecs = join . fmap (\(_, d, ds) -> d <| ds)
+          goBG8 zsSoFar (BG8Novem nv ds sq) =
+            (zsSoFar, nv, ds <> toDecs sq)
+          goBG8 zsSoFar (BG8Group _ b7) = goBG7 zsSoFar b7
 
 instance HasDecPositive (Brim a) where
   toDecPositive (BrimGrouped a) = toDecPositive a

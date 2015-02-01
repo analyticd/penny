@@ -36,10 +36,20 @@ prednote = closedOpen "prednote" [0,28] [0,29]
 semigroups :: Package
 semigroups = closedOpen "semigroups" [0,16,1] [0,17]
 
+quickcheck :: Package
+quickcheck = closedOpen "QuickCheck" [2,7,6] [2,8]
+
+barecheck :: Package
+barecheck = closedOpen "quickpull" [0,4,0,0] [0,5]
+
+derive :: Package
+derive = closedOpen "derive" [2,5] [2,6]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
   , haskell2010
+  , hsSourceDirs ["lib"]
   ]
 
 libraryDepends :: [Package]
@@ -52,6 +62,9 @@ libraryDepends =
   , transformers
   , prednote
   ]
+
+testDepends :: [Package]
+testDepends = [ quickcheck, barecheck, derive ]
 
 props :: Properties
 props = blank
@@ -85,11 +98,19 @@ props = blank
 main :: IO ()
 main = defaultMain $ do
   libMods <- modules "lib"
+  testMods <- modules "tests"
   return
     ( props
     ,   exposedModules libMods
-      : hsSourceDirs ["lib"]
       : buildDepends libraryDepends
       : commonOptions
-    , []
+    , [ testSuite "penny-properties" $
+          otherModules (testMods ++ libMods)
+        : buildDepends (libraryDepends ++ testDepends)
+        : hsSourceDirs ["tests"]
+        : extensions ["TemplateHaskell"]
+        : exitcodeFields "penny-properties.hs"
+        ++ commonOptions
+      , githubHead "massysett" "penny"
+      ]
     )

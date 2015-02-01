@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
+{-# OPTIONS_HADDOCK not-home #-}
 module Penny.Lincoln.Natural.Internal where
 
 import Penny.Lincoln.Rep.Digits

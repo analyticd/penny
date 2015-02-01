@@ -8,11 +8,11 @@ data Tree = Tree Scalar [Tree]
   deriving (Eq, Ord, Show)
 
 scalarChild :: (Field a, Field b) => a -> b -> Tree
-scalarChild s1 s2 = Tree (scalar s1) [Tree (scalar s2) []]
+scalarChild s1 s2 = Tree (field s1) [Tree (field s2) []]
 
 
 treeChildren :: Field a => a -> [Tree] -> Tree
-treeChildren s1 = Tree (scalar s1)
+treeChildren s1 = Tree (field s1)
 
 data Scalar
   = Chars Text
@@ -23,28 +23,28 @@ data Scalar
   deriving (Eq, Ord, Show)
 
 class Field a where
-  scalar :: a -> Scalar
+  field :: a -> Scalar
 
 instance Field Scalar where
-  scalar = id
+  field = id
 
 instance Field String where
-  scalar = Chars . pack
+  field = Chars . pack
 
 instance Field Text where
-  scalar = Chars
+  field = Chars
 
 instance Field Date where
-  scalar = SDate
+  field = SDate
 
 instance Field Time where
-  scalar = STime
+  field = STime
 
 instance Field Zone where
-  scalar = SZone
+  field = SZone
 
 instance Field Integer where
-  scalar = SInt
+  field = SInt
 
 memo :: Text
 memo = "memo"

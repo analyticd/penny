@@ -6,7 +6,6 @@ import Control.Applicative
 import Data.Sequence (Seq)
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
 import Penny.Lincoln.Rep
-import Penny.Lincoln.Rep.Digits
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
 import Penny.Copper.Parser
@@ -37,9 +36,11 @@ rDecem d = case d of { D0 -> ('0':); Nonem n -> rNovem n }
 pGrouper :: Parser Grouper
 pGrouper = ThinSpace <$ pSym '\x2009'
     <|> Underscore <$ pSym '_'
+    <|> GrSpace <$ pSym ' '
 
 rGrouper :: Grouper -> ShowS
-rGrouper g = case g of { ThinSpace -> ('\x2009':); Underscore -> ('_':) }
+rGrouper g = case g of { ThinSpace -> ('\x2009':); Underscore -> ('_':)
+                       ; GrSpace -> (' ':) }
 
 pRadCom :: Parser RadCom
 pRadCom = Period <$ pSym '.'
