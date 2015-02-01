@@ -33,6 +33,16 @@ classesRadixOnly s =
   , ""
   ]
 
+genTHArbitrary :: String -> String
+genTHArbitrary s = "$(derive makeArbitrary ''" ++ s ++ ")"
+
+genProperty :: String -> [String]
+genProperty s =
+  [ "prop_" ++ s ++ " :: " ++ s ++ " -> Bool"
+  , "prop_" ++ s ++ " = testR"
+  , ""
+  ]
+
 output :: (String -> [String]) -> String -> IO ()
 output printer fn = do
   txt <- fmap fileData . readFile $ fn
@@ -41,7 +51,7 @@ output printer fn = do
 
 main :: IO ()
 main = do
-  output classesKind0 "kind0"
-  output classesGroupOnly "grouperOnly"
-  output classesRadixAndGrouper "radixAndGrouper"
-  output classesRadixOnly "radixOnly"
+  txt <- fmap fileData . readFile $ "AstTypes"
+  let r = concat $ fmap genProperty txt
+  mapM putStrLn r
+  return ()

@@ -21,6 +21,8 @@ import Data.DeriveTH
 instance Arbitrary a => Arbitrary (Seq a) where
   arbitrary = Seq.fromList <$> arbitrary
 
+instance Arbitrary X.Text where arbitrary = X.pack <$> arbitrary
+
 -- Balances
 instance Arbitrary Balances where
   arbitrary = Balances <$> (M.fromList <$> arbitrary)
@@ -63,6 +65,8 @@ instance Arbitrary Zone where
       Nothing -> fail "could not generate Zone"
       Just r -> return r
 
+$(derive makeArbitrary ''Time)
+
 -- Decimal
 
 instance Arbitrary Decimal where
@@ -85,7 +89,26 @@ instance Arbitrary DecPositive where
 instance Arbitrary a => Arbitrary (Ent a) where
   arbitrary = Ent <$> arbitrary <*> arbitrary <*> arbitrary
 
--- Ents - TODO still need Balanced
+-- Ents
+instance Arbitrary a => Arbitrary (Balanced a) where
+  arbitrary = do
+    cy <- arbitrary
+    s <- arbitrary
+    sq <- arbitrary
+    mt <- arbitrary
+    return $ fmap fst $ restrictedBalanced cy s sq mt
+
+instance Arbitrary a => Arbitrary (View a) where
+  arbitrary = sized go
+    where
+      go sz = do
+        bal <- arbitrary
+        let vs = allViews bal
+        if Seq.length vs == 0
+          then resize (sz + 1) arbitrary
+          else do
+            i <- choose (0, Seq.length vs - 1)
+            return $ vs `Seq.index` i
 
 instance Arbitrary a => Arbitrary (Ents a) where
   arbitrary = sized $ \s -> do
@@ -98,6 +121,22 @@ instance Arbitrary a => Arbitrary (Ents a) where
             ent <- arbitrary
             rest <- go (sz - 1)
             return $ prependEnt ent rest
+
+$(derive makeArbitrary ''ImbalancedError)
+
+-- Exch
+$(derive makeArbitrary ''Exch)
+
+-- Field
+$(derive makeArbitrary ''Scalar)
+
+instance Arbitrary Tree where
+  arbitrary = sized go
+    where
+      go sz = do
+        sc <- arbitrary
+        cs <- resize (sz `div` 2) arbitrary
+        return $ Tree sc cs
 
 -- Natural
 instance Arbitrary Positive where
@@ -124,6 +163,36 @@ instance Arbitrary NonZero where
 
 -- PluMin
 $(derive makeArbitrary ''PluMin)
+
+-- Prices
+$(derive makeArbitrary ''FromCy)
+$(derive makeArbitrary ''ToCy)
+
+instance Arbitrary FromTo where
+  arbitrary = sized go
+    where
+      go sz = do
+        fr <- arbitrary
+        to <- arbitrary
+        case fromTo fr to of
+          Nothing -> go (sz + 1)
+          Just r -> return r
+
+$(derive makeArbitrary ''Price)
+
+instance Arbitrary PriceDb where
+  arbitrary = sized $ \s -> do
+    s' <- choose (0, s)
+    go s'
+    where
+      go sz
+        | sz == 0 = return emptyDb
+        | otherwise = do
+            pr <- arbitrary
+            rest <- go (sz - 1)
+            return (addPriceToDb rest pr)
+
+$(derive makeArbitrary ''ExchLookupError)
 
 -- Qty
 instance Arbitrary Qty where
@@ -184,3 +253,17 @@ $(derive makeArbitrary ''Decem)
 
 -- Side
 $(derive makeArbitrary ''Side)
+
+-- Transaction
+$(derive makeArbitrary ''TopLine)
+$(derive makeArbitrary ''PstgMeta)
+$(derive makeArbitrary ''Transaction)
+$(derive makeArbitrary ''TransactionError)
+$(derive makeArbitrary ''Bundle)
+
+-- Trio
+$(derive makeArbitrary ''Orient)
+$(derive makeArbitrary ''SpaceBetween)
+$(derive makeArbitrary ''Arrangement)
+$(derive makeArbitrary ''Trio)
+$(derive makeArbitrary ''TrioError)

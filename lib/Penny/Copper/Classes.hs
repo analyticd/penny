@@ -3,7 +3,6 @@
 module Penny.Copper.Classes where
 
 import Penny.Lincoln.Rep
-import Penny.Lincoln.Rep.Digits
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
 import Penny.Copper.LincolnTypes
@@ -162,6 +161,9 @@ instance Renderable TopLineA where render = rTopLineA
 
 instance Parseable PostingA where parser = pPostingA
 instance Renderable PostingA where render = rPostingA
+
+instance Parseable PostingsA where parser = pPostingsA
+instance Renderable PostingsA where render = rPostingsA
 
 instance Parseable OpenCurly where parser = pOpenCurly
 instance Renderable OpenCurly where render = rOpenCurly

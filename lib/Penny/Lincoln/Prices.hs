@@ -29,6 +29,9 @@
 module Penny.Lincoln.Prices
   ( FromCy(..)
   , ToCy(..)
+  , FromTo
+  , fromCy
+  , toCy
   , fromTo
   , convertQty
   , Price(..)

@@ -5,8 +5,55 @@
 module Decrees where
 
 import Quickpull
+import qualified Penny.Copper.Properties
 
 decrees :: [Decree]
 decrees =
 
-  []
+  [ Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 19, qName = "prop_Hash"} ) ( Single Penny.Copper.Properties.prop_Hash )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 22, qName = "prop_Newline"} ) ( Single Penny.Copper.Properties.prop_Newline )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 25, qName = "prop_Comment"} ) ( Single Penny.Copper.Properties.prop_Comment )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 28, qName = "prop_DigitsFour"} ) ( Single Penny.Copper.Properties.prop_DigitsFour )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 31, qName = "prop_Digits1or2"} ) ( Single Penny.Copper.Properties.prop_Digits1or2 )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 34, qName = "prop_DateSep"} ) ( Single Penny.Copper.Properties.prop_DateSep )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 37, qName = "prop_DateA"} ) ( Single Penny.Copper.Properties.prop_DateA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 40, qName = "prop_Colon"} ) ( Single Penny.Copper.Properties.prop_Colon )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 43, qName = "prop_TimeA"} ) ( Single Penny.Copper.Properties.prop_TimeA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 46, qName = "prop_ZoneA"} ) ( Single Penny.Copper.Properties.prop_ZoneA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 49, qName = "prop_DoubleQuote"} ) ( Single Penny.Copper.Properties.prop_DoubleQuote )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 52, qName = "prop_Backslash"} ) ( Single Penny.Copper.Properties.prop_Backslash )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 55, qName = "prop_White"} ) ( Single Penny.Copper.Properties.prop_White )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 58, qName = "prop_Whites"} ) ( Single Penny.Copper.Properties.prop_Whites )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 61, qName = "prop_EscPayload"} ) ( Single Penny.Copper.Properties.prop_EscPayload )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 64, qName = "prop_EscSeq"} ) ( Single Penny.Copper.Properties.prop_EscSeq )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 67, qName = "prop_QuotedChar"} ) ( Single Penny.Copper.Properties.prop_QuotedChar )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 70, qName = "prop_QuotedString"} ) ( Single Penny.Copper.Properties.prop_QuotedString )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 73, qName = "prop_UnquotedString"} ) ( Single Penny.Copper.Properties.prop_UnquotedString )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 76, qName = "prop_UnquotedCommodity"} ) ( Single Penny.Copper.Properties.prop_UnquotedCommodity )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 79, qName = "prop_QuotedCommodity"} ) ( Single Penny.Copper.Properties.prop_QuotedCommodity )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 82, qName = "prop_CommodityA"} ) ( Single Penny.Copper.Properties.prop_CommodityA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 85, qName = "prop_Backtick"} ) ( Single Penny.Copper.Properties.prop_Backtick )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 88, qName = "prop_NonNeutral"} ) ( Single Penny.Copper.Properties.prop_NonNeutral )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 91, qName = "prop_NeutralOrNon"} ) ( Single Penny.Copper.Properties.prop_NeutralOrNon )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 94, qName = "prop_TrioA"} ) ( Single Penny.Copper.Properties.prop_TrioA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 97, qName = "prop_OpenSquare"} ) ( Single Penny.Copper.Properties.prop_OpenSquare )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 100, qName = "prop_CloseSquare"} ) ( Single Penny.Copper.Properties.prop_CloseSquare )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 103, qName = "prop_IntegerA"} ) ( Single Penny.Copper.Properties.prop_IntegerA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 106, qName = "prop_ScalarA"} ) ( Single Penny.Copper.Properties.prop_ScalarA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 109, qName = "prop_BracketedForest"} ) ( Single Penny.Copper.Properties.prop_BracketedForest )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 112, qName = "prop_TreeA"} ) ( Single Penny.Copper.Properties.prop_TreeA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 115, qName = "prop_TopLineA"} ) ( Single Penny.Copper.Properties.prop_TopLineA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 118, qName = "prop_PostingA"} ) ( Single Penny.Copper.Properties.prop_PostingA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 121, qName = "prop_PostingsA"} ) ( Single Penny.Copper.Properties.prop_PostingsA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 124, qName = "prop_OpenCurly"} ) ( Single Penny.Copper.Properties.prop_OpenCurly )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 127, qName = "prop_CloseCurly"} ) ( Single Penny.Copper.Properties.prop_CloseCurly )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 130, qName = "prop_CommaA"} ) ( Single Penny.Copper.Properties.prop_CommaA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 133, qName = "prop_PostingList"} ) ( Single Penny.Copper.Properties.prop_PostingList )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 136, qName = "prop_TransactionA"} ) ( Single Penny.Copper.Properties.prop_TransactionA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 139, qName = "prop_AtSign"} ) ( Single Penny.Copper.Properties.prop_AtSign )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 142, qName = "prop_PriceA"} ) ( Single Penny.Copper.Properties.prop_PriceA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 145, qName = "prop_ExchA"} ) ( Single Penny.Copper.Properties.prop_ExchA )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 148, qName = "prop_FileItem"} ) ( Single Penny.Copper.Properties.prop_FileItem )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 151, qName = "prop_FileItems"} ) ( Single Penny.Copper.Properties.prop_FileItems )
+  , Decree ( Meta {modDesc = ModDesc {modPath = "tests/Penny/Copper/Properties.hs", modName = ["Penny","Copper","Properties"]}, linenum = 154, qName = "prop_File"} ) ( Single Penny.Copper.Properties.prop_File )
+  ]

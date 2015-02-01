@@ -1,4 +1,17 @@
-module Penny.Lincoln.Transaction where
+module Penny.Lincoln.Transaction
+  ( TopLine(..)
+  , PstgMeta(..)
+  , Transaction(..)
+  , TransactionError(..)
+  , transaction
+  , Bundle(..)
+  , transactionToBundles
+  , bundleToTransaction
+  , nextBundle
+  , prevBundle
+  , siblingBundles
+  , addSerials
+  ) where
 
 import Control.Arrow (second)
 import Penny.Lincoln.Ents

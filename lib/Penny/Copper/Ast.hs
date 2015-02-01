@@ -4,7 +4,6 @@ import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
 import Text.ParserCombinators.UU.Core
 import Penny.Lincoln.Rep
-import Penny.Lincoln.Rep.Digits
 import Penny.Copper.Terminals
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
@@ -655,6 +654,7 @@ rFileItems (FileItems i0 ls1)
 data File
   = FileNoLeadingWhite (Fs FileItems)
   | FileLeadingWhite Whites (Maybe (Fs FileItems))
+  deriving (Eq, Ord, Show)
 
 pFile :: Parser File
 pFile

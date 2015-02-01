@@ -1,3 +1,4 @@
+{-# OPTIONS_HADDOCK not-home #-}
 module Penny.Lincoln.Ents.Internal where
 
 import Control.Applicative
