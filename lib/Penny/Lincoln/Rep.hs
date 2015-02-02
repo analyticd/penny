@@ -75,7 +75,6 @@ data Radix a = Radix
 data Grouper
   = ThinSpace
   | Underscore
-  | GrSpace
   deriving (Eq, Ord, Show)
 
 -- | A radix point of a comma.  This type serves two purposes: when
@@ -146,7 +145,8 @@ data BrimGrouped r
 data BG1 r
   = BG1GroupOnLeft r Decem (Seq Decem) (Seq (r, Decem, Seq Decem))
       (Maybe (Radix r, Maybe (Decem, Seq Decem, Seq (r, Decem, Seq Decem))))
-  | BG1GroupOnRight (Radix r) Decem (Seq Decem) (Seq (r, Decem, Seq Decem))
+  | BG1GroupOnRight (Radix r) Decem (Seq Decem) r Decem (Seq Decem)
+                    (Seq (r, Decem, Seq Decem))
   deriving (Eq, Ord, Show)
 
 data BG5 r

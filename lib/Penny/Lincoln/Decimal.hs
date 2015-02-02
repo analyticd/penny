@@ -212,12 +212,14 @@ instance HasDecPositive (BrimGrouped r) where
       toDecs = join . fmap (\(_, d, ds) -> d <| ds)
 
   toDecPositive (BGGreaterThanOne nv1 ds2
-    (BG1GroupOnRight _rdx3 d4 ds5 dss6)) = DecPositive sig expt
+    (BG1GroupOnRight _rdx3 d4 ds5 _g6 d7 ds8 dss9)) = DecPositive sig expt
     where
       sig = novDecsToPositive nv1 . (ds2 <>) . (d4 <|) . (ds5 <>)
-        . toDecs $ dss6
+        . (d7 <|) . (ds8 <>)
+        . toDecs $ dss9
       toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-      expt = next . add (N.length ds5) . N.length . toDecs $ dss6
+      expt = next . add (N.length ds5) . next . add (N.length ds8)
+        . N.length . toDecs $ dss9
 
   toDecPositive (BGLessThanOne _z1 _rdx2
     (BG5Novem nv3 ds4 _g5 d6 ds7 sq8)) = DecPositive sig expt

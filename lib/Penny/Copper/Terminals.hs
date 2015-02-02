@@ -80,7 +80,8 @@ ivlUSCharNonDigit
   = Intervals [range minBound maxBound]
   . map singleton
   $ [ ' ', '\\', '\n', '\t', '{', '}', '[', ']', '\'', '"',
-      '#', '@', '`' ] ++ ['0'..'9']
+      '-', '+', '/', ':', '#', '@', '`', '<', '>', ';',
+      '_', '\x2009', ',', '.' ] ++ ['0'..'9']
 
 newtype USCharNonDigit = USCharNonDigit
   { usCharNonDigitToChar :: Char }

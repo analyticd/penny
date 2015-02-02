@@ -36,11 +36,9 @@ rDecem d = case d of { D0 -> ('0':); Nonem n -> rNovem n }
 pGrouper :: Parser Grouper
 pGrouper = ThinSpace <$ pSym '\x2009'
     <|> Underscore <$ pSym '_'
-    <|> GrSpace <$ pSym ' '
 
 rGrouper :: Grouper -> ShowS
-rGrouper g = case g of { ThinSpace -> ('\x2009':); Underscore -> ('_':)
-                       ; GrSpace -> (' ':) }
+rGrouper g = case g of { ThinSpace -> ('\x2009':); Underscore -> ('_':) }
 
 pRadCom :: Parser RadCom
 pRadCom = Period <$ pSym '.'
@@ -235,6 +233,7 @@ pBG1 pr pg = onLeft <|> onRight
       <$> pr
       <*> pDecem
       <*> pSeq pDecem
+      <*> pg <*> pDecem <*> pSeq pDecem
       <*> pSeqDecs pg
 
 rBG1 :: (Radix r -> ShowS) -> (r -> ShowS) -> BG1 r -> ShowS
@@ -250,8 +249,9 @@ rBG1 rr rg x = case x of
           Nothing -> id
           Just (d7, sd8, sd9) -> rDecem d7 . rSeq rDecem sd8
             . rSeqDecs rg sd9
-  BG1GroupOnRight r0 d1 sd2 sd3 ->
-    rr r0 . rDecem d1 . rSeq rDecem sd2 . rSeqDecs rg sd3
+  BG1GroupOnRight r0 d1 sd2 g3 d4 ds5 sd6 ->
+    rr r0 . rDecem d1 . rSeq rDecem sd2
+    . rg g3 . rDecem d4 . rSeq rDecem ds5 . rSeqDecs rg sd6
 
 pBrimUngrouped :: Parser (Radix r) -> Parser (BrimUngrouped r)
 pBrimUngrouped pr = gtOne <|> ltOne

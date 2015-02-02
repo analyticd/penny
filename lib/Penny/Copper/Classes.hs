@@ -178,6 +178,9 @@ instance Renderable PostingA where render = rPostingA
 instance Parseable PostingsA where parser = pPostingsA
 instance Renderable PostingsA where render = rPostingsA
 
+instance Parseable Semicolon where parser = pSemicolon
+instance Renderable Semicolon where render = rSemicolon
+
 instance Parseable OpenCurly where parser = pOpenCurly
 instance Renderable OpenCurly where render = rOpenCurly
 

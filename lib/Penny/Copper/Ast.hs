@@ -209,14 +209,14 @@ data EscPayload
 
 pEscPayload :: Parser EscPayload
 pEscPayload = EscBackslash <$ pSym '\\'
-  <|> EscNewline <$ pSym '\n'
+  <|> EscNewline <$ pSym 'n'
   <|> EscQuote <$ pSym '"'
   <|> EscGap <$> pWhites <*> pBackslash
 
 rEscPayload :: EscPayload -> ShowS
 rEscPayload x = case x of
   EscBackslash -> ('\\':)
-  EscNewline -> ('\n':)
+  EscNewline -> ('n':)
   EscQuote -> ('"':)
   EscGap w b -> rWhites w . rBackslash b
 
@@ -298,17 +298,17 @@ rUnquotedCommodityOnLeft (UnquotedCommodityOnLeft c0 ls1)
   = rUSCharNonDigit c0 . rList rUSCharNonDigit ls1
 
 data UnquotedCommodityOnRight
-  = UnquotedCommodityOnRight USCharNonDigit [Either USCharNonDigit Decem]
+  = UnquotedCommodityOnRight USCharNonDigit [USCharNonDigit]
   deriving (Eq, Ord, Show)
 
 pUnquotedCommodityOnRight :: Parser UnquotedCommodityOnRight
 pUnquotedCommodityOnRight = UnquotedCommodityOnRight
   <$> pUSCharNonDigit
-  <*> many (Left <$> pUSCharNonDigit <|> Right <$> pDecem)
+  <*> many pUSCharNonDigit
 
 rUnquotedCommodityOnRight :: UnquotedCommodityOnRight -> ShowS
 rUnquotedCommodityOnRight (UnquotedCommodityOnRight d0 ls1)
-  = rUSCharNonDigit d0 . rList (either rUSCharNonDigit rDecem) ls1
+  = rUSCharNonDigit d0 . rList rUSCharNonDigit ls1
 
 newtype CommodityOnLeft
   = CommodityOnLeft (Either UnquotedCommodityOnLeft QuotedCommodity)
@@ -531,30 +531,31 @@ rTreeA :: TreeA -> ShowS
 rTreeA (TreeA s1 m2) = rLocated rScalarA s1
   . rMaybe (rBs rBracketedForest) m2
 
-data TopLineA = TopLineA TreeA [Bs TreeA]
+data TopLineA = TopLineA TreeA [(Whites, TreeA)]
   deriving (Eq, Ord, Show)
 
 pTopLineA :: Parser TopLineA
-pTopLineA = TopLineA <$> pTreeA <*> many (pBs pTreeA)
+pTopLineA = TopLineA <$> pTreeA <*> many ((,) <$> pWhites <*> pTreeA)
 
 rTopLineA :: TopLineA -> ShowS
-rTopLineA (TopLineA t0 ts1) = rTreeA t0 . rList (rBs rTreeA) ts1
+rTopLineA (TopLineA t0 ts1) = rTreeA t0
+  . rList (\(w, t) -> rWhites w . rTreeA t) ts1
 
 data PostingA
-  = PostingTrioFirst (Located (Fs TrioA)) (Maybe BracketedForest)
+  = PostingTrioFirst (Located TrioA) (Maybe (Bs BracketedForest))
   | PostingNoTrio BracketedForest
   deriving (Eq, Ord, Show)
 
 pPostingA :: Parser PostingA
 pPostingA
-  = PostingTrioFirst <$> pLocated (pFs pTrioA)
-                     <*> optional pBracketedForest
+  = PostingTrioFirst <$> pLocated pTrioA
+                     <*> optional (pBs pBracketedForest)
   <|> PostingNoTrio <$> pBracketedForest
 
 rPostingA :: PostingA -> ShowS
 rPostingA pstg = case pstg of
-  PostingTrioFirst t0 m1 -> rLocated (rFs rTrioA) t0
-    . rMaybe rBracketedForest m1
+  PostingTrioFirst t0 m1 -> rLocated rTrioA t0
+    . rMaybe (rBs rBracketedForest) m1
   PostingNoTrio b0 -> rBracketedForest b0
 
 data OpenCurly = OpenCurly
@@ -597,18 +598,34 @@ rPostingsA (PostingsA c0 m1 c2)
   = rFs rOpenCurly c0 . rMaybe (rFs rPostingList) m1
   . rCloseCurly c2
 
-data PostingList = PostingList (Located (Fs PostingA))
-  [(CommaA, Bs (Located PostingA))]
+data Semicolon = Semicolon
+  deriving (Eq, Ord, Show)
+
+pSemicolon :: Parser Semicolon
+pSemicolon = Semicolon <$ pSym ';'
+
+rSemicolon :: Semicolon -> ShowS
+rSemicolon Semicolon = (';':)
+
+data PostingList
+  = OnePosting (Located PostingA)
+  | PostingList (Located PostingA) (Bs Semicolon) (Bs (Located PostingA))
+                [(Bs Semicolon, Bs (Located PostingA))]
   deriving (Eq, Ord, Show)
 
 pPostingList :: Parser PostingList
-pPostingList = PostingList <$> pLocated (pFs pPostingA)
-  <*> many ((,) <$> pCommaA <*> pBs (pLocated pPostingA))
+pPostingList
+  = OnePosting <$> (pLocated pPostingA)
+  <|> PostingList <$> pLocated pPostingA <*> pBs pSemicolon
+      <*> pBs (pLocated pPostingA)
+      <*> pList ((,) <$> pBs pSemicolon <*> pBs (pLocated pPostingA))
 
 rPostingList :: PostingList -> ShowS
-rPostingList (PostingList p0 ls1)
-  = rLocated (rFs rPostingA) p0
-  . rList (\(c2, bs3) -> rCommaA c2 . rBs (rLocated rPostingA) bs3) ls1
+rPostingList pl = case pl of
+  OnePosting p0 -> rLocated rPostingA p0
+  PostingList p0 s1 p2 ls3 -> rLocated rPostingA p0
+    . rBs rSemicolon s1 . rBs (rLocated rPostingA) p2
+    . rList (\(s4, p5) -> rBs rSemicolon s4 . rBs (rLocated rPostingA) p5) ls3
 
 data TransactionA
   = TransactionWithTopLine (Located TopLineA)

@@ -208,8 +208,7 @@ instance Arbitrary QtyUnsigned where
 instance Arbitrary (Radix a) where
   arbitrary = return Radix
 
-instance Arbitrary Grouper where
-  arbitrary = elements [ ThinSpace, Underscore, GrSpace ]
+$(derive makeArbitrary ''Grouper)
 
 instance Arbitrary RadCom where
   arbitrary = oneof [ return Period, RCGrouper <$> arbitrary ]
