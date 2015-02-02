@@ -30,6 +30,7 @@ module Penny.Copper.Terminals
 import Penny.Copper.Intervals
 import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
+import Text.ParserCombinators.UU.Core ((<?>))
 import Penny.Copper.Parser
 
 rangeToParser :: Intervals Char -> Parser Char
@@ -51,6 +52,7 @@ commentChar c
 
 pCommentChar :: Parser CommentChar
 pCommentChar = CommentChar <$> rangeToParser ivlCommentChar
+  <?> "comment character"
 
 rCommentChar :: CommentChar -> ShowS
 rCommentChar (CommentChar c) = (c:)
@@ -71,6 +73,7 @@ nonEscapedChar c
 
 pNonEscapedChar :: Parser NonEscapedChar
 pNonEscapedChar = NonEscapedChar <$> rangeToParser ivlNonEscapedChar
+  <?> "non-escaped character"
 
 rNonEscapedChar :: NonEscapedChar -> ShowS
 rNonEscapedChar (NonEscapedChar c) = (c:)
@@ -95,6 +98,7 @@ usCharNonDigit c
 pUSCharNonDigit :: Parser USCharNonDigit
 pUSCharNonDigit = USCharNonDigit
   <$> rangeToParser ivlUSCharNonDigit
+  <?> "non-escaped non-quoted non-digit character"
 
 rUSCharNonDigit :: USCharNonDigit -> ShowS
 rUSCharNonDigit (USCharNonDigit c) = (c:)

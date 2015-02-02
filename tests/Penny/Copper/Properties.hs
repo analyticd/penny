@@ -27,7 +27,8 @@ renParse prsr rendr orig =
   let rendr1 = rendr orig ""
       (parsed, ers) = parse prsr rendr1
   in if not (null ers)
-     then counterexample ("errors on first parse: " ++ show ers) False
+     then counterexample ("errors on first parse: " ++ show ers
+            ++ " SOURCE STRING: " ++ rendr1) False
      else let rendr2 = rendr parsed ""
           in if rendr2 /= rendr1
              then counterexample
@@ -269,6 +270,9 @@ prop_ScalarA = testR
 prop_BracketedForest :: BracketedForest -> Property
 prop_BracketedForest = testR
 
+prop_ForestA :: ForestA -> Property
+prop_ForestA = testR
+
 prop_TreeA :: TreeA -> Property
 prop_TreeA = testR
 
@@ -317,3 +321,8 @@ prop_FileItems = testR
 prop_File :: File -> Property
 prop_File = testR
 
+--
+-- Other properties
+--
+
+--

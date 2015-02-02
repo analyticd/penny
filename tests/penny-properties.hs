@@ -6,7 +6,7 @@ import Quickpull
 import Test.QuickCheck
 
 args :: Args
-args = stdArgs { maxSize = 50 }
+args = stdArgs { maxSize = 25 }
 
 main :: IO ()
 main = defaultMainWith args decrees

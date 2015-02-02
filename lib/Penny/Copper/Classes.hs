@@ -166,6 +166,9 @@ instance Renderable ScalarA where render = rScalarA
 instance Parseable BracketedForest where parser = pBracketedForest
 instance Renderable BracketedForest where render = rBracketedForest
 
+instance Parseable ForestA where parser = pForestA
+instance Renderable ForestA where render = rForestA
+
 instance Parseable TreeA where parser = pTreeA
 instance Renderable TreeA where render = rTreeA
 

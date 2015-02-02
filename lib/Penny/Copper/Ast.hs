@@ -81,6 +81,7 @@ pComment
   <$> pHash
   <*> many pCommentChar
   <*> pNewline
+  <?> "comment"
 
 data DigitsFour = DigitsFour Decem Decem Decem Decem
   deriving (Eq, Ord, Show)
@@ -183,6 +184,7 @@ pWhite :: Parser White
 pWhite = Space <$ pSym ' ' <|> Tab <$ pSym '\t'
   <|> WhiteNewline <$ pSym '\n'
   <|> WhiteComment <$> pComment
+  <?> "whitespace or comment"
 
 rWhite :: White -> ShowS
 rWhite w = case w of
@@ -260,8 +262,8 @@ data UnquotedString
 
 pUnquotedString :: Parser UnquotedString
 pUnquotedString = UnquotedString
-  <$> pList pDecem <*> pUSCharNonDigit
-  <*> pList (Left <$> pUSCharNonDigit <|> Right <$> pDecem)
+  <$> many pDecem <*> pUSCharNonDigit
+  <*> many (Left <$> pUSCharNonDigit <|> Right <$> pDecem)
 
 
 rUnquotedString :: UnquotedString -> ShowS
@@ -510,16 +512,27 @@ rScalarA sclrA = case sclrA of
   ScalarInt x -> rIntegerA x
 
 data BracketedForest = BracketedForest
-  (Fs OpenSquare) (Fs TreeA) CloseSquare
+  (Fs OpenSquare) (Maybe (Fs ForestA)) CloseSquare
   deriving (Eq, Ord, Show)
+
+-- TODO are generators for TreeA size limited? Probably not.
+data ForestA = ForestA TreeA [(Whites, TreeA)]
+  deriving (Eq, Ord, Show)
+
+pForestA :: Parser ForestA
+pForestA = ForestA <$> pTreeA <*> many ((,) <$> pWhites <*> pTreeA)
+
+rForestA :: ForestA -> ShowS
+rForestA (ForestA t0 ls1)
+  = rTreeA t0 . rList (\(w, t) -> rWhites w . rTreeA t) ls1
 
 pBracketedForest :: Parser BracketedForest
 pBracketedForest = BracketedForest <$> pFs pOpenSquare
-  <*> pFs pTreeA <*> pCloseSquare
+  <*> optional (pFs pForestA) <*> pCloseSquare
 
 rBracketedForest :: BracketedForest -> ShowS
-rBracketedForest (BracketedForest b0 t1 b2) = rFs rOpenSquare b0
-  . rFs rTreeA t1 . rCloseSquare b2
+rBracketedForest (BracketedForest b0 m1 b2) = rFs rOpenSquare b0
+  . rMaybe (rFs rForestA) m1 . rCloseSquare b2
 
 data TreeA = TreeA (Located ScalarA) (Maybe (Bs BracketedForest))
   deriving (Eq, Ord, Show)
@@ -618,7 +631,7 @@ pPostingList
   = OnePosting <$> (pLocated pPostingA)
   <|> PostingList <$> pLocated pPostingA <*> pBs pSemicolon
       <*> pBs (pLocated pPostingA)
-      <*> pList ((,) <$> pBs pSemicolon <*> pBs (pLocated pPostingA))
+      <*> many ((,) <$> pBs pSemicolon <*> pBs (pLocated pPostingA))
 
 rPostingList :: PostingList -> ShowS
 rPostingList pl = case pl of
@@ -628,21 +641,20 @@ rPostingList pl = case pl of
     . rList (\(s4, p5) -> rBs rSemicolon s4 . rBs (rLocated rPostingA) p5) ls3
 
 data TransactionA
-  = TransactionWithTopLine (Located TopLineA)
-      (Maybe (Bs PostingsA))
+  = TransactionWithTopLine (Located TopLineA) (Bs PostingsA)
   | TransactionNoTopLine PostingsA
   deriving (Eq, Ord, Show)
 
 pTransactionA :: Parser TransactionA
 pTransactionA
   = TransactionWithTopLine <$> pLocated pTopLineA
-      <*> optional (pBs pPostingsA)
+      <*> pBs pPostingsA
   <|> TransactionNoTopLine <$> pPostingsA
 
 rTransactionA :: TransactionA -> ShowS
 rTransactionA txn = case txn of
-  TransactionWithTopLine t0 m1 -> rLocated (rTopLineA) t0
-    . rMaybe (rBs rPostingsA) m1
+  TransactionWithTopLine t0 p1 -> rLocated (rTopLineA) t0
+    . rBs rPostingsA p1
   TransactionNoTopLine p0 -> rPostingsA p0
 
 data AtSign = AtSign
@@ -654,25 +666,28 @@ pAtSign = AtSign <$ pSym '@'
 rAtSign :: AtSign -> ShowS
 rAtSign AtSign = ('@':)
 
-data PriceA = PriceA (Fs AtSign) (Located (Fs DateA))
-  (Maybe (Located (Fs TimeA))) (Maybe (Located (Fs ZoneA)))
-  (Fs CommodityA) ExchA
+data PriceA = PriceA (Fs AtSign) (Located DateA) Whites
+  (Maybe (Located (TimeA, Whites))) (Maybe (Located (ZoneA, Whites)))
+  CommodityA Whites ExchA
   deriving (Eq, Ord, Show)
 
 pPriceA :: Parser PriceA
-pPriceA = PriceA <$> pFs pAtSign <*> pLocated (pFs pDateA)
-  <*> optional (pLocated (pFs pTimeA))
-  <*> optional (pLocated (pFs pZoneA))
-  <*> pFs pCommodityA <*> pExchA
+pPriceA = PriceA <$> pFs pAtSign <*> pLocated pDateA
+  <*> pWhites
+  <*> optional (pLocated ((,) <$> pTimeA <*> pWhites))
+  <*> optional (pLocated ((,) <$> pZoneA <*> pWhites))
+  <*> pCommodityA <*> pWhites <*> pExchA
 
 rPriceA :: PriceA -> ShowS
-rPriceA (PriceA a0 l1 m2 m3 fs4 e5)
+rPriceA (PriceA a0 l1 w2 m3 m4 c5 w6 e7)
   = rFs rAtSign a0
-  . rLocated (rFs rDateA) l1
-  . rMaybe (rLocated (rFs rTimeA)) m2
-  . rMaybe (rLocated (rFs rZoneA)) m3
-  . rFs rCommodityA fs4
-  . rExchA e5
+  . rLocated rDateA l1
+  . rWhites w2
+  . rMaybe (rLocated (\(t, w) -> rTimeA t . rWhites w)) m3
+  . rMaybe (rLocated (\(z, w) -> rZoneA z . rWhites w)) m4
+  . rCommodityA c5
+  . rWhites w6
+  . rExchA e7
 
 data ExchA
   = ExchACy (Fs CommodityA) (Maybe (Fs PluMin)) NeutralOrNon
@@ -703,15 +718,16 @@ rFileItem :: FileItem -> ShowS
 rFileItem (FileItem l0) =
   rLocated (either rPriceA rTransactionA) l0
 
-data FileItems = FileItems FileItem [Bs FileItem]
+data FileItems = FileItems FileItem [(Whites, FileItem)]
   deriving (Eq, Ord, Show)
 
 pFileItems :: Parser FileItems
-pFileItems = FileItems <$> pFileItem <*> many (pBs pFileItem)
+pFileItems = FileItems <$> pFileItem
+  <*> many ((,) <$> pWhites <*> pFileItem)
 
 rFileItems :: FileItems -> ShowS
 rFileItems (FileItems i0 ls1)
-  = rFileItem i0 . rList (rBs rFileItem) ls1
+  = rFileItem i0 . rList (\(w, i) -> rWhites w . rFileItem i) ls1
 
 data File
   = FileNoLeadingWhite (Fs FileItems)
