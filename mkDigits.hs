@@ -62,6 +62,5 @@ main = do
     , "  digitToInt :: Integral b => a -> b"
     , "  intToDigit :: Integral b => b -> Maybe a"
     , ""
-    , "class OneTo
     ]
   mapM_ putStr . map mkBoth $ [0..9]
