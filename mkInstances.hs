@@ -42,47 +42,12 @@ intersperseBars xs = case xs of
       mk i = (" | " ++ i)
 
 mkBoth :: Int -> String
-mkBoth i = mkDigits True i ++ mkDigits False i ++ mkConv i
-  ++ mkRevConv i
-
-mkConv :: Int -> String
-mkConv i
-  | i == 0 = ""
-  | otherwise = unlines lns
-  where
-    sig = nm ++ " :: " ++ from ++ " -> " ++ to
-    from = "D" ++ show i
-    to = from ++ "z"
-    nm = "c'" ++ to ++ "'" ++ from
-    firstLine = nm ++ " x = case x of"
-    restLines = map ("  " ++) . map maker $ [1..i]
-    maker num = from ++ "'" ++ show num ++ " -> " ++
-      to ++ "'" ++ show num
-    lns = [sig, firstLine] ++ restLines ++ [""]
-
-mkRevConv :: Int -> String
-mkRevConv i
-  | i == 0 = ""
-  | otherwise = unlines lns
-  where
-    sig = nm ++ " :: " ++ from ++ " -> " ++ "Maybe " ++ to
-    from = "D" ++ show i ++ "z"
-    to = "D" ++ show i
-    nm = "c'" ++ to ++ "'" ++ from
-    firstLine = nm ++ " x = case x of"
-    restLines = map ("  " ++) . map maker $ [0..i]
-    maker num = from ++ "'" ++ show num ++ " -> " ++ mayCtor num
-      where
-        mayCtor num'
-          | num' == 0 = "Nothing"
-          | otherwise = "Just " ++ to ++ "'" ++ show num
-    lns = [sig, firstLine] ++ restLines ++ [""]
-
+mkBoth i = mkDigits True i ++ mkDigits False i
 
 main :: IO ()
 main = do
   putStr . unlines $
-    [ "module Penny.Lincoln.Rep.Digits where"
+    [ "module Penny.Lincoln.Rep.DigitsNew where"
     , ""
     , "class Digit a where"
     , "  digitToInt :: Integral b => a -> b"

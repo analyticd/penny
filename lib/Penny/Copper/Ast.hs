@@ -83,24 +83,24 @@ pComment
   <*> pNewline
   <?> "comment"
 
-data DigitsFour = DigitsFour Decem Decem Decem Decem
+data DigitsFour = DigitsFour D9z D9z D9z D9z
   deriving (Eq, Ord, Show)
 
 pDigitsFour :: Parser DigitsFour
-pDigitsFour = DigitsFour <$> pDecem <*> pDecem <*> pDecem <*> pDecem
+pDigitsFour = DigitsFour <$> pD9z <*> pD9z <*> pD9z <*> pD9z
 
 rDigitsFour :: DigitsFour -> ShowS
-rDigitsFour (DigitsFour d0 d1 d2 d3) = rDecem d0
-  . rDecem d1 . rDecem d2 . rDecem d3
+rDigitsFour (DigitsFour d0 d1 d2 d3) = rD9z d0
+  . rD9z d1 . rD9z d2 . rD9z d3
 
-data Digits1or2 = Digits1or2 Decem (Maybe Decem)
+data Digits1or2 = Digits1or2 D9z (Maybe D9z)
   deriving (Eq, Ord, Show)
 
 pDigits1or2 :: Parser Digits1or2
-pDigits1or2 = Digits1or2 <$> pDecem <*> optional pDecem
+pDigits1or2 = Digits1or2 <$> pD9z <*> optional pD9z
 
 rDigits1or2 :: Digits1or2 -> ShowS
-rDigits1or2 (Digits1or2 d0 m1) = rDecem d0 . rMaybe rDecem m1
+rDigits1or2 (Digits1or2 d0 m1) = rD9z d0 . rMaybe rD9z m1
 
 data DateSep = DateSlash | DateHyphen
   deriving (Eq, Ord, Show)
@@ -257,19 +257,19 @@ rQuotedString (QuotedString q0 cs1 q2)
   = rDoubleQuote q0 . rList rQuotedChar cs1 . rDoubleQuote q2
 
 data UnquotedString
-  = UnquotedString [Decem] USCharNonDigit [Either USCharNonDigit Decem]
+  = UnquotedString [D9z] USCharNonDigit [Either USCharNonDigit D9z]
   deriving (Eq, Ord, Show)
 
 pUnquotedString :: Parser UnquotedString
 pUnquotedString = UnquotedString
-  <$> many pDecem <*> pUSCharNonDigit
-  <*> many (Left <$> pUSCharNonDigit <|> Right <$> pDecem)
+  <$> many pD9z <*> pUSCharNonDigit
+  <*> many (Left <$> pUSCharNonDigit <|> Right <$> pD9z)
 
 
 rUnquotedString :: UnquotedString -> ShowS
 rUnquotedString (UnquotedString ds0 c1 ei2) =
-  rList rDecem ds0 . rUSCharNonDigit c1
-  . rList (either rUSCharNonDigit rDecem) ei2
+  rList rD9z ds0 . rUSCharNonDigit c1
+  . rList (either rUSCharNonDigit rD9z) ei2
 
 -- Parsing the Trio
 --
@@ -471,18 +471,18 @@ pCloseSquare = CloseSquare <$ pSym ']'
 rCloseSquare :: CloseSquare -> ShowS
 rCloseSquare CloseSquare = (']':)
 
-data IntegerA = IntegerA (Either Zero (Maybe PluMin, Novem, [Decem]))
+data IntegerA = IntegerA (Either Zero (Maybe PluMin, D9, [D9z]))
   deriving (Eq, Ord, Show)
 
 pIntegerA :: Parser IntegerA
 pIntegerA = IntegerA <$>
   (Left <$> pZero <|> Right <$> ((,,) <$> optional pPluMin
-                                      <*> pNovem <*> many pDecem))
+                                      <*> pD9 <*> many pD9z))
 
 rIntegerA :: IntegerA -> ShowS
 rIntegerA (IntegerA ei) = case ei of
   Left z -> rZero z
-  Right (m0, n1, ds2) -> rMaybe rPluMin m0 . rNovem n1 . rList rDecem ds2
+  Right (m0, n1, ds2) -> rMaybe rPluMin m0 . rD9 n1 . rList rD9z ds2
 
 data ScalarA
   = ScalarUnquotedString UnquotedString

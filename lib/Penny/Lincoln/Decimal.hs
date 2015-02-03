@@ -80,8 +80,8 @@ instance Num Decimal where
   (Decimal mx ex) * (Decimal my ey) = Decimal (mx * my) (ex `add` ey)
   negate (Decimal mx ex) = Decimal (negate mx) ex
   abs (Decimal mx ex) = Decimal (abs mx) ex
-  signum (Decimal mx _) = Decimal (signum mx) (fromDecem D0)
-  fromInteger i = Decimal i (fromDecem D0)
+  signum (Decimal mx _) = Decimal (signum mx) (toUnsigned D0z'0)
+  fromInteger i = Decimal i (toUnsigned D0z'0)
 
 -- | Compares 'Decimal' based on semantics rather than actual values;
 -- does this by first equalizing exponents before performing
@@ -147,8 +147,8 @@ instance HasDecimal DecPositive where
 
 instance HasExponent (NilUngrouped r) where
   toExponent nu = case nu of
-    NUZero _ Nothing -> fromDecem D0
-    NUZero _ (Just (_, Nothing)) -> fromDecem D0
+    NUZero _ Nothing -> toUnsigned D0z'0
+    NUZero _ (Just (_, Nothing)) -> toUnsigned D0z'0
     NUZero _ (Just (_, Just (_, zs))) -> next (N.length zs)
     NURadix _ _ zs -> next (N.length zs)
 
@@ -174,7 +174,7 @@ instance HasDecPositive DecNonZero where
 instance HasDecPositive (BrimUngrouped r) where
 
   toDecPositive (BUGreaterThanOne nv ds1 Nothing)
-    = DecPositive (novDecsToPositive nv ds1) (fromDecem D0)
+    = DecPositive (novDecsToPositive nv ds1) (toUnsigned D0z'0)
 
   toDecPositive (BUGreaterThanOne nv ds1 (Just (_, ds2)))
     = DecPositive (novDecsToPositive nv (ds1 <> ds2))
@@ -192,7 +192,7 @@ instance HasDecPositive (BrimGrouped r) where
     where
       sig = novDecsToPositive nv . (ds1 <>) . (d1 <|) . (ds2 <>)
         . join . fmap (\(_, d, ds) -> d <| ds) $ dss
-      expt = fromDecem D0
+      expt = toUnsigned D0z'0
 
   toDecPositive (BGGreaterThanOne nv ds1
     (BG1GroupOnLeft _ d1 ds2 dss
@@ -200,7 +200,7 @@ instance HasDecPositive (BrimGrouped r) where
     where
       sig = novDecsToPositive nv . (ds1 <>) . (d1 <|) . (ds2 <>)
         . join . fmap (\(_, d, ds) -> d <| ds) $ dss
-      expt = fromDecem D0
+      expt = toUnsigned D0z'0
 
   toDecPositive (BGGreaterThanOne nv ds1
     (BG1GroupOnLeft _ d1 ds2 dss1
@@ -247,7 +247,7 @@ instance HasDecPositive (BrimGrouped r) where
       expt = next . add (N.length zs4) . N.length $ bg7zs
       (bg7zs, bg7nv, bg7ds) = unfurlBG7 bg7
 
-      unfurlBG7 :: BG7 r -> (Seq Zero, Novem, Seq Decem)
+      unfurlBG7 :: BG7 r -> (Seq Zero, D9, Seq D9z)
       unfurlBG7 = goBG7 S.empty
         where
           goBG7 zsSoFar (BG7Zeroes z1 zs bg8) =

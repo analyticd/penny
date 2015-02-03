@@ -217,11 +217,11 @@ instance Renderable FileItems where render = rFileItems
 instance Parseable File where parser = pFile
 instance Renderable File where render = rFile
 
-instance Parseable Novem where parser = pNovem
-instance Renderable Novem where render = rNovem
+instance Parseable D9 where parser = pD9
+instance Renderable D9 where render = rD9
 
-instance Parseable Decem where parser = pDecem
-instance Renderable Decem where render = rDecem
+instance Parseable D9z where parser = pD9z
+instance Renderable D9z where render = rD9z
 
 instance Parseable Grouper where parser = pGrouper
 instance Renderable Grouper where render = rGrouper

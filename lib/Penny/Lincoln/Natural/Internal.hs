@@ -9,17 +9,44 @@ import Data.Sequence (Seq, ViewR(..), viewr)
 newtype Positive = Positive { positiveToInteger :: Integer }
   deriving (Eq, Ord, Show)
 
-instance OneToNine Positive where
-  fromNovem = Positive . digitToInt
+class IsPositive a where
+  toPositive :: a -> Positive
+
+instance IsPositive D1 where toPositive = Positive . digitToInt
+instance IsPositive D2 where toPositive = Positive . digitToInt
+instance IsPositive D3 where toPositive = Positive . digitToInt
+instance IsPositive D4 where toPositive = Positive . digitToInt
+instance IsPositive D5 where toPositive = Positive . digitToInt
+instance IsPositive D6 where toPositive = Positive . digitToInt
+instance IsPositive D7 where toPositive = Positive . digitToInt
+instance IsPositive D8 where toPositive = Positive . digitToInt
+instance IsPositive D9 where toPositive = Positive . digitToInt
 
 newtype Unsigned = Unsigned { unsignedToInteger :: Integer }
   deriving (Eq, Ord, Show)
 
-instance OneToNine Unsigned where
-  fromNovem = Unsigned . digitToInt
+class IsUnsigned a where
+  toUnsigned :: a -> Unsigned
 
-instance HasZero Unsigned where
-  fromDecem = Unsigned . digitToInt
+instance IsUnsigned D0z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D1 where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D1z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D2 where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D2z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D3 where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D3z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D4 where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D4z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D5 where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D5z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D6 where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D6z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D7 where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D7z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D8 where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D8z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D9 where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned D9z where toUnsigned = Unsigned . digitToInt
 
 class Natural a where
   next :: a -> a
@@ -28,9 +55,6 @@ class Natural a where
   integerToNatural :: Integer -> Maybe a
   add :: a -> a -> a
   mult :: a -> a -> a
-
-ten :: (OneToNine a, Natural a) => a
-ten = fromNovem D1 `add` fromNovem D9
 
 instance Natural Positive where
   next (Positive i) = Positive (succ i)
@@ -90,7 +114,7 @@ positiveToUnsigned (Positive n) = Unsigned n
 addUnsignedToPositive :: Positive -> Unsigned -> Positive
 addUnsignedToPositive (Positive x) (Unsigned y) = Positive $ x + y
 
-novDecsToPositive :: Novem -> Seq Decem -> Positive
+novDecsToPositive :: D9 -> Seq D9z -> Positive
 novDecsToPositive n = Positive . finish . go (0 :: Int) 0
   where
     go !places !tot sq = case viewr sq of

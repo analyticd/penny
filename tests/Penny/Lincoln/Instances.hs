@@ -8,7 +8,6 @@ import Test.QuickCheck hiding (Positive, NonZero)
 import qualified Test.QuickCheck as Q
 import qualified Data.Text as X
 import qualified Data.Map as M
-import Data.Time
 import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -38,7 +37,13 @@ instance Arbitrary Commodity where
 -- DateTime
 
 instance Arbitrary Date where
-  arbitrary = Date <$> (ModifiedJulianDay <$> arbitrary)
+  arbitrary = do
+    y <- choose (1900, 2100)
+    m <- choose (1, 12)
+    d <- choose (1, 28)
+    case fromGregorian y m d of
+      Nothing -> fail "could not generate Date"
+      Just r -> return r
 
 instance Arbitrary DateTime where
   arbitrary = DateTime
@@ -247,8 +252,25 @@ $(derive makeArbitrary ''ExchRep)
 $(derive makeArbitrary ''ExchRepAnyRadix)
 
 -- Rep.Digits
-$(derive makeArbitrary ''Novem)
-$(derive makeArbitrary ''Decem)
+$(derive makeArbitrary ''D0z)
+$(derive makeArbitrary ''D1)
+$(derive makeArbitrary ''D1z)
+$(derive makeArbitrary ''D2)
+$(derive makeArbitrary ''D2z)
+$(derive makeArbitrary ''D3)
+$(derive makeArbitrary ''D3z)
+$(derive makeArbitrary ''D4)
+$(derive makeArbitrary ''D4z)
+$(derive makeArbitrary ''D5)
+$(derive makeArbitrary ''D5z)
+$(derive makeArbitrary ''D6)
+$(derive makeArbitrary ''D6z)
+$(derive makeArbitrary ''D7)
+$(derive makeArbitrary ''D7z)
+$(derive makeArbitrary ''D8)
+$(derive makeArbitrary ''D8z)
+$(derive makeArbitrary ''D9)
+$(derive makeArbitrary ''D9z)
 
 -- Side
 $(derive makeArbitrary ''Side)

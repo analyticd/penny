@@ -3,12 +3,10 @@ module Penny.Lincoln.Natural
   , Positive
   , Unsigned
 
-  -- * Constants
+  -- * Typeclasses
   --
-  -- | For additional constants, use the
-  -- 'Penny.Lincoln.Digits.OneToNine' and 'Penny.Lincoln.Digits.Zero'
-  -- instances.
-  , ten
+  , IsPositive(..)
+  , IsUnsigned(..)
 
   -- * Arithmetic
   -- | For additional arithmetic, use the 'Natural' methods.

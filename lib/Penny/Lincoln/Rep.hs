@@ -133,41 +133,41 @@ data Brim r
   deriving (Eq, Ord, Show)
 
 data BrimUngrouped r
-  = BUGreaterThanOne Novem (Seq Decem) (Maybe (Radix r, Seq Decem))
-  | BULessThanOne (Maybe Zero) (Radix r) (Seq Zero) Novem (Seq Decem)
+  = BUGreaterThanOne D9 (Seq D9z) (Maybe (Radix r, Seq D9z))
+  | BULessThanOne (Maybe Zero) (Radix r) (Seq Zero) D9 (Seq D9z)
   deriving (Eq, Ord, Show)
 
 data BrimGrouped r
-  = BGGreaterThanOne Novem (Seq Decem) (BG1 r)
+  = BGGreaterThanOne D9 (Seq D9z) (BG1 r)
   | BGLessThanOne (Maybe Zero) (Radix r) (BG5 r)
   deriving (Eq, Ord, Show)
 
 data BG1 r
-  = BG1GroupOnLeft r Decem (Seq Decem) (Seq (r, Decem, Seq Decem))
-      (Maybe (Radix r, Maybe (Decem, Seq Decem, Seq (r, Decem, Seq Decem))))
-  | BG1GroupOnRight (Radix r) Decem (Seq Decem) r Decem (Seq Decem)
-                    (Seq (r, Decem, Seq Decem))
+  = BG1GroupOnLeft r D9z (Seq D9z) (Seq (r, D9z, Seq D9z))
+      (Maybe (Radix r, Maybe (D9z, Seq D9z, Seq (r, D9z, Seq D9z))))
+  | BG1GroupOnRight (Radix r) D9z (Seq D9z) r D9z (Seq D9z)
+                    (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
 
 data BG5 r
-  = BG5Novem Novem (Seq Decem) r Decem (Seq Decem)
-                   (Seq (r, Decem, Seq Decem))
+  = BG5Novem D9 (Seq D9z) r D9z (Seq D9z)
+                   (Seq (r, D9z, Seq D9z))
   | BG5Zero Zero (Seq Zero) (BG6 r)
   deriving (Eq, Ord, Show)
 
 data BG6 r
-  = BG6Novem Novem (Seq Decem) r Decem (Seq Decem)
-             (Seq (r, Decem, Seq Decem))
+  = BG6Novem D9 (Seq D9z) r D9z (Seq D9z)
+             (Seq (r, D9z, Seq D9z))
   | BG6Group r (BG7 r)
   deriving (Eq, Ord, Show)
 
 data BG7 r
   = BG7Zeroes Zero (Seq Zero) (BG8 r)
-  | BG7Novem Novem (Seq Decem) (Seq (r, Decem, Seq Decem))
+  | BG7Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
 
 data BG8 r
-  = BG8Novem Novem (Seq Decem) (Seq (r, Decem, Seq Decem))
+  = BG8Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
   | BG8Group r (BG7 r)
   deriving (Eq, Ord, Show)
 
