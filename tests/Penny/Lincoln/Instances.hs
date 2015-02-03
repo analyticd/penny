@@ -45,32 +45,13 @@ instance Arbitrary Date where
       Nothing -> fail "could not generate Date"
       Just r -> return r
 
-instance Arbitrary DateTime where
-  arbitrary = DateTime
-    <$> arbitrary
-    <*> arbitrary <*> arbitrary
-    <*> arbitrary <*> arbitrary
-
-instance Arbitrary Minutes where
-  arbitrary = Minutes <$> arbitrary
-
-instance Arbitrary Seconds where
-  arbitrary = Seconds <$> arbitrary
-
-instance Arbitrary Hours where
-  arbitrary = elements [minBound..maxBound]
-
-instance Arbitrary Enum60 where
-  arbitrary = elements [minBound..maxBound]
-
-instance Arbitrary Zone where
-  arbitrary = do
-    i <- choose (-2399, 2399)
-    case intToZone i of
-      Nothing -> fail "could not generate Zone"
-      Just r -> return r
-
 $(derive makeArbitrary ''Time)
+$(derive makeArbitrary ''DateTime)
+$(derive makeArbitrary ''Hours)
+$(derive makeArbitrary ''Minutes)
+$(derive makeArbitrary ''Seconds)
+$(derive makeArbitrary ''Zone)
+$(derive makeArbitrary ''ZeroTo59)
 
 -- Decimal
 

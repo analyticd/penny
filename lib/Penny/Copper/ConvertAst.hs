@@ -2,6 +2,9 @@ module Penny.Copper.ConvertAst where
 
 import Penny.Lincoln
 import Penny.Copper.Ast
+import Penny.Copper.Terminals
+import Data.Text (Text)
+import qualified Data.Text as X
 
 decimalPlace :: (Digit a, Integral b) => Int -> a -> b
 decimalPlace pl dig = digitToInt dig * 10 ^ pl
@@ -24,3 +27,28 @@ c'Date'DateA (DateA y _ m _ d)
                   (c'Int'Digits1or2 m)
                   (c'Int'Digits1or2 d)
 
+c'Hours'HoursA :: HoursA -> Hours
+c'Hours'HoursA x = case x of
+  H0to19a m d -> H0to19 m d
+  H20to23a _ d3 -> H20to23 d3
+
+c'Time'TimeA :: TimeA -> Time
+c'Time'TimeA (TimeA hA _ m mayS) = Time (c'Hours'HoursA hA) m s
+  where
+    s = case mayS of
+      Nothing -> Seconds (ZeroTo59 Nothing D9z'0)
+      Just (_, x) -> x
+
+c'MaybeChar'EscSeq :: EscSeq -> Maybe Char
+c'MaybeChar'EscSeq (EscSeq _ py) = case py of
+  EscBackslash -> Just '\\'
+  EscNewline -> Just '\n'
+  EscQuote -> Just '"'
+  EscGap _ _ -> Nothing
+
+c'MaybeChar'QuotedChar :: QuotedChar -> Maybe Char
+c'MaybeChar'QuotedChar (QuotedChar ei)
+  = either (Just . termToChar) c'MaybeChar'EscSeq ei
+
+c'Text'UnquotedString :: UnquotedString -> Text
+c'Text'UnquotedString (UnquotedString digs nonDig ls) = undefined

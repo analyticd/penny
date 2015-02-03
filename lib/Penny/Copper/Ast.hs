@@ -4,10 +4,8 @@ import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
 import Text.ParserCombinators.UU.Core
 import Text.ParserCombinators.UU.Derived
-import Penny.Lincoln.Rep
+import Penny.Lincoln
 import Penny.Copper.Terminals
-import Penny.Lincoln.Side
-import Penny.Lincoln.PluMin
 import Penny.Copper.Parser
 import Penny.Copper.LincolnTypes
 
@@ -133,27 +131,128 @@ pColon = Colon <$ pSym ':'
 rColon :: Colon -> ShowS
 rColon Colon = (':':)
 
+pD1z :: Parser D1z
+pD1z = D1z'0 <$ pSym '0' <|> D1z'1 <$ pSym '1'
+
+rD1z :: D1z -> ShowS
+rD1z x = case x of
+  D1z'0 -> ('0':)
+  D1z'1 -> ('1':)
+
+pD2z :: Parser D2z
+pD2z = D2z'0 <$ pSym '0' <|> D2z'1 <$ pSym '1'
+  <|> D2z'2 <$ pSym '2'
+
+rD2z :: D2z -> ShowS
+rD2z x = case x of
+  D2z'0 -> ('0':)
+  D2z'1 -> ('1':)
+  D2z'2 -> ('2':)
+
+pD3z :: Parser D3z
+pD3z = D3z'0 <$ pSym '0'
+  <|> D3z'1 <$ pSym '1'
+  <|> D3z'2 <$ pSym '2'
+  <|> D3z'3 <$ pSym '3'
+
+rD3z :: D3z -> ShowS
+rD3z x = case x of
+  D3z'0 -> ('0':)
+  D3z'1 -> ('1':)
+  D3z'2 -> ('2':)
+  D3z'3 -> ('3':)
+
+pD5z :: Parser D5z
+pD5z = D5z'0 <$ pSym '0'
+  <|> D5z'1 <$ pSym '1'
+  <|> D5z'2 <$ pSym '2'
+  <|> D5z'3 <$ pSym '3'
+  <|> D5z'4 <$ pSym '4'
+  <|> D5z'5 <$ pSym '5'
+
+rD5z :: D5z -> ShowS
+rD5z x = case x of
+  D5z'0 -> ('0':)
+  D5z'1 -> ('1':)
+  D5z'2 -> ('2':)
+  D5z'3 -> ('3':)
+  D5z'4 -> ('4':)
+  D5z'5 -> ('5':)
+
+data Two = Two
+  deriving (Eq, Ord, Show)
+
+pTwo :: Parser Two
+pTwo = Two <$ pSym '2'
+
+rTwo :: Two -> ShowS
+rTwo Two = ('2':)
+
+data HoursA
+  = H0to19a (Maybe D1z) D9z
+  | H20to23a Two D3z
+  deriving (Eq, Ord, Show)
+
+pHoursA :: Parser HoursA
+pHoursA
+  = H0to19a <$> optional pD1z <*> pD9z
+  <|> H20to23a <$> pTwo <*> pD3z
+
+rHoursA :: HoursA -> ShowS
+rHoursA x = case x of
+  H0to19a m0 d1 -> rMaybe rD1z m0 . rD9z d1
+  H20to23a t0 d1 -> rTwo t0 . rD3z d1
+
+pZeroTo59 :: Parser ZeroTo59
+pZeroTo59 = ZeroTo59 <$> optional pD5z <*> pD9z
+
+rZeroTo59 :: ZeroTo59 -> ShowS
+rZeroTo59 (ZeroTo59 m0 d1) = rMaybe rD5z m0 . rD9z d1
+
+pMinutes :: Parser Minutes
+pMinutes = Minutes <$> pZeroTo59
+
+rMinutes :: Minutes -> ShowS
+rMinutes (Minutes x) = rZeroTo59 x
+
+pSeconds :: Parser Seconds
+pSeconds = Seconds <$> pZeroTo59
+
+rSeconds :: Seconds -> ShowS
+rSeconds (Seconds x) = rZeroTo59 x
+
 data TimeA = TimeA
-  Digits1or2 Colon Digits1or2 (Maybe (Colon, Digits1or2))
+  HoursA Colon Minutes (Maybe (Colon, Seconds))
   deriving (Eq, Ord, Show)
 
 pTimeA :: Parser TimeA
-pTimeA = TimeA <$> pDigits1or2 <*> pColon <*> pDigits1or2
-    <*> optional ((,) <$> pColon <*> pDigits1or2)
+pTimeA = TimeA <$> pHoursA <*> pColon <*> pMinutes
+    <*> optional ((,) <$> pColon <*> pSeconds)
 
 rTimeA :: TimeA -> ShowS
-rTimeA (TimeA d0 c1 d2 m3) = rDigits1or2 d0 . rColon c1
-  . rDigits1or2 d2 . rMaybe (\(c3, d4) -> rColon c3 . rDigits1or2 d4) m3
+rTimeA (TimeA d0 c1 d2 m3) = rHoursA d0 . rColon c1
+  . rMinutes d2 . rMaybe (\(c3, d4) -> rColon c3 . rSeconds d4) m3
 
-data ZoneA = ZoneA Backtick PluMin DigitsFour
+pZone :: Parser Zone
+pZone = Zone <$> pPluMin <*> pD2z <*> pD3z <*> pD9z <*> pD9z
+
+rZone :: Zone -> ShowS
+rZone (Zone p0 d1 d2 d3 d4)
+  = rPluMin p0
+  . rD2z d1
+  . rD3z d2
+  . rD9z d3
+  . rD9z d4
+
+data ZoneA = ZoneA Backtick Zone
   deriving (Eq, Ord, Show)
 
 rZoneA :: ZoneA -> ShowS
-rZoneA (ZoneA b0 p1 d2)
-  = rBacktick b0 . rPluMin p1 . rDigitsFour d2
+rZoneA (ZoneA b0 z1)
+  = rBacktick b0 . rZone z1
 
 pZoneA :: Parser ZoneA
-pZoneA = ZoneA <$> pBacktick <*> pPluMin <*> pDigitsFour
+pZoneA = ZoneA <$> pBacktick <*> pZone
 
 data DoubleQuote = DoubleQuote
   deriving (Eq, Ord, Show)
@@ -312,28 +411,28 @@ rUnquotedCommodityOnRight :: UnquotedCommodityOnRight -> ShowS
 rUnquotedCommodityOnRight (UnquotedCommodityOnRight d0 ls1)
   = rUSCharNonDigit d0 . rList rUSCharNonDigit ls1
 
-newtype CommodityOnLeft
-  = CommodityOnLeft (Either UnquotedCommodityOnLeft QuotedCommodity)
+newtype CommodityOnLeftA
+  = CommodityOnLeftA (Either UnquotedCommodityOnLeft QuotedCommodity)
   deriving (Eq, Ord, Show)
 
-pCommodityOnLeft :: Parser CommodityOnLeft
-pCommodityOnLeft = CommodityOnLeft
+pCommodityOnLeftA :: Parser CommodityOnLeftA
+pCommodityOnLeftA = CommodityOnLeftA
   <$> pEither pUnquotedCommodityOnLeft pQuotedCommodity
 
-rCommodityOnLeft :: CommodityOnLeft -> ShowS
-rCommodityOnLeft (CommodityOnLeft ei)
+rCommodityOnLeftA :: CommodityOnLeftA -> ShowS
+rCommodityOnLeftA (CommodityOnLeftA ei)
   = either rUnquotedCommodityOnLeft rQuotedCommodity ei
 
-newtype CommodityOnRight
-  = CommodityOnRight (Either UnquotedCommodityOnRight QuotedCommodity)
+newtype CommodityOnRightA
+  = CommodityOnRightA (Either UnquotedCommodityOnRight QuotedCommodity)
   deriving (Eq, Ord, Show)
 
-pCommodityOnRight :: Parser CommodityOnRight
-pCommodityOnRight = CommodityOnRight
+pCommodityOnRightA :: Parser CommodityOnRightA
+pCommodityOnRightA = CommodityOnRightA
   <$> pEither pUnquotedCommodityOnRight pQuotedCommodity
 
-rCommodityOnRight :: CommodityOnRight -> ShowS
-rCommodityOnRight (CommodityOnRight ei)
+rCommodityOnRightA :: CommodityOnRightA -> ShowS
+rCommodityOnRightA (CommodityOnRightA ei)
   = either rUnquotedCommodityOnRight rQuotedCommodity ei
 
 newtype QuotedCommodity = QuotedCommodity QuotedString
@@ -407,9 +506,9 @@ rNeutralOrNon x = case x of
 -- the AST should actually produce something.  Instead,
 -- 'Penny.Lincoln.Trio.E' is indicated by the absense of any 'TrioA'.
 data TrioA
-  = QcCyOnLeftA (Fs Side) (Fs CommodityOnLeft) NonNeutral
+  = QcCyOnLeftA (Fs Side) (Fs CommodityOnLeftA) NonNeutral
   -- ^ Non neutral, commodity on left
-  | QcCyOnRightA (Fs Side) (Fs NonNeutral) CommodityOnRight
+  | QcCyOnRightA (Fs Side) (Fs NonNeutral) CommodityOnRightA
   -- ^ Non neutral, commodity on right
   | QA (Fs Side) NeutralOrNon
   -- ^ Qty with side only
@@ -417,9 +516,9 @@ data TrioA
   -- ^ Side and commodity
   | SA Side
   -- ^ Side only
-  | UcCyOnLeftA (Fs CommodityOnLeft) NonNeutral
+  | UcCyOnLeftA (Fs CommodityOnLeftA) NonNeutral
   -- ^ Unsigned quantity and commodity only, commodity on left
-  | UcCyOnRightA (Fs NonNeutral) CommodityOnRight
+  | UcCyOnRightA (Fs NonNeutral) CommodityOnRightA
   -- ^ Unsigned quantity and commodity only, commodity on right
   | UA NonNeutral
   -- ^ Non-sided non-neutral quantity only
@@ -429,27 +528,27 @@ data TrioA
 
 pTrioA :: Parser TrioA
 pTrioA
-  = QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityOnLeft <*> pNonNeutral
-  <|> QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityOnRight
+  = QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityOnLeftA <*> pNonNeutral
+  <|> QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityOnRightA
   <|> QA <$> pFs pSide <*> pNeutralOrNon
   <|> SCA <$> pFs pSide <*> pCommodityA
   <|> SA <$> pSide
-  <|> UcCyOnLeftA <$> pFs pCommodityOnLeft <*> pNonNeutral
-  <|> UcCyOnRightA <$> pFs pNonNeutral <*> pCommodityOnRight
+  <|> UcCyOnLeftA <$> pFs pCommodityOnLeftA <*> pNonNeutral
+  <|> UcCyOnRightA <$> pFs pNonNeutral <*> pCommodityOnRightA
   <|> UA <$> pNonNeutral
   <|> CA <$> pCommodityA
 
 rTrioA :: TrioA -> ShowS
 rTrioA x = case x of
-  QcCyOnLeftA s0 c1 n1 -> rFs rSide s0 . rFs rCommodityOnLeft c1
+  QcCyOnLeftA s0 c1 n1 -> rFs rSide s0 . rFs rCommodityOnLeftA c1
     . rNonNeutral n1
   QcCyOnRightA s0 n1 c2 -> rFs rSide s0 . rFs rNonNeutral n1
-    . rCommodityOnRight c2
+    . rCommodityOnRightA c2
   QA s0 n1 -> rFs rSide s0 . rNeutralOrNon n1
   SCA s0 c1 -> rFs rSide s0 . rCommodityA c1
   SA s -> rSide s
-  UcCyOnLeftA c0 n1 -> rFs rCommodityOnLeft c0 . rNonNeutral n1
-  UcCyOnRightA n0 c1 -> rFs rNonNeutral n0 . rCommodityOnRight c1
+  UcCyOnLeftA c0 n1 -> rFs rCommodityOnLeftA c0 . rNonNeutral n1
+  UcCyOnRightA n0 c1 -> rFs rNonNeutral n0 . rCommodityOnRightA c1
   UA n -> rNonNeutral n
   CA c -> rCommodityA c
 

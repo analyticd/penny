@@ -2,9 +2,7 @@
              MultiParamTypeClasses #-}
 module Penny.Copper.Classes where
 
-import Penny.Lincoln.Rep
-import Penny.Lincoln.Side
-import Penny.Lincoln.PluMin
+import Penny.Lincoln
 import Penny.Copper.LincolnTypes
 import Penny.Copper.Parser
 import Penny.Copper.Ast
@@ -133,11 +131,11 @@ instance Renderable QuotedCommodity where render = rQuotedCommodity
 instance Parseable CommodityA where parser = pCommodityA
 instance Renderable CommodityA where render = rCommodityA
 
-instance Parseable CommodityOnLeft where parser = pCommodityOnLeft
-instance Renderable CommodityOnLeft where render = rCommodityOnLeft
+instance Parseable CommodityOnLeftA where parser = pCommodityOnLeftA
+instance Renderable CommodityOnLeftA where render = rCommodityOnLeftA
 
-instance Parseable CommodityOnRight where parser = pCommodityOnRight
-instance Renderable CommodityOnRight where render = rCommodityOnRight
+instance Parseable CommodityOnRightA where parser = pCommodityOnRightA
+instance Renderable CommodityOnRightA where render = rCommodityOnRightA
 
 instance Parseable Backtick where parser = pBacktick
 instance Renderable Backtick where render = rBacktick
@@ -222,6 +220,33 @@ instance Renderable D9 where render = rD9
 
 instance Parseable D9z where parser = pD9z
 instance Renderable D9z where render = rD9z
+
+instance Parseable D1z where parser = pD1z
+instance Renderable D1z where render = rD1z
+
+instance Parseable D2z where parser = pD2z
+instance Renderable D2z where render = rD2z
+
+instance Parseable D3z where parser = pD3z
+instance Renderable D3z where render = rD3z
+
+instance Parseable D5z where parser = pD5z
+instance Renderable D5z where render = rD5z
+
+instance Parseable Two where parser = pTwo
+instance Renderable Two where render = rTwo
+
+instance Parseable HoursA where parser = pHoursA
+instance Renderable HoursA where render = rHoursA
+
+instance Parseable Minutes where parser = pMinutes
+instance Renderable Minutes where render = rMinutes
+
+instance Parseable Seconds where parser = pSeconds
+instance Renderable Seconds where render = rSeconds
+
+instance Parseable ZeroTo59 where parser = pZeroTo59
+instance Renderable ZeroTo59 where render = rZeroTo59
 
 instance Parseable Grouper where parser = pGrouper
 instance Renderable Grouper where render = rGrouper

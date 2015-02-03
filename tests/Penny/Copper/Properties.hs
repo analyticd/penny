@@ -9,7 +9,7 @@ import qualified Text.ParserCombinators.UU.Core
 import Penny.Copper.Parser
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
 import Penny.Copper.Ast
-import Penny.Lincoln.Rep
+import Penny.Lincoln
 import Penny.Lincoln.Instances ()
 import Penny.Copper.Instances ()
 import Penny.Copper.LincolnTypes
@@ -197,6 +197,24 @@ prop_DateA = testR
 prop_Colon :: Colon -> Property
 prop_Colon = testR
 
+prop_D1z :: D1z -> Property
+prop_D1z = testR
+
+prop_D3z :: D3z -> Property
+prop_D3z = testR
+
+prop_D5z :: D5z -> Property
+prop_D5z = testR
+
+prop_HoursA :: HoursA -> Property
+prop_HoursA = testR
+
+prop_Minutes :: Minutes -> Property
+prop_Minutes = testR
+
+prop_Seconds :: Seconds -> Property
+prop_Seconds = testR
+
 prop_TimeA :: TimeA -> Property
 prop_TimeA = testR
 
@@ -242,11 +260,11 @@ prop_QuotedCommodity = testR
 prop_CommodityA :: CommodityA -> Property
 prop_CommodityA = testR
 
-prop_CommodityOnLeft :: CommodityOnLeft -> Property
-prop_CommodityOnLeft = testR
+prop_CommodityOnLeftA :: CommodityOnLeftA -> Property
+prop_CommodityOnLeftA = testR
 
-prop_CommodityOnRight :: CommodityOnRight -> Property
-prop_CommodityOnRight = testR
+prop_CommodityOnRightA :: CommodityOnRightA -> Property
+prop_CommodityOnRightA = testR
 
 prop_Backtick :: Backtick -> Property
 prop_Backtick = testR
