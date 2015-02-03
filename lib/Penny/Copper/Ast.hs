@@ -729,17 +729,50 @@ rFileItems :: FileItems -> ShowS
 rFileItems (FileItems i0 ls1)
   = rFileItem i0 . rList (\(w, i) -> rWhites w . rFileItem i) ls1
 
+-- | Unlike every other production in this module, 'File' may produce
+-- an empty input.
 data File
   = FileNoLeadingWhite (Fs FileItems)
   | FileLeadingWhite Whites (Maybe (Fs FileItems))
+  | EmptyFile
   deriving (Eq, Ord, Show)
 
 pFile :: Parser File
 pFile
   = FileNoLeadingWhite <$> pFs pFileItems
   <|> FileLeadingWhite <$> pWhites <*> (optional (pFs pFileItems))
+  <|> pure EmptyFile
 
 rFile :: File -> ShowS
 rFile fl = case fl of
   FileNoLeadingWhite f0 -> rFs rFileItems f0
   FileLeadingWhite w0 m1 -> rWhites w0 . rMaybe (rFs rFileItems) m1
+  EmptyFile -> id
+
+-- | Parses an entire 'File' from a string.
+--
+-- Returns the parsed 'File', any error messages, and any errors
+-- resulting because input was not parsed.  This parser is \"online\",
+-- so it lazily processes the input 'String'.  Thus it is possible to
+-- traverse the result 'File' while lazily processing the input
+-- 'String'.  Examining either final list of 'Error' will also cause
+-- the parse to proceed.  Therefore, to preserve laziness, handle the
+-- result 'File' first, and then look for errors.
+--
+-- As this return type suggests, you will always get a result, even
+-- if the input contains errors; uu-parsinglib will make insertions
+-- or deletions to the text as it parses.  It will take whatever
+-- steps are necessary to get a complete 'File'.  However such
+-- changes will be indicated in the list of 'Error'.  This scheme
+-- delivers excellent error messages because instead of stopping an
+-- entire parse due to a single error, the parse will proceed to
+-- find further errors later in the file.  Of course fixing the
+-- first error might fix all the later ones, but at least this is
+-- left up to the user.
+
+parseFile
+  :: String
+  -> (File, [Error LineColPosA], [Error LineColPosA])
+parseFile str = parse prsr (createStr (LineColPosA 1 0 0) str)
+  where
+    prsr = (,,) <$> pFile <*> pErrors <*> pEnd

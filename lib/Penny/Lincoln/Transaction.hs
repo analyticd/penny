@@ -101,7 +101,15 @@ addSerials
   -- ^ There is one input Seq for each file.  The inner Seq contains
   -- the transactions to which to assign serials.
   -> Seq (Seq Transaction)
-addSerials = undefined
+addSerials = fmap (fmap pack) . makeSerials . fmap (fmap unpack)
+  where
+    unpack (Transaction tl bal) = (tl, bal)
+    pack ((TopLine tl, bal), (Serial glbl)) = Transaction tl' bal'
+      where
+        tl' = TopLine (glbl : tl)
+        bal' = fmap repackMeta bal
+        repackMeta (PstgMeta ts tri, (Serial serPstg))
+          = PstgMeta (serPstg : ts) tri
 
 
 makeSerials

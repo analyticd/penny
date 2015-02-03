@@ -17,7 +17,6 @@ module Penny.Lincoln
     , module Penny.Lincoln.PluMin
     , module Penny.Lincoln.Prices
     , module Penny.Lincoln.Qty
-    , module Penny.Lincoln.Queries
     , module Penny.Lincoln.Rep
     , module Penny.Lincoln.Side
     , module Penny.Lincoln.Transaction
@@ -39,7 +38,6 @@ import Penny.Lincoln.Offset
 import Penny.Lincoln.PluMin
 import Penny.Lincoln.Prices
 import Penny.Lincoln.Qty
-import Penny.Lincoln.Queries
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Side
 import Penny.Lincoln.Transaction

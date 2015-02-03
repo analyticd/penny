@@ -106,6 +106,11 @@ main :: IO ()
 main = defaultMain $ do
   libMods <- modules "lib"
   testMods <- modules "tests"
+  copper <- makeFlag "copper" $
+    FlagOpts { flagDescription = "create copper-parse executable"
+             , flagDefault = False
+             , flagManual = True
+             }
   return
     ( props
     ,   exposedModules libMods
@@ -119,5 +124,11 @@ main = defaultMain $ do
         : exitcodeFields "penny-properties.hs"
         ++ commonOptions
       , githubHead "massysett" "penny"
+      , executable "copper-parse" $
+          otherModules libMods
+        : hsSourceDirs ["copper-parse"]
+        : buildDepends libraryDepends
+        : mainIs "copper-parse.hs"
+        : commonOptions
       ]
     )

@@ -1,3 +1,5 @@
+# This file might contain examples of bad Copper input,
+# to test the error messages of the parser.
 # This is a comment
 2014-01-02 payee ["The Behnke Nursery Co"] flag [True] tags [Garden]
   { > $24.40 [ account [Assets Current Checking] 101 ]

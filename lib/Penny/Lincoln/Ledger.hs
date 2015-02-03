@@ -102,11 +102,12 @@ instance Applicative Sql where
   pure = return
   (<*>) = ap
 
+{-
 instance Ledger Sql where
   type TransactionL Sql = TxnId
   type TreeL Sql = TreeId
   type PostingL Sql = PostingId
-
+-}
 allQtys :: Ledger l => l [Qty]
 allQtys = do
   txns <- transactions
