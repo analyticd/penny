@@ -24,4 +24,3 @@ c'Date'DateA (DateA y _ m _ d)
                   (c'Int'Digits1or2 m)
                   (c'Int'Digits1or2 d)
 
-c'Enum60'Digits1or2
