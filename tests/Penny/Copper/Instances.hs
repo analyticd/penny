@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-
+{-# LANGUAGE TemplateHaskell #-}
 module Penny.Copper.Instances where
 
 import Control.Applicative
@@ -76,7 +76,12 @@ $(derive makeArbitrary ''IntegerA)
 $(derive makeArbitrary ''ScalarA)
 $(derive makeArbitrary ''BracketedForest)
 $(derive makeArbitrary ''ForestA)
-$(derive makeArbitrary ''TreeA)
+
+instance Arbitrary TreeA where
+  arbitrary = sized $ go
+    where
+      go s = TreeA <$> arbitrary <*> resize (s `div` 2) arbitrary
+
 $(derive makeArbitrary ''TopLineA)
 $(derive makeArbitrary ''PostingA)
 $(derive makeArbitrary ''PostingsA)

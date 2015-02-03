@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Penny.Copper.Properties where
 
 import Test.QuickCheck
@@ -12,6 +13,10 @@ import Penny.Lincoln.Rep
 import Penny.Lincoln.Instances ()
 import Penny.Copper.Instances ()
 import Penny.Copper.LincolnTypes
+import Test.Tasty.QuickCheck
+import Test.Tasty.TH
+
+propertiesTestGroup = $(testGroupGenerator)
 
 parse :: Parser a -> String -> (a, [Error LineColPosA])
 parse prsr str = Text.ParserCombinators.UU.Core.parse

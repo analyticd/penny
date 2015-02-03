@@ -39,11 +39,17 @@ semigroups = closedOpen "semigroups" [0,16,1] [0,17]
 quickcheck :: Package
 quickcheck = closedOpen "QuickCheck" [2,7,6] [2,8]
 
-barecheck :: Package
-barecheck = closedOpen "quickpull" [0,4,0,0] [0,5]
-
 derive :: Package
 derive = closedOpen "derive" [2,5] [2,6]
+
+tasty :: Package
+tasty = closedOpen "tasty" [0,10,1] [0,11]
+
+tastyQuickcheck :: Package
+tastyQuickcheck = closedOpen "tasty-quickcheck" [0,8,3] [0,9]
+
+tastyTh :: Package
+tastyTh = closedOpen "tasty-th" [0,1,3] [0,2]
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
@@ -64,7 +70,8 @@ libraryDepends =
   ]
 
 testDepends :: [Package]
-testDepends = [ quickcheck, barecheck, derive ]
+testDepends = [ quickcheck, derive, tasty, tastyQuickcheck,
+                tastyTh ]
 
 props :: Properties
 props = blank
