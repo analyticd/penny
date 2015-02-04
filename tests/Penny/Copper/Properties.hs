@@ -275,6 +275,9 @@ prop_NonNeutral = testR
 prop_NeutralOrNon :: NeutralOrNon -> Property
 prop_NeutralOrNon = testR
 
+prop_Neutral :: Neutral -> Property
+prop_Neutral = testR
+
 prop_TrioA :: TrioA -> Property
 prop_TrioA = testR
 

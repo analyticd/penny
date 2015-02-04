@@ -28,6 +28,9 @@ data Fs a = Fs a (Maybe Whites)
 rFs :: (a -> ShowS) -> Fs a -> ShowS
 rFs f (Fs a mw) = f a . rMaybe rWhites mw
 
+fsHasWhite :: Fs a -> Bool
+fsHasWhite (Fs _ m) = maybe False (const True) m
+
 instance Functor Fs where
   fmap f (Fs a w) = Fs (f a) w
 
@@ -37,6 +40,9 @@ pFs p = Fs <$> p <*> optional pWhites
 -- | Something that might be preceded by spaces.
 data Bs a = Bs (Maybe Whites) a
   deriving (Eq, Ord, Show)
+
+bsHasWhite :: Bs a -> Bool
+bsHasWhite (Bs m _) = maybe False (const True) m
 
 instance Functor Bs where
   fmap f (Bs w a) = Bs w (f a)
@@ -104,7 +110,7 @@ data DateSep = DateSlash | DateHyphen
   deriving (Eq, Ord, Show)
 
 data DateA = DateA
-  DigitsFour DateSep Digits1or2 DateSep Digits1or2
+  LineColPosA DigitsFour DateSep Digits1or2 DateSep Digits1or2
   deriving (Eq, Ord, Show)
 
 pDateSep :: Parser DateSep
@@ -115,11 +121,11 @@ rDateSep DateSlash = ('/':)
 rDateSep DateHyphen = ('-':)
 
 pDateA :: Parser DateA
-pDateA = DateA <$> pDigitsFour <*> pDateSep
+pDateA = DateA <$> pPos <*> pDigitsFour <*> pDateSep
                <*> pDigits1or2 <*> pDateSep <*> pDigits1or2
 
 rDateA :: DateA -> ShowS
-rDateA (DateA d0 s1 d2 s3 d4) = rDigitsFour d0 . rDateSep s1
+rDateA (DateA _ d0 s1 d2 s3 d4) = rDigitsFour d0 . rDateSep s1
   . rDigits1or2 d2 . rDateSep s3 . rDigits1or2 d4
 
 data Colon = Colon
@@ -501,6 +507,21 @@ rNeutralOrNon x = case x of
   NeutralOrNonRadPer ei -> either (rNil rRadixRadPer rRadPer)
                                   (rBrim rRadixRadPer rRadPer) ei
 
+data Neutral
+  = NeuCom Backtick (Nil RadCom)
+  | NeuPer (Nil RadPer)
+  deriving (Eq, Ord, Show)
+
+pNeutral :: Parser Neutral
+pNeutral
+  = NeuCom <$> pBacktick <*> pNil pRadixRadCom pRadCom
+  <|> NeuPer <$> pNil pRadixRadPer pRadPer
+
+rNeutral :: Neutral -> ShowS
+rNeutral neu = case neu of
+  NeuCom b0 n1 -> rBacktick b0 . rNil rRadixRadCom rRadCom n1
+  NeuPer n0 -> rNil rRadixRadPer rRadPer n0
+
 -- | Trio.  There is nothing corresponding to 'Penny.Lincoln.Trio.E'
 -- as this would screw up the spacing, and generally productions in
 -- the AST should actually produce something.  Instead,
@@ -510,8 +531,10 @@ data TrioA
   -- ^ Non neutral, commodity on left
   | QcCyOnRightA (Fs Side) (Fs NonNeutral) CommodityOnRightA
   -- ^ Non neutral, commodity on right
-  | QA (Fs Side) NeutralOrNon
+  | QSided (Fs Side) NonNeutral
   -- ^ Qty with side only
+  | QUnsided Neutral
+  -- ^ Qty, with no side
   | SCA (Fs Side) CommodityA
   -- ^ Side and commodity
   | SA Side
@@ -530,7 +553,8 @@ pTrioA :: Parser TrioA
 pTrioA
   = QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityOnLeftA <*> pNonNeutral
   <|> QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityOnRightA
-  <|> QA <$> pFs pSide <*> pNeutralOrNon
+  <|> QSided <$> pFs pSide <*> pNonNeutral
+  <|> QUnsided <$> pNeutral
   <|> SCA <$> pFs pSide <*> pCommodityA
   <|> SA <$> pSide
   <|> UcCyOnLeftA <$> pFs pCommodityOnLeftA <*> pNonNeutral
@@ -544,7 +568,8 @@ rTrioA x = case x of
     . rNonNeutral n1
   QcCyOnRightA s0 n1 c2 -> rFs rSide s0 . rFs rNonNeutral n1
     . rCommodityOnRightA c2
-  QA s0 n1 -> rFs rSide s0 . rNeutralOrNon n1
+  QSided s0 n1 -> rFs rSide s0 . rNonNeutral n1
+  QUnsided n0 -> rNeutral n0
   SCA s0 c1 -> rFs rSide s0 . rCommodityA c1
   SA s -> rSide s
   UcCyOnLeftA c0 n1 -> rFs rCommodityOnLeftA c0 . rNonNeutral n1
@@ -614,7 +639,6 @@ data BracketedForest = BracketedForest
   (Fs OpenSquare) (Maybe (Fs ForestA)) CloseSquare
   deriving (Eq, Ord, Show)
 
--- TODO are generators for TreeA size limited? Probably not.
 data ForestA = ForestA TreeA [(Whites, TreeA)]
   deriving (Eq, Ord, Show)
 

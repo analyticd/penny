@@ -143,6 +143,9 @@ instance Renderable Backtick where render = rBacktick
 instance Parseable NonNeutral where parser = pNonNeutral
 instance Renderable NonNeutral where render = rNonNeutral
 
+instance Parseable Neutral where parser = pNeutral
+instance Renderable Neutral where render = rNeutral
+
 instance Parseable NeutralOrNon where parser = pNeutralOrNon
 instance Renderable NeutralOrNon where render = rNeutralOrNon
 

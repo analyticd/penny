@@ -42,7 +42,12 @@ intersperseBars xs = case xs of
       mk i = (" | " ++ i)
 
 mkBoth :: Int -> String
-mkBoth i = mkDigits True i ++ mkDigits False i ++ mkConv i
+mkBoth i
+  = mkDigits True i
+  ++ mkToChar True i
+  ++ mkDigits False i
+  ++ (if i > 0 then mkToChar False i else "")
+  ++ mkConv i
   ++ mkRevConv i
 
 mkConv :: Int -> String
@@ -78,6 +83,17 @@ mkRevConv i
           | otherwise = "Just " ++ to ++ "'" ++ show num
     lns = [sig, firstLine] ++ restLines ++ [""]
 
+mkToChar :: Bool -> Int -> String
+mkToChar doZero i = unlines $ sig : firstLine : rest ++ [""]
+  where
+    nm = "D" ++ show i ++ if doZero then "z" else ""
+    ctor n = nm ++ "'" ++ show n
+    caseLine n = "  " ++ ctor n ++ " -> '" ++ show n ++ "'"
+    fName = "c'Char'" ++ nm
+    sig = fName ++ " :: " ++ nm ++ " -> Char"
+    firstLine = fName ++ " x = case x of"
+    list = if doZero then [0..i] else [1..i]
+    rest = map caseLine list
 
 main :: IO ()
 main = do
