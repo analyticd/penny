@@ -66,8 +66,8 @@ instance (Applicative m, Monad m) => Ledger (PlainT m) where
 
   transactions = PlainT $ return
   transactionMeta (Transaction (TopLine ts) _) = PlainT . const . return $ ts
-  scalar (Tree n _) = PlainT . const . return $ n
-  children (Tree _ cs) = PlainT . const . return $ cs
+  scalar (Tree _ n _) = PlainT . const . return $ n
+  children (Tree _ _ cs) = PlainT . const . return $ cs
   postings (Transaction _ bal) = PlainT . const
     . return . balancedToPostings $ bal
   postingTrees (Posting ts _ _ _) = PlainT . const . return $ ts

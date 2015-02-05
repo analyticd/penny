@@ -1,11 +1,14 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Penny.Copper.ConvertAst where
 
 import Penny.Lincoln
 import Penny.Copper.Ast
+import Penny.Copper.Parser
 import Penny.Copper.Terminals
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Maybe (mapMaybe, isJust)
+import Data.Monoid
 
 decimalPlace :: (Digit a, Integral b) => Int -> a -> b
 decimalPlace pl dig = digitToInt dig * 10 ^ pl
@@ -22,11 +25,14 @@ c'Int'Digits1or2 (Digits1or2 l mayR) = case mayR of
   Nothing -> decimalPlace 0 l
   Just r -> decimalPlace 1 l + decimalPlace 0 r
 
--- | Bad Date
-data DateE = DateE DateA
+data ConvertE
+  = DateE DateA
+  -- ^ Bad Date
+  | TrioE TrioError PostingA
+  | ImbalancedE ImbalancedError PostingList
   deriving (Eq, Ord, Show)
 
-c'Date'DateA :: DateA -> Either DateE Date
+c'Date'DateA :: DateA -> Either ConvertE Date
 c'Date'DateA a@(DateA _ y _ m _ d)
   = maybe (Left $ DateE a) Right
   $ fromGregorian (c'Int'DigitsFour y)
@@ -188,7 +194,7 @@ c'Integer'IntegerA (IntegerA ei) = case ei of
         Just Minus -> negate
         Just Plus -> id
 
-c'Scalar'ScalarA :: ScalarA -> Either DateE Scalar
+c'Scalar'ScalarA :: ScalarA -> Either ConvertE Scalar
 c'Scalar'ScalarA sclr = case sclr of
   ScalarUnquotedString us -> Right . Chars . c'Text'UnquotedString $ us
   ScalarQuotedString qs -> Right . Chars . c'Text'QuotedString $ qs
@@ -201,5 +207,126 @@ c'Scalar'ScalarA sclr = case sclr of
 arrangement :: Maybe a -> Orient -> Arrangement
 arrangement may o = Arrangement o . SpaceBetween . isJust $ may
 
-c'Tree'TreeA :: TreeA -> Either (DateE, [DateE]) Tree
-c'Tree'TreeA = undefined
+location :: Text
+location = "location"
+
+line :: Text
+line = "line"
+
+column :: Text
+column = "column"
+
+locationTree :: LineColPosA -> Tree
+locationTree (LineColPosA lin col pos)
+  = sys (Chars "location")
+    [ sys (Chars "line")
+        [sys (SInt . fromIntegral $ lin) []]
+    , sys (Chars "column")
+        [sys (SInt . fromIntegral $ col) []]
+    , sys (Chars "position")
+        [sys (SInt . fromIntegral $ pos) []]
+    ]
+  where
+    sys = Tree System
+
+c'Tree'TreeA :: TreeA -> Either (ConvertE, [ConvertE]) Tree
+c'Tree'TreeA (TreeA (Located loc scl) mayBs)
+  = case (scl', bkt) of
+      (Left l, Left (r1, rs)) -> Left (l, r1:rs)
+      (Left l, Right _) -> Left (l, [])
+      (Right _, Left (r1, rs)) -> Left (r1, rs)
+      (Right sc, Right rs) ->
+        Right $ Tree User sc (locationTree loc : rs)
+  where
+    scl' = c'Scalar'ScalarA scl
+    bkt = maybe (Right [])
+      (\(Bs _ bf) -> c'ListTree'BracketedForest bf) mayBs
+
+c'ListTree'BracketedForest
+  :: BracketedForest
+  -> Either (ConvertE, [ConvertE]) [Tree]
+c'ListTree'BracketedForest (BracketedForest _ mayF _) = case mayF of
+  Nothing -> Right []
+  Just (Fs (ForestA t1 ts) _) ->
+    foldr f (Right []) (t1: map snd ts)
+    where
+      f t ei = case c'Tree'TreeA t of
+        Left (l1, ls) -> case ei of
+          Left (r1, rs) -> Left (l1, ls ++ r1 : rs)
+          Right _ -> Left (l1, ls)
+        Right l -> case ei of
+          Left (r1, rs) -> Left (r1, rs)
+          Right r -> Right $ l : r
+
+c'TopLine'TopLineA :: TopLineA -> Either (ConvertE, [ConvertE]) TopLine
+c'TopLine'TopLineA (TopLineA t1 list)
+  = fmap TopLine . foldr f (Right []) . (t1:) . map snd $ list
+  where
+    f t rest = case (c'Tree'TreeA t, rest) of
+      ((Left (l1, ls)), (Left (r1, rs))) -> Left (l1, ls ++ r1 : rs)
+      (Left l, Right _) -> Left l
+      (Right _, Left r) -> Left r
+      (Right l, Right r) -> Right (l : r)
+
+pstgMetaFromPostingA
+  :: Located PostingA
+  -> Either (ConvertE, [ConvertE]) PstgMeta
+pstgMetaFromPostingA (Located lcp pa) = case pa of
+  PostingTrioFirst (Located _ trioA) Nothing ->
+    Right (PstgMeta [] (c'Trio'TrioA trioA))
+  PostingTrioFirst (Located _ trioA) (Just (Bs _ bf)) ->
+    case c'ListTree'BracketedForest bf of
+      Left e -> Left e
+      Right g -> Right $ PstgMeta (locationTree lcp : g) (c'Trio'TrioA trioA)
+  PostingNoTrio bf -> fmap f (c'ListTree'BracketedForest bf)
+    where
+      f ts = PstgMeta (locationTree lcp : ts) E
+
+
+entsFromPostingA
+  :: Located PostingA
+  -> Ents PstgMeta
+  -> Either (ConvertE, [ConvertE]) (Ents PstgMeta)
+entsFromPostingA (Located lcp pa) ents =
+  case (prependTrio tri ents, eiForest) of
+    (Left triE, Left (e1, es)) -> Left (TrioE triE pa, e1:es)
+    (Left triE, Right _) -> Left (TrioE triE pa, [])
+    (Right _, Left e) -> Left e
+    (Right mkEnts, Right ts) -> Right
+      (mkEnts (PstgMeta (locationTree lcp : ts) tri))
+    where
+      (eiForest, tri) = case pa of
+        PostingTrioFirst (Located _ trioA) Nothing ->
+          (Right [], c'Trio'TrioA trioA)
+        PostingTrioFirst (Located _ trioA) (Just (Bs _ bf))
+          -> (c'ListTree'BracketedForest bf, c'Trio'TrioA trioA)
+        PostingNoTrio bf -> (c'ListTree'BracketedForest bf, E)
+
+addLocationToEnts :: LineColPosA -> Ents PstgMeta -> Ents PstgMeta
+addLocationToEnts lcp = fmap f
+  where
+    f (PstgMeta ts tri) = PstgMeta (locationTree lcp : ts) tri
+
+entsFromPostingList
+  :: PostingList
+  -> Either (ConvertE, [ConvertE]) (Balanced PstgMeta)
+entsFromPostingList pstgList = case pstgList of
+  OnePosting pstg -> case entsFromPostingA pstg mempty of
+    Left e -> Left e
+    Right ents -> case entsToBalanced ents of
+      Left e -> Left (ImbalancedE e pstgList, [])
+      Right bal -> return bal
+
+  PostingList p1 _ ps1 pss -> finish . foldr f (Right mempty)
+    $ (p1 : ps1' : pss')
+    where
+      getP (Bs _ p) = p
+      ps1' = getP ps1
+      pss' = map (getP . snd) pss
+      finish ei = case ei of
+        Left e -> Left e
+        Right g -> case entsToBalanced g of
+          Left e -> Left (ImbalancedE e pstgList, [])
+          Right bal -> Right bal
+      f = undefined
+

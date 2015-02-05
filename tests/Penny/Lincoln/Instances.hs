@@ -115,14 +115,16 @@ $(derive makeArbitrary ''Exch)
 
 -- Field
 $(derive makeArbitrary ''Scalar)
+$(derive makeArbitrary ''Realm)
 
 instance Arbitrary Tree where
   arbitrary = sized go
     where
       go sz = do
         sc <- arbitrary
+        rlm <- arbitrary
         cs <- resize (sz `div` 2) arbitrary
-        return $ Tree sc cs
+        return $ Tree rlm sc cs
 
 -- Natural
 instance Arbitrary Positive where

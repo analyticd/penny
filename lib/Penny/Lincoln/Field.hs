@@ -4,15 +4,19 @@ module Penny.Lincoln.Field where
 import Data.Text
 import Penny.Lincoln.DateTime
 
-data Tree = Tree Scalar [Tree]
+data Tree = Tree Realm Scalar [Tree]
   deriving (Eq, Ord, Show)
 
-scalarChild :: (Field a, Field b) => a -> b -> Tree
-scalarChild s1 s2 = Tree (field s1) [Tree (field s2) []]
+scalarChild :: (Field a, Field b) => Realm -> a -> b -> Tree
+scalarChild rlm s1 s2 = Tree rlm (field s1)
+  [Tree rlm (field s2) []]
 
 
-treeChildren :: Field a => a -> [Tree] -> Tree
-treeChildren s1 = Tree (field s1)
+treeChildren :: Field a => Realm -> a -> [Tree] -> Tree
+treeChildren rlm s1 = Tree rlm (field s1)
+
+data Realm = User | System
+  deriving (Eq, Ord, Show)
 
 data Scalar
   = Chars Text

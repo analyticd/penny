@@ -122,13 +122,13 @@ makeFwd :: State Integer Tree
 makeFwd = do
   this <- get
   modify succ
-  return $ scalarChild "forward" this
+  return $ scalarChild System "forward" this
 
 makeRev :: State Integer Tree
 makeRev = do
   modify pred
   this <- get
-  return $ scalarChild "reverse" this
+  return $ scalarChild System "reverse" this
 
 makeTxnSerials
   :: (T.Traversable t1, T.Traversable t2)
@@ -140,7 +140,7 @@ makeTxnSerials
   . makeGlobalTxnSerials
   where
     repack (GlblSer glbl, FileSer file) =
-      Serial $ treeChildren "transaction" [glbl, file]
+      Serial $ treeChildren System "transaction" [glbl, file]
 
 
 makeGlobalTxnSerials
@@ -174,7 +174,7 @@ makePstgSerials
   . fmap (fmap (second makeIndexSerials))
   where
     repack (((b, IndexSer i), FileSer f), GlblSer g) =
-      (b, Serial $ treeChildren "serials" [g, f, i])
+      (b, Serial $ treeChildren System "serials" [g, f, i])
 
 
 newtype GlblSer = GlblSer Tree
@@ -219,7 +219,7 @@ assignToFwd = keepFst makeFwd
 assignToRev :: String -> (Tree -> b) -> (a, Tree) -> State Integer (a, b)
 assignToRev lbl mkB (a, fwd) = do
   tree <- makeRev
-  let tree' = treeChildren lbl [fwd, tree]
+  let tree' = treeChildren System lbl [fwd, tree]
   return (a, mkB tree')
 
 secondM :: Monad m => (a -> m b) -> (d, a) -> m (d, b)
@@ -253,4 +253,4 @@ mapGlobalPstgRev m comb = T.mapM (T.mapM f)
 wrapTree :: String -> (Tree -> a) -> Tree -> Tree -> a
 wrapTree lbl wrp t1 t2 = wrp tre
   where
-    tre = treeChildren lbl [t1, t2]
+    tre = treeChildren System lbl [t1, t2]
