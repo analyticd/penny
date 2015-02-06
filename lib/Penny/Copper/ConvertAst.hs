@@ -270,17 +270,18 @@ c'TopLine'TopLineA (TopLineA t1 list)
 
 pstgMetaFromPostingA
   :: Located PostingA
-  -> Either (ConvertE, [ConvertE]) PstgMeta
+  -> Either (ConvertE, [ConvertE]) (LineColPosA, PstgMeta)
 pstgMetaFromPostingA (Located lcp pa) = case pa of
   PostingTrioFirst (Located _ trioA) Nothing ->
-    Right (PstgMeta [] (c'Trio'TrioA trioA))
+    Right (lcp, PstgMeta [] (c'Trio'TrioA trioA))
   PostingTrioFirst (Located _ trioA) (Just (Bs _ bf)) ->
     case c'ListTree'BracketedForest bf of
       Left e -> Left e
-      Right g -> Right $ PstgMeta (locationTree lcp : g) (c'Trio'TrioA trioA)
+      Right g -> Right
+        (lcp, PstgMeta (locationTree lcp : g) (c'Trio'TrioA trioA))
   PostingNoTrio bf -> fmap f (c'ListTree'BracketedForest bf)
     where
-      f ts = PstgMeta (locationTree lcp : ts) E
+      f ts = (lcp, PstgMeta (locationTree lcp : ts) E)
 
 
 entsFromPostingA
