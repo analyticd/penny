@@ -4,11 +4,34 @@ module Penny.Copper.LincolnTypes where
 
 import Control.Applicative
 import Data.Sequence (Seq)
-import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
+import Text.ParserCombinators.UU.BasicInstances -- hiding (Parser)
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
-import Penny.Copper.Parser
+--import Penny.Copper.Parser
+
+pD0z :: Parser D0z
+pD0z = D0z'0 <$ pSym '0'
+
+rD0z :: D0z -> ShowS
+rD0z D0z'0 = ('0':)
+
+pD8 :: Parser D8
+pD8 =
+  (D8'1 <$ pSym '1')
+  <|> (D8'2 <$ pSym '2')
+  <|> (D8'3 <$ pSym '3')
+  <|> (D8'4 <$ pSym '4')
+  <|> (D8'5 <$ pSym '5')
+  <|> (D8'6 <$ pSym '6')
+  <|> (D8'7 <$ pSym '7')
+  <|> (D8'8 <$ pSym '8')
+
+
+rD8 :: D8 -> ShowS
+rD8 n = case n of
+  { D8'1 -> ('1':); D8'2 -> ('2':); D8'3 -> ('3':); D8'4 -> ('4':);
+    D8'5 -> ('5':); D8'6 -> ('6':); D8'7 -> ('7':); D8'8 -> ('8':) }
 
 pD9 :: Parser D9
 pD9 =

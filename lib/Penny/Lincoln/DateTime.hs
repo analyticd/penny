@@ -1,6 +1,7 @@
 module Penny.Lincoln.DateTime
   ( Date
   , fromGregorian
+  , c'Date'Day
   , dateToDay
   , Time(..)
   , DateTime(..)
@@ -21,6 +22,9 @@ newtype Date = Date { dateToDay :: T.Day }
 
 fromGregorian :: Integer -> Int -> Int -> Maybe Date
 fromGregorian y m d = fmap Date $ T.fromGregorianValid y m d
+
+c'Date'Day :: T.Day -> Date
+c'Date'Day = Date
 
 data Time = Time Hours Minutes Seconds
   deriving (Eq, Ord, Show)
