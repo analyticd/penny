@@ -16,15 +16,15 @@ import Penny.Copper.LincolnTypes
 import Test.Tasty.QuickCheck
 import Test.Tasty.TH
 
-propertiesTestGroup = $(testGroupGenerator)
+testGroup = $(testGroupGenerator)
 
-parse :: Parser a -> String -> (a, [Error LineColPosA])
+parse :: ParserL a -> String -> (a, [Error LineColPosA])
 parse prsr str = Text.ParserCombinators.UU.Core.parse
   ((,) <$> prsr <*> pEnd) (createStr (LineColPosA 0 0 0) str)
 
 renParse
   :: (Eq a, Show a)
-  => Parser a
+  => ParserL a
   -> (a -> ShowS)
   -> a
   -> Property

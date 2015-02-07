@@ -3,8 +3,8 @@ module Penny.Copper.Date where
 
 import Data.Time
 import Penny.Copper.Classes
--- import Penny.Copper.Parser
-import Text.ParserCombinators.UU.BasicInstances -- hiding (Parser)
+import Penny.Copper.Parser
+import Text.ParserCombinators.UU.BasicInstances
 import Control.Applicative
 import Penny.Copper.LincolnTypes
 import Penny.Lincoln
@@ -12,7 +12,7 @@ import Penny.Lincoln
 data DateSep = Slash | Hyphen
   deriving (Eq, Ord, Show)
 
-pDateSep :: Parser DateSep
+pDateSep :: ParserL DateSep
 pDateSep = Slash <$ pSym '/' <|> Hyphen <$ pSym '-'
 
 rDateSep :: DateSep -> ShowS
@@ -24,7 +24,7 @@ instance Renderable DateSep where render = rDateSep
 data One = One
   deriving (Eq, Ord, Show)
 
-pOne :: Parser One
+pOne :: ParserL One
 pOne = One <$ pSym '1'
 
 rOne :: One -> ShowS
@@ -39,7 +39,7 @@ data Two = Two
 instance Parseable Two where parser = pTwo
 instance Renderable Two where render = rTwo
 
-pTwo :: Parser Two
+pTwo :: ParserL Two
 pTwo = Two <$ pSym '2'
 
 rTwo :: Two -> ShowS
@@ -48,7 +48,7 @@ rTwo Two = ('2':)
 data Three = Three
   deriving (Eq, Ord, Show)
 
-pThree :: Parser Three
+pThree :: ParserL Three
 pThree = Three <$ pSym '3'
 
 rThree :: Three -> ShowS
@@ -60,7 +60,7 @@ instance Renderable Three where render = rThree
 data Four = Four
   deriving (Eq, Ord, Show)
 
-pFour :: Parser Four
+pFour :: ParserL Four
 pFour = Four <$ pSym '4'
 
 rFour :: Four -> ShowS
@@ -72,7 +72,7 @@ instance Renderable Four where render = rFour
 data Five = Five
   deriving (Eq, Ord, Show)
 
-pFive :: Parser Five
+pFive :: ParserL Five
 pFive = Five <$ pSym '5'
 
 rFive :: Five -> ShowS
@@ -84,7 +84,7 @@ instance Renderable Five where render = rFive
 data Six = Six
   deriving (Eq, Ord, Show)
 
-pSix :: Parser Six
+pSix :: ParserL Six
 pSix = Six <$ pSym '6'
 
 rSix :: Six -> ShowS
@@ -96,7 +96,7 @@ instance Renderable Six where render = rSix
 data Seven = Seven
   deriving (Eq, Ord, Show)
 
-pSeven :: Parser Seven
+pSeven :: ParserL Seven
 pSeven = Seven <$ pSym '7'
 
 rSeven :: Seven -> ShowS
@@ -108,7 +108,7 @@ instance Renderable Seven where render = rSeven
 data Eight = Eight
   deriving (Eq, Ord, Show)
 
-pEight :: Parser Eight
+pEight :: ParserL Eight
 pEight = Eight <$ pSym '8'
 
 rEight :: Eight -> ShowS
@@ -120,7 +120,7 @@ instance Renderable Eight where render = rEight
 data Nine = Nine
   deriving (Eq, Ord, Show)
 
-pNine :: Parser Nine
+pNine :: ParserL Nine
 pNine = Nine <$ pSym '9'
 
 rNine :: Nine -> ShowS
@@ -132,7 +132,7 @@ instance Renderable Nine where render = rNine
 data Days28
   = D28'1to9 D0z D9
   | D28'10to19 One D9z
-  | D28'20to28 Two D8
+  | D28'20to28 Two D8z
   deriving (Eq, Ord, Show)
 
 c'Days28'Int :: Integral a => a -> Maybe Days28
@@ -154,17 +154,17 @@ c'Int'Days28 day = case day of
   D28'10to19 _ d9z -> digitToInt d9z + 10
   D28'20to28 _ d8 -> digitToInt d8 + 20
 
-pDays28 :: Parser Days28
+pDays28 :: ParserL Days28
 pDays28
   = D28'1to9 <$> pD0z <*> pD9
   <|> D28'10to19 <$> pOne <*> pD9z
-  <|> D28'20to28 <$> pTwo <*> pD8
+  <|> D28'20to28 <$> pTwo <*> pD8z
 
 rDays28 :: Days28 -> ShowS
 rDays28 x = case x of
   D28'1to9 d0 d9 -> rD0z d0 . rD9 d9
   D28'10to19 o d9z -> rOne o . rD9z d9z
-  D28'20to28 t d8 -> rTwo t . rD8 d8
+  D28'20to28 t d8z -> rTwo t . rD8z d8z
 
 instance Parseable Days28 where parser = pDays28
 instance Renderable Days28 where render = rDays28
@@ -187,7 +187,7 @@ c'Int'Days30 days = case days of
   D30'29 _ _ -> 29
   D30'30 _ _ -> 30
 
-pDays30 :: Parser Days30
+pDays30 :: ParserL Days30
 pDays30
   = D30'28 <$> pDays28
   <|> D30'29 <$> pTwo <*> pNine
@@ -220,7 +220,7 @@ c'Int'Days31 days31 = case days31 of
   D31'30 d30 -> c'Int'Days30 d30
   D31'31 _ _ -> 31
 
-pDays31 :: Parser Days31
+pDays31 :: ParserL Days31
 pDays31
   = D31'30 <$> pDays30
   <|> D31'31 <$> pThree <*> pOne
@@ -244,6 +244,22 @@ data MonthDay
   | Nov One One       DateSep Days30
   | Dec One Two       DateSep Days31
   deriving (Eq, Ord, Show)
+
+instance SemanticEq MonthDay where
+  semanticEq a b = case (a, b) of
+    (Jan _ _ _ x, Jan _ _ _ y) -> x == y
+    (Feb _ _ _ x, Feb _ _ _ y) -> x == y
+    (Mar _ _ _ x, Mar _ _ _ y) -> x == y
+    (Apr _ _ _ x, Apr _ _ _ y) -> x == y
+    (May _ _ _ x, May _ _ _ y) -> x == y
+    (Jun _ _ _ x, Jun _ _ _ y) -> x == y
+    (Jul _ _ _ x, Jul _ _ _ y) -> x == y
+    (Aug _ _ _ x, Aug _ _ _ y) -> x == y
+    (Sep _ _ _ x, Sep _ _ _ y) -> x == y
+    (Oct _ _ _ x, Oct _ _ _ y) -> x == y
+    (Nov _ _ _ x, Nov _ _ _ y) -> x == y
+    (Dec _ _ _ x, Dec _ _ _ y) -> x == y
+    _ -> False
 
 c'MonthDay'Ints
   :: (Integral a, Integral b)
@@ -286,7 +302,7 @@ intsFromMonthDay md = case md of
   Nov _ _ _ d -> (11, c'Int'Days30 d)
   Dec _ _ _ d -> (12, c'Int'Days31 d)
 
-pMonthDay :: Parser MonthDay
+pMonthDay :: ParserL MonthDay
 pMonthDay =
   Jan <$> pD0z <*> pOne <*> pDateSep <*> pDays31
   <|> Feb <$> pD0z <*> pTwo <*> pDateSep <*> pDays28
@@ -323,7 +339,7 @@ instance Renderable MonthDay where render = rMonthDay
 data Year = Year D9z D9z D9z D9z
   deriving (Eq, Ord, Show)
 
-pYear :: Parser Year
+pYear :: ParserL Year
 pYear = Year <$> pD9z <*> pD9z <*> pD9z <*> pD9z
 
 rYear :: Year -> ShowS
@@ -355,7 +371,11 @@ c'Year'Int a
 data NonLeapDay = NonLeapDay Year DateSep MonthDay
   deriving (Eq, Ord, Show)
 
-pNonLeapDay :: Parser NonLeapDay
+instance SemanticEq NonLeapDay where
+  semanticEq (NonLeapDay yx _ mx) (NonLeapDay yy _ my)
+    = (yx == yy) && (mx `semanticEq` my)
+
+pNonLeapDay :: ParserL NonLeapDay
 pNonLeapDay = NonLeapDay <$> pYear <*> pDateSep <*> pMonthDay
 
 rNonLeapDay :: NonLeapDay -> ShowS
@@ -365,7 +385,8 @@ instance Parseable NonLeapDay where parser = pNonLeapDay
 instance Renderable NonLeapDay where render = rNonLeapDay
 
 data Mod4
-  = L04 Zero Four
+  = L00 Zero Zero
+  | L04 Zero Four
   | L08 Zero Eight
   | L12 One Two
   | L16 One Six
@@ -391,7 +412,7 @@ data Mod4
   | L96 Nine Six
   deriving (Eq, Ord, Show)
 
-pMod4 :: Parser Mod4
+pMod4 :: ParserL Mod4
 pMod4
   = L04 <$> pZero <*> pFour
   <|> L08 <$> pZero <*> pEight
@@ -420,7 +441,8 @@ pMod4
 
 rMod4 :: Mod4 -> ShowS
 rMod4 m4 = (++) $ case m4 of
-  { L04 _ _ -> "04"; L08 _ _ -> "08"; L12 _ _ -> "12"; L16 _ _ -> "16";
+  { L00 _ _ -> "00"; L04 _ _ -> "04"; L08 _ _ -> "08"; L12 _ _ -> "12";
+    L16 _ _ -> "16";
     L20 _ _ -> "20"; L24 _ _ -> "24"; L28 _ _ -> "28"; L32 _ _ -> "32";
     L36 _ _ -> "36"; L40 _ _ -> "40"; L44 _ _ -> "44"; L48 _ _ -> "48";
     L52 _ _ -> "52"; L56 _ _ -> "56"; L60 _ _ -> "60"; L64 _ _ -> "64";
@@ -432,7 +454,8 @@ instance Renderable Mod4 where render = rMod4
 
 c'Int'Mod4 :: Integral a => Mod4 -> a
 c'Int'Mod4 m4 = case m4 of
-  { L04 _ _ -> 04; L08 _ _ -> 08; L12 _ _ -> 12; L16 _ _ -> 16;
+  { L00 _ _ -> 00; L04 _ _ -> 04; L08 _ _ -> 08; L12 _ _ -> 12;
+    L16 _ _ -> 16;
     L20 _ _ -> 20; L24 _ _ -> 24; L28 _ _ -> 28; L32 _ _ -> 32;
     L36 _ _ -> 36; L40 _ _ -> 40; L44 _ _ -> 44; L48 _ _ -> 48;
     L52 _ _ -> 52; L56 _ _ -> 56; L60 _ _ -> 60; L64 _ _ -> 64;
@@ -441,6 +464,7 @@ c'Int'Mod4 m4 = case m4 of
 
 c'Mod4'Int :: Integral a => a -> Maybe Mod4
 c'Mod4'Int a = case a of
+  0 -> Just $ L00 Zero Zero
   4 -> Just $ L04 Zero Four
   8 -> Just $ L08 Zero Eight
   12 -> Just $ L12 One Two
@@ -490,7 +514,7 @@ c'Int'CenturyLeapYear :: Integral a => CenturyLeapYear -> a
 c'Int'CenturyLeapYear (CenturyLeapYear m4 _ _) =
   c'Int'Mod4 m4 * 100
 
-pCenturyLeapYear :: Parser CenturyLeapYear
+pCenturyLeapYear :: ParserL CenturyLeapYear
 pCenturyLeapYear = CenturyLeapYear <$> pMod4 <*> pD0z <*> pD0z
 
 rCenturyLeapYear :: CenturyLeapYear -> ShowS
@@ -522,7 +546,7 @@ c'Int'NonCenturyLeapYear (NonCenturyLeapYear d0 d1 m4)
   where
     places p d = digitToInt d * 10 ^ (p :: Int)
 
-pNonCenturyLeapYear :: Parser NonCenturyLeapYear
+pNonCenturyLeapYear :: ParserL NonCenturyLeapYear
 pNonCenturyLeapYear = NonCenturyLeapYear <$> pD9z <*> pD9z <*> pMod4
 
 rNonCenturyLeapYear :: NonCenturyLeapYear -> ShowS
@@ -537,7 +561,11 @@ data LeapDay = LeapDay
   Two Nine
   deriving (Eq, Ord, Show)
 
-pLeapDay :: Parser LeapDay
+instance SemanticEq LeapDay where
+  semanticEq (LeapDay eix _ _ _ _ _ _)
+             (LeapDay eiy _ _ _ _ _ _) = eix == eiy
+
+pLeapDay :: ParserL LeapDay
 pLeapDay
   = LeapDay
   <$> (Left <$> pCenturyLeapYear <|> Right <$> pNonCenturyLeapYear)
@@ -564,7 +592,10 @@ instance Renderable LeapDay where render = rLeapDay
 newtype DateA = DateA (Either NonLeapDay LeapDay)
   deriving (Eq, Ord, Show)
 
-pDateA :: Parser DateA
+instance SemanticEq DateA where
+  semanticEq (DateA x) (DateA y) = semanticEq x y
+
+pDateA :: ParserL DateA
 pDateA = DateA <$> (Left <$> pNonLeapDay <|> Right <$> pLeapDay)
 
 rDateA :: DateA -> ShowS
@@ -587,7 +618,7 @@ c'Day'DateA (DateA ei) = maybe (error "c'Day'DateA: error") id
 
 c'DateA'Day :: DateSep -> Day -> Maybe DateA
 c'DateA'Day sep dy
-  | d == 29 = fmap (DateA . Right) leapDay
+  | m == 2 && d == 29 = fmap (DateA . Right) leapDay
   | otherwise = fmap (DateA . Left) nonLeapDay
   where
     (y, m, d) = toGregorian dy
@@ -599,3 +630,4 @@ c'DateA'Day sep dy
       yr <- c'Year'Int y
       md <- c'MonthDay'Ints sep m d
       return $ NonLeapDay yr sep md
+

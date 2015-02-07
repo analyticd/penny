@@ -2,7 +2,7 @@
              MultiParamTypeClasses #-}
 module Penny.Copper.Parser where
 
-import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
+import Text.ParserCombinators.UU.BasicInstances
 import Text.ParserCombinators.UU.Core hiding (Zero)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -19,9 +19,9 @@ instance IsLocationUpdatedBy LineColPosA Char where
     '\t' -> LineColPosA lin (ps + 8 - (ps - 1) `mod` 8) (ab + 1)
     _ -> LineColPosA lin (ps + 1) (ab + 1)
 
-type Parser = P (Str Char String LineColPosA)
+type ParserL = P (Str Char String LineColPosA)
 
-pSeq :: Parser a -> Parser (Seq a)
+pSeq :: ParserL a -> ParserL (Seq a)
 pSeq p = fmap Seq.fromList $ many p
 
 rSeq :: (a -> ShowS) -> Seq a -> ShowS

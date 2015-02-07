@@ -11,25 +11,25 @@ import Penny.Copper.Terminals
 -- | Things that can be parsed.
 
 class Parseable a where
-  parser :: Parser a
+  parser :: ParserL a
 
 
 -- | Things that can be parsed, but they must be passed a parser for
 -- the radix point.
 class ParseableR a where
-  parserR :: Parser (Radix r) -> Parser (a r)
+  parserR :: ParserL (Radix r) -> ParserL (a r)
 
 -- | Things that can be parsed, but they must be passed a parser for a
 -- grouping character.
 
 class ParseableG a where
-  parserG :: Parser g -> Parser (a g)
+  parserG :: ParserL g -> ParserL (a g)
 
 -- | Things that can be parsed, but they must be passed a parser for a
 -- grouping character and a parser for the radix point.
 
 class ParseableRG a where
-  parserRG :: Parser (Radix g) -> Parser g -> Parser (a g)
+  parserRG :: ParserL (Radix g) -> ParserL g -> ParserL (a g)
 
 instance Parseable (Radix RadCom) where parser = pRadixRadCom
 instance Renderable (Radix RadCom) where render = rRadixRadCom

@@ -1,10 +1,12 @@
 {-# OPTIONS_GHC -fno-warn-unused-imports #-}
 module Main where
 
-import Test.QuickCheck
 import Test.Tasty
-import Penny.Copper.Properties
-import Penny.Copper.Date.Instances
+import qualified Penny.Copper.Properties
+import qualified Penny.Copper.Date.Properties
 
 main :: IO ()
-main = defaultMain $ testGroup "all tests" [propertiesTestGroup]
+main = defaultMain $ testGroup "all tests"
+  [ Penny.Copper.Properties.testGroup
+  , Penny.Copper.Date.Properties.testGroup
+  ]

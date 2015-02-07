@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts, RankNTypes #-}
 module Penny.Copper.Terminals
   ( -- * Comments
     ivlCommentChar
@@ -29,9 +30,8 @@ module Penny.Copper.Terminals
 
 import Penny.Copper.Intervals
 import Control.Applicative
-import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
+import Text.ParserCombinators.UU.BasicInstances
 import Text.ParserCombinators.UU.Core ((<?>))
-import Penny.Copper.Parser
 
 rangeToParser :: Intervals Char -> Parser Char
 rangeToParser i = case intervalsToTuples i of

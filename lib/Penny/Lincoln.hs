@@ -18,6 +18,7 @@ module Penny.Lincoln
     , module Penny.Lincoln.Prices
     , module Penny.Lincoln.Qty
     , module Penny.Lincoln.Rep
+    , module Penny.Lincoln.Semantic
     , module Penny.Lincoln.Side
     , module Penny.Lincoln.Transaction
     , module Penny.Lincoln.Trio
@@ -39,6 +40,7 @@ import Penny.Lincoln.PluMin
 import Penny.Lincoln.Prices
 import Penny.Lincoln.Qty
 import Penny.Lincoln.Rep
+import Penny.Lincoln.Semantic
 import Penny.Lincoln.Side
 import Penny.Lincoln.Transaction
 import Penny.Lincoln.Trio

@@ -7,6 +7,7 @@ import Penny.Lincoln.Instances ()
 import Penny.Copper.Date
 import Test.QuickCheck
 import Penny.Lincoln
+import Data.Time
 
 instance Arbitrary DateSep where
   arbitrary = elements [Slash, Hyphen]
@@ -109,3 +110,34 @@ instance Arbitrary LeapDay where
 
 instance Arbitrary DateA where
   arbitrary = DateA <$> arbitrary
+
+leapYears :: [Integer]
+leapYears = [ x | x <- [0..9999], isLeapYear x]
+
+newtype LeapDayHP = LeapDayHP Day
+  deriving (Eq, Ord, Show)
+
+instance Arbitrary LeapDayHP where
+  arbitrary = do
+    yr <- elements leapYears
+    return . LeapDayHP $ Data.Time.fromGregorian yr 2 29
+
+newtype NonLeapDayHP = NonLeapDayHP Day
+  deriving (Eq, Ord, Show)
+
+instance Arbitrary NonLeapDayHP where
+  arbitrary = do
+    y <- choose (0, 9999)
+    m <- choose (1, 12)
+    d <- choose (1, 31)
+    return . NonLeapDayHP $ Data.Time.fromGregorian y m d
+
+newtype DayHP = DayHP Day deriving (Eq, Ord, Show)
+
+instance Arbitrary DayHP where
+  arbitrary = do
+    d <- oneof
+      [ fmap (\(NonLeapDayHP d) -> d) arbitrary
+      , fmap (\(LeapDayHP d) -> d) arbitrary
+      ]
+    return $ DayHP d
