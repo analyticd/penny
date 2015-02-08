@@ -10,6 +10,60 @@ import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
 import Penny.Copper.Parser
 
+pOne :: ParserL One
+pOne = One <$ pSym '1'
+
+rOne :: One -> ShowS
+rOne One = ('1':)
+
+pTwo :: ParserL Two
+pTwo = Two <$ pSym '2'
+
+rTwo :: Two -> ShowS
+rTwo Two = ('2':)
+
+pThree :: ParserL Three
+pThree = Three <$ pSym '3'
+
+rThree :: Three -> ShowS
+rThree Three = ('3':)
+
+pFour :: ParserL Four
+pFour = Four <$ pSym '4'
+
+rFour :: Four -> ShowS
+rFour Four = ('4':)
+
+pFive :: ParserL Five
+pFive = Five <$ pSym '5'
+
+rFive :: Five -> ShowS
+rFive Five = ('5':)
+
+pSix :: ParserL Six
+pSix = Six <$ pSym '6'
+
+rSix :: Six -> ShowS
+rSix Six = ('6':)
+
+pSeven :: ParserL Seven
+pSeven = Seven <$ pSym '7'
+
+rSeven :: Seven -> ShowS
+rSeven Seven = ('7':)
+
+pEight :: ParserL Eight
+pEight = Eight <$ pSym '8'
+
+rEight :: Eight -> ShowS
+rEight Eight = ('8':)
+
+pNine :: ParserL Nine
+pNine = Nine <$ pSym '9'
+
+rNine :: Nine -> ShowS
+rNine Nine = ('9':)
+
 pD0z :: ParserL D0z
 pD0z = D0z'0 <$ pSym '0'
 

@@ -1,8 +1,54 @@
+-- | Representing digits.  There are two different groups of types in
+-- this module.  Each type in this module represents only a single
+-- digit.  The types with cardinal number names (such as 'One', 'Two',
+-- etc) represent a single digit, and the type itself has only one
+-- well-defined vaue.  The types that begin with @D@ (such as 'D1z' or
+-- 'D2') represent a single digit, but the type itself can have more
+-- than one well-defined value.  The @D@ types that do not end in @z@
+-- have values to represent any digit from 1 up to the given value;
+-- for example, @D9@ represents any digit from 1 to 9.  The @D@ types
+-- that end in @z@ are similar, but they can also represent the digit
+-- 0.
+
 module Penny.Lincoln.Rep.Digit where
+
+-- * Typeclass for any digit
 
 class Digit a where
   digitToInt :: Integral b => a -> b
   intToDigit :: Integral b => b -> Maybe a
+
+-- * Types that represent a single digit
+
+data One = One
+  deriving (Eq, Ord, Show)
+
+data Two = Two
+  deriving (Eq, Ord, Show)
+
+data Three = Three
+  deriving (Eq, Ord, Show)
+
+data Four = Four
+  deriving (Eq, Ord, Show)
+
+data Five = Five
+  deriving (Eq, Ord, Show)
+
+data Six = Six
+  deriving (Eq, Ord, Show)
+
+data Seven = Seven
+  deriving (Eq, Ord, Show)
+
+data Eight = Eight
+  deriving (Eq, Ord, Show)
+
+data Nine = Nine
+  deriving (Eq, Ord, Show)
+
+
+-- * Types that represent a range of digits
 
 data D0z = D0z'0
   deriving (Eq, Ord, Show)
