@@ -15,8 +15,8 @@ import Penny.Lincoln.Offset
 -- machine can handle before grinding to unusable slowness.)  The 'Eq'
 -- and 'Ord' instances are derived; therefore:
 --
--- >>> let twoPointZero = Decimal 20 . fromNovem $ D1
--- >>> let twoPointZeroZero = Decimal 200 . fromNovem $ D2
+-- >>> let twoPointZero = Decimal 20 . toPositive $ D9'1
+-- >>> let twoPointZeroZero = Decimal 200 . toPositive $ D9'2
 -- >>> twoPointZero == twoPointZeroZero
 -- False
 -- >>> twoPointZeroZero > twoPointZero
@@ -34,7 +34,7 @@ data Decimal
   --
   -- For example, @2.00@ is equal to
   --
-  -- > Decimal 200 . fromNovem $ D2
+  -- > Decimal 200 . toPositive $ D9'2
   deriving (Eq, Ord, Show)
 
 

@@ -105,6 +105,18 @@ data TrioError
   | UnsignedTooLarge RepNonNeutralNoSide QtyNonZero
   deriving (Eq, Ord, Show)
 
+
+friendlyTrioError :: TrioError -> [String]
+friendlyTrioError te = case te of
+  NoImbalances ->
+    [ "The posting you gave requires there to be a current imbalance,"
+    , "but the postings are perfectly balanced."
+    ]
+  MultipleImbalances i1 i2 is ->
+    [ "The posting you gave requires there to be exactly one commodity"
+    , "that is not balanced, but there are multiple imbalances."
+    ]
+
 qtyAndCommodityToEnt
   :: QtyRepAnyRadix
   -> Commodity
