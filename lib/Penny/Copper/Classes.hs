@@ -6,6 +6,7 @@ import Penny.Lincoln
 import Penny.Copper.LincolnTypes
 import Penny.Copper.Parser
 import Penny.Copper.Ast
+import Penny.Copper.Date
 import Penny.Copper.Terminals
 
 -- | Things that can be parsed.
@@ -72,12 +73,6 @@ instance Renderable DigitsFour where render = rDigitsFour
 
 instance Parseable Digits1or2 where parser = pDigits1or2
 instance Renderable Digits1or2 where render = rDigits1or2
-
-instance Parseable DateSep where parser = pDateSep
-instance Renderable DateSep where render = rDateSep
-
-instance Parseable DateA where parser = pDateA
-instance Renderable DateA where render = rDateA
 
 instance Parseable Colon where parser = pColon
 instance Renderable Colon where render = rColon
@@ -206,6 +201,9 @@ instance Renderable AtSign where render = rAtSign
 instance Parseable PriceA where parser = pPriceA
 instance Renderable PriceA where render = rPriceA
 
+instance Parseable CyExch where parser = pCyExch
+instance Renderable CyExch where render = rCyExch
+
 instance Parseable ExchA where parser = pExchA
 instance Renderable ExchA where render = rExchA
 
@@ -215,8 +213,8 @@ instance Renderable FileItem where render = rFileItem
 instance Parseable FileItems where parser = pFileItems
 instance Renderable FileItems where render = rFileItems
 
-instance Parseable File where parser = pFile
-instance Renderable File where render = rFile
+instance Parseable Ast where parser = pAst
+instance Renderable Ast where render = rAst
 
 instance Parseable D9 where parser = pD9
 instance Renderable D9 where render = rD9
@@ -235,9 +233,6 @@ instance Renderable D3z where render = rD3z
 
 instance Parseable D5z where parser = pD5z
 instance Renderable D5z where render = rD5z
-
-instance Parseable Two where parser = pTwo
-instance Renderable Two where render = rTwo
 
 instance Parseable HoursA where parser = pHoursA
 instance Renderable HoursA where render = rHoursA
@@ -313,4 +308,67 @@ instance RenderableR NilUngrouped where renderR = rNilUngrouped
 
 instance ParseableR BrimUngrouped where parserR = pBrimUngrouped
 instance RenderableR BrimUngrouped where renderR = rBrimUngrouped
+
+instance Parseable DateSep where parser = pDateSep
+instance Renderable DateSep where render = rDateSep
+
+instance Parseable One where parser = pOne
+instance Renderable One where render = rOne
+
+instance Parseable Two where parser = pTwo
+instance Renderable Two where render = rTwo
+
+instance Parseable Three where parser = pThree
+instance Renderable Three where render = rThree
+
+instance Parseable Four where parser = pFour
+instance Renderable Four where render = rFour
+
+instance Parseable Five where parser = pFive
+instance Renderable Five where render = rFive
+
+instance Parseable Six where parser = pSix
+instance Renderable Six where render = rSix
+
+instance Parseable Seven where parser = pSeven
+instance Renderable Seven where render = rSeven
+
+instance Parseable Eight where parser = pEight
+instance Renderable Eight where render = rEight
+
+instance Parseable Nine where parser = pNine
+instance Renderable Nine where render = rNine
+
+instance Parseable Days28 where parser = pDays28
+instance Renderable Days28 where render = rDays28
+
+instance Parseable Days30 where parser = pDays30
+instance Renderable Days30 where render = rDays30
+
+instance Parseable Days31 where parser = pDays31
+instance Renderable Days31 where render = rDays31
+
+instance Parseable MonthDay where parser = pMonthDay
+instance Renderable MonthDay where render = rMonthDay
+
+instance Parseable Year where parser = pYear
+instance Renderable Year where render = rYear
+
+instance Parseable NonLeapDay where parser = pNonLeapDay
+instance Renderable NonLeapDay where render = rNonLeapDay
+
+instance Parseable Mod4 where parser = pMod4
+instance Renderable Mod4 where render = rMod4
+
+instance Parseable CenturyLeapYear where parser = pCenturyLeapYear
+instance Renderable CenturyLeapYear where render = rCenturyLeapYear
+
+instance Parseable NonCenturyLeapYear where parser = pNonCenturyLeapYear
+instance Renderable NonCenturyLeapYear where render = rNonCenturyLeapYear
+
+instance Parseable LeapDay where parser = pLeapDay
+instance Renderable LeapDay where render = rLeapDay
+
+instance Parseable DateA where parser = pDateA
+instance Renderable DateA where render = rDateA
 

@@ -125,10 +125,14 @@ main = defaultMain $ do
         ++ commonOptions
       , githubHead "massysett" "penny"
       , executable "copper-parse" $
-          otherModules libMods
-        : hsSourceDirs ["copper-parse"]
-        : buildDepends libraryDepends
-        : mainIs "copper-parse.hs"
-        : commonOptions
+          [ mainIs "copper-parse.hs"
+          , condBlock (flag copper)
+              ( otherModules libMods
+              , [ hsSourceDirs ["copper-parse"]
+                , buildDepends libraryDepends
+                ] ++ commonOptions
+              )
+              [ buildable False ]
+          ]
       ]
     )

@@ -10,6 +10,7 @@ import Penny.Copper.Intervals
 import Data.DeriveTH
 import Penny.Copper.Ast
 import Penny.Lincoln.Instances ()
+import Penny.Copper.Date.Instances ()
 
 -- Terminals
 
@@ -46,10 +47,7 @@ $(derive makeArbitrary ''Newline)
 $(derive makeArbitrary ''Comment)
 $(derive makeArbitrary ''DigitsFour)
 $(derive makeArbitrary ''Digits1or2)
-$(derive makeArbitrary ''DateSep)
-$(derive makeArbitrary ''DateA)
 $(derive makeArbitrary ''Colon)
-$(derive makeArbitrary ''Two)
 $(derive makeArbitrary ''HoursA)
 $(derive makeArbitrary ''TimeA)
 $(derive makeArbitrary ''ZoneA)
@@ -96,10 +94,11 @@ $(derive makeArbitrary ''PostingList)
 $(derive makeArbitrary ''TransactionA)
 $(derive makeArbitrary ''AtSign)
 $(derive makeArbitrary ''PriceA)
+$(derive makeArbitrary ''CyExch)
 $(derive makeArbitrary ''ExchA)
 $(derive makeArbitrary ''FileItem)
 $(derive makeArbitrary ''FileItems)
-$(derive makeArbitrary ''File)
+$(derive makeArbitrary ''Ast)
 
 -- Intervals
 instance (Arbitrary a, Ord a) => Arbitrary (Interval a) where

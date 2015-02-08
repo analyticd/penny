@@ -188,12 +188,6 @@ prop_DigitsFour = testR
 prop_Digits1or2 :: Digits1or2 -> Property
 prop_Digits1or2 = testR
 
-prop_DateSep :: DateSep -> Property
-prop_DateSep = testR
-
-prop_DateA :: DateA -> Property
-prop_DateA = testR
-
 prop_Colon :: Colon -> Property
 prop_Colon = testR
 
@@ -338,14 +332,17 @@ prop_PriceA = testR
 prop_ExchA :: ExchA -> Property
 prop_ExchA = testR
 
+prop_CyExch :: CyExch -> Property
+prop_CyExch = testR
+
 prop_FileItem :: FileItem -> Property
 prop_FileItem = testR
 
 prop_FileItems :: FileItems -> Property
 prop_FileItems = testR
 
-prop_File :: File -> Property
-prop_File = testR
+prop_Ast :: Ast -> Property
+prop_Ast = testR
 
 --
 -- Other properties

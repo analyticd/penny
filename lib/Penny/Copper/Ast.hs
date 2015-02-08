@@ -8,6 +8,7 @@ import Penny.Lincoln
 import Penny.Copper.Terminals
 import Penny.Copper.Parser
 import Penny.Copper.LincolnTypes
+import Penny.Copper.Date
 
 data Located a = Located LineColPosA a
   deriving (Eq, Ord, Show)
@@ -106,28 +107,6 @@ pDigits1or2 = Digits1or2 <$> pD9z <*> optional pD9z
 rDigits1or2 :: Digits1or2 -> ShowS
 rDigits1or2 (Digits1or2 d0 m1) = rD9z d0 . rMaybe rD9z m1
 
-data DateSep = DateSlash | DateHyphen
-  deriving (Eq, Ord, Show)
-
-data DateA = DateA
-  LineColPosA DigitsFour DateSep Digits1or2 DateSep Digits1or2
-  deriving (Eq, Ord, Show)
-
-pDateSep :: ParserL DateSep
-pDateSep = DateSlash <$ pSym '/' <|> DateHyphen <$ pSym '-'
-
-rDateSep :: DateSep -> ShowS
-rDateSep DateSlash = ('/':)
-rDateSep DateHyphen = ('-':)
-
-pDateA :: ParserL DateA
-pDateA = DateA <$> pPos <*> pDigitsFour <*> pDateSep
-               <*> pDigits1or2 <*> pDateSep <*> pDigits1or2
-
-rDateA :: DateA -> ShowS
-rDateA (DateA _ d0 s1 d2 s3 d4) = rDigitsFour d0 . rDateSep s1
-  . rDigits1or2 d2 . rDateSep s3 . rDigits1or2 d4
-
 data Colon = Colon
   deriving (Eq, Ord, Show)
 
@@ -184,15 +163,6 @@ rD5z x = case x of
   D5z'3 -> ('3':)
   D5z'4 -> ('4':)
   D5z'5 -> ('5':)
-
-data Two = Two
-  deriving (Eq, Ord, Show)
-
-pTwo :: ParserL Two
-pTwo = Two <$ pSym '2'
-
-rTwo :: Two -> ShowS
-rTwo Two = ('2':)
 
 data HoursA
   = H0to19a (Maybe D1z) D9z
@@ -789,20 +759,20 @@ pAtSign = AtSign <$ pSym '@'
 rAtSign :: AtSign -> ShowS
 rAtSign AtSign = ('@':)
 
-data PriceA = PriceA (Fs AtSign) (Located DateA) Whites
+data PriceA = PriceA LineColPosA (Fs AtSign) (Located DateA) Whites
   (Maybe (Located (TimeA, Whites))) (Maybe (Located (ZoneA, Whites)))
-  CommodityA Whites ExchA
+  CommodityA Whites CyExch
   deriving (Eq, Ord, Show)
 
 pPriceA :: ParserL PriceA
-pPriceA = PriceA <$> pFs pAtSign <*> pLocated pDateA
+pPriceA = PriceA <$> pPos <*> pFs pAtSign <*> pLocated pDateA
   <*> pWhites
   <*> optional (pLocated ((,) <$> pTimeA <*> pWhites))
   <*> optional (pLocated ((,) <$> pZoneA <*> pWhites))
-  <*> pCommodityA <*> pWhites <*> pExchA
+  <*> pCommodityA <*> pWhites <*> pCyExch
 
 rPriceA :: PriceA -> ShowS
-rPriceA (PriceA a0 l1 w2 m3 m4 c5 w6 e7)
+rPriceA (PriceA _ a0 l1 w2 m3 m4 c5 w6 e7)
   = rFs rAtSign a0
   . rLocated rDateA l1
   . rWhites w2
@@ -810,25 +780,36 @@ rPriceA (PriceA a0 l1 w2 m3 m4 c5 w6 e7)
   . rMaybe (rLocated (\(z, w) -> rZoneA z . rWhites w)) m4
   . rCommodityA c5
   . rWhites w6
-  . rExchA e7
+  . rCyExch e7
 
 data ExchA
-  = ExchACy (Fs CommodityA) (Maybe (Fs PluMin)) NeutralOrNon
-  | ExchAQty (Maybe (Fs PluMin)) (Fs NeutralOrNon) CommodityA
+  = ExchANeutral Neutral
+  | ExchANonNeutral (Maybe (Fs PluMin)) NonNeutral
   deriving (Eq, Ord, Show)
 
 pExchA :: ParserL ExchA
-pExchA = ExchACy <$> pFs pCommodityA <*> optional (pFs pPluMin)
-               <*> pNeutralOrNon
-  <|> ExchAQty <$> optional (pFs pPluMin) <*> pFs pNeutralOrNon
-               <*> pCommodityA
+pExchA = ExchANeutral <$> pNeutral
+  <|> ExchANonNeutral <$> optional (pFs pPluMin) <*> pNonNeutral
 
 rExchA :: ExchA -> ShowS
 rExchA exch = case exch of
-  ExchACy fs0 m1 n2 -> rFs rCommodityA fs0
-    . rMaybe (rFs rPluMin) m1 . rNeutralOrNon n2
-  ExchAQty m0 fs1 c2 -> rMaybe (rFs rPluMin) m0 . rFs rNeutralOrNon fs1
-    . rCommodityA c2
+  ExchANeutral n -> rNeutral n
+  ExchANonNeutral mayFs nn -> rMaybe (rFs rPluMin) mayFs . rNonNeutral nn
+
+data CyExch
+  = CyExchCy (Fs CommodityA) ExchA
+  | CyExchA (Fs ExchA) CommodityA
+  deriving (Eq, Ord, Show)
+
+pCyExch :: ParserL CyExch
+pCyExch = CyExchCy <$> pFs pCommodityA <*> pExchA
+  <|> CyExchA <$> pFs pExchA
+               <*> pCommodityA
+
+rCyExch :: CyExch -> ShowS
+rCyExch exch = case exch of
+  CyExchCy cy0 q1 -> rFs rCommodityA cy0 . rExchA q1
+  CyExchA q0 c1 -> rFs rExchA q0 . rCommodityA c1
 
 data FileItem = FileItem (Located (Either PriceA TransactionA))
   deriving (Eq, Ord, Show)
@@ -852,40 +833,40 @@ rFileItems :: FileItems -> ShowS
 rFileItems (FileItems i0 ls1)
   = rFileItem i0 . rList (\(w, i) -> rWhites w . rFileItem i) ls1
 
--- | Unlike every other production in this module, 'File' may produce
+-- | Unlike every other production in this module, 'Ast' may produce
 -- an empty input.
-data File
-  = FileNoLeadingWhite (Fs FileItems)
-  | FileLeadingWhite Whites (Maybe (Fs FileItems))
+data Ast
+  = AstNoLeadingWhite (Fs FileItems)
+  | AstLeadingWhite Whites (Maybe (Fs FileItems))
   | EmptyFile
   deriving (Eq, Ord, Show)
 
-pFile :: ParserL File
-pFile
-  = FileNoLeadingWhite <$> pFs pFileItems
-  <|> FileLeadingWhite <$> pWhites <*> (optional (pFs pFileItems))
+pAst :: ParserL Ast
+pAst
+  = AstNoLeadingWhite <$> pFs pFileItems
+  <|> AstLeadingWhite <$> pWhites <*> (optional (pFs pFileItems))
   <|> pure EmptyFile
 
-rFile :: File -> ShowS
-rFile fl = case fl of
-  FileNoLeadingWhite f0 -> rFs rFileItems f0
-  FileLeadingWhite w0 m1 -> rWhites w0 . rMaybe (rFs rFileItems) m1
+rAst :: Ast -> ShowS
+rAst fl = case fl of
+  AstNoLeadingWhite f0 -> rFs rFileItems f0
+  AstLeadingWhite w0 m1 -> rWhites w0 . rMaybe (rFs rFileItems) m1
   EmptyFile -> id
 
--- | Parses an entire 'File' from a string.
+-- | Parses an entire 'Ast' from a string.
 --
--- Returns the parsed 'File', any error messages, and any errors
+-- Returns the parsed 'Ast', any error messages, and any errors
 -- resulting because input was not parsed.  This parser is \"online\",
 -- so it lazily processes the input 'String'.  Thus it is possible to
--- traverse the result 'File' while lazily processing the input
+-- traverse the result 'Ast' while lazily processing the input
 -- 'String'.  Examining either final list of 'Error' will also cause
 -- the parse to proceed.  Therefore, to preserve laziness, handle the
--- result 'File' first, and then look for errors.
+-- result 'Ast' first, and then look for errors.
 --
 -- As this return type suggests, you will always get a result, even
 -- if the input contains errors; uu-parsinglib will make insertions
 -- or deletions to the text as it parses.  It will take whatever
--- steps are necessary to get a complete 'File'.  However such
+-- steps are necessary to get a complete 'Ast'.  However such
 -- changes will be indicated in the list of 'Error'.  This scheme
 -- delivers excellent error messages because instead of stopping an
 -- entire parse due to a single error, the parse will proceed to
@@ -893,9 +874,9 @@ rFile fl = case fl of
 -- first error might fix all the later ones, but at least this is
 -- left up to the user.
 
-parseFile
+parseAst
   :: String
-  -> (File, [Error LineColPosA], [Error LineColPosA])
-parseFile str = parse prsr (createStr (LineColPosA 1 0 0) str)
+  -> (Ast, [Error LineColPosA], [Error LineColPosA])
+parseAst str = parse prsr (createStr (LineColPosA 1 0 0) str)
   where
-    prsr = (,,) <$> pFile <*> pErrors <*> pEnd
+    prsr = (,,) <$> pAst <*> pErrors <*> pEnd

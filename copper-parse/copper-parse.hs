@@ -12,7 +12,7 @@ main :: IO ()
 main = do
   (fn:[]) <- getArgs
   input <- readFile fn
-  let (r, ers, leftover) = parseFile input
+  let (r, ers, leftover) = parseAst input
   putStrLn . show $ r
   when (not . null $ ers) $ do
     IO.hPutStrLn IO.stderr "Errors:"

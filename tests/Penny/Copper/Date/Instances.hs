@@ -10,7 +10,7 @@ import Penny.Lincoln
 import Data.Time
 
 instance Arbitrary DateSep where
-  arbitrary = elements [Slash, Hyphen]
+  arbitrary = elements [ DateSlash, DateHyphen ]
 
 instance Arbitrary One where arbitrary = return One
 instance Arbitrary Two where arbitrary = return Two

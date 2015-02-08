@@ -1,14 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Copper.ConvertAst where
 
+import Control.Arrow (first)
 import Penny.Lincoln
 import Penny.Copper.Ast
+import Penny.Copper.Date
 import Penny.Copper.Parser
 import Penny.Copper.Terminals
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Maybe (mapMaybe, isJust)
 import Data.Monoid
+import Data.Foldable (foldrM)
 
 decimalPlace :: (Digit a, Integral b) => Int -> a -> b
 decimalPlace pl dig = digitToInt dig * 10 ^ pl
@@ -26,18 +29,10 @@ c'Int'Digits1or2 (Digits1or2 l mayR) = case mayR of
   Just r -> decimalPlace 1 l + decimalPlace 0 r
 
 data ConvertE
-  = DateE DateA
-  -- ^ Bad Date
-  | TrioE TrioError PostingA
+  = TrioE TrioError (Located PstgMeta)
   | ImbalancedE ImbalancedError PostingList
+  | PriceSameCommodityE LineColPosA FromCy
   deriving (Eq, Ord, Show)
-
-c'Date'DateA :: DateA -> Either ConvertE Date
-c'Date'DateA a@(DateA _ y _ m _ d)
-  = maybe (Left $ DateE a) Right
-  $ fromGregorian (c'Int'DigitsFour y)
-                  (c'Int'Digits1or2 m)
-                  (c'Int'Digits1or2 d)
 
 c'Hours'HoursA :: HoursA -> Hours
 c'Hours'HoursA x = case x of
@@ -194,14 +189,14 @@ c'Integer'IntegerA (IntegerA ei) = case ei of
         Just Minus -> negate
         Just Plus -> id
 
-c'Scalar'ScalarA :: ScalarA -> Either ConvertE Scalar
+c'Scalar'ScalarA :: ScalarA -> Scalar
 c'Scalar'ScalarA sclr = case sclr of
-  ScalarUnquotedString us -> Right . Chars . c'Text'UnquotedString $ us
-  ScalarQuotedString qs -> Right . Chars . c'Text'QuotedString $ qs
-  ScalarDate dt -> fmap SDate . c'Date'DateA $ dt
-  ScalarTime t -> Right . STime . c'Time'TimeA $ t
-  ScalarZone (ZoneA _ z) -> Right . SZone $ z
-  ScalarInt i -> Right . SInt . c'Integer'IntegerA $ i
+  ScalarUnquotedString us -> Chars . c'Text'UnquotedString $ us
+  ScalarQuotedString qs -> Chars . c'Text'QuotedString $ qs
+  ScalarDate dt -> SDate . c'Date'Day . c'Day'DateA $ dt
+  ScalarTime t -> STime . c'Time'TimeA $ t
+  ScalarZone (ZoneA _ z) -> SZone $ z
+  ScalarInt i -> SInt . c'Integer'IntegerA $ i
 
 
 arrangement :: Maybe a -> Orient -> Arrangement
@@ -229,79 +224,47 @@ locationTree (LineColPosA lin col pos)
   where
     sys = Tree System
 
-c'Tree'TreeA :: TreeA -> Either (ConvertE, [ConvertE]) Tree
-c'Tree'TreeA (TreeA (Located loc scl) mayBs)
-  = case (scl', bkt) of
-      (Left l, Left (r1, rs)) -> Left (l, r1:rs)
-      (Left l, Right _) -> Left (l, [])
-      (Right _, Left (r1, rs)) -> Left (r1, rs)
-      (Right sc, Right rs) ->
-        Right $ Tree User sc (locationTree loc : rs)
+c'Tree'TreeA :: TreeA -> Tree
+c'Tree'TreeA (TreeA (Located loc scl) mayBs) =
+  Tree User scl' (locationTree loc : rs)
   where
     scl' = c'Scalar'ScalarA scl
-    bkt = maybe (Right [])
-      (\(Bs _ bf) -> c'ListTree'BracketedForest bf) mayBs
+    rs = maybe [] (\(Bs _ bf) -> c'ListTree'BracketedForest bf) mayBs
 
 c'ListTree'BracketedForest
   :: BracketedForest
-  -> Either (ConvertE, [ConvertE]) [Tree]
+  -> [Tree]
 c'ListTree'BracketedForest (BracketedForest _ mayF _) = case mayF of
-  Nothing -> Right []
-  Just (Fs (ForestA t1 ts) _) ->
-    foldr f (Right []) (t1: map snd ts)
-    where
-      f t ei = case c'Tree'TreeA t of
-        Left (l1, ls) -> case ei of
-          Left (r1, rs) -> Left (l1, ls ++ r1 : rs)
-          Right _ -> Left (l1, ls)
-        Right l -> case ei of
-          Left (r1, rs) -> Left (r1, rs)
-          Right r -> Right $ l : r
+  Nothing -> []
+  Just (Fs (ForestA t1 ts) _) -> map c'Tree'TreeA . (t1 :) . map snd $ ts
 
-c'TopLine'TopLineA :: TopLineA -> Either (ConvertE, [ConvertE]) TopLine
+c'TopLine'TopLineA :: TopLineA -> TopLine
 c'TopLine'TopLineA (TopLineA t1 list)
-  = fmap TopLine . foldr f (Right []) . (t1:) . map snd $ list
+  = TopLine . map c'Tree'TreeA . (t1 : ) . map snd $ list
+
+c'LocatedPstgMeta'LocatedPostingA
+  :: Located PostingA
+  -> Located PstgMeta
+c'LocatedPstgMeta'LocatedPostingA lctd@(Located lcp _) = fmap f lctd
   where
-    f t rest = case (c'Tree'TreeA t, rest) of
-      ((Left (l1, ls)), (Left (r1, rs))) -> Left (l1, ls ++ r1 : rs)
-      (Left l, Right _) -> Left l
-      (Right _, Left r) -> Left r
-      (Right l, Right r) -> Right (l : r)
-
-pstgMetaFromPostingA
-  :: Located PostingA
-  -> Either (ConvertE, [ConvertE]) (LineColPosA, PstgMeta)
-pstgMetaFromPostingA (Located lcp pa) = case pa of
-  PostingTrioFirst (Located _ trioA) Nothing ->
-    Right (lcp, PstgMeta [] (c'Trio'TrioA trioA))
-  PostingTrioFirst (Located _ trioA) (Just (Bs _ bf)) ->
-    case c'ListTree'BracketedForest bf of
-      Left e -> Left e
-      Right g -> Right
-        (lcp, PstgMeta (locationTree lcp : g) (c'Trio'TrioA trioA))
-  PostingNoTrio bf -> fmap f (c'ListTree'BracketedForest bf)
-    where
-      f ts = (lcp, PstgMeta (locationTree lcp : ts) E)
+    f pa = case pa of
+      PostingTrioFirst (Located _ trioA) Nothing ->
+        PstgMeta [] (c'Trio'TrioA trioA)
+      PostingTrioFirst (Located _ trioA) (Just (Bs _ bf)) ->
+        PstgMeta (locationTree lcp : c'ListTree'BracketedForest bf)
+                 (c'Trio'TrioA trioA)
+      PostingNoTrio bf ->
+        PstgMeta (locationTree lcp : c'ListTree'BracketedForest bf) E
 
 
-entsFromPostingA
-  :: Located PostingA
+prependPstgToEnts
+  :: Located PstgMeta
   -> Ents PstgMeta
-  -> Either (ConvertE, [ConvertE]) (Ents PstgMeta)
-entsFromPostingA (Located lcp pa) ents =
-  case (prependTrio tri ents, eiForest) of
-    (Left triE, Left (e1, es)) -> Left (TrioE triE pa, e1:es)
-    (Left triE, Right _) -> Left (TrioE triE pa, [])
-    (Right _, Left e) -> Left e
-    (Right mkEnts, Right ts) -> Right
-      (mkEnts (PstgMeta (locationTree lcp : ts) tri))
-    where
-      (eiForest, tri) = case pa of
-        PostingTrioFirst (Located _ trioA) Nothing ->
-          (Right [], c'Trio'TrioA trioA)
-        PostingTrioFirst (Located _ trioA) (Just (Bs _ bf))
-          -> (c'ListTree'BracketedForest bf, c'Trio'TrioA trioA)
-        PostingNoTrio bf -> (c'ListTree'BracketedForest bf, E)
+  -> Either ConvertE (Ents PstgMeta)
+prependPstgToEnts lctd@(Located _ pm@(PstgMeta _ tri)) ents =
+  case prependTrio tri ents of
+    Left e -> Left $ TrioE e lctd
+    Right g -> Right (g pm)
 
 addLocationToEnts :: LineColPosA -> Ents PstgMeta -> Ents PstgMeta
 addLocationToEnts lcp = fmap f
@@ -310,24 +273,108 @@ addLocationToEnts lcp = fmap f
 
 entsFromPostingList
   :: PostingList
-  -> Either (ConvertE, [ConvertE]) (Balanced PstgMeta)
-entsFromPostingList pstgList = case pstgList of
-  OnePosting pstg -> case entsFromPostingA pstg mempty of
-    Left e -> Left e
-    Right ents -> case entsToBalanced ents of
-      Left e -> Left (ImbalancedE e pstgList, [])
-      Right bal -> return bal
+  -> Either ConvertE (Balanced PstgMeta)
+entsFromPostingList pstgList = do
+  let pstgs = case pstgList of
+        OnePosting pstg -> [pstg]
+        PostingList p1 _ (Bs _ p2) ps ->
+          p1 : p2 : map (\(_, Bs _ p) -> p) ps
+  ents <- foldrM prependPstgToEnts mempty
+    . map c'LocatedPstgMeta'LocatedPostingA
+    $ pstgs
+  case entsToBalanced ents of
+    Left e -> Left (ImbalancedE e pstgList)
+    Right g -> return g
 
-  PostingList p1 _ ps1 pss -> finish . foldr f (Right mempty)
-    $ (p1 : ps1' : pss')
-    where
-      getP (Bs _ p) = p
-      ps1' = getP ps1
-      pss' = map (getP . snd) pss
-      finish ei = case ei of
-        Left e -> Left e
-        Right g -> case entsToBalanced g of
-          Left e -> Left (ImbalancedE e pstgList, [])
-          Right bal -> Right bal
-      f = undefined
+c'Balanced'PostingsA :: PostingsA -> Either ConvertE (Balanced PstgMeta)
+c'Balanced'PostingsA (PostingsA _ may _) = case may of
+  Nothing -> return mempty
+  Just (Fs pl _) -> entsFromPostingList pl
 
+
+c'Transaction'TransactionA
+  :: TransactionA
+  -> Either ConvertE Transaction
+c'Transaction'TransactionA txn = case txn of
+  TransactionWithTopLine (Located _ tl) (Bs _ pstgs) -> do
+    bal <- c'Balanced'PostingsA pstgs
+    return $ Transaction (c'TopLine'TopLineA tl) bal
+  TransactionNoTopLine pstgs -> do
+    bal <- c'Balanced'PostingsA pstgs
+    return $ Transaction (TopLine []) bal
+
+c'Exch'Neutral :: Neutral -> Exch
+c'Exch'Neutral neu = case neu of
+  NeuCom _ nil -> toExch (ExchRep (NilOrBrimPolar (Center nil)))
+  NeuPer nil -> toExch (ExchRep (NilOrBrimPolar (Center nil)))
+
+c'Exch'NonNeutral :: Maybe PluMin -> NonNeutral -> Exch
+c'Exch'NonNeutral mp nn = case nn of
+  NonNeutralRadCom _ br ->
+    toExch (ExchRep (NilOrBrimPolar (OffCenter br pm)))
+  NonNeutralRadPer br ->
+    toExch (ExchRep (NilOrBrimPolar (OffCenter br pm)))
+  where
+    pm = case mp of
+      Nothing -> Plus
+      Just m -> m
+
+c'Exch'ExchA
+  :: ExchA
+  -> Exch
+c'Exch'ExchA exch = case exch of
+  ExchANeutral n -> c'Exch'Neutral n
+  ExchANonNeutral m n -> c'Exch'NonNeutral (fmap (\(Fs x _) -> x) m) n
+
+c'CommodityExch'CyExch :: CyExch -> (Commodity, Exch)
+c'CommodityExch'CyExch cye = (c'Commodity'CommodityA cy, c'Exch'ExchA ea)
+  where
+    (cy, ea) = case cye of
+      CyExchCy (Fs c _) e -> (c, e)
+      CyExchA (Fs e _) c -> (c, e)
+
+
+c'Price'PriceA :: PriceA -> Either ConvertE Price
+c'Price'PriceA
+  (PriceA lcp _ (Located _ dte) _ mayTime mayZone frA _ cyExch)
+  = case fromTo frCy toC of
+      Nothing -> Left $ PriceSameCommodityE lcp frCy
+      Just frTo -> Right $ Price dt frTo exch
+  where
+    frCy = FromCy . c'Commodity'CommodityA $ frA
+    (toC, exch) = first ToCy . c'CommodityExch'CyExch $ cyExch
+    ti = case mayTime of
+      Nothing -> midnight
+      Just (Located _ (t, _)) -> c'Time'TimeA t
+    zn = case mayZone of
+      Nothing -> utcZone
+      Just (Located _ (ZoneA _ z, _)) -> z
+    dt = DateTime (c'Date'Day . c'Day'DateA $ dte) ti zn
+
+c'Either'FileItem
+  :: FileItem
+  -> Either ConvertE (Either Price Transaction)
+c'Either'FileItem (FileItem (Located _ ei)) = case ei of
+  Left p -> fmap Left $ c'Price'PriceA p
+  Right t -> fmap Right $ c'Transaction'TransactionA t
+
+c'Eithers'FileItems
+  :: FileItems
+  -> Either (ConvertE, [ConvertE]) [Either Price Transaction]
+c'Eithers'FileItems (FileItems i1 is)
+  = foldr f (Right []) . (i1:) . map snd $ is
+  where
+    f item rest = case (c'Either'FileItem item, rest) of
+      (Right new, Right old) -> Right (new : old)
+      (Right _, Left ers) -> Left ers
+      (Left er, Right _) -> Left (er, [])
+      (Left er, Left (e1, ers)) -> Left (er, e1 : ers)
+
+convertItemsFromAst
+  :: Ast
+  -> Either (ConvertE, [ConvertE]) [Either Price Transaction]
+convertItemsFromAst f = case f of
+  AstNoLeadingWhite (Fs fi _) -> c'Eithers'FileItems fi
+  AstLeadingWhite _ Nothing -> Right []
+  AstLeadingWhite _ (Just (Fs fi _)) -> c'Eithers'FileItems fi
+  EmptyFile -> Right []

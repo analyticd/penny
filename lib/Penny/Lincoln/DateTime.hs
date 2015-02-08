@@ -4,12 +4,14 @@ module Penny.Lincoln.DateTime
   , c'Date'Day
   , dateToDay
   , Time(..)
+  , midnight
   , DateTime(..)
   , ZeroTo59(..)
   , Hours(..)
   , Minutes(..)
   , Seconds(..)
   , Zone(..)
+  , utcZone
   , dateTimeToUTC
   ) where
 
@@ -28,6 +30,11 @@ c'Date'Day = Date
 
 data Time = Time Hours Minutes Seconds
   deriving (Eq, Ord, Show)
+
+midnight :: Time
+midnight = Time (H0to19 (Just D1z'0) D9z'0)
+  (Minutes (ZeroTo59 (Just D5z'0) D9z'0))
+  (Seconds (ZeroTo59 (Just D5z'0) D9z'0))
 
 -- | An instant in time.  This is a local time.  The 'Eq' and 'Ord'
 -- instances are derived, so they aren't useful for determining
@@ -72,6 +79,9 @@ newtype Seconds = Seconds ZeroTo59
 
 data Zone = Zone PluMin D2z D3z D9z D9z
   deriving (Eq, Ord, Show)
+
+utcZone :: Zone
+utcZone = Zone Plus D2z'0 D3z'0 D9z'0 D9z'0
 
 c'Int'Zone :: Zone -> Int
 c'Int'Zone (Zone pm d3 d2 d1 d0)
