@@ -29,7 +29,7 @@ instance Arbitrary Days28 where
     , D28'20to28 <$> arbitrary <*> arbitrary
     ]
   shrink (D28'1to9 _ D9'1) = []
-  shrink _ = [D28'1to9 D0z'0 D9'1]
+  shrink _ = [D28'1to9 Zero D9'1]
 
 instance Arbitrary Days30 where
   arbitrary = oneof
@@ -38,7 +38,7 @@ instance Arbitrary Days30 where
     , D30'30 <$> arbitrary <*> arbitrary
     ]
   shrink (D30'28 d28) = map D30'28 $ shrink d28
-  shrink _ = [D30'28 (D28'1to9 D0z'0 D9'1)]
+  shrink _ = [D30'28 (D28'1to9 Zero D9'1)]
 
 instance Arbitrary Days31 where
   arbitrary = oneof
@@ -46,7 +46,7 @@ instance Arbitrary Days31 where
     , D31'31 <$> arbitrary <*> arbitrary
     ]
   shrink (D31'30 d30) = fmap D31'30 $ shrink d30
-  shrink _ = [D31'30 (D30'28 (D28'1to9 D0z'0 D9'1))]
+  shrink _ = [D31'30 (D30'28 (D28'1to9 Zero D9'1))]
 
 instance Arbitrary MonthDay where
   arbitrary = oneof

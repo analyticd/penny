@@ -18,7 +18,7 @@ rDateSep :: DateSep -> ShowS
 rDateSep x = case x of { DateSlash -> ('/':); DateHyphen -> ('-':) }
 
 data Days28
-  = D28'1to9 D0z D9
+  = D28'1to9 Zero D9
   | D28'10to19 One D9z
   | D28'20to28 Two D8z
   deriving (Eq, Ord, Show)
@@ -27,7 +27,7 @@ c'Days28'Int :: Integral a => a -> Maybe Days28
 c'Days28'Int a
   | a > 0 && a < 10 = do
       d <- intToDigit a
-      return $ D28'1to9 D0z'0 d
+      return $ D28'1to9 Zero d
   | a >= 10 && a < 20 = do
       d <- intToDigit (a - 10)
       return $ D28'10to19 One d
@@ -44,26 +44,26 @@ c'Int'Days28 day = case day of
 
 pDays28 :: ParserL Days28
 pDays28
-  = D28'1to9 <$> pD0z <*> pD9
+  = D28'1to9 <$> pZero <*> pD9
   <|> D28'10to19 <$> pOne <*> pD9z
   <|> D28'20to28 <$> pTwo <*> pD8z
 
 rDays28 :: Days28 -> ShowS
 rDays28 x = case x of
-  D28'1to9 d0 d9 -> rD0z d0 . rD9 d9
+  D28'1to9 d0 d9 -> rZero d0 . rD9 d9
   D28'10to19 o d9z -> rOne o . rD9z d9z
   D28'20to28 t d8z -> rTwo t . rD8z d8z
 
 data Days30
   = D30'28 Days28
   | D30'29 Two Nine
-  | D30'30 Three D0z
+  | D30'30 Three Zero
   deriving (Eq, Ord, Show)
 
 c'Days30'Int :: Integral a => a -> Maybe Days30
 c'Days30'Int a
   | a == 29 = Just $ D30'29 Two Nine
-  | a == 30 = Just $ D30'30 Three D0z'0
+  | a == 30 = Just $ D30'30 Three Zero
   | otherwise = fmap D30'28 $ c'Days28'Int a
 
 c'Int'Days30 :: Integral a => Days30 -> a
@@ -76,13 +76,13 @@ pDays30 :: ParserL Days30
 pDays30
   = D30'28 <$> pDays28
   <|> D30'29 <$> pTwo <*> pNine
-  <|> D30'30 <$> pThree <*> pD0z
+  <|> D30'30 <$> pThree <*> pZero
 
 rDays30 :: Days30 -> ShowS
 rDays30 x = case x of
   D30'28 d -> rDays28 d
   D30'29 t n -> rTwo t . rNine n
-  D30'30 t o -> rThree t . rD0z o
+  D30'30 t o -> rThree t . rZero o
 
 data Days31
   = D31'30 Days30
@@ -110,16 +110,16 @@ rDays31 x = case x of
   D31'31 t o -> rThree t . rOne o
 
 data MonthDay
-  = Jan D0z One       DateSep Days31
-  | Feb D0z Two       DateSep Days28
-  | Mar D0z Three     DateSep Days31
-  | Apr D0z Four      DateSep Days30
-  | May D0z Five      DateSep Days31
-  | Jun D0z Six       DateSep Days30
-  | Jul D0z Seven     DateSep Days31
-  | Aug D0z Eight     DateSep Days31
-  | Sep D0z Nine      DateSep Days30
-  | Oct One D0z       DateSep Days31
+  = Jan Zero One       DateSep Days31
+  | Feb Zero Two       DateSep Days28
+  | Mar Zero Three     DateSep Days31
+  | Apr Zero Four      DateSep Days30
+  | May Zero Five      DateSep Days31
+  | Jun Zero Six       DateSep Days30
+  | Jul Zero Seven     DateSep Days31
+  | Aug Zero Eight     DateSep Days31
+  | Sep Zero Nine      DateSep Days30
+  | Oct One Zero       DateSep Days31
   | Nov One One       DateSep Days30
   | Dec One Two       DateSep Days31
   deriving (Eq, Ord, Show)
@@ -149,16 +149,16 @@ c'MonthDay'Ints
   -- ^ Day
   -> Maybe MonthDay
 c'MonthDay'Ints sep m d
-  | m == 1 = (Jan D0z'0 One sep) <$> c'Days31'Int d
-  | m == 2 = (Feb D0z'0 Two sep) <$> c'Days28'Int d
-  | m == 3 = (Mar D0z'0 Three sep) <$> c'Days31'Int d
-  | m == 4 = (Apr D0z'0 Four sep) <$> c'Days30'Int d
-  | m == 5 = (May D0z'0 Five sep) <$> c'Days31'Int d
-  | m == 6 = (Jun D0z'0 Six sep) <$> c'Days30'Int d
-  | m == 7 = (Jul D0z'0 Seven sep) <$> c'Days31'Int d
-  | m == 8 = (Aug D0z'0 Eight sep) <$> c'Days31'Int d
-  | m == 9 = (Sep D0z'0 Nine sep) <$> c'Days30'Int d
-  | m == 10 = (Oct One D0z'0 sep) <$> c'Days31'Int d
+  | m == 1 = (Jan Zero One sep) <$> c'Days31'Int d
+  | m == 2 = (Feb Zero Two sep) <$> c'Days28'Int d
+  | m == 3 = (Mar Zero Three sep) <$> c'Days31'Int d
+  | m == 4 = (Apr Zero Four sep) <$> c'Days30'Int d
+  | m == 5 = (May Zero Five sep) <$> c'Days31'Int d
+  | m == 6 = (Jun Zero Six sep) <$> c'Days30'Int d
+  | m == 7 = (Jul Zero Seven sep) <$> c'Days31'Int d
+  | m == 8 = (Aug Zero Eight sep) <$> c'Days31'Int d
+  | m == 9 = (Sep Zero Nine sep) <$> c'Days30'Int d
+  | m == 10 = (Oct One Zero sep) <$> c'Days31'Int d
   | m == 11 = (Nov One One sep) <$> c'Days30'Int d
   | m == 12 = (Dec One Two sep) <$> c'Days31'Int d
   | otherwise = Nothing
@@ -183,31 +183,31 @@ intsFromMonthDay md = case md of
 
 pMonthDay :: ParserL MonthDay
 pMonthDay =
-  Jan <$> pD0z <*> pOne <*> pDateSep <*> pDays31
-  <|> Feb <$> pD0z <*> pTwo <*> pDateSep <*> pDays28
-  <|> Mar <$> pD0z <*> pThree <*> pDateSep <*> pDays31
-  <|> Apr <$> pD0z <*> pFour <*> pDateSep <*> pDays30
-  <|> May <$> pD0z <*> pFive <*> pDateSep <*> pDays31
-  <|> Jun <$> pD0z <*> pSix <*> pDateSep <*> pDays30
-  <|> Jul <$> pD0z <*> pSeven <*> pDateSep <*> pDays31
-  <|> Aug <$> pD0z <*> pEight <*> pDateSep <*> pDays31
-  <|> Sep <$> pD0z <*> pNine <*> pDateSep <*> pDays30
-  <|> Oct <$> pOne <*> pD0z <*> pDateSep <*> pDays31
+  Jan <$> pZero <*> pOne <*> pDateSep <*> pDays31
+  <|> Feb <$> pZero <*> pTwo <*> pDateSep <*> pDays28
+  <|> Mar <$> pZero <*> pThree <*> pDateSep <*> pDays31
+  <|> Apr <$> pZero <*> pFour <*> pDateSep <*> pDays30
+  <|> May <$> pZero <*> pFive <*> pDateSep <*> pDays31
+  <|> Jun <$> pZero <*> pSix <*> pDateSep <*> pDays30
+  <|> Jul <$> pZero <*> pSeven <*> pDateSep <*> pDays31
+  <|> Aug <$> pZero <*> pEight <*> pDateSep <*> pDays31
+  <|> Sep <$> pZero <*> pNine <*> pDateSep <*> pDays30
+  <|> Oct <$> pOne <*> pZero <*> pDateSep <*> pDays31
   <|> Nov <$> pOne <*> pOne <*> pDateSep <*> pDays30
   <|> Dec <$> pOne <*> pTwo <*> pDateSep <*> pDays31
 
 rMonthDay :: MonthDay -> ShowS
 rMonthDay md = case md of
-  Jan o0 o1 s d -> rD0z o0 . rOne o1 . rDateSep s . rDays31 d
-  Feb o0 o1 s d -> rD0z o0 . rTwo o1 . rDateSep s . rDays28 d
-  Mar o0 o1 s d -> rD0z o0 . rThree o1 . rDateSep s . rDays31 d
-  Apr o0 o1 s d -> rD0z o0 . rFour o1 . rDateSep s . rDays30 d
-  May o0 o1 s d -> rD0z o0 . rFive o1 . rDateSep s . rDays31 d
-  Jun o0 o1 s d -> rD0z o0 . rSix o1 . rDateSep s . rDays30 d
-  Jul o0 o1 s d -> rD0z o0 . rSeven o1 . rDateSep s . rDays31 d
-  Aug o0 o1 s d -> rD0z o0 . rEight o1 . rDateSep s . rDays31 d
-  Sep o0 o1 s d -> rD0z o0 . rNine o1 . rDateSep s . rDays30 d
-  Oct o0 o1 s d -> rOne o0 . rD0z o1 . rDateSep s . rDays31 d
+  Jan o0 o1 s d -> rZero o0 . rOne o1 . rDateSep s . rDays31 d
+  Feb o0 o1 s d -> rZero o0 . rTwo o1 . rDateSep s . rDays28 d
+  Mar o0 o1 s d -> rZero o0 . rThree o1 . rDateSep s . rDays31 d
+  Apr o0 o1 s d -> rZero o0 . rFour o1 . rDateSep s . rDays30 d
+  May o0 o1 s d -> rZero o0 . rFive o1 . rDateSep s . rDays31 d
+  Jun o0 o1 s d -> rZero o0 . rSix o1 . rDateSep s . rDays30 d
+  Jul o0 o1 s d -> rZero o0 . rSeven o1 . rDateSep s . rDays31 d
+  Aug o0 o1 s d -> rZero o0 . rEight o1 . rDateSep s . rDays31 d
+  Sep o0 o1 s d -> rZero o0 . rNine o1 . rDateSep s . rDays30 d
+  Oct o0 o1 s d -> rOne o0 . rZero o1 . rDateSep s . rDays31 d
   Nov o0 o1 s d -> rOne o0 . rOne o1 . rDateSep s . rDays30 d
   Dec o0 o1 s d -> rOne o0 . rTwo o1 . rDateSep s . rDays31 d
 
@@ -360,7 +360,7 @@ c'Mod4'Int a = case a of
 
 
 data CenturyLeapYear
-  = CenturyLeapYear Mod4 D0z D0z
+  = CenturyLeapYear Mod4 Zero Zero
   deriving (Eq, Ord, Show)
 
 c'CenturyLeapYear'Int :: Integral a => a -> Maybe CenturyLeapYear
@@ -370,7 +370,7 @@ c'CenturyLeapYear'Int a
   | rm /= 0 = Nothing
   | otherwise = do
       m4 <- c'Mod4'Int qt
-      return $ CenturyLeapYear m4 D0z'0 D0z'0
+      return $ CenturyLeapYear m4 Zero Zero
   where
     (qt, rm) = a `divMod` 100
 
@@ -379,11 +379,11 @@ c'Int'CenturyLeapYear (CenturyLeapYear m4 _ _) =
   c'Int'Mod4 m4 * 100
 
 pCenturyLeapYear :: ParserL CenturyLeapYear
-pCenturyLeapYear = CenturyLeapYear <$> pMod4 <*> pD0z <*> pD0z
+pCenturyLeapYear = CenturyLeapYear <$> pMod4 <*> pZero <*> pZero
 
 rCenturyLeapYear :: CenturyLeapYear -> ShowS
 rCenturyLeapYear (CenturyLeapYear m4 d01 d02)
-  = rMod4 m4 . rD0z d01 . rD0z d02
+  = rMod4 m4 . rZero d01 . rZero d02
 
 data NonCenturyLeapYear
   = NonCenturyLeapYear D9z D9z Mod4
@@ -417,7 +417,7 @@ rNonCenturyLeapYear (NonCenturyLeapYear d0 d1 m4)
 data LeapDay = LeapDay
   (Either CenturyLeapYear NonCenturyLeapYear)
   DateSep
-  D0z Two
+  Zero Two
   DateSep
   Two Nine
   deriving (Eq, Ord, Show)
@@ -431,7 +431,7 @@ pLeapDay
   = LeapDay
   <$> (Left <$> pCenturyLeapYear <|> Right <$> pNonCenturyLeapYear)
   <*> pDateSep
-  <*> pD0z
+  <*> pZero
   <*> pTwo
   <*> pDateSep
   <*> pTwo
@@ -441,7 +441,7 @@ rLeapDay :: LeapDay -> ShowS
 rLeapDay (LeapDay y s1 m0 m2 s2 d2 d9)
   = either rCenturyLeapYear rNonCenturyLeapYear y
   . rDateSep s1
-  . rD0z m0
+  . rZero m0
   . rTwo m2
   . rDateSep s2
   . rTwo d2
@@ -480,7 +480,7 @@ c'DateA'Day sep dy
     leapDay = do
       yr <-     fmap Left (c'CenturyLeapYear'Int y)
             <|> fmap Right (c'NonCenturyLeapYear'Int y)
-      return $ LeapDay yr sep D0z'0 Two sep Two Nine
+      return $ LeapDay yr sep Zero Two sep Two Nine
     nonLeapDay = do
       yr <- c'Year'Int y
       md <- c'MonthDay'Ints sep m d

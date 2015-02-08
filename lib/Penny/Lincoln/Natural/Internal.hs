@@ -28,7 +28,7 @@ newtype Unsigned = Unsigned { unsignedToInteger :: Integer }
 class IsUnsigned a where
   toUnsigned :: a -> Unsigned
 
-instance IsUnsigned D0z where toUnsigned = Unsigned . digitToInt
+instance IsUnsigned Zero where toUnsigned = Unsigned . digitToInt
 instance IsUnsigned D1 where toUnsigned = Unsigned . digitToInt
 instance IsUnsigned D1z where toUnsigned = Unsigned . digitToInt
 instance IsUnsigned D2 where toUnsigned = Unsigned . digitToInt

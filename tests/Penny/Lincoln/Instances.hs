@@ -235,7 +235,6 @@ $(derive makeArbitrary ''ExchRep)
 $(derive makeArbitrary ''ExchRepAnyRadix)
 
 -- Rep.Digits
-$(derive makeArbitrary ''D0z)
 $(derive makeArbitrary ''D1)
 $(derive makeArbitrary ''D1z)
 $(derive makeArbitrary ''D2)

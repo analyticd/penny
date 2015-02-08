@@ -103,10 +103,6 @@ data RadPer
 
   deriving (Eq, Ord, Show)
 
--- | A single zero.
-data Zero = Zero
-  deriving (Eq, Ord, Show)
-
 -- # Nil
 
 data Nil r

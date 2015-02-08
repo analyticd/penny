@@ -10,6 +10,12 @@ import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
 import Penny.Copper.Parser
 
+pZero :: ParserL Zero
+pZero = Zero <$ pSym '0'
+
+rZero :: Zero -> ShowS
+rZero Zero = ('0':)
+
 pOne :: ParserL One
 pOne = One <$ pSym '1'
 
@@ -63,12 +69,6 @@ pNine = Nine <$ pSym '9'
 
 rNine :: Nine -> ShowS
 rNine Nine = ('9':)
-
-pD0z :: ParserL D0z
-pD0z = D0z'0 <$ pSym '0'
-
-rD0z :: D0z -> ShowS
-rD0z D0z'0 = ('0':)
 
 pD8 :: ParserL D8
 pD8 =
@@ -170,12 +170,6 @@ pSide = Debit <$ pSym '<' <|> Credit <$ pSym '>'
 
 rSide :: Side -> ShowS
 rSide s = case s of { Debit -> ('<':); Credit -> ('>':) }
-
-pZero :: ParserL Zero
-pZero = Zero <$ pSym '0'
-
-rZero :: Zero -> ShowS
-rZero Zero = ('0':)
 
 pSeqDecs :: ParserL g -> ParserL (Seq (g, D9z, Seq D9z))
 pSeqDecs pg = pSeq ((,,) <$> pg <*> pD9z <*> pSeq pD9z)

@@ -4,6 +4,7 @@ module Penny.Copper.Date.Properties where
 import Test.Tasty.TH
 import Test.Tasty.QuickCheck
 import Penny.Copper.Date.Instances
+import Penny.Copper.LincolnTypes
 import Penny.Copper.Classes
 import Penny.Copper.Parser
 import Text.ParserCombinators.UU

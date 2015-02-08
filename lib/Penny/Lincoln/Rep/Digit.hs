@@ -20,6 +20,21 @@ class Digit a where
 
 -- * Types that represent a single digit
 
+data Zero = Zero
+  deriving (Eq, Ord, Show)
+
+instance Digit Zero where
+  digitToInt x = case x of
+    Zero -> 0
+
+  intToDigit x = case x of
+    0 -> Just Zero
+    _ -> Nothing
+
+c'Char'Zero :: Zero -> Char
+c'Char'Zero x = case x of
+  Zero -> '0'
+
 data One = One
   deriving (Eq, Ord, Show)
 
@@ -49,21 +64,6 @@ data Nine = Nine
 
 
 -- * Types that represent a range of digits
-
-data D0z = D0z'0
-  deriving (Eq, Ord, Show)
-
-instance Digit D0z where
-  digitToInt x = case x of
-    D0z'0 -> 0
-
-  intToDigit x = case x of
-    0 -> Just D0z'0
-    _ -> Nothing
-
-c'Char'D0z :: D0z -> Char
-c'Char'D0z x = case x of
-  D0z'0 -> '0'
 
 data D1z = D1z'0 | D1z'1
   deriving (Eq, Ord, Show)
