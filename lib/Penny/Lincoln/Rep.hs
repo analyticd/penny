@@ -58,11 +58,11 @@ module Penny.Lincoln.Rep
   , ExchRepAnyRadix(..)
 
   -- * Digits
-  , module Penny.Lincoln.Rep.Digits
+  , module Penny.Lincoln.Rep.Digit
   ) where
 
 import Data.Sequence (Seq)
-import Penny.Lincoln.Rep.Digits
+import Penny.Lincoln.Rep.Digit
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
 

@@ -2,7 +2,7 @@
 {-# OPTIONS_HADDOCK not-home #-}
 module Penny.Lincoln.Natural.Internal where
 
-import Penny.Lincoln.Rep.Digits
+import Penny.Lincoln.Rep.Digit
 import Data.Foldable (Foldable, toList)
 import Data.Sequence (Seq, ViewR(..), viewr)
 

@@ -16,7 +16,7 @@ module Penny.Lincoln.DateTime
   ) where
 
 import qualified Data.Time as T
-import Penny.Lincoln.Rep.Digits
+import Penny.Lincoln.Rep.Digit
 import Penny.Lincoln.PluMin
 
 newtype Date = Date { dateToDay :: T.Day }
