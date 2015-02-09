@@ -5,6 +5,7 @@ module Penny.Lincoln.Natural.Internal where
 import Penny.Lincoln.Rep.Digit
 import Data.Foldable (Foldable, toList)
 import Data.Sequence (Seq, ViewR(..), viewr)
+import Penny.Lincoln.PluMin
 
 newtype Positive = Positive { positiveToInteger :: Integer }
   deriving (Eq, Ord, Show)
@@ -12,7 +13,6 @@ newtype Positive = Positive { positiveToInteger :: Integer }
 class IsPositive a where
   toPositive :: a -> Positive
 
-instance IsPositive D1 where toPositive = Positive . digitToInt
 instance IsPositive D2 where toPositive = Positive . digitToInt
 instance IsPositive D3 where toPositive = Positive . digitToInt
 instance IsPositive D4 where toPositive = Positive . digitToInt
@@ -29,7 +29,6 @@ class IsUnsigned a where
   toUnsigned :: a -> Unsigned
 
 instance IsUnsigned Zero where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned D1 where toUnsigned = Unsigned . digitToInt
 instance IsUnsigned D1z where toUnsigned = Unsigned . digitToInt
 instance IsUnsigned D2 where toUnsigned = Unsigned . digitToInt
 instance IsUnsigned D2z where toUnsigned = Unsigned . digitToInt
@@ -100,8 +99,8 @@ divide (Unsigned x) (Positive y) = (Unsigned q, Unsigned r)
   where
     (q, r) = x `divMod` y
 
-length :: Foldable f => f a -> Unsigned
-length = Unsigned . fromIntegral . Prelude.length . toList
+lengthUnsigned :: Foldable f => f a -> Unsigned
+lengthUnsigned = Unsigned . fromIntegral . Prelude.length . toList
 
 unsignedToPositive :: Unsigned -> Maybe Positive
 unsignedToPositive (Unsigned u)
@@ -121,3 +120,41 @@ novDecsToPositive n = Positive . finish . go (0 :: Int) 0
       EmptyR -> (places, tot)
       xs :> x -> go (succ places) ((digitToInt x * 10 ^ places) + tot) xs
     finish (places, tot) = (digitToInt n * 10 ^ places) + tot
+
+-- | Strips the sign from an Integer and returns a Positive paired up
+-- with the sign.  Returns Nothing if the Integer is zero.
+stripIntegerSign :: Integer -> Maybe (Positive, PluMin)
+stripIntegerSign i
+  | i == 0 = Nothing
+  | i < 0 = Just (Positive (negate i), Minus)
+  | otherwise = Just (Positive i, Plus)
+
+-- | Transform a 'Positive' into its component digits.
+positiveDigits
+  :: Positive
+  -> (D9, [D9z])
+positiveDigits (Positive i) = go i []
+  where
+    go leftOver acc
+      | quotient == 0 = (lastDigit, acc)
+      | otherwise = go quotient (thisDigit : acc)
+      where
+        (quotient, remainder) = leftOver `divMod` 10
+        thisDigit = case intToDigit remainder of
+          Just d -> d
+          Nothing -> error "positiveDigits: error 1"
+        lastDigit = case intToDigit remainder of
+          Just d -> d
+          Nothing -> error "positiveDigits: error 2"
+
+data Differ a
+  = LeftBiggerBy a
+  | RightBiggerBy a
+  | Equal
+  deriving (Eq, Ord, Show)
+
+diffUnsigned :: Unsigned -> Unsigned -> Differ Positive
+diffUnsigned (Unsigned l) (Unsigned r)
+  | l > r = LeftBiggerBy (Positive (l - r))
+  | r > l = RightBiggerBy (Positive (r - l))
+  | otherwise = Equal

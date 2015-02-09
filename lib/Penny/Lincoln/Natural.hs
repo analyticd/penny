@@ -16,15 +16,18 @@ module Penny.Lincoln.Natural
   , subt
   , pow
   , divide
+  , Differ(..)
+  , diffUnsigned
 
   -- * Length
-  , length
+  , lengthUnsigned
 
   -- * Conversions
   , positiveToUnsigned
   , unsignedToPositive
   , novDecsToPositive
+  , stripIntegerSign
+  , positiveDigits
   ) where
 
 import Penny.Lincoln.Natural.Internal
-import Prelude hiding (length)

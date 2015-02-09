@@ -1,7 +1,6 @@
 module Penny.Lincoln.Decimal where
 
 import Penny.Lincoln.Natural
-import qualified Penny.Lincoln.Natural as N
 import Penny.Lincoln.NonZero
 import Penny.Lincoln.Rep
 import Control.Monad (join)
@@ -9,6 +8,8 @@ import Data.Sequence ((<|), (|>), Seq)
 import qualified Data.Sequence as S
 import Data.Monoid
 import Penny.Lincoln.Offset
+import Penny.Lincoln.PluMin
+import Data.List (genericSplitAt, genericReplicate)
 
 -- | Decimal numbers.  The precision is limited only by the machine's
 -- available memory (or, more realistically, by how big a number the
@@ -134,6 +135,15 @@ data DecPositive
   -- @a@ is the significand, and
   --
   -- @b@ is the exponent
+  deriving (Eq, Ord, Show)
+
+-- | Decimals whose significand is always zero.
+data DecZero
+  = DecZero !Unsigned
+  -- ^ @DecZero a@, where @a@ is the exponent.  The significand is
+  -- always zero so it does not have a field.
+  deriving (Eq, Ord, Show)
+
 
 -- | Class for things that can be converted to a 'Decimal'.
 class HasDecimal a where
@@ -149,8 +159,8 @@ instance HasExponent (NilUngrouped r) where
   toExponent nu = case nu of
     NUZero _ Nothing -> toUnsigned Zero
     NUZero _ (Just (_, Nothing)) -> toUnsigned Zero
-    NUZero _ (Just (_, Just (_, zs))) -> next (N.length zs)
-    NURadix _ _ zs -> next (N.length zs)
+    NUZero _ (Just (_, Just (_, zs))) -> next (lengthUnsigned zs)
+    NURadix _ _ zs -> next (lengthUnsigned zs)
 
 instance HasExponent (Nil r) where
   toExponent nil = case nil of
@@ -159,8 +169,8 @@ instance HasExponent (Nil r) where
 
 instance HasExponent (NilGrouped r) where
   toExponent (NilGrouped _ _ _ zs1 _ _ zs2 zss) =
-      next . next . add (N.length zs1) . add (N.length zs2)
-      . N.length . join
+      next . next . add (lengthUnsigned zs1) . add (lengthUnsigned zs2)
+      . lengthUnsigned . join
       . fmap (\(_, _, sq) -> Zero <| sq) $ zss
 
 class HasDecPositive a where
@@ -178,11 +188,11 @@ instance HasDecPositive (BrimUngrouped r) where
 
   toDecPositive (BUGreaterThanOne nv ds1 (Just (_, ds2)))
     = DecPositive (novDecsToPositive nv (ds1 <> ds2))
-                  (N.length ds2)
+                  (lengthUnsigned ds2)
 
   toDecPositive (BULessThanOne _ _ zs1 nv ds)
     = DecPositive (novDecsToPositive nv ds)
-                  (add (N.length zs1) . next . N.length $ ds)
+                  (add (lengthUnsigned zs1) . next . lengthUnsigned $ ds)
 
 instance HasDecPositive (BrimGrouped r) where
 
@@ -208,7 +218,7 @@ instance HasDecPositive (BrimGrouped r) where
     where
       sig = novDecsToPositive nv . (ds1 <>) . (d1 <|) . (ds2 <>)
         . (toDecs dss1 <>) . (d2 <|) . (ds3 <>) . toDecs $ dss2
-      expt = next . add (N.length ds3) . N.length . toDecs $ dss2
+      expt = next . add (lengthUnsigned ds3) . lengthUnsigned . toDecs $ dss2
       toDecs = join . fmap (\(_, d, ds) -> d <| ds)
 
   toDecPositive (BGGreaterThanOne nv1 ds2
@@ -218,8 +228,8 @@ instance HasDecPositive (BrimGrouped r) where
         . (d7 <|) . (ds8 <>)
         . toDecs $ dss9
       toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-      expt = next . add (N.length ds5) . next . add (N.length ds8)
-        . N.length . toDecs $ dss9
+      expt = next . add (lengthUnsigned ds5) . next . add (lengthUnsigned ds8)
+        . lengthUnsigned . toDecs $ dss9
 
   toDecPositive (BGLessThanOne _z1 _rdx2
     (BG5Novem nv3 ds4 _g5 d6 ds7 sq8)) = DecPositive sig expt
@@ -227,8 +237,8 @@ instance HasDecPositive (BrimGrouped r) where
       sig = novDecsToPositive nv3 . (ds4 <>) . (d6 <|) . (ds7 <>)
         . toDecs $ sq8
       toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-      expt = next . add (N.length ds4) . next . add (N.length ds7)
-        . N.length . toDecs $ sq8
+      expt = next . add (lengthUnsigned ds4) . next . add (lengthUnsigned ds7)
+        . lengthUnsigned . toDecs $ sq8
 
   toDecPositive (BGLessThanOne _z1 _rdx2
     (BG5Zero _z3 zs4 (BG6Novem nv5 ds6 _g7 dc8 ds9 sq10)))
@@ -237,14 +247,14 @@ instance HasDecPositive (BrimGrouped r) where
       sig = novDecsToPositive nv5 . (ds6 <>) . (dc8 <|) . (<> ds9)
         . toDecs $ sq10
       toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-      expt = next . add (N.length zs4) . next . add (N.length ds6)
-        . next . add (N.length ds9) . N.length . toDecs $ sq10
+      expt = next . add (lengthUnsigned zs4) . next . add (lengthUnsigned ds6)
+        . next . add (lengthUnsigned ds9) . lengthUnsigned . toDecs $ sq10
 
   toDecPositive (BGLessThanOne _z1 _rdx2
     (BG5Zero _z3 zs4 (BG6Group _g1 bg7))) = DecPositive sig expt
     where
       sig = novDecsToPositive bg7nv bg7ds
-      expt = next . add (N.length zs4) . N.length $ bg7zs
+      expt = next . add (lengthUnsigned zs4) . lengthUnsigned $ bg7zs
       (bg7zs, bg7nv, bg7ds) = unfurlBG7 bg7
 
       unfurlBG7 :: BG7 r -> (Seq Zero, D9, Seq D9z)
@@ -267,3 +277,154 @@ instance HasDecPositive RepNonNeutralNoSide where
   toDecPositive (RepNonNeutralNoSide ei) =
     either toDecPositive toDecPositive ei
 
+-- * Representations
+
+repUngroupedDecimal
+  :: Decimal
+  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) PluMin
+repUngroupedDecimal = undefined
+
+-- | Groups a Decimal, according to these rules:
+--
+-- * the portion to the right of the radix point is never grouped;
+--
+-- * the portion to the left is grouped into groups of no more than
+-- three digits; however, if there are four places or less, no
+-- grouping is performed.
+--
+-- Fails if the Decimal cannot be grouped according to these rules.
+-- In that case, use 'repUngroupedDecimal'.
+repGroupedDecimal
+  :: r
+  -> Decimal
+  -> Maybe (CenterOrOffCenter (NilGrouped r) (BrimGrouped r) PluMin)
+repGroupedDecimal = undefined
+
+repUngroupedDecNonZero
+  :: DecNonZero
+  -> (BrimUngrouped r, PluMin)
+repUngroupedDecNonZero = undefined
+
+repGroupedDecNonZero
+  :: r
+  -> DecNonZero
+  -> Maybe (BrimGrouped r, PluMin)
+repGroupedDecNonZero = undefined
+
+repUngroupedDecUnsigned
+  :: DecUnsigned
+  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) ()
+repUngroupedDecUnsigned = undefined
+
+repGroupedDecUnsigned
+  :: r
+  -> DecUnsigned
+  -> Maybe (CenterOrOffCenter (NilGrouped r) (BrimUngrouped r) ())
+repGroupedDecUnsigned = undefined
+
+repUngroupedDecPositive
+  :: DecPositive
+  -> BrimUngrouped r
+repUngroupedDecPositive = undefined
+
+repGroupedDecPositive
+  :: r
+  -> DecPositive
+  -> Maybe (BrimGrouped r)
+repGroupedDecPositive = undefined
+
+repUngroupedDecZero
+  :: DecZero
+  -> NilUngrouped r
+repUngroupedDecZero = undefined
+
+-- There is no repGroupedDecZero - that would always fail as digits to
+-- the right of theradix are never grouped
+
+-- Primitive grouping functions
+
+stripDecimalSign
+  :: Decimal
+  -> Either DecZero (DecPositive, PluMin)
+stripDecimalSign (Decimal m e) = case stripIntegerSign m of
+  Nothing -> Left (DecZero e)
+  Just (p, pm) -> Right (DecPositive p e, pm)
+
+decomposeDecUnsigned
+  :: DecUnsigned
+  -> Either DecZero DecPositive
+decomposeDecUnsigned (DecUnsigned m e) = case unsignedToPositive m of
+  Nothing -> Left (DecZero e)
+  Just m' -> Right (DecPositive m' e)
+
+repDecZero :: Radix r -> DecZero -> NilUngrouped r
+repDecZero rdx (DecZero expt) = case unsignedToPositive expt of
+  Nothing -> NUZero Zero Nothing
+  Just pos -> NUZero Zero (Just (rdx, Just (Zero, rest)))
+    where
+      rest = case prev pos of
+        Nothing -> S.empty
+        Just ps -> go ps (S.singleton Zero)
+      go ps acc = case prev ps of
+        Nothing -> acc
+        Just ps' -> go ps' (Zero <| acc)
+
+repDecPositive :: Radix r -> DecPositive -> BrimUngrouped r
+repDecPositive rdx (DecPositive sig expt)
+  = repDigits rdx (positiveDigits sig) expt
+
+-- Let t = number of trailing significand digits,
+-- and e = size of exponent.
+--
+-- t >= e: decimal is greater than zero
+-- t < e: decimal is less than zero.
+-- e - t - 1 == number of leading fractional zeroes
+
+{-
+
+S  Significand
+LS Length of significand
+LM Length of significand - 1
+E  Exponent
+P  Representation
+LL Number of digits to left of radix
+LZ Number of leading zeroes on the right of radix
+LR Number of digits to right of radix
+
+S       LS LM E   P             LL  LZ  LR
+
+12345   5  4  0   12345         5   0   0
+12345   5  4  3   12.345        2   0   3
+12345   5  4  5   0.12345       0   0   5
+12345   5  4  7   0.0012345     0   2   5
+1       1  0  0   1             1   0   0
+1       1  0  3   0.001         0   2   1
+
+There are two possible scenarios: (1) LL is positive.  In that case
+LZ is always zero and LR might be zero or positive.  (2) LL is zero.
+In that case LR is positive and LZ might be zero or positive.
+
+-}
+
+repDigits
+  :: Radix r
+  -> (D9, [D9z])
+  -> Unsigned
+  -> BrimUngrouped r
+repDigits rdx (d1, dr) expt
+  = case diffUnsigned (next $ lengthUnsigned dr) expt of
+      Equal -> BULessThanOne (Just Zero) rdx S.empty d1 (S.fromList dr)
+      LeftBiggerBy l -> BUGreaterThanOne d1 leftDigs rightDigs
+        where
+          (leftDigs, rightDigs) = case prev l of
+            Nothing -> (S.empty, Nothing)
+            Just c -> (S.fromList beg, Just (rdx, S.fromList end))
+              where
+                (beg, end) = genericSplitAt (naturalToInteger c) dr
+      RightBiggerBy r -> BULessThanOne (Just Zero) rdx zs d1 (S.fromList dr)
+        where
+          zs = S.fromList . flip genericReplicate Zero
+            . naturalToInteger $ r
+
+groupBrim :: r -> BrimUngrouped r -> Maybe (BrimGrouped r)
+groupBrim = undefined

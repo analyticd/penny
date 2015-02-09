@@ -83,30 +83,6 @@ c'Char'D1z x = case x of
   D1z'0 -> '0'
   D1z'1 -> '1'
 
-data D1 = D1'1
-  deriving (Eq, Ord, Show)
-
-instance Digit D1 where
-  digitToInt x = case x of
-    D1'1 -> 1
-
-  intToDigit x = case x of
-    1 -> Just D1'1
-    _ -> Nothing
-
-c'Char'D1 :: D1 -> Char
-c'Char'D1 x = case x of
-  D1'1 -> '1'
-
-c'D1z'D1 :: D1 -> D1z
-c'D1z'D1 x = case x of
-  D1'1 -> D1z'1
-
-c'D1'D1z :: D1z -> Maybe D1
-c'D1'D1z x = case x of
-  D1z'0 -> Nothing
-  D1z'1 -> Just D1'1
-
 data D2z = D2z'0 | D2z'1 | D2z'2
   deriving (Eq, Ord, Show)
 
