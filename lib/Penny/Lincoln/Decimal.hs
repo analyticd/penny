@@ -4,7 +4,7 @@ import Penny.Lincoln.Natural
 import Penny.Lincoln.NonZero
 import Penny.Lincoln.Rep
 import Control.Monad (join)
-import Data.Sequence ((<|), (|>), Seq)
+import Data.Sequence ((<|), (|>), Seq, ViewR(..), ViewL(..))
 import qualified Data.Sequence as S
 import Data.Monoid
 import Penny.Lincoln.Offset
@@ -426,5 +426,66 @@ repDigits rdx (d1, dr) expt
           zs = S.fromList . flip genericReplicate Zero
             . naturalToInteger $ r
 
-groupBrim :: r -> BrimUngrouped r -> Maybe (BrimGrouped r)
-groupBrim = undefined
+reverseBG1
+  :: Maybe (Radix r, Seq D9z)
+  -> Seq (r, D9z, Seq D9z)
+  -> Seq D9z
+  -> D9z
+  -> r
+  -> Seq D9z
+  -> D9
+  -> BrimGrouped r
+reverseBG1 rt a b c d e f = BGGreaterThanOne f e
+  $ BG1GroupOnLeft d c b a rt'
+  where
+    rt' = case rt of
+      Nothing -> Nothing
+      Just (r, sq) -> case S.viewl sq of
+        EmptyL -> Nothing
+        x :< xs -> Just (r, Just (x, xs, S.empty))
+
+groupsOf3 :: Seq a -> (Maybe (a, Maybe a), Seq (a, Seq a))
+groupsOf3 = go S.empty
+  where
+    go acc sq = case S.viewr sq of
+      EmptyR -> (Nothing, acc)
+      xs1 :> x1 -> case S.viewr xs1 of
+        EmptyR -> (Just (x1, Nothing), acc)
+        xs2 :> x2 -> case S.viewr xs2 of
+          EmptyR -> (Just (x1, Just x2), acc)
+          xs3 :> x3 -> go ((x3, S.fromList [x2, x1]) <| acc) xs3
+
+-- | Transforms a BrimUngrouped 
+groupUngrouped
+  :: r
+  -> BrimUngrouped r
+  -> Maybe (BrimGrouped r)
+groupUngrouped _ (BULessThanOne _ _ _ _ _) = Nothing
+groupUngrouped grpr (BUGreaterThanOne d1 ds mayAfter) =
+  let (mayFrontDigs, grps) = groupsOf3 ds in
+  case S.viewl grps of
+    EmptyL -> Nothing
+    (g1fst, g1rst) :< grpRest1 -> case S.viewl grpRest1 of
+      EmptyL -> case mayFrontDigs of
+        Nothing -> Nothing
+        Just (msd, Nothing) -> Just $ BGGreaterThanOne d1
+          (S.singleton msd) (BG1GroupOnLeft grpr g1fst g1rst S.empty mayAfter')
+        Just (lsd, Just msd) -> Just $ BGGreaterThanOne d1
+          (S.fromList [msd, lsd])
+          (BG1GroupOnLeft grpr g1fst g1rst S.empty mayAfter')
+      g2 :< grpRest2 -> Just $ BGGreaterThanOne d1 firstGroup bg1
+        where
+          bg1 = BG1GroupOnLeft grpr g1fst g1rst
+            (fmap addGrp (g2 <| grpRest2)) mayAfter'
+          firstGroup = case mayFrontDigs of
+            Nothing -> S.empty
+            Just (msd, Nothing) -> S.singleton msd
+            Just (lsd, Just msd) -> S.fromList [msd, lsd]
+
+  where
+    mayAfter' = case mayAfter of
+      Nothing -> Nothing
+      Just (r, sq) -> case S.viewl sq of
+        EmptyL -> Nothing
+        x :< xs -> Just (r, Just (x, xs, S.empty))
+    addGrp (a, b) = (grpr, a, b)
