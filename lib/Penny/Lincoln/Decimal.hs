@@ -280,66 +280,28 @@ instance HasDecPositive RepNonNeutralNoSide where
 -- * Representations
 
 repUngroupedDecimal
-  :: Decimal
-  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) PluMin
-repUngroupedDecimal = undefined
-
--- | Groups a Decimal, according to these rules:
---
--- * the portion to the right of the radix point is never grouped;
---
--- * the portion to the left is grouped into groups of no more than
--- three digits; however, if there are four places or less, no
--- grouping is performed.
---
--- Fails if the Decimal cannot be grouped according to these rules.
--- In that case, use 'repUngroupedDecimal'.
-repGroupedDecimal
-  :: r
+  :: Radix r
   -> Decimal
-  -> Maybe (CenterOrOffCenter (NilGrouped r) (BrimGrouped r) PluMin)
-repGroupedDecimal = undefined
+  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) PluMin
+repUngroupedDecimal rdx d = case stripDecimalSign d of
+  Left zero -> Center (repDecZero rdx zero)
+  Right (pos, pm) -> OffCenter (repDecPositive rdx pos) pm
 
 repUngroupedDecNonZero
-  :: DecNonZero
-  -> (BrimUngrouped r, PluMin)
-repUngroupedDecNonZero = undefined
-
-repGroupedDecNonZero
-  :: r
+  :: Radix r
   -> DecNonZero
-  -> Maybe (BrimGrouped r, PluMin)
-repGroupedDecNonZero = undefined
+  -> (BrimUngrouped r, PluMin)
+repUngroupedDecNonZero rdx nz = (repDecPositive rdx dp, sgn)
+  where
+    (dp, sgn) = stripNonZeroSign nz
 
 repUngroupedDecUnsigned
-  :: DecUnsigned
-  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) ()
-repUngroupedDecUnsigned = undefined
-
-repGroupedDecUnsigned
-  :: r
+  :: Radix r
   -> DecUnsigned
-  -> Maybe (CenterOrOffCenter (NilGrouped r) (BrimUngrouped r) ())
-repGroupedDecUnsigned = undefined
-
-repUngroupedDecPositive
-  :: DecPositive
-  -> BrimUngrouped r
-repUngroupedDecPositive = undefined
-
-repGroupedDecPositive
-  :: r
-  -> DecPositive
-  -> Maybe (BrimGrouped r)
-repGroupedDecPositive = undefined
-
-repUngroupedDecZero
-  :: DecZero
-  -> NilUngrouped r
-repUngroupedDecZero = undefined
-
--- There is no repGroupedDecZero - that would always fail as digits to
--- the right of theradix are never grouped
+  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) ()
+repUngroupedDecUnsigned rdx uns = case decomposeDecUnsigned uns of
+  Left z -> Center (repDecZero rdx z)
+  Right p -> OffCenter (repDecPositive rdx p) ()
 
 -- Primitive grouping functions
 
@@ -349,6 +311,12 @@ stripDecimalSign
 stripDecimalSign (Decimal m e) = case stripIntegerSign m of
   Nothing -> Left (DecZero e)
   Just (p, pm) -> Right (DecPositive p e, pm)
+
+stripNonZeroSign
+  :: DecNonZero
+  -> (DecPositive, PluMin)
+stripNonZeroSign (DecNonZero nz ex)
+  = (DecPositive (nonZeroToPositive nz) ex, nonZeroSign nz)
 
 decomposeDecUnsigned
   :: DecUnsigned
@@ -426,24 +394,6 @@ repDigits rdx (d1, dr) expt
           zs = S.fromList . flip genericReplicate Zero
             . naturalToInteger $ r
 
-reverseBG1
-  :: Maybe (Radix r, Seq D9z)
-  -> Seq (r, D9z, Seq D9z)
-  -> Seq D9z
-  -> D9z
-  -> r
-  -> Seq D9z
-  -> D9
-  -> BrimGrouped r
-reverseBG1 rt a b c d e f = BGGreaterThanOne f e
-  $ BG1GroupOnLeft d c b a rt'
-  where
-    rt' = case rt of
-      Nothing -> Nothing
-      Just (r, sq) -> case S.viewl sq of
-        EmptyL -> Nothing
-        x :< xs -> Just (r, Just (x, xs, S.empty))
-
 groupsOf3 :: Seq a -> (Maybe (a, Maybe a), Seq (a, Seq a))
 groupsOf3 = go S.empty
   where
@@ -455,7 +405,15 @@ groupsOf3 = go S.empty
           EmptyR -> (Just (x1, Just x2), acc)
           xs3 :> x3 -> go ((x3, S.fromList [x2, x1]) <| acc) xs3
 
--- | Transforms a BrimUngrouped 
+-- | Transforms a BrimUngrouped into a BrimGrouped.  Follows the
+-- following rules:
+--
+-- * digits to the right of the radix point are never grouped
+--
+-- * digits to the left of the radix point are grouped into groups of
+-- 3 digits each
+--
+-- * no digit grouping is performed for values less than 10000
 groupUngrouped
   :: r
   -> BrimUngrouped r

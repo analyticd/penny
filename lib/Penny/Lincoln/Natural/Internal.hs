@@ -158,3 +158,4 @@ diffUnsigned (Unsigned l) (Unsigned r)
   | l > r = LeftBiggerBy (Positive (l - r))
   | r > l = RightBiggerBy (Positive (r - l))
   | otherwise = Equal
+

@@ -55,8 +55,20 @@ $(derive makeArbitrary ''ZeroTo59)
 
 -- Decimal
 
+-- | Selects Decimal where the significand ranges over all of the
+-- range of Int, but smaller significands are generated more than
+-- large significands.  The exponent is always between 0 and 4.
 instance Arbitrary Decimal where
-  arbitrary = liftM2 Decimal arbitrary arbitrary
+  arbitrary = liftM2 Decimal genInt genExpt
+    where
+      genInt = fmap fI arbitrarySizedBoundedIntegral
+      fI = fromIntegral :: Int -> Integer
+      genExpt = sized $ \s -> do
+        let maxExpt = min 4 s
+        ex <- choose (0, fromIntegral maxExpt)
+        case integerToNatural ex of
+          Nothing -> fail "unable to generate Decimal"
+          Just r -> return r
 
 instance Arbitrary Semantic where
   arbitrary = Semantic <$> arbitrary

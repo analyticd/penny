@@ -4,6 +4,7 @@ module Penny.Lincoln.NonZero
   , integerToNonZero
   , addNonZero
   , nonZeroToPositive
+  , nonZeroSign
   ) where
 
 import Penny.Lincoln.NonZero.Internal
