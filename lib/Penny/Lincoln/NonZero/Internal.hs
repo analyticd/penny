@@ -28,5 +28,12 @@ addNonZero (NonZero x) (NonZero y)
 nonZeroToPositive :: NonZero -> Positive
 nonZeroToPositive (NonZero i) = Positive (abs i)
 
+-- | Adds a sign to a 'Positive'.
+c'NonZero'Positive :: PluMin -> Positive -> NonZero
+c'NonZero'Positive pm (Positive i) = NonZero (changeSign i)
+  where
+    changeSign | pm == Plus = id
+               | otherwise = negate
+
 instance HasOffset NonZero where
   offset (NonZero i) = NonZero . negate $ i

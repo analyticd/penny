@@ -24,6 +24,7 @@ module Penny.Lincoln.Decimal
   , decomposeDecUnsigned
   , decNonZeroToDecimal
   , decimalToDecNonZero
+  , c'DecNonZero'DecPositive
 
   -- * Representing decimals
   --
@@ -345,6 +346,15 @@ instance HasDecPositive (Brim a) where
 instance HasDecPositive RepNonNeutralNoSide where
   toDecPositive (RepNonNeutralNoSide ei) =
     either toDecPositive toDecPositive ei
+
+-- | Transforms a 'DecPositive' to a 'DecNonZero', while applying the
+-- appropriate sign.
+c'DecNonZero'DecPositive
+  :: PluMin
+  -> DecPositive
+  -> DecNonZero
+c'DecNonZero'DecPositive pm (DecPositive sig expt)
+  = DecNonZero (c'NonZero'Positive pm sig) expt
 
 -- * Representations
 

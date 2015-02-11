@@ -5,6 +5,7 @@ module Penny.Lincoln.NonZero
   , addNonZero
   , nonZeroToPositive
   , nonZeroSign
+  , c'NonZero'Positive
   ) where
 
 import Penny.Lincoln.NonZero.Internal

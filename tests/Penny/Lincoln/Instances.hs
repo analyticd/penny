@@ -74,7 +74,19 @@ instance Arbitrary Semantic where
   arbitrary = Semantic <$> arbitrary
 
 instance Arbitrary DecNonZero where
-  arbitrary = liftM2 DecNonZero arbitrary arbitrary
+  arbitrary = oneof [large, anySize]
+    where
+      large = sized $ \s -> do
+        nzi <- arbitrarySizedBoundedIntegral `suchThat` (/= (0 :: Int))
+        dnz <- case integerToNonZero . fromIntegral $ nzi of
+          Nothing -> fail "could not generate NonZero"
+          Just r -> return r
+        uni <- choose (0, s)
+        expt <- case integerToNatural . fromIntegral $ uni of
+          Nothing -> fail "could not generate Unsigned"
+          Just r -> return r
+        return $ DecNonZero dnz expt
+      anySize = liftM2 DecNonZero arbitrary arbitrary
 
 instance Arbitrary DecUnsigned where
   arbitrary = liftM2 DecUnsigned arbitrary arbitrary
