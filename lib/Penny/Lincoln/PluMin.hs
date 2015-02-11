@@ -8,3 +8,4 @@ class Signed a where
 
 instance Signed PluMin where
   sign = id
+

@@ -10,6 +10,9 @@ import Penny.Lincoln.Offset
 newtype Qty = Qty Decimal
   deriving (Eq, Ord, Show)
 
+class HasQty a where
+  toQty :: a -> Qty
+
 instance Num Qty where
   Qty x + Qty y = Qty $ x + y
   Qty x - Qty y = Qty $ x - y
@@ -27,6 +30,9 @@ qtySide (Qty (Decimal sig _))
 
 newtype QtyNonZero = QtyNonZero DecNonZero
   deriving (Eq, Ord, Show)
+
+class HasQtyNonZero a where
+  toQtyNonZero :: a -> QtyNonZero
 
 instance HasOffset QtyNonZero where
   offset (QtyNonZero dnz) = QtyNonZero (offset dnz)
@@ -47,6 +53,9 @@ qtyNonZeroSide (QtyNonZero (DecNonZero nz _))
 newtype QtyUnsigned = QtyUnsigned DecUnsigned
   deriving (Eq, Ord, Show)
 
+class HasQtyUnsigned a where
+  toQtyUnsigned :: a -> QtyUnsigned
+
 qtyUnsignedToQtyWithSide :: Side -> QtyUnsigned -> Maybe Qty
 qtyUnsignedToQtyWithSide s (QtyUnsigned (DecUnsigned sig expt))
   | naturalToInteger sig == 0 = Nothing
@@ -62,9 +71,6 @@ qtyUnsignedToQtyNoSide (QtyUnsigned (DecUnsigned sig expt))
   | naturalToInteger sig == 0 = Just
       (Qty (Decimal 0 expt))
   | otherwise = Nothing
-
-class HasQty a where
-  toQty :: a -> Qty
 
 instance HasQty QtyNonZero where
   toQty (QtyNonZero (DecNonZero sig expt)) =

@@ -14,9 +14,6 @@ module Penny.Lincoln.Rep
   , RadCom(..)
   , RadPer(..)
 
-  -- * Zero
-  , Zero(..)
-
   -- * Nil representations
   -- | These represent numbers whose significand is zero.
   , Nil(..)
@@ -59,9 +56,13 @@ module Penny.Lincoln.Rep
 
   -- * Digits
   , module Penny.Lincoln.Rep.Digit
+
+  -- * Grouping
+  , groupBrimUngrouped
   ) where
 
-import Data.Sequence (Seq)
+import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|))
+import qualified Data.Sequence as S
 import Penny.Lincoln.Rep.Digit
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
@@ -297,3 +298,57 @@ newtype ExchRep r = ExchRep (NilOrBrimPolar r PluMin)
 newtype ExchRepAnyRadix = ExchRepAnyRadix
   (Either (ExchRep RadCom) (ExchRep RadPer))
   deriving (Eq, Ord, Show)
+
+groupsOf3 :: Seq a -> (Maybe (a, Maybe a), Seq (a, Seq a))
+groupsOf3 = go S.empty
+  where
+    go acc sq = case S.viewr sq of
+      EmptyR -> (Nothing, acc)
+      xs1 :> x1 -> case S.viewr xs1 of
+        EmptyR -> (Just (x1, Nothing), acc)
+        xs2 :> x2 -> case S.viewr xs2 of
+          EmptyR -> (Just (x1, Just x2), acc)
+          xs3 :> x3 -> go ((x3, S.fromList [x2, x1]) <| acc) xs3
+
+-- | Transforms a BrimUngrouped into a BrimGrouped.  Follows the
+-- following rules:
+--
+-- * digits to the right of the radix point are never grouped
+--
+-- * digits to the left of the radix point are grouped into groups of
+-- 3 digits each
+--
+-- * no digit grouping is performed for values less than 10000
+groupBrimUngrouped
+  :: r
+  -> BrimUngrouped r
+  -> Maybe (BrimGrouped r)
+groupBrimUngrouped _ (BULessThanOne _ _ _ _ _) = Nothing
+groupBrimUngrouped grpr (BUGreaterThanOne d1 ds mayAfter) =
+  let (mayFrontDigs, grps) = groupsOf3 ds in
+  case S.viewl grps of
+    EmptyL -> Nothing
+    (g1fst, g1rst) :< grpRest1 -> case S.viewl grpRest1 of
+      EmptyL -> case mayFrontDigs of
+        Nothing -> Nothing
+        Just (msd, Nothing) -> Just $ BGGreaterThanOne d1
+          (S.singleton msd) (BG1GroupOnLeft grpr g1fst g1rst S.empty mayAfter')
+        Just (lsd, Just msd) -> Just $ BGGreaterThanOne d1
+          (S.fromList [msd, lsd])
+          (BG1GroupOnLeft grpr g1fst g1rst S.empty mayAfter')
+      g2 :< grpRest2 -> Just $ BGGreaterThanOne d1 firstGroup bg1
+        where
+          bg1 = BG1GroupOnLeft grpr g1fst g1rst
+            (fmap addGrp (g2 <| grpRest2)) mayAfter'
+          firstGroup = case mayFrontDigs of
+            Nothing -> S.empty
+            Just (msd, Nothing) -> S.singleton msd
+            Just (lsd, Just msd) -> S.fromList [msd, lsd]
+
+  where
+    mayAfter' = case mayAfter of
+      Nothing -> Nothing
+      Just (r, sq) -> case S.viewl sq of
+        EmptyL -> Nothing
+        x :< xs -> Just (r, Just (x, xs, S.empty))
+    addGrp (a, b) = (grpr, a, b)

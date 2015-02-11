@@ -1,10 +1,46 @@
-module Penny.Lincoln.Decimal where
+module Penny.Lincoln.Decimal
+  (
+  -- * Decimal types and classes
+    Decimal(..)
+  , HasDecimal(..)
+  , HasExponent(..)
+  , Semantic(..)
+  , DecNonZero(..)
+  , HasDecNonZero(..)
+  , DecUnsigned(..)
+  , HasDecUnsigned(..)
+  , DecPositive(..)
+  , HasDecPositive(..)
+  , DecZero(..)
+  , HasDecZero(..)
+
+  -- * Exponent manipulations
+  , increaseExponent
+  , equalizeExponents
+
+  -- * Changing decimal forms
+  , stripDecimalSign
+  , stripNonZeroSign
+  , decomposeDecUnsigned
+  , decNonZeroToDecimal
+  , decimalToDecNonZero
+
+  -- * Representing decimals
+  --
+  -- | To group the results of these functions, consult
+  -- 'Penny.Lincoln.Rep.groupBrimUngrouped'.
+  , repUngroupedDecimal
+  , repUngroupedDecNonZero
+  , repUngroupedDecUnsigned
+  , repUngroupedDecZero
+  , repDigits
+  ) where
 
 import Penny.Lincoln.Natural
 import Penny.Lincoln.NonZero
 import Penny.Lincoln.Rep
 import Control.Monad (join)
-import Data.Sequence ((<|), (|>), Seq, ViewR(..), ViewL(..))
+import Data.Sequence ((<|), (|>), Seq)
 import qualified Data.Sequence as S
 import Data.Monoid
 import Penny.Lincoln.Offset
@@ -41,6 +77,18 @@ data Decimal
 -- | Class for things that can be converted to a 'Decimal'.
 class HasDecimal a where
   toDecimal :: a -> Decimal
+
+instance (HasDecZero n, HasDecPositive o, Signed p)
+  => HasDecimal (CenterOrOffCenter n o p) where
+  toDecimal (Center n) = toDecimal . toDecZero $ n
+  toDecimal (OffCenter o p) = changeSign (toDecimal . toDecPositive $ o)
+    where
+      changeSign = case sign p of
+        Plus -> id
+        Minus -> negate
+
+instance Signed p => HasDecimal (NilOrBrimPolar r p) where
+  toDecimal (NilOrBrimPolar x) = toDecimal x
 
 class HasExponent a where
   toExponent :: a -> Unsigned
@@ -162,6 +210,8 @@ data DecZero
 class HasDecZero a where
   toDecZero :: a -> DecZero
 
+instance HasDecimal DecZero where
+  toDecimal (DecZero expt) = Decimal 0 expt
 
 instance HasDecimal DecPositive where
   toDecimal (DecPositive sig expt) = Decimal (naturalToInteger sig) expt
@@ -173,16 +223,27 @@ instance HasExponent (NilUngrouped r) where
     NUZero _ (Just (_, Just (_, zs))) -> next (lengthUnsigned zs)
     NURadix _ _ zs -> next (lengthUnsigned zs)
 
+instance HasDecZero (NilUngrouped r) where
+  toDecZero x = DecZero (toExponent x)
+
 instance HasExponent (Nil r) where
   toExponent nil = case nil of
     NilU nu -> toExponent nu
     NilG ng -> toExponent ng
+
+instance HasDecZero (Nil r) where
+  toDecZero x = case x of
+    NilU nu -> DecZero (toExponent nu)
+    NilG ng -> DecZero (toExponent ng)
 
 instance HasExponent (NilGrouped r) where
   toExponent (NilGrouped _ _ _ zs1 _ _ zs2 zss) =
       next . next . add (lengthUnsigned zs1) . add (lengthUnsigned zs2)
       . lengthUnsigned . join
       . fmap (\(_, _, sq) -> Zero <| sq) $ zss
+
+instance HasDecZero (NilGrouped r) where
+  toDecZero x = DecZero (toExponent x)
 
 -- | Strips the sign from the 'DecNonZero'.
 instance HasDecPositive DecNonZero where
@@ -292,7 +353,7 @@ repUngroupedDecimal
   -> Decimal
   -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) PluMin
 repUngroupedDecimal rdx d = case stripDecimalSign d of
-  Left zero -> Center (repDecZero rdx zero)
+  Left zero -> Center (repUngroupedDecZero rdx zero)
   Right (pos, pm) -> OffCenter (repDecPositive rdx pos) pm
 
 repUngroupedDecNonZero
@@ -308,7 +369,7 @@ repUngroupedDecUnsigned
   -> DecUnsigned
   -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) ()
 repUngroupedDecUnsigned rdx uns = case decomposeDecUnsigned uns of
-  Left z -> Center (repDecZero rdx z)
+  Left z -> Center (repUngroupedDecZero rdx z)
   Right p -> OffCenter (repDecPositive rdx p) ()
 
 -- Primitive grouping functions
@@ -333,8 +394,8 @@ decomposeDecUnsigned (DecUnsigned m e) = case unsignedToPositive m of
   Nothing -> Left (DecZero e)
   Just m' -> Right (DecPositive m' e)
 
-repDecZero :: Radix r -> DecZero -> NilUngrouped r
-repDecZero rdx (DecZero expt) = case unsignedToPositive expt of
+repUngroupedDecZero :: Radix r -> DecZero -> NilUngrouped r
+repUngroupedDecZero rdx (DecZero expt) = case unsignedToPositive expt of
   Nothing -> NUZero Zero Nothing
   Just pos -> NUZero Zero (Just (rdx, Just (Zero, rest)))
     where
@@ -402,56 +463,3 @@ repDigits rdx (d1, dr) expt
           zs = S.fromList . flip genericReplicate Zero
             . naturalToInteger $ r
 
-groupsOf3 :: Seq a -> (Maybe (a, Maybe a), Seq (a, Seq a))
-groupsOf3 = go S.empty
-  where
-    go acc sq = case S.viewr sq of
-      EmptyR -> (Nothing, acc)
-      xs1 :> x1 -> case S.viewr xs1 of
-        EmptyR -> (Just (x1, Nothing), acc)
-        xs2 :> x2 -> case S.viewr xs2 of
-          EmptyR -> (Just (x1, Just x2), acc)
-          xs3 :> x3 -> go ((x3, S.fromList [x2, x1]) <| acc) xs3
-
--- | Transforms a BrimUngrouped into a BrimGrouped.  Follows the
--- following rules:
---
--- * digits to the right of the radix point are never grouped
---
--- * digits to the left of the radix point are grouped into groups of
--- 3 digits each
---
--- * no digit grouping is performed for values less than 10000
-groupUngrouped
-  :: r
-  -> BrimUngrouped r
-  -> Maybe (BrimGrouped r)
-groupUngrouped _ (BULessThanOne _ _ _ _ _) = Nothing
-groupUngrouped grpr (BUGreaterThanOne d1 ds mayAfter) =
-  let (mayFrontDigs, grps) = groupsOf3 ds in
-  case S.viewl grps of
-    EmptyL -> Nothing
-    (g1fst, g1rst) :< grpRest1 -> case S.viewl grpRest1 of
-      EmptyL -> case mayFrontDigs of
-        Nothing -> Nothing
-        Just (msd, Nothing) -> Just $ BGGreaterThanOne d1
-          (S.singleton msd) (BG1GroupOnLeft grpr g1fst g1rst S.empty mayAfter')
-        Just (lsd, Just msd) -> Just $ BGGreaterThanOne d1
-          (S.fromList [msd, lsd])
-          (BG1GroupOnLeft grpr g1fst g1rst S.empty mayAfter')
-      g2 :< grpRest2 -> Just $ BGGreaterThanOne d1 firstGroup bg1
-        where
-          bg1 = BG1GroupOnLeft grpr g1fst g1rst
-            (fmap addGrp (g2 <| grpRest2)) mayAfter'
-          firstGroup = case mayFrontDigs of
-            Nothing -> S.empty
-            Just (msd, Nothing) -> S.singleton msd
-            Just (lsd, Just msd) -> S.fromList [msd, lsd]
-
-  where
-    mayAfter' = case mayAfter of
-      Nothing -> Nothing
-      Just (r, sq) -> case S.viewl sq of
-        EmptyL -> Nothing
-        x :< xs -> Just (r, Just (x, xs, S.empty))
-    addGrp (a, b) = (grpr, a, b)
