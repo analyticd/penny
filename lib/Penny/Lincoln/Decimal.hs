@@ -38,6 +38,12 @@ data Decimal
   -- > Decimal 200 . toPositive $ D9'2
   deriving (Eq, Ord, Show)
 
+-- | Class for things that can be converted to a 'Decimal'.
+class HasDecimal a where
+  toDecimal :: a -> Decimal
+
+class HasExponent a where
+  toExponent :: a -> Unsigned
 
 -- | @increaseExponent d e@ returns a 'Decimal' @d'@ whose exponent is
 -- equal to @e@; if the exponent of @d@ is greater than or equal to
@@ -105,6 +111,9 @@ instance Ord Semantic where
 data DecNonZero = DecNonZero !NonZero Unsigned
   deriving (Eq, Ord, Show)
 
+class HasDecNonZero a where
+  toDecNonZero :: a -> DecNonZero
+
 instance HasOffset DecNonZero where
   offset (DecNonZero sig expt) = DecNonZero (offset sig) expt
 
@@ -127,6 +136,9 @@ data DecUnsigned
   -- @b@ is the exponent
   deriving (Eq, Ord, Show)
 
+class HasDecUnsigned a where
+  toDecUnsigned :: a -> DecUnsigned
+
 -- | Decimals that are positive; they may not be zero.
 data DecPositive
   = DecPositive !Positive !Unsigned
@@ -137,6 +149,9 @@ data DecPositive
   -- @b@ is the exponent
   deriving (Eq, Ord, Show)
 
+class HasDecPositive a where
+  toDecPositive :: a -> DecPositive
+
 -- | Decimals whose significand is always zero.
 data DecZero
   = DecZero !Unsigned
@@ -144,13 +159,9 @@ data DecZero
   -- always zero so it does not have a field.
   deriving (Eq, Ord, Show)
 
+class HasDecZero a where
+  toDecZero :: a -> DecZero
 
--- | Class for things that can be converted to a 'Decimal'.
-class HasDecimal a where
-  toDecimal :: a -> Decimal
-
-class HasExponent a where
-  toExponent :: a -> Unsigned
 
 instance HasDecimal DecPositive where
   toDecimal (DecPositive sig expt) = Decimal (naturalToInteger sig) expt
@@ -172,9 +183,6 @@ instance HasExponent (NilGrouped r) where
       next . next . add (lengthUnsigned zs1) . add (lengthUnsigned zs2)
       . lengthUnsigned . join
       . fmap (\(_, _, sq) -> Zero <| sq) $ zss
-
-class HasDecPositive a where
-  toDecPositive :: a -> DecPositive
 
 -- | Strips the sign from the 'DecNonZero'.
 instance HasDecPositive DecNonZero where
