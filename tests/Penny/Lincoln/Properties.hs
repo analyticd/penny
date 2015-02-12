@@ -16,4 +16,16 @@ prop_repUngroupedDecNonZero dec
     pos = c'DecNonZero'DecPositive pm . toDecPositive $ bu
     (bu, pm) = repUngroupedDecNonZero (Radix :: Radix ()) dec
 
+prop_repUngroupedDecUnsigned dec
+  = case (decomposeDecUnsigned dec, rep) of
+    (Left z, Center nu) -> toDecZero nu == z
+    (Right p, OffCenter bu ()) -> toDecPositive bu == p
+    _ -> False
+  where
+    rep = repUngroupedDecUnsigned (Radix :: Radix ()) dec
+
+prop_repUngroupedDecZero dec
+  = toDecZero (repUngroupedDecZero (Radix :: Radix ()) dec)
+  == dec
+
 testGroup = $(testGroupGenerator)

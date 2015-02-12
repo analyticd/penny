@@ -89,10 +89,45 @@ instance Arbitrary DecNonZero where
       anySize = liftM2 DecNonZero arbitrary arbitrary
 
 instance Arbitrary DecUnsigned where
-  arbitrary = liftM2 DecUnsigned arbitrary arbitrary
+  arbitrary = oneof [ large, anySize ]
+    where
+      anySize = liftM2 DecUnsigned arbitrary arbitrary
+      large = sized $ \s -> do
+        usi <- arbitrarySizedBoundedIntegral `suchThat` (>= (0 :: Int))
+        usn <- case integerToNatural . fromIntegral $ usi of
+          Nothing -> fail "could not generate Unsigned"
+          Just r -> return r
+        uni <- choose (0, s)
+        expt <- case integerToNatural . fromIntegral $ uni of
+          Nothing -> fail "could not generate exponent"
+          Just i -> return i
+        return $ DecUnsigned usn expt
 
 instance Arbitrary DecPositive where
-  arbitrary = liftM2 DecPositive arbitrary arbitrary
+  arbitrary = oneof [ large, anySize ]
+    where
+      anySize = liftM2 DecPositive arbitrary arbitrary
+      large = sized $ \s -> do
+        usi <- arbitrarySizedBoundedIntegral `suchThat` (> (0 :: Int))
+        usn <- case integerToNatural . fromIntegral $ usi of
+          Nothing -> fail "could not generate Positive"
+          Just r -> return r
+        uni <- choose (0, s)
+        expt <- case integerToNatural . fromIntegral $ uni of
+          Nothing -> fail "could not generate exponent"
+          Just i -> return i
+        return $ DecPositive usn expt
+
+instance Arbitrary DecZero where
+  arbitrary = DecZero <$> g
+    where
+      g = do
+        u <- arbitrarySizedBoundedIntegral `suchThat` (>= (0 :: Int))
+        case integerToNatural . fromIntegral $ u of
+          Nothing -> fail "could not generate exponent"
+          Just r -> return r
+
+
 
 -- Ent
 

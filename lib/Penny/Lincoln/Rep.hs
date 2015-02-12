@@ -61,7 +61,8 @@ module Penny.Lincoln.Rep
   , groupBrimUngrouped
   ) where
 
-import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|))
+import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|), (|>))
+import Data.Monoid
 import qualified Data.Sequence as S
 import Penny.Lincoln.Rep.Digit
 import Penny.Lincoln.Side
@@ -299,6 +300,8 @@ newtype ExchRepAnyRadix = ExchRepAnyRadix
   (Either (ExchRep RadCom) (ExchRep RadPer))
   deriving (Eq, Ord, Show)
 
+-- Grouping
+
 groupsOf3 :: Seq a -> (Maybe (a, Maybe a), Seq (a, Seq a))
 groupsOf3 = go S.empty
   where
@@ -352,3 +355,13 @@ groupBrimUngrouped grpr (BUGreaterThanOne d1 ds mayAfter) =
         EmptyL -> Nothing
         x :< xs -> Just (r, Just (x, xs, S.empty))
     addGrp (a, b) = (grpr, a, b)
+
+-- Ungrouping
+
+ungroupBrimGrouped :: BrimGrouped r -> BrimUngrouped r
+
+ungroupBrimGrouped bg0 = case bg0 of
+  BGGreaterThanOne d'1 sq'2 bg1'3 -> BUGreaterThanOne d'1 $ case bg1'3 of
+    BG1GroupOnLeft _ d'4 ds'5 dss'6 may'7 ->
+      let mkSeq (_, d, ds) = d <| ds in
+      sq'2 |> d'4 <> ds'5 <> (fmap mkSeq dss'6) $ undefined
