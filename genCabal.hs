@@ -120,7 +120,7 @@ main = defaultMain $ do
           otherModules (testMods ++ libMods)
         : buildDepends (libraryDepends ++ testDepends)
         : hsSourceDirs ["tests"]
-        : extensions ["TemplateHaskell"]
+        : defaultExtensions ["TemplateHaskell"]
         : ghcOptions ["-threaded"]
         : exitcodeFields "penny-properties.hs"
         ++ commonOptions

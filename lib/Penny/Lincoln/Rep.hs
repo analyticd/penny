@@ -355,7 +355,7 @@ groupBrimUngrouped grpr (BUGreaterThanOne d1 ds mayAfter) =
     mayAfter' = case mayAfter of
       Nothing -> Nothing
       Just (r, sq) -> case S.viewl sq of
-        EmptyL -> Nothing
+        EmptyL -> Just (r, Nothing)
         x :< xs -> Just (r, Just (x, xs, S.empty))
     addGrp (a, b) = (grpr, a, b)
 

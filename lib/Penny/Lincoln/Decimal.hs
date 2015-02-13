@@ -119,8 +119,8 @@ increaseExponent u (Decimal m e) = Decimal m' e'
 -- > x' == x || y' == y
 -- > ex' >= ex
 -- > ey' >= ey
--- > mx' >= mx
--- > my' >= my
+-- > abs mx' >= abs mx
+-- > abs my' >= abs my
 equalizeExponents :: Decimal -> Decimal -> (Decimal, Decimal)
 equalizeExponents x@(Decimal _ ex) y@(Decimal _ ey)
   | ex > ey = (x, increaseExponent ex y)
