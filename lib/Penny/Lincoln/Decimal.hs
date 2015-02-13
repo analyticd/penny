@@ -41,7 +41,7 @@ import Penny.Lincoln.Natural
 import Penny.Lincoln.NonZero
 import Penny.Lincoln.Rep
 import Control.Monad (join)
-import Data.Sequence ((<|), (|>), Seq)
+import Data.Sequence ((<|))
 import qualified Data.Sequence as S
 import Data.Monoid
 import Penny.Lincoln.Offset
@@ -265,79 +265,7 @@ instance HasDecPositive (BrimUngrouped r) where
                   (add (lengthUnsigned zs1) . next . lengthUnsigned $ ds)
 
 instance HasDecPositive (BrimGrouped r) where
-
-  toDecPositive (BGGreaterThanOne nv ds1
-    (BG1GroupOnLeft _ d1 ds2 dss Nothing))
-    = DecPositive sig expt
-    where
-      sig = novDecsToPositive nv . (ds1 <>) . (d1 <|) . (ds2 <>)
-        . join . fmap (\(_, d, ds) -> d <| ds) $ dss
-      expt = toUnsigned Zero
-
-  toDecPositive (BGGreaterThanOne nv ds1
-    (BG1GroupOnLeft _ d1 ds2 dss
-    (Just (_, Nothing)))) = DecPositive sig expt
-    where
-      sig = novDecsToPositive nv . (ds1 <>) . (d1 <|) . (ds2 <>)
-        . join . fmap (\(_, d, ds) -> d <| ds) $ dss
-      expt = toUnsigned Zero
-
-  toDecPositive (BGGreaterThanOne nv ds1
-    (BG1GroupOnLeft _ d1 ds2 dss1
-    (Just (_, Just (d2, ds3, dss2))))) = DecPositive sig expt
-    where
-      sig = novDecsToPositive nv . (ds1 <>) . (d1 <|) . (ds2 <>)
-        . (toDecs dss1 <>) . (d2 <|) . (ds3 <>) . toDecs $ dss2
-      expt = next . add (lengthUnsigned ds3) . lengthUnsigned . toDecs $ dss2
-      toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-
-  toDecPositive (BGGreaterThanOne nv1 ds2
-    (BG1GroupOnRight _rdx3 d4 ds5 _g6 d7 ds8 dss9)) = DecPositive sig expt
-    where
-      sig = novDecsToPositive nv1 . (ds2 <>) . (d4 <|) . (ds5 <>)
-        . (d7 <|) . (ds8 <>)
-        . toDecs $ dss9
-      toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-      expt = next . add (lengthUnsigned ds5) . next . add (lengthUnsigned ds8)
-        . lengthUnsigned . toDecs $ dss9
-
-  toDecPositive (BGLessThanOne _z1 _rdx2
-    (BG5Novem nv3 ds4 _g5 d6 ds7 sq8)) = DecPositive sig expt
-    where
-      sig = novDecsToPositive nv3 . (ds4 <>) . (d6 <|) . (ds7 <>)
-        . toDecs $ sq8
-      toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-      expt = next . add (lengthUnsigned ds4) . next . add (lengthUnsigned ds7)
-        . lengthUnsigned . toDecs $ sq8
-
-  toDecPositive (BGLessThanOne _z1 _rdx2
-    (BG5Zero _z3 zs4 (BG6Novem nv5 ds6 _g7 dc8 ds9 sq10)))
-    = DecPositive sig expt
-    where
-      sig = novDecsToPositive nv5 . (ds6 <>) . (dc8 <|) . (<> ds9)
-        . toDecs $ sq10
-      toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-      expt = next . add (lengthUnsigned zs4) . next . add (lengthUnsigned ds6)
-        . next . add (lengthUnsigned ds9) . lengthUnsigned . toDecs $ sq10
-
-  toDecPositive (BGLessThanOne _z1 _rdx2
-    (BG5Zero _z3 zs4 (BG6Group _g1 bg7))) = DecPositive sig expt
-    where
-      sig = novDecsToPositive bg7nv bg7ds
-      expt = next . add (lengthUnsigned zs4) . lengthUnsigned $ bg7zs
-      (bg7zs, bg7nv, bg7ds) = unfurlBG7 bg7
-
-      unfurlBG7 :: BG7 r -> (Seq Zero, D9, Seq D9z)
-      unfurlBG7 = goBG7 S.empty
-        where
-          goBG7 zsSoFar (BG7Zeroes z1 zs bg8) =
-            goBG8 ((zsSoFar |> z1) <> zs) bg8
-          goBG7 zsSoFar (BG7Novem nv ds sq) =
-            (zsSoFar, nv, ds <> toDecs sq)
-          toDecs = join . fmap (\(_, d, ds) -> d <| ds)
-          goBG8 zsSoFar (BG8Novem nv ds sq) =
-            (zsSoFar, nv, ds <> toDecs sq)
-          goBG8 zsSoFar (BG8Group _ b7) = goBG7 zsSoFar b7
+  toDecPositive = toDecPositive . ungroupBrimGrouped
 
 instance HasDecPositive (Brim a) where
   toDecPositive (BrimGrouped a) = toDecPositive a

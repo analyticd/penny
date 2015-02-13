@@ -59,8 +59,11 @@ module Penny.Lincoln.Rep
 
   -- * Grouping
   , groupBrimUngrouped
+  , ungroupBrimGrouped
+  , ungroupNilGrouped
   ) where
 
+import Control.Monad (join)
 import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|), (|>))
 import Data.Monoid
 import qualified Data.Sequence as S
@@ -360,8 +363,64 @@ groupBrimUngrouped grpr (BUGreaterThanOne d1 ds mayAfter) =
 
 ungroupBrimGrouped :: BrimGrouped r -> BrimUngrouped r
 
-ungroupBrimGrouped bg0 = case bg0 of
-  BGGreaterThanOne d'1 sq'2 bg1'3 -> BUGreaterThanOne d'1 $ case bg1'3 of
-    BG1GroupOnLeft _ d'4 ds'5 dss'6 may'7 ->
-      let mkSeq (_, d, ds) = d <| ds in
-      sq'2 |> d'4 <> ds'5 <> (fmap mkSeq dss'6) $ undefined
+ungroupBrimGrouped (BGGreaterThanOne d1 s2
+  (BG1GroupOnLeft _g3 d4 s5 st6 Nothing))
+  = BUGreaterThanOne d1
+    ((s2 |> d4) <> s5 <>
+      join (fmap (\(_g7, d8, ds9) -> d8 <| ds9) st6)) Nothing
+
+ungroupBrimGrouped (BGGreaterThanOne d1 s2
+  (BG1GroupOnLeft _g3 d4 s5 st6 (Just (rdx7, Nothing))))
+  = BUGreaterThanOne d1
+    ((s2 |> d4) <> s5 <>
+      join (fmap (\(_g7, d8, ds9) -> d8 <| ds9) st6)) (Just  (rdx7, S.empty))
+
+ungroupBrimGrouped (BGGreaterThanOne d1 s2
+  (BG1GroupOnLeft _g3 d4 s5 st6 (Just (rdx7, Just (d8, s9, st10)))))
+  = BUGreaterThanOne d1
+    ((s2 |> d4) <> s5 <>
+      join (fmap (\(_g11, d12, ds13) -> d12 <| ds13) st6))
+      (Just (rdx7, (d8 <| s9) <>
+        (join $ fmap (\(_g14, d15, ds16) -> d15 <| ds16) st10)))
+
+ungroupBrimGrouped (BGGreaterThanOne d1 s2
+  (BG1GroupOnRight rd3 d4 s5 _g6 d7 ds8 s9))
+  = BUGreaterThanOne d1 s2 (Just (rd3,
+    (((d4 <| s5) |> d7) <> ds8 <>
+      (join (fmap (\(_s10, d11, ds12) -> d11 <| ds12) s9)))))
+
+ungroupBrimGrouped (BGLessThanOne may1 rdx2 (BG5Novem d3 ds4 _g5
+  d6 ds7 sq8))
+  = BULessThanOne may1 rdx2 S.empty d3 ((ds4 |> d6) <> ds7
+    <> join (fmap (\(_g9, s10, ds11) -> s10 <| ds11) sq8))
+
+ungroupBrimGrouped (BGLessThanOne may1 rdx2 (BG5Zero z3 zs4
+  (BG6Novem d5 ds6 _g7 d8 ds9 sq10)))
+  = BULessThanOne may1 rdx2 (z3 <| zs4) d5 (ds6 <> (d8 <| ds9)
+    <> join (fmap (\(_g11, d12, ds13) -> d12 <| ds13) sq10))
+
+ungroupBrimGrouped (BGLessThanOne may1 rdx2 (BG5Zero z3 zs4
+  (BG6Group _g5 bg7'6)))
+  = BULessThanOne may1 rdx2
+    ((z3 <| zs4) <> zs5) d6 ds7
+  where
+    (zs5, d6, ds7) = flattenBG7 bg7'6
+
+flattenBG7 :: BG7 r -> (Seq Zero, D9, Seq D9z)
+flattenBG7 = go S.empty
+  where
+    go acc (BG7Zeroes z zs bg8) = goBG8 ((acc |> z) <> zs) bg8
+    go acc (BG7Novem d1 ds sq) = (acc, d1, ds <>
+      join (fmap (\(_, d1', ds') -> d1' <| ds') sq))
+    goBG8 acc (BG8Novem d1 ds dss) =
+      (acc, d1, ds <> (join (fmap (\(_, d', ds') -> d' <| ds') dss)))
+    goBG8 acc (BG8Group _ bg7) = go acc bg7
+
+ungroupNilGrouped :: NilGrouped r -> NilUngrouped r
+ungroupNilGrouped (NilGrouped may1 rdx2 z3 zs4 _g5 z6 zs7 sq8)
+  = case may1 of
+    Just z1 -> NUZero z1 (Just (rdx2, Just (z3,
+      (zs4 <> (z6 <| zs7))
+      <> join (fmap (\(_g9, z10, z11) -> z10 <| z11) sq8))))
+    Nothing -> NURadix rdx2 z3 (zs4 <> (z6 <| zs7)
+      <> join (fmap (\(_g9, z10, z11) -> z10 <| z11) sq8))
