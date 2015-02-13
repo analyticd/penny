@@ -121,6 +121,7 @@ main = defaultMain $ do
         : buildDepends (libraryDepends ++ testDepends)
         : hsSourceDirs ["tests"]
         : extensions ["TemplateHaskell"]
+        : ghcOptions ["-threaded"]
         : exitcodeFields "penny-properties.hs"
         ++ commonOptions
       , githubHead "massysett" "penny"

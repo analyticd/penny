@@ -10,5 +10,5 @@ main :: IO ()
 main = defaultMain $ testGroup "all tests"
   [ Penny.Copper.Properties.testGroup
   , Penny.Copper.Date.Properties.testGroup
-  , Penny.Lincoln.Properties.testGroup
+  , Penny.Lincoln.Properties.tests
   ]

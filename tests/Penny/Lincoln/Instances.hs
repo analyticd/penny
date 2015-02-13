@@ -119,14 +119,7 @@ instance Arbitrary DecPositive where
         return $ DecPositive usn expt
 
 instance Arbitrary DecZero where
-  arbitrary = DecZero <$> g
-    where
-      g = do
-        u <- arbitrarySizedBoundedIntegral `suchThat` (>= (0 :: Int))
-        case integerToNatural . fromIntegral $ u of
-          Nothing -> fail "could not generate exponent"
-          Just r -> return r
-
+  arbitrary = fmap DecZero arbitrary
 
 
 -- Ent
@@ -197,7 +190,7 @@ instance Arbitrary Unsigned where
   arbitrary = do
     Q.NonNegative i <- arbitrary
     case integerToNatural i of
-      Nothing -> fail "could not generate NonNegative."
+      Nothing -> fail "could not generate Unsigned."
       Just r -> return r
 
 -- NonZero

@@ -287,23 +287,27 @@ prop_IntegerA = testR
 prop_ScalarA :: ScalarA -> Property
 prop_ScalarA = testR
 
-prop_BracketedForest :: BracketedForest -> Property
-prop_BracketedForest = testR
+prop_BracketedForest :: Property
+prop_BracketedForest
+  = forAll (capSize 10 :: Gen BracketedForest) testR
 
-prop_ForestA :: ForestA -> Property
-prop_ForestA = testR
+capSize :: Arbitrary a => Int -> Gen a
+capSize i = sized $ \s -> resize (s `div` i) arbitrary
 
-prop_TreeA :: TreeA -> Property
-prop_TreeA = testR
+prop_ForestA :: Property
+prop_ForestA = forAll (capSize 10 :: Gen ForestA) testR
 
-prop_TopLineA :: TopLineA -> Property
-prop_TopLineA = testR
+prop_TreeA :: Property
+prop_TreeA = forAll (capSize 10 :: Gen TreeA) testR
 
-prop_PostingA :: PostingA -> Property
-prop_PostingA = testR
+prop_TopLineA :: Property
+prop_TopLineA = forAll (capSize 10 :: Gen TopLineA) testR
 
-prop_PostingsA :: PostingsA -> Property
-prop_PostingsA = testR
+prop_PostingA :: Property
+prop_PostingA = forAll (capSize 10 :: Gen PostingA) testR
+
+prop_PostingsA :: Property
+prop_PostingsA = forAll (capSize 10 :: Gen PostingsA) testR
 
 prop_Semicolon :: Semicolon -> Property
 prop_Semicolon = testR
@@ -317,11 +321,11 @@ prop_CloseCurly = testR
 prop_CommaA :: CommaA -> Property
 prop_CommaA = testR
 
-prop_PostingList :: PostingList -> Property
-prop_PostingList = testR
+prop_PostingList :: Property
+prop_PostingList = forAll (capSize 10 :: Gen PostingList) testR
 
-prop_TransactionA :: TransactionA -> Property
-prop_TransactionA = testR
+prop_TransactionA :: Property
+prop_TransactionA = forAll (capSize 10 :: Gen TransactionA) testR
 
 prop_AtSign :: AtSign -> Property
 prop_AtSign = testR
@@ -335,14 +339,14 @@ prop_ExchA = testR
 prop_CyExch :: CyExch -> Property
 prop_CyExch = testR
 
-prop_FileItem :: FileItem -> Property
-prop_FileItem = testR
+prop_FileItem :: Property
+prop_FileItem = forAll (capSize 10 :: Gen FileItem) testR
 
-prop_FileItems :: FileItems -> Property
-prop_FileItems = testR
+prop_FileItems :: Property
+prop_FileItems = forAll (capSize 10 :: Gen FileItems) testR
 
-prop_Ast :: Ast -> Property
-prop_Ast = testR
+prop_Ast :: Property
+prop_Ast = forAll (capSize 10 :: Gen Ast) testR
 
 --
 -- Other properties
