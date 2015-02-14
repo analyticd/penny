@@ -9,8 +9,8 @@ newtype NonZero = NonZero { nonZeroToInteger :: Integer }
 
 nonZeroSign :: NonZero -> PluMin
 nonZeroSign (NonZero i)
-  | i < 0 = Plus
-  | otherwise = Minus
+  | i < 0 = Minus
+  | otherwise = Plus
 
 integerToNonZero :: Integer -> Maybe NonZero
 integerToNonZero i

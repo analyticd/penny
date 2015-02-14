@@ -154,19 +154,38 @@ testGroupDecimal = testGroup "Penny.Lincoln.Decimal"
     ]
 
   , testGroup "representing decimals"
-  -- These functions should be tested in this order:
-  -- repDigits
-  -- repDecPositive
 
     [ testProperty "inversion of repUngroupedDecimal" $
       \dec ->
         let repped = repUngroupedDecimal (Radix :: Radix ()) dec
             ei = stripDecimalSign dec
-        in case (repped, ei) of
+            pair = (repped, ei)
+        in counterexample (show pair) $ case pair of
             (Center nu, Left z) -> toDecZero nu === z
             (OffCenter bu pm, Right (pos, pm')) ->
               toDecPositive bu === pos .&&. pm === pm'
-            x -> counterexample (show x) $ property False
+            _ -> property False
+
+    , testProperty "inversion of repUngroupedDecNonZero" $
+      \dec -> let a@(bu, pm) = repUngroupedDecNonZero (Radix :: Radix ()) dec
+      in counterexample (show a)
+         $ c'DecNonZero'DecPositive pm (toDecPositive bu) === dec
+
+    , testProperty "inversion of repUngroupedDecUnsigned" $
+      \dec -> let r = repUngroupedDecUnsigned (Radix :: Radix ()) dec
+      in case (r, decomposeDecUnsigned dec) of
+          (Center nu, Left z) -> toDecZero nu === z
+          (OffCenter bu _, Right p) ->
+            toDecPositive bu === p
+          _ -> property False
+
+    , testProperty "inversion of repUngroupedDecZero" $ \dec ->
+      let nu = repUngroupedDecZero (Radix :: Radix ()) dec
+      in toDecZero nu === dec
+
+    , testProperty "inversion of repUngroupedDecPositive" $ \dec ->
+      let bg = repUngroupedDecPositive (Radix :: Radix ()) dec
+      in toDecPositive bg === dec
 
     ]
 

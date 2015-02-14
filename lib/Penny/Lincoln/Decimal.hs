@@ -34,6 +34,7 @@ module Penny.Lincoln.Decimal
   , repUngroupedDecNonZero
   , repUngroupedDecUnsigned
   , repUngroupedDecZero
+  , repUngroupedDecPositive
   , repDigits
   ) where
 
@@ -292,13 +293,13 @@ repUngroupedDecimal
   -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) PluMin
 repUngroupedDecimal rdx d = case stripDecimalSign d of
   Left zero -> Center (repUngroupedDecZero rdx zero)
-  Right (pos, pm) -> OffCenter (repDecPositive rdx pos) pm
+  Right (pos, pm) -> OffCenter (repUngroupedDecPositive rdx pos) pm
 
 repUngroupedDecNonZero
   :: Radix r
   -> DecNonZero
   -> (BrimUngrouped r, PluMin)
-repUngroupedDecNonZero rdx nz = (repDecPositive rdx dp, sgn)
+repUngroupedDecNonZero rdx nz = (repUngroupedDecPositive rdx dp, sgn)
   where
     (dp, sgn) = stripNonZeroSign nz
 
@@ -308,7 +309,7 @@ repUngroupedDecUnsigned
   -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) ()
 repUngroupedDecUnsigned rdx uns = case decomposeDecUnsigned uns of
   Left z -> Center (repUngroupedDecZero rdx z)
-  Right p -> OffCenter (repDecPositive rdx p) ()
+  Right p -> OffCenter (repUngroupedDecPositive rdx p) ()
 
 -- Primitive grouping functions
 
@@ -344,8 +345,8 @@ repUngroupedDecZero rdx (DecZero expt) = case unsignedToPositive expt of
         Nothing -> acc
         Just ps' -> go ps' (Zero <| acc)
 
-repDecPositive :: Radix r -> DecPositive -> BrimUngrouped r
-repDecPositive rdx (DecPositive sig expt)
+repUngroupedDecPositive :: Radix r -> DecPositive -> BrimUngrouped r
+repUngroupedDecPositive rdx (DecPositive sig expt)
   = repDigits rdx (positiveDigits sig) expt
 
 -- Let t = number of trailing significand digits,
@@ -392,7 +393,7 @@ repDigits rdx (d1, dr) expt
       LeftBiggerBy l -> BUGreaterThanOne d1 leftDigs rightDigs
         where
           (leftDigs, rightDigs) = case prev l of
-            Nothing -> (S.empty, Nothing)
+            Nothing -> (S.empty, Just (rdx, S.fromList dr))
             Just c -> (S.fromList beg, Just (rdx, S.fromList end))
               where
                 (beg, end) = genericSplitAt (naturalToInteger c) dr
