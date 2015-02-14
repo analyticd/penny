@@ -11,7 +11,7 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Maybe (mapMaybe, isJust)
 import Data.Monoid
-import Data.Foldable (foldrM)
+import Data.Foldable (foldlM)
 
 decimalPlace :: (Digit a, Integral b) => Int -> a -> b
 decimalPlace pl dig = digitToInt dig * 10 ^ pl
@@ -270,12 +270,12 @@ c'LocatedPstgMeta'LocatedPostingA lctd@(Located lcp _) = fmap f lctd
         PstgMeta (locationTree lcp : c'ListTree'BracketedForest bf) E
 
 
-prependPstgToEnts
-  :: Located PstgMeta
-  -> Ents PstgMeta
+appendPstgToEnts
+  :: Ents PstgMeta
+  -> Located PstgMeta
   -> Either ConvertE (Ents PstgMeta)
-prependPstgToEnts lctd@(Located _ pm@(PstgMeta _ tri)) ents =
-  case prependTrio tri ents of
+appendPstgToEnts ents lctd@(Located _ pm@(PstgMeta _ tri)) =
+  case appendTrio ents tri of
     Left e -> Left $ TrioE e lctd
     Right g -> Right (g pm)
 
@@ -292,7 +292,7 @@ entsFromPostingList pstgList = do
         OnePosting pstg -> [pstg]
         PostingList p1 _ (Bs _ p2) ps ->
           p1 : p2 : map (\(_, Bs _ p) -> p) ps
-  ents <- foldrM prependPstgToEnts mempty
+  ents <- foldlM appendPstgToEnts mempty
     . map c'LocatedPstgMeta'LocatedPostingA
     $ pstgs
   case entsToBalanced ents of

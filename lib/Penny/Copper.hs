@@ -1,4 +1,3 @@
-{-# LANGUAGE Trustworthy #-}
 -- | Copper - the default Penny parser
 --
 -- Copper runs in two phases.  The first phase transforms a string
@@ -30,7 +29,15 @@
 -- "Penny.Copper.ConvertAst".
 --
 -- The modules in uu-parsinglib are not Safe (in the Safe Haskell
--- sense) so this module is marked Trustworthy.
+-- sense) so the modules in this hierarchy are not Safe either.  As of
+-- version 2.8.1.1, uu-parsinglib is Unsafe for two reasons: (1) it
+-- imports Debug.Trace, and (2) it imports Data.ListLike.  The first
+-- reason is easy to fix: just comment out the import, as the only
+-- reason it's there is in case the user wants to activate debugging.
+-- By default debugging is not enabled, so the Debug.Trace import is
+-- just dead code.  The second reason is harder to fix: ListLike is
+-- unsafe because it imports an unsafe module from the vector package;
+-- why that is unsafe, I do not know.
 module Penny.Copper (copperParser) where
 
 import Penny.Copper.Ast
@@ -58,6 +65,12 @@ import Data.List (intersperse)
 -- "Penny.Copper.ConvertAst", as the underlying parser and
 -- conversion functions have the potential to be more lazy than this
 -- function is.
+--
+-- This function operates on 'String's rather than a Text or some
+-- other type.  As a practical matter, character parsers like the one
+-- here or like one you would build with Parsec are simply going to
+-- take a Text and bust it into a list of single characters, so it's
+-- doubtbul using Text would have any benefit here.
 
 copperParser
   :: String
