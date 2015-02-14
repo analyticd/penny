@@ -12,6 +12,33 @@
 
 module Penny.Lincoln.Rep.Digit where
 
+import qualified Data.Foldable as F
+import qualified Data.Sequence as S
+
+-- * Display
+
+-- | Display of representations.
+class Display a where
+  display :: a -> ShowS
+  -- ^ Displays the value in a manner intended for end-user
+  -- consumption.
+
+instance Display a => Display [a] where
+  display = foldr (.) id . map display
+
+instance Display a => Display (S.Seq a) where
+  display = F.foldr (.) id . fmap display
+
+instance (Display a, Display b) => Display (a, b) where
+  display (a, b) = display a . display b
+
+instance (Display a, Display b, Display c) => Display (a, b, c) where
+  display (a, b, c) = display a . display b . display c
+
+instance Display a => Display (Maybe a) where
+  display Nothing = id
+  display (Just x) = display x
+
 -- * Typeclass for any digit
 
 class Digit a where
@@ -31,36 +58,124 @@ instance Digit Zero where
     0 -> Just Zero
     _ -> Nothing
 
-c'Char'Zero :: Zero -> Char
-c'Char'Zero x = case x of
-  Zero -> '0'
+instance Display Zero where display _ = ('0':)
 
 data One = One
   deriving (Eq, Ord, Show)
 
+instance Digit One where
+  digitToInt x = case x of
+    One -> 1
+
+  intToDigit x = case x of
+    1 -> Just One
+    _ -> Nothing
+
+instance Display One where display _ = ('1':)
+
 data Two = Two
   deriving (Eq, Ord, Show)
+
+instance Display Two where display _ = ('2':)
+
+instance Digit Two where
+  digitToInt x = case x of
+    Two -> 2
+
+  intToDigit x = case x of
+    2 -> Just Two
+    _ -> Nothing
 
 data Three = Three
   deriving (Eq, Ord, Show)
 
+instance Display Three where display _ = ('3':)
+
+instance Digit Three where
+  digitToInt x = case x of
+    Three -> 3
+
+  intToDigit x = case x of
+    3 -> Just Three
+    _ -> Nothing
+
 data Four = Four
   deriving (Eq, Ord, Show)
+
+instance Display Four where display _ = ('4':)
+
+instance Digit Four where
+  digitToInt x = case x of
+    Four -> 4
+
+  intToDigit x = case x of
+    4 -> Just Four
+    _ -> Nothing
 
 data Five = Five
   deriving (Eq, Ord, Show)
 
+instance Display Five where display _ = ('5':)
+
+instance Digit Five where
+  digitToInt x = case x of
+    Five -> 5
+
+  intToDigit x = case x of
+    5 -> Just Five
+    _ -> Nothing
+
 data Six = Six
   deriving (Eq, Ord, Show)
+
+instance Display Six where display _ = ('6':)
+
+instance Digit Six where
+  digitToInt x = case x of
+    Six -> 6
+
+  intToDigit x = case x of
+    6 -> Just Six
+    _ -> Nothing
 
 data Seven = Seven
   deriving (Eq, Ord, Show)
 
+instance Display Seven where display _ = ('7':)
+
+instance Digit Seven where
+  digitToInt x = case x of
+    Seven -> 7
+
+  intToDigit x = case x of
+    7 -> Just Seven
+    _ -> Nothing
+
 data Eight = Eight
   deriving (Eq, Ord, Show)
 
+instance Display Eight where display _ = ('8':)
+
+instance Digit Eight where
+  digitToInt x = case x of
+    Eight -> 8
+
+  intToDigit x = case x of
+    8 -> Just Eight
+    _ -> Nothing
+
 data Nine = Nine
   deriving (Eq, Ord, Show)
+
+instance Display Nine where display _ = ('9':)
+
+instance Digit Nine where
+  digitToInt x = case x of
+    Nine -> 9
+
+  intToDigit x = case x of
+    9 -> Just Nine
+    _ -> Nothing
 
 
 -- * Types that represent a range of digits
@@ -77,6 +192,8 @@ instance Digit D1z where
     0 -> Just D1z'0
     1 -> Just D1z'1
     _ -> Nothing
+
+instance Display D1z where display = (:) . c'Char'D1z
 
 c'Char'D1z :: D1z -> Char
 c'Char'D1z x = case x of
@@ -98,6 +215,8 @@ instance Digit D2z where
     2 -> Just D2z'2
     _ -> Nothing
 
+instance Display D2z where display = (:) . c'Char'D2z
+
 c'Char'D2z :: D2z -> Char
 c'Char'D2z x = case x of
   D2z'0 -> '0'
@@ -116,6 +235,8 @@ instance Digit D2 where
     1 -> Just D2'1
     2 -> Just D2'2
     _ -> Nothing
+
+instance Display D2 where display = (:) . c'Char'D2
 
 c'Char'D2 :: D2 -> Char
 c'Char'D2 x = case x of
@@ -150,6 +271,8 @@ instance Digit D3z where
     3 -> Just D3z'3
     _ -> Nothing
 
+instance Display D3z where display = (:) . c'Char'D3z
+
 c'Char'D3z :: D3z -> Char
 c'Char'D3z x = case x of
   D3z'0 -> '0'
@@ -171,6 +294,8 @@ instance Digit D3 where
     2 -> Just D3'2
     3 -> Just D3'3
     _ -> Nothing
+
+instance Display D3 where display = (:) . c'Char'D3
 
 c'Char'D3 :: D3 -> Char
 c'Char'D3 x = case x of
@@ -210,6 +335,8 @@ instance Digit D4z where
     4 -> Just D4z'4
     _ -> Nothing
 
+instance Display D4z where display = (:) . c'Char'D4z
+
 c'Char'D4z :: D4z -> Char
 c'Char'D4z x = case x of
   D4z'0 -> '0'
@@ -234,6 +361,8 @@ instance Digit D4 where
     3 -> Just D4'3
     4 -> Just D4'4
     _ -> Nothing
+
+instance Display D4 where display = (:) . c'Char'D4
 
 c'Char'D4 :: D4 -> Char
 c'Char'D4 x = case x of
@@ -278,6 +407,8 @@ instance Digit D5z where
     5 -> Just D5z'5
     _ -> Nothing
 
+instance Display D5z where display = (:) . c'Char'D5z
+
 c'Char'D5z :: D5z -> Char
 c'Char'D5z x = case x of
   D5z'0 -> '0'
@@ -305,6 +436,8 @@ instance Digit D5 where
     4 -> Just D5'4
     5 -> Just D5'5
     _ -> Nothing
+
+instance Display D5 where display = (:) . c'Char'D5
 
 c'Char'D5 :: D5 -> Char
 c'Char'D5 x = case x of
@@ -354,6 +487,8 @@ instance Digit D6z where
     6 -> Just D6z'6
     _ -> Nothing
 
+instance Display D6z where display = (:) . c'Char'D6z
+
 c'Char'D6z :: D6z -> Char
 c'Char'D6z x = case x of
   D6z'0 -> '0'
@@ -384,6 +519,8 @@ instance Digit D6 where
     5 -> Just D6'5
     6 -> Just D6'6
     _ -> Nothing
+
+instance Display D6 where display = (:) . c'Char'D6
 
 c'Char'D6 :: D6 -> Char
 c'Char'D6 x = case x of
@@ -438,6 +575,8 @@ instance Digit D7z where
     7 -> Just D7z'7
     _ -> Nothing
 
+instance Display D7z where display = (:) . c'Char'D7z
+
 c'Char'D7z :: D7z -> Char
 c'Char'D7z x = case x of
   D7z'0 -> '0'
@@ -471,6 +610,8 @@ instance Digit D7 where
     6 -> Just D7'6
     7 -> Just D7'7
     _ -> Nothing
+
+instance Display D7 where display = (:) . c'Char'D7
 
 c'Char'D7 :: D7 -> Char
 c'Char'D7 x = case x of
@@ -530,6 +671,8 @@ instance Digit D8z where
     8 -> Just D8z'8
     _ -> Nothing
 
+instance Display D8z where display = (:) . c'Char'D8z
+
 c'Char'D8z :: D8z -> Char
 c'Char'D8z x = case x of
   D8z'0 -> '0'
@@ -566,6 +709,8 @@ instance Digit D8 where
     7 -> Just D8'7
     8 -> Just D8'8
     _ -> Nothing
+
+instance Display D8 where display = (:) . c'Char'D8
 
 c'Char'D8 :: D8 -> Char
 c'Char'D8 x = case x of
@@ -630,6 +775,8 @@ instance Digit D9z where
     9 -> Just D9z'9
     _ -> Nothing
 
+instance Display D9z where display = (:) . c'Char'D9z
+
 c'Char'D9z :: D9z -> Char
 c'Char'D9z x = case x of
   D9z'0 -> '0'
@@ -669,6 +816,8 @@ instance Digit D9 where
     8 -> Just D9'8
     9 -> Just D9'9
     _ -> Nothing
+
+instance Display D9 where display = (:) . c'Char'D9
 
 c'Char'D9 :: D9 -> Char
 c'Char'D9 x = case x of

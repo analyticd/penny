@@ -9,6 +9,7 @@ import Penny.Lincoln.Rep
 import Penny.Lincoln.Qty
 import Penny.Lincoln.Offset
 import qualified Data.Map as M
+import qualified Data.Text as X
 
 data Orient
   = CommodityOnLeft
@@ -116,6 +117,8 @@ friendlyTrioError te = case te of
     [ "The posting you gave requires there to be exactly one commodity"
     , "that is not balanced, but there are multiple imbalances."
     ]
+  where
+    showImbalance (Commodity cy, qnz) = X.unpack cy ++ " "
 
 qtyAndCommodityToEnt
   :: QtyRepAnyRadix

@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances #-}
 
 -- | Number representations.
 --
@@ -8,8 +8,11 @@
 -- a number, complete with grouping characters and the radix point
 -- (which may be a period or a comma.)
 module Penny.Lincoln.Rep
-  ( -- * Radix and grouping
-    Radix(..)
+  ( -- * Display
+    Display(..)
+
+    -- * Radix and grouping
+  , Radix(..)
   , Grouper(..)
   , RadCom(..)
   , RadPer(..)
@@ -82,6 +85,10 @@ data Grouper
   | Underscore
   deriving (Eq, Ord, Show)
 
+instance Display Grouper where
+  display ThinSpace = ('\x2009':)
+  display Underscore = ('_':)
+
 -- | A radix point of a comma.  This type serves two purposes: when
 -- used as a type parameter for a 'Radix', it represents that the
 -- radix point is a comma.  When used alone, it represents a grouping
@@ -94,6 +101,10 @@ data RadCom
   -- 'ThinSpace' or an 'Underscore'.
   deriving (Eq, Ord, Show)
 
+instance Display RadCom where
+  display Period = ('.':)
+  display (RCGrouper g) = display g
+
 -- | A radix point of a period.  This type serves two purposes: when
 -- used as a type parameter for a 'Radix', it represents that the
 -- radix point is a period.  When used alone, it represents a grouping
@@ -105,8 +116,17 @@ data RadPer
   | RPGrouper Grouper
   -- ^ When used as a grouping character, a RadPer can also be a
   -- 'ThinSpace' or an 'Underscore'.
-
   deriving (Eq, Ord, Show)
+
+instance Display RadPer where
+  display Comma = (',':)
+  display (RPGrouper g) = display g
+
+instance Display (Radix RadCom) where
+  display _ = (',':)
+
+instance Display (Radix RadPer) where
+  display _ = ('.':)
 
 -- # Nil
 
@@ -150,11 +170,24 @@ data BG1 r
                     (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
 
+instance Display r => Display (BG1 r) where
+  display (BG1GroupOnLeft g1 d2 sq3 sq4 may5)
+    = display g1 . display d2 . display sq3 . display sq4 . display may5
+  display (BG1GroupOnRight rd1 d2 sq3 g4 d5 sq6 sq7)
+    = display rd1 . display d2 . display sq3 . display g4 . display d5
+      . display sq6 . display sq7
+
 data BG5 r
   = BG5Novem D9 (Seq D9z) r D9z (Seq D9z)
                    (Seq (r, D9z, Seq D9z))
   | BG5Zero Zero (Seq Zero) (BG6 r)
   deriving (Eq, Ord, Show)
+
+instance Display r => Display (BG5 r) where
+  display (BG5Novem d1 sq2 g3 d4 sq5 sq6) = display d1
+    . display sq2 . display g3 . display d4 . display sq5
+    . display sq6
+  display (BG5Zero z1 sq2 bg6'3) = display z1 . display sq2 . display bg6'3
 
 data BG6 r
   = BG6Novem D9 (Seq D9z) r D9z (Seq D9z)
@@ -162,15 +195,29 @@ data BG6 r
   | BG6Group r (BG7 r)
   deriving (Eq, Ord, Show)
 
+instance Display r => Display (BG6 r) where
+  display (BG6Novem d1 sq2 r3 d4 sq5 sq6)
+    = display d1 . display sq2 . display r3 . display d4
+      . display sq5 . display sq6
+  display (BG6Group g1 bg7'2) = display g1 . display bg7'2
+
 data BG7 r
   = BG7Zeroes Zero (Seq Zero) (BG8 r)
   | BG7Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
 
+instance Display r => Display (BG7 r) where
+  display (BG7Zeroes z1 sq2 bg8'3) = display z1 . display sq2 . display bg8'3
+  display (BG7Novem d1 sq2 sq3) = display d1 . display sq2 . display sq3
+
 data BG8 r
   = BG8Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
   | BG8Group r (BG7 r)
   deriving (Eq, Ord, Show)
+
+instance Display r => Display (BG8 r) where
+  display (BG8Novem d1 ds2 sq3) = display d1 . display ds2 . display sq3
+  display (BG8Group r bg7) = display r . display bg7
 
 -- # Others
 
