@@ -6,6 +6,7 @@ import Penny.Lincoln.Side
 import Penny.Lincoln.Rep
 import Penny.Lincoln.NonZero
 import Penny.Lincoln.Offset
+import Penny.Lincoln.PluMin
 
 newtype Qty = Qty Decimal
   deriving (Eq, Ord, Show)
@@ -30,6 +31,18 @@ qtySide (Qty (Decimal sig _))
 
 newtype QtyNonZero = QtyNonZero DecNonZero
   deriving (Eq, Ord, Show)
+
+-- | Displays a QtyNonZero using a period radix and no grouping.
+displayQtyNonZero :: QtyNonZero -> String
+displayQtyNonZero qnz =  case stripDecimalSign . (\(Qty d) -> d)
+  . qtyNonZeroToQty $ qnz of
+  Left dz -> display (repUngroupedDecZero rdx dz) ""
+  Right (dp, pm) -> display (conv pm) . (' ':)
+    . display (repUngroupedDecPositive rdx dp) $ ""
+    where
+      conv = fromSign :: PluMin -> Side
+  where
+    rdx = Radix :: Radix RadPer
 
 class HasQtyNonZero a where
   toQtyNonZero :: a -> QtyNonZero

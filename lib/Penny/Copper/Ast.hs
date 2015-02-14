@@ -9,6 +9,7 @@ import Penny.Copper.Terminals
 import Penny.Copper.Parser
 import Penny.Copper.LincolnTypes
 import Penny.Copper.Date
+import Data.List (intersperse)
 
 data Located a = Located LineColPosA a
   deriving (Eq, Ord, Show)
@@ -880,3 +881,17 @@ parseAst
 parseAst str = parse prsr (createStr (LineColPosA 1 0 0) str)
   where
     prsr = (,,) <$> pAst <*> pErrors <*> pEnd
+
+displayParseError :: Error LineColPosA -> String
+displayParseError er = case er of
+  Inserted i p es -> "inserted " ++ i ++ " at " ++ display p ""
+    ++ "; expecting " ++ expecting es
+  Deleted i p es -> "deleted " ++ i ++ " at " ++ display p ""
+    ++ "; expecting " ++ expecting es
+  Replaced _ _ _ _ -> error "replaced: not implemented"
+  DeletedAtEnd s -> "unconsumed input deleted: " ++ s
+  where
+    expecting ls = case ls of
+      [] -> "empty list"
+      x:[] -> x
+      xs -> "one of: " ++ (concat . intersperse "; " $ xs)

@@ -34,6 +34,19 @@ data ConvertE
   | PriceSameCommodityE LineColPosA FromCy
   deriving (Eq, Ord, Show)
 
+instance Friendly ConvertE where
+  friendly err = ("Error at " ++ display lcp "" ++ ":") : rest
+    where
+      (lcp, rest) = case err of
+        TrioE te (Located l _) -> (l, friendly te)
+        ImbalancedE e pl -> (lc, friendly e)
+          where
+            lc = case pl of
+              OnePosting (Located x _) -> x
+              PostingList (Located x _) _ _ _ -> x
+        PriceSameCommodityE l (FromCy (Commodity cy)) ->
+          (l, ["From and To commodities are the same: " ++ X.unpack cy])
+
 c'Hours'HoursA :: HoursA -> Hours
 c'Hours'HoursA x = case x of
   H0to19a m d -> H0to19 m d

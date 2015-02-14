@@ -8,6 +8,7 @@ import Penny.Lincoln.Side
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Qty
 import Penny.Lincoln.Offset
+import Penny.Lincoln.Friendly
 import qualified Data.Map as M
 import qualified Data.Text as X
 
@@ -107,18 +108,33 @@ data TrioError
   deriving (Eq, Ord, Show)
 
 
-friendlyTrioError :: TrioError -> [String]
-friendlyTrioError te = case te of
-  NoImbalances ->
-    [ "The posting you gave requires there to be a current imbalance,"
-    , "but the postings are perfectly balanced."
-    ]
-  MultipleImbalances i1 i2 is ->
-    [ "The posting you gave requires there to be exactly one commodity"
-    , "that is not balanced, but there are multiple imbalances."
-    ]
-  where
-    showImbalance (Commodity cy, qnz) = X.unpack cy ++ " "
+instance Friendly TrioError where
+  friendly te = case te of
+    NoImbalances ->
+      [ "The posting you gave requires there to be a current imbalance,"
+      , "but the postings are perfectly balanced."
+      ]
+    MultipleImbalances i1 i2 is ->
+      [ "The posting you gave requires there to be exactly one commodity"
+      , "that is not balanced, but there are multiple imbalances:"
+      , showImbalance i1
+      , showImbalance i2
+      ] ++ map showImbalance is
+
+    CommodityNotFound (Commodity cy) ->
+      [ "Necessary commodity not found in imbalances: " ++ X.unpack cy ]
+
+    BalanceIsSameSide s ->
+      [ "Imbalances needs to be on opposite side of given posting,"
+      , "but it is on the same side: " ++ (display s "")
+      ]
+    UnsignedTooLarge rnn qnz ->
+      [ "Specified quantity of " ++ (display rnn "") ++ " is larger than "
+        ++ "quantity in the imbalance, which is " ++ disp qnz
+      ]
+    where
+      showImbalance (Commodity cy, qnz) = X.unpack cy ++ " " ++ disp qnz
+      disp = displayQtyNonZero
 
 qtyAndCommodityToEnt
   :: QtyRepAnyRadix

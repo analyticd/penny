@@ -14,6 +14,7 @@ module Penny.Lincoln.Rep.Digit where
 
 import qualified Data.Foldable as F
 import qualified Data.Sequence as S
+import Penny.Lincoln.Side
 
 -- * Display
 
@@ -22,6 +23,10 @@ class Display a where
   display :: a -> ShowS
   -- ^ Displays the value in a manner intended for end-user
   -- consumption.
+
+instance Display Side where
+  display Debit = ('<':)
+  display Credit = ('>':)
 
 instance Display a => Display [a] where
   display = foldr (.) id . map display

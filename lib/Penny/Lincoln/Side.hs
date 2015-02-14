@@ -13,3 +13,5 @@ instance HasOffset Side where
 instance Signed Side where
   sign Debit = Minus
   sign Credit = Plus
+  fromSign Minus = Debit
+  fromSign Plus = Credit

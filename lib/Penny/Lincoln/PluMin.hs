@@ -5,7 +5,9 @@ data PluMin = Plus | Minus
 
 class Signed a where
   sign :: a -> PluMin
+  fromSign :: PluMin -> a
 
 instance Signed PluMin where
   sign = id
+  fromSign = id
 

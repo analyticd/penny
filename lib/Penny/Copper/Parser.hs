@@ -7,11 +7,17 @@ import Text.ParserCombinators.UU.Core hiding (Zero)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Fdbl
+import Penny.Lincoln
 
 -- | The 'LineColPos' that ships with uu-parsinglib is not an instance
 -- of 'Eq'; having an 'Eq' instance can help enormously with testing
 data LineColPosA = LineColPosA !Int !Int !Int
   deriving (Eq, Ord, Show)
+
+instance Display LineColPosA where
+  display (LineColPosA l c p)
+    = (("line " ++ show l ++ " column " ++ show c
+                ++ " position " ++ show p) ++)
 
 instance IsLocationUpdatedBy LineColPosA Char where
   advance (LineColPosA lin ps ab) c = case c of

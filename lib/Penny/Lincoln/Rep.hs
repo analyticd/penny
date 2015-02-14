@@ -122,12 +122,6 @@ instance Display RadPer where
   display Comma = (',':)
   display (RPGrouper g) = display g
 
-instance Display (Radix RadCom) where
-  display _ = (',':)
-
-instance Display (Radix RadPer) where
-  display _ = ('.':)
-
 -- # Nil
 
 data Nil r
@@ -135,16 +129,46 @@ data Nil r
   | NilG (NilGrouped r)
   deriving (Eq, Ord, Show)
 
+instance Display (Nil RadCom) where
+  display (NilU x) = display x
+  display (NilG x) = display x
+
+instance Display (Nil RadPer) where
+  display (NilU x) = display x
+  display (NilG x) = display x
+
 data NilGrouped r
   = NilGrouped (Maybe Zero) (Radix r)
                Zero (Seq Zero) r Zero (Seq Zero)
                (Seq (r, Zero, Seq Zero))
   deriving (Eq, Ord, Show)
 
+instance Display (NilGrouped RadCom) where
+  display (NilGrouped may1 _rdx2 z3 zs4 g5 z6 zs7 sq8)
+    = display may1 . (',':) . display z3 . display zs4 . display g5
+      . display z6 . display zs7 . display sq8
+
+instance Display (NilGrouped RadPer) where
+  display (NilGrouped may1 _rdx2 z3 zs4 g5 z6 zs7 sq8)
+    = display may1 . ('.':) . display z3 . display zs4 . display g5
+      . display z6 . display zs7 . display sq8
+
 data NilUngrouped r
   = NUZero Zero (Maybe (Radix r, Maybe (Zero, Seq Zero)))
   | NURadix (Radix r) Zero (Seq Zero)
   deriving (Eq, Ord, Show)
+
+instance Display (NilUngrouped RadCom) where
+  display (NUZero z may) = display z . case may of
+    Nothing -> id
+    Just (_rdx, may2) -> (',':) . display may2
+  display (NURadix _rdx1 z2 zs3) = (',':) . display z2 . display zs3
+
+instance Display (NilUngrouped RadPer) where
+  display (NUZero z may) = display z . case may of
+    Nothing -> id
+    Just (_rdx, may2) -> ('.':) . display may2
+  display (NURadix _rdx1 z2 zs3) = ('.':) . display z2 . display zs3
 
 -- # Brim
 
@@ -153,15 +177,51 @@ data Brim r
   | BrimUngrouped (BrimUngrouped r)
   deriving (Eq, Ord, Show)
 
+instance Display (Brim RadCom) where
+  display (BrimGrouped bg) = display bg
+  display (BrimUngrouped bu) = display bu
+
+instance Display (Brim RadPer) where
+  display (BrimGrouped bg) = display bg
+  display (BrimUngrouped bu) = display bu
+
 data BrimUngrouped r
   = BUGreaterThanOne D9 (Seq D9z) (Maybe (Radix r, Seq D9z))
   | BULessThanOne (Maybe Zero) (Radix r) (Seq Zero) D9 (Seq D9z)
   deriving (Eq, Ord, Show)
 
+instance Display (BrimUngrouped RadCom) where
+  display (BUGreaterThanOne d1 sq2 may3) = display d1 . display sq2 .
+    case may3 of
+      Nothing -> id
+      Just (_rdx, sq4) -> (',':) . display sq4
+  display (BULessThanOne may1 _rdx2 sq3 d4 ds5) =
+    display may1 . (',':) . display sq3 . display d4 . display ds5
+
+instance Display (BrimUngrouped RadPer) where
+  display (BUGreaterThanOne d1 sq2 may3) = display d1 . display sq2 .
+    case may3 of
+      Nothing -> id
+      Just (_rdx, sq4) -> ('.':) . display sq4
+  display (BULessThanOne may1 _rdx2 sq3 d4 ds5) =
+    display may1 . ('.':) . display sq3 . display d4 . display ds5
+
 data BrimGrouped r
   = BGGreaterThanOne D9 (Seq D9z) (BG1 r)
   | BGLessThanOne (Maybe Zero) (Radix r) (BG5 r)
   deriving (Eq, Ord, Show)
+
+instance Display (BrimGrouped RadCom) where
+  display (BGGreaterThanOne d1 sq2 bg1'3) =
+    display d1 . display sq2 . display bg1'3
+  display (BGLessThanOne m1 _rdx2 bg5'3) =
+    display m1 . (',':) . display bg5'3
+
+instance Display (BrimGrouped RadPer) where
+  display (BGGreaterThanOne d1 sq2 bg1'3) =
+    display d1 . display sq2 . display bg1'3
+  display (BGLessThanOne m1 _rdx2 bg5'3) =
+    display m1 . ('.':) . display bg5'3
 
 data BG1 r
   = BG1GroupOnLeft r D9z (Seq D9z) (Seq (r, D9z, Seq D9z))
@@ -170,12 +230,26 @@ data BG1 r
                     (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
 
-instance Display r => Display (BG1 r) where
-  display (BG1GroupOnLeft g1 d2 sq3 sq4 may5)
-    = display g1 . display d2 . display sq3 . display sq4 . display may5
-  display (BG1GroupOnRight rd1 d2 sq3 g4 d5 sq6 sq7)
-    = display rd1 . display d2 . display sq3 . display g4 . display d5
-      . display sq6 . display sq7
+instance Display (BG1 RadCom) where
+  display (BG1GroupOnLeft g1 d2 sq3 sq4 may5) =
+    display g1 . display d2 . display sq3 . display sq4 . case may5 of
+      Nothing -> id
+      Just (_rdx, may6) -> (',':) . display may6
+
+  display (BG1GroupOnRight _rdx1 d2 sq3 g4 d5 sq6 sq7) =
+    (',':) . display d2 . display sq3 . display g4 . display d5
+    . display sq6 . display sq7
+
+instance Display (BG1 RadPer) where
+  display (BG1GroupOnLeft g1 d2 sq3 sq4 may5) =
+    display g1 . display d2 . display sq3 . display sq4 . case may5 of
+      Nothing -> id
+      Just (_rdx, may6) -> ('.':) . display may6
+
+  display (BG1GroupOnRight _rdx1 d2 sq3 g4 d5 sq6 sq7) =
+    ('.':) . display d2 . display sq3 . display g4 . display d5
+    . display sq6 . display sq7
+
 
 data BG5 r
   = BG5Novem D9 (Seq D9z) r D9z (Seq D9z)
@@ -250,12 +324,21 @@ newtype NilOrBrimScalar r
   = NilOrBrimScalar (Either (Nil r) (Brim r))
   deriving (Eq, Ord, Show)
 
+instance Display (NilOrBrimScalar RadCom) where
+  display (NilOrBrimScalar ei) = either display display ei
+
+instance Display (NilOrBrimScalar RadPer) where
+  display (NilOrBrimScalar ei) = either display display ei
+
 -- | Number types that may be neutral or non-neutral, with either a
 -- comma or period radix.  Does not have a polarity.
 newtype NilOrBrimScalarAnyRadix
   = NilOrBrimScalarAnyRadix (Either (NilOrBrimScalar RadCom)
                                     (NilOrBrimScalar RadPer))
   deriving (Eq, Ord, Show)
+
+instance Display NilOrBrimScalarAnyRadix where
+  display (NilOrBrimScalarAnyRadix ei) = either display display ei
 
 -- | Adds polarity to a 'NilOrBrimScalarAnyRadix' to transform it to a
 -- 'QtyRepAnyRadix'.  Nil values do not receive a polarity; all other
@@ -300,6 +383,9 @@ newtype RepNonNeutralNoSide
   = RepNonNeutralNoSide
     (Either (Brim RadCom) (Brim RadPer))
     deriving (Eq, Ord, Show)
+
+instance Display RepNonNeutralNoSide where
+  display (RepNonNeutralNoSide ei) = either display display ei
 
 -- # Qty representations
 

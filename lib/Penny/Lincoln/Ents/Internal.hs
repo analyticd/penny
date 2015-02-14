@@ -12,10 +12,12 @@ import Penny.Lincoln.Qty
 import Data.Monoid
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
+import qualified Data.Text as X
 import Penny.Lincoln.Trio
 import qualified Data.Map as M
 import Penny.Lincoln.Side
 import Penny.Lincoln.Rep
+import Penny.Lincoln.Friendly
 
 data Ents m = Ents
   { entsToSeqEnt :: Seq (Ent m)
@@ -85,6 +87,15 @@ prependTrio trio ents@(Ents _ imb) =
 data ImbalancedError
   = ImbalancedError (Commodity, QtyNonZero) [(Commodity, QtyNonZero)]
   deriving (Eq, Ord, Show)
+
+instance Friendly ImbalancedError where
+  friendly (ImbalancedError c1 cs) =
+    [ "Transaction is not balanced.  Imbalances:"
+    , showImb c1
+    ] ++ map showImb cs
+    where
+      showImb (Commodity cy, q)
+        = "  " ++ X.unpack cy ++ " " ++ displayQtyNonZero q
 
 entsToBalanced :: Ents a -> Either ImbalancedError (Balanced a)
 entsToBalanced (Ents sq (Imbalances m)) = case M.toList m of
