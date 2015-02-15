@@ -16,6 +16,8 @@ import Penny.Lincoln.Ents
 import Penny.Lincoln.Ent
 
 class (Applicative l, Functor l, Monad l) => Ledger l where
+  type TranpriL (l :: * -> *) :: *
+  type PriceL (l :: * -> *) :: *
   type TransactionL (l :: * -> *) :: *
   type TreeL (l :: * -> *) :: *
   type PostingL (l :: * -> *) :: *

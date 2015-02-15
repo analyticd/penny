@@ -628,6 +628,12 @@ rBracketedForest :: BracketedForest -> ShowS
 rBracketedForest (BracketedForest b0 m1 b2) = rFs rOpenSquare b0
   . rMaybe (rFs rForestA) m1 . rCloseSquare b2
 
+-- I once considered making the Scalar optional here by creating
+-- another production with no Scalar and a required BracketedForest.
+-- However, that makes the grammar ambiguous.  Then, after parsing a
+-- Scalar and encountering a BracketedForest, you can't tell whether
+-- the BracketedForest belongs with the Scalar or is its own
+-- standalone Tree.
 data TreeA = TreeA (Located ScalarA) (Maybe (Bs BracketedForest))
   deriving (Eq, Ord, Show)
 

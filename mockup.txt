@@ -1,7 +1,50 @@
+# A Penny file consists of a list of transactions and prices.  First we
+# will consider transactions. A transaction consists of a "top line",
+# which has information common to the whole transaction, and a number of
+# "postings".
+# 
+# The top line is optional.  If you have one, it consists of a list of
+# rose trees:
+# 
+# http://en.wikipedia.org/wiki/Rose_tree
+# 
+# Each node of the rose tree can be one of the following things:
+# 
+# * a date, formatted as YYYY-MM-DD or YYYY/MM/DD
+# 
+# * a time, formatted as HH:MM or HH:MM:SS
+# 
+# * a time zone, formatted as +MMMM or -MMMM
+# 
+# * a number, which can be any non-negative integer, or
+# 
+# * arbitrary text.  Arbitrary text can be quoted with double quotation
+#   marks, or it can be unquoted if it contains no special characters.
+# 
+# Each node has an optional list of child rose trees.
+# 
+# This is a flexible framework that allows you to use parent nodes as
+# labels and child nodes as corresponding values.
+# 
+# A top line is followed by a number of postings.  A posting consists of
+# an optional amount, followed by an optional list of rose trees.
+# 
 # This is a comment
 2014-01-02 payee ["The Behnke Nursery Co"] flag [True] tags [Garden]
   { > $24.40 [ account [Assets Current Checking] 101 ]
   ; [ account [Expenses Plants] tags [Vacation] ]
+  }
+
+# more terse?
+2014-03-05 payee ["Urdu and Son"] flag [R] tags [Garden]
+  { < $103.65 [ acct [Expenses Education] num [101] ]
+  ; [ acct [Assets Current Checking] ]
+  }
+
+# even more terse?
+2014-06-30 "Urdu and Son" (R) [Garden]
+  { < $230.03 [ acct [Expenses Education] 101 ]
+  ; [ acct [Assets Current Checking ]]
   }
 
 # This is a price.  It is a date (required) and an
