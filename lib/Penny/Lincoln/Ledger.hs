@@ -1,30 +1,33 @@
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeFamilies, RecursiveDo #-}
 
 module Penny.Lincoln.Ledger where
 
-import Control.Monad
+import Prednote
 import Control.Applicative
-import Data.Functor.Identity
 import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
 import Penny.Lincoln.Qty
+import Penny.Lincoln.DateTime
 import Penny.Lincoln.Commodity
-import Control.Monad.Trans.Class
-import Penny.Lincoln.Transaction
-import qualified Data.Foldable as Fdbl
-import Penny.Lincoln.Ents
-import Penny.Lincoln.Ent
+import Penny.Lincoln.Prices
+import Penny.Lincoln.Exch
+import Control.Monad.Fix
 
-class (Applicative l, Functor l, Monad l) => Ledger l where
-  type TranpriL (l :: * -> *) :: *
+class Ledger l where
   type PriceL (l :: * -> *) :: *
   type TransactionL (l :: * -> *) :: *
   type TreeL (l :: * -> *) :: *
   type PostingL (l :: * -> *) :: *
 
-  transactions :: l [TransactionL l]
+  ledgerItems :: l [Either (PriceL l) (TransactionL l)]
+
+  priceDate :: PriceL l -> l DateTime
+  priceFromTo :: PriceL l -> l FromTo
+  priceExch :: PriceL l -> l Exch
+
   transactionMeta :: TransactionL l -> l [TreeL l]
   scalar :: TreeL l -> l Scalar
+  realm :: TreeL l -> l Realm
   children :: TreeL l -> l [TreeL l]
   postings :: TransactionL l -> l [PostingL l]
   postingTrees :: PostingL l -> l [TreeL l]
@@ -32,86 +35,171 @@ class (Applicative l, Functor l, Monad l) => Ledger l where
   postingQty :: PostingL l -> l Qty
   postingCommodity :: PostingL l -> l Commodity
 
-data PlainT m a = PlainT ([Transaction] -> m a)
+-- # Clatches
 
-type Plain = PlainT Identity
+data Clatch l
+  = Clatch (TransactionL l) [PostingL l] (PostingL l) [PostingL l]
+  -- ^ @Clatch t l c r@, where
+  --
+  -- @t@ is the transaction giving rise to this 'Clatch',
+  --
+  -- @l@ are sibling postings on the left.  Closer siblings are at the
+  -- head of the list.
+  --
+  -- @c@ is the current posting of this 'Clatch', and
+  --
+  -- @r@ are sibling postings on the right.  Closer siblings are at
+  -- the head of the list.
 
-instance Functor m => Functor (PlainT m) where
-  fmap f (PlainT v) = PlainT $ \ts -> fmap f (v ts)
+nextClatch :: Clatch l -> Maybe (Clatch l)
+nextClatch (Clatch t l c r) = case r of
+  [] -> Nothing
+  x:xs -> Just $ Clatch t (c : l) x xs
 
-instance Monad m => Monad (PlainT m) where
-  return a = PlainT $ \_ -> return a
-  PlainT l >>= k = PlainT $ \ts -> do
-    rl <- l ts
-    let PlainT kk = k rl
-    kk ts
+prevClatch :: Clatch l -> Maybe (Clatch l)
+prevClatch (Clatch t l c r) = case l of
+  [] -> Nothing
+  x:xs -> Just $ Clatch t xs x (c : r)
 
-instance (Monad m, Functor m) => Applicative (PlainT m) where
-  pure = return
-  (<*>) = ap
-
-instance MonadTrans PlainT where
-  lift = PlainT . return
-
-data Posting = Posting [Tree] Trio Qty Commodity
-  deriving (Eq, Ord, Show)
-
-balancedToPostings :: Balanced PstgMeta -> [Posting]
-balancedToPostings = Fdbl.toList . fmap f . balancedToSeqEnt
+clatches :: (Functor l, Ledger l) => TransactionL l -> l [Clatch l]
+clatches txn = fmap (go []) $ postings txn
   where
-    f (Ent q cy (PstgMeta ts tri)) = Posting ts tri q cy
+    go soFar curr = case curr of
+      [] -> []
+      x:xs ->
+        let this = Clatch txn soFar x xs
+        in this : go (x : soFar) xs
 
-instance (Applicative m, Monad m) => Ledger (PlainT m) where
-  type TransactionL (PlainT m) = Transaction
-  type TreeL (PlainT m) = Tree
-  type PostingL (PlainT m) = Posting
+-- # Tree search
 
-  transactions = PlainT $ return
-  transactionMeta (Transaction (TopLine ts) _) = PlainT . const . return $ ts
-  scalar (Tree _ n _) = PlainT . const . return $ n
-  children (Tree _ _ cs) = PlainT . const . return $ cs
-  postings (Transaction _ bal) = PlainT . const
-    . return . balancedToPostings $ bal
-  postingTrees (Posting ts _ _ _) = PlainT . const . return $ ts
-  postingTrio (Posting _ tr _ _) = PlainT . const . return $ tr
-  postingQty (Posting _ _ q _) = PlainT . const . return $ q
-  postingCommodity (Posting _ _ _ cy) = PlainT . const . return $ cy
+newtype FoundTree l
+  = FoundTree (Either (Labeled Passed, TreeL l) (Labeled Failed, FoundForest l))
 
-newtype TxnId = TxnId Int
-  deriving (Eq, Ord, Show)
+data NotFoundTree = NotFoundTree (Labeled Failed) NotFoundForest
 
-newtype TreeId = TreeId Int
-  deriving (Eq, Ord, Show)
+data FoundForest l = FoundForest [NotFoundTree] (FoundTree l)
 
-newtype PostingId = PostingId Int
-  deriving (Eq, Ord, Show)
+data NotFoundForest = NotFoundForest [NotFoundTree]
 
-data SqlState = SqlState
+-- | Selects a single 'Tree' when given a 'Pred'.  First examines the
+-- given 'Tree'; if tht 'Tree' does not match, examines the forest of
+-- children using 'selectForest'.
+selectTree
+  :: (Monad l, Ledger l)
+  => PredM l (TreeL l)
+  -> TreeL l
+  -> l (Either NotFoundTree (FoundTree l))
+selectTree pd tr = do
+  res <- runPredM pd tr
+  case splitResult res of
+    Left bad -> do
+      kids <- children tr
+      ei <- selectForest pd kids
+      return $ case ei of
+        Left notFound -> Left $ NotFoundTree bad notFound
+        Right found -> Right $ FoundTree (Right (bad, found))
+    Right good -> return . Right . FoundTree . Left $ (good, tr)
 
-data Sql a = Sql (SqlState -> IO a)
 
-instance Functor Sql where
-  fmap f (Sql k) = Sql $ \st -> fmap f (k st)
+-- | Selects a single 'Tree' when given a 'Pred' and a list of 'Tree'.
+-- Examines each 'Tree' in the list, in order, using 'selectTree'.
+selectForest
+  :: (Monad l, Ledger l)
+  => PredM l (TreeL l)
+  -> [TreeL l]
+  -> l (Either NotFoundForest (FoundForest l))
+selectForest pd = go []
+  where
+    go acc [] = return . Left . NotFoundForest . reverse $ acc
+    go acc (x:xs) = do
+      treeRes <- selectTree pd x
+      case treeRes of
+        Left notFound -> go (notFound : acc) xs
+        Right found -> return . Right $ FoundForest (reverse acc) found
 
-instance Monad Sql where
-  return a = Sql $ \_ -> return a
-  (Sql l) >>= k = Sql $ \st -> do
-    a <- l st
-    let Sql kr = k a
-    kr st
+-- # contramapM
 
-instance Applicative Sql where
-  pure = return
-  (<*>) = ap
+contramapM
+  :: Monad m
+  => (a -> m b)
+  -> PredM m b
+  -> PredM m a
+contramapM conv (PredM f) = PredM $ \a -> conv a >>= f
+
+-- # Predicates on trees
+
+data TreeZip l
+  = TreeZip (Maybe (TreeZip l)) [TreeZip l] [TreeZip l]
 
 {-
-instance Ledger Sql where
-  type TransactionL Sql = TxnId
-  type TreeL Sql = TreeId
-  type PostingL Sql = PostingId
+-- | A zipper to view 'TreeL'.
+data TreeZip l
+  = TreeZip (Maybe (ForestZip l)) (TreeL l) (ForestZip l)
+  -- ^ @TreeZip m t f@, where
+  --
+  -- @m@ is this tree's parent forest (if any)
+  --
+  -- @t@ is this tree
+  --
+  -- @z@ is the child forest of this tree.
+
+-- | A zipper to view forests of 'TreeL'.
+data ForestZip l
+  = ForestZip (Maybe (TreeZip l)) [TreeZip l] [TreeZip l]
+  -- ^ @ForestZip m l r@, where
+  --
+  -- @m@ is the parent tree of this forest (if any)
+  --
+  -- @l@ is trees to the left, and
+  --
+  -- @r@ is trees to the right.
+
+treeZip
+  :: (Monad l, Applicative l, Ledger l, MonadFix l)
+  => Maybe (ForestZip l)
+  -> TreeL l
+  -> l (TreeZip l)
+treeZip p t = mdo
+  cs <- children t
+  fs <- forestZip (Just this) cs
+  let this = TreeZip p t fs
+  return this
+
+forestZip
+  :: (Monad l, Applicative l, Ledger l, MonadFix l)
+  => Maybe (TreeZip l)
+  -> [TreeL l]
+  -> l (ForestZip l)
+forestZip p ts = mdo
+  let this = ForestZip p [] cs
+  cs <- mapM (treeZip (Just this)) ts
+  return this
+
+nextTree :: ForestZip l -> Maybe (ForestZip l)
+nextTree (ForestZip p l r) = case r of
+  [] -> Nothing
+  x:xs -> Just (ForestZip p (x : l) xs)
+
+prevTree :: ForestZip l -> Maybe (ForestZip l)
+prevTree (ForestZip p l r) = case l of
+  [] -> Nothing
+  x:xs -> Just (ForestZip p xs (x : r))
+
+parentTree :: ForestZip l -> Maybe (TreeZip l)
+parentTree (ForestZip p _ _) = p
+
+childForest
+  :: (Monad l, Applicative l, Ledger l, MonadFix l)
+  => TreeZip l
+  -> l (ForestZip l)
+childForest tz@(TreeZip _ t _) = do
+  cs <- children t
+  forestZip (Just tz) cs
+
+-- | True if any 'TreeZip' in the Forest is True.
+anyTree
+  :: (Monad l, Applicative l, Ledger l, MonadFix l)
+  => PredM l (TreeZip l)
+  -> PredM l (ForestZip l)
+anyTree = undefined
 -}
-allQtys :: Ledger l => l [Qty]
-allQtys = do
-  txns <- transactions
-  pstgs <- fmap concat . mapM postings $ txns
-  mapM postingQty pstgs

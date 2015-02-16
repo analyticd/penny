@@ -31,7 +31,7 @@ transformers :: Package
 transformers = closedOpen "transformers" [0,3] [0,5]
 
 prednote :: Package
-prednote = closedOpen "prednote" [0,28] [0,29]
+prednote = closedOpen "prednote" [0,30] [0,31]
 
 semigroups :: Package
 semigroups = closedOpen "semigroups" [0,16,1] [0,17]
@@ -50,9 +50,6 @@ tastyQuickcheck = closedOpen "tasty-quickcheck" [0,8,3] [0,9]
 
 tastyTh :: Package
 tastyTh = closedOpen "tasty-th" [0,1,3] [0,2]
-
-prettyShow :: Package
-prettyShow = closedOpen "pretty-show" [1,6,8] [1,7]
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
@@ -133,7 +130,7 @@ main = defaultMain $ do
           , condBlock (flag copper)
               ( otherModules libMods
               , [ hsSourceDirs ["copper-parse"]
-                , buildDepends (prettyShow : libraryDepends)
+                , buildDepends libraryDepends
                 ] ++ commonOptions
               )
               [ buildable False ]

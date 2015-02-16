@@ -1,8 +1,9 @@
 {-# LANGUAGE OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
 module Penny.Lincoln.Field where
 
-import Data.Text
+import Data.Text (Text, pack)
 import Penny.Lincoln.DateTime
+import Prednote hiding (maybe)
 
 data Tree = Tree Realm Scalar [Tree]
   deriving (Eq, Ord, Show)

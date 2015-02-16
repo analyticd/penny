@@ -6,7 +6,6 @@ import Penny.Copper
 import System.Environment
 import qualified System.IO as IO
 import System.Exit
-import Text.Show.Pretty
 
 main :: IO ()
 main = do
@@ -17,5 +16,8 @@ main = do
       IO.hPutStr IO.stderr e
       exitFailure
     Right g -> do
-      IO.putStrLn . ppShow $ g
+      -- I tried using pretty-show for ppShow here, but it doesn't work
+      -- The result is not prettfied at all
+      -- IO.putStrLn . ppShow $ g
+      IO.putStrLn . show $ g
       exitSuccess
