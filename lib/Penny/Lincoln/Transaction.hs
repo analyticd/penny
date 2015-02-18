@@ -132,8 +132,8 @@ makeRev = do
 
 makeTxnSerials
   :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 (a, b))
-  -> t1 (t2 ((a, b), Serial))
+  => t1 (t2 a)
+  -> t1 (t2 (a, Serial))
 makeTxnSerials
   = fmap (fmap (second repack))
   . fmap makeFileTxnSerials
@@ -145,8 +145,8 @@ makeTxnSerials
 
 makeGlobalTxnSerials
   :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 (a, b))
-  -> t1 (t2 ((a, b), GlblSer))
+  => t1 (t2 a)
+  -> t1 (t2 (a, GlblSer))
 makeGlobalTxnSerials sq = fst . flip runState 0 $
   (T.mapM (T.mapM assignToFwd) sq)
   >>= T.mapM (T.mapM (assignToRev "global" GlblSer))
