@@ -1,8 +1,9 @@
-{-# LANGUAGE TypeFamilies, RecursiveDo #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Penny.Lincoln.Ledger where
 
 import Prednote
+import qualified Prednote as P
 import Control.Applicative
 import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
@@ -11,7 +12,6 @@ import Penny.Lincoln.DateTime
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.Prices
 import Penny.Lincoln.Exch
-import Control.Monad.Fix
 
 class Ledger l where
   type PriceL (l :: * -> *) :: *
@@ -38,37 +38,36 @@ class Ledger l where
 -- # Clatches
 
 data Clatch l
-  = Clatch (TransactionL l) [PostingL l] (PostingL l) [PostingL l]
-  -- ^ @Clatch t l c r@, where
+  = Clatch (TransactionL l) [PostingL l] [PostingL l]
+  -- ^ @Clatch t l r@, where
   --
   -- @t@ is the transaction giving rise to this 'Clatch',
   --
-  -- @l@ are sibling postings on the left.  Closer siblings are at the
+  -- @l@ are postings on the left.  Closer siblings are at the
   -- head of the list.
   --
-  -- @c@ is the current posting of this 'Clatch', and
-  --
-  -- @r@ are sibling postings on the right.  Closer siblings are at
+  -- @r@ are postings on the right.  Closer siblings are at
   -- the head of the list.
 
 nextClatch :: Clatch l -> Maybe (Clatch l)
-nextClatch (Clatch t l c r) = case r of
+nextClatch (Clatch t l r) = case r of
   [] -> Nothing
-  x:xs -> Just $ Clatch t (c : l) x xs
+  x:xs -> Just $ Clatch t (x : l) xs
 
 prevClatch :: Clatch l -> Maybe (Clatch l)
-prevClatch (Clatch t l c r) = case l of
+prevClatch (Clatch t l r) = case l of
   [] -> Nothing
-  x:xs -> Just $ Clatch t xs x (c : r)
+  x:xs -> Just $ Clatch t xs (x : r)
 
 clatches :: (Functor l, Ledger l) => TransactionL l -> l [Clatch l]
 clatches txn = fmap (go []) $ postings txn
   where
-    go soFar curr = case curr of
-      [] -> []
-      x:xs ->
-        let this = Clatch txn soFar x xs
-        in this : go (x : soFar) xs
+    go onLeft onRight = curr : rest
+      where
+        curr = Clatch txn onLeft onRight
+        rest = case onRight of
+          [] -> []
+          x:xs -> go (x : onLeft) xs
 
 -- # Tree search
 
@@ -128,78 +127,18 @@ contramapM conv (PredM f) = PredM $ \a -> conv a >>= f
 
 -- # Predicates on trees
 
-data TreeZip l
-  = TreeZip (Maybe (TreeZip l)) [TreeZip l] [TreeZip l]
-
-{-
--- | A zipper to view 'TreeL'.
-data TreeZip l
-  = TreeZip (Maybe (ForestZip l)) (TreeL l) (ForestZip l)
-  -- ^ @TreeZip m t f@, where
-  --
-  -- @m@ is this tree's parent forest (if any)
-  --
-  -- @t@ is this tree
-  --
-  -- @z@ is the child forest of this tree.
-
--- | A zipper to view forests of 'TreeL'.
-data ForestZip l
-  = ForestZip (Maybe (TreeZip l)) [TreeZip l] [TreeZip l]
-  -- ^ @ForestZip m l r@, where
-  --
-  -- @m@ is the parent tree of this forest (if any)
-  --
-  -- @l@ is trees to the left, and
-  --
-  -- @r@ is trees to the right.
-
-treeZip
-  :: (Monad l, Applicative l, Ledger l, MonadFix l)
-  => Maybe (ForestZip l)
-  -> TreeL l
-  -> l (TreeZip l)
-treeZip p t = mdo
-  cs <- children t
-  fs <- forestZip (Just this) cs
-  let this = TreeZip p t fs
-  return this
-
-forestZip
-  :: (Monad l, Applicative l, Ledger l, MonadFix l)
-  => Maybe (TreeZip l)
-  -> [TreeL l]
-  -> l (ForestZip l)
-forestZip p ts = mdo
-  let this = ForestZip p [] cs
-  cs <- mapM (treeZip (Just this)) ts
-  return this
-
-nextTree :: ForestZip l -> Maybe (ForestZip l)
-nextTree (ForestZip p l r) = case r of
-  [] -> Nothing
-  x:xs -> Just (ForestZip p (x : l) xs)
-
-prevTree :: ForestZip l -> Maybe (ForestZip l)
-prevTree (ForestZip p l r) = case l of
-  [] -> Nothing
-  x:xs -> Just (ForestZip p xs (x : r))
-
-parentTree :: ForestZip l -> Maybe (TreeZip l)
-parentTree (ForestZip p _ _) = p
-
-childForest
-  :: (Monad l, Applicative l, Ledger l, MonadFix l)
-  => TreeZip l
-  -> l (ForestZip l)
-childForest tz@(TreeZip _ t _) = do
-  cs <- children t
-  forestZip (Just tz) cs
-
--- | True if any 'TreeZip' in the Forest is True.
 anyTree
-  :: (Monad l, Applicative l, Ledger l, MonadFix l)
-  => PredM l (TreeZip l)
-  -> PredM l (ForestZip l)
-anyTree = undefined
--}
+  :: (Monad m, Functor m, Applicative m, Ledger m)
+  => PredM m (TreeL m)
+  -> PredM m (TreeL m)
+anyTree p = p ||| anyChildNode
+  where
+    anyChildNode = contramapM children (P.any p)
+
+allTrees
+  :: (Monad m, Applicative m, Ledger m)
+  => PredM m (TreeL m)
+  -> PredM m (TreeL m)
+allTrees p = p &&& allChildNodes
+  where
+    allChildNodes = contramapM children (P.all p)
