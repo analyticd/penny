@@ -51,6 +51,9 @@ tastyQuickcheck = closedOpen "tasty-quickcheck" [0,8,3] [0,9]
 tastyTh :: Package
 tastyTh = closedOpen "tasty-th" [0,1,3] [0,2]
 
+bifunctors :: Package
+bifunctors = closedOpen "bifunctors" [4,2] [4,3]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
@@ -67,6 +70,7 @@ libraryDepends =
   , time
   , transformers
   , prednote
+  , bifunctors
   ]
 
 testDepends :: [Package]

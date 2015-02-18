@@ -19,7 +19,7 @@ class Ledger l where
   type TreeL (l :: * -> *) :: *
   type PostingL (l :: * -> *) :: *
 
-  ledgerItems :: l [Either (PriceL l) (TransactionL l)]
+  ledgerItems :: l [[Either (PriceL l) (TransactionL l)]]
 
   priceDate :: PriceL l -> l DateTime
   priceFromTo :: PriceL l -> l FromTo

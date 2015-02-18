@@ -16,7 +16,7 @@ import qualified Data.Foldable as Fdbl
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Prices
 
-data ScrollT m a = ScrollT ([Either Price Transaction] -> m a)
+data ScrollT m a = ScrollT ([[Either Price Transaction]] -> m a)
 
 type Scroll = ScrollT Identity
 
