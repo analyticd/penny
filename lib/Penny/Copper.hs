@@ -74,7 +74,7 @@ import Data.List (intersperse)
 
 copperParser
   :: String
-  -> Either String [Either Price Transaction]
+  -> Either String [Either Price (Transaction () ())]
 copperParser inp = do
   let (a, es1, es2) = parseAst inp
   ast <- case es1 ++ es2 of

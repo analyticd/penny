@@ -1,3 +1,4 @@
+{-# LANGUAGE TupleSections #-}
 module Penny.Lincoln.Transaction where
 {-
   ( TopLine(..)
@@ -157,11 +158,6 @@ data PostingIndex = PostingIndex Serset
 data PostingSer = PostingSer FileSer GlobalSer PostingIndex
   deriving (Eq, Ord, Show)
 
-addSerials
-  :: Seq (Seq (Transaction tm pm))
-  -> Seq (Seq (Transaction (tm, TopLineSer) (pm, PostingSer)))
-addSerials = undefined
-
 makeForward :: State Unsigned Forward
 makeForward = do
   this <- get
@@ -179,77 +175,78 @@ makeReverse = do
 
 
 assignSingleTxnPostings
-  :: Applicative m
-  => m a
-  -> Transaction tm pm
-  -> m (Transaction tm (pm, a))
-assignSingleTxnPostings fetch (Transaction tm pm)
-  = Transaction tm <$> T.traverse (T.traverse k') pm
+  :: (Applicative f, T.Traversable t1, T.Traversable t2)
+  => f a
+  -> (t, t1 (t2 a1))
+  -> f (t, t1 (t2 (a1, a)))
+assignSingleTxnPostings fetch (tm, pm)
+  = (tm,) <$> T.traverse (T.traverse k') pm
   where
     k' p = (,) <$> pure p <*> fetch
 
 -- | Given a computation that assigns to a top line, assign to every
 -- top line.
 assignTopLine
-  :: (Applicative m, T.Traversable t)
-  => m a
-  -> t (Transaction tm pm)
-  -> m (t (Transaction (tm, a) pm))
+  :: (Applicative f, T.Traversable t2, T.Traversable t)
+  => f a
+  -> t (t2 a1, t1)
+  -> f (t (t2 (a1, a), t1))
 assignTopLine fetch sq = T.traverse f sq
   where
-    f (Transaction (TopLine ts m) p) = g <$> fetch
+    f (tl, bal) = (,) <$> T.traverse g tl <*> pure bal
       where
-        g m' = Transaction (TopLine ts (m, m')) p
+        g m = (m,) <$> fetch
 
 -- | Given a computation that assigns to a posting, assign to every
 -- posting.
 assignPosting
-  :: (Applicative m, T.Traversable t)
+  :: (Applicative m, T.Traversable t, T.Traversable pm, T.Traversable bal)
   => m a
-  -> t (Transaction tm pm)
-  -> m (t (Transaction tm (pm, a)))
+  -> t (tm, pm (bal mt))
+  -> m (t (tm, pm (bal (mt, a))))
 assignPosting fetch sq = T.traverse f sq
   where
-    f (Transaction tl p) = (Transaction tl) <$> inside
+    f (tl, p) = (tl,) <$> inside
       where
         inside = T.traverse (T.traverse g) p
         g m = (,) <$> pure m <*> fetch
 
 assignPostingIndex
-  :: Transaction tm pm
-  -> Transaction tm (pm, PostingIndex)
+  :: (T.Traversable pm, T.Traversable bal)
+  => (tm, pm (bal mt))
+  -> (tm, pm (bal (mt, PostingIndex)))
 assignPostingIndex t = flip evalState (toUnsigned Zero) $ do
   withFwd <- assignSingleTxnPostings makeForward t
   withBack <- assignSingleTxnPostings makeReverse withFwd
   let f ((b, fwd), bak) = (b, PostingIndex (Serset fwd bak))
-  return . second f $ withBack
+  return . second (fmap (fmap f)) $ withBack
 
 assignPostingFileSer
-  :: T.Traversable t1
-  => t1 (Transaction tm pm)
-  -> t1 (Transaction tm (pm, FileSer))
+  :: (T.Traversable t1, T.Traversable bal, T.Traversable pm)
+  => t1 (tm, pm (bal mt))
+  -> t1 (tm, pm (bal (mt, FileSer)))
 assignPostingFileSer t = flip evalState (toUnsigned Zero) $ do
   withFwd <- assignPosting makeForward t
   withRev <- assignPosting makeReverse withFwd
   let f ((b, fwd), bak) = (b, FileSer (Serset fwd bak))
-  return . fmap (second f) $ withRev
+  return . fmap (second (fmap (fmap f))) $ withRev
 
 assignPostingGlobalSer
-  :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 (Transaction tm pm))
-  -> t1 (t2 (Transaction tm (pm, GlobalSer)))
+  :: (T.Traversable t1, T.Traversable t2, T.Traversable pm, T.Traversable bal)
+  => t1 (t2 (tm, pm (bal mt)))
+  -> t1 (t2 (tm, pm (bal (mt, GlobalSer))))
 assignPostingGlobalSer t = flip evalState (toUnsigned Zero) $ do
   withFwd <- T.traverse (assignPosting makeForward) t
   withBak <- T.traverse (assignPosting makeReverse) withFwd
   let f ((b, fwd), bak) = (b, GlobalSer (Serset fwd bak))
-  return . fmap (fmap (second f)) $ withBak
+  return . fmap (fmap (second (fmap (fmap f)))) $ withBak
 
 assignPostingSerials
-  :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 (Transaction tm pm))
-  -> t1 (t2 (Transaction tm (pm, PostingSer)))
+  :: (T.Traversable t1, T.Traversable t2, T.Traversable pm, T.Traversable bal)
+  => t1 (t2 (tm, pm (bal mt)))
+  -> t1 (t2 (tm, pm (bal (mt, PostingSer))))
 assignPostingSerials t
-  = fmap (fmap (second repack))
+  = fmap (fmap (second (fmap (fmap repack))))
   . assignPostingGlobalSer
   . fmap assignPostingFileSer
   . fmap (fmap assignPostingIndex)
@@ -259,39 +256,48 @@ assignPostingSerials t
       = (pm, PostingSer fileSer glblSer pidx)
 
 assignTxnGlobalSer
-  :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 (Transaction tm pm))
-  -> t1 (t2 (Transaction (tm, GlobalSer) pm))
+  :: (T.Traversable t1, T.Traversable t2, T.Traversable tm)
+  => t1 (t2 (tm mt, pm))
+  -> t1 (t2 (tm (mt, GlobalSer), pm))
 assignTxnGlobalSer t = flip evalState (toUnsigned Zero) $ do
   withFwd <- T.traverse (assignTopLine makeForward) t
   withBak <- T.traverse (assignTopLine makeReverse) withFwd
   let repack ((m, fwd), bak) = (m, GlobalSer (Serset fwd bak))
-  return . fmap (fmap (first repack)) $ withBak
+  return . fmap (fmap (first (fmap repack))) $ withBak
 
 assignTxnFileSer
-  :: T.Traversable t1
-  => t1 (Transaction tm pm)
-  -> t1 (Transaction (tm, FileSer) pm)
+  :: (T.Traversable t1, T.Traversable tm)
+  => t1 (tm mt, pm)
+  -> t1 ((tm (mt, FileSer)), pm)
 assignTxnFileSer t = flip evalState (toUnsigned Zero) $ do
   withFwd <- assignTopLine makeForward t
   withBak <- assignTopLine makeReverse withFwd
   let repack ((m, fwd), bak) = (m, FileSer (Serset fwd bak))
-  return . fmap (first repack) $ withBak
+  return . fmap (first (fmap repack)) $ withBak
 
 assignTxnSerials
-  :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 (Transaction tm pm))
-  -> t1 (t2 (Transaction (tm, TopLineSer) pm))
+  :: (T.Traversable t1, T.Traversable t2, T.Traversable tm)
+  => t1 (t2 (tm mt, pm))
+  -> t1 (t2 (tm (mt, TopLineSer), pm))
 assignTxnSerials
-  = fmap (fmap (first repack))
+  = fmap (fmap (first (fmap repack)))
   . fmap assignTxnFileSer
   . assignTxnGlobalSer
   where
     repack ((m, glbl), fle) = (m, TopLineSer fle glbl)
 
 assignSerials
-  :: (T.Traversable t1, T.Traversable t2)
-  => t1 (t2 (Transaction tm pm))
-  -> t1 (t2 (Transaction (tm, TopLineSer) (pm, PostingSer)))
+  :: (T.Traversable t1, T.Traversable t2, T.Traversable tm,
+      T.Traversable bal, T.Traversable pm)
+  => t1 (t2 (tm mtm, pm (bal mt)))
+  -> t1 (t2 (tm (mtm, TopLineSer), pm (bal (mt, PostingSer))))
 assignSerials = assignTxnSerials . assignPostingSerials
 
+assignSerialsToTxn
+  :: (T.Traversable t1, T.Traversable t2)
+  => t1 (t2 (Transaction tlMeta pMeta))
+  -> t1 (t2 (Transaction (tlMeta, TopLineSer) (pMeta, PostingSer)))
+assignSerialsToTxn
+  = fmap (fmap (uncurry Transaction))
+  . assignSerials
+  . fmap (fmap (\(Transaction a b) -> (a, b)))

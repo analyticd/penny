@@ -16,6 +16,7 @@ import qualified Data.Foldable as Fdbl
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Prices
 
+{-
 data ScrollT m a = ScrollT ([[Either Price Transaction]] -> m a)
 
 type Scroll = ScrollT Identity
@@ -69,3 +70,4 @@ instance (Applicative m, Monad m) => Ledger (ScrollT m) where
   postingCommodity (Posting _ _ _ cy) = ScrollT . const . return $ cy
 
 
+-}

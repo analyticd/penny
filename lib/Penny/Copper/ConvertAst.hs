@@ -29,7 +29,7 @@ c'Int'Digits1or2 (Digits1or2 l mayR) = case mayR of
   Just r -> decimalPlace 1 l + decimalPlace 0 r
 
 data ConvertE
-  = TrioE TrioError (Located PstgMeta)
+  = TrioE TrioError (Located (PstgMeta ()))
   | ImbalancedE ImbalancedError PostingList
   | PriceSameCommodityE LineColPosA FromCy
   deriving (Eq, Ord, Show)
@@ -251,42 +251,42 @@ c'ListTree'BracketedForest (BracketedForest _ mayF _) = case mayF of
   Nothing -> []
   Just (Fs (ForestA t1 ts) _) -> map c'Tree'TreeA . (t1 :) . map snd $ ts
 
-c'TopLine'TopLineA :: TopLineA -> TopLine
+c'TopLine'TopLineA :: TopLineA -> TopLine ()
 c'TopLine'TopLineA (TopLineA t1 list)
-  = TopLine . map c'Tree'TreeA . (t1 : ) . map snd $ list
+  = flip TopLine () . map c'Tree'TreeA . (t1 : ) . map snd $ list
 
 c'LocatedPstgMeta'LocatedPostingA
   :: Located PostingA
-  -> Located PstgMeta
+  -> Located (PstgMeta ())
 c'LocatedPstgMeta'LocatedPostingA lctd@(Located lcp _) = fmap f lctd
   where
     f pa = case pa of
       PostingTrioFirst (Located _ trioA) Nothing ->
-        PstgMeta [] (c'Trio'TrioA trioA)
+        PstgMeta [] (c'Trio'TrioA trioA) ()
       PostingTrioFirst (Located _ trioA) (Just (Bs _ bf)) ->
         PstgMeta (locationTree lcp : c'ListTree'BracketedForest bf)
-                 (c'Trio'TrioA trioA)
+                 (c'Trio'TrioA trioA) ()
       PostingNoTrio bf ->
-        PstgMeta (locationTree lcp : c'ListTree'BracketedForest bf) E
+        PstgMeta (locationTree lcp : c'ListTree'BracketedForest bf) E ()
 
 
 appendPstgToEnts
-  :: Ents PstgMeta
-  -> Located PstgMeta
-  -> Either ConvertE (Ents PstgMeta)
-appendPstgToEnts ents lctd@(Located _ pm@(PstgMeta _ tri)) =
+  :: Ents (PstgMeta ())
+  -> Located (PstgMeta ())
+  -> Either ConvertE (Ents (PstgMeta ()))
+appendPstgToEnts ents lctd@(Located _ pm@(PstgMeta _ tri _)) =
   case appendTrio ents tri of
     Left e -> Left $ TrioE e lctd
     Right g -> Right (g pm)
 
-addLocationToEnts :: LineColPosA -> Ents PstgMeta -> Ents PstgMeta
+addLocationToEnts :: LineColPosA -> Ents (PstgMeta ()) -> Ents (PstgMeta ())
 addLocationToEnts lcp = fmap f
   where
-    f (PstgMeta ts tri) = PstgMeta (locationTree lcp : ts) tri
+    f (PstgMeta ts tri ()) = PstgMeta (locationTree lcp : ts) tri ()
 
 entsFromPostingList
   :: PostingList
-  -> Either ConvertE (Balanced PstgMeta)
+  -> Either ConvertE (Balanced (PstgMeta ()))
 entsFromPostingList pstgList = do
   let pstgs = case pstgList of
         OnePosting pstg -> [pstg]
@@ -299,7 +299,7 @@ entsFromPostingList pstgList = do
     Left e -> Left (ImbalancedE e pstgList)
     Right g -> return g
 
-c'Balanced'PostingsA :: PostingsA -> Either ConvertE (Balanced PstgMeta)
+c'Balanced'PostingsA :: PostingsA -> Either ConvertE (Balanced (PstgMeta ()))
 c'Balanced'PostingsA (PostingsA _ may _) = case may of
   Nothing -> return mempty
   Just (Fs pl _) -> entsFromPostingList pl
@@ -307,14 +307,14 @@ c'Balanced'PostingsA (PostingsA _ may _) = case may of
 
 c'Transaction'TransactionA
   :: TransactionA
-  -> Either ConvertE Transaction
+  -> Either ConvertE (Transaction () ())
 c'Transaction'TransactionA txn = case txn of
   TransactionWithTopLine (Located _ tl) (Bs _ pstgs) -> do
     bal <- c'Balanced'PostingsA pstgs
     return $ Transaction (c'TopLine'TopLineA tl) bal
   TransactionNoTopLine pstgs -> do
     bal <- c'Balanced'PostingsA pstgs
-    return $ Transaction (TopLine []) bal
+    return $ Transaction (TopLine [] ()) bal
 
 c'Exch'Neutral :: Neutral -> Exch
 c'Exch'Neutral neu = case neu of
@@ -366,14 +366,14 @@ c'Price'PriceA
 
 c'Either'FileItem
   :: FileItem
-  -> Either ConvertE (Either Price Transaction)
+  -> Either ConvertE (Either Price (Transaction () ()))
 c'Either'FileItem (FileItem (Located _ ei)) = case ei of
   Left p -> fmap Left $ c'Price'PriceA p
   Right t -> fmap Right $ c'Transaction'TransactionA t
 
 c'Eithers'FileItems
   :: FileItems
-  -> Either (ConvertE, [ConvertE]) [Either Price Transaction]
+  -> Either (ConvertE, [ConvertE]) [Either Price (Transaction () ())]
 c'Eithers'FileItems (FileItems i1 is)
   = foldr f (Right []) . (i1:) . map snd $ is
   where
@@ -385,7 +385,7 @@ c'Eithers'FileItems (FileItems i1 is)
 
 convertItemsFromAst
   :: Ast
-  -> Either (ConvertE, [ConvertE]) [Either Price Transaction]
+  -> Either (ConvertE, [ConvertE]) [Either Price (Transaction () ())]
 convertItemsFromAst f = case f of
   AstNoLeadingWhite (Fs fi _) -> c'Eithers'FileItems fi
   AstLeadingWhite _ Nothing -> Right []
