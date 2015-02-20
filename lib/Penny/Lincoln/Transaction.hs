@@ -28,6 +28,7 @@ import Penny.Lincoln.Natural
 import Penny.Lincoln.Rep
 import Data.Bifunctor
 import Data.Bifoldable
+import Penny.Lincoln.Serial
 
 data TopLine a = TopLine [Tree] a
   deriving (Eq, Ord, Show)
@@ -131,18 +132,6 @@ prevBundle (Bundle tl v) = fmap (Bundle tl) $ moveLeft v
 siblingBundles :: Bundle tm pm -> Seq (Bundle tm pm)
 siblingBundles (Bundle tl v) = fmap (Bundle tl) $ siblingViews v
 
-newtype Serial = Serial Unsigned
-  deriving (Eq, Ord, Show)
-
-newtype Forward = Forward Serial
-  deriving (Eq, Ord, Show)
-
-newtype Reverse = Reverse Serial
-  deriving (Eq, Ord, Show)
-
-data Serset = Serset Forward Reverse
-  deriving (Eq, Ord, Show)
-
 newtype FileSer = FileSer Serset
   deriving (Eq, Ord, Show)
 
@@ -157,22 +146,6 @@ data PostingIndex = PostingIndex Serset
 
 data PostingSer = PostingSer FileSer GlobalSer PostingIndex
   deriving (Eq, Ord, Show)
-
-makeForward :: State Unsigned Forward
-makeForward = do
-  this <- get
-  modify next
-  return $ Forward (Serial this)
-
-makeReverse :: State Unsigned Reverse
-makeReverse = do
-  old <- get
-  let new = case prev old of
-        Nothing -> error "makeReverse: error"
-        Just x -> x
-  put new
-  return $ Reverse (Serial new)
-
 
 assignSingleTxnPostings
   :: (Applicative f, T.Traversable t1, T.Traversable t2)
@@ -211,6 +184,7 @@ assignPosting fetch sq = T.traverse f sq
         inside = T.traverse (T.traverse g) p
         g m = (,) <$> pure m <*> fetch
 
+{-
 assignPostingIndex
   :: (T.Traversable pm, T.Traversable bal)
   => (tm, pm (bal mt))
@@ -220,6 +194,14 @@ assignPostingIndex t = flip evalState (toUnsigned Zero) $ do
   withBack <- assignSingleTxnPostings makeReverse withFwd
   let f ((b, fwd), bak) = (b, PostingIndex (Serset fwd bak))
   return . second (fmap (fmap f)) $ withBack
+-}
+assignPostingIndex
+  :: (T.Traversable pm, T.Traversable bal)
+  => (tm, pm (bal mt))
+  -> (tm, pm (bal (mt, PostingIndex)))
+assignPostingIndex
+  = second (fmap (fmap (second PostingIndex)))
+  . second serialNumbersNested
 
 assignPostingFileSer
   :: (T.Traversable t1, T.Traversable bal, T.Traversable pm)
