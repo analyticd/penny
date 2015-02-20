@@ -184,17 +184,6 @@ assignPosting fetch sq = T.traverse f sq
         inside = T.traverse (T.traverse g) p
         g m = (,) <$> pure m <*> fetch
 
-{-
-assignPostingIndex
-  :: (T.Traversable pm, T.Traversable bal)
-  => (tm, pm (bal mt))
-  -> (tm, pm (bal (mt, PostingIndex)))
-assignPostingIndex t = flip evalState (toUnsigned Zero) $ do
-  withFwd <- assignSingleTxnPostings makeForward t
-  withBack <- assignSingleTxnPostings makeReverse withFwd
-  let f ((b, fwd), bak) = (b, PostingIndex (Serset fwd bak))
-  return . second (fmap (fmap f)) $ withBack
--}
 assignPostingIndex
   :: (T.Traversable pm, T.Traversable bal)
   => (tm, pm (bal mt))
@@ -212,6 +201,7 @@ assignPostingFileSer t = flip evalState (toUnsigned Zero) $ do
   withRev <- assignPosting makeReverse withFwd
   let f ((b, fwd), bak) = (b, FileSer (Serset fwd bak))
   return . fmap (second (fmap (fmap f))) $ withRev
+
 
 assignPostingGlobalSer
   :: (T.Traversable t1, T.Traversable t2, T.Traversable pm, T.Traversable bal)

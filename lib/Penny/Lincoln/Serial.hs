@@ -52,3 +52,4 @@ serialNumbersNested t = flip evalState (toUnsigned Zero) $ do
     T.traverse (T.traverse (\a -> (,) <$> pure a <*> makeReverse)) withFwd
   let f ((b, fwd), bak) = (b, Serset fwd bak)
   return . fmap (fmap f) $ withBak
+

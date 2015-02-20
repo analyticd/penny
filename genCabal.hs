@@ -54,6 +54,9 @@ tastyTh = closedOpen "tasty-th" [0,1,3] [0,2]
 bifunctors :: Package
 bifunctors = closedOpen "bifunctors" [4,2] [4,3]
 
+rainbox :: Package
+rainbox = closedOpen "rainbox" [0,10,0,0] [0,11]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
@@ -71,6 +74,7 @@ libraryDepends =
   , transformers
   , prednote
   , bifunctors
+  , rainbox
   ]
 
 testDepends :: [Package]
