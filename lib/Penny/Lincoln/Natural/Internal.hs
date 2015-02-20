@@ -13,6 +13,16 @@ newtype Positive = Positive { positiveToInteger :: Integer }
 class IsPositive a where
   toPositive :: a -> Positive
 
+instance IsPositive One where toPositive = Positive . digitToInt
+instance IsPositive Two where toPositive = Positive . digitToInt
+instance IsPositive Three where toPositive = Positive . digitToInt
+instance IsPositive Four where toPositive = Positive . digitToInt
+instance IsPositive Five where toPositive = Positive . digitToInt
+instance IsPositive Six where toPositive = Positive . digitToInt
+instance IsPositive Seven where toPositive = Positive . digitToInt
+instance IsPositive Eight where toPositive = Positive . digitToInt
+instance IsPositive Nine where toPositive = Positive . digitToInt
+
 instance IsPositive D2 where toPositive = Positive . digitToInt
 instance IsPositive D3 where toPositive = Positive . digitToInt
 instance IsPositive D4 where toPositive = Positive . digitToInt

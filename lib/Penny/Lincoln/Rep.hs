@@ -7,6 +7,11 @@
 -- arithmetic; however, it \"remembers\" exactly how the user entered
 -- a number, complete with grouping characters and the radix point
 -- (which may be a period or a comma.)
+--
+-- To create representations from decimal types, consult the functions
+-- in "Penny.Lincoln.Decimal" and "Penny.Lincoln.Qty".  Functions in
+-- this module will group some representation types--that is, insert
+-- grouping characters to make them easier to read.
 module Penny.Lincoln.Rep
   ( -- * Display
     Display(..)
@@ -16,6 +21,8 @@ module Penny.Lincoln.Rep
   , Grouper(..)
   , RadCom(..)
   , RadPer(..)
+  , Grouped(..)
+  , MayGrouped(..)
 
   -- * Nil representations
   -- | These represent numbers whose significand is zero.
@@ -73,6 +80,7 @@ import qualified Data.Sequence as S
 import Penny.Lincoln.Rep.Digit
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
+import Penny.Lincoln.NonEmpty
 
 -- | A radix point.  The type is parameterized on a type that
 -- represents the character used for the radix point.
@@ -122,12 +130,26 @@ instance Display RadPer where
   display Comma = (',':)
   display (RPGrouper g) = display g
 
+-- | Things that have grouping characters, allowing all grouping
+-- characters to be extracted.
+class Grouped a where
+  groupers :: a g -> NonEmpty g
+
+-- | Things that might have grouping characters, allowing all grouping
+-- characters (if any) to be extracted.
+class MayGrouped a where
+  mayGroupers :: a g -> Seq g
+
 -- # Nil
 
 data Nil r
   = NilU (NilUngrouped r)
   | NilG (NilGrouped r)
   deriving (Eq, Ord, Show)
+
+instance MayGrouped Nil where
+  mayGroupers (NilG ng) = seqFromNonEmpty $ groupers ng
+  mayGroupers _ = S.empty
 
 instance Display (Nil RadCom) where
   display (NilU x) = display x
@@ -143,6 +165,10 @@ data NilGrouped r
                (Seq (r, Zero, Seq Zero))
   deriving (Eq, Ord, Show)
 
+instance Grouped NilGrouped where
+  groupers (NilGrouped _z0 _r1 _z2 _sz3 g4 _z5 _sz6 sq7)
+    = NonEmpty g4 (fmap (\(x, _, _) -> x) sq7)
+
 instance Display (NilGrouped RadCom) where
   display (NilGrouped may1 _rdx2 z3 zs4 g5 z6 zs7 sq8)
     = display may1 . (',':) . display z3 . display zs4 . display g5
@@ -157,6 +183,9 @@ data NilUngrouped r
   = NUZero Zero (Maybe (Radix r, Maybe (Zero, Seq Zero)))
   | NURadix (Radix r) Zero (Seq Zero)
   deriving (Eq, Ord, Show)
+
+instance MayGrouped NilUngrouped where
+  mayGroupers _ = S.empty
 
 instance Display (NilUngrouped RadCom) where
   display (NUZero z may) = display z . case may of
@@ -177,6 +206,10 @@ data Brim r
   | BrimUngrouped (BrimUngrouped r)
   deriving (Eq, Ord, Show)
 
+instance MayGrouped Brim where
+  mayGroupers (BrimGrouped bg) = seqFromNonEmpty . groupers $ bg
+  mayGroupers (BrimUngrouped _) = S.empty
+
 instance Display (Brim RadCom) where
   display (BrimGrouped bg) = display bg
   display (BrimUngrouped bu) = display bu
@@ -189,6 +222,9 @@ data BrimUngrouped r
   = BUGreaterThanOne D9 (Seq D9z) (Maybe (Radix r, Seq D9z))
   | BULessThanOne (Maybe Zero) (Radix r) (Seq Zero) D9 (Seq D9z)
   deriving (Eq, Ord, Show)
+
+instance MayGrouped BrimUngrouped where
+  mayGroupers _ = S.empty
 
 instance Display (BrimUngrouped RadCom) where
   display (BUGreaterThanOne d1 sq2 may3) = display d1 . display sq2 .
@@ -211,6 +247,10 @@ data BrimGrouped r
   | BGLessThanOne (Maybe Zero) (Radix r) (BG5 r)
   deriving (Eq, Ord, Show)
 
+instance Grouped BrimGrouped where
+  groupers (BGGreaterThanOne _ _ bg1) = groupers bg1
+  groupers (BGLessThanOne _ _ bg5) = groupers bg5
+
 instance Display (BrimGrouped RadCom) where
   display (BGGreaterThanOne d1 sq2 bg1'3) =
     display d1 . display sq2 . display bg1'3
@@ -229,6 +269,18 @@ data BG1 r
   | BG1GroupOnRight (Radix r) D9z (Seq D9z) r D9z (Seq D9z)
                     (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
+
+instance Grouped BG1 where
+  groupers (BG1GroupOnLeft g1 _ _ sq1 Nothing)
+    = NonEmpty g1 (fmap (\(x, _, _) -> x) sq1)
+  groupers (BG1GroupOnLeft g1 _ _ sq1 (Just (_, Nothing)))
+    = NonEmpty g1 (fmap (\(x, _, _) -> x) sq1)
+  groupers (BG1GroupOnLeft g1 _ _ sq1 (Just (_, Just
+    (_, _, sq2)))) = NonEmpty g1 (fmap get sq1 <> fmap get sq2)
+    where
+      get (x, _, _) = x
+  groupers (BG1GroupOnRight _ _ _ g1 _ _ sq)
+    = NonEmpty g1 (fmap (\(x, _, _) -> x) sq)
 
 instance Display (BG1 RadCom) where
   display (BG1GroupOnLeft g1 d2 sq3 sq4 may5) =
@@ -257,6 +309,11 @@ data BG5 r
   | BG5Zero Zero (Seq Zero) (BG6 r)
   deriving (Eq, Ord, Show)
 
+instance Grouped BG5 where
+  groupers (BG5Novem _ _ g1 _ _ gs)
+    = NonEmpty g1 (fmap (\(x, _, _) -> x) gs)
+  groupers (BG5Zero _ _ bg6) = groupers bg6
+
 instance Display r => Display (BG5 r) where
   display (BG5Novem d1 sq2 g3 d4 sq5 sq6) = display d1
     . display sq2 . display g3 . display d4 . display sq5
@@ -268,6 +325,11 @@ data BG6 r
              (Seq (r, D9z, Seq D9z))
   | BG6Group r (BG7 r)
   deriving (Eq, Ord, Show)
+
+instance Grouped BG6 where
+  groupers (BG6Novem _ _ g1 _ _ sq)
+    = NonEmpty g1 (fmap (\(x, _, _) -> x) sq)
+  groupers (BG6Group g1 bg7) = NonEmpty g1 (mayGroupers bg7)
 
 instance Display r => Display (BG6 r) where
   display (BG6Novem d1 sq2 r3 d4 sq5 sq6)
@@ -288,6 +350,14 @@ data BG8 r
   = BG8Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
   | BG8Group r (BG7 r)
   deriving (Eq, Ord, Show)
+
+instance MayGrouped BG7 where
+  mayGroupers (BG7Zeroes _ _ bg8) = mayGroupers bg8
+  mayGroupers (BG7Novem _ _ sq) = fmap (\(x, _, _) -> x) sq
+
+instance MayGrouped BG8 where
+  mayGroupers (BG8Novem _ _ sq) = fmap (\(x, _, _) -> x) sq
+  mayGroupers (BG8Group g1 bg7) = g1 <| mayGroupers bg7
 
 instance Display r => Display (BG8 r) where
   display (BG8Novem d1 ds2 sq3) = display d1 . display ds2 . display sq3
@@ -402,6 +472,10 @@ instance Display RepNonNeutralNoSide where
 newtype QtyRep r
   = QtyRep (NilOrBrimPolar r Side)
   deriving (Eq, Ord, Show)
+
+instance MayGrouped QtyRep where
+  mayGroupers (QtyRep (NilOrBrimPolar (Center n))) = mayGroupers n
+  mayGroupers (QtyRep (NilOrBrimPolar (OffCenter o _))) = mayGroupers o
 
 -- Same as old Muddy
 

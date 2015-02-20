@@ -33,9 +33,6 @@ transformers = closedOpen "transformers" [0,3] [0,5]
 prednote :: Package
 prednote = closedOpen "prednote" [0,30] [0,31]
 
-semigroups :: Package
-semigroups = closedOpen "semigroups" [0,16,1] [0,17]
-
 quickcheck :: Package
 quickcheck = closedOpen "QuickCheck" [2,7,6] [2,8]
 
@@ -57,6 +54,9 @@ bifunctors = closedOpen "bifunctors" [4,2] [4,3]
 rainbox :: Package
 rainbox = closedOpen "rainbox" [0,10,0,0] [0,11]
 
+semigroups :: Package
+semigroups = closedOpen "semigroups" [0,16,1] [0,17]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
@@ -75,6 +75,7 @@ libraryDepends =
   , prednote
   , bifunctors
   , rainbox
+  , semigroups
   ]
 
 testDepends :: [Package]

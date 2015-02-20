@@ -44,36 +44,39 @@ class Ledger l where
 -- # Clatches
 
 data Clatch l
-  = Clatch (TransactionL l) (Seq (PostingL l)) (Seq (PostingL l))
-  -- ^ @Clatch t l r@, where
+  = Clatch (TransactionL l) (Seq (PostingL l))
+           (PostingL l) (Seq (PostingL l))
+  -- ^ @Clatch t l c r@, where
   --
   -- @t@ is the transaction giving rise to this 'Clatch',
   --
   -- @l@ are postings on the left.  Closer siblings are at the
   -- right end of the list.
   --
+  -- @c@ is the current posting.
+  --
   -- @r@ are postings on the right.  Closer siblings are at
   -- the left end of the list.
 
 nextClatch :: Clatch l -> Maybe (Clatch l)
-nextClatch (Clatch t l r) = case viewl r of
+nextClatch (Clatch t l c r) = case viewl r of
   EmptyL -> Nothing
-  x :< xs -> Just $ Clatch t (l |> x) xs
+  x :< xs -> Just $ Clatch t (l |> c) x xs
 
 prevClatch :: Clatch l -> Maybe (Clatch l)
-prevClatch (Clatch t l r) = case viewr l of
+prevClatch (Clatch t l c r) = case viewr l of
   EmptyR -> Nothing
-  xs :> x -> Just $ Clatch t xs (x <| r)
+  xs :> x -> Just $ Clatch t xs x (c <| r)
 
 clatches :: (Functor l, Ledger l) => TransactionL l -> l (Seq (Clatch l))
 clatches txn = fmap (go S.empty) $ postings txn
   where
-    go onLeft onRight = curr <| rest
-      where
-        curr = Clatch txn onLeft onRight
-        rest = case viewl onRight of
-          EmptyL -> S.empty
-          x :< xs -> go (onLeft |> x) xs
+    go onLeft onRight = case viewl onRight of
+      EmptyL -> S.empty
+      x :< xs -> curr <| rest
+        where
+          curr = Clatch txn onLeft x onRight
+          rest = go (onLeft |> x) xs
 
 -- # Tree search
 

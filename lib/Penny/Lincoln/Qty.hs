@@ -1,4 +1,39 @@
-module Penny.Lincoln.Qty where
+-- | Quantities.  A quantity is a signed decimal number; however, it
+-- always represents quantities that may be a debit or a credit (as
+-- opposed to prices, which do not have a debit or credit.)
+--
+-- Unlike the types in "Penny.Lincoln.Rep", you can perform arithmetic
+-- on these types.  Unlike the types in "Penny.Lincoln.Rep", these
+-- types may not be \"represented\"--that is, displayed to the user in
+-- a friendly way.  To display a 'Qty', convert it to a representation
+-- type using one of the functions in this module.
+module Penny.Lincoln.Qty
+  ( -- * Qty
+    Qty(..)
+  , qtySide
+  , HasQty(..)
+  , decPositiveToQty
+
+  -- * Non-zero Qty
+  , QtyNonZero(..)
+  , displayQtyNonZero
+  , HasQtyNonZero(..)
+  , qtyNonZeroToQty
+  , qtyToQtyNonZero
+  , qtyNonZeroSide
+
+  -- * Unsigned Qty
+  , QtyUnsigned(..)
+  , HasQtyUnsigned(..)
+  , qtyUnsignedToQtyWithSide
+  , addSideSign
+  , qtyUnsignedToQtyNoSide
+
+  -- * Representations
+  , repUngroupedQty
+  , repUngroupedQtyNonZero
+  , repUngroupedQtyUnsigned
+  ) where
 
 import Penny.Lincoln.Decimal
 import Penny.Lincoln.Natural
@@ -104,3 +139,33 @@ instance HasQty QtyRepAnyRadix where
     Left q -> toQty q
     Right q -> toQty q
 
+-- # Representing
+
+repQty
+  :: Either (Radix RadCom, Maybe RadCom) (Radix RadPer, Maybe RadPer)
+  -> Qty
+  -> QtyRepAnyRadix
+repQty = undefined
+
+repUngroupedQty
+  :: Radix r
+  -> Qty
+  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) Side
+repUngroupedQty rdx (Qty dec) = case repUngroupedDecimal rdx dec of
+  Center n -> Center n
+  OffCenter o p -> OffCenter o (fromSign p)
+
+repUngroupedQtyNonZero
+  :: Radix r
+  -> QtyNonZero
+  -> (BrimUngrouped r, Side)
+repUngroupedQtyNonZero rdx (QtyNonZero qnz) = (bu, side)
+  where
+    (bu, sgn) = repUngroupedDecNonZero rdx qnz
+    side = fromSign sgn
+
+repUngroupedQtyUnsigned
+  :: Radix r
+  -> QtyUnsigned
+  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) ()
+repUngroupedQtyUnsigned rdx (QtyUnsigned qu) = repUngroupedDecUnsigned rdx qu
