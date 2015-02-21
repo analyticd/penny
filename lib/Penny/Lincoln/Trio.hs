@@ -11,6 +11,7 @@ import Penny.Lincoln.Offset
 import Penny.Lincoln.Friendly
 import qualified Data.Map as M
 import qualified Data.Text as X
+import Data.Sequence (Seq)
 
 data Orient
   = CommodityOnLeft
@@ -135,6 +136,19 @@ instance Friendly TrioError where
     where
       showImbalance (Commodity cy, qnz) = X.unpack cy ++ " " ++ disp qnz
       disp = displayQtyNonZero
+
+-- | How is this Trio rendered?
+trioRendering
+  :: Trio
+  -> Maybe (Commodity, (Either (Seq RadCom) (Seq RadPer)))
+trioRendering tri = case tri of
+  QC (QtyRepAnyRadix qr) cy _ -> Just (cy, ei)
+    where
+      ei = either (Left . mayGroupers) (Right . mayGroupers) qr
+  UC (RepNonNeutralNoSide ei) cy _ ->
+    Just (cy, either (Left . mayGroupers) (Right . mayGroupers) ei)
+  _ -> Nothing
+
 
 qtyAndCommodityToEnt
   :: QtyRepAnyRadix

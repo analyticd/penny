@@ -12,35 +12,6 @@ import qualified Data.Sequence as S
 import Control.Monad
 import Data.Semigroup
 
--- | Builds a map of all commodities and their corresponding radix
--- points and grouping characters.
-renderingMap
-  :: (Ledger l, Monad l, F.Foldable f)
-  => f (Clatch l)
-  -> l (M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer))))
-renderingMap = F.foldlM f M.empty
-  where
-    f mp (Clatch _ _ pstg _) = do
-      tri <- postingTrio pstg
-      return $ case trioRendering tri of
-        Nothing -> mp
-        Just (cy, ei) -> case M.lookup cy mp of
-          Nothing -> M.insert cy (NonEmpty ei S.empty) mp
-          Just (NonEmpty o1 os) -> M.insert cy (NonEmpty o1 (os |> ei)) mp
-
--- | How is this Trio rendered?
-trioRendering
-  :: Trio
-  -> Maybe (Commodity, (Either (Seq RadCom) (Seq RadPer)))
-trioRendering tri = case tri of
-  QC (QtyRepAnyRadix qr) cy _ -> Just (cy, ei)
-    where
-      ei = either (Left . mayGroupers) (Right . mayGroupers) qr
-  UC (RepNonNeutralNoSide ei) cy _ ->
-    Just (cy, either (Left . mayGroupers) (Right . mayGroupers) ei)
-  _ -> Nothing
-
-
 newtype VisibleSer = VisibleSer Serset
   deriving (Eq, Ord, Show)
 

@@ -16,6 +16,12 @@ import Data.Sequence (Seq, ViewL(..), ViewR(..), (<|), (|>), viewl, viewr)
 import qualified Data.Sequence as S
 import Penny.Lincoln.Transaction
 import Data.Foldable (toList)
+import qualified Data.Foldable as F
+import Penny.Lincoln.NonEmpty
+import qualified Data.Map.Strict as M
+import qualified Data.Traversable as T
+import Penny.Lincoln.Rep
+import Control.Monad
 
 class Ledger l where
   type PriceL (l :: * -> *) :: *
@@ -77,6 +83,18 @@ clatches txn = fmap (go S.empty) $ postings txn
         where
           curr = Clatch txn onLeft x onRight
           rest = go (onLeft |> x) xs
+
+allClatches :: (Functor l, Monad l, Ledger l) => l (Seq (Clatch l))
+allClatches = do
+  itms <- fmap join ledgerItems
+  let txns = go itms
+        where
+          go sq = case S.viewl sq of
+            EmptyL -> S.empty
+            x :< xs -> case x of
+              Left _ -> go xs
+              Right txn -> txn <| go xs
+  fmap join $ T.mapM clatches txns
 
 -- # Tree search
 
@@ -152,3 +170,20 @@ allTrees
 allTrees p = p &&& allChildNodes
   where
     allChildNodes = contramapM (fmap (fmap toList) children) (P.all p)
+
+-- | Builds a map of all commodities and their corresponding radix
+-- points and grouping characters.
+renderingMap
+  :: (Ledger l, Monad l, F.Foldable f)
+  => f (Clatch l)
+  -> l (M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer))))
+renderingMap = F.foldlM f M.empty
+  where
+    f mp (Clatch _ _ pstg _) = do
+      tri <- postingTrio pstg
+      return $ case trioRendering tri of
+        Nothing -> mp
+        Just (cy, ei) -> case M.lookup cy mp of
+          Nothing -> M.insert cy (NonEmpty ei S.empty) mp
+          Just (NonEmpty o1 os) -> M.insert cy (NonEmpty o1 (os |> ei)) mp
+
