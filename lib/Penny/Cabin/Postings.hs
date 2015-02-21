@@ -10,54 +10,103 @@ import qualified Data.Map.Strict as M
 import Data.Sequence (Seq, (|>), ViewL(..), (<|))
 import qualified Data.Sequence as S
 import Control.Monad
-import Data.Monoid
+import Data.Semigroup
 
--- | Examines all available Trio to obtain a function that will
--- render a given Qty given its corresponding Commodity.
+-- | Represents a 'Qty' as \"smartly\" as possible, based on how its
+-- corresponding 'Commodity' has been represented in the past.
 --
--- Examines every Trio.  If the Trio has both a quantity
--- representation and a commodity, takes note of which radix point was
--- used and whether the digits are grouped.
+-- The so-called \"mimode\" of a list @ls@ is the value appearing most
+-- frequently in @ls@, if there is one.  If there is more than one
+-- value that appears most frequently, one is chosen arbitrarily.  A
+-- list has no mimode only if the list is empty.  For instance, the
+-- mimode of @[1,2,3]@ may be any of 1, 2, or 3; the mimode of
+-- @[1,1,2,3]@ is @1@; and @[]@ has no mimode.
 --
--- The function returned will represent Qty.  For any given Commodity,
--- it uses the radix point and grouping character that is seen most
--- frequently for the given Commodity.  The function will fail if the
--- given Commodity has not been seen.
-howToRender
-  :: (Ledger l, Monad l, T.Traversable t1)
-  => t1 (Clatch l)
-  -> l (Commodity -> Maybe (Qty -> QtyRepAnyRadix))
-howToRender = undefined
+-- In @repQtySmartly ei mp cy qt@, @mp@ is a map of 'Commodity' to
+-- consider for history analysis.  Each 'Commodity' is paired with a
+-- history list.  Each element of the history list is an 'Either',
+-- with a 'Left' indicating that the radix was a comma, and a
+-- 'Right' indicating the radix was a period.  The sequence contains
+-- each grouping character used.
+--
+-- If the commodity @cy@ is found in the map @mp@, then the radix
+-- point used is always the mimode radix point appearing in the
+-- history list.  For that radix point, if there is a mimode grouping
+-- character, then grouping is attempted using that grouping
+-- character.  If there is no mimode grouping character, no grouping
+-- is attempted.
+--
+-- If the commodity @cy@ is not found in the map @mp@, then the radix
+-- point used is the mimode radix point for /all/ commodities in the
+-- map @mp@.  For that radix point, if there is a mimode grouping
+-- character, then grouping is attempted using that grouping
+-- character.  If there is no mimode grouping character, no grouping
+-- is attempted.
+--
+-- If the map @mp@ is completely empty, then the 'Qty' is rendered
+-- using @ei@, where @ei@ is @Left Nothing@ for comma radix, no
+-- grouping; @Right Nothing@ for period radix, no grouping; @Left
+-- (Just c)@ for comma radix with attempted grouping using @c@; or
+-- @Right (Just c)@ for period radix with grouping attempted using
+-- @c@.
+repQtySmartly
+  :: Either (Maybe RadCom) (Maybe RadPer)
+  -- ^ Default rendering
+  -> M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer)))
+  -- ^ History map
+  -> Commodity
+  -- ^ Associated commodity
+  -> Qty
+  -- ^ Render this 'Qty'
+  -> QtyRepAnyRadix
+repQtySmartly dflt mp cy = case repQtyByPopularCommodity mp cy of
+  Just f -> f
+  Nothing -> case map snd . M.assocs $ mp of
+    [] -> repQty dflt
+    x:xs -> repQtyByPopularity (F.foldl' (<>) x xs)
 
--- | Determines how to render, given a non-empty list of items.
-pickRenderer
+-- | Returns a function representing a Qty based on the radix point
+-- and grouping character most frequently seen.
+repQtyByPopularity
   :: NonEmpty (Either (Seq RadCom) (Seq RadPer))
+  -- ^ History list
   -> Qty
   -> QtyRepAnyRadix
-pickRenderer ls q = case pickRadix ls of
-  Left (rdxCom, Nothing) -> QtyRepAnyRadix . Left . QtyRep
-    . NilOrBrimPolar $ case repUngroupedQty rdxCom q of
-        Center c -> Center (NilU c)
-        OffCenter o p -> OffCenter (BrimUngrouped o) p
-  Right (rdxPer, Nothing) -> QtyRepAnyRadix . Right . QtyRep
-    . NilOrBrimPolar $ case repUngroupedQty rdxPer q of
-        Center c -> Center (NilU c)
-        OffCenter o p -> OffCenter (BrimUngrouped o) p
+repQtyByPopularity = repQty . pickRadix
 
+
+-- | If possible, returns a function representing a Qty based on the
+-- representations that have been seen so far.  @historyRepresent m c@
+-- is applied to a map, @m@, which holds all commodities that have
+-- been seen with a quantity representation in their respective
+-- 'Trio'.  The values in the map are, at minimum, the radix point,
+-- and may also contain any grouping characters used.
+-- 'historyRepresent' will return a function that renders 'Qty' for
+-- that 'Commodity', but only if that 'Commodity' is a key in @m@.
+repQtyByPopularCommodity
+  :: M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer)))
+  -- ^ History map
+  -> Commodity
+  -> Maybe (Qty -> QtyRepAnyRadix)
+repQtyByPopularCommodity mp cy = fmap (repQty . pickRadix) (M.lookup cy mp)
+
+-- | Picks the most popular radix point and, if possible, the most
+-- popular grouping character corresponding to that radix.
 pickRadix
   :: NonEmpty (Either (Seq RadCom) (Seq RadPer))
-  -> Either (Radix RadCom, Maybe RadCom) (Radix RadPer, Maybe RadPer)
+  -- ^ History list
+  -> Either (Maybe RadCom) (Maybe RadPer)
 pickRadix ne =
   let NonEmpty rdx _ = modeFromNonEmpty
         . fmap (either (const (Left Radix)) (const (Right Radix)))
         $ ne
   in case rdx of
-      Left radC -> Left (radC, grpr)
+      Left _ -> Left grpr
         where
           grpr = case avgMode . mconcat . lefts . seqFromNonEmpty $ ne of
             [] -> Nothing
             x:_ -> Just x
-      Right radP -> Right (radP, grpr)
+      Right _ -> Right grpr
         where
           grpr = case avgMode . mconcat . rights . seqFromNonEmpty $ ne of
             [] -> Nothing

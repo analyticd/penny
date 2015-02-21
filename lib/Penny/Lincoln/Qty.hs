@@ -33,6 +33,7 @@ module Penny.Lincoln.Qty
   , repUngroupedQty
   , repUngroupedQtyNonZero
   , repUngroupedQtyUnsigned
+  , repQty
   ) where
 
 import Penny.Lincoln.Decimal
@@ -141,11 +142,40 @@ instance HasQty QtyRepAnyRadix where
 
 -- # Representing
 
+-- | Represents a 'Qty', with optional grouping.
 repQty
-  :: Either (Radix RadCom, Maybe RadCom) (Radix RadPer, Maybe RadPer)
+  :: Either (Maybe RadCom) (Maybe RadPer)
+  -- ^ Determines which radix is used.  If you also supply a grouping
+  -- character, 'repQty' will try to group the 'Qty' as well.
+  -- Grouping will fail if the absolute value of the 'Qty' is less
+  -- than @10000@.  In that case the 'Qty' will be represented without
+  -- grouping.
   -> Qty
   -> QtyRepAnyRadix
-repQty = undefined
+repQty ei q = QtyRepAnyRadix eiq
+  where
+    eiq = case ei of
+      Left Nothing -> Left . QtyRep . NilOrBrimPolar
+        $ case repUngroupedQty Radix q of
+            Center nu -> Center $ NilU nu
+            OffCenter bu s -> OffCenter (BrimUngrouped bu) s
+      Right Nothing -> Right . QtyRep . NilOrBrimPolar
+        $ case repUngroupedQty Radix q of
+            Center nu -> Center $ NilU nu
+            OffCenter bu s -> OffCenter (BrimUngrouped bu) s
+      Left (Just grp) -> Left . QtyRep . NilOrBrimPolar $
+        case repUngroupedQty Radix q of
+          Center nu -> Center . NilU $ nu
+          OffCenter bu s -> case groupBrimUngrouped grp bu of
+            Nothing -> OffCenter (BrimUngrouped bu) s
+            Just grpd -> OffCenter (BrimGrouped grpd) s
+      Right (Just grp) -> Right . QtyRep . NilOrBrimPolar $
+        case repUngroupedQty Radix q of
+          Center nu -> Center . NilU $ nu
+          OffCenter bu s -> case groupBrimUngrouped grp bu of
+            Nothing -> OffCenter (BrimUngrouped bu) s
+            Just grpd -> OffCenter (BrimGrouped grpd) s
+
 
 repUngroupedQty
   :: Radix r
