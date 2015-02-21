@@ -57,6 +57,9 @@ rainbox = closedOpen "rainbox" [0,10,0,0] [0,11]
 semigroups :: Package
 semigroups = closedOpen "semigroups" [0,16,1] [0,17]
 
+contravariant :: Package
+contravariant = closedOpen "contravariant" [1,2] [1,3]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
@@ -76,6 +79,7 @@ libraryDepends =
   , bifunctors
   , rainbox
   , semigroups
+  , contravariant
   ]
 
 testDepends :: [Package]

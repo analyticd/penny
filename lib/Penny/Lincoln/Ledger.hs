@@ -23,7 +23,7 @@ import qualified Data.Traversable as T
 import Penny.Lincoln.Rep
 import Control.Monad
 
-class Ledger l where
+class (Applicative l, Monad l) => Ledger l where
   type PriceL (l :: * -> *) :: *
   type TransactionL (l :: * -> *) :: *
   type TreeL (l :: * -> *) :: *
@@ -47,55 +47,6 @@ class Ledger l where
   postingCommodity :: PostingL l -> l Commodity
   postingSerial :: PostingL l -> l PostingSer
 
--- # Clatches
-
-data Clatch l
-  = Clatch (TransactionL l) (Seq (PostingL l))
-           (PostingL l) (Seq (PostingL l))
-  -- ^ @Clatch t l c r@, where
-  --
-  -- @t@ is the transaction giving rise to this 'Clatch',
-  --
-  -- @l@ are postings on the left.  Closer siblings are at the
-  -- right end of the list.
-  --
-  -- @c@ is the current posting.
-  --
-  -- @r@ are postings on the right.  Closer siblings are at
-  -- the left end of the list.
-
-nextClatch :: Clatch l -> Maybe (Clatch l)
-nextClatch (Clatch t l c r) = case viewl r of
-  EmptyL -> Nothing
-  x :< xs -> Just $ Clatch t (l |> c) x xs
-
-prevClatch :: Clatch l -> Maybe (Clatch l)
-prevClatch (Clatch t l c r) = case viewr l of
-  EmptyR -> Nothing
-  xs :> x -> Just $ Clatch t xs x (c <| r)
-
-clatches :: (Functor l, Ledger l) => TransactionL l -> l (Seq (Clatch l))
-clatches txn = fmap (go S.empty) $ postings txn
-  where
-    go onLeft onRight = case viewl onRight of
-      EmptyL -> S.empty
-      x :< xs -> curr <| rest
-        where
-          curr = Clatch txn onLeft x onRight
-          rest = go (onLeft |> x) xs
-
-allClatches :: (Functor l, Monad l, Ledger l) => l (Seq (Clatch l))
-allClatches = do
-  itms <- fmap join ledgerItems
-  let txns = go itms
-        where
-          go sq = case S.viewl sq of
-            EmptyL -> S.empty
-            x :< xs -> case x of
-              Left _ -> go xs
-              Right txn -> txn <| go xs
-  fmap join $ T.mapM clatches txns
-
 -- # Tree search
 
 newtype FoundTree l
@@ -111,7 +62,7 @@ data NotFoundForest = NotFoundForest (Seq NotFoundTree)
 -- given 'Tree'; if tht 'Tree' does not match, examines the forest of
 -- children using 'selectForest'.
 selectTree
-  :: (Monad l, Ledger l)
+  :: Ledger l
   => PredM l (TreeL l)
   -> TreeL l
   -> l (Either NotFoundTree (FoundTree l))
@@ -130,7 +81,7 @@ selectTree pd tr = do
 -- | Selects a single 'Tree' when given a 'Pred' and a list of 'Tree'.
 -- Examines each 'Tree' in the list, in order, using 'selectTree'.
 selectForest
-  :: (Monad l, Ledger l)
+  :: Ledger l
   => PredM l (TreeL l)
   -> Seq (TreeL l)
   -> l (Either NotFoundForest (FoundForest l))
@@ -156,7 +107,7 @@ contramapM conv (PredM f) = PredM $ \a -> conv a >>= f
 -- # Predicates on trees
 
 anyTree
-  :: (Monad m, Functor m, Applicative m, Ledger m)
+  :: Ledger m
   => PredM m (TreeL m)
   -> PredM m (TreeL m)
 anyTree p = p ||| anyChildNode
@@ -164,26 +115,10 @@ anyTree p = p ||| anyChildNode
     anyChildNode = contramapM (fmap (fmap toList) children) (P.any p)
 
 allTrees
-  :: (Monad m, Applicative m, Ledger m)
+  :: Ledger m
   => PredM m (TreeL m)
   -> PredM m (TreeL m)
 allTrees p = p &&& allChildNodes
   where
     allChildNodes = contramapM (fmap (fmap toList) children) (P.all p)
-
--- | Builds a map of all commodities and their corresponding radix
--- points and grouping characters.
-renderingMap
-  :: (Ledger l, Monad l, F.Foldable f)
-  => f (Clatch l)
-  -> l (M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer))))
-renderingMap = F.foldlM f M.empty
-  where
-    f mp (Clatch _ _ pstg _) = do
-      tri <- postingTrio pstg
-      return $ case trioRendering tri of
-        Nothing -> mp
-        Just (cy, ei) -> case M.lookup cy mp of
-          Nothing -> M.insert cy (NonEmpty ei S.empty) mp
-          Just (NonEmpty o1 os) -> M.insert cy (NonEmpty o1 (os |> ei)) mp
 

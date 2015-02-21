@@ -3,6 +3,7 @@
 module Penny.Lincoln
   (
       module Penny.Lincoln.Balances
+    , module Penny.Lincoln.Clatch
     , module Penny.Lincoln.Commodity
     , module Penny.Lincoln.DateTime
     , module Penny.Lincoln.Decimal
@@ -25,11 +26,13 @@ module Penny.Lincoln
     , module Penny.Lincoln.Semantic
     , module Penny.Lincoln.Serial
     , module Penny.Lincoln.Side
+    , module Penny.Lincoln.StableSort
     , module Penny.Lincoln.Transaction
     , module Penny.Lincoln.Trio
   ) where
 
 import Penny.Lincoln.Balances
+import Penny.Lincoln.Clatch
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.DateTime
 import Penny.Lincoln.Decimal
@@ -52,5 +55,6 @@ import Penny.Lincoln.Rep
 import Penny.Lincoln.Semantic
 import Penny.Lincoln.Serial
 import Penny.Lincoln.Side
+import Penny.Lincoln.StableSort
 import Penny.Lincoln.Transaction
 import Penny.Lincoln.Trio

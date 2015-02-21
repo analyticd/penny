@@ -6,20 +6,14 @@ import Penny.Lincoln.Serial
 import Data.Sequence (Seq, ViewL(..), (<|))
 import qualified Data.Sequence as S
 import Prednote
-import qualified Data.Traversable as T
-import Control.Monad.Trans.State
-import Penny.Lincoln.Serial
-
-newtype FilteredSer = FilteredSer Serset
 
 serialedFilter
   :: Applicative f
   => PredM f a
   -> Seq a
-  -> f (Seq (a, FilteredSer), Seq Result)
+  -> f (Seq (a, Serset), Seq Result)
 serialedFilter p
-  = fmap (first (fmap (second FilteredSer)))
-  . fmap (first serialNumbers)
+  = fmap (first serialNumbers)
   . pdFilter p
 
 pdFilter
