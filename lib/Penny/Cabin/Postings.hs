@@ -37,5 +37,8 @@ data CellTag
 
 type SimpleCell l = Tranche l -> l (CellTag, Text)
 
-spacer :: Applicative l => Int -> SimpleCell l
-spacer i _ = pure (InfoTag, X.replicate i (X.singleton ' '))
+spacerCell :: Applicative l => Int -> SimpleCell l
+spacerCell i _ = pure (InfoTag, X.replicate i (X.singleton ' '))
+
+dateCell :: Ledger l => SimpleCell l
+dateCell = undefined
