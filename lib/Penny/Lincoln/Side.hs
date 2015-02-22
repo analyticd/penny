@@ -2,9 +2,14 @@ module Penny.Lincoln.Side where
 
 import Penny.Lincoln.Offset
 import Penny.Lincoln.PluMin
+import Penny.Lincoln.Display
 
 data Side = Debit | Credit
   deriving (Eq, Ord, Show)
+
+instance Display Side where
+  display Debit = ('<':)
+  display Credit = ('>':)
 
 instance HasOffset Side where
   offset Debit = Credit

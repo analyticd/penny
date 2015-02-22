@@ -2,7 +2,11 @@
 module Penny.Lincoln.Field where
 
 import Data.Text (Text, pack)
+import Penny.Lincoln.Rep
 import Penny.Lincoln.DateTime
+import Data.Monoid
+import Data.Time
+import Penny.Lincoln.Display
 
 data Tree = Tree Realm Scalar [Tree]
   deriving (Eq, Ord, Show)
@@ -25,6 +29,14 @@ data Scalar
   | SZone Zone
   | SInt Integer
   deriving (Eq, Ord, Show)
+
+displayScalar :: Scalar -> Text
+displayScalar sc = case sc of
+  Chars x -> x
+  SDate d -> pack . display d $ ""
+  STime ti -> pack . display ti $ ""
+  SZone zn -> pack . display zn $ ""
+  SInt i -> pack . display i $ ""
 
 class Field a where
   field :: a -> Scalar

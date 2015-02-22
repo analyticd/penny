@@ -12,16 +12,15 @@ import Penny.Lincoln.DateTime
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.Prices
 import Penny.Lincoln.Exch
-import Data.Sequence (Seq, ViewL(..), ViewR(..), (<|), (|>), viewl, viewr)
+import Data.Sequence (Seq, ViewL(..), viewl)
 import qualified Data.Sequence as S
 import Penny.Lincoln.Transaction
 import Data.Foldable (toList)
 import qualified Data.Foldable as F
-import Penny.Lincoln.NonEmpty
-import qualified Data.Map.Strict as M
 import qualified Data.Traversable as T
-import Penny.Lincoln.Rep
-import Control.Monad
+import Data.Text (Text)
+import Data.Monoid
+import qualified Data.Text as X
 
 class (Applicative l, Monad l) => Ledger l where
   type PriceL (l :: * -> *) :: *
@@ -46,54 +45,6 @@ class (Applicative l, Monad l) => Ledger l where
   postingQty :: PostingL l -> l Qty
   postingCommodity :: PostingL l -> l Commodity
   postingSerial :: PostingL l -> l PostingSer
-
--- # Tree search
-
-newtype FoundTree l
-  = FoundTree (Either (Labeled Passed, TreeL l) (Labeled Failed, FoundForest l))
-
-data NotFoundTree = NotFoundTree (Labeled Failed) NotFoundForest
-
-data FoundForest l = FoundForest (Seq NotFoundTree) (FoundTree l)
-
-data NotFoundForest = NotFoundForest (Seq NotFoundTree)
-
--- | Selects a single 'Tree' when given a 'Pred'.  First examines the
--- given 'Tree'; if tht 'Tree' does not match, examines the forest of
--- children using 'selectForest'.
-selectTree
-  :: Ledger l
-  => PredM l (TreeL l)
-  -> TreeL l
-  -> l (Either NotFoundTree (FoundTree l))
-selectTree pd tr = do
-  res <- runPredM pd tr
-  case splitResult res of
-    Left bad -> do
-      kids <- children tr
-      ei <- selectForest pd kids
-      return $ case ei of
-        Left notFound -> Left $ NotFoundTree bad notFound
-        Right found -> Right $ FoundTree (Right (bad, found))
-    Right good -> return . Right . FoundTree . Left $ (good, tr)
-
-
--- | Selects a single 'Tree' when given a 'Pred' and a list of 'Tree'.
--- Examines each 'Tree' in the list, in order, using 'selectTree'.
-selectForest
-  :: Ledger l
-  => PredM l (TreeL l)
-  -> Seq (TreeL l)
-  -> l (Either NotFoundForest (FoundForest l))
-selectForest pd = go S.empty
-  where
-    go acc ls = case viewl ls of
-      EmptyL -> return . Left . NotFoundForest $ acc
-      x :< xs -> do
-        treeRes <- selectTree pd x
-        case treeRes of
-          Left notFound -> go (acc |> notFound) xs
-          Right found -> return . Right $ FoundForest acc found
 
 -- # contramapM
 
@@ -122,3 +73,64 @@ allTrees p = p &&& allChildNodes
   where
     allChildNodes = contramapM (fmap (fmap toList) children) (P.all p)
 
+-- # Searching for trees
+
+findTree
+  :: Ledger l
+  => (Realm -> Scalar -> Bool)
+  -> TreeL l
+  -> l (Maybe (TreeL l))
+findTree pd tr = do
+  rlm <- realm tr
+  scl <- scalar tr
+  if pd rlm scl
+    then return . Just $ tr
+    else do
+      cs <- children tr
+      findTreeInForest pd cs
+
+findTreeInForest
+  :: Ledger l
+  => (Realm -> Scalar -> Bool)
+  -> Seq (TreeL l)
+  -> l (Maybe (TreeL l))
+findTreeInForest pd sq = case viewl sq of
+  EmptyL -> return Nothing
+  x :< xs -> do
+    r <- findTree pd x
+    case r of
+      Just v -> return (Just v)
+      Nothing -> findTreeInForest pd xs
+
+-- # Displaying trees
+
+-- To deal with special Unicode characters in Emacs, use C-x 8 to
+-- insert them.  C-x = will give brief information about the character
+-- at point; M-x describe-char gives more detailed information.
+
+-- | Displays a tree.  It's impractical to display any of the children
+-- of the child trees, so any child tree that has children is suffixed
+-- with a down arrow (which is U+2193, or ↓) to let the user know
+-- something is down there.
+
+displayTree
+  :: Ledger l
+  => TreeL l
+  -> l Text
+displayTree t = f <$> scalar t <*> children t
+  where
+    f sc cs = displayScalar sc <>
+      if S.null cs then mempty else X.singleton '↓'
+
+-- | Displays a forest of trees, with each separated by a bullet
+-- (which is U+2022, or •).
+displayForest
+  :: Ledger l
+  => Seq (TreeL l)
+  -> l Text
+displayForest sq = case viewl sq of
+  EmptyL -> return X.empty
+  x1 :< xs1 -> do
+    t1 <- displayTree x1
+    let dispNext t = fmap (X.cons '•') $ displayTree t
+    fmap (F.foldl' mappend t1) $ T.traverse dispNext xs1

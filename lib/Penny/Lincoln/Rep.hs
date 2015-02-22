@@ -13,11 +13,8 @@
 -- this module will group some representation types--that is, insert
 -- grouping characters to make them easier to read.
 module Penny.Lincoln.Rep
-  ( -- * Display
-    Display(..)
-
-    -- * Radix and grouping
-  , Radix(..)
+  ( -- * Radix and grouping
+    Radix(..)
   , Grouper(..)
   , RadCom(..)
   , RadPer(..)
@@ -81,6 +78,7 @@ import Penny.Lincoln.Rep.Digit
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
 import Penny.Lincoln.NonEmpty
+import Penny.Lincoln.Display
 
 -- | A radix point.  The type is parameterized on a type that
 -- represents the character used for the radix point.

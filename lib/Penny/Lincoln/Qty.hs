@@ -50,6 +50,7 @@ import Penny.Lincoln.PluMin
 import Penny.Lincoln.NonEmpty
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.Mimode
+import Penny.Lincoln.Display
 import Data.Sequence (Seq)
 import qualified Data.Map.Strict as M
 import qualified Data.Foldable as F

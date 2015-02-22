@@ -12,37 +12,7 @@
 
 module Penny.Lincoln.Rep.Digit where
 
-import qualified Data.Foldable as F
-import qualified Data.Sequence as S
-import Penny.Lincoln.Side
-
--- * Display
-
--- | Display of representations.
-class Display a where
-  display :: a -> ShowS
-  -- ^ Displays the value in a manner intended for end-user
-  -- consumption.
-
-instance Display Side where
-  display Debit = ('<':)
-  display Credit = ('>':)
-
-instance Display a => Display [a] where
-  display = foldr (.) id . map display
-
-instance Display a => Display (S.Seq a) where
-  display = F.foldr (.) id . fmap display
-
-instance (Display a, Display b) => Display (a, b) where
-  display (a, b) = display a . display b
-
-instance (Display a, Display b, Display c) => Display (a, b, c) where
-  display (a, b, c) = display a . display b . display c
-
-instance Display a => Display (Maybe a) where
-  display Nothing = id
-  display (Just x) = display x
+import Penny.Lincoln.Display
 
 -- * Typeclass for any digit
 

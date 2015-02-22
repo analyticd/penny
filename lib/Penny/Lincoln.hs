@@ -7,6 +7,7 @@ module Penny.Lincoln
     , module Penny.Lincoln.Commodity
     , module Penny.Lincoln.DateTime
     , module Penny.Lincoln.Decimal
+    , module Penny.Lincoln.Display
     , module Penny.Lincoln.Ent
     , module Penny.Lincoln.Ents
     , module Penny.Lincoln.Exch
@@ -36,6 +37,7 @@ import Penny.Lincoln.Clatch
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.DateTime
 import Penny.Lincoln.Decimal
+import Penny.Lincoln.Display
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Exch
