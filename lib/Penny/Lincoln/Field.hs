@@ -2,10 +2,7 @@
 module Penny.Lincoln.Field where
 
 import Data.Text (Text, pack)
-import Penny.Lincoln.Rep
 import Penny.Lincoln.DateTime
-import Data.Monoid
-import Data.Time
 import Penny.Lincoln.Display
 
 data Tree = Tree Realm Scalar [Tree]
@@ -29,6 +26,21 @@ data Scalar
   | SZone Zone
   | SInt Integer
   deriving (Eq, Ord, Show)
+
+scalarChars :: Scalar -> Maybe Text
+scalarChars s = case s of { Chars x -> Just x; _ -> Nothing }
+
+scalarDate :: Scalar -> Maybe Date
+scalarDate s = case s of { SDate x -> Just x; _ -> Nothing }
+
+scalarTime :: Scalar -> Maybe Time
+scalarTime s = case s of {STime x -> Just x; _ -> Nothing }
+
+scalarZone :: Scalar -> Maybe Zone
+scalarZone s = case s of { SZone x -> Just x; _ -> Nothing }
+
+scalarInteger :: Scalar -> Maybe Integer
+scalarInteger s = case s of { SInt x -> Just x; _ -> Nothing }
 
 displayScalar :: Scalar -> Text
 displayScalar sc = case sc of
