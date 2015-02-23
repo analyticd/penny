@@ -10,9 +10,11 @@ import Penny.Lincoln.Rep
 import Penny.Lincoln.Qty
 import Penny.Lincoln.Offset
 import Penny.Lincoln.Friendly
+import Penny.Lincoln.NonEmpty
 import qualified Data.Map as M
 import qualified Data.Text as X
 import Data.Sequence (Seq)
+import Penny.Lincoln.Mimode
 
 data Orient
   = CommodityOnLeft
@@ -24,6 +26,13 @@ newtype SpaceBetween = SpaceBetween Bool
 
 data Arrangement = Arrangement Orient SpaceBetween
   deriving (Eq, Ord, Show)
+
+arrange
+  :: M.Map Commodity (NonEmpty Arrangement)
+  -> Commodity
+  -> Maybe Arrangement
+arrange mp cy = M.lookup cy mp >>= mimode
+
 
 data Trio
   = QC QtyRepAnyRadix Commodity Arrangement
@@ -141,13 +150,25 @@ instance Friendly TrioError where
 -- | How is this Trio rendered?
 trioRendering
   :: Trio
-  -> Maybe (Commodity, (Either (Seq RadCom) (Seq RadPer)))
+  -> Maybe (Commodity, Arrangement, (Either (Seq RadCom) (Seq RadPer)))
 trioRendering tri = case tri of
-  QC (QtyRepAnyRadix qr) cy _ -> Just (cy, ei)
+  QC (QtyRepAnyRadix qr) cy ar -> Just (cy, ar, ei)
     where
       ei = either (Left . mayGroupers) (Right . mayGroupers) qr
-  UC (RepNonNeutralNoSide ei) cy _ ->
-    Just (cy, either (Left . mayGroupers) (Right . mayGroupers) ei)
+  UC (RepNonNeutralNoSide ei) cy ar ->
+    Just (cy, ar, either (Left . mayGroupers) (Right . mayGroupers) ei)
+  _ -> Nothing
+
+-- | Extracts the representation from the 'Trio', if there is a
+-- representation.  Does not return a 'Side'.
+trioRepresentation
+  :: Trio
+  -> Maybe NilOrBrimScalarAnyRadix
+trioRepresentation tri = case tri of
+  QC qr _ _ -> Just $ convQtyRepAnyRadix qr
+  Q qr -> Just $ convQtyRepAnyRadix qr
+  UC rn _ _ -> Just $ convRepNonNeutralNoSide rn
+  U rn -> Just $ convRepNonNeutralNoSide rn
   _ -> Nothing
 
 

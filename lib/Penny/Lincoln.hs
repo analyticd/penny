@@ -25,9 +25,9 @@ module Penny.Lincoln
     , module Penny.Lincoln.Qty
     , module Penny.Lincoln.Rep
     , module Penny.Lincoln.Semantic
+    , module Penny.Lincoln.SeqUtil
     , module Penny.Lincoln.Serial
     , module Penny.Lincoln.Side
-    , module Penny.Lincoln.StableSort
     , module Penny.Lincoln.Transaction
     , module Penny.Lincoln.Trio
   ) where
@@ -55,8 +55,8 @@ import Penny.Lincoln.Prices
 import Penny.Lincoln.Qty
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Semantic
+import Penny.Lincoln.SeqUtil
 import Penny.Lincoln.Serial
 import Penny.Lincoln.Side
-import Penny.Lincoln.StableSort
 import Penny.Lincoln.Transaction
 import Penny.Lincoln.Trio

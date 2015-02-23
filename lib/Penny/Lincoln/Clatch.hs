@@ -26,7 +26,6 @@ import Data.Sequence
   (Seq, viewl, ViewL(..), (|>), viewr, ViewR(..), (<|))
 import qualified Data.Sequence as S
 import qualified Data.Traversable as T
-import qualified Data.Foldable as F
 import qualified Data.Map.Strict as M
 import Control.Applicative
 import Control.Monad
@@ -39,6 +38,9 @@ import Penny.Lincoln.Balances
 import Data.Monoid
 import Penny.Lincoln.Qty
 import Data.Bifunctor
+import qualified Control.Monad.Trans.State as St
+import Control.Monad.Trans.Class
+import Data.Functor.Contravariant
 
 -- # Clatches
 
@@ -89,37 +91,49 @@ allClatches = do
               Right txn -> txn <| go xs
   fmap join $ T.mapM clatches txns
 
--- | Builds a map of all commodities and their corresponding radix
--- points and grouping characters.
-renderingMap
-  :: (Ledger l, F.Foldable f)
-  => f (Clatch l)
-  -> l (M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer))))
-renderingMap = F.foldlM f M.empty
-  where
-    f mp (Clatch _ _ pstg _) = do
-      tri <- postingTrio pstg
-      return $ case trioRendering tri of
-        Nothing -> mp
-        Just (cy, ei) -> case M.lookup cy mp of
-          Nothing -> M.insert cy (NonEmpty ei S.empty) mp
-          Just (NonEmpty o1 os) -> M.insert cy (NonEmpty o1 (os |> ei)) mp
+newtype Renderings = Renderings
+  (M.Map Commodity (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
+  deriving (Eq, Ord, Show)
+
+-- | Takes a Clatch and pulls out its Qty and Commodity.  As a side
+-- effect, updates the Renderings map.
+clatchQtyAndCommodity
+  :: Ledger l
+  => Clatch l
+  -> St.StateT Renderings l (Qty, Commodity)
+clatchQtyAndCommodity (Clatch _ _ pstg _) = do
+  tri <- lift $ postingTrio pstg
+  qty <- lift $ postingQty pstg
+  case trioRendering tri of
+    Nothing -> do
+      cy <- lift $ postingCommodity pstg
+      return (qty, cy)
+    Just (cy, ar, ei) -> do
+      Renderings mp <- St.get
+      St.put . Renderings $ case M.lookup cy mp of
+        Nothing -> M.insert cy (NonEmpty (ar, ei) S.empty) mp
+        Just (NonEmpty o1 os) -> M.insert cy
+          (NonEmpty o1 (os |> (ar, ei))) mp
+      return (qty, cy)
 
 data Slice l = Slice (Clatch l) Serset Qty Commodity
 
+-- | Computes a series of 'Slice' from a series of 'Clatch' by
+-- filtering using a given predicate.  As a side effect, generates a
+-- set of 'Renderings' and the result of the filtering.
 slices
   :: Ledger l
   => PredM l (Clatch l)
   -> Seq (Clatch l)
-  -> l (Seq (Slice l), Seq Result)
+  -> l (Seq (Slice l), Seq Result, Renderings)
 slices pd cltchs = do
-  (withSers, rslt) <- serialedFilter pd cltchs
-  let mkSlice (cl@(Clatch _ _ pstg _), srst) = do
-        qty <- postingQty pstg
-        cy <- postingCommodity pstg
-        return $ Slice cl srst qty cy
-  slcs <- T.traverse mkSlice withSers
-  return (slcs, rslt)
+  (qtyCyPairs, rndgs) <- St.runStateT
+    (T.traverse clatchQtyAndCommodity cltchs) (Renderings M.empty)
+  (withSers, rslt) <- serialedFilter (contramap fst pd)
+    (S.zip cltchs qtyCyPairs)
+  let mkSlice ((cl, (qty, cy)), serset) = Slice cl serset qty cy
+      slcs = fmap mkSlice withSers
+  return (slcs, rslt, rndgs)
 
 
 data Splint l = Splint (Slice l) Serset Balances
@@ -164,10 +178,10 @@ allTranches
   -- ^ Sorts 'Slice'
   -> PredM l (Splint l)
   -- ^ Filters 'Splint'
-  -> l (Seq (Tranche l), Seq Result, Seq Result)
+  -> l (Seq (Tranche l), Seq Result, Renderings, Seq Result)
 allTranches pdCltch srtr pdSplint = do
   cltchs <- allClatches
-  (slcs, rsltSlcs) <- slices pdCltch cltchs
+  (slcs, rsltSlcs, rndgs) <- slices pdCltch cltchs
   splnts <- splints srtr slcs
   (trchs, rsltTrchs) <- tranches pdSplint splnts
-  return (trchs, rsltSlcs, rsltTrchs)
+  return (trchs, rsltSlcs, rndgs, rsltTrchs)

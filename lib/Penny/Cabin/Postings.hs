@@ -15,6 +15,7 @@ import Data.Maybe
 import Data.Sequence (Seq)
 import qualified Data.Map.Strict as M
 import qualified Data.Sequence as S
+import Data.Monoid
 
 postingsBox
   :: (Applicative l, T.Traversable t1, T.Traversable t2)
@@ -112,4 +113,23 @@ qtyCell
   -> M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer)))
   -- ^ History map
   -> SimpleCell l
-qtyCell = undefined
+qtyCell dflt hist = undefined
+
+-- | Reduces a 'QtyRepAnyRadix' to text, for the Qty only.  Prefixes
+-- representations that have a comma radix with a backtick.
+displayQtyRepAnyRadix
+  :: QtyRepAnyRadix
+  -> Text
+displayQtyRepAnyRadix (QtyRepAnyRadix ei) = pfx <> rep
+  where
+    (pfx, rep) = case ei of
+      Left (QtyRep (NilOrBrimPolar coc)) -> ("`", rp)
+        where
+          rp = case coc of
+            Center nl -> X.pack . display nl $ ""
+            OffCenter br _ -> X.pack . display br $ ""
+      Right (QtyRep (NilOrBrimPolar coc)) -> ("", rp)
+        where
+          rp = case coc of
+            Center nl -> X.pack . display nl $ ""
+            OffCenter br _ -> X.pack . display br $ ""
