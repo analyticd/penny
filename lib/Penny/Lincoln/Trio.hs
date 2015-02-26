@@ -27,8 +27,11 @@ newtype SpaceBetween = SpaceBetween Bool
 data Arrangement = Arrangement Orient SpaceBetween
   deriving (Eq, Ord, Show)
 
+-- | Given a particular 'Commodity', deliver the correct 'Arrangement'
+-- depending on the history of how this commodity was arranged.
 arrange
   :: M.Map Commodity (NonEmpty Arrangement)
+  -- ^ History map
   -> Commodity
   -> Maybe Arrangement
 arrange mp cy = M.lookup cy mp >>= mimode
@@ -165,10 +168,10 @@ trioRepresentation
   :: Trio
   -> Maybe NilOrBrimScalarAnyRadix
 trioRepresentation tri = case tri of
-  QC qr _ _ -> Just $ convQtyRepAnyRadix qr
-  Q qr -> Just $ convQtyRepAnyRadix qr
-  UC rn _ _ -> Just $ convRepNonNeutralNoSide rn
-  U rn -> Just $ convRepNonNeutralNoSide rn
+  QC qr _ _ -> Just $ c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix qr
+  Q qr -> Just $ c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix qr
+  UC rn _ _ -> Just $ c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide rn
+  U rn -> Just $ c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide rn
   _ -> Nothing
 
 

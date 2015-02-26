@@ -107,6 +107,7 @@ commodityCell trch =
   let Commodity txt = Q.commodity trch
   in return (InfoTag, txt)
 
+-- | A cell with the Qty representation only.
 qtyCell
   :: Either (Maybe RadCom) (Maybe RadPer)
   -- ^ Default rendering
@@ -114,6 +115,18 @@ qtyCell
   -- ^ History map
   -> SimpleCell l
 qtyCell dflt hist = undefined
+
+-- | A cell with the Amount--that is, the 'Qty' and the 'Commodity'.
+-- They are arranged properly--that is, the 'Commodity' is positioned
+-- correctly relative to the 'Qty', and there is a space in between
+-- the two if appropriate.
+amountCell
+  :: Arrangement
+  -- ^ Use this 'Arrangement' if no default is found.
+  -> M.Map Commodity (NonEmpty Arrangement)
+  -- ^ History map
+  -> SimpleCell l
+amountCell = undefined
 
 -- | Reduces a 'QtyRepAnyRadix' to text, for the Qty only.  Prefixes
 -- representations that have a comma radix with a backtick.

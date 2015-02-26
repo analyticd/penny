@@ -49,6 +49,10 @@ module Penny.Lincoln.Rep
   , nilOrBrimScalarAnyRadixToQty
   , RepNonNeutralNoSide(..)
 
+  -- ** Conversions between aggregate types
+  , c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
+  , c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
+
   -- * Qty types
   --
   -- | These types represent quantities (as opposed to prices).
@@ -629,3 +633,26 @@ ungroupNilGrouped (NilGrouped may1 rdx2 z3 zs4 _g5 z6 zs7 sq8)
       <> join (fmap (\(_g9, z10, z11) -> z10 <| z11) sq8))))
     Nothing -> NURadix rdx2 z3 (zs4 <> (z6 <| zs7)
       <> join (fmap (\(_g9, z10, z11) -> z10 <| z11) sq8))
+
+-- # Conversions
+
+-- | Removes the 'Side' from a 'QtyRepAnyRadix'.
+c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
+  :: QtyRepAnyRadix
+  -> NilOrBrimScalarAnyRadix
+c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix (QtyRepAnyRadix ei)
+  = either (stripper Left) (stripper Right) ei
+  where
+    stripper mkEi (QtyRep (NilOrBrimPolar coc)) = case coc of
+      Center n -> NilOrBrimScalarAnyRadix (mkEi (NilOrBrimScalar (Left n)))
+      OffCenter o _ -> NilOrBrimScalarAnyRadix
+        (mkEi (NilOrBrimScalar (Right o)))
+
+c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
+  :: RepNonNeutralNoSide
+  -> NilOrBrimScalarAnyRadix
+c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide (RepNonNeutralNoSide ei)
+  = either (create Left) (create Right) ei
+  where
+    create mkEi br = NilOrBrimScalarAnyRadix
+      (mkEi (NilOrBrimScalar (Right br)))
