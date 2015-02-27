@@ -45,8 +45,8 @@ data CellTag
 
 type SimpleCell l = Tranche l -> l (CellTag, Text)
 
-spacerCell :: Applicative l => Int -> SimpleCell l
-spacerCell i _ = pure (InfoTag, X.replicate i (X.singleton ' '))
+spacer :: Applicative l => Int -> SimpleCell l
+spacer i _ = pure (InfoTag, X.replicate i (X.singleton ' '))
 
 dateCell :: Ledger l => SimpleCell l
 dateCell trch = do
@@ -102,19 +102,18 @@ sideCell trch = return $ case Q.side trch of
   Just Debit -> (DebitTag, "<")
   Just Credit -> (CreditTag, ">")
 
-commodityCell :: Ledger l => SimpleCell l
+commodityCell :: Applicative l => SimpleCell l
 commodityCell trch =
   let Commodity txt = Q.commodity trch
-  in return (InfoTag, txt)
+  in pure (InfoTag, txt)
 
 -- | A cell with the Qty representation only.
 qtyCell
-  :: Either (Maybe RadCom) (Maybe RadPer)
-  -- ^ Default rendering
-  -> M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer)))
-  -- ^ History map
+  :: (Commodity -> Qty -> QtyRepAnyRadix)
+  -- ^ Use what is in the Trio if possible.  If not, use this function
+  -- to get the representation.
   -> SimpleCell l
-qtyCell dflt hist = undefined
+qtyCell mkRep = undefined
 
 -- | A cell with the Amount--that is, the 'Qty' and the 'Commodity'.
 -- They are arranged properly--that is, the 'Commodity' is positioned
