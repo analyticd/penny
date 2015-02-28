@@ -20,6 +20,7 @@
 module Penny.Lincoln.Clatch where
 
 import Prednote
+import Penny.Lincoln.Amount
 import Penny.Lincoln.Ledger
 import Penny.Lincoln.Filter
 import Data.Sequence
@@ -41,6 +42,12 @@ import Data.Bifunctor
 import qualified Control.Monad.Trans.State as St
 import Control.Monad.Trans.Class
 import Data.Functor.Contravariant
+
+-- # Bevy
+
+newtype Converted = Converted Amount
+
+data Bevy l = Bevy (PostingL l) Amount (Maybe Converted)
 
 -- # Clatches
 
