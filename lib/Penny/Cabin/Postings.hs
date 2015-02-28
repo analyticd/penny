@@ -21,8 +21,8 @@ import qualified Penny.Cabin.Postings.Cell as C
 
 postingsBox
   :: (Applicative l, T.Traversable t1, T.Traversable t2)
-  => t1 (Tranche l -> l Cell)
-  -> t2 (Tranche l)
+  => t1 (Tranche l a -> l Cell)
+  -> t2 (Tranche l a)
   -> l Box
 postingsBox cols
   = fmap (gridByRows . F.toList . fmap F.toList)
@@ -30,49 +30,49 @@ postingsBox cols
 
 makeRows
   :: (Applicative l, T.Traversable t1, T.Traversable t2)
-  => t1 (Tranche l -> l Cell)
-  -> t2 (Tranche l)
+  => t1 (Tranche l a -> l Cell)
+  -> t2 (Tranche l a)
   -> l (t2 (t1 Cell))
 makeRows cols = T.sequenceA . fmap T.sequenceA . fmap mkRow
   where
     mkRow trch = fmap ($ trch) cols
 
 
-type ColumnFn l
+type ColumnFn l a
   = (L.Commodity -> L.Arrangement)
   -> (L.Commodity -> L.Qty -> L.QtyRepAnyRadix)
-  -> L.Tranche l
+  -> L.Tranche l a
   -> l (C.CellTag, Text)
 
-newtype Column l = Column (ColumnFn l)
+newtype Column l a = Column (ColumnFn l a)
 
-spacer :: Applicative l => Int -> Column l
+spacer :: Applicative l => Int -> Column l a
 spacer i = Column $ \_ _ _ -> pure (C.spacer i)
 
-date :: L.Ledger l => Column l
+date :: L.Ledger l => Column l a
 date = Column $ \_ _ -> C.date
 
-account :: L.Ledger l => Column l
+account :: L.Ledger l => Column l a
 account = Column $ \_ _ -> C.account
 
-number :: L.Ledger l => Column l
+number :: L.Ledger l => Column l a
 number = Column $ \_ _ -> C.number
 
-payee :: L.Ledger l => Column l
+payee :: L.Ledger l => Column l a
 payee = Column $ \_ _ -> C.payee
 
-flag :: L.Ledger l => Column l
+flag :: L.Ledger l => Column l a
 flag = Column $ \_ _ -> C.flag
 
-side :: L.Ledger l => Column l
+side :: L.Ledger l => Column l a
 side = Column $ \_ _ -> C.side
 
-commodity :: L.Ledger l => Column l
+commodity :: L.Ledger l => Column l a
 commodity = Column $ \_ _ -> C.commodity
 
-qty :: L.Ledger l => Column l
+qty :: L.Ledger l => Column l a
 qty = Column $ \_ rp tr -> C.qty rp tr
 
-amount :: L.Ledger l => Column l
+amount :: L.Ledger l => Column l a
 amount = Column C.amount
 

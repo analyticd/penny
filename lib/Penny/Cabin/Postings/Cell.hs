@@ -23,13 +23,13 @@ data CellTag
 spacer :: Int -> (CellTag, Text)
 spacer i = (InfoTag, X.replicate i (X.singleton ' '))
 
-date :: L.Ledger l => L.Tranche l -> l (CellTag, Text)
+date :: L.Ledger l => L.Tranche l a -> l (CellTag, Text)
 date trch = do
   t <- Q.best (\r s -> isJust (L.scalarDate s) && r == L.User) trch
   txt <- maybe (return X.empty) L.displayTree t
   return (InfoTag, txt)
 
-account :: L.Ledger l => L.Tranche l -> l (CellTag, Text)
+account :: L.Ledger l => L.Tranche l a -> l (CellTag, Text)
 account trch = do
   frst <- Q.postingTrees trch
   let pd r s = maybe False (const True) $ do
@@ -41,13 +41,13 @@ account trch = do
   txt <- L.displayForest subFrst
   return (InfoTag, txt)
 
-number :: L.Ledger l => L.Tranche l -> l (CellTag, Text)
+number :: L.Ledger l => L.Tranche l a -> l (CellTag, Text)
 number trch = do
   t <- Q.best (\r s -> isJust (L.scalarInteger s) && r == L.User) trch
   txt <- maybe (return X.empty) L.displayTree t
   return (InfoTag, txt)
 
-payee :: L.Ledger l => L.Tranche l -> l (CellTag, Text)
+payee :: L.Ledger l => L.Tranche l a -> l (CellTag, Text)
 payee trch = do
   t <- Q.best (\r s -> isJust (L.scalarChars s) && r == L.User) trch
   txt <- maybe (return X.empty) L.displayTree t
@@ -60,7 +60,7 @@ userRealm
   -> Bool
 userRealm pd r s = r == L.User && pd s
 
-flag :: L.Ledger l => L.Tranche l -> l (CellTag, Text)
+flag :: L.Ledger l => L.Tranche l a -> l (CellTag, Text)
 flag trch = do
   let pd sc = maybe False (const True) $ do
         txt <- L.scalarChars sc
@@ -71,13 +71,13 @@ flag trch = do
   txt <- maybe (return X.empty) L.displayTree t
   return (InfoTag, txt)
 
-side :: L.Ledger l => L.Tranche l -> l (CellTag, Text)
+side :: L.Ledger l => L.Tranche l a -> l (CellTag, Text)
 side trch = return $ case Q.side trch of
   Nothing -> (ZeroTag, "--")
   Just L.Debit -> (DebitTag, "<")
   Just L.Credit -> (CreditTag, ">")
 
-commodity :: Applicative l => L.Tranche l -> l (CellTag, Text)
+commodity :: Applicative l => L.Tranche l a -> l (CellTag, Text)
 commodity trch =
   let L.Commodity txt = Q.commodity trch
   in pure (InfoTag, txt)
@@ -87,7 +87,7 @@ qty
   :: (L.Commodity -> L.Qty -> L.QtyRepAnyRadix)
   -- ^ Use what is in the Trio if possible.  If not, use this function
   -- to get the representation.
-  -> L.Tranche l -> l (CellTag, Text)
+  -> L.Tranche l a -> l (CellTag, Text)
 qty mkRep = undefined
 
 -- | A cell with the Amount--that is, the 'Qty' and the 'Commodity'.
@@ -97,7 +97,7 @@ qty mkRep = undefined
 amount
   :: (L.Commodity -> L.Arrangement)
   -> (L.Commodity -> L.Qty -> L.QtyRepAnyRadix)
-  -> L.Tranche l -> l (CellTag, Text)
+  -> L.Tranche l a -> l (CellTag, Text)
 amount = undefined
 
 -- | Reduces a 'QtyRepAnyRadix' to text, for the Qty only.  Prefixes
