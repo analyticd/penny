@@ -42,6 +42,7 @@ import Data.Bifunctor
 import qualified Control.Monad.Trans.State as St
 import Control.Monad.Trans.Class
 import Data.Functor.Contravariant
+import qualified Data.Foldable as F
 
 -- # Bevy
 
@@ -67,6 +68,40 @@ data Clatch l a
   -- the left end of the list.
   --
   -- Each posting @l@, @c@, and @r@ is paired with arbitrary metadata.
+
+instance Functor (Clatch l) where
+  fmap f (Clatch tx s1 p s2) = Clatch tx
+    (fmap (second f) s1) (second f p) (fmap (second f) s2)
+
+instance F.Foldable (Clatch l) where
+  foldr f z (Clatch _ s1 (_, p) s2)
+    = F.foldr f (f p (F.foldr f z (fmap snd s2))) (fmap snd s1)
+
+instance T.Traversable (Clatch l) where
+  sequenceA (Clatch tx s1 (p, pm) s2)
+    = Clatch <$> pure tx <*> sequenceSnd s1 <*> ((,) <$> pure p <*> pm)
+      <*> sequenceSnd s2
+
+traverseClatch
+  :: Applicative f
+  => ((PostingL l, a) -> f b)
+  -> Clatch l a
+  -> f (Clatch l b)
+traverseClatch f (Clatch tx s1 p s2)
+  = Clatch
+  <$> pure tx
+  <*> traverseSeq s1
+  <*> travPair p
+  <*> traverseSeq s2
+  where
+    travPair pair = (,) <$> pure (fst pair) <*> f pair
+    traverseSeq = T.traverse travPair
+
+sequenceSnd
+  :: (T.Traversable t, Applicative f)
+  => t (a, f b)
+  -> f (t (a, b))
+sequenceSnd = T.traverse (\(a, fb) -> (,) <$> pure a <*> fb)
 
 nextClatch :: Clatch l a -> Maybe (Clatch l a)
 nextClatch (Clatch t l c r) = case viewl r of
