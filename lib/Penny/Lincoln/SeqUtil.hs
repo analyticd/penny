@@ -59,3 +59,10 @@ mapMaybeM f sq = case viewl sq of
     return $ case mayB of
       Nothing -> rest
       Just b -> b <| rest
+
+rights :: Seq (Either a b) -> Seq b
+rights sq = case viewl sq of
+  EmptyL -> empty
+  x :< xs -> case x of
+    Left _ -> rights xs
+    Right r -> r <| rights xs

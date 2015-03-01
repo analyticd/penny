@@ -19,10 +19,12 @@
 -- Each 'Tranche' is assigned a serial.
 module Penny.Lincoln.Clatch where
 
-import Prednote
+import qualified Prednote as P
+import Prednote hiding (maybe)
 import Penny.Lincoln.Amount
 import Penny.Lincoln.Ledger
 import Penny.Lincoln.Filter
+import Penny.Lincoln.SeqUtil
 import Data.Sequence
   (Seq, viewl, ViewL(..), (|>), viewr, ViewR(..), (<|))
 import qualified Data.Sequence as S
@@ -52,9 +54,9 @@ data Bevy l = Bevy (PostingL l) Amount (Maybe Converted)
 
 -- # Clatches
 
-data Clatch l a
-  = Clatch (TransactionL l) (Seq (PostingL l, a))
-           (PostingL l, a) (Seq (PostingL l, a))
+data Clatch l
+  = Clatch (TransactionL l) (Seq (Bevy l))
+           (Bevy l) (Seq (Bevy l))
   -- ^ @Clatch t l c r@, where
   --
   -- @t@ is the transaction giving rise to this 'Clatch',
@@ -66,121 +68,109 @@ data Clatch l a
   --
   -- @r@ are postings on the right.  Closer siblings are at
   -- the left end of the list.
-  --
-  -- Each posting @l@, @c@, and @r@ is paired with arbitrary metadata.
 
-instance Functor (Clatch l) where
-  fmap f (Clatch tx s1 p s2) = Clatch tx
-    (fmap (second f) s1) (second f p) (fmap (second f) s2)
-
-instance F.Foldable (Clatch l) where
-  foldr f z (Clatch _ s1 (_, p) s2)
-    = F.foldr f (f p (F.foldr f z (fmap snd s2))) (fmap snd s1)
-
-instance T.Traversable (Clatch l) where
-  sequenceA (Clatch tx s1 (p, pm) s2)
-    = Clatch <$> pure tx <*> sequenceSnd s1 <*> ((,) <$> pure p <*> pm)
-      <*> sequenceSnd s2
-
-traverseClatch
-  :: Applicative f
-  => ((PostingL l, a) -> f b)
-  -> Clatch l a
-  -> f (Clatch l b)
-traverseClatch f (Clatch tx s1 p s2)
-  = Clatch
-  <$> pure tx
-  <*> traverseSeq s1
-  <*> travPair p
-  <*> traverseSeq s2
-  where
-    travPair pair = (,) <$> pure (fst pair) <*> f pair
-    traverseSeq = T.traverse travPair
-
-sequenceSnd
-  :: (T.Traversable t, Applicative f)
-  => t (a, f b)
-  -> f (t (a, b))
-sequenceSnd = T.traverse (\(a, fb) -> (,) <$> pure a <*> fb)
-
-nextClatch :: Clatch l a -> Maybe (Clatch l a)
+nextClatch :: Clatch l -> Maybe (Clatch l)
 nextClatch (Clatch t l c r) = case viewl r of
   EmptyL -> Nothing
   x :< xs -> Just $ Clatch t (l |> c) x xs
 
-prevClatch :: Clatch l a -> Maybe (Clatch l a)
+prevClatch :: Clatch l -> Maybe (Clatch l)
 prevClatch (Clatch t l c r) = case viewr l of
   EmptyR -> Nothing
   xs :> x -> Just $ Clatch t xs x (c <| r)
 
-clatches :: Ledger l => TransactionL l -> l (Seq (Clatch l ()))
-clatches txn = fmap (go S.empty . fmap (\a -> (a, ()))) $ postings txn
+bevies
+  :: Ledger l
+  => (Amount -> Maybe Converted)
+  -> Seq (PostingL l)
+  -> l (Seq (Bevy l))
+bevies conv = T.traverse mkBevy
+  where
+    mkBevy pstg = f <$> postingQty pstg <*> postingCommodity pstg
+      where
+        f q c = Bevy pstg (Amount c q) (conv (Amount c q))
+
+beviesToClatches
+  :: TransactionL l
+  -> Seq (Bevy l)
+  -> Seq (Clatch l)
+beviesToClatches txn = go S.empty
   where
     go onLeft onRight = case viewl onRight of
       EmptyL -> S.empty
-      x :< xs -> curr <| rest
-        where
-          curr = Clatch txn onLeft x onRight
-          rest = go (onLeft |> x) xs
+      x :< xs -> Clatch txn onLeft x xs <| go (onLeft |> x) xs
 
-allClatches :: Ledger l => l (Seq (Clatch l ()))
-allClatches = do
+clatches
+  :: Ledger l
+  => (Amount -> Maybe Converted)
+  -> TransactionL l
+  -> l (Seq (Clatch l))
+clatches conv txn = do
+  pstgs <- postings txn
+  bvys <- bevies conv pstgs
+  return $ beviesToClatches txn bvys
+
+allClatches :: Ledger l => (Amount -> Maybe Converted) -> l (Seq (Clatch l))
+allClatches conv = do
   itms <- fmap join ledgerItems
-  let txns = go itms
-        where
-          go sq = case S.viewl sq of
-            EmptyL -> S.empty
-            x :< xs -> case x of
-              Left _ -> go xs
-              Right txn -> txn <| go xs
-  fmap join $ T.mapM clatches txns
+  let txns = rights itms
+  fmap join $ T.mapM (clatches conv) txns
 
 newtype Renderings = Renderings
   (M.Map Commodity (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
   deriving (Eq, Ord, Show)
 
--- | Takes a Clatch and pulls out its Qty and Commodity.  As a side
--- effect, updates the Renderings map.
-clatchQtyAndCommodity
-  :: Ledger l
-  => Clatch l a
-  -> St.StateT Renderings l (Qty, Commodity)
-clatchQtyAndCommodity (Clatch _ _ pstg _) = do
-  tri <- lift . postingTrio . fst $ pstg
-  qty <- lift . postingQty . fst $ pstg
-  case trioRendering tri of
-    Nothing -> do
-      cy <- lift . postingCommodity . fst $ pstg
-      return (qty, cy)
-    Just (cy, ar, ei) -> do
-      Renderings mp <- St.get
-      St.put . Renderings $ case M.lookup cy mp of
+-- | Given a Clatch, selects the best Amount from the original Amount
+-- and the 'Converted' one.
+clatchAmount :: Clatch l -> Amount
+clatchAmount (Clatch _ _ (Bevy _ amt mayConv) _)
+  = maybe amt (\(Converted a) -> a) mayConv
+
+-- | Given a Clatch, update the Renderings map.
+updateRenderings :: Ledger l => Clatch l -> Renderings -> l Renderings
+updateRenderings (Clatch _ _ (Bevy pstg _ _) _)
+  (Renderings mp) = fmap f (postingTrio pstg)
+  where
+    f tri = case trioRendering tri of
+      Nothing -> Renderings mp
+      Just (cy, ar, ei) -> Renderings $ case M.lookup cy mp of
         Nothing -> M.insert cy (NonEmpty (ar, ei) S.empty) mp
         Just (NonEmpty o1 os) -> M.insert cy
           (NonEmpty o1 (os |> (ar, ei))) mp
-      return (qty, cy)
 
-data Slice l a = Slice (Clatch l a) Serset Qty Commodity
+data Slice l = Slice (Clatch l) Serset
 
 -- | Computes a series of 'Slice' from a series of 'Clatch' by
--- filtering using a given predicate.  As a side effect, generates a
--- set of 'Renderings' and the result of the filtering.
+-- filtering using a given predicate.
 slices
   :: Ledger l
-  => PredM l (Clatch l a)
-  -> Seq (Clatch l a)
-  -> l (Seq (Slice l a), Seq Result, Renderings)
+  => PredM l (Clatch l)
+  -> Seq (Clatch l)
+  -> l (Seq (Slice l), Seq Result)
 slices pd cltchs = do
-  (qtyCyPairs, rndgs) <- St.runStateT
-    (T.traverse clatchQtyAndCommodity cltchs) (Renderings M.empty)
-  (withSers, rslt) <- serialedFilter (contramap fst pd)
-    (S.zip cltchs qtyCyPairs)
-  let mkSlice ((cl, (qty, cy)), serset) = Slice cl serset qty cy
-      slcs = fmap mkSlice withSers
-  return (slcs, rslt, rndgs)
+  (withSers, rslt) <- serialedFilter pd cltchs
+  return (fmap (uncurry Slice) withSers, rslt)
 
+data Splint l = Splint (Slice l) Serset Balances
 
-data Splint l a = Splint (Slice l a) Serset Balances
+splints
+  :: Applicative l
+  => (Seq (Slice l) -> l (Seq (Slice l)))
+  -- ^ Sorter
+  -> Seq (Slice l)
+  -> l (Seq (Splint l))
+splints = undefined
+{-
+splints srtr sq = fmap mkSplints $ srtr sq
+  where
+    mkSplints = addBals . serialNumbers
+    addBals = snd . T.mapAccumL addBal mempty
+    addBal bal (slce@(Slice _ _ qty cy), srst) = (bal', splt)
+      where
+        bal' = addEntryToBalances qty cy bal
+        splt = Splint slce srst bal'
+-}
+{-
 
 splints
   :: Applicative l
@@ -229,3 +219,4 @@ allTranches pdCltch srtr pdSplint = do
   splnts <- splints srtr slcs
   (trchs, rsltTrchs) <- tranches pdSplint splnts
   return (trchs, rsltSlcs, rndgs, rsltTrchs)
+-}

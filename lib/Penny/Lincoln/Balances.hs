@@ -1,5 +1,6 @@
 module Penny.Lincoln.Balances where
 
+import Penny.Lincoln.Amount
 import qualified Data.Foldable as F
 import Penny.Lincoln.Decimal
 import Penny.Lincoln.Commodity
@@ -14,11 +15,11 @@ instance Monoid Balances where
   mempty = Balances M.empty
   mappend (Balances x) (Balances y) = Balances $ M.unionWith (+) x y
 
-balancesFromPair :: Qty -> Commodity -> Balances
-balancesFromPair q c = Balances $ M.singleton c q
+c'Balances'Amount :: Amount -> Balances
+c'Balances'Amount (Amount c q) = Balances $ M.singleton c q
 
-addEntryToBalances :: Qty -> Commodity -> Balances -> Balances
-addEntryToBalances q c (Balances m) = Balances . M.alter f c $ m
+addAmountToBalances :: Amount -> Balances -> Balances
+addAmountToBalances (Amount c q) (Balances m) = Balances . M.alter f c $ m
   where
     f v = case v of
       Nothing -> Just q
@@ -32,20 +33,20 @@ isBalanced (Balances m) = F.all isZero m
 newtype Imbalances = Imbalances (M.Map Commodity QtyNonZero)
   deriving (Eq, Ord, Show)
 
-imbalancesFromPair :: Qty -> Commodity -> Imbalances
-imbalancesFromPair q c = balancesToImbalances $ balancesFromPair q c
+c'Imbalances'Amount :: Amount -> Imbalances
+c'Imbalances'Amount = c'Imbalances'Balances . c'Balances'Amount
 
-balancesToImbalances :: Balances -> Imbalances
-balancesToImbalances (Balances m)
+c'Imbalances'Balances :: Balances -> Imbalances
+c'Imbalances'Balances (Balances m)
   = Imbalances
   . M.mapMaybe qtyToQtyNonZero $ m
 
-imbalancesToBalances :: Imbalances -> Balances
-imbalancesToBalances (Imbalances m)
+c'Balances'Imbalances :: Imbalances -> Balances
+c'Balances'Imbalances (Imbalances m)
   = Balances . fmap qtyNonZeroToQty $ m
 
 instance Monoid Imbalances where
   mempty = Imbalances M.empty
   mappend x y =
-    balancesToImbalances $ mappend
-      (imbalancesToBalances x) (imbalancesToBalances y)
+    c'Imbalances'Balances $ mappend
+      (c'Balances'Imbalances x) (c'Balances'Imbalances y)
