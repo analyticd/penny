@@ -54,6 +54,9 @@ bifunctors = closedOpen "bifunctors" [4,2] [4,3]
 rainbox :: Package
 rainbox = closedOpen "rainbox" [0,10,0,0] [0,11]
 
+rainbow :: Package
+rainbow = closedOpen "rainbow" [0,20,4] [0,21]
+
 semigroups :: Package
 semigroups = closedOpen "semigroups" [0,16,1] [0,17]
 
@@ -77,6 +80,7 @@ libraryDepends =
   , transformers
   , prednote
   , bifunctors
+  , rainbow
   , rainbox
   , semigroups
   , contravariant

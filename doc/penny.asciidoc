@@ -1,0 +1,152 @@
+= PENNY(1)
+:doctype: manpage
+
+== NAME
+
+penny - print reports on Penny postings
+
+== SYNOPSIS
+
+*penny* ['GLOBAL_OPTIONS'] 'REPORT_NAME' ['REPORT_OPTIONS'] 'FILE..'
+
+== DESCRIPTION
+
+The penny(1) command reads one or more 'FILE' specified.  If there is
+no 'FILE', or 'FILE' is '-', `penny` reads standard input.  Each
+transaction in the given 'FILE' is split into several _clatch_, with
+one _clatch_ per posting.  The _clatch_ contains the posting itself,
+along with all the siblings of the given posting and related
+transaction information.
+
+Then, the list of all _clatch_ is filtered using criteria you specify
+in the 'GLOBAL_OPTIONS', which yields a list of _slice_.  This allows
+you to remove postings you are not interested in seeing.
+
+The ordering of the options is important; that is, `penny -i -a
+Checking` does not have the same meaning as `penny -a Checking -i`.
+
+== GLOBAL OPTIONS
+
+=== Pattern options
+
+These options control the filtering of the list of _clatch_ into the
+list of _slice_.
+
+*-I, --case-insensitive*::
+
+  Future patterns on the command line are case insensitive.  This is
+  the default setting.
+
+*-S, --case-sensitive*::
+
+  Future patterns on the command line are case sensitive.
+
+*--within*::
+
+  Future patterns on the command line match if the given text is found
+  anywhere within the target text.  This is the default setting.
+
+*--exact*::
+
+  Future patterns on the command line match if the given text exactly
+  matches the target text (after adjusting for case sensitivity).
+
+*-R, --regexp*::
+
+  Future patterns on the command line use Perl-compatible regular
+  expressions.
+
+Futher actions on the _slice_ may occur depending on which 'REPORT'
+you use.  Reports are as follows.
+
+=== Filtering operands
+
+Multiple filtering options must be combined using postfix operators.
+Some options accept a 'BOOLEAN'.  Valid 'BOOLEAN' are `<`, `>`, `==`,
+`>=`, `<=`, and `/=`.  For example: `-n '>' 5`.  You may need to quote
+these characters, as they might have special meaning to your shell.
+
+*-a, --account*='PATTERN'::
+
+  The account name is transformed into a string, with a colon
+  separating each sub-account; the given 'PATTERN' is matched against
+  this string.  A posting with no account always returns false.
+
+*-n, --number* 'BOOLEAN' 'NUMBER'::
+
+  The posting's number field must match the given boolean condition.
+  Any posting without a number always returns false.
+
+*-f, --flag*='PATTERN'::
+
+  The posting's flag must match the given pattern.  The parentheses
+  that you entered into your Penny file are not included in the
+  matching process.  A posting with no flag always returns False.
+
+*-p, --payee*='PATTERN'::
+
+  The posting's payee must match the given pattern.  A posting with no
+  payee always returns False.
+
+*-c, --commodity*='PATTERN'::
+
+  The posting's commodity must match the given pattern.
+
+*--debit*::
+
+  True if the posting is a debit.
+
+*--credit*::
+
+  True if the posting is a credit.
+
+*--zero*::
+
+  True if the posting is zero (that is, neither a debit nor a credit.)
+
+*-q, --qty* 'BOOLEAN' 'NUMBER'::
+
+  The posting's quantity must match the given boolean condition.
+  Valid 'BOOLEAN' are `<`, `>`, `==`, `>=`, `<=`, and `/=`.  For
+  example:  `-n '>' 5`.  You may need to quote these characters, as
+  they might have special meaning to your shell.
+
+*-t, --tag*='PATTERN'::
+
+  One of the posting's tags must match the given 'PATTERN'
+
+*-d, --date* 'BOOLEAN' 'DATE'::
+
+  The posting's date must match the given boolean condition.  Postings
+  with no date return false.  Time zones are not considered.
+
+*--time* 'BOOLEAN' 'TIME'::
+
+  The posting's time must match the given boolean condition.  Postings
+  with no time return false.  Time zones are not considered.
+
+=== Filtering operators
+
+These operators are used when filtering.  To join operands together
+you must use postfix notation.  Postfix eliminates confusing operator
+precedence rules.
+
+*-A, --and*::
+
+  Pop two operands from the stack, join them using an _and_ operator,
+  and push the result back onto the stack.
+
+*-O, --or*::
+
+  Pop two operands from the stack, join them using an _or_ operator,
+  and push the result back onto the stack.
+
+*-N, --not*::
+
+  Pop one operand from the stack, negate it, and push the result back
+  onto the stack.
+
+
+
+THE grid REPORT
+---------------

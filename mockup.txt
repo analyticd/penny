@@ -30,18 +30,7 @@
 # an optional amount, followed by an optional list of rose trees.
 # 
 # This is a comment
-2014-01-02 payee ["The Behnke Nursery Co"] flag [True] tags [Garden]
-  { > $24.40 [ account [Assets Current Checking] 101 ]
-  ; [ account [Expenses Plants] tags [Vacation] ]
-  }
 
-# more terse?
-2014-03-05 payee ["Urdu and Son"] flag [R] tags [Garden]
-  { < $103.65 [ acct [Expenses Education] num [101] ]
-  ; [ acct [Assets Current Checking] ]
-  }
-
-# even more terse?
 2014-06-30 "Urdu and Son" (R) [Garden]
   { < $230.03 [ acct [Expenses Education] 101 ]
   ; [ acct [Assets Current Checking ]]

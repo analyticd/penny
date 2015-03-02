@@ -1,0 +1,40 @@
+= PENNY(1)
+:doctype: manpage
+
+== NAME
+
+penny - print reports on Penny postings
+
+== SYNOPSIS
+
+*penny* ['GLOBAL_OPTIONS'] 'REPORT_NAME' ['REPORT_OPTIONS'] 'FILE..'
+
+== DESCRIPTION
+
+The penny(1) command reads one or more 'FILE' specified.  If there is
+no 'FILE', or 'FILE' is '-', `penny` reads standard input.  Each
+transaction in the given 'FILE' is split into several _clatch_, with
+one _clatch_ per posting.  The _clatch_ contains the posting itself,
+along with all the siblings of the given posting and related
+transaction information.
+
+Then, the list of all _clatch_ is filtered using criteria you specify
+in the 'GLOBAL_OPTIONS', which yields a list of _slice_.  This allows
+you to remove postings you are not interested in seeing.
+
+The ordering of the options is important; that is, `penny -i -a
+Checking` does not have the same meaning as `penny -a Checking -i`.
+
+== GLOBAL OPTIONS
+
+=== Filtering options
+
+These options control the filtering of the list of _clatch_ into the
+list of _slice_.
+
+
+Futher actions on the _slice_ may occur depending on which 'REPORT'
+you use.  Reports are as follows.
+
+THE grid REPORT
+---------------

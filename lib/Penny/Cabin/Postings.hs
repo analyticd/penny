@@ -1,13 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | The Postings report
 module Penny.Cabin.Postings
-  ( -- * Making reports
-    postingsBox
-  , makeRows
+  ( -- * Color schemes
+    Parity(..)
+  , C.CellTag(..)
+  , Scheme(..)
 
   -- * Columns
   , ColumnFn
   , Column(..)
+
+    -- * Making reports
+  , postingsBox
+  , makeRows
+  , makeCell
 
   -- * Spacers
   , spacer
@@ -33,58 +39,90 @@ module Penny.Cabin.Postings
 import Control.Applicative
 import qualified Penny.Lincoln as L
 import Rainbox
+import Rainbow
 import qualified Data.Traversable as T
 import qualified Data.Foldable as F
 import Data.Text (Text)
 import qualified Penny.Cabin.Postings.Cell as C
+import Data.Monoid
 
-postingsBox
-  :: (Applicative l, T.Traversable t1, T.Traversable t2)
-  => (L.Commodity -> L.Arrangement)
-  -> (L.Amount -> L.NilOrBrimScalarAnyRadix)
-  -> t1 (Column l)
-  -> t2 (L.Tranche l)
-  -> l Box
-postingsBox = undefined
+data Parity = Even | Odd
+  deriving (Eq, Ord, Show)
 
-{-
-postingsBox
-  :: (Applicative l, T.Traversable t1, T.Traversable t2)
-  => t1 (Tranche l -> l Cell)
-  -> t2 (Tranche l)
-  -> l Box
-postingsBox cols
-  = fmap (gridByRows . F.toList . fmap F.toList)
-  . makeRows cols
--}
-
-makeRows
-  :: (Applicative l, T.Traversable t1, T.Traversable t2)
-  => (L.Commodity -> L.Arrangement)
-  -> (L.Amount -> L.NilOrBrimScalarAnyRadix)
-  -> t1 (Column l)
-  -> t2 (L.Tranche l)
-  -> l (t2 (t1 Cell))
-makeRows = undefined
-
-{-
-makeRows
-  :: (Applicative l, T.Traversable t1, T.Traversable t2)
-  => t1 (Tranche l -> l Cell)
-  -> t2 (Tranche l)
-  -> l (t2 (t1 Cell))
-makeRows cols = T.sequenceA . fmap T.sequenceA . fmap mkRow
-  where
-    mkRow trch = fmap ($ trch) cols
--}
+data Scheme
+  = Scheme (Parity -> Radiant) (C.CellTag -> Radiant)
 
 type ColumnFn l
   = (L.Commodity -> L.Arrangement)
+  -- ^ Arranges commodities and quantities
   -> (L.Amount -> L.NilOrBrimScalarAnyRadix)
+  -- ^ Renders amounts
   -> L.Tranche l
   -> l [(C.CellTag, Text)]
 
 newtype Column l = Column (ColumnFn l)
+
+postingsBox
+  :: (Applicative l, T.Traversable t1, T.Traversable t2)
+  => Scheme
+  -- ^ Color scheme
+  -> (L.Commodity -> L.Arrangement)
+  -- ^ Arranges quantities and commodities
+  -> (L.Amount -> L.NilOrBrimScalarAnyRadix)
+  -- ^ Renders amounts
+  -> t1 (Column l)
+  -- ^ All columns
+  -> t2 (L.Tranche l)
+  -- ^ 'L.Tranche' to include in report
+  -> l Box
+postingsBox sch arng rep cols
+  = fmap (gridByRows . F.toList . fmap F.toList)
+  . makeRows sch arng rep cols
+
+makeRows
+  :: (Applicative l, T.Traversable t1, T.Traversable t2)
+  => Scheme
+  -- ^ Color scheme
+  -> (L.Commodity -> L.Arrangement)
+  -- ^ Arranges quantities and commodities
+  -> (L.Amount -> L.NilOrBrimScalarAnyRadix)
+  -- ^ Renders amounts
+  -> t1 (Column l)
+  -- ^ All columns in report
+  -> t2 (L.Tranche l)
+  -- ^ All 'L.Tranche' to include in report
+  -> l (t2 (t1 Cell))
+makeRows (Scheme mkBak mkFore) arng rep cols
+  = T.sequenceA . fmap T.sequenceA . fmap mkRow
+  where
+    mkRow trch = fmap (makeCell mkFore bkgnd arng rep trch) cols
+      where
+        prty = if even (L.naturalToInteger u) then Even else Odd
+        L.Tranche _ (L.Serset (L.Forward (L.Serial u)) _) = trch
+        bkgnd = mkBak prty
+
+makeCell
+  :: Applicative l
+  => (C.CellTag -> Radiant)
+  -- ^ Obtains foreground color
+  -> Radiant
+  -- ^ Background color
+  -> (L.Commodity -> L.Arrangement)
+  -- ^ Arranges quantities and commodities
+  -> (L.Amount -> L.NilOrBrimScalarAnyRadix)
+  -- ^ Represents amounts
+  -> L.Tranche l
+  -- ^ 'L.Tranche' that is the subject of this cell
+  -> Column l
+  -- ^ Column that is the subject of this cell
+  -> l Cell
+makeCell mkFore bkgnd arng rep trch (Column colFn)
+  = Cell <$> brs <*> pure right <*> pure top <*> pure bkgnd
+  where
+    brs = fmap (fmap mkBar) rws
+    rws = colFn arng rep trch
+    mkBar (tag, txt)
+      = Bar [fromText txt <> back bkgnd <> fore (mkFore tag)]
 
 spacer :: Applicative l => Int -> Column l
 spacer i = Column $ \_ _ _ -> pure (C.spacer i)
