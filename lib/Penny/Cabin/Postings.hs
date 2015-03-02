@@ -1,9 +1,36 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | The Postings report
-module Penny.Cabin.Postings where
+module Penny.Cabin.Postings
+  ( -- * Making reports
+    postingsBox
+  , makeRows
+
+  -- * Columns
+  , ColumnFn
+  , Column(..)
+
+  -- * Spacers
+  , spacer
+
+  -- * Columns for non-balance fields
+  , date
+  , account
+  , number
+  , payee
+  , flag
+  , amount
+  , side
+  , qty
+  , commodity
+
+  -- * Columns for balance fields
+  , balAmounts
+  , balSides
+  , balQtys
+  , balCommodities
+  ) where
 
 import Control.Applicative
-import Penny.Lincoln
 import qualified Penny.Lincoln as L
 import Rainbox
 import qualified Data.Traversable as T
@@ -13,13 +40,34 @@ import qualified Penny.Cabin.Postings.Cell as C
 
 postingsBox
   :: (Applicative l, T.Traversable t1, T.Traversable t2)
+  => (L.Commodity -> L.Arrangement)
+  -> (L.Amount -> L.NilOrBrimScalarAnyRadix)
+  -> t1 (Column l)
+  -> t2 (L.Tranche l)
+  -> l Box
+postingsBox = undefined
+
+{-
+postingsBox
+  :: (Applicative l, T.Traversable t1, T.Traversable t2)
   => t1 (Tranche l -> l Cell)
   -> t2 (Tranche l)
   -> l Box
 postingsBox cols
   = fmap (gridByRows . F.toList . fmap F.toList)
   . makeRows cols
+-}
 
+makeRows
+  :: (Applicative l, T.Traversable t1, T.Traversable t2)
+  => (L.Commodity -> L.Arrangement)
+  -> (L.Amount -> L.NilOrBrimScalarAnyRadix)
+  -> t1 (Column l)
+  -> t2 (L.Tranche l)
+  -> l (t2 (t1 Cell))
+makeRows = undefined
+
+{-
 makeRows
   :: (Applicative l, T.Traversable t1, T.Traversable t2)
   => t1 (Tranche l -> l Cell)
@@ -28,7 +76,7 @@ makeRows
 makeRows cols = T.sequenceA . fmap T.sequenceA . fmap mkRow
   where
     mkRow trch = fmap ($ trch) cols
-
+-}
 
 type ColumnFn l
   = (L.Commodity -> L.Arrangement)
