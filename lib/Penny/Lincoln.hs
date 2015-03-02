@@ -2,7 +2,8 @@
 
 module Penny.Lincoln
   (
-      module Penny.Lincoln.Balances
+      module Penny.Lincoln.Amount
+    , module Penny.Lincoln.Balances
     , module Penny.Lincoln.Clatch
     , module Penny.Lincoln.Commodity
     , module Penny.Lincoln.DateTime
@@ -32,6 +33,7 @@ module Penny.Lincoln
     , module Penny.Lincoln.Trio
   ) where
 
+import Penny.Lincoln.Amount
 import Penny.Lincoln.Balances
 import Penny.Lincoln.Clatch
 import Penny.Lincoln.Commodity

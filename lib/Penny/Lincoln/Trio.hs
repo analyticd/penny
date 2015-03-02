@@ -1,5 +1,6 @@
 module Penny.Lincoln.Trio where
 
+import Penny.Lincoln.Amount
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Decimal
 import Penny.Lincoln.Display
@@ -150,7 +151,6 @@ instance Friendly TrioError where
       showImbalance (Commodity cy, qnz) = X.unpack cy ++ " " ++ disp qnz
       disp = displayQtyNonZero
 
--- | How is this Trio rendered?
 trioRendering
   :: Trio
   -> Maybe (Commodity, Arrangement, (Either (Seq RadCom) (Seq RadPer)))
@@ -180,7 +180,7 @@ qtyAndCommodityToEnt
   -> Commodity
   -> a
   -> Ent a
-qtyAndCommodityToEnt qnr cy a = Ent (toQty qnr) cy a
+qtyAndCommodityToEnt qnr cy a = Ent (Amount cy (toQty qnr)) a
 
 toEnt :: Imbalances -> Trio -> Either TrioError (a -> Ent a)
 
@@ -188,43 +188,43 @@ toEnt _ (QC qnr cy _) = Right $ qtyAndCommodityToEnt qnr cy
 
 toEnt imb (Q qnr) = fmap f $ oneCommodity imb
   where
-    f (cy, _) = Ent (toQty qnr) cy
+    f (cy, _) = Ent (Amount cy (toQty qnr))
 
 toEnt imb (SC s cy) = do
   qnz <- lookupCommodity imb cy
   let qtSide = qtyNonZeroSide qnz
   notSameSide qtSide s
-  return $ Ent (toQty . offset $ qnz) cy
+  return $ Ent (Amount cy (toQty . offset $ qnz))
 
 toEnt imb (S s) = do
   (cy, qnz) <- oneCommodity imb
   let qtSide = qtyNonZeroSide qnz
   notSameSide s qtSide
-  return $ Ent (toQty . offset $ qnz) cy
+  return $ Ent (Amount cy (toQty . offset $ qnz))
 
 
 toEnt imb (UC qnr cy _) = do
   qnz <- lookupCommodity imb cy
   let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
         . toDecPositive $ qnr
-  return $ Ent q cy
+  return $ Ent (Amount cy q)
 
 toEnt imb (U qnr) = do
   (cy, qnz) <- oneCommodity imb
   qnrIsSmallerAbsoluteValue qnr qnz
   let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
         . toDecPositive $ qnr
-  return $ Ent q cy
+  return $ Ent (Amount cy q)
 
 toEnt imb (C cy) = do
   qnz <- lookupCommodity imb cy
   let q = toQty . offset $ qnz
-  return $ Ent q cy
+  return $ Ent (Amount cy q)
 
 toEnt imb E = do
   (cy, qnz) <- oneCommodity imb
   let q = toQty . offset $ qnz
-  return $ Ent q cy
+  return $ Ent (Amount cy q)
 
 
 qnrIsSmallerAbsoluteValue

@@ -1,18 +1,17 @@
 module Penny.Lincoln.Ent where
 
+import Penny.Lincoln.Amount
 import Data.Foldable
 import Data.Traversable
-import Penny.Lincoln.Commodity
-import Penny.Lincoln.Qty
 
-data Ent m = Ent Qty Commodity m
+data Ent m = Ent Amount m
   deriving (Eq, Ord, Show)
 
 instance Functor Ent where
-  fmap f (Ent d c m) = Ent d c (f m)
+  fmap f (Ent a m) = Ent a (f m)
 
 instance Foldable Ent where
-  foldr f z (Ent _ _ m) = f m z
+  foldr f z (Ent _ m) = f m z
 
 instance Traversable Ent where
-  sequenceA (Ent d c m) = fmap (Ent d c) m
+  sequenceA (Ent a m) = fmap (Ent a) m
