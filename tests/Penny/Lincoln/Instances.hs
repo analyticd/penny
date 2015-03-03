@@ -22,6 +22,11 @@ instance Arbitrary a => Arbitrary (Seq a) where
 
 instance Arbitrary X.Text where arbitrary = X.pack <$> arbitrary
 
+-- Amount
+
+instance Arbitrary Amount where
+  arbitrary = Amount <$> arbitrary <*> arbitrary
+
 -- Balances
 instance Arbitrary Balances where
   arbitrary = Balances <$> (M.fromList <$> arbitrary)
@@ -125,7 +130,7 @@ instance Arbitrary DecZero where
 -- Ent
 
 instance Arbitrary a => Arbitrary (Ent a) where
-  arbitrary = Ent <$> arbitrary <*> arbitrary <*> arbitrary
+  arbitrary = Ent <$> arbitrary <*> arbitrary
 
 -- Ents
 instance Arbitrary a => Arbitrary (Balanced a) where
