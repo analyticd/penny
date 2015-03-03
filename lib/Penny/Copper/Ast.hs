@@ -610,15 +610,16 @@ data BracketedForest = BracketedForest
   (Fs OpenSquare) (Maybe (Fs ForestA)) CloseSquare
   deriving (Eq, Ord, Show)
 
-data ForestA = ForestA TreeA [(Whites, TreeA)]
+data ForestA = ForestA TreeA [(Bs CommaA, Bs TreeA)]
   deriving (Eq, Ord, Show)
 
 pForestA :: ParserL ForestA
-pForestA = ForestA <$> pTreeA <*> many ((,) <$> pWhites <*> pTreeA)
+pForestA = ForestA <$> pTreeA
+  <*> many ((,) <$> pBs pCommaA <*> pBs pTreeA)
 
 rForestA :: ForestA -> ShowS
 rForestA (ForestA t0 ls1)
-  = rTreeA t0 . rList (\(w, t) -> rWhites w . rTreeA t) ls1
+  = rTreeA t0 . rList (\(c, t) -> rBs rCommaA c . rBs rTreeA t) ls1
 
 pBracketedForest :: ParserL BracketedForest
 pBracketedForest = BracketedForest <$> pFs pOpenSquare
@@ -628,31 +629,31 @@ rBracketedForest :: BracketedForest -> ShowS
 rBracketedForest (BracketedForest b0 m1 b2) = rFs rOpenSquare b0
   . rMaybe (rFs rForestA) m1 . rCloseSquare b2
 
--- I once considered making the Scalar optional here by creating
--- another production with no Scalar and a required BracketedForest.
--- However, that makes the grammar ambiguous.  Then, after parsing a
--- Scalar and encountering a BracketedForest, you can't tell whether
--- the BracketedForest belongs with the Scalar or is its own
--- standalone Tree.
-data TreeA = TreeA (Located ScalarA) (Maybe (Bs BracketedForest))
+data TreeA
+  = TreeScalarFirst (Located ScalarA) (Maybe (Bs BracketedForest))
+  | TreeForestFirst BracketedForest (Maybe (Bs (Located ScalarA)))
   deriving (Eq, Ord, Show)
 
 pTreeA :: ParserL TreeA
-pTreeA = TreeA <$> pLocated pScalarA <*> optional (pBs pBracketedForest)
+pTreeA
+  = TreeScalarFirst <$> pLocated pScalarA <*> optional (pBs pBracketedForest)
+  <|> TreeForestFirst <$> pBracketedForest
+      <*> optional (pBs (pLocated pScalarA))
 
 rTreeA :: TreeA -> ShowS
-rTreeA (TreeA s1 m2) = rLocated rScalarA s1
+rTreeA (TreeScalarFirst s1 m2) = rLocated rScalarA s1
   . rMaybe (rBs rBracketedForest) m2
+rTreeA (TreeForestFirst f1 m2) = rBracketedForest f1
+  . rMaybe (rBs (rLocated rScalarA)) m2
 
-data TopLineA = TopLineA TreeA [(Whites, TreeA)]
+newtype TopLineA = TopLineA ForestA
   deriving (Eq, Ord, Show)
 
 pTopLineA :: ParserL TopLineA
-pTopLineA = TopLineA <$> pTreeA <*> many ((,) <$> pWhites <*> pTreeA)
+pTopLineA = TopLineA <$> pForestA
 
 rTopLineA :: TopLineA -> ShowS
-rTopLineA (TopLineA t0 ts1) = rTreeA t0
-  . rList (\(w, t) -> rWhites w . rTreeA t) ts1
+rTopLineA (TopLineA frst) = rForestA frst
 
 data PostingA
   = PostingTrioFirst (Located TrioA) (Maybe (Bs BracketedForest))
