@@ -226,30 +226,40 @@ column = "column"
 
 locationTree :: LineColPosA -> Tree
 locationTree (LineColPosA lin col pos)
-  = sys (Chars "location")
-    [ sys (Chars "line")
-        [sys (SInt . fromIntegral $ lin) []]
-    , sys (Chars "column")
-        [sys (SInt . fromIntegral $ col) []]
-    , sys (Chars "position")
-        [sys (SInt . fromIntegral $ pos) []]
+  = sys (Just $ Chars "location")
+    [ sys (Just $ Chars "line")
+        [sys (Just . SInt . fromIntegral $ lin) []]
+    , sys (Just $ Chars "column")
+        [sys (Just . SInt . fromIntegral $ col) []]
+    , sys (Just $ Chars "position")
+        [sys (Just . SInt . fromIntegral $ pos) []]
     ]
   where
     sys = Tree System
 
 c'Tree'TreeA :: TreeA -> Tree
-c'Tree'TreeA (TreeA (Located loc scl) mayBs) =
-  Tree User scl' (locationTree loc : rs)
-  where
-    scl' = c'Scalar'ScalarA scl
-    rs = maybe [] (\(Bs _ bf) -> c'ListTree'BracketedForest bf) mayBs
+
+c'Tree'TreeA (TreeScalarFirst (Located loc scl) Nothing)
+  = Tree User (Just . c'Scalar'ScalarA $ scl) [locationTree loc]
+
+c'Tree'TreeA (TreeScalarFirst (Located loc scl) (Just (Bs _ bf)))
+  = Tree User (Just . c'Scalar'ScalarA $ scl)
+              (locationTree loc : c'ListTree'BracketedForest bf)
+
+c'Tree'TreeA (TreeForestFirst bf Nothing)
+  = Tree User Nothing (c'ListTree'BracketedForest bf)
+
+c'Tree'TreeA (TreeForestFirst bf (Just (Bs _ (Located loc scl))))
+  = Tree User (Just . c'Scalar'ScalarA $ scl)
+              (locationTree loc : c'ListTree'BracketedForest bf)
 
 c'ListTree'BracketedForest
   :: BracketedForest
   -> [Tree]
 c'ListTree'BracketedForest (BracketedForest _ mayF _) = case mayF of
   Nothing -> []
-  Just (Fs (ForestA t1 ts) _) -> map c'Tree'TreeA . (t1 :) . map snd $ ts
+  Just (Fs (ForestA t1 ts) _) -> map c'Tree'TreeA . (t1 :)
+    . map (\(_, Bs _ t) -> t) $ ts
 
 c'TopLine'TopLineA :: TopLineA -> TopLine ()
 c'TopLine'TopLineA (TopLineA t1 list)

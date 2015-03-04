@@ -5,16 +5,16 @@ import Data.Text (Text, pack)
 import Penny.Lincoln.DateTime
 import Penny.Lincoln.Display
 
-data Tree = Tree Realm Scalar [Tree]
+data Tree = Tree Realm (Maybe Scalar) [Tree]
   deriving (Eq, Ord, Show)
 
 scalarChild :: (Field a, Field b) => Realm -> a -> b -> Tree
-scalarChild rlm s1 s2 = Tree rlm (field s1)
-  [Tree rlm (field s2) []]
+scalarChild rlm s1 s2 = Tree rlm (Just $ field s1)
+  [Tree rlm (Just $ field s2) []]
 
 
 treeChildren :: Field a => Realm -> a -> [Tree] -> Tree
-treeChildren rlm s1 = Tree rlm (field s1)
+treeChildren rlm s1 = Tree rlm (Just $ field s1)
 
 data Realm = User | System
   deriving (Eq, Ord, Show)
