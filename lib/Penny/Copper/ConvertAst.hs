@@ -253,17 +253,20 @@ c'Tree'TreeA (TreeForestFirst bf (Just (Bs _ (Located loc scl))))
   = Tree User (Just . c'Scalar'ScalarA $ scl)
               (locationTree loc : c'ListTree'BracketedForest bf)
 
+c'Forest'ForestA :: ForestA -> [Tree]
+c'Forest'ForestA (ForestA t1 ls)
+  = c'Tree'TreeA t1 : map (\(_, Bs _ t) -> c'Tree'TreeA t) ls
+
 c'ListTree'BracketedForest
   :: BracketedForest
   -> [Tree]
 c'ListTree'BracketedForest (BracketedForest _ mayF _) = case mayF of
   Nothing -> []
-  Just (Fs (ForestA t1 ts) _) -> map c'Tree'TreeA . (t1 :)
-    . map (\(_, Bs _ t) -> t) $ ts
+  Just (Fs frst _) -> c'Forest'ForestA frst
 
 c'TopLine'TopLineA :: TopLineA -> TopLine ()
-c'TopLine'TopLineA (TopLineA t1 list)
-  = flip TopLine () . map c'Tree'TreeA . (t1 : ) . map snd $ list
+c'TopLine'TopLineA (TopLineA t1)
+  = flip TopLine () . c'Forest'ForestA $ t1
 
 c'LocatedPstgMeta'LocatedPostingA
   :: Located PostingA

@@ -81,7 +81,10 @@ $(derive makeArbitrary ''ForestA)
 instance Arbitrary TreeA where
   arbitrary = sized $ go
     where
-      go s = TreeA <$> arbitrary <*> resize (s `div` 2) arbitrary
+      go s = oneof
+        [ TreeScalarFirst <$> arbitrary <*> resize (s `div` 2) arbitrary
+        , TreeForestFirst <$> resize (s `div` 2) arbitrary <*> arbitrary
+        ]
 
 $(derive makeArbitrary ''TopLineA)
 $(derive makeArbitrary ''PostingA)
