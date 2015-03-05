@@ -49,7 +49,13 @@ number trch = do
 
 payee :: L.Ledger l => L.Tranche l -> l [(CellTag, Text)]
 payee trch = do
-  t <- Q.best (\r s -> isJust (L.scalarChars s) && r == L.User) trch
+  let pd r s = maybe False (const True) $ do
+        guard (r == L.User)
+        txt <- L.scalarChars s
+        guard . not . X.null $ txt
+        guard (X.head txt /= '(')
+        guard (X.last txt /= ')')
+  t <- Q.best pd trch
   txt <- maybe (return X.empty) L.displayTree t
   return [(InfoTag, txt)]
 

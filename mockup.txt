@@ -31,9 +31,9 @@
 # 
 # This is a comment
 
-2014-06-30 "Urdu and Son" (R) [Garden]
-  { < $230.03 [ acct [Expenses Education] 101 ]
-  ; [ acct [Assets Current Checking ]]
+2014-06-30, "Urdu and Son", (R), [Garden]
+  { < $230.03 [ acct [Expenses, Education], 101 ]
+  ; [ acct [Assets, Current, Checking ]]
   }
 
 # This is a price.  It is a date (required) and an
