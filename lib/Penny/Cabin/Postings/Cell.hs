@@ -25,37 +25,44 @@ spacer i = [(InfoTag, X.replicate i (X.singleton ' '))]
 
 date :: L.Ledger l => L.Tranche l -> l [(CellTag, Text)]
 date trch = do
-  t <- Q.best (\r s -> isJust (L.scalarDate s) && r == L.User) trch
+  t <- Q.best (L.pdScalarUser (isJust . L.scalarDate)) trch
   txt <- maybe (return X.empty) L.displayTree t
   return [(InfoTag, txt)]
 
 account :: L.Ledger l => L.Tranche l -> l [(CellTag, Text)]
 account trch = do
   frst <- Q.postingTrees trch
-  let pd r s = maybe False (const True) $ do
-        guard (r == L.User)
-        txt <- L.scalarChars s
-        guard (txt == "acct")
-  mayTree <- L.findTreeInForest pd frst
+  mayTree <- L.findTreeInForest L.pdNoScalarUser frst
   subFrst <- maybe (return S.empty) L.children mayTree
   txt <- L.displayForest subFrst
   return [(InfoTag, txt)]
 
+tags :: L.Ledger l => L.Tranche l -> l [(CellTag, Text)]
+tags trch = do
+  frst <- Q.postingTrees trch
+  let pd s = maybe False (const True) $ do
+        txt <- L.scalarChars s
+        guard (txt == "tags")
+  mayTree <- L.findTreeInForest (L.pdScalarUser pd) frst
+  subFrst <- maybe (return S.empty) L.children mayTree
+  txt <- L.displayForest subFrst
+  return [(InfoTag, txt)]
+
+
 number :: L.Ledger l => L.Tranche l -> l [(CellTag, Text)]
 number trch = do
-  t <- Q.best (\r s -> isJust (L.scalarInteger s) && r == L.User) trch
+  t <- Q.best (L.pdScalarUser (isJust . L.scalarInteger)) trch
   txt <- maybe (return X.empty) L.displayTree t
   return [(InfoTag, txt)]
 
 payee :: L.Ledger l => L.Tranche l -> l [(CellTag, Text)]
 payee trch = do
-  let pd r s = maybe False (const True) $ do
-        guard (r == L.User)
+  let pd s = maybe False (const True) $ do
         txt <- L.scalarChars s
         guard . not . X.null $ txt
         guard (X.head txt /= '(')
         guard (X.last txt /= ')')
-  t <- Q.best pd trch
+  t <- Q.best (L.pdScalarUser pd) trch
   txt <- maybe (return X.empty) L.displayTree t
   return [(InfoTag, txt)]
 
@@ -73,7 +80,7 @@ flag trch = do
         guard . not . X.null $ txt
         guard (X.head txt == '(')
         guard (X.last txt == ')')
-  t <- Q.best (userRealm pd) trch
+  t <- Q.best (L.pdScalarUser pd) trch
   txt <- maybe (return X.empty) L.displayTree t
   return [(InfoTag, txt)]
 

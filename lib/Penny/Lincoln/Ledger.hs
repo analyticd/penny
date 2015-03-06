@@ -2,7 +2,7 @@
 
 module Penny.Lincoln.Ledger where
 
-import Prednote
+import Prednote (PredM(..), (&&&), (|||) )
 import qualified Prednote as P
 import Control.Applicative
 import Penny.Lincoln.Field
@@ -36,7 +36,7 @@ class (Applicative l, Monad l) => Ledger l where
 
   transactionMeta :: TransactionL l -> l (Seq (TreeL l))
   topLineSerial :: TransactionL l -> l TopLineSer
-  scalar :: TreeL l -> l Scalar
+  scalar :: TreeL l -> l (Maybe Scalar)
   realm :: TreeL l -> l Realm
   children :: TreeL l -> l (Seq (TreeL l))
   postings :: TransactionL l -> l (Seq (PostingL l))
@@ -77,21 +77,20 @@ allTrees p = p &&& allChildNodes
 
 findTree
   :: Ledger l
-  => (Realm -> Scalar -> Bool)
+  => (TreeL l -> l Bool)
   -> TreeL l
   -> l (Maybe (TreeL l))
-findTree pd tr = do
-  rlm <- realm tr
-  scl <- scalar tr
-  if pd rlm scl
-    then return . Just $ tr
-    else do
-      cs <- children tr
-      findTreeInForest pd cs
+findTree pd tr = pd tr >>= go
+  where
+    go found
+      | found = return (Just tr)
+      | otherwise = do
+          fs <- children tr
+          findTreeInForest pd fs
 
 findTreeInForest
   :: Ledger l
-  => (Realm -> Scalar -> Bool)
+  => (TreeL l -> l Bool)
   -> Seq (TreeL l)
   -> l (Maybe (TreeL l))
 findTreeInForest pd sq = case viewl sq of
@@ -99,8 +98,35 @@ findTreeInForest pd sq = case viewl sq of
   x :< xs -> do
     r <- findTree pd x
     case r of
-      Just v -> return (Just v)
       Nothing -> findTreeInForest pd xs
+      Just a -> return (Just a)
+
+pdNoScalarUser :: Ledger l => TreeL l -> l Bool
+pdNoScalarUser tr = realm tr >>= go
+  where
+    go rlm
+      | rlm == User = do
+          mayScl <- scalar tr
+          return $ case mayScl of
+            Nothing -> True
+            _ -> False
+      | otherwise = return False
+      
+
+pdScalarUser
+  :: Ledger l
+  => (Scalar -> Bool)
+  -> TreeL l
+  -> l Bool
+pdScalarUser pd tr = realm tr >>= go
+  where
+    go rlm
+      | rlm == User = do
+          mayScl <- scalar tr
+          return $ case mayScl of
+            Nothing -> False
+            Just scl -> pd scl
+      | otherwise = return False
 
 -- # Displaying trees
 
@@ -119,7 +145,7 @@ displayTree
   -> l Text
 displayTree t = f <$> scalar t <*> children t
   where
-    f sc cs = displayScalar sc <>
+    f sc cs = maybe X.empty displayScalar sc <>
       if S.null cs then mempty else X.singleton '↓'
 
 -- | Displays a forest of trees, with each separated by a bullet

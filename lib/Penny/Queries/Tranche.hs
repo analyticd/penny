@@ -65,7 +65,7 @@ postingSer = L.postingSerial . posting . bevy
 -- one is not found, looks in the transaction's trees.
 best
   :: L.Ledger l
-  => (L.Realm -> L.Scalar -> Bool)
+  => (L.TreeL l -> l Bool)
   -> L.Tranche l
   -> l (Maybe (L.TreeL l))
 best pd tr = do

@@ -21,6 +21,7 @@ module Penny.Cabin.Postings
   -- * Columns for non-balance fields
   , date
   , account
+  , tags
   , number
   , payee
   , flag
@@ -132,6 +133,9 @@ date = Column $ \_ _ -> C.date
 
 account :: L.Ledger l => Column l
 account = Column $ \_ _ -> C.account
+
+tags :: L.Ledger l => Column l
+tags = Column $ \_ _ -> C.tags
 
 number :: L.Ledger l => Column l
 number = Column $ \_ _ -> C.number

@@ -118,12 +118,32 @@ these characters, as they might have special meaning to your shell.
 *-d, --date* 'BOOLEAN' 'DATE'::
 
   The posting's date must match the given boolean condition.  Postings
-  with no date return false.  Time zones are not considered.
+  with no date return false.  No adjustments are made for time zones.
 
 *--time* 'BOOLEAN' 'TIME'::
 
   The posting's time must match the given boolean condition.  Postings
-  with no time return false.  Time zones are not considered.
+  with no time return false.  No adjustments are made for time zones.
+
+=== Sibling filtering
+
+These options are the same as the similarly-named options above;
+however, instead of matching against the posting, they match against the
+siblings of a posting.
+
+* *--s-account*='PATTERN'
+* *--s-number* 'BOOLEAN' 'NUMBER'
+* *--s-flag*='PATTERN'
+* *--s-payee*='PATTERN'
+* *--s-commodity*='PATTERN'
+* *--s-debit*
+* *--s-credit*
+* *--s-zero*
+* *--s-qty* 'BOOLEAN' 'NUMBER'
+* *--s-tag* 'PATTERN'
+* *--s-date* 'BOOLEAN' 'DATE'
+* *--s-time* 'BOOLEAN' 'TIME'
+
 
 === Filtering operators
 
@@ -131,22 +151,43 @@ These operators are used when filtering.  To join operands together
 you must use postfix notation.  Postfix eliminates confusing operator
 precedence rules.
 
-*-A, --and*::
+*--and*::
 
   Pop two operands from the stack, join them using an _and_ operator,
   and push the result back onto the stack.
 
-*-O, --or*::
+*--or*::
 
   Pop two operands from the stack, join them using an _or_ operator,
   and push the result back onto the stack.
 
-*-N, --not*::
+*--not*::
 
   Pop one operand from the stack, negate it, and push the result back
   onto the stack.
 
+=== Sorting options
 
+These options take a single option for 'FIELD', which may be one of
+'account', 'number', 'flag', 'payee', 'commodity', 'side', 'qty',
+'date', or 'time'.  Most of these are self explanatory.  'account' will
+compare two accounts first by the first sub-account, then by the second
+sub-account, and so on.  'qty' compares quantities after equalizing
+their exponents; this means that, for example, `2.5` and `2.500` are
+equivalent.
 
-THE grid REPORT
----------------
+Each field may hold any kind of scalar.  Scalars of the same type are
+compared against one another.  Scalars of different types are sorted in
+the following order: text, date, time, zone, integer.
+
+To sort by multiple fields (e.g. to sort first by date, and then by
+payee if two postings have the same date), use multiple *--ascending* or
+*--descending* options as appropriate.
+
+*-A, --ascending*='FIELD'::
+
+  Sort in ascending order by the given field
+
+*-D, --descending*='FIELD'::
+
+  Sort in descending order by the given field
