@@ -13,21 +13,12 @@ module Penny.Queries.Pattern
   -- ** Levels
   , treeLevel
 
-  -- ** Scalars
-  , scalar
-  , field
-  , equals
-  , notEquals
-  , greaterThan
-  , lessThan
-  , isPrefixOf
-  , isSuffixOf
-  , isInfixOf
+  -- ** Payload
+  , payload
+  , noPayload
 
-  -- ** Realm
-  , realm
-  , user
-  , system
+  -- ** Namespace
+  , namespace
 
   -- ** Child trees
   , children
@@ -54,8 +45,7 @@ import Control.Monad.Trans.Reader
 import Control.Monad
 import Data.Sequence (Seq, ViewL(..), (|>))
 import qualified Data.Sequence as S
-import Data.Text (Text)
-import qualified Data.Text as X
+import qualified Penny.Queries.Matcher as M
 
 -- # Tree patterns
 
@@ -84,64 +74,31 @@ treeLevel = TreePat $ asks fst
 inLedger :: Monad l => l a -> TreePat l a
 inLedger = TreePat . lift . lift
 
-scalar :: L.Ledger l => TreePat l L.Scalar
-scalar = do
+payload
+  :: L.Ledger l
+  => M.Matcher L.Scalar l r
+  -> TreePat l r
+payload mr = do
+  tr <- tree
+  maySc <- inLedger . L.scalar $ tr
+  case maySc of
+    Nothing -> mzero
+    Just sc -> do
+      mayR <- inLedger $ M.runMatcher mr sc
+      maybe mzero return mayR
+
+noPayload :: L.Ledger l => TreePat l ()
+noPayload = do
   tr <- tree
   sc <- inLedger . L.scalar $ tr
-  maybe mzero return sc
+  maybe (return ()) (const mzero) sc
 
-field :: (L.Ledger l, L.Field a) => TreePat l a
-field = scalar >>= maybe mzero return . L.fromScalar
-
-equals :: (L.Ledger l, L.Field a, Eq a) => a -> TreePat l ()
-equals t = do
-  r <- field
-  guard (r == t)
-
-notEquals :: (L.Ledger l, L.Field a, Eq a) => a -> TreePat l ()
-notEquals t = do
-  r <- field
-  guard (r /= t)
-
-greaterThan :: (L.Ledger l, L.Field a, Ord a) => a -> TreePat l ()
-greaterThan t = do
-  r <- field
-  guard (r > t)
-
-lessThan :: (L.Ledger l, L.Field a, Ord a) => a -> TreePat l ()
-lessThan t = do
-  r <- field
-  guard (r < t)
-
-isPrefixOf :: L.Ledger l => Text -> TreePat l ()
-isPrefixOf pfx = do
-  r <- field
-  guard (pfx `X.isPrefixOf` r)
-
-isSuffixOf :: L.Ledger l => Text -> TreePat l ()
-isSuffixOf sfx = do
-  r <- field
-  guard (sfx `X.isSuffixOf` r)
-
-isInfixOf :: L.Ledger l => Text -> TreePat l ()
-isInfixOf ifx = do
-  r <- field
-  guard (ifx `X.isInfixOf` r)
-
-realm :: L.Ledger l => TreePat l L.Realm
-realm = tree >>= inLedger . L.realm
-
--- | The tree is in the User realm.
-user :: L.Ledger l => TreePat l ()
-user = do
-  rlm <- realm
-  guard (rlm == L.User)
-
--- | The tree is in the System realm.
-system :: L.Ledger l => TreePat l ()
-system = do
-  rlm <- realm
-  guard (rlm == L.System)
+namespace :: L.Ledger l => M.Matcher L.Realm l a -> TreePat l a
+namespace mr = do
+  tr <- tree
+  nms <- inLedger $ L.realm tr
+  mayR <- inLedger $ M.runMatcher mr nms
+  maybe mzero return mayR
 
 children :: L.Ledger l => ForestPat l a -> TreePat l a
 children (ForestPat fp) = TreePat $ do
