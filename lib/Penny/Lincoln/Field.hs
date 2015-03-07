@@ -9,12 +9,12 @@ data Tree = Tree Realm (Maybe Scalar) [Tree]
   deriving (Eq, Ord, Show)
 
 scalarChild :: (Field a, Field b) => Realm -> a -> b -> Tree
-scalarChild rlm s1 s2 = Tree rlm (Just $ field s1)
-  [Tree rlm (Just $ field s2) []]
+scalarChild rlm s1 s2 = Tree rlm (Just $ toScalar s1)
+  [Tree rlm (Just $ toScalar s2) []]
 
 
 treeChildren :: Field a => Realm -> a -> [Tree] -> Tree
-treeChildren rlm s1 = Tree rlm (Just $ field s1)
+treeChildren rlm s1 = Tree rlm (Just $ toScalar s1)
 
 data Realm = User | System
   deriving (Eq, Ord, Show)
@@ -51,28 +51,28 @@ displayScalar sc = case sc of
   SInt i -> pack . display i $ ""
 
 class Field a where
-  field :: a -> Scalar
-
-instance Field Scalar where
-  field = id
-
-instance Field String where
-  field = Chars . pack
+  toScalar :: a -> Scalar
+  fromScalar :: Scalar -> Maybe a
 
 instance Field Text where
-  field = Chars
+  toScalar = Chars
+  fromScalar s = case s of { Chars x -> Just x; _ -> Nothing }
 
 instance Field Date where
-  field = SDate
+  toScalar = SDate
+  fromScalar s = case s of { SDate x -> Just x; _ -> Nothing }
 
 instance Field Time where
-  field = STime
+  toScalar = STime
+  fromScalar s = case s of {STime x -> Just x; _ -> Nothing }
 
 instance Field Zone where
-  field = SZone
+  toScalar = SZone
+  fromScalar s = case s of { SZone x -> Just x; _ -> Nothing }
 
 instance Field Integer where
-  field = SInt
+  toScalar = SInt
+  fromScalar s = case s of { SInt x -> Just x; _ -> Nothing }
 
 memo :: Text
 memo = "memo"
