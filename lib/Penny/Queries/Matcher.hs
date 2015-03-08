@@ -47,6 +47,30 @@ less p = do
   guard $ s < p
   return s
 
+semanticEqual :: (Monad m, L.SemanticEq s) => s -> Matcher s m s
+semanticEqual p = do
+  s <- subject
+  guard $ L.semanticEq s p
+  return s
+
+semanticNotEqual :: (Monad m, L.SemanticEq s) => s -> Matcher s m s
+semanticNotEqual p = do
+  s <- subject
+  guard . not $ L.semanticEq s p
+  return s
+
+semanticGreater :: (Monad m, L.SemanticOrd s) => s -> Matcher s m s
+semanticGreater p = do
+  s <- subject
+  guard $ L.semanticOrd s p == GT
+  return s
+
+semanticLess :: (Monad m, L.SemanticOrd s) => s -> Matcher s m s
+semanticLess p = do
+  s <- subject
+  guard $ L.semanticOrd s p == LT
+  return s
+
 notEqual :: (Monad m, Eq s) => s -> Matcher s m s
 notEqual p = do
   s <- subject
@@ -84,5 +108,20 @@ matchMaybe conv m = Matcher $ do
       mayR <- lift . lift $ runMatcher m s'
       maybe mzero return mayR
 
-mCommodity :: Matcher Text m a -> Matcher L.Commodity m a
-mCommodity = mapSubject (\(L.Commodity x) -> x)
+commodity :: Matcher Text m a -> Matcher L.Commodity m a
+commodity = mapSubject (\(L.Commodity x) -> x)
+
+serial :: Matcher L.Unsigned m r -> Matcher L.Serial m r
+serial = mapSubject (\(L.Serial s) -> s)
+
+forward :: Matcher L.Serial m r -> Matcher L.Forward m r
+forward = mapSubject (\(L.Forward s) -> s)
+
+reverse :: Matcher L.Serial m r -> Matcher L.Reverse m r
+reverse = mapSubject (\(L.Reverse s) -> s)
+
+recto :: Matcher L.Forward m r -> Matcher L.Serset m r
+recto = mapSubject (\(L.Serset fwd _) -> fwd)
+
+verso :: Matcher L.Reverse m r -> Matcher L.Serset m r
+verso = mapSubject (\(L.Serset _ rev) -> rev)
