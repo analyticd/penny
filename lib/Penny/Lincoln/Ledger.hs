@@ -48,13 +48,6 @@ class (Applicative l, Monad l) => Ledger l where
 
 -- # contramapM
 
-contramapM
-  :: Monad m
-  => (a -> m b)
-  -> PredM m b
-  -> PredM m a
-contramapM conv (PredM f) = PredM $ \a -> conv a >>= f
-
 -- # Predicates on trees
 
 anyTree
@@ -63,7 +56,7 @@ anyTree
   -> PredM m (TreeL m)
 anyTree p = p ||| anyChildNode
   where
-    anyChildNode = contramapM (fmap (fmap toList) children) (P.any p)
+    anyChildNode = P.contramapM (fmap (fmap toList) children) (P.any p)
 
 allTrees
   :: Ledger m
@@ -71,7 +64,7 @@ allTrees
   -> PredM m (TreeL m)
 allTrees p = p &&& allChildNodes
   where
-    allChildNodes = contramapM (fmap (fmap toList) children) (P.all p)
+    allChildNodes = P.contramapM (fmap (fmap toList) children) (P.all p)
 
 -- # Searching for trees
 

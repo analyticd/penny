@@ -31,7 +31,7 @@ transformers :: Package
 transformers = closedOpen "transformers" [0,3] [0,5]
 
 prednote :: Package
-prednote = closedOpen "prednote" [0,30] [0,31]
+prednote = closedOpen "prednote" [0,32] [0,33]
 
 quickcheck :: Package
 quickcheck = closedOpen "QuickCheck" [2,7,6] [2,8]
