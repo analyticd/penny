@@ -9,10 +9,9 @@ import Data.Functor.Contravariant
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Monoid
-import Data.Sequence (Seq, (<|), ViewR(..), ViewL(..))
+import Data.Sequence (Seq, ViewR(..))
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F
-import Control.Monad (join)
 import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Writer
@@ -201,10 +200,10 @@ postOrder
   -> PredM (ReaderT L.Unsigned m) (L.TreeL m)
 postOrder (P.PredM pd) = P.addLabel ["pre-order search"] (P.PredM p')
   where
-    p' a = finish . runWriterT $ k a
-      where
-         k = undefined
-         finish = undefined
+    p' tree = do
+      lvl <- ask
+      let excT = procPostOrder pd tree
+      lift $ finishPostOrder excT lvl
 
 finishPostOrder
   :: L.Ledger m
