@@ -174,7 +174,7 @@ noPayload :: L.Ledger m => PredM (ReaderT a m) (L.TreeL m)
 noPayload
   = P.addLabel ["no payload"]
   . P.contramapM (\a -> lift (L.scalar a))
-  $ P.maybe True (P.false (const (pure (P.Value ["non-empty payload"]))))
+  $ P.maybe True P.false
 
 namespace
   :: L.Ledger m
