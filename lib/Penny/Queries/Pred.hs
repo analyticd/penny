@@ -1,5 +1,47 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Penny.Queries.Pred where
+module Penny.Queries.Pred
+  ( -- * Realm
+    user
+  , system
+
+  -- * Text
+  , isPrefixOf
+  , isSuffixOf
+  , isInfixOf
+
+  -- * Scalar
+  , scalar
+
+  -- * Commodity
+  , commodity
+
+  -- * Semantics
+  , semanticEqual
+  , semanticNotEqual
+  , semanticGreaterBy
+  , semanticLessBy
+
+  -- * Serials
+  , serial
+  , forward
+  , reverse
+  , recto
+  , verso
+
+  -- * Sequences
+  , index
+
+  -- * Trees
+  , matchTree
+  , levelIs
+  , toReader
+  , level
+  , payload
+  , noPayload
+  , namespace
+  , children
+  , postOrder
+  ) where
 
 import Prednote (PredM, (&&&))
 import qualified Prednote as P
@@ -19,6 +61,9 @@ import Control.Monad.Trans.Except
 import Rainbow (fromText)
 import Data.String
 import qualified Data.Traversable as Tr
+import Prelude hiding (reverse)
+
+-- # Trees and tree components
 
 user :: Applicative f => PredM f L.Realm
 user = P.equalByM "User" (\rlm -> pure (rlm == L.User))
@@ -122,13 +167,11 @@ index idx pd
 
 --
 
-type TreePred l = PredM (ReaderT L.Unsigned l) (L.TreeL l)
-
 matchTree
   :: Monad l
   => L.Unsigned
   -> L.TreeL l
-  -> TreePred l
+  -> PredM (ReaderT L.Unsigned l) (L.TreeL l)
   -> l P.Result
 matchTree st tr (P.PredM k) = runReaderT (k tr) st
 

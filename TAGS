@@ -2161,48 +2161,46 @@ allTrees allTrees183,184
 oneTree oneTree193,194
 oneTree oneTree194,195
 
-./lib/Penny/Queries/Pred.hs,1120
-module Penny.Queries.Pred Penny.Queries.Pred1,2
-user user22,23
-user user23,24
-system system25,26
-system system26,27
-scalar scalar31,32
-isPrefixOf isPrefixOf37,38
-isSuffixOf isSuffixOf45,46
-isInfixOf isInfixOf53,54
-commodity commodity61,62
-semanticEqual semanticEqual67,68
-semanticNotEqual semanticNotEqual74,75
-semanticGreaterBy semanticGreaterBy81,82
-semanticLessBy semanticLessBy88,89
-serial serial91,92
-serial serial92,93
-forward forward94,95
-forward forward95,96
-reverse reverse97,98
-reverse reverse98,99
-recto recto100,101
-recto recto101,102
-verso verso103,104
-verso verso104,105
-index index109,110
-type TreePred TreePred124,125
-type TreePred l l124,125
-matchTree matchTree132,133
-levelIs levelIs138,139
-toReader toReader153,154
-level level161,162
-payloadpayload167,168
-noPayload noPayload172,173
-noPayloadnoPayload173,174
-namespacenamespace182,183
-children children190,191
-postOrder postOrder200,201
-finishPostOrder finishPostOrder214,215
-makeFailed makeFailed225,226
-makePassed makePassed237,238
-procPostOrder procPostOrder253,254
+./lib/Penny/Queries/Pred.hs,1082
+module Penny.Queries.PredPenny.Queries.Pred1,2
+user user67,68
+user user68,69
+system system70,71
+system system71,72
+scalar scalar76,77
+isPrefixOf isPrefixOf82,83
+isSuffixOf isSuffixOf90,91
+isInfixOf isInfixOf98,99
+commodity commodity106,107
+semanticEqual semanticEqual112,113
+semanticNotEqual semanticNotEqual119,120
+semanticGreaterBy semanticGreaterBy126,127
+semanticLessBy semanticLessBy133,134
+serial serial136,137
+serial serial137,138
+forward forward139,140
+forward forward140,141
+reverse reverse142,143
+reverse reverse143,144
+recto recto145,146
+recto recto146,147
+verso verso148,149
+verso verso149,150
+index index154,155
+matchTree matchTree175,176
+levelIs levelIs181,182
+toReader toReader196,197
+level level204,205
+payloadpayload210,211
+noPayload noPayload215,216
+noPayloadnoPayload216,217
+namespacenamespace225,226
+children children233,234
+postOrder postOrder243,244
+finishPostOrder finishPostOrder257,258
+makeFailed makeFailed268,269
+makePassed makePassed280,281
+procPostOrder procPostOrder296,297
 
 ./lib/Penny/Queries/Tranche.hs,1103
 module Penny.Queries.Tranche Penny.Queries.Tranche2,3
