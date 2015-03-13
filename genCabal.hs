@@ -12,6 +12,9 @@ pennyVer = [0,33,0,0]
 base :: Package
 base = closedOpen "base" [4,7,0,0] [4,8]
 
+bytestring :: Package
+bytestring = closedOpen "bytestring" [0,10,4] [0,11]
+
 text :: Package
 text = closedOpen "text" [1,2] [1,3]
 
@@ -63,6 +66,15 @@ semigroups = closedOpen "semigroups" [0,16,1] [0,17]
 contravariant :: Package
 contravariant = closedOpen "contravariant" [1,2] [1,3]
 
+pipes :: Package
+pipes = closedOpen "pipes" [4,1,4] [4,2]
+
+process :: Package
+process = closedOpen "process" [1,2,0,0] [1,3]
+
+async :: Package
+async = closedOpen "async" [2,0] [2,1]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
@@ -84,6 +96,9 @@ libraryDepends =
   , rainbox
   , semigroups
   , contravariant
+  , pipes
+  , bytestring
+  , process
   ]
 
 testDepends :: [Package]
