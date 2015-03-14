@@ -69,6 +69,9 @@ contravariant = closedOpen "contravariant" [1,2] [1,3]
 pipes :: Package
 pipes = closedOpen "pipes" [4,1,4] [4,2]
 
+pipesSafe :: Package
+pipesSafe = closedOpen "pipes-safe" [2,2] [2,3]
+
 process :: Package
 process = closedOpen "process" [1,2,0,0] [1,3]
 
@@ -97,8 +100,10 @@ libraryDepends =
   , semigroups
   , contravariant
   , pipes
+  , pipesSafe
   , bytestring
   , process
+  , async
   ]
 
 testDepends :: [Package]

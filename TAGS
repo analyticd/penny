@@ -33,56 +33,66 @@ getSysconfDir getSysconfDir29,30
 getDataFileName getDataFileName31,32
 getDataFileName getDataFileName32,33
 
-./genCabal.hs,1262
+./genCabal.hs,1504
 module Main Main2,3
 pennyVer pennyVer6,7
 pennyVer pennyVer7,8
 base base11,12
 base base12,13
-text text14,15
-text text15,16
-containers containers17,18
-containers containers18,19
-uuParsing uuParsing20,21
-uuParsing uuParsing21,22
-parsec parsec23,24
-parsec parsec24,25
-time time26,27
-time time27,28
-transformers transformers29,30
-transformers transformers30,31
-prednote prednote32,33
-prednote prednote33,34
-quickcheck quickcheck35,36
-quickcheck quickcheck36,37
-derive derive38,39
-derive derive39,40
-tasty tasty41,42
-tasty tasty42,43
-tastyQuickcheck tastyQuickcheck44,45
-tastyQuickcheck tastyQuickcheck45,46
-tastyTh tastyTh47,48
-tastyTh tastyTh48,49
-bifunctors bifunctors50,51
-bifunctors bifunctors51,52
-rainbox rainbox53,54
-rainbox rainbox54,55
-rainbow rainbow56,57
-rainbow rainbow57,58
-semigroups semigroups59,60
-semigroups semigroups60,61
-contravariant contravariant62,63
-contravariant contravariant63,64
-commonOptions commonOptions65,66
-commonOptions commonOptions66,67
-libraryDepends libraryDepends72,73
-libraryDepends libraryDepends73,74
-testDepends testDepends88,89
-testDepends testDepends89,90
-props props92,93
-props props93,94
-main main121,122
-main main122,123
+bytestring bytestring14,15
+bytestring bytestring15,16
+text text17,18
+text text18,19
+containers containers20,21
+containers containers21,22
+uuParsing uuParsing23,24
+uuParsing uuParsing24,25
+parsec parsec26,27
+parsec parsec27,28
+time time29,30
+time time30,31
+transformers transformers32,33
+transformers transformers33,34
+prednote prednote35,36
+prednote prednote36,37
+quickcheck quickcheck38,39
+quickcheck quickcheck39,40
+derive derive41,42
+derive derive42,43
+tasty tasty44,45
+tasty tasty45,46
+tastyQuickcheck tastyQuickcheck47,48
+tastyQuickcheck tastyQuickcheck48,49
+tastyTh tastyTh50,51
+tastyTh tastyTh51,52
+bifunctors bifunctors53,54
+bifunctors bifunctors54,55
+rainbox rainbox56,57
+rainbox rainbox57,58
+rainbow rainbow59,60
+rainbow rainbow60,61
+semigroups semigroups62,63
+semigroups semigroups63,64
+contravariant contravariant65,66
+contravariant contravariant66,67
+pipes pipes68,69
+pipes pipes69,70
+pipesSafe pipesSafe71,72
+pipesSafe pipesSafe72,73
+process process74,75
+process process75,76
+async async77,78
+async async78,79
+commonOptions commonOptions80,81
+commonOptions commonOptions81,82
+libraryDepends libraryDepends87,88
+libraryDepends libraryDepends88,89
+testDepends testDepends108,109
+testDepends testDepends109,110
+props props112,113
+props props113,114
+main main141,142
+main main142,143
 
 ./lib/genClasses.hs,22
 module Main Main0,1
@@ -2073,6 +2083,28 @@ lookupCommodity lookupCommodity253,254
 
 ./lib/Penny/Lincoln.hs,39
 module Penny.LincolnPenny.Lincoln2,3
+
+./lib/Penny/Process.hs,673
+module Penny.Process Penny.Process1,2
+bracketWithRelease bracketWithRelease27,28
+useProcess useProcess39,40
+bufSize bufSize56,57
+bufSize bufSize57,58
+produceFromHandle produceFromHandle59,60
+produceFromHandle produceFromHandle60,61
+consumeToHandle consumeToHandle65,66
+consumeToHandle consumeToHandle66,67
+runProcess runProcess83,84
+spawn spawn98,99
+spawn spawn99,100
+data RunProxy RunProxy101,102
+  = RunProxy RunProxy102,103
+type RunProducer' RunProducer'104,105
+type RunProducer' b b104,105
+type RunConsumer' RunConsumer'105,106
+type RunConsumer' a a105,106
+type RunProducer RunProducer106,107
+type RunConsumer RunConsumer107,108
 
 ./lib/Penny/Queries/Matcher.hs,1398
 module Penny.Queries.Matcher Penny.Queries.Matcher1,2
