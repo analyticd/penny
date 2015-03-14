@@ -2084,7 +2084,7 @@ lookupCommodity lookupCommodity253,254
 ./lib/Penny/Lincoln.hs,39
 module Penny.LincolnPenny.Lincoln2,3
 
-./lib/Penny/Process.hs,673
+./lib/Penny/Process.hs,672
 module Penny.Process Penny.Process1,2
 bracketWithRelease bracketWithRelease27,28
 useProcess useProcess39,40
@@ -2094,17 +2094,17 @@ produceFromHandle produceFromHandle59,60
 produceFromHandle produceFromHandle60,61
 consumeToHandle consumeToHandle65,66
 consumeToHandle consumeToHandle66,67
-runProcess runProcess83,84
+runProcess runProcess82,83
+spawn spawn97,98
 spawn spawn98,99
-spawn spawn99,100
-data RunProxy RunProxy101,102
-  = RunProxy RunProxy102,103
-type RunProducer' RunProducer'104,105
-type RunProducer' b b104,105
-type RunConsumer' RunConsumer'105,106
-type RunConsumer' a a105,106
-type RunProducer RunProducer106,107
-type RunConsumer RunConsumer107,108
+data RunProxy RunProxy100,101
+  = RunProxy RunProxy101,102
+type RunProducer' RunProducer'103,104
+type RunProducer' b b103,104
+type RunConsumer' RunConsumer'104,105
+type RunConsumer' a a104,105
+type RunProducer RunProducer105,106
+type RunConsumer RunConsumer106,107
 
 ./lib/Penny/Queries/Matcher.hs,1398
 module Penny.Queries.Matcher Penny.Queries.Matcher1,2

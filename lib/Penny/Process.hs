@@ -70,23 +70,22 @@ consumeToHandle h = do
   consumeToHandle h
 
 runProcess
-  :: MonadIO m
-  => (m () -> IO ())
-  -> Producer' ByteString m ()
+  :: (MonadIO xm, MonadIO ym, MonadIO zm)
+  => RunProducer' ByteString xm ()
   -- ^ Stdin
-  -> Consumer' ByteString m ()
+  -> RunConsumer' ByteString ym ()
   -- ^ Stdout
-  -> Consumer' ByteString m ()
+  -> RunConsumer' ByteString zm ()
   -- ^ Stderr
   -> String
   -> [String]
   -> IO ExitCode
-runProcess run inpP outP errP progName args
+runProcess inpP outP errP progName args
   = fmap snd $ useProcess progName args user
   where
-    getter han consmr = run $ runEffect $
+    getter han (RunProxy consmr runner) = runner $ runEffect $
       produceFromHandle han >-> consmr
-    pusher han prodcr = run $ runEffect $
+    pusher han (RunProxy prodcr runner) = runner $ runEffect $
       prodcr >-> consumeToHandle han
     user inH outH errH = evalContT $ do
       aIn <- spawn (pusher inH inpP)
