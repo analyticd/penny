@@ -2084,27 +2084,47 @@ lookupCommodity lookupCommodity253,254
 ./lib/Penny/Lincoln.hs,39
 module Penny.LincolnPenny.Lincoln2,3
 
-./lib/Penny/Process.hs,672
+./lib/Penny/Process.hs,1244
 module Penny.Process Penny.Process1,2
-bracketWithRelease bracketWithRelease27,28
-useProcess useProcess39,40
-bufSize bufSize56,57
-bufSize bufSize57,58
-produceFromHandle produceFromHandle59,60
-produceFromHandle produceFromHandle60,61
-consumeToHandle consumeToHandle65,66
-consumeToHandle consumeToHandle66,67
-runProcess runProcess82,83
-spawn spawn97,98
-spawn spawn98,99
-data RunProxy RunProxy100,101
-  = RunProxy RunProxy101,102
-type RunProducer' RunProducer'103,104
-type RunProducer' b b103,104
-type RunConsumer' RunConsumer'104,105
-type RunConsumer' a a104,105
-type RunProducer RunProducer105,106
-type RunConsumer RunConsumer106,107
+useProcess useProcess21,22
+runHandles runHandles39,40
+bufSize bufSize49,50
+bufSize bufSize50,51
+produceFromHandle produceFromHandle52,53
+produceFromHandle produceFromHandle53,54
+consumeToHandle consumeToHandle58,59
+consumeToHandle consumeToHandle59,60
+runProcess runProcess96,97
+data ProcSpec ProcSpec113,114
+data ProcSpec = ProcSpecProcSpec113,114
+  { program program114,115
+  , args args115,116
+  , cwd cwd116,117
+  , env env117,118
+  , close_fds close_fds118,119
+  , create_group create_group119,120
+  , delegate_ctlc delegate_ctlc120,121
+convertProcSpec convertProcSpec126,127
+procSpec procSpec142,143
+spawn spawn152,153
+spawn spawn153,154
+data RunProxy RunProxy155,156
+  = RunProxy RunProxy156,157
+type RunProducer' RunProducer'158,159
+type RunProducer' m m158,159
+type RunConsumer' RunConsumer'159,160
+type RunProducer RunProducer160,161
+type RunConsumer RunConsumer161,162
+fromStdin fromStdin163,164
+fromStdin fromStdin164,165
+toStdout toStdout166,167
+toStdout toStdout167,168
+toStderr toStderr169,170
+toStderr toStderr170,171
+fromFile fromFile172,173
+fromFile fromFile173,174
+toFile toFile175,176
+toFile toFile176,177
 
 ./lib/Penny/Queries/Matcher.hs,1398
 module Penny.Queries.Matcher Penny.Queries.Matcher1,2
