@@ -78,6 +78,15 @@ process = closedOpen "process" [1,2,0,0] [1,3]
 async :: Package
 async = closedOpen "async" [2,0] [2,1]
 
+turtle :: Package
+turtle = closedOpen "turtle" [1,0,2] [1,1]
+
+mtl :: Package
+mtl = closedOpen "mtl" [2,2,1] [2,3]
+
+pipesCliff :: Package
+pipesCliff = closedOpen "pipes-cliff" [0,10] [0,11]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
@@ -104,6 +113,9 @@ libraryDepends =
   , bytestring
   , process
   , async
+  , turtle
+  , mtl
+  , pipesCliff
   ]
 
 testDepends :: [Package]

@@ -68,6 +68,9 @@ best
   => (L.TreeL l -> l Bool)
   -> L.Tranche l
   -> l (Maybe (L.TreeL l))
+best = undefined
+
+{-
 best pd tr = do
   pts <- postingTrees tr
   mayTree <- L.findTreeInForest pd pts
@@ -76,6 +79,7 @@ best pd tr = do
       tts <- transactionMeta tr
       L.findTreeInForest pd tts
     x -> return x
+-}
 
 side :: L.Tranche l -> Maybe L.Side
 side = L.qtySide . qty

@@ -1,9 +1,9 @@
 {-# LANGUAGE TypeFamilies #-}
 
+-- | A 'Ledger' is a store of transactions and prices.  'Ledger'
+-- specifies an interface for such stores.
 module Penny.Lincoln.Ledger where
 
-import Prednote (PredM(..), (&&&), (|||) )
-import qualified Prednote as P
 import Control.Applicative
 import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
@@ -15,7 +15,6 @@ import Penny.Lincoln.Exch
 import Data.Sequence (Seq, ViewL(..), viewl)
 import qualified Data.Sequence as S
 import Penny.Lincoln.Transaction
-import Data.Foldable (toList)
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import Data.Text (Text)
@@ -45,81 +44,6 @@ class (Applicative l, Monad l) => Ledger l where
   postingQty :: PostingL l -> l Qty
   postingCommodity :: PostingL l -> l Commodity
   postingSerial :: PostingL l -> l PostingSer
-
--- # contramapM
-
--- # Predicates on trees
-
-anyTree
-  :: Ledger m
-  => PredM m (TreeL m)
-  -> PredM m (TreeL m)
-anyTree p = p ||| anyChildNode
-  where
-    anyChildNode = P.contramapM (fmap (fmap toList) children) (P.any p)
-
-allTrees
-  :: Ledger m
-  => PredM m (TreeL m)
-  -> PredM m (TreeL m)
-allTrees p = p &&& allChildNodes
-  where
-    allChildNodes = P.contramapM (fmap (fmap toList) children) (P.all p)
-
--- # Searching for trees
-
-findTree
-  :: Ledger l
-  => (TreeL l -> l Bool)
-  -> TreeL l
-  -> l (Maybe (TreeL l))
-findTree pd tr = pd tr >>= go
-  where
-    go found
-      | found = return (Just tr)
-      | otherwise = do
-          fs <- children tr
-          findTreeInForest pd fs
-
-findTreeInForest
-  :: Ledger l
-  => (TreeL l -> l Bool)
-  -> Seq (TreeL l)
-  -> l (Maybe (TreeL l))
-findTreeInForest pd sq = case viewl sq of
-  EmptyL -> return Nothing
-  x :< xs -> do
-    r <- findTree pd x
-    case r of
-      Nothing -> findTreeInForest pd xs
-      Just a -> return (Just a)
-
-pdNoScalarUser :: Ledger l => TreeL l -> l Bool
-pdNoScalarUser tr = realm tr >>= go
-  where
-    go rlm
-      | rlm == User = do
-          mayScl <- scalar tr
-          return $ case mayScl of
-            Nothing -> True
-            _ -> False
-      | otherwise = return False
-      
-
-pdScalarUser
-  :: Ledger l
-  => (Scalar -> Bool)
-  -> TreeL l
-  -> l Bool
-pdScalarUser pd tr = realm tr >>= go
-  where
-    go rlm
-      | rlm == User = do
-          mayScl <- scalar tr
-          return $ case mayScl of
-            Nothing -> False
-            Just scl -> pd scl
-      | otherwise = return False
 
 -- # Displaying trees
 

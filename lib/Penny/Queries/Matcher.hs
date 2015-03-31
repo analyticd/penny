@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+-- | DEPRECATED use "Penny.Queries.Pred" instead
 module Penny.Queries.Matcher where
 
 import qualified Penny.Lincoln as L

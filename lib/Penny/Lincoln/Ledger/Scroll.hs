@@ -1,4 +1,8 @@
 {-# LANGUAGE TypeFamilies #-}
+
+-- | A 'Scroll' is a an implementation of a 'Ledger'.  The 'Scroll' is
+-- the simplest 'Ledger', as it simply takes a list of concrete prices
+-- and transactions and stores them in memory.
 module Penny.Lincoln.Ledger.Scroll where
 
 import Penny.Lincoln.Ledger
