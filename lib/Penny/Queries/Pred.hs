@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Penny.Queries.Pred
+module Penny.Queries.Pred where
+{-
   ( -- * Realm
     user
   , system
@@ -305,3 +306,4 @@ procPostOrder k tr = do
   case res of
     Right psd -> throwE (P.Labeled lbl psd)
     Left fld -> return (P.Labeled lbl fld)
+-}

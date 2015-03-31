@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Cabin.Postings.Cell where
 
+{-
 import qualified Penny.Lincoln as L
 import Control.Applicative
 import Data.Text (Text)
@@ -218,3 +219,4 @@ displayNilOrBrimScalarAnyRadix (L.NilOrBrimScalarAnyRadix ei) = pfx <> rep
     (pfx, rep) = case ei of
       Left radCom -> ("`", X.pack . L.display radCom $ "")
       Right radPer -> ("", X.pack . L.display radPer $ "")
+-}

@@ -1,11 +1,54 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- | Patterns to match on trees and forests.
 --
 -- A tree is the same depth as the forest containing the tree.
 --
 -- A forest contained in a tree is one level deeper than the tree.
-module Penny.Queries.Pattern
+module Penny.Queries.Pattern where
+
+import Pipes
+import Control.Applicative
+import Control.Monad.Reader
+import qualified Penny.Lincoln as L
+import Turtle.Pattern
+import Data.Text (Text)
+
+newtype Matcher t m a = Matcher (ReaderT t (ListT m) a)
+  deriving (Functor, Applicative, Monad)
+
+deriving instance Monad m => MonadReader t (Matcher t m)
+deriving instance Monad m => Alternative (Matcher t m)
+deriving instance Monad m => MonadPlus (Matcher t m)
+
+component :: Monad m => (t' -> m t) -> Matcher t m a -> Matcher t' m a
+component conv (Matcher (ReaderT f)) = Matcher $ ReaderT $ \r -> do
+  r' <- lift (conv r)
+  f r'
+
+realm
+  :: Monad m
+  => (L.Realm -> Bool)
+  -> Matcher L.Realm m L.Realm
+realm pd = do
+  rlm <- ask
+  if pd rlm then return rlm else empty
+
+namespace
+  :: L.Ledger m
+  => Matcher L.Realm m a
+  -> Matcher (L.TreeL m) m a
+namespace = component L.namespace
+
+pattern :: Monad m => Pattern a -> Matcher Text m a
+pattern pat = Matcher . ReaderT $ \txt ->
+  let ls = match pat txt
+  in Select . each $ ls
+
+{-
   ( -- * Patterns on trees
     TreePat(..)
   , matchTree
@@ -198,3 +241,4 @@ oneTree idx (TreePat tp) = ForestPat $ do
   let chld = S.index trs idx
   mayR <- lift . lift . runMaybeT . runReaderT tp $ (lvlU, chld)
   maybe mzero return mayR
+-}

@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | The Postings report
-module Penny.Cabin.Postings
+module Penny.Cabin.Postings where
+
+{-
   ( -- * Color schemes
     Parity(..)
   , C.CellTag(..)
@@ -169,3 +171,4 @@ balQtys = Column $ \_ rep tr -> pure (C.balQtys rep tr)
 
 balCommodities :: Applicative l => Column l
 balCommodities = Column $ \_ _ tr -> pure (C.balCommodities tr)
+-}

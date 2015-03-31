@@ -1,4 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 -- | A 'Ledger' is a store of transactions and prices.  'Ledger'
 -- specifies an interface for such stores.
@@ -20,6 +22,7 @@ import qualified Data.Traversable as T
 import Data.Text (Text)
 import Data.Monoid
 import qualified Data.Text as X
+import Control.Monad.Reader
 
 class (Applicative l, Monad l) => Ledger l where
   type PriceL (l :: * -> *) :: *
@@ -36,7 +39,7 @@ class (Applicative l, Monad l) => Ledger l where
   transactionMeta :: TransactionL l -> l (Seq (TreeL l))
   topLineSerial :: TransactionL l -> l TopLineSer
   scalar :: TreeL l -> l (Maybe Scalar)
-  realm :: TreeL l -> l Realm
+  namespace :: TreeL l -> l Realm
   children :: TreeL l -> l (Seq (TreeL l))
   postings :: TransactionL l -> l (Seq (PostingL l))
   postingTrees :: PostingL l -> l (Seq (TreeL l))
