@@ -11,13 +11,14 @@
 module Penny.Queries.Pattern where
 
 import Pipes
+import Control.Monad.Logic
 import Control.Applicative
 import Control.Monad.Reader
 import qualified Penny.Lincoln as L
 import Turtle.Pattern
 import Data.Text (Text)
 
-newtype Matcher t m a = Matcher (ReaderT t (ListT m) a)
+newtype Matcher t m a = Matcher (ReaderT t (LogicT m) a)
   deriving (Functor, Applicative, Monad)
 
 deriving instance Monad m => MonadReader t (Matcher t m)
@@ -44,9 +45,9 @@ namespace
 namespace = component L.namespace
 
 pattern :: Monad m => Pattern a -> Matcher Text m a
-pattern pat = Matcher . ReaderT $ \txt ->
-  let ls = match pat txt
-  in Select . each $ ls
+pattern pat = do
+  txt <- ask
+  msum . map return . match pat $ txt
 
 {-
   ( -- * Patterns on trees

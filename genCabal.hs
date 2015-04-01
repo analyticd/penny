@@ -87,6 +87,9 @@ mtl = closedOpen "mtl" [2,2,1] [2,3]
 pipesCliff :: Package
 pipesCliff = closedOpen "pipes-cliff" [0,10] [0,11]
 
+logict :: Package
+logict = closedOpen "logict" [0,6] [0,7]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
@@ -116,6 +119,7 @@ libraryDepends =
   , turtle
   , mtl
   , pipesCliff
+  , logict
   ]
 
 testDepends :: [Package]
