@@ -90,7 +90,7 @@ bevies
   -> l (Seq (Bevy l))
 bevies conv = T.traverse mkBevy
   where
-    mkBevy pstg = f <$> postingQty pstg <*> postingCommodity pstg
+    mkBevy pstg = f <$> quant pstg <*> curren pstg
       where
         f q c = Bevy pstg (Amount c q) (conv (Amount c q))
 
@@ -115,7 +115,7 @@ clatches
   -- ^ Transaction containing the postings to create 'Clatch' from.
   -> l (Seq (Clatch l))
 clatches conv txn = do
-  pstgs <- postings txn
+  pstgs <- plinks txn
   bvys <- bevies conv pstgs
   return $ beviesToClatches txn bvys
 
@@ -123,7 +123,7 @@ clatches conv txn = do
 -- retrieved using 'ledgerItems'.
 allClatches :: Ledger l => (Amount -> Maybe Converted) -> l (Seq (Clatch l))
 allClatches conv = do
-  itms <- fmap join ledgerItems
+  itms <- fmap join vault
   let txns = rights itms
   fmap join $ T.mapM (clatches conv) txns
 
@@ -142,7 +142,7 @@ clatchAmount (Clatch _ _ (Bevy _ amt mayConv) _)
 -- | Given a Clatch, update the Renderings map.
 updateRenderings :: Ledger l => Clatch l -> Renderings -> l Renderings
 updateRenderings (Clatch _ _ (Bevy pstg _ _) _)
-  (Renderings mp) = fmap f (postingTrio pstg)
+  (Renderings mp) = fmap f (triplet pstg)
   where
     f tri = case trioRendering tri of
       Nothing -> Renderings mp

@@ -47,19 +47,19 @@ rightSiblings :: L.Tranche l -> Seq (L.Bevy l)
 rightSiblings t = let L.Clatch _ _ _ x = clatch t in x
 
 transactionMeta :: L.Ledger l => L.Tranche l -> l (Seq (L.TreeL l))
-transactionMeta = L.transactionMeta . transaction
+transactionMeta = L.txnMeta . transaction
 
 topLineSerial :: L.Ledger l => L.Tranche l -> l L.TopLineSer
-topLineSerial = L.topLineSerial . transaction
+topLineSerial = L.zonk . transaction
 
 postingTrees :: L.Ledger l => L.Tranche l -> l (Seq (L.TreeL l))
-postingTrees = L.postingTrees . posting . bevy
+postingTrees = L.plinkMeta . posting . bevy
 
 trio :: L.Ledger l => L.Tranche l -> l L.Trio
-trio = L.postingTrio . posting . bevy
+trio = L.triplet . posting . bevy
 
 postingSer :: L.Ledger l => L.Tranche l -> l L.PostingSer
-postingSer = L.postingSerial . posting . bevy
+postingSer = L.xylo . posting . bevy
 
 -- | Looks for a tree matching a predicate in the posting's trees.  If
 -- one is not found, looks in the transaction's trees.

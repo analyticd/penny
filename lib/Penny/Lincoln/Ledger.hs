@@ -30,23 +30,74 @@ class (Applicative l, Monad l) => Ledger l where
   type TreeL (l :: * -> *) :: *
   type PostingL (l :: * -> *) :: *
 
-  ledgerItems :: l (Seq (Seq (Either (PriceL l) (TransactionL l))))
+  ------------------------------------------------
+  -- All items
+  ------------------------------------------------
 
-  priceDate :: PriceL l -> l DateTime
-  priceFromTo :: PriceL l -> l FromTo
-  priceExch :: PriceL l -> l Exch
+  -- | All the items contained in the Ledger.
+  vault :: l (Seq (Seq (Either (PriceL l) (TransactionL l))))
 
-  transactionMeta :: TransactionL l -> l (Seq (TreeL l))
-  topLineSerial :: TransactionL l -> l TopLineSer
-  scalar :: TreeL l -> l (Maybe Scalar)
+  ------------------------------------------------
+  -- Prices
+  ------------------------------------------------
+
+  -- | When this price became effective
+  instant :: PriceL l -> l DateTime
+
+  -- | 1 unit of the from commodity equals the given number of
+  -- exchange commodity
+  trade :: PriceL l -> l FromTo
+
+  -- | 1 unit of the from commodity in the 'trade' equals this much of
+  -- the to commodity in the 'trade'
+  exchange :: PriceL l -> l Exch
+
+  ------------------------------------------------
+  -- Trees
+  ------------------------------------------------
+
+  -- | Information held in this node of the tree.
+  capsule :: TreeL l -> l (Maybe Scalar)
+
+  -- | Each tree is in a particular namespace.
   namespace :: TreeL l -> l Realm
-  children :: TreeL l -> l (Seq (TreeL l))
-  postings :: TransactionL l -> l (Seq (PostingL l))
-  postingTrees :: PostingL l -> l (Seq (TreeL l))
-  postingTrio :: PostingL l -> l Trio
-  postingQty :: PostingL l -> l Qty
-  postingCommodity :: PostingL l -> l Commodity
-  postingSerial :: PostingL l -> l PostingSer
+
+  -- | Child trees of a particular tree.
+  offspring :: TreeL l -> l (Seq (TreeL l))
+
+
+  ------------------------------------------------
+  -- Transactions
+  ------------------------------------------------
+
+  -- | The metadata for the transaction.
+  txnMeta :: TransactionL l -> l (Seq (TreeL l))
+
+  -- | The serial that applies to the entire transction.
+  zonk :: TransactionL l -> l TopLineSer
+
+  -- | All postings.  A posting that is in a transaction is a @plink@.
+  plinks :: TransactionL l -> l (Seq (PostingL l))
+
+  ------------------------------------------------
+  -- Plinks
+  ------------------------------------------------
+  -- | Metadata for a single plink.
+  plinkMeta :: PostingL l -> l (Seq (TreeL l))
+
+  -- | The Trio that belongs to a posting.
+  triplet :: PostingL l -> l Trio
+
+  -- | The quantity that belongs to a posting.
+  quant :: PostingL l -> l Qty
+
+  -- | The unit of currency for the posting.
+  curren :: PostingL l -> l Commodity
+
+  -- | The serial that belongs to a posting.
+  xylo :: PostingL l -> l PostingSer
+
+{-
 
 -- # Displaying trees
 
@@ -80,3 +131,4 @@ displayForest sq = case viewl sq of
     t1 <- displayTree x1
     let dispNext t = fmap (X.cons '•') $ displayTree t
     fmap (F.foldl' mappend t1) $ T.traverse dispNext xs1
+-}

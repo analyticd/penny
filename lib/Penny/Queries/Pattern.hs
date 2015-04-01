@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | Patterns to match on trees and forests.
 --
@@ -10,33 +11,143 @@
 -- A forest contained in a tree is one level deeper than the tree.
 module Penny.Queries.Pattern where
 
-import Pipes
+import qualified Data.Foldable as F
 import Control.Monad.Logic
 import Control.Applicative
 import Control.Monad.Reader
 import qualified Penny.Lincoln as L
 import Turtle.Pattern
 import Data.Text (Text)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 
 newtype Matcher t m a = Matcher (ReaderT t (LogicT m) a)
   deriving (Functor, Applicative, Monad)
 
+applyMatcher :: Matcher t m a -> t -> LogicT m a
+applyMatcher (Matcher (ReaderT f)) env = f env
+
+rewrapMatcher :: (t -> LogicT m a) -> Matcher t m a
+rewrapMatcher f = Matcher . ReaderT $ f
+
+
 deriving instance Monad m => MonadReader t (Matcher t m)
 deriving instance Monad m => Alternative (Matcher t m)
 deriving instance Monad m => MonadPlus (Matcher t m)
+deriving instance MonadIO m => MonadIO (Matcher t m)
+
+instance MonadTrans (Matcher t) where
+  lift act = Matcher . ReaderT $ \_ -> lift act
+
+instance Monad m => MonadLogic (Matcher t m) where
+  -- msplit :: Matcher t m a -> Matcher t m (Maybe (a, Matcher t m a))
+  msplit (Matcher (ReaderT getAct)) = Matcher . ReaderT $ \env ->
+    let act = getAct env
+        -- splitRes :: LogicT m (Maybe (a, LogicT m a))
+        splitRes = msplit act
+    in fmap (fmap ((\(a, lt) -> (a, Matcher . ReaderT $ \_ -> lt))))
+            splitRes
+instance L.Ledger m => L.Ledger (Matcher t m) where
+  type PriceL (Matcher t m) = L.PriceL m
+  type TransactionL (Matcher t m) = L.TransactionL m
+  type TreeL (Matcher t m) = L.TreeL m
+  type PostingL (Matcher t m) = L.PostingL m
+
+  vault = lift L.vault
+  instant = lift . L.instant
+  trade = lift . L.trade
+  exchange = lift . L.exchange
+  capsule = lift . L.capsule
+  namespace = lift . L.namespace
+  offspring = lift . L.offspring
+  txnMeta = lift . L.txnMeta
+  zonk = lift . L.zonk
+  plinks = lift . L.plinks
+  plinkMeta = lift . L.plinkMeta
+  triplet = lift . L.triplet
+  quant = lift . L.quant
+  curren = lift . L.curren
+  xylo = lift . L.xylo
 
 component :: Monad m => (t' -> m t) -> Matcher t m a -> Matcher t' m a
-component conv (Matcher (ReaderT f)) = Matcher $ ReaderT $ \r -> do
-  r' <- lift (conv r)
-  f r'
+component conv (Matcher (ReaderT f)) = Matcher $ ReaderT $ \r ->
+  lift (conv r) >>= f
 
-realm
+-- | @predicate f@ creates a 'Matcher' that will match any value for
+-- which @f@ returns True.  The value itself is returned as a witness.
+predicate
   :: Monad m
-  => (L.Realm -> Bool)
-  -> Matcher L.Realm m L.Realm
-realm pd = do
-  rlm <- ask
-  if pd rlm then return rlm else empty
+  => (a -> Bool)
+  -> Matcher a m a
+predicate pd = rewrapMatcher f
+  where
+    f t
+      | pd t = return t
+      | otherwise = empty
+
+pattern :: Monad m => Pattern a -> Matcher Text m a
+pattern pat = do
+  txt <- ask
+  foldr interleave empty . map return . match pat $ txt
+
+just :: Monad m => Matcher t m a -> Matcher (Maybe t) m a
+just pd = rewrapMatcher f
+  where
+    f may = case may of
+      Nothing -> empty
+      Just t -> applyMatcher pd t
+
+
+nothing :: Monad m => Matcher (Maybe a) m ()
+nothing = do
+  tgt <- ask
+  case tgt of
+    Nothing -> return ()
+    _ -> empty
+
+each
+  :: (Monad m, Functor f, F.Foldable f)
+  => Matcher t m a
+  -> Matcher (f t) m a
+each (Matcher (ReaderT getAct)) = Matcher . ReaderT $
+  F.foldl interleave empty . fmap getAct
+
+
+index
+  :: Int
+  -> Matcher t m a
+  -> Matcher (Seq t) m a
+index idx mtchr = rewrapMatcher f
+  where
+    f sq
+      | idx >= 0 && idx < Seq.length sq = applyMatcher mtchr
+          (sq `Seq.index` idx)
+      | otherwise = empty
+
+
+instant
+  :: L.Ledger m
+  => Matcher L.DateTime m a
+  -> Matcher (L.PriceL m) m a
+instant = component L.instant
+
+trade
+  :: L.Ledger m
+  => Matcher L.FromTo m a
+  -> Matcher (L.PriceL m) m a
+trade = component L.trade
+
+exchange
+  :: L.Ledger m
+  => Matcher L.Exch m a
+  -> Matcher (L.PriceL m) m a
+exchange = component L.exchange
+
+capsule
+  :: L.Ledger m
+  => Matcher (Maybe L.Scalar) m a
+  -> Matcher (L.TreeL m) m a
+capsule = component L.capsule
 
 namespace
   :: L.Ledger m
@@ -44,202 +155,89 @@ namespace
   -> Matcher (L.TreeL m) m a
 namespace = component L.namespace
 
-pattern :: Monad m => Pattern a -> Matcher Text m a
-pattern pat = do
-  txt <- ask
-  msum . map return . match pat $ txt
 
-{-
-  ( -- * Patterns on trees
-    TreePat(..)
-  , matchTree
-
-  -- ** Levels
-  , treeLevel
-
-  -- ** Payload
-  , payload
-  , noPayload
-
-  -- ** Namespace
-  , namespace
-
-  -- ** Child trees
-  , children
-
-  -- ** Traversal
-  , preOrder
-  , postOrder
-
-  -- * Forest patterns
-  , ForestPat(..)
-  , matchForest
-  , forestLevel
-  , anyTree
-  , allTrees
-  , oneTree
-  ) where
+offspring
+  :: L.Ledger m
+  => Matcher (Seq (L.TreeL m)) m a
+  -> Matcher (L.TreeL m) m a
+offspring = component L.offspring
 
 
-import qualified Penny.Lincoln as L
-import Control.Monad.Trans.Maybe
-import Control.Applicative
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.Reader
-import Control.Monad
-import Data.Sequence (Seq, ViewL(..), (|>))
-import qualified Data.Sequence as S
-import qualified Penny.Queries.Matcher as M
+txnMeta
+  :: L.Ledger m
+  => Matcher (Seq (L.TreeL m)) m a
+  -> Matcher (L.TransactionL m) m a
+txnMeta = component L.txnMeta
 
--- # Tree patterns
-
-newtype TreePat m a = TreePat (ReaderT (L.Unsigned, L.TreeL m) (MaybeT m) a)
-  deriving (Functor, Monad, Applicative, Alternative, MonadPlus)
-
-matchTree
-  :: Monad m
-  => L.Unsigned
-  -- ^ Start at this level; ordinarily you will use 'L.toUnsigned'
-  -- 'L.Zero'
-
-  -> L.TreeL m
-  -> TreePat m a
-  -> m (Maybe a)
-matchTree l t (TreePat p)
-  = runMaybeT . runReaderT p $ (l, t)
-
-tree :: Monad l => TreePat l (L.TreeL l)
-tree = TreePat $ asks snd
+zonk
+  :: L.Ledger m
+  => Matcher L.TopLineSer m a
+  -> Matcher (L.TransactionL m) m a
+zonk = component L.zonk
 
 
-treeLevel :: Monad l => TreePat l L.Unsigned
-treeLevel = TreePat $ asks fst
-
-inLedger :: Monad l => l a -> TreePat l a
-inLedger = TreePat . lift . lift
-
-payload
-  :: L.Ledger l
-  => M.Matcher L.Scalar l r
-  -> TreePat l r
-payload mr = do
-  tr <- tree
-  maySc <- inLedger . L.scalar $ tr
-  case maySc of
-    Nothing -> mzero
-    Just sc -> do
-      mayR <- inLedger $ M.runMatcher mr sc
-      maybe mzero return mayR
-
-noPayload :: L.Ledger l => TreePat l ()
-noPayload = do
-  tr <- tree
-  sc <- inLedger . L.scalar $ tr
-  maybe (return ()) (const mzero) sc
-
-namespace :: L.Ledger l => M.Matcher L.Realm l a -> TreePat l a
-namespace mr = do
-  tr <- tree
-  nms <- inLedger $ L.realm tr
-  mayR <- inLedger $ M.runMatcher mr nms
-  maybe mzero return mayR
-
-children :: L.Ledger l => ForestPat l a -> TreePat l a
-children (ForestPat fp) = TreePat $ do
-  (thisLevel, tr) <- ask
-  let nextLevel = L.next thisLevel
-  cs <- lift . lift . L.children $ tr
-  mayRes <- lift . lift . runMaybeT . runReaderT fp
-    $ (nextLevel, cs)
-  maybe mzero return mayRes
-
--- # Traversal
-
-preOrder :: L.Ledger l => TreePat l a -> TreePat l a
-preOrder p@(TreePat tp) = TreePat $ do
-  (l, t) <- ask
-  mayR <- lift . lift . runMaybeT . runReaderT tp $ (l, t)
-  case mayR of
-    Just r -> return r
-    Nothing -> do
-      ts <- lift . lift . L.children $ t
-      let go sq = case S.viewl sq of
-            EmptyL -> mzero
-            x :< xs -> do
-              let TreePat k = preOrder p
-              mayR' <- lift . lift . runMaybeT . runReaderT k
-                $ (L.next l, x)
-              maybe (go xs) return mayR'
-      go ts
+plinks
+  :: L.Ledger m
+  => Matcher (Seq (L.PostingL m)) m a
+  -> Matcher (L.TransactionL m) m a
+plinks = component L.plinks
 
 
--- There is no in-order traversal for trees.  There's no way to
--- (sensibly) traverse a rose tree in a symmetric fashion.
-
-postOrder :: L.Ledger l => TreePat l a -> TreePat l a
-postOrder  p@(TreePat tp) = TreePat $ do
-  (l, t) <- ask
-  let go sq = case S.viewl sq of
-        EmptyL -> do
-          mayR <- lift . lift . runMaybeT . runReaderT tp $ (l, t)
-          maybe mzero return mayR
-        x :< xs -> do
-          let TreePat k = postOrder p
-          mayR <- lift . lift . runMaybeT . runReaderT k
-            $ (L.next l, x)
-          maybe (go xs) return mayR
-  ts <- lift . lift . L.children $ t
-  go ts
-
--- # Forest patterns
-
-newtype ForestPat m a
-  = ForestPat (ReaderT (L.Unsigned, Seq (L.TreeL m)) (MaybeT m) a)
-  deriving (Functor, Applicative, Alternative, Monad, MonadPlus)
-
-matchForest
-  :: Monad m
-  => L.Unsigned
-  -- ^ Start at this level; ordinarily you will use 'L.toUnsigned'
-  -- 'L.Zero'
-
-  -> Seq (L.TreeL m)
-  -> ForestPat m a
-  -> m (Maybe a)
-matchForest l fr (ForestPat p)
-  = runMaybeT . runReaderT p $ (l, fr)
-
-forestLevel :: Monad l => ForestPat l L.Unsigned
-forestLevel = ForestPat $ asks fst
+plinkMeta
+  :: L.Ledger m
+  => Matcher (Seq (L.TreeL m)) m a
+  -> Matcher (L.PostingL m) m a
+plinkMeta = component L.plinkMeta
 
 
-anyTree :: Monad m => TreePat m a -> ForestPat m a
-anyTree (TreePat tp) = ForestPat $ do
-  (lvlU, trs) <- ask
-  let go ts = case S.viewl ts of
-        EmptyL -> return Nothing
-        x :< xs -> do
-          mayR <- runMaybeT . runReaderT tp $ (lvlU, x)
-          maybe (go xs) (return . Just) mayR
-  res <- lift . lift $ go trs
-  maybe mzero return res
+triplet
+  :: L.Ledger m
+  => Matcher L.Trio m a
+  -> Matcher (L.PostingL m) m a
+triplet = component L.triplet
 
-allTrees :: Monad m => TreePat m a -> ForestPat m (Seq a)
-allTrees (TreePat tp) = ForestPat $ do
-  (lvlU, trs) <- ask
-  let go ts acc = case S.viewl ts of
-        EmptyL -> return . Just $ acc
-        x :< xs -> do
-          mayR <- runMaybeT . runReaderT tp $ (lvlU, x)
-          maybe (return Nothing) (\r -> go xs (acc |> r)) mayR
-  res <- lift . lift $ go trs S.empty
-  maybe mzero return res
 
-oneTree :: Monad m => Int -> TreePat m a -> ForestPat m a
-oneTree idx (TreePat tp) = ForestPat $ do
-  (lvlU, trs) <- ask
-  guard (S.length trs > idx)
-  let chld = S.index trs idx
-  mayR <- lift . lift . runMaybeT . runReaderT tp $ (lvlU, chld)
-  maybe mzero return mayR
--}
+quant
+  :: L.Ledger m
+  => Matcher L.Qty m a
+  -> Matcher (L.PostingL m) m a
+quant = component L.quant
+
+
+curren
+  :: L.Ledger m
+  => Matcher L.Commodity m a
+  -> Matcher (L.PostingL m) m a
+curren = component L.curren
+
+
+xylo
+  :: L.Ledger m
+  => Matcher L.PostingSer m a
+  -> Matcher (L.PostingL m) m a
+xylo = component L.xylo
+
+-- | Traverses this tree and all child trees, in pre-order; that is,
+-- the node is visited, followed by visiting all its child nodes.
+preOrder
+  :: L.Ledger m
+  => Matcher (L.TreeL m) m a
+  -> Matcher (L.TreeL m) m a
+preOrder mtcr = Matcher . ReaderT $ \tr -> do
+  cs <- lift $ L.offspring tr
+  let acts = fmap (applyMatcher (preOrder mtcr)) cs
+      logicThis = applyMatcher mtcr tr
+  interleave logicThis . F.foldl interleave empty $ acts
+
+
+-- | Traverses this tree and all child trees, in post-order; that is,
+-- all child nodes are visited, followed by this node.
+postOrder
+  :: L.Ledger m
+  => Matcher (L.TreeL m) m a
+  -> Matcher (L.TreeL m) m a
+postOrder mtcr = Matcher . ReaderT $ \tr -> do
+  cs <- lift $ L.offspring tr
+  let acts = fmap (applyMatcher (postOrder mtcr)) cs
+      logicThis = applyMatcher mtcr tr
+  interleave (F.foldl interleave empty acts) logicThis
