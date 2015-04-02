@@ -1,20 +1,43 @@
 {-# LANGUAGE TupleSections #-}
-module Penny.Lincoln.Transaction where
-{-
-  ( TopLine(..)
+
+-- | Concrete data types to represent transactions.  Typically
+-- "Penny.Lincoln.Ledger" is more of a hub, as transactions and prices
+-- are stored according to the interface there.  Types that implement
+-- the 'Penny.Lincoln.Ledger.ledger' interface need not use the types
+-- in this module.  However, some simpler 'Ledger's, such as
+-- "Penny.Lincoln.Scroll", make use of these types.
+--
+-- The types in this module check their values for correctness; for
+-- example, you cannot create an unbalanced transaction.  Therefore
+-- these types are useful for validating user input, such as the input
+-- that would come from a text file.
+--
+-- Functions in this module also assign serials.
+module Penny.Lincoln.Transaction
+  ( -- * Transactions
+    TopLine(..)
   , PstgMeta(..)
   , Transaction(..)
   , TransactionError(..)
   , transaction
+
+  -- * Bundles
   , Bundle(..)
   , transactionToBundles
   , bundleToTransaction
   , nextBundle
   , prevBundle
   , siblingBundles
-  --, addSerials
+
+  -- * Serials
+  , FileSer(..)
+  , GlobalSer(..)
+  , TopLineSer(..)
+  , PostingIndex(..)
+  , PostingSer(..)
+  , assignSerialsToTxns
   ) where
--}
+
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
@@ -30,7 +53,15 @@ import Data.Bifunctor
 import Data.Bifoldable
 import Penny.Lincoln.Serial
 
-data TopLine a = TopLine [Tree] a
+-- | All the data associated with the top line in a transaction.
+data TopLine a
+  = TopLine [Tree] a
+  -- ^ @TopLine t a@, where
+  --
+  -- @t@ is a list of all 'Tree' that hold metadata for this TopLine,
+  -- and
+  --
+  -- @a@ is any additional metadata, such as serials.
   deriving (Eq, Ord, Show)
 
 instance Functor TopLine where
@@ -54,16 +85,14 @@ instance F.Foldable PstgMeta where
 instance T.Traversable PstgMeta where
   traverse f (PstgMeta e i a) = (PstgMeta e i) <$> f a
 
-instance Bifoldable Transaction where
-  bifoldr fa fb z (Transaction (TopLine _ a) bal)
-    = fa a
-    . F.foldr fb z
-    . fmap (\(PstgMeta _ _ m) -> m)
-    $ bal
-
 -- | A balanced set of postings, along with common metadata for all
 -- the postings (often called the /top line data/, as it appears on
 -- the top line of a checkbook register transaction.)
+--
+-- Includes, through the 'TopLine' and the 'PstgMeta', a list of
+-- 'Tree' for each top line and posting.  The type variables @tlMeta@
+-- and @pMeta@ represent arbitrary metadata for the 'TopLine' and
+-- 'PstgMeta', respectively.
 data Transaction tlMeta pMeta
   = Transaction (TopLine tlMeta) (Balanced (PstgMeta pMeta))
   -- ^ @Transaction a b c@, where
@@ -76,9 +105,17 @@ data Transaction tlMeta pMeta
   -- its own metadata.
   deriving (Eq, Ord, Show)
 
+instance Bifoldable Transaction where
+  bifoldr fa fb z (Transaction (TopLine _ a) bal)
+    = fa a
+    . F.foldr fb z
+    . fmap (\(PstgMeta _ _ m) -> m)
+    $ bal
+
 instance Bifunctor Transaction where
   bimap fa fb (Transaction t p) = Transaction (fmap fa t) (fmap (fmap fb) p)
 
+-- | Errors that may arise when attempting to create a transaction.
 data TransactionError a
   = BadTrio (PstgMeta a) TrioError
   -- ^ A particular 'Trio' could not create an 'Ent'.  Its
@@ -132,6 +169,8 @@ prevBundle (Bundle tl v) = fmap (Bundle tl) $ moveLeft v
 siblingBundles :: Bundle tm pm -> Seq (Bundle tm pm)
 siblingBundles (Bundle tl v) = fmap (Bundle tl) $ siblingViews v
 
+-- # Serials
+
 newtype FileSer = FileSer Serset
   deriving (Eq, Ord, Show)
 
@@ -146,16 +185,6 @@ data PostingIndex = PostingIndex Serset
 
 data PostingSer = PostingSer FileSer GlobalSer PostingIndex
   deriving (Eq, Ord, Show)
-
-assignSingleTxnPostings
-  :: (Applicative f, T.Traversable t1, T.Traversable t2)
-  => f a
-  -> (t, t1 (t2 a1))
-  -> f (t, t1 (t2 (a1, a)))
-assignSingleTxnPostings fetch (tm, pm)
-  = (tm,) <$> T.traverse (T.traverse k') pm
-  where
-    k' p = (,) <$> pure p <*> fetch
 
 -- | Given a computation that assigns to a top line, assign to every
 -- top line.
@@ -265,11 +294,17 @@ assignSerials
   -> t1 (t2 (tm (mtm, TopLineSer), pm (bal (mt, PostingSer))))
 assignSerials = assignTxnSerials . assignPostingSerials
 
-assignSerialsToTxn
+-- | Assigns all serials to a set of transactions.
+assignSerialsToTxns
   :: (T.Traversable t1, T.Traversable t2)
   => t1 (t2 (Transaction tlMeta pMeta))
+  -- ^ This is a nested sequence of transactions; the idea is that the
+  -- outer list contains one inner list for each file that is a source
+  -- of transactions.
   -> t1 (t2 (Transaction (tlMeta, TopLineSer) (pMeta, PostingSer)))
-assignSerialsToTxn
+  -- ^ The result is a nested sequence of the same type as the input,
+  -- but with serials assigned.
+assignSerialsToTxns
   = fmap (fmap (uncurry Transaction))
   . assignSerials
   . fmap (fmap (\(Transaction a b) -> (a, b)))
