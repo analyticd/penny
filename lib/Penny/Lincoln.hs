@@ -13,7 +13,6 @@ module Penny.Lincoln
     , module Penny.Lincoln.Ents
     , module Penny.Lincoln.Exch
     , module Penny.Lincoln.Field
-    , module Penny.Lincoln.Filter
     , module Penny.Lincoln.Friendly
     , module Penny.Lincoln.Ledger
     , module Penny.Lincoln.Matcher
@@ -45,7 +44,6 @@ import Penny.Lincoln.Ent
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Exch
 import Penny.Lincoln.Field
-import Penny.Lincoln.Filter
 import Penny.Lincoln.Friendly
 import Penny.Lincoln.Ledger
 import Penny.Lincoln.Matcher

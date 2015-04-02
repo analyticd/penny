@@ -19,10 +19,8 @@
 -- Each 'Tranche' is assigned a serial.
 module Penny.Lincoln.Clatch where
 
-{-
 import Penny.Lincoln.Amount
 import Penny.Lincoln.Ledger
-import Penny.Lincoln.Filter
 import Penny.Lincoln.SeqUtil
 import Data.Sequence
   (Seq, viewl, ViewL(..), (|>), viewr, ViewR(..), (<|))
@@ -37,14 +35,11 @@ import Penny.Lincoln.Rep
 import Penny.Lincoln.Trio
 import Penny.Lincoln.Serial
 import Penny.Lincoln.Balances
+import Penny.Lincoln.Matcher
 import Data.Monoid
 import Data.Bifunctor
 import qualified Data.Foldable as F
--}
 
--- Commented out - need to remove Prednote
-
-{-
 
 -- # Bevy
 
@@ -164,12 +159,14 @@ data Slice l = Slice (Clatch l) Serset
 -- filtering using a given predicate.
 slices
   :: Ledger l
-  => PredM l (Clatch l)
+  => Matcher (Clatch l) l a
   -> Seq (Clatch l)
-  -> l (Seq (Slice l), Seq Result)
+  -> l (Seq (Slice l), Seq (Maybe (Seq Message)))
 slices pd cltchs = do
-  (withSers, rslt) <- serialedFilter pd cltchs
+  (withSers, rslt) <- fmap (first serialNumbers)
+    . filterSeq pd $ cltchs
   return (fmap (uncurry Slice) withSers, rslt)
+
 
 -- | A 'Seq' of 'Splint' is the result of the sorting of a 'Seq' of
 -- 'Slice'.  Each 'Splint' has an accompanying 'Serset'.  Also, this
@@ -198,32 +195,38 @@ splints srtr sq = fmap mkSplints $ srtr sq
 data Tranche l = Tranche (Splint l) Serset
 
 tranches
-  :: Applicative f
-  => PredM f (Splint l)
-  -> Seq (Splint l)
-  -> f (Seq (Tranche l), Seq Result)
+  :: Monad m
+  => Matcher (Splint m) m a
+  -> Seq (Splint m)
+  -> m (Seq (Tranche m), Seq (Maybe (Seq Message)))
 tranches pd
-  = fmap (first (fmap (uncurry Tranche)))
-  . serialedFilter pd
+  = liftM (first (fmap (uncurry Tranche)))
+  . liftM (first serialNumbers)
+  . filterSeq pd
+
 
 -- | Pulls together many functions in this module to deliver a quad
 -- @(w, x, y, z)@, where @w@ is a list of all Tranche, @x@ is a list
--- of the 'Result' from filtering the 'Clatch', @y@ is the
--- 'Renderings', and @z@ is a list of the 'Result' from filtering the
--- 'Splint'.  The 'Clatch' are pulled ultimately by using
--- 'ledgerItems'.
+-- of the descriptions from filtering the 'Clatch', @y@ is the
+-- 'Renderings', and @z@ is a list of the descriptions from filtering
+-- the 'Splint'.  The 'Clatch' are pulled ultimately by using
+-- 'vault'.
 
 allTranches
   :: Ledger l
   => (Amount -> Maybe Converted)
   -- ^ Converts the original 'Amount' to a different one.
-  -> PredM l (Clatch l)
+  -> Matcher (Clatch l) l a
   -- ^ Filters 'Clatch'
   -> (Seq (Slice l) -> l (Seq (Slice l)))
   -- ^ Sorts 'Slice'
-  -> PredM l (Splint l)
+  -> Matcher (Splint l) l b
   -- ^ Filters 'Splint'
-  -> l (Seq (Tranche l), Seq Result, Renderings, Seq Result)
+  -> l ( Seq (Tranche l)
+       , Seq (Maybe (Seq Message))
+       , Renderings
+       , Seq (Maybe (Seq Message))
+       )
 allTranches conv pdCltch srtr pdSplint = do
   cltchs <- allClatches conv
   rndgs <- F.foldrM updateRenderings (Renderings M.empty) cltchs
@@ -231,4 +234,3 @@ allTranches conv pdCltch srtr pdSplint = do
   splnts <- splints srtr slcs
   (trchs, rsltTrchs) <- tranches pdSplint splnts
   return (trchs, rsltSlcs, rndgs, rsltTrchs)
--}

@@ -50,6 +50,9 @@ module Penny.Lincoln.Matcher
   , always
   , never
 
+  -- * Filtering
+  , filterSeq
+
 
   -- * Basement
 
@@ -81,7 +84,7 @@ import Rainbow
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Data.String
-import Data.Sequence (Seq)
+import Data.Sequence (Seq, ViewL(..), viewl, (|>))
 import qualified Data.Sequence as Seq
 
 -- | A 'Matcher' is a computation that, when run with a value known as
@@ -435,3 +438,33 @@ predicateW pd = do
   if passed
     then acceptW op s
     else rejectW op
+
+
+-- # Filtering
+
+-- | Filters a 'Seq' using a 'Matcher'.
+filterSeq
+  :: Monad m
+  => Matcher s m a
+  -- ^ Filter using this 'Matcher'.  The subject is included in the
+  -- result if the 'Matcher' returns a single value of any type.
+  -> Seq s
+  -- ^ Filter this sequence
+  -> m (Seq s, Seq (Maybe (Seq Message)))
+  -- ^ Returns matching values, and a list of 'Message' resulting from
+  -- the filtering.  In the second list, there is a value of type
+  -- 'Maybe' for each subject in the original list.  If the subject
+  -- failed to match, this value is 'Nothing'.  If the value did
+  -- match, there is a 'Just' with a 'Seq' of 'Message' that was
+  -- returned by the matcher.  the original list.  Only the 'Seq' of
+  -- 'Message' from the first value, if there was one, is returned.
+filterSeq mr = go (Seq.empty, Seq.empty)
+  where
+    go (matches, msgs) sq = case viewl sq of
+      EmptyL -> return (matches, msgs)
+      x :< xs -> do
+        ei <- Pipes.next . enumerate $ applyMatcher mr x
+        case ei of
+          Left () -> go (matches, msgs |> Nothing) xs
+          Right ((_, msgs'), _) ->
+            go (matches |> x, msgs |> Just msgs') xs
