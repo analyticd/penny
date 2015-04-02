@@ -15,14 +15,69 @@ import qualified Data.Foldable as F
 import Control.Monad.Logic
 import Control.Applicative
 import Control.Monad.Reader
+import Control.Monad.Writer
 import qualified Penny.Lincoln as L
 import Turtle.Pattern
 import Data.Text (Text)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
-newtype Matcher t m a = Matcher (ReaderT t (LogicT m) a)
+--newtype Matcher t m a = Matcher (ReaderT t (LogicT m) a)
+--  deriving (Functor, Applicative, Monad)
+
+newtype Level = Level L.Unsigned
+  deriving (Eq, Ord, Show)
+
+newtype Opinion = Opinion Text
+  deriving (Eq, Ord, Show)
+
+data Verdict
+  = Matched
+  | Rejected
+  deriving (Eq, Ord, Show)
+
+data Message = Message Level (Maybe Verdict) Opinion
+  deriving (Eq, Ord, Show)
+
+newtype Matcher t m a
+  = Matcher (WriterT (Seq Message) (ReaderT (t, Level) (LogicT m)) a)
   deriving (Functor, Applicative, Monad)
+
+target :: Monad m => Matcher t m t
+target = Matcher . WriterT . ReaderT $ \(t, _) -> return (t, Seq.empty)
+
+instance Monad m => Alternative (Matcher t m) where
+  empty = Matcher . WriterT . ReaderT $ \_ -> mzero
+  (Matcher (WriterT (ReaderT fx))) <|> (Matcher (WriterT (ReaderT fy)))
+    = Matcher . WriterT . ReaderT $ \env ->
+    (fx env) <|> (fy env)
+
+instance MonadIO m => MonadIO (Matcher t m) where
+  liftIO act = Matcher . WriterT . ReaderT $ \_ ->
+    fmap (\r -> (r, Seq.empty)) (liftIO act)
+
+instance MonadTrans (Matcher t) where
+  lift act = Matcher . WriterT . ReaderT $ \_ ->
+    fmap (\r -> (r, Seq.empty)) (lift act)
+
+instance Monad m => MonadPlus (Matcher t m) where
+  mzero = Matcher . WriterT . ReaderT $ \_ -> mzero
+  mplus (Matcher (WriterT (ReaderT getX))) (Matcher (WriterT (ReaderT getY)))
+    = Matcher . WriterT . ReaderT $ \env ->
+    mplus (getX env) (getY env)
+
+{-
+instance Monad m => MonadLogic (Matcher t m) where
+  -- msplit :: Matcher t m a -> Matcher t m (Maybe (a, Matcher t m a))
+  msplit (Matcher (WriterT (ReaderT getAct)))
+    = Matcher . WriterT . ReaderT $ \env ->
+    let act = getAct env
+        -- splitRes :: LogicT m (Maybe (a, LogicT m a))
+        splitRes = msplit act
+    in fmap (fmap ((\(a, lt) -> (a, Matcher . WriterT . ReaderT $ \_ -> lt))))
+            splitRes
+-}
+{-
 
 applyMatcher :: Matcher t m a -> t -> LogicT m a
 applyMatcher (Matcher (ReaderT f)) env = f env
@@ -30,14 +85,6 @@ applyMatcher (Matcher (ReaderT f)) env = f env
 rewrapMatcher :: (t -> LogicT m a) -> Matcher t m a
 rewrapMatcher f = Matcher . ReaderT $ f
 
-
-deriving instance Monad m => MonadReader t (Matcher t m)
-deriving instance Monad m => Alternative (Matcher t m)
-deriving instance Monad m => MonadPlus (Matcher t m)
-deriving instance MonadIO m => MonadIO (Matcher t m)
-
-instance MonadTrans (Matcher t) where
-  lift act = Matcher . ReaderT $ \_ -> lift act
 
 instance Monad m => MonadLogic (Matcher t m) where
   -- msplit :: Matcher t m a -> Matcher t m (Maybe (a, Matcher t m a))
@@ -241,3 +288,4 @@ postOrder mtcr = Matcher . ReaderT $ \tr -> do
   let acts = fmap (applyMatcher (postOrder mtcr)) cs
       logicThis = applyMatcher mtcr tr
   interleave (F.foldl interleave empty acts) logicThis
+-}
