@@ -120,7 +120,6 @@ instance Ledger m => Ledger (Matcher t m) where
   curren = lift . curren
   xylo = lift . xylo
 
-{-
 
 -- # Displaying trees
 
@@ -137,7 +136,7 @@ displayTree
   :: Ledger l
   => TreeL l
   -> l Text
-displayTree t = f <$> scalar t <*> children t
+displayTree t = f <$> capsule t <*> offspring t
   where
     f sc cs = maybe X.empty displayScalar sc <>
       if S.null cs then mempty else X.singleton '↓'
@@ -154,4 +153,3 @@ displayForest sq = case viewl sq of
     t1 <- displayTree x1
     let dispNext t = fmap (X.cons '•') $ displayTree t
     fmap (F.foldl' mappend t1) $ T.traverse dispNext xs1
--}

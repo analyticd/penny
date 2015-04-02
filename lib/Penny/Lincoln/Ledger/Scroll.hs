@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | A 'Scroll' is a an implementation of a 'Ledger'.  The 'Scroll' is
 -- the simplest 'Ledger', as it simply takes a list of concrete prices
@@ -19,28 +20,27 @@ import Penny.Lincoln.Ents
 import qualified Data.Foldable as Fdbl
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Prices
+import Control.Monad.Reader
+import Data.Sequence (Seq)
 
-{-
-data ScrollT m a = ScrollT ([[Either Price Transaction]] -> m a)
+type Topload = (Seq Tree, TopLineSer)
+type Plinkload = (Seq Tree, Trio, Qty, Commodity, PostingSer)
+type Environment
+  = [[Either Price (Transaction Topload Plinkload)]]
+
+newtype ScrollT m a
+  = ScrollT (ReaderT Environment m a)
+  deriving
+  ( Functor
+  , Applicative
+  , Monad
+  , MonadTrans
+  , MonadReader Environment
+  )
 
 type Scroll = ScrollT Identity
 
-instance Functor m => Functor (ScrollT m) where
-  fmap f (ScrollT v) = ScrollT $ \ts -> fmap f (v ts)
-
-instance Monad m => Monad (ScrollT m) where
-  return a = ScrollT $ \_ -> return a
-  ScrollT l >>= k = ScrollT $ \ts -> do
-    rl <- l ts
-    let ScrollT kk = k rl
-    kk ts
-
-instance (Monad m, Functor m) => Applicative (ScrollT m) where
-  pure = return
-  (<*>) = ap
-
-instance MonadTrans ScrollT where
-  lift = ScrollT . return
+{-
 
 data Posting = Posting [Tree] Trio Qty Commodity
   deriving (Eq, Ord, Show)
@@ -49,7 +49,8 @@ balancedToPostings :: Balanced PstgMeta -> [Posting]
 balancedToPostings = Fdbl.toList . fmap f . balancedToSeqEnt
   where
     f (Ent q cy (PstgMeta ts tri)) = Posting ts tri q cy
-
+-}
+{-
 instance (Applicative m, Monad m) => Ledger (ScrollT m) where
   type PriceL (ScrollT m) = Price
   type TransactionL (ScrollT m) = Transaction
