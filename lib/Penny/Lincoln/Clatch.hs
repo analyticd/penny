@@ -121,7 +121,10 @@ clatches conv txn = do
 
 -- | Create all 'Clatch' from a given 'Ledger'.  The transactions are
 -- retrieved using 'ledgerItems'.
-allClatches :: Ledger l => (Amount -> Maybe Converted) -> l (Seq (Clatch l))
+allClatches
+  :: Ledger l
+  => (Amount -> Maybe Converted)
+  -> l (Seq (Clatch l))
 allClatches conv = do
   itms <- fmap join vault
   let txns = rights itms
