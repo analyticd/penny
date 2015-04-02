@@ -24,6 +24,7 @@ containers = closedOpen "containers" [0,5] [0,6]
 uuParsing :: Package
 uuParsing = closedOpen "uu-parsinglib" [2,8,1] [2,9]
 
+-- | Currently unused
 parsec :: Package
 parsec = closedOpen "parsec" [3,1,7] [3,2]
 
@@ -33,6 +34,7 @@ time = closedOpen "time" [1,4] [1,6]
 transformers :: Package
 transformers = closedOpen "transformers" [0,3] [0,5]
 
+-- | Currently unused
 prednote :: Package
 prednote = closedOpen "prednote" [0,32] [0,33]
 
@@ -69,12 +71,15 @@ contravariant = closedOpen "contravariant" [1,2] [1,3]
 pipes :: Package
 pipes = closedOpen "pipes" [4,1,4] [4,2]
 
+-- | Currently unused
 pipesSafe :: Package
 pipesSafe = closedOpen "pipes-safe" [2,2] [2,3]
 
+-- | Currently unused
 process :: Package
 process = closedOpen "process" [1,2,0,0] [1,3]
 
+-- | Currently unused
 async :: Package
 async = closedOpen "async" [2,0] [2,1]
 
@@ -87,6 +92,7 @@ mtl = closedOpen "mtl" [2,2,1] [2,3]
 pipesCliff :: Package
 pipesCliff = closedOpen "pipes-cliff" [0,10] [0,11]
 
+-- | Currently unused
 logict :: Package
 logict = closedOpen "logict" [0,6] [0,7]
 
@@ -105,21 +111,16 @@ libraryDepends =
   , uuParsing
   , time
   , transformers
-  --, prednote
   , bifunctors
   , rainbow
   , rainbox
   , semigroups
   , contravariant
   , pipes
-  , pipesSafe
   , bytestring
-  , process
-  , async
   , turtle
   , mtl
   , pipesCliff
-  , logict
   ]
 
 testDepends :: [Package]

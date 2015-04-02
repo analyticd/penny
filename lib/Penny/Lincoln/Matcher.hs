@@ -38,21 +38,16 @@ module Penny.Lincoln.Matcher
 
   -- * Nesting
   , nest
-  , nestL
-  , labeled
-
-  -- * Turtle Patterns
-  , pattern
-
-  -- * Constants
-  , always
-  , never
 
   -- * Matching on common types
   , just
   , nothing
   , each
   , index
+  , pattern
+  , always
+  , never
+
 
   -- * Basement
 
@@ -68,7 +63,6 @@ module Penny.Lincoln.Matcher
   , logger
   , acceptW
   , rejectW
-  , nestW
   , predicateW
   ) where
 
@@ -85,7 +79,7 @@ import Rainbow
 import Control.Monad.Reader
 import Control.Monad.Writer
 import Data.String
-import Data.Sequence (Seq, (<|))
+import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
 -- | A 'Matcher' is a computation that, when run with a value known as
@@ -214,52 +208,24 @@ inform op = do
   l <- currentNesting
   logger (Message l Nothing (Just op))
 
+-- # Nesting
+
 -- | Runs a 'Matcher' inside of the current 'Matcher'.
 nest
   :: Monad m
   => (t' -> m t)
   -- ^ Converts the subject of the current 'Matcher' to the subject of
   -- the 'Matcher' that will run nested.
-  -- ^
   -> Matcher t m a
   -- ^ Run this 'Matcher' inside of the current 'Matcher'.
   -> Matcher t' m a
-  -- ^
-nest = nestW Nothing
+nest f (Matcher (WriterT (ReaderT getAct)))
+  = Matcher . WriterT . ReaderT $ \(t', n) -> do
+    t <- lift $ f t'
+    getAct (t, next n)
 
--- | Runs a 'Matcher' inside of the current 'Matcher'.
--- Also adds a description to the log.
---
--- For an example of 'nestL' in action, see 'pattern'.
-nestL
-  :: Monad m
-  => Opinion
-  -- ^ Add this description to the log.
-  -> (t' -> m t)
-  -> Matcher t m a
-  -- ^ Converts the subject of the current 'Matcher' to the subject of
-  -- the 'Matcher' that will run nested.
-  -> Matcher t' m a
-  -- ^
-nestL op = nestW (Just op)
 
--- | Runs a 'Matcher' inside of the current 'Matcher', and makes a
--- note in the log.  Like 'nestL' but does not allow the type of the
--- nested 'Matcher' to be different.  For an example of its use, see
--- 'just'.
-labeled
-  :: Monad m
-  => Opinion
-  -- ^ Add this entry to the log.
-  -> Matcher t m a
-  -- ^ Run this 'Matcher' inside of the current 'Matcher'
-  -> Matcher t m a
-  -- ^
-labeled op = nestL op return
-
--- | Like 'predicateW' but does not add an 'Opinion' to the log.  It
--- does, however, make an entry into the log indicating acceptance or
--- rejection.
+-- # Predicates
 
 -- | @predicate f@ creates a 'Matcher' that succeeds and returns the
 -- subject if the function @f@ returns 'True'.  It also adds a message
@@ -280,6 +246,8 @@ predicateL
   -- ^
 predicateL f = predicateW (fmap (\(b, o) -> (b, Just o)) f)
 
+-- # Matchers for existing types
+
 -- | Turns a Turtle 'Pattern' into a 'Matcher'.  The 'Matcher' returns
 -- every match found by the 'Pattern'.
 pattern :: Monad m => Pattern a -> Matcher Text m a
@@ -289,7 +257,8 @@ pattern pat = do
         [ "running text pattern matcher on text: "
         , chunkFromText . X.pack . show $ txt
         ]
-  nestL op return
+  inform op
+  nest return
     . F.asum
     . map accept
     . match pat
@@ -312,7 +281,7 @@ just m = do
   mayS <- getSubject
   case mayS of
     Nothing -> rejectL "is Nothing"
-    Just s -> labeled "is Just" . localSubject m $ s
+    Just s -> inform "is Just" >> localSubject m s
 
 -- | Succeeds only if the subject is 'Nothing'.
 nothing :: Monad m => Matcher (Maybe a) m ()
@@ -331,8 +300,8 @@ each
   -> Matcher (f t) m a
 each mtcr = do
   sq <- getSubject
-  labeled "running matcher for each item in sequence"
-    . F.asum
+  inform "running matcher for each item in sequence"
+  F.asum
     . fmap (localSubject mtcr)
     $ sq
 
@@ -348,17 +317,17 @@ index
 index idx mr = getSubject >>= f
   where
     f sq
-      | idx >= 0 && idx < Seq.length sq =
-          labeled (fromString $ "applying Matcher to index " ++ show idx)
-                  (localSubject mr (sq `Seq.index` idx))
+      | idx >= 0 && idx < Seq.length sq = do
+          inform (fromString $ "applying Matcher to index " ++ show idx)
+          localSubject mr (sq `Seq.index` idx)
       | otherwise = rejectL
           (fromString $ "index out of range: " ++ show idx)
 
 -- # Logging
 
 -- | Indicates the current level of nesting.  This is used for logging
--- purposes.  You can increase nesting by using the 'nestW', 'nestL',
--- 'nest', and 'labeled' functions.
+-- purposes.  You can increase nesting by using the 'nest'
+-- functions.
 newtype Nesting = Nesting Unsigned
   deriving (Eq, Ord, Show, Natural)
 
@@ -415,29 +384,6 @@ rejectW op = do
   l <- currentNesting
   logger (Message l (Just Rejected) op)
   empty
-
--- | Runs a 'Matcher' inside of the current 'Matcher'.
-nestW
-  :: Monad m
-  => Maybe Opinion
-  -- ^ Add to the log, if an 'Opinion' is provided here.  The log
-  -- entry can describe the sort of nesting that is occurring.
-  -- Otherwise, do not add to the log.
-  -> (t' -> m t)
-  -- ^ Converts the subject of the current 'Matcher' to the subject of
-  -- the 'Matcher' that will run nested.
-  -> Matcher t m a
-  -- ^ Run this 'Matcher' inside of the current 'Matcher'.
-  -> Matcher t' m a
-nestW mayOp f (Matcher (WriterT (ReaderT getAct)))
-  = Matcher . WriterT . ReaderT $ \(t', n) -> do
-    t <- lift $ f t'
-    (a, w) <- getAct (t, next n)
-    let w' = case mayOp of
-          Nothing -> w
-          Just op ->
-            Message n Nothing (Just ("nesting: " <> op)) <| w
-    return (a, w')
 
 -- | @predicate f@ creates a 'Matcher' that will match any value for
 -- which @f@ returns True.  The value itself is returned as a witness.
