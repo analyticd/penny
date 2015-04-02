@@ -14,6 +14,7 @@ import Penny.Lincoln.DateTime
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.Prices
 import Penny.Lincoln.Exch
+import Penny.Lincoln.Matcher
 import Data.Sequence (Seq, ViewL(..), viewl)
 import qualified Data.Sequence as S
 import Penny.Lincoln.Transaction
@@ -96,6 +97,28 @@ class (Applicative l, Monad l) => Ledger l where
 
   -- | The serial that belongs to a posting.
   xylo :: PostingL l -> l PostingSer
+
+instance Ledger m => Ledger (Matcher t m) where
+  type PriceL (Matcher t m) = PriceL m
+  type TransactionL (Matcher t m) = TransactionL m
+  type TreeL (Matcher t m) = TreeL m
+  type PostingL (Matcher t m) = PostingL m
+
+  vault = lift vault
+  instant = lift . instant
+  trade = lift . trade
+  exchange = lift . exchange
+  capsule = lift . capsule
+  namespace = lift . namespace
+  offspring = lift . offspring
+  txnMeta = lift . txnMeta
+  zonk = lift . zonk
+  plinks = lift . plinks
+  plinkMeta = lift . plinkMeta
+  triplet = lift . triplet
+  quant = lift . quant
+  curren = lift . curren
+  xylo = lift . xylo
 
 {-
 

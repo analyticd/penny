@@ -16,6 +16,7 @@ module Penny.Lincoln
     , module Penny.Lincoln.Filter
     , module Penny.Lincoln.Friendly
     , module Penny.Lincoln.Ledger
+    , module Penny.Lincoln.Matcher
     , module Penny.Lincoln.Mimode
     , module Penny.Lincoln.Natural
     , module Penny.Lincoln.NonEmpty
@@ -47,6 +48,7 @@ import Penny.Lincoln.Field
 import Penny.Lincoln.Filter
 import Penny.Lincoln.Friendly
 import Penny.Lincoln.Ledger
+import Penny.Lincoln.Matcher
 import Penny.Lincoln.Mimode
 import Penny.Lincoln.Natural
 import Penny.Lincoln.NonEmpty

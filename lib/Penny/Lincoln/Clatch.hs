@@ -19,7 +19,7 @@
 -- Each 'Tranche' is assigned a serial.
 module Penny.Lincoln.Clatch where
 
-import Prednote hiding (maybe)
+{-
 import Penny.Lincoln.Amount
 import Penny.Lincoln.Ledger
 import Penny.Lincoln.Filter
@@ -40,6 +40,11 @@ import Penny.Lincoln.Balances
 import Data.Monoid
 import Data.Bifunctor
 import qualified Data.Foldable as F
+-}
+
+-- Commented out - need to remove Prednote
+
+{-
 
 -- # Bevy
 
@@ -226,3 +231,4 @@ allTranches conv pdCltch srtr pdSplint = do
   splnts <- splints srtr slcs
   (trchs, rsltTrchs) <- tranches pdSplint splnts
   return (trchs, rsltSlcs, rndgs, rsltTrchs)
+-}

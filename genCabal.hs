@@ -58,7 +58,7 @@ rainbox :: Package
 rainbox = closedOpen "rainbox" [0,10,0,0] [0,11]
 
 rainbow :: Package
-rainbow = closedOpen "rainbow" [0,20,4] [0,21]
+rainbow = closedOpen "rainbow" [0,22] [0,23]
 
 semigroups :: Package
 semigroups = closedOpen "semigroups" [0,16,1] [0,17]
@@ -105,7 +105,7 @@ libraryDepends =
   , uuParsing
   , time
   , transformers
-  , prednote
+  --, prednote
   , bifunctors
   , rainbow
   , rainbox

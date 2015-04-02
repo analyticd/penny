@@ -5,8 +5,8 @@ import Control.Applicative
 import Penny.Lincoln.Serial
 import Data.Sequence (Seq, ViewL(..), (<|))
 import qualified Data.Sequence as S
-import Prednote
 
+{-
 serialedFilter
   :: Applicative f
   => PredM f a
@@ -28,3 +28,4 @@ pdFilter (PredM pd) sq = case S.viewl sq of
       f r (as, rs) = case splitResult r of
         Left _ -> (as, r <| rs)
         Right _ -> (x <| as, r <| rs)
+-}

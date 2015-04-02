@@ -2,6 +2,9 @@
 
 module Penny.Queries.Tranche where
 
+-- Commented out - removing Prednote
+
+{-
 import qualified Penny.Lincoln as L
 import Data.Sequence (Seq)
 
@@ -83,3 +86,4 @@ best pd tr = do
 
 side :: L.Tranche l -> Maybe L.Side
 side = L.qtySide . qty
+-}
