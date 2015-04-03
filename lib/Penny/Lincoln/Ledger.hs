@@ -6,7 +6,7 @@
 -- specifies an interface for such stores.
 module Penny.Lincoln.Ledger where
 
-import Control.Applicative
+import Control.Monad
 import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
 import Penny.Lincoln.Qty
@@ -25,7 +25,7 @@ import Data.Monoid
 import qualified Data.Text as X
 import Control.Monad.Reader
 
-class (Applicative l, Monad l) => Ledger l where
+class Monad l => Ledger l where
   type PriceL (l :: * -> *) :: *
   type TransactionL (l :: * -> *) :: *
   type TreeL (l :: * -> *) :: *
@@ -136,7 +136,7 @@ displayTree
   :: Ledger l
   => TreeL l
   -> l Text
-displayTree t = f <$> capsule t <*> offspring t
+displayTree t = liftM2 f (capsule t) (offspring t)
   where
     f sc cs = maybe X.empty displayScalar sc <>
       if S.null cs then mempty else X.singleton '↓'
@@ -151,5 +151,5 @@ displayForest sq = case viewl sq of
   EmptyL -> return X.empty
   x1 :< xs1 -> do
     t1 <- displayTree x1
-    let dispNext t = fmap (X.cons '•') $ displayTree t
-    fmap (F.foldl' mappend t1) $ T.traverse dispNext xs1
+    let dispNext t = liftM (X.cons '•') $ displayTree t
+    liftM (F.foldl' mappend t1) $ T.mapM dispNext xs1

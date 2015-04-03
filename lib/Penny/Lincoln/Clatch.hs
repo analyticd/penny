@@ -27,7 +27,6 @@ import Data.Sequence
 import qualified Data.Sequence as S
 import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
-import Control.Applicative
 import Control.Monad
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.NonEmpty
@@ -88,9 +87,9 @@ bevies
   -- ^ How to convert 'Amount's
   -> Seq (PostingL l)
   -> l (Seq (Bevy l))
-bevies conv = T.traverse mkBevy
+bevies conv = T.mapM mkBevy
   where
-    mkBevy pstg = f <$> quant pstg <*> curren pstg
+    mkBevy pstg = liftM2 f (quant pstg) (curren pstg)
       where
         f q c = Bevy pstg (Amount c q) (conv (Amount c q))
 
@@ -126,9 +125,9 @@ allClatches
   => (Amount -> Maybe Converted)
   -> l (Seq (Clatch l))
 allClatches conv = do
-  itms <- fmap join vault
+  itms <- liftM join vault
   let txns = rights itms
-  fmap join $ T.mapM (clatches conv) txns
+  liftM join $ T.mapM (clatches conv) txns
 
 -- | Map describing how different 'Commodity' are rendered.
 newtype Renderings = Renderings
@@ -145,7 +144,7 @@ clatchAmount (Clatch _ _ (Bevy _ amt mayConv) _)
 -- | Given a Clatch, update the Renderings map.
 updateRenderings :: Ledger l => Clatch l -> Renderings -> l Renderings
 updateRenderings (Clatch _ _ (Bevy pstg _ _) _)
-  (Renderings mp) = fmap f (triplet pstg)
+  (Renderings mp) = liftM f (triplet pstg)
   where
     f tri = case trioRendering tri of
       Nothing -> Renderings mp
@@ -166,7 +165,7 @@ slices
   -> Seq (Clatch l)
   -> l (Seq (Slice l), Seq (Maybe (Seq Message)))
 slices pd cltchs = do
-  (withSers, rslt) <- fmap (first serialNumbers)
+  (withSers, rslt) <- liftM (first serialNumbers)
     . filterSeq pd $ cltchs
   return (fmap (uncurry Slice) withSers, rslt)
 
@@ -179,12 +178,12 @@ slices pd cltchs = do
 data Splint l = Splint (Slice l) Serset Balances
 
 splints
-  :: Applicative f
-  => (Seq (Slice l) -> f (Seq (Slice l)))
+  :: Monad m
+  => (Seq (Slice m) -> m (Seq (Slice m)))
   -- ^ Sorter
-  -> Seq (Slice l)
-  -> f (Seq (Splint l))
-splints srtr sq = fmap mkSplints $ srtr sq
+  -> Seq (Slice m)
+  -> m (Seq (Splint m))
+splints srtr sq = liftM mkSplints $ srtr sq
   where
     mkSplints = addBals . serialNumbers
     addBals = snd . T.mapAccumL addBal mempty

@@ -93,6 +93,17 @@ instance T.Traversable PstgMeta where
 -- 'Tree' for each top line and posting.  The type variables @tlMeta@
 -- and @pMeta@ represent arbitrary metadata for the 'TopLine' and
 -- 'PstgMeta', respectively.
+--
+-- Here is the posting data that is ultimately available:
+--
+-- * through 'Balanced', you get 'Penny.Lincoln.Ent.Ent', which
+-- contains an 'Penny.Lincoln.Amount.Amount', which contains the
+-- 'Penny.Lincoln.Commodity.Commodity' and 'Penny.Lincoln.Qty.Qty'
+--
+-- * through 'PstgMeta', you get the list of 'Tree' and the 'Trio'
+--
+-- The only way to store serials with a 'Transaction' is by storing
+-- them in the metadata.
 data Transaction tlMeta pMeta
   = Transaction (TopLine tlMeta) (Balanced (PstgMeta pMeta))
   -- ^ @Transaction a b c@, where
