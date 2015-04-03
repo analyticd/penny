@@ -10,14 +10,14 @@ module Penny.Lincoln.Ents
   , balancedToSeqEnt
   , entsToBalanced
   , ImbalancedError(..)
-  , View
+  , EntView
   , entsLeft
   , thisEnt
   , entsRight
   , moveLeft
   , moveRight
-  , allViews
-  , siblingViews
+  , allEntViews
+  , siblingEntViews
   , viewToBalanced
   , restrictedBalanced
   ) where

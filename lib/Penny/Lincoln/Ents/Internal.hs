@@ -103,44 +103,44 @@ entsToBalanced (Ents sq (Imbalances m)) = case M.toList m of
   [] -> return $ Balanced sq
   x:xs -> Left $ ImbalancedError x xs
 
-data View a = View
+data EntView a = EntView
   { entsLeft :: Seq (Ent a)
   , thisEnt :: Ent a
   , entsRight :: Seq (Ent a)
   } deriving (Eq, Ord, Show)
 
-instance Functor View where
-  fmap f (View l c r) = View (fmap (fmap f) l) (fmap f c)
+instance Functor EntView where
+  fmap f (EntView l c r) = EntView (fmap (fmap f) l) (fmap f c)
     (fmap (fmap f) r)
 
-instance F.Foldable View where
-  foldr f z (View l c r) = F.foldr f z
+instance F.Foldable EntView where
+  foldr f z (EntView l c r) = F.foldr f z
     . fmap (\(Ent _ m) -> m) $ (l |> c) <> r
 
-instance T.Traversable View where
-  traverse f (View l c r)
-    = View
+instance T.Traversable EntView where
+  traverse f (EntView l c r)
+    = EntView
     <$> T.sequenceA (fmap (T.traverse f) l)
     <*> T.traverse f c
     <*> T.sequenceA (fmap (T.traverse f) r)
 
-moveLeft :: View a -> Maybe (View a)
-moveLeft (View l c r) = case viewr l of
+moveLeft :: EntView a -> Maybe (EntView a)
+moveLeft (EntView l c r) = case viewr l of
   EmptyR -> Nothing
-  xs :> x -> Just $ View xs x (c <| r)
+  xs :> x -> Just $ EntView xs x (c <| r)
 
-moveRight :: View a -> Maybe (View a)
-moveRight (View l c r) = case viewl r of
+moveRight :: EntView a -> Maybe (EntView a)
+moveRight (EntView l c r) = case viewl r of
   EmptyL -> Nothing
-  x :< xs -> Just $ View (l |> c) x xs
+  x :< xs -> Just $ EntView (l |> c) x xs
 
--- siblingViews - careful - each sibling view must contain the 'Ent'
--- for the current 'View', but the returned 'Seq' cannot itself
--- include the current 'View'
+-- siblingEntViews - careful - each sibling view must contain the 'Ent'
+-- for the current 'EntView', but the returned 'Seq' cannot itself
+-- include the current 'EntView'
 
--- | A 'Seq' of 'View' that are siblings of this 'View'.
-siblingViews :: View a -> Seq (View a)
-siblingViews (View l c r) = go S.empty pairs
+-- | A 'Seq' of 'EntView' that are siblings of this 'EntView'.
+siblingEntViews :: EntView a -> Seq (EntView a)
+siblingEntViews (EntView l c r) = go S.empty pairs
   where
     pairs = ( (fmap (\e -> (True, e)) l)
               |> (False, c) )
@@ -151,20 +151,20 @@ siblingViews (View l c r) = go S.empty pairs
         | not use -> go soFar sq
         | otherwise -> this <| go (soFar |> this) rest
         where
-          this = View l' e r'
+          this = EntView l' e r'
           l' = fmap thisEnt soFar
           r' = fmap snd rest
 
 
-allViews :: Balanced a -> Seq (View a)
-allViews (Balanced sq) = go S.empty sq
+allEntViews :: Balanced a -> Seq (EntView a)
+allEntViews (Balanced sq) = go S.empty sq
   where
     go onLeft s = case viewl s of
       EmptyL -> S.empty
-      x :< xs -> View onLeft x xs <| go (onLeft |> x) xs
+      x :< xs -> EntView onLeft x xs <| go (onLeft |> x) xs
 
-viewToBalanced :: View a -> Balanced a
-viewToBalanced (View l c r) = Balanced $ (l |> c) <> r
+viewToBalanced :: EntView a -> Balanced a
+viewToBalanced (EntView l c r) = Balanced $ (l |> c) <> r
 
 -- | Creates 'Balanced' sets of 'Ent'.  Unlike 'entsToBalanced' this
 -- function never fails.  To accomplish this, it places greater

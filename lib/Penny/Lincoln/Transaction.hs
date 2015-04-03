@@ -160,12 +160,12 @@ transaction topLine sqnce = makeEnts >>= makeTxn
 
 -- | A single posting, bundled with its sibling postings and with top
 -- line metadata.
-data Bundle tm pm = Bundle (TopLine tm) (View (PstgMeta pm))
+data Bundle tm pm = Bundle (TopLine tm) (EntView (PstgMeta pm))
   deriving (Eq, Ord, Show)
 
 transactionToBundles :: Transaction tm pm -> Seq (Bundle tm pm)
 transactionToBundles (Transaction tl bal) =
-  fmap (Bundle tl) $ allViews bal
+  fmap (Bundle tl) $ allEntViews bal
 
 
 bundleToTransaction :: Bundle tm pm -> Transaction tm pm
@@ -178,7 +178,7 @@ prevBundle :: Bundle tm pm -> Maybe (Bundle tm pm)
 prevBundle (Bundle tl v) = fmap (Bundle tl) $ moveLeft v
 
 siblingBundles :: Bundle tm pm -> Seq (Bundle tm pm)
-siblingBundles (Bundle tl v) = fmap (Bundle tl) $ siblingViews v
+siblingBundles (Bundle tl v) = fmap (Bundle tl) $ siblingEntViews v
 
 -- # Serials
 

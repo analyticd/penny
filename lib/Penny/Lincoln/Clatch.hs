@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE TypeFamilies #-}
 -- | ConvertedPostingViewes and associated types.  These types help
 -- summarize a collection of postings.
 --
@@ -47,103 +48,47 @@ import qualified Data.Foldable as F
 
 -- # ConvertedPosting
 
--- | An 'Amount' that has been converted from the native 'Amount' in
--- the posting.
-newtype Converted = Converted Amount
+newtype Converted a = Converted a
+  deriving (Functor, T.Traversable, F.Foldable)
 
 -- | A posting, along with its 'Amount' and (possibly) its 'Converted'
 -- 'Amount'.
 data ConvertedPosting l
-  = ConvertedPosting (PostingL l) Amount (Maybe Converted)
+  = ConvertedPosting (PostingL l) Amount (Maybe (Converted Amount))
 
--- # ConvertedPostingViewes
-
--- | A view on postings; gives you a posting, its sibling postings,
--- and the parent transaction.
-data ConvertedPostingView l = ConvertedPostingView
-  (TransactionL l) (Seq (ConvertedPosting l))
-  (ConvertedPosting l) (Seq (ConvertedPosting l))
-  -- ^ @ConvertedPostingView t l c r@, where
-  --
-  -- @t@ is the transaction giving rise to this
-  -- 'ConvertedPostingView',
-  --
-  -- @l@ are postings on the left.  Closer siblings are at the
-  -- right end of the list.
-  --
-  -- @c@ is the current posting.
-  --
-  -- @r@ are postings on the right.  Closer siblings are at
-  -- the left end of the list.
-
-nextConvertedPostingView
-  :: ConvertedPostingView l
-  -> Maybe (ConvertedPostingView l)
-nextConvertedPostingView (ConvertedPostingView t l c r)
-  = case viewl r of
-      EmptyL -> Nothing
-      x :< xs -> Just $ ConvertedPostingView t (l |> c) x xs
-
-prevConvertedPostingView
-  :: ConvertedPostingView l
-  -> Maybe (ConvertedPostingView l)
-prevConvertedPostingView (ConvertedPostingView t l c r)
-  = case viewr l of
-      EmptyR -> Nothing
-      xs :> x -> Just $ ConvertedPostingView t xs x (c <| r)
-
--- | Get all the 'ConvertedPosting' from a 'PostingL'; also
--- performs any requested conversions.
-bevies
+convertPosting
   :: Ledger l
-  => (Amount -> Maybe Converted)
-  -- ^ How to convert 'Amount's
-  -> Seq (PostingL l)
-  -> l (Seq (ConvertedPosting l))
-bevies conv = T.mapM mkConvertedPosting
-  where
-    mkConvertedPosting pstg = liftM2 f (quant pstg) (curren pstg)
-      where
-        f q c = ConvertedPosting pstg (Amount c q) (conv (Amount c q))
+  => (Amount -> Maybe (Converted Amount))
+  -> PostingL l
+  -> l (ConvertedPosting l)
+convertPosting cnv p = do
+  qty <- quant p
+  cy <- curren p
+  let amt = Amount cy qty
+  return $ ConvertedPosting p amt (cnv amt)
 
--- | Creates all 'ConvertedPostingView' from a list of
--- 'ConvertedPosting'.
-beviesToConvertedPostingViewes
-  :: TransactionL l
-  -- ^ Parent transaction to the collection of 'ConvertedPosting'
-  -> Seq (ConvertedPosting l)
-  -> Seq (ConvertedPostingView l)
-beviesToConvertedPostingViewes txn = go S.empty
-  where
-    go onLeft onRight = case viewl onRight of
-      EmptyL -> S.empty
-      x :< xs -> ConvertedPostingView txn onLeft x xs
-                                      <| go (onLeft |> x) xs
+data PostingView l
+  = PostingView (TransactionL l) (View (ConvertedPosting l))
 
--- | Creates all 'ConvertedPostingView' from a single 'TransactionL'.
-clatches
+convertTransaction
   :: Ledger l
-  => (Amount -> Maybe Converted)
-  -- ^ Performs any conversions.
+  => (Amount -> Maybe (Converted Amount))
+  -- ^
   -> TransactionL l
-  -- ^ Transaction containing the postings to create
-  -- 'ConvertedPostingView' from.
-  -> l (Seq (ConvertedPostingView l))
-clatches conv txn = do
+  -- ^
+  -> l (Seq (PostingView l))
+convertTransaction cv txn = do
   pstgs <- plinks txn
-  bvys <- bevies conv pstgs
-  return $ beviesToConvertedPostingViewes txn bvys
+  converted <- T.mapM (convertPosting cv) pstgs
+  return . fmap (PostingView txn) . allViews $ converted
 
--- | Create all 'ConvertedPostingView' from a given 'Ledger'.  The
--- transactions are retrieved using 'ledgerItems'.
-allConvertedPostingViewes
+allConvertedTransactions
   :: Ledger l
-  => (Amount -> Maybe Converted)
-  -> l (Seq (ConvertedPostingView l))
-allConvertedPostingViewes conv = do
+  => (Amount -> Maybe (Converted Amount))
+  -> l (Seq (PostingView l))
+allConvertedTransactions cv = do
   itms <- liftM join vault
-  let txns = rights itms
-  liftM join $ T.mapM (clatches conv) txns
+  liftM join . T.mapM (convertTransaction cv) . rights $ itms
 
 -- | Map describing how different 'Commodity' are rendered.
 newtype Renderings = Renderings
@@ -151,23 +96,28 @@ newtype Renderings = Renderings
          (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
   deriving (Eq, Ord, Show)
 
--- | Given a ConvertedPostingView, selects the best Amount from the
+-- | Given a PostingView, selects the best Amount from the
 -- original Amount and the 'Converted' one.  If there is a 'Converted'
 -- amount, use that; otherwise, use the original 'Amount'.
-clatchAmount :: ConvertedPostingView l -> Amount
-clatchAmount (ConvertedPostingView _ _
-              (ConvertedPosting _ amt mayConv) _)
-  = maybe amt (\(Converted a) -> a) mayConv
+--
+-- Fails if the cursor is not on an item.
+clatchAmount :: PostingView l -> Maybe Amount
+clatchAmount (PostingView _ pv) = fmap get (viewCurrentItem pv)
+  where
+    get (ConvertedPosting _ am mayCv) = case mayCv of
+      Nothing -> am
+      Just (Converted am') -> am'
 
 -- | Given a ConvertedPostingView, update the Renderings map.
 updateRenderings
   :: Ledger l
-  => ConvertedPostingView l
+  => PostingView l
   -> Renderings
   -> l Renderings
-updateRenderings (ConvertedPostingView _ _
-                  (ConvertedPosting pstg _ _) _)
-  (Renderings mp) = liftM f (triplet pstg)
+updateRenderings (PostingView _ pv) (Renderings mp)
+  = case viewCurrentItem pv of
+  Nothing -> return $ Renderings mp
+  Just (ConvertedPosting pstg _ _) -> liftM f (triplet pstg)
   where
     f tri = case trioRendering tri of
       Nothing -> Renderings mp
@@ -175,6 +125,8 @@ updateRenderings (ConvertedPostingView _ _
         Nothing -> M.insert cy (NonEmpty (ar, ei) S.empty) mp
         Just (NonEmpty o1 os) -> M.insert cy
           (NonEmpty o1 (os |> (ar, ei))) mp
+
+{-
 
 -- | A 'Seq' of 'FilteredConvertedPostingView' results from the
 -- filtering of a 'Seq' of 'ConvertedPostingView'.  Each
@@ -277,3 +229,4 @@ allTranches conv pdCltch srtr pd = do
   splnts <- splints srtr slcs
   (trchs, rsltTrchs) <- tranches pd splnts
   return (trchs, rsltSlcs, rndgs, rsltTrchs)
+-}
