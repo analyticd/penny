@@ -126,7 +126,7 @@ updateRenderings (_, pv) (Renderings mp)
         Just (NonEmpty o1 os) -> M.insert cy
           (NonEmpty o1 (os |> (ar, ei))) mp
 
-data Filtered a = Filtered Serset a
+newtype Filtered a = Filtered (Sersetted a)
   deriving (Eq, Ord, Show, Functor, F.Foldable, T.Traversable)
 
 filterWithSerials
@@ -136,7 +136,7 @@ filterWithSerials
   -> m (Seq (Maybe (Seq Message)), Seq (Filtered t))
 filterWithSerials mr = liftM (fmap addSeqs) . filterSeq mr
   where
-    addSeqs = fmap (\(a, srst) -> Filtered srst a)
+    addSeqs = fmap (\(a, srst) -> Filtered (Sersetted srst a))
               . serialNumbers
 
 filterConvertedPostings
@@ -146,16 +146,21 @@ filterConvertedPostings
   -> l ( Seq (Maybe (Seq Message))
        , Seq (Filtered (TransactionL l, View (ConvertedPosting l)))
        )
-filterConvertedPostings mr sq = do
-  (filtered, msgs) <- filterSeq mr sq
-  undefined
-{-
+filterConvertedPostings = filterWithSerials
 
--- | A 'Seq' of 'FilteredConvertedPostingView' results from the
--- filtering of a 'Seq' of 'ConvertedPostingView'.  Each
--- 'FilteredConvertedPostingView' is accompanied by a 'Serset'.
-newtype FilteredConvertedPostingView l
-  = FilteredConvertedPostingView (Sersetted (ConvertedPostingView l))
+newtype Sorted a = Sorted (Sersetted a)
+  deriving (Eq, Ord, Show, Functor, F.Foldable, T.Traversable)
+
+sortWithSerials
+  :: (Monad m, F.Foldable c)
+  => c (SortKey m k a)
+  -> Seq a
+  -> m (Seq (Sorted a))
+sortWithSerials keys sq = liftM addSers $ multipleSortByM keys sq
+  where
+    addSers = fmap (\(a, srst) -> Sorted (Sersetted srst a)) . serialNumbers
+
+{-
 
 -- | Computes a series of 'FilteredConvertedPostingView' from a series
 -- of 'ConvertedPostingView' by filtering using a given predicate.

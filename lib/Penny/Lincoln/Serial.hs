@@ -22,8 +22,11 @@ data Serset = Serset Forward Reverse
   deriving (Eq, Ord, Show)
 
 -- | Things that have a Serset.
--- data Sersetted a = Sersetted a Serset
---  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+data Sersetted a = Sersetted Serset a
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+--sersettedSerials :: T.Traversable t => t a -> t (Sersetted a)
+--sersettedSerials = fmap (\(
 
 makeForward :: State Unsigned Forward
 makeForward = do
