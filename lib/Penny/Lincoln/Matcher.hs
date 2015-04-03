@@ -450,7 +450,7 @@ filterSeq
   -- result if the 'Matcher' returns a single value of any type.
   -> Seq s
   -- ^ Filter this sequence
-  -> m (Seq s, Seq (Maybe (Seq Message)))
+  -> m (Seq (Maybe (Seq Message)), Seq s)
   -- ^ Returns matching values, and a list of 'Message' resulting from
   -- the filtering.  In the second list, there is a value of type
   -- 'Maybe' for each subject in the original list.  If the subject
@@ -460,11 +460,11 @@ filterSeq
   -- 'Message' from the first value, if there was one, is returned.
 filterSeq mr = go (Seq.empty, Seq.empty)
   where
-    go (matches, msgs) sq = case viewl sq of
-      EmptyL -> return (matches, msgs)
+    go (msgs, matches) sq = case viewl sq of
+      EmptyL -> return (msgs, matches)
       x :< xs -> do
         ei <- Pipes.next . enumerate $ applyMatcher mr x
         case ei of
-          Left () -> go (matches, msgs |> Nothing) xs
+          Left () -> go (msgs |> Nothing, matches) xs
           Right ((_, msgs'), _) ->
-            go (matches |> x, msgs |> Just msgs') xs
+            go (msgs |> Just msgs', matches |> x) xs

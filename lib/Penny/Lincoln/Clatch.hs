@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TupleSections #-}
 -- | ConvertedPostingViewes and associated types.  These types help
 -- summarize a collection of postings.
 --
@@ -25,6 +26,7 @@
 -- yields a set of 'Tranche'.  Each 'Tranche' is assigned a serial.
 module Penny.Lincoln.Clatch where
 
+import Control.Applicative
 import Penny.Lincoln.Amount
 import Penny.Lincoln.Ledger
 import Penny.Lincoln.SeqUtil
@@ -67,8 +69,6 @@ convertPosting cnv p = do
   let amt = Amount cy qty
   return $ ConvertedPosting p amt (cnv amt)
 
-data PostingView l
-  = PostingView (TransactionL l) (View (ConvertedPosting l))
 
 convertTransaction
   :: Ledger l
@@ -76,16 +76,16 @@ convertTransaction
   -- ^
   -> TransactionL l
   -- ^
-  -> l (Seq (PostingView l))
+  -> l (Seq (TransactionL l, View (ConvertedPosting l)))
 convertTransaction cv txn = do
   pstgs <- plinks txn
   converted <- T.mapM (convertPosting cv) pstgs
-  return . fmap (PostingView txn) . allViews $ converted
+  return . fmap (txn,) . allViews $ converted
 
 allConvertedTransactions
   :: Ledger l
   => (Amount -> Maybe (Converted Amount))
-  -> l (Seq (PostingView l))
+  -> l (Seq (TransactionL l, View (ConvertedPosting l)))
 allConvertedTransactions cv = do
   itms <- liftM join vault
   liftM join . T.mapM (convertTransaction cv) . rights $ itms
@@ -101,8 +101,8 @@ newtype Renderings = Renderings
 -- amount, use that; otherwise, use the original 'Amount'.
 --
 -- Fails if the cursor is not on an item.
-clatchAmount :: PostingView l -> Maybe Amount
-clatchAmount (PostingView _ pv) = fmap get (viewCurrentItem pv)
+clatchAmount :: (a, View (ConvertedPosting l)) -> Maybe Amount
+clatchAmount (_, pv) = fmap get (viewCurrentItem pv)
   where
     get (ConvertedPosting _ am mayCv) = case mayCv of
       Nothing -> am
@@ -111,10 +111,10 @@ clatchAmount (PostingView _ pv) = fmap get (viewCurrentItem pv)
 -- | Given a ConvertedPostingView, update the Renderings map.
 updateRenderings
   :: Ledger l
-  => PostingView l
+  => (a, View (ConvertedPosting l))
   -> Renderings
   -> l Renderings
-updateRenderings (PostingView _ pv) (Renderings mp)
+updateRenderings (_, pv) (Renderings mp)
   = case viewCurrentItem pv of
   Nothing -> return $ Renderings mp
   Just (ConvertedPosting pstg _ _) -> liftM f (triplet pstg)
@@ -126,6 +126,29 @@ updateRenderings (PostingView _ pv) (Renderings mp)
         Just (NonEmpty o1 os) -> M.insert cy
           (NonEmpty o1 (os |> (ar, ei))) mp
 
+data Filtered a = Filtered Serset a
+  deriving (Eq, Ord, Show, Functor, F.Foldable, T.Traversable)
+
+filterWithSerials
+  :: Monad m
+  => Matcher t m a
+  -> Seq t
+  -> m (Seq (Maybe (Seq Message)), Seq (Filtered t))
+filterWithSerials mr = liftM (fmap addSeqs) . filterSeq mr
+  where
+    addSeqs = fmap (\(a, srst) -> Filtered srst a)
+              . serialNumbers
+
+filterConvertedPostings
+  :: Ledger l
+  => Matcher (TransactionL l, View (ConvertedPosting l)) l a
+  -> Seq (TransactionL l, View (ConvertedPosting l))
+  -> l ( Seq (Maybe (Seq Message))
+       , Seq (Filtered (TransactionL l, View (ConvertedPosting l)))
+       )
+filterConvertedPostings mr sq = do
+  (filtered, msgs) <- filterSeq mr sq
+  undefined
 {-
 
 -- | A 'Seq' of 'FilteredConvertedPostingView' results from the
