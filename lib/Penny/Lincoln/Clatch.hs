@@ -155,7 +155,7 @@ updateRenderings (Clatch _ _ (Bevy pstg _ _) _)
 
 -- | A 'Seq' of 'Slice' results from the filtering of a 'Seq' of
 -- 'Clatch'.  Each 'Slice' is accompanied by a 'Serset'.
-data Slice l = Slice (Clatch l) Serset
+newtype Slice l = Slice (Sersetted (Clatch l))
 
 -- | Computes a series of 'Slice' from a series of 'Clatch' by
 -- filtering using a given predicate.
@@ -167,7 +167,7 @@ slices
 slices pd cltchs = do
   (withSers, rslt) <- liftM (first serialNumbers)
     . filterSeq pd $ cltchs
-  return (fmap (uncurry Slice) withSers, rslt)
+  return (fmap (Slice . uncurry Sersetted) withSers, rslt)
 
 
 -- | A 'Seq' of 'Splint' is the result of the sorting of a 'Seq' of
@@ -175,7 +175,7 @@ slices pd cltchs = do
 -- is the point at which 'Balances' are computed.  The 'Balances' is a
 -- running balance, computed using the 'Amount' returned by
 -- 'clatchAmount'.
-data Splint l = Splint (Slice l) Serset Balances
+newtype Splint l = Splint (Sersetted (Slice l, Balances))
 
 splints
   :: Monad m
@@ -187,14 +187,14 @@ splints srtr sq = liftM mkSplints $ srtr sq
   where
     mkSplints = addBals . serialNumbers
     addBals = snd . T.mapAccumL addBal mempty
-    addBal bal (slce@(Slice clch _), srst) = (bal', splt)
+    addBal bal (slce@(Slice (Sersetted clch _)), srst) = (bal', splt)
       where
         bal' = addAmountToBalances (clatchAmount clch) bal
-        splt = Splint slce srst bal'
+        splt = Splint (Sersetted (slce, bal') srst)
 
 -- | A 'Seq' of 'Tranche' is the result of the filtering of a 'Seq' of
 -- 'Splint'.  Each 'Tranche' comes with a 'Serset'.
-data Tranche l = Tranche (Splint l) Serset
+newtype Tranche l = Tranche (Sersetted (Splint l))
 
 tranches
   :: Monad m
@@ -202,7 +202,7 @@ tranches
   -> Seq (Splint m)
   -> m (Seq (Tranche m), Seq (Maybe (Seq Message)))
 tranches pd
-  = liftM (first (fmap (uncurry Tranche)))
+  = liftM (first (fmap (Tranche . uncurry Sersetted)))
   . liftM (first serialNumbers)
   . filterSeq pd
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Lincoln.Serial where
 
 import Control.Applicative
@@ -5,6 +6,8 @@ import Penny.Lincoln.Natural
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import Penny.Lincoln.Rep
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
 
 newtype Serial = Serial Unsigned
   deriving (Eq, Ord, Show)
@@ -17,6 +20,10 @@ newtype Reverse = Reverse Serial
 
 data Serset = Serset Forward Reverse
   deriving (Eq, Ord, Show)
+
+-- | Things that have a Serset.
+data Sersetted a = Sersetted a Serset
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 makeForward :: State Unsigned Forward
 makeForward = do
