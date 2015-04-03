@@ -1,22 +1,27 @@
--- | Clatches and associated types.  These types help summarize a
--- collection of postings.
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+-- | ConvertedPostingViewes and associated types.  These types help
+-- summarize a collection of postings.
 --
 -- First, a set of transactions is processed to create a set of
--- 'Clatch'.  Each transaction can give rise to multiple 'Clatch';
--- there is one 'Clatch' per posting.  The 'Clatch' are not assigned
--- serials; if you're interested in the order of the 'Clatch', examine
--- the 'GlobalSer' of the respective 'PostingL'.
+-- 'ConvertedPostingView'.  Each transaction can give rise to multiple
+-- 'ConvertedPostingView'; there is one 'ConvertedPostingView' per
+-- posting.  The 'ConvertedPostingView' are not assigned serials; if
+-- you're interested in the order of the 'ConvertedPostingView',
+-- examine the 'GlobalSer' of the respective 'PostingL'.
 --
--- Then, the set of 'Clatch' is filtered.  This yields a set of
--- 'Slice'.  Each 'Slice' is assigned a 'Serset'.
+-- Then, the set of 'ConvertedPostingView' is filtered.  This yields a
+-- set of 'FilteredConvertedPostingView'.  Each
+-- 'FilteredConvertedPostingView' is assigned a 'Serset'.
 --
--- Next, the set of 'Clatch' are sorted.  This yields a 'Splint'.  The
--- 'Splint' is accompanied by its own serial.  Each 'Splint' is also
--- assigned a 'Balances' corresponding to where it is relative to the
--- other 'Splint'.
+-- Next, the set of 'ConvertedPostingView' are sorted.  This yields a
+-- 'SortedFilteredConvertedPostingView'.  The
+-- 'SortedFilteredConvertedPostingView' is accompanied by its own
+-- serial.  Each 'SortedFilteredConvertedPostingView' is also assigned
+-- a 'Balances' corresponding to where it is relative to the other
+-- 'SortedFilteredConvertedPostingView'.
 --
--- Next, the 'Splint' are filtered.  This yields a set of 'Tranche'.
--- Each 'Tranche' is assigned a serial.
+-- Next, the 'SortedFilteredConvertedPostingView' are filtered.  This
+-- yields a set of 'Tranche'.  Each 'Tranche' is assigned a serial.
 module Penny.Lincoln.Clatch where
 
 import Penny.Lincoln.Amount
@@ -40,7 +45,7 @@ import Data.Bifunctor
 import qualified Data.Foldable as F
 
 
--- # Bevy
+-- # ConvertedPosting
 
 -- | An 'Amount' that has been converted from the native 'Amount' in
 -- the posting.
@@ -48,18 +53,20 @@ newtype Converted = Converted Amount
 
 -- | A posting, along with its 'Amount' and (possibly) its 'Converted'
 -- 'Amount'.
-data Bevy l = Bevy (PostingL l) Amount (Maybe Converted)
+data ConvertedPosting l
+  = ConvertedPosting (PostingL l) Amount (Maybe Converted)
 
--- # Clatches
+-- # ConvertedPostingViewes
 
 -- | A view on postings; gives you a posting, its sibling postings,
 -- and the parent transaction.
-data Clatch l
-  = Clatch (TransactionL l) (Seq (Bevy l))
-           (Bevy l) (Seq (Bevy l))
-  -- ^ @Clatch t l c r@, where
+data ConvertedPostingView l = ConvertedPostingView
+  (TransactionL l) (Seq (ConvertedPosting l))
+  (ConvertedPosting l) (Seq (ConvertedPosting l))
+  -- ^ @ConvertedPostingView t l c r@, where
   --
-  -- @t@ is the transaction giving rise to this 'Clatch',
+  -- @t@ is the transaction giving rise to this
+  -- 'ConvertedPostingView',
   --
   -- @l@ are postings on the left.  Closer siblings are at the
   -- right end of the list.
@@ -69,81 +76,97 @@ data Clatch l
   -- @r@ are postings on the right.  Closer siblings are at
   -- the left end of the list.
 
-nextClatch :: Clatch l -> Maybe (Clatch l)
-nextClatch (Clatch t l c r) = case viewl r of
-  EmptyL -> Nothing
-  x :< xs -> Just $ Clatch t (l |> c) x xs
+nextConvertedPostingView
+  :: ConvertedPostingView l
+  -> Maybe (ConvertedPostingView l)
+nextConvertedPostingView (ConvertedPostingView t l c r)
+  = case viewl r of
+      EmptyL -> Nothing
+      x :< xs -> Just $ ConvertedPostingView t (l |> c) x xs
 
-prevClatch :: Clatch l -> Maybe (Clatch l)
-prevClatch (Clatch t l c r) = case viewr l of
-  EmptyR -> Nothing
-  xs :> x -> Just $ Clatch t xs x (c <| r)
+prevConvertedPostingView
+  :: ConvertedPostingView l
+  -> Maybe (ConvertedPostingView l)
+prevConvertedPostingView (ConvertedPostingView t l c r)
+  = case viewr l of
+      EmptyR -> Nothing
+      xs :> x -> Just $ ConvertedPostingView t xs x (c <| r)
 
--- | Get all the 'Bevy' from a 'PostingL'; also performs any requested
--- conversions.
+-- | Get all the 'ConvertedPosting' from a 'PostingL'; also
+-- performs any requested conversions.
 bevies
   :: Ledger l
   => (Amount -> Maybe Converted)
   -- ^ How to convert 'Amount's
   -> Seq (PostingL l)
-  -> l (Seq (Bevy l))
-bevies conv = T.mapM mkBevy
+  -> l (Seq (ConvertedPosting l))
+bevies conv = T.mapM mkConvertedPosting
   where
-    mkBevy pstg = liftM2 f (quant pstg) (curren pstg)
+    mkConvertedPosting pstg = liftM2 f (quant pstg) (curren pstg)
       where
-        f q c = Bevy pstg (Amount c q) (conv (Amount c q))
+        f q c = ConvertedPosting pstg (Amount c q) (conv (Amount c q))
 
--- | Creates all 'Clatch' from a list of 'Bevy'.
-beviesToClatches
+-- | Creates all 'ConvertedPostingView' from a list of
+-- 'ConvertedPosting'.
+beviesToConvertedPostingViewes
   :: TransactionL l
-  -- ^ Parent transaction to the collection of 'Bevy'
-  -> Seq (Bevy l)
-  -> Seq (Clatch l)
-beviesToClatches txn = go S.empty
+  -- ^ Parent transaction to the collection of 'ConvertedPosting'
+  -> Seq (ConvertedPosting l)
+  -> Seq (ConvertedPostingView l)
+beviesToConvertedPostingViewes txn = go S.empty
   where
     go onLeft onRight = case viewl onRight of
       EmptyL -> S.empty
-      x :< xs -> Clatch txn onLeft x xs <| go (onLeft |> x) xs
+      x :< xs -> ConvertedPostingView txn onLeft x xs
+                                      <| go (onLeft |> x) xs
 
--- | Creates all 'Clatch' from a single 'TransactionL'.
+-- | Creates all 'ConvertedPostingView' from a single 'TransactionL'.
 clatches
   :: Ledger l
   => (Amount -> Maybe Converted)
   -- ^ Performs any conversions.
   -> TransactionL l
-  -- ^ Transaction containing the postings to create 'Clatch' from.
-  -> l (Seq (Clatch l))
+  -- ^ Transaction containing the postings to create
+  -- 'ConvertedPostingView' from.
+  -> l (Seq (ConvertedPostingView l))
 clatches conv txn = do
   pstgs <- plinks txn
   bvys <- bevies conv pstgs
-  return $ beviesToClatches txn bvys
+  return $ beviesToConvertedPostingViewes txn bvys
 
--- | Create all 'Clatch' from a given 'Ledger'.  The transactions are
--- retrieved using 'ledgerItems'.
-allClatches
+-- | Create all 'ConvertedPostingView' from a given 'Ledger'.  The
+-- transactions are retrieved using 'ledgerItems'.
+allConvertedPostingViewes
   :: Ledger l
   => (Amount -> Maybe Converted)
-  -> l (Seq (Clatch l))
-allClatches conv = do
+  -> l (Seq (ConvertedPostingView l))
+allConvertedPostingViewes conv = do
   itms <- liftM join vault
   let txns = rights itms
   liftM join $ T.mapM (clatches conv) txns
 
 -- | Map describing how different 'Commodity' are rendered.
 newtype Renderings = Renderings
-  (M.Map Commodity (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
+  (M.Map Commodity
+         (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
   deriving (Eq, Ord, Show)
 
--- | Given a Clatch, selects the best Amount from the original Amount
--- and the 'Converted' one.  If there is a 'Converted' amount, use
--- that; otherwise, use the original 'Amount'.
-clatchAmount :: Clatch l -> Amount
-clatchAmount (Clatch _ _ (Bevy _ amt mayConv) _)
+-- | Given a ConvertedPostingView, selects the best Amount from the
+-- original Amount and the 'Converted' one.  If there is a 'Converted'
+-- amount, use that; otherwise, use the original 'Amount'.
+clatchAmount :: ConvertedPostingView l -> Amount
+clatchAmount (ConvertedPostingView _ _
+              (ConvertedPosting _ amt mayConv) _)
   = maybe amt (\(Converted a) -> a) mayConv
 
--- | Given a Clatch, update the Renderings map.
-updateRenderings :: Ledger l => Clatch l -> Renderings -> l Renderings
-updateRenderings (Clatch _ _ (Bevy pstg _ _) _)
+-- | Given a ConvertedPostingView, update the Renderings map.
+updateRenderings
+  :: Ledger l
+  => ConvertedPostingView l
+  -> Renderings
+  -> l Renderings
+updateRenderings (ConvertedPostingView _ _
+                  (ConvertedPosting pstg _ _) _)
   (Renderings mp) = liftM f (triplet pstg)
   where
     f tri = case trioRendering tri of
@@ -153,53 +176,70 @@ updateRenderings (Clatch _ _ (Bevy pstg _ _) _)
         Just (NonEmpty o1 os) -> M.insert cy
           (NonEmpty o1 (os |> (ar, ei))) mp
 
--- | A 'Seq' of 'Slice' results from the filtering of a 'Seq' of
--- 'Clatch'.  Each 'Slice' is accompanied by a 'Serset'.
-newtype Slice l = Slice (Sersetted (Clatch l))
+-- | A 'Seq' of 'FilteredConvertedPostingView' results from the
+-- filtering of a 'Seq' of 'ConvertedPostingView'.  Each
+-- 'FilteredConvertedPostingView' is accompanied by a 'Serset'.
+newtype FilteredConvertedPostingView l
+  = FilteredConvertedPostingView (Sersetted (ConvertedPostingView l))
 
--- | Computes a series of 'Slice' from a series of 'Clatch' by
--- filtering using a given predicate.
+-- | Computes a series of 'FilteredConvertedPostingView' from a series
+-- of 'ConvertedPostingView' by filtering using a given predicate.
 slices
   :: Ledger l
-  => Matcher (Clatch l) l a
-  -> Seq (Clatch l)
-  -> l (Seq (Slice l), Seq (Maybe (Seq Message)))
+  => Matcher (ConvertedPostingView l) l a
+  -> Seq (ConvertedPostingView l)
+  -> l ( Seq (FilteredConvertedPostingView l)
+       , Seq (Maybe (Seq Message)))
 slices pd cltchs = do
   (withSers, rslt) <- liftM (first serialNumbers)
     . filterSeq pd $ cltchs
-  return (fmap (Slice . uncurry Sersetted) withSers, rslt)
+  let mkView = FilteredConvertedPostingView . uncurry Sersetted
+  return (fmap mkView withSers, rslt)
 
 
--- | A 'Seq' of 'Splint' is the result of the sorting of a 'Seq' of
--- 'Slice'.  Each 'Splint' has an accompanying 'Serset'.  Also, this
--- is the point at which 'Balances' are computed.  The 'Balances' is a
--- running balance, computed using the 'Amount' returned by
--- 'clatchAmount'.
-newtype Splint l = Splint (Sersetted (Slice l, Balances))
+-- | A 'Seq' of 'SortedFilteredConvertedPostingView' is the result of
+-- the sorting of a 'Seq' of 'FilteredConvertedPostingView'.  Each
+-- 'SortedFilteredConvertedPostingView' has an accompanying 'Serset'.
+-- Also, this is the point at which 'Balances' are computed.  The
+-- 'Balances' is a running balance, computed using the 'Amount'
+-- returned by 'clatchAmount'.
+newtype SortedFilteredConvertedPostingView l
+  = SortedFilteredConvertedPostingView
+    (Sersetted (FilteredConvertedPostingView l, Balances))
 
 splints
   :: Monad m
-  => (Seq (Slice m) -> m (Seq (Slice m)))
+  => ( Seq (FilteredConvertedPostingView m)
+       -> m (Seq (FilteredConvertedPostingView m)))
   -- ^ Sorter
-  -> Seq (Slice m)
-  -> m (Seq (Splint m))
-splints srtr sq = liftM mkSplints $ srtr sq
+  -> Seq (FilteredConvertedPostingView m)
+  -> m (Seq (SortedFilteredConvertedPostingView m))
+splints srtr sq
+  = liftM mkSortedFilteredConvertedPostingViews $ srtr sq
   where
-    mkSplints = addBals . serialNumbers
+    mkSortedFilteredConvertedPostingViews = addBals . serialNumbers
     addBals = snd . T.mapAccumL addBal mempty
-    addBal bal (slce@(Slice (Sersetted clch _)), srst) = (bal', splt)
+    addBal bal
+      (slce@(FilteredConvertedPostingView (Sersetted clch _)), srst)
+      = (bal', splt)
       where
         bal' = addAmountToBalances (clatchAmount clch) bal
-        splt = Splint (Sersetted (slce, bal') srst)
+        splt = SortedFilteredConvertedPostingView
+          (Sersetted (slce, bal') srst)
+
+newtype Filtered a = Filtered (Sersetted a)
+  deriving (Functor, T.Traversable, F.Foldable)
 
 -- | A 'Seq' of 'Tranche' is the result of the filtering of a 'Seq' of
--- 'Splint'.  Each 'Tranche' comes with a 'Serset'.
-newtype Tranche l = Tranche (Sersetted (Splint l))
+-- 'SortedFilteredConvertedPostingView'.  Each 'Tranche' comes with a
+-- 'Serset'.
+newtype Tranche l
+  = Tranche (Sersetted (SortedFilteredConvertedPostingView l))
 
 tranches
   :: Monad m
-  => Matcher (Splint m) m a
-  -> Seq (Splint m)
+  => Matcher (SortedFilteredConvertedPostingView m) m a
+  -> Seq (SortedFilteredConvertedPostingView m)
   -> m (Seq (Tranche m), Seq (Maybe (Seq Message)))
 tranches pd
   = liftM (first (fmap (Tranche . uncurry Sersetted)))
@@ -209,30 +249,31 @@ tranches pd
 
 -- | Pulls together many functions in this module to deliver a quad
 -- @(w, x, y, z)@, where @w@ is a list of all Tranche, @x@ is a list
--- of the descriptions from filtering the 'Clatch', @y@ is the
--- 'Renderings', and @z@ is a list of the descriptions from filtering
--- the 'Splint'.  The 'Clatch' are pulled ultimately by using
--- 'vault'.
+-- of the descriptions from filtering the 'ConvertedPostingView', @y@
+-- is the 'Renderings', and @z@ is a list of the descriptions from
+-- filtering the 'SortedFilteredConvertedPostingView'.  The
+-- 'ConvertedPostingView' are pulled ultimately by using 'vault'.
 
 allTranches
   :: Ledger l
   => (Amount -> Maybe Converted)
   -- ^ Converts the original 'Amount' to a different one.
-  -> Matcher (Clatch l) l a
-  -- ^ Filters 'Clatch'
-  -> (Seq (Slice l) -> l (Seq (Slice l)))
-  -- ^ Sorts 'Slice'
-  -> Matcher (Splint l) l b
-  -- ^ Filters 'Splint'
+  -> Matcher (ConvertedPostingView l) l a
+  -- ^ Filters 'ConvertedPostingView'
+  -> (Seq (FilteredConvertedPostingView l)
+          -> l (Seq (FilteredConvertedPostingView l)))
+  -- ^ Sorts 'FilteredConvertedPostingView'
+  -> Matcher (SortedFilteredConvertedPostingView l) l b
+  -- ^ Filters 'SortedFilteredConvertedPostingView'
   -> l ( Seq (Tranche l)
        , Seq (Maybe (Seq Message))
        , Renderings
        , Seq (Maybe (Seq Message))
        )
-allTranches conv pdCltch srtr pdSplint = do
-  cltchs <- allClatches conv
+allTranches conv pdCltch srtr pd = do
+  cltchs <- allConvertedPostingViewes conv
   rndgs <- F.foldrM updateRenderings (Renderings M.empty) cltchs
   (slcs, rsltSlcs) <- slices pdCltch cltchs
   splnts <- splints srtr slcs
-  (trchs, rsltTrchs) <- tranches pdSplint splnts
+  (trchs, rsltTrchs) <- tranches pd splnts
   return (trchs, rsltSlcs, rndgs, rsltTrchs)
