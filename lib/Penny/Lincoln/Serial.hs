@@ -25,8 +25,13 @@ data Serset = Serset Forward Reverse
 data Sersetted a = Sersetted Serset a
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
---sersettedSerials :: T.Traversable t => t a -> t (Sersetted a)
---sersettedSerials = fmap (\(
+assignSersetted :: T.Traversable t => t a -> t (Sersetted a)
+assignSersetted t = flip evalState (toUnsigned Zero) $ do
+  withFwd <- T.traverse (\a -> (,) <$> pure a <*> makeForward) t
+  withBak <- T.traverse (\a -> (,) <$> pure a <*> makeReverse) withFwd
+  let f ((b, fwd), bak) = Sersetted (Serset fwd bak) b
+  return . fmap f $ withBak
+
 
 makeForward :: State Unsigned Forward
 makeForward = do
@@ -38,8 +43,8 @@ makeReverse :: State Unsigned Reverse
 makeReverse = do
   old <- get
   let new = case prev old of
-        Nothing -> error "makeReverse: error"
         Just x -> x
+        Nothing -> error "makeReverse: error"
   put new
   return $ Reverse (Serial new)
 

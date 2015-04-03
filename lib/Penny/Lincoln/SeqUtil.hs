@@ -1,4 +1,7 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 -- |
 -- Utilities for "Data.Sequence".
 
@@ -155,3 +158,4 @@ allViews = go empty
 
 insertToView :: a -> View a -> View a
 insertToView a (View l r) = View (l |> a) r
+
