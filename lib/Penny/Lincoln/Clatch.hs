@@ -111,10 +111,10 @@ clatchAmount (_, pv) = fmap get (viewCurrentItem pv)
 -- | Given a ConvertedPostingView, update the Renderings map.
 updateRenderings
   :: Ledger l
-  => (a, View (ConvertedPosting l))
-  -> Renderings
+  => Renderings
+  -> (a, View (ConvertedPosting l))
   -> l Renderings
-updateRenderings (_, pv) (Renderings mp)
+updateRenderings (Renderings mp) (_, pv)
   = case viewCurrentItem pv of
   Nothing -> return $ Renderings mp
   Just (ConvertedPosting pstg _ _) -> liftM f (triplet pstg)
@@ -151,110 +151,39 @@ filterConvertedPostings = filterWithSerials
 newtype Sorted a = Sorted (Sersetted a)
   deriving (Eq, Ord, Show, Functor, F.Foldable, T.Traversable)
 
-sortWithSerials
-  :: (Monad m, F.Foldable c)
-  => c (SortKey m k a)
+sortConverted
+  :: (F.Foldable c, Monad m)
+  => c (Seq a -> m (Seq a))
   -> Seq a
   -> m (Seq (Sorted a))
-sortWithSerials keys sq = liftM addSers $ multipleSortByM keys sq
+sortConverted sorters = liftM (fmap Sorted) . liftM assignSersetted . sorter
   where
-    addSers = fmap (\(a, srst) -> Sorted (Sersetted srst a)) . serialNumbers
+    sorter = F.foldl (>=>) return sorters
 
-{-
+type Clatch m =
+  Filtered (Sorted (Filtered (TransactionL m, View (ConvertedPosting m))))
 
--- | Computes a series of 'FilteredConvertedPostingView' from a series
--- of 'ConvertedPostingView' by filtering using a given predicate.
-slices
-  :: Ledger l
-  => Matcher (ConvertedPostingView l) l a
-  -> Seq (ConvertedPostingView l)
-  -> l ( Seq (FilteredConvertedPostingView l)
-       , Seq (Maybe (Seq Message)))
-slices pd cltchs = do
-  (withSers, rslt) <- liftM (first serialNumbers)
-    . filterSeq pd $ cltchs
-  let mkView = FilteredConvertedPostingView . uncurry Sersetted
-  return (fmap mkView withSers, rslt)
-
-
--- | A 'Seq' of 'SortedFilteredConvertedPostingView' is the result of
--- the sorting of a 'Seq' of 'FilteredConvertedPostingView'.  Each
--- 'SortedFilteredConvertedPostingView' has an accompanying 'Serset'.
--- Also, this is the point at which 'Balances' are computed.  The
--- 'Balances' is a running balance, computed using the 'Amount'
--- returned by 'clatchAmount'.
-newtype SortedFilteredConvertedPostingView l
-  = SortedFilteredConvertedPostingView
-    (Sersetted (FilteredConvertedPostingView l, Balances))
-
-splints
-  :: Monad m
-  => ( Seq (FilteredConvertedPostingView m)
-       -> m (Seq (FilteredConvertedPostingView m)))
-  -- ^ Sorter
-  -> Seq (FilteredConvertedPostingView m)
-  -> m (Seq (SortedFilteredConvertedPostingView m))
-splints srtr sq
-  = liftM mkSortedFilteredConvertedPostingViews $ srtr sq
-  where
-    mkSortedFilteredConvertedPostingViews = addBals . serialNumbers
-    addBals = snd . T.mapAccumL addBal mempty
-    addBal bal
-      (slce@(FilteredConvertedPostingView (Sersetted clch _)), srst)
-      = (bal', splt)
-      where
-        bal' = addAmountToBalances (clatchAmount clch) bal
-        splt = SortedFilteredConvertedPostingView
-          (Sersetted (slce, bal') srst)
-
-newtype Filtered a = Filtered (Sersetted a)
-  deriving (Functor, T.Traversable, F.Foldable)
-
--- | A 'Seq' of 'Tranche' is the result of the filtering of a 'Seq' of
--- 'SortedFilteredConvertedPostingView'.  Each 'Tranche' comes with a
--- 'Serset'.
-newtype Tranche l
-  = Tranche (Sersetted (SortedFilteredConvertedPostingView l))
-
-tranches
-  :: Monad m
-  => Matcher (SortedFilteredConvertedPostingView m) m a
-  -> Seq (SortedFilteredConvertedPostingView m)
-  -> m (Seq (Tranche m), Seq (Maybe (Seq Message)))
-tranches pd
-  = liftM (first (fmap (Tranche . uncurry Sersetted)))
-  . liftM (first serialNumbers)
-  . filterSeq pd
-
-
--- | Pulls together many functions in this module to deliver a quad
--- @(w, x, y, z)@, where @w@ is a list of all Tranche, @x@ is a list
--- of the descriptions from filtering the 'ConvertedPostingView', @y@
--- is the 'Renderings', and @z@ is a list of the descriptions from
--- filtering the 'SortedFilteredConvertedPostingView'.  The
--- 'ConvertedPostingView' are pulled ultimately by using 'vault'.
-
-allTranches
-  :: Ledger l
-  => (Amount -> Maybe Converted)
-  -- ^ Converts the original 'Amount' to a different one.
-  -> Matcher (ConvertedPostingView l) l a
-  -- ^ Filters 'ConvertedPostingView'
-  -> (Seq (FilteredConvertedPostingView l)
-          -> l (Seq (FilteredConvertedPostingView l)))
-  -- ^ Sorts 'FilteredConvertedPostingView'
-  -> Matcher (SortedFilteredConvertedPostingView l) l b
-  -- ^ Filters 'SortedFilteredConvertedPostingView'
-  -> l ( Seq (Tranche l)
-       , Seq (Maybe (Seq Message))
-       , Renderings
-       , Seq (Maybe (Seq Message))
+allClatches
+  :: (Ledger m, F.Foldable c)
+  => (Amount -> Maybe (Converted Amount))
+  -- ^ Converts Amounts
+  -> Matcher (TransactionL m, View (ConvertedPosting m)) m a
+  -- ^ Filters postings after they have been converted
+  -> c (Seq (Filtered (TransactionL m, View (ConvertedPosting m)))
+            -> m (Seq (Filtered (TransactionL m, View (ConvertedPosting m)))))
+  -- ^ List of functions to sort postings after they have been filtered
+  -> Matcher (Sorted (Filtered (TransactionL m, View (ConvertedPosting m)))) m b
+  -- ^ Filters postings after they have been sorted
+  -> m ( ( Seq (Maybe (Seq Message))
+         , Renderings
+         , Seq (Maybe (Seq Message))
+         )
+       , Seq (Clatch m)
        )
-allTranches conv pdCltch srtr pd = do
-  cltchs <- allConvertedPostingViewes conv
-  rndgs <- F.foldrM updateRenderings (Renderings M.empty) cltchs
-  (slcs, rsltSlcs) <- slices pdCltch cltchs
-  splnts <- splints srtr slcs
-  (trchs, rsltTrchs) <- tranches pd splnts
-  return (trchs, rsltSlcs, rndgs, rsltTrchs)
--}
+allTranches conv mtcrConverted srtr mtcrSorted = do
+  txns <- allConvertedTransactions conv
+  rndgs <- F.foldlM updateRenderings (Renderings M.empty) txns
+  (msgsFiltConverted, filt) <- filterWithSerials mtcrConverted txns
+  srtd <- sortConverted srtr filt
+  (msgsFiltSrtd, filt') <- filterWithSerials mtcrSorted srtd
+  return ((msgsFiltConverted, rndgs, msgsFiltSrtd), filt')
