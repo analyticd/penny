@@ -1,29 +1,31 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TupleSections #-}
--- | ConvertedPostingViewes and associated types.  These types help
--- summarize a collection of postings.
+-- | A 'Clatch' is a single posting from a collection of postings,
+-- after considerable processing.  Here are the processing steps:
 --
--- First, a set of transactions is processed to create a set of
--- 'ConvertedPostingView'.  Each transaction can give rise to multiple
--- 'ConvertedPostingView'; there is one 'ConvertedPostingView' per
--- posting.  The 'ConvertedPostingView' are not assigned serials; if
--- you're interested in the order of the 'ConvertedPostingView',
--- examine the 'GlobalSer' of the respective 'PostingL'.
+-- 1. Begin with all the transactions returned by 'vault'.
 --
--- Then, the set of 'ConvertedPostingView' is filtered.  This yields a
--- set of 'FilteredConvertedPostingView'.  Each
--- 'FilteredConvertedPostingView' is assigned a 'Serset'.
+-- 2. Convert the amounts.  This allows reports to show both the
+-- original amount and an arbitrary amount resulting from a
+-- conversion.
 --
--- Next, the set of 'ConvertedPostingView' are sorted.  This yields a
--- 'SortedFilteredConvertedPostingView'.  The
--- 'SortedFilteredConvertedPostingView' is accompanied by its own
--- serial.  Each 'SortedFilteredConvertedPostingView' is also assigned
--- a 'Balances' corresponding to where it is relative to the other
--- 'SortedFilteredConvertedPostingView'.
+-- 3. Create a map, 'Renderings', that describes how amounts are
+-- rendered, if there is enough information in the 'Trio' to determine
+-- this.  This map allows reports to format their numbers based on a
+-- histogram of how they have been formatted before.
 --
--- Next, the 'SortedFilteredConvertedPostingView' are filtered.  This
--- yields a set of 'Tranche'.  Each 'Tranche' is assigned a serial.
+-- 4. Filter the postings.  This way the user can include in the
+-- report only the postings she is interested in.
+--
+-- 5. Sort the postings.
+--
+-- 6. (TODO) compute a running balance of the sorted postings.
+--
+-- 7. Filter the sorted postings.  This allows the user to see a
+-- report that has a running balance that includes an entire set of
+-- postings, but that only shows postings of interest.
+
 module Penny.Lincoln.Clatch where
 
 import Control.Applicative
