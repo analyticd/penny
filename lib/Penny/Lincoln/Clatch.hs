@@ -52,33 +52,28 @@ import qualified Data.Foldable as F
 
 -- # ConvertedPosting
 
-newtype Converted a = Converted a
+data Converted a = Converted (Maybe Amount) a
   deriving (Functor, T.Traversable, F.Foldable)
-
--- | A posting, along with its 'Amount' and (possibly) its 'Converted'
--- 'Amount'.
-data ConvertedPosting l
-  = ConvertedPosting (PostingL l) Amount (Maybe (Converted Amount))
 
 convertPosting
   :: Ledger l
-  => (Amount -> Maybe (Converted Amount))
+  => (Amount -> Maybe Amount)
   -> PostingL l
-  -> l (ConvertedPosting l)
+  -> l (Converted (PostingL l))
 convertPosting cnv p = do
   qty <- quant p
   cy <- curren p
   let amt = Amount cy qty
-  return $ ConvertedPosting p amt (cnv amt)
+  return $ Converted (cnv amt) p
 
 
 convertTransaction
   :: Ledger l
-  => (Amount -> Maybe (Converted Amount))
+  => (Amount -> Maybe Amount)
   -- ^
   -> TransactionL l
   -- ^
-  -> l (Seq (TransactionL l, View (ConvertedPosting l)))
+  -> l (Seq (TransactionL l, View (Converted (PostingL l))))
 convertTransaction cv txn = do
   pstgs <- plinks txn
   converted <- T.mapM (convertPosting cv) pstgs
@@ -86,8 +81,8 @@ convertTransaction cv txn = do
 
 allConvertedTransactions
   :: Ledger l
-  => (Amount -> Maybe (Converted Amount))
-  -> l (Seq (TransactionL l, View (ConvertedPosting l)))
+  => (Amount -> Maybe Amount)
+  -> l (Seq (TransactionL l, View (Converted (PostingL l))))
 allConvertedTransactions cv = do
   itms <- liftM join vault
   liftM join . T.mapM (convertTransaction cv) . rights $ itms
@@ -98,28 +93,16 @@ newtype Renderings = Renderings
          (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
   deriving (Eq, Ord, Show)
 
--- | Given a PostingView, selects the best Amount from the
--- original Amount and the 'Converted' one.  If there is a 'Converted'
--- amount, use that; otherwise, use the original 'Amount'.
---
--- Fails if the cursor is not on an item.
-clatchAmount :: (a, View (ConvertedPosting l)) -> Maybe Amount
-clatchAmount (_, pv) = fmap get (viewCurrentItem pv)
-  where
-    get (ConvertedPosting _ am mayCv) = case mayCv of
-      Nothing -> am
-      Just (Converted am') -> am'
-
 -- | Given a ConvertedPostingView, update the Renderings map.
 updateRenderings
   :: Ledger l
   => Renderings
-  -> (a, View (ConvertedPosting l))
+  -> (a, View (Converted (PostingL l)))
   -> l Renderings
 updateRenderings (Renderings mp) (_, pv)
   = case viewCurrentItem pv of
   Nothing -> return $ Renderings mp
-  Just (ConvertedPosting pstg _ _) -> liftM f (triplet pstg)
+  Just (Converted _ pstg) -> liftM f (triplet pstg)
   where
     f tri = case trioRendering tri of
       Nothing -> Renderings mp
@@ -143,10 +126,10 @@ filterWithSerials mr = liftM (fmap addSeqs) . filterSeq mr
 
 filterConvertedPostings
   :: Ledger l
-  => Matcher (TransactionL l, View (ConvertedPosting l)) l a
-  -> Seq (TransactionL l, View (ConvertedPosting l))
+  => Matcher (TransactionL l, View (Converted (PostingL l))) l a
+  -> Seq (TransactionL l, View (Converted (PostingL l)))
   -> l ( Seq (Maybe (Seq Message))
-       , Seq (Filtered (TransactionL l, View (ConvertedPosting l)))
+       , Seq (Filtered (TransactionL l, View (Converted (PostingL l))))
        )
 filterConvertedPostings = filterWithSerials
 
@@ -163,18 +146,18 @@ sortConverted sorters = liftM (fmap Sorted) . liftM assignSersetted . sorter
     sorter = F.foldl (>=>) return sorters
 
 type Clatch m =
-  Filtered (Sorted (Filtered (TransactionL m, View (ConvertedPosting m))))
+  Filtered (Sorted (Filtered (TransactionL m, View (Converted (PostingL m)))))
 
 allClatches
   :: (Ledger m, F.Foldable c)
-  => (Amount -> Maybe (Converted Amount))
+  => (Amount -> Maybe Amount)
   -- ^ Converts Amounts
-  -> Matcher (TransactionL m, View (ConvertedPosting m)) m a
+  -> Matcher (TransactionL m, View (Converted (PostingL m))) m a
   -- ^ Filters postings after they have been converted
-  -> c (Seq (Filtered (TransactionL m, View (ConvertedPosting m)))
-            -> m (Seq (Filtered (TransactionL m, View (ConvertedPosting m)))))
+  -> c (Seq (Filtered (TransactionL m, View (Converted (PostingL m))))
+            -> m (Seq (Filtered (TransactionL m, View (Converted (PostingL m))))))
   -- ^ List of functions to sort postings after they have been filtered
-  -> Matcher (Sorted (Filtered (TransactionL m, View (ConvertedPosting m)))) m b
+  -> Matcher (Sorted (Filtered (TransactionL m, View (Converted (PostingL m))))) m b
   -- ^ Filters postings after they have been sorted
   -> m ( ( Seq (Maybe (Seq Message))
          , Renderings
