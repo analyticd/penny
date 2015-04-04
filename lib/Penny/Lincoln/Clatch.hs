@@ -180,7 +180,7 @@ allClatches
          )
        , Seq (Clatch m)
        )
-allTranches conv mtcrConverted srtr mtcrSorted = do
+allClatches conv mtcrConverted srtr mtcrSorted = do
   txns <- allConvertedTransactions conv
   rndgs <- F.foldlM updateRenderings (Renderings M.empty) txns
   (msgsFiltConverted, filt) <- filterWithSerials mtcrConverted txns
