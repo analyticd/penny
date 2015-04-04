@@ -17,10 +17,8 @@ module Penny.Lincoln.SeqUtil
   -- * Views
   , Viewer(..)
   , seqFromView
-  , viewCurrentItem
   , View(..)
   , allViews
-  , insertToView
   ) where
 
 import Control.Applicative hiding (empty)
@@ -102,11 +100,8 @@ rights sq = case viewl sq of
     Left _ -> rights xs
     Right r -> r <| rights xs
 
--- |
--- An interface for a view on a sequence.  The view has a cursor
--- position, which is rather like point in Emacs: the cursor is not
--- directly on a single element but, rather, can be between two
--- elements, at the beginning, or at the end.
+-- | An interface for a view on a sequence.  There is always a current
+-- item on view.
 --
 -- Does not include functions to construct the view; depending on the
 -- particular view, such functions might break the internal
@@ -116,46 +111,40 @@ class Viewer a where
   type Viewed (a :: *) :: *
   onLeft :: a -> Seq (Viewed a)
   onRight :: a -> Seq (Viewed a)
+  onView :: a -> Viewed a
   nextView :: a -> Maybe a
   previousView :: a -> Maybe a
 
 seqFromView :: Viewer a => a -> Seq (Viewed a)
-seqFromView v = onLeft v <> onRight v
+seqFromView v = (onLeft v |> onView v) <> onRight v
 
-viewCurrentItem :: Viewer a => a -> Maybe (Viewed a)
-viewCurrentItem v = case viewl (onRight v) of
-  EmptyL -> Nothing
-  x :< _ -> Just x
-
-data View a = View (Seq a) (Seq a)
+data View a = View (Seq a) a (Seq a)
 
 instance Functor View where
-  fmap f (View l r) = View (fmap f l) (fmap f r)
+  fmap f (View l c r) = View (fmap f l) (f c) (fmap f r)
 
 instance F.Foldable View where
-  foldr f z (View l r) = F.foldr f (F.foldr f z r) l
+  foldr f z (View l c r) = F.foldr f (f c (F.foldr f z r)) l
 
 instance T.Traversable View where
-  sequenceA (View l r) = View <$> T.sequenceA l <*> T.sequenceA r
+  sequenceA (View l c r) = View <$> T.sequenceA l <*> c <*> T.sequenceA r
 
 instance Viewer (View a) where
   type Viewed (View a) = a
-  onLeft (View l _) = l
-  onRight (View _ r) = r
-  nextView (View l r) = case viewl r of
+  onLeft (View l _ _) = l
+  onRight (View _ _ r) = r
+  onView (View _ c _) = c
+  nextView (View l c r) = case viewl r of
     EmptyL -> Nothing
-    x :< xs -> Just (View (l |> x) xs)
-  previousView (View l r) = case viewr l of
+    x :< xs -> Just (View (l |> c) x xs)
+  previousView (View l c r) = case viewr l of
     EmptyR -> Nothing
-    xs :> x -> Just (View xs (x <| r))
+    xs :> x -> Just (View xs x (c <| r))
 
 allViews :: Seq a -> Seq (View a)
 allViews = go empty
   where
     go soFar sq = case viewl sq of
       EmptyL -> empty
-      x :< xs -> View soFar sq <| go (soFar |> x) xs
-
-insertToView :: a -> View a -> View a
-insertToView a (View l r) = View (l |> a) r
+      x :< xs -> View soFar x xs <| go (soFar |> x) xs
 

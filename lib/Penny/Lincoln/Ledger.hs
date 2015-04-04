@@ -1,6 +1,4 @@
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 -- | A 'Ledger' is a store of transactions and prices.  'Ledger'
 -- specifies an interface for such stores.
@@ -153,3 +151,4 @@ displayForest sq = case viewl sq of
     t1 <- displayTree x1
     let dispNext t = liftM (X.cons '•') $ displayTree t
     liftM (F.foldl' mappend t1) $ T.mapM dispNext xs1
+
