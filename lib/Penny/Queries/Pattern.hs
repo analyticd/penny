@@ -20,11 +20,11 @@ labelNest op get mr = do
   L.inform ("nesting: " <> op)
   L.nest get mr
 
-instant
+dateTime
   :: L.Ledger m
   => Matcher L.DateTime m a
   -> Matcher (L.PriceL m) m a
-instant = labelNest "instant" L.instant
+dateTime = labelNest "dateTime" L.dateTime
 
 trade
   :: L.Ledger m

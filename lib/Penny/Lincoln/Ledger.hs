@@ -41,7 +41,7 @@ class Monad l => Ledger l where
   ------------------------------------------------
 
   -- | When this price became effective
-  instant :: PriceL l -> l DateTime
+  dateTime :: PriceL l -> l DateTime
 
   -- | 1 unit of the from commodity equals the given number of
   -- exchange commodity
@@ -103,7 +103,7 @@ instance Ledger m => Ledger (Matcher t m) where
   type PostingL (Matcher t m) = PostingL m
 
   vault = lift vault
-  instant = lift . instant
+  dateTime = lift . dateTime
   trade = lift . trade
   exchange = lift . exchange
   capsule = lift . capsule

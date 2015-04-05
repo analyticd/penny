@@ -42,7 +42,7 @@ instance (Applicative m, Monad m) => Ledger (ScrollT m) where
   type PostingL (ScrollT m) = Ent (PstgMeta PostingSer)
 
   vault = ask
-  instant (Price dt _ _) = return dt
+  dateTime (Price dt _ _) = return dt
   trade (Price _ tr _) = return tr
   exchange (Price _ _ ex) = return ex
   capsule (Tree _ s _) = return s
