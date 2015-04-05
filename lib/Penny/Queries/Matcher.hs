@@ -13,6 +13,7 @@ import qualified Penny.Ledger as L
 import Data.Sequence (Seq)
 import Data.Monoid
 import Turtle.Pattern
+import Data.String
 
 -- # Utilities
 
@@ -29,6 +30,56 @@ labelNest
 labelNest op get mr = do
   L.inform ("nesting: " <> op)
   L.nest get mr
+
+-- # Semantic
+
+equal
+  :: (L.SemanticEq s, L.Display s, Monad m)
+  => s
+  -> Matcher s m s
+equal tgt = do
+  subj <- getSubject
+  let subjStr = fromString $ L.display subj ""
+      tgtStr = fromString $ L.display tgt ""
+  if L.semanticEq subj tgt
+    then acceptL (subjStr <> " is equal to " <> tgtStr) subj
+    else rejectL (subjStr <> " is not equal to " <> tgtStr)
+
+greater
+  :: (L.SemanticOrd s, L.Display s, Monad m)
+  => s
+  -> Matcher s m s
+greater tgt = do
+  subj <- getSubject
+  let subjStr = fromString $ L.display subj ""
+      tgtStr = fromString $ L.display tgt ""
+  if L.semanticOrd subj tgt == GT
+    then acceptL (subjStr <> " is greater than " <> tgtStr) subj
+    else rejectL (subjStr <> " is not greater than " <> tgtStr)
+
+less
+  :: (L.SemanticOrd s, L.Display s, Monad m)
+  => s
+  -> Matcher s m s
+less tgt = do
+  subj <- getSubject
+  let subjStr = fromString $ L.display subj ""
+      tgtStr = fromString $ L.display tgt ""
+  if L.semanticOrd subj tgt == LT
+    then acceptL (subjStr <> " is less than " <> tgtStr) subj
+    else rejectL (subjStr <> " is not less than " <> tgtStr)
+
+-- # Commodities
+
+commodityName
+  :: Monad m
+  => Matcher Text m a
+  -> Matcher L.Commodity m a
+commodityName mtcr = do
+  inform "running Text matcher on commodity name"
+  nest (\(L.Commodity txt) -> return txt) mtcr
+
+
 
 -- # Prices
 
