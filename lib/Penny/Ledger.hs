@@ -24,10 +24,10 @@ import qualified Data.Text as X
 import Control.Monad.Reader
 
 class Monad l => Ledger l where
-  type PriceL (l :: * -> *) :: *
-  type TransactionL (l :: * -> *) :: *
-  type TreeL (l :: * -> *) :: *
-  type PostingL (l :: * -> *) :: *
+  type PriceL l
+  type TransactionL l
+  type TreeL l
+  type PostingL l
 
   ------------------------------------------------
   -- All items
@@ -130,25 +130,25 @@ instance Ledger m => Ledger (Matcher t m) where
 -- with a down arrow (which is U+2193, or ↓) to let the user know
 -- something is down there.
 
-displayTree
+displayTreeL
   :: Ledger l
   => TreeL l
   -> l Text
-displayTree t = liftM2 f (scalar t) (offspring t)
+displayTreeL t = liftM2 f (scalar t) (offspring t)
   where
     f sc cs = maybe X.empty displayScalar sc <>
       if S.null cs then mempty else X.singleton '↓'
 
 -- | Displays a forest of trees, with each separated by a bullet
 -- (which is U+2022, or •).
-displayForest
+displayForestL
   :: Ledger l
   => Seq (TreeL l)
   -> l Text
-displayForest sq = case viewl sq of
+displayForestL sq = case viewl sq of
   EmptyL -> return X.empty
   x1 :< xs1 -> do
-    t1 <- displayTree x1
-    let dispNext t = liftM (X.cons '•') $ displayTree t
+    t1 <- displayTreeL x1
+    let dispNext t = liftM (X.cons '•') $ displayTreeL t
     liftM (F.foldl' mappend t1) $ T.mapM dispNext xs1
 

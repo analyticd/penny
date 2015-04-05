@@ -1,17 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Cabin.Postings.Cell where
 
-{-
-import qualified Penny.Lincoln as L
-import Control.Applicative
+import Penny.Lincoln.Clatch
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Penny.Queries.Tranche as Q
-import Data.Maybe
-import Control.Monad
-import qualified Data.Sequence as S
-import Data.Monoid
-import qualified Data.Map as M
+
 
 data CellTag
   = DebitTag
@@ -23,6 +16,17 @@ data CellTag
 
 spacer :: Int -> [(CellTag, Text)]
 spacer i = [(InfoTag, X.replicate i (X.singleton ' '))]
+
+{-
+import qualified Penny.Lincoln as L
+import Control.Applicative
+import Data.Text (Text)
+import qualified Penny.Queries.Tranche as Q
+import Data.Maybe
+import Control.Monad
+import qualified Data.Sequence as S
+import Data.Monoid
+import qualified Data.Map as M
 
 date :: L.Ledger l => L.Tranche l -> l [(CellTag, Text)]
 date trch = do

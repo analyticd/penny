@@ -179,7 +179,7 @@ localSubject
   -> s
   -> Matcher s' m a
 localSubject (Matcher (WriterT (ReaderT get))) s
-  = Matcher . WriterT . ReaderT $ \ (_, lvl) -> get (s, lvl)
+  = Matcher . WriterT . ReaderT $ \ (_, lvl) -> get (s, next lvl)
 
 -- # Accepting and rejecting values
 
