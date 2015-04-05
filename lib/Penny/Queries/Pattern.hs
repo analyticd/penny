@@ -6,7 +6,8 @@ module Penny.Queries.Pattern where
 import qualified Data.Foldable as F
 import Control.Applicative
 import Penny.Lincoln (Matcher)
-import qualified Penny.Lincoln as L
+import qualified Penny.Lincoln as L hiding (fromTo)
+import qualified Penny.Ledger as L
 import Data.Sequence (Seq)
 import Data.Monoid
 
@@ -26,11 +27,11 @@ dateTime
   -> Matcher (L.PriceL m) m a
 dateTime = labelNest "dateTime" L.dateTime
 
-trade
+fromTo
   :: L.Ledger m
   => Matcher L.FromTo m a
   -> Matcher (L.PriceL m) m a
-trade = labelNest "trade" L.trade
+fromTo = labelNest "fromTo" L.fromTo
 
 exchange
   :: L.Ledger m
@@ -38,17 +39,17 @@ exchange
   -> Matcher (L.PriceL m) m a
 exchange = labelNest "exchange" L.exchange
 
-capsule
+scalar
   :: L.Ledger m
   => Matcher (Maybe L.Scalar) m a
   -> Matcher (L.TreeL m) m a
-capsule = labelNest "capsule" L.capsule
+scalar = labelNest "scalar" L.scalar
 
-namespace
+realm
   :: L.Ledger m
   => Matcher L.Realm m a
   -> Matcher (L.TreeL m) m a
-namespace = labelNest "namespace" L.namespace
+realm = labelNest "realm" L.realm
 
 
 offspring
@@ -64,53 +65,53 @@ txnMeta
   -> Matcher (L.TransactionL m) m a
 txnMeta = labelNest "txnMeta" L.txnMeta
 
-zonk
+topLineSer
   :: L.Ledger m
   => Matcher L.TopLineSer m a
   -> Matcher (L.TransactionL m) m a
-zonk = labelNest "zonk" L.zonk
+topLineSer = labelNest "topLineSer" L.topLineSer
 
 
-plinks
+postings
   :: L.Ledger m
   => Matcher (Seq (L.PostingL m)) m a
   -> Matcher (L.TransactionL m) m a
-plinks = labelNest "plinks" L.plinks
+postings = labelNest "postings" L.postings
 
 
-plinkMeta
+pstgMeta
   :: L.Ledger m
   => Matcher (Seq (L.TreeL m)) m a
   -> Matcher (L.PostingL m) m a
-plinkMeta = labelNest "plinkMeta" L.plinkMeta
+pstgMeta = labelNest "pstgMeta" L.pstgMeta
 
 
-triplet
+trio
   :: L.Ledger m
   => Matcher L.Trio m a
   -> Matcher (L.PostingL m) m a
-triplet = labelNest "triplet" L.triplet
+trio = labelNest "trio" L.trio
 
 
-quant
+qty
   :: L.Ledger m
   => Matcher L.Qty m a
   -> Matcher (L.PostingL m) m a
-quant = labelNest "quant" L.quant
+qty = labelNest "qty" L.qty
 
 
-curren
+commodity
   :: L.Ledger m
   => Matcher L.Commodity m a
   -> Matcher (L.PostingL m) m a
-curren = labelNest "curren" L.curren
+commodity = labelNest "commodity" L.commodity
 
 
-xylo
+postingSer
   :: L.Ledger m
   => Matcher L.PostingSer m a
   -> Matcher (L.PostingL m) m a
-xylo = labelNest "xylo" L.xylo
+postingSer = labelNest "postingSer" L.postingSer
 
 
 -- | Traverses this tree and all child trees, in pre-order; that is,

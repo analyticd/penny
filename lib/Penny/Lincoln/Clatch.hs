@@ -37,7 +37,7 @@ module Penny.Lincoln.Clatch
   ) where
 
 import Penny.Lincoln.Amount
-import Penny.Lincoln.Ledger
+import Penny.Ledger
 import Penny.Lincoln.SeqUtil
 import Data.Sequence (Seq, (|>))
 import qualified Data.Sequence as S
@@ -65,7 +65,7 @@ data Converted a = Converted (Maybe Amount) a
 bestAmount :: Ledger l => Converted (PostingL l) -> l Amount
 bestAmount (Converted mayAmt pstg) = case mayAmt of
   Just a -> return a
-  Nothing -> liftM2 Amount (curren pstg) (quant pstg)
+  Nothing -> liftM2 Amount (commodity pstg) (qty pstg)
 
 -- | Converts the 'Amount' in a posting to a new amount; useful for
 -- commodity conversions.
@@ -78,9 +78,9 @@ convertPosting
   -> l (Converted (PostingL l))
   -- ^
 convertPosting cnv p = do
-  qty <- quant p
-  cy <- curren p
-  let amt = Amount cy qty
+  qt <- qty p
+  cy <- commodity p
+  let amt = Amount cy qt
   return $ Converted (cnv amt) p
 
 
@@ -94,7 +94,7 @@ convertTransaction
   -- ^
   -> l (Seq (TransactionL l, View (Converted (PostingL l))))
 convertTransaction cv txn = do
-  pstgs <- plinks txn
+  pstgs <- postings txn
   converted <- T.mapM (convertPosting cv) pstgs
   return . fmap (txn,) . allViews $ converted
 
@@ -125,7 +125,7 @@ updateRenderings
   -- ^
   -> l Renderings
   -- ^
-updateRenderings (Renderings mp) (_, pv) = liftM f (triplet pstg)
+updateRenderings (Renderings mp) (_, pv) = liftM f (trio pstg)
   where
     Converted _ pstg = onView pv
     f tri = case trioRendering tri of

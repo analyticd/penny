@@ -4,10 +4,10 @@
 -- | A 'Scroll' is a an implementation of a 'Ledger'.  The 'Scroll' is
 -- the simplest 'Ledger', as it simply takes a list of concrete prices
 -- and transactions and stores them in memory.
-module Penny.Lincoln.Ledger.Scroll where
+module Penny.Ledger.Scroll where
 
 import Penny.Lincoln.Amount
-import Penny.Lincoln.Ledger
+import Penny.Ledger
 import Control.Applicative
 import Control.Monad.Trans.Class
 import Penny.Lincoln.Transaction
@@ -43,17 +43,17 @@ instance (Applicative m, Monad m) => Ledger (ScrollT m) where
 
   vault = ask
   dateTime (Price dt _ _) = return dt
-  trade (Price _ tr _) = return tr
+  fromTo (Price _ tr _) = return tr
   exchange (Price _ _ ex) = return ex
-  capsule (Tree _ s _) = return s
-  namespace (Tree r _ _) = return r
+  scalar (Tree _ s _) = return s
+  realm (Tree r _ _) = return r
   offspring (Tree _ _ ts) = return . Seq.fromList $ ts
   txnMeta (Transaction (TopLine ts _) _) = return . Seq.fromList $ ts
-  zonk (Transaction (TopLine _ zk) _) = return zk
-  plinkMeta (Ent _ (PstgMeta tr _ _)) = return . Seq.fromList $ tr
-  plinks (Transaction _ bal) = return . balancedToSeqEnt $ bal
-  triplet (Ent _ (PstgMeta _ tri _)) = return tri
-  quant (Ent (Amount _ q) _) = return q
-  curren (Ent (Amount c _) _) = return c
-  xylo (Ent _ (PstgMeta _ _ a)) = return a
+  topLineSer (Transaction (TopLine _ zk) _) = return zk
+  pstgMeta (Ent _ (PstgMeta tr _ _)) = return . Seq.fromList $ tr
+  postings (Transaction _ bal) = return . balancedToSeqEnt $ bal
+  trio (Ent _ (PstgMeta _ tri _)) = return tri
+  qty (Ent (Amount _ q) _) = return q
+  commodity (Ent (Amount c _) _) = return c
+  postingSer (Ent _ (PstgMeta _ _ a)) = return a
 

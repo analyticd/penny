@@ -2,7 +2,7 @@
 
 -- | A 'Ledger' is a store of transactions and prices.  'Ledger'
 -- specifies an interface for such stores.
-module Penny.Lincoln.Ledger where
+module Penny.Ledger where
 
 import Control.Monad
 import Penny.Lincoln.Field
@@ -10,7 +10,7 @@ import Penny.Lincoln.Trio
 import Penny.Lincoln.Qty
 import Penny.Lincoln.DateTime
 import Penny.Lincoln.Commodity
-import Penny.Lincoln.Prices
+import Penny.Lincoln.Prices hiding (fromTo)
 import Penny.Lincoln.Exch
 import Penny.Lincoln.Matcher
 import Data.Sequence (Seq, ViewL(..), viewl)
@@ -45,7 +45,7 @@ class Monad l => Ledger l where
 
   -- | 1 unit of the from commodity equals the given number of
   -- exchange commodity
-  trade :: PriceL l -> l FromTo
+  fromTo :: PriceL l -> l FromTo
 
   -- | 1 unit of the from commodity in the 'trade' equals this much of
   -- the to commodity in the 'trade'
@@ -56,10 +56,10 @@ class Monad l => Ledger l where
   ------------------------------------------------
 
   -- | Information held in this node of the tree.
-  capsule :: TreeL l -> l (Maybe Scalar)
+  scalar :: TreeL l -> l (Maybe Scalar)
 
-  -- | Each tree is in a particular namespace.
-  namespace :: TreeL l -> l Realm
+  -- | Each tree is in a particular realm.
+  realm :: TreeL l -> l Realm
 
   -- | Child trees of a particular tree.
   offspring :: TreeL l -> l (Seq (TreeL l))
@@ -73,28 +73,28 @@ class Monad l => Ledger l where
   txnMeta :: TransactionL l -> l (Seq (TreeL l))
 
   -- | The serial that applies to the entire transction.
-  zonk :: TransactionL l -> l TopLineSer
+  topLineSer :: TransactionL l -> l TopLineSer
 
   -- | All postings.  A posting that is in a transaction is a @plink@.
-  plinks :: TransactionL l -> l (Seq (PostingL l))
+  postings :: TransactionL l -> l (Seq (PostingL l))
 
   ------------------------------------------------
-  -- Plinks
+  -- Postings
   ------------------------------------------------
   -- | Metadata for a single plink.
-  plinkMeta :: PostingL l -> l (Seq (TreeL l))
+  pstgMeta :: PostingL l -> l (Seq (TreeL l))
 
   -- | The Trio that belongs to a posting.
-  triplet :: PostingL l -> l Trio
+  trio :: PostingL l -> l Trio
 
   -- | The quantity that belongs to a posting.
-  quant :: PostingL l -> l Qty
+  qty :: PostingL l -> l Qty
 
   -- | The unit of currency for the posting.
-  curren :: PostingL l -> l Commodity
+  commodity :: PostingL l -> l Commodity
 
   -- | The serial that belongs to a posting.
-  xylo :: PostingL l -> l PostingSer
+  postingSer :: PostingL l -> l PostingSer
 
 instance Ledger m => Ledger (Matcher t m) where
   type PriceL (Matcher t m) = PriceL m
@@ -104,19 +104,19 @@ instance Ledger m => Ledger (Matcher t m) where
 
   vault = lift vault
   dateTime = lift . dateTime
-  trade = lift . trade
+  fromTo = lift . fromTo
   exchange = lift . exchange
-  capsule = lift . capsule
-  namespace = lift . namespace
+  scalar = lift . scalar
+  realm = lift . realm
   offspring = lift . offspring
   txnMeta = lift . txnMeta
-  zonk = lift . zonk
-  plinks = lift . plinks
-  plinkMeta = lift . plinkMeta
-  triplet = lift . triplet
-  quant = lift . quant
-  curren = lift . curren
-  xylo = lift . xylo
+  topLineSer = lift . topLineSer
+  postings = lift . postings
+  pstgMeta = lift . pstgMeta
+  trio = lift . trio
+  qty = lift . qty
+  commodity = lift . commodity
+  postingSer = lift . postingSer
 
 
 -- # Displaying trees
@@ -134,7 +134,7 @@ displayTree
   :: Ledger l
   => TreeL l
   -> l Text
-displayTree t = liftM2 f (capsule t) (offspring t)
+displayTree t = liftM2 f (scalar t) (offspring t)
   where
     f sc cs = maybe X.empty displayScalar sc <>
       if S.null cs then mempty else X.singleton '↓'
