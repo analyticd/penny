@@ -12,7 +12,6 @@ import Penny.Lincoln.DateTime
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.Prices hiding (fromTo)
 import Penny.Lincoln.Exch
-import Penny.Lincoln.Matcher
 import Data.Sequence (Seq, ViewL(..), viewl)
 import qualified Data.Sequence as S
 import Penny.Lincoln.Transaction
@@ -22,6 +21,7 @@ import Data.Text (Text)
 import Data.Monoid
 import qualified Data.Text as X
 import Control.Monad.Reader
+import Penny.Matcher
 
 class Monad l => Ledger l where
   type PriceL l

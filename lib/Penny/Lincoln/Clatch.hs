@@ -50,7 +50,7 @@ import Penny.Lincoln.Rep
 import Penny.Lincoln.Trio
 import Penny.Lincoln.Serial
 import Penny.Lincoln.Balances
-import Penny.Lincoln.Matcher
+import Penny.Matcher
 import Data.Monoid
 import qualified Data.Foldable as F
 
@@ -151,7 +151,7 @@ filterWithSerials
   -- ^
   -> Seq t
   -- ^
-  -> m (Seq (Maybe (Seq Message)), Seq (Filtered t))
+  -> m (Seq (Seq Message), Seq (Filtered t))
   -- ^
 filterWithSerials mr = liftM (fmap addSeqs) . filterSeq mr
   where
@@ -225,9 +225,9 @@ allClatches
       (Sorted (Filtered (TransactionL m, View (Converted (PostingL m)))))) m b
   -- ^ Filters postings after they have been sorted; this is known as
   -- the \"post-filter\".
-  -> m ( ( Seq (Maybe (Seq Message))
+  -> m ( ( Seq (Seq Message)
          , Renderings
-         , Seq (Maybe (Seq Message))
+         , Seq (Seq Message)
          )
        , Seq (Clatch m)
        )

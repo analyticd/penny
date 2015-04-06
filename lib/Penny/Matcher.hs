@@ -1,6 +1,59 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Penny.Matcher where
+-- | Matchers.
+--
+-- Here are the core components of 'Matcher' and matchers for prelude
+-- types.  The idea is that this module could eventually be extracted
+-- from Penny and be a package that Penny depends on.
+--
+-- So, for matchers on Penny specific types, see
+-- "Penny.Queries.Matcher".
+module Penny.Matcher
+  ( -- * Matcher
+    Matcher(..)
+
+    -- * Subjects
+  , getSubject
+  , examine
+  , observe
+  , study
+
+  -- * Logging
+  , accept
+  , reject
+  , notify
+  , inform
+  , proclaim
+  , indent
+
+  -- * Combining 'Matcher'
+  , disjoin
+  , conjoin
+  , (&&&)
+  , (|||)
+
+  -- * For common types
+  , always
+  , never
+  , just
+  , nothing
+  , left
+  , right
+  , each
+  , index
+
+  -- * Filtering
+  , filterSeq
+
+  -- * Basement
+  , logger
+  , Nesting(..)
+  , Opinion(..)
+  , Verdict(..)
+  , Level(..)
+  , Payload(..)
+  , Message(..)
+  ) where
 
 import Control.Applicative
 import Data.Bifunctor
@@ -8,24 +61,19 @@ import Data.Sequence (Seq, (|>))
 import qualified Data.Sequence as Seq
 import Data.String
 import Rainbow
-import Penny.Lincoln.Natural
-import Penny.Lincoln.Rep.Digit
 import Data.Monoid
 import Control.Monad.Writer
 import Control.Monad.Reader
-import Pipes hiding (next)
+import Pipes hiding (next, each)
 import qualified Pipes
 import qualified Data.Foldable as F
 
 -- | Indicates the current level of nesting.  This is used for logging
 -- purposes.  You can increase nesting by using the 'nest'
 -- functions.
-newtype Nesting = Nesting Unsigned
-  deriving (Eq, Ord, Show, Natural)
+newtype Nesting = Nesting Int
+  deriving (Eq, Ord, Show, Enum)
 
--- | A nesting level of zero.
-nesting0 :: Nesting
-nesting0 = Nesting (toUnsigned Zero)
 
 -- | Some text describing a logged action.
 newtype Opinion = Opinion [Chunk]
@@ -111,7 +159,20 @@ examine
   :: Matcher s m a
   -> s
   -> ListT (WriterT (Seq Message) m) a
-examine (Matcher rt) s = runReaderT rt (s, nesting0)
+examine (Matcher rt) s = runReaderT rt (s, Nesting 0)
+
+-- | Extract the first result, if there is one.
+observe
+  :: Monad m
+  => Matcher s m a
+  -> s
+  -> m (Maybe a)
+observe mtcr s = do
+  (ei, _) <- runWriterT . Pipes.next . enumerate . examine mtcr $ s
+  return $ case ei of
+    Left _ -> Nothing
+    Right (r, _) -> Just r
+
 
 -- | Runs a 'Matcher', but with a subject that is different from that
 -- of the current 'Matcher'.  For examples of its use, see 'just' and
@@ -134,7 +195,7 @@ indent
   :: Monad m
   => Matcher s m a
   -> Matcher s m a
-indent (Matcher i) = Matcher $ withReaderT (second next) i
+indent (Matcher i) = Matcher $ withReaderT (second succ) i
 
 -- # Logging
 

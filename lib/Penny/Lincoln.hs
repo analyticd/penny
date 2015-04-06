@@ -14,7 +14,6 @@ module Penny.Lincoln
     , module Penny.Lincoln.Exch
     , module Penny.Lincoln.Field
     , module Penny.Lincoln.Friendly
-    , module Penny.Lincoln.Matcher
     , module Penny.Lincoln.Mimode
     , module Penny.Lincoln.Natural
     , module Penny.Lincoln.NonEmpty
@@ -44,7 +43,6 @@ import Penny.Lincoln.Ents
 import Penny.Lincoln.Exch
 import Penny.Lincoln.Field
 import Penny.Lincoln.Friendly
-import Penny.Lincoln.Matcher
 import Penny.Lincoln.Mimode
 import Penny.Lincoln.Natural
 import Penny.Lincoln.NonEmpty
