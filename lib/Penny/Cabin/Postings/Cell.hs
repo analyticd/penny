@@ -6,17 +6,6 @@ import Data.Text (Text)
 import qualified Data.Text as X
 
 
-data CellTag
-  = DebitTag
-  | CreditTag
-  | ZeroTag
-  | InfoTag
-  | NoticeTag
-  deriving (Eq, Ord, Show, Enum, Bounded)
-
-spacer :: Int -> [(CellTag, Text)]
-spacer i = [(InfoTag, X.replicate i (X.singleton ' '))]
-
 {-
 import qualified Penny.Lincoln as L
 import Control.Applicative

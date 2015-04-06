@@ -4,7 +4,6 @@
 -- specifies an interface for such stores.
 module Penny.Ledger where
 
-import Control.Monad
 import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
 import Penny.Lincoln.Qty
@@ -12,14 +11,8 @@ import Penny.Lincoln.DateTime
 import Penny.Lincoln.Commodity
 import Penny.Lincoln.Prices hiding (fromTo)
 import Penny.Lincoln.Exch
-import Data.Sequence (Seq, ViewL(..), viewl)
-import qualified Data.Sequence as S
+import Data.Sequence (Seq)
 import Penny.Lincoln.Transaction
-import qualified Data.Foldable as F
-import qualified Data.Traversable as T
-import Data.Text (Text)
-import Data.Monoid
-import qualified Data.Text as X
 import Control.Monad.Reader
 import Penny.Matcher
 
@@ -117,38 +110,3 @@ instance Ledger m => Ledger (Matcher t m) where
   qty = lift . qty
   commodity = lift . commodity
   postingSer = lift . postingSer
-
-
--- # Displaying trees
-
--- To deal with special Unicode characters in Emacs, use C-x 8 to
--- insert them.  C-x = will give brief information about the character
--- at point; M-x describe-char gives more detailed information.
-
--- | Displays a tree.  It's impractical to display any of the children
--- of the child trees, so any child tree that has children is suffixed
--- with a down arrow (which is U+2193, or ↓) to let the user know
--- something is down there.
-
-displayTreeL
-  :: Ledger l
-  => TreeL l
-  -> l Text
-displayTreeL t = liftM2 f (scalar t) (offspring t)
-  where
-    f sc cs = maybe X.empty displayScalar sc <>
-      if S.null cs then mempty else X.singleton '↓'
-
--- | Displays a forest of trees, with each separated by a bullet
--- (which is U+2022, or •).
-displayForestL
-  :: Ledger l
-  => Seq (TreeL l)
-  -> l Text
-displayForestL sq = case viewl sq of
-  EmptyL -> return X.empty
-  x1 :< xs1 -> do
-    t1 <- displayTreeL x1
-    let dispNext t = liftM (X.cons '•') $ displayTreeL t
-    liftM (F.foldl' mappend t1) $ T.mapM dispNext xs1
-
