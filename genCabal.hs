@@ -12,6 +12,9 @@ pennyVer = [0,33,0,0]
 base :: Package
 base = closedOpen "base" [4,7,0,0] [4,8]
 
+anonymousSums :: Package
+anonymousSums = closedOpen "anonymous-sums" [0,4,0,0] [0,5]
+
 bytestring :: Package
 bytestring = closedOpen "bytestring" [0,10,4] [0,11]
 
@@ -121,6 +124,7 @@ libraryDepends =
   , turtle
   , mtl
   , pipesCliff
+  , anonymousSums
   ]
 
 testDepends :: [Package]

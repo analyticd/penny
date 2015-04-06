@@ -3,7 +3,15 @@
 
 module Penny.Queries.Clatch where
 
+import Control.Monad
 import qualified Penny.Lincoln as L
+import Data.Sums
+import Penny.Lincoln.Trio
+import Penny.Lincoln.Amount
+import Penny.Lincoln.Clatch
+import Penny.Lincoln.Rep
+import Penny.Lincoln.Qty
+import Penny.Ledger
 
 -- |
 -- @
@@ -88,3 +96,22 @@ sersetPostFiltered
   :: L.Filtered a
   -> L.Serset
 sersetPostFiltered (L.Filtered (L.Sersetted srst _)) = srst
+
+-- | Gets the 'Qty' from the converted Amount, if there is one.
+-- Otherwise, gets the 'QtyRep' from the 'Trio', if there is one.
+-- Otherwise, gets the 'Qty'.
+
+bestQty
+  :: Ledger l
+  => Clatch l
+  -> l (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
+bestQty clch = case convertedAmount clch of
+  Just (Amount _ qt) -> return $ S3c qt
+  Nothing -> do
+    tri <- trio . postingL $ clch
+    case tri of
+      QC qr _ _ -> return $ S3b qr
+      Q qr -> return $ S3b qr
+      UC nn _ _ -> return $ S3a nn
+      U nn -> return $ S3a nn
+      _ -> liftM S3c . qty . postingL $ clch

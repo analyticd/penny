@@ -5,6 +5,10 @@ import Control.Monad
 import Penny.Matcher
 import Penny.Lincoln.Clatch
 import Penny.Queries.Clatch
+import Penny.Lincoln.Rep
+import Penny.Lincoln.Qty
+import Penny.Lincoln.Commodity
+import Penny.Lincoln.Amount
 import qualified Penny.Queries.Matcher as Q
 import Penny.Lincoln.Field (displayScalar)
 import Data.Monoid
@@ -15,6 +19,7 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
+import Data.Sums
 
 -- | Indicates what sort of information is in the cell.  Can be debit,
 -- credit, or zero for cells that contain numeric information or
@@ -28,6 +33,39 @@ data CellTag
   | InfoTag
   | NoticeTag
   deriving (Eq, Ord, Show, Enum, Bounded)
+
+
+qty
+  :: Ledger l
+  => (Commodity -> Qty -> Text)
+  -> Clatch l
+  -> l [(CellTag, Text)]
+qty fmt clch = undefined
+
+formatQty
+  :: S3 RepNonNeutralNoSide QtyRepAnyRadix Qty
+  -> Text
+formatQty = undefined
+
+labeledTree
+  :: Ledger l
+  => Text
+  -> Clatch l
+  -> l [(CellTag, Text)]
+labeledTree txt clch = liftM (\x -> [(InfoTag, x)])
+  $ findLabeled txt clch
+
+findLabeled
+  :: Ledger l
+  => Text
+  -> Clatch l
+  -> l Text
+findLabeled txt clch
+  = renderFoundLabel clch
+  . findTree
+  . matchLabeledTree
+  $ txt
+
 
 -- | Given a Matcher that runs on a single 'TreeL', perform a
 -- pre-order search for that tree.  First look in the posting metadata
@@ -52,13 +90,13 @@ findTree mtcr = matchPstg <|> matchTxn
 -- | Given some text that is the cell label, find the best tree that
 -- contains that label and display it.
 
-labeled
+renderFoundLabel
   :: Ledger l
   => Clatch l
   -> Matcher (Clatch l) l Text
   -> l Text
   -- ^ Text for the cell
-labeled clch mtcr = liftM (maybe X.empty id) (observe mtcr clch)
+renderFoundLabel clch mtcr = liftM (maybe X.empty id) (observe mtcr clch)
 
 -- | If the TreeL has a scalar, the scalar is a text field, and the
 -- text field is equal to the given label, then returns the offspring
