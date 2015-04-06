@@ -138,6 +138,7 @@ indent (Matcher i) = Matcher $ withReaderT (second next) i
 
 -- # Logging
 
+-- | Logs a single message.
 logger :: Monad m => Payload -> Matcher s m ()
 logger msg = Matcher $ do
   nstg <- asks snd

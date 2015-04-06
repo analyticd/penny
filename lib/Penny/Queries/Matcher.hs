@@ -7,7 +7,7 @@ import Control.Monad.Trans.Class
 import qualified Data.Foldable as F
 import Control.Applicative
 import Data.Text (Text)
-import Penny.Lincoln.Matcher
+import Penny.Matcher
 import qualified Penny.Lincoln as L hiding (fromTo)
 import qualified Penny.Ledger as L
 import Data.Sequence (Seq)
@@ -15,21 +15,21 @@ import Data.Monoid
 import Turtle.Pattern
 import Data.String
 
--- # Utilities
-
 -- | Nests a 'Matcher' within the current 'Matcher', and adds an
 -- 'L.Opinion' indicating what is going on.
 labelNest
   :: Monad m
-  => L.Opinion
+  => Opinion
   -- ^ Descriptive text
   -> (t -> m t')
   -- ^ Convert the parent type to the nested type
   -> Matcher t' m a
   -> Matcher t  m a
-labelNest op get mr = do
-  L.inform ("nesting: " <> op)
-  L.nest get mr
+labelNest op conv mtcr = do
+  subj <- getSubject
+  t' <- lift . conv $ subj
+  inform ("nesting: " <> op)
+  indent $ study mtcr t'
 
 -- # Semantic
 
@@ -42,8 +42,9 @@ equal tgt = do
   let subjStr = fromString $ L.display subj ""
       tgtStr = fromString $ L.display tgt ""
   if L.semanticEq subj tgt
-    then acceptL (subjStr <> " is equal to " <> tgtStr) subj
-    else rejectL (subjStr <> " is not equal to " <> tgtStr)
+    then proclaim (subjStr <> " is equal to " <> tgtStr) >> accept subj
+    else proclaim (subjStr <> " is not equal to " <> tgtStr) >> reject
+
 
 greater
   :: (L.SemanticOrd s, L.Display s, Monad m)
@@ -54,8 +55,8 @@ greater tgt = do
   let subjStr = fromString $ L.display subj ""
       tgtStr = fromString $ L.display tgt ""
   if L.semanticOrd subj tgt == GT
-    then acceptL (subjStr <> " is greater than " <> tgtStr) subj
-    else rejectL (subjStr <> " is not greater than " <> tgtStr)
+    then proclaim (subjStr <> " is greater than " <> tgtStr) >> accept subj
+    else proclaim (subjStr <> " is not greater than " <> tgtStr) >> reject
 
 less
   :: (L.SemanticOrd s, L.Display s, Monad m)
@@ -66,10 +67,21 @@ less tgt = do
   let subjStr = fromString $ L.display subj ""
       tgtStr = fromString $ L.display tgt ""
   if L.semanticOrd subj tgt == LT
-    then acceptL (subjStr <> " is less than " <> tgtStr) subj
-    else rejectL (subjStr <> " is not less than " <> tgtStr)
+    then proclaim (subjStr <> " is less than " <> tgtStr) >> accept subj
+    else proclaim (subjStr <> " is not less than " <> tgtStr) >> reject
 
 -- # Commodities
+
+pattern
+  :: Monad m
+  => Pattern a
+  -> Matcher Text m a
+pattern pat = do
+  txt <- getSubject
+  let mtchs = match pat txt
+  inform . fromString $ "running text pattern on text: " <> show txt
+  (F.asum . fmap (\b -> indent (proclaim "match found" >> accept b)) $ mtchs)
+    <|> (proclaim "no matches found" >> reject)
 
 commodityName
   :: Monad m
@@ -77,8 +89,8 @@ commodityName
   -> Matcher L.Commodity m a
 commodityName mtcr = do
   inform "running Text matcher on commodity name"
-  nest (\(L.Commodity txt) -> return txt) mtcr
-
+  L.Commodity txt <- getSubject
+  indent $ study mtcr txt
 
 
 -- # Prices
@@ -105,7 +117,7 @@ exchange = labelNest "exchange" L.exchange
 
 nestField
   :: Monad m
-  => L.Opinion
+  => Opinion
   -> (t -> m (Maybe t'))
   -> Matcher t' m a
   -> Matcher t m a
@@ -114,10 +126,10 @@ nestField op get mtcr = do
   mayT' <- lift $ get curr
   inform $ "attempting to extract field: " <> op
   case mayT' of
-    Nothing -> rejectL "field not found"
+    Nothing -> proclaim "field not found" >> reject
     Just t' -> do
       inform "field found"
-      localSubject mtcr t'
+      study mtcr t'
 
 
 text
@@ -150,6 +162,23 @@ integer
   -> Matcher L.Scalar m a
 integer = nestField "integer" (fmap return L.scalarInteger)
 
+scalar
+  :: L.Ledger m
+  => Matcher L.Scalar m a
+  -> Matcher (L.TreeL m) m a
+scalar = nestField "scalar" L.scalar
+
+noScalar
+  :: L.Ledger m
+  => Matcher (L.TreeL m) m ()
+noScalar = do
+  t <- getSubject
+  maySclr <- lift $ L.scalar t
+  case maySclr of
+    Nothing -> proclaim "tree has no scalar" >> accept ()
+    Just _ -> proclaim "tree has a scalar" >> reject
+
+
 -- # Trees
 
 realm
@@ -172,24 +201,11 @@ preOrder
   => Matcher (L.TreeL m) m a
   -> Matcher (L.TreeL m) m a
 preOrder mtcr = do
-  s <- L.getSubject
-  cs <- L.offspring s
-  (L.inform "pre-order search - this node" >> mtcr) <|>
-    (L.inform "pre-order search - children" >>
-      (F.asum . fmap (L.localSubject (preOrder mtcr)) $ cs))
-
-scalar
-  :: L.Ledger m
-  => Matcher L.Scalar m a
-  -> Matcher (L.TreeL m) m a
-scalar = nestField "scalar" L.scalar
-
-noScalar
-  :: L.Ledger m
-  => Matcher (L.TreeL m) m ()
-noScalar = do
-  inform "testing whether tree does not have a scalar"
-  nest L.scalar nothing
+  s <- getSubject
+  cs <- lift $ L.offspring s
+  (inform "pre-order search - this node" >> indent mtcr) <|>
+    (inform "pre-order search - children" >>
+      (F.asum . fmap (indent . study (preOrder mtcr)) $ cs))
 
 
 -- | Traverses this tree and all child trees, in post-order; that is,
@@ -199,11 +215,12 @@ postOrder
   => Matcher (L.TreeL m) m a
   -> Matcher (L.TreeL m) m a
 postOrder mtcr = do
-  s <- L.getSubject
-  cs <- L.offspring s
-  (L.inform "post-order search - children" >>
-    (F.asum . fmap (L.localSubject (postOrder mtcr)) $ cs))
-  <|> (L.inform "post-order search - this node" >> mtcr)
+  s <- getSubject
+  cs <- lift $ L.offspring s
+  (inform "post-order search - children" >>
+    (F.asum . fmap (study (postOrder mtcr)) $ cs))
+  <|> (inform "post-order search - this node" >> mtcr)
+
 
 -- # Transactions
 
@@ -262,6 +279,4 @@ postingSer
   => Matcher L.PostingSer m a
   -> Matcher (L.PostingL m) m a
 postingSer = labelNest "postingSer" L.postingSer
-
-
 
