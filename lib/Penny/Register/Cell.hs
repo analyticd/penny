@@ -1,5 +1,35 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Penny.Register.Cell where
+module Penny.Register.Cell
+  ( CellTag(..)
+  -- * Cells with converted amounts
+  --
+  -- | The 'Clatch' may have a converted amount.
+  -- Use these functions with 'original' and 'best' to determine
+  -- whether to use the original amount or the converted amount if it
+  -- is available:
+  --
+  -- @
+  -- -- Show the converted quantity, if there is one; otherwise
+  -- -- show the original quantity
+  -- let qtyColumn = best . qty
+  -- @
+  , original
+  , best
+  , Penny.Register.Cell.qty
+  , Penny.Register.Cell.commodity
+  , side
+
+  -- * Cells from forests
+  , forest
+  , findNamedTree
+
+  -- * White space
+  , spacer
+
+  -- * Serials
+  , forward
+  , reverse
+  ) where
 
 import Control.Applicative
 import Control.Monad
@@ -15,7 +45,7 @@ import Penny.Amount
 import Penny.Clatch
 import Penny.Commodity
 import Penny.Display
-import Penny.Field (displayScalar, Realm(..))
+import Penny.Field (displayScalar)
 import Penny.Ledger
 import Penny.Matcher
 import Penny.Natural
@@ -56,18 +86,48 @@ side
   => BestField l a
 side = BestField originalSide bestSide
 
--- | Creates a cell by attempting to find a tree in the posting
--- metadata whose scalar exactly matches the given name.  If no tree
--- is found in the posting metadata, looks in the transaction
--- metadata.  If no tree is found there, the cell will be empty.
-labeledTree
+
+-- | Creates a Cell that runs the given Matcher on the Clatch and puts
+-- the resulting Forest into a cell.
+forest
   :: Ledger l
-  => Text
+  => Matcher (Clatch l) l (Seq (TreeL l))
   -> a
   -> Clatch l
   -> l [(CellTag, Text)]
-labeledTree txt _ clch = liftM (\x -> [(NonLinear, x)])
-  $ findLabeled txt clch
+forest mtcr _ clch = do
+  mayRes <- observe mtcr clch
+  case mayRes of
+    Nothing -> return [(NonLinear, X.empty)]
+    Just ts -> do
+      txt <- displayForestL ts
+      return [(NonLinear, txt)]
+
+-- | Creates a 'Matcher' that looks for a parent tree with the exact
+-- name given.  First performs a pre-order search in the metadata of
+-- the posting; then performs a pre-order search in the metadata for
+-- the top line.  If successful, returns the child forest.
+--
+-- Use with 'forest'.
+findNamedTree
+  :: Ledger l
+  => Text
+  -> Matcher (Clatch l) l (Seq (TreeL l))
+findNamedTree txt = matchPstg <|> matchTxn
+  where
+    finder = each . Q.preOrder $ mtcr
+    mtcr = do
+      _ <- Q.scalar . Q.text . Q.equal $ txt
+      subj <- getSubject
+      offspring subj
+    matchTxn = do
+      txn <- fmap transactionL getSubject
+      ts <- txnMeta txn
+      study finder ts
+    matchPstg = do
+      pstg <- fmap postingL getSubject
+      ts <- pstgMeta pstg
+      study finder ts
 
 -- | A cell with the given number of blank spaces.
 spacer :: Monad m => Int -> a -> b -> m [(CellTag, Text)]
@@ -77,38 +137,71 @@ spacer i _ _ = return [(NonLinear, X.replicate i (X.singleton ' '))]
 
 -- Use these with 'forward' and 'reverse' to get the serial you want.
 
+-- | Use with 'forward and reverse', for instance:
+--
+-- @
+-- 'forward' 'preFiltered'
+-- @
 preFiltered :: Monad l => Clatch l -> l Serset
 preFiltered = fmap return sersetPreFiltered
 
+
+-- | Use with 'forward and reverse', for instance:
+--
+-- @
+-- 'reverse' 'sorted'
+-- @
 sorted :: Monad l => Clatch l -> l Serset
 sorted = fmap return sersetSorted
 
+-- | Use with 'forward and reverse', for instance:
+--
+-- @
+-- 'forward' 'postFiltered'
+-- @
 postFiltered :: Monad l => Clatch l -> l Serset
 postFiltered = fmap return sersetPostFiltered
 
 -- Gets the Sersets from a posting or the transaction.  Use with
 -- 'global' and 'file'.
 
-posting :: Ledger l => Clatch l -> FileOrGlobal l
-posting clch = FileOrGlobal glbl fle
+-- | Use with 'forward', 'reverse', 'file', and 'global', for
+-- instance:
+--
+-- @
+-- 'forward' $ 'global' 'posting'
+-- @
+posting :: Ledger l => FileOrGlobal l
+posting = FileOrGlobal glbl fle
   where
-    glbl = do
-      PostingSer _ g _ <- postingSer . postingL $ clch
+    glbl clch = do
+      PostingSer _ (GlobalSer g) _ <- postingSer . postingL $ clch
       return g
-    fle = do
-      PostingSer f _ _ <- postingSer . postingL $ clch
+    fle clch = do
+      PostingSer (FileSer f) _ _ <- postingSer . postingL $ clch
       return f
 
-topLine :: Ledger l => Clatch l -> FileOrGlobal l
-topLine clch = FileOrGlobal glbl fle
+-- | Use with 'forward', 'reverse', 'file', and 'global', for
+-- instance:
+--
+-- @
+-- 'forward' $ 'global' 'topLine'
+-- @
+topLine :: Ledger l => FileOrGlobal l
+topLine = FileOrGlobal glbl fle
   where
-    glbl = do
-      TopLineSer _ g <- topLineSer . transactionL $ clch
+    glbl clch = do
+      TopLineSer _ (GlobalSer g) <- topLineSer . transactionL $ clch
       return g
-    fle = do
-      TopLineSer f _ <- topLineSer . transactionL $ clch
+    fle clch = do
+      TopLineSer (FileSer f) _ <- topLineSer . transactionL $ clch
       return f
 
+-- | Use with 'forward and reverse', for instance:
+--
+-- @
+-- 'reverse' 'index'
+-- @
 index :: Ledger l => Clatch l -> l Serset
 index clch = do
   PostingSer _ _ (PostingIndex s) <- postingSer . postingL $ clch
@@ -123,8 +216,8 @@ data BestField l a = BestField
   }
 
 data FileOrGlobal l = FileOrGlobal
-  { global :: l GlobalSer
-  , file :: l FileSer
+  { global :: Clatch l -> l Serset
+  , file :: Clatch l -> l Serset
   }
 
 -- | Displays the 'Qty' only.  Uses the converted 'Qty' if there is
