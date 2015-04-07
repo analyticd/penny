@@ -4,15 +4,15 @@
 -- specifies an interface for such stores.
 module Penny.Ledger where
 
-import Penny.Lincoln.Field
-import Penny.Lincoln.Trio
-import Penny.Lincoln.Qty
-import Penny.Lincoln.DateTime
+import Penny.Field
+import Penny.Trio
+import Penny.Qty
+import Penny.DateTime
 import Penny.Commodity
-import Penny.Lincoln.Prices hiding (fromTo)
-import Penny.Lincoln.Exch
+import Penny.Prices hiding (fromTo)
+import Penny.Exch
 import Data.Sequence (Seq)
-import Penny.Lincoln.Transaction
+import Penny.Transaction
 import Control.Monad.Reader
 import Penny.Matcher
 

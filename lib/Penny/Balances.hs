@@ -1,10 +1,10 @@
-module Penny.Lincoln.Balances where
+module Penny.Balances where
 
 import Penny.Amount
 import qualified Data.Foldable as F
-import Penny.Lincoln.Decimal
+import Penny.Decimal
 import Penny.Commodity
-import Penny.Lincoln.Qty
+import Penny.Qty
 import qualified Data.Map as M
 import Data.Monoid
 

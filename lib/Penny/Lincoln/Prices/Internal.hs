@@ -3,9 +3,9 @@ module Penny.Lincoln.Prices.Internal where
 import Penny.Commodity
 import Data.Map (Map)
 import qualified Data.Map as M
-import Penny.Lincoln.Exch
-import Penny.Lincoln.Qty
-import Penny.Lincoln.DateTime
+import Penny.Exch
+import Penny.Qty
+import Penny.DateTime
 import Data.Time
 
 newtype FromCy = FromCy Commodity

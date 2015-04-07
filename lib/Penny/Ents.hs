@@ -1,4 +1,4 @@
-module Penny.Lincoln.Ents
+module Penny.Ents
   ( Ents
   , entsToSeqEnt
   , entsToImbalances

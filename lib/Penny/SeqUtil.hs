@@ -5,7 +5,7 @@
 -- |
 -- Utilities for "Data.Sequence".
 
-module Penny.Lincoln.SeqUtil
+module Penny.SeqUtil
   ( SortKey(..)
   , mapKey
   , reverseOrder

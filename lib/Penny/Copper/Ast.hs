@@ -493,10 +493,10 @@ rNeutral neu = case neu of
   NeuCom b0 n1 -> rBacktick b0 . rNil rRadixRadCom rRadCom n1
   NeuPer n0 -> rNil rRadixRadPer rRadPer n0
 
--- | Trio.  There is nothing corresponding to 'Penny.Lincoln.Trio.E'
+-- | Trio.  There is nothing corresponding to 'Penny.Trio.E'
 -- as this would screw up the spacing, and generally productions in
 -- the AST should actually produce something.  Instead,
--- 'Penny.Lincoln.Trio.E' is indicated by the absense of any 'TrioA'.
+-- 'Penny.Trio.E' is indicated by the absense of any 'TrioA'.
 data TrioA
   = QcCyOnLeftA (Fs Side) (Fs CommodityOnLeftA) NonNeutral
   -- ^ Non neutral, commodity on left

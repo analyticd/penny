@@ -3,58 +3,58 @@
 module Penny.Lincoln
   (
       module Penny.Amount
-    , module Penny.Lincoln.Balances
-    , module Penny.Lincoln.Clatch
+    , module Penny.Balances
+    , module Penny.Clatch
     , module Penny.Commodity
-    , module Penny.Lincoln.DateTime
-    , module Penny.Lincoln.Decimal
+    , module Penny.DateTime
+    , module Penny.Decimal
     , module Penny.Display
-    , module Penny.Lincoln.Ent
-    , module Penny.Lincoln.Ents
-    , module Penny.Lincoln.Exch
-    , module Penny.Lincoln.Field
-    , module Penny.Lincoln.Friendly
-    , module Penny.Lincoln.Mimode
+    , module Penny.Ent
+    , module Penny.Ents
+    , module Penny.Exch
+    , module Penny.Field
+    , module Penny.Friendly
+    , module Penny.Mimode
     , module Penny.Number.Natural
     , module Penny.NonEmpty
-    , module Penny.Lincoln.NonZero
+    , module Penny.NonZero
     , module Penny.Offset
     , module Penny.PluMin
-    , module Penny.Lincoln.Prices
-    , module Penny.Lincoln.Qty
+    , module Penny.Prices
+    , module Penny.Qty
     , module Penny.Number.Rep
-    , module Penny.Lincoln.Semantic
-    , module Penny.Lincoln.SeqUtil
-    , module Penny.Lincoln.Serial
+    , module Penny.Semantic
+    , module Penny.SeqUtil
+    , module Penny.Serial
     , module Penny.Side
-    , module Penny.Lincoln.Transaction
-    , module Penny.Lincoln.Trio
+    , module Penny.Transaction
+    , module Penny.Trio
   ) where
 
 import Penny.Amount
-import Penny.Lincoln.Balances
-import Penny.Lincoln.Clatch
+import Penny.Balances
+import Penny.Clatch
 import Penny.Commodity
-import Penny.Lincoln.DateTime
-import Penny.Lincoln.Decimal
+import Penny.DateTime
+import Penny.Decimal
 import Penny.Display
-import Penny.Lincoln.Ent
-import Penny.Lincoln.Ents
-import Penny.Lincoln.Exch
-import Penny.Lincoln.Field
-import Penny.Lincoln.Friendly
-import Penny.Lincoln.Mimode
+import Penny.Ent
+import Penny.Ents
+import Penny.Exch
+import Penny.Field
+import Penny.Friendly
+import Penny.Mimode
 import Penny.Number.Natural
 import Penny.NonEmpty
-import Penny.Lincoln.NonZero
+import Penny.NonZero
 import Penny.Offset
 import Penny.PluMin
-import Penny.Lincoln.Prices
-import Penny.Lincoln.Qty
+import Penny.Prices
+import Penny.Qty
 import Penny.Number.Rep
-import Penny.Lincoln.Semantic
-import Penny.Lincoln.SeqUtil
-import Penny.Lincoln.Serial
+import Penny.Semantic
+import Penny.SeqUtil
+import Penny.Serial
 import Penny.Side
-import Penny.Lincoln.Transaction
-import Penny.Lincoln.Trio
+import Penny.Transaction
+import Penny.Trio

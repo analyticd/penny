@@ -7,7 +7,7 @@
 -- types may not be \"represented\"--that is, displayed to the user in
 -- a friendly way.  To display a 'Qty', convert it to a representation
 -- type using one of the functions in this module.
-module Penny.Lincoln.Qty
+module Penny.Qty
   ( -- * Qty
     Qty(..)
   , qtySide
@@ -40,16 +40,16 @@ module Penny.Lincoln.Qty
   , pickRadix
   ) where
 
-import Penny.Lincoln.Decimal
+import Penny.Decimal
 import Penny.Number.Natural
 import Penny.Side
 import Penny.Number.Rep
-import Penny.Lincoln.NonZero
+import Penny.NonZero
 import Penny.Offset
 import Penny.PluMin
 import Penny.NonEmpty
 import Penny.Commodity
-import Penny.Lincoln.Mimode
+import Penny.Mimode
 import Penny.Display
 import Data.Sequence (Seq)
 import qualified Data.Map.Strict as M

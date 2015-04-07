@@ -1,4 +1,4 @@
-module Penny.Lincoln.Ent where
+module Penny.Ent where
 
 import Penny.Amount
 import Data.Foldable

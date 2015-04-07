@@ -1,4 +1,4 @@
-module Penny.Lincoln.Decimal
+module Penny.Decimal
   (
   -- * Decimal types and classes
     Decimal(..)
@@ -39,7 +39,7 @@ module Penny.Lincoln.Decimal
   ) where
 
 import Penny.Number.Natural
-import Penny.Lincoln.NonZero
+import Penny.NonZero
 import Penny.Number.Rep
 import Control.Monad (join)
 import Data.Sequence ((<|))

@@ -1,4 +1,4 @@
-module Penny.Lincoln.DateTime
+module Penny.DateTime
   ( Date
   , fromGregorian
   , c'Date'Day

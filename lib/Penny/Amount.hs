@@ -1,6 +1,6 @@
 module Penny.Amount where
 
-import Penny.Lincoln.Qty
+import Penny.Qty
 import Penny.Commodity
 
 data Amount = Amount Commodity Qty

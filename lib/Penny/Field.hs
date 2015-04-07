@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings, TypeSynonymInstances, FlexibleInstances #-}
-module Penny.Lincoln.Field where
+module Penny.Field where
 
 import Data.Text (Text, pack)
-import Penny.Lincoln.DateTime
+import Penny.DateTime
 import Penny.Display
 
 data Tree = Tree Realm (Maybe Scalar) [Tree]

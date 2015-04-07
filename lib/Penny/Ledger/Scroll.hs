@@ -10,12 +10,12 @@ import Penny.Amount
 import Penny.Ledger
 import Control.Applicative
 import Control.Monad.Trans.Class
-import Penny.Lincoln.Transaction
+import Penny.Transaction
 import Data.Functor.Identity
-import Penny.Lincoln.Field
-import Penny.Lincoln.Ents
-import Penny.Lincoln.Ent
-import Penny.Lincoln.Prices
+import Penny.Field
+import Penny.Ents
+import Penny.Ent
+import Penny.Prices
 import Control.Monad.Reader
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq

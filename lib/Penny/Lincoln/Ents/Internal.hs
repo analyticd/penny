@@ -6,19 +6,19 @@ import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>)
                       , ViewR(..), viewr)
 import qualified Data.Sequence as S
 import Penny.Amount
-import Penny.Lincoln.Ent
-import Penny.Lincoln.Balances
+import Penny.Ent
+import Penny.Balances
 import Penny.Commodity
-import Penny.Lincoln.Qty
+import Penny.Qty
 import Data.Monoid
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import qualified Data.Text as X
-import Penny.Lincoln.Trio
+import Penny.Trio
 import qualified Data.Map as M
 import Penny.Side
 import Penny.Number.Rep
-import Penny.Lincoln.Friendly
+import Penny.Friendly
 
 data Ents m = Ents
   { entsToSeqEnt :: Seq (Ent m)

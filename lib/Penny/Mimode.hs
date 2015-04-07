@@ -1,5 +1,5 @@
 -- | The \"mimode\" is a modified statistical mode.
-module Penny.Lincoln.Mimode where
+module Penny.Mimode where
 
 import qualified Data.Map.Strict as M
 import qualified Data.Foldable as F

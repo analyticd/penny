@@ -26,7 +26,7 @@
 -- report that has a running balance that includes an entire set of
 -- postings, but that only shows postings of interest.
 
-module Penny.Lincoln.Clatch
+module Penny.Clatch
   ( Converted(..)
   , Renderings(..)
   , Filtered(..)
@@ -38,7 +38,7 @@ module Penny.Lincoln.Clatch
 
 import Penny.Amount
 import Penny.Ledger
-import Penny.Lincoln.SeqUtil
+import Penny.SeqUtil
 import Data.Sequence (Seq, (|>))
 import qualified Data.Sequence as S
 import qualified Data.Traversable as T
@@ -47,9 +47,9 @@ import Control.Monad
 import Penny.Commodity
 import Penny.NonEmpty
 import Penny.Number.Rep
-import Penny.Lincoln.Trio
-import Penny.Lincoln.Serial
-import Penny.Lincoln.Balances
+import Penny.Trio
+import Penny.Serial
+import Penny.Balances
 import Penny.Matcher
 import Data.Monoid
 import qualified Data.Foldable as F

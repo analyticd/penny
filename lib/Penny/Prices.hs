@@ -9,7 +9,7 @@
 -- * a specification of the ratio of 'FromCy' to 'ToCy', an 'Exch'
 --
 -- * an instant in time when this price took effect, a
--- 'Penny.Lincoln.DateTime.DateTime'
+-- 'Penny.DateTime.DateTime'
 --
 -- Typically the 'ToCy' is the home currency, while the 'FromCy' is an
 -- asset of some sort, such as stock shares.  The 'Exch' always means
@@ -26,7 +26,7 @@
 -- negative value (perhaps toxic waste?) though you could also book
 -- these as liabilities instead.
 
-module Penny.Lincoln.Prices
+module Penny.Prices
   ( FromCy(..)
   , ToCy(..)
   , FromTo

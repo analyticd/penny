@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
-module Penny.Lincoln.Serial where
+module Penny.Serial where
 
 import Control.Applicative
 import Penny.Number.Natural

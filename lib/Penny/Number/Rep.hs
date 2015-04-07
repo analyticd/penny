@@ -9,7 +9,7 @@
 -- (which may be a period or a comma.)
 --
 -- To create representations from decimal types, consult the functions
--- in "Penny.Lincoln.Decimal" and "Penny.Lincoln.Qty".  Functions in
+-- in "Penny.Decimal" and "Penny.Qty".  Functions in
 -- this module will group some representation types--that is, insert
 -- grouping characters to make them easier to read.
 module Penny.Number.Rep
@@ -498,8 +498,8 @@ newtype QtyRepAnyRadix
 -- see, for example, 'RadCom' or 'RadPer'.  If non-neutral, also
 -- contains a 'PluMin'.
 --
--- This is a complete representation of an 'Penny.Lincoln.Exch.Exch';
--- that is, it can represent any 'Penny.Lincoln.Exch.Exch'.
+-- This is a complete representation of an 'Penny.Exch.Exch';
+-- that is, it can represent any 'Penny.Exch.Exch'.
 
 newtype ExchRep r = ExchRep (NilOrBrimPolar r PluMin)
   deriving (Eq, Ord, Show)

@@ -1,4 +1,4 @@
-module Penny.Lincoln.Semantic where
+module Penny.Semantic where
 
 import Data.Text (Text)
 

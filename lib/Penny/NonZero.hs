@@ -1,4 +1,4 @@
-module Penny.Lincoln.NonZero
+module Penny.NonZero
   ( NonZero
   , nonZeroToInteger
   , integerToNonZero

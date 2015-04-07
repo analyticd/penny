@@ -13,7 +13,7 @@
 -- that would come from a text file.
 --
 -- Functions in this module also assign serials.
-module Penny.Lincoln.Transaction
+module Penny.Transaction
   ( -- * Transactions
     TopLine(..)
   , PstgMeta(..)
@@ -38,9 +38,9 @@ module Penny.Lincoln.Transaction
   , assignSerialsToTxns
   ) where
 
-import Penny.Lincoln.Ents
-import Penny.Lincoln.Field
-import Penny.Lincoln.Trio
+import Penny.Ents
+import Penny.Field
+import Penny.Trio
 import Data.Sequence (Seq, viewl, ViewL(..))
 import Data.Monoid
 import qualified Data.Traversable as T
@@ -51,7 +51,7 @@ import Penny.Number.Natural
 import Penny.Number.Rep
 import Data.Bifunctor
 import Data.Bifoldable
-import Penny.Lincoln.Serial
+import Penny.Serial
 
 -- | All the data associated with the top line in a transaction.
 data TopLine a
@@ -96,9 +96,9 @@ instance T.Traversable PstgMeta where
 --
 -- Here is the posting data that is ultimately available:
 --
--- * through 'Balanced', you get 'Penny.Lincoln.Ent.Ent', which
+-- * through 'Balanced', you get 'Penny.Ent.Ent', which
 -- contains an 'Penny.Amount.Amount', which contains the
--- 'Penny.Commodity.Commodity' and 'Penny.Lincoln.Qty.Qty'
+-- 'Penny.Commodity.Commodity' and 'Penny.Qty.Qty'
 --
 -- * through 'PstgMeta', you get the list of 'Tree' and the 'Trio'
 --

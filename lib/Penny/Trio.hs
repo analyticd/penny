@@ -1,21 +1,21 @@
-module Penny.Lincoln.Trio where
+module Penny.Trio where
 
 import Penny.Amount
-import Penny.Lincoln.Ent
-import Penny.Lincoln.Decimal
+import Penny.Ent
+import Penny.Decimal
 import Penny.Display
 import Penny.Commodity
-import Penny.Lincoln.Balances
+import Penny.Balances
 import Penny.Side
 import Penny.Number.Rep
-import Penny.Lincoln.Qty
+import Penny.Qty
 import Penny.Offset
-import Penny.Lincoln.Friendly
+import Penny.Friendly
 import Penny.NonEmpty
 import qualified Data.Map as M
 import qualified Data.Text as X
 import Data.Sequence (Seq)
-import Penny.Lincoln.Mimode
+import Penny.Mimode
 
 data Orient
   = CommodityOnLeft

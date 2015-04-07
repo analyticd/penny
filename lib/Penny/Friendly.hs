@@ -1,4 +1,4 @@
-module Penny.Lincoln.Friendly where
+module Penny.Friendly where
 
 -- | Friendly display of error messages.
 

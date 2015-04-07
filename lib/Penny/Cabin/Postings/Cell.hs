@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Cabin.Postings.Cell where
 
-import Penny.Lincoln.Clatch
+import Penny.Clatch
 import Data.Text (Text)
 import qualified Data.Text as X
 

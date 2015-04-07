@@ -1,16 +1,16 @@
 {-# LANGUAGE TypeFamilies #-}
--- | Queries on 'Penny.Lincoln.Clatch.Clatch'.
+-- | Queries on 'Penny.Clatch.Clatch'.
 
 module Penny.Queries.Clatch where
 
 import Control.Monad
 import qualified Penny.Lincoln as L
 import Data.Sums
-import Penny.Lincoln.Trio
+import Penny.Trio
 import Penny.Amount
-import Penny.Lincoln.Clatch
+import Penny.Clatch
 import Penny.Number.Rep
-import Penny.Lincoln.Qty
+import Penny.Qty
 import Penny.Ledger
 
 -- |

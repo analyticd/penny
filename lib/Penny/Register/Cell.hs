@@ -3,14 +3,14 @@ module Penny.Register.Cell where
 import Control.Applicative
 import Control.Monad
 import Penny.Matcher
-import Penny.Lincoln.Clatch
+import Penny.Clatch
 import Penny.Queries.Clatch
 import Penny.Number.Rep
-import Penny.Lincoln.Qty
+import Penny.Qty
 import Penny.Commodity
 import Penny.Amount
 import qualified Penny.Queries.Matcher as Q
-import Penny.Lincoln.Field (displayScalar)
+import Penny.Field (displayScalar)
 import Data.Monoid
 import Data.Sequence (Seq, viewl, ViewL(..))
 import qualified Data.Sequence as Seq
