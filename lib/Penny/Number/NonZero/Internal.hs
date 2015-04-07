@@ -1,4 +1,4 @@
-module Penny.Lincoln.NonZero.Internal where
+module Penny.Number.NonZero.Internal where
 
 import Penny.Number.Natural.Internal
 import Penny.Offset

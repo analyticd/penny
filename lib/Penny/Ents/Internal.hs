@@ -1,5 +1,5 @@
 {-# OPTIONS_HADDOCK not-home #-}
-module Penny.Lincoln.Ents.Internal where
+module Penny.Ents.Internal where
 
 import Control.Applicative
 import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>)

@@ -42,4 +42,4 @@ module Penny.Prices
   , ExchLookupError(..)
   ) where
 
-import Penny.Lincoln.Prices.Internal
+import Penny.Prices.Internal

@@ -39,7 +39,7 @@ module Penny.Decimal
   ) where
 
 import Penny.Number.Natural
-import Penny.NonZero
+import Penny.Number.NonZero
 import Penny.Number.Rep
 import Control.Monad (join)
 import Data.Sequence ((<|))

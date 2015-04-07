@@ -44,7 +44,7 @@ import Penny.Decimal
 import Penny.Number.Natural
 import Penny.Side
 import Penny.Number.Rep
-import Penny.NonZero
+import Penny.Number.NonZero
 import Penny.Offset
 import Penny.PluMin
 import Penny.NonEmpty

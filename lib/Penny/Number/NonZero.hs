@@ -1,4 +1,4 @@
-module Penny.NonZero
+module Penny.Number.NonZero
   ( NonZero
   , nonZeroToInteger
   , integerToNonZero
@@ -8,5 +8,5 @@ module Penny.NonZero
   , c'NonZero'Positive
   ) where
 
-import Penny.Lincoln.NonZero.Internal
+import Penny.Number.NonZero.Internal
 

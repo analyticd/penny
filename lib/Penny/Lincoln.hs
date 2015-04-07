@@ -17,7 +17,7 @@ module Penny.Lincoln
     , module Penny.Mimode
     , module Penny.Number.Natural
     , module Penny.NonEmpty
-    , module Penny.NonZero
+    , module Penny.Number.NonZero
     , module Penny.Offset
     , module Penny.PluMin
     , module Penny.Prices
@@ -46,7 +46,7 @@ import Penny.Friendly
 import Penny.Mimode
 import Penny.Number.Natural
 import Penny.NonEmpty
-import Penny.NonZero
+import Penny.Number.NonZero
 import Penny.Offset
 import Penny.PluMin
 import Penny.Prices

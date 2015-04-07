@@ -22,4 +22,4 @@ module Penny.Ents
   , restrictedBalanced
   ) where
 
-import Penny.Lincoln.Ents.Internal
+import Penny.Ents.Internal
