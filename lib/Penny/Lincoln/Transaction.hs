@@ -47,7 +47,7 @@ import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import qualified Data.Foldable as F
 import Control.Applicative
-import Penny.Lincoln.Natural
+import Penny.Number.Natural
 import Penny.Number.Rep
 import Data.Bifunctor
 import Data.Bifoldable

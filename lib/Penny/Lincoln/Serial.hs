@@ -2,7 +2,7 @@
 module Penny.Lincoln.Serial where
 
 import Control.Applicative
-import Penny.Lincoln.Natural
+import Penny.Number.Natural
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import Penny.Number.Rep

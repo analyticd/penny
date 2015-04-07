@@ -41,7 +41,7 @@ module Penny.Lincoln.Qty
   ) where
 
 import Penny.Lincoln.Decimal
-import Penny.Lincoln.Natural
+import Penny.Number.Natural
 import Penny.Side
 import Penny.Number.Rep
 import Penny.Lincoln.NonZero

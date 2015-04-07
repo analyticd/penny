@@ -1,7 +1,7 @@
 module Penny.NonEmpty where
 
 import Control.Applicative
-import Penny.Lincoln.Natural
+import Penny.Number.Natural
 import Penny.Number.Digit
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T

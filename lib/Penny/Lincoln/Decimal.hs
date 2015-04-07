@@ -38,7 +38,7 @@ module Penny.Lincoln.Decimal
   , repDigits
   ) where
 
-import Penny.Lincoln.Natural
+import Penny.Number.Natural
 import Penny.Lincoln.NonZero
 import Penny.Number.Rep
 import Control.Monad (join)

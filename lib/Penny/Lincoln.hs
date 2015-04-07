@@ -15,7 +15,7 @@ module Penny.Lincoln
     , module Penny.Lincoln.Field
     , module Penny.Lincoln.Friendly
     , module Penny.Lincoln.Mimode
-    , module Penny.Lincoln.Natural
+    , module Penny.Number.Natural
     , module Penny.NonEmpty
     , module Penny.Lincoln.NonZero
     , module Penny.Offset
@@ -44,7 +44,7 @@ import Penny.Lincoln.Exch
 import Penny.Lincoln.Field
 import Penny.Lincoln.Friendly
 import Penny.Lincoln.Mimode
-import Penny.Lincoln.Natural
+import Penny.Number.Natural
 import Penny.NonEmpty
 import Penny.Lincoln.NonZero
 import Penny.Offset

@@ -1,6 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# OPTIONS_HADDOCK not-home #-}
-module Penny.Lincoln.Natural.Internal where
+module Penny.Number.Natural.Internal where
 
 import Penny.Number.Digit
 import Data.Foldable (Foldable, toList)
