@@ -2,8 +2,8 @@
 -- always represents quantities that may be a debit or a credit (as
 -- opposed to prices, which do not have a debit or credit.)
 --
--- Unlike the types in "Penny.Number.Rep", you can perform arithmetic
--- on these types.  Unlike the types in "Penny.Number.Rep", these
+-- Unlike the types in "Penny.Representation", you can perform arithmetic
+-- on these types.  Unlike the types in "Penny.Representation", these
 -- types may not be \"represented\"--that is, displayed to the user in
 -- a friendly way.  To display a 'Qty', convert it to a representation
 -- type using one of the functions in this module.
@@ -41,10 +41,10 @@ module Penny.Qty
   ) where
 
 import Penny.Decimal
-import Penny.Number.Natural
+import Penny.Natural
 import Penny.Side
-import Penny.Number.Rep
-import Penny.Number.NonZero
+import Penny.Representation
+import Penny.NonZero
 import Penny.Offset
 import Penny.PluMin
 import Penny.NonEmpty

@@ -1,8 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
 {-# OPTIONS_HADDOCK not-home #-}
-module Penny.Number.Natural.Internal where
+module Penny.Natural.Internal where
 
-import Penny.Number.Digit
+import Penny.Digit
 import Data.Foldable (Foldable, toList)
 import Data.Sequence (Seq, ViewR(..), viewr)
 import Penny.PluMin

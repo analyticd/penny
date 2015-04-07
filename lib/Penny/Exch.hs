@@ -3,7 +3,7 @@ module Penny.Exch where
 
 import Penny.PluMin
 import Penny.Decimal
-import Penny.Number.Rep
+import Penny.Representation
 
 newtype Exch = Exch Decimal
   deriving (Eq, Ord, Show)

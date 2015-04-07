@@ -1,4 +1,4 @@
-module Penny.Number.Natural
+module Penny.Natural
   ( Natural(..)
   , Positive
   , Unsigned
@@ -30,4 +30,4 @@ module Penny.Number.Natural
   , positiveDigits
   ) where
 
-import Penny.Number.Natural.Internal
+import Penny.Natural.Internal

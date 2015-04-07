@@ -15,14 +15,14 @@ module Penny.Lincoln
     , module Penny.Field
     , module Penny.Friendly
     , module Penny.Mimode
-    , module Penny.Number.Natural
+    , module Penny.Natural
     , module Penny.NonEmpty
-    , module Penny.Number.NonZero
+    , module Penny.NonZero
     , module Penny.Offset
     , module Penny.PluMin
     , module Penny.Prices
     , module Penny.Qty
-    , module Penny.Number.Rep
+    , module Penny.Representation
     , module Penny.Semantic
     , module Penny.SeqUtil
     , module Penny.Serial
@@ -44,14 +44,14 @@ import Penny.Exch
 import Penny.Field
 import Penny.Friendly
 import Penny.Mimode
-import Penny.Number.Natural
+import Penny.Natural
 import Penny.NonEmpty
-import Penny.Number.NonZero
+import Penny.NonZero
 import Penny.Offset
 import Penny.PluMin
 import Penny.Prices
 import Penny.Qty
-import Penny.Number.Rep
+import Penny.Representation
 import Penny.Semantic
 import Penny.SeqUtil
 import Penny.Serial

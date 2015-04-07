@@ -12,7 +12,7 @@
 -- in "Penny.Decimal" and "Penny.Qty".  Functions in
 -- this module will group some representation types--that is, insert
 -- grouping characters to make them easier to read.
-module Penny.Number.Rep
+module Penny.Representation
   ( -- * Radix and grouping
     Radix(..)
   , Grouper(..)
@@ -66,7 +66,7 @@ module Penny.Number.Rep
   , ExchRepAnyRadix(..)
 
   -- * Digits
-  , module Penny.Number.Digit
+  , module Penny.Digit
 
   -- * Grouping
   , groupBrimUngrouped
@@ -78,7 +78,7 @@ import Control.Monad (join)
 import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|), (|>))
 import Data.Monoid
 import qualified Data.Sequence as S
-import Penny.Number.Digit
+import Penny.Digit
 import Penny.Side
 import Penny.PluMin
 import Penny.NonEmpty

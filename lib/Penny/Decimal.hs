@@ -29,7 +29,7 @@ module Penny.Decimal
   -- * Representing decimals
   --
   -- | To group the results of these functions, consult
-  -- 'Penny.Number.Rep.groupBrimUngrouped'.
+  -- 'Penny.Representation.groupBrimUngrouped'.
   , repUngroupedDecimal
   , repUngroupedDecNonZero
   , repUngroupedDecUnsigned
@@ -38,9 +38,9 @@ module Penny.Decimal
   , repDigits
   ) where
 
-import Penny.Number.Natural
-import Penny.Number.NonZero
-import Penny.Number.Rep
+import Penny.Natural
+import Penny.NonZero
+import Penny.Representation
 import Control.Monad (join)
 import Data.Sequence ((<|))
 import qualified Data.Sequence as S

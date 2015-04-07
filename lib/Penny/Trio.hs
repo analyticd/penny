@@ -7,7 +7,7 @@ import Penny.Display
 import Penny.Commodity
 import Penny.Balances
 import Penny.Side
-import Penny.Number.Rep
+import Penny.Representation
 import Penny.Qty
 import Penny.Offset
 import Penny.Friendly

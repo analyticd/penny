@@ -10,7 +10,7 @@
 -- that end in @z@ are similar, but they can also represent the digit
 -- 0.
 
-module Penny.Number.Digit where
+module Penny.Digit where
 
 import Penny.Display
 

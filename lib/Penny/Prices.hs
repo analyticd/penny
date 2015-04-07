@@ -21,7 +21,7 @@
 -- @15.50@.
 --
 -- Typically the 'Exch' will be positive (which is represented in a
--- 'Penny.Number.Rep.ExchRep' with a 'Penny.PluMin.Plus'),
+-- 'Penny.Representation.ExchRep' with a 'Penny.PluMin.Plus'),
 -- but a negative 'Exch' might be useful to represent assets that have
 -- negative value (perhaps toxic waste?) though you could also book
 -- these as liabilities instead.

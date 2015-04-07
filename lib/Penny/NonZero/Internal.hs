@@ -1,6 +1,6 @@
-module Penny.Number.NonZero.Internal where
+module Penny.NonZero.Internal where
 
-import Penny.Number.Natural.Internal
+import Penny.Natural.Internal
 import Penny.Offset
 import Penny.PluMin
 

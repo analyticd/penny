@@ -46,7 +46,7 @@ import qualified Data.Map.Strict as M
 import Control.Monad
 import Penny.Commodity
 import Penny.NonEmpty
-import Penny.Number.Rep
+import Penny.Representation
 import Penny.Trio
 import Penny.Serial
 import Penny.Balances

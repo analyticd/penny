@@ -10,7 +10,7 @@ import Penny.Balances
 import Penny.Clatch
 import Penny.Commodity
 import Penny.Ledger
-import Penny.Number.Rep
+import Penny.Representation
 import Penny.Qty
 import Penny.SeqUtil
 import Penny.Serial

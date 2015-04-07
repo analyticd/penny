@@ -2,10 +2,10 @@
 module Penny.Serial where
 
 import Control.Applicative
-import Penny.Number.Natural
+import Penny.Natural
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
-import Penny.Number.Rep
+import Penny.Representation
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 

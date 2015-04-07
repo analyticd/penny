@@ -17,7 +17,7 @@ import Penny.Display
 import Penny.Field (displayScalar)
 import Penny.Ledger
 import Penny.Matcher
-import Penny.Number.Rep
+import Penny.Representation
 import Penny.Qty
 import Penny.Queries.Clatch
 import Penny.Side

@@ -5,7 +5,7 @@ module Penny.Copper.LincolnTypes where
 import Control.Applicative
 import Data.Sequence (Seq)
 import Text.ParserCombinators.UU.BasicInstances
-import Penny.Number.Rep
+import Penny.Representation
 import Penny.Side
 import Penny.PluMin
 import Penny.Copper.Parser

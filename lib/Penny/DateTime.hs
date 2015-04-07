@@ -16,7 +16,7 @@ module Penny.DateTime
   ) where
 
 import qualified Data.Time as T
-import Penny.Number.Rep
+import Penny.Representation
 import Penny.PluMin
 import Penny.Display
 

@@ -17,7 +17,7 @@ import qualified Data.Text as X
 import Penny.Trio
 import qualified Data.Map as M
 import Penny.Side
-import Penny.Number.Rep
+import Penny.Representation
 import Penny.Friendly
 
 data Ents m = Ents
