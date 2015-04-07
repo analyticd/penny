@@ -5,7 +5,7 @@ import Control.Applicative
 import Penny.Lincoln.Natural
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
-import Penny.Lincoln.Rep
+import Penny.Number.Rep
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 

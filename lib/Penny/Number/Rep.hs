@@ -12,7 +12,7 @@
 -- in "Penny.Lincoln.Decimal" and "Penny.Lincoln.Qty".  Functions in
 -- this module will group some representation types--that is, insert
 -- grouping characters to make them easier to read.
-module Penny.Lincoln.Rep
+module Penny.Number.Rep
   ( -- * Radix and grouping
     Radix(..)
   , Grouper(..)
@@ -79,9 +79,9 @@ import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|), (|>))
 import Data.Monoid
 import qualified Data.Sequence as S
 import Penny.Number.Digit
-import Penny.Lincoln.Side
-import Penny.Lincoln.PluMin
-import Penny.Lincoln.NonEmpty
+import Penny.Side
+import Penny.PluMin
+import Penny.NonEmpty
 import Penny.Display
 
 -- | A radix point.  The type is parameterized on a type that
@@ -439,7 +439,7 @@ nilOrBrimScalarAnyRadixToQty s (NilOrBrimScalarAnyRadix e) =
 -- be non-neutral.  The first type variable is the type of the radix
 -- point and grouping character; see, for example, 'RadCom' or
 -- 'RadPer'.  The second type variable is the polarity; see, for
--- example, 'Penny.Lincoln.Side.Side'.
+-- example, 'Penny.Side.Side'.
 
 newtype NilOrBrimPolar r p
   = NilOrBrimPolar (CenterOrOffCenter (Nil r) (Brim r) p)

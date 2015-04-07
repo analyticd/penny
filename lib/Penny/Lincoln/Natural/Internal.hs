@@ -5,7 +5,7 @@ module Penny.Lincoln.Natural.Internal where
 import Penny.Number.Digit
 import Data.Foldable (Foldable, toList)
 import Data.Sequence (Seq, ViewR(..), viewr)
-import Penny.Lincoln.PluMin
+import Penny.PluMin
 
 newtype Positive = Positive { positiveToInteger :: Integer }
   deriving (Eq, Ord, Show)

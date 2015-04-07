@@ -9,7 +9,7 @@ import Data.Sums
 import Penny.Lincoln.Trio
 import Penny.Lincoln.Amount
 import Penny.Lincoln.Clatch
-import Penny.Lincoln.Rep
+import Penny.Number.Rep
 import Penny.Lincoln.Qty
 import Penny.Ledger
 

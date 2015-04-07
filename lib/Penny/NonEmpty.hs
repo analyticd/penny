@@ -1,4 +1,4 @@
-module Penny.Lincoln.NonEmpty where
+module Penny.NonEmpty where
 
 import Control.Applicative
 import Penny.Lincoln.Natural

@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Penny.Lincoln.Exch where
 
-import Penny.Lincoln.PluMin
+import Penny.PluMin
 import Penny.Lincoln.Decimal
-import Penny.Lincoln.Rep
+import Penny.Number.Rep
 
 newtype Exch = Exch Decimal
   deriving (Eq, Ord, Show)

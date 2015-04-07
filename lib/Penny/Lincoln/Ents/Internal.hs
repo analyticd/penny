@@ -16,8 +16,8 @@ import qualified Data.Traversable as T
 import qualified Data.Text as X
 import Penny.Lincoln.Trio
 import qualified Data.Map as M
-import Penny.Lincoln.Side
-import Penny.Lincoln.Rep
+import Penny.Side
+import Penny.Number.Rep
 import Penny.Lincoln.Friendly
 
 data Ents m = Ents

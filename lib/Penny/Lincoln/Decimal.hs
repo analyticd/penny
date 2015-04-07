@@ -29,7 +29,7 @@ module Penny.Lincoln.Decimal
   -- * Representing decimals
   --
   -- | To group the results of these functions, consult
-  -- 'Penny.Lincoln.Rep.groupBrimUngrouped'.
+  -- 'Penny.Number.Rep.groupBrimUngrouped'.
   , repUngroupedDecimal
   , repUngroupedDecNonZero
   , repUngroupedDecUnsigned
@@ -40,13 +40,13 @@ module Penny.Lincoln.Decimal
 
 import Penny.Lincoln.Natural
 import Penny.Lincoln.NonZero
-import Penny.Lincoln.Rep
+import Penny.Number.Rep
 import Control.Monad (join)
 import Data.Sequence ((<|))
 import qualified Data.Sequence as S
 import Data.Monoid
-import Penny.Lincoln.Offset
-import Penny.Lincoln.PluMin
+import Penny.Offset
+import Penny.PluMin
 import Data.List (genericSplitAt, genericReplicate)
 
 -- | Decimal numbers.  The precision is limited only by the machine's

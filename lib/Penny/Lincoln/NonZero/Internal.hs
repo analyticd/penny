@@ -1,8 +1,8 @@
 module Penny.Lincoln.NonZero.Internal where
 
 import Penny.Lincoln.Natural.Internal
-import Penny.Lincoln.Offset
-import Penny.Lincoln.PluMin
+import Penny.Offset
+import Penny.PluMin
 
 newtype NonZero = NonZero { nonZeroToInteger :: Integer }
   deriving (Eq, Ord, Show)

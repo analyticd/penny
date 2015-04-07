@@ -1,7 +1,7 @@
-module Penny.Lincoln.Side where
+module Penny.Side where
 
-import Penny.Lincoln.Offset
-import Penny.Lincoln.PluMin
+import Penny.Offset
+import Penny.PluMin
 import Penny.Display
 
 data Side = Debit | Credit

@@ -6,12 +6,12 @@ import Penny.Lincoln.Decimal
 import Penny.Display
 import Penny.Commodity
 import Penny.Lincoln.Balances
-import Penny.Lincoln.Side
-import Penny.Lincoln.Rep
+import Penny.Side
+import Penny.Number.Rep
 import Penny.Lincoln.Qty
-import Penny.Lincoln.Offset
+import Penny.Offset
 import Penny.Lincoln.Friendly
-import Penny.Lincoln.NonEmpty
+import Penny.NonEmpty
 import qualified Data.Map as M
 import qualified Data.Text as X
 import Data.Sequence (Seq)

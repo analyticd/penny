@@ -45,8 +45,8 @@ import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
 import Control.Monad
 import Penny.Commodity
-import Penny.Lincoln.NonEmpty
-import Penny.Lincoln.Rep
+import Penny.NonEmpty
+import Penny.Number.Rep
 import Penny.Lincoln.Trio
 import Penny.Lincoln.Serial
 import Penny.Lincoln.Balances

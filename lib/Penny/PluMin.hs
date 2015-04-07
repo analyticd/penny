@@ -1,4 +1,4 @@
-module Penny.Lincoln.PluMin where
+module Penny.PluMin where
 
 import Penny.Display
 

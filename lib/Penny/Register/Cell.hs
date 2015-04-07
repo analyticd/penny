@@ -5,7 +5,7 @@ import Control.Monad
 import Penny.Matcher
 import Penny.Lincoln.Clatch
 import Penny.Queries.Clatch
-import Penny.Lincoln.Rep
+import Penny.Number.Rep
 import Penny.Lincoln.Qty
 import Penny.Commodity
 import Penny.Lincoln.Amount

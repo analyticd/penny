@@ -5,9 +5,9 @@ module Penny.Copper.LincolnTypes where
 import Control.Applicative
 import Data.Sequence (Seq)
 import Text.ParserCombinators.UU.BasicInstances
-import Penny.Lincoln.Rep
-import Penny.Lincoln.Side
-import Penny.Lincoln.PluMin
+import Penny.Number.Rep
+import Penny.Side
+import Penny.PluMin
 import Penny.Copper.Parser
 
 pZero :: ParserL Zero
