@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Penny.Register.Cell where
 
 import Control.Applicative
@@ -14,13 +15,16 @@ import Penny.Amount
 import Penny.Clatch
 import Penny.Commodity
 import Penny.Display
-import Penny.Field (displayScalar)
+import Penny.Field (displayScalar, Realm(..))
 import Penny.Ledger
 import Penny.Matcher
+import Penny.Natural
 import Penny.Representation
 import Penny.Qty
 import Penny.Queries.Clatch
+import Penny.Serial
 import Penny.Side
+import Penny.Transaction
 import qualified Penny.Queries.Matcher as Q
 
 -- | Indicates what sort of information is in the cell.  Can be debit,
@@ -34,18 +38,188 @@ data CellTag
   | Notice
   deriving (Eq, Ord, Show)
 
+-- # Cells
 
 qty
+  :: Ledger l
+  => BestField l (Amount -> RepNonNeutralNoSide)
+qty = BestField originalQty Penny.Register.Cell.bestQty
+
+commodity
+  :: Ledger l
+  => BestField l a
+commodity = BestField originalCommodity
+  Penny.Register.Cell.bestCommodity
+
+side
+  :: Ledger l
+  => BestField l a
+side = BestField originalSide bestSide
+
+-- | Creates a cell by attempting to find a tree in the posting
+-- metadata whose scalar exactly matches the given name.  If no tree
+-- is found in the posting metadata, looks in the transaction
+-- metadata.  If no tree is found there, the cell will be empty.
+labeledTree
+  :: Ledger l
+  => Text
+  -> a
+  -> Clatch l
+  -> l [(CellTag, Text)]
+labeledTree txt _ clch = liftM (\x -> [(NonLinear, x)])
+  $ findLabeled txt clch
+
+-- | A cell with the given number of blank spaces.
+spacer :: Monad m => Int -> a -> b -> m [(CellTag, Text)]
+spacer i _ _ = return [(NonLinear, X.replicate i (X.singleton ' '))]
+
+-- ## Sersets
+
+-- Use these with 'forward' and 'reverse' to get the serial you want.
+
+preFiltered :: Monad l => Clatch l -> l Serset
+preFiltered = fmap return sersetPreFiltered
+
+sorted :: Monad l => Clatch l -> l Serset
+sorted = fmap return sersetSorted
+
+postFiltered :: Monad l => Clatch l -> l Serset
+postFiltered = fmap return sersetPostFiltered
+
+-- Gets the Sersets from a posting or the transaction.  Use with
+-- 'global' and 'file'.
+
+posting :: Ledger l => Clatch l -> FileOrGlobal l
+posting clch = FileOrGlobal glbl fle
+  where
+    glbl = do
+      PostingSer _ g _ <- postingSer . postingL $ clch
+      return g
+    fle = do
+      PostingSer f _ _ <- postingSer . postingL $ clch
+      return f
+
+topLine :: Ledger l => Clatch l -> FileOrGlobal l
+topLine clch = FileOrGlobal glbl fle
+  where
+    glbl = do
+      TopLineSer _ g <- topLineSer . transactionL $ clch
+      return g
+    fle = do
+      TopLineSer f _ <- topLineSer . transactionL $ clch
+      return f
+
+index :: Ledger l => Clatch l -> l Serset
+index clch = do
+  PostingSer _ _ (PostingIndex s) <- postingSer . postingL $ clch
+  return s
+
+
+-- # Helpers
+
+data BestField l a = BestField
+  { original :: (a -> Clatch l -> l [(CellTag, Text)])
+  , best :: (a -> Clatch l -> l [(CellTag, Text)])
+  }
+
+data FileOrGlobal l = FileOrGlobal
+  { global :: l GlobalSer
+  , file :: l FileSer
+  }
+
+-- | Displays the 'Qty' only.  Uses the converted 'Qty' if there is
+-- one.
+bestQty
   :: Ledger l
   => (Amount -> RepNonNeutralNoSide)
   -> Clatch l
   -> l [(CellTag, Text)]
-qty fmt clch = do
-  cy <- bestCommodity clch
-  s3 <- liftM (convertQtyToAmount cy) $ bestQty clch
-  qt <- Penny.Ledger.qty . postingL $ clch
-  let tag = Linear $ qtySide qt
+bestQty fmt clch = do
+  cy <- Penny.Queries.Clatch.bestCommodity clch
+  s3 <- liftM (convertQtyToAmount cy)
+    $ Penny.Queries.Clatch.bestQtyRep clch
+  tag <- linearTag clch
   return [(tag, formatQty fmt s3)]
+
+-- | Displays the 'Qty' only.  Always uses the original, not
+-- converted, q'Qty'.
+originalQty
+  :: Ledger l
+  => (Amount -> RepNonNeutralNoSide)
+  -> Clatch l
+  -> l [(CellTag, Text)]
+originalQty fmt clch = do
+  cy <- Penny.Ledger.commodity . postingL $ clch
+  s3 <- liftM (convertQtyToAmount cy)
+    $ Penny.Queries.Clatch.originalQtyRep clch
+  tag <- linearTag clch
+  return [(tag, formatQty fmt s3)]
+
+-- | Displays the 'Commodity' only.  Uses the converted 'Commodity' if
+-- there is one.
+bestCommodity
+  :: Ledger l
+  => a
+  -> Clatch l
+  -> l [(CellTag, Text)]
+bestCommodity _ clch = do
+  tag <- linearTag clch
+  Commodity cy <- Penny.Queries.Clatch.bestCommodity clch
+  return [(tag, cy)]
+
+-- | Displays the 'Commodity' only.  Always uses the original
+-- 'Commodity'.
+originalCommodity
+  :: Ledger l
+  => a
+  -> Clatch l
+  -> l [(CellTag, Text)]
+originalCommodity _ clch = do
+  tag <- linearTag clch
+  Commodity cy <- Penny.Ledger.commodity . postingL $ clch
+  return [(tag, cy)]
+
+-- | Displays the 'Side' only.  Uses the converted 'Amount' if there
+-- is one.
+bestSide
+  :: Ledger l
+  => a
+  -> Clatch l
+  -> l [(CellTag, Text)]
+bestSide _
+  = liftM sideCell
+  . Penny.Queries.Clatch.bestQty
+
+
+-- | Displays the 'Side' only.  Always uses the original 'Amount'.
+originalSide
+  :: Ledger l
+  => a
+  -> Clatch l
+  -> l [(CellTag, Text)]
+originalSide _
+  = liftM sideCell
+  . Penny.Ledger.qty
+  . postingL
+
+
+sideCell
+  :: Qty
+  -> [(CellTag, Text)]
+sideCell q = [(Linear sd, txt)]
+  where
+    sd = qtySide q
+    txt = case sd of
+      Nothing -> "--"
+      Just s -> X.pack . ($ "") . display $ s
+
+linearTag
+  :: Ledger l
+  => Clatch l
+  -> l CellTag
+linearTag = liftM (Linear . qtySide)
+  . Penny.Ledger.qty
+  . postingL
 
 convertQtyToAmount
   :: Commodity
@@ -67,14 +241,6 @@ formatQty rend s3 = case s3 of
   S3b qrr -> X.pack . ($ "") . display
     . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix $ qrr
   S3c amt -> X.pack . ($ "") . display . rend $ amt
-
-labeledTree
-  :: Ledger l
-  => Text
-  -> Clatch l
-  -> l [(CellTag, Text)]
-labeledTree txt clch = liftM (\x -> [(NonLinear, x)])
-  $ findLabeled txt clch
 
 findLabeled
   :: Ledger l
@@ -108,8 +274,27 @@ findTree mtcr = matchPstg <|> matchTxn
       study finder ts
 
 
--- | Given some text that is the cell label, find the best tree that
--- contains that label and display it.
+forward
+  :: Monad l
+  => (Clatch l -> l Serset)
+  -> a
+  -> Clatch l
+  -> l [(CellTag, Text)]
+forward get _ clch = liftM mkCell (get clch)
+  where
+    mkCell (Serset (Forward (Serial fwd)) _) =
+      [(NonLinear, X.pack . show . naturalToInteger $ fwd)]
+
+reverse
+  :: Monad l
+  => (Clatch l -> l Serset)
+  -> a
+  -> Clatch l
+  -> l [(CellTag, Text)]
+reverse get _ clch = liftM mkCell (get clch)
+  where
+    mkCell (Serset _ (Reverse (Serial rev))) =
+      [(NonLinear, X.pack . show . naturalToInteger $ rev)]
 
 renderFoundLabel
   :: Ledger l
@@ -133,10 +318,6 @@ matchLabeledTree lbl = do
   subj <- getSubject
   kids <- offspring subj
   displayForestL kids
-
--- | A cell with blank spaces.
-spacer :: Monad m => Int -> m [(CellTag, Text)]
-spacer i = return [(NonLinear, X.replicate i (X.singleton ' '))]
 
 -- # Displaying trees
 
