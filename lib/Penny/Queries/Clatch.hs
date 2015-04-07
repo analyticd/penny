@@ -5,6 +5,7 @@ module Penny.Queries.Clatch where
 
 import Control.Monad
 import qualified Penny.Lincoln as L
+import Penny.Clatch
 import Data.Sums
 import Penny.Trio
 import Penny.Amount
@@ -115,3 +116,13 @@ bestQty clch = case convertedAmount clch of
       UC nn _ _ -> return $ S3a nn
       U nn -> return $ S3a nn
       _ -> liftM S3c . qty . postingL $ clch
+
+-- | Gets the 'Commodity' from the converted Amount, if there is one.
+-- Otherwise, gets the 'Commodity' from the 'PostingL'.
+bestCommodity
+  :: Ledger l
+  => Clatch l
+  -> l L.Commodity
+bestCommodity clch = case convertedAmount clch of
+  Just (Amount cy _) -> return cy
+  Nothing -> commodity . postingL $ clch

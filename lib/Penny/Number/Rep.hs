@@ -380,6 +380,7 @@ data CenterOrOffCenter n o p
   -- polarity of the object, while the first is the object itself.
   deriving (Eq, Ord, Show)
 
+
 changeOffCenterType
   :: p'
   -> CenterOrOffCenter n o p
@@ -484,12 +485,18 @@ instance MayGrouped QtyRep where
 -- | Qty representations that may be neutral or non-neutral and have a
 -- radix that is either a period or a comma.  If non-neutral, also
 -- contains a 'Side'.
+--
+-- Not an instance of 'Display' because there is no uniform way to
+-- display both the quantity and the side.  If you want to display
+-- just the quantity, first convert the 'QtyRepAnyRadix' to a
+-- 'NilOrBrimScalarAnyRadix'.
 
 newtype QtyRepAnyRadix
   = QtyRepAnyRadix
     (Either (QtyRep RadCom)
             (QtyRep RadPer))
   deriving (Eq, Ord, Show)
+
 
 -- # Exch representations
 

@@ -2,24 +2,25 @@ module Penny.Register.Cell where
 
 import Control.Applicative
 import Control.Monad
-import Penny.Matcher
-import Penny.Clatch
-import Penny.Queries.Clatch
-import Penny.Number.Rep
-import Penny.Qty
-import Penny.Commodity
-import Penny.Amount
-import qualified Penny.Queries.Matcher as Q
-import Penny.Field (displayScalar)
+import qualified Data.Foldable as F
 import Data.Monoid
 import Data.Sequence (Seq, viewl, ViewL(..))
 import qualified Data.Sequence as Seq
-import Penny.Ledger
+import Data.Sums
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Foldable as F
 import qualified Data.Traversable as T
-import Data.Sums
+import Penny.Amount
+import Penny.Clatch
+import Penny.Commodity
+import Penny.Display
+import Penny.Field (displayScalar)
+import Penny.Ledger
+import Penny.Matcher
+import Penny.Number.Rep
+import Penny.Qty
+import Penny.Queries.Clatch
+import qualified Penny.Queries.Matcher as Q
 
 -- | Indicates what sort of information is in the cell.  Can be debit,
 -- credit, or zero for cells that contain numeric information or
@@ -37,15 +38,34 @@ data CellTag
 
 qty
   :: Ledger l
-  => (Commodity -> Qty -> Text)
+  => (Amount -> RepNonNeutralNoSide)
   -> Clatch l
   -> l [(CellTag, Text)]
-qty fmt clch = undefined
+qty fmt clch = do
+  cy <- bestCommodity clch
+  s3 <- liftM (convertQtyToAmount cy) $ bestQty clch
+  undefined
 
+convertQtyToAmount
+  :: Commodity
+  -> S3 a b Qty
+  -> S3 a b Amount
+convertQtyToAmount cy s3 = case s3 of
+  S3a a -> S3a a
+  S3b b -> S3b b
+  S3c q -> S3c $ Amount cy q
+
+-- | Format a Qty for display.
 formatQty
-  :: S3 RepNonNeutralNoSide QtyRepAnyRadix Qty
+  :: (Amount -> RepNonNeutralNoSide)
+  -- ^ Use this function for rendering a 'Qty'.
+  -> S3 RepNonNeutralNoSide QtyRepAnyRadix Amount
   -> Text
-formatQty = undefined
+formatQty rend s3 = case s3 of
+  S3a rnn -> X.pack . ($ "") . display $ rnn
+  S3b qrr -> X.pack . ($ "") . display
+    . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix $ qrr
+  S3c amt -> X.pack . ($ "") . display . rend $ amt
 
 labeledTree
   :: Ledger l
