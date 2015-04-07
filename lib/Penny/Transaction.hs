@@ -238,7 +238,7 @@ assignPostingFileSer
   -> t1 (tm, pm (bal (mt, FileSer)))
 assignPostingFileSer t = flip evalState (toUnsigned Zero) $ do
   withFwd <- assignPosting makeForward t
-  withRev <- assignPosting makeReverse withFwd
+  withRev <- assignPosting makeBackward withFwd
   let f ((b, fwd), bak) = (b, FileSer (Serset fwd bak))
   return . fmap (second (fmap (fmap f))) $ withRev
 
@@ -249,7 +249,7 @@ assignPostingGlobalSer
   -> t1 (t2 (tm, pm (bal (mt, GlobalSer))))
 assignPostingGlobalSer t = flip evalState (toUnsigned Zero) $ do
   withFwd <- T.traverse (assignPosting makeForward) t
-  withBak <- T.traverse (assignPosting makeReverse) withFwd
+  withBak <- T.traverse (assignPosting makeBackward) withFwd
   let f ((b, fwd), bak) = (b, GlobalSer (Serset fwd bak))
   return . fmap (fmap (second (fmap (fmap f)))) $ withBak
 
@@ -273,7 +273,7 @@ assignTxnGlobalSer
   -> t1 (t2 (tm (mt, GlobalSer), pm))
 assignTxnGlobalSer t = flip evalState (toUnsigned Zero) $ do
   withFwd <- T.traverse (assignTopLine makeForward) t
-  withBak <- T.traverse (assignTopLine makeReverse) withFwd
+  withBak <- T.traverse (assignTopLine makeBackward) withFwd
   let repack ((m, fwd), bak) = (m, GlobalSer (Serset fwd bak))
   return . fmap (fmap (first (fmap repack))) $ withBak
 
@@ -283,7 +283,7 @@ assignTxnFileSer
   -> t1 ((tm (mt, FileSer)), pm)
 assignTxnFileSer t = flip evalState (toUnsigned Zero) $ do
   withFwd <- assignTopLine makeForward t
-  withBak <- assignTopLine makeReverse withFwd
+  withBak <- assignTopLine makeBackward withFwd
   let repack ((m, fwd), bak) = (m, FileSer (Serset fwd bak))
   return . fmap (first (fmap repack)) $ withBak
 

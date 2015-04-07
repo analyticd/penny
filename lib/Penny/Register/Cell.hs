@@ -13,8 +13,7 @@ module Penny.Register.Cell
   -- -- show the original quantity
   -- let qtyColumn = best . qty
   -- @
-  , original
-  , best
+  , BestField(..)
   , Penny.Register.Cell.qty
   , Penny.Register.Cell.commodity
   , side
@@ -28,7 +27,14 @@ module Penny.Register.Cell
 
   -- * Serials
   , forward
-  , reverse
+  , backward
+  , preFiltered
+  , sorted
+  , postFiltered
+  , posting
+  , topLine
+  , Penny.Register.Cell.index
+  , FileOrGlobal(..)
   ) where
 
 import Control.Applicative
@@ -108,7 +114,12 @@ forest mtcr _ clch = do
 -- the posting; then performs a pre-order search in the metadata for
 -- the top line.  If successful, returns the child forest.
 --
--- Use with 'forest'.
+-- Use with 'forest'; for example:
+--
+-- @
+-- > :set -XOverloadedStrings
+-- > let column = 'forest' $ 'findNamedTree' \"acct\"
+-- @
 findNamedTree
   :: Ledger l
   => Text
@@ -135,9 +146,9 @@ spacer i _ _ = return [(NonLinear, X.replicate i (X.singleton ' '))]
 
 -- ## Sersets
 
--- Use these with 'forward' and 'reverse' to get the serial you want.
+-- Use these with 'forward' and 'backward' to get the serial you want.
 
--- | Use with 'forward and reverse', for instance:
+-- | Use with 'forward and backward', for instance:
 --
 -- @
 -- 'forward' 'preFiltered'
@@ -146,15 +157,15 @@ preFiltered :: Monad l => Clatch l -> l Serset
 preFiltered = fmap return sersetPreFiltered
 
 
--- | Use with 'forward and reverse', for instance:
+-- | Use with 'forward and backward', for instance:
 --
 -- @
--- 'reverse' 'sorted'
+-- 'backward' 'sorted'
 -- @
 sorted :: Monad l => Clatch l -> l Serset
 sorted = fmap return sersetSorted
 
--- | Use with 'forward and reverse', for instance:
+-- | Use with 'forward and backward', for instance:
 --
 -- @
 -- 'forward' 'postFiltered'
@@ -165,7 +176,7 @@ postFiltered = fmap return sersetPostFiltered
 -- Gets the Sersets from a posting or the transaction.  Use with
 -- 'global' and 'file'.
 
--- | Use with 'forward', 'reverse', 'file', and 'global', for
+-- | Use with 'forward', 'backward', 'file', and 'global', for
 -- instance:
 --
 -- @
@@ -181,7 +192,7 @@ posting = FileOrGlobal glbl fle
       PostingSer (FileSer f) _ _ <- postingSer . postingL $ clch
       return f
 
--- | Use with 'forward', 'reverse', 'file', and 'global', for
+-- | Use with 'forward', 'backward', 'file', and 'global', for
 -- instance:
 --
 -- @
@@ -197,10 +208,10 @@ topLine = FileOrGlobal glbl fle
       TopLineSer (FileSer f) _ <- topLineSer . transactionL $ clch
       return f
 
--- | Use with 'forward and reverse', for instance:
+-- | Use with 'forward and backward', for instance:
 --
 -- @
--- 'reverse' 'index'
+-- 'backward' 'index'
 -- @
 index :: Ledger l => Clatch l -> l Serset
 index clch = do
@@ -210,14 +221,23 @@ index clch = do
 
 -- # Helpers
 
+-- | For functions that return this type, use 'original' or 'best' to
+-- get an appropriate column.
 data BestField l a = BestField
   { original :: (a -> Clatch l -> l [(CellTag, Text)])
+  -- ^ Use the original, not converted, value.
   , best :: (a -> Clatch l -> l [(CellTag, Text)])
+  -- ^ Use the converted value if available; otherwise, use the
+  -- converted value.
   }
 
+-- | For functions that return values of this type, use 'global' or
+-- 'file' to get an appropriate column.
 data FileOrGlobal l = FileOrGlobal
   { global :: Clatch l -> l Serset
+  -- ^ Use the global 'Serset'.
   , file :: Clatch l -> l Serset
+  -- ^ Use the file 'Serset'.
   }
 
 -- | Displays the 'Qty' only.  Uses the converted 'Qty' if there is
@@ -335,37 +355,6 @@ formatQty rend s3 = case s3 of
     . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix $ qrr
   S3c amt -> X.pack . ($ "") . display . rend $ amt
 
-findLabeled
-  :: Ledger l
-  => Text
-  -> Clatch l
-  -> l Text
-findLabeled txt clch
-  = renderFoundLabel clch
-  . findTree
-  . matchLabeledTree
-  $ txt
-
-
--- | Given a Matcher that runs on a single 'TreeL', perform a
--- pre-order search for that tree.  First look in the posting metadata
--- and then in the transaction metadata.  Returns all matches.
-findTree
-  :: Ledger l
-  => Matcher (TreeL l) l a
-  -> Matcher (Clatch l) l a
-findTree mtcr = matchPstg <|> matchTxn
-  where
-    finder = each . Q.preOrder $ mtcr
-    matchTxn = do
-      txn <- fmap transactionL getSubject
-      ts <- txnMeta txn
-      study finder ts
-    matchPstg = do
-      pstg <- fmap postingL getSubject
-      ts <- pstgMeta pstg
-      study finder ts
-
 
 forward
   :: Monad l
@@ -378,39 +367,16 @@ forward get _ clch = liftM mkCell (get clch)
     mkCell (Serset (Forward (Serial fwd)) _) =
       [(NonLinear, X.pack . show . naturalToInteger $ fwd)]
 
-reverse
+backward
   :: Monad l
   => (Clatch l -> l Serset)
   -> a
   -> Clatch l
   -> l [(CellTag, Text)]
-reverse get _ clch = liftM mkCell (get clch)
+backward get _ clch = liftM mkCell (get clch)
   where
-    mkCell (Serset _ (Reverse (Serial rev))) =
+    mkCell (Serset _ (Backward (Serial rev))) =
       [(NonLinear, X.pack . show . naturalToInteger $ rev)]
-
-renderFoundLabel
-  :: Ledger l
-  => Clatch l
-  -> Matcher (Clatch l) l Text
-  -> l Text
-  -- ^ Text for the cell
-renderFoundLabel clch mtcr = liftM (maybe X.empty id) (observe mtcr clch)
-
--- | If the TreeL has a scalar, the scalar is a text field, and the
--- text field is equal to the given label, then returns the offspring
--- of that TreeL.  Does not perform any searching; this is run on the
--- current TreeL only.
-matchLabeledTree
-  :: Ledger l
-  => Text
-  -- ^ Label for the cell
-  -> Matcher (TreeL l) l Text
-matchLabeledTree lbl = do
-  _ <- Q.scalar . Q.text . Q.equal $ lbl
-  subj <- getSubject
-  kids <- offspring subj
-  displayForestL kids
 
 -- # Displaying trees
 

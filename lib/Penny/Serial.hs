@@ -15,10 +15,10 @@ newtype Serial = Serial Unsigned
 newtype Forward = Forward Serial
   deriving (Eq, Ord, Show)
 
-newtype Reverse = Reverse Serial
+newtype Backward = Backward Serial
   deriving (Eq, Ord, Show)
 
-data Serset = Serset Forward Reverse
+data Serset = Serset Forward Backward
   deriving (Eq, Ord, Show)
 
 -- | Things that have a Serset.
@@ -28,7 +28,7 @@ data Sersetted a = Sersetted Serset a
 assignSersetted :: T.Traversable t => t a -> t (Sersetted a)
 assignSersetted t = flip evalState (toUnsigned Zero) $ do
   withFwd <- T.traverse (\a -> (,) <$> pure a <*> makeForward) t
-  withBak <- T.traverse (\a -> (,) <$> pure a <*> makeReverse) withFwd
+  withBak <- T.traverse (\a -> (,) <$> pure a <*> makeBackward) withFwd
   let f ((b, fwd), bak) = Sersetted (Serset fwd bak) b
   return . fmap f $ withBak
 
@@ -39,20 +39,20 @@ makeForward = do
   modify next
   return $ Forward (Serial this)
 
-makeReverse :: State Unsigned Reverse
-makeReverse = do
+makeBackward :: State Unsigned Backward
+makeBackward = do
   old <- get
   let new = case prev old of
         Just x -> x
-        Nothing -> error "makeReverse: error"
+        Nothing -> error "makeBackward: error"
   put new
-  return $ Reverse (Serial new)
+  return $ Backward (Serial new)
 
 
 serialNumbers :: T.Traversable t => t a -> t (a, Serset)
 serialNumbers t = flip evalState (toUnsigned Zero) $ do
   withFwd <- T.traverse (\a -> (,) <$> pure a <*> makeForward) t
-  withBak <- T.traverse (\a -> (,) <$> pure a <*> makeReverse) withFwd
+  withBak <- T.traverse (\a -> (,) <$> pure a <*> makeBackward) withFwd
   let f ((b, fwd), bak) = (b, Serset fwd bak)
   return . fmap f $ withBak
 
@@ -64,7 +64,7 @@ serialNumbersNested t = flip evalState (toUnsigned Zero) $ do
   withFwd <-
     T.traverse (T.traverse (\a -> (,) <$> pure a <*> makeForward)) t
   withBak <-
-    T.traverse (T.traverse (\a -> (,) <$> pure a <*> makeReverse)) withFwd
+    T.traverse (T.traverse (\a -> (,) <$> pure a <*> makeBackward)) withFwd
   let f ((b, fwd), bak) = (b, Serset fwd bak)
   return . fmap (fmap f) $ withBak
 
