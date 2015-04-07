@@ -1,4 +1,4 @@
-module Penny.Lincoln.Amount where
+module Penny.Amount where
 
 import Penny.Lincoln.Qty
 import Penny.Commodity

@@ -5,7 +5,7 @@ import Control.Applicative
 import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>)
                       , ViewR(..), viewr)
 import qualified Data.Sequence as S
-import Penny.Lincoln.Amount
+import Penny.Amount
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Balances
 import Penny.Commodity

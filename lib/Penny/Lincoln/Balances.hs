@@ -1,6 +1,6 @@
 module Penny.Lincoln.Balances where
 
-import Penny.Lincoln.Amount
+import Penny.Amount
 import qualified Data.Foldable as F
 import Penny.Lincoln.Decimal
 import Penny.Commodity

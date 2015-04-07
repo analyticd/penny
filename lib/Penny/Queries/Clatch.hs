@@ -7,7 +7,7 @@ import Control.Monad
 import qualified Penny.Lincoln as L
 import Data.Sums
 import Penny.Lincoln.Trio
-import Penny.Lincoln.Amount
+import Penny.Amount
 import Penny.Lincoln.Clatch
 import Penny.Number.Rep
 import Penny.Lincoln.Qty

@@ -6,7 +6,7 @@
 -- and transactions and stores them in memory.
 module Penny.Ledger.Scroll where
 
-import Penny.Lincoln.Amount
+import Penny.Amount
 import Penny.Ledger
 import Control.Applicative
 import Control.Monad.Trans.Class

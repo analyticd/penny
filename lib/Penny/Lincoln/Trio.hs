@@ -1,6 +1,6 @@
 module Penny.Lincoln.Trio where
 
-import Penny.Lincoln.Amount
+import Penny.Amount
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Decimal
 import Penny.Display

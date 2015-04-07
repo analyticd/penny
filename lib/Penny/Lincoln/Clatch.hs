@@ -36,7 +36,7 @@ module Penny.Lincoln.Clatch
   , allClatches
   ) where
 
-import Penny.Lincoln.Amount
+import Penny.Amount
 import Penny.Ledger
 import Penny.Lincoln.SeqUtil
 import Data.Sequence (Seq, (|>))

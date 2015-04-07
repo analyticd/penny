@@ -97,7 +97,7 @@ instance T.Traversable PstgMeta where
 -- Here is the posting data that is ultimately available:
 --
 -- * through 'Balanced', you get 'Penny.Lincoln.Ent.Ent', which
--- contains an 'Penny.Lincoln.Amount.Amount', which contains the
+-- contains an 'Penny.Amount.Amount', which contains the
 -- 'Penny.Commodity.Commodity' and 'Penny.Lincoln.Qty.Qty'
 --
 -- * through 'PstgMeta', you get the list of 'Tree' and the 'Trio'

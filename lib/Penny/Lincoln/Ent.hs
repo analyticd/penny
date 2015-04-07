@@ -1,6 +1,6 @@
 module Penny.Lincoln.Ent where
 
-import Penny.Lincoln.Amount
+import Penny.Amount
 import Data.Foldable
 import Data.Traversable
 
