@@ -4,99 +4,101 @@
 module Penny.Queries.Clatch where
 
 import Control.Monad
-import qualified Penny.Lincoln as L
-import Penny.Clatch
 import Data.Sums
-import Penny.Trio
 import Penny.Amount
+import Penny.Balances
 import Penny.Clatch
+import Penny.Commodity
+import Penny.Ledger
 import Penny.Number.Rep
 import Penny.Qty
-import Penny.Ledger
+import Penny.SeqUtil
+import Penny.Serial
+import Penny.Trio
 
 -- |
 -- @
--- 'postingL' :: 'L.Clatch' m -> 'L.PostingL' m
+-- 'postingL' :: 'Clatch' m -> 'PostingL' m
 -- @
 postingL
-  :: (L.Viewer a, L.Viewed a ~ L.Converted t1)
-  => L.Filtered (L.RunningBalance (L.Sorted (L.Filtered (t, a))))
+  :: (Viewer a, Viewed a ~ Converted t1)
+  => Filtered (RunningBalance (Sorted (Filtered (t, a))))
   -> t1
 postingL
-  (L.Filtered (L.Sersetted _ (L.RunningBalance _ (L.Sorted (L.Sersetted _
-    (L.Filtered (L.Sersetted _ (_, vw)))))))) = pstg
+  (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
+    (Filtered (Sersetted _ (_, vw)))))))) = pstg
   where
-    L.Converted _ pstg = L.onView vw
+    Converted _ pstg = onView vw
 
 -- |
 -- @
--- 'convertedAmount' :: 'L.Clatch' l -> 'Maybe' 'L.Amount'
+-- 'convertedAmount' :: 'Clatch' l -> 'Maybe' 'Amount'
 -- @
 convertedAmount
-  :: (L.Viewer a, L.Viewed a ~ L.Converted t1)
-  => L.Filtered (L.RunningBalance (L.Sorted (L.Filtered (t, a))))
-  -> Maybe L.Amount
+  :: (Viewer a, Viewed a ~ Converted t1)
+  => Filtered (RunningBalance (Sorted (Filtered (t, a))))
+  -> Maybe Amount
 convertedAmount
-  (L.Filtered (L.Sersetted _ (L.RunningBalance _ (L.Sorted (L.Sersetted _
-    (L.Filtered (L.Sersetted _ (_, vw)))))))) = mayAmt
+  (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
+    (Filtered (Sersetted _ (_, vw)))))))) = mayAmt
   where
-    L.Converted mayAmt _ = L.onView vw
+    Converted mayAmt _ = onView vw
 
 -- |
 -- @
--- 'transactionL' :: 'L.Clatch' l -> 'L.TransactionL' l
+-- 'transactionL' :: 'Clatch' l -> 'TransactionL' l
 -- @
 transactionL
-  :: L.Filtered (L.RunningBalance (L.Sorted (L.Filtered (a, b))))
+  :: Filtered (RunningBalance (Sorted (Filtered (a, b))))
   -> a
 transactionL
-  (L.Filtered (L.Sersetted _ (L.RunningBalance _ (L.Sorted (L.Sersetted _
-    (L.Filtered (L.Sersetted _ (txn, _)))))))) = txn
+  (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
+    (Filtered (Sersetted _ (txn, _)))))))) = txn
 
--- | Gets the 'L.Serset' resulting from pre-filtering.
+-- | Gets the 'Serset' resulting from pre-filtering.
 --
 -- @
--- 'sersetFiltered' :: 'L.Clatch' l -> 'L.Serset'
+-- 'sersetFiltered' :: 'Clatch' l -> 'Serset'
 -- @
 sersetPreFiltered
-  :: L.Filtered (L.RunningBalance (L.Sorted (L.Filtered a)))
-  -> L.Serset
+  :: Filtered (RunningBalance (Sorted (Filtered a)))
+  -> Serset
 sersetPreFiltered
-  (L.Filtered (L.Sersetted _ (L.RunningBalance _ (L.Sorted (L.Sersetted _
-    (L.Filtered (L.Sersetted srst _))))))) = srst
+  (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
+    (Filtered (Sersetted srst _))))))) = srst
 
--- | Gets the 'L.Serset' resulting from sorting.
+-- | Gets the 'Serset' resulting from sorting.
 --
 -- @
--- 'sersetSorted' :: 'L.Clatch' l -> 'L.Serset'
+-- 'sersetSorted' :: 'Clatch' l -> 'Serset'
 -- @
 sersetSorted
-  :: L.Filtered (L.RunningBalance (L.Sorted a))
-  -> L.Serset
+  :: Filtered (RunningBalance (Sorted a))
+  -> Serset
 sersetSorted
-  (L.Filtered (L.Sersetted _ (L.RunningBalance _ (L.Sorted
-    (L.Sersetted srst _))))) = srst
+  (Filtered (Sersetted _ (RunningBalance _ (Sorted
+    (Sersetted srst _))))) = srst
 
 -- | Gets the running balance.
 --
 -- @
--- 'runningBalance' :: 'L.Clatch' l -> 'L.Balances'
+-- 'runningBalance' :: 'Clatch' l -> 'Balances'
 -- @
 runningBalance
-  :: L.Filtered (L.RunningBalance a)
-  -> L.Balances
+  :: Filtered (RunningBalance a)
+  -> Balances
 runningBalance
-  (L.Filtered (L.Sersetted _ (L.RunningBalance bal _))) = bal
+  (Filtered (Sersetted _ (RunningBalance bal _))) = bal
 
--- | Gets the 'L.Serset' resulting from post-filtering.
+-- | Gets the 'Serset' resulting from post-filtering.
 --
 -- @
--- 'sersetPostFiltered' :: 'L.Clatch' l -> 'L.Serset'
+-- 'sersetPostFiltered' :: 'Clatch' l -> 'Serset'
 -- @
 sersetPostFiltered
-  :: L.Filtered a
-  -> L.Serset
-sersetPostFiltered (L.Filtered (L.Sersetted srst _)) = srst
+  :: Filtered a
+  -> Serset
+sersetPostFiltered (Filtered (Sersetted srst _)) = srst
 
 -- | Gets the 'Qty' from the converted Amount, if there is one.
 -- Otherwise, gets the 'QtyRep' from the 'Trio', if there is one.
@@ -122,7 +124,7 @@ bestQty clch = case convertedAmount clch of
 bestCommodity
   :: Ledger l
   => Clatch l
-  -> l L.Commodity
+  -> l Commodity
 bestCommodity clch = case convertedAmount clch of
   Just (Amount cy _) -> return cy
   Nothing -> commodity . postingL $ clch

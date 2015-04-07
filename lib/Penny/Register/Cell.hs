@@ -20,6 +20,7 @@ import Penny.Matcher
 import Penny.Number.Rep
 import Penny.Qty
 import Penny.Queries.Clatch
+import Penny.Side
 import qualified Penny.Queries.Matcher as Q
 
 -- | Indicates what sort of information is in the cell.  Can be debit,
@@ -44,7 +45,12 @@ qty
 qty fmt clch = do
   cy <- bestCommodity clch
   s3 <- liftM (convertQtyToAmount cy) $ bestQty clch
-  undefined
+  qt <- Penny.Ledger.qty . postingL $ clch
+  let tag = case qtySide qt of
+        Nothing -> ZeroTag
+        Just Debit -> DebitTag
+        Just Credit -> CreditTag
+  return [(tag, formatQty fmt s3)]
 
 convertQtyToAmount
   :: Commodity
