@@ -10,9 +10,9 @@
 -- that end in @z@ are similar, but they can also represent the digit
 -- 0.
 
-module Penny.Lincoln.Rep.Digit where
+module Penny.Number.Digit where
 
-import Penny.Lincoln.Display
+import Penny.Display
 
 -- * Typeclass for any digit
 

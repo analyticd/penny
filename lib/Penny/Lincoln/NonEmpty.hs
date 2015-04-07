@@ -2,7 +2,7 @@ module Penny.Lincoln.NonEmpty where
 
 import Control.Applicative
 import Penny.Lincoln.Natural
-import Penny.Lincoln.Rep.Digit
+import Penny.Number.Digit
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import Data.Sequence (Seq, (|>), viewl, ViewL(..), (<|))

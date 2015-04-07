@@ -1,6 +1,6 @@
 module Penny.Lincoln.PluMin where
 
-import Penny.Lincoln.Display
+import Penny.Display
 
 data PluMin = Plus | Minus
   deriving (Eq, Ord, Show)

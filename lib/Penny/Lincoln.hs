@@ -5,10 +5,10 @@ module Penny.Lincoln
       module Penny.Lincoln.Amount
     , module Penny.Lincoln.Balances
     , module Penny.Lincoln.Clatch
-    , module Penny.Lincoln.Commodity
+    , module Penny.Commodity
     , module Penny.Lincoln.DateTime
     , module Penny.Lincoln.Decimal
-    , module Penny.Lincoln.Display
+    , module Penny.Display
     , module Penny.Lincoln.Ent
     , module Penny.Lincoln.Ents
     , module Penny.Lincoln.Exch
@@ -34,10 +34,10 @@ module Penny.Lincoln
 import Penny.Lincoln.Amount
 import Penny.Lincoln.Balances
 import Penny.Lincoln.Clatch
-import Penny.Lincoln.Commodity
+import Penny.Commodity
 import Penny.Lincoln.DateTime
 import Penny.Lincoln.Decimal
-import Penny.Lincoln.Display
+import Penny.Display
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Ents
 import Penny.Lincoln.Exch

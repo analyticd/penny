@@ -8,7 +8,7 @@ import qualified Data.Sequence as S
 import Penny.Lincoln.Amount
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Balances
-import Penny.Lincoln.Commodity
+import Penny.Commodity
 import Penny.Lincoln.Qty
 import Data.Monoid
 import qualified Data.Foldable as F

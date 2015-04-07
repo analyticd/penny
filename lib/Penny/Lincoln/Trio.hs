@@ -3,8 +3,8 @@ module Penny.Lincoln.Trio where
 import Penny.Lincoln.Amount
 import Penny.Lincoln.Ent
 import Penny.Lincoln.Decimal
-import Penny.Lincoln.Display
-import Penny.Lincoln.Commodity
+import Penny.Display
+import Penny.Commodity
 import Penny.Lincoln.Balances
 import Penny.Lincoln.Side
 import Penny.Lincoln.Rep

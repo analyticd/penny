@@ -1,4 +1,4 @@
-module Penny.Lincoln.Commodity where
+module Penny.Commodity where
 
 import Data.Text
 

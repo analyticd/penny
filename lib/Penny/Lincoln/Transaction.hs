@@ -98,7 +98,7 @@ instance T.Traversable PstgMeta where
 --
 -- * through 'Balanced', you get 'Penny.Lincoln.Ent.Ent', which
 -- contains an 'Penny.Lincoln.Amount.Amount', which contains the
--- 'Penny.Lincoln.Commodity.Commodity' and 'Penny.Lincoln.Qty.Qty'
+-- 'Penny.Commodity.Commodity' and 'Penny.Lincoln.Qty.Qty'
 --
 -- * through 'PstgMeta', you get the list of 'Tree' and the 'Trio'
 --

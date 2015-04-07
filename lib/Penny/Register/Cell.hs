@@ -7,7 +7,7 @@ import Penny.Lincoln.Clatch
 import Penny.Queries.Clatch
 import Penny.Lincoln.Rep
 import Penny.Lincoln.Qty
-import Penny.Lincoln.Commodity
+import Penny.Commodity
 import Penny.Lincoln.Amount
 import qualified Penny.Queries.Matcher as Q
 import Penny.Lincoln.Field (displayScalar)

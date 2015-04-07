@@ -1,4 +1,4 @@
-module Penny.Lincoln.Display where
+module Penny.Display where
 
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F

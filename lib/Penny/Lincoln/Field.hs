@@ -3,7 +3,7 @@ module Penny.Lincoln.Field where
 
 import Data.Text (Text, pack)
 import Penny.Lincoln.DateTime
-import Penny.Lincoln.Display
+import Penny.Display
 
 data Tree = Tree Realm (Maybe Scalar) [Tree]
   deriving (Eq, Ord, Show)

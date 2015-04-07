@@ -3,7 +3,7 @@ module Penny.Lincoln.Balances where
 import Penny.Lincoln.Amount
 import qualified Data.Foldable as F
 import Penny.Lincoln.Decimal
-import Penny.Lincoln.Commodity
+import Penny.Commodity
 import Penny.Lincoln.Qty
 import qualified Data.Map as M
 import Data.Monoid

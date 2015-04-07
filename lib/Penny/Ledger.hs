@@ -8,7 +8,7 @@ import Penny.Lincoln.Field
 import Penny.Lincoln.Trio
 import Penny.Lincoln.Qty
 import Penny.Lincoln.DateTime
-import Penny.Lincoln.Commodity
+import Penny.Commodity
 import Penny.Lincoln.Prices hiding (fromTo)
 import Penny.Lincoln.Exch
 import Data.Sequence (Seq)

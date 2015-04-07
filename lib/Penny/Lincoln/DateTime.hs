@@ -18,7 +18,7 @@ module Penny.Lincoln.DateTime
 import qualified Data.Time as T
 import Penny.Lincoln.Rep
 import Penny.Lincoln.PluMin
-import Penny.Lincoln.Display
+import Penny.Display
 
 newtype Date = Date { dateToDay :: T.Day }
   deriving (Eq, Ord, Show)

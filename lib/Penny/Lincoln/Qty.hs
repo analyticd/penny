@@ -48,9 +48,9 @@ import Penny.Lincoln.NonZero
 import Penny.Lincoln.Offset
 import Penny.Lincoln.PluMin
 import Penny.Lincoln.NonEmpty
-import Penny.Lincoln.Commodity
+import Penny.Commodity
 import Penny.Lincoln.Mimode
-import Penny.Lincoln.Display
+import Penny.Display
 import Data.Sequence (Seq)
 import qualified Data.Map.Strict as M
 import qualified Data.Foldable as F

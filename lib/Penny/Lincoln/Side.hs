@@ -2,7 +2,7 @@ module Penny.Lincoln.Side where
 
 import Penny.Lincoln.Offset
 import Penny.Lincoln.PluMin
-import Penny.Lincoln.Display
+import Penny.Display
 
 data Side = Debit | Credit
   deriving (Eq, Ord, Show)

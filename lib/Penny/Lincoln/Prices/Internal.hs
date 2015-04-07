@@ -1,6 +1,6 @@
 module Penny.Lincoln.Prices.Internal where
 
-import Penny.Lincoln.Commodity
+import Penny.Commodity
 import Data.Map (Map)
 import qualified Data.Map as M
 import Penny.Lincoln.Exch

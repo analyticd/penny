@@ -66,7 +66,7 @@ module Penny.Lincoln.Rep
   , ExchRepAnyRadix(..)
 
   -- * Digits
-  , module Penny.Lincoln.Rep.Digit
+  , module Penny.Number.Digit
 
   -- * Grouping
   , groupBrimUngrouped
@@ -78,11 +78,11 @@ import Control.Monad (join)
 import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|), (|>))
 import Data.Monoid
 import qualified Data.Sequence as S
-import Penny.Lincoln.Rep.Digit
+import Penny.Number.Digit
 import Penny.Lincoln.Side
 import Penny.Lincoln.PluMin
 import Penny.Lincoln.NonEmpty
-import Penny.Lincoln.Display
+import Penny.Display
 
 -- | A radix point.  The type is parameterized on a type that
 -- represents the character used for the radix point.
