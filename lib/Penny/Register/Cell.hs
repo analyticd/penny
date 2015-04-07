@@ -28,6 +28,7 @@ module Penny.Register.Cell
   , spacer
 
   -- * Serials
+  , FileOrGlobal(..)
   , forward
   , backward
   , preFiltered
@@ -36,7 +37,6 @@ module Penny.Register.Cell
   , posting
   , topLine
   , Penny.Register.Cell.index
-  , FileOrGlobal(..)
   ) where
 
 import Control.Applicative
@@ -238,7 +238,7 @@ topLine = FileOrGlobal glbl fle
       TopLineSer (FileSer f) _ <- topLineSer . transactionL $ clch
       return f
 
--- | Use with 'forward and backward', for instance:
+-- | Use with 'forward' and 'backward', for instance:
 --
 -- @
 -- 'backward' 'index'
