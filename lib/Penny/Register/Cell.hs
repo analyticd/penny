@@ -29,12 +29,10 @@ import qualified Penny.Queries.Matcher as Q
 -- be 'InfoTag' for other cells, or 'NoticeTag' if there is something
 -- that should stand out.
 data CellTag
-  = DebitTag
-  | CreditTag
-  | ZeroTag
-  | InfoTag
-  | NoticeTag
-  deriving (Eq, Ord, Show, Enum, Bounded)
+  = Linear (Maybe Side)
+  | NonLinear
+  | Notice
+  deriving (Eq, Ord, Show)
 
 
 qty
@@ -46,10 +44,7 @@ qty fmt clch = do
   cy <- bestCommodity clch
   s3 <- liftM (convertQtyToAmount cy) $ bestQty clch
   qt <- Penny.Ledger.qty . postingL $ clch
-  let tag = case qtySide qt of
-        Nothing -> ZeroTag
-        Just Debit -> DebitTag
-        Just Credit -> CreditTag
+  let tag = Linear $ qtySide qt
   return [(tag, formatQty fmt s3)]
 
 convertQtyToAmount
@@ -78,7 +73,7 @@ labeledTree
   => Text
   -> Clatch l
   -> l [(CellTag, Text)]
-labeledTree txt clch = liftM (\x -> [(InfoTag, x)])
+labeledTree txt clch = liftM (\x -> [(NonLinear, x)])
   $ findLabeled txt clch
 
 findLabeled
@@ -141,7 +136,7 @@ matchLabeledTree lbl = do
 
 -- | A cell with blank spaces.
 spacer :: Monad m => Int -> m [(CellTag, Text)]
-spacer i = return [(InfoTag, X.replicate i (X.singleton ' '))]
+spacer i = return [(NonLinear, X.replicate i (X.singleton ' '))]
 
 -- # Displaying trees
 
