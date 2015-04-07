@@ -1,4 +1,4 @@
 #!/bin/sh
 
 mv lib/Penny/Lincoln/$1.hs lib/Penny/$1.hs
-find lib -type f -name '*.hs' -exec sed -i '' "s/Penny\.Lincoln\.$1/Penny.$1/g" {} \;
+find lib -type f -name '*.hs' -exec sed -E -i '' "s/Penny\.Lincoln\.$1\>/Penny.$1/g" {} \;
