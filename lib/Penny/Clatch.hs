@@ -49,7 +49,7 @@ import Penny.NonEmpty
 import Penny.Representation
 import Penny.Trio
 import Penny.Serial
-import Penny.Balances
+import Penny.Balance
 import Penny.Matcher
 import Data.Monoid
 import qualified Data.Foldable as F
@@ -181,17 +181,17 @@ sortConverted sorters = liftM (fmap Sorted) . liftM assignSersetted . sorter
     sorter = F.foldl (>=>) return sorters
 
 -- | Thing that is accompanied by a running balance.
-data RunningBalance a = RunningBalance Balances a
+data RunningBalance a = RunningBalance Balance a
   deriving (Functor, F.Foldable, T.Traversable)
 
 -- | Compute running balances and add them as a 'RunningBalance'.
-addRunningBalances
+addRunningBalance
   :: (Ledger m, T.Traversable c)
   => c (Sorted (Filtered (a, View (Converted (PostingL m)))))
   -- ^
   -> m (c (RunningBalance (Sorted (Filtered (a, View (Converted (PostingL m)))))))
   -- ^
-addRunningBalances
+addRunningBalance
   = liftM (snd . T.mapAccumL addBal mempty)
   . T.mapM addBestAmount
   where
@@ -199,7 +199,7 @@ addRunningBalances
       = liftM2 (,) (return srtd) (bestAmount . onView $ vw)
     addBal acc (fl, amt) = (acc', new)
       where
-        acc' = acc <> c'Balances'Amount amt
+        acc' = acc <> c'Balance'Amount amt
         new = RunningBalance acc' fl
 
 
@@ -238,6 +238,6 @@ allClatches conv mtcrConverted srtr mtcrSorted = do
   rndgs <- F.foldlM updateRenderings (Renderings M.empty) txns
   (msgsFiltConverted, filt) <- filterWithSerials mtcrConverted txns
   srtd <- sortConverted srtr filt
-  withBals <- addRunningBalances srtd
+  withBals <- addRunningBalance srtd
   (msgsFiltSrtd, filt') <- filterWithSerials mtcrSorted withBals
   return ((msgsFiltConverted, rndgs, msgsFiltSrtd), filt')

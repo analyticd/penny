@@ -153,15 +153,15 @@ amount arnge rep trch = f <$> selectQtyRep rep (Q.bevy trch) <*> Q.trio trch
         sp = if sb then " " else ""
         qrTxt = displayNilOrBrimScalarAnyRadix qr
 
--- | A cell with all 'L.Balances'; similar to 'amount' but includes a
--- line for every 'L.Commodity' in the 'Balances'.
+-- | A cell with all 'L.Balance'; similar to 'amount' but includes a
+-- line for every 'L.Commodity' in the 'Balance'.
 balAmounts
   :: (L.Commodity -> L.Arrangement)
   -> (L.Amount -> L.NilOrBrimScalarAnyRadix)
   -> L.Tranche l
   -> [(CellTag, Text)]
 balAmounts arnge rep
-  = map toCell . M.toList . (\(L.Balances mp) -> mp) . Q.balances
+  = map toCell . M.toList . (\(L.Balance mp) -> mp) . Q.balances
   where
     toCell (L.Commodity cy, q) = (tag, lft <> sp <> rgt)
       where
@@ -179,14 +179,14 @@ balSides :: L.Tranche l -> [(CellTag, Text)]
 balSides
   = fmap (cellMaySide . L.qtySide . snd)
   . M.toList
-  . (\(L.Balances m) -> m)
+  . (\(L.Balance m) -> m)
   . Q.balances
 
 balQtys
   :: (L.Amount -> L.NilOrBrimScalarAnyRadix)
   -> L.Tranche l
   -> [(CellTag, Text)]
-balQtys rep = map toCell . M.toList . (\(L.Balances m) -> m) . Q.balances
+balQtys rep = map toCell . M.toList . (\(L.Balance m) -> m) . Q.balances
   where
     toCell (L.Commodity cy, q) = (tag, displayNilOrBrimScalarAnyRadix qr)
       where
@@ -196,7 +196,7 @@ balQtys rep = map toCell . M.toList . (\(L.Balances m) -> m) . Q.balances
 balCommodities
   :: L.Tranche l
   -> [(CellTag, Text)]
-balCommodities = map toCell . M.toList . (\(L.Balances m) -> m) . Q.balances
+balCommodities = map toCell . M.toList . (\(L.Balance m) -> m) . Q.balances
   where
     toCell (L.Commodity cy, q) = (tag, cy)
       where

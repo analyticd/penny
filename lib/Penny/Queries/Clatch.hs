@@ -6,7 +6,7 @@ module Penny.Queries.Clatch where
 import Control.Monad
 import Data.Sums
 import Penny.Amount
-import Penny.Balances
+import Penny.Balance
 import Penny.Clatch
 import Penny.Commodity
 import Penny.Ledger
@@ -82,11 +82,11 @@ sersetSorted
 -- | Gets the running balance.
 --
 -- @
--- 'runningBalance' :: 'Clatch' l -> 'Balances'
+-- 'runningBalance' :: 'Clatch' l -> 'Balance'
 -- @
 runningBalance
   :: Filtered (RunningBalance a)
-  -> Balances
+  -> Balance
 runningBalance
   (Filtered (Sersetted _ (RunningBalance bal _))) = bal
 

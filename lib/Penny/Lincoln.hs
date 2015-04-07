@@ -3,7 +3,7 @@
 module Penny.Lincoln
   (
       module Penny.Amount
-    , module Penny.Balances
+    , module Penny.Balance
     , module Penny.Clatch
     , module Penny.Commodity
     , module Penny.DateTime
@@ -32,7 +32,7 @@ module Penny.Lincoln
   ) where
 
 import Penny.Amount
-import Penny.Balances
+import Penny.Balance
 import Penny.Clatch
 import Penny.Commodity
 import Penny.DateTime

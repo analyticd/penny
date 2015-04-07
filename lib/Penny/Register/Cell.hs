@@ -1,17 +1,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Register.Cell
   ( CellTag(..)
-  -- * Cells with converted amounts
+  -- * Quantities, commodities, and sides
   --
-  -- | The 'Clatch' may have a converted amount.
-  -- Use these functions with 'original' and 'best' to determine
-  -- whether to use the original amount or the converted amount if it
-  -- is available:
+  -- Use 'original', 'best', or 'balance' to determine whether to use
+  -- the converted posting data (if available), the original posting
+  -- data, or the balance data.
   --
   -- @
   -- -- Show the converted quantity, if there is one; otherwise
   -- -- show the original quantity
-  -- let qtyColumn = best . qty
+  -- let qtyColumn = best qty
+  --
+  -- -- Show the running balance
+  -- let balQtyColumn = balance qty
   -- @
   , BestField(..)
   , Penny.Register.Cell.qty
@@ -40,6 +42,7 @@ module Penny.Register.Cell
 import Control.Applicative
 import Control.Monad
 import qualified Data.Foldable as F
+import qualified Data.Map as M
 import Data.Monoid
 import Data.Sequence (Seq, viewl, ViewL(..))
 import qualified Data.Sequence as Seq
@@ -48,6 +51,7 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Traversable as T
 import Penny.Amount
+import Penny.Balance
 import Penny.Clatch
 import Penny.Commodity
 import Penny.Display
@@ -79,18 +83,18 @@ data CellTag
 qty
   :: Ledger l
   => BestField l (Amount -> RepNonNeutralNoSide)
-qty = BestField originalQty Penny.Register.Cell.bestQty
+qty = BestField originalQty Penny.Register.Cell.bestQty balanceQty
 
 commodity
   :: Ledger l
   => BestField l a
 commodity = BestField originalCommodity
-  Penny.Register.Cell.bestCommodity
+  Penny.Register.Cell.bestCommodity balanceCommodity
 
 side
   :: Ledger l
   => BestField l a
-side = BestField originalSide bestSide
+side = BestField originalSide bestSide balanceSide
 
 
 -- | Creates a Cell that runs the given Matcher on the Clatch and puts
@@ -145,6 +149,32 @@ spacer :: Monad m => Int -> a -> b -> m [(CellTag, Text)]
 spacer i _ _ = return [(NonLinear, X.replicate i (X.singleton ' '))]
 
 -- ## Sersets
+
+-- | A column with a 'Forward' serial.  Use with the other functions
+-- below, such as 'preFiltered' and 'sorted'.
+forward
+  :: Monad l
+  => (Clatch l -> l Serset)
+  -> a
+  -> Clatch l
+  -> l [(CellTag, Text)]
+forward get _ clch = liftM mkCell (get clch)
+  where
+    mkCell (Serset (Forward (Serial fwd)) _) =
+      [(NonLinear, X.pack . show . naturalToInteger $ fwd)]
+
+-- | A column with a 'Backward' serial.  Use with the other functions
+-- below, such as 'preFiltered' and 'sorted'.
+backward
+  :: Monad l
+  => (Clatch l -> l Serset)
+  -> a
+  -> Clatch l
+  -> l [(CellTag, Text)]
+backward get _ clch = liftM mkCell (get clch)
+  where
+    mkCell (Serset _ (Backward (Serial rev))) =
+      [(NonLinear, X.pack . show . naturalToInteger $ rev)]
 
 -- Use these with 'forward' and 'backward' to get the serial you want.
 
@@ -225,10 +255,12 @@ index clch = do
 -- get an appropriate column.
 data BestField l a = BestField
   { original :: (a -> Clatch l -> l [(CellTag, Text)])
-  -- ^ Use the original, not converted, value.
+  -- ^ Use posting data.  Use the original, not converted, value.
   , best :: (a -> Clatch l -> l [(CellTag, Text)])
-  -- ^ Use the converted value if available; otherwise, use the
-  -- converted value.
+  -- ^ Use posting data.  Use the converted value if available;
+  -- otherwise, use the converted value.
+  , balance :: (a -> Clatch l -> l [(CellTag, Text)])
+  -- ^ Use balance data.
   }
 
 -- | For functions that return values of this type, use 'global' or
@@ -300,7 +332,7 @@ bestSide
   -> Clatch l
   -> l [(CellTag, Text)]
 bestSide _
-  = liftM sideCell
+  = liftM ((:[]) . sideCell)
   . Penny.Queries.Clatch.bestQty
 
 
@@ -311,15 +343,15 @@ originalSide
   -> Clatch l
   -> l [(CellTag, Text)]
 originalSide _
-  = liftM sideCell
+  = liftM ((:[]) . sideCell)
   . Penny.Ledger.qty
   . postingL
 
 
 sideCell
   :: Qty
-  -> [(CellTag, Text)]
-sideCell q = [(Linear sd, txt)]
+  -> (CellTag, Text)
+sideCell q = (Linear sd, txt)
   where
     sd = qtySide q
     txt = case sd of
@@ -355,28 +387,51 @@ formatQty rend s3 = case s3 of
     . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix $ qrr
   S3c amt -> X.pack . ($ "") . display . rend $ amt
 
+-- # Balances
 
-forward
-  :: Monad l
-  => (Clatch l -> l Serset)
-  -> a
-  -> Clatch l
-  -> l [(CellTag, Text)]
-forward get _ clch = liftM mkCell (get clch)
+balanceQty
+  :: Monad m
+  => (Amount -> RepNonNeutralNoSide)
+  -> Clatch m
+  -> m [(CellTag, Text)]
+balanceQty conv
+  = return
+  . fmap qtyLine
+  . M.assocs
+  . (\(Balance mp) -> mp)
+  . runningBalance
   where
-    mkCell (Serset (Forward (Serial fwd)) _) =
-      [(NonLinear, X.pack . show . naturalToInteger $ fwd)]
+    qtyLine (cy, qt) = (Linear . qtySide $ qt, txt)
+      where
+        txt = X.pack . ($ "") . display
+          . conv $ Amount cy qt
 
-backward
-  :: Monad l
-  => (Clatch l -> l Serset)
-  -> a
-  -> Clatch l
-  -> l [(CellTag, Text)]
-backward get _ clch = liftM mkCell (get clch)
+balanceCommodity
+  :: Monad m
+  => a
+  -> Clatch m
+  -> m [(CellTag, Text)]
+balanceCommodity _
+  = return
+  . fmap commodityLine
+  . M.assocs
+  . (\(Balance mp) -> mp)
+  . runningBalance
   where
-    mkCell (Serset _ (Backward (Serial rev))) =
-      [(NonLinear, X.pack . show . naturalToInteger $ rev)]
+    commodityLine (Commodity x, qt) = (Linear . qtySide $ qt, x)
+
+balanceSide
+  :: Monad m
+  => a
+  -> Clatch m
+  -> m [(CellTag, Text)]
+balanceSide _
+  = return
+  . fmap (sideCell . snd)
+  . M.assocs
+  . (\(Balance mp) -> mp)
+  . runningBalance
+
 
 -- # Displaying trees
 

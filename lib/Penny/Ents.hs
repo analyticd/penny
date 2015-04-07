@@ -1,7 +1,7 @@
 module Penny.Ents
   ( Ents
   , entsToSeqEnt
-  , entsToImbalances
+  , entsToImbalance
   , appendEnt
   , prependEnt
   , appendTrio

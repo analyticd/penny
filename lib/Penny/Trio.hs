@@ -5,7 +5,7 @@ import Penny.Ent
 import Penny.Decimal
 import Penny.Display
 import Penny.Commodity
-import Penny.Balances
+import Penny.Balance
 import Penny.Side
 import Penny.Representation
 import Penny.Qty
@@ -114,8 +114,8 @@ data Trio
   deriving (Eq, Ord, Show)
 
 data TrioError
-  = NoImbalances
-  | MultipleImbalances (Commodity, QtyNonZero) (Commodity, QtyNonZero)
+  = NoImbalance
+  | MultipleImbalance (Commodity, QtyNonZero) (Commodity, QtyNonZero)
                        [(Commodity, QtyNonZero)]
   | CommodityNotFound Commodity
   | BalanceIsSameSide Side
@@ -125,11 +125,11 @@ data TrioError
 
 instance Friendly TrioError where
   friendly te = case te of
-    NoImbalances ->
+    NoImbalance ->
       [ "The posting you gave requires there to be a current imbalance,"
       , "but the postings are perfectly balanced."
       ]
-    MultipleImbalances i1 i2 is ->
+    MultipleImbalance i1 i2 is ->
       [ "The posting you gave requires there to be exactly one commodity"
       , "that is not balanced, but there are multiple imbalances:"
       , showImbalance i1
@@ -140,7 +140,7 @@ instance Friendly TrioError where
       [ "Necessary commodity not found in imbalances: " ++ X.unpack cy ]
 
     BalanceIsSameSide s ->
-      [ "Imbalances needs to be on opposite side of given posting,"
+      [ "Imbalance needs to be on opposite side of given posting,"
       , "but it is on the same side: " ++ (display s "")
       ]
     UnsignedTooLarge rnn qnz ->
@@ -182,7 +182,7 @@ qtyAndCommodityToEnt
   -> Ent a
 qtyAndCommodityToEnt qnr cy a = Ent (Amount cy (toQty qnr)) a
 
-toEnt :: Imbalances -> Trio -> Either TrioError (a -> Ent a)
+toEnt :: Imbalance -> Trio -> Either TrioError (a -> Ent a)
 
 toEnt _ (QC qnr cy _) = Right $ qtyAndCommodityToEnt qnr cy
 
@@ -244,13 +244,13 @@ notSameSide x y
   | x == y = Left $ BalanceIsSameSide x
   | otherwise = return ()
 
-oneCommodity :: Imbalances -> Either TrioError (Commodity, QtyNonZero)
-oneCommodity (Imbalances imb) = case M.toList imb of
-  [] -> Left NoImbalances
+oneCommodity :: Imbalance -> Either TrioError (Commodity, QtyNonZero)
+oneCommodity (Imbalance imb) = case M.toList imb of
+  [] -> Left NoImbalance
   (cy, q):[] -> return (cy, q)
-  x:y:xs -> Left $ MultipleImbalances x y xs
+  x:y:xs -> Left $ MultipleImbalance x y xs
 
-lookupCommodity :: Imbalances -> Commodity -> Either TrioError QtyNonZero
-lookupCommodity (Imbalances imb) cy = case M.lookup cy imb of
+lookupCommodity :: Imbalance -> Commodity -> Either TrioError QtyNonZero
+lookupCommodity (Imbalance imb) cy = case M.lookup cy imb of
   Nothing -> Left $ CommodityNotFound cy
   Just dnz -> return dnz

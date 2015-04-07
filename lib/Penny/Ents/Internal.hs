@@ -7,7 +7,7 @@ import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>)
 import qualified Data.Sequence as S
 import Penny.Amount
 import Penny.Ent
-import Penny.Balances
+import Penny.Balance
 import Penny.Commodity
 import Penny.Qty
 import Data.Monoid
@@ -22,7 +22,7 @@ import Penny.Friendly
 
 data Ents m = Ents
   { entsToSeqEnt :: Seq (Ent m)
-  , entsToImbalances :: Imbalances
+  , entsToImbalance :: Imbalance
   } deriving (Eq, Ord, Show)
 
 instance Functor Ents where
@@ -67,11 +67,11 @@ instance T.Traversable Balanced where
 
 appendEnt :: Ents a -> Ent a -> Ents a
 appendEnt (Ents s b) e@(Ent a _) = Ents (s |> e)
-  (b <> c'Imbalances'Amount a)
+  (b <> c'Imbalance'Amount a)
 
 prependEnt :: Ent a -> Ents a -> Ents a
 prependEnt e@(Ent a _) (Ents s b) = Ents (e <| s)
-  (b <> c'Imbalances'Amount a)
+  (b <> c'Imbalance'Amount a)
 
 appendTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
 appendTrio ents@(Ents _ imb) trio =
@@ -91,7 +91,7 @@ data ImbalancedError
 
 instance Friendly ImbalancedError where
   friendly (ImbalancedError c1 cs) =
-    [ "Transaction is not balanced.  Imbalances:"
+    [ "Transaction is not balanced.  Imbalance:"
     , showImb c1
     ] ++ map showImb cs
     where
@@ -99,7 +99,7 @@ instance Friendly ImbalancedError where
         = "  " ++ X.unpack cy ++ " " ++ displayQtyNonZero q
 
 entsToBalanced :: Ents a -> Either ImbalancedError (Balanced a)
-entsToBalanced (Ents sq (Imbalances m)) = case M.toList m of
+entsToBalanced (Ents sq (Imbalance m)) = case M.toList m of
   [] -> return $ Balanced sq
   x:xs -> Left $ ImbalancedError x xs
 
