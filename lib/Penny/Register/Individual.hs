@@ -43,6 +43,7 @@ module Penny.Register.Individual
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Trans.Class
 import qualified Data.Foldable as F
 import qualified Data.Map as M
 import Data.Monoid
@@ -148,14 +149,14 @@ findNamedTree txt = matchPstg <|> matchTxn
     mtcr = do
       _ <- Q.scalar . Q.text . Q.equal $ txt
       subj <- getSubject
-      offspring subj
+      lift $ offspring subj
     matchTxn = do
       txn <- fmap transactionL getSubject
-      ts <- txnMeta txn
+      ts <- lift $ txnMeta txn
       study finder ts
     matchPstg = do
       pstg <- fmap postingL getSubject
-      ts <- pstgMeta pstg
+      ts <- lift $ pstgMeta pstg
       study finder ts
 
 -- | A cell with the given number of blank spaces.
