@@ -81,8 +81,8 @@ data LineTag
   | Notice
   deriving (Eq, Ord, Show)
 
--- | For functions that return this type, use 'original' or 'best' to
--- get an appropriate column.
+-- | For functions that return this type, use 'original', 'best', or
+-- 'balance' to get an appropriate column.
 data BestField l a = BestField
   { original :: (a -> Clatch l -> l (Seq (LineTag, Text)))
   -- ^ Use posting data.  Use the original, not converted, value.
