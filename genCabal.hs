@@ -60,7 +60,7 @@ bifunctors :: Package
 bifunctors = closedOpen "bifunctors" [4,2] [4,3]
 
 rainbox :: Package
-rainbox = closedOpen "rainbox" [0,10,0,0] [0,11]
+rainbox = closedOpen "rainbox" [0,12,0,0] [0,13]
 
 rainbow :: Package
 rainbow = closedOpen "rainbow" [0,22] [0,23]
