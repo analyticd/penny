@@ -16,27 +16,17 @@ import Penny.SeqUtil
 import Penny.Serial
 import Penny.Trio
 
--- |
--- @
--- 'postingL' :: 'Clatch' m -> 'PostingL' m
--- @
-postingL
-  :: (Viewer a, Viewed a ~ Converted t1)
-  => Filtered (RunningBalance (Sorted (Filtered (t, a))))
-  -> t1
+-- | Gets the 'PostingL' from the 'Clatch'.
+postingL :: Clatch m -> PostingL m
 postingL
   (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
     (Filtered (Sersetted _ (_, vw)))))))) = pstg
   where
     Converted _ pstg = onView vw
 
--- |
--- @
--- 'convertedAmount' :: 'Clatch' l -> 'Maybe' 'Amount'
--- @
+-- | Gets the 'Amount' after conversion, if any conversion took place.
 convertedAmount
-  :: (Viewer a, Viewed a ~ Converted t1)
-  => Filtered (RunningBalance (Sorted (Filtered (t, a))))
+  :: Clatch l
   -> Maybe Amount
 convertedAmount
   (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
@@ -44,49 +34,28 @@ convertedAmount
   where
     Converted mayAmt _ = onView vw
 
--- |
--- @
--- 'transactionL' :: 'Clatch' l -> 'TransactionL' l
--- @
+-- | Gets the 'TransactionL' from a 'Clatch'.
 transactionL
-  :: Filtered (RunningBalance (Sorted (Filtered (a, b))))
-  -> a
+  :: Clatch l
+  -> TransactionL l
 transactionL
   (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
     (Filtered (Sersetted _ (txn, _)))))))) = txn
 
 -- | Gets the 'Serset' resulting from pre-filtering.
---
--- @
--- 'sersetFiltered' :: 'Clatch' l -> 'Serset'
--- @
-sersetPreFiltered
-  :: Filtered (RunningBalance (Sorted (Filtered a)))
-  -> Serset
+sersetPreFiltered :: Clatch l -> Serset
 sersetPreFiltered
   (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
     (Filtered (Sersetted srst _))))))) = srst
 
 -- | Gets the 'Serset' resulting from sorting.
---
--- @
--- 'sersetSorted' :: 'Clatch' l -> 'Serset'
--- @
-sersetSorted
-  :: Filtered (RunningBalance (Sorted a))
-  -> Serset
+sersetSorted :: Clatch l -> Serset
 sersetSorted
   (Filtered (Sersetted _ (RunningBalance _ (Sorted
     (Sersetted srst _))))) = srst
 
 -- | Gets the running balance.
---
--- @
--- 'runningBalance' :: 'Clatch' l -> 'Balance'
--- @
-runningBalance
-  :: Filtered (RunningBalance a)
-  -> Balance
+runningBalance :: Clatch l -> Balance
 runningBalance
   (Filtered (Sersetted _ (RunningBalance bal _))) = bal
 
@@ -95,22 +64,15 @@ runningBalance
 -- @
 -- 'sersetPostFiltered' :: 'Clatch' l -> 'Serset'
 -- @
-sersetPostFiltered
-  :: Filtered a
-  -> Serset
+sersetPostFiltered :: Clatch l -> Serset
 sersetPostFiltered (Filtered (Sersetted srst _)) = srst
 
 -- | Gets the 'Qty' using the 'Trio' in the 'PostingL'.
--- @
--- originalQtyRep
---  :: 'Ledger' l
---  => 'Clatch' l
---  -> ('S3' 'RepNonNeutralNoSide' 'QtyRepAnyRadix' 'Qty')
--- @
 originalQtyRep
-  :: (Ledger m, Viewer a, Viewed a ~ Converted (PostingL m))
-  => Filtered (RunningBalance (Sorted (Filtered (t, a))))
-  -> m (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
+  :: Ledger l
+  => Clatch l
+  -- ^
+  -> l (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
 originalQtyRep clch = (trio . postingL $ clch) >>= conv
   where
     conv tri = case tri of
@@ -122,17 +84,7 @@ originalQtyRep clch = (trio . postingL $ clch) >>= conv
 
 -- | Gets the 'Qty' from the converted 'Amount', if there is one;
 -- otherwise, get the original 'Qty'.
---
--- @
--- bestQty
---  :: 'Ledger' l
---  => 'Clatch' l
---  -> 'Qty'
--- @
-bestQty
-  :: (Ledger m, Viewer a, Viewed a ~ Converted (PostingL m))
-  => Filtered (RunningBalance (Sorted (Filtered (t, a))))
-  -> m Qty
+bestQty :: Ledger l => Clatch l -> l Qty
 bestQty clch = case convertedAmount clch of
   Just (Amount _ qt) -> return qt
   Nothing -> qty . postingL $ clch

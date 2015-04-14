@@ -17,10 +17,10 @@ import Control.Monad.Reader
 import Penny.Matcher
 
 class Monad l => Ledger l where
-  type PriceL l
-  type TransactionL l
-  type TreeL l
-  type PostingL l
+  data PriceL l
+  data TransactionL l
+  data TreeL l
+  data PostingL l
 
   ------------------------------------------------
   -- All items
@@ -90,23 +90,27 @@ class Monad l => Ledger l where
   postingSer :: PostingL l -> l PostingSer
 
 instance Ledger m => Ledger (Matcher t m) where
-  type PriceL (Matcher t m) = PriceL m
-  type TransactionL (Matcher t m) = TransactionL m
-  type TreeL (Matcher t m) = TreeL m
-  type PostingL (Matcher t m) = PostingL m
+  newtype PriceL (Matcher t m) = PriceR (PriceL m)
+  newtype TransactionL (Matcher t m) = TransactionR (TransactionL m)
+  newtype TreeL (Matcher t m) = TreeR (TreeL m)
+  newtype PostingL (Matcher t m) = PostingR (PostingL m)
 
-  vault = lift vault
-  dateTime = lift . dateTime
-  fromTo = lift . fromTo
-  exchange = lift . exchange
-  scalar = lift . scalar
-  realm = lift . realm
-  offspring = lift . offspring
-  txnMeta = lift . txnMeta
-  topLineSer = lift . topLineSer
-  postings = lift . postings
-  pstgMeta = lift . pstgMeta
-  trio = lift . trio
-  qty = lift . qty
-  commodity = lift . commodity
-  postingSer = lift . postingSer
+  vault =
+    liftM (fmap (fmap (either (Left . PriceR) (Right . TransactionR))))
+          (lift vault)
+
+  dateTime (PriceR p) = lift . dateTime $ p
+  fromTo (PriceR p) = lift . fromTo $ p
+  exchange (PriceR p) = lift . exchange $ p
+  scalar (TreeR t) = lift . scalar $ t
+  realm (TreeR t) = lift . realm $ t
+  offspring (TreeR t) = liftM (fmap TreeR) (lift . offspring $ t)
+  txnMeta (TransactionR t) = liftM (fmap TreeR) (lift . txnMeta $ t)
+  topLineSer (TransactionR tx) = lift . topLineSer $ tx
+  postings (TransactionR tx) = liftM (fmap PostingR)
+    (lift . postings $ tx)
+  pstgMeta (PostingR p) = liftM (fmap TreeR) (lift . pstgMeta $ p)
+  trio (PostingR p) = lift . trio $ p
+  qty (PostingR p) = lift . qty $ p
+  commodity (PostingR p) = lift . commodity $ p
+  postingSer (PostingR p) = lift . postingSer $ p
