@@ -1,31 +1,73 @@
 {-# LANGUAGE OverloadedStrings #-}
 -- | The Register report
 module Penny.Register
-  ( BestField
+  ( -- * Columns
+     Column
+  ,  Columns(..)
+
+  -- * Balance-related fields
+  , BestField
   , original
   , best
   , balance
 
+  , I.qty
+  , I.commodity
+  , I.side
+
+  -- * Tree-related fields
+  , findNamedTree
+  , forest
+
+  -- * Spacers
+  , spacer
+
+  -- * Sersets
+  , forward
+  , backward
+  , preFiltered
+  , sorted
+  , postFiltered
+  , I.FileOrGlobal(..)
+  , I.posting
+  , I.topLine
+  , I.index
+
+  -- * Formatting
+  , LineTag(..)
+
   , makeRegisterReport
   ) where
 
+import Control.Applicative
+import Control.Monad
+import Control.Monad.Trans.Class
+import Data.Monoid
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
+import Data.Text (Text)
+import qualified Data.Traversable as T
 import Penny.Amount
 import Penny.Clatch
-import Penny.Representation
 import Penny.Ledger
-import Rainbox
+import Penny.Matcher
+import Penny.Queries.Clatch
+import qualified Penny.Queries.Matcher as Q
 import Penny.Register.Individual
   ( LineTag, BestField )
 import qualified Penny.Register.Individual as I
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import Data.Monoid
-import Data.Text (Text)
+import Penny.Representation
+import Penny.Serial
+import Rainbow.Types
+import Rainbow.Colors
+import Rainbox (Box, Alignment, Vertical, tableByRows, center, Cell(..), top)
 
-type Column l
+type MakeLines l
   = (Amount -> RepNonNeutralNoSide)
   -> Clatch l
   -> l (Seq (LineTag, Text))
+
+data Column l = Column (Alignment Vertical) (MakeLines l)
 
 newtype Columns l = Columns (Seq (Column l))
 
@@ -34,25 +76,137 @@ instance Monoid (Columns l) where
   mappend (Columns x) (Columns y) = Columns $ x <> y
 
 original
-  :: BestField l (Amount -> RepNonNeutralNoSide)
+  :: Alignment Vertical
+  -> BestField l (Amount -> RepNonNeutralNoSide)
   -> Columns l
-original = Columns . Seq.singleton . I.original
+original align = Columns . Seq.singleton . Column align . I.original
 
 best
-  :: BestField l (Amount -> RepNonNeutralNoSide)
+  :: Alignment Vertical
+  -> BestField l (Amount -> RepNonNeutralNoSide)
   -> Columns l
-best = Columns . Seq.singleton . I.best
+best align = Columns . Seq.singleton . Column align . I.best
 
 balance
-  :: BestField l (Amount -> RepNonNeutralNoSide)
+  :: Alignment Vertical
+  -> BestField l (Amount -> RepNonNeutralNoSide)
   -> Columns l
-balance = Columns . Seq.singleton . I.balance
+balance align = Columns . Seq.singleton . Column align . I.balance
 
+-- | Creates a Cell that runs the given Matcher on the Clatch and puts
+-- the resulting Forest into a cell.
+forest
+  :: Ledger l
+  => Alignment Vertical
+  -> Matcher (Clatch l) l (Seq (TreeL l))
+  -> Columns l
+forest align = Columns . Seq.singleton . Column align . I.forest
+
+
+-- | Creates a 'Matcher' that looks for a parent tree with the exact
+-- name given.  First performs a pre-order search in the metadata of
+-- the posting; then performs a pre-order search in the metadata for
+-- the top line.  If successful, returns the child forest.
+--
+-- Use with 'forest'; for example:
+--
+-- @
+-- > :set -XOverloadedStrings
+-- > let column = 'forest' $ 'findNamedTree' \"acct\"
+-- @
+findNamedTree
+  :: Ledger l
+  => Text
+  -> Matcher (Clatch l) l (Seq (TreeL l))
+findNamedTree txt = matchPstg <|> matchTxn
+  where
+    finder = each . Q.preOrder $ mtcr
+    mtcr = do
+      _ <- Q.scalar . Q.text . Q.equal $ txt
+      subj <- getSubject
+      lift $ offspring subj
+    matchTxn = do
+      txn <- fmap transactionL getSubject
+      ts <- lift $ txnMeta txn
+      study finder ts
+    matchPstg = do
+      pstg <- fmap postingL getSubject
+      ts <- lift $ pstgMeta pstg
+      study finder ts
+
+-- # Spacers
+
+spacer
+  :: Monad m
+  => Int
+  -> Columns m
+spacer = Columns . Seq.singleton . Column center . I.spacer
+
+-- # Sersets
+
+-- | A column with a 'Forward' serial.  Use with the other functions
+-- below, such as 'preFiltered' and 'sorted'.
+forward
+  :: Monad l
+  => Alignment Vertical
+  -> (Clatch l -> l Serset)
+  -> Columns l
+forward align = Columns . Seq.singleton . Column align . I.forward
+
+-- | A column with a 'Backward' serial.  Use with the other functions
+-- below, such as 'preFiltered' and 'sorted'.
+backward
+  :: Monad l
+  => Alignment Vertical
+  -> (Clatch l -> l Serset)
+  -> Columns l
+backward align = Columns . Seq.singleton . Column align . I.backward
+
+
+-- | Use with 'forward' and 'backward', for instance:
+--
+-- @
+-- 'forward' 'preFiltered'
+-- @
+preFiltered :: Monad l => Clatch l -> l Serset
+preFiltered = fmap return sersetPreFiltered
+
+
+-- | Use with 'forward' and 'backward', for instance:
+--
+-- @
+-- 'backward' 'sorted'
+-- @
+sorted :: Monad l => Clatch l -> l Serset
+sorted = fmap return sersetSorted
+
+-- | Use with 'forward' and 'backward', for instance:
+--
+-- @
+-- 'forward' 'postFiltered'
+-- @
+postFiltered :: Monad l => Clatch l -> l Serset
+postFiltered = fmap return sersetPostFiltered
 
 makeRegisterReport
   :: Ledger l
-  => (Amount -> RepNonNeutralNoSide)
-  -- ^ How to format an 'Amount' that is not already represented.
+  => (Clatch l -> (Amount -> RepNonNeutralNoSide, LineTag -> TextSpec))
+  -- ^ When applied to a 'Clatch', this function returns a function
+  -- that represents amounts that are not already represented, as well
+  -- as a function that, when applied to a 'Text' and to a 'LineTag',
+  -- returns a 'TextSpec' that will format values that have that tag.
   -> Columns l
+  -> Seq (Clatch l)
   -> l (Box Vertical)
-makeRegisterReport = undefined
+makeRegisterReport getFuncs (Columns cols) cltchs = liftM tableByRows rws
+  where
+    rws = T.mapM toRow cltchs
+    toRow cltch = T.mapM toCell cols
+      where
+        (fmtAmt, fmtText) = getFuncs cltch
+        toCell (Column align fCol) = Cell cellRws top align bck
+
+radiantFromTextSpec
+  :: TextSpec
+  -> Radiant
+radiantFromTextSpec = undefined

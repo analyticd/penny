@@ -24,7 +24,6 @@ module Penny.Register.Individual
 
   -- * Cells from forests
   , forest
-  , findNamedTree
 
   -- * White space
   , Penny.Register.Individual.spacer
@@ -33,17 +32,12 @@ module Penny.Register.Individual
   , FileOrGlobal(..)
   , forward
   , backward
-  , preFiltered
-  , sorted
-  , postFiltered
   , posting
   , topLine
   , Penny.Register.Individual.index
   ) where
 
-import Control.Applicative
 import Control.Monad
-import Control.Monad.Trans.Class
 import qualified Data.Foldable as F
 import qualified Data.Map as M
 import Data.Monoid
@@ -68,7 +62,6 @@ import Penny.Queries.Clatch
 import Penny.Serial
 import Penny.Side
 import Penny.Transaction
-import qualified Penny.Queries.Matcher as Q
 
 -- | Indicates what sort of information is in a particular
 -- line in the cell.  Can be debit, credit, or zero for cells that
@@ -128,37 +121,6 @@ forest mtcr _ clch = do
       txt <- displayForestL ts
       return $ Seq.singleton (NonLinear, txt)
 
--- | Creates a 'Matcher' that looks for a parent tree with the exact
--- name given.  First performs a pre-order search in the metadata of
--- the posting; then performs a pre-order search in the metadata for
--- the top line.  If successful, returns the child forest.
---
--- Use with 'forest'; for example:
---
--- @
--- > :set -XOverloadedStrings
--- > let column = 'forest' $ 'findNamedTree' \"acct\"
--- @
-findNamedTree
-  :: Ledger l
-  => Text
-  -> Matcher (Clatch l) l (Seq (TreeL l))
-findNamedTree txt = matchPstg <|> matchTxn
-  where
-    finder = each . Q.preOrder $ mtcr
-    mtcr = do
-      _ <- Q.scalar . Q.text . Q.equal $ txt
-      subj <- getSubject
-      lift $ offspring subj
-    matchTxn = do
-      txn <- fmap transactionL getSubject
-      ts <- lift $ txnMeta txn
-      study finder ts
-    matchPstg = do
-      pstg <- fmap postingL getSubject
-      ts <- lift $ pstgMeta pstg
-      study finder ts
-
 -- | A cell with the given number of blank spaces.
 spacer :: Monad m => Int -> a -> b -> m (Seq (LineTag, Text))
 spacer i _ _ = return $
@@ -194,33 +156,17 @@ backward get _ clch = liftM mkCell (get clch)
 
 -- Use these with 'forward' and 'backward' to get the serial you want.
 
--- | Use with 'forward and backward', for instance:
---
--- @
--- 'forward' 'preFiltered'
--- @
-preFiltered :: Monad l => Clatch l -> l Serset
-preFiltered = fmap return sersetPreFiltered
-
-
--- | Use with 'forward and backward', for instance:
---
--- @
--- 'backward' 'sorted'
--- @
-sorted :: Monad l => Clatch l -> l Serset
-sorted = fmap return sersetSorted
-
--- | Use with 'forward and backward', for instance:
---
--- @
--- 'forward' 'postFiltered'
--- @
-postFiltered :: Monad l => Clatch l -> l Serset
-postFiltered = fmap return sersetPostFiltered
-
 -- Gets the Sersets from a posting or the transaction.  Use with
 -- 'global' and 'file'.
+
+-- | For functions that return values of this type, use 'global' or
+-- 'file' to get an appropriate column.
+data FileOrGlobal l = FileOrGlobal
+  { global :: Clatch l -> l Serset
+  -- ^ Use the global 'Serset'.
+  , file :: Clatch l -> l Serset
+  -- ^ Use the file 'Serset'.
+  }
 
 -- | Use with 'forward', 'backward', 'file', and 'global', for
 -- instance:
@@ -266,15 +212,6 @@ index clch = do
 
 
 -- # Helpers
-
--- | For functions that return values of this type, use 'global' or
--- 'file' to get an appropriate column.
-data FileOrGlobal l = FileOrGlobal
-  { global :: Clatch l -> l Serset
-  -- ^ Use the global 'Serset'.
-  , file :: Clatch l -> l Serset
-  -- ^ Use the file 'Serset'.
-  }
 
 -- | Displays the 'Qty' only.  Uses the converted 'Qty' if there is
 -- one.
