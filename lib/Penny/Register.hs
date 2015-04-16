@@ -2,8 +2,9 @@
 -- | The Register report
 module Penny.Register
   ( -- * Columns
-     Column
-  ,  Columns(..)
+    MakeLines
+  , Column(..)
+  , Columns(..)
 
   -- * Balance-related fields
   , BestField
@@ -42,6 +43,10 @@ module Penny.Register
   , noColors
 
   -- * High-level formatting
+  , Colors(..)
+  , alternating
+  , darkBackground
+  , lightBackground
   ) where
 
 import Control.Applicative
@@ -55,14 +60,16 @@ import qualified Data.Traversable as T
 import Penny.Amount
 import Penny.Clatch
 import Penny.Ledger
-import Penny.Matcher
+import Penny.Natural
+import Penny.Matcher (Matcher, each, getSubject, study)
 import Penny.Queries.Clatch
 import qualified Penny.Queries.Matcher as Q
 import Penny.Register.Individual
-  ( LineTag, BestField )
+  ( LineTag(..), BestField )
 import qualified Penny.Register.Individual as I
 import Penny.Representation
 import Penny.Serial
+import Penny.Side
 import Rainbow.Types
 import Rainbow.Colors
 import Rainbox (Box, Alignment, Vertical, tableByRows, center, Cell(..), top)
@@ -237,16 +244,63 @@ noColors converter = CellFormatterFromClatch $ \_ ->
 
 -- # High-level formatting
 
--- | Builds a simple alternating color scheme.
+-- | Load data into this record to make a color scheme that has
+-- different colors for debits and credits, with an alternating
+-- background for odd- and even-numbered postings.
+data Colors = Colors
+  { debit :: Radiant
+  , credit :: Radiant
+  , neutral :: Radiant
+  , nonLinear :: Radiant
+  , notice :: Radiant
+  , oddBackground :: Radiant
+  , evenBackground :: Radiant
+  } deriving (Eq, Ord, Show)
+
 alternating
-  :: Radiant
-  -- ^ Color for debits
-  -> Radiant
-  -- ^ Color for credits
-  -> Radiant
-  -- ^ Color for neutral numeric data
-  -> Radiant
-  -- ^ Color for non-linear data
-  -> Radiant
-  -- ^ Color for notice data
-  
+  :: Colors
+  -> (Clatch l -> Amount -> RepNonNeutralNoSide)
+  -> CellFormatterFromClatch l
+alternating colors converter = CellFormatterFromClatch f
+  where
+    f clatch = CellFormatter background (converter clatch) formatter
+      where
+        (Serset (Forward (Serial fwd)) _) = sersetPostFiltered clatch
+        background = if even $ naturalToInteger fwd
+          then evenBackground colors
+          else oddBackground colors
+        formatter lineTag = foregroundTextSpecFromRadiant $ case lineTag of
+          Linear Nothing -> neutral colors
+          Linear (Just Debit) -> debit colors
+          Linear (Just Credit) -> credit colors
+          NonLinear -> nonLinear colors
+          Notice -> notice colors
+
+foregroundTextSpecFromRadiant :: Radiant -> TextSpec
+foregroundTextSpecFromRadiant rad = ts
+  where
+    Chunk ts _ = fore rad
+
+lightBackground :: Colors
+lightBackground = Colors
+  { debit = blue
+  , credit = magenta
+  , neutral = black
+  , nonLinear = black
+  , notice = red
+  , oddBackground = noColorRadiant
+  , evenBackground = Radiant white8 (Just . Color256 . Just $ 230)
+  -- 230: pale yellow
+  }
+
+darkBackground :: Colors
+darkBackground = Colors
+  { debit = blue
+  , credit = magenta
+  , neutral = white
+  , nonLinear = white
+  , notice = red
+  , oddBackground = noColorRadiant
+  , evenBackground = Radiant black8 (Just . Color256 . Just $ 237)
+  -- 237: grey
+  }
