@@ -33,10 +33,15 @@ module Penny.Register
   , I.topLine
   , I.index
 
-  -- * Formatting
+  -- * Low-level formatting
   , LineTag(..)
-
+  , CellFormatter(..)
+  , CellFormatterFromClatch(..)
+  , makeCell
   , makeRegisterReport
+  , noColors
+
+  -- * High-level formatting
   ) where
 
 import Control.Applicative
@@ -188,25 +193,60 @@ sorted = fmap return sersetSorted
 postFiltered :: Monad l => Clatch l -> l Serset
 postFiltered = fmap return sersetPostFiltered
 
+-- # Low-level formatting
+
+data CellFormatter
+  = CellFormatter Radiant (Amount -> RepNonNeutralNoSide) (LineTag -> TextSpec)
+
+newtype CellFormatterFromClatch l
+  = CellFormatterFromClatch (Clatch l -> CellFormatter)
+
 makeRegisterReport
   :: Ledger l
-  => (Clatch l -> (Amount -> RepNonNeutralNoSide, LineTag -> TextSpec))
-  -- ^ When applied to a 'Clatch', this function returns a function
-  -- that represents amounts that are not already represented, as well
-  -- as a function that, when applied to a 'Text' and to a 'LineTag',
-  -- returns a 'TextSpec' that will format values that have that tag.
+
+  => (Clatch l -> Column l -> l Cell)
+  -- ^ Use 'makeCell'
   -> Columns l
   -> Seq (Clatch l)
   -> l (Box Vertical)
-makeRegisterReport getFuncs (Columns cols) cltchs = liftM tableByRows rws
+makeRegisterReport fmtCell (Columns cols) cltchs = liftM tableByRows rws
   where
     rws = T.mapM toRow cltchs
-    toRow cltch = T.mapM toCell cols
-      where
-        (fmtAmt, fmtText) = getFuncs cltch
-        toCell (Column align fCol) = Cell cellRws top align bck
+    toRow cltch = T.mapM (fmtCell cltch) cols
 
-radiantFromTextSpec
-  :: TextSpec
+makeCell
+  :: Ledger l
+  => CellFormatterFromClatch l
+  -> Clatch l
+  -> Column l
+  -> l Cell
+makeCell (CellFormatterFromClatch getTriple) cltch (Column align mkLines)
+  = liftM f $ mkLines converter cltch
+  where
+    CellFormatter bkgnd converter getTextSpec = getTriple cltch
+    mkRow (tag, txt) = Seq.singleton $ Chunk (getTextSpec tag) [txt]
+    f sqLineTagsAndText = Cell cks top align bkgnd
+      where
+        cks = fmap mkRow $ sqLineTagsAndText
+
+-- | A basic format with no colors.
+noColors :: (Amount -> RepNonNeutralNoSide) -> CellFormatterFromClatch l
+noColors converter = CellFormatterFromClatch $ \_ ->
+  CellFormatter noColorRadiant converter (const mempty)
+
+
+-- # High-level formatting
+
+-- | Builds a simple alternating color scheme.
+alternating
+  :: Radiant
+  -- ^ Color for debits
   -> Radiant
-radiantFromTextSpec = undefined
+  -- ^ Color for credits
+  -> Radiant
+  -- ^ Color for neutral numeric data
+  -> Radiant
+  -- ^ Color for non-linear data
+  -> Radiant
+  -- ^ Color for notice data
+  
