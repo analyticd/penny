@@ -210,16 +210,14 @@ newtype CellFormatterFromClatch l
 
 makeRegisterReport
   :: Ledger l
-
-  => (Clatch l -> Column l -> l Cell)
-  -- ^ Use 'makeCell'
+  => CellFormatterFromClatch l
   -> Columns l
   -> Seq (Clatch l)
   -> l (Box Vertical)
-makeRegisterReport fmtCell (Columns cols) cltchs = liftM tableByRows rws
-  where
-    rws = T.mapM toRow cltchs
-    toRow cltch = T.mapM (fmtCell cltch) cols
+makeRegisterReport formatter cols
+  = liftM tableByRows
+  . makeRows (makeRow (makeCell formatter) cols)
+
 
 makeCell
   :: Ledger l
@@ -235,6 +233,24 @@ makeCell (CellFormatterFromClatch getTriple) cltch (Column align mkLines)
     f sqLineTagsAndText = Cell cks top align bkgnd
       where
         cks = fmap mkRow $ sqLineTagsAndText
+
+makeRow
+  :: Ledger l
+  => (Clatch l -> Column l -> l Cell)
+  -- ^ Use 'makeCell'
+  -> Columns l
+  -> Clatch l
+  -> l (Seq Cell)
+makeRow f (Columns cols) cltch = T.mapM (f cltch) cols
+
+makeRows
+  :: Ledger l
+  => (Clatch l -> l (Seq Cell))
+  -- ^ Use makeRow
+  -> Seq (Clatch l)
+  -> l (Seq (Seq Cell))
+makeRows make sq = T.mapM make sq
+
 
 -- | A basic format with no colors.
 noColors :: (Amount -> RepNonNeutralNoSide) -> CellFormatterFromClatch l
