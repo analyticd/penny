@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Penny.Copper.Ast where
 
 import Control.Applicative
@@ -10,6 +11,7 @@ import Penny.Copper.Parser
 import Penny.Copper.LincolnTypes
 import Penny.Copper.Date
 import Data.List (intersperse)
+import Data.Text (Text)
 
 data Located a = Located LineColPosA a
   deriving (Eq, Ord, Show)
@@ -883,7 +885,7 @@ rAst fl = case fl of
 -- left up to the user.
 
 parseAst
-  :: String
+  :: Text
   -> (Ast, [Error LineColPosA], [Error LineColPosA])
 parseAst str = parse prsr (createStr (LineColPosA 1 0 0) str)
   where

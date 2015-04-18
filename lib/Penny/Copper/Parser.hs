@@ -8,6 +8,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Fdbl
 import Penny.Lincoln
+import Data.Text (Text)
 
 -- | The 'LineColPos' that ships with uu-parsinglib is not an instance
 -- of 'Eq'; having an 'Eq' instance can help enormously with testing
@@ -25,7 +26,7 @@ instance IsLocationUpdatedBy LineColPosA Char where
     '\t' -> LineColPosA lin (ps + 8 - (ps - 1) `mod` 8) (ab + 1)
     _ -> LineColPosA lin (ps + 1) (ab + 1)
 
-type ParserL = P (Str Char String LineColPosA)
+type ParserL = P (Str Char Text LineColPosA)
 
 pSeq :: ParserL a -> ParserL (Seq a)
 pSeq p = fmap Seq.fromList $ many p

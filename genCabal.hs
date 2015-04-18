@@ -25,7 +25,11 @@ containers :: Package
 containers = closedOpen "containers" [0,5] [0,6]
 
 uuParsing :: Package
-uuParsing = closedOpen "uu-parsinglib" [2,8,1] [2,9]
+uuParsing = closedOpen "uu-parsinglib" [2,8] [2,9]
+
+-- | Currently unused
+listlike :: Package
+listlike = closedOpen "ListLike" [4,2] [4,3]
 
 -- | Currently unused
 parsec :: Package

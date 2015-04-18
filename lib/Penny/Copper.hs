@@ -46,6 +46,7 @@ import Penny.Lincoln
 import Penny.Copper.Parser
 import Text.ParserCombinators.UU.BasicInstances
 import Data.List (intersperse)
+import Data.Text (Text)
 
 -- | Constructs the Copper AST and transforms it to Lincoln types
 -- using "Penny.Copper.ConvertAst".
@@ -65,15 +66,9 @@ import Data.List (intersperse)
 -- "Penny.Copper.ConvertAst", as the underlying parser and
 -- conversion functions have the potential to be more lazy than this
 -- function is.
---
--- This function operates on 'String's rather than a Text or some
--- other type.  As a practical matter, character parsers like the one
--- here or like one you would build with Parsec are simply going to
--- take a Text and bust it into a list of single characters, so it's
--- doubtbul using Text would have any benefit here.
 
 copperParser
-  :: String
+  :: Text
   -> Either String [Either Price (Transaction () ())]
 copperParser inp = do
   let (a, es1, es2) = parseAst inp
