@@ -1,4 +1,4 @@
-module Penny.Prices.Internal where
+module Penny.Price.Internal where
 
 import Penny.Commodity
 import Data.Map (Map)

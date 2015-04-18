@@ -40,6 +40,8 @@
 -- why that is unsafe, I do not know.
 module Penny.Copper (copperParser) where
 
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Penny.Copper.Ast
 import Penny.Copper.ConvertAst
 import Penny.Lincoln
@@ -69,7 +71,7 @@ import Data.Text (Text)
 
 copperParser
   :: Text
-  -> Either String [Either Price (Transaction () ())]
+  -> Either String (Seq (Either Price (Transaction () ())))
 copperParser inp = do
   let (a, es1, es2) = parseAst inp
   ast <- case es1 ++ es2 of
@@ -77,7 +79,7 @@ copperParser inp = do
     xs -> Left $ formatParseErrors xs
   case convertItemsFromAst ast of
     Left ers -> Left $ formatConvertErrors ers
-    Right g -> return g
+    Right g -> return . Seq.fromList $ g
 
 formatParseErrors :: [Error LineColPosA] -> String
 formatParseErrors = unlines . intersperse "" . ("Parse error:":)

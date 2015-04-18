@@ -15,7 +15,7 @@ import Data.Functor.Identity
 import Penny.Field
 import Penny.Ents
 import Penny.Ent
-import Penny.Prices
+import Penny.Price
 import Control.Monad.Reader
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq

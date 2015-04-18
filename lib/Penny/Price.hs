@@ -26,7 +26,7 @@
 -- negative value (perhaps toxic waste?) though you could also book
 -- these as liabilities instead.
 
-module Penny.Prices
+module Penny.Price
   ( FromCy(..)
   , ToCy(..)
   , FromTo
@@ -42,4 +42,4 @@ module Penny.Prices
   , ExchLookupError(..)
   ) where
 
-import Penny.Prices.Internal
+import Penny.Price.Internal

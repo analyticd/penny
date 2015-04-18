@@ -9,7 +9,7 @@ import Penny.Trio
 import Penny.Qty
 import Penny.DateTime
 import Penny.Commodity
-import Penny.Prices hiding (fromTo)
+import Penny.Price hiding (fromTo)
 import Penny.Exch
 import Data.Sequence (Seq)
 import Penny.Transaction

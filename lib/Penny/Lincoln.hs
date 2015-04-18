@@ -20,7 +20,7 @@ module Penny.Lincoln
     , module Penny.NonZero
     , module Penny.Offset
     , module Penny.PluMin
-    , module Penny.Prices
+    , module Penny.Price
     , module Penny.Qty
     , module Penny.Representation
     , module Penny.Semantic
@@ -49,7 +49,7 @@ import Penny.NonEmpty
 import Penny.NonZero
 import Penny.Offset
 import Penny.PluMin
-import Penny.Prices
+import Penny.Price
 import Penny.Qty
 import Penny.Representation
 import Penny.Semantic
