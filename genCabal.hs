@@ -85,7 +85,6 @@ pipesSafe = closedOpen "pipes-safe" [2,2] [2,3]
 process :: Package
 process = closedOpen "process" [1,2,0,0] [1,3]
 
--- | Currently unused
 async :: Package
 async = closedOpen "async" [2,0] [2,1]
 
@@ -125,6 +124,7 @@ libraryDepends =
   , bytestring
   , turtle
   , mtl
+  , async
   , pipes
   , pipesSafe
   , pipesCliff
