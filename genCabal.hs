@@ -78,7 +78,6 @@ contravariant = closedOpen "contravariant" [1,2] [1,3]
 pipes :: Package
 pipes = closedOpen "pipes" [4,1,4] [4,2]
 
--- | Currently unused
 pipesSafe :: Package
 pipesSafe = closedOpen "pipes-safe" [2,2] [2,3]
 
@@ -123,10 +122,11 @@ libraryDepends =
   , rainbox
   , semigroups
   , contravariant
-  , pipes
   , bytestring
   , turtle
   , mtl
+  , pipes
+  , pipesSafe
   , pipesCliff
   , anonymousSums
   ]

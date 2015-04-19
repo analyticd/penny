@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Penny.Clatcher where
 
-import Control.Exception
+import Control.Exception (throwIO, Exception)
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Bifunctor
@@ -25,6 +25,9 @@ import Penny.Representation
 import Penny.SeqUtil
 import Penny.Transaction
 import Pipes
+import Pipes.Cliff (pipeInput, NonPipe(..), terminateProcess, procSpec)
+import Pipes.Prelude (drain)
+import Pipes.Safe (register, SafeT, mask_)
 import Rainbow
 
 type PreFilter l = Matcher (TransactionL l, View (Converted (PostingL l))) l ()
@@ -32,22 +35,26 @@ type Filtereds l = Seq (Filtered (TransactionL l, View (Converted (PostingL l)))
 type PostFilter l
   = Matcher (RunningBalance
     (Sorted (Filtered (TransactionL l, View (Converted (PostingL l)))))) l ()
+type AllChunks = (Seq Chunk, Seq Chunk, Seq Chunk)
 
 type Reporter l
   = (Amount -> RepNonNeutralNoSide)
   -> Seq (Clatch l)
   -> [Chunk]
 
-data ClatchOptions l ldr rpt res = ClatchOptions
-  { converter :: Maybe (Amount -> Maybe Amount)
-  , preFilter :: Maybe (PreFilter l)
-  , sorter :: Maybe (Filtereds l -> l (Filtereds l))
-  , postFilter :: Maybe (PostFilter l)
-  , streamPreFilter :: Maybe (Consumer ByteString IO ())
-  , streamPostFilter :: Maybe (Consumer ByteString IO ())
-  , streamMain :: Maybe (Consumer ByteString IO ())
-  , report :: Maybe (rpt, rpt -> Reporter l)
-  , runLedger :: Maybe (ldr, ldr -> l res -> IO res)
+data ClatchOptions c l ldr rpt res = ClatchOptions
+  { converter :: c (Amount -> Maybe Amount)
+  , preFilter :: c (PreFilter l)
+  , sorter :: c (Seq (Filtereds l -> l (Filtereds l)))
+  , postFilter :: c (PostFilter l)
+  , convertPreFilter :: c (IO (Chunk -> [ByteString] -> [ByteString]))
+  , convertPostFilter :: c (IO (Chunk -> [ByteString] -> [ByteString]))
+  , convertMain :: c (IO (Chunk -> [ByteString] -> [ByteString]))
+  , streamPreFilter :: c (IO (Consumer ByteString (SafeT IO) ()))
+  , streamPostFilter :: c (IO (Consumer ByteString (SafeT IO) ()))
+  , streamMain :: c (IO (Consumer ByteString (SafeT IO) ()))
+  , report :: c (rpt, rpt -> Reporter l)
+  , runLedger :: c (ldr, ldr -> l AllChunks -> IO AllChunks)
   }
 
 data Loader
@@ -101,12 +108,12 @@ loadLedger loaders (ScrollT rdr) = do
   return . runIdentity $ runReaderT rdr env
 
 type Clatcher l ldr rpt res
-  = State (ClatchOptions l ldr rpt res)
-
-data ClatchDefaults = ClatchDefaults
+  = State (ClatchOptions Maybe l ldr rpt res)
 
 -- | Loads transactions and prices from the given file on disk.
-open :: String -> Clatcher Scroll (Seq Loader) rpt res ()
+open
+  :: String
+  -> Clatcher Scroll (Seq Loader) rpt res ()
 open str = modify f
   where
     f x = x { runLedger = Just runLedger' }
@@ -132,5 +139,82 @@ reuse preload = modify f
 
 
 -- | Runs the given command with options.
-clatcher :: ClatchOptions l ldr rpt res -> IO ()
+clatcher :: Clatcher l ldr rpt res a -> IO ()
 clatcher = undefined
+
+runLess :: IO (Consumer ByteString (SafeT IO) ())
+runLess = mask_ $ do
+  (pipe, handle) <- pipeInput Inherit Inherit
+    (procSpec "less" ["-R"])
+  return (register (terminateProcess handle) >> pipe >> return ())
+
+defaultClatchOptions :: Monad l => ClatchOptions Identity l ldr rpt res
+defaultClatchOptions = ClatchOptions
+  { converter = Identity (const Nothing)
+  , preFilter = Identity always
+  , sorter = Identity Seq.empty
+  , postFilter = Identity always
+  , convertPreFilter = Identity byteStringMakerFromEnvironment
+  , convertPostFilter = Identity byteStringMakerFromEnvironment
+  , convertMain = Identity byteStringMakerFromEnvironment
+  , streamPreFilter = Identity (return drain)
+  , streamPostFilter = Identity (return drain)
+  , streamMain = Identity runLess
+  , report = Identity (undefined, \_ _ _ -> [])
+  , runLedger = Identity (undefined, \_ _ -> return
+      (Seq.empty, Seq.empty, Seq.empty))
+  }
+
+
+mergeClatchOptions
+  :: ClatchOptions Identity l ldr rpt res
+  -> ClatchOptions Maybe l ldr rpt res
+  -> ClatchOptions Identity l ldr rpt res
+mergeClatchOptions iden may = ClatchOptions
+  { converter = merge converter converter
+  , preFilter = merge preFilter preFilter
+  , sorter = merge sorter sorter
+  , postFilter = merge postFilter postFilter
+  , convertPreFilter = merge convertPreFilter convertPreFilter
+  , convertPostFilter = merge convertPostFilter convertPostFilter
+  , convertMain = merge convertMain convertMain
+  , streamPreFilter = merge streamPreFilter streamPreFilter
+  , streamPostFilter = merge streamPostFilter streamPostFilter
+  , streamMain = merge streamMain streamMain
+  , report = merge report report
+  , runLedger = merge runLedger runLedger
+  }
+  where
+    merge fn1 fn2 = case fn1 may of
+      Nothing -> fn2 iden
+      Just r -> Identity r
+
+emptyClatchOpts :: ClatchOptions Maybe l ldr rpt res
+emptyClatchOpts = ClatchOptions
+  { converter = Nothing
+  , preFilter = Nothing
+  , sorter = Nothing
+  , postFilter = Nothing
+  , convertPreFilter = Nothing
+  , convertPostFilter = Nothing
+  , convertMain = Nothing
+  , streamPreFilter = Nothing
+  , streamPostFilter = Nothing
+  , streamMain = Nothing
+  , report = Nothing
+  , runLedger = Nothing
+  }
+
+
+clatcherWithDefaults
+  :: Ledger l
+  => ClatchOptions Identity l ldr rpt res
+  -> Clatcher l ldr rpt res a
+  -> IO ()
+clatcherWithDefaults dfltOpts cltcr = do
+  let opts = mergeClatchOptions dfltOpts (execState cltcr emptyClatchOpts)
+      calc = allClatches (runIdentity $ converter opts)
+                         (runIdentity $ preFilter opts)
+                         (runIdentity $ sorter opts)
+                         (runIdentity $ postFilter opts)
+  undefined
