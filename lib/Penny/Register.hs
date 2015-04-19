@@ -75,7 +75,7 @@ import Rainbow.Colors
 import Rainbox (Box, Alignment, Vertical, tableByRows, center, Cell(..), top)
 
 type MakeLines l
-  = (Amount -> RepNonNeutralNoSide)
+  = (Amount -> NilOrBrimScalarAnyRadix)
   -> Clatch l
   -> l (Seq (LineTag, Text))
 
@@ -89,19 +89,19 @@ instance Monoid (Columns l) where
 
 original
   :: Alignment Vertical
-  -> BestField l (Amount -> RepNonNeutralNoSide)
+  -> BestField l (Amount -> NilOrBrimScalarAnyRadix)
   -> Columns l
 original align = Columns . Seq.singleton . Column align . I.original
 
 best
   :: Alignment Vertical
-  -> BestField l (Amount -> RepNonNeutralNoSide)
+  -> BestField l (Amount -> NilOrBrimScalarAnyRadix)
   -> Columns l
 best align = Columns . Seq.singleton . Column align . I.best
 
 balance
   :: Alignment Vertical
-  -> BestField l (Amount -> RepNonNeutralNoSide)
+  -> BestField l (Amount -> NilOrBrimScalarAnyRadix)
   -> Columns l
 balance align = Columns . Seq.singleton . Column align . I.balance
 
@@ -203,7 +203,8 @@ postFiltered = fmap return sersetPostFiltered
 -- # Low-level formatting
 
 data CellFormatter
-  = CellFormatter Radiant (Amount -> RepNonNeutralNoSide) (LineTag -> TextSpec)
+  = CellFormatter Radiant (Amount -> NilOrBrimScalarAnyRadix)
+                  (LineTag -> TextSpec)
 
 newtype CellFormatterFromClatch l
   = CellFormatterFromClatch (Clatch l -> CellFormatter)
@@ -253,7 +254,7 @@ makeRows make sq = T.mapM make sq
 
 
 -- | A basic format with no colors.
-noColors :: (Amount -> RepNonNeutralNoSide) -> CellFormatterFromClatch l
+noColors :: (Amount -> NilOrBrimScalarAnyRadix) -> CellFormatterFromClatch l
 noColors converter = CellFormatterFromClatch $ \_ ->
   CellFormatter noColorRadiant converter (const mempty)
 
@@ -275,7 +276,7 @@ data Colors = Colors
 
 alternating
   :: Colors
-  -> (Clatch l -> Amount -> RepNonNeutralNoSide)
+  -> (Clatch l -> Amount -> NilOrBrimScalarAnyRadix)
   -> CellFormatterFromClatch l
 alternating colors converter = CellFormatterFromClatch f
   where

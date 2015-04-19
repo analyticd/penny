@@ -90,7 +90,7 @@ data BestField l a = BestField
 
 qty
   :: Ledger l
-  => BestField l (Amount -> RepNonNeutralNoSide)
+  => BestField l (Amount -> NilOrBrimScalarAnyRadix)
 qty = BestField originalQty Penny.Register.Individual.bestQty balanceQty
 
 commodity
@@ -217,7 +217,7 @@ index clch = do
 -- one.
 bestQty
   :: Ledger l
-  => (Amount -> RepNonNeutralNoSide)
+  => (Amount -> NilOrBrimScalarAnyRadix)
   -> Clatch l
   -> l (Seq (LineTag, Text))
 bestQty fmt clch = do
@@ -231,7 +231,7 @@ bestQty fmt clch = do
 -- converted, q'Qty'.
 originalQty
   :: Ledger l
-  => (Amount -> RepNonNeutralNoSide)
+  => (Amount -> NilOrBrimScalarAnyRadix)
   -> Clatch l
   -> l (Seq (LineTag, Text))
 originalQty fmt clch = do
@@ -318,7 +318,7 @@ convertQtyToAmount cy s3 = case s3 of
 
 -- | Format a Qty for display.
 formatQty
-  :: (Amount -> RepNonNeutralNoSide)
+  :: (Amount -> NilOrBrimScalarAnyRadix)
   -- ^ Use this function for rendering a 'Qty'.
   -> S3 RepNonNeutralNoSide QtyRepAnyRadix Amount
   -> Text
@@ -332,7 +332,7 @@ formatQty rend s3 = case s3 of
 
 balanceQty
   :: Monad m
-  => (Amount -> RepNonNeutralNoSide)
+  => (Amount -> NilOrBrimScalarAnyRadix)
   -> Clatch m
   -> m (Seq (LineTag, Text))
 balanceQty conv
