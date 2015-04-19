@@ -67,6 +67,12 @@ addSerials
 
 -- # ClatchOptions
 
+data Octavo c a = Octavo
+  { filterer :: c a
+  , streamer :: c (IO Stream)
+  , colorizer :: c (IO (Chunk -> [ByteString] -> [ByteString]))
+  }
+
 data ClatchOptions c l ldr rpt = ClatchOptions
   { converter :: c (Amount -> Maybe Amount)
   , renderer :: c (Either (Maybe RadCom) (Maybe RadPer))
@@ -253,6 +259,55 @@ data PennyError
 instance Exception PennyError
 
 
+-- # Main clatcher
+
+makeReport
+  :: Ledger l
+  => ClatchOptions Identity l ldr rpt
+  -> IO AllChunks
+makeReport opts = getChunks ldr ledgerCalc
+  where
+    (ldr, getChunks) = runIdentity $ runLedger opts
+    ledgerCalc = do
+      ((msgsPre, Renderings rndgs, msgsPost), cltchs) <-
+        allClatches (runIdentity $ converter opts)
+                    (runIdentity $ preFilter opts)
+                    (runIdentity $ sorter opts)
+                    (runIdentity $ postFilter opts)
+      let smartRender (Amount cy qt)
+            = c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
+            $ repQtySmartly (runIdentity $ renderer opts)
+                            (fmap (fmap snd) rndgs) cy qt
+          (rptOpts, mkReport) = runIdentity $ report opts
+          cks = mkReport rptOpts smartRender cltchs
+      return (msgsToChunks msgsPre, msgsToChunks msgsPost, Seq.fromList cks)
+
+msgsToChunks
+  :: Seq (Seq Message)
+  -> Seq Chunk
+msgsToChunks = join . join . fmap (fmap (Seq.fromList . ($ []) . toChunks))
+
+
+-- | Runs the given 'Clatcher' with the given default options.
+clatcherWithDefaults
+  :: Ledger l
+  => ClatchOptions Identity l ldr rpt
+  -- ^ Default options used if there was not one selected in the 'Clatcher'.
+  -> Clatcher l ldr rpt a
+  -- ^ Options
+  -> IO ()
+clatcherWithDefaults dfltOpts cltcr = do
+  let opts = mergeClatchOptions dfltOpts (execState cltcr emptyClatchOpts)
+  (msgsPre, msgsPost, cksRpt) <- makeReport opts
+  feeder opts convertPreFilter streamPreFilter msgsPre $
+    feeder opts convertPostFilter streamPostFilter msgsPost $
+    feeder opts convertMain streamMain cksRpt $
+    return ()
+
+
+-- | Runs the given command with options.
+clatcher :: Ledger l => Clatcher l ldr rpt a -> IO ()
+clatcher = clatcherWithDefaults defaultClatchOptions
 -- # Available options
 
 -- ## Dealing with files
@@ -314,53 +369,3 @@ reuse preload = modify f
           Just (rnr, _) -> (rnr |> Preloaded preload, loadLedger)
 
 -- ## Reports
-
--- # Main clatcher
-
-makeReport
-  :: Ledger l
-  => ClatchOptions Identity l ldr rpt
-  -> IO AllChunks
-makeReport opts = getChunks ldr ledgerCalc
-  where
-    (ldr, getChunks) = runIdentity $ runLedger opts
-    ledgerCalc = do
-      ((msgsPre, Renderings rndgs, msgsPost), cltchs) <-
-        allClatches (runIdentity $ converter opts)
-                    (runIdentity $ preFilter opts)
-                    (runIdentity $ sorter opts)
-                    (runIdentity $ postFilter opts)
-      let smartRender (Amount cy qt)
-            = c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
-            $ repQtySmartly (runIdentity $ renderer opts)
-                            (fmap (fmap snd) rndgs) cy qt
-          (rptOpts, mkReport) = runIdentity $ report opts
-          cks = mkReport rptOpts smartRender cltchs
-      return (msgsToChunks msgsPre, msgsToChunks msgsPost, Seq.fromList cks)
-
-msgsToChunks
-  :: Seq (Seq Message)
-  -> Seq Chunk
-msgsToChunks = join . join . fmap (fmap (Seq.fromList . ($ []) . toChunks))
-
-
--- | Runs the given 'Clatcher' with the given default options.
-clatcherWithDefaults
-  :: Ledger l
-  => ClatchOptions Identity l ldr rpt
-  -- ^ Default options used if there was not one selected in the 'Clatcher'.
-  -> Clatcher l ldr rpt a
-  -- ^ Options
-  -> IO ()
-clatcherWithDefaults dfltOpts cltcr = do
-  let opts = mergeClatchOptions dfltOpts (execState cltcr emptyClatchOpts)
-  (msgsPre, msgsPost, cksRpt) <- makeReport opts
-  feeder opts convertPreFilter streamPreFilter msgsPre $
-    feeder opts convertPostFilter streamPostFilter msgsPost $
-    feeder opts convertMain streamMain cksRpt $
-    return ()
-
-
--- | Runs the given command with options.
-clatcher :: Ledger l => Clatcher l ldr rpt a -> IO ()
-clatcher = clatcherWithDefaults defaultClatchOptions
