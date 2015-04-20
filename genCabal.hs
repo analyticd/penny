@@ -101,6 +101,9 @@ pipesCliff = closedOpen "pipes-cliff" [0,10] [0,11]
 logict :: Package
 logict = closedOpen "logict" [0,6] [0,7]
 
+void :: Package
+void = closedOpen "void" [0,7] [0,8]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
@@ -129,6 +132,7 @@ libraryDepends =
   , pipesSafe
   , pipesCliff
   , anonymousSums
+  , void
   ]
 
 testDepends :: [Package]
