@@ -307,6 +307,40 @@ clatcher = clatcherWithDefaults defaultClatchOptions
 
 -- # Available options
 
+-- ## Conversion
+
+-- | Adds a converter.  This allows you to convert one commodity to
+-- another; for example, this allows you to see what a commodity is
+-- worth in terms of your home currency.
+--
+-- If there was already a converter present, it will be applied first,
+-- and this converter will be applied only if the first fails.
+
+convert
+  :: (Amount -> Maybe Amount)
+  -> Clatcher l ldr rpt ()
+convert conv = modify f
+  where
+    f o = o { converter = conv' }
+      where
+        conv' = case converter o of
+          Nothing -> Just conv
+          Just oldConv -> Just $ \a -> case oldConv a of
+            Nothing -> conv a
+            Just a' -> Just a'
+
+-- | Sets the default radix point and grouping character for
+-- rendering.  This is used only if a radix point cannot be determined
+-- from existing transactions.
+radGroup
+  :: Either (Maybe RadCom) (Maybe RadPer)
+  -> Clatcher l ldr rpt ()
+radGroup ei = modify f
+  where
+    f o = o { renderer = r' }
+      where
+        r' = Just . maybe ei (const ei) . renderer $ o
+
 -- ## Dealing with files
 
 data Loader
