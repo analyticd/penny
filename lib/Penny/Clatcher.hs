@@ -1,16 +1,19 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE  TemplateHaskell #-}
+{-# LANGUAGE RankNTypes #-}
 module Penny.Clatcher where
 
+import Control.Applicative
 import qualified Control.Concurrent.Async as Async
 import Control.Exception (throwIO, Exception, bracketOnError)
+import Control.Lens hiding (pre)
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Bifunctor
 import Data.Bifunctor.Joker
 import Data.Functor.Compose
-import Data.Functor.Identity
-import Data.Sequence (Seq, (|>))
+import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Text.IO as X
 import qualified Data.Traversable as T
@@ -66,93 +69,6 @@ addSerials
   . fmap (fmap Joker)
 
 
--- # ClatchOptions
-
-data Octavo c a = Octavo
-  { filterer :: c a
-  , streamer :: c (IO Stream)
-  , colorizer :: c (IO (Chunk -> [ByteString] -> [ByteString]))
-  }
-
-
-data ClatchOptions c l ldr rpt = ClatchOptions
-  { converter :: c (Amount -> Maybe Amount)
-  , renderer :: c (Either (Maybe RadCom) (Maybe RadPer))
-  , preFilter :: Octavo c (PreFilter l)
-  , sorter :: c (Seq (Filtereds l -> l (Filtereds l)))
-  , postFilter :: Octavo c (PostFilter l)
-  , report :: Octavo c Void
-  , reportData :: c (rpt, rpt -> Reporter l)
-  , runLedger :: c (ldr, ldr -> l AllChunks -> IO AllChunks)
-  }
-
-type Clatcher l ldr rpt
-  = State (ClatchOptions Maybe l ldr rpt)
-
-defaultClatchOptions :: Monad l => ClatchOptions Identity l ldr rpt
-defaultClatchOptions = ClatchOptions
-  { converter = Identity (const Nothing)
-  , renderer = Identity (Right (Just Comma))
-  , preFilter = Octavo (Identity always) (Identity (return devNull))
-      (Identity byteStringMakerFromEnvironment)
-  , sorter = Identity Seq.empty
-  , postFilter = Octavo (Identity always) (Identity (return devNull))
-      (Identity byteStringMakerFromEnvironment)
-  , report = Octavo (Identity undefined) (Identity runLess)
-      (Identity byteStringMakerFromEnvironment)
-  , reportData = Identity (undefined, \_ _ _ -> [])
-  , runLedger = Identity (undefined, \_ _ -> return
-      (Seq.empty, Seq.empty, Seq.empty))
-  }
-
-
-mergeClatchOptions
-  :: ClatchOptions Identity l ldr rpt
-  -> ClatchOptions Maybe l ldr rpt
-  -> ClatchOptions Identity l ldr rpt
-mergeClatchOptions iden may = ClatchOptions
-  { converter = merge converter converter
-  , renderer = merge renderer renderer
-  , preFilter = mergeO preFilter preFilter
-  , sorter = merge sorter sorter
-  , postFilter = mergeO postFilter postFilter
-  , report = mergeO report report
-  , reportData = merge reportData reportData
-  , runLedger = merge runLedger runLedger
-  }
-  where
-    mergeO f1 f2 = mergeOctavo (f1 iden) (f2 may)
-    merge fn1 fn2 = case fn1 may of
-      Nothing -> fn2 iden
-      Just r -> Identity r
-
-mergeOctavo
-  :: Octavo Identity a
-  -> Octavo Maybe a
-  -> Octavo Identity a
-mergeOctavo l r = Octavo (merge filterer filterer) (merge streamer streamer)
-  (merge colorizer colorizer)
-  where
-    merge getL getR = case getR r of
-      Nothing -> getL l
-      Just a -> Identity a
-
-emptyClatchOpts :: ClatchOptions Maybe l ldr rpt
-emptyClatchOpts = ClatchOptions
-  { converter = Nothing
-  , renderer = Nothing
-  , preFilter = emptyOctavo
-  , sorter = Nothing
-  , postFilter = emptyOctavo
-  , report = emptyOctavo
-  , reportData = Nothing
-  , runLedger = Nothing
-  }
-
-emptyOctavo :: Octavo Maybe a
-emptyOctavo = Octavo Nothing Nothing Nothing
-
-
 -- # Streams
 
 -- | An action that waits on a particular stream to finish.  This
@@ -203,10 +119,100 @@ withStream
   :: IO Stream
   -> (Consumer ByteString (SafeT IO) () -> IO b)
   -> IO b
-withStream acq use = bracketOnError acq terminate $ \str -> do
-  r <- use (streamConsumer str)
+withStream acq useCsmr = bracketOnError acq terminate $ \str -> do
+  r <- useCsmr (streamConsumer str)
   wait str
   return r
+
+-- # ClatchOptions
+
+data Octavo c a = Octavo
+  { _filterer :: c a
+  , _streamer :: c (IO Stream)
+  , _colorizer :: c (IO (Chunk -> [ByteString] -> [ByteString]))
+  }
+
+makeLenses ''Octavo
+
+data ClatchOptions c l ldr rpt = ClatchOptions
+  { _converter :: c (Amount -> Maybe Amount)
+  , _renderer :: c (Either (Maybe RadCom) (Maybe RadPer))
+  , _pre :: Octavo c (PreFilter l)
+  , _sorter :: c (Seq (Filtereds l -> l (Filtereds l)))
+  , _post :: Octavo c (PostFilter l)
+  , _report :: Octavo c Void
+  , _reportData :: c (rpt, rpt -> Reporter l)
+  , _runLedger :: c (ldr, ldr -> l AllChunks -> IO AllChunks)
+  }
+
+makeLenses ''ClatchOptions
+
+type Clatcher l ldr rpt
+  = State (ClatchOptions Maybe l ldr rpt)
+
+defaultClatchOptions :: Monad l => ClatchOptions Identity l ldr rpt
+defaultClatchOptions = ClatchOptions
+  { _converter = Identity (const Nothing)
+  , _renderer = Identity (Right (Just Comma))
+  , _pre = Octavo (Identity always) (Identity (return devNull))
+      (Identity byteStringMakerFromEnvironment)
+  , _sorter = Identity Seq.empty
+  , _post = Octavo (Identity always) (Identity (return devNull))
+      (Identity byteStringMakerFromEnvironment)
+  , _report = Octavo (Identity undefined) (Identity runLess)
+      (Identity byteStringMakerFromEnvironment)
+  , _reportData = Identity (undefined, \_ _ _ -> [])
+  , _runLedger = Identity (undefined, \_ _ -> return
+      (Seq.empty, Seq.empty, Seq.empty))
+  }
+
+
+mergeClatchOptions
+  :: ClatchOptions Identity l ldr rpt
+  -> ClatchOptions Maybe l ldr rpt
+  -> ClatchOptions Identity l ldr rpt
+mergeClatchOptions iden may = ClatchOptions
+  { _converter = merge _converter _converter
+  , _renderer = merge _renderer _renderer
+  , _pre = mergeO _pre _pre
+  , _sorter = merge _sorter _sorter
+  , _post = mergeO _post _post
+  , _report = mergeO _report _report
+  , _reportData = merge _reportData _reportData
+  , _runLedger = merge _runLedger _runLedger
+  }
+  where
+    mergeO f1 f2 = mergeOctavo (f1 iden) (f2 may)
+    merge fn1 fn2 = case fn1 may of
+      Nothing -> fn2 iden
+      Just r -> Identity r
+
+mergeOctavo
+  :: Octavo Identity a
+  -> Octavo Maybe a
+  -> Octavo Identity a
+mergeOctavo l r = Octavo (merge _filterer _filterer) (merge _streamer _streamer)
+  (merge _colorizer _colorizer)
+  where
+    merge getL getR = case getR r of
+      Nothing -> getL l
+      Just a -> Identity a
+
+emptyClatchOpts :: ClatchOptions Maybe l ldr rpt
+emptyClatchOpts = ClatchOptions
+  { _converter = Nothing
+  , _renderer = Nothing
+  , _pre = emptyOctavo
+  , _sorter = Nothing
+  , _post = emptyOctavo
+  , _report = emptyOctavo
+  , _reportData = Nothing
+  , _runLedger = Nothing
+  }
+
+emptyOctavo :: Octavo Maybe a
+emptyOctavo = Octavo Nothing Nothing Nothing
+
 
 -- # Feeding streams
 
@@ -240,8 +246,8 @@ feeder
   -> IO b
   -> IO b
 feeder oct sq rest = do
-  let strm = streamer oct
-  cvtr <- runIdentity $ colorizer oct
+  let strm = _streamer oct
+  cvtr <- runIdentity $ _colorizer oct
   feedStream (runIdentity strm) cvtr sq rest
 
 
@@ -262,18 +268,18 @@ makeReport
   -> IO AllChunks
 makeReport opts = getChunks ldr ledgerCalc
   where
-    (ldr, getChunks) = runIdentity $ runLedger opts
+    (ldr, getChunks) = runIdentity $ _runLedger opts
     ledgerCalc = do
       ((msgsPre, Renderings rndgs, msgsPost), cltchs) <-
-        allClatches (runIdentity $ converter opts)
-                    (runIdentity . filterer $ preFilter opts)
-                    (runIdentity $ sorter opts)
-                    (runIdentity . filterer $ postFilter opts)
+        allClatches (runIdentity $ _converter opts)
+                    (runIdentity . _filterer $ _pre opts)
+                    (runIdentity $ _sorter opts)
+                    (runIdentity . _filterer $ _post opts)
       let smartRender (Amount cy qt)
             = c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
-            $ repQtySmartly (runIdentity $ renderer opts)
+            $ repQtySmartly (runIdentity $ _renderer opts)
                             (fmap (fmap snd) rndgs) cy qt
-          (rptOpts, mkReport) = runIdentity $ reportData opts
+          (rptOpts, mkReport) = runIdentity $ _reportData opts
           cks = mkReport rptOpts smartRender cltchs
       return (msgsToChunks msgsPre, msgsToChunks msgsPost, Seq.fromList cks)
 
@@ -294,9 +300,9 @@ clatcherWithDefaults
 clatcherWithDefaults dfltOpts cltcr = do
   let opts = mergeClatchOptions dfltOpts (execState cltcr emptyClatchOpts)
   (msgsPre, msgsPost, cksRpt) <- makeReport opts
-  feeder (preFilter opts) msgsPre $
-    feeder (postFilter opts) msgsPost $
-    feeder (report opts) cksRpt $
+  feeder (_pre opts) msgsPre $
+    feeder (_post opts) msgsPost $
+    feeder (_report opts) cksRpt $
     return ()
 
 
@@ -319,15 +325,15 @@ clatcher = clatcherWithDefaults defaultClatchOptions
 convert
   :: (Amount -> Maybe Amount)
   -> Clatcher l ldr rpt ()
-convert conv = modify f
-  where
-    f o = o { converter = conv' }
-      where
-        conv' = case converter o of
-          Nothing -> Just conv
-          Just oldConv -> Just $ \a -> case oldConv a of
-            Nothing -> conv a
-            Just a' -> Just a'
+convert conv = do
+  old <- use converter
+  assign converter $ case old of
+    Nothing -> Just conv
+    Just oldConv -> Just $ \a -> case oldConv a of
+      Nothing -> conv a
+      Just a' -> Just a'
+
+-- ## Rendering
 
 -- | Sets the default radix point and grouping character for
 -- rendering.  This is used only if a radix point cannot be determined
@@ -335,11 +341,43 @@ convert conv = modify f
 radGroup
   :: Either (Maybe RadCom) (Maybe RadPer)
   -> Clatcher l ldr rpt ()
-radGroup ei = modify f
-  where
-    f o = o { renderer = r' }
-      where
-        r' = Just . maybe ei (const ei) . renderer $ o
+radGroup ei = assign renderer (Just ei)
+
+-- ## PreFilter
+
+-- | Adds a new filter.
+--
+-- For example:
+--
+-- @
+-- find pre matcher
+-- @
+
+find
+  :: Monad l
+  => Lens' (ClatchOptions Maybe l ldr rpt) (Octavo Maybe (Matcher a l ()))
+  -> Matcher a l ()
+  -> Clatcher l ldr rpt ()
+find gtr pf = do
+  filt <- use (gtr . filterer)
+  assign (gtr . filterer) . Just $ case filt of
+    Nothing -> pf
+    Just old -> old <|> pf
+
+-- | Adds a streamer.
+--
+-- For example:
+--
+-- @
+-- stream pre (toFile \"myFilename\")
+-- @
+
+stream
+  :: Lens' (ClatchOptions Maybe l ldr rpt) (Octavo Maybe a)
+  -> IO Stream
+  -> Clatcher l ldr rpt ()
+stream = undefined
+
 
 -- ## Dealing with files
 
@@ -378,9 +416,9 @@ open
   -> Clatcher Scroll (Seq Loader) rpt ()
 open str = modify f
   where
-    f x = x { runLedger = Just runLedger' }
+    f x = x { _runLedger = Just runLedger' }
       where
-        runLedger' = case runLedger x of
+        runLedger' = case _runLedger x of
           Nothing -> (Seq.singleton (LoadFromFile str), loadLedger)
           Just (rnr, _) -> (rnr |> LoadFromFile str, loadLedger)
 
@@ -393,9 +431,9 @@ reuse
   -> Clatcher Scroll (Seq Loader) rpt ()
 reuse preload = modify f
   where
-    f x = x { runLedger = Just runLedger' }
+    f x = x { _runLedger = Just runLedger' }
       where
-        runLedger' = case runLedger x of
+        runLedger' = case _runLedger x of
           Nothing -> (Seq.singleton (Preloaded preload), loadLedger)
           Just (rnr, _) -> (rnr |> Preloaded preload, loadLedger)
 

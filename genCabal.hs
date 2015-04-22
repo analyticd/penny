@@ -104,11 +104,15 @@ logict = closedOpen "logict" [0,6] [0,7]
 void :: Package
 void = closedOpen "void" [0,7] [0,8]
 
+lens :: Package
+lens = closedOpen "lens" [4,9] [4,10]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-Wall"]
   , haskell2010
   , hsSourceDirs ["lib"]
+  , otherExtensions ["TemplateHaskell"]
   ]
 
 libraryDepends :: [Package]
@@ -127,6 +131,7 @@ libraryDepends =
   , bytestring
   , turtle
   , mtl
+  , lens
   , async
   , pipes
   , pipesSafe
