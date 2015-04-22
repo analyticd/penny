@@ -13,6 +13,7 @@ import Control.Monad.State
 import Data.Bifunctor
 import Data.Bifunctor.Joker
 import Data.Functor.Compose
+import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Text.IO as X
@@ -33,7 +34,7 @@ import Penny.Transaction
 import Pipes
 import Pipes.Cliff (pipeInput, NonPipe(..), terminateProcess, procSpec
   , waitForProcess)
-import Pipes.Prelude (drain)
+import Pipes.Prelude (drain, tee)
 import Pipes.Safe (SafeT, runSafeT)
 import Rainbow
 
@@ -75,16 +76,33 @@ addSerials
 -- action should block until the stream is done.
 newtype Waiter = Waiter (IO ())
 
+instance Monoid Waiter where
+  mempty = Waiter (return ())
+  mappend (Waiter x) (Waiter y) = Waiter $ Async.withAsync x $ \ax ->
+    Async.withAsync y $ \ay -> do
+      Async.wait ax
+      Async.wait ay
+
 -- | An action that terminates a stream right away.
 newtype Terminator = Terminator (IO ())
+
+instance Monoid Terminator where
+  mempty = Terminator (return ())
+  mappend (Terminator x) (Terminator y) = Terminator $ Async.withAsync x $ \ax ->
+    Async.withAsync y $ \ay -> do
+      Async.wait ax
+      Async.wait ay
+
 
 -- | A stream that accepts 'ByteString', coupled with an action that
 -- terminates the stream right away and an action that waits for the
 -- stream to terminate normally.
 data Stream = Stream (Consumer ByteString (SafeT IO) ()) Waiter Terminator
 
-streamConsumer :: Stream -> Consumer ByteString (SafeT IO) ()
-streamConsumer (Stream s _ _) = s
+instance Monoid Stream where
+  mempty = devNull
+  mappend (Stream cx wx tx) (Stream cy wy ty)
+    = Stream (tee cx >-> cy) (wx <> wy) (tx <> ty)
 
 terminate :: Stream -> IO ()
 terminate (Stream _ _ (Terminator t)) = t
@@ -119,8 +137,9 @@ withStream
   :: IO Stream
   -> (Consumer ByteString (SafeT IO) () -> IO b)
   -> IO b
-withStream acq useCsmr = bracketOnError acq terminate $ \str -> do
-  r <- useCsmr (streamConsumer str)
+withStream acq useCsmr = bracketOnError acq terminate
+  $ \str@(Stream csmr _ _) -> do
+  r <- useCsmr csmr
   wait str
   return r
 
