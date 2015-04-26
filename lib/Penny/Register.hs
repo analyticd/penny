@@ -50,6 +50,7 @@ module Penny.Register
   ) where
 
 import Control.Applicative
+import Control.Lens hiding (each)
 import Control.Monad
 import Control.Monad.Trans.Class
 import Data.Monoid
@@ -70,8 +71,8 @@ import qualified Penny.Register.Individual as I
 import Penny.Representation
 import Penny.Serial
 import Penny.Side
+import qualified Rainbow as R
 import Rainbow.Types
-import Rainbow.Colors
 import Rainbox (Box, Alignment, Vertical, tableByRows, center, Cell(..), top)
 
 type MakeLines l
@@ -204,7 +205,7 @@ postFiltered = fmap return sersetPostFiltered
 
 data CellFormatter
   = CellFormatter Radiant (Amount -> NilOrBrimScalarAnyRadix)
-                  (LineTag -> TextSpec)
+                  (LineTag -> Scheme)
 
 newtype CellFormatterFromClatch l
   = CellFormatterFromClatch (Clatch l -> CellFormatter)
@@ -229,8 +230,8 @@ makeCell
 makeCell (CellFormatterFromClatch getTriple) cltch (Column align mkLines)
   = liftM f $ mkLines converter cltch
   where
-    CellFormatter bkgnd converter getTextSpec = getTriple cltch
-    mkRow (tag, txt) = Seq.singleton $ Chunk (getTextSpec tag) [txt]
+    CellFormatter bkgnd converter getScheme = getTriple cltch
+    mkRow (tag, txt) = Seq.singleton $ Chunk (getScheme tag) txt
     f sqLineTagsAndText = Cell cks top align bkgnd
       where
         cks = fmap mkRow $ sqLineTagsAndText
@@ -256,7 +257,7 @@ makeRows make sq = T.mapM make sq
 -- | A basic format with no colors.
 noColors :: (Amount -> NilOrBrimScalarAnyRadix) -> CellFormatterFromClatch l
 noColors converter = CellFormatterFromClatch $ \_ ->
-  CellFormatter noColorRadiant converter (const mempty)
+  CellFormatter mempty converter (const mempty)
 
 
 -- # High-level formatting
@@ -286,38 +287,38 @@ alternating colors converter = CellFormatterFromClatch f
         background = if even $ naturalToInteger fwd
           then evenBackground colors
           else oddBackground colors
-        formatter lineTag = foregroundTextSpecFromRadiant $ case lineTag of
+        formatter lineTag = foregroundSchemeFromRadiant $ case lineTag of
           Linear Nothing -> neutral colors
           Linear (Just Debit) -> debit colors
           Linear (Just Credit) -> credit colors
           NonLinear -> nonLinear colors
           Notice -> notice colors
 
-foregroundTextSpecFromRadiant :: Radiant -> TextSpec
-foregroundTextSpecFromRadiant rad = ts
-  where
-    Chunk ts _ = fore rad
+foregroundSchemeFromRadiant :: Radiant -> Scheme
+foregroundSchemeFromRadiant (Radiant c8 c256) = mempty
+  & style8 . fore .~ c8
+  & style256 . fore .~ c256
 
 lightBackground :: Colors
 lightBackground = Colors
-  { debit = blue
-  , credit = magenta
-  , neutral = black
-  , nonLinear = black
-  , notice = red
-  , oddBackground = noColorRadiant
-  , evenBackground = Radiant white8 (Just . Color256 . Just $ 230)
+  { debit = R.blue
+  , credit = R.magenta
+  , neutral = R.black
+  , nonLinear = R.black
+  , notice = R.red
+  , oddBackground = mempty
+  , evenBackground = Radiant (Color $ Just white) (Color $ Just 230)
   -- 230: pale yellow
   }
 
 darkBackground :: Colors
 darkBackground = Colors
-  { debit = blue
-  , credit = magenta
-  , neutral = white
-  , nonLinear = white
-  , notice = red
-  , oddBackground = noColorRadiant
-  , evenBackground = Radiant black8 (Just . Color256 . Just $ 237)
+  { debit = R.blue
+  , credit = R.magenta
+  , neutral = R.white
+  , nonLinear = R.white
+  , notice = R.red
+  , oddBackground = mempty
+  , evenBackground = Radiant (Color $ Just black) (Color $ Just 237)
   -- 237: grey
   }

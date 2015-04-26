@@ -64,10 +64,10 @@ bifunctors :: Package
 bifunctors = closedOpen "bifunctors" [4,2] [4,3]
 
 rainbox :: Package
-rainbox = closedOpen "rainbox" [0,12,0,0] [0,13]
+rainbox = nextBreaking "rainbox" [0,16]
 
 rainbow :: Package
-rainbow = closedOpen "rainbow" [0,22] [0,23]
+rainbow = nextBreaking "rainbow" [0,26]
 
 semigroups :: Package
 semigroups = closedOpen "semigroups" [0,16,1] [0,17]

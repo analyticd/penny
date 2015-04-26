@@ -16,6 +16,7 @@ import Data.Functor.Compose
 import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Text (Text)
 import qualified Data.Text.IO as X
 import qualified Data.Traversable as T
 import Data.Typeable
@@ -45,12 +46,12 @@ type Filtereds l = Seq (Filtered (TransactionL l, View (Converted (PostingL l)))
 type PostFilter l
   = Matcher (RunningBalance
     (Sorted (Filtered (TransactionL l, View (Converted (PostingL l)))))) l ()
-type AllChunks = (Seq Chunk, Seq Chunk, Seq Chunk)
+type AllChunks = (Seq (Chunk Text), Seq (Chunk Text), Seq (Chunk Text))
 
 type Reporter l
   = (Amount -> NilOrBrimScalarAnyRadix)
   -> Seq (Clatch l)
-  -> [Chunk]
+  -> [(Chunk Text)]
 
 -- # Serials
 
@@ -148,7 +149,7 @@ withStream acq useCsmr = bracketOnError acq terminate
 data Octavo c a = Octavo
   { _filterer :: c a
   , _streamer :: c (IO Stream)
-  , _colorizer :: c (IO (Chunk -> [ByteString] -> [ByteString]))
+  , _colorizer :: c (IO ((Chunk Text) -> [ByteString] -> [ByteString]))
   }
 
 makeLenses ''Octavo
@@ -237,8 +238,8 @@ emptyOctavo = Octavo Nothing Nothing Nothing
 
 chunkConverter
   :: Monad m
-  => (Chunk -> [ByteString] -> [ByteString])
-  -> Pipe Chunk ByteString m a
+  => ((Chunk Text) -> [ByteString] -> [ByteString])
+  -> Pipe (Chunk Text) ByteString m a
 chunkConverter f = do
   ck <- await
   let bss = f ck []
@@ -247,8 +248,8 @@ chunkConverter f = do
 
 feedStream
   :: IO Stream
-  -> (Chunk -> [ByteString] -> [ByteString])
-  -> Seq Chunk
+  -> ((Chunk Text) -> [ByteString] -> [ByteString])
+  -> Seq (Chunk Text)
   -> IO b
   -> IO b
 feedStream strm conv sq rest = withStream strm $ \str -> do
@@ -261,7 +262,7 @@ feedStream strm conv sq rest = withStream strm $ \str -> do
 
 feeder
   :: Octavo Identity a
-  -> Seq Chunk
+  -> Seq (Chunk Text)
   -> IO b
   -> IO b
 feeder oct sq rest = do
@@ -304,7 +305,7 @@ makeReport opts = getChunks ldr ledgerCalc
 
 msgsToChunks
   :: Seq (Seq Message)
-  -> Seq Chunk
+  -> Seq (Chunk Text)
 msgsToChunks = join . join . fmap (fmap (Seq.fromList . ($ []) . toChunks))
 
 

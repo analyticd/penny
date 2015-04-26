@@ -70,10 +70,11 @@ import Control.Monad.Reader
 import Pipes hiding (next, each)
 import qualified Pipes
 import qualified Data.Foldable as F
+import Data.Text (Text)
 import qualified Data.Text as X
 
 class Chunkable a where
-  toChunks :: a -> [Chunk] -> [Chunk]
+  toChunks :: a -> [Chunk Text] -> [Chunk Text]
 
 -- | Indicates the current level of nesting.  This is used for logging
 -- purposes.  You can increase nesting by using the 'nest'
@@ -82,18 +83,18 @@ newtype Nesting = Nesting Int
   deriving (Eq, Ord, Show, Enum)
 
 instance Chunkable Nesting where
-  toChunks (Nesting i) = ((chunkFromText $ X.replicate i " ") :)
+  toChunks (Nesting i) = ((chunk $ X.replicate i " ") :)
 
 
 -- | Some text describing a logged action.
-newtype Opinion = Opinion [Chunk]
+newtype Opinion = Opinion [Chunk Text]
   deriving (Eq, Ord, Show)
 
 instance Chunkable Opinion where
   toChunks (Opinion ls) = (ls ++)
 
 instance IsString Opinion where
-  fromString = Opinion. (:[]) . fromString
+  fromString = Opinion . (:[]) . chunk . X.pack
 
 instance Monoid Opinion where
   mempty = Opinion []
@@ -104,10 +105,10 @@ data Verdict = Accepted | Rejected
 
 instance Chunkable Verdict where
   toChunks v = bracketed $ case v of
-    Accepted -> fore green <> "accepted"
-    Rejected -> fore red <> "rejected"
+    Accepted -> chunk "accepted" & fore green
+    Rejected -> chunk "rejected" & fore red
     where
-      bracketed ck = (["[", ck, "]"] ++)
+      bracketed ck = ([chunk "[", ck, chunk "]"] ++)
 
 data Level = Proclamation | Notice | Info
   deriving (Eq, Ord, Show, Enum, Bounded)
@@ -118,7 +119,7 @@ instance Chunkable Level where
     Notice -> "notice"
     Info -> "info"
     where
-      bracketed ck = (["[", ck, "]"] ++)
+      bracketed ck = ([chunk "[", chunk ck, chunk "]"] ++)
 
 data Payload
   = Verdict Verdict
@@ -128,13 +129,13 @@ data Payload
 instance Chunkable Payload where
   toChunks pay = case pay of
     Verdict v -> toChunks v
-    Missive l o -> (toChunks l . (" " :) .  toChunks o)
+    Missive l o -> (toChunks l . (chunk " " :) .  toChunks o)
 
 data Message = Message Nesting Payload
   deriving (Eq, Ord, Show)
 
 instance Chunkable Message where
-  toChunks (Message n p) = toChunks n . toChunks p . ("\n":)
+  toChunks (Message n p) = toChunks n . toChunks p . (chunk "\n":)
 
 
 -- | A 'Matcher' is a computation that, when run with a value known as
