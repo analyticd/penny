@@ -2,7 +2,9 @@
 --
 -- Please see "Penny.Docs" for full documentation; the Haddocks in
 -- this module are intended as a quick reference.
-module Penny
+module Penny where
+
+{-
   ( -- * Clatcher
     Clatcher
 
@@ -15,3 +17,4 @@ module Penny
   ) where
 
 import Penny.Clatcher
+-}

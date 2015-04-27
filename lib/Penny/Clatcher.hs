@@ -1,7 +1,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE  TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Penny.Clatcher where
 
 import Control.Applicative
@@ -51,7 +54,13 @@ type AllChunks = (Seq (Chunk Text), Seq (Chunk Text), Seq (Chunk Text))
 type Reporter l
   = (Amount -> NilOrBrimScalarAnyRadix)
   -> Seq (Clatch l)
-  -> [(Chunk Text)]
+  -> Seq (Chunk Text)
+
+class Report a where
+  printReport :: Ledger l => a -> Reporter l
+
+class Opener a l where
+  openTransations :: a -> l AllChunks -> IO AllChunks
 
 -- # Serials
 
@@ -95,10 +104,10 @@ instance Monoid Terminator where
       Async.wait ay
 
 
--- | A stream that accepts 'ByteString', coupled with an action that
+-- | A stream that accepts 'Chunk' 'Text', coupled with an action that
 -- terminates the stream right away and an action that waits for the
 -- stream to terminate normally.
-data Stream = Stream (Consumer ByteString (SafeT IO) ()) Waiter Terminator
+data Stream = Stream (Consumer (Chunk Text) (SafeT IO) ()) Waiter Terminator
 
 instance Monoid Stream where
   mempty = devNull
@@ -114,29 +123,37 @@ wait (Stream _ (Waiter w) _) = w
 devNull :: Stream
 devNull = Stream drain (Waiter (return ())) (Terminator (return ()))
 
+chunkConverter
+  :: Monad m
+  => ((Chunk Text) -> [ByteString] -> [ByteString])
+  -> Pipe (Chunk Text) ByteString m a
+chunkConverter f = do
+  ck <- await
+  let bss = f ck []
+  mapM_ yield bss
+  chunkConverter f
+
 -- | Runs a stream that accepts on its standard input.
 streamToStdin
   :: String
   -- ^ Program name
   -> [String]
   -- ^ Arguments
+  -> ((Chunk Text) -> [ByteString] -> [ByteString])
+  -- ^ Chunk converter
   -> IO Stream
-streamToStdin name args = do
+streamToStdin name args conv = do
   (pipe, handle) <- pipeInput Inherit Inherit (procSpec name args)
-  return (Stream (pipe >> return ())
+  return (Stream (chunkConverter conv >-> pipe >> return ())
                  (Waiter (waitForProcess handle >> return ()))
                  (Terminator (terminateProcess handle)))
-
--- | Runs @less@, with an option to recognize ANSI color codes.
-runLess :: IO Stream
-runLess = streamToStdin "less" ["-R"]
 
 -- | Runs a stream.  Under normal circumstances, waits for the
 -- underlying process to stop running.  If an exception is thrown,
 -- terminates the process immediately.
 withStream
   :: IO Stream
-  -> (Consumer ByteString (SafeT IO) () -> IO b)
+  -> (Consumer (Chunk Text) (SafeT IO) () -> IO b)
   -> IO b
 withStream acq useCsmr = bracketOnError acq terminate
   $ \str@(Stream csmr _ _) -> do
@@ -144,12 +161,84 @@ withStream acq useCsmr = bracketOnError acq terminate
   wait str
   return r
 
+--
+-- Converter
+--
+
+newtype Converter = Converter (Amount -> Maybe Amount)
+
+makeWrapped ''Converter
+
+instance Monoid Converter where
+  mempty = Converter (const Nothing)
+  mappend (Converter x) (Converter y) = Converter $ \a -> x a <|> y a
+
+--
+-- Octavo
+--
+
+data Octavo t l = Octavo
+  { _filterer :: Matcher t l ()
+  , _streamer :: IO Stream
+  }
+
+makeLenses ''Octavo
+
+instance Monad l => Monoid (Octavo t l) where
+  mempty = Octavo empty (return mempty)
+  Octavo x0 x1 `mappend` Octavo y0 y1 = Octavo (x0 <|> y0)
+    ((<>) <$> x1 <*> y1)
+
+
+--
+-- ClatchOptions
+--
+
+data ClatchOptions l r o = ClatchOptions
+  { _converter :: Converter
+  , _renderer :: Maybe (Either (Maybe RadCom) (Maybe RadPer))
+  , _pre :: Octavo (TransactionL l, View (Converted (PostingL l))) l
+  , _sorter :: Seq (Filtereds l -> l (Filtereds l))
+  , _post :: Octavo (RunningBalance (Sorted (Filtered
+      (TransactionL l, View (Converted (PostingL l)))))) l
+  , _report :: IO Stream
+  , _reporter :: r
+  , _opener :: o l
+  }
+
+makeLenses ''ClatchOptions
+
+instance (Monad l, Monoid r, Monoid (o l)) => Monoid (ClatchOptions l r o) where
+  mempty = ClatchOptions
+    { _converter = mempty
+    , _renderer = Nothing
+    , _pre = mempty
+    , _sorter = mempty
+    , _post = mempty
+    , _report = return mempty
+    , _reporter = mempty
+    , _opener = mempty
+    }
+
+  mappend x y = ClatchOptions
+    { _converter = _converter x <> _converter y
+    , _renderer = getLast $ Last (_renderer x) <> Last (_renderer y)
+    , _pre = _pre x <> _pre y
+    , _sorter = _sorter x <> _sorter y
+    , _post = _post x <> _post y
+    , _report = (<>) <$> _report x <*> _report y
+    , _reporter = _reporter x <> _reporter y
+    , _opener = _opener x <> _opener y
+    }
+
+{-
+
 -- # ClatchOptions
 
 data Octavo c a = Octavo
   { _filterer :: c a
   , _streamer :: c (IO Stream)
-  , _colorizer :: c (IO ((Chunk Text) -> [ByteString] -> [ByteString]))
+  , _colorizer :: IO ((Chunk Text) -> [ByteString] -> [ByteString])
   }
 
 makeLenses ''Octavo
@@ -175,12 +264,12 @@ defaultClatchOptions = ClatchOptions
   { _converter = Identity (const Nothing)
   , _renderer = Identity (Right (Just Comma))
   , _pre = Octavo (Identity always) (Identity (return devNull))
-      (Identity byteStringMakerFromEnvironment)
+      byteStringMakerFromEnvironment
   , _sorter = Identity Seq.empty
   , _post = Octavo (Identity always) (Identity (return devNull))
-      (Identity byteStringMakerFromEnvironment)
+      byteStringMakerFromEnvironment
   , _report = Octavo (Identity undefined) (Identity runLess)
-      (Identity byteStringMakerFromEnvironment)
+      byteStringMakerFromEnvironment
   , _reportData = Identity (undefined, \_ _ _ -> [])
   , _runLedger = Identity (undefined, \_ _ -> return
       (Seq.empty, Seq.empty, Seq.empty))
@@ -212,7 +301,7 @@ mergeOctavo
   -> Octavo Maybe a
   -> Octavo Identity a
 mergeOctavo l r = Octavo (merge _filterer _filterer) (merge _streamer _streamer)
-  (merge _colorizer _colorizer)
+  (_colorizer r)
   where
     merge getL getR = case getR r of
       Nothing -> getL l
@@ -235,16 +324,6 @@ emptyOctavo = Octavo Nothing Nothing Nothing
 
 
 -- # Feeding streams
-
-chunkConverter
-  :: Monad m
-  => ((Chunk Text) -> [ByteString] -> [ByteString])
-  -> Pipe (Chunk Text) ByteString m a
-chunkConverter f = do
-  ck <- await
-  let bss = f ck []
-  mapM_ yield bss
-  chunkConverter f
 
 feedStream
   :: IO Stream
@@ -459,3 +538,4 @@ reuse preload = modify f
 
 -- ## General
 
+-}
