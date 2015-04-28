@@ -5,6 +5,9 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Penny.Clatcher where
 
 import Control.Applicative
@@ -15,12 +18,14 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Bifunctor
 import Data.Bifunctor.Joker
+import Data.Foldable (Foldable)
 import Data.Functor.Compose
 import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text.IO as X
+import Data.Traversable (Traversable)
 import qualified Data.Traversable as T
 import Data.Typeable
 import Data.Void
@@ -230,6 +235,87 @@ instance (Monad l, Monoid r, Monoid (o l)) => Monoid (ClatchOptions l r o) where
     , _reporter = _reporter x <> _reporter y
     , _opener = _opener x <> _opener y
     }
+
+-- | How many colors to show for a particular terminal.
+data HowManyColors = HowManyColors
+  { _showAnyColors :: Bool
+  -- ^ If True, show colors.  How many colors to show depends on the
+  -- value of '_show256Colors'.
+
+  , _show256Colors :: Bool
+  -- ^ If True and '_showAnyColors' is True, show 256 colors.  If
+  -- False and '_showAnyColors' is True, show 8 colors.  If
+  -- '_showAnyColors' is False, no colors are shown regardless of the
+  -- value of '_show256Colors'.
+  } deriving (Eq, Show, Ord)
+
+makeLenses ''HowManyColors
+
+-- | With 'mempty', both fields are 'True'.  'mappend' runs '&&' on
+-- both fields.
+instance Monoid HowManyColors where
+  mempty = HowManyColors True True
+  mappend (HowManyColors x1 x2) (HowManyColors y1 y2)
+    = HowManyColors (x1 && y1) (x2 && y2)
+
+-- | How many colors to show, for various terminals.
+data ChooseColors = ChooseColors
+  { _canShow0 :: HowManyColors
+  -- ^ Show this many colors when @tput@ indicates that the terminal
+  -- can show no colors, or when @tput@ fails.
+
+  , _canShow8 :: HowManyColors
+  -- ^ Show this many colors when @tput@ indicates that the terminal
+  -- can show at least 8, but less than 256, colors.
+
+  , _canShow256 :: HowManyColors
+  -- ^ Show this many colors when @tput@ indicates that the terminal
+  -- can show 256 colors.
+  } deriving (Eq, Show, Ord)
+
+makeLenses ''ChooseColors
+
+-- | Uses the 'Monoid' instance of 'HowManyColors'.
+instance Monoid ChooseColors where
+  mempty = ChooseColors mempty mempty mempty
+  mappend (ChooseColors x0 x1 x2) (ChooseColors y0 y1 y2)
+    = ChooseColors (x0 <> y0) (x1 <> y1) (x2 <> y2)
+
+-- | Type holding values that have a certain number of colors.
+data Colorable a = Colorable
+  { _chooseColors :: ChooseColors
+  , _colored :: a
+  } deriving (Functor, Foldable, Traversable)
+
+instance Monoid a => Monoid (Colorable a) where
+  mempty = Colorable mempty mempty
+  mappend (Colorable x0 x1) (Colorable y0 y1)
+    = Colorable (x0 <> y0) (x1 <> y1)
+
+-- | Record for data to create a process that reads from its standard input.
+data StdinProcess = StdinProcess
+  { _programName :: String
+  , _programArgs :: [String]
+  }
+
+makeLenses ''StdinProcess
+
+instance Monoid StdinProcess where
+  mempty = StdinProcess mempty mempty
+  mappend (StdinProcess x0 x1) (StdinProcess y0 y1)
+    = StdinProcess (x0 <> y0) (x1 <> y1)
+
+-- | Data to create a sink that puts data into a file.
+newtype FileSink = FileSink (Colorable String)
+
+makeWrapped ''FileSink
+
+instance Monoid FileSink where
+  mempty = FileSink mempty
+  mappend (FileSink x) (FileSink y) = FileSink (x <> y)
+
+class Streamable a where
+  toStream :: a -> IO Stream
 
 {-
 
