@@ -136,6 +136,7 @@ libraryDepends =
   , pipes
   , pipesSafe
   , pipesCliff
+  , process
   , anonymousSums
   , void
   ]

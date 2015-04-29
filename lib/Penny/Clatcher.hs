@@ -12,7 +12,8 @@ module Penny.Clatcher where
 
 import Control.Applicative
 import qualified Control.Concurrent.Async as Async
-import Control.Exception (throwIO, Exception, bracketOnError)
+import Control.Exception (IOException, catch,
+  throwIO, Exception, bracketOnError, mask_)
 import Control.Lens hiding (pre)
 import Control.Monad.Reader
 import Control.Monad.State
@@ -21,6 +22,8 @@ import Data.Bifunctor.Joker
 import Data.Foldable (Foldable)
 import Data.Functor.Compose
 import Data.Monoid
+import Text.Read (readMaybe)
+import qualified Data.ByteString as BS
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
@@ -46,6 +49,8 @@ import Pipes.Cliff (pipeInput, NonPipe(..), terminateProcess, procSpec
 import Pipes.Prelude (drain, tee)
 import Pipes.Safe (SafeT, runSafeT)
 import Rainbow
+import qualified System.IO as IO
+import System.Process (readProcess)
 
 -- # Type synonyms
 
@@ -153,6 +158,35 @@ streamToStdin name args conv = do
                  (Waiter (waitForProcess handle >> return ()))
                  (Terminator (terminateProcess handle)))
 
+-- | Runs a stream that accepts input and sends it to a file.
+streamToFile
+  :: Bool
+  -- ^ If True, append; otherwise, overwrite.
+  -> String
+  -- ^ Filename
+  -> (Chunk Text -> [ByteString] -> [ByteString])
+  -> IO Stream
+streamToFile apnd fn conv = do
+  h <- IO.openFile fn (if apnd then IO.AppendMode else IO.WriteMode)
+  let toFile = do
+        ck <- await
+        liftIO $ mapM_ (BS.hPut h) (conv ck [])
+        toFile
+  return $ Stream toFile (Waiter (IO.hClose h))
+    (Terminator (IO.hClose h))
+
+feedStream
+  :: IO Stream
+  -> Seq (Chunk Text)
+  -> IO b
+  -> IO b
+feedStream strm sq rest = withStream strm $ \str -> do
+  let act = runSafeT $ runEffect $ Pipes.each sq >-> str
+  bracketOnError (Async.async act) Async.cancel $ \asy -> do
+    a <- rest
+    Async.wait asy
+    return a
+
 -- | Runs a stream.  Under normal circumstances, waits for the
 -- underlying process to stop running.  If an exception is thrown,
 -- terminates the process immediately.
@@ -251,6 +285,16 @@ data HowManyColors = HowManyColors
 
 makeLenses ''HowManyColors
 
+colorizer
+  :: HowManyColors
+  -> Chunk Text
+  -> [ByteString]
+  -> [ByteString]
+colorizer (HowManyColors anyC c256)
+  | not anyC = toByteStringsColors0
+  | not c256 = toByteStringsColors8
+  | otherwise = toByteStringsColors256
+
 -- | With 'mempty', both fields are 'True'.  'mappend' runs '&&' on
 -- both fields.
 instance Monoid HowManyColors where
@@ -275,6 +319,20 @@ data ChooseColors = ChooseColors
 
 makeLenses ''ChooseColors
 
+tputColors :: IO (ReifiedLens' ChooseColors HowManyColors)
+tputColors = catch getLens handle
+  where
+    handle :: IOException -> IO (ReifiedLens' ChooseColors HowManyColors)
+    handle _ = return $ Lens canShow0
+    getLens = do
+      str <- readProcess "tput" ["colors"] ""
+      return $ case readMaybe (init str) of
+        Nothing -> Lens canShow0
+        Just i
+          | i < (8 :: Int) -> Lens canShow0
+          | i < 256 -> Lens canShow8
+          | otherwise -> Lens canShow256
+
 -- | Uses the 'Monoid' instance of 'HowManyColors'.
 instance Monoid ChooseColors where
   mempty = ChooseColors mempty mempty mempty
@@ -292,6 +350,9 @@ instance Monoid a => Monoid (Colorable a) where
   mappend (Colorable x0 x1) (Colorable y0 y1)
     = Colorable (x0 <> y0) (x1 <> y1)
 
+class Streamable a where
+  toStream :: a -> IO Stream
+
 -- | Record for data to create a process that reads from its standard input.
 data StdinProcess = StdinProcess
   { _programName :: String
@@ -305,136 +366,57 @@ instance Monoid StdinProcess where
   mappend (StdinProcess x0 x1) (StdinProcess y0 y1)
     = StdinProcess (x0 <> y0) (x1 <> y1)
 
--- | Data to create a sink that puts data into a file.
-newtype FileSink = FileSink (Colorable String)
+instance Streamable (Colorable StdinProcess) where
+  toStream (Colorable clrs stp) = do
+    chooser <- tputColors
+    let clrzr = colorizer (clrs ^. (runLens chooser))
+    streamToStdin (_programName stp) (_programArgs stp) clrzr
 
-makeWrapped ''FileSink
+-- | Data to create a sink that puts data into a file.
+data FileSink = FileSink
+  { _sinkFilename :: String
+  , _appendToSink :: Bool
+  }
 
 instance Monoid FileSink where
-  mempty = FileSink mempty
-  mappend (FileSink x) (FileSink y) = FileSink (x <> y)
+  mempty = FileSink mempty False
+  mappend (FileSink x0 x1) (FileSink y0 y1)
+    = FileSink (x0 <> y0) (x1 && y1)
 
-class Streamable a where
-  toStream :: a -> IO Stream
+makeLenses ''FileSink
 
-{-
+instance Streamable (Colorable FileSink) where
+  toStream (Colorable clrs (FileSink fn apnd)) = do
+    chooser <- tputColors
+    let clrzr = colorizer (clrs ^. (runLens chooser))
+    streamToFile apnd fn clrzr
 
--- # ClatchOptions
-
-data Octavo c a = Octavo
-  { _filterer :: c a
-  , _streamer :: c (IO Stream)
-  , _colorizer :: IO ((Chunk Text) -> [ByteString] -> [ByteString])
-  }
-
-makeLenses ''Octavo
-
-data ClatchOptions c l ldr rpt = ClatchOptions
-  { _converter :: c (Amount -> Maybe Amount)
-  , _renderer :: c (Either (Maybe RadCom) (Maybe RadPer))
-  , _pre :: Octavo c (PreFilter l)
-  , _sorter :: c (Seq (Filtereds l -> l (Filtereds l)))
-  , _post :: Octavo c (PostFilter l)
-  , _report :: Octavo c Void
-  , _reportData :: c (rpt, rpt -> Reporter l)
-  , _runLedger :: c (ldr, ldr -> l AllChunks -> IO AllChunks)
-  }
-
-makeLenses ''ClatchOptions
-
-type Clatcher l ldr rpt
-  = State (ClatchOptions Maybe l ldr rpt)
-
-defaultClatchOptions :: Monad l => ClatchOptions Identity l ldr rpt
-defaultClatchOptions = ClatchOptions
-  { _converter = Identity (const Nothing)
-  , _renderer = Identity (Right (Just Comma))
-  , _pre = Octavo (Identity always) (Identity (return devNull))
-      byteStringMakerFromEnvironment
-  , _sorter = Identity Seq.empty
-  , _post = Octavo (Identity always) (Identity (return devNull))
-      byteStringMakerFromEnvironment
-  , _report = Octavo (Identity undefined) (Identity runLess)
-      byteStringMakerFromEnvironment
-  , _reportData = Identity (undefined, \_ _ _ -> [])
-  , _runLedger = Identity (undefined, \_ _ -> return
-      (Seq.empty, Seq.empty, Seq.empty))
-  }
-
-
-mergeClatchOptions
-  :: ClatchOptions Identity l ldr rpt
-  -> ClatchOptions Maybe l ldr rpt
-  -> ClatchOptions Identity l ldr rpt
-mergeClatchOptions iden may = ClatchOptions
-  { _converter = merge _converter _converter
-  , _renderer = merge _renderer _renderer
-  , _pre = mergeO _pre _pre
-  , _sorter = merge _sorter _sorter
-  , _post = mergeO _post _post
-  , _report = mergeO _report _report
-  , _reportData = merge _reportData _reportData
-  , _runLedger = merge _runLedger _runLedger
-  }
+-- | Creates a stream that, when you apply 'toStream' to the result,
+-- sends output to @less@.  By default, the number of colors is the
+-- maximum number allowed by the terminal.
+toLess :: Colorable StdinProcess
+toLess = Colorable clrs (StdinProcess "less" ["-R"])
   where
-    mergeO f1 f2 = mergeOctavo (f1 iden) (f2 may)
-    merge fn1 fn2 = case fn1 may of
-      Nothing -> fn2 iden
-      Just r -> Identity r
+    clrs = ChooseColors
+      { _canShow0 = HowManyColors False False
+      , _canShow8 = HowManyColors True False
+      , _canShow256 = HowManyColors True True
+      }
 
-mergeOctavo
-  :: Octavo Identity a
-  -> Octavo Maybe a
-  -> Octavo Identity a
-mergeOctavo l r = Octavo (merge _filterer _filterer) (merge _streamer _streamer)
-  (_colorizer r)
+-- | Creates a stream that, when you apply 'toStream' to the result,
+-- sends output to a file.  By default, no colors are used under any
+-- circumstance, and any existing file is replaced.
+toFile
+  :: String
+  -- ^ Filename
+  -> Colorable FileSink
+toFile fn = Colorable clrs (FileSink fn False)
   where
-    merge getL getR = case getR r of
-      Nothing -> getL l
-      Just a -> Identity a
-
-emptyClatchOpts :: ClatchOptions Maybe l ldr rpt
-emptyClatchOpts = ClatchOptions
-  { _converter = Nothing
-  , _renderer = Nothing
-  , _pre = emptyOctavo
-  , _sorter = Nothing
-  , _post = emptyOctavo
-  , _report = emptyOctavo
-  , _reportData = Nothing
-  , _runLedger = Nothing
-  }
-
-emptyOctavo :: Octavo Maybe a
-emptyOctavo = Octavo Nothing Nothing Nothing
-
-
--- # Feeding streams
-
-feedStream
-  :: IO Stream
-  -> ((Chunk Text) -> [ByteString] -> [ByteString])
-  -> Seq (Chunk Text)
-  -> IO b
-  -> IO b
-feedStream strm conv sq rest = withStream strm $ \str -> do
-  let act = runSafeT $ runEffect $ Pipes.each sq >-> chunkConverter conv
-            >-> str
-  bracketOnError (Async.async act) Async.cancel $ \asy -> do
-    a <- rest
-    Async.wait asy
-    return a
-
-feeder
-  :: Octavo Identity a
-  -> Seq (Chunk Text)
-  -> IO b
-  -> IO b
-feeder oct sq rest = do
-  let strm = _streamer oct
-  cvtr <- runIdentity $ _colorizer oct
-  feedStream (runIdentity strm) cvtr sq rest
-
+    clrs = ChooseColors
+      { _canShow0 = HowManyColors False False
+      , _canShow8 = HowManyColors False False
+      , _canShow256 = HowManyColors False False
+      }
 
 -- # Errors
 
@@ -444,6 +426,8 @@ data PennyError
 
 instance Exception PennyError
 
+
+{-
 
 -- # Main clatcher
 
