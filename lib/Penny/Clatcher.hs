@@ -69,9 +69,6 @@ type Reporter l
 class Report a where
   printReport :: Ledger l => a -> Reporter l
 
-class Opener a l where
-  openTransations :: a -> l AllChunks -> IO AllChunks
-
 -- # Serials
 
 stripUnits
@@ -228,12 +225,45 @@ instance Monad l => Monoid (Octavo t l) where
   Octavo x0 x1 `mappend` Octavo y0 y1 = Octavo (x0 <|> y0)
     ((<>) <$> x1 <*> y1)
 
+--
+-- Errors
+--
+
+data PennyError
+  = ParseError String
+  deriving (Show, Typeable)
+
+instance Exception PennyError
+
+--
+-- Loader
+--
+
+-- | Holds data, either loaded from a file or indicates the data to load.
+newtype Opener
+  = Preloaded (Seq (Transaction () ()))
+  | OpenFile String
+  deriving (Eq, Show, Ord)
+
+preload
+  :: String
+  -- ^ Load from this file
+  -> IO Opener
+preload fn = do
+  txt <- X.readFile fn
+  case copperParser txt of
+    Left e -> throwIO $ ParseError e
+    Right sq -> return . Preloaded . rights $ sq
+
+openFile :: String -> Opener
+openFile = OpenFile
+
 
 --
 -- ClatchOptions
 --
 
-data ClatchOptions l r o = ClatchOptions
+data ClatchOptions l r = ClatchOptions
   { _converter :: Converter
   , _renderer :: Maybe (Either (Maybe RadCom) (Maybe RadPer))
   , _pre :: Octavo (TransactionL l, View (Converted (PostingL l))) l
@@ -242,12 +272,12 @@ data ClatchOptions l r o = ClatchOptions
       (TransactionL l, View (Converted (PostingL l)))))) l
   , _report :: IO Stream
   , _reporter :: r
-  , _opener :: o l
+  , _opener :: Seq Opener
   }
 
 makeLenses ''ClatchOptions
 
-instance (Monad l, Monoid r, Monoid (o l)) => Monoid (ClatchOptions l r o) where
+instance (Monad l, Monoid r) => Monoid (ClatchOptions l r) where
   mempty = ClatchOptions
     { _converter = mempty
     , _renderer = Nothing
@@ -418,13 +448,28 @@ toFile fn = Colorable clrs (FileSink fn False)
       , _canShow256 = HowManyColors False False
       }
 
--- # Errors
+--
+-- Messages
+--
 
-data PennyError
-  = ParseError String
-  deriving (Show, Typeable)
+msgsToChunks
+  :: Seq (Seq Message)
+  -> Seq (Chunk Text)
+msgsToChunks = join . join . fmap (fmap (Seq.fromList . ($ []) . toChunks))
 
-instance Exception PennyError
+--
+-- Main clatcher
+--
+
+openFiles
+  :: Seq Opener
+  -> 
+
+makeReport
+  :: (Ledger l, Report r)
+  => ClatchOptions l r
+  -> IO AllChunks
+makeReport = undefined
 
 
 {-
@@ -451,12 +496,6 @@ makeReport opts = getChunks ldr ledgerCalc
           (rptOpts, mkReport) = runIdentity $ _reportData opts
           cks = mkReport rptOpts smartRender cltchs
       return (msgsToChunks msgsPre, msgsToChunks msgsPost, Seq.fromList cks)
-
-msgsToChunks
-  :: Seq (Seq Message)
-  -> Seq (Chunk Text)
-msgsToChunks = join . join . fmap (fmap (Seq.fromList . ($ []) . toChunks))
-
 
 -- | Runs the given 'Clatcher' with the given default options.
 clatcherWithDefaults
