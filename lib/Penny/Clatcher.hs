@@ -29,7 +29,7 @@ import Penny.Ledger
 import Penny.Ledger.Scroll
 import Penny.Matcher
 import Penny.Price
-import Penny.Qty
+import Penny.Popularity
 import Penny.Representation
 import Penny.SeqUtil
 import Penny.Stream

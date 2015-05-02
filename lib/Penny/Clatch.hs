@@ -28,7 +28,6 @@
 
 module Penny.Clatch
   ( Converted(..)
-  , Renderings(..)
   , Filtered(..)
   , Sorted(..)
   , RunningBalance(..)
@@ -51,6 +50,7 @@ import Penny.Trio
 import Penny.Serial
 import Penny.Balance
 import Penny.Matcher
+import Penny.Popularity hiding (rights)
 import Data.Monoid
 import qualified Data.Foldable as F
 
@@ -109,12 +109,6 @@ allConvertedTransactions
 allConvertedTransactions cv = do
   itms <- liftM join vault
   liftM join . T.mapM (convertTransaction cv) . rights $ itms
-
--- | Map describing how different 'Commodity' are rendered.
-newtype Renderings = Renderings
-  (M.Map Commodity
-         (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
-  deriving (Eq, Ord, Show)
 
 -- | Given a ConvertedPostingView, update the Renderings map.
 updateRenderings
