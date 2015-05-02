@@ -43,14 +43,7 @@ import Penny.Representation
 import Penny.NonZero
 import Penny.Offset
 import Penny.PluMin
-import Penny.NonEmpty
-import Penny.Commodity
-import Penny.Mimode
 import Penny.Display
-import Data.Sequence (Seq)
-import qualified Data.Map.Strict as M
-import qualified Data.Foldable as F
-import Data.Semigroup
 
 newtype Qty = Qty Decimal
   deriving (Eq, Ord, Show)
