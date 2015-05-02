@@ -43,9 +43,7 @@ import qualified Data.Sequence as S
 import qualified Data.Traversable as T
 import qualified Data.Map.Strict as M
 import Control.Monad
-import Penny.Commodity
 import Penny.NonEmpty
-import Penny.Representation
 import Penny.Trio
 import Penny.Serial
 import Penny.Balance
