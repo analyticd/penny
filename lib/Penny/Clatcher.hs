@@ -8,18 +8,17 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FunctionalDependencies #-}
 module Penny.Clatcher where
 
 import Control.Applicative
 import qualified Control.Concurrent.Async as Async
 import Control.Exception (IOException, catch,
-  throwIO, Exception, bracketOnError, mask_)
+  throwIO, Exception, bracketOnError)
 import Control.Lens hiding (pre)
 import Control.Monad.Reader
-import Control.Monad.State
 import Data.Bifunctor
 import Data.Bifunctor.Joker
-import Data.Foldable (Foldable)
 import Data.Functor.Compose
 import Data.Monoid
 import Text.Read (readMaybe)
@@ -28,10 +27,8 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text.IO as X
-import Data.Traversable (Traversable)
 import qualified Data.Traversable as T
 import Data.Typeable
-import Data.Void
 import Penny.Amount
 import Penny.Clatch
 import Penny.Copper
@@ -239,23 +236,40 @@ instance Exception PennyError
 -- Loader
 --
 
+class Loader o l | o -> l where
+  loadChunks :: Ledger l => l AllChunks -> o -> IO AllChunks
+
 -- | Holds data, either loaded from a file or indicates the data to load.
-newtype Opener
-  = Preloaded (Seq (Transaction () ()))
+data LoadScroll
+  = Preloaded (Seq (Either Price (Transaction () ())))
   | OpenFile String
   deriving (Eq, Show, Ord)
+
+readAndParseScroll
+  :: LoadScroll
+  -> IO (Seq (Either Price (Transaction () ())))
+readAndParseScroll (Preloaded sq) = return sq
+readAndParseScroll (OpenFile fn)
+  = (either (throwIO . ParseError) return . copperParser)
+  <=< X.readFile
+  $ fn
+
+instance Loader (Seq LoadScroll) Scroll where
+  loadChunks (ScrollT act)
+    = liftM (runReader act . stripUnits . addSerials)
+    . T.mapM readAndParseScroll
 
 preload
   :: String
   -- ^ Load from this file
-  -> IO Opener
+  -> IO LoadScroll
 preload fn = do
   txt <- X.readFile fn
   case copperParser txt of
     Left e -> throwIO $ ParseError e
-    Right sq -> return . Preloaded . rights $ sq
+    Right sq -> return . Preloaded $ sq
 
-openFile :: String -> Opener
+openFile :: String -> LoadScroll
 openFile = OpenFile
 
 
@@ -263,7 +277,7 @@ openFile = OpenFile
 -- ClatchOptions
 --
 
-data ClatchOptions l r = ClatchOptions
+data ClatchOptions l r o = ClatchOptions
   { _converter :: Converter
   , _renderer :: Maybe (Either (Maybe RadCom) (Maybe RadPer))
   , _pre :: Octavo (TransactionL l, View (Converted (PostingL l))) l
@@ -272,12 +286,12 @@ data ClatchOptions l r = ClatchOptions
       (TransactionL l, View (Converted (PostingL l)))))) l
   , _report :: IO Stream
   , _reporter :: r
-  , _opener :: Seq Opener
+  , _opener :: o
   }
 
 makeLenses ''ClatchOptions
 
-instance (Monad l, Monoid r) => Monoid (ClatchOptions l r) where
+instance (Monad l, Monoid r, Monoid o) => Monoid (ClatchOptions l r o) where
   mempty = ClatchOptions
     { _converter = mempty
     , _renderer = Nothing
@@ -461,190 +475,40 @@ msgsToChunks = join . join . fmap (fmap (Seq.fromList . ($ []) . toChunks))
 -- Main clatcher
 --
 
-openFiles
-  :: Seq Opener
-  -> 
-
-makeReport
-  :: (Ledger l, Report r)
-  => ClatchOptions l r
-  -> IO AllChunks
-makeReport = undefined
-
-
-{-
-
--- # Main clatcher
-
-makeReport
-  :: Ledger l
-  => ClatchOptions Identity l ldr rpt
-  -> IO AllChunks
-makeReport opts = getChunks ldr ledgerCalc
+smartRender
+  :: ClatchOptions l r o
+  -> Renderings
+  -> Amount
+  -> NilOrBrimScalarAnyRadix
+smartRender opts (Renderings rndgs) (Amount cy qt)
+  = c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
+  $ repQtySmartly rndrer (fmap (fmap snd) rndgs) cy qt
   where
-    (ldr, getChunks) = runIdentity $ _runLedger opts
-    ledgerCalc = do
-      ((msgsPre, Renderings rndgs, msgsPost), cltchs) <-
-        allClatches (runIdentity $ _converter opts)
-                    (runIdentity . _filterer $ _pre opts)
-                    (runIdentity $ _sorter opts)
-                    (runIdentity . _filterer $ _post opts)
-      let smartRender (Amount cy qt)
-            = c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
-            $ repQtySmartly (runIdentity $ _renderer opts)
-                            (fmap (fmap snd) rndgs) cy qt
-          (rptOpts, mkReport) = runIdentity $ _reportData opts
-          cks = mkReport rptOpts smartRender cltchs
-      return (msgsToChunks msgsPre, msgsToChunks msgsPost, Seq.fromList cks)
+    rndrer = maybe (Right Nothing) id . _renderer $ opts
 
--- | Runs the given 'Clatcher' with the given default options.
-clatcherWithDefaults
-  :: Ledger l
-  => ClatchOptions Identity l ldr rpt
-  -- ^ Default options used if there was not one selected in the 'Clatcher'.
-  -> Clatcher l ldr rpt a
-  -- ^ Options
+makeReport
+  :: (Loader o l, Ledger l, Report r)
+  => ClatchOptions l r o
+  -> IO AllChunks
+makeReport opts = loadChunks act (_opener opts)
+  where
+    act = do
+      ((msgsPre, rndgs, msgsPost), cltchs) <-
+        allClatches (opts ^. converter . _Wrapped')
+                    (_filterer . _pre $ opts)
+                    (_sorter opts) (_filterer . _post $ opts)
+      let cks = printReport (_reporter opts) (smartRender opts rndgs)
+                             cltchs
+      return (msgsToChunks msgsPre, msgsToChunks msgsPost, cks)
+
+clatcher
+  :: (Loader o l, Ledger l, Report r)
+  => ClatchOptions l r o
   -> IO ()
-clatcherWithDefaults dfltOpts cltcr = do
-  let opts = mergeClatchOptions dfltOpts (execState cltcr emptyClatchOpts)
+clatcher opts = do
   (msgsPre, msgsPost, cksRpt) <- makeReport opts
-  feeder (_pre opts) msgsPre $
-    feeder (_post opts) msgsPost $
-    feeder (_report opts) cksRpt $
+  feedStream (opts ^. pre . streamer) msgsPre $
+    feedStream (opts ^. post . streamer) msgsPost $
+    feedStream (opts ^. report) cksRpt $
     return ()
 
-
--- | Runs the given command with options.
-clatcher :: Ledger l => Clatcher l ldr rpt a -> IO ()
-clatcher = clatcherWithDefaults defaultClatchOptions
-
-
--- # Available options
-
--- ## Conversion
-
--- | Adds a converter.  This allows you to convert one commodity to
--- another; for example, this allows you to see what a commodity is
--- worth in terms of your home currency.
---
--- If there was already a converter present, it will be applied first,
--- and this converter will be applied only if the first fails.
-
-convert
-  :: (Amount -> Maybe Amount)
-  -> Clatcher l ldr rpt ()
-convert conv = do
-  old <- use converter
-  assign converter $ case old of
-    Nothing -> Just conv
-    Just oldConv -> Just $ \a -> case oldConv a of
-      Nothing -> conv a
-      Just a' -> Just a'
-
--- ## Rendering
-
--- | Sets the default radix point and grouping character for
--- rendering.  This is used only if a radix point cannot be determined
--- from existing transactions.
-radGroup
-  :: Either (Maybe RadCom) (Maybe RadPer)
-  -> Clatcher l ldr rpt ()
-radGroup ei = assign renderer (Just ei)
-
--- ## PreFilter
-
--- | Adds a new filter.
---
--- For example:
---
--- @
--- find pre matcher
--- @
-
-find
-  :: Monad l
-  => Lens' (ClatchOptions Maybe l ldr rpt) (Octavo Maybe (Matcher a l ()))
-  -> Matcher a l ()
-  -> Clatcher l ldr rpt ()
-find gtr pf = do
-  filt <- use (gtr . filterer)
-  assign (gtr . filterer) . Just $ case filt of
-    Nothing -> pf
-    Just old -> old <|> pf
-
--- | Adds a streamer.
---
--- For example:
---
--- @
--- stream pre (toFile \"myFilename\")
--- @
-
-stream
-  :: Lens' (ClatchOptions Maybe l ldr rpt) (Octavo Maybe a)
-  -> IO Stream
-  -> Clatcher l ldr rpt ()
-stream = undefined
-
-
--- ## Dealing with files
-
-data Loader
-  = LoadFromFile String
-  -- ^ Gets transactions from the given filename
-  | Preloaded (Seq (Either Price (Transaction () ())))
-  -- ^ Uses the given transactions which have already been loaded
-
-loadAndParse
-  :: String
-  -- ^ Filename
-  -> IO (Seq (Either Price (Transaction () ())))
-loadAndParse fn = do
-  txt <- X.readFile fn
-  case copperParser txt of
-    Left e -> throwIO $ ParseError e
-    Right g -> return g
-
-loadFromLoader :: Loader -> IO (Seq (Either Price (Transaction () ())))
-loadFromLoader (LoadFromFile str) = loadAndParse str
-loadFromLoader (Preloaded sq) = return sq
-
-loadLedger
-  :: Seq Loader
-  -> Scroll a
-  -> IO a
-loadLedger loaders (ScrollT rdr) = do
-  seqs <- T.mapM loadFromLoader loaders
-  let env = stripUnits . addSerials $ seqs
-  return . runIdentity $ runReaderT rdr env
-
--- | Loads transactions and prices from the given file on disk.
-open
-  :: String
-  -> Clatcher Scroll (Seq Loader) rpt ()
-open str = modify f
-  where
-    f x = x { _runLedger = Just runLedger' }
-      where
-        runLedger' = case _runLedger x of
-          Nothing -> (Seq.singleton (LoadFromFile str), loadLedger)
-          Just (rnr, _) -> (rnr |> LoadFromFile str, loadLedger)
-
--- | Uses a given set of transactions and prices.  Useful if you have
--- a file that takes a very long time to load, and you want to use it
--- multiple times: you load the file yourself, and then supply the
--- data here.
-reuse
-  :: Seq (Either Price (Transaction () ()))
-  -> Clatcher Scroll (Seq Loader) rpt ()
-reuse preload = modify f
-  where
-    f x = x { _runLedger = Just runLedger' }
-      where
-        runLedger' = case _runLedger x of
-          Nothing -> (Seq.singleton (Preloaded preload), loadLedger)
-          Just (rnr, _) -> (rnr |> Preloaded preload, loadLedger)
-
--- ## General
-
--}
