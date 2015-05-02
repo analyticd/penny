@@ -38,8 +38,11 @@
 -- just dead code.  The second reason is harder to fix: ListLike is
 -- unsafe because it imports an unsafe module from the vector package;
 -- why that is unsafe, I do not know.
-module Penny.Copper (copperParser) where
+module Penny.Copper (copperParser, addSerials) where
 
+import Data.Bifunctor
+import Data.Bifunctor.Joker
+import Data.Functor.Compose
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Penny.Copper.Ast
@@ -89,3 +92,16 @@ formatConvertErrors :: (ConvertE, [ConvertE]) -> String
 formatConvertErrors (c1, cs)
   = unlines . ("Error interpreting input file:":) . concat
   . intersperse [""] . (friendly c1 :) . map friendly $ cs
+
+
+addSerials
+  :: Seq (Seq (Either a (Transaction () ())))
+  -> Seq (Seq (Either a (Transaction TopLineSer PostingSer)))
+addSerials
+  = fmap (fmap (second (first snd . second snd)))
+  . fmap (fmap runJoker)
+  . fmap getCompose
+  . assignSerialsToTxns
+  . fmap Compose
+  . fmap (fmap Joker)
+
