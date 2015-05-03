@@ -64,7 +64,7 @@ bifunctors :: Package
 bifunctors = closedOpen "bifunctors" [4,2] [4,3]
 
 rainbox :: Package
-rainbox = nextBreaking "rainbox" [0,16]
+rainbox = nextBreaking "rainbox" [0,18]
 
 rainbow :: Package
 rainbow = nextBreaking "rainbow" [0,26]
