@@ -12,6 +12,7 @@ module Penny.SeqUtil
   , sortByM
   , multipleSortByM
   , mapMaybeM
+  , zipWithM
   , rights
 
   -- * Views
@@ -22,7 +23,7 @@ module Penny.SeqUtil
   ) where
 
 import Control.Applicative hiding (empty)
-import Control.Monad
+import Control.Monad (liftM)
 import Data.Sequence
 import qualified Data.Traversable as T
 import qualified Data.Foldable as F
@@ -92,6 +93,22 @@ mapMaybeM f sq = case viewl sq of
     return $ case mayB of
       Nothing -> rest
       Just b -> b <| rest
+
+zipWithM
+  :: Monad m
+  => (a -> b -> m c)
+  -> Seq a
+  -> Seq b
+  -> m (Seq c)
+zipWithM f sa sb = case viewl sa of
+  EmptyL -> return empty
+  a :< as -> case viewl sb of
+    EmptyL -> return empty
+    b :< bs -> do
+      t <- f a b
+      rs <- zipWithM f as bs
+      return $ t <| rs
+
 
 rights :: Seq (Either a b) -> Seq b
 rights sq = case viewl sq of
