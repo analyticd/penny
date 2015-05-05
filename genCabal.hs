@@ -109,7 +109,7 @@ lens = closedOpen "lens" [4,9] [4,10]
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
-  [ ghcOptions ["-Wall"]
+  [ ghcOptions ["-W"]
   , haskell2010
   , hsSourceDirs ["lib"]
   , otherExtensions ["TemplateHaskell"]

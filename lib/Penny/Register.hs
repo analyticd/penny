@@ -14,6 +14,7 @@ import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Traversable as T
 import Penny.Amount
+import Penny.Commodity
 import Penny.Clatch
 import Penny.Ledger
 import Penny.Natural
@@ -81,12 +82,12 @@ type Regcol l
 -- | For functions that return this type, use 'original', 'best', or
 -- 'balance' to get an appropriate column.
 data BestField l = BestField
-  { original :: Column l (ColumnInput l)
+  { original :: Regcol l
   -- ^ Use posting data.  Use the original, not converted, value.
-  , best :: Column l (ColumnInput l)
+  , best :: Regcol l
   -- ^ Use posting data.  Use the converted value if available;
   -- otherwise, use the converted value.
-  , balance :: Column l (ColumnInput l)
+  , balance :: Regcol l
   -- ^ Use balance data.
   }
 
@@ -137,13 +138,93 @@ headerCell clrs txts
               $ txts)
   & Rainbox.background .~ (clrs ^. oddBackground)
 
+oneLineCell :: Text -> Cell
+oneLineCell text
+  = mempty & rows .~ Seq.singleton (Seq.singleton . chunk $ text)
+
+doubleton :: a -> Seq (Seq a)
+doubleton = Seq.singleton . Seq.singleton
+
+convertQtyToAmount
+  :: Commodity
+  -> S3 a b Qty
+  -> S3 a b Amount
+convertQtyToAmount cy s3 = case s3 of
+  S3a a -> S3a a
+  S3b b -> S3b b
+  S3c q -> S3c $ Amount cy q
+
 originalQty
   :: Ledger l
-  => Column l (ColumnInput l)
-originalQty = Column header cell
+  => Regcol l
+originalQty clrs conv = Column header cell
   where
-    (header, cell) = undefined
+    header = headerCell clrs ["qty", "original"]
+    cell clatch = do
+      commodity <- Penny.Ledger.commodity . postingL $ clatch
+      s3 <- liftM (convertQtyToAmount commodity)
+        $ Penny.Queries.Clatch.originalQtyRep clatch
+      singleLinearLeftTop clrs clatch (formatQty conv s3)
 
+bestQty
+  :: Ledger l
+  => Regcol l
+bestQty clrs conv = Column header cell
+  where
+    header = headerCell clrs ["qty", "best"]
+    cell clatch = do
+      commodity <- Penny.Queries.Clatch.bestCommodity clatch
+      s3 <- liftM (convertQtyToAmount commodity)
+        $ Penny.Queries.Clatch.bestQtyRep clatch
+      singleLinearLeftTop clrs clatch (formatQty conv s3)
+
+bestCommodity
+  :: Ledger l
+  => Regcol l
+bestCommodity clrs _ = Column header cell
+  where
+    header = headerCell clrs ["commodity", "best"]
+    cell clatch = do
+      Commodity cy <- Penny.Queries.Clatch.bestCommodity clatch
+      singleLinearLeftTop clrs clatch cy
+
+originalCommodity :: Ledger l => Regcol l
+originalCommodity clrs _ = Column header cell
+  where
+    header = headerCell clrs ["commodity", "original"]
+    cell clatch = do
+      Commodity cy <- Penny.Ledger.commodity . postingL $ clatch
+      singleLinearLeftTop clrs clatch cy
+
+singleLinearLeftTop
+  :: Ledger l
+  => Colors
+  -> Clatch l
+  -> Text
+  -> l Cell
+singleLinearLeftTop clrs clatch txt
+  = liftM f (linearForeground clrs clatch)
+  where
+    bg = background clrs clatch
+    f fg = mempty
+      & rows .~ doubleton (chunk txt & fore fg & back bg)
+      & vertical .~ left
+      & horizontal .~ top
+      & Rainbox.background .~ (background clrs clatch)
+
+originalSide :: Ledger l => Regcol l
+originalSide clrs _ = Column header cell
+  where
+    header = headerCell clrs ["side", "original"]
+    cell clatch
+      = singleLinearLeftTop clrs clatch . sideTxt
+      <=< Penny.Ledger.qty . postingL
+      $ clatch
+
+sideTxt :: Qty -> Text
+sideTxt q = case qtySide q of
+  Nothing -> "--"
+  Just s -> X.pack . ($ "") . display $ s
 
 {-
   ( -- * Columns
