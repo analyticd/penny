@@ -1,6 +1,149 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
+
 -- | The Register report
-module Penny.Register
+module Penny.Register where
+
+import Control.Applicative
+import Control.Lens hiding (each)
+import Control.Monad
+import Control.Monad.Trans.Class
+import Data.Monoid
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
+import Data.Text (Text)
+import qualified Data.Traversable as T
+import Penny.Amount
+import Penny.Clatch
+import Penny.Ledger
+import Penny.Natural
+import Penny.Matcher (Matcher, each, getSubject, study)
+import Penny.Queries.Clatch
+import qualified Penny.Queries.Matcher as Q
+import Penny.Representation
+import Penny.Serial
+import Penny.Side
+import Rainbow
+import Rainbox (Box, Alignment, Vertical, tableByRows, center, Cell(..), top,
+  left)
+import Penny.Column
+import Data.Sums
+import Penny.Display
+import qualified Data.Text as X
+import Penny.Side
+import Penny.Qty
+
+-- # High-level formatting
+
+-- | Load data into this record to make a color scheme that has
+-- different colors for debits and credits, with an alternating
+-- background for odd- and even-numbered postings.
+data Colors = Colors
+  { _debit :: Radiant
+  , _credit :: Radiant
+  , _neutral :: Radiant
+  , _nonLinear :: Radiant
+  , _notice :: Radiant
+  , _oddBackground :: Radiant
+  , _evenBackground :: Radiant
+  } deriving (Eq, Ord, Show)
+
+makeLenses ''Colors
+
+instance Monoid Colors where
+  mempty = Colors
+    { _debit = mempty
+    , _credit = mempty
+    , _neutral = mempty
+    , _nonLinear = mempty
+    , _notice = mempty
+    , _oddBackground = mempty
+    , _evenBackground = mempty
+    }
+
+  mappend (Colors x0 x1 x2 x3 x4 x5 x6) (Colors y0 y1 y2 y3 y4 y5 y6)
+    = Colors (x0 <> y0) (x1 <> y1) (x2 <> y2) (x3 <> y3)
+             (x4 <> y4) (x5 <> y5) (x6 <> y6)
+
+data ColumnInput l = ColumnInput
+  { _formatAmount :: Amount -> NilOrBrimScalarAnyRadix
+  , _clatch :: Clatch l
+  , _colors :: Colors
+  }
+
+makeLenses ''ColumnInput
+
+
+-- | For functions that return this type, use 'original', 'best', or
+-- 'balance' to get an appropriate column.
+data BestField l = BestField
+  { original :: Column l (ColumnInput l)
+  -- ^ Use posting data.  Use the original, not converted, value.
+  , best :: Column l (ColumnInput l)
+  -- ^ Use posting data.  Use the converted value if available;
+  -- otherwise, use the converted value.
+  , balance :: Column l (ColumnInput l)
+  -- ^ Use balance data.
+  }
+
+-- | Format a Qty for display.
+formatQty
+  :: (Amount -> NilOrBrimScalarAnyRadix)
+  -- ^ Use this function for rendering a 'Qty'.
+  -> S3 RepNonNeutralNoSide QtyRepAnyRadix Amount
+  -> Text
+formatQty rend s3 = case s3 of
+  S3a rnn -> X.pack . ($ "") . display $ rnn
+  S3b qrr -> X.pack . ($ "") . display
+    . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix $ qrr
+  S3c amt -> X.pack . ($ "") . display . rend $ amt
+
+linearForeground
+  :: Ledger l
+  => Colors
+  -> Clatch l
+  -> l Radiant
+linearForeground clrs
+  = liftM f
+  . Penny.Ledger.qty
+  . postingL
+  where
+    f q = clrs ^. case qtySide q of
+      Nothing -> neutral
+      Just Debit -> debit
+      Just Credit -> credit
+
+background
+  :: Colors
+  -> Clatch l
+  -> Radiant
+background clrs (Filtered (Sersetted (Serset (Forward (Serial uns)) _) _))
+  | odd . naturalToInteger $ uns = clrs ^. oddBackground
+  | otherwise = clrs ^. evenBackground
+
+headerCell
+  :: Colors
+  -> [Text]
+  -> Cell
+headerCell clrs txts = Cell
+  { _rows
+      = Seq.fromList
+      . map Seq.singleton
+      . map (fore (clrs ^. nonLinear) . back (clrs ^. oddBackground))
+      . map chunk
+      $ txts
+  , _horizontal = top
+  , _vertical = left
+  , _background = clrs ^. oddBackground
+  }
+
+originalQty
+  :: Ledger l
+  => Column l (ColumnInput l)
+originalQty = undefined
+
+
+{-
   ( -- * Columns
     MakeLines
   , Column(..)
@@ -49,31 +192,9 @@ module Penny.Register
   , lightBackground
   ) where
 
-import Control.Applicative
-import Control.Lens hiding (each)
-import Control.Monad
-import Control.Monad.Trans.Class
-import Data.Monoid
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import Data.Text (Text)
-import qualified Data.Traversable as T
-import Penny.Amount
-import Penny.Clatch
-import Penny.Ledger
-import Penny.Natural
-import Penny.Matcher (Matcher, each, getSubject, study)
-import Penny.Queries.Clatch
-import qualified Penny.Queries.Matcher as Q
 import Penny.Register.Individual
   ( LineTag(..), BestField )
 import qualified Penny.Register.Individual as I
-import Penny.Representation
-import Penny.Serial
-import Penny.Side
-import qualified Rainbow as R
-import Rainbow.Types
-import Rainbox (Box, Alignment, Vertical, tableByRows, center, Cell(..), top)
 
 type MakeLines l
   = (Amount -> NilOrBrimScalarAnyRadix)
@@ -260,21 +381,6 @@ noColors converter = CellFormatterFromClatch $ \_ ->
   CellFormatter mempty converter (const mempty)
 
 
--- # High-level formatting
-
--- | Load data into this record to make a color scheme that has
--- different colors for debits and credits, with an alternating
--- background for odd- and even-numbered postings.
-data Colors = Colors
-  { debit :: Radiant
-  , credit :: Radiant
-  , neutral :: Radiant
-  , nonLinear :: Radiant
-  , notice :: Radiant
-  , oddBackground :: Radiant
-  , evenBackground :: Radiant
-  } deriving (Eq, Ord, Show)
-
 alternating
   :: Colors
   -> (Clatch l -> Amount -> NilOrBrimScalarAnyRadix)
@@ -322,3 +428,4 @@ darkBackground = Colors
   , evenBackground = Radiant (Color $ Just black) (Color $ Just 237)
   -- 237: grey
   }
+-}
