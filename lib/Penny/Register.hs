@@ -129,8 +129,7 @@ headerCell clrs txts = Cell
   { _rows
       = Seq.fromList
       . map Seq.singleton
-      . map (fore (clrs ^. nonLinear) . back (clrs ^. oddBackground))
-      . map chunk
+      . map (fore (clrs ^. nonLinear) . back (clrs ^. oddBackground) . chunk)
       $ txts
   , _horizontal = top
   , _vertical = left
