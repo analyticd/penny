@@ -24,8 +24,8 @@ import Penny.Representation
 import Penny.Serial
 import Penny.Side
 import Rainbow
-import Rainbox (Box, Alignment, Vertical, tableByRows, center, Cell(..), top,
-  left)
+import Rainbox hiding (background)
+import qualified Rainbox
 import Penny.Column
 import Data.Sums
 import Penny.Display
@@ -73,6 +73,10 @@ data ColumnInput l = ColumnInput
 
 makeLenses ''ColumnInput
 
+type Regcol l
+  = Colors
+  -> (Amount -> NilOrBrimScalarAnyRadix)
+  -> Column l (Clatch l)
 
 -- | For functions that return this type, use 'original', 'best', or
 -- 'balance' to get an appropriate column.
@@ -125,21 +129,20 @@ headerCell
   :: Colors
   -> [Text]
   -> Cell
-headerCell clrs txts = Cell
-  { _rows
-      = Seq.fromList
-      . map Seq.singleton
-      . map (fore (clrs ^. nonLinear) . back (clrs ^. oddBackground) . chunk)
-      $ txts
-  , _horizontal = top
-  , _vertical = left
-  , _background = clrs ^. oddBackground
-  }
+headerCell clrs txts
+  = mempty
+  & rows .~ ( Seq.fromList
+              . map ( Seq.singleton . fore (clrs ^. nonLinear)
+                      . back (clrs ^. oddBackground) . chunk)
+              $ txts)
+  & Rainbox.background .~ (clrs ^. oddBackground)
 
 originalQty
   :: Ledger l
   => Column l (ColumnInput l)
-originalQty = undefined
+originalQty = Column header cell
+  where
+    (header, cell) = undefined
 
 
 {-
