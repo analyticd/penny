@@ -2,28 +2,78 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | The Register report
-module Penny.Register where
+module Penny.Register
+  ( -- * Colors
+    Colors(..)
+  , debit
+  , credit
+  , neutral
+  , nonLinear
+  , notice
+  , oddBackground
+  , evenBackground
+
+  -- * Color schemes
+  , lightBackground
+  , darkBackground
+
+  -- * Column
+  , Regcol
+
+  -- * Side, commodity, and qty
+  , BestField(..)
+  , original
+  , best
+  , balance
+  , side
+  , Penny.Register.commodity
+  , Penny.Register.qty
+
+  -- * Forest
+  , findNamedTree
+  , displayForestL
+  , displayTreeL
+  , forest
+
+  -- * Spacer
+  , Penny.Register.spacer
+
+  -- * Sersets
+  , forward
+  , backward
+  , preFiltered
+  , sorted
+  , postFiltered
+  , FileOrGlobal(..)
+  , global
+  , file
+  , posting
+  , topLine
+  , Penny.Register.index
+  ) where
 
 import Control.Applicative
 import Control.Lens hiding (each)
 import Control.Monad
 import Control.Monad.Trans.Class
 import Data.Monoid
-import Data.Sequence (Seq)
+import Data.Sequence (Seq, viewl, ViewL(..))
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Traversable as T
 import Penny.Amount
 import Penny.Commodity
 import Penny.Clatch
+import Penny.Field (displayScalar)
 import Penny.Ledger
 import Penny.Natural
-import Penny.Matcher (Matcher, each, getSubject, study)
+import Penny.Matcher (Matcher, each, getSubject, study, observe)
 import Penny.Queries.Clatch
 import qualified Penny.Queries.Matcher as Q
 import Penny.Representation
 import Penny.Serial
 import Penny.Side
+import Penny.Transaction
 import Rainbow
 import Rainbox hiding (background)
 import qualified Rainbox
@@ -31,8 +81,10 @@ import Penny.Column
 import Data.Sums
 import Penny.Display
 import qualified Data.Text as X
-import Penny.Side
 import Penny.Qty
+import qualified Data.Map as M
+import Penny.Balance
+import qualified Data.Foldable as F
 
 -- # High-level formatting
 
@@ -66,14 +118,7 @@ instance Monoid Colors where
     = Colors (x0 <> y0) (x1 <> y1) (x2 <> y2) (x3 <> y3)
              (x4 <> y4) (x5 <> y5) (x6 <> y6)
 
-data ColumnInput l = ColumnInput
-  { _formatAmount :: Amount -> NilOrBrimScalarAnyRadix
-  , _clatch :: Clatch l
-  , _colors :: Colors
-  }
-
-makeLenses ''ColumnInput
-
+-- | A single column in a register report.
 type Regcol l
   = Colors
   -> (Amount -> NilOrBrimScalarAnyRadix)
@@ -82,14 +127,26 @@ type Regcol l
 -- | For functions that return this type, use 'original', 'best', or
 -- 'balance' to get an appropriate column.
 data BestField l = BestField
-  { original :: Regcol l
+  { _original :: Regcol l
   -- ^ Use posting data.  Use the original, not converted, value.
-  , best :: Regcol l
+  , _best :: Regcol l
   -- ^ Use posting data.  Use the converted value if available;
   -- otherwise, use the converted value.
-  , balance :: Regcol l
+  , _balance :: Regcol l
   -- ^ Use balance data.
   }
+
+makeLenses ''BestField
+
+side :: Ledger l => BestField l
+side = BestField originalSide bestSide balanceSide
+
+commodity :: Ledger l => BestField l
+commodity = BestField originalCommodity
+  Penny.Register.bestCommodity balanceCommodity
+
+qty :: Ledger l => BestField l
+qty = BestField originalQty Penny.Register.bestQty balanceQty
 
 -- | Format a Qty for display.
 formatQty
@@ -137,10 +194,6 @@ headerCell clrs txts
                       . back (clrs ^. oddBackground) . chunk)
               $ txts)
   & Rainbox.background .~ (clrs ^. oddBackground)
-
-oneLineCell :: Text -> Cell
-oneLineCell text
-  = mempty & rows .~ Seq.singleton (Seq.singleton . chunk $ text)
 
 doubleton :: a -> Seq (Seq a)
 doubleton = Seq.singleton . Seq.singleton
@@ -221,103 +274,95 @@ originalSide clrs _ = Column header cell
       <=< Penny.Ledger.qty . postingL
       $ clatch
 
+bestSide :: Ledger l => Regcol l
+bestSide clrs _ = Column header cell
+  where
+    header = headerCell clrs ["side", "best"]
+    cell clatch
+      = singleLinearLeftTop clrs clatch . sideTxt
+      <=< Penny.Queries.Clatch.bestQty
+      $ clatch
+
+balanceCellRow
+  :: Colors
+  -> Clatch l
+  -> Qty
+  -> Text
+  -> Seq (Chunk Text)
+balanceCellRow clrs clatch qty = Seq.singleton . fore fg . back bg . chunk
+  where
+    fg = clrs ^. case qtySide qty of
+      Nothing -> neutral
+      Just Debit -> debit
+      Just Credit -> credit
+    bg = background clrs clatch
+
+balanceSide :: Ledger l => Regcol l
+balanceSide clrs _ = Column header (liftM return cell)
+  where
+    header = headerCell clrs ["balance", "side"]
+    cell clatch
+      = (\rs -> mempty & rows .~ rs
+                            & Rainbox.background .~ bg
+                            & vertical .~ left
+                            & horizontal .~ top)
+      . fmap (\(_, q) -> balanceCellRow clrs clatch q . sideTxt $ q)
+      . Seq.fromList
+      . M.assocs
+      . (\(Balance mp) -> mp)
+      . runningBalance
+      $ clatch
+      where
+        bg = background clrs clatch
+
+
+balanceCommodity :: Ledger l => Regcol l
+balanceCommodity clrs _ = Column header (liftM return cell)
+  where
+    header = headerCell clrs ["balance", "commodity"]
+    cell clatch
+      = (\rs -> mempty & rows .~ rs
+                       & Rainbox.background .~ bg
+                       & vertical .~ left
+                       & horizontal .~ top)
+      . fmap (\(Commodity cy, q) -> balanceCellRow clrs clatch q cy)
+      . Seq.fromList
+      . M.assocs
+      . (\(Balance mp) -> mp)
+      . runningBalance
+      $ clatch
+      where
+        bg = background clrs clatch
+
+
+balanceQty :: Ledger l => Regcol l
+balanceQty clrs conv = Column header (liftM return cell)
+  where
+    header = headerCell clrs ["balance", "commodity"]
+    cell clatch
+      = (\rs -> mempty & rows .~ rs
+                       & Rainbox.background .~ bg
+                       & vertical .~ left
+                       & horizontal .~ top)
+      . fmap (\(cy, q) -> balanceCellRow clrs clatch q
+                          . X.pack . ($ "") . display
+                          . conv $ Amount cy q)
+      . Seq.fromList
+      . M.assocs
+      . (\(Balance mp) -> mp)
+      . runningBalance
+      $ clatch
+      where
+        bg = background clrs clatch
+
 sideTxt :: Qty -> Text
 sideTxt q = case qtySide q of
   Nothing -> "--"
   Just s -> X.pack . ($ "") . display $ s
 
-{-
-  ( -- * Columns
-    MakeLines
-  , Column(..)
-  , Columns(..)
-
-  -- * Balance-related fields
-  , BestField
-  , original
-  , best
-  , balance
-
-  , I.qty
-  , I.commodity
-  , I.side
-
-  -- * Tree-related fields
-  , findNamedTree
-  , forest
-
-  -- * Spacers
-  , spacer
-
-  -- * Sersets
-  , forward
-  , backward
-  , preFiltered
-  , sorted
-  , postFiltered
-  , I.FileOrGlobal(..)
-  , I.posting
-  , I.topLine
-  , I.index
-
-  -- * Low-level formatting
-  , LineTag(..)
-  , CellFormatter(..)
-  , CellFormatterFromClatch(..)
-  , makeCell
-  , makeRegisterReport
-  , noColors
-
-  -- * High-level formatting
-  , Colors(..)
-  , alternating
-  , darkBackground
-  , lightBackground
-  ) where
-
-import Penny.Register.Individual
-  ( LineTag(..), BestField )
-import qualified Penny.Register.Individual as I
-
-type MakeLines l
-  = (Amount -> NilOrBrimScalarAnyRadix)
-  -> Clatch l
-  -> l (Seq (LineTag, Text))
-
-data Column l = Column (Alignment Vertical) (MakeLines l)
-
-newtype Columns l = Columns (Seq (Column l))
-
-instance Monoid (Columns l) where
-  mempty = Columns Seq.empty
-  mappend (Columns x) (Columns y) = Columns $ x <> y
-
-original
-  :: Alignment Vertical
-  -> BestField l (Amount -> NilOrBrimScalarAnyRadix)
-  -> Columns l
-original align = Columns . Seq.singleton . Column align . I.original
-
-best
-  :: Alignment Vertical
-  -> BestField l (Amount -> NilOrBrimScalarAnyRadix)
-  -> Columns l
-best align = Columns . Seq.singleton . Column align . I.best
-
-balance
-  :: Alignment Vertical
-  -> BestField l (Amount -> NilOrBrimScalarAnyRadix)
-  -> Columns l
-balance align = Columns . Seq.singleton . Column align . I.balance
-
--- | Creates a Cell that runs the given Matcher on the Clatch and puts
--- the resulting Forest into a cell.
-forest
-  :: Ledger l
-  => Alignment Vertical
-  -> Matcher (Clatch l) l (Seq (TreeL l))
-  -> Columns l
-forest align = Columns . Seq.singleton . Column align . I.forest
+--
+-- # Forest
+--
 
 
 -- | Creates a 'Matcher' that looks for a parent tree with the exact
@@ -351,33 +396,98 @@ findNamedTree txt = matchPstg <|> matchTxn
       ts <- lift $ pstgMeta pstg
       study finder ts
 
--- # Spacers
+-- | Displays a forest of trees, with each separated by a bullet
+-- (which is U+2022, or •).
+displayForestL
+  :: Ledger l
+  => Seq (TreeL l)
+  -> l Text
+displayForestL sq = case viewl sq of
+  EmptyL -> return X.empty
+  x1 :< xs1 -> do
+    t1 <- displayTreeL x1
+    let dispNext t = liftM (X.cons '•') $ displayTreeL t
+    liftM (F.foldl' mappend t1) $ T.mapM dispNext xs1
 
-spacer
-  :: Monad m
-  => Int
-  -> Columns m
-spacer = Columns . Seq.singleton . Column center . I.spacer
 
--- # Sersets
+displayTreeL
+  :: Ledger l
+  => TreeL l
+  -> l Text
+displayTreeL t = liftM2 f (scalar t) (offspring t)
+  where
+    f sc cs = maybe X.empty displayScalar sc <>
+      if Seq.null cs then mempty else X.singleton '↓'
+
+forest
+  :: Ledger l
+  => Matcher (Clatch l) l (Seq (TreeL l))
+  -> Regcol l
+forest mtcr clrs _ = Column mempty $ \clch -> do
+  mayRes <- observe mtcr clch
+  case mayRes of
+    Nothing -> return mempty
+    Just ts -> do
+      txt <- displayForestL ts
+      return $ mempty & rows .~ ( Seq.singleton
+                                . Seq.singleton
+                                . fore (clrs ^. nonLinear)
+                                . back (background clrs clch)
+                                . chunk $ txt)
+                      & Rainbox.background .~ (background clrs clch)
+                      & vertical .~ left
+                      & horizontal .~ top
+
+spacer :: Monad l => Int -> Regcol l
+spacer i _ _ = spaces i
+
+
+-- ## Sersets
 
 -- | A column with a 'Forward' serial.  Use with the other functions
 -- below, such as 'preFiltered' and 'sorted'.
 forward
   :: Monad l
-  => Alignment Vertical
-  -> (Clatch l -> l Serset)
-  -> Columns l
-forward align = Columns . Seq.singleton . Column align . I.forward
+  => (Clatch l -> l Serset)
+  -> Regcol l
+forward get clrs _ = Column hdr cell
+  where
+    hdr = headerCell clrs ["serset", "forward"]
+    cell clatch = liftM mkCell . get $ clatch
+      where
+        mkCell (Serset (Forward (Serial fwd)) _)
+          = mempty
+          & rows .~ ( Seq.singleton . Seq.singleton
+                      . fore (clrs ^. nonLinear)
+                      . back (background clrs clatch)
+                      . chunk . X.pack . show . naturalToInteger
+                      $ fwd )
+          & vertical .~ left
+          & horizontal .~ top
+          & Rainbox.background .~ (background clrs clatch)
+
 
 -- | A column with a 'Backward' serial.  Use with the other functions
 -- below, such as 'preFiltered' and 'sorted'.
 backward
   :: Monad l
-  => Alignment Vertical
-  -> (Clatch l -> l Serset)
-  -> Columns l
-backward align = Columns . Seq.singleton . Column align . I.backward
+  => (Clatch l -> l Serset)
+  -> Regcol l
+backward get clrs _ = Column hdr cell
+  where
+    hdr = headerCell clrs ["serset", "backward"]
+    cell clatch = liftM mkCell . get $ clatch
+      where
+        mkCell (Serset _ (Backward (Serial rev)))
+          = mempty
+          & rows .~ ( Seq.singleton . Seq.singleton
+                      . fore (clrs ^. nonLinear)
+                      . back (background clrs clatch)
+                      . chunk . X.pack . show . naturalToInteger
+                      $ rev )
+          & vertical .~ left
+          & horizontal .~ top
+          & Rainbox.background .~ (background clrs clatch)
 
 
 -- | Use with 'forward' and 'backward', for instance:
@@ -405,110 +515,81 @@ sorted = fmap return sersetSorted
 postFiltered :: Monad l => Clatch l -> l Serset
 postFiltered = fmap return sersetPostFiltered
 
--- # Low-level formatting
 
-data CellFormatter
-  = CellFormatter Radiant (Amount -> NilOrBrimScalarAnyRadix)
-                  (LineTag -> Scheme)
+-- | For functions that return values of this type, use 'global' or
+-- 'file' to get an appropriate column.
+data FileOrGlobal l = FileOrGlobal
+  { _global :: Clatch l -> l Serset
+  -- ^ Use the global 'Serset'.
+  , _file :: Clatch l -> l Serset
+  -- ^ Use the file 'Serset'.
+  }
 
-newtype CellFormatterFromClatch l
-  = CellFormatterFromClatch (Clatch l -> CellFormatter)
+makeLenses ''FileOrGlobal
 
-makeRegisterReport
-  :: Ledger l
-  => CellFormatterFromClatch l
-  -> Columns l
-  -> Seq (Clatch l)
-  -> l (Box Vertical)
-makeRegisterReport formatter cols
-  = liftM tableByRows
-  . makeRows (makeRow (makeCell formatter) cols)
-
-
-makeCell
-  :: Ledger l
-  => CellFormatterFromClatch l
-  -> Clatch l
-  -> Column l
-  -> l Cell
-makeCell (CellFormatterFromClatch getTriple) cltch (Column align mkLines)
-  = liftM f $ mkLines converter cltch
+-- | Use with 'forward', 'backward', 'file', and 'global', for
+-- instance:
+--
+-- @
+-- 'forward' $ 'global' 'posting'
+-- @
+posting :: Ledger l => FileOrGlobal l
+posting = FileOrGlobal glbl fle
   where
-    CellFormatter bkgnd converter getScheme = getTriple cltch
-    mkRow (tag, txt) = Seq.singleton $ Chunk (getScheme tag) txt
-    f sqLineTagsAndText = Cell cks top align bkgnd
-      where
-        cks = fmap mkRow $ sqLineTagsAndText
+    glbl clch = do
+      PostingSer _ (GlobalSer g) _ <- postingSer . postingL $ clch
+      return g
+    fle clch = do
+      PostingSer (FileSer f) _ _ <- postingSer . postingL $ clch
+      return f
 
-makeRow
-  :: Ledger l
-  => (Clatch l -> Column l -> l Cell)
-  -- ^ Use 'makeCell'
-  -> Columns l
-  -> Clatch l
-  -> l (Seq Cell)
-makeRow f (Columns cols) cltch = T.mapM (f cltch) cols
-
-makeRows
-  :: Ledger l
-  => (Clatch l -> l (Seq Cell))
-  -- ^ Use makeRow
-  -> Seq (Clatch l)
-  -> l (Seq (Seq Cell))
-makeRows make sq = T.mapM make sq
-
-
--- | A basic format with no colors.
-noColors :: (Amount -> NilOrBrimScalarAnyRadix) -> CellFormatterFromClatch l
-noColors converter = CellFormatterFromClatch $ \_ ->
-  CellFormatter mempty converter (const mempty)
-
-
-alternating
-  :: Colors
-  -> (Clatch l -> Amount -> NilOrBrimScalarAnyRadix)
-  -> CellFormatterFromClatch l
-alternating colors converter = CellFormatterFromClatch f
+-- | Use with 'forward', 'backward', 'file', and 'global', for
+-- instance:
+--
+-- @
+-- 'forward' $ 'global' 'topLine'
+-- @
+topLine :: Ledger l => FileOrGlobal l
+topLine = FileOrGlobal glbl fle
   where
-    f clatch = CellFormatter background (converter clatch) formatter
-      where
-        (Serset (Forward (Serial fwd)) _) = sersetPostFiltered clatch
-        background = if even $ naturalToInteger fwd
-          then evenBackground colors
-          else oddBackground colors
-        formatter lineTag = foregroundSchemeFromRadiant $ case lineTag of
-          Linear Nothing -> neutral colors
-          Linear (Just Debit) -> debit colors
-          Linear (Just Credit) -> credit colors
-          NonLinear -> nonLinear colors
-          Notice -> notice colors
+    glbl clch = do
+      TopLineSer _ (GlobalSer g) <- topLineSer . transactionL $ clch
+      return g
+    fle clch = do
+      TopLineSer (FileSer f) _ <- topLineSer . transactionL $ clch
+      return f
 
-foregroundSchemeFromRadiant :: Radiant -> Scheme
-foregroundSchemeFromRadiant (Radiant c8 c256) = mempty
-  & style8 . fore .~ c8
-  & style256 . fore .~ c256
+-- | Use with 'forward' and 'backward', for instance:
+--
+-- @
+-- 'backward' 'index'
+-- @
+index :: Ledger l => Clatch l -> l Serset
+index clch = do
+  PostingSer _ _ (PostingIndex s) <- postingSer . postingL $ clch
+  return s
+
 
 lightBackground :: Colors
 lightBackground = Colors
-  { debit = R.blue
-  , credit = R.magenta
-  , neutral = R.black
-  , nonLinear = R.black
-  , notice = R.red
-  , oddBackground = mempty
-  , evenBackground = Radiant (Color $ Just white) (Color $ Just 230)
+  { _debit = blue
+  , _credit = magenta
+  , _neutral = black
+  , _nonLinear = black
+  , _notice = red
+  , _oddBackground = mempty
+  , _evenBackground = white <> color256 230
   -- 230: pale yellow
   }
 
 darkBackground :: Colors
 darkBackground = Colors
-  { debit = R.blue
-  , credit = R.magenta
-  , neutral = R.white
-  , nonLinear = R.white
-  , notice = R.red
-  , oddBackground = mempty
-  , evenBackground = Radiant (Color $ Just black) (Color $ Just 237)
+  { _debit = blue
+  , _credit = magenta
+  , _neutral = white
+  , _nonLinear = white
+  , _notice = red
+  , _oddBackground = mempty
+  , _evenBackground = black <> color256 237
   -- 237: grey
   }
--}
