@@ -6,11 +6,12 @@ import Penny.Copper
 import System.Environment
 import qualified System.IO as IO
 import System.Exit
+import qualified Data.Text.IO as X
 
 main :: IO ()
 main = do
   (fn:[]) <- getArgs
-  input <- readFile fn
+  input <- X.readFile fn
   case copperParser input of
     Left e -> do
       IO.hPutStr IO.stderr e

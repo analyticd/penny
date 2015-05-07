@@ -419,6 +419,8 @@ displayTreeL t = liftM2 f (scalar t) (offspring t)
     f sc cs = maybe X.empty displayScalar sc <>
       if Seq.null cs then mempty else X.singleton '↓'
 
+-- | Creates a 'Regcol' with the results from the given 'Matcher'.
+-- The resulting 'Column' in the 'Regcol' has an empty header cell.
 forest
   :: Ledger l
   => Matcher (Clatch l) l (Seq (TreeL l))
