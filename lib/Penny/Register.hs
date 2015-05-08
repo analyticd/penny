@@ -1,5 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | The Register report
 module Penny.Register
@@ -50,6 +53,12 @@ module Penny.Register
   , posting
   , topLine
   , Penny.Register.index
+
+  -- * Register Report
+  , Register(..)
+  , showHeaders
+  , colors
+  , columns
   ) where
 
 import Control.Applicative
@@ -85,6 +94,7 @@ import Penny.Qty
 import qualified Data.Map as M
 import Penny.Balance
 import qualified Data.Foldable as F
+import Penny.Clatcher
 
 -- # High-level formatting
 
@@ -595,3 +605,30 @@ darkBackground = Colors
   , _evenBackground = black <> color256 237
   -- 237: grey
   }
+
+--
+-- # Register
+--
+
+data Register l = Register
+  { _showHeaders :: Bool
+  , _colors :: Colors
+  , _columns :: Seq (Regcol l)
+  }
+
+makeLenses ''Register
+
+-- | For '_showHeaders', 'mempty' is 'False' and 'mappend' is '||'.
+-- For the other two fields, the underlying 'Monoid' instance is used.
+instance Monoid (Register l) where
+  mempty = Register False mempty mempty
+  mappend (Register x0 x1 x2) (Register y0 y1 y2)
+    = Register (x0 || y0) (x1 <> y1) (x2 <> y2)
+
+instance Report Register l where
+  printReport (Register showHeaders colors columns) formatter sq = table cols sq
+    where
+      cols = fmap modifyHeader . fmap (\f -> f colors formatter) $ columns
+      modifyHeader
+        | showHeaders = id
+        | otherwise = header .~ mempty

@@ -41,13 +41,13 @@ import Rainbow
 type Filtereds l = Seq (Filtered (TransactionL l, View (Converted (PostingL l))))
 type AllChunks = (Seq (Chunk Text), Seq (Chunk Text), Seq (Chunk Text))
 
-class Report a where
+class Report a l where
   printReport
     :: Ledger l
-    => a
+    => a l
     -> (Amount -> NilOrBrimScalarAnyRadix)
     -> Seq (Clatch l)
-    -> Seq (Chunk Text)
+    -> l (Seq (Chunk Text))
 
 --
 -- Converter
@@ -194,8 +194,8 @@ smartRender mayRndrer (Renderings rndgs) (Amount cy qt)
     rndrer = maybe (Right Nothing) id mayRndrer
 
 makeReport
-  :: (Loader o l, Ledger l, Report r)
-  => ClatchOptions l r o
+  :: (Loader o l, Ledger l, Report r l)
+  => ClatchOptions l (r l) o
   -> IO AllChunks
 makeReport opts = loadChunks act (_opener opts)
   where
@@ -204,14 +204,14 @@ makeReport opts = loadChunks act (_opener opts)
         allClatches (opts ^. converter . _Wrapped')
                     (_filterer . _pre $ opts)
                     (_sorter opts) (_filterer . _post $ opts)
-      let cks = printReport (_reporter opts)
-                            (smartRender (_renderer opts) rndgs)
-                            cltchs
+      cks <- printReport (_reporter opts)
+                         (smartRender (_renderer opts) rndgs)
+                         cltchs
       return (msgsToChunks msgsPre, msgsToChunks msgsPost, cks)
 
 clatcher
-  :: (Loader o l, Ledger l, Report r)
-  => ClatchOptions l r o
+  :: (Loader o l, Ledger l, Report r l)
+  => ClatchOptions l (r l) o
   -> IO ()
 clatcher opts = do
   (msgsPre, msgsPost, cksRpt) <- makeReport opts
