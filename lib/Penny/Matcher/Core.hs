@@ -5,10 +5,7 @@
 -- Here are the core components of 'Matcher' and matchers for prelude
 -- types.  The idea is that this module could eventually be extracted
 -- from Penny and be a package that Penny depends on.
---
--- So, for matchers on Penny specific types, see
--- "Penny.Queries.Matcher".
-module Penny.Matcher
+module Penny.Matcher.Core
   ( -- * Matcher
     Matcher(..)
 

@@ -47,7 +47,7 @@ import Penny.NonEmpty
 import Penny.Trio
 import Penny.Serial
 import Penny.Balance
-import Penny.Matcher
+import Penny.Matcher.Core
 import Penny.Popularity hiding (rights)
 import Data.Monoid
 import qualified Data.Foldable as F

@@ -7,7 +7,7 @@ import Control.Monad.Trans.Class
 import qualified Data.Foldable as F
 import Control.Applicative
 import Data.Text (Text)
-import Penny.Matcher
+import Penny.Matcher.Core
 import qualified Penny.Lincoln as L hiding (fromTo)
 import qualified Penny.Ledger as L
 import Data.Sequence (Seq)

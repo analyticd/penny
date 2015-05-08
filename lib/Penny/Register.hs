@@ -76,7 +76,7 @@ import Penny.Clatch
 import Penny.Field (displayScalar)
 import Penny.Ledger
 import Penny.Natural
-import Penny.Matcher (Matcher, each, getSubject, study, observe)
+import Penny.Matcher.Core (Matcher, each, getSubject, study, observe)
 import Penny.Queries.Clatch
 import qualified Penny.Queries.Matcher as Q
 import Penny.Representation

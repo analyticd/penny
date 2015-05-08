@@ -27,7 +27,7 @@ import Penny.Clatch
 import Penny.Copper
 import Penny.Ledger
 import Penny.Ledger.Scroll
-import Penny.Matcher
+import Penny.Matcher.Core
 import Penny.Price
 import Penny.Popularity
 import Penny.Representation
