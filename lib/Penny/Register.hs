@@ -33,7 +33,6 @@ module Penny.Register
   , Penny.Register.qty
 
   -- * Forest
-  , findNamedTree
   , displayForestL
   , displayTreeL
   , forest
@@ -61,10 +60,8 @@ module Penny.Register
   , columns
   ) where
 
-import Control.Applicative
 import Control.Lens hiding (each)
 import Control.Monad
-import Control.Monad.Trans.Class
 import Data.Monoid
 import Data.Sequence (Seq, viewl, ViewL(..))
 import qualified Data.Sequence as Seq
@@ -75,9 +72,8 @@ import Penny.Commodity
 import Penny.Clatch
 import Penny.Field (displayScalar)
 import Penny.Ledger
-import Penny.Ledger.Matcher
 import Penny.Natural
-import Penny.Matcher (Matcher, each, getSubject, study, observe)
+import Penny.Matcher (Matcher, observe)
 import Penny.Representation
 import Penny.Serial
 import Penny.Side
@@ -94,8 +90,6 @@ import qualified Data.Map as M
 import Penny.Balance
 import qualified Data.Foldable as F
 import Penny.Clatcher
-import Penny.Semantic.Matcher
-import Penny.Field.Matcher
 
 -- # High-level formatting
 
@@ -375,37 +369,6 @@ sideTxt q = case qtySide q of
 -- # Forest
 --
 
-
--- | Creates a 'Matcher' that looks for a parent tree with the exact
--- name given.  First performs a pre-order search in the metadata of
--- the posting; then performs a pre-order search in the metadata for
--- the top line.  If successful, returns the child forest.
---
--- Use with 'forest'; for example:
---
--- @
--- > :set -XOverloadedStrings
--- > let column = 'forest' $ 'findNamedTree' \"acct\"
--- @
-findNamedTree
-  :: Ledger l
-  => Text
-  -> Matcher (Clatch l) l (Seq (TreeL l))
-findNamedTree txt = matchPstg <|> matchTxn
-  where
-    finder = each . preOrder $ mtcr
-    mtcr = do
-      _ <- Penny.Ledger.Matcher.scalar . text . equal $ txt
-      subj <- getSubject
-      lift $ Penny.Ledger.offspring subj
-    matchTxn = do
-      txn <- fmap transactionL getSubject
-      ts <- lift $ Penny.Ledger.txnMeta txn
-      study finder ts
-    matchPstg = do
-      pstg <- fmap postingL getSubject
-      ts <- lift $ Penny.Ledger.pstgMeta pstg
-      study finder ts
 
 -- | Displays a forest of trees, with each separated by a bullet
 -- (which is U+2022, or •).

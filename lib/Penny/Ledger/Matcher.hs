@@ -6,6 +6,7 @@ import Control.Applicative
 import qualified Data.Foldable as F
 import Control.Monad.Trans.Class
 import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Penny.Exch
 import Penny.Ledger
 import Penny.DateTime
@@ -66,6 +67,16 @@ offspring
   => Matcher (Seq (TreeL m)) m a
   -> Matcher (TreeL m) m a
 offspring = labelNest "offspring" Penny.Ledger.offspring
+
+-- | Succeeds only if this 'TreeL' has no offspring.
+noOffspring
+  :: Ledger m
+  => Matcher (TreeL m) m ()
+noOffspring = Penny.Ledger.Matcher.offspring $ do
+  sq <- getSubject
+  if Seq.null sq
+    then proclaim "tree has offspring" >> accept ()
+    else proclaim "tree has no offspring" >> reject
 
 -- # Trees
 
@@ -154,4 +165,3 @@ postingSer
   => Matcher PostingSer m a
   -> Matcher (PostingL m) m a
 postingSer = labelNest "postingSer" Penny.Ledger.postingSer
-
