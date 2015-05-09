@@ -75,10 +75,9 @@ import Penny.Commodity
 import Penny.Clatch
 import Penny.Field (displayScalar)
 import Penny.Ledger
+import Penny.Ledger.Matcher
 import Penny.Natural
-import Penny.Matcher.Core (Matcher, each, getSubject, study, observe)
-import Penny.Queries.Clatch
-import qualified Penny.Queries.Matcher as Q
+import Penny.Matcher (Matcher, each, getSubject, study, observe)
 import Penny.Representation
 import Penny.Serial
 import Penny.Side
@@ -95,6 +94,8 @@ import qualified Data.Map as M
 import Penny.Balance
 import qualified Data.Foldable as F
 import Penny.Clatcher
+import Penny.Semantic.Matcher
+import Penny.Field.Matcher
 
 -- # High-level formatting
 
@@ -226,7 +227,7 @@ originalQty clrs conv = Column header cell
     cell clatch = do
       commodity <- Penny.Ledger.commodity . postingL $ clatch
       s3 <- liftM (convertQtyToAmount commodity)
-        $ Penny.Queries.Clatch.originalQtyRep clatch
+        $ Penny.Clatch.originalQtyRep clatch
       singleLinearLeftTop clrs clatch (formatQty conv s3)
 
 bestQty
@@ -236,9 +237,9 @@ bestQty clrs conv = Column header cell
   where
     header = headerCell clrs ["qty", "best"]
     cell clatch = do
-      commodity <- Penny.Queries.Clatch.bestCommodity clatch
+      commodity <- Penny.Clatch.bestCommodity clatch
       s3 <- liftM (convertQtyToAmount commodity)
-        $ Penny.Queries.Clatch.bestQtyRep clatch
+        $ Penny.Clatch.bestQtyRep clatch
       singleLinearLeftTop clrs clatch (formatQty conv s3)
 
 bestCommodity
@@ -248,7 +249,7 @@ bestCommodity clrs _ = Column header cell
   where
     header = headerCell clrs ["commodity", "best"]
     cell clatch = do
-      Commodity cy <- Penny.Queries.Clatch.bestCommodity clatch
+      Commodity cy <- Penny.Clatch.bestCommodity clatch
       singleLinearLeftTop clrs clatch cy
 
 originalCommodity :: Ledger l => Regcol l
@@ -290,7 +291,7 @@ bestSide clrs _ = Column header cell
     header = headerCell clrs ["side", "best"]
     cell clatch
       = singleLinearLeftTop clrs clatch . sideTxt
-      <=< Penny.Queries.Clatch.bestQty
+      <=< Penny.Clatch.bestQty
       $ clatch
 
 balanceCellRow
@@ -392,18 +393,18 @@ findNamedTree
   -> Matcher (Clatch l) l (Seq (TreeL l))
 findNamedTree txt = matchPstg <|> matchTxn
   where
-    finder = each . Q.preOrder $ mtcr
+    finder = each . preOrder $ mtcr
     mtcr = do
-      _ <- Q.scalar . Q.text . Q.equal $ txt
+      _ <- Penny.Ledger.Matcher.scalar . text . equal $ txt
       subj <- getSubject
-      lift $ offspring subj
+      lift $ Penny.Ledger.offspring subj
     matchTxn = do
       txn <- fmap transactionL getSubject
-      ts <- lift $ txnMeta txn
+      ts <- lift $ Penny.Ledger.txnMeta txn
       study finder ts
     matchPstg = do
       pstg <- fmap postingL getSubject
-      ts <- lift $ pstgMeta pstg
+      ts <- lift $ Penny.Ledger.pstgMeta pstg
       study finder ts
 
 -- | Displays a forest of trees, with each separated by a bullet
@@ -424,7 +425,7 @@ displayTreeL
   :: Ledger l
   => TreeL l
   -> l Text
-displayTreeL t = liftM2 f (scalar t) (offspring t)
+displayTreeL t = liftM2 f (Penny.Ledger.scalar t) (Penny.Ledger.offspring t)
   where
     f sc cs = maybe X.empty displayScalar sc <>
       if Seq.null cs then mempty else X.singleton '↓'
@@ -549,10 +550,10 @@ posting :: Ledger l => FileOrGlobal l
 posting = FileOrGlobal glbl fle
   where
     glbl clch = do
-      PostingSer _ (GlobalSer g) _ <- postingSer . postingL $ clch
+      PostingSer _ (GlobalSer g) _ <- Penny.Ledger.postingSer . postingL $ clch
       return g
     fle clch = do
-      PostingSer (FileSer f) _ _ <- postingSer . postingL $ clch
+      PostingSer (FileSer f) _ _ <- Penny.Ledger.postingSer . postingL $ clch
       return f
 
 -- | Use with 'forward', 'backward', 'file', and 'global', for
@@ -565,10 +566,10 @@ topLine :: Ledger l => FileOrGlobal l
 topLine = FileOrGlobal glbl fle
   where
     glbl clch = do
-      TopLineSer _ (GlobalSer g) <- topLineSer . transactionL $ clch
+      TopLineSer _ (GlobalSer g) <- Penny.Ledger.topLineSer . transactionL $ clch
       return g
     fle clch = do
-      TopLineSer (FileSer f) _ <- topLineSer . transactionL $ clch
+      TopLineSer (FileSer f) _ <- Penny.Ledger.topLineSer . transactionL $ clch
       return f
 
 -- | Use with 'forward' and 'backward', for instance:
@@ -578,7 +579,7 @@ topLine = FileOrGlobal glbl fle
 -- @
 index :: Ledger l => Clatch l -> l Serset
 index clch = do
-  PostingSer _ _ (PostingIndex s) <- postingSer . postingL $ clch
+  PostingSer _ _ (PostingIndex s) <- Penny.Ledger.postingSer . postingL $ clch
   return s
 
 

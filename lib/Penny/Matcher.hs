@@ -5,7 +5,7 @@
 -- Here are the core components of 'Matcher' and matchers for prelude
 -- types.  The idea is that this module could eventually be extracted
 -- from Penny and be a package that Penny depends on.
-module Penny.Matcher.Core
+module Penny.Matcher
   ( -- * Matcher
     Matcher(..)
 
@@ -38,6 +38,11 @@ module Penny.Matcher.Core
   , right
   , each
   , index
+  , pattern
+
+  -- * Nesting
+  , labelNest
+  , labelNestMaybe
 
   -- * Filtering
   , filterSeq
@@ -69,6 +74,7 @@ import qualified Pipes
 import qualified Data.Foldable as F
 import Data.Text (Text)
 import qualified Data.Text as X
+import Turtle.Pattern
 
 class Chunkable a where
   toChunks :: a -> [Chunk Text] -> [Chunk Text]
@@ -385,6 +391,55 @@ index idx mr = getSubject >>= f
       | otherwise = do
           proclaim . fromString $ "index out of range: " ++ show idx
           reject
+
+
+-- | Creates a 'Matcher' from a Turtle 'Pattern'.
+pattern
+  :: Monad m
+  => Pattern a
+  -> Matcher Text m a
+pattern pat = do
+  txt <- getSubject
+  let mtchs = match pat txt
+  inform . fromString $ "running text pattern on text: " <> show txt
+  (F.asum . fmap (\b -> indent (proclaim "match found" >> accept b)) $ mtchs)
+    <|> (proclaim "no matches found" >> reject)
+
+-- | Nests a 'Matcher' within the current 'Matcher', and adds an
+-- 'L.Opinion' indicating what is going on.
+labelNest
+  :: Monad m
+  => Opinion
+  -- ^ Descriptive text
+  -> (t -> m t')
+  -- ^ Convert the parent type to the nested type
+  -> Matcher t' m a
+  -> Matcher t  m a
+labelNest op conv mtcr = do
+  subj <- getSubject
+  t' <- lift . conv $ subj
+  inform ("nesting: " <> op)
+  indent $ study mtcr t'
+
+
+labelNestMaybe
+  :: Monad m
+  => Opinion
+  -> (t -> m (Maybe t'))
+  -> Matcher t' m a
+  -> Matcher t m a
+labelNestMaybe op get mtcr = do
+  curr <- getSubject
+  mayT' <- lift $ get curr
+  inform $ "attempting to extract field: " <> op
+  case mayT' of
+    Nothing -> proclaim "field not found" >> reject
+    Just t' -> do
+      inform "field found"
+      study mtcr t'
+
+
+
 
 -- | Filters a 'Seq' using a 'Matcher'.
 filterSeq
