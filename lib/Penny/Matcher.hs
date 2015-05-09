@@ -42,7 +42,6 @@ module Penny.Matcher
 
   -- * Nesting
   , labelNest
-  , labelNestMaybe
 
   -- * Filtering
   , filterSeq
@@ -326,12 +325,13 @@ never = proclaim "always fails" >> reject
 -- | Succeeds if the subject is 'Just' and the given matcher succeeds
 -- on the 'Just' value.
 
-just :: Monad m => Matcher s m a -> Matcher (Maybe s) m a
-just m = do
+-- | Extracts the value of the 'Just'; fails if the 'Maybe' is 'Nothing'.
+just :: Monad m => Matcher (Maybe s) m s
+just = do
   mayS <- getSubject
   case mayS of
     Nothing -> proclaim "is Nothing" >> reject
-    Just s -> inform "is Just" >> indent (study m s)
+    Just s -> inform "is Just" >> accept s
 
 -- | Succeeds only if the subject is 'Nothing'.
 
@@ -342,25 +342,23 @@ nothing = do
     Nothing -> proclaim "is Nothing" >> accept ()
     Just _ -> proclaim "is Just" >> reject
 
--- | Succeeds if the 'Either' is 'Left' and it matches the given
--- 'Matcher'.
+-- | Extracts the 'Left' value if there is one.
 
-left :: Monad m => Matcher a m r -> Matcher (Either a b) m r
-left m = do
+left :: Monad m => Matcher (Either a b) m a
+left = do
   tgt <- getSubject
   case tgt of
     Right _ -> proclaim "is Right" >> reject
-    Left l -> inform "is Left" >> indent (study m l)
+    Left l -> inform "is Left" >> accept l
 
 
--- | Succeeds if the 'Either' is 'Left' and it matches the given
--- 'Matcher'.
-right :: Monad m => Matcher a m r -> Matcher (Either b a) m r
-right m = do
+-- | Extracts the 'Right' value if there is one.
+right :: Monad m => Matcher (Either a b) m b
+right = do
   tgt <- getSubject
   case tgt of
     Left _ -> proclaim "is Left" >> reject
-    Right r -> inform "is Right" >> indent (study m r)
+    Right r -> inform "is Right" >> accept r
 
 
 -- | Runs the given 'Matcher' on every item in the foldable sequence.
@@ -386,7 +384,7 @@ index idx mr = getSubject >>= f
   where
     f sq
       | idx >= 0 && idx < Seq.length sq = do
-          inform (fromString $ "applying Matcher so index " ++ show idx)
+          inform (fromString $ "applying Matcher to index " ++ show idx)
           indent $ study mr (sq `Seq.index` idx)
       | otherwise = do
           proclaim . fromString $ "index out of range: " ++ show idx
@@ -420,25 +418,6 @@ labelNest op conv mtcr = do
   t' <- lift . conv $ subj
   inform ("nesting: " <> op)
   indent $ study mtcr t'
-
-
-labelNestMaybe
-  :: Monad m
-  => Opinion
-  -> (t -> m (Maybe t'))
-  -> Matcher t' m a
-  -> Matcher t m a
-labelNestMaybe op get mtcr = do
-  curr <- getSubject
-  mayT' <- lift $ get curr
-  inform $ "attempting to extract field: " <> op
-  case mayT' of
-    Nothing -> proclaim "field not found" >> reject
-    Just t' -> do
-      inform "field found"
-      study mtcr t'
-
-
 
 
 -- | Filters a 'Seq' using a 'Matcher'.

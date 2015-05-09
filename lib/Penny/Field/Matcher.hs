@@ -6,33 +6,18 @@ import Penny.Matcher
 import Penny.Field
 import Data.Text (Text)
 
-text
-  :: Monad m
-  => Matcher Text m a
-  -> Matcher Scalar m a
-text = labelNestMaybe "text" (fmap return scalarChars)
+text :: Monad m => Matcher Scalar m Text
+text = labelNest "text" (fmap return scalarChars) just
 
-date
-  :: Monad m
-  => Matcher Date m a
-  -> Matcher Scalar m a
-date = labelNestMaybe "date" (fmap return scalarDate)
+date :: Monad m => Matcher Scalar m Date
+date = labelNest "date" (fmap return scalarDate) just
 
-time
-  :: Monad m
-  => Matcher Time m a
-  -> Matcher Scalar m a
-time = labelNestMaybe "time" (fmap return scalarTime)
+time :: Monad m => Matcher Scalar m Time
+time = labelNest "time" (fmap return scalarTime) just
 
-zone
-  :: Monad m
-  => Matcher Zone m a
-  -> Matcher Scalar m a
-zone = labelNestMaybe "zone" (fmap return scalarZone)
+zone :: Monad m => Matcher Scalar m Zone
+zone = labelNest "zone" (fmap return scalarZone) just
 
-integer
-  :: Monad m
-  => Matcher Integer m a
-  -> Matcher Scalar m a
-integer = labelNestMaybe "integer" (fmap return scalarInteger)
+integer :: Monad m => Matcher Scalar m Integer
+integer = labelNest "integer" (fmap return scalarInteger) just
 
