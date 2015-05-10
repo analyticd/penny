@@ -97,7 +97,6 @@ mtl = closedOpen "mtl" [2,2,1] [2,3]
 pipesCliff :: Package
 pipesCliff = closedOpen "pipes-cliff" [0,10] [0,11]
 
--- | Currently unused
 logict :: Package
 logict = closedOpen "logict" [0,6] [0,7]
 
@@ -134,6 +133,7 @@ libraryDepends =
   , lens
   , async
   , pipes
+  , logict
   , pipesSafe
   , pipesCliff
   , process

@@ -15,12 +15,9 @@ import Penny.Field
 scalar :: Ledger m => Matcher (TreeL m) m Scalar
 scalar = labelNest "scalar" Penny.Ledger.scalar just
 
-noScalar :: Ledger m => Matcher (TreeL m) m ()
-noScalar = labelNest "no scalar" Penny.Ledger.scalar nothing
-
--- | Succeeds only if this 'TreeL' has no offspring.
-noOffspring :: Ledger m => Matcher (TreeL m) m ()
-noOffspring = do
+-- | Succeds only of this 'TreeL' has offspring.
+hasOffspring :: Ledger m => Matcher (TreeL m) m ()
+hasOffspring = do
   tr <- getSubject
   sq <- lift $ Penny.Ledger.offspring tr
   if Seq.null sq

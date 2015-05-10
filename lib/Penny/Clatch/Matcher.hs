@@ -1,9 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Penny.Clatch.Matcher where
 
-import Control.Monad
 import Control.Applicative
 import Control.Monad.Trans.Class
 import Data.Sequence (Seq)
@@ -17,57 +15,86 @@ import Penny.Field.Matcher
 import Penny.Semantic.Matcher
 import Turtle.Pattern (prefix, suffix)
 
+studyTxnMeta :: Ledger l => Matcher (TreeL l) l a -> Matcher (Clatch l) l a
+studyTxnMeta mr = do
+  subj <- getSubject
+  trees <- lift . txnMeta . transactionL $ subj
+  flip study trees . each $ mr
+
+studyPstgMeta :: Ledger l => Matcher (TreeL l) l a -> Matcher (Clatch l) l a
+studyPstgMeta mr = do
+  subj <- getSubject
+  trees <- lift . pstgMeta . postingL $ subj
+  flip study trees . each $ mr
+
+studyBothMeta :: Ledger l => Matcher (TreeL l) l a -> Matcher (Clatch l) l a
+studyBothMeta mr = studyPstgMeta mr <|> studyTxnMeta mr
+
 -- | Creates a 'Matcher' that looks for a parent tree with the exact
 -- name given.  First performs a pre-order search in the metadata of
 -- the posting; then performs a pre-order search in the metadata for
 -- the top line.  If successful, returns the child forest.
 findNamedTree
-  :: forall l. Ledger l
+  :: Ledger l
   => Text
   -> Matcher (Clatch l) l (Seq (TreeL l))
-findNamedTree name = matchPstg <|> matchTxn
-  where
-
-    mtcr :: forall l. Ledger l => Matcher (TreeL l) l (Seq (TreeL l))
-    mtcr = do
-      sc <- Penny.Ledger.Matcher.scalar
-      txt <- study Penny.Field.Matcher.text sc
-      study (equal name) txt
-      subj <- getSubject
-      lift $ Penny.Ledger.offspring subj
-
-    finder :: forall l. Ledger l => Matcher (Seq (TreeL l)) l (Seq (TreeL l))
-    finder = each . preOrder $ mtcr
-
-    matchTxn :: forall l. Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
-    matchTxn = do
-      txn <- fmap transactionL getSubject
-      ts <- lift $ Penny.Ledger.txnMeta txn
-      study finder ts
-
-    matchPstg :: forall l. Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
-    matchPstg = do
-      pstg <- fmap postingL getSubject
-      ts <- lift $ Penny.Ledger.pstgMeta pstg
-      study finder ts
+findNamedTree name = studyBothMeta $ do
+  sc <- Penny.Ledger.Matcher.scalar
+  txt <- study Penny.Field.Matcher.text sc
+  study (equal name) txt
+  subj <- getSubject
+  lift $ Penny.Ledger.offspring subj
 
 payee :: Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
-payee = standard <|> shortcut
-  where
-    standard = findNamedTree "payee"
-    shortcut = do
-      subj <- getSubject
-      trees <- lift . txnMeta . transactionL $ subj
-      flip study trees . each $ do
-        noOffspring
-        sc <- Penny.Ledger.Matcher.scalar
-        txt <- study text sc
-        invert $ study (pattern (prefix "(" >> suffix ")")) txt
-        fmap Seq.singleton getSubject
+payee = (findNamedTree "payee" <|>) . studyTxnMeta $ do
+  invert hasOffspring
+  sc <- Penny.Ledger.Matcher.scalar
+  txt <- study text sc
+  invert $ study (pattern (prefix "(" >> suffix ")")) txt
+  fmap Seq.singleton getSubject
 
-invert :: MonadPlus m => m a -> m ()
-invert k = do
-  mayR <- (liftM Just k) `mplus` (return Nothing)
-  case mayR of
-    Nothing -> return ()
-    Just _ -> mzero
+account :: Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
+account = (findNamedTree "account" <|>) . studyPstgMeta $ do
+  invert Penny.Ledger.Matcher.scalar
+  hasOffspring
+  getSubject >>= lift . Penny.Ledger.offspring
+
+tags :: Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
+tags = (findNamedTree "tags" <|>) . studyTxnMeta $ do
+  invert Penny.Ledger.Matcher.scalar
+  hasOffspring
+  getSubject >>= lift . Penny.Ledger.offspring
+
+flag :: Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
+flag = (findNamedTree "flag" <|>) . studyBothMeta $ do
+  txt <- Penny.Ledger.Matcher.scalar >>= study text
+  study (pattern (prefix "(" >> suffix ")")) txt
+  invert hasOffspring
+  fmap Seq.singleton getSubject
+
+number :: Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
+number = (findNamedTree "number" <|>) . studyBothMeta $ do
+  Penny.Ledger.Matcher.scalar >>= study integer
+  invert hasOffspring
+  fmap Seq.singleton getSubject
+
+date :: Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
+date = (findNamedTree "date" <|>) . studyTxnMeta $ do
+  Penny.Ledger.Matcher.scalar >>= study Penny.Field.Matcher.date
+  invert hasOffspring
+  fmap Seq.singleton getSubject
+
+time :: Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
+time = (findNamedTree "time" <|>) . studyTxnMeta $ do
+  Penny.Ledger.Matcher.scalar >>= study Penny.Field.Matcher.time
+  invert hasOffspring
+  fmap Seq.singleton getSubject
+
+
+zone :: Ledger l => Matcher (Clatch l) l (Seq (TreeL l))
+zone = (findNamedTree "zone" <|>) . studyTxnMeta $ do
+  Penny.Ledger.Matcher.scalar >>= study Penny.Field.Matcher.zone
+  invert hasOffspring
+  fmap Seq.singleton getSubject
+
+

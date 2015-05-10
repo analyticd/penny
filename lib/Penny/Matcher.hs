@@ -28,6 +28,7 @@ module Penny.Matcher
   , conjoin
   , (&&&)
   , (|||)
+  , invert
 
   -- * For common types
   , always
@@ -299,6 +300,15 @@ infixr 3 &&&
 infixr 2 |||
 
 infixl 1 `disjoin`
+
+invert :: Monad m => Matcher s m a -> Matcher s m ()
+invert k = do
+  inform "inverting"
+  indent $ do
+    mayR <- (liftM Just k) `mplus` (return Nothing)
+    case mayR of
+      Nothing -> proclaim "child matcher failed" >> accept ()
+      Just _ -> proclaim "child matcher succeeded" >> reject
 
 --
 --
