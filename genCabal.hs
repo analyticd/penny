@@ -108,7 +108,7 @@ lens = closedOpen "lens" [4,9] [4,10]
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
-  [ ghcOptions ["-W"]
+  [ ghcOptions ["-W", "-fwarn-missing-signatures"]
   , haskell2010
   , hsSourceDirs ["lib"]
   , otherExtensions ["TemplateHaskell"]
@@ -133,7 +133,6 @@ libraryDepends =
   , lens
   , async
   , pipes
-  , logict
   , pipesSafe
   , pipesCliff
   , process

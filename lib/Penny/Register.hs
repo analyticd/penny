@@ -73,7 +73,7 @@ import Penny.Clatch
 import Penny.Field (displayScalar)
 import Penny.Ledger
 import Penny.Natural
-import Penny.Matcher (Matcher, observe)
+import Penny.Matcher (Matcher, observeAll)
 import Penny.Representation
 import Penny.Serial
 import Penny.Side
@@ -399,20 +399,49 @@ forest
   :: Ledger l
   => Matcher (Clatch l) l (Seq (TreeL l))
   -> Regcol l
-forest mtcr clrs _ = Column mempty $ \clch -> do
-  mayRes <- observe mtcr clch
-  case mayRes of
-    Nothing -> return mempty
-    Just ts -> do
-      txt <- displayForestL ts
-      return $ mempty & rows .~ ( Seq.singleton
-                                . Seq.singleton
-                                . fore (clrs ^. nonLinear)
-                                . back (background clrs clch)
-                                . chunk $ txt)
-                      & Rainbox.background .~ (background clrs clch)
-                      & vertical .~ left
-                      & horizontal .~ top
+forest mtcr clrs _ = Column mempty $ \clch ->
+  observeAll mtcr clch >>= forestCell clch clrs
+
+forestRow
+  :: Ledger l
+  => Colors
+  -> Radiant
+  -> Seq (TreeL l)
+  -> l (Chunk Text)
+forestRow clrs bk = liftM (formatForestRow clrs bk) . displayForestL
+
+formatForestRow
+  :: Colors
+  -> Radiant
+  -> Text
+  -> Chunk Text
+formatForestRow clrs bk
+  = fore (clrs ^. nonLinear)
+  . back bk
+  . chunk
+
+formatForestCell
+  :: Radiant
+  -> Seq (Chunk Text)
+  -> Cell
+formatForestCell bk rws = mempty
+  & rows .~ fmap Seq.singleton rws
+  & Rainbox.background .~ bk
+  & vertical .~ left
+  & horizontal .~ top
+
+forestCell
+  :: Ledger l
+  => Clatch l
+  -> Colors
+  -> Seq (Seq (TreeL l))
+  -> l Cell
+forestCell clch clrs
+  = liftM (formatForestCell bk)
+  . T.mapM (forestRow clrs bk)
+  where
+    bk = background clrs clch
+
 
 spacer :: Monad l => Int -> Regcol l
 spacer i _ _ = spaces i

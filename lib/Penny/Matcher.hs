@@ -13,6 +13,7 @@ module Penny.Matcher
   , getSubject
   , examine
   , observe
+  , observeAll
   , study
 
   -- * Logging
@@ -71,6 +72,7 @@ import Control.Monad.Writer
 import Control.Monad.Reader
 import Pipes hiding (next, each)
 import qualified Pipes
+import qualified Pipes.Prelude as Pipes
 import qualified Data.Foldable as F
 import Data.Text (Text)
 import qualified Data.Text as X
@@ -213,6 +215,16 @@ observe mtcr s = do
   return $ case ei of
     Left _ -> Nothing
     Right (r, _) -> Just r
+
+-- | Extract all results.
+observeAll
+  :: Monad m
+  => Matcher s m a
+  -> s
+  -> m (Seq a)
+observeAll mtcr = liftM (Seq.fromList . fst)
+  . runWriterT . Pipes.toListM . enumerate
+  . examine mtcr
 
 
 -- | Runs a 'Matcher', but with a subject that is different from that
