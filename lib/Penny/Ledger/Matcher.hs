@@ -10,8 +10,6 @@ import Penny.Ledger
 import Penny.Matcher
 import Penny.Field
 
--- # Prices
-
 scalar :: Ledger m => Matcher (TreeL m) m Scalar
 scalar = labelNest "scalar" Penny.Ledger.scalar just
 

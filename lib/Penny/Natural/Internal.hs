@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE BangPatterns, GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_HADDOCK not-home #-}
 module Penny.Natural.Internal where
 
@@ -6,9 +6,10 @@ import Penny.Digit
 import Data.Foldable (Foldable, toList)
 import Data.Sequence (Seq, ViewR(..), viewr)
 import Penny.PluMin
+import Penny.Semantic
 
 newtype Positive = Positive { positiveToInteger :: Integer }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
 class IsPositive a where
   toPositive :: a -> Positive
@@ -33,7 +34,7 @@ instance IsPositive D8 where toPositive = Positive . digitToInt
 instance IsPositive D9 where toPositive = Positive . digitToInt
 
 newtype Unsigned = Unsigned { unsignedToInteger :: Integer }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
 class IsUnsigned a where
   toUnsigned :: a -> Unsigned

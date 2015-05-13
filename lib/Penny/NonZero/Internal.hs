@@ -1,11 +1,13 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Penny.NonZero.Internal where
 
 import Penny.Natural.Internal
 import Penny.Offset
 import Penny.PluMin
+import Penny.Semantic
 
 newtype NonZero = NonZero { nonZeroToInteger :: Integer }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
 nonZeroSign :: NonZero -> PluMin
 nonZeroSign (NonZero i)

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Penny.Serial where
 
 import Control.Applicative
@@ -8,9 +9,10 @@ import Control.Monad.Trans.State
 import Penny.Representation
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
+import Penny.Semantic
 
 newtype Serial = Serial Unsigned
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
 newtype Forward = Forward Serial
   deriving (Eq, Ord, Show)

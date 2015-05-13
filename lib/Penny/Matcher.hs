@@ -394,23 +394,19 @@ each mtcr = do
   inform "running matcher for each item in sequence"
   F.asum . fmap (indent . study mtcr) $ sq
 
--- | Runs the given 'Matcher' on the 'Seq' item at the given index, if
--- the index is in range.  Returns no matches if the index is out of
--- range.
 index
   :: Monad m
   => Int
-  -> Matcher s m a
-  -> Matcher (Seq s) m a
-index idx mr = getSubject >>= f
+  -> Matcher (Seq s) m s
+index idx = getSubject >>= f
   where
     f sq
-      | idx >= 0 && idx < Seq.length sq = do
-          inform (fromString $ "applying Matcher to index " ++ show idx)
-          indent $ study mr (sq `Seq.index` idx)
-      | otherwise = do
-          proclaim . fromString $ "index out of range: " ++ show idx
-          reject
+      | idx >= 0 && idx < Seq.length sq =
+          proclaim ("index " <> fromString (show idx) <> " is in range")
+          >> accept (sq `Seq.index` idx)
+      | otherwise =
+          proclaim ("index " <> fromString (show idx) <> " is out of range")
+          >> reject
 
 
 -- | Creates a 'Matcher' from a Turtle 'Pattern'.

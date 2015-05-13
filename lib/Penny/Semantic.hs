@@ -16,6 +16,14 @@ class SemanticEq a => SemanticOrd a where
 instance SemanticEq Text where
   semanticEq = (==)
 
+-- | Two 'Integer' are semantically equal if they are equal using
+-- '=='.
+instance SemanticEq Integer where
+  semanticEq = (==)
+
+instance SemanticOrd Integer where
+  semanticOrd = compare
+
 instance (SemanticEq a, SemanticEq b) => SemanticEq (Either a b) where
   semanticEq (Left x) (Left y) = semanticEq x y
   semanticEq (Right x) (Right y) = semanticEq x y
