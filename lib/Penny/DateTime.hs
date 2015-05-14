@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Penny.DateTime
   ( Date
   , fromGregorian
@@ -19,9 +20,10 @@ import qualified Data.Time as T
 import Penny.Representation
 import Penny.PluMin
 import Penny.Display
+import Penny.Semantic
 
 newtype Date = Date { dateToDay :: T.Day }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
 instance Display Date where
   display (Date dt)
@@ -38,37 +40,6 @@ fromGregorian y m d = fmap Date $ T.fromGregorianValid y m d
 
 c'Date'Day :: T.Day -> Date
 c'Date'Day = Date
-
-data Time = Time Hours Minutes Seconds
-  deriving (Eq, Ord, Show)
-
-instance Display Time where
-  display (Time hrs mins ss@(Seconds (ZeroTo59 mayD1 d2)))
-    = display hrs . (':':) . display mins . case (mayD1, d2) of
-      (Nothing, D9z'0) -> id
-      _ -> (':':) . display ss
-
-midnight :: Time
-midnight = Time (H0to19 (Just D1z'0) D9z'0)
-  (Minutes (ZeroTo59 (Just D5z'0) D9z'0))
-  (Seconds (ZeroTo59 (Just D5z'0) D9z'0))
-
--- | An instant in time.  This is a local time.  The 'Eq' and 'Ord'
--- instances are derived, so they aren't useful for determining
--- whether two 'DateTime' refer to the same instant in time; for that,
--- convert the times to UTC times using 'dateTimeToUTC' and then
--- compare those.
-data DateTime = DateTime Date Time Zone
-  deriving (Eq, Ord, Show)
-
-dateTimeToUTC :: DateTime -> T.UTCTime
-dateTimeToUTC (DateTime (Date day) (Time h (Minutes m) (Seconds s)) z)
-  = T.localTimeToUTC tz lt
-  where
-    tz = T.TimeZone (c'Int'Zone z) False ""
-    lt = T.LocalTime day tod
-    tod = T.TimeOfDay (c'Int'Hours h) (c'Int'ZeroTo59 m)
-      (fromIntegral . c'Int'ZeroTo59 $ s)
 
 data Hours
   = H0to19 (Maybe D1z) D9z
@@ -129,4 +100,35 @@ c'Int'Zone (Zone pm d3 d2 d1 d0)
   where
     changeSign = case pm of { Minus -> negate; Plus -> id }
     places np dig = digitToInt dig * 10 ^ (np `asTypeOf` undefined :: Int)
+
+data Time = Time Hours Minutes Seconds
+  deriving (Eq, Ord, Show)
+
+instance Display Time where
+  display (Time hrs mins ss@(Seconds (ZeroTo59 mayD1 d2)))
+    = display hrs . (':':) . display mins . case (mayD1, d2) of
+      (Nothing, D9z'0) -> id
+      _ -> (':':) . display ss
+
+midnight :: Time
+midnight = Time (H0to19 (Just D1z'0) D9z'0)
+  (Minutes (ZeroTo59 (Just D5z'0) D9z'0))
+  (Seconds (ZeroTo59 (Just D5z'0) D9z'0))
+
+-- | An instant in time.  This is a local time.  The 'Eq' and 'Ord'
+-- instances are derived, so they aren't useful for determining
+-- whether two 'DateTime' refer to the same instant in time; for that,
+-- convert the times to UTC times using 'dateTimeToUTC' and then
+-- compare those.
+data DateTime = DateTime Date Time Zone
+  deriving (Eq, Ord, Show)
+
+dateTimeToUTC :: DateTime -> T.UTCTime
+dateTimeToUTC (DateTime (Date day) (Time h (Minutes m) (Seconds s)) z)
+  = T.localTimeToUTC tz lt
+  where
+    tz = T.TimeZone (c'Int'Zone z) False ""
+    lt = T.LocalTime day tod
+    tod = T.TimeOfDay (c'Int'Hours h) (c'Int'ZeroTo59 m)
+      (fromIntegral . c'Int'ZeroTo59 $ s)
 

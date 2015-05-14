@@ -1,6 +1,7 @@
 module Penny.Semantic where
 
 import Data.Text (Text)
+import Data.Time (Day)
 
 -- | Compares things that might have different representations that
 -- have the same semantic meaning.  There are no formal properties for
@@ -12,6 +13,10 @@ class SemanticEq a where
 class SemanticEq a => SemanticOrd a where
   semanticOrd :: a -> a -> Ordering
 
+-- | Two 'Day' are semantically equal if they test equal using '=='.
+instance SemanticEq Day where
+  semanticEq = (==)
+
 -- | Two 'Text' are semantically equal if they test equal using '=='.
 instance SemanticEq Text where
   semanticEq = (==)
@@ -22,6 +27,9 @@ instance SemanticEq Integer where
   semanticEq = (==)
 
 instance SemanticOrd Integer where
+  semanticOrd = compare
+
+instance SemanticOrd Day where
   semanticOrd = compare
 
 instance (SemanticEq a, SemanticEq b) => SemanticEq (Either a b) where
