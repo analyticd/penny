@@ -16,6 +16,7 @@ import qualified Data.Map as M
 import qualified Data.Text as X
 import Data.Sequence (Seq)
 import Penny.Mimode
+import Penny.Semantic
 
 data Orient
   = CommodityOnLeft

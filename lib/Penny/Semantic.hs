@@ -37,3 +37,10 @@ instance (SemanticEq a, SemanticEq b) => SemanticEq (Either a b) where
   semanticEq (Right x) (Right y) = semanticEq x y
   semanticEq _ _ = False
 
+newtype Semantic a = Semantic a deriving Show
+
+instance SemanticEq a => Eq (Semantic a) where
+  Semantic x == Semantic y = semanticEq x y
+
+instance SemanticOrd a => Ord (Semantic a) where
+  compare (Semantic x) (Semantic y) = semanticOrd x y

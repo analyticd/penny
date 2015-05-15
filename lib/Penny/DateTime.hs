@@ -21,6 +21,7 @@ import Penny.Representation
 import Penny.PluMin
 import Penny.Display
 import Penny.Semantic
+import Data.Ord
 
 newtype Date = Date { dateToDay :: T.Day }
   deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
@@ -57,6 +58,12 @@ c'Int'Hours h = case h of
     where d1 = maybe 0 digitToInt mayD1
   H20to23 d3-> 20 + digitToInt d3
 
+instance SemanticEq Hours where
+  semanticEq x y = c'Int'Hours x == c'Int'Hours y
+
+instance SemanticOrd Hours where
+  semanticOrd = comparing c'Int'Hours
+
 data ZeroTo59 = ZeroTo59 (Maybe D5z) D9z
   deriving (Eq, Ord, Show)
 
@@ -68,14 +75,20 @@ c'Int'ZeroTo59 :: ZeroTo59 -> Int
 c'Int'ZeroTo59 (ZeroTo59 mayD5 d9)
   = ((maybe 0 digitToInt mayD5) * 10) + digitToInt d9
 
+instance SemanticEq ZeroTo59 where
+  semanticEq x y = c'Int'ZeroTo59 x == c'Int'ZeroTo59 y
+
+instance SemanticOrd ZeroTo59 where
+  semanticOrd = comparing c'Int'ZeroTo59
+
 newtype Minutes = Minutes ZeroTo59
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
 instance Display Minutes where
   display (Minutes z) = display z
 
 newtype Seconds = Seconds ZeroTo59
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
 instance Display Seconds where
   display (Seconds s) = display s
@@ -101,8 +114,27 @@ c'Int'Zone (Zone pm d3 d2 d1 d0)
     changeSign = case pm of { Minus -> negate; Plus -> id }
     places np dig = digitToInt dig * 10 ^ (np `asTypeOf` undefined :: Int)
 
+instance SemanticEq Zone where
+  semanticEq x y = c'Int'Zone x == c'Int'Zone y
+
+instance SemanticOrd Zone where
+  semanticOrd = comparing c'Int'Zone
+
 data Time = Time Hours Minutes Seconds
   deriving (Eq, Ord, Show)
+
+instance SemanticEq Time where
+  semanticEq (Time xh (Minutes xm) (Seconds xs))
+             (Time yh (Minutes ym) (Seconds ys))
+    = (c'Int'Hours xh, c'Int'ZeroTo59 xm, c'Int'ZeroTo59 xs) ==
+      (c'Int'Hours yh, c'Int'ZeroTo59 ym, c'Int'ZeroTo59 ys)
+
+instance SemanticOrd Time where
+  semanticOrd (Time xh (Minutes xm) (Seconds xs))
+             (Time yh (Minutes ym) (Seconds ys))
+    = compare
+      (c'Int'Hours xh, c'Int'ZeroTo59 xm, c'Int'ZeroTo59 xs)
+      (c'Int'Hours yh, c'Int'ZeroTo59 ym, c'Int'ZeroTo59 ys)
 
 instance Display Time where
   display (Time hrs mins ss@(Seconds (ZeroTo59 mayD1 d2)))
@@ -132,3 +164,8 @@ dateTimeToUTC (DateTime (Date day) (Time h (Minutes m) (Seconds s)) z)
     tod = T.TimeOfDay (c'Int'Hours h) (c'Int'ZeroTo59 m)
       (fromIntegral . c'Int'ZeroTo59 $ s)
 
+instance SemanticEq DateTime where
+  semanticEq x y = dateTimeToUTC x == dateTimeToUTC y
+
+instance SemanticOrd DateTime where
+  semanticOrd = comparing dateTimeToUTC

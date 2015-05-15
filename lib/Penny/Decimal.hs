@@ -4,7 +4,6 @@ module Penny.Decimal
     Decimal(..)
   , HasDecimal(..)
   , HasExponent(..)
-  , Semantic(..)
   , DecNonZero(..)
   , HasDecNonZero(..)
   , DecUnsigned(..)
@@ -48,6 +47,7 @@ import Data.Monoid
 import Penny.Offset
 import Penny.PluMin
 import Data.List (genericSplitAt, genericReplicate)
+import Penny.Semantic
 
 -- | Decimal numbers.  The precision is limited only by the machine's
 -- available memory (or, more realistically, by how big a number the
@@ -140,19 +140,13 @@ instance Num Decimal where
   signum (Decimal mx _) = Decimal (signum mx) (toUnsigned Zero)
   fromInteger i = Decimal i (toUnsigned Zero)
 
--- | Compares 'Decimal' based on semantics rather than actual values;
--- does this by first equalizing exponents before performing
--- comparisons.
-newtype Semantic = Semantic Decimal
-  deriving Show
-
-instance Eq Semantic where
-  Semantic x == Semantic y =
+instance SemanticEq Decimal where
+  semanticEq x y =
     let (Decimal mx _, Decimal my _) = equalizeExponents x y
     in mx == my
 
-instance Ord Semantic where
-  compare (Semantic x) (Semantic y) =
+instance SemanticOrd Decimal where
+  semanticOrd x y =
     let (Decimal mx _, Decimal my _) = equalizeExponents x y
     in compare mx my
 

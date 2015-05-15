@@ -1,12 +1,13 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving #-}
 module Penny.Exch where
 
 import Penny.PluMin
 import Penny.Decimal
 import Penny.Representation
+import Penny.Semantic
 
 newtype Exch = Exch Decimal
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
 class HasExch a where
   toExch :: a -> Exch

@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Quantities.  A quantity is a signed decimal number; however, it
 -- always represents quantities that may be a debit or a credit (as
 -- opposed to prices, which do not have a debit or credit.)
@@ -44,9 +45,10 @@ import Penny.NonZero
 import Penny.Offset
 import Penny.PluMin
 import Penny.Display
+import Penny.Semantic
 
 newtype Qty = Qty Decimal
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
 class HasQty a where
   toQty :: a -> Qty
