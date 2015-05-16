@@ -9,7 +9,8 @@ import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import Penny.Clatch
 import Penny.Ledger
-import Penny.Ledger.Matcher
+import Penny.Ledger.Matcher (hasOffspring)
+import qualified Penny.Ledger.Matcher
 import Penny.Matcher
 import Penny.Field.Matcher
 import Penny.Semantic.Matcher

@@ -1,5 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
+
+-- | Streams of textual data that can be printed to terminals or sent
+-- to files.
 module Penny.Stream where
 
 import Control.Lens
