@@ -73,7 +73,7 @@ data Octavo t l = Octavo
 makeLenses ''Octavo
 
 instance Monad l => Monoid (Octavo t l) where
-  mempty = Octavo empty (return mempty)
+  mempty = Octavo Control.Applicative.empty (return mempty)
   Octavo x0 x1 `mappend` Octavo y0 y1 = Octavo (x0 <|> y0)
     ((<>) <$> x1 <*> y1)
 
