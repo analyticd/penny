@@ -58,6 +58,15 @@ module Penny.Register
   , showHeaders
   , colors
   , columns
+
+  -- * Convenient sets of columns
+  , (|+>)
+  , (<+|)
+  , (<+>)
+  , amount
+  , balances
+  , datePayeeAccount
+  , register
   ) where
 
 import Control.Lens hiding (each)
@@ -70,16 +79,19 @@ import qualified Data.Traversable as T
 import Penny.Amount
 import Penny.Commodity
 import Penny.Clatch
+import Penny.Clatch.Matcher (date, payee, account)
 import Penny.Field (displayScalar)
-import Penny.Ledger
+import Penny.Ledger (Ledger, TreeL)
+import qualified Penny.Ledger
 import Penny.Natural
 import Penny.Matcher (Matcher, observeAll)
+import Penny.Report
 import Penny.Representation
 import Penny.Serial
 import Penny.Side
 import Penny.Transaction
 import Rainbow
-import Rainbox hiding (background)
+import Rainbox hiding (background, spacer)
 import qualified Rainbox
 import Penny.Column
 import Data.Sums
@@ -89,7 +101,6 @@ import Penny.Qty
 import qualified Data.Map as M
 import Penny.Balance
 import qualified Data.Foldable as F
-import Penny.Clatcher
 
 -- # High-level formatting
 
@@ -618,10 +629,68 @@ instance Monoid (Register l) where
   mappend (Register x0 x1 x2) (Register y0 y1 y2)
     = Register (x0 || y0) (x1 <> y1) (x2 <> y2)
 
-instance Report Register l where
+instance Report Register where
   printReport (Register showHeaders colors columns) formatter sq = table cols sq
     where
       cols = fmap modifyHeader . fmap (\f -> f colors formatter) $ columns
       modifyHeader
         | showHeaders = id
         | otherwise = header .~ mempty
+
+--
+-- # Default reports
+--
+
+
+-- | Appends a single column to the end; adds a spacer if the list of
+-- columns is not empty.
+(<+|) :: Monad a => Regcol a -> Seq (Regcol a) -> Seq (Regcol a)
+r <+| sq
+  | Seq.null sq = Seq.singleton r
+  | otherwise = r <| spacer 1 <| sq
+
+infixr 5 <+|
+
+-- | Appends a single column to the end; adds a spacer if the list of
+-- columns is not empty.
+(|+>) :: Monad a => Seq (Regcol a) -> Regcol a -> Seq (Regcol a)
+sq |+> r
+  | Seq.null sq = Seq.singleton r
+  | otherwise = sq |> spacer 1 |> r
+
+infixl 5 |+>
+
+-- | Puts two lists of columns together; adds a spacer if both lists
+-- are not empty.
+(<+>) :: Monad a => Seq (Regcol a) -> Seq (Regcol a) -> Seq (Regcol a)
+l <+> r
+  | not (Seq.null l) && not (Seq.null r) = l <> Seq.singleton (spacer 1) <> r
+  | otherwise = l <> r
+
+infixr 6 <+>
+
+-- | The amount for this posting.
+amount :: Ledger l => Seq (Regcol l)
+amount = mempty
+  |+> side ^. best
+  |+> commodity ^. best
+  |+> qty ^. best
+
+-- | Balances for this posting.
+balances :: Ledger l => Seq (Regcol l)
+balances = mempty
+  |+> side ^. balance
+  |+> commodity ^. best
+  |+> qty ^. best
+
+-- | The date, payee, and account fields.
+datePayeeAccount :: Ledger l => Seq (Regcol l)
+datePayeeAccount = mempty
+  |+> forest date
+  |+> forest payee
+  |+> forest account
+
+-- | A default register report.  Shows the date, payee, account,
+-- amount, and balances.
+register :: Ledger l => Seq (Regcol l)
+register = datePayeeAccount <+> amount <+> balances

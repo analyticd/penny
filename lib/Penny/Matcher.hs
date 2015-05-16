@@ -15,6 +15,7 @@ module Penny.Matcher
   , observe
   , observeAll
   , study
+  , tunnel
 
   -- * Logging
   , accept
@@ -248,6 +249,11 @@ study mtcr s = Matcher $ do
     Matcher rt = do
       r <- mtcr
       return r
+
+-- | Lifts a function into a 'Matcher'.  All subjects are morphed by
+-- the function and the result is passed through as is.
+tunnel :: Monad m => (a -> m b) -> Matcher a m b
+tunnel f = getSubject >>= lift . f
 
 -- | Run this Matcher with the logs indented one level.
 indent

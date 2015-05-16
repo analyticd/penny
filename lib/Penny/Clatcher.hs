@@ -15,11 +15,8 @@
 -- then places them into multiple 'Clatch'.  The resulting postings
 -- are filtered in multiple ways, sorted, and sent to a report.
 module Penny.Clatcher
-  ( -- * Reports
-    Report(..)
-
-    -- * Converter
-  , Converter(..)
+  (  -- * Converter
+    Converter(..)
 
     -- * Octavo
   , Octavo(..)
@@ -76,28 +73,16 @@ import Penny.Ledger
 import Penny.Ledger.Scroll
 import Penny.Matcher
 import Penny.Price
+import Penny.Register
+import Penny.Report
 import Penny.Popularity
+import Penny.Prefilt
 import Penny.Representation
 import Penny.SeqUtil
 import Penny.Stream
 import Penny.Transaction
 import Rainbow
 
-
--- | Things that can produce a report.  @a@ is the type of the report
--- itself, while @l@ is the 'Ledger'.  For an example instance,
--- see 'Penny.Register.Register'.
-class Report a l where
-  printReport
-    :: Ledger l
-    => a l
-    -- ^ The report to print
-    -> (Amount -> NilOrBrimScalarAnyRadix)
-    -- ^ Represents calculated amounts
-    -> Seq (Clatch l)
-    -- ^ Sequence of 'Clatch' for which to prepare a report
-    -> l (Seq (Chunk Text))
-    -- ^ The resulting report
 
 --
 -- Converter
@@ -312,7 +297,7 @@ smartRender mayRndrer (Renderings rndgs) (Amount cy qt)
     rndrer = maybe (Right Nothing) id mayRndrer
 
 makeReport
-  :: (Loader o l, Ledger l, Report r l)
+  :: (Loader o l, Ledger l, Report r)
   => ClatchOptions l (r l) o
   -> IO Folio
 makeReport opts = loadChunks act (_loader opts)
@@ -332,7 +317,7 @@ makeReport opts = loadChunks act (_loader opts)
         }
 
 clatcher
-  :: (Loader o l, Ledger l, Report r l)
+  :: (Loader o l, Ledger l, Report r)
   => ClatchOptions l (r l) o
   -> IO ()
 clatcher opts = do
@@ -345,12 +330,31 @@ clatcher opts = do
 -- | A reasonable set of defaults for 'ClatchOptions'.  You could use
 -- 'mempty', but that results in a 'ClatchOptions' that will do
 -- nothing.
+--
+-- Defaults:
+--
+-- * If automatic rendering fails, the radix point is a period and
+-- grouping is performed with commas
+--
+-- * The pre-filter accepts all postings
+--
+-- * The post-filter accepts all postings
+--
+-- * Report output is sent to @less@
+--
+-- * The 'register' report is used
+--
+-- * Column headings are not shown
+--
+-- * Colors for a light background are used
 
 presets
-  :: (Monoid (r l), Monoid o, Monad l)
-  => ClatchOptions l (r l) o
+  :: (Monoid o, Ledger l)
+  => ClatchOptions l (Register l) o
 presets = mempty
   & renderer .~ Just (Right . Just $ Comma)
   & pre.filterer .~ always
   & post.filterer .~ always
   & output .~ toStream toLess
+  & reporter.columns .~ register
+  & reporter.colors .~ lightBackground
