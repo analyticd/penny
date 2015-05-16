@@ -30,6 +30,7 @@ module Penny.Matcher
   , (&&&)
   , (|||)
   , invert
+  , feed
 
   -- * For common types
   , always
@@ -202,16 +203,6 @@ instance Monad m => MonadPlus (Matcher s m) where
 getSubject :: Monad m => Matcher s m s
 getSubject = Matcher $ asks fst
 
--- | Connects two 'Matcher' together.  Forms a category, with 'feed'
--- being the composition operator and 'getSubject' being the identity.
-
-feed :: Monad m => Matcher a m b -> Matcher b m c -> Matcher a m c
-feed mab mbc = Matcher . ReaderT $ \pair -> do
-  b <- run mab pair
-  run mbc (b, snd pair)
-  where
-    run (Matcher mr) s = runReaderT mr s
-
 -- | Applies a 'Matcher' to a particular subject.
 examine
   :: Matcher s m a
@@ -328,6 +319,7 @@ infixr 2 |||
 
 infixl 1 `disjoin`
 
+-- | Reverses the result of the given matcher.
 invert :: Monad m => Matcher s m a -> Matcher s m ()
 invert k = do
   inform "inverting"
@@ -336,6 +328,18 @@ invert k = do
     case mayR of
       Nothing -> proclaim "child matcher failed" >> accept ()
       Just _ -> proclaim "child matcher succeeded" >> reject
+
+-- | Connects two 'Matcher' together.  Forms a category, with 'feed'
+-- being the composition operator and 'getSubject' being the identity.
+
+feed :: Monad m => Matcher a m b -> Matcher b m c -> Matcher a m c
+feed mab mbc = Matcher . ReaderT $ \pair -> do
+  b <- run mab pair
+  run mbc (b, snd pair)
+  where
+    run (Matcher mr) s = runReaderT mr s
+
+infixr 1 `feed`
 
 --
 --
