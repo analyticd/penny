@@ -34,6 +34,9 @@ module Penny.Matcher
   -- * For common types
   , always
   , never
+  , true
+  , false
+  , Penny.Matcher.empty
   , just
   , nothing
   , left
@@ -77,6 +80,8 @@ import qualified Data.Foldable as F
 import Data.Text (Text)
 import qualified Data.Text as X
 import Turtle.Pattern
+import qualified Control.Lens as L
+import qualified Control.Lens.Extras as L
 
 class Chunkable a where
   toChunks :: a -> [Chunk Text] -> [Chunk Text]
@@ -181,7 +186,7 @@ newtype Matcher s m a
   deriving (Functor, Applicative, Monad, MonadIO)
 
 instance Monad m => Alternative (Matcher s m) where
-  empty = Matcher empty
+  empty = Matcher Control.Applicative.empty
   (Matcher x) <|> (Matcher y) = Matcher (x <|> y)
 
 instance MonadTrans (Matcher s) where
@@ -264,7 +269,7 @@ accept a = logger (Verdict Accepted) >> return a
 
 -- | Rejects a value; adds an entry to the log.
 reject :: Monad m => Matcher s m a
-reject = logger (Verdict Rejected) >> empty
+reject = logger (Verdict Rejected) >> Control.Applicative.empty
 
 -- | Posts a notice to the log.
 notify :: Monad m => Opinion -> Matcher s m ()
@@ -326,23 +331,32 @@ invert k = do
 --
 --
 
--- | Always succeeds and returns a single value of the unit type.
--- Handy with various other combinators:
---
--- @
--- -- Succeeds on any 'Just'
--- 'just' 'always' :: 'Matcher' ('Maybe' a) m ()
---
--- -- Succeeds on any 'Left'
--- 'left' 'always' :: 'Matcher' ('Either' a b) m ()
---
--- @
+-- | Always succeeds.
 always :: Monad m => Matcher s m ()
 always = proclaim "always matches" >> accept ()
 
 -- | Always fails.
 never :: Monad m => Matcher s m a
 never = proclaim "always fails" >> reject
+
+-- | Succeeds if the subject is 'True'.
+true :: Monad m => Matcher Bool m ()
+true = getSubject >>= f where
+  f True = proclaim "is True" >> accept ()
+  f False = proclaim "is False" >> reject
+
+-- | Succeeds if the subject is 'False'.
+false :: Monad m => Matcher Bool m ()
+false = getSubject >>= f where
+  f True = proclaim "is True" >> reject
+  f False = proclaim "is False" >> accept ()
+
+-- | Succeeds if its subject is an instance of 'L.AsEmpty' and is
+-- empty.  Works for 'Text', 'Seq', lists, and more.
+empty :: (Monad m, L.AsEmpty a) => Matcher a m ()
+empty = getSubject >>= f where
+  f x | L.is L._Empty x = proclaim "is empty" >> accept ()
+      | otherwise = proclaim "is not empty" >> reject
 
 -- | Succeeds if the subject is 'Just' and the given matcher succeeds
 -- on the 'Just' value.

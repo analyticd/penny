@@ -2,7 +2,7 @@
 
 module Penny.Ledger.Matcher where
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import qualified Data.Foldable as F
 import Control.Monad.Trans.Class
 import qualified Data.Sequence as Seq
