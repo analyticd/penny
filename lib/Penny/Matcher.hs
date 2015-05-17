@@ -494,3 +494,24 @@ filterSeq mtcr = F.foldlM f (Seq.empty, Seq.empty)
       return $ case ei of
         Left _ -> (msgs |> lg, mtchs)
         Right _ -> (msgs |> lg, mtchs |> subj)
+
+
+-- | Filters a 'Seq' using a 'Matcher'.
+filter
+  :: Monad m
+  => Matcher s m a
+  -- ^ Filter using this 'Matcher'.  The subject is included in the
+  -- result if the 'Matcher' returns a single value of any type.
+  -> (Seq Message -> m ())
+  -- ^ What to do with the messages from filtering
+  -> Seq s
+  -- ^ Filter this sequence
+  -> m (Seq s)
+filter mtcr logger = F.foldlM f Seq.empty
+  where
+    f mtchs subj = do
+      (ei, lg) <- runWriterT . Pipes.next . enumerate . examine mtcr $ subj
+      logger lg
+      return $ case ei of
+        Left _ -> mtchs
+        Right _ -> mtchs |> subj
