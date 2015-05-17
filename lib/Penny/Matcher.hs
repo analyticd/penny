@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TemplateHaskell #-}
 -- | Matchers.
 --
 -- Here are the core components of 'Matcher' and matchers for prelude
@@ -148,6 +149,14 @@ data Message = Message Nesting Payload
 
 instance Chunkable Message where
   toChunks (Message n p) = toChunks n . toChunks p . (chunk "\n":)
+
+data Env s m = Env
+  { _subject :: s
+  , _outstream :: Message -> m ()
+  , _nesting :: Nesting
+  }
+
+L.makeLenses ''Env
 
 
 -- | A 'Matcher' is a computation that, when run with a value known as
