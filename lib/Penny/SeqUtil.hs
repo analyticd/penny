@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE TemplateHaskell #-}
 -- |
 -- Utilities for "Data.Sequence".
 
@@ -16,12 +17,19 @@ module Penny.SeqUtil
   , rights
 
   -- * Views
-  , Viewer(..)
-  , seqFromView
   , View(..)
+  , nextView
+  , previousView
+  , seqFromView
   , allViews
+
+  -- ** View lenses
+  , onLeft
+  , onView
+  , onRight
   ) where
 
+import Control.Lens.TH
 import Control.Applicative hiding (empty)
 import Control.Monad (liftM)
 import Data.Sequence
@@ -117,25 +125,13 @@ rights sq = case viewl sq of
     Left _ -> rights xs
     Right r -> r <| rights xs
 
--- | An interface for a view on a sequence.  There is always a current
--- item on view.
---
--- Does not include functions to construct the view; depending on the
--- particular view, such functions might break the internal
--- consistency of the view.
+data View a = View
+  { _onLeft :: (Seq a)
+  , _onView :: a
+  , _onRight :: (Seq a)
+  }
 
-class Viewer a where
-  type Viewed (a :: *) :: *
-  onLeft :: a -> Seq (Viewed a)
-  onRight :: a -> Seq (Viewed a)
-  onView :: a -> Viewed a
-  nextView :: a -> Maybe a
-  previousView :: a -> Maybe a
-
-seqFromView :: Viewer a => a -> Seq (Viewed a)
-seqFromView v = (onLeft v |> onView v) <> onRight v
-
-data View a = View (Seq a) a (Seq a)
+makeLenses ''View
 
 instance Functor View where
   fmap f (View l c r) = View (fmap f l) (f c) (fmap f r)
@@ -146,17 +142,18 @@ instance F.Foldable View where
 instance T.Traversable View where
   sequenceA (View l c r) = View <$> T.sequenceA l <*> c <*> T.sequenceA r
 
-instance Viewer (View a) where
-  type Viewed (View a) = a
-  onLeft (View l _ _) = l
-  onRight (View _ _ r) = r
-  onView (View _ c _) = c
-  nextView (View l c r) = case viewl r of
-    EmptyL -> Nothing
-    x :< xs -> Just (View (l |> c) x xs)
-  previousView (View l c r) = case viewr l of
-    EmptyR -> Nothing
-    xs :> x -> Just (View xs x (c <| r))
+nextView :: View a -> Maybe (View a)
+nextView (View l c r) = case viewl r of
+  EmptyL -> Nothing
+  x :< xs -> Just (View (l |> c) x xs)
+
+previousView :: View a -> Maybe (View a)
+previousView (View l c r) = case viewr l of
+  EmptyR -> Nothing
+  xs :> x -> Just (View xs x (c <| r))
+
+seqFromView :: View a -> Seq a
+seqFromView v = (_onLeft v |> _onView v) <> _onRight v
 
 allViews :: Seq a -> Seq (View a)
 allViews = go empty

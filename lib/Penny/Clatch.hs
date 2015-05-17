@@ -137,7 +137,7 @@ updateRenderings
   -- ^
 updateRenderings (Renderings mp) (_, pv) = liftM f (trio pstg)
   where
-    Converted _ pstg = onView pv
+    Converted _ pstg = _onView pv
     f tri = case trioRendering tri of
       Nothing -> Renderings mp
       Just (cy, ar, ei) -> Renderings $ case M.lookup cy mp of
@@ -206,7 +206,7 @@ addRunningBalance
   . T.mapM addBestAmount
   where
     addBestAmount (srtd@(Sorted (Sersetted _ (Filtered (Sersetted _ (_, vw))))))
-      = liftM2 (,) (return srtd) (bestAmount . onView $ vw)
+      = liftM2 (,) (return srtd) (bestAmount . _onView $ vw)
     addBal acc (fl, amt) = (acc', new)
       where
         acc' = acc <> c'Balance'Amount amt
@@ -262,7 +262,7 @@ postingL
   (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
     (Filtered (Sersetted _ (_, vw)))))))) = pstg
   where
-    Converted _ pstg = onView vw
+    Converted _ pstg = _onView vw
 
 -- | Gets the 'Amount' after conversion, if any conversion took place.
 convertedAmount
@@ -272,7 +272,7 @@ convertedAmount
   (Filtered (Sersetted _ (RunningBalance _ (Sorted (Sersetted _
     (Filtered (Sersetted _ (_, vw)))))))) = mayAmt
   where
-    Converted mayAmt _ = onView vw
+    Converted mayAmt _ = _onView vw
 
 -- | Gets the 'TransactionL' from a 'Clatch'.
 transactionL
