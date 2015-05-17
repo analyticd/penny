@@ -18,6 +18,10 @@ newtype Renderings = Renderings
          (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
   deriving (Eq, Ord, Show)
 
+instance Monoid Renderings where
+  mempty = Renderings M.empty
+  mappend (Renderings x) (Renderings y) = Renderings $ M.unionWith (<>) x y
+
 -- | Represents a 'Qty' as \"smartly\" as possible, based on how its
 -- corresponding 'Commodity' has been represented in the past.
 --
