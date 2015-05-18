@@ -52,12 +52,16 @@ module Penny.Matcher
   , labelNest
 
   -- * Filtering
-  , filterSeq
+  , filter
 
   -- * Rendering messages
   , Chunkable(..)
 
   -- * Basement
+  , Env(..)
+  , subject
+  , outstream
+  , nesting
   , logger
   , Nesting(..)
   , Opinion(..)
@@ -68,7 +72,6 @@ module Penny.Matcher
   ) where
 
 import Control.Applicative
-import Data.Bifunctor
 import Data.Sequence (Seq, (|>))
 import qualified Data.Sequence as Seq
 import Data.String
@@ -83,8 +86,10 @@ import qualified Data.Foldable as F
 import Data.Text (Text)
 import qualified Data.Text as X
 import Turtle.Pattern
+import Control.Lens ((.~))
 import qualified Control.Lens as L
 import qualified Control.Lens.Extras as L
+import Prelude hiding (filter)
 
 class Chunkable a where
   toChunks :: a -> [Chunk Text] -> [Chunk Text]
@@ -193,7 +198,7 @@ L.makeLenses ''Env
 -- bindings are provided in this module that should allow you to
 -- interact with computations of this type.
 newtype Matcher s m a
-  = Matcher (ReaderT (s, Nesting) (ListT (WriterT (Seq Message) m)) a)
+  = Matcher (ReaderT (Env s m) (ListT m) a)
   deriving (Functor, Applicative, Monad, MonadIO)
 
 instance Monad m => Alternative (Matcher s m) where
@@ -201,7 +206,7 @@ instance Monad m => Alternative (Matcher s m) where
   (Matcher x) <|> (Matcher y) = Matcher (x <|> y)
 
 instance MonadTrans (Matcher s) where
-  lift act = Matcher (lift . lift . lift $ act)
+  lift act = Matcher (lift . lift $ act)
 
 instance Monad m => MonadPlus (Matcher s m) where
   mzero = Matcher mzero
@@ -211,14 +216,16 @@ instance Monad m => MonadPlus (Matcher s m) where
 
 -- | Gets the current subject under study.
 getSubject :: Monad m => Matcher s m s
-getSubject = Matcher $ asks fst
+getSubject = Matcher $ asks _subject
 
 -- | Applies a 'Matcher' to a particular subject.
 examine
   :: Matcher s m a
+  -> (Message -> m ())
+  -- ^ What to do with log messages
   -> s
-  -> ListT (WriterT (Seq Message) m) a
-examine (Matcher rt) s = runReaderT rt (s, Nesting 0)
+  -> ListT m a
+examine (Matcher rt) lg s = runReaderT rt (Env s lg (Nesting 0))
 
 -- | Extract the first result, if there is one.
 observe
@@ -227,7 +234,7 @@ observe
   -> s
   -> m (Maybe a)
 observe mtcr s = do
-  (ei, _) <- runWriterT . Pipes.next . enumerate . examine mtcr $ s
+  ei <- Pipes.next . enumerate . examine mtcr (const (return ())) $ s
   return $ case ei of
     Left _ -> Nothing
     Right (r, _) -> Just r
@@ -238,9 +245,9 @@ observeAll
   => Matcher s m a
   -> s
   -> m (Seq a)
-observeAll mtcr = liftM (Seq.fromList . fst)
-  . runWriterT . Pipes.toListM . enumerate
-  . examine mtcr
+observeAll mtcr = liftM Seq.fromList
+  . Pipes.toListM . enumerate
+  . examine mtcr (const (return ()))
 
 
 -- | Runs a 'Matcher', but with a subject that is different from that
@@ -251,13 +258,9 @@ study
   => Matcher s m a
   -> s
   -> Matcher s' m a
-study mtcr s = Matcher $ do
-  nst <- asks snd
-  withReaderT (const (s, nst)) rt
-  where
-    Matcher rt = do
-      r <- mtcr
-      return r
+study (Matcher rt) s = Matcher $ do
+  Env _ out nst <- ask
+  withReaderT (const (Env s out nst)) rt
 
 -- | Lifts a function into a 'Matcher'.  All subjects are morphed by
 -- the function and the result is passed through as is.
@@ -269,15 +272,17 @@ indent
   :: Monad m
   => Matcher s m a
   -> Matcher s m a
-indent (Matcher i) = Matcher $ withReaderT (second succ) i
+indent (Matcher i) = Matcher $ withReaderT (L.over nesting succ) i
 
 -- # Logging
 
 -- | Logs a single message.
 logger :: Monad m => Payload -> Matcher s m ()
-logger msg = Matcher $ do
-  nstg <- asks snd
-  tell . Seq.singleton $ Message nstg msg
+logger pay = Matcher $ do
+  nstg <- asks _nesting
+  out <- asks _outstream
+  let msg = Message nstg pay
+  lift . lift $ out msg
 
 -- | Accepts a value; adds an entry to the log.
 accept :: Monad m => a -> Matcher s m a
@@ -348,9 +353,9 @@ invert k = do
 -- being the composition operator and 'getSubject' being the identity.
 
 feed :: Monad m => Matcher a m b -> Matcher b m c -> Matcher a m c
-feed mab mbc = Matcher . ReaderT $ \pair -> do
-  b <- run mab pair
-  run mbc (b, snd pair)
+feed mab mbc = Matcher . ReaderT $ \trip -> do
+  b <- run mab trip
+  run mbc (trip & subject .~ b)
   where
     run (Matcher mr) s = runReaderT mr s
 
@@ -482,36 +487,12 @@ labelNest op conv mtcr = do
 
 
 -- | Filters a 'Seq' using a 'Matcher'.
-filterSeq
-  :: Monad m
-  => Matcher s m a
-  -- ^ Filter using this 'Matcher'.  The subject is included in the
-  -- result if the 'Matcher' returns a single value of any type.
-  -> Seq s
-  -- ^ Filter this sequence
-  -> m (Seq (Seq Message), Seq s)
-  -- ^ Retuns a pair @(ms, ss)@ where
-  --
-  -- @ms@ is a sequence of sequences, with one sequence of messages
-  -- for every original element.  The length of @ms@ is equal to the
-  -- length of the input sequence.  @ss@ is the result of the
-  -- filtering.
-filterSeq mtcr = F.foldlM f (Seq.empty, Seq.empty)
-  where
-    f (msgs, mtchs) subj = do
-      (ei, lg) <- runWriterT . Pipes.next . enumerate . examine mtcr $ subj
-      return $ case ei of
-        Left _ -> (msgs |> lg, mtchs)
-        Right _ -> (msgs |> lg, mtchs |> subj)
-
-
--- | Filters a 'Seq' using a 'Matcher'.
 filter
   :: Monad m
   => Matcher s m a
   -- ^ Filter using this 'Matcher'.  The subject is included in the
   -- result if the 'Matcher' returns a single value of any type.
-  -> (Seq Message -> m ())
+  -> (Message -> m ())
   -- ^ What to do with the messages from filtering
   -> Seq s
   -- ^ Filter this sequence
@@ -519,8 +500,7 @@ filter
 filter mtcr logger = F.foldlM f Seq.empty
   where
     f mtchs subj = do
-      (ei, lg) <- runWriterT . Pipes.next . enumerate . examine mtcr $ subj
-      logger lg
+      ei <- Pipes.next . enumerate . examine mtcr logger $ subj
       return $ case ei of
         Left _ -> mtchs
         Right _ -> mtchs |> subj
