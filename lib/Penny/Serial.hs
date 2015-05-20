@@ -1,31 +1,47 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TemplateHaskell, TypeFamilies, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Penny.Serial where
 
+import Control.Lens
 import Control.Applicative
 import Penny.Natural
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import Penny.Representation
 import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
 import Penny.Semantic
 
 newtype Serial = Serial Unsigned
   deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
+makeWrapped ''Serial
+
 newtype Forward = Forward Serial
   deriving (Eq, Ord, Show)
+
+makeWrapped ''Forward
 
 newtype Backward = Backward Serial
   deriving (Eq, Ord, Show)
 
-data Serset = Serset Forward Backward
-  deriving (Eq, Ord, Show)
+makeWrapped ''Backward
+
+data Serset = Serset
+  { _forward :: Forward
+  , _backward :: Backward
+  } deriving (Eq, Ord, Show)
+
+makeLenses ''Serset
 
 -- | Things that have a Serset.
-data Sersetted a = Sersetted Serset a
-  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+data Sersetted a = Sersetted
+  { _serset :: Serset
+  , _sersetee :: a
+  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+makeLenses ''Sersetted
 
 assignSersetted :: T.Traversable t => t a -> t (Sersetted a)
 assignSersetted t = flip evalState (toUnsigned Zero) $ do

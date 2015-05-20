@@ -1,5 +1,8 @@
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Balance where
 
+import Control.Lens
 import Penny.Amount
 import qualified Data.Foldable as F
 import Penny.Decimal
@@ -7,6 +10,8 @@ import Penny.Commodity
 import Penny.Qty
 import qualified Data.Map as M
 import Data.Monoid
+import Data.Foldable (Foldable)
+import qualified Data.Traversable as T
 
 newtype Balance = Balance (M.Map Commodity Qty)
   deriving (Eq, Ord, Show)
@@ -50,3 +55,23 @@ instance Monoid Imbalance where
   mappend x y =
     c'Imbalance'Balance $ mappend
       (c'Balance'Imbalance x) (c'Balance'Imbalance y)
+
+
+-- | Thing that is accompanied by a running balance.
+data RunningBalance a = RunningBalance
+  { _balance :: Balance
+  , _balancee :: a
+  } deriving (Functor, Foldable, Traversable)
+
+makeLenses ''RunningBalance
+
+runningBalances
+  :: Traversable t
+  => t Amount
+  -> t (RunningBalance ())
+runningBalances = snd . T.mapAccumL addBal mempty
+  where
+    addBal acc am = (acc', new)
+      where
+        acc' = acc <> c'Balance'Amount am
+        new = RunningBalance acc' ()

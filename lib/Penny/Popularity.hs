@@ -1,15 +1,20 @@
 module Penny.Popularity where
 
+import Control.Lens
+import Control.Monad
 import Data.Semigroup
 import qualified Data.Foldable as F
 import qualified Data.Map as M
 import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Penny.Commodity
 import Penny.Mimode
 import Penny.NonEmpty
 import Penny.Qty
 import Penny.Representation
 import Penny.Trio
+import Penny.Ledger
+import Penny.Converted
 
 
 -- | Map describing how different 'Commodity' are rendered.
@@ -124,4 +129,16 @@ rights = F.foldr f []
     f ei acc = case ei of
       Left _ -> acc
       Right r -> r : acc
+
+
+votePosting
+  :: Ledger l
+  => Converted (PostingL l)
+  -> l Renderings
+votePosting = liftM f . trio . (^. convertee)
+  where
+    f tri = case trioRendering tri of
+      Nothing -> mempty
+      Just (cy, ar, ei) -> Renderings
+        $ M.singleton cy (NonEmpty (ar, ei) Seq.empty)
 

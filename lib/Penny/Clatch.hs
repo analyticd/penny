@@ -26,6 +26,24 @@
 -- report that has a running balance that includes an entire set of
 -- postings, but that only shows postings of interest.
 
+module Penny.Clatch where
+
+import Control.Lens
+import Penny.Converted
+import Penny.Ledger
+import Penny.SeqUtil
+import Data.Foldable (Foldable)
+import Penny.Transbox
+import Penny.Prefilt
+import Penny.Viewpost
+import Penny.Sorted
+import Penny.Filtered
+
+type Clatch l
+  = Transbox l (Viewpost l (Converted (Filtered (Sorted (Filtered ())))))
+
+{-
+
 module Penny.Clatch
   ( Converted(..)
   , Filtered(..)
@@ -350,3 +368,4 @@ bestCommodity
 bestCommodity clch = case convertedAmount clch of
   Just (Amount cy _) -> return cy
   Nothing -> commodity . postingL $ clch
+-}
