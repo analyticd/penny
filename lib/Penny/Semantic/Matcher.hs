@@ -2,6 +2,7 @@
 
 module Penny.Semantic.Matcher where
 
+import Control.Applicative
 import Data.Monoid
 import Penny.Matcher
 import Penny.Display
@@ -14,11 +15,9 @@ equal
   -> Matcher s m s
 equal tgt = do
   subj <- getSubject
-  let subjStr = fromString $ display subj ""
-      tgtStr = fromString $ display tgt ""
   if semanticEq subj tgt
-    then proclaim (subjStr <> " is equal to " <> tgtStr) >> accept subj
-    else proclaim (subjStr <> " is not equal to " <> tgtStr) >> reject
+    then return subj
+    else empty
 
 
 greater
@@ -27,11 +26,9 @@ greater
   -> Matcher s m s
 greater tgt = do
   subj <- getSubject
-  let subjStr = fromString $ display subj ""
-      tgtStr = fromString $ display tgt ""
   if semanticOrd subj tgt == GT
-    then proclaim (subjStr <> " is greater than " <> tgtStr) >> accept subj
-    else proclaim (subjStr <> " is not greater than " <> tgtStr) >> reject
+    then return subj
+    else empty
 
 less
   :: (SemanticOrd s, Display s, Monad m)
@@ -39,8 +36,6 @@ less
   -> Matcher s m s
 less tgt = do
   subj <- getSubject
-  let subjStr = fromString $ display subj ""
-      tgtStr = fromString $ display tgt ""
   if semanticOrd subj tgt == LT
-    then proclaim (subjStr <> " is less than " <> tgtStr) >> accept subj
-    else proclaim (subjStr <> " is not less than " <> tgtStr) >> reject
+    then return subj
+    else empty

@@ -13,7 +13,12 @@ import Penny.Serial
 import Data.Foldable
 
 -- | A single sort key.
-data SortKey f k a = SortKey (k -> k -> Ordering) (a -> f k)
+data SortKey f k a = SortKey
+  { _orderer :: (k -> k -> Ordering)
+  , _puller :: (a -> f k)
+  }
+
+makeLenses ''SortKey
 
 instance Contravariant (SortKey f k) where
   contramap f (SortKey cmp get) = SortKey cmp (get . f)

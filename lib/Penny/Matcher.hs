@@ -19,28 +19,13 @@ module Penny.Matcher
   , study
   , tunnel
 
-  -- * Logging
-  , accept
-  , reject
-  , notify
-  , inform
-  , proclaim
-  , indent
-
   -- * Combining 'Matcher'
-  , disjoin
-  , conjoin
-  , (&&&)
-  , (|||)
   , invert
   , feed
 
   -- * For common types
-  , always
-  , never
   , true
   , false
-  , Penny.Matcher.empty
   , just
   , nothing
   , left
@@ -49,37 +34,13 @@ module Penny.Matcher
   , index
   , pattern
 
-  -- * Nesting
-  , nest
-  , nestM
-  , labelNest
-
   -- * Filtering
   , filter
-
-  -- * Rendering messages
-  , Chunkable(..)
-
-  -- * Basement
-  , Env(..)
-  , subject
-  , outstream
-  , nesting
-  , logger
-  , Nesting(..)
-  , Opinion(..)
-  , Verdict(..)
-  , Level(..)
-  , Payload(..)
-  , Message(..)
   ) where
 
 import Control.Applicative
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.String
-import Rainbow
-import Data.Monoid
 import Control.Monad.Writer
 import Control.Monad.Reader
 import Pipes hiding (next, each)
@@ -87,85 +48,9 @@ import qualified Pipes
 import qualified Pipes.Prelude as Pipes
 import qualified Data.Foldable as F
 import Data.Text (Text)
-import qualified Data.Text as X
 import Turtle.Pattern
 import Control.Lens hiding (Level, each, index)
-import qualified Control.Lens as L
-import qualified Control.Lens.Extras as L
 import Prelude hiding (filter)
-
-class Chunkable a where
-  toChunks :: a -> [Chunk Text] -> [Chunk Text]
-
--- | Indicates the current level of nesting.  This is used for logging
--- purposes.  You can increase nesting by using the 'nest'
--- functions.
-newtype Nesting = Nesting Int
-  deriving (Eq, Ord, Show, Enum)
-
-instance Chunkable Nesting where
-  toChunks (Nesting i) = ((chunk $ X.replicate i " ") :)
-
-
--- | Some text describing a logged action.
-newtype Opinion = Opinion [Chunk Text]
-  deriving (Eq, Ord, Show)
-
-instance Chunkable Opinion where
-  toChunks (Opinion ls) = (ls ++)
-
-instance IsString Opinion where
-  fromString = Opinion . (:[]) . chunk . X.pack
-
-instance Monoid Opinion where
-  mempty = Opinion []
-  mappend (Opinion x) (Opinion y) = Opinion (x ++ y)
-
-data Verdict = Accepted | Rejected
-  deriving (Eq, Ord, Show, Enum, Bounded)
-
-instance Chunkable Verdict where
-  toChunks v = bracketed $ case v of
-    Accepted -> chunk "accepted" & fore green
-    Rejected -> chunk "rejected" & fore red
-    where
-      bracketed ck = ([chunk "[", ck, chunk "]"] ++)
-
-data Level = Proclamation | Notice | Info
-  deriving (Eq, Ord, Show, Enum, Bounded)
-
-instance Chunkable Level where
-  toChunks lvl = bracketed $ case lvl of
-    Proclamation -> "proclaim"
-    Notice -> "notice"
-    Info -> "info"
-    where
-      bracketed ck = ([chunk "[", chunk ck, chunk "]"] ++)
-
-data Payload
-  = Verdict Verdict
-  | Missive Level Opinion
-  deriving (Eq, Ord, Show)
-
-instance Chunkable Payload where
-  toChunks pay = case pay of
-    Verdict v -> toChunks v
-    Missive l o -> (toChunks l . (chunk " " :) .  toChunks o)
-
-data Message = Message Nesting Payload
-  deriving (Eq, Ord, Show)
-
-instance Chunkable Message where
-  toChunks (Message n p) = toChunks n . toChunks p . (chunk "\n":)
-
-data Env s m = Env
-  { _subject :: s
-  , _outstream :: Message -> m ()
-  , _nesting :: Nesting
-  }
-
-L.makeLenses ''Env
-
 
 -- | A 'Matcher' is a computation that, when run with a value known as
 -- the @subject@, returns any number of @matches@.  The type variables
@@ -200,8 +85,7 @@ L.makeLenses ''Env
 -- You should not have to worry about the innards of 'Matcher';
 -- bindings are provided in this module that should allow you to
 -- interact with computations of this type.
-newtype Matcher s m a
-  = Matcher (ReaderT (Env s m) (ListT m) a)
+newtype Matcher s m a = Matcher (ReaderT s (ListT m) a)
   deriving (Functor, Applicative, Monad, MonadIO)
 
 instance Monad m => Alternative (Matcher s m) where
@@ -219,16 +103,14 @@ instance Monad m => MonadPlus (Matcher s m) where
 
 -- | Gets the current subject under study.
 getSubject :: Monad m => Matcher s m s
-getSubject = Matcher $ asks _subject
+getSubject = Matcher ask
 
 -- | Applies a 'Matcher' to a particular subject.
 examine
   :: Matcher s m a
-  -> (Message -> m ())
-  -- ^ What to do with log messages
   -> s
   -> ListT m a
-examine (Matcher rt) lg s = runReaderT rt (Env s lg (Nesting 0))
+examine (Matcher rt) s = runReaderT rt s
 
 -- | Extract the first result, if there is one.
 observe
@@ -237,7 +119,7 @@ observe
   -> s
   -> m (Maybe a)
 observe mtcr s = do
-  ei <- Pipes.next . enumerate . examine mtcr (const (return ())) $ s
+  ei <- Pipes.next . enumerate . examine mtcr $ s
   return $ case ei of
     Left _ -> Nothing
     Right (r, _) -> Just r
@@ -250,7 +132,7 @@ observeAll
   -> m (Seq a)
 observeAll mtcr = liftM Seq.fromList
   . Pipes.toListM . enumerate
-  . examine mtcr (const (return ()))
+  . examine mtcr
 
 
 -- | Runs a 'Matcher', but with a subject that is different from that
@@ -261,104 +143,26 @@ study
   => Matcher s m a
   -> s
   -> Matcher s' m a
-study (Matcher rt) s = Matcher $ do
-  Env _ out nst <- ask
-  withReaderT (const (Env s out nst)) rt
+study mr s = tunnel (const (return s)) `feed` mr
 
 -- | Lifts a function into a 'Matcher'.  All subjects are morphed by
 -- the function and the result is passed through as is.
 tunnel :: Monad m => (a -> m b) -> Matcher a m b
 tunnel f = getSubject >>= lift . f
 
--- | Run this Matcher with the logs indented one level.
-indent
-  :: Monad m
-  => Matcher s m a
-  -> Matcher s m a
-indent (Matcher i) = Matcher $ withReaderT (L.over nesting succ) i
-
--- # Logging
-
--- | Logs a single message.
-logger :: Monad m => Payload -> Matcher s m ()
-logger pay = Matcher $ do
-  nstg <- asks _nesting
-  out <- asks _outstream
-  let msg = Message nstg pay
-  lift . lift $ out msg
-
--- | Accepts a value; adds an entry to the log.
-accept :: Monad m => a -> Matcher s m a
-accept a = logger (Verdict Accepted) >> return a
-
--- | Rejects a value; adds an entry to the log.
-reject :: Monad m => Matcher s m a
-reject = logger (Verdict Rejected) >> Control.Applicative.empty
-
--- | Posts a notice to the log.
-notify :: Monad m => Opinion -> Matcher s m ()
-notify op = logger (Missive Notice op)
-
--- | Posts an Info to the log.
-inform :: Monad m => Opinion -> Matcher s m ()
-inform op = logger (Missive Info op)
-
--- | Posts a Result indicating that computation is done.
-proclaim :: Monad m => Opinion -> Matcher s m ()
-proclaim op = logger (Missive Proclamation op)
-
-disjoin
-  :: Monad m
-  => Matcher s m a
-  -- ^
-  -> Matcher s m a
-  -- ^
-  -> Matcher s m a
-disjoin x y = do
-  inform "Disjunction"
-  indent ( inform "disjunction, first branch" >> indent x)
-    <|> indent (inform "disjunction, second branch" >> indent y)
-
-
-conjoin
-  :: Monad m
-  => Matcher s m a
-  -- ^
-  -> (a -> Matcher s m b)
-  -- ^
-  -> Matcher s m b
-conjoin ma f = do
-  inform "conjunction"
-  a <- indent (inform "conjunction, first branch" >> indent ma)
-  indent (inform "conjunction, second branch" >> indent (f a))
-
-(&&&) :: Monad m => Matcher s m a -> Matcher s m b -> Matcher s m b
-(&&&) x y = conjoin x (const y)
-infixr 3 &&&
-
-(|||) :: Monad m => Matcher s m a -> Matcher s m a -> Matcher s m a
-(|||) x y = disjoin x y
-infixr 2 |||
-
-infixl 1 `disjoin`
-
 -- | Reverses the result of the given matcher.
 invert :: Monad m => Matcher s m a -> Matcher s m ()
 invert k = do
-  inform "inverting"
-  indent $ do
-    mayR <- (liftM Just k) `mplus` (return Nothing)
-    case mayR of
-      Nothing -> proclaim "child matcher failed" >> accept ()
-      Just _ -> proclaim "child matcher succeeded" >> reject
+  mayR <- optional k
+  case mayR of
+    Nothing -> return ()
+    Just _ -> mzero
 
 -- | Connects two 'Matcher' together.  Forms a category, with 'feed'
 -- being the composition operator and 'getSubject' being the identity.
 
 feed :: Monad m => Matcher a m b -> Matcher b m c -> Matcher a m c
-feed mab mbc = Matcher . ReaderT $ \trip -> do
-  b <- run mab trip
-  run mbc (trip & subject .~ b)
+feed mab mbc = Matcher . ReaderT $ \subj -> run mab subj >>= run mbc
   where
     run (Matcher mr) s = runReaderT mr s
 
@@ -368,70 +172,35 @@ infixr 1 `feed`
 --
 --
 
--- | Always succeeds.
-always :: Monad m => Matcher s m ()
-always = proclaim "always matches" >> accept ()
-
--- | Always fails.
-never :: Monad m => Matcher s m a
-never = proclaim "always fails" >> reject
-
 -- | Succeeds if the subject is 'True'.
 true :: Monad m => Matcher Bool m ()
 true = getSubject >>= f where
-  f True = proclaim "is True" >> accept ()
-  f False = proclaim "is False" >> reject
+  f True = return ()
+  f False = mzero
 
 -- | Succeeds if the subject is 'False'.
 false :: Monad m => Matcher Bool m ()
 false = getSubject >>= f where
-  f True = proclaim "is True" >> reject
-  f False = proclaim "is False" >> accept ()
-
--- | Succeeds if its subject is an instance of 'L.AsEmpty' and is
--- empty.  Works for 'Text', 'Seq', lists, and more.
-empty :: (Monad m, L.AsEmpty a) => Matcher a m ()
-empty = getSubject >>= f where
-  f x | L.is L._Empty x = proclaim "is empty" >> accept ()
-      | otherwise = proclaim "is not empty" >> reject
-
--- | Succeeds if the subject is 'Just' and the given matcher succeeds
--- on the 'Just' value.
+  f True = mzero
+  f False = return ()
 
 -- | Extracts the value of the 'Just'; fails if the 'Maybe' is 'Nothing'.
 just :: Monad m => Matcher (Maybe s) m s
-just = do
-  mayS <- getSubject
-  case mayS of
-    Nothing -> proclaim "is Nothing" >> reject
-    Just s -> inform "is Just" >> accept s
+just = getSubject >>= maybe mzero return
 
 -- | Succeeds only if the subject is 'Nothing'.
 
 nothing :: Monad m => Matcher (Maybe a) m ()
-nothing = do
-  tgt <- getSubject
-  case tgt of
-    Nothing -> proclaim "is Nothing" >> accept ()
-    Just _ -> proclaim "is Just" >> reject
+nothing = getSubject >>= maybe (return ()) (const mzero)
 
 -- | Extracts the 'Left' value if there is one.
 
 left :: Monad m => Matcher (Either a b) m a
-left = do
-  tgt <- getSubject
-  case tgt of
-    Right _ -> proclaim "is Right" >> reject
-    Left l -> inform "is Left" >> accept l
-
+left = getSubject >>= either return (const mzero)
 
 -- | Extracts the 'Right' value if there is one.
 right :: Monad m => Matcher (Either a b) m b
-right = do
-  tgt <- getSubject
-  case tgt of
-    Left _ -> proclaim "is Left" >> reject
-    Right r -> inform "is Right" >> accept r
+right = getSubject >>= either (const mzero) return
 
 
 -- | Runs the given 'Matcher' on every item in the foldable sequence.
@@ -442,8 +211,7 @@ each
   -> Matcher (f s) m a
 each mtcr = do
   sq <- getSubject
-  inform "running matcher for each item in sequence"
-  F.asum . fmap (indent . study mtcr) $ sq
+  F.asum . fmap (study mtcr) $ sq
 
 index
   :: Monad m
@@ -452,12 +220,8 @@ index
 index idx = getSubject >>= f
   where
     f sq
-      | idx >= 0 && idx < Seq.length sq =
-          proclaim ("index " <> fromString (show idx) <> " is in range")
-          >> accept (sq `Seq.index` idx)
-      | otherwise =
-          proclaim ("index " <> fromString (show idx) <> " is out of range")
-          >> reject
+      | idx >= 0 && idx < Seq.length sq = return (sq `Seq.index` idx)
+      | otherwise = mzero
 
 
 -- | Creates a 'Matcher' from a Turtle 'Pattern'.
@@ -465,35 +229,7 @@ pattern
   :: Monad m
   => Pattern a
   -> Matcher Text m a
-pattern pat = do
-  txt <- getSubject
-  let mtchs = match pat txt
-  inform . fromString $ "running text pattern on text: " <> show txt
-  (F.asum . fmap (\b -> indent (proclaim "match found" >> accept b)) $ mtchs)
-    <|> (proclaim "no matches found" >> reject)
-
-nest :: Monad m => Getting s a s -> Matcher s m c -> Matcher a m c
-nest l = feed (tunnel (return . view l))
-
-nestM :: Monad m => Getting (m b) a (m b) -> Matcher b m c -> Matcher a m c
-nestM l = feed (tunnel (view l))
-
--- | Nests a 'Matcher' within the current 'Matcher', and adds an
--- 'L.Opinion' indicating what is going on.
-labelNest
-  :: Monad m
-  => Opinion
-  -- ^ Descriptive text
-  -> (t -> m t')
-  -- ^ Convert the parent type to the nested type
-  -> Matcher t' m a
-  -> Matcher t  m a
-labelNest op conv mtcr = do
-  subj <- getSubject
-  t' <- lift . conv $ subj
-  inform ("nesting: " <> op)
-  indent $ study mtcr t'
-
+pattern pat = getSubject >>= F.asum . fmap return . match pat
 
 -- | Filters a 'Seq' using a 'Matcher'.
 filter
@@ -501,15 +237,13 @@ filter
   => Matcher s m a
   -- ^ Filter using this 'Matcher'.  The subject is included in the
   -- result if the 'Matcher' returns a single value of any type.
-  -> (Message -> m ())
-  -- ^ What to do with the messages from filtering
   -> Seq s
   -- ^ Filter this sequence
   -> m (Seq s)
-filter mtcr logger = F.foldlM f Seq.empty
+filter mtcr = F.foldlM f Seq.empty
   where
     f mtchs subj = do
-      ei <- Pipes.next . enumerate . examine mtcr logger $ subj
+      ei <- Pipes.next . enumerate . examine mtcr $ subj
       return $ case ei of
         Left _ -> mtchs
         Right _ -> mtchs |> subj
