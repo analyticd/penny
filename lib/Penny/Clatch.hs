@@ -29,8 +29,10 @@
 module Penny.Clatch where
 
 import Control.Lens
+import Control.Monad
 import Penny.Converted
-import Penny.Ledger
+import Penny.Ledger (TreeL, Ledger)
+import qualified Penny.Ledger
 import Penny.SeqUtil
 import Data.Foldable (Foldable)
 import Penny.Transbox
@@ -38,9 +40,17 @@ import Penny.Prefilt
 import Penny.Viewpost
 import Penny.Sorted
 import Penny.Filtered
+import Data.Sequence (Seq)
+import Data.Monoid
 
 type Clatch l
   = Transbox l (Viewpost l (Converted (Filtered (Sorted (Filtered ())))))
+
+pstgMeta :: Ledger l => Transbox l (Viewpost l a) -> l (Seq (TreeL l))
+pstgMeta = Penny.Ledger.pstgMeta . view (transboxee.viewpost.onView)
+
+allMeta :: Ledger l => Transbox l (Viewpost l a) -> l (Seq (TreeL l))
+allMeta t = liftM2 mappend (pstgMeta t) (txnMeta t)
 
 {-
 

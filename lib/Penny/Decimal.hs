@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Penny.Decimal
   (
   -- * Decimal types and classes
@@ -37,17 +38,22 @@ module Penny.Decimal
   , repDigits
   ) where
 
+import Control.Lens
 import Penny.Natural
 import Penny.NonZero
 import Penny.Representation
 import Control.Monad (join)
-import Data.Sequence ((<|))
 import qualified Data.Sequence as S
 import Data.Monoid
 import Penny.Offset
 import Penny.PluMin
 import Data.List (genericSplitAt, genericReplicate)
 import Penny.Semantic
+
+data Exponential s e = Exponential
+  { _significand :: s
+  , _exponent :: e
+  } deriving (Eq, Ord, Show)
 
 -- | Decimal numbers.  The precision is limited only by the machine's
 -- available memory (or, more realistically, by how big a number the

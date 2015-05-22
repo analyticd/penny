@@ -11,26 +11,10 @@ import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import Penny.Representation
 import Data.Foldable (Foldable)
-import Penny.Semantic
-
-newtype Serial = Serial Unsigned
-  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
-
-makeWrapped ''Serial
-
-newtype Forward = Forward Serial
-  deriving (Eq, Ord, Show)
-
-makeWrapped ''Forward
-
-newtype Backward = Backward Serial
-  deriving (Eq, Ord, Show)
-
-makeWrapped ''Backward
 
 data Serset = Serset
-  { _forward :: Forward
-  , _backward :: Backward
+  { _forward :: Unsigned
+  , _backward :: Unsigned
   } deriving (Eq, Ord, Show)
 
 makeLenses ''Serset
@@ -51,20 +35,20 @@ assignSersetted t = flip evalState (toUnsigned Zero) $ do
   return . fmap f $ withBak
 
 
-makeForward :: State Unsigned Forward
+makeForward :: State Unsigned Unsigned
 makeForward = do
   this <- get
   modify next
-  return $ Forward (Serial this)
+  return this
 
-makeBackward :: State Unsigned Backward
+makeBackward :: State Unsigned Unsigned
 makeBackward = do
   old <- get
   let new = case prev old of
         Just x -> x
         Nothing -> error "makeBackward: error"
   put new
-  return $ Backward (Serial new)
+  return new
 
 
 serialNumbers :: T.Traversable t => t a -> t (a, Serset)

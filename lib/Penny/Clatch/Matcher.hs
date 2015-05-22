@@ -3,6 +3,7 @@
 module Penny.Clatch.Matcher where
 
 import Control.Applicative
+import Control.Lens
 import Control.Monad.Trans.Class
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -11,7 +12,10 @@ import Penny.Clatch
 import Penny.Ledger
 import Penny.Ledger.Matcher (hasOffspring)
 import qualified Penny.Ledger.Matcher
+import Penny.Transbox
+import Penny.SeqUtil
 import Penny.Matcher
+import Penny.Viewpost
 import Penny.Field.Matcher
 import Penny.Semantic.Matcher
 import Turtle.Pattern (prefix, suffix)

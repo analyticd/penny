@@ -33,6 +33,7 @@ instance IsPositive D7 where toPositive = Positive . digitToInt
 instance IsPositive D8 where toPositive = Positive . digitToInt
 instance IsPositive D9 where toPositive = Positive . digitToInt
 
+-- | An integral value that is at least zero.
 newtype Unsigned = Unsigned { unsignedToInteger :: Integer }
   deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
