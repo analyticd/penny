@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
 -- | Matchers.
 --
@@ -49,6 +50,8 @@ module Penny.Matcher
   , pattern
 
   -- * Nesting
+  , nest
+  , nestM
   , labelNest
 
   -- * Filtering
@@ -72,7 +75,7 @@ module Penny.Matcher
   ) where
 
 import Control.Applicative
-import Data.Sequence (Seq, (|>))
+import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.String
 import Rainbow
@@ -86,7 +89,7 @@ import qualified Data.Foldable as F
 import Data.Text (Text)
 import qualified Data.Text as X
 import Turtle.Pattern
-import Control.Lens ((.~))
+import Control.Lens hiding (Level, each, index)
 import qualified Control.Lens as L
 import qualified Control.Lens.Extras as L
 import Prelude hiding (filter)
@@ -468,6 +471,12 @@ pattern pat = do
   inform . fromString $ "running text pattern on text: " <> show txt
   (F.asum . fmap (\b -> indent (proclaim "match found" >> accept b)) $ mtchs)
     <|> (proclaim "no matches found" >> reject)
+
+nest :: Monad m => Getting s a s -> Matcher s m c -> Matcher a m c
+nest l = feed (tunnel (return . view l))
+
+nestM :: Monad m => Getting (m b) a (m b) -> Matcher b m c -> Matcher a m c
+nestM l = feed (tunnel (view l))
 
 -- | Nests a 'Matcher' within the current 'Matcher', and adds an
 -- 'L.Opinion' indicating what is going on.

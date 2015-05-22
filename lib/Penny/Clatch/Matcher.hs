@@ -16,6 +16,8 @@ import Penny.Field.Matcher
 import Penny.Semantic.Matcher
 import Turtle.Pattern (prefix, suffix)
 
+{-
+
 studyTxnMeta :: Ledger l => Matcher (TreeL l) l a -> Matcher (Clatch l) l a
 studyTxnMeta mr = do
   subj <- getSubject
@@ -99,3 +101,4 @@ zone = (findNamedTree "zone" <|>) . studyTxnMeta $ do
   fmap Seq.singleton getSubject
 
 
+-}

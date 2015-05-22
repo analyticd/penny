@@ -6,6 +6,7 @@ import Penny.Matcher
 import Penny.Field
 import Data.Text (Text)
 
+{-
 text :: Monad m => Matcher Scalar m Text
 text = labelNest "text" (fmap return scalarChars) just
 
@@ -21,3 +22,4 @@ zone = labelNest "zone" (fmap return scalarZone) just
 integer :: Monad m => Matcher Scalar m Integer
 integer = labelNest "integer" (fmap return scalarInteger) just
 
+-}

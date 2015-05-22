@@ -14,6 +14,7 @@ import Penny.Field
 import qualified Penny.Field.Matcher as Field
 import Data.Text (Text)
 
+{-
 scalar :: Ledger m => Matcher (TreeL m) m Scalar
 scalar = labelNest "scalar" Penny.Ledger.scalar just
 
@@ -31,6 +32,7 @@ zone = scalar `feed` Field.zone
 
 integer :: Ledger m => Matcher (TreeL m) m Integer
 integer = scalar `feed` Field.integer
+-}
 
 -- | Succeds only of this 'TreeL' has offspring.
 hasOffspring :: Ledger m => Matcher (TreeL m) m ()
