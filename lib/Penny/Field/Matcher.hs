@@ -6,20 +6,23 @@ import Penny.Matcher
 import Penny.Field
 import Data.Text (Text)
 
-{-
 text :: Monad m => Matcher Scalar m Text
-text = labelNest "text" (fmap return scalarChars) just
+text = tunnel (return . scalarChars) `feed` just
 
 date :: Monad m => Matcher Scalar m Date
-date = labelNest "date" (fmap return scalarDate) just
+date = tunnel (return . scalarDate) `feed` just
 
 time :: Monad m => Matcher Scalar m Time
-time = labelNest "time" (fmap return scalarTime) just
+time = tunnel (return . scalarTime) `feed` just
 
 zone :: Monad m => Matcher Scalar m Zone
-zone = labelNest "zone" (fmap return scalarZone) just
+zone = tunnel (return . scalarZone) `feed` just
 
 integer :: Monad m => Matcher Scalar m Integer
-integer = labelNest "integer" (fmap return scalarInteger) just
+integer = tunnel (return . scalarInteger) `feed` just
 
--}
+user :: Monad m => Matcher Realm m ()
+user = tunnel (return . (== User)) `feed` true
+
+system :: Monad m => Matcher Realm m ()
+system = tunnel (return . (== System)) `feed` true

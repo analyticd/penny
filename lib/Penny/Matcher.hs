@@ -51,6 +51,7 @@ import Data.Text (Text)
 import Turtle.Pattern
 import Control.Lens hiding (Level, each, index)
 import Prelude hiding (filter)
+import qualified Control.Category as C
 
 -- | A 'Matcher' is a computation that, when run with a value known as
 -- the @subject@, returns any number of @matches@.  The type variables
