@@ -125,7 +125,7 @@ data MonthDay
   deriving (Eq, Ord, Show)
 
 instance SemanticEq MonthDay where
-  semanticEq a b = case (a, b) of
+  a ==@ b = case (a, b) of
     (Jan _ _ _ x, Jan _ _ _ y) -> x == y
     (Feb _ _ _ x, Feb _ _ _ y) -> x == y
     (Mar _ _ _ x, Mar _ _ _ y) -> x == y
@@ -245,8 +245,8 @@ data NonLeapDay = NonLeapDay Year DateSep MonthDay
   deriving (Eq, Ord, Show)
 
 instance SemanticEq NonLeapDay where
-  semanticEq (NonLeapDay yx _ mx) (NonLeapDay yy _ my)
-    = (yx == yy) && (mx `semanticEq` my)
+  (NonLeapDay yx _ mx) ==@ (NonLeapDay yy _ my)
+    = (yx == yy) && (mx ==@ my)
 
 pNonLeapDay :: ParserL NonLeapDay
 pNonLeapDay = NonLeapDay <$> pYear <*> pDateSep <*> pMonthDay
@@ -423,8 +423,8 @@ data LeapDay = LeapDay
   deriving (Eq, Ord, Show)
 
 instance SemanticEq LeapDay where
-  semanticEq (LeapDay eix _ _ _ _ _ _)
-             (LeapDay eiy _ _ _ _ _ _) = eix == eiy
+  (LeapDay eix _ _ _ _ _ _) ==@
+    (LeapDay eiy _ _ _ _ _ _) = eix == eiy
 
 pLeapDay :: ParserL LeapDay
 pLeapDay
@@ -451,7 +451,7 @@ newtype DateA = DateA (Either NonLeapDay LeapDay)
   deriving (Eq, Ord, Show)
 
 instance SemanticEq DateA where
-  semanticEq (DateA x) (DateA y) = semanticEq x y
+  (DateA x) ==@ (DateA y) = x ==@ y
 
 pDateA :: ParserL DateA
 pDateA = DateA <$> (Left <$> pNonLeapDay <|> Right <$> pLeapDay)

@@ -147,12 +147,12 @@ instance Num Decimal where
   fromInteger i = Decimal i (toUnsigned Zero)
 
 instance SemanticEq Decimal where
-  semanticEq x y =
+  x ==@ y =
     let (Decimal mx _, Decimal my _) = equalizeExponents x y
     in mx == my
 
 instance SemanticOrd Decimal where
-  semanticOrd x y =
+  compareSemantic x y =
     let (Decimal mx _, Decimal my _) = equalizeExponents x y
     in compare mx my
 

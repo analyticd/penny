@@ -1,28 +1,30 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Field.Matcher where
 
+import Control.Monad
 import Penny.DateTime
 import Penny.Matcher
 import Penny.Field
 import Data.Text (Text)
 
-text :: Monad m => Matcher Scalar m Text
-text = tunnel (return . scalarChars) `feed` just
+text :: MonadPlus m => Scalar -> m Text
+text = (return . scalarChars) >=> just
 
-date :: Monad m => Matcher Scalar m Date
-date = tunnel (return . scalarDate) `feed` just
+date :: MonadPlus m => Scalar -> m Date
+date = (return . scalarDate) >=> just
 
-time :: Monad m => Matcher Scalar m Time
-time = tunnel (return . scalarTime) `feed` just
+time :: MonadPlus m => Scalar -> m Time
+time = (return . scalarTime) >=> just
 
-zone :: Monad m => Matcher Scalar m Zone
-zone = tunnel (return . scalarZone) `feed` just
+zone :: MonadPlus m => Scalar -> m Zone
+zone = (return . scalarZone) >=> just
 
-integer :: Monad m => Matcher Scalar m Integer
-integer = tunnel (return . scalarInteger) `feed` just
+integer :: MonadPlus m => Scalar -> m Integer
+integer = (return . scalarInteger) >=> just
 
-user :: Monad m => Matcher Realm m ()
-user = tunnel (return . (== User)) `feed` true
+user :: MonadPlus m => Realm -> m ()
+user = (return . (== User)) >=> true
 
-system :: Monad m => Matcher Realm m ()
-system = tunnel (return . (== System)) `feed` true
+system :: MonadPlus m => Realm -> m ()
+system = (return . (== System)) >=> true
+

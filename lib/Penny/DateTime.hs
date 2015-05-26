@@ -59,10 +59,10 @@ c'Int'Hours h = case h of
   H20to23 d3-> 20 + digitToInt d3
 
 instance SemanticEq Hours where
-  semanticEq x y = c'Int'Hours x == c'Int'Hours y
+  x ==@ y = c'Int'Hours x == c'Int'Hours y
 
 instance SemanticOrd Hours where
-  semanticOrd = comparing c'Int'Hours
+  compareSemantic = comparing c'Int'Hours
 
 data ZeroTo59 = ZeroTo59 (Maybe D5z) D9z
   deriving (Eq, Ord, Show)
@@ -76,10 +76,10 @@ c'Int'ZeroTo59 (ZeroTo59 mayD5 d9)
   = ((maybe 0 digitToInt mayD5) * 10) + digitToInt d9
 
 instance SemanticEq ZeroTo59 where
-  semanticEq x y = c'Int'ZeroTo59 x == c'Int'ZeroTo59 y
+  x ==@ y = c'Int'ZeroTo59 x == c'Int'ZeroTo59 y
 
 instance SemanticOrd ZeroTo59 where
-  semanticOrd = comparing c'Int'ZeroTo59
+  compareSemantic = comparing c'Int'ZeroTo59
 
 newtype Minutes = Minutes ZeroTo59
   deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
@@ -115,23 +115,23 @@ c'Int'Zone (Zone pm d3 d2 d1 d0)
     places np dig = digitToInt dig * 10 ^ (np `asTypeOf` undefined :: Int)
 
 instance SemanticEq Zone where
-  semanticEq x y = c'Int'Zone x == c'Int'Zone y
+  x ==@ y = c'Int'Zone x == c'Int'Zone y
 
 instance SemanticOrd Zone where
-  semanticOrd = comparing c'Int'Zone
+  compareSemantic = comparing c'Int'Zone
 
 data Time = Time Hours Minutes Seconds
   deriving (Eq, Ord, Show)
 
 instance SemanticEq Time where
-  semanticEq (Time xh (Minutes xm) (Seconds xs))
-             (Time yh (Minutes ym) (Seconds ys))
-    = (c'Int'Hours xh, c'Int'ZeroTo59 xm, c'Int'ZeroTo59 xs) ==
-      (c'Int'Hours yh, c'Int'ZeroTo59 ym, c'Int'ZeroTo59 ys)
+  (Time xh (Minutes xm) (Seconds xs)) ==@
+    (Time yh (Minutes ym) (Seconds ys))
+      = (c'Int'Hours xh, c'Int'ZeroTo59 xm, c'Int'ZeroTo59 xs) ==
+        (c'Int'Hours yh, c'Int'ZeroTo59 ym, c'Int'ZeroTo59 ys)
 
 instance SemanticOrd Time where
-  semanticOrd (Time xh (Minutes xm) (Seconds xs))
-             (Time yh (Minutes ym) (Seconds ys))
+  compareSemantic (Time xh (Minutes xm) (Seconds xs))
+                  (Time yh (Minutes ym) (Seconds ys))
     = compare
       (c'Int'Hours xh, c'Int'ZeroTo59 xm, c'Int'ZeroTo59 xs)
       (c'Int'Hours yh, c'Int'ZeroTo59 ym, c'Int'ZeroTo59 ys)
@@ -165,7 +165,7 @@ dateTimeToUTC (DateTime (Date day) (Time h (Minutes m) (Seconds s)) z)
       (fromIntegral . c'Int'ZeroTo59 $ s)
 
 instance SemanticEq DateTime where
-  semanticEq x y = dateTimeToUTC x == dateTimeToUTC y
+  x ==@ y = dateTimeToUTC x == dateTimeToUTC y
 
 instance SemanticOrd DateTime where
-  semanticOrd = comparing dateTimeToUTC
+  compareSemantic = comparing dateTimeToUTC

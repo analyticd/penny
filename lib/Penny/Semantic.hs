@@ -8,39 +8,64 @@ import Data.Time (Day)
 -- this; the idea is that two items that \"mean the same thing\" will
 -- return True.
 class SemanticEq a where
-  semanticEq :: a -> a -> Bool
+  (==@) :: a -> a -> Bool
+  x ==@ y = not $ x /=@ y
+
+  (/=@) :: a -> a -> Bool
+  x /=@ y = not $ x ==@ y
+
+infix 4 ==@
+infix 4 /=@
 
 class SemanticEq a => SemanticOrd a where
-  semanticOrd :: a -> a -> Ordering
+  compareSemantic :: a -> a -> Ordering
+  (<@) :: a -> a -> Bool
+  (>=@) :: a -> a -> Bool
+  (>@) :: a -> a -> Bool
+  (<=@) :: a -> a -> Bool
+  maxSemantic :: a -> a -> a
+  minSemantic :: a -> a -> a
+
+  compareSemantic x y
+    | x ==@ y = EQ
+    | x <=@ y = LT
+    | otherwise = GT
+
+  x <@ y = case compareSemantic x y of { LT -> True; _ -> False }
+  x >=@ y = case compareSemantic x y of { LT -> False; _ -> True }
+  x >@ y = case compareSemantic x y of { GT -> True; _ -> False }
+  x <=@ y = case compareSemantic x y of { GT -> False; _ -> True }
+  maxSemantic x y = if x <=@ y then y else x
+  minSemantic x y = if x <=@ y then x else y
 
 -- | Two 'Day' are semantically equal if they test equal using '=='.
 instance SemanticEq Day where
-  semanticEq = (==)
+  (==@) = (==)
 
 -- | Two 'Text' are semantically equal if they test equal using '=='.
 instance SemanticEq Text where
-  semanticEq = (==)
+  (==@) = (==)
 
 -- | Two 'Integer' are semantically equal if they are equal using
 -- '=='.
 instance SemanticEq Integer where
-  semanticEq = (==)
+  (==@) = (==)
 
 instance SemanticOrd Integer where
-  semanticOrd = compare
+  compareSemantic = compare
 
 instance SemanticOrd Day where
-  semanticOrd = compare
+  compareSemantic = compare
 
 instance (SemanticEq a, SemanticEq b) => SemanticEq (Either a b) where
-  semanticEq (Left x) (Left y) = semanticEq x y
-  semanticEq (Right x) (Right y) = semanticEq x y
-  semanticEq _ _ = False
+  (Left x) ==@ (Left y) = x ==@ y
+  (Right x) ==@ (Right y) = x ==@ y
+  _ ==@ _ = False
 
 newtype Semantic a = Semantic a deriving Show
 
 instance SemanticEq a => Eq (Semantic a) where
-  Semantic x == Semantic y = semanticEq x y
+  Semantic x == Semantic y = x ==@ y
 
 instance SemanticOrd a => Ord (Semantic a) where
-  compare (Semantic x) (Semantic y) = semanticOrd x y
+  compare (Semantic x) (Semantic y) = compareSemantic x y

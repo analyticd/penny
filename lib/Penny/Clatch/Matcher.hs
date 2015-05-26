@@ -17,7 +17,6 @@ import Penny.SeqUtil
 import Penny.Matcher
 import Penny.Viewpost
 import Penny.Field.Matcher
-import Penny.Semantic.Matcher
 import Turtle.Pattern (prefix, suffix)
 
 {-
