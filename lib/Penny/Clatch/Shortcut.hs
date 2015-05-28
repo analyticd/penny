@@ -37,4 +37,6 @@ payee
   => (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
   -> m (Seq (TreeL m))
-payee = undefined
+payee getter clch = standard "payee" getter clch `mplus` shortcut
+  where
+    shortcut = undefined
