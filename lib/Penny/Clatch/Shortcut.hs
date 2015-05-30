@@ -5,6 +5,7 @@ module Penny.Clatch.Shortcut where
 
 import Control.Lens
 import Control.Monad
+import Data.Monoid
 import Penny.Matcher
 import Penny.Ledger (Ledger, TreeL, PostingL)
 import qualified Penny.Ledger
@@ -33,6 +34,18 @@ standard nm getter
   <=< Tr.mapM Penny.Ledger.pstgMeta
   . getter
   . view (transboxee.viewpost)
+
+posting
+  :: ((View (PostingL m) -> Seq (PostingL m)) -> a -> m b)
+  -> a
+  -> m b
+posting fn = fn (Seq.singleton . view onView)
+
+siblings
+  :: ((View (PostingL m) -> Seq (PostingL m)) -> a -> m b)
+  -> a
+  -> m b
+siblings fn = fn (\vw -> vw ^. onLeft <> vw ^. onRight)
 
 -- | Returns the child trees of standard payee, or the tree itself for
 -- shortcut payee.
