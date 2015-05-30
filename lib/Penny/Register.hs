@@ -84,12 +84,15 @@ import Penny.Field (displayScalar)
 import Penny.Ledger (Ledger, TreeL)
 import qualified Penny.Ledger
 import Penny.Natural
-import Penny.Matcher (Matcher, observeAll)
+import Penny.ListT (observeAll)
 import Penny.Report
 import Penny.Representation
 import Penny.Serial
 import Penny.Side
 import Penny.Transaction
+import Penny.Transbox
+import Penny.Viewpost
+import Penny.SeqUtil
 import Rainbow
 import Rainbox hiding (background, spacer)
 import qualified Rainbox
@@ -184,7 +187,7 @@ linearForeground
 linearForeground clrs
   = liftM f
   . Penny.Ledger.qty
-  . postingL
+  . view (transboxee.viewpost.onView)
   where
     f q = clrs ^. case qtySide q of
       Nothing -> neutral

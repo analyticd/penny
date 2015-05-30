@@ -15,10 +15,10 @@ import Data.Sequence (Seq)
 import Penny.Transaction
 
 class Monad l => Ledger l where
-  data PriceL l
-  data TransactionL l
-  data TreeL l
-  data PostingL l
+  type PriceL l
+  type TransactionL l
+  type TreeL l
+  type PostingL l
 
   ------------------------------------------------
   -- All items

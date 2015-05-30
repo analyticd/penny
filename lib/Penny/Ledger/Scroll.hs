@@ -36,29 +36,28 @@ newtype ScrollT m a
 type Scroll = ScrollT Identity
 
 instance (Applicative m, Monad m) => Ledger (ScrollT m) where
-  newtype PriceL (ScrollT m) = PriceS Price
-  newtype TransactionL (ScrollT m)
-    = TransactionS (Transaction TopLineSer PostingSer)
-  newtype TreeL (ScrollT m) = TreeS Tree
-  newtype PostingL (ScrollT m) = PostingS (Ent (PstgMeta PostingSer))
+  type PriceL (ScrollT m) = Price
+  type TransactionL (ScrollT m)
+    = Transaction TopLineSer PostingSer
+  type TreeL (ScrollT m) = Tree
+  type PostingL (ScrollT m) = Ent (PstgMeta PostingSer)
 
-  vault =
-    asks (fmap (fmap (either (Left . PriceS) (Right . TransactionS))))
-  dateTime (PriceS (Price dt _ _)) = return dt
-  fromTo (PriceS (Price _ tr _)) = return tr
-  exchange (PriceS (Price _ _ ex)) = return ex
-  scalar (TreeS (Tree _ s _)) = return s
-  realm (TreeS (Tree r _ _)) = return r
-  offspring (TreeS (Tree _ _ ts))
-    = return . fmap TreeS . Seq.fromList $ ts
-  txnMeta (TransactionS (Transaction (TopLine ts _) _))
-    = return . fmap TreeS . Seq.fromList $ ts
-  topLineSer (TransactionS (Transaction (TopLine _ zk) _)) = return zk
-  pstgMeta (PostingS (Ent _ (PstgMeta tr _ _)))
-    = return . fmap TreeS . Seq.fromList $ tr
-  postings (TransactionS (Transaction _ bal))
-    = return . fmap PostingS . balancedToSeqEnt $ bal
-  trio (PostingS (Ent _ (PstgMeta _ tri _))) = return tri
-  qty (PostingS (Ent (Amount _ q) _)) = return q
-  commodity (PostingS (Ent (Amount c _) _)) = return c
-  postingSer (PostingS (Ent _ (PstgMeta _ _ a))) = return a
+  vault = ask
+  dateTime (Price dt _ _) = return dt
+  fromTo (Price _ tr _) = return tr
+  exchange (Price _ _ ex) = return ex
+  scalar (Tree _ s _) = return s
+  realm (Tree r _ _) = return r
+  offspring (Tree _ _ ts)
+    = return . Seq.fromList $ ts
+  txnMeta (Transaction (TopLine ts _) _)
+    = return . Seq.fromList $ ts
+  topLineSer (Transaction (TopLine _ zk) _) = return zk
+  pstgMeta (Ent _ (PstgMeta tr _ _))
+    = return . Seq.fromList $ tr
+  postings (Transaction _ bal)
+    = return . balancedToSeqEnt $ bal
+  trio (Ent _ (PstgMeta _ tri _)) = return tri
+  qty (Ent (Amount _ q) _) = return q
+  commodity (Ent (Amount c _) _) = return c
+  postingSer (Ent _ (PstgMeta _ _ a)) = return a
