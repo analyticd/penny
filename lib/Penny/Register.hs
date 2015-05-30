@@ -79,7 +79,7 @@ import qualified Data.Traversable as T
 import Penny.Amount
 import Penny.Commodity
 import Penny.Clatch
-import Penny.Clatch.Matcher (date, payee, account)
+import Penny.Clatch.Shortcut (date, payee, account)
 import Penny.Field (displayScalar)
 import Penny.Ledger (Ledger, TreeL)
 import qualified Penny.Ledger

@@ -12,12 +12,14 @@ import Penny.Ledger.Matcher
 import qualified Penny.Ledger as L
 import Penny.Clatch
 import Data.Sequence (Seq)
-import Penny.Ledger.Matcher
+import qualified Data.Sequence as Seq
 import Penny.SeqUtil
 import Penny.Transbox
 import Penny.Viewpost
 import qualified Data.Traversable as Tr
 import Data.Text (Text)
+import qualified Data.Foldable as F
+import Penny.Field.Matcher
 
 standard
   :: (Ledger m, MonadPlus m)
@@ -32,6 +34,8 @@ standard nm getter
   . getter
   . view (transboxee.viewpost)
 
+-- | Returns the child trees of standard payee, or the tree itself for
+-- shortcut payee.
 payee
   :: (Ledger m, MonadPlus m)
   => (View (PostingL m) -> Seq (PostingL m))
@@ -39,4 +43,135 @@ payee
   -> m (Seq (TreeL m))
 payee getter clch = standard "payee" getter clch `mplus` shortcut
   where
-    shortcut = undefined
+    shortcut
+      = F.msum . fmap (\tr -> shortcutMtcr tr >> return (Seq.singleton tr))
+      <=< Penny.Ledger.txnMeta . view transaction
+      $ clch
+    shortcutMtcr tree = do
+      guard . Seq.null <=< L.offspring $ tree
+      txt <- text <=< just <=< Penny.Ledger.scalar $ tree
+      guard . (/= '(') <=< just . (^? _head) $ txt
+      guard . (/= ')') <=< just . (^? _last) $ txt
+
+account
+  :: (Ledger m, MonadPlus m)
+  => (View (PostingL m) -> Seq (PostingL m))
+  -> Clatch m
+  -> m (Seq (TreeL m))
+account getter clch = standard "account" getter clch `mplus` shortcut
+  where
+    shortcut = F.msum
+      . fmap (\tr -> shortcutMtcr tr >> Penny.Ledger.offspring tr)
+      <=< return . join
+      <=< Tr.mapM Penny.Ledger.pstgMeta . getter . view (transboxee.viewpost)
+      $ clch
+    shortcutMtcr tree = do
+      guard . not . Seq.null <=< L.offspring $ tree
+      nothing <=< Penny.Ledger.scalar $ tree
+
+tags
+  :: (Ledger m, MonadPlus m)
+  => (View (PostingL m) -> Seq (PostingL m))
+  -> Clatch m
+  -> m (Seq (TreeL m))
+tags getter clch = standard "tags" getter clch `mplus` shortcut
+  where
+    shortcut
+      = F.msum . fmap (\tr -> shortcutMtcr tr >> Penny.Ledger.offspring tr)
+      <=< Penny.Ledger.txnMeta . view transaction
+      $ clch
+    shortcutMtcr tree = do
+      nothing <=< Penny.Ledger.scalar $ tree
+      guard . not . Seq.null <=< L.offspring $ tree
+
+flag
+  :: (Ledger m, MonadPlus m)
+  => (View (PostingL m) -> Seq (PostingL m))
+  -> Clatch m
+  -> m (Seq (TreeL m))
+flag getter clch = standard "flag" getter clch
+  `mplus` shortPstg
+  `mplus` shortTop
+  where
+    shortTop
+      = F.msum . fmap (\tr -> shortcutMtcr tr >> return (Seq.singleton tr))
+      <=< Penny.Ledger.txnMeta . view transaction
+      $ clch
+    shortPstg
+      = F.msum . fmap (\tr -> shortcutMtcr tr >> return (Seq.singleton tr))
+      <=< return . join
+      <=< Tr.mapM Penny.Ledger.pstgMeta . getter . view (transboxee.viewpost)
+      $ clch
+    shortcutMtcr tree = do
+      txt <- text <=< just <=< Penny.Ledger.scalar $ tree
+      guard . (== '(') <=< just . (^? _head) $ txt
+      guard . (== ')') <=< just . (^? _last) $ txt
+
+
+number
+  :: (Ledger m, MonadPlus m)
+  => (View (PostingL m) -> Seq (PostingL m))
+  -> Clatch m
+  -> m (Seq (TreeL m))
+number getter clch = standard "number" getter clch
+  `mplus` shortPstg
+  `mplus` shortTop
+  where
+    shortTop
+      = F.msum . fmap (\tr -> shortcutMtcr tr >> return (Seq.singleton tr))
+      <=< Penny.Ledger.txnMeta . view transaction
+      $ clch
+    shortPstg
+      = F.msum . fmap (\tr -> shortcutMtcr tr >> return (Seq.singleton tr))
+      <=< return . join
+      <=< Tr.mapM Penny.Ledger.pstgMeta . getter . view (transboxee.viewpost)
+      $ clch
+    shortcutMtcr tree = do
+      integer <=< just <=< Penny.Ledger.scalar $ tree
+      guard . not . Seq.null <=< Penny.Ledger.offspring $ tree
+
+date
+  :: (Ledger m, MonadPlus m)
+  => (View (PostingL m) -> Seq (PostingL m))
+  -> Clatch m
+  -> m (Seq (TreeL m))
+date getter clch = standard "date" getter clch `mplus` shortTop
+  where
+    shortTop
+      = F.msum . fmap (\tr -> shortcutMtcr tr >> return (Seq.singleton tr))
+      <=< Penny.Ledger.txnMeta . view transaction
+      $ clch
+    shortcutMtcr tree = do
+      Penny.Field.Matcher.date <=< just <=< Penny.Ledger.scalar $ tree
+      guard . not . Seq.null <=< Penny.Ledger.offspring $ tree
+
+time
+  :: (Ledger m, MonadPlus m)
+  => (View (PostingL m) -> Seq (PostingL m))
+  -> Clatch m
+  -> m (Seq (TreeL m))
+time getter clch = standard "time" getter clch `mplus` shortTop
+  where
+    shortTop
+      = F.msum . fmap (\tr -> shortcutMtcr tr >> return (Seq.singleton tr))
+      <=< Penny.Ledger.txnMeta . view transaction
+      $ clch
+    shortcutMtcr tree = do
+      Penny.Field.Matcher.time <=< just <=< Penny.Ledger.scalar $ tree
+      guard . not . Seq.null <=< Penny.Ledger.offspring $ tree
+
+
+zone
+  :: (Ledger m, MonadPlus m)
+  => (View (PostingL m) -> Seq (PostingL m))
+  -> Clatch m
+  -> m (Seq (TreeL m))
+zone getter clch = standard "zone" getter clch `mplus` shortTop
+  where
+    shortTop
+      = F.msum . fmap (\tr -> shortcutMtcr tr >> return (Seq.singleton tr))
+      <=< Penny.Ledger.txnMeta . view transaction
+      $ clch
+    shortcutMtcr tree = do
+      Penny.Field.Matcher.zone <=< just <=< Penny.Ledger.scalar $ tree
+      guard . not . Seq.null <=< Penny.Ledger.offspring $ tree

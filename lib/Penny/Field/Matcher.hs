@@ -23,8 +23,8 @@ integer :: MonadPlus m => Scalar -> m Integer
 integer = (return . scalarInteger) >=> just
 
 user :: MonadPlus m => Realm -> m ()
-user = (return . (== User)) >=> true
+user = guard . (== User)
 
 system :: MonadPlus m => Realm -> m ()
-system = (return . (== System)) >=> true
+system = guard . (== System)
 

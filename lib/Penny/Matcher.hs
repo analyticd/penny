@@ -52,14 +52,6 @@ import Turtle.Pattern
 import Control.Lens hiding (Level, each, index)
 import Prelude hiding (filter)
 
-true :: MonadPlus m => Bool -> m ()
-true b | b = return ()
-       | otherwise = mzero
-
-false :: MonadPlus m => Bool -> m ()
-false b | not b = return ()
-        | otherwise = mzero
-
 just :: MonadPlus m => Maybe a -> m a
 just = maybe mzero return
 

@@ -14,7 +14,7 @@ import Penny.Field.Matcher
 
 -- | Succeds only if this 'TreeL' has offspring.
 hasOffspring :: (Ledger m, MonadPlus m) => TreeL m -> m ()
-hasOffspring = false <=< return . Seq.null <=< Penny.Ledger.offspring
+hasOffspring = guard <=< return . not . Seq.null <=< Penny.Ledger.offspring
 
 -- # Trees
 

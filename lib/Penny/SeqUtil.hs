@@ -11,6 +11,7 @@ module Penny.SeqUtil
   ( mapMaybeM
   , zipWithM
   , rights
+  , filterM
 
   -- * Views
   , View(..)
@@ -31,6 +32,18 @@ import Data.Sequence
 import qualified Data.Traversable as T
 import qualified Data.Foldable as F
 import Data.Monoid
+
+filterM
+  :: Monad m
+  => (a -> m Bool)
+  -> Seq a
+  -> m (Seq a)
+filterM pd sq = case viewl sq of
+  EmptyL -> return empty
+  x :< xs -> do
+    b <- pd x
+    rest <- filterM pd xs
+    return $ if b then (x <| rest) else rest
 
 mapMaybeM
   :: Monad m
