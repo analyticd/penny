@@ -10,7 +10,7 @@ import Control.Monad
 import Data.Monoid
 import Data.Sequence (Seq)
 import Penny.SeqUtil
-import Penny.Amount
+import Penny.Amount(Amount(..))
 import Penny.Ledger
 import Data.Foldable (Foldable)
 import qualified Data.Traversable as T
@@ -54,10 +54,3 @@ convertTransaction conv txn
   <=< postings
   $ txn
 
-
--- | Gets the converted Amount if there is one; otherwise, gets the
--- Amount from the PostingL.
-bestAmount :: Ledger l => Converted (PostingL l) -> l Amount
-bestAmount (Converted mayAmt pstg) = case mayAmt of
-  Just a -> return a
-  Nothing -> liftM2 Amount (commodity pstg) (qty pstg)

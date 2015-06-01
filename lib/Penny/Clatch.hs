@@ -42,15 +42,23 @@ import Penny.Sorted
 import Penny.Filtered
 import Data.Sequence (Seq)
 import Data.Monoid
+import Penny.Balance
+import Data.Sums
 
 type Clatch l
-  = Transbox l (Viewpost l (Converted (Filtered (Sorted (Filtered ())))))
+  = Transbox l (Viewpost l (Converted (Filtered (Sorted
+      (RunningBalance (Filtered ()))))))
 
 pstgMeta :: Ledger l => Transbox l (Viewpost l a) -> l (Seq (TreeL l))
 pstgMeta = Penny.Ledger.pstgMeta . view (transboxee.viewpost.onView)
 
 allMeta :: Ledger l => Transbox l (Viewpost l a) -> l (Seq (TreeL l))
 allMeta t = liftM2 mappend (pstgMeta t) (txnMeta t)
+
+originalQtyRep
+  :: Ledger l
+  => Clatch l
+  -> l (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
 
 {-
 

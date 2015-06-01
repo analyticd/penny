@@ -5,7 +5,9 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | The Register report
-module Penny.Register
+module Penny.Register where
+
+{-
   ( -- * Colors
     Colors(..)
   , debit
@@ -68,6 +70,7 @@ module Penny.Register
   , datePayeeAccount
   , register
   ) where
+-}
 
 import Control.Lens hiding (each)
 import Control.Monad
@@ -78,6 +81,7 @@ import Data.Text (Text)
 import qualified Data.Traversable as T
 import Penny.Amount
 import Penny.Commodity
+import Penny.Converted
 import Penny.Clatch
 import Penny.Clatch.Shortcut (date, payee, account)
 import Penny.Field (displayScalar)
@@ -157,50 +161,7 @@ data BestField l = BestField
 
 makeLenses ''BestField
 
-side :: Ledger l => BestField l
-side = BestField originalSide bestSide balanceSide
-
-commodity :: Ledger l => BestField l
-commodity = BestField originalCommodity
-  Penny.Register.bestCommodity balanceCommodity
-
-qty :: Ledger l => BestField l
-qty = BestField originalQty Penny.Register.bestQty balanceQty
-
--- | Format a Qty for display.
-formatQty
-  :: (Amount -> NilOrBrimScalarAnyRadix)
-  -- ^ Use this function for rendering a 'Qty'.
-  -> S3 RepNonNeutralNoSide QtyRepAnyRadix Amount
-  -> Text
-formatQty rend s3 = case s3 of
-  S3a rnn -> X.pack . ($ "") . display $ rnn
-  S3b qrr -> X.pack . ($ "") . display
-    . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix $ qrr
-  S3c amt -> X.pack . ($ "") . display . rend $ amt
-
-linearForeground
-  :: Ledger l
-  => Colors
-  -> Clatch l
-  -> l Radiant
-linearForeground clrs
-  = liftM f
-  . Penny.Ledger.qty
-  . view (transboxee.viewpost.onView)
-  where
-    f q = clrs ^. case qtySide q of
-      Nothing -> neutral
-      Just Debit -> debit
-      Just Credit -> credit
-
-background
-  :: Colors
-  -> Clatch l
-  -> Radiant
-background clrs (Filtered (Sersetted (Serset (Forward (Serial uns)) _) _))
-  | odd . naturalToInteger $ uns = clrs ^. oddBackground
-  | otherwise = clrs ^. evenBackground
+-- # Cell makers
 
 headerCell
   :: Colors
@@ -217,56 +178,39 @@ headerCell clrs txts
 doubleton :: a -> Seq (Seq a)
 doubleton = Seq.singleton . Seq.singleton
 
-convertQtyToAmount
-  :: Commodity
-  -> S3 a b Qty
-  -> S3 a b Amount
-convertQtyToAmount cy s3 = case s3 of
-  S3a a -> S3a a
-  S3b b -> S3b b
-  S3c q -> S3c $ Amount cy q
+background
+  :: Colors
+  -> Clatch l
+  -> Radiant
+background clrs clch
+  | odd serial = clrs ^. oddBackground
+  | otherwise  = clrs ^. evenBackground
+  where
+    serial = clch ^.
+      transboxee.viewpostee.convertee.sersetee.sersetee
+        .runningBalancee.serset.forward.to naturalToInteger
 
-originalQty
+linearForeground
   :: Ledger l
-  => Regcol l
-originalQty clrs conv = Column header cell
+  => Colors
+  -> Clatch l
+  -> l Radiant
+linearForeground clrs
+  = liftM f
+  . Penny.Ledger.qty
+  . view (transboxee.viewpost.onView)
   where
-    header = headerCell clrs ["qty", "original"]
-    cell clatch = do
-      commodity <- Penny.Ledger.commodity . postingL $ clatch
-      s3 <- liftM (convertQtyToAmount commodity)
-        $ Penny.Clatch.originalQtyRep clatch
-      singleLinearLeftTop clrs clatch (formatQty conv s3)
+    f q = clrs ^. case qtySide q of
+      Nothing -> neutral
+      Just Debit -> debit
+      Just Credit -> credit
 
-bestQty
-  :: Ledger l
-  => Regcol l
-bestQty clrs conv = Column header cell
-  where
-    header = headerCell clrs ["qty", "best"]
-    cell clatch = do
-      commodity <- Penny.Clatch.bestCommodity clatch
-      s3 <- liftM (convertQtyToAmount commodity)
-        $ Penny.Clatch.bestQtyRep clatch
-      singleLinearLeftTop clrs clatch (formatQty conv s3)
+-- # Side
 
-bestCommodity
-  :: Ledger l
-  => Regcol l
-bestCommodity clrs _ = Column header cell
-  where
-    header = headerCell clrs ["commodity", "best"]
-    cell clatch = do
-      Commodity cy <- Penny.Clatch.bestCommodity clatch
-      singleLinearLeftTop clrs clatch cy
-
-originalCommodity :: Ledger l => Regcol l
-originalCommodity clrs _ = Column header cell
-  where
-    header = headerCell clrs ["commodity", "original"]
-    cell clatch = do
-      Commodity cy <- Penny.Ledger.commodity . postingL $ clatch
-      singleLinearLeftTop clrs clatch cy
+sideTxt :: Qty -> Text
+sideTxt q = case qtySide q of
+  Nothing -> "--"
+  Just s -> X.pack . ($ "") . display $ s
 
 singleLinearLeftTop
   :: Ledger l
@@ -290,7 +234,7 @@ originalSide clrs _ = Column header cell
     header = headerCell clrs ["side", "original"]
     cell clatch
       = singleLinearLeftTop clrs clatch . sideTxt
-      <=< Penny.Ledger.qty . postingL
+      <=< Penny.Ledger.qty . view (transboxee.viewpost.onView)
       $ clatch
 
 bestSide :: Ledger l => Regcol l
@@ -299,7 +243,8 @@ bestSide clrs _ = Column header cell
     header = headerCell clrs ["side", "best"]
     cell clatch
       = singleLinearLeftTop clrs clatch . sideTxt
-      <=< Penny.Clatch.bestQty
+      <=< return . view Penny.Amount.qty
+      <=< bestAmount . view transboxee
       $ clatch
 
 balanceCellRow
@@ -316,6 +261,7 @@ balanceCellRow clrs clatch qty = Seq.singleton . fore fg . back bg . chunk
       Just Credit -> credit
     bg = background clrs clatch
 
+
 balanceSide :: Ledger l => Regcol l
 balanceSide clrs _ = Column header (liftM return cell)
   where
@@ -329,10 +275,37 @@ balanceSide clrs _ = Column header (liftM return cell)
       . Seq.fromList
       . M.assocs
       . (\(Balance mp) -> mp)
-      . runningBalance
+      . view (transboxee.viewpostee.convertee.sersetee
+              .sersetee.runningBalance)
       $ clatch
       where
         bg = background clrs clatch
+
+
+side :: Ledger l => BestField l
+side = BestField originalSide bestSide balanceSide
+
+-- # Commodity
+
+originalCommodity :: Ledger l => Regcol l
+originalCommodity clrs _ = Column header cell
+  where
+    header = headerCell clrs ["commodity", "original"]
+    cell clatch = do
+      Commodity cy <- Penny.Ledger.commodity
+        (clatch ^. transboxee . viewpost . onView)
+      singleLinearLeftTop clrs clatch cy
+
+
+bestCommodity
+  :: Ledger l
+  => Regcol l
+bestCommodity clrs _ = Column header cell
+  where
+    header = headerCell clrs ["commodity", "best"]
+    cell clatch = do
+      Amount (Commodity cy) _ <- bestAmount (clatch ^. transboxee)
+      singleLinearLeftTop clrs clatch cy
 
 
 balanceCommodity :: Ledger l => Regcol l
@@ -348,11 +321,69 @@ balanceCommodity clrs _ = Column header (liftM return cell)
       . Seq.fromList
       . M.assocs
       . (\(Balance mp) -> mp)
-      . runningBalance
+      . view (transboxee.viewpostee.convertee.sersetee
+              .sersetee.runningBalance)
       $ clatch
       where
         bg = background clrs clatch
 
+
+commodity :: Ledger l => BestField l
+commodity = BestField originalCommodity
+  Penny.Register.bestCommodity balanceCommodity
+
+-- # Qty
+
+-- | Format a Qty for display.
+formatQty
+  :: (Amount -> NilOrBrimScalarAnyRadix)
+  -- ^ Use this function for rendering a 'Qty'.
+  -> S3 RepNonNeutralNoSide QtyRepAnyRadix Amount
+  -> Text
+formatQty rend s3 = case s3 of
+  S3a rnn -> X.pack . ($ "") . display $ rnn
+  S3b qrr -> X.pack . ($ "") . display
+    . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix $ qrr
+  S3c amt -> X.pack . ($ "") . display . rend $ amt
+
+convertQtyToAmount
+  :: Commodity
+  -> S3 a b Qty
+  -> S3 a b Amount
+convertQtyToAmount cy s3 = case s3 of
+  S3a a -> S3a a
+  S3b b -> S3b b
+  S3c q -> S3c $ Amount cy q
+
+originalQty
+  :: Ledger l
+  => Regcol l
+originalQty clrs conv = Column header cell
+  where
+    header = headerCell clrs ["qty", "original"]
+    cell clatch = do
+      commodity <- Penny.Ledger.commodity . view (transboxee.viewpost.onView)
+        $ clatch
+      s3 <- liftM (convertQtyToAmount commodity)
+        $ _ {- Penny.Clatch.originalQtyRep -} clatch
+      singleLinearLeftTop clrs clatch (formatQty conv s3)
+
+{-
+
+qty :: Ledger l => BestField l
+qty = BestField originalQty Penny.Register.bestQty balanceQty
+
+bestQty
+  :: Ledger l
+  => Regcol l
+bestQty clrs conv = Column header cell
+  where
+    header = headerCell clrs ["qty", "best"]
+    cell clatch = do
+      commodity <- Penny.Clatch.bestCommodity clatch
+      s3 <- liftM (convertQtyToAmount commodity)
+        $ Penny.Clatch.bestQtyRep clatch
+      singleLinearLeftTop clrs clatch (formatQty conv s3)
 
 balanceQty :: Ledger l => Regcol l
 balanceQty clrs conv = Column header (liftM return cell)
@@ -373,11 +404,6 @@ balanceQty clrs conv = Column header (liftM return cell)
       $ clatch
       where
         bg = background clrs clatch
-
-sideTxt :: Qty -> Text
-sideTxt q = case qtySide q of
-  Nothing -> "--"
-  Just s -> X.pack . ($ "") . display $ s
 
 --
 -- # Forest
@@ -697,3 +723,4 @@ datePayeeAccount = mempty
 -- amount, and balances.
 register :: Ledger l => Seq (Regcol l)
 register = datePayeeAccount <+> amount <+> balances
+-}

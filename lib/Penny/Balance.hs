@@ -59,8 +59,8 @@ instance Monoid Imbalance where
 
 -- | Thing that is accompanied by a running balance.
 data RunningBalance a = RunningBalance
-  { _balance :: Balance
-  , _balancee :: a
+  { _runningBalance :: Balance
+  , _runningBalancee :: a
   } deriving (Functor, Foldable, Traversable)
 
 makeLenses ''RunningBalance

@@ -1,3 +1,4 @@
+-- | TODO make the types more general; they generally do not need a clatch
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
