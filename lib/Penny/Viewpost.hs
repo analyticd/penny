@@ -29,3 +29,9 @@ originalAmount v = do
   cy <- Penny.Ledger.commodity . view (viewpost.onView) $ v
   qt <- Penny.Ledger.qty . view (viewpost.onView) $ v
   return $ Amount cy qt
+
+originalQtyRep
+  :: Ledger l
+  => Viewpost l a
+  -> l (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
+originalQtyRep = undefined
