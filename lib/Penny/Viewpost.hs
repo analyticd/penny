@@ -2,12 +2,15 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Viewpost where
 
+import Data.Sums
 import Penny.Ledger
 import Penny.SeqUtil
+import Penny.Converted
 import Control.Lens
 import Data.Foldable (Foldable)
-import Penny.Converted
 import Penny.Amount
+import Penny.Qty
+import Penny.Representation
 
 data Viewpost l a = Viewpost
   { _viewpost :: View (PostingL l)
@@ -30,8 +33,14 @@ originalAmount v = do
   qt <- Penny.Ledger.qty . view (viewpost.onView) $ v
   return $ Amount cy qt
 
-originalQtyRep
+
+-- | Gets the 'Qty' from the converted Amount, if there is one.
+-- Otherwise, gets the 'QtyRep' from the 'Trio', if there is one.
+-- Otherwise, gets the 'Qty'.
+bestQtyRep
   :: Ledger l
-  => Viewpost l a
+  => Viewpost l (Converted a)
   -> l (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
-originalQtyRep = undefined
+bestQtyRep vp = case vp ^. viewpostee.converted of
+  Nothing -> Penny.Ledger.originalQtyRep (vp ^. viewpost.onView)
+  Just (Amount _ qt) -> return $ S3c qt

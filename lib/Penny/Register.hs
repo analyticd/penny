@@ -3,6 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- | The Register report
 module Penny.Register where
@@ -84,11 +85,11 @@ import Penny.Commodity
 import Penny.Converted
 import Penny.Clatch
 import Penny.Clatch.Shortcut (date, payee, account)
+import qualified Penny.Clatch.Shortcut
 import Penny.Field (displayScalar)
 import Penny.Ledger (Ledger, TreeL)
 import qualified Penny.Ledger
 import Penny.Natural
-import Penny.ListT (observeAll)
 import Penny.Report
 import Penny.Representation
 import Penny.Serial
@@ -108,6 +109,7 @@ import Penny.Qty
 import qualified Data.Map as M
 import Penny.Balance
 import qualified Data.Foldable as F
+import Penny.ListT
 
 -- # High-level formatting
 
@@ -188,7 +190,7 @@ background clrs clch
   where
     serial = clch ^.
       transboxee.viewpostee.convertee.sersetee.sersetee
-        .runningBalancee.serset.forward.to naturalToInteger
+        .runningBalancee.serset.Penny.Serial.forward.to naturalToInteger
 
 linearForeground
   :: Ledger l
@@ -365,13 +367,10 @@ originalQty clrs conv = Column header cell
       commodity <- Penny.Ledger.commodity . view (transboxee.viewpost.onView)
         $ clatch
       s3 <- liftM (convertQtyToAmount commodity)
-        $ _ {- Penny.Clatch.originalQtyRep -} clatch
+        . Penny.Ledger.originalQtyRep
+        . view (transboxee.viewpost.onView)
+        $ clatch
       singleLinearLeftTop clrs clatch (formatQty conv s3)
-
-{-
-
-qty :: Ledger l => BestField l
-qty = BestField originalQty Penny.Register.bestQty balanceQty
 
 bestQty
   :: Ledger l
@@ -380,10 +379,11 @@ bestQty clrs conv = Column header cell
   where
     header = headerCell clrs ["qty", "best"]
     cell clatch = do
-      commodity <- Penny.Clatch.bestCommodity clatch
+      Amount commodity _ <- bestAmount (clatch ^. transboxee)
       s3 <- liftM (convertQtyToAmount commodity)
-        $ Penny.Clatch.bestQtyRep clatch
+        $ bestQtyRep (clatch ^. transboxee)
       singleLinearLeftTop clrs clatch (formatQty conv s3)
+
 
 balanceQty :: Ledger l => Regcol l
 balanceQty clrs conv = Column header (liftM return cell)
@@ -400,10 +400,14 @@ balanceQty clrs conv = Column header (liftM return cell)
       . Seq.fromList
       . M.assocs
       . (\(Balance mp) -> mp)
-      . runningBalance
+      . view (transboxee.viewpostee.convertee.sersetee
+              .sersetee.runningBalance)
       $ clatch
       where
         bg = background clrs clatch
+
+qty :: Ledger l => BestField l
+qty = BestField originalQty Penny.Register.bestQty balanceQty
 
 --
 -- # Forest
@@ -433,23 +437,6 @@ displayTreeL t = liftM2 f (Penny.Ledger.scalar t) (Penny.Ledger.offspring t)
     f sc cs = maybe X.empty displayScalar sc <>
       if Seq.null cs then mempty else X.singleton '↓'
 
--- | Creates a 'Regcol' with the results from the given 'Matcher'.
--- The resulting 'Column' in the 'Regcol' has an empty header cell.
-forest
-  :: Ledger l
-  => Matcher (Clatch l) l (Seq (TreeL l))
-  -> Regcol l
-forest mtcr clrs _ = Column mempty $ \clch ->
-  observeAll mtcr clch >>= forestCell clch clrs
-
-forestRow
-  :: Ledger l
-  => Colors
-  -> Radiant
-  -> Seq (TreeL l)
-  -> l (Chunk Text)
-forestRow clrs bk = liftM (formatForestRow clrs bk) . displayForestL
-
 formatForestRow
   :: Colors
   -> Radiant
@@ -470,6 +457,14 @@ formatForestCell bk rws = mempty
   & vertical .~ left
   & horizontal .~ top
 
+forestRow
+  :: Ledger l
+  => Colors
+  -> Radiant
+  -> Seq (TreeL l)
+  -> l (Chunk Text)
+forestRow clrs bk = liftM (formatForestRow clrs bk) . displayForestL
+
 forestCell
   :: Ledger l
   => Clatch l
@@ -482,6 +477,16 @@ forestCell clch clrs
   where
     bk = background clrs clch
 
+-- | Creates a 'Regcol' with the results from the given matcher.
+-- The resulting 'Column' in the 'Regcol' has an empty header cell.
+forest
+  :: Ledger l
+  => (Clatch l -> ListT l (Seq (TreeL l)))
+  -> Regcol l
+forest mtcr clrs _ = Column mempty $ \clch ->
+  observeAll (mtcr clch) >>= forestCell clch clrs
+
+-- # Spacer
 
 spacer :: Monad l => Int -> Regcol l
 spacer i _ _ = spaces i
@@ -500,7 +505,7 @@ forward get clrs _ = Column hdr cell
     hdr = headerCell clrs ["serset", "forward"]
     cell clatch = liftM mkCell . get $ clatch
       where
-        mkCell (Serset (Forward (Serial fwd)) _)
+        mkCell (Serset fwd _)
           = mempty
           & rows .~ ( Seq.singleton . Seq.singleton
                       . fore (clrs ^. nonLinear)
@@ -523,7 +528,7 @@ backward get clrs _ = Column hdr cell
     hdr = headerCell clrs ["serset", "backward"]
     cell clatch = liftM mkCell . get $ clatch
       where
-        mkCell (Serset _ (Backward (Serial rev)))
+        mkCell (Serset _ rev)
           = mempty
           & rows .~ ( Seq.singleton . Seq.singleton
                       . fore (clrs ^. nonLinear)
@@ -541,7 +546,7 @@ backward get clrs _ = Column hdr cell
 -- 'forward' 'preFiltered'
 -- @
 preFiltered :: Monad l => Clatch l -> l Serset
-preFiltered = fmap return sersetPreFiltered
+preFiltered = return . view (transboxee.viewpostee.convertee.serset)
 
 
 -- | Use with 'forward' and 'backward', for instance:
@@ -550,7 +555,7 @@ preFiltered = fmap return sersetPreFiltered
 -- 'backward' 'sorted'
 -- @
 sorted :: Monad l => Clatch l -> l Serset
-sorted = fmap return sersetSorted
+sorted = return . view (transboxee.viewpostee.convertee.sersetee.serset)
 
 -- | Use with 'forward' and 'backward', for instance:
 --
@@ -558,7 +563,8 @@ sorted = fmap return sersetSorted
 -- 'forward' 'postFiltered'
 -- @
 postFiltered :: Monad l => Clatch l -> l Serset
-postFiltered = fmap return sersetPostFiltered
+postFiltered = return . view
+  (transboxee.viewpostee.convertee.sersetee.sersetee.runningBalancee.serset)
 
 
 -- | For functions that return values of this type, use 'global' or
@@ -582,10 +588,12 @@ posting :: Ledger l => FileOrGlobal l
 posting = FileOrGlobal glbl fle
   where
     glbl clch = do
-      PostingSer _ (GlobalSer g) _ <- Penny.Ledger.postingSer . postingL $ clch
+      PostingSer _ (GlobalSer g) _ <- Penny.Ledger.postingSer
+        (clch ^. (transboxee.viewpost.onView))
       return g
     fle clch = do
-      PostingSer (FileSer f) _ _ <- Penny.Ledger.postingSer . postingL $ clch
+      PostingSer (FileSer f) _ _ <- Penny.Ledger.postingSer
+        (clch ^. (transboxee.viewpost.onView))
       return f
 
 -- | Use with 'forward', 'backward', 'file', and 'global', for
@@ -598,10 +606,12 @@ topLine :: Ledger l => FileOrGlobal l
 topLine = FileOrGlobal glbl fle
   where
     glbl clch = do
-      TopLineSer _ (GlobalSer g) <- Penny.Ledger.topLineSer . transactionL $ clch
+      TopLineSer _ (GlobalSer g) <- Penny.Ledger.topLineSer
+        (clch ^. Penny.Transbox.transaction)
       return g
     fle clch = do
-      TopLineSer (FileSer f) _ <- Penny.Ledger.topLineSer . transactionL $ clch
+      TopLineSer (FileSer f) _ <- Penny.Ledger.topLineSer
+        (clch ^. Penny.Transbox.transaction)
       return f
 
 -- | Use with 'forward' and 'backward', for instance:
@@ -611,9 +621,12 @@ topLine = FileOrGlobal glbl fle
 -- @
 index :: Ledger l => Clatch l -> l Serset
 index clch = do
-  PostingSer _ _ (PostingIndex s) <- Penny.Ledger.postingSer . postingL $ clch
+  PostingSer _ _ (PostingIndex s) <- Penny.Ledger.postingSer
+    (clch ^. transboxee.viewpost.onView)
   return s
 
+
+-- # Colors
 
 lightBackground :: Colors
 lightBackground = Colors
@@ -702,23 +715,26 @@ infixr 6 <+>
 amount :: Ledger l => Seq (Regcol l)
 amount = mempty
   |+> side ^. best
-  |+> commodity ^. best
-  |+> qty ^. best
+  |+> Penny.Register.commodity ^. best
+  |+> Penny.Register.qty ^. best
 
 -- | Balances for this posting.
 balances :: Ledger l => Seq (Regcol l)
 balances = mempty
   |+> side ^. balance
-  |+> commodity ^. best
-  |+> qty ^. best
+  |+> Penny.Register.commodity ^. best
+  |+> Penny.Register.qty ^. best
 
+{-
 -- | The date, payee, and account fields.
 datePayeeAccount :: Ledger l => Seq (Regcol l)
 datePayeeAccount = mempty
-  |+> forest date
-  |+> forest payee
-  |+> forest account
+  |+> forest (Penny.Clatch.Shortcut.posting date)
+  |+> forest (Penny.Clatch.Shortcut.posting payee)
+  |+> forest (Penny.Clatch.Shortcut.posting account)
+-}
 
+{-
 -- | A default register report.  Shows the date, payee, account,
 -- amount, and balances.
 register :: Ledger l => Seq (Regcol l)

@@ -55,10 +55,6 @@ pstgMeta = Penny.Ledger.pstgMeta . view (transboxee.viewpost.onView)
 allMeta :: Ledger l => Transbox l (Viewpost l a) -> l (Seq (TreeL l))
 allMeta t = liftM2 mappend (pstgMeta t) (txnMeta t)
 
-originalQtyRep
-  :: Ledger l
-  => Clatch l
-  -> l (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
 
 {-
 

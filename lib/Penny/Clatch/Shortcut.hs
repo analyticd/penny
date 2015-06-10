@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE RankNTypes #-}
 module Penny.Clatch.Shortcut where
 
 import Control.Lens
@@ -37,15 +38,14 @@ standard nm getter
   . view (transboxee.viewpost)
 
 posting
-  :: ((View (PostingL m) -> Seq (PostingL m)) -> a -> m b)
-  -> a
-  -> m b
+  :: ((View a -> Seq a) -> t)
+  -> t
 posting fn = fn (Seq.singleton . view onView)
 
+
 siblings
-  :: ((View (PostingL m) -> Seq (PostingL m)) -> a -> m b)
-  -> a
-  -> m b
+  :: ((View a -> Seq a) -> t)
+  -> t
 siblings fn = fn (\vw -> vw ^. onLeft <> vw ^. onRight)
 
 -- | Returns the child trees of standard payee, or the tree itself for

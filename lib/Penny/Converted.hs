@@ -43,6 +43,7 @@ convertPosting (Converter cnv) p = liftM2 f (qty p) (commodity p)
   where
     f qt cy = Converted (cnv (Amount cy qt)) p
 
+
 convertTransaction
   :: Ledger l
   => Converter

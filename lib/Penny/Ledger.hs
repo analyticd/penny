@@ -4,6 +4,7 @@
 -- specifies an interface for such stores.
 module Penny.Ledger where
 
+import Data.Sums
 import Penny.Field
 import Penny.Trio
 import Penny.Qty
@@ -13,6 +14,8 @@ import Penny.Price hiding (fromTo)
 import Penny.Exch
 import Data.Sequence (Seq)
 import Penny.Transaction
+import Penny.Representation
+import Control.Monad
 
 class Monad l => Ledger l where
   type PriceL l
@@ -87,3 +90,17 @@ class Monad l => Ledger l where
   -- | The serial that belongs to a posting.
   postingSer :: PostingL l -> l PostingSer
 
+
+-- | Gets the 'Qty' using the 'Trio' in the 'PostingL'.
+originalQtyRep
+  :: Ledger l
+  => PostingL l
+  -> l (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
+originalQtyRep p = do
+  tri <- trio p
+  case tri of
+    QC qr _ _ -> return $ S3b qr
+    Q qr -> return $ S3b qr
+    UC rn _ _ -> return $ S3a rn
+    U rn -> return $ S3a rn
+    _ -> liftM S3c . qty $ p

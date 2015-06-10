@@ -14,6 +14,9 @@ import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
+class Logic m where
+  runLogic :: Monad u => m u a -> u (Maybe (a, m u a))
+
 -- | For the time being this is just a wrapper on 'P.ListT' from
 -- pipes.  At some point it might change to something based on the
 -- operational package, to allow for improved logging.
@@ -52,6 +55,9 @@ observe (ListT (P.Select pdcr)) = liftM eval . P.next $ pdcr
   where
     eval (Left ()) = Nothing
     eval (Right (a, pdcr')) = Just (a, ListT (P.Select pdcr'))
+
+instance Logic ListT where
+  runLogic = observe
 
 observeAll :: Monad m => ListT m a -> m (Seq a)
 observeAll list = do
