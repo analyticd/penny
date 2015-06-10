@@ -6,9 +6,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- | The Register report
-module Penny.Register where
-
-{-
+module Penny.Register
   ( -- * Colors
     Colors(..)
   , debit
@@ -44,8 +42,8 @@ module Penny.Register where
   , Penny.Register.spacer
 
   -- * Sersets
-  , forward
-  , backward
+  , Penny.Register.forward
+  , Penny.Register.backward
   , preFiltered
   , sorted
   , postFiltered
@@ -71,7 +69,6 @@ module Penny.Register where
   , datePayeeAccount
   , register
   ) where
--}
 
 import Control.Lens hiding (each)
 import Control.Monad
