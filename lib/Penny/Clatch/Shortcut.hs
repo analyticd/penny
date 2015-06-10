@@ -23,13 +23,14 @@ import qualified Data.Traversable as Tr
 import Data.Text (Text)
 import qualified Data.Foldable as F
 import Penny.Field.Matcher
+import Penny.ListT
 
 standard
-  :: (Ledger m, MonadPlus m)
+  :: Ledger m
   => Text
   -> (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
-  -> m (Seq (TreeL m))
+  -> ListT m (Seq (TreeL m))
 standard nm getter
   = namedTree nm
   <=< return . join
@@ -51,10 +52,10 @@ siblings fn = fn (\vw -> vw ^. onLeft <> vw ^. onRight)
 -- | Returns the child trees of standard payee, or the tree itself for
 -- shortcut payee.
 payee
-  :: (Ledger m, MonadPlus m)
+  :: Ledger m
   => (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
-  -> m (Seq (TreeL m))
+  -> ListT m (Seq (TreeL m))
 payee getter clch = standard "payee" getter clch `mplus` shortcut
   where
     shortcut
@@ -68,10 +69,10 @@ payee getter clch = standard "payee" getter clch `mplus` shortcut
       guard . (/= ')') <=< just . (^? _last) $ txt
 
 account
-  :: (Ledger m, MonadPlus m)
+  :: Ledger m
   => (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
-  -> m (Seq (TreeL m))
+  -> ListT m (Seq (TreeL m))
 account getter clch = standard "account" getter clch `mplus` shortcut
   where
     shortcut = F.msum
@@ -84,10 +85,10 @@ account getter clch = standard "account" getter clch `mplus` shortcut
       nothing <=< Penny.Ledger.scalar $ tree
 
 tags
-  :: (Ledger m, MonadPlus m)
+  :: Ledger m
   => (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
-  -> m (Seq (TreeL m))
+  -> ListT m (Seq (TreeL m))
 tags getter clch = standard "tags" getter clch `mplus` shortcut
   where
     shortcut
@@ -99,10 +100,10 @@ tags getter clch = standard "tags" getter clch `mplus` shortcut
       guard . not . Seq.null <=< L.offspring $ tree
 
 flag
-  :: (Ledger m, MonadPlus m)
+  :: Ledger m
   => (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
-  -> m (Seq (TreeL m))
+  -> ListT m (Seq (TreeL m))
 flag getter clch = standard "flag" getter clch
   `mplus` shortPstg
   `mplus` shortTop
@@ -123,10 +124,10 @@ flag getter clch = standard "flag" getter clch
 
 
 number
-  :: (Ledger m, MonadPlus m)
+  :: Ledger m
   => (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
-  -> m (Seq (TreeL m))
+  -> ListT m (Seq (TreeL m))
 number getter clch = standard "number" getter clch
   `mplus` shortPstg
   `mplus` shortTop
@@ -145,10 +146,10 @@ number getter clch = standard "number" getter clch
       guard . not . Seq.null <=< Penny.Ledger.offspring $ tree
 
 date
-  :: (Ledger m, MonadPlus m)
+  :: Ledger m
   => (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
-  -> m (Seq (TreeL m))
+  -> ListT m (Seq (TreeL m))
 date getter clch = standard "date" getter clch `mplus` shortTop
   where
     shortTop
@@ -160,10 +161,10 @@ date getter clch = standard "date" getter clch `mplus` shortTop
       guard . not . Seq.null <=< Penny.Ledger.offspring $ tree
 
 time
-  :: (Ledger m, MonadPlus m)
+  :: Ledger m
   => (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
-  -> m (Seq (TreeL m))
+  -> ListT m (Seq (TreeL m))
 time getter clch = standard "time" getter clch `mplus` shortTop
   where
     shortTop
@@ -176,10 +177,10 @@ time getter clch = standard "time" getter clch `mplus` shortTop
 
 
 zone
-  :: (Ledger m, MonadPlus m)
+  :: Ledger m
   => (View (PostingL m) -> Seq (PostingL m))
   -> Clatch m
-  -> m (Seq (TreeL m))
+  -> ListT m (Seq (TreeL m))
 zone getter clch = standard "zone" getter clch `mplus` shortTop
   where
     shortTop
