@@ -480,8 +480,8 @@ forestCell clch clrs
 -- | Creates a 'Regcol' with the results from the given matcher.
 -- The resulting 'Column' in the 'Regcol' has an empty header cell.
 forest
-  :: Ledger l
-  => (Clatch l -> ListT l (Seq (TreeL l)))
+  :: (Logic m, Ledger l)
+  => (Clatch l -> m l (Seq (TreeL l)))
   -> Regcol l
 forest mtcr clrs _ = Column mempty $ \clch ->
   observeAll (mtcr clch) >>= forestCell clch clrs
@@ -728,11 +728,11 @@ balances = mempty
 {-
 -- | The date, payee, and account fields.
 datePayeeAccount :: Ledger l => Seq (Regcol l)
+-}
 datePayeeAccount = mempty
   |+> forest (Penny.Clatch.Shortcut.posting date)
   |+> forest (Penny.Clatch.Shortcut.posting payee)
   |+> forest (Penny.Clatch.Shortcut.posting account)
--}
 
 {-
 -- | A default register report.  Shows the date, payee, account,

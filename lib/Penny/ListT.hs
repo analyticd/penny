@@ -59,9 +59,13 @@ observe (ListT (P.Select pdcr)) = liftM eval . P.next $ pdcr
 instance Logic ListT where
   runLogic = observe
 
-observeAll :: Monad m => ListT m a -> m (Seq a)
+
+observeAll
+  :: (Monad u, Logic m)
+  => m u a
+  -> u (Seq a)
 observeAll list = do
-  mayR <- observe list
+  mayR <- runLogic list
   case mayR of
     Nothing -> return Seq.empty
     Just (x, xs) -> do
