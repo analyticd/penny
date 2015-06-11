@@ -14,7 +14,8 @@
 -- REPL.  It loads transactions and prices from mulitple files and
 -- then places them into multiple 'Clatch'.  The resulting postings
 -- are filtered in multiple ways, sorted, and sent to a report.
-module Penny.Clatcher
+module Penny.Clatcher where
+{-
   (  -- * Converter
     Converter(..)
 
@@ -52,6 +53,7 @@ module Penny.Clatcher
   -- * Running the clatcher
   , clatcher
   ) where
+-}
 
 import Control.Applicative
 import Control.Exception (throwIO, Exception)
@@ -67,8 +69,6 @@ import Data.Typeable
 import Penny.Amount
 import Penny.Clatch
 import Penny.Copper
-import Penny.Folio (Folio)
-import qualified Penny.Folio
 import Penny.Ledger
 import Penny.Ledger.Scroll
 import Penny.Matcher
@@ -81,49 +81,14 @@ import Penny.Representation
 import Penny.SeqUtil
 import Penny.Stream
 import Penny.Transaction
+import Penny.Transbox
+import Penny.Viewpost
+import Penny.Converted
+import Penny.Filtered
+import Penny.Sorted
+import Penny.Balance
 import Rainbow
 
-
---
--- Converter
---
-
--- | A function that converts one 'Amount' to another.
-newtype Converter = Converter (Amount -> Maybe Amount)
-
-makeWrapped ''Converter
-
--- | For a given 'Amount', 'mappend' uses the first 'Converter' that
--- succeeds, or performs no conversion if neither 'Converter' performs
--- a conversion.  'mempty' performs no conversion.
-instance Monoid Converter where
-  mempty = Converter (const Nothing)
-  mappend (Converter x) (Converter y) = Converter $ \a -> x a <|> y a
-
---
--- Octavo
---
-
--- | Every run of the clatcher produces two streams of non-report
--- text: one describing the pre-filtering process, and one describing
--- the post-filtering process.  The 'Octavo' holds two values: the
--- 'Matcher' that does the pre- or post-filtering, and the 'Stream'
--- that determines what happens to the textual description of the output.
-data Octavo t l = Octavo
-  { _filterer :: Matcher t l ()
-  , _streamer :: IO Stream
-  }
-
-makeLenses ''Octavo
-
--- | 'mempty' uses a '_filterer' that returns no matches and a
--- 'Stream' that sends output to 'devNull'.  'mappend' uses '<|>' on
--- the '_filterer' and will send the output to both given
--- '_streamer's.
-instance Monad l => Monoid (Octavo t l) where
-  mempty = Octavo Control.Applicative.empty (return mempty)
-  Octavo x0 x1 `mappend` Octavo y0 y1 = Octavo (x0 <|> y0)
-    ((<>) <$> x1 <*> y1)
 
 --
 -- Errors
@@ -147,7 +112,7 @@ instance Exception PennyError
 -- the type of the ledger; each @o@ can be associated with only one
 -- @l@.  For an example instance see 'LoadScroll'.
 class Loader o l | o -> l where
-  loadChunks :: Ledger l => l Folio -> o -> IO Folio
+  loadChunks :: Ledger l => l (Chunk Text) -> o -> IO (Chunk Text)
   -- ^ Given a 'Ledger' computation that makes a 'Folio' and a given
   -- value, load the necessary prices and transactions to create the
   -- 'Folio'.
@@ -197,9 +162,6 @@ openFile = OpenFile
 -- ClatchOptions
 --
 
--- | A sequence of filtered postings.
-type Filtereds l = Seq (Filtered (TransactionL l, View (Converted (PostingL l))))
-
 -- | All options necessary to run the clatcher.
 data ClatchOptions l r o = ClatchOptions
   { _converter :: Converter
@@ -225,14 +187,18 @@ data ClatchOptions l r o = ClatchOptions
   -- to render fail, then the quantity is rendered using a period
   -- radix point and no digit grouping.
 
-  , _pre :: Octavo (TransactionL l, View (Converted (PostingL l))) l
-  -- ^ Controls pre-filtering; see 'Octavo' for details
+  , _pre :: Transbox l (Viewpost l (Converted ())) -> l Bool
+  -- ^ Controls pre-filtering
 
-  , _sorter :: Seq (Filtereds l -> l (Filtereds l))
+  , _sorter
+      :: Sorter l (Transbox l (Viewpost l (Converted (Filtered ()))))
   -- ^ Sorts postings; this is done after pre-filtering but before post-filtering.
-  , _post :: Octavo (RunningBalance (Sorted (Filtered
-      (TransactionL l, View (Converted (PostingL l)))))) l
-  -- ^ Controls post-filtering; see 'Octavo' for details
+
+  , _post
+      :: Transbox l (Viewpost l (Converted (Filtered
+                                 (Sorted (RunningBalance ())))))
+      -> l Bool
+  -- ^ Controls post-filtering
   , _output :: IO Stream
   -- ^ The destination stream for the report.
   , _reporter :: r
@@ -243,19 +209,44 @@ data ClatchOptions l r o = ClatchOptions
 
 makeLenses ''ClatchOptions
 
--- | 'mempty' uses 'mempty' for all fields, except for '_renderer'
--- (which uses 'Nothing') and '_report' (which uses @return mempty@).
+-- | The 'Monoid' instance uses for 'mempty':
 --
--- 'mappend' uses 'mappend' for all fields, except for '_renderer'
--- (which uses the last non-'Nothing' value) and '_report' (which will
--- run both streams concurrently).
+-- 'mempty' for '_converter'
+--
+-- 'Nothing' for '_renderer'
+--
+-- 'return' 'True' for '_pre'
+--
+-- 'mempty' for '_sorter'
+--
+-- 'return' 'True' for '_post'
+--
+-- 'return' 'mempty' for '_output'
+--
+-- 'mempty' for '_reporter' and '_loader'
+--
+-- 'mappend' uses:
+--
+-- 'mappend' for '_converter'
+--
+-- the last non-Nothing value if there is one for '_renderer';
+-- otherwise, Nothing
+--
+-- for '_pre' and '_post', returns 'True' only if both operands return 'True'
+--
+-- 'mappend' for '_sorter'
+--
+-- 'mappend' both streams for '_output'
+--
+-- 'mappend' for '_reporter' and '_loader'
+
 instance (Monad l, Monoid r, Monoid o) => Monoid (ClatchOptions l r o) where
   mempty = ClatchOptions
     { _converter = mempty
     , _renderer = Nothing
-    , _pre = mempty
+    , _pre = const $ return True
     , _sorter = mempty
-    , _post = mempty
+    , _post = const $ return True
     , _output = return mempty
     , _reporter = mempty
     , _loader = mempty
@@ -264,22 +255,14 @@ instance (Monad l, Monoid r, Monoid o) => Monoid (ClatchOptions l r o) where
   mappend x y = ClatchOptions
     { _converter = _converter x <> _converter y
     , _renderer = getLast $ Last (_renderer x) <> Last (_renderer y)
-    , _pre = _pre x <> _pre y
+    , _pre = \b -> liftM2 (&&) (_pre x b) (_pre y b)
     , _sorter = _sorter x <> _sorter y
-    , _post = _post x <> _post y
-    , _output = (<>) <$> _output x <*> _output y
+    , _post = \b -> liftM2 (&&) (_post x b) (_post y b)
+    , _output = liftM2 (<>) (_output x) (_output y)
     , _reporter = _reporter x <> _reporter y
     , _loader = _loader x <> _loader y
     }
 
---
--- Messages
---
-
-msgsToChunks
-  :: Seq (Seq Message)
-  -> Seq (Chunk Text)
-msgsToChunks = join . join . fmap (fmap (Seq.fromList . ($ []) . toChunks))
 
 --
 -- Main clatcher
@@ -296,36 +279,13 @@ smartRender mayRndrer (Renderings rndgs) (Amount cy qt)
   where
     rndrer = maybe (Right Nothing) id mayRndrer
 
-makeReport
-  :: (Loader o l, Ledger l, Report r)
-  => ClatchOptions l (r l) o
-  -> IO Folio
-makeReport opts = loadChunks act (_loader opts)
-  where
-    act = do
-      ((msgsPre, rndgs, msgsPost), cltchs) <-
-        allClatches (opts ^. converter . _Wrapped')
-                    (_filterer . _pre $ opts)
-                    (_sorter opts) (_filterer . _post $ opts)
-      cks <- printReport (_reporter opts)
-                         (smartRender (_renderer opts) rndgs)
-                         cltchs
-      return $ Penny.Folio.Folio
-        { Penny.Folio._pre = msgsToChunks msgsPre
-        , Penny.Folio._post = msgsToChunks msgsPost
-        , Penny.Folio._report = cks
-        }
-
 clatcher
   :: (Loader o l, Ledger l, Report r)
   => ClatchOptions l (r l) o
   -> IO ()
-clatcher opts = do
-  folio <- makeReport opts
-  feedStream (opts ^. pre . streamer) (folio ^. Penny.Folio.pre) $
-    feedStream (opts ^. post . streamer) (folio ^. Penny.Folio.post) $
-    feedStream (opts ^. output) (folio ^. Penny.Folio.report) $
-    return ()
+clatcher opts = undefined
+
+{-
 
 -- | A reasonable set of defaults for 'ClatchOptions'.  You could use
 -- 'mempty', but that results in a 'ClatchOptions' that will do
@@ -358,3 +318,4 @@ presets = mempty
   & output .~ toStream toLess
   & reporter.columns .~ register
   & reporter.colors .~ lightBackground
+-}

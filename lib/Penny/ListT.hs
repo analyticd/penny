@@ -53,6 +53,9 @@ observe (ListT (P.Select pdcr)) = liftM eval . P.next $ pdcr
     eval (Left ()) = Nothing
     eval (Right (a, pdcr')) = Just (a, ListT (P.Select pdcr'))
 
+toBool :: Monad m => ListT m a -> m Bool
+toBool = liftM (maybe False (const True)) . observe
+
 observeAll
   :: Monad m
   => ListT m a
