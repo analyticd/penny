@@ -163,7 +163,7 @@ openFile = OpenFile
 --
 
 -- | All options necessary to run the clatcher.
-data ClatchOptions l r o = ClatchOptions
+data ClatchOptions l = ClatchOptions
   { _converter :: Converter
   -- ^ Converts the amount of each posting from one amount to another.
   -- For example, this can be useful to convert a commodity to its
@@ -201,9 +201,11 @@ data ClatchOptions l r o = ClatchOptions
   -- ^ Controls post-filtering
   , _output :: IO Stream
   -- ^ The destination stream for the report.
-  , _reporter :: r
+  , _reporter :: (Amount -> NilOrBrimScalarAnyRadix)
+                 -> Seq (Clatch l)
+                 -> l (Seq (Chunk Text))
   -- ^ What report to print
-  , _loader :: o
+  , _loader :: l (Seq (Chunk Text)) -> IO (Seq (Chunk Text))
   -- ^ Source from which to load transactions and prices
   }
 
@@ -223,7 +225,9 @@ makeLenses ''ClatchOptions
 --
 -- 'return' 'mempty' for '_output'
 --
--- 'mempty' for '_reporter' and '_loader'
+-- returns an empty 'Seq' for '_reporter'
+--
+-- returns an empty 'Seq' for '_loader'
 --
 -- 'mappend' uses:
 --
@@ -238,9 +242,11 @@ makeLenses ''ClatchOptions
 --
 -- 'mappend' both streams for '_output'
 --
--- 'mappend' for '_reporter' and '_loader'
+-- returns the results of both '_reporter'
+--
+-- returns the results of both '_loader'
 
-instance (Monad l, Monoid r, Monoid o) => Monoid (ClatchOptions l r o) where
+instance Monad l => Monoid (ClatchOptions l) where
   mempty = ClatchOptions
     { _converter = mempty
     , _renderer = Nothing
@@ -248,8 +254,8 @@ instance (Monad l, Monoid r, Monoid o) => Monoid (ClatchOptions l r o) where
     , _sorter = mempty
     , _post = const $ return True
     , _output = return mempty
-    , _reporter = mempty
-    , _loader = mempty
+    , _reporter = \_ _ -> return Seq.empty
+    , _loader = const (return Seq.empty)
     }
 
   mappend x y = ClatchOptions
@@ -259,8 +265,8 @@ instance (Monad l, Monoid r, Monoid o) => Monoid (ClatchOptions l r o) where
     , _sorter = _sorter x <> _sorter y
     , _post = \b -> liftM2 (&&) (_post x b) (_post y b)
     , _output = liftM2 (<>) (_output x) (_output y)
-    , _reporter = _reporter x <> _reporter y
-    , _loader = _loader x <> _loader y
+    , _reporter = \f cls -> liftM2 (<>) (_reporter x f cls) (_reporter y f cls)
+    , _loader = \get -> liftM2 (<>) (_loader x get) (_loader y get)
     }
 
 
@@ -280,42 +286,14 @@ smartRender mayRndrer (Renderings rndgs) (Amount cy qt)
     rndrer = maybe (Right Nothing) id mayRndrer
 
 clatcher
-  :: (Loader o l, Ledger l, Report r)
-  => ClatchOptions l (r l) o
+  :: Ledger l
+  => ClatchOptions l
   -> IO ()
 clatcher opts = undefined
-
 {-
-
--- | A reasonable set of defaults for 'ClatchOptions'.  You could use
--- 'mempty', but that results in a 'ClatchOptions' that will do
--- nothing.
---
--- Defaults:
---
--- * If automatic rendering fails, the radix point is a period and
--- grouping is performed with commas
---
--- * The pre-filter accepts all postings
---
--- * The post-filter accepts all postings
---
--- * Report output is sent to @less@
---
--- * The 'register' report is used
---
--- * Column headings are not shown
---
--- * Colors for a light background are used
-
-presets
-  :: (Monoid o, Ledger l)
-  => ClatchOptions l (Register l) o
-presets = mempty
-  & renderer .~ Just (Right . Just $ Comma)
-  & pre.filterer .~ always
-  & post.filterer .~ always
-  & output .~ toStream toLess
-  & reporter.columns .~ register
-  & reporter.colors .~ lightBackground
+  where
+    getChunks = do
+      txns <- liftM Penny.SeqUtil.rights . liftM join $ vault
+      undefined
 -}
+

@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Viewpost where
 
+import Control.Monad
 import Data.Sums
 import Penny.Ledger
 import Penny.SeqUtil
@@ -11,6 +12,8 @@ import Data.Foldable (Foldable)
 import Penny.Amount
 import Penny.Qty
 import Penny.Representation
+import Penny.Transbox
+import Data.Sequence (Seq)
 
 data Viewpost l a = Viewpost
   { _viewpost :: View (PostingL l)
@@ -44,3 +47,10 @@ bestQtyRep
 bestQtyRep vp = case vp ^. viewpostee.converted of
   Nothing -> Penny.Ledger.originalQtyRep (vp ^. viewpost.onView)
   Just (Amount _ qt) -> return $ S3c qt
+
+createViewposts :: Ledger l => Transbox l a -> l (Seq (Transbox l (Viewpost l ())))
+createViewposts tbox
+  = return . fmap (\vw -> Transbox (_transaction tbox) (Viewpost vw ()))
+           . allViews
+  <=< Penny.Ledger.postings . _transaction
+  $ tbox
