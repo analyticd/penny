@@ -14,6 +14,8 @@ import Penny.Amount(Amount(..))
 import Penny.Ledger
 import Data.Foldable (Foldable)
 import qualified Data.Traversable as T
+import Penny.Viewpost
+import Penny.Transbox
 
 -- | A function that converts one 'Amount' to another.
 newtype Converter = Converter (Amount -> Maybe Amount)
@@ -42,6 +44,13 @@ convertPosting
 convertPosting (Converter cnv) p = liftM2 f (qty p) (commodity p)
   where
     f qt cy = Converted (cnv (Amount cy qt)) p
+
+createConverteds
+  :: Ledger l
+  => Converter
+  -> Transbox l (Viewpost l ())
+  -> Transbox l (Viewpost l (Converted ()))
+createConverteds = undefined
 
 
 convertTransaction
