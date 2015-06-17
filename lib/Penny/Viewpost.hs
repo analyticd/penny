@@ -48,9 +48,3 @@ bestQtyRep vp = case vp ^. viewpostee.converted of
   Nothing -> Penny.Ledger.originalQtyRep (vp ^. viewpost.onView)
   Just (Amount _ qt) -> return $ S3c qt
 
-createViewposts :: Ledger l => Transbox l a -> l (Seq (Transbox l (Viewpost l ())))
-createViewposts tbox
-  = return . fmap (\vw -> Transbox (_transaction tbox) (Viewpost vw ()))
-           . allViews
-  <=< Penny.Ledger.postings . _transaction
-  $ tbox

@@ -10,7 +10,7 @@ pennyVer = [0,33,0,0]
 -- Packages
 
 base :: Package
-base = closedOpen "base" [4,7,0,0] [4,8]
+base = closedOpen "base" [4,8,0,0] [4,9]
 
 anonymousSums :: Package
 anonymousSums = closedOpen "anonymous-sums" [0,4,0,0] [0,5]
@@ -25,7 +25,7 @@ containers :: Package
 containers = closedOpen "containers" [0,5] [0,6]
 
 uuParsing :: Package
-uuParsing = closedOpen "uu-parsinglib" [2,8] [2,9]
+uuParsing = closedOpen "uu-parsinglib" [2,9,1] [2,10]
 
 -- | Currently unused
 listlike :: Package

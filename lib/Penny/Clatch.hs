@@ -56,6 +56,32 @@ allMeta :: Ledger l => Transbox l (Viewpost l a) -> l (Seq (TreeL l))
 allMeta t = liftM2 mappend (pstgMeta t) (txnMeta t)
 
 
+createViewposts :: Ledger l => Transbox l a -> l (Seq (Transbox l (Viewpost l ())))
+createViewposts tbox
+  = return . fmap (\vw -> Transbox (_transaction tbox) (Viewpost vw ()))
+           . allViews
+  <=< Penny.Ledger.postings . _transaction
+  $ tbox
+
+createConverted
+  :: (Ledger l, Traversable t)
+  => Converter
+  -> t (Viewpost l a)
+  -> l (t (Viewpost l (Converted ())))
+createConverted converter = traverse f
+  where
+    f (Viewpost vw _) = do
+      converted <- convertPosting converter (_onView vw)
+      let converted' = () <$ converted
+      return $ Viewpost vw converted'
+
+createFiltered
+  :: Ledger l
+  => (Transbox l (Viewpost l (Converted ())) -> l Bool)
+  -- ^ Predicate
+  -> Seq (Transbox l (Viewpost l (Converted ())))
+  -> Seq (Transbox l (Viewpost l (Converted (Filtered ()))))
+createFiltered = undefined
 {-
 
 module Penny.Clatch
