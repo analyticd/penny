@@ -22,6 +22,8 @@ data Viewpost l a = Viewpost
 
 makeLenses ''Viewpost
 
+-- | Gets the converted Amount if there is one; otherwise, gets the
+-- Amount from the PostingL.
 bestAmount :: Ledger l => Viewpost l (Converted a) -> l Amount
 bestAmount v = case v ^. viewpostee.converted of
   Nothing -> do

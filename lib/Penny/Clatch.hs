@@ -29,12 +29,13 @@
 module Penny.Clatch where
 
 import Control.Lens
-import Control.Monad
+import Control.Monad hiding (filterM)
 import Penny.Converted
 import Penny.Ledger (TreeL, Ledger)
 import qualified Penny.Ledger
 import Penny.SeqUtil
 import Data.Foldable (Foldable)
+import Penny.Amount
 import Penny.Transbox
 import Penny.Prefilt
 import Penny.Viewpost
@@ -44,6 +45,8 @@ import Data.Sequence (Seq)
 import Data.Monoid
 import Penny.Balance
 import Data.Sums
+import Penny.Serial
+import qualified Data.Traversable as T
 
 type Clatch l
   = Transbox l (Viewpost l (Converted (Filtered (Sorted
@@ -80,8 +83,76 @@ createFiltered
   => (Transbox l (Viewpost l (Converted ())) -> l Bool)
   -- ^ Predicate
   -> Seq (Transbox l (Viewpost l (Converted ())))
+  -> l (Seq (Transbox l (Viewpost l (Converted (Filtered ())))))
+createFiltered pd = fmap f . filterM pd
+  where
+    f = fmap rewrap . assignSersetted
+    rewrap (Sersetted srst tb) = tb & transboxee.viewpostee.convertee
+      .~ Sersetted srst ()
+
+createSorted
+  :: Ledger l
+  => Sorter l (Transbox l (Viewpost l (Converted (Filtered ()))))
   -> Seq (Transbox l (Viewpost l (Converted (Filtered ()))))
-createFiltered = undefined
+  -> l (Seq (Transbox l (Viewpost l (Converted (Filtered (Sorted ()))))))
+createSorted srtr = fmap (fmap f) . sortWithSersetted srtr
+  where
+    f (Sersetted srst tb) = tb & transboxee.viewpostee.convertee.sersetee
+        .~ Sersetted srst ()
+
+
+createRunningBalance
+  :: Ledger l
+  => Seq (Transbox l (Viewpost l (Converted (Filtered (Sorted ())))))
+  -> l (Seq (Transbox l (Viewpost l (Converted (Filtered (Sorted
+               (RunningBalance ())))))))
+createRunningBalance
+  = return . snd . T.mapAccumL addBal mempty
+  <=< traverse addAmount
+  where
+    addAmount tb = do
+      am <- bestAmount (tb ^. transboxee)
+      return $ tb & transboxee.viewpostee.convertee.sersetee.sersetee
+        .~ am
+    addBal acc tb = (acc', new)
+      where
+        acc' = acc <> c'Balance'Amount
+          (tb ^. transboxee.viewpostee.convertee.sersetee.sersetee)
+        new = tb & transboxee.viewpostee.convertee.sersetee.sersetee
+          .~ RunningBalance acc' ()
+
+filterBalances
+  :: Ledger l
+  => (Transbox l (Viewpost l (Converted (Filtered (Sorted
+       (RunningBalance ()))))) -> l Bool)
+  -- ^ Predicate
+  -> Seq (Transbox l (Viewpost l (Converted (Filtered (Sorted
+          (RunningBalance ()))))))
+  -> l (Seq (Clatch l))
+filterBalances pd = fmap f . filterM pd
+  where
+    f = fmap rewrap . assignSersetted
+    rewrap (Sersetted srst tb) = tb
+      & transboxee.viewpostee.convertee.sersetee.sersetee.runningBalancee
+          .~ Sersetted srst ()
+
+clatches
+  :: Ledger l
+  => Converter
+  -> (Transbox l (Viewpost l (Converted ())) -> l Bool)
+  -> Sorter l (Transbox l (Viewpost l (Converted (Filtered ()))))
+  -> (Transbox l (Viewpost l (Converted (Filtered (Sorted
+      (RunningBalance ()))))) -> l Bool)
+  -> Seq (Penny.Ledger.TransactionL l)
+  -> l (Seq (Clatch l))
+clatches converter pdConverted sorter pdSorted
+  =   filterBalances pdSorted
+  <=< createRunningBalance
+  <=< createSorted sorter
+  <=< createFiltered pdConverted
+  <=< traverse (createConverted converter)
+  <=< fmap join . traverse createViewposts
+  <=< return . fmap (\txn -> Transbox txn ())
 {-
 
 module Penny.Clatch
