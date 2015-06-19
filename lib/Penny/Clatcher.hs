@@ -163,7 +163,7 @@ openFile = OpenFile
 --
 
 -- | All options necessary to run the clatcher.
-data ClatchOptions l = ClatchOptions
+data ClatchOptions r l = ClatchOptions
   { _converter :: Converter
   -- ^ Converts the amount of each posting from one amount to another.
   -- For example, this can be useful to convert a commodity to its
@@ -201,11 +201,9 @@ data ClatchOptions l = ClatchOptions
   -- ^ Controls post-filtering
   , _output :: IO Stream
   -- ^ The destination stream for the report.
-  , _reporter :: (Amount -> NilOrBrimScalarAnyRadix)
-                 -> Seq (Clatch l)
-                 -> l (Seq (Chunk Text))
+  , _reporter :: r
   -- ^ What report to print
-  , _loader :: l (Seq (Chunk Text)) -> IO (Seq (Chunk Text))
+  , _loader :: Seq LoadScroll
   -- ^ Source from which to load transactions and prices
   }
 
@@ -246,7 +244,7 @@ makeLenses ''ClatchOptions
 --
 -- returns the results of both '_loader'
 
-instance Monad l => Monoid (ClatchOptions l) where
+instance (Monad l, Monoid r) => Monoid (ClatchOptions r l) where
   mempty = ClatchOptions
     { _converter = mempty
     , _renderer = Nothing
@@ -254,8 +252,8 @@ instance Monad l => Monoid (ClatchOptions l) where
     , _sorter = mempty
     , _post = const $ return True
     , _output = return mempty
-    , _reporter = \_ _ -> return Seq.empty
-    , _loader = const (return Seq.empty)
+    , _reporter = mempty
+    , _loader = mempty
     }
 
   mappend x y = ClatchOptions
@@ -265,8 +263,8 @@ instance Monad l => Monoid (ClatchOptions l) where
     , _sorter = _sorter x <> _sorter y
     , _post = \b -> liftM2 (&&) (_post x b) (_post y b)
     , _output = liftM2 (<>) (_output x) (_output y)
-    , _reporter = \f cls -> liftM2 (<>) (_reporter x f cls) (_reporter y f cls)
-    , _loader = \get -> liftM2 (<>) (_loader x get) (_loader y get)
+    , _reporter = _reporter x <> _reporter y
+    , _loader = _loader x <> _loader y
     }
 
 
@@ -286,8 +284,8 @@ smartRender mayRndrer (Renderings rndgs) (Amount cy qt)
     rndrer = maybe (Right Nothing) id mayRndrer
 
 clatcher
-  :: Ledger l
-  => ClatchOptions l
+  :: (Ledger l, Report r)
+  => ClatchOptions (r l) l
   -> IO ()
 clatcher opts = undefined
 {-
