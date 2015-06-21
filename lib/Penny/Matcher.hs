@@ -9,39 +9,8 @@
 -- from Penny and be a package that Penny depends on.
 module Penny.Matcher where
 
-{-
-  ( -- * Matcher
-    Matcher(..)
-
-    -- * Subjects
-  , getSubject
-  , examine
-  , observe
-  , observeAll
-  , study
-  , tunnel
-
-  -- * Combining 'Matcher'
-  , invert
-  , feed
-
-  -- * For common types
-  , true
-  , false
-  , just
-  , nothing
-  , left
-  , right
-  , each
-  , index
-  , pattern
-
-  -- * Filtering
-  , filter
-  ) where
--}
-
 import Control.Monad
+import Control.Applicative
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Pipes hiding (next, each)
@@ -52,42 +21,42 @@ import Turtle.Pattern
 import Control.Lens hiding (Level, each, index)
 import Prelude hiding (filter)
 
-just :: MonadPlus m => Maybe a -> m a
-just = maybe mzero return
+just :: Alternative m => Maybe a -> m a
+just = maybe empty pure
 
-nothing :: MonadPlus m => Maybe a -> m ()
-nothing = maybe (return ()) (const mzero)
+nothing :: Alternative m => Maybe a -> m ()
+nothing = maybe (pure ()) (const empty)
 
-left :: MonadPlus m => Either a b -> m a
-left = either return (const mzero)
+left :: Alternative m => Either a b -> m a
+left = either pure (const empty)
 
-right :: MonadPlus m => Either a b -> m b
-right = either (const mzero) return
+right :: Alternative m => Either a b -> m b
+right = either (const empty) pure
 
 -- | Runs the given 'Matcher' on every item in the foldable sequence.
 -- Returns all matches.
 each
-  :: (MonadPlus m, Functor f, Foldable f)
+  :: (Alternative m, Functor f, Foldable f)
   => (a -> m b)
   -> (f a -> m b)
-each mtcr = F.msum . fmap (mtcr $)
+each mtcr = F.asum . fmap (mtcr $)
 
 index
-  :: MonadPlus m
+  :: Alternative m
   => Int
   -> Seq s
   -> m s
 index idx sq
-  | idx >= 0 && idx < Seq.length sq = return (sq `Seq.index` idx)
-  | otherwise = mzero
+  | idx >= 0 && idx < Seq.length sq = pure (sq `Seq.index` idx)
+  | otherwise = empty
 
 -- | Creates a 'Matcher' from a Turtle 'Pattern'.
 pattern
-  :: MonadPlus m
+  :: Alternative m
   => Pattern a
   -> Text
   -> m a
-pattern pat = F.msum . fmap return . match pat
+pattern pat = F.asum . fmap pure . match pat
 
 -- | Filters a 'Seq' using a 'Matcher'.
 filter

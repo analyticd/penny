@@ -4,9 +4,11 @@ import Control.Lens
 import Control.Monad
 import Data.Semigroup
 import qualified Data.Foldable as F
+import Data.Foldable (foldlM)
 import qualified Data.Map as M
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Penny.Amount
 import Penny.Commodity
 import Penny.Mimode
 import Penny.NonEmpty
@@ -15,17 +17,29 @@ import Penny.Representation
 import Penny.Trio
 import Penny.Ledger
 import Penny.Converted
+import Penny.Transbox
+import Penny.Viewpost
+import Penny.SeqUtil hiding (rights)
+import qualified Penny.SeqUtil
 
 
 -- | Map describing how different 'Commodity' are rendered.
-newtype Renderings = Renderings
+newtype History = History
   (M.Map Commodity
          (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
   deriving (Eq, Ord, Show)
 
-instance Monoid Renderings where
-  mempty = Renderings M.empty
-  mappend (Renderings x) (Renderings y) = Renderings $ M.unionWith (<>) x y
+instance Monoid History where
+  mempty = History M.empty
+  mappend (History x) (History y) = History $ M.unionWith (<>) x y
+
+-- | Like 'History' but does not include arrangements.
+newtype Abridged = Abridged
+  (M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer))))
+  deriving (Eq, Ord, Show)
+
+abridge :: History -> Abridged
+abridge (History mp) = Abridged $ fmap (fmap snd) mp
 
 -- | Represents a 'Qty' as \"smartly\" as possible, based on how its
 -- corresponding 'Commodity' has been represented in the past.
@@ -60,18 +74,16 @@ instance Monoid Renderings where
 repQtySmartly
   :: Either (Maybe RadCom) (Maybe RadPer)
   -- ^ Default rendering
-  -> M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer)))
+  -> Abridged
   -- ^ History map
-  -> Commodity
-  -- ^ Associated commodity
-  -> Qty
-  -- ^ Render this 'Qty'
+  -> Amount
   -> QtyRepAnyRadix
-repQtySmartly dflt mp cy = case repQtyByPopularCommodity mp cy of
-  Just f -> f
+repQtySmartly dflt (Abridged mp) (Amount cy qty)
+  = case repQtyByPopularCommodity mp cy of
+  Just f -> f qty
   Nothing -> case map snd . M.assocs $ mp of
-    [] -> repQty dflt
-    x:xs -> repQtyByPopularity (F.foldl' (<>) x xs)
+    [] -> repQty dflt qty
+    x:xs -> repQtyByPopularity (F.foldl' (<>) x xs) qty
 
 -- | Returns a function representing a Qty based on the radix point
 -- and grouping character most frequently seen.
@@ -130,15 +142,25 @@ rights = F.foldr f []
       Left _ -> acc
       Right r -> r : acc
 
-
-votePosting
+vote
   :: Ledger l
-  => Converted (PostingL l)
-  -> l Renderings
-votePosting = liftM f . trio . (^. convertee)
+  => PostingL l
+  -> l History
+vote = fmap f . trio
   where
     f tri = case trioRendering tri of
       Nothing -> mempty
-      Just (cy, ar, ei) -> Renderings
+      Just (cy, ar, ei) -> History
         $ M.singleton cy (NonEmpty (ar, ei) Seq.empty)
+
+elect
+  :: Ledger l
+  => l History
+elect = vault >>= toPostings >>= foldlM f mempty
+  where
+    toPostings
+      = return . join
+      <=< traverse postings
+      <=< return . join . fmap Penny.SeqUtil.rights
+    f acc posting = mappend <$> pure acc <*> vote posting
 

@@ -15,53 +15,12 @@
 -- then places them into multiple 'Clatch'.  The resulting postings
 -- are filtered in multiple ways, sorted, and sent to a report.
 module Penny.Clatcher where
-{-
-  (  -- * Converter
-    Converter(..)
 
-    -- * Octavo
-  , Octavo(..)
-    -- ** Lenses
-  , filterer
-  , streamer
-
-    -- * Errors
-  , PennyError(..)
-
-    -- * Loader
-  , Loader(..)
-  , LoadScroll(..)
-  , preload
-  , openFile
-
-    -- * Clatch options
-  , Filtereds
-  , ClatchOptions(..)
-    -- ** Clatch options lenses
-  , converter
-  , renderer
-  , pre
-  , sorter
-  , post
-  , output
-  , reporter
-  , loader
-
-  -- * Preset clatcher settings
-  , presets
-
-  -- * Running the clatcher
-  , clatcher
-  ) where
--}
-
-import Control.Applicative
 import Control.Exception (throwIO, Exception)
 import Control.Lens hiding (pre)
 import Control.Monad.Reader
 import Data.Monoid
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text.IO as X
 import qualified Data.Traversable as T
@@ -71,12 +30,9 @@ import Penny.Clatch
 import Penny.Copper
 import Penny.Ledger
 import Penny.Ledger.Scroll
-import Penny.Matcher
 import Penny.Price
-import Penny.Register
 import Penny.Report
 import Penny.Popularity
-import Penny.Prefilt
 import Penny.Representation
 import Penny.SeqUtil
 import Penny.Stream
@@ -274,24 +230,41 @@ instance (Monad l, Monoid r) => Monoid (ClatchOptions r l) where
 
 smartRender
   :: Maybe (Either (Maybe RadCom) (Maybe RadPer))
-  -> Renderings
+  -> Abridged
   -> Amount
   -> NilOrBrimScalarAnyRadix
-smartRender mayRndrer (Renderings rndgs) (Amount cy qt)
+smartRender mayRndrer abridged amt
   = c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
-  $ repQtySmartly rndrer (fmap (fmap snd) rndgs) cy qt
+  $ repQtySmartly rndrer abridged amt
   where
     rndrer = maybe (Right Nothing) id mayRndrer
 
 clatcher
+  :: Report r
+  => ClatchOptions (r Scroll) Scroll
+  -> IO ()
+clatcher opts = do
+  env <- loadTransactions (opts ^. loader)
+  let ScrollT rdr = getReport opts
+      chunks = runIdentity $ runReaderT rdr env
+  feedStream (opts ^. output) chunks (return ())
+
+getReport
   :: (Ledger l, Report r)
   => ClatchOptions (r l) l
-  -> IO ()
-clatcher opts = undefined
-{-
-  where
-    getChunks = do
-      txns <- liftM Penny.SeqUtil.rights . liftM join $ vault
-      undefined
--}
+  -> l (Seq (Chunk Text))
+getReport opts = do
+  abridged <- fmap abridge elect
+  let rend = smartRender (opts ^. renderer) abridged
+  txns <- fmap Penny.SeqUtil.rights . fmap join $ vault
+  cltchs <- clatches (opts ^. converter)
+                     (opts ^. pre)
+                     (opts ^. sorter)
+                     (opts ^. post)
+                     txns
+  printReport (opts ^. reporter) rend cltchs
 
+loadTransactions
+  :: Seq LoadScroll
+  -> IO (Seq (Seq (Either Price (Transaction TopLineSer PostingSer))))
+loadTransactions = fmap assignSerialsToEithers . traverse readAndParseScroll

@@ -36,22 +36,22 @@ module Penny.Transaction
   , PostingIndex(..)
   , PostingSer(..)
   , assignSerialsToTxns
+  , assignSerialsToEithers
   ) where
 
 import Penny.Ents
 import Penny.Field
 import Penny.Trio
 import Data.Sequence (Seq, viewl, ViewL(..))
-import Data.Monoid
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import qualified Data.Foldable as F
-import Control.Applicative
 import Penny.Natural
 import Penny.Representation
 import Data.Bifunctor
 import Data.Bifoldable
 import Penny.Serial
+import Data.Functor.Compose
 
 -- | All the data associated with the top line in a transaction.
 data TopLine a
@@ -319,3 +319,12 @@ assignSerialsToTxns
   = fmap (fmap (uncurry Transaction))
   . assignSerials
   . fmap (fmap (\(Transaction a b) -> (a, b)))
+
+assignSerialsToEithers
+  :: (Traversable t1, Traversable t2, Traversable t3)
+  => t1 (t2 (t3 (Transaction a b)))
+  -> t1 (t2 (t3 (Transaction TopLineSer PostingSer)))
+assignSerialsToEithers
+  = fmap (getCompose . fmap (first snd) . fmap (second snd))
+  . assignSerialsToTxns
+  . fmap Compose
