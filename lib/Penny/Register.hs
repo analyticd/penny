@@ -55,6 +55,9 @@ module Penny.Register
   , topLine
   , Penny.Register.index
 
+  -- * Colable
+  , Colable(..)
+
   -- * Register Report
   , Register(..)
   , showHeaders
@@ -735,3 +738,42 @@ datePayeeAccount = mempty
 -- amount, and balances.
 register :: Ledger l => Seq (Regcol l)
 register = datePayeeAccount <+> amount <+> balances
+
+--
+--
+--
+
+class Colable a where
+  colofy :: Ledger l => (Clatch l -> ListT l a) -> Regcol l
+
+linearLeftTop
+  :: Ledger l
+  => Colors
+  -> Clatch l
+  -> ListT l Text
+  -> l Cell
+linearLeftTop = undefined
+
+instance Colable Side where
+  colofy get colors _ = Column mempty cell
+    where
+      cell clatch = linearLeftTop colors clatch listt
+        where
+          listt = fmap toTxt $ get clatch
+          toTxt side = case side of
+            Debit -> "<"
+            Credit -> ">"
+
+instance Colable Commodity where
+  colofy get colors _ = Column mempty cell
+    where
+      cell clatch = linearLeftTop colors clatch listt
+        where
+          listt = fmap (\(Commodity cy) -> cy) $ get clatch
+{-
+    where
+      cell clatch = singleLinearLeftTop colors clatch
+        <=< return . toTxt
+        <=< get
+        $ clatch
+-}
