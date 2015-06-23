@@ -7,72 +7,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 -- | The Register report
-module Penny.Register
-  ( -- * Colors
-    Colors(..)
-  , debit
-  , credit
-  , neutral
-  , nonLinear
-  , notice
-  , oddBackground
-  , evenBackground
-
-  -- * Color schemes
-  , lightBackground
-  , darkBackground
-
-  -- * Column
-  , Regcol
-
-  -- * Side, commodity, and qty
-  , BestField(..)
-  , original
-  , best
-  , balance
-  , side
-  , Penny.Register.commodity
-  , Penny.Register.qty
-
-  -- * Forest
-  , displayForestL
-  , displayTreeL
-  , forest
-
-  -- * Spacer
-  , Penny.Register.spacer
-
-  -- * Sersets
-  , Penny.Register.forward
-  , Penny.Register.backward
-  , preFiltered
-  , sorted
-  , postFiltered
-  , FileOrGlobal(..)
-  , global
-  , file
-  , posting
-  , topLine
-  , Penny.Register.index
-
-  -- * Colable
-  , Colable(..)
-
-  -- * Register Report
-  , Register(..)
-  , showHeaders
-  , colors
-  , columns
-
-  -- * Convenient sets of columns
-  , (|+>)
-  , (<+|)
-  , (<+>)
-  , amount
-  , balances
-  , datePayeeAccount
-  , register
-  ) where
+module Penny.Register where
 
 import Control.Lens hiding (each)
 import Control.Monad
@@ -143,6 +78,82 @@ instance Monoid Colors where
   mappend (Colors x0 x1 x2 x3 x4 x5 x6) (Colors y0 y1 y2 y3 y4 y5 y6)
     = Colors (x0 <> y0) (x1 <> y1) (x2 <> y2) (x3 <> y3)
              (x4 <> y4) (x5 <> y5) (x6 <> y6)
+
+class Colable a where
+  colofy
+    :: Ledger l
+    => (Clatch l -> ListT l a)
+    -> Colors
+    -> (Either Qty Amount -> Text)
+    -> Column l (Clatch l)
+
+
+{-
+  ( -- * Colors
+    Colors(..)
+  , debit
+  , credit
+  , neutral
+  , nonLinear
+  , notice
+  , oddBackground
+  , evenBackground
+
+  -- * Color schemes
+  , lightBackground
+  , darkBackground
+
+  -- * Column
+  , Regcol
+
+  -- * Side, commodity, and qty
+  , BestField(..)
+  , original
+  , best
+  , balance
+  , side
+  , Penny.Register.commodity
+  , Penny.Register.qty
+
+  -- * Forest
+  , displayForestL
+  , displayTreeL
+  , forest
+
+  -- * Spacer
+  , Penny.Register.spacer
+
+  -- * Sersets
+  , Penny.Register.forward
+  , Penny.Register.backward
+  , preFiltered
+  , sorted
+  , postFiltered
+  , FileOrGlobal(..)
+  , global
+  , file
+  , posting
+  , topLine
+  , Penny.Register.index
+
+  -- * Colable
+  , Colable(..)
+
+  -- * Register Report
+  , Register(..)
+  , showHeaders
+  , colors
+  , columns
+
+  -- * Convenient sets of columns
+  , (|+>)
+  , (<+|)
+  , (<+>)
+  , amount
+  , balances
+  , datePayeeAccount
+  , register
+  ) where
 
 -- | A single column in a register report.
 type Regcol l
@@ -743,8 +754,9 @@ register = datePayeeAccount <+> amount <+> balances
 --
 --
 
-class Colable a where
-  colofy :: Ledger l => (Clatch l -> ListT l a) -> Regcol l
+-}
+
+{-
 
 linearLeftTop
   :: Ledger l
@@ -770,6 +782,7 @@ instance Colable Commodity where
       cell clatch = linearLeftTop colors clatch listt
         where
           listt = fmap (\(Commodity cy) -> cy) $ get clatch
+-}
 {-
     where
       cell clatch = singleLinearLeftTop colors clatch
