@@ -87,6 +87,38 @@ class Colable a where
     -> (Either Qty Amount -> Text)
     -> Column l (Clatch l)
 
+type Regcol l
+  = Colors
+  -> (Either Qty Amount -> Text)
+  -> Column l (Clatch l)
+
+background
+  :: Clatch l
+  -> Colors
+  -> Radiant
+background clatch colors = colors ^. getter
+  where
+    getter
+      | odd ser = oddBackground
+      | otherwise = evenBackground
+    ser = clatch ^. transboxee.viewpostee.convertee.sersetee.sersetee
+                      .runningBalancee.serset.forward.to naturalToInteger
+
+instance Colable Text where
+  colofy listt colors _ = Column mempty $ \clatch ->
+    fmap (f clatch) (observeAll $ listt clatch)
+    where
+      f clatch texts = Cell (fmap mkchunk texts) top left bkgd
+        where
+          bkgd = background clatch colors
+          mkchunk text = Seq.singleton
+            $ chunk text
+            & fore (colors ^. nonLinear)
+            & back bkgd
+
+spacer :: Ledger l => Int -> Regcol l
+spacer i = colofy (const (return (X.replicate i " ")))
+
 
 {-
   ( -- * Colors
