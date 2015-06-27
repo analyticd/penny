@@ -22,7 +22,9 @@ import Penny.Converted
 import Penny.Clatch
 import Penny.Clatch.Shortcut (date, payee, account)
 import qualified Penny.Clatch.Shortcut
-import Penny.Field (displayScalar)
+import Penny.DateTime
+import Penny.Display
+import Penny.Field
 import Penny.Ledger (Ledger, TreeL)
 import qualified Penny.Ledger
 import Penny.Natural
@@ -115,6 +117,62 @@ instance Colable Text where
             $ chunk text
             & fore (colors ^. nonLinear)
             & back bkgd
+
+instance Colable Integer where
+  colofy listt = colofy (fmap (X.pack . show) . listt)
+
+instance Colable Unsigned where
+  colofy listt = colofy (fmap naturalToInteger . listt)
+
+instance Colable Date where
+  colofy listt = colofy (fmap (X.pack . ($ "") . display) . listt)
+
+instance Colable Time where
+  colofy listt = colofy (fmap (X.pack . ($ "") . display) . listt)
+
+instance Colable Zone where
+  colofy listt = colofy (fmap (X.pack . ($ "") . display) . listt)
+
+instance Colable Scalar where
+  colofy listt = colofy (fmap disp . listt)
+    where
+      disp sc = case sc of
+        Chars txt -> txt
+        SDate date -> X.pack . ($ "") . display $ date
+        STime time -> X.pack . ($ "") . display $ time
+        SZone zone -> X.pack . ($ "") . display $ zone
+        SInt int -> X.pack . show $ int
+
+instance Colable Realm where
+  colofy listt = colofy (fmap disp . listt)
+    where
+      disp User = X.pack "U"
+      disp System = X.pack "S"
+
+
+-- | Displays a forest of trees, with each separated by a bullet
+-- (which is U+2022, or •).
+displayForestL
+  :: Ledger l
+  => Seq (TreeL l)
+  -> l Text
+displayForestL sq = case viewl sq of
+  EmptyL -> return X.empty
+  x1 :< xs1 -> do
+    t1 <- displayTreeL x1
+    let dispNext t = liftM (X.cons '•') $ displayTreeL t
+    liftM (F.foldl' mappend t1) $ T.mapM dispNext xs1
+
+
+displayTreeL
+  :: Ledger l
+  => TreeL l
+  -> l Text
+displayTreeL t = liftM2 f (Penny.Ledger.scalar t) (Penny.Ledger.offspring t)
+  where
+    f sc cs = maybe X.empty displayScalar sc <>
+      if Seq.null cs then mempty else X.singleton '↓'
+
 
 spacer :: Ledger l => Int -> Regcol l
 spacer i = colofy (const (return (X.replicate i " ")))
@@ -457,29 +515,6 @@ qty = BestField originalQty Penny.Register.bestQty balanceQty
 -- # Forest
 --
 
-
--- | Displays a forest of trees, with each separated by a bullet
--- (which is U+2022, or •).
-displayForestL
-  :: Ledger l
-  => Seq (TreeL l)
-  -> l Text
-displayForestL sq = case viewl sq of
-  EmptyL -> return X.empty
-  x1 :< xs1 -> do
-    t1 <- displayTreeL x1
-    let dispNext t = liftM (X.cons '•') $ displayTreeL t
-    liftM (F.foldl' mappend t1) $ T.mapM dispNext xs1
-
-
-displayTreeL
-  :: Ledger l
-  => TreeL l
-  -> l Text
-displayTreeL t = liftM2 f (Penny.Ledger.scalar t) (Penny.Ledger.offspring t)
-  where
-    f sc cs = maybe X.empty displayScalar sc <>
-      if Seq.null cs then mempty else X.singleton '↓'
 
 formatForestRow
   :: Colors

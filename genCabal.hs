@@ -73,7 +73,7 @@ semigroups :: Package
 semigroups = closedOpen "semigroups" [0,16,1] [0,17]
 
 contravariant :: Package
-contravariant = closedOpen "contravariant" [1,2] [1,3]
+contravariant = closedOpen "contravariant" [1,2] [1,4]
 
 pipes :: Package
 pipes = closedOpen "pipes" [4,1,4] [4,2]
@@ -89,7 +89,7 @@ async :: Package
 async = closedOpen "async" [2,0] [2,1]
 
 turtle :: Package
-turtle = closedOpen "turtle" [1,0,2] [1,1]
+turtle = closedOpen "turtle" [1,0,2] [1,2]
 
 mtl :: Package
 mtl = closedOpen "mtl" [2,2,1] [2,3]

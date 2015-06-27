@@ -6,3 +6,4 @@ cabal.sandbox.config
 test-dist/
 penny.cabal
 tests/penny-test.hs
+.stack-work/
