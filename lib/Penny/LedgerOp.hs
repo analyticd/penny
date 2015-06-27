@@ -24,33 +24,50 @@ data LedgerI a where
 
 type Ledger = Program LedgerI
 
+-- | All the items contained in the Ledger.
 vault :: Ledger (Seq (Seq (Either PriceL TransactionL)))
 vault = singleton Vault
 
 data PriceL = PriceL
   { dateTime :: Ledger DateTime
+  -- ^ When this price became effective
   , fromTo :: Ledger FromTo
+  -- ^ 1 unit of the from commodity equals the given number of
+  -- exchange commodity
   , exchange :: Ledger Exch
+  -- ^ 1 unit of the from commodity in the 'trade' equals this much of
+  -- the to commodity in the 'trade'
   }
 
 data TreeL = TreeL
   { scalar :: Ledger (Maybe Scalar)
+  -- ^ Information held in this node of the tree.
   , realm :: Ledger Realm
+  -- ^ Each tree is in a particular realm.
   , offspring :: Ledger (Seq TreeL)
+  -- ^ Child trees of a particular tree.
   }
 
 data TransactionL = TransactionL
   { txnMeta :: Ledger (Seq TreeL)
+  -- ^ The metadata for the transaction.
   , topLineSer :: Ledger TopLineSer
+  -- ^ The serial that applies to the entire transction.
   , postings :: Ledger (Seq PostingL)
+  -- ^ All postings.  A posting that is in a transaction is a @plink@.
   }
 
 data PostingL = PostingL
   { pstgMeta :: Ledger (Seq TreeL)
+  -- ^ Metadata for a single plink.
   , trio :: Ledger Trio
+  -- ^ The Trio that belongs to a posting.
   , qty :: Ledger Qty
+  -- ^ The quantity that belongs to a posting.
   , commodity :: Ledger Commodity
+  -- ^ The unit of currency for the posting.
   , postingSer :: Ledger PostingSer
+  -- ^ The serial that belongs to a posting.
   }
 
 scroll
