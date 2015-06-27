@@ -106,6 +106,9 @@ void = closedOpen "void" [0,7] [0,8]
 lens :: Package
 lens = closedOpen "lens" [4,9] [4,10]
 
+operational :: Package
+operational = closedOpen "operational" [0,2,3] [0,3]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W", "-fwarn-missing-signatures"]
@@ -138,6 +141,7 @@ libraryDepends =
   , process
   , anonymousSums
   , void
+  , operational
   ]
 
 testDepends :: [Package]
