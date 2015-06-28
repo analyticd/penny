@@ -2,6 +2,8 @@
 
 module Penny.Ledger.Matcher where
 
+{-
+
 import Control.Applicative
 import Control.Monad
 import Data.Text (Text)
@@ -73,3 +75,4 @@ postOrder mtcr s = do
   cs <- lift $ Penny.Ledger.offspring s
   (F.asum . fmap (preOrder mtcr $) $ cs) <|> (mtcr s)
 
+-}

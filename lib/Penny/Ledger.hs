@@ -3,6 +3,7 @@
 -- | A 'Ledger' is a store of transactions and prices.  'Ledger'
 -- specifies an interface for such stores.
 module Penny.Ledger where
+{-
 
 import Data.Sums
 import Penny.Amount
@@ -124,3 +125,4 @@ originalQtyRep p = do
     UC rn _ _ -> return $ S3a rn
     U rn -> return $ S3a rn
     _ -> fmap S3c . Penny.Ledger.qty $ p
+-}
