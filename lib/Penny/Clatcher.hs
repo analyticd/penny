@@ -29,7 +29,6 @@ import Penny.Amount
 import Penny.Clatch
 import Penny.Copper
 import Penny.Ledger
-import Penny.Ledger.Scroll
 import Penny.Price
 import Penny.Report
 import Penny.Popularity
@@ -67,8 +66,8 @@ instance Exception PennyError
 -- elsewhere.  @o@ is the value that does the loading, while @l@ is
 -- the type of the ledger; each @o@ can be associated with only one
 -- @l@.  For an example instance see 'LoadScroll'.
-class Loader o l | o -> l where
-  loadChunks :: Ledger l => l (Chunk Text) -> o -> IO (Chunk Text)
+class Loader a where
+  loadChunks :: Ledger (Chunk Text) -> a -> IO (Chunk Text)
   -- ^ Given a 'Ledger' computation that makes a 'Folio' and a given
   -- value, load the necessary prices and transactions to create the
   -- 'Folio'.
@@ -91,9 +90,9 @@ readAndParseScroll (OpenFile fn)
   <=< X.readFile
   $ fn
 
-instance Loader (Seq LoadScroll) Scroll where
-  loadChunks (ScrollT act)
-    = liftM (runReader act . addSerials)
+instance Loader (Seq LoadScroll) where
+  loadChunks ledger
+    = fmap (flip scroll ledger . addSerials)
     . T.mapM readAndParseScroll
 
 -- | Preload prices and transactions from the given file and keep them
@@ -119,7 +118,7 @@ openFile = OpenFile
 --
 
 -- | All options necessary to run the clatcher.
-data ClatchOptions r l = ClatchOptions
+data ClatchOptions r = ClatchOptions
   { _converter :: Converter
   -- ^ Converts the amount of each posting from one amount to another.
   -- For example, this can be useful to convert a commodity to its
@@ -143,17 +142,17 @@ data ClatchOptions r l = ClatchOptions
   -- to render fail, then the quantity is rendered using a period
   -- radix point and no digit grouping.
 
-  , _pre :: Transbox l (Viewpost l (Converted ())) -> l Bool
+  , _pre :: Transbox (Viewpost (Converted ())) -> Ledger Bool
   -- ^ Controls pre-filtering
 
   , _sorter
-      :: Sorter l (Transbox l (Viewpost l (Converted (Filtered ()))))
+      :: Sorter Ledger (Transbox (Viewpost (Converted (Filtered ()))))
   -- ^ Sorts postings; this is done after pre-filtering but before post-filtering.
 
   , _post
-      :: Transbox l (Viewpost l (Converted (Filtered
+      :: Transbox (Viewpost (Converted (Filtered
                                  (Sorted (RunningBalance ())))))
-      -> l Bool
+      -> Ledger Bool
   -- ^ Controls post-filtering
   , _output :: IO Stream
   -- ^ The destination stream for the report.
@@ -200,7 +199,7 @@ makeLenses ''ClatchOptions
 --
 -- returns the results of both '_loader'
 
-instance (Monad l, Monoid r) => Monoid (ClatchOptions r l) where
+instance Monoid r => Monoid (ClatchOptions r) where
   mempty = ClatchOptions
     { _converter = mempty
     , _renderer = Nothing
@@ -241,18 +240,18 @@ smartRender mayRndrer abridged amt
 
 clatcher
   :: Report r
-  => ClatchOptions (r Scroll) Scroll
+  => ClatchOptions r
   -> IO ()
 clatcher opts = do
-  env <- loadTransactions (opts ^. loader)
-  let ScrollT rdr = getReport opts
-      chunks = runIdentity $ runReaderT rdr env
+  items <- loadTransactions (opts ^. loader)
+  let ledger = getReport opts
+      chunks = scroll items ledger
   feedStream (opts ^. output) chunks (return ())
 
 getReport
-  :: (Ledger l, Report r)
-  => ClatchOptions (r l) l
-  -> l (Seq (Chunk Text))
+  :: Report r
+  => ClatchOptions r
+  -> Ledger (Seq (Chunk Text))
 getReport opts = do
   abridged <- fmap abridge elect
   let rend = smartRender (opts ^. renderer) abridged

@@ -9,6 +9,8 @@
 -- | The Register report
 module Penny.Register where
 
+{-
+
 import Control.Lens hiding (each)
 import Control.Monad
 import Data.Monoid
@@ -176,6 +178,8 @@ displayTreeL t = liftM2 f (Penny.Ledger.scalar t) (Penny.Ledger.offspring t)
 
 spacer :: Ledger l => Int -> Regcol l
 spacer i = colofy (const (return (X.replicate i " ")))
+
+-}
 
 
 {-

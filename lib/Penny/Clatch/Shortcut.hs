@@ -25,6 +25,7 @@ import qualified Data.Foldable as F
 import Penny.Field.Matcher
 import Penny.ListT
 
+{-
 standard
   :: Ledger m
   => Text
@@ -190,3 +191,4 @@ zone getter clch = standard "zone" getter clch `mplus` shortTop
     shortcutMtcr tree = do
       Penny.Field.Matcher.zone <=< just <=< Penny.Ledger.scalar $ tree
       guard . not . Seq.null <=< Penny.Ledger.offspring $ tree
+-}

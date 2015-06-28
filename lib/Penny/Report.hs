@@ -13,12 +13,11 @@ import Rainbow
 -- For an example instance, see 'Penny.Register.Register'.
 class Report a where
   printReport
-    :: Ledger l
-    => a l
+    :: a
     -- ^ The report to print
     -> (Amount -> NilOrBrimScalarAnyRadix)
     -- ^ Represents calculated amounts
-    -> Seq (Clatch l)
+    -> Seq Clatch
     -- ^ Sequence of 'Clatch' for which to prepare a report
-    -> l (Seq (Chunk Text))
+    -> Ledger (Seq (Chunk Text))
     -- ^ The resulting report

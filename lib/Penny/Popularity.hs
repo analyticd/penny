@@ -1,6 +1,5 @@
 module Penny.Popularity where
 
-import Control.Lens
 import Control.Monad
 import Data.Semigroup
 import qualified Data.Foldable as F
@@ -16,10 +15,6 @@ import Penny.Qty
 import Penny.Representation
 import Penny.Trio
 import Penny.Ledger
-import Penny.Converted
-import Penny.Transbox
-import Penny.Viewpost
-import Penny.SeqUtil hiding (rights)
 import qualified Penny.SeqUtil
 
 
@@ -143,9 +138,8 @@ rights = F.foldr f []
       Right r -> r : acc
 
 vote
-  :: Ledger l
-  => PostingL l
-  -> l History
+  :: PostingL
+  -> Ledger History
 vote = fmap f . trio
   where
     f tri = case trioRendering tri of
@@ -153,9 +147,7 @@ vote = fmap f . trio
       Just (cy, ar, ei) -> History
         $ M.singleton cy (NonEmpty (ar, ei) Seq.empty)
 
-elect
-  :: Ledger l
-  => l History
+elect :: Ledger History
 elect = vault >>= toPostings >>= foldlM f mempty
   where
     toPostings

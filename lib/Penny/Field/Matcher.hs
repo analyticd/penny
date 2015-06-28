@@ -8,19 +8,19 @@ import Penny.Field
 import Data.Text (Text)
 
 text :: MonadPlus m => Scalar -> m Text
-text = (return . scalarChars) >=> just
+text = (pure . scalarChars) >=> just
 
 date :: MonadPlus m => Scalar -> m Date
-date = (return . scalarDate) >=> just
+date = (pure . scalarDate) >=> just
 
 time :: MonadPlus m => Scalar -> m Time
-time = (return . scalarTime) >=> just
+time = (pure . scalarTime) >=> just
 
 zone :: MonadPlus m => Scalar -> m Zone
-zone = (return . scalarZone) >=> just
+zone = (pure . scalarZone) >=> just
 
 integer :: MonadPlus m => Scalar -> m Integer
-integer = (return . scalarInteger) >=> just
+integer = (pure . scalarInteger) >=> just
 
 user :: MonadPlus m => Realm -> m ()
 user = guard . (== User)

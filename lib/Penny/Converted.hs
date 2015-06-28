@@ -7,14 +7,11 @@ module Penny.Converted where
 import Control.Applicative
 import Control.Lens
 import Control.Monad
-import Data.Monoid
 import Data.Sequence (Seq)
 import Penny.SeqUtil
 import Penny.Amount(Amount(..))
 import Penny.Ledger
-import Data.Foldable (Foldable)
 import qualified Data.Traversable as T
-import Penny.Transbox
 
 -- | A function that converts one 'Amount' to another.
 newtype Converter = Converter (Amount -> Maybe Amount)
@@ -36,19 +33,17 @@ data Converted a = Converted
 makeLenses ''Converted
 
 convertPosting
-  :: Ledger l
-  => Converter
-  -> PostingL l
-  -> l (Converted (PostingL l))
+  :: Converter
+  -> PostingL
+  -> Ledger (Converted PostingL)
 convertPosting (Converter cnv) p = liftM2 f (qty p) (commodity p)
   where
     f qt cy = Converted (cnv (Amount cy qt)) p
 
 convertTransaction
-  :: Ledger l
-  => Converter
-  -> TransactionL l
-  -> l (TransactionL l, Seq (View (Converted (PostingL l))))
+  :: Converter
+  -> TransactionL
+  -> Ledger (TransactionL, Seq (View (Converted PostingL)))
 convertTransaction conv txn
   = return . (txn,) . allViews
   <=< T.mapM (convertPosting conv)

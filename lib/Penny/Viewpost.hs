@@ -2,21 +2,17 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Viewpost where
 
-import Control.Monad
 import Data.Sums
 import Penny.Ledger
 import Penny.SeqUtil
 import Penny.Converted
 import Control.Lens
-import Data.Foldable (Foldable)
 import Penny.Amount
 import Penny.Qty
 import Penny.Representation
-import Penny.Transbox
-import Data.Sequence (Seq)
 
-data Viewpost l a = Viewpost
-  { _viewpost :: View (PostingL l)
+data Viewpost a = Viewpost
+  { _viewpost :: View PostingL
   , _viewpostee :: a
   } deriving (Functor, Foldable, Traversable)
 
@@ -24,7 +20,7 @@ makeLenses ''Viewpost
 
 -- | Gets the converted Amount if there is one; otherwise, gets the
 -- Amount from the PostingL.
-bestAmount :: Ledger l => Viewpost l (Converted a) -> l Amount
+bestAmount :: Viewpost (Converted a) -> Ledger Amount
 bestAmount v = case v ^. viewpostee.converted of
   Nothing -> do
     cy <- Penny.Ledger.commodity . view (viewpost.onView) $ v
@@ -32,7 +28,7 @@ bestAmount v = case v ^. viewpostee.converted of
     return $ Amount cy qt
   Just a -> return a
 
-originalAmount :: Ledger l => Viewpost l a -> l Amount
+originalAmount :: Viewpost a -> Ledger Amount
 originalAmount v = do
   cy <- Penny.Ledger.commodity . view (viewpost.onView) $ v
   qt <- Penny.Ledger.qty . view (viewpost.onView) $ v
@@ -43,9 +39,8 @@ originalAmount v = do
 -- Otherwise, gets the 'QtyRep' from the 'Trio', if there is one.
 -- Otherwise, gets the 'Qty'.
 bestQtyRep
-  :: Ledger l
-  => Viewpost l (Converted a)
-  -> l (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
+  :: Viewpost (Converted a)
+  -> Ledger (S3 RepNonNeutralNoSide QtyRepAnyRadix Qty)
 bestQtyRep vp = case vp ^. viewpostee.converted of
   Nothing -> Penny.Ledger.originalQtyRep (vp ^. viewpost.onView)
   Just (Amount _ qt) -> return $ S3c qt

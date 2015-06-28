@@ -15,4 +15,4 @@ import Penny.Sorted
 import Penny.Filtered
 
 -- | Input to the post-filter.
-type Postfilt l a = Transbox l (Viewpost l (Converted (Filtered (Sorted a))))
+type Postfilt a = Transbox (Viewpost (Converted (Filtered (Sorted a))))

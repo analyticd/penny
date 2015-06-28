@@ -2,6 +2,7 @@
 
 module Penny.Ledger.Matcher where
 
+import Control.Applicative
 import Control.Monad
 import Data.Text (Text)
 import qualified Data.Foldable as F
@@ -11,16 +12,35 @@ import Penny.Ledger (Ledger, TreeL)
 import qualified Penny.Ledger
 import Penny.Matcher
 import Penny.Field.Matcher
+import Control.Monad.Trans.Class
 
 -- | Succeds only if this 'TreeL' has offspring.
-hasOffspring :: (Ledger m, MonadPlus m) => TreeL m -> m ()
-hasOffspring = guard <=< return . not . Seq.null <=< Penny.Ledger.offspring
+hasOffspring
+  :: (Monad (t Ledger), Alternative (t Ledger), MonadTrans t)
+  => TreeL
+  -> t Ledger ()
+hasOffspring
+  = guard . not . Seq.null
+  <=< lift . Penny.Ledger.offspring
 
 -- # Trees
 
 -- | Conduct a pre-order search for a tree with the given name.
 -- Returns all child trees.
 namedTree
+  :: (Monad (t Ledger), Alternative (t Ledger), MonadTrans t)
+  => Text
+  -> Seq TreeL
+  -> t Ledger (Seq TreeL)
+namedTree = undefined
+{-
+namedTree nm = each . preOrder $ \tr -> do
+  txt <- text <=< just <=< lift Penny.Ledger.scalar $ tr
+  guard $ txt == nm
+  lift $ Penny.Ledger.offspring tr
+-}
+
+{-
   :: (Ledger m, MonadPlus m)
   => Text
   -> Seq (TreeL m)
@@ -29,26 +49,27 @@ namedTree nm = each . preOrder $ \tr -> do
   txt <- text <=< just <=< Penny.Ledger.scalar $ tr
   guard $ txt == nm
   Penny.Ledger.offspring tr
-
+-}
 
 -- | Traverses this tree and all child trees, in pre-order; that is,
--- the node is visited, followed by visiting all its child nodes.
+-- this node is visited, followed by all child nodes.
 preOrder
-  :: (Ledger m, MonadPlus m)
-  => (TreeL m -> m a)
-  -> TreeL m
-  -> m a
+  :: (Monad (t Ledger), Alternative (t Ledger), MonadTrans t)
+  => (TreeL -> t Ledger a)
+  -> TreeL
+  -> t Ledger a
 preOrder mtcr s = do
-  cs <- Penny.Ledger.offspring s
-  mplus (mtcr s) (F.msum . fmap (preOrder mtcr $) $ cs)
+  cs <- lift $ Penny.Ledger.offspring s
+  (mtcr s) <|> (F.asum . fmap (preOrder mtcr $) $ cs)
 
 -- | Traverses this tree and all child trees, in post-order; that is,
 -- all child nodes are visited, followed by this node.
 postOrder
-  :: (Ledger m, MonadPlus m)
-  => (TreeL m -> m a)
-  -> TreeL m
-  -> m a
+  :: (Monad (t Ledger), Alternative (t Ledger), MonadTrans t)
+  => (TreeL -> t Ledger a)
+  -> TreeL
+  -> t Ledger a
 postOrder mtcr s = do
-  cs <- Penny.Ledger.offspring s
-  mplus (F.msum . fmap (postOrder mtcr $) $ cs) (mtcr s)
+  cs <- lift $ Penny.Ledger.offspring s
+  (F.asum . fmap (preOrder mtcr $) $ cs) <|> (mtcr s)
+

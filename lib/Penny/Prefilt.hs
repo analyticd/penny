@@ -13,5 +13,5 @@ import Penny.Transbox
 import Penny.Viewpost
 
 -- | Input to the pre-filter.
-type Prefilt l a = Transbox l (Viewpost l (Converted a))
+type Prefilt a = Transbox (Viewpost (Converted a))
 
