@@ -5,10 +5,12 @@
 module Penny.Serial where
 
 import Control.Lens
+import Control.Applicative
 import Penny.Natural
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import Penny.Representation
+import Data.Foldable (Foldable)
 
 data Serset = Serset
   { _forward :: Unsigned
@@ -17,18 +19,19 @@ data Serset = Serset
 
 makeLenses ''Serset
 
-data Serpack = Serpack
-  { _file :: Serset
-  , _global :: Serset
-  } deriving (Eq, Ord, Show)
+-- | Things that have a Serset.
+data Sersetted a = Sersetted
+  { _serset :: Serset
+  , _sersetee :: a
+  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-makeLenses ''Serpack
+makeLenses ''Sersetted
 
-assignSersetted :: T.Traversable t => t a -> t (Serset, a)
+assignSersetted :: T.Traversable t => t a -> t (Sersetted a)
 assignSersetted t = flip evalState (toUnsigned Zero) $ do
   withFwd <- T.traverse (\a -> (,) <$> pure a <*> makeForward) t
   withBak <- T.traverse (\a -> (,) <$> pure a <*> makeBackward) withFwd
-  let f ((b, fwd), bak) = ((Serset fwd bak), b)
+  let f ((b, fwd), bak) = Sersetted (Serset fwd bak) b
   return . fmap f $ withBak
 
 

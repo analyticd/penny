@@ -10,6 +10,7 @@ import Penny.Commodity
 import Penny.Qty
 import qualified Data.Map as M
 import Data.Monoid
+import Data.Foldable (Foldable)
 import qualified Data.Traversable as T
 
 newtype Balance = Balance (M.Map Commodity Qty)

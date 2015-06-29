@@ -3,7 +3,7 @@
 module Penny.Natural.Internal where
 
 import Penny.Digit
-import Data.Foldable (toList)
+import Data.Foldable (Foldable, toList)
 import Data.Sequence (Seq, ViewR(..), viewr)
 import Penny.PluMin
 import Penny.Semantic

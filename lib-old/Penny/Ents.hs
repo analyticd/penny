@@ -11,9 +11,9 @@ module Penny.Ents
   , entsToBalanced
   , ImbalancedError(..)
   , EntView
-  , onLeft
-  , onView
-  , onRight
+  , entsLeft
+  , thisEnt
+  , entsRight
   , moveLeft
   , moveRight
   , allEntViews

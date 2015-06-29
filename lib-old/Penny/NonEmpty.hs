@@ -1,5 +1,6 @@
 module Penny.NonEmpty where
 
+import Control.Applicative
 import Penny.Natural
 import Penny.Digit
 import qualified Data.Foldable as F

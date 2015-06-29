@@ -1,10 +1,12 @@
 {-# OPTIONS_HADDOCK not-home #-}
 module Penny.Ents.Internal where
 
+import Control.Applicative
 import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>)
                       , ViewR(..), viewr)
 import qualified Data.Sequence as S
 import Penny.Amount
+import Penny.Ent
 import Penny.Balance
 import Penny.Commodity
 import Penny.Qty
@@ -18,8 +20,8 @@ import Penny.Side
 import Penny.Representation
 import Penny.Friendly
 
-data Ents a = Ents
-  { entsToSeqEnt :: Seq (Amount, a)
+data Ents m = Ents
+  { entsToSeqEnt :: Seq (Ent m)
   , entsToImbalance :: Imbalance
   } deriving (Eq, Ord, Show)
 
@@ -31,7 +33,7 @@ instance Monoid (Ents m) where
   mappend (Ents s1 b1) (Ents s2 b2) = Ents (s1 <> s2) (b1 <> b2)
 
 instance F.Foldable Ents where
-  foldr f z = F.foldr f z . fmap snd . entsToSeqEnt
+  foldr f z = F.foldr f z . fmap (\(Ent _ m) -> m) . entsToSeqEnt
 
 instance T.Traversable Ents where
   sequenceA (Ents sq bl) = fmap (flip Ents bl) . go $ sq
@@ -41,7 +43,7 @@ instance T.Traversable Ents where
         e :< xs ->
           (<|) <$> T.sequenceA e <*> go xs
 
-newtype Balanced a = Balanced { balancedToSeqEnt :: Seq (Amount, a) }
+newtype Balanced m = Balanced { balancedToSeqEnt :: Seq (Ent m) }
   deriving (Eq, Ord, Show)
 
 instance Functor Balanced where
@@ -52,7 +54,7 @@ instance Monoid (Balanced a) where
   mappend (Balanced x) (Balanced y) = Balanced (x <> y)
 
 instance F.Foldable Balanced where
-  foldr f z = F.foldr f z . fmap snd . balancedToSeqEnt
+  foldr f z = F.foldr f z . fmap (\(Ent _ m) -> m) . balancedToSeqEnt
 
 instance T.Traversable Balanced where
   sequenceA (Balanced sq) = fmap Balanced . go $ sq
@@ -63,25 +65,25 @@ instance T.Traversable Balanced where
           (<|) <$> T.sequenceA e <*> go xs
 
 
-appendEnt :: Ents a -> (Amount, a) -> Ents a
-appendEnt (Ents s b) e = Ents (s |> e)
-  (b <> c'Imbalance'Amount (fst e))
+appendEnt :: Ents a -> Ent a -> Ents a
+appendEnt (Ents s b) e@(Ent a _) = Ents (s |> e)
+  (b <> c'Imbalance'Amount a)
 
-prependEnt :: (Amount, a) -> Ents a -> Ents a
-prependEnt e (Ents s b) = Ents (e <| s)
-  (b <> c'Imbalance'Amount (fst e))
+prependEnt :: Ent a -> Ents a -> Ents a
+prependEnt e@(Ent a _) (Ents s b) = Ents (e <| s)
+  (b <> c'Imbalance'Amount a)
 
 appendTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
 appendTrio ents@(Ents _ imb) trio =
-  case trioToAmount imb trio of
+  case toEnt imb trio of
     Left e -> Left e
-    Right g -> Right $ \a -> appendEnt ents (g, a)
+    Right g -> Right $ appendEnt ents . g
 
 prependTrio :: Trio -> Ents a -> Either TrioError (a -> Ents a)
 prependTrio trio ents@(Ents _ imb) =
-  case trioToAmount imb trio of
+  case toEnt imb trio of
     Left e -> Left e
-    Right g -> Right $ \a -> prependEnt (g, a) ents
+    Right g -> Right $ \a -> prependEnt (g a) ents
 
 data ImbalancedError
   = ImbalancedError (Commodity, QtyNonZero) [(Commodity, QtyNonZero)]
@@ -102,9 +104,9 @@ entsToBalanced (Ents sq (Imbalance m)) = case M.toList m of
   x:xs -> Left $ ImbalancedError x xs
 
 data EntView a = EntView
-  { onLeft :: Seq (Amount, a)
-  , onView :: (Amount, a)
-  , onRight :: Seq (Amount, a)
+  { entsLeft :: Seq (Ent a)
+  , thisEnt :: Ent a
+  , entsRight :: Seq (Ent a)
   } deriving (Eq, Ord, Show)
 
 instance Functor EntView where
@@ -113,7 +115,7 @@ instance Functor EntView where
 
 instance F.Foldable EntView where
   foldr f z (EntView l c r) = F.foldr f z
-    . fmap snd $ (l |> c) <> r
+    . fmap (\(Ent _ m) -> m) $ (l |> c) <> r
 
 instance T.Traversable EntView where
   traverse f (EntView l c r)
@@ -150,7 +152,7 @@ siblingEntViews (EntView l c r) = go S.empty pairs
         | otherwise -> this <| go (soFar |> this) rest
         where
           this = EntView l' e r'
-          l' = fmap onView soFar
+          l' = fmap thisEnt soFar
           r' = fmap snd rest
 
 
@@ -186,10 +188,10 @@ restrictedBalanced
 restrictedBalanced cy s sq metaLast = Balanced (begin |> end)
   where
     begin = fmap f sq
-    f (rep, ar, meta) = (Amount cy (toQty q), (meta, tri))
+    f (rep, ar, meta) = Ent (Amount cy (toQty q)) (meta, tri)
       where
         q = nilOrBrimScalarAnyRadixToQty s rep
         tri = QC q cy ar
-    end = (Amount cy (negate tot), (metaLast, E))
-    tot = F.foldl' (+) (fromInteger 0) . fmap (\(Amount _ q, _) -> q)
+    end = Ent (Amount cy (negate tot)) (metaLast, E)
+    tot = F.foldl' (+) (fromInteger 0) . fmap (\(Ent (Amount _ q) _) -> q)
       $ begin

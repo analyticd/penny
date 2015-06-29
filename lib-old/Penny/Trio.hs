@@ -1,6 +1,7 @@
 module Penny.Trio where
 
 import Penny.Amount
+import Penny.Ent
 import Penny.Decimal
 import Penny.Display
 import Penny.Commodity
@@ -22,7 +23,8 @@ data Orient
   | CommodityOnRight
   deriving (Eq, Ord, Show)
 
-type SpaceBetween = Bool
+newtype SpaceBetween = SpaceBetween Bool
+  deriving (Eq, Ord, Show)
 
 data Arrangement = Arrangement Orient SpaceBetween
   deriving (Eq, Ord, Show)
@@ -174,22 +176,57 @@ trioRepresentation tri = case tri of
   _ -> Nothing
 
 
+qtyAndCommodityToEnt
+  :: QtyRepAnyRadix
+  -> Commodity
+  -> a
+  -> Ent a
+qtyAndCommodityToEnt qnr cy a = Ent (Amount cy (toQty qnr)) a
 
-oneCommodity :: Imbalance -> Either TrioError (Commodity, QtyNonZero)
-oneCommodity (Imbalance imb) = case M.toList imb of
-  [] -> Left NoImbalance
-  (cy, q):[] -> return (cy, q)
-  x:y:xs -> Left $ MultipleImbalance x y xs
+toEnt :: Imbalance -> Trio -> Either TrioError (a -> Ent a)
 
-notSameSide :: Side -> Side -> Either TrioError ()
-notSameSide x y
-  | x == y = Left $ BalanceIsSameSide x
-  | otherwise = return ()
+toEnt _ (QC qnr cy _) = Right $ qtyAndCommodityToEnt qnr cy
 
-lookupCommodity :: Imbalance -> Commodity -> Either TrioError QtyNonZero
-lookupCommodity (Imbalance imb) cy = case M.lookup cy imb of
-  Nothing -> Left $ CommodityNotFound cy
-  Just dnz -> return dnz
+toEnt imb (Q qnr) = fmap f $ oneCommodity imb
+  where
+    f (cy, _) = Ent (Amount cy (toQty qnr))
+
+toEnt imb (SC s cy) = do
+  qnz <- lookupCommodity imb cy
+  let qtSide = qtyNonZeroSide qnz
+  notSameSide qtSide s
+  return $ Ent (Amount cy (toQty . offset $ qnz))
+
+toEnt imb (S s) = do
+  (cy, qnz) <- oneCommodity imb
+  let qtSide = qtyNonZeroSide qnz
+  notSameSide s qtSide
+  return $ Ent (Amount cy (toQty . offset $ qnz))
+
+
+toEnt imb (UC qnr cy _) = do
+  qnz <- lookupCommodity imb cy
+  let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
+        . toDecPositive $ qnr
+  return $ Ent (Amount cy q)
+
+toEnt imb (U qnr) = do
+  (cy, qnz) <- oneCommodity imb
+  qnrIsSmallerAbsoluteValue qnr qnz
+  let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
+        . toDecPositive $ qnr
+  return $ Ent (Amount cy q)
+
+toEnt imb (C cy) = do
+  qnz <- lookupCommodity imb cy
+  let q = toQty . offset $ qnz
+  return $ Ent (Amount cy q)
+
+toEnt imb E = do
+  (cy, qnz) <- oneCommodity imb
+  let q = toQty . offset $ qnz
+  return $ Ent (Amount cy q)
+
 
 qnrIsSmallerAbsoluteValue
   :: RepNonNeutralNoSide
@@ -203,46 +240,18 @@ qnrIsSmallerAbsoluteValue qnr qnz
     qnz' = Semantic . toDecimal . toDecPositive
       . (\(QtyNonZero dnz) -> dnz) $ qnz
 
-trioToAmount :: Imbalance -> Trio -> Either TrioError Amount
+notSameSide :: Side -> Side -> Either TrioError ()
+notSameSide x y
+  | x == y = Left $ BalanceIsSameSide x
+  | otherwise = return ()
 
-trioToAmount _ (QC qnr cy _) = Right $ Amount cy (toQty qnr)
+oneCommodity :: Imbalance -> Either TrioError (Commodity, QtyNonZero)
+oneCommodity (Imbalance imb) = case M.toList imb of
+  [] -> Left NoImbalance
+  (cy, q):[] -> return (cy, q)
+  x:y:xs -> Left $ MultipleImbalance x y xs
 
-trioToAmount imb (Q qnr) = fmap f $ oneCommodity imb
-  where
-    f (cy, _) = Amount cy (toQty qnr)
-
-trioToAmount imb (SC s cy) = do
-  qnz <- lookupCommodity imb cy
-  let qtSide = qtyNonZeroSide qnz
-  notSameSide qtSide s
-  return $ Amount cy (toQty . offset $ qnz)
-
-trioToAmount imb (S s) = do
-  (cy, qnz) <- oneCommodity imb
-  let qtSide = qtyNonZeroSide qnz
-  notSameSide s qtSide
-  return $ Amount cy (toQty . offset $ qnz)
-
-
-trioToAmount imb (UC qnr cy _) = do
-  qnz <- lookupCommodity imb cy
-  let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
-        . toDecPositive $ qnr
-  return $ Amount cy q
-
-trioToAmount imb (U qnr) = do
-  (cy, qnz) <- oneCommodity imb
-  qnrIsSmallerAbsoluteValue qnr qnz
-  let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
-        . toDecPositive $ qnr
-  return $ Amount cy q
-
-trioToAmount imb (C cy) = do
-  qnz <- lookupCommodity imb cy
-  let q = toQty . offset $ qnz
-  return $ Amount cy q
-
-trioToAmount imb E = do
-  (cy, qnz) <- oneCommodity imb
-  let q = toQty . offset $ qnz
-  return $ Amount cy q
+lookupCommodity :: Imbalance -> Commodity -> Either TrioError QtyNonZero
+lookupCommodity (Imbalance imb) cy = case M.lookup cy imb of
+  Nothing -> Left $ CommodityNotFound cy
+  Just dnz -> return dnz
