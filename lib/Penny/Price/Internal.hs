@@ -1,5 +1,7 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Penny.Price.Internal where
 
+import Control.Lens
 import Penny.Commodity
 import Data.Map (Map)
 import qualified Data.Map as M
@@ -19,8 +21,8 @@ data FromTo = FromTo
   , toCy :: ToCy
   } deriving (Eq, Ord, Show)
 
-fromTo :: FromCy -> ToCy -> Maybe FromTo
-fromTo f@(FromCy fr) t@(ToCy to)
+makeFromTo :: FromCy -> ToCy -> Maybe FromTo
+makeFromTo f@(FromCy fr) t@(ToCy to)
   | fr /= to = Just $ FromTo f t
   | otherwise = Nothing
 
@@ -34,8 +36,13 @@ newtype PriceDb = PriceDb
   (Map FromCy (Map ToCy (Map UTCTime Exch)))
   deriving (Eq, Ord, Show)
 
-data Price = Price DateTime FromTo Exch
-  deriving (Eq, Ord, Show)
+data Price = Price
+  { _dateTime :: DateTime
+  , _fromTo :: FromTo
+  , _exch :: Exch
+  } deriving (Eq, Ord, Show)
+
+makeLenses ''Price
 
 emptyDb :: PriceDb
 emptyDb = PriceDb M.empty

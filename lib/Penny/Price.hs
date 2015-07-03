@@ -32,9 +32,12 @@ module Penny.Price
   , FromTo
   , fromCy
   , toCy
-  , fromTo
+  , makeFromTo
   , convertQty
   , Price(..)
+  , dateTime
+  , fromTo
+  , exch
   , PriceDb
   , emptyDb
   , addPriceToDb

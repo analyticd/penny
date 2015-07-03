@@ -1,7 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RankNTypes #-}
 module Penny.Clatch where
 
-import Control.Lens
+import Control.Lens hiding (view)
+import Data.Monoid
 import Penny.Amount
 import Penny.Converter
 import Penny.Balance
@@ -13,16 +15,10 @@ import Penny.Commodity
 import Penny.Serial
 import Penny.Exch
 import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import qualified Penny.Price as Price
 import Penny.SeqUtil
-
-data Price = Price
-  { _dateTime :: DateTime
-  , _fromTo :: Price.FromTo
-  , _exch :: Exch
-  } deriving (Eq, Ord, Show)
-
-makeLenses ''Price
+import qualified Data.Traversable as T
 
 data Core = Core
   { _trio :: Trio
@@ -53,6 +49,16 @@ type PreFiltset = Serset
 type Sortset = Serset
 type PostFiltset = Serset
 
+-- # Clatches and compatible types
+
+type Viewed a = (Transaction, (View Posting, a))
+type Converted a = (Transaction, (View Posting, (Maybe Amount, a)))
+type Prefilt a = (Transaction, (View Posting, (Maybe Amount, (PreFiltset, a))))
+type Sorted a = (Transaction, (View Posting, (Maybe Amount, (PreFiltset,
+                  (Sortset, a)))))
+type Totaled a = (Transaction, (View Posting, (Maybe Amount, (PreFiltset,
+                   (Sortset, (Balance, a))))))
+
 type Clatch =
   (Transaction, (View Posting, (Maybe Amount, (PreFiltset, (Sortset,
     (Balance, (PostFiltset, ())))))))
@@ -67,6 +73,11 @@ view = fst . snd
 
 converted :: (a, (b, (Maybe Amount, c))) -> Maybe Amount
 converted = fst . snd . snd
+
+best :: (a, (View Posting, (Maybe Amount, c))) -> Amount
+best clatch = case converted clatch of
+  Just a -> a
+  Nothing -> clatch ^. to view . onView . to core . amount
 
 preFiltset :: (a, (b, (c, (PreFiltset, d)))) -> PreFiltset
 preFiltset = fst . snd . snd . snd
@@ -88,17 +99,59 @@ createViewposts :: Transaction -> Seq (Transaction, (View Posting, ()))
 createViewposts txn = fmap (\vw -> (txn, (vw, ())))
   (allViews . snd . snd $ txn)
 
+-- | Applies a 'Converter' to convert a posting.
 createConverted
   :: Converter
-  -> (a, (View Posting, b))
-  -> (a, (View Posting, (Maybe Amount, ())))
+  -> Viewed a
+  -> Converted ()
 createConverted (Converter f) clatch = clatch & _2._2 .~ (conv, ())
   where
     conv = f $ clatch ^. _2._1.onView.to core.amount
 
 createPrefilt
-  :: ((Transaction, (View Posting, (Maybe Amount, ()))) -> Bool)
+  :: (Converted a -> Bool)
   -- ^ Predicate
-  -> Seq (Transaction, (View Posting, (Maybe Amount, ())))
-  -> Seq (Transaction, (View Posting, (Maybe Amount, (PreFiltset, ()))))
-createPrefilt = undefined
+  -> Seq (Converted a)
+  -> Seq (Prefilt ())
+createPrefilt pd
+  = fmap arrange
+  . serialNumbers
+  . Seq.filter pd
+  where
+    arrange ((t, (v, (a, _))), s) = (t, (v, (a, (s, ()))))
+
+createSortset
+  :: (Prefilt a -> Bool)
+  -- ^ Predicate
+  -> Seq (Prefilt a)
+  -> Seq (Sorted ())
+createSortset pd
+  = fmap arrange
+  . serialNumbers
+  . Seq.filter pd
+  where
+    arrange ((t, (v, (a, (e, _)))), s) = (t, (v, (a, (e, (s, ())))))
+
+addTotals
+  :: Seq (Sorted a)
+  -> Seq (Totaled ())
+addTotals = snd . T.mapAccumL f mempty
+  where
+    f bal clatch@(txn, (vw, (conv, (pf, (ss, _))))) =
+      (bal', (txn, (vw, (conv, (pf, (ss, (bal', ())))))))
+      where
+        bal' = bal <> c'Balance'Amount (best clatch)
+
+createClatch
+  :: (Totaled () -> Bool)
+  -- ^ Predicate
+  -> Seq (Sorted a)
+  -> Seq Clatch
+createClatch pd
+  = fmap arrange
+  . serialNumbers
+  . Seq.filter pd
+  . addTotals
+  where
+    arrange ((t, (v, (a, (e, (s, (b, _)))))), o)
+      = (t, (v, (a, (e, (s, (b, (o, ())))))))
