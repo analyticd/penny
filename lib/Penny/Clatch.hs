@@ -3,22 +3,22 @@
 module Penny.Clatch where
 
 import Control.Lens hiding (view)
+import Control.Monad (join)
+import Data.Bifunctor
+import Data.Bifunctor.Flip
 import Data.Monoid
 import Penny.Amount
 import Penny.Converter
 import Penny.Balance
-import Penny.DateTime
+import Penny.Ents (Balanced, balancedToSeqEnt)
 import Penny.Tree
 import Penny.Trio
-import Penny.Qty
-import Penny.Commodity
 import Penny.Serial
-import Penny.Exch
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import qualified Penny.Price as Price
 import Penny.SeqUtil
 import qualified Data.Traversable as T
+import Data.Functor.Compose
 
 data Core = Core
   { _trio :: Trio
@@ -95,7 +95,7 @@ postFiltset = fst . snd . snd . snd . snd . snd . snd
 -- # Creation
 --
 
-createViewposts :: Transaction -> Seq (Transaction, (View Posting, ()))
+createViewposts :: Transaction -> Seq (Viewed ())
 createViewposts txn = fmap (\vw -> (txn, (vw, ())))
   (allViews . snd . snd $ txn)
 
@@ -121,14 +121,14 @@ createPrefilt pd
     arrange ((t, (v, (a, _))), s) = (t, (v, (a, (s, ()))))
 
 createSortset
-  :: (Prefilt a -> Bool)
-  -- ^ Predicate
+  :: (Prefilt a -> Prefilt a -> Ordering)
+  -- ^ Sorter
   -> Seq (Prefilt a)
   -> Seq (Sorted ())
 createSortset pd
   = fmap arrange
   . serialNumbers
-  . Seq.filter pd
+  . Seq.sortBy pd
   where
     arrange ((t, (v, (a, (e, _)))), s) = (t, (v, (a, (e, (s, ())))))
 
@@ -155,3 +155,67 @@ createClatch pd
   where
     arrange ((t, (v, (a, (e, (s, (b, _)))))), o)
       = (t, (v, (a, (e, (s, (b, (o, ())))))))
+
+--
+-- # Adding serials
+--
+
+addSerials
+  :: Seq (Seq (Seq Tree, Balanced (Seq Tree, Trio)))
+  -> Seq Transaction
+addSerials
+  = fmap arrangeTransaction
+  . addSersets
+  . join
+  . fmap addSersets
+  . fmap (fmap (second addIndexes))
+
+arrangeTransaction
+  :: (((Seq Tree, Serset), Serset),
+      Seq (((Amount, Seq Tree, Trio, Serset), Serset), Serset))
+  -> Transaction
+arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
+  = (Serpack txnLcl txnGlbl, (txnMeta, pstgs))
+  where
+    pstgs = fmap mkPstg sq
+    mkPstg (((amt, trees, tri, pstgIdx), pstgLcl), pstgGbl)
+      = (Serpack pstgLcl pstgGbl, (trees, Core tri amt pstgIdx))
+
+addSersets
+  :: Seq (a, Seq b)
+  -> Seq ((a, Serset), Seq (b, Serset))
+addSersets
+  = addTxn
+  . addPstg
+  where
+    addTxn = fmap runFlip . getCompose . serialNumbers . Compose . fmap Flip
+    addPstg = getCompose . getCompose . serialNumbers . Compose . Compose
+
+addIndexes
+  :: Balanced (Seq Tree, Trio)
+  -> Seq (Amount, Seq Tree, Trio, Serset)
+addIndexes
+  = fmap (\((amt, (trees, tri)), srst) -> (amt, trees, tri, srst))
+  . serialNumbers
+  . balancedToSeqEnt
+
+--
+-- Creator
+--
+
+
+clatchesFromTransactions
+  :: Converter
+  -> (Converted () -> Bool)
+  -> (Prefilt () -> Prefilt () -> Ordering)
+  -> (Totaled () -> Bool)
+  -> Seq Transaction
+  -> Seq Clatch
+clatchesFromTransactions converter pConverted sorter pTotaled
+  = createClatch pTotaled
+  . createSortset sorter
+  . createPrefilt pConverted
+  . fmap (createConverted converter)
+  . join
+  . fmap createViewposts
+

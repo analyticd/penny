@@ -11,6 +11,7 @@ module Penny.SeqUtil
   ( mapMaybeM
   , zipWithM
   , rights
+  , partitionEithers
   , filterM
 
   -- * Views
@@ -80,6 +81,15 @@ rights sq = case viewl sq of
   x :< xs -> case x of
     Left _ -> rights xs
     Right r -> r <| rights xs
+
+partitionEithers
+  :: Seq (Either a b)
+  -> (Seq a, Seq b)
+partitionEithers = F.foldl' f (empty, empty)
+  where
+    f (l, r) ei = case ei of
+      Left a -> (l |> a, r)
+      Right a -> (l, r |> a)
 
 data View a = View
   { _onLeft :: (Seq a)
