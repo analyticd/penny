@@ -4,6 +4,7 @@ import Data.Sequence (Seq)
 import Data.Text (Text)
 import Penny.Clatch
 import Penny.Popularity
+import Penny.Representation
 import Rainbow
 
 
@@ -14,6 +15,7 @@ class Report a where
     :: a
     -- ^ The report to print
     -> History
+    -> Maybe (Either (Maybe RadCom) (Maybe RadPer))
     -> Seq Clatch
     -- ^ Sequence of 'Clatch' for which to prepare a report
     -> Seq (Chunk Text)

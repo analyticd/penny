@@ -92,7 +92,7 @@ data ClatchOptions r l = ClatchOptions
   -- to render fail, then the quantity is rendered using a period
   -- radix point and no digit grouping.
 
-  , _pre :: (Converted () -> Bool)
+  , _pre :: Converted () -> Bool
   -- ^ Controls pre-filtering
 
   , _sort :: Prefilt () -> Prefilt () -> Ordering
@@ -181,7 +181,8 @@ getReport
   => ClatchOptions r l
   -> (Seq Price, Seq Transaction)
   -> Seq (Chunk Text)
-getReport opts items = printReport (opts ^. report) hist clatches
+getReport opts items
+  = printReport (opts ^. report) hist (opts ^. renderer) clatches
   where
     hist = elect . snd $ items
     clatches
