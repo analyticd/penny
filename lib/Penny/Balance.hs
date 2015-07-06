@@ -12,6 +12,7 @@ import qualified Data.Map as M
 import Data.Monoid
 import qualified Data.Traversable as T
 
+-- | The balance of multiple commodities.
 newtype Balance = Balance (M.Map Commodity Qty)
   deriving (Eq, Ord, Show)
 
