@@ -1,9 +1,9 @@
 flags: {}
 packages:
 - '.'
-- '../rainbox'
 extra-deps:
-- anonymous-sums-0.4.0.0
-- pipes-cliff-0.10.0.2
+  - anonymous-sums-0.4.0.0
+  - pipes-cliff-0.10.0.0
+  - rainbox-0.18.0.0
 
-resolver: nightly-2015-06-26
+resolver: nightly-2015-07-12

@@ -13,7 +13,7 @@ base :: Package
 base = closedOpen "base" [4,8,0,0] [4,9]
 
 anonymousSums :: Package
-anonymousSums = closedOpen "anonymous-sums" [0,4,0,0] [0,5]
+anonymousSums = package "anonymous-sums" (gtEq [0,4,0,0])
 
 bytestring :: Package
 bytestring = closedOpen "bytestring" [0,10,4] [0,11]
@@ -46,7 +46,7 @@ prednote :: Package
 prednote = closedOpen "prednote" [0,32] [0,33]
 
 quickcheck :: Package
-quickcheck = closedOpen "QuickCheck" [2,7,6] [2,8]
+quickcheck = package "QuickCheck" (gtEq [2,7,6])
 
 derive :: Package
 derive = closedOpen "derive" [2,5] [2,6]
@@ -89,7 +89,7 @@ async :: Package
 async = closedOpen "async" [2,0] [2,1]
 
 turtle :: Package
-turtle = closedOpen "turtle" [1,0,2] [1,2]
+turtle = package "turtle" (gtEq [1,0,2])
 
 mtl :: Package
 mtl = closedOpen "mtl" [2,2,1] [2,3]
