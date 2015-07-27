@@ -52,7 +52,7 @@ instance Monoid Colors where
 data Env = Env
   { _clatch :: Clatch
   , _history :: History
-  , _renderer :: Maybe (Either (Maybe RadCom) (Maybe RadPer))
+  , _renderer :: Either (Maybe RadCom) (Maybe RadPer)
   , _colors :: Colors
   }
 
@@ -73,7 +73,7 @@ instance Monoid Column where
 
 table
   :: History
-  -> Maybe (Either (Maybe RadCom) (Maybe RadPer))
+  -> Either (Maybe RadCom) (Maybe RadPer)
   -> Colors
   -> Seq Column
   -> Seq Clatch

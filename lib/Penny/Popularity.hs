@@ -14,6 +14,7 @@ import Penny.Qty
 import Penny.Representation
 import Penny.Trio
 import Penny.Clatch
+import Control.Applicative
 
 
 -- | Map describing how different 'Commodity' are rendered.
@@ -25,6 +26,25 @@ newtype History = History
 instance Monoid History where
   mempty = History M.empty
   mappend (History x) (History y) = History $ M.unionWith (<>) x y
+
+-- | Determines how to arrange a particular commodity.  If the
+-- commodity is present in the 'History', uses the 'mimode'
+-- arrangement for that particular commodity.  If the commodity is not
+-- present in the history, uses the 'mimode' arrangement for all
+-- commodities in the 'History'.  If the 'History' has no commodities,
+-- uses an arrangement with a space and with the commodity on the
+-- left.
+arrange :: History -> Commodity -> Arrangement
+arrange (History hist) cy = maybe (Arrangement CommodityOnLeft True)
+  id (thisCommodity <|> allCommodities)
+  where
+    thisCommodity = M.lookup cy hist >>= getArrangement
+      where
+        getArrangement = mimode . fmap fst
+    allCommodities = mimode . fmap fst . mconcat . map F.toList . M.elems
+      $ hist
+
+-- | Determines what radix point and groping 
 
 -- | Like 'History' but does not include arrangements.
 newtype Abridged = Abridged
