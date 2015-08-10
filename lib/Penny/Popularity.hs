@@ -15,7 +15,9 @@ import Penny.Representation
 import Penny.Trio
 import Penny.Clatch
 import Control.Applicative
-
+import Penny.SeqUtil
+import Control.Monad (join)
+import qualified Data.Either
 
 -- | Map describing how different 'Commodity' are rendered.
 newtype History = History
@@ -44,8 +46,83 @@ arrange (History hist) cy = maybe (Arrangement CommodityOnLeft True)
     allCommodities = mimode . fmap fst . mconcat . map F.toList . M.elems
       $ hist
 
--- | Determines what radix point and groping 
+-- | Gets all comma radix groupers.
+radComGroupers
+  :: NonEmpty (a, Either (Seq RadCom) b)
+  -> Seq RadCom
+radComGroupers = F.foldl' add Seq.empty . fmap snd
+  where
+    add sq ei = case ei of
+      Left sq' -> sq <> sq'
+      Right _ -> sq
 
+-- | Gets all period radix groupers.
+radPerGroupers
+  :: NonEmpty (a, Either b (Seq RadPer))
+  -> Seq RadPer
+radPerGroupers = F.foldl' add Seq.empty . fmap snd
+  where
+    add sq ei = case ei of
+      Left _ -> sq
+      Right sq' -> sq <> sq'
+
+{-
+whichRadCom
+  :: History
+  -> Maybe Commodity
+  -> RadCom
+whichRadCom (History hist) mayCom = maybe Period id $ thisCy <|> allCy
+  where
+    thisCy = case mayCom of
+      Nothing -> Nothing
+      Just cy -> do
+        histogram <- M.lookup cy hist
+        mimode . join . lefts . fmap snd . seqFromNonEmpty $ histogram
+    allCy = mimode . fst . allGroupers . History $ hist
+-}
+
+groupers
+  :: History
+  -> Maybe Commodity
+  -> (Seq RadCom, Seq RadPer)
+groupers (History hist) mayCom = case mayCom of
+  Nothing -> partitionEithers . fmap snd . join . 
+
+-- | Determines what radix The 'mimode' radix point for the given
+-- commodity is chosen.  If there is no 'mimode' for the commodity,
+-- then the 'mimode' radix point for all commodities is chosen.  If
+-- there is no 'mimode' for all commodities, then a period radix is used.
+{-
+whichRadix
+  :: History
+  -> Commodity
+  -> WhichRadix
+whichRadix (History hist) cy = maybe Period id $ thisCy <|> allCy
+  where
+-}
+
+
+-- | Determines what radix point and grouping character to use for a
+-- particular commodity.  The 'mimode' radix point for the given
+-- commodity is chosen.  If there is no 'mimode' for the commodity,
+-- then the 'mimode' radix point for all commodities is chosen.  If
+-- there is no 'mimode' for all commodities, then a period radix is used.
+--
+-- Then, for the given radix point, the 'mimode' grouping
+-- character for the given commodity is chosen.  If there is no
+-- 'mimode' grouping character for this commodity, the 'mimode' from
+-- all commodities is chosen.  If this also fails, then a comma grouper
+-- is used for a period radix, or a thin space grouper is used for a
+-- period radix.
+
+radGroupForCommodity
+  :: History
+  -> Commodity
+  -> Either (Maybe RadPer) (Maybe RadCom)
+radGroupForCommodity = undefined
+
+
+{-
 -- | Like 'History' but does not include arrangements.
 newtype Abridged = Abridged
   (M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer))))
@@ -98,6 +175,7 @@ repQtySmartly dflt (Abridged mp) (Amount cy qty)
     [] -> repQty dflt qty
     x:xs -> repQtyByPopularity (F.foldl' (<>) x xs) qty
 
+
 -- | Returns a function representing a Qty based on the radix point
 -- and grouping character most frequently seen.
 repQtyByPopularity
@@ -141,20 +219,6 @@ pickRadix ne =
         where
           grpr = mimode . mconcat . rights . seqFromNonEmpty $ ne
 
-lefts :: F.Foldable f => f (Either a b) -> [a]
-lefts = F.foldr f []
-  where
-    f ei acc = case ei of
-      Left l -> l : acc
-      Right _ -> acc
-
-rights :: F.Foldable f => f (Either a b) -> [b]
-rights = F.foldr f []
-  where
-    f ei acc = case ei of
-      Left _ -> acc
-      Right r -> r : acc
-
 vote :: Posting -> History
 vote = make . (^. to core . trio)
   where
@@ -181,3 +245,4 @@ smartRender mayRndrer abridged amt
   $ repQtySmartly rndrer abridged amt
   where
     rndrer = maybe (Right Nothing) id mayRndrer
+-}

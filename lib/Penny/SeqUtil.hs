@@ -10,6 +10,7 @@
 module Penny.SeqUtil
   ( mapMaybeM
   , zipWithM
+  , lefts
   , rights
   , partitionEithers
   , filterM
@@ -73,6 +74,13 @@ zipWithM f sa sb = case viewl sa of
       t <- f a b
       rs <- zipWithM f as bs
       return $ t <| rs
+
+lefts :: Seq (Either a b) -> Seq a
+lefts sq = case viewl sq of
+  EmptyL -> empty
+  x :< xs -> case x of
+    Right _ -> lefts xs
+    Left l -> l <| lefts xs
 
 
 rights :: Seq (Either a b) -> Seq b
