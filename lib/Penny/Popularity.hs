@@ -18,11 +18,12 @@ import Control.Applicative
 import Penny.SeqUtil
 import Control.Monad (join)
 import qualified Data.Either
+import Data.Maybe
 
 -- | Map describing how different 'Commodity' are rendered.
 newtype History = History
   (M.Map Commodity
-         (NonEmpty (Arrangement, Either (Seq RadCom) (Seq RadPer))))
+         (Seq (Arrangement, Either (Seq RadCom) (Seq RadPer))))
   deriving (Eq, Ord, Show)
 
 instance Monoid History where
@@ -48,7 +49,7 @@ arrange (History hist) cy = maybe (Arrangement CommodityOnLeft True)
 
 -- | Gets all comma radix groupers.
 radComGroupers
-  :: NonEmpty (a, Either (Seq RadCom) b)
+  :: Seq (a, Either (Seq RadCom) b)
   -> Seq RadCom
 radComGroupers = F.foldl' add Seq.empty . fmap snd
   where
@@ -58,13 +59,27 @@ radComGroupers = F.foldl' add Seq.empty . fmap snd
 
 -- | Gets all period radix groupers.
 radPerGroupers
-  :: NonEmpty (a, Either b (Seq RadPer))
+  :: Seq (a, Either b (Seq RadPer))
   -> Seq RadPer
 radPerGroupers = F.foldl' add Seq.empty . fmap snd
   where
     add sq ei = case ei of
       Left _ -> sq
       Right sq' -> sq <> sq'
+
+-- | Gets all groupers for a given commodity, if a commodity is
+-- supplied.  Otherwise, returns all groupers.
+groupers
+  :: History
+  -> Maybe Commodity
+  -> (Seq RadCom, Seq RadPer)
+groupers (History hist) mayCy = fromMaybe allGroupers $ do
+  cy <- mayCy
+  cyHist <- M.lookup cy hist
+  return (radComGroupers cyHist, radPerGroupers cyHist)
+  where
+    allGroupers = (radComGroupers allHist, radPerGroupers allHist)
+    allHist = mconcat . M.elems $ hist
 
 {-
 whichRadCom
@@ -81,12 +96,23 @@ whichRadCom (History hist) mayCom = maybe Period id $ thisCy <|> allCy
     allCy = mimode . fst . allGroupers . History $ hist
 -}
 
+{-
 groupers
   :: History
   -> Maybe Commodity
   -> (Seq RadCom, Seq RadPer)
-groupers (History hist) mayCom = case mayCom of
-  Nothing -> partitionEithers . fmap snd . join . 
+groupers (History hist) mayCy = case mayCy of
+  Nothing -> allGroupers
+  Just cy -> case M.lookup cy hist of
+    Nothing -> allGroupers
+    Just ls -> lsGroups ls
+  where
+    allGroupers = lsGroups . sconcat . fmap snd . M.elems $ undefined -- hist
+    lsGroups ls = (seqRadCom, seqRadPer)
+      where
+        seqRadCom = radComGroupers ls
+        seqRadPer = radPerGroupers ls
+-}
 
 -- | Determines what radix The 'mimode' radix point for the given
 -- commodity is chosen.  If there is no 'mimode' for the commodity,
