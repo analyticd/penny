@@ -47,203 +47,26 @@ arrange (History hist) cy = maybe (Arrangement CommodityOnLeft True)
     allCommodities = mimode . fmap fst . mconcat . map F.toList . M.elems
       $ hist
 
--- | Gets all comma radix groupers.
-radComGroupers
-  :: Seq (a, Either (Seq RadCom) b)
-  -> Seq RadCom
-radComGroupers = F.foldl' add Seq.empty . fmap snd
-  where
-    add sq ei = case ei of
-      Left sq' -> sq <> sq'
-      Right _ -> sq
-
--- | Gets all period radix groupers.
-radPerGroupers
-  :: Seq (a, Either b (Seq RadPer))
-  -> Seq RadPer
-radPerGroupers = F.foldl' add Seq.empty . fmap snd
-  where
-    add sq ei = case ei of
-      Left _ -> sq
-      Right sq' -> sq <> sq'
-
 -- | Gets all groupers for a given commodity, if a commodity is
 -- supplied.  Otherwise, returns all groupers.
+--
+-- For each radix type, the outer sequence contains one sequence for
+-- each representation, while the inner sequence contains all the
+-- groupers for each particular representation.  Therefore, to count
+-- how many representations use a particular radix, simply use the
+-- length of the outer sequence.
 groupers
   :: History
   -> Maybe Commodity
-  -> (Seq RadCom, Seq RadPer)
+  -> (Seq (Seq RadCom), Seq (Seq RadPer))
 groupers (History hist) mayCy = fromMaybe allGroupers $ do
   cy <- mayCy
   cyHist <- M.lookup cy hist
-  return (radComGroupers cyHist, radPerGroupers cyHist)
+  return . partitionEithers . fmap snd $ cyHist
   where
-    allGroupers = (radComGroupers allHist, radPerGroupers allHist)
+    allGroupers = partitionEithers . fmap snd $ allHist
     allHist = mconcat . M.elems $ hist
 
-{-
-whichRadCom
-  :: History
-  -> Maybe Commodity
-  -> RadCom
-whichRadCom (History hist) mayCom = maybe Period id $ thisCy <|> allCy
-  where
-    thisCy = case mayCom of
-      Nothing -> Nothing
-      Just cy -> do
-        histogram <- M.lookup cy hist
-        mimode . join . lefts . fmap snd . seqFromNonEmpty $ histogram
-    allCy = mimode . fst . allGroupers . History $ hist
--}
-
-{-
-groupers
-  :: History
-  -> Maybe Commodity
-  -> (Seq RadCom, Seq RadPer)
-groupers (History hist) mayCy = case mayCy of
-  Nothing -> allGroupers
-  Just cy -> case M.lookup cy hist of
-    Nothing -> allGroupers
-    Just ls -> lsGroups ls
-  where
-    allGroupers = lsGroups . sconcat . fmap snd . M.elems $ undefined -- hist
-    lsGroups ls = (seqRadCom, seqRadPer)
-      where
-        seqRadCom = radComGroupers ls
-        seqRadPer = radPerGroupers ls
--}
-
--- | Determines what radix The 'mimode' radix point for the given
--- commodity is chosen.  If there is no 'mimode' for the commodity,
--- then the 'mimode' radix point for all commodities is chosen.  If
--- there is no 'mimode' for all commodities, then a period radix is used.
-{-
-whichRadix
-  :: History
-  -> Commodity
-  -> WhichRadix
-whichRadix (History hist) cy = maybe Period id $ thisCy <|> allCy
-  where
--}
-
-
--- | Determines what radix point and grouping character to use for a
--- particular commodity.  The 'mimode' radix point for the given
--- commodity is chosen.  If there is no 'mimode' for the commodity,
--- then the 'mimode' radix point for all commodities is chosen.  If
--- there is no 'mimode' for all commodities, then a period radix is used.
---
--- Then, for the given radix point, the 'mimode' grouping
--- character for the given commodity is chosen.  If there is no
--- 'mimode' grouping character for this commodity, the 'mimode' from
--- all commodities is chosen.  If this also fails, then a comma grouper
--- is used for a period radix, or a thin space grouper is used for a
--- period radix.
-
-radGroupForCommodity
-  :: History
-  -> Commodity
-  -> Either (Maybe RadPer) (Maybe RadCom)
-radGroupForCommodity = undefined
-
-
-{-
--- | Like 'History' but does not include arrangements.
-newtype Abridged = Abridged
-  (M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer))))
-  deriving (Eq, Ord, Show)
-
-abridge :: History -> Abridged
-abridge (History mp) = Abridged $ fmap (fmap snd) mp
-
--- | Represents a 'Qty' as \"smartly\" as possible, based on how its
--- corresponding 'Commodity' has been represented in the past.
---
--- In @repQtySmartly ei mp cy qt@, @mp@ is a map of 'Commodity' to
--- consider for history analysis.  Each 'Commodity' is paired with a
--- history list.  Each element of the history list is an 'Either',
--- with a 'Left' indicating that the radix was a comma, and a
--- 'Right' indicating the radix was a period.  The sequence contains
--- each grouping character used.
---
--- If the commodity @cy@ is found in the map @mp@, then the radix
--- point used is always the 'mimode' radix point appearing in the
--- history list.  For that radix point, if there is a 'mimode' grouping
--- character, then grouping is attempted using that grouping
--- character.  If there is no 'mimode' grouping character, no grouping
--- is attempted.
---
--- If the commodity @cy@ is not found in the map @mp@, then the radix
--- point used is the 'mimode' radix point for /all/ commodities in the
--- map @mp@.  For that radix point, if there is a 'mimode' grouping
--- character, then grouping is attempted using that grouping
--- character.  If there is no 'mimode' grouping character, no grouping
--- is attempted.
---
--- If the map @mp@ is completely empty, then the 'Qty' is rendered
--- using @ei@, where @ei@ is @Left Nothing@ for comma radix, no
--- grouping; @Right Nothing@ for period radix, no grouping; @Left
--- (Just c)@ for comma radix with attempted grouping using @c@; or
--- @Right (Just c)@ for period radix with grouping attempted using
--- @c@.
-repQtySmartly
-  :: Either (Maybe RadCom) (Maybe RadPer)
-  -- ^ Default rendering
-  -> Abridged
-  -- ^ History map
-  -> Amount
-  -> QtyRepAnyRadix
-repQtySmartly dflt (Abridged mp) (Amount cy qty)
-  = case repQtyByPopularCommodity mp cy of
-  Just f -> f qty
-  Nothing -> case map snd . M.assocs $ mp of
-    [] -> repQty dflt qty
-    x:xs -> repQtyByPopularity (F.foldl' (<>) x xs) qty
-
-
--- | Returns a function representing a Qty based on the radix point
--- and grouping character most frequently seen.
-repQtyByPopularity
-  :: NonEmpty (Either (Seq RadCom) (Seq RadPer))
-  -- ^ History list
-  -> Qty
-  -> QtyRepAnyRadix
-repQtyByPopularity = repQty . pickRadix
-
-
--- | If possible, returns a function representing a Qty based on the
--- representations that have been seen so far.  @historyRepresent m c@
--- is applied to a map, @m@, which holds all commodities that have
--- been seen with a quantity representation in their respective
--- 'Trio'.  The values in the map are, at minimum, the radix point,
--- and may also contain any grouping characters used.
--- 'historyRepresent' will return a function that renders 'Qty' for
--- that 'Commodity', but only if that 'Commodity' is a key in @m@.
-repQtyByPopularCommodity
-  :: M.Map Commodity (NonEmpty (Either (Seq RadCom) (Seq RadPer)))
-  -- ^ History map
-  -> Commodity
-  -> Maybe (Qty -> QtyRepAnyRadix)
-repQtyByPopularCommodity mp cy = fmap (repQty . pickRadix) (M.lookup cy mp)
-
--- | Picks the most popular radix point and, if possible, the most
--- popular grouping character corresponding to that radix.
-pickRadix
-  :: NonEmpty (Either (Seq RadCom) (Seq RadPer))
-  -- ^ History list
-  -> Either (Maybe RadCom) (Maybe RadPer)
-pickRadix ne =
-  let NonEmpty rdx _ = modeFromNonEmpty
-        . fmap (either (const (Left Radix)) (const (Right Radix)))
-        $ ne
-  in case rdx of
-      Left _ -> Left grpr
-        where
-          grpr = mimode . mconcat . lefts . seqFromNonEmpty $ ne
-      Right _ -> Right grpr
-        where
-          grpr = mimode . mconcat . rights . seqFromNonEmpty $ ne
 
 vote :: Posting -> History
 vote = make . (^. to core . trio)
@@ -251,7 +74,7 @@ vote = make . (^. to core . trio)
     make tri = case trioRendering tri of
       Nothing -> mempty
       Just (cy, ar, ei) -> History
-        $ M.singleton cy (NonEmpty (ar, ei) Seq.empty)
+        $ M.singleton cy (Seq.singleton (ar, ei))
 
 elect :: Foldable f => f Transaction -> History
 elect = F.foldl' f mempty
@@ -259,6 +82,26 @@ elect = F.foldl' f mempty
     f hist = F.foldl' g hist . postings
       where
         g acc pstg = acc `mappend` vote pstg
+
+-- | Given the result of 'groupers', selects the appropriate radix and
+-- grouper.  The most frequently appearing radix is used; if both
+-- radixes appear equally often, a period radix is used.  Then, the
+-- most frequently appearing grouper is used.  If there is no most
+-- frequently appearing grouper, then if the radix is a period, then a
+-- comma grouper is used; if the radix is a comma, then a thin space
+-- grouper is used.
+
+selectGrouper
+  :: (Seq (Seq RadCom), Seq (Seq RadPer))
+  -> Either RadCom RadPer
+selectGrouper (rcs, rps)
+  | Seq.length rps >= Seq.length rcs = Right rp
+  | otherwise = Left rc
+  where
+    rp = fromMaybe Comma . mimode . join $ rps
+    rc = fromMaybe (RCGrouper ThinSpace) . mimode . join $ rcs
+
+{-
 
 
 smartRender
