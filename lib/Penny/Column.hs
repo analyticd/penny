@@ -2,15 +2,22 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGe ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Penny.Column where
 
 import Control.Lens
+import Penny.Amount
 import Penny.Clatch
+import Penny.Commodity
+import Penny.Display
 import Penny.Popularity
 import Penny.Representation
 import Penny.Serial
 import Penny.Natural
+import Penny.Qty
+import Penny.Side
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as X
@@ -58,18 +65,14 @@ data Env = Env
 
 makeLenses ''Env
 
+newtype Column = Column (Env -> Cell)
 
-data Column = Column
-  { _header :: Colors -> Cell
-  , _cell :: Env -> Cell
-  }
-
-makeLenses ''Column
+makeWrapped ''Column
 
 instance Monoid Column where
-  mempty = Column mempty (const mempty)
-  mappend (Column hx cx) (Column hy cy)
-    = Column (hx <> hy) (\a -> (cx a) <> (cy a))
+  mempty = Column (const mempty)
+  mappend (Column cx) (Column cy)
+    = Column (\a -> (cx a) <> (cy a))
 
 table
   :: History
@@ -78,14 +81,12 @@ table
   -> Seq Column
   -> Seq Clatch
   -> (Seq (Chunk Text))
-table hist rend clrs cols cltchs = render . tableByRows $ rows
+table hist rend clrs cols cltchs = render . tableByRows $ dataRows
   where
-    rows = topRow <| dataRows
-    topRow = fmap ($ clrs) . fmap _header $ cols
-    mkDataRow clatch = fmap ($ env) . fmap _cell $ cols
+    dataRows = fmap (mkDataRow $) cltchs
+    mkDataRow clatch = fmap ($ env) . fmap (^. _Wrapped) $ cols
       where
         env = Env clatch hist rend clrs
-    dataRows = fmap (mkDataRow $) cltchs
 
 background :: Env -> Radiant
 background env
@@ -100,8 +101,15 @@ spaces i = column (const (X.replicate i . X.singleton $ ' '))
 class Colable a where
   column :: (Clatch -> a) -> Column
 
+singleCell
+  :: Colable a
+  => Env
+  -> a
+  -> Cell
+singleCell env a = ($ env) . (^. _Wrapped) $ column (const a)
+
 instance Colable Text where
-  column f = Column mempty cell
+  column f = Column cell
     where
       cell env = Cell
         { _rows = Seq.singleton . Seq.singleton
@@ -113,7 +121,7 @@ instance Colable Text where
         }
 
 instance Colable Bool where
-  column f = Column mempty cell
+  column f = Column cell
     where
       cell env = Cell
         { _rows = Seq.singleton . Seq.singleton
@@ -135,4 +143,102 @@ instance Colable Unsigned where
   column f = column (naturalToInteger . f)
 
 instance Colable a => Colable (Maybe a) where
-  column = undefined
+  column f = Column g
+    where
+      g env = case f (env ^. clatch) of
+        Nothing -> mempty
+        Just v -> singleCell env v
+
+-- | Creates a column for the unsigned portion of the quantity only;
+-- does not show the side.  However, the text is correctly color coded
+-- for the side.
+instance Colable QtyRepAnyRadix where
+  column f = Column getCell
+    where
+      getCell env = Cell
+        { _rows = Seq.singleton . Seq.singleton
+            . back (background env) . fore fgColor
+            . chunk . X.pack . ($ "") . display
+            . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
+            . f
+            $ _clatch env
+        , _horizontal = top
+        , _vertical = left
+        , _background = background env
+        }
+        where
+          fgColor = case maybeSide of
+            Nothing -> env ^. colors.neutral
+            Just Debit -> env ^. colors.debit
+            Just Credit -> env ^. colors.credit
+          QtyRepAnyRadix ei = f $ _clatch env
+          maybeSide = case ei of
+            Left (QtyRep (NilOrBrimPolar coc)) -> case coc of
+              Center _ -> Nothing
+              OffCenter _ s -> Just s
+            Right (QtyRep (NilOrBrimPolar coc)) -> case coc of
+              Center _ -> Nothing
+              OffCenter _ s -> Just s
+
+instance Colable (Maybe Side) where
+  column f = Column getCell
+    where
+      getCell env = Cell
+        { _rows = Seq.singleton . Seq.singleton
+            . back (background env) . fore fgColor
+            . chunk $ txt
+        , _horizontal = top
+        , _vertical = left
+        , _background = background env
+        }
+        where
+          (fgColor, txt) = case f (_clatch env) of
+            Nothing -> (env ^. colors.neutral, "--")
+            Just Debit -> (env ^. colors.debit, "<")
+            Just Credit -> (env ^. colors.credit, ">")
+
+
+instance Colable Side where
+  column f = Column getCell
+    where
+      getCell env = Cell
+        { _rows = Seq.singleton . Seq.singleton
+            . back (background env) . fore fgColor
+            . chunk $ txt
+        , _horizontal = top
+        , _vertical = left
+        , _background = background env
+        }
+        where
+          (fgColor, txt) = case f (_clatch env) of
+            Debit -> (env ^. colors.debit, "<")
+            Credit -> (env ^. colors.credit, ">")
+
+instance Colable Qty where
+  column f = Column cell
+    where
+      cell env = singleCell env qtyRep
+        where
+          qtyRep = repQty ei (f (_clatch env))
+            where
+              ei = either (Left . Just) (Right . Just)
+                . selectGrouper
+                . Penny.Popularity.groupers (env ^. history)
+                $ Nothing
+
+instance Colable Commodity where
+  column f = column ((^. _Wrapped) . f)
+
+instance Colable Amount where
+  column f = Column cell
+    where
+      cell env = Cell
+        { _rows = Seq.singleton . Seq.singleton
+            . back (background env) . fore (env ^. foreground)
+            . chunk $ txt
+        , _horizontal = top
+        , _vertical = left
+        , _background = background env
+        }
+        where
+          Amount (Commodity cy) qty = f (_clatch env)

@@ -203,6 +203,3 @@ repUngroupedQtyUnsigned
   -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) ()
 repUngroupedQtyUnsigned rdx (QtyUnsigned qu) = repUngroupedDecUnsigned rdx qu
 
--- ## Popularity representation
-
-

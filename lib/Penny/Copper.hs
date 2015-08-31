@@ -40,12 +40,8 @@
 -- why that is unsafe, I do not know.
 module Penny.Copper where
 
-import Data.Bifunctor
-import Data.Bifunctor.Joker
 import Data.Foldable (toList)
-import Data.Functor.Compose
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 import Penny.Ents
 import Penny.Friendly
 import Penny.Copper.Ast

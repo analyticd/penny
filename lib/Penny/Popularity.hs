@@ -6,18 +6,14 @@ import qualified Data.Foldable as F
 import qualified Data.Map as M
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Penny.Amount
 import Penny.Commodity
 import Penny.Mimode
-import Penny.NonEmpty
-import Penny.Qty
 import Penny.Representation
 import Penny.Trio
 import Penny.Clatch
 import Control.Applicative
 import Penny.SeqUtil
 import Control.Monad (join)
-import qualified Data.Either
 import Data.Maybe
 
 -- | Map describing how different 'Commodity' are rendered.
@@ -101,17 +97,3 @@ selectGrouper (rcs, rps)
     rp = fromMaybe Comma . mimode . join $ rps
     rc = fromMaybe (RCGrouper ThinSpace) . mimode . join $ rcs
 
-{-
-
-
-smartRender
-  :: Maybe (Either (Maybe RadCom) (Maybe RadPer))
-  -> Abridged
-  -> Amount
-  -> NilOrBrimScalarAnyRadix
-smartRender mayRndrer abridged amt
-  = c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
-  $ repQtySmartly rndrer abridged amt
-  where
-    rndrer = maybe (Right Nothing) id mayRndrer
--}

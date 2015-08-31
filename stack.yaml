@@ -1,4 +1,7 @@
-flags: {}
+flags:
+  penny:
+    copper: false
 packages:
 - '.'
+extra-deps: []
 resolver: nightly-2015-08-08
