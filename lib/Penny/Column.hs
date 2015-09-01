@@ -229,6 +229,7 @@ instance Colable Qty where
 instance Colable Commodity where
   column f = column ((^. _Wrapped) . f)
 
+{-
 instance Colable Amount where
   column f = Column cell
     where
@@ -242,3 +243,4 @@ instance Colable Amount where
         }
         where
           Amount (Commodity cy) qty = f (_clatch env)
+-}
