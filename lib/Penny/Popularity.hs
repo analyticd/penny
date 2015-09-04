@@ -97,3 +97,43 @@ selectGrouper (rcs, rps)
     rp = fromMaybe Comma . mimode . join $ rps
     rc = fromMaybe (RCGrouper ThinSpace) . mimode . join $ rcs
 
+-- | Gets all arrangements from a history.
+arrangements :: History -> Seq Arrangement
+arrangements (History hist)
+  = fmap fst
+  . join
+  . fmap snd
+  . Seq.fromList
+  . M.assocs
+  $ hist
+
+-- | Determines whether to use a space between the commodity and the
+-- magnitude. Defaults to using a space.
+spaceBetween :: History -> Maybe Commodity -> SpaceBetween
+spaceBetween (History hist) mayCom = fromMaybe True $ thisCy <|> allCy
+  where
+    thisCy = do
+      cy <- mayCom
+      sq <- M.lookup cy hist
+      mimode . fmap (\(Arrangement _ s) -> s) . fmap fst $ sq
+    allCy = mimode
+      . fmap (\(Arrangement _ s) -> s)
+      . arrangements
+      . History
+      $ hist
+
+-- | Determines whether to put a commodity to the left or to the right
+-- of the magnitude.  Defaults to putting the commodity on the right.
+orientation :: History -> Maybe Commodity -> Orient
+orientation (History hist) mayCom = fromMaybe CommodityOnRight
+  $ thisCy <|> allCy
+  where
+    thisCy = do
+      cy <- mayCom
+      sq <- M.lookup cy hist
+      mimode . fmap (\(Arrangement a _) -> a) . fmap fst $ sq
+    allCy = mimode
+      . fmap (\(Arrangement a _) -> a)
+      . arrangements
+      . History
+      $ hist

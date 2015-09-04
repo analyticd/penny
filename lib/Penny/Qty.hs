@@ -68,6 +68,9 @@ qtySide (Qty (Decimal sig _))
   | sig > 0 = Just Credit
   | otherwise = Nothing
 
+instance SidedOrNeutral Qty where
+  sideOrNeutral = qtySide
+
 newtype QtyNonZero = QtyNonZero DecNonZero
   deriving (Eq, Ord, Show)
 

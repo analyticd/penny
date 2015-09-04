@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeFamilies #-}
 module Penny.Side where
 
 import Penny.Offset
@@ -20,3 +21,9 @@ instance Signed Side where
   sign Credit = Plus
   fromSign Minus = Debit
   fromSign Plus = Credit
+
+class HasSide a where
+  side :: a -> Side
+
+class SidedOrNeutral a where
+  sideOrNeutral :: a -> Maybe Side

@@ -380,6 +380,10 @@ data CenterOrOffCenter n o p
   -- polarity of the object, while the first is the object itself.
   deriving (Eq, Ord, Show)
 
+instance SidedOrNeutral (CenterOrOffCenter n o Side) where
+  sideOrNeutral (Center _) = Nothing
+  sideOrNeutral (OffCenter _ p) = Just p
+
 
 changeOffCenterType
   :: p'
@@ -446,6 +450,9 @@ newtype NilOrBrimPolar r p
   = NilOrBrimPolar (CenterOrOffCenter (Nil r) (Brim r) p)
   deriving (Eq, Ord, Show)
 
+instance SidedOrNeutral (NilOrBrimPolar r Side) where
+  sideOrNeutral (NilOrBrimPolar a) = sideOrNeutral a
+
 -- Same as old Philly
 
 -- | Representations that are non-neutral and have a radix that is
@@ -480,6 +487,10 @@ instance MayGrouped QtyRep where
   mayGroupers (QtyRep (NilOrBrimPolar (Center n))) = mayGroupers n
   mayGroupers (QtyRep (NilOrBrimPolar (OffCenter o _))) = mayGroupers o
 
+
+instance SidedOrNeutral (QtyRep r) where
+  sideOrNeutral (QtyRep a) = sideOrNeutral a
+
 -- Same as old Muddy
 
 -- | Qty representations that may be neutral or non-neutral and have a
@@ -496,6 +507,9 @@ newtype QtyRepAnyRadix
     (Either (QtyRep RadCom)
             (QtyRep RadPer))
   deriving (Eq, Ord, Show)
+
+instance SidedOrNeutral QtyRepAnyRadix where
+  sideOrNeutral (QtyRepAnyRadix ei) = either sideOrNeutral sideOrNeutral ei
 
 
 -- # Exch representations
