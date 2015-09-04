@@ -1,8 +1,7 @@
 {-# OPTIONS_HADDOCK not-home #-}
 module Penny.Ents.Internal where
 
-import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>)
-                      , ViewR(..), viewr)
+import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>))
 import qualified Data.Sequence as S
 import Penny.Amount
 import Penny.Arrangement
@@ -101,69 +100,6 @@ entsToBalanced :: Ents a -> Either ImbalancedError (Balanced a)
 entsToBalanced (Ents sq (Imbalance m)) = case M.toList m of
   [] -> return $ Balanced sq
   x:xs -> Left $ ImbalancedError x xs
-
-data EntView a = EntView
-  { onLeft :: Seq (Amount, a)
-  , onView :: (Amount, a)
-  , onRight :: Seq (Amount, a)
-  } deriving (Eq, Ord, Show)
-
-instance Functor EntView where
-  fmap f (EntView l c r) = EntView (fmap (fmap f) l) (fmap f c)
-    (fmap (fmap f) r)
-
-instance F.Foldable EntView where
-  foldr f z (EntView l c r) = F.foldr f z
-    . fmap snd $ (l |> c) <> r
-
-instance T.Traversable EntView where
-  traverse f (EntView l c r)
-    = EntView
-    <$> T.sequenceA (fmap (T.traverse f) l)
-    <*> T.traverse f c
-    <*> T.sequenceA (fmap (T.traverse f) r)
-
-moveLeft :: EntView a -> Maybe (EntView a)
-moveLeft (EntView l c r) = case viewr l of
-  EmptyR -> Nothing
-  xs :> x -> Just $ EntView xs x (c <| r)
-
-moveRight :: EntView a -> Maybe (EntView a)
-moveRight (EntView l c r) = case viewl r of
-  EmptyL -> Nothing
-  x :< xs -> Just $ EntView (l |> c) x xs
-
--- siblingEntViews - careful - each sibling view must contain the 'Ent'
--- for the current 'EntView', but the returned 'Seq' cannot itself
--- include the current 'EntView'
-
--- | A 'Seq' of 'EntView' that are siblings of this 'EntView'.
-siblingEntViews :: EntView a -> Seq (EntView a)
-siblingEntViews (EntView l c r) = go S.empty pairs
-  where
-    pairs = ( (fmap (\e -> (True, e)) l)
-              |> (False, c) )
-            <> fmap (\e -> (True, e)) r
-    go soFar sq = case viewl sq of
-      EmptyL -> soFar
-      (use, e) :< rest
-        | not use -> go soFar sq
-        | otherwise -> this <| go (soFar |> this) rest
-        where
-          this = EntView l' e r'
-          l' = fmap onView soFar
-          r' = fmap snd rest
-
-
-allEntViews :: Balanced a -> Seq (EntView a)
-allEntViews (Balanced sq) = go S.empty sq
-  where
-    go onLeft s = case viewl s of
-      EmptyL -> S.empty
-      x :< xs -> EntView onLeft x xs <| go (onLeft |> x) xs
-
-viewToBalanced :: EntView a -> Balanced a
-viewToBalanced (EntView l c r) = Balanced $ (l |> c) <> r
 
 -- | Creates 'Balanced' sets of 'Ent'.  Unlike 'entsToBalanced' this
 -- function never fails.  To accomplish this, it places greater

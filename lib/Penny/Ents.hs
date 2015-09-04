@@ -10,15 +10,6 @@ module Penny.Ents
   , balancedToSeqEnt
   , entsToBalanced
   , ImbalancedError(..)
-  , EntView
-  , onLeft
-  , onView
-  , onRight
-  , moveLeft
-  , moveRight
-  , allEntViews
-  , siblingEntViews
-  , viewToBalanced
   , restrictedBalanced
   ) where
 
