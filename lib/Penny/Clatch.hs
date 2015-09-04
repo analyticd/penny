@@ -1,8 +1,53 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
-module Penny.Clatch where
 
-import Control.Lens hiding (view)
+module Penny.Clatch
+  ( -- * Postings
+    Core(..)
+  , trio
+  , amount
+  , index
+
+  , Posting
+  , core
+  , postings
+
+  -- * Transactions
+  , Transaction
+
+  -- * Functions on postings and transactions
+  , serpack
+  , trees
+
+  -- * Sersets
+  , PreFiltset
+  , Sortset
+  , PostFiltset
+
+  -- * Clatches and compatible types
+  , Viewed
+  , Converted
+  , Prefilt
+  , Sorted
+  , Totaled
+  , Clatch
+
+  -- * Functions on clatches and compatible types
+  , transaction
+  , view
+  , converted
+  , best
+  , preFiltset
+  , sortset
+  , balance
+  , postFiltset
+
+  -- * Creation of clatches
+  , addSerials
+  , clatchesFromTransactions
+  ) where
+
+import Control.Lens hiding (view, index)
 import Control.Monad (join)
 import Data.Bifunctor
 import Data.Bifunctor.Flip
@@ -20,15 +65,25 @@ import Penny.SeqUtil
 import qualified Data.Traversable as T
 import Data.Functor.Compose
 
+-- | The core of every posting.
 data Core = Core
   { _trio :: Trio
   , _amount :: Amount
   , _index :: Serset
+  -- ^ How this single posting relates to its sibling postings.
+  -- Numbering restarts with every transaction.
   } deriving (Eq, Ord, Show)
 
 makeLenses ''Core
 
+-- | A posting, coupled with metadata in the form of 'Tree' and a
+-- 'Serpack' that indicates how this posting relates to other
+-- postings.
 type Posting = (Serpack, (Seq Tree, Core))
+
+-- | A list of postings, coupled with metadata in the form of 'Tree'
+-- and with a 'Serpack' that indicates how this transaction relates to
+-- other transactions.
 type Transaction = (Serpack, (Seq Tree, Seq Posting))
 
 -- # Functions on postings and transactions
@@ -39,14 +94,29 @@ core = snd . snd
 postings :: Transaction -> Seq Posting
 postings = snd . snd
 
+-- |
+-- @
+-- 'serpack' :: 'Transaction' -> 'Serpack'
+-- 'serpack' :: 'Posting' -> 'Serpack'
+-- @
 serpack :: (Serpack, a) -> Serpack
 serpack = fst
 
+-- |
+-- @
+-- 'trees' :: 'Transaction' -> 'Seq' 'Tree'
+-- 'trees' :: 'Posting' -> 'Seq' 'Tree'
+-- @
 trees :: (a, (Seq Tree, b)) -> Seq Tree
 trees = fst . snd
 
+-- | The 'Serset' after all postings have been pre-filtered.
 type PreFiltset = Serset
+
+-- | The 'Serset' after all views have been sorted.
 type Sortset = Serset
+
+-- | The 'Serset' after the sorted views have been post-filtered.
 type PostFiltset = Serset
 
 -- # Clatches and compatible types
