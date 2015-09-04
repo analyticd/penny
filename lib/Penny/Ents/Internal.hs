@@ -5,6 +5,7 @@ import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>)
                       , ViewR(..), viewr)
 import qualified Data.Sequence as S
 import Penny.Amount
+import Penny.Arrangement
 import Penny.Balance
 import Penny.Commodity
 import Penny.Qty
@@ -188,7 +189,7 @@ restrictedBalanced cy s sq metaLast = Balanced (begin |> end)
     begin = fmap f sq
     f (rep, ar, meta) = (Amount cy (toQty q), (meta, tri))
       where
-        q = nilOrBrimScalarAnyRadixToQty s rep
+        q = nilOrBrimScalarAnyRadixToQtyRepAnyRadix s rep
         tri = QC q cy ar
     end = (Amount cy (negate tot), (metaLast, E))
     tot = F.foldl' (+) (fromInteger 0) . fmap (\(Amount _ q, _) -> q)

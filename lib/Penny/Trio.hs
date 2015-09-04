@@ -1,6 +1,7 @@
 module Penny.Trio where
 
 import Penny.Amount
+import Penny.Arrangement
 import Penny.Decimal
 import Penny.Display
 import Penny.Commodity
@@ -16,16 +17,6 @@ import qualified Data.Text as X
 import Data.Sequence (Seq)
 import Penny.Mimode
 import Penny.Semantic
-
-data Orient
-  = CommodityOnLeft
-  | CommodityOnRight
-  deriving (Eq, Ord, Show)
-
-type SpaceBetween = Bool
-
-data Arrangement = Arrangement Orient SpaceBetween
-  deriving (Eq, Ord, Show)
 
 -- | Given a particular 'Commodity', deliver the correct 'Arrangement'
 -- depending on the history of how this commodity was arranged.
@@ -213,27 +204,27 @@ trioToAmount imb (Q qnr) = fmap f $ oneCommodity imb
 
 trioToAmount imb (SC s cy) = do
   qnz <- lookupCommodity imb cy
-  let qtSide = qtyNonZeroSide qnz
+  let qtSide = side qnz
   notSameSide qtSide s
   return $ Amount cy (toQty . offset $ qnz)
 
 trioToAmount imb (S s) = do
   (cy, qnz) <- oneCommodity imb
-  let qtSide = qtyNonZeroSide qnz
+  let qtSide = side qnz
   notSameSide s qtSide
   return $ Amount cy (toQty . offset $ qnz)
 
 
 trioToAmount imb (UC qnr cy _) = do
   qnz <- lookupCommodity imb cy
-  let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
+  let q = decPositiveToQty (offset . side $ qnz)
         . toDecPositive $ qnr
   return $ Amount cy q
 
 trioToAmount imb (U qnr) = do
   (cy, qnz) <- oneCommodity imb
   qnrIsSmallerAbsoluteValue qnr qnz
-  let q = decPositiveToQty (offset . qtyNonZeroSide $ qnz)
+  let q = decPositiveToQty (offset . side $ qnz)
         . toDecPositive $ qnr
   return $ Amount cy q
 

@@ -46,7 +46,7 @@ module Penny.Representation
   , NilOrBrimPolar(..)
   , NilOrBrimScalar(..)
   , NilOrBrimScalarAnyRadix(..)
-  , nilOrBrimScalarAnyRadixToQty
+  , nilOrBrimScalarAnyRadixToQtyRepAnyRadix
   , RepNonNeutralNoSide(..)
 
   -- ** Conversions between aggregate types
@@ -420,12 +420,12 @@ instance Display NilOrBrimScalarAnyRadix where
 -- | Adds polarity to a 'NilOrBrimScalarAnyRadix' to transform it to a
 -- 'QtyRepAnyRadix'.  Nil values do not receive a polarity; all other
 -- values are assigned to the given 'Side'.
-nilOrBrimScalarAnyRadixToQty
+nilOrBrimScalarAnyRadixToQtyRepAnyRadix
   :: Side
   -- ^ Assign this 'Side' to polar values
   -> NilOrBrimScalarAnyRadix
   -> QtyRepAnyRadix
-nilOrBrimScalarAnyRadixToQty s (NilOrBrimScalarAnyRadix e) =
+nilOrBrimScalarAnyRadixToQtyRepAnyRadix s (NilOrBrimScalarAnyRadix e) =
   QtyRepAnyRadix e'
   where
     e' = case e of

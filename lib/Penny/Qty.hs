@@ -11,7 +11,6 @@
 module Penny.Qty
   ( -- * Qty
     Qty(..)
-  , qtySide
   , HasQty(..)
   , decPositiveToQty
 
@@ -19,9 +18,7 @@ module Penny.Qty
   , QtyNonZero(..)
   , displayQtyNonZero
   , HasQtyNonZero(..)
-  , qtyNonZeroToQty
   , qtyToQtyNonZero
-  , qtyNonZeroSide
 
   -- * Unsigned Qty
   , QtyUnsigned(..)
@@ -47,9 +44,11 @@ import Penny.PluMin
 import Penny.Display
 import Penny.Semantic
 
+-- | A quantity.  Can be a debit, credit, or zero.
 newtype Qty = Qty Decimal
   deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
+-- | Anything that has, or can be converted to, a 'Qty'.
 class HasQty a where
   toQty :: a -> Qty
 
@@ -62,22 +61,20 @@ instance Num Qty where
   signum (Qty x) = Qty (signum x)
   fromInteger i = Qty (fromInteger i)
 
-qtySide :: Qty -> Maybe Side
-qtySide (Qty (Decimal sig _))
-  | sig < 0 = Just Debit
-  | sig > 0 = Just Credit
-  | otherwise = Nothing
-
 instance SidedOrNeutral Qty where
-  sideOrNeutral = qtySide
+  sideOrNeutral (Qty (Decimal sig _))
+    | sig < 0 = Just Debit
+    | sig > 0 = Just Credit
+    | otherwise = Nothing
 
+-- | Quantities that are always a debit or a credit; never zero.
 newtype QtyNonZero = QtyNonZero DecNonZero
   deriving (Eq, Ord, Show)
 
 -- | Displays a QtyNonZero using a period radix and no grouping.
 displayQtyNonZero :: QtyNonZero -> String
 displayQtyNonZero qnz =  case stripDecimalSign . (\(Qty d) -> d)
-  . qtyNonZeroToQty $ qnz of
+  . toQty $ qnz of
   Left dz -> display (repUngroupedDecZero rdx dz) ""
   Right (dp, pm) -> display (conv pm) . (' ':)
     . display (repUngroupedDecPositive rdx dp) $ ""
@@ -92,19 +89,21 @@ class HasQtyNonZero a where
 instance HasOffset QtyNonZero where
   offset (QtyNonZero dnz) = QtyNonZero (offset dnz)
 
-qtyNonZeroToQty :: QtyNonZero -> Qty
-qtyNonZeroToQty (QtyNonZero dnz) = Qty (decNonZeroToDecimal dnz)
+instance HasQty QtyNonZero where
+  toQty (QtyNonZero dnz) = Qty (decNonZeroToDecimal dnz)
 
 qtyToQtyNonZero :: Qty -> Maybe QtyNonZero
 qtyToQtyNonZero (Qty d) = fmap QtyNonZero $ decimalToDecNonZero d
 
-qtyNonZeroSide :: QtyNonZero -> Side
-qtyNonZeroSide (QtyNonZero (DecNonZero nz _))
-  | i < 0 = Debit
-  | otherwise = Credit
-  where
-    i = nonZeroToInteger nz
+instance HasSide QtyNonZero where
+  side (QtyNonZero (DecNonZero nz _))
+    | i < 0 = Debit
+    | otherwise = Credit
+    where
+      i = nonZeroToInteger nz
 
+-- | A quantity that is neither a debit nor a credit.  However, it may
+-- be zero.
 newtype QtyUnsigned = QtyUnsigned DecUnsigned
   deriving (Eq, Ord, Show)
 
@@ -126,10 +125,6 @@ qtyUnsignedToQtyNoSide (QtyUnsigned (DecUnsigned sig expt))
   | naturalToInteger sig == 0 = Just
       (Qty (Decimal 0 expt))
   | otherwise = Nothing
-
-instance HasQty QtyNonZero where
-  toQty (QtyNonZero (DecNonZero sig expt)) =
-    Qty $ Decimal (nonZeroToInteger sig) expt
 
 decPositiveToQty :: Side -> DecPositive -> Qty
 decPositiveToQty s (DecPositive pos expt)

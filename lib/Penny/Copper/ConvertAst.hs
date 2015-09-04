@@ -4,6 +4,7 @@ module Penny.Copper.ConvertAst where
 
 import Control.Lens
 import Control.Arrow (first)
+import Penny.Arrangement
 import Penny.Friendly
 import Penny.Copper.Ast
 import Penny.Copper.Date
@@ -143,7 +144,7 @@ c'Commodity'CommodityA (CommodityA ei)
            c'Commodity'QuotedCommodity ei
 
 qtyRepAnyRadix :: NonNeutral -> Side -> QtyRepAnyRadix
-qtyRepAnyRadix nn s = nilOrBrimScalarAnyRadixToQty s nbs
+qtyRepAnyRadix nn s = nilOrBrimScalarAnyRadixToQtyRepAnyRadix s nbs
   where
     nbs = case nn of
       NonNeutralRadCom _ rc -> NilOrBrimScalarAnyRadix

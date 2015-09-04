@@ -48,7 +48,7 @@ c'Imbalance'Balance (Balance m)
 
 c'Balance'Imbalance :: Imbalance -> Balance
 c'Balance'Imbalance (Imbalance m)
-  = Balance . fmap qtyNonZeroToQty $ m
+  = Balance . fmap toQty $ m
 
 instance Monoid Imbalance where
   mempty = Imbalance M.empty

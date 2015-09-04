@@ -10,6 +10,7 @@ module Penny.Column where
 import Control.Lens
 import Control.Monad (join)
 import Penny.Amount
+import Penny.Arrangement
 import Penny.Clatch
 import Penny.Commodity
 import Penny.Display

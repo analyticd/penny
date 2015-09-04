@@ -6,6 +6,7 @@ import qualified Data.Foldable as F
 import qualified Data.Map as M
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Penny.Arrangement
 import Penny.Commodity
 import Penny.Mimode
 import Penny.Representation
