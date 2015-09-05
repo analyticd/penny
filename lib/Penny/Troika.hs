@@ -8,6 +8,7 @@ import Penny.Commodity
 import Penny.Qty
 import Penny.Side
 import qualified Penny.Amount as A
+import Data.Sequence (Seq)
 
 data Troiload
   = QC QtyRepAnyRadix Arrangement
@@ -51,10 +52,16 @@ instance HasQty Troiload where
 newtype Troiquant = Troiquant (Either Troiload Qty)
   deriving (Eq, Ord, Show)
 
+instance HasQty Troiquant where
+  toQty (Troiquant ei) = either toQty id ei
+
 data Troimount = Troimount
   { _commodity :: Commodity
   , _troiquant :: Troiquant
   } deriving (Eq, Ord, Show)
+
+instance HasQty Troimount where
+  toQty (Troimount _ tq) = toQty tq
 
 makeLenses ''Troimount
 
@@ -62,3 +69,16 @@ c'Amount'Troimount :: Troimount -> A.Amount
 c'Amount'Troimount (Troimount cy (Troiquant ei)) = A.Amount cy q
   where
     q = either toQty id ei
+
+troimountRendering
+  :: Troimount
+  -> Maybe (Commodity, Arrangement, Either (Seq RadCom) (Seq RadPer))
+troimountRendering (Troimount cy (Troiquant tq)) = case tq of
+  Left tl -> case tl of
+    QC (QtyRepAnyRadix qr) ar -> Just (cy, ar, ei)
+      where
+        ei = either (Left . mayGroupers) (Right . mayGroupers) qr
+    UC (RepNonNeutralNoSide ei) _ ar ->
+      Just (cy, ar, either (Left . mayGroupers) (Right . mayGroupers) ei)
+    _ -> Nothing
+  _ -> Nothing

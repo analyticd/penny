@@ -1,6 +1,7 @@
 module Penny.Popularity where
 
 import Control.Lens
+import qualified Control.Lens as Lens
 import Data.Semigroup
 import qualified Data.Foldable as F
 import qualified Data.Map as M
@@ -10,12 +11,12 @@ import Penny.Arrangement
 import Penny.Commodity
 import Penny.Mimode
 import Penny.Representation
-import Penny.Trio
 import Penny.Clatch
 import Control.Applicative
 import Penny.SeqUtil
 import Control.Monad (join)
 import Data.Maybe
+import qualified Penny.Troika as T
 
 -- | Map describing how different 'Commodity' are rendered.
 newtype History = History
@@ -66,9 +67,9 @@ groupers (History hist) mayCy = fromMaybe allGroupers $ do
 
 
 vote :: Posting -> History
-vote = make . (^. to core . trio)
+vote = Lens.view (to core . troimount . to make)
   where
-    make tri = case trioRendering tri of
+    make tri = case T.troimountRendering tri of
       Nothing -> mempty
       Just (cy, ar, ei) -> History
         $ M.singleton cy (Seq.singleton (ar, ei))

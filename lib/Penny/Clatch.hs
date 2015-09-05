@@ -4,8 +4,7 @@
 module Penny.Clatch
   ( -- * Postings
     Core(..)
-  , trio
-  , amount
+  , troimount
   , index
 
   , Posting
@@ -57,7 +56,8 @@ import Penny.Converter
 import Penny.Balance
 import Penny.Ents (Balanced, balancedToSeqEnt)
 import Penny.Tree
-import Penny.Trio
+--import Penny.Trio
+import Penny.Troika
 import Penny.Serial
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -67,8 +67,7 @@ import Data.Functor.Compose
 
 -- | The core of every posting.
 data Core = Core
-  { _trio :: Trio
-  , _amount :: Amount
+  { _troimount :: Troimount
   , _index :: Serset
   -- ^ How this single posting relates to its sibling postings.
   -- Numbering restarts with every transaction.
@@ -147,7 +146,8 @@ converted = fst . snd . snd
 best :: (a, (View Posting, (Maybe Amount, c))) -> Amount
 best clatch = case converted clatch of
   Just a -> a
-  Nothing -> clatch ^. to view . onView . to core . amount
+  Nothing -> clatch ^. to view . onView . to core
+    . troimount . to c'Amount'Troimount
 
 preFiltset :: (a, (b, (c, (PreFiltset, d)))) -> PreFiltset
 preFiltset = fst . snd . snd . snd
@@ -176,7 +176,7 @@ createConverted
   -> Converted ()
 createConverted (Converter f) clatch = clatch & _2._2 .~ (conv, ())
   where
-    conv = f $ clatch ^. _2._1.onView.to core.amount
+    conv = f $ clatch ^. _2._1.onView.to core. troimount . to c'Amount'Troimount
 
 createPrefilt
   :: (Converted a -> Bool)
@@ -230,27 +230,6 @@ createClatch pd
 -- # Adding serials
 --
 
-addSerials
-  :: Seq (Seq (Seq Tree, Balanced (Seq Tree, Trio)))
-  -> Seq Transaction
-addSerials
-  = fmap arrangeTransaction
-  . addSersets
-  . join
-  . fmap addSersets
-  . fmap (fmap (second addIndexes))
-
-arrangeTransaction
-  :: (((Seq Tree, Serset), Serset),
-      Seq (((Amount, Seq Tree, Trio, Serset), Serset), Serset))
-  -> Transaction
-arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
-  = (Serpack txnLcl txnGlbl, (txnMeta, pstgs))
-  where
-    pstgs = fmap mkPstg sq
-    mkPstg (((amt, trees, tri, pstgIdx), pstgLcl), pstgGbl)
-      = (Serpack pstgLcl pstgGbl, (trees, Core tri amt pstgIdx))
-
 addSersets
   :: Seq (a, Seq b)
   -> Seq ((a, Serset), Seq (b, Serset))
@@ -262,12 +241,33 @@ addSersets
     addPstg = getCompose . getCompose . serialNumbers . Compose . Compose
 
 addIndexes
-  :: Balanced (Seq Tree, Trio)
-  -> Seq (Amount, Seq Tree, Trio, Serset)
+  :: Balanced (Seq Tree)
+  -> Seq (Troimount, Seq Tree, Serset)
 addIndexes
-  = fmap (\((amt, (trees, tri)), srst) -> (amt, trees, tri, srst))
+  = fmap (\((tm, trees), srst) -> (tm, trees, srst))
   . serialNumbers
   . balancedToSeqEnt
+
+arrangeTransaction
+  :: (((Seq Tree, Serset), Serset),
+      Seq (((Troimount, Seq Tree, Serset), Serset), Serset))
+  -> Transaction
+arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
+  = (Serpack txnLcl txnGlbl, (txnMeta, pstgs))
+  where
+    pstgs = fmap mkPstg sq
+    mkPstg (((tm, trees, pstgIdx), pstgLcl), pstgGbl)
+      = (Serpack pstgLcl pstgGbl, (trees, Core tm pstgIdx))
+
+addSerials
+  :: Seq (Seq (Seq Tree, Balanced (Seq Tree)))
+  -> Seq Transaction
+addSerials
+  = fmap arrangeTransaction
+  . addSersets
+  . join
+  . fmap addSersets
+  . fmap (fmap (second addIndexes))
 
 --
 -- Creator
@@ -288,4 +288,3 @@ clatchesFromTransactions converter pConverted sorter pTotaled
   . fmap (createConverted converter)
   . join
   . fmap createViewposts
-
