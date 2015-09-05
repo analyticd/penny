@@ -27,8 +27,7 @@ import Rainbox hiding (background)
 import Rainbow
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Penny.Trio
-import Penny.Triamt
+import Penny.Troika
 
 -- | Load data into this record to make a color scheme that has
 -- different colors for debits and credits, with an alternating
@@ -357,13 +356,8 @@ instance Colable Amount where
 -- 5.  Magnitude (with commodity on left or right, if applicable)
 -- 6.  Space (empty if 7 is empty)
 -- 7.  Separate commodity on right
---
--- Prefers information from the Trio if available; otherwise, uses
--- what's in the Amount.  Makes no attempt to resolve any
--- inconsistencies between the Trio and the Amount; simply prefers
--- what's in the Trio.
 
-instance Colable Triamt where
+instance Colable Troimount where
   column f = Column getCells where
     getCells env
       = side
@@ -376,13 +370,15 @@ instance Colable Triamt where
       <| Seq.empty
       where
         space1 = spaceCell 1 env
+        troimount = env ^. clatch . to f
+        cy = troimount ^. Penny.Troika.commodity
+{-
+        sd = case troimount ^. troiquant._Wrapped of
+          Left troiload -> 
+-}
+        (side, cyOnLeft, spc4, magWithCy, spc6, cyOnRight) = undefined
+{-
         Triamt tri amt = f . _clatch $ env
-        cy = case tri of
-          QC _ c _ -> c
-          SC _ c -> c
-          UC _ c _ -> c
-          C c -> c
-          _ -> amt ^. commodity
         sd = case tri of
           QC q _ _ -> sideOrNeutral q
           Q q -> sideOrNeutral q
@@ -424,3 +420,4 @@ instance Colable Triamt where
           | otherwise = magCell <> cyCell
           where
             cyCell = commodityCell env sd CommodityOnLeft cy
+-}

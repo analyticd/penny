@@ -49,6 +49,8 @@ instance HasQty Troiload where
     C qnz -> toQty qnz
     E qnz -> toQty qnz
 
+-- type Troiquant = Either Troiload Qty
+
 newtype Troiquant = Troiquant (Either Troiload Qty)
   deriving (Eq, Ord, Show)
 

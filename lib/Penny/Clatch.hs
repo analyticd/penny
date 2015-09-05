@@ -56,7 +56,6 @@ import Penny.Converter
 import Penny.Balance
 import Penny.Ents (Balanced, balancedToSeqEnt)
 import Penny.Tree
---import Penny.Trio
 import Penny.Troika
 import Penny.Serial
 import Data.Sequence (Seq)
