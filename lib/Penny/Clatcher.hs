@@ -19,7 +19,6 @@ import Penny.Report
 import Penny.SeqUtil
 import Penny.Stream
 import Penny.Tree
-import Penny.Trio
 import Data.Monoid
 import Data.Typeable
 import Data.Sequence (Seq)
@@ -39,10 +38,10 @@ class Loader a where
   loadTransactions :: a -> IO (Seq Price, Seq Transaction)
 
 data LoadScroll
-  = Preloaded (Seq Price) (Seq (Seq Tree, Balanced (Seq Tree, Trio)))
+  = Preloaded (Seq Price) (Seq (Seq Tree, Balanced (Seq Tree)))
   | OpenFile String
 
-loadCopper :: String -> IO (Seq Price, Seq (Seq Tree, Balanced (Seq Tree, Trio)))
+loadCopper :: String -> IO (Seq Price, Seq (Seq Tree, Balanced (Seq Tree)))
 loadCopper fn = do
   txt <- X.readFile fn
   case copperParser txt of

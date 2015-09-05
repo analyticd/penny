@@ -302,13 +302,13 @@ c'LocatedPstgMeta'LocatedPostingA lctd@(Located lcp _) = fmap f lctd
 
 
 appendPstgToEnts
-  :: Ents (Seq Tree, Trio)
+  :: Ents (Seq Tree)
   -> Located (Seq Tree, Trio)
-  -> Either ConvertE (Ents (Seq Tree, Trio))
-appendPstgToEnts ents lctd@(Located _ pm@(_, tri)) =
+  -> Either ConvertE (Ents (Seq Tree))
+appendPstgToEnts ents lctd@(Located _ (ts, tri)) =
   case appendTrio ents tri of
     Left e -> Left $ TrioE e lctd
-    Right g -> Right (g pm)
+    Right g -> Right (g ts)
 
 addLocationToEnts
   :: LineColPosA
@@ -320,7 +320,7 @@ addLocationToEnts lcp = fmap f
 
 entsFromPostingList
   :: PostingList
-  -> Either ConvertE (Balanced (Seq Tree, Trio))
+  -> Either ConvertE (Balanced (Seq Tree))
 entsFromPostingList pstgList = do
   let pstgs = case pstgList of
         OnePosting pstg -> Seq.singleton pstg
@@ -333,14 +333,14 @@ entsFromPostingList pstgList = do
     Left e -> Left (ImbalancedE e pstgList)
     Right g -> return g
 
-c'Balanced'PostingsA :: PostingsA -> Either ConvertE (Balanced (Seq Tree, Trio))
+c'Balanced'PostingsA :: PostingsA -> Either ConvertE (Balanced (Seq Tree))
 c'Balanced'PostingsA (PostingsA _ may _) = case may of
   Nothing -> return mempty
   Just (Fs pl _) -> entsFromPostingList pl
 
 c'Transaction'TransactionA
   :: TransactionA
-  -> Either ConvertE (Seq Tree, Balanced (Seq Tree, Trio))
+  -> Either ConvertE (Seq Tree, Balanced (Seq Tree))
 c'Transaction'TransactionA txn = case txn of
   TransactionWithTopLine (Located _ tl) (Bs _ pstgs) -> do
     bal <- c'Balanced'PostingsA pstgs
@@ -399,7 +399,7 @@ c'Price'PriceA
 
 c'Either'FileItem
   :: FileItem
-  -> Either ConvertE (Either Price (Seq Tree, Balanced (Seq Tree, Trio)))
+  -> Either ConvertE (Either Price (Seq Tree, Balanced (Seq Tree)))
 c'Either'FileItem (FileItem (Located _ ei)) = case ei of
   Left p -> fmap Left $ c'Price'PriceA p
   Right t -> fmap Right $ c'Transaction'TransactionA t
@@ -407,7 +407,7 @@ c'Either'FileItem (FileItem (Located _ ei)) = case ei of
 c'Eithers'FileItems
   :: FileItems
   -> Either (ConvertE, Seq ConvertE)
-            (Seq (Either Price (Seq Tree, Balanced (Seq Tree, Trio))))
+            (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
 c'Eithers'FileItems (FileItems i1 is)
   = foldr f (Right Seq.empty) . (i1:) . map snd $ is
   where
@@ -420,7 +420,7 @@ c'Eithers'FileItems (FileItems i1 is)
 convertItemsFromAst
   :: Ast
   -> Either (ConvertE, Seq ConvertE)
-            (Seq (Either Price (Seq Tree, Balanced (Seq Tree, Trio))))
+            (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
 convertItemsFromAst f = case f of
   AstNoLeadingWhite (Fs fi _) -> c'Eithers'FileItems fi
   AstLeadingWhite _ Nothing -> Right Seq.empty

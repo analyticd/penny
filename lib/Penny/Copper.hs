@@ -49,7 +49,6 @@ import Penny.Copper.ConvertAst
 import Penny.Copper.Parser
 import Penny.Price
 import Penny.Tree
-import Penny.Trio
 import Text.ParserCombinators.UU.BasicInstances
 import Data.List (intersperse)
 import Data.Text (Text)
@@ -75,7 +74,7 @@ import Data.Text (Text)
 
 copperParser
   :: Text
-  -> Either String (Seq (Either Price (Seq Tree, Balanced (Seq Tree, Trio))))
+  -> Either String (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
 copperParser inp = do
   let (a, es1, es2) = parseAst inp
   ast <- case es1 ++ es2 of
