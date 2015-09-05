@@ -306,57 +306,6 @@ instance Colable Commodity where
 -- 6.  Space (empty if 7 is empty)
 -- 7.  Separate commodity on right
 
-instance Colable Amount where
-  column f = Column getCells
-    where
-      getCells env
-        = side
-        <| space1
-        <| cyOnLeft
-        <| spc4
-        <| magWithCy
-        <| spc6
-        <| cyOnRight
-        <| Seq.empty
-        where
-          Amount cy qty = f (_clatch env)
-          side = sideCell env (sideOrNeutral qty)
-          hasSpace = spaceBetween (env ^. history) (Just cy)
-          orient = orientation (env ^. history) (Just cy)
-          (cyOnLeft, spc4, spc6, cyOnRight)
-            | not hasSpace = (mempty, mempty, mempty, mempty)
-            | orient == CommodityOnLeft =
-                ( commodityCell env (sideOrNeutral qty) orient cy
-                , space1
-                , mempty
-                , mempty
-                )
-            | otherwise =
-                ( mempty
-                , mempty
-                , space1
-                , commodityCell env (sideOrNeutral qty) orient cy
-                )
-          space1 = spaceCell 1 env
-          mag = qtyMagnitudeCell env (Just cy) qty
-          magWithCy
-            | hasSpace = mag
-            | orient == CommodityOnLeft = cyCell <> mag
-            | otherwise = mag <> cyCell
-            where
-              cyCell = commodityCell env (sideOrNeutral qty) CommodityOnLeft cy
-
-
--- | Creates seven columns:
---
--- 1.  Side
--- 2.  Space
--- 3.  Separate commodity on left
--- 4.  Space (empty if 3 is empty)
--- 5.  Magnitude (with commodity on left or right, if applicable)
--- 6.  Space (empty if 7 is empty)
--- 7.  Separate commodity on right
-
 instance Colable Troimount where
   column f = Column getCells where
     getCells env
@@ -372,19 +321,7 @@ instance Colable Troimount where
         space1 = spaceCell 1 env
         troimount = env ^. clatch . to f
         cy = troimount ^. Penny.Troika.commodity
-{-
-        sd = case troimount ^. troiquant._Wrapped of
-          Left troiload -> 
--}
-        (side, cyOnLeft, spc4, magWithCy, spc6, cyOnRight) = undefined
-{-
-        Triamt tri amt = f . _clatch $ env
-        sd = case tri of
-          QC q _ _ -> sideOrNeutral q
-          Q q -> sideOrNeutral q
-          SC s _ -> Just s
-          S s -> Just s
-          _ -> amt ^. qty.to sideOrNeutral
+        sd = troimount ^. troiquant . to sideOrNeutral
         side = sideCell env sd
         hasSpace = spaceBetween (env ^. history) (Just cy)
         orient = orientation (env ^. history) (Just cy)
@@ -402,22 +339,38 @@ instance Colable Troimount where
               , space1
               , commodityCell env sd orient cy
               )
+
         grouper = either (Left . Just) (Right . Just)
           . selectGrouper
           . Penny.Popularity.groupers (env ^. history)
           . Just
           $ cy
-        magCell = case tri of
-          QC q _ _ -> qtyRepAnyRadixMagnitudeCell env q
-          Q q -> qtyRepAnyRadixMagnitudeCell env q
-          UC rnn _ _ -> repNonNeutralNoSideMagnitudeCell env sd rnn
-          U rnn -> repNonNeutralNoSideMagnitudeCell env sd rnn
-          _ -> qtyRepAnyRadixMagnitudeCell env
-            . repQty grouper . _qty $ amt
+        magCell = case troimount ^. troiquant of
+          Left troiload -> case troiload of
+            QC q _ -> qtyRepAnyRadixMagnitudeCell env q
+            Q q -> qtyRepAnyRadixMagnitudeCell env q
+            UC rnn _ _ -> repNonNeutralNoSideMagnitudeCell env sd rnn
+            U rnn _ -> repNonNeutralNoSideMagnitudeCell env sd rnn
+            _ -> qtyRepAnyRadixMagnitudeCell env
+              . repQty grouper . toQty $ troiload
+          Right qty -> qtyRepAnyRadixMagnitudeCell env
+            . repQty grouper $ qty
         magWithCy
           | hasSpace = magCell
           | orient == CommodityOnLeft = cyCell <> magCell
           | otherwise = magCell <> cyCell
           where
             cyCell = commodityCell env sd CommodityOnLeft cy
--}
+
+-- | Creates seven columns:
+--
+-- 1.  Side
+-- 2.  Space
+-- 3.  Separate commodity on left
+-- 4.  Space (empty if 3 is empty)
+-- 5.  Magnitude (with commodity on left or right, if applicable)
+-- 6.  Space (empty if 7 is empty)
+-- 7.  Separate commodity on right
+
+instance Colable Amount where
+  column f = column (c'Troimount'Amount . f)

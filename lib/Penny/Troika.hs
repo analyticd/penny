@@ -55,6 +55,9 @@ type Troiquant = Either Troiload Qty
 instance HasQty Troiquant where
   toQty = either toQty id
 
+instance SidedOrNeutral Troiquant where
+  sideOrNeutral = either sideOrNeutral sideOrNeutral
+
 data Troimount = Troimount
   { _commodity :: Commodity
   , _troiquant :: Troiquant
@@ -63,12 +66,18 @@ data Troimount = Troimount
 instance HasQty Troimount where
   toQty (Troimount _ tq) = toQty tq
 
+instance SidedOrNeutral Troimount where
+  sideOrNeutral (Troimount _ tq) = sideOrNeutral tq
+
 makeLenses ''Troimount
 
 c'Amount'Troimount :: Troimount -> A.Amount
 c'Amount'Troimount (Troimount cy ei) = A.Amount cy q
   where
     q = either toQty id ei
+
+c'Troimount'Amount :: A.Amount -> Troimount
+c'Troimount'Amount (A.Amount cy q) = Troimount cy (Right q)
 
 troimountRendering
   :: Troimount
