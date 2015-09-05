@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Ents
   ( Ents
   , entsToSeqEnt
@@ -10,13 +12,12 @@ module Penny.Ents
   , balancedToSeqEnt
   , entsToBalanced
   , ImbalancedError(..)
-  , restrictedBalanced
   ) where
 
-import Data.Sequence (Seq, viewl, ViewL(..), (<|), (|>))
+import Control.Lens
+import Data.Sequence (Seq, viewl, ViewL(..))
 import qualified Data.Sequence as S
 import Penny.Amount
-import Penny.Arrangement
 import Penny.Balance
 import Penny.Commodity
 import Penny.Qty
@@ -26,12 +27,11 @@ import qualified Data.Traversable as T
 import qualified Data.Text as X
 import Penny.Trio
 import qualified Data.Map as M
-import Penny.Side
-import Penny.Representation
 import Penny.Friendly
+import qualified Penny.Troika as Y
 
 data Ents a = Ents
-  { entsToSeqEnt :: Seq (Amount, a)
+  { entsToSeqEnt :: Seq (Y.Troimount, a)
   , entsToImbalance :: Imbalance
   } deriving (Eq, Ord, Show)
 
@@ -42,10 +42,10 @@ instance Monoid (Ents m) where
   mempty = Ents mempty mempty
   mappend (Ents s1 b1) (Ents s2 b2) = Ents (s1 <> s2) (b1 <> b2)
 
-instance F.Foldable Ents where
+instance Foldable Ents where
   foldr f z = F.foldr f z . fmap snd . entsToSeqEnt
 
-instance T.Traversable Ents where
+instance Traversable Ents where
   sequenceA (Ents sq bl) = fmap (flip Ents bl) . go $ sq
     where
       go es = case viewl es of
@@ -53,7 +53,7 @@ instance T.Traversable Ents where
         e :< xs ->
           (<|) <$> T.sequenceA e <*> go xs
 
-newtype Balanced a = Balanced { balancedToSeqEnt :: Seq (Amount, a) }
+newtype Balanced a = Balanced { balancedToSeqEnt :: Seq (Y.Troimount, a) }
   deriving (Eq, Ord, Show)
 
 instance Functor Balanced where
@@ -63,10 +63,10 @@ instance Monoid (Balanced a) where
   mempty = Balanced mempty
   mappend (Balanced x) (Balanced y) = Balanced (x <> y)
 
-instance F.Foldable Balanced where
+instance Foldable Balanced where
   foldr f z = F.foldr f z . fmap snd . balancedToSeqEnt
 
-instance T.Traversable Balanced where
+instance Traversable Balanced where
   sequenceA (Balanced sq) = fmap Balanced . go $ sq
     where
       go es = case viewl es of
@@ -74,26 +74,34 @@ instance T.Traversable Balanced where
         e :< xs ->
           (<|) <$> T.sequenceA e <*> go xs
 
-
 appendEnt :: Ents a -> (Amount, a) -> Ents a
-appendEnt (Ents s b) e = Ents (s |> e)
-  (b <> c'Imbalance'Amount (fst e))
+appendEnt (Ents s b) (am@(Amount cy q), e) = Ents (s |> (tm, e))
+  (b <> c'Imbalance'Amount am)
+  where
+    tm = Y.Troimount cy (Y.Troiquant (Right q))
 
 prependEnt :: (Amount, a) -> Ents a -> Ents a
-prependEnt e (Ents s b) = Ents (e <| s)
-  (b <> c'Imbalance'Amount (fst e))
+prependEnt (am@(Amount cy q), e) (Ents s b) = Ents ((tm, e) <| s)
+  (b <> c'Imbalance'Amount am)
+  where
+    tm = Y.Troimount cy (Y.Troiquant (Right q))
 
 appendTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
-appendTrio ents@(Ents _ imb) trio =
-  case trioToAmount imb trio of
-    Left e -> Left e
-    Right g -> Right $ \a -> appendEnt ents (g, a)
+appendTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
+  where
+    f (troiload, cy) = \meta -> Ents (sq |> (tm, meta)) imb'
+      where
+        tm = Y.Troimount cy (Y.Troiquant (Left troiload))
+        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troimount tm)
 
-prependTrio :: Trio -> Ents a -> Either TrioError (a -> Ents a)
-prependTrio trio ents@(Ents _ imb) =
-  case trioToAmount imb trio of
-    Left e -> Left e
-    Right g -> Right $ \a -> prependEnt (g, a) ents
+prependTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
+prependTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
+  where
+    f (troiload, cy) = \meta -> Ents ((tm, meta) <| sq) imb'
+      where
+        tm = Y.Troimount cy (Y.Troiquant (Left troiload))
+        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troimount tm)
+
 
 data ImbalancedError
   = ImbalancedError (Commodity, QtyNonZero) [(Commodity, QtyNonZero)]
@@ -113,32 +121,3 @@ entsToBalanced (Ents sq (Imbalance m)) = case M.toList m of
   [] -> return $ Balanced sq
   x:xs -> Left $ ImbalancedError x xs
 
--- | Creates 'Balanced' sets of 'Ent'.  Unlike 'entsToBalanced' this
--- function never fails.  To accomplish this, it places greater
--- restrictions on its arguments than does 'entsToBalanced'.
-restrictedBalanced
-  :: Commodity
-  -- ^ All postings will have this commodity.
-  -> Side
-  -- ^ Each posting (except the last one) will have this side.
-  -> Seq (NilOrBrimScalarAnyRadix, Arrangement, a)
-  -- ^ Each posting, along with its metadata and 'Arrangement'.
-  -> a
-  -- ^ Metadata for the last posting
-  -> Balanced (a, Trio)
-  -- ^ Each posting given in the 'Seq' above will have a corresponding
-  -- value in the 'Seq' in this 'Balanced'.  Each of these 'Ent' will
-  -- have a 'Trio' whose constructor is 'QC'.  In addition, there will
-  -- be a final 'Ent' whose 'Trio' is constructed with 'E'.  This
-  -- final 'Ent' will always be appended even if it is not necessary;
-  -- that is, its 'Qty' may have a significand of 0.
-restrictedBalanced cy s sq metaLast = Balanced (begin |> end)
-  where
-    begin = fmap f sq
-    f (rep, ar, meta) = (Amount cy (toQty q), (meta, tri))
-      where
-        q = nilOrBrimScalarAnyRadixToQtyRepAnyRadix s rep
-        tri = QC q cy ar
-    end = (Amount cy (negate tot), (metaLast, E))
-    tot = F.foldl' (+) (fromInteger 0) . fmap (\(Amount _ q, _) -> q)
-      $ begin

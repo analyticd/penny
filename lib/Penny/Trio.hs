@@ -17,6 +17,7 @@ import qualified Data.Text as X
 import Data.Sequence (Seq)
 import Penny.Mimode
 import Penny.Semantic
+import qualified Penny.Troika as K
 
 -- | Given a particular 'Commodity', deliver the correct 'Arrangement'
 -- depending on the history of how this commodity was arranged.
@@ -182,11 +183,11 @@ lookupCommodity (Imbalance imb) cy = case M.lookup cy imb of
   Nothing -> Left $ CommodityNotFound cy
   Just dnz -> return dnz
 
-qnrIsSmallerAbsoluteValue
+rnnIsSmallerAbsoluteValue
   :: RepNonNeutralNoSide
   -> QtyNonZero
   -> Either TrioError ()
-qnrIsSmallerAbsoluteValue qnr qnz
+rnnIsSmallerAbsoluteValue qnr qnz
   | qnr' < qnz' = return ()
   | otherwise = Left $ UnsignedTooLarge qnr qnz
   where
@@ -223,7 +224,7 @@ trioToAmount imb (UC qnr cy _) = do
 
 trioToAmount imb (U qnr) = do
   (cy, qnz) <- oneCommodity imb
-  qnrIsSmallerAbsoluteValue qnr qnz
+  rnnIsSmallerAbsoluteValue qnr qnz
   let q = decPositiveToQty (offset . side $ qnz)
         . toDecPositive $ qnr
   return $ Amount cy q
@@ -237,3 +238,44 @@ trioToAmount imb E = do
   (cy, qnz) <- oneCommodity imb
   let q = toQty . offset $ qnz
   return $ Amount cy q
+
+trioToTroiload
+  :: Imbalance
+  -> Trio
+  -> Either TrioError (K.Troiload, Commodity)
+
+trioToTroiload _ (QC qnr cy ar) = Right (K.QC qnr ar, cy)
+
+trioToTroiload imb (Q qnr) = fmap f $ oneCommodity imb
+  where
+    f (cy, _) = (K.Q qnr, cy)
+
+trioToTroiload imb (SC s cy) = do
+  qnz <- lookupCommodity imb cy
+  let qtSide = side qnz
+  notSameSide qtSide s
+  return (K.SC qnz, cy)
+
+trioToTroiload imb (S s) = do
+  (cy, qnz) <- oneCommodity imb
+  let qtSide = side qnz
+  notSameSide s qtSide
+  return (K.S qnz, cy)
+
+trioToTroiload imb (UC rnn cy ar) = do
+  qnz <- lookupCommodity imb cy
+  return (K.UC rnn (offset . side $ qnz) ar, cy)
+
+trioToTroiload imb (U rnn) = do
+  (cy, qnz) <- oneCommodity imb
+  rnnIsSmallerAbsoluteValue rnn qnz
+  return (K.U rnn (offset . side $ qnz), cy)
+
+trioToTroiload imb (C cy) = do
+  qnz <- lookupCommodity imb cy
+  return (K.C qnz, cy)
+
+trioToTroiload imb E = do
+  (cy, qnz) <- oneCommodity imb
+  return (K.E qnz, cy)
+

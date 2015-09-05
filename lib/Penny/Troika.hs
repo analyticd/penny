@@ -7,6 +7,7 @@ import Penny.Representation
 import Penny.Commodity
 import Penny.Qty
 import Penny.Side
+import qualified Penny.Amount as A
 
 data Troiload
   = QC QtyRepAnyRadix Arrangement
@@ -17,6 +18,7 @@ data Troiload
   | U RepNonNeutralNoSide Side
   | C QtyNonZero
   | E QtyNonZero
+  deriving (Eq, Ord, Show)
 
 instance SidedOrNeutral Troiload where
   sideOrNeutral x = case x of
@@ -46,10 +48,17 @@ instance HasQty Troiload where
     C qnz -> toQty qnz
     E qnz -> toQty qnz
 
-data Troika = Troika
+newtype Troiquant = Troiquant (Either Troiload Qty)
+  deriving (Eq, Ord, Show)
+
+data Troimount = Troimount
   { _commodity :: Commodity
-  , _troiload :: Troiload
-  }
+  , _troiquant :: Troiquant
+  } deriving (Eq, Ord, Show)
 
-makeLenses ''Troika
+makeLenses ''Troimount
 
+c'Amount'Troimount :: Troimount -> A.Amount
+c'Amount'Troimount (Troimount cy (Troiquant ei)) = A.Amount cy q
+  where
+    q = either toQty id ei
