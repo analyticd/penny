@@ -78,20 +78,20 @@ appendEnt :: Ents a -> (Amount, a) -> Ents a
 appendEnt (Ents s b) (am@(Amount cy q), e) = Ents (s |> (tm, e))
   (b <> c'Imbalance'Amount am)
   where
-    tm = Y.Troimount cy (Y.Troiquant (Right q))
+    tm = Y.Troimount cy (Right q)
 
 prependEnt :: (Amount, a) -> Ents a -> Ents a
 prependEnt (am@(Amount cy q), e) (Ents s b) = Ents ((tm, e) <| s)
   (b <> c'Imbalance'Amount am)
   where
-    tm = Y.Troimount cy (Y.Troiquant (Right q))
+    tm = Y.Troimount cy (Right q)
 
 appendTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
 appendTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
   where
     f (troiload, cy) = \meta -> Ents (sq |> (tm, meta)) imb'
       where
-        tm = Y.Troimount cy (Y.Troiquant (Left troiload))
+        tm = Y.Troimount cy (Left troiload)
         imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troimount tm)
 
 prependTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
@@ -99,7 +99,7 @@ prependTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
   where
     f (troiload, cy) = \meta -> Ents ((tm, meta) <| sq) imb'
       where
-        tm = Y.Troimount cy (Y.Troiquant (Left troiload))
+        tm = Y.Troimount cy (Left troiload)
         imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troimount tm)
 
 

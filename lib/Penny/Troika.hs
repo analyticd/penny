@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Penny.Troika where
 
 import Control.Lens
@@ -49,13 +50,10 @@ instance HasQty Troiload where
     C qnz -> toQty qnz
     E qnz -> toQty qnz
 
--- type Troiquant = Either Troiload Qty
-
-newtype Troiquant = Troiquant (Either Troiload Qty)
-  deriving (Eq, Ord, Show)
+type Troiquant = Either Troiload Qty
 
 instance HasQty Troiquant where
-  toQty (Troiquant ei) = either toQty id ei
+  toQty = either toQty id
 
 data Troimount = Troimount
   { _commodity :: Commodity
@@ -68,14 +66,14 @@ instance HasQty Troimount where
 makeLenses ''Troimount
 
 c'Amount'Troimount :: Troimount -> A.Amount
-c'Amount'Troimount (Troimount cy (Troiquant ei)) = A.Amount cy q
+c'Amount'Troimount (Troimount cy ei) = A.Amount cy q
   where
     q = either toQty id ei
 
 troimountRendering
   :: Troimount
   -> Maybe (Commodity, Arrangement, Either (Seq RadCom) (Seq RadPer))
-troimountRendering (Troimount cy (Troiquant tq)) = case tq of
+troimountRendering (Troimount cy tq) = case tq of
   Left tl -> case tl of
     QC (QtyRepAnyRadix qr) ar -> Just (cy, ar, ei)
       where
