@@ -19,6 +19,7 @@ import Penny.Representation
 import Penny.Serial
 import Penny.Natural
 import Penny.Qty
+import Penny.Realm
 import Penny.Side
 import Data.Monoid
 import Data.Text (Text)
@@ -374,3 +375,42 @@ instance Colable Troimount where
 
 instance Colable Amount where
   column f = column (c'Troimount'Amount . f)
+
+-- | Creates three columns, one for the forward serial and one for the
+-- backward serial, with a space in between.
+
+instance Colable Serset where
+  column f = Column getCells
+    where
+      getCells env =
+        fwdCell
+        <> Seq.singleton (spaceCell 1 env)
+        <> revCell
+        where
+          srst = f . _clatch $ env
+          fwdCell = singleCell env (srst ^. forward)
+          revCell = singleCell env (srst ^. backward)
+
+-- | Creates seven columns: three for the file serset, three for the
+-- global serset, with one column in between.
+instance Colable Serpack where
+  column f = Column getCells
+    where
+      getCells env
+        = fileCells
+        <> Seq.singleton (spaceCell 1 env)
+        <> glblCells
+        where
+          serpack = f . _clatch $ env
+          fileCells = singleCell env (serpack ^. file)
+          glblCells = singleCell env (serpack ^. global)
+
+-- | Creates one column with a @U@ or an @S@.
+instance Colable Realm where
+  column f = Column getCells
+    where
+      getCells env = Seq.singleton $ textCell _nonLinear env txt
+        where
+          txt = case f . _clatch $ env of
+            User -> "U"
+            System -> "S"

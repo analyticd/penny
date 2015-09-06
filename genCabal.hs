@@ -114,7 +114,7 @@ operational = atleast "operational" [0,2,3]
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
-  [ ghcOptions ["-W", "-fwarn-missing-signatures"]
+  [ ghcOptions ["-W", "-fwarn-missing-signatures", "-fwarn-orphans"]
   , haskell2010
   , hsSourceDirs ["lib"]
   , otherExtensions ["TemplateHaskell"]
