@@ -9,8 +9,10 @@ module Penny.Column where
 
 import Control.Lens
 import Control.Monad (join)
+import qualified Data.Map as M
 import Penny.Amount
 import Penny.Arrangement
+import Penny.Balance
 import Penny.Clatch
 import Penny.Commodity
 import Penny.DateTime
@@ -30,6 +32,7 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import Rainbox
   ( Cell (Cell, _rows, _horizontal, _vertical, _background)
+  , rows
   , render
   , top
   , left
@@ -74,7 +77,6 @@ instance Monoid Colors where
 data Env = Env
   { _clatch :: Clatch
   , _history :: History
-  , _renderer :: Either (Maybe RadCom) (Maybe RadPer)
   , _colors :: Colors
   }
 
@@ -92,17 +94,16 @@ instance Monoid Column where
 
 table
   :: History
-  -> Either (Maybe RadCom) (Maybe RadPer)
   -> Colors
   -> Seq Column
   -> Seq Clatch
   -> (Seq (Chunk Text))
-table hist rend clrs cols cltchs = render . tableByRows $ dataRows
+table hist clrs cols cltchs = render . tableByRows $ dataRows
   where
     dataRows = fmap (mkDataRow $) cltchs
     mkDataRow clatch = join . fmap ($ env) . fmap (^. _Wrapped) $ cols
       where
-        env = Env clatch hist rend clrs
+        env = Env clatch hist clrs
 
 background :: Env -> Radiant
 background env
@@ -197,6 +198,21 @@ sideCell env maySide = Cell
       Just Debit -> (env ^. colors.debit, "<")
       Just Credit -> (env ^. colors.credit, ">")
 
+sidedChunk
+  :: Env
+  -> Maybe Side
+  -> Text
+  -> Chunk Text
+sidedChunk env maySide
+  = back (background env)
+  . fore fgColor
+  . chunk
+  where
+    fgColor = case maySide of
+      Nothing -> env ^. colors.neutral
+      Just Debit -> env ^. colors.debit
+      Just Credit -> env ^. colors.credit
+
 commodityCell
   :: Env
   -> Maybe Side
@@ -205,17 +221,13 @@ commodityCell
   -> Cell
 commodityCell env maySide orient (Commodity cy) = Cell
   { _rows = Seq.singleton . Seq.singleton
-      . back (background env) . fore fgColor
-      . chunk $ cy
+      . sidedChunk env maySide
+      $ cy
   , _horizontal = top
   , _vertical = vertOrient
   , _background = background env
   }
   where
-    fgColor = case maySide of
-      Nothing -> env ^. colors.neutral
-      Just Debit -> env ^. colors.debit
-      Just Credit -> env ^. colors.credit
     vertOrient
       | orient == CommodityOnLeft = right
       | otherwise = left
@@ -228,6 +240,18 @@ instance Colable (Maybe Side) where
 instance Colable Side where
   column f = Column $ \env ->
     Seq.singleton (sideCell env (Just . f . _clatch $ env))
+
+qtyRepAnyRadixMagnitudeChunk
+  :: Env
+  -> QtyRepAnyRadix
+  -> Chunk Text
+qtyRepAnyRadixMagnitudeChunk env qr
+  = sidedChunk env (sideOrNeutral qr)
+  . X.pack
+  . ($ "")
+  . display
+  . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
+  $ qr
 
 qtyRepAnyRadixMagnitudeCell
   :: Env
@@ -245,6 +269,18 @@ qtyRepAnyRadixMagnitudeCell env qr
       Nothing -> _neutral
       Just Debit -> _debit
       Just Credit -> _credit
+
+repNonNeutralNoSideMagnitudeChunk
+  :: Env
+  -> Maybe Side
+  -> RepNonNeutralNoSide
+  -> Chunk Text
+repNonNeutralNoSideMagnitudeChunk env maySide
+  = sidedChunk env maySide
+  . X.pack
+  . ($ "")
+  . display
+  . c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
 
 repNonNeutralNoSideMagnitudeCell
   :: Env
@@ -308,6 +344,100 @@ instance Colable Qty where
 instance Colable Commodity where
   column f = column ((^. _Wrapped) . f)
 
+data TroimountCells = TroimountCells
+  { _tmSide :: Maybe Side
+    -- ^ Always top left aligned, with standard background
+  , _tmCyOnLeft :: Maybe (Chunk Text)
+  -- ^ Always top right aligned.  If this is Nothing, there is no
+  -- following space cell.
+  , _tmMagWithCy :: Chunk Text
+  -- ^ Always top left aligned.
+  , _tmCyOnRight :: Maybe (Chunk Text)
+  -- ^ Always top left aligned.  If this is Nothing, there is no
+  -- preceding space cell.
+  }
+
+makeLenses ''TroimountCells
+
+troimountCells :: Env -> Troimount -> TroimountCells
+troimountCells env troimount = TroimountCells side onLeft magWithCy onRight
+  where
+    cy = troimount ^. Penny.Troika.commodity
+    side = troimount ^. troiquant . to sideOrNeutral
+    hasSpace = spaceBetween (env ^. history) (Just cy)
+    orient = orientation (env ^. history) (Just cy)
+    cyChunk = sidedChunk env side (cy ^. _Wrapped)
+    (onLeft, onRight)
+      | not hasSpace = (Nothing, Nothing)
+      | orient == CommodityOnLeft = (Just cyChunk, Nothing)
+      | otherwise = (Nothing, Just cyChunk)
+    grouper = either (Left . Just) (Right . Just)
+      . selectGrouper
+      . Penny.Popularity.groupers (env ^. history)
+      . Just
+      $ cy
+    magWithCy
+      | hasSpace = magnitude
+      | orient == CommodityOnLeft = cyChunk <> magnitude
+      | otherwise = magnitude <> cyChunk
+      where
+        magnitude = case troimount ^. troiquant of
+          Left troiload -> case troiload of
+            QC q _ -> qtyRepAnyRadixMagnitudeChunk env q
+            Q q -> qtyRepAnyRadixMagnitudeChunk env q
+            UC rnn _ _ -> repNonNeutralNoSideMagnitudeChunk env side rnn
+            U rnn _ -> repNonNeutralNoSideMagnitudeChunk env side rnn
+            _ -> qtyRepAnyRadixMagnitudeChunk env
+              . repQty grouper . toQty $ troiload
+          Right qty -> qtyRepAnyRadixMagnitudeChunk env
+            . repQty grouper $ qty
+
+troimountCellsToColumns
+  :: Env
+  -> Seq TroimountCells
+  -> Seq Cell
+troimountCellsToColumns env
+  = tupleToSeq
+  . foldl addRow emptyTup
+  where
+    tupleToSeq (c0, c1, c2, c3, c4, c5, c6) =
+      c0 <| c1 <| c2 <| c3 <| c4 <| c5 <| c6 <| Seq.empty
+
+    emptyTup =
+      ( Cell Seq.empty top left (background env)              -- side
+      , Cell Seq.empty top left (background env)              -- spacer 2
+      , Cell Seq.empty top right (background env)             -- cy on left
+      , Cell Seq.empty top left (background env)              -- spacer 4
+      , Cell Seq.empty top left (background env)              -- magnitude
+      , Cell Seq.empty top left (background env)              -- spacer 6
+      , Cell Seq.empty top left (background env)              -- cy on right
+      )
+
+    addRow (side, spc2, cyOnLeft, spc4, mag, spc6, cyOnRight) tc
+      = ( addLine side side'
+        , addLine spc2 spc2'
+        , addLine cyOnLeft cyOnLeft'
+        , addLine spc4 spc4'
+        , addLine mag mag'
+        , addLine spc6 spc6'
+        , addLine cyOnRight cyOnRight'
+        )
+      where
+        addLine old line = old & rows <>~ Seq.singleton line
+        side' = Seq.singleton . sidedChunk env (tc ^. tmSide) $
+          case tc ^. tmSide of
+            Nothing -> "--"
+            Just Debit -> "<"
+            Just Credit -> ">"
+        spc2' = spacer
+        cyOnLeft' = maybe Seq.empty Seq.singleton . _tmCyOnLeft $ tc
+        spacer = Seq.singleton . back (background env) . chunk $ " "
+        spc4' = maybe Seq.empty (const spacer) . _tmCyOnLeft $ tc
+        mag' = Seq.singleton . _tmMagWithCy $ tc
+        spc6' = maybe Seq.empty (const spacer) . _tmCyOnRight $ tc
+        cyOnRight' = maybe Seq.empty Seq.singleton . _tmCyOnRight $ tc
+
+
 -- | Creates seven columns:
 --
 -- 1.  Side
@@ -320,59 +450,12 @@ instance Colable Commodity where
 
 instance Colable Troimount where
   column f = Column getCells where
-    getCells env
-      = side
-      <| space1
-      <| cyOnLeft
-      <| spc4
-      <| magWithCy
-      <| spc6
-      <| cyOnRight
-      <| Seq.empty
-      where
-        space1 = spaceCell 1 env
-        troimount = env ^. clatch . to f
-        cy = troimount ^. Penny.Troika.commodity
-        sd = troimount ^. troiquant . to sideOrNeutral
-        side = sideCell env sd
-        hasSpace = spaceBetween (env ^. history) (Just cy)
-        orient = orientation (env ^. history) (Just cy)
-        (cyOnLeft, spc4, spc6, cyOnRight)
-          | not hasSpace = (mempty, mempty, mempty, mempty)
-          | orient == CommodityOnLeft =
-              ( commodityCell env sd orient cy
-              , space1
-              , mempty
-              , mempty
-              )
-          | otherwise =
-              ( mempty
-              , mempty
-              , space1
-              , commodityCell env sd orient cy
-              )
-
-        grouper = either (Left . Just) (Right . Just)
-          . selectGrouper
-          . Penny.Popularity.groupers (env ^. history)
-          . Just
-          $ cy
-        magCell = case troimount ^. troiquant of
-          Left troiload -> case troiload of
-            QC q _ -> qtyRepAnyRadixMagnitudeCell env q
-            Q q -> qtyRepAnyRadixMagnitudeCell env q
-            UC rnn _ _ -> repNonNeutralNoSideMagnitudeCell env sd rnn
-            U rnn _ -> repNonNeutralNoSideMagnitudeCell env sd rnn
-            _ -> qtyRepAnyRadixMagnitudeCell env
-              . repQty grouper . toQty $ troiload
-          Right qty -> qtyRepAnyRadixMagnitudeCell env
-            . repQty grouper $ qty
-        magWithCy
-          | hasSpace = magCell
-          | orient == CommodityOnLeft = cyCell <> magCell
-          | otherwise = magCell <> cyCell
-          where
-            cyCell = commodityCell env sd CommodityOnLeft cy
+    getCells env = troimountCellsToColumns env
+      . Seq.singleton
+      . troimountCells env
+      . f
+      . Control.Lens.view clatch
+      $ env
 
 -- | Creates seven columns:
 --
@@ -386,6 +469,22 @@ instance Colable Troimount where
 
 instance Colable Amount where
   column f = column (c'Troimount'Amount . f)
+
+-- | Creates the same columns as for 'Amount', but with one line
+-- for each commodity in the balance.
+
+instance Colable Balance where
+  column f = Column getCells where
+    getCells env = troimountCellsToColumns env
+      . fmap (troimountCells env . makeTroimount)
+      . Seq.fromList
+      . M.assocs
+      . Control.Lens.view _Wrapped
+      . f
+      . Control.Lens.view clatch
+      $ env
+      where
+        makeTroimount (cy, qty) = Troimount cy (Right qty)
 
 -- | Creates three columns, one for the forward serial and one for the
 -- backward serial, with a space in between.

@@ -1,4 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Balance where
 
@@ -15,6 +17,8 @@ import qualified Data.Traversable as T
 -- | The balance of multiple commodities.
 newtype Balance = Balance (M.Map Commodity Qty)
   deriving (Eq, Ord, Show)
+
+makeWrapped ''Balance
 
 instance Monoid Balance where
   mempty = Balance M.empty
