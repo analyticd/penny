@@ -3,6 +3,7 @@ module Penny.Display where
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F
 import Data.Text (Text)
+import qualified Data.Text as X
 
 -- | Display of representations.
 class Display a where
@@ -11,7 +12,7 @@ class Display a where
   -- consumption.
 
 instance Display Text where
-  display = shows
+  display a = \rest -> X.unpack a ++ rest
 
 instance Display Int where
   display = shows

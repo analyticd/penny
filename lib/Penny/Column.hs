@@ -13,18 +13,29 @@ import Penny.Amount
 import Penny.Arrangement
 import Penny.Clatch
 import Penny.Commodity
+import Penny.DateTime
 import Penny.Display
-import Penny.Popularity
-import Penny.Representation
-import Penny.Serial
 import Penny.Natural
+import Penny.Popularity
 import Penny.Qty
 import Penny.Realm
+import Penny.Representation
+import Penny.Scalar
+import Penny.SeqUtil (intersperse)
+import Penny.Serial
 import Penny.Side
+import Penny.Tree
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as X
-import Rainbox hiding (background)
+import Rainbox
+  ( Cell (Cell, _rows, _horizontal, _vertical, _background)
+  , render
+  , top
+  , left
+  , right
+  , tableByRows
+  )
 import Rainbow
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -414,3 +425,70 @@ instance Colable Realm where
           txt = case f . _clatch $ env of
             User -> "U"
             System -> "S"
+
+colableDisplayNonLinear :: Display a => (Clatch -> a) -> Column
+colableDisplayNonLinear f = Column getCells
+    where
+      getCells env = Seq.singleton $ textCell _nonLinear env txt
+        where
+          txt = X.pack . ($ "") . display . f . _clatch $ env
+
+-- | Creates a single column with the date in YYYY-MM-DD format.
+
+instance Colable Date where
+  column = colableDisplayNonLinear
+
+instance Colable Time where
+  column = colableDisplayNonLinear
+
+instance Colable Zone where
+  column = colableDisplayNonLinear
+
+instance Colable DateTime where
+  column = colableDisplayNonLinear
+
+instance Colable Scalar where
+  column = colableDisplayNonLinear
+
+instance Colable (Maybe Scalar) where
+  column f = Column getCells
+    where
+      getCells env = case f . _clatch $ env of
+        Nothing -> Seq.singleton $ textCell _nonLinear env "--"
+        Just sc -> Seq.singleton . textCell _nonLinear env
+          . X.pack . ($ "") . display $ sc
+
+-- | Shows the scalar.  Does not show the children; if there are
+-- children, a ↓ is shown at the end.
+instance Colable Tree where
+  column f = Column getCells
+    where
+      getCells env = Seq.singleton $ textCell _nonLinear env txt
+        where
+          txt = scalarTxt <> childrenTxt
+            where
+              scalarTxt = case _scalar . f . _clatch $ env of
+                Nothing -> "--"
+                Just sc -> X.pack . ($ "") . display $ sc
+              childrenTxt
+                | Seq.null . _children . f . _clatch $ env = mempty
+                | otherwise = "↓"
+
+-- | Shows each tree, separated by a •.
+instance Colable (Seq Tree) where
+  column f = Column getCells
+    where
+      getCells env = Seq.singleton $ textCell _nonLinear env txt
+        where
+          txt = foldl (<>) mempty
+            . intersperse "•" . fmap treeToTxt
+            . f . _clatch $ env
+            where
+              treeToTxt tree = scalarTxt <> childrenTxt
+                where
+                  scalarTxt = case tree ^. scalar of
+                    Nothing -> "--"
+                    Just sc -> X.pack . ($ "") . display $ sc
+                  childrenTxt
+                    | tree ^. Penny.Tree.children . to Seq.null = mempty
+                    | otherwise = "↓"

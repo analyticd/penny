@@ -155,6 +155,14 @@ midnight = Time (H0to19 (Just D1z'0) D9z'0)
 data DateTime = DateTime Date Time Zone
   deriving (Eq, Ord, Show)
 
+instance Display DateTime where
+  display (DateTime d t z)
+    = display d
+    . (' ':)
+    . display t
+    . (' ':)
+    . display z
+
 dateTimeToUTC :: DateTime -> T.UTCTime
 dateTimeToUTC (DateTime (Date day) (Time h (Minutes m) (Seconds s)) z)
   = T.localTimeToUTC tz lt

@@ -3,7 +3,7 @@ module Penny.Scalar where
 
 
 import Control.Lens
-import Data.Text (Text, pack)
+import Data.Text (Text)
 import Penny.DateTime
 import Penny.Display
 
@@ -17,10 +17,11 @@ data Scalar
 
 makePrisms ''Scalar
 
-displayScalar :: Scalar -> Text
-displayScalar sc = case sc of
-  SText x -> x
-  SDate d -> pack . display d $ ""
-  STime ti -> pack . display ti $ ""
-  SZone zn -> pack . display zn $ ""
-  SInteger i -> pack . display i $ ""
+instance Display Scalar where
+  display x = case x of
+    SText a -> display a
+    SDate a -> display a
+    STime a -> display a
+    SZone a -> display a
+    SInteger a -> display a
+

@@ -14,6 +14,7 @@ module Penny.SeqUtil
   , rights
   , partitionEithers
   , filterM
+  , intersperse
 
   -- * Views
   , View(..)
@@ -33,6 +34,7 @@ import Data.Sequence
 import qualified Data.Traversable as T
 import qualified Data.Foldable as F
 import Data.Monoid
+import Control.Monad (join)
 
 filterM
   :: Monad m
@@ -45,6 +47,16 @@ filterM pd sq = case viewl sq of
     b <- pd x
     rest <- filterM pd xs
     return $ if b then (x <| rest) else rest
+
+intersperse
+  :: a
+  -> Seq a
+  -> Seq a
+intersperse between sq = case viewl sq of
+  EmptyL -> empty
+  x :< xs -> x <| withBetweens
+    where
+      withBetweens = join . fmap (\a -> between <| a <| empty) $ xs
 
 mapMaybeM
   :: Monad m
