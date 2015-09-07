@@ -10,7 +10,6 @@ import Data.Text (Text)
 import qualified Data.Text.IO as X
 import Penny.Clatch
 import Penny.Converter
-import Penny.Representation
 import Penny.Copper
 import Penny.Ents
 import Penny.Popularity
@@ -73,24 +72,6 @@ data ClatchOptions r l = ClatchOptions
   -- For example, this can be useful to convert a commodity to its
   -- value in your home currency.
 
-  , _renderer :: Maybe (Either (Maybe RadCom) (Maybe RadPer))
-  -- ^ Determines how to render quantities.  Original formatting is
-  -- used if possible.  For some quantities that's not possible; for
-  -- instance, a balance total is calculated so there is no original
-  -- quantity.  In that case, the clatcher tries to use the most
-  -- commonly used representation for a given commodity.  To determine
-  -- this the clatcher examines all the values appearing in the set of
-  -- loaded ledger files.  If that fails (perhaps the commodity was
-  -- not included in the loaded ledger files), then the clatcher
-  -- consults the value of '_renderer'.  If '_renderer' is 'Just',
-  -- then the given radix point is used; if a particular grouping
-  -- character is included, then that grouping character is used for
-  -- values with absolute values greater than 9999.
-  --
-  -- If _renderer is 'Nothing' and all other methods to determine how
-  -- to render fail, then the quantity is rendered using a period
-  -- radix point and no digit grouping.
-
   , _pre :: Converted () -> Bool
   -- ^ Controls pre-filtering
 
@@ -117,8 +98,6 @@ makeLenses ''ClatchOptions
 --
 -- 'mempty' for '_converter'
 --
--- 'Nothing' for '_renderer'
---
 -- 'const' 'True' for '_pre'
 --
 -- 'mempty' for '_sort'
@@ -135,9 +114,6 @@ makeLenses ''ClatchOptions
 --
 -- 'mappend' for '_converter'
 --
--- the last non-Nothing value if there is one for '_renderer';
--- otherwise, Nothing
---
 -- for '_pre' and '_post', returns 'True' only if both operands return 'True'
 --
 -- 'mappend' for '_sort'
@@ -151,7 +127,6 @@ makeLenses ''ClatchOptions
 instance (Monoid r, Monoid l) => Monoid (ClatchOptions r l) where
   mempty = ClatchOptions
     { _converter = mempty
-    , _renderer = Nothing
     , _pre = const True
     , _sort = mempty
     , _post = const True
@@ -162,7 +137,6 @@ instance (Monoid r, Monoid l) => Monoid (ClatchOptions r l) where
 
   mappend x y = ClatchOptions
     { _converter = _converter x <> _converter y
-    , _renderer = getLast $ Last (_renderer x) <> Last (_renderer y)
     , _pre = \a -> _pre x a && _pre y a
     , _sort = _sort x <> _sort y
     , _post = \a -> _post x a && _post y a
@@ -181,7 +155,7 @@ getReport
   -> (Seq Price, Seq Transaction)
   -> Seq (Chunk Text)
 getReport opts items
-  = printReport (opts ^. report) hist (opts ^. renderer) clatches
+  = printReport (opts ^. report) hist clatches
   where
     hist = elect . snd $ items
     clatches
