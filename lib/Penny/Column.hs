@@ -9,7 +9,9 @@ module Penny.Column where
 
 import Control.Lens
 import Control.Monad (join)
+import Data.Foldable (foldl')
 import qualified Data.Map as M
+import qualified Data.IntMap as IM
 import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
@@ -37,9 +39,10 @@ import Rainbox
   , top
   , left
   , right
-  , tableByRows
+  , tableByColumns
   )
 import Rainbow
+import Rainbow.Types (yarn)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Penny.Troika
@@ -121,15 +124,53 @@ instance Monoid Column where
 table
   :: History
   -> Colors
-  -> Seq Column
+  -> Column
   -> Seq Clatch
   -> Seq (Chunk Text)
+table hist clrs cols cltchs
+  = render
+  . tableByColumns
+  . addSpacers
+  . mapToSeqs
+  . removeEmptyColumns
+  $ columns
+  where
+    addSpacers = undefined
+    mapToSeqs = Seq.fromList . IM.elems
+    columns = undefined
+    mkDataRow clatch = ($ env) . (^. _Wrapped) $ cols
+      where
+        env = Env clatch hist clrs
+
+{-
+
 table hist clrs cols cltchs = render . tableByRows $ dataRows
   where
     dataRows = fmap (mkDataRow $) cltchs
-    mkDataRow clatch = join . fmap ($ env) . fmap (^. _Wrapped) $ cols
-      where
-        env = Env clatch hist clrs
+-}
+
+-- | Removes all entirely empty columns from a table.
+removeEmptyColumns
+  :: IM.IntMap (Seq Cell)
+  -> IM.IntMap (Seq Cell)
+removeEmptyColumns mp
+  = foldl' (flip removeIfEmpty) mp (IM.keys mp)
+
+-- | Removes the column with the given index if it is empty.
+removeIfEmpty :: Int -> IM.IntMap (Seq Cell) -> IM.IntMap (Seq Cell)
+removeIfEmpty idx mp
+  | columnIsEmpty = IM.delete idx mp
+  | otherwise = mp
+  where
+    columnIsEmpty = case IM.lookup idx mp of
+      Nothing -> False
+      Just column -> all cellIsEmpty column
+        where
+          cellIsEmpty cell = all cellRowIsEmpty (cell ^. rows)
+            where
+              cellRowIsEmpty cellRow = all chunkIsEmpty cellRow
+                where
+                  chunkIsEmpty chunk = X.null (chunk ^. yarn)
 
 background :: Env -> Radiant
 background env
