@@ -6,9 +6,8 @@ import Control.Lens
   ( makeLenses
   )
 import Data.Monoid ((<>))
-import Data.Sequence (Seq)
-import Penny.Column
-  ( Column
+import Penny.Columns
+  ( Columns
   , Colors
   , table
   )
@@ -18,7 +17,7 @@ import Penny.Report
 
 data Register = Register
   { _colors :: Colors
-  , _columns :: Seq Column
+  , _columns :: Columns
   }
 
 makeLenses ''Register
