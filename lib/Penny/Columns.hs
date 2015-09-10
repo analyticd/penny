@@ -121,6 +121,8 @@ instance Monoid Columns where
     = Columns (\a -> (cx a) <> (cy a))
 
 
+-- | Creates a table from a 'Columns'.  Deletes any column that is
+-- entirely empty, then intersperses single-space spacer columns.
 table
   :: History
   -> Colors
@@ -159,12 +161,6 @@ addRowToMap mp = foldl' addColToMap mp . zip [0..] . toList
         alterer mayVal = Just $ case mayVal of
           Nothing -> Seq.singleton cell
           Just sq -> sq |> cell
-{-
-
-table hist clrs cols cltchs = render . tableByRows $ dataRows
-  where
-    dataRows = fmap (mkDataRow $) cltchs
--}
 
 -- | Removes all entirely empty columns from a table.
 removeEmptyColumns
@@ -400,26 +396,22 @@ qtyMagnitudeCell env mayCy
       . Penny.Popularity.groupers (env ^. history)
       $ mayCy
 
--- | Creates three columns: one for the side, one for the magnitude,
--- and a space in the middle.
+-- | Creates two columns: one for the side and one for the magnitude.
 
 instance Colable QtyRepAnyRadix where
   column f = Columns getCells
     where
       getCells env = sideCell env maySide
-        <| spaceCell 1 env
         <| qtyRepAnyRadixMagnitudeCell env (f . _clatch $ env)
         <| Seq.empty
         where
           maySide = sideOrNeutral (f . _clatch $ env)
 
--- | Creates three columns: one for the side, one for the magnitude,
--- and a space in the middle.
+-- | Creates two columns: one for the side and one for the magnitude.
 instance Colable Qty where
   column f = Columns getCells
     where
       getCells env = sideCell env (sideOrNeutral qty)
-        <| spaceCell 1 env
         <| qtyMagnitudeCell env Nothing qty
         <| Seq.empty
         where
@@ -432,13 +424,11 @@ data TroimountCells = TroimountCells
   { _tmSide :: Maybe Side
     -- ^ Always top left aligned, with standard background
   , _tmCyOnLeft :: Maybe (Chunk Text)
-  -- ^ Always top right aligned.  If this is Nothing, there is no
-  -- following space cell.
+  -- ^ Always top right aligned.
   , _tmMagWithCy :: Chunk Text
   -- ^ Always top left aligned.
   , _tmCyOnRight :: Maybe (Chunk Text)
-  -- ^ Always top left aligned.  If this is Nothing, there is no
-  -- preceding space cell.
+  -- ^ Always top left aligned.
   }
 
 makeLenses ''TroimountCells
@@ -484,28 +474,22 @@ troimountCellsToColumns env
   = tupleToSeq
   . foldl addRow emptyTup
   where
-    tupleToSeq (c0, c1, c2, c3, c4, c5, c6) =
-      c0 <| c1 <| c2 <| c3 <| c4 <| c5 <| c6 <| Seq.empty
+    tupleToSeq (c0, c1, c2, c3)
+      = c0 <| c1 <| c2 <| c3 <| Seq.empty
 
     emptyTup =
       ( Cell Seq.empty top left bkgd              -- side
-      , Cell Seq.empty top left bkgd              -- spacer 2
       , Cell Seq.empty top right bkgd             -- cy on left
-      , Cell Seq.empty top left bkgd              -- spacer 4
       , Cell Seq.empty top left bkgd              -- magnitude
-      , Cell Seq.empty top left bkgd              -- spacer 6
       , Cell Seq.empty top left bkgd              -- cy on right
       )
 
     bkgd = background (env ^. clatch) (env ^. colors)
 
-    addRow (side, spc2, cyOnLeft, spc4, mag, spc6, cyOnRight) tc
+    addRow (side, cyOnLeft, mag, cyOnRight) tc
       = ( addLine side side'
-        , addLine spc2 spc2'
         , addLine cyOnLeft cyOnLeft'
-        , addLine spc4 spc4'
         , addLine mag mag'
-        , addLine spc6 spc6'
         , addLine cyOnRight cyOnRight'
         )
       where
@@ -515,24 +499,17 @@ troimountCellsToColumns env
             Nothing -> "--"
             Just Debit -> "<"
             Just Credit -> ">"
-        spc2' = spacer
         cyOnLeft' = maybe Seq.empty Seq.singleton . _tmCyOnLeft $ tc
-        spacer = Seq.singleton . back bkgd . chunk $ " "
-        spc4' = maybe Seq.empty (const spacer) . _tmCyOnLeft $ tc
         mag' = Seq.singleton . _tmMagWithCy $ tc
-        spc6' = maybe Seq.empty (const spacer) . _tmCyOnRight $ tc
         cyOnRight' = maybe Seq.empty Seq.singleton . _tmCyOnRight $ tc
 
 
--- | Creates seven columns:
+-- | Creates four columns:
 --
--- 1.  Side
--- 2.  Space
--- 3.  Separate commodity on left
--- 4.  Space (empty if 3 is empty)
--- 5.  Magnitude (with commodity on left or right, if applicable)
--- 6.  Space (empty if 7 is empty)
--- 7.  Separate commodity on right
+-- 0.  Side
+-- 1.  Separate commodity on left
+-- 2.  Magnitude (with commodity on left or right, if applicable)
+-- 3.  Separate commodity on right
 
 instance Colable Troimount where
   column f = Columns getCells where
@@ -543,16 +520,7 @@ instance Colable Troimount where
       . Control.Lens.view clatch
       $ env
 
--- | Creates seven columns:
---
--- 1.  Side
--- 2.  Space
--- 3.  Separate commodity on left
--- 4.  Space (empty if 3 is empty)
--- 5.  Magnitude (with commodity on left or right, if applicable)
--- 6.  Space (empty if 7 is empty)
--- 7.  Separate commodity on right
-
+-- | Creates same columns as 'Troimount'.
 instance Colable Amount where
   column f = column (c'Troimount'Amount . f)
 
@@ -572,29 +540,27 @@ instance Colable Balance where
       where
         makeTroimount (cy, qty) = Troimount cy (Right qty)
 
--- | Creates three columns, one for the forward serial and one for the
--- backward serial, with a space in between.
+-- | Creates two columns, one for the forward serial and one for the
+-- backward serial.
 
 instance Colable Serset where
   column f = Columns getCells
     where
       getCells env =
         fwdCell
-        <> Seq.singleton (spaceCell 1 env)
         <> revCell
         where
           srst = f . _clatch $ env
           fwdCell = singleCell env (srst ^. forward)
           revCell = singleCell env (srst ^. backward)
 
--- | Creates seven columns: three for the file serset, three for the
--- global serset, with one column in between.
+-- | Creates four columns: two for the file serset and two for the
+-- global serset.
 instance Colable Serpack where
   column f = Columns getCells
     where
       getCells env
         = fileCells
-        <> Seq.singleton (spaceCell 1 env)
         <> glblCells
         where
           serpack = f . _clatch $ env

@@ -66,7 +66,7 @@ instance Loader (Seq LoadScroll) where
           f (pricesA, txnsA) (prices, txns)
             = (pricesA <> prices, txnsA |> txns)
 
-data ClatchOptions r l = ClatchOptions
+data Clatcher r l = Clatcher
   { _converter :: Converter
   -- ^ Converts the amount of each posting from one amount to another.
   -- For example, this can be useful to convert a commodity to its
@@ -92,7 +92,7 @@ data ClatchOptions r l = ClatchOptions
 
   }
 
-makeLenses ''ClatchOptions
+makeLenses ''Clatcher
 
 -- | The 'Monoid' instance uses for 'mempty':
 --
@@ -124,8 +124,8 @@ makeLenses ''ClatchOptions
 --
 -- returns the results of both '_load'
 
-instance (Monoid r, Monoid l) => Monoid (ClatchOptions r l) where
-  mempty = ClatchOptions
+instance (Monoid r, Monoid l) => Monoid (Clatcher r l) where
+  mempty = Clatcher
     { _converter = mempty
     , _pre = const True
     , _sort = mempty
@@ -135,7 +135,7 @@ instance (Monoid r, Monoid l) => Monoid (ClatchOptions r l) where
     , _load = mempty
     }
 
-  mappend x y = ClatchOptions
+  mappend x y = Clatcher
     { _converter = _converter x <> _converter y
     , _pre = \a -> _pre x a && _pre y a
     , _sort = _sort x <> _sort y
@@ -151,7 +151,7 @@ instance (Monoid r, Monoid l) => Monoid (ClatchOptions r l) where
 
 getReport
   :: Report r
-  => ClatchOptions r l
+  => Clatcher r l
   -> (Seq Price, Seq Transaction)
   -> Seq (Chunk Text)
 getReport opts items
@@ -165,7 +165,7 @@ getReport opts items
 
 clatcher
   :: (Report r, Loader l)
-  => ClatchOptions r l
+  => Clatcher r l
   -> IO ()
 clatcher opts = do
   items <- loadTransactions (opts ^. load)
