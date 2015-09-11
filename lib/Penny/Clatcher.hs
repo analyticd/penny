@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE FlexibleInstances #-}
 module Penny.Clatcher where
 
 import Control.Lens hiding (pre)
@@ -34,7 +33,7 @@ data PennyError
 instance Exception PennyError
 
 class Loader a where
-  loadTransactions :: a -> IO (Seq Price, Seq Transaction)
+  loadTransactions :: Seq a -> IO (Seq Price, Seq Transaction)
 
 data LoadScroll
   = Preloaded (Seq Price) (Seq (Seq Tree, Balanced (Seq Tree)))
@@ -55,7 +54,7 @@ preload = fmap (\(prices, txns) -> Preloaded prices txns) . loadCopper
 open :: String -> LoadScroll
 open = OpenFile
 
-instance Loader (Seq LoadScroll) where
+instance Loader LoadScroll where
   loadTransactions = fmap (second addSerials . combine) . traverse load
     where
       load scroll = case scroll of
@@ -87,7 +86,7 @@ data Clatcher r l = Clatcher
   , _report :: r
   -- ^ What report to print
 
-  , _load :: l
+  , _load :: Seq l
   -- ^ Source from which to load transactions and prices
 
   }
@@ -124,7 +123,7 @@ makeLenses ''Clatcher
 --
 -- returns the results of both '_load'
 
-instance (Monoid r, Monoid l) => Monoid (Clatcher r l) where
+instance Monoid r => Monoid (Clatcher r l) where
   mempty = Clatcher
     { _converter = mempty
     , _pre = const True
