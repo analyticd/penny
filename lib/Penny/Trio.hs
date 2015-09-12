@@ -111,7 +111,7 @@ data TrioError
   | CommodityNotFound Commodity
   | BalanceIsSameSide Side
   | UnsignedTooLarge RepNonNeutralNoSide QtyNonZero
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 
 instance Friendly TrioError where
@@ -191,8 +191,8 @@ rnnIsSmallerAbsoluteValue qnr qnz
   | qnr' < qnz' = return ()
   | otherwise = Left $ UnsignedTooLarge qnr qnz
   where
-    qnr' = Semantic . toDecimal . toDecPositive $ qnr
-    qnz' = Semantic . toDecimal . toDecPositive
+    qnr' = Semantic . toDecPositive $ qnr
+    qnz' = Semantic . toDecPositive
       . (\(QtyNonZero dnz) -> dnz) $ qnz
 
 trioToAmount :: Imbalance -> Trio -> Either TrioError Amount

@@ -16,7 +16,7 @@ import qualified Data.Traversable as T
 
 -- | The balance of multiple commodities.
 newtype Balance = Balance (M.Map Commodity Qty)
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 makeWrapped ''Balance
 
@@ -37,10 +37,10 @@ addAmountToBalance (Amount c q) (Balance m) = Balance . M.alter f c $ m
 isBalanced :: Balance -> Bool
 isBalanced (Balance m) = F.all isZero m
   where
-    isZero (Qty (Decimal signif _)) = signif == 0
+    isZero (Qty (Exponential signif _)) = signif == 0
 
 newtype Imbalance = Imbalance (M.Map Commodity QtyNonZero)
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 c'Imbalance'Amount :: Amount -> Imbalance
 c'Imbalance'Amount = c'Imbalance'Balance . c'Balance'Amount

@@ -70,7 +70,7 @@ data Core = Core
   , _index :: Serset
   -- ^ How this single posting relates to its sibling postings.
   -- Numbering restarts with every transaction.
-  } deriving (Eq, Ord, Show)
+  } deriving Show
 
 makeLenses ''Core
 

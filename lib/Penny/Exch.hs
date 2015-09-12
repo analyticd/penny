@@ -4,16 +4,15 @@ module Penny.Exch where
 import Penny.PluMin
 import Penny.Decimal
 import Penny.Representation
-import Penny.Semantic
 
 newtype Exch = Exch Decimal
-  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
+  deriving Show
 
 class HasExch a where
   toExch :: a -> Exch
 
 instance HasExch (CenterOrOffCenter (Nil r) (Brim r) PluMin) where
-  toExch (Center nil) = Exch . Decimal 0 . toExponent $ nil
+  toExch (Center nil) = Exch . Exponential 0 . toExponent $ nil
   toExch (OffCenter brim p) = Exch . addSign . toDecimal
     . toDecPositive $ brim
     where

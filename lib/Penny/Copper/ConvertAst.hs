@@ -50,7 +50,7 @@ data ConvertE
   = TrioE TrioError (Located (Seq Tree, Trio))
   | ImbalancedE ImbalancedError PostingList
   | PriceSameCommodityE LineColPosA FromCy
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 instance Friendly ConvertE where
   friendly err = ("Error at " ++ display lcp "" ++ ":") : rest

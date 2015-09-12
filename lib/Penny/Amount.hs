@@ -8,6 +8,6 @@ import Penny.Commodity
 data Amount = Amount
   { _commodity :: Commodity
   , _qty :: Qty
-  } deriving (Eq, Ord, Show)
+  } deriving Show
 
 makeLenses ''Amount

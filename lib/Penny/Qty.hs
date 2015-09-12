@@ -42,11 +42,10 @@ import Penny.NonZero
 import Penny.Offset
 import Penny.PluMin
 import Penny.Display
-import Penny.Semantic
 
 -- | A quantity.  Can be a debit, credit, or zero.
 newtype Qty = Qty Decimal
-  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
+  deriving Show
 
 -- | Anything that has, or can be converted to, a 'Qty'.
 class HasQty a where
@@ -62,14 +61,14 @@ instance Num Qty where
   fromInteger i = Qty (fromInteger i)
 
 instance SidedOrNeutral Qty where
-  sideOrNeutral (Qty (Decimal sig _))
+  sideOrNeutral (Qty (Exponential sig _))
     | sig < 0 = Just Debit
     | sig > 0 = Just Credit
     | otherwise = Nothing
 
 -- | Quantities that are always a debit or a credit; never zero.
 newtype QtyNonZero = QtyNonZero DecNonZero
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 -- | Displays a QtyNonZero using a period radix and no grouping.
 displayQtyNonZero :: QtyNonZero -> String
@@ -96,7 +95,7 @@ qtyToQtyNonZero :: Qty -> Maybe QtyNonZero
 qtyToQtyNonZero (Qty d) = fmap QtyNonZero $ decimalToDecNonZero d
 
 instance HasSide QtyNonZero where
-  side (QtyNonZero (DecNonZero nz _))
+  side (QtyNonZero (Exponential nz _))
     | i < 0 = Debit
     | otherwise = Credit
     where
@@ -105,34 +104,34 @@ instance HasSide QtyNonZero where
 -- | A quantity that is neither a debit nor a credit.  However, it may
 -- be zero.
 newtype QtyUnsigned = QtyUnsigned DecUnsigned
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 class HasQtyUnsigned a where
   toQtyUnsigned :: a -> QtyUnsigned
 
 qtyUnsignedToQtyWithSide :: Side -> QtyUnsigned -> Maybe Qty
-qtyUnsignedToQtyWithSide s (QtyUnsigned (DecUnsigned sig expt))
+qtyUnsignedToQtyWithSide s (QtyUnsigned (Exponential sig expt))
   | naturalToInteger sig == 0 = Nothing
   | otherwise = Just
-      (Qty (Decimal (addSideSign s . naturalToInteger $ sig) expt))
+      (Qty (Exponential (addSideSign s . naturalToInteger $ sig) expt))
 
 addSideSign :: Num a => Side -> a -> a
 addSideSign Debit = negate
 addSideSign Credit = id
 
 qtyUnsignedToQtyNoSide :: QtyUnsigned -> Maybe Qty
-qtyUnsignedToQtyNoSide (QtyUnsigned (DecUnsigned sig expt))
+qtyUnsignedToQtyNoSide (QtyUnsigned (Exponential sig expt))
   | naturalToInteger sig == 0 = Just
-      (Qty (Decimal 0 expt))
+      (Qty (Exponential 0 expt))
   | otherwise = Nothing
 
 decPositiveToQty :: Side -> DecPositive -> Qty
-decPositiveToQty s (DecPositive pos expt)
-  = Qty $ Decimal (addSideSign s . naturalToInteger $ pos) expt
+decPositiveToQty s (Exponential pos expt)
+  = Qty $ Exponential (addSideSign s . naturalToInteger $ pos) expt
 
 instance HasQty (QtyRep a) where
   toQty (QtyRep (NilOrBrimPolar cof)) = case cof of
-    Center nil -> Qty . Decimal 0 . toExponent $ nil
+    Center nil -> Qty . Exponential 0 . toExponent $ nil
     OffCenter brim s -> Qty . addSideSign s . toDecimal
       . toDecPositive $ brim
 

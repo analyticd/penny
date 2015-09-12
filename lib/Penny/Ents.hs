@@ -33,7 +33,7 @@ import qualified Penny.Troika as Y
 data Ents a = Ents
   { entsToSeqEnt :: Seq (Y.Troika, a)
   , entsToImbalance :: Imbalance
-  } deriving (Eq, Ord, Show)
+  } deriving Show
 
 instance Functor Ents where
   fmap f (Ents s b) = Ents (fmap (fmap f) s) b
@@ -54,7 +54,7 @@ instance Traversable Ents where
           (<|) <$> T.sequenceA e <*> go xs
 
 newtype Balanced a = Balanced { balancedToSeqEnt :: Seq (Y.Troika, a) }
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 instance Functor Balanced where
   fmap f (Balanced sq) = Balanced $ fmap (fmap f) sq
@@ -105,7 +105,7 @@ prependTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
 
 data ImbalancedError
   = ImbalancedError (Commodity, QtyNonZero) [(Commodity, QtyNonZero)]
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 instance Friendly ImbalancedError where
   friendly (ImbalancedError c1 cs) =

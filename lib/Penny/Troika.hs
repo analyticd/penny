@@ -20,7 +20,7 @@ data Troiload
   | U RepNonNeutralNoSide Side
   | C QtyNonZero
   | E QtyNonZero
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 instance SidedOrNeutral Troiload where
   sideOrNeutral x = case x of
@@ -61,7 +61,7 @@ instance SidedOrNeutral Troiquant where
 data Troika = Troika
   { _commodity :: Commodity
   , _troiquant :: Troiquant
-  } deriving (Eq, Ord, Show)
+  } deriving Show
 
 instance HasQty Troika where
   toQty (Troika _ tq) = toQty tq

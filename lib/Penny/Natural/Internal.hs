@@ -91,6 +91,18 @@ instance Natural Unsigned where
   add (Unsigned x) (Unsigned y) = Unsigned $ x + y
   mult (Unsigned x) (Unsigned y) = Unsigned $ x * y
 
+instance Natural Integer where
+  next = succ
+  prev i
+    | i > 0 = Just . pred $ i
+    | otherwise = Nothing
+  naturalToInteger = id
+  integerToNatural i
+    | i < 0 = Nothing
+    | otherwise = Just i
+  add = (+)
+  mult = (*)
+
 addPositiveToUnsigned :: Unsigned -> Positive -> Unsigned
 addPositiveToUnsigned (Unsigned x) (Positive y) = Unsigned $ x + y
 
@@ -102,9 +114,19 @@ subt (Unsigned x) (Unsigned y)
   | y > x = Nothing
   | otherwise = Just . Unsigned $ x - y
 
+class Pow a where
+  -- | Take the original number and multiply it by ten raised to the
+  -- power of the given exponent.
+  raise :: a -> Unsigned -> a
 
-pow :: Unsigned -> Unsigned -> Unsigned
-pow (Unsigned x) (Unsigned y) = Unsigned $ x ^ y
+instance Pow Unsigned where
+  raise (Unsigned x) (Unsigned y) = Unsigned $ x * 10 ^ y
+
+instance Pow Integer where
+  raise i (Unsigned y) = i * 10 ^ y
+
+instance Pow Positive where
+  raise (Positive x) (Unsigned y) = Positive $ x * 10 ^ y
 
 divide :: Unsigned -> Positive -> (Unsigned, Unsigned)
 divide (Unsigned x) (Positive y) = (Unsigned q, Unsigned r)

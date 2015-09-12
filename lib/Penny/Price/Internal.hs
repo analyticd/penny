@@ -34,13 +34,13 @@ convertQty (Exch exch) (Qty orig) = Qty $ exch * orig
 
 newtype PriceDb = PriceDb
   (Map FromCy (Map ToCy (Map UTCTime Exch)))
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 data Price = Price
   { _dateTime :: DateTime
   , _fromTo :: FromTo
   , _exch :: Exch
-  } deriving (Eq, Ord, Show)
+  } deriving Show
 
 makeLenses ''Price
 

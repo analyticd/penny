@@ -14,7 +14,7 @@ module Penny.Natural
   , addUnsignedToPositive
   , monus
   , subt
-  , pow
+  , Pow(..)
   , divide
   , Differ(..)
   , diffUnsigned
