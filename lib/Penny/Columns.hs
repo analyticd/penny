@@ -326,10 +326,10 @@ qtyRepAnyRadixMagnitudeChunk
   -> QtyRepAnyRadix
   -> Chunk Text
 qtyRepAnyRadixMagnitudeChunk env qr
-  = sidedChunk env (sideOrNeutral qr)
+  = sidedChunk env (either sideOrNeutral sideOrNeutral qr)
   . X.pack
   . ($ "")
-  . display
+  . either (either display display) (either display display)
   . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
   $ qr
 
@@ -341,11 +341,11 @@ qtyRepAnyRadixMagnitudeCell env qr
   = textCell getColor (env ^. clatch) (env ^. colors)
   . X.pack
   . ($ "")
-  . display
+  . either (either display display) (either display display)
   . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
   $ qr
   where
-    getColor = case sideOrNeutral qr of
+    getColor = case either sideOrNeutral sideOrNeutral qr of
       Nothing -> _neutral
       Just Debit -> _debit
       Just Credit -> _credit
@@ -359,7 +359,7 @@ repNonNeutralNoSideMagnitudeChunk env maySide
   = sidedChunk env maySide
   . X.pack
   . ($ "")
-  . display
+  . either (either display display) (either display display)
   . c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
 
 repNonNeutralNoSideMagnitudeCell
@@ -371,7 +371,7 @@ repNonNeutralNoSideMagnitudeCell env maySide rnn
   = textCell getColor (env ^. clatch) (env ^. colors)
   . X.pack
   . ($ "")
-  . display
+  . either (either display display) (either display display)
   . c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
   $ rnn
   where
@@ -405,7 +405,7 @@ instance Colable QtyRepAnyRadix where
         <| qtyRepAnyRadixMagnitudeCell env (f . _clatch $ env)
         <| Seq.empty
         where
-          maySide = sideOrNeutral (f . _clatch $ env)
+          maySide = either sideOrNeutral sideOrNeutral (f . _clatch $ env)
 
 -- | Creates two columns: one for the side and one for the magnitude.
 instance Colable Qty where

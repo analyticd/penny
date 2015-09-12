@@ -24,8 +24,20 @@ data Troiload
 
 instance SidedOrNeutral Troiload where
   sideOrNeutral x = case x of
-    QC q _ -> sideOrNeutral q
-    Q q -> sideOrNeutral q
+    QC q _ -> case q of
+      Left rc -> case rc of
+        Center _ -> Nothing
+        OffCenter _ p -> Just p
+      Right rp -> case rp of
+        Center _ -> Nothing
+        OffCenter _ p -> Just p
+    Q q ->  case q of
+      Left rc -> case rc of
+        Center _ -> Nothing
+        OffCenter _ p -> Just p
+      Right rp -> case rp of
+        Center _ -> Nothing
+        OffCenter _ p -> Just p
     SC qnz -> Just . side $ qnz
     S qnz -> Just . side $ qnz
     UC _ s _ -> Just s
@@ -51,9 +63,6 @@ instance HasQty Troiload where
     E qnz -> toQty qnz
 
 type Troiquant = Either Troiload Qty
-
-instance HasQty Troiquant where
-  toQty = either toQty id
 
 instance SidedOrNeutral Troiquant where
   sideOrNeutral = either sideOrNeutral sideOrNeutral
@@ -84,10 +93,17 @@ troikaRendering
   -> Maybe (Commodity, Arrangement, Either (Seq RadCom) (Seq RadPer))
 troikaRendering (Troika cy tq) = case tq of
   Left tl -> case tl of
-    QC (QtyRepAnyRadix qr) ar -> Just (cy, ar, ei)
+    QC qr ar -> Just (cy, ar, ei)
       where
-        ei = either (Left . mayGroupers) (Right . mayGroupers) qr
-    UC (RepNonNeutralNoSide ei) _ ar ->
-      Just (cy, ar, either (Left . mayGroupers) (Right . mayGroupers) ei)
+        ei = case qr of
+          Left (Center n) -> Left . mayGroupers $ n
+          Left (OffCenter o _) -> Left . mayGroupers $ o
+          Right (Center n) -> Right . mayGroupers $ n
+          Right (OffCenter o _) -> Right . mayGroupers $ o
+    UC rnn _ ar -> Just (cy, ar, ei)
+      where
+        ei = case rnn of
+          Left b -> Left $ mayGroupers b
+          Right b -> Right $ mayGroupers b
     _ -> Nothing
   _ -> Nothing

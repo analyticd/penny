@@ -1,4 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- | Quantities.  A quantity is a signed decimal number; however, it
 -- always represents quantities that may be a debit or a credit (as
 -- opposed to prices, which do not have a debit or credit.)
@@ -50,6 +51,11 @@ newtype Qty = Qty Decimal
 -- | Anything that has, or can be converted to, a 'Qty'.
 class HasQty a where
   toQty :: a -> Qty
+
+instance (HasQty a, HasQty b) => HasQty (Either a b) where
+  toQty = either toQty toQty
+
+instance HasQty Qty where toQty = id
 
 instance Num Qty where
   Qty x + Qty y = Qty $ x + y
@@ -129,16 +135,12 @@ decPositiveToQty :: Side -> DecPositive -> Qty
 decPositiveToQty s (Exponential pos expt)
   = Qty $ Exponential (addSideSign s . naturalToInteger $ pos) expt
 
-instance HasQty (QtyRep a) where
-  toQty (QtyRep (NilOrBrimPolar cof)) = case cof of
+instance (HasExponent n, HasDecPositive o)
+  => HasQty (CenterOrOffCenter n o Side) where
+  toQty cof = case cof of
     Center nil -> Qty . Exponential 0 . toExponent $ nil
     OffCenter brim s -> Qty . addSideSign s . toDecimal
       . toDecPositive $ brim
-
-instance HasQty QtyRepAnyRadix where
-  toQty (QtyRepAnyRadix ei) = case ei of
-    Left q -> toQty q
-    Right q -> toQty q
 
 -- # Representing
 
@@ -152,24 +154,24 @@ repQty
   -- grouping.
   -> Qty
   -> QtyRepAnyRadix
-repQty ei q = QtyRepAnyRadix eiq
+repQty ei q = eiq
   where
     eiq = case ei of
-      Left Nothing -> Left . QtyRep . NilOrBrimPolar
+      Left Nothing -> Left
         $ case repUngroupedQty Radix q of
             Center nu -> Center $ NilU nu
             OffCenter bu s -> OffCenter (BrimUngrouped bu) s
-      Right Nothing -> Right . QtyRep . NilOrBrimPolar
+      Right Nothing -> Right
         $ case repUngroupedQty Radix q of
             Center nu -> Center $ NilU nu
             OffCenter bu s -> OffCenter (BrimUngrouped bu) s
-      Left (Just grp) -> Left . QtyRep . NilOrBrimPolar $
+      Left (Just grp) -> Left $
         case repUngroupedQty Radix q of
           Center nu -> Center . NilU $ nu
           OffCenter bu s -> case groupBrimUngrouped grp bu of
             Nothing -> OffCenter (BrimUngrouped bu) s
             Just grpd -> OffCenter (BrimGrouped grpd) s
-      Right (Just grp) -> Right . QtyRep . NilOrBrimPolar $
+      Right (Just grp) -> Right $
         case repUngroupedQty Radix q of
           Center nu -> Center . NilU $ nu
           OffCenter bu s -> case groupBrimUngrouped grp bu of

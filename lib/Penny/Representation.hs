@@ -43,11 +43,11 @@ module Penny.Representation
   -- | These types aggregate other types.
   , CenterOrOffCenter(..)
   , changeOffCenterType
-  , NilOrBrimPolar(..)
-  , NilOrBrimScalar(..)
-  , NilOrBrimScalarAnyRadix(..)
+  , NilOrBrimPolar
+  , NilOrBrimScalar
+  , NilOrBrimScalarAnyRadix
   , nilOrBrimScalarAnyRadixToQtyRepAnyRadix
-  , RepNonNeutralNoSide(..)
+  , RepNonNeutralNoSide
 
   -- ** Conversions between aggregate types
   , c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
@@ -56,14 +56,14 @@ module Penny.Representation
   -- * Qty types
   --
   -- | These types represent quantities (as opposed to prices).
-  , QtyRep(..)
-  , QtyRepAnyRadix(..)
+  , QtyRep
+  , QtyRepAnyRadix
 
   -- * Exch types
   --
   -- | These types represent exchanges.
-  , ExchRep(..)
-  , ExchRepAnyRadix(..)
+  , ExchRep
+  , ExchRepAnyRadix
 
   -- * Digits
   , module Penny.Digit
@@ -397,25 +397,13 @@ changeOffCenterType p' (OffCenter o _) = Just $ OffCenter o p'
 -- character.  Unlike 'NilOrBrimPolar', a 'NilOrBrimScalar' does not
 -- have a polarity.
 
-newtype NilOrBrimScalar r
-  = NilOrBrimScalar (Either (Nil r) (Brim r))
-  deriving (Eq, Ord, Show)
-
-instance Display (NilOrBrimScalar RadCom) where
-  display (NilOrBrimScalar ei) = either display display ei
-
-instance Display (NilOrBrimScalar RadPer) where
-  display (NilOrBrimScalar ei) = either display display ei
+type NilOrBrimScalar r = Either (Nil r) (Brim r)
 
 -- | Number types that may be neutral or non-neutral, with either a
 -- comma or period radix.  Does not have a polarity.
-newtype NilOrBrimScalarAnyRadix
-  = NilOrBrimScalarAnyRadix (Either (NilOrBrimScalar RadCom)
-                                    (NilOrBrimScalar RadPer))
-  deriving (Eq, Ord, Show)
-
-instance Display NilOrBrimScalarAnyRadix where
-  display (NilOrBrimScalarAnyRadix ei) = either display display ei
+type NilOrBrimScalarAnyRadix
+  = Either (NilOrBrimScalar RadCom)
+           (NilOrBrimScalar RadPer)
 
 -- | Adds polarity to a 'NilOrBrimScalarAnyRadix' to transform it to a
 -- 'QtyRepAnyRadix'.  Nil values do not receive a polarity; all other
@@ -425,18 +413,17 @@ nilOrBrimScalarAnyRadixToQtyRepAnyRadix
   -- ^ Assign this 'Side' to polar values
   -> NilOrBrimScalarAnyRadix
   -> QtyRepAnyRadix
-nilOrBrimScalarAnyRadixToQtyRepAnyRadix s (NilOrBrimScalarAnyRadix e) =
-  QtyRepAnyRadix e'
+nilOrBrimScalarAnyRadixToQtyRepAnyRadix s e = e'
   where
     e' = case e of
-      Left (NilOrBrimScalar (Left nilCom)) ->
-        Left (QtyRep (NilOrBrimPolar (Center nilCom)))
-      Left (NilOrBrimScalar (Right brimCom)) ->
-        Left (QtyRep (NilOrBrimPolar (OffCenter brimCom s)))
-      Right (NilOrBrimScalar (Left nilPer)) ->
-        Right (QtyRep (NilOrBrimPolar (Center nilPer)))
-      Right (NilOrBrimScalar (Right brimPer)) ->
-        Right (QtyRep (NilOrBrimPolar (OffCenter brimPer s)))
+      Left ((Left nilCom)) ->
+        Left (((Center nilCom)))
+      Left ((Right brimCom)) ->
+        Left (((OffCenter brimCom s)))
+      Right ((Left nilPer)) ->
+        Right (((Center nilPer)))
+      Right ((Right brimPer)) ->
+        Right (((OffCenter brimPer s)))
 
 -- Same as old Stokely
 
@@ -446,12 +433,7 @@ nilOrBrimScalarAnyRadixToQtyRepAnyRadix s (NilOrBrimScalarAnyRadix e) =
 -- 'RadPer'.  The second type variable is the polarity; see, for
 -- example, 'Penny.Side.Side'.
 
-newtype NilOrBrimPolar r p
-  = NilOrBrimPolar (CenterOrOffCenter (Nil r) (Brim r) p)
-  deriving (Eq, Ord, Show)
-
-instance SidedOrNeutral (NilOrBrimPolar r Side) where
-  sideOrNeutral (NilOrBrimPolar a) = sideOrNeutral a
+type NilOrBrimPolar r p = CenterOrOffCenter (Nil r) (Brim r) p
 
 -- Same as old Philly
 
@@ -459,13 +441,7 @@ instance SidedOrNeutral (NilOrBrimPolar r Side) where
 -- either a period or a comma.  Though they are non-neutral, they do
 -- not have a side.
 
-newtype RepNonNeutralNoSide
-  = RepNonNeutralNoSide
-    (Either (Brim RadCom) (Brim RadPer))
-    deriving (Eq, Ord, Show)
-
-instance Display RepNonNeutralNoSide where
-  display (RepNonNeutralNoSide ei) = either display display ei
+type RepNonNeutralNoSide = Either (Brim RadCom) (Brim RadPer)
 
 -- # Qty representations
 
@@ -479,17 +455,7 @@ instance Display RepNonNeutralNoSide where
 -- This is a complete representation of a quantity; that is, it can
 -- represent any quantity.
 
-newtype QtyRep r
-  = QtyRep (NilOrBrimPolar r Side)
-  deriving (Eq, Ord, Show)
-
-instance MayGrouped QtyRep where
-  mayGroupers (QtyRep (NilOrBrimPolar (Center n))) = mayGroupers n
-  mayGroupers (QtyRep (NilOrBrimPolar (OffCenter o _))) = mayGroupers o
-
-
-instance SidedOrNeutral (QtyRep r) where
-  sideOrNeutral (QtyRep a) = sideOrNeutral a
+type QtyRep r = NilOrBrimPolar r Side
 
 -- Same as old Muddy
 
@@ -502,15 +468,7 @@ instance SidedOrNeutral (QtyRep r) where
 -- just the quantity, first convert the 'QtyRepAnyRadix' to a
 -- 'NilOrBrimScalarAnyRadix'.
 
-newtype QtyRepAnyRadix
-  = QtyRepAnyRadix
-    (Either (QtyRep RadCom)
-            (QtyRep RadPer))
-  deriving (Eq, Ord, Show)
-
-instance SidedOrNeutral QtyRepAnyRadix where
-  sideOrNeutral (QtyRepAnyRadix ei) = either sideOrNeutral sideOrNeutral ei
-
+type QtyRepAnyRadix = Either (QtyRep RadCom) (QtyRep RadPer)
 
 -- # Exch representations
 
@@ -522,16 +480,13 @@ instance SidedOrNeutral QtyRepAnyRadix where
 -- This is a complete representation of an 'Penny.Exch.Exch';
 -- that is, it can represent any 'Penny.Exch.Exch'.
 
-newtype ExchRep r = ExchRep (NilOrBrimPolar r PluMin)
-  deriving (Eq, Ord, Show)
+type ExchRep r = NilOrBrimPolar r PluMin
 
 -- | Exch representations that may have a radix of 'RadCom' or
 -- 'RadPer' and may be neutral or non-neutral.  If non-neutral, also
 -- contains a 'PluMin'.
 
-newtype ExchRepAnyRadix = ExchRepAnyRadix
-  (Either (ExchRep RadCom) (ExchRep RadPer))
-  deriving (Eq, Ord, Show)
+type ExchRepAnyRadix = Either (ExchRep RadCom) (ExchRep RadPer)
 
 -- Grouping
 
@@ -661,19 +616,19 @@ ungroupNilGrouped (NilGrouped may1 rdx2 z3 zs4 _g5 z6 zs7 sq8)
 c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
   :: QtyRepAnyRadix
   -> NilOrBrimScalarAnyRadix
-c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix (QtyRepAnyRadix ei)
+c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix (ei)
   = either (stripper Left) (stripper Right) ei
   where
-    stripper mkEi (QtyRep (NilOrBrimPolar coc)) = case coc of
-      Center n -> NilOrBrimScalarAnyRadix (mkEi (NilOrBrimScalar (Left n)))
-      OffCenter o _ -> NilOrBrimScalarAnyRadix
-        (mkEi (NilOrBrimScalar (Right o)))
+    stripper mkEi ((coc)) = case coc of
+      Center n -> (mkEi ((Left n)))
+      OffCenter o _ ->
+        (mkEi ((Right o)))
 
 c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
   :: RepNonNeutralNoSide
   -> NilOrBrimScalarAnyRadix
-c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide (RepNonNeutralNoSide ei)
+c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide (ei)
   = either (create Left) (create Right) ei
   where
-    create mkEi br = NilOrBrimScalarAnyRadix
-      (mkEi (NilOrBrimScalar (Right br)))
+    create mkEi br =
+      (mkEi ((Right br)))

@@ -300,9 +300,6 @@ instance RenderableRG Brim where renderRG = rBrim
 instance ParseableRG Nil where parserRG = pNil
 instance RenderableRG Nil where renderRG = rNil
 
-instance ParseableRG NilOrBrimScalar where parserRG = pNilOrBrimScalar
-instance RenderableRG NilOrBrimScalar where renderRG = rNilOrBrimScalar
-
 instance ParseableRG NilGrouped where parserRG = pNilGrouped
 instance RenderableRG NilGrouped where renderRG = rNilGrouped
 

@@ -17,12 +17,3 @@ instance HasExch (CenterOrOffCenter (Nil r) (Brim r) PluMin) where
     . toDecPositive $ brim
     where
       addSign = case p of { Plus -> id; Minus -> negate }
-
-instance HasExch (NilOrBrimPolar r PluMin) where
-  toExch (NilOrBrimPolar c) = toExch c
-
-instance HasExch (ExchRep r) where
-  toExch (ExchRep n) = toExch n
-
-instance HasExch ExchRepAnyRadix where
-  toExch (ExchRepAnyRadix ei) = either toExch toExch ei

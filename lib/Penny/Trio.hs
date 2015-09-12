@@ -135,7 +135,8 @@ instance Friendly TrioError where
       , "but it is on the same side: " ++ (display s "")
       ]
     UnsignedTooLarge rnn qnz ->
-      [ "Specified quantity of " ++ (display rnn "") ++ " is larger than "
+      [ "Specified quantity of "
+        ++ (either display display rnn "") ++ " is larger than "
         ++ "quantity in the imbalance, which is " ++ disp qnz
       ]
     where
@@ -146,11 +147,18 @@ trioRendering
   :: Trio
   -> Maybe (Commodity, Arrangement, (Either (Seq RadCom) (Seq RadPer)))
 trioRendering tri = case tri of
-  QC (QtyRepAnyRadix qr) cy ar -> Just (cy, ar, ei)
+  QC qr cy ar -> Just (cy, ar, ei)
     where
-      ei = either (Left . mayGroupers) (Right . mayGroupers) qr
-  UC (RepNonNeutralNoSide ei) cy ar ->
-    Just (cy, ar, either (Left . mayGroupers) (Right . mayGroupers) ei)
+      ei = case qr of
+        Left (Center n) -> Left . mayGroupers $ n
+        Left (OffCenter o _) -> Left . mayGroupers $ o
+        Right (Center n) -> Right . mayGroupers $ n
+        Right (OffCenter o _) -> Right . mayGroupers $ o
+  UC rnn cy ar -> Just (cy, ar, ei)
+    where
+      ei = case rnn of
+        Left b -> Left $ mayGroupers b
+        Right b -> Right $ mayGroupers b
   _ -> Nothing
 
 -- | Extracts the representation from the 'Trio', if there is a
@@ -191,7 +199,7 @@ rnnIsSmallerAbsoluteValue qnr qnz
   | qnr' < qnz' = return ()
   | otherwise = Left $ UnsignedTooLarge qnr qnz
   where
-    qnr' = Semantic . toDecPositive $ qnr
+    qnr' = Semantic . either toDecPositive toDecPositive $ qnr
     qnz' = Semantic . toDecPositive
       . (\(QtyNonZero dnz) -> dnz) $ qnz
 
@@ -219,14 +227,14 @@ trioToAmount imb (S s) = do
 trioToAmount imb (UC qnr cy _) = do
   qnz <- lookupCommodity imb cy
   let q = decPositiveToQty (offset . side $ qnz)
-        . toDecPositive $ qnr
+        . either toDecPositive toDecPositive $ qnr
   return $ Amount cy q
 
 trioToAmount imb (U qnr) = do
   (cy, qnz) <- oneCommodity imb
   rnnIsSmallerAbsoluteValue qnr qnz
   let q = decPositiveToQty (offset . side $ qnz)
-        . toDecPositive $ qnr
+        . either toDecPositive toDecPositive $ qnr
   return $ Amount cy q
 
 trioToAmount imb (C cy) = do

@@ -80,9 +80,6 @@ instance (HasDecZero n, HasDecPositive o, Signed p)
         Plus -> id
         Minus -> negate
 
-instance Signed p => HasDecimal (NilOrBrimPolar r p) where
-  toDecimal (NilOrBrimPolar x) = toDecimal x
-
 class HasExponent a where
   toExponent :: a -> Unsigned
 
@@ -255,10 +252,6 @@ instance HasDecPositive (BrimGrouped r) where
 instance HasDecPositive (Brim a) where
   toDecPositive (BrimGrouped a) = toDecPositive a
   toDecPositive (BrimUngrouped a) = toDecPositive a
-
-instance HasDecPositive RepNonNeutralNoSide where
-  toDecPositive (RepNonNeutralNoSide ei) =
-    either toDecPositive toDecPositive ei
 
 -- | Transforms a 'DecPositive' to a 'DecNonZero', while applying the
 -- appropriate sign.

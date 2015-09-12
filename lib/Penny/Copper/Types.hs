@@ -409,7 +409,7 @@ pNilOrBrimScalar
   :: ParserL (Radix r)
   -> ParserL r
   -> ParserL (NilOrBrimScalar r)
-pNilOrBrimScalar pr pg = fmap NilOrBrimScalar $ Left <$> pNil pr pg
+pNilOrBrimScalar pr pg = Left <$> pNil pr pg
     <|> Right <$> pBrim pr pg
 
 rNilOrBrimScalar
@@ -417,7 +417,7 @@ rNilOrBrimScalar
   -> (r -> ShowS)
   -> NilOrBrimScalar r
   -> ShowS
-rNilOrBrimScalar rr rg (NilOrBrimScalar ei) = case ei of
+rNilOrBrimScalar rr rg ei = case ei of
   Left n -> rNil rr rg n
   Right b -> rBrim rr rg b
 

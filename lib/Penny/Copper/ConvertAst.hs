@@ -147,24 +147,20 @@ qtyRepAnyRadix :: NonNeutral -> Side -> QtyRepAnyRadix
 qtyRepAnyRadix nn s = nilOrBrimScalarAnyRadixToQtyRepAnyRadix s nbs
   where
     nbs = case nn of
-      NonNeutralRadCom _ rc -> NilOrBrimScalarAnyRadix
-        . Left . NilOrBrimScalar . Right $ rc
-      NonNeutralRadPer rp -> NilOrBrimScalarAnyRadix
-        . Right . NilOrBrimScalar . Right $ rp
+      NonNeutralRadCom _ rc -> Left . Right $ rc
+      NonNeutralRadPer rp -> Right . Right $ rp
 
 c'RepNonNeutralNoSide'NonNeutral :: NonNeutral -> RepNonNeutralNoSide
-c'RepNonNeutralNoSide'NonNeutral x = RepNonNeutralNoSide $ case x of
+c'RepNonNeutralNoSide'NonNeutral x = case x of
   NonNeutralRadCom _ b -> Left b
   NonNeutralRadPer p -> Right p
 
 repAnyRadixFromNonNeutral :: Side -> NonNeutral -> QtyRepAnyRadix
-repAnyRadixFromNonNeutral s nn = QtyRepAnyRadix ei
+repAnyRadixFromNonNeutral s nn = ei
   where
     ei = case nn of
-      NonNeutralRadCom _ br -> Left . QtyRep
-        . NilOrBrimPolar . OffCenter br $ s
-      NonNeutralRadPer br -> Right . QtyRep
-        . NilOrBrimPolar . OffCenter br $ s
+      NonNeutralRadCom _ br -> Left . OffCenter br $ s
+      NonNeutralRadPer br -> Right . OffCenter br $ s
 
 arrangement :: Maybe a -> Orient -> Arrangement
 arrangement may o = Arrangement o . isJust $ may
@@ -183,11 +179,9 @@ c'Trio'TrioA trio = case trio of
 
   QSided (Fs side _) nn -> Q (repAnyRadixFromNonNeutral side nn)
 
-  QUnsided n -> Q . QtyRepAnyRadix $ case n of
-    NeuCom _ nil -> Left . QtyRep . NilOrBrimPolar
-      . Center $ nil
-    NeuPer nil -> Right . QtyRep . NilOrBrimPolar
-      . Center $ nil
+  QUnsided n -> Q $ case n of
+    NeuCom _ nil -> Left . Center $ nil
+    NeuPer nil -> Right . Center $ nil
 
   SCA (Fs sd _) cy -> SC sd . c'Commodity'CommodityA $ cy
 
@@ -351,15 +345,15 @@ c'Transaction'TransactionA txn = case txn of
 
 c'Exch'Neutral :: Neutral -> Exch
 c'Exch'Neutral neu = case neu of
-  NeuCom _ nil -> toExch (ExchRep (NilOrBrimPolar (Center nil)))
-  NeuPer nil -> toExch (ExchRep (NilOrBrimPolar (Center nil)))
+  NeuCom _ nil -> toExch (Center nil)
+  NeuPer nil -> toExch (Center nil)
 
 c'Exch'NonNeutral :: Maybe PluMin -> NonNeutral -> Exch
 c'Exch'NonNeutral mp nn = case nn of
   NonNeutralRadCom _ br ->
-    toExch (ExchRep (NilOrBrimPolar (OffCenter br pm)))
+    toExch (OffCenter br pm)
   NonNeutralRadPer br ->
-    toExch (ExchRep (NilOrBrimPolar (OffCenter br pm)))
+    toExch (OffCenter br pm)
   where
     pm = case mp of
       Nothing -> Plus
