@@ -1,17 +1,21 @@
 {-# LANGUAGE TemplateHaskell, FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Penny.Decimal
   (
   -- * Decimal types and classes
-    Decimal(..)
+    Exponential(..)
+  , coefficient
+  , power
+  , Decimal
   , HasDecimal(..)
   , HasExponent(..)
-  , DecNonZero(..)
+  , DecNonZero
   , HasDecNonZero(..)
-  , DecUnsigned(..)
+  , DecUnsigned
   , HasDecUnsigned(..)
-  , DecPositive(..)
+  , DecPositive
   , HasDecPositive(..)
-  , DecZero(..)
+  , DecZero
   , HasDecZero(..)
 
   -- * Exponent manipulations
@@ -48,39 +52,19 @@ import Data.Monoid
 import Penny.Offset
 import Penny.PluMin
 import Data.List (genericSplitAt, genericReplicate)
-import Penny.Semantic
 
-data Exponential s e = Exponential
-  { _significand :: s
-  , _exponent :: e
-  } deriving (Eq, Ord, Show)
+-- | Numbers represented exponentially.  In @Exponential c p@, the
+-- value of the number is @c * 10 ^ (-1 * naturalToInteger p)@.
+data Exponential c = Exponential
+  { _coefficient :: !c
+  -- ^ The significant digits; also known as the significand or the mantissa.
+  , _power :: !Unsigned
+  -- ^ The power of ten.
+  } deriving Show
 
--- | Decimal numbers.  The precision is limited only by the machine's
--- available memory (or, more realistically, by how big a number the
--- machine can handle before grinding to unusable slowness.)  The 'Eq'
--- and 'Ord' instances are derived; therefore:
---
--- >>> let twoPointZero = Decimal 20 . toPositive $ D9'1
--- >>> let twoPointZeroZero = Decimal 200 . toPositive $ D9'2
--- >>> twoPointZero == twoPointZeroZero
--- False
--- >>> twoPointZeroZero > twoPointZero
--- True
+makeLenses ''Exponential
 
-data Decimal
-  = Decimal !Integer !Unsigned
-  -- ^ @Decimal a b@, where
-  --
-  -- @a@ is the significand, and
-  --
-  -- @b@ is the exponent, such that the value of the number is
-  --
-  -- > a * 10 ^ (-1 * naturalToInteger b)
-  --
-  -- For example, @2.00@ is equal to
-  --
-  -- > Decimal 200 . toPositive $ D9'2
-  deriving (Eq, Ord, Show)
+type Decimal = Exponential Integer
 
 -- | Class for things that can be converted to a 'Decimal'.
 class HasDecimal a where
@@ -105,7 +89,7 @@ class HasExponent a where
 -- equal to @e@; if the exponent of @d@ is greater than or equal to
 -- @e@, does nothing.
 increaseExponent :: Unsigned -> Decimal -> Decimal
-increaseExponent u (Decimal m e) = Decimal m' e'
+increaseExponent u (Exponential m e) = Exponential m' e'
   where
     (m', e') = case subt u e of
       Nothing -> (m, e)
@@ -129,94 +113,64 @@ increaseExponent u (Decimal m e) = Decimal m' e'
 -- > abs mx' >= abs mx
 -- > abs my' >= abs my
 equalizeExponents :: Decimal -> Decimal -> (Decimal, Decimal)
-equalizeExponents x@(Decimal _ ex) y@(Decimal _ ey)
+equalizeExponents x@(Exponential _ ex) y@(Exponential _ ey)
   | ex > ey = (x, increaseExponent ex y)
   | otherwise = (increaseExponent ey x, y)
 
-instance Num Decimal where
-  x + y = Decimal (mx' + my') ex
+instance Num (Exponential Integer) where
+  x + y = Exponential (mx' + my') ex
     where
-      (Decimal mx' ex, Decimal my' _) = equalizeExponents x y
-  x - y = Decimal (mx' - my') ex
+      (Exponential mx' ex, Exponential my' _) = equalizeExponents x y
+  x - y = Exponential (mx' - my') ex
     where
-      (Decimal mx' ex, Decimal my' _) = equalizeExponents x y
-  (Decimal mx ex) * (Decimal my ey) = Decimal (mx * my) (ex `add` ey)
-  negate (Decimal mx ex) = Decimal (negate mx) ex
-  abs (Decimal mx ex) = Decimal (abs mx) ex
-  signum (Decimal mx _) = Decimal (signum mx) (toUnsigned Zero)
-  fromInteger i = Decimal i (toUnsigned Zero)
-
-instance SemanticEq Decimal where
-  x ==@ y =
-    let (Decimal mx _, Decimal my _) = equalizeExponents x y
-    in mx == my
-
-instance SemanticOrd Decimal where
-  compareSemantic x y =
-    let (Decimal mx _, Decimal my _) = equalizeExponents x y
-    in compare mx my
+      (Exponential mx' ex, Exponential my' _) = equalizeExponents x y
+  (Exponential mx ex) * (Exponential my ey) = Exponential (mx * my) (ex `add` ey)
+  negate (Exponential mx ex) = Exponential (negate mx) ex
+  abs (Exponential mx ex) = Exponential (abs mx) ex
+  signum (Exponential mx _) = Exponential (signum mx) (toUnsigned Zero)
+  fromInteger i = Exponential i (toUnsigned Zero)
 
 -- | Decimals whose significand is never zero.
-
-data DecNonZero = DecNonZero !NonZero Unsigned
-  deriving (Eq, Ord, Show)
+type DecNonZero = Exponential NonZero
 
 class HasDecNonZero a where
   toDecNonZero :: a -> DecNonZero
 
-instance HasOffset DecNonZero where
-  offset (DecNonZero sig expt) = DecNonZero (offset sig) expt
+instance HasOffset (Exponential NonZero) where
+  offset (Exponential sig expt) = Exponential (offset sig) expt
 
 decNonZeroToDecimal :: DecNonZero -> Decimal
-decNonZeroToDecimal (DecNonZero nz u) = Decimal (nonZeroToInteger nz) u
+decNonZeroToDecimal (Exponential nz u) = Exponential (nonZeroToInteger nz) u
 
 decimalToDecNonZero :: Decimal -> Maybe DecNonZero
-decimalToDecNonZero (Decimal signif expt) = case integerToNonZero signif of
+decimalToDecNonZero (Exponential signif expt) = case integerToNonZero signif of
   Nothing -> Nothing
-  Just nz -> Just $ DecNonZero nz expt
+  Just nz -> Just $ Exponential nz expt
 
 
 -- | Decimals that are unsigned; they may be zero.
-data DecUnsigned
-  = DecUnsigned !Unsigned !Unsigned
-  -- ^ @DecUnsigned a b@, where
-  --
-  -- @a@ is the significand, and
-  --
-  -- @b@ is the exponent
-  deriving (Eq, Ord, Show)
+type DecUnsigned = Exponential Unsigned
 
 class HasDecUnsigned a where
   toDecUnsigned :: a -> DecUnsigned
 
 -- | Decimals that are positive; they may not be zero.
-data DecPositive
-  = DecPositive !Positive !Unsigned
-  -- ^ @DecPositive a b@, where
-  --
-  -- @a@ is the significand, and
-  --
-  -- @b@ is the exponent
-  deriving (Eq, Ord, Show)
+type DecPositive = Exponential Positive
 
 class HasDecPositive a where
   toDecPositive :: a -> DecPositive
 
 -- | Decimals whose significand is always zero.
-data DecZero
-  = DecZero !Unsigned
-  -- ^ @DecZero a@, where @a@ is the exponent.  The significand is
-  -- always zero so it does not have a field.
-  deriving (Eq, Ord, Show)
+type DecZero = Exponential ()
 
 class HasDecZero a where
   toDecZero :: a -> DecZero
 
 instance HasDecimal DecZero where
-  toDecimal (DecZero expt) = Decimal 0 expt
+  toDecimal (Exponential () expt) = Exponential 0 expt
 
 instance HasDecimal DecPositive where
-  toDecimal (DecPositive sig expt) = Decimal (naturalToInteger sig) expt
+  toDecimal (Exponential sig expt) = Exponential (naturalToInteger sig) expt
 
 instance HasExponent (NilUngrouped r) where
   toExponent nu = case nu of
@@ -226,7 +180,7 @@ instance HasExponent (NilUngrouped r) where
     NURadix _ _ zs -> next (lengthUnsigned zs)
 
 instance HasDecZero (NilUngrouped r) where
-  toDecZero x = DecZero (toExponent x)
+  toDecZero x = Exponential () (toExponent x)
 
 instance HasExponent (Nil r) where
   toExponent nil = case nil of
@@ -235,8 +189,8 @@ instance HasExponent (Nil r) where
 
 instance HasDecZero (Nil r) where
   toDecZero x = case x of
-    NilU nu -> DecZero (toExponent nu)
-    NilG ng -> DecZero (toExponent ng)
+    NilU nu -> Exponential () (toExponent nu)
+    NilG ng -> Exponential () (toExponent ng)
 
 instance HasExponent (NilGrouped r) where
   toExponent (NilGrouped _ _ _ zs1 _ _ zs2 zss) =
@@ -245,24 +199,24 @@ instance HasExponent (NilGrouped r) where
       . fmap (\(_, _, sq) -> Zero <| sq) $ zss
 
 instance HasDecZero (NilGrouped r) where
-  toDecZero x = DecZero (toExponent x)
+  toDecZero x = Exponential () (toExponent x)
 
 -- | Strips the sign from the 'DecNonZero'.
 instance HasDecPositive DecNonZero where
-  toDecPositive (DecNonZero sig expt) =
-    DecPositive (nonZeroToPositive sig) expt
+  toDecPositive (Exponential sig expt) =
+    Exponential (nonZeroToPositive sig) expt
 
 instance HasDecPositive (BrimUngrouped r) where
 
   toDecPositive (BUGreaterThanOne nv ds1 Nothing)
-    = DecPositive (novDecsToPositive nv ds1) (toUnsigned Zero)
+    = Exponential (novDecsToPositive nv ds1) (toUnsigned Zero)
 
   toDecPositive (BUGreaterThanOne nv ds1 (Just (_, ds2)))
-    = DecPositive (novDecsToPositive nv (ds1 <> ds2))
+    = Exponential (novDecsToPositive nv (ds1 <> ds2))
                   (lengthUnsigned ds2)
 
   toDecPositive (BULessThanOne _ _ zs1 nv ds)
-    = DecPositive (novDecsToPositive nv ds)
+    = Exponential (novDecsToPositive nv ds)
                   (add (lengthUnsigned zs1) . next . lengthUnsigned $ ds)
 
 instance HasDecPositive (BrimGrouped r) where
@@ -282,8 +236,8 @@ c'DecNonZero'DecPositive
   :: PluMin
   -> DecPositive
   -> DecNonZero
-c'DecNonZero'DecPositive pm (DecPositive sig expt)
-  = DecNonZero (c'NonZero'Positive pm sig) expt
+c'DecNonZero'DecPositive pm (Exponential sig expt)
+  = Exponential (c'NonZero'Positive pm sig) expt
 
 -- * Representations
 
@@ -316,25 +270,25 @@ repUngroupedDecUnsigned rdx uns = case decomposeDecUnsigned uns of
 stripDecimalSign
   :: Decimal
   -> Either DecZero (DecPositive, PluMin)
-stripDecimalSign (Decimal m e) = case stripIntegerSign m of
-  Nothing -> Left (DecZero e)
-  Just (p, pm) -> Right (DecPositive p e, pm)
+stripDecimalSign (Exponential m e) = case stripIntegerSign m of
+  Nothing -> Left (Exponential () e)
+  Just (p, pm) -> Right (Exponential p e, pm)
 
 stripNonZeroSign
   :: DecNonZero
   -> (DecPositive, PluMin)
-stripNonZeroSign (DecNonZero nz ex)
-  = (DecPositive (nonZeroToPositive nz) ex, nonZeroSign nz)
+stripNonZeroSign (Exponential nz ex)
+  = (Exponential (nonZeroToPositive nz) ex, nonZeroSign nz)
 
 decomposeDecUnsigned
   :: DecUnsigned
   -> Either DecZero DecPositive
-decomposeDecUnsigned (DecUnsigned m e) = case unsignedToPositive m of
-  Nothing -> Left (DecZero e)
-  Just m' -> Right (DecPositive m' e)
+decomposeDecUnsigned (Exponential m e) = case unsignedToPositive m of
+  Nothing -> Left (Exponential () e)
+  Just m' -> Right (Exponential m' e)
 
 repUngroupedDecZero :: Radix r -> DecZero -> NilUngrouped r
-repUngroupedDecZero rdx (DecZero expt) = case unsignedToPositive expt of
+repUngroupedDecZero rdx (Exponential () expt) = case unsignedToPositive expt of
   Nothing -> NUZero Zero Nothing
   Just pos -> NUZero Zero (Just (rdx, Just (Zero, rest)))
     where
@@ -346,7 +300,7 @@ repUngroupedDecZero rdx (DecZero expt) = case unsignedToPositive expt of
         Just ps' -> go ps' (Zero <| acc)
 
 repUngroupedDecPositive :: Radix r -> DecPositive -> BrimUngrouped r
-repUngroupedDecPositive rdx (DecPositive sig expt)
+repUngroupedDecPositive rdx (Exponential sig expt)
   = repDigits rdx (positiveDigits sig) expt
 
 -- Let t = number of trailing significand digits,
