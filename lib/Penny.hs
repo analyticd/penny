@@ -3,8 +3,12 @@
 
 module Penny
   (
+
+  -- * Primitive types
+    Unsigned
+  , Commodity(..)
   -- * Clatcher
-    Clatcher
+  , Clatcher
 
   -- * Commands
   , preload
@@ -18,6 +22,7 @@ module Penny
   ) where
 
 import Penny.Amount
+import Penny.Commodity
 import Penny.Converter
 import Control.Lens
   ( (.~), (&)
@@ -26,6 +31,7 @@ import Control.Lens
 import qualified Data.Sequence as Seq
 import Penny.Clatch
 import Penny.Clatcher (Clatcher)
+import Penny.Natural
 import Penny.Stream
 import qualified Penny.Clatcher as C
 

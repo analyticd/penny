@@ -69,7 +69,7 @@ groupers (History hist) mayCy = fromMaybe allGroupers $ do
 vote :: Posting -> History
 vote = Lens.view (to core . troimount . to make)
   where
-    make tri = case T.troimountRendering tri of
+    make tri = case T.troikaRendering tri of
       Nothing -> mempty
       Just (cy, ar, ei) -> History
         $ M.singleton cy (Seq.singleton (ar, ei))

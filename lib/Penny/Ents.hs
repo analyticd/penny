@@ -31,7 +31,7 @@ import Penny.Friendly
 import qualified Penny.Troika as Y
 
 data Ents a = Ents
-  { entsToSeqEnt :: Seq (Y.Troimount, a)
+  { entsToSeqEnt :: Seq (Y.Troika, a)
   , entsToImbalance :: Imbalance
   } deriving (Eq, Ord, Show)
 
@@ -53,7 +53,7 @@ instance Traversable Ents where
         e :< xs ->
           (<|) <$> T.sequenceA e <*> go xs
 
-newtype Balanced a = Balanced { balancedToSeqEnt :: Seq (Y.Troimount, a) }
+newtype Balanced a = Balanced { balancedToSeqEnt :: Seq (Y.Troika, a) }
   deriving (Eq, Ord, Show)
 
 instance Functor Balanced where
@@ -78,29 +78,29 @@ appendEnt :: Ents a -> (Amount, a) -> Ents a
 appendEnt (Ents s b) (am@(Amount cy q), e) = Ents (s |> (tm, e))
   (b <> c'Imbalance'Amount am)
   where
-    tm = Y.Troimount cy (Right q)
+    tm = Y.Troika cy (Right q)
 
 prependEnt :: (Amount, a) -> Ents a -> Ents a
 prependEnt (am@(Amount cy q), e) (Ents s b) = Ents ((tm, e) <| s)
   (b <> c'Imbalance'Amount am)
   where
-    tm = Y.Troimount cy (Right q)
+    tm = Y.Troika cy (Right q)
 
 appendTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
 appendTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
   where
     f (troiload, cy) = \meta -> Ents (sq |> (tm, meta)) imb'
       where
-        tm = Y.Troimount cy (Left troiload)
-        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troimount tm)
+        tm = Y.Troika cy (Left troiload)
+        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troika tm)
 
 prependTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
 prependTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
   where
     f (troiload, cy) = \meta -> Ents ((tm, meta) <| sq) imb'
       where
-        tm = Y.Troimount cy (Left troiload)
-        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troimount tm)
+        tm = Y.Troika cy (Left troiload)
+        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troika tm)
 
 
 data ImbalancedError

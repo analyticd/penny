@@ -58,31 +58,31 @@ instance HasQty Troiquant where
 instance SidedOrNeutral Troiquant where
   sideOrNeutral = either sideOrNeutral sideOrNeutral
 
-data Troimount = Troimount
+data Troika = Troika
   { _commodity :: Commodity
   , _troiquant :: Troiquant
   } deriving (Eq, Ord, Show)
 
-instance HasQty Troimount where
-  toQty (Troimount _ tq) = toQty tq
+instance HasQty Troika where
+  toQty (Troika _ tq) = toQty tq
 
-instance SidedOrNeutral Troimount where
-  sideOrNeutral (Troimount _ tq) = sideOrNeutral tq
+instance SidedOrNeutral Troika where
+  sideOrNeutral (Troika _ tq) = sideOrNeutral tq
 
-makeLenses ''Troimount
+makeLenses ''Troika
 
-c'Amount'Troimount :: Troimount -> A.Amount
-c'Amount'Troimount (Troimount cy ei) = A.Amount cy q
+c'Amount'Troika :: Troika -> A.Amount
+c'Amount'Troika (Troika cy ei) = A.Amount cy q
   where
     q = either toQty id ei
 
-c'Troimount'Amount :: A.Amount -> Troimount
-c'Troimount'Amount (A.Amount cy q) = Troimount cy (Right q)
+c'Troika'Amount :: A.Amount -> Troika
+c'Troika'Amount (A.Amount cy q) = Troika cy (Right q)
 
-troimountRendering
-  :: Troimount
+troikaRendering
+  :: Troika
   -> Maybe (Commodity, Arrangement, Either (Seq RadCom) (Seq RadPer))
-troimountRendering (Troimount cy tq) = case tq of
+troikaRendering (Troika cy tq) = case tq of
   Left tl -> case tl of
     QC (QtyRepAnyRadix qr) ar -> Just (cy, ar, ei)
       where

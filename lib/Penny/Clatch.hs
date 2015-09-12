@@ -66,7 +66,7 @@ import Data.Functor.Compose
 
 -- | The core of every posting.
 data Core = Core
-  { _troimount :: Troimount
+  { _troimount :: Troika
   , _index :: Serset
   -- ^ How this single posting relates to its sibling postings.
   -- Numbering restarts with every transaction.
@@ -146,7 +146,7 @@ best :: (a, (View Posting, (Maybe Amount, c))) -> Amount
 best clatch = case converted clatch of
   Just a -> a
   Nothing -> clatch ^. to view . onView . to core
-    . troimount . to c'Amount'Troimount
+    . troimount . to c'Amount'Troika
 
 preFiltset :: (a, (b, (c, (PreFiltset, d)))) -> PreFiltset
 preFiltset = fst . snd . snd . snd
@@ -175,7 +175,7 @@ createConverted
   -> Converted ()
 createConverted (Converter f) clatch = clatch & _2._2 .~ (conv, ())
   where
-    conv = f $ clatch ^. _2._1.onView.to core. troimount . to c'Amount'Troimount
+    conv = f $ clatch ^. _2._1.onView.to core. troimount . to c'Amount'Troika
 
 createPrefilt
   :: (Converted a -> Bool)
@@ -241,7 +241,7 @@ addSersets
 
 addIndexes
   :: Balanced (Seq Tree)
-  -> Seq (Troimount, Seq Tree, Serset)
+  -> Seq (Troika, Seq Tree, Serset)
 addIndexes
   = fmap (\((tm, trees), srst) -> (tm, trees, srst))
   . serialNumbers
@@ -249,7 +249,7 @@ addIndexes
 
 arrangeTransaction
   :: (((Seq Tree, Serset), Serset),
-      Seq (((Troimount, Seq Tree, Serset), Serset), Serset))
+      Seq (((Troika, Seq Tree, Serset), Serset), Serset))
   -> Transaction
 arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
   = (Serpack txnLcl txnGlbl, (txnMeta, pstgs))

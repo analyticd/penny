@@ -420,7 +420,7 @@ instance Colable Qty where
 instance Colable Commodity where
   column f = column ((^. _Wrapped) . f)
 
-data TroimountCells = TroimountCells
+data TroikaCells = TroikaCells
   { _tmSide :: Maybe Side
     -- ^ Always top left aligned, with standard background
   , _tmCyOnLeft :: Maybe (Chunk Text)
@@ -431,10 +431,10 @@ data TroimountCells = TroimountCells
   -- ^ Always top left aligned.
   }
 
-makeLenses ''TroimountCells
+makeLenses ''TroikaCells
 
-troimountCells :: Env -> Troimount -> TroimountCells
-troimountCells env troimount = TroimountCells side onLeft magWithCy onRight
+troimountCells :: Env -> Troika -> TroikaCells
+troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
   where
     cy = troimount ^. Penny.Troika.commodity
     side = troimount ^. troiquant . to sideOrNeutral
@@ -468,7 +468,7 @@ troimountCells env troimount = TroimountCells side onLeft magWithCy onRight
 
 troimountCellsToColumns
   :: Env
-  -> Seq TroimountCells
+  -> Seq TroikaCells
   -> Seq Cell
 troimountCellsToColumns env
   = tupleToSeq
@@ -511,7 +511,7 @@ troimountCellsToColumns env
 -- 2.  Magnitude (with commodity on left or right, if applicable)
 -- 3.  Separate commodity on right
 
-instance Colable Troimount where
+instance Colable Troika where
   column f = Columns getCells where
     getCells env = troimountCellsToColumns env
       . Seq.singleton
@@ -520,9 +520,9 @@ instance Colable Troimount where
       . Control.Lens.view clatch
       $ env
 
--- | Creates same columns as 'Troimount'.
+-- | Creates same columns as 'Troika'.
 instance Colable Amount where
-  column f = column (c'Troimount'Amount . f)
+  column f = column (c'Troika'Amount . f)
 
 -- | Creates the same columns as for 'Amount', but with one line
 -- for each commodity in the balance.
@@ -530,7 +530,7 @@ instance Colable Amount where
 instance Colable Balance where
   column f = Columns getCells where
     getCells env = troimountCellsToColumns env
-      . fmap (troimountCells env . makeTroimount)
+      . fmap (troimountCells env . makeTroika)
       . Seq.fromList
       . M.assocs
       . Control.Lens.view _Wrapped
@@ -538,7 +538,7 @@ instance Colable Balance where
       . Control.Lens.view clatch
       $ env
       where
-        makeTroimount (cy, qty) = Troimount cy (Right qty)
+        makeTroika (cy, qty) = Troika cy (Right qty)
 
 -- | Creates two columns, one for the forward serial and one for the
 -- backward serial.
