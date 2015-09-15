@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell, FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Decimal
   (
   -- * Decimal types and classes
@@ -40,18 +41,21 @@ module Penny.Decimal
   , repUngroupedDecZero
   , repUngroupedDecPositive
   , repDigits
+  , repDecimal
+  , displayDecimalAsQty
   ) where
 
 import Control.Lens
+import Control.Monad (join)
+import Data.List (genericSplitAt, genericReplicate)
+import Data.Monoid
+import qualified Data.Sequence as S
+import Penny.Display
 import Penny.Natural
 import Penny.NonZero
-import Penny.Representation
-import Control.Monad (join)
-import qualified Data.Sequence as S
-import Data.Monoid
 import Penny.Offset
-import Penny.PluMin
-import Data.List (genericSplitAt, genericReplicate)
+import Penny.Polar
+import Penny.Representation
 import Penny.Semantic
 
 -- | Numbers represented exponentially.  In @Exponential c p@, the
@@ -61,9 +65,16 @@ data Exponential c = Exponential
   -- ^ The significant digits; also known as the significand or the mantissa.
   , _power :: !Unsigned
   -- ^ The power of ten.
-  } deriving Show
+  } deriving (Show, Functor, Foldable, Traversable)
 
 makeLenses ''Exponential
+
+instance Polar c => Polar (Exponential c) where
+  polar = view (coefficient . to polar)
+  align pole = over coefficient (align pole)
+
+instance Equatorial c => Equatorial (Exponential c) where
+  equatorial c = c ^. coefficient . to equatorial
 
 type Decimal = Exponential Integer
 
@@ -71,14 +82,21 @@ type Decimal = Exponential Integer
 class HasDecimal a where
   toDecimal :: a -> Decimal
 
-instance (HasDecZero n, HasDecPositive o, Signed p)
-  => HasDecimal (CenterOrOffCenter n o p) where
-  toDecimal (Center n) = toDecimal . toDecZero $ n
-  toDecimal (OffCenter o p) = changeSign (toDecimal . toDecPositive $ o)
+instance HasDecimal Decimal where
+  toDecimal = id
+
+instance (HasDecimal a, HasDecimal b) => HasDecimal (Either a b) where
+  toDecimal = either toDecimal toDecimal
+
+instance (HasDecZero n, HasDecPositive o)
+  => HasDecimal (Moderated n o) where
+  toDecimal (Moderate n) = toDecimal . toDecZero $ n
+  toDecimal (Extreme (Polarized o p))
+    = changeSign (toDecimal . toDecPositive $ o)
     where
-      changeSign = case sign p of
-        Plus -> id
-        Minus -> negate
+      changeSign
+        | p == positive = id
+        | otherwise = negate
 
 class HasExponent a where
   toExponent :: a -> Unsigned
@@ -253,10 +271,14 @@ instance HasDecPositive (Brim a) where
   toDecPositive (BrimGrouped a) = toDecPositive a
   toDecPositive (BrimUngrouped a) = toDecPositive a
 
+instance (HasDecPositive a, HasDecPositive b)
+  => HasDecPositive (Either a b) where
+  toDecPositive = either toDecPositive toDecPositive
+
 -- | Transforms a 'DecPositive' to a 'DecNonZero', while applying the
 -- appropriate sign.
 c'DecNonZero'DecPositive
-  :: PluMin
+  :: Pole
   -> DecPositive
   -> DecNonZero
 c'DecNonZero'DecPositive pm (Exponential sig expt)
@@ -267,15 +289,15 @@ c'DecNonZero'DecPositive pm (Exponential sig expt)
 repUngroupedDecimal
   :: Radix r
   -> Decimal
-  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) PluMin
+  -> Moderated (NilUngrouped r) (BrimUngrouped r)
 repUngroupedDecimal rdx d = case stripDecimalSign d of
-  Left zero -> Center (repUngroupedDecZero rdx zero)
-  Right (pos, pm) -> OffCenter (repUngroupedDecPositive rdx pos) pm
+  Left zero -> Moderate (repUngroupedDecZero rdx zero)
+  Right (pos, pm) -> Extreme (Polarized (repUngroupedDecPositive rdx pos) pm)
 
 repUngroupedDecNonZero
   :: Radix r
   -> DecNonZero
-  -> (BrimUngrouped r, PluMin)
+  -> (BrimUngrouped r, Pole)
 repUngroupedDecNonZero rdx nz = (repUngroupedDecPositive rdx dp, sgn)
   where
     (dp, sgn) = stripNonZeroSign nz
@@ -283,23 +305,23 @@ repUngroupedDecNonZero rdx nz = (repUngroupedDecPositive rdx dp, sgn)
 repUngroupedDecUnsigned
   :: Radix r
   -> DecUnsigned
-  -> CenterOrOffCenter (NilUngrouped r) (BrimUngrouped r) ()
+  -> Either (NilUngrouped r) (BrimUngrouped r)
 repUngroupedDecUnsigned rdx uns = case decomposeDecUnsigned uns of
-  Left z -> Center (repUngroupedDecZero rdx z)
-  Right p -> OffCenter (repUngroupedDecPositive rdx p) ()
+  Left z -> Left (repUngroupedDecZero rdx z)
+  Right p -> Right (repUngroupedDecPositive rdx p)
 
 -- Primitive grouping functions
 
 stripDecimalSign
   :: Decimal
-  -> Either DecZero (DecPositive, PluMin)
+  -> Either DecZero (DecPositive, Pole)
 stripDecimalSign (Exponential m e) = case stripIntegerSign m of
   Nothing -> Left (Exponential () e)
   Just (p, pm) -> Right (Exponential p e, pm)
 
 stripNonZeroSign
   :: DecNonZero
-  -> (DecPositive, PluMin)
+  -> (DecPositive, Pole)
 stripNonZeroSign (Exponential nz ex)
   = (Exponential (nonZeroToPositive nz) ex, nonZeroSign nz)
 
@@ -379,3 +401,52 @@ repDigits rdx (d1, dr) expt
           zs = S.fromList . flip genericReplicate Zero
             . naturalToInteger $ r
 
+
+repDecimal
+  :: Either (Maybe RadCom) (Maybe RadPer)
+  -- ^ Determines which radix is used.  If you also supply a grouping
+  -- character, 'repQty' will try to group the 'Qty' as well.
+  -- Grouping will fail if the absolute value of the 'Qty' is less
+  -- than @10000@.  In that case the 'Qty' will be represented without
+  -- grouping.
+  -> Decimal
+  -> RepAnyRadix
+repDecimal ei d = case ei of
+  Left mayRadCom -> Left $ case mayRadCom of
+    Nothing ->
+      over _Moderate NilU
+      . over _Extreme (fmap BrimUngrouped)
+      . repUngroupedDecimal Radix
+      $ d
+    Just grpr -> case repUngroupedDecimal Radix d of
+      Moderate nilUngr -> Moderate . NilU $ nilUngr
+      Extreme plr -> case groupBrimUngrouped grpr (plr ^. charged) of
+        Nothing -> Extreme . fmap BrimUngrouped $ plr
+        Just bg -> Extreme (set charged (BrimGrouped bg) plr)
+
+  Right mayRadPer -> Right $ case mayRadPer of
+    Nothing ->
+      over _Moderate NilU
+      . over _Extreme (fmap BrimUngrouped)
+      . repUngroupedDecimal Radix
+      $ d
+    Just grpr -> case repUngroupedDecimal Radix d of
+      Moderate nilUngr -> Moderate . NilU $ nilUngr
+      Extreme plr -> case groupBrimUngrouped grpr (plr ^. charged) of
+        Nothing -> Extreme . fmap BrimUngrouped $ plr
+        Just bg -> Extreme (set charged (BrimGrouped bg) plr)
+
+-- | Provide a simple ungrouped string for a decimal.
+displayDecimalAsQty
+  :: Decimal
+  -> ShowS
+displayDecimalAsQty d = (sideChar :) .  (' ':) . rend
+  where
+    sideChar = case equatorial d of
+      Nothing -> ' '
+      Just v
+        | v == debit -> '<'
+        | otherwise -> '>'
+    rend = case repUngroupedDecimal (Radix :: Radix RadPer) d of
+      Moderate nu -> display nu
+      Extreme (Polarized bu _) -> display bu

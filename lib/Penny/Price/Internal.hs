@@ -5,10 +5,9 @@ import Control.Lens
 import Penny.Commodity
 import Data.Map (Map)
 import qualified Data.Map as M
-import Penny.Exch
-import Penny.Qty
 import Penny.DateTime
 import Data.Time
+import Penny.Decimal
 
 newtype FromCy = FromCy Commodity
   deriving (Eq, Ord, Show)
@@ -27,19 +26,22 @@ makeFromTo f@(FromCy fr) t@(ToCy to)
   | otherwise = Nothing
 
 convertQty
-  :: Exch
-  -> Qty
-  -> Qty
-convertQty (Exch exch) (Qty orig) = Qty $ exch * orig
+  :: Decimal
+  -- ^ Price
+  -> Decimal
+  -- ^ Quantity
+  -> Decimal
+  -- ^ New quantity
+convertQty exch orig = exch * orig
 
 newtype PriceDb = PriceDb
-  (Map FromCy (Map ToCy (Map UTCTime Exch)))
+  (Map FromCy (Map ToCy (Map UTCTime Decimal)))
   deriving Show
 
 data Price = Price
   { _dateTime :: DateTime
   , _fromTo :: FromTo
-  , _exch :: Exch
+  , _exch :: Decimal
   } deriving Show
 
 makeLenses ''Price
@@ -70,7 +72,7 @@ lookupExch
   :: FromTo
   -> DateTime
   -> PriceDb
-  -> Either ExchLookupError (UTCTime, Exch)
+  -> Either ExchLookupError (UTCTime, Decimal)
 lookupExch (FromTo fr to) dt (PriceDb db) = do
   let utct = dateTimeToUTC dt
   toMap <- maybe (Left FromCommodityNotFound) Right

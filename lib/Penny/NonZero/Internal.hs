@@ -3,16 +3,27 @@ module Penny.NonZero.Internal where
 
 import Penny.Natural.Internal
 import Penny.Offset
-import Penny.PluMin
 import Penny.Semantic
+import Penny.Polar
 
 newtype NonZero = NonZero { nonZeroToInteger :: Integer }
   deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
 
-nonZeroSign :: NonZero -> PluMin
+instance Polar NonZero where
+  polar (NonZero i)
+    | i < 0 = negative
+    | otherwise = positive
+  align pole (NonZero i) = NonZero (changeSign i)
+    where
+      changeSign
+        | pole == negative && i > 0 = negate
+        | pole == positive && i < 0 = negate
+        | otherwise = id
+
+nonZeroSign :: NonZero -> Pole
 nonZeroSign (NonZero i)
-  | i < 0 = Minus
-  | otherwise = Plus
+  | i < 0 = negative
+  | otherwise = positive
 
 integerToNonZero :: Integer -> Maybe NonZero
 integerToNonZero i
@@ -31,10 +42,10 @@ nonZeroToPositive :: NonZero -> Positive
 nonZeroToPositive (NonZero i) = Positive (abs i)
 
 -- | Adds a sign to a 'Positive'.
-c'NonZero'Positive :: PluMin -> Positive -> NonZero
+c'NonZero'Positive :: Pole -> Positive -> NonZero
 c'NonZero'Positive pm (Positive i) = NonZero (changeSign i)
   where
-    changeSign | pm == Plus = id
+    changeSign | pm == positive = id
                | otherwise = negate
 
 instance HasOffset NonZero where

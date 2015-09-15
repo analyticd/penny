@@ -5,7 +5,7 @@ module Penny.Natural.Internal where
 import Penny.Digit
 import Data.Foldable (toList)
 import Data.Sequence (Seq, ViewR(..), viewr)
-import Penny.PluMin
+import Penny.Polar
 import Penny.Semantic
 
 newtype Positive = Positive { positiveToInteger :: Integer }
@@ -157,11 +157,11 @@ novDecsToPositive n = Positive . finish . go (0 :: Int) 0
 
 -- | Strips the sign from an Integer and returns a Positive paired up
 -- with the sign.  Returns Nothing if the Integer is zero.
-stripIntegerSign :: Integer -> Maybe (Positive, PluMin)
+stripIntegerSign :: Integer -> Maybe (Positive, Pole)
 stripIntegerSign i
   | i == 0 = Nothing
-  | i < 0 = Just (Positive (negate i), Minus)
-  | otherwise = Just (Positive i, Plus)
+  | i < 0 = Just (Positive (negate i), negative)
+  | otherwise = Just (Positive i, positive)
 
 -- | Transform a 'Positive' into its component digits.
 positiveDigits

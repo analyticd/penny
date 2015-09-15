@@ -2,12 +2,12 @@
 module Penny.Amount where
 
 import Control.Lens
-import Penny.Qty
 import Penny.Commodity
+import Penny.Decimal
 
 data Amount = Amount
   { _commodity :: Commodity
-  , _qty :: Qty
+  , _qty :: Decimal
   } deriving Show
 
 makeLenses ''Amount

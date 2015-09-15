@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleContexts, FlexibleInstances #-}
 
 -- | Number representations.
@@ -41,29 +42,16 @@ module Penny.Representation
 
   -- * Aggregate types
   -- | These types aggregate other types.
-  , CenterOrOffCenter(..)
-  , changeOffCenterType
-  , NilOrBrimPolar
   , NilOrBrimScalar
   , NilOrBrimScalarAnyRadix
-  , nilOrBrimScalarAnyRadixToQtyRepAnyRadix
-  , RepNonNeutralNoSide
+  , NilScalarAnyRadix
+  , BrimScalarAnyRadix
+  , Rep
+  , RepAnyRadix
 
   -- ** Conversions between aggregate types
-  , c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
-  , c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
-
-  -- * Qty types
-  --
-  -- | These types represent quantities (as opposed to prices).
-  , QtyRep
-  , QtyRepAnyRadix
-
-  -- * Exch types
-  --
-  -- | These types represent exchanges.
-  , ExchRep
-  , ExchRepAnyRadix
+  , c'NilOrBrimScalarAnyRadix'RepAnyRadix
+  , c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
 
   -- * Digits
   , module Penny.Digit
@@ -74,15 +62,15 @@ module Penny.Representation
   , ungroupNilGrouped
   ) where
 
+import Control.Lens
 import Control.Monad (join)
-import Data.Sequence (Seq, ViewR(..), ViewL(..), (<|), (|>))
+import Data.Sequence (Seq, ViewR(..), ViewL(..))
 import Data.Monoid
 import qualified Data.Sequence as S
 import Penny.Digit
-import Penny.Side
-import Penny.PluMin
 import Penny.NonEmpty
 import Penny.Display
+import Penny.Polar
 
 -- | A radix point.  The type is parameterized on a type that
 -- represents the character used for the radix point.
@@ -367,31 +355,6 @@ instance Display r => Display (BG8 r) where
 
 -- # Others
 
--- Same as the old Polarity
-
--- | Objects that can be neutral or, alterntively, can be polar; for
--- example, numbers on a number line that includes zero.
-data CenterOrOffCenter n o p
-  = Center n
-  -- ^ This object is neutral.
-
-  | OffCenter o p
-  -- ^ This object is not neutral.  The second field indicates the
-  -- polarity of the object, while the first is the object itself.
-  deriving (Eq, Ord, Show)
-
-instance SidedOrNeutral (CenterOrOffCenter n o Side) where
-  sideOrNeutral (Center _) = Nothing
-  sideOrNeutral (OffCenter _ p) = Just p
-
-
-changeOffCenterType
-  :: p'
-  -> CenterOrOffCenter n o p
-  -> Maybe (CenterOrOffCenter n o p')
-changeOffCenterType _ (Center _) = Nothing
-changeOffCenterType p' (OffCenter o _) = Just $ OffCenter o p'
-
 -- | Number representations that may be neutral or non-neutral.  The
 -- type variable is the type of the radix point and grouping
 -- character.  Unlike 'NilOrBrimPolar', a 'NilOrBrimScalar' does not
@@ -405,47 +368,10 @@ type NilOrBrimScalarAnyRadix
   = Either (NilOrBrimScalar RadCom)
            (NilOrBrimScalar RadPer)
 
--- | Adds polarity to a 'NilOrBrimScalarAnyRadix' to transform it to a
--- 'QtyRepAnyRadix'.  Nil values do not receive a polarity; all other
--- values are assigned to the given 'Side'.
-nilOrBrimScalarAnyRadixToQtyRepAnyRadix
-  :: Side
-  -- ^ Assign this 'Side' to polar values
-  -> NilOrBrimScalarAnyRadix
-  -> QtyRepAnyRadix
-nilOrBrimScalarAnyRadixToQtyRepAnyRadix s e = e'
-  where
-    e' = case e of
-      Left ((Left nilCom)) ->
-        Left (((Center nilCom)))
-      Left ((Right brimCom)) ->
-        Left (((OffCenter brimCom s)))
-      Right ((Left nilPer)) ->
-        Right (((Center nilPer)))
-      Right ((Right brimPer)) ->
-        Right (((OffCenter brimPer s)))
-
--- Same as old Stokely
-
--- | Number representations that may be neutral or, alternatively, may
--- be non-neutral.  The first type variable is the type of the radix
--- point and grouping character; see, for example, 'RadCom' or
--- 'RadPer'.  The second type variable is the polarity; see, for
--- example, 'Penny.Side.Side'.
-
-type NilOrBrimPolar r p = CenterOrOffCenter (Nil r) (Brim r) p
-
--- Same as old Philly
-
--- | Representations that are non-neutral and have a radix that is
--- either a period or a comma.  Though they are non-neutral, they do
--- not have a side.
-
-type RepNonNeutralNoSide = Either (Brim RadCom) (Brim RadPer)
+type NilScalarAnyRadix = Either (Nil RadCom) (Nil RadPer)
+type BrimScalarAnyRadix = Either (Brim RadCom) (Brim RadPer)
 
 -- # Qty representations
-
--- Same as old Walker
 
 -- | Qty representations that may be neutral or non-neutral.  The type
 -- variable is the type of the radix point and grouping character;
@@ -455,38 +381,13 @@ type RepNonNeutralNoSide = Either (Brim RadCom) (Brim RadPer)
 -- This is a complete representation of a quantity; that is, it can
 -- represent any quantity.
 
-type QtyRep r = NilOrBrimPolar r Side
-
--- Same as old Muddy
+type Rep r = Moderated (Nil r) (Brim r)
 
 -- | Qty representations that may be neutral or non-neutral and have a
 -- radix that is either a period or a comma.  If non-neutral, also
 -- contains a 'Side'.
---
--- Not an instance of 'Display' because there is no uniform way to
--- display both the quantity and the side.  If you want to display
--- just the quantity, first convert the 'QtyRepAnyRadix' to a
--- 'NilOrBrimScalarAnyRadix'.
 
-type QtyRepAnyRadix = Either (QtyRep RadCom) (QtyRep RadPer)
-
--- # Exch representations
-
--- | Exch representations that may be neutral or non-neutral.  The type
--- variable is the type of the radix point and grouping character;
--- see, for example, 'RadCom' or 'RadPer'.  If non-neutral, also
--- contains a 'PluMin'.
---
--- This is a complete representation of an 'Penny.Exch.Exch';
--- that is, it can represent any 'Penny.Exch.Exch'.
-
-type ExchRep r = NilOrBrimPolar r PluMin
-
--- | Exch representations that may have a radix of 'RadCom' or
--- 'RadPer' and may be neutral or non-neutral.  If non-neutral, also
--- contains a 'PluMin'.
-
-type ExchRepAnyRadix = Either (ExchRep RadCom) (ExchRep RadPer)
+type RepAnyRadix = Either (Rep RadCom) (Rep RadPer)
 
 -- Grouping
 
@@ -613,22 +514,19 @@ ungroupNilGrouped (NilGrouped may1 rdx2 z3 zs4 _g5 z6 zs7 sq8)
 -- # Conversions
 
 -- | Removes the 'Side' from a 'QtyRepAnyRadix'.
-c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
-  :: QtyRepAnyRadix
+c'NilOrBrimScalarAnyRadix'RepAnyRadix
+  :: RepAnyRadix
   -> NilOrBrimScalarAnyRadix
-c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix (ei)
-  = either (stripper Left) (stripper Right) ei
-  where
-    stripper mkEi ((coc)) = case coc of
-      Center n -> (mkEi ((Left n)))
-      OffCenter o _ ->
-        (mkEi ((Right o)))
+c'NilOrBrimScalarAnyRadix'RepAnyRadix ei = case ei of
+  Left rc -> Left $ case rc of
+    Moderate n -> Left n
+    Extreme (Polarized c _) -> Right c
+  Right rp -> Right $ case rp of
+    Moderate n -> Left n
+    Extreme (Polarized c _) -> Right c
 
-c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
-  :: RepNonNeutralNoSide
+c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
+  :: BrimScalarAnyRadix
   -> NilOrBrimScalarAnyRadix
-c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide (ei)
-  = either (create Left) (create Right) ei
-  where
-    create mkEi br =
-      (mkEi ((Right br)))
+c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
+  = either (Left . Right) (Right . Right)

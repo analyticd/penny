@@ -9,13 +9,13 @@ import Penny.Amount
 import qualified Data.Foldable as F
 import Penny.Decimal
 import Penny.Commodity
-import Penny.Qty
 import qualified Data.Map as M
 import Data.Monoid
+import Penny.NonZero (integerToNonZero, nonZeroToInteger)
 import qualified Data.Traversable as T
 
 -- | The balance of multiple commodities.
-newtype Balance = Balance (M.Map Commodity Qty)
+newtype Balance = Balance (M.Map Commodity Decimal)
   deriving Show
 
 makeWrapped ''Balance
@@ -37,9 +37,9 @@ addAmountToBalance (Amount c q) (Balance m) = Balance . M.alter f c $ m
 isBalanced :: Balance -> Bool
 isBalanced (Balance m) = F.all isZero m
   where
-    isZero (Qty (Exponential signif _)) = signif == 0
+    isZero (Exponential signif _) = signif == 0
 
-newtype Imbalance = Imbalance (M.Map Commodity QtyNonZero)
+newtype Imbalance = Imbalance (M.Map Commodity DecNonZero)
   deriving Show
 
 c'Imbalance'Amount :: Amount -> Imbalance
@@ -49,10 +49,14 @@ c'Imbalance'Balance :: Balance -> Imbalance
 c'Imbalance'Balance (Balance m)
   = Imbalance
   . M.mapMaybe qtyToQtyNonZero $ m
+  where
+    qtyToQtyNonZero d = case d ^. coefficient . to integerToNonZero of
+      Nothing -> Nothing
+      Just nz -> Just $ d & coefficient .~ nz
 
 c'Balance'Imbalance :: Imbalance -> Balance
 c'Balance'Imbalance (Imbalance m)
-  = Balance . fmap toQty $ m
+  = Balance . fmap (over coefficient nonZeroToInteger) $ m
 
 instance Monoid Imbalance where
   mempty = Imbalance M.empty
