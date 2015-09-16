@@ -282,7 +282,7 @@ c'DecNonZero'DecPositive
   -> DecPositive
   -> DecNonZero
 c'DecNonZero'DecPositive pm (Exponential sig expt)
-  = Exponential (c'NonZero'Positive pm sig) expt
+  = Exponential (align pm . c'NonZero'Positive $ sig) expt
 
 -- * Representations
 

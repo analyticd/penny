@@ -1,21 +1,15 @@
 module Penny.Trio where
 
-import Control.Lens
 import Penny.Amount
 import Penny.Arrangement
 import Penny.Decimal
-import Penny.Display
 import Penny.Commodity
 import Penny.Balance
 import Penny.Representation
-import Penny.Qty
-import Penny.Offset
 import Penny.Polar
-import Penny.Friendly
 import Penny.NonEmpty
 import Penny.NonZero
 import qualified Data.Map as M
-import qualified Data.Text as X
 import Data.Sequence (Seq)
 import Penny.Mimode
 import Penny.Semantic
@@ -199,13 +193,24 @@ trioToAmount imb (S s) = do
     . fmap (negate . nonZeroToInteger)
     $ qnz
 
+trioToAmount imb (UC qnr cy _) = do
+  qnz <- lookupCommodity imb cy
+  return
+    . Amount cy
+    . fmap nonZeroToInteger
+    . fmap (align (opposite . polar $ qnz))
+    . fmap c'NonZero'Positive
+    . either toDecPositive toDecPositive
+    $ qnr
+
 trioToAmount imb (U qnr) = do
   (cy, qnz) <- oneCommodity imb
   rnnIsSmallerAbsoluteValue qnr qnz
   return
     . Amount cy
     . fmap nonZeroToInteger
-    . fmap (c'NonZero'Positive (opposite . polar $ qnz))
+    . fmap (align (opposite . polar $ qnz))
+    . fmap c'NonZero'Positive
     . either toDecPositive toDecPositive
     $ qnr
 
@@ -217,18 +222,14 @@ trioToAmount imb (C cy) = do
     . fmap (align (opposite . polar $ qnz))
     $ qnz
 
-{-
-
-
-trioToAmount imb (C cy) = do
-  qnz <- lookupCommodity imb cy
-  let q = toQty . offset $ qnz
-  return $ Amount cy q
-
 trioToAmount imb E = do
   (cy, qnz) <- oneCommodity imb
-  let q = toQty . offset $ qnz
-  return $ Amount cy q
+  return
+    . Amount cy
+    . fmap nonZeroToInteger
+    . fmap (align (opposite . polar $ qnz))
+    $ qnz
+
 
 trioToTroiload
   :: Imbalance
@@ -243,24 +244,24 @@ trioToTroiload imb (Q qnr) = fmap f $ oneCommodity imb
 
 trioToTroiload imb (SC s cy) = do
   qnz <- lookupCommodity imb cy
-  let qtSide = side qnz
+  let qtSide = polar qnz
   notSameSide qtSide s
   return (K.SC qnz, cy)
 
 trioToTroiload imb (S s) = do
   (cy, qnz) <- oneCommodity imb
-  let qtSide = side qnz
+  let qtSide = polar qnz
   notSameSide s qtSide
   return (K.S qnz, cy)
 
-trioToTroiload imb (UC rnn cy ar) = do
+trioToTroiload imb (UC qnr cy ar) = do
   qnz <- lookupCommodity imb cy
-  return (K.UC rnn (offset . side $ qnz) ar, cy)
+  return (K.UC qnr (opposite . polar $ qnz) ar, cy)
 
-trioToTroiload imb (U rnn) = do
+trioToTroiload imb (U qnr) = do
   (cy, qnz) <- oneCommodity imb
-  rnnIsSmallerAbsoluteValue rnn qnz
-  return (K.U rnn (offset . side $ qnz), cy)
+  rnnIsSmallerAbsoluteValue qnr qnz
+  return (K.U qnr (opposite . polar $ qnz), cy)
 
 trioToTroiload imb (C cy) = do
   qnz <- lookupCommodity imb cy
@@ -270,4 +271,3 @@ trioToTroiload imb E = do
   (cy, qnz) <- oneCommodity imb
   return (K.E qnz, cy)
 
--}

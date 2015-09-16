@@ -41,12 +41,9 @@ addNonZero (NonZero x) (NonZero y)
 nonZeroToPositive :: NonZero -> Positive
 nonZeroToPositive (NonZero i) = Positive (abs i)
 
--- | Adds a sign to a 'Positive'.
-c'NonZero'Positive :: Pole -> Positive -> NonZero
-c'NonZero'Positive pm (Positive i) = NonZero (changeSign i)
-  where
-    changeSign | pm == positive = id
-               | otherwise = negate
+-- | Changes a 'Positive' to a positive 'NonZero'.
+c'NonZero'Positive :: Positive -> NonZero
+c'NonZero'Positive (Positive i) = NonZero i
 
 instance HasOffset NonZero where
   offset (NonZero i) = NonZero . negate $ i

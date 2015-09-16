@@ -143,7 +143,7 @@ c'Commodity'CommodityA (CommodityA ei)
   = either c'Commodity'UnquotedCommodityOnRight
            c'Commodity'QuotedCommodity ei
 
-qtyRepAnyRadix :: NonNeutral -> Side -> QtyRepAnyRadix
+qtyRepAnyRadix :: NonNeutral -> Side -> RepAnyRadix
 qtyRepAnyRadix nn s = nilOrBrimScalarAnyRadixToQtyRepAnyRadix s nbs
   where
     nbs = case nn of

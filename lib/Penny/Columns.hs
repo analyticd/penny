@@ -18,6 +18,7 @@ import Penny.Balance
 import Penny.Clatch
 import Penny.Commodity
 import Penny.DateTime
+import Penny.Decimal
 import Penny.Display
 import Penny.Natural
 import Penny.Popularity
@@ -27,7 +28,6 @@ import Penny.Representation
 import Penny.Scalar
 import Penny.SeqUtil (intersperse)
 import Penny.Serial
-import Penny.Side
 import Penny.Tree
 import Data.Monoid
 import Data.Text (Text)
@@ -46,6 +46,7 @@ import Rainbow.Types (yarn)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Penny.Troika
+import qualified Penny.Polar as P
 
 -- | Load data into this record to make a color scheme that has
 -- different colors for debits and credits, with an alternating
@@ -323,56 +324,57 @@ instance Colable Side where
 
 qtyRepAnyRadixMagnitudeChunk
   :: Env
-  -> QtyRepAnyRadix
+  -> RepAnyRadix
   -> Chunk Text
 qtyRepAnyRadixMagnitudeChunk env qr
   = sidedChunk env (either sideOrNeutral sideOrNeutral qr)
   . X.pack
   . ($ "")
   . either (either display display) (either display display)
-  . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
+  . c'NilOrBrimScalarAnyRadix'RepAnyRadix
   $ qr
 
 qtyRepAnyRadixMagnitudeCell
   :: Env
-  -> QtyRepAnyRadix
+  -> RepAnyRadix
   -> Cell
 qtyRepAnyRadixMagnitudeCell env qr
   = textCell getColor (env ^. clatch) (env ^. colors)
   . X.pack
   . ($ "")
   . either (either display display) (either display display)
-  . c'NilOrBrimScalarAnyRadix'QtyRepAnyRadix
+  . c'NilOrBrimScalarAnyRadix'RepAnyRadix
   $ qr
   where
-    getColor = case either sideOrNeutral sideOrNeutral qr of
+    getColor = case either P.equatorial P.equatorial qr of
       Nothing -> _neutral
-      Just Debit -> _debit
-      Just Credit -> _credit
+      Just side
+        | side == P.debit -> _debit
+        | otherwise -> _credit
 
-repNonNeutralNoSideMagnitudeChunk
+brimScalarAnyRadixMagnitudeChunk
   :: Env
   -> Maybe Side
-  -> RepNonNeutralNoSide
+  -> BrimScalarAnyRadix
   -> Chunk Text
-repNonNeutralNoSideMagnitudeChunk env maySide
+brimScalarAnyRadixMagnitudeChunk env maySide
   = sidedChunk env maySide
   . X.pack
   . ($ "")
   . either (either display display) (either display display)
-  . c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
+  . c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
 
-repNonNeutralNoSideMagnitudeCell
+brimScalarAnyRadixMagnitudeCell
   :: Env
   -> Maybe Side
-  -> RepNonNeutralNoSide
+  -> BrimScalarAnyRadix
   -> Cell
-repNonNeutralNoSideMagnitudeCell env maySide rnn
+brimScalarAnyRadixMagnitudeCell env maySide rnn
   = textCell getColor (env ^. clatch) (env ^. colors)
   . X.pack
   . ($ "")
   . either (either display display) (either display display)
-  . c'NilOrBrimScalarAnyRadix'RepNonNeutralNoSide
+  . c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
   $ rnn
   where
     getColor = case maySide of
@@ -385,11 +387,11 @@ qtyMagnitudeCell
   -> Maybe Commodity
   -- ^ If a commodity is supplied, it is used to better determine how
   -- to render the Qty.
-  -> Qty
+  -> Decimal
   -> Cell
 qtyMagnitudeCell env mayCy
   = qtyRepAnyRadixMagnitudeCell env
-  . repQty ei
+  . repDecimal ei
   where
     ei = either (Left . Just) (Right . Just)
       . selectGrouper
@@ -398,7 +400,7 @@ qtyMagnitudeCell env mayCy
 
 -- | Creates two columns: one for the side and one for the magnitude.
 
-instance Colable QtyRepAnyRadix where
+instance Colable RepAnyRadix where
   column f = Columns getCells
     where
       getCells env = sideCell env maySide
@@ -408,7 +410,7 @@ instance Colable QtyRepAnyRadix where
           maySide = either sideOrNeutral sideOrNeutral (f . _clatch $ env)
 
 -- | Creates two columns: one for the side and one for the magnitude.
-instance Colable Qty where
+instance Colable (Exponential Integer) where
   column f = Columns getCells
     where
       getCells env = sideCell env (sideOrNeutral qty)
@@ -459,12 +461,12 @@ troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
           Left troiload -> case troiload of
             QC q _ -> qtyRepAnyRadixMagnitudeChunk env q
             Q q -> qtyRepAnyRadixMagnitudeChunk env q
-            UC rnn _ _ -> repNonNeutralNoSideMagnitudeChunk env side rnn
-            U rnn _ -> repNonNeutralNoSideMagnitudeChunk env side rnn
+            UC rnn _ _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
+            U rnn _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
             _ -> qtyRepAnyRadixMagnitudeChunk env
-              . repQty grouper . toQty $ troiload
+              . repDecimal grouper . toDecimal $ troiload
           Right qty -> qtyRepAnyRadixMagnitudeChunk env
-            . repQty grouper $ qty
+            . repDecimal grouper $ qty
 
 troimountCellsToColumns
   :: Env

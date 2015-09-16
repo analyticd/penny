@@ -20,11 +20,12 @@ import qualified Data.Sequence as S
 import Penny.Amount
 import Penny.Balance
 import Penny.Commodity
-import Penny.Qty
+import Penny.Decimal
 import Data.Monoid
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import qualified Data.Text as X
+import Penny.NonZero
 import Penny.Trio
 import qualified Data.Map as M
 import Penny.Friendly
@@ -104,7 +105,7 @@ prependTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
 
 
 data ImbalancedError
-  = ImbalancedError (Commodity, QtyNonZero) [(Commodity, QtyNonZero)]
+  = ImbalancedError (Commodity, DecNonZero) [(Commodity, DecNonZero)]
   deriving Show
 
 instance Friendly ImbalancedError where
@@ -114,7 +115,8 @@ instance Friendly ImbalancedError where
     ] ++ map showImb cs
     where
       showImb (Commodity cy, q)
-        = "  " ++ X.unpack cy ++ " " ++ displayQtyNonZero q
+        = "  " ++ X.unpack cy ++ " "
+               ++ displayDecimalAsQty (fmap nonZeroToInteger q) ""
 
 entsToBalanced :: Ents a -> Either ImbalancedError (Balanced a)
 entsToBalanced (Ents sq (Imbalance m)) = case M.toList m of
