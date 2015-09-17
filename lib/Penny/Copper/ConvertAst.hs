@@ -12,6 +12,7 @@ import Penny.Copper.Parser
 import Penny.Copper.Terminals
 import Penny.Representation
 import Penny.DateTime
+import Penny.Decimal
 import Penny.Display
 import Penny.Commodity
 import Penny.Ents
@@ -19,9 +20,9 @@ import Penny.Exch
 import Penny.Trio
 import Penny.Price
 import Penny.PluMin
+import Penny.Polar
 import Penny.Realm
 import Penny.Scalar
-import Penny.Side
 import Penny.Tree
 import Data.Text (Text)
 import Data.Sequence (Seq)
@@ -143,24 +144,21 @@ c'Commodity'CommodityA (CommodityA ei)
   = either c'Commodity'UnquotedCommodityOnRight
            c'Commodity'QuotedCommodity ei
 
-qtyRepAnyRadix :: NonNeutral -> Side -> RepAnyRadix
-qtyRepAnyRadix nn s = nilOrBrimScalarAnyRadixToQtyRepAnyRadix s nbs
-  where
-    nbs = case nn of
-      NonNeutralRadCom _ rc -> Left . Right $ rc
-      NonNeutralRadPer rp -> Right . Right $ rp
+qtyRepAnyRadix :: NonNeutral -> Pole -> RepAnyRadix
+qtyRepAnyRadix nn s = case nn of
+  NonNeutralRadCom _ brim -> Left (Extreme (Polarized brim s))
+  NonNeutralRadPer brim -> Right (Extreme (Polarized brim s))
 
-c'RepNonNeutralNoSide'NonNeutral :: NonNeutral -> RepNonNeutralNoSide
+
+c'RepNonNeutralNoSide'NonNeutral :: NonNeutral -> BrimScalarAnyRadix
 c'RepNonNeutralNoSide'NonNeutral x = case x of
   NonNeutralRadCom _ b -> Left b
   NonNeutralRadPer p -> Right p
 
-repAnyRadixFromNonNeutral :: Side -> NonNeutral -> QtyRepAnyRadix
-repAnyRadixFromNonNeutral s nn = ei
-  where
-    ei = case nn of
-      NonNeutralRadCom _ br -> Left . OffCenter br $ s
-      NonNeutralRadPer br -> Right . OffCenter br $ s
+repAnyRadixFromNonNeutral :: Pole -> NonNeutral -> RepAnyRadix
+repAnyRadixFromNonNeutral s nn = case nn of
+    NonNeutralRadCom _ br -> Left $ Extreme (Polarized br s)
+    NonNeutralRadPer br -> Right $ Extreme (Polarized br s)
 
 arrangement :: Maybe a -> Orient -> Arrangement
 arrangement may o = Arrangement o . isJust $ may
@@ -180,8 +178,8 @@ c'Trio'TrioA trio = case trio of
   QSided (Fs side _) nn -> Q (repAnyRadixFromNonNeutral side nn)
 
   QUnsided n -> Q $ case n of
-    NeuCom _ nil -> Left . Center $ nil
-    NeuPer nil -> Right . Center $ nil
+    NeuCom _ nil -> Left . Moderate $ nil
+    NeuPer nil -> Right . Moderate $ nil
 
   SCA (Fs sd _) cy -> SC sd . c'Commodity'CommodityA $ cy
 
@@ -343,30 +341,30 @@ c'Transaction'TransactionA txn = case txn of
     bal <- c'Balanced'PostingsA pstgs
     return (Seq.empty, bal)
 
-c'Exch'Neutral :: Neutral -> Exch
+c'Exch'Neutral :: Neutral -> Decimal
 c'Exch'Neutral neu = case neu of
-  NeuCom _ nil -> toExch (Center nil)
-  NeuPer nil -> toExch (Center nil)
+  NeuCom _ nil -> toDecimal . toDecZero $ nil
+  NeuPer nil -> toDecimal . toDecZero $ nil
 
-c'Exch'NonNeutral :: Maybe PluMin -> NonNeutral -> Exch
-c'Exch'NonNeutral mp nn = case nn of
-  NonNeutralRadCom _ br ->
-    toExch (OffCenter br pm)
-  NonNeutralRadPer br ->
-    toExch (OffCenter br pm)
+c'Exch'NonNeutral :: Maybe PluMin -> NonNeutral -> Decimal
+c'Exch'NonNeutral mp nn = toDecimal . align pole $ decPositive
   where
-    pm = case mp of
-      Nothing -> Plus
-      Just m -> m
+    decPositive = case nn of
+      NonNeutralRadCom _ br -> toDecPositive br
+      NonNeutralRadPer br -> toDecPositive br
+    pole = case mp of
+      Nothing -> positive
+      Just Plus -> positive
+      Just Minus -> negative
 
 c'Exch'ExchA
   :: ExchA
-  -> Exch
+  -> Decimal
 c'Exch'ExchA exch = case exch of
   ExchANeutral n -> c'Exch'Neutral n
   ExchANonNeutral m n -> c'Exch'NonNeutral (fmap (\(Fs x _) -> x) m) n
 
-c'CommodityExch'CyExch :: CyExch -> (Commodity, Exch)
+c'CommodityExch'CyExch :: CyExch -> (Commodity, Decimal)
 c'CommodityExch'CyExch cye = (c'Commodity'CommodityA cy, c'Exch'ExchA ea)
   where
     (cy, ea) = case cye of
