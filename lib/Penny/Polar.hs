@@ -18,6 +18,10 @@ class Polar a where
 class Equatorial a where
   equatorial :: a -> Maybe Pole
 
+instance (Equatorial a, Equatorial b)
+  => Equatorial (Either a b) where
+  equatorial = either equatorial equatorial
+
 -- | An object that is polar.
 data Polarized a = Polarized
   { _charged :: a

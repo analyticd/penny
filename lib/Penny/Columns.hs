@@ -46,6 +46,7 @@ import Rainbow.Types (yarn)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Penny.Troika
+import Penny.Polar (Pole, equatorial)
 import qualified Penny.Polar as P
 
 -- | Load data into this record to make a color scheme that has
@@ -122,46 +123,12 @@ instance Monoid Columns where
     = Columns (\a -> (cx a) <> (cy a))
 
 
--- | Creates a table from a 'Columns'.  Deletes any column that is
--- entirely empty, then intersperses single-space spacer columns.
-table
-  :: History
-  -> Colors
-  -> Columns
-  -> Seq Clatch
-  -> Seq (Chunk Text)
-table hist clrs col clatches
-  = render
-  . tableByColumns
-  . intersperse (spacerColumn clrs clatches)
-  . Seq.fromList
-  . IM.elems
-  . removeEmptyColumns
-  . foldl' addRowToMap IM.empty
-  . fmap (mkDataRow $)
-  $ clatches
+background :: Clatch -> Colors -> Radiant
+background clatch colors
+  | odd i = colors ^. oddBackground
+  | otherwise = colors ^. evenBackground
   where
-    mkDataRow clatch = ($ env) . (^. _Wrapped) $ col
-      where
-        env = Env clatch hist clrs
-
-spacerColumn
-  :: Colors
-  -> Seq Clatch
-  -> Seq Cell
-spacerColumn clrs = fmap mkSpacerCell
-  where
-    mkSpacerCell clatch = textCell _nonLinear clatch clrs " "
-
-
-addRowToMap :: IM.IntMap (Seq Cell) -> Seq Cell -> IM.IntMap (Seq Cell)
-addRowToMap mp = foldl' addColToMap mp . zip [0..] . toList
-  where
-    addColToMap mp (idx, cell) = IM.alter alterer idx mp
-      where
-        alterer mayVal = Just $ case mayVal of
-          Nothing -> Seq.singleton cell
-          Just sq -> sq |> cell
+    i = clatch ^. to postFiltset.forward.to naturalToInteger
 
 -- | Removes all entirely empty columns from a table.
 removeEmptyColumns
@@ -186,16 +153,6 @@ removeIfEmpty idx mp
                 where
                   chunkIsEmpty chunk = X.null (chunk ^. yarn)
 
-background :: Clatch -> Colors -> Radiant
-background clatch colors
-  | odd i = colors ^. oddBackground
-  | otherwise = colors ^. evenBackground
-  where
-    i = clatch ^. to postFiltset.forward.to naturalToInteger
-
-class Colable a where
-  column :: (Clatch -> a) -> Columns
-
 -- | Makes a single cell with a Text.
 textCell
   :: (Colors -> Radiant)
@@ -213,6 +170,50 @@ textCell fg clatch colors txt = Cell
   , _vertical = left
   , _background = background clatch colors
   }
+
+spacerColumn
+  :: Colors
+  -> Seq Clatch
+  -> Seq Cell
+spacerColumn clrs = fmap mkSpacerCell
+  where
+    mkSpacerCell clatch = textCell _nonLinear clatch clrs " "
+
+addRowToMap :: IM.IntMap (Seq Cell) -> Seq Cell -> IM.IntMap (Seq Cell)
+addRowToMap mp = foldl' addColToMap mp . zip [0..] . toList
+  where
+    addColToMap mp (idx, cell) = IM.alter alterer idx mp
+      where
+        alterer mayVal = Just $ case mayVal of
+          Nothing -> Seq.singleton cell
+          Just sq -> sq |> cell
+
+-- | Creates a table from a 'Columns'.  Deletes any column that is
+-- entirely empty, then intersperses single-space spacer columns.
+table
+  :: History
+  -> Colors
+  -> Columns
+  -> Seq Clatch
+  -> Seq (Chunk Text)
+table hist clrs col clatches
+  = render
+  . tableByColumns
+  . intersperse (spacerColumn clrs clatches)
+  . Seq.fromList
+  . IM.elems
+  . removeEmptyColumns
+  . foldl' addRowToMap IM.empty
+  . fmap (mkDataRow $)
+  $ clatches
+  where
+    mkDataRow clatch = ($ env) . (^. _Wrapped) $ col
+      where
+        env = Env clatch hist clrs
+
+
+class Colable a where
+  column :: (Clatch -> a) -> Columns
 
 instance Colable Text where
   column f = Columns $ \env -> Seq.singleton $
@@ -263,7 +264,7 @@ instance Colable a => Colable (Maybe a) where
 
 sideCell
   :: Env
-  -> Maybe Side
+  -> Maybe Pole
   -> Cell
 sideCell env maySide = Cell
   { _rows = Seq.singleton . Seq.singleton
@@ -276,12 +277,13 @@ sideCell env maySide = Cell
   where
     (fgColor, txt) = case maySide of
       Nothing -> (env ^. colors.neutral, "--")
-      Just Debit -> (env ^. colors.debit, "<")
-      Just Credit -> (env ^. colors.credit, ">")
+      Just side
+        | side == P.debit -> (env ^. colors.debit, "<")
+        | otherwise -> (env ^. colors.credit, ">")
 
 sidedChunk
   :: Env
-  -> Maybe Side
+  -> Maybe Pole
   -> Text
   -> Chunk Text
 sidedChunk env maySide
@@ -291,12 +293,13 @@ sidedChunk env maySide
   where
     fgColor = case maySide of
       Nothing -> env ^. colors.neutral
-      Just Debit -> env ^. colors.debit
-      Just Credit -> env ^. colors.credit
+      Just side
+        | side == P.debit -> env ^. colors.debit
+        | otherwise -> env ^. colors.credit
 
 commodityCell
   :: Env
-  -> Maybe Side
+  -> Maybe Pole
   -> Orient
   -> Commodity
   -> Cell
@@ -314,11 +317,11 @@ commodityCell env maySide orient (Commodity cy) = Cell
       | otherwise = left
 
 
-instance Colable (Maybe Side) where
+instance Colable (Maybe Pole) where
   column f = Columns $ \env ->
     Seq.singleton (sideCell env (f (_clatch env)))
 
-instance Colable Side where
+instance Colable Pole where
   column f = Columns $ \env ->
     Seq.singleton (sideCell env (Just . f . _clatch $ env))
 
@@ -327,7 +330,7 @@ qtyRepAnyRadixMagnitudeChunk
   -> RepAnyRadix
   -> Chunk Text
 qtyRepAnyRadixMagnitudeChunk env qr
-  = sidedChunk env (either sideOrNeutral sideOrNeutral qr)
+  = sidedChunk env (either equatorial equatorial qr)
   . X.pack
   . ($ "")
   . either (either display display) (either display display)
@@ -346,7 +349,7 @@ qtyRepAnyRadixMagnitudeCell env qr
   . c'NilOrBrimScalarAnyRadix'RepAnyRadix
   $ qr
   where
-    getColor = case either P.equatorial P.equatorial qr of
+    getColor = case either equatorial equatorial qr of
       Nothing -> _neutral
       Just side
         | side == P.debit -> _debit
@@ -354,7 +357,7 @@ qtyRepAnyRadixMagnitudeCell env qr
 
 brimScalarAnyRadixMagnitudeChunk
   :: Env
-  -> Maybe Side
+  -> Maybe Pole
   -> BrimScalarAnyRadix
   -> Chunk Text
 brimScalarAnyRadixMagnitudeChunk env maySide
@@ -366,7 +369,7 @@ brimScalarAnyRadixMagnitudeChunk env maySide
 
 brimScalarAnyRadixMagnitudeCell
   :: Env
-  -> Maybe Side
+  -> Maybe Pole
   -> BrimScalarAnyRadix
   -> Cell
 brimScalarAnyRadixMagnitudeCell env maySide rnn
@@ -379,8 +382,9 @@ brimScalarAnyRadixMagnitudeCell env maySide rnn
   where
     getColor = case maySide of
       Nothing -> _neutral
-      Just Debit -> _debit
-      Just Credit -> _credit
+      Just side
+        | side == P.debit -> _debit
+        | otherwise -> _credit
 
 qtyMagnitudeCell
   :: Env
@@ -407,14 +411,14 @@ instance Colable RepAnyRadix where
         <| qtyRepAnyRadixMagnitudeCell env (f . _clatch $ env)
         <| Seq.empty
         where
-          maySide = either sideOrNeutral sideOrNeutral (f . _clatch $ env)
+          maySide = either equatorial equatorial (f . _clatch $ env)
 
 -- | Creates two columns: one for the side and one for the magnitude.
-instance Colable (Exponential Integer) where
+instance Colable Qty where
   column f = Columns getCells
     where
-      getCells env = sideCell env (sideOrNeutral qty)
-        <| qtyMagnitudeCell env Nothing qty
+      getCells env = sideCell env (qty ^. _Wrapped . to equatorial)
+        <| qtyMagnitudeCell env Nothing (qty ^. _Wrapped)
         <| Seq.empty
         where
           qty = f . _clatch $ env
@@ -423,7 +427,7 @@ instance Colable Commodity where
   column f = column ((^. _Wrapped) . f)
 
 data TroikaCells = TroikaCells
-  { _tmSide :: Maybe Side
+  { _tmSide :: Maybe Pole
     -- ^ Always top left aligned, with standard background
   , _tmCyOnLeft :: Maybe (Chunk Text)
   -- ^ Always top right aligned.
@@ -439,7 +443,7 @@ troimountCells :: Env -> Troika -> TroikaCells
 troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
   where
     cy = troimount ^. Penny.Troika.commodity
-    side = troimount ^. troiquant . to sideOrNeutral
+    side = troimount ^. troiquant . to equatorial
     hasSpace = spaceBetween (env ^. history) (Just cy)
     orient = orientation (env ^. history) (Just cy)
     cyChunk = sidedChunk env side (cy ^. _Wrapped)
@@ -499,8 +503,9 @@ troimountCellsToColumns env
         side' = Seq.singleton . sidedChunk env (tc ^. tmSide) $
           case tc ^. tmSide of
             Nothing -> "--"
-            Just Debit -> "<"
-            Just Credit -> ">"
+            Just sd
+              | sd == P.debit -> "<"
+              | otherwise -> ">"
         cyOnLeft' = maybe Seq.empty Seq.singleton . _tmCyOnLeft $ tc
         mag' = Seq.singleton . _tmMagWithCy $ tc
         cyOnRight' = maybe Seq.empty Seq.singleton . _tmCyOnRight $ tc
