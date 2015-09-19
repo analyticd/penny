@@ -125,7 +125,7 @@ instance Friendly TrioError where
       , showImbalance i2
       ] ++ map showImbalance is
 
-    CommodityNotFound (Commodity cy) ->
+    CommodityNotFound cy ->
       [ "Necessary commodity not found in imbalances: " ++ X.unpack cy ]
 
     BalanceIsSameSide s ->
@@ -138,7 +138,7 @@ instance Friendly TrioError where
         ++ "quantity in the imbalance, which is " ++ disp qnz
       ]
     where
-      showImbalance (Commodity cy, qnz) = X.unpack cy ++ " " ++ disp qnz
+      showImbalance (cy, qnz) = X.unpack cy ++ " " ++ disp qnz
       disp = ($ "") . displayDecimalAsQty . fmap nonZeroToInteger
       dispSide side
         | side == debit = "<"

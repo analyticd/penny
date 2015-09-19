@@ -303,7 +303,7 @@ commodityCell
   -> Orient
   -> Commodity
   -> Cell
-commodityCell env maySide orient (Commodity cy) = Cell
+commodityCell env maySide orient cy = Cell
   { _rows = Seq.singleton . Seq.singleton
       . sidedChunk env maySide
       $ cy
@@ -423,9 +423,6 @@ instance Colable Qty where
         where
           qty = f . _clatch $ env
 
-instance Colable Commodity where
-  column f = column ((^. _Wrapped) . f)
-
 data TroikaCells = TroikaCells
   { _tmSide :: Maybe Pole
     -- ^ Always top left aligned, with standard background
@@ -446,7 +443,7 @@ troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
     side = troimount ^. troiquant . to equatorial
     hasSpace = spaceBetween (env ^. history) (Just cy)
     orient = orientation (env ^. history) (Just cy)
-    cyChunk = sidedChunk env side (cy ^. _Wrapped)
+    cyChunk = sidedChunk env side cy
     (onLeft, onRight)
       | not hasSpace = (Nothing, Nothing)
       | orient == CommodityOnLeft = (Just cyChunk, Nothing)

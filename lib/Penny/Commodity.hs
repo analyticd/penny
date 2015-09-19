@@ -1,14 +1,5 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-
 module Penny.Commodity where
 
-import Data.Text
-import Control.Lens
+import Data.Text (Text)
 
-newtype Commodity = Commodity Text
-  deriving (Eq, Ord, Show)
-
-makeWrapped ''Commodity
+type Commodity = Text

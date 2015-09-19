@@ -63,7 +63,7 @@ instance Friendly ConvertE where
             lc = case pl of
               OnePosting (Located x _) -> x
               PostingList (Located x _) _ _ _ -> x
-        PriceSameCommodityE l (FromCy (Commodity cy)) ->
+        PriceSameCommodityE l (FromCy cy) ->
           (l, ["From and To commodities are the same: " ++ X.unpack cy])
 
 c'Hours'HoursA :: HoursA -> Hours
@@ -100,8 +100,7 @@ c'Commodity'UnquotedCommodityOnLeft
   :: UnquotedCommodityOnLeft
   -> Commodity
 c'Commodity'UnquotedCommodityOnLeft (UnquotedCommodityOnLeft d1 ds)
-  = Commodity
-  . X.pack
+  = X.pack
   . (termToChar d1 :)
   $ map termToChar ds
 
@@ -109,8 +108,7 @@ c'Commodity'UnquotedCommodityOnRight
   :: UnquotedCommodityOnRight
   -> Commodity
 c'Commodity'UnquotedCommodityOnRight (UnquotedCommodityOnRight d1 ds)
-  = Commodity
-  . X.pack
+  = X.pack
   . (termToChar d1 :)
   $ map termToChar ds
 
@@ -118,7 +116,7 @@ c'Commodity'QuotedCommodity
   :: QuotedCommodity
   -> Commodity
 c'Commodity'QuotedCommodity (QuotedCommodity q)
-  = Commodity . c'Text'QuotedString $ q
+  = c'Text'QuotedString q
 
 c'Text'QuotedString :: QuotedString -> Text
 c'Text'QuotedString (QuotedString _ ls _)

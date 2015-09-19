@@ -6,7 +6,7 @@ module Penny
 
   -- * Primitive types
     Unsigned
-  , Commodity(..)
+  , Commodity
   -- * Clatcher
   , Clatcher
 

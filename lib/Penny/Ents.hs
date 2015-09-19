@@ -114,7 +114,7 @@ instance Friendly ImbalancedError where
     , showImb c1
     ] ++ map showImb cs
     where
-      showImb (Commodity cy, q)
+      showImb (cy, q)
         = "  " ++ X.unpack cy ++ " "
                ++ displayDecimalAsQty (fmap nonZeroToInteger q) ""
 
