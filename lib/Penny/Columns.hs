@@ -128,7 +128,7 @@ background clatch colors
   | odd i = colors ^. oddBackground
   | otherwise = colors ^. evenBackground
   where
-    i = clatch ^. to postFiltset.forward.to naturalToInteger
+    i = clatch ^. postFiltset.forward.to naturalToInteger
 
 -- | Removes all entirely empty columns from a table.
 removeEmptyColumns

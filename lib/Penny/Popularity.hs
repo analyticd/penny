@@ -67,7 +67,7 @@ groupers (History hist) mayCy = fromMaybe allGroupers $ do
 
 
 vote :: Posting -> History
-vote = Lens.view (to core . troimount . to make)
+vote = Lens.view (core . troimount . to make)
   where
     make tri = case T.troikaRendering tri of
       Nothing -> mempty
@@ -77,7 +77,7 @@ vote = Lens.view (to core . troimount . to make)
 elect :: Foldable f => f Transaction -> History
 elect = F.foldl' f mempty
   where
-    f hist = F.foldl' g hist . postings
+    f hist = F.foldl' g hist . view postings
       where
         g acc pstg = acc `mappend` vote pstg
 

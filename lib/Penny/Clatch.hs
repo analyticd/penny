@@ -33,7 +33,7 @@ module Penny.Clatch
 
   -- * Functions on clatches and compatible types
   , transaction
-  , view
+  , slice
   , converted
   , best
   , preFiltset
@@ -46,7 +46,7 @@ module Penny.Clatch
   , clatchesFromTransactions
   ) where
 
-import Control.Lens hiding (view, index)
+import Control.Lens hiding (index)
 import Control.Monad (join)
 import Data.Bifunctor
 import Data.Bifunctor.Flip
@@ -86,27 +86,27 @@ type Transaction = (Serpack, (Seq Tree, Seq Posting))
 
 -- # Functions on postings and transactions
 
-core :: Posting -> Core
-core = snd . snd
+core :: Lens' Posting Core
+core = _2 . _2
 
-postings :: Transaction -> Seq Posting
-postings = snd . snd
+postings :: Lens' Transaction (Seq Posting)
+postings = _2 . _2
 
 -- |
 -- @
 -- 'serpack' :: 'Transaction' -> 'Serpack'
 -- 'serpack' :: 'Posting' -> 'Serpack'
 -- @
-serpack :: (Serpack, a) -> Serpack
-serpack = fst
+serpack :: Lens' (Serpack, a) Serpack
+serpack = _1
 
 -- |
 -- @
 -- 'trees' :: 'Transaction' -> 'Seq' 'Tree'
 -- 'trees' :: 'Posting' -> 'Seq' 'Tree'
 -- @
-trees :: (a, (Seq Tree, b)) -> Seq Tree
-trees = fst . snd
+trees :: Lens' (a, (Seq Tree, b)) (Seq Tree)
+trees = _2 . _1
 
 -- | The 'Serset' after all postings have been pre-filtered.
 type PreFiltset = Serset
@@ -133,32 +133,32 @@ type Clatch =
 
 -- # Functions on clatches
 
-transaction :: (Transaction, a) -> Transaction
-transaction = fst
+transaction :: Lens' (Transaction, a) Transaction
+transaction = _1
 
-view :: (a, (Slice Posting, b)) -> Slice Posting
-view = fst . snd
+slice :: Lens' (a, (Slice Posting, b)) (Slice Posting)
+slice = _2 . _1
 
-converted :: (a, (b, (Maybe Amount, c))) -> Maybe Amount
-converted = fst . snd . snd
+converted :: Lens' (a, (b, (Maybe Amount, c))) (Maybe Amount)
+converted = _2 . _2 . _1
 
 best :: (a, (Slice Posting, (Maybe Amount, c))) -> Amount
-best clatch = case converted clatch of
+best clatch = case view converted clatch of
   Just a -> a
-  Nothing -> clatch ^. to view . onSlice . to core
+  Nothing -> clatch ^. slice . onSlice . core
     . troimount . to c'Amount'Troika
 
-preFiltset :: (a, (b, (c, (PreFiltset, d)))) -> PreFiltset
-preFiltset = fst . snd . snd . snd
+preFiltset :: Lens' (a, (b, (c, (PreFiltset, d)))) PreFiltset
+preFiltset = _2 . _2 . _2 . _1
 
-sortset :: (a, (b, (c, (d, (Sortset, e))))) -> Sortset
-sortset = fst . snd . snd . snd . snd
+sortset :: Lens' (a, (b, (c, (d, (Sortset, e))))) Sortset
+sortset = _2 . _2 . _2 . _2 . _1
 
-balance :: (a, (b, (c, (d, (e, (Balance, f)))))) -> Balance
-balance = fst . snd . snd . snd . snd . snd
+balance :: Lens' (a, (b, (c, (d, (e, (Balance, f)))))) Balance
+balance = _2 . _2 . _2 . _2 . _2 . _1
 
-postFiltset :: (a, (b, (c, (d, (e, (f, (PostFiltset, g))))))) -> PostFiltset
-postFiltset = fst . snd . snd . snd . snd . snd . snd
+postFiltset :: Lens' (a, (b, (c, (d, (e, (f, (PostFiltset, g))))))) PostFiltset
+postFiltset =  _2 . _2 . _2 . _2 . _2 . _2 . _1
 
 --
 -- # Creation
@@ -173,9 +173,10 @@ createConverted
   :: Converter
   -> Sliced a
   -> Converted ()
-createConverted (Converter f) clatch = clatch & _2._2 .~ (conv, ())
+createConverted (Converter f) clatch = set (_2._2) (conv, ()) clatch
   where
-    conv = f $ clatch ^. _2._1.onSlice.to core. troimount . to c'Amount'Troika
+    conv = f $ view amount clatch
+    amount = _2._1.onSlice.core. troimount . to c'Amount'Troika
 
 createPrefilt
   :: (Converted a -> Bool)
