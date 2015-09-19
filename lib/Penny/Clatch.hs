@@ -24,7 +24,7 @@ module Penny.Clatch
   , PostFiltset
 
   -- * Clatches and compatible types
-  , Viewed
+  , Sliced
   , Converted
   , Prefilt
   , Sorted
@@ -119,16 +119,16 @@ type PostFiltset = Serset
 
 -- # Clatches and compatible types
 
-type Viewed a = (Transaction, (View Posting, a))
-type Converted a = (Transaction, (View Posting, (Maybe Amount, a)))
-type Prefilt a = (Transaction, (View Posting, (Maybe Amount, (PreFiltset, a))))
-type Sorted a = (Transaction, (View Posting, (Maybe Amount, (PreFiltset,
+type Sliced a = (Transaction, (Slice Posting, a))
+type Converted a = (Transaction, (Slice Posting, (Maybe Amount, a)))
+type Prefilt a = (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset, a))))
+type Sorted a = (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset,
                   (Sortset, a)))))
-type Totaled a = (Transaction, (View Posting, (Maybe Amount, (PreFiltset,
+type Totaled a = (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset,
                    (Sortset, (Balance, a))))))
 
 type Clatch =
-  (Transaction, (View Posting, (Maybe Amount, (PreFiltset, (Sortset,
+  (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset, (Sortset,
     (Balance, (PostFiltset, ())))))))
 
 -- # Functions on clatches
@@ -136,16 +136,16 @@ type Clatch =
 transaction :: (Transaction, a) -> Transaction
 transaction = fst
 
-view :: (a, (View Posting, b)) -> View Posting
+view :: (a, (Slice Posting, b)) -> Slice Posting
 view = fst . snd
 
 converted :: (a, (b, (Maybe Amount, c))) -> Maybe Amount
 converted = fst . snd . snd
 
-best :: (a, (View Posting, (Maybe Amount, c))) -> Amount
+best :: (a, (Slice Posting, (Maybe Amount, c))) -> Amount
 best clatch = case converted clatch of
   Just a -> a
-  Nothing -> clatch ^. to view . onView . to core
+  Nothing -> clatch ^. to view . onSlice . to core
     . troimount . to c'Amount'Troika
 
 preFiltset :: (a, (b, (c, (PreFiltset, d)))) -> PreFiltset
@@ -164,18 +164,18 @@ postFiltset = fst . snd . snd . snd . snd . snd . snd
 -- # Creation
 --
 
-createViewposts :: Transaction -> Seq (Viewed ())
+createViewposts :: Transaction -> Seq (Sliced ())
 createViewposts txn = fmap (\vw -> (txn, (vw, ())))
-  (allViews . snd . snd $ txn)
+  (allSlices . snd . snd $ txn)
 
 -- | Applies a 'Converter' to convert a posting.
 createConverted
   :: Converter
-  -> Viewed a
+  -> Sliced a
   -> Converted ()
 createConverted (Converter f) clatch = clatch & _2._2 .~ (conv, ())
   where
-    conv = f $ clatch ^. _2._1.onView.to core. troimount . to c'Amount'Troika
+    conv = f $ clatch ^. _2._1.onSlice.to core. troimount . to c'Amount'Troika
 
 createPrefilt
   :: (Converted a -> Bool)

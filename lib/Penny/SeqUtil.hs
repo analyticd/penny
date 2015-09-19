@@ -16,16 +16,16 @@ module Penny.SeqUtil
   , filterM
   , intersperse
 
-  -- * Views
-  , View(..)
-  , nextView
-  , previousView
-  , seqFromView
-  , allViews
+  -- * Slices
+  , Slice(..)
+  , nextSlice
+  , previousSlice
+  , seqFromSlice
+  , allSlices
 
-  -- ** View lenses
+  -- ** Slice lenses
   , onLeft
-  , onView
+  , onSlice
   , onRight
   ) where
 
@@ -111,40 +111,40 @@ partitionEithers = F.foldl' f (empty, empty)
       Left a -> (l |> a, r)
       Right a -> (l, r |> a)
 
-data View a = View
+data Slice a = Slice
   { _onLeft :: (Seq a)
-  , _onView :: a
+  , _onSlice :: a
   , _onRight :: (Seq a)
   }
 
-makeLenses ''View
+makeLenses ''Slice
 
-instance Functor View where
-  fmap f (View l c r) = View (fmap f l) (f c) (fmap f r)
+instance Functor Slice where
+  fmap f (Slice l c r) = Slice (fmap f l) (f c) (fmap f r)
 
-instance F.Foldable View where
-  foldr f z (View l c r) = F.foldr f (f c (F.foldr f z r)) l
+instance F.Foldable Slice where
+  foldr f z (Slice l c r) = F.foldr f (f c (F.foldr f z r)) l
 
-instance T.Traversable View where
-  sequenceA (View l c r) = View <$> T.sequenceA l <*> c <*> T.sequenceA r
+instance T.Traversable Slice where
+  sequenceA (Slice l c r) = Slice <$> T.sequenceA l <*> c <*> T.sequenceA r
 
-nextView :: View a -> Maybe (View a)
-nextView (View l c r) = case viewl r of
+nextSlice :: Slice a -> Maybe (Slice a)
+nextSlice (Slice l c r) = case viewl r of
   EmptyL -> Nothing
-  x :< xs -> Just (View (l |> c) x xs)
+  x :< xs -> Just (Slice (l |> c) x xs)
 
-previousView :: View a -> Maybe (View a)
-previousView (View l c r) = case viewr l of
+previousSlice :: Slice a -> Maybe (Slice a)
+previousSlice (Slice l c r) = case viewr l of
   EmptyR -> Nothing
-  xs :> x -> Just (View xs x (c <| r))
+  xs :> x -> Just (Slice xs x (c <| r))
 
-seqFromView :: View a -> Seq a
-seqFromView v = (_onLeft v |> _onView v) <> _onRight v
+seqFromSlice :: Slice a -> Seq a
+seqFromSlice v = (_onLeft v |> _onSlice v) <> _onRight v
 
-allViews :: Seq a -> Seq (View a)
-allViews = go empty
+allSlices :: Seq a -> Seq (Slice a)
+allSlices = go empty
   where
     go soFar sq = case viewl sq of
       EmptyL -> empty
-      x :< xs -> View soFar x xs <| go (soFar |> x) xs
+      x :< xs -> Slice soFar x xs <| go (soFar |> x) xs
 
