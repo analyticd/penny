@@ -2,6 +2,8 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+
+-- | Pairings of commodities and decimal amounts.
 module Penny.Balance where
 
 import Control.Lens
@@ -10,9 +12,7 @@ import qualified Data.Foldable as F
 import Penny.Decimal
 import Penny.Commodity
 import qualified Data.Map as M
-import Data.Monoid
 import Penny.NonZero (integerToNonZero, nonZeroToInteger)
-import qualified Data.Traversable as T
 
 -- | The balance of multiple commodities.
 newtype Balance = Balance (M.Map Commodity Decimal)
@@ -27,18 +27,14 @@ instance Monoid Balance where
 c'Balance'Amount :: Amount -> Balance
 c'Balance'Amount (Amount c q) = Balance $ M.singleton c q
 
-addAmountToBalance :: Amount -> Balance -> Balance
-addAmountToBalance (Amount c q) (Balance m) = Balance . M.alter f c $ m
-  where
-    f v = case v of
-      Nothing -> Just q
-      Just l -> Just $ q + l
-
+-- | True if the 'Balance' contains no commodities or if each
+-- commodity has a zero balance.
 isBalanced :: Balance -> Bool
 isBalanced (Balance m) = F.all isZero m
   where
     isZero (Exponential signif _) = signif == 0
 
+-- | Multiple commodities, where none of the commodities are balanced.
 newtype Imbalance = Imbalance (M.Map Commodity DecNonZero)
   deriving Show
 
@@ -64,22 +60,3 @@ instance Monoid Imbalance where
     c'Imbalance'Balance $ mappend
       (c'Balance'Imbalance x) (c'Balance'Imbalance y)
 
-
--- | Thing that is accompanied by a running balance.
-data RunningBalance a = RunningBalance
-  { _runningBalance :: Balance
-  , _runningBalancee :: a
-  } deriving (Functor, Foldable, Traversable)
-
-makeLenses ''RunningBalance
-
-runningBalances
-  :: Traversable t
-  => t Amount
-  -> t (RunningBalance ())
-runningBalances = snd . T.mapAccumL addBal mempty
-  where
-    addBal acc am = (acc', new)
-      where
-        acc' = acc <> c'Balance'Amount am
-        new = RunningBalance acc' ()

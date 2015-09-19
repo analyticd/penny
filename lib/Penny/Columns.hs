@@ -441,7 +441,7 @@ troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
   where
     cy = troimount ^. Penny.Troika.commodity
     side = troimount ^. troiquant . to equatorial
-    hasSpace = spaceBetween (env ^. history) (Just cy)
+    hasSpace = isSpaceBetween (env ^. history) (Just cy)
     orient = orientation (env ^. history) (Just cy)
     cyChunk = sidedChunk env side cy
     (onLeft, onRight)

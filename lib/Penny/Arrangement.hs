@@ -1,5 +1,8 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Penny.Arrangement where
 
+import Control.Lens
 
 data Orient
   = CommodityOnLeft
@@ -8,5 +11,9 @@ data Orient
 
 type SpaceBetween = Bool
 
-data Arrangement = Arrangement Orient SpaceBetween
-  deriving (Eq, Ord, Show)
+data Arrangement = Arrangement
+  { _orient :: Orient
+  , _spaceBetween :: SpaceBetween
+  } deriving (Eq, Ord, Show)
+
+makeLenses ''Arrangement

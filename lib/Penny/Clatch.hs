@@ -1,11 +1,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
 
+-- | Types that group a posting with other interesting information.
 module Penny.Clatch
   ( -- * Postings
     Core(..)
-  , troimount
-  , index
+  , troika
+  , birth
 
   , Posting
   , core
@@ -24,6 +25,9 @@ module Penny.Clatch
   , PostFiltset
 
   -- * Clatches and compatible types
+
+  -- | These types are designed so that various functions and lenses
+  -- can operate on values of multiple types.
   , Sliced
   , Converted
   , Prefilt
@@ -31,7 +35,7 @@ module Penny.Clatch
   , Totaled
   , Clatch
 
-  -- * Functions on clatches and compatible types
+  -- * Lenses and Functions on clatches and compatible types
   , transaction
   , slice
   , converted
@@ -66,8 +70,8 @@ import Data.Functor.Compose
 
 -- | The core of every posting.
 data Core = Core
-  { _troimount :: Troika
-  , _index :: Serset
+  { _troika :: Troika
+  , _birth :: Serset
   -- ^ How this single posting relates to its sibling postings.
   -- Numbering restarts with every transaction.
   } deriving Show
@@ -94,16 +98,16 @@ postings = _2 . _2
 
 -- |
 -- @
--- 'serpack' :: 'Transaction' -> 'Serpack'
--- 'serpack' :: 'Posting' -> 'Serpack'
+-- 'serpack' :: 'Lens'' 'Transaction' 'Serpack'
+-- 'serpack' :: 'Lens'' 'Posting' 'Serpack'
 -- @
 serpack :: Lens' (Serpack, a) Serpack
 serpack = _1
 
 -- |
 -- @
--- 'trees' :: 'Transaction' -> 'Seq' 'Tree'
--- 'trees' :: 'Posting' -> 'Seq' 'Tree'
+-- 'trees' :: 'Lens'' 'Transaction' ('Seq' 'Tree')
+-- 'trees' :: 'Lens'' ('Seq' 'Tree')
 -- @
 trees :: Lens' (a, (Seq Tree, b)) (Seq Tree)
 trees = _2 . _1
@@ -111,52 +115,143 @@ trees = _2 . _1
 -- | The 'Serset' after all postings have been pre-filtered.
 type PreFiltset = Serset
 
--- | The 'Serset' after all views have been sorted.
+-- | The 'Serset' after all slices have been sorted.
 type Sortset = Serset
 
--- | The 'Serset' after the sorted views have been post-filtered.
+-- | The 'Serset' after the sorted slices have been post-filtered.
 type PostFiltset = Serset
 
 -- # Clatches and compatible types
 
+-- | A single 'Slice' 'Posting' contains not only the 'Posting' but
+-- also all sibling 'Posting's.  A 'Transaction' can give rise to
+-- multiple 'Slice's, and therefore to mulitple 'Sliced'.
 type Sliced a = (Transaction, (Slice Posting, a))
+
+-- | After 'Sliced' are created, the posting's 'Amount' is converted
+-- using the specified 'Converter'.  There might not be any conversion
+-- if the 'Converter' does not perform one.
 type Converted a = (Transaction, (Slice Posting, (Maybe Amount, a)))
+
+-- | After 'Converted' are created, they are filtered.  After
+-- filtering, a 'PreFiltset' is assigned.
 type Prefilt a = (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset, a))))
+
+-- | After the 'Prefilt' are created, they are sorted.  After sorting
+-- a 'Sortset' is assigned.
 type Sorted a = (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset,
                   (Sortset, a)))))
+
+-- | After the 'Sorted' are created, the running balance is calculated
+-- for each 'Sorted'.
 type Totaled a = (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset,
                    (Sortset, (Balance, a))))))
 
+-- | After 'Totaled' are created, they are filtered.  After filtering
+-- a 'PostFiltset' is assigned.
 type Clatch =
   (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset, (Sortset,
     (Balance, (PostFiltset, ())))))))
 
--- # Functions on clatches
+-- # Lenses and functions on clatches
+
+-- | Operates on the original 'Transaction'.
+--
+-- @
+-- 'transaction' :: 'Lens'' ('Sliced' a)    'Transaction'
+-- 'transaction' :: 'Lens'' ('Converted' a) 'Transaction'
+-- 'transaction' :: 'Lens'' ('Prefilt' a)   'Transaction'
+-- 'transaction' :: 'Lens'' ('Sorted' a)    'Transaction'
+-- 'transaction' :: 'Lens'' ('Totaled' a)   'Transaction'
+-- 'transaction' :: 'Lens'' 'Clatch'        'Transaction'
+-- @
 
 transaction :: Lens' (Transaction, a) Transaction
 transaction = _1
 
+-- | Operate on the 'Slice'.
+--
+-- @
+-- 'slice' :: 'Lens'' ('Sliced' a)    ('Slice' 'Posting')
+-- 'slice' :: 'Lens'' ('Converted' a) ('Slice' 'Posting')
+-- 'slice' :: 'Lens'' ('Prefilt' a)   ('Slice' 'Posting')
+-- 'slice' :: 'Lens'' ('Sorted' a)    ('Slice' 'Posting')
+-- 'slice' :: 'Lens'' ('Totaled' a)   ('Slice' 'Posting')
+-- 'slice' :: 'Lens'' 'Clatch'        ('Slice' 'Posting')
+-- @
+
 slice :: Lens' (a, (Slice Posting, b)) (Slice Posting)
 slice = _2 . _1
 
+-- | Operate on the converted 'Amount'.  There is no converted
+-- 'Amount' if the 'Converter' did not specify a conversion.
+--
+-- @
+-- 'converted' :: 'Lens'' ('Converted' a) ('Maybe' 'Amount')
+-- 'converted' :: 'Lens'' ('Prefilt' a)   ('Maybe' 'Amount')
+-- 'converted' :: 'Lens'' ('Sorted' a)    ('Maybe' 'Amount')
+-- 'converted' :: 'Lens'' ('Totaled' a)   ('Maybe' 'Amount')
+-- 'converted' :: 'Lens'' 'Clatch'        ('Maybe' 'Amount')
+-- @
+
 converted :: Lens' (a, (b, (Maybe Amount, c))) (Maybe Amount)
 converted = _2 . _2 . _1
+
+-- | If there is a converted amount, then use that.  Otherwise, use
+-- the original, unconverted amount.  This is not a 'Lens'.
+--
+-- @
+-- 'converted' :: 'Converted' a -> 'Amount'
+-- 'converted' :: 'Prefilt' a   -> 'Amount'
+-- 'converted' :: 'Sorted' a    -> 'Amount'
+-- 'converted' :: 'Totaled' a   -> 'Amount'
+-- 'converted' :: 'Clatch'      -> 'Amount'
+-- @
 
 best :: (a, (Slice Posting, (Maybe Amount, c))) -> Amount
 best clatch = case view converted clatch of
   Just a -> a
   Nothing -> clatch ^. slice . onSlice . core
-    . troimount . to c'Amount'Troika
+    . troika . to c'Amount'Troika
+
+-- | Operate on the 'PreFiltset'.
+--
+-- @
+-- 'preFiltset' :: 'Lens'' ('Prefilt' a) 'PreFiltset'
+-- 'preFiltset' :: 'Lens'' ('Sorted' a)  'PreFiltset'
+-- 'preFiltset' :: 'Lens'' ('Totaled' a) 'PreFiltset'
+-- 'preFiltset' :: 'Lens'' 'Clatch'      'PreFiltset'
+-- @
 
 preFiltset :: Lens' (a, (b, (c, (PreFiltset, d)))) PreFiltset
 preFiltset = _2 . _2 . _2 . _1
 
+-- | Operate on the 'Sortset'.
+--
+-- @
+-- 'sortset' :: 'Lens'' ('Sorted' a)  'Sortset'
+-- 'sortset' :: 'Lens'' ('Totaled' a) 'Sortset'
+-- 'sortset' :: 'Lens'' 'Clatch'      'Sortset'
+-- @
+
 sortset :: Lens' (a, (b, (c, (d, (Sortset, e))))) Sortset
 sortset = _2 . _2 . _2 . _2 . _1
+
+-- | Operate on the 'Balance'.
+--
+-- @
+-- 'balance' :: 'Lens'' ('Totaled' a) 'Balance'
+-- 'balance' :: 'Lens'' 'Clatch'      'Balance'
+-- @
 
 balance :: Lens' (a, (b, (c, (d, (e, (Balance, f)))))) Balance
 balance = _2 . _2 . _2 . _2 . _2 . _1
 
+-- | Operate on the 'PostFiltset'.
+--
+-- @
+-- 'postFiltset' :: 'Lens'' 'Clatch' 'PostFiltset'
+-- @
 postFiltset :: Lens' (a, (b, (c, (d, (e, (f, (PostFiltset, g))))))) PostFiltset
 postFiltset =  _2 . _2 . _2 . _2 . _2 . _2 . _1
 
@@ -176,7 +271,7 @@ createConverted
 createConverted (Converter f) clatch = set (_2._2) (conv, ()) clatch
   where
     conv = f $ view amount clatch
-    amount = _2._1.onSlice.core. troimount . to c'Amount'Troika
+    amount = _2._1.onSlice.core. troika . to c'Amount'Troika
 
 createPrefilt
   :: (Converted a -> Bool)
@@ -276,9 +371,13 @@ addSerials
 
 clatchesFromTransactions
   :: Converter
+  -- ^ Converts amounts
   -> (Converted () -> Bool)
+  -- ^ Filters 'Converted'
   -> (Prefilt () -> Prefilt () -> Ordering)
+  -- ^ Sorts 'Prefilt'
   -> (Totaled () -> Bool)
+  -- ^ Filters 'Totaled'
   -> Seq Transaction
   -> Seq Clatch
 clatchesFromTransactions converter pConverted sorter pTotaled

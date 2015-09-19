@@ -67,7 +67,7 @@ groupers (History hist) mayCy = fromMaybe allGroupers $ do
 
 
 vote :: Posting -> History
-vote = Lens.view (core . troimount . to make)
+vote = Lens.view (core . troika . to make)
   where
     make tri = case T.troikaRendering tri of
       Nothing -> mempty
@@ -111,8 +111,8 @@ arrangements (History hist)
 
 -- | Determines whether to use a space between the commodity and the
 -- magnitude. Defaults to using a space.
-spaceBetween :: History -> Maybe Commodity -> SpaceBetween
-spaceBetween (History hist) mayCom = fromMaybe True $ thisCy <|> allCy
+isSpaceBetween :: History -> Maybe Commodity -> SpaceBetween
+isSpaceBetween (History hist) mayCom = fromMaybe True $ thisCy <|> allCy
   where
     thisCy = do
       cy <- mayCom
