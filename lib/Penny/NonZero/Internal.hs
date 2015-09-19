@@ -2,7 +2,6 @@
 module Penny.NonZero.Internal where
 
 import Penny.Natural.Internal
-import Penny.Offset
 import Penny.Semantic
 import Penny.Polar
 
@@ -44,6 +43,3 @@ nonZeroToPositive (NonZero i) = Positive (abs i)
 -- | Changes a 'Positive' to a positive 'NonZero'.
 c'NonZero'Positive :: Positive -> NonZero
 c'NonZero'Positive (Positive i) = NonZero i
-
-instance HasOffset NonZero where
-  offset (NonZero i) = NonZero . negate $ i

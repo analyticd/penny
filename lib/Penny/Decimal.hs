@@ -53,7 +53,6 @@ import qualified Data.Sequence as S
 import Penny.Display
 import Penny.Natural
 import Penny.NonZero
-import Penny.Offset
 import Penny.Polar
 import Penny.Representation
 import Penny.Semantic
@@ -159,9 +158,6 @@ type DecNonZero = Exponential NonZero
 
 class HasDecNonZero a where
   toDecNonZero :: a -> DecNonZero
-
-instance HasOffset (Exponential NonZero) where
-  offset (Exponential sig expt) = Exponential (offset sig) expt
 
 decNonZeroToDecimal :: DecNonZero -> Decimal
 decNonZeroToDecimal (Exponential nz u) = Exponential (nonZeroToInteger nz) u
