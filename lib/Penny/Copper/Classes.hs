@@ -4,7 +4,6 @@ module Penny.Copper.Classes where
 
 import Penny.Representation
 import Penny.DateTime
-import Penny.Side
 import Penny.PluMin
 import Penny.Copper.Types
 import Penny.Copper.Parser
@@ -257,9 +256,6 @@ instance Renderable RadCom where render = rRadCom
 
 instance Parseable RadPer where parser = pRadPer
 instance Renderable RadPer where render = rRadPer
-
-instance Parseable Side where parser = pSide
-instance Renderable Side where render = rSide
 
 instance Parseable Zero where parser = pZero
 instance Renderable Zero where render = rZero

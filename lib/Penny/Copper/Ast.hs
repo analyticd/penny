@@ -12,7 +12,7 @@ import Penny.Copper.Date
 import Penny.Digit
 import Penny.DateTime
 import Penny.Representation
-import Penny.Side
+import Penny.Polar
 import Penny.PluMin
 import Penny.Display
 import Data.List (intersperse)
@@ -505,17 +505,17 @@ rNeutral neu = case neu of
 -- the AST should actually produce something.  Instead,
 -- 'Penny.Trio.E' is indicated by the absense of any 'TrioA'.
 data TrioA
-  = QcCyOnLeftA (Fs Side) (Fs CommodityOnLeftA) NonNeutral
+  = QcCyOnLeftA (Fs Pole) (Fs CommodityOnLeftA) NonNeutral
   -- ^ Non neutral, commodity on left
-  | QcCyOnRightA (Fs Side) (Fs NonNeutral) CommodityOnRightA
+  | QcCyOnRightA (Fs Pole) (Fs NonNeutral) CommodityOnRightA
   -- ^ Non neutral, commodity on right
-  | QSided (Fs Side) NonNeutral
+  | QSided (Fs Pole) NonNeutral
   -- ^ Qty with side only
   | QUnsided Neutral
   -- ^ Qty, with no side
-  | SCA (Fs Side) CommodityA
+  | SCA (Fs Pole) CommodityA
   -- ^ Side and commodity
-  | SA Side
+  | SA Pole
   -- ^ Side only
   | UcCyOnLeftA (Fs CommodityOnLeftA) NonNeutral
   -- ^ Unsigned quantity and commodity only, commodity on left

@@ -6,7 +6,7 @@ import Control.Applicative
 import Data.Sequence (Seq)
 import Text.ParserCombinators.UU.BasicInstances
 import Penny.Representation
-import Penny.Side
+import Penny.Polar
 import Penny.PluMin
 import Penny.Copper.Parser
 
@@ -165,11 +165,13 @@ pRadixRadPer = Radix <$ pSym '.'
 rRadixRadPer :: Radix RadPer -> ShowS
 rRadixRadPer Radix = ('.':)
 
-pSide :: ParserL Side
-pSide = Debit <$ pSym '<' <|> Credit <$ pSym '>'
+pSide :: ParserL Pole
+pSide = debit <$ pSym '<' <|> credit <$ pSym '>'
 
-rSide :: Side -> ShowS
-rSide s = case s of { Debit -> ('<':); Credit -> ('>':) }
+rSide :: Pole -> ShowS
+rSide s
+  | s == debit = ('<':)
+  | otherwise = ('>':)
 
 pSeqDecs :: ParserL g -> ParserL (Seq (g, D9z, Seq D9z))
 pSeqDecs pg = pSeq ((,,) <$> pg <*> pD9z <*> pSeq pD9z)

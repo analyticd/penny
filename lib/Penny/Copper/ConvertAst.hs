@@ -16,7 +16,7 @@ import Penny.Decimal
 import Penny.Display
 import Penny.Commodity
 import Penny.Ents
-import Penny.Exch
+import Penny.NonZero
 import Penny.Trio
 import Penny.Price
 import Penny.PluMin
@@ -347,7 +347,9 @@ c'Exch'Neutral neu = case neu of
   NeuPer nil -> toDecimal . toDecZero $ nil
 
 c'Exch'NonNeutral :: Maybe PluMin -> NonNeutral -> Decimal
-c'Exch'NonNeutral mp nn = toDecimal . align pole $ decPositive
+c'Exch'NonNeutral mp nn = toDecimal . fmap nonZeroToInteger
+  . align pole . fmap c'NonZero'Positive
+  $ decPositive
   where
     decPositive = case nn of
       NonNeutralRadCom _ br -> toDecPositive br
