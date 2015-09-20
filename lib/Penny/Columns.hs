@@ -12,6 +12,7 @@ import Control.Lens
 import Data.Foldable (foldl', toList)
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
+import qualified Data.Time as Time
 import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
@@ -593,6 +594,12 @@ colableDisplayNonLinear f = Columns getCells
 -- | Creates a single column with the date in YYYY-MM-DD format.
 
 instance Colable Date where
+  column = colableDisplayNonLinear
+
+instance Colable Time.Day where
+  column = colableDisplayNonLinear
+
+instance Colable Time.TimeOfDay where
   column = colableDisplayNonLinear
 
 instance Colable Time where

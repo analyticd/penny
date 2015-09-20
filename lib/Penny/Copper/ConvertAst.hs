@@ -217,9 +217,9 @@ c'Scalar'ScalarA :: ScalarA -> Scalar
 c'Scalar'ScalarA sclr = case sclr of
   ScalarUnquotedString us -> SText . c'Text'UnquotedString $ us
   ScalarQuotedString qs -> SText . c'Text'QuotedString $ qs
-  ScalarDate dt -> SDate . c'Date'Day . c'Day'DateA $ dt
-  ScalarTime t -> STime . c'Time'TimeA $ t
-  ScalarZone (ZoneA _ z) -> SZone $ z
+  ScalarDate dt -> SDay . dateToDay . c'Date'Day . c'Day'DateA $ dt
+  ScalarTime t -> STime . c'TimeOfDay'Time . c'Time'TimeA $ t
+  ScalarZone (ZoneA _ z) -> SZone . c'Int'Zone $ z
   ScalarInt i -> SInteger . c'Integer'IntegerA $ i
 
 

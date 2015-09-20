@@ -5,6 +5,7 @@ module Penny.DateTime
   , c'Date'Day
   , dateToDay
   , Time(..)
+  , c'TimeOfDay'Time
   , midnight
   , DateTime(..)
   , ZeroTo59(..)
@@ -12,6 +13,7 @@ module Penny.DateTime
   , Minutes(..)
   , Seconds(..)
   , Zone(..)
+  , c'Int'Zone
   , utcZone
   , dateTimeToUTC
   ) where
@@ -122,6 +124,11 @@ instance SemanticOrd Zone where
 
 data Time = Time Hours Minutes Seconds
   deriving (Eq, Ord, Show)
+
+c'TimeOfDay'Time :: Time -> T.TimeOfDay
+c'TimeOfDay'Time (Time h (Minutes m) (Seconds s))
+  = T.TimeOfDay (c'Int'Hours h) (c'Int'ZeroTo59 m)
+  (fromIntegral . c'Int'ZeroTo59 $ s)
 
 instance SemanticEq Time where
   (Time xh (Minutes xm) (Seconds xs)) ==@
