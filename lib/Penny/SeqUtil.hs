@@ -15,6 +15,7 @@ module Penny.SeqUtil
   , partitionEithers
   , filterM
   , intersperse
+  , singleSeq
 
   -- * Slices
   , Slice(..)
@@ -30,6 +31,7 @@ module Penny.SeqUtil
   ) where
 
 import Control.Lens.TH
+import Control.Lens.Cons (uncons)
 import Data.Sequence
 import qualified Data.Traversable as T
 import qualified Data.Foldable as F
@@ -110,6 +112,13 @@ partitionEithers = F.foldl' f (empty, empty)
     f (l, r) ei = case ei of
       Left a -> (l |> a, r)
       Right a -> (l, r |> a)
+
+singleSeq :: Seq a -> Maybe a
+singleSeq sq = case uncons sq of
+  Nothing -> Nothing
+  Just (x, xs) -> case uncons xs of
+    Nothing -> Just x
+    Just _ -> Nothing
 
 data Slice a = Slice
   { _onLeft :: (Seq a)

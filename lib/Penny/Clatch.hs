@@ -38,6 +38,7 @@ module Penny.Clatch
   -- * Lenses and Functions on clatches and compatible types
   , transaction
   , slice
+  , posting
   , converted
   , best
   , preFiltset
@@ -182,6 +183,22 @@ transaction = _1
 
 slice :: Lens' (a, (Slice Posting, b)) (Slice Posting)
 slice = _2 . _1
+
+-- | Operates on the 'Posting' in the 'Slice'.
+--
+-- @
+-- 'posting' :: 'Lens'' ('Sliced' a)    'Posting'
+-- 'posting' :: 'Lens'' ('Converted' a) 'Posting'
+-- 'posting' :: 'Lens'' ('Prefilt' a)   'Posting'
+-- 'posting' :: 'Lens'' ('Sorted' a)    'Posting'
+-- 'posting' :: 'Lens'' ('Totaled' a)   'Posting'
+-- 'posting' :: 'Lens'' 'Clatch'        'Posting'
+-- @
+
+posting :: Lens' (a, (Slice Posting, b)) Posting
+posting = slice . onSlice
+
+
 
 -- | Operate on the converted 'Amount'.  There is no converted
 -- 'Amount' if the 'Converter' did not specify a conversion.

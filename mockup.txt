@@ -25,10 +25,12 @@
 # 
 # This is a flexible framework that allows you to use parent nodes as
 # labels and child nodes as corresponding values.
-# 
-# A top line is followed by a number of postings.  A posting consists of
-# an optional amount, followed by an optional list of rose trees.
-#
+ 
+# A top line is followed by a number of postings.  A posting consists
+# of an optional amount, followed by an optional list of rose trees.
+# If there is a list of rose trees in the posting, it must be
+# bracketed (unlike the top line, where there can be no brackets).
+
 # Standard field names:
 #
 # payee
