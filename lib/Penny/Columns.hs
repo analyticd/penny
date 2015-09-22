@@ -253,6 +253,9 @@ instance Colable Bool where
 instance Colable Integer where
   column f = column (X.pack . show . f)
 
+instance Colable Int where
+  column f = column (X.pack . show . f)
+
 instance Colable Unsigned where
   column f = column (naturalToInteger . f)
 
@@ -321,10 +324,6 @@ commodityCell env maySide orient cy = Cell
 instance Colable (Maybe Pole) where
   column f = Columns $ \env ->
     Seq.singleton (sideCell env (f (_clatch env)))
-
-instance Colable Pole where
-  column f = Columns $ \env ->
-    Seq.singleton (sideCell env (Just . f . _clatch $ env))
 
 qtyRepAnyRadixMagnitudeChunk
   :: Env
@@ -660,3 +659,14 @@ instance Colable (Seq Tree) where
                   childrenTxt
                     | tree ^. Penny.Tree.children . to Seq.null = mempty
                     | otherwise = "↓"
+
+-- | Shows each Scalar, each separated by a bullet.
+instance Colable (Seq Scalar) where
+  column f = Columns getCells
+    where
+      getCells env = Seq.singleton $ textCell _nonLinear (view clatch env)
+        (view colors env) txt
+        where
+          txt = foldl (<>) mempty
+            . intersperse "•" . fmap (X.pack . ($ "") . display)
+            . f . _clatch $ env
