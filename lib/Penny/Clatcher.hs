@@ -71,16 +71,16 @@ data Clatcher r l = Clatcher
   -- For example, this can be useful to convert a commodity to its
   -- value in your home currency.
 
-  , _pre :: Converted () -> Bool
+  , _sieve :: Converted () -> Bool
   -- ^ Controls pre-filtering
 
   , _sort :: Prefilt () -> Prefilt () -> Ordering
   -- ^ Sorts postings; this is done after pre-filtering but before post-filtering.
 
-  , _post :: Totaled () -> Bool
+  , _screen :: Totaled () -> Bool
   -- ^ Controls post-filtering
 
-  , _out :: IO Stream
+  , _output :: IO Stream
   -- ^ The destination stream for the report.
 
   , _report :: r
@@ -97,11 +97,11 @@ makeLenses ''Clatcher
 --
 -- 'mempty' for '_converter'
 --
--- 'const' 'True' for '_pre'
+-- 'const' 'True' for '_sieve'
 --
 -- 'mempty' for '_sort'
 --
--- 'const' 'True' for '_post'
+-- 'const' 'True' for '_screen'
 --
 -- 'return' 'mempty' for '_out'
 --
@@ -113,11 +113,11 @@ makeLenses ''Clatcher
 --
 -- 'mappend' for '_converter'
 --
--- for '_pre' and '_post', returns 'True' only if both operands return 'True'
+-- for '_sieve' and '_screen', returns 'True' only if both operands return 'True'
 --
 -- 'mappend' for '_sort'
 --
--- 'mappend' both streams for '_out'
+-- 'mappend' both streams for '_output'
 --
 -- returns the results of both '_report'
 --
@@ -126,20 +126,20 @@ makeLenses ''Clatcher
 instance Monoid r => Monoid (Clatcher r l) where
   mempty = Clatcher
     { _converter = mempty
-    , _pre = const True
+    , _sieve = const True
     , _sort = mempty
-    , _post = const True
-    , _out = return mempty
+    , _screen = const True
+    , _output = return mempty
     , _report = mempty
     , _load = mempty
     }
 
   mappend x y = Clatcher
     { _converter = _converter x <> _converter y
-    , _pre = \a -> _pre x a && _pre y a
+    , _sieve = \a -> _sieve x a && _sieve y a
     , _sort = _sort x <> _sort y
-    , _post = \a -> _post x a && _post y a
-    , _out = (<>) <$> (_out x) <*> (_out y)
+    , _screen = \a -> _screen x a && _screen y a
+    , _output = (<>) <$> (_output x) <*> (_output y)
     , _report = _report x <> _report y
     , _load = _load x <> _load y
     }
@@ -158,8 +158,8 @@ getReport opts items
   where
     hist = elect . snd $ items
     clatches
-      = clatchesFromTransactions (opts ^. converter) (opts ^. pre)
-                                 (opts ^. sort) (opts ^. post)
+      = clatchesFromTransactions (opts ^. converter) (opts ^. sieve)
+                                 (opts ^. sort) (opts ^. screen)
                                  (snd items)
 
 clatcher
@@ -169,4 +169,4 @@ clatcher
 clatcher opts = do
   items <- loadTransactions (opts ^. load)
   let rpt = getReport opts items
-  feedStream (opts ^. out) rpt (return ())
+  feedStream (opts ^. output) rpt (return ())

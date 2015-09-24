@@ -62,10 +62,10 @@ module Penny.Representation
   , ungroupNilGrouped
   ) where
 
-import Control.Lens
+import Control.Lens ((<|), (|>))
 import Control.Monad (join)
 import Data.Sequence (Seq, ViewR(..), ViewL(..))
-import Data.Monoid
+import Data.Monoid ((<>))
 import qualified Data.Sequence as S
 import Penny.Digit
 import Penny.NonEmpty

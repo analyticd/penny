@@ -14,14 +14,14 @@ module Penny.Ents
   , ImbalancedError(..)
   ) where
 
-import Control.Lens
-import Data.Sequence (Seq, viewl, ViewL(..))
+import Control.Lens ((<|), (|>))
+import Data.Sequence (Seq, viewl, ViewL(EmptyL, (:<)))
 import qualified Data.Sequence as S
 import Penny.Amount
 import Penny.Balance
 import Penny.Commodity
 import Penny.Decimal
-import Data.Monoid
+import Data.Monoid ((<>))
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import qualified Data.Text as X
