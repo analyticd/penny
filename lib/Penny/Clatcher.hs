@@ -8,6 +8,7 @@ import Data.Bifunctor
 import Data.Text (Text)
 import qualified Data.Text.IO as X
 import Penny.Clatch
+import Penny.Colors
 import Penny.Converter
 import Penny.Copper
 import Penny.Ents
@@ -83,7 +84,10 @@ data Clatcher r l = Clatcher
   , _output :: IO Stream
   -- ^ The destination stream for the report.
 
-  , _report :: r
+  , _colors :: Colors
+  -- ^ What colors to use for reports
+
+  , _report :: Seq r
   -- ^ What report to print
 
   , _load :: Seq l
@@ -105,6 +109,8 @@ makeLenses ''Clatcher
 --
 -- 'return' 'mempty' for '_out'
 --
+-- 'mempty' for '_colors'
+--
 -- 'mempty' '_report'
 --
 -- 'mempty' '_load'
@@ -119,17 +125,20 @@ makeLenses ''Clatcher
 --
 -- 'mappend' both streams for '_output'
 --
+-- 'mappend' for '_colors'
+--
 -- returns the results of both '_report'
 --
 -- returns the results of both '_load'
 
-instance Monoid r => Monoid (Clatcher r l) where
+instance Monoid (Clatcher r l) where
   mempty = Clatcher
     { _converter = mempty
     , _sieve = const True
     , _sort = mempty
     , _screen = const True
     , _output = return mempty
+    , _colors = mempty
     , _report = mempty
     , _load = mempty
     }
@@ -140,6 +149,7 @@ instance Monoid r => Monoid (Clatcher r l) where
     , _sort = _sort x <> _sort y
     , _screen = \a -> _screen x a && _screen y a
     , _output = (<>) <$> (_output x) <*> (_output y)
+    , _colors = _colors x <> _colors y
     , _report = _report x <> _report y
     , _load = _load x <> _load y
     }
@@ -154,7 +164,7 @@ getReport
   -> (Seq Price, Seq Transaction)
   -> Seq (Chunk Text)
 getReport opts items
-  = printReport (opts ^. report) hist clatches
+  = printReport (opts ^. report) (opts ^. colors) hist clatches
   where
     hist = elect . snd $ items
     clatches

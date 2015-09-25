@@ -50,6 +50,7 @@ import qualified Data.Sequence as Seq
 import Penny.Troika
 import Penny.Polar (Pole, equatorial)
 import qualified Penny.Polar as P
+import Penny.Report
 
 data Env = Env
   { _clatch :: Clatch
@@ -156,6 +157,10 @@ table hist clrs col clatches
     mkDataRow clatch = ($ env) . (^. _Wrapped) $ col
       where
         env = Env clatch hist clrs
+
+instance Report Columns where
+  printReport sq clrs hist cltchs
+    = table hist clrs (foldl' mappend mempty sq) cltchs
 
 
 class Colable a where
