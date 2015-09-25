@@ -6,7 +6,6 @@ import Penny.Copper.Parser
 import Text.ParserCombinators.UU.BasicInstances
 import Control.Applicative
 import Penny.Copper.Types
-import Penny.Semantic
 import Penny.Digit
 
 data DateSep = DateSlash | DateHyphen
@@ -125,22 +124,6 @@ data MonthDay
   | Dec One Two       DateSep Days31
   deriving (Eq, Ord, Show)
 
-instance SemanticEq MonthDay where
-  a ==@ b = case (a, b) of
-    (Jan _ _ _ x, Jan _ _ _ y) -> x == y
-    (Feb _ _ _ x, Feb _ _ _ y) -> x == y
-    (Mar _ _ _ x, Mar _ _ _ y) -> x == y
-    (Apr _ _ _ x, Apr _ _ _ y) -> x == y
-    (May _ _ _ x, May _ _ _ y) -> x == y
-    (Jun _ _ _ x, Jun _ _ _ y) -> x == y
-    (Jul _ _ _ x, Jul _ _ _ y) -> x == y
-    (Aug _ _ _ x, Aug _ _ _ y) -> x == y
-    (Sep _ _ _ x, Sep _ _ _ y) -> x == y
-    (Oct _ _ _ x, Oct _ _ _ y) -> x == y
-    (Nov _ _ _ x, Nov _ _ _ y) -> x == y
-    (Dec _ _ _ x, Dec _ _ _ y) -> x == y
-    _ -> False
-
 c'MonthDay'Ints
   :: (Integral a, Integral b)
   => DateSep
@@ -244,10 +227,6 @@ c'Year'Int a
 
 data NonLeapDay = NonLeapDay Year DateSep MonthDay
   deriving (Eq, Ord, Show)
-
-instance SemanticEq NonLeapDay where
-  (NonLeapDay yx _ mx) ==@ (NonLeapDay yy _ my)
-    = (yx == yy) && (mx ==@ my)
 
 pNonLeapDay :: ParserL NonLeapDay
 pNonLeapDay = NonLeapDay <$> pYear <*> pDateSep <*> pMonthDay
@@ -423,10 +402,6 @@ data LeapDay = LeapDay
   Two Nine
   deriving (Eq, Ord, Show)
 
-instance SemanticEq LeapDay where
-  (LeapDay eix _ _ _ _ _ _) ==@
-    (LeapDay eiy _ _ _ _ _ _) = eix == eiy
-
 pLeapDay :: ParserL LeapDay
 pLeapDay
   = LeapDay
@@ -450,9 +425,6 @@ rLeapDay (LeapDay y s1 m0 m2 s2 d2 d9)
 
 newtype DateA = DateA (Either NonLeapDay LeapDay)
   deriving (Eq, Ord, Show)
-
-instance SemanticEq DateA where
-  (DateA x) ==@ (DateA y) = x ==@ y
 
 pDateA :: ParserL DateA
 pDateA = DateA <$> (Left <$> pNonLeapDay <|> Right <$> pLeapDay)

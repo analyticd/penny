@@ -45,20 +45,31 @@ module Penny.Decimal
   , displayDecimalAsQty
   ) where
 
-import Control.Lens
+import Control.Lens (view, makeLenses, to, over, (<|), set)
 import Control.Monad (join)
 import Data.List (genericSplitAt, genericReplicate)
-import Data.Monoid
+import Data.Monoid ((<>))
+import Data.Ord (comparing)
 import qualified Data.Sequence as S
+
 import Penny.Display
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar
 import Penny.Representation
-import Penny.Semantic
 
 -- | Numbers represented exponentially.  In @Exponential c p@, the
 -- value of the number is @c * 10 ^ (-1 * naturalToInteger p)@.
+--
+-- The 'Eq' and 'Ord' instances use 'equalizeExponents' first.
+-- Therefore, for example, @3.5 == 3.500@ is 'True', even though the
+-- values for both '_coefficient' and '_power' are different.
+-- Similarly, @3.5 < 3.500@ is 'False', even though @3.5@ has a
+-- '_coefficient' that is less than the '_coefficient' for @3.500@.
+-- Usually this is what you want.  However, if it's not what you want,
+-- just remove the '_coefficient' and the '_power' and put them into a
+-- pair and then compare those using the derived instances of 'Eq' and
+-- 'Ord'.
 data Exponential c = Exponential
   { _coefficient :: !c
   -- ^ The significant digits; also known as the significand or the mantissa.
@@ -73,9 +84,19 @@ instance Polar c => Polar (Exponential c) where
   align pole = over coefficient (align pole)
 
 instance Equatorial c => Equatorial (Exponential c) where
-  equatorial c = c ^. coefficient . to equatorial
+  equatorial = view (coefficient . to equatorial)
 
 type Decimal = Exponential Integer
+
+instance (Eq a, Pow a) => Eq (Exponential a) where
+  x == y = view coefficient x' == view coefficient y'
+    where
+      (x', y') = equalizeExponents x y
+
+instance (Ord a, Pow a) => Ord (Exponential a) where
+  compare x y = comparing (view coefficient) x' y'
+    where
+      (x', y') = equalizeExponents x y
 
 -- | Class for things that can be converted to a 'Decimal'.
 class HasDecimal a where
@@ -171,32 +192,11 @@ decimalToDecNonZero (Exponential signif expt) = case integerToNonZero signif of
 -- | Decimals that are unsigned; they may be zero.
 type DecUnsigned = Exponential Unsigned
 
-instance Eq (Semantic (Exponential Unsigned)) where
-  Semantic x == Semantic y = x' == y'
-    where
-      (Exponential x' _, Exponential y' _) = equalizeExponents x y
-
-instance Ord (Semantic (Exponential Unsigned)) where
-  compare (Semantic x) (Semantic y) = compare x' y'
-    where
-      (Exponential x' _, Exponential y' _) = equalizeExponents x y
-
-
 class HasDecUnsigned a where
   toDecUnsigned :: a -> DecUnsigned
 
 -- | Decimals that are positive; they may not be zero.
 type DecPositive = Exponential Positive
-
-instance Eq (Semantic (Exponential Positive)) where
-  Semantic x == Semantic y = x' == y'
-    where
-      (Exponential x' _, Exponential y' _) = equalizeExponents x y
-
-instance Ord (Semantic (Exponential Positive)) where
-  compare (Semantic x) (Semantic y) = compare x' y'
-    where
-      (Exponential x' _, Exponential y' _) = equalizeExponents x y
 
 class HasDecPositive a where
   toDecPositive :: a -> DecPositive
@@ -416,7 +416,7 @@ repDecimal ei d = case ei of
       $ d
     Just grpr -> case repUngroupedDecimal Radix d of
       Moderate nilUngr -> Moderate . NilU $ nilUngr
-      Extreme plr -> case groupBrimUngrouped grpr (plr ^. charged) of
+      Extreme plr -> case groupBrimUngrouped grpr (view charged plr) of
         Nothing -> Extreme . fmap BrimUngrouped $ plr
         Just bg -> Extreme (set charged (BrimGrouped bg) plr)
 
@@ -428,7 +428,7 @@ repDecimal ei d = case ei of
       $ d
     Just grpr -> case repUngroupedDecimal Radix d of
       Moderate nilUngr -> Moderate . NilU $ nilUngr
-      Extreme plr -> case groupBrimUngrouped grpr (plr ^. charged) of
+      Extreme plr -> case groupBrimUngrouped grpr (view charged plr) of
         Nothing -> Extreme . fmap BrimUngrouped $ plr
         Just bg -> Extreme (set charged (BrimGrouped bg) plr)
 

@@ -28,6 +28,7 @@ module Penny.Natural
   , novDecsToPositive
   , stripIntegerSign
   , positiveDigits
+  , absolute
   ) where
 
 import Penny.Natural.Internal

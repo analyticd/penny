@@ -15,7 +15,6 @@ import Penny.NonZero
 import qualified Data.Map as M
 import Data.Sequence (Seq)
 import Penny.Mimode
-import Penny.Semantic
 import qualified Penny.Troika as K
 
 -- | Given a particular 'Commodity', deliver the correct 'Arrangement'
@@ -199,8 +198,8 @@ rnnIsSmallerAbsoluteValue qnr qnz
   | qnr' < qnz' = return ()
   | otherwise = Left $ UnsignedTooLarge qnr qnz
   where
-    qnr' = Semantic . either toDecPositive toDecPositive $ qnr
-    qnz' = Semantic . toDecPositive $ qnz
+    qnr' = either toDecPositive toDecPositive qnr
+    qnz' = toDecPositive qnz
 
 trioToAmount :: Imbalance -> Trio -> Either TrioError Amount
 

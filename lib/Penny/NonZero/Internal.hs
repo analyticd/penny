@@ -2,11 +2,10 @@
 module Penny.NonZero.Internal where
 
 import Penny.Natural.Internal
-import Penny.Semantic
 import Penny.Polar
 
 newtype NonZero = NonZero { nonZeroToInteger :: Integer }
-  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
+  deriving (Eq, Ord, Show)
 
 instance Polar NonZero where
   polar (NonZero i)

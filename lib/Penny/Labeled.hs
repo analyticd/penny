@@ -7,9 +7,7 @@ import Control.Monad (guard)
 import Penny.Clatch
 import Penny.Tree
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 import Penny.Scalar
-import Data.Maybe
 import Penny.Realm
 import Data.Text (Text)
 import Penny.SeqUtil

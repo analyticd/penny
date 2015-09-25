@@ -2,19 +2,17 @@
 {-# OPTIONS_HADDOCK not-home #-}
 module Penny.Natural.Internal where
 
-import Control.Lens (makeWrapped)
 import Penny.Digit
 import Data.Foldable (toList)
 import Data.Sequence (Seq, ViewR(..), viewr)
 import Penny.Polar
-import Penny.Semantic
 
 -- Do not try to make 'Positive' an instance of 'Wrapped' in Lens.
 -- That would allow the user to make a 'Positive' with any 'Integer',
 -- which would break type safety.
 
 newtype Positive = Positive { positiveToInteger :: Integer }
-  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
+  deriving (Eq, Ord, Show)
 
 class IsPositive a where
   toPositive :: a -> Positive
@@ -44,7 +42,7 @@ instance IsPositive D9 where toPositive = Positive . digitToInt
 
 -- | An integral value that is at least zero.
 newtype Unsigned = Unsigned { unsignedToInteger :: Integer }
-  deriving (Eq, Ord, Show, SemanticEq, SemanticOrd)
+  deriving (Eq, Ord, Show)
 
 class IsUnsigned a where
   toUnsigned :: a -> Unsigned
@@ -122,6 +120,14 @@ subt :: Unsigned -> Unsigned -> Maybe Unsigned
 subt (Unsigned x) (Unsigned y)
   | y > x = Nothing
   | otherwise = Just . Unsigned $ x - y
+
+-- | Converts an 'Integer' to an 'Unsigned' by stripping any negative
+-- sign.
+
+absolute :: Integer -> Unsigned
+absolute i
+  | i < 0 = Unsigned . negate $ i
+  | otherwise = Unsigned i
 
 class Pow a where
   -- | Take the original number and multiply it by ten raised to the
