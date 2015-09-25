@@ -131,7 +131,7 @@ withStream acq useCsmr = bracketOnError acq terminate
 
 
 class Streamable a where
-  toStream :: a -> IO Stream
+  stream :: a -> IO Stream
 
 -- | Record for data to create a process that reads from its standard input.
 data StdinProcess = StdinProcess
@@ -148,7 +148,7 @@ instance Monoid StdinProcess where
 
 
 instance Streamable (Colorable StdinProcess) where
-  toStream (Colorable clrs stp) = do
+  stream (Colorable clrs stp) = do
     chooser <- tputColors
     let clrzr = colorizer (clrs ^. (runLens chooser))
     streamToStdin (_programName stp) (_programArgs stp) clrzr
@@ -168,7 +168,7 @@ instance Monoid FileSink where
 makeLenses ''FileSink
 
 instance Streamable (Colorable FileSink) where
-  toStream (Colorable clrs (FileSink fn apnd)) = do
+  stream (Colorable clrs (FileSink fn apnd)) = do
     chooser <- tputColors
     let clrzr = colorizer (clrs ^. (runLens chooser))
     streamToFile apnd fn clrzr

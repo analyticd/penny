@@ -16,6 +16,7 @@ import Penny.Decimal
 import Penny.Display
 import Penny.Commodity
 import Penny.Ents
+import Penny.Natural
 import Penny.NonZero
 import Penny.Trio
 import Penny.Price
@@ -339,13 +340,25 @@ c'Transaction'TransactionA txn = case txn of
     bal <- c'Balanced'PostingsA pstgs
     return (Seq.empty, bal)
 
-c'Exch'Neutral :: Neutral -> Decimal
-c'Exch'Neutral neu = case neu of
-  NeuCom _ nil -> toDecimal . toDecZero $ nil
-  NeuPer nil -> toDecimal . toDecZero $ nil
+c'DecZero'Neutral :: Neutral -> DecZero
+c'DecZero'Neutral neu = case neu of
+  NeuCom _ nil -> toDecZero nil
+  NeuPer nil -> toDecZero nil
 
-c'Exch'NonNeutral :: Maybe PluMin -> NonNeutral -> Decimal
-c'Exch'NonNeutral mp nn = toDecimal . fmap nonZeroToInteger
+c'DecPositive'NonNeutral :: NonNeutral -> DecPositive
+c'DecPositive'NonNeutral nn = case nn of
+  NonNeutralRadCom _ br -> toDecPositive br
+  NonNeutralRadPer br -> toDecPositive br
+
+c'DecUnsigned'NeutralOrNon :: NeutralOrNon -> DecUnsigned
+c'DecUnsigned'NeutralOrNon nn = case nn of
+  NeutralOrNonRadCom _ ei -> either ((toUnsigned Zero <$) . toDecZero)
+    (fmap positiveToUnsigned . toDecPositive) ei
+  NeutralOrNonRadPer ei -> either ((toUnsigned Zero <$) . toDecZero)
+    (fmap positiveToUnsigned . toDecPositive) ei
+
+c'Decimal'NonNeutral :: Maybe PluMin -> NonNeutral -> Decimal
+c'Decimal'NonNeutral mp nn = toDecimal . fmap nonZeroToInteger
   . align pole . fmap c'NonZero'Positive
   $ decPositive
   where
@@ -357,15 +370,15 @@ c'Exch'NonNeutral mp nn = toDecimal . fmap nonZeroToInteger
       Just Plus -> positive
       Just Minus -> negative
 
-c'Exch'ExchA
+c'Decimal'ExchA
   :: ExchA
   -> Decimal
-c'Exch'ExchA exch = case exch of
-  ExchANeutral n -> c'Exch'Neutral n
-  ExchANonNeutral m n -> c'Exch'NonNeutral (fmap (\(Fs x _) -> x) m) n
+c'Decimal'ExchA exch = case exch of
+  ExchANeutral n -> toDecimal . c'DecZero'Neutral $ n
+  ExchANonNeutral m n -> c'Decimal'NonNeutral (fmap (\(Fs x _) -> x) m) n
 
 c'CommodityExch'CyExch :: CyExch -> (Commodity, Decimal)
-c'CommodityExch'CyExch cye = (c'Commodity'CommodityA cy, c'Exch'ExchA ea)
+c'CommodityExch'CyExch cye = (c'Commodity'CommodityA cy, c'Decimal'ExchA ea)
   where
     (cy, ea) = case cye of
       CyExchCy (Fs c _) e -> (c, e)
