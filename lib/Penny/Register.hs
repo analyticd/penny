@@ -6,9 +6,9 @@ import Control.Lens
   ( makeLenses
   )
 import Data.Monoid ((<>))
+import Penny.Colors
 import Penny.Columns
   ( Columns
-  , Colors
   , table
   )
 import Penny.Report
