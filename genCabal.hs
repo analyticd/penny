@@ -159,7 +159,7 @@ props = blank
   , buildType = Just simple
   , license = Just bsd3
   , licenseFile = "LICENSE"
-  , copyright = "2012 - 2014 Omari Norman"
+  , copyright = "2012 - 2015 Omari Norman"
   , author = "Omari Norman"
   , maintainer = "omari@smileystation.com"
   , stability = "Experimental"
@@ -177,7 +177,6 @@ props = blank
     , "<http://www.github.com/massysett/penny>"
     ]
   , category = "Console, Finance"
-  , testedWith = let f v = (ghc, eq v) in map f [[7,6,2], [7,8,3]]
   }
 
 main :: IO ()
@@ -194,15 +193,7 @@ main = defaultMain $ do
     ,   exposedModules libMods
       : buildDepends libraryDepends
       : commonOptions
-    , [ testSuite "penny-properties" $
-          otherModules (testMods ++ libMods)
-        : buildDepends (libraryDepends ++ testDepends)
-        : hsSourceDirs ["tests"]
-        : defaultExtensions ["TemplateHaskell"]
-        : ghcOptions ["-threaded"]
-        : exitcodeFields "penny-properties.hs"
-        ++ commonOptions
-      , githubHead "massysett" "penny"
+    , [ githubHead "massysett" "penny"
       , executable "copper-parse" $
           [ mainIs "copper-parse.hs"
           , condBlock (flag copper)

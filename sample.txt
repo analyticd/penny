@@ -1,4 +1,0 @@
-2015-09-01, Aldi
-  { < $28.50 [[Expenses, Food, Groceries], 101]
-  ; [[Assets, Current, Checking]]
-  }

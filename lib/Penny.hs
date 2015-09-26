@@ -4,11 +4,11 @@
 -- This interface is intended to be simple but as powerful as possible.
 
 module Penny
-  ( module Penny.Balance
+  ( -- * Re-exported modules
+    -- | All re-exported modules re-export all bindings from that module.
+    module Penny.Balance
   , module Penny.Clatch
   , module Penny.Colorize
-  , module Penny.Colors
-  , module Penny.Columns
   , module Penny.Command
   , module Penny.Commodity
   , module Penny.Decimal
@@ -25,10 +25,24 @@ module Penny
   , module Penny.Stream
   , module Penny.Tree
   , module Penny.Troika
+
+  -- * Other re-exports
+
+  -- | These bindings are re-exported from particular modules.  The
+  -- entire module from which they come is not re-exported.
+
+  , Penny.Colors.Colors
+  , Penny.Columns.Colable
+  , Penny.Columns.Columns
+  , Penny.Clatcher.Clatcher
+  , Penny.Clatcher.clatcher
+  , (<>)
+
   ) where
 
 import Penny.Balance
 import Penny.Clatch
+import Penny.Clatcher (Clatcher, clatcher)
 import Penny.Colorize
 import Penny.Colors (Colors)
 import Penny.Columns (Colable, Columns)
@@ -48,3 +62,5 @@ import Penny.Shortcut
 import Penny.Stream
 import Penny.Tree
 import Penny.Troika
+
+import Data.Monoid ((<>))
