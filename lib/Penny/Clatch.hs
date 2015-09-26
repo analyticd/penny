@@ -51,21 +51,22 @@ module Penny.Clatch
   , clatchesFromTransactions
   ) where
 
+import Penny.Amount
+import Penny.Balance
+import Penny.Converter
+import Penny.Ents (Balanced, balancedToSeqEnt)
+import Penny.SeqUtil
+import Penny.Serial
+import Penny.Tree
+import Penny.Troika
+
 import Control.Lens hiding (index)
 import Control.Monad (join)
 import Data.Bifunctor
 import Data.Bifunctor.Flip
 import Data.Monoid
-import Penny.Amount
-import Penny.Converter
-import Penny.Balance
-import Penny.Ents (Balanced, balancedToSeqEnt)
-import Penny.Tree
-import Penny.Troika
-import Penny.Serial
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Penny.SeqUtil
 import qualified Data.Traversable as T
 import Data.Functor.Compose
 

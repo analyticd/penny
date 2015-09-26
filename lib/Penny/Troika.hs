@@ -2,15 +2,16 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Penny.Troika where
 
-import Control.Lens
-import Data.Sequence (Seq)
-import qualified Penny.Amount as A
 import Penny.Arrangement
-import Penny.Decimal
 import Penny.Commodity
+import Penny.Decimal
+import Penny.NonZero
 import Penny.Polar
 import Penny.Representation
-import Penny.NonZero
+import qualified Penny.Amount as A
+
+import Control.Lens
+import Data.Sequence (Seq)
 
 data Troiload
   = QC RepAnyRadix Arrangement
