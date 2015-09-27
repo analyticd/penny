@@ -30,29 +30,14 @@ containers = atleast "containers" [0,5]
 uuParsing :: Package
 uuParsing = atleast "uu-parsinglib" [2,9,1]
 
--- | Currently unused
-listlike :: Package
-listlike = atleast "ListLike" [4,2]
-
--- | Currently unused
-parsec :: Package
-parsec = atleast "parsec" [3,1,7]
-
 time :: Package
 time = atleast "time" [1,4]
 
 transformers :: Package
 transformers = atleast "transformers" [0,3]
 
--- | Currently unused
-prednote :: Package
-prednote = atleast "prednote" [0,32]
-
 quickcheck :: Package
 quickcheck = atleast "QuickCheck" [2,7,6]
-
-derive :: Package
-derive = atleast "derive" [2,5]
 
 tasty :: Package
 tasty = atleast "tasty" [0,10,1]
@@ -114,7 +99,7 @@ operational = atleast "operational" [0,2,3]
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
-  [ ghcOptions ["-W", "-fwarn-missing-signatures", "-fwarn-orphans"]
+  [ ghcOptions ["-W"]
   , haskell2010
   , hsSourceDirs ["lib"]
   , otherExtensions ["TemplateHaskell"]
@@ -144,12 +129,10 @@ libraryDepends =
   , process
   , anonymousSums
   , void
-  , operational
   ]
 
 testDepends :: [Package]
-testDepends = [ quickcheck, derive, tasty, tastyQuickcheck,
-                tastyTh ]
+testDepends = [ quickcheck, tasty, tastyQuickcheck, tastyTh ]
 
 props :: Properties
 props = blank
@@ -204,5 +187,10 @@ main = defaultMain $ do
               )
               [ buildable False ]
           ]
+      , testSuite "penny-properties" $
+        exitcodeFields "penny-properties.hs" ++
+        commonOptions ++
+        [
+        ]
       ]
     )

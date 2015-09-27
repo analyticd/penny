@@ -32,6 +32,8 @@ module Penny
   -- entire module from which they come is not re-exported.
 
   , Penny.Colors.Colors
+  , Penny.Colors.dark
+  , Penny.Colors.light
   , Penny.Columns.Colable
   , Penny.Columns.Columns
   , Penny.Clatcher.Clatcher
@@ -44,7 +46,7 @@ import Penny.Balance
 import Penny.Clatch
 import Penny.Clatcher (Clatcher, clatcher)
 import Penny.Colorize
-import Penny.Colors (Colors)
+import Penny.Colors (Colors, dark, light)
 import Penny.Columns (Colable, Columns)
 import Penny.Command
 import Penny.Commodity

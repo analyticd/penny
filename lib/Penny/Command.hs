@@ -5,8 +5,8 @@ import Penny.Commodity
 import Penny.Clatch
 import Penny.Clatcher (Clatcher)
 import qualified Penny.Clatcher as Clatcher
-import Penny.Columns (Colable)
-import Penny.Columns (Columns)
+import Penny.Colors
+import Penny.Columns (Colable, Columns)
 import qualified Penny.Columns as Columns
 import Penny.Converter
 import Penny.Copper.Classes
@@ -14,10 +14,12 @@ import Penny.Copper.ConvertAst (c'DecUnsigned'NeutralOrNon)
 import Penny.Copper.Parser
 import Penny.Decimal
 import Penny.Natural
+import Penny.Report
 import Penny.Stream
 
 import Control.Applicative (liftA3)
 import Control.Lens (set)
+import Data.Monoid ((<>))
 import qualified Data.Sequence as Seq
 import Data.Text (Text, unpack)
 import Text.ParserCombinators.UU.BasicInstances (createStr)
@@ -81,6 +83,9 @@ less = output $ stream toLess
 saveAs :: String -> Clatcher r l
 saveAs = output . stream . toFile
 
+colors :: Colors -> Clatcher r l
+colors c = set Clatcher.colors c mempty
+
 -- Report
 
 report :: r -> Clatcher r l
@@ -98,3 +103,9 @@ preload = fmap make . Clatcher.preload
 
 load :: String -> Clatcher r Clatcher.LoadScroll
 load str = set Clatcher.load (Seq.singleton (Clatcher.open str)) mempty
+
+options :: Clatcher r l
+options = colors light <> less
+
+penny :: (Report r, Clatcher.Loader l) => Clatcher r l -> IO ()
+penny c = Clatcher.clatcher (options <> c)
