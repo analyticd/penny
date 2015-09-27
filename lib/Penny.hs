@@ -39,6 +39,7 @@ module Penny
   , Penny.Clatcher.Clatcher
   , Penny.Clatcher.clatcher
   , (<>)
+  , Control.Lens.view
 
   ) where
 
@@ -65,4 +66,5 @@ import Penny.Stream
 import Penny.Tree
 import Penny.Troika
 
+import Control.Lens (view)
 import Data.Monoid ((<>))

@@ -190,7 +190,9 @@ main = defaultMain $ do
       , testSuite "penny-properties" $
         exitcodeFields "penny-properties.hs" ++
         commonOptions ++
-        [
+        [ hsSourceDirs ["properties"]
+        , buildDepends libraryDepends
+        , buildDepends testDepends
         ]
       ]
     )

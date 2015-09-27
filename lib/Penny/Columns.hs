@@ -170,6 +170,11 @@ instance Colable Text where
   column f = Columns $ \env -> Seq.singleton $
     textCell _nonLinear (env ^. clatch) (env ^. colors) (f (env ^. clatch))
 
+instance Colable (Seq Text) where
+  column f = Columns $ \env -> Seq.singleton $
+    textCell _nonLinear (view clatch env) (view colors env)
+             (foldl (<>) mempty . intersperse "•" . f . _clatch $ env)
+
 spaces :: Int -> Columns
 spaces i = column (const ((X.replicate i . X.singleton $ ' ')))
 

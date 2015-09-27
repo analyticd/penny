@@ -299,9 +299,9 @@ trioToTroiload imb (U qnr) = do
 
 trioToTroiload imb (C cy) = do
   qnz <- lookupCommodity imb cy
-  return (K.C qnz, cy)
+  return (K.C (fmap (align (opposite . polar $ qnz)) qnz), cy)
 
 trioToTroiload imb E = do
   (cy, qnz) <- oneCommodity imb
-  return (K.E qnz, cy)
+  return (K.E (fmap (align (opposite . polar $ qnz)) qnz), cy)
 
