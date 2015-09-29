@@ -43,6 +43,13 @@ account = fromMaybe Seq.empty . searchTopForest pd . view (posting . trees)
       accts <- sequence . fmap childlessUserTree . view children $ tree
       sequence . fmap (preview _SText) $ accts
 
+-- | Creates a 'Tree' that will be recognized as an account.
+
+accountTree :: Text -> Seq Text -> Tree
+accountTree c1 sq = Tree User Nothing (mkChild c1 <| fmap mkChild sq)
+  where
+    mkChild txt = Tree User (Just (SText txt)) Seq.empty
+
 -- | Looks for tags by looking in the top line for the first tree
 -- whose root node is empty and that has a non-empty list of children.
 -- Does not look in postings.

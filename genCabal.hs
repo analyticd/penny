@@ -97,6 +97,12 @@ lens = atleast "lens" [4,9]
 operational :: Package
 operational = atleast "operational" [0,2,3]
 
+pretty :: Package
+pretty = atleast "pretty" [1,1,2]
+
+derive :: Package
+derive = atleast "derive" [2,5,22]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
@@ -129,10 +135,11 @@ libraryDepends =
   , process
   , anonymousSums
   , void
+  , pretty
   ]
 
 testDepends :: [Package]
-testDepends = [ quickcheck, tasty, tastyQuickcheck, tastyTh ]
+testDepends = [ quickcheck, tasty, tastyQuickcheck, tastyTh, derive ]
 
 props :: Properties
 props = blank
@@ -193,6 +200,7 @@ main = defaultMain $ do
         [ hsSourceDirs ["properties"]
         , buildDepends libraryDepends
         , buildDepends testDepends
+        , otherModules libMods
         ]
       ]
     )

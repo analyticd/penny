@@ -124,7 +124,7 @@ data Slice a = Slice
   { _onLeft :: (Seq a)
   , _onSlice :: a
   , _onRight :: (Seq a)
-  }
+  } deriving Show
 
 makeLenses ''Slice
 

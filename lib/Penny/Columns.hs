@@ -154,7 +154,7 @@ table hist clrs col clatches
   . fmap (mkDataRow $)
   $ clatches
   where
-    mkDataRow clatch = ($ env) . (^. _Wrapped) $ col
+    mkDataRow clatch = ($ env) . (view _Wrapped) $ col
       where
         env = Env clatch hist clrs
 
