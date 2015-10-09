@@ -13,6 +13,7 @@ import Penny.Copper.Classes
 import Penny.Copper.ConvertAst (c'DecUnsigned'NeutralOrNon)
 import Penny.Copper.Parser
 import Penny.Decimal
+import Penny.Dump (Dump(Dump))
 import Penny.Natural
 import Penny.Report
 import Penny.Stream
@@ -93,6 +94,9 @@ report s = set Clatcher.report (Seq.singleton s) mempty
 
 column :: Colable a => (Clatch -> a) -> Clatcher Columns l
 column f = set Clatcher.report (Seq.singleton $ Columns.column f) mempty
+
+dump :: Clatcher Dump l
+dump = set Clatcher.report (Seq.singleton Dump) mempty
 
 -- Load
 
