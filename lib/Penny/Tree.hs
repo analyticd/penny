@@ -53,8 +53,18 @@ searchTopForest pd
   . fmap pd
   . toList
 
+-- | If the given 'Tree' has no children that are in the 'User' realm,
+-- returns the 'Scalar' of the 'Tree'.  Otherwise, returns 'Nothing'.
 childlessUserTree :: Tree -> Maybe Scalar
 childlessUserTree tree = do
   guard (view realm tree == User)
-  guard (Seq.null . view children $ tree)
+  guard (Seq.null . Seq.filter ((== User) . view realm)
+    . view children $ tree)
   view scalar tree
+
+-- | Returns True if the given Tree is a User tree and if it has at
+-- least one child that is a User tree.
+userTreeHasChild :: Tree -> Bool
+userTreeHasChild tree
+  = view realm tree == User
+  && (not . Seq.null . Seq.filter ((== User) . view realm) . _children $ tree)

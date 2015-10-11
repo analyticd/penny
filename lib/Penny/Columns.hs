@@ -5,32 +5,41 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Penny.Columns where
 
-import Control.Lens
-import Data.Foldable (foldl', toList)
-import qualified Data.Map as M
-import qualified Data.IntMap as IM
-import qualified Data.Time as Time
 import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
 import Penny.Clatch
 import Penny.Colors
+import Penny.Columns.Env
 import Penny.Commodity
 import Penny.DateTime
 import Penny.Decimal
 import Penny.Display
 import Penny.Natural
+import Penny.Polar (Pole, equatorial)
+import qualified Penny.Polar as P
 import Penny.Popularity
 import Penny.Qty
 import Penny.Realm
+import Penny.Report
 import Penny.Representation
 import Penny.Scalar
 import Penny.SeqUtil (intersperse)
 import Penny.Serial
 import Penny.Tree
+import Penny.Troika
+
+import Control.Lens
+  ( to, view, (^.), makeWrapped, (|>), (<|), Getter, makeLenses,
+    (<>~), _Wrapped )
+import Data.Foldable (foldl', toList)
+import qualified Data.Map as M
+import qualified Data.IntMap as IM
+import qualified Data.Time as Time
 import Data.Monoid
 import Data.Text (Text)
 import qualified Data.Text as X
@@ -47,18 +56,6 @@ import Rainbow
 import Rainbow.Types (yarn)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Penny.Troika
-import Penny.Polar (Pole, equatorial)
-import qualified Penny.Polar as P
-import Penny.Report
-
-data Env = Env
-  { _clatch :: Clatch
-  , _history :: History
-  , _colors :: Colors
-  }
-
-makeLenses ''Env
 
 newtype Columns = Columns (Env -> Seq Cell)
 
@@ -72,10 +69,10 @@ instance Monoid Columns where
 
 background :: Clatch -> Colors -> Radiant
 background clatch colors
-  | odd i = colors ^. oddBackground
-  | otherwise = colors ^. evenBackground
+  | odd i = view oddBackground colors
+  | otherwise = view evenBackground colors
   where
-    i = clatch ^. postFiltset.forward.to naturalToInteger
+    i = view (postFiltset.forward.to naturalToInteger) clatch
 
 -- | Removes all entirely empty columns from a table.
 removeEmptyColumns
@@ -94,11 +91,11 @@ removeIfEmpty idx mp
       Nothing -> False
       Just column -> all cellIsEmpty column
         where
-          cellIsEmpty cell = all cellRowIsEmpty (cell ^. rows)
+          cellIsEmpty cell = all cellRowIsEmpty (view rows cell)
             where
               cellRowIsEmpty cellRow = all chunkIsEmpty cellRow
                 where
-                  chunkIsEmpty chunk = X.null (chunk ^. yarn)
+                  chunkIsEmpty chunk = X.null (view yarn chunk)
 
 -- | Makes a single cell with a Text.
 textCell
@@ -111,7 +108,7 @@ textCell
   -> Cell
 textCell fg clatch colors txt = Cell
   { _rows = Seq.singleton . Seq.singleton
-      . back (background clatch colors) . fore (colors ^. to fg)
+      . back (background clatch colors) . fore (fg colors)
       . chunk $ txt
   , _horizontal = top
   , _vertical = left
@@ -124,7 +121,7 @@ spacerColumn
   -> Seq Cell
 spacerColumn clrs = fmap mkSpacerCell
   where
-    mkSpacerCell clatch = textCell _nonLinear clatch clrs " "
+    mkSpacerCell clatch = textCell _nonLinear clatch clrs "  "
 
 addRowToMap :: IM.IntMap (Seq Cell) -> Seq Cell -> IM.IntMap (Seq Cell)
 addRowToMap mp = foldl' addColToMap mp . zip [0..] . toList
@@ -164,22 +161,24 @@ instance Report Columns where
 
 
 class Colable a where
-  column :: (Clatch -> a) -> Columns
+  column :: Getter Clatch a -> Columns
+
 
 instance Colable Text where
   column f = Columns $ \env -> Seq.singleton $
-    textCell _nonLinear (env ^. clatch) (env ^. colors) (f (env ^. clatch))
+    textCell _nonLinear (view clatch env) (view colors env)
+             (view (clatch . f) env)
 
 instance Colable (Seq Text) where
   column f = Columns $ \env -> Seq.singleton $
     textCell _nonLinear (view clatch env) (view colors env)
-             (foldl (<>) mempty . intersperse "•" . f . _clatch $ env)
+             (foldl (<>) mempty . intersperse "•" . view (clatch . f) $ env)
 
 spaces :: Int -> Columns
-spaces i = column (const ((X.replicate i . X.singleton $ ' ')))
+spaces i = column (to (const ((X.replicate i . X.singleton $ ' '))))
 
 spaceCell :: Int -> Env -> Cell
-spaceCell i env = textCell _nonLinear (env ^. clatch) (env ^. colors)
+spaceCell i env = textCell _nonLinear (view clatch env) (view colors env)
   (X.replicate i . X.singleton $ ' ')
 
 singleCell
@@ -187,37 +186,37 @@ singleCell
   => Env
   -> a
   -> Seq Cell
-singleCell env a = ($ env) . (^. _Wrapped) $ column (const a)
+singleCell env a = ($ env) . (view _Wrapped) $ column (to (const a))
 
 instance Colable Bool where
   column f = Columns cell
     where
       cell env = Seq.singleton $ Cell
         { _rows = Seq.singleton . Seq.singleton
-            . back (background (env ^. clatch) (env ^. colors)) . fore fg
+            . back (background (view clatch env) (view colors env)) . fore fg
             . chunk . X.singleton $ char
         , _horizontal = top
         , _vertical = left
-        , _background = background (env ^. clatch) (env ^. colors)
+        , _background = background (view clatch env) (view colors env)
         }
         where
           (char, fg)
-            | f (_clatch env) = ('T', green)
+            | view (clatch . f) env = ('T', green)
             | otherwise = ('F', red)
 
 instance Colable Integer where
-  column f = column (X.pack . show . f)
+  column f = column (f . to (X.pack . show))
 
 instance Colable Int where
-  column f = column (X.pack . show . f)
+  column f = column (f . to (X.pack . show))
 
 instance Colable Unsigned where
-  column f = column (naturalToInteger . f)
+  column f = column (f . to naturalToInteger)
 
 instance Colable a => Colable (Maybe a) where
   column f = Columns g
     where
-      g env = case f (env ^. clatch) of
+      g env = case view (clatch . f) env of
         Nothing -> mempty
         Just v -> singleCell env v
 
@@ -227,11 +226,11 @@ sideCell
   -> Cell
 sideCell env maySide = Cell
   { _rows = Seq.singleton . Seq.singleton
-      . back (background (env ^. clatch) (env ^. colors)) . fore fgColor
+      . back (background (view clatch env) (view colors env)) . fore fgColor
       . chunk $ txt
   , _horizontal = top
   , _vertical = left
-  , _background = background (env ^. clatch) (env ^. colors)
+  , _background = background (view clatch env) (view colors env)
   }
   where
     (fgColor, txt) = case maySide of
@@ -246,7 +245,7 @@ sidedChunk
   -> Text
   -> Chunk Text
 sidedChunk env maySide
-  = back (background (env ^. clatch) (env ^. colors))
+  = back (background (view clatch env) (view colors env))
   . fore fgColor
   . chunk
   where
@@ -268,7 +267,7 @@ commodityCell env maySide orient cy = Cell
       $ cy
   , _horizontal = top
   , _vertical = vertOrient
-  , _background = background (env ^. clatch) (env ^. colors)
+  , _background = background (view clatch env) (view colors env)
   }
   where
     vertOrient
@@ -278,7 +277,7 @@ commodityCell env maySide orient cy = Cell
 
 instance Colable (Maybe Pole) where
   column f = Columns $ \env ->
-    Seq.singleton (sideCell env (f (_clatch env)))
+    Seq.singleton (sideCell env (view (clatch . f) env))
 
 qtyRepAnyRadixMagnitudeChunk
   :: Env
@@ -297,7 +296,7 @@ qtyRepAnyRadixMagnitudeCell
   -> RepAnyRadix
   -> Cell
 qtyRepAnyRadixMagnitudeCell env qr
-  = textCell getColor (env ^. clatch) (env ^. colors)
+  = textCell getColor (view clatch env) (view colors env)
   . X.pack
   . ($ "")
   . either (either display display) (either display display)
@@ -328,7 +327,7 @@ brimScalarAnyRadixMagnitudeCell
   -> BrimScalarAnyRadix
   -> Cell
 brimScalarAnyRadixMagnitudeCell env maySide rnn
-  = textCell getColor (env ^. clatch) (env ^. colors)
+  = textCell getColor (view clatch env) (view colors env)
   . X.pack
   . ($ "")
   . either (either display display) (either display display)
@@ -363,20 +362,20 @@ instance Colable RepAnyRadix where
   column f = Columns getCells
     where
       getCells env = sideCell env maySide
-        <| qtyRepAnyRadixMagnitudeCell env (f . _clatch $ env)
+        <| qtyRepAnyRadixMagnitudeCell env (view (clatch . f) env)
         <| Seq.empty
         where
-          maySide = either equatorial equatorial (f . _clatch $ env)
+          maySide = either equatorial equatorial (view (clatch . f) env)
 
 -- | Creates two columns: one for the side and one for the magnitude.
 instance Colable Qty where
   column f = Columns getCells
     where
-      getCells env = sideCell env (qty ^. _Wrapped . to equatorial)
-        <| qtyMagnitudeCell env Nothing (qty ^. _Wrapped)
+      getCells env = sideCell env (view (_Wrapped . to equatorial) qty)
+        <| qtyMagnitudeCell env Nothing (view _Wrapped qty)
         <| Seq.empty
         where
-          qty = f . _clatch $ env
+          qty = view (clatch . f) env
 
 data TroikaCells = TroikaCells
   { _tmSide :: Maybe Pole
@@ -442,7 +441,7 @@ troimountCellsToColumns env
       , Cell Seq.empty top left bkgd              -- cy on right
       )
 
-    bkgd = background (env ^. clatch) (env ^. colors)
+    bkgd = background (view clatch env) (view colors env)
 
     addRow (side, cyOnLeft, mag, cyOnRight) tc
       = ( addLine side side'
@@ -475,13 +474,12 @@ instance Colable Troika where
     getCells env = troimountCellsToColumns env
       . Seq.singleton
       . troimountCells env
-      . f
-      . Control.Lens.view clatch
+      . Control.Lens.view (clatch . f)
       $ env
 
 -- | Creates same columns as 'Troika'.
 instance Colable Amount where
-  column f = column (c'Troika'Amount . f)
+  column f = column (f . to c'Troika'Amount)
 
 -- | Creates the same columns as for 'Amount', but with one line
 -- for each commodity in the balance.
@@ -493,8 +491,7 @@ instance Colable Balance where
       . Seq.fromList
       . M.assocs
       . Control.Lens.view _Wrapped
-      . f
-      . Control.Lens.view clatch
+      . Control.Lens.view (clatch . f)
       $ env
       where
         makeTroika (cy, qty) = Troika cy (Right qty)
@@ -509,7 +506,7 @@ instance Colable Serset where
         fwdCell
         <> revCell
         where
-          srst = f . _clatch $ env
+          srst = view (clatch . f) env
           fwdCell = singleCell env (srst ^. forward)
           revCell = singleCell env (srst ^. backward)
 
@@ -522,7 +519,7 @@ instance Colable Serpack where
         = fileCells
         <> glblCells
         where
-          serpack = f . _clatch $ env
+          serpack = view (clatch . f) env
           fileCells = singleCell env (serpack ^. file)
           glblCells = singleCell env (serpack ^. global)
 
@@ -531,19 +528,19 @@ instance Colable Realm where
   column f = Columns getCells
     where
       getCells env = Seq.singleton
-        $ textCell _nonLinear (env ^. clatch) (env ^. colors) txt
+        $ textCell _nonLinear (view clatch env) (view colors env) txt
         where
-          txt = case f . _clatch $ env of
+          txt = case view (clatch . f) env of
             User -> "U"
             System -> "S"
 
-colableDisplayNonLinear :: Display a => (Clatch -> a) -> Columns
+colableDisplayNonLinear :: Display a => Getter Clatch a -> Columns
 colableDisplayNonLinear f = Columns getCells
     where
       getCells env = Seq.singleton
-        $ textCell _nonLinear (env ^. clatch) (env ^. colors) txt
+        $ textCell _nonLinear (view clatch env) (view colors env) txt
         where
-          txt = X.pack . ($ "") . display . f . _clatch $ env
+          txt = X.pack . ($ "") . display . view (clatch . f) $ env
 
 -- | Creates a single column with the date in YYYY-MM-DD format.
 
@@ -571,11 +568,11 @@ instance Colable Scalar where
 instance Colable (Maybe Scalar) where
   column f = Columns getCells
     where
-      getCells env = case f . _clatch $ env of
+      getCells env = case view (clatch . f) $ env of
         Nothing -> Seq.singleton
-          $ textCell _nonLinear (env ^. clatch) (env ^. colors) "--"
+          $ textCell _nonLinear (view clatch env) (view colors env) "--"
         Just sc -> Seq.singleton
-          $ textCell _nonLinear (env ^. clatch) (env ^. colors)
+          $ textCell _nonLinear (view clatch env) (view colors env)
           . X.pack . ($ "") . display $ sc
 
 -- | Shows the scalar.  Does not show the children; if there are
@@ -584,23 +581,24 @@ instance Colable Tree where
   column f = Columns getCells
     where
       getCells env = Seq.singleton
-        $ textCell _nonLinear (env ^. clatch) (env ^. colors) txt
+        $ textCell _nonLinear (view clatch env) (view colors env) txt
         where
           txt = scalarTxt <> childrenTxt
             where
-              scalarTxt = case _scalar . f . _clatch $ env of
+              scalarTxt = case view (clatch . f . scalar) env of
                 Nothing -> "--"
                 Just sc -> X.pack . ($ "") . display $ sc
               childrenTxt
-                | Seq.null . _children . f . _clatch $ env = mempty
+                | view (clatch . f . children . to Seq.null) env = mempty
                 | otherwise = "↓"
 
+{-
 -- | Shows each tree, separated by a •.
 instance Colable (Seq Tree) where
   column f = Columns getCells
     where
       getCells env = Seq.singleton
-        $ textCell _nonLinear (env ^. clatch) (env ^. colors) txt
+        $ textCell _nonLinear (view clatch env) (view colors env) txt
         where
           txt = foldl (<>) mempty
             . intersperse "•" . fmap treeToTxt
@@ -625,3 +623,4 @@ instance Colable (Seq Scalar) where
           txt = foldl (<>) mempty
             . intersperse "•" . fmap (X.pack . ($ "") . display)
             . f . _clatch $ env
+-}

@@ -8,8 +8,9 @@ module Penny
     -- | All re-exported modules re-export all bindings from that module.
     module Penny.Balance
   , module Penny.Clatch
+  , module Penny.Clatcher
   , module Penny.Colorize
-  , module Penny.Command
+  , module Penny.Columns
   , module Penny.Commodity
   , module Penny.Decimal
   , module Penny.Natural
@@ -20,36 +21,23 @@ module Penny
   , module Penny.Realm
   , module Penny.Report
   , module Penny.Scalar
+  , module Penny.Scheme
   , module Penny.Serial
   , module Penny.Shortcut
   , module Penny.Stream
   , module Penny.Tree
   , module Penny.Troika
 
-  -- * Other re-exports
-
-  -- | These bindings are re-exported from particular modules.  The
-  -- entire module from which they come is not re-exported.
-
-  , Penny.Colors.Colors
-  , Penny.Colors.dark
-  , Penny.Colors.light
-  , Penny.Columns.Colable
-  , Penny.Columns.Columns
-  , Penny.Clatcher.Clatcher
-  , Penny.Clatcher.clatcher
-  , (<>)
-  , Control.Lens.view
+  , module Control.Lens.Getter
+  , module Control.Lens.Setter
 
   ) where
 
 import Penny.Balance
 import Penny.Clatch
-import Penny.Clatcher (Clatcher, clatcher)
+import Penny.Clatcher
 import Penny.Colorize
-import Penny.Colors (Colors, dark, light)
-import Penny.Columns (Colable, Columns)
-import Penny.Command
+import Penny.Columns
 import Penny.Commodity
 import Penny.Decimal
 import Penny.Natural
@@ -60,11 +48,12 @@ import Penny.Qty
 import Penny.Realm
 import Penny.Report
 import Penny.Scalar
+import Penny.Scheme
 import Penny.Serial
 import Penny.Shortcut
 import Penny.Stream
 import Penny.Tree
 import Penny.Troika
 
-import Control.Lens (view)
-import Data.Monoid ((<>))
+import Control.Lens.Getter
+import Control.Lens.Setter

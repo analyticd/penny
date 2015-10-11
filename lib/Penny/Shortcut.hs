@@ -1,25 +1,28 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Shortcut where
 
-import Control.Applicative
-import Control.Lens hiding (children)
-import Control.Monad (guard)
 import Penny.Clatch
+import Penny.Realm
+import Penny.Scalar
 import Penny.Tree
+
+import Control.Applicative ((<|>))
+import Control.Lens
+  ( view, preview, to, uncons, (<|), unsnoc,
+    _head, Getter )
+import Control.Monad (guard)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Penny.Scalar
-import Data.Maybe
-import Penny.Realm
+import Data.Maybe (fromMaybe, isNothing)
 import Data.Text (Text)
-import Data.Time
+import Data.Time (Day, TimeOfDay)
 
 -- | Looks for a payee by looking in the top line
 -- for the first tree whose root node is text, that has no children,
 -- and whose name is not surrounded by parentheses.  Does not look in
 -- postings.  If no payee is found, an empty string is returned.
-payee :: (Transaction, a) -> Text
-payee = fromMaybe "" . searchTopForest pd . view (transaction . trees)
+payee :: Getter (Transaction, a) Text
+payee = to $ fromMaybe "" . searchTopForest pd . view (transaction . trees)
   where
     pd tree = do
       sc <- childlessUserTree tree
@@ -33,19 +36,23 @@ payee = fromMaybe "" . searchTopForest pd . view (transaction . trees)
 -- whose root node is empty and that has a non-empty list of children,
 -- each of which has no children.  Does not look in the top line.
 
-account :: Sliced a -> Seq Text
-account = fromMaybe Seq.empty . searchTopForest pd . view (posting . trees)
+account :: Getter (Sliced a) (Seq Text)
+account = to $ fromMaybe Seq.empty . searchTopForest pd . view (posting . trees)
   where
     pd tree = do
       guard (view realm tree == User)
       guard (view (scalar . to isNothing) tree)
-      guard (view (children . to (not . Seq.null)) tree)
       accts <- sequence . fmap childlessUserTree . view children $ tree
       sequence . fmap (preview _SText) $ accts
 
 -- | Creates a 'Tree' that will be recognized as an account.
 
-accountTree :: Text -> Seq Text -> Tree
+accountTree
+  :: Text
+  -- ^ First sub-account
+  -> Seq Text
+  -- ^ Remaining sub-accounts
+  -> Tree
 accountTree c1 sq = Tree User Nothing (mkChild c1 <| fmap mkChild sq)
   where
     mkChild txt = Tree User (Just (SText txt)) Seq.empty
@@ -53,13 +60,14 @@ accountTree c1 sq = Tree User Nothing (mkChild c1 <| fmap mkChild sq)
 -- | Looks for tags by looking in the top line for the first tree
 -- whose root node is empty and that has a non-empty list of children.
 -- Does not look in postings.
-tags :: (Transaction, a) -> Seq Text
-tags = fromMaybe Seq.empty . searchTopForest pd . view (transaction . trees)
+tags :: Getter (Transaction, a) (Seq Text)
+tags
+  = to
+  $ fromMaybe Seq.empty . searchTopForest pd . view (transaction . trees)
   where
     pd tree = do
-      guard (view realm tree == User)
+      guard $ userTreeHasChild tree
       guard (view (scalar . to isNothing) tree)
-      guard (view (children . to (not . Seq.null)) tree)
       tgs <- sequence . fmap childlessUserTree . view children $ tree
       sequence . fmap (preview _SText) $ tgs
 
@@ -69,65 +77,59 @@ tags = fromMaybe Seq.empty . searchTopForest pd . view (transaction . trees)
 -- characters (not the parentheses) are returned.  If there is no text
 -- inside the parentheses, an empty string is returned.  If there is
 -- no flag at all, an empty string is returned.
-flag :: Sliced a -> Text
-flag slice = fromMaybe "" $ search posting <|> search transaction
+flag :: Getter (Sliced a) Text
+flag = to f
   where
-    search lens = searchTopForest pd . view (lens . trees) $ slice
+    f slice = fromMaybe "" $ search posting <|> search transaction
       where
-        pd tree = do
-          guard (view realm tree == User)
-          guard (view (children . to (not . Seq.null)) tree)
-          sc <- view scalar tree
-          name <- preview _SText sc
-          (firstChar, restChars) <- uncons name
-          guard (firstChar == '(')
-          (mainChars, lastChar) <- unsnoc restChars
-          guard (lastChar == ')')
-          return mainChars
+        search lens = searchTopForest pd . view (lens . trees) $ slice
+          where
+            pd tree = do
+              sc <- childlessUserTree tree
+              name <- preview _SText sc
+              (firstChar, restChars) <- uncons name
+              guard (firstChar == '(')
+              (mainChars, lastChar) <- unsnoc restChars
+              guard (lastChar == ')')
+              return mainChars
 
 -- | Searches for the first tree whose root node is an integer and
 -- that has no children.  If no such node is found in the posting,
 -- search the top line.
-number :: Sliced a -> Maybe Integer
-number slice = search posting <|> search transaction
+number :: Getter (Sliced a) (Maybe Integer)
+number = to f
   where
-    search lens = searchTopForest pd . view (lens . trees) $ slice
+    f slice = search posting <|> search transaction
       where
-        pd tree = do
-          guard (view realm tree == User)
-          guard (view (children . to (not . Seq.null)) tree)
-          sc <- view scalar tree
-          preview _SInteger sc
+        search lens = searchTopForest pd . view (lens . trees) $ slice
+          where
+            pd tree = do
+              sc <- childlessUserTree tree
+              preview _SInteger sc
 
 -- | Searches the top line for the first tree whose root node is a
 -- date and that has no children.  Does not search the postings.
-date :: (Transaction, a) -> Maybe Day
-date = searchTopForest pd . view (transaction . trees)
+date :: Getter (Transaction, a) (Maybe Day)
+date = to $ searchTopForest pd . view (transaction . trees)
   where
     pd tree = do
-      guard $ view realm tree == User
-      guard $ view (children . to (not . Seq.null)) tree
-      sc <- view scalar tree
+      sc <- childlessUserTree tree
       preview _SDay sc
 
 -- | Searches the top line for the first tree whose root node is a
 -- time and that has no children.  Does not search the postings.
-time :: (Transaction, a) -> Maybe TimeOfDay
-time = searchTopForest pd . view (transaction . trees)
+time :: Getter (Transaction, a) (Maybe TimeOfDay)
+time = to $ searchTopForest pd . view (transaction . trees)
   where
     pd tree = do
-      guard $ view realm tree == User
-      guard $ view (children . to (not . Seq.null)) tree
-      sc <- view scalar tree
+      sc <- childlessUserTree tree
       preview _STime sc
 
 -- | Searches the top line for the first tree whose root node is a
 -- zone and that has no children.  Does not search the postings.
-zone :: (Transaction, a) -> Maybe Int
-zone = searchTopForest pd . view (transaction . trees)
+zone :: Getter (Transaction, a) (Maybe Int)
+zone = to $ searchTopForest pd . view (transaction . trees)
   where
     pd tree = do
-      guard $ view realm tree == User
-      guard $ view (children . to (not . Seq.null)) tree
-      sc <- view scalar tree
+      sc <- childlessUserTree tree
       preview _SZone sc

@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 module Penny.Command where
 
 import Penny.Amount
@@ -16,10 +18,11 @@ import Penny.Decimal
 import Penny.Dump (Dump(Dump))
 import Penny.Natural
 import Penny.Report
+import Penny.Scheme
 import Penny.Stream
 
 import Control.Applicative (liftA3)
-import Control.Lens (set)
+import Control.Lens (set, Getter)
 import Data.Monoid ((<>))
 import qualified Data.Sequence as Seq
 import Data.Text (Text, unpack)
@@ -92,7 +95,7 @@ colors c = set Clatcher.colors c mempty
 report :: r -> Clatcher r l
 report s = set Clatcher.report (Seq.singleton s) mempty
 
-column :: Colable a => (Clatch -> a) -> Clatcher Columns l
+column :: Colable a => Getter Clatch a -> Clatcher Columns l
 column f = set Clatcher.report (Seq.singleton $ Columns.column f) mempty
 
 dump :: Clatcher Dump l
