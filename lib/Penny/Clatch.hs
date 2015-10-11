@@ -216,18 +216,19 @@ converted :: Lens' (a, (b, (Maybe Amount, c))) (Maybe Amount)
 converted = _2 . _2 . _1
 
 -- | If there is a converted amount, then use that.  Otherwise, use
--- the original, unconverted amount.  This is not a 'Lens'.
+-- the original, unconverted amount.  This is not a 'Lens' but it is a
+-- 'Getter'.
 --
 -- @
--- 'converted' :: 'Converted' a -> 'Amount'
--- 'converted' :: 'Prefilt' a   -> 'Amount'
--- 'converted' :: 'Sorted' a    -> 'Amount'
--- 'converted' :: 'Totaled' a   -> 'Amount'
--- 'converted' :: 'Clatch'      -> 'Amount'
+-- 'best' :: 'Getter' ('Converted' a) 'Amount'
+-- 'best' :: 'Getter' ('Prefilt' a)   'Amount'
+-- 'best' :: 'Getter' ('Sorted' a)    'Amount'
+-- 'best' :: 'Getter' ('Totaled' a)   'Amount'
+-- 'best' :: 'Getter' 'Clatch'        'Amount'
 -- @
 
-best :: (a, (Slice Posting, (Maybe Amount, c))) -> Amount
-best clatch = case view converted clatch of
+best :: Getter (a, (Slice Posting, (Maybe Amount, c))) Amount
+best = to $ \clatch -> case view converted clatch of
   Just a -> a
   Nothing -> clatch ^. slice . onSlice . core
     . troika . to c'Amount'Troika
@@ -323,7 +324,7 @@ addTotals = snd . T.mapAccumL f mempty
     f bal clatch@(txn, (vw, (conv, (pf, (ss, _))))) =
       (bal', (txn, (vw, (conv, (pf, (ss, (bal', ())))))))
       where
-        bal' = bal <> c'Balance'Amount (best clatch)
+        bal' = bal <> c'Balance'Amount (view best clatch)
 
 createClatch
   :: (Totaled () -> Bool)
