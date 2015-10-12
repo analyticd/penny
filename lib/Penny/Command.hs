@@ -2,6 +2,8 @@
 
 module Penny.Command where
 
+{-
+
 import Penny.Amount
 import Penny.Commodity
 import Penny.Clatch
@@ -116,3 +118,4 @@ options = colors light <> less
 
 penny :: (Report r, Clatcher.Loader l) => Clatcher r l -> IO ()
 penny c = Clatcher.clatcher (options <> c)
+-}

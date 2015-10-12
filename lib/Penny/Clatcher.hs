@@ -1,5 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 module Penny.Clatcher where
 
 import Control.Lens hiding (pre)
@@ -72,13 +74,13 @@ data Clatcher r l = Clatcher
   -- For example, this can be useful to convert a commodity to its
   -- value in your home currency.
 
-  , _sieve :: Converted () -> Bool
+  , _sieve :: forall a. Getting a (Converted ()) Bool
   -- ^ Controls pre-filtering
 
   , _sort :: Prefilt () -> Prefilt () -> Ordering
   -- ^ Sorts postings; this is done after pre-filtering but before post-filtering.
 
-  , _screen :: Totaled () -> Bool
+  , _screen :: forall a. Getting a (Totaled ()) Bool
   -- ^ Controls post-filtering
 
   , _output :: IO Stream
@@ -96,6 +98,7 @@ data Clatcher r l = Clatcher
   }
 
 makeLenses ''Clatcher
+
 
 -- | The 'Monoid' instance uses for 'mempty':
 --
@@ -134,9 +137,9 @@ makeLenses ''Clatcher
 instance Monoid (Clatcher r l) where
   mempty = Clatcher
     { _converter = mempty
-    , _sieve = const True
+    , _sieve = to (const True)
     , _sort = mempty
-    , _screen = const True
+    , _screen = to (const True)
     , _output = return mempty
     , _colors = mempty
     , _report = mempty
@@ -145,9 +148,9 @@ instance Monoid (Clatcher r l) where
 
   mappend x y = Clatcher
     { _converter = _converter x <> _converter y
-    , _sieve = \a -> _sieve x a && _sieve y a
+    , _sieve = to $ \a -> view (view sieve x) a && view (view sieve y) a
     , _sort = _sort x <> _sort y
-    , _screen = \a -> _screen x a && _screen y a
+    , _screen = to $ \a -> view (view screen x) a && view (view screen y) a
     , _output = (<>) <$> (_output x) <*> (_output y)
     , _colors = _colors x <> _colors y
     , _report = _report x <> _report y
@@ -168,8 +171,8 @@ getReport opts items
   where
     hist = elect . snd $ items
     clatches
-      = clatchesFromTransactions (opts ^. converter) (opts ^. sieve)
-                                 (opts ^. sort) (opts ^. screen)
+      = clatchesFromTransactions (opts ^. converter) (view (view sieve opts))
+                                 (opts ^. sort) (view (view screen opts))
                                  (snd items)
 
 clatcher
@@ -180,3 +183,12 @@ clatcher opts = do
   items <- loadTransactions (opts ^. load)
   let rpt = getReport opts items
   feedStream (opts ^. output) rpt (return ())
+
+comparing
+  :: Ord a
+  => Getter (Prefilt ()) a
+  -> Prefilt ()
+  -> Prefilt ()
+  -> Ordering
+comparing getter pa pb
+  = compare (view getter pa) (view getter pb)
