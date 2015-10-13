@@ -160,6 +160,9 @@ instance Report Columns where
     = table hist clrs (foldl' mappend mempty sq) cltchs
 
 
+-- | Things that can create columns.  Instances of this class must
+-- always create a 'Seq' of 'Cell' that is the exact same length,
+-- regardless of whether the cells contain anything.
 class Colable a where
   column :: Getter Clatch a -> Columns
 
@@ -217,7 +220,7 @@ instance Colable a => Colable (Maybe a) where
   column f = Columns g
     where
       g env = case view (clatch . f) env of
-        Nothing -> mempty
+        Nothing -> singleCell env (X.empty)
         Just v -> singleCell env v
 
 sideCell

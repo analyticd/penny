@@ -8,15 +8,16 @@ module Penny
     -- | All re-exported modules re-export all bindings from that module.
     module Penny.Balance
   , module Penny.Clatch
-  , module Penny.Clatcher
   , module Penny.Colorize
-  , module Penny.Columns
+  , module Penny.Command
   , module Penny.Commodity
   , module Penny.Decimal
   , module Penny.Natural
   , module Penny.NonEmpty
   , module Penny.NonZero
+  , module Penny.Ord
   , module Penny.Polar
+  , module Penny.Preset
   , module Penny.Qty
   , module Penny.Realm
   , module Penny.Report
@@ -30,20 +31,25 @@ module Penny
 
   , module Control.Lens.Getter
   , module Control.Lens.Setter
+  , module Data.Monoid
+
+  -- * Other re-exports
+  , (&)
 
   ) where
 
 import Penny.Balance
 import Penny.Clatch
-import Penny.Clatcher
 import Penny.Colorize
-import Penny.Columns
+import Penny.Command
 import Penny.Commodity
 import Penny.Decimal
 import Penny.Natural
 import Penny.NonEmpty
 import Penny.NonZero
+import Penny.Ord
 import Penny.Polar
+import Penny.Preset
 import Penny.Qty
 import Penny.Realm
 import Penny.Report
@@ -57,3 +63,5 @@ import Penny.Troika
 
 import Control.Lens.Getter
 import Control.Lens.Setter
+import Data.Monoid
+import Data.Function ((&))

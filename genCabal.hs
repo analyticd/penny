@@ -172,7 +172,7 @@ props = blank
 main :: IO ()
 main = defaultMain $ do
   libMods <- modules "lib"
-  testMods <- modules "tests"
+  -- testMods <- modules "tests"
   copper <- makeFlag "copper" $
     FlagOpts { flagDescription = "create copper-parse executable"
              , flagDefault = False
@@ -194,6 +194,7 @@ main = defaultMain $ do
               )
               [ buildable False ]
           ]
+{-
       , testSuite "penny-properties" $
         exitcodeFields "penny-properties.hs" ++
         commonOptions ++
@@ -202,5 +203,6 @@ main = defaultMain $ do
         , buildDepends testDepends
         , otherModules libMods
         ]
+-}
       ]
     )

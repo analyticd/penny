@@ -2,8 +2,6 @@
 
 module Penny.Command where
 
-{-
-
 import Penny.Amount
 import Penny.Commodity
 import Penny.Clatch
@@ -24,7 +22,7 @@ import Penny.Scheme
 import Penny.Stream
 
 import Control.Applicative (liftA3)
-import Control.Lens (set, Getter)
+import Control.Lens (set, Getter, view)
 import Data.Monoid ((<>))
 import qualified Data.Sequence as Seq
 import Data.Text (Text, unpack)
@@ -69,14 +67,19 @@ convert fromCy toCy factorTxt = set Clatcher.converter cv mempty
       | otherwise = Just $ Amount toCy (oldQty * factor)
     factor = fmap naturalToInteger . unsigned $ factorTxt
 
-sieve :: (Converted () -> Bool) -> Clatcher r l
-sieve f = set Clatcher.sieve f mempty
+sieve
+  :: Getter (Converted ()) Bool
+  -> Clatcher r l
+sieve f = set Clatcher.sieve (view f) mempty
 
 sort :: (Prefilt () -> Prefilt () -> Ordering) -> Clatcher r l
 sort f = set Clatcher.sort f mempty
 
-screen :: (Totaled () -> Bool) -> Clatcher r l
-screen f = set Clatcher.screen f mempty
+screen
+  :: Getter (Totaled ()) Bool
+  -> Clatcher r l
+screen f = set Clatcher.screen (view f) mempty
+
 
 -- Output
 
@@ -118,4 +121,3 @@ options = colors light <> less
 
 penny :: (Report r, Clatcher.Loader l) => Clatcher r l -> IO ()
 penny c = Clatcher.clatcher (options <> c)
--}
