@@ -103,6 +103,9 @@ pretty = atleast "pretty" [1,1,2]
 derive :: Package
 derive = atleast "derive" [2,5,22]
 
+managed :: Package
+managed = atleast "managed" [1,0]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
@@ -136,6 +139,7 @@ libraryDepends =
   , anonymousSums
   , void
   , pretty
+  , managed
   ]
 
 testDepends :: [Package]

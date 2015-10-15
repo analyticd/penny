@@ -83,7 +83,7 @@ data Clatcher r l = Clatcher
   , _screen :: Totaled () -> Bool
   -- ^ Controls post-filtering
 
-  , _output :: IO Stream
+  , _output :: Seq Stream
   -- ^ The destination stream for the report.
 
   , _colors :: Colors
@@ -110,7 +110,7 @@ makeLenses ''Clatcher
 --
 -- 'const' 'True' for '_screen'
 --
--- 'return' 'mempty' for '_out'
+-- 'mempty' for '_output'
 --
 -- 'mempty' for '_colors'
 --
@@ -126,7 +126,7 @@ makeLenses ''Clatcher
 --
 -- 'mappend' for '_sort'
 --
--- 'mappend' both streams for '_output'
+-- 'mappend' for '_output'
 --
 -- 'mappend' for '_colors'
 --
@@ -140,7 +140,7 @@ instance Monoid (Clatcher r l) where
     , _sieve = const True
     , _sort = mempty
     , _screen = const True
-    , _output = return mempty
+    , _output = mempty
     , _colors = mempty
     , _report = mempty
     , _load = mempty
@@ -151,7 +151,7 @@ instance Monoid (Clatcher r l) where
     , _sieve = \a -> view sieve x a && view sieve y a
     , _sort = _sort x <> _sort y
     , _screen = \a -> view screen x a && view screen y a
-    , _output = (<>) <$> (_output x) <*> (_output y)
+    , _output = (_output x) <> (_output y)
     , _colors = _colors x <> _colors y
     , _report = _report x <> _report y
     , _load = _load x <> _load y
@@ -182,5 +182,5 @@ clatcher
 clatcher opts = do
   items <- loadTransactions (opts ^. load)
   let rpt = getReport opts items
-  feedStream (opts ^. output) rpt (return ())
+  runStreams rpt (view output opts)
 

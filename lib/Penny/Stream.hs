@@ -1,66 +1,31 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- | Streams of textual data that can be printed to terminals or sent
 -- to files.
 module Penny.Stream where
 
-import Control.Lens
-import Penny.Colorize
-import Control.Exception (bracketOnError)
-import Rainbow
 import qualified Control.Concurrent.Async as Async
+import Control.Exception (bracketOnError)
+import Control.Lens (view, makeLenses, runLens)
+import Control.Monad.Managed.Safe (Managed, managed, runManaged)
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
+import Data.Monoid ((<>))
+import Data.Sequence (Seq)
 import Data.Text (Text)
-import Pipes
-import Pipes.Prelude (tee, drain)
-import Pipes.Safe (SafeT, runSafeT)
+import Pipes (Consumer, Pipe, await, yield, (>->), liftIO, runEffect, each)
 import Pipes.Cliff
   (pipeInput, NonPipe(..), waitForProcess, terminateProcess, procSpec)
+import Pipes.Prelude (drain)
+import Pipes.Safe (SafeT, runSafeT)
+import Rainbow (Chunk)
 import qualified System.IO as IO
-import qualified Data.ByteString as BS
-import Data.Sequence (Seq)
 
+import Penny.Colorize
 
--- | An action that waits on a particular stream to finish.  This
--- action should block until the stream is done.
-newtype Waiter = Waiter (IO ())
-
-instance Monoid Waiter where
-  mempty = Waiter (return ())
-  mappend (Waiter x) (Waiter y) = Waiter $ Async.withAsync x $ \ax ->
-    Async.withAsync y $ \ay -> do
-      Async.wait ax
-      Async.wait ay
-
--- | An action that terminates a stream right away.
-newtype Terminator = Terminator (IO ())
-
-instance Monoid Terminator where
-  mempty = Terminator (return ())
-  mappend (Terminator x) (Terminator y) = Terminator $ Async.withAsync x $ \ax ->
-    Async.withAsync y $ \ay -> do
-      Async.wait ax
-      Async.wait ay
-
-
--- | A stream that accepts 'Chunk' 'Text', coupled with an action that
--- terminates the stream right away and an action that waits for the
--- stream to terminate normally.
-data Stream = Stream (Consumer (Chunk Text) (SafeT IO) ()) Waiter Terminator
-
-instance Monoid Stream where
-  mempty = devNull
-  mappend (Stream cx wx tx) (Stream cy wy ty)
-    = Stream (tee cx >-> cy) (wx <> wy) (tx <> ty)
-
-terminate :: Stream -> IO ()
-terminate (Stream _ _ (Terminator t)) = t
-
-wait :: Stream -> IO ()
-wait (Stream _ (Waiter w) _) = w
-
-devNull :: Stream
-devNull = Stream drain (Waiter (return ())) (Terminator (return ()))
+type Stream = Managed (Consumer (Chunk Text) (SafeT IO) ())
 
 chunkConverter
   :: Monad m
@@ -72,7 +37,15 @@ chunkConverter f = do
   mapM_ yield bss
   chunkConverter f
 
--- | Runs a stream that accepts on its standard input.
+-- | A Stream that discards all data.
+devNull :: Stream
+devNull = managed f
+  where
+    f cont = cont drain
+
+-- | A Stream that creates a process and pipes data into the process
+-- through its standard input.
+
 streamToStdin
   :: String
   -- ^ Program name
@@ -80,58 +53,63 @@ streamToStdin
   -- ^ Arguments
   -> ((Chunk Text) -> [ByteString] -> [ByteString])
   -- ^ Chunk converter
-  -> IO Stream
-streamToStdin name args conv = do
-  (pipe, handle) <- pipeInput Inherit Inherit (procSpec name args)
-  return (Stream (chunkConverter conv >-> pipe >> return ())
-                 (Waiter (waitForProcess handle >> return ()))
-                 (Terminator (terminateProcess handle)))
+  -> Stream
+streamToStdin name args conv = managed f
+  where
+    f callback = bracketOnError acq rel use
+      where
+        acq = pipeInput Inherit Inherit (procSpec name args)
+        rel (_, handle) = terminateProcess handle
+        use (strm, handle) = do
+          r <- callback (chunkConverter conv >-> strm >> return ())
+          waitForProcess handle
+          return r
 
--- | Runs a stream that accepts input and sends it to a file.
+
+-- | Creates a stream that accepts input and sends it to a file.
 streamToFile
   :: Bool
   -- ^ If True, append; otherwise, overwrite.
   -> String
   -- ^ Filename
   -> (Chunk Text -> [ByteString] -> [ByteString])
-  -> IO Stream
+  -> Stream
 streamToFile apnd fn conv = do
-  h <- IO.openFile fn (if apnd then IO.AppendMode else IO.WriteMode)
+  h <- managed $ IO.withFile fn (if apnd then IO.AppendMode else IO.WriteMode)
   let toFile = do
         ck <- await
         liftIO $ mapM_ (BS.hPut h) (conv ck [])
         toFile
-  return $ Stream toFile (Waiter (IO.hClose h))
-    (Terminator (IO.hClose h))
+  return toFile
 
-feedStream
-  :: IO Stream
-  -> Seq (Chunk Text)
-  -> IO b
-  -> IO b
-feedStream strm sq rest = withStream strm $ \str -> do
-  let act = runSafeT $ runEffect $ Pipes.each sq >-> str
-  bracketOnError (Async.async act) Async.cancel $ \asy -> do
-    a <- rest
-    Async.wait asy
-    return a
+-- | Given a sequence of chunks and a 'Stream', forks a thread to the
+-- background and feeds data to the stream.  The use of 'Managed'
+-- ensures that the background thread is terminated if an exception is
+-- thrown.  'runStream' waits for the background thread to terminate
+-- normally (what this means depends on the underlying 'Stream').
+runStream
+  :: Seq (Chunk Text)
+  -> Stream
+  -> Managed ()
+runStream sq str = do
+  thread <- managed $ Async.withAsync acq
+  liftIO $ Async.wait thread
+  where
+    acq = runManaged $ do
+      csmr <- str
+      liftIO $ runSafeT (runEffect (each sq >-> csmr))
 
--- | Runs a stream.  Under normal circumstances, waits for the
--- underlying process to stop running.  If an exception is thrown,
--- terminates the process immediately.
-withStream
-  :: IO Stream
-  -> (Consumer (Chunk Text) (SafeT IO) () -> IO b)
-  -> IO b
-withStream acq useCsmr = bracketOnError acq terminate
-  $ \str@(Stream csmr _ _) -> do
-  r <- useCsmr csmr
-  wait str
-  return r
+-- | Runs a series of 'Stream's.
 
+runStreams
+  :: Seq (Chunk Text)
+  -- ^ Feed in these 'Chunk's
+  -> Seq Stream
+  -> IO ()
+runStreams cks = runManaged . fmap (const ()) . traverse (runStream cks)
 
 class Streamable a where
-  stream :: a -> IO Stream
+  stream :: a -> Stream
 
 -- | Record for data to create a process that reads from its standard input.
 data StdinProcess = StdinProcess
@@ -149,15 +127,15 @@ instance Monoid StdinProcess where
 
 instance Streamable (Colorable StdinProcess) where
   stream (Colorable clrs stp) = do
-    chooser <- tputColors
-    let clrzr = colorizer (clrs ^. (runLens chooser))
+    chooser <- liftIO tputColors
+    let clrzr = colorizer (view (runLens chooser) clrs)
     streamToStdin (_programName stp) (_programArgs stp) clrzr
 
 
 -- | Data to create a sink that puts data into a file.
 data FileSink = FileSink
   { _sinkFilename :: String
-  , _appendToSink :: Bool
+  , _appendToFile :: Bool
   }
 
 instance Monoid FileSink where
@@ -169,13 +147,12 @@ makeLenses ''FileSink
 
 instance Streamable (Colorable FileSink) where
   stream (Colorable clrs (FileSink fn apnd)) = do
-    chooser <- tputColors
-    let clrzr = colorizer (clrs ^. (runLens chooser))
+    chooser <- liftIO tputColors
+    let clrzr = colorizer (view (runLens chooser) clrs)
     streamToFile apnd fn clrzr
 
--- | Creates a stream that, when you apply 'toStream' to the result,
--- sends output to @less@.  By default, the number of colors is the
--- maximum number allowed by the terminal.
+-- | Creates a stream that sends output to @less@.  By default,
+-- the number of colors is the maximum number allowed by the terminal.
 toLess :: Colorable StdinProcess
 toLess = Colorable clrs (StdinProcess "less" ["-R"])
   where
@@ -185,9 +162,9 @@ toLess = Colorable clrs (StdinProcess "less" ["-R"])
       , _canShow256 = HowManyColors True True
       }
 
--- | Creates a stream that, when you apply 'toStream' to the result,
--- sends output to a file.  By default, no colors are used under any
--- circumstance, and any existing file is replaced.
+-- | Creates a stream that sends output to a file.
+-- By default, no colors are used under any circumstance, and any
+-- existing file is replaced.
 toFile
   :: String
   -- ^ Filename

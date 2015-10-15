@@ -83,8 +83,8 @@ screen f = set Clatcher.screen (view f) mempty
 
 -- Output
 
-output :: IO Stream -> Clatcher r l
-output s = set Clatcher.output s mempty
+output :: Stream -> Clatcher r l
+output s = set Clatcher.output (Seq.singleton s) mempty
 
 less :: Clatcher r l
 less = output $ stream toLess
@@ -116,8 +116,5 @@ preload = fmap make . Clatcher.preload
 load :: String -> Clatcher r Clatcher.LoadScroll
 load str = set Clatcher.load (Seq.singleton (Clatcher.open str)) mempty
 
-options :: Clatcher r l
-options = colors light <> less
-
 penny :: (Report r, Clatcher.Loader l) => Clatcher r l -> IO ()
-penny c = Clatcher.clatcher (options <> c)
+penny = Clatcher.clatcher

@@ -13,7 +13,7 @@ import Penny.Shortcut
 
 coless :: Clatcher r l
 coless
-  = set output (stream toLess)
+  = set output (Seq.singleton (stream toLess))
   . set colors light
   $ mempty
 
