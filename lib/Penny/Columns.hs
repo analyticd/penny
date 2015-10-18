@@ -16,7 +16,6 @@ import Penny.Clatch
 import Penny.Colors
 import Penny.Columns.Env
 import Penny.Commodity
-import Penny.DateTime
 import Penny.Decimal
 import Penny.Display
 import Penny.Natural
@@ -547,22 +546,10 @@ colableDisplayNonLinear f = Columns getCells
 
 -- | Creates a single column with the date in YYYY-MM-DD format.
 
-instance Colable Date where
-  column = colableDisplayNonLinear
-
 instance Colable Time.Day where
   column = colableDisplayNonLinear
 
 instance Colable Time.TimeOfDay where
-  column = colableDisplayNonLinear
-
-instance Colable Time where
-  column = colableDisplayNonLinear
-
-instance Colable Zone where
-  column = colableDisplayNonLinear
-
-instance Colable DateTime where
   column = colableDisplayNonLinear
 
 instance Colable Scalar where

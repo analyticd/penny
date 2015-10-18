@@ -1,54 +1,56 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecursiveDo #-}
-module Penny.Copper.Earley where
+module Penny.Earley where
+
 
 import Control.Applicative ((<|>), optional)
 import Data.Sequence (Seq, (<|))
 import qualified Data.Sequence as Seq
 import Text.Earley
 
-import Penny.Copper.AstNew
+import Penny.Grammar
 import Penny.Copper.Intervals
 import qualified Penny.Copper.Terminals as T
 import qualified Penny.DateTime as DateTime
-import Penny.PluMin
 import Penny.Polar
-import Penny.Representation
 
 type Parser r a = Prod r String Char a
 type GProd r a = Grammar r (Prod r String Char a)
 
--- # Digits
+char :: Char -> Parser a ()
+char c = () <$ symbol c <?> [c]
+
 zero :: Prod r String Char Zero
-zero = Zero <$ symbol '0' <?> "0"
+zero = Zero <$ char '0'
 
 one :: Prod r String Char One
-one = One <$ symbol '1' <?> "1"
+one = One <$ char '1'
 
 two :: Prod r String Char Two
-two = Two <$ symbol '2' <?> "2"
+two = Two <$ char '2'
 
 three :: Prod r String Char Three
-three = Three <$ symbol '3' <?> "3"
+three = Three <$ char '3'
 
 four :: Prod r String Char Four
-four = Four <$ symbol '4' <?> "4"
+four = Four <$ char '4'
 
 five :: Prod r String Char Five
-five = Five <$ symbol '5' <?> "5"
+five = Five <$ char '5'
 
 six :: Prod r String Char Six
-six = Six <$ symbol '6' <?> "6"
+six = Six <$ char '6'
 
 seven :: Prod r String Char Seven
-seven = Seven <$ symbol '7' <?> "7"
+seven = Seven <$ char '7'
 
 eight :: Prod r String Char Eight
-eight = Eight <$ symbol '8' <?> "8"
+eight = Eight <$ char '8'
 
 nine :: Prod r String Char Nine
-nine = Nine <$ symbol '9' <?> "9"
+nine = Nine <$ char '9'
 
+-- # Digits
 d1z :: Prod r String Char D1z
 d1z
   = D1z'0 <$ symbol '0'
@@ -149,13 +151,13 @@ grouper
 
 radCom :: Prod r String Char RadCom
 radCom
-  = Period <$ symbol '.'
+  = RCPeriod <$ symbol '.'
   <|> RCGrouper <$> grouper
   <?> "grouping character for comma radix (period, thin space, underscore)"
 
 radPer :: Prod r String Char RadPer
 radPer
-  = Penny.Representation.Comma <$ symbol ','
+  = RPComma <$ symbol ','
   <|> RPGrouper <$> grouper
   <?> "grouping character for period radix (comma, thin space, underscore)"
 
@@ -165,6 +167,7 @@ radixRadCom = Radix <$ symbol ',' <?> "comma radix"
 radixRadPer :: Prod r String Char (Radix RadPer)
 radixRadPer = Radix <$ symbol '.' <?> "period radix"
 
+{-
 side :: Prod r String Char Pole
 side = debit <$ symbol '<' <|> credit <$ symbol '>'
   <?> "debit or credit ('<' or '>')"
@@ -344,9 +347,6 @@ comment = do
   chars <- many T.eCommentChar
   rule $ Comment <$> hash <*> chars <*> newline <?> "comment"
 
-char :: Char -> Parser a ()
-char c = () <$ symbol c <?> [c]
-
 white :: GProd a White
 white = do
   com <- comment
@@ -464,3 +464,4 @@ commodity = do
   qs <- quotedString
   uc <- unquotedCommodity
   rule $ Commodity <$> (Left <$> uc <|> Right <$> qs)
+-}

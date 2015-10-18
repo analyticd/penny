@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.Copper.Ast where
 
+{-
+
 import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
 import Text.ParserCombinators.UU.Core
@@ -909,3 +911,4 @@ displayParseError er = case er of
       [] -> "empty list"
       x:[] -> x
       xs -> "one of: " ++ (concat . intersperse "; " $ xs)
+-}

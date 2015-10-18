@@ -1,5 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Penny.DateTime
+module Penny.DateTime where
+{-
   ( Date
   , fromGregorian
   , c'Date'Day
@@ -19,8 +20,7 @@ module Penny.DateTime
   ) where
 
 import qualified Data.Time as T
-import Penny.Representation
-import Penny.PluMin
+import qualified Penny.Grammar as Grammar
 import Penny.Display
 
 newtype Date = Date { dateToDay :: T.Day }
@@ -39,36 +39,6 @@ instance Display Date where
 fromGregorian :: Integer -> Int -> Int -> Maybe Date
 fromGregorian y m d = fmap Date $ T.fromGregorianValid y m d
 
-c'Date'Day :: T.Day -> Date
-c'Date'Day = Date
-
-data Hours
-  = H0to19 (Maybe D1z) D9z
-  | H20to23 D3z
-  deriving (Eq, Ord, Show)
-
-instance Display Hours where
-  display (H0to19 Nothing d9) = display Zero . display d9
-  display (H0to19 (Just d1) d9) = display d1 . display d9
-  display (H20to23 d3) = display Two . display d3
-
-c'Int'Hours :: Hours -> Int
-c'Int'Hours h = case h of
-  H0to19 mayD1 d9 -> d1 * 10 + digitToInt d9
-    where d1 = maybe 0 digitToInt mayD1
-  H20to23 d3-> 20 + digitToInt d3
-
-data ZeroTo59 = ZeroTo59 (Maybe D5z) D9z
-  deriving (Eq, Ord, Show)
-
-instance Display ZeroTo59 where
-  display (ZeroTo59 Nothing d9) = display Zero . display d9
-  display (ZeroTo59 (Just d5) d9) = display d5 . display d9
-
-c'Int'ZeroTo59 :: ZeroTo59 -> Int
-c'Int'ZeroTo59 (ZeroTo59 mayD5 d9)
-  = ((maybe 0 digitToInt mayD5) * 10) + digitToInt d9
-
 newtype Minutes = Minutes ZeroTo59
   deriving (Eq, Ord, Show)
 
@@ -80,9 +50,6 @@ newtype Seconds = Seconds ZeroTo59
 
 instance Display Seconds where
   display (Seconds s) = display s
-
-data Zone = Zone PluMin D2z D3z D9z D9z
-  deriving (Eq, Ord, Show)
 
 instance Display Zone where
   display (Zone p d1 d2 d3 d4) = display p . display d1 . display d2
@@ -146,3 +113,4 @@ dateTimeToUTC (DateTime (Date day) (Time h (Minutes m) (Seconds s)) z)
     tod = T.TimeOfDay (c'Int'Hours h) (c'Int'ZeroTo59 m)
       (fromIntegral . c'Int'ZeroTo59 $ s)
 
+-}

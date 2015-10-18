@@ -107,7 +107,6 @@ instance Display RadCom where
 -- used as a type parameter for a 'Radix', it represents that the
 -- radix point is a period.  When used alone, it represents a grouping
 -- character, which may be a comma or other grouping character.
--- | A radix point of a period.
 data RadPer
   = Comma
   -- ^ When used as a grouping character, a RadPer can be a comma

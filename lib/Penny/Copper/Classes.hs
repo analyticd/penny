@@ -2,6 +2,8 @@
              MultiParamTypeClasses #-}
 module Penny.Copper.Classes where
 
+{-
+
 import Penny.Representation
 import Penny.DateTime
 import Penny.PluMin
@@ -368,3 +370,4 @@ instance Renderable LeapDay where render = rLeapDay
 instance Parseable DateA where parser = pDateA
 instance Renderable DateA where render = rDateA
 
+-}

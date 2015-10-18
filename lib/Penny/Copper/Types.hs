@@ -2,6 +2,8 @@
              MultiParamTypeClasses #-}
 module Penny.Copper.Types where
 
+{-
+
 import Control.Applicative
 import Data.Sequence (Seq)
 import Text.ParserCombinators.UU.BasicInstances
@@ -431,3 +433,4 @@ rPluMin Plus = ('+':)
 rPluMin Minus = ('-':)
 
 
+-}

@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.Copper.ConvertAst where
 
+{-
+
 import Control.Lens
 import Control.Arrow (first)
 import Penny.Arrangement
@@ -432,3 +434,4 @@ convertItemsFromAst f = case f of
   AstLeadingWhite _ (Just (Fs fi _)) -> c'Eithers'FileItems fi
   EmptyFile -> Right Seq.empty
 
+-}

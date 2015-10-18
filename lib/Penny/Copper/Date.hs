@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.Copper.Date where
 
+{-
+
 import Data.Time
 import Penny.Copper.Parser
 import Text.ParserCombinators.UU.BasicInstances
@@ -343,6 +345,8 @@ data CenturyLeapYear
   = CenturyLeapYear Mod4 Zero Zero
   deriving (Eq, Ord, Show)
 
+-- start here
+
 c'CenturyLeapYear'Int :: Integral a => a -> Maybe CenturyLeapYear
 c'CenturyLeapYear'Int a
   | a < 0 = Nothing
@@ -459,3 +463,4 @@ c'DateA'Day sep dy
       md <- c'MonthDay'Ints sep m d
       return $ NonLeapDay yr sep md
 
+-}
