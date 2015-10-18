@@ -6,6 +6,7 @@ module Penny.Copper.Terminals
   , commentChar
   , commentCharToChar
   , pCommentChar
+  , eCommentChar
   , rCommentChar
 
   -- * Non-escaped quoted characters
@@ -14,6 +15,7 @@ module Penny.Copper.Terminals
   , nonEscapedChar
   , nonEscapedCharToChar
   , pNonEscapedChar
+  , eNonEscapedChar
   , rNonEscapedChar
 
   -- * Unquoted string characters
@@ -22,6 +24,7 @@ module Penny.Copper.Terminals
   , usCharNonDigit
   , usCharNonDigitToChar
   , pUSCharNonDigit
+  , eUSCharNonDigit
   , rUSCharNonDigit
 
   -- * Typeclass
@@ -32,6 +35,16 @@ import Penny.Copper.Intervals
 import Control.Applicative
 import Text.ParserCombinators.UU.BasicInstances
 import Text.ParserCombinators.UU.Core ((<?>))
+import Text.Earley (Prod, satisfy)
+import qualified Text.Earley as Earley
+
+recognize :: Intervals Char -> Prod r e Char Char
+recognize ivls = satisfy f
+  where
+    f c = (any inRange (intervalsToTuples ivls))
+      where
+        inRange (l, r) = c >= l || c <= r
+
 
 rangeToParser :: Intervals Char -> Parser Char
 rangeToParser i = case intervalsToTuples i of
@@ -54,6 +67,10 @@ pCommentChar :: Parser CommentChar
 pCommentChar = CommentChar <$> rangeToParser ivlCommentChar
   <?> "comment character"
 
+eCommentChar :: Prod r String Char CommentChar
+eCommentChar = CommentChar <$> recognize ivlCommentChar
+  Earley.<?> "comment character"
+
 rCommentChar :: CommentChar -> ShowS
 rCommentChar (CommentChar c) = (c:)
 
@@ -74,6 +91,10 @@ nonEscapedChar c
 pNonEscapedChar :: Parser NonEscapedChar
 pNonEscapedChar = NonEscapedChar <$> rangeToParser ivlNonEscapedChar
   <?> "non-escaped character"
+
+eNonEscapedChar :: Prod r String Char NonEscapedChar
+eNonEscapedChar = NonEscapedChar <$> recognize ivlNonEscapedChar
+  Earley.<?> "non-escaped character"
 
 rNonEscapedChar :: NonEscapedChar -> ShowS
 rNonEscapedChar (NonEscapedChar c) = (c:)
@@ -99,6 +120,11 @@ pUSCharNonDigit :: Parser USCharNonDigit
 pUSCharNonDigit = USCharNonDigit
   <$> rangeToParser ivlUSCharNonDigit
   <?> "non-escaped non-quoted non-digit character"
+
+eUSCharNonDigit :: Prod r String Char USCharNonDigit
+eUSCharNonDigit = USCharNonDigit <$> recognize ivlUSCharNonDigit
+  Earley.<?> "non-escaped non-quoted non-digit character"
+
 
 rUSCharNonDigit :: USCharNonDigit -> ShowS
 rUSCharNonDigit (USCharNonDigit c) = (c:)

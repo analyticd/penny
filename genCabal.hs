@@ -106,6 +106,9 @@ derive = atleast "derive" [2,5,22]
 managed :: Package
 managed = atleast "managed" [1,0]
 
+earley :: Package
+earley = atleast "Earley" [0,10]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
@@ -140,6 +143,7 @@ libraryDepends =
   , void
   , pretty
   , managed
+  , earley
   ]
 
 testDepends :: [Package]
