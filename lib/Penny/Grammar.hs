@@ -2,13 +2,13 @@
 module Penny.Grammar where
 
 import Data.Sequence (Seq)
-
-import Penny.Polar (Moderated)
 import Prelude
   (Eq, Ord, Show, Traversable, Functor, Foldable, Maybe,
    Either, Char)
 
--- Terminals
+-- # Terminals
+
+-- No terminal includes a newline.
 
 type CommentChar = Char
 
@@ -16,7 +16,7 @@ type NonEscapedChar = Char
 
 type USCharNonDigit = Char
 
--- Digits
+-- # Digits
 
 data Zero = Zero
   deriving (Eq, Ord, Show)
@@ -102,14 +102,14 @@ data D9 = D9'1 | D9'2 | D9'3 | D9'4 | D9'5 | D9'6 | D9'7 | D9'8 | D9'9
 data ZeroTo59 = ZeroTo59 (Maybe D5z) D9z
   deriving (Eq, Ord, Show)
 
---
+-- # PluMin
 
 data PluMin = Plus | Minus
   deriving (Eq, Ord, Show)
 
---
+-- # Dates
 
-data DateSep = DateSlash | DateHyphen
+data DateSep = Slash | Hyphen
   deriving (Eq, Ord, Show)
 
 data Days28
@@ -235,10 +235,7 @@ data RadPer
   -- 'ThinSpace' or an 'Underscore'.
   deriving (Eq, Ord, Show)
 
-data Nil r
-  = NilU (NilUngrouped r)
-  | NilG (NilGrouped r)
-  deriving (Eq, Ord, Show)
+-- # Nil
 
 data NilGrouped r
   = NilGrouped (Maybe Zero) (Radix r)
@@ -251,19 +248,35 @@ data NilUngrouped r
   | NURadix (Radix r) Zero (Seq Zero)
   deriving (Eq, Ord, Show)
 
-data Brim r
-  = BrimGrouped (BrimGrouped r)
-  | BrimUngrouped (BrimUngrouped r)
+data Nil r
+  = NilU (NilUngrouped r)
+  | NilG (NilGrouped r)
   deriving (Eq, Ord, Show)
 
-data BrimUngrouped r
-  = BUGreaterThanOne D9 (Seq D9z) (Maybe (Radix r, Seq D9z))
-  | BULessThanOne (Maybe Zero) (Radix r) (Seq Zero) D9 (Seq D9z)
+-- # Brim
+
+-- | 'BG7' and 'BG8' are co-recursive
+data BG7 r
+  = BG7Zeroes Zero (Seq Zero) (BG8 r)
+  | BG7Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
 
-data BrimGrouped r
-  = BGGreaterThanOne D9 (Seq D9z) (BG1 r)
-  | BGLessThanOne (Maybe Zero) (Radix r) (BG5 r)
+-- | 'BG7' and 'BG8' are co-recursive
+data BG8 r
+  = BG8Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
+  | BG8Group r (BG7 r)
+  deriving (Eq, Ord, Show)
+
+data BG6 r
+  = BG6Novem D9 (Seq D9z) r D9z (Seq D9z)
+             (Seq (r, D9z, Seq D9z))
+  | BG6Group r (BG7 r)
+  deriving (Eq, Ord, Show)
+
+data BG5 r
+  = BG5Novem D9 (Seq D9z) r D9z (Seq D9z)
+                   (Seq (r, D9z, Seq D9z))
+  | BG5Zero Zero (Seq Zero) (BG6 r)
   deriving (Eq, Ord, Show)
 
 data BG1 r
@@ -273,26 +286,19 @@ data BG1 r
                     (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
 
-data BG5 r
-  = BG5Novem D9 (Seq D9z) r D9z (Seq D9z)
-                   (Seq (r, D9z, Seq D9z))
-  | BG5Zero Zero (Seq Zero) (BG6 r)
+data BrimGrouped r
+  = BGGreaterThanOne D9 (Seq D9z) (BG1 r)
+  | BGLessThanOne (Maybe Zero) (Radix r) (BG5 r)
   deriving (Eq, Ord, Show)
 
-data BG6 r
-  = BG6Novem D9 (Seq D9z) r D9z (Seq D9z)
-             (Seq (r, D9z, Seq D9z))
-  | BG6Group r (BG7 r)
+data BrimUngrouped r
+  = BUGreaterThanOne D9 (Seq D9z) (Maybe (Radix r, Seq D9z))
+  | BULessThanOne (Maybe Zero) (Radix r) (Seq Zero) D9 (Seq D9z)
   deriving (Eq, Ord, Show)
 
-data BG7 r
-  = BG7Zeroes Zero (Seq Zero) (BG8 r)
-  | BG7Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
-  deriving (Eq, Ord, Show)
-
-data BG8 r
-  = BG8Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
-  | BG8Group r (BG7 r)
+data Brim r
+  = BrimGrouped (BrimGrouped r)
+  | BrimUngrouped (BrimUngrouped r)
   deriving (Eq, Ord, Show)
 
 -- | Number representations that may be neutral or non-neutral.  The
@@ -311,24 +317,7 @@ type NilOrBrimScalarAnyRadix
 type NilScalarAnyRadix = Either (Nil RadCom) (Nil RadPer)
 type BrimScalarAnyRadix = Either (Brim RadCom) (Brim RadPer)
 
--- # Qty representations
-
--- | Qty representations that may be neutral or non-neutral.  The type
--- variable is the type of the radix point and grouping character;
--- see, for example, 'RadCom' or 'RadPer'.  If non-neutral, also
--- contains a 'Side'.
---
--- This is a complete representation of a quantity; that is, it can
--- represent any quantity.
-
-type Rep r = Moderated (Nil r) (Brim r)
-
--- | Qty representations that may be neutral or non-neutral and have a
--- radix that is either a period or a comma.  If non-neutral, also
--- contains a 'Side'.
-
-type RepAnyRadix = Either (Rep RadCom) (Rep RadPer)
-
+-- # Comments and trees
 
 -- | Octothorpe
 data Hash = Hash
@@ -377,10 +366,7 @@ data Time = Time Hours Colon ZeroTo59
 data Backtick = Backtick
   deriving (Eq, Ord, Show)
 
-data Zone = Zone PluMin D2z D3z D9z D9z
-  deriving (Eq, Ord, Show)
-
-data QuotedZone = QuotedZone Backtick Zone
+data Zone = Zone Backtick PluMin D2z D3z D9z D9z
   deriving (Eq, Ord, Show)
 
 data DoubleQuote = DoubleQuote
@@ -432,8 +418,6 @@ data UnquotedCommodity
 newtype Commodity
   = Commodity (Either UnquotedCommodity QuotedString)
   deriving (Eq, Ord, Show)
-
---- Start here
 
 data NonNeutral
   = NonNeutralRadCom Backtick (Brim RadCom)
@@ -487,7 +471,7 @@ data OpenSquare = OpenSquare
 data CloseSquare = CloseSquare
   deriving (Eq, Ord, Show)
 
-data Integer = Integer (Either Zero (Maybe PluMin, D9, [D9z]))
+data Integer = Integer (Either Zero (Maybe PluMin, D9, Seq D9z))
   deriving (Eq, Ord, Show)
 
 data Scalar
@@ -495,7 +479,7 @@ data Scalar
   | ScalarQuotedString QuotedString
   | ScalarDate Date
   | ScalarTime Time
-  | ScalarZone QuotedZone
+  | ScalarZone Zone
   | ScalarInt Integer
   deriving (Eq, Ord, Show)
 
@@ -506,7 +490,7 @@ data BracketedForest = BracketedForest
 data Comma = Comma
   deriving (Eq, Ord, Show)
 
-data Forest = Forest Tree [(Bs Comma, Bs Tree)]
+data Forest = Forest Tree (Seq (Bs Comma, Bs Tree))
   deriving (Eq, Ord, Show)
 
 data Tree
@@ -531,7 +515,7 @@ data Semicolon = Semicolon
 data PostingList
   = OnePosting Posting
   | PostingList Posting (Bs Semicolon) (Bs Posting)
-                [(Bs Semicolon, Bs Posting)]
+                (Seq (Bs Semicolon, Bs Posting))
   deriving (Eq, Ord, Show)
 
 data Postings = Postings (Fs OpenCurly)
@@ -545,8 +529,8 @@ data AtSign = AtSign
   deriving (Eq, Ord, Show)
 
 data Exch
-  = ExchANeutral Neutral
-  | ExchANonNeutral (Maybe (Fs PluMin)) NonNeutral
+  = ExchNeutral Neutral
+  | ExchNonNeutral (Maybe (Fs PluMin)) NonNeutral
   deriving (Eq, Ord, Show)
 
 data CyExch
@@ -555,14 +539,14 @@ data CyExch
   deriving (Eq, Ord, Show)
 
 data Price = Price (Fs AtSign) Date Whites
-  (Maybe (Time, Whites)) (Maybe (QuotedZone, Whites))
+  (Maybe (Time, Whites)) (Maybe (Zone, Whites))
   Commodity Whites CyExch
   deriving (Eq, Ord, Show)
 
 data FileItem = FileItem (Either Price Transaction)
   deriving (Eq, Ord, Show)
 
-data FileItems = FileItems FileItem [(Whites, FileItem)]
+data FileItems = FileItems FileItem (Seq (Whites, FileItem))
   deriving (Eq, Ord, Show)
 
 -- | Unlike every other production in this module, 'Ast' may produce

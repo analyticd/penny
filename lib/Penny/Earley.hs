@@ -6,65 +6,90 @@ module Penny.Earley where
 import Control.Applicative ((<|>), optional)
 import Data.Sequence (Seq, (<|))
 import qualified Data.Sequence as Seq
-import Text.Earley
+import Text.Earley (Prod, Grammar, symbol, (<?>), satisfy, rule)
+import Prelude (String, Char, (<$), any, (>=), (||), (<=), (<$>), (<*>),
+  Either(Left, Right), ($), pure, return, Maybe (Nothing, Just),
+  Monad((>>=)))
 
 import Penny.Grammar
 import Penny.Copper.Intervals
 import qualified Penny.Copper.Terminals as T
-import qualified Penny.DateTime as DateTime
-import Penny.Polar
+
+-- # Parsers
 
 type Parser r a = Prod r String Char a
-type GProd r a = Grammar r (Prod r String Char a)
+type GProd r a = Grammar r (Parser r a)
 
 char :: Char -> Parser a ()
 char c = () <$ symbol c <?> [c]
 
-zero :: Prod r String Char Zero
-zero = Zero <$ char '0'
+-- # Terminals
 
-one :: Prod r String Char One
-one = One <$ char '1'
+recognize :: Intervals Char -> Parser r Char
+recognize ivls = satisfy f
+  where
+    f c = (any inRange (intervalsToTuples ivls))
+      where
+        inRange (l, r) = c >= l || c <= r
 
-two :: Prod r String Char Two
-two = Two <$ char '2'
+commentChar :: Parser r Char
+commentChar = recognize T.ivlCommentChar
+  <?> "comment character"
 
-three :: Prod r String Char Three
-three = Three <$ char '3'
+nonEscapedChar :: Parser r Char
+nonEscapedChar = recognize T.ivlNonEscapedChar
+  <?> "non-escaped character"
 
-four :: Prod r String Char Four
-four = Four <$ char '4'
-
-five :: Prod r String Char Five
-five = Five <$ char '5'
-
-six :: Prod r String Char Six
-six = Six <$ char '6'
-
-seven :: Prod r String Char Seven
-seven = Seven <$ char '7'
-
-eight :: Prod r String Char Eight
-eight = Eight <$ char '8'
-
-nine :: Prod r String Char Nine
-nine = Nine <$ char '9'
+usCharNonDigit :: Parser r Char
+usCharNonDigit = recognize T.ivlUSCharNonDigit
+  <?> "non-escaped non-quoted non-digit character"
 
 -- # Digits
-d1z :: Prod r String Char D1z
+
+zero :: Parser r Zero
+zero = Zero <$ char '0'
+
+one :: Parser r One
+one = One <$ char '1'
+
+two :: Parser r Two
+two = Two <$ char '2'
+
+three :: Parser r Three
+three = Three <$ char '3'
+
+four :: Parser r Four
+four = Four <$ char '4'
+
+five :: Parser r Five
+five = Five <$ char '5'
+
+six :: Parser r Six
+six = Six <$ char '6'
+
+seven :: Parser r Seven
+seven = Seven <$ char '7'
+
+eight :: Parser r Eight
+eight = Eight <$ char '8'
+
+nine :: Parser r Nine
+nine = Nine <$ char '9'
+
+d1z :: Parser r D1z
 d1z
   = D1z'0 <$ symbol '0'
   <|> D1z'1 <$ symbol '1'
   <?> "digit, 0 or 1"
 
-d2z :: Prod r String Char D2z
+d2z :: Parser r D2z
 d2z
   = D2z'0 <$ symbol '0'
   <|> D2z'1 <$ symbol '1'
   <|> D2z'2 <$ symbol '2'
   <?> "digit from 0 through 2"
 
-d3z :: Prod r String Char D3z
+d3z :: Parser r D3z
 d3z
   = D3z'0 <$ symbol '0'
   <|> D3z'1 <$ symbol '1'
@@ -72,7 +97,7 @@ d3z
   <|> D3z'3 <$ symbol '3'
   <?> "digit from 0 through 3"
 
-d4z :: Prod r String Char D4z
+d4z :: Parser r D4z
 d4z
   = D4z'0 <$ symbol '0'
   <|> D4z'1 <$ symbol '1'
@@ -81,7 +106,7 @@ d4z
   <|> D4z'4 <$ symbol '4'
   <?> "digit from 0 through 4"
 
-d5z :: Prod r String Char D5z
+d5z :: Parser r D5z
 d5z
   = D5z'0 <$ symbol '0'
   <|> D5z'1 <$ symbol '1'
@@ -91,7 +116,7 @@ d5z
   <|> D5z'5 <$ symbol '5'
   <?> "digit from 0 through 5"
 
-d8 :: Prod r String Char D8
+d8 :: Parser r D8
 d8
   = D8'1 <$ symbol '1'
   <|> D8'2 <$ symbol '2'
@@ -103,7 +128,7 @@ d8
   <|> D8'8 <$ symbol '8'
   <?> "digit from 1 through 8"
 
-d8z :: Prod r String Char D8z
+d8z :: Parser r D8z
 d8z
   = D8z'0 <$ symbol '0'
   <|> D8z'1 <$ symbol '1'
@@ -116,7 +141,7 @@ d8z
   <|> D8z'8 <$ symbol '8'
   <?> "digit from 0 through 8"
 
-d9 :: Prod r String Char D9
+d9 :: Parser r D9
 d9
   = D9'1 <$ symbol '1'
   <|> D9'2 <$ symbol '2'
@@ -129,7 +154,7 @@ d9
   <|> D9'9 <$ symbol '9'
   <?> "digit from 1 through 9"
 
-d9z :: Prod r String Char D9z
+d9z :: Parser r D9z
 d9z
   = D9z'0 <$ symbol '0'
   <|> D9z'1 <$ symbol '1'
@@ -143,34 +168,135 @@ d9z
   <|> D9z'9 <$ symbol '9'
   <?> "digit from 0 through 9"
 
-grouper :: Prod r String Char Grouper
+zeroTo59 :: Parser a ZeroTo59
+zeroTo59 = ZeroTo59 <$> optional d5z <*> d9z
+
+-- # PluMin
+
+pluMin :: Parser a PluMin
+pluMin = Plus <$ symbol '+' <|> Minus <$ symbol '-'
+  <?> "plus sign or minus sign"
+
+-- # Dates
+
+dateSep :: Parser a DateSep
+dateSep = Slash <$ symbol '/' <|> Hyphen <$ symbol '-'
+  <?> "date separator (slash or hyphen)"
+
+days28 :: Parser a Days28
+days28
+  = D28'1to9 <$> zero <*> d9
+  <|> D28'10to19 <$> one <*> d9z
+  <|> D28'20to28 <$> two <*> d8z
+  <?> "day from 1 through 28"
+
+days30 :: Parser a Days30
+days30
+  = D30'28 <$> days28
+  <|> D30'29 <$> two <*> nine
+  <|> D30'30 <$> three <*> zero
+  <?> "day from 1 through 30"
+
+days31 :: Parser a Days31
+days31
+  = D31'30 <$> days30
+  <|> D31'31 <$> three <*> one
+  <?> "day from 1 through 31"
+
+monthDay :: Parser a MonthDay
+monthDay
+  = Jan <$> zero <*> one <*> dateSep <*> days31
+  <|> Feb <$> zero <*> two <*> dateSep <*> days28
+  <|> Mar <$> zero <*> three <*> dateSep <*> days31
+  <|> Apr <$> zero <*> four <*> dateSep <*> days30
+  <|> May <$> zero <*> five <*> dateSep <*> days31
+  <|> Jun <$> zero <*> six <*> dateSep <*> days30
+  <|> Jul <$> zero <*> seven <*> dateSep <*> days31
+  <|> Aug <$> zero <*> eight <*> dateSep <*> days31
+  <|> Sep <$> zero <*> nine <*> dateSep <*> days30
+  <|> Oct <$> one <*> zero <*> dateSep <*> days31
+  <|> Nov <$> one <*> one <*> dateSep <*> days30
+  <|> Dec <$> one <*> two <*> dateSep <*> days31
+  <?> "month and day"
+
+year :: Parser a Year
+year = Year <$> d9z <*> d9z <*> d9z <*> d9z
+  <?> "year"
+
+nonLeapDay :: Parser a NonLeapDay
+nonLeapDay = NonLeapDay <$> year <*> dateSep <*> monthDay
+  <?> "non leap day"
+
+mod4 :: Parser a Mod4
+mod4
+  = L04 <$> zero <*> four
+  <|> L08 <$> zero <*> eight
+  <|> L12 <$> one <*> two
+  <|> L16 <$> one <*> six
+  <|> L20 <$> two <*> zero
+  <|> L24 <$> two <*> four
+  <|> L28 <$> two <*> eight
+  <|> L32 <$> three <*> two
+  <|> L36 <$> three <*> six
+  <|> L40 <$> four <*> zero
+  <|> L44 <$> four <*> four
+  <|> L48 <$> four <*> eight
+  <|> L52 <$> five <*> two
+  <|> L56 <$> five <*> six
+  <|> L60 <$> six <*> zero
+  <|> L64 <$> six <*> four
+  <|> L68 <$> six <*> eight
+  <|> L72 <$> seven <*> two
+  <|> L76 <$> seven <*> six
+  <|> L80 <$> eight <*> zero
+  <|> L84 <$> eight <*> four
+  <|> L88 <$> eight <*> eight
+  <|> L92 <$> nine <*> two
+  <|> L96 <$> nine <*> six
+
+centuryLeapYear :: Parser a CenturyLeapYear
+centuryLeapYear = CenturyLeapYear <$> mod4 <*> zero <*> zero
+  <?> "century leap year"
+
+nonCenturyLeapYear :: Parser a NonCenturyLeapYear
+nonCenturyLeapYear = NonCenturyLeapYear <$> d9z <*> d9z <*> mod4
+  <?> "non-century leap year"
+
+leapDay :: Parser a LeapDay
+leapDay = LeapDay
+  <$> (Left <$> centuryLeapYear <|> Right <$> nonCenturyLeapYear)
+  <*> dateSep <*> zero <*> two <*> dateSep <*> two <*> nine
+  <?> "leap day"
+
+date :: Parser a Date
+date = Date <$> (Left <$> nonLeapDay <|> Right <$> leapDay)
+  <?> "date"
+
+-- #
+
+grouper :: Parser r Grouper
 grouper
   = ThinSpace <$ symbol '\x2009'
   <|> Underscore <$ symbol '_'
   <?> "thin space or underscore"
 
-radCom :: Prod r String Char RadCom
+radCom :: Parser r RadCom
 radCom
   = RCPeriod <$ symbol '.'
   <|> RCGrouper <$> grouper
   <?> "grouping character for comma radix (period, thin space, underscore)"
 
-radPer :: Prod r String Char RadPer
+radPer :: Parser r RadPer
 radPer
   = RPComma <$ symbol ','
   <|> RPGrouper <$> grouper
   <?> "grouping character for period radix (comma, thin space, underscore)"
 
-radixRadCom :: Prod r String Char (Radix RadCom)
+radixRadCom :: Parser r (Radix RadCom)
 radixRadCom = Radix <$ symbol ',' <?> "comma radix"
 
-radixRadPer :: Prod r String Char (Radix RadPer)
+radixRadPer :: Parser r (Radix RadPer)
 radixRadPer = Radix <$ symbol '.' <?> "period radix"
-
-{-
-side :: Prod r String Char Pole
-side = debit <$ symbol '<' <|> credit <$ symbol '>'
-  <?> "debit or credit ('<' or '>')"
 
 many :: Prod r e t a -> Grammar r (Prod r e t (Seq a))
 many p = mdo
@@ -184,7 +310,10 @@ seqDecs g = do
   prodSeqD9z <- many d9z
   many $ (,,) <$> g <*> d9z <*> prodSeqD9z
 
-nilGrouped :: Parser r (Radix g) -> Parser r g -> Grammar r (Parser r (NilGrouped g))
+nilGrouped
+  :: Parser r (Radix g)
+  -> Parser r g
+  -> Grammar r (Parser r (NilGrouped g))
 nilGrouped pr pg = do
   manyZero <- many zero
   manyTup <- many ((,,) <$> pg <*> zero <*> manyZero)
@@ -207,6 +336,15 @@ nilUngrouped pr = do
         ((,) <$> pr <*> optional ((,) <$> zero <*> manyZero))
       pNURadix = NURadix <$> pr <*> zero <*> manyZero
   rule $ pNUZero <|> pNURadix
+
+nil
+  :: Parser a (Radix r)
+  -> Parser a r
+  -> Grammar a (Parser a (Nil r))
+nil pr pg = do
+  nu <- nilUngrouped pr
+  ng <- nilGrouped pr pg
+  rule $ NilU <$> nu <|> NilG <$> ng
 
 bg7 :: Parser a r -> Grammar a (Parser a (BG7 r))
 bg7 pg = do
@@ -260,18 +398,6 @@ bg1 pr pg = do
         <*> pg <*> d9z <*> manyd9 <*> sd
   rule $ onLeft <|> onRight
 
-brimUngrouped
-  :: Parser a (Radix r)
-  -> Grammar a (Parser a (BrimUngrouped r))
-brimUngrouped pr = do
-  manyd9z <- many d9z
-  manyZero <- many zero
-  let gtOne = BUGreaterThanOne <$> d9 <*> manyd9z
-        <*> optional ((,) <$> pr <*> manyd9z)
-      ltOne = BULessThanOne <$> optional zero <*> pr
-        <*> manyZero <*> d9 <*> manyd9z
-  rule $ gtOne <|> ltOne
-
 brimGrouped
   :: Parser a (Radix r)
   -> Parser a r
@@ -284,6 +410,18 @@ brimGrouped pr pg = do
       ltOne = BGLessThanOne <$> optional zero <*> pr <*> b5
   rule $ gtOne <|> ltOne
 
+brimUngrouped
+  :: Parser a (Radix r)
+  -> Grammar a (Parser a (BrimUngrouped r))
+brimUngrouped pr = do
+  manyd9z <- many d9z
+  manyZero <- many zero
+  let gtOne = BUGreaterThanOne <$> d9 <*> manyd9z
+        <*> optional ((,) <$> pr <*> manyd9z)
+      ltOne = BULessThanOne <$> optional zero <*> pr
+        <*> manyZero <*> d9 <*> manyd9z
+  rule $ gtOne <|> ltOne
+
 brim
   :: Parser a (Radix r)
   -> Parser a r
@@ -292,15 +430,6 @@ brim pr pg = do
   bg <- brimGrouped pr pg
   bu <- brimUngrouped pr
   rule $ BrimGrouped <$> bg <|> BrimUngrouped <$> bu
-
-nil
-  :: Parser a (Radix r)
-  -> Parser a r
-  -> Grammar a (Parser a (Nil r))
-nil pr pg = do
-  nu <- nilUngrouped pr
-  ng <- nilGrouped pr pg
-  rule $ NilU <$> nu <|> NilG <$> ng
 
 nilOrBrimScalar
   :: Parser a (Radix r)
@@ -311,40 +440,17 @@ nilOrBrimScalar pr pg = do
   b <- brim pr pg
   rule $ Left <$> n <|> Right <$> b
 
-pluMin :: Parser a PluMin
-pluMin = Plus <$ symbol '+' <|> Minus <$ symbol '-'
-  <?> "plus sign or minus sign"
-
-recognize :: Intervals Char -> Prod r e Char Char
-recognize ivls = satisfy f
-  where
-    f c = (any inRange (intervalsToTuples ivls))
-      where
-        inRange (l, r) = c >= l || c <= r
-
-commentChar :: Prod r String Char Char
-commentChar = recognize T.ivlCommentChar
-  <?> "comment character"
-
-nonEscapedChar :: Prod r String Char Char
-nonEscapedChar = recognize T.ivlNonEscapedChar
-  <?> "non-escaped character"
-
-usCharNonDigit :: Prod r String Char Char
-usCharNonDigit = recognize T.ivlUSCharNonDigit
-  <?> "non-escaped non-quoted non-digit character"
-
-hash :: Prod r String Char Hash
+hash :: Parser r Hash
 hash = Hash <$ symbol '#'
   <?> "hash"
 
-newline :: Prod r String Char Newline
+newline :: Parser r Newline
 newline = Newline <$ symbol '\n'
   <?> "newline"
 
 comment :: GProd a Comment
 comment = do
-  chars <- many T.eCommentChar
+  chars <- many commentChar
   rule $ Comment <$> hash <*> chars <*> newline <?> "comment"
 
 white :: GProd a White
@@ -388,27 +494,15 @@ hours =
   <|> H20to23 <$> two <*> d3z
 
 
-zeroTo59 :: Parser a DateTime.ZeroTo59
-zeroTo59 = DateTime.ZeroTo59 <$> optional d5z <*> d9z
-
-minutes :: Parser a DateTime.Minutes
-minutes = DateTime.Minutes <$> zeroTo59
-
-seconds :: Parser a DateTime.Seconds
-seconds = DateTime.Seconds <$> zeroTo59
-
 time :: Parser a Time
-time = Time <$> hours <*> colon <*> minutes
-  <*> optional ((,) <$> colon <*> seconds)
+time = Time <$> hours <*> colon <*> zeroTo59
+  <*> optional ((,) <$> colon <*> zeroTo59)
 
 backtick :: Parser a Backtick
 backtick = Backtick <$ char '`'
 
-zone :: Parser a DateTime.Zone
-zone = DateTime.Zone <$> pluMin <*> d2z <*> d3z <*> d9z <*> d9z
-
-zoneA :: Parser a ZoneA
-zoneA = ZoneA <$> backtick <*> zone
+zone :: Parser a Zone
+zone = Zone <$> backtick <*> pluMin <*> d2z <*> d3z <*> d9z <*> d9z
 
 doubleQuote :: Parser a DoubleQuote
 doubleQuote = DoubleQuote <$ char '"'
@@ -438,7 +532,7 @@ quotedChar = do
   sq <- escSeq
   rule
     $ QuotedChar
-    <$> ( Left <$> T.eNonEscapedChar
+    <$> ( Left <$> nonEscapedChar
           <|> Right <$> sq
         )
 
@@ -451,17 +545,223 @@ quotedString = do
 unquotedString :: GProd a UnquotedString
 unquotedString = do
   d9zs <- many d9z
-  sq <- many $ Left <$> T.eUSCharNonDigit <|> Right <$> d9z
-  rule $ UnquotedString <$> d9zs <*> T.eUSCharNonDigit <*> sq
+  sq <- many $ Left <$> usCharNonDigit <|> Right <$> d9z
+  rule $ UnquotedString <$> d9zs <*> usCharNonDigit <*> sq
 
 unquotedCommodity :: GProd a UnquotedCommodity
 unquotedCommodity = do
-  sq <- many T.eUSCharNonDigit
-  rule $ UnquotedCommodity <$> T.eUSCharNonDigit <*> sq
+  sq <- many usCharNonDigit
+  rule $ UnquotedCommodity <$> usCharNonDigit <*> sq
 
 commodity :: GProd a Commodity
 commodity = do
   qs <- quotedString
   uc <- unquotedCommodity
   rule $ Commodity <$> (Left <$> uc <|> Right <$> qs)
--}
+
+nonNeutral :: GProd a NonNeutral
+nonNeutral = do
+  rc <- brim radixRadCom radCom
+  rp <- brim radixRadPer radPer
+  rule $ NonNeutralRadCom <$> backtick <*> rc
+    <|> NonNeutralRadPer <$> rp
+
+neutralOrNon :: GProd a NeutralOrNon
+neutralOrNon = do
+  nrc <- nil radixRadCom radCom
+  brc <- brim radixRadCom radCom
+  nrp <- nil radixRadPer radPer
+  brp <- brim radixRadPer radPer
+  rule $ NeutralOrNonRadCom <$> backtick <*>
+                            (Left <$> nrc <|> Right <$> brc)
+    <|> NeutralOrNonRadPer <$>
+          (Left <$> nrp <|> Right <$> brp)
+
+neutral :: GProd a Neutral
+neutral = do
+  nrc <- nil radixRadCom radCom
+  nrp <- nil radixRadPer radPer
+  rule $ NeuCom <$> backtick <*> nrc
+    <|> NeuPer <$> nrp
+
+lessThan :: Parser a LessThan
+lessThan = LessThan <$ char '<'
+
+greaterThan :: Parser a GreaterThan
+greaterThan = GreaterThan <$ char '>'
+
+dipole :: Parser a Dipole
+dipole = Left <$> lessThan <|> Right <$> greaterThan
+
+trio :: GProd a Trio
+trio = do
+  neu <- neutral
+  nonNeu <- nonNeutral
+  cy <- commodity
+  fsDipole <- fs dipole
+  fsCy <- fs cy
+  fsNonNeu <- fs nonNeu
+  rule
+    $ QcCyOnLeft <$> fsDipole <*> fsCy <*> nonNeu
+    <|> QcCyOnRight <$> fsDipole <*> fsNonNeu <*> cy
+    <|> QSided <$> fsDipole <*> nonNeu
+    <|> QUnsided <$> neu
+    <|> SC <$> fsDipole <*> cy
+    <|> S <$> dipole
+    <|> UcCyOnLeft <$> fsCy <*> nonNeu
+    <|> UcCyOnRight <$> fsNonNeu <*> cy
+    <|> U <$> nonNeu
+    <|> C <$> cy
+
+openSquare :: Parser a OpenSquare
+openSquare = OpenSquare <$ char '['
+
+closeSquare :: Parser a CloseSquare
+closeSquare = CloseSquare <$ char ']'
+
+integer :: GProd a Integer
+integer = do
+  seqd9 <- many d9z
+  let trip = (,,) <$> (pure Nothing <|> Just <$> pluMin) <*> d9 <*> seqd9
+  rule $ Integer <$> (Left <$> zero
+                        <|> Right <$> trip)
+
+scalar :: GProd a Scalar
+scalar = do
+  us <- unquotedString
+  qs <- quotedString
+  int <- integer
+  rule
+    $ ScalarUnquotedString <$> us
+    <|> ScalarQuotedString <$> qs
+    <|> ScalarDate <$> date
+    <|> ScalarTime <$> time
+    <|> ScalarZone <$> zone
+    <|> ScalarInt <$> int
+
+bracketedForest :: GProd a BracketedForest
+bracketedForest = do
+  os <- fs openSquare
+  frst <- forest
+  fsFrst <- fs frst
+  let may = pure Nothing <|> Just <$> fsFrst
+  rule $ BracketedForest <$> os <*> may <*> closeSquare <?> "bracketed forest"
+
+comma :: Parser a Comma
+comma = Comma <$ char ','
+
+forest :: GProd a Forest
+forest = do
+  tr <- tree
+  bsTr <- bs tr
+  bsCom <- bs comma
+  sqPairs <- many ((,) <$> bsCom <*> bsTr)
+  rule $ Forest <$> tr <*> sqPairs <?> "forest"
+
+tree :: GProd a Tree
+tree = do
+  sc <- scalar
+  bf <- bracketedForest
+  bsBf <- bs bf
+  bsSc <- bs sc
+  rule $ TreeScalarFirst <$> sc <*> (pure Nothing <|> Just <$> bsBf)
+    <|> TreeForestFirst <$> bf <*> (pure Nothing <|> Just <$> bsSc)
+
+openCurly :: Parser a OpenCurly
+openCurly = OpenCurly <$ char '{'
+
+closeCurly :: Parser a CloseCurly
+closeCurly = CloseCurly <$ char '}'
+
+posting :: GProd a Posting
+posting = do
+  tri <- trio
+  bf <- bracketedForest
+  bsBf <- bs bf
+  let mayBf = pure Nothing <|> Just <$> bsBf
+  rule $ PostingTrioFirst <$> tri <*> mayBf
+    <|> PostingNoTrio <$> bf
+
+semicolon :: Parser a Semicolon
+semicolon = Semicolon <$ char ';'
+
+postingList :: GProd a PostingList
+postingList = do
+  pstg <- posting
+  bsPstg <- bs pstg
+  bsSemi <- bs semicolon
+  sqPairs <- many ((,) <$> bsSemi <*> bsPstg)
+  rule $
+    OnePosting <$> pstg
+    <|> PostingList <$> pstg <*> bsSemi <*> bsPstg
+        <*> sqPairs
+
+postings :: GProd a Postings
+postings = do
+  fsCurly <- fs openCurly
+  fsPstgs <- postingList >>= fs
+  let mayFs = pure Nothing <|> Just <$> fsPstgs
+  rule $ Postings <$> fsCurly <*> mayFs <*> closeCurly
+
+transaction :: GProd a Transaction
+transaction = do
+  fsTr <- tree >>= fs
+  pstgs <- postings
+  let mayTree = pure Nothing <|> Just <$> fsTr
+  rule $ Transaction <$> mayTree <*> pstgs
+
+atSign :: Parser a AtSign
+atSign = AtSign <$ char '@'
+
+exch :: GProd a Exch
+exch = do
+  neu <- neutral
+  fsPluMin <- fs pluMin
+  nonNeu <- nonNeutral
+  let mayFs = pure Nothing <|> Just <$> fsPluMin
+  rule $ ExchNeutral <$> neu
+    <|> ExchNonNeutral <$> mayFs <*> nonNeu
+
+cyExch :: GProd a CyExch
+cyExch = do
+  cy <- commodity
+  fsCy <- fs cy
+  ex <- exch
+  fsEx <- fs ex
+  rule
+    $ CyExchCy <$> fsCy <*> ex
+    <|> CyExchA <$> fsEx <*> cy
+
+price :: GProd a Price
+price = do
+  fsAt <- fs atSign
+  ws <- whites
+  let mayTime = pure Nothing <|> Just <$> ((,) <$> time <*> ws)
+      mayZone = pure Nothing <|> Just <$> ((,) <$> zone <*> ws)
+  cy <- commodity
+  cyEx <- cyExch
+  rule $ Price <$> fsAt <*> date <*> ws <*> mayTime <*> mayZone
+    <*> cy <*> ws <*> cyEx
+
+fileItem :: GProd a FileItem
+fileItem = do
+  pr <- price
+  tx <- transaction
+  rule $ FileItem <$> (Left <$> pr <|> Right <$> tx)
+
+fileItems :: GProd a FileItems
+fileItems = do
+  fi <- fileItem
+  ws <- whites
+  sq <- many ((,) <$> ws <*> fi)
+  rule $ FileItems <$> fi <*> sq
+
+ast :: GProd a Ast
+ast = do
+  fsFi <- fileItems >>= fs
+  wi <- whites
+  let mayFs = pure Nothing <|> Just <$> fsFi
+  rule
+    $ AstNoLeadingWhite <$> fsFi
+    <|> AstLeadingWhite <$> wi <*> mayFs
+    <|> pure EmptyFile
