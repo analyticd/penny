@@ -1,8 +1,10 @@
 module Penny.Grammar.Convert where
 
+import Penny.Friendly
 import Control.Applicative ((<|>))
 import Penny.Grammar
 import Data.Time
+import Penny.Trio
 
 class Digit a where
   digitToInt :: Integral b => a -> b
@@ -679,6 +681,20 @@ c'D9'D9z x = case x of
   D9z'8 -> Just D9'8
   D9z'9 -> Just D9'9
 
+decimalPlace :: (Digit a, Integral b) => Int -> a -> b
+decimalPlace pl dig = digitToInt dig * 10 ^ pl
+
+c'Int'DigitsFour :: Integral a => DigitsFour -> a
+c'Int'DigitsFour (DigitsFour d3 d2 d1 d0)
+  = decimalPlace 3 d3
+  + decimalPlace 2 d2
+  + decimalPlace 1 d1
+  + decimalPlace 0 d0
+
+c'Int'Digits1or2 :: Integral a => Digits1or2 -> a
+c'Int'Digits1or2 (Digits1or2 l mayR) = case mayR of
+  Nothing -> decimalPlace 0 l
+  Just r -> decimalPlace 1 l + decimalPlace 0 r
 
 c'Int'Hours :: Hours -> Int
 c'Int'Hours h = case h of
@@ -892,3 +908,4 @@ c'Date'Day sep dy
       yr <- c'Year'Int y
       md <- c'MonthDay'Ints sep m d
       return $ NonLeapDay yr sep md
+

@@ -2,10 +2,11 @@
 {-# LANGUAGE RecursiveDo #-}
 module Penny.Earley where
 
-
 import Control.Applicative ((<|>), optional)
 import Data.Sequence (Seq, (<|))
 import qualified Data.Sequence as Seq
+import Data.Sums (S4(S4a, S4b, S4c, S4d),
+  S6(S6a, S6b, S6c, S6d, S6e, S6f))
 import Text.Earley (Prod, Grammar, symbol, (<?>), satisfy, rule)
 import Prelude (String, Char, (<$), any, (>=), (||), (<=), (<$>), (<*>),
   Either(Left, Right), ($), pure, return, Maybe (Nothing, Just),
@@ -453,14 +454,20 @@ comment = do
   chars <- many commentChar
   rule $ Comment <$> hash <*> chars <*> newline <?> "comment"
 
+space :: Parser a Space
+space = Space <$ char ' ' <?> "space"
+
+tab :: Parser a Tab
+tab = Tab <$ char '\t' <?> "tab"
+
 white :: GProd a White
 white = do
   com <- comment
   rule $
-        Space <$ char ' '
-    <|> Tab <$ char '\t'
-    <|> WhiteNewline <$ char '\n'
-    <|> WhiteComment <$> com
+    S4a <$> space
+    <|> S4b <$> tab
+    <|> S4c <$> newline
+    <|> S4d <$> com
     <?> "whitespace or comment"
 
 whites :: GProd a Whites
@@ -510,14 +517,20 @@ doubleQuote = DoubleQuote <$ char '"'
 backslash :: Parser a Backslash
 backslash = Backslash <$ char '\\'
 
+gap :: GProd a Gap
+gap = do
+  w <- whites
+  rule $ Gap <$> w <*> backslash
+
 escPayload :: GProd a EscPayload
 escPayload = do
-  w <- whites
-  rule $
-    EscBackslash <$ backslash
-    <|> EscNewline <$ newline
-    <|> EscQuote <$ doubleQuote
-    <|> EscGap <$> w <*> backslash
+  g <- gap
+  rule $ S4a <$> backslash
+    <|> S4b <$> newline
+    <|> S4c <$> doubleQuote
+    <|> S4d <$> g
+    <?> "escape sequence payload"
+
 
 escSeq :: GProd a EscSeq
 escSeq = do
@@ -632,12 +645,12 @@ scalar = do
   qs <- quotedString
   int <- integer
   rule
-    $ ScalarUnquotedString <$> us
-    <|> ScalarQuotedString <$> qs
-    <|> ScalarDate <$> date
-    <|> ScalarTime <$> time
-    <|> ScalarZone <$> zone
-    <|> ScalarInt <$> int
+    $ S6a <$> us
+    <|> S6b <$> qs
+    <|> S6c <$> date
+    <|> S6d <$> time
+    <|> S6e <$> zone
+    <|> S6f <$> int
 
 bracketedForest :: GProd a BracketedForest
 bracketedForest = do

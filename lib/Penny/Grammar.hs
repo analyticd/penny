@@ -2,6 +2,7 @@
 module Penny.Grammar where
 
 import Data.Sequence (Seq)
+import Data.Sums (S4, S6)
 import Prelude
   (Eq, Ord, Show, Traversable, Functor, Foldable, Maybe,
    Either, Char)
@@ -329,12 +330,13 @@ data Newline = Newline
 data Comment = Comment Hash (Seq CommentChar) Newline
   deriving (Eq, Ord, Show)
 
-data White
-  = Space
-  | Tab
-  | WhiteNewline
-  | WhiteComment Comment
+data Space = Space
   deriving (Eq, Ord, Show)
+
+data Tab = Tab
+  deriving (Eq, Ord, Show)
+
+type White = S4 Space Tab Newline Comment
 
 data Whites = Whites White (Seq White)
   deriving (Eq, Ord, Show)
@@ -375,12 +377,12 @@ data DoubleQuote = DoubleQuote
 data Backslash = Backslash
   deriving (Eq, Ord, Show)
 
-data EscPayload
-  = EscBackslash
-  | EscNewline
-  | EscQuote
-  | EscGap Whites Backslash
+-- | Part of an escape sequence where the user used backslashes to
+-- quote a newline.
+data Gap = Gap Whites Backslash
   deriving (Eq, Ord, Show)
+
+type EscPayload = S4 Backslash Newline DoubleQuote Gap
 
 data EscSeq = EscSeq Backslash EscPayload
   deriving (Eq, Ord, Show)
@@ -474,14 +476,7 @@ data CloseSquare = CloseSquare
 data Integer = Integer (Either Zero (Maybe PluMin, D9, Seq D9z))
   deriving (Eq, Ord, Show)
 
-data Scalar
-  = ScalarUnquotedString UnquotedString
-  | ScalarQuotedString QuotedString
-  | ScalarDate Date
-  | ScalarTime Time
-  | ScalarZone Zone
-  | ScalarInt Integer
-  deriving (Eq, Ord, Show)
+type Scalar = S6 UnquotedString QuotedString Date Time Zone Integer
 
 data BracketedForest = BracketedForest
   (Fs OpenSquare) (Maybe (Fs Forest)) CloseSquare
