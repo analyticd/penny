@@ -13,7 +13,9 @@
 -- in "Penny.Decimal" and "Penny.Qty".  Functions in
 -- this module will group some representation types--that is, insert
 -- grouping characters to make them easier to read.
-module Penny.Representation
+module Penny.Representation where
+
+{-
   ( -- * Radix and grouping
     Radix(..)
   , Grouper(..)
@@ -529,3 +531,4 @@ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
   -> NilOrBrimScalarAnyRadix
 c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
   = either (Left . Right) (Right . Right)
+-}
