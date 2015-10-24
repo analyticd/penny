@@ -11,7 +11,6 @@ module Penny.Decimal
   , HasDecimal(..)
   , HasExponent(..)
   , DecNonZero
-  , HasDecNonZero(..)
   , DecUnsigned
   , HasDecUnsigned(..)
   , DecPositive
@@ -176,9 +175,6 @@ instance Num (Exponential Integer) where
 
 -- | Decimals whose significand is never zero.
 type DecNonZero = Exponential NonZero
-
-class HasDecNonZero a where
-  toDecNonZero :: a -> DecNonZero
 
 decNonZeroToDecimal :: DecNonZero -> Decimal
 decNonZeroToDecimal (Exponential nz u) = Exponential (nonZeroToInteger nz) u

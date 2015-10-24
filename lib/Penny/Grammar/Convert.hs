@@ -1,3 +1,5 @@
+-- | Handles all conversions between types in 'Penny.Grammar' and
+-- other Penny types.
 module Penny.Grammar.Convert where
 
 import Penny.Digit
