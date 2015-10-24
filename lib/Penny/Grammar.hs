@@ -473,10 +473,10 @@ data OpenSquare = OpenSquare
 data CloseSquare = CloseSquare
   deriving (Eq, Ord, Show)
 
-data Integer = Integer (Either Zero (Maybe PluMin, D9, Seq D9z))
+data Whole = Whole (Either Zero (Maybe PluMin, D9, Seq D9z))
   deriving (Eq, Ord, Show)
 
-type Scalar = S6 UnquotedString QuotedString Date Time Zone Integer
+type Scalar = S6 UnquotedString QuotedString Date Time Zone Whole
 
 data BracketedForest = BracketedForest
   (Fs OpenSquare) (Maybe (Fs Forest)) CloseSquare

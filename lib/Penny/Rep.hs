@@ -21,3 +21,17 @@ type Rep r = Moderated (Nil r) (Brim r)
 
 type RepAnyRadix = Either (Rep RadCom) (Rep RadPer)
 
+
+-- # Conversions
+
+-- | Removes the 'Side' from a 'QtyRepAnyRadix'.
+c'NilOrBrimScalarAnyRadix'RepAnyRadix
+  :: RepAnyRadix
+  -> NilOrBrimScalarAnyRadix
+c'NilOrBrimScalarAnyRadix'RepAnyRadix ei = case ei of
+  Left rc -> Left $ case rc of
+    Moderate n -> Left n
+    Extreme (Polarized c _) -> Right c
+  Right rp -> Right $ case rp of
+    Moderate n -> Left n
+    Extreme (Polarized c _) -> Right c

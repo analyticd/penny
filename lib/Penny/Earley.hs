@@ -632,11 +632,11 @@ openSquare = OpenSquare <$ char '['
 closeSquare :: Parser a CloseSquare
 closeSquare = CloseSquare <$ char ']'
 
-integer :: GProd a Integer
+integer :: GProd a Whole
 integer = do
   seqd9 <- many d9z
   let trip = (,,) <$> (pure Nothing <|> Just <$> pluMin) <*> d9 <*> seqd9
-  rule $ Integer <$> (Left <$> zero
+  rule $ Whole <$> (Left <$> zero
                         <|> Right <$> trip)
 
 scalar :: GProd a Scalar

@@ -7,6 +7,7 @@ import Penny.Balance
 import Penny.Clatch
 import Penny.Decimal
 import Penny.Display
+import Penny.Grammar
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar

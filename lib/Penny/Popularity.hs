@@ -9,8 +9,9 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Penny.Arrangement
 import Penny.Commodity
+import Penny.Grammar
+  (RadCom(RCGrouper), RadPer(RPComma), Grouper(ThinSpace))
 import Penny.Mimode
-import Penny.Representation
 import Penny.Clatch
 import Control.Applicative
 import Penny.SeqUtil
@@ -96,7 +97,7 @@ selectGrouper (rcs, rps)
   | Seq.length rps >= Seq.length rcs = Right rp
   | otherwise = Left rc
   where
-    rp = fromMaybe Comma . mimode . join $ rps
+    rp = fromMaybe RPComma . mimode . join $ rps
     rc = fromMaybe (RCGrouper ThinSpace) . mimode . join $ rcs
 
 -- | Gets all arrangements from a history.

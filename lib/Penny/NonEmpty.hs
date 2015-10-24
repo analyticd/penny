@@ -1,7 +1,7 @@
 module Penny.NonEmpty where
 
 import Penny.Natural
-import Penny.Grammar
+import Penny.Grammar (One(One))
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import Data.Sequence (Seq, (|>), viewl, ViewL(..), (<|))

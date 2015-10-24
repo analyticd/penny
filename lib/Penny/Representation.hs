@@ -71,7 +71,6 @@ import Data.Monoid ((<>))
 import qualified Data.Sequence as S
 import Penny.Digit
 import Penny.NonEmpty
-import Penny.Display
 import Penny.Polar
 
 -- | A radix point.  The type is parameterized on a type that
@@ -85,10 +84,6 @@ data Grouper
   | Underscore
   deriving (Eq, Ord, Show)
 
-instance Display Grouper where
-  display ThinSpace = ('\x2009':)
-  display Underscore = ('_':)
-
 -- | A radix point of a comma.  This type serves two purposes: when
 -- used as a type parameter for a 'Radix', it represents that the
 -- radix point is a comma.  When used alone, it represents a grouping
@@ -100,10 +95,6 @@ data RadCom
   -- ^ When used as a grouping character, a RadCom can also be a
   -- 'ThinSpace' or an 'Underscore'.
   deriving (Eq, Ord, Show)
-
-instance Display RadCom where
-  display Period = ('.':)
-  display (RCGrouper g) = display g
 
 -- | A radix point of a period.  This type serves two purposes: when
 -- used as a type parameter for a 'Radix', it represents that the
@@ -117,20 +108,6 @@ data RadPer
   -- 'ThinSpace' or an 'Underscore'.
   deriving (Eq, Ord, Show)
 
-instance Display RadPer where
-  display Comma = (',':)
-  display (RPGrouper g) = display g
-
--- | Things that have grouping characters, allowing all grouping
--- characters to be extracted.
-class Grouped a where
-  groupers :: a g -> NonEmpty g
-
--- | Things that might have grouping characters, allowing all grouping
--- characters (if any) to be extracted.
-class MayGrouped a where
-  mayGroupers :: a g -> Seq g
-
 -- # Nil
 
 data Nil r
@@ -138,57 +115,16 @@ data Nil r
   | NilG (NilGrouped r)
   deriving (Eq, Ord, Show)
 
-instance MayGrouped Nil where
-  mayGroupers (NilG ng) = seqFromNonEmpty $ groupers ng
-  mayGroupers _ = S.empty
-
-instance Display (Nil RadCom) where
-  display (NilU x) = display x
-  display (NilG x) = display x
-
-instance Display (Nil RadPer) where
-  display (NilU x) = display x
-  display (NilG x) = display x
-
 data NilGrouped r
   = NilGrouped (Maybe Zero) (Radix r)
                Zero (Seq Zero) r Zero (Seq Zero)
                (Seq (r, Zero, Seq Zero))
   deriving (Eq, Ord, Show)
 
-instance Grouped NilGrouped where
-  groupers (NilGrouped _z0 _r1 _z2 _sz3 g4 _z5 _sz6 sq7)
-    = NonEmpty g4 (fmap (\(x, _, _) -> x) sq7)
-
-instance Display (NilGrouped RadCom) where
-  display (NilGrouped may1 _rdx2 z3 zs4 g5 z6 zs7 sq8)
-    = display may1 . (',':) . display z3 . display zs4 . display g5
-      . display z6 . display zs7 . display sq8
-
-instance Display (NilGrouped RadPer) where
-  display (NilGrouped may1 _rdx2 z3 zs4 g5 z6 zs7 sq8)
-    = display may1 . ('.':) . display z3 . display zs4 . display g5
-      . display z6 . display zs7 . display sq8
-
 data NilUngrouped r
   = NUZero Zero (Maybe (Radix r, Maybe (Zero, Seq Zero)))
   | NURadix (Radix r) Zero (Seq Zero)
   deriving (Eq, Ord, Show)
-
-instance MayGrouped NilUngrouped where
-  mayGroupers _ = S.empty
-
-instance Display (NilUngrouped RadCom) where
-  display (NUZero z may) = display z . case may of
-    Nothing -> id
-    Just (_rdx, may2) -> (',':) . display may2
-  display (NURadix _rdx1 z2 zs3) = (',':) . display z2 . display zs3
-
-instance Display (NilUngrouped RadPer) where
-  display (NUZero z may) = display z . case may of
-    Nothing -> id
-    Just (_rdx, may2) -> ('.':) . display may2
-  display (NURadix _rdx1 z2 zs3) = ('.':) . display z2 . display zs3
 
 -- # Brim
 
@@ -197,62 +133,15 @@ data Brim r
   | BrimUngrouped (BrimUngrouped r)
   deriving (Eq, Ord, Show)
 
-instance MayGrouped Brim where
-  mayGroupers (BrimGrouped bg) = seqFromNonEmpty . groupers $ bg
-  mayGroupers (BrimUngrouped _) = S.empty
-
-instance Display (Brim RadCom) where
-  display (BrimGrouped bg) = display bg
-  display (BrimUngrouped bu) = display bu
-
-instance Display (Brim RadPer) where
-  display (BrimGrouped bg) = display bg
-  display (BrimUngrouped bu) = display bu
-
 data BrimUngrouped r
   = BUGreaterThanOne D9 (Seq D9z) (Maybe (Radix r, Seq D9z))
   | BULessThanOne (Maybe Zero) (Radix r) (Seq Zero) D9 (Seq D9z)
   deriving (Eq, Ord, Show)
 
-instance MayGrouped BrimUngrouped where
-  mayGroupers _ = S.empty
-
-instance Display (BrimUngrouped RadCom) where
-  display (BUGreaterThanOne d1 sq2 may3) = display d1 . display sq2 .
-    case may3 of
-      Nothing -> id
-      Just (_rdx, sq4) -> (',':) . display sq4
-  display (BULessThanOne may1 _rdx2 sq3 d4 ds5) =
-    display may1 . (',':) . display sq3 . display d4 . display ds5
-
-instance Display (BrimUngrouped RadPer) where
-  display (BUGreaterThanOne d1 sq2 may3) = display d1 . display sq2 .
-    case may3 of
-      Nothing -> id
-      Just (_rdx, sq4) -> ('.':) . display sq4
-  display (BULessThanOne may1 _rdx2 sq3 d4 ds5) =
-    display may1 . ('.':) . display sq3 . display d4 . display ds5
-
 data BrimGrouped r
   = BGGreaterThanOne D9 (Seq D9z) (BG1 r)
   | BGLessThanOne (Maybe Zero) (Radix r) (BG5 r)
   deriving (Eq, Ord, Show)
-
-instance Grouped BrimGrouped where
-  groupers (BGGreaterThanOne _ _ bg1) = groupers bg1
-  groupers (BGLessThanOne _ _ bg5) = groupers bg5
-
-instance Display (BrimGrouped RadCom) where
-  display (BGGreaterThanOne d1 sq2 bg1'3) =
-    display d1 . display sq2 . display bg1'3
-  display (BGLessThanOne m1 _rdx2 bg5'3) =
-    display m1 . (',':) . display bg5'3
-
-instance Display (BrimGrouped RadPer) where
-  display (BGGreaterThanOne d1 sq2 bg1'3) =
-    display d1 . display sq2 . display bg1'3
-  display (BGLessThanOne m1 _rdx2 bg5'3) =
-    display m1 . ('.':) . display bg5'3
 
 data BG1 r
   = BG1GroupOnLeft r D9z (Seq D9z) (Seq (r, D9z, Seq D9z))
@@ -261,55 +150,11 @@ data BG1 r
                     (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
 
-instance Grouped BG1 where
-  groupers (BG1GroupOnLeft g1 _ _ sq1 Nothing)
-    = NonEmpty g1 (fmap (\(x, _, _) -> x) sq1)
-  groupers (BG1GroupOnLeft g1 _ _ sq1 (Just (_, Nothing)))
-    = NonEmpty g1 (fmap (\(x, _, _) -> x) sq1)
-  groupers (BG1GroupOnLeft g1 _ _ sq1 (Just (_, Just
-    (_, _, sq2)))) = NonEmpty g1 (fmap get sq1 <> fmap get sq2)
-    where
-      get (x, _, _) = x
-  groupers (BG1GroupOnRight _ _ _ g1 _ _ sq)
-    = NonEmpty g1 (fmap (\(x, _, _) -> x) sq)
-
-instance Display (BG1 RadCom) where
-  display (BG1GroupOnLeft g1 d2 sq3 sq4 may5) =
-    display g1 . display d2 . display sq3 . display sq4 . case may5 of
-      Nothing -> id
-      Just (_rdx, may6) -> (',':) . display may6
-
-  display (BG1GroupOnRight _rdx1 d2 sq3 g4 d5 sq6 sq7) =
-    (',':) . display d2 . display sq3 . display g4 . display d5
-    . display sq6 . display sq7
-
-instance Display (BG1 RadPer) where
-  display (BG1GroupOnLeft g1 d2 sq3 sq4 may5) =
-    display g1 . display d2 . display sq3 . display sq4 . case may5 of
-      Nothing -> id
-      Just (_rdx, may6) -> ('.':) . display may6
-
-  display (BG1GroupOnRight _rdx1 d2 sq3 g4 d5 sq6 sq7) =
-    ('.':) . display d2 . display sq3 . display g4 . display d5
-    . display sq6 . display sq7
-
-
 data BG5 r
   = BG5Novem D9 (Seq D9z) r D9z (Seq D9z)
                    (Seq (r, D9z, Seq D9z))
   | BG5Zero Zero (Seq Zero) (BG6 r)
   deriving (Eq, Ord, Show)
-
-instance Grouped BG5 where
-  groupers (BG5Novem _ _ g1 _ _ gs)
-    = NonEmpty g1 (fmap (\(x, _, _) -> x) gs)
-  groupers (BG5Zero _ _ bg6) = groupers bg6
-
-instance Display r => Display (BG5 r) where
-  display (BG5Novem d1 sq2 g3 d4 sq5 sq6) = display d1
-    . display sq2 . display g3 . display d4 . display sq5
-    . display sq6
-  display (BG5Zero z1 sq2 bg6'3) = display z1 . display sq2 . display bg6'3
 
 data BG6 r
   = BG6Novem D9 (Seq D9z) r D9z (Seq D9z)
@@ -317,42 +162,15 @@ data BG6 r
   | BG6Group r (BG7 r)
   deriving (Eq, Ord, Show)
 
-instance Grouped BG6 where
-  groupers (BG6Novem _ _ g1 _ _ sq)
-    = NonEmpty g1 (fmap (\(x, _, _) -> x) sq)
-  groupers (BG6Group g1 bg7) = NonEmpty g1 (mayGroupers bg7)
-
-instance Display r => Display (BG6 r) where
-  display (BG6Novem d1 sq2 r3 d4 sq5 sq6)
-    = display d1 . display sq2 . display r3 . display d4
-      . display sq5 . display sq6
-  display (BG6Group g1 bg7'2) = display g1 . display bg7'2
-
 data BG7 r
   = BG7Zeroes Zero (Seq Zero) (BG8 r)
   | BG7Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
   deriving (Eq, Ord, Show)
 
-instance Display r => Display (BG7 r) where
-  display (BG7Zeroes z1 sq2 bg8'3) = display z1 . display sq2 . display bg8'3
-  display (BG7Novem d1 sq2 sq3) = display d1 . display sq2 . display sq3
-
 data BG8 r
   = BG8Novem D9 (Seq D9z) (Seq (r, D9z, Seq D9z))
   | BG8Group r (BG7 r)
   deriving (Eq, Ord, Show)
-
-instance MayGrouped BG7 where
-  mayGroupers (BG7Zeroes _ _ bg8) = mayGroupers bg8
-  mayGroupers (BG7Novem _ _ sq) = fmap (\(x, _, _) -> x) sq
-
-instance MayGrouped BG8 where
-  mayGroupers (BG8Novem _ _ sq) = fmap (\(x, _, _) -> x) sq
-  mayGroupers (BG8Group g1 bg7) = g1 <| mayGroupers bg7
-
-instance Display r => Display (BG8 r) where
-  display (BG8Novem d1 ds2 sq3) = display d1 . display ds2 . display sq3
-  display (BG8Group r bg7) = display r . display bg7
 
 -- # Others
 
@@ -512,23 +330,4 @@ ungroupNilGrouped (NilGrouped may1 rdx2 z3 zs4 _g5 z6 zs7 sq8)
     Nothing -> NURadix rdx2 z3 (zs4 <> (z6 <| zs7)
       <> join (fmap (\(_g9, z10, z11) -> z10 <| z11) sq8))
 
--- # Conversions
-
--- | Removes the 'Side' from a 'QtyRepAnyRadix'.
-c'NilOrBrimScalarAnyRadix'RepAnyRadix
-  :: RepAnyRadix
-  -> NilOrBrimScalarAnyRadix
-c'NilOrBrimScalarAnyRadix'RepAnyRadix ei = case ei of
-  Left rc -> Left $ case rc of
-    Moderate n -> Left n
-    Extreme (Polarized c _) -> Right c
-  Right rp -> Right $ case rp of
-    Moderate n -> Left n
-    Extreme (Polarized c _) -> Right c
-
-c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
-  :: BrimScalarAnyRadix
-  -> NilOrBrimScalarAnyRadix
-c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
-  = either (Left . Right) (Right . Right)
 -}

@@ -40,10 +40,11 @@
 -- why that is unsafe, I do not know.
 module Penny.Copper where
 
+{-
+
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Penny.Ents
-import Penny.Friendly
 import Penny.Copper.Ast
 import Penny.Copper.ConvertAst
 import Penny.Copper.Parser
@@ -94,3 +95,4 @@ formatConvertErrors (c1, cs)
   . intersperse [""] . (friendly c1 :) . map friendly . toList $ cs
 
 
+-}

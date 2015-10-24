@@ -6,10 +6,10 @@
 module Penny.Serial where
 
 import Control.Lens
+import Penny.Grammar (Zero(Zero))
 import Penny.Natural
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
-import Penny.Representation
 import Data.Functor.Compose
 
 data Serset = Serset

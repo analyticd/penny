@@ -24,11 +24,8 @@ import Penny.Decimal
 import Data.Monoid ((<>))
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
-import qualified Data.Text as X
-import Penny.NonZero
 import Penny.Trio
 import qualified Data.Map as M
-import Penny.Friendly
 import qualified Penny.Troika as Y
 
 data Ents a = Ents
@@ -107,16 +104,6 @@ prependTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
 data ImbalancedError
   = ImbalancedError (Commodity, DecNonZero) [(Commodity, DecNonZero)]
   deriving Show
-
-instance Friendly ImbalancedError where
-  friendly (ImbalancedError c1 cs) =
-    [ "Transaction is not balanced.  Imbalance:"
-    , showImb c1
-    ] ++ map showImb cs
-    where
-      showImb (cy, q)
-        = "  " ++ X.unpack cy ++ " "
-               ++ displayDecimalAsQty (fmap nonZeroToInteger q) ""
 
 entsToBalanced :: Ents a -> Either ImbalancedError (Balanced a)
 entsToBalanced (Ents sq (Imbalance m)) = case M.toList m of

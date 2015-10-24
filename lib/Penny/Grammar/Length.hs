@@ -451,12 +451,12 @@ openSquare = nextChar
 closeSquare :: Counter CloseSquare
 closeSquare = nextChar
 
-integer :: Counter Integer
-integer (Integer a)
+whole :: Counter Whole
+whole (Whole a)
   = either zero (\(a, b, c) -> maybe pluMin a . d9 b . sequence d9z c) a
 
 scalar :: Counter Scalar
-scalar = caseS6 unquotedString quotedString date time zone integer
+scalar = caseS6 unquotedString quotedString date time zone whole
 
 bracketedForest :: Counter BracketedForest
 bracketedForest (BracketedForest a b c)

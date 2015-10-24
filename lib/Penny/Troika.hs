@@ -5,9 +5,12 @@ module Penny.Troika where
 import Penny.Arrangement
 import Penny.Commodity
 import Penny.Decimal
+import Penny.Grammar
+  (BrimScalarAnyRadix, RadCom, RadPer)
+import Penny.Group
 import Penny.NonZero
 import Penny.Polar
-import Penny.Representation
+import Penny.Rep
 import qualified Penny.Amount as A
 
 import Control.Lens

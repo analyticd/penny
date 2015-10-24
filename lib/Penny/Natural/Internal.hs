@@ -2,13 +2,14 @@
 {-# OPTIONS_HADDOCK not-home #-}
 module Penny.Natural.Internal where
 
+import Penny.Digit
 import Penny.Grammar
-import Penny.Grammar.Convert
+  (Zero, One, Two, Three, Four, Five, Six, Seven, Eight, Nine,
+   D2, D3, D4, D5, D6, D7, D8, D9,
+   D1z, D2z, D3z, D4z, D5z, D6z, D7z, D8z, D9z)
 import Data.Foldable (toList)
 import Data.Sequence (Seq, ViewR(..), viewr)
 import Penny.Polar
-import Prelude
-  (Eq, Ord, Show, (.))
 
 -- Do not try to make 'Positive' an instance of 'Wrapped' in Lens.
 -- That would allow the user to make a 'Positive' with any 'Integer',

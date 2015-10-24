@@ -42,7 +42,6 @@ module Penny.Decimal
   , repUngroupedDecPositive
   , repDigits
   , repDecimal
-  , displayDecimalAsQty
   ) where
 
 import Control.Lens (view, makeLenses, to, over, (<|), set)
@@ -52,11 +51,12 @@ import Data.Monoid ((<>))
 import Data.Ord (comparing)
 import qualified Data.Sequence as S
 
-import Penny.Display
+import Penny.Group
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar
-import Penny.Representation
+import Penny.Rep
+import Penny.Grammar
 
 -- | Numbers represented exponentially.  In @Exponential c p@, the
 -- value of the number is @c * 10 ^ (-1 * naturalToInteger p)@.
@@ -432,17 +432,3 @@ repDecimal ei d = case ei of
         Nothing -> Extreme . fmap BrimUngrouped $ plr
         Just bg -> Extreme (set charged (BrimGrouped bg) plr)
 
--- | Provide a simple ungrouped string for a decimal.
-displayDecimalAsQty
-  :: Decimal
-  -> ShowS
-displayDecimalAsQty d = (sideChar :) .  (' ':) . rend
-  where
-    sideChar = case equatorial d of
-      Nothing -> ' '
-      Just v
-        | v == debit -> '<'
-        | otherwise -> '>'
-    rend = case repUngroupedDecimal (Radix :: Radix RadPer) d of
-      Moderate nu -> display nu
-      Extreme (Polarized bu _) -> display bu
