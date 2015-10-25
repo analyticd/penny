@@ -1,4 +1,5 @@
--- | This file written for Cartel version 0.12.0.0
+#!/usr/bin/env stack
+-- stack --resolver=lts-3.11 --install-ghc runghc --package cartel
 
 module Main where
 
@@ -179,7 +180,7 @@ props = blank
 
 main :: IO ()
 main = defaultMain $ do
-  libMods <- modules "lib"
+  libMods <- modules "package/lib"
   -- testMods <- modules "tests"
   copper <- makeFlag "copper" $
     FlagOpts { flagDescription = "create copper-parse executable"
