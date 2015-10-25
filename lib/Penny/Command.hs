@@ -11,9 +11,6 @@ import Penny.Colors
 import Penny.Columns (Colable, Columns)
 import qualified Penny.Columns as Columns
 import Penny.Converter
-import Penny.Copper.Classes
-import Penny.Copper.ConvertAst (c'DecUnsigned'NeutralOrNon)
-import Penny.Copper.Parser
 import Penny.Decimal
 import Penny.Dump (Dump(Dump))
 import Penny.Natural
@@ -30,6 +27,7 @@ import Text.ParserCombinators.UU.BasicInstances (createStr)
 import Text.ParserCombinators.UU.Core (parse_h, pErrors, pEnd)
 
 
+{-
 -- | Parses a value.  Applies 'error' if the value could not be parsed.
 parse :: Parseable a => String -> Text -> a
 parse msg txt
@@ -44,9 +42,11 @@ parse msg txt
 -- | Parses an unsigned decimal.  Applies 'error' if a value cannot be parsed.
 unsigned :: Text -> DecUnsigned
 unsigned = c'DecUnsigned'NeutralOrNon . parse "decimal value"
+-}
 
 -- # Commands
 
+{-
 convert
   :: Monoid r
   => Commodity
@@ -66,6 +66,7 @@ convert fromCy toCy factorTxt = set Clatcher.converter cv mempty
       | oldCy /= fromCy = Nothing
       | otherwise = Just $ Amount toCy (oldQty * factor)
     factor = fmap naturalToInteger . unsigned $ factorTxt
+-}
 
 sieve
   :: Getter (Converted ()) Bool

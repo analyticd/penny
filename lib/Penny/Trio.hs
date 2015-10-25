@@ -6,9 +6,7 @@ import Penny.Decimal
 import Penny.Commodity
 import Penny.Balance
 import Penny.Grammar
-  (BrimScalarAnyRadix, RadCom, RadPer, NilOrBrimScalarAnyRadix)
-import Penny.Grammar.Convert
-   (c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix)
+  (BrimScalarAnyRadix, RadCom, RadPer)
 import Penny.Group (mayGroupers)
 import Penny.Polar
 import Penny.NonEmpty
@@ -130,19 +128,6 @@ trioRendering tri = case tri of
         Left b -> Left $ mayGroupers b
         Right b -> Right $ mayGroupers b
   _ -> Nothing
-
--- | Extracts the representation from the 'Trio', if there is a
--- representation.  Does not return a 'Side'.
-trioRepresentation
-  :: Trio
-  -> Maybe NilOrBrimScalarAnyRadix
-trioRepresentation tri = case tri of
-  QC qr _ _ -> Just $ c'NilOrBrimScalarAnyRadix'RepAnyRadix qr
-  Q qr -> Just $ c'NilOrBrimScalarAnyRadix'RepAnyRadix qr
-  UC rn _ _ -> Just $ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix rn
-  U rn -> Just $ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix rn
-  _ -> Nothing
-
 
 oneCommodity :: Imbalance -> Either TrioError (Commodity, DecNonZero)
 oneCommodity (Imbalance imb) = case M.toList imb of

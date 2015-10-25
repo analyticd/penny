@@ -8,12 +8,12 @@ import Penny.Clatch
 import Penny.Decimal
 import Penny.Display
 import Penny.Grammar
+  (Brim, Nil, RadCom, RadPer)
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar
 import Penny.Realm
 import Penny.Report
-import Penny.Representation
 import Penny.Scalar
 import Penny.SeqUtil
 import Penny.Serial

@@ -58,17 +58,6 @@ instance Display Zone where
 utcZone :: Zone
 utcZone = Zone Plus D2z'0 D3z'0 D9z'0 D9z'0
 
-c'Int'Zone :: Zone -> Int
-c'Int'Zone (Zone pm d3 d2 d1 d0)
-  = changeSign
-  $ places 3 d3
-  + places 2 d2
-  + places 1 d1
-  + places 0 d0
-  where
-    changeSign = case pm of { Minus -> negate; Plus -> id }
-    places np dig = digitToInt dig * 10 ^ (np `asTypeOf` undefined :: Int)
-
 data Time = Time Hours Minutes Seconds
   deriving (Eq, Ord, Show)
 

@@ -19,6 +19,8 @@ import Penny.Commodity
 import Penny.Decimal
 import Penny.Display
 import Penny.Grammar
+  (BrimScalarAnyRadix)
+import Penny.Grammar.Convert
 import Penny.Natural
 import Penny.Polar (Pole, equatorial)
 import qualified Penny.Polar as P
@@ -27,7 +29,6 @@ import Penny.Qty
 import Penny.Realm
 import Penny.Rep
 import Penny.Report
-import Penny.Representation
 import Penny.Scalar
 import Penny.SeqUtil (intersperse)
 import Penny.Serial

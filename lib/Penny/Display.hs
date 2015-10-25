@@ -14,6 +14,7 @@ import Penny.Grammar
 import Penny.Grammar.Convert
 import Penny.NonZero
 import Penny.Polar
+import qualified Penny.Scalar as Scalar
 import Penny.Trio
 
 -- | Display of representations.
@@ -303,3 +304,11 @@ instance Friendly ImbalancedError where
       showImb (cy, q)
         = "  " ++ X.unpack cy ++ " "
                ++ displayDecimalAsQty (fmap nonZeroToInteger q) ""
+
+instance Display Scalar.Scalar where
+  display x = case x of
+    Scalar.SText a -> display a
+    Scalar.SDay a -> display a
+    Scalar.STime a -> display a
+    Scalar.SZone a -> display . minutesToTimeZone $ a
+    Scalar.SInteger a -> display a

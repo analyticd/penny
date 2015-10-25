@@ -1,11 +1,25 @@
--- | Handles all conversions between types in 'Penny.Grammar' and
+-- | Handles some conversions between types in 'Penny.Grammar' and
 -- other Penny types.
 module Penny.Grammar.Convert where
 
-import Penny.Digit
 import Control.Applicative ((<|>))
+import Control.Lens ((|>), (<|))
+import Data.Foldable (toList)
+import Data.Maybe (catMaybes, isJust)
+import Data.Monoid ((<>))
+import Data.Text (Text, pack)
+import Data.Time (Day, fromGregorianValid, toGregorian, TimeOfDay(TimeOfDay))
+import Data.Sums (S4(S4a, S4b, S4c, S4d),
+  S6(S6a, S6b, S6c, S6d, S6e, S6f))
+
+import Penny.Arrangement
+import qualified Penny.Commodity as Commodity
+import Penny.Digit
 import Penny.Grammar
-import Data.Time
+import Penny.Polar
+import Penny.Rep
+import qualified Penny.Scalar as Scalar
+import qualified Penny.Trio as Trio
 
 c'Char'D1z :: D1z -> Char
 c'Char'D1z x = case x of
@@ -528,6 +542,22 @@ c'Date'Day sep dy
       md <- c'MonthDay'Ints sep m d
       return $ NonLeapDay yr sep md
 
+c'TimeOfDay'Time :: Time -> TimeOfDay
+c'TimeOfDay'Time (Time h Colon m may)
+  = TimeOfDay (c'Int'Hours h) (c'Int'ZeroTo59 m)
+    (maybe 0 (fromIntegral . c'Int'ZeroTo59 . snd) may)
+
+c'Int'Zone :: Zone -> Int
+c'Int'Zone (Zone Backtick pm d3 d2 d1 d0)
+  = changeSign
+  $ places 3 d3
+  + places 2 d2
+  + places 1 d1
+  + places 0 d0
+  where
+    changeSign = case pm of { Minus -> negate; Plus -> id }
+    places np dig = digitToInt dig * 10 ^ (np `asTypeOf` undefined :: Int)
+
 
 c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
   :: BrimScalarAnyRadix
@@ -535,3 +565,158 @@ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
 c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
   = either (Left . Right) (Right . Right)
 
+c'Char'EscSeq :: EscSeq -> Maybe Char
+c'Char'EscSeq (EscSeq Backslash payload) = case payload of
+  S4a Backslash -> Just '\\'
+  S4b Newline -> Just '\n'
+  S4c DoubleQuote -> Just '"'
+  S4d (Gap _ _) -> Nothing
+
+c'Char'QuotedChar :: QuotedChar -> Maybe Char
+c'Char'QuotedChar (QuotedChar ei) = either Just c'Char'EscSeq ei
+
+c'Text'QuotedString :: QuotedString -> Text
+c'Text'QuotedString (QuotedString DoubleQuote sq DoubleQuote)
+  = pack . catMaybes . toList . fmap c'Char'QuotedChar $ sq
+
+c'Text'UnquotedString :: UnquotedString -> Text
+c'Text'UnquotedString (UnquotedString sq1 nd sq2)
+  = (txt1 |> nd) <> txt2
+  where
+    txt1 = pack . toList . fmap c'Char'D9z $ sq1
+    txt2 = pack . toList . fmap (either id c'Char'D9z) $ sq2
+
+c'Commodity'UnquotedCommodity :: UnquotedCommodity -> Commodity.Commodity
+c'Commodity'UnquotedCommodity (UnquotedCommodity c1 cs)
+  = c1 <| (pack . toList $ cs)
+
+
+c'CommodityCommodity'Commodity :: Commodity -> Commodity.Commodity
+c'CommodityCommodity'Commodity (Commodity ei)
+  = either c'Commodity'UnquotedCommodity c'Text'QuotedString ei
+
+c'BrimScalarAnyRadix'NonNeutral :: NonNeutral -> BrimScalarAnyRadix
+c'BrimScalarAnyRadix'NonNeutral x = case x of
+  NonNeutralRadCom Backtick rc -> Left rc
+  NonNeutralRadPer rp -> Right rp
+
+c'NilOrBrimScalarAnyRadix'NeutralOrNon
+  :: NeutralOrNon
+  -> NilOrBrimScalarAnyRadix
+c'NilOrBrimScalarAnyRadix'NeutralOrNon x = case x of
+  NeutralOrNonRadCom Backtick ei -> Left ei
+  NeutralOrNonRadPer ei -> Right ei
+
+c'NilScalarAnyRadix'Neutral
+  :: Neutral
+  -> NilScalarAnyRadix
+c'NilScalarAnyRadix'Neutral x = case x of
+  NeuCom Backtick n -> Left n
+  NeuPer n -> Right n
+
+c'Pole'Dipole :: Dipole -> Pole
+c'Pole'Dipole x = case x of
+  Left LessThan -> debit
+  Right GreaterThan -> credit
+
+-- | Extracts the representation from the 'Trio', if there is a
+-- representation.  Does not return a 'Side'.
+trioRepresentation
+  :: Trio.Trio
+  -> Maybe NilOrBrimScalarAnyRadix
+trioRepresentation tri = case tri of
+  Trio.QC qr _ _ -> Just $ c'NilOrBrimScalarAnyRadix'RepAnyRadix qr
+  Trio.Q qr -> Just $ c'NilOrBrimScalarAnyRadix'RepAnyRadix qr
+  Trio.UC rn _ _ -> Just $ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix rn
+  Trio.U rn -> Just $ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix rn
+  _ -> Nothing
+
+
+arrangement :: Maybe a -> Orient -> Arrangement
+arrangement may o = Arrangement o . isJust $ may
+
+c'TrioTrio'Trio :: Trio -> Trio.Trio
+c'TrioTrio'Trio x = case x of
+  QcCyOnLeft (Fs di _) (Fs cy spcs) nn -> Trio.QC rar cy' ar
+    where
+      cy' = c'CommodityCommodity'Commodity cy
+      rar = case nn of
+        NonNeutralRadCom Backtick brim ->
+          Left (Extreme (Polarized brim pole))
+        NonNeutralRadPer brim ->
+          Right (Extreme (Polarized brim pole))
+      pole = c'Pole'Dipole di
+      ar = Arrangement CommodityOnLeft sb
+      sb = isJust spcs
+
+  QcCyOnRight (Fs di _) (Fs nn spcs) cy -> Trio.QC rar cy' ar
+    where
+      cy' = c'CommodityCommodity'Commodity cy
+      rar = case nn of
+        NonNeutralRadCom Backtick brim ->
+          Left (Extreme (Polarized brim pole))
+        NonNeutralRadPer brim ->
+          Right (Extreme (Polarized brim pole))
+      pole = c'Pole'Dipole di
+      ar = Arrangement CommodityOnRight sb
+      sb = isJust spcs
+
+  QSided (Fs di _) nn -> Trio.Q rar
+    where
+      rar = case nn of
+        NonNeutralRadCom Backtick brim ->
+          Left (Extreme (Polarized brim pole))
+        NonNeutralRadPer brim ->
+          Right (Extreme (Polarized brim pole))
+      pole = c'Pole'Dipole di
+
+  QUnsided n -> Trio.Q brimScalarAnyRadix
+    where
+      brimScalarAnyRadix = case n of
+        NeuCom Backtick nil -> Left . Moderate $ nil
+        NeuPer nil -> Right . Moderate $ nil
+
+  SC (Fs sd _) cy -> Trio.SC (c'Pole'Dipole sd)
+    . c'CommodityCommodity'Commodity $ cy
+
+  S di -> Trio.S . c'Pole'Dipole $ di
+
+  UcCyOnLeft (Fs cy maySpc) nonNeu -> Trio.UC
+    (c'BrimScalarAnyRadix'NonNeutral nonNeu)
+    (c'CommodityCommodity'Commodity cy)
+    (arrangement maySpc CommodityOnLeft)
+
+  UcCyOnRight (Fs nonNeu maySpc) cy -> Trio.UC
+    (c'BrimScalarAnyRadix'NonNeutral nonNeu)
+    (c'CommodityCommodity'Commodity cy)
+    (arrangement maySpc CommodityOnRight)
+
+  U nn -> Trio.U (c'BrimScalarAnyRadix'NonNeutral nn)
+
+  C c -> Trio.C (c'CommodityCommodity'Commodity c)
+
+c'Integer'Whole :: Whole -> Integer
+c'Integer'Whole (Whole ei) = case ei of
+  Left Zero -> 0
+  Right (mayPluMin, dLeft, dRest)
+    -> changeSign
+    . (decimalPlace (Prelude.length dRest) dLeft +)
+    . foldr f 0
+    . zip (iterate pred (Prelude.length dRest - 1))
+    . toList
+    $ dRest
+    where
+      f (ex, num) acc = decimalPlace ex num + acc
+      changeSign = case mayPluMin of
+        Nothing -> id
+        Just Minus -> negate
+        Just Plus -> id
+
+c'ScalarScalar'Scalar :: Scalar -> Scalar.Scalar
+c'ScalarScalar'Scalar x = case x of
+  S6a us -> Scalar.SText . c'Text'UnquotedString $ us
+  S6b qs -> Scalar.SText . c'Text'QuotedString $ qs
+  S6c dt -> Scalar.SDay . c'Day'Date $ dt
+  S6d ti -> Scalar.STime . c'TimeOfDay'Time $ ti
+  S6e zn -> Scalar.SZone . c'Int'Zone $ zn
+  S6f wl -> Scalar.SInteger . c'Integer'Whole $ wl

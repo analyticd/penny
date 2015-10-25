@@ -40,19 +40,26 @@
 -- why that is unsafe, I do not know.
 module Penny.Copper where
 
+import Data.Sequence (Seq)
+import Data.Text (Text)
+
+import Penny.Ents
+import Penny.Price
+import Penny.Tree
+
+copperParser
+  :: Text
+  -> Either String (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
+copperParser = undefined
+
 {-
 
 import Data.Foldable (toList)
-import Data.Sequence (Seq)
-import Penny.Ents
 import Penny.Copper.Ast
 import Penny.Copper.ConvertAst
 import Penny.Copper.Parser
-import Penny.Price
-import Penny.Tree
 import Text.ParserCombinators.UU.BasicInstances
 import Data.List (intersperse)
-import Data.Text (Text)
 
 -- | Constructs the Copper AST and transforms it to Lincoln types
 -- using "Penny.Copper.ConvertAst".
