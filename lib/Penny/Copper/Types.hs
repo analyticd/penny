@@ -2,7 +2,7 @@
              MultiParamTypeClasses #-}
 module Penny.Copper.Types where
 
-import Control.Applicative (many, Alternative, (<|>), optional)
+import Control.Applicative (many, (<|>), optional)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Text.Megaparsec (char, try)
@@ -17,9 +17,6 @@ pSeq p = fmap Seq.fromList $ many p
 
 rSeq :: (a -> ShowS) -> Seq a -> ShowS
 rSeq f = foldr (.) id . fmap f
-
-pEither :: Alternative f => f a -> f b -> f (Either a b)
-pEither l r = Left <$> l <|> Right <$> r
 
 rList :: (a -> ShowS) -> [a] -> ShowS
 rList f = foldr (.) id . fmap f

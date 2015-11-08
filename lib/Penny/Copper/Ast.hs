@@ -3,9 +3,8 @@ module Penny.Copper.Ast where
 
 import Control.Applicative
 import Text.Megaparsec
-  (SourcePos, getPosition, char, (<?>))
+  (SourcePos, getPosition, char, (<?>), try)
 import Text.Megaparsec.Text (Parser)
-
 
 import Penny.Copper.Terminals
 import Penny.Copper.Types
@@ -43,7 +42,7 @@ instance Functor Fs where
   fmap f (Fs a w) = Fs (f a) w
 
 pFs :: Parser a -> Parser (Fs a)
-pFs p = Fs <$> p <*> optional pWhites
+pFs p = Fs <$> p <*> optional (try pWhites)
 
 -- | Something that might be preceded by spaces.
 data Bs a = Bs (Maybe Whites) a
@@ -56,7 +55,7 @@ instance Functor Bs where
   fmap f (Bs w a) = Bs w (f a)
 
 pBs :: Parser a -> Parser (Bs a)
-pBs p = Bs <$> optional pWhites <*> p
+pBs p = Bs <$> optional (try pWhites) <*> p
 
 rBs :: (a -> ShowS) -> Bs a -> ShowS
 rBs f (Bs w a) = rMaybe rWhites w . f a
@@ -210,7 +209,7 @@ data TimeA = TimeA
 
 pTimeA :: Parser TimeA
 pTimeA = TimeA <$> pHoursA <*> pColon <*> pMinutes
-    <*> optional ((,) <$> pColon <*> pSeconds)
+    <*> optional (try ((,) <$> pColon <*> pSeconds))
 
 rTimeA :: TimeA -> ShowS
 rTimeA (TimeA d0 c1 d2 m3) = rHoursA d0 . rColon c1
@@ -282,7 +281,7 @@ rWhites :: Whites -> ShowS
 rWhites (Whites w ws) = rWhite w . rList rWhite ws
 
 pWhites :: Parser Whites
-pWhites = Whites <$> pWhite <*> many pWhite
+pWhites = Whites <$> pWhite <*> many (try pWhite)
 
 data EscPayload
   = EscBackslash
@@ -331,7 +330,7 @@ data QuotedString = QuotedString DoubleQuote [QuotedChar] DoubleQuote
 pQuotedString :: Parser QuotedString
 pQuotedString = QuotedString
   <$> pDoubleQuote
-  <*> many pQuotedChar
+  <*> many (try pQuotedChar)
   <*> pDoubleQuote
 
 rQuotedString :: QuotedString -> ShowS
@@ -400,7 +399,7 @@ newtype CommodityOnLeftA
 
 pCommodityOnLeftA :: Parser CommodityOnLeftA
 pCommodityOnLeftA = CommodityOnLeftA
-  <$> pEither pUnquotedCommodityOnLeft pQuotedCommodity
+  <$> (Left <$> pUnquotedCommodityOnLeft <|> Right <$> pQuotedCommodity)
 
 rCommodityOnLeftA :: CommodityOnLeftA -> ShowS
 rCommodityOnLeftA (CommodityOnLeftA ei)
@@ -412,7 +411,7 @@ newtype CommodityOnRightA
 
 pCommodityOnRightA :: Parser CommodityOnRightA
 pCommodityOnRightA = CommodityOnRightA
-  <$> pEither pUnquotedCommodityOnRight pQuotedCommodity
+  <$> (Left <$> pUnquotedCommodityOnRight <|> Right <$> pQuotedCommodity)
 
 rCommodityOnRightA :: CommodityOnRightA -> ShowS
 rCommodityOnRightA (CommodityOnRightA ei)
@@ -471,11 +470,11 @@ data NeutralOrNon
 pNeutralOrNon :: Parser NeutralOrNon
 pNeutralOrNon
   = NeutralOrNonRadCom <$> pBacktick <*>
-      (Left <$> pNil pRadixRadCom pRadCom
-        <|> Right <$> pBrim pRadixRadCom pRadCom)
+      (Left <$> try (pNil pRadixRadCom pRadCom)
+        <|> Right <$> try (pBrim pRadixRadCom pRadCom))
   <|> NeutralOrNonRadPer <$>
-      (Left <$> pNil pRadixRadPer pRadPer
-        <|> Right <$> pBrim pRadixRadPer pRadPer)
+      (Left <$> try (pNil pRadixRadPer pRadPer)
+        <|> Right <$> try (pBrim pRadixRadPer pRadPer))
 
 rNeutralOrNon :: NeutralOrNon -> ShowS
 rNeutralOrNon x = case x of
@@ -528,16 +527,16 @@ data TrioA
 
 pTrioA :: Parser TrioA
 pTrioA
-  = QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityOnLeftA <*> pNonNeutral
-  <|> QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityOnRightA
-  <|> QSided <$> pFs pSide <*> pNonNeutral
-  <|> QUnsided <$> pNeutral
-  <|> SCA <$> pFs pSide <*> pCommodityA
-  <|> SA <$> pSide
-  <|> UcCyOnLeftA <$> pFs pCommodityOnLeftA <*> pNonNeutral
-  <|> UcCyOnRightA <$> pFs pNonNeutral <*> pCommodityOnRightA
-  <|> UA <$> pNonNeutral
-  <|> CA <$> pCommodityA
+  =   try (QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityOnLeftA <*> pNonNeutral)
+  <|> try (QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityOnRightA)
+  <|> try (QSided <$> pFs pSide <*> pNonNeutral)
+  <|> try (QUnsided <$> pNeutral)
+  <|> try (SCA <$> pFs pSide <*> pCommodityA)
+  <|> try (SA <$> pSide)
+  <|> try (UcCyOnLeftA <$> pFs pCommodityOnLeftA <*> pNonNeutral)
+  <|> try (UcCyOnRightA <$> pFs pNonNeutral <*> pCommodityOnRightA)
+  <|> try (UA <$> pNonNeutral)
+  <|> try (CA <$> pCommodityA)
 
 rTrioA :: TrioA -> ShowS
 rTrioA x = case x of
@@ -596,12 +595,12 @@ data ScalarA
 
 pScalarA :: Parser ScalarA
 pScalarA
-  = ScalarDate <$> pDateA
-  <|> ScalarTime <$> pTimeA
-  <|> ScalarZone <$> pZoneA
-  <|> ScalarInt <$> pIntegerA
-  <|> ScalarQuotedString <$> pQuotedString
-  <|> ScalarUnquotedString <$> pUnquotedString
+  =   try (ScalarDate <$> pDateA)
+  <|> try (ScalarTime <$> pTimeA)
+  <|> try (ScalarZone <$> pZoneA)
+  <|> try (ScalarInt <$> pIntegerA)
+  <|> try (ScalarQuotedString <$> pQuotedString)
+  <|> try (ScalarUnquotedString <$> pUnquotedString)
 
 rScalarA :: ScalarA -> ShowS
 rScalarA sclrA = case sclrA of
@@ -621,7 +620,7 @@ data ForestA = ForestA TreeA [(Bs CommaA, Bs TreeA)]
 
 pForestA :: Parser ForestA
 pForestA = ForestA <$> pTreeA
-  <*> many ((,) <$> pBs pCommaA <*> pBs pTreeA)
+  <*> many (try ((,) <$> pBs pCommaA <*> pBs pTreeA))
 
 rForestA :: ForestA -> ShowS
 rForestA (ForestA t0 ls1)
@@ -629,7 +628,7 @@ rForestA (ForestA t0 ls1)
 
 pBracketedForest :: Parser BracketedForest
 pBracketedForest = BracketedForest <$> pFs pOpenSquare
-  <*> optional (pFs pForestA) <*> pCloseSquare
+  <*> optional (try (pFs pForestA)) <*> pCloseSquare
 
 rBracketedForest :: BracketedForest -> ShowS
 rBracketedForest (BracketedForest b0 m1 b2) = rFs rOpenSquare b0
@@ -642,9 +641,9 @@ data TreeA
 
 pTreeA :: Parser TreeA
 pTreeA
-  = TreeScalarFirst <$> pLocated pScalarA <*> optional (pBs pBracketedForest)
+  = TreeScalarFirst <$> pLocated pScalarA <*> optional (try (pBs pBracketedForest))
   <|> TreeForestFirst <$> pBracketedForest
-      <*> optional (pBs (pLocated pScalarA))
+      <*> optional (try (pBs (pLocated pScalarA)))
 
 rTreeA :: TreeA -> ShowS
 rTreeA (TreeScalarFirst s1 m2) = rLocated rScalarA s1
@@ -669,7 +668,7 @@ data PostingA
 pPostingA :: Parser PostingA
 pPostingA
   = PostingTrioFirst <$> pLocated pTrioA
-                     <*> optional (pBs pBracketedForest)
+                     <*> optional (try (pBs pBracketedForest))
   <|> PostingNoTrio <$> pBracketedForest
 
 rPostingA :: PostingA -> ShowS
@@ -711,7 +710,7 @@ data PostingsA = PostingsA (Fs OpenCurly)
 
 pPostingsA :: Parser PostingsA
 pPostingsA = PostingsA <$> pFs pOpenCurly
-  <*> optional (pFs pPostingList) <*> pCloseCurly
+  <*> optional (try (pFs pPostingList)) <*> pCloseCurly
 
 rPostingsA :: PostingsA -> ShowS
 rPostingsA (PostingsA c0 m1 c2)
@@ -735,10 +734,10 @@ data PostingList
 
 pPostingList :: Parser PostingList
 pPostingList
-  = OnePosting <$> (pLocated pPostingA)
+  = OnePosting <$> try (pLocated pPostingA)
   <|> PostingList <$> pLocated pPostingA <*> pBs pSemicolon
       <*> pBs (pLocated pPostingA)
-      <*> many ((,) <$> pBs pSemicolon <*> pBs (pLocated pPostingA))
+      <*> many (try ((,) <$> pBs pSemicolon <*> pBs (pLocated pPostingA)))
 
 rPostingList :: PostingList -> ShowS
 rPostingList pl = case pl of
@@ -754,7 +753,7 @@ data TransactionA
 
 pTransactionA :: Parser TransactionA
 pTransactionA
-  = TransactionWithTopLine <$> pLocated pTopLineA
+  = TransactionWithTopLine <$> try (pLocated pTopLineA)
       <*> pBs pPostingsA
   <|> TransactionNoTopLine <$> pPostingsA
 
@@ -781,8 +780,8 @@ data PriceA = PriceA SourcePos (Fs AtSign) (Located DateA) Whites
 pPriceA :: Parser PriceA
 pPriceA = PriceA <$> getPosition <*> pFs pAtSign <*> pLocated pDateA
   <*> pWhites
-  <*> optional (pLocated ((,) <$> pTimeA <*> pWhites))
-  <*> optional (pLocated ((,) <$> pZoneA <*> pWhites))
+  <*> optional (try (pLocated ((,) <$> pTimeA <*> pWhites)))
+  <*> optional (try (pLocated ((,) <$> pZoneA <*> pWhites)))
   <*> pCommodityA <*> pWhites <*> pCyExch
 
 rPriceA :: PriceA -> ShowS
@@ -802,8 +801,8 @@ data ExchA
   deriving (Eq, Ord, Show)
 
 pExchA :: Parser ExchA
-pExchA = ExchANeutral <$> pNeutral
-  <|> ExchANonNeutral <$> optional (pFs pPluMin) <*> pNonNeutral
+pExchA = ExchANeutral <$> try pNeutral
+  <|> ExchANonNeutral <$> optional (try (pFs pPluMin)) <*> pNonNeutral
 
 rExchA :: ExchA -> ShowS
 rExchA exch = case exch of
@@ -816,8 +815,8 @@ data CyExch
   deriving (Eq, Ord, Show)
 
 pCyExch :: Parser CyExch
-pCyExch = CyExchCy <$> pFs pCommodityA <*> pExchA
-  <|> CyExchA <$> pFs pExchA
+pCyExch = CyExchCy <$> try (pFs pCommodityA) <*> pExchA
+  <|> CyExchA <$> try (pFs pExchA)
                <*> pCommodityA
 
 rCyExch :: CyExch -> ShowS
@@ -830,7 +829,7 @@ data FileItem = FileItem (Located (Either PriceA TransactionA))
 
 pFileItem :: Parser FileItem
 pFileItem = FileItem
-  <$> pLocated ((Left <$> pPriceA) <|> (Right <$> pTransactionA))
+  <$> pLocated ((Left <$> try pPriceA) <|> (Right <$> pTransactionA))
 
 rFileItem :: FileItem -> ShowS
 rFileItem (FileItem l0) =
@@ -841,7 +840,7 @@ data FileItems = FileItems FileItem [(Whites, FileItem)]
 
 pFileItems :: Parser FileItems
 pFileItems = FileItems <$> pFileItem
-  <*> many ((,) <$> pWhites <*> pFileItem)
+  <*> many (try ((,) <$> pWhites <*> pFileItem))
 
 rFileItems :: FileItems -> ShowS
 rFileItems (FileItems i0 ls1)
@@ -858,7 +857,7 @@ data Ast
 pAst :: Parser Ast
 pAst
   = AstNoLeadingWhite <$> pFs pFileItems
-  <|> AstLeadingWhite <$> pWhites <*> (optional (pFs pFileItems))
+  <|> AstLeadingWhite <$> pWhites <*> (optional (try (pFs pFileItems)))
   <|> pure EmptyFile
 
 rAst :: Ast -> ShowS

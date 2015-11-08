@@ -2,7 +2,7 @@
 module Penny.Copper.Date where
 
 import Data.Time
-import Control.Applicative
+import Control.Applicative ((<|>))
 import Text.Megaparsec (char, try)
 import Text.Megaparsec.Text (Parser)
 
