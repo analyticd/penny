@@ -3,10 +3,11 @@ module Penny.Copper.Date where
 
 import Data.Time
 import Control.Applicative
+import Text.Megaparsec (char, try)
+import Text.Megaparsec.Text (Parser)
+
 import Penny.Copper.Types
 import Penny.Digit
-import Text.Megaparsec (char)
-import Text.Megaparsec.Text (Parser)
 
 data DateSep = DateSlash | DateHyphen
   deriving (Eq, Ord, Show)
@@ -74,7 +75,7 @@ c'Int'Days30 days = case days of
 
 pDays30 :: Parser Days30
 pDays30
-  = D30'28 <$> pDays28
+  = D30'28 <$> try pDays28
   <|> D30'29 <$> pTwo <*> pNine
   <|> D30'30 <$> pThree <*> pZero
 
@@ -101,7 +102,7 @@ c'Int'Days31 days31 = case days31 of
 
 pDays31 :: Parser Days31
 pDays31
-  = D31'30 <$> pDays30
+  = D31'30 <$> try pDays30
   <|> D31'31 <$> pThree <*> pOne
 
 rDays31 :: Days31 -> ShowS
@@ -166,19 +167,19 @@ intsFromMonthDay md = case md of
   Dec _ _ _ d -> (12, c'Int'Days31 d)
 
 pMonthDay :: Parser MonthDay
-pMonthDay =
-  Jan <$> pZero <*> pOne <*> pDateSep <*> pDays31
-  <|> Feb <$> pZero <*> pTwo <*> pDateSep <*> pDays28
-  <|> Mar <$> pZero <*> pThree <*> pDateSep <*> pDays31
-  <|> Apr <$> pZero <*> pFour <*> pDateSep <*> pDays30
-  <|> May <$> pZero <*> pFive <*> pDateSep <*> pDays31
-  <|> Jun <$> pZero <*> pSix <*> pDateSep <*> pDays30
-  <|> Jul <$> pZero <*> pSeven <*> pDateSep <*> pDays31
-  <|> Aug <$> pZero <*> pEight <*> pDateSep <*> pDays31
-  <|> Sep <$> pZero <*> pNine <*> pDateSep <*> pDays30
-  <|> Oct <$> pOne <*> pZero <*> pDateSep <*> pDays31
-  <|> Nov <$> pOne <*> pOne <*> pDateSep <*> pDays30
-  <|> Dec <$> pOne <*> pTwo <*> pDateSep <*> pDays31
+pMonthDay
+  =   try (Jan <$> pZero <*> pOne <*> pDateSep <*> pDays31)
+  <|> try (Feb <$> pZero <*> pTwo <*> pDateSep <*> pDays28)
+  <|> try (Mar <$> pZero <*> pThree <*> pDateSep <*> pDays31)
+  <|> try (Apr <$> pZero <*> pFour <*> pDateSep <*> pDays30)
+  <|> try (May <$> pZero <*> pFive <*> pDateSep <*> pDays31)
+  <|> try (Jun <$> pZero <*> pSix <*> pDateSep <*> pDays30)
+  <|> try (Jul <$> pZero <*> pSeven <*> pDateSep <*> pDays31)
+  <|> try (Aug <$> pZero <*> pEight <*> pDateSep <*> pDays31)
+  <|> try (Sep <$> pZero <*> pNine <*> pDateSep <*> pDays30)
+  <|> try (Oct <$> pOne <*> pZero <*> pDateSep <*> pDays31)
+  <|> try (Nov <$> pOne <*> pOne <*> pDateSep <*> pDays30)
+  <|> try (Dec <$> pOne <*> pTwo <*> pDateSep <*> pDays31)
 
 rMonthDay :: MonthDay -> ShowS
 rMonthDay md = case md of
@@ -264,30 +265,30 @@ data Mod4
 
 pMod4 :: Parser Mod4
 pMod4
-  = L04 <$> pZero <*> pFour
-  <|> L08 <$> pZero <*> pEight
-  <|> L12 <$> pOne <*> pTwo
-  <|> L16 <$> pOne <*> pSix
-  <|> L20 <$> pTwo <*> pZero
-  <|> L24 <$> pTwo <*> pFour
-  <|> L28 <$> pTwo <*> pEight
-  <|> L32 <$> pThree <*> pTwo
-  <|> L36 <$> pThree <*> pSix
-  <|> L40 <$> pFour <*> pZero
-  <|> L44 <$> pFour <*> pFour
-  <|> L48 <$> pFour <*> pEight
-  <|> L52 <$> pFive <*> pTwo
-  <|> L56 <$> pFive <*> pSix
-  <|> L60 <$> pSix <*> pZero
-  <|> L64 <$> pSix <*> pFour
-  <|> L68 <$> pSix <*> pEight
-  <|> L72 <$> pSeven <*> pTwo
-  <|> L76 <$> pSeven <*> pSix
-  <|> L80 <$> pEight <*> pZero
-  <|> L84 <$> pEight <*> pFour
-  <|> L88 <$> pEight <*> pEight
-  <|> L92 <$> pNine <*> pTwo
-  <|> L96 <$> pNine <*> pSix
+  =   try (L04 <$> pZero <*> pFour)
+  <|> try (L08 <$> pZero <*> pEight)
+  <|> try (L12 <$> pOne <*> pTwo)
+  <|> try (L16 <$> pOne <*> pSix)
+  <|> try (L20 <$> pTwo <*> pZero)
+  <|> try (L24 <$> pTwo <*> pFour)
+  <|> try (L28 <$> pTwo <*> pEight)
+  <|> try (L32 <$> pThree <*> pTwo)
+  <|> try (L36 <$> pThree <*> pSix)
+  <|> try (L40 <$> pFour <*> pZero)
+  <|> try (L44 <$> pFour <*> pFour)
+  <|> try (L48 <$> pFour <*> pEight)
+  <|> try (L52 <$> pFive <*> pTwo)
+  <|> try (L56 <$> pFive <*> pSix)
+  <|> try (L60 <$> pSix <*> pZero)
+  <|> try (L64 <$> pSix <*> pFour)
+  <|> try (L68 <$> pSix <*> pEight)
+  <|> try (L72 <$> pSeven <*> pTwo)
+  <|> try (L76 <$> pSeven <*> pSix)
+  <|> try (L80 <$> pEight <*> pZero)
+  <|> try (L84 <$> pEight <*> pFour)
+  <|> try (L88 <$> pEight <*> pEight)
+  <|> try (L92 <$> pNine <*> pTwo)
+  <|> try (L96 <$> pNine <*> pSix)
 
 rMod4 :: Mod4 -> ShowS
 rMod4 m4 = (++) $ case m4 of
@@ -405,7 +406,7 @@ data LeapDay = LeapDay
 pLeapDay :: Parser LeapDay
 pLeapDay
   = LeapDay
-  <$> (Left <$> pCenturyLeapYear <|> Right <$> pNonCenturyLeapYear)
+  <$> (Left <$> try pCenturyLeapYear <|> Right <$> try pNonCenturyLeapYear)
   <*> pDateSep
   <*> pZero
   <*> pTwo
@@ -427,7 +428,7 @@ newtype DateA = DateA (Either NonLeapDay LeapDay)
   deriving (Eq, Ord, Show)
 
 pDateA :: Parser DateA
-pDateA = DateA <$> (Left <$> pNonLeapDay <|> Right <$> pLeapDay)
+pDateA = DateA <$> (Left <$> try pNonLeapDay <|> Right <$> try pLeapDay)
 
 rDateA :: DateA -> ShowS
 rDateA (DateA ei) = either rNonLeapDay rLeapDay ei
