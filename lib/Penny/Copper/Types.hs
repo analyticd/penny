@@ -2,10 +2,10 @@
              MultiParamTypeClasses #-}
 module Penny.Copper.Types where
 
-import Control.Applicative
+import Control.Applicative (many, Alternative, (<|>), optional)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Text.Megaparsec (char)
+import Text.Megaparsec (char, try)
 import Text.Megaparsec.Text (Parser)
 
 import Penny.Representation
@@ -404,24 +404,27 @@ rBrimGrouped rr rg x = case x of
   BGLessThanOne mz0 r1 bg5 -> rMaybe rZero mz0
     . rr r1 . rBG5 rg bg5
 
+-- | If fails, does not consume any input.
 pBrim :: Parser (Radix r) -> Parser r -> Parser (Brim r)
-pBrim pr pg = BrimGrouped <$> pBrimGrouped pr pg
-    <|> BrimUngrouped <$> pBrimUngrouped pr
+pBrim pr pg = BrimGrouped <$> try (pBrimGrouped pr pg)
+    <|> BrimUngrouped <$> try (pBrimUngrouped pr)
 
 rBrim :: (Radix r -> ShowS) -> (r -> ShowS) -> Brim r -> ShowS
 rBrim rr rg x = case x of
   BrimGrouped bg -> rBrimGrouped rr rg bg
   BrimUngrouped bu -> rBrimUngrouped rr bu
 
+-- | If fails, does not consume any input.
 pNil :: Parser (Radix r) -> Parser r -> Parser (Nil r)
-pNil pr pg = NilU <$> pNilUngrouped pr
-    <|> NilG <$> pNilGrouped pr pg
+pNil pr pg = NilU <$> try (pNilUngrouped pr)
+    <|> NilG <$> try (pNilGrouped pr pg)
 
 rNil :: (Radix r -> ShowS) -> (r -> ShowS) -> Nil r -> ShowS
 rNil rr rg x = case x of
   NilU nu -> rNilUngrouped rr nu
   NilG ng -> rNilGrouped rr rg ng
 
+-- | If fails, does not consume any input.
 pNilOrBrimScalar
   :: Parser (Radix r)
   -> Parser r
