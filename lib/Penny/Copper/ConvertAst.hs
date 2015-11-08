@@ -4,11 +4,18 @@ module Penny.Copper.ConvertAst where
 
 import Control.Lens
 import Control.Arrow (first)
+import Data.Text (Text)
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
+import qualified Data.Text as X
+import Data.Maybe (mapMaybe, isJust)
+import Data.Foldable (foldlM)
+import Text.Megaparsec (SourcePos, sourceLine, sourceColumn)
+
 import Penny.Arrangement
 import Penny.Friendly
 import Penny.Copper.Ast
 import Penny.Copper.Date
-import Penny.Copper.Parser
 import Penny.Copper.Terminals
 import Penny.Representation
 import Penny.DateTime
@@ -25,13 +32,6 @@ import Penny.Polar
 import Penny.Realm
 import Penny.Scalar
 import Penny.Tree
-import Data.Text (Text)
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import qualified Data.Text as X
-import Data.Maybe (mapMaybe, isJust)
-import Data.Foldable (foldlM)
-
 
 decimalPlace :: (Digit a, Integral b) => Int -> a -> b
 decimalPlace pl dig = digitToInt dig * 10 ^ pl
@@ -51,7 +51,7 @@ c'Int'Digits1or2 (Digits1or2 l mayR) = case mayR of
 data ConvertE
   = TrioE TrioError (Located (Seq Tree, Trio))
   | ImbalancedE ImbalancedError PostingList
-  | PriceSameCommodityE LineColPosA FromCy
+  | PriceSameCommodityE SourcePos FromCy
   deriving Show
 
 instance Friendly ConvertE where
@@ -233,18 +233,18 @@ line = "line"
 column :: Text
 column = "column"
 
-locationTree :: LineColPosA -> Tree
-locationTree (LineColPosA lin col pos)
+locationTree :: SourcePos -> Tree
+locationTree pos
   = sys (Just $ SText "location") . Seq.fromList $
     [ sys (Just $ SText "line")
         (Seq.singleton $ sys (Just . SInteger . fromIntegral $ lin) Seq.empty)
     , sys (Just $ SText "column")
         (Seq.singleton $ sys (Just . SInteger . fromIntegral $ col) Seq.empty)
-    , sys (Just $ SText "position")
-        (Seq.singleton $ sys (Just . SInteger . fromIntegral $ pos) Seq.empty)
     ]
   where
     sys = Tree System
+    lin = sourceLine pos
+    col = sourceColumn pos
 
 c'Forest'ForestA :: ForestA -> Seq Tree
 c'Forest'ForestA (ForestA t1 ls)
@@ -302,7 +302,7 @@ appendPstgToEnts ents lctd@(Located _ (ts, tri)) =
     Right g -> Right (g ts)
 
 addLocationToEnts
-  :: LineColPosA
+  :: SourcePos
   -> Ents (Seq Tree, Trio)
   -> Ents (Seq Tree, Trio)
 addLocationToEnts lcp = fmap f

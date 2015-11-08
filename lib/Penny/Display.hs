@@ -5,6 +5,7 @@ import qualified Data.Foldable as F
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Time
+import Text.Megaparsec (SourcePos, sourceLine, sourceColumn)
 import Text.Printf
 
 -- | Display of representations.
@@ -12,6 +13,10 @@ class Display a where
   display :: a -> ShowS
   -- ^ Displays the value in a manner intended for end-user
   -- consumption.
+
+instance Display SourcePos where
+  display a = \rest -> "line: " ++ show (sourceLine a) ++ " column: "
+    ++ show (sourceColumn a) ++ rest
 
 instance Display Text where
   display a = \rest -> X.unpack a ++ rest

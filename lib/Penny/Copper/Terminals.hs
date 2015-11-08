@@ -30,13 +30,15 @@ module Penny.Copper.Terminals
 
 import Penny.Copper.Intervals
 import Control.Applicative
-import Text.ParserCombinators.UU.BasicInstances
-import Text.ParserCombinators.UU.Core ((<?>))
+import Text.Megaparsec (satisfy, (<?>))
+import Text.Megaparsec.Text (Parser)
 
 rangeToParser :: Intervals Char -> Parser Char
 rangeToParser i = case intervalsToTuples i of
   [] -> error "rangeToParser: empty interval"
   xs -> foldl1 (<|>) . map pRange $ xs
+  where
+    pRange (l, h) = satisfy (\c -> c >= l && c <= h)
 
 ivlCommentChar :: Intervals Char
 ivlCommentChar = included [range minBound maxBound]

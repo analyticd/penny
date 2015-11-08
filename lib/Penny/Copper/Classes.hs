@@ -2,11 +2,12 @@
              MultiParamTypeClasses #-}
 module Penny.Copper.Classes where
 
+import Text.Megaparsec.Text (Parser)
+
 import Penny.Representation
 import Penny.DateTime
 import Penny.PluMin
 import Penny.Copper.Types
-import Penny.Copper.Parser
 import Penny.Copper.Ast
 import Penny.Copper.Date
 import Penny.Copper.Terminals
@@ -14,25 +15,25 @@ import Penny.Copper.Terminals
 -- | Things that can be parsed.
 
 class Parseable a where
-  parser :: ParserL a
+  parser :: Parser a
 
 
 -- | Things that can be parsed, but they must be passed a parser for
 -- the radix point.
 class ParseableR a where
-  parserR :: ParserL (Radix r) -> ParserL (a r)
+  parserR :: Parser (Radix r) -> Parser (a r)
 
 -- | Things that can be parsed, but they must be passed a parser for a
 -- grouping character.
 
 class ParseableG a where
-  parserG :: ParserL g -> ParserL (a g)
+  parserG :: Parser g -> Parser (a g)
 
 -- | Things that can be parsed, but they must be passed a parser for a
 -- grouping character and a parser for the radix point.
 
 class ParseableRG a where
-  parserRG :: ParserL (Radix g) -> ParserL g -> ParserL (a g)
+  parserRG :: Parser (Radix g) -> Parser g -> Parser (a g)
 
 instance Parseable (Radix RadCom) where parser = pRadixRadCom
 instance Renderable (Radix RadCom) where render = rRadixRadCom

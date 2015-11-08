@@ -2,17 +2,17 @@
 module Penny.Copper.Date where
 
 import Data.Time
-import Penny.Copper.Parser
-import Text.ParserCombinators.UU.BasicInstances
 import Control.Applicative
 import Penny.Copper.Types
 import Penny.Digit
+import Text.Megaparsec (char)
+import Text.Megaparsec.Text (Parser)
 
 data DateSep = DateSlash | DateHyphen
   deriving (Eq, Ord, Show)
 
-pDateSep :: ParserL DateSep
-pDateSep = DateSlash <$ pSym '/' <|> DateHyphen <$ pSym '-'
+pDateSep :: Parser DateSep
+pDateSep = DateSlash <$ char '/' <|> DateHyphen <$ char '-'
 
 rDateSep :: DateSep -> ShowS
 rDateSep x = case x of { DateSlash -> ('/':); DateHyphen -> ('-':) }
@@ -42,7 +42,7 @@ c'Int'Days28 day = case day of
   D28'10to19 _ d9z -> digitToInt d9z + 10
   D28'20to28 _ d8 -> digitToInt d8 + 20
 
-pDays28 :: ParserL Days28
+pDays28 :: Parser Days28
 pDays28
   = D28'1to9 <$> pZero <*> pD9
   <|> D28'10to19 <$> pOne <*> pD9z
@@ -72,7 +72,7 @@ c'Int'Days30 days = case days of
   D30'29 _ _ -> 29
   D30'30 _ _ -> 30
 
-pDays30 :: ParserL Days30
+pDays30 :: Parser Days30
 pDays30
   = D30'28 <$> pDays28
   <|> D30'29 <$> pTwo <*> pNine
@@ -99,7 +99,7 @@ c'Int'Days31 days31 = case days31 of
   D31'30 d30 -> c'Int'Days30 d30
   D31'31 _ _ -> 31
 
-pDays31 :: ParserL Days31
+pDays31 :: Parser Days31
 pDays31
   = D31'30 <$> pDays30
   <|> D31'31 <$> pThree <*> pOne
@@ -165,7 +165,7 @@ intsFromMonthDay md = case md of
   Nov _ _ _ d -> (11, c'Int'Days30 d)
   Dec _ _ _ d -> (12, c'Int'Days31 d)
 
-pMonthDay :: ParserL MonthDay
+pMonthDay :: Parser MonthDay
 pMonthDay =
   Jan <$> pZero <*> pOne <*> pDateSep <*> pDays31
   <|> Feb <$> pZero <*> pTwo <*> pDateSep <*> pDays28
@@ -199,7 +199,7 @@ rMonthDay md = case md of
 data Year = Year D9z D9z D9z D9z
   deriving (Eq, Ord, Show)
 
-pYear :: ParserL Year
+pYear :: Parser Year
 pYear = Year <$> pD9z <*> pD9z <*> pD9z <*> pD9z
 
 rYear :: Year -> ShowS
@@ -228,7 +228,7 @@ c'Year'Int a
 data NonLeapDay = NonLeapDay Year DateSep MonthDay
   deriving (Eq, Ord, Show)
 
-pNonLeapDay :: ParserL NonLeapDay
+pNonLeapDay :: Parser NonLeapDay
 pNonLeapDay = NonLeapDay <$> pYear <*> pDateSep <*> pMonthDay
 
 rNonLeapDay :: NonLeapDay -> ShowS
@@ -262,7 +262,7 @@ data Mod4
   | L96 Nine Six
   deriving (Eq, Ord, Show)
 
-pMod4 :: ParserL Mod4
+pMod4 :: Parser Mod4
 pMod4
   = L04 <$> pZero <*> pFour
   <|> L08 <$> pZero <*> pEight
@@ -358,7 +358,7 @@ c'Int'CenturyLeapYear :: Integral a => CenturyLeapYear -> a
 c'Int'CenturyLeapYear (CenturyLeapYear m4 _ _) =
   c'Int'Mod4 m4 * 100
 
-pCenturyLeapYear :: ParserL CenturyLeapYear
+pCenturyLeapYear :: Parser CenturyLeapYear
 pCenturyLeapYear = CenturyLeapYear <$> pMod4 <*> pZero <*> pZero
 
 rCenturyLeapYear :: CenturyLeapYear -> ShowS
@@ -387,7 +387,7 @@ c'Int'NonCenturyLeapYear (NonCenturyLeapYear d0 d1 m4)
   where
     places p d = digitToInt d * 10 ^ (p :: Int)
 
-pNonCenturyLeapYear :: ParserL NonCenturyLeapYear
+pNonCenturyLeapYear :: Parser NonCenturyLeapYear
 pNonCenturyLeapYear = NonCenturyLeapYear <$> pD9z <*> pD9z <*> pMod4
 
 rNonCenturyLeapYear :: NonCenturyLeapYear -> ShowS
@@ -402,7 +402,7 @@ data LeapDay = LeapDay
   Two Nine
   deriving (Eq, Ord, Show)
 
-pLeapDay :: ParserL LeapDay
+pLeapDay :: Parser LeapDay
 pLeapDay
   = LeapDay
   <$> (Left <$> pCenturyLeapYear <|> Right <$> pNonCenturyLeapYear)
@@ -426,7 +426,7 @@ rLeapDay (LeapDay y s1 m0 m2 s2 d2 d9)
 newtype DateA = DateA (Either NonLeapDay LeapDay)
   deriving (Eq, Ord, Show)
 
-pDateA :: ParserL DateA
+pDateA :: Parser DateA
 pDateA = DateA <$> (Left <$> pNonLeapDay <|> Right <$> pLeapDay)
 
 rDateA :: DateA -> ShowS

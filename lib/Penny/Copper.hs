@@ -43,15 +43,15 @@ module Penny.Copper where
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Penny.Ents
+import Data.List (intersperse)
+import Data.Text (Text)
+import Text.Megaparsec (parse)
+
 import Penny.Friendly
 import Penny.Copper.Ast
 import Penny.Copper.ConvertAst
-import Penny.Copper.Parser
 import Penny.Price
 import Penny.Tree
-import Text.ParserCombinators.UU.BasicInstances
-import Data.List (intersperse)
-import Data.Text (Text)
 
 -- | Constructs the Copper AST and transforms it to Lincoln types
 -- using "Penny.Copper.ConvertAst".
@@ -76,17 +76,12 @@ copperParser
   :: Text
   -> Either String (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
 copperParser inp = do
-  let (a, es1, es2) = parseAst inp
-  ast <- case es1 ++ es2 of
-    [] -> return a
-    xs -> Left $ formatParseErrors xs
+  ast <- case parse pAst "" inp of
+    Left e -> Left (show e)
+    Right g -> Right g
   case convertItemsFromAst ast of
     Left ers -> Left $ formatConvertErrors ers
     Right g -> return g
-
-formatParseErrors :: [Error LineColPosA] -> String
-formatParseErrors = unlines . intersperse "" . ("Parse error:":)
-  . map displayParseError
 
 formatConvertErrors :: (ConvertE, Seq ConvertE) -> String
 formatConvertErrors (c1, cs)

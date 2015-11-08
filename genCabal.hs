@@ -27,8 +27,8 @@ text = atleast "text" [1,2]
 containers :: Package
 containers = atleast "containers" [0,5]
 
-uuParsing :: Package
-uuParsing = atleast "uu-parsinglib" [2,9,1]
+megaparsec :: Package
+megaparsec = atleast "megaparsec" [4,2,0]
 
 time :: Package
 time = atleast "time" [1,4]
@@ -119,7 +119,7 @@ libraryDepends =
   [ base
   , text
   , containers
-  , uuParsing
+  , megaparsec
   , time
   , transformers
   , bifunctors

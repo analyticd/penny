@@ -13,33 +13,24 @@ import qualified Penny.Columns as Columns
 import Penny.Converter
 import Penny.Copper.Classes
 import Penny.Copper.ConvertAst (c'DecUnsigned'NeutralOrNon)
-import Penny.Copper.Parser
 import Penny.Decimal
 import Penny.Dump (Dump(Dump))
 import Penny.Natural
 import Penny.Report
-import Penny.Scheme
 import Penny.Stream
 
-import Control.Applicative (liftA3)
 import Control.Lens (set, Getter, view)
-import Data.Monoid ((<>))
 import qualified Data.Sequence as Seq
 import Data.Text (Text, unpack)
-import Text.ParserCombinators.UU.BasicInstances (createStr)
-import Text.ParserCombinators.UU.Core (parse_h, pErrors, pEnd)
+import Text.Megaparsec (parseMaybe)
 
 
 -- | Parses a value.  Applies 'error' if the value could not be parsed.
 parse :: Parseable a => String -> Text -> a
-parse msg txt
-  | noErrors = result
-  | otherwise = error $ "could not parse " ++ msg ++ " from input "
+parse msg txt = case parseMaybe parser txt of
+  Nothing -> error $ "could not parse " ++ msg ++ " from input "
       ++ unpack txt
-  where
-    prsr = liftA3 (,,) parser pErrors pEnd
-    (result, err1, err2) = parse_h prsr (createStr (LineColPosA 0 0 0) txt)
-    noErrors = null err1 && null err2
+  Just r -> r
 
 -- | Parses an unsigned decimal.  Applies 'error' if a value cannot be parsed.
 unsigned :: Text -> DecUnsigned

@@ -2,11 +2,12 @@
 module Penny.Copper.Ast where
 
 import Control.Applicative
-import Text.ParserCombinators.UU.BasicInstances hiding (Parser)
-import Text.ParserCombinators.UU.Core
-import Text.ParserCombinators.UU.Derived
+import Text.Megaparsec
+  (SourcePos, getPosition, char, (<?>))
+import Text.Megaparsec.Text (Parser)
+
+
 import Penny.Copper.Terminals
-import Penny.Copper.Parser
 import Penny.Copper.Types
 import Penny.Copper.Date
 import Penny.Digit
@@ -14,18 +15,16 @@ import Penny.DateTime
 import Penny.Representation
 import Penny.Polar
 import Penny.PluMin
-import Penny.Display
-import Data.List (intersperse)
-import Data.Text (Text)
 
-data Located a = Located LineColPosA a
+
+data Located a = Located SourcePos a
   deriving (Eq, Ord, Show)
 
 instance Functor Located where
   fmap f (Located l1 a) = Located l1 (f a)
 
-pLocated :: ParserL a -> ParserL (Located a)
-pLocated p = Located <$> pPos <*> p
+pLocated :: Parser a -> Parser (Located a)
+pLocated p = Located <$> getPosition <*> p
 
 rLocated :: (a -> ShowS) -> Located a -> ShowS
 rLocated f (Located _ a) = f a
@@ -43,7 +42,7 @@ fsHasWhite (Fs _ m) = maybe False (const True) m
 instance Functor Fs where
   fmap f (Fs a w) = Fs (f a) w
 
-pFs :: ParserL a -> ParserL (Fs a)
+pFs :: Parser a -> Parser (Fs a)
 pFs p = Fs <$> p <*> optional pWhites
 
 -- | Something that might be preceded by spaces.
@@ -56,7 +55,7 @@ bsHasWhite (Bs m _) = maybe False (const True) m
 instance Functor Bs where
   fmap f (Bs w a) = Bs w (f a)
 
-pBs :: ParserL a -> ParserL (Bs a)
+pBs :: Parser a -> Parser (Bs a)
 pBs p = Bs <$> optional pWhites <*> p
 
 rBs :: (a -> ShowS) -> Bs a -> ShowS
@@ -66,8 +65,8 @@ rBs f (Bs w a) = rMaybe rWhites w . f a
 data Hash = Hash
   deriving (Eq, Ord, Show)
 
-pHash :: ParserL Hash
-pHash = Hash <$ pSym '#'
+pHash :: Parser Hash
+pHash = Hash <$ char '#'
 
 rHash :: Hash -> ShowS
 rHash Hash = ('#':)
@@ -75,8 +74,8 @@ rHash Hash = ('#':)
 data Newline = Newline
   deriving (Eq, Ord, Show)
 
-pNewline :: ParserL Newline
-pNewline = Newline <$ pSym '\n'
+pNewline :: Parser Newline
+pNewline = Newline <$ char '\n'
 
 rNewline :: Newline -> ShowS
 rNewline Newline = ('\n':)
@@ -88,7 +87,7 @@ rComment :: Comment -> ShowS
 rComment (Comment h0 cs1 n2) = rHash h0 . rList rCommentChar cs1
   . rNewline n2
 
-pComment :: ParserL Comment
+pComment :: Parser Comment
 pComment
   = Comment
   <$> pHash
@@ -99,7 +98,7 @@ pComment
 data DigitsFour = DigitsFour D9z D9z D9z D9z
   deriving (Eq, Ord, Show)
 
-pDigitsFour :: ParserL DigitsFour
+pDigitsFour :: Parser DigitsFour
 pDigitsFour = DigitsFour <$> pD9z <*> pD9z <*> pD9z <*> pD9z
 
 rDigitsFour :: DigitsFour -> ShowS
@@ -109,7 +108,7 @@ rDigitsFour (DigitsFour d0 d1 d2 d3) = rD9z d0
 data Digits1or2 = Digits1or2 D9z (Maybe D9z)
   deriving (Eq, Ord, Show)
 
-pDigits1or2 :: ParserL Digits1or2
+pDigits1or2 :: Parser Digits1or2
 pDigits1or2 = Digits1or2 <$> pD9z <*> optional pD9z
 
 rDigits1or2 :: Digits1or2 -> ShowS
@@ -118,23 +117,23 @@ rDigits1or2 (Digits1or2 d0 m1) = rD9z d0 . rMaybe rD9z m1
 data Colon = Colon
   deriving (Eq, Ord, Show)
 
-pColon :: ParserL Colon
-pColon = Colon <$ pSym ':'
+pColon :: Parser Colon
+pColon = Colon <$ char ':'
 
 rColon :: Colon -> ShowS
 rColon Colon = (':':)
 
-pD1z :: ParserL D1z
-pD1z = D1z'0 <$ pSym '0' <|> D1z'1 <$ pSym '1'
+pD1z :: Parser D1z
+pD1z = D1z'0 <$ char '0' <|> D1z'1 <$ char '1'
 
 rD1z :: D1z -> ShowS
 rD1z x = case x of
   D1z'0 -> ('0':)
   D1z'1 -> ('1':)
 
-pD2z :: ParserL D2z
-pD2z = D2z'0 <$ pSym '0' <|> D2z'1 <$ pSym '1'
-  <|> D2z'2 <$ pSym '2'
+pD2z :: Parser D2z
+pD2z = D2z'0 <$ char '0' <|> D2z'1 <$ char '1'
+  <|> D2z'2 <$ char '2'
 
 rD2z :: D2z -> ShowS
 rD2z x = case x of
@@ -142,11 +141,11 @@ rD2z x = case x of
   D2z'1 -> ('1':)
   D2z'2 -> ('2':)
 
-pD3z :: ParserL D3z
-pD3z = D3z'0 <$ pSym '0'
-  <|> D3z'1 <$ pSym '1'
-  <|> D3z'2 <$ pSym '2'
-  <|> D3z'3 <$ pSym '3'
+pD3z :: Parser D3z
+pD3z = D3z'0 <$ char '0'
+  <|> D3z'1 <$ char '1'
+  <|> D3z'2 <$ char '2'
+  <|> D3z'3 <$ char '3'
 
 rD3z :: D3z -> ShowS
 rD3z x = case x of
@@ -155,13 +154,13 @@ rD3z x = case x of
   D3z'2 -> ('2':)
   D3z'3 -> ('3':)
 
-pD5z :: ParserL D5z
-pD5z = D5z'0 <$ pSym '0'
-  <|> D5z'1 <$ pSym '1'
-  <|> D5z'2 <$ pSym '2'
-  <|> D5z'3 <$ pSym '3'
-  <|> D5z'4 <$ pSym '4'
-  <|> D5z'5 <$ pSym '5'
+pD5z :: Parser D5z
+pD5z = D5z'0 <$ char '0'
+  <|> D5z'1 <$ char '1'
+  <|> D5z'2 <$ char '2'
+  <|> D5z'3 <$ char '3'
+  <|> D5z'4 <$ char '4'
+  <|> D5z'5 <$ char '5'
 
 rD5z :: D5z -> ShowS
 rD5z x = case x of
@@ -177,7 +176,7 @@ data HoursA
   | H20to23a Two D3z
   deriving (Eq, Ord, Show)
 
-pHoursA :: ParserL HoursA
+pHoursA :: Parser HoursA
 pHoursA
   = H0to19a <$> optional pD1z <*> pD9z
   <|> H20to23a <$> pTwo <*> pD3z
@@ -187,19 +186,19 @@ rHoursA x = case x of
   H0to19a m0 d1 -> rMaybe rD1z m0 . rD9z d1
   H20to23a t0 d1 -> rTwo t0 . rD3z d1
 
-pZeroTo59 :: ParserL ZeroTo59
+pZeroTo59 :: Parser ZeroTo59
 pZeroTo59 = ZeroTo59 <$> optional pD5z <*> pD9z
 
 rZeroTo59 :: ZeroTo59 -> ShowS
 rZeroTo59 (ZeroTo59 m0 d1) = rMaybe rD5z m0 . rD9z d1
 
-pMinutes :: ParserL Minutes
+pMinutes :: Parser Minutes
 pMinutes = Minutes <$> pZeroTo59
 
 rMinutes :: Minutes -> ShowS
 rMinutes (Minutes x) = rZeroTo59 x
 
-pSeconds :: ParserL Seconds
+pSeconds :: Parser Seconds
 pSeconds = Seconds <$> pZeroTo59
 
 rSeconds :: Seconds -> ShowS
@@ -209,7 +208,7 @@ data TimeA = TimeA
   HoursA Colon Minutes (Maybe (Colon, Seconds))
   deriving (Eq, Ord, Show)
 
-pTimeA :: ParserL TimeA
+pTimeA :: Parser TimeA
 pTimeA = TimeA <$> pHoursA <*> pColon <*> pMinutes
     <*> optional ((,) <$> pColon <*> pSeconds)
 
@@ -217,7 +216,7 @@ rTimeA :: TimeA -> ShowS
 rTimeA (TimeA d0 c1 d2 m3) = rHoursA d0 . rColon c1
   . rMinutes d2 . rMaybe (\(c3, d4) -> rColon c3 . rSeconds d4) m3
 
-pZone :: ParserL Zone
+pZone :: Parser Zone
 pZone = Zone <$> pPluMin <*> pD2z <*> pD3z <*> pD9z <*> pD9z
 
 rZone :: Zone -> ShowS
@@ -235,14 +234,14 @@ rZoneA :: ZoneA -> ShowS
 rZoneA (ZoneA b0 z1)
   = rBacktick b0 . rZone z1
 
-pZoneA :: ParserL ZoneA
+pZoneA :: Parser ZoneA
 pZoneA = ZoneA <$> pBacktick <*> pZone
 
 data DoubleQuote = DoubleQuote
   deriving (Eq, Ord, Show)
 
-pDoubleQuote :: ParserL DoubleQuote
-pDoubleQuote = DoubleQuote <$ pSym '"'
+pDoubleQuote :: Parser DoubleQuote
+pDoubleQuote = DoubleQuote <$ char '"'
 
 rDoubleQuote :: DoubleQuote -> ShowS
 rDoubleQuote DoubleQuote = ('"':)
@@ -250,8 +249,8 @@ rDoubleQuote DoubleQuote = ('"':)
 data Backslash = Backslash
   deriving (Eq, Ord, Show)
 
-pBackslash :: ParserL Backslash
-pBackslash = Backslash <$ pSym '\\'
+pBackslash :: Parser Backslash
+pBackslash = Backslash <$ char '\\'
 
 rBackslash :: Backslash -> ShowS
 rBackslash Backslash = ('\\':)
@@ -263,9 +262,9 @@ data White
   | WhiteComment Comment
   deriving (Eq, Ord, Show)
 
-pWhite :: ParserL White
-pWhite = Space <$ pSym ' ' <|> Tab <$ pSym '\t'
-  <|> WhiteNewline <$ pSym '\n'
+pWhite :: Parser White
+pWhite = Space <$ char ' ' <|> Tab <$ char '\t'
+  <|> WhiteNewline <$ char '\n'
   <|> WhiteComment <$> pComment
   <?> "whitespace or comment"
 
@@ -282,7 +281,7 @@ data Whites = Whites White [White]
 rWhites :: Whites -> ShowS
 rWhites (Whites w ws) = rWhite w . rList rWhite ws
 
-pWhites :: ParserL Whites
+pWhites :: Parser Whites
 pWhites = Whites <$> pWhite <*> many pWhite
 
 data EscPayload
@@ -292,10 +291,10 @@ data EscPayload
   | EscGap Whites Backslash
   deriving (Eq, Ord, Show)
 
-pEscPayload :: ParserL EscPayload
-pEscPayload = EscBackslash <$ pSym '\\'
-  <|> EscNewline <$ pSym 'n'
-  <|> EscQuote <$ pSym '"'
+pEscPayload :: Parser EscPayload
+pEscPayload = EscBackslash <$ char '\\'
+  <|> EscNewline <$ char 'n'
+  <|> EscQuote <$ char '"'
   <|> EscGap <$> pWhites <*> pBackslash
 
 rEscPayload :: EscPayload -> ShowS
@@ -308,7 +307,7 @@ rEscPayload x = case x of
 data EscSeq = EscSeq Backslash EscPayload
   deriving (Eq, Ord, Show)
 
-pEscSeq :: ParserL EscSeq
+pEscSeq :: Parser EscSeq
 pEscSeq = EscSeq <$> pBackslash <*> pEscPayload
 
 rEscSeq :: EscSeq -> ShowS
@@ -322,14 +321,14 @@ rQuotedChar (QuotedChar ei) = case ei of
   Left nes -> rNonEscapedChar nes
   Right sq -> rEscSeq sq
 
-pQuotedChar :: ParserL QuotedChar
+pQuotedChar :: Parser QuotedChar
 pQuotedChar = QuotedChar <$>
   ( Left <$> pNonEscapedChar <|> Right <$> pEscSeq)
 
 data QuotedString = QuotedString DoubleQuote [QuotedChar] DoubleQuote
   deriving (Eq, Ord, Show)
 
-pQuotedString :: ParserL QuotedString
+pQuotedString :: Parser QuotedString
 pQuotedString = QuotedString
   <$> pDoubleQuote
   <*> many pQuotedChar
@@ -343,7 +342,7 @@ data UnquotedString
   = UnquotedString [D9z] USCharNonDigit [Either USCharNonDigit D9z]
   deriving (Eq, Ord, Show)
 
-pUnquotedString :: ParserL UnquotedString
+pUnquotedString :: Parser UnquotedString
 pUnquotedString = UnquotedString
   <$> many pD9z <*> pUSCharNonDigit
   <*> many (Left <$> pUSCharNonDigit <|> Right <$> pD9z)
@@ -374,7 +373,7 @@ data UnquotedCommodityOnLeft
   = UnquotedCommodityOnLeft USCharNonDigit [USCharNonDigit]
   deriving (Eq, Ord, Show)
 
-pUnquotedCommodityOnLeft :: ParserL UnquotedCommodityOnLeft
+pUnquotedCommodityOnLeft :: Parser UnquotedCommodityOnLeft
 pUnquotedCommodityOnLeft = UnquotedCommodityOnLeft
   <$> pUSCharNonDigit <*> many pUSCharNonDigit
 
@@ -386,7 +385,7 @@ data UnquotedCommodityOnRight
   = UnquotedCommodityOnRight USCharNonDigit [USCharNonDigit]
   deriving (Eq, Ord, Show)
 
-pUnquotedCommodityOnRight :: ParserL UnquotedCommodityOnRight
+pUnquotedCommodityOnRight :: Parser UnquotedCommodityOnRight
 pUnquotedCommodityOnRight = UnquotedCommodityOnRight
   <$> pUSCharNonDigit
   <*> many pUSCharNonDigit
@@ -399,7 +398,7 @@ newtype CommodityOnLeftA
   = CommodityOnLeftA (Either UnquotedCommodityOnLeft QuotedCommodity)
   deriving (Eq, Ord, Show)
 
-pCommodityOnLeftA :: ParserL CommodityOnLeftA
+pCommodityOnLeftA :: Parser CommodityOnLeftA
 pCommodityOnLeftA = CommodityOnLeftA
   <$> pEither pUnquotedCommodityOnLeft pQuotedCommodity
 
@@ -411,7 +410,7 @@ newtype CommodityOnRightA
   = CommodityOnRightA (Either UnquotedCommodityOnRight QuotedCommodity)
   deriving (Eq, Ord, Show)
 
-pCommodityOnRightA :: ParserL CommodityOnRightA
+pCommodityOnRightA :: Parser CommodityOnRightA
 pCommodityOnRightA = CommodityOnRightA
   <$> pEither pUnquotedCommodityOnRight pQuotedCommodity
 
@@ -422,7 +421,7 @@ rCommodityOnRightA (CommodityOnRightA ei)
 newtype QuotedCommodity = QuotedCommodity QuotedString
   deriving (Eq, Ord, Show)
 
-pQuotedCommodity :: ParserL QuotedCommodity
+pQuotedCommodity :: Parser QuotedCommodity
 pQuotedCommodity = QuotedCommodity <$> pQuotedString
 
 rQuotedCommodity :: QuotedCommodity -> ShowS
@@ -432,7 +431,7 @@ newtype CommodityA
   = CommodityA (Either UnquotedCommodityOnRight QuotedCommodity)
   deriving (Eq, Ord, Show)
 
-pCommodityA :: ParserL CommodityA
+pCommodityA :: Parser CommodityA
 pCommodityA = CommodityA <$>
   (Left <$> pUnquotedCommodityOnRight <|> Right <$> pQuotedCommodity)
 
@@ -443,8 +442,8 @@ rCommodityA (CommodityA ei)
 data Backtick = Backtick
   deriving (Eq, Ord, Show)
 
-pBacktick :: ParserL Backtick
-pBacktick = Backtick <$ pSym '`'
+pBacktick :: Parser Backtick
+pBacktick = Backtick <$ char '`'
 
 rBacktick :: Backtick -> ShowS
 rBacktick Backtick = ('`':)
@@ -454,7 +453,7 @@ data NonNeutral
   | NonNeutralRadPer (Brim RadPer)
   deriving (Eq, Ord, Show)
 
-pNonNeutral :: ParserL NonNeutral
+pNonNeutral :: Parser NonNeutral
 pNonNeutral
   = NonNeutralRadCom <$> pBacktick <*> pBrim pRadixRadCom pRadCom
   <|> NonNeutralRadPer <$> pBrim pRadixRadPer pRadPer
@@ -469,7 +468,7 @@ data NeutralOrNon
   | NeutralOrNonRadPer (Either (Nil RadPer) (Brim RadPer))
   deriving (Eq, Ord, Show)
 
-pNeutralOrNon :: ParserL NeutralOrNon
+pNeutralOrNon :: Parser NeutralOrNon
 pNeutralOrNon
   = NeutralOrNonRadCom <$> pBacktick <*>
       (Left <$> pNil pRadixRadCom pRadCom
@@ -490,7 +489,7 @@ data Neutral
   | NeuPer (Nil RadPer)
   deriving (Eq, Ord, Show)
 
-pNeutral :: ParserL Neutral
+pNeutral :: Parser Neutral
 pNeutral
   = NeuCom <$> pBacktick <*> pNil pRadixRadCom pRadCom
   <|> NeuPer <$> pNil pRadixRadPer pRadPer
@@ -527,7 +526,7 @@ data TrioA
   -- ^ Commodity only
   deriving (Eq, Ord, Show)
 
-pTrioA :: ParserL TrioA
+pTrioA :: Parser TrioA
 pTrioA
   = QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityOnLeftA <*> pNonNeutral
   <|> QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityOnRightA
@@ -558,8 +557,8 @@ rTrioA x = case x of
 data OpenSquare = OpenSquare
   deriving (Eq, Ord, Show)
 
-pOpenSquare :: ParserL OpenSquare
-pOpenSquare = OpenSquare <$ pSym '['
+pOpenSquare :: Parser OpenSquare
+pOpenSquare = OpenSquare <$ char '['
 
 rOpenSquare :: OpenSquare -> ShowS
 rOpenSquare OpenSquare = ('[':)
@@ -567,8 +566,8 @@ rOpenSquare OpenSquare = ('[':)
 data CloseSquare = CloseSquare
   deriving (Eq, Ord, Show)
 
-pCloseSquare :: ParserL CloseSquare
-pCloseSquare = CloseSquare <$ pSym ']'
+pCloseSquare :: Parser CloseSquare
+pCloseSquare = CloseSquare <$ char ']'
 
 rCloseSquare :: CloseSquare -> ShowS
 rCloseSquare CloseSquare = (']':)
@@ -576,7 +575,7 @@ rCloseSquare CloseSquare = (']':)
 data IntegerA = IntegerA (Either Zero (Maybe PluMin, D9, [D9z]))
   deriving (Eq, Ord, Show)
 
-pIntegerA :: ParserL IntegerA
+pIntegerA :: Parser IntegerA
 pIntegerA = IntegerA <$>
   (Left <$> pZero <|> Right <$> ((,,) <$> optional pPluMin
                                       <*> pD9 <*> many pD9z))
@@ -595,7 +594,7 @@ data ScalarA
   | ScalarInt IntegerA
   deriving (Eq, Ord, Show)
 
-pScalarA :: ParserL ScalarA
+pScalarA :: Parser ScalarA
 pScalarA
   = ScalarDate <$> pDateA
   <|> ScalarTime <$> pTimeA
@@ -620,7 +619,7 @@ data BracketedForest = BracketedForest
 data ForestA = ForestA TreeA [(Bs CommaA, Bs TreeA)]
   deriving (Eq, Ord, Show)
 
-pForestA :: ParserL ForestA
+pForestA :: Parser ForestA
 pForestA = ForestA <$> pTreeA
   <*> many ((,) <$> pBs pCommaA <*> pBs pTreeA)
 
@@ -628,7 +627,7 @@ rForestA :: ForestA -> ShowS
 rForestA (ForestA t0 ls1)
   = rTreeA t0 . rList (\(c, t) -> rBs rCommaA c . rBs rTreeA t) ls1
 
-pBracketedForest :: ParserL BracketedForest
+pBracketedForest :: Parser BracketedForest
 pBracketedForest = BracketedForest <$> pFs pOpenSquare
   <*> optional (pFs pForestA) <*> pCloseSquare
 
@@ -641,7 +640,7 @@ data TreeA
   | TreeForestFirst BracketedForest (Maybe (Bs (Located ScalarA)))
   deriving (Eq, Ord, Show)
 
-pTreeA :: ParserL TreeA
+pTreeA :: Parser TreeA
 pTreeA
   = TreeScalarFirst <$> pLocated pScalarA <*> optional (pBs pBracketedForest)
   <|> TreeForestFirst <$> pBracketedForest
@@ -656,7 +655,7 @@ rTreeA (TreeForestFirst f1 m2) = rBracketedForest f1
 newtype TopLineA = TopLineA ForestA
   deriving (Eq, Ord, Show)
 
-pTopLineA :: ParserL TopLineA
+pTopLineA :: Parser TopLineA
 pTopLineA = TopLineA <$> pForestA
 
 rTopLineA :: TopLineA -> ShowS
@@ -667,7 +666,7 @@ data PostingA
   | PostingNoTrio BracketedForest
   deriving (Eq, Ord, Show)
 
-pPostingA :: ParserL PostingA
+pPostingA :: Parser PostingA
 pPostingA
   = PostingTrioFirst <$> pLocated pTrioA
                      <*> optional (pBs pBracketedForest)
@@ -682,8 +681,8 @@ rPostingA pstg = case pstg of
 data OpenCurly = OpenCurly
   deriving (Eq, Ord, Show)
 
-pOpenCurly :: ParserL OpenCurly
-pOpenCurly = OpenCurly <$ pSym '{'
+pOpenCurly :: Parser OpenCurly
+pOpenCurly = OpenCurly <$ char '{'
 
 rOpenCurly :: OpenCurly -> ShowS
 rOpenCurly OpenCurly = ('{':)
@@ -691,8 +690,8 @@ rOpenCurly OpenCurly = ('{':)
 data CloseCurly = CloseCurly
   deriving (Eq, Ord, Show)
 
-pCloseCurly :: ParserL CloseCurly
-pCloseCurly = CloseCurly <$ pSym '}'
+pCloseCurly :: Parser CloseCurly
+pCloseCurly = CloseCurly <$ char '}'
 
 rCloseCurly :: CloseCurly -> ShowS
 rCloseCurly CloseCurly = ('}':)
@@ -700,8 +699,8 @@ rCloseCurly CloseCurly = ('}':)
 data CommaA = CommaA
   deriving (Eq, Ord, Show)
 
-pCommaA :: ParserL CommaA
-pCommaA = CommaA <$ pSym ','
+pCommaA :: Parser CommaA
+pCommaA = CommaA <$ char ','
 
 rCommaA :: CommaA -> ShowS
 rCommaA CommaA = (',':)
@@ -710,7 +709,7 @@ data PostingsA = PostingsA (Fs OpenCurly)
   (Maybe (Fs PostingList)) CloseCurly
   deriving (Eq, Ord, Show)
 
-pPostingsA :: ParserL PostingsA
+pPostingsA :: Parser PostingsA
 pPostingsA = PostingsA <$> pFs pOpenCurly
   <*> optional (pFs pPostingList) <*> pCloseCurly
 
@@ -722,8 +721,8 @@ rPostingsA (PostingsA c0 m1 c2)
 data Semicolon = Semicolon
   deriving (Eq, Ord, Show)
 
-pSemicolon :: ParserL Semicolon
-pSemicolon = Semicolon <$ pSym ';'
+pSemicolon :: Parser Semicolon
+pSemicolon = Semicolon <$ char ';'
 
 rSemicolon :: Semicolon -> ShowS
 rSemicolon Semicolon = (';':)
@@ -734,7 +733,7 @@ data PostingList
                 [(Bs Semicolon, Bs (Located PostingA))]
   deriving (Eq, Ord, Show)
 
-pPostingList :: ParserL PostingList
+pPostingList :: Parser PostingList
 pPostingList
   = OnePosting <$> (pLocated pPostingA)
   <|> PostingList <$> pLocated pPostingA <*> pBs pSemicolon
@@ -753,7 +752,7 @@ data TransactionA
   | TransactionNoTopLine PostingsA
   deriving (Eq, Ord, Show)
 
-pTransactionA :: ParserL TransactionA
+pTransactionA :: Parser TransactionA
 pTransactionA
   = TransactionWithTopLine <$> pLocated pTopLineA
       <*> pBs pPostingsA
@@ -768,19 +767,19 @@ rTransactionA txn = case txn of
 data AtSign = AtSign
   deriving (Eq, Ord, Show)
 
-pAtSign :: ParserL AtSign
-pAtSign = AtSign <$ pSym '@'
+pAtSign :: Parser AtSign
+pAtSign = AtSign <$ char '@'
 
 rAtSign :: AtSign -> ShowS
 rAtSign AtSign = ('@':)
 
-data PriceA = PriceA LineColPosA (Fs AtSign) (Located DateA) Whites
+data PriceA = PriceA SourcePos (Fs AtSign) (Located DateA) Whites
   (Maybe (Located (TimeA, Whites))) (Maybe (Located (ZoneA, Whites)))
   CommodityA Whites CyExch
   deriving (Eq, Ord, Show)
 
-pPriceA :: ParserL PriceA
-pPriceA = PriceA <$> pPos <*> pFs pAtSign <*> pLocated pDateA
+pPriceA :: Parser PriceA
+pPriceA = PriceA <$> getPosition <*> pFs pAtSign <*> pLocated pDateA
   <*> pWhites
   <*> optional (pLocated ((,) <$> pTimeA <*> pWhites))
   <*> optional (pLocated ((,) <$> pZoneA <*> pWhites))
@@ -802,7 +801,7 @@ data ExchA
   | ExchANonNeutral (Maybe (Fs PluMin)) NonNeutral
   deriving (Eq, Ord, Show)
 
-pExchA :: ParserL ExchA
+pExchA :: Parser ExchA
 pExchA = ExchANeutral <$> pNeutral
   <|> ExchANonNeutral <$> optional (pFs pPluMin) <*> pNonNeutral
 
@@ -816,7 +815,7 @@ data CyExch
   | CyExchA (Fs ExchA) CommodityA
   deriving (Eq, Ord, Show)
 
-pCyExch :: ParserL CyExch
+pCyExch :: Parser CyExch
 pCyExch = CyExchCy <$> pFs pCommodityA <*> pExchA
   <|> CyExchA <$> pFs pExchA
                <*> pCommodityA
@@ -829,7 +828,7 @@ rCyExch exch = case exch of
 data FileItem = FileItem (Located (Either PriceA TransactionA))
   deriving (Eq, Ord, Show)
 
-pFileItem :: ParserL FileItem
+pFileItem :: Parser FileItem
 pFileItem = FileItem
   <$> pLocated ((Left <$> pPriceA) <|> (Right <$> pTransactionA))
 
@@ -840,7 +839,7 @@ rFileItem (FileItem l0) =
 data FileItems = FileItems FileItem [(Whites, FileItem)]
   deriving (Eq, Ord, Show)
 
-pFileItems :: ParserL FileItems
+pFileItems :: Parser FileItems
 pFileItems = FileItems <$> pFileItem
   <*> many ((,) <$> pWhites <*> pFileItem)
 
@@ -856,7 +855,7 @@ data Ast
   | EmptyFile
   deriving (Eq, Ord, Show)
 
-pAst :: ParserL Ast
+pAst :: Parser Ast
 pAst
   = AstNoLeadingWhite <$> pFs pFileItems
   <|> AstLeadingWhite <$> pWhites <*> (optional (pFs pFileItems))
@@ -867,6 +866,8 @@ rAst fl = case fl of
   AstNoLeadingWhite f0 -> rFs rFileItems f0
   AstLeadingWhite w0 m1 -> rWhites w0 . rMaybe (rFs rFileItems) m1
   EmptyFile -> id
+
+{-
 
 -- | Parses an entire 'Ast' from a string.
 --
@@ -891,12 +892,12 @@ rAst fl = case fl of
 
 parseAst
   :: Text
-  -> (Ast, [Error LineColPosA], [Error LineColPosA])
-parseAst str = parse prsr (createStr (LineColPosA 1 0 0) str)
+  -> (Ast, [Error SourcePos], [Error SourcePos])
+parseAst str = parse prsr (createStr (SourcePos 1 0 0) str)
   where
     prsr = (,,) <$> pAst <*> pErrors <*> pEnd
 
-displayParseError :: Error LineColPosA -> String
+displayParseError :: Error SourcePos -> String
 displayParseError er = case er of
   Inserted i p es -> "inserted " ++ i ++ " at " ++ display p ""
     ++ "; expecting " ++ expecting es
@@ -909,3 +910,4 @@ displayParseError er = case er of
       [] -> "empty list"
       x:[] -> x
       xs -> "one of: " ++ (concat . intersperse "; " $ xs)
+-}
