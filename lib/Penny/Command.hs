@@ -104,8 +104,8 @@ preload = fmap make . Clatcher.preload
   where
     make scroll = set Clatcher.load (Seq.singleton scroll) mempty
 
-load :: String -> Clatcher r Clatcher.LoadScroll
-load str = set Clatcher.load (Seq.singleton (Clatcher.open str)) mempty
+open :: String -> Clatcher r Clatcher.LoadScroll
+open str = set Clatcher.load (Seq.singleton (Clatcher.open str)) mempty
 
 penny :: (Report r, Clatcher.Loader l) => Clatcher r l -> IO ()
 penny = Clatcher.clatcher
