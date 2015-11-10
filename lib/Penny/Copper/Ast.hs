@@ -28,38 +28,6 @@ pLocated p = Located <$> getPosition <*> p
 rLocated :: (a -> ShowS) -> Located a -> ShowS
 rLocated f (Located _ a) = f a
 
--- | Something that might be followed by spaces.
-data Fs a = Fs a (Maybe Whites)
-  deriving (Eq, Ord, Show)
-
-rFs :: (a -> ShowS) -> Fs a -> ShowS
-rFs f (Fs a mw) = f a . rMaybe rWhites mw
-
-fsHasWhite :: Fs a -> Bool
-fsHasWhite (Fs _ m) = maybe False (const True) m
-
-instance Functor Fs where
-  fmap f (Fs a w) = Fs (f a) w
-
-pFs :: Parser a -> Parser (Fs a)
-pFs p = Fs <$> p <*> optional (try pWhites)
-
--- | Something that might be preceded by spaces.
-data Bs a = Bs (Maybe Whites) a
-  deriving (Eq, Ord, Show)
-
-bsHasWhite :: Bs a -> Bool
-bsHasWhite (Bs m _) = maybe False (const True) m
-
-instance Functor Bs where
-  fmap f (Bs w a) = Bs w (f a)
-
-pBs :: Parser a -> Parser (Bs a)
-pBs p = Bs <$> optional (try pWhites) <*> p
-
-rBs :: (a -> ShowS) -> Bs a -> ShowS
-rBs f (Bs w a) = rMaybe rWhites w . f a
-
 -- | Octothorpe
 data Hash = Hash
   deriving (Eq, Ord, Show)
@@ -281,7 +249,23 @@ rWhites :: Whites -> ShowS
 rWhites (Whites w ws) = rWhite w . rList rWhite ws
 
 pWhites :: Parser Whites
-pWhites = Whites <$> pWhite <*> many (try pWhite)
+pWhites = Whites <$> pWhite <*> many pWhite
+
+-- | Something that might be followed by spaces.
+data Fs a = Fs a [White]
+  deriving (Eq, Ord, Show)
+
+rFs :: (a -> ShowS) -> Fs a -> ShowS
+rFs f (Fs a mw) = f a . rList rWhite mw
+
+fsHasWhite :: Fs a -> Bool
+fsHasWhite (Fs _ m) = not (null m)
+
+instance Functor Fs where
+  fmap f (Fs a w) = Fs (f a) w
+
+pFs :: Parser a -> Parser (Fs a)
+pFs p = Fs <$> p <*> many pWhite
 
 data EscPayload
   = EscBackslash
@@ -498,60 +482,75 @@ rNeutral neu = case neu of
   NeuCom b0 n1 -> rBacktick b0 . rNil rRadixRadCom rRadCom n1
   NeuPer n0 -> rNil rRadixRadPer rRadPer n0
 
+data IntegerA = IntegerA (Either Zero (Maybe PluMin, D9, [D9z]))
+  deriving (Eq, Ord, Show)
+
+pIntegerA :: Parser IntegerA
+pIntegerA = IntegerA <$>
+  (Left <$> pZero <|> Right <$> ((,,) <$> optional pPluMin
+                                      <*> pD9 <*> many pD9z))
+
+rIntegerA :: IntegerA -> ShowS
+rIntegerA (IntegerA ei) = case ei of
+  Left z -> rZero z
+  Right (m0, n1, ds2) -> rMaybe rPluMin m0 . rD9 n1 . rList rD9z ds2
+
+-- # Lexeme productions.  These include any trailing whitespace.
+
 -- | Trio.  There is nothing corresponding to 'Penny.Trio.E'
 -- as this would screw up the spacing, and generally productions in
 -- the AST should actually produce something.  Instead,
 -- 'Penny.Trio.E' is indicated by the absense of any 'TrioA'.
 data TrioA
-  = QcCyOnLeftA (Fs Pole) (Fs CommodityOnLeftA) NonNeutral
+  = QcCyOnLeftA (Fs Pole) (Fs CommodityOnLeftA) (Fs NonNeutral)
   -- ^ Non neutral, commodity on left
-  | QcCyOnRightA (Fs Pole) (Fs NonNeutral) CommodityOnRightA
+  | QcCyOnRightA (Fs Pole) (Fs NonNeutral) (Fs CommodityOnRightA)
   -- ^ Non neutral, commodity on right
-  | QSided (Fs Pole) NonNeutral
+  | QSided (Fs Pole) (Fs NonNeutral)
   -- ^ Qty with side only
-  | QUnsided Neutral
+  | QUnsided (Fs Neutral)
   -- ^ Qty, with no side
-  | SCA (Fs Pole) CommodityA
+  | SCA (Fs Pole) (Fs CommodityA)
   -- ^ Side and commodity
-  | SA Pole
+  | SA (Fs Pole)
   -- ^ Side only
-  | UcCyOnLeftA (Fs CommodityOnLeftA) NonNeutral
+  | UcCyOnLeftA (Fs CommodityOnLeftA) (Fs NonNeutral)
   -- ^ Unsigned quantity and commodity only, commodity on left
-  | UcCyOnRightA (Fs NonNeutral) CommodityOnRightA
+  | UcCyOnRightA (Fs NonNeutral) (Fs CommodityOnRightA)
   -- ^ Unsigned quantity and commodity only, commodity on right
-  | UA NonNeutral
+  | UA (Fs NonNeutral)
   -- ^ Non-sided non-neutral quantity only
-  | CA CommodityA
+  | CA (Fs CommodityA)
   -- ^ Commodity only
   deriving (Eq, Ord, Show)
 
 pTrioA :: Parser TrioA
 pTrioA
-  =   try (QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityOnLeftA <*> pNonNeutral)
-  <|> try (QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pCommodityOnRightA)
-  <|> try (QSided <$> pFs pSide <*> pNonNeutral)
-  <|> try (QUnsided <$> pNeutral)
-  <|> try (SCA <$> pFs pSide <*> pCommodityA)
-  <|> try (SA <$> pSide)
-  <|> try (UcCyOnLeftA <$> pFs pCommodityOnLeftA <*> pNonNeutral)
-  <|> try (UcCyOnRightA <$> pFs pNonNeutral <*> pCommodityOnRightA)
-  <|> try (UA <$> pNonNeutral)
-  <|> try (CA <$> pCommodityA)
+  =   try (QcCyOnLeftA <$> pFs pSide <*> pFs pCommodityOnLeftA <*> pFs pNonNeutral)
+  <|> try (QcCyOnRightA <$> pFs pSide <*> pFs pNonNeutral <*> pFs pCommodityOnRightA)
+  <|> try (QSided <$> pFs pSide <*> pFs pNonNeutral)
+  <|> try (QUnsided <$> pFs pNeutral)
+  <|> try (SCA <$> pFs pSide <*> pFs pCommodityA)
+  <|> try (SA <$> pFs pSide)
+  <|> try (UcCyOnLeftA <$> pFs pCommodityOnLeftA <*> pFs pNonNeutral)
+  <|> try (UcCyOnRightA <$> pFs pNonNeutral <*> pFs pCommodityOnRightA)
+  <|> try (UA <$> pFs pNonNeutral)
+  <|> try (CA <$> pFs pCommodityA)
 
 rTrioA :: TrioA -> ShowS
 rTrioA x = case x of
   QcCyOnLeftA s0 c1 n1 -> rFs rSide s0 . rFs rCommodityOnLeftA c1
-    . rNonNeutral n1
+    . rFs rNonNeutral n1
   QcCyOnRightA s0 n1 c2 -> rFs rSide s0 . rFs rNonNeutral n1
-    . rCommodityOnRightA c2
-  QSided s0 n1 -> rFs rSide s0 . rNonNeutral n1
-  QUnsided n0 -> rNeutral n0
-  SCA s0 c1 -> rFs rSide s0 . rCommodityA c1
-  SA s -> rSide s
-  UcCyOnLeftA c0 n1 -> rFs rCommodityOnLeftA c0 . rNonNeutral n1
-  UcCyOnRightA n0 c1 -> rFs rNonNeutral n0 . rCommodityOnRightA c1
-  UA n -> rNonNeutral n
-  CA c -> rCommodityA c
+    . rFs rCommodityOnRightA c2
+  QSided s0 n1 -> rFs rSide s0 . rFs rNonNeutral n1
+  QUnsided n0 -> rFs rNeutral n0
+  SCA s0 c1 -> rFs rSide s0 . rFs rCommodityA c1
+  SA s -> rFs rSide s
+  UcCyOnLeftA c0 n1 -> rFs rCommodityOnLeftA c0 . rFs rNonNeutral n1
+  UcCyOnRightA n0 c1 -> rFs rNonNeutral n0 . rFs rCommodityOnRightA c1
+  UA n -> rFs rNonNeutral n
+  CA c -> rFs rCommodityA c
 
 data OpenSquare = OpenSquare
   deriving (Eq, Ord, Show)
@@ -571,85 +570,72 @@ pCloseSquare = CloseSquare <$ char ']'
 rCloseSquare :: CloseSquare -> ShowS
 rCloseSquare CloseSquare = (']':)
 
-data IntegerA = IntegerA (Either Zero (Maybe PluMin, D9, [D9z]))
-  deriving (Eq, Ord, Show)
-
-pIntegerA :: Parser IntegerA
-pIntegerA = IntegerA <$>
-  (Left <$> pZero <|> Right <$> ((,,) <$> optional pPluMin
-                                      <*> pD9 <*> many pD9z))
-
-rIntegerA :: IntegerA -> ShowS
-rIntegerA (IntegerA ei) = case ei of
-  Left z -> rZero z
-  Right (m0, n1, ds2) -> rMaybe rPluMin m0 . rD9 n1 . rList rD9z ds2
-
 data ScalarA
-  = ScalarUnquotedString UnquotedString
-  | ScalarQuotedString QuotedString
-  | ScalarDate DateA
-  | ScalarTime TimeA
-  | ScalarZone ZoneA
-  | ScalarInt IntegerA
+  = ScalarUnquotedString (Fs UnquotedString)
+  | ScalarQuotedString (Fs QuotedString)
+  | ScalarDate (Fs DateA)
+  | ScalarTime (Fs TimeA)
+  | ScalarZone (Fs ZoneA)
+  | ScalarInt (Fs IntegerA)
   deriving (Eq, Ord, Show)
 
 pScalarA :: Parser ScalarA
 pScalarA
-  =   try (ScalarDate <$> pDateA)
-  <|> try (ScalarTime <$> pTimeA)
-  <|> try (ScalarZone <$> pZoneA)
-  <|> try (ScalarInt <$> pIntegerA)
-  <|> try (ScalarQuotedString <$> pQuotedString)
-  <|> try (ScalarUnquotedString <$> pUnquotedString)
+  =   try (ScalarDate <$> pFs pDateA)
+  <|> try (ScalarTime <$> pFs pTimeA)
+  <|> try (ScalarZone <$> pFs pZoneA)
+  <|> try (ScalarInt <$> pFs pIntegerA)
+  <|> try (ScalarQuotedString <$> pFs pQuotedString)
+  <|> try (ScalarUnquotedString <$> pFs pUnquotedString)
 
 rScalarA :: ScalarA -> ShowS
 rScalarA sclrA = case sclrA of
-  ScalarUnquotedString x -> rUnquotedString x
-  ScalarQuotedString x -> rQuotedString x
-  ScalarDate x -> rDateA x
-  ScalarTime x -> rTimeA x
-  ScalarZone x -> rZoneA x
-  ScalarInt x -> rIntegerA x
+  ScalarUnquotedString x -> rFs rUnquotedString x
+  ScalarQuotedString x -> rFs rQuotedString x
+  ScalarDate x -> rFs rDateA x
+  ScalarTime x -> rFs rTimeA x
+  ScalarZone x -> rFs rZoneA x
+  ScalarInt x -> rFs rIntegerA x
 
 data BracketedForest = BracketedForest
-  (Fs OpenSquare) (Maybe (Fs ForestA)) CloseSquare
+  (Fs OpenSquare) (Maybe ForestA) (Fs CloseSquare)
   deriving (Eq, Ord, Show)
 
-data ForestA = ForestA TreeA [(Bs CommaA, Bs TreeA)]
+data ForestA = ForestA (Fs TreeA) [(Fs CommaA, Fs TreeA)]
   deriving (Eq, Ord, Show)
 
 pForestA :: Parser ForestA
-pForestA = ForestA <$> pTreeA
-  <*> many (try ((,) <$> pBs pCommaA <*> pBs pTreeA))
+pForestA = ForestA <$> pFs pTreeA
+  <*> many ((,) <$> pFs pCommaA <*> pFs pTreeA)
 
 rForestA :: ForestA -> ShowS
 rForestA (ForestA t0 ls1)
-  = rTreeA t0 . rList (\(c, t) -> rBs rCommaA c . rBs rTreeA t) ls1
+  = rFs rTreeA t0 . rList (\(c, t) -> rFs rCommaA c . rFs rTreeA t) ls1
 
 pBracketedForest :: Parser BracketedForest
 pBracketedForest = BracketedForest <$> pFs pOpenSquare
-  <*> optional (try (pFs pForestA)) <*> pCloseSquare
+  <*> optional pForestA <*> pFs pCloseSquare
 
 rBracketedForest :: BracketedForest -> ShowS
 rBracketedForest (BracketedForest b0 m1 b2) = rFs rOpenSquare b0
-  . rMaybe (rFs rForestA) m1 . rCloseSquare b2
+  . rMaybe rForestA m1 . rFs rCloseSquare b2
 
 data TreeA
-  = TreeScalarFirst (Located ScalarA) (Maybe (Bs BracketedForest))
-  | TreeForestFirst BracketedForest (Maybe (Bs (Located ScalarA)))
+  = TreeScalarFirst (Located ScalarA) (Maybe BracketedForest)
+  | TreeForestFirst BracketedForest (Maybe (Located ScalarA))
   deriving (Eq, Ord, Show)
 
 pTreeA :: Parser TreeA
 pTreeA
-  = TreeScalarFirst <$> pLocated pScalarA <*> optional (try (pBs pBracketedForest))
+  = TreeScalarFirst <$> pLocated pScalarA <*> optional pBracketedForest
   <|> TreeForestFirst <$> pBracketedForest
-      <*> optional (try (pBs (pLocated pScalarA)))
+      <*> optional (pLocated pScalarA)
 
 rTreeA :: TreeA -> ShowS
 rTreeA (TreeScalarFirst s1 m2) = rLocated rScalarA s1
-  . rMaybe (rBs rBracketedForest) m2
+  . rMaybe rBracketedForest m2
 rTreeA (TreeForestFirst f1 m2) = rBracketedForest f1
-  . rMaybe (rBs (rLocated rScalarA)) m2
+  . rMaybe (rLocated rScalarA) m2
 
 newtype TopLineA = TopLineA ForestA
   deriving (Eq, Ord, Show)
@@ -661,20 +647,20 @@ rTopLineA :: TopLineA -> ShowS
 rTopLineA (TopLineA frst) = rForestA frst
 
 data PostingA
-  = PostingTrioFirst (Located TrioA) (Maybe (Bs BracketedForest))
+  = PostingTrioFirst (Located TrioA) (Maybe BracketedForest)
   | PostingNoTrio BracketedForest
   deriving (Eq, Ord, Show)
 
 pPostingA :: Parser PostingA
 pPostingA
   = PostingTrioFirst <$> pLocated pTrioA
-                     <*> optional (try (pBs pBracketedForest))
+                     <*> optional pBracketedForest
   <|> PostingNoTrio <$> pBracketedForest
 
 rPostingA :: PostingA -> ShowS
 rPostingA pstg = case pstg of
   PostingTrioFirst t0 m1 -> rLocated rTrioA t0
-    . rMaybe (rBs rBracketedForest) m1
+    . rMaybe rBracketedForest m1
   PostingNoTrio b0 -> rBracketedForest b0
 
 data OpenCurly = OpenCurly
@@ -704,18 +690,31 @@ pCommaA = CommaA <$ char ','
 rCommaA :: CommaA -> ShowS
 rCommaA CommaA = (',':)
 
+data PostingList
+  = PostingList (Located PostingA) [(Fs Semicolon, Located PostingA)]
+  deriving (Eq, Ord, Show)
+
+pPostingList :: Parser PostingList
+pPostingList = PostingList <$> pLocated pPostingA
+  <*> many ((,) <$> pFs pSemicolon <*> pLocated pPostingA)
+
+rPostingList :: PostingList -> ShowS
+rPostingList (PostingList p1 ps)
+  = rLocated rPostingA p1
+  . rList (\(s, p) -> rFs rSemicolon s . rLocated rPostingA p) ps
+
 data PostingsA = PostingsA (Fs OpenCurly)
-  (Maybe (Fs PostingList)) CloseCurly
+  (Maybe PostingList) (Fs CloseCurly)
   deriving (Eq, Ord, Show)
 
 pPostingsA :: Parser PostingsA
 pPostingsA = PostingsA <$> pFs pOpenCurly
-  <*> optional (try (pFs pPostingList)) <*> pCloseCurly
+  <*> optional pPostingList <*> pFs pCloseCurly
 
 rPostingsA :: PostingsA -> ShowS
 rPostingsA (PostingsA c0 m1 c2)
-  = rFs rOpenCurly c0 . rMaybe (rFs rPostingList) m1
-  . rCloseCurly c2
+  = rFs rOpenCurly c0 . rMaybe rPostingList m1
+  . rFs rCloseCurly c2
 
 data Semicolon = Semicolon
   deriving (Eq, Ord, Show)
@@ -726,42 +725,15 @@ pSemicolon = Semicolon <$ char ';'
 rSemicolon :: Semicolon -> ShowS
 rSemicolon Semicolon = (';':)
 
-data PostingList
-  = OnePosting (Located PostingA)
-  | PostingList (Located PostingA) (Bs Semicolon) (Bs (Located PostingA))
-                [(Bs Semicolon, Bs (Located PostingA))]
-  deriving (Eq, Ord, Show)
-
-pPostingList :: Parser PostingList
-pPostingList
-  = OnePosting <$> try (pLocated pPostingA)
-  <|> PostingList <$> pLocated pPostingA <*> pBs pSemicolon
-      <*> pBs (pLocated pPostingA)
-      <*> many (try ((,) <$> pBs pSemicolon <*> pBs (pLocated pPostingA)))
-
-rPostingList :: PostingList -> ShowS
-rPostingList pl = case pl of
-  OnePosting p0 -> rLocated rPostingA p0
-  PostingList p0 s1 p2 ls3 -> rLocated rPostingA p0
-    . rBs rSemicolon s1 . rBs (rLocated rPostingA) p2
-    . rList (\(s4, p5) -> rBs rSemicolon s4 . rBs (rLocated rPostingA) p5) ls3
-
-data TransactionA
-  = TransactionWithTopLine (Located TopLineA) (Bs PostingsA)
-  | TransactionNoTopLine PostingsA
+data TransactionA = TransactionA (Maybe TopLineA) PostingsA
   deriving (Eq, Ord, Show)
 
 pTransactionA :: Parser TransactionA
-pTransactionA
-  = TransactionWithTopLine <$> try (pLocated pTopLineA)
-      <*> pBs pPostingsA
-  <|> TransactionNoTopLine <$> pPostingsA
+pTransactionA = TransactionA <$> optional pTopLineA <*> pPostingsA
 
 rTransactionA :: TransactionA -> ShowS
-rTransactionA txn = case txn of
-  TransactionWithTopLine t0 p1 -> rLocated (rTopLineA) t0
-    . rBs rPostingsA p1
-  TransactionNoTopLine p0 -> rPostingsA p0
+rTransactionA (TransactionA m0 p1)
+  = rMaybe rTopLineA m0 . rPostingsA p1
 
 data AtSign = AtSign
   deriving (Eq, Ord, Show)
@@ -772,141 +744,74 @@ pAtSign = AtSign <$ char '@'
 rAtSign :: AtSign -> ShowS
 rAtSign AtSign = ('@':)
 
-data PriceA = PriceA SourcePos (Fs AtSign) (Located DateA) Whites
-  (Maybe (Located (TimeA, Whites))) (Maybe (Located (ZoneA, Whites)))
-  CommodityA Whites CyExch
-  deriving (Eq, Ord, Show)
-
-pPriceA :: Parser PriceA
-pPriceA = PriceA <$> getPosition <*> pFs pAtSign <*> pLocated pDateA
-  <*> pWhites
-  <*> optional (try (pLocated ((,) <$> pTimeA <*> pWhites)))
-  <*> optional (try (pLocated ((,) <$> pZoneA <*> pWhites)))
-  <*> pCommodityA <*> pWhites <*> pCyExch
-
-rPriceA :: PriceA -> ShowS
-rPriceA (PriceA _ a0 l1 w2 m3 m4 c5 w6 e7)
-  = rFs rAtSign a0
-  . rLocated rDateA l1
-  . rWhites w2
-  . rMaybe (rLocated (\(t, w) -> rTimeA t . rWhites w)) m3
-  . rMaybe (rLocated (\(z, w) -> rZoneA z . rWhites w)) m4
-  . rCommodityA c5
-  . rWhites w6
-  . rCyExch e7
-
 data ExchA
-  = ExchANeutral Neutral
-  | ExchANonNeutral (Maybe (Fs PluMin)) NonNeutral
+  = ExchANeutral (Fs Neutral)
+  | ExchANonNeutral (Maybe (Fs PluMin)) (Fs NonNeutral)
   deriving (Eq, Ord, Show)
 
 pExchA :: Parser ExchA
-pExchA = ExchANeutral <$> try pNeutral
-  <|> ExchANonNeutral <$> optional (try (pFs pPluMin)) <*> pNonNeutral
+pExchA = ExchANeutral <$> pFs pNeutral
+  <|> ExchANonNeutral <$> optional (pFs pPluMin) <*> pFs pNonNeutral
 
 rExchA :: ExchA -> ShowS
 rExchA exch = case exch of
-  ExchANeutral n -> rNeutral n
-  ExchANonNeutral mayFs nn -> rMaybe (rFs rPluMin) mayFs . rNonNeutral nn
+  ExchANeutral n -> rFs rNeutral n
+  ExchANonNeutral mayFs nn -> rMaybe (rFs rPluMin) mayFs . rFs rNonNeutral nn
 
 data CyExch
   = CyExchCy (Fs CommodityA) ExchA
-  | CyExchA (Fs ExchA) CommodityA
+  | CyExchA ExchA (Fs CommodityA)
   deriving (Eq, Ord, Show)
 
 pCyExch :: Parser CyExch
-pCyExch = CyExchCy <$> try (pFs pCommodityA) <*> pExchA
-  <|> CyExchA <$> try (pFs pExchA)
-               <*> pCommodityA
+pCyExch = CyExchCy <$> (pFs pCommodityA) <*> pExchA
+  <|> CyExchA <$> pExchA <*> pFs pCommodityA
 
 rCyExch :: CyExch -> ShowS
 rCyExch exch = case exch of
   CyExchCy cy0 q1 -> rFs rCommodityA cy0 . rExchA q1
-  CyExchA q0 c1 -> rFs rExchA q0 . rCommodityA c1
+  CyExchA q0 c1 -> rExchA q0 . rFs rCommodityA c1
+
+data PriceA = PriceA (Fs AtSign) DateA Whites
+  (Maybe (TimeA, Whites)) (Maybe (ZoneA, Whites))
+  CommodityA Whites CyExch
+  deriving (Eq, Ord, Show)
+
+pPriceA :: Parser PriceA
+pPriceA = PriceA <$> pFs pAtSign <*> pDateA <*> pWhites
+  <*> optional (try ((,) <$> pTimeA <*> pWhites))
+  <*> optional (try ((,) <$> pZoneA <*> pWhites))
+  <*> pCommodityA <*> pWhites <*> pCyExch
+
+rPriceA :: PriceA -> ShowS
+rPriceA (PriceA a0 l1 w2 m3 m4 c5 w6 e7)
+  = rFs rAtSign a0
+  . rDateA l1
+  . rWhites w2
+  . rMaybe (\(t, w) -> rTimeA t . rWhites w) m3
+  . rMaybe (\(z, w) -> rZoneA z . rWhites w) m4
+  . rCommodityA c5
+  . rWhites w6
+  . rCyExch e7
 
 data FileItem = FileItem (Located (Either PriceA TransactionA))
   deriving (Eq, Ord, Show)
 
 pFileItem :: Parser FileItem
 pFileItem = FileItem
-  <$> pLocated ((Left <$> try pPriceA) <|> (Right <$> pTransactionA))
+  <$> pLocated ((Left <$> pPriceA) <|> (Right <$> pTransactionA))
 
 rFileItem :: FileItem -> ShowS
 rFileItem (FileItem l0) =
   rLocated (either rPriceA rTransactionA) l0
 
-data FileItems = FileItems FileItem [(Whites, FileItem)]
-  deriving (Eq, Ord, Show)
-
-pFileItems :: Parser FileItems
-pFileItems = FileItems <$> pFileItem
-  <*> many (try ((,) <$> pWhites <*> pFileItem))
-
-rFileItems :: FileItems -> ShowS
-rFileItems (FileItems i0 ls1)
-  = rFileItem i0 . rList (\(w, i) -> rWhites w . rFileItem i) ls1
-
 -- | Unlike every other production in this module, 'Ast' may produce
 -- an empty input.
-data Ast
-  = AstNoLeadingWhite (Fs FileItems)
-  | AstLeadingWhite Whites (Maybe (Fs FileItems))
-  | EmptyFile
+data Ast = Ast [White] [FileItem]
   deriving (Eq, Ord, Show)
 
 pAst :: Parser Ast
-pAst
-  = AstNoLeadingWhite <$> pFs pFileItems
-  <|> AstLeadingWhite <$> pWhites <*> (optional (try (pFs pFileItems)))
-  <|> pure EmptyFile
+pAst = Ast <$> many pWhite <*> many pFileItem
 
 rAst :: Ast -> ShowS
-rAst fl = case fl of
-  AstNoLeadingWhite f0 -> rFs rFileItems f0
-  AstLeadingWhite w0 m1 -> rWhites w0 . rMaybe (rFs rFileItems) m1
-  EmptyFile -> id
-
-{-
-
--- | Parses an entire 'Ast' from a string.
---
--- Returns the parsed 'Ast', any error messages, and any errors
--- resulting because input was not parsed.  This parser is \"online\",
--- so it lazily processes the input 'String'.  Thus it is possible to
--- traverse the result 'Ast' while lazily processing the input
--- 'String'.  Examining either final list of 'Error' will also cause
--- the parse to proceed.  Therefore, to preserve laziness, handle the
--- result 'Ast' first, and then look for errors.
---
--- As this return type suggests, you will always get a result, even
--- if the input contains errors; uu-parsinglib will make insertions
--- or deletions to the text as it parses.  It will take whatever
--- steps are necessary to get a complete 'Ast'.  However such
--- changes will be indicated in the list of 'Error'.  This scheme
--- delivers excellent error messages because instead of stopping an
--- entire parse due to a single error, the parse will proceed to
--- find further errors later in the file.  Of course fixing the
--- first error might fix all the later ones, but at least this is
--- left up to the user.
-
-parseAst
-  :: Text
-  -> (Ast, [Error SourcePos], [Error SourcePos])
-parseAst str = parse prsr (createStr (SourcePos 1 0 0) str)
-  where
-    prsr = (,,) <$> pAst <*> pErrors <*> pEnd
-
-displayParseError :: Error SourcePos -> String
-displayParseError er = case er of
-  Inserted i p es -> "inserted " ++ i ++ " at " ++ display p ""
-    ++ "; expecting " ++ expecting es
-  Deleted i p es -> "deleted " ++ i ++ " at " ++ display p ""
-    ++ "; expecting " ++ expecting es
-  Replaced _ _ _ _ -> error "replaced: not implemented"
-  DeletedAtEnd s -> "unconsumed input deleted: " ++ s
-  where
-    expecting ls = case ls of
-      [] -> "empty list"
-      x:[] -> x
-      xs -> "one of: " ++ (concat . intersperse "; " $ xs)
--}
+rAst (Ast w f) = rList rWhite w . rList rFileItem f

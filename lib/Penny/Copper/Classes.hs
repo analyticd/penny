@@ -213,9 +213,6 @@ instance Renderable ExchA where render = rExchA
 instance Parseable FileItem where parser = pFileItem
 instance Renderable FileItem where render = rFileItem
 
-instance Parseable FileItems where parser = pFileItems
-instance Renderable FileItems where render = rFileItems
-
 instance Parseable Ast where parser = pAst
 instance Renderable Ast where render = rAst
 

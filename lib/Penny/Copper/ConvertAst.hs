@@ -8,7 +8,7 @@ import Data.Text (Text)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import qualified Data.Text as X
-import Data.Maybe (mapMaybe, isJust)
+import Data.Maybe (mapMaybe)
 import Data.Foldable (foldlM)
 import Text.Megaparsec (SourcePos, sourceLine, sourceColumn)
 
@@ -61,9 +61,7 @@ instance Friendly ConvertE where
         TrioE te (Located l _) -> (l, friendly te)
         ImbalancedE e pl -> (lc, friendly e)
           where
-            lc = case pl of
-              OnePosting (Located x _) -> x
-              PostingList (Located x _) _ _ _ -> x
+            PostingList (Located lc _) _ = pl
         PriceSameCommodityE l (FromCy cy) ->
           (l, ["From and To commodities are the same: " ++ X.unpack cy])
 
@@ -159,44 +157,44 @@ repAnyRadixFromNonNeutral s nn = case nn of
     NonNeutralRadCom _ br -> Left $ Extreme (Polarized br s)
     NonNeutralRadPer br -> Right $ Extreme (Polarized br s)
 
-arrangement :: Maybe a -> Orient -> Arrangement
-arrangement may o = Arrangement o . isJust $ may
+arrangement :: [a] -> Orient -> Arrangement
+arrangement may o = Arrangement o . not . null $ may
 
 c'Trio'TrioA :: TrioA -> Trio
 c'Trio'TrioA trio = case trio of
-  QcCyOnLeftA (Fs side _) (Fs cy cySpc) nn ->
+  QcCyOnLeftA (Fs side _) (Fs cy cySpc) (Fs nn _) ->
     QC (qtyRepAnyRadix nn side)
        (c'Commodity'CommodityOnLeftA cy)
        (arrangement cySpc CommodityOnLeft)
 
-  QcCyOnRightA (Fs side _) (Fs nn cySpc) cyOnRight ->
+  QcCyOnRightA (Fs side _) (Fs nn cySpc) (Fs cyOnRight _) ->
     QC (qtyRepAnyRadix nn side)
        (c'Commodity'CommodityOnRightA cyOnRight)
        (arrangement cySpc CommodityOnRight)
 
-  QSided (Fs side _) nn -> Q (repAnyRadixFromNonNeutral side nn)
+  QSided (Fs side _) (Fs nn _) -> Q (repAnyRadixFromNonNeutral side nn)
 
-  QUnsided n -> Q $ case n of
+  QUnsided (Fs n _) -> Q $ case n of
     NeuCom _ nil -> Left . Moderate $ nil
     NeuPer nil -> Right . Moderate $ nil
 
-  SCA (Fs sd _) cy -> SC sd . c'Commodity'CommodityA $ cy
+  SCA (Fs sd _) (Fs cy _) -> SC sd . c'Commodity'CommodityA $ cy
 
-  SA sd -> S sd
+  SA (Fs sd _) -> S sd
 
-  UcCyOnLeftA (Fs cy maySpc) nonNeu -> UC
+  UcCyOnLeftA (Fs cy maySpc) (Fs nonNeu _) -> UC
     (c'RepNonNeutralNoSide'NonNeutral nonNeu)
     (c'Commodity'CommodityOnLeftA cy)
     (arrangement maySpc CommodityOnLeft)
 
-  UcCyOnRightA (Fs nonNeu maySpc) cy -> UC
+  UcCyOnRightA (Fs nonNeu maySpc) (Fs cy _) -> UC
     (c'RepNonNeutralNoSide'NonNeutral nonNeu)
     (c'Commodity'CommodityOnRightA cy)
     (arrangement maySpc CommodityOnRight)
 
-  UA nn -> U (c'RepNonNeutralNoSide'NonNeutral nn)
+  UA (Fs nn _) -> U (c'RepNonNeutralNoSide'NonNeutral nn)
 
-  CA c -> C (c'Commodity'CommodityA c)
+  CA (Fs c _) -> C (c'Commodity'CommodityA c)
 
 c'Integer'IntegerA :: IntegerA -> Integer
 c'Integer'IntegerA (IntegerA ei) = case ei of
@@ -216,12 +214,12 @@ c'Integer'IntegerA (IntegerA ei) = case ei of
 
 c'Scalar'ScalarA :: ScalarA -> Scalar
 c'Scalar'ScalarA sclr = case sclr of
-  ScalarUnquotedString us -> SText . c'Text'UnquotedString $ us
-  ScalarQuotedString qs -> SText . c'Text'QuotedString $ qs
-  ScalarDate dt -> SDay . dateToDay . c'Date'Day . c'Day'DateA $ dt
-  ScalarTime t -> STime . c'TimeOfDay'Time . c'Time'TimeA $ t
-  ScalarZone (ZoneA _ z) -> SZone . c'Int'Zone $ z
-  ScalarInt i -> SInteger . c'Integer'IntegerA $ i
+  ScalarUnquotedString (Fs us _) -> SText . c'Text'UnquotedString $ us
+  ScalarQuotedString (Fs qs _) -> SText . c'Text'QuotedString $ qs
+  ScalarDate (Fs dt _) -> SDay . dateToDay . c'Date'Day . c'Day'DateA $ dt
+  ScalarTime (Fs t _) -> STime . c'TimeOfDay'Time . c'Time'TimeA $ t
+  ScalarZone (Fs (ZoneA _ z) _) -> SZone . c'Int'Zone $ z
+  ScalarInt (Fs i _) -> SInteger . c'Integer'IntegerA $ i
 
 
 location :: Text
@@ -247,8 +245,8 @@ locationTree pos
     col = sourceColumn pos
 
 c'Forest'ForestA :: ForestA -> Seq Tree
-c'Forest'ForestA (ForestA t1 ls)
-  = c'Tree'TreeA t1 <| (Seq.fromList . map (\(_, Bs _ t) -> c'Tree'TreeA t) $ ls)
+c'Forest'ForestA (ForestA (Fs t1 _) ls)
+  = c'Tree'TreeA t1 <| (Seq.fromList . map (\(_, Fs t _) -> c'Tree'TreeA t) $ ls)
 
 c'TopLine'TopLineA :: TopLineA -> Seq Tree
 c'TopLine'TopLineA (TopLineA t1) = c'Forest'ForestA t1
@@ -258,7 +256,7 @@ c'ListTree'BracketedForest
   -> Seq Tree
 c'ListTree'BracketedForest (BracketedForest _ mayF _) = case mayF of
   Nothing -> Seq.empty
-  Just (Fs frst _) -> c'Forest'ForestA frst
+  Just frst -> c'Forest'ForestA frst
 
 c'Tree'TreeA :: TreeA -> Tree
 
@@ -266,14 +264,14 @@ c'Tree'TreeA (TreeScalarFirst (Located loc scl) Nothing)
   = Tree User (Just . c'Scalar'ScalarA $ scl)
               (Seq.singleton $ locationTree loc)
 
-c'Tree'TreeA (TreeScalarFirst (Located loc scl) (Just (Bs _ bf)))
+c'Tree'TreeA (TreeScalarFirst (Located loc scl) (Just bf))
   = Tree User (Just . c'Scalar'ScalarA $ scl)
               (locationTree loc <| c'ListTree'BracketedForest bf)
 
 c'Tree'TreeA (TreeForestFirst bf Nothing)
   = Tree User Nothing (c'ListTree'BracketedForest bf)
 
-c'Tree'TreeA (TreeForestFirst bf (Just (Bs _ (Located loc scl))))
+c'Tree'TreeA (TreeForestFirst bf (Just (Located loc scl)))
   = Tree User (Just . c'Scalar'ScalarA $ scl)
               (locationTree loc <| c'ListTree'BracketedForest bf)
 
@@ -285,7 +283,7 @@ c'LocatedPstgMeta'LocatedPostingA lctd@(Located lcp _) = fmap f lctd
     f pa = case pa of
       PostingTrioFirst (Located _ trioA) Nothing ->
         (Seq.empty, (c'Trio'TrioA trioA))
-      PostingTrioFirst (Located _ trioA) (Just (Bs _ bf)) ->
+      PostingTrioFirst (Located _ trioA) (Just bf) ->
         (locationTree lcp <| c'ListTree'BracketedForest bf,
           (c'Trio'TrioA trioA))
       PostingNoTrio bf ->
@@ -312,11 +310,8 @@ addLocationToEnts lcp = fmap f
 entsFromPostingList
   :: PostingList
   -> Either ConvertE (Balanced (Seq Tree))
-entsFromPostingList pstgList = do
-  let pstgs = case pstgList of
-        OnePosting pstg -> Seq.singleton pstg
-        PostingList p1 _ (Bs _ p2) ps ->
-          p1 <| p2 <| (Seq.fromList $ map (\(_, Bs _ p) -> p) ps)
+entsFromPostingList pstgList@(PostingList p1 ps) = do
+  let pstgs = p1 <| Seq.fromList (map snd ps)
   ents <- foldlM appendPstgToEnts mempty
     . fmap c'LocatedPstgMeta'LocatedPostingA
     $ pstgs
@@ -327,18 +322,16 @@ entsFromPostingList pstgList = do
 c'Balanced'PostingsA :: PostingsA -> Either ConvertE (Balanced (Seq Tree))
 c'Balanced'PostingsA (PostingsA _ may _) = case may of
   Nothing -> return mempty
-  Just (Fs pl _) -> entsFromPostingList pl
+  Just pl -> entsFromPostingList pl
 
 c'Transaction'TransactionA
   :: TransactionA
   -> Either ConvertE (Seq Tree, Balanced (Seq Tree))
-c'Transaction'TransactionA txn = case txn of
-  TransactionWithTopLine (Located _ tl) (Bs _ pstgs) -> do
-    bal <- c'Balanced'PostingsA pstgs
-    return (c'TopLine'TopLineA tl, bal)
-  TransactionNoTopLine pstgs -> do
-    bal <- c'Balanced'PostingsA pstgs
-    return (Seq.empty, bal)
+c'Transaction'TransactionA (TransactionA mayTopLine pstgs) = do
+  bal <- c'Balanced'PostingsA pstgs
+  return $ case mayTopLine of
+    Nothing -> (Seq.empty, bal)
+    Just tl -> (c'TopLine'TopLineA tl, bal)
 
 c'DecZero'Neutral :: Neutral -> DecZero
 c'DecZero'Neutral neu = case neu of
@@ -374,20 +367,20 @@ c'Decimal'ExchA
   :: ExchA
   -> Decimal
 c'Decimal'ExchA exch = case exch of
-  ExchANeutral n -> toDecimal . c'DecZero'Neutral $ n
-  ExchANonNeutral m n -> c'Decimal'NonNeutral (fmap (\(Fs x _) -> x) m) n
+  ExchANeutral (Fs n _) -> toDecimal . c'DecZero'Neutral $ n
+  ExchANonNeutral m (Fs n _) -> c'Decimal'NonNeutral (fmap (\(Fs x _) -> x) m) n
 
 c'CommodityExch'CyExch :: CyExch -> (Commodity, Decimal)
 c'CommodityExch'CyExch cye = (c'Commodity'CommodityA cy, c'Decimal'ExchA ea)
   where
     (cy, ea) = case cye of
       CyExchCy (Fs c _) e -> (c, e)
-      CyExchA (Fs e _) c -> (c, e)
+      CyExchA e (Fs c _) -> (c, e)
 
 
-c'Price'PriceA :: PriceA -> Either ConvertE Price
-c'Price'PriceA
-  (PriceA lcp _ (Located _ dte) _ mayTime mayZone frA _ cyExch)
+c'Price'PriceA :: SourcePos -> PriceA -> Either ConvertE Price
+c'Price'PriceA lcp
+  (PriceA _ dte _ mayTime mayZone frA _ cyExch)
   = case makeFromTo frCy toC of
       Nothing -> Left $ PriceSameCommodityE lcp frCy
       Just frTo -> Right $ Price dt frTo exch
@@ -396,25 +389,24 @@ c'Price'PriceA
     (toC, exch) = first ToCy . c'CommodityExch'CyExch $ cyExch
     ti = case mayTime of
       Nothing -> midnight
-      Just (Located _ (t, _)) -> c'Time'TimeA t
+      Just (t, _) -> c'Time'TimeA t
     zn = case mayZone of
       Nothing -> utcZone
-      Just (Located _ (ZoneA _ z, _)) -> z
+      Just (ZoneA _ z, _) -> z
     dt = DateTime (c'Date'Day . c'Day'DateA $ dte) ti zn
 
 c'Either'FileItem
   :: FileItem
   -> Either ConvertE (Either Price (Seq Tree, Balanced (Seq Tree)))
-c'Either'FileItem (FileItem (Located _ ei)) = case ei of
-  Left p -> fmap Left $ c'Price'PriceA p
+c'Either'FileItem (FileItem (Located lcp ei)) = case ei of
+  Left p -> fmap Left $ c'Price'PriceA lcp p
   Right t -> fmap Right $ c'Transaction'TransactionA t
 
 c'Eithers'FileItems
-  :: FileItems
+  :: [FileItem]
   -> Either (ConvertE, Seq ConvertE)
             (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
-c'Eithers'FileItems (FileItems i1 is)
-  = foldr f (Right Seq.empty) . (i1:) . map snd $ is
+c'Eithers'FileItems = foldr f (Right Seq.empty)
   where
     f item rest = case (c'Either'FileItem item, rest) of
       (Right new, Right old) -> Right (new <| old)
@@ -426,9 +418,4 @@ convertItemsFromAst
   :: Ast
   -> Either (ConvertE, Seq ConvertE)
             (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
-convertItemsFromAst f = case f of
-  AstNoLeadingWhite (Fs fi _) -> c'Eithers'FileItems fi
-  AstLeadingWhite _ Nothing -> Right Seq.empty
-  AstLeadingWhite _ (Just (Fs fi _)) -> c'Eithers'FileItems fi
-  EmptyFile -> Right Seq.empty
-
+convertItemsFromAst (Ast _ ls) = c'Eithers'FileItems ls
