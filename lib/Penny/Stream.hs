@@ -154,13 +154,14 @@ instance Streamable (Colorable FileSink) where
 -- | Creates a stream that sends output to @less@.  By default,
 -- the number of colors is the maximum number allowed by the terminal.
 toLess :: Colorable StdinProcess
-toLess = Colorable clrs (StdinProcess "less" ["-R"])
+toLess = Colorable clrs (StdinProcess "less" opts)
   where
     clrs = ChooseColors
       { _canShow0 = HowManyColors False False
       , _canShow8 = HowManyColors True False
       , _canShow256 = HowManyColors True True
       }
+    opts = ["--RAW-CONTROL-CHARS", "--chop-long-lines"]
 
 -- | Creates a stream that sends output to a file.
 -- By default, no colors are used under any circumstance, and any
