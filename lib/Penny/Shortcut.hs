@@ -93,6 +93,11 @@ flag = to f
               guard (lastChar == ')')
               return mainChars
 
+-- | Looks for a 'flag' with a value of @R@.
+
+reconciled :: Getter (Sliced a) Bool
+reconciled = flag . to (== "R")
+
 -- | Searches for the first tree whose root node is an integer and
 -- that has no children.  If no such node is found in the posting,
 -- search the top line.

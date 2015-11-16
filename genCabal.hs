@@ -40,7 +40,10 @@ quickcheck :: Package
 quickcheck = atleast "QuickCheck" [2,7,6]
 
 tasty :: Package
-tasty = atleast "tasty" [0,10,1]
+tasty = atleast "tasty" [0,11]
+
+tastyHunit :: Package
+tastyHunit = atleast "tasty-hunit" [0,9,2]
 
 tastyQuickcheck :: Package
 tastyQuickcheck = atleast "tasty-quickcheck" [0,8,3]
@@ -106,6 +109,9 @@ derive = atleast "derive" [2,5,22]
 managed :: Package
 managed = atleast "managed" [1,0]
 
+hspec :: Package
+hspec = atleast "hspec" [2,2]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
@@ -140,6 +146,8 @@ libraryDepends =
   , void
   , pretty
   , managed
+  , tasty
+  , tastyHunit
   ]
 
 testDepends :: [Package]

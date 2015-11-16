@@ -40,14 +40,19 @@
 -- why that is unsafe, I do not know.
 module Penny.Copper where
 
+import Control.Lens ((<|))
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Penny.Ents
 import Data.List (intersperse)
+import qualified Data.Sequence as Seq
 import Data.Text (Text)
+import qualified Data.Text as X
+import qualified Data.Text.IO as XIO
 import Text.Megaparsec (parse)
 
 import Penny.Friendly
+import Penny.Clatch
 import Penny.Copper.Ast
 import Penny.Copper.ConvertAst
 import Penny.Price
@@ -89,3 +94,24 @@ formatConvertErrors (c1, cs)
   . intersperse [""] . (friendly c1 :) . map friendly . toList $ cs
 
 
+-- | Parse input files and create transactions.
+
+loadTransactions
+  :: Seq Text
+  -- ^ Filenames
+  -> IO (Seq Transaction)
+  -- ^ Transactions.  If there is a parse error, throws an exception.
+
+loadTransactions = fmap addSerials . mapM load
+  where
+    load filename = do
+      txt <- XIO.readFile . X.unpack $ filename
+      case copperParser txt of
+        Left e -> fail e
+        Right g -> return rights
+          where
+            rights = foldr f Seq.empty g
+              where
+                f ei acc = case ei of
+                  Left _ -> acc
+                  Right txn -> txn <| acc

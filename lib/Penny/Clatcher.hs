@@ -12,7 +12,7 @@ import qualified Data.Text.IO as X
 import Penny.Clatch
 import Penny.Colors
 import Penny.Converter
-import Penny.Copper
+import Penny.Copper (copperParser)
 import Penny.Ents
 import Penny.Popularity
 import Penny.Price
