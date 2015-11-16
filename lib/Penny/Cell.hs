@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Penny.Cell where
 
@@ -60,12 +61,55 @@ data Env = Env
 
 makeLenses ''Env
 
+sideCell
+  :: Env
+  -> Maybe Pole
+  -> Cell
+sideCell env maySide = Cell
+  { _rows = Seq.singleton . Seq.singleton
+      . back (background (view clatch env) (view colors env)) . fore fgColor
+      . chunk $ txt
+  , _horizontal = top
+  , _vertical = left
+  , _background = background (view clatch env) (view colors env)
+  }
+  where
+    (fgColor, txt) = case maySide of
+      Nothing -> (env ^. colors.neutral, "--")
+      Just side
+        | side == P.debit -> (env ^. colors.debit, "<")
+        | otherwise -> (env ^. colors.credit, ">")
+
+commodityCell
+  :: Env
+  -> Maybe Pole
+  -> Orient
+  -> Commodity
+  -> Cell
+commodityCell env maySide orient cy = Cell
+  { _rows = Seq.singleton . Seq.singleton
+      . sidedChunk env maySide
+      $ cy
+  , _horizontal = top
+  , _vertical = vertOrient
+  , _background = background (view clatch env) (view colors env)
+  }
+  where
+    vertOrient
+      | orient == CommodityOnLeft = right
+      | otherwise = left
+
+
 background :: Clatch -> Colors -> Radiant
 background clatch colors
   | odd i = view oddBackground colors
   | otherwise = view evenBackground colors
   where
     i = view (postFiltset.forward.to naturalToInteger) clatch
+
+spaceCell :: Int -> Env -> Cell
+spaceCell i env = textCell _nonLinear (view clatch env) (view colors env)
+  (X.replicate i . X.singleton $ ' ')
 
 -- | Makes a single cell with a Text.
 textCell
@@ -100,6 +144,18 @@ sidedChunk env maySide
       Just side
         | side == P.debit -> env ^. colors.debit
         | otherwise -> env ^. colors.credit
+
+qtyRepAnyRadixMagnitudeChunk
+  :: Env
+  -> RepAnyRadix
+  -> Chunk Text
+qtyRepAnyRadixMagnitudeChunk env qr
+  = sidedChunk env (either equatorial equatorial qr)
+  . X.pack
+  . ($ "")
+  . either (either display display) (either display display)
+  . c'NilOrBrimScalarAnyRadix'RepAnyRadix
+  $ qr
 
 qtyRepAnyRadixMagnitudeCell
   :: Env
