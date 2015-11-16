@@ -92,7 +92,7 @@ lookForBalanceItem (cy, sig, exptInt) (rest, Balance balMap)
   where
     (maybeBal, balMap') = M.updateLookupWithKey (\_ _ -> Nothing) cy balMap
     tt = testCase ("commodity " <> unpack cy <>
-      "has a balance with coefficient " <> show sig <> " and exponent "
+      " has a balance with coefficient " <> show sig <> " and exponent "
       <> show exptInt) . maybe (assertFailure "balance does not exist") id $ do
         bal <- maybeBal
         expt <- integerToNatural exptInt
