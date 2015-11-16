@@ -7,10 +7,12 @@ module Penny
   ( -- * Re-exported modules
     -- | All re-exported modules re-export all bindings from that module.
     module Penny.Balance
+  , module Penny.BalanceCheck
   , module Penny.Clatch
   , module Penny.Colorize
   , module Penny.Command
   , module Penny.Commodity
+  , module Penny.Copper
   , module Penny.Decimal
   , module Penny.Natural
   , module Penny.NonEmpty
@@ -39,10 +41,12 @@ module Penny
   ) where
 
 import Penny.Balance
+import Penny.BalanceCheck
 import Penny.Clatch
 import Penny.Colorize
 import Penny.Command
 import Penny.Commodity
+import Penny.Copper
 import Penny.Decimal
 import Penny.Natural
 import Penny.NonEmpty
