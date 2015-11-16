@@ -54,7 +54,7 @@ import qualified Data.Sequence as Seq
 
 
 data Env = Env
-  { _clatch :: Clatch
+  { _rowBackground :: Radiant
   , _history :: History
   , _colors :: Colors
   }
@@ -67,11 +67,11 @@ sideCell
   -> Cell
 sideCell env maySide = Cell
   { _rows = Seq.singleton . Seq.singleton
-      . back (background (view clatch env) (view colors env)) . fore fgColor
+      . back (view rowBackground env) . fore fgColor
       . chunk $ txt
   , _horizontal = top
   , _vertical = left
-  , _background = background (view clatch env) (view colors env)
+  , _background = view rowBackground env
   }
   where
     (fgColor, txt) = case maySide of
@@ -92,7 +92,7 @@ commodityCell env maySide orient cy = Cell
       $ cy
   , _horizontal = top
   , _vertical = vertOrient
-  , _background = background (view clatch env) (view colors env)
+  , _background = view rowBackground env
   }
   where
     vertOrient
@@ -100,33 +100,27 @@ commodityCell env maySide orient cy = Cell
       | otherwise = left
 
 
-background :: Clatch -> Colors -> Radiant
-background clatch colors
-  | odd i = view oddBackground colors
-  | otherwise = view evenBackground colors
-  where
-    i = view (postFiltset.forward.to naturalToInteger) clatch
-
 spaceCell :: Int -> Env -> Cell
-spaceCell i env = textCell _nonLinear (view clatch env) (view colors env)
+spaceCell i env = textCell _nonLinear (view rowBackground env) (view colors env)
   (X.replicate i . X.singleton $ ' ')
 
 -- | Makes a single cell with a Text.
 textCell
   :: (Colors -> Radiant)
   -- ^ Selects the foreground color.
-  -> Clatch
+  -> Radiant
+  -- ^ Background color
   -> Colors
   -> Text
   -- ^ The text to display
   -> Cell
-textCell fg clatch colors txt = Cell
+textCell fg bkgd colors txt = Cell
   { _rows = Seq.singleton . Seq.singleton
-      . back (background clatch colors) . fore (fg colors)
+      . back bkgd . fore (fg colors)
       . chunk $ txt
   , _horizontal = top
   , _vertical = left
-  , _background = background clatch colors
+  , _background = bkgd
   }
 
 sidedChunk
@@ -135,7 +129,7 @@ sidedChunk
   -> Text
   -> Chunk Text
 sidedChunk env maySide
-  = back (background (view clatch env) (view colors env))
+  = back (view rowBackground env)
   . fore fgColor
   . chunk
   where
@@ -162,7 +156,7 @@ qtyRepAnyRadixMagnitudeCell
   -> RepAnyRadix
   -> Cell
 qtyRepAnyRadixMagnitudeCell env qr
-  = textCell getColor (view clatch env) (view colors env)
+  = textCell getColor (view rowBackground env) (view colors env)
   . X.pack
   . ($ "")
   . either (either display display) (either display display)
@@ -193,7 +187,7 @@ brimScalarAnyRadixMagnitudeCell
   -> BrimScalarAnyRadix
   -> Cell
 brimScalarAnyRadixMagnitudeCell env maySide rnn
-  = textCell getColor (view clatch env) (view colors env)
+  = textCell getColor (view rowBackground env) (view colors env)
   . X.pack
   . ($ "")
   . either (either display display) (either display display)
