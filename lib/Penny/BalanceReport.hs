@@ -4,7 +4,7 @@
 module Penny.BalanceReport where
 
 import Debug.Trace
-import Control.Lens (view, (<|))
+import Control.Lens (view, (<|), to)
 import Control.Monad (join)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -42,7 +42,7 @@ instance Report BalanceReport where
     . fmap mkBalanceMap
     where
       mkBalanceMap clatch = balanceMap (view account clatch)
-        (view balance clatch)
+        (view (best . to c'Balance'Amount) clatch)
 
 formatTable
   :: History
