@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.BalanceReport where
 
+import Debug.Trace
 import Control.Lens (view, (<|))
 import Control.Monad (join)
 import Data.Map (Map)
@@ -37,6 +38,7 @@ instance Report BalanceReport where
     . tableByRows
     . formatTable hist clrs
     . foldr (<>) mempty
+    . trace "running"
     . fmap mkBalanceMap
     where
       mkBalanceMap clatch = balanceMap (view account clatch)

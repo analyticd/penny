@@ -3,7 +3,6 @@
 module Penny.Command where
 
 import Penny.Amount
-import Penny.BalanceReport
 import Penny.Commodity
 import Penny.Clatch
 import Penny.Clatcher (Clatcher)
@@ -15,7 +14,6 @@ import Penny.Converter
 import Penny.Copper.Classes
 import Penny.Copper.ConvertAst (c'DecUnsigned'NeutralOrNon)
 import Penny.Decimal
-import Penny.Dump (Dump(Dump))
 import Penny.Natural
 import Penny.Report
 import Penny.Stream
@@ -94,12 +92,6 @@ report s = set Clatcher.report (Seq.singleton s) mempty
 
 column :: Colable a => Getter Clatch a -> Clatcher Columns l
 column f = set Clatcher.report (Seq.singleton $ Columns.column f) mempty
-
-dump :: Clatcher Dump l
-dump = set Clatcher.report (Seq.singleton Dump) mempty
-
-totals :: Clatcher BalanceReport l
-totals = set Clatcher.report (Seq.singleton BalanceReport) mempty
 
 -- Load
 

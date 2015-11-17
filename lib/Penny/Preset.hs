@@ -8,6 +8,8 @@ import Penny.Scheme
 import Penny.Stream
 import Penny.Columns
 import Penny.Shortcut
+import Penny.Dump
+import Penny.BalanceReport
 
 -- | Sends output to @less@ in color, using a light background.
 
@@ -46,3 +48,11 @@ register = set report rpt coless
       , column (posting . core . troika)
       , column balance
       ]
+
+-- | Sends the 'Dump' report to colored @less@.
+dump :: Clatcher Dump l
+dump = set report (Seq.singleton Dump) coless
+
+-- | Sends the 'BalanceReport' report colored to @less@.
+totals :: Clatcher BalanceReport l
+totals = set report (Seq.singleton BalanceReport) coless
