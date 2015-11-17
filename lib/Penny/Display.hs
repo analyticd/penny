@@ -48,6 +48,9 @@ instance (Display a, Display b) => Display (a, b) where
 instance (Display a, Display b, Display c) => Display (a, b, c) where
   display (a, b, c) = display a . display b . display c
 
+instance (Display a, Display b) => Display (Either a b) where
+  display = either display display
+
 instance Display a => Display (Maybe a) where
   display Nothing = id
   display (Just x) = display x

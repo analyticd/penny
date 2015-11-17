@@ -3,6 +3,7 @@
 module Penny.Command where
 
 import Penny.Amount
+import Penny.BalanceReport
 import Penny.Commodity
 import Penny.Clatch
 import Penny.Clatcher (Clatcher)
@@ -96,6 +97,9 @@ column f = set Clatcher.report (Seq.singleton $ Columns.column f) mempty
 
 dump :: Clatcher Dump l
 dump = set Clatcher.report (Seq.singleton Dump) mempty
+
+totals :: Clatcher BalanceReport l
+totals = set Clatcher.report (Seq.singleton BalanceReport) mempty
 
 -- Load
 

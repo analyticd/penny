@@ -1,55 +1,47 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Penny.Cell where
+-- | Functions that create 'Cell' that are useful across multiple
+-- reports, such as both the reports in "Penny.Columns" and in
+-- "Penny.BalanceReport".
 
-import Control.Lens (makeLenses)
+module Penny.Cell
+  ( Env(Env, _rowBackground, _history, _colors)
+  , rowBackground
+  , history
+  , colors
+  , sidedChunk
+  , sideCell
+  , commodityCell
+  , spaceCell
+  , textCell
+  , qtyRepAnyRadixMagnitudeChunk
+  , qtyRepAnyRadixMagnitudeCell
+  , brimScalarAnyRadixMagnitudeChunk
+  , brimScalarAnyRadixMagnitudeCell
+  , qtyMagnitudeCell
+  ) where
 
-import Penny.Amount
 import Penny.Arrangement
-import Penny.Balance
-import Penny.Clatch
 import Penny.Colors
 import Penny.Commodity
-import Penny.DateTime
 import Penny.Decimal
 import Penny.Display
-import Penny.Natural
 import Penny.Polar (Pole, equatorial)
 import qualified Penny.Polar as P
 import Penny.Popularity
-import Penny.Qty
-import Penny.Realm
-import Penny.Report
 import Penny.Representation
-import Penny.Scalar
-import Penny.SeqUtil (intersperse)
-import Penny.Serial
-import Penny.Tree
-import Penny.Troika
 
-import Control.Lens
-  ( to, view, (^.), makeWrapped, (|>), (<|), Getter, makeLenses,
-    (<>~), _Wrapped )
-import Data.Foldable (foldl', toList)
-import qualified Data.Map as M
-import qualified Data.IntMap as IM
-import qualified Data.Time as Time
-import Data.Monoid
+import Control.Lens ( view, (^.), makeLenses )
 import Data.Text (Text)
 import qualified Data.Text as X
 import Rainbox
   ( Cell (Cell, _rows, _horizontal, _vertical, _background)
-  , rows
-  , render
   , top
   , left
   , right
-  , tableByColumns
   )
 import Rainbow
-import Rainbow.Types (yarn)
-import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
 
