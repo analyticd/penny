@@ -37,6 +37,8 @@ module Penny
 
   -- * Other re-exports
   , (&)
+  , isPrefixOf
+  , isSuffixOf
 
   ) where
 
@@ -69,3 +71,4 @@ import Control.Lens.Getter
 import Control.Lens.Setter
 import Data.Monoid
 import Data.Function ((&))
+import Data.Monoid.Cancellative (isPrefixOf, isSuffixOf)

@@ -112,6 +112,9 @@ managed = atleast "managed" [1,0]
 hspec :: Package
 hspec = atleast "hspec" [2,2]
 
+monoidSubclasses :: Package
+monoidSubclasses = atleast "monoid-subclasses" [0,4,1]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
@@ -148,6 +151,7 @@ libraryDepends =
   , managed
   , tasty
   , tastyHunit
+  , monoidSubclasses
   ]
 
 testDepends :: [Package]
