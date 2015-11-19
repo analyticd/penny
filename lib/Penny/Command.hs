@@ -108,9 +108,24 @@ penny = Clatcher.clatcher
 
 -- Combinators
 
+-- | A point-free, lens-friendly version of '&&'.
+--
+-- >>> :{
+-- >>> penny $ open "myfile" <> register <>
+-- >>> sieve (account . to (== ["Assets", "Checking"]) &&& (flag . (== "R")))
+-- >>> :}
+
 (&&&) :: Getter a Bool -> Getter a Bool -> Getter a Bool
 l &&& r = to $ \a -> view l a && view r a
 infixr 3 &&&
+
+-- | A point-free, lens-friendly version of '||'.
+--
+-- >>> :{
+-- >>> penny $ open "myfile" <> register <>
+-- >>> sieve (account . to (["Assets"] `isPrefixOf`)
+-- >>>        ||| account . to (["Liabilities"] `isPrefixOf`))
+-- >>> :}
 
 (|||) :: Getter a Bool -> Getter a Bool -> Getter a Bool
 l ||| r = to $ \a -> view l a || view r a
