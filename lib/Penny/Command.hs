@@ -18,7 +18,7 @@ import Penny.Natural
 import Penny.Report
 import Penny.Stream
 
-import Control.Lens (set, Getter, view)
+import Control.Lens (set, Getter, view, to)
 import qualified Data.Sequence as Seq
 import Data.Text (Text, unpack)
 import Text.Megaparsec (parseMaybe)
@@ -105,3 +105,13 @@ open str = set Clatcher.load (Seq.singleton (Clatcher.open str)) mempty
 
 penny :: (Report r, Clatcher.Loader l) => Clatcher r l -> IO ()
 penny = Clatcher.clatcher
+
+-- Combinators
+
+(&&&) :: Getter a Bool -> Getter a Bool -> Getter a Bool
+l &&& r = to $ \a -> view l a && view r a
+infixr 3 &&&
+
+(|||) :: Getter a Bool -> Getter a Bool -> Getter a Bool
+l ||| r = to $ \a -> view l a || view r a
+infixr 2 |||
