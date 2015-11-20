@@ -112,7 +112,8 @@ penny = Clatcher.clatcher
 --
 -- >>> :{
 -- >>> penny $ open "myfile" <> register <>
--- >>> sieve (account . to (== ["Assets", "Checking"]) &&& (flag . (== "R")))
+-- >>> sieve (account . to (== ["Assets", "Checking"])
+-- >>>        &&& (flag . to (== "R")))
 -- >>> :}
 
 (&&&) :: Getter a Bool -> Getter a Bool -> Getter a Bool
