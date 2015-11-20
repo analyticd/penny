@@ -175,12 +175,15 @@ getReport opts items
                                  (opts ^. sort) (view screen opts)
                                  (snd items)
 
+-- | Runs the clatcher, sending output to the streams specified in
+-- '_output'.  Also, returns the report.
 clatcher
   :: (Report r, Loader l)
   => Clatcher r l
-  -> IO ()
+  -> IO (Seq (Chunk Text))
 clatcher opts = do
   items <- loadTransactions (opts ^. load)
   let rpt = getReport opts items
   runStreams rpt (view output opts)
+  return rpt
 

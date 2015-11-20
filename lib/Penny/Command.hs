@@ -104,7 +104,7 @@ open :: String -> Clatcher r Clatcher.LoadScroll
 open str = set Clatcher.load (Seq.singleton (Clatcher.open str)) mempty
 
 penny :: (Report r, Clatcher.Loader l) => Clatcher r l -> IO ()
-penny = Clatcher.clatcher
+penny = fmap (const ()) . Clatcher.clatcher
 
 -- Combinators
 

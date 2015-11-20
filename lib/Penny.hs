@@ -39,6 +39,7 @@ module Penny
   , (&)
   , isPrefixOf
   , isSuffixOf
+  , fromGregorian
 
   ) where
 
@@ -72,3 +73,4 @@ import Control.Lens.Setter
 import Data.Monoid
 import Data.Function ((&))
 import Data.Monoid.Cancellative (isPrefixOf, isSuffixOf)
+import Data.Time (fromGregorian)
