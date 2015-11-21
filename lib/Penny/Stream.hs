@@ -4,6 +4,12 @@
 
 -- | Streams of textual data that can be printed to terminals or sent
 -- to files.
+--
+-- If you are using bindings from this module,
+--
+-- /be sure to compile with the -threaded option/
+--
+-- otherwise your code might experience deadlocks.
 module Penny.Stream where
 
 import qualified Control.Concurrent.Async as Async
