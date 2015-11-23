@@ -22,20 +22,20 @@ makeLenses ''Tree
 -- predicate.  Stops searching if a matching 'Tree' is found; if no
 -- result, return 'Nothing'.
 findTreePreOrder
-  :: (Tree -> Bool)
+  :: (Tree -> Maybe a)
   -> Tree
-  -> Maybe Tree
-findTreePreOrder pd t
-  | pd t = Just t
-  | otherwise = searchForestPreOrder pd . _children $ t
+  -> Maybe a
+findTreePreOrder pd t = case pd t of
+  Just r -> Just r
+  Nothing -> searchForestPreOrder pd . _children $ t
 
 -- | Runs a pre-order search in a forest for a 'Tree' matching the
 -- given predicate.  Stops searching if a matching 'Tree' is found; if
 -- no result, return 'Nothing'.
 searchForestPreOrder
-  :: (Tree -> Bool)
+  :: (Tree -> Maybe a)
   -> Seq Tree
-  -> Maybe Tree
+  -> Maybe a
 searchForestPreOrder pd
   = listToMaybe
   . catMaybes

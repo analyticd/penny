@@ -138,3 +138,20 @@ zone = to $ searchTopForest pd . view (transaction . trees)
     pd tree = do
       sc <- childlessUserTree tree
       preview _SZone sc
+
+-- | Searches for the @line@ tree.
+line :: Getter (Sliced a) (Maybe Integer)
+line = to f
+  where
+    f = searchForestPreOrder pd . view (posting . trees)
+      where
+        pd tree = do
+          guard $ view realm tree == System
+          sc <- view scalar tree
+          txt <- preview _SText sc
+          guard $ txt == "line"
+          (c1, cs) <- uncons (view children tree)
+          guard $ Seq.null cs
+          guard $ view realm c1 == System
+          childSc <- view scalar c1
+          preview _SInteger childSc
