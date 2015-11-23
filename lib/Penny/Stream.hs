@@ -23,7 +23,8 @@ import Data.Sequence (Seq)
 import Data.Text (Text)
 import Pipes (Consumer, Pipe, await, yield, (>->), liftIO, runEffect, each)
 import Pipes.Cliff
-  (pipeInput, NonPipe(..), waitForProcess, terminateProcess, procSpec)
+  (pipeInput, NonPipe(..), waitForProcess, terminateProcess, procSpec,
+   squelch, handler)
 import Pipes.Prelude (drain)
 import Pipes.Safe (SafeT, runSafeT)
 import Rainbow (Chunk)
@@ -50,7 +51,8 @@ devNull = managed f
     f cont = cont drain
 
 -- | A Stream that creates a process and pipes data into the process
--- through its standard input.
+-- through its standard input.  Any errors that arise during the
+-- streaming process are discarded using 'squelch'.
 
 streamToStdin
   :: String
@@ -64,7 +66,8 @@ streamToStdin name args conv = managed f
   where
     f callback = bracketOnError acq rel use
       where
-        acq = pipeInput Inherit Inherit (procSpec name args)
+        spec = (procSpec name args) { handler = squelch }
+        acq = pipeInput Inherit Inherit spec
         rel (_, handle) = terminateProcess handle
         use (strm, handle) = do
           r <- callback (chunkConverter conv >-> strm >> return ())
