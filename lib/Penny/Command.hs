@@ -15,6 +15,7 @@ import Penny.Copper.Classes
 import Penny.Copper.ConvertAst (c'DecUnsigned'NeutralOrNon)
 import Penny.Decimal
 import Penny.Natural
+import Penny.Ord
 import Penny.Report
 import Penny.Stream
 
@@ -62,8 +63,8 @@ sieve
   -> Clatcher r l
 sieve f = set Clatcher.sieve (view f) mempty
 
-sort :: (Prefilt () -> Prefilt () -> Ordering) -> Clatcher r l
-sort f = set Clatcher.sort f mempty
+sort :: Ord a => Getter (Prefilt ()) a -> Clatcher r l
+sort f = set Clatcher.sort (comparing f) mempty
 
 screen
   :: Getter (Totaled ()) Bool

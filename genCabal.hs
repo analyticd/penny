@@ -1,4 +1,5 @@
--- | This file written for Cartel version 0.12.0.0
+#!/usr/bin/env stack
+-- stack --resolver=lts-3.14 --install-ghc runghc --package=cartel
 
 module Main where
 
