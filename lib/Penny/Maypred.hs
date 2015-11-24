@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 module Penny.Maypred where
 
-import Control.Lens
+import Control.Lens (to, Getter, view)
 import Data.Time (fromGregorian)
 
 import Penny.Clatch
