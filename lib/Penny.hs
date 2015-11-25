@@ -20,6 +20,7 @@ module Penny
   , module Penny.NonZero
   , module Penny.Ord
   , module Penny.Polar
+  , module Penny.Predicate
   , module Penny.Preset
   , module Penny.Qty
   , module Penny.Realm
@@ -58,6 +59,7 @@ import Penny.NonEmpty
 import Penny.NonZero
 import Penny.Ord
 import Penny.Polar
+import Penny.Predicate
 import Penny.Preset
 import Penny.Qty
 import Penny.Realm
