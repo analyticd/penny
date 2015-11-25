@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 module Penny.Predicate where
 
-import Control.Lens
+import Control.Lens (to, Getter)
 import Data.Monoid.Cancellative (isPrefixOf, isSuffixOf)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
