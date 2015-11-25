@@ -49,7 +49,7 @@ import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Text.IO as XIO
-import Text.Megaparsec (parse)
+import Text.Megaparsec (parse, eof)
 
 import Penny.Friendly
 import Penny.Clatch
@@ -81,7 +81,7 @@ copperParser
   :: Text
   -> Either String (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
 copperParser inp = do
-  ast <- case parse pAst "" inp of
+  ast <- case parse (pAst <* eof) "" inp of
     Left e -> Left (show e)
     Right g -> Right g
   case convertItemsFromAst ast of
