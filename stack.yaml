@@ -1,7 +1,11 @@
 flags:
   penny:
     copper: false
+
 packages:
 - '.'
-extra-deps: []
-resolver: nightly-2015-11-08
+
+extra-deps:
+- pinchot-0.6.0.0
+
+resolver: nightly-2015-12-16
