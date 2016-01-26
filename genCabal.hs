@@ -117,7 +117,7 @@ monoidSubclasses :: Package
 monoidSubclasses = atleast "monoid-subclasses" [0,4,1]
 
 pinchot :: Package
-pinchot = atleast "pinchot" [0,6,0,0]
+pinchot = atleast "pinchot" [0,8,0,0]
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =

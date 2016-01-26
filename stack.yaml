@@ -6,6 +6,6 @@ packages:
 - '.'
 
 extra-deps:
-- pinchot-0.6.0.0
+- pinchot-0.8.0.0
 
-resolver: nightly-2015-12-16
+resolver: lts-5.0
