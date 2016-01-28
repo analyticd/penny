@@ -22,59 +22,59 @@ grammar = mdo
 
   -- Digit from 1 through 9
   d1'9 <- union "D1'9"
-    [ ("D1'9_1", one), ("D1'9_2", two), ("D1'9_3", three),
-      ("D1'9_4", four), ("D1'9_5", five), ("D1'9_6", six),
-      ("D1'9_7", seven), ("D1'9_8", eight), ("D1'9_9", nine) ]
+    [one, two, three, four, five, six, seven, eight, nine]
 
   -- Digit from 0 through 9
   d0'9 <- union "D0'9"
-    [ ("D0'9_0", zero),
-      ("D0'9_1", one), ("D0'9_2", two), ("D0'9_3", three),
-      ("D0'9_4", four), ("D0'9_5", five), ("D0'9_6", six),
-      ("D0'9_7", seven), ("D0'9_8", eight), ("D0'9_9", nine) ]
+    [ zero, one, two, three, four, five, six, seven, eight, nine ]
 
   -- Digit from 0 through 8
   d0'8 <- union "D0'8"
-    [ ("D0'8_0", zero),
-      ("D0'8_1", one), ("D0'8_2", two), ("D0'8_3", three),
-      ("D0'8_4", four), ("D0'8_5", five), ("D0'8_6", six),
-      ("D0'8_7", seven), ("D0'8_8", eight)
-    ]
+    [ zero, one, two, three, four, five, six, seven, eight ]
+
+  -- Digit from 0 through 1
+  d0'1 <- union "D0'1" [zero, one]
+
+  -- Digit from 0 through 2
+  d0'2 <- union "D0'2" [zero, one, two]
+
+  -- Digit from 0 through 3
+  d0'3 <- union "D0'3" [zero, one, two, three]
+
+  -- Digit from 0 through 5
+  d0'5 <- union "D0'5" [zero, one, two, three, four, five]
+
 
   -- # Groupers
   thinSpace <- terminal "ThinSpace" (solo '\x2009')
   underscore <- terminal "Underscore" (solo '_')
   period <- terminal "Period" (solo '.')
   comma <- terminal "Comma" (solo ',')
-  grouper <- union "Grouper" [ ("GThinSpace", thinSpace),
-                               ("GUnderscore", underscore) ]
-  grpRadCom <- union "GrpRadCom" [("RCPeriod", period), ("RCGrouper", grouper)]
-  grpRadPer <- union "GrpRadPer" [("RPComma", comma), ("RPGrouper", grouper)]
+  grouper <- union "Grouper" [ thinSpace, underscore ]
+  grpRadCom <- union "GrpRadCom" [period, grouper]
+  grpRadPer <- union "GrpRadPer" [comma, grouper]
 
   -- # Radix
   radixCom <- terminal "RadixCom" (solo ',')
   radixPer <- terminal "RadixPer" (solo '.')
 
-  debit <- terminal "Debit" (solo '<')
-  credit <- terminal "Credit" (solo '>')
-
   -- # Groups of digits
-  digits <- list "Digits" d0'9
+  digits <- list d0'9
   digitGroupRadCom <- record "DigitGroupRadCom"
     [grpRadCom, d0'9, digits]
   digitGroupRadPer <- record "DigitGroupRadPer"
     [grpRadPer, d0'9, digits]
-  digitGroupsRadCom <- list "DigitGroupsRadCom" digitGroupRadCom
-  digitGroupsRadPer <- list "DigitGroupsRadPer" digitGroupRadPer
+  digitGroupsRadCom <- list digitGroupRadCom
+  digitGroupsRadPer <- list digitGroupRadPer
 
   -- # Nil
 
-  maybeZero <- option "MaybeZero" zero
-  zeroes <- list "Zeroes" zero
+  maybeZero <- option zero
+  zeroes <- list zero
   radixZeroesRadCom <- record "RadixZeroesRadCom" [radixCom, zeroes]
   radixZeroesRadPer <- record "RadixZeroesRadPer" [radixPer, zeroes]
-  maybeRadixZeroesRadCom <- option "MaybeRadixZeroesRadCom" radixZeroesRadCom
-  maybeRadixZeroesRadPer <- option "MaybeRadixZeroesRadPer" radixZeroesRadPer
+  maybeRadixZeroesRadCom <- option radixZeroesRadCom
+  maybeRadixZeroesRadPer <- option radixZeroesRadPer
   zeroGroupRadCom <- record "ZeroGroupRadCom"
     [grpRadCom, zero, zeroes]
   zeroGroupRadPer <- record "ZeroGroupRadPer"
@@ -97,19 +97,15 @@ grammar = mdo
     , ("NURadixRadPer", [radixPer, zero, zeroes])
     ]
 
-  nilRadCom <- union "NilRadCom"
-    [ ("NilRadComUngrouped", nilUngroupedRadCom)
-    , ("NilRadComGrouped", nilGroupedRadCom) ]
-  nilRadPer <- union "NilRadPer"
-    [ ("NilRadPerUngrouped", nilUngroupedRadPer)
-    , ("NilRadPerGrouped", nilGroupedRadPer) ]
+  nilRadCom <- union "NilRadCom" [nilUngroupedRadCom, nilGroupedRadCom]
+  nilRadPer <- union "NilRadPer" [nilUngroupedRadPer, nilGroupedRadPer]
 
   -- # Brim
 
   radixComDigits <- record "RadixComDigits" [radixCom, digits]
   radixPerDigits <- record "RadixPerDigits" [radixPer, digits]
-  maybeRadixComDigits <- option "MaybeRadixComDigits" radixComDigits
-  maybeRadixPerDigits <- option "MaybeRadixPerDigits" radixPerDigits
+  maybeRadixComDigits <- option radixComDigits
+  maybeRadixPerDigits <- option radixPerDigits
   brimUngroupedRadCom <- nonTerminal "BrimUngroupedRadCom"
     [ ("BUGreaterThanOneRadCom", [d0'9, digits, maybeRadixComDigits])
     , ("BULessThanOneRadCom", [maybeZero, radixCom, zeroes, d1'9, digits])
@@ -201,6 +197,10 @@ grammar = mdo
     , ("BGLessThanOneRadPer", [ maybeZero, radixPer, bg5RadPer ])
     ]
 
+  -- Brim
+  brimRadCom <- union "BrimRadCom" [brimUngroupedRadCom, brimGroupedRadCom]
+  brimRadPer <- union "BrimRadPer" [brimUngroupedRadPer, brimGroupedRadPer]
+
   -- # Dates
   dateSep <- terminal "DateSep" (solo '/' <> solo '-')
   days28 <- nonTerminal "Days28"
@@ -282,15 +282,187 @@ grammar = mdo
     ]
   nonCenturyLeapYear <- record "NonCenturyLeapYear" [d0'9, d0'9, mod4]
 
-  leapYear <- union "LeapYear" [ ("LYCentury", centuryLeapYear)
-                               , ("LYNonCentury", nonCenturyLeapYear)
-                               ]
+  leapYear <- union "LeapYear" [ centuryLeapYear, nonCenturyLeapYear ]
   leapDay <- record "LeapDay"
     [ leapYear, dateSep, zero, two, dateSep, two, nine ]
 
-  date <- union "Date" [ ("DateNonLeap", nonLeapDay)
-                       , ("DateLeap", leapDay)
-                       ]
+  date <- union "Date" [ nonLeapDay, leapDay ]
 
-  return d0'9
+  -- Main grammar
+  newline <- terminal "Newline" $ solo '\n'
+
+  -- Comments
+  hash <- terminal "Hash" $ solo '#'
+  commentChar <- terminal "CommentChar" $ include minBound maxBound
+    <> pariah '\n'
+  commentChars <- list commentChar
+  comment <- record "Comment" [hash, commentChars, newline]
+
+  -- Time
+  maybe0or1 <- option d0'1
+  n0'19 <- record "N0'19" [maybe0or1, d0'9]
+  n20'23 <- record "N20'23" [two, d0'3]
+  hours <- union "Hours" [n0'19, n20'23]
+
+  n0'59 <- record "N0'59" [d0'5, d0'9]
+  minutes <- wrap "Minutes" n0'59
+  seconds <- wrap "Seconds" n0'59
+  colon <- terminal "Colon" $ solo ':'
+  colonSeconds <- record "ColonSeconds" [colon, seconds]
+  maybeSeconds <- option colonSeconds
+  time <- record "Time" [hours, colon, minutes, maybeSeconds]
+  plus <- terminal "Plus" $ solo '+'
+  minus <- terminal "Minus" $ solo '-'
+  pluMin <- union "PluMin" [plus, minus]
+  zoneHrsMins <- record "ZoneHrsMins" [pluMin, d0'2, d0'3, d0'9, d0'9]
+  backtick <- terminal "Backtick" $ solo '`'
+  zone <- record "Zone" [backtick, zoneHrsMins]
+
+  -- Whitespace and quoted strings
+  doubleQuote <- terminal "DoubleQuote" $ solo '"'
+  backslash <- terminal "Backslash" $ solo '\\'
+  space <- terminal "Space" $ solo ' '
+  tab <- terminal "Tab" $ solo '\t'
+  white <- union "White" [space, tab, newline, comment]
+  whites <- list white
+  whites1 <- list1 white
+  gap <- record "Gap" [whites1, backslash]
+  escPayload <- union "EscPayload" [backslash, newline, doubleQuote, gap]
+  nonEscapedChar <- terminal "NonEscapedChar" $ include minBound maxBound
+    <> pariah '\\' <> pariah '\n' <> pariah '"'
+  escSeq <- record "EscSeq" [backslash, escPayload]
+  quotedChar <- union "QuotedChar" [nonEscapedChar, escSeq]
+  quotedChars <- list quotedChar
+  quotedString <- record "QuotedString"
+    [doubleQuote, quotedChars, doubleQuote]
+
+  -- Unquoted strings
+  unquotedStringNonDigitChar <-
+    let pariahs = [ ' ', '\\', '\n', '\t', '{', '}', '[', ']', '\'', '"',
+          '-', '+', '/', ':', '#', '@', '`', '<', '>', ';',
+          '_', '\x2009', ',', '.' ] ++ ['0'..'9']
+        interval = include minBound maxBound <> mconcat (map pariah pariahs)
+    in terminal "UnquotedStringNonDigitChar" interval
+  unquotedStringEndChar <- union "UnquotedStringNonFirstChar"
+    [unquotedStringNonDigitChar, d0'9]
+  unquotedStringEndChars <- list unquotedStringEndChar
+  unquotedString <- record "UnquotedString"
+    [digits, unquotedStringNonDigitChar, unquotedStringEndChars]
+
+  unquotedStringNonDigitChars1 <- list1 unquotedStringNonDigitChar
+
+  -- Commodities
+  unquotedCommodity <- wrap "UnquotedCommodity"
+    unquotedStringNonDigitChars1
+  quotedCommodity <- wrap "QuotedCommmodity" quotedString
+  commodity <- union "Commodity" [unquotedCommodity, quotedCommodity]
+
+  -- NonNeutral
+  nonNeutral <- nonTerminal "NonNeutral"
+    [ ("NonNeutralRadCom", [backtick, brimRadCom])
+    , ("NonNeutralRadPer", [brimRadPer])
+    ]
+
+  neutral <- nonTerminal "Neutral"
+    [ ("NeuCom", [backtick, nilRadCom])
+    , ("NeuPer", [nilRadPer])
+    ]
+
+  -- Whole
+  maybePluMin <- option pluMin
+  wholeNonZero <- record "WholeNonZero" [maybePluMin, d1'9, digits]
+  wholeAny <- union "WholeAny" [zero, wholeNonZero]
+
+  lessThan <- terminal "LessThan" $ solo '<'
+  greaterThan <- terminal "GreaterThan" $ solo '>'
+  debit <- wrap "Debit" lessThan
+  credit <- wrap "Credit" greaterThan
+  debitCredit <- union "DebitCredit" [debit, credit]
+
+  -- Trio
+  qcCyOnLeft <- record "QcCyOnLeft"
+    [ debitCredit, whites, commodity, whites, nonNeutral, whites]
+  qcCyOnRight <- record "QcCyOnRight"
+    [ debitCredit, whites, nonNeutral, whites, commodity, whites]
+  qSided <- record "QSided" [ debitCredit, whites, nonNeutral, whites]
+  qUnsided <- record "QUnsided" [ neutral, whites ]
+  sideCy <- record "SideCy" [ debitCredit, whites, commodity, whites ]
+  sideOnly <- record "SideOnly" [ debitCredit, whites ]
+  cyOnLeftNonNeutral <- record "CyOnLeftNonNeutral"
+    [ commodity, whites, nonNeutral, whites ]
+  cyOnRightNonNeutral <- record "CyOnRightNonNeutral"
+    [ nonNeutral, whites, commodity, whites ]
+  nonNeutralOnly <- record "NonNeutralOnly" [ nonNeutral, whites ]
+  cyOnly <- record "CyOnly" [ commodity, whites ]
+  trio <- union "Trio" [qcCyOnLeft, qcCyOnRight, qSided, qUnsided,
+    sideCy, sideOnly, cyOnLeftNonNeutral, cyOnRightNonNeutral,
+    nonNeutralOnly, cyOnly]
+
+  -- Scalar
+
+  openSquare <- terminal "OpenSquare" $ solo '['
+  closeSquare <- terminal "CloseSquare" $ solo ']'
+  scalar <- union "Scalar" [unquotedString, quotedString, date, time,
+    zone, wholeAny]
+  maybeScalar <- option scalar
+
+  -- Trees
+  bracketedForest <- record "BracketedForest"
+    [ openSquare, whites, forest, closeSquare, whites ]
+  maybeBracketedForest <- option bracketedForest
+  commaTree <- record "CommaTree" [comma, whites, tree, whites]
+  commaTrees <- list commaTree
+  forest <- record "Forest"
+    [ tree, whites, commaTrees ]
+  tree <- nonTerminal "Tree"
+    [ ("TreeScalarFirst", [scalar, maybeBracketedForest])
+    , ("TreeForestFirst", [bracketedForest, maybeScalar])
+    ]
+
+  topLine <- wrap "TopLine" forest
+  posting <- nonTerminal "Posting"
+    [ ("PostingTrioFirst", [trio, maybeBracketedForest])
+    , ("PostingNoTrio", [bracketedForest])
+    ]
+
+  openCurly <- terminal "OpenCurly" $ solo '{'
+  closeCurly <- terminal "CloseCurly" $ solo '}'
+  semicolon <- terminal "Semicolon" $ solo ';'
+
+  semiPosting <- record "SemiPosting" [semicolon, whites, posting]
+  semiPostings <- list semiPosting
+  postingList <- record "PostingList" [posting, semiPostings]
+  maybePostingList <- option postingList
+  postings <- record "Postings"
+    [openCurly, whites, maybePostingList, closeCurly, whites]
+
+  maybeTopLine <- option topLine
+  transaction <- record "Transaction" [maybeTopLine, postings]
+
+  atSign <- terminal "AtSign" $ solo '@'
+  pluMinFs <- record "PluMinFs" [pluMin, whites]
+  maybePluMinFs <- option pluMinFs
+  exch <- nonTerminal "Exch"
+    [ ("ExchNeutral", [neutral, whites])
+    , ("ExchNonNeutral", [maybePluMinFs, nonNeutral, whites])
+    ]
+  cyExch <- nonTerminal "CyExch"
+    [ ("CyExchCy", [commodity, whites, exch])
+    , ("CyExchExch", [exch, commodity, whites])
+    ]
+  mayTimeWhites <- nonTerminal "TimeWhites'Optional"
+    [ ("TimeWhitesYes", [time, whites])
+    , ("TimeWhitesNo", [])
+    ]
+  mayZoneWhites <- nonTerminal "ZoneWhites'Optional"
+    [ ("ZoneWhitesYes", [zone, whites])
+    , ("ZoneWhitesNo", [])
+    ]
+  price <- record "Price"
+    [ atSign, whites, date, whites, mayTimeWhites, mayZoneWhites,
+      commodity, whites, cyExch ]
+  fileItem <- union "FileItem" [price, transaction]
+  fileItems <- list fileItem
+  wholeFile <- record "WholeFile" [whites, fileItems]
+  return wholeFile
 
