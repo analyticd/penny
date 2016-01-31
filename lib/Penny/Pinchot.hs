@@ -380,28 +380,61 @@ grammar = mdo
   debitCredit <- union "DebitCredit" [debit, credit]
 
   -- Trio
-  qcSidedCyOnLeft <- record "QcSidedCyOnLeft"
+  --
+  -- If there is a debit or credit present, it always appears first.
+
+  -- If there is a debit or credit present, there can be a non-neutral
+  -- present.  Also, a commodity may be present.
+  t_DebitCredit <- record "T_DebitCredit" [ debitCredit, whites ]
+
+  t_DebitCredit_Commodity <- record "T_DebitCredit_Commodity"
+    [ debitCredit, whites, commodity, whites ]
+
+  t_DebitCredit_NonNeutral <- record "T_DebitCredit_NonNeutral"
+    [ debitCredit, whites, nonNeutral, whites]
+
+  t_DebitCredit_Commodity_NonNeutral <-
+    record "T_DebitCredit_Commodity_NonNeutral"
     [ debitCredit, whites, commodity, whites, nonNeutral, whites]
-  qcSidedCyOnRight <- record "QcSidedCyOnRight"
+  t_DebitCredit_NonNeutral_Commodity <- record
+    "T_DebitCredit_NonNeutral_Commodity"
     [ debitCredit, whites, nonNeutral, whites, commodity, whites]
-  qcNeutralCyOnLeft <- record "QcNeutralCyOnLeft"
+
+  -- If there is no debit or credit present, there may be only a commodity.
+  t_Commodity <- record "T_Commodity" [ commodity, whites ]
+
+  -- There can be no debit or credit, with a commodity and either a
+  -- neutral or non-neutral.
+
+  t_Commodity_Neutral <- record "T_Commodity_Neutral"
     [ commodity, whites, neutral, whites ]
-  qcNeutralCyOnRight <- record "QcNeutralCyOnRight"
+  t_Neutral_Commodity <- record "T_Neutral_Commodity"
     [ neutral, whites, commodity, whites ]
-  qSided <- record "QSided" [ debitCredit, whites, nonNeutral, whites]
-  qUnsided <- record "QUnsided" [ neutral, whites ]
-  sideCy <- record "SideCy" [ debitCredit, whites, commodity, whites ]
-  sideOnly <- record "SideOnly" [ debitCredit, whites ]
-  cyOnLeftNonNeutral <- record "CyOnLeftNonNeutral"
+  t_Commodity_NonNeutral <- record "T_Commodity_NonNeutral"
     [ commodity, whites, nonNeutral, whites ]
-  cyOnRightNonNeutral <- record "CyOnRightNonNeutral"
+  t_NonNeutral_Commodity <- record "T_NonNeutral_Commodity"
     [ nonNeutral, whites, commodity, whites ]
-  nonNeutralOnly <- record "NonNeutralOnly" [ nonNeutral, whites ]
-  cyOnly <- record "CyOnly" [ commodity, whites ]
-  trio <- union "Trio" [qcSidedCyOnLeft, qcSidedCyOnRight,
-    qcNeutralCyOnLeft, qcNeutralCyOnRight, qSided, qUnsided,
-    sideCy, sideOnly, cyOnLeftNonNeutral, cyOnRightNonNeutral,
-    nonNeutralOnly, cyOnly]
+
+  -- A neutral or non-neutral standing alone is possible.
+  t_Neutral <- record "T_Neutral" [ neutral, whites ]
+  t_NonNeutral <- record "T_NonNeutral" [ nonNeutral, whites ]
+
+  trio <- union "Trio"
+    [ t_DebitCredit,
+
+      t_DebitCredit_Commodity,
+
+      t_DebitCredit_NonNeutral,
+
+      t_DebitCredit_Commodity_NonNeutral, t_DebitCredit_NonNeutral_Commodity,
+
+      t_Commodity,
+
+      t_Commodity_Neutral, t_Neutral_Commodity,
+      t_Commodity_NonNeutral, t_NonNeutral_Commodity,
+
+      t_Neutral, t_NonNeutral
+    ]
 
   -- Scalar
 
