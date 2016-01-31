@@ -380,10 +380,14 @@ grammar = mdo
   debitCredit <- union "DebitCredit" [debit, credit]
 
   -- Trio
-  qcCyOnLeft <- record "QcCyOnLeft"
+  qcSidedCyOnLeft <- record "QcSidedCyOnLeft"
     [ debitCredit, whites, commodity, whites, nonNeutral, whites]
-  qcCyOnRight <- record "QcCyOnRight"
+  qcSidedCyOnRight <- record "QcSidedCyOnRight"
     [ debitCredit, whites, nonNeutral, whites, commodity, whites]
+  qcNeutralCyOnLeft <- record "QcNeutralCyOnLeft"
+    [ commodity, whites, neutral, whites ]
+  qcNeutralCyOnRight <- record "QcNeutralCyOnRight"
+    [ neutral, whites, commodity, whites ]
   qSided <- record "QSided" [ debitCredit, whites, nonNeutral, whites]
   qUnsided <- record "QUnsided" [ neutral, whites ]
   sideCy <- record "SideCy" [ debitCredit, whites, commodity, whites ]
@@ -394,7 +398,8 @@ grammar = mdo
     [ nonNeutral, whites, commodity, whites ]
   nonNeutralOnly <- record "NonNeutralOnly" [ nonNeutral, whites ]
   cyOnly <- record "CyOnly" [ commodity, whites ]
-  trio <- union "Trio" [qcCyOnLeft, qcCyOnRight, qSided, qUnsided,
+  trio <- union "Trio" [qcSidedCyOnLeft, qcSidedCyOnRight,
+    qcNeutralCyOnLeft, qcNeutralCyOnRight, qSided, qUnsided,
     sideCy, sideOnly, cyOnLeftNonNeutral, cyOnRightNonNeutral,
     nonNeutralOnly, cyOnly]
 

@@ -4,6 +4,5 @@ flags:
 
 packages:
 - '.'
-- pinchot-0.10.0.0
 
-resolver: lts-5.0
+resolver: nightly-2016-01-30
