@@ -153,15 +153,15 @@ trioRendering tri = case tri of
   QC qr cy ar -> Just (cy, ar, ei)
     where
       ei = case qr of
-        Left (Moderate n) -> Left . mayGroupers $ n
-        Left (Extreme (Polarized o _)) -> Left . mayGroupers $ o
-        Right (Moderate n) -> Right . mayGroupers $ n
-        Right (Extreme (Polarized o _)) -> Right . mayGroupers $ o
+        Left (Moderate n) -> Left . mayGroupersRadCom $ n
+        Left (Extreme (Polarized o _)) -> Left . mayGroupersRadCom $ o
+        Right (Moderate n) -> Right . mayGroupersRadPer $ n
+        Right (Extreme (Polarized o _)) -> Right . mayGroupersRadPer $ o
   UC rnn cy ar -> Just (cy, ar, ei)
     where
       ei = case rnn of
-        Left b -> Left $ mayGroupers b
-        Right b -> Right $ mayGroupers b
+        Left b -> Left $ mayGroupersRadCom b
+        Right b -> Right $ mayGroupersRadPer b
   _ -> Nothing
 
 -- | Extracts the representation from the 'Trio', if there is a

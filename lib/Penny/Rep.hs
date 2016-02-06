@@ -38,95 +38,134 @@ type NilOrBrimScalarRadPer = Either NilRadPer BrimRadPer
 type NilOrBrimScalarAnyRadix
   = Either NilOrBrimScalarRadCom NilOrBrimScalarRadPer
 
--- | Things that might have grouping characters, allowing all
--- grouping characters (if any) to be extracted.
-class MayGrouped a where
-  type MayGrouper a :: *
-  mayGroupers :: a -> Seq (MayGrouper a)
+-- | Things that have a GrpRadCom grouping character.
+class MayGroupedRadCom a where
+  mayGroupersRadCom :: a -> Seq GrpRadCom
 
-instance MayGrouped DigitGroupRadCom'Seq where
-  type MayGrouper DigitGroupRadCom'Seq = GrpRadCom
-  mayGroupers (DigitGroupRadCom'Seq sq)
+-- | Things that have a GrpRadPer grouping character.
+class MayGroupedRadPer a where
+  mayGroupersRadPer :: a -> Seq GrpRadPer
+
+instance MayGroupedRadCom DigitGroupRadCom'Seq where
+  mayGroupersRadCom (DigitGroupRadCom'Seq sq)
     = fmap _r'DigitGroupRadCom'0'GrpRadCom sq
 
-instance MayGrouped DigitGroupRadPer'Seq where
-  type MayGrouper DigitGroupRadPer'Seq = GrpRadPer
-  mayGroupers (DigitGroupRadPer'Seq sq)
+instance MayGroupedRadPer DigitGroupRadPer'Seq where
+  mayGroupersRadPer (DigitGroupRadPer'Seq sq)
     = fmap _r'DigitGroupRadPer'0'GrpRadPer sq
 
-instance MayGrouped BG7RadCom where
-  type MayGrouper BG7RadCom = GrpRadCom
-  mayGroupers (BG7ZeroesRadCom _ _ b8) = mayGroupers b8
-  mayGroupers (BG7NovemRadCom _ _ digs) = mayGroupers digs
+instance MayGroupedRadCom BG7RadCom where
+  mayGroupersRadCom (BG7ZeroesRadCom _ _ b8)
+    = mayGroupersRadCom b8
+  mayGroupersRadCom (BG7NovemRadCom _ _ digs) = mayGroupersRadCom digs
 
-instance MayGrouped BG8RadCom where
-  type MayGrouper BG8RadCom = GrpRadCom
-  mayGroupers (BG8NovemRadCom _ _ digs) = mayGroupers digs
-  mayGroupers (BG8GroupRadCom grpr b7) = grpr <| mayGroupers b7
+instance MayGroupedRadPer BG7RadPer where
+  mayGroupersRadPer (BG7ZeroesRadPer _ _ b8) = mayGroupersRadPer b8
+  mayGroupersRadPer (BG7NovemRadPer _ _ digs) = mayGroupersRadPer digs
 
-instance MayGrouped BG7RadPer where
-  type MayGrouper BG7RadPer = GrpRadPer
-  mayGroupers (BG7ZeroesRadPer _ _ b8) = mayGroupers b8
-  mayGroupers (BG7NovemRadPer _ _ digs) = mayGroupers digs
+instance MayGroupedRadCom BG8RadCom where
+  mayGroupersRadCom (BG8NovemRadCom _ _ digs)
+    = mayGroupersRadCom digs
+  mayGroupersRadCom (BG8GroupRadCom grpr b7)
+    = grpr <| mayGroupersRadCom b7
 
-instance MayGrouped BG8RadPer where
-  type MayGrouper BG8RadPer = GrpRadPer
-  mayGroupers (BG8NovemRadPer _ _ digs) = mayGroupers digs
-  mayGroupers (BG8GroupRadPer grpr b7) = grpr <| mayGroupers b7
+instance MayGroupedRadPer BG8RadPer where
+  mayGroupersRadPer (BG8NovemRadPer _ _ digs) = mayGroupersRadPer digs
+  mayGroupersRadPer (BG8GroupRadPer grpr b7) = grpr <| mayGroupersRadPer b7
 
-instance MayGrouped BG6RadCom where
-  type MayGrouper BG6RadCom = GrpRadCom
-  mayGroupers (BG6NovemRadCom _ _ g1 _ _ gs) = g1 <| mayGroupers gs
-  mayGroupers (BG6GroupRadCom g1 b7) = g1 <| mayGroupers b7
+instance MayGroupedRadCom BG6RadCom where
+  mayGroupersRadCom (BG6NovemRadCom _ _ g1 _ _ gs) = g1 <| mayGroupersRadCom gs
+  mayGroupersRadCom (BG6GroupRadCom g1 b7) = g1 <| mayGroupersRadCom b7
 
-instance MayGrouped BG6RadPer where
-  type MayGrouper BG6RadPer = GrpRadPer
-  mayGroupers (BG6NovemRadPer _ _ g1 _ _ gs) = g1 <| mayGroupers gs
-  mayGroupers (BG6GroupRadPer g1 b7) = g1 <| mayGroupers b7
+instance MayGroupedRadPer BG6RadPer where
+  mayGroupersRadPer (BG6NovemRadPer _ _ g1 _ _ gs) = g1 <| mayGroupersRadPer gs
+  mayGroupersRadPer (BG6GroupRadPer g1 b7) = g1 <| mayGroupersRadPer b7
 
-instance MayGrouped BG5RadCom where
-  type MayGrouper BG5RadCom = GrpRadCom
-  mayGroupers (BG5NovemRadCom _ _ g1 _ _ gs) = g1 <| mayGroupers gs
-  mayGroupers (BG5ZeroRadCom _ _ b6) = mayGroupers b6
+instance MayGroupedRadCom BG5RadCom where
+  mayGroupersRadCom (BG5NovemRadCom _ _ g1 _ _ gs) = g1 <| mayGroupersRadCom gs
+  mayGroupersRadCom (BG5ZeroRadCom _ _ b6) = mayGroupersRadCom b6
 
-instance MayGrouped BG5RadPer where
-  type MayGrouper BG5RadPer = GrpRadPer
-  mayGroupers (BG5NovemRadPer _ _ g1 _ _ gs) = g1 <| mayGroupers gs
-  mayGroupers (BG5ZeroRadPer _ _ b6) = mayGroupers b6
+instance MayGroupedRadPer BG5RadPer where
+  mayGroupersRadPer (BG5NovemRadPer _ _ g1 _ _ gs) = g1 <| mayGroupersRadPer gs
+  mayGroupersRadPer (BG5ZeroRadPer _ _ b6) = mayGroupersRadPer b6
 
-instance MayGrouped BG4RadCom where
-  type MayGrouper BG4RadCom = GrpRadCom
-  mayGroupers (BG4DigitRadCom _ _ digs) = mayGroupers digs
-  mayGroupers BG4NilRadCom = Seq.empty
+instance MayGroupedRadCom BG4RadCom where
+  mayGroupersRadCom (BG4DigitRadCom _ _ digs) = mayGroupersRadCom digs
+  mayGroupersRadCom BG4NilRadCom = Seq.empty
 
-instance MayGrouped BG4RadPer where
-  type MayGrouper BG4RadPer = GrpRadPer
-  mayGroupers (BG4DigitRadPer _ _ digs) = mayGroupers digs
-  mayGroupers BG4NilRadPer = Seq.empty
+instance MayGroupedRadPer BG4RadPer where
+  mayGroupersRadPer (BG4DigitRadPer _ _ digs) = mayGroupersRadPer digs
+  mayGroupersRadPer BG4NilRadPer = Seq.empty
 
-instance MayGrouped BG3RadCom where
-  type MayGrouper BG3RadCom = GrpRadCom
-  mayGroupers (BG3RadixRadCom _ b4) = mayGroupers b4
-  mayGroupers BG3NilRadCom = Seq.empty
+instance MayGroupedRadCom BG3RadCom where
+  mayGroupersRadCom (BG3RadixRadCom _ b4) = mayGroupersRadCom b4
+  mayGroupersRadCom BG3NilRadCom = Seq.empty
 
-instance MayGrouped BG3RadPer where
-  type MayGrouper BG3RadPer = GrpRadPer
-  mayGroupers (BG3RadixRadPer _ b4) = mayGroupers b4
-  mayGroupers BG3NilRadPer = Seq.empty
+instance MayGroupedRadPer BG3RadPer where
+  mayGroupersRadPer (BG3RadixRadPer _ b4) = mayGroupersRadPer b4
+  mayGroupersRadPer BG3NilRadPer = Seq.empty
 
-instance MayGrouped BG1RadCom where
-  type MayGrouper BG1RadCom = GrpRadCom
-  mayGroupers (BG1GroupOnLeftRadCom g1 _ _ digs b3)
-    = g1 <| mayGroupers digs <> mayGroupers b3
-  mayGroupers (BG1GroupOnRightRadCom _ _ _ g1 _ _ digs)
-    = g1 <| mayGroupers digs
+instance MayGroupedRadCom BG1RadCom where
+  mayGroupersRadCom (BG1GroupOnLeftRadCom g1 _ _ digs b3)
+    = g1 <| mayGroupersRadCom digs <> mayGroupersRadCom b3
+  mayGroupersRadCom (BG1GroupOnRightRadCom _ _ _ g1 _ _ digs)
+    = g1 <| mayGroupersRadCom digs
 
-instance MayGrouped BG1RadPer where
-  type MayGrouper BG1RadPer = GrpRadPer
-  mayGroupers (BG1GroupOnLeftRadPer g1 _ _ digs b3)
-    = g1 <| mayGroupers digs <> mayGroupers b3
-  mayGroupers (BG1GroupOnRightRadPer _ _ _ g1 _ _ digs)
-    = g1 <| mayGroupers digs
+instance MayGroupedRadPer BG1RadPer where
+  mayGroupersRadPer (BG1GroupOnLeftRadPer g1 _ _ digs b3)
+    = g1 <| mayGroupersRadPer digs <> mayGroupersRadPer b3
+  mayGroupersRadPer (BG1GroupOnRightRadPer _ _ _ g1 _ _ digs)
+    = g1 <| mayGroupersRadPer digs
+
+instance MayGroupedRadCom BrimGroupedRadCom where
+  mayGroupersRadCom (BGGreaterThanOneRadCom _ _ bg1)
+    = mayGroupersRadCom bg1
+  mayGroupersRadCom (BGLessThanOneRadCom _ _ b5)
+    = mayGroupersRadCom b5
+
+instance MayGroupedRadPer BrimGroupedRadPer where
+  mayGroupersRadPer (BGGreaterThanOneRadPer _ _ bg1)
+    = mayGroupersRadPer bg1
+  mayGroupersRadPer (BGLessThanOneRadPer _ _ b5)
+    = mayGroupersRadPer b5
+
+instance MayGroupedRadCom ZeroGroupRadCom where
+  mayGroupersRadCom (ZeroGroupRadCom g _ _) = Seq.singleton g
+
+instance MayGroupedRadPer ZeroGroupRadPer where
+  mayGroupersRadPer (ZeroGroupRadPer g _ _) = Seq.singleton g
+
+instance MayGroupedRadCom NilGroupedRadCom where
+  mayGroupersRadCom (NilGroupedRadCom _ _ _ _ g4 _ _ zs)
+    = g4 <| mayGroupersRadCom zs
+
+instance MayGroupedRadPer NilGroupedRadPer where
+  mayGroupersRadPer (NilGroupedRadPer _ _ _ _ g4 _ _ zs)
+    = g4 <| mayGroupersRadPer zs
+
+instance MayGroupedRadCom NilRadCom where
+  mayGroupersRadCom (NilRadCom'NilUngroupedRadCom _)
+    = Seq.empty
+  mayGroupersRadCom (NilRadCom'NilGroupedRadCom x)
+    = mayGroupersRadCom x
+
+instance MayGroupedRadPer NilRadPer where
+  mayGroupersRadPer (NilRadPer'NilUngroupedRadPer _)
+    = Seq.empty
+  mayGroupersRadPer (NilRadPer'NilGroupedRadPer x)
+    = mayGroupersRadPer x
+
+instance MayGroupedRadCom BrimRadCom where
+  mayGroupersRadCom (BrimRadCom'BrimUngroupedRadCom _)
+    = Seq.empty
+  mayGroupersRadCom (BrimRadCom'BrimGroupedRadCom b)
+    = mayGroupersRadCom b
+
+instance MayGroupedRadPer BrimRadPer where
+  mayGroupersRadPer (BrimRadPer'BrimUngroupedRadPer _)
+    = Seq.empty
+  mayGroupersRadPer (BrimRadPer'BrimGroupedRadPer b)
+    = mayGroupersRadPer b
 
 -- | Removes the 'Side' from a 'RepAnyRadix'.
 c'NilOrBrimScalarAnyRadix'RepAnyRadix
