@@ -1,20 +1,23 @@
 module Penny.Trio where
 
 import qualified Data.Text as X
-import Penny.Display
-import Penny.Amount
-import Penny.Arrangement
-import Penny.Decimal
-import Penny.Commodity
-import Penny.Balance
-import Penny.Friendly
-import Penny.Representation
-import Penny.Polar
-import Penny.NonEmpty
-import Penny.NonZero
 import qualified Data.Map as M
 import Data.Sequence (Seq)
+
+import Penny.Amount
+import Penny.Arrangement
+import Penny.Balance
+import Penny.Commodity
+import Penny.Decimal
+import Penny.Display
+import Penny.Friendly
+import Penny.Grammar
+  (GrpRadCom, GrpRadPer)
 import Penny.Mimode
+import Penny.NonEmpty
+import Penny.NonZero
+import Penny.Polar
+import Penny.Rep
 import qualified Penny.Troika as K
 
 -- | Given a particular 'Commodity', deliver the correct 'Arrangement'
@@ -145,7 +148,7 @@ instance Friendly TrioError where
 
 trioRendering
   :: Trio
-  -> Maybe (Commodity, Arrangement, (Either (Seq RadCom) (Seq RadPer)))
+  -> Maybe (Commodity, Arrangement, (Either (Seq GrpRadCom) (Seq GrpRadPer)))
 trioRendering tri = case tri of
   QC qr cy ar -> Just (cy, ar, ei)
     where
