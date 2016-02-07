@@ -6,11 +6,12 @@
 module Penny.Serial where
 
 import Control.Lens
-import Penny.Natural
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
-import Penny.Representation
 import Data.Functor.Compose
+
+import Penny.Digit
+import Penny.Natural
 
 data Serset = Serset
   { _forward :: Unsigned
@@ -27,7 +28,7 @@ data Serpack = Serpack
 makeLenses ''Serpack
 
 assignSersetted :: T.Traversable t => t a -> t (Serset, a)
-assignSersetted t = flip evalState (toUnsigned Zero) $ do
+assignSersetted t = flip evalState zero $ do
   withFwd <- T.traverse (\a -> (,) <$> pure a <*> makeForward) t
   withBak <- T.traverse (\a -> (,) <$> pure a <*> makeBackward) withFwd
   let f ((b, fwd), bak) = ((Serset fwd bak), b)

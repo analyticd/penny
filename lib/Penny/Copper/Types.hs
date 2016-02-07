@@ -2,6 +2,8 @@
              MultiParamTypeClasses #-}
 module Penny.Copper.Types where
 
+{-
+
 import Control.Applicative (many, (<|>), optional)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -445,4 +447,4 @@ rPluMin :: PluMin -> ShowS
 rPluMin Plus = ('+':)
 rPluMin Minus = ('-':)
 
-
+-}

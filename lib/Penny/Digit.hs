@@ -1,18 +1,11 @@
--- | Representing digits.  There are two different groups of types in
--- this module.  Each type in this module represents only a single
--- digit.  The types with cardinal number names (such as 'One', 'Two',
--- etc) represent a single digit, and the type itself has only one
--- well-defined vaue.  The types that begin with @D@ (such as 'D1z' or
--- 'D2') represent a single digit, but the type itself can have more
--- than one well-defined value.  The @D@ types that do not end in @z@
--- have values to represent any digit from 1 up to the given value;
--- for example, @D9@ represents any digit from 1 to 9.  The @D@ types
--- that end in @z@ are similar, but they can also represent the digit
--- 0.
-
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+-- | Representing digits.
 module Penny.Digit where
 
-import Penny.Display
+import Penny.Grammar
+
+import Control.Applicative ((<|>))
 
 -- * Typeclass for any digit
 
@@ -20,814 +13,393 @@ class Digit a where
   digitToInt :: Integral b => a -> b
   intToDigit :: Integral b => b -> Maybe a
 
--- * Types that represent a single digit
-
-data Zero = Zero
-  deriving (Eq, Ord, Show)
-
 instance Digit Zero where
-  digitToInt x = case x of
-    Zero -> 0
-
-  intToDigit x = case x of
-    0 -> Just Zero
-    _ -> Nothing
-
-instance Display Zero where display _ = ('0':)
-
-data One = One
-  deriving (Eq, Ord, Show)
+  digitToInt (Zero _) = 0
+  intToDigit 0 = Just (Zero '0')
+  intToDigit _ = Nothing
 
 instance Digit One where
-  digitToInt x = case x of
-    One -> 1
-
-  intToDigit x = case x of
-    1 -> Just One
-    _ -> Nothing
-
-instance Display One where display _ = ('1':)
-
-data Two = Two
-  deriving (Eq, Ord, Show)
-
-instance Display Two where display _ = ('2':)
+  digitToInt (One _) = 1
+  intToDigit 1 = Just (One '1')
+  intToDigit _ = Nothing
 
 instance Digit Two where
-  digitToInt x = case x of
-    Two -> 2
-
-  intToDigit x = case x of
-    2 -> Just Two
-    _ -> Nothing
-
-data Three = Three
-  deriving (Eq, Ord, Show)
-
-instance Display Three where display _ = ('3':)
+  digitToInt (Two _) = 2
+  intToDigit 2 = Just (Two '2')
+  intToDigit _ = Nothing
 
 instance Digit Three where
-  digitToInt x = case x of
-    Three -> 3
-
-  intToDigit x = case x of
-    3 -> Just Three
-    _ -> Nothing
-
-data Four = Four
-  deriving (Eq, Ord, Show)
-
-instance Display Four where display _ = ('4':)
+  digitToInt (Three _) = 3
+  intToDigit 3 = Just (Three '3')
+  intToDigit _ = Nothing
 
 instance Digit Four where
-  digitToInt x = case x of
-    Four -> 4
-
-  intToDigit x = case x of
-    4 -> Just Four
-    _ -> Nothing
-
-data Five = Five
-  deriving (Eq, Ord, Show)
-
-instance Display Five where display _ = ('5':)
+  digitToInt (Four _) = 4
+  intToDigit 4 = Just (Four '4')
+  intToDigit _ = Nothing
 
 instance Digit Five where
-  digitToInt x = case x of
-    Five -> 5
-
-  intToDigit x = case x of
-    5 -> Just Five
-    _ -> Nothing
-
-data Six = Six
-  deriving (Eq, Ord, Show)
-
-instance Display Six where display _ = ('6':)
+  digitToInt (Five _) = 5
+  intToDigit 5 = Just (Five '5')
+  intToDigit _ = Nothing
 
 instance Digit Six where
-  digitToInt x = case x of
-    Six -> 6
-
-  intToDigit x = case x of
-    6 -> Just Six
-    _ -> Nothing
-
-data Seven = Seven
-  deriving (Eq, Ord, Show)
-
-instance Display Seven where display _ = ('7':)
+  digitToInt (Six _) = 6
+  intToDigit 6 = Just (Six '6')
+  intToDigit _ = Nothing
 
 instance Digit Seven where
-  digitToInt x = case x of
-    Seven -> 7
-
-  intToDigit x = case x of
-    7 -> Just Seven
-    _ -> Nothing
-
-data Eight = Eight
-  deriving (Eq, Ord, Show)
-
-instance Display Eight where display _ = ('8':)
+  digitToInt (Seven _) = 7
+  intToDigit 7 = Just (Seven '7')
+  intToDigit _ = Nothing
 
 instance Digit Eight where
-  digitToInt x = case x of
-    Eight -> 8
-
-  intToDigit x = case x of
-    8 -> Just Eight
-    _ -> Nothing
-
-data Nine = Nine
-  deriving (Eq, Ord, Show)
-
-instance Display Nine where display _ = ('9':)
+  digitToInt (Eight _) = 8
+  intToDigit 9 = Just (Eight '8')
+  intToDigit _ = Nothing
 
 instance Digit Nine where
+  digitToInt (Nine _) = 9
+  intToDigit 9 = Just (Nine '9')
+  intToDigit _ = Nothing
+
+instance Digit D0'9 where
   digitToInt x = case x of
-    Nine -> 9
+    D0'9'Zero _ -> 0
+    D0'9'One _ -> 1
+    D0'9'Two _ -> 2
+    D0'9'Three _ -> 3
+    D0'9'Four _ -> 4
+    D0'9'Five _ -> 5
+    D0'9'Six _ -> 6
+    D0'9'Seven _ -> 7
+    D0'9'Eight _ -> 8
+    D0'9'Nine _ -> 9
 
   intToDigit x = case x of
-    9 -> Just Nine
+    0 -> Just $ D0'9'Zero (Zero '0')
+    1 -> Just $ D0'9'One (One '1')
+    2 -> Just $ D0'9'Two (Two '2')
+    3 -> Just $ D0'9'Three (Three '3')
+    4 -> Just $ D0'9'Four (Four '4')
+    5 -> Just $ D0'9'Five (Five '5')
+    6 -> Just $ D0'9'Six (Six '6')
+    7 -> Just $ D0'9'Seven (Seven '7')
+    8 -> Just $ D0'9'Eight (Eight '8')
+    9 -> Just $ D0'9'Nine (Nine '9')
     _ -> Nothing
 
-
--- * Types that represent a range of digits
-
-data D1z = D1z'0 | D1z'1
-  deriving (Eq, Ord, Show)
-
-instance Digit D1z where
+instance Digit D1'9 where
   digitToInt x = case x of
-    D1z'0 -> 0
-    D1z'1 -> 1
+    D1'9'One _ -> 1
+    D1'9'Two _ -> 2
+    D1'9'Three _ -> 3
+    D1'9'Four _ -> 4
+    D1'9'Five _ -> 5
+    D1'9'Six _ -> 6
+    D1'9'Seven _ -> 7
+    D1'9'Eight _ -> 8
+    D1'9'Nine _ -> 9
 
   intToDigit x = case x of
-    0 -> Just D1z'0
-    1 -> Just D1z'1
+    1 -> Just $ D1'9'One (One '1')
+    2 -> Just $ D1'9'Two (Two '2')
+    3 -> Just $ D1'9'Three (Three '3')
+    4 -> Just $ D1'9'Four (Four '4')
+    5 -> Just $ D1'9'Five (Five '5')
+    6 -> Just $ D1'9'Six (Six '6')
+    7 -> Just $ D1'9'Seven (Seven '7')
+    8 -> Just $ D1'9'Eight (Eight '8')
+    9 -> Just $ D1'9'Nine (Nine '9')
     _ -> Nothing
 
-instance Display D1z where display = (:) . c'Char'D1z
-
-c'Char'D1z :: D1z -> Char
-c'Char'D1z x = case x of
-  D1z'0 -> '0'
-  D1z'1 -> '1'
-
-data D2z = D2z'0 | D2z'1 | D2z'2
-  deriving (Eq, Ord, Show)
-
-instance Digit D2z where
+instance Digit D0'8 where
   digitToInt x = case x of
-    D2z'0 -> 0
-    D2z'1 -> 1
-    D2z'2 -> 2
+    D0'8'Zero _ -> 0
+    D0'8'One _ -> 1
+    D0'8'Two _ -> 2
+    D0'8'Three _ -> 3
+    D0'8'Four _ -> 4
+    D0'8'Five _ -> 5
+    D0'8'Six _ -> 6
+    D0'8'Seven _ -> 7
+    D0'8'Eight _ -> 8
 
   intToDigit x = case x of
-    0 -> Just D2z'0
-    1 -> Just D2z'1
-    2 -> Just D2z'2
+    0 -> Just $ D0'8'Zero (Zero '0')
+    1 -> Just $ D0'8'One (One '1')
+    2 -> Just $ D0'8'Two (Two '2')
+    3 -> Just $ D0'8'Three (Three '3')
+    4 -> Just $ D0'8'Four (Four '4')
+    5 -> Just $ D0'8'Five (Five '5')
+    6 -> Just $ D0'8'Six (Six '6')
+    7 -> Just $ D0'8'Seven (Seven '7')
+    8 -> Just $ D0'8'Eight (Eight '8')
     _ -> Nothing
 
-instance Display D2z where display = (:) . c'Char'D2z
-
-c'Char'D2z :: D2z -> Char
-c'Char'D2z x = case x of
-  D2z'0 -> '0'
-  D2z'1 -> '1'
-  D2z'2 -> '2'
-
-data D2 = D2'1 | D2'2
-  deriving (Eq, Ord, Show)
-
-instance Digit D2 where
+instance Digit D0'1 where
   digitToInt x = case x of
-    D2'1 -> 1
-    D2'2 -> 2
+    D0'1'Zero _ -> 0
+    D0'1'One _ -> 1
 
   intToDigit x = case x of
-    1 -> Just D2'1
-    2 -> Just D2'2
+    0 -> Just $ D0'1'Zero (Zero '0')
+    1 -> Just $ D0'1'One (One '1')
     _ -> Nothing
 
-instance Display D2 where display = (:) . c'Char'D2
-
-c'Char'D2 :: D2 -> Char
-c'Char'D2 x = case x of
-  D2'1 -> '1'
-  D2'2 -> '2'
-
-c'D2z'D2 :: D2 -> D2z
-c'D2z'D2 x = case x of
-  D2'1 -> D2z'1
-  D2'2 -> D2z'2
-
-c'D2'D2z :: D2z -> Maybe D2
-c'D2'D2z x = case x of
-  D2z'0 -> Nothing
-  D2z'1 -> Just D2'1
-  D2z'2 -> Just D2'2
-
-data D3z = D3z'0 | D3z'1 | D3z'2 | D3z'3
-  deriving (Eq, Ord, Show)
-
-instance Digit D3z where
+instance Digit D0'2 where
   digitToInt x = case x of
-    D3z'0 -> 0
-    D3z'1 -> 1
-    D3z'2 -> 2
-    D3z'3 -> 3
+    D0'2'Zero _ -> 0
+    D0'2'One _ -> 1
+    D0'2'Two _ -> 2
 
   intToDigit x = case x of
-    0 -> Just D3z'0
-    1 -> Just D3z'1
-    2 -> Just D3z'2
-    3 -> Just D3z'3
+    0 -> Just $ D0'2'Zero (Zero '0')
+    1 -> Just $ D0'2'One (One '1')
+    2 -> Just $ D0'2'Two (Two '2')
     _ -> Nothing
 
-instance Display D3z where display = (:) . c'Char'D3z
-
-c'Char'D3z :: D3z -> Char
-c'Char'D3z x = case x of
-  D3z'0 -> '0'
-  D3z'1 -> '1'
-  D3z'2 -> '2'
-  D3z'3 -> '3'
-
-data D3 = D3'1 | D3'2 | D3'3
-  deriving (Eq, Ord, Show)
-
-instance Digit D3 where
+instance Digit D0'3 where
   digitToInt x = case x of
-    D3'1 -> 1
-    D3'2 -> 2
-    D3'3 -> 3
+    D0'3'Zero _ -> 0
+    D0'3'One _ -> 1
+    D0'3'Two _ -> 2
+    D0'3'Three _ -> 3
 
   intToDigit x = case x of
-    1 -> Just D3'1
-    2 -> Just D3'2
-    3 -> Just D3'3
+    0 -> Just $ D0'3'Zero (Zero '0')
+    1 -> Just $ D0'3'One (One '1')
+    2 -> Just $ D0'3'Two (Two '2')
+    3 -> Just $ D0'3'Three (Three '3')
     _ -> Nothing
 
-instance Display D3 where display = (:) . c'Char'D3
-
-c'Char'D3 :: D3 -> Char
-c'Char'D3 x = case x of
-  D3'1 -> '1'
-  D3'2 -> '2'
-  D3'3 -> '3'
-
-c'D3z'D3 :: D3 -> D3z
-c'D3z'D3 x = case x of
-  D3'1 -> D3z'1
-  D3'2 -> D3z'2
-  D3'3 -> D3z'3
-
-c'D3'D3z :: D3z -> Maybe D3
-c'D3'D3z x = case x of
-  D3z'0 -> Nothing
-  D3z'1 -> Just D3'1
-  D3z'2 -> Just D3'2
-  D3z'3 -> Just D3'3
-
-data D4z = D4z'0 | D4z'1 | D4z'2 | D4z'3 | D4z'4
-  deriving (Eq, Ord, Show)
-
-instance Digit D4z where
+instance Digit D0'5 where
   digitToInt x = case x of
-    D4z'0 -> 0
-    D4z'1 -> 1
-    D4z'2 -> 2
-    D4z'3 -> 3
-    D4z'4 -> 4
+    D0'5'Zero _ -> 0
+    D0'5'One _ -> 1
+    D0'5'Two _ -> 2
+    D0'5'Three _ -> 3
+    D0'5'Four _ -> 4
+    D0'5'Five _ -> 5
 
   intToDigit x = case x of
-    0 -> Just D4z'0
-    1 -> Just D4z'1
-    2 -> Just D4z'2
-    3 -> Just D4z'3
-    4 -> Just D4z'4
+    0 -> Just $ D0'5'Zero (Zero '0')
+    1 -> Just $ D0'5'One (One '1')
+    2 -> Just $ D0'5'Two (Two '2')
+    3 -> Just $ D0'5'Three (Three '3')
+    4 -> Just $ D0'5'Four (Four '4')
+    5 -> Just $ D0'5'Five (Five '5')
     _ -> Nothing
 
-instance Display D4z where display = (:) . c'Char'D4z
+-- # Dates
 
-c'Char'D4z :: D4z -> Char
-c'Char'D4z x = case x of
-  D4z'0 -> '0'
-  D4z'1 -> '1'
-  D4z'2 -> '2'
-  D4z'3 -> '3'
-  D4z'4 -> '4'
+instance Digit Days28 where
+  digitToInt (D28'1to9 _ d) = digitToInt d
+  digitToInt (D28'10to19 _ d) = 10 + digitToInt d
+  digitToInt (D28'20to28 _ d) = 20 + digitToInt d
 
-data D4 = D4'1 | D4'2 | D4'3 | D4'4
-  deriving (Eq, Ord, Show)
+  intToDigit x = d1to9 <|> d10to19 <|> d20to28
+    where
+      d1to9 = do
+        d <- intToDigit x
+        return $ D28'1to9 zero d
+      d10to19 = do
+        d <- intToDigit (x - 10)
+        return $ D28'10to19 one d
+      d20to28 = do
+        d <- intToDigit (x - 20)
+        return $ D28'20to28 two d
 
-instance Digit D4 where
+instance Digit Days30 where
+  digitToInt (D30'28 d28) = digitToInt d28
+  digitToInt (D30'29 _ _) = 29
+  digitToInt (D30'30 _ _) = 30
+
+  intToDigit x = d28 <|> d29 <|> d30
+    where
+      d28 = fmap D30'28 (intToDigit x)
+      d29 | x == 29 = Just $ D30'29 two nine
+          | otherwise = Nothing
+      d30 | x == 30 = Just $ D30'30 three zero
+          | otherwise = Nothing
+
+instance Digit Days31 where
+  digitToInt (D31'30 d30) = digitToInt d30
+  digitToInt (D31'31 _ _) = 31
+
+  intToDigit x = d30 <|> d31
+    where
+      d30 = intToDigit x
+      d31 | x == 31 = Just $ D31'31 three one
+          | otherwise = Nothing
+
+instance Digit Year where
+  digitToInt (Year d3 d2 d1 d0)
+    = digitToInt d3 * 1000 + digitToInt d2 * 100
+      + digitToInt d1 * 10 + digitToInt d0
+  intToDigit x = do
+    let (r0, id0) = x `divMod` 10
+    d0 <- intToDigit id0
+    let (r1, id1) = r0 `divMod` 10
+    d1 <- intToDigit id1
+    let (r2, id2) = r1 `divMod` 10
+    d2 <- intToDigit id2
+    let (_, id3) = r2 `divMod` 10
+    d3 <- intToDigit id3
+    return $ Year d3 d2 d1 d0
+
+instance Digit Mod4 where
   digitToInt x = case x of
-    D4'1 -> 1
-    D4'2 -> 2
-    D4'3 -> 3
-    D4'4 -> 4
+    { L04 _ _ -> 4; L08 _ _ -> 8; L12 _ _ -> 12; L16 _ _ -> 16; L20 _ _ -> 20;
+      L24 _ _ -> 24; L28 _ _ -> 28; L32 _ _ -> 32; L36 _ _ -> 36;
+      L40 _ _ -> 40; L44 _ _ -> 44; L48 _ _ -> 48; L52 _ _ -> 52;
+      L56 _ _ -> 56; L60 _ _ -> 60; L64 _ _ -> 64; L68 _ _ -> 68;
+      L72 _ _ -> 72; L76 _ _ -> 76; L80 _ _ -> 80; L84 _ _ -> 84;
+      L88 _ _ -> 88; L92 _ _ -> 92; L96 _ _ -> 96 }
 
   intToDigit x = case x of
-    1 -> Just D4'1
-    2 -> Just D4'2
-    3 -> Just D4'3
-    4 -> Just D4'4
-    _ -> Nothing
-
-instance Display D4 where display = (:) . c'Char'D4
-
-c'Char'D4 :: D4 -> Char
-c'Char'D4 x = case x of
-  D4'1 -> '1'
-  D4'2 -> '2'
-  D4'3 -> '3'
-  D4'4 -> '4'
-
-c'D4z'D4 :: D4 -> D4z
-c'D4z'D4 x = case x of
-  D4'1 -> D4z'1
-  D4'2 -> D4z'2
-  D4'3 -> D4z'3
-  D4'4 -> D4z'4
-
-c'D4'D4z :: D4z -> Maybe D4
-c'D4'D4z x = case x of
-  D4z'0 -> Nothing
-  D4z'1 -> Just D4'1
-  D4z'2 -> Just D4'2
-  D4z'3 -> Just D4'3
-  D4z'4 -> Just D4'4
-
-data D5z = D5z'0 | D5z'1 | D5z'2 | D5z'3 | D5z'4 | D5z'5
-  deriving (Eq, Ord, Show)
-
-instance Digit D5z where
-  digitToInt x = case x of
-    D5z'0 -> 0
-    D5z'1 -> 1
-    D5z'2 -> 2
-    D5z'3 -> 3
-    D5z'4 -> 4
-    D5z'5 -> 5
-
-  intToDigit x = case x of
-    0 -> Just D5z'0
-    1 -> Just D5z'1
-    2 -> Just D5z'2
-    3 -> Just D5z'3
-    4 -> Just D5z'4
-    5 -> Just D5z'5
-    _ -> Nothing
-
-instance Display D5z where display = (:) . c'Char'D5z
-
-c'Char'D5z :: D5z -> Char
-c'Char'D5z x = case x of
-  D5z'0 -> '0'
-  D5z'1 -> '1'
-  D5z'2 -> '2'
-  D5z'3 -> '3'
-  D5z'4 -> '4'
-  D5z'5 -> '5'
-
-data D5 = D5'1 | D5'2 | D5'3 | D5'4 | D5'5
-  deriving (Eq, Ord, Show)
-
-instance Digit D5 where
-  digitToInt x = case x of
-    D5'1 -> 1
-    D5'2 -> 2
-    D5'3 -> 3
-    D5'4 -> 4
-    D5'5 -> 5
-
-  intToDigit x = case x of
-    1 -> Just D5'1
-    2 -> Just D5'2
-    3 -> Just D5'3
-    4 -> Just D5'4
-    5 -> Just D5'5
-    _ -> Nothing
-
-instance Display D5 where display = (:) . c'Char'D5
-
-c'Char'D5 :: D5 -> Char
-c'Char'D5 x = case x of
-  D5'1 -> '1'
-  D5'2 -> '2'
-  D5'3 -> '3'
-  D5'4 -> '4'
-  D5'5 -> '5'
-
-c'D5z'D5 :: D5 -> D5z
-c'D5z'D5 x = case x of
-  D5'1 -> D5z'1
-  D5'2 -> D5z'2
-  D5'3 -> D5z'3
-  D5'4 -> D5z'4
-  D5'5 -> D5z'5
-
-c'D5'D5z :: D5z -> Maybe D5
-c'D5'D5z x = case x of
-  D5z'0 -> Nothing
-  D5z'1 -> Just D5'1
-  D5z'2 -> Just D5'2
-  D5z'3 -> Just D5'3
-  D5z'4 -> Just D5'4
-  D5z'5 -> Just D5'5
-
-data D6z = D6z'0 | D6z'1 | D6z'2 | D6z'3 | D6z'4 | D6z'5 | D6z'6
-  deriving (Eq, Ord, Show)
-
-instance Digit D6z where
-  digitToInt x = case x of
-    D6z'0 -> 0
-    D6z'1 -> 1
-    D6z'2 -> 2
-    D6z'3 -> 3
-    D6z'4 -> 4
-    D6z'5 -> 5
-    D6z'6 -> 6
-
-  intToDigit x = case x of
-    0 -> Just D6z'0
-    1 -> Just D6z'1
-    2 -> Just D6z'2
-    3 -> Just D6z'3
-    4 -> Just D6z'4
-    5 -> Just D6z'5
-    6 -> Just D6z'6
-    _ -> Nothing
-
-instance Display D6z where display = (:) . c'Char'D6z
-
-c'Char'D6z :: D6z -> Char
-c'Char'D6z x = case x of
-  D6z'0 -> '0'
-  D6z'1 -> '1'
-  D6z'2 -> '2'
-  D6z'3 -> '3'
-  D6z'4 -> '4'
-  D6z'5 -> '5'
-  D6z'6 -> '6'
-
-data D6 = D6'1 | D6'2 | D6'3 | D6'4 | D6'5 | D6'6
-  deriving (Eq, Ord, Show)
-
-instance Digit D6 where
-  digitToInt x = case x of
-    D6'1 -> 1
-    D6'2 -> 2
-    D6'3 -> 3
-    D6'4 -> 4
-    D6'5 -> 5
-    D6'6 -> 6
-
-  intToDigit x = case x of
-    1 -> Just D6'1
-    2 -> Just D6'2
-    3 -> Just D6'3
-    4 -> Just D6'4
-    5 -> Just D6'5
-    6 -> Just D6'6
-    _ -> Nothing
-
-instance Display D6 where display = (:) . c'Char'D6
-
-c'Char'D6 :: D6 -> Char
-c'Char'D6 x = case x of
-  D6'1 -> '1'
-  D6'2 -> '2'
-  D6'3 -> '3'
-  D6'4 -> '4'
-  D6'5 -> '5'
-  D6'6 -> '6'
-
-c'D6z'D6 :: D6 -> D6z
-c'D6z'D6 x = case x of
-  D6'1 -> D6z'1
-  D6'2 -> D6z'2
-  D6'3 -> D6z'3
-  D6'4 -> D6z'4
-  D6'5 -> D6z'5
-  D6'6 -> D6z'6
-
-c'D6'D6z :: D6z -> Maybe D6
-c'D6'D6z x = case x of
-  D6z'0 -> Nothing
-  D6z'1 -> Just D6'1
-  D6z'2 -> Just D6'2
-  D6z'3 -> Just D6'3
-  D6z'4 -> Just D6'4
-  D6z'5 -> Just D6'5
-  D6z'6 -> Just D6'6
-
-data D7z = D7z'0 | D7z'1 | D7z'2 | D7z'3 | D7z'4 | D7z'5 | D7z'6 | D7z'7
-  deriving (Eq, Ord, Show)
-
-instance Digit D7z where
-  digitToInt x = case x of
-    D7z'0 -> 0
-    D7z'1 -> 1
-    D7z'2 -> 2
-    D7z'3 -> 3
-    D7z'4 -> 4
-    D7z'5 -> 5
-    D7z'6 -> 6
-    D7z'7 -> 7
-
-  intToDigit x = case x of
-    0 -> Just D7z'0
-    1 -> Just D7z'1
-    2 -> Just D7z'2
-    3 -> Just D7z'3
-    4 -> Just D7z'4
-    5 -> Just D7z'5
-    6 -> Just D7z'6
-    7 -> Just D7z'7
-    _ -> Nothing
-
-instance Display D7z where display = (:) . c'Char'D7z
-
-c'Char'D7z :: D7z -> Char
-c'Char'D7z x = case x of
-  D7z'0 -> '0'
-  D7z'1 -> '1'
-  D7z'2 -> '2'
-  D7z'3 -> '3'
-  D7z'4 -> '4'
-  D7z'5 -> '5'
-  D7z'6 -> '6'
-  D7z'7 -> '7'
-
-data D7 = D7'1 | D7'2 | D7'3 | D7'4 | D7'5 | D7'6 | D7'7
-  deriving (Eq, Ord, Show)
-
-instance Digit D7 where
-  digitToInt x = case x of
-    D7'1 -> 1
-    D7'2 -> 2
-    D7'3 -> 3
-    D7'4 -> 4
-    D7'5 -> 5
-    D7'6 -> 6
-    D7'7 -> 7
-
-  intToDigit x = case x of
-    1 -> Just D7'1
-    2 -> Just D7'2
-    3 -> Just D7'3
-    4 -> Just D7'4
-    5 -> Just D7'5
-    6 -> Just D7'6
-    7 -> Just D7'7
-    _ -> Nothing
-
-instance Display D7 where display = (:) . c'Char'D7
-
-c'Char'D7 :: D7 -> Char
-c'Char'D7 x = case x of
-  D7'1 -> '1'
-  D7'2 -> '2'
-  D7'3 -> '3'
-  D7'4 -> '4'
-  D7'5 -> '5'
-  D7'6 -> '6'
-  D7'7 -> '7'
-
-c'D7z'D7 :: D7 -> D7z
-c'D7z'D7 x = case x of
-  D7'1 -> D7z'1
-  D7'2 -> D7z'2
-  D7'3 -> D7z'3
-  D7'4 -> D7z'4
-  D7'5 -> D7z'5
-  D7'6 -> D7z'6
-  D7'7 -> D7z'7
-
-c'D7'D7z :: D7z -> Maybe D7
-c'D7'D7z x = case x of
-  D7z'0 -> Nothing
-  D7z'1 -> Just D7'1
-  D7z'2 -> Just D7'2
-  D7z'3 -> Just D7'3
-  D7z'4 -> Just D7'4
-  D7z'5 -> Just D7'5
-  D7z'6 -> Just D7'6
-  D7z'7 -> Just D7'7
-
-data D8z = D8z'0 | D8z'1 | D8z'2 | D8z'3 | D8z'4 | D8z'5 | D8z'6 | D8z'7 | D8z'8
-  deriving (Eq, Ord, Show)
-
-instance Digit D8z where
-  digitToInt x = case x of
-    D8z'0 -> 0
-    D8z'1 -> 1
-    D8z'2 -> 2
-    D8z'3 -> 3
-    D8z'4 -> 4
-    D8z'5 -> 5
-    D8z'6 -> 6
-    D8z'7 -> 7
-    D8z'8 -> 8
-
-  intToDigit x = case x of
-    0 -> Just D8z'0
-    1 -> Just D8z'1
-    2 -> Just D8z'2
-    3 -> Just D8z'3
-    4 -> Just D8z'4
-    5 -> Just D8z'5
-    6 -> Just D8z'6
-    7 -> Just D8z'7
-    8 -> Just D8z'8
-    _ -> Nothing
-
-instance Display D8z where display = (:) . c'Char'D8z
-
-c'Char'D8z :: D8z -> Char
-c'Char'D8z x = case x of
-  D8z'0 -> '0'
-  D8z'1 -> '1'
-  D8z'2 -> '2'
-  D8z'3 -> '3'
-  D8z'4 -> '4'
-  D8z'5 -> '5'
-  D8z'6 -> '6'
-  D8z'7 -> '7'
-  D8z'8 -> '8'
-
-data D8 = D8'1 | D8'2 | D8'3 | D8'4 | D8'5 | D8'6 | D8'7 | D8'8
-  deriving (Eq, Ord, Show)
-
-instance Digit D8 where
-  digitToInt x = case x of
-    D8'1 -> 1
-    D8'2 -> 2
-    D8'3 -> 3
-    D8'4 -> 4
-    D8'5 -> 5
-    D8'6 -> 6
-    D8'7 -> 7
-    D8'8 -> 8
-
-  intToDigit x = case x of
-    1 -> Just D8'1
-    2 -> Just D8'2
-    3 -> Just D8'3
-    4 -> Just D8'4
-    5 -> Just D8'5
-    6 -> Just D8'6
-    7 -> Just D8'7
-    8 -> Just D8'8
-    _ -> Nothing
-
-instance Display D8 where display = (:) . c'Char'D8
-
-c'Char'D8 :: D8 -> Char
-c'Char'D8 x = case x of
-  D8'1 -> '1'
-  D8'2 -> '2'
-  D8'3 -> '3'
-  D8'4 -> '4'
-  D8'5 -> '5'
-  D8'6 -> '6'
-  D8'7 -> '7'
-  D8'8 -> '8'
-
-c'D8z'D8 :: D8 -> D8z
-c'D8z'D8 x = case x of
-  D8'1 -> D8z'1
-  D8'2 -> D8z'2
-  D8'3 -> D8z'3
-  D8'4 -> D8z'4
-  D8'5 -> D8z'5
-  D8'6 -> D8z'6
-  D8'7 -> D8z'7
-  D8'8 -> D8z'8
-
-c'D8'D8z :: D8z -> Maybe D8
-c'D8'D8z x = case x of
-  D8z'0 -> Nothing
-  D8z'1 -> Just D8'1
-  D8z'2 -> Just D8'2
-  D8z'3 -> Just D8'3
-  D8z'4 -> Just D8'4
-  D8z'5 -> Just D8'5
-  D8z'6 -> Just D8'6
-  D8z'7 -> Just D8'7
-  D8z'8 -> Just D8'8
-
-data D9z = D9z'0 | D9z'1 | D9z'2 | D9z'3 | D9z'4 | D9z'5 | D9z'6 | D9z'7 | D9z'8 | D9z'9
-  deriving (Eq, Ord, Show)
-
-instance Digit D9z where
-  digitToInt x = case x of
-    D9z'0 -> 0
-    D9z'1 -> 1
-    D9z'2 -> 2
-    D9z'3 -> 3
-    D9z'4 -> 4
-    D9z'5 -> 5
-    D9z'6 -> 6
-    D9z'7 -> 7
-    D9z'8 -> 8
-    D9z'9 -> 9
-
-  intToDigit x = case x of
-    0 -> Just D9z'0
-    1 -> Just D9z'1
-    2 -> Just D9z'2
-    3 -> Just D9z'3
-    4 -> Just D9z'4
-    5 -> Just D9z'5
-    6 -> Just D9z'6
-    7 -> Just D9z'7
-    8 -> Just D9z'8
-    9 -> Just D9z'9
-    _ -> Nothing
-
-instance Display D9z where display = (:) . c'Char'D9z
-
-c'Char'D9z :: D9z -> Char
-c'Char'D9z x = case x of
-  D9z'0 -> '0'
-  D9z'1 -> '1'
-  D9z'2 -> '2'
-  D9z'3 -> '3'
-  D9z'4 -> '4'
-  D9z'5 -> '5'
-  D9z'6 -> '6'
-  D9z'7 -> '7'
-  D9z'8 -> '8'
-  D9z'9 -> '9'
-
-data D9 = D9'1 | D9'2 | D9'3 | D9'4 | D9'5 | D9'6 | D9'7 | D9'8 | D9'9
-  deriving (Eq, Ord, Show)
-
-instance Digit D9 where
-  digitToInt x = case x of
-    D9'1 -> 1
-    D9'2 -> 2
-    D9'3 -> 3
-    D9'4 -> 4
-    D9'5 -> 5
-    D9'6 -> 6
-    D9'7 -> 7
-    D9'8 -> 8
-    D9'9 -> 9
-
-  intToDigit x = case x of
-    1 -> Just D9'1
-    2 -> Just D9'2
-    3 -> Just D9'3
-    4 -> Just D9'4
-    5 -> Just D9'5
-    6 -> Just D9'6
-    7 -> Just D9'7
-    8 -> Just D9'8
-    9 -> Just D9'9
-    _ -> Nothing
-
-instance Display D9 where display = (:) . c'Char'D9
-
-c'Char'D9 :: D9 -> Char
-c'Char'D9 x = case x of
-  D9'1 -> '1'
-  D9'2 -> '2'
-  D9'3 -> '3'
-  D9'4 -> '4'
-  D9'5 -> '5'
-  D9'6 -> '6'
-  D9'7 -> '7'
-  D9'8 -> '8'
-  D9'9 -> '9'
-
-c'D9z'D9 :: D9 -> D9z
-c'D9z'D9 x = case x of
-  D9'1 -> D9z'1
-  D9'2 -> D9z'2
-  D9'3 -> D9z'3
-  D9'4 -> D9z'4
-  D9'5 -> D9z'5
-  D9'6 -> D9z'6
-  D9'7 -> D9z'7
-  D9'8 -> D9z'8
-  D9'9 -> D9z'9
-
-c'D9'D9z :: D9z -> Maybe D9
-c'D9'D9z x = case x of
-  D9z'0 -> Nothing
-  D9z'1 -> Just D9'1
-  D9z'2 -> Just D9'2
-  D9z'3 -> Just D9'3
-  D9z'4 -> Just D9'4
-  D9z'5 -> Just D9'5
-  D9z'6 -> Just D9'6
-  D9z'7 -> Just D9'7
-  D9z'8 -> Just D9'8
-  D9z'9 -> Just D9'9
+    { 4 -> Just $ L04 zero four; 8 -> Just $ L08 zero eight;
+      12 -> Just $ L12 one two;
+      16 -> Just $ L16 one six; 20 -> Just $ L20 two zero;
+      24 -> Just $ L24 two four;
+      28 -> Just $ L28 two eight; 32 -> Just $ L32 three two;
+      36 -> Just $ L36 three six;
+      40 -> Just $ L40 four zero; 44 -> Just $ L44 four four;
+      48 -> Just $ L48 four eight;
+      52 -> Just $ L52 five two; 56 -> Just $ L56 five six;
+      60 -> Just $ L60 six zero;
+      64 -> Just $ L64 six four; 68 -> Just $ L68 six eight;
+      72 -> Just $ L72 seven two;
+      76 -> Just $ L76 seven six; 80 -> Just $ L80 eight zero;
+      84 -> Just $ L84 eight four;
+      88 -> Just $ L88 eight eight; 92 -> Just $ L92 nine two;
+      96 -> Just $ L96 nine six;
+      _ -> Nothing }
+
+instance Digit CenturyLeapYear where
+  digitToInt (LeapYear0 _ _ _ _) = 0
+  digitToInt (LeapYearMod4 m4 _ _) = digitToInt m4 * 100
+
+  intToDigit x
+    | x == 0 = Just $ LeapYear0 zero zero zero zero
+    | rm == 0 = do
+        m4 <- intToDigit dv
+        return $ LeapYearMod4 m4 zero zero
+    | otherwise = Nothing
+    where
+      (dv, rm) = x `divMod` 100
+
+instance Digit NonCenturyLeapYear where
+  digitToInt (NonCenturyLeapYear d2 d1 m4)
+    = digitToInt d2 * 1000 + digitToInt d1 * 100 + digitToInt m4
+
+  intToDigit x
+    | rm == 0 = Nothing
+    | otherwise = do
+        m4 <- intToDigit rm
+        let (r1, id1) = dv `divMod` 10
+        d1 <- intToDigit id1
+        d2 <- intToDigit r1
+        return $ NonCenturyLeapYear d2 d1 m4
+    where
+      (dv, rm) = x `divMod` 100
+
+instance Digit LeapYear where
+  digitToInt (LeapYear'CenturyLeapYear x) = digitToInt x
+  digitToInt (LeapYear'NonCenturyLeapYear x) = digitToInt x
+
+  intToDigit x = fmap LeapYear'CenturyLeapYear (intToDigit x)
+    <|> fmap LeapYear'NonCenturyLeapYear (intToDigit x)
+
+
+instance Digit N0'19 where
+  digitToInt (N0'19 (D0'1'Maybe mayD1) d9) = case mayD1 of
+    Nothing -> digitToInt d9
+    Just d1 -> digitToInt d1 * 10 + digitToInt d9
+  intToDigit x = d10'19 <|> d0'9
+    where
+      d10'19 = do
+        d1 <- intToDigit (x - 10)
+        return (N0'19 (D0'1'Maybe (Just (D0'1'One (One '1')))) d1)
+      d0'9 = intToDigit x
+
+instance Digit N20'23 where
+  digitToInt (N20'23 _ d2) = 20 + digitToInt d2
+  intToDigit x = do
+    d1 <- intToDigit $ x - 20
+    return $ N20'23 (Two '2') d1
+
+instance Digit N0'59 where
+  digitToInt (N0'59 d5 d9) = digitToInt d5 * 10 + digitToInt d9
+  intToDigit x = do
+    let (r0, intDigit0) = x `divMod` 10
+    d0 <- intToDigit intDigit0
+    d1 <- intToDigit r0
+    return $ N0'59 d1 d0
+
+deriving instance Digit Minutes
+deriving instance Digit Seconds
+
+
+class HasZero a where
+  zero :: a
+
+instance HasZero Zero where
+  zero = Zero '0'
+
+class HasOne a where
+  one :: a
+
+instance HasOne One where
+  one = One '1'
+
+class HasTwo a where
+  two :: a
+
+instance HasTwo Two where
+  two = Two '2'
+
+class HasThree a where
+  three :: a
 
+instance HasThree Three where
+  three = Three '3'
+
+class HasFour a where
+  four :: a
+
+instance HasFour Four where
+  four = Four '4'
+
+class HasFive a where
+  five :: a
+
+instance HasFive Five where
+  five = Five '5'
+
+class HasSix a where
+  six :: a
+
+instance HasSix Six where
+  six = Six '6'
+
+class HasSeven a where
+  seven :: a
+
+instance HasSeven Seven where
+  seven = Seven '7'
+
+class HasEight a where
+  eight :: a
+
+instance HasEight Eight where
+  eight = Eight '8'
+
+class HasNine a where
+  nine :: a
+
+instance HasNine Nine where
+  nine = Nine '9'
+
+class HasTen a where
+  ten :: a

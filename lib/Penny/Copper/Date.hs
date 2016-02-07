@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.Copper.Date where
 
+{-
+
 import Data.Time
 import Control.Applicative ((<|>))
 import Text.Megaparsec (char, try)
@@ -459,4 +461,4 @@ c'DateA'Day sep dy
       yr <- c'Year'Int y
       md <- c'MonthDay'Ints sep m d
       return $ NonLeapDay yr sep md
-
+-}

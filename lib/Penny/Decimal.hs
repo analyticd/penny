@@ -1,7 +1,8 @@
 {-# LANGUAGE TemplateHaskell, FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
-module Penny.Decimal
+module Penny.Decimal where
+{-
   (
   -- * Decimal types and classes
     Exponential(..)
@@ -44,6 +45,7 @@ module Penny.Decimal
   , repDecimal
   , displayDecimalAsQty
   ) where
+-}
 
 import Control.Lens (view, makeLenses, to, over, (<|), set)
 import Control.Monad (join)
@@ -53,10 +55,10 @@ import Data.Ord (comparing)
 import qualified Data.Sequence as S
 
 import Penny.Display
+import Penny.Grammar
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar
-import Penny.Representation
 
 -- | Numbers represented exponentially.  In @Exponential c p@, the
 -- value of the number is @c * 10 ^ (-1 * naturalToInteger p)@.
@@ -212,6 +214,8 @@ instance HasDecimal DecZero where
 
 instance HasDecimal DecPositive where
   toDecimal (Exponential sig expt) = Exponential (naturalToInteger sig) expt
+
+{-
 
 instance HasExponent (NilUngrouped r) where
   toExponent nu = case nu of
@@ -446,3 +450,4 @@ displayDecimalAsQty d = (sideChar :) .  (' ':) . rend
     rend = case repUngroupedDecimal (Radix :: Radix RadPer) d of
       Moderate nu -> display nu
       Extreme (Polarized bu _) -> display bu
+-}

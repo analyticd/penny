@@ -16,7 +16,7 @@ seqFromNonEmpty :: NonEmpty a -> Seq a
 seqFromNonEmpty (NonEmpty x xs) = x <| xs
 
 nonEmptyLength :: NonEmpty a -> Positive
-nonEmptyLength (NonEmpty _ ls) = F.foldl' go (toPositive One) ls
+nonEmptyLength (NonEmpty _ ls) = F.foldl' go one ls
   where
     go old _ = next old
 
