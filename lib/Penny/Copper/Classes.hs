@@ -2,6 +2,8 @@
              MultiParamTypeClasses #-}
 module Penny.Copper.Classes where
 
+{-
+
 import Text.Megaparsec.Text (Parser)
 
 import Penny.Representation
@@ -365,4 +367,4 @@ instance Renderable LeapDay where render = rLeapDay
 
 instance Parseable DateA where parser = pDateA
 instance Renderable DateA where render = rDateA
-
+-}

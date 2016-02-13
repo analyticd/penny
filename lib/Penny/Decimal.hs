@@ -54,6 +54,7 @@ import Data.Monoid ((<>))
 import Data.Ord (comparing)
 import qualified Data.Sequence as S
 
+import Penny.Digit
 import Penny.Display
 import Penny.Grammar
 import Penny.Natural
@@ -173,8 +174,8 @@ instance Num (Exponential Integer) where
   (Exponential mx ex) * (Exponential my ey) = Exponential (mx * my) (ex `add` ey)
   negate (Exponential mx ex) = Exponential (negate mx) ex
   abs (Exponential mx ex) = Exponential (abs mx) ex
-  signum (Exponential mx _) = Exponential (signum mx) (toUnsigned Zero)
-  fromInteger i = Exponential i (toUnsigned Zero)
+  signum (Exponential mx _) = Exponential (signum mx) zero
+  fromInteger i = Exponential i zero
 
 -- | Decimals whose significand is never zero.
 type DecNonZero = Exponential NonZero
@@ -215,41 +216,95 @@ instance HasDecimal DecZero where
 instance HasDecimal DecPositive where
   toDecimal (Exponential sig expt) = Exponential (naturalToInteger sig) expt
 
-{-
+instance HasExponent NilUngroupedRadCom where
+  toExponent (NUZeroRadCom _ (RadixZeroesRadCom'Maybe Nothing)) = zero
+  toExponent (NUZeroRadCom _ (RadixZeroesRadCom'Maybe
+    (Just (RadixZeroesRadCom _ (Zero'Seq sq))))) = lengthUnsigned sq
 
-instance HasExponent (NilUngrouped r) where
-  toExponent nu = case nu of
-    NUZero _ Nothing -> toUnsigned Zero
-    NUZero _ (Just (_, Nothing)) -> toUnsigned Zero
-    NUZero _ (Just (_, Just (_, zs))) -> next (lengthUnsigned zs)
-    NURadix _ _ zs -> next (lengthUnsigned zs)
+instance HasExponent NilUngroupedRadPer where
+  toExponent (NUZeroRadPer _ (RadixZeroesRadPer'Maybe Nothing)) = zero
+  toExponent (NUZeroRadPer _ (RadixZeroesRadPer'Maybe
+    (Just (RadixZeroesRadPer _ (Zero'Seq sq))))) = lengthUnsigned sq
 
-instance HasDecZero (NilUngrouped r) where
+instance HasDecZero NilUngroupedRadCom where
   toDecZero x = Exponential () (toExponent x)
 
-instance HasExponent (Nil r) where
-  toExponent nil = case nil of
-    NilU nu -> toExponent nu
-    NilG ng -> toExponent ng
-
-instance HasDecZero (Nil r) where
-  toDecZero x = case x of
-    NilU nu -> Exponential () (toExponent nu)
-    NilG ng -> Exponential () (toExponent ng)
-
-instance HasExponent (NilGrouped r) where
-  toExponent (NilGrouped _ _ _ zs1 _ _ zs2 zss) =
-      next . next . add (lengthUnsigned zs1) . add (lengthUnsigned zs2)
-      . lengthUnsigned . join
-      . fmap (\(_, _, sq) -> Zero <| sq) $ zss
-
-instance HasDecZero (NilGrouped r) where
+instance HasDecZero NilUngroupedRadPer where
   toDecZero x = Exponential () (toExponent x)
+
+instance HasExponent NilGroupedRadCom where
+  toExponent (NilGroupedRadCom _zMay _rdx _z1 zs1 zss)
+    = one `add` zeroes1 `add` zeroesRest
+    where
+      zeroes1 = let Zero'Seq zs = zs1 in lengthUnsigned zs
+      zeroesRest = addGroup g1 (foldr addGroup zero gs)
+        where
+          ZeroGroupRadCom'Seq1 (g1, gs) = zss
+          addGroup (ZeroGroupRadCom _ _zero1 (Zero'Seq zeros)) acc
+            = one `add` lengthUnsigned zeros `add` acc
+
+instance HasExponent NilGroupedRadPer where
+  toExponent (NilGroupedRadPer _zMay _rdx _z1 zs1 zss)
+    = one `add` zeroes1 `add` zeroesRest
+    where
+      zeroes1 = let Zero'Seq zs = zs1 in lengthUnsigned zs
+      zeroesRest = addGroup g1 (foldr addGroup zero gs)
+        where
+          ZeroGroupRadPer'Seq1 (g1, gs) = zss
+          addGroup (ZeroGroupRadPer _ _zero1 (Zero'Seq zeros)) acc
+            = one `add` lengthUnsigned zeros `add` acc
+
+instance HasDecZero NilGroupedRadCom where
+  toDecZero x = Exponential () (toExponent x)
+
+instance HasDecZero NilGroupedRadPer where
+  toDecZero x = Exponential () (toExponent x)
+
+instance HasExponent NilRadCom where
+  toExponent (NilRadCom'NilUngroupedRadCom x) = toExponent x
+  toExponent (NilRadCom'NilGroupedRadCom x) = toExponent x
+
+instance HasExponent NilRadPer where
+  toExponent (NilRadPer'NilUngroupedRadPer x) = toExponent x
+  toExponent (NilRadPer'NilGroupedRadPer x) = toExponent x
+
+instance HasDecZero NilRadCom where
+  toDecZero (NilRadCom'NilUngroupedRadCom x)
+    = Exponential () (toExponent x)
+  toDecZero (NilRadCom'NilGroupedRadCom x)
+    = Exponential () (toExponent x)
+
+instance HasDecZero NilRadPer where
+  toDecZero (NilRadPer'NilUngroupedRadPer x)
+    = Exponential () (toExponent x)
+  toDecZero (NilRadPer'NilGroupedRadPer x)
+    = Exponential () (toExponent x)
 
 -- | Strips the sign from the 'DecNonZero'.
 instance HasDecPositive DecNonZero where
   toDecPositive (Exponential sig expt) =
     Exponential (nonZeroToPositive sig) expt
+
+instance HasExponent RadixComDigits where
+  toExponent (RadixComDigits _ (D0'9'Seq sq)) = lengthUnsigned sq
+
+instance HasExponent RadixPerDigits where
+  toExponent (RadixPerDigits _ (D0'9'Seq sq)) = lengthUnsigned sq
+
+instance HasExponent RadComDigits'Maybe where
+  toExponent (RadixComDigits'Maybe may)
+    = maybe (const zero) toExponent may
+
+instance HasExponent RadPerDigits'Maybe where
+  toExponent (RadixPerDigits'Maybe may)
+    = maybe (const zero) toExponent may
+
+instance HasExponent BrimUngroupedRadCom where
+  toExponent (BUGreaterThanOneRadCom _ _ mayRadCom) = toExponent mayRadCom
+  toExponent (BULessThanOneRadCom _ _rdx zs1 _d2 (D0'9'Seq dss))
+    = lengthUnsigned zs1 `add` one `add` lengthUnsigned dss
+
+{-
 
 instance HasDecPositive (BrimUngrouped r) where
 

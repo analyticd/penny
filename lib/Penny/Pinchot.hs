@@ -79,13 +79,13 @@ grammar = mdo
     [grpRadCom, zero, zeroes]
   zeroGroupRadPer <- record "ZeroGroupRadPer"
     [grpRadPer, zero, zeroes]
+  zeroGroupRadCom1s <- list1 zeroGroupRadCom
+  zeroGroupRadPer1s <- list1 zeroGroupRadPer
 
   nilGroupedRadCom <- record "NilGroupedRadCom"
-    [maybeZero, radixCom, zero, zeroes, grpRadCom, zero, zeroes,
-     zeroGroupRadCom]
+    [maybeZero, radixCom, zero, zeroes, zeroGroupRadCom1s]
   nilGroupedRadPer <- record "NilGroupedRadPer"
-    [maybeZero, radixPer, zero, zeroes, grpRadPer, zero, zeroes,
-     zeroGroupRadPer]
+    [maybeZero, radixPer, zero, zeroes, zeroGroupRadPer1s]
 
 
   nilUngroupedRadCom <- nonTerminal "NilUngroupedRadCom"
@@ -202,7 +202,9 @@ grammar = mdo
   brimRadPer <- union "BrimRadPer" [brimUngroupedRadPer, brimGroupedRadPer]
 
   -- # Dates
-  dateSep <- terminal "DateSep" (solo '/' <> solo '-')
+  hyphen <- terminal "Hyphen" (solo '-')
+  slash <- terminal "Slash" (solo '/')
+  dateSep <- union "DateSep" [hyphen, slash]
   days28 <- nonTerminal "Days28"
     [ ("D28'1to9", [zero, d1'9])
     , ("D28'10to19", [one, d0'9])

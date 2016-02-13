@@ -39,7 +39,7 @@ newtype PriceDb = PriceDb
   deriving Show
 
 data Price = Price
-  { _dateTime :: DateTime
+  { _zonedTime :: ZonedTime
   , _fromTo :: FromTo
   , _exch :: Decimal
   } deriving Show
@@ -53,7 +53,7 @@ addPriceToDb :: PriceDb -> Price -> PriceDb
 addPriceToDb (PriceDb db) (Price dt (FromTo fr to) exch)
   = PriceDb . M.alter fToMap fr $ db
   where
-    utct = dateTimeToUTC dt
+    utct = zonedTimeToUTC dt
     fToMap mayToMap = case mayToMap of
       Nothing -> Just (M.singleton to (M.singleton utct exch))
       Just toMap -> Just $ M.alter fUTCmap to toMap
@@ -70,11 +70,11 @@ data ExchLookupError
 
 lookupExch
   :: FromTo
-  -> DateTime
+  -> ZonedTime
   -> PriceDb
   -> Either ExchLookupError (UTCTime, Decimal)
 lookupExch (FromTo fr to) dt (PriceDb db) = do
-  let utct = dateTimeToUTC dt
+  let utct = zonedTimeToUTC dt
   toMap <- maybe (Left FromCommodityNotFound) Right
     . M.lookup fr $ db
   timeMap <- maybe (Left ToCommodityNotFound) Right

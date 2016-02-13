@@ -52,7 +52,7 @@ makeBackward = do
 
 
 serialNumbers :: T.Traversable t => t a -> t (a, Serset)
-serialNumbers t = flip evalState (toUnsigned Zero) $ do
+serialNumbers t = flip evalState zero $ do
   withFwd <- traverse (\a -> (,) <$> pure a <*> makeForward) t
   withBak <- traverse (\a -> (,) <$> pure a <*> makeBackward) withFwd
   let f ((b, fwd), bak) = (b, Serset fwd bak)

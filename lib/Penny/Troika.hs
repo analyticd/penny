@@ -7,7 +7,7 @@ import Penny.Commodity
 import Penny.Decimal
 import Penny.NonZero
 import Penny.Polar
-import Penny.Representation
+import Penny.Rep
 import qualified Penny.Amount as A
 
 import Control.Lens

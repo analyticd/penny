@@ -147,6 +147,7 @@ instance Digit D0'1 where
     1 -> Just $ D0'1'One (One '1')
     _ -> Nothing
 
+
 instance Digit D0'2 where
   digitToInt x = case x of
     D0'2'Zero _ -> 0

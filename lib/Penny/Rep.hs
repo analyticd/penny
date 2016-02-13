@@ -136,12 +136,16 @@ instance MayGroupedRadPer ZeroGroupRadPer where
   mayGroupersRadPer (ZeroGroupRadPer g _ _) = Seq.singleton g
 
 instance MayGroupedRadCom NilGroupedRadCom where
-  mayGroupersRadCom (NilGroupedRadCom _ _ _ _ g4 _ _ zs)
-    = g4 <| mayGroupersRadCom zs
+  mayGroupersRadCom (NilGroupedRadCom _ _ _ _ (ZeroGroupRadCom'Seq1 (g1, gs)))
+    = addGroup g1 (foldr addGroup Seq.empty gs)
+    where
+      addGroup g acc = mayGroupersRadCom g <> acc
 
 instance MayGroupedRadPer NilGroupedRadPer where
-  mayGroupersRadPer (NilGroupedRadPer _ _ _ _ g4 _ _ zs)
-    = g4 <| mayGroupersRadPer zs
+  mayGroupersRadPer (NilGroupedRadPer _ _ _ _ (ZeroGroupRadPer'Seq1 (g1, gs)))
+    = addGroup g1 (foldr addGroup Seq.empty gs)
+    where
+      addGroup g acc = mayGroupersRadPer g <> acc
 
 instance MayGroupedRadCom NilRadCom where
   mayGroupersRadCom (NilRadCom'NilUngroupedRadCom _)

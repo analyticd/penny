@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.Copper.Ast where
 
+{-
+
 import Control.Applicative
 import Text.Megaparsec
   (SourcePos, getPosition, char, (<?>), try)
@@ -815,3 +817,4 @@ pAst = Ast <$> many pWhite <*> many pFileItem
 
 rAst :: Ast -> ShowS
 rAst (Ast w f) = rList rWhite w . rList rFileItem f
+-}
