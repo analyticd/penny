@@ -11,8 +11,6 @@ import Penny.Colors
 import Penny.Columns (Colable, Columns)
 import qualified Penny.Columns as Columns
 import Penny.Converter
-import Penny.Copper.Classes
-import Penny.Copper.ConvertAst (c'DecUnsigned'NeutralOrNon)
 import Penny.Decimal
 import Penny.Natural
 import Penny.Ord
@@ -21,20 +19,12 @@ import Penny.Stream
 
 import Control.Lens (set, Getter, view, to)
 import qualified Data.Sequence as Seq
-import Data.Text (Text, unpack)
-import Text.Megaparsec (parseMaybe)
+import Data.Text (Text)
 
-
--- | Parses a value.  Applies 'error' if the value could not be parsed.
-parse :: Parseable a => String -> Text -> a
-parse msg txt = case parseMaybe parser txt of
-  Nothing -> error $ "could not parse " ++ msg ++ " from input "
-      ++ unpack txt
-  Just r -> r
 
 -- | Parses an unsigned decimal.  Applies 'error' if a value cannot be parsed.
 unsigned :: Text -> DecUnsigned
-unsigned = c'DecUnsigned'NeutralOrNon . parse "decimal value"
+unsigned = undefined
 
 -- # Commands
 
