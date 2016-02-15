@@ -2,13 +2,14 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Penny.Troika where
 
+import qualified Penny.Amount as A
 import Penny.Arrangement
 import Penny.Commodity
 import Penny.Decimal
+import Penny.Grammar (GrpRadCom, GrpRadPer)
 import Penny.NonZero
 import Penny.Polar
 import Penny.Rep
-import qualified Penny.Amount as A
 
 import Control.Lens
 import Data.Sequence (Seq)
@@ -74,20 +75,20 @@ c'Troika'Amount (A.Amount cy q) = Troika cy (Right q)
 
 troikaRendering
   :: Troika
-  -> Maybe (Commodity, Arrangement, Either (Seq RadCom) (Seq RadPer))
+  -> Maybe (Commodity, Arrangement, Either (Seq GrpRadCom) (Seq GrpRadPer))
 troikaRendering (Troika cy tq) = case tq of
   Left tl -> case tl of
     QC qr ar -> Just (cy, ar, ei)
       where
         ei = case qr of
-          Left (Moderate n) -> Left . mayGroupers $ n
-          Left (Extreme (Polarized o _)) -> Left . mayGroupers $ o
-          Right (Moderate n) -> Right . mayGroupers $ n
-          Right (Extreme (Polarized o _)) -> Right . mayGroupers $ o
+          Left (Moderate n) -> Left . mayGroupersRadCom $ n
+          Left (Extreme (Polarized o _)) -> Left . mayGroupersRadCom $ o
+          Right (Moderate n) -> Right . mayGroupersRadPer $ n
+          Right (Extreme (Polarized o _)) -> Right . mayGroupersRadPer $ o
     UC rnn _ ar -> Just (cy, ar, ei)
       where
         ei = case rnn of
-          Left b -> Left $ mayGroupers b
-          Right b -> Right $ mayGroupers b
+          Left b -> Left $ mayGroupersRadCom b
+          Right b -> Right $ mayGroupersRadPer b
     _ -> Nothing
   _ -> Nothing

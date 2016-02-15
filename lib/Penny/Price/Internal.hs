@@ -5,7 +5,6 @@ import Control.Lens
 import Penny.Commodity
 import Data.Map (Map)
 import qualified Data.Map as M
-import Penny.DateTime
 import Data.Time
 import Penny.Decimal
 

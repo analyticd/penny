@@ -35,7 +35,6 @@ module Penny.Price
   , makeFromTo
   , convertQty
   , Price(..)
-  , dateTime
   , fromTo
   , exch
   , PriceDb
