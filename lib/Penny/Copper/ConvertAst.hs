@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.Copper.ConvertAst where
 
+{-
+
 import Control.Lens
 import Control.Arrow (first)
 import Data.Text (Text)
@@ -419,3 +421,4 @@ convertItemsFromAst
   -> Either (ConvertE, Seq ConvertE)
             (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
 convertItemsFromAst (Ast _ ls) = c'Eithers'FileItems ls
+-}

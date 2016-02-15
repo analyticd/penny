@@ -40,6 +40,8 @@
 -- why that is unsafe, I do not know.
 module Penny.Copper where
 
+{-
+
 import Control.Lens ((<|))
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
@@ -115,3 +117,4 @@ loadTransactions = fmap addSerials . mapM load
                 f ei acc = case ei of
                   Left _ -> acc
                   Right txn -> txn <| acc
+-}

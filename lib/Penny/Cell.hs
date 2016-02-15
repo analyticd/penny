@@ -30,7 +30,7 @@ import Penny.Display
 import Penny.Polar (Pole, equatorial)
 import qualified Penny.Polar as P
 import Penny.Popularity
-import Penny.Representation
+import Penny.Rep
 
 import Control.Lens ( view, (^.), makeLenses )
 import Data.Text (Text)

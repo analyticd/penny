@@ -1,15 +1,16 @@
 module Penny.Trio where
 
+import Data.Foldable (toList)
 import qualified Data.Text as X
 import qualified Data.Map as M
 import Data.Sequence (Seq)
+import Pinchot (terminals)
 
 import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
 import Penny.Commodity
 import Penny.Decimal
-import Penny.Display
 import Penny.Friendly
 import Penny.Grammar
   (GrpRadCom, GrpRadPer)
@@ -136,7 +137,7 @@ instance Friendly TrioError where
       ]
     UnsignedTooLarge rnn qnz ->
       [ "Specified quantity of "
-        ++ (either display display rnn "") ++ " is larger than "
+        ++ (toList . either terminals terminals $ rnn) ++ " is larger than "
         ++ "quantity in the imbalance, which is " ++ disp qnz
       ]
     where

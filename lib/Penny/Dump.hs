@@ -7,6 +7,7 @@ import Penny.Balance
 import Penny.Clatch
 import Penny.Decimal
 import Penny.Display
+import Penny.Grammar (BrimRadCom, BrimRadPer)
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar
@@ -26,6 +27,7 @@ import Data.Monoid ((<>))
 import Data.Foldable (toList)
 import Data.Text (Text, unpack, pack)
 import Data.Time (formatTime, defaultTimeLocale)
+import Pinchot (terminals)
 import Rainbow (chunk)
 import Text.PrettyPrint (Doc, text, nest, vcat, hang, sep,
   punctuate, brackets, render)
@@ -96,11 +98,11 @@ instance (Pretty n, Pretty o) => Pretty (Moderated n o) where
     Moderate n -> label "Moderate" $ pretty n
     Extreme plr -> label "Extreme" $ pretty plr
 
-instance Pretty (Brim RadCom) where
-  pretty = text . ($ "") . display
+instance Pretty BrimRadCom where
+  pretty = text . toList . terminals
 
-instance Pretty (Brim RadPer) where
-  pretty = text . ($ "") . display
+instance Pretty BrimRadPer where
+  pretty = text . toList . terminals
 
 instance (Pretty a, Pretty b) => Pretty (Either a b) where
   pretty (Left a) = label "Left" $ pretty a
