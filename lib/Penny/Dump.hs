@@ -6,14 +6,12 @@ import Penny.Arrangement
 import Penny.Balance
 import Penny.Clatch
 import Penny.Decimal
-import Penny.Display
-import Penny.Grammar (BrimRadCom, BrimRadPer)
+import Penny.Grammar (BrimRadCom, BrimRadPer, NilRadCom, NilRadPer)
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar
 import Penny.Realm
 import Penny.Report
-import Penny.Representation
 import Penny.Scalar
 import Penny.SeqUtil
 import Penny.Serial
@@ -108,11 +106,11 @@ instance (Pretty a, Pretty b) => Pretty (Either a b) where
   pretty (Left a) = label "Left" $ pretty a
   pretty (Right a) = label "Right" $ pretty a
 
-instance Pretty (Nil RadCom) where
-  pretty = text . ($ "") . display
+instance Pretty NilRadCom where
+  pretty = text . toList . terminals
 
-instance Pretty (Nil RadPer) where
-  pretty = text . ($ "") . display
+instance Pretty NilRadPer where
+  pretty = text . toList . terminals
 
 instance Pretty NonZero where
   pretty = text . show . nonZeroToInteger
