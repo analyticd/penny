@@ -5,12 +5,14 @@ module Penny.BalanceReport where
 
 import Control.Lens (view, (<|), to)
 import Control.Monad (join)
+import Data.Foldable (toList)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text, pack)
 import qualified Data.Text as X
+import Pinchot (terminals)
 import Rainbow
 import Rainbox
 
@@ -21,11 +23,10 @@ import Penny.Clatch
 import Penny.Colors
 import Penny.Commodity
 import Penny.Decimal
-import Penny.Display
 import qualified Penny.Polar as Polar
 import Penny.Popularity
 import Penny.Report
-import Penny.Representation
+import Penny.Rep
 import Penny.Shortcut
 
 data BalanceReport = BalanceReport
@@ -97,8 +98,9 @@ qtyRows env = fmap mkRow . Seq.fromList . Map.toAscList
       . back (view rowBackground env)
       . chunk $ txt
       where
-        txt = pack . ($ "")
-          . display
+        txt = pack
+          . toList
+          . either (either terminals terminals) (either terminals terminals)
           . c'NilOrBrimScalarAnyRadix'RepAnyRadix
           . repDecimal ei $ q
         ei = either (Left . Just) (Right . Just)

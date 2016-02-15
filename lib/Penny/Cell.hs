@@ -26,15 +26,17 @@ import Penny.Arrangement
 import Penny.Colors
 import Penny.Commodity
 import Penny.Decimal
-import Penny.Display
 import Penny.Polar (Pole, equatorial)
 import qualified Penny.Polar as P
 import Penny.Popularity
 import Penny.Rep
 
 import Control.Lens ( view, (^.), makeLenses )
+import Data.Foldable (toList)
+import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as X
+import Pinchot (terminals)
 import Rainbox
   ( Cell (Cell, _rows, _horizontal, _vertical, _background)
   , top
@@ -42,7 +44,6 @@ import Rainbox
   , right
   )
 import Rainbow
-import qualified Data.Sequence as Seq
 
 
 data Env = Env
@@ -138,8 +139,8 @@ qtyRepAnyRadixMagnitudeChunk
 qtyRepAnyRadixMagnitudeChunk env qr
   = sidedChunk env (either equatorial equatorial qr)
   . X.pack
-  . ($ "")
-  . either (either display display) (either display display)
+  . toList
+  . either (either terminals terminals) (either terminals terminals)
   . c'NilOrBrimScalarAnyRadix'RepAnyRadix
   $ qr
 
@@ -150,8 +151,8 @@ qtyRepAnyRadixMagnitudeCell
 qtyRepAnyRadixMagnitudeCell env qr
   = textCell getColor (view rowBackground env) (view colors env)
   . X.pack
-  . ($ "")
-  . either (either display display) (either display display)
+  . toList
+  . either (either terminals terminals) (either terminals terminals)
   . c'NilOrBrimScalarAnyRadix'RepAnyRadix
   $ qr
   where
@@ -169,8 +170,8 @@ brimScalarAnyRadixMagnitudeChunk
 brimScalarAnyRadixMagnitudeChunk env maySide
   = sidedChunk env maySide
   . X.pack
-  . ($ "")
-  . either (either display display) (either display display)
+  . toList
+  . either (either terminals terminals) (either terminals terminals)
   . c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
 
 brimScalarAnyRadixMagnitudeCell
@@ -181,8 +182,8 @@ brimScalarAnyRadixMagnitudeCell
 brimScalarAnyRadixMagnitudeCell env maySide rnn
   = textCell getColor (view rowBackground env) (view colors env)
   . X.pack
-  . ($ "")
-  . either (either display display) (either display display)
+  . toList
+  . either (either terminals terminals) (either terminals terminals)
   . c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
   $ rnn
   where
