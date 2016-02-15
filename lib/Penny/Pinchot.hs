@@ -5,7 +5,11 @@ module Penny.Pinchot where
 import Pinchot
 import Data.Monoid ((<>))
 
-grammar :: Pinchot Char (Rule Char)
+data Rules = Rules
+  { wholeFile :: Rule Char
+  }
+
+grammar :: Pinchot Char Rules
 grammar = mdo
 
   -- # Digits
@@ -504,5 +508,5 @@ grammar = mdo
   fileItem <- union "FileItem" [price, transaction]
   fileItems <- list fileItem
   wholeFile <- record "WholeFile" [whites, fileItems]
-  return wholeFile
+  return $ Rules wholeFile
 
