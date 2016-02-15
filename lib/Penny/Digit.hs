@@ -348,8 +348,14 @@ class HasZero a where
 instance HasZero Zero where
   zero = Zero '0'
 
+instance HasZero D0'9 where
+  zero = D0'9'Zero zero
+
 class HasOne a where
   one :: a
+
+instance HasOne D0'9 where
+  one = D0'9'One one
 
 instance HasOne One where
   one = One '1'
@@ -357,17 +363,26 @@ instance HasOne One where
 class HasTwo a where
   two :: a
 
+instance HasTwo D0'9 where
+  two = D0'9'Two two
+
 instance HasTwo Two where
   two = Two '2'
 
 class HasThree a where
   three :: a
 
+instance HasThree D0'9 where
+  three = D0'9'Three three
+
 instance HasThree Three where
   three = Three '3'
 
 class HasFour a where
   four :: a
+
+instance HasFour D0'9 where
+  four = D0'9'Four four
 
 instance HasFour Four where
   four = Four '4'
@@ -378,11 +393,17 @@ class HasFive a where
 instance HasFive Five where
   five = Five '5'
 
+instance HasFive D0'9 where
+  five = D0'9'Five five
+
 class HasSix a where
   six :: a
 
 instance HasSix Six where
   six = Six '6'
+
+instance HasSix D0'9 where
+  six = D0'9'Six six
 
 class HasSeven a where
   seven :: a
@@ -390,14 +411,23 @@ class HasSeven a where
 instance HasSeven Seven where
   seven = Seven '7'
 
+instance HasSeven D0'9 where
+  seven = D0'9'Seven seven
+
 class HasEight a where
   eight :: a
 
 instance HasEight Eight where
   eight = Eight '8'
 
+instance HasEight D0'9 where
+  eight = D0'9'Eight eight
+
 class HasNine a where
   nine :: a
+
+instance HasNine D0'9 where
+  nine = D0'9'Nine nine
 
 instance HasNine Nine where
   nine = Nine '9'

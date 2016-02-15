@@ -3,7 +3,8 @@
 module Penny.Natural.Internal where
 
 import Data.Foldable (toList)
-import Data.Sequence (Seq, ViewR(..), viewr)
+import Data.Sequence (Seq, ViewR(..), viewr, (<|))
+import qualified Data.Sequence as Seq
 
 import Penny.Digit
 import Penny.Grammar
@@ -198,12 +199,12 @@ stripIntegerSign i
 -- | Transform a 'Positive' into its component digits.
 positiveDigits
   :: Positive
-  -> (D1'9, [D0'9])
-positiveDigits (Positive i) = go i []
+  -> (D1'9, Seq D0'9)
+positiveDigits (Positive i) = go i Seq.empty
   where
     go leftOver acc
       | quotient == 0 = (lastDigit, acc)
-      | otherwise = go quotient (thisDigit : acc)
+      | otherwise = go quotient (thisDigit <| acc)
       where
         (quotient, remainder) = leftOver `divMod` 10
         thisDigit = case intToDigit remainder of

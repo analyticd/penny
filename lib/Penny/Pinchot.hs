@@ -107,22 +107,22 @@ grammar = mdo
   maybeRadixComDigits <- option radixComDigits
   maybeRadixPerDigits <- option radixPerDigits
   brimUngroupedRadCom <- nonTerminal "BrimUngroupedRadCom"
-    [ ("BUGreaterThanOneRadCom", [d0'9, digits, maybeRadixComDigits])
+    [ ("BUGreaterThanOneRadCom", [d1'9, digits, maybeRadixComDigits])
     , ("BULessThanOneRadCom", [maybeZero, radixCom, zeroes, d1'9, digits])
     ]
   brimUngroupedRadPer <- nonTerminal "BrimUngroupedRadPer"
-    [ ("BUGreaterThanOneRadPer", [d0'9, digits, maybeRadixPerDigits])
+    [ ("BUGreaterThanOneRadPer", [d1'9, digits, maybeRadixPerDigits])
     , ("BULessThanOneRadPer", [maybeZero, radixPer, zeroes, d1'9, digits])
     ]
 
   -- # BrimGrouped
 
   bg8RadCom <- nonTerminal "BG8RadCom"
-    [ ("BG8NovemRadCom", [d0'9, digits, digitGroupsRadCom])
+    [ ("BG8NovemRadCom", [d1'9, digits, digitGroupsRadCom])
     , ("BG8GroupRadCom", [grpRadCom, bg7RadCom])
     ]
   bg8RadPer <- nonTerminal "BG8RadPer"
-    [ ("BG8NovemRadPer", [d0'9, digits, digitGroupsRadPer])
+    [ ("BG8NovemRadPer", [d1'9, digits, digitGroupsRadPer])
     , ("BG8GroupRadPer", [grpRadPer, bg7RadPer])
     ]
 

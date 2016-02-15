@@ -1,5 +1,6 @@
 module Penny.NonEmpty where
 
+import Control.Monad (ap)
 import Penny.Natural
 import Penny.Digit
 import qualified Data.Foldable as F
@@ -12,8 +13,27 @@ import qualified Data.Map.Strict as M
 data NonEmpty a = NonEmpty a (Seq a)
   deriving (Eq, Ord, Show)
 
+instance Monad NonEmpty where
+  return a = NonEmpty a S.empty
+  (NonEmpty a as) >>= f = NonEmpty a'' as''
+    where
+      NonEmpty a'' front = f a
+      back = fmap f as
+      as'' = foldl add front back
+        where
+          add sq (NonEmpty b bs) = sq <> (b <| bs)
+
+instance Applicative NonEmpty where
+  pure = return
+  (<*>) = ap
+
 seqFromNonEmpty :: NonEmpty a -> Seq a
 seqFromNonEmpty (NonEmpty x xs) = x <| xs
+
+nonEmpty :: Seq a -> Maybe (NonEmpty a)
+nonEmpty sq = case viewl sq of
+  EmptyL -> Nothing
+  x :< xs -> Just $ NonEmpty x xs
 
 nonEmptyLength :: NonEmpty a -> Positive
 nonEmptyLength (NonEmpty _ ls) = F.foldl' go one ls

@@ -1,3 +1,5 @@
 #!/bin/sh
 
-runghc genCabal.hs > penny.cabal
+mv stack.yaml stack-old.yaml
+./genCabal.hs > penny.cabal
+mv stack-old.yaml stack.yaml
