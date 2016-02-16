@@ -263,4 +263,36 @@ c'T_NonNeutral_Commodity (T_NonNeutral_Commodity n0 w1 cy2 w3) = do
   return $ Trio.UC brimScalarAnyRadix cy (Arrangement CommodityOnRight isSpace)
 
 c'T_Neutral :: T_Neutral -> Converter Trio.Trio
-c'T_Neutral = undefined
+c'T_Neutral (T_Neutral n0 w1) = do
+  advance (terminals n0)
+  _ <- c'WhiteSeq w1
+  let nilAnyRadix = case n0 of
+        NeuCom _ nilRadCom -> Left nilRadCom
+        NeuPer nilRadPer -> Right nilRadPer
+  return $ Trio.UU nilAnyRadix
+
+c'T_NonNeutral :: T_NonNeutral -> Converter Trio.Trio
+c'T_NonNeutral (T_NonNeutral n0 w1) = do
+  advance (terminals n0)
+  _ <- c'WhiteSeq w1
+  let brimScalarAnyRadix = case n0 of
+        NonNeutralRadCom _ brimRadCom -> Left brimRadCom
+        NonNeutralRadPer brimRadPer -> Right brimRadPer
+  return $ Trio.US brimScalarAnyRadix
+
+c'Trio :: Trio -> Converter Trio.Trio
+c'Trio x = case x of
+  Trio'T_DebitCredit a -> c'T_DebitCredit a
+  Trio'T_DebitCredit_Commodity a -> c'T_DebitCredit_Commodity a
+  Trio'T_DebitCredit_NonNeutral a -> c'T_DebitCredit_NonNeutral a
+  Trio'T_DebitCredit_Commodity_NonNeutral a ->
+    c'T_DebitCredit_Commodity_NonNeutral a
+  Trio'T_DebitCredit_NonNeutral_Commodity a ->
+    c'T_DebitCredit_NonNeutral_Commodity a
+  Trio'T_Commodity a -> c'T_Commodity a
+  Trio'T_Commodity_Neutral a -> c'T_Commodity_Neutral a
+  Trio'T_Neutral_Commodity a -> c'T_Neutral_Commodity a
+  Trio'T_Commodity_NonNeutral a -> c'T_Commodity_NonNeutral a
+  Trio'T_NonNeutral_Commodity a -> c'T_NonNeutral_Commodity a
+  Trio'T_Neutral a -> c'T_Neutral a
+  Trio'T_NonNeutral a -> c'T_NonNeutral a
