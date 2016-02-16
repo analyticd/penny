@@ -25,6 +25,9 @@ type RepAnyRadix = Either RepRadCom RepRadPer
 -- | A non-neutral representation that does not include a side.
 type BrimScalarAnyRadix = Either BrimRadCom BrimRadPer
 
+-- | A neutral representation of any radix.
+type NilAnyRadix = Either NilRadCom NilRadPer
+
 -- | Number representation that may be neutral or non-neutral, with
 -- a comma radix.  Does not have a polarity.
 type NilOrBrimScalarRadCom = Either NilRadCom BrimRadCom
@@ -37,6 +40,17 @@ type NilOrBrimScalarRadPer = Either NilRadPer BrimRadPer
 -- either a period or comma radix.  Does not have a polarity.
 type NilOrBrimScalarAnyRadix
   = Either NilOrBrimScalarRadCom NilOrBrimScalarRadPer
+
+splitNilOrBrimScalarAnyRadix
+  :: NilOrBrimScalarAnyRadix
+  -> Either NilAnyRadix BrimScalarAnyRadix
+splitNilOrBrimScalarAnyRadix x = case x of
+  Left nobCom -> case nobCom of
+    Left nilCom -> Left (Left nilCom)
+    Right brimCom -> Right (Left brimCom)
+  Right nobPer -> case nobPer of
+    Left nilPer -> Left (Right nilPer)
+    Right brimPer -> Right (Right brimPer)
 
 -- | Things that have a GrpRadCom grouping character.
 class MayGroupedRadCom a where
@@ -188,3 +202,9 @@ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
   -> NilOrBrimScalarAnyRadix
 c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
   = either (Left . Right) (Right . Right)
+
+c'NilOrBrimScalarAnyRadix'NilAnyRadix
+  :: NilAnyRadix
+  -> NilOrBrimScalarAnyRadix
+c'NilOrBrimScalarAnyRadix'NilAnyRadix
+  = either (Left . Left) (Right . Left)

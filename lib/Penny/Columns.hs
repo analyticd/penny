@@ -269,7 +269,7 @@ troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
             QC q _ -> qtyRepAnyRadixMagnitudeChunk env q
             Q q -> qtyRepAnyRadixMagnitudeChunk env q
             UC rnn _ _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
-            U rnn _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
+            US rnn _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
             _ -> qtyRepAnyRadixMagnitudeChunk env
               . repDecimal grouper . toDecimal $ troiload
           Right qty -> qtyRepAnyRadixMagnitudeChunk env

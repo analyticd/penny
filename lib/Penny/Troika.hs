@@ -20,7 +20,9 @@ data Troiload
   | SC DecNonZero
   | S DecNonZero
   | UC BrimScalarAnyRadix Pole Arrangement
-  | U BrimScalarAnyRadix Pole
+  | NC NilAnyRadix Arrangement
+  | US BrimScalarAnyRadix Pole
+  | UU NilAnyRadix
   | C DecNonZero
   | E DecNonZero
   deriving Show
@@ -32,7 +34,9 @@ instance Equatorial Troiload where
     SC qnz -> Just . polar $ qnz
     S qnz -> Just . polar $ qnz
     UC _ s _ -> Just s
-    U _ s -> Just s
+    NC _ _ -> Nothing
+    US _ s -> Just s
+    UU _ -> Nothing
     C qnz -> Just . polar $ qnz
     E qnz -> Just . polar $ qnz
 
@@ -47,11 +51,14 @@ instance HasDecimal Troiload where
       . c'DecNonZero'DecPositive s
       . toDecPositive
       $ rnn
-    U rnn s ->
+    NC nilAnyRadix _ ->
+      fmap (const 0) . toDecZero $ nilAnyRadix
+    US rnn s ->
       fmap nonZeroToInteger
       . c'DecNonZero'DecPositive s
       . toDecPositive
       $ rnn
+    UU nil -> fmap (const 0) . toDecZero $ nil
     C qnz -> fmap nonZeroToInteger qnz
     E qnz -> fmap nonZeroToInteger qnz
 

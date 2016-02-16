@@ -360,7 +360,7 @@ grammar = mdo
   -- Commodities
   unquotedCommodity <- wrap "UnquotedCommodity"
     unquotedStringNonDigitChars1
-  quotedCommodity <- wrap "QuotedCommmodity" quotedString
+  quotedCommodity <- wrap "QuotedCommodity" quotedString
   commodity <- union "Commodity" [unquotedCommodity, quotedCommodity]
 
   -- NonNeutral

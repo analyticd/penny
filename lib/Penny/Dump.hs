@@ -122,7 +122,9 @@ instance Pretty Troiload where
     SC dec -> label "SC" $ pretty dec
     S dec -> label "S" $ pretty dec
     UC brim pole ar -> label "UC" $ sep [ pretty brim, pretty pole, pretty ar ]
-    U brim pole -> label "U" $ sep [ pretty brim, pretty pole ]
+    NC nil ar -> label "NC" $ sep [ pretty nil, pretty ar ]
+    US brim pole -> label "US" $ sep [ pretty brim, pretty pole ]
+    UU nil -> label "UU" $ pretty nil
     C dec -> label "C" $ pretty dec
     E dec -> label "E" $ pretty dec
 

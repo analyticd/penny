@@ -330,6 +330,12 @@ instance Digit N20'23 where
     d1 <- intToDigit $ x - 20
     return $ N20'23 (Two '2') d1
 
+instance Digit Hours where
+  digitToInt (Hours'N0'19 x) = digitToInt x
+  digitToInt (Hours'N20'23 x) = digitToInt x
+  intToDigit i = Hours'N0'19 <$> intToDigit i
+    <|> Hours'N20'23 <$> intToDigit i
+
 instance Digit N0'59 where
   digitToInt (N0'59 d5 d9) = digitToInt d5 * 10 + digitToInt d9
   intToDigit x = do

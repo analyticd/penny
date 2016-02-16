@@ -76,8 +76,17 @@ data Trio
   -- Postconditions: the given commodity in the imbalances either has
   -- its absolute value reduced or it flips to the opposite side.
 
+  | NC NilAnyRadix Commodity Arrangement
+  -- ^ Specify a nil quantity and a 'Commodity' and how they are
+  -- arranged.
+  --
+  -- Preconditions: None.
+  --
+  -- Postconditions: the given commodity and quantity is added to
+  -- the imbalances map.
 
-  | U BrimScalarAnyRadix
+
+  | US BrimScalarAnyRadix
   -- ^ Specify an unsigned quantity only.
   --
   -- Preconditions: the imbalances contains exactly one commodity, and
@@ -86,6 +95,12 @@ data Trio
   -- Postconditions: the given commodity in the imbalances is reduced
   -- by the amount given.
 
+  | UU NilAnyRadix
+  -- ^ Specify a nil quantity only.
+  --
+  -- Preconditions: the imbalances contain exactly one commodity.
+  --
+  -- Postconditions: no change in imbalances.
 
   | C Commodity
   -- ^ Specify a 'Commodity' only.
@@ -174,7 +189,8 @@ trioRepresentation tri = case tri of
   QC qr _ _ -> Just $ c'NilOrBrimScalarAnyRadix'RepAnyRadix qr
   Q qr -> Just $ c'NilOrBrimScalarAnyRadix'RepAnyRadix qr
   UC rn _ _ -> Just $ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix rn
-  U rn -> Just $ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix rn
+  US brim -> Just $ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix brim
+  UU nil -> Just $ c'NilOrBrimScalarAnyRadix'NilAnyRadix nil
   _ -> Nothing
 
 
@@ -241,7 +257,11 @@ trioToAmount imb (UC qnr cy _) = do
     . either toDecPositive toDecPositive
     $ qnr
 
-trioToAmount imb (U qnr) = do
+trioToAmount _ (NC nilAnyRadix cy _) = Right (Amount cy qty)
+  where
+    qty = fmap (const 0) . toDecZero $ nilAnyRadix
+
+trioToAmount imb (US qnr) = do
   (cy, qnz) <- oneCommodity imb
   rnnIsSmallerAbsoluteValue qnr qnz
   return
@@ -251,6 +271,10 @@ trioToAmount imb (U qnr) = do
     . fmap c'NonZero'Positive
     . either toDecPositive toDecPositive
     $ qnr
+
+trioToAmount imb (UU nil) = do
+  (cy, _) <- oneCommodity imb
+  return (Amount cy (fmap (const 0) (toDecZero nil)))
 
 trioToAmount imb (C cy) = do
   qnz <- lookupCommodity imb cy
@@ -296,10 +320,18 @@ trioToTroiload imb (UC qnr cy ar) = do
   qnz <- lookupCommodity imb cy
   return (K.UC qnr (opposite . polar $ qnz) ar, cy)
 
-trioToTroiload imb (U qnr) = do
+trioToTroiload _ (NC nilAnyRadix cy ar) = Right (troiload, cy)
+  where
+    troiload = K.NC nilAnyRadix ar
+
+trioToTroiload imb (US brim) = do
   (cy, qnz) <- oneCommodity imb
-  rnnIsSmallerAbsoluteValue qnr qnz
-  return (K.U qnr (opposite . polar $ qnz), cy)
+  rnnIsSmallerAbsoluteValue brim qnz
+  return (K.US brim (opposite . polar $ qnz), cy)
+
+trioToTroiload imb (UU nil) = do
+  (cy, _) <- oneCommodity imb
+  return (K.UU nil, cy)
 
 trioToTroiload imb (C cy) = do
   qnz <- lookupCommodity imb cy
