@@ -4,7 +4,7 @@ import Control.Monad (join)
 import Data.Sequence (Seq, (<|), (|>),
   ViewR(EmptyR, (:>)), viewr)
 import qualified Data.Sequence as Seq
-import Penny.Grammar
+import Penny.Copper.Types
 import Penny.NonEmpty
 import Data.Monoid ((<>))
 

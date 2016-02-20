@@ -3,7 +3,7 @@
 -- | Representing digits.
 module Penny.Digit where
 
-import Penny.Grammar
+import Penny.Copper.Types
 
 import Control.Applicative ((<|>))
 

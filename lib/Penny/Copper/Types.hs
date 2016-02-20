@@ -2,9 +2,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE TypeFamilies #-}
-module Penny.Grammar where
+module Penny.Copper.Types where
 
-import Penny.Pinchot
+import Penny.Copper.Grammar
 
 import Pinchot (allRulesToTypes, makeOptics)
 

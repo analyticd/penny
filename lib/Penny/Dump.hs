@@ -6,7 +6,7 @@ import Penny.Arrangement
 import Penny.Balance
 import Penny.Clatch
 import Penny.Decimal
-import Penny.Grammar (BrimRadCom, BrimRadPer, NilRadCom, NilRadPer)
+import Penny.Copper.Types (BrimRadCom, BrimRadPer, NilRadCom, NilRadPer)
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar

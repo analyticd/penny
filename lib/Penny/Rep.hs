@@ -7,7 +7,7 @@ import Data.Sequence (Seq, (<|))
 import qualified Data.Sequence as Seq
 
 import Penny.Polar
-import Penny.Grammar
+import Penny.Copper.Types
 
 -- | Qty representations with a comma radix that may be either nil
 -- or brim.  Stored along with the side if the number is non-nil.

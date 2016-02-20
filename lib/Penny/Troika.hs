@@ -6,7 +6,7 @@ import qualified Penny.Amount as A
 import Penny.Arrangement
 import Penny.Commodity
 import Penny.Decimal
-import Penny.Grammar (GrpRadCom, GrpRadPer)
+import Penny.Copper.Types (GrpRadCom, GrpRadPer)
 import Penny.NonZero
 import Penny.Polar
 import Penny.Rep

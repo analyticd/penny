@@ -1,9 +1,9 @@
 -- | Copper - the default Penny parser
 --
--- Copper runs in two phases.  The first phase transforms a string
+-- Copper runs in three phases.  The first phase transforms a string
 -- into an abstract syntax tree, or AST.  It uses the Earley library
--- do this.  The grammar, in "Penny.Grammar", is a context-free
--- grammar created in "Penny.Pinchot".
+-- do this.  The grammar, in "Penny.Copper.Types", is a context-free
+-- grammar created in "Penny.Copper.Grammar".
 -- Most error handling occurs within this
 -- grammar itself--that is, the grammar is meticulously written so
 -- that invalid constructs are not valid in the grammar.
@@ -16,18 +16,17 @@
 -- (Debit, using @<@, or Credit, using @>@) that she does not enter
 -- a number representation that is zero.
 --
--- However, the grammar cannot do everything.  It cannot ensure that
--- transactions are balanced or that prices are constructed using
--- different commodities for the from-commodity and the
--- to-commodity.  So, a valid AST is not necessarily a valid Copper
--- file.  That's where "Penny.ConvertAst" comes in.  It
--- checks these constructs for validity, while also performing some
--- injective transformations (for example, it transforms quoted
--- strings to their equivalent Text forms.)
+-- The second phase transforms this AST into the data types that are
+-- used in the rest of Penny.  This is called the @converter@ and it
+-- is in "Penny.Copper.Converter".
 --
--- This module contains 'copperParser', a single function that both
--- constructs the AST and transforms it to Lincoln types using
--- "Penny.ConvertAst".
+-- The third phase performs final error checking.  It ensures that
+-- postings are valid, that transactions are balanced, and that
+-- prices are valid.  This phase is called the @proofer@ and it is
+-- in "Penny.Copper.Proofer".
+--
+-- This module contains the functions that most of the rest of the
+-- library would ordinarily need.
 module Penny.Copper where
 
 import Data.Sequence (Seq)

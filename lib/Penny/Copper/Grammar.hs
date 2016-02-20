@@ -1,6 +1,6 @@
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedLists #-}
-module Penny.Pinchot where
+module Penny.Copper.Grammar where
 
 import Pinchot
 import Data.Monoid ((<>))

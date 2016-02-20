@@ -7,7 +7,7 @@ import Data.Sequence (Seq, ViewR(..), viewr, (<|))
 import qualified Data.Sequence as Seq
 
 import Penny.Digit
-import Penny.Grammar
+import Penny.Copper.Types
 import Penny.Polar
 
 -- Do not try to make 'Positive' an instance of 'Wrapped' in Lens.

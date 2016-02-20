@@ -12,7 +12,7 @@ import Penny.Balance
 import Penny.Commodity
 import Penny.Decimal
 import Penny.Friendly
-import Penny.Grammar
+import Penny.Copper.Types
   (GrpRadCom, GrpRadPer)
 import Penny.Mimode
 import Penny.NonEmpty

@@ -9,7 +9,8 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Penny.Arrangement
 import Penny.Commodity
-import Penny.Grammar (GrpRadCom(GrpRadCom'Grouper), Grouper(Grouper'ThinSpace),
+import Penny.Copper.Types
+  (GrpRadCom(GrpRadCom'Grouper), Grouper(Grouper'ThinSpace),
   ThinSpace(ThinSpace), GrpRadPer(GrpRadPer'Comma), Comma(Comma))
 import Penny.Mimode
 import Penny.Clatch

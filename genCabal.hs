@@ -119,9 +119,6 @@ monoidSubclasses = atleast "monoid-subclasses" [0,4,1]
 pinchot :: Package
 pinchot = atleast "pinchot" [0,8,0,0]
 
-validation :: Package
-validation = atleast "validation" [0,5,2]
-
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
@@ -160,7 +157,6 @@ libraryDepends =
   , tastyHunit
   , monoidSubclasses
   , pinchot
-  , validation
   ]
 
 testDepends :: [Package]

@@ -60,7 +60,7 @@ import qualified Data.Sequence as S
 import Pinchot (terminals)
 
 import Penny.Digit
-import Penny.Grammar
+import Penny.Copper.Types
 import Penny.Grouping
 import Penny.Natural
 import Penny.NonZero
@@ -287,6 +287,10 @@ instance HasDecZero NilRadCom where
   toDecZero (NilRadCom'NilGroupedRadCom x)
     = Exponential () (toExponent x)
 
+instance HasDecZero Neutral where
+  toDecZero (NeuCom _ n) = toDecZero n
+  toDecZero (NeuPer n) = toDecZero n
+
 instance HasDecZero NilRadPer where
   toDecZero (NilRadPer'NilUngroupedRadPer x)
     = Exponential () (toExponent x)
@@ -361,6 +365,10 @@ instance HasDecPositive BrimRadCom where
 
 instance HasDecPositive BrimRadPer where
   toDecPositive = toDecPositive . ungroupBrimRadPer
+
+instance HasDecPositive NonNeutral where
+  toDecPositive (NonNeutralRadCom _ b) = toDecPositive b
+  toDecPositive (NonNeutralRadPer b) = toDecPositive b
 
 instance (HasDecPositive a, HasDecPositive b)
   => HasDecPositive (Either a b) where

@@ -8,7 +8,7 @@ import Control.Applicative
 import qualified Data.Time as Time
 
 import Penny.Digit
-import Penny.Grammar
+import Penny.Copper.Types
 
 intsToDate
   :: Int
