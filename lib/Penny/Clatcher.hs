@@ -8,16 +8,16 @@ import Control.Lens hiding (pre)
 import Control.Exception
 import Data.Bifunctor
 import Data.Text (Text)
+import qualified Data.Text as X
 import qualified Data.Text.IO as X
 import Penny.Clatch
 import Penny.Colors
 import Penny.Converter
-import Penny.Copper (copperParser)
+import qualified Penny.Copper as Copper
 import Penny.Ents
 import Penny.Popularity
 import Penny.Price
 import Penny.Report
-import Penny.SeqUtil
 import Penny.Stream
 import Penny.Tree
 import Data.Monoid
@@ -45,11 +45,9 @@ data LoadScroll
 loadCopper :: String -> IO (Seq Price, Seq (Seq Tree, Balanced (Seq Tree)))
 loadCopper fn = do
   txt <- X.readFile fn
-  case copperParser txt of
-    Left err -> Control.Exception.throw . ParseError $ err
-    Right g -> return (prices, txns)
-      where
-        (prices, txns) = partitionEithers g
+  case Copper.parseConvertProof (X.pack fn, txt) of
+    Left err -> Control.Exception.throw err
+    Right g -> return g
 
 preload :: String -> IO LoadScroll
 preload = fmap (\(prices, txns) -> Preloaded prices txns) . loadCopper

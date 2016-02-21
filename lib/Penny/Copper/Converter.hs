@@ -53,8 +53,15 @@ data Pos = Pos
 
 Lens.makeLenses ''Pos
 
-newtype Converter a = Converter { runConverter :: State Pos a }
+newtype Converter a = Converter (State Pos a)
   deriving (Functor, Applicative, Monad)
+
+-- | Runs a 'Converter' computation.  Starts with an initial
+-- position with a line of 1 and a column of 1.
+runConverter :: Converter a -> a
+runConverter (Converter k)
+  = State.evalState k (Pos 1 1)
+
 
 locate :: Converter Pos
 locate = Converter $ State.get

@@ -1,3 +1,9 @@
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 -- | Copper - the default Penny parser
 --
 -- Copper runs in three phases.  The first phase transforms a string
@@ -29,78 +35,134 @@
 -- library would ordinarily need.
 module Penny.Copper where
 
+import Control.Exception (Exception)
+import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
-import Data.Text (Text)
-
-import Penny.Ents
-import Penny.Price
-import Penny.Tree
-
--- | Constructs the Copper AST and transforms it
--- using "Penny.ConvertAst".
---
--- Returns either an error or the results.  If there is an error,
--- the string is never empty; however, the type system does nothing
--- to ensure this.  The error string is a human-readable error
--- message.
-
-copperParser
-  :: Text
-  -> Either String (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
-copperParser = undefined
-{-
-
-import Control.Lens ((<|))
-import Data.Foldable (toList)
-import Data.Sequence (Seq)
-import Penny.Ents
-import Data.List (intersperse)
-import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Text.IO as XIO
-import Text.Megaparsec (parse, eof)
+import Data.Typeable (Typeable)
+import qualified Pinchot
+import qualified Text.Earley as Earley
 
-import Penny.Friendly
-import Penny.Clatch
-import Penny.Copper.Ast
-import Penny.Copper.ConvertAst
+import qualified Penny.Copper.Converter as Converter
+import qualified Penny.Copper.Types as Types
+import qualified Penny.Copper.Grammar as Grammar
+import qualified Penny.Copper.Proofer as Proofer
+import Penny.Ents
+import Penny.ErrorAcc
+import Penny.NonEmpty
 import Penny.Price
+import Penny.Realm
+import Penny.Scalar
+import Penny.SeqUtil
 import Penny.Tree
 
-copperParser inp = do
-  ast <- case parse (pAst <* eof) "" inp of
-    Left e -> Left (show e)
-    Right g -> Right g
-  case convertItemsFromAst ast of
-    Left ers -> Left $ formatConvertErrors ers
-    Right g -> return g
+data CopperError = CopperError
 
-formatConvertErrors :: (ConvertE, Seq ConvertE) -> String
-formatConvertErrors (c1, cs)
-  = unlines . ("Error interpreting input file:":) . concat
-  . intersperse [""] . (friendly c1 :) . map friendly . toList $ cs
-
-
--- | Parse input files and create transactions.
-
-loadTransactions
-  :: Seq Text
-  -- ^ Filenames
-  -> IO (Seq Transaction)
-  -- ^ Transactions.  If there is a parse error, throws an exception.
-
-loadTransactions = fmap addSerials . mapM load
+-- | Given an integer position in a text, obtain the line and
+-- column.
+textPosition
+  :: Int
+  -- ^ Integer position
+  -> Text
+  -> Converter.Pos
+textPosition int
+  = X.foldl' add (Converter.Pos 1 1)
+  . X.take int
   where
-    load filename = do
-      txt <- XIO.readFile . X.unpack $ filename
-      case copperParser txt of
-        Left e -> fail e
-        Right g -> return rights
-          where
-            rights = foldr f Seq.empty g
-              where
-                f ei acc = case ei of
-                  Left _ -> acc
-                  Right txn -> txn <| acc
--}
+    add (Converter.Pos lin col) c
+      | c == '\n' = Converter.Pos (lin + 1) 1
+      | c == '\t' = Converter.Pos lin (col + 8 - ((col - 1) `mod` 8))
+      | otherwise = Converter.Pos lin (col + 1)
+
+-- | The name of a file being parsed.  This is optional and can be
+-- the empty 'Text'.
+type Filename = Text
+
+data ParseErrorInfo = ParseErrorInfo
+  { _failurePosition :: Converter.Pos
+  , _expected :: [String]
+  } deriving (Typeable, Show)
+
+Lens.makeLenses ''ParseErrorInfo
+
+data ParseFailReason
+  = LeftoverInput
+  | AbortedParse
+  deriving (Typeable, Show)
+
+Lens.makePrisms ''ParseFailReason
+
+data ParseError = ParseError
+  { _parseFailReason :: ParseFailReason
+  , _parseErrorInfo :: ParseErrorInfo
+  , _parseErrorFilename :: Filename
+  } deriving (Typeable, Show)
+
+Lens.makeLenses ''ParseError
+
+errorInfo
+  :: Text
+  -- ^ Input text
+  -> Earley.Report String Text
+  -> ParseErrorInfo
+errorInfo inp (Earley.Report pos exp _)
+  = ParseErrorInfo (textPosition pos inp) exp
+
+-- | Given a Pinchot rule, parse a complete string in that language.
+runParser
+  :: (forall r. Earley.Grammar r (Earley.Prod r String Char Types.WholeFile))
+  -> (Filename, Text)
+  -> Either ParseError Types.WholeFile
+runParser grammar (filename, txt) = case results of
+  result:[]
+    | X.null (Earley.unconsumed report) -> Right result
+    | otherwise -> Left (ParseError LeftoverInput info filename)
+  [] -> Left (ParseError AbortedParse info filename)
+  _ -> error "runParser: grammar is ambiguous."
+  where
+    (results, report) = Earley.fullParses (Earley.parser grammar) txt
+    info = errorInfo txt report
+
+-- | Creates a 'Tree' holding the filename.
+filenameTree :: Filename -> Tree
+filenameTree name = Tree System (Just (SText "filename"))
+  [ Tree System (Just (SText name)) [] ]
+
+-- | Given the results of a parse, append a filename tree to each
+-- transaction.
+appendFilenameTrees
+  :: Functor f
+  => Filename
+  -> f (Either a (Seq Tree, b))
+  -> f (Either a (Seq Tree, b))
+appendFilenameTrees filename = fmap (Lens.over setter f)
+  where
+    setter = Lens._Right . Lens._1
+    f sq = sq `Lens.snoc` (filenameTree filename)
+
+newtype ParseConvertProofError
+  = ParseConvertProofError (Either ParseError (NonEmpty Proofer.ProofFail))
+  deriving (Typeable, Show)
+
+instance Exception ParseConvertProofError
+
+-- | Parses, converts, and proofs a single file.
+--
+-- Also, appends the filename tree to each transaction.
+parseConvertProof
+  :: (Filename, Text)
+  -> Either ParseConvertProofError
+            (Seq Price, Seq (Seq Tree, Balanced (Seq Tree)))
+parseConvertProof (filename, txt) = do
+  wholeFile <- either (Left . ParseConvertProofError . Left) Right
+    $ runParser grammar (filename, txt)
+  let parts = Converter.runConverter . Converter.c'WholeFile $ wholeFile
+  items <- either (Left . ParseConvertProofError . Right)
+    Right . accToEither . Proofer.proofItems
+    $ parts
+  return . partitionEithers . appendFilenameTrees filename $ items
+  where
+    grammar = $(Pinchot.earleyGrammar "Types"
+      (fmap Grammar.wholeFile Grammar.grammar) )
+
