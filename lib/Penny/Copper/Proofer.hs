@@ -12,8 +12,8 @@ module Penny.Copper.Proofer where
 import Penny.Commodity
 import Penny.Copper.Converter
 import Penny.Ents
-import Penny.ErrorAcc
 import Penny.NonEmpty
+import qualified Penny.NonEmpty as NonEmpty
 import Penny.Price
 import Penny.Trio
 import Penny.Tree
@@ -21,7 +21,7 @@ import Penny.Tree
 import qualified Control.Lens as Lens
 import Control.Monad (foldM)
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
+import qualified Data.Validation as V
 
 data Reason
   = FailedToAddTrio TrioError
@@ -77,10 +77,10 @@ proofItem x = case x of
 
 proofItems
   :: Seq (Either PriceParts TxnParts)
-  -> ErrorAcc ProofFail
-              (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
-proofItems = foldr add mempty
-  where
-    add ei acc = new `mappend` acc
-      where
-        new = eitherToAcc . fmap Seq.singleton . proofItem $ ei
+  -> V.AccValidation (NonEmpty ProofFail)
+      (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
+proofItems
+  = sequenceA
+  . fmap (Lens.view V._AccValidation)
+  . Lens.over (Lens.mapped . Lens._Left) NonEmpty.singleton
+  . fmap proofItem

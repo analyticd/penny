@@ -122,6 +122,9 @@ pinchot = atleast "pinchot" [0,8,0,0]
 earley :: Package
 earley = atleast "Earley" [0,10,1,0]
 
+validation :: Package
+validation = atleast "validation" [0,5,2]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
@@ -161,6 +164,7 @@ libraryDepends =
   , monoidSubclasses
   , pinchot
   , earley
+  , validation
   ]
 
 testDepends :: [Package]

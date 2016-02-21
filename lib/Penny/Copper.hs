@@ -41,6 +41,7 @@ import Data.Sequence (Seq)
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Typeable (Typeable)
+import qualified Data.Validation as V
 import qualified Pinchot
 import qualified Text.Earley as Earley
 
@@ -49,7 +50,6 @@ import qualified Penny.Copper.Types as Types
 import qualified Penny.Copper.Grammar as Grammar
 import qualified Penny.Copper.Proofer as Proofer
 import Penny.Ents
-import Penny.ErrorAcc
 import Penny.NonEmpty
 import Penny.Price
 import Penny.Realm
@@ -157,7 +157,7 @@ parseConvertProof (filename, txt) = do
     $ runParser grammar (filename, txt)
   let parts = Converter.runConverter . Converter.c'WholeFile $ wholeFile
   items <- either (Left . ParseConvertProofError . Right)
-    Right . accToEither . Proofer.proofItems
+    Right . Lens.view V._Either . Proofer.proofItems
     $ parts
   return . partitionEithers . appendFilenameTrees filename $ items
   where

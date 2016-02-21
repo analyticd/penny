@@ -35,6 +35,9 @@ nonEmpty sq = case viewl sq of
   EmptyL -> Nothing
   x :< xs -> Just $ NonEmpty x xs
 
+singleton :: a -> NonEmpty a
+singleton a = NonEmpty a (S.empty)
+
 nonEmptyLength :: NonEmpty a -> Positive
 nonEmptyLength (NonEmpty _ ls) = F.foldl' go one ls
   where
