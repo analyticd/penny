@@ -57,8 +57,6 @@ import Penny.Scalar
 import Penny.SeqUtil
 import Penny.Tree
 
-data CopperError = CopperError
-
 -- | Given an integer position in a text, obtain the line and
 -- column.
 textPosition
@@ -136,9 +134,9 @@ appendFilenameTrees
   => Filename
   -> f (Either a (Seq Tree, b))
   -> f (Either a (Seq Tree, b))
-appendFilenameTrees filename = fmap (Lens.over setter f)
+appendFilenameTrees filename = Lens.over setter f
   where
-    setter = Lens._Right . Lens._1
+    setter = Lens.mapped . Lens._Right . Lens._1
     f sq = sq `Lens.snoc` (filenameTree filename)
 
 newtype ParseConvertProofError
