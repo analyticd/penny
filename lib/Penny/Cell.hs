@@ -25,7 +25,6 @@ module Penny.Cell
 import Penny.Arrangement
 import Penny.Colors
 import Penny.Commodity
-import qualified Penny.Copper.Types as Ty
 import Penny.Decimal
 import Penny.Polar (Pole, equatorial)
 import qualified Penny.Polar as P
@@ -140,9 +139,8 @@ qtyRepAnyRadixMagnitudeChunk env qr
   = sidedChunk env (either equatorial equatorial qr)
   . X.pack
   . toList
-  . either (either Ty.t'NilRadCom Ty.t'BrimRadCom)
-           (either Ty.t'NilRadPer Ty.t'BrimRadPer)
-  . c'NilOrBrimScalarAnyRadix'RepAnyRadix
+  . t'NilOrBrimAnyRadix
+  . c'NilOrBrimAnyRadix'RepAnyRadix
   $ qr
 
 qtyRepAnyRadixMagnitudeCell
@@ -153,9 +151,8 @@ qtyRepAnyRadixMagnitudeCell env qr
   = textCell getColor (view rowBackground env) (view colors env)
   . X.pack
   . toList
-  . either (either Ty.t'NilRadCom Ty.t'BrimRadCom)
-           (either Ty.t'NilRadPer Ty.t'BrimRadPer)
-  . c'NilOrBrimScalarAnyRadix'RepAnyRadix
+  . t'NilOrBrimAnyRadix
+  . c'NilOrBrimAnyRadix'RepAnyRadix
   $ qr
   where
     getColor = case either equatorial equatorial qr of
@@ -167,28 +164,26 @@ qtyRepAnyRadixMagnitudeCell env qr
 brimScalarAnyRadixMagnitudeChunk
   :: Env
   -> Maybe Pole
-  -> BrimScalarAnyRadix
+  -> BrimAnyRadix
   -> Chunk Text
 brimScalarAnyRadixMagnitudeChunk env maySide
   = sidedChunk env maySide
   . X.pack
   . toList
-  . either (either Ty.t'NilRadCom Ty.t'BrimRadCom)
-           (either Ty.t'NilRadPer Ty.t'BrimRadPer)
-  . c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
+  . t'NilOrBrimAnyRadix
+  . c'NilOrBrimAnyRadix'BrimAnyRadix
 
 brimScalarAnyRadixMagnitudeCell
   :: Env
   -> Maybe Pole
-  -> BrimScalarAnyRadix
+  -> BrimAnyRadix
   -> Cell
 brimScalarAnyRadixMagnitudeCell env maySide rnn
   = textCell getColor (view rowBackground env) (view colors env)
   . X.pack
   . toList
-  . either (either Ty.t'NilRadCom Ty.t'BrimRadCom)
-           (either Ty.t'NilRadPer Ty.t'BrimRadPer)
-  . c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
+  . t'NilOrBrimAnyRadix
+  . c'NilOrBrimAnyRadix'BrimAnyRadix
   $ rnn
   where
     getColor = case maySide of

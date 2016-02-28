@@ -99,8 +99,8 @@ qtyRows env = fmap mkRow . Seq.fromList . Map.toAscList
       where
         txt = pack
           . toList
-          . t'NilOrBrimScalarAnyRadix
-          . c'NilOrBrimScalarAnyRadix'RepAnyRadix
+          . t'NilOrBrimAnyRadix
+          . c'NilOrBrimAnyRadix'RepAnyRadix
           . repDecimal ei $ q
         ei = either (Left . Just) (Right . Just)
             . selectGrouper

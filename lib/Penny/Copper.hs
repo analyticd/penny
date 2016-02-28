@@ -42,12 +42,10 @@ import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Typeable (Typeable)
 import qualified Data.Validation as V
-import qualified Pinchot
 import qualified Text.Earley as Earley
 
 import qualified Penny.Copper.Converter as Converter
 import qualified Penny.Copper.Types as Types
-import qualified Penny.Copper.Grammar as Grammar
 import qualified Penny.Copper.Parsers as Parsers
 import qualified Penny.Copper.Proofer as Proofer
 import Penny.Ents

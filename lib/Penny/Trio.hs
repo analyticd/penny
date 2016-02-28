@@ -67,7 +67,7 @@ data Trio
   --
   -- Postconditions: the imbalances is empty.
 
-  | UC BrimScalarAnyRadix Commodity Arrangement
+  | UC BrimAnyRadix Commodity Arrangement
   -- ^ Specify an unsigned abstract quantity only and a 'Commodity'
   -- and how they are arranged.
   --
@@ -86,7 +86,7 @@ data Trio
   -- the imbalances map.
 
 
-  | US BrimScalarAnyRadix
+  | US BrimAnyRadix
   -- ^ Specify an unsigned quantity only.
   --
   -- Preconditions: the imbalances contains exactly one commodity, and
@@ -127,7 +127,7 @@ data TrioError
                        [(Commodity, DecNonZero)]
   | CommodityNotFound Commodity
   | BalanceIsSameSide Pole
-  | UnsignedTooLarge BrimScalarAnyRadix DecNonZero
+  | UnsignedTooLarge BrimAnyRadix DecNonZero
   deriving Show
 
 instance Friendly TrioError where
@@ -185,13 +185,13 @@ trioRendering tri = case tri of
 -- representation.  Does not return a 'Side'.
 trioRepresentation
   :: Trio
-  -> Maybe NilOrBrimScalarAnyRadix
+  -> Maybe NilOrBrimAnyRadix
 trioRepresentation tri = case tri of
-  QC qr _ _ -> Just $ c'NilOrBrimScalarAnyRadix'RepAnyRadix qr
-  Q qr -> Just $ c'NilOrBrimScalarAnyRadix'RepAnyRadix qr
-  UC rn _ _ -> Just $ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix rn
-  US brim -> Just $ c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix brim
-  UU nil -> Just $ c'NilOrBrimScalarAnyRadix'NilAnyRadix nil
+  QC qr _ _ -> Just $ c'NilOrBrimAnyRadix'RepAnyRadix qr
+  Q qr -> Just $ c'NilOrBrimAnyRadix'RepAnyRadix qr
+  UC rn _ _ -> Just $ c'NilOrBrimAnyRadix'BrimAnyRadix rn
+  US brim -> Just $ c'NilOrBrimAnyRadix'BrimAnyRadix brim
+  UU nil -> Just $ c'NilOrBrimAnyRadix'NilAnyRadix nil
   _ -> Nothing
 
 
@@ -212,7 +212,7 @@ lookupCommodity (Imbalance imb) cy = case M.lookup cy imb of
   Just dnz -> return dnz
 
 rnnIsSmallerAbsoluteValue
-  :: BrimScalarAnyRadix
+  :: BrimAnyRadix
   -> DecNonZero
   -> Either TrioError ()
 rnnIsSmallerAbsoluteValue qnr qnz

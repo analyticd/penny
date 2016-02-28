@@ -188,20 +188,22 @@ c'NilOrBrimAnyRadix'RepAnyRadix
   -> NilOrBrimAnyRadix
 c'NilOrBrimAnyRadix'RepAnyRadix ei = case ei of
   Left rc -> Left $ case rc of
-    Moderate n -> Left n
-    Extreme (Polarized c _) -> Right c
+    Moderate n -> NilOrBrimRadCom'NilRadCom n
+    Extreme (Polarized c _) -> NilOrBrimRadCom'BrimRadCom c
   Right rp -> Right $ case rp of
-    Moderate n -> Left n
-    Extreme (Polarized c _) -> Right c
+    Moderate n -> NilOrBrimRadPer'NilRadPer n
+    Extreme (Polarized c _) -> NilOrBrimRadPer'BrimRadPer c
 
-c'NilOrBrimAnyRadix'BrimScalarAnyRadix
+c'NilOrBrimAnyRadix'BrimAnyRadix
   :: BrimAnyRadix
   -> NilOrBrimAnyRadix
-c'NilOrBrimAnyRadix'BrimScalarAnyRadix
-  = either (Left . Right) (Right . Right)
+c'NilOrBrimAnyRadix'BrimAnyRadix brim = case brim of
+  Left brc -> Left (NilOrBrimRadCom'BrimRadCom brc)
+  Right brp -> Right (NilOrBrimRadPer'BrimRadPer brp)
 
 c'NilOrBrimAnyRadix'NilAnyRadix
   :: NilAnyRadix
   -> NilOrBrimAnyRadix
-c'NilOrBrimAnyRadix'NilAnyRadix
-  = either (Left . Left) (Right . Left)
+c'NilOrBrimAnyRadix'NilAnyRadix nil = case nil of
+  Left nrc -> Left (NilOrBrimRadCom'NilRadCom nrc)
+  Right nrp -> Right (NilOrBrimRadPer'NilRadPer nrp)

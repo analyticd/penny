@@ -19,9 +19,9 @@ data Troiload
   | Q RepAnyRadix
   | SC DecNonZero
   | S DecNonZero
-  | UC BrimScalarAnyRadix Pole Arrangement
+  | UC BrimAnyRadix Pole Arrangement
   | NC NilAnyRadix Arrangement
-  | US BrimScalarAnyRadix Pole
+  | US BrimAnyRadix Pole
   | UU NilAnyRadix
   | C DecNonZero
   | E DecNonZero
