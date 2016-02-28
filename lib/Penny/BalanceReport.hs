@@ -12,7 +12,6 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text, pack)
 import qualified Data.Text as X
-import Pinchot (terminals)
 import Rainbow
 import Rainbox
 
@@ -100,7 +99,7 @@ qtyRows env = fmap mkRow . Seq.fromList . Map.toAscList
       where
         txt = pack
           . toList
-          . either (either terminals terminals) (either terminals terminals)
+          . t'NilOrBrimScalarAnyRadix
           . c'NilOrBrimScalarAnyRadix'RepAnyRadix
           . repDecimal ei $ q
         ei = either (Left . Just) (Right . Just)

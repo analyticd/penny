@@ -7,6 +7,7 @@ import Penny.Balance
 import Penny.Clatch
 import Penny.Decimal
 import Penny.Copper.Types (BrimRadCom, BrimRadPer, NilRadCom, NilRadPer)
+import qualified Penny.Copper.Types as Ty
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar
@@ -25,7 +26,6 @@ import Data.Monoid ((<>))
 import Data.Foldable (toList)
 import Data.Text (Text, unpack, pack)
 import Data.Time (formatTime, defaultTimeLocale)
-import Pinchot (terminals)
 import Rainbow (chunk)
 import Text.PrettyPrint (Doc, text, nest, vcat, hang, sep,
   punctuate, brackets, render)
@@ -97,20 +97,20 @@ instance (Pretty n, Pretty o) => Pretty (Moderated n o) where
     Extreme plr -> label "Extreme" $ pretty plr
 
 instance Pretty BrimRadCom where
-  pretty = text . toList . terminals
+  pretty = text . toList . Ty.t'BrimRadCom
 
 instance Pretty BrimRadPer where
-  pretty = text . toList . terminals
+  pretty = text . toList . Ty.t'BrimRadPer
 
 instance (Pretty a, Pretty b) => Pretty (Either a b) where
   pretty (Left a) = label "Left" $ pretty a
   pretty (Right a) = label "Right" $ pretty a
 
 instance Pretty NilRadCom where
-  pretty = text . toList . terminals
+  pretty = text . toList . Ty.t'NilRadCom
 
 instance Pretty NilRadPer where
-  pretty = text . toList . terminals
+  pretty = text . toList . Ty.t'NilRadPer
 
 instance Pretty NonZero where
   pretty = text . show . nonZeroToInteger

@@ -4,7 +4,6 @@ import Data.Foldable (toList)
 import qualified Data.Text as X
 import qualified Data.Map as M
 import Data.Sequence (Seq)
-import Pinchot (terminals)
 
 import Penny.Amount
 import Penny.Arrangement
@@ -14,6 +13,7 @@ import Penny.Decimal
 import Penny.Friendly
 import Penny.Copper.Types
   (GrpRadCom, GrpRadPer)
+import qualified Penny.Copper.Types as Ty
 import Penny.Mimode
 import Penny.NonEmpty
 import Penny.NonZero
@@ -152,7 +152,8 @@ instance Friendly TrioError where
       ]
     UnsignedTooLarge rnn qnz ->
       [ "Specified quantity of "
-        ++ (toList . either terminals terminals $ rnn) ++ " is larger than "
+        ++ (toList . either Ty.t'BrimRadCom Ty.t'BrimRadPer $ rnn)
+        ++ " is larger than "
         ++ "quantity in the imbalance, which is " ++ disp qnz
       ]
     where

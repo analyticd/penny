@@ -23,34 +23,31 @@ type RepRadPer = Moderated NilRadPer BrimRadPer
 type RepAnyRadix = Either RepRadCom RepRadPer
 
 -- | A non-neutral representation that does not include a side.
-type BrimScalarAnyRadix = Either BrimRadCom BrimRadPer
+type BrimAnyRadix = Either BrimRadCom BrimRadPer
 
 -- | A neutral representation of any radix.
 type NilAnyRadix = Either NilRadCom NilRadPer
 
 -- | Number representation that may be neutral or non-neutral, with
--- a comma radix.  Does not have a polarity.
-type NilOrBrimScalarRadCom = Either NilRadCom BrimRadCom
-
--- | Number representation that may be neutral or non-neutral, with
--- a period radix.  Does not have a polarity.
-type NilOrBrimScalarRadPer = Either NilRadPer BrimRadPer
-
--- | Number representation that may be neutral or non-neutral, with
 -- either a period or comma radix.  Does not have a polarity.
-type NilOrBrimScalarAnyRadix
-  = Either NilOrBrimScalarRadCom NilOrBrimScalarRadPer
+type NilOrBrimAnyRadix
+  = Either NilOrBrimRadCom NilOrBrimRadPer
 
-splitNilOrBrimScalarAnyRadix
-  :: NilOrBrimScalarAnyRadix
-  -> Either NilAnyRadix BrimScalarAnyRadix
-splitNilOrBrimScalarAnyRadix x = case x of
+t'NilOrBrimAnyRadix
+  :: NilOrBrimAnyRadix
+  -> Seq Char
+t'NilOrBrimAnyRadix = either t'NilOrBrimRadCom t'NilOrBrimRadPer
+
+splitNilOrBrimAnyRadix
+  :: NilOrBrimAnyRadix
+  -> Either NilAnyRadix BrimAnyRadix
+splitNilOrBrimAnyRadix x = case x of
   Left nobCom -> case nobCom of
-    Left nilCom -> Left (Left nilCom)
-    Right brimCom -> Right (Left brimCom)
+    NilOrBrimRadCom'NilRadCom nilCom -> Left (Left nilCom)
+    NilOrBrimRadCom'BrimRadCom brimCom -> Right (Left brimCom)
   Right nobPer -> case nobPer of
-    Left nilPer -> Left (Right nilPer)
-    Right brimPer -> Right (Right brimPer)
+    NilOrBrimRadPer'NilRadPer nilPer -> Left (Right nilPer)
+    NilOrBrimRadPer'BrimRadPer brimPer -> Right (Right brimPer)
 
 -- | Things that have a GrpRadCom grouping character.
 class MayGroupedRadCom a where
@@ -186,10 +183,10 @@ instance MayGroupedRadPer BrimRadPer where
     = mayGroupersRadPer b
 
 -- | Removes the 'Side' from a 'RepAnyRadix'.
-c'NilOrBrimScalarAnyRadix'RepAnyRadix
+c'NilOrBrimAnyRadix'RepAnyRadix
   :: RepAnyRadix
-  -> NilOrBrimScalarAnyRadix
-c'NilOrBrimScalarAnyRadix'RepAnyRadix ei = case ei of
+  -> NilOrBrimAnyRadix
+c'NilOrBrimAnyRadix'RepAnyRadix ei = case ei of
   Left rc -> Left $ case rc of
     Moderate n -> Left n
     Extreme (Polarized c _) -> Right c
@@ -197,14 +194,14 @@ c'NilOrBrimScalarAnyRadix'RepAnyRadix ei = case ei of
     Moderate n -> Left n
     Extreme (Polarized c _) -> Right c
 
-c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
-  :: BrimScalarAnyRadix
-  -> NilOrBrimScalarAnyRadix
-c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
+c'NilOrBrimAnyRadix'BrimScalarAnyRadix
+  :: BrimAnyRadix
+  -> NilOrBrimAnyRadix
+c'NilOrBrimAnyRadix'BrimScalarAnyRadix
   = either (Left . Right) (Right . Right)
 
-c'NilOrBrimScalarAnyRadix'NilAnyRadix
+c'NilOrBrimAnyRadix'NilAnyRadix
   :: NilAnyRadix
-  -> NilOrBrimScalarAnyRadix
-c'NilOrBrimScalarAnyRadix'NilAnyRadix
+  -> NilOrBrimAnyRadix
+c'NilOrBrimAnyRadix'NilAnyRadix
   = either (Left . Left) (Right . Left)

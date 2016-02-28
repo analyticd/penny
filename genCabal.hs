@@ -28,9 +28,6 @@ text = atleast "text" [1,2]
 containers :: Package
 containers = atleast "containers" [0,5]
 
-megaparsec :: Package
-megaparsec = atleast "megaparsec" [4,2,0]
-
 time :: Package
 time = atleast "time" [1,4]
 
@@ -125,6 +122,12 @@ earley = atleast "Earley" [0,10,1,0]
 validation :: Package
 validation = atleast "validation" [0,5,2]
 
+ofx :: Package
+ofx = atleast "ofx" [0,4,0,4]
+
+parsec :: Package
+parsec = atleast "parsec" [3,1,9]
+
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
@@ -138,7 +141,6 @@ libraryDepends =
   [ base
   , text
   , containers
-  , megaparsec
   , time
   , transformers
   , bifunctors
@@ -165,6 +167,8 @@ libraryDepends =
   , pinchot
   , earley
   , validation
+  , ofx
+  , parsec
   ]
 
 testDepends :: [Package]

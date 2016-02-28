@@ -48,6 +48,7 @@ import qualified Text.Earley as Earley
 import qualified Penny.Copper.Converter as Converter
 import qualified Penny.Copper.Types as Types
 import qualified Penny.Copper.Grammar as Grammar
+import qualified Penny.Copper.Parsers as Parsers
 import qualified Penny.Copper.Proofer as Proofer
 import Penny.Ents
 import Penny.NonEmpty
@@ -161,6 +162,5 @@ parseConvertProof (filename, txt) = do
     $ parts
   return . partitionEithers . appendFilenameTrees filename $ items
   where
-    grammar = $(Pinchot.earleyGrammar "Types"
-      (fmap Grammar.wholeFile Grammar.grammar) )
+    grammar = Parsers.g'WholeFile
 

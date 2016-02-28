@@ -5,11 +5,7 @@ module Penny.Copper.Grammar where
 import Pinchot
 import Data.Monoid ((<>))
 
-data Rules = Rules
-  { wholeFile :: Rule Char
-  }
-
-grammar :: Pinchot Char Rules
+grammar :: Pinchot Char ()
 grammar = mdo
 
   -- # Digits
@@ -204,6 +200,12 @@ grammar = mdo
   -- Brim
   brimRadCom <- union "BrimRadCom" [brimUngroupedRadCom, brimGroupedRadCom]
   brimRadPer <- union "BrimRadPer" [brimUngroupedRadPer, brimGroupedRadPer]
+
+  -- Aggregates of Nil and Brim.  These do not appear in the
+  -- WholeFile production but they can be useful when parsing
+  -- numbers standing alone, such as numbers from an OFX statement.
+  _ <- union "NilOrBrimRadCom" [nilRadCom, brimRadCom]
+  _ <- union "NilOrBrimRadPer" [nilRadPer, brimRadPer]
 
   -- # Dates
   hyphen <- terminal "Hyphen" (solo '-')
@@ -507,6 +509,6 @@ grammar = mdo
       commodity, whites, cyExch ]
   fileItem <- union "FileItem" [price, transaction]
   fileItems <- list fileItem
-  wholeFile <- record "WholeFile" [whites, fileItems]
-  return $ Rules wholeFile
+  _ <- record "WholeFile" [whites, fileItems]
+  return ()
 

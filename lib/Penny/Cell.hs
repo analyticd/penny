@@ -25,6 +25,7 @@ module Penny.Cell
 import Penny.Arrangement
 import Penny.Colors
 import Penny.Commodity
+import qualified Penny.Copper.Types as Ty
 import Penny.Decimal
 import Penny.Polar (Pole, equatorial)
 import qualified Penny.Polar as P
@@ -36,7 +37,6 @@ import Data.Foldable (toList)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as X
-import Pinchot (terminals)
 import Rainbox
   ( Cell (Cell, _rows, _horizontal, _vertical, _background)
   , top
@@ -140,7 +140,8 @@ qtyRepAnyRadixMagnitudeChunk env qr
   = sidedChunk env (either equatorial equatorial qr)
   . X.pack
   . toList
-  . either (either terminals terminals) (either terminals terminals)
+  . either (either Ty.t'NilRadCom Ty.t'BrimRadCom)
+           (either Ty.t'NilRadPer Ty.t'BrimRadPer)
   . c'NilOrBrimScalarAnyRadix'RepAnyRadix
   $ qr
 
@@ -152,7 +153,8 @@ qtyRepAnyRadixMagnitudeCell env qr
   = textCell getColor (view rowBackground env) (view colors env)
   . X.pack
   . toList
-  . either (either terminals terminals) (either terminals terminals)
+  . either (either Ty.t'NilRadCom Ty.t'BrimRadCom)
+           (either Ty.t'NilRadPer Ty.t'BrimRadPer)
   . c'NilOrBrimScalarAnyRadix'RepAnyRadix
   $ qr
   where
@@ -171,7 +173,8 @@ brimScalarAnyRadixMagnitudeChunk env maySide
   = sidedChunk env maySide
   . X.pack
   . toList
-  . either (either terminals terminals) (either terminals terminals)
+  . either (either Ty.t'NilRadCom Ty.t'BrimRadCom)
+           (either Ty.t'NilRadPer Ty.t'BrimRadPer)
   . c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
 
 brimScalarAnyRadixMagnitudeCell
@@ -183,7 +186,8 @@ brimScalarAnyRadixMagnitudeCell env maySide rnn
   = textCell getColor (view rowBackground env) (view colors env)
   . X.pack
   . toList
-  . either (either terminals terminals) (either terminals terminals)
+  . either (either Ty.t'NilRadCom Ty.t'BrimRadCom)
+           (either Ty.t'NilRadPer Ty.t'BrimRadPer)
   . c'NilOrBrimScalarAnyRadix'BrimScalarAnyRadix
   $ rnn
   where

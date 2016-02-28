@@ -57,7 +57,6 @@ import Data.Monoid ((<>))
 import Data.Ord (comparing)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
-import Pinchot (terminals)
 
 import Penny.Digit
 import Penny.Copper.Types
@@ -631,5 +630,5 @@ displayDecimalAsQty d = (toList (sideChar <| ' ' <| rest) ++)
         | v == debit -> '<'
         | otherwise -> '>'
     rest = case repUngroupedDecimalRadPer d of
-      Moderate nu -> terminals nu
-      Extreme (Polarized bu _) -> terminals bu
+      Moderate nu -> t'NilUngroupedRadPer nu
+      Extreme (Polarized bu _) -> t'BrimUngroupedRadPer bu
