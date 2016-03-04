@@ -45,9 +45,10 @@ import qualified Data.Validation as V
 import qualified Text.Earley as Earley
 
 import qualified Penny.Copper.Converter as Converter
-import qualified Penny.Copper.Types as Types
-import qualified Penny.Copper.Parsers as Parsers
+import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
+import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
+import qualified Penny.Copper.Types as Types
 import Penny.Ents
 import Penny.NonEmpty
 import Penny.Price
@@ -160,5 +161,5 @@ parseConvertProof (filename, txt) = do
     $ parts
   return . partitionEithers . appendFilenameTrees filename $ items
   where
-    grammar = Parsers.g'WholeFile
+    grammar = fmap Productions.a'WholeFile EarleyGrammar.earleyGrammar
 
