@@ -6,8 +6,8 @@ import Data.Foldable (toList)
 import Data.Sequence (Seq, ViewR(..), viewr, (<|))
 import qualified Data.Sequence as Seq
 
-import Penny.Digit
 import Penny.Copper.Types
+import Penny.Copper.Conversions
 import Penny.Polar
 
 -- Do not try to make 'Positive' an instance of 'Wrapped' in Lens.
@@ -17,31 +17,9 @@ import Penny.Polar
 newtype Positive = Positive { positiveToInteger :: Integer }
   deriving (Eq, Ord, Show)
 
-instance HasOne Positive where one = Positive 1
-instance HasTwo Positive where two = Positive 2
-instance HasThree Positive where three = Positive 3
-instance HasFour Positive where four = Positive 4
-instance HasFive Positive where five = Positive 5
-instance HasSix Positive where six = Positive 6
-instance HasSeven Positive where seven = Positive 7
-instance HasEight Positive where eight = Positive 8
-instance HasNine Positive where nine = Positive 9
-instance HasTen Positive where ten = Positive 10
 
 class IsPositive a where
   toPositive :: a -> Positive
-
-instance IsPositive One where toPositive = Positive . digitToInt
-instance IsPositive Two where toPositive = Positive . digitToInt
-instance IsPositive Three where toPositive = Positive . digitToInt
-instance IsPositive Four where toPositive = Positive . digitToInt
-instance IsPositive Five where toPositive = Positive . digitToInt
-instance IsPositive Six where toPositive = Positive . digitToInt
-instance IsPositive Seven where toPositive = Positive . digitToInt
-instance IsPositive Eight where toPositive = Positive . digitToInt
-instance IsPositive Nine where toPositive = Positive . digitToInt
-
-instance IsPositive D1'9 where toPositive = Positive . digitToInt
 
 -- Do not try to make 'Unsigned' an instance of 'Wrapped' in Lens.
 -- That would allow the user to make a 'Unsigned' with any 'Integer',
@@ -51,38 +29,9 @@ instance IsPositive D1'9 where toPositive = Positive . digitToInt
 newtype Unsigned = Unsigned { unsignedToInteger :: Integer }
   deriving (Eq, Ord, Show)
 
-instance HasZero Unsigned where zero = Unsigned 0
-instance HasOne Unsigned where one = Unsigned 1
-instance HasTwo Unsigned where two = Unsigned 2
-instance HasThree Unsigned where three = Unsigned 3
-instance HasFour Unsigned where four = Unsigned 4
-instance HasFive Unsigned where five = Unsigned 5
-instance HasSix Unsigned where six = Unsigned 6
-instance HasSeven Unsigned where seven = Unsigned 7
-instance HasEight Unsigned where eight = Unsigned 8
-instance HasNine Unsigned where nine = Unsigned 9
-instance HasTen Unsigned where ten = Unsigned 10
 
 class IsUnsigned a where
   toUnsigned :: a -> Unsigned
-
-instance IsUnsigned Zero where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned One where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned Two where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned Three where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned Four where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned Five where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned Six where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned Seven where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned Eight where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned Nine where toUnsigned = Unsigned . digitToInt
-
-instance IsUnsigned D0'9 where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned D1'9 where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned D0'1 where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned D0'2 where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned D0'3 where toUnsigned = Unsigned . digitToInt
-instance IsUnsigned D0'5 where toUnsigned = Unsigned . digitToInt
 
 class Natural a where
   next :: a -> a
@@ -185,8 +134,9 @@ novDecsToPositive n = Positive . finish . go (0 :: Int) 0
   where
     go !places !tot sq = case viewr sq of
       EmptyR -> (places, tot)
-      xs :> x -> go (succ places) ((digitToInt x * 10 ^ places) + tot) xs
-    finish (places, tot) = (digitToInt n * 10 ^ places) + tot
+      xs :> x -> go (succ places)
+        ((fromIntegral $ c'Int'D0'9 x * 10 ^ places) + tot) xs
+    finish (places, tot) = (fromIntegral $ c'Int'D1'9 n * 10 ^ places) + tot
 
 -- | Strips the sign from an Integer and returns a Positive paired up
 -- with the sign.  Returns Nothing if the Integer is zero.
@@ -207,10 +157,10 @@ positiveDigits (Positive i) = go i Seq.empty
       | otherwise = go quotient (thisDigit <| acc)
       where
         (quotient, remainder) = leftOver `divMod` 10
-        thisDigit = case intToDigit remainder of
+        thisDigit = case c'D0'9'Int remainder of
           Just d -> d
           Nothing -> error "positiveDigits: error 1"
-        lastDigit = case intToDigit remainder of
+        lastDigit = case c'D1'9'Int remainder of
           Just d -> d
           Nothing -> error "positiveDigits: error 2"
 
