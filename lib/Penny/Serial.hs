@@ -10,12 +10,11 @@ import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import Data.Functor.Compose
 
-import Penny.Digit
-import Penny.Natural
+import Penny.NonNegative
 
 data Serset = Serset
-  { _forward :: Unsigned
-  , _backward :: Unsigned
+  { _forward :: NonNegative
+  , _backward :: NonNegative
   } deriving (Eq, Ord, Show)
 
 makeLenses ''Serset
@@ -35,13 +34,13 @@ assignSersetted t = flip evalState zero $ do
   return . fmap f $ withBak
 
 
-makeForward :: State Unsigned Unsigned
+makeForward :: State NonNegative NonNegative
 makeForward = do
   this <- get
   modify next
   return this
 
-makeBackward :: State Unsigned Unsigned
+makeBackward :: State NonNegative NonNegative
 makeBackward = do
   old <- get
   let new = case prev old of

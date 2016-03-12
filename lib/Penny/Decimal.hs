@@ -1,7 +1,8 @@
 {-# LANGUAGE TemplateHaskell, FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
-module Penny.Decimal
+module Penny.Decimal where
+{-
   (
   -- * Decimal types and classes
     Exponential(..)
@@ -50,6 +51,7 @@ module Penny.Decimal
   , repDecimal
   , displayDecimalAsQty
   ) where
+-}
 
 import Control.Lens (view, makeLenses, to, over, (<|))
 import Data.Foldable (toList)
@@ -57,92 +59,46 @@ import Data.Monoid ((<>))
 import Data.Ord (comparing)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
+import Prelude hiding (length)
 
 import Penny.Digit
 import Penny.Copper.Types
 import Penny.Grouping
+import Penny.NonNegative
 import Penny.Natural
 import Penny.NonZero
 import Penny.Polar
+import Penny.Positive (Positive)
 import Penny.Rep
 
 -- | Numbers represented exponentially.  In @Exponential c p@, the
 -- value of the number is @c * 10 ^ (-1 * naturalToInteger p)@.
 --
--- The 'Eq' and 'Ord' instances use 'equalizeExponents' first.
--- Therefore, for example, @3.5 == 3.500@ is 'True', even though the
--- values for both '_coefficient' and '_power' are different.
--- Similarly, @3.5 < 3.500@ is 'False', even though @3.5@ has a
--- '_coefficient' that is less than the '_coefficient' for @3.500@.
--- Usually this is what you want.  However, if it's not what you want,
--- just remove the '_coefficient' and the '_power' and put them into a
--- pair and then compare those using the derived instances of 'Eq' and
--- 'Ord'.
+-- The 'Eq' and 'Ord' are derived.
+-- Therefore, for example, @3.5 == 3.500@ is 'False'.
 data Exponential c = Exponential
   { _coefficient :: !c
   -- ^ The significant digits; also known as the significand or the mantissa.
-  , _power :: !Unsigned
+  , _power :: !NonNegative
   -- ^ The power of ten.
-  } deriving (Show, Functor, Foldable, Traversable)
+  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 makeLenses ''Exponential
 
-instance Polar c => Polar (Exponential c) where
-  polar = view (coefficient . to polar)
-  align pole = over coefficient (align pole)
-
-instance Equatorial c => Equatorial (Exponential c) where
-  equatorial = view (coefficient . to equatorial)
-
 type Decimal = Exponential Integer
-
-instance (Eq a, Pow a) => Eq (Exponential a) where
-  x == y = view coefficient x' == view coefficient y'
-    where
-      (x', y') = equalizeExponents x y
-
-instance (Ord a, Pow a) => Ord (Exponential a) where
-  compare x y = comparing (view coefficient) x' y'
-    where
-      (x', y') = equalizeExponents x y
-
--- | Class for things that can be converted to a 'Decimal'.
-class HasDecimal a where
-  toDecimal :: a -> Decimal
-
-instance HasDecimal Decimal where
-  toDecimal = id
-
-instance (HasDecimal a, HasDecimal b) => HasDecimal (Either a b) where
-  toDecimal = either toDecimal toDecimal
-
-instance (HasDecZero n, HasDecPositive o)
-  => HasDecimal (Moderated n o) where
-  toDecimal (Moderate n) = toDecimal . toDecZero $ n
-  toDecimal (Extreme (Polarized o p))
-    = changeSign (toDecimal . toDecPositive $ o)
-    where
-      changeSign
-        | p == positive = id
-        | otherwise = negate
-
-class HasExponent a where
-  toExponent :: a -> Unsigned
 
 -- | @increaseExponent d e@ returns a 'Decimal' @d'@ whose exponent is
 -- equal to @e@; if the exponent of @d@ is greater than or equal to
 -- @e@, does nothing.
 increaseExponent
-  :: Pow c
-  => Unsigned
-  -> Exponential c
-  -> Exponential c
+  :: NonNegative
+  -> Exponential Integer
+  -> Exponential Integer
 increaseExponent u (Exponential m e) = Exponential m' e'
   where
     (m', e') = case subt u e of
       Nothing -> (m, e)
-      Just diff -> (raise m diff, u)
-
+      Just diff -> (m * 10 ^ c'Integer'NonNegative diff, u)
 
 -- | Equalizes the exponents on two decimals.
 --
@@ -161,10 +117,9 @@ increaseExponent u (Exponential m e) = Exponential m' e'
 -- > abs mx' >= abs mx
 -- > abs my' >= abs my
 equalizeExponents
-  :: (Pow a, Pow b)
-  => Exponential a
-  -> Exponential b
-  -> (Exponential a, Exponential b)
+  :: Exponential Integer
+  -> Exponential Integer
+  -> (Exponential Integer, Exponential Integer)
 equalizeExponents x@(Exponential _ ex) y@(Exponential _ ey)
   | ex > ey = (x, increaseExponent ex y)
   | otherwise = (increaseExponent ey x, y)
@@ -185,145 +140,118 @@ instance Num (Exponential Integer) where
 -- | Decimals whose significand is never zero.
 type DecNonZero = Exponential NonZero
 
-class HasDecNonZero a where
-  toDecNonZero :: a -> DecNonZero
-
 decNonZeroToDecimal :: DecNonZero -> Decimal
-decNonZeroToDecimal (Exponential nz u) = Exponential (nonZeroToInteger nz) u
+decNonZeroToDecimal (Exponential nz u) = Exponential (c'Integer'NonZero nz) u
 
 decimalToDecNonZero :: Decimal -> Maybe DecNonZero
-decimalToDecNonZero (Exponential signif expt) = case integerToNonZero signif of
+decimalToDecNonZero (Exponential signif expt) = case c'NonZero'Integer signif of
   Nothing -> Nothing
   Just nz -> Just $ Exponential nz expt
 
-
 -- | Decimals that are unsigned; they may be zero.
-type DecUnsigned = Exponential Unsigned
-
-class HasDecUnsigned a where
-  toDecUnsigned :: a -> DecUnsigned
+type DecUnsigned = Exponential NonNegative
 
 -- | Decimals that are positive; they may not be zero.
 type DecPositive = Exponential Positive
 
-class HasDecPositive a where
-  toDecPositive :: a -> DecPositive
-
 -- | Decimals whose significand is always zero.
 type DecZero = Exponential ()
 
-class HasDecZero a where
-  toDecZero :: a -> DecZero
+e'NilUngroupedRadCom :: NilUngroupedRadCom -> NonNegative
+e'NilUngroupedRadCom (NUZeroRadCom _ (RadixZeroesRadCom'Maybe Nothing)) = zero
+e'NilUngroupedRadCom (NUZeroRadCom _ (RadixZeroesRadCom'Maybe
+  (Just (RadixZeroesRadCom _ (Zero'Seq sq))))) = length sq
+e'NilUngroupedRadCom (NURadixRadCom _ _z1 (Zero'Seq zs))
+  = one `add` (length zs)
 
-instance (HasDecZero a, HasDecZero b) => HasDecZero (Either a b) where
-  toDecZero = either toDecZero toDecZero
+e'NilUngroupedRadPer :: NilUngroupedRadPer -> NonNegative
+e'NilUngroupedRadPer (NUZeroRadPer _ (RadixZeroesRadPer'Maybe Nothing)) = zero
+e'NilUngroupedRadPer (NUZeroRadPer _ (RadixZeroesRadPer'Maybe
+  (Just (RadixZeroesRadPer _ (Zero'Seq sq))))) = length sq
+e'NilUngroupedRadPer (NURadixRadPer _ _z1 (Zero'Seq zs))
+  = one `add` (length zs)
 
-instance HasDecimal DecZero where
-  toDecimal (Exponential () expt) = Exponential 0 expt
+c'DecZero'NilUngroupedRadCom :: NilUngroupedRadCom -> DecZero
+c'DecZero'NilUngroupedRadCom = Exponential () . e'NilUngroupedRadCom
 
-instance HasDecimal DecPositive where
-  toDecimal (Exponential sig expt) = Exponential (naturalToInteger sig) expt
+c'DecZero'NilUngroupedRadPer :: NilUngroupedRadPer -> DecZero
+c'DecZero'NilUngroupedRadPer = Exponential () . e'NilUngroupedRadPer
 
-instance HasExponent NilUngroupedRadCom where
-  toExponent (NUZeroRadCom _ (RadixZeroesRadCom'Maybe Nothing)) = zero
-  toExponent (NUZeroRadCom _ (RadixZeroesRadCom'Maybe
-    (Just (RadixZeroesRadCom _ (Zero'Seq sq))))) = lengthUnsigned sq
-  toExponent (NURadixRadCom _ _z1 (Zero'Seq zs))
-    = one `add` (lengthUnsigned zs)
+e'NilGroupedRadCom :: NilGroupedRadCom -> NonNegative
+e'NilGroupedRadCom (NilGroupedRadCom _zMay _rdx _z1 zs1 zss)
+  = one `add` zeroes1 `add` zeroesRest
+  where
+    zeroes1 = let Zero'Seq zs = zs1 in length zs
+    zeroesRest = addGroup g1 (foldr addGroup zero gs)
+      where
+        ZeroGroupRadCom'Seq1 (g1, gs) = zss
+        addGroup (ZeroGroupRadCom _ _zero1 (Zero'Seq zeros)) acc
+          = one `add` length zeros `add` acc
 
-instance HasExponent NilUngroupedRadPer where
-  toExponent (NUZeroRadPer _ (RadixZeroesRadPer'Maybe Nothing)) = zero
-  toExponent (NUZeroRadPer _ (RadixZeroesRadPer'Maybe
-    (Just (RadixZeroesRadPer _ (Zero'Seq sq))))) = lengthUnsigned sq
-  toExponent (NURadixRadPer _ _z1 (Zero'Seq zs))
-    = one `add` (lengthUnsigned zs)
+e'NilGroupedRadPer :: NilGroupedRadPer -> NonNegative
+e'NilGroupedRadPer (NilGroupedRadPer _zMay _rdx _z1 zs1 zss)
+  = one `add` zeroes1 `add` zeroesRest
+  where
+    zeroes1 = let Zero'Seq zs = zs1 in length zs
+    zeroesRest = addGroup g1 (foldr addGroup zero gs)
+      where
+        ZeroGroupRadPer'Seq1 (g1, gs) = zss
+        addGroup (ZeroGroupRadPer _ _zero1 (Zero'Seq zeros)) acc
+          = one `add` length zeros `add` acc
 
-instance HasDecZero NilUngroupedRadCom where
-  toDecZero x = Exponential () (toExponent x)
+c'DecZero'NilGroupedRadCom :: NilGroupedRadCom -> DecZero
+c'DecZero'NilGroupedRadCom = Exponential () . e'NilGroupedRadCom
 
-instance HasDecZero NilUngroupedRadPer where
-  toDecZero x = Exponential () (toExponent x)
+c'DecZero'NilGroupedRadPer :: NilGroupedRadPer -> DecZero
+c'DecZero'NilGroupedRadPer = Exponential () . e'NilGroupedRadPer
 
-instance HasExponent NilGroupedRadCom where
-  toExponent (NilGroupedRadCom _zMay _rdx _z1 zs1 zss)
-    = one `add` zeroes1 `add` zeroesRest
-    where
-      zeroes1 = let Zero'Seq zs = zs1 in lengthUnsigned zs
-      zeroesRest = addGroup g1 (foldr addGroup zero gs)
-        where
-          ZeroGroupRadCom'Seq1 (g1, gs) = zss
-          addGroup (ZeroGroupRadCom _ _zero1 (Zero'Seq zeros)) acc
-            = one `add` lengthUnsigned zeros `add` acc
+e'NilRadCom :: NilRadCom -> NonNegative
+e'NilRadCom (NilRadCom'NilUngroupedRadCom x) = e'NilUngroupedRadCom x
+e'NilRadCom (NilRadCom'NilGroupedRadCom x) = e'NilGroupedRadCom x
 
-instance HasExponent NilGroupedRadPer where
-  toExponent (NilGroupedRadPer _zMay _rdx _z1 zs1 zss)
-    = one `add` zeroes1 `add` zeroesRest
-    where
-      zeroes1 = let Zero'Seq zs = zs1 in lengthUnsigned zs
-      zeroesRest = addGroup g1 (foldr addGroup zero gs)
-        where
-          ZeroGroupRadPer'Seq1 (g1, gs) = zss
-          addGroup (ZeroGroupRadPer _ _zero1 (Zero'Seq zeros)) acc
-            = one `add` lengthUnsigned zeros `add` acc
+e'NilRadPer :: NilRadPer -> NonNegative
+e'NilRadPer (NilRadPer'NilUngroupedRadPer x) = e'NilUngroupedRadPer x
+e'NilRadPer (NilRadPer'NilGroupedRadPer x) = e'NilGroupedRadPer x
 
-instance HasDecZero NilGroupedRadCom where
-  toDecZero x = Exponential () (toExponent x)
+c'DecZero'NilRadCom :: NilRadCom -> DecZero
+c'DecZero'NilRadCom = Exponential () . e'NilRadCom
 
-instance HasDecZero NilGroupedRadPer where
-  toDecZero x = Exponential () (toExponent x)
+c'DecZero'NilRadPer :: NilRadPer -> DecZero
+c'DecZero'NilRadPer = Exponential () . e'NilRadPer
 
-instance HasExponent NilRadCom where
-  toExponent (NilRadCom'NilUngroupedRadCom x) = toExponent x
-  toExponent (NilRadCom'NilGroupedRadCom x) = toExponent x
+c'DecZero'Neutral :: Neutral -> DecZero
+c'DecZero'Neutral (NeuCom _ n) = c'DecZero'NilRadCom n
+c'DecZero'Neutral (NeuPer n) = c'DecZero'NilRadPer n
 
-instance HasExponent NilRadPer where
-  toExponent (NilRadPer'NilUngroupedRadPer x) = toExponent x
-  toExponent (NilRadPer'NilGroupedRadPer x) = toExponent x
+e'RadixComDigits :: RadixComDigits -> NonNegative
+e'RadixComDigits (RadixComDigits _ (D0'9'Seq sq)) = length sq
 
-instance HasDecZero NilRadCom where
-  toDecZero (NilRadCom'NilUngroupedRadCom x)
-    = Exponential () (toExponent x)
-  toDecZero (NilRadCom'NilGroupedRadCom x)
-    = Exponential () (toExponent x)
+e'RadixPerDigits :: RadixPerDigits -> NonNegative
+e'RadixPerDigits (RadixPerDigits _ (D0'9'Seq sq)) = length sq
 
-instance HasDecZero Neutral where
-  toDecZero (NeuCom _ n) = toDecZero n
-  toDecZero (NeuPer n) = toDecZero n
+e'RadixComDigits'Maybe :: RadixComDigits'Maybe -> NonNegative
+e'RadixComDigits'Maybe (RadixComDigits'Maybe may)
+  = maybe zero e'RadixComDigits may
 
-instance HasDecZero NilRadPer where
-  toDecZero (NilRadPer'NilUngroupedRadPer x)
-    = Exponential () (toExponent x)
-  toDecZero (NilRadPer'NilGroupedRadPer x)
-    = Exponential () (toExponent x)
+e'RadixPerDigits'Maybe :: RadixPerDigits'Maybe -> NonNegative
+e'RadixPerDigits'Maybe (RadixPerDigits'Maybe may)
+  = maybe zero e'RadixPerDigits may
 
--- | Strips the sign from the 'DecNonZero'.
-instance HasDecPositive DecNonZero where
-  toDecPositive (Exponential sig expt) =
-    Exponential (nonZeroToPositive sig) expt
+e'BrimUngroupedRadCom :: BrimUngroupedRadCom -> NonNegative
+e'BrimUngroupedRadCom
+  (BUGreaterThanOneRadCom _ _ mayRadCom) = e'RadixComDigits'Maybe mayRadCom
+e'BrimUngroupedRadCom
+  (BULessThanOneRadCom _ _rdx (Zero'Seq zs1) _d2 (D0'9'Seq dss))
+  = length zs1 `add` one `add` length dss
 
-instance HasExponent RadixComDigits where
-  toExponent (RadixComDigits _ (D0'9'Seq sq)) = lengthUnsigned sq
+e'BrimUngroupedRadPer :: BrimUngroupedRadPer -> NonNegative
+e'BrimUngroupedRadPer
+  (BUGreaterThanOneRadPer _ _ mayRadPer) = e'RadixPerDigits'Maybe mayRadPer
+e'BrimUngroupedRadPer
+  (BULessThanOneRadPer _ _rdx (Zero'Seq zs1) _d2 (D0'9'Seq dss))
+  = length zs1 `add` one `add` length dss
 
-instance HasExponent RadixPerDigits where
-  toExponent (RadixPerDigits _ (D0'9'Seq sq)) = lengthUnsigned sq
-
-instance HasExponent RadixComDigits'Maybe where
-  toExponent (RadixComDigits'Maybe may)
-    = maybe zero toExponent may
-
-instance HasExponent RadixPerDigits'Maybe where
-  toExponent (RadixPerDigits'Maybe may)
-    = maybe zero toExponent may
-
-instance HasExponent BrimUngroupedRadCom where
-  toExponent (BUGreaterThanOneRadCom _ _ mayRadCom) = toExponent mayRadCom
-  toExponent (BULessThanOneRadCom _ _rdx (Zero'Seq zs1) _d2 (D0'9'Seq dss))
-    = lengthUnsigned zs1 `add` one `add` lengthUnsigned dss
-
-instance HasExponent BrimUngroupedRadPer where
-  toExponent (BUGreaterThanOneRadPer _ _ mayRadPer) = toExponent mayRadPer
-  toExponent (BULessThanOneRadPer _ _rdx (Zero'Seq zs1) _d2 (D0'9'Seq dss))
-    = lengthUnsigned zs1 `add` one `add` lengthUnsigned dss
+{-
 
 instance HasDecPositive BrimUngroupedRadCom where
   toDecPositive (BUGreaterThanOneRadCom nv (D0'9'Seq ds1)
@@ -632,3 +560,4 @@ displayDecimalAsQty d = (toList (sideChar <| ' ' <| rest) ++)
     rest = case repUngroupedDecimalRadPer d of
       Moderate nu -> t'NilUngroupedRadPer nu
       Extreme (Polarized bu _) -> t'BrimUngroupedRadPer bu
+-}

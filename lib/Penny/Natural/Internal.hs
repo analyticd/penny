@@ -2,6 +2,8 @@
 {-# OPTIONS_HADDOCK not-home #-}
 module Penny.Natural.Internal where
 
+{-
+
 import Data.Foldable (toList)
 import Data.Sequence (Seq, ViewR(..), viewr, (<|))
 import qualified Data.Sequence as Seq
@@ -10,12 +12,6 @@ import Penny.Copper.Types
 import Penny.Copper.Conversions
 import Penny.Polar
 
--- Do not try to make 'Positive' an instance of 'Wrapped' in Lens.
--- That would allow the user to make a 'Positive' with any 'Integer',
--- which would break type safety.
-
-newtype Positive = Positive { positiveToInteger :: Integer }
-  deriving (Eq, Ord, Show)
 
 
 class IsPositive a where
@@ -175,3 +171,4 @@ diffUnsigned (Unsigned l) (Unsigned r)
   | l > r = LeftBiggerBy (Positive (l - r))
   | r > l = RightBiggerBy (Positive (r - l))
   | otherwise = Equal
+-}

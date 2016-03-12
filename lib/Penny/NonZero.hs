@@ -1,11 +1,7 @@
 module Penny.NonZero
   ( NonZero
-  , nonZeroToInteger
-  , integerToNonZero
-  , addNonZero
-  , nonZeroToPositive
-  , nonZeroSign
-  , c'NonZero'Positive
+  , c'Integer'NonZero
+  , c'NonZero'Integer
   ) where
 
 import Penny.NonZero.Internal

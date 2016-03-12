@@ -1,8 +1,7 @@
 module Penny.NonEmpty where
 
 import Control.Monad (ap)
-import Penny.Natural
-import Penny.Digit
+import Penny.Positive
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import Data.Sequence (Seq, (|>), viewl, ViewL(..), (<|))

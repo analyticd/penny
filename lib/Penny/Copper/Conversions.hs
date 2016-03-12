@@ -3,8 +3,13 @@
 module Penny.Copper.Conversions where
 
 import Penny.Copper.Types
+import Penny.NonNegative (NonNegative)
+import qualified Penny.NonNegative as NN
+import Penny.Positive (Positive)
+import qualified Penny.Positive as Pos
 
 import Control.Applicative ((<|>))
+import Data.Sequence (Seq)
 
 one :: One
 one = One '1'
@@ -36,6 +41,19 @@ nine = Nine '9'
 zero :: Zero
 zero = Zero '0'
 
+c'NonNegative'D0'9 :: D0'9 -> NonNegative
+c'NonNegative'D0'9 x = case x of
+  D0'9'Zero _ -> NN.zero
+  D0'9'One _ -> NN.one
+  D0'9'Two _ -> NN.two
+  D0'9'Three _ -> NN.three
+  D0'9'Four _ -> NN.four
+  D0'9'Five _ -> NN.five
+  D0'9'Six _ -> NN.six
+  D0'9'Seven _ -> NN.seven
+  D0'9'Eight _ -> NN.eight
+  D0'9'Nine _ -> NN.nine
+
 c'Int'D0'9 :: D0'9 -> Int
 c'Int'D0'9 x = case x of
   D0'9'Zero _ -> 0
@@ -62,6 +80,21 @@ c'D0'9'Int x = case x of
   8 -> Just $ D0'9'Eight (Eight '8')
   9 -> Just $ D0'9'Nine (Nine '9')
   _ -> Nothing
+
+c'Positive'D1'9 :: D1'9 -> Positive
+c'Positive'D1'9 x = case x of
+  D1'9'One _ -> Pos.one
+  D1'9'Two _ -> Pos.two
+  D1'9'Three _ -> Pos.three
+  D1'9'Four _ -> Pos.four
+  D1'9'Five _ -> Pos.five
+  D1'9'Six _ -> Pos.six
+  D1'9'Seven _ -> Pos.seven
+  D1'9'Eight _ -> Pos.eight
+  D1'9'Nine _ -> Pos.nine
+
+novDecsToPositive :: D1'9 -> Seq D0'9 -> Positive
+novDecsToPositive = undefined
 
 c'Int'D1'9 :: D1'9 -> Int
 c'Int'D1'9 x = case x of

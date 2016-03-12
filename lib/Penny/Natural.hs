@@ -1,4 +1,5 @@
-module Penny.Natural
+module Penny.Natural where
+{-
   ( Natural(..)
   , Positive
   , Unsigned
@@ -32,3 +33,4 @@ module Penny.Natural
   ) where
 
 import Penny.Natural.Internal
+-}
