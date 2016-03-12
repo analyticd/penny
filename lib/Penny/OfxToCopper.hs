@@ -5,6 +5,8 @@ module Penny.OfxToCopper where
 import Penny.Account
 import qualified Penny.Commodity as Cy
 import Penny.Copper.Types
+import Penny.Copper.Util
+import Penny.DateTime
 import Penny.Polar
 
 import qualified Control.Lens as L
@@ -15,11 +17,13 @@ import qualified Data.OFX as OFX
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Time (ZonedTime)
+import qualified Data.Time as Time
 import qualified Text.Parsec as Parsec
 
 data Error
   = OFXParseError String
   -- ^ Could not parse OFX file.
+  | DateConvertError Time.Day
   | TransactionParseError String
   -- ^ Could not get list of transactions from file.
   deriving Show
@@ -67,13 +71,13 @@ ofxTextToTransactions
   -> Text
   -> Either Error (Seq Transaction)
 ofxTextToTransactions mainAccount getOffset commodity
-  = (return . makeCopperTransactions)
+  = makeCopperTransactions
   <=< makeOfxTransactions
   <=< parseOfxFile
   where
     makeCopperTransactions
-      = Seq.fromList
-      . map (ofxTransactionToTransaction mainAccount getOffset commodity)
+      = fmap Seq.fromList
+      . traverse (ofxTransactionToTransaction mainAccount getOffset commodity)
     makeOfxTransactions
       = either (Left . TransactionParseError) Right
       . OFX.transactions
@@ -90,17 +94,23 @@ ofxTransactionToTransaction
   -> Cy.Commodity
   -- ^ All postings have this commodity.
   -> OFX.Transaction
-  -> Transaction
-ofxTransactionToTransaction mainAccount getOffset commodity txn
+  -> Either Error Transaction
+ofxTransactionToTransaction mainAccount getOffset commodity txn = undefined
+{-
   = Transaction tl postings
   where
     tl = TopLine'Maybe . Just . TopLine $ topLineForest
       (OFX.txDTPOSTED txn)
     postings = undefined
+-}
 
 -- | Gets the top line forest, which contains the date and the
 -- payee.
-topLineForest = undefined
+topLineForest
+  :: Time.ZonedTime
+  -> Maybe (Either String OFX.Payee)
+  -> Either Error TopLine'Maybe
+topLineForest zt pye = undefined
 {-
   :: ZonedTime
   -- ^ Date transaction was posted

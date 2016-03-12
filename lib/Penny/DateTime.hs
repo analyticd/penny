@@ -33,6 +33,25 @@ intsToDate y m d = nonLeap <|> leap
           md <- intsToMonthDay m d
           return . Date'NonLeapDay $ NonLeapDay yr dash md
 
+c'Date'Day :: Time.Day -> Maybe Date
+c'Date'Day day = do
+  let (yr, m, d) = Time.toGregorian day
+  y <- getYear yr
+  intsToDate y m d
+  where
+    getYear y | y > fromIntegral (maxBound :: Int) = Nothing
+              | y < fromIntegral (minBound :: Int) = Nothing
+              | otherwise = Just $ fromIntegral y
+
+c'Copper'ZonedTime
+  :: Time.ZonedTime
+  -> Maybe (Date, Time, Zone)
+c'Copper'ZonedTime = undefined
+
+c'Time'TimeOfDay
+  :: Time.TimeOfDay
+  -> Maybe Time
+c'Time'TimeOfDay = undefined
 
 intsToMonthDay
   :: Int
