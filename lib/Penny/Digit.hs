@@ -7,6 +7,8 @@ import Penny.Copper.Types
 
 import Control.Applicative ((<|>))
 
+{-
+
 -- * Typeclass for any digit
 
 class Digit a where
@@ -440,3 +442,4 @@ instance HasNine Nine where
 
 class HasTen a where
   ten :: a
+-}

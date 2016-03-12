@@ -23,8 +23,8 @@
 -- a number representation that is zero.
 --
 -- The second phase transforms this AST into the data types that are
--- used in the rest of Penny.  This is called the @converter@ and it
--- is in "Penny.Copper.Converter".
+-- used in the rest of Penny.  This is called the @locator@ and it
+-- is in "Penny.Copper.Locator".
 --
 -- The third phase performs final error checking.  It ensures that
 -- postings are valid, that transactions are balanced, and that
@@ -44,7 +44,7 @@ import Data.Typeable (Typeable)
 import qualified Data.Validation as V
 import qualified Text.Earley as Earley
 
-import qualified Penny.Copper.Converter as Converter
+import qualified Penny.Copper.Locator as Locator
 import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
 import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
@@ -63,22 +63,22 @@ textPosition
   :: Int
   -- ^ Integer position
   -> Text
-  -> Converter.Pos
+  -> Locator.Pos
 textPosition int
-  = X.foldl' add (Converter.Pos 1 1)
+  = X.foldl' add (Locator.Pos 1 1)
   . X.take int
   where
-    add (Converter.Pos lin col) c
-      | c == '\n' = Converter.Pos (lin + 1) 1
-      | c == '\t' = Converter.Pos lin (col + 8 - ((col - 1) `mod` 8))
-      | otherwise = Converter.Pos lin (col + 1)
+    add (Locator.Pos lin col) c
+      | c == '\n' = Locator.Pos (lin + 1) 1
+      | c == '\t' = Locator.Pos lin (col + 8 - ((col - 1) `mod` 8))
+      | otherwise = Locator.Pos lin (col + 1)
 
 -- | The name of a file being parsed.  This is optional and can be
 -- the empty 'Text'.
 type Filename = Text
 
 data ParseErrorInfo = ParseErrorInfo
-  { _failurePosition :: Converter.Pos
+  { _failurePosition :: Locator.Pos
   , _expected :: [String]
   } deriving (Typeable, Show)
 
@@ -155,7 +155,7 @@ parseConvertProof
 parseConvertProof (filename, txt) = do
   wholeFile <- either (Left . ParseConvertProofError . Left) Right
     $ runParser grammar (filename, txt)
-  let parts = Converter.runConverter . Converter.c'WholeFile $ wholeFile
+  let parts = Locator.runLocator . Locator.c'WholeFile $ wholeFile
   items <- either (Left . ParseConvertProofError . Right)
     Right . Lens.view V._Either . Proofer.proofItems
     $ parts

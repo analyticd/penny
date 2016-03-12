@@ -10,7 +10,7 @@
 module Penny.Copper.Proofer where
 
 import Penny.Commodity
-import Penny.Copper.Converter
+import Penny.Copper.Locator
 import Penny.Ents
 import Penny.NonEmpty
 import qualified Penny.NonEmpty as NonEmpty
