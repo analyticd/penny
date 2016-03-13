@@ -207,3 +207,14 @@ c'NilOrBrimAnyRadix'NilAnyRadix
 c'NilOrBrimAnyRadix'NilAnyRadix nil = case nil of
   Left nrc -> Left (NilOrBrimRadCom'NilRadCom nrc)
   Right nrp -> Right (NilOrBrimRadPer'NilRadPer nrp)
+
+-- # Poles
+pole'RepRadCom :: RepRadCom -> Maybe Pole
+pole'RepRadCom = pole'Moderated
+
+pole'RepRadPer :: RepRadPer -> Maybe Pole
+pole'RepRadPer = pole'Moderated
+
+pole'RepAnyRadix :: RepAnyRadix -> Maybe Pole
+pole'RepAnyRadix = either pole'RepRadCom pole'RepRadPer
+

@@ -15,7 +15,6 @@ module Penny
   , module Penny.Copper
   , module Penny.Decimal
   , module Penny.Maypred
-  , module Penny.Natural
   , module Penny.NonEmpty
   , module Penny.NonZero
   , module Penny.Ord
@@ -54,7 +53,6 @@ import Penny.Commodity
 import Penny.Copper
 import Penny.Decimal
 import Penny.Maypred
-import Penny.Natural
 import Penny.NonEmpty
 import Penny.NonZero
 import Penny.Ord

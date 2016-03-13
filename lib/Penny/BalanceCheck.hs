@@ -17,7 +17,7 @@ import Penny.Balance
 import Penny.Clatch
 import Penny.Commodity
 import Penny.Decimal
-import Penny.Natural
+import Penny.NonNegative
 import Penny.Shortcut
 
 checkBalances
@@ -95,5 +95,5 @@ lookForBalanceItem (cy, sig, exptInt) (rest, Balance balMap)
       " has a balance with coefficient " <> show sig <> " and exponent "
       <> show exptInt) . maybe (assertFailure "balance does not exist") id $ do
         bal <- maybeBal
-        expt <- integerToNatural exptInt
+        expt <- c'NonNegative'Integer exptInt
         return $ Exponential sig expt @=? bal

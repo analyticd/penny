@@ -34,12 +34,12 @@ import qualified Data.Sequence as Seq
 
 import Penny.Arrangement
 import qualified Penny.Commodity as Commodity
+import qualified Penny.Copper.Conversions as Conv
 import Penny.Copper.Types
 import Penny.DateTime
 import Penny.Decimal
-import Penny.Digit
-import Penny.Natural
 import Penny.Polar
+import qualified Penny.Positive as Pos
 import Penny.Realm
 import qualified Penny.Scalar as Scalar
 import qualified Penny.Tree as Tree
@@ -85,14 +85,14 @@ c'Day date = advance (t'Date date) >> return (c'Day'Date date)
 c'TimeOfDay :: Time -> Locator TimeOfDay
 c'TimeOfDay time = advance (t'Time time) >> return (TimeOfDay h m s)
   where
-    h = digitToInt (_r'Time'0'Hours time)
-    m = digitToInt (_r'Time'2'Minutes time)
+    h = Conv.c'Int'Hours (_r'Time'0'Hours time)
+    m = Conv.c'Int'Minutes (_r'Time'2'Minutes time)
     s = fromMaybe 0 getSecs
     getSecs = Lens.preview getter time
       where
         getter = r'Time'3'ColonSeconds'Maybe
           . Lens._Wrapped' . Lens._Just . r'ColonSeconds'1'Seconds
-          . Lens.to digitToInt . Lens.to fromIntegral
+          . Lens.to Conv.c'Int'Seconds . Lens.to fromIntegral
 
 
 c'Zone :: Zone -> Locator Int
@@ -105,10 +105,10 @@ c'Zone (Zone _ zone)
       + d2 * 10 ^ 2
       + d1 * 10 * 1
       + d0
-    d3 = digitToInt . _r'ZoneHrsMins'1'D0'2 $ zone
-    d2 = digitToInt . _r'ZoneHrsMins'2'D0'3 $ zone
-    d1 = digitToInt . _r'ZoneHrsMins'3'D0'9 $ zone
-    d0 = digitToInt . _r'ZoneHrsMins'4'D0'9 $ zone
+    d3 = Conv.c'Int'D0'2 . _r'ZoneHrsMins'1'D0'2 $ zone
+    d2 = Conv.c'Int'D0'3 . _r'ZoneHrsMins'2'D0'3 $ zone
+    d1 = Conv.c'Int'D0'9 . _r'ZoneHrsMins'3'D0'9 $ zone
+    d0 = Conv.c'Int'D0'9 . _r'ZoneHrsMins'4'D0'9 $ zone
     changeSign = case _r'ZoneHrsMins'0'PluMin zone of
       PluMin'Plus _ -> id
       PluMin'Minus _ -> negate
@@ -153,7 +153,7 @@ c'WholeAny a = advance (t'WholeAny a) >> return x
       WholeAny'Zero _ -> 0
       WholeAny'WholeNonZero
         (WholeNonZero (PluMin'Maybe mayPm) d1 (D0'9'Seq ds)) ->
-        changeSign . naturalToInteger $ novDecsToPositive d1 ds
+        changeSign . Pos.c'Integer'Positive $ Conv.novDecsToPositive d1 ds
         where
           changeSign = case mayPm of
             Nothing -> id
@@ -490,12 +490,13 @@ c'Exch x = case x of
   ExchNeutral neu ws -> do
     advance (t'Neutral neu)
     advance (t'White'Seq ws)
-    return . fmap (const 0) . toDecZero $ neu
+    return . fmap (const 0) . c'DecZero'Neutral $ neu
   ExchNonNeutral pm nn ws -> do
     changeSign <- c'PluMinFs'Maybe pm
     advance (t'NonNeutral nn)
     advance (t'White'Seq ws)
-    return . fmap (changeSign . naturalToInteger) . toDecPositive $ nn
+    return . fmap (changeSign . Pos.c'Integer'Positive) . c'DecPositive'NonNeutral
+      $ nn
 
 c'CyExch :: CyExch -> Locator (Commodity.Commodity, Decimal)
 c'CyExch x = case x of

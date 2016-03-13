@@ -46,6 +46,10 @@ instance Equatorial (Moderated n o) where
 
 makePrisms ''Moderated
 
+pole'Moderated :: Moderated n o -> Maybe Pole
+pole'Moderated (Moderate _) = Nothing
+pole'Moderated (Extreme (Polarized _ p)) = Just p
+
 debit :: Pole
 debit = North
 
@@ -57,6 +61,12 @@ positive = North
 
 negative :: Pole
 negative = South
+
+integerPole :: Integer -> Maybe Pole
+integerPole i
+  | i < 0 = Just negative
+  | i == 0 = Nothing
+  | otherwise = Just positive
 
 instance Equatorial Int where
   equatorial i

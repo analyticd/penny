@@ -66,7 +66,7 @@ foreground
   :: Env
   -> Decimal
   -> Radiant
-foreground env q = case Polar.equatorial q of
+foreground env q = case pole'Decimal q of
   Nothing -> view (colors.neutral) env
   Just p
     | p == Polar.debit -> view (colors.debit) env
@@ -84,7 +84,7 @@ sideRows env = fmap mkRow . Seq.fromList . Map.toAscList
     mkRow (_, q) = Seq.singleton . fore (foreground env q)
       . back (view rowBackground env) . chunk $ sideTxt
       where
-        sideTxt = case Polar.equatorial q of
+        sideTxt = case pole'Decimal q of
           Nothing -> "--"
           Just s
             | s == Polar.debit -> "<"

@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleContexts #-}
 -- | Conversions between Copper types and other types.
 
 module Penny.Copper.Conversions where
@@ -9,7 +11,9 @@ import Penny.Positive (Positive)
 import qualified Penny.Positive as Pos
 
 import Control.Applicative ((<|>))
+import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 
 one :: One
 one = One '1'
@@ -94,7 +98,18 @@ c'Positive'D1'9 x = case x of
   D1'9'Nine _ -> Pos.nine
 
 novDecsToPositive :: D1'9 -> Seq D0'9 -> Positive
-novDecsToPositive = undefined
+novDecsToPositive n = finish . go NN.zero NN.zero
+  where
+    go !places !tot sq = case Lens.unsnoc sq of
+      Nothing -> (places, tot)
+      Just (xs, x) -> go (NN.next places)
+        (((c'NonNegative'D0'9 x) `NN.mult` (NN.ten `NN.pow` places))
+          `NN.add` tot) xs
+    finish (places, tot) = case NN.c'Positive'NonNegative tot of
+      Nothing -> res
+      Just totPos -> totPos `Pos.add` res
+      where
+        res = c'Positive'D1'9 n `Pos.mult` (Pos.ten `Pos.pow` places)
 
 c'Int'D1'9 :: D1'9 -> Int
 c'Int'D1'9 x = case x of
@@ -387,4 +402,22 @@ c'Int'Seconds (Seconds x) = c'Int'N0'59 x
 
 c'Seconds'Int :: Integral a => a -> Maybe Seconds
 c'Seconds'Int = fmap Seconds . c'N0'59'Int
+
+-- | Transform a 'Positive' into its component digits.
+positiveDigits
+  :: Positive
+  -> (D1'9, Seq D0'9)
+positiveDigits pos = go (Pos.c'Integer'Positive pos) Seq.empty
+  where
+    go leftOver acc
+      | quotient == 0 = (lastDigit, acc)
+      | otherwise = go quotient (thisDigit `Lens.cons` acc)
+      where
+        (quotient, remainder) = leftOver `divMod` 10
+        thisDigit = case c'D0'9'Int remainder of
+          Just d -> d
+          Nothing -> error "positiveDigits: error 1"
+        lastDigit = case c'D1'9'Int remainder of
+          Just d -> d
+          Nothing -> error "positiveDigits: error 2"
 

@@ -2,73 +2,24 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Decimal where
-{-
-  (
-  -- * Decimal types and classes
-    Exponential(..)
-  , coefficient
-  , power
-  , Decimal
-  , HasDecimal(..)
-  , HasExponent(..)
-  , DecNonZero
-  , HasDecNonZero(..)
-  , DecUnsigned
-  , HasDecUnsigned(..)
-  , DecPositive
-  , HasDecPositive(..)
-  , DecZero
-  , HasDecZero(..)
 
-  -- * Exponent manipulations
-  , increaseExponent
-  , equalizeExponents
-
-  -- * Changing decimal forms
-  , stripDecimalSign
-  , stripNonZeroSign
-  , decomposeDecUnsigned
-  , decNonZeroToDecimal
-  , decimalToDecNonZero
-  , c'DecNonZero'DecPositive
-
-  -- * Representing decimals
-  --
-  -- | To group the results of these functions, consult
-  -- 'Penny.Representation.groupBrimUngrouped'.
-  , repUngroupedDecimalRadCom
-  , repUngroupedDecimalRadPer
-  , repUngroupedDecNonZeroRadCom
-  , repUngroupedDecNonZeroRadPer
-  , repUngroupedDecUnsignedRadCom
-  , repUngroupedDecUnsignedRadPer
-  , repUngroupedDecZeroRadCom
-  , repUngroupedDecZeroRadPer
-  , repUngroupedDecPositiveRadCom
-  , repUngroupedDecPositiveRadPer
-  , repDigitsRadCom
-  , repDigitsRadPer
-  , repDecimal
-  , displayDecimalAsQty
-  ) where
--}
-
-import Control.Lens (view, makeLenses, to, over, (<|))
+import Control.Lens (makeLenses, (<|))
+import qualified Control.Lens as Lens
 import Data.Foldable (toList)
 import Data.Monoid ((<>))
-import Data.Ord (comparing)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Prelude hiding (length)
 
-import Penny.Digit
+import qualified Penny.Copper.Conversions as Conv
 import Penny.Copper.Types
 import Penny.Grouping
 import Penny.NonNegative
-import Penny.Natural
 import Penny.NonZero
+import qualified Penny.NonZero as NonZero
 import Penny.Polar
 import Penny.Positive (Positive)
+import qualified Penny.Positive as Pos
 import Penny.Rep
 
 -- | Numbers represented exponentially.  In @Exponential c p@, the
@@ -86,6 +37,9 @@ data Exponential c = Exponential
 makeLenses ''Exponential
 
 type Decimal = Exponential Integer
+
+pole'Decimal :: Decimal -> Maybe Pole
+pole'Decimal (Exponential c _) = integerPole c
 
 -- | @increaseExponent d e@ returns a 'Decimal' @d'@ whose exponent is
 -- equal to @e@; if the exponent of @d@ is greater than or equal to
@@ -132,7 +86,7 @@ instance Num (Exponential Integer) where
     where
       (Exponential mx' ex, Exponential my' _) = equalizeExponents x y
   (Exponential mx ex) * (Exponential my ey) = Exponential (mx * my) (ex `add` ey)
-  negate (Exponential mx ex) = Exponential (negate mx) ex
+  negate (Exponential mx ex) = Exponential (Prelude.negate mx) ex
   abs (Exponential mx ex) = Exponential (abs mx) ex
   signum (Exponential mx _) = Exponential (signum mx) zero
   fromInteger i = Exponential i zero
@@ -251,55 +205,55 @@ e'BrimUngroupedRadPer
   (BULessThanOneRadPer _ _rdx (Zero'Seq zs1) _d2 (D0'9'Seq dss))
   = length zs1 `add` one `add` length dss
 
-{-
+c'DecPositive'BrimUngroupedRadCom :: BrimUngroupedRadCom -> DecPositive
+c'DecPositive'BrimUngroupedRadCom (BUGreaterThanOneRadCom nv (D0'9'Seq ds1)
+  (RadixComDigits'Maybe Nothing))
+  = Exponential (Conv.novDecsToPositive nv ds1) zero
 
-instance HasDecPositive BrimUngroupedRadCom where
-  toDecPositive (BUGreaterThanOneRadCom nv (D0'9'Seq ds1)
-    (RadixComDigits'Maybe Nothing))
-    = Exponential (novDecsToPositive nv ds1) zero
+c'DecPositive'BrimUngroupedRadCom (BUGreaterThanOneRadCom nv (D0'9'Seq ds1)
+  (RadixComDigits'Maybe (Just (RadixComDigits _ (D0'9'Seq ds2)))))
+  = Exponential (Conv.novDecsToPositive nv (ds1 <> ds2))
+                (length ds2)
 
-  toDecPositive (BUGreaterThanOneRadCom nv (D0'9'Seq ds1)
-    (RadixComDigits'Maybe (Just (RadixComDigits _ (D0'9'Seq ds2)))))
-    = Exponential (novDecsToPositive nv (ds1 <> ds2))
-                  (lengthUnsigned ds2)
+c'DecPositive'BrimUngroupedRadCom
+  (BULessThanOneRadCom _ _ (Zero'Seq zs1) nv (D0'9'Seq ds))
+  = Exponential (Conv.novDecsToPositive nv ds)
+                (one `add` (length zs1) `add` (length ds))
 
-  toDecPositive (BULessThanOneRadCom _ _ (Zero'Seq zs1) nv (D0'9'Seq ds))
-    = Exponential (novDecsToPositive nv ds)
-                  (one `add` (lengthUnsigned zs1) `add` (lengthUnsigned ds))
+c'DecPositive'BrimUngroupedRadPer :: BrimUngroupedRadPer -> DecPositive
+c'DecPositive'BrimUngroupedRadPer (BUGreaterThanOneRadPer nv (D0'9'Seq ds1)
+  (RadixPerDigits'Maybe Nothing))
+  = Exponential (Conv.novDecsToPositive nv ds1) zero
 
-instance HasDecPositive BrimUngroupedRadPer where
-  toDecPositive (BUGreaterThanOneRadPer nv (D0'9'Seq ds1)
-    (RadixPerDigits'Maybe Nothing))
-    = Exponential (novDecsToPositive nv ds1) zero
+c'DecPositive'BrimUngroupedRadPer (BUGreaterThanOneRadPer nv (D0'9'Seq ds1)
+  (RadixPerDigits'Maybe (Just (RadixPerDigits _ (D0'9'Seq ds2)))))
+  = Exponential (Conv.novDecsToPositive nv (ds1 <> ds2))
+                (length ds2)
 
-  toDecPositive (BUGreaterThanOneRadPer nv (D0'9'Seq ds1)
-    (RadixPerDigits'Maybe (Just (RadixPerDigits _ (D0'9'Seq ds2)))))
-    = Exponential (novDecsToPositive nv (ds1 <> ds2))
-                  (lengthUnsigned ds2)
+c'DecPositive'BrimUngroupedRadPer
+  (BULessThanOneRadPer _ _ (Zero'Seq zs1) nv (D0'9'Seq ds))
+  = Exponential (Conv.novDecsToPositive nv ds)
+                (one `add` (length zs1) `add` (length ds))
 
-  toDecPositive (BULessThanOneRadPer _ _ (Zero'Seq zs1) nv (D0'9'Seq ds))
-    = Exponential (novDecsToPositive nv ds)
-                  (one `add` (lengthUnsigned zs1) `add` (lengthUnsigned ds))
+c'DecPositive'BrimGroupedRadCom :: BrimGroupedRadCom -> DecPositive
+c'DecPositive'BrimGroupedRadCom
+  = c'DecPositive'BrimUngroupedRadCom . ungroupBrimGroupedRadCom
 
-instance HasDecPositive BrimGroupedRadCom where
-  toDecPositive = toDecPositive . ungroupBrimGroupedRadCom
+c'DecPositive'BrimGroupedRadPer :: BrimGroupedRadPer -> DecPositive
+c'DecPositive'BrimGroupedRadPer
+  = c'DecPositive'BrimUngroupedRadPer . ungroupBrimGroupedRadPer
 
-instance HasDecPositive BrimGroupedRadPer where
-  toDecPositive = toDecPositive . ungroupBrimGroupedRadPer
+c'DecPositive'BrimRadCom :: BrimRadCom -> DecPositive
+c'DecPositive'BrimRadCom
+  = c'DecPositive'BrimUngroupedRadCom . ungroupBrimRadCom
 
-instance HasDecPositive BrimRadCom where
-  toDecPositive = toDecPositive . ungroupBrimRadCom
+c'DecPositive'BrimRadPer :: BrimRadPer -> DecPositive
+c'DecPositive'BrimRadPer
+  = c'DecPositive'BrimUngroupedRadPer . ungroupBrimRadPer
 
-instance HasDecPositive BrimRadPer where
-  toDecPositive = toDecPositive . ungroupBrimRadPer
-
-instance HasDecPositive NonNeutral where
-  toDecPositive (NonNeutralRadCom _ b) = toDecPositive b
-  toDecPositive (NonNeutralRadPer b) = toDecPositive b
-
-instance (HasDecPositive a, HasDecPositive b)
-  => HasDecPositive (Either a b) where
-  toDecPositive = either toDecPositive toDecPositive
+c'DecPositive'NonNeutral :: NonNeutral -> DecPositive
+c'DecPositive'NonNeutral (NonNeutralRadCom _ b) = c'DecPositive'BrimRadCom b
+c'DecPositive'NonNeutral (NonNeutralRadPer b) = c'DecPositive'BrimRadPer b
 
 -- | Transforms a 'DecPositive' to a 'DecNonZero', while applying the
 -- appropriate sign.
@@ -308,7 +262,11 @@ c'DecNonZero'DecPositive
   -> DecPositive
   -> DecNonZero
 c'DecNonZero'DecPositive pm (Exponential sig expt)
-  = Exponential (align pm . c'NonZero'Positive $ sig) expt
+  = Exponential (changeSign . c'NonZero'Positive $ sig) expt
+  where
+    changeSign
+      | pm == positive = id
+      | otherwise = NonZero.negate
 
 -- * Representations
 
@@ -345,60 +303,6 @@ In that case LR is positive and LZ might be zero or positive.
 
 -}
 
-repDigitsRadCom
-  :: (D1'9, Seq D0'9)
-  -- ^ Significand
-  -> Unsigned
-  -- ^ Exponent
-  -> BrimUngroupedRadCom
-repDigitsRadCom (d1, dr) expt
-  = case diffUnsigned (next $ lengthUnsigned dr) expt of
-      Equal -> BULessThanOneRadCom (Zero'Maybe $ Just zero)
-        rdx (Zero'Seq S.empty) d1 (D0'9'Seq dr)
-      LeftBiggerBy l -> BUGreaterThanOneRadCom d1 (D0'9'Seq leftDigs)
-        (RadixComDigits'Maybe rightDigs)
-        where
-          (leftDigs, rightDigs) = case prev l of
-            Nothing -> (S.empty, Just (RadixComDigits rdx (D0'9'Seq dr)))
-            Just c -> (beg,
-              Just (RadixComDigits rdx (D0'9'Seq end)))
-              where
-                (beg, end) = S.splitAt (integerToInt $ naturalToInteger c) dr
-      RightBiggerBy r -> BULessThanOneRadCom (Zero'Maybe $ Just zero)
-        rdx (Zero'Seq zs) d1 (D0'9'Seq dr)
-        where
-          zs = flip S.replicate zero
-            . integerToInt . naturalToInteger $ r
-  where
-    rdx = RadixCom ','
-
-repDigitsRadPer
-  :: (D1'9, Seq D0'9)
-  -- ^ Significand
-  -> Unsigned
-  -- ^ Exponent
-  -> BrimUngroupedRadPer
-repDigitsRadPer (d1, dr) expt
-  = case diffUnsigned (next $ lengthUnsigned dr) expt of
-      Equal -> BULessThanOneRadPer (Zero'Maybe $ Just zero)
-        rdx (Zero'Seq S.empty) d1 (D0'9'Seq dr)
-      LeftBiggerBy l -> BUGreaterThanOneRadPer d1 (D0'9'Seq leftDigs)
-        (RadixPerDigits'Maybe rightDigs)
-        where
-          (leftDigs, rightDigs) = case prev l of
-            Nothing -> (S.empty, Just (RadixPerDigits rdx (D0'9'Seq dr)))
-            Just c -> (beg,
-              Just (RadixPerDigits rdx (D0'9'Seq end)))
-              where
-                (beg, end) = S.splitAt (integerToInt $ naturalToInteger c) dr
-      RightBiggerBy r -> BULessThanOneRadPer (Zero'Maybe $ Just zero)
-        rdx (Zero'Seq zs) d1 (D0'9'Seq dr)
-        where
-          zs = flip S.replicate zero
-            . integerToInt . naturalToInteger $ r
-  where
-    rdx = RadixPer '.'
-
 integerToInt :: Integer -> Int
 integerToInt x
   | x < fromIntegral (minBound :: Int) = error "integer too small"
@@ -406,10 +310,64 @@ integerToInt x
   | otherwise = fromIntegral x
 
 
+repDigitsRadCom
+  :: (D1'9, Seq D0'9)
+  -- ^ Significand
+  -> NonNegative
+  -- ^ Exponent
+  -> BrimUngroupedRadCom
+repDigitsRadCom (d1, dr) expt
+  = case diff (next $ length dr) expt of
+      Equal -> BULessThanOneRadCom (Zero'Maybe $ Just Conv.zero)
+        rdx (Zero'Seq S.empty) d1 (D0'9'Seq dr)
+      LeftBiggerBy l -> BUGreaterThanOneRadCom d1 (D0'9'Seq leftDigs)
+        (RadixComDigits'Maybe rightDigs)
+        where
+          (leftDigs, rightDigs) = case Pos.prev l of
+            Nothing -> (S.empty, Just (RadixComDigits rdx (D0'9'Seq dr)))
+            Just c -> (beg,
+              Just (RadixComDigits rdx (D0'9'Seq end)))
+              where
+                (beg, end) = S.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
+      RightBiggerBy r -> BULessThanOneRadCom (Zero'Maybe $ Just Conv.zero)
+        rdx (Zero'Seq zs) d1 (D0'9'Seq dr)
+        where
+          zs = flip S.replicate Conv.zero
+            . integerToInt . Pos.c'Integer'Positive $ r
+  where
+    rdx = RadixCom ','
+
+repDigitsRadPer
+  :: (D1'9, Seq D0'9)
+  -- ^ Significand
+  -> NonNegative
+  -- ^ Exponent
+  -> BrimUngroupedRadPer
+repDigitsRadPer (d1, dr) expt
+  = case diff (next $ length dr) expt of
+      Equal -> BULessThanOneRadPer (Zero'Maybe $ Just Conv.zero)
+        rdx (Zero'Seq S.empty) d1 (D0'9'Seq dr)
+      LeftBiggerBy l -> BUGreaterThanOneRadPer d1 (D0'9'Seq leftDigs)
+        (RadixPerDigits'Maybe rightDigs)
+        where
+          (leftDigs, rightDigs) = case Pos.prev l of
+            Nothing -> (S.empty, Just (RadixPerDigits rdx (D0'9'Seq dr)))
+            Just c -> (beg,
+              Just (RadixPerDigits rdx (D0'9'Seq end)))
+              where
+                (beg, end) = S.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
+      RightBiggerBy r -> BULessThanOneRadPer (Zero'Maybe $ Just Conv.zero)
+        rdx (Zero'Seq zs) d1 (D0'9'Seq dr)
+        where
+          zs = flip S.replicate Conv.zero
+            . integerToInt . Pos.c'Integer'Positive $ r
+  where
+    rdx = RadixPer '.'
+
 repUngroupedDecZeroRadCom
   :: DecZero
   -> NilUngroupedRadCom
-repUngroupedDecZeroRadCom (Exponential () expt) = NUZeroRadCom zero
+repUngroupedDecZeroRadCom (Exponential () expt) = NUZeroRadCom Conv.zero
   (RadixZeroesRadCom'Maybe mayRdx)
   where
     rdx = RadixCom ','
@@ -417,12 +375,12 @@ repUngroupedDecZeroRadCom (Exponential () expt) = NUZeroRadCom zero
       | expt == zero = Nothing
       | otherwise = Just (RadixZeroesRadCom rdx (Zero'Seq zs))
       where
-        zs = S.replicate (integerToInt . naturalToInteger $ expt) zero
+        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) Conv.zero
 
 repUngroupedDecZeroRadPer
   :: DecZero
   -> NilUngroupedRadPer
-repUngroupedDecZeroRadPer (Exponential () expt) = NUZeroRadPer zero
+repUngroupedDecZeroRadPer (Exponential () expt) = NUZeroRadPer Conv.zero
   (RadixZeroesRadPer'Maybe mayRdx)
   where
     rdx = RadixPer '.'
@@ -430,31 +388,31 @@ repUngroupedDecZeroRadPer (Exponential () expt) = NUZeroRadPer zero
       | expt == zero = Nothing
       | otherwise = Just (RadixZeroesRadPer rdx (Zero'Seq zs))
       where
-        zs = S.replicate (integerToInt . naturalToInteger $ expt) zero
+        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) Conv.zero
 
 repUngroupedDecPositiveRadCom
   :: DecPositive
   -> BrimUngroupedRadCom
 repUngroupedDecPositiveRadCom (Exponential sig expt)
-  = repDigitsRadCom (positiveDigits sig) expt
+  = repDigitsRadCom (Conv.positiveDigits sig) expt
 
 repUngroupedDecPositiveRadPer
   :: DecPositive
   -> BrimUngroupedRadPer
 repUngroupedDecPositiveRadPer (Exponential sig expt)
-  = repDigitsRadPer (positiveDigits sig) expt
+  = repDigitsRadPer (Conv.positiveDigits sig) expt
 
 decomposeDecUnsigned
   :: DecUnsigned
   -> Either DecZero DecPositive
-decomposeDecUnsigned (Exponential m e) = case unsignedToPositive m of
+decomposeDecUnsigned (Exponential m e) = case c'Positive'NonNegative m of
   Nothing -> Left (Exponential () e)
   Just m' -> Right (Exponential m' e)
 
 stripDecimalSign
   :: Decimal
   -> Either DecZero (DecPositive, Pole)
-stripDecimalSign (Exponential m e) = case stripIntegerSign m of
+stripDecimalSign (Exponential m e) = case Pos.stripIntegerSign m of
   Nothing -> Left (Exponential () e)
   Just (p, pm) -> Right (Exponential p e, pm)
 
@@ -462,7 +420,7 @@ stripNonZeroSign
   :: DecNonZero
   -> (DecPositive, Pole)
 stripNonZeroSign (Exponential nz ex)
-  = (Exponential (nonZeroToPositive nz) ex, nonZeroSign nz)
+  = (Exponential (c'Positive'NonZero nz) ex, nonZeroSign nz)
 
 repUngroupedDecNonZeroRadCom
   :: DecNonZero
@@ -552,7 +510,7 @@ displayDecimalAsQty
   -> ShowS
 displayDecimalAsQty d = (toList (sideChar <| ' ' <| rest) ++)
   where
-    sideChar = case equatorial d of
+    sideChar = case integerPole . _coefficient $ d of
       Nothing -> ' '
       Just v
         | v == debit -> '<'
@@ -560,4 +518,42 @@ displayDecimalAsQty d = (toList (sideChar <| ' ' <| rest) ++)
     rest = case repUngroupedDecimalRadPer d of
       Moderate nu -> t'NilUngroupedRadPer nu
       Extreme (Polarized bu _) -> t'BrimUngroupedRadPer bu
--}
+
+c'Decimal'RepRadCom :: RepRadCom -> Decimal
+c'Decimal'RepRadCom x = case x of
+  Moderate nrc -> Lens.over coefficient (const 0)
+    . c'DecZero'NilRadCom $ nrc
+  Extreme (Polarized brimRadCom pole) ->
+      Lens.over coefficient (changeSign . Pos.c'Integer'Positive)
+      . c'DecPositive'BrimRadCom
+      $ brimRadCom
+      where
+        changeSign
+          | pole == positive = id
+          | otherwise = Prelude.negate
+
+c'Decimal'RepRadPer :: RepRadPer -> Decimal
+c'Decimal'RepRadPer x = case x of
+  Moderate nrc -> Lens.over coefficient (const 0)
+    . c'DecZero'NilRadPer $ nrc
+  Extreme (Polarized brimRadPer pole) ->
+      Lens.over coefficient (changeSign . Pos.c'Integer'Positive)
+      . c'DecPositive'BrimRadPer
+      $ brimRadPer
+      where
+        changeSign
+          | pole == positive = id
+          | otherwise = Prelude.negate
+
+c'Decimal'RepAnyRadix :: RepAnyRadix -> Decimal
+c'Decimal'RepAnyRadix = either c'Decimal'RepRadCom c'Decimal'RepRadPer
+
+c'DecPositive'BrimAnyRadix :: BrimAnyRadix -> DecPositive
+c'DecPositive'BrimAnyRadix
+  = either c'DecPositive'BrimRadCom c'DecPositive'BrimRadPer
+
+c'DecZero'NilAnyRadix :: NilAnyRadix -> DecZero
+c'DecZero'NilAnyRadix = either c'DecZero'NilRadCom c'DecZero'NilRadPer
+
+c'Decimal'DecNonZero :: DecNonZero -> Decimal
+c'Decimal'DecNonZero = fmap c'Integer'NonZero

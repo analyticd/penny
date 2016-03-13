@@ -17,7 +17,7 @@ import Penny.Clatch
 import Penny.Colors
 import Penny.Decimal
 import Penny.Display
-import Penny.Natural
+import Penny.NonNegative
 import Penny.Polar (Pole, equatorial)
 import qualified Penny.Polar as P
 import Penny.Popularity
@@ -70,7 +70,7 @@ background clatch colors
   | odd i = view oddBackground colors
   | otherwise = view evenBackground colors
   where
-    i = view (postFiltset.forward.to naturalToInteger) clatch
+    i = view (postFiltset.forward.to c'Integer'NonNegative) clatch
 
 -- | Removes all entirely empty columns from a table.
 removeEmptyColumns
@@ -194,8 +194,8 @@ instance Colable Integer where
 instance Colable Int where
   column f = column (f . to (X.pack . show))
 
-instance Colable Unsigned where
-  column f = column (f . to naturalToInteger)
+instance Colable NonNegative where
+  column f = column (f . to c'Integer'NonNegative)
 
 instance Colable a => Colable (Maybe a) where
   column f = Columns g
@@ -223,7 +223,7 @@ instance Colable RepAnyRadix where
 instance Colable Qty where
   column f = Columns getCells
     where
-      getCells env clatch = sideCell env (view (_Wrapped . to equatorial) qty)
+      getCells env clatch = sideCell env (view (_Wrapped . to pole'Decimal) qty)
         <| qtyMagnitudeCell env Nothing (view _Wrapped qty)
         <| Seq.empty
         where
@@ -246,7 +246,7 @@ troimountCells :: Env -> Troika -> TroikaCells
 troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
   where
     cy = troimount ^. Penny.Troika.commodity
-    side = troimount ^. troiquant . to equatorial
+    side = troimount ^. to pole'Troika
     hasSpace = isSpaceBetween (env ^. history) (Just cy)
     orient = orientation (env ^. history) (Just cy)
     cyChunk = sidedChunk env side cy
@@ -271,7 +271,7 @@ troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
             UC rnn _ _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
             US rnn _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
             _ -> qtyRepAnyRadixMagnitudeChunk env
-              . repDecimal grouper . toDecimal $ troiload
+              . repDecimal grouper . c'Decimal'Troiload $ troiload
           Right qty -> qtyRepAnyRadixMagnitudeChunk env
             . repDecimal grouper $ qty
 

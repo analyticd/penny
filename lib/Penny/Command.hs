@@ -12,7 +12,7 @@ import Penny.Columns (Colable, Columns)
 import qualified Penny.Columns as Columns
 import Penny.Converter
 import Penny.Decimal
-import Penny.Natural
+import Penny.NonNegative
 import Penny.Ord
 import Penny.Report
 import Penny.Stream
@@ -46,7 +46,7 @@ convert fromCy toCy factorTxt = set Clatcher.converter cv mempty
     fn (Amount oldCy oldQty)
       | oldCy /= fromCy = Nothing
       | otherwise = Just $ Amount toCy (oldQty * factor)
-    factor = fmap naturalToInteger . unsigned $ factorTxt
+    factor = fmap c'Integer'NonNegative . unsigned $ factorTxt
 
 sieve
   :: Getter (Converted ()) Bool

@@ -116,7 +116,7 @@ instance Friendly ImbalancedError where
     where
       showImb (cy, q)
         = "  " ++ X.unpack cy ++ " "
-               ++ displayDecimalAsQty (fmap nonZeroToInteger q) ""
+               ++ displayDecimalAsQty (fmap c'Integer'NonZero q) ""
 
 entsToBalanced :: Ents a -> Either ImbalancedError (Balanced a)
 entsToBalanced (Ents sq (Imbalance m)) = case M.toList m of

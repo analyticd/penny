@@ -8,8 +8,8 @@ import Penny.Clatch
 import Penny.Decimal
 import Penny.Copper.Types (BrimRadCom, BrimRadPer, NilRadCom, NilRadPer)
 import qualified Penny.Copper.Types as Ty
-import Penny.Natural
 import Penny.NonZero
+import Penny.NonNegative
 import Penny.Polar
 import Penny.Realm
 import Penny.Report
@@ -59,8 +59,8 @@ instance Pretty Tree where
       (vcat . toList . fmap pretty . _children $ tree)
     ]
 
-instance Pretty Unsigned where
-  pretty = text . show . naturalToInteger
+instance Pretty NonNegative where
+  pretty = text . show . c'Integer'NonNegative
 
 instance Pretty Serset where
   pretty (Serset fwd bak)
@@ -113,7 +113,7 @@ instance Pretty NilRadPer where
   pretty = text . toList . Ty.t'NilRadPer
 
 instance Pretty NonZero where
-  pretty = text . show . nonZeroToInteger
+  pretty = text . show . c'Integer'NonZero
 
 instance Pretty Troiload where
   pretty x = case x of

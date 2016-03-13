@@ -12,7 +12,7 @@ import qualified Data.Foldable as F
 import Penny.Decimal
 import Penny.Commodity
 import qualified Data.Map as M
-import Penny.NonZero (integerToNonZero, nonZeroToInteger)
+import Penny.NonZero (c'NonZero'Integer, c'Integer'NonZero)
 
 -- | The balance of multiple commodities.
 newtype Balance = Balance (M.Map Commodity Decimal)
@@ -46,13 +46,13 @@ c'Imbalance'Balance (Balance m)
   = Imbalance
   . M.mapMaybe qtyToQtyNonZero $ m
   where
-    qtyToQtyNonZero d = case d ^. coefficient . to integerToNonZero of
+    qtyToQtyNonZero d = case d ^. coefficient . to c'NonZero'Integer of
       Nothing -> Nothing
       Just nz -> Just $ d & coefficient .~ nz
 
 c'Balance'Imbalance :: Imbalance -> Balance
 c'Balance'Imbalance (Imbalance m)
-  = Balance . fmap (over coefficient nonZeroToInteger) $ m
+  = Balance . fmap (over coefficient c'Integer'NonZero) $ m
 
 instance Monoid Imbalance where
   mempty = Imbalance M.empty
