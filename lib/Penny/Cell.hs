@@ -26,7 +26,7 @@ import Penny.Arrangement
 import Penny.Colors
 import Penny.Commodity
 import Penny.Decimal
-import Penny.Polar (Pole, equatorial)
+import Penny.Polar (Pole)
 import qualified Penny.Polar as P
 import Penny.Popularity
 import Penny.Rep
@@ -136,7 +136,7 @@ qtyRepAnyRadixMagnitudeChunk
   -> RepAnyRadix
   -> Chunk Text
 qtyRepAnyRadixMagnitudeChunk env qr
-  = sidedChunk env (either equatorial equatorial qr)
+  = sidedChunk env (pole'RepAnyRadix qr)
   . X.pack
   . toList
   . t'NilOrBrimAnyRadix
@@ -155,7 +155,7 @@ qtyRepAnyRadixMagnitudeCell env qr
   . c'NilOrBrimAnyRadix'RepAnyRadix
   $ qr
   where
-    getColor = case either equatorial equatorial qr of
+    getColor = case pole'RepAnyRadix qr of
       Nothing -> _neutral
       Just side
         | side == P.debit -> _debit

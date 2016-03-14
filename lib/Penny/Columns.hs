@@ -18,7 +18,7 @@ import Penny.Colors
 import Penny.Decimal
 import Penny.Display
 import Penny.NonNegative
-import Penny.Polar (Pole, equatorial)
+import Penny.Polar (Pole)
 import qualified Penny.Polar as P
 import Penny.Popularity
 import Penny.Qty
@@ -217,7 +217,7 @@ instance Colable RepAnyRadix where
         <| qtyRepAnyRadixMagnitudeCell env (view f clatch)
         <| Seq.empty
         where
-          maySide = either equatorial equatorial (view f clatch)
+          maySide = pole'RepAnyRadix (view f clatch)
 
 -- | Creates two columns: one for the side and one for the magnitude.
 instance Colable Qty where

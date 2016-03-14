@@ -11,17 +11,6 @@ opposite :: Pole -> Pole
 opposite North = South
 opposite South = North
 
-class Polar a where
-  polar :: a -> Pole
-  align :: Pole -> a -> a
-
-class Equatorial a where
-  equatorial :: a -> Maybe Pole
-
-instance (Equatorial a, Equatorial b)
-  => Equatorial (Either a b) where
-  equatorial = either equatorial equatorial
-
 -- | An object that is polar.
 data Polarized a = Polarized
   { _charged :: a
@@ -30,19 +19,11 @@ data Polarized a = Polarized
 
 makeLenses ''Polarized
 
-instance Polar (Polarized a) where
-  polar = view charge
-  align pole = set charge pole
-
 -- | An object that might be polar.
 data Moderated n o
   = Moderate n
   | Extreme (Polarized o)
   deriving Show
-
-instance Equatorial (Moderated n o) where
-  equatorial (Moderate _) = Nothing
-  equatorial (Extreme (Polarized _ c)) = Just c
 
 makePrisms ''Moderated
 
@@ -68,14 +49,3 @@ integerPole i
   | i == 0 = Nothing
   | otherwise = Just positive
 
-instance Equatorial Int where
-  equatorial i
-    | i < 0 = Just South
-    | i > 0 = Just North
-    | otherwise = Nothing
-
-instance Equatorial Integer where
-  equatorial i
-    | i < 0 = Just South
-    | i > 0 = Just North
-    | otherwise = Nothing
