@@ -16,6 +16,7 @@ module Penny.SeqUtil
   , filterM
   , intersperse
   , singleSeq
+  , convertHead
 
   -- * Slices
   , Slice(..)
@@ -157,3 +158,19 @@ allSlices = go empty
       EmptyL -> empty
       x :< xs -> Slice soFar x xs <| go (soFar |> x) xs
 
+-- | Take elements from the head while they match a function.
+-- Returns the head elements and the remaining elements.
+convertHead
+  :: (a -> Maybe b)
+  -- ^ Take elements from the head while they return Just.
+  -> Seq a
+  -> (Seq b, Seq a)
+  -- ^ Returns the head elements that matched, and the remaining
+  -- elements.
+convertHead p = go empty
+  where
+    go acc sq = case uncons sq of
+      Nothing -> (acc, empty)
+      Just (x, xs) -> case p x of
+        Nothing -> (acc, sq)
+        Just a -> go (acc |> a) xs

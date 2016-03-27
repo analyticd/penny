@@ -62,3 +62,4 @@ serialNumbersNested
   => t1 (t2 a)
   -> t1 (t2 (a, Serset))
 serialNumbersNested = getCompose . serialNumbers . Compose
+

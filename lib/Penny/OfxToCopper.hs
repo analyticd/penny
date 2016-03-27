@@ -6,7 +6,7 @@ import Penny.Account
 import qualified Penny.Commodity as Cy
 import Penny.Copper.Types
 import Penny.Copper.Util
-import Penny.DateTime
+import Penny.Copper.DateTime
 import Penny.Polar
 
 import qualified Control.Lens as L
@@ -95,14 +95,28 @@ ofxTransactionToTransaction
   -- ^ All postings have this commodity.
   -> OFX.Transaction
   -> Either Error Transaction
-ofxTransactionToTransaction mainAccount getOffset commodity txn = undefined
-{-
-  = Transaction tl postings
-  where
-    tl = TopLine'Maybe . Just . TopLine $ topLineForest
-      (OFX.txDTPOSTED txn)
-    postings = undefined
--}
+ofxTransactionToTransaction mainAccount getOffset commodity txn
+  = Transaction
+  <$> getTopLine (OFX.txDTPOSTED txn) (OFX.txPayeeInfo txn)
+  <*> getPostings mainAccount getOffset commodity
+        (OFX.txFITID txn) (OFX.txTRNAMT txn)
+
+getTopLine
+  :: Time.ZonedTime
+  -> Maybe (Either String OFX.Payee)
+  -> Either Error TopLine'Maybe
+getTopLine = undefined
+
+getPostings
+  :: Account
+  -> GetOffset
+  -> Cy.Commodity
+  -> String
+  -- ^ FITID
+  -> String
+  -- ^ Transaction amount
+  -> Either Error Postings
+getPostings = undefined
 
 -- | Gets the top line forest, which contains the date and the
 -- payee.

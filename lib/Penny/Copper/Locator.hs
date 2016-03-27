@@ -36,7 +36,7 @@ import Penny.Arrangement
 import qualified Penny.Commodity as Commodity
 import qualified Penny.Copper.Conversions as Conv
 import Penny.Copper.Types
-import Penny.DateTime
+import Penny.Copper.DateTime
 import Penny.Decimal
 import Penny.Polar
 import qualified Penny.Positive as Pos

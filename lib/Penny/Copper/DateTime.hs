@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 -- | Date and time support functions.
-module Penny.DateTime where
+module Penny.Copper.DateTime where
 
 import Control.Applicative
   ((<|>))
