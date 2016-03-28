@@ -1,11 +1,15 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedLists #-}
 -- | Converts an OFX file to Copper transactions.
 module Penny.OfxToCopper where
 
 import Penny.Account
 import qualified Penny.Commodity as Cy
+import Penny.Copper.Char
+import Penny.Copper.DateTime
 import Penny.Copper.Types
 import Penny.Copper.Util
+import Penny.Copper.Formatted
 import Penny.Copper.DateTime
 import Penny.Polar
 
@@ -24,8 +28,10 @@ data Error
   = OFXParseError String
   -- ^ Could not parse OFX file.
   | DateConvertError Time.Day
+  | ZonedTimeConvertError Time.ZonedTime
   | TransactionParseError String
   -- ^ Could not get list of transactions from file.
+  | NoPayee
   deriving Show
 
 -- | Every OFX transaction must create two postings in the Copper
@@ -105,7 +111,26 @@ getTopLine
   :: Time.ZonedTime
   -> Maybe (Either String OFX.Payee)
   -> Either Error TopLine'Maybe
-getTopLine = undefined
+getTopLine zonedTime payee = do
+  (date, time, zone) <- maybe (Left . ZonedTimeConvertError $ zonedTime)
+    Right . c'Copper'ZonedTime $ zonedTime
+  payeeT <- payeeTree payee
+  return . TopLine'Maybe . Just . TopLine $ fForest
+    (spinster $ Scalar'Date date)
+    [ spinster $ Scalar'Time time
+    , spinster $ Scalar'Zone zone
+    , payeeT ]
+
+payeeTree :: Maybe (Either String OFX.Payee) -> Either Error Tree
+payeeTree = fmap toTree . maybe (Left NoPayee) Right
+  where
+    toTree = makeTree . either id OFX.peNAME
+      where
+        makeTree str = fTree sc Nothing
+          where
+            sc = case fString (Seq.fromList str) of
+              Left us -> Scalar'UnquotedString us
+              Right qs -> Scalar'QuotedString qs
 
 getPostings
   :: Account
@@ -116,21 +141,16 @@ getPostings
   -> String
   -- ^ Transaction amount
   -> Either Error Postings
-getPostings = undefined
+getPostings account getOffset cy fitid amt = undefined
 
--- | Gets the top line forest, which contains the date and the
--- payee.
-topLineForest
-  :: Time.ZonedTime
-  -> Maybe (Either String OFX.Payee)
-  -> Either Error TopLine'Maybe
-topLineForest zt pye = undefined
-{-
-  :: ZonedTime
-  -- ^ Date transaction was posted
-  -> Text
-  -- ^ Payee information
-  -> Forest
-topLineForest = undefined
--}
-
+getMainPosting
+  :: Account
+  -- ^ Place main posting into this account
+  -> Pole
+  -- ^ Pole for the main posting
+  -> String
+  -- ^ FITID
+  -> String
+  -- ^ Transaction amount
+  -> Either Error Posting
+getMainPosting = undefined

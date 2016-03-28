@@ -90,6 +90,11 @@ fUnquotedString chars = do
       nonDigit <- fUnquotedStringNonDigitChar first
       return (nonDigit, rest)
 
+fString :: Seq Char -> Either UnquotedString QuotedString
+fString cs = case fUnquotedString cs of
+  Just s -> Left s
+  Nothing -> Right . fQuotedString $ cs
+
 fUnquotedStringNonDigitChar'Seq1
   :: Seq Char
   -> Maybe UnquotedStringNonDigitChar'Seq1

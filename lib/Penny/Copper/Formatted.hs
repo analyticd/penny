@@ -543,6 +543,9 @@ fTree sc mayForest = TreeScalarFirst sc (BracketedForest'Maybe may)
   where
     may = fmap fBracketedForest mayForest
 
+spinster :: Scalar -> Tree
+spinster s = fTree s Nothing
+
 fDateTimeZone
   :: Date
   -> Time
@@ -550,6 +553,6 @@ fDateTimeZone
   -> Forest
 fDateTimeZone date time zone = fForest dateTree [timeTree, zoneTree]
   where
-    dateTree = fTree (Scalar'Date date) Nothing
-    timeTree = undefined
-    zoneTree = undefined
+    dateTree = spinster (Scalar'Date date)
+    timeTree = spinster (Scalar'Time time)
+    zoneTree = spinster (Scalar'Zone zone)
