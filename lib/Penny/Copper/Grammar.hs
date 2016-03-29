@@ -450,65 +450,65 @@ grammar = mdo
   closeSquare <- terminal "CloseSquare" $ solo ']'
   scalar <- union "Scalar" [unquotedString, quotedString, date, time,
     zone, wholeAny]
-  maybeScalar <- option scalar
+  whitesScalar <- record "WhitesScalar" [whites, scalar]
+  maybeWhitesScalar <- option whitesScalar
 
   -- Trees
   bracketedForest <- record "BracketedForest"
-    [ openSquare, whites, forest, closeSquare, whites ]
-  maybeBracketedForest <- option bracketedForest
-  commaTree <- record "CommaTree" [comma, whites, tree, whites]
-  commaTrees <- list commaTree
+    [ openSquare, whites, forest, whites, closeSquare ]
+  whitesBracketedForest <- record "WhitesBracketedForest"
+    [whites, bracketedForest]
+  maybeWhitesBracketedForest <- option whitesBracketedForest
+  nextTree <- record "NextTree" [whites, comma, whites, tree]
+  nextTrees <- list nextTree
   forest <- record "Forest"
-    [ tree, whites, commaTrees ]
-  tree <- nonTerminal "Tree"
-    [ ("TreeScalarFirst", [scalar, maybeBracketedForest])
-    , ("TreeForestFirst", [bracketedForest, maybeScalar])
-    ]
+    [ tree, nextTrees ]
+  scalarMaybeForest <- record "ScalarMaybeForest"
+    [scalar, maybeWhitesBracketedForest]
+  forestMaybeScalar <- record "ForestMaybeScalar"
+    [bracketedForest, maybeWhitesScalar]
+  tree <- union "Tree" [scalarMaybeForest, forestMaybeScalar]
 
   topLine <- wrap "TopLine" forest
-  posting <- nonTerminal "Posting"
-    [ ("PostingTrioFirst", [trio, maybeBracketedForest])
-    , ("PostingNoTrio", [bracketedForest])
-    ]
+  trioMaybeForest <- record "TrioMaybeForest"
+    [trio, maybeWhitesBracketedForest]
+  posting <- union "Posting" [trioMaybeForest, bracketedForest]
 
   openCurly <- terminal "OpenCurly" $ solo '{'
   closeCurly <- terminal "CloseCurly" $ solo '}'
   semicolon <- terminal "Semicolon" $ solo ';'
 
-  semiPosting <- record "SemiPosting" [semicolon, whites, posting]
-  semiPostings <- list semiPosting
-  postingList <- record "PostingList" [posting, semiPostings]
+  nextPosting <- record "NextPosting" [whites, semicolon, whites, posting]
+  nextPostings <- list nextPosting
+  postingList <- record "PostingList" [whites, posting, nextPostings]
   maybePostingList <- option postingList
-  postings <- record "Postings"
-    [openCurly, whites, maybePostingList, closeCurly, whites]
 
-  maybeTopLine <- option topLine
-  transaction <- record "Transaction" [maybeTopLine, postings]
+  postings <- record "Postings"
+    [openCurly, maybePostingList, whites, closeCurly]
+
+  maybePostings <- option postings
+  topLineMaybePostings <- record "TopLineMaybePostings" [topLine, maybePostings]
+  transaction <- union "Transaction" [topLineMaybePostings, postings]
 
   atSign <- terminal "AtSign" $ solo '@'
-  pluMinFs <- record "PluMinFs" [pluMin, whites]
-  maybePluMinFs <- option pluMinFs
-  exch <- nonTerminal "Exch"
-    [ ("ExchNeutral", [neutral, whites])
-    , ("ExchNonNeutral", [maybePluMinFs, nonNeutral, whites])
-    ]
-  cyExch <- nonTerminal "CyExch"
-    [ ("CyExchCy", [commodity, whites, exch])
-    , ("CyExchExch", [exch, commodity, whites])
-    ]
-  mayTimeWhites <- nonTerminal "TimeWhites'Optional"
-    [ ("TimeWhitesYes", [time, whites])
-    , ("TimeWhitesNo", [])
-    ]
-  mayZoneWhites <- nonTerminal "ZoneWhites'Optional"
-    [ ("ZoneWhitesYes", [zone, whites])
-    , ("ZoneWhitesNo", [])
-    ]
+  pluMinNonNeutral <- record "PluMinNonNeutral" [pluMin, whites, nonNeutral]
+  exch <- union "Exch" [pluMinNonNeutral, nonNeutral]
+
+  cyExch <- record "CyExch" [commodity, whites, exch]
+  exchCy <- record "ExchCy" [exch, whites, commodity]
+  janus <- record "Janus" [cyExch, exchCy]
+
+  whitesTime <- record "WhitesTime" [whites, time]
+  whitesZone <- record "WhitesZone" [whites, zone]
+  maybeWhitesTime <- option whitesTime
+  maybeWhitesZone <- option whitesZone
+
   price <- record "Price"
-    [ atSign, whites, date, whites, mayTimeWhites, mayZoneWhites,
-      commodity, whites, cyExch ]
+    [ atSign, whites, date, maybeWhitesTime, maybeWhitesZone,
+      whites, commodity, whites, janus ]
   fileItem <- union "FileItem" [price, transaction]
-  fileItems <- list fileItem
-  _ <- record "WholeFile" [whites, fileItems]
+  nextFileItem <- record "NextFileItem" [ whites, fileItem ]
+  fileItems <- list nextFileItem
+  _ <- record "WholeFile" [fileItems, whites]
   return ()
 
