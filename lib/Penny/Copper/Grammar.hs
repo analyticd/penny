@@ -393,39 +393,39 @@ grammar = mdo
 
   -- If there is a debit or credit present, there can be a non-neutral
   -- present.  Also, a commodity may be present.
-  t_DebitCredit <- record "T_DebitCredit" [ debitCredit, whites ]
+  t_DebitCredit <- record "T_DebitCredit" [ debitCredit ]
 
   t_DebitCredit_Commodity <- record "T_DebitCredit_Commodity"
-    [ debitCredit, whites, commodity, whites ]
+    [ debitCredit, whites, commodity ]
 
   t_DebitCredit_NonNeutral <- record "T_DebitCredit_NonNeutral"
-    [ debitCredit, whites, nonNeutral, whites]
+    [ debitCredit, whites, nonNeutral]
 
   t_DebitCredit_Commodity_NonNeutral <-
     record "T_DebitCredit_Commodity_NonNeutral"
-    [ debitCredit, whites, commodity, whites, nonNeutral, whites]
+    [ debitCredit, whites, commodity, whites, nonNeutral]
   t_DebitCredit_NonNeutral_Commodity <- record
     "T_DebitCredit_NonNeutral_Commodity"
-    [ debitCredit, whites, nonNeutral, whites, commodity, whites]
+    [ debitCredit, whites, nonNeutral, whites, commodity]
 
   -- If there is no debit or credit present, there may be only a commodity.
-  t_Commodity <- record "T_Commodity" [ commodity, whites ]
+  t_Commodity <- wrap "T_Commodity" commodity
 
   -- There can be no debit or credit, with a commodity and either a
   -- neutral or non-neutral.
 
   t_Commodity_Neutral <- record "T_Commodity_Neutral"
-    [ commodity, whites, neutral, whites ]
+    [ commodity, whites, neutral ]
   t_Neutral_Commodity <- record "T_Neutral_Commodity"
-    [ neutral, whites, commodity, whites ]
+    [ neutral, whites, commodity ]
   t_Commodity_NonNeutral <- record "T_Commodity_NonNeutral"
-    [ commodity, whites, nonNeutral, whites ]
+    [ commodity, whites, nonNeutral ]
   t_NonNeutral_Commodity <- record "T_NonNeutral_Commodity"
-    [ nonNeutral, whites, commodity, whites ]
+    [ nonNeutral, whites, commodity ]
 
   -- A neutral or non-neutral standing alone is possible.
-  t_Neutral <- record "T_Neutral" [ neutral, whites ]
-  t_NonNeutral <- record "T_NonNeutral" [ nonNeutral, whites ]
+  t_Neutral <- wrap "T_Neutral" neutral
+  t_NonNeutral <- wrap "T_NonNeutral" nonNeutral
 
   trio <- union "Trio"
     [ t_DebitCredit,
