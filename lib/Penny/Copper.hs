@@ -48,7 +48,6 @@ import qualified Penny.Copper.Locator as Locator
 import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
 import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
-import qualified Penny.Copper.Types as Types
 import Penny.Ents
 import Penny.NonEmpty
 import Penny.Price
@@ -94,7 +93,6 @@ Lens.makePrisms ''ParseFailReason
 data ParseError = ParseError
   { _parseFailReason :: ParseFailReason
   , _parseErrorInfo :: ParseErrorInfo
-  , _parseErrorFilename :: Filename
   } deriving (Typeable, Show)
 
 Lens.makeLenses ''ParseError
@@ -109,14 +107,14 @@ errorInfo inp (Earley.Report pos exp _)
 
 -- | Given a Pinchot rule, parse a complete string in that language.
 runParser
-  :: (forall r. Earley.Grammar r (Earley.Prod r String Char Types.WholeFile))
-  -> (Filename, Text)
-  -> Either ParseError Types.WholeFile
-runParser grammar (filename, txt) = case results of
+  :: (forall r. Earley.Grammar r (Earley.Prod r String Char a))
+  -> Text
+  -> Either ParseError a
+runParser grammar txt = case results of
   result:[]
     | X.null (Earley.unconsumed report) -> Right result
-    | otherwise -> Left (ParseError LeftoverInput info filename)
-  [] -> Left (ParseError AbortedParse info filename)
+    | otherwise -> Left (ParseError LeftoverInput info)
+  [] -> Left (ParseError AbortedParse info)
   _ -> error "runParser: grammar is ambiguous."
   where
     (results, report) = Earley.fullParses (Earley.parser grammar) txt
@@ -139,8 +137,8 @@ appendFilenameTrees filename = Lens.over setter f
     setter = Lens.mapped . Lens._Right . Lens._1
     f sq = sq `Lens.snoc` (filenameTree filename)
 
-newtype ParseConvertProofError
-  = ParseConvertProofError (Either ParseError (NonEmpty Proofer.ProofFail))
+data ParseConvertProofError
+  = ParseConvertProofError Filename (Either ParseError (NonEmpty Proofer.ProofFail))
   deriving (Typeable, Show)
 
 instance Exception ParseConvertProofError
@@ -153,10 +151,10 @@ parseConvertProof
   -> Either ParseConvertProofError
             (Seq Price, Seq (Seq Tree, Balanced (Seq Tree)))
 parseConvertProof (filename, txt) = do
-  wholeFile <- either (Left . ParseConvertProofError . Left) Right
-    $ runParser grammar (filename, txt)
+  wholeFile <- either (Left . ParseConvertProofError filename . Left) Right
+    $ runParser grammar txt
   let parts = Locator.runLocator . Locator.c'WholeFile $ wholeFile
-  items <- either (Left . ParseConvertProofError . Right)
+  items <- either (Left . ParseConvertProofError filename . Right)
     Right . Lens.view V._Either . Proofer.proofItems
     $ parts
   return . partitionEithers . appendFilenameTrees filename $ items

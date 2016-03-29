@@ -5,6 +5,7 @@
 
 module Penny.Copper.Formatted where
 
+import Penny.Copper.Char
 import Penny.Copper.Types
 import Penny.Copper.Singleton
 import Penny.NonNegative (NonNegative)
@@ -15,6 +16,8 @@ import qualified Penny.Positive as Positive
 
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Text (Text)
+import qualified Data.Text as X
 import qualified Control.Lens as Lens
 
 -- | Grouper of thin space
@@ -545,6 +548,17 @@ fTree sc mayForest = TreeScalarFirst sc (BracketedForest'Maybe may)
 
 spinster :: Scalar -> Tree
 spinster s = fTree s Nothing
+
+orphans :: Tree -> Seq Tree -> Tree
+orphans t1 ts = TreeForestFirst
+  (fBracketedForest (fForest t1 ts)) (Scalar'Maybe Nothing)
+
+-- | Makes an unquoted scalar if possible; otherwise, makes a quoted
+-- scalar.
+textScalar :: Text -> Scalar
+textScalar txt = case fString . Seq.fromList . X.unpack $ txt of
+  Left us -> Scalar'UnquotedString us
+  Right qs -> Scalar'QuotedString qs
 
 fDateTimeZone
   :: Date

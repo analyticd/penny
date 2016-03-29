@@ -5,12 +5,15 @@ module Penny.OfxToCopper where
 
 import Penny.Account
 import qualified Penny.Commodity as Cy
+import Penny.Copper
 import Penny.Copper.Char
 import Penny.Copper.DateTime
+import Penny.Copper.EarleyGrammar
+import Penny.Copper.Formatted
+import Penny.Copper.Productions
+import Penny.Copper.Singleton
 import Penny.Copper.Types
 import Penny.Copper.Util
-import Penny.Copper.Formatted
-import Penny.Copper.DateTime
 import Penny.Polar
 
 import qualified Control.Lens as L
@@ -32,6 +35,7 @@ data Error
   | TransactionParseError String
   -- ^ Could not get list of transactions from file.
   | NoPayee
+  | AmountParseError String ParseError
   deriving Show
 
 -- | Every OFX transaction must create two postings in the Copper
@@ -146,11 +150,75 @@ getPostings account getOffset cy fitid amt = undefined
 getMainPosting
   :: Account
   -- ^ Place main posting into this account
-  -> Pole
-  -- ^ Pole for the main posting
+  -> Cy.Commodity
+  -- ^ Commodity for all postings
+  -> (Pole -> Pole)
+  -- ^ Get pole for the main posting
   -> String
   -- ^ FITID
   -> String
   -- ^ Transaction amount
   -> Either Error Posting
-getMainPosting = undefined
+getMainPosting acct cy fPole fitid signedAmt = do
+  let (mainPole, amt) = getMainPole fPole signedAmt
+  trio <- parseAmount mainPole cy amt
+  undefined
+
+-- | The bracketed forest for the main posting.
+mainPostingBracketedForest
+  :: Account
+  -> String
+  -- ^ FITID
+  -> BracketedForest'Maybe
+mainPostingBracketedForest acct fitid
+  = BracketedForest'Maybe . Just
+  $ fBracketedForest (fForest treeAcct [treeId])
+  where
+    treeAcct = undefined
+    treeId = undefined
+
+getMainPole
+  :: (Pole -> Pole)
+  -- ^ When applied to the pole of the input amount, this returns
+  -- the pole for the main posting.
+  -> String
+  -- ^ Input amount string
+  -> (Pole, String)
+  -- ^ Pole for the main posting, and the remaining input string.
+getMainPole getMain inp = case inp of
+  '-':xs -> (getMain negative, xs)
+  _ -> (getMain positive, inp)
+
+-- | Parses an amount from a string.  Examines the string for the
+-- amount.  If there is a leading minus sign, then the input is
+-- negative; otherwise, it is positive.  The 'Pole' returned is the
+-- 'Pole' used for the amount.
+parseAmount
+  :: Pole
+  -- ^ Pole for the main posting
+  -> Cy.Commodity
+  -- ^ Use this commodity
+  -> String
+  -- ^ Transaction amount.  Must already be stripped of any leading
+  -- negative sign.
+  -> Either Error Trio
+parseAmount pole cy amt = case parseResult of
+  Left e -> Left (AmountParseError amt e)
+  Right g -> return . Trio'T_DebitCredit_Commodity_NonNeutral
+    $ T_DebitCredit_Commodity_NonNeutral dc space
+    (toCopperCommodity cy) space nn space
+    where
+      dc | pole == debit = DebitCredit'Debit (Debit sLessThan)
+         | otherwise = DebitCredit'Credit (Credit sGreaterThan)
+      nn = NonNeutralRadPer g
+  where
+    parseResult = runParser (fmap a'BrimRadPer earleyGrammar) (X.pack amt)
+
+toCopperCommodity :: Cy.Commodity -> Commodity
+toCopperCommodity cy = case mayUnquoted of
+  Nothing -> Commodity'QuotedCommodity . QuotedCommodity
+    . fQuotedString . X.unpack $ cy
+  Just unq -> Commodity'UnquotedCommodity . UnquotedCommodity $ unq
+  where
+    mayUnquoted = fUnquotedStringNonDigitChar'Seq1
+      . Seq.fromList . X.unpack $ cy
