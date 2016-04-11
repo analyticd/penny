@@ -528,30 +528,34 @@ newline = White'Seq . Seq.singleton . White'Newline $ sNewline
 noSpace :: White'Seq
 noSpace = White'Seq Seq.empty
 
-fCommaTree :: Tree -> CommaTree
-fCommaTree tree = CommaTree sComma space tree noSpace
+fNextTree :: Tree -> NextTree
+fNextTree tree = NextTree noSpace sComma space tree
 
-fCommaTree'Seq :: Seq Tree -> CommaTree'Seq
-fCommaTree'Seq = CommaTree'Seq . fmap fCommaTree
+fNextTree'Seq :: Seq Tree -> NextTree'Seq
+fNextTree'Seq = NextTree'Seq . fmap fNextTree
 
 fForest :: Tree -> Seq Tree -> Forest
-fForest t1 ts = Forest t1 space (fCommaTree'Seq ts)
+fForest t1 ts = Forest t1 (fNextTree'Seq ts)
 
 fBracketedForest :: Forest -> BracketedForest
 fBracketedForest f
-  = BracketedForest sOpenSquare space f sCloseSquare newline
+  = BracketedForest sOpenSquare space f space sCloseSquare
 
 fTree :: Scalar -> Maybe Forest -> Tree
-fTree sc mayForest = TreeScalarFirst sc (BracketedForest'Maybe may)
+fTree sc mayForest = Tree'ScalarMaybeForest
+  (ScalarMaybeForest sc (WhitesBracketedForest'Maybe may))
   where
-    may = fmap fBracketedForest mayForest
+    may = case mayForest of
+      Nothing -> Nothing
+      Just fr -> Just (WhitesBracketedForest space (fBracketedForest fr))
 
 spinster :: Scalar -> Tree
 spinster s = fTree s Nothing
 
 orphans :: Tree -> Seq Tree -> Tree
-orphans t1 ts = TreeForestFirst
-  (fBracketedForest (fForest t1 ts)) (Scalar'Maybe Nothing)
+orphans t1 ts = Tree'ForestMaybeScalar
+  (ForestMaybeScalar (fBracketedForest (fForest t1 ts))
+                     (WhitesScalar'Maybe Nothing))
 
 -- | Makes an unquoted scalar if possible; otherwise, makes a quoted
 -- scalar.

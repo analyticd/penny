@@ -166,6 +166,7 @@ c'WhiteSeq ws@(White'Seq sq) = advance (t'White'Seq ws) >> return b
   where
     b = not . Seq.null $ sq
 
+
 c'DebitCredit :: DebitCredit -> Locator Pole
 c'DebitCredit dc = advance (t'DebitCredit dc) >> return p
   where
@@ -174,29 +175,24 @@ c'DebitCredit dc = advance (t'DebitCredit dc) >> return p
       DebitCredit'Credit _ -> credit
 
 c'T_DebitCredit :: T_DebitCredit -> Locator Trio.Trio
-c'T_DebitCredit (T_DebitCredit dc ws) = do
-  pole <- c'DebitCredit dc
-  _ <- c'WhiteSeq ws
-  return $ Trio.S pole
+c'T_DebitCredit (T_DebitCredit dc) = fmap Trio.S (c'DebitCredit dc)
 
 c'T_DebitCredit_Commodity
   :: T_DebitCredit_Commodity
   -> Locator Trio.Trio
-c'T_DebitCredit_Commodity (T_DebitCredit_Commodity dc0 w1 cy2 w3) = do
+c'T_DebitCredit_Commodity (T_DebitCredit_Commodity dc0 w1 cy2) = do
   p <- c'DebitCredit dc0
   _ <- c'WhiteSeq w1
   cy <- c'Commodity cy2
-  _ <- c'WhiteSeq w3
   return $ Trio.SC p cy
 
 c'T_DebitCredit_NonNeutral
   :: T_DebitCredit_NonNeutral
   -> Locator Trio.Trio
-c'T_DebitCredit_NonNeutral (T_DebitCredit_NonNeutral dc0 w1 nn2 w3) = do
+c'T_DebitCredit_NonNeutral (T_DebitCredit_NonNeutral dc0 w1 nn2) = do
   p <- c'DebitCredit dc0
   _ <- c'WhiteSeq w1
   advance (t'NonNeutral nn2)
-  _ <- c'WhiteSeq w3
   let repAnyRadix = case nn2 of
         NonNeutralRadCom _ brimRadCom ->
           Left $ Extreme  (Polarized brimRadCom p)
@@ -208,13 +204,12 @@ c'T_DebitCredit_Commodity_NonNeutral
   :: T_DebitCredit_Commodity_NonNeutral
   -> Locator Trio.Trio
 c'T_DebitCredit_Commodity_NonNeutral (T_DebitCredit_Commodity_NonNeutral
-  dc0 w1 c2 w3 nn4 w5) = do
+  dc0 w1 c2 w3 nn4) = do
   p <- c'DebitCredit dc0
   _ <- c'WhiteSeq w1
   cy <- c'Commodity c2
   isSpace <- c'WhiteSeq w3
   _ <- advance (t'NonNeutral nn4)
-  _ <- c'WhiteSeq w5
   let repAnyRadix = case nn4 of
         NonNeutralRadCom _ brimRadCom ->
           Left $ Extreme  (Polarized brimRadCom p)
@@ -227,13 +222,12 @@ c'T_DebitCredit_NonNeutral_Commodity
   :: T_DebitCredit_NonNeutral_Commodity
   -> Locator Trio.Trio
 c'T_DebitCredit_NonNeutral_Commodity (T_DebitCredit_NonNeutral_Commodity
-  dc0 w1 nn2 w3 c4 w5) = do
+  dc0 w1 nn2 w3 c4) = do
   p <- c'DebitCredit dc0
   _ <- c'WhiteSeq w1
   _ <- advance (t'NonNeutral nn2)
   isSpace <- c'WhiteSeq w3
   cy <- c'Commodity c4
-  _ <- c'WhiteSeq w5
   let repAnyRadix = case nn2 of
         NonNeutralRadCom _ brimRadCom ->
           Left $ Extreme  (Polarized brimRadCom p)
@@ -243,68 +237,61 @@ c'T_DebitCredit_NonNeutral_Commodity (T_DebitCredit_NonNeutral_Commodity
   return $ Trio.QC repAnyRadix cy arrangement
 
 c'T_Commodity :: T_Commodity -> Locator Trio.Trio
-c'T_Commodity (T_Commodity cy0 w1) = do
+c'T_Commodity (T_Commodity cy0) = do
   cy <- c'Commodity cy0
-  _ <- c'WhiteSeq w1
   return $ Trio.C cy
 
 c'T_Commodity_Neutral :: T_Commodity_Neutral -> Locator Trio.Trio
-c'T_Commodity_Neutral (T_Commodity_Neutral cy0 w1 n2 w3) = do
+c'T_Commodity_Neutral (T_Commodity_Neutral cy0 w1 n2) = do
   cy <- c'Commodity cy0
   isSpace <- c'WhiteSeq w1
   advance (t'Neutral n2)
-  _ <- c'WhiteSeq w3
   let nilAnyRadix = case n2 of
         NeuCom _ nilRadCom -> Left nilRadCom
         NeuPer nilRadPer -> Right nilRadPer
   return $ Trio.NC nilAnyRadix cy (Arrangement CommodityOnLeft isSpace)
 
 c'T_Neutral_Commodity :: T_Neutral_Commodity -> Locator Trio.Trio
-c'T_Neutral_Commodity (T_Neutral_Commodity n0 w1 cy2 w3) = do
+c'T_Neutral_Commodity (T_Neutral_Commodity n0 w1 cy2) = do
   advance (t'Neutral n0)
   isSpace <- c'WhiteSeq w1
   cy <- c'Commodity cy2
-  _ <- c'WhiteSeq w3
   let nilAnyRadix = case n0 of
         NeuCom _ nilRadCom -> Left nilRadCom
         NeuPer nilRadPer -> Right nilRadPer
   return $ Trio.NC nilAnyRadix cy (Arrangement CommodityOnRight isSpace)
 
 c'T_Commodity_NonNeutral :: T_Commodity_NonNeutral -> Locator Trio.Trio
-c'T_Commodity_NonNeutral (T_Commodity_NonNeutral cy0 w1 n2 w3) = do
+c'T_Commodity_NonNeutral (T_Commodity_NonNeutral cy0 w1 n2) = do
   cy <- c'Commodity cy0
   isSpace <- c'WhiteSeq w1
   advance (t'NonNeutral n2)
-  _ <- c'WhiteSeq w3
   let brimScalarAnyRadix = case n2 of
         NonNeutralRadCom _ nilRadCom -> Left nilRadCom
         NonNeutralRadPer nilRadPer -> Right nilRadPer
   return $ Trio.UC brimScalarAnyRadix cy (Arrangement CommodityOnLeft isSpace)
 
 c'T_NonNeutral_Commodity :: T_NonNeutral_Commodity -> Locator Trio.Trio
-c'T_NonNeutral_Commodity (T_NonNeutral_Commodity n0 w1 cy2 w3) = do
+c'T_NonNeutral_Commodity (T_NonNeutral_Commodity n0 w1 cy2) = do
   advance (t'NonNeutral n0)
   isSpace <- c'WhiteSeq w1
   cy <- c'Commodity cy2
-  _ <- c'WhiteSeq w3
   let brimScalarAnyRadix = case n0 of
         NonNeutralRadCom _ nilRadCom -> Left nilRadCom
         NonNeutralRadPer nilRadPer -> Right nilRadPer
   return $ Trio.UC brimScalarAnyRadix cy (Arrangement CommodityOnRight isSpace)
 
 c'T_Neutral :: T_Neutral -> Locator Trio.Trio
-c'T_Neutral (T_Neutral n0 w1) = do
+c'T_Neutral (T_Neutral n0) = do
   advance (t'Neutral n0)
-  _ <- c'WhiteSeq w1
   let nilAnyRadix = case n0 of
         NeuCom _ nilRadCom -> Left nilRadCom
         NeuPer nilRadPer -> Right nilRadPer
   return $ Trio.UU nilAnyRadix
 
 c'T_NonNeutral :: T_NonNeutral -> Locator Trio.Trio
-c'T_NonNeutral (T_NonNeutral n0 w1) = do
+c'T_NonNeutral (T_NonNeutral n0) = do
   advance (t'NonNeutral n0)
-  _ <- c'WhiteSeq w1
   let brimScalarAnyRadix = case n0 of
         NonNeutralRadCom _ brimRadCom -> Left brimRadCom
         NonNeutralRadPer brimRadPer -> Right brimRadPer
@@ -347,122 +334,146 @@ positionTree = fmap f locate
         treeLine = tree (Scalar.SInteger (fromIntegral . _line $ pos)) []
         treeCol = tree (Scalar.SInteger (fromIntegral . _column $ pos)) []
 
--- | Converts a 'Tree'.  Adds a child tree to the end of the list of
--- child trees indicating the position.
-c'Tree :: Tree -> Locator Tree.Tree
-c'Tree x = do
-  pos <- positionTree
-  tree <- getTree
-  return $ addPositionTree pos tree
-  where
-    getTree = case x of
-      TreeScalarFirst sc may ->
-        f <$> c'Scalar sc <*> c'BracketedForest'Maybe may
-        where
-          f scalar forest = Tree.Tree User (Just scalar) forest
-      TreeForestFirst bf sc ->
-        f <$> c'BracketedForest bf <*> c'Scalar'Maybe sc
-        where
-          f forest mayScalar = Tree.Tree User mayScalar forest
-    addPositionTree pos = Lens.over Tree.children (`Lens.snoc` pos)
+c'WhitesScalar :: WhitesScalar -> Locator Scalar.Scalar
+c'WhitesScalar (WhitesScalar ws sc)
+  = c'WhiteSeq ws
+  *> c'Scalar sc
 
-c'BracketedForest'Maybe :: BracketedForest'Maybe -> Locator (Seq Tree.Tree)
-c'BracketedForest'Maybe (BracketedForest'Maybe may) = case may of
-  Nothing -> return Seq.empty
-  Just bf -> c'BracketedForest bf
+c'WhitesScalar'Maybe :: WhitesScalar'Maybe -> Locator (Maybe Scalar.Scalar)
+c'WhitesScalar'Maybe
+  = maybe (return Nothing) (fmap Just . c'WhitesScalar)
+  . coerce
+
+c'Tree :: Tree -> Locator Tree.Tree
+c'Tree t = do
+  pos <- positionTree
+  t' <- case t of
+    Tree'ScalarMaybeForest a -> c'ScalarMaybeForest a
+    Tree'ForestMaybeScalar a -> c'ForestMaybeScalar a
+  return $ Lens.over Tree.children (`Lens.snoc` pos) t'
+
+c'WhitesBracketedForest'Maybe
+  :: WhitesBracketedForest'Maybe
+  -> Locator (Seq Tree.Tree)
+c'WhitesBracketedForest'Maybe
+  = maybe (return Seq.empty) c'WhitesBracketedForest . coerce
+
+c'WhitesBracketedForest
+  :: WhitesBracketedForest
+  -> Locator (Seq Tree.Tree)
+c'WhitesBracketedForest (WhitesBracketedForest ws bf)
+  = c'WhiteSeq ws
+  *> c'BracketedForest bf
+
+c'ForestMaybeScalar :: ForestMaybeScalar -> Locator Tree.Tree
+c'ForestMaybeScalar (ForestMaybeScalar bf mayWS) = do
+  frst <- c'BracketedForest bf
+  maySC <- c'WhitesScalar'Maybe mayWS
+  return $ Tree.Tree User maySC frst
+
+
+c'ScalarMaybeForest :: ScalarMaybeForest -> Locator Tree.Tree
+c'ScalarMaybeForest (ScalarMaybeForest sc mayWbf) = do
+  sc' <- c'Scalar sc
+  cs <- c'WhitesBracketedForest'Maybe mayWbf
+  return $ Tree.Tree User (Just sc') cs
+
+c'NextTree :: NextTree -> Locator Tree.Tree
+c'NextTree (NextTree w0 c1 w2 t3)
+  = advance (t'White'Seq w0)
+  *> advance (t'Comma c1)
+  *> advance (t'White'Seq w2)
+  *> c'Tree t3
+
+c'NextTree'Seq :: NextTree'Seq -> Locator (Seq Tree.Tree)
+c'NextTree'Seq = traverse c'NextTree . coerce
+
+c'Forest :: Forest -> Locator (Seq Tree.Tree)
+c'Forest (Forest t1 ts) = Lens.cons <$> c'Tree t1 <*> c'NextTree'Seq ts
 
 c'BracketedForest :: BracketedForest -> Locator (Seq Tree.Tree)
-c'BracketedForest (BracketedForest os0 w1 f2 cs3 w4)
+c'BracketedForest (BracketedForest os0 w1 f2 w2 cs3)
   = advance (t'OpenSquare os0)
   *> advance (t'White'Seq w1)
   *> c'Forest f2
+  <* advance (t'White'Seq w2)
   <* advance (t'CloseSquare cs3)
-  <* advance (t'White'Seq w4)
-
-
-c'Scalar'Maybe :: Scalar'Maybe -> Locator (Maybe Scalar.Scalar)
-c'Scalar'Maybe (Scalar'Maybe may) = case may of
-  Nothing -> return Nothing
-  Just sca -> fmap Just (c'Scalar sca)
-
-c'CommaTree :: CommaTree -> Locator Tree.Tree
-c'CommaTree (CommaTree comma whites1 tree whites2)
-  = advance (t'Comma comma)
-  *> advance (t'White'Seq whites1)
-  *> c'Tree tree
-  <* advance (t'White'Seq whites2)
-
-c'CommaTree'Seq :: CommaTree'Seq -> Locator (Seq Tree.Tree)
-c'CommaTree'Seq (CommaTree'Seq sq) = traverse c'CommaTree sq
-
-c'Forest :: Forest -> Locator (Seq Tree.Tree)
-c'Forest (Forest t0 w1 ts2) = f <$> c'Tree t0 <* c'WhiteSeq w1
-  <*> c'CommaTree'Seq ts2
-  where
-    f t ts = t `Lens.cons` ts
 
 c'TopLine :: TopLine -> Locator (Seq Tree.Tree)
-c'TopLine (TopLine forest) = c'Forest forest
+c'TopLine = c'Forest . coerce
+
+c'TrioMaybeForest :: TrioMaybeForest -> Locator (Trio.Trio, Seq Tree.Tree)
+c'TrioMaybeForest (TrioMaybeForest tri may)
+  = (,) <$> c'Trio tri <*> c'WhitesBracketedForest'Maybe may
 
 c'Posting :: Posting -> Locator (Pos, Trio.Trio, Seq Tree.Tree)
-c'Posting x = do
+c'Posting p = do
   pos <- locate
-  case x of
-    PostingTrioFirst trio bf -> do
-      convTrio <- c'Trio trio
-      ts <- c'BracketedForest'Maybe bf
-      return (pos, convTrio, ts)
-    PostingNoTrio bf -> do
+  case p of
+    Posting'TrioMaybeForest a -> do
+      (tri, ts) <- c'TrioMaybeForest a
+      return (pos, tri, ts)
+    Posting'BracketedForest bf -> do
       ts <- c'BracketedForest bf
       return (pos, Trio.E, ts)
 
-c'SemiPosting
-  :: SemiPosting
-  -> Locator (Pos, Trio.Trio, Seq Tree.Tree)
-c'SemiPosting (SemiPosting s0 w1 p2)
-  = advance (t'Semicolon s0)
-  *> advance (t'White'Seq w1)
-  *> c'Posting p2
+c'NextPosting :: NextPosting -> Locator (Pos, Trio.Trio, Seq Tree.Tree)
+c'NextPosting (NextPosting w0 s1 w2 p3)
+  = advance (t'White'Seq w0)
+  *> advance (t'Semicolon s1)
+  *> advance (t'White'Seq w2)
+  *> c'Posting p3
 
-c'SemiPosting'Seq
-  :: SemiPosting'Seq
+c'NextPosting'Seq
+  :: NextPosting'Seq
   -> Locator (Seq (Pos, Trio.Trio, Seq Tree.Tree))
-c'SemiPosting'Seq (SemiPosting'Seq sq)
-  = traverse c'SemiPosting sq
+c'NextPosting'Seq = traverse c'NextPosting . coerce
 
 c'PostingList
   :: PostingList
-  -> Locator (Seq (Pos, Trio.Trio, Seq Tree.Tree))
-c'PostingList (PostingList p0 ps1)
-  = Lens.cons <$> c'Posting p0 <*> c'SemiPosting'Seq ps1
+  -> Locator ( (Pos, Trio.Trio, Seq Tree.Tree)
+             , Seq (Pos, Trio.Trio, Seq Tree.Tree))
+c'PostingList (PostingList w0 p1 ps2)
+  = (,)
+  <$ advance (t'White'Seq w0)
+  <*> c'Posting p1
+  <*> c'NextPosting'Seq ps2
 
 c'PostingList'Maybe
   :: PostingList'Maybe
   -> Locator (Seq (Pos, Trio.Trio, Seq Tree.Tree))
 c'PostingList'Maybe (PostingList'Maybe may) = case may of
   Nothing -> return Seq.empty
-  Just pl -> c'PostingList pl
+  Just pl -> fmap (uncurry Lens.cons) (c'PostingList pl)
 
-c'Postings
-  :: Postings
+c'Postings :: Postings -> Locator (Seq (Pos, Trio.Trio, Seq Tree.Tree))
+c'Postings (Postings o0 p1 w2 c3)
+  = advance (t'OpenCurly o0)
+  *> c'PostingList'Maybe p1
+  <* advance (t'White'Seq w2)
+  <* advance (t'CloseCurly c3)
+
+c'Postings'Maybe
+  :: Postings'Maybe
   -> Locator (Seq (Pos, Trio.Trio, Seq Tree.Tree))
-c'Postings (Postings oc0 w1 pl2 cc3 w4)
-  = advance (t'OpenCurly oc0)
-  *> advance (t'White'Seq w1)
-  *> c'PostingList'Maybe pl2
-  <* advance (t'CloseCurly cc3)
-  <* advance (t'White'Seq w4)
+c'Postings'Maybe = maybe (return Seq.empty) c'Postings . coerce
 
-c'TopLine'Maybe :: TopLine'Maybe -> Locator (Seq Tree.Tree)
-c'TopLine'Maybe = maybe (return Seq.empty) c'TopLine . coerce
+c'TopLineMaybePostings
+  :: TopLineMaybePostings
+  -> Locator (Seq Tree.Tree, Seq (Pos, Trio.Trio, Seq Tree.Tree))
+c'TopLineMaybePostings (TopLineMaybePostings tl mayP)
+  = (,)
+  <$> c'TopLine tl
+  <*> c'Postings'Maybe mayP
 
 c'Transaction
   :: Transaction
   -> Locator (Seq Tree.Tree, Seq (Pos, Trio.Trio, Seq Tree.Tree))
-c'Transaction (Transaction tl pstgs)
-  = (,)
-  <$> c'TopLine'Maybe tl
-  <*> c'Postings pstgs
+c'Transaction txn = case txn of
+  Transaction'TopLineMaybePostings x -> c'TopLineMaybePostings x
+  Transaction'Postings x -> do
+    pstgs <- c'Postings x
+    return (Seq.empty, pstgs)
 
 data PriceParts = PriceParts
   { _pricePos :: Pos
@@ -479,63 +490,88 @@ c'PluMin x = do
     PluMin'Plus _ -> id
     PluMin'Minus _ -> negate
 
-c'PluMinFs :: Num a => PluMinFs -> Locator (a -> a)
-c'PluMinFs (PluMinFs pm sq) = c'PluMin pm <* advance (t'White'Seq sq)
+c'PluMinNonNeutral
+  :: Num a
+  => PluMinNonNeutral
+  -> Locator (a -> a, NonNeutral)
+c'PluMinNonNeutral (PluMinNonNeutral pm ws nn)
+  = (,)
+  <$> c'PluMin pm
+  <* advance (t'White'Seq ws)
+  <* advance (t'NonNeutral nn)
+  <*> pure nn
 
-c'PluMinFs'Maybe :: Num a => PluMinFs'Maybe -> Locator (a -> a)
-c'PluMinFs'Maybe = maybe (return id) c'PluMinFs . coerce
+c'ExchNonNeu
+  :: Num a
+  => ExchNonNeu
+  -> Locator (a -> a, NonNeutral)
+c'ExchNonNeu x = case x of
+  ExchNonNeu'PluMinNonNeutral a -> c'PluMinNonNeutral a
+  ExchNonNeu'NonNeutral a ->
+    (,) <$> pure id <* advance (t'NonNeutral a) <*> pure a
 
 c'Exch :: Exch -> Locator Decimal
 c'Exch x = case x of
-  ExchNeutral neu ws -> do
+  Exch'ExchNonNeu ne -> do
+    (changeSign, nonNeu) <- c'ExchNonNeu ne
+    return . fmap (changeSign . Pos.c'Integer'Positive)
+      . c'DecPositive'NonNeutral $ nonNeu
+  Exch'Neutral neu -> do
     advance (t'Neutral neu)
-    advance (t'White'Seq ws)
     return . fmap (const 0) . c'DecZero'Neutral $ neu
-  ExchNonNeutral pm nn ws -> do
-    changeSign <- c'PluMinFs'Maybe pm
-    advance (t'NonNeutral nn)
-    advance (t'White'Seq ws)
-    return . fmap (changeSign . Pos.c'Integer'Positive) . c'DecPositive'NonNeutral
-      $ nn
 
 c'CyExch :: CyExch -> Locator (Commodity.Commodity, Decimal)
-c'CyExch x = case x of
-  CyExchCy cy ws ex -> (,)
-    <$> c'Commodity cy
-    <* advance (t'White'Seq ws)
-    <*> c'Exch ex
-  CyExchExch ex cy ws -> (\a b -> (b, a))
-    <$> c'Exch ex
-    <*> c'Commodity cy
-    <* advance (t'White'Seq ws)
+c'CyExch (CyExch c0 w1 e2) = do
+  cy <- c'Commodity c0
+  advance (t'White'Seq w1)
+  d <- c'Exch e2
+  return (cy, d)
 
-c'TimeWhites'Optional :: TimeWhites'Optional -> Locator TimeOfDay
-c'TimeWhites'Optional x = case x of
-  TimeWhitesYes t w -> c'TimeOfDay t <* advance (t'White'Seq w)
-  TimeWhitesNo -> return Time.midnight
+c'ExchCy :: ExchCy -> Locator (Commodity.Commodity, Decimal)
+c'ExchCy (ExchCy e0 w1 c2) = do
+  d <- c'Exch e0
+  advance (t'White'Seq w1)
+  cy <- c'Commodity c2
+  return (cy, d)
 
-c'ZoneWhites'Optional :: ZoneWhites'Optional -> Locator Time.TimeZone
-c'ZoneWhites'Optional (ZoneWhitesYes z ws)
-  = Time.minutesToTimeZone <$> c'Zone z <* advance (t'White'Seq ws)
-c'ZoneWhites'Optional ZoneWhitesNo = return Time.utc
+c'Janus :: Janus -> Locator (Commodity.Commodity, Decimal)
+c'Janus x = case x of
+  Janus'CyExch e -> c'CyExch e
+  Janus'ExchCy e -> c'ExchCy e
+
+c'WhitesTime :: WhitesTime -> Locator TimeOfDay
+c'WhitesTime (WhitesTime w0 t1) = advance (t'White'Seq w0)
+  *> c'TimeOfDay t1
+
+c'WhitesZone :: WhitesZone -> Locator Time.TimeZone
+c'WhitesZone (WhitesZone w0 z1)
+  = Time.minutesToTimeZone
+  <$ advance (t'White'Seq w0)
+  <*> c'Zone z1
+
+c'WhitesTime'Maybe :: WhitesTime'Maybe -> Locator TimeOfDay
+c'WhitesTime'Maybe = maybe (return Time.midnight) c'WhitesTime . coerce
+
+c'WhitesZone'Maybe :: WhitesZone'Maybe -> Locator Time.TimeZone
+c'WhitesZone'Maybe = maybe (return Time.utc) c'WhitesZone . coerce
 
 c'Price :: Price -> Locator PriceParts
-c'Price (Price a0 w1 d2 w3 tw4 zw5 c6 w7 e8)
+c'Price (Price a0 w1 d2 wt3 wz4 w5 c6 w7 j8)
   = f
   <$> locate
   <* advance (t'AtSign a0)
   <* advance (t'White'Seq w1)
   <*> c'Day d2
-  <* advance (t'White'Seq w3)
-  <*> c'TimeWhites'Optional tw4
-  <*> c'ZoneWhites'Optional zw5
+  <*> c'WhitesTime'Maybe wt3
+  <*> c'WhitesZone'Maybe wz4
+  <* advance (t'White'Seq w5)
   <*> c'Commodity c6
   <* advance (t'White'Seq w7)
-  <*> c'CyExch e8
+  <*> c'Janus j8
   where
-    f loc day tod zone from (to, exch) = PriceParts loc
-      (Time.ZonedTime (Time.LocalTime day tod) zone)
-      from to exch
+    f loc day tod tz from (to, dec) = PriceParts loc zt from to dec
+      where
+        zt = Time.ZonedTime (Time.LocalTime day tod) tz
 
 type TxnParts = (Seq Tree.Tree, Seq (Pos, Trio.Trio, Seq Tree.Tree))
 
@@ -546,13 +582,21 @@ c'FileItem x = case x of
   FileItem'Price p -> Left <$> c'Price p
   FileItem'Transaction t -> Right <$> c'Transaction t
 
-c'FileItem'Seq
-  :: FileItem'Seq
+c'NextFileItem
+  :: NextFileItem
+  -> Locator (Either PriceParts TxnParts)
+c'NextFileItem (NextFileItem w0 f1)
+  = advance (t'White'Seq w0)
+  *> c'FileItem f1
+
+c'NextFileItem'Seq
+  :: NextFileItem'Seq
   -> Locator (Seq (Either PriceParts TxnParts))
-c'FileItem'Seq = traverse c'FileItem . coerce
+c'NextFileItem'Seq = traverse c'NextFileItem . coerce
 
 c'WholeFile
   :: WholeFile
   -> Locator (Seq (Either PriceParts TxnParts))
-c'WholeFile (WholeFile w0 i1) = advance (t'White'Seq w0)
-  *> c'FileItem'Seq i1
+c'WholeFile (WholeFile f0 w1)
+  = c'NextFileItem'Seq f0
+  <* advance (t'White'Seq w1)

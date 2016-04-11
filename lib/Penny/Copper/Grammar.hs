@@ -393,7 +393,7 @@ grammar = mdo
 
   -- If there is a debit or credit present, there can be a non-neutral
   -- present.  Also, a commodity may be present.
-  t_DebitCredit <- record "T_DebitCredit" [ debitCredit ]
+  t_DebitCredit <- wrap "T_DebitCredit" debitCredit
 
   t_DebitCredit_Commodity <- record "T_DebitCredit_Commodity"
     [ debitCredit, whites, commodity ]
@@ -492,11 +492,12 @@ grammar = mdo
 
   atSign <- terminal "AtSign" $ solo '@'
   pluMinNonNeutral <- record "PluMinNonNeutral" [pluMin, whites, nonNeutral]
-  exch <- union "Exch" [pluMinNonNeutral, nonNeutral]
+  exchNonNeu <- union "ExchNonNeu" [pluMinNonNeutral, nonNeutral]
+  exch <- union "Exch" [exchNonNeu, neutral]
 
   cyExch <- record "CyExch" [commodity, whites, exch]
   exchCy <- record "ExchCy" [exch, whites, commodity]
-  janus <- record "Janus" [cyExch, exchCy]
+  janus <- union "Janus" [cyExch, exchCy]
 
   whitesTime <- record "WhitesTime" [whites, time]
   whitesZone <- record "WhitesZone" [whites, zone]
