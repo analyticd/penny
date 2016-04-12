@@ -6,6 +6,10 @@ module Penny.Copper.Types where
 
 import Penny.Copper.Grammar
 
-import Pinchot (allRulesToTypes, makeOptics)
+import Pinchot (syntaxTrees, wrappedInstances)
 
-allRulesToTypes makeOptics ''Char [''Eq, ''Ord, ''Show] grammar
+syntaxTrees ''Char [''Eq, ''Ord, ''Show]
+  [wholeFile, nilOrBrimRadCom, nilOrBrimRadPer]
+
+wrappedInstances
+  [wholeFile, nilOrBrimRadCom, nilOrBrimRadPer]

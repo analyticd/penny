@@ -10,8 +10,11 @@ import Data.Monoid ((<>))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import Prelude hiding (length)
+import qualified Pinchot
 
 import qualified Penny.Copper.Conversions as Conv
+import Penny.Copper.Singleton
+import Penny.Copper.Terminalizers
 import Penny.Copper.Types
 import Penny.Grouping
 import Penny.NonNegative
@@ -111,147 +114,147 @@ type DecPositive = Exponential Positive
 -- | Decimals whose significand is always zero.
 type DecZero = Exponential ()
 
-e'NilUngroupedRadCom :: NilUngroupedRadCom -> NonNegative
-e'NilUngroupedRadCom (NUZeroRadCom _ (RadixZeroesRadCom'Maybe Nothing)) = zero
-e'NilUngroupedRadCom (NUZeroRadCom _ (RadixZeroesRadCom'Maybe
-  (Just (RadixZeroesRadCom _ (Zero'Seq sq))))) = length sq
-e'NilUngroupedRadCom (NURadixRadCom _ _z1 (Zero'Seq zs))
+e'NilUngroupedRadCom :: NilUngroupedRadCom t a -> NonNegative
+e'NilUngroupedRadCom (NUZeroRadCom _ (RadixZeroesRadCom'Opt Nothing)) = zero
+e'NilUngroupedRadCom (NUZeroRadCom _ (RadixZeroesRadCom'Opt
+  (Just (RadixZeroesRadCom _ (Zero'Star sq))))) = length sq
+e'NilUngroupedRadCom (NURadixRadCom _ _z1 (Zero'Star zs))
   = one `add` (length zs)
 
-e'NilUngroupedRadPer :: NilUngroupedRadPer -> NonNegative
-e'NilUngroupedRadPer (NUZeroRadPer _ (RadixZeroesRadPer'Maybe Nothing)) = zero
-e'NilUngroupedRadPer (NUZeroRadPer _ (RadixZeroesRadPer'Maybe
-  (Just (RadixZeroesRadPer _ (Zero'Seq sq))))) = length sq
-e'NilUngroupedRadPer (NURadixRadPer _ _z1 (Zero'Seq zs))
+e'NilUngroupedRadPer :: NilUngroupedRadPer t a -> NonNegative
+e'NilUngroupedRadPer (NUZeroRadPer _ (RadixZeroesRadPer'Opt Nothing)) = zero
+e'NilUngroupedRadPer (NUZeroRadPer _ (RadixZeroesRadPer'Opt
+  (Just (RadixZeroesRadPer _ (Zero'Star sq))))) = length sq
+e'NilUngroupedRadPer (NURadixRadPer _ _z1 (Zero'Star zs))
   = one `add` (length zs)
 
-c'DecZero'NilUngroupedRadCom :: NilUngroupedRadCom -> DecZero
+c'DecZero'NilUngroupedRadCom :: NilUngroupedRadCom t a -> DecZero
 c'DecZero'NilUngroupedRadCom = Exponential () . e'NilUngroupedRadCom
 
-c'DecZero'NilUngroupedRadPer :: NilUngroupedRadPer -> DecZero
+c'DecZero'NilUngroupedRadPer :: NilUngroupedRadPer t a -> DecZero
 c'DecZero'NilUngroupedRadPer = Exponential () . e'NilUngroupedRadPer
 
-e'NilGroupedRadCom :: NilGroupedRadCom -> NonNegative
+e'NilGroupedRadCom :: NilGroupedRadCom t a -> NonNegative
 e'NilGroupedRadCom (NilGroupedRadCom _zMay _rdx _z1 zs1 zss)
   = one `add` zeroes1 `add` zeroesRest
   where
-    zeroes1 = let Zero'Seq zs = zs1 in length zs
+    zeroes1 = let Zero'Star zs = zs1 in length zs
     zeroesRest = addGroup g1 (foldr addGroup zero gs)
       where
-        ZeroGroupRadCom'Seq1 (g1, gs) = zss
-        addGroup (ZeroGroupRadCom _ _zero1 (Zero'Seq zeros)) acc
+        ZeroGroupRadCom'Plus (Pinchot.NonEmpty g1 gs) = zss
+        addGroup (ZeroGroupRadCom _ _zero1 (Zero'Star zeros)) acc
           = one `add` length zeros `add` acc
 
-e'NilGroupedRadPer :: NilGroupedRadPer -> NonNegative
+e'NilGroupedRadPer :: NilGroupedRadPer t a -> NonNegative
 e'NilGroupedRadPer (NilGroupedRadPer _zMay _rdx _z1 zs1 zss)
   = one `add` zeroes1 `add` zeroesRest
   where
-    zeroes1 = let Zero'Seq zs = zs1 in length zs
+    zeroes1 = let Zero'Star zs = zs1 in length zs
     zeroesRest = addGroup g1 (foldr addGroup zero gs)
       where
-        ZeroGroupRadPer'Seq1 (g1, gs) = zss
-        addGroup (ZeroGroupRadPer _ _zero1 (Zero'Seq zeros)) acc
+        ZeroGroupRadPer'Plus (Pinchot.NonEmpty g1 gs) = zss
+        addGroup (ZeroGroupRadPer _ _zero1 (Zero'Star zeros)) acc
           = one `add` length zeros `add` acc
 
-c'DecZero'NilGroupedRadCom :: NilGroupedRadCom -> DecZero
+c'DecZero'NilGroupedRadCom :: NilGroupedRadCom t a -> DecZero
 c'DecZero'NilGroupedRadCom = Exponential () . e'NilGroupedRadCom
 
-c'DecZero'NilGroupedRadPer :: NilGroupedRadPer -> DecZero
+c'DecZero'NilGroupedRadPer :: NilGroupedRadPer t a -> DecZero
 c'DecZero'NilGroupedRadPer = Exponential () . e'NilGroupedRadPer
 
-e'NilRadCom :: NilRadCom -> NonNegative
+e'NilRadCom :: NilRadCom t a -> NonNegative
 e'NilRadCom (NilRadCom'NilUngroupedRadCom x) = e'NilUngroupedRadCom x
 e'NilRadCom (NilRadCom'NilGroupedRadCom x) = e'NilGroupedRadCom x
 
-e'NilRadPer :: NilRadPer -> NonNegative
+e'NilRadPer :: NilRadPer t a -> NonNegative
 e'NilRadPer (NilRadPer'NilUngroupedRadPer x) = e'NilUngroupedRadPer x
 e'NilRadPer (NilRadPer'NilGroupedRadPer x) = e'NilGroupedRadPer x
 
-c'DecZero'NilRadCom :: NilRadCom -> DecZero
+c'DecZero'NilRadCom :: NilRadCom t a -> DecZero
 c'DecZero'NilRadCom = Exponential () . e'NilRadCom
 
-c'DecZero'NilRadPer :: NilRadPer -> DecZero
+c'DecZero'NilRadPer :: NilRadPer t a -> DecZero
 c'DecZero'NilRadPer = Exponential () . e'NilRadPer
 
-c'DecZero'Neutral :: Neutral -> DecZero
+c'DecZero'Neutral :: Neutral t a -> DecZero
 c'DecZero'Neutral (NeuCom _ n) = c'DecZero'NilRadCom n
 c'DecZero'Neutral (NeuPer n) = c'DecZero'NilRadPer n
 
-e'RadixComDigits :: RadixComDigits -> NonNegative
-e'RadixComDigits (RadixComDigits _ (D0'9'Seq sq)) = length sq
+e'RadixComDigits :: RadixComDigits t a -> NonNegative
+e'RadixComDigits (RadixComDigits _ (D0'9'Star sq)) = length sq
 
-e'RadixPerDigits :: RadixPerDigits -> NonNegative
-e'RadixPerDigits (RadixPerDigits _ (D0'9'Seq sq)) = length sq
+e'RadixPerDigits :: RadixPerDigits t a -> NonNegative
+e'RadixPerDigits (RadixPerDigits _ (D0'9'Star sq)) = length sq
 
-e'RadixComDigits'Maybe :: RadixComDigits'Maybe -> NonNegative
-e'RadixComDigits'Maybe (RadixComDigits'Maybe may)
+e'RadixComDigits'Opt :: RadixComDigits'Opt t a -> NonNegative
+e'RadixComDigits'Opt (RadixComDigits'Opt may)
   = maybe zero e'RadixComDigits may
 
-e'RadixPerDigits'Maybe :: RadixPerDigits'Maybe -> NonNegative
-e'RadixPerDigits'Maybe (RadixPerDigits'Maybe may)
+e'RadixPerDigits'Opt :: RadixPerDigits'Opt t a -> NonNegative
+e'RadixPerDigits'Opt (RadixPerDigits'Opt may)
   = maybe zero e'RadixPerDigits may
 
-e'BrimUngroupedRadCom :: BrimUngroupedRadCom -> NonNegative
+e'BrimUngroupedRadCom :: BrimUngroupedRadCom t a -> NonNegative
 e'BrimUngroupedRadCom
-  (BUGreaterThanOneRadCom _ _ mayRadCom) = e'RadixComDigits'Maybe mayRadCom
+  (BUGreaterThanOneRadCom _ _ mayRadCom) = e'RadixComDigits'Opt mayRadCom
 e'BrimUngroupedRadCom
-  (BULessThanOneRadCom _ _rdx (Zero'Seq zs1) _d2 (D0'9'Seq dss))
+  (BULessThanOneRadCom _ _rdx (Zero'Star zs1) _d2 (D0'9'Star dss))
   = length zs1 `add` one `add` length dss
 
-e'BrimUngroupedRadPer :: BrimUngroupedRadPer -> NonNegative
+e'BrimUngroupedRadPer :: BrimUngroupedRadPer t a -> NonNegative
 e'BrimUngroupedRadPer
-  (BUGreaterThanOneRadPer _ _ mayRadPer) = e'RadixPerDigits'Maybe mayRadPer
+  (BUGreaterThanOneRadPer _ _ mayRadPer) = e'RadixPerDigits'Opt mayRadPer
 e'BrimUngroupedRadPer
-  (BULessThanOneRadPer _ _rdx (Zero'Seq zs1) _d2 (D0'9'Seq dss))
+  (BULessThanOneRadPer _ _rdx (Zero'Star zs1) _d2 (D0'9'Star dss))
   = length zs1 `add` one `add` length dss
 
-c'DecPositive'BrimUngroupedRadCom :: BrimUngroupedRadCom -> DecPositive
-c'DecPositive'BrimUngroupedRadCom (BUGreaterThanOneRadCom nv (D0'9'Seq ds1)
-  (RadixComDigits'Maybe Nothing))
+c'DecPositive'BrimUngroupedRadCom :: BrimUngroupedRadCom t a -> DecPositive
+c'DecPositive'BrimUngroupedRadCom (BUGreaterThanOneRadCom nv (D0'9'Star ds1)
+  (RadixComDigits'Opt Nothing))
   = Exponential (Conv.novDecsToPositive nv ds1) zero
 
-c'DecPositive'BrimUngroupedRadCom (BUGreaterThanOneRadCom nv (D0'9'Seq ds1)
-  (RadixComDigits'Maybe (Just (RadixComDigits _ (D0'9'Seq ds2)))))
+c'DecPositive'BrimUngroupedRadCom (BUGreaterThanOneRadCom nv (D0'9'Star ds1)
+  (RadixComDigits'Opt (Just (RadixComDigits _ (D0'9'Star ds2)))))
   = Exponential (Conv.novDecsToPositive nv (ds1 <> ds2))
                 (length ds2)
 
 c'DecPositive'BrimUngroupedRadCom
-  (BULessThanOneRadCom _ _ (Zero'Seq zs1) nv (D0'9'Seq ds))
+  (BULessThanOneRadCom _ _ (Zero'Star zs1) nv (D0'9'Star ds))
   = Exponential (Conv.novDecsToPositive nv ds)
                 (one `add` (length zs1) `add` (length ds))
 
-c'DecPositive'BrimUngroupedRadPer :: BrimUngroupedRadPer -> DecPositive
-c'DecPositive'BrimUngroupedRadPer (BUGreaterThanOneRadPer nv (D0'9'Seq ds1)
-  (RadixPerDigits'Maybe Nothing))
+c'DecPositive'BrimUngroupedRadPer :: BrimUngroupedRadPer t a -> DecPositive
+c'DecPositive'BrimUngroupedRadPer (BUGreaterThanOneRadPer nv (D0'9'Star ds1)
+  (RadixPerDigits'Opt Nothing))
   = Exponential (Conv.novDecsToPositive nv ds1) zero
 
-c'DecPositive'BrimUngroupedRadPer (BUGreaterThanOneRadPer nv (D0'9'Seq ds1)
-  (RadixPerDigits'Maybe (Just (RadixPerDigits _ (D0'9'Seq ds2)))))
+c'DecPositive'BrimUngroupedRadPer (BUGreaterThanOneRadPer nv (D0'9'Star ds1)
+  (RadixPerDigits'Opt (Just (RadixPerDigits _ (D0'9'Star ds2)))))
   = Exponential (Conv.novDecsToPositive nv (ds1 <> ds2))
                 (length ds2)
 
 c'DecPositive'BrimUngroupedRadPer
-  (BULessThanOneRadPer _ _ (Zero'Seq zs1) nv (D0'9'Seq ds))
+  (BULessThanOneRadPer _ _ (Zero'Star zs1) nv (D0'9'Star ds))
   = Exponential (Conv.novDecsToPositive nv ds)
                 (one `add` (length zs1) `add` (length ds))
 
-c'DecPositive'BrimGroupedRadCom :: BrimGroupedRadCom -> DecPositive
+c'DecPositive'BrimGroupedRadCom :: BrimGroupedRadCom t a -> DecPositive
 c'DecPositive'BrimGroupedRadCom
   = c'DecPositive'BrimUngroupedRadCom . ungroupBrimGroupedRadCom
 
-c'DecPositive'BrimGroupedRadPer :: BrimGroupedRadPer -> DecPositive
+c'DecPositive'BrimGroupedRadPer :: BrimGroupedRadPer t a -> DecPositive
 c'DecPositive'BrimGroupedRadPer
   = c'DecPositive'BrimUngroupedRadPer . ungroupBrimGroupedRadPer
 
-c'DecPositive'BrimRadCom :: BrimRadCom -> DecPositive
+c'DecPositive'BrimRadCom :: BrimRadCom t a -> DecPositive
 c'DecPositive'BrimRadCom
   = c'DecPositive'BrimUngroupedRadCom . ungroupBrimRadCom
 
-c'DecPositive'BrimRadPer :: BrimRadPer -> DecPositive
+c'DecPositive'BrimRadPer :: BrimRadPer t a -> DecPositive
 c'DecPositive'BrimRadPer
   = c'DecPositive'BrimUngroupedRadPer . ungroupBrimRadPer
 
-c'DecPositive'NonNeutral :: NonNeutral -> DecPositive
+c'DecPositive'NonNeutral :: NonNeutral t a -> DecPositive
 c'DecPositive'NonNeutral (NonNeutralRadCom _ b) = c'DecPositive'BrimRadCom b
 c'DecPositive'NonNeutral (NonNeutralRadPer b) = c'DecPositive'BrimRadPer b
 
@@ -311,94 +314,94 @@ integerToInt x
 
 
 repDigitsRadCom
-  :: (D1'9, Seq D0'9)
+  :: (D1'9 Char (), Seq (D0'9 Char ()))
   -- ^ Significand
   -> NonNegative
   -- ^ Exponent
-  -> BrimUngroupedRadCom
+  -> BrimUngroupedRadCom Char ()
 repDigitsRadCom (d1, dr) expt
   = case diff (next $ length dr) expt of
-      Equal -> BULessThanOneRadCom (Zero'Maybe $ Just Conv.zero)
-        rdx (Zero'Seq S.empty) d1 (D0'9'Seq dr)
-      LeftBiggerBy l -> BUGreaterThanOneRadCom d1 (D0'9'Seq leftDigs)
-        (RadixComDigits'Maybe rightDigs)
+      Equal -> BULessThanOneRadCom (Zero'Opt $ Just sZero)
+        rdx (Zero'Star S.empty) d1 (D0'9'Star dr)
+      LeftBiggerBy l -> BUGreaterThanOneRadCom d1 (D0'9'Star leftDigs)
+        (RadixComDigits'Opt rightDigs)
         where
           (leftDigs, rightDigs) = case Pos.prev l of
-            Nothing -> (S.empty, Just (RadixComDigits rdx (D0'9'Seq dr)))
+            Nothing -> (S.empty, Just (RadixComDigits rdx (D0'9'Star dr)))
             Just c -> (beg,
-              Just (RadixComDigits rdx (D0'9'Seq end)))
+              Just (RadixComDigits rdx (D0'9'Star end)))
               where
                 (beg, end) = S.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
-      RightBiggerBy r -> BULessThanOneRadCom (Zero'Maybe $ Just Conv.zero)
-        rdx (Zero'Seq zs) d1 (D0'9'Seq dr)
+      RightBiggerBy r -> BULessThanOneRadCom (Zero'Opt $ Just sZero)
+        rdx (Zero'Star zs) d1 (D0'9'Star dr)
         where
-          zs = flip S.replicate Conv.zero
+          zs = flip S.replicate sZero
             . integerToInt . Pos.c'Integer'Positive $ r
   where
-    rdx = RadixCom ','
+    rdx = sRadixCom
 
 repDigitsRadPer
-  :: (D1'9, Seq D0'9)
+  :: (D1'9 Char (), Seq (D0'9 Char ()))
   -- ^ Significand
   -> NonNegative
   -- ^ Exponent
-  -> BrimUngroupedRadPer
+  -> BrimUngroupedRadPer Char () 
 repDigitsRadPer (d1, dr) expt
   = case diff (next $ length dr) expt of
-      Equal -> BULessThanOneRadPer (Zero'Maybe $ Just Conv.zero)
-        rdx (Zero'Seq S.empty) d1 (D0'9'Seq dr)
-      LeftBiggerBy l -> BUGreaterThanOneRadPer d1 (D0'9'Seq leftDigs)
-        (RadixPerDigits'Maybe rightDigs)
+      Equal -> BULessThanOneRadPer (Zero'Opt $ Just sZero)
+        rdx (Zero'Star S.empty) d1 (D0'9'Star dr)
+      LeftBiggerBy l -> BUGreaterThanOneRadPer d1 (D0'9'Star leftDigs)
+        (RadixPerDigits'Opt rightDigs)
         where
           (leftDigs, rightDigs) = case Pos.prev l of
-            Nothing -> (S.empty, Just (RadixPerDigits rdx (D0'9'Seq dr)))
+            Nothing -> (S.empty, Just (RadixPerDigits rdx (D0'9'Star dr)))
             Just c -> (beg,
-              Just (RadixPerDigits rdx (D0'9'Seq end)))
+              Just (RadixPerDigits rdx (D0'9'Star end)))
               where
                 (beg, end) = S.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
-      RightBiggerBy r -> BULessThanOneRadPer (Zero'Maybe $ Just Conv.zero)
-        rdx (Zero'Seq zs) d1 (D0'9'Seq dr)
+      RightBiggerBy r -> BULessThanOneRadPer (Zero'Opt $ Just sZero)
+        rdx (Zero'Star zs) d1 (D0'9'Star dr)
         where
-          zs = flip S.replicate Conv.zero
+          zs = flip S.replicate sZero
             . integerToInt . Pos.c'Integer'Positive $ r
   where
-    rdx = RadixPer '.'
+    rdx = sRadixPer
 
 repUngroupedDecZeroRadCom
   :: DecZero
-  -> NilUngroupedRadCom
-repUngroupedDecZeroRadCom (Exponential () expt) = NUZeroRadCom Conv.zero
-  (RadixZeroesRadCom'Maybe mayRdx)
+  -> NilUngroupedRadCom Char ()
+repUngroupedDecZeroRadCom (Exponential () expt) = NUZeroRadCom sZero
+  (RadixZeroesRadCom'Opt mayRdx)
   where
-    rdx = RadixCom ','
+    rdx = sRadixCom
     mayRdx
       | expt == zero = Nothing
-      | otherwise = Just (RadixZeroesRadCom rdx (Zero'Seq zs))
+      | otherwise = Just (RadixZeroesRadCom rdx (Zero'Star zs))
       where
-        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) Conv.zero
+        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) sZero
 
 repUngroupedDecZeroRadPer
   :: DecZero
-  -> NilUngroupedRadPer
-repUngroupedDecZeroRadPer (Exponential () expt) = NUZeroRadPer Conv.zero
-  (RadixZeroesRadPer'Maybe mayRdx)
+  -> NilUngroupedRadPer Char ()
+repUngroupedDecZeroRadPer (Exponential () expt) = NUZeroRadPer sZero
+  (RadixZeroesRadPer'Opt mayRdx)
   where
-    rdx = RadixPer '.'
+    rdx = sRadixPer
     mayRdx
       | expt == zero = Nothing
-      | otherwise = Just (RadixZeroesRadPer rdx (Zero'Seq zs))
+      | otherwise = Just (RadixZeroesRadPer rdx (Zero'Star zs))
       where
-        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) Conv.zero
+        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) sZero
 
 repUngroupedDecPositiveRadCom
   :: DecPositive
-  -> BrimUngroupedRadCom
+  -> BrimUngroupedRadCom Char ()
 repUngroupedDecPositiveRadCom (Exponential sig expt)
   = repDigitsRadCom (Conv.positiveDigits sig) expt
 
 repUngroupedDecPositiveRadPer
   :: DecPositive
-  -> BrimUngroupedRadPer
+  -> BrimUngroupedRadPer Char ()
 repUngroupedDecPositiveRadPer (Exponential sig expt)
   = repDigitsRadPer (Conv.positiveDigits sig) expt
 
@@ -424,21 +427,21 @@ stripNonZeroSign (Exponential nz ex)
 
 repUngroupedDecNonZeroRadCom
   :: DecNonZero
-  -> (BrimUngroupedRadCom, Pole)
+  -> (BrimUngroupedRadCom Char (), Pole)
 repUngroupedDecNonZeroRadCom nz = (repUngroupedDecPositiveRadCom dp, sgn)
   where
     (dp, sgn) = stripNonZeroSign nz
 
 repUngroupedDecNonZeroRadPer
   :: DecNonZero
-  -> (BrimUngroupedRadPer, Pole)
+  -> (BrimUngroupedRadPer Char (), Pole)
 repUngroupedDecNonZeroRadPer nz = (repUngroupedDecPositiveRadPer dp, sgn)
   where
     (dp, sgn) = stripNonZeroSign nz
 
 repUngroupedDecimalRadCom
   :: Decimal
-  -> Moderated NilUngroupedRadCom BrimUngroupedRadCom
+  -> Moderated (NilUngroupedRadCom Char ()) (BrimUngroupedRadCom Char ())
 repUngroupedDecimalRadCom d = case stripDecimalSign d of
   Left zero -> Moderate (repUngroupedDecZeroRadCom zero)
   Right (pos, pm) ->
@@ -446,7 +449,7 @@ repUngroupedDecimalRadCom d = case stripDecimalSign d of
 
 repUngroupedDecimalRadPer
   :: Decimal
-  -> Moderated NilUngroupedRadPer BrimUngroupedRadPer
+  -> Moderated (NilUngroupedRadPer Char ()) (BrimUngroupedRadPer Char ())
 repUngroupedDecimalRadPer d = case stripDecimalSign d of
   Left zero -> Moderate (repUngroupedDecZeroRadPer zero)
   Right (pos, pm) ->
@@ -454,20 +457,20 @@ repUngroupedDecimalRadPer d = case stripDecimalSign d of
 
 repUngroupedDecUnsignedRadCom
   :: DecUnsigned
-  -> Either NilUngroupedRadCom BrimUngroupedRadCom
+  -> Either (NilUngroupedRadCom Char ()) (BrimUngroupedRadCom Char ())
 repUngroupedDecUnsignedRadCom uns = case decomposeDecUnsigned uns of
   Left z -> Left (repUngroupedDecZeroRadCom z)
   Right p -> Right (repUngroupedDecPositiveRadCom p)
 
 repUngroupedDecUnsignedRadPer
   :: DecUnsigned
-  -> Either NilUngroupedRadPer BrimUngroupedRadPer
+  -> Either (NilUngroupedRadPer Char ()) (BrimUngroupedRadPer Char ())
 repUngroupedDecUnsignedRadPer uns = case decomposeDecUnsigned uns of
   Left z -> Left (repUngroupedDecZeroRadPer z)
   Right p -> Right (repUngroupedDecPositiveRadPer p)
 
 repDecimal
-  :: Either (Maybe GrpRadCom) (Maybe GrpRadPer)
+  :: Either (Maybe (GrpRadCom Char ())) (Maybe (GrpRadPer Char ()))
   -- ^ Determines which radix is used.  If you also supply a grouping
   -- character, 'repDecimal' will try to group the 'Decimal' as well.
   -- Grouping will fail if the absolute value of the 'Decimal' is less
@@ -515,7 +518,7 @@ displayDecimalAsQty d = (toList (sideChar <| ' ' <| rest) ++)
       Just v
         | v == debit -> '<'
         | otherwise -> '>'
-    rest = case repUngroupedDecimalRadPer d of
+    rest = fmap fst . toList $ case repUngroupedDecimalRadPer d of
       Moderate nu -> t'NilUngroupedRadPer nu
       Extreme (Polarized bu _) -> t'BrimUngroupedRadPer bu
 

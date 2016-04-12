@@ -5,17 +5,19 @@ module Penny.Rep where
 import Data.Monoid ((<>))
 import Data.Sequence (Seq, (<|))
 import qualified Data.Sequence as Seq
+import qualified Pinchot
 
 import Penny.Polar
 import Penny.Copper.Types
+import Penny.Copper.Terminalizers
 
 -- | Qty representations with a comma radix that may be either nil
 -- or brim.  Stored along with the side if the number is non-nil.
-type RepRadCom = Moderated NilRadCom BrimRadCom
+type RepRadCom = Moderated (NilRadCom Char ()) (BrimRadCom Char ())
 
 -- | Qty representations with a period radix that may be either nil
 -- or brim.  Stored along with the side if the number is non-nil.
-type RepRadPer = Moderated NilRadPer BrimRadPer
+type RepRadPer = Moderated (NilRadPer Char ()) (BrimRadPer Char ())
 
 -- | Qty representations that may be neutral or non-neutral and that
 -- have a period or comma radix.  Stored along with the side if the
@@ -23,20 +25,23 @@ type RepRadPer = Moderated NilRadPer BrimRadPer
 type RepAnyRadix = Either RepRadCom RepRadPer
 
 -- | A non-neutral representation that does not include a side.
-type BrimAnyRadix = Either BrimRadCom BrimRadPer
+type BrimAnyRadix = Either (BrimRadCom Char ()) (BrimRadPer Char ())
 
 -- | A neutral representation of any radix.
-type NilAnyRadix = Either NilRadCom NilRadPer
+type NilAnyRadix = Either (NilRadCom Char ()) (NilRadPer Char ())
 
 -- | Number representation that may be neutral or non-neutral, with
 -- either a period or comma radix.  Does not have a polarity.
 type NilOrBrimAnyRadix
-  = Either NilOrBrimRadCom NilOrBrimRadPer
+  = Either (NilOrBrimRadCom Char ()) (NilOrBrimRadPer Char ())
 
 t'NilOrBrimAnyRadix
   :: NilOrBrimAnyRadix
   -> Seq Char
-t'NilOrBrimAnyRadix = either t'NilOrBrimRadCom t'NilOrBrimRadPer
+t'NilOrBrimAnyRadix
+  = Pinchot.flatten
+  . fmap fst
+  . either t'NilOrBrimRadCom t'NilOrBrimRadPer
 
 splitNilOrBrimAnyRadix
   :: NilOrBrimAnyRadix
@@ -49,6 +54,7 @@ splitNilOrBrimAnyRadix x = case x of
     NilOrBrimRadPer'NilRadPer nilPer -> Left (Right nilPer)
     NilOrBrimRadPer'BrimRadPer brimPer -> Right (Right brimPer)
 
+{-
 -- | Things that have a GrpRadCom grouping character.
 class MayGroupedRadCom a where
   mayGroupersRadCom :: a -> Seq GrpRadCom
@@ -181,6 +187,7 @@ instance MayGroupedRadPer BrimRadPer where
     = Seq.empty
   mayGroupersRadPer (BrimRadPer'BrimGroupedRadPer b)
     = mayGroupersRadPer b
+-}
 
 -- | Removes the 'Side' from a 'RepAnyRadix'.
 c'NilOrBrimAnyRadix'RepAnyRadix
@@ -207,6 +214,7 @@ c'NilOrBrimAnyRadix'NilAnyRadix
 c'NilOrBrimAnyRadix'NilAnyRadix nil = case nil of
   Left nrc -> Left (NilOrBrimRadCom'NilRadCom nrc)
   Right nrp -> Right (NilOrBrimRadPer'NilRadPer nrp)
+
 
 -- # Poles
 pole'RepRadCom :: RepRadCom -> Maybe Pole

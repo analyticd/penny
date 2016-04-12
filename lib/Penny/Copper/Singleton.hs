@@ -3,111 +3,111 @@ module Penny.Copper.Singleton where
 
 import Penny.Copper.Types
 
-sZero :: Zero
-sZero = Zero '0'
+sZero :: Zero Char ()
+sZero = Zero ('0', ())
 
-sOne :: One
-sOne = One '1'
+sOne :: One Char ()
+sOne = One ('1', ())
 
-sTwo :: Two
-sTwo = Two '2'
+sTwo :: Two Char ()
+sTwo = Two ('2', ())
 
-sThree :: Three
-sThree = Three '3'
+sThree :: Three Char ()
+sThree = Three ('3', ())
 
-sFour :: Four
-sFour = Four '4'
+sFour :: Four Char ()
+sFour = Four ('4', ())
 
-sFive :: Five
-sFive = Five '5'
+sFive :: Five Char ()
+sFive = Five ('5', ())
 
-sSix :: Six
-sSix = Six '6'
+sSix :: Six Char ()
+sSix = Six ('6', ())
 
-sSeven :: Seven
-sSeven = Seven '7'
+sSeven :: Seven Char ()
+sSeven = Seven ('7', ())
 
-sEight :: Eight
-sEight = Eight '8'
+sEight :: Eight Char ()
+sEight = Eight ('8', ())
 
-sNine :: Nine
-sNine = Nine '9'
+sNine :: Nine Char ()
+sNine = Nine ('9', ())
 
-sThinSpace :: ThinSpace
-sThinSpace = ThinSpace '\x2009'
+sThinSpace :: ThinSpace Char ()
+sThinSpace = ThinSpace ('\x2009', ())
 
-sUnderscore :: Underscore
-sUnderscore = Underscore '_'
+sUnderscore :: Underscore Char ()
+sUnderscore = Underscore ('_', ())
 
-sPeriod :: Period
-sPeriod = Period '.'
+sPeriod :: Period Char ()
+sPeriod = Period ('.', ())
 
-sComma :: Comma
-sComma = Comma ','
+sComma :: Comma Char ()
+sComma = Comma (',', ())
 
-sRadixCom :: RadixCom
-sRadixCom = RadixCom ','
+sRadixCom :: RadixCom Char ()
+sRadixCom = RadixCom (',', ())
 
-sRadixPer :: RadixPer
-sRadixPer = RadixPer '.'
+sRadixPer :: RadixPer Char ()
+sRadixPer = RadixPer ('.', ())
 
-sHyphen :: Hyphen
-sHyphen = Hyphen '-'
+sHyphen :: Hyphen Char ()
+sHyphen = Hyphen ('-', ())
 
-sSlash :: Slash
-sSlash = Slash '/'
+sSlash :: Slash Char ()
+sSlash = Slash ('/', ())
 
-sNewline :: Newline
-sNewline = Newline '\n'
+sNewline :: Newline Char ()
+sNewline = Newline ('\n', ())
 
-sHash :: Hash
-sHash = Hash '#'
+sHash :: Hash Char ()
+sHash = Hash ('#', ())
 
-sColon :: Colon
-sColon = Colon ':'
+sColon :: Colon Char ()
+sColon = Colon (':', ())
 
-sPlus :: Plus
-sPlus = Plus '+'
+sPlus :: Plus Char ()
+sPlus = Plus ('+', ())
 
-sMinus :: Minus
-sMinus = Minus '-'
+sMinus :: Minus Char ()
+sMinus = Minus ('-', ())
 
-sBacktick :: Backtick
-sBacktick = Backtick '`'
+sBacktick :: Backtick Char ()
+sBacktick = Backtick ('`', ())
 
-sDoubleQuote :: DoubleQuote
-sDoubleQuote = DoubleQuote '"'
+sDoubleQuote :: DoubleQuote Char ()
+sDoubleQuote = DoubleQuote ('"', ())
 
-sBackslash :: Backslash
-sBackslash = Backslash '\\'
+sBackslash :: Backslash Char ()
+sBackslash = Backslash ('\\', ())
 
-sSpace :: Space
-sSpace = Space ' '
+sSpace :: Space Char ()
+sSpace = Space (' ', ())
 
-sTab :: Tab
-sTab = Tab '\t'
+sTab :: Tab Char ()
+sTab = Tab ('\t', ())
 
-sLessThan :: LessThan
-sLessThan = LessThan '<'
+sLessThan :: LessThan Char ()
+sLessThan = LessThan ('<', ())
 
-sGreaterThan :: GreaterThan
-sGreaterThan = GreaterThan '>'
+sGreaterThan :: GreaterThan Char ()
+sGreaterThan = GreaterThan ('>', ())
 
-sOpenSquare :: OpenSquare
-sOpenSquare = OpenSquare ']'
+sOpenSquare :: OpenSquare Char ()
+sOpenSquare = OpenSquare (']', ())
 
-sCloseSquare :: CloseSquare
-sCloseSquare = CloseSquare ']'
+sCloseSquare :: CloseSquare Char ()
+sCloseSquare = CloseSquare (']', ())
 
-sOpenCurly :: OpenCurly
-sOpenCurly = OpenCurly '{'
+sOpenCurly :: OpenCurly Char ()
+sOpenCurly = OpenCurly ('{', ())
 
-sCloseCurly :: CloseCurly
-sCloseCurly = CloseCurly '}'
+sCloseCurly :: CloseCurly Char ()
+sCloseCurly = CloseCurly ('}', ())
 
-sSemicolon :: Semicolon
-sSemicolon = Semicolon ';'
+sSemicolon :: Semicolon Char ()
+sSemicolon = Semicolon (';', ())
 
-sAtSign :: AtSign
-sAtSign = AtSign '@'
+sAtSign :: AtSign Char ()
+sAtSign = AtSign ('@', ())
 

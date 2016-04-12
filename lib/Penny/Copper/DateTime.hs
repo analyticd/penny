@@ -8,6 +8,7 @@ import Control.Applicative
 import qualified Data.Time as Time
 
 import Penny.Copper.Conversions
+import Penny.Copper.Singleton
 import Penny.Copper.Types
 
 intsToDate
@@ -17,14 +18,15 @@ intsToDate
   -- ^ Month
   -> Int
   -- ^ Day
-  -> Maybe Date
+  -> Maybe (Date Char ())
 intsToDate y m d = nonLeap <|> leap
   where
-    dash = DateSep'Hyphen $ Hyphen '-'
+    dash = DateSep'Hyphen sHyphen
     leap
       | m == 2 && d == 29 = do
           yr <- c'LeapYear'Int y
-          return . Date'LeapDay $ LeapDay yr dash zero two dash two nine
+          return . Date'LeapDay $ LeapDay yr dash sZero sTwo dash
+            sTwo sNine
       | otherwise = Nothing
     nonLeap
       | m == 2 && d == 29 = Nothing
@@ -33,7 +35,7 @@ intsToDate y m d = nonLeap <|> leap
           md <- intsToMonthDay m d
           return . Date'NonLeapDay $ NonLeapDay yr dash md
 
-c'Date'Day :: Time.Day -> Maybe Date
+c'Date'Day :: Time.Day -> Maybe (Date Char ())
 c'Date'Day day = do
   let (yr, m, d) = Time.toGregorian day
   y <- getYear yr
@@ -43,14 +45,14 @@ c'Date'Day day = do
               | y < fromIntegral (minBound :: Int) = Nothing
               | otherwise = Just $ fromIntegral y
 
-c'Copper'ZonedTime
+c'Copper'ZsOnedTime
   :: Time.ZonedTime
-  -> Maybe (Date, Time, Zone)
-c'Copper'ZonedTime = undefined
+  -> Maybe (Date Char (), Time Char (), Zone Char ())
+c'Copper'ZsOnedTime = undefined
 
 c'Time'TimeOfDay
   :: Time.TimeOfDay
-  -> Maybe Time
+  -> Maybe (Time Char ())
 c'Time'TimeOfDay = undefined
 
 intsToMonthDay
@@ -58,50 +60,50 @@ intsToMonthDay
   -- ^ Month
   -> Int
   -- ^ Day
-  -> Maybe MonthDay
+  -> Maybe (MonthDay Char ())
 intsToMonthDay m d
   | m == 1 = do
       d31 <- c'Days31'Int d
-      return $ Jan zero one dash d31
+      return $ Jan sZero sOne dash d31
   | m == 2 = do
       d28 <- c'Days28'Int d
-      return $ Feb zero two dash d28
+      return $ Feb sZero sTwo dash d28
   | m == 3 = do
       d31 <- c'Days31'Int d
-      return $ Mar zero three dash d31
+      return $ Mar sZero sThree dash d31
   | m == 4 = do
       d30 <- c'Days30'Int d
-      return $ Apr zero four dash d30
+      return $ Apr sZero sFour dash d30
   | m == 5 = do
       d31 <- c'Days31'Int d
-      return $ May zero five dash d31
+      return $ May sZero sFive dash d31
   | m == 6 = do
       d30 <- c'Days30'Int d
-      return $ Jun zero six dash d30
+      return $ Jun sZero sSix dash d30
   | m == 7 = do
       d31 <- c'Days31'Int d
-      return $ Jul zero seven dash d31
+      return $ Jul sZero sSeven dash d31
   | m == 8 = do
       d31 <- c'Days31'Int d
-      return $ Aug zero eight dash d31
+      return $ Aug sZero sEight dash d31
   | m == 9 = do
       d30 <- c'Days30'Int d
-      return $ Sep zero nine dash d30
+      return $ Sep sZero sNine dash d30
   | m == 10 = do
       d31 <- c'Days31'Int d
-      return $ Oct one zero dash d31
+      return $ Oct sOne sZero dash d31
   | m == 11 = do
       d30 <- c'Days30'Int d
-      return $ Nov one one dash d30
+      return $ Nov sOne sOne dash d30
   | m == 12 = do
       d31 <- c'Days31'Int d
-      return $ Dec one two dash d31
+      return $ Dec sOne sTwo dash d31
   | otherwise = Nothing
   where
-    dash = DateSep'Hyphen $ Hyphen '-'
+    dash = DateSep'Hyphen sHyphen
 
 monthDayToInts
-  :: MonthDay
+  :: MonthDay t a
   -> (Int, Int)
   -- ^ Int for month (1 is January, 12 is December) and for day
 monthDayToInts x = case x of
@@ -118,7 +120,7 @@ monthDayToInts x = case x of
   Nov _ _ _ d30 -> (11, c'Int'Days30 d30)
   Dec _ _ _ d31 -> (12, c'Int'Days31 d31)
 
-c'Day'Date :: Date -> Time.Day
+c'Day'Date :: Date t a -> Time.Day
 c'Day'Date x = case x of
   Date'NonLeapDay (NonLeapDay yr _ md) ->
     Time.fromGregorian (fromIntegral y) m d
