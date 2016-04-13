@@ -4,6 +4,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE BangPatterns #-}
 -- | Copper - the default Penny parser
 --
 -- Copper runs in three phases.  The first phase transforms a string
@@ -38,11 +39,14 @@ module Penny.Copper where
 import Control.Exception (Exception)
 import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Typeable (Typeable)
 import qualified Data.Validation as V
 import qualified Text.Earley as Earley
+import Pinchot (Loc(Loc))
+import qualified Pinchot
 
 import qualified Penny.Copper.Locator as Locator
 import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
@@ -56,28 +60,28 @@ import Penny.Scalar
 import Penny.SeqUtil
 import Penny.Tree
 
--- | Given an integer position in a text, obtain the line and
--- column.
+-- | Given an integer position in a text, obtain the Pinchot
+-- position.
 textPosition
   :: Int
-  -- ^ Integer position
+  -- ^ Integer position (0-based, from Earley)
   -> Text
-  -> Locator.Pos
+  -> Loc
 textPosition int
-  = X.foldl' add (Locator.Pos 1 1)
+  = X.foldl' add (Loc 1 1 1)
   . X.take int
   where
-    add (Locator.Pos lin col) c
-      | c == '\n' = Locator.Pos (lin + 1) 1
-      | c == '\t' = Locator.Pos lin (col + 8 - ((col - 1) `mod` 8))
-      | otherwise = Locator.Pos lin (col + 1)
+    add (Loc !lin !col !pos) c
+      | c == '\n' = Loc (lin + 1) 1 (pos + 1)
+      | c == '\t' = Loc lin (col + 8 - ((col - 1) `mod` 8)) (pos + 1)
+      | otherwise = Loc lin (col + 1) (pos + 1)
 
 -- | The name of a file being parsed.  This is optional and can be
 -- the empty 'Text'.
 type Filename = Text
 
 data ParseErrorInfo = ParseErrorInfo
-  { _failurePosition :: Locator.Pos
+  { _failurePosition :: Loc
   , _expected :: [String]
   } deriving (Typeable, Show)
 
@@ -100,24 +104,25 @@ Lens.makeLenses ''ParseError
 errorInfo
   :: Text
   -- ^ Input text
-  -> Earley.Report String Text
+  -> Earley.Report String a
   -> ParseErrorInfo
 errorInfo inp (Earley.Report pos exp _)
   = ParseErrorInfo (textPosition pos inp) exp
 
 -- | Given a Pinchot rule, parse a complete string in that language.
 runParser
-  :: (forall r. Earley.Grammar r (Earley.Prod r String Char a))
+  :: (forall r. Earley.Grammar r
+        (Earley.Prod r String (Char, Loc) (p Char Loc)))
   -> Text
-  -> Either ParseError a
+  -> Either ParseError (p Char Loc)
 runParser grammar txt = case results of
   result:[]
-    | X.null (Earley.unconsumed report) -> Right result
+    | Seq.null (Earley.unconsumed report) -> Right result
     | otherwise -> Left (ParseError LeftoverInput info)
   [] -> Left (ParseError AbortedParse info)
   _ -> error "runParser: grammar is ambiguous."
   where
-    (results, report) = Earley.fullParses (Earley.parser grammar) txt
+    (results, report) = Pinchot.locatedFullParses grammar txt
     info = errorInfo txt report
 
 -- | Creates a 'Tree' holding the filename.
@@ -153,7 +158,7 @@ parseConvertProof
 parseConvertProof (filename, txt) = do
   wholeFile <- either (Left . ParseConvertProofError filename . Left) Right
     $ runParser grammar txt
-  let parts = Locator.runLocator . Locator.c'WholeFile $ wholeFile
+  let parts = Locator.c'WholeFile wholeFile
   items <- either (Left . ParseConvertProofError filename . Right)
     Right . Lens.view V._Either . Proofer.proofItems
     $ parts

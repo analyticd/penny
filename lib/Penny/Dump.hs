@@ -7,7 +7,7 @@ import Penny.Balance
 import Penny.Clatch
 import Penny.Decimal
 import Penny.Copper.Types (BrimRadCom, BrimRadPer, NilRadCom, NilRadPer)
-import qualified Penny.Copper.Types as Ty
+import Penny.Copper.Terminalizers
 import Penny.NonZero
 import Penny.NonNegative
 import Penny.Polar
@@ -96,21 +96,21 @@ instance (Pretty n, Pretty o) => Pretty (Moderated n o) where
     Moderate n -> label "Moderate" $ pretty n
     Extreme plr -> label "Extreme" $ pretty plr
 
-instance Pretty BrimRadCom where
-  pretty = text . toList . Ty.t'BrimRadCom
+instance Pretty (BrimRadCom Char a) where
+  pretty = text . toList . fmap fst . t'BrimRadCom
 
-instance Pretty BrimRadPer where
-  pretty = text . toList . Ty.t'BrimRadPer
+instance Pretty (BrimRadPer Char a) where
+  pretty = text . toList . fmap fst . t'BrimRadPer
 
 instance (Pretty a, Pretty b) => Pretty (Either a b) where
   pretty (Left a) = label "Left" $ pretty a
   pretty (Right a) = label "Right" $ pretty a
 
-instance Pretty NilRadCom where
-  pretty = text . toList . Ty.t'NilRadCom
+instance Pretty (NilRadCom Char a) where
+  pretty = text . toList . fmap fst . t'NilRadCom
 
-instance Pretty NilRadPer where
-  pretty = text . toList . Ty.t'NilRadPer
+instance Pretty (NilRadPer Char a) where
+  pretty = text . toList . fmap fst . t'NilRadPer
 
 instance Pretty NonZero where
   pretty = text . show . c'Integer'NonZero

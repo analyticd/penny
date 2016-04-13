@@ -31,6 +31,7 @@ import Data.Time (Day, TimeOfDay(TimeOfDay), ZonedTime)
 import qualified Data.Time as Time
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Pinchot (Loc)
 
 import Penny.Arrangement
 import qualified Penny.Commodity as Commodity
@@ -45,6 +46,7 @@ import qualified Penny.Scalar as Scalar
 import qualified Penny.Tree as Tree
 import qualified Penny.Trio as Trio
 
+{-
 data Pos = Pos
   { _line :: !Int
   , _column :: !Int
@@ -475,14 +477,6 @@ c'Transaction txn = case txn of
     pstgs <- c'Postings x
     return (Seq.empty, pstgs)
 
-data PriceParts = PriceParts
-  { _pricePos :: Pos
-  , _priceTime :: ZonedTime
-  , _priceFrom :: Commodity.Commodity
-  , _priceTo :: Commodity.Commodity
-  , _priceExch :: Decimal
-  }
-
 c'PluMin :: Num a => PluMin -> Locator (a -> a)
 c'PluMin x = do
   advance (t'PluMin x)
@@ -573,8 +567,6 @@ c'Price (Price a0 w1 d2 wt3 wz4 w5 c6 w7 j8)
       where
         zt = Time.ZonedTime (Time.LocalTime day tod) tz
 
-type TxnParts = (Seq Tree.Tree, Seq (Pos, Trio.Trio, Seq Tree.Tree))
-
 c'FileItem
   :: FileItem
   -> Locator (Either PriceParts TxnParts)
@@ -594,9 +586,19 @@ c'NextFileItem'Seq
   -> Locator (Seq (Either PriceParts TxnParts))
 c'NextFileItem'Seq = traverse c'NextFileItem . coerce
 
+-}
+
+data PriceParts = PriceParts
+  { _pricePos :: Loc
+  , _priceTime :: ZonedTime
+  , _priceFrom :: Commodity.Commodity
+  , _priceTo :: Commodity.Commodity
+  , _priceExch :: Decimal
+  }
+
+type TxnParts = (Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+
 c'WholeFile
-  :: WholeFile
-  -> Locator (Seq (Either PriceParts TxnParts))
-c'WholeFile (WholeFile f0 w1)
-  = c'NextFileItem'Seq f0
-  <* advance (t'White'Seq w1)
+  :: WholeFile Char Loc
+  -> Seq (Either PriceParts TxnParts)
+c'WholeFile = undefined

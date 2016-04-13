@@ -38,6 +38,7 @@ data Error
   | AmountParseError String ParseError
   deriving Show
 
+{-
 -- | Every OFX transaction must create two postings in the Copper
 -- file.  One of these postings is called the main posting, and it
 -- is in the account that is the subject of the OFX file.  For
@@ -222,3 +223,4 @@ toCopperCommodity cy = case mayUnquoted of
   where
     mayUnquoted = fUnquotedStringNonDigitChar'Seq1
       . Seq.fromList . X.unpack $ cy
+-}

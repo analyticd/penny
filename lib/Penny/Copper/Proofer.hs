@@ -22,6 +22,7 @@ import qualified Control.Lens as Lens
 import Control.Monad (foldM)
 import Data.Sequence (Seq)
 import qualified Data.Validation as V
+import Pinchot (Loc)
 
 data Reason
   = FailedToAddTrio TrioError
@@ -30,7 +31,7 @@ data Reason
   deriving Show
 
 data ProofFail = ProofFail
-  { _location :: Pos
+  { _location :: Loc
   , _reason :: Reason
   } deriving Show
 
@@ -38,7 +39,7 @@ Lens.makeLenses ''ProofFail
 
 addPostingToEnts
   :: Ents (Seq Tree)
-  -> (Pos, Trio, Seq Tree)
+  -> (Loc, Trio, Seq Tree)
   -> Either ProofFail (Ents (Seq Tree))
 addPostingToEnts ents (pos, trio, trees)
   = case appendTrio ents trio of
@@ -49,7 +50,7 @@ addPostingToEnts ents (pos, trio, trees)
 -- posting fails, returns a single error message.  If balancing
 -- fails, returns a single error message.
 balancedFromPostings
-  :: Seq (Pos, Trio, Seq Tree)
+  :: Seq (Loc, Trio, Seq Tree)
   -> Either ProofFail (Balanced (Seq Tree))
 balancedFromPostings sq = case nonEmpty sq of
   Nothing -> return mempty
