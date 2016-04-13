@@ -12,9 +12,9 @@ import Penny.Balance
 import Penny.Commodity
 import Penny.Decimal
 import Penny.Friendly
+import Penny.Copper.Terminalizers
 import Penny.Copper.Types
   (GrpRadCom, GrpRadPer)
-import qualified Penny.Copper.Types as Ty
 import Penny.Mimode
 import Penny.NonEmpty
 import Penny.NonZero
@@ -154,7 +154,7 @@ instance Friendly TrioError where
       ]
     UnsignedTooLarge rnn qnz ->
       [ "Specified quantity of "
-        ++ (toList . either Ty.t'BrimRadCom Ty.t'BrimRadPer $ rnn)
+        ++ (toList . fmap fst . either t'BrimRadCom t'BrimRadPer $ rnn)
         ++ " is larger than "
         ++ "quantity in the imbalance, which is " ++ disp qnz
       ]
@@ -167,20 +167,15 @@ instance Friendly TrioError where
 
 trioRendering
   :: Trio
-  -> Maybe (Commodity, Arrangement, (Either (Seq GrpRadCom) (Seq GrpRadPer)))
+  -> Maybe (Commodity, Arrangement,
+        Either (Seq (GrpRadCom Char ())) (Seq (GrpRadPer Char ())))
 trioRendering tri = case tri of
   QC qr cy ar -> Just (cy, ar, ei)
     where
-      ei = case qr of
-        Left (Moderate n) -> Left . mayGroupersRadCom $ n
-        Left (Extreme (Polarized o _)) -> Left . mayGroupersRadCom $ o
-        Right (Moderate n) -> Right . mayGroupersRadPer $ n
-        Right (Extreme (Polarized o _)) -> Right . mayGroupersRadPer $ o
+      ei = groupers'RepAnyRadix qr
   UC rnn cy ar -> Just (cy, ar, ei)
     where
-      ei = case rnn of
-        Left b -> Left $ mayGroupersRadCom b
-        Right b -> Right $ mayGroupersRadPer b
+      ei = groupers'BrimAnyRadix rnn
   _ -> Nothing
 
 -- | Extracts the representation from the 'Trio', if there is a

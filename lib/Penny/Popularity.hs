@@ -11,7 +11,8 @@ import Penny.Arrangement
 import Penny.Commodity
 import Penny.Copper.Types
   (GrpRadCom(GrpRadCom'Grouper), Grouper(Grouper'ThinSpace),
-  ThinSpace(ThinSpace), GrpRadPer(GrpRadPer'Comma), Comma(Comma))
+  GrpRadPer(GrpRadPer'Comma))
+import Penny.Copper.Singleton
 import Penny.Mimode
 import Penny.Clatch
 import Control.Applicative
@@ -23,7 +24,8 @@ import qualified Penny.Troika as T
 -- | Map describing how different 'Commodity' are rendered.
 newtype History = History
   (M.Map Commodity
-         (Seq (Arrangement, Either (Seq GrpRadCom) (Seq GrpRadPer))))
+         (Seq (Arrangement, Either (Seq (GrpRadCom Char ()))
+                                   (Seq (GrpRadPer Char ())))))
   deriving (Eq, Ord, Show)
 
 instance Monoid History where
@@ -58,7 +60,7 @@ arrange (History hist) cy = maybe (Arrangement CommodityOnLeft True)
 groupers
   :: History
   -> Maybe Commodity
-  -> (Seq (Seq GrpRadCom), Seq (Seq GrpRadPer))
+  -> (Seq (Seq (GrpRadCom Char ())), Seq (Seq (GrpRadPer Char ())))
 groupers (History hist) mayCy = fromMaybe allGroupers $ do
   cy <- mayCy
   cyHist <- M.lookup cy hist
@@ -92,16 +94,16 @@ elect = F.foldl' f mempty
 -- grouper is used.
 
 selectGrouper
-  :: (Seq (Seq GrpRadCom), Seq (Seq GrpRadPer))
-  -> Either GrpRadCom GrpRadPer
+  :: (Seq (Seq (GrpRadCom Char ())), Seq (Seq (GrpRadPer Char ())))
+  -> Either (GrpRadCom Char ()) (GrpRadPer Char ())
 selectGrouper (rcs, rps)
   | Seq.length rps >= Seq.length rcs = Right rp
   | otherwise = Left rc
   where
     rp = fromMaybe comma . mimode . join $ rps
     rc = fromMaybe thinSpace . mimode . join $ rcs
-    thinSpace = GrpRadCom'Grouper (Grouper'ThinSpace (ThinSpace '\x2009'))
-    comma = GrpRadPer'Comma (Comma ',')
+    thinSpace = GrpRadCom'Grouper (Grouper'ThinSpace sThinSpace)
+    comma = GrpRadPer'Comma sComma
 
 -- | Gets all arrangements from a history.
 arrangements :: History -> Seq Arrangement

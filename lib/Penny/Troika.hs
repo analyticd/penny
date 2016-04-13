@@ -83,22 +83,18 @@ c'Amount'Troika (Troika cy ei) = A.Amount cy
 c'Troika'Amount :: A.Amount -> Troika
 c'Troika'Amount (A.Amount cy q) = Troika cy (Right q)
 
+-- TODO the () type is too specific
 troikaRendering
   :: Troika
-  -> Maybe (Commodity, Arrangement, Either (Seq GrpRadCom) (Seq GrpRadPer))
+  -> Maybe (Commodity, Arrangement,
+            Either (Seq (GrpRadCom Char ())) (Seq (GrpRadPer Char ())))
 troikaRendering (Troika cy tq) = case tq of
   Left tl -> case tl of
     QC qr ar -> Just (cy, ar, ei)
       where
-        ei = case qr of
-          Left (Moderate n) -> Left . mayGroupersRadCom $ n
-          Left (Extreme (Polarized o _)) -> Left . mayGroupersRadCom $ o
-          Right (Moderate n) -> Right . mayGroupersRadPer $ n
-          Right (Extreme (Polarized o _)) -> Right . mayGroupersRadPer $ o
+        ei = groupers'RepAnyRadix qr
     UC rnn _ ar -> Just (cy, ar, ei)
       where
-        ei = case rnn of
-          Left b -> Left $ mayGroupersRadCom b
-          Right b -> Right $ mayGroupersRadPer b
+        ei = groupers'BrimAnyRadix rnn
     _ -> Nothing
   _ -> Nothing
