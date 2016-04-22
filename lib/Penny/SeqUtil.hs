@@ -8,7 +8,8 @@
 -- Utilities for "Data.Sequence".
 
 module Penny.SeqUtil
-  ( mapMaybeM
+  ( mapMaybe
+  , mapMaybeM
   , zipWithM
   , lefts
   , rights
@@ -74,6 +75,16 @@ mapMaybeM f sq = case viewl sq of
     return $ case mayB of
       Nothing -> rest
       Just b -> b <| rest
+
+mapMaybe
+  :: (a -> Maybe b)
+  -> Seq a
+  -> Seq b
+mapMaybe f sq = case viewl sq of
+  EmptyL -> empty
+  x :< xs -> case f x of
+    Nothing -> mapMaybe f xs
+    Just b -> b <| mapMaybe f xs
 
 zipWithM
   :: Monad m

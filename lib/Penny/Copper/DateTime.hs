@@ -45,10 +45,10 @@ c'Date'Day day = do
               | y < fromIntegral (minBound :: Int) = Nothing
               | otherwise = Just $ fromIntegral y
 
-c'Copper'ZsOnedTime
+c'Copper'ZonedTime
   :: Time.ZonedTime
   -> Maybe (Date Char (), Time Char (), Zone Char ())
-c'Copper'ZsOnedTime = undefined
+c'Copper'ZonedTime = undefined
 
 c'Time'TimeOfDay
   :: Time.TimeOfDay
@@ -134,3 +134,5 @@ c'Day'Date x = case x of
       m = 2
       d = 29
 
+c'TimeOfDay'Time :: Time t a -> Time.TimeOfDay
+c'TimeOfDay'Time = undefined

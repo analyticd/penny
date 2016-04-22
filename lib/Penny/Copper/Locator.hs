@@ -32,10 +32,12 @@ import qualified Data.Time as Time
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Pinchot (Loc)
+import qualified Pinchot
 
 import Penny.Arrangement
 import qualified Penny.Commodity as Commodity
 import qualified Penny.Copper.Conversions as Conv
+import Penny.Copper.Terminalizers
 import Penny.Copper.Types
 import Penny.Copper.DateTime
 import Penny.Decimal
@@ -43,6 +45,7 @@ import Penny.Polar
 import qualified Penny.Positive as Pos
 import Penny.Realm
 import qualified Penny.Scalar as Scalar
+import Penny.SeqUtil (mapMaybe)
 import qualified Penny.Tree as Tree
 import qualified Penny.Trio as Trio
 
@@ -601,4 +604,53 @@ type TxnParts = (Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
 c'WholeFile
   :: WholeFile Char Loc
   -> Seq (Either PriceParts TxnParts)
-c'WholeFile = undefined
+c'WholeFile
+  = fmap c'FileItem
+  . fmap _r'WhitesFileItem'1'FileItem
+  . coerce
+  . _r'WholeFile'0'WhitesFileItem'Star
+
+c'FileItem
+  :: FileItem Char Loc
+  -> Either PriceParts TxnParts
+c'FileItem i = case i of
+  FileItem'Price p -> Left $ c'Price p
+  FileItem'Transaction t -> Right $ c'Transaction t
+
+c'Price :: Price Char Loc -> PriceParts
+c'Price pr@(Price a0 _ d2 wt3 wz4 _ c6 _ j8)
+  = PriceParts loc zt from to dec
+  where
+    zt = Time.ZonedTime (Time.LocalTime day tod) tz
+    day = c'Day d2
+    tod = c'WhitesTime'Opt wt3
+    tz = c'WhitesZone'Opt wz4
+    from = c'Commodity c6
+    (to, dec) = c'Janus j8
+    loc = Lens.view (Lens.to t'AtSign . Pinchot.front . Lens._2) a0
+    
+
+c'WhitesTime'Opt :: WhitesTime'Opt c a -> TimeOfDay
+c'WhitesTime'Opt (WhitesTime'Opt may)
+  = maybe Time.midnight c'WhitesTime may
+
+c'WhitesTime :: WhitesTime c a -> TimeOfDay
+c'WhitesTime (WhitesTime _ ti) = c'Time ti
+
+c'Time :: Time t a -> TimeOfDay
+c'Time = undefined
+
+c'WhitesZone'Opt :: WhitesZone'Opt c a -> Time.TimeZone
+c'WhitesZone'Opt = undefined
+
+c'Commodity :: Commodity c a -> Commodity.Commodity
+c'Commodity = undefined
+
+c'Janus :: Janus c a -> (Commodity.Commodity, Decimal)
+c'Janus = undefined
+
+c'Day :: Date c a -> Day
+c'Day = undefined
+
+c'Transaction :: Transaction Char Loc -> TxnParts
+c'Transaction = undefined
