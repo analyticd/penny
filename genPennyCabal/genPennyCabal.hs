@@ -204,7 +204,7 @@ props = blank
 
 main :: IO ()
 main = defaultMain $ do
-  libMods <- modules "lib"
+  libMods <- modules "../penny/lib"
   -- testMods <- modules "tests"
   copper <- makeFlag "copper" $
     FlagOpts { flagDescription = "create copper-parse executable"

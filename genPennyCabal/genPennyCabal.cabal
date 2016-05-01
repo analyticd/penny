@@ -1,0 +1,9 @@
+name: genPennyCabal
+version: 0.1
+cabal-version: >= 1.2
+build-type: Simple
+
+Executable genPennyCabal
+  main-is: genPennyCabal.hs
+  build-depends: cartel == 0.14.*
+               , base ==4.8.*
