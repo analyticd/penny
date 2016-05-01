@@ -48,7 +48,7 @@ import qualified Text.Earley as Earley
 import Pinchot (Loc(Loc))
 import qualified Pinchot
 
-import qualified Penny.Copper.Locator as Locator
+import Penny.Copper.Decopperize
 import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
 import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
@@ -158,7 +158,7 @@ parseConvertProof
 parseConvertProof (filename, txt) = do
   wholeFile <- either (Left . ParseConvertProofError filename . Left) Right
     $ runParser grammar txt
-  let parts = Locator.c'WholeFile wholeFile
+  let parts = dWholeFile wholeFile
   items <- either (Left . ParseConvertProofError filename . Right)
     Right . Lens.view V._Either . Proofer.proofItems
     $ parts

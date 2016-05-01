@@ -10,7 +10,8 @@
 module Penny.Copper.Proofer where
 
 import Penny.Commodity
-import Penny.Copper.Locator
+-- import Penny.Copper.Locator
+import Penny.Copper.Decopperize
 import Penny.Ents
 import Penny.NonEmpty
 import qualified Penny.NonEmpty as NonEmpty
@@ -62,6 +63,7 @@ balancedFromPostings sq = case nonEmpty sq of
 
 price
   :: PriceParts
+  -- ^
   -> Either ProofFail Price
 price pp = case makeFromTo (FromCy (_priceFrom pp)) (ToCy (_priceTo pp)) of
   Nothing -> Left (ProofFail (_pricePos pp) (MatchingFromTo (_priceFrom pp)))
@@ -69,6 +71,7 @@ price pp = case makeFromTo (FromCy (_priceFrom pp)) (ToCy (_priceTo pp)) of
 
 proofItem
   :: Either PriceParts TxnParts
+  -- ^
   -> Either ProofFail (Either Price (Seq Tree, Balanced (Seq Tree)))
 proofItem x = case x of
   Left p -> fmap Left (price p)
@@ -78,6 +81,7 @@ proofItem x = case x of
 
 proofItems
   :: Seq (Either PriceParts TxnParts)
+  -- ^
   -> V.AccValidation (NonEmpty ProofFail)
       (Seq (Either Price (Seq Tree, Balanced (Seq Tree))))
 proofItems
