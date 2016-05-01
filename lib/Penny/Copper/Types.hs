@@ -7,10 +7,16 @@ module Penny.Copper.Types where
 
 import Penny.Copper.Grammar
 
-import Pinchot (syntaxTrees, wrappedInstances)
+import Pinchot (syntaxTrees, wrappedInstances,
+ bifunctorInstances, semigroupInstances, monoidInstances)
 
-syntaxTrees ''Char [''Eq, ''Ord, ''Show, ''Functor, ''Foldable, ''Traversable]
-  [wholeFile, nilOrBrimRadCom, nilOrBrimRadPer]
+syntaxTrees [''Eq, ''Ord, ''Show, ''Functor, ''Foldable, ''Traversable]
+  [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]
 
-wrappedInstances
-  [wholeFile, nilOrBrimRadCom, nilOrBrimRadPer]
+wrappedInstances [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]
+
+bifunctorInstances [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]
+
+semigroupInstances [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]
+
+monoidInstances [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]

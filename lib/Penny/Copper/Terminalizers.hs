@@ -7,5 +7,5 @@ import qualified Penny.Copper.Types as Types
 
 import Pinchot (terminalizers)
 
-$(terminalizers "Types" ''Char
+$(terminalizers "Types"
   [wholeFile, nilOrBrimRadCom, nilOrBrimRadPer])

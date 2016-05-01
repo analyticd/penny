@@ -114,7 +114,7 @@ monoidSubclasses :: Package
 monoidSubclasses = atleast "monoid-subclasses" [0,4,1]
 
 pinchot :: Package
-pinchot = atleast "pinchot" [0,16,0,0]
+pinchot = atleast "pinchot" [0,18,0,0]
 
 earley :: Package
 earley = atleast "Earley" [0,10,1,0]
