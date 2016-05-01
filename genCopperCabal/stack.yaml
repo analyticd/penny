@@ -8,15 +8,10 @@ resolver: lts-5.15
 packages:
 - '.'
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
-extra-deps:
-- Earley-0.11.0.1
-- pinchot-0.18.0.0
-- text-1.2.2.1
+extra-deps: []
 
 # Override default flag values for local packages and extra-deps
-flags:
-  pinchot:
-    oldtemplatehaskell: true
+flags: {}
 
 # Extra package databases containing global packages
 extra-package-dbs: []

@@ -5,7 +5,8 @@ flags:
     oldTemplateHaskell: true
 
 packages:
-- '.'
+- 'penny/'
+- 'penny-copper/'
 
 extra-deps:
 - pinchot-0.18.0.0

@@ -125,9 +125,6 @@ ofx = atleast "ofx" [0,4,0,4]
 parsec :: Package
 parsec = atleast "parsec" [3,1,9]
 
-pennyCopper :: Package
-pennyCopper = exactly "penny-copper" pennyVer
-
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
@@ -169,7 +166,6 @@ libraryDepends =
   , validation
   , ofx
   , parsec
-  , pennyCopper
   ]
 
 testDepends :: [Package]
@@ -177,7 +173,7 @@ testDepends = [ quickcheck, tasty, tastyQuickcheck, tastyTh, derive ]
 
 props :: Properties
 props = blank
-  { name = "penny"
+  { name = "penny-copper"
   , version = pennyVer
   , cabalVersion = Just (1,14)
   , buildType = Just simple
@@ -194,6 +190,8 @@ props = blank
   , description =
     [ "Penny is a double-entry accounting system."
     , ""
+    , "This package contains the grammar for ledger files."
+    , ""
     , "For more information, please see the README.md file, which"
     , "is available in the source tarball or is visible at the bottom"
     , "of the Penny homepage:"
@@ -205,38 +203,12 @@ props = blank
 
 main :: IO ()
 main = defaultMain $ do
-  libMods <- modules "../penny/lib"
-  -- testMods <- modules "tests"
-  copper <- makeFlag "copper" $
-    FlagOpts { flagDescription = "create copper-parse executable"
-             , flagDefault = False
-             , flagManual = True
-             }
+  libMods <- modules "../penny-copper/lib"
   return
     ( props
     ,   exposedModules libMods
       : buildDepends libraryDepends
       : commonOptions
     , [ githubHead "massysett" "penny"
-      , executable "copper-parse" $
-          [ mainIs "copper-parse.hs"
-          , condBlock (flag copper)
-              ( otherModules libMods
-              , [ hsSourceDirs ["copper-parse"]
-                , buildDepends libraryDepends
-                ] ++ commonOptions
-              )
-              [ buildable False ]
-          ]
-{-
-      , testSuite "penny-properties" $
-        exitcodeFields "penny-properties.hs" ++
-        commonOptions ++
-        [ hsSourceDirs ["properties"]
-        , buildDepends libraryDepends
-        , buildDepends testDepends
-        , otherModules libMods
-        ]
--}
       ]
     )
