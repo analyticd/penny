@@ -21,6 +21,7 @@ import Penny.Cell
 import Penny.Clatch
 import Penny.Colors
 import Penny.Commodity
+import Penny.Copper.Copperize
 import Penny.Decimal
 import qualified Penny.Polar as Polar
 import Penny.Popularity

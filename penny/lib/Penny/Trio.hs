@@ -1,20 +1,15 @@
 module Penny.Trio where
 
-import Data.Foldable (toList)
-import qualified Data.Text as X
 import qualified Data.Map as M
 import Data.Sequence (Seq)
 
 import Penny.Arrangement
 import Penny.Commodity
 import Penny.Decimal
-import Penny.Friendly
-import Penny.Copper.Terminalizers
 import Penny.Copper.Types
   (GrpRadCom, GrpRadPer)
 import Penny.Mimode
 import Penny.NonEmpty
-import Penny.NonZero
 import Penny.Polar
 import Penny.Rep
 
@@ -126,39 +121,6 @@ data TrioError
   | BalanceIsSameSide Pole
   | UnsignedTooLarge BrimAnyRadix DecNonZero
   deriving Show
-
-instance Friendly TrioError where
-  friendly te = case te of
-    NoImbalance ->
-      [ "The posting you gave requires there to be a current imbalance,"
-      , "but the postings are perfectly balanced."
-      ]
-    MultipleImbalance i1 i2 is ->
-      [ "The posting you gave requires there to be exactly one commodity"
-      , "that is not balanced, but there are multiple imbalances:"
-      , showImbalance i1
-      , showImbalance i2
-      ] ++ map showImbalance is
-
-    CommodityNotFound cy ->
-      [ "Necessary commodity not found in imbalances: " ++ X.unpack cy ]
-
-    BalanceIsSameSide s ->
-      [ "Imbalance needs to be on opposite side of given posting,"
-      , "but it is on the same side: " ++ (dispSide s)
-      ]
-    UnsignedTooLarge rnn qnz ->
-      [ "Specified quantity of "
-        ++ (toList . fmap fst . either t'BrimRadCom t'BrimRadPer $ rnn)
-        ++ " is larger than "
-        ++ "quantity in the imbalance, which is " ++ disp qnz
-      ]
-    where
-      showImbalance (cy, qnz) = X.unpack cy ++ " " ++ disp qnz
-      disp = ($ "") . displayDecimalAsQty . fmap c'Integer'NonZero
-      dispSide side
-        | side == debit = "<"
-        | otherwise = ">"
 
 trioRendering
   :: Trio

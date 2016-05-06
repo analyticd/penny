@@ -24,6 +24,7 @@ module Penny.Cell
 
 import Penny.Arrangement
 import Penny.Colors
+import Penny.Copper.Copperize
 import Penny.Commodity
 import Penny.Decimal
 import Penny.Polar (Pole)

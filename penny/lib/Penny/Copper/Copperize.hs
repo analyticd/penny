@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 module Penny.Copper.Copperize where
 
+import Control.Applicative ((<|>))
 import qualified Control.Lens as Lens
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
@@ -14,14 +15,18 @@ import qualified Text.Earley as Earley
 import qualified Data.Time as Time
 
 import Penny.Copper.EarleyGrammar
+import Penny.Copper.Optics
 import Penny.Copper.Productions
+import Penny.Copper.Terminalizers
 import Penny.Copper.Types
 import Penny.Decimal
+import Penny.Grouping
 import Penny.NonNegative (NonNegative)
 import qualified Penny.NonNegative as NN
+import Penny.Polar
 import Penny.Positive (Positive)
 import qualified Penny.Positive as Pos
-import Penny.Copper.Optics
+import Penny.Rep
 
 
 cZero :: Zero Char ()
@@ -96,8 +101,8 @@ c'D0'8'Int x = case x of
 
 c'D0'1'Int :: Integral a => a -> Maybe (D0'1 Char ())
 c'D0'1'Int x = case x of
-  0 -> Just $ D0'1'Zero sZero
-  1 -> Just $ D0'1'One sOne
+  0 -> Just $ D0'1'Zero cZero
+  1 -> Just $ D0'1'One cOne
   _ -> Nothing
 
 c'D0'2'Int :: Integral a => a -> Maybe (D0'2 Char ())
@@ -132,28 +137,28 @@ c'Days28'Int x = d1to9 <|> d10to19 <|> d20to28
   where
     d1to9 = do
       d <- c'D1'9'Int x
-      return $ D28'1to9 sZero d
+      return $ D28'1to9 cZero d
     d10to19 = do
       d <- c'D0'9'Int (x - 10)
-      return $ D28'10to19 sOne d
+      return $ D28'10to19 cOne d
     d20to28 = do
       d <- c'D0'8'Int (x - 20)
-      return $ D28'20to28 sTwo d
+      return $ D28'20to28 cTwo d
 
 c'Days30'Int :: Integral a => a -> Maybe (Days30 Char ())
 c'Days30'Int x = d28 <|> d29 <|> d30
   where
     d28 = fmap D30'28 (c'Days28'Int x)
-    d29 | x == 29 = Just $ D30'29 sTwo sNine
+    d29 | x == 29 = Just $ D30'29 cTwo cNine
         | otherwise = Nothing
-    d30 | x == 30 = Just $ D30'30 sThree sZero
+    d30 | x == 30 = Just $ D30'30 cThree cZero
         | otherwise = Nothing
 
 c'Days31'Int :: Integral a => a -> Maybe (Days31 Char ())
 c'Days31'Int x = d30 <|> d31
   where
     d30 = fmap D31'30 $ c'Days30'Int x
-    d31 | x == 31 = Just $ D31'31 sThree sOne
+    d31 | x == 31 = Just $ D31'31 cThree cOne
         | otherwise = Nothing
 
 c'Year'Int :: Integral a => a -> Maybe (Year Char ())
@@ -170,30 +175,30 @@ c'Year'Int x = do
 
 c'Mod4'Int :: Integral a => a -> Maybe (Mod4 Char ())
 c'Mod4'Int x = case x of
-  { 4 -> Just $ L04 sZero sFour; 8 -> Just $ L08 sZero sEight;
-    12 -> Just $ L12 sOne sTwo;
-    16 -> Just $ L16 sOne sSix; 20 -> Just $ L20 sTwo sZero;
-    24 -> Just $ L24 sTwo sFour;
-    28 -> Just $ L28 sTwo sEight; 32 -> Just $ L32 sThree sTwo;
-    36 -> Just $ L36 sThree sSix;
-    40 -> Just $ L40 sFour sZero; 44 -> Just $ L44 sFour sFour;
-    48 -> Just $ L48 sFour sEight;
-    52 -> Just $ L52 sFive sTwo; 56 -> Just $ L56 sFive sSix;
-    60 -> Just $ L60 sSix sZero;
-    64 -> Just $ L64 sSix sFour; 68 -> Just $ L68 sSix sEight;
-    72 -> Just $ L72 sSeven sTwo;
-    76 -> Just $ L76 sSeven sSix; 80 -> Just $ L80 sEight sZero;
-    84 -> Just $ L84 sEight sFour;
-    88 -> Just $ L88 sEight sEight; 92 -> Just $ L92 sNine sTwo;
-    96 -> Just $ L96 sNine sSix;
+  { 4 -> Just $ L04 cZero cFour; 8 -> Just $ L08 cZero cEight;
+    12 -> Just $ L12 cOne cTwo;
+    16 -> Just $ L16 cOne cSix; 20 -> Just $ L20 cTwo cZero;
+    24 -> Just $ L24 cTwo cFour;
+    28 -> Just $ L28 cTwo cEight; 32 -> Just $ L32 cThree cTwo;
+    36 -> Just $ L36 cThree cSix;
+    40 -> Just $ L40 cFour cZero; 44 -> Just $ L44 cFour cFour;
+    48 -> Just $ L48 cFour cEight;
+    52 -> Just $ L52 cFive cTwo; 56 -> Just $ L56 cFive cSix;
+    60 -> Just $ L60 cSix cZero;
+    64 -> Just $ L64 cSix cFour; 68 -> Just $ L68 cSix cEight;
+    72 -> Just $ L72 cSeven cTwo;
+    76 -> Just $ L76 cSeven cSix; 80 -> Just $ L80 cEight cZero;
+    84 -> Just $ L84 cEight cFour;
+    88 -> Just $ L88 cEight cEight; 92 -> Just $ L92 cNine cTwo;
+    96 -> Just $ L96 cNine cSix;
     _ -> Nothing }
 
 c'CenturyLeapYear'Int :: Integral a => a -> Maybe (CenturyLeapYear Char ())
 c'CenturyLeapYear'Int x
-  | x == 0 = Just $ LeapYear0 sZero sZero sZero sZero
+  | x == 0 = Just $ LeapYear0 cZero cZero cZero cZero
   | rm == 0 = do
       m4 <- c'Mod4'Int dv
-      return $ LeapYearMod4 m4 sZero sZero
+      return $ LeapYearMod4 m4 cZero cZero
   | otherwise = Nothing
   where
     (dv, rm) = x `divMod` 100
@@ -219,7 +224,7 @@ c'N0'19'Int x = d10'19 <|> d0'9
   where
     d10'19 = do
       d1 <- c'D0'9'Int (x - 10)
-      return (N0'19 (D0'1'Opt (Just (D0'1'One sOne))) d1)
+      return (N0'19 (D0'1'Opt (Just (D0'1'One cOne))) d1)
     d0'9 = do
       d0'9 <- c'D0'9'Int x
       return $ N0'19 (D0'1'Opt Nothing) d0'9
@@ -227,7 +232,7 @@ c'N0'19'Int x = d10'19 <|> d0'9
 c'N20'23'Int :: Integral a => a -> Maybe (N20'23 Char ())
 c'N20'23'Int x = do
   d1 <- c'D0'3'Int $ x - 20
-  return $ N20'23 sTwo d1
+  return $ N20'23 cTwo d1
 
 c'Hours'Int :: Integral a => a -> Maybe (Hours Char ())
 c'Hours'Int i = Hours'N0'19 <$> c'N0'19'Int i
@@ -438,25 +443,25 @@ repDigitsRadCom
   -- ^ Exponent
   -> BrimUngroupedRadCom Char ()
 repDigitsRadCom (d1, dr) expt
-  = case diff (next $ length dr) expt of
-      Equal -> BULessThanOneRadCom (Zero'Opt $ Just sZero)
-        rdx (Zero'Star S.empty) d1 (D0'9'Star dr)
-      LeftBiggerBy l -> BUGreaterThanOneRadCom d1 (D0'9'Star leftDigs)
+  = case NN.diff (NN.next $ NN.length dr) expt of
+      NN.Equal -> BULessThanOneRadCom (Zero'Opt $ Just cZero)
+        rdx (Zero'Star Seq.empty) d1 (D0'9'Star dr)
+      NN.LeftBiggerBy l -> BUGreaterThanOneRadCom d1 (D0'9'Star leftDigs)
         (RadixComDigits'Opt rightDigs)
         where
           (leftDigs, rightDigs) = case Pos.prev l of
-            Nothing -> (S.empty, Just (RadixComDigits rdx (D0'9'Star dr)))
+            Nothing -> (Seq.empty, Just (RadixComDigits rdx (D0'9'Star dr)))
             Just c -> (beg,
               Just (RadixComDigits rdx (D0'9'Star end)))
               where
-                (beg, end) = S.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
-      RightBiggerBy r -> BULessThanOneRadCom (Zero'Opt $ Just sZero)
+                (beg, end) = Seq.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
+      NN.RightBiggerBy r -> BULessThanOneRadCom (Zero'Opt $ Just cZero)
         rdx (Zero'Star zs) d1 (D0'9'Star dr)
         where
-          zs = flip S.replicate sZero
+          zs = flip Seq.replicate cZero
             . integerToInt . Pos.c'Integer'Positive $ r
   where
-    rdx = sRadixCom
+    rdx = cRadixCom
 
 repDigitsRadPer
   :: (D1'9 Char (), Seq (D0'9 Char ()))
@@ -465,63 +470,63 @@ repDigitsRadPer
   -- ^ Exponent
   -> BrimUngroupedRadPer Char () 
 repDigitsRadPer (d1, dr) expt
-  = case diff (next $ length dr) expt of
-      Equal -> BULessThanOneRadPer (Zero'Opt $ Just sZero)
-        rdx (Zero'Star S.empty) d1 (D0'9'Star dr)
-      LeftBiggerBy l -> BUGreaterThanOneRadPer d1 (D0'9'Star leftDigs)
+  = case NN.diff (NN.next $ NN.length dr) expt of
+      NN.Equal -> BULessThanOneRadPer (Zero'Opt $ Just cZero)
+        rdx (Zero'Star Seq.empty) d1 (D0'9'Star dr)
+      NN.LeftBiggerBy l -> BUGreaterThanOneRadPer d1 (D0'9'Star leftDigs)
         (RadixPerDigits'Opt rightDigs)
         where
           (leftDigs, rightDigs) = case Pos.prev l of
-            Nothing -> (S.empty, Just (RadixPerDigits rdx (D0'9'Star dr)))
+            Nothing -> (Seq.empty, Just (RadixPerDigits rdx (D0'9'Star dr)))
             Just c -> (beg,
               Just (RadixPerDigits rdx (D0'9'Star end)))
               where
-                (beg, end) = S.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
-      RightBiggerBy r -> BULessThanOneRadPer (Zero'Opt $ Just sZero)
+                (beg, end) = Seq.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
+      NN.RightBiggerBy r -> BULessThanOneRadPer (Zero'Opt $ Just cZero)
         rdx (Zero'Star zs) d1 (D0'9'Star dr)
         where
-          zs = flip S.replicate sZero
+          zs = flip Seq.replicate cZero
             . integerToInt . Pos.c'Integer'Positive $ r
   where
-    rdx = sRadixPer
+    rdx = cRadixPer
 
 repUngroupedDecZeroRadCom
   :: DecZero
   -> NilUngroupedRadCom Char ()
-repUngroupedDecZeroRadCom (Exponential () expt) = NUZeroRadCom sZero
+repUngroupedDecZeroRadCom (Exponential () expt) = NUZeroRadCom cZero
   (RadixZeroesRadCom'Opt mayRdx)
   where
-    rdx = sRadixCom
+    rdx = cRadixCom
     mayRdx
-      | expt == zero = Nothing
+      | expt == NN.zero = Nothing
       | otherwise = Just (RadixZeroesRadCom rdx (Zero'Star zs))
       where
-        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) sZero
+        zs = Seq.replicate (integerToInt . NN.c'Integer'NonNegative $ expt) cZero
 
 repUngroupedDecZeroRadPer
   :: DecZero
   -> NilUngroupedRadPer Char ()
-repUngroupedDecZeroRadPer (Exponential () expt) = NUZeroRadPer sZero
+repUngroupedDecZeroRadPer (Exponential () expt) = NUZeroRadPer cZero
   (RadixZeroesRadPer'Opt mayRdx)
   where
-    rdx = sRadixPer
+    rdx = cRadixPer
     mayRdx
-      | expt == zero = Nothing
+      | expt == NN.zero = Nothing
       | otherwise = Just (RadixZeroesRadPer rdx (Zero'Star zs))
       where
-        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) sZero
+        zs = Seq.replicate (integerToInt . NN.c'Integer'NonNegative $ expt) cZero
 
 repUngroupedDecPositiveRadCom
   :: DecPositive
   -> BrimUngroupedRadCom Char ()
 repUngroupedDecPositiveRadCom (Exponential sig expt)
-  = repDigitsRadCom (Conv.positiveDigits sig) expt
+  = repDigitsRadCom (positiveDigits sig) expt
 
 repUngroupedDecPositiveRadPer
   :: DecPositive
   -> BrimUngroupedRadPer Char ()
 repUngroupedDecPositiveRadPer (Exponential sig expt)
-  = repDigitsRadPer (Conv.positiveDigits sig) expt
+  = repDigitsRadPer (positiveDigits sig) expt
 
 repUngroupedDecNonZeroRadCom
   :: DecNonZero
@@ -609,7 +614,7 @@ repDecimal ei d = case ei of
 displayDecimalAsQty
   :: Decimal
   -> ShowS
-displayDecimalAsQty d = (toList (sideChar <| ' ' <| rest) ++)
+displayDecimalAsQty d = (toList (sideChar : ' ' : rest) ++)
   where
     sideChar = case integerPole . _coefficient $ d of
       Nothing -> ' '
