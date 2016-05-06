@@ -54,6 +54,7 @@ module Penny.Clatch
 import Penny.Amount
 import Penny.Balance
 import Penny.Converter
+import Penny.Copper.Decopperize
 import Penny.Ents (Balanced, balancedToSeqEnt)
 import Penny.SeqUtil
 import Penny.Serial

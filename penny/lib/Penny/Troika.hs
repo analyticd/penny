@@ -40,28 +40,6 @@ troiloadPole x = case x of
   C qnz -> Just . nonZeroSign . _coefficient $ qnz
   E qnz -> Just . nonZeroSign . _coefficient $ qnz
 
-c'Decimal'Troiload :: Troiload -> Decimal
-c'Decimal'Troiload x = case x of
-  QC q _ -> c'Decimal'RepAnyRadix q
-  Q q -> c'Decimal'RepAnyRadix q
-  SC qnz -> fmap c'Integer'NonZero qnz
-  S qnz -> fmap c'Integer'NonZero qnz
-  UC rnn s _ ->
-    fmap c'Integer'NonZero
-    . c'DecNonZero'DecPositive s
-    . c'DecPositive'BrimAnyRadix
-    $ rnn
-  NC nilAnyRadix _ ->
-    fmap (const 0) . c'DecZero'NilAnyRadix $ nilAnyRadix
-  US rnn s ->
-    fmap c'Integer'NonZero
-    . c'DecNonZero'DecPositive s
-    . c'DecPositive'BrimAnyRadix
-    $ rnn
-  UU nil -> fmap (const 0) . c'DecZero'NilAnyRadix $ nil
-  C qnz -> fmap c'Integer'NonZero qnz
-  E qnz -> fmap c'Integer'NonZero qnz
-
 type Troiquant = Either Troiload Decimal
 
 data Troika = Troika
@@ -70,15 +48,6 @@ data Troika = Troika
   } deriving Show
 
 makeLenses ''Troika
-
-pole'Troika :: Troika -> Maybe Pole
-pole'Troika (Troika _ ei) = case ei of
-  Left tl -> pole'Decimal . c'Decimal'Troiload $ tl
-  Right dec -> pole'Decimal dec
-
-c'Amount'Troika :: Troika -> A.Amount
-c'Amount'Troika (Troika cy ei) = A.Amount cy
-  (either c'Decimal'Troiload id ei)
 
 c'Troika'Amount :: A.Amount -> Troika
 c'Troika'Amount (A.Amount cy q) = Troika cy (Right q)

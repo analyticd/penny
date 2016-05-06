@@ -15,6 +15,7 @@ import Penny.Balance
 import Penny.Cell
 import Penny.Clatch
 import Penny.Colors
+import Penny.Copper.Decopperize
 import Penny.Decimal
 import Penny.Display
 import Penny.NonNegative

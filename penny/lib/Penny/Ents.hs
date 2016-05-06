@@ -17,18 +17,20 @@ module Penny.Ents
 import Control.Lens ((<|), (|>))
 import Data.Sequence (Seq, viewl, ViewL(EmptyL, (:<)))
 import qualified Data.Sequence as S
-import Penny.Amount
-import Penny.Balance
-import Penny.Commodity
-import Penny.Decimal
 import Data.Monoid ((<>))
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import qualified Data.Text as X
+import qualified Data.Map as M
+
+import Penny.Amount
+import Penny.Balance
+import Penny.Commodity
+import Penny.Copper.Decopperize (trioToTroiload, c'Amount'Troika)
+import Penny.Decimal
+import Penny.Friendly
 import Penny.NonZero
 import Penny.Trio
-import qualified Data.Map as M
-import Penny.Friendly
 import qualified Penny.Troika as Y
 
 data Ents a = Ents
@@ -93,7 +95,7 @@ appendTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
     f (troiload, cy) = \meta -> Ents (sq |> (tm, meta)) imb'
       where
         tm = Y.Troika cy (Left troiload)
-        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troika tm)
+        imb' = imb <> c'Imbalance'Amount (c'Amount'Troika tm)
 
 prependTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
 prependTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
@@ -101,7 +103,7 @@ prependTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
     f (troiload, cy) = \meta -> Ents ((tm, meta) <| sq) imb'
       where
         tm = Y.Troika cy (Left troiload)
-        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troika tm)
+        imb' = imb <> c'Imbalance'Amount (c'Amount'Troika tm)
 
 
 data ImbalancedError
