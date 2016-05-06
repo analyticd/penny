@@ -3,24 +3,15 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Decimal where
 
-import Control.Lens (makeLenses, (<|))
-import Data.Foldable (toList)
-import Data.Sequence (Seq)
-import qualified Data.Sequence as S
+import Control.Lens (makeLenses)
 import Prelude hiding (length)
 
-import qualified Penny.Copper.Conversions as Conv
-import Penny.Copper.Singleton
-import Penny.Copper.Terminalizers
-import Penny.Copper.Types
-import Penny.Grouping
 import Penny.NonNegative
 import Penny.NonZero
 import qualified Penny.NonZero as NonZero
 import Penny.Polar
 import Penny.Positive (Positive)
 import qualified Penny.Positive as Pos
-import Penny.Rep
 
 -- | Numbers represented exponentially.  In @Exponential c p@, the
 -- value of the number is @c * 10 ^ (-1 * naturalToInteger p)@.
@@ -166,98 +157,6 @@ integerToInt x
   | otherwise = fromIntegral x
 
 
-repDigitsRadCom
-  :: (D1'9 Char (), Seq (D0'9 Char ()))
-  -- ^ Significand
-  -> NonNegative
-  -- ^ Exponent
-  -> BrimUngroupedRadCom Char ()
-repDigitsRadCom (d1, dr) expt
-  = case diff (next $ length dr) expt of
-      Equal -> BULessThanOneRadCom (Zero'Opt $ Just sZero)
-        rdx (Zero'Star S.empty) d1 (D0'9'Star dr)
-      LeftBiggerBy l -> BUGreaterThanOneRadCom d1 (D0'9'Star leftDigs)
-        (RadixComDigits'Opt rightDigs)
-        where
-          (leftDigs, rightDigs) = case Pos.prev l of
-            Nothing -> (S.empty, Just (RadixComDigits rdx (D0'9'Star dr)))
-            Just c -> (beg,
-              Just (RadixComDigits rdx (D0'9'Star end)))
-              where
-                (beg, end) = S.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
-      RightBiggerBy r -> BULessThanOneRadCom (Zero'Opt $ Just sZero)
-        rdx (Zero'Star zs) d1 (D0'9'Star dr)
-        where
-          zs = flip S.replicate sZero
-            . integerToInt . Pos.c'Integer'Positive $ r
-  where
-    rdx = sRadixCom
-
-repDigitsRadPer
-  :: (D1'9 Char (), Seq (D0'9 Char ()))
-  -- ^ Significand
-  -> NonNegative
-  -- ^ Exponent
-  -> BrimUngroupedRadPer Char () 
-repDigitsRadPer (d1, dr) expt
-  = case diff (next $ length dr) expt of
-      Equal -> BULessThanOneRadPer (Zero'Opt $ Just sZero)
-        rdx (Zero'Star S.empty) d1 (D0'9'Star dr)
-      LeftBiggerBy l -> BUGreaterThanOneRadPer d1 (D0'9'Star leftDigs)
-        (RadixPerDigits'Opt rightDigs)
-        where
-          (leftDigs, rightDigs) = case Pos.prev l of
-            Nothing -> (S.empty, Just (RadixPerDigits rdx (D0'9'Star dr)))
-            Just c -> (beg,
-              Just (RadixPerDigits rdx (D0'9'Star end)))
-              where
-                (beg, end) = S.splitAt (integerToInt $ Pos.c'Integer'Positive c) dr
-      RightBiggerBy r -> BULessThanOneRadPer (Zero'Opt $ Just sZero)
-        rdx (Zero'Star zs) d1 (D0'9'Star dr)
-        where
-          zs = flip S.replicate sZero
-            . integerToInt . Pos.c'Integer'Positive $ r
-  where
-    rdx = sRadixPer
-
-repUngroupedDecZeroRadCom
-  :: DecZero
-  -> NilUngroupedRadCom Char ()
-repUngroupedDecZeroRadCom (Exponential () expt) = NUZeroRadCom sZero
-  (RadixZeroesRadCom'Opt mayRdx)
-  where
-    rdx = sRadixCom
-    mayRdx
-      | expt == zero = Nothing
-      | otherwise = Just (RadixZeroesRadCom rdx (Zero'Star zs))
-      where
-        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) sZero
-
-repUngroupedDecZeroRadPer
-  :: DecZero
-  -> NilUngroupedRadPer Char ()
-repUngroupedDecZeroRadPer (Exponential () expt) = NUZeroRadPer sZero
-  (RadixZeroesRadPer'Opt mayRdx)
-  where
-    rdx = sRadixPer
-    mayRdx
-      | expt == zero = Nothing
-      | otherwise = Just (RadixZeroesRadPer rdx (Zero'Star zs))
-      where
-        zs = S.replicate (integerToInt . c'Integer'NonNegative $ expt) sZero
-
-repUngroupedDecPositiveRadCom
-  :: DecPositive
-  -> BrimUngroupedRadCom Char ()
-repUngroupedDecPositiveRadCom (Exponential sig expt)
-  = repDigitsRadCom (Conv.positiveDigits sig) expt
-
-repUngroupedDecPositiveRadPer
-  :: DecPositive
-  -> BrimUngroupedRadPer Char ()
-repUngroupedDecPositiveRadPer (Exponential sig expt)
-  = repDigitsRadPer (Conv.positiveDigits sig) expt
-
 decomposeDecUnsigned
   :: DecUnsigned
   -> Either DecZero DecPositive
@@ -277,102 +176,4 @@ stripNonZeroSign
   -> (DecPositive, Pole)
 stripNonZeroSign (Exponential nz ex)
   = (Exponential (c'Positive'NonZero nz) ex, nonZeroSign nz)
-
-repUngroupedDecNonZeroRadCom
-  :: DecNonZero
-  -> (BrimUngroupedRadCom Char (), Pole)
-repUngroupedDecNonZeroRadCom nz = (repUngroupedDecPositiveRadCom dp, sgn)
-  where
-    (dp, sgn) = stripNonZeroSign nz
-
-repUngroupedDecNonZeroRadPer
-  :: DecNonZero
-  -> (BrimUngroupedRadPer Char (), Pole)
-repUngroupedDecNonZeroRadPer nz = (repUngroupedDecPositiveRadPer dp, sgn)
-  where
-    (dp, sgn) = stripNonZeroSign nz
-
-repUngroupedDecimalRadCom
-  :: Decimal
-  -> Moderated (NilUngroupedRadCom Char ()) (BrimUngroupedRadCom Char ())
-repUngroupedDecimalRadCom d = case stripDecimalSign d of
-  Left zero -> Moderate (repUngroupedDecZeroRadCom zero)
-  Right (pos, pm) ->
-    Extreme (Polarized (repUngroupedDecPositiveRadCom pos) pm)
-
-repUngroupedDecimalRadPer
-  :: Decimal
-  -> Moderated (NilUngroupedRadPer Char ()) (BrimUngroupedRadPer Char ())
-repUngroupedDecimalRadPer d = case stripDecimalSign d of
-  Left zero -> Moderate (repUngroupedDecZeroRadPer zero)
-  Right (pos, pm) ->
-    Extreme (Polarized (repUngroupedDecPositiveRadPer pos) pm)
-
-repUngroupedDecUnsignedRadCom
-  :: DecUnsigned
-  -> Either (NilUngroupedRadCom Char ()) (BrimUngroupedRadCom Char ())
-repUngroupedDecUnsignedRadCom uns = case decomposeDecUnsigned uns of
-  Left z -> Left (repUngroupedDecZeroRadCom z)
-  Right p -> Right (repUngroupedDecPositiveRadCom p)
-
-repUngroupedDecUnsignedRadPer
-  :: DecUnsigned
-  -> Either (NilUngroupedRadPer Char ()) (BrimUngroupedRadPer Char ())
-repUngroupedDecUnsignedRadPer uns = case decomposeDecUnsigned uns of
-  Left z -> Left (repUngroupedDecZeroRadPer z)
-  Right p -> Right (repUngroupedDecPositiveRadPer p)
-
-repDecimal
-  :: Either (Maybe (GrpRadCom Char ())) (Maybe (GrpRadPer Char ()))
-  -- ^ Determines which radix is used.  If you also supply a grouping
-  -- character, 'repDecimal' will try to group the 'Decimal' as well.
-  -- Grouping will fail if the absolute value of the 'Decimal' is less
-  -- than @1000@.  In that case the 'Decimal' will be represented without
-  -- grouping.
-  -> Decimal
-  -> RepAnyRadix
-repDecimal ei d = case ei of
-  Left mayRadCom -> Left $ case mayRadCom of
-    Nothing -> case repUngroupedDecimalRadCom d of
-      Moderate nilU -> Moderate $ NilRadCom'NilUngroupedRadCom nilU
-      Extreme (Polarized brimU side) -> Extreme
-        (Polarized (BrimRadCom'BrimUngroupedRadCom brimU) side)
-    Just grpr -> case repUngroupedDecimalRadCom d of
-      Moderate nilU -> Moderate $ NilRadCom'NilUngroupedRadCom nilU
-      Extreme (Polarized brimU side) ->
-        case groupBrimUngroupedRadCom grpr brimU of
-          Nothing -> Extreme
-            (Polarized (BrimRadCom'BrimUngroupedRadCom brimU) side)
-          Just grouped -> Extreme
-            (Polarized (BrimRadCom'BrimGroupedRadCom grouped) side)
-
-  Right mayRadPer -> Right $ case mayRadPer of
-    Nothing -> case repUngroupedDecimalRadPer d of
-      Moderate nilU -> Moderate $ NilRadPer'NilUngroupedRadPer nilU
-      Extreme (Polarized brimU side) -> Extreme
-        (Polarized (BrimRadPer'BrimUngroupedRadPer brimU) side)
-    Just grpr -> case repUngroupedDecimalRadPer d of
-      Moderate nilU -> Moderate $ NilRadPer'NilUngroupedRadPer nilU
-      Extreme (Polarized brimU side) ->
-        case groupBrimUngroupedRadPer grpr brimU of
-          Nothing -> Extreme
-            (Polarized (BrimRadPer'BrimUngroupedRadPer brimU) side)
-          Just grouped -> Extreme
-            (Polarized (BrimRadPer'BrimGroupedRadPer grouped) side)
-
--- | Provide a simple ungrouped string for a decimal.
-displayDecimalAsQty
-  :: Decimal
-  -> ShowS
-displayDecimalAsQty d = (toList (sideChar <| ' ' <| rest) ++)
-  where
-    sideChar = case integerPole . _coefficient $ d of
-      Nothing -> ' '
-      Just v
-        | v == debit -> '<'
-        | otherwise -> '>'
-    rest = fmap fst . toList $ case repUngroupedDecimalRadPer d of
-      Moderate nu -> t'NilUngroupedRadPer nu
-      Extreme (Polarized bu _) -> t'BrimUngroupedRadPer bu
-
 

@@ -3,6 +3,8 @@
 -- | Date and time support functions.
 module Penny.Copper.DateTime where
 
+{-
+
 import Control.Applicative
   ((<|>))
 import qualified Data.Time as Time
@@ -136,3 +138,4 @@ c'Day'Date x = case x of
 
 c'TimeOfDay'Time :: Time t a -> Time.TimeOfDay
 c'TimeOfDay'Time = undefined
+-}
