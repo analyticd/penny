@@ -21,6 +21,7 @@ import Penny.Arrangement
 import Penny.Balance
 import qualified Penny.Commodity as Commodity
 import Penny.Copper.Grouping
+import Penny.Copper.PriceParts
 import Penny.Copper.Terminalizers
 import Penny.Copper.Types
 import Penny.Decimal
@@ -519,17 +520,9 @@ dJanus x = case x of
   Janus'CyExch c -> dCyExch c
   Janus'ExchCy c -> dExchCy c
 
-data PriceParts = PriceParts
-  { _pricePos :: Loc
-  , _priceTime :: ZonedTime
-  , _priceFrom :: Commodity.Commodity
-  , _priceTo :: Commodity.Commodity
-  , _priceExch :: Decimal
-  }
-
 type TxnParts = (Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
 
-dPrice :: Price Char Loc -> PriceParts
+dPrice :: Price Char Loc -> PriceParts Loc
 dPrice p = PriceParts loc zt from to exch
   where
     loc = Lens.view (Lens.to _r'Price'0'AtSign . Lens._Wrapped' . Lens._2) p
@@ -901,25 +894,25 @@ dTransaction x = case x of
 
 dFileItem
   :: FileItem Char Loc
-  -> Either PriceParts TxnParts
+  -> Either (PriceParts Loc) TxnParts
 dFileItem x = case x of
   FileItem'Price p -> Left $ dPrice p
   FileItem'Transaction t -> Right $ dTransaction t
 
 dWhitesFileItem
   :: WhitesFileItem Char Loc
-  -> Either PriceParts TxnParts
+  -> Either (PriceParts Loc) TxnParts
 dWhitesFileItem (WhitesFileItem _ i) = dFileItem i
 
 dWhitesFileItem'Star
   :: WhitesFileItem'Star Char Loc
-  -> Seq (Either PriceParts TxnParts)
+  -> Seq (Either (PriceParts Loc) TxnParts)
 dWhitesFileItem'Star (WhitesFileItem'Star sq)
   = fmap dWhitesFileItem sq
 
 dWholeFile
   :: WholeFile Char Loc
-  -> Seq (Either PriceParts TxnParts)
+  -> Seq (Either (PriceParts Loc) TxnParts)
 dWholeFile (WholeFile x _) = dWhitesFileItem'Star x
 
 dNilOrBrimRadCom
