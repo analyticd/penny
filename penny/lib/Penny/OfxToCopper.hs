@@ -6,11 +6,8 @@ module Penny.OfxToCopper where
 import Penny.Account
 import qualified Penny.Commodity as Cy
 import Penny.Copper
-import Penny.Copper.Char
 import Penny.Copper.EarleyGrammar
-import Penny.Copper.Formatted
 import Penny.Copper.Productions
-import Penny.Copper.Singleton
 import Penny.Copper.Types
 import Penny.Copper.Util
 import Penny.Polar

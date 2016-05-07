@@ -12,7 +12,6 @@ import Penny.Commodity
 import Penny.Copper.Types
   (GrpRadCom(GrpRadCom'Grouper), Grouper(Grouper'ThinSpace),
   GrpRadPer(GrpRadPer'Comma))
-import Penny.Copper.Singleton
 import Penny.Copper.Copperize
 import Penny.Mimode
 import Penny.Clatch

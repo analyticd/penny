@@ -25,13 +25,19 @@ import Text.Earley (Prod, Grammar)
 import qualified Text.Earley as Earley
 import qualified Data.Time as Time
 
+import Penny.Arrangement
+import Penny.Amount
+import qualified Penny.Commodity as Commodity
+import qualified Penny.Scalar as Scalar
+import qualified Penny.Tree as Tree
 import Penny.Copper.EarleyGrammar
+import Penny.Copper.Grouping
 import Penny.Copper.Optics
+import Penny.Copper.PriceParts
 import Penny.Copper.Productions
 import Penny.Copper.Terminalizers
 import Penny.Copper.Types
 import Penny.Decimal
-import Penny.Grouping
 import Penny.NonNegative (NonNegative)
 import qualified Penny.NonNegative as NN
 import Penny.Polar
@@ -1306,3 +1312,4 @@ fDateTimeZone date time zone = fForest dateTree
     dateTree = spinster (Scalar'Date date)
     timeTree = spinster (Scalar'Time time)
     zoneTree = spinster (Scalar'Zone zone)
+
