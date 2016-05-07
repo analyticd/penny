@@ -1,5 +1,16 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+
+-- | Copperize takes other data types, both from Penny and from
+-- other libraries, and turns them into Copper data types.
+--
+-- The Earley parsers can already be thought of as copperizers for
+-- strings.  Some of the functions in this module rely on that: for
+-- instance 'cDay' takes a 'Time.Day', 'show's it, and then parses
+-- that string.
+--
+-- Other functions do not use the parser but instead construct the
+-- necessary data types directly.
 module Penny.Copper.Copperize where
 
 import Control.Applicative ((<|>))
@@ -27,6 +38,7 @@ import Penny.Polar
 import Penny.Positive (Positive)
 import qualified Penny.Positive as Pos
 import Penny.Rep
+import Penny.SeqUtil
 
 
 cZero :: Zero Char ()
@@ -625,4 +637,672 @@ displayDecimalAsQty d = (toList (sideChar : ' ' : rest) ++)
       Moderate nu -> t'NilUngroupedRadPer nu
       Extreme (Polarized bu _) -> t'BrimUngroupedRadPer bu
 
+-- # Strings
 
+fNonEscapedChar :: Char -> Maybe (NonEscapedChar Char ())
+fNonEscapedChar c = Lens.preview _NonEscapedChar (c, ())
+
+fEscSeq :: Char -> Maybe (EscSeq Char ())
+fEscSeq c
+  | c == '\\' = sq (EscPayload'Backslash cBackslash)
+  | c == '\n' = sq (EscPayload'Newline cNewline)
+  | c == '"' = sq (EscPayload'DoubleQuote cDoubleQuote)
+  | otherwise = Nothing
+  where
+    sq p = Just $ EscSeq cBackslash p
+
+fQuotedChar :: Char -> (QuotedChar Char ())
+fQuotedChar c = case fEscSeq c of
+  Nothing -> QuotedChar'NonEscapedChar (NonEscapedChar (c, ()))
+  Just s -> QuotedChar'EscSeq s
+
+fQuotedChar'Star :: Foldable c => c Char -> QuotedChar'Star Char ()
+fQuotedChar'Star = QuotedChar'Star . Seq.fromList . fmap fQuotedChar . toList
+
+fQuotedString :: Foldable c => c Char -> QuotedString Char ()
+fQuotedString x = QuotedString cDoubleQuote (fQuotedChar'Star x) cDoubleQuote
+
+fUnquotedStringNonDigitChar
+  :: Char
+  -> Maybe (UnquotedStringNonDigitChar Char ())
+fUnquotedStringNonDigitChar c
+  = Lens.preview _UnquotedStringNonDigitChar (c, ())
+
+fD0'9 :: Char -> Maybe (D0'9 Char ())
+fD0'9 c
+  | c == '0' = Just (D0'9'Zero cZero)
+  | c == '1' = Just (D0'9'One cOne)
+  | c == '2' = Just (D0'9'Two cTwo)
+  | c == '3' = Just (D0'9'Three cThree)
+  | c == '4' = Just (D0'9'Four cFour)
+  | c == '5' = Just (D0'9'Five cFive)
+  | c == '6' = Just (D0'9'Six cSix)
+  | c == '7' = Just (D0'9'Seven cSeven)
+  | c == '8' = Just (D0'9'Eight cEight)
+  | c == '9' = Just (D0'9'Nine cNine)
+  | otherwise = Nothing
+
+fD0'9'Star :: Traversable c => c Char -> Maybe (D0'9'Star Char ())
+fD0'9'Star
+  = fmap (D0'9'Star . Seq.fromList . toList)
+  . sequence
+  . fmap fD0'9
+
+fUnquotedStringNonFirstChar
+  :: Char
+  -> Maybe (UnquotedStringNonFirstChar Char ())
+fUnquotedStringNonFirstChar c
+  = UnquotedStringNonFirstChar'UnquotedStringNonDigitChar
+      <$> fUnquotedStringNonDigitChar c
+  <|> UnquotedStringNonFirstChar'D0'9
+      <$> fD0'9 c
+
+fUnquotedStringNonFirstChar'Star
+  :: Traversable c
+  => c Char
+  -> Maybe (UnquotedStringNonFirstChar'Star Char ())
+fUnquotedStringNonFirstChar'Star
+  = fmap (UnquotedStringNonFirstChar'Star . Seq.fromList . toList)
+  . sequence
+  . fmap fUnquotedStringNonFirstChar
+
+fUnquotedString :: Seq Char -> Maybe (UnquotedString Char ())
+fUnquotedString chars = do
+  let (digits, rest) = getFirstDigits chars
+  (firstNonDigitChar, rest') <- getFirstNonDigitChar rest
+  rest'' <- fUnquotedStringNonFirstChar'Star rest'
+  return $ UnquotedString digits firstNonDigitChar rest''
+  where
+    getFirstDigits sq =
+      let (digs, rest) = convertHead fD0'9 sq
+      in (D0'9'Star digs, rest)
+    getFirstNonDigitChar sq = do
+      (first, rest) <- Lens.uncons sq
+      nonDigit <- fUnquotedStringNonDigitChar first
+      return (nonDigit, rest)
+
+fString :: Seq Char -> Either (UnquotedString Char ()) (QuotedString Char ())
+fString cs = case fUnquotedString cs of
+  Just s -> Left s
+  Nothing -> Right . fQuotedString $ cs
+
+fUnquotedStringNonDigitChar'Plus
+  :: Seq Char
+  -> Maybe (UnquotedStringNonDigitChar'Plus Char ())
+fUnquotedStringNonDigitChar'Plus sq = do
+  (x, xs) <- Lens.uncons sq
+  x' <- fUnquotedStringNonDigitChar x
+  xs' <- sequence . fmap fUnquotedStringNonDigitChar $ xs
+  return $ UnquotedStringNonDigitChar'Plus (Pinchot.NonEmpty x' xs')
+
+fCommodity :: Seq Char -> Commodity Char ()
+fCommodity sq = case fUnquotedStringNonDigitChar'Plus sq of
+  Nothing -> Commodity'QuotedCommodity (QuotedCommodity (fQuotedString sq))
+  Just us -> Commodity'UnquotedCommodity (UnquotedCommodity us)
+
+
+-- | Grouper of thin space
+fGrouper :: Grouper Char ()
+fGrouper = Grouper'ThinSpace cThinSpace
+
+-- | Period grouper
+fGrpRadCom :: GrpRadCom Char ()
+fGrpRadCom = GrpRadCom'Period cPeriod
+
+-- | Comma grouper
+fGrpRadPer :: GrpRadPer Char ()
+fGrpRadPer = GrpRadPer'Comma cComma
+
+fDigitGroupRadCom
+  :: D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> DigitGroupRadCom Char ()
+fDigitGroupRadCom d1 ds
+  = DigitGroupRadCom fGrpRadCom d1 (D0'9'Star ds)
+
+fDigitGroupRadPer
+  :: D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> DigitGroupRadPer Char ()
+fDigitGroupRadPer d1 ds
+  = DigitGroupRadPer fGrpRadPer d1 (D0'9'Star ds)
+
+-- | Returns a number of zeroes the same as the 'NonNegative'.
+fZeroes :: NonNegative -> Zero'Star Char ()
+fZeroes = Zero'Star . go Seq.empty
+  where
+    go acc nn = case NN.prev nn of
+      Nothing -> acc
+      Just p -> go (Lens.cons cZero acc) p
+
+fRadixZeroesRadCom :: NonNegative -> RadixZeroesRadCom Char ()
+fRadixZeroesRadCom nn = RadixZeroesRadCom cRadixCom (fZeroes nn)
+
+fRadixZeroesRadPer :: NonNegative -> RadixZeroesRadPer Char ()
+fRadixZeroesRadPer nn = RadixZeroesRadPer cRadixPer (fZeroes nn)
+
+fZeroGroupRadCom :: Positive -> ZeroGroupRadCom Char ()
+fZeroGroupRadCom pos
+  = ZeroGroupRadCom fGrpRadCom cZero (fZeroes rest)
+  where
+    rest = case Pos.prev pos of
+      Nothing -> NN.zero
+      Just p -> NN.c'NonNegative'Positive p
+
+fZeroGroupRadPer :: Positive -> ZeroGroupRadPer Char ()
+fZeroGroupRadPer pos
+  = ZeroGroupRadPer fGrpRadPer cZero (fZeroes rest)
+  where
+    rest = case Pos.prev pos of
+      Nothing -> NN.zero
+      Just p -> NN.c'NonNegative'Positive p
+
+-- | Has a leading zero and period for grouper.
+fNilGroupedRadCom
+  :: Positive
+  -- ^ Number of leading zeroes before first grouping character
+  -> ZeroGroupRadCom Char ()
+  -> Seq (ZeroGroupRadCom Char ())
+  -> NilGroupedRadCom Char ()
+fNilGroupedRadCom lead g1 gs = NilGroupedRadCom mz0 r1 z2 z3 zg4
+  where
+    mz0 = Zero'Opt (Just cZero)
+    r1 = cRadixCom
+    z2 = cZero
+    z3 = case Pos.prev lead of
+      Nothing -> Zero'Star Seq.empty
+      Just p -> fZeroes (NN.c'NonNegative'Positive p)
+    zg4 = ZeroGroupRadCom'Plus $ Pinchot.NonEmpty g1 gs
+
+-- | Has a leading zero and comma for grouper.
+fNilGroupedRadPer
+  :: Positive
+  -- ^ Number of leading zeroes before first grouping character
+  -> ZeroGroupRadPer Char ()
+  -> Seq (ZeroGroupRadPer Char ())
+  -> NilGroupedRadPer Char ()
+fNilGroupedRadPer lead g1 gs = NilGroupedRadPer mz0 r1 z2 z3 zg4
+  where
+    mz0 = Zero'Opt (Just cZero)
+    r1 = cRadixPer
+    z2 = cZero
+    z3 = case Pos.prev lead of
+      Nothing -> Zero'Star Seq.empty
+      Just p -> fZeroes (NN.c'NonNegative'Positive p)
+    zg4 = ZeroGroupRadPer'Plus $ Pinchot.NonEmpty g1 gs
+
+-- | Has a leading zero.
+fNilUngroupedRadCom
+  :: NonNegative
+  -- ^ Number of zeroes after the decimal point
+  -> NilUngroupedRadCom Char ()
+fNilUngroupedRadCom nn = case NN.c'Positive'NonNegative nn of
+  Nothing -> NUZeroRadCom cZero (RadixZeroesRadCom'Opt Nothing)
+  Just _ -> NUZeroRadCom cZero
+    (RadixZeroesRadCom'Opt (Just (fRadixZeroesRadCom nn)))
+
+-- | Has a leading zero.
+fNilUngroupedRadPer
+  :: NonNegative
+  -- ^ Number of zeroes after the decimal point
+  -> NilUngroupedRadPer Char ()
+fNilUngroupedRadPer nn = case NN.c'Positive'NonNegative nn of
+  Nothing -> NUZeroRadPer cZero (RadixZeroesRadPer'Opt Nothing)
+  Just _ -> NUZeroRadPer cZero
+    (RadixZeroesRadPer'Opt (Just (fRadixZeroesRadPer nn)))
+
+fRadixComDigits :: Seq (D0'9 Char ()) -> RadixComDigits Char ()
+fRadixComDigits ds = RadixComDigits cRadixCom (D0'9'Star ds)
+
+fRadixPerDigits :: Seq (D0'9 Char ()) -> RadixPerDigits Char ()
+fRadixPerDigits ds = RadixPerDigits cRadixPer (D0'9'Star ds)
+
+fBUGreaterThanOneRadCom
+  :: D1'9 Char ()
+  -- ^ First digit, to left of radix
+  -> Seq (D0'9 Char ())
+  -- ^ Remaining digits, to left of radix
+  -> Seq (D0'9 Char ())
+  -- ^ Remaining digits, to right of radix
+  -> BrimUngroupedRadCom Char ()
+fBUGreaterThanOneRadCom d1 ds rs = BUGreaterThanOneRadCom d1 (D0'9'Star ds)
+  (RadixComDigits'Opt may)
+  where
+    may
+      | Seq.null rs = Nothing
+      | otherwise = Just (fRadixComDigits rs)
+
+fBUGreaterThanOneRadPer
+  :: D1'9 Char ()
+  -- ^ First digit, to left of radix
+  -> Seq (D0'9 Char ())
+  -- ^ Remaining digits, to left of radix
+  -> Seq (D0'9 Char ())
+  -- ^ Remaining digits, to right of radix
+  -> BrimUngroupedRadPer Char ()
+fBUGreaterThanOneRadPer d1 ds rs = BUGreaterThanOneRadPer d1 (D0'9'Star ds)
+  (RadixPerDigits'Opt may)
+  where
+    may
+      | Seq.null rs = Nothing
+      | otherwise = Just (fRadixPerDigits rs)
+
+fBULessThanOneRadCom
+  :: NonNegative
+  -- ^ Number of zeroes to right of radix
+  -> D1'9 Char ()
+  -- ^ First non-zero digit to right of radix
+  -> Seq (D0'9 Char ())
+  -- ^ Remaining digits to right of radix
+  -> BrimUngroupedRadCom Char ()
+fBULessThanOneRadCom zs d1 ds = BULessThanOneRadCom
+  (Zero'Opt (Just cZero)) cRadixCom (fZeroes zs) d1 (D0'9'Star ds)
+
+fBULessThanOneRadPer
+  :: NonNegative
+  -- ^ Number of zeroes to right of radix
+  -> D1'9 Char ()
+  -- ^ First non-zero digit to right of radix
+  -> Seq (D0'9 Char ())
+  -- ^ Remaining digits to right of radix
+  -> BrimUngroupedRadPer Char ()
+fBULessThanOneRadPer zs d1 ds = BULessThanOneRadPer
+  (Zero'Opt (Just cZero)) cRadixPer (fZeroes zs) d1 (D0'9'Star ds)
+
+-- # BrimGrouped, comma radix
+
+fBG8NovemRadCom
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG8RadCom Char ()
+fBG8NovemRadCom d1 ds gs = BG8NovemRadCom d1 (D0'9'Star ds) gs'
+  where
+    gs' = DigitGroupRadCom'Star (fmap (uncurry fDigitGroupRadCom) gs)
+
+fBG8GroupRadCom
+  :: BG7RadCom Char ()
+  -> BG8RadCom Char ()
+fBG8GroupRadCom b7 = BG8GroupRadCom fGrpRadCom b7
+
+fBG7ZeroesRadCom
+  :: Positive
+  -> BG8RadCom Char ()
+  -> BG7RadCom Char ()
+fBG7ZeroesRadCom pos b8 = BG7ZeroesRadCom cZero zs b8
+  where
+    zs = case Pos.prev pos of
+      Nothing -> Zero'Star Seq.empty
+      Just nn -> fZeroes (NN.c'NonNegative'Positive nn)
+
+fBG7NovemRadCom
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq ((D0'9) Char ()))
+  -> BG7RadCom Char ()
+fBG7NovemRadCom d1 ds gs = BG7NovemRadCom d1 (D0'9'Star ds) gs'
+  where
+    gs' = DigitGroupRadCom'Star (fmap (uncurry fDigitGroupRadCom) gs)
+
+fBG6NovemRadCom
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq ((D0'9) Char ()))
+  -> BG6RadCom Char ()
+fBG6NovemRadCom d1 ds2 d3 ds4 gs5 = BG6NovemRadCom d1 (D0'9'Star ds2)
+  fGrpRadCom d3 (D0'9'Star ds4)
+  (DigitGroupRadCom'Star (fmap (uncurry fDigitGroupRadCom) gs5))
+
+fBG6GroupRadCom
+  :: BG7RadCom Char ()
+  -> BG6RadCom Char ()
+fBG6GroupRadCom b7 = BG6GroupRadCom fGrpRadCom b7
+
+fBG5NovemRadCom
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG5RadCom Char ()
+fBG5NovemRadCom d0 ds1 d2 ds3 gs4
+  = BG5NovemRadCom d0 (D0'9'Star ds1) fGrpRadCom d2 (D0'9'Star ds3)
+    (DigitGroupRadCom'Star (fmap (uncurry fDigitGroupRadCom) gs4))
+
+fBG5ZeroRadCom
+  :: Positive
+  -- ^ Number of leading zeroes
+  -> BG6RadCom Char ()
+  -> BG5RadCom Char ()
+fBG5ZeroRadCom pos b6 = BG5ZeroRadCom cZero rest b6
+  where
+    rest = case Pos.prev pos of
+      Nothing -> fZeroes NN.zero
+      Just pos' -> fZeroes (NN.c'NonNegative'Positive pos')
+
+fBG4DigitRadCom
+  :: D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG4RadCom Char ()
+fBG4DigitRadCom d1 ds2 dss
+  = BG4DigitRadCom d1 (D0'9'Star ds2)
+    (DigitGroupRadCom'Star (fmap (uncurry fDigitGroupRadCom) dss))
+
+fBG4NilRadCom :: BG4RadCom Char ()
+fBG4NilRadCom = BG4NilRadCom
+
+fBG3RadixRadCom :: BG4RadCom Char () -> BG3RadCom Char ()
+fBG3RadixRadCom b4 = BG3RadixRadCom cRadixCom b4
+
+fBG3NilRadCom :: BG3RadCom Char ()
+fBG3NilRadCom = BG3NilRadCom
+
+fBG1GroupOnLeftRadCom
+  :: D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG3RadCom Char ()
+  -> BG1RadCom Char ()
+fBG1GroupOnLeftRadCom d0 ds1 gs2 b3 = BG1GroupOnLeftRadCom fGrpRadCom d0
+  (D0'9'Star ds1)
+  (DigitGroupRadCom'Star (fmap (uncurry fDigitGroupRadCom) gs2))
+  b3
+
+fBG1GroupOnRightRadCom
+  :: D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG1RadCom Char ()
+fBG1GroupOnRightRadCom d1 ds2 d4 ds5 g6
+  = BG1GroupOnRightRadCom cRadixCom d1 (D0'9'Star ds2) fGrpRadCom
+  d4 (D0'9'Star ds5)
+  (DigitGroupRadCom'Star (fmap (uncurry fDigitGroupRadCom) g6))
+
+fBGGreaterThanOneRadCom
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> BG1RadCom Char ()
+  -> BrimGroupedRadCom Char ()
+fBGGreaterThanOneRadCom d0 ds1 b1
+  = BGGreaterThanOneRadCom d0 (D0'9'Star ds1) b1
+
+fBGLessThanOneRadCom
+  :: BG5RadCom Char ()
+  -> BrimGroupedRadCom Char ()
+fBGLessThanOneRadCom b5
+  = BGLessThanOneRadCom (Zero'Opt (Just cZero)) cRadixCom b5
+
+-- # BrimGrouped, period radix
+
+fBG8NovemRadPer
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG8RadPer Char ()
+fBG8NovemRadPer d1 ds gs = BG8NovemRadPer d1 (D0'9'Star ds) gs'
+  where
+    gs' = DigitGroupRadPer'Star (fmap (uncurry fDigitGroupRadPer) gs)
+
+fBG8GroupRadPer
+  :: BG7RadPer Char ()
+  -> BG8RadPer Char ()
+fBG8GroupRadPer b7 = BG8GroupRadPer fGrpRadPer b7
+
+fBG7ZeroesRadPer
+  :: Positive
+  -> BG8RadPer Char ()
+  -> BG7RadPer Char ()
+fBG7ZeroesRadPer pos b8 = BG7ZeroesRadPer cZero zs b8
+  where
+    zs = case Pos.prev pos of
+      Nothing -> Zero'Star Seq.empty
+      Just nn -> fZeroes (NN.c'NonNegative'Positive nn)
+
+fBG7NovemRadPer
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG7RadPer Char ()
+fBG7NovemRadPer d1 ds gs = BG7NovemRadPer d1 (D0'9'Star ds) gs'
+  where
+    gs' = DigitGroupRadPer'Star (fmap (uncurry fDigitGroupRadPer) gs)
+
+fBG6NovemRadPer
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG6RadPer Char ()
+fBG6NovemRadPer d1 ds2 d3 ds4 gs5 = BG6NovemRadPer d1 (D0'9'Star ds2)
+  fGrpRadPer d3 (D0'9'Star ds4)
+  (DigitGroupRadPer'Star (fmap (uncurry fDigitGroupRadPer) gs5))
+
+fBG6GroupRadPer
+  :: BG7RadPer Char ()
+  -> BG6RadPer Char ()
+fBG6GroupRadPer b7 = BG6GroupRadPer fGrpRadPer b7
+
+fBG5NovemRadPer
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG5RadPer Char ()
+fBG5NovemRadPer d0 ds1 d2 ds3 gs4
+  = BG5NovemRadPer d0 (D0'9'Star ds1) fGrpRadPer d2 (D0'9'Star ds3)
+    (DigitGroupRadPer'Star (fmap (uncurry fDigitGroupRadPer) gs4))
+
+fBG5ZeroRadPer
+  :: Positive
+  -- ^ Number of leading zeroes
+  -> BG6RadPer Char ()
+  -> BG5RadPer Char ()
+fBG5ZeroRadPer pos b6 = BG5ZeroRadPer cZero rest b6
+  where
+    rest = case Pos.prev pos of
+      Nothing -> fZeroes NN.zero
+      Just pos' -> fZeroes (NN.c'NonNegative'Positive pos')
+
+fBG4DigitRadPer
+  :: D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG4RadPer Char ()
+fBG4DigitRadPer d1 ds2 dss
+  = BG4DigitRadPer d1 (D0'9'Star ds2)
+    (DigitGroupRadPer'Star (fmap (uncurry fDigitGroupRadPer) dss))
+
+fBG4NilRadPer :: BG4RadPer Char ()
+fBG4NilRadPer = BG4NilRadPer
+
+fBG3RadixRadPer :: BG4RadPer Char () -> BG3RadPer Char ()
+fBG3RadixRadPer b4 = BG3RadixRadPer cRadixPer b4
+
+fBG3NilRadPer :: BG3RadPer Char ()
+fBG3NilRadPer = BG3NilRadPer
+
+fBG1GroupOnLeftRadPer
+  :: D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG3RadPer Char ()
+  -> BG1RadPer Char ()
+fBG1GroupOnLeftRadPer d0 ds1 gs2 b3 = BG1GroupOnLeftRadPer fGrpRadPer d0
+  (D0'9'Star ds1)
+  (DigitGroupRadPer'Star (fmap (uncurry fDigitGroupRadPer) gs2))
+  b3
+
+fBG1GroupOnRightRadPer
+  :: D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> D0'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> Seq (D0'9 Char (), Seq (D0'9 Char ()))
+  -> BG1RadPer Char ()
+fBG1GroupOnRightRadPer d1 ds2 d4 ds5 g6
+  = BG1GroupOnRightRadPer cRadixPer d1 (D0'9'Star ds2) fGrpRadPer
+  d4 (D0'9'Star ds5)
+  (DigitGroupRadPer'Star (fmap (uncurry fDigitGroupRadPer) g6))
+
+fBGGreaterThanOneRadPer
+  :: D1'9 Char ()
+  -> Seq (D0'9 Char ())
+  -> BG1RadPer Char ()
+  -> BrimGroupedRadPer Char ()
+fBGGreaterThanOneRadPer d0 ds1 b1
+  = BGGreaterThanOneRadPer d0 (D0'9'Star ds1) b1
+
+fBGLessThanOneRadPer
+  :: BG5RadPer Char ()
+  -> BrimGroupedRadPer Char ()
+fBGLessThanOneRadPer b5
+  = BGLessThanOneRadPer (Zero'Opt (Just cZero)) cRadixPer b5
+
+-- # Dates. Use a hyphen as separator.
+
+fDateSep :: DateSep Char ()
+fDateSep = DateSep'Hyphen cHyphen
+
+fJan :: Days31 Char () -> MonthDay Char ()
+fJan d = Jan cZero cOne fDateSep d
+
+fFeb :: Days28 Char () -> MonthDay Char ()
+fFeb d = Feb cZero cTwo fDateSep d
+
+fMar :: Days31 Char () -> MonthDay Char ()
+fMar d = Mar cZero cThree fDateSep d
+
+fApr :: Days30 Char () -> MonthDay Char ()
+fApr d = Apr cZero cFour fDateSep d
+
+fMay :: Days31 Char () -> MonthDay Char ()
+fMay d = May cZero cFive fDateSep d
+
+fJun :: Days30 Char () -> MonthDay Char ()
+fJun d = Jun cZero cSix fDateSep d
+
+fJul :: Days31 Char () -> MonthDay Char ()
+fJul d = Jul cZero cSeven fDateSep d
+
+fAug :: Days31 Char () -> MonthDay Char ()
+fAug d = Aug cZero cEight fDateSep d
+
+fSep :: Days30 Char () -> MonthDay Char ()
+fSep d = Sep cZero cNine fDateSep d
+
+fOct :: Days31 Char () -> MonthDay Char ()
+fOct d = Oct cOne cZero fDateSep d
+
+fNov :: Days30 Char () -> MonthDay Char ()
+fNov d = Nov cOne cOne fDateSep d
+
+fDec :: Days31 Char () -> MonthDay Char ()
+fDec d = Dec cOne cTwo fDateSep d
+
+fNonLeapDay
+  :: Year Char ()
+  -> MonthDay Char ()
+  -> NonLeapDay Char ()
+fNonLeapDay y md = NonLeapDay y fDateSep md
+
+fLeapDay :: LeapYear Char () -> LeapDay Char ()
+fLeapDay ly = LeapDay ly fDateSep cZero cTwo fDateSep cTwo cNine
+
+fComment :: Seq Char -> Maybe (Comment Char ())
+fComment = fmap f . sequence . fmap (Lens.preview _CommentChar . makePair)
+  where
+    f cs = Comment cHash (CommentChar'Star cs) cNewline
+    makePair c = (c, ())
+
+fTime
+  :: Hours Char ()
+  -> (D0'5 Char (), D0'9 Char ())
+  -- ^ Minutes
+  -> Maybe (D0'5 Char (), D0'9 Char ())
+  -- ^ Seconds
+  -> Time Char ()
+fTime h (m1, m2) s = Time h cColon (Minutes (N0'59 m1 m2)) s'
+  where
+    s' = case s of
+      Nothing -> ColonSeconds'Opt Nothing
+      Just (s1, s2) -> ColonSeconds'Opt (Just (ColonSeconds cColon
+        (Seconds (N0'59 s1 s2))))
+
+fZone
+  :: Pole
+  -- ^ Positive or negative
+  -> D0'2 Char ()
+  -> D0'3 Char ()
+  -> D0'9 Char ()
+  -> D0'9 Char ()
+  -> Zone Char ()
+fZone p d0 d1 d2 d3 = Zone cBacktick
+  (ZoneHrsMins pm d0 d1 d2 d3)
+  where
+    pm | p == positive = PluMin'Plus cPlus
+       | otherwise = PluMin'Minus cMinus
+
+space :: White'Star Char ()
+space = White'Star . Seq.singleton
+  $ White'Space cSpace
+
+newline :: White'Star Char ()
+newline = White'Star . Seq.singleton . White'Newline $ cNewline
+
+noSpace :: White'Star Char ()
+noSpace = White'Star Seq.empty
+
+fNextTree :: Tree Char () -> NextTree Char ()
+fNextTree tree = NextTree noSpace cComma space tree
+
+fNextTree'Star :: Seq (Tree Char ()) -> NextTree'Star Char ()
+fNextTree'Star = NextTree'Star . fmap fNextTree
+
+fForest :: Tree Char () -> Seq (Tree Char ()) -> Forest Char ()
+fForest t1 ts = Forest t1 (fNextTree'Star ts)
+
+fBracketedForest :: Forest Char () -> BracketedForest Char ()
+fBracketedForest f
+  = BracketedForest cOpenSquare space f space cCloseSquare
+
+fTree :: Scalar Char () -> Maybe (Forest Char ()) -> Tree Char ()
+fTree sc mayForest = Tree'ScalarMaybeForest
+  (ScalarMaybeForest sc (WhitesBracketedForest'Opt may))
+  where
+    may = case mayForest of
+      Nothing -> Nothing
+      Just fr -> Just (WhitesBracketedForest space (fBracketedForest fr))
+
+spinster :: Scalar Char () -> Tree Char ()
+spinster s = fTree s Nothing
+
+orphans :: Tree Char () -> Seq (Tree Char ()) -> Tree Char ()
+orphans t1 ts = Tree'ForestMaybeScalar
+  (ForestMaybeScalar (fBracketedForest (fForest t1 ts))
+                     (WhitesScalar'Opt Nothing))
+
+-- | Makes an unquoted scalar if possible; otherwise, makes a quoted
+-- scalar.
+textScalar :: Text -> Scalar Char ()
+textScalar txt = case fString . Seq.fromList . X.unpack $ txt of
+  Left us -> Scalar'UnquotedString us
+  Right qs -> Scalar'QuotedString qs
+
+fDateTimeZone
+  :: Date Char ()
+  -> Time Char ()
+  -> Zone Char ()
+  -> Forest Char ()
+fDateTimeZone date time zone = fForest dateTree
+  . Seq.fromList $ [timeTree, zoneTree]
+  where
+    dateTree = spinster (Scalar'Date date)
+    timeTree = spinster (Scalar'Time time)
+    zoneTree = spinster (Scalar'Zone zone)
