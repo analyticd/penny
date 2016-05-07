@@ -1,5 +1,24 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+
+-- | "Penny.Trio" hews closely to the possible manifestations of the
+-- quantity, commodity, and arrangement in the ledger file.  The
+-- "Penny.Trio" corresponds only to what is in a single posting.
+--
+-- The 'Troika' is concerned with holding the manifestation of the
+-- quantity, commodity and arrangement, but after considering all
+-- the postings of a single transaction together.  The biggest
+-- consequence of this is that, unlike a "Penny.Trio", a 'Troika'
+-- always contains a 'Commodity'.  In addition, the quantity in a
+-- 'Troika' always is positive, negative, or zero, while the
+-- quantity in a "Penny.Trio" is sometimes unsigned.
+--
+-- Also, the 'Troika' always has a quantity, while sometimes a
+-- "Penny.Trio" has no quantity if the user did not enter one.
+-- Therefore, the quantity in the 'Troika' sometimes is one of the
+-- types from "Penny.Decimal" is the quantity was calculated rather
+-- tha entered by the user.  It will ultimately be one of the types from
+-- "Penny.Copper.Types" if the user did enter it.
 module Penny.Troika where
 
 import qualified Penny.Amount as A
