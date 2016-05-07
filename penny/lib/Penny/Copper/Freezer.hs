@@ -1,32 +1,35 @@
 module Penny.Copper.Freezer where
 
 import Penny.Amount
-import qualified Penny.Tree as Tree
-import qualified Penny.Scalar as Scalar
+import Penny.Copper.Copperize
 import Penny.Copper.PriceParts
 import Penny.Copper.Types
+import qualified Penny.Tree as Tree
+import qualified Penny.Scalar as Scalar
 
 import Data.Validation (AccValidation)
 import Data.Text (Text)
+import qualified Data.Text as X
 import Data.Time (Day, TimeOfDay)
 import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Pinchot (NonEmpty)
 
 -- # Comments
 
-data CommentError = CommentError
+data CommentError = BadCommentChar Char
 
 comment
   :: Text
   -> Either CommentError (Comment Char ())
-comment = undefined
+comment = either (Left . BadCommentChar) Right . cComment
 
 -- # Scalars
 
 text
   :: Text
   -> Either (UnquotedString Char ()) (QuotedString Char ())
-text = undefined
+text = cString . Seq.fromList . X.unpack
 
 data DayError = DayError
 
