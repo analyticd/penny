@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 -- |
 -- Utilities for "Data.Sequence".
@@ -18,6 +19,7 @@ module Penny.SeqUtil
   , intersperse
   , singleSeq
   , convertHead
+  , catMaybes
 
   -- * Slices
   , Slice(..)
@@ -185,3 +187,12 @@ convertHead p = go empty
       Just (x, xs) -> case p x of
         Nothing -> (acc, sq)
         Just a -> go (acc |> a) xs
+
+catMaybes
+  :: Seq (Maybe a)
+  -> Seq a
+catMaybes = foldr f empty
+  where
+    f e acc = case e of
+      Nothing -> acc
+      Just x -> x <| acc

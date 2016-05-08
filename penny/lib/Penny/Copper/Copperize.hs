@@ -20,7 +20,9 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as X
+import Data.Validation (AccValidation(AccFailure, AccSuccess))
 import qualified Pinchot
+import Pinchot (NonEmpty)
 import Text.Earley (Prod, Grammar)
 import qualified Text.Earley as Earley
 import qualified Data.Time as Time
@@ -353,15 +355,17 @@ cCommentChar c = Lens.preview _CommentChar (c, ())
 -- | Converts a 'Text' to a 'CommentChar'Star'.  Fails if any
 -- character cannot be placed into a 'CommentChar' and returns a
 -- 'Left' with the bad character.
-cCommentChar'Star :: Text -> Either Char (CommentChar'Star Char ())
+cCommentChar'Star
+  :: Text
+  -> AccValidation (NonEmpty Char) (CommentChar'Star Char ())
 cCommentChar'Star
   = fmap CommentChar'Star . traverse f . Seq.fromList . X.unpack
   where
     f c = case cCommentChar c of
-      Nothing -> Left c
-      Just r -> Right r
+      Nothing -> AccFailure . Pinchot.singleton $ c
+      Just r -> AccSuccess r
 
-cComment :: Text -> Either Char (Comment Char ())
+cComment :: Text -> AccValidation (NonEmpty Char) (Comment Char ())
 cComment txt
   = Comment
   <$> pure cHash
@@ -377,7 +381,7 @@ cWhite'Tab = White'Tab cTab
 cWhite'Newline :: White Char ()
 cWhite'Newline = White'Newline cNewline
 
-cWhite'Comment :: Text -> Either Char (White Char ())
+cWhite'Comment :: Text -> AccValidation (NonEmpty Char) (White Char ())
 cWhite'Comment txt = White'Comment <$> cComment txt
 
 -- | Replicates the given 'White' to return a 'White'Star'.
