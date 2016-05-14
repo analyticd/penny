@@ -10,15 +10,18 @@ import qualified Penny.NonZero as NZ
 import Penny.Polar
 import qualified Penny.Positive as Pos
 import Penny.Realm
+import Penny.Rep
 import Penny.SeqUtil
 
 import qualified Control.Lens as Lens
-import Control.Monad ((>=>))
+import Control.Monad ((>=>), join)
 import Data.Semigroup (Semigroup((<>)))
-import Data.Validation (AccValidation(AccFailure, AccSuccess))
+import Data.Validation (AccValidation(AccFailure, AccSuccess), _Failure,
+  _AccValidation)
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Time (Day, TimeOfDay)
+import qualified Data.Time as Time
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Pinchot (NonEmpty)
@@ -155,33 +158,202 @@ forest ts = f <$> traverse tree ts
 
 -- # Amounts
 
-data AmountError = AmountError
-
 -- | Amounts are always frozen as an ungrouped representation with
 -- the commodity on the left with no space between.
 amount
   :: Amount
-  -> Either AmountError (Trio Char ())
-amount = undefined
+  -> Trio Char ()
+amount (Amount cy q) = case splitRepAnyRadix rep of
+  Left nil -> Trio'T_Commodity_Neutral tComNeu
+    where
+      tComNeu = T_Commodity_Neutral cy' mempty neu
+      neu = case nil of
+        Left nilCom -> NeuCom cBacktick nilCom
+        Right nilPer -> NeuPer nilPer
+  Right (brim, pole) -> Trio'T_DebitCredit_Commodity_NonNeutral tDrComNon
+    where
+      tDrComNon = T_DebitCredit_Commodity_NonNeutral drCr mempty cy'
+        mempty nn
+        where
+          drCr | pole == debit = DebitCredit'Debit (Debit cLessThan)
+               | otherwise = DebitCredit'Credit (Credit cGreaterThan)
+          nn = case brim of
+            Left brimCom -> NonNeutralRadCom cBacktick brimCom
+            Right brimPer -> NonNeutralRadPer brimPer
+  where
+    rep = repDecimal (Right Nothing) q
+    cy' = cCommodity . Seq.fromList . X.unpack $ cy
 
 -- # Prices
-data PriceError = PriceError
+data PriceError
+  = BadPriceDay Time.Day
+  | BadPriceZone Time.TimeZone
+  | BadPriceTime Time.TimeOfDay
 
 price
   :: PriceParts a
   -> Either PriceError (Price Char ())
-price = undefined
+price pp = do
+  let (Time.ZonedTime (Time.LocalTime dy tod) tz) = _priceTime pp
+  dt <- maybe (Left (BadPriceDay dy)) Right . day $ dy
+  zon <- maybe (Left (BadPriceZone tz)) Right . zone . Time.timeZoneMinutes $ tz
+  tim <- maybe (Left (BadPriceTime tod)) Right . time $ tod
+  let from = cCommodity . Seq.fromList . X.unpack . _priceFrom $ pp
+      to = cCommodity . Seq.fromList . X.unpack . _priceTo $ pp
+      exch = case splitRepAnyRadix . repDecimal (Right Nothing)
+                    . _priceExch $ pp of
+                Left nil -> Exch'Neutral $ case nil of
+                  Left nilCom -> NeuCom cBacktick nilCom
+                  Right nilPer -> NeuPer nilPer
+                Right (brim, pole) -> Exch'ExchNonNeu $ ExchNonNeu'PluMinNonNeutral
+                  (PluMinNonNeutral pm mempty nonNeu)
+                  where
+                    pm | pole == negative = PluMin'Minus cMinus
+                       | otherwise = PluMin'Plus cPlus
+                    nonNeu = case brim of
+                      Left brimCom -> NonNeutralRadCom cBacktick brimCom
+                      Right brimPer -> NonNeutralRadPer brimPer
+      jan = Janus'CyExch $ CyExch to mempty exch
+      ti = WhitesTime'Opt (Just (WhitesTime mempty tim))
+      zn = WhitesZone'Opt (Just (WhitesZone mempty zon))
+  return $ Price cAtSign mempty dt ti zn mempty from mempty jan
 
 -- # Transactions
 
+data TxnParts = TxnParts
+  { _topLine :: Seq Tree.Tree
+  , _postings :: Seq (Seq Tree.Tree, Amount)
+  }
+
 data Tracompri
-  = Tracompri'Transaction (Seq Tree.Tree) (Seq (Seq Tree.Tree, Amount))
+  = Tracompri'Transaction TxnParts
   | Tracompri'Comment Text
   | Tracompri'Price (PriceParts ())
 
-data WholeFileError = WholeFileError
+data TracompriError
+  = TracompriBadForest TxnParts (NonEmpty ScalarError)
+  | TracompriBadComment Text (NonEmpty Char)
+  | TracompriBadPrice (PriceParts ()) PriceError
+
+tracompri
+  :: Tracompri
+  -> AccValidation (NonEmpty TracompriError)
+                   (Maybe (Either (Comment Char ()) (FileItem Char ())))
+tracompri x = case x of
+  Tracompri'Transaction t -> fmap f (tracompriTransaction t)
+    where
+      f mayRes = case mayRes of
+        Nothing -> Nothing
+        Just res -> Just . Right . FileItem'Transaction $ res
+  Tracompri'Comment txt -> fmap f (tracompriComment txt)
+    where
+      f com = Just . Left $ com
+  Tracompri'Price pp -> fmap f (tracompriPrice pp)
+    where
+      f pri = Just . Right . FileItem'Price $ pri
+
+tracompriPrice
+  :: PriceParts ()
+  -> AccValidation (NonEmpty TracompriError) (Price Char ())
+tracompriPrice p
+  = Lens.over _Failure (Pinchot.singleton . TracompriBadPrice p)
+  . Lens.view _AccValidation
+  . price
+  $ p
+
+tracompriComment
+  :: Text
+  -> AccValidation (NonEmpty TracompriError) (Comment Char ())
+tracompriComment txt
+  = Lens.over _Failure (Pinchot.singleton . TracompriBadComment txt)
+  . comment
+  $ txt
+
+tracompriTransaction
+  :: TxnParts
+  -> AccValidation (NonEmpty TracompriError) (Maybe (Transaction Char ()))
+tracompriTransaction parts
+  = f
+  <$> tracompriTopLine parts
+  <*> tracompriPostings parts
+  where
+    f mayTl pstgs = case (mayTl, Lens.uncons pstgs) of
+      (Nothing, Nothing) -> Nothing
+      (Nothing, Just (p1, ps)) -> Just (Transaction'Postings
+        (copperPstgs p1 ps))
+      (Just tl, Just (p1, ps)) -> Just (Transaction'TopLineMaybePostings
+        (TopLineMaybePostings tl
+          (WhitesPostings'Opt (Just (WhitesPostings mempty
+          (copperPstgs p1 ps))))))
+      (Just tl, Nothing) -> Just (Transaction'TopLineMaybePostings
+        (TopLineMaybePostings tl (WhitesPostings'Opt Nothing)))
+      where
+        copperPstgs p1 ps = Postings cOpenCurly (PostingList'Opt
+          (Just (PostingList mempty p1 (NextPosting'Star (fmap mkNext ps)))))
+          mempty cCloseCurly
+          where
+            mkNext p = NextPosting mempty cSemicolon mempty p
+
+tracompriTopLine
+  :: TxnParts
+  -> AccValidation (NonEmpty TracompriError) (Maybe (TopLine Char ()))
+tracompriTopLine parts@(TxnParts tl _) = case forest tl of
+  AccFailure errs -> AccFailure . Pinchot.singleton
+    $ TracompriBadForest parts errs
+  AccSuccess mayFor -> case mayFor of
+    Nothing -> pure Nothing
+    Just for -> pure . Just . TopLine $ for
+
+tracompriPosting
+  :: TxnParts
+  -- ^ The entire transaction.  Used only for error messages.
+  -> (Seq Tree.Tree, Amount)
+  -- ^ This posting
+  -> AccValidation (NonEmpty TracompriError) (Posting Char ())
+tracompriPosting parts (frst, amt) = case forest frst of
+  AccFailure errs -> AccFailure . Pinchot.singleton
+    $ TracompriBadForest parts errs
+  AccSuccess mayForest -> AccSuccess
+    $ Posting'TrioMaybeForest $ TrioMaybeForest tri mayWhitesBf
+    where
+      tri = amount amt
+      mayWhitesBf = WhitesBracketedForest'Opt $ case mayForest of
+        Nothing -> Nothing
+        Just for -> Just (WhitesBracketedForest mempty (BracketedForest
+          cOpenSquare mempty for mempty cCloseSquare))
+
+tracompriPostings
+  :: TxnParts
+  -> AccValidation (NonEmpty TracompriError) (Seq (Posting Char ()))
+tracompriPostings parts@(TxnParts _ pstgs)
+  = traverse (tracompriPosting parts) pstgs
+
+combineTracompris
+  :: Seq (Maybe (Either (Comment Char ()) (FileItem Char ())))
+  -> WholeFile Char ()
+combineTracompris = toWholeFile . groupEithers . catMaybes
+  where
+    toWholeFile (Groups leadItems mids trailWhites)
+      = WholeFile whitesItems whites
+      where
+        whites = White'Star . fmap White'Comment $ trailWhites
+        whitesItems = firstItems <> lastItems
+          where
+            firstItems = WhitesFileItem'Star
+              $ fmap (WhitesFileItem mempty) leadItems
+            lastItems = WhitesFileItem'Star . join . fmap f $ mids
+              where
+                f (coms, Pinchot.NonEmpty i1 is)
+                  = item1 `Lens.cons` itemsRest
+                  where
+                    item1 = WhitesFileItem whites i1
+                      where
+                        whites = White'Star . Pinchot.flatten
+                          . fmap White'Comment $ coms
+                    itemsRest = fmap (WhitesFileItem mempty) is
+
 
 wholeFile
   :: Seq Tracompri
-  -> Either WholeFileError (WholeFile Char ())
-wholeFile = undefined
+  -> AccValidation (NonEmpty TracompriError) (WholeFile Char ())
+wholeFile = fmap combineTracompris . traverse tracompri

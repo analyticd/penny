@@ -15,6 +15,8 @@ module Penny.SeqUtil
   , lefts
   , rights
   , partitionEithers
+  , Groups(..)
+  , groupEithers
   , filterM
   , intersperse
   , singleSeq
@@ -41,6 +43,8 @@ import qualified Data.Traversable as T
 import qualified Data.Foldable as F
 import Data.Monoid
 import Control.Monad (join)
+import Pinchot (NonEmpty)
+import qualified Pinchot
 
 filterM
   :: Monad m
@@ -126,6 +130,45 @@ partitionEithers = F.foldl' f (empty, empty)
     f (l, r) ei = case ei of
       Left a -> (l |> a, r)
       Right a -> (l, r |> a)
+
+data Groups a b = Groups
+  { _leaders :: Seq b
+  , _middle :: Seq (NonEmpty a, NonEmpty b)
+  , _trailers :: Seq a
+  }
+
+groupEithers
+  :: Seq (Either a b)
+  -> Groups a b
+groupEithers sq = Groups l m r
+  where
+    (l, middleAndTrail) = go empty sq
+      where
+        go acc sq = case viewl sq of
+          EmptyL -> (acc, empty)
+          x :< xs -> case x of
+            Right a -> go (acc |> a) xs
+            Left _ -> (acc, sq)
+    (middle, mayLast) = foldl appendMiddle (empty, Nothing) middleAndTrail
+    (m, r) = case mayLast of
+      Nothing -> (middle, empty)
+      Just (as, bs) -> case Pinchot.seqToNonEmpty bs of
+        Nothing -> (middle, Pinchot.flatten as)
+        Just bss -> (middle |> (as, bss), empty)
+
+    appendMiddle
+      :: (Seq (NonEmpty a, NonEmpty b), Maybe (NonEmpty a, Seq b))
+      -> Either a b
+      -> (Seq (NonEmpty a, NonEmpty b), Maybe (NonEmpty a, Seq b))
+    appendMiddle (sq, mayPair) ei = case ei of
+      Left a -> case mayPair of
+        Nothing -> (sq, Just (Pinchot.singleton a, empty))
+        Just (as, bs) -> case Pinchot.seqToNonEmpty bs of
+          Nothing -> error "groupEithers: error 1"
+          Just neBs -> (sq |> (as, neBs), Just (Pinchot.singleton a, empty))
+      Right b -> case mayPair of
+        Nothing -> error "groupEithers: error 2"
+        Just (as, bs) -> (sq, Just (as, bs |> b))
 
 singleSeq :: Seq a -> Maybe a
 singleSeq sq = case uncons sq of

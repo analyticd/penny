@@ -288,6 +288,19 @@ c'NilOrBrimAnyRadix'RepAnyRadix ei = case ei of
     Moderate n -> NilOrBrimRadPer'NilRadPer n
     Extreme (Polarized c _) -> NilOrBrimRadPer'BrimRadPer c
 
+-- | Removes the 'Side' from a 'RepAnyRadix' and returns either Nil
+-- or a Brim with the side.
+splitRepAnyRadix
+  :: RepAnyRadix
+  -> Either NilAnyRadix (BrimAnyRadix, Pole)
+splitRepAnyRadix ei = case ei of
+  Left rc -> case rc of
+    Moderate n -> Left . Left $ n
+    Extreme (Polarized brim pole) -> Right (Left brim, pole)
+  Right rp -> case rp of
+    Moderate n -> Left . Right $ n
+    Extreme (Polarized brim pole) -> Right (Right brim, pole)
+
 c'NilOrBrimAnyRadix'BrimAnyRadix
   :: BrimAnyRadix
   -> NilOrBrimAnyRadix
