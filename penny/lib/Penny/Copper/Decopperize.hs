@@ -8,7 +8,6 @@ import Data.Foldable (toList)
 import qualified Data.Map as M
 import Data.Monoid ((<>))
 import qualified Data.Text as X
-import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -35,7 +34,7 @@ import qualified Penny.Positive as Pos
 import Penny.Realm
 import Penny.Rep
 import qualified Penny.Scalar as Scalar
-import Penny.SeqUtil (mapMaybe)
+import Penny.SeqUtil (mapMaybe, catMaybes)
 import qualified Penny.Tree as Tree
 import qualified Penny.Trio as Trio
 import qualified Penny.Troika as Troika
@@ -894,21 +893,22 @@ dTransaction x = case x of
 
 dFileItem
   :: FileItem Char Loc
-  -> Either (PriceParts Loc) TxnParts
+  -> Maybe (Either (PriceParts Loc) TxnParts)
 dFileItem x = case x of
-  FileItem'Price p -> Left $ dPrice p
-  FileItem'Transaction t -> Right $ dTransaction t
+  FileItem'Price p -> Just . Left $ dPrice p
+  FileItem'Transaction t -> Just . Right $ dTransaction t
+  FileItem'Comment _ -> Nothing
 
 dWhitesFileItem
   :: WhitesFileItem Char Loc
-  -> Either (PriceParts Loc) TxnParts
+  -> Maybe (Either (PriceParts Loc) TxnParts)
 dWhitesFileItem (WhitesFileItem _ i) = dFileItem i
 
 dWhitesFileItem'Star
   :: WhitesFileItem'Star Char Loc
   -> Seq (Either (PriceParts Loc) TxnParts)
 dWhitesFileItem'Star (WhitesFileItem'Star sq)
-  = fmap dWhitesFileItem sq
+  = catMaybes . fmap dWhitesFileItem $ sq
 
 dWholeFile
   :: WholeFile Char Loc

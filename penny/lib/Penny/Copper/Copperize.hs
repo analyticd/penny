@@ -381,9 +381,6 @@ cWhite'Tab = White'Tab cTab
 cWhite'Newline :: White Char ()
 cWhite'Newline = White'Newline cNewline
 
-cWhite'Comment :: Text -> AccValidation (NonEmpty Char) (White Char ())
-cWhite'Comment txt = White'Comment <$> cComment txt
-
 -- | Replicates the given 'White' to return a 'White'Star'.
 cWhite'Star :: Int -> White Char () -> White'Star Char ()
 cWhite'Star i w = White'Star (Seq.replicate i w)

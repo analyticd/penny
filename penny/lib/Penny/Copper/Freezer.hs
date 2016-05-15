@@ -238,19 +238,19 @@ data TracompriError
 tracompri
   :: Tracompri
   -> AccValidation (NonEmpty TracompriError)
-                   (Maybe (Either (Comment Char ()) (FileItem Char ())))
+                   (Maybe (FileItem Char ()))
 tracompri x = case x of
   Tracompri'Transaction t -> fmap f (tracompriTransaction t)
     where
       f mayRes = case mayRes of
         Nothing -> Nothing
-        Just res -> Just . Right . FileItem'Transaction $ res
+        Just res -> Just . FileItem'Transaction $ res
   Tracompri'Comment txt -> fmap f (tracompriComment txt)
     where
-      f com = Just . Left $ com
+      f com = Just . FileItem'Comment $ com
   Tracompri'Price pp -> fmap f (tracompriPrice pp)
     where
-      f pri = Just . Right . FileItem'Price $ pri
+      f pri = Just . FileItem'Price $ pri
 
 tracompriPrice
   :: PriceParts ()
@@ -329,29 +329,12 @@ tracompriPostings parts@(TxnParts _ pstgs)
   = traverse (tracompriPosting parts) pstgs
 
 combineTracompris
-  :: Seq (Maybe (Either (Comment Char ()) (FileItem Char ())))
+  :: Seq (Maybe (FileItem Char ()))
   -> WholeFile Char ()
-combineTracompris = toWholeFile . groupEithers . catMaybes
+combineTracompris = toWholeFile . catMaybes
   where
-    toWholeFile (Groups leadItems mids trailWhites)
-      = WholeFile whitesItems whites
-      where
-        whites = White'Star . fmap White'Comment $ trailWhites
-        whitesItems = firstItems <> lastItems
-          where
-            firstItems = WhitesFileItem'Star
-              $ fmap (WhitesFileItem mempty) leadItems
-            lastItems = WhitesFileItem'Star . join . fmap f $ mids
-              where
-                f (coms, Pinchot.NonEmpty i1 is)
-                  = item1 `Lens.cons` itemsRest
-                  where
-                    item1 = WhitesFileItem whites i1
-                      where
-                        whites = White'Star . Pinchot.flatten
-                          . fmap White'Comment $ coms
-                    itemsRest = fmap (WhitesFileItem mempty) is
-
+    toWholeFile fis = WholeFile (WhitesFileItem'Star
+      (fmap (WhitesFileItem mempty) fis)) mempty
 
 wholeFile
   :: Seq Tracompri
