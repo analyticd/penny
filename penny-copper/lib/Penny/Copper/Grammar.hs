@@ -337,7 +337,7 @@ doubleQuote = terminal "DoubleQuote" $ solo '"'
 backslash = terminal "Backslash" $ solo '\\'
 space = terminal "Space" $ solo ' '
 tab = terminal "Tab" $ solo '\t'
-white = union "White" [space, tab, newline, comment]
+white = union "White" [space, tab, newline]
 whites = star white
 whites1 = plus white
 gap = record "Gap" [whites1, backslash]
@@ -514,7 +514,7 @@ maybeWhitesZone = opt whitesZone
 price = record "Price"
   [ atSign, whites, date, maybeWhitesTime, maybeWhitesZone,
     whites, commodity, whites, janus ]
-fileItem = union "FileItem" [price, transaction]
+fileItem = union "FileItem" [price, transaction, comment]
 whitesFileItem = record "WhitesFileItem" [whites, fileItem]
 whitesFileItems = star whitesFileItem
 wholeFile = record "WholeFile" [whitesFileItems, whites]
