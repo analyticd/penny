@@ -1261,7 +1261,7 @@ noSpace :: White'Star Char ()
 noSpace = White'Star Seq.empty
 
 cNextTree :: Tree Char () -> NextTree Char ()
-cNextTree tree = NextTree noSpace cComma space tree
+cNextTree tree = NextTree mempty cComma mempty tree
 
 cNextTree'Star :: Seq (Tree Char ()) -> NextTree'Star Char ()
 cNextTree'Star = NextTree'Star . fmap cNextTree
@@ -1271,7 +1271,7 @@ cForest t1 ts = Forest t1 (cNextTree'Star ts)
 
 cBracketedForest :: Forest Char () -> BracketedForest Char ()
 cBracketedForest f
-  = BracketedForest cOpenSquare space f space cCloseSquare
+  = BracketedForest cOpenSquare mempty f mempty cCloseSquare
 
 cTree :: Scalar Char () -> Maybe (Forest Char ()) -> Tree Char ()
 cTree sc mayForest = Tree'ScalarMaybeForest
@@ -1279,7 +1279,7 @@ cTree sc mayForest = Tree'ScalarMaybeForest
   where
     may = case mayForest of
       Nothing -> Nothing
-      Just fr -> Just (WhitesBracketedForest space (cBracketedForest fr))
+      Just fr -> Just (WhitesBracketedForest mempty (cBracketedForest fr))
 
 spinster :: Scalar Char () -> Tree Char ()
 spinster s = cTree s Nothing
