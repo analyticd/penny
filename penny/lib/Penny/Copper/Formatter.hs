@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
--- | Manipulates whitespace and other formatting details for the
+-- | Manipulates whitespace for the
 -- types in "Penny.Copper.Types".
 --
 -- Additive formatters only.  These formatters never destroy data.
@@ -16,16 +16,6 @@ import Data.Semigroup ((<>))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Sequence ((<|), (|>))
-
--- | Ensures that the 'White'Star' ends with a newline.
-newlineEnding :: White'Star Char () -> White'Star Char ()
-newlineEnding (White'Star ws) = White'Star $ case Lens.unsnoc ws of
-  Nothing -> Seq.singleton cWhite'Newline
-  Just (_, x) -> case x of
-    White'Newline _ -> ws
-    White'Space _ -> ws `Lens.snoc` cWhite'Newline
-    White'Tab _ -> ws `Lens.snoc` cWhite'Newline
-
 
 -- | Changes an empty 'White'Star' to a single space.  Makes no
 -- change to any other 'White'Star'.
@@ -45,18 +35,6 @@ addNewline = Lens.over Lens._Wrapped' f
       | Seq.null sq = Seq.singleton cWhite'Newline
       | otherwise = sq
 
--- | Ensures that each item in the 'WhitesFileItem'Star' is separated by
--- at least one newline or comment.  Does not alter the first
--- 'WhitesFileItem'.
-separateWhitesFileItems
-  :: WhitesFileItem'Star Char ()
-  -> WhitesFileItem'Star Char ()
-separateWhitesFileItems = Lens.over s newlineEnding
-  where
-    s = Lens._Wrapped' . Lens._Cons . Lens._2 . Lens.mapped . 
-      r'WhitesFileItem'0'White'Star 
-
-
 -- | Formats a 'Forest' so that a single space separates each
 -- 'Tree'.
 formatForest :: Forest Char () -> Forest Char ()
@@ -69,7 +47,7 @@ formatNextTree (NextTree sp1 com sp2 t)
 formatNextTree'Star :: NextTree'Star Char () -> NextTree'Star Char ()
 formatNextTree'Star = Lens.over Lens._Wrapped' (fmap formatNextTree)
 
--- | Formats the 'Forest' within the 'BracketedForest'.  Does
+-- | Formats the 'Forest' within the 'BracketedForest'.
 formatBracketedForest :: BracketedForest Char () -> BracketedForest Char ()
 formatBracketedForest = Lens.over r'BracketedForest'2'Forest formatForest
 
