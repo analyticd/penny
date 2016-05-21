@@ -1,5 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+
+-- | A valid transaction must be balanced--that is, for each
+-- commodity, the debits must be equal to the credits.  This module
+-- contains types and functions that help ensure that an entire
+-- collection of postings--that is, a transaction--is balanced.
 module Penny.Ents
   ( Ents
   , entsToSeqEnt
@@ -30,6 +35,15 @@ import Penny.Decimal
 import Penny.Trio
 import qualified Penny.Troika as Y
 
+-- | An 'Ents' contains a collection of postings.  The collection is
+-- not necessarily balanced.  The 'Ents' keeps track of whether the
+-- collection of postings is imbalanced and, if so, by how much.
+--
+-- Each posting is represented only by a 'Y.Troika' along with any
+-- arbitrary metadata.  Typically the metadata will have a 'Seq' of
+-- 'Penny.Tree.Tree' to represent arbitrary metadata, and a 'Trio'
+-- to hold the original representation of the quantity and
+-- commodity.
 data Ents a = Ents
   { entsToSeqEnt :: Seq (Y.Troika, a)
   , entsToImbalance :: Imbalance
@@ -53,6 +67,8 @@ instance Traversable Ents where
         e :< xs ->
           (<|) <$> T.sequenceA e <*> go xs
 
+-- | Contains a sequence of 'Y.Troika' along with arbitrary metadata
+-- but, unlike an 'Ents', this is always guaranteed to be balanced.
 newtype Balanced a = Balanced { balancedToSeqEnt :: Seq (Y.Troika, a) }
   deriving Show
 

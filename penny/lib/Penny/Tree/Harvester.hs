@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 module Penny.Tree.Harvester where
 
 import Penny.Realm
@@ -62,3 +63,9 @@ userTreeHasChild tree
   = Lens.view realm tree == User
   && (not . Seq.null . Seq.filter ((== User) . Lens.view realm) . _children $ tree)
 
+data Grove = Grove
+  { _topLineForest :: Seq Tree
+  , _postingForest :: Seq Tree
+  } deriving Show
+
+Lens.makeLenses ''Grove
