@@ -5,6 +5,7 @@ import Penny.Clatch
 import Penny.Realm
 import Penny.Scalar
 import Penny.Tree
+import Penny.Tree.Harvester
 
 import Control.Applicative ((<|>))
 import Control.Lens
@@ -143,7 +144,7 @@ zone = to $ searchTopForest pd . view (transaction . trees)
 line :: Getter (Sliced a) (Maybe Integer)
 line = to f
   where
-    f = searchForestPreOrder pd . view (posting . trees)
+    f = forestPreOrder pd . view (posting . trees)
       where
         pd tree = do
           guard $ view realm tree == System

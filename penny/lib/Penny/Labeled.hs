@@ -6,6 +6,7 @@ import Control.Lens hiding (children)
 import Control.Monad (guard)
 import Penny.Clatch
 import Penny.Tree
+import Penny.Tree.Harvester
 import Data.Sequence (Seq)
 import Penny.Scalar
 import Penny.Realm
