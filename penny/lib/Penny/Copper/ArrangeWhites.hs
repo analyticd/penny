@@ -4,7 +4,7 @@
 --
 -- Additive formatters only.  These formatters never destroy data.
 
-module Penny.Copper.Formatter where
+module Penny.Copper.ArrangeWhites where
 
 import Penny.Copper.Types
 import Penny.Copper.Optics

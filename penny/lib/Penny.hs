@@ -3,7 +3,8 @@
 --
 -- This interface is intended to be simple but as powerful as possible.
 
-module Penny
+module Penny where
+{-
   ( -- * Re-exported modules
     -- | All re-exported modules re-export all bindings from that module.
     module Penny.Balance
@@ -76,3 +77,4 @@ import Data.Monoid
 import Data.Function ((&))
 import Data.Monoid.Cancellative (isPrefixOf, isSuffixOf)
 import Data.Time (fromGregorian)
+-}
