@@ -13,6 +13,7 @@ module Penny.Copper.Grammar where
 
 import Pinchot (terminal, solo, union, plus, star, pariah, include,
   record, opt, nonTerminal, wrap)
+import qualified Data.Char as Char
 import Data.Monoid ((<>))
 
 zero = terminal "Zero" (solo '0')
@@ -334,6 +335,7 @@ zone = record "Zone" [backtick, zoneHrsMins]
 
 -- Whitespace and quoted strings
 doubleQuote = terminal "DoubleQuote" $ solo '"'
+apostrophe = terminal "Apostrophe" $ solo '\''
 backslash = terminal "Backslash" $ solo '\\'
 space = terminal "Space" $ solo ' '
 tab = terminal "Tab" $ solo '\t'
@@ -352,11 +354,14 @@ quotedString = record "QuotedString"
 
 -- Unquoted strings
 unquotedStringNonDigitChar =
-  let pariahs = [ ' ', '\\', '\n', '\t', '{', '}', '[', ']', '\'', '"',
-        '-', '+', '/', ':', '#', '@', '`', '<', '>', ';',
-        '_', '\x2009', ',', '.' ] ++ ['0'..'9']
-      interval = include minBound maxBound <> mconcat (map pariah pariahs)
-  in terminal "UnquotedStringNonDigitChar" interval
+  terminal "UnquotedStringNonDigitChar" $
+    include 'a' 'z' <> include 'A' 'Z' <> currencySymbols
+  where
+    currencySymbols = foldl addSym mempty
+      . filter isCurr
+      $ [minBound .. maxBound]
+    addSym acc c = acc <> solo c
+    isCurr c = Char.generalCategory c == Char.CurrencySymbol
 unquotedStringEndChar = union "UnquotedStringNonFirstChar"
   [unquotedStringNonDigitChar, d0'9]
 unquotedStringEndChars = star unquotedStringEndChar
@@ -370,6 +375,9 @@ unquotedCommodity = wrap "UnquotedCommodity"
   unquotedStringNonDigitChars1
 quotedCommodity = wrap "QuotedCommodity" quotedString
 commodity = union "Commodity" [unquotedCommodity, quotedCommodity]
+
+-- Labels
+label = record "Label" [apostrophe, unquotedString]
 
 -- NonNeutral
 nonNeutral = nonTerminal "NonNeutral"

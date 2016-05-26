@@ -88,6 +88,7 @@ data ScalarError
   = InvalidDay Day
   | InvalidTime TimeOfDay
   | InvalidZone Int
+  | InvalidLabel Text
 
 scalar
   :: Scalar.Scalar
@@ -96,6 +97,9 @@ scalar sc = case sc of
   Scalar.SText txt -> Right $ case text txt of
     Left us -> Scalar'UnquotedString us
     Right qs -> Scalar'QuotedString qs
+  Scalar.SLabel txt -> case text txt of
+    Left us -> Right . Scalar'Label . Label $ us
+    Right qs -> Left $ InvalidLabel txt
   Scalar.SDay dy -> case day dy of
     Nothing -> Left $ InvalidDay dy
     Just dt -> Right $ Scalar'Date dt

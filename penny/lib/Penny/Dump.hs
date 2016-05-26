@@ -44,6 +44,7 @@ instance Pretty Scalar where
       text (formatTime defaultTimeLocale "%T" tod)
     SZone int -> label "zone" $ text (show int)
     SInteger int -> label "integer" $ text (show int)
+    SLabel txt -> label "label" $ text (show txt)
 
 instance Pretty Realm where
   pretty x = text (show x)
