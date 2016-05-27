@@ -349,6 +349,9 @@ cSemicolon = Semicolon (';', ())
 cAtSign :: AtSign Char ()
 cAtSign = AtSign ('@', ())
 
+cApostrophe :: Apostrophe Char ()
+cApostrophe = Apostrophe ('\'', ())
+
 cCommentChar :: Char -> Maybe (CommentChar Char ())
 cCommentChar c = Lens.preview _CommentChar (c, ())
 

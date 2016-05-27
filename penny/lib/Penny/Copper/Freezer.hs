@@ -98,7 +98,7 @@ scalar sc = case sc of
     Left us -> Scalar'UnquotedString us
     Right qs -> Scalar'QuotedString qs
   Scalar.SLabel txt -> case text txt of
-    Left us -> Right . Scalar'Label . Label $ us
+    Left us -> Right . Scalar'Label . Label cApostrophe $ us
     Right qs -> Left $ InvalidLabel txt
   Scalar.SDay dy -> case day dy of
     Nothing -> Left $ InvalidDay dy

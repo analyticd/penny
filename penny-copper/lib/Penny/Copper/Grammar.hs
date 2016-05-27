@@ -463,7 +463,7 @@ trio = union "Trio"
 openSquare = terminal "OpenSquare" $ solo '['
 closeSquare = terminal "CloseSquare" $ solo ']'
 scalar = union "Scalar" [unquotedString, quotedString, date, time,
-  zone, wholeAny]
+  zone, label, wholeAny]
 whitesScalar = record "WhitesScalar" [whites, scalar]
 maybeWhitesScalar = opt whitesScalar
 
