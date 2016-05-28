@@ -1,6 +1,14 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+
+-- | Obtaining transactions and prices fro a Copper-formatted file
+-- takes three steps: parsing, decopperization, and proofing.  This
+-- module performs decopperization.
+--
+-- The top level function is 'dWholeFile'.
+--
+-- Decopperization never fails.
 module Penny.Copper.Decopperize where
 
 import qualified Control.Lens as Lens
@@ -11,7 +19,7 @@ import qualified Data.Text as X
 import qualified Data.Time as Time
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Pinchot (Loc, NonEmpty)
+import Pinchot (Loc, NonEmpty(_front))
 import qualified Pinchot
 import Prelude hiding (length)
 
@@ -519,7 +527,7 @@ dJanus x = case x of
   Janus'CyExch c -> dCyExch c
   Janus'ExchCy c -> dExchCy c
 
-type TxnParts = (Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+type TxnParts = (Loc, Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
 
 dPrice :: Price Char Loc -> PriceParts Loc
 dPrice p = PriceParts loc zt from to exch
@@ -603,6 +611,8 @@ dScalar x = case x of
   Scalar'Time a -> Scalar.STime . dTime $ a
   Scalar'Zone a -> Scalar.SZone . Time.timeZoneMinutes . dZone $ a
   Scalar'WholeAny a -> Scalar.SInteger . dWholeAny $ a
+  Scalar'Label (Label _ us) -> Scalar.SLabel . X.pack . toList
+    . dUnquotedString $ us
 
 dWhitesScalar :: WhitesScalar Char a -> Scalar.Scalar
 dWhitesScalar (WhitesScalar _ s) = dScalar s
@@ -862,34 +872,42 @@ dPostingList'Opt (PostingList'Opt m) = case m of
 
 dPostings
   :: Postings Char Loc
-  -> Seq (Loc, Trio.Trio, Seq Tree.Tree)
-dPostings (Postings _ pl _ _) = dPostingList'Opt pl
+  -> (Loc, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+dPostings (Postings oc pl _ _) = (loc, dPostingList'Opt pl)
+  where
+    OpenCurly (_, loc) = oc
 
 dWhitesPostings
   :: WhitesPostings Char Loc
-  -> Seq (Loc, Trio.Trio, Seq Tree.Tree)
+  -> (Loc, Seq (Loc, Trio.Trio, Seq Tree.Tree))
 dWhitesPostings (WhitesPostings _ p) = dPostings p
 
 dWhitesPostings'Opt
   :: WhitesPostings'Opt Char Loc
-  -> Seq (Loc, Trio.Trio, Seq Tree.Tree)
+  -> Maybe (Loc, Seq (Loc, Trio.Trio, Seq Tree.Tree))
 dWhitesPostings'Opt (WhitesPostings'Opt m)
-  = maybe Seq.empty dWhitesPostings m
+  = fmap dWhitesPostings m
 
 dTopLineMaybePostings
   :: TopLineMaybePostings Char Loc
-  -> (NonEmpty Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
-dTopLineMaybePostings (TopLineMaybePostings t w)
-  = (dTopLine t, dWhitesPostings'Opt w)
+  -> (Loc, NonEmpty Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+dTopLineMaybePostings tlp@(TopLineMaybePostings t w)
+  = (loc, dTopLine t, trips)
+  where
+    loc = snd . _front . t'TopLineMaybePostings $ tlp
+    trips = case dWhitesPostings'Opt w of
+      Nothing -> Seq.empty
+      Just (_, t) -> t
 
 dTransaction
   :: Transaction Char Loc
-  -> (Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+  -> (Loc, Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
 dTransaction x = case x of
   Transaction'TopLineMaybePostings t ->
-    Lens.over Lens._1 Pinchot.flatten $ dTopLineMaybePostings t
-  Transaction'Postings p ->
-    (\pairs -> (Seq.empty, pairs)) (dPostings p)
+    Lens.over Lens._2 Pinchot.flatten $ dTopLineMaybePostings t
+  Transaction'Postings p -> (loc, Seq.empty, trips)
+    where
+      (loc, trips) = dPostings p
 
 dFileItem
   :: FileItem Char Loc

@@ -1,8 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Penny.Fields where
 
-import Penny.Tree
-
 import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
 import Data.Text (Text)
@@ -11,7 +9,6 @@ import Data.Time (ZonedTime)
 data TopLineFields = TopLineFields
   { _date :: ZonedTime
   , _payee :: Maybe Text
-  , _topLineForest :: Seq Tree
   } deriving Show
 
 Lens.makeLenses ''TopLineFields

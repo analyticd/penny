@@ -15,6 +15,7 @@ import Penny.Colors
 import Penny.Converter
 import qualified Penny.Copper as Copper
 import Penny.Ents
+import Penny.Fields
 import Penny.Popularity
 import Penny.Price
 import Penny.Report
@@ -39,10 +40,10 @@ class Loader a where
   loadTransactions :: Seq a -> IO (Seq Price, Seq Transaction)
 
 data LoadScroll
-  = Preloaded (Seq Price) (Seq (Seq Tree, Balanced (Seq Tree)))
+  = Preloaded (Seq Price) (Seq (Seq Tree, Balanced PostingFields))
   | OpenFile String
 
-loadCopper :: String -> IO (Seq Price, Seq (Seq Tree, Balanced (Seq Tree)))
+loadCopper :: String -> IO (Seq Price, Seq (Seq Tree, Balanced PostingFields))
 loadCopper fn = do
   txt <- X.readFile fn
   case Copper.parseConvertProof (X.pack fn, txt) of

@@ -53,6 +53,7 @@ import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
 import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
 import Penny.Ents
+import Penny.Fields
 import Penny.NonEmpty
 import Penny.Price
 import Penny.Realm
@@ -154,7 +155,7 @@ instance Exception ParseConvertProofError
 parseConvertProof
   :: (Filename, Text)
   -> Either ParseConvertProofError
-            (Seq Price, Seq (Seq Tree, Balanced (Seq Tree)))
+            (Seq Price, Seq (Seq Tree, Balanced PostingFields))
 parseConvertProof (filename, txt) = do
   wholeFile <- either (Left . ParseConvertProofError filename . Left) Right
     $ runParser grammar txt

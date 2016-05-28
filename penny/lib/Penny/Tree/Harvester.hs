@@ -11,6 +11,7 @@ import Data.Foldable (toList)
 import Data.Maybe (listToMaybe, catMaybes)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Text (Text)
 
 -- | Run a pre-order search for the 'Tree' matching the given
 -- predicate.  Stops searching if a matching 'Tree' is found; if no
@@ -46,6 +47,17 @@ searchTopForest pd
   . catMaybes
   . fmap pd
   . toList
+
+-- | If the tree is a 'User' tree that has a scalar of 'SLabel' with
+-- the given text, returns the children.
+labeledTree :: Text -> Tree -> Maybe (Seq Tree)
+labeledTree txt tree = do
+  guard (_realm tree == User)
+  scalar <- _scalar tree
+  lbl <- Lens.preview _SLabel scalar
+  guard (lbl == txt)
+  return . _children $ tree
+
 
 -- | If the given 'Tree' has no children that are in the 'User' realm,
 -- returns the 'Scalar' of the 'Tree'.  Otherwise, returns 'Nothing'.

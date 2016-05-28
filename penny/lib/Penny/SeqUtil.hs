@@ -15,6 +15,8 @@ module Penny.SeqUtil
   , lefts
   , rights
   , partitionEithers
+  , yank
+  , yankSt
   , Groups(..)
   , groupEithers
   , filterM
@@ -22,6 +24,7 @@ module Penny.SeqUtil
   , singleSeq
   , convertHead
   , catMaybes
+  , isSingleton
 
   -- * Slices
   , Slice(..)
@@ -45,6 +48,7 @@ import Data.Monoid
 import Control.Monad (join)
 import Pinchot (NonEmpty)
 import qualified Pinchot
+import qualified Control.Monad.State as St
 
 filterM
   :: Monad m
@@ -130,6 +134,28 @@ partitionEithers = F.foldl' f (empty, empty)
     f (l, r) ei = case ei of
       Left a -> (l |> a, r)
       Right a -> (l, r |> a)
+
+-- | Finds the first item on which the given function returns Just.
+-- If found, returns the resulting Just, and the sequence with that
+-- single item removed.  Otherwise, returns Nothing.
+yank :: (a -> Maybe b) -> Seq a -> Maybe (b, Seq a)
+yank f = go empty
+  where
+    go acc sq = case viewl sq of
+      EmptyL -> Nothing
+      x :< xs -> case f x of
+        Nothing -> go (acc |> x) xs
+        Just a -> Just (a, acc <> xs)
+
+-- | Like 'yank' but runs in a state monad.
+yankSt :: St.MonadState (Seq a) m => (a -> Maybe b) -> m (Maybe b)
+yankSt f = do
+  st <- St.get
+  case yank f st of
+    Nothing -> return Nothing
+    Just (r, st') -> do
+      St.put st'
+      return (Just r)
 
 data Groups a b = Groups
   { _leaders :: Seq b
@@ -239,3 +265,11 @@ catMaybes = foldr f empty
     f e acc = case e of
       Nothing -> acc
       Just x -> x <| acc
+
+-- | If this 'Seq' has exactly one element, returns it.
+isSingleton :: Seq a -> Maybe a
+isSingleton xs = case viewl xs of
+  EmptyL -> Nothing
+  y :< ys -> case viewl ys of
+    EmptyL -> Just y
+    _ -> Nothing
