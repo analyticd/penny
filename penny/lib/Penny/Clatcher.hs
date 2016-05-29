@@ -20,6 +20,7 @@ import Penny.Popularity
 import Penny.Price
 import Penny.Report
 import Penny.Stream
+import qualified Penny.Transaction as Txn
 import Penny.Tree
 import Data.Monoid
 import Data.Typeable
@@ -37,13 +38,13 @@ data PennyError
 instance Exception PennyError
 
 class Loader a where
-  loadTransactions :: Seq a -> IO (Seq Price, Seq Transaction)
+  loadTransactions :: Seq a -> IO (Seq Price, Seq Txn.Transaction)
 
 data LoadScroll
-  = Preloaded (Seq Price) (Seq (Seq Tree, Balanced PostingFields))
+  = Preloaded (Seq Price) (Seq (Seq Tree, Seq Txn.Transaction))
   | OpenFile String
 
-loadCopper :: String -> IO (Seq Price, Seq (Seq Tree, Balanced PostingFields))
+loadCopper :: String -> IO (Seq Price, Seq Txn.Transaction)
 loadCopper fn = do
   txt <- X.readFile fn
   case Copper.parseConvertProof (X.pack fn, txt) of

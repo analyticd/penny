@@ -173,19 +173,22 @@ price pp = case makeFromTo (FromCy (_priceFrom pp)) (ToCy (_priceTo pp)) of
 proofItem
   :: Either (PriceParts Loc) TxnParts
   -- ^
-  -> Either ProofFail (Either Price Transaction)
+  -> V.AccValidation (NonEmpty ProofFail) (Either Price Transaction)
 proofItem x = case x of
-  Left p -> fmap Left (price p)
-  Right (_, topLine, pstgs) -> fmap mkTxn (balancedFromPostings pstgs)
+  Left p -> case price p of
+    Left e -> V.AccFailure (singleton e)
+    Right g -> V.AccSuccess (Left g)
+  Right (loc, topLine, pstgs) -> fmap Right $ Transaction <$> tlf <*> bal
     where
-      mkTxn bal = Right $ Transaction topLine bal
+      tlf = case getTopLineFields loc topLine of
+        Left e -> V.AccFailure (singleton e)
+        Right g -> V.AccSuccess g
+      bal = case balancedFromPostings pstgs of
+        Left e -> V.AccFailure (singleton e)
+        Right g -> V.AccSuccess g
 
 proofItems
   :: Seq (Either (PriceParts Loc) TxnParts)
   -- ^
   -> V.AccValidation (NonEmpty ProofFail) (Seq (Either Price Transaction))
-proofItems
-  = sequenceA
-  . fmap (Lens.view V._AccValidation)
-  . Lens.over (Lens.mapped . Lens._Left) NonEmpty.singleton
-  . fmap proofItem
+proofItems = traverse proofItem

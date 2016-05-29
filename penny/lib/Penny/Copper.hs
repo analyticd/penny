@@ -59,6 +59,7 @@ import Penny.Price
 import Penny.Realm
 import Penny.Scalar
 import Penny.SeqUtil
+import Penny.Transaction
 import Penny.Tree
 
 -- | Given an integer position in a text, obtain the Pinchot
@@ -154,16 +155,16 @@ instance Exception ParseConvertProofError
 -- Also, appends the filename tree to each transaction.
 parseConvertProof
   :: (Filename, Text)
-  -> Either ParseConvertProofError
-            (Seq Price, Seq (Seq Tree, Balanced PostingFields))
+  -> Either ParseConvertProofError (Seq Price, Seq Transaction)
 parseConvertProof (filename, txt) = do
   wholeFile <- either (Left . ParseConvertProofError filename . Left) Right
     $ runParser grammar txt
   let parts = dWholeFile wholeFile
-  items <- either (Left . ParseConvertProofError filename . Right)
-    Right . Lens.view V._Either . Proofer.proofItems
-    $ parts
-  return . partitionEithers . appendFilenameTrees filename $ items
+  items <- case Proofer.proofItems parts of
+    V.AccFailure e -> Left . ParseConvertProofError filename
+      . Right $ e
+    V.AccSuccess g -> Right g
+  return . partitionEithers $ items
   where
     grammar = fmap Productions.a'WholeFile EarleyGrammar.earleyGrammar
 
