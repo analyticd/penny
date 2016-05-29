@@ -15,9 +15,8 @@ import Penny.Commodity
 import Penny.Copper.Decopperize
 import Penny.Copper.PriceParts
 import Penny.Ents
-import Penny.Fields
+import qualified Penny.Fields as F
 import Penny.NonEmpty
-import qualified Penny.NonEmpty as NonEmpty
 import Penny.Price
 import Penny.Realm
 import Penny.Scalar
@@ -31,7 +30,6 @@ import qualified Control.Lens as Lens
 import Control.Monad (foldM, guard)
 import qualified Control.Monad.Trans.State as St
 import Data.Maybe (fromMaybe)
-import Data.Monoid ((<>))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
@@ -57,13 +55,13 @@ findPayee x = childlessUserTree x >>= Lens.preview _SText
 getTopLineFields
   :: Loc
   -> Seq Tree
-  -> Either ProofFail (TopLineFields, Seq Tree)
+  -> Either ProofFail (F.TopLineFields, Seq Tree)
 getTopLineFields loc forest = case mayTlf of
   Nothing -> Left (ProofFail loc UndatedTransaction)
   Just tlf -> Right tlf
   where
     ((mayPye, mayZt), forest') = St.runState k forest
-    mayTlf = fmap (\zt -> (TopLineFields zt mayPye, forest')) mayZt
+    mayTlf = fmap (\zt -> (F.TopLineFields zt mayPye, forest')) mayZt
     k = do
       mayDay <- yankSt findDay
       mayTime <- yankSt findTime
@@ -115,10 +113,10 @@ findTags t = do
   texts <- traverse (Lens.preview _SText) scalars
   nonEmpty texts
 
-getPostingFields :: Seq Tree -> (PostingFields, Seq Tree)
+getPostingFields :: Seq Tree -> (F.PostingFields, Seq Tree)
 getPostingFields = St.runState k
   where
-    k = PostingFields <$> yankSt findNumber
+    k = F.PostingFields <$> yankSt findNumber
       <*> yankSt findFlag
       <*> fmap (maybe Seq.empty seqFromNonEmpty) (yankSt findAccount)
       <*> yankSt findFitid
@@ -140,20 +138,22 @@ data ProofFail = ProofFail
 Lens.makeLenses ''ProofFail
 
 addPostingToEnts
-  :: Ents (PostingFields, Seq Tree)
+  :: Ents (Posting Loc)
   -> (Loc, Trio, Seq Tree)
-  -> Either ProofFail (Ents (PostingFields, Seq Tree))
+  -> Either ProofFail (Ents (Posting Loc))
 addPostingToEnts ents (pos, trio, trees)
   = case appendTrio ents trio of
       Left e -> Left (ProofFail pos (FailedToAddTrio e))
-      Right f -> Right $ f (getPostingFields trees)
+      Right f -> Right $ f (TopLineOrPosting pos anc fields)
+        where
+          (fields, anc) = getPostingFields trees
 
 -- | Creates an 'Balanced' from a sequence of postings.  If any single
 -- posting fails, returns a single error message.  If balancing
 -- fails, returns a single error message.
 balancedFromPostings
   :: Seq (Loc, Trio, Seq Tree)
-  -> Either ProofFail (Balanced (PostingFields, Seq Tree))
+  -> Either ProofFail (Balanced (Posting Loc))
 balancedFromPostings sq = case nonEmpty sq of
   Nothing -> return mempty
   Just ne@(NonEmpty (pos, _, _) _) -> case foldM addPostingToEnts mempty ne of
@@ -173,7 +173,7 @@ price pp = case makeFromTo (FromCy (_priceFrom pp)) (ToCy (_priceTo pp)) of
 proofItem
   :: Either (PriceParts Loc) TxnParts
   -- ^
-  -> V.AccValidation (NonEmpty ProofFail) (Either Price Transaction)
+  -> V.AccValidation (NonEmpty ProofFail) (Either Price (Transaction Loc))
 proofItem x = case x of
   Left p -> case price p of
     Left e -> V.AccFailure (singleton e)
@@ -182,7 +182,8 @@ proofItem x = case x of
     where
       tlf = case getTopLineFields loc topLine of
         Left e -> V.AccFailure (singleton e)
-        Right g -> V.AccSuccess g
+        Right (fields, aux) -> V.AccSuccess
+          (TopLineOrPosting loc aux fields)
       bal = case balancedFromPostings pstgs of
         Left e -> V.AccFailure (singleton e)
         Right g -> V.AccSuccess g
@@ -190,5 +191,5 @@ proofItem x = case x of
 proofItems
   :: Seq (Either (PriceParts Loc) TxnParts)
   -- ^
-  -> V.AccValidation (NonEmpty ProofFail) (Seq (Either Price Transaction))
+  -> V.AccValidation (NonEmpty ProofFail) (Seq (Either Price (Transaction Loc)))
 proofItems = traverse proofItem

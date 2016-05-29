@@ -4,7 +4,6 @@
 module Penny.Transaction where
 
 import Penny.Ents
-import Penny.Fields
 import Penny.Tree
 import qualified Penny.Fields as F
 

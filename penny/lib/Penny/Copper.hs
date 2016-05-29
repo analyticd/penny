@@ -52,8 +52,6 @@ import Penny.Copper.Decopperize
 import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
 import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
-import Penny.Ents
-import Penny.Fields
 import Penny.NonEmpty
 import Penny.Price
 import Penny.Realm
@@ -155,7 +153,7 @@ instance Exception ParseConvertProofError
 -- Also, appends the filename tree to each transaction.
 parseConvertProof
   :: (Filename, Text)
-  -> Either ParseConvertProofError (Seq Price, Seq Transaction)
+  -> Either ParseConvertProofError (Seq Price, Seq (Transaction Loc))
 parseConvertProof (filename, txt) = do
   wholeFile <- either (Left . ParseConvertProofError filename . Left) Right
     $ runParser grammar txt
