@@ -9,7 +9,6 @@ import qualified Penny.Scalar as Scalar
 import qualified Penny.NonZero as NZ
 import Penny.Polar
 import qualified Penny.Positive as Pos
-import Penny.Realm
 import Penny.Rep
 import Penny.SeqUtil
 

@@ -11,7 +11,6 @@ import Penny.Copper.Terminalizers
 import Penny.NonZero
 import Penny.NonNegative
 import Penny.Polar
-import Penny.Realm
 import Penny.Report
 import Penny.Scalar
 import Penny.SeqUtil

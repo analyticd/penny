@@ -24,7 +24,6 @@ import Penny.Polar (Pole)
 import qualified Penny.Polar as P
 import Penny.Popularity
 import Penny.Qty
-import Penny.Realm
 import Penny.Report
 import Penny.Rep
 import Penny.Scalar
