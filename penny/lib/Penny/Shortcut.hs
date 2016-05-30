@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Shortcut where
 
+{-
+
 import Penny.Clatch
 import Penny.Scalar
 import Penny.Tree
@@ -152,3 +154,4 @@ line = to f
           guard $ Seq.null cs
           childSc <- view scalar c1
           preview _SInteger childSc
+-}

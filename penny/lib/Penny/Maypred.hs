@@ -1,6 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 module Penny.Maypred where
 
+{-
+
 import Control.Lens (to, Getter, view)
 import Data.Time (fromGregorian)
 
@@ -43,3 +45,4 @@ onOrAfter yr mo day = gtEq date (fromGregorian yr mo day)
 
 onOrBefore :: Integer -> Int -> Int -> Getter (Transaction, a) Bool
 onOrBefore yr mo day = ltEq date (fromGregorian yr mo day)
+-}

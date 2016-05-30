@@ -1,6 +1,9 @@
 {-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
 
+module Penny.BalanceCheck where
+
+{-
 module Penny.BalanceCheck (checkBalances) where
 
 import Control.Lens (view, unsnoc, to, _2)
@@ -97,3 +100,4 @@ lookForBalanceItem (cy, sig, exptInt) (rest, Balance balMap)
         bal <- maybeBal
         expt <- c'NonNegative'Integer exptInt
         return $ Exponential sig expt @=? bal
+-}

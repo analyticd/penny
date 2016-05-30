@@ -1,5 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
-module Penny.Ord
+module Penny.Ord where
+
+{-
   ( comparing
   , Down
   , down
@@ -26,3 +28,4 @@ comparing getter pa pb
 -- >>> penny $ open "myfile" <> register <> sort (comparing (date . down))
 down :: (Profunctor p, Contravariant f) => Optic' p f a (Down a)
 down = to Down
+-}

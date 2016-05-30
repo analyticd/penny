@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Penny.Dump where
 
+{-
+
 import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
@@ -185,3 +187,4 @@ instance Report Dump where
     . pack
     . render
     . pretty
+-}

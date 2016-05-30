@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.BalanceReport where
 
+{-
+
 import Control.Lens (view, (<|), to)
 import Control.Monad (join)
 import Data.Foldable (toList)
@@ -137,3 +139,4 @@ formatTableRow lvl lbl env (Balance mp)
     qty = Cell (qtyRows env mp) top right bkgd
     commodity = Cell (commodityRows env mp) top left bkgd
     label = Cell (labelRows lvl lbl env) top left bkgd
+-}

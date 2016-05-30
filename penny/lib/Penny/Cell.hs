@@ -5,6 +5,10 @@
 -- reports, such as both the reports in "Penny.Columns" and in
 -- "Penny.BalanceReport".
 
+module Penny.Cell where
+
+{-
+
 module Penny.Cell
   ( Env(Env, _rowBackground, _history, _colors)
   , rowBackground
@@ -208,3 +212,4 @@ qtyMagnitudeCell env mayCy
       . selectGrouper
       . Penny.Popularity.groupers (env ^. history)
       $ mayCy
+-}

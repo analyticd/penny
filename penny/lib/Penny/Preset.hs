@@ -1,5 +1,7 @@
 module Penny.Preset where
 
+{-
+
 import Control.Lens (set)
 import qualified Data.Sequence as Seq
 import Penny.Clatch
@@ -56,3 +58,4 @@ dump = set report (Seq.singleton Dump) coless
 -- | Sends the 'BalanceReport' report colored to @less@.
 totals :: Clatcher BalanceReport l
 totals = set report (Seq.singleton BalanceReport) coless
+-}

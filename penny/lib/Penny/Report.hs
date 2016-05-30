@@ -1,5 +1,7 @@
 module Penny.Report where
 
+{-
+
 import Data.Sequence (Seq)
 import Data.Text (Text)
 import Penny.Clatch
@@ -20,3 +22,4 @@ class Report a where
     -- ^ Sequence of 'Clatch' for which to prepare a report
     -> Seq (Chunk Text)
     -- ^ The resulting report
+-}

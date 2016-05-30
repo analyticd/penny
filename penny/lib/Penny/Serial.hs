@@ -19,12 +19,26 @@ data Serset = Serset
 
 makeLenses ''Serset
 
+data Sersetted a = Sersetted
+  { _serset :: Serset
+  , _sersetee :: a
+  }
+
+makeLenses ''Sersetted
+
 data Serpack = Serpack
   { _file :: Serset
   , _global :: Serset
   } deriving (Eq, Ord, Show)
 
 makeLenses ''Serpack
+
+data Serpacked a = Serpacked
+  { _serpack :: Serpack
+  , _serpackee :: a
+  }
+
+makeLenses ''Serpacked
 
 assignSersetted :: T.Traversable t => t a -> t (Serset, a)
 assignSersetted t = flip evalState zero $ do

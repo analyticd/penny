@@ -136,13 +136,13 @@ data ProofFail = ProofFail
 Lens.makeLenses ''ProofFail
 
 addPostingToEnts
-  :: Ents (Posting Loc)
+  :: Ents (Postline Loc)
   -> (Loc, Trio, Seq Tree)
-  -> Either ProofFail (Ents (Posting Loc))
+  -> Either ProofFail (Ents (Postline Loc))
 addPostingToEnts ents (pos, trio, trees)
   = case appendTrio ents trio of
       Left e -> Left (ProofFail pos (FailedToAddTrio e))
-      Right f -> Right $ f (TopLineOrPosting pos anc fields)
+      Right f -> Right $ f (TopLineOrPostline pos anc fields)
         where
           (fields, anc) = getPostingFields trees
 
@@ -151,7 +151,7 @@ addPostingToEnts ents (pos, trio, trees)
 -- fails, returns a single error message.
 balancedFromPostings
   :: Seq (Loc, Trio, Seq Tree)
-  -> Either ProofFail (Balanced (Posting Loc))
+  -> Either ProofFail (Balanced (Postline Loc))
 balancedFromPostings sq = case nonEmpty sq of
   Nothing -> return mempty
   Just ne@(NonEmpty (pos, _, _) _) -> case foldM addPostingToEnts mempty ne of
@@ -181,7 +181,7 @@ proofItem x = case x of
       tlf = case getTopLineFields loc topLine of
         Left e -> V.AccFailure (singleton e)
         Right (fields, aux) -> V.AccSuccess
-          (TopLineOrPosting loc aux fields)
+          (TopLineOrPostline loc aux fields)
       bal = case balancedFromPostings pstgs of
         Left e -> V.AccFailure (singleton e)
         Right g -> V.AccSuccess g

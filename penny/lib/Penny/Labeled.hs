@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Penny.Labeled where
 
+{-
+
 import Control.Applicative
 import Control.Lens hiding (children)
 import Control.Monad (guard)
@@ -29,3 +31,4 @@ payee sliced = do
   scalars <- sequence . fmap childlessUserTree $ trees
   scalar <- singleSeq scalars
   preview _SText scalar
+-}

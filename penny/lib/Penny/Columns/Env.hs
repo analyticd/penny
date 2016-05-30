@@ -2,6 +2,8 @@
 
 module Penny.Columns.Env where
 
+{-
+
 import Control.Lens (makeLenses)
 
 import Penny.Clatch
@@ -15,3 +17,4 @@ data Env = Env
   }
 
 makeLenses ''Env
+-}

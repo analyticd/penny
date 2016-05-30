@@ -2,6 +2,8 @@
 
 module Penny.Command where
 
+{-
+
 import Penny.Amount
 import Penny.Commodity
 import Penny.Clatch
@@ -122,3 +124,4 @@ infixr 3 &&&
 (|||) :: Getter a Bool -> Getter a Bool -> Getter a Bool
 l ||| r = to $ \a -> view l a || view r a
 infixr 2 |||
+-}

@@ -13,32 +13,32 @@ import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import Data.Time (ZonedTime)
 
-data TopLineOrPosting b a = TopLineOrPosting
+data TopLineOrPostline b a = TopLineOrPostline
   { _location :: a
   , _ancillary :: Seq Tree
   , _fields :: b
   } deriving (Functor, Foldable, Traversable)
 
-emptyTopLineOrPosting :: b -> TopLineOrPosting b ()
-emptyTopLineOrPosting = TopLineOrPosting () Seq.empty
+emptyTopLineOrPostline :: b -> TopLineOrPostline b ()
+emptyTopLineOrPostline = TopLineOrPostline () Seq.empty
 
-Lens.makeLenses ''TopLineOrPosting
+Lens.makeLenses ''TopLineOrPostline
 
-type Posting a = TopLineOrPosting F.PostingFields a
-type TopLine a = TopLineOrPosting F.TopLineFields a
+type Postline a = TopLineOrPostline F.PostingFields a
+type TopLine a = TopLineOrPostline F.TopLineFields a
 
 data Transaction a = Transaction
   { _topLine :: TopLine a
-  , _postings :: Balanced (Posting a)
+  , _postings :: Balanced (Postline a)
   }
 
 Lens.makeLenses ''Transaction
 
 emptyTopLine :: ZonedTime -> TopLine ()
-emptyTopLine zt = emptyTopLineOrPosting (F.emptyTopLineFields zt)
+emptyTopLine zt = emptyTopLineOrPostline (F.emptyTopLineFields zt)
 
-emptyPosting :: Posting ()
-emptyPosting = emptyTopLineOrPosting F.emptyPostingFields
+emptyPostline :: Postline ()
+emptyPostline = emptyTopLineOrPostline F.emptyPostingFields
 
 date :: forall a. Lens.Lens' (TopLine a) ZonedTime
 date = fields . F.date
@@ -46,17 +46,17 @@ date = fields . F.date
 payee :: forall a. Lens.Lens' (TopLine a) (Maybe Text)
 payee = fields . F.payee
 
-number :: forall a. Lens.Lens' (Posting a) (Maybe Integer)
+number :: forall a. Lens.Lens' (Postline a) (Maybe Integer)
 number = fields . F.number
 
-flag :: forall a . Lens.Lens' (Posting a) (Maybe Text)
+flag :: forall a . Lens.Lens' (Postline a) (Maybe Text)
 flag = fields . F.flag
 
-account :: forall a. Lens.Lens' (Posting a) (Seq Text)
+account :: forall a. Lens.Lens' (Postline a) (Seq Text)
 account = fields . F.account
 
-fitid :: forall a. Lens.Lens' (Posting a) (Maybe Text)
+fitid :: forall a. Lens.Lens' (Postline a) (Maybe Text)
 fitid = fields . F.fitid
 
-tags :: forall a. Lens.Lens' (Posting a) (Seq Text)
+tags :: forall a. Lens.Lens' (Postline a) (Seq Text)
 tags = fields . F.tags

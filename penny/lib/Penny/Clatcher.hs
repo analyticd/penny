@@ -4,6 +4,8 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 module Penny.Clatcher where
 
+{-
+
 import Control.Lens hiding (pre)
 import Control.Exception
 import Data.Bifunctor
@@ -186,4 +188,4 @@ clatcher opts = do
   let rpt = getReport opts items
   runStreams rpt (view output opts)
   return rpt
-
+-}

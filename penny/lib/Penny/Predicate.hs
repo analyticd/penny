@@ -1,6 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 module Penny.Predicate where
 
+{-
+
 import Control.Lens (to, Getter)
 import Data.Monoid.Cancellative (isPrefixOf, isSuffixOf)
 import Data.Sequence (Seq)
@@ -29,3 +31,4 @@ accountInfix a = account . to f
       | otherwise = f end
       where
         (beginning, end) = Seq.splitAt (Seq.length a) target
+-}

@@ -1,4 +1,5 @@
 module Penny.Popularity where
+{-
 
 import Control.Lens
 import qualified Control.Lens as Lens
@@ -145,3 +146,4 @@ orientation (History hist) mayCom = fromMaybe CommodityOnRight
       . arrangements
       . History
       $ hist
+-}

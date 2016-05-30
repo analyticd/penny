@@ -2,7 +2,9 @@
 {-# LANGUAGE RankNTypes #-}
 
 -- | Types that group a posting with other interesting information.
-module Penny.Clatch
+module Penny.Clatch where
+
+{-
   ( -- * Postings
     Core(..)
   , troika
@@ -407,3 +409,4 @@ clatchesFromTransactions converter pConverted sorter pTotaled
   . fmap (createConverted converter)
   . join
   . fmap createViewposts
+-}

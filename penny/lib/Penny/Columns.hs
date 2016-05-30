@@ -9,6 +9,8 @@
 
 module Penny.Columns where
 
+{-
+
 import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
@@ -459,3 +461,4 @@ instance Colable (Seq Scalar) where
           txt = foldl (<>) mempty
             . intersperse "•" . fmap (X.pack . ($ "") . display)
             . view f $ clatch
+-}
