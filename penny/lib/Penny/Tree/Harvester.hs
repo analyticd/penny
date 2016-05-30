@@ -1,7 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Penny.Tree.Harvester where
 
-import Penny.Realm
 import Penny.Scalar
 import Penny.Tree
 
@@ -52,7 +51,6 @@ searchTopForest pd
 -- the given text, returns the children.
 labeledTree :: Text -> Tree -> Maybe (Seq Tree)
 labeledTree txt tree = do
-  guard (_realm tree == User)
   scalar <- _scalar tree
   lbl <- Lens.preview _SLabel scalar
   guard (lbl == txt)
@@ -63,17 +61,14 @@ labeledTree txt tree = do
 -- returns the 'Scalar' of the 'Tree'.  Otherwise, returns 'Nothing'.
 childlessUserTree :: Tree -> Maybe Scalar
 childlessUserTree tree = do
-  guard (Lens.view realm tree == User)
-  guard (Seq.null . Seq.filter ((== User) . Lens.view realm)
-    . Lens.view children $ tree)
+  guard (Seq.null . Lens.view children $ tree)
   Lens.view scalar tree
 
 -- | Returns True if the given Tree is a User tree and if it has at
 -- least one child that is a User tree.
 userTreeHasChild :: Tree -> Bool
 userTreeHasChild tree
-  = Lens.view realm tree == User
-  && (not . Seq.null . Seq.filter ((== User) . Lens.view realm) . _children $ tree)
+  = (not . Seq.null . _children $ tree)
 
 data Grove = Grove
   { _topLineForest :: Seq Tree

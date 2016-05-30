@@ -120,31 +120,29 @@ scalar sc = case sc of
 tree
   :: Tree.Tree
   -> AccValidation (NonEmpty ScalarError) (Maybe (Tree Char ()))
-tree (Tree.Tree r s cs)
-  | r == System = AccSuccess Nothing
-  | otherwise = case s of
-      Nothing -> case forest cs of
-        AccFailure e -> AccFailure e
-        AccSuccess mayForest -> case mayForest of
-          Nothing -> AccSuccess Nothing
-          Just forest -> AccSuccess . Just . Tree'ForestMaybeScalar
-            $ ForestMaybeScalar
-            (BracketedForest cOpenSquare mempty forest mempty cCloseSquare)
-            (WhitesScalar'Opt Nothing)
+tree (Tree.Tree s cs) = case s of
+  Nothing -> case forest cs of
+    AccFailure e -> AccFailure e
+    AccSuccess mayForest -> case mayForest of
+      Nothing -> AccSuccess Nothing
+      Just forest -> AccSuccess . Just . Tree'ForestMaybeScalar
+        $ ForestMaybeScalar
+        (BracketedForest cOpenSquare mempty forest mempty cCloseSquare)
+        (WhitesScalar'Opt Nothing)
 
-      Just sc -> f <$> toAcc (scalar sc) <*> forest cs
-        where
-          toAcc = either (AccFailure . Pinchot.singleton) AccSuccess
-          f scalar mayForest = case mayForest of
-            Nothing -> Just . Tree'ScalarMaybeForest
-              $ ScalarMaybeForest scalar (WhitesBracketedForest'Opt Nothing)
-            Just forest ->
-              Just . Tree'ScalarMaybeForest
-              $ ScalarMaybeForest scalar
-                  (WhitesBracketedForest'Opt
-                    (Just (WhitesBracketedForest mempty
-                      (BracketedForest cOpenSquare
-                        mempty forest mempty cCloseSquare))))
+  Just sc -> f <$> toAcc (scalar sc) <*> forest cs
+    where
+      toAcc = either (AccFailure . Pinchot.singleton) AccSuccess
+      f scalar mayForest = case mayForest of
+        Nothing -> Just . Tree'ScalarMaybeForest
+          $ ScalarMaybeForest scalar (WhitesBracketedForest'Opt Nothing)
+        Just forest ->
+          Just . Tree'ScalarMaybeForest
+          $ ScalarMaybeForest scalar
+              (WhitesBracketedForest'Opt
+                (Just (WhitesBracketedForest mempty
+                  (BracketedForest cOpenSquare
+                    mempty forest mempty cCloseSquare))))
 
 
 forest

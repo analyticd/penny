@@ -2,7 +2,6 @@
 module Penny.Shortcut where
 
 import Penny.Clatch
-import Penny.Realm
 import Penny.Scalar
 import Penny.Tree
 import Penny.Tree.Harvester
@@ -41,7 +40,6 @@ account :: Getter (Sliced a) (Seq Text)
 account = to $ fromMaybe Seq.empty . searchTopForest pd . view (posting . trees)
   where
     pd tree = do
-      guard (view realm tree == User)
       guard (view (scalar . to isNothing) tree)
       accts <- sequence . fmap childlessUserTree . view children $ tree
       sequence . fmap (preview _SText) $ accts
@@ -54,9 +52,9 @@ accountTree
   -> Seq Text
   -- ^ Remaining sub-accounts
   -> Tree
-accountTree c1 sq = Tree User Nothing (mkChild c1 <| fmap mkChild sq)
+accountTree c1 sq = Tree Nothing (mkChild c1 <| fmap mkChild sq)
   where
-    mkChild txt = Tree User (Just (SText txt)) Seq.empty
+    mkChild txt = Tree (Just (SText txt)) Seq.empty
 
 -- | Looks for tags by looking in the top line for the first tree
 -- whose root node is empty and that has a non-empty list of children.
@@ -147,12 +145,10 @@ line = to f
     f = forestPreOrder pd . view (posting . trees)
       where
         pd tree = do
-          guard $ view realm tree == System
           sc <- view scalar tree
           txt <- preview _SText sc
           guard $ txt == "line"
           (c1, cs) <- uncons (view children tree)
           guard $ Seq.null cs
-          guard $ view realm c1 == System
           childSc <- view scalar c1
           preview _SInteger childSc

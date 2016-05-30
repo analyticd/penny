@@ -39,7 +39,6 @@ import qualified Penny.NonZero as NZ
 import Penny.Polar
 import Penny.Positive (Positive)
 import qualified Penny.Positive as Pos
-import Penny.Realm
 import Penny.Rep
 import qualified Penny.Scalar as Scalar
 import Penny.SeqUtil (mapMaybe, catMaybes)
@@ -621,24 +620,24 @@ dWhitesScalar'Opt :: WhitesScalar'Opt Char a -> Maybe Scalar.Scalar
 dWhitesScalar'Opt (WhitesScalar'Opt m) = fmap dWhitesScalar m
 
 locToTree :: Loc -> Tree.Tree
-locToTree l = Tree.Tree System scalarLoc . Seq.fromList $
+locToTree l = Tree.Tree scalarLoc . Seq.fromList $
   [ intTree "line" (Pinchot._line l)
   , intTree "column" (Pinchot._col l)
   , intTree "position" (Pinchot._pos l)
   ]
   where
     scalarLoc = Just $ Scalar.SText "location"
-    intTree txt int = Tree.Tree System scalarTxt . Seq.singleton $ treeInt
+    intTree txt int = Tree.Tree scalarTxt . Seq.singleton $ treeInt
       where
         scalarTxt = Just $ Scalar.SText txt
-        treeInt = Tree.Tree System
+        treeInt = Tree.Tree
           (Just $ Scalar.SInteger (fromIntegral int)) Seq.empty
 
 dNextTree :: NextTree Char Loc -> Tree.Tree
 dNextTree (NextTree _ _ _ t) = dTree t
 
 dTree :: Tree Char Loc -> Tree.Tree
-dTree x = Tree.Tree User sc (loc `Lens.cons` children)
+dTree x = Tree.Tree sc (loc `Lens.cons` children)
   where
     loc = locToTree . snd . Pinchot._front . t'Tree $ x
     (sc, children) = case x of

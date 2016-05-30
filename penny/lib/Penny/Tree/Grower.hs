@@ -5,7 +5,6 @@ module Penny.Tree.Grower where
 
 import Penny.Tree
 import Penny.Scalar
-import Penny.Realm
 
 import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
@@ -15,15 +14,15 @@ import qualified Data.Text as X
 
 -- | Creates a single user tree with no children.
 bachelor :: Scalar -> Tree
-bachelor s = Tree User (Just s) Seq.empty
+bachelor s = Tree (Just s) Seq.empty
 
 -- | Creates a User tree with the given children.
 family :: Scalar -> Seq Tree -> Tree
-family s cs = Tree User (Just s) cs
+family s cs = Tree (Just s) cs
 
 -- | Creates a User tree with no 'Scalar' and the given children.
 orphans :: Seq Tree -> Tree
-orphans = Tree User Nothing
+orphans = Tree Nothing
 
 -- | If the payee name is not empty and does not start with an open
 -- parenthesis, creates a tree whose root node is the payee name.

@@ -54,8 +54,7 @@ indent = nest 4
 
 instance Pretty Tree where
   pretty tree = vcat
-    [ label "realm" (pretty . _realm $ tree)
-    , label "scalar" (pretty . _scalar $ tree)
+    [ label "scalar" (pretty . _scalar $ tree)
     , label "children"
       (vcat . toList . fmap pretty . _children $ tree)
     ]

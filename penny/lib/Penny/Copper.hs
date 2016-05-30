@@ -54,7 +54,6 @@ import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
 import Penny.NonEmpty
 import Penny.Price
-import Penny.Realm
 import Penny.Scalar
 import Penny.SeqUtil
 import Penny.Transaction
@@ -127,8 +126,8 @@ runParser grammar txt = case results of
 
 -- | Creates a 'Tree' holding the filename.
 filenameTree :: Filename -> Tree
-filenameTree name = Tree System (Just (SText "filename"))
-  [ Tree System (Just (SText name)) [] ]
+filenameTree name = Tree (Just (SText "filename"))
+  [ Tree (Just (SText name)) [] ]
 
 -- | Given the results of a parse, append a filename tree to each
 -- transaction.

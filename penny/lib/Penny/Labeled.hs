@@ -9,7 +9,6 @@ import Penny.Tree
 import Penny.Tree.Harvester
 import Data.Sequence (Seq)
 import Penny.Scalar
-import Penny.Realm
 import Data.Text (Text)
 import Penny.SeqUtil
 
@@ -19,7 +18,6 @@ labeled name slice = search posting <|> search transaction
     search lens = searchTopForest pd (view (lens . trees) slice)
       where
         pd tree = do
-          guard (view realm tree == User)
           sc <- view scalar tree
           subject <- preview _SText sc
           guard (name == subject)

@@ -18,7 +18,6 @@ import Penny.Ents
 import qualified Penny.Fields as F
 import Penny.NonEmpty
 import Penny.Price
-import Penny.Realm
 import Penny.Scalar
 import Penny.SeqUtil
 import Penny.Transaction
@@ -27,7 +26,7 @@ import Penny.Tree
 import Penny.Tree.Harvester
 
 import qualified Control.Lens as Lens
-import Control.Monad (foldM, guard)
+import Control.Monad (foldM)
 import qualified Control.Monad.Trans.State as St
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq)
@@ -88,7 +87,6 @@ findFlag = findPayee
 -- one child User tree, return those scalars.
 findAccount :: Tree -> Maybe (NonEmpty Text)
 findAccount t = do
-  guard (_realm t == User)
   scalars <- traverse childlessUserTree . _children $ t
   texts <- traverse (Lens.preview _SText) scalars
   nonEmpty texts
