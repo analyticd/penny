@@ -20,7 +20,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as X
-import Data.Validation (AccValidation(AccFailure, AccSuccess))
+import Accuerr (Accuerr(AccFailure, AccSuccess))
 import qualified Pinchot
 import Pinchot (NonEmpty)
 import Text.Earley (Prod, Grammar)
@@ -354,7 +354,7 @@ cCommentChar c = Lens.preview _CommentChar (c, ())
 -- 'Left' with the bad character.
 cCommentChar'Star
   :: Text
-  -> AccValidation (NonEmpty Char) (CommentChar'Star Char ())
+  -> Accuerr (NonEmpty Char) (CommentChar'Star Char ())
 cCommentChar'Star
   = fmap CommentChar'Star . traverse f . Seq.fromList . X.unpack
   where
@@ -362,7 +362,7 @@ cCommentChar'Star
       Nothing -> AccFailure . Pinchot.singleton $ c
       Just r -> AccSuccess r
 
-cComment :: Text -> AccValidation (NonEmpty Char) (Comment Char ())
+cComment :: Text -> Accuerr (NonEmpty Char) (Comment Char ())
 cComment txt
   = Comment
   <$> pure cHash
@@ -481,7 +481,7 @@ repDigitsRadPer
   -- ^ Significand
   -> NonNegative
   -- ^ Exponent
-  -> BrimUngroupedRadPer Char () 
+  -> BrimUngroupedRadPer Char ()
 repDigitsRadPer (d1, dr) expt
   = case NN.diff (NN.next $ NN.length dr) expt of
       NN.Equal -> BULessThanOneRadPer (Zero'Opt $ Just cZero)

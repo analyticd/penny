@@ -43,7 +43,7 @@ import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Typeable (Typeable)
-import qualified Data.Validation as V
+import qualified Accuerr
 import qualified Text.Earley as Earley
 import Pinchot (Loc(Loc))
 import qualified Pinchot
@@ -158,9 +158,9 @@ parseConvertProof (filename, txt) = do
     $ runParser grammar txt
   let parts = dWholeFile wholeFile
   items <- case Proofer.proofItems parts of
-    V.AccFailure e -> Left . ParseConvertProofError filename
+    Accuerr.AccFailure e -> Left . ParseConvertProofError filename
       . Right $ e
-    V.AccSuccess g -> Right g
+    Accuerr.AccSuccess g -> Right g
   return . partitionEithers $ items
   where
     grammar = fmap Productions.a'WholeFile EarleyGrammar.earleyGrammar

@@ -7,7 +7,5 @@ packages:
 - 'penny-copper/'
 
 extra-deps:
-- accuerr-0.2.0.0
-- pipes-cliff-0.10.0.4
 
-resolver: nightly-2016-06-11
+resolver: nightly-2016-06-12

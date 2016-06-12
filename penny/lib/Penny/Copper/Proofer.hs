@@ -20,6 +20,7 @@ import Penny.NonEmpty
 import Penny.Price
 import Penny.Scalar
 import Penny.SeqUtil
+import Penny.Tranche
 import Penny.Transaction
 import Penny.Trio
 import Penny.Tree
@@ -33,7 +34,8 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Time as Time
-import qualified Data.Validation as V
+import Accuerr (Accuerr)
+import qualified Accuerr
 import Pinchot (Loc)
 
 findDay
@@ -142,7 +144,7 @@ addPostingToEnts
 addPostingToEnts ents (pos, trio, trees)
   = case appendTrio ents trio of
       Left e -> Left (ProofFail pos (FailedToAddTrio e))
-      Right f -> Right $ f (TopLineOrPostline pos anc fields)
+      Right f -> Right $ f (Tranche pos anc fields)
         where
           (fields, anc) = getPostingFields trees
 
@@ -171,23 +173,23 @@ price pp = case makeFromTo (FromCy (_priceFrom pp)) (ToCy (_priceTo pp)) of
 proofItem
   :: Either (PriceParts Loc) TxnParts
   -- ^
-  -> V.AccValidation (NonEmpty ProofFail) (Either Price (Transaction Loc))
+  -> Accuerr (NonEmpty ProofFail) (Either Price (Transaction Loc))
 proofItem x = case x of
   Left p -> case price p of
-    Left e -> V.AccFailure (singleton e)
-    Right g -> V.AccSuccess (Left g)
+    Left e -> Accuerr.AccFailure (singleton e)
+    Right g -> Accuerr.AccSuccess (Left g)
   Right (loc, topLine, pstgs) -> fmap Right $ Transaction <$> tlf <*> bal
     where
       tlf = case getTopLineFields loc topLine of
-        Left e -> V.AccFailure (singleton e)
-        Right (fields, aux) -> V.AccSuccess
-          (TopLineOrPostline loc aux fields)
+        Left e -> Accuerr.AccFailure (singleton e)
+        Right (fields, aux) -> Accuerr.AccSuccess
+          (Tranche loc aux fields)
       bal = case balancedFromPostings pstgs of
-        Left e -> V.AccFailure (singleton e)
-        Right g -> V.AccSuccess g
+        Left e -> Accuerr.AccFailure (singleton e)
+        Right g -> Accuerr.AccSuccess g
 
 proofItems
   :: Seq (Either (PriceParts Loc) TxnParts)
   -- ^
-  -> V.AccValidation (NonEmpty ProofFail) (Seq (Either Price (Transaction Loc)))
+  -> Accuerr (NonEmpty ProofFail) (Seq (Either Price (Transaction Loc)))
 proofItems = traverse proofItem

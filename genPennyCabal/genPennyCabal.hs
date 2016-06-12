@@ -11,7 +11,7 @@ atleast n v = package n (gtEq v)
 -- Packages
 
 base :: Package
-base = closedOpen "base" [4,8,0,0] [4,9]
+base = closedOpen "base" [4,9,0,0] [5]
 
 anonymousSums :: Package
 anonymousSums = atleast "anonymous-sums" [0,4,0,0]

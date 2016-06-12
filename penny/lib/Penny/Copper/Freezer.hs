@@ -15,8 +15,8 @@ import Penny.SeqUtil
 import qualified Control.Lens as Lens
 import Control.Monad ((>=>), join)
 import Data.Semigroup (Semigroup((<>)))
-import Data.Validation (AccValidation(AccFailure, AccSuccess), _Failure,
-  _AccValidation)
+import Accuerr (Accuerr)
+import qualified Accuerr
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Time (Day, TimeOfDay)
@@ -30,7 +30,7 @@ import qualified Pinchot
 
 comment
   :: Text
-  -> AccValidation (NonEmpty Char) (Comment Char ())
+  -> Accuerr (NonEmpty Char) (Comment Char ())
 comment = cComment
 
 -- # Scalars
@@ -98,7 +98,7 @@ scalar sc = case sc of
     Right qs -> Scalar'QuotedString qs
   Scalar.SLabel txt -> case text txt of
     Left us -> Right . Scalar'Label . Label cApostrophe $ us
-    Right qs -> Left $ InvalidLabel txt
+    Right _ -> Left $ InvalidLabel txt
   Scalar.SDay dy -> case day dy of
     Nothing -> Left $ InvalidDay dy
     Just dt -> Right $ Scalar'Date dt
@@ -118,20 +118,20 @@ scalar sc = case sc of
 -- children.
 tree
   :: Tree.Tree
-  -> AccValidation (NonEmpty ScalarError) (Maybe (Tree Char ()))
+  -> Accuerr (NonEmpty ScalarError) (Maybe (Tree Char ()))
 tree (Tree.Tree s cs) = case s of
   Nothing -> case forest cs of
-    AccFailure e -> AccFailure e
-    AccSuccess mayForest -> case mayForest of
-      Nothing -> AccSuccess Nothing
-      Just forest -> AccSuccess . Just . Tree'ForestMaybeScalar
+    Accuerr.AccFailure e -> Accuerr.AccFailure e
+    Accuerr.AccSuccess mayForest -> case mayForest of
+      Nothing -> Accuerr.AccSuccess Nothing
+      Just forest -> Accuerr.AccSuccess . Just . Tree'ForestMaybeScalar
         $ ForestMaybeScalar
         (BracketedForest cOpenSquare mempty forest mempty cCloseSquare)
         (WhitesScalar'Opt Nothing)
 
   Just sc -> f <$> toAcc (scalar sc) <*> forest cs
     where
-      toAcc = either (AccFailure . Pinchot.singleton) AccSuccess
+      toAcc = either (Accuerr.AccFailure . Pinchot.singleton) Accuerr.AccSuccess
       f scalar mayForest = case mayForest of
         Nothing -> Just . Tree'ScalarMaybeForest
           $ ScalarMaybeForest scalar (WhitesBracketedForest'Opt Nothing)
@@ -146,7 +146,7 @@ tree (Tree.Tree s cs) = case s of
 
 forest
   :: Seq Tree.Tree
-  -> AccValidation (NonEmpty ScalarError) (Maybe (Forest Char ()))
+  -> Accuerr (NonEmpty ScalarError) (Maybe (Forest Char ()))
 forest ts = f <$> traverse tree ts
   where
     f sq = case Pinchot.seqToNonEmpty (catMaybes sq) of
@@ -238,7 +238,7 @@ data TracompriError
 
 tracompri
   :: Tracompri
-  -> AccValidation (NonEmpty TracompriError)
+  -> Accuerr (NonEmpty TracompriError)
                    (Maybe (FileItem Char ()))
 tracompri x = case x of
   Tracompri'Transaction t -> fmap f (tracompriTransaction t)
@@ -255,24 +255,24 @@ tracompri x = case x of
 
 tracompriPrice
   :: PriceParts ()
-  -> AccValidation (NonEmpty TracompriError) (Price Char ())
+  -> Accuerr (NonEmpty TracompriError) (Price Char ())
 tracompriPrice p
-  = Lens.over _Failure (Pinchot.singleton . TracompriBadPrice p)
-  . Lens.view _AccValidation
+  = Lens.over Accuerr._AccFailure (Pinchot.singleton . TracompriBadPrice p)
+  . Lens.view Accuerr.isoEitherAccuerr
   . price
   $ p
 
 tracompriComment
   :: Text
-  -> AccValidation (NonEmpty TracompriError) (Comment Char ())
+  -> Accuerr (NonEmpty TracompriError) (Comment Char ())
 tracompriComment txt
-  = Lens.over _Failure (Pinchot.singleton . TracompriBadComment txt)
+  = Lens.over Accuerr._AccFailure (Pinchot.singleton . TracompriBadComment txt)
   . comment
   $ txt
 
 tracompriTransaction
   :: TxnParts
-  -> AccValidation (NonEmpty TracompriError) (Maybe (Transaction Char ()))
+  -> Accuerr (NonEmpty TracompriError) (Maybe (Transaction Char ()))
 tracompriTransaction parts
   = f
   <$> tracompriTopLine parts
@@ -297,11 +297,11 @@ tracompriTransaction parts
 
 tracompriTopLine
   :: TxnParts
-  -> AccValidation (NonEmpty TracompriError) (Maybe (TopLine Char ()))
+  -> Accuerr (NonEmpty TracompriError) (Maybe (TopLine Char ()))
 tracompriTopLine parts@(TxnParts tl _) = case forest tl of
-  AccFailure errs -> AccFailure . Pinchot.singleton
+  Accuerr.AccFailure errs -> Accuerr.AccFailure . Pinchot.singleton
     $ TracompriBadForest parts errs
-  AccSuccess mayFor -> case mayFor of
+  Accuerr.AccSuccess mayFor -> case mayFor of
     Nothing -> pure Nothing
     Just for -> pure . Just . TopLine $ for
 
@@ -310,11 +310,11 @@ tracompriPosting
   -- ^ The entire transaction.  Used only for error messages.
   -> (Seq Tree.Tree, Amount)
   -- ^ This posting
-  -> AccValidation (NonEmpty TracompriError) (Posting Char ())
+  -> Accuerr (NonEmpty TracompriError) (Posting Char ())
 tracompriPosting parts (frst, amt) = case forest frst of
-  AccFailure errs -> AccFailure . Pinchot.singleton
+  Accuerr.AccFailure errs -> Accuerr.AccFailure . Pinchot.singleton
     $ TracompriBadForest parts errs
-  AccSuccess mayForest -> AccSuccess
+  Accuerr.AccSuccess mayForest -> Accuerr.AccSuccess
     $ Posting'TrioMaybeForest $ TrioMaybeForest tri mayWhitesBf
     where
       tri = amount amt
@@ -325,7 +325,7 @@ tracompriPosting parts (frst, amt) = case forest frst of
 
 tracompriPostings
   :: TxnParts
-  -> AccValidation (NonEmpty TracompriError) (Seq (Posting Char ()))
+  -> Accuerr (NonEmpty TracompriError) (Seq (Posting Char ()))
 tracompriPostings parts@(TxnParts _ pstgs)
   = traverse (tracompriPosting parts) pstgs
 
@@ -339,5 +339,5 @@ combineTracompris = toWholeFile . catMaybes
 
 wholeFile
   :: Seq Tracompri
-  -> AccValidation (NonEmpty TracompriError) (WholeFile Char ())
+  -> Accuerr (NonEmpty TracompriError) (WholeFile Char ())
 wholeFile = fmap combineTracompris . traverse tracompri
