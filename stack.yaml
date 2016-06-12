@@ -1,14 +1,13 @@
 flags:
   penny:
     copper: false
-  pinchot:
-    oldTemplateHaskell: true
 
 packages:
 - 'penny/'
 - 'penny-copper/'
 
 extra-deps:
-- pinchot-0.18.0.0
+- accuerr-0.2.0.0
+- pipes-cliff-0.10.0.4
 
-resolver: nightly-2016-04-10
+resolver: nightly-2016-06-11

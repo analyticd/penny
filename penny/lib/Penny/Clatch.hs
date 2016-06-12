@@ -1,10 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Types that group a posting with other interesting information.
-module Penny.Clatch where
-
-{-
+module Penny.Clatch
   ( -- * Postings
     Core(..)
   , troika
@@ -18,8 +17,8 @@ module Penny.Clatch where
   , Transaction
 
   -- * Functions on postings and transactions
-  , serpack
-  , trees
+  , Penny.Clatch.serpack
+  , tranche
 
   -- * Sersets
   , PreFiltset
@@ -60,7 +59,7 @@ import Penny.Copper.Decopperize
 import Penny.Ents (Balanced, balancedToSeqEnt)
 import Penny.SeqUtil
 import Penny.Serial
-import Penny.Tree
+import Penny.Tranche
 import Penny.Troika
 
 import Control.Lens hiding (index)
@@ -86,19 +85,19 @@ makeLenses ''Core
 -- | A posting, coupled with metadata in the form of 'Tree' and a
 -- 'Serpack' that indicates how this posting relates to other
 -- postings.
-type Posting = (Serpack, (Seq Tree, Core))
+type Posting a = (Serpack, (Postline a, Core))
 
 -- | A list of postings, coupled with metadata in the form of 'Tree'
 -- and with a 'Serpack' that indicates how this transaction relates to
 -- other transactions.
-type Transaction = (Serpack, (Seq Tree, Seq Posting))
+type Transaction a = (Serpack, (TopLine a, Seq (Posting a)))
 
 -- # Functions on postings and transactions
 
-core :: Lens' Posting Core
+core :: Lens' (Posting a) Core
 core = _2 . _2
 
-postings :: Lens' Transaction (Seq Posting)
+postings :: Lens' (Transaction a) (Seq (Posting a))
 postings = _2 . _2
 
 -- |
@@ -111,11 +110,11 @@ serpack = _1
 
 -- |
 -- @
--- 'trees' :: 'Lens'' 'Transaction' ('Seq' 'Tree')
--- 'trees' :: 'Lens'' ('Seq' 'Tree')
+-- 'tranche' :: 'Lens'' ('Transaction' a) ('TopLine' a)
+-- 'tranche' :: 'Lens'' ('Posting' a) ('Postline' a)
 -- @
-trees :: Lens' (a, (Seq Tree, b)) (Seq Tree)
-trees = _2 . _1
+tranche :: forall a b c. Lens' (Serpack, (Tranche b a, c)) (Tranche b a)
+tranche = _2 . _1
 
 -- | The 'Serset' after all postings have been pre-filtered.
 type PreFiltset = Serset
@@ -131,31 +130,32 @@ type PostFiltset = Serset
 -- | A single 'Slice' 'Posting' contains not only the 'Posting' but
 -- also all sibling 'Posting's.  A 'Transaction' can give rise to
 -- multiple 'Slice's, and therefore to mulitple 'Sliced'.
-type Sliced a = (Transaction, (Slice Posting, a))
+type Sliced l a = (Transaction l, (Slice (Posting l), a))
 
 -- | After 'Sliced' are created, the posting's 'Amount' is converted
 -- using the specified 'Converter'.  There might not be any conversion
 -- if the 'Converter' does not perform one.
-type Converted a = (Transaction, (Slice Posting, (Maybe Amount, a)))
+type Converted l a = (Transaction l, (Slice (Posting l), (Maybe Amount, a)))
 
 -- | After 'Converted' are created, they are filtered.  After
 -- filtering, a 'PreFiltset' is assigned.
-type Prefilt a = (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset, a))))
+type Prefilt l a = (Transaction l, (Slice (Posting l),
+  (Maybe Amount, (PreFiltset, a))))
 
 -- | After the 'Prefilt' are created, they are sorted.  After sorting
 -- a 'Sortset' is assigned.
-type Sorted a = (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset,
-                  (Sortset, a)))))
+type Sorted l a = (Transaction l, (Slice (Posting l), (Maybe Amount,
+  (PreFiltset, (Sortset, a)))))
 
 -- | After the 'Sorted' are created, the running balance is calculated
 -- for each 'Sorted'.
-type Totaled a = (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset,
-                   (Sortset, (Balance, a))))))
+type Totaled l a = (Transaction l, (Slice (Posting l),
+  (Maybe Amount, (PreFiltset, (Sortset, (Balance, a))))))
 
 -- | After 'Totaled' are created, they are filtered.  After filtering
 -- a 'PostFiltset' is assigned.
-type Clatch =
-  (Transaction, (Slice Posting, (Maybe Amount, (PreFiltset, (Sortset,
+type Clatch l =
+  (Transaction l, (Slice (Posting l), (Maybe Amount, (PreFiltset, (Sortset,
     (Balance, (PostFiltset, ())))))))
 
 -- # Lenses and functions on clatches
@@ -171,7 +171,7 @@ type Clatch =
 -- 'transaction' :: 'Lens'' 'Clatch'        'Transaction'
 -- @
 
-transaction :: Lens' (Transaction, a) Transaction
+transaction :: Lens' (Transaction l, a) (Transaction l)
 transaction = _1
 
 -- | Operate on the 'Slice'.
@@ -185,7 +185,7 @@ transaction = _1
 -- 'slice' :: 'Lens'' 'Clatch'        ('Slice' 'Posting')
 -- @
 
-slice :: Lens' (a, (Slice Posting, b)) (Slice Posting)
+slice :: Lens' (a, (Slice (Posting l), b)) (Slice (Posting l))
 slice = _2 . _1
 
 -- | Operates on the 'Posting' in the 'Slice'.
@@ -199,10 +199,8 @@ slice = _2 . _1
 -- 'posting' :: 'Lens'' 'Clatch'        'Posting'
 -- @
 
-posting :: Lens' (a, (Slice Posting, b)) Posting
+posting :: Lens' (a, (Slice (Posting l), b)) (Posting l)
 posting = slice . onSlice
-
-
 
 -- | Operate on the converted 'Amount'.  There is no converted
 -- 'Amount' if the 'Converter' did not specify a conversion.
@@ -230,7 +228,7 @@ converted = _2 . _2 . _1
 -- 'best' :: 'Getter' 'Clatch'        'Amount'
 -- @
 
-best :: Getter (a, (Slice Posting, (Maybe Amount, c))) Amount
+best :: Getter (a, (Slice (Posting l), (Maybe Amount, c))) Amount
 best = to $ \clatch -> case view converted clatch of
   Just a -> a
   Nothing -> clatch ^. slice . onSlice . core
@@ -281,25 +279,25 @@ postFiltset =  _2 . _2 . _2 . _2 . _2 . _2 . _1
 -- # Creation
 --
 
-createViewposts :: Transaction -> Seq (Sliced ())
+createViewposts :: Transaction l -> Seq (Sliced l ())
 createViewposts txn = fmap (\vw -> (txn, (vw, ())))
   (allSlices . snd . snd $ txn)
 
 -- | Applies a 'Converter' to convert a posting.
 createConverted
   :: Converter
-  -> Sliced a
-  -> Converted ()
+  -> Sliced l a
+  -> Converted l ()
 createConverted (Converter f) clatch = set (_2._2) (conv, ()) clatch
   where
     conv = f $ view amount clatch
     amount = _2._1.onSlice.core. troika . to c'Amount'Troika
 
 createPrefilt
-  :: (Converted a -> Bool)
+  :: (Converted l a -> Bool)
   -- ^ Predicate
-  -> Seq (Converted a)
-  -> Seq (Prefilt ())
+  -> Seq (Converted l a)
+  -> Seq (Prefilt l ())
 createPrefilt pd
   = fmap arrange
   . serialNumbers
@@ -308,10 +306,10 @@ createPrefilt pd
     arrange ((t, (v, (a, _))), s) = (t, (v, (a, (s, ()))))
 
 createSortset
-  :: (Prefilt a -> Prefilt a -> Ordering)
+  :: (Prefilt l a -> Prefilt l a -> Ordering)
   -- ^ Sorter
-  -> Seq (Prefilt a)
-  -> Seq (Sorted ())
+  -> Seq (Prefilt l a)
+  -> Seq (Sorted l ())
 createSortset pd
   = fmap arrange
   . serialNumbers
@@ -320,8 +318,8 @@ createSortset pd
     arrange ((t, (v, (a, (e, _)))), s) = (t, (v, (a, (e, (s, ())))))
 
 addTotals
-  :: Seq (Sorted a)
-  -> Seq (Totaled ())
+ :: forall l a. Seq (Sorted l a)
+ -> Seq (Totaled l ())
 addTotals = snd . T.mapAccumL f mempty
   where
     f bal clatch@(txn, (vw, (conv, (pf, (ss, _))))) =
@@ -330,10 +328,10 @@ addTotals = snd . T.mapAccumL f mempty
         bal' = bal <> c'Balance'Amount (view best clatch)
 
 createClatch
-  :: (Totaled () -> Bool)
+  :: (Totaled  l() -> Bool)
   -- ^ Predicate
-  -> Seq (Sorted a)
-  -> Seq Clatch
+  -> Seq (Sorted l a)
+  -> Seq (Clatch l)
 createClatch pd
   = fmap arrange
   . serialNumbers
@@ -358,17 +356,17 @@ addSersets
     addPstg = getCompose . getCompose . serialNumbers . Compose . Compose
 
 addIndexes
-  :: Balanced (Seq Tree)
-  -> Seq (Troika, Seq Tree, Serset)
+  :: Balanced a
+  -> Seq (Troika, a, Serset)
 addIndexes
   = fmap (\((tm, trees), srst) -> (tm, trees, srst))
   . serialNumbers
   . balancedToSeqEnt
 
 arrangeTransaction
-  :: (((Seq Tree, Serset), Serset),
-      Seq (((Troika, Seq Tree, Serset), Serset), Serset))
-  -> Transaction
+  :: (((TopLine l, Serset), Serset),
+      Seq (((Troika, Postline l, Serset), Serset), Serset))
+  -> Transaction l
 arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
   = (Serpack txnLcl txnGlbl, (txnMeta, pstgs))
   where
@@ -377,31 +375,30 @@ arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
       = (Serpack pstgLcl pstgGbl, (trees, Core tm pstgIdx))
 
 addSerials
-  :: Seq (Seq (Seq Tree, Balanced (Seq Tree)))
-  -> Seq Transaction
+  :: Seq (Seq (TopLine l, Balanced (Postline l)))
+  -> Seq (Transaction l)
 addSerials
   = fmap arrangeTransaction
   . addSersets
   . join
-  . fmap addSersets
-  . fmap (fmap (second addIndexes))
+  . fmap (addSersets . fmap (second addIndexes))
+
 
 --
 -- Creator
 --
 
-
 clatchesFromTransactions
   :: Converter
   -- ^ Converts amounts
-  -> (Converted () -> Bool)
+  -> (Converted l () -> Bool)
   -- ^ Filters 'Converted'
-  -> (Prefilt () -> Prefilt () -> Ordering)
+  -> (Prefilt l () -> Prefilt l () -> Ordering)
   -- ^ Sorts 'Prefilt'
-  -> (Totaled () -> Bool)
+  -> (Totaled l () -> Bool)
   -- ^ Filters 'Totaled'
-  -> Seq Transaction
-  -> Seq Clatch
+  -> Seq (Transaction l)
+  -> Seq (Clatch l)
 clatchesFromTransactions converter pConverted sorter pTotaled
   = createClatch pTotaled
   . createSortset sorter
@@ -409,4 +406,3 @@ clatchesFromTransactions converter pConverted sorter pTotaled
   . fmap (createConverted converter)
   . join
   . fmap createViewposts
--}

@@ -11,7 +11,7 @@ atleast n v = package n (gtEq v)
 -- Packages
 
 base :: Package
-base = closedOpen "base" [4,8,0,0] [4,9]
+base = closedOpen "base" [4,9] [5]
 
 anonymousSums :: Package
 anonymousSums = atleast "anonymous-sums" [0,4,0,0]
@@ -116,9 +116,6 @@ pinchot = atleast "pinchot" [0,18,0,0]
 earley :: Package
 earley = atleast "Earley" [0,10,1,0]
 
-validation :: Package
-validation = atleast "validation" [0,5,2]
-
 ofx :: Package
 ofx = atleast "ofx" [0,4,0,4]
 
@@ -163,7 +160,6 @@ libraryDepends =
   , monoidSubclasses
   , pinchot
   , earley
-  , validation
   , ofx
   , parsec
   ]

@@ -4,28 +4,13 @@
 module Penny.Transaction where
 
 import Penny.Ents
-import Penny.Tree
 import qualified Penny.Fields as F
+import Penny.Tranche
 
 import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import Data.Time (ZonedTime)
-
-data TopLineOrPostline b a = TopLineOrPostline
-  { _location :: a
-  , _ancillary :: Seq Tree
-  , _fields :: b
-  } deriving (Functor, Foldable, Traversable)
-
-emptyTopLineOrPostline :: b -> TopLineOrPostline b ()
-emptyTopLineOrPostline = TopLineOrPostline () Seq.empty
-
-Lens.makeLenses ''TopLineOrPostline
-
-type Postline a = TopLineOrPostline F.PostingFields a
-type TopLine a = TopLineOrPostline F.TopLineFields a
 
 data Transaction a = Transaction
   { _topLine :: TopLine a
@@ -35,10 +20,10 @@ data Transaction a = Transaction
 Lens.makeLenses ''Transaction
 
 emptyTopLine :: ZonedTime -> TopLine ()
-emptyTopLine zt = emptyTopLineOrPostline (F.emptyTopLineFields zt)
+emptyTopLine zt = emptyTranche (F.emptyTopLineFields zt)
 
 emptyPostline :: Postline ()
-emptyPostline = emptyTopLineOrPostline F.emptyPostingFields
+emptyPostline = emptyTranche F.emptyPostingFields
 
 date :: forall a. Lens.Lens' (TopLine a) ZonedTime
 date = fields . F.date

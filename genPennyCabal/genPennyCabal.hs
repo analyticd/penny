@@ -116,8 +116,8 @@ pinchot = atleast "pinchot" [0,18,0,0]
 earley :: Package
 earley = atleast "Earley" [0,10,1,0]
 
-validation :: Package
-validation = atleast "validation" [0,5,2]
+accuerr :: Package
+accuerr = atleast "accuerr" [0,2,0,0]
 
 ofx :: Package
 ofx = atleast "ofx" [0,4,0,4]
@@ -166,7 +166,7 @@ libraryDepends =
   , monoidSubclasses
   , pinchot
   , earley
-  , validation
+  , accuerr
   , ofx
   , parsec
   , pennyCopper
@@ -207,7 +207,7 @@ main :: IO ()
 main = defaultMain $ do
   libMods <- modules "../penny/lib"
   -- testMods <- modules "tests"
-  copper <- makeFlag "copper" $
+  copper <- makeFlag "copper"
     FlagOpts { flagDescription = "create copper-parse executable"
              , flagDefault = False
              , flagManual = True

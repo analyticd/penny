@@ -3,7 +3,7 @@
 -- http://www.github.com/massysett/cartel
 --
 -- Script name used to generate: genCopperCabal
--- Generated on: 2016-05-01 15:38:45.409403 EDT
+-- Generated on: 2016-06-11 22:13:00.570807 EDT
 -- Cartel library version: 0.14.2.8
 
 name: penny-copper
@@ -42,7 +42,7 @@ Library
     Penny.Copper.Terminalizers
     Penny.Copper.Types
   build-depends:
-      base >= 4.8.0.0 && < 4.9
+      base >= 4.9 && < 5
     , text >= 1.2
     , containers >= 0.5
     , time >= 1.4
@@ -70,7 +70,6 @@ Library
     , monoid-subclasses >= 0.4.1
     , pinchot >= 0.18.0.0
     , Earley >= 0.10.1.0
-    , validation >= 0.5.2
     , ofx >= 0.4.0.4
     , parsec >= 3.1.9
   ghc-options:
