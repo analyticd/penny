@@ -71,6 +71,7 @@ import qualified Penny.Fields as F
 import Penny.SeqUtil
 import Penny.Serial
 import Penny.Tranche
+import qualified Penny.Transaction as Txn
 import Penny.Troika
 
 import Control.Lens hiding (index)
@@ -388,13 +389,14 @@ arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
       = (Serpack pstgLcl pstgGbl, (trees, Core tm pstgIdx))
 
 addSerials
-  :: Seq (Seq (TopLine l, Balanced (Postline l)))
+  :: Seq (Seq (Txn.Transaction l))
   -> Seq (Transaction l)
 addSerials
   = fmap arrangeTransaction
   . addSersets
   . join
   . fmap (addSersets . fmap (second addIndexes))
+  . fmap (fmap (\(Txn.Transaction tl pstgs) -> (tl, pstgs)))
 
 
 --

@@ -1,35 +1,29 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ImpredicativeTypes #-}
+
+-- | Creates clatches and prints reports.
 module Penny.Clatcher where
 
-{-
-
-import Control.Lens hiding (pre)
-import Control.Exception
-import Data.Bifunctor
+import Control.Exception (Exception, throwIO)
+import qualified Control.Lens as Lens
+import Control.Monad (join)
+import Data.Sequence (Seq)
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Text.IO as X
+import qualified Data.Text.IO as XIO
+import Data.Typeable (Typeable)
+import Rainbow (Chunk)
+
 import Penny.Clatch
 import Penny.Colors
 import Penny.Converter
 import qualified Penny.Copper as Copper
-import Penny.Ents
-import Penny.Fields
+import Penny.Cursor
 import Penny.Popularity
 import Penny.Price
-import Penny.Report
 import Penny.Stream
 import qualified Penny.Transaction as Txn
-import Penny.Tree
-import Data.Monoid
-import Data.Typeable
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import qualified Data.Foldable as F
-import Rainbow
 
 -- | Describes any errors that may arise in the clatcher.
 data PennyError
@@ -39,50 +33,38 @@ data PennyError
 
 instance Exception PennyError
 
-class Loader a where
-  loadTransactions :: Seq a -> IO (Seq Price, Seq Txn.Transaction)
+type Loader
+  = IO (Seq Price, Seq (Txn.Transaction (Maybe Cursor)))
 
-data LoadScroll
-  = Preloaded (Seq Price) (Seq (Seq Tree, Seq Txn.Transaction))
-  | OpenFile String
+type Report
+  = Seq Price
+  -> Colors
+  -> History
+  -> Seq (Clatch (Maybe Cursor))
+  -> Seq (Chunk Text)
 
-loadCopper :: String -> IO (Seq Price, Seq Txn.Transaction)
+loadCopper :: String -> Loader
 loadCopper fn = do
-  txt <- X.readFile fn
+  txt <- XIO.readFile fn
   case Copper.parseConvertProof (X.pack fn, txt) of
-    Left err -> Control.Exception.throw err
-    Right g -> return g
+    Left err -> throwIO err
+    Right (prices, txns) -> return (prices, fmap (fmap mkCursor) txns)
+      where
+        mkCursor loc = Just $ Cursor (X.pack fn) loc
 
-preload :: String -> IO LoadScroll
-preload = fmap (\(prices, txns) -> Preloaded prices txns) . loadCopper
-
-open :: String -> LoadScroll
-open = OpenFile
-
-instance Loader LoadScroll where
-  loadTransactions = fmap (second addSerials . combine) . traverse load
-    where
-      load scroll = case scroll of
-        Preloaded prices txns -> return (prices, txns)
-        OpenFile fn -> loadCopper fn
-      combine = F.foldl' f (Seq.empty, Seq.empty)
-        where
-          f (pricesA, txnsA) (prices, txns)
-            = (pricesA <> prices, txnsA |> txns)
-
-data Clatcher r l = Clatcher
+data Clatcher = Clatcher
   { _converter :: Converter
   -- ^ Converts the amount of each posting from one amount to another.
   -- For example, this can be useful to convert a commodity to its
   -- value in your home currency.
 
-  , _sieve :: Converted () -> Bool
+  , _sieve :: Converted (Maybe Cursor) () -> Bool
   -- ^ Controls pre-filtering
 
-  , _sort :: Prefilt () -> Prefilt () -> Ordering
+  , _sort :: Prefilt (Maybe Cursor) () -> Prefilt (Maybe Cursor) () -> Ordering
   -- ^ Sorts postings; this is done after pre-filtering but before post-filtering.
 
-  , _screen :: Totaled () -> Bool
+  , _screen :: Totaled (Maybe Cursor) () -> Bool
   -- ^ Controls post-filtering
 
   , _output :: Seq Stream
@@ -91,16 +73,15 @@ data Clatcher r l = Clatcher
   , _colors :: Colors
   -- ^ What colors to use for reports
 
-  , _report :: Seq r
+  , _report :: Report
   -- ^ What report to print
 
-  , _load :: Seq l
+  , _load :: Seq Loader
   -- ^ Source from which to load transactions and prices
 
   }
 
-makeLenses ''Clatcher
-
+Lens.makeLenses ''Clatcher
 
 -- | The 'Monoid' instance uses for 'mempty':
 --
@@ -136,7 +117,7 @@ makeLenses ''Clatcher
 --
 -- returns the results of both '_load'
 
-instance Monoid (Clatcher r l) where
+instance Monoid Clatcher where
   mempty = Clatcher
     { _converter = mempty
     , _sieve = const True
@@ -144,48 +125,35 @@ instance Monoid (Clatcher r l) where
     , _screen = const True
     , _output = mempty
     , _colors = mempty
-    , _report = mempty
+    , _report = \_ _ _ _ -> mempty
     , _load = mempty
     }
 
   mappend x y = Clatcher
-    { _converter = _converter x <> _converter y
-    , _sieve = \a -> view sieve x a && view sieve y a
-    , _sort = _sort x <> _sort y
-    , _screen = \a -> view screen x a && view screen y a
-    , _output = (_output x) <> (_output y)
-    , _colors = _colors x <> _colors y
-    , _report = _report x <> _report y
-    , _load = _load x <> _load y
+    { _converter = mappend (_converter x) (_converter y)
+    , _sieve = \c -> _sieve x c && _sieve y c
+    , _sort = mappend (_sort x) (_sort y)
+    , _screen = \c -> _screen x c && _screen y c
+    , _output = mappend (_output x) (_output y)
+    , _colors = mappend (_colors x) (_colors y)
+    , _report = \a b c d -> mappend (_report x a b c d) (_report y a b c d)
+    , _load = mappend (_load x) (_load y)
     }
-
---
--- Main clatcher
---
-
-getReport
-  :: Report r
-  => Clatcher r l
-  -> (Seq Price, Seq Transaction)
-  -> Seq (Chunk Text)
-getReport opts items
-  = printReport (opts ^. report) (opts ^. colors) hist clatches
-  where
-    hist = elect . snd $ items
-    clatches
-      = clatchesFromTransactions (opts ^. converter) (view sieve opts)
-                                 (opts ^. sort) (view screen opts)
-                                 (snd items)
 
 -- | Runs the clatcher, sending output to the streams specified in
 -- '_output'.  Also, returns the report.
-clatcher
-  :: (Report r, Loader l)
-  => Clatcher r l
+runClatcher
+  :: Clatcher
   -> IO (Seq (Chunk Text))
-clatcher opts = do
-  items <- loadTransactions (opts ^. load)
-  let rpt = getReport opts items
-  runStreams rpt (view output opts)
-  return rpt
--}
+runClatcher clatcher = do
+  priceTxnPairs <- sequence (_load clatcher)
+  let prices = join . fmap fst $ priceTxnPairs
+  let pennyTxns = fmap snd priceTxnPairs
+  let clatchTxns = addSerials pennyTxns
+  let clatches = clatchesFromTransactions (_converter clatcher)
+        (_sieve clatcher) (_sort clatcher) (_screen clatcher) clatchTxns
+  let history = elect clatchTxns
+  let chunks = _report clatcher prices (_colors clatcher) history
+        clatches
+  runStreams chunks (_output clatcher)
+  return chunks

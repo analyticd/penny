@@ -15,7 +15,7 @@ import Data.Time (ZonedTime)
 data Transaction a = Transaction
   { _topLine :: TopLine a
   , _postings :: Balanced (Postline a)
-  }
+  } deriving (Functor, Foldable, Traversable)
 
 Lens.makeLenses ''Transaction
 
