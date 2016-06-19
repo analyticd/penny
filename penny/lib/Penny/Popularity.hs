@@ -1,5 +1,4 @@
 module Penny.Popularity where
-{-
 
 import Control.Lens
 import qualified Control.Lens as Lens
@@ -71,7 +70,7 @@ groupers (History hist) mayCy = fromMaybe allGroupers $ do
     allHist = mconcat . M.elems $ hist
 
 
-vote :: Posting -> History
+vote :: Posting a -> History
 vote = Lens.view (core . troika . to make)
   where
     make tri = case T.troikaRendering tri of
@@ -79,7 +78,7 @@ vote = Lens.view (core . troika . to make)
       Just (cy, ar, ei) -> History
         $ M.singleton cy (Seq.singleton (ar, ei))
 
-elect :: Foldable f => f Transaction -> History
+elect :: Foldable f => f (Transaction a) -> History
 elect = F.foldl' f mempty
   where
     f hist = F.foldl' g hist . view postings
@@ -146,4 +145,3 @@ orientation (History hist) mayCom = fromMaybe CommodityOnRight
       . arrangements
       . History
       $ hist
--}

@@ -5,7 +5,7 @@ flags:
 packages:
 - 'penny/'
 - 'penny-copper/'
+- location: accuerr-0.2.0.2/
+  extra-dep: true
 
-extra-deps:
-
-resolver: nightly-2016-06-12
+resolver: lts-6.3

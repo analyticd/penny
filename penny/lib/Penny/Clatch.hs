@@ -47,16 +47,27 @@ module Penny.Clatch
   , balance
   , postFiltset
 
+  -- ** Field lenses
+  , date
+  , payee
+  , number
+  , flag
+  , account
+  , fitid
+  , tags
+
   -- * Creation of clatches
   , addSerials
   , clatchesFromTransactions
   ) where
 
+import Penny.Account
 import Penny.Amount
 import Penny.Balance
 import Penny.Converter
 import Penny.Copper.Decopperize
 import Penny.Ents (Balanced, balancedToSeqEnt)
+import qualified Penny.Fields as F
 import Penny.SeqUtil
 import Penny.Serial
 import Penny.Tranche
@@ -69,6 +80,8 @@ import Data.Bifunctor.Flip
 import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Text (Text)
+import Data.Time (ZonedTime)
 import qualified Data.Traversable as T
 import Data.Functor.Compose
 
@@ -406,3 +419,26 @@ clatchesFromTransactions converter pConverted sorter pTotaled
   . fmap (createConverted converter)
   . join
   . fmap createViewposts
+
+-- # Lenses
+
+date :: Lens' (Sliced l a) ZonedTime
+date = transaction . tranche . fields . F.date
+
+payee :: Lens' (Sliced l a) (Maybe Text)
+payee = transaction . tranche . fields . F.payee
+
+number :: Lens' (Sliced l a) (Maybe Integer)
+number = posting . tranche . fields . F.number
+
+flag :: Lens' (Sliced l a) (Maybe Text)
+flag = posting . tranche . fields . F.flag
+
+account :: Lens' (Sliced l a) Account
+account =  posting . tranche . fields . F.account
+
+fitid :: Lens' (Sliced l a) (Maybe Text)
+fitid = posting . tranche . fields . F.fitid
+
+tags :: Lens' (Sliced l a) (Seq Text)
+tags = posting . tranche . fields . F.tags
