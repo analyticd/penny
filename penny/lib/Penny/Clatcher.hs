@@ -23,7 +23,7 @@ import Penny.Cursor
 import Penny.Popularity
 import Penny.Price
 import Penny.Stream
-import qualified Penny.Transaction as Txn
+import Penny.TransactionBare
 
 -- | Describes any errors that may arise in the clatcher.
 data PennyError
@@ -34,7 +34,7 @@ data PennyError
 instance Exception PennyError
 
 type Loader
-  = IO (Seq Price, Seq (Txn.Transaction (Maybe Cursor)))
+  = IO (Seq Price, Seq (TransactionBare (Maybe Cursor)))
 
 type Report
   = Seq Price

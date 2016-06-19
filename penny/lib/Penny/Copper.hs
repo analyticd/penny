@@ -56,7 +56,7 @@ import Penny.NonEmpty
 import Penny.Price
 import Penny.Scalar
 import Penny.SeqUtil
-import Penny.Transaction
+import Penny.TransactionBare
 import Penny.Tree
 
 -- | Given an integer position in a text, obtain the Pinchot
@@ -152,7 +152,7 @@ instance Exception ParseConvertProofError
 -- Also, appends the filename tree to each transaction.
 parseConvertProof
   :: (Filename, Text)
-  -> Either ParseConvertProofError (Seq Price, Seq (Transaction Loc))
+  -> Either ParseConvertProofError (Seq Price, Seq (TransactionBare Loc))
 parseConvertProof (filename, txt) = do
   wholeFile <- either (Left . ParseConvertProofError filename . Left) Right
     $ runParser grammar txt
