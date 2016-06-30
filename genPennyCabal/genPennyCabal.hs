@@ -125,6 +125,9 @@ ofx = atleast "ofx" [0,4,0,4]
 parsec :: Package
 parsec = atleast "parsec" [3,1,9]
 
+timelens :: Package
+timelens = atleast "timelens" [0,2]
+
 pennyCopper :: Package
 pennyCopper = exactly "penny-copper" pennyVer
 
@@ -169,6 +172,7 @@ libraryDepends =
   , accuerr
   , ofx
   , parsec
+  , timelens
   , pennyCopper
   ]
 

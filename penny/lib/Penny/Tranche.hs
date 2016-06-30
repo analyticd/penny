@@ -7,15 +7,21 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import Data.Time (ZonedTime)
+import qualified Data.Time as Time
 import qualified Control.Lens as Lens
 
 import qualified Penny.Fields as F
 import Penny.Tree
 
+-- | A 'Tranche' holds either top line fields or posting fields.
 data Tranche b a = Tranche
   { _location :: a
+  -- ^ Where something is located in a file.
   , _ancillary :: Seq Tree
+  -- ^ Additional fields that were in the ledger file, but that are
+  -- not one of the usual fields.
   , _fields :: b
+  -- ^ Field data.
   } deriving (Functor, Foldable, Traversable)
 
 emptyTranche :: b -> Tranche b ()
@@ -32,8 +38,20 @@ emptyTopLine zt = emptyTranche (F.emptyTopLineFields zt)
 emptyPostline :: Postline ()
 emptyPostline = emptyTranche F.emptyPostingFields
 
-date :: forall a. Lens.Lens' (TopLine a) ZonedTime
-date = fields . F.date
+zonedTime :: forall a. Lens.Lens' (TopLine a) ZonedTime
+zonedTime = fields . F.zonedTime
+
+day :: forall a. Lens.Lens' (TopLine a) (Time.Day)
+day = fields . F.day
+
+timeOfDay :: forall a. Lens.Lens' (TopLine a) (Time.TimeOfDay)
+timeOfDay = fields . F.timeOfDay
+
+timeZone :: forall a. Lens.Lens' (TopLine a) (Time.TimeZone)
+timeZone = fields . F.timeZone
+
+timeZoneMinutes :: forall a. Lens.Lens' (TopLine a) Int
+timeZoneMinutes = fields . F.timeZoneMinutes
 
 payee :: forall a. Lens.Lens' (TopLine a) (Maybe Text)
 payee = fields . F.payee
@@ -52,3 +70,9 @@ fitid = fields . F.fitid
 
 tags :: forall a. Lens.Lens' (Postline a) (Seq Text)
 tags = fields . F.tags
+
+reconciled :: Postline a -> Bool
+reconciled = F.reconciled . _fields
+
+cleared :: Postline a -> Bool
+cleared = F.cleared . _fields

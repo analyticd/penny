@@ -10,6 +10,9 @@ import Penny.Tranche
 
 import qualified Control.Lens as Lens
 
+-- | A bare transaction; that is, one without any serial numbers.  In
+-- contrast, 'Penny.Clatch.Transaction' includes serial numbers for
+-- both the top line and the postings.
 data TransactionBare a = TransactionBare
   { _topLine :: TopLine a
   , _postings :: Balanced (Postline a)

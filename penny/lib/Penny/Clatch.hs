@@ -19,6 +19,7 @@ module Penny.Clatch
   -- * Functions on postings and transactions
   , Penny.Clatch.serpack
   , tranche
+  , postline
 
   -- * Sersets
   , PreFiltset
@@ -48,13 +49,21 @@ module Penny.Clatch
   , postFiltset
 
   -- ** Field lenses
-  , date
+  , zonedTime
+  , day
+  , timeOfDay
+  , timeZone
+  , timeZoneMinutes
   , payee
   , number
   , flag
   , account
   , fitid
   , tags
+
+  -- * Other field-related things
+  , reconciled
+  , cleared
 
   -- * Creation of clatches
   , addSerials
@@ -71,6 +80,7 @@ import qualified Penny.Fields as F
 import Penny.SeqUtil
 import Penny.Serial
 import Penny.Tranche (Postline, TopLine, Tranche, fields)
+import qualified Penny.Tranche as Tranche
 import Penny.TransactionBare (TransactionBare(TransactionBare))
 import Penny.Troika
 
@@ -83,6 +93,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import Data.Time (ZonedTime)
+import qualified Data.Time as Time
 import qualified Data.Traversable as T
 import Data.Functor.Compose
 
@@ -129,6 +140,12 @@ serpack = _1
 -- @
 tranche :: forall a b c. Lens' (Serpack, (Tranche b a, c)) (Tranche b a)
 tranche = _2 . _1
+
+postline :: forall a c. Lens' (Serpack, (Postline a, c)) (Postline a)
+postline = tranche
+
+topLine :: forall a c. Lens' (Serpack, (TopLine a, c)) (TopLine a)
+topLine = tranche
 
 -- | The 'Serset' after all postings have been pre-filtered.
 type PreFiltset = Serset
@@ -424,23 +441,41 @@ clatchesFromTransactions converter pConverted sorter pTotaled
 
 -- # Lenses
 
-date :: Lens' (Sliced l a) ZonedTime
-date = transaction . tranche . fields . F.date
+zonedTime :: Lens' (Sliced l a) ZonedTime
+zonedTime = transaction . topLine . Tranche.zonedTime
+
+day :: Lens' (Sliced l a) Time.Day
+day = transaction . topLine . Tranche.day
+
+timeOfDay :: Lens' (Sliced l a) Time.TimeOfDay
+timeOfDay = transaction . topLine . Tranche.timeOfDay
+
+timeZone :: Lens' (Sliced l a) Time.TimeZone
+timeZone = transaction . topLine . Tranche.timeZone
+
+timeZoneMinutes :: Lens' (Sliced l a) Int
+timeZoneMinutes = transaction . topLine . Tranche.timeZoneMinutes
 
 payee :: Lens' (Sliced l a) (Maybe Text)
-payee = transaction . tranche . fields . F.payee
+payee = transaction . topLine . Tranche.payee
 
 number :: Lens' (Sliced l a) (Maybe Integer)
-number = posting . tranche . fields . F.number
+number = posting . postline . Tranche.number
 
 flag :: Lens' (Sliced l a) (Maybe Text)
-flag = posting . tranche . fields . F.flag
+flag = posting . postline . Tranche.flag
 
 account :: Lens' (Sliced l a) Account
-account =  posting . tranche . fields . F.account
+account =  posting . postline . Tranche.account
 
 fitid :: Lens' (Sliced l a) (Maybe Text)
-fitid = posting . tranche . fields . F.fitid
+fitid = posting . postline . Tranche.fitid
 
 tags :: Lens' (Sliced l a) (Seq Text)
-tags = posting . tranche . fields . F.tags
+tags = posting . postline . Tranche.tags
+
+reconciled :: Sliced l a -> Bool
+reconciled = Tranche.reconciled . view (posting . postline)
+
+cleared :: Sliced l a -> Bool
+cleared = Tranche.cleared . view (posting . postline)

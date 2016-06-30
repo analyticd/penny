@@ -1,9 +1,6 @@
 {-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
 
-module Penny.BalanceCheck where
-
-{-
 module Penny.BalanceCheck (checkBalances) where
 
 import Control.Lens (view, unsnoc, to, _2)
@@ -21,60 +18,6 @@ import Penny.Clatch
 import Penny.Commodity
 import Penny.Decimal
 import Penny.NonNegative
-import Penny.Shortcut
-
-checkBalances
-  :: Seq Transaction
-  -- ^ All transactions
-
-  -> Seq ( Seq Text
-         , Seq (Integer, Int, Int, Seq (Commodity, Integer, Integer)))
-  -- ^ A sequence.  First in the pair is the account name.  Second in
-  -- the pair is another sequence of tuples @(a, b, c, d)@, where @a@
-  -- is the year, @b@ is the month, @c@ is the day, and @d@ is another
-  -- sequence of tuples @(e, f, g)@, where @e@ is the commodity of the
-  -- balance, @f@ is the coefficient, and @g@ is the exponent.
-  -> TestTree
-checkBalances txns = testGroup desc . toList . fmap (checkAccount txns)
-  where
-    desc = "check account balances"
-
-checkAccount
-  :: Seq Transaction
-  -> (Seq Text, Seq (Integer, Int, Int, Seq (Commodity, Integer, Integer)))
-  -> TestTree
-checkAccount txns (acct, sq)
-  = testGroup desc . toList . fmap (checkDay txns acct) $ sq
-  where
-    desc = "account " <> show (toList $ fmap unpack acct)
-
-checkDay
-  :: Seq Transaction
-  -> Seq Text
-  -> (Integer, Int, Int, Seq (Commodity, Integer, Integer))
-  -> TestTree
-checkDay txns na (yr, mo, da, sq) = testGroup desc tts
-  where
-    desc = "has these reconciled balances "
-         <> "at the end of " <> show yr <> "-" <> show mo <> "-" <> show da
-    tts = checkBalance bal sq
-    bal = maybe mempty (view (_2 . balance)) $ unsnoc clatches
-    clatches = clatchesFromTransactions mempty pdConv mempty (const True) txns
-    pdConv conv = view reconciled conv
-      && view (account . to (== na)) conv
-      && view (date . to pdDate) conv
-    pdDate mayDt = case mayDt of
-      Nothing -> True
-      Just d -> d <= fromGregorian yr mo da
-
--- | Checks a single balance.
-checkBalance
-  :: Balance
-  -> Seq (Commodity, Integer, Integer)
-  -> [TestTree]
-checkBalance bal = checkBal . foldr lookForBalanceItem ([], bal) . toList
-  where
-    checkBal (tts, bal) = noMoreBalances bal : tts
 
 -- | Given map has no more balances.
 noMoreBalances :: Balance -> TestTree
@@ -100,4 +43,54 @@ lookForBalanceItem (cy, sig, exptInt) (rest, Balance balMap)
         bal <- maybeBal
         expt <- c'NonNegative'Integer exptInt
         return $ Exponential sig expt @=? bal
--}
+
+-- | Checks a single balance.
+checkBalance
+  :: Balance
+  -> Seq (Commodity, Integer, Integer)
+  -> [TestTree]
+checkBalance bal = checkBal . foldr lookForBalanceItem ([], bal) . toList
+  where
+    checkBal (tts, bal) = noMoreBalances bal : tts
+
+checkDay
+  :: Seq (Transaction a)
+  -> Seq Text
+  -> (Integer, Int, Int, Seq (Commodity, Integer, Integer))
+  -> TestTree
+checkDay txns na (yr, mo, da, sq) = testGroup desc tts
+  where
+    desc = "has these reconciled balances "
+         <> "at the end of " <> show yr <> "-" <> show mo <> "-" <> show da
+    tts = checkBalance bal sq
+    bal = maybe mempty (view (_2 . balance)) $ unsnoc clatches
+    clatches = clatchesFromTransactions mempty pdConv mempty (const True) txns
+    pdConv conv = reconciled conv
+      && view (account . to (== na)) conv
+      && view (day . to pdDate) conv
+    pdDate = (<= fromGregorian yr mo da)
+
+checkBalances
+  :: Seq (Transaction a)
+  -- ^ All transactions
+
+  -> Seq ( Seq Text
+         , Seq (Integer, Int, Int, Seq (Commodity, Integer, Integer)))
+  -- ^ A sequence.  First in the pair is the account name.  Second in
+  -- the pair is another sequence of tuples @(a, b, c, d)@, where @a@
+  -- is the year, @b@ is the month, @c@ is the day, and @d@ is another
+  -- sequence of tuples @(e, f, g)@, where @e@ is the commodity of the
+  -- balance, @f@ is the coefficient, and @g@ is the exponent.
+  -> TestTree
+checkBalances txns = testGroup desc . toList . fmap (checkAccount txns)
+  where
+    desc = "check account balances"
+
+checkAccount
+  :: Seq (Transaction a)
+  -> (Seq Text, Seq (Integer, Int, Int, Seq (Commodity, Integer, Integer)))
+  -> TestTree
+checkAccount txns (acct, sq)
+  = testGroup desc . toList . fmap (checkDay txns acct) $ sq
+  where
+    desc = "account " <> show (toList $ fmap unpack acct)

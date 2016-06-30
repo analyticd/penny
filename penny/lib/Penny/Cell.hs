@@ -25,6 +25,7 @@ module Penny.Cell
   , brimScalarAnyRadixMagnitudeCell
   , qtyMagnitudeCell
   ) where
+-}
 
 import Penny.Arrangement
 import Penny.Colors
@@ -48,7 +49,6 @@ import Rainbox
   , right
   )
 import Rainbow
-
 
 data Env = Env
   { _rowBackground :: Radiant
@@ -76,6 +76,22 @@ sideCell env maySide = Cell
       Just side
         | side == P.debit -> (env ^. colors.debit, "<")
         | otherwise -> (env ^. colors.credit, ">")
+
+sidedChunk
+  :: Env
+  -> Maybe Pole
+  -> Text
+  -> Chunk Text
+sidedChunk env maySide
+  = back (view rowBackground env)
+  . fore fgColor
+  . chunk
+  where
+    fgColor = case maySide of
+      Nothing -> env ^. colors.neutral
+      Just side
+        | side == P.debit -> env ^. colors.debit
+        | otherwise -> env ^. colors.credit
 
 commodityCell
   :: Env
@@ -119,22 +135,6 @@ textCell fg bkgd colors txt = Cell
   , _vertical = left
   , _background = bkgd
   }
-
-sidedChunk
-  :: Env
-  -> Maybe Pole
-  -> Text
-  -> Chunk Text
-sidedChunk env maySide
-  = back (view rowBackground env)
-  . fore fgColor
-  . chunk
-  where
-    fgColor = case maySide of
-      Nothing -> env ^. colors.neutral
-      Just side
-        | side == P.debit -> env ^. colors.debit
-        | otherwise -> env ^. colors.credit
 
 qtyRepAnyRadixMagnitudeChunk
   :: Env
@@ -212,4 +212,3 @@ qtyMagnitudeCell env mayCy
       . selectGrouper
       . Penny.Popularity.groupers (env ^. history)
       $ mayCy
--}
