@@ -3,8 +3,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.BalanceReport where
 
-{-
-
 import Control.Lens (view, (<|), to)
 import Control.Monad (join)
 import Data.Foldable (toList)
@@ -27,71 +25,28 @@ import Penny.Copper.Copperize
 import Penny.Decimal
 import qualified Penny.Polar as Polar
 import Penny.Popularity
-import Penny.Report
 import Penny.Rep
-import Penny.Shortcut
 
-data BalanceReport = BalanceReport
-  deriving (Eq, Show, Ord)
-
-instance Report BalanceReport where
-  printReport _ clrs hist
-    = render
-    . tableByRows
-    . formatTable hist clrs
-    . foldr (<>) mempty
-    . fmap mkBalanceMap
-    where
-      mkBalanceMap clatch = balanceMap (view account clatch)
-        (view (best . to c'Balance'Amount) clatch)
-
-formatTable
-  :: History
-  -> Colors
-  -> BalanceMap
-  -> Seq (Seq Cell)
-formatTable hist clrs balMap = Seq.zipWith mkRow evenOdd unrolled
+balanceReport
+  :: Colors
+  -> History
+  -> Seq (Clatch l)
+  -> Seq (Chunk Text)
+balanceReport clrs hist
+  = render
+  . tableByRows
+  . formatTable hist clrs
+  . foldr (<>) mempty
+  . fmap mkBalanceMap
   where
-    evenOdd = Seq.fromList . take (Seq.length unrolled)
-      . concat
-      $ repeat [view evenBackground clrs, view oddBackground clrs]
-    unrolled = unrollBalanceMap 0 "Total" balMap
-    mkRow bkgd (lvl, lbl, bal) = formatTableRow lvl lbl
-      (Env bkgd hist clrs) bal
+    mkBalanceMap clatch = balanceMap (view account clatch)
+      (view (best . to c'Balance'Amount) clatch)
 
 unrollBalanceMap :: Int -> Text -> BalanceMap -> Seq (Int, Text, Balance)
 unrollBalanceMap lvl lbl mp
   = (lvl, lbl, topLevelBalance mp)
   <| join (fmap (uncurry (unrollBalanceMap (lvl + 1)))
                 . Seq.fromList . Map.toAscList . lowerBalances $ mp)
-
-foreground
-  :: Env
-  -> Decimal
-  -> Radiant
-foreground env q = case pole'Decimal q of
-  Nothing -> view (colors.neutral) env
-  Just p
-    | p == Polar.debit -> view (colors.debit) env
-    | otherwise -> view (colors.credit) env
-
-commodityRows :: Env -> Map Commodity Decimal -> Seq (Seq (Chunk Text))
-commodityRows env = fmap mkRow . Seq.fromList . Map.toAscList
-  where
-    mkRow (cy, q) = Seq.singleton . fore (foreground env q)
-      . back (view rowBackground env) . chunk $ cy
-
-sideRows :: Env -> Map Commodity Decimal -> Seq (Seq (Chunk Text))
-sideRows env = fmap mkRow . Seq.fromList . Map.toAscList
-  where
-    mkRow (_, q) = Seq.singleton . fore (foreground env q)
-      . back (view rowBackground env) . chunk $ sideTxt
-      where
-        sideTxt = case pole'Decimal q of
-          Nothing -> "--"
-          Just s
-            | s == Polar.debit -> "<"
-            | otherwise -> ">"
 
 qtyRows :: Env -> Map Commodity Decimal -> Seq (Seq (Chunk Text))
 qtyRows env = fmap mkRow . Seq.fromList . Map.toAscList
@@ -109,6 +64,34 @@ qtyRows env = fmap mkRow . Seq.fromList . Map.toAscList
             . selectGrouper
             . Penny.Popularity.groupers (view history env)
             . Just $ cy
+
+foreground
+  :: Env
+  -> Decimal
+  -> Radiant
+foreground env q = case pole'Decimal q of
+  Nothing -> view (colors.neutral) env
+  Just p
+    | p == Polar.debit -> view (colors.debit) env
+    | otherwise -> view (colors.credit) env
+
+sideRows :: Env -> Map Commodity Decimal -> Seq (Seq (Chunk Text))
+sideRows env = fmap mkRow . Seq.fromList . Map.toAscList
+  where
+    mkRow (_, q) = Seq.singleton . fore (foreground env q)
+      . back (view rowBackground env) . chunk $ sideTxt
+      where
+        sideTxt = case pole'Decimal q of
+          Nothing -> "--"
+          Just s
+            | s == Polar.debit -> "<"
+            | otherwise -> ">"
+
+commodityRows :: Env -> Map Commodity Decimal -> Seq (Seq (Chunk Text))
+commodityRows env = fmap mkRow . Seq.fromList . Map.toAscList
+  where
+    mkRow (cy, q) = Seq.singleton . fore (foreground env q)
+      . back (view rowBackground env) . chunk $ cy
 
 labelRows :: Int -> Text -> Env -> Seq (Seq (Chunk Text))
 labelRows lvl lbl env = Seq.singleton . Seq.singleton
@@ -139,4 +122,18 @@ formatTableRow lvl lbl env (Balance mp)
     qty = Cell (qtyRows env mp) top right bkgd
     commodity = Cell (commodityRows env mp) top left bkgd
     label = Cell (labelRows lvl lbl env) top left bkgd
--}
+
+formatTable
+  :: History
+  -> Colors
+  -> BalanceMap
+  -> Seq (Seq Cell)
+formatTable hist clrs balMap = Seq.zipWith mkRow evenOdd unrolled
+  where
+    evenOdd = Seq.fromList . take (Seq.length unrolled)
+      . concat
+      $ repeat [view evenBackground clrs, view oddBackground clrs]
+    unrolled = unrollBalanceMap 0 "Total" balMap
+    mkRow bkgd (lvl, lbl, bal) = formatTableRow lvl lbl
+      (Env bkgd hist clrs) bal
+
