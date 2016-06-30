@@ -5,10 +5,6 @@
 -- reports, such as both the reports in "Penny.Columns" and in
 -- "Penny.BalanceReport".
 
-module Penny.Cell where
-
-{-
-
 module Penny.Cell
   ( Env(Env, _rowBackground, _history, _colors)
   , rowBackground
@@ -25,7 +21,6 @@ module Penny.Cell
   , brimScalarAnyRadixMagnitudeCell
   , qtyMagnitudeCell
   ) where
--}
 
 import Penny.Arrangement
 import Penny.Colors
