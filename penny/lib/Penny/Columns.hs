@@ -4,39 +4,41 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Penny.Columns where
 
-{-
-
 import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
 import Penny.Cell
-import Penny.Clatch
+import Penny.Clatch (Clatch)
+import qualified Penny.Clatch as Clatch
 import Penny.Colors
 import Penny.Copper.Copperize
 import Penny.Copper.Decopperize
 import Penny.Decimal
-import Penny.Display
+import Penny.FileLoc
 import Penny.NonNegative
 import Penny.Polar (Pole)
 import qualified Penny.Polar as P
 import Penny.Popularity
 import Penny.Qty
-import Penny.Report
 import Penny.Rep
 import Penny.Scalar
 import Penny.SeqUtil (intersperse)
-import Penny.Serial
-import Penny.Tree
+import Penny.Serial (Serset, Serpack)
+import qualified Penny.Serial as Serial
+import Penny.Tree (Tree)
+import qualified Penny.Tree as Tree
 import Penny.Troika
 
 import Control.Lens
-  ( to, view, (^.), makeWrapped, (|>), (<|), Getter, makeLenses,
+  ( to, view, (^.), (|>), makeLenses,
     (<>~), _Wrapped )
+import Control.Monad (join)
 import Data.Foldable (foldl', toList)
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
@@ -58,7 +60,18 @@ import Rainbow.Types (yarn)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
-newtype Columns = Columns (Env -> Clatch -> Seq Cell)
+data Stripe
+  = W1 (Env -> Clatch (Maybe FileLoc) -> Cell)
+  | W2 (Env -> Clatch (Maybe FileLoc) -> (Cell, Cell))
+  | W3 (Env -> Clatch (Maybe FileLoc) -> (Cell, Cell, Cell))
+  | W4 (Env -> Clatch (Maybe FileLoc) -> (Cell, Cell, Cell, Cell))
+
+type Column = Env -> Clatch (Maybe FileLoc) -> Cell
+
+type Columns = Seq Stripe
+
+{-
+newtype Columns = Columns (Env -> Clatch (Maybe FileLoc) -> Seq Cell)
 
 makeWrapped ''Columns
 
@@ -66,14 +79,15 @@ instance Monoid Columns where
   mempty = Columns (const mempty)
   mappend (Columns cx) (Columns cy)
     = Columns (\a c -> (cx a c) <> (cy a c))
+-}
 
 
-background :: Clatch -> Colors -> Radiant
+background :: Clatch a -> Colors -> Radiant
 background clatch colors
   | odd i = view oddBackground colors
   | otherwise = view evenBackground colors
   where
-    i = view (postFiltset.forward.to c'Integer'NonNegative) clatch
+    i = view (Clatch.postFiltset . Serial.forward .to c'Integer'NonNegative) clatch
 
 -- | Removes all entirely empty columns from a table.
 removeEmptyColumns
@@ -100,7 +114,7 @@ removeIfEmpty idx mp
 
 spacerColumn
   :: Colors
-  -> Seq Clatch
+  -> Seq (Clatch a)
   -> Seq Cell
 spacerColumn clrs = fmap mkSpacerCell
   where
@@ -122,7 +136,7 @@ table
   :: History
   -> Colors
   -> Columns
-  -> Seq Clatch
+  -> Seq (Clatch (Maybe FileLoc))
   -> Seq (Chunk Text)
 table hist clrs col clatches
   = render
@@ -135,103 +149,96 @@ table hist clrs col clatches
   . Seq.zipWith mkDataRow colorSeq
   $ clatches
   where
-    mkDataRow bkgd clatch = ($ clatch) . ($ env) . (view _Wrapped) $ col
+    mkDataRow bkgd clatch = join . fmap mkCell $ col
       where
-        env = Env bkgd hist clrs
+        mkCell mkr = case mkr of
+          W1 f -> Seq.singleton $ f env clatch
+          W2 f -> let (c0, c1) = f env clatch in [c0, c1]
+          W3 f -> let (c0, c1, c2) = f env clatch in [c0, c1, c2]
+          W4 f -> let (c0, c1, c2, c3) = f env clatch in [c0, c1, c2, c3]
+          where
+            env = Env bkgd hist clrs
     colorSeq = Seq.fromList . take (Seq.length clatches)
       . concat . repeat $ [_evenBackground clrs, _oddBackground clrs]
 
-instance Report Columns where
-  printReport sq clrs hist cltchs
-    = table hist clrs (foldl' mappend mempty sq) cltchs
+text
+  :: (Clatch (Maybe FileLoc) -> Text)
+  -> Column
+text f = \env clatch ->
+  textCell _nonLinear (view rowBackground env) (view colors env)
+            (f clatch)
 
+seqText
+  :: (Clatch (Maybe FileLoc) -> Seq Text)
+  -> Column
+seqText f = \env clatch ->
+  textCell _nonLinear (view rowBackground env) (view colors env)
+            (foldl (<>) mempty . intersperse "•" . f $ clatch)
 
--- | Things that can create columns.  Instances of this class must
--- always create a 'Seq' of 'Cell' that is the exact same length,
--- regardless of whether the cells contain anything.
-class Colable a where
-  column :: Getter Clatch a -> Columns
+spaces :: Int -> Column
+spaces i = text (const (X.replicate i . X.singleton $ ' '))
 
+bool
+  :: (Clatch (Maybe FileLoc) -> Bool)
+  -> Column
+bool f = \env clatch ->
+  let (char, fg)
+        | f clatch = ('T', green)
+        | otherwise = ('F', red)
+  in Cell
+      { _rows = Seq.singleton . Seq.singleton
+          . back (view rowBackground env) . fore fg
+          . chunk . X.singleton $ char
+      , _horizontal = top
+      , _vertical = left
+      , _background = view rowBackground env
+      }
 
-instance Colable Text where
-  column f = Columns $ \env clatch -> Seq.singleton $
-    textCell _nonLinear (view rowBackground env) (view colors env)
-             (view f clatch)
+integer
+  :: (Clatch (Maybe FileLoc) -> Integer)
+  -> Column
+integer f = text (X.pack . show . f)
 
-instance Colable (Seq Text) where
-  column f = Columns $ \env clatch -> Seq.singleton $
-    textCell _nonLinear (view rowBackground env) (view colors env)
-             (foldl (<>) mempty . intersperse "•" . view f $ clatch)
+int
+  :: (Clatch (Maybe FileLoc) -> Int)
+  -> Column
+int f = text (X.pack . show . f)
 
-spaces :: Int -> Columns
-spaces i = column (to (const ((X.replicate i . X.singleton $ ' '))))
+nonNegative
+  :: (Clatch (Maybe FileLoc) -> NonNegative)
+  -> Column
+nonNegative f = integer (c'Integer'NonNegative . f)
 
-singleCell
-  :: Colable a
-  => Env
-  -> Clatch
-  -> a
-  -> Seq Cell
-singleCell env cltch a
-  = ($ cltch) . ($ env) . (view _Wrapped) $ column (to (const a))
-
-instance Colable Bool where
-  column f = Columns cell
-    where
-      cell env clatch = Seq.singleton $ Cell
-        { _rows = Seq.singleton . Seq.singleton
-            . back (view rowBackground env) . fore fg
-            . chunk . X.singleton $ char
-        , _horizontal = top
-        , _vertical = left
-        , _background = view rowBackground env
-        }
-        where
-          (char, fg)
-            | view f clatch = ('T', green)
-            | otherwise = ('F', red)
-
-instance Colable Integer where
-  column f = column (f . to (X.pack . show))
-
-instance Colable Int where
-  column f = column (f . to (X.pack . show))
-
-instance Colable NonNegative where
-  column f = column (f . to c'Integer'NonNegative)
-
-instance Colable a => Colable (Maybe a) where
-  column f = Columns g
-    where
-      g env clatch = case view f clatch of
-        Nothing -> singleCell env clatch (X.empty)
-        Just v -> singleCell env clatch v
-
-instance Colable (Maybe Pole) where
-  column f = Columns $ \env clatch ->
-    Seq.singleton (sideCell env (view f clatch))
+maybePole
+  :: (Clatch (Maybe FileLoc) -> Maybe Pole)
+  -> Column
+maybePole f = \env clatch -> sideCell env (f clatch)
 
 -- | Creates two columns: one for the side and one for the magnitude.
-
-instance Colable RepAnyRadix where
-  column f = Columns getCells
-    where
-      getCells env clatch = sideCell env maySide
-        <| qtyRepAnyRadixMagnitudeCell env (view f clatch)
-        <| Seq.empty
-        where
-          maySide = pole'RepAnyRadix (view f clatch)
+repAnyRadix
+  :: (Clatch (Maybe FileLoc) -> RepAnyRadix)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> (Cell, Cell)
+repAnyRadix f env clatch =
+  ( sideCell env (pole'RepAnyRadix (f clatch))
+  , qtyRepAnyRadixMagnitudeCell env (f clatch)
+  )
 
 -- | Creates two columns: one for the side and one for the magnitude.
-instance Colable Qty where
-  column f = Columns getCells
-    where
-      getCells env clatch = sideCell env (view (_Wrapped . to pole'Decimal) qty)
-        <| qtyMagnitudeCell env Nothing (view _Wrapped qty)
-        <| Seq.empty
-        where
-          qty = view f clatch
+qty
+  :: (Clatch (Maybe FileLoc) -> Qty)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> (Cell, Cell)
+qty f env clatch =
+  ( sideCell env . pole'Decimal . view _Wrapped . f $ clatch
+  , qtyMagnitudeCell env Nothing . view _Wrapped . f $ clatch
+  )
 
+-- | Each 'Troika' creates four columns.  A single posting might give
+-- rise to multiple 'Troika'; for example, a balance can have multiple
+-- 'Troika'.
 data TroikaCells = TroikaCells
   { _tmSide :: Maybe Pole
     -- ^ Always top left aligned, with standard background
@@ -281,14 +288,9 @@ troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
 troimountCellsToColumns
   :: Env
   -> Seq TroikaCells
-  -> Seq Cell
-troimountCellsToColumns env
-  = tupleToSeq
-  . foldl addRow emptyTup
+  -> (Cell, Cell, Cell, Cell)
+troimountCellsToColumns env = foldl addRow emptyTup
   where
-    tupleToSeq (c0, c1, c2, c3)
-      = c0 <| c1 <| c2 <| c3 <| Seq.empty
-
     emptyTup =
       ( Cell Seq.empty top left bkgd              -- side
       , Cell Seq.empty top right bkgd             -- cy on left
@@ -316,149 +318,159 @@ troimountCellsToColumns env
         mag' = Seq.singleton . _tmMagWithCy $ tc
         cyOnRight' = maybe Seq.empty Seq.singleton . _tmCyOnRight $ tc
 
-
 -- | Creates four columns:
 --
 -- 0.  Side
 -- 1.  Separate commodity on left
 -- 2.  Magnitude (with commodity on left or right, if applicable)
 -- 3.  Separate commodity on right
+troika
+  :: (Clatch (Maybe FileLoc) -> Troika)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> (Cell, Cell, Cell, Cell)
+troika f env
+  = troimountCellsToColumns env
+  . Seq.singleton
+  . troimountCells env
+  . f
 
-instance Colable Troika where
-  column f = Columns getCells where
-    getCells env = troimountCellsToColumns env
-      . Seq.singleton
-      . troimountCells env
-      . view f
-
--- | Creates same columns as 'Troika'.
-instance Colable Amount where
-  column f = column (f . to c'Troika'Amount)
+-- | Creates same columns as 'troika'.
+amount
+  :: (Clatch (Maybe FileLoc) -> Amount)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> (Cell, Cell, Cell, Cell)
+amount f = troika (c'Troika'Amount . f)
 
 -- | Creates the same columns as for 'Amount', but with one line
 -- for each commodity in the balance.
 
-instance Colable Balance where
-  column f = Columns getCells where
-    getCells env = troimountCellsToColumns env
-      . fmap (troimountCells env . makeTroika)
-      . Seq.fromList
-      . M.assocs
-      . view _Wrapped
-      . view f
-      where
-        makeTroika (cy, qty) = Troika cy (Right qty)
+balance
+  :: (Clatch (Maybe FileLoc) -> Balance)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> (Cell, Cell, Cell, Cell)
+balance f env
+  = troimountCellsToColumns env
+  . fmap (troimountCells env . makeTroika)
+  . Seq.fromList
+  . M.assocs
+  . view _Wrapped
+  . f
+  where
+    makeTroika (cy, qty) = Troika cy (Right qty)
+
 
 -- | Creates two columns, one for the forward serial and one for the
 -- backward serial.
 
-instance Colable Serset where
-  column f = Columns getCells
-    where
-      getCells env clatch = fwdCell <> revCell
-        where
-          srst = view f clatch
-          fwdCell = singleCell env clatch (srst ^. forward)
-          revCell = singleCell env clatch (srst ^. backward)
+serset
+  :: (Clatch (Maybe FileLoc) -> Serset)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> (Cell, Cell)
+serset f env clatch = (fwdCell, revCell)
+  where
+    fwdCell = nonNegative (Serial._forward . f) env clatch
+    revCell = nonNegative (Serial._backward . f) env clatch
 
 -- | Creates four columns: two for the file serset and two for the
 -- global serset.
-instance Colable Serpack where
-  column f = Columns getCells
-    where
-      getCells env clatch = fileCells <> glblCells
-        where
-          serpack = view f clatch
-          fileCells = singleCell env clatch (serpack ^. file)
-          glblCells = singleCell env clatch (serpack ^. global)
+serpack
+  :: (Clatch (Maybe FileLoc) -> Serpack)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> (Cell, Cell, Cell, Cell)
+serpack f env clatch = (fileFwd, fileRev, glblFwd, glblRev)
+  where
+    (fileFwd, fileRev) = serset (Serial._file . f) env clatch
+    (glblFwd, glblRev) = serset (Serial._global . f) env clatch
 
--- | Creates one column with a @U@ or an @S@.
-instance Colable Realm where
-  column f = Columns getCells
-    where
-      getCells env clatch = Seq.singleton
-        $ textCell _nonLinear (view rowBackground env) (view colors env) txt
-        where
-          txt = case view f clatch of
-            User -> "U"
-            System -> "S"
+-- | Creates a single column using whatever 'Show' shows.
+columnShow
+  :: Show a
+  => (Clatch (Maybe FileLoc) -> a)
+  -> Column
+columnShow f = text (X.pack . show . f)
 
-colableDisplayNonLinear :: Display a => Getter Clatch a -> Columns
-colableDisplayNonLinear f = Columns getCells
-    where
-      getCells env clatch = Seq.singleton
-        $ textCell _nonLinear (view rowBackground env) (view colors env) txt
-        where
-          txt = X.pack . ($ "") . display . view f $ clatch
+scalar
+  :: (Clatch (Maybe FileLoc) -> Scalar)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> Cell
+scalar f env clatch = case f clatch of
+  SText txt -> text (const txt) env clatch
+  SDay day -> columnShow (const day) env clatch
+  STime tod -> columnShow (const tod) env clatch
+  SZone int -> columnShow (const (Time.minutesToTimeZone int)) env clatch
+  SLabel txt -> text (const txt) env clatch
+  SInteger int -> columnShow (const int) env clatch
 
--- | Creates a single column with the date in YYYY-MM-DD format.
-
-instance Colable Time.Day where
-  column = colableDisplayNonLinear
-
-instance Colable Time.TimeOfDay where
-  column = colableDisplayNonLinear
-
-instance Colable Scalar where
-  column = colableDisplayNonLinear
-
-instance Colable (Maybe Scalar) where
-  column f = Columns getCells
-    where
-      getCells env clatch = case view f clatch of
-        Nothing -> Seq.singleton
-          $ textCell _nonLinear (view rowBackground env) (view colors env) "--"
-        Just sc -> Seq.singleton
-          $ textCell _nonLinear (view rowBackground env) (view colors env)
-          . X.pack . ($ "") . display $ sc
+maybeScalar
+  :: (Clatch (Maybe FileLoc) -> Maybe Scalar)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> Cell
+maybeScalar f env clatch = case f clatch of
+  Nothing -> text (const "--") env clatch
+  Just sc -> scalar (const sc) env clatch
 
 -- | Shows the scalar.  Does not show the children; if there are
 -- children, a ↓ is shown at the end.
-instance Colable Tree where
-  column f = Columns getCells
-    where
-      getCells env clatch = Seq.singleton
-        $ textCell _nonLinear (view rowBackground env) (view colors env) txt
-        where
-          txt = scalarTxt <> childrenTxt
-            where
-              scalarTxt = case view (f . scalar) clatch of
-                Nothing -> "--"
-                Just sc -> X.pack . ($ "") . display $ sc
-              childrenTxt
-                | view (f . children . to Seq.null) clatch = mempty
-                | otherwise = "↓"
-
+tree
+  :: (Clatch (Maybe FileLoc) -> Tree)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> Cell
+tree f env clatch = text (const txt) env clatch
+  where
+    txt = scalarTxt <> childrenTxt
+      where
+        scalarTxt = case Tree._scalar . f $ clatch of
+          Nothing -> "--"
+          Just sc -> case sc of
+            SText txt -> txt
+            SDay dy -> X.pack . show $ dy
+            STime tod -> X.pack . show $ tod
+            SZone i -> X.pack . show . Time.minutesToTimeZone $ i
+            SInteger i -> X.pack . show $ i
+            SLabel txt -> txt
+        childrenTxt
+          | Seq.null . Tree._children . f $ clatch = X.empty
+          | otherwise = "↓"
 
 -- | Shows each tree, separated by a •.
-instance Colable (Seq Tree) where
-  column f = Columns getCells
-    where
-      getCells env clatch = Seq.singleton
-        $ textCell _nonLinear (view rowBackground env) (view colors env) txt
-        where
-          txt = foldr (<>) mempty
-            . intersperse "•" . fmap treeToTxt
-            . view f $ clatch
-            where
-              treeToTxt tree = scalarTxt <> childrenTxt
-                where
-                  scalarTxt = case view scalar tree of
-                    Nothing -> "--"
-                    Just sc -> X.pack . ($ "") . display $ sc
-                  childrenTxt
-                    | view (Penny.Tree.children . to Seq.null) tree = mempty
-                    | otherwise = "↓"
-
+seqTree
+  :: (Clatch (Maybe FileLoc) -> Seq Tree)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> Cell
+seqTree f env clatch
+  = textCell _nonLinear (view rowBackground env) (view colors env) txt
+  where
+    txt = foldr (<>) mempty
+      . intersperse "•" . fmap treeToTxt
+      . f $ clatch
+      where
+        treeToTxt tree = scalarTxt <> childrenTxt
+          where
+            scalarTxt = case Tree._scalar tree of
+              Nothing -> "--"
+              Just sc -> displayScalar sc
+            childrenTxt
+              | view (Tree.children . to Seq.null) tree = mempty
+              | otherwise = "↓"
 
 -- | Shows each Scalar, each separated by a bullet.
-instance Colable (Seq Scalar) where
-  column f = Columns getCells
-    where
-      getCells env clatch = Seq.singleton $ textCell _nonLinear
-        (view rowBackground env) (view colors env) txt
-        where
-          txt = foldl (<>) mempty
-            . intersperse "•" . fmap (X.pack . ($ "") . display)
-            . view f $ clatch
--}
+seqScalar
+  :: (Clatch (Maybe FileLoc) -> Seq Scalar)
+  -> Env
+  -> Clatch (Maybe FileLoc)
+  -> Cell
+seqScalar f env clatch = textCell _nonLinear
+  (view rowBackground env) (view colors env) txt
+  where
+    txt = foldl (<>) mempty
+      . intersperse "•" . fmap displayScalar
+      . f $ clatch

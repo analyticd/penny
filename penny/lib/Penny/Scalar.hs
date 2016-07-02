@@ -4,6 +4,7 @@ module Penny.Scalar where
 
 import Control.Lens
 import Data.Text (Text)
+import qualified Data.Text as X
 import Data.Time
 import Penny.Display
 
@@ -22,12 +23,12 @@ data Scalar
 
 makePrisms ''Scalar
 
-instance Display Scalar where
-  display x = case x of
-    SText a -> display a
-    SDay a -> display a
-    STime a -> display a
-    SZone a -> display . minutesToTimeZone $ a
-    SInteger a -> display a
-    SLabel a -> ('\'':) . display a
+displayScalar :: Scalar -> Text
+displayScalar x = case x of
+  SText a -> a
+  SDay a -> X.pack . show $ a
+  STime a -> X.pack . show $ a
+  SZone a -> X.pack . show . minutesToTimeZone $ a
+  SInteger a -> X.pack . show $ a
+  SLabel a -> X.cons '\'' a
 
