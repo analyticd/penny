@@ -6,7 +6,6 @@ import Control.Lens
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Time
-import Penny.Display
 
 data Scalar
   = SText Text
