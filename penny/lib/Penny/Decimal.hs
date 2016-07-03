@@ -1,9 +1,13 @@
 {-# LANGUAGE TemplateHaskell, FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Penny.Decimal where
 
 import Control.Lens (makeLenses)
+import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
+import qualified Text.Show.Pretty as Pretty
 import Prelude hiding (length)
 
 import Penny.NonNegative
@@ -23,7 +27,9 @@ data Exponential c = Exponential
   -- ^ The significant digits; also known as the significand or the mantissa.
   , _power :: !NonNegative
   -- ^ The power of ten.
-  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
+
+instance PrettyVal a => PrettyVal (Exponential a)
 
 makeLenses ''Exponential
 

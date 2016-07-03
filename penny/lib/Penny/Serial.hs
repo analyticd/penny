@@ -3,40 +3,51 @@
 {-# LANGUAGE TemplateHaskell, TypeFamilies, MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Penny.Serial where
 
 import Control.Lens
 import qualified Data.Traversable as T
 import Control.Monad.Trans.State
 import Data.Functor.Compose
+import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
 
 import Penny.NonNegative
 
 data Serset = Serset
   { _forward :: NonNegative
   , _backward :: NonNegative
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Generic)
+
+instance PrettyVal Serset
 
 makeLenses ''Serset
 
 data Sersetted a = Sersetted
   { _serset :: Serset
   , _sersetee :: a
-  }
+  } deriving Generic
+
+instance PrettyVal a => PrettyVal (Sersetted a)
 
 makeLenses ''Sersetted
 
 data Serpack = Serpack
   { _file :: Serset
   , _global :: Serset
-  } deriving (Eq, Ord, Show)
+  } deriving (Eq, Ord, Show, Generic)
+
+instance PrettyVal Serpack
 
 makeLenses ''Serpack
 
 data Serpacked a = Serpacked
   { _serpack :: Serpack
   , _serpackee :: a
-  }
+  } deriving Generic
+
+instance PrettyVal a => PrettyVal (Serpacked a)
 
 makeLenses ''Serpacked
 

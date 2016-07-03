@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | "Penny.Trio" hews closely to the possible manifestations of the
 -- quantity, commodity, and arrangement in the ledger file.  The
@@ -32,6 +33,9 @@ import Penny.Rep
 
 import Control.Lens
 import Data.Sequence (Seq)
+import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
+import qualified Text.Show.Pretty as Pretty
 
 data Troiload
   = QC RepAnyRadix Arrangement
@@ -44,7 +48,30 @@ data Troiload
   | UU NilAnyRadix
   | C DecNonZero
   | E DecNonZero
-  deriving Show
+  deriving (Show, Generic)
+
+instance PrettyVal Troiload where
+  prettyVal x = case x of
+    QC r ar -> Pretty.Con "Penny.Troika.QC" [r', ar']
+      where
+        r' = parseVal r
+        ar' = Pretty.prettyVal ar
+    Q r -> Pretty.Con "Penny.Troika.Q" [parseVal r]
+    SC d -> Pretty.Con "Penny.Troika.SC" [Pretty.prettyVal d]
+    S d -> Pretty.Con "Penny.Troika.S" [Pretty.prettyVal d]
+    UC b p a -> Pretty.Con "Penny.Troika.S"
+      [parseVal b, Pretty.prettyVal p, Pretty.prettyVal a]
+    NC n a -> Pretty.Con "Penny.Troika.NC"
+      [parseVal n, Pretty.prettyVal a]
+    US b p -> Pretty.Con "Penny.Troika.US"
+      [parseVal b, Pretty.prettyVal p]
+    UU n -> Pretty.Con "Penny.Troika.UU" [parseVal n]
+    C c -> Pretty.Con "Penny.Troika.C" [Pretty.prettyVal c]
+    E e -> Pretty.Con "Penny.Troika.E" [Pretty.prettyVal e]
+    where
+      parseVal a = case Pretty.reify a of
+        Nothing -> error "Penny.Troika.prettyVal: parseVal failed"
+        Just x -> x
 
 troiloadPole :: Troiload -> Maybe Pole
 troiloadPole x = case x of
@@ -64,7 +91,9 @@ type Troiquant = Either Troiload Decimal
 data Troika = Troika
   { _commodity :: Commodity
   , _troiquant :: Either Troiload Decimal
-  } deriving Show
+  } deriving (Show, Generic)
+
+instance PrettyVal Troika
 
 makeLenses ''Troika
 

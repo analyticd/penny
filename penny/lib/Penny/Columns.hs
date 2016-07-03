@@ -70,18 +70,6 @@ type Column = Env -> Clatch (Maybe Cursor) -> Cell
 
 type Columns = Seq Stripe
 
-{-
-newtype Columns = Columns (Env -> Clatch (Maybe Cursor) -> Seq Cell)
-
-makeWrapped ''Columns
-
-instance Monoid Columns where
-  mempty = Columns (const mempty)
-  mappend (Columns cx) (Columns cy)
-    = Columns (\a c -> (cx a c) <> (cy a c))
--}
-
-
 background :: Clatch a -> Colors -> Radiant
 background clatch colors
   | odd i = view oddBackground colors

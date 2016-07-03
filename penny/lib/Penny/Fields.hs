@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | Standard fields that are available for the top line and for the
 -- posting.  In addition, each top line and posting also has a
@@ -13,12 +14,16 @@ import Data.Text (Text)
 import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import qualified Data.Time.Timelens as Timelens
+import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
 
 -- | Fields in the top line.
 data TopLineFields = TopLineFields
   { _zonedTime :: ZonedTime
   , _payee :: Maybe Text
-  } deriving Show
+  } deriving (Show, Generic)
+
+instance PrettyVal TopLineFields
 
 Lens.makeLenses ''TopLineFields
 
@@ -32,7 +37,9 @@ data PostingFields = PostingFields
   , _account :: Seq Text
   , _fitid :: Maybe Text
   , _tags :: Seq Text
-  } deriving Show
+  } deriving (Show, Generic)
+
+instance PrettyVal PostingFields
 
 emptyPostingFields :: PostingFields
 emptyPostingFields = PostingFields Nothing Nothing (Seq.empty) Nothing

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Penny.Tranche where
 
 import Data.Sequence (Seq)
@@ -9,6 +10,8 @@ import Data.Text (Text)
 import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import qualified Control.Lens as Lens
+import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
 
 import qualified Penny.Fields as F
 import Penny.Tree
@@ -22,7 +25,9 @@ data Tranche b a = Tranche
   -- not one of the usual fields.
   , _fields :: b
   -- ^ Field data.
-  } deriving (Functor, Foldable, Traversable)
+  } deriving (Functor, Foldable, Traversable, Generic)
+
+instance (PrettyVal b, PrettyVal a) => PrettyVal (Tranche b a)
 
 emptyTranche :: b -> Tranche b ()
 emptyTranche = Tranche () Seq.empty

@@ -10,6 +10,21 @@ atleast n v = package n (gtEq v)
 
 -- Packages
 
+-- Begin For pretty-show
+
+array :: Package
+array = atleast "array" [0,2]
+
+haskellLexer :: Package
+haskellLexer = atleast "haskell-lexer" [1]
+
+filepath :: Package
+filepath = atleast "filepath" [1,4]
+
+ghcPrim :: Package
+ghcPrim = atleast "ghc-prim" [0,4]
+
+-- End for pretty-show
 base :: Package
 base = closedOpen "base" [4,8,0,0] [5]
 
@@ -138,8 +153,17 @@ commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W"]
   , haskell2010
-  , hsSourceDirs ["lib"]
+  , hsSourceDirs ["lib", "prettyShow"]
   , otherExtensions ["TemplateHaskell"]
+  , buildTools [unconstrained "happy"]
+  , otherModules
+      [ "Paths_penny"
+      , "Text.Show.Pretty"
+      , "Text.Show.Html"
+      , "Text.Show.Parser"
+      , "Text.Show.Value"
+      , "Text.Show.PrettyVal"
+      ]
   ]
 
 libraryDepends :: [Package]
@@ -176,7 +200,10 @@ libraryDepends =
   , ofx
   , parsec
   , timelens
-  , prettyShow
+  , array
+  , haskellLexer
+  , filepath
+  , ghcPrim
   , pennyCopper
   ]
 
@@ -199,6 +226,12 @@ props = blank
   , bugReports = "http://www.github.com/massysett/penny/issues"
   , synopsis = "Extensible double-entry accounting system"
   , extraSourceFiles = ["README.md"]
+  , dataFiles =
+    [ "style/jquery.js"
+    , "style/jquery-src.js"
+    , "style/pretty-show.js"
+    , "style/pretty-show.css"
+    ]
   , description =
     [ "Penny is a double-entry accounting system."
     , ""

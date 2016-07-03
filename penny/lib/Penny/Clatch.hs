@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | Types that group a posting with other interesting information.
 module Penny.Clatch
@@ -96,6 +97,9 @@ import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import qualified Data.Traversable as T
 import Data.Functor.Compose
+import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
+import qualified Text.Show.Pretty as Pretty
 
 -- | The core of every posting.
 data Core = Core
@@ -103,7 +107,9 @@ data Core = Core
   , _birth :: Serset
   -- ^ How this single posting relates to its sibling postings.
   -- Numbering restarts with every transaction.
-  } deriving Show
+  } deriving (Show, Generic)
+
+instance PrettyVal Core
 
 makeLenses ''Core
 

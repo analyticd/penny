@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
@@ -41,14 +42,16 @@ module Penny.SeqUtil
 
 import Control.Lens.TH
 import Control.Lens.Cons (uncons)
+import Control.Monad (join)
+import qualified Control.Monad.State as St
 import Data.Sequence
-import qualified Data.Traversable as T
 import qualified Data.Foldable as F
 import Data.Monoid
-import Control.Monad (join)
+import qualified Data.Traversable as T
+import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
 import Pinchot (NonEmpty)
 import qualified Pinchot
-import qualified Control.Monad.State as St
 
 filterM
   :: Monad m
@@ -207,7 +210,9 @@ data Slice a = Slice
   { _onLeft :: (Seq a)
   , _onSlice :: a
   , _onRight :: (Seq a)
-  } deriving Show
+  } deriving (Show, Generic)
+
+instance PrettyVal a => PrettyVal (Slice a)
 
 makeLenses ''Slice
 

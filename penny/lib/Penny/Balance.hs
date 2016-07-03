@@ -2,11 +2,15 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | Pairings of commodities and decimal amounts.
 module Penny.Balance where
 
 import Control.Lens
+import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
+
 import Penny.Amount
 import qualified Data.Foldable as F
 import Penny.Decimal
@@ -16,7 +20,9 @@ import Penny.NonZero (c'NonZero'Integer, c'Integer'NonZero)
 
 -- | The balance of multiple commodities.
 newtype Balance = Balance (M.Map Commodity Decimal)
-  deriving Show
+  deriving (Show, Generic)
+
+instance PrettyVal Balance
 
 makeWrapped ''Balance
 
