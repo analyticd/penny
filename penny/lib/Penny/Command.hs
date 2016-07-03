@@ -2,27 +2,26 @@
 
 module Penny.Command where
 
-{-
-
 import Penny.Amount
 import Penny.Commodity
 import Penny.Clatch
-import Penny.Clatcher (Clatcher)
+import Penny.Clatcher (Clatcher, Report)
 import qualified Penny.Clatcher as Clatcher
 import Penny.Colors
-import Penny.Columns (Colable, Columns)
 import qualified Penny.Columns as Columns
 import Penny.Converter
+import Penny.Cursor
 import Penny.Decimal
 import Penny.NonNegative
-import Penny.Ord
-import Penny.Report
+import Penny.Price
 import Penny.Stream
+import Penny.TransactionBare
 
 import Control.Lens (set, Getter, view, to)
+import Data.Ord (comparing)
+import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
-
 
 -- | Parses an unsigned decimal.  Applies 'error' if a value cannot be parsed.
 unsigned :: Text -> DecUnsigned
@@ -31,8 +30,7 @@ unsigned = undefined
 -- # Commands
 
 convert
-  :: Monoid r
-  => Commodity
+  :: Commodity
   -- ^ Convert from this commodity
   -> Commodity
   -- ^ Convert to this commodity
@@ -41,7 +39,7 @@ convert
   -- commodity.  Enter here a value that can be parsed into a zero or
   -- positive quantity.  If the value does not parse, 'error' will be
   -- applied with a short but slightly helpful error message.
-  -> Clatcher r l
+  -> Clatcher
 convert fromCy toCy factorTxt = set Clatcher.converter cv mempty
   where
     cv = Converter fn
@@ -51,77 +49,68 @@ convert fromCy toCy factorTxt = set Clatcher.converter cv mempty
     factor = fmap c'Integer'NonNegative . unsigned $ factorTxt
 
 sieve
-  :: Getter (Converted ()) Bool
-  -> Clatcher r l
-sieve f = set Clatcher.sieve (view f) mempty
+  :: (Converted (Maybe Cursor) () -> Bool)
+  -> Clatcher
+sieve f = set Clatcher.sieve f mempty
 
-sort :: Ord a => Getter (Prefilt ()) a -> Clatcher r l
+sort :: Ord a => (Prefilt (Maybe Cursor) () -> a) -> Clatcher
 sort f = set Clatcher.sort (comparing f) mempty
 
 screen
-  :: Getter (Totaled ()) Bool
-  -> Clatcher r l
-screen f = set Clatcher.screen (view f) mempty
+  :: (Totaled (Maybe Cursor) () -> Bool)
+  -> Clatcher
+screen f = set Clatcher.screen f mempty
 
 
 -- Output
 
-output :: Stream -> Clatcher r l
+output :: Stream -> Clatcher
 output s = set Clatcher.output (Seq.singleton s) mempty
 
-less :: Clatcher r l
+less :: Clatcher
 less = output $ stream toLess
 
-saveAs :: String -> Clatcher r l
+saveAs :: String -> Clatcher
 saveAs = output . stream . toFile
 
-colors :: Colors -> Clatcher r l
+colors :: Colors -> Clatcher
 colors c = set Clatcher.colors c mempty
 
--- Report
-
-report :: r -> Clatcher r l
-report s = set Clatcher.report (Seq.singleton s) mempty
-
-column :: Colable a => Getter Clatch a -> Clatcher Columns l
-column f = set Clatcher.report (Seq.singleton $ Columns.column f) mempty
+report :: Report -> Clatcher
+report r = set Clatcher.report r mempty
 
 -- Load
 
-preload :: String -> IO (Clatcher r Clatcher.LoadScroll)
-preload = fmap make . Clatcher.preload
-  where
-    make scroll = set Clatcher.load (Seq.singleton scroll) mempty
+open :: String -> Clatcher
+open str = set Clatcher.load
+  (Seq.singleton (Clatcher.loadCopper str)) mempty
 
-open :: String -> Clatcher r Clatcher.LoadScroll
-open str = set Clatcher.load (Seq.singleton (Clatcher.open str)) mempty
+preload
+  :: (Seq Price, Seq (TransactionBare (Maybe Cursor)))
+  -> Clatcher
+preload pair = set Clatcher.load (Seq.singleton (return pair)) mempty
 
-penny :: (Report r, Clatcher.Loader l) => Clatcher r l -> IO ()
-penny = fmap (const ()) . Clatcher.clatcher
+penny :: Clatcher -> IO ()
+penny = fmap (const ()) . Clatcher.runClatcher
 
--- Combinators
+-- | A point-free version of '&&'.
 
--- | A point-free, lens-friendly version of '&&'.
---
--- >>> :{
--- >>> penny $ open "myfile" <> register <>
--- >>> sieve (account . to (== ["Assets", "Checking"])
--- >>>        &&& (flag . to (== "R")))
--- >>> :}
-
-(&&&) :: Getter a Bool -> Getter a Bool -> Getter a Bool
-l &&& r = to $ \a -> view l a && view r a
+(&&&) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+l &&& r = \a -> l a && r a
 infixr 3 &&&
 
--- | A point-free, lens-friendly version of '||'.
---
--- >>> :{
--- >>> penny $ open "myfile" <> register <>
--- >>> sieve (account . to (["Assets"] `isPrefixOf`)
--- >>>        ||| account . to (["Liabilities"] `isPrefixOf`))
--- >>> :}
-
-(|||) :: Getter a Bool -> Getter a Bool -> Getter a Bool
-l ||| r = to $ \a -> view l a || view r a
+-- | A point-free version of '||'.
+(|||) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+l ||| r = \a -> l a || r a
 infixr 2 |||
--}
+
+-- # Standard reports
+
+-- | A standard columns report, with the following columns:
+--
+-- * date
+-- * flag
+-- * number
+-- * payee
+-- * posting troika
+-- * balance troikas
