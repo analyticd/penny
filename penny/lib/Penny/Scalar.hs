@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 module Penny.Scalar where
 
 
@@ -6,6 +7,8 @@ import Control.Lens
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Time
+import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
 
 data Scalar
   = SText Text
@@ -18,7 +21,9 @@ data Scalar
   -- an 'SLabel' is a label and is not itself data.
   -- Uses for this might be @SLabel "flag"@ or
   -- @SLabel "fitid"@ for example.
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Generic)
+
+instance PrettyVal Scalar
 
 makePrisms ''Scalar
 

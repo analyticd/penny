@@ -20,7 +20,7 @@ import Penny.Colors
 import Penny.Copper.Copperize
 import Penny.Copper.Decopperize
 import Penny.Decimal
-import Penny.FileLoc
+import Penny.Cursor
 import Penny.NonNegative
 import Penny.Polar (Pole)
 import qualified Penny.Polar as P
@@ -61,17 +61,17 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
 data Stripe
-  = W1 (Env -> Clatch (Maybe FileLoc) -> Cell)
-  | W2 (Env -> Clatch (Maybe FileLoc) -> (Cell, Cell))
-  | W3 (Env -> Clatch (Maybe FileLoc) -> (Cell, Cell, Cell))
-  | W4 (Env -> Clatch (Maybe FileLoc) -> (Cell, Cell, Cell, Cell))
+  = W1 (Env -> Clatch (Maybe Cursor) -> Cell)
+  | W2 (Env -> Clatch (Maybe Cursor) -> (Cell, Cell))
+  | W3 (Env -> Clatch (Maybe Cursor) -> (Cell, Cell, Cell))
+  | W4 (Env -> Clatch (Maybe Cursor) -> (Cell, Cell, Cell, Cell))
 
-type Column = Env -> Clatch (Maybe FileLoc) -> Cell
+type Column = Env -> Clatch (Maybe Cursor) -> Cell
 
 type Columns = Seq Stripe
 
 {-
-newtype Columns = Columns (Env -> Clatch (Maybe FileLoc) -> Seq Cell)
+newtype Columns = Columns (Env -> Clatch (Maybe Cursor) -> Seq Cell)
 
 makeWrapped ''Columns
 
@@ -136,7 +136,7 @@ table
   :: History
   -> Colors
   -> Columns
-  -> Seq (Clatch (Maybe FileLoc))
+  -> Seq (Clatch (Maybe Cursor))
   -> Seq (Chunk Text)
 table hist clrs col clatches
   = render
@@ -162,14 +162,14 @@ table hist clrs col clatches
       . concat . repeat $ [_evenBackground clrs, _oddBackground clrs]
 
 text
-  :: (Clatch (Maybe FileLoc) -> Text)
+  :: (Clatch (Maybe Cursor) -> Text)
   -> Column
 text f = \env clatch ->
   textCell _nonLinear (view rowBackground env) (view colors env)
             (f clatch)
 
 seqText
-  :: (Clatch (Maybe FileLoc) -> Seq Text)
+  :: (Clatch (Maybe Cursor) -> Seq Text)
   -> Column
 seqText f = \env clatch ->
   textCell _nonLinear (view rowBackground env) (view colors env)
@@ -179,7 +179,7 @@ spaces :: Int -> Column
 spaces i = text (const (X.replicate i . X.singleton $ ' '))
 
 bool
-  :: (Clatch (Maybe FileLoc) -> Bool)
+  :: (Clatch (Maybe Cursor) -> Bool)
   -> Column
 bool f = \env clatch ->
   let (char, fg)
@@ -195,30 +195,30 @@ bool f = \env clatch ->
       }
 
 integer
-  :: (Clatch (Maybe FileLoc) -> Integer)
+  :: (Clatch (Maybe Cursor) -> Integer)
   -> Column
 integer f = text (X.pack . show . f)
 
 int
-  :: (Clatch (Maybe FileLoc) -> Int)
+  :: (Clatch (Maybe Cursor) -> Int)
   -> Column
 int f = text (X.pack . show . f)
 
 nonNegative
-  :: (Clatch (Maybe FileLoc) -> NonNegative)
+  :: (Clatch (Maybe Cursor) -> NonNegative)
   -> Column
 nonNegative f = integer (c'Integer'NonNegative . f)
 
 maybePole
-  :: (Clatch (Maybe FileLoc) -> Maybe Pole)
+  :: (Clatch (Maybe Cursor) -> Maybe Pole)
   -> Column
 maybePole f = \env clatch -> sideCell env (f clatch)
 
 -- | Creates two columns: one for the side and one for the magnitude.
 repAnyRadix
-  :: (Clatch (Maybe FileLoc) -> RepAnyRadix)
+  :: (Clatch (Maybe Cursor) -> RepAnyRadix)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> (Cell, Cell)
 repAnyRadix f env clatch =
   ( sideCell env (pole'RepAnyRadix (f clatch))
@@ -227,9 +227,9 @@ repAnyRadix f env clatch =
 
 -- | Creates two columns: one for the side and one for the magnitude.
 qty
-  :: (Clatch (Maybe FileLoc) -> Qty)
+  :: (Clatch (Maybe Cursor) -> Qty)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> (Cell, Cell)
 qty f env clatch =
   ( sideCell env . pole'Decimal . view _Wrapped . f $ clatch
@@ -325,9 +325,9 @@ troimountCellsToColumns env = foldl addRow emptyTup
 -- 2.  Magnitude (with commodity on left or right, if applicable)
 -- 3.  Separate commodity on right
 troika
-  :: (Clatch (Maybe FileLoc) -> Troika)
+  :: (Clatch (Maybe Cursor) -> Troika)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> (Cell, Cell, Cell, Cell)
 troika f env
   = troimountCellsToColumns env
@@ -337,9 +337,9 @@ troika f env
 
 -- | Creates same columns as 'troika'.
 amount
-  :: (Clatch (Maybe FileLoc) -> Amount)
+  :: (Clatch (Maybe Cursor) -> Amount)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> (Cell, Cell, Cell, Cell)
 amount f = troika (c'Troika'Amount . f)
 
@@ -347,9 +347,9 @@ amount f = troika (c'Troika'Amount . f)
 -- for each commodity in the balance.
 
 balance
-  :: (Clatch (Maybe FileLoc) -> Balance)
+  :: (Clatch (Maybe Cursor) -> Balance)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> (Cell, Cell, Cell, Cell)
 balance f env
   = troimountCellsToColumns env
@@ -366,9 +366,9 @@ balance f env
 -- backward serial.
 
 serset
-  :: (Clatch (Maybe FileLoc) -> Serset)
+  :: (Clatch (Maybe Cursor) -> Serset)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> (Cell, Cell)
 serset f env clatch = (fwdCell, revCell)
   where
@@ -378,9 +378,9 @@ serset f env clatch = (fwdCell, revCell)
 -- | Creates four columns: two for the file serset and two for the
 -- global serset.
 serpack
-  :: (Clatch (Maybe FileLoc) -> Serpack)
+  :: (Clatch (Maybe Cursor) -> Serpack)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> (Cell, Cell, Cell, Cell)
 serpack f env clatch = (fileFwd, fileRev, glblFwd, glblRev)
   where
@@ -390,14 +390,14 @@ serpack f env clatch = (fileFwd, fileRev, glblFwd, glblRev)
 -- | Creates a single column using whatever 'Show' shows.
 columnShow
   :: Show a
-  => (Clatch (Maybe FileLoc) -> a)
+  => (Clatch (Maybe Cursor) -> a)
   -> Column
 columnShow f = text (X.pack . show . f)
 
 scalar
-  :: (Clatch (Maybe FileLoc) -> Scalar)
+  :: (Clatch (Maybe Cursor) -> Scalar)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> Cell
 scalar f env clatch = case f clatch of
   SText txt -> text (const txt) env clatch
@@ -408,9 +408,9 @@ scalar f env clatch = case f clatch of
   SInteger int -> columnShow (const int) env clatch
 
 maybeScalar
-  :: (Clatch (Maybe FileLoc) -> Maybe Scalar)
+  :: (Clatch (Maybe Cursor) -> Maybe Scalar)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> Cell
 maybeScalar f env clatch = case f clatch of
   Nothing -> text (const "--") env clatch
@@ -419,9 +419,9 @@ maybeScalar f env clatch = case f clatch of
 -- | Shows the scalar.  Does not show the children; if there are
 -- children, a ↓ is shown at the end.
 tree
-  :: (Clatch (Maybe FileLoc) -> Tree)
+  :: (Clatch (Maybe Cursor) -> Tree)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> Cell
 tree f env clatch = text (const txt) env clatch
   where
@@ -442,9 +442,9 @@ tree f env clatch = text (const txt) env clatch
 
 -- | Shows each tree, separated by a •.
 seqTree
-  :: (Clatch (Maybe FileLoc) -> Seq Tree)
+  :: (Clatch (Maybe Cursor) -> Seq Tree)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> Cell
 seqTree f env clatch
   = textCell _nonLinear (view rowBackground env) (view colors env) txt
@@ -464,9 +464,9 @@ seqTree f env clatch
 
 -- | Shows each Scalar, each separated by a bullet.
 seqScalar
-  :: (Clatch (Maybe FileLoc) -> Seq Scalar)
+  :: (Clatch (Maybe Cursor) -> Seq Scalar)
   -> Env
-  -> Clatch (Maybe FileLoc)
+  -> Clatch (Maybe Cursor)
   -> Cell
 seqScalar f env clatch = textCell _nonLinear
   (view rowBackground env) (view colors env) txt
