@@ -4,7 +4,7 @@ module Penny.Command where
 
 import Penny.Amount
 import Penny.Commodity
-import Penny.Clatch
+import Penny.Clatch.Types
 import Penny.Clatcher (Clatcher, Report)
 import qualified Penny.Clatcher as Clatcher
 import Penny.Colors

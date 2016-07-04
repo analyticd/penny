@@ -14,8 +14,10 @@ import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
 import Penny.Cell
-import Penny.Clatch (Clatch)
-import qualified Penny.Clatch as Clatch
+import Penny.Clatch.Types
+import Penny.Clatch.Access.PostFiltset (postFiltset)
+import qualified Penny.Clatch.Access.Posting as AP
+import qualified Penny.Clatch.Access.Transaction as AT
 import Penny.Colors
 import Penny.Copper.Copperize
 import Penny.Copper.Decopperize
@@ -75,7 +77,7 @@ background clatch colors
   | odd i = view oddBackground colors
   | otherwise = view evenBackground colors
   where
-    i = view (Clatch.postFiltset . Serial.forward .to c'Integer'NonNegative) clatch
+    i = view (postFiltset . Serial.forward .to c'Integer'NonNegative) clatch
 
 -- | Removes all entirely empty columns from a table.
 removeEmptyColumns
@@ -476,40 +478,40 @@ seqScalar f env clatch = textCell _nonLinear
 -- # Pre-made columns
 
 day :: Stripe
-day = W1 (text $ X.pack . show . view Clatch.day)
+day = W1 (text $ X.pack . show . view AT.day)
 
 timeOfDay :: Stripe
-timeOfDay = W1 (text $ X.pack . show . view Clatch.timeOfDay)
+timeOfDay = W1 (text $ X.pack . show . view AT.timeOfDay)
 
 timeZone :: Stripe
-timeZone = W1 (text $ X.pack . show . view Clatch.timeZone)
+timeZone = W1 (text $ X.pack . show . view AT.timeZone)
 
 payee :: Stripe
-payee = W1 (maybeCol text (view Clatch.payee))
+payee = W1 (maybeCol text (view AT.payee))
 
 number :: Stripe
-number = W1 (maybeCol integer (view Clatch.number))
+number = W1 (maybeCol integer (view AP.number))
 
 flag :: Stripe
-flag = W1 (maybeCol text (view Clatch.flag))
+flag = W1 (maybeCol text (view AP.flag))
 
 account :: Stripe
-account = W1 (seqText $ view Clatch.account)
+account = W1 (seqText $ view AP.account)
 
 fitid :: Stripe
-fitid = W1 (maybeCol text (view Clatch.fitid))
+fitid = W1 (maybeCol text (view AP.fitid))
 
 tags :: Stripe
-tags = W1 (seqText $ view Clatch.tags)
+tags = W1 (seqText $ view AP.tags)
 
 reconciled :: Stripe
-reconciled = W1 (text $ getTxt . Clatch.reconciled)
+reconciled = W1 (text $ getTxt . AP.reconciled)
   where
     getTxt r | r = "R"
              | otherwise = ""
 
 cleared :: Stripe
-cleared = W1 (text $ getTxt . Clatch.cleared)
+cleared = W1 (text $ getTxt . AP.cleared)
   where
     getTxt c | c = "C"
              | otherwise = ""

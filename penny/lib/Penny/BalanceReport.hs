@@ -18,7 +18,9 @@ import Rainbox
 import Penny.Balance
 import Penny.BalanceMap
 import Penny.Cell
-import Penny.Clatch
+import Penny.Clatch.Types
+import Penny.Clatch.Access.Posting
+import Penny.Clatch.Access.Converted
 import Penny.Colors
 import Penny.Commodity
 import Penny.Copper.Copperize

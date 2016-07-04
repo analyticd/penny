@@ -4,7 +4,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 -- | Types that group a posting with other interesting information.
-module Penny.Clatch
+module Penny.Clatch where
+{-
   ( -- * Postings
     Core(..)
   , troika
@@ -119,3 +120,4 @@ import qualified Text.Show.Pretty as Pretty
 
 -- # Lenses
 
+-}

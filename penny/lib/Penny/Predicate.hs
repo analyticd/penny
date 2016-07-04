@@ -10,7 +10,8 @@ import qualified Data.Sequence as Seq
 import Data.Text (Text)
 
 import Penny.Account
-import Penny.Clatch
+import Penny.Clatch.Types
+import Penny.Clatch.Access.Posting
 
 accountIs :: Account -> Getter (Sliced l a) Bool
 accountIs a = account . to (== a)

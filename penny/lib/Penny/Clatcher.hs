@@ -15,7 +15,8 @@ import qualified Data.Text.IO as XIO
 import Data.Typeable (Typeable)
 import Rainbow (Chunk)
 
-import Penny.Clatch
+import Penny.Clatch.Types
+import Penny.Clatch.Create
 import Penny.Colors
 import Penny.Converter
 import qualified Penny.Copper as Copper

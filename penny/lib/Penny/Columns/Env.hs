@@ -4,7 +4,7 @@ module Penny.Columns.Env where
 
 import Control.Lens (makeLenses)
 
-import Penny.Clatch
+import Penny.Clatch.Types
 import Penny.Colors
 import Penny.Cursor
 import Penny.Popularity

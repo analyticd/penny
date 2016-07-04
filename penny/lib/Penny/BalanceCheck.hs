@@ -14,8 +14,12 @@ import Test.Tasty (testGroup, TestTree)
 import Test.Tasty.HUnit ((@=?), assertBool, testCase, assertFailure)
 
 import Penny.Balance
-import Penny.Clatch
+import Penny.Clatch.Access.Balance
+import Penny.Clatch.Access.Posting
+import Penny.Clatch.Access.Transaction
+import Penny.Clatch.Create
 import Penny.Commodity
+import Penny.Core
 import Penny.Decimal
 import Penny.NonNegative
 

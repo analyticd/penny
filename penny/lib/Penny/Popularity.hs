@@ -14,7 +14,7 @@ import Penny.Copper.Types
   GrpRadPer(GrpRadPer'Comma))
 import Penny.Copper.Copperize
 import Penny.Mimode
-import Penny.Clatch
+import Penny.Core
 import Control.Applicative
 import Penny.SeqUtil
 import Control.Monad (join)
