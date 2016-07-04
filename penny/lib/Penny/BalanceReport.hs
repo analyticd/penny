@@ -40,7 +40,7 @@ balanceReport clrs hist
   . fmap mkBalanceMap
   where
     mkBalanceMap clatch = balanceMap (view account clatch)
-      (view (best . to c'Balance'Amount) clatch)
+      (c'Balance'Amount . best $ clatch)
 
 unrollBalanceMap :: Int -> Text -> BalanceMap -> Seq (Int, Text, Balance)
 unrollBalanceMap lvl lbl mp
