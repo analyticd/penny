@@ -5,6 +5,7 @@ SourceGraph/
 cabal.sandbox.config
 test-dist/
 penny.cabal
+penny-copper.cabal
 tests/penny-test.hs
 .stack-work/
 pinchot/
