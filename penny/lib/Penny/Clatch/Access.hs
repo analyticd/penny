@@ -1,0 +1,12 @@
+-- | Accessing the parts of different clatch-like types.
+--
+-- There are six clatch-like types.  To access the various fields
+-- within those types, use the declarations in these modules.  There
+-- are so many different modules to eliminate naming conflicts; for
+-- example, 'Penny.Clatch.Access.Posting.number' in
+-- "Penny.Clatch.Access.Posting" accesses the @number@ field in the
+-- main posting in a clatch-like type, while
+-- 'Penny.Clatch.Access.Siblings.number' in
+-- "Penny.Clatch.Access.Siblings" returns all the @number@ fields in
+-- all of the main posting's sibling postings.
+module Penny.Clatch.Access where

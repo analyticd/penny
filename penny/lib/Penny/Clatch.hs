@@ -1,123 +1,21 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 -- | Types that group a posting with other interesting information.
+--
+-- Often in Penny, the user needs to examine postings within a larger
+-- context of other postings.  A group of postings has a running
+-- balance that you might wish to examine.  Also, sometimes you have a
+-- large group of postings, but you only want to examine some of them
+-- in detail, while keeping others in the group so that they
+-- contribute to the running balance.  Also, you may want to know the
+-- ordinal position of a particular posting compared to others.
+--
+-- The 'Penny.Clatch.Types.Clatch' contains a posting along with a
+-- wealth of other information, such as the running balance, the
+-- sibling postings, the top line data, and several numbers showing
+-- how this posting's position and the position of its transaction
+-- relate to other postings and transactions.
+--
+-- Many other values are created on the way to building a
+-- 'Penny.Clatch.Types.Clatch', and all these types are in
+-- "Penny.Clatch.Types".
 module Penny.Clatch where
-{-
-  ( -- * Postings
-    Core(..)
-  , troika
-  , birth
-
-  , Posting
-  , core
-  , postings
-
-  -- * Transactions
-  , Transaction
-
-  -- * Functions on postings and transactions
-  , tranche
-  , postline
-
-  -- * Sersets
-  , PreFiltset
-  , Sortset
-  , PostFiltset
-
-  -- * Clatches and compatible types
-
-  -- | These types are designed so that various functions and lenses
-  -- can operate on values of multiple types.
-  , Sliced
-  , Converted
-  , Prefilt
-  , Sorted
-  , Totaled
-  , Clatch
-
-  -- * Lenses and Functions on clatches and compatible types
-  , transaction
-  , slice
-  , posting
-  , converted
-  , best
-  , preFiltset
-  , sortset
-  , balance
-  , postFiltset
-
-  -- ** Field lenses
-  , zonedTime
-  , day
-  , timeOfDay
-  , timeZone
-  , timeZoneMinutes
-  , payee
-  , number
-  , flag
-  , account
-  , fitid
-  , tags
-
-  -- * Other field-related things
-  , reconciled
-  , cleared
-
-  -- * Creation of clatches
-  , addSerials
-  , clatchesFromTransactions
-  ) where
-
-import Penny.Account
-import Penny.Amount
-import Penny.Balance
-import Penny.Clatch.Types
-import Penny.Clatch.Access.Balance
-import Penny.Clatch.Access.Converted
-import Penny.Clatch.Access.Posting
-import Penny.Clatch.Access.PostFiltset
-import Penny.Clatch.Access.PreFiltset
-import Penny.Clatch.Access.Slice
-import Penny.Clatch.Access.Sortset
-import Penny.Clatch.Access.Transaction
-import Penny.Clatch.Create
-import Penny.Converter
-import Penny.Core
-import Penny.Copper.Decopperize
-import Penny.Ents (Balanced, balancedToSeqEnt)
-import qualified Penny.Fields as F
-import Penny.SeqUtil
-import Penny.Serial
-import Penny.Tranche (Postline, TopLine, Tranche, fields)
-import qualified Penny.Tranche as Tranche
-import Penny.TransactionBare (TransactionBare(TransactionBare))
-import Penny.Troika
-
-import Control.Lens hiding (index)
-import Control.Monad (join)
-import Data.Bifunctor
-import Data.Bifunctor.Flip
-import Data.Monoid
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
-import Data.Text (Text)
-import Data.Time (ZonedTime)
-import qualified Data.Time as Time
-import qualified Data.Traversable as T
-import Data.Functor.Compose
-import GHC.Generics (Generic)
-import Text.Show.Pretty (PrettyVal)
-import qualified Text.Show.Pretty as Pretty
-
--- # Lenses and functions on clatches
-
---
--- # Creation
---
-
--- # Lenses
-
--}
