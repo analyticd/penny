@@ -44,6 +44,8 @@ import qualified Data.Map as M
 import qualified Data.IntMap as IM
 import qualified Data.Time as Time
 import Data.Monoid
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Text as X
 import Rainbox
@@ -57,8 +59,6 @@ import Rainbox
   )
 import Rainbow
 import Rainbow.Types (yarn)
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 
 data Stripe
   = W1 (Env -> Clatch (Maybe Cursor) -> Cell)
@@ -149,12 +149,22 @@ table hist clrs col clatches
     colorSeq = Seq.fromList . take (Seq.length clatches)
       . concat . repeat $ [_evenBackground clrs, _oddBackground clrs]
 
+maybeCol
+  :: ((Clatch (Maybe Cursor) -> a) -> Column)
+  -> (Clatch (Maybe Cursor) -> Maybe a)
+  -> Column
+maybeCol getCol getMay = \env clatch -> case getMay clatch of
+  Nothing -> textCell _nonLinear (view rowBackground env)
+    (view colors env) ""
+  Just x -> getCol (const x) env clatch
+
 text
   :: (Clatch (Maybe Cursor) -> Text)
   -> Column
 text f = \env clatch ->
   textCell _nonLinear (view rowBackground env) (view colors env)
             (f clatch)
+
 
 seqText
   :: (Clatch (Maybe Cursor) -> Seq Text)
@@ -462,3 +472,44 @@ seqScalar f env clatch = textCell _nonLinear
     txt = foldl (<>) mempty
       . intersperse "•" . fmap displayScalar
       . f $ clatch
+
+-- # Pre-made columns
+
+day :: Stripe
+day = W1 (text $ X.pack . show . view Clatch.day)
+
+timeOfDay :: Stripe
+timeOfDay = W1 (text $ X.pack . show . view Clatch.timeOfDay)
+
+timeZone :: Stripe
+timeZone = W1 (text $ X.pack . show . view Clatch.timeZone)
+
+payee :: Stripe
+payee = W1 (maybeCol text (view Clatch.payee))
+
+number :: Stripe
+number = W1 (maybeCol integer (view Clatch.number))
+
+flag :: Stripe
+flag = W1 (maybeCol text (view Clatch.flag))
+
+account :: Stripe
+account = W1 (seqText $ view Clatch.account)
+
+fitid :: Stripe
+fitid = W1 (maybeCol text (view Clatch.fitid))
+
+tags :: Stripe
+tags = W1 (seqText $ view Clatch.tags)
+
+reconciled :: Stripe
+reconciled = W1 (text $ getTxt . Clatch.reconciled)
+  where
+    getTxt r | r = "R"
+             | otherwise = ""
+
+cleared :: Stripe
+cleared = W1 (text $ getTxt . Clatch.cleared)
+  where
+    getTxt c | c = "C"
+             | otherwise = ""
