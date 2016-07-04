@@ -23,6 +23,7 @@ import qualified Penny.Tranche as Tranche
 -- 'siblings' :: 'Sorted' a -> 'Seq' 'Posting'
 -- 'siblings' :: 'Totaled' a -> 'Seq' 'Posting'
 -- 'siblings' :: 'Clatch' a -> 'Seq' 'Posting'
+-- @
 siblings :: (a, (Slice (Posting l), b)) -> Seq (Posting l)
 siblings s = l `mappend` r
   where

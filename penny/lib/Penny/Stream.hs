@@ -10,6 +10,8 @@
 -- /be sure to compile with the -threaded option/
 --
 -- otherwise your code might experience deadlocks.
+--
+-- TODO eliminate typeclass.
 module Penny.Stream where
 
 import qualified Control.Concurrent.Async as Async

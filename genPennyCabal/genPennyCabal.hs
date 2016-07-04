@@ -151,7 +151,7 @@ pennyCopper = exactly "penny-copper" pennyVer
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
-  [ ghcOptions ["-W"]
+  [ ghcOptions ["-W", "-threaded"]
   , haskell2010
   , hsSourceDirs ["lib", "prettyShow"]
   , otherExtensions ["TemplateHaskell"]

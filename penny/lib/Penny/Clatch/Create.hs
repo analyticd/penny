@@ -54,7 +54,7 @@ createConverted
 createConverted (Converter f) clatch = set (_2._2) (conv, ()) clatch
   where
     conv = f $ view amount clatch
-    amount = _2._1.onSlice.core. troika . to c'Amount'Troika
+    amount = _2._1.onSlice. Penny.Core.core. Penny.Core.troika . to c'Amount'Troika
 
 createPrefilt
   :: (Converted l a -> Bool)

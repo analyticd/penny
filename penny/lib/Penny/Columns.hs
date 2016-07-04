@@ -15,6 +15,7 @@ import Penny.Arrangement
 import Penny.Balance
 import Penny.Cell
 import Penny.Clatch.Types
+import qualified Penny.Clatch.Access.Balance as AB
 import Penny.Clatch.Access.PostFiltset (postFiltset)
 import qualified Penny.Clatch.Access.Posting as AP
 import qualified Penny.Clatch.Access.Transaction as AT
@@ -122,13 +123,13 @@ addRowToMap mp = foldl' addColToMap mp . zip [0..] . toList
 
 -- | Creates a table from a 'Columns'.  Deletes any column that is
 -- entirely empty, then intersperses single-space spacer columns.
-table
+columnsReport
   :: History
   -> Colors
   -> Columns
   -> Seq (Clatch (Maybe Cursor))
   -> Seq (Chunk Text)
-table hist clrs col clatches
+columnsReport hist clrs col clatches
   = render
   . tableByColumns
   . intersperse (spacerColumn clrs clatches)
@@ -515,3 +516,24 @@ cleared = W1 (text $ getTxt . AP.cleared)
   where
     getTxt c | c = "C"
              | otherwise = ""
+
+-- | The 'Troika' for this particular posting.
+entry :: Stripe
+entry = W4 (troika $ view AP.troika)
+
+-- | All the 'Troika' for the balance for this particular posting.
+runner :: Stripe
+runner = W4 (balance $ view AB.balance)
+
+-- | A report with a standard set of 'Stripe':
+--
+-- * 'day'
+-- * 'number'
+-- * 'flag'
+-- * 'payee'
+-- * 'account'
+-- * 'entry'
+-- * 'runner'
+
+checkbook :: Columns
+checkbook = [ day, number, flag, payee, account, entry, runner ]

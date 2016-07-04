@@ -130,6 +130,8 @@ instance (PrettyVal a, PrettyVal b) => PrettyVal (Either a b)
 
 instance PrettyVal Text where prettyVal = String . X.unpack
 
+instance PrettyVal () where prettyVal _ = Con "()" []
+
 -- # Data.Time
 instance PrettyVal Time.Day where
   prettyVal d = Con "Data.Time.Day" [String . show $ d]

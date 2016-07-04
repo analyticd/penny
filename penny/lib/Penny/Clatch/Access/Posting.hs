@@ -13,9 +13,12 @@ import Data.Text (Text)
 import Penny.Account
 import Penny.Clatch.Access.Slice
 import Penny.Clatch.Types
-import Penny.Core
+import Penny.Core (Core, postline, Posting)
+import qualified Penny.Core as Core
 import Penny.SeqUtil
+import Penny.Serial
 import qualified Penny.Tranche as Tranche
+import Penny.Troika (Troika)
 
 -- | Operates on the 'Posting' in the 'Slice'.
 --
@@ -30,6 +33,15 @@ import qualified Penny.Tranche as Tranche
 
 posting :: Lens' (a, (Slice (Posting l), b)) (Posting l)
 posting = slice . onSlice
+
+core :: Lens' (Sliced l a) Core
+core = posting . Core.core
+
+troika :: Lens' (Sliced l a) Troika
+troika = core . Core.troika
+
+birth :: Lens' (Sliced l a) Serset
+birth = core . Core.birth
 
 number :: Lens' (Sliced l a) (Maybe Integer)
 number = posting . postline . Tranche.number
