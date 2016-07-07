@@ -24,23 +24,26 @@ module Penny.Troika where
 
 import qualified Penny.Amount as A
 import Penny.Arrangement
+import Penny.Balance
 import Penny.Commodity
+import Penny.Copper.Decopperize
 import Penny.Decimal
 import Penny.Copper.Types (GrpRadCom, GrpRadPer)
 import Penny.NonZero
+import qualified Penny.NonZero as NZ
 import Penny.Polar
+import qualified Penny.Positive as Pos
 import Penny.Rep
+import qualified Penny.Trio as Trio
 
-import Control.Lens
+import qualified Control.Lens as Lens
+import qualified Data.Map as M
 import Data.Sequence (Seq)
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
 import qualified Text.Show.Pretty as Pretty
 
 -- | The payload data of a 'Troika'.
---
--- To obtain a 'Decimal' from a 'Troiload', see
--- 'Penny.Copper.Decopperize.c'Decimal'Troiload'.
 data Troiload
   = QC RepAnyRadix Arrangement
   | Q RepAnyRadix
@@ -99,7 +102,7 @@ data Troika = Troika
 
 instance PrettyVal Troika
 
-makeLenses ''Troika
+Lens.makeLenses ''Troika
 
 c'Troika'Amount :: A.Amount -> Troika
 c'Troika'Amount (A.Amount cy q) = Troika cy (Right q)
@@ -119,3 +122,184 @@ troikaRendering (Troika cy tq) = case tq of
         ei = groupers'BrimAnyRadix rnn
     _ -> Nothing
   _ -> Nothing
+
+c'Decimal'Troiload :: Troiload -> Decimal
+c'Decimal'Troiload x = case x of
+  QC q _ -> c'Decimal'RepAnyRadix q
+  Q q -> c'Decimal'RepAnyRadix q
+  SC qnz -> fmap c'Integer'NonZero qnz
+  S qnz -> fmap c'Integer'NonZero qnz
+  UC rnn s _ ->
+    fmap c'Integer'NonZero
+    . c'DecNonZero'DecPositive s
+    . c'DecPositive'BrimAnyRadix
+    $ rnn
+  NC nilAnyRadix _ ->
+    fmap (const 0) . c'DecZero'NilAnyRadix $ nilAnyRadix
+  US rnn s ->
+    fmap c'Integer'NonZero
+    . c'DecNonZero'DecPositive s
+    . c'DecPositive'BrimAnyRadix
+    $ rnn
+  UU nil -> fmap (const 0) . c'DecZero'NilAnyRadix $ nil
+  C qnz -> fmap c'Integer'NonZero qnz
+  E qnz -> fmap c'Integer'NonZero qnz
+
+pole'Troika :: Troika -> Maybe Pole
+pole'Troika (Troika _ ei) = case ei of
+  Left tl -> pole'Decimal . c'Decimal'Troiload $ tl
+  Right dec -> pole'Decimal dec
+
+c'Amount'Troika :: Troika -> A.Amount
+c'Amount'Troika (Troika cy ei) = A.Amount cy
+  (either c'Decimal'Troiload id ei)
+
+
+trioToTroiload
+  :: Imbalance
+  -> Trio.Trio
+  -> Either Trio.TrioError (Troiload, Commodity)
+
+trioToTroiload _ (Trio.QC qnr cy ar) = Right (QC qnr ar, cy)
+
+trioToTroiload imb (Trio.Q qnr) = fmap f $ oneCommodity imb
+  where
+    f (cy, _) = (Q qnr, cy)
+
+trioToTroiload imb (Trio.SC s cy) = do
+  qnz <- lookupCommodity imb cy
+  let qtSide = Lens.view (coefficient . NZ.pole) qnz
+  notSameSide qtSide s
+  return (SC qnz, cy)
+
+trioToTroiload imb (Trio.S s) = do
+  (cy, qnz) <- oneCommodity imb
+  let qtSide = Lens.view (coefficient . NZ.pole) qnz
+  notSameSide s qtSide
+  return (S qnz, cy)
+
+trioToTroiload imb (Trio.UC qnr cy ar) = do
+  qnz <- lookupCommodity imb cy
+  return (UC qnr (opposite . Lens.view (coefficient . NZ.pole) $ qnz) ar, cy)
+
+trioToTroiload _ (Trio.NC nilAnyRadix cy ar) = Right (troiload, cy)
+  where
+    troiload = NC nilAnyRadix ar
+
+trioToTroiload imb (Trio.US brim) = do
+  (cy, qnz) <- oneCommodity imb
+  rnnIsSmallerAbsoluteValue brim qnz
+  let pole' = Lens.view (coefficient . NZ.pole . Lens.to opposite) qnz
+  return (US brim pole', cy)
+
+trioToTroiload imb (Trio.UU nil) = do
+  (cy, _) <- oneCommodity imb
+  return (UU nil, cy)
+
+trioToTroiload imb (Trio.C cy) = do
+  qnz <- lookupCommodity imb cy
+  let qnz' = Lens.over (coefficient . NZ.pole) opposite qnz
+  return (C qnz', cy)
+
+trioToTroiload imb Trio.E = do
+  (cy, qnz) <- oneCommodity imb
+  return (E (Lens.over (coefficient . NZ.pole) opposite qnz), cy)
+
+oneCommodity :: Imbalance -> Either Trio.TrioError (Commodity, DecNonZero)
+oneCommodity (Imbalance imb) = case M.toList imb of
+  [] -> Left Trio.NoImbalance
+  (cy, q):[] -> return (cy, q)
+  x:y:xs -> Left $ Trio.MultipleImbalance x y xs
+
+notSameSide :: Pole -> Pole -> Either Trio.TrioError ()
+notSameSide x y
+  | x == y = Left $ Trio.BalanceIsSameSide x
+  | otherwise = return ()
+
+lookupCommodity :: Imbalance -> Commodity -> Either Trio.TrioError DecNonZero
+lookupCommodity (Imbalance imb) cy = case M.lookup cy imb of
+  Nothing -> Left $ Trio.CommodityNotFound cy
+  Just dnz -> return dnz
+
+rnnIsSmallerAbsoluteValue
+  :: BrimAnyRadix
+  -> DecNonZero
+  -> Either Trio.TrioError ()
+rnnIsSmallerAbsoluteValue qnr qnz
+  | _coefficient qnr'' < _coefficient qnz'' = return ()
+  | otherwise = Left $ Trio.UnsignedTooLarge qnr qnz
+  where
+    qnr' = fmap Pos.c'Integer'Positive . c'DecPositive'BrimAnyRadix $ qnr
+    qnz' = c'Decimal'DecNonZero qnz
+    (qnr'', qnz'') = equalizeExponents qnr' qnz'
+
+trioToAmount :: Imbalance -> Trio.Trio -> Either Trio.TrioError A.Amount
+
+trioToAmount _ (Trio.QC qnr cy _) = Right $ A.Amount cy (c'Decimal'RepAnyRadix qnr)
+
+trioToAmount imb (Trio.Q qnr) = fmap f $ oneCommodity imb
+  where
+    f (cy, _) = A.Amount cy (c'Decimal'RepAnyRadix qnr)
+
+trioToAmount imb (Trio.SC s cy) = do
+  qnz <- lookupCommodity imb cy
+  let qtSide = Lens.view (coefficient . NZ.pole) qnz
+  notSameSide qtSide s
+  return
+    . A.Amount cy
+    . fmap (Prelude.negate . c'Integer'NonZero)
+    $ qnz
+
+trioToAmount imb (Trio.S s) = do
+  (cy, qnz) <- oneCommodity imb
+  let qtSide = Lens.view (coefficient . NZ.pole) qnz
+  notSameSide s qtSide
+  return
+    . A.Amount cy
+    . fmap (Prelude.negate . c'Integer'NonZero)
+    $ qnz
+
+trioToAmount imb (Trio.UC qnr cy _) = do
+  qnz <- lookupCommodity imb cy
+  return
+    . A.Amount cy
+    . Lens.over coefficient c'Integer'NonZero
+    . Lens.set (coefficient . NZ.pole) (Lens.view (coefficient . NZ.pole) qnz)
+    . fmap NZ.c'NonZero'Positive
+    . c'DecPositive'BrimAnyRadix
+    $ qnr
+
+trioToAmount _ (Trio.NC nilAnyRadix cy _) = Right (A.Amount cy qty)
+  where
+    qty = fmap (const 0) . c'DecZero'NilAnyRadix $ nilAnyRadix
+
+trioToAmount imb (Trio.US qnr) = do
+  (cy, qnz) <- oneCommodity imb
+  rnnIsSmallerAbsoluteValue qnr qnz
+  return
+    . A.Amount cy
+    . Lens.over coefficient c'Integer'NonZero
+    . Lens.set (coefficient . NZ.pole) (Lens.view (coefficient . NZ.pole) qnz)
+    . fmap NZ.c'NonZero'Positive
+    . c'DecPositive'BrimAnyRadix
+    $ qnr
+
+trioToAmount imb (Trio.UU nil) = do
+  (cy, _) <- oneCommodity imb
+  return (A.Amount cy (fmap (const 0) (c'DecZero'NilAnyRadix nil)))
+
+trioToAmount imb (Trio.C cy) = do
+  qnz <- lookupCommodity imb cy
+  return
+    . A.Amount cy
+    . fmap c'Integer'NonZero
+    . Lens.set (coefficient . NZ.pole) (Lens.view (coefficient . NZ.pole) qnz)
+    $ qnz
+
+trioToAmount imb Trio.E = do
+  (cy, qnz) <- oneCommodity imb
+  return
+    . A.Amount cy
+    . fmap c'Integer'NonZero
+    . Lens.set (coefficient . NZ.pole) (Lens.view (coefficient . NZ.pole) qnz)
+    $ qnz

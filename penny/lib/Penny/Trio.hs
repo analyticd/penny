@@ -1,3 +1,7 @@
+-- | See "Penny.Troika" for more on how the 'Trio' relates to the
+-- 'Penny.Troika.Troika'.  Also, some functions that operate entirely
+-- on 'Trio' are in "Penny.Troika" to avoid cycyclic module
+-- dependencies.
 module Penny.Trio where
 
 import qualified Data.Map as M
@@ -5,6 +9,7 @@ import Data.Sequence (Seq)
 
 import Penny.Arrangement
 import Penny.Commodity
+-- import Penny.Copper.Decopperize
 import Penny.Decimal
 import Penny.Copper.Types
   (GrpRadCom, GrpRadPer)
@@ -23,6 +28,8 @@ arrange
 arrange mp cy = M.lookup cy mp >>= mimode
 
 
+-- | To convet a 'Trio' to an 'Amount', see
+-- 'Penny.Troika.trioToAmount'.
 data Trio
   = QC RepAnyRadix Commodity Arrangement
   -- ^ Specify a quantity and commodity and a corresponding entry is
@@ -147,6 +154,4 @@ trioRepresentation tri = case tri of
   US brim -> Just $ c'NilOrBrimAnyRadix'BrimAnyRadix brim
   UU nil -> Just $ c'NilOrBrimAnyRadix'NilAnyRadix nil
   _ -> Nothing
-
-
 

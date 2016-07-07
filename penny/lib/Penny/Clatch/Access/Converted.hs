@@ -7,9 +7,9 @@ import qualified Control.Lens as Lens
 
 import Penny.Amount
 import Penny.Clatch.Access.Slice
-import Penny.Copper.Decopperize (c'Amount'Troika)
 import Penny.Core
 import Penny.SeqUtil
+import Penny.Troika (c'Amount'Troika)
 
 -- | Operate on the converted 'Amount'.  There is no converted
 -- 'Amount' if the 'Converter' did not specify a conversion.

@@ -21,7 +21,6 @@ import qualified Penny.Clatch.Access.Posting as AP
 import qualified Penny.Clatch.Access.Transaction as AT
 import Penny.Colors
 import Penny.Copper.Copperize
-import Penny.Copper.Decopperize
 import Penny.Decimal
 import Penny.Cursor
 import Penny.NonNegative

@@ -30,7 +30,6 @@ import qualified Data.Map as M
 import Penny.Amount
 import Penny.Balance
 import Penny.Commodity
-import Penny.Copper.Decopperize (trioToTroiload, c'Amount'Troika)
 import Penny.Decimal
 import Penny.Trio
 import qualified Penny.Troika as Y
@@ -103,20 +102,20 @@ prependEnt (am@(Amount cy q), e) (Ents s b) = Ents ((tm, e) <| s)
     tm = Y.Troika cy (Right q)
 
 appendTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
-appendTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
+appendTrio (Ents sq imb) trio = fmap f $ Y.trioToTroiload imb trio
   where
     f (troiload, cy) = \meta -> Ents (sq |> (tm, meta)) imb'
       where
         tm = Y.Troika cy (Left troiload)
-        imb' = imb <> c'Imbalance'Amount (c'Amount'Troika tm)
+        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troika tm)
 
 prependTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
-prependTrio (Ents sq imb) trio = fmap f $ trioToTroiload imb trio
+prependTrio (Ents sq imb) trio = fmap f $ Y.trioToTroiload imb trio
   where
     f (troiload, cy) = \meta -> Ents ((tm, meta) <| sq) imb'
       where
         tm = Y.Troika cy (Left troiload)
-        imb' = imb <> c'Imbalance'Amount (c'Amount'Troika tm)
+        imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troika tm)
 
 
 data ImbalancedError

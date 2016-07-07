@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Penny.BalanceReport where
 
-import Control.Lens (view, (<|), to)
+import Control.Lens (view, (<|))
 import Control.Monad (join)
 import Data.Foldable (toList)
 import Data.Map (Map)
