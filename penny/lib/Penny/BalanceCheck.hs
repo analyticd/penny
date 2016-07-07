@@ -44,9 +44,9 @@ lookForBalanceItem (cy, sig, exptInt) (rest, Balance balMap)
     tt = testCase ("commodity " <> unpack cy <>
       " has a balance with coefficient " <> show sig <> " and exponent "
       <> show exptInt) . maybe (assertFailure "balance does not exist") id $ do
-        bal <- maybeBal
+        Exponential sigBal exptBal <- maybeBal
         expt <- c'NonNegative'Integer exptInt
-        return $ Exponential sig expt @=? bal
+        return $ (sig, expt) @=? (sigBal, exptBal)
 
 -- | Checks a single balance.
 checkBalance

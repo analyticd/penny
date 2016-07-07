@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
--- | Obtaining transactions and prices fro a Copper-formatted file
+-- | Obtaining transactions and prices from a Copper-formatted file
 -- takes three steps: parsing, decopperization, and proofing.  This
 -- module performs decopperization.
 --
@@ -44,7 +44,7 @@ import qualified Penny.Scalar as Scalar
 import Penny.SeqUtil (mapMaybe, catMaybes)
 import qualified Penny.Tree as Tree
 import qualified Penny.Trio as Trio
-import qualified Penny.Troika as Troika
+-- import qualified Penny.Troika as Troika
 
 novDecsToPositive :: D1'9 t a -> Seq (D0'9 t a) -> Positive
 novDecsToPositive n = finish . go NN.zero NN.zero
@@ -1131,6 +1131,7 @@ c'DecZero'NilAnyRadix = either c'DecZero'NilRadCom c'DecZero'NilRadPer
 c'Decimal'DecNonZero :: DecNonZero -> Decimal
 c'Decimal'DecNonZero = fmap c'Integer'NonZero
 
+{-
 c'Decimal'Troiload :: Troika.Troiload -> Decimal
 c'Decimal'Troiload x = case x of
   Troika.QC q _ -> c'Decimal'RepAnyRadix q
@@ -1152,15 +1153,20 @@ c'Decimal'Troiload x = case x of
   Troika.UU nil -> fmap (const 0) . c'DecZero'NilAnyRadix $ nil
   Troika.C qnz -> fmap c'Integer'NonZero qnz
   Troika.E qnz -> fmap c'Integer'NonZero qnz
+-}
 
+{-
 pole'Troika :: Troika.Troika -> Maybe Pole
 pole'Troika (Troika.Troika _ ei) = case ei of
   Left tl -> pole'Decimal . c'Decimal'Troiload $ tl
   Right dec -> pole'Decimal dec
+-}
 
+{-
 c'Amount'Troika :: Troika.Troika -> A.Amount
 c'Amount'Troika (Troika.Troika cy ei) = A.Amount cy
   (either c'Decimal'Troiload id ei)
+-}
 
 -- Trio
 oneCommodity :: Imbalance -> Either Trio.TrioError (Commodity.Commodity, DecNonZero)
@@ -1263,6 +1269,7 @@ trioToAmount imb Trio.E = do
     $ qnz
 
 
+{-
 trioToTroiload
   :: Imbalance
   -> Trio.Trio
@@ -1312,3 +1319,4 @@ trioToTroiload imb (Trio.C cy) = do
 trioToTroiload imb Trio.E = do
   (cy, qnz) <- oneCommodity imb
   return (Troika.E (Lens.over (coefficient . NZ.pole) opposite qnz), cy)
+-}

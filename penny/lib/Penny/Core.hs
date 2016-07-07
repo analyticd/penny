@@ -11,7 +11,7 @@ import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
 
 import Penny.Serial
-import Penny.Tranche (Postline, TopLine, Tranche, fields)
+import Penny.Tranche (Postline, TopLine, Tranche)
 import Penny.Troika
 
 -- | The core of every posting.

@@ -146,6 +146,9 @@ timelens = atleast "timelens" [0,2]
 prettyShow :: Package
 prettyShow = atleast "pretty-show" [1,6]
 
+templateHaskell :: Package
+templateHaskell = atleast "template-haskell" [2,10]
+
 pennyCopper :: Package
 pennyCopper = exactly "penny-copper" pennyVer
 
@@ -204,6 +207,7 @@ libraryDepends =
   , haskellLexer
   , filepath
   , ghcPrim
+  , templateHaskell
   , pennyCopper
   ]
 

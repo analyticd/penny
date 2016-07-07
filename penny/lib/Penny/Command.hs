@@ -8,9 +8,12 @@
 -- 'light', or 'dark'.
 module Penny.Command where
 
+import Penny.Account
 import Penny.Amount
 import Penny.BalanceReport
 import Penny.Commodity
+import qualified Penny.Clatch.Access.Posting as AP
+import qualified Penny.Clatch.Access.Transaction as AT
 import Penny.Clatch.Types
 import Penny.Clatcher (Clatcher, Report)
 import qualified Penny.Clatcher as Clatcher
@@ -23,8 +26,10 @@ import qualified Penny.Dump as Dump
 import Penny.NonNegative
 import Penny.Price
 import qualified Penny.Scheme as Scheme
+import Penny.Serial
 import Penny.Stream
 import Penny.TransactionBare
+import Penny.Troika
 
 import Control.Lens (set, Getter, view, to)
 import Data.Monoid ((<>))
@@ -32,6 +37,9 @@ import Data.Ord (comparing)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
+import qualified Data.Time as Time
+
+-- # Parsers
 
 -- | Parses an unsigned decimal.  Applies 'error' if a value cannot be parsed.
 unsigned :: Text -> DecUnsigned
@@ -105,10 +113,10 @@ screen
 screen f = set Clatcher.screen f mempty
 
 
--- Output
+-- # Output
 
 -- | Determines where your output goes.  When combining multiple
--- 'Clatch', every 'output' will be used.
+-- 'Clatcher', every 'output' will be used.
 output :: Stream -> Clatcher
 output s = set Clatcher.output (Seq.singleton s) mempty
 
@@ -134,7 +142,7 @@ colors c = set Clatcher.colors c mempty
 report :: Report -> Clatcher
 report r = set Clatcher.report r mempty
 
--- Load
+-- # Load
 
 -- | Specify a file from which to load transactions and prices.
 open :: String -> Clatcher
@@ -148,24 +156,6 @@ preload
   :: (Seq Price, Seq (TransactionBare (Maybe Cursor)))
   -> Clatcher
 preload pair = set Clatcher.load (Seq.singleton (return pair)) mempty
-
--- | Runs the given 'Clatcher'; does not add any additional settings
--- outside of the ones specified in the 'Clatcher'.  Thus, if your
--- 'Clatcher' does not specify a destination for output, it will
--- appear that nothing happens, because no output will be sent out.
-penny :: Clatcher -> IO ()
-penny = fmap (const ()) . Clatcher.runClatcher
-
--- | A point-free version of '&&'.
-
-(&&&) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
-l &&& r = \a -> l a && r a
-infixr 3 &&&
-
--- | A point-free version of '||'.
-(|||) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
-l ||| r = \a -> l a || r a
-infixr 2 |||
 
 -- # Standard reports
 
@@ -215,6 +205,15 @@ lightDefaults = colors Scheme.light <> output (stream toLess)
 darkDefaults :: Clatcher
 darkDefaults = colors Scheme.dark <> output (stream toLess)
 
+-- # Running
+
+-- | Runs the given 'Clatcher'; does not add any additional settings
+-- outside of the ones specified in the 'Clatcher'.  Thus, if your
+-- 'Clatcher' does not specify a destination for output, it will
+-- appear that nothing happens, because no output will be sent out.
+penny :: Clatcher -> IO ()
+penny = fmap (const ()) . Clatcher.runClatcher
+
 -- | Runs Penny with the 'lightDefaults' in addition to the specified
 -- 'Clatcher'.
 light :: Clatcher -> IO ()
@@ -224,3 +223,65 @@ light c = penny (lightDefaults <> c)
 -- 'Clatcher'.
 dark :: Clatcher -> IO ()
 dark c = penny (darkDefaults <> c)
+
+-- # Helpers
+
+-- | A point-free version of '&&'.
+
+(&&&) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+l &&& r = \a -> l a && r a
+infixr 3 &&&
+
+-- | A point-free version of '||'.
+(|||) :: (a -> Bool) -> (a -> Bool) -> a -> Bool
+l ||| r = \a -> l a || r a
+infixr 2 |||
+
+-- # Accessing fields
+
+-- ## Transaction fields
+
+zonedTime :: Sliced l a -> Time.ZonedTime
+zonedTime = view AT.zonedTime
+
+day :: Sliced l a -> Time.Day
+day = view AT.day
+
+timeOfDay :: Sliced l a -> Time.TimeOfDay
+timeOfDay = view AT.timeOfDay
+
+timeZone :: Sliced l a -> Time.TimeZone
+timeZone = view AT.timeZone
+
+timeZoneMinutes :: Sliced l a -> Int
+timeZoneMinutes = view AT.timeZoneMinutes
+
+payee :: Sliced l a -> Maybe Text
+payee = view AT.payee
+
+entry :: Sliced l a -> Troika
+entry = view AP.troika
+
+birth :: Sliced l a -> Serset
+birth = view AP.birth
+
+number :: Sliced l a -> Maybe Integer
+number = view AP.number
+
+flag :: Sliced l a -> Maybe Text
+flag = view AP.flag
+
+account :: Sliced l a -> Account
+account = view AP.account
+
+fitid :: Sliced l a -> Maybe Text
+fitid = view AP.fitid
+
+tags :: Sliced l a -> Seq Text
+tags = view AP.tags
+
+reconciled :: Sliced l a -> Bool
+reconciled = AP.reconciled
+
+cleared :: Sliced l a -> Bool
+cleared = AP.cleared

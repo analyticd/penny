@@ -7,10 +7,10 @@ module Penny.Decimal where
 import Control.Lens (makeLenses)
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
-import qualified Text.Show.Pretty as Pretty
 import Prelude hiding (length)
 
 import Penny.NonNegative
+import qualified Penny.NonNegative as NN
 import Penny.NonZero
 import qualified Penny.NonZero as NonZero
 import Penny.Polar
@@ -20,14 +20,30 @@ import qualified Penny.Positive as Pos
 -- | Numbers represented exponentially.  In @Exponential c p@, the
 -- value of the number is @c * 10 ^ (-1 * naturalToInteger p)@.
 --
--- The 'Eq' and 'Ord' are derived.
--- Therefore, for example, @3.5 == 3.500@ is 'False'.
+-- There are no instances for 'Eq' or 'Ord'.  This is intentional.
+-- There do not seem to be any agreed upon laws for 'Eq', but some
+-- suggest that if @x == y@, then @f x == f y@ for all @f@.  This law
+-- easily holds if 'Eq' is derived.  However, if 'Eq' is derived, then
+-- (for example) @3.5 == 3.500@ is 'False'.  That is not necessarily
+-- intuitive behavior, but it is the only correct behavior if
+-- 'Exponential' is going to have an 'Eq' instance.  (An alternative
+-- would be to define the 'Eq' instance so that @3.5 == 3.500@.
+-- However, that would violate the given law, because @show 3.5@ would
+-- not be the same as @show 3.500@.)
+--
+--  Therefore, 'Exponential' has no 'Eq' or 'Ord' instance at all.
+-- So, if you need to do something like put 'Exponential' as the key
+-- for a map, simply remove the two fields and put them into a tuple.
+--
+-- If you want to compare 'Exponential' so that @3.5@ does equal
+-- @3.500@ (and so that ordinal comparisons are similar) see
+-- 'cmpDecimal', 'cmpUnsigned', and 'cmpPositive'.
 data Exponential c = Exponential
   { _coefficient :: !c
   -- ^ The significant digits; also known as the significand or the mantissa.
   , _power :: !NonNegative
   -- ^ The power of ten.
-  } deriving (Eq, Ord, Show, Functor, Foldable, Traversable, Generic)
+  } deriving (Show, Functor, Foldable, Traversable, Generic)
 
 instance PrettyVal a => PrettyVal (Exponential a)
 
@@ -50,6 +66,28 @@ increaseExponent u (Exponential m e) = Exponential m' e'
     (m', e') = case subt u e of
       Nothing -> (m, e)
       Just diff -> (m * 10 ^ c'Integer'NonNegative diff, u)
+
+-- | Like 'increaseExponent', but for 'Exponential' 'NonNegative'.
+increaseExponentUnsigned
+  :: NonNegative
+  -> Exponential NonNegative
+  -> Exponential NonNegative
+increaseExponentUnsigned u (Exponential m e) = Exponential m' e'
+  where
+    (m', e') = case subt u e of
+      Nothing -> (m, e)
+      Just diff -> (m `NN.mult` (NN.ten `NN.pow` diff), u)
+
+-- | Like 'increaseExponent', but for 'Exponential' 'Positive'.
+increaseExponentPositive
+  :: NonNegative
+  -> Exponential Positive
+  -> Exponential Positive
+increaseExponentPositive u (Exponential m e) = Exponential m' e'
+  where
+    (m', e') = case subt u e of
+      Nothing -> (m, e)
+      Just diff -> (m `Pos.mult` (Pos.ten `Pos.pow` diff), u)
 
 -- | Equalizes the exponents on two decimals.
 --
@@ -75,6 +113,24 @@ equalizeExponents x@(Exponential _ ex) y@(Exponential _ ey)
   | ex > ey = (x, increaseExponent ex y)
   | otherwise = (increaseExponent ey x, y)
 
+-- | Like 'equalizeExponents' but for 'Exponential' 'Unsigned'.
+equalizeExponentsUnsigned
+  :: Exponential NonNegative
+  -> Exponential NonNegative
+  -> (Exponential NonNegative, Exponential NonNegative)
+equalizeExponentsUnsigned x@(Exponential _ ex) y@(Exponential _ ey)
+  | ex > ey = (x, increaseExponentUnsigned ex y)
+  | otherwise = (increaseExponentUnsigned ey x, y)
+
+-- | Like 'equalizeExponents' but for 'Exponential' 'Positive'.
+equalizeExponentsPositive
+  :: Exponential Positive
+  -> Exponential Positive
+  -> (Exponential Positive, Exponential Positive)
+equalizeExponentsPositive x@(Exponential _ ex) y@(Exponential _ ey)
+  | ex > ey = (x, increaseExponentPositive ex y)
+  | otherwise = (increaseExponentPositive ey x, y)
+
 instance Num (Exponential Integer) where
   x + y = Exponential (mx' + my') ex
     where
@@ -87,6 +143,39 @@ instance Num (Exponential Integer) where
   abs (Exponential mx ex) = Exponential (abs mx) ex
   signum (Exponential mx _) = Exponential (signum mx) zero
   fromInteger i = Exponential i zero
+
+-- | Compare the coefficients of two 'Exponential' 'Integer', after
+-- equalizing their exponents.
+cmpDecimal
+  :: (Integer -> Integer -> a)
+  -> Exponential Integer
+  -> Exponential Integer
+  -> a
+cmpDecimal f ex ey = f (_coefficient ex') (_coefficient ey')
+  where
+    (ex', ey') = equalizeExponents ex ey
+
+-- | Compare the coefficients of two 'Exponential' 'NonNegative',
+-- after equalizing their exponents.
+cmpUnsigned
+  :: (NonNegative -> NonNegative -> a)
+  -> Exponential NonNegative
+  -> Exponential NonNegative
+  -> a
+cmpUnsigned f ex ey = f (_coefficient ex') (_coefficient ey')
+  where
+    (ex', ey') = equalizeExponentsUnsigned ex ey
+
+-- | Compare the coefficients of two 'Exponential' 'NonNegative',
+-- after equalizing their exponents.
+cmpPositive
+  :: (Positive -> Positive -> a)
+  -> Exponential Positive
+  -> Exponential Positive
+  -> a
+cmpPositive f ex ey = f (_coefficient ex') (_coefficient ey')
+  where
+    (ex', ey') = equalizeExponentsPositive ex ey
 
 -- | Decimals whose significand is never zero.
 type DecNonZero = Exponential NonZero

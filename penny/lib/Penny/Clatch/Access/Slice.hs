@@ -5,7 +5,6 @@ module Penny.Clatch.Access.Slice where
 import Control.Lens (Lens')
 import qualified Control.Lens as Lens
 
-import Penny.Clatch.Types
 import Penny.Core
 import Penny.SeqUtil
 

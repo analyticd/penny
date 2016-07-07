@@ -37,6 +37,10 @@ import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
 import qualified Text.Show.Pretty as Pretty
 
+-- | The payload data of a 'Troika'.
+--
+-- To obtain a 'Decimal' from a 'Troiload', see
+-- 'Penny.Copper.Decopperize.c'Decimal'Troiload'.
 data Troiload
   = QC RepAnyRadix Arrangement
   | Q RepAnyRadix
