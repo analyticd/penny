@@ -145,6 +145,9 @@ c'Decimal'Troiload x = case x of
   C qnz -> fmap c'Integer'NonZero qnz
   E qnz -> fmap c'Integer'NonZero qnz
 
+c'Decimal'Troika :: Troika -> Decimal
+c'Decimal'Troika (Troika _ tq) = either c'Decimal'Troiload id tq
+
 pole'Troika :: Troika -> Maybe Pole
 pole'Troika (Troika _ ei) = case ei of
   Left tl -> pole'Decimal . c'Decimal'Troiload $ tl
@@ -303,3 +306,21 @@ trioToAmount imb Trio.E = do
     . fmap c'Integer'NonZero
     . Lens.set (coefficient . NZ.pole) (Lens.view (coefficient . NZ.pole) qnz)
     $ qnz
+
+-- | What side the troiload is on.
+troiloadSide :: Troiload -> Maybe Pole
+troiloadSide x = case x of
+  QC rar _ -> pole'RepAnyRadix rar
+  Q q -> pole'RepAnyRadix q
+  SC dnz -> Just $ Lens.view poleDecNonZero dnz
+  S dnz -> Just $ Lens.view poleDecNonZero dnz
+  UC _ p _ -> Just p
+  NC _ _ -> Nothing
+  US _ p -> Just p
+  UU _ -> Nothing
+  C dnz -> Just $ Lens.view poleDecNonZero dnz
+  E dnz -> Just $ Lens.view poleDecNonZero dnz
+
+-- | What side a troika is on.
+troikaSide :: Troika -> Maybe Pole
+troikaSide = either troiloadSide pole'Decimal . _troiquant

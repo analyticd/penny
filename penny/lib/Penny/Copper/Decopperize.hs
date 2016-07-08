@@ -41,7 +41,6 @@ import qualified Penny.Scalar as Scalar
 import Penny.SeqUtil (mapMaybe, catMaybes)
 import qualified Penny.Tree as Tree
 import qualified Penny.Trio as Trio
--- import qualified Penny.Troika as Troika
 
 novDecsToPositive :: D1'9 t a -> Seq (D0'9 t a) -> Positive
 novDecsToPositive n = finish . go NN.zero NN.zero

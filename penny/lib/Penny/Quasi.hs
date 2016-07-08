@@ -9,9 +9,10 @@ import qualified Language.Haskell.TH as T
 import qualified Language.Haskell.TH.Quote as TQ
 
 import Penny.Copper (runParser)
-import Penny.Copper.Decopperize (dDate, dTime)
+import Penny.Copper.Decopperize (dDate, dTime, dNilOrBrimRadPer)
 import Penny.Copper.Productions
 import Penny.Copper.EarleyGrammar
+import Penny.Decimal
 
 liftData :: Data a => a -> T.Q T.Exp
 liftData = TQ.dataToExpQ (const Nothing)
@@ -42,4 +43,12 @@ qTime = expOnly $ \s ->
     Left _ -> fail $ "invalid time of day: " ++ s
     Right d -> liftData . dTime $ d
 
--- | Quasi quoter for unsigned decimal numbers.
+-- | Quasi quoter for unsigned decimal numbers.  The resulting
+-- expression has type 'Exponential' 'NonNegative'.  The string can
+-- have grouping characters, but the radix point mus always be a
+-- period.
+pUnsigned :: TQ.QuasiQuoter
+pUnsigned = expOnly $ \s ->
+  case runParser (fmap a'NilOrBrimRadPer earleyGrammar) (X.strip . X.pack $ s) of
+    Left _ -> fail $ "invalid unsigned number: " ++ s
+    Right d -> liftData . dNilOrBrimRadPer $ d

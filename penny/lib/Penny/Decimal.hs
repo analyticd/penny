@@ -2,9 +2,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Penny.Decimal where
 
+import Data.Data (Data)
 import Control.Lens (makeLenses)
+import qualified Control.Lens as Lens
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
 import Prelude hiding (length)
@@ -43,7 +46,7 @@ data Exponential c = Exponential
   -- ^ The significant digits; also known as the significand or the mantissa.
   , _power :: !NonNegative
   -- ^ The power of ten.
-  } deriving (Show, Functor, Foldable, Traversable, Generic)
+  } deriving (Show, Functor, Foldable, Traversable, Generic, Data)
 
 instance PrettyVal a => PrettyVal (Exponential a)
 
@@ -180,6 +183,9 @@ cmpPositive f ex ey = f (_coefficient ex') (_coefficient ey')
 -- | Decimals whose significand is never zero.
 type DecNonZero = Exponential NonZero
 
+poleDecNonZero :: Lens.Lens' DecNonZero Pole
+poleDecNonZero = coefficient . NonZero.pole
+
 decNonZeroToDecimal :: DecNonZero -> Decimal
 decNonZeroToDecimal (Exponential nz u) = Exponential (c'Integer'NonZero nz) u
 
@@ -272,3 +278,6 @@ stripNonZeroSign
 stripNonZeroSign (Exponential nz ex)
   = (Exponential (c'Positive'NonZero nz) ex, nonZeroSign nz)
 
+
+magnitude :: Decimal -> DecUnsigned
+magnitude = fmap NN.stripSign

@@ -5,6 +5,7 @@ module Penny.NonNegative
   , c'Positive'NonNegative
   , c'NonNegative'Positive
   , c'NonNegative'Integer
+  , stripSign
   , length
   , next
   , prev
@@ -86,6 +87,9 @@ c'Positive'NonNegative :: NonNegative -> Maybe Positive
 c'Positive'NonNegative (NonNegative i)
   | i < 1 = Nothing
   | otherwise = Just . Positive $ i
+
+stripSign :: Integer -> NonNegative
+stripSign = NonNegative . abs
 
 pow :: NonNegative -> NonNegative -> NonNegative
 pow (NonNegative b) (NonNegative e) = NonNegative $ b ^ e

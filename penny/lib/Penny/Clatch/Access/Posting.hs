@@ -13,8 +13,10 @@ import Data.Text (Text)
 import Penny.Account
 import Penny.Clatch.Access.Slice
 import Penny.Clatch.Types
-import Penny.Core (Core, postline, Posting)
+import Penny.Core (Core, postline, Posting, postingMagnitude)
 import qualified Penny.Core as Core
+import Penny.Decimal
+import Penny.Polar
 import Penny.SeqUtil
 import Penny.Serial
 import qualified Penny.Tranche as Tranche
@@ -63,3 +65,12 @@ reconciled = Tranche.reconciled . view (posting . postline)
 
 cleared :: Sliced l a -> Bool
 cleared = Tranche.cleared . view (posting . postline)
+
+side :: Sliced l a -> Maybe Pole
+side = Core.postingSide . view posting
+
+qty :: Sliced l a -> Decimal
+qty = Core.postingQty . view posting
+
+magnitude :: Sliced l a -> DecUnsigned
+magnitude = postingMagnitude . view posting

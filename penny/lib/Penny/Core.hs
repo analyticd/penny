@@ -10,6 +10,8 @@ import Data.Sequence (Seq)
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
 
+import Penny.Decimal
+import Penny.Polar
 import Penny.Serial
 import Penny.Tranche (Postline, TopLine, Tranche)
 import Penny.Troika
@@ -71,3 +73,24 @@ postline = tranche
 
 topLine :: forall a c. Lens' (Serpack, (TopLine a, c)) (TopLine a)
 topLine = tranche
+
+-- | Gets the underlying decimal quantity.
+coreQty :: Core -> Decimal
+coreQty = c'Decimal'Troika . _troika
+
+-- | What side the Core is on.
+coreSide :: Core -> Maybe Pole
+coreSide = troikaSide . _troika
+
+postingQty :: Posting a -> Decimal
+postingQty = coreQty . snd . snd
+
+-- | What side the Posting is on.
+postingSide :: Posting a -> Maybe Pole
+postingSide = coreSide . snd . snd
+
+coreMagnitude :: Core -> DecUnsigned
+coreMagnitude = magnitude . coreQty
+
+postingMagnitude :: Posting a -> DecUnsigned
+postingMagnitude = magnitude . postingQty

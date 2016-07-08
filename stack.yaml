@@ -1,10 +1,13 @@
 flags:
   penny:
     copper: false
+  pinchot:
+    oldTemplateHaskell: true
 
 packages:
 - 'penny/'
 - 'penny-copper/'
+- 'pinchot-0.18.2.0/'
 
 extra-deps:
 - accuerr-0.2.0.2

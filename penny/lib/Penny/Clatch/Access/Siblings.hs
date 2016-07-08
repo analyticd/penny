@@ -11,6 +11,9 @@ import Data.Text (Text)
 import Penny.Account
 import Penny.Clatch.Types
 import Penny.Core
+import qualified Penny.Core as Core
+import Penny.Decimal
+import Penny.Polar
 import Penny.SeqUtil
 import qualified Penny.Tranche as Tranche
 
@@ -49,3 +52,12 @@ reconciled = fmap (Tranche.reconciled . view postline) . siblings
 
 cleared :: Sliced l a -> Seq Bool
 cleared = fmap (Tranche.cleared . view postline) . siblings
+
+side :: Sliced l a -> Seq (Maybe Pole)
+side = fmap postingSide . siblings
+
+qty :: Sliced l a -> Seq Decimal
+qty = fmap postingQty . siblings
+
+magnitude :: Sliced l a -> Seq DecUnsigned
+magnitude = fmap postingMagnitude . siblings
