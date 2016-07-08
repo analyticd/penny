@@ -47,8 +47,8 @@ qTime = expOnly $ \s ->
 -- expression has type 'Exponential' 'NonNegative'.  The string can
 -- have grouping characters, but the radix point mus always be a
 -- period.
-pUnsigned :: TQ.QuasiQuoter
-pUnsigned = expOnly $ \s ->
+qUnsigned :: TQ.QuasiQuoter
+qUnsigned = expOnly $ \s ->
   case runParser (fmap a'NilOrBrimRadPer earleyGrammar) (X.strip . X.pack $ s) of
     Left _ -> fail $ "invalid unsigned number: " ++ s
     Right d -> liftData . dNilOrBrimRadPer $ d

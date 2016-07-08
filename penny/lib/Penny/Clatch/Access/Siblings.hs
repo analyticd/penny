@@ -5,6 +5,7 @@
 module Penny.Clatch.Access.Siblings where
 
 import Control.Lens (view)
+import Data.Maybe (isNothing)
 import Data.Sequence (Seq)
 import Data.Text (Text)
 
@@ -61,3 +62,12 @@ qty = fmap postingQty . siblings
 
 magnitude :: Sliced l a -> Seq DecUnsigned
 magnitude = fmap postingMagnitude . siblings
+
+isDebit :: Sliced l a -> Seq Bool
+isDebit = fmap (maybe False (== debit)) . side
+
+isCredit :: Sliced l a -> Seq Bool
+isCredit = fmap (maybe False (== credit)) . side
+
+isZero :: Sliced l a -> Seq Bool
+isZero = fmap isNothing . side

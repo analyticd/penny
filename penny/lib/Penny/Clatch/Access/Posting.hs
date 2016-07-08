@@ -7,6 +7,7 @@
 module Penny.Clatch.Access.Posting where
 
 import Control.Lens (Lens', view)
+import Data.Maybe (isNothing)
 import Data.Sequence (Seq)
 import Data.Text (Text)
 
@@ -74,3 +75,12 @@ qty = Core.postingQty . view posting
 
 magnitude :: Sliced l a -> DecUnsigned
 magnitude = postingMagnitude . view posting
+
+isDebit :: Sliced l a -> Bool
+isDebit = maybe False (== debit) . side
+
+isCredit :: Sliced l a -> Bool
+isCredit = maybe False (== credit) . side
+
+isZero :: Sliced l a -> Bool
+isZero = isNothing . side

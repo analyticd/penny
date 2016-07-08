@@ -6,7 +6,69 @@
 -- The idea is that you will take different values of 'Clatcher' and
 -- combine them using '<>', and then run a computation using 'penny',
 -- 'light', or 'dark'.
-module Penny.Command where
+module Penny.Command
+  ( -- * Quasi quoters
+    qDay
+  , qTime
+  , qUnsigned
+
+  -- * Commands
+  , convert
+  , sieve
+  , sort
+  , screen
+
+  -- * Output
+  , output
+  , less
+  , saveAs
+  , colors
+  , report
+  , open
+  , preload
+  , columns
+  , checkbook
+  , clatchDump
+  , acctree
+  , lightDefaults
+  , darkDefaults
+
+  -- * Runners
+  , penny
+  , light
+  , dark
+
+  -- * Accessing fields
+  -- ** Transaction fields
+  , zonedTime
+  , day
+  , timeOfDay
+  , timeZone
+  , timeZoneMinutes
+  , payee
+
+  -- ** Posting fields
+  , entry
+  , birth
+  , number
+  , flag
+  , account
+  , fitid
+  , tags
+  , AP.reconciled
+  , AP.cleared
+  , AP.side
+  , AP.qty
+  , AP.magnitude
+  , AP.isDebit
+  , AP.isCredit
+  , AP.isZero
+
+  -- * Comparison helpers
+  , cmpUnsigned
+  , (&&&)
+  , (|||)
+  ) where
 
 import Penny.Account
 import Penny.Amount
@@ -25,6 +87,7 @@ import Penny.Decimal
 import qualified Penny.Dump as Dump
 import Penny.NonNegative
 import Penny.Price
+import Penny.Quasi
 import qualified Penny.Scheme as Scheme
 import Penny.Serial
 import Penny.Stream
@@ -39,12 +102,6 @@ import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Time as Time
 
--- # Parsers
-
--- | Parses an unsigned decimal.  Applies 'error' if a value cannot be parsed.
-unsigned :: Text -> DecUnsigned
-unsigned = undefined
-
 -- # Commands
 
 -- | Converts one commodity to another, using a particular conversion
@@ -54,19 +111,15 @@ convert
   -- ^ Convert from this commodity
   -> Commodity
   -- ^ Convert to this commodity
-  -> Text
-  -- ^ One unit of the from commodity equals this many of the to
-  -- commodity.  Enter here a value that can be parsed into a zero or
-  -- positive quantity.  If the value does not parse, 'error' will be
-  -- applied with a short but slightly helpful error message.
+  -> DecUnsigned
   -> Clatcher
-convert fromCy toCy factorTxt = set Clatcher.converter cv mempty
+convert fromCy toCy uns = set Clatcher.converter cv mempty
   where
     cv = Converter fn
     fn (Amount oldCy oldQty)
       | oldCy /= fromCy = Nothing
       | otherwise = Just $ Amount toCy (oldQty * factor)
-    factor = fmap c'Integer'NonNegative . unsigned $ factorTxt
+    factor = fmap c'Integer'NonNegative uns
 
 -- | The 'sieve' performs pre-filtering.  That is, it filters
 -- 'Converted' after they have been converted using 'convert', but
@@ -259,6 +312,8 @@ timeZoneMinutes = view AT.timeZoneMinutes
 payee :: Sliced l a -> Maybe Text
 payee = view AT.payee
 
+-- ## Posting fields
+
 entry :: Sliced l a -> Troika
 entry = view AP.troika
 
@@ -280,8 +335,3 @@ fitid = view AP.fitid
 tags :: Sliced l a -> Seq Text
 tags = view AP.tags
 
-reconciled :: Sliced l a -> Bool
-reconciled = AP.reconciled
-
-cleared :: Sliced l a -> Bool
-cleared = AP.cleared
