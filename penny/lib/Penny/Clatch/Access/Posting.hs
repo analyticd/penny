@@ -61,6 +61,9 @@ fitid = posting . postline . Tranche.fitid
 tags :: Lens' (Sliced l a) (Seq Text)
 tags = posting . postline . Tranche.tags
 
+uid :: Lens' (Sliced l a) (Maybe Text)
+uid = posting . postline . Tranche.uid
+
 reconciled :: Sliced l a -> Bool
 reconciled = Tranche.reconciled . view (posting . postline)
 

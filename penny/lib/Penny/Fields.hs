@@ -37,13 +37,14 @@ data PostingFields = PostingFields
   , _account :: Seq Text
   , _fitid :: Maybe Text
   , _tags :: Seq Text
+  , _uid :: Maybe Text
   } deriving (Show, Generic)
 
 instance PrettyVal PostingFields
 
 emptyPostingFields :: PostingFields
 emptyPostingFields = PostingFields Nothing Nothing (Seq.empty) Nothing
-  Seq.empty
+  Seq.empty Nothing
 
 Lens.makeLenses ''PostingFields
 

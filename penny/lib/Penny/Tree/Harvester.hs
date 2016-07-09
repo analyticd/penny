@@ -47,8 +47,8 @@ searchTopForest pd
   . fmap pd
   . toList
 
--- | If the tree is a 'User' tree that has a scalar of 'SLabel' with
--- the given text, returns the children.
+-- | If the tree has a scalar of 'SLabel' with the given text, returns
+-- the children.
 labeledTree :: Text -> Tree -> Maybe (Seq Tree)
 labeledTree txt tree = do
   scalar <- _scalar tree
@@ -57,17 +57,16 @@ labeledTree txt tree = do
   return . _children $ tree
 
 
--- | If the given 'Tree' has no children that are in the 'User' realm,
--- returns the 'Scalar' of the 'Tree'.  Otherwise, returns 'Nothing'.
-childlessUserTree :: Tree -> Maybe Scalar
-childlessUserTree tree = do
+-- | If the given 'Tree' has no children, returns the 'Scalar' of the
+-- 'Tree'.  Otherwise, returns 'Nothing'.
+childlessTree :: Tree -> Maybe Scalar
+childlessTree tree = do
   guard (Seq.null . Lens.view children $ tree)
   Lens.view scalar tree
 
--- | Returns True if the given Tree is a User tree and if it has at
--- least one child that is a User tree.
-userTreeHasChild :: Tree -> Bool
-userTreeHasChild tree
+-- | Returns True if the given Tree has at least one child.
+treeHasChild :: Tree -> Bool
+treeHasChild tree
   = (not . Seq.null . _children $ tree)
 
 data Grove = Grove

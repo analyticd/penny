@@ -48,6 +48,9 @@ fitid = fmap (view (postline . Tranche.fitid)) . siblings
 tags :: Sliced l a -> Seq (Seq Text)
 tags = fmap (view (postline . Tranche.tags)) . siblings
 
+uid :: Sliced l a -> Seq (Maybe Text)
+uid = fmap (view (postline . Tranche.uid)) . siblings
+
 reconciled :: Sliced l a -> Seq Bool
 reconciled = fmap (Tranche.reconciled . view postline) . siblings
 

@@ -76,6 +76,9 @@ fitid = fields . F.fitid
 tags :: forall a. Lens.Lens' (Postline a) (Seq Text)
 tags = fields . F.tags
 
+uid :: forall a. Lens.Lens' (Postline a) (Maybe Text)
+uid = fields . F.uid
+
 reconciled :: Postline a -> Bool
 reconciled = F.reconciled . _fields
 

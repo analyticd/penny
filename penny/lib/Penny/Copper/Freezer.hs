@@ -1,8 +1,10 @@
+{-# LANGUAGE QuasiQuotes #-}
 module Penny.Copper.Freezer where
 
 import Penny.Amount
 import Penny.Copper.Copperize
 import Penny.Copper.PriceParts
+import Penny.Copper.Quasi
 import Penny.Copper.Types
 import qualified Penny.Tree as Tree
 import qualified Penny.Scalar as Scalar
@@ -11,6 +13,7 @@ import Penny.Polar
 import qualified Penny.Positive as Pos
 import Penny.Rep
 import Penny.SeqUtil
+import qualified Penny.Tranche as Tranche
 
 import qualified Control.Lens as Lens
 import Control.Monad ((>=>), join)
@@ -89,33 +92,59 @@ data ScalarError
   | InvalidZone Int
   | InvalidLabel Text
 
+-- | Creates a single Scalar from a Text.  Never fails.
+scalarText :: Text -> Scalar Char ()
+scalarText txt = case text txt of
+  Left us -> Scalar'UnquotedString us
+  Right qs -> Scalar'QuotedString qs
+
+-- | Creates a label Scalar.  Can fail if the Text has characters not
+-- valid for a label.
+scalarLabel :: Text -> Either ScalarError (Scalar Char ())
+scalarLabel txt = case text txt of
+  Left us -> Right . Scalar'Label . Label cApostrophe $ us
+  Right _ -> Left $ InvalidLabel txt
+
+-- | Creates a Day Scalar.  Can fail if the day is out of the valid
+-- range.
+scalarDay :: Day -> Either ScalarError (Scalar Char ())
+scalarDay dy = case day dy of
+  Nothing -> Left $ InvalidDay dy
+  Just dt -> Right $ Scalar'Date dt
+
+-- | Creates a Time Scalar.  Can fail if the time is out of the valid
+-- range.
+scalarTime :: TimeOfDay -> Either ScalarError (Scalar Char ())
+scalarTime tod = case time tod of
+  Nothing -> Left $ InvalidTime tod
+  Just t -> Right $ Scalar'Time t
+
+-- | Creates a Zone Scalar.  Can fail if the zone is out of the valid
+-- range.
+scalarZone :: Int -> Either ScalarError (Scalar Char ())
+scalarZone i = case zone i of
+  Nothing -> Left $ InvalidZone i
+  Just z -> Right $ Scalar'Zone z
+
+-- | Creates an Integer Scalar.  Never fails.
+scalarInteger :: Integer -> Scalar Char ()
+scalarInteger = Scalar'WholeAny . integer
+
 scalar
   :: Scalar.Scalar
   -> Either ScalarError (Scalar Char ())
 scalar sc = case sc of
-  Scalar.SText txt -> Right $ case text txt of
-    Left us -> Scalar'UnquotedString us
-    Right qs -> Scalar'QuotedString qs
-  Scalar.SLabel txt -> case text txt of
-    Left us -> Right . Scalar'Label . Label cApostrophe $ us
-    Right _ -> Left $ InvalidLabel txt
-  Scalar.SDay dy -> case day dy of
-    Nothing -> Left $ InvalidDay dy
-    Just dt -> Right $ Scalar'Date dt
-  Scalar.STime tod -> case time tod of
-    Nothing -> Left $ InvalidTime tod
-    Just t -> Right $ Scalar'Time t
-  Scalar.SZone i -> case zone i of
-    Nothing -> Left $ InvalidZone i
-    Just z -> Right $ Scalar'Zone z
-  Scalar.SInteger i -> Right . Scalar'WholeAny . integer $ i
+  Scalar.SText txt -> Right $ scalarText txt
+  Scalar.SLabel txt -> scalarLabel txt
+  Scalar.SDay dy -> scalarDay dy
+  Scalar.STime tod -> scalarTime tod
+  Scalar.SZone i -> scalarZone i
+  Scalar.SInteger i -> Right . scalarInteger $ i
 
 -- # Trees
 
 
--- | Trees are not frozen if they are in the System realm.
--- Also, they are not frozen if they have no scalar and have no
--- children.
+-- | Trees are not frozen if they have no scalar and have no children.
 tree
   :: Tree.Tree
   -> Accuerr (NonEmpty ScalarError) (Maybe (Tree Char ()))
@@ -156,6 +185,40 @@ forest ts = f <$> traverse tree ts
           next = NextTree'Star (fmap f ts')
             where
               f t = NextTree mempty cComma mempty t
+
+-- # Posting Fields
+
+-- | Creates a tree with a single Text as its scalar and no children.
+childlessTextTree :: Text -> Tree Char ()
+childlessTextTree x = cTree scalar Nothing
+  where
+    scalar = case text x of
+      Left us -> Scalar'UnquotedString us
+      Right qs -> Scalar'QuotedString qs
+
+-- | Creates a tree with a single Integer as its scalar and no children.
+childlessIntegerTree :: Integer -> Tree Char ()
+childlessIntegerTree i = Tree'ScalarMaybeForest $ ScalarMaybeForest scalar
+  (WhitesBracketedForest'Opt Nothing)
+  where
+    scalar = Scalar'WholeAny . integer $ i
+
+number :: Integer -> Tree Char ()
+number = childlessIntegerTree
+
+flag :: Text -> Tree Char ()
+flag = childlessTextTree
+
+account :: Seq Text -> Maybe (Tree Char ())
+account sq = fmap f $ Lens.uncons sq
+  where
+    f (a1, as) = orphans (childlessTextTree a1)
+      (fmap childlessTextTree as)
+
+fitid :: Text -> Tree Char ()
+fitid txt = [qLabeled|fitid|] Nothing
+
+{-
 
 -- # Amounts
 
@@ -222,11 +285,11 @@ price pp = do
 -- # Transactions
 
 data TxnParts = TxnParts
-  { _topLine :: Seq Tree.Tree
-  , _postings :: Seq (Seq Tree.Tree, Amount)
+  { _topLine :: Tranche.TopLine ()
+  , _postings :: Seq (Postline (), Amount)
   }
 
-data Tracompri
+data Tracompri a
   = Tracompri'Transaction TxnParts
   | Tracompri'Comment Text
   | Tracompri'Price (PriceParts ())
@@ -341,3 +404,4 @@ wholeFile
   :: Seq Tracompri
   -> Accuerr (NonEmpty TracompriError) (WholeFile Char ())
 wholeFile = fmap combineTracompris . traverse tracompri
+-}

@@ -1267,6 +1267,7 @@ cBracketedForest :: Forest Char () -> BracketedForest Char ()
 cBracketedForest f
   = BracketedForest cOpenSquare mempty f mempty cCloseSquare
 
+-- | Constructs a 'Tree' that has a 'Scalar'.
 cTree :: Scalar Char () -> Maybe (Forest Char ()) -> Tree Char ()
 cTree sc mayForest = Tree'ScalarMaybeForest
   (ScalarMaybeForest sc (WhitesBracketedForest'Opt may))
@@ -1278,7 +1279,13 @@ cTree sc mayForest = Tree'ScalarMaybeForest
 spinster :: Scalar Char () -> Tree Char ()
 spinster s = cTree s Nothing
 
-orphans :: Tree Char () -> Seq (Tree Char ()) -> Tree Char ()
+-- | Constructs a 'Tree' that has no 'Scalar'.
+orphans
+  :: Tree Char ()
+  -- ^ First child
+  -> Seq (Tree Char ())
+  -- ^ More children
+  -> Tree Char ()
 orphans t1 ts = Tree'ForestMaybeScalar
   (ForestMaybeScalar (cBracketedForest (cForest t1 ts))
                      (WhitesScalar'Opt Nothing))

@@ -5,6 +5,12 @@
 -- takes three steps: parsing, decopperization, and proofing.  This
 -- module performs proofing.
 --
+-- Proofing ensures that all transactions are balanced.  Also, the
+-- Copper format is loose in the sense that the grammar does not
+-- specify the various fields that are found in "Penny.Fields".
+-- Proofing uses various conventions to assign different trees to
+-- different fields.
+--
 -- Proofing can fail.  If it does, the proofer tries to accumulate
 -- as many error messages as possible, so that the user can fix all
 -- errors at once rather than having to fix one error at a time.
@@ -27,9 +33,9 @@ import Penny.Tree
 import Penny.Tree.Harvester
 
 import qualified Control.Lens as Lens
-import Control.Monad (foldM)
+import Control.Monad (foldM, guard)
 import qualified Control.Monad.Trans.State as St
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
@@ -41,17 +47,17 @@ import Pinchot (Loc)
 findDay
   :: Tree
   -> Maybe Time.Day
-findDay x = childlessUserTree x >>= Lens.preview _SDay
+findDay x = childlessTree x >>= Lens.preview _SDay
 
 findTime :: Tree -> Maybe Time.TimeOfDay
-findTime x = childlessUserTree x >>= Lens.preview _STime
+findTime x = childlessTree x >>= Lens.preview _STime
 
 findZone :: Tree -> Maybe Time.TimeZone
-findZone x = childlessUserTree x >>= Lens.preview _SZone
+findZone x = childlessTree x >>= Lens.preview _SZone
   >>= return . Time.minutesToTimeZone
 
 findPayee :: Tree -> Maybe Text
-findPayee x = childlessUserTree x >>= Lens.preview _SText
+findPayee x = childlessTree x >>= Lens.preview _SText
 
 getTopLineFields
   :: Loc
@@ -79,37 +85,48 @@ getTopLineFields loc forest = case mayTlf of
             tz = fromMaybe Time.utc mayZone
 
 findNumber :: Tree -> Maybe Integer
-findNumber x = childlessUserTree x >>= Lens.preview _SInteger
+findNumber x = childlessTree x >>= Lens.preview _SInteger
 
 findFlag :: Tree -> Maybe Text
 findFlag = findPayee
 
--- | If this tree is a User tree where all child User trees are
--- childless user trees with a 'SText' scalar, and there is at least
--- one child User tree, return those scalars.
+-- | If this tree has no scalar and all child trees have a 'SText'
+-- scalar, and there is at least one child tree, return those
+-- scalars.
 findAccount :: Tree -> Maybe (NonEmpty Text)
 findAccount t = do
-  scalars <- traverse childlessUserTree . _children $ t
+  guard . isNothing . _scalar $ t
+  scalars <- traverse childlessTree . _children $ t
   texts <- traverse (Lens.preview _SText) scalars
   nonEmpty texts
 
 -- | If this tree is labeled @fitid@ and has a single child tree
--- that is also a childless user tree whose scalar is an SText,
+-- that is also a childless tree whose scalar is an SText,
 -- return that SText.
 findFitid :: Tree -> Maybe Text
 findFitid t = do
   children <- labeledTree "fitid" t
   child <- isSingleton children
-  scalar <- childlessUserTree child
+  scalar <- childlessTree child
   Lens.preview _SText scalar
 
+-- | If this tree is labeled @uid@ and has a single child tree that is
+-- also a childless tree whose scalar is an SText, return that SText.
+findUid :: Tree -> Maybe Text
+findUid t = do
+  children <- labeledTree "uid" t
+  child <- isSingleton children
+  scalar <- childlessTree child
+  Lens.preview _SText scalar
+
+
 -- | If this tree is labeled @tags@ and each child tree is also a
--- childless user tree with a 'SText' scalar, and there is at least
--- one child User tree, return those scalars.
+-- childless tree with a 'SText' scalar, and there is at least
+-- one child tree, return those scalars.
 findTags :: Tree -> Maybe (NonEmpty Text)
 findTags t = do
   children <- labeledTree "tags" t
-  scalars <- traverse childlessUserTree children
+  scalars <- traverse childlessTree children
   texts <- traverse (Lens.preview _SText) scalars
   nonEmpty texts
 
@@ -121,6 +138,7 @@ getPostingFields = St.runState k
       <*> fmap (maybe Seq.empty seqFromNonEmpty) (yankSt findAccount)
       <*> yankSt findFitid
       <*> fmap (maybe Seq.empty seqFromNonEmpty) (yankSt findTags)
+      <*> yankSt findUid
 
 
 data Reason
