@@ -1,4 +1,5 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE OverloadedLists #-}
 module Penny.Copper.Freezer where
 
 import Penny.Amount
@@ -203,6 +204,20 @@ childlessIntegerTree i = Tree'ScalarMaybeForest $ ScalarMaybeForest scalar
   where
     scalar = Scalar'WholeAny . integer $ i
 
+-- | Creates a tree with a single Day as its scalar and no children.
+childlessDayTree :: Day -> Either ScalarError (Tree Char ())
+childlessDayTree dy = do
+  sc <- scalarDay dy
+  return $ cTree sc Nothing
+
+-- | Creates a tree with a single TimeOfDay as its scalar and no children.
+childlessTimeOfDayTree :: TimeOfDay -> Either ScalarError (Tree Char ())
+childlessTimeOfDayTree = fmap (flip cTree Nothing) . scalarTime
+
+-- | Creates a tree with a single Zone as its scalar and no children.
+childlessZoneTree :: Int -> Either ScalarError (Tree Char ())
+childlessZoneTree = fmap (flip cTree Nothing) . scalarZone
+
 number :: Integer -> Tree Char ()
 number = childlessIntegerTree
 
@@ -216,7 +231,44 @@ account sq = fmap f $ Lens.uncons sq
       (fmap childlessTextTree as)
 
 fitid :: Text -> Tree Char ()
-fitid txt = [qLabeled|fitid|] Nothing
+fitid txt = cTree [qLabeled|fitid|] (Just $ cForest (childlessTextTree txt)
+  Seq.empty)
+
+tags :: Seq Text -> Maybe (Tree Char ())
+tags sq = fmap f $ Lens.uncons sq
+  where
+    f (a1, as) = cTree [qLabeled|tags|] (Just $ cForest (childlessTextTree a1)
+      (fmap childlessTextTree as))
+
+uid :: Text -> Tree Char ()
+uid txt = cTree [qLabeled|uid|] (Just $ cForest (childlessTextTree txt)
+  Seq.empty)
+
+toAccuerr :: Either e a -> Accuerr (NonEmpty e) a
+toAccuerr e = case e of
+  Left err -> Accuerr.AccFailure (Pinchot.singleton err)
+  Right g -> Accuerr.AccSuccess g
+
+-- | Creates a forest for a 'Time.ZonedTime'.  Always includes time of
+-- day and zone, even if the time of day is midnight or the zone is
+-- UTC.
+zonedTime
+  :: Time.ZonedTime
+  -> Accuerr (NonEmpty ScalarError) (Tree Char (), Tree Char (), Tree Char ())
+zonedTime (Time.ZonedTime (Time.LocalTime day tod) (Time.TimeZone mins _ _))
+  = (,,) <$> dayTree <*> todTree <*> znTree
+  where
+    dayTree = toAccuerr (childlessDayTree day)
+    todTree = toAccuerr (childlessTimeOfDayTree tod)
+    znTree = toAccuerr (childlessZoneTree mins)
+
+payee :: Text -> Tree Char ()
+payee = childlessTextTree
+
+topLine
+  :: Tranche.TopLine a
+  -> Accuerr (NonEmpty ScalarError) (TopLine Char ())
+topLine = undefined
 
 {-
 
