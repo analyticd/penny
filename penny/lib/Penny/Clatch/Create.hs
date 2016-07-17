@@ -3,26 +3,15 @@
 
 module Penny.Clatch.Create where
 
-import Penny.Account
-import Penny.Amount
 import Penny.Balance
 import Penny.Clatch.Types
-import Penny.Clatch.Access.Balance
 import Penny.Clatch.Access.Converted
-import Penny.Clatch.Access.Posting
-import Penny.Clatch.Access.PostFiltset
-import Penny.Clatch.Access.PreFiltset
-import Penny.Clatch.Access.Slice
-import Penny.Clatch.Access.Transaction
 import Penny.Converter
 import Penny.Core
-import Penny.Copper.Decopperize
 import Penny.Ents (Balanced, balancedToSeqEnt)
-import qualified Penny.Fields as F
 import Penny.SeqUtil
 import Penny.Serial
-import Penny.Tranche (Postline, TopLine, Tranche, fields)
-import qualified Penny.Tranche as Tranche
+import Penny.Tranche (Postline, TopLine)
 import Penny.TransactionBare (TransactionBare(TransactionBare))
 import Penny.Troika
 
@@ -33,14 +22,8 @@ import Data.Bifunctor.Flip
 import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Text (Text)
-import Data.Time (ZonedTime)
-import qualified Data.Time as Time
 import qualified Data.Traversable as T
 import Data.Functor.Compose
-import GHC.Generics (Generic)
-import Text.Show.Pretty (PrettyVal)
-import qualified Text.Show.Pretty as Pretty
 
 createViewposts :: Transaction l -> Seq (Sliced l ())
 createViewposts txn = fmap (\vw -> (txn, (vw, ())))

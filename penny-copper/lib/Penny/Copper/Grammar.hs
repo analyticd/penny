@@ -12,9 +12,10 @@
 module Penny.Copper.Grammar where
 
 import Pinchot (terminal, solo, union, plus, star, pariah, include,
-  record, opt, nonTerminal, wrap)
+  record, opt, nonTerminal, wrap, Rule)
 import qualified Data.Char as Char
 import Data.Monoid ((<>))
+import Data.Sequence (Seq)
 
 zero = terminal "Zero" (solo '0')
 one = terminal "One" (solo '1')
@@ -213,6 +214,16 @@ brimRadPer = union "BrimRadPer" [brimUngroupedRadPer, brimGroupedRadPer]
 -- numbers standing alone, such as numbers from an OFX statement.
 nilOrBrimRadCom = union "NilOrBrimRadCom" [nilRadCom, brimRadCom]
 nilOrBrimRadPer = union "NilOrBrimRadPer" [nilRadPer, brimRadPer]
+
+-- This production does not appear in WholeFile.  However, it can be
+-- useful when parsing decimals that appear outside of ledger files,
+-- such as on a command line or in an OFX statement.  Unlike most
+-- productions, this one includes optional leading and trailing
+-- whitespace.
+decimalRadCom = record "DecimalRadCom"
+  [ whites, maybePluMin, whites, nilOrBrimRadCom, whites ]
+decimalRadPer = record "DecimalRadPer"
+  [ whites, maybePluMin, whites, nilOrBrimRadPer, whites ]
 
 -- # Dates
 hyphen = terminal "Hyphen" (solo '-')
@@ -526,3 +537,9 @@ fileItem = union "FileItem" [price, transaction, comment]
 whitesFileItem = record "WhitesFileItem" [whites, fileItem]
 whitesFileItems = star whitesFileItem
 wholeFile = record "WholeFile" [whitesFileItems, whites]
+
+-- | All interesting rules in this file are either in this list or are
+-- descendants of the items in this list.
+allRules :: Seq (Rule Char)
+allRules = [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer,
+  decimalRadCom, decimalRadPer ]

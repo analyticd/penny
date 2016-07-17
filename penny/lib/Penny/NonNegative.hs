@@ -2,6 +2,7 @@
 module Penny.NonNegative
   ( NonNegative
   , c'Integer'NonNegative
+  , nonNegativeToIntegerWithSign
   , c'Positive'NonNegative
   , c'NonNegative'Positive
   , c'NonNegative'Integer
@@ -33,6 +34,7 @@ import Data.Sequence (Seq, viewl, ViewL(EmptyL, (:<)))
 import Penny.NonNegative.Internal
 import Prelude hiding (length)
 import Penny.Positive.Internal
+import Penny.Polar
 
 length :: Seq a -> NonNegative
 length = go zero
@@ -87,6 +89,11 @@ c'Positive'NonNegative :: NonNegative -> Maybe Positive
 c'Positive'NonNegative (NonNegative i)
   | i < 1 = Nothing
   | otherwise = Just . Positive $ i
+
+nonNegativeToIntegerWithSign :: Pole -> NonNegative -> Integer
+nonNegativeToIntegerWithSign p (NonNegative i)
+  | p == negative = negate i
+  | otherwise = i
 
 stripSign :: Integer -> NonNegative
 stripSign = NonNegative . abs

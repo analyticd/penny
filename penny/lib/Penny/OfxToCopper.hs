@@ -4,6 +4,7 @@
 module Penny.OfxToCopper where
 
 import Penny.Account
+import Penny.Amount
 import qualified Penny.Commodity as Cy
 import Penny.Copper
 import Penny.Copper.EarleyGrammar
@@ -11,6 +12,8 @@ import Penny.Copper.Productions
 import Penny.Copper.Types
 import Penny.Copper.Util
 import Penny.Polar
+import qualified Penny.Fields as Fields
+import qualified Penny.Tranche as Tranche
 
 import qualified Control.Lens as L
 import Control.Monad ((<=<))
@@ -23,18 +26,6 @@ import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import qualified Text.Parsec as Parsec
 
-data Error
-  = OFXParseError String
-  -- ^ Could not parse OFX file.
-  | DateConvertError Time.Day
-  | ZonedTimeConvertError Time.ZonedTime
-  | TransactionParseError String
-  -- ^ Could not get list of transactions from file.
-  | NoPayee
-  | AmountParseError String ParseError
-  deriving Show
-
-{-
 -- | Every OFX transaction must create two postings in the Copper
 -- file.  One of these postings is called the main posting, and it
 -- is in the account that is the subject of the OFX file.  For
@@ -46,9 +37,27 @@ data Error
 -- gasoline might have an account for @[Expenses, Auto, Gas]@, while
 -- a payment might have an account of @[Assets, Checking]@.  The
 -- information needed to create an offset is stored in an 'Offset'.
--- 
--- The offsetting account always has a non-empty Trio.  The main
--- accont has no Trio.
+
+data OfxTxn = OfxTxn
+  { _ofxTopLine :: Fields.TopLineFields
+  , _ofxMainPosting :: (Fields.PostingFields, Amount)
+  , _ofxOffsetPosting :: (Fields.PostingFields, Amount)
+  }
+
+
+-- | Pulls all interesting OFX info from the OFX transaction.
+
+{-
+data Error
+  = OFXParseError String
+  -- ^ Could not parse OFX file.
+  | DateConvertError Time.Day
+  | ZonedTimeConvertError Time.ZonedTime
+  | TransactionParseError String
+  -- ^ Could not get list of transactions from file.
+  | NoPayee
+  | AmountParseError String ParseError
+  deriving Show
 
 data Offset = Offset
   { _offsettingAccount :: Account
@@ -65,6 +74,15 @@ type GetOffset
   -> Maybe (Either String OFX.Payee)
   -> OFX.TrnType
   -> Offset
+
+getTopLine
+  :: Time.ZonedTime
+  -> Maybe Text
+  -- ^ Payee
+  -> Tranche.TopLine ()
+getTopLine zt pye = Tranche.Tranche () Seq.empty fields
+  where
+    fields = Fields.TopLineFields zt pye
 
 -- | Parses OFX file using Parsec parsers, gets the OFX
 -- transactions, and converts them to Copper transactions.
@@ -107,20 +125,6 @@ ofxTransactionToTransaction mainAccount getOffset commodity txn
   <$> getTopLine (OFX.txDTPOSTED txn) (OFX.txPayeeInfo txn)
   <*> getPostings mainAccount getOffset commodity
         (OFX.txFITID txn) (OFX.txTRNAMT txn)
-
-getTopLine
-  :: Time.ZonedTime
-  -> Maybe (Either String OFX.Payee)
-  -> Either Error TopLine'Maybe
-getTopLine zonedTime payee = do
-  (date, time, zone) <- maybe (Left . ZonedTimeConvertError $ zonedTime)
-    Right . c'Copper'ZonedTime $ zonedTime
-  payeeT <- payeeTree payee
-  return . TopLine'Maybe . Just . TopLine $ fForest
-    (spinster $ Scalar'Date date)
-    [ spinster $ Scalar'Time time
-    , spinster $ Scalar'Zone zone
-    , payeeT ]
 
 payeeTree :: Maybe (Either String OFX.Payee) -> Either Error Tree
 payeeTree = fmap toTree . maybe (Left NoPayee) Right

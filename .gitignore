@@ -1,4 +1,5 @@
 dist/
+src/
 SourceGraph/
 .autogit
 .cabal-sandbox/
@@ -10,4 +11,4 @@ tests/penny-test.hs
 .stack-work/
 pinchot/
 TAGS
-pinchot-0.18.2.0/
+ofx-0.4.4.0/

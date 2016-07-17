@@ -135,7 +135,7 @@ accuerr :: Package
 accuerr = atleast "accuerr" [0,2,0,0]
 
 ofx :: Package
-ofx = atleast "ofx" [0,4,0,4]
+ofx = atleast "ofx" [0,4,4,0]
 
 parsec :: Package
 parsec = atleast "parsec" [3,1,9]

@@ -11,6 +11,24 @@
 --
 -- Other functions do not use the parser but instead construct the
 -- necessary data types directly.
+--
+-- Other copperizing functions are in "Penny.Copper.Freezer".
+-- Originally there were some foggy distinctions between what went
+-- into this module and what went into "Penny.Copper.Freezer", but now
+-- there is no such distinction.  Currently the only reason these
+-- modules are separate is because there is a useful quasi quotation
+-- in "Penny.Copper.Quasi" and due to the Template Haskell stage
+-- restriction more basic values must be defined in
+-- "Penny.Copper.Copperize".
+--
+-- All the values in both "Penny.Copper.Freezer" and
+-- "Penny.Copper.Copperize" do not perform any formatting or make any
+-- choices that would add or destroy information.  These values merely
+-- transform other data types into Copper data types.  You can use
+-- other isomorphisms, such as in "Penny.Copper.ArrangeWhites", to
+-- perform additional formatting or to strip out things you don't want
+-- (such as times of day that are midnight).  This simplifies
+-- "Penny.Copper.Copperize" and "Penny.Copper.Freezer".
 module Penny.Copper.Copperize where
 
 import Control.Applicative ((<|>))

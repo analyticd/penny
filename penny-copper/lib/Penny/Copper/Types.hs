@@ -13,13 +13,12 @@ import Pinchot (syntaxTrees, wrappedInstances,
  bifunctorInstances, semigroupInstances, monoidInstances)
 
 syntaxTrees [''Eq, ''Ord, ''Show, ''Functor, ''Foldable, ''Traversable,
-  ''Data]
-  [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]
+  ''Data] allRules
 
-wrappedInstances [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]
+wrappedInstances allRules
 
-bifunctorInstances [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]
+bifunctorInstances allRules
 
-semigroupInstances [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]
+semigroupInstances allRules
 
-monoidInstances [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer ]
+monoidInstances allRules

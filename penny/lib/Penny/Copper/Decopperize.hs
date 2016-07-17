@@ -944,6 +944,24 @@ dNilOrBrimRadPer x = case x of
   NilOrBrimRadPer'BrimRadPer brc -> fmap NN.c'NonNegative'Positive
     (dBrimRadPer brc)
 
+dDecimalRadCom
+  :: DecimalRadCom t a
+  -> Decimal
+dDecimalRadCom (DecimalRadCom _ mayPluMin _ nb _)
+  = dPluMin'Opt mayPluMin
+  . fmap NN.c'Integer'NonNegative
+  . dNilOrBrimRadCom
+  $ nb
+
+dDecimalRadPer
+  :: DecimalRadPer t a
+  -> Decimal
+dDecimalRadPer (DecimalRadPer _ mayPluMin _ nb _)
+  = dPluMin'Opt mayPluMin
+  . fmap NN.c'Integer'NonNegative
+  . dNilOrBrimRadPer
+  $ nb
+
 e'NilUngroupedRadCom :: NilUngroupedRadCom t a -> NonNegative
 e'NilUngroupedRadCom (NUZeroRadCom _ (RadixZeroesRadCom'Opt Nothing)) = zero
 e'NilUngroupedRadCom (NUZeroRadCom _ (RadixZeroesRadCom'Opt

@@ -41,7 +41,7 @@ emptyTopLine :: ZonedTime -> TopLine ()
 emptyTopLine zt = emptyTranche (F.emptyTopLineFields zt)
 
 emptyPostline :: Postline ()
-emptyPostline = emptyTranche F.emptyPostingFields
+emptyPostline = emptyTranche mempty
 
 zonedTime :: forall a. Lens.Lens' (TopLine a) ZonedTime
 zonedTime = fields . F.zonedTime
@@ -60,6 +60,9 @@ timeZoneMinutes = fields . F.timeZoneMinutes
 
 payee :: forall a. Lens.Lens' (TopLine a) (Maybe Text)
 payee = fields . F.payee
+
+origPayee :: forall a. Lens.Lens' (TopLine a) (Maybe Text)
+origPayee = fields . F.origPayee
 
 number :: forall a. Lens.Lens' (Postline a) (Maybe Integer)
 number = fields . F.number

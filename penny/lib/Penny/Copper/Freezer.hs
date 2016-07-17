@@ -7,17 +7,17 @@ import Penny.Copper.Copperize
 import Penny.Copper.PriceParts
 import Penny.Copper.Quasi
 import Penny.Copper.Types
+import qualified Penny.Fields as Fields
 import qualified Penny.Tree as Tree
 import qualified Penny.Scalar as Scalar
 import qualified Penny.NonZero as NZ
 import Penny.Polar
-import qualified Penny.Positive as Pos
 import Penny.Rep
 import Penny.SeqUtil
 import qualified Penny.Tranche as Tranche
 
 import qualified Control.Lens as Lens
-import Control.Monad ((>=>), join)
+import Control.Monad ((>=>))
 import Data.Semigroup (Semigroup((<>)))
 import Accuerr (Accuerr)
 import qualified Accuerr
@@ -174,6 +174,7 @@ tree (Tree.Tree s cs) = case s of
                     mempty forest mempty cCloseSquare))))
 
 
+-- | A forest is not frozen if it is empty.
 forest
   :: Seq Tree.Tree
   -> Accuerr (NonEmpty ScalarError) (Maybe (Forest Char ()))
@@ -262,15 +263,47 @@ zonedTime (Time.ZonedTime (Time.LocalTime day tod) (Time.TimeZone mins _ _))
     todTree = toAccuerr (childlessTimeOfDayTree tod)
     znTree = toAccuerr (childlessZoneTree mins)
 
+-- # Top line fields
+
 payee :: Text -> Tree Char ()
 payee = childlessTextTree
+
+origPayee :: Text -> Tree Char ()
+origPayee txt = cTree [qLabeled|origPayee|]
+  (Just $ cForest (childlessTextTree txt) Seq.empty)
 
 topLine
   :: Tranche.TopLine a
   -> Accuerr (NonEmpty ScalarError) (TopLine Char ())
-topLine = undefined
+topLine (Tranche.Tranche _ trees fields)
+  = f <$> fmap catMaybes (traverse tree trees)
+      <*> zonedTime (Fields._zonedTime fields)
+      <*> pure (fmap payee . Fields._payee $ fields)
+      <*> pure (fmap origPayee . Fields._origPayee $ fields)
+  where
+    f ancillaryForest (day, tod, zone) mayPayee mayOrig = TopLine (cForest day rest)
+      where
+        rest = catMaybes [ Just tod, Just zone, mayPayee, mayOrig ]
+          <> ancillaryForest
 
-{-
+postline
+  :: Tranche.Postline a
+  -> Accuerr (NonEmpty ScalarError) (Maybe (BracketedForest Char ()))
+postline (Tranche.Tranche _ trees fields) = fmap f $ traverse tree trees
+  where
+    f auxTrees
+      = fmap g . Lens.uncons . catMaybes $ fieldTrees <> auxTrees
+      where
+        g (t1, ts) = cBracketedForest $ cForest t1 ts
+    fieldTrees =
+      [ fmap number . Fields._number $ fields
+      , fmap flag . Fields._flag $ fields
+      , account . Fields._account $ fields
+      , fmap fitid . Fields._fitid $ fields
+      , tags . Fields._tags $ fields
+      , fmap uid . Fields._uid $ fields
+      ]
+
 
 -- # Amounts
 
@@ -338,10 +371,10 @@ price pp = do
 
 data TxnParts = TxnParts
   { _topLine :: Tranche.TopLine ()
-  , _postings :: Seq (Postline (), Amount)
+  , _postings :: Seq (Tranche.Postline (), Amount)
   }
 
-data Tracompri a
+data Tracompri
   = Tracompri'Transaction TxnParts
   | Tracompri'Comment Text
   | Tracompri'Price (PriceParts ())
@@ -351,22 +384,13 @@ data TracompriError
   | TracompriBadComment Text (NonEmpty Char)
   | TracompriBadPrice (PriceParts ()) PriceError
 
-tracompri
-  :: Tracompri
-  -> Accuerr (NonEmpty TracompriError)
-                   (Maybe (FileItem Char ()))
-tracompri x = case x of
-  Tracompri'Transaction t -> fmap f (tracompriTransaction t)
-    where
-      f mayRes = case mayRes of
-        Nothing -> Nothing
-        Just res -> Just . FileItem'Transaction $ res
-  Tracompri'Comment txt -> fmap f (tracompriComment txt)
-    where
-      f com = Just . FileItem'Comment $ com
-  Tracompri'Price pp -> fmap f (tracompriPrice pp)
-    where
-      f pri = Just . FileItem'Price $ pri
+tracompriComment
+  :: Text
+  -> Accuerr (NonEmpty TracompriError) (Comment Char ())
+tracompriComment txt
+  = Lens.over Accuerr._AccFailure (Pinchot.singleton . TracompriBadComment txt)
+  . comment
+  $ txt
 
 tracompriPrice
   :: PriceParts ()
@@ -377,56 +401,27 @@ tracompriPrice p
   . price
   $ p
 
-tracompriComment
-  :: Text
-  -> Accuerr (NonEmpty TracompriError) (Comment Char ())
-tracompriComment txt
-  = Lens.over Accuerr._AccFailure (Pinchot.singleton . TracompriBadComment txt)
-  . comment
-  $ txt
-
-tracompriTransaction
-  :: TxnParts
-  -> Accuerr (NonEmpty TracompriError) (Maybe (Transaction Char ()))
-tracompriTransaction parts
-  = f
-  <$> tracompriTopLine parts
-  <*> tracompriPostings parts
-  where
-    f mayTl pstgs = case (mayTl, Lens.uncons pstgs) of
-      (Nothing, Nothing) -> Nothing
-      (Nothing, Just (p1, ps)) -> Just (Transaction'Postings
-        (copperPstgs p1 ps))
-      (Just tl, Just (p1, ps)) -> Just (Transaction'TopLineMaybePostings
-        (TopLineMaybePostings tl
-          (WhitesPostings'Opt (Just (WhitesPostings mempty
-          (copperPstgs p1 ps))))))
-      (Just tl, Nothing) -> Just (Transaction'TopLineMaybePostings
-        (TopLineMaybePostings tl (WhitesPostings'Opt Nothing)))
-      where
-        copperPstgs p1 ps = Postings cOpenCurly (PostingList'Opt
-          (Just (PostingList mempty p1 (NextPosting'Star (fmap mkNext ps)))))
-          mempty cCloseCurly
-          where
-            mkNext p = NextPosting mempty cSemicolon mempty p
-
 tracompriTopLine
   :: TxnParts
-  -> Accuerr (NonEmpty TracompriError) (Maybe (TopLine Char ()))
-tracompriTopLine parts@(TxnParts tl _) = case forest tl of
+  -> Accuerr (NonEmpty TracompriError) (TopLine Char ())
+tracompriTopLine parts@(TxnParts tl _) = case topLine tl of
   Accuerr.AccFailure errs -> Accuerr.AccFailure . Pinchot.singleton
     $ TracompriBadForest parts errs
-  Accuerr.AccSuccess mayFor -> case mayFor of
-    Nothing -> pure Nothing
-    Just for -> pure . Just . TopLine $ for
+  Accuerr.AccSuccess g -> pure g
+
+combineTracompris
+  :: Seq (FileItem Char ())
+  -> WholeFile Char ()
+combineTracompris fis = WholeFile (WhitesFileItem'Star
+  (fmap (WhitesFileItem mempty) fis)) mempty
 
 tracompriPosting
   :: TxnParts
   -- ^ The entire transaction.  Used only for error messages.
-  -> (Seq Tree.Tree, Amount)
+  -> (Tranche.Postline a, Amount)
   -- ^ This posting
   -> Accuerr (NonEmpty TracompriError) (Posting Char ())
-tracompriPosting parts (frst, amt) = case forest frst of
+tracompriPosting parts (pl, amt) = case postline pl of
   Accuerr.AccFailure errs -> Accuerr.AccFailure . Pinchot.singleton
     $ TracompriBadForest parts errs
   Accuerr.AccSuccess mayForest -> Accuerr.AccSuccess
@@ -435,8 +430,7 @@ tracompriPosting parts (frst, amt) = case forest frst of
       tri = amount amt
       mayWhitesBf = WhitesBracketedForest'Opt $ case mayForest of
         Nothing -> Nothing
-        Just for -> Just (WhitesBracketedForest mempty (BracketedForest
-          cOpenSquare mempty for mempty cCloseSquare))
+        Just for -> Just (WhitesBracketedForest mempty for)
 
 tracompriPostings
   :: TxnParts
@@ -444,16 +438,44 @@ tracompriPostings
 tracompriPostings parts@(TxnParts _ pstgs)
   = traverse (tracompriPosting parts) pstgs
 
-combineTracompris
-  :: Seq (Maybe (FileItem Char ()))
-  -> WholeFile Char ()
-combineTracompris = toWholeFile . catMaybes
+tracompriTransaction
+  :: TxnParts
+  -> Accuerr (NonEmpty TracompriError) (Transaction Char ())
+tracompriTransaction parts
+  = f
+  <$> tracompriTopLine parts
+  <*> tracompriPostings parts
   where
-    toWholeFile fis = WholeFile (WhitesFileItem'Star
-      (fmap (WhitesFileItem mempty) fis)) mempty
+    f tl pstgs = case Lens.uncons pstgs of
+      Nothing -> Transaction'TopLineMaybePostings
+        (TopLineMaybePostings tl (WhitesPostings'Opt Nothing))
+      Just (p1, ps) -> Transaction'TopLineMaybePostings
+        (TopLineMaybePostings tl
+          (WhitesPostings'Opt (Just (WhitesPostings mempty
+          (copperPstgs p1 ps)))))
+      where
+        copperPstgs p1 ps = Postings cOpenCurly (PostingList'Opt
+          (Just (PostingList mempty p1 (NextPosting'Star (fmap mkNext ps)))))
+          mempty cCloseCurly
+          where
+            mkNext p = NextPosting mempty cSemicolon mempty p
+
+tracompri
+  :: Tracompri
+  -> Accuerr (NonEmpty TracompriError) (FileItem Char ())
+tracompri x = case x of
+  Tracompri'Transaction t -> fmap f (tracompriTransaction t)
+    where
+      f res = FileItem'Transaction $ res
+  Tracompri'Comment txt -> fmap f (tracompriComment txt)
+    where
+      f com = FileItem'Comment $ com
+  Tracompri'Price pp -> fmap f (tracompriPrice pp)
+    where
+      f pri = FileItem'Price $ pri
 
 wholeFile
   :: Seq Tracompri
   -> Accuerr (NonEmpty TracompriError) (WholeFile Char ())
 wholeFile = fmap combineTracompris . traverse tracompri
--}
+

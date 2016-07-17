@@ -3,6 +3,8 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE DefaultSignatures #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveAnyClass #-}
 module Text.Show.PrettyVal ( PrettyVal(prettyVal) ) where
 
 import Text.Show.Value
@@ -15,6 +17,7 @@ import GHC.Generics
 import Data.Foldable (toList)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.OFX as OFX
 import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Time as Time
@@ -151,3 +154,6 @@ instance PrettyVal a => PrettyVal (Seq.Seq a) where
 instance (Ord k, PrettyVal a, PrettyVal k) => PrettyVal (Map k a) where
   prettyVal m = Con "Data.Map.Map"
     [List . fmap prettyVal . Map.assocs $ m]
+
+-- # OFX
+deriving instance PrettyVal OFX.TrnType

@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 -- | Obtaining transactions and prices from a Copper-formatted file
 -- takes three steps: parsing, decopperization, and proofing.  This
 -- module performs proofing.
@@ -32,16 +33,19 @@ import Penny.Trio
 import Penny.Tree
 import Penny.Tree.Harvester
 
+import Accuerr (Accuerr)
+import qualified Accuerr
 import qualified Control.Lens as Lens
 import Control.Monad (foldM, guard)
 import qualified Control.Monad.Trans.State as St
 import Data.Maybe (fromMaybe, isNothing)
+import Data.OFX (TrnType)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Text (Text)
+import qualified Data.Text as X
 import qualified Data.Time as Time
-import Accuerr (Accuerr)
-import qualified Accuerr
+import Text.Read (readMaybe)
 import Pinchot (Loc)
 
 findDay
@@ -59,6 +63,16 @@ findZone x = childlessTree x >>= Lens.preview _SZone
 findPayee :: Tree -> Maybe Text
 findPayee x = childlessTree x >>= Lens.preview _SText
 
+-- | If this tree is labeled @fitid@ and has a single child tree
+-- that is also a childless tree whose scalar is an SText,
+-- return that SText.
+findOrigPayee :: Tree -> Maybe Text
+findOrigPayee t = do
+  children <- labeledTree "origPayee" t
+  child <- isSingleton children
+  scalar <- childlessTree child
+  Lens.preview _SText scalar
+
 getTopLineFields
   :: Loc
   -> Seq Tree
@@ -67,14 +81,15 @@ getTopLineFields loc forest = case mayTlf of
   Nothing -> Left (ProofFail loc UndatedTransaction)
   Just tlf -> Right tlf
   where
-    ((mayPye, mayZt), forest') = St.runState k forest
-    mayTlf = fmap (\zt -> (F.TopLineFields zt mayPye, forest')) mayZt
+    ((mayPye, mayOrig, mayZt), forest') = St.runState k forest
+    mayTlf = fmap (\zt -> (F.TopLineFields zt mayPye mayOrig, forest')) mayZt
     k = do
       mayDay <- yankSt findDay
       mayTime <- yankSt findTime
       mayZone <- yankSt findZone
       mayPayee <- yankSt findPayee
-      return (mayPayee, getZonedTime mayDay mayTime mayZone)
+      mayOrigPayee  <- yankSt findOrigPayee
+      return (mayPayee, mayOrigPayee, getZonedTime mayDay mayTime mayZone)
     getZonedTime mayDay mayTime mayZone = fmap mkZt mayDay
       where
         mkZt day = Time.ZonedTime lt tz
@@ -90,6 +105,20 @@ findNumber x = childlessTree x >>= Lens.preview _SInteger
 findFlag :: Tree -> Maybe Text
 findFlag = findPayee
 
+-- | Gets a tree that has the particular label and retrieves the
+-- scalar that can be fetched with the given prism.
+labeledChild
+  :: Text
+  -- ^ Label for the parent tree
+  -> Lens.Prism' Scalar a
+  -> Tree
+  -> Maybe a
+labeledChild lbl prism tree = do
+  children <- labeledTree lbl tree
+  child <- isSingleton children
+  scalar <- childlessTree child
+  Lens.preview prism scalar
+
 -- | If this tree has no scalar and all child trees have a 'SText'
 -- scalar, and there is at least one child tree, return those
 -- scalars.
@@ -104,21 +133,28 @@ findAccount t = do
 -- that is also a childless tree whose scalar is an SText,
 -- return that SText.
 findFitid :: Tree -> Maybe Text
-findFitid t = do
-  children <- labeledTree "fitid" t
-  child <- isSingleton children
-  scalar <- childlessTree child
-  Lens.preview _SText scalar
+findFitid = labeledChild "fitid" _SText
 
 -- | If this tree is labeled @uid@ and has a single child tree that is
 -- also a childless tree whose scalar is an SText, return that SText.
 findUid :: Tree -> Maybe Text
-findUid t = do
-  children <- labeledTree "uid" t
-  child <- isSingleton children
-  scalar <- childlessTree child
-  Lens.preview _SText scalar
+findUid = labeledChild "uid" _SText
 
+-- | Finds a tree labeled @trnType@ that has a single child tree that
+-- is also a childless tree whose scalar is an SText and that, in
+-- addition, can be 'read' as a 'TrnType'.
+findTrnType :: Tree -> Maybe TrnType
+findTrnType t = labeledChild "trnType" _SText t >>= (readMaybe . X.unpack)
+
+-- | Finds a tree labeled @origDay@ with a 'Time.Day'.
+findOrigDay :: Tree -> Maybe Time.Day
+findOrigDay = labeledChild "origDay" _SDay
+
+findOrigTime :: Tree -> Maybe Time.TimeOfDay
+findOrigTime = labeledChild "origTime" _STime
+
+findOrigZone :: Tree -> Maybe Int
+findOrigZone = labeledChild "origZone" _SZone
 
 -- | If this tree is labeled @tags@ and each child tree is also a
 -- childless tree with a 'SText' scalar, and there is at least
@@ -139,6 +175,10 @@ getPostingFields = St.runState k
       <*> yankSt findFitid
       <*> fmap (maybe Seq.empty seqFromNonEmpty) (yankSt findTags)
       <*> yankSt findUid
+      <*> yankSt findTrnType
+      <*> yankSt findOrigDay
+      <*> yankSt findOrigTime
+      <*> yankSt findOrigZone
 
 
 data Reason
