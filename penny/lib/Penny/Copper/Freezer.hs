@@ -21,6 +21,7 @@ import Control.Monad ((>=>))
 import Data.Semigroup (Semigroup((<>)))
 import Accuerr (Accuerr)
 import qualified Accuerr
+import qualified Data.OFX as OFX
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Time (Day, TimeOfDay)
@@ -231,9 +232,19 @@ account sq = fmap f $ Lens.uncons sq
     f (a1, as) = orphans (childlessTextTree a1)
       (fmap childlessTextTree as)
 
-fitid :: Text -> Tree Char ()
-fitid txt = cTree [qLabeled|fitid|] (Just $ cForest (childlessTextTree txt)
+-- | Creates a tree with a single parent tree with the given label and
+-- with the given 'Text' in a single child.
+labeledTextTree
+  :: Scalar Char ()
+  -- ^ Label for the parent tree; you can get this using 'qLabeled'
+  -> Text
+  -- ^ Data for the child tree
+  -> Tree Char ()
+labeledTextTree lbl txt = cTree lbl (Just $ cForest (childlessTextTree txt)
   Seq.empty)
+
+fitid :: Text -> Tree Char ()
+fitid = labeledTextTree [qLabeled|fitid|]
 
 tags :: Seq Text -> Maybe (Tree Char ())
 tags sq = fmap f $ Lens.uncons sq
@@ -242,8 +253,25 @@ tags sq = fmap f $ Lens.uncons sq
       (fmap childlessTextTree as))
 
 uid :: Text -> Tree Char ()
-uid txt = cTree [qLabeled|uid|] (Just $ cForest (childlessTextTree txt)
-  Seq.empty)
+uid = labeledTextTree [qLabeled|uid|]
+
+trnType :: OFX.TrnType -> Tree Char ()
+trnType = labeledTextTree [qLabeled|trnType|] . X.pack . show
+
+origDay :: Day -> Either ScalarError (Tree Char ())
+origDay dy = do
+  childTree <- childlessDayTree dy
+  return $ cTree [qLabeled|origDay|] (Just $ cForest childTree Seq.empty)
+
+origTime :: TimeOfDay -> Either ScalarError (Tree Char ())
+origTime ti = do
+  childTree <- childlessTimeOfDayTree ti
+  return $ cTree [qLabeled|origTime|] (Just $ cForest childTree Seq.empty)
+
+origZone :: Int -> Either ScalarError (Tree Char ())
+origZone zn = do
+  childTree <- childlessZoneTree zn
+  return $ cTree [qLabeled|origZone|] (Just $ cForest childTree Seq.empty)
 
 toAccuerr :: Either e a -> Accuerr (NonEmpty e) a
 toAccuerr e = case e of
@@ -275,34 +303,56 @@ origPayee txt = cTree [qLabeled|origPayee|]
 topLine
   :: Tranche.TopLine a
   -> Accuerr (NonEmpty ScalarError) (TopLine Char ())
-topLine (Tranche.Tranche _ trees fields)
+topLine (Tranche.Tranche _ trees
+  (Fields.TopLineFields fZonedTime fPayee fOrigPayee))
   = f <$> fmap catMaybes (traverse tree trees)
-      <*> zonedTime (Fields._zonedTime fields)
-      <*> pure (fmap payee . Fields._payee $ fields)
-      <*> pure (fmap origPayee . Fields._origPayee $ fields)
+      <*> zonedTime fZonedTime
+      <*> pure (fmap payee fPayee)
+      <*> pure (fmap origPayee fOrigPayee)
   where
     f ancillaryForest (day, tod, zone) mayPayee mayOrig = TopLine (cForest day rest)
       where
         rest = catMaybes [ Just tod, Just zone, mayPayee, mayOrig ]
           <> ancillaryForest
 
+postingFields
+  :: Fields.PostingFields
+  -> Accuerr (NonEmpty ScalarError) (Seq (Tree Char ()))
+postingFields (Fields.PostingFields fNumber fFlag fAccount fFitId
+  fTags fUid fTrnType fOrigDay fOrigTime fOrigZone)
+  = f <$> mayAcc (fmap origDay fOrigDay)
+      <*> mayAcc (fmap origTime fOrigTime)
+      <*> mayAcc (fmap origZone fOrigZone)
+  where
+    mayAcc :: Maybe (Either e a) -> Accuerr (NonEmpty e) (Maybe a)
+    mayAcc may = case may of
+      Nothing -> pure Nothing
+      Just ei -> case ei of
+        Left e -> Accuerr.AccFailure (Pinchot.singleton e)
+        Right g -> Accuerr.AccSuccess (Just g)
+    f mayDay mayTime mayZone = catMaybes
+      [ fmap number fNumber
+      , fmap flag fFlag
+      , account fAccount
+      , fmap fitid fFitId
+      , tags fTags
+      , fmap uid fUid
+      , fmap trnType fTrnType
+      , mayDay
+      , mayTime
+      , mayZone
+      ]
+
 postline
   :: Tranche.Postline a
   -> Accuerr (NonEmpty ScalarError) (Maybe (BracketedForest Char ()))
-postline (Tranche.Tranche _ trees fields) = fmap f $ traverse tree trees
+postline (Tranche.Tranche _ trees fields)
+  = f <$> postingFields fields <*> traverse tree trees
   where
-    f auxTrees
-      = fmap g . Lens.uncons . catMaybes $ fieldTrees <> auxTrees
+    f fieldTrees auxTrees
+      = fmap g . Lens.uncons $ (fieldTrees <> catMaybes auxTrees)
       where
         g (t1, ts) = cBracketedForest $ cForest t1 ts
-    fieldTrees =
-      [ fmap number . Fields._number $ fields
-      , fmap flag . Fields._flag $ fields
-      , account . Fields._account $ fields
-      , fmap fitid . Fields._fitid $ fields
-      , tags . Fields._tags $ fields
-      , fmap uid . Fields._uid $ fields
-      ]
 
 
 -- # Amounts

@@ -94,7 +94,7 @@ import Penny.Stream
 import Penny.TransactionBare
 import Penny.Troika
 
-import Control.Lens (set, Getter, view, to)
+import Control.Lens (set, view)
 import Data.Monoid ((<>))
 import Data.Ord (comparing)
 import Data.Sequence (Seq)

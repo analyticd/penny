@@ -12,10 +12,9 @@ import Penny.Copper.Copperize
 
 import qualified Control.Lens as Lens
 import qualified Control.Lens.Extras as Lens (is)
-import Data.Semigroup ((<>))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Sequence ((<|), (|>))
+import Data.Sequence ((<|))
 
 -- | Changes an empty 'White'Star' to a single space.  Makes no
 -- change to any other 'White'Star'.

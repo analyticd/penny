@@ -1,21 +1,26 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- | Converts an OFX file to Copper transactions.
 module Penny.OfxToCopper where
 
 import Penny.Account
-import Penny.Amount
+import Penny.Amount (Amount)
+import qualified Penny.Amount as Amount
 import qualified Penny.Commodity as Cy
 import Penny.Copper
 import Penny.Copper.EarleyGrammar
+import Penny.Copper.Freezer
 import Penny.Copper.Productions
 import Penny.Copper.Types
 import Penny.Copper.Util
+import Penny.Decimal
 import Penny.Polar
 import qualified Penny.Fields as Fields
 import qualified Penny.Tranche as Tranche
 
-import qualified Control.Lens as L
+import Accuerr (Accuerr)
+import qualified Control.Lens as Lens
 import Control.Monad ((<=<))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -26,201 +31,125 @@ import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import qualified Text.Parsec as Parsec
 
--- | Every OFX transaction must create two postings in the Copper
--- file.  One of these postings is called the main posting, and it
--- is in the account that is the subject of the OFX file.  For
--- example, if the OFX file contains Amex OFX transactions, the main
--- account might be @[Liabilities, Amex]@.
---
--- The other account is the offsetting account.  It will vary from
--- one OFX transaction to another.  For example, a charge for
--- gasoline might have an account for @[Expenses, Auto, Gas]@, while
--- a payment might have an account of @[Assets, Checking]@.  The
--- information needed to create an offset is stored in an 'Offset'.
-
-data OfxTxn = OfxTxn
-  { _ofxTopLine :: Fields.TopLineFields
-  , _ofxMainPosting :: (Fields.PostingFields, Amount)
-  , _ofxOffsetPosting :: (Fields.PostingFields, Amount)
+-- | Inputs from the OFX file.
+data OfxIn = OfxIn
+  { _ofxTxn :: OFX.Transaction
+  , _qty :: Decimal
   }
 
+Lens.makeLenses ''OfxIn
 
--- | Pulls all interesting OFX info from the OFX transaction.
+data Flag = Cleared | Reconciled
+  deriving (Eq, Ord, Show)
 
-{-
-data Error
-  = OFXParseError String
-  -- ^ Could not parse OFX file.
-  | DateConvertError Time.Day
-  | ZonedTimeConvertError Time.ZonedTime
-  | TransactionParseError String
-  -- ^ Could not get list of transactions from file.
-  | NoPayee
-  | AmountParseError String ParseError
-  deriving Show
-
-data Offset = Offset
-  { _offsettingAccount :: Account
-  , _offsettingPole :: Pole
-  , _offsettingPayee :: Text
+-- | Data used to create the resulting Penny transaction.
+data OfxOut = OfxOut
+  { _payee :: Text
+  -- ^ Payee.  This applies to both postings.
+  , _flag :: Maybe Flag
+  -- ^ Whether the foreign posting is cleared, reconciled, or neither.
+  -- This applies only to the foreign posting.
+  , _foreignAccount :: Account
+  -- ^ Account for the foreign posting.
+  , _flipSign :: Bool
+  -- ^ If this is False, the amount from the OFX transaction is copied
+  -- to the foreign posting as-is.  If this is True, the amount from the
+  -- OFX transaction is copied to the foreign posting, but its sign is
+  -- reversed (so that a debit becomes a credit, and vice versa.)
+  -- Arbitrarily (as set forth in "Penny.Polar", a debit is equivalent
+  -- to a positive, and a credit is equal to a negative.  For example,
+  -- if the OFX file is from a credit card, typically charges are
+  -- positive, which in Penny corresponds to a debit.  However,
+  -- typically in Penny you will record charges in a liability
+  -- account, where they would be credits.  So in such a case you
+  -- would use 'True' here.
+  , _offsettingAccount :: Account
+  -- ^ Account to use for the offsetting posting.
+  , _commodity :: Cy.Commodity
+  -- ^ Commodity.  Used for both the foreign and offsetting posting.
   } deriving Show
 
-L.makeLenses ''Offset
+Lens.makeLenses ''OfxOut
 
--- | Function that is applied to determine the 'Offset' for a
--- particular OFX transaction.
-type GetOffset
-  = Pole
-  -> Maybe (Either String OFX.Payee)
-  -> OFX.TrnType
-  -> Offset
+-- | Creates a new transaction ready for "Penny.Copper.Freezer".
+ofxToTxnParts
+  :: OfxIn
+  -> OfxOut
+  -> TxnParts
+ofxToTxnParts inp out = TxnParts topLine pstgs
+  where
+    topLine = topLineTranche inp out
+    pstgs = [foreignPair inp out, offsettingPair inp out]
 
-getTopLine
-  :: Time.ZonedTime
-  -> Maybe Text
-  -- ^ Payee
+topLineTranche
+  :: OfxIn
+  -> OfxOut
   -> Tranche.TopLine ()
-getTopLine zt pye = Tranche.Tranche () Seq.empty fields
+topLineTranche inp out = Tranche.Tranche () []
+  $ Fields.TopLineFields zt pye origPye
   where
-    fields = Fields.TopLineFields zt pye
+    zt = OFX.txDTPOSTED . _ofxTxn $ inp
+    pye = Just . _payee $ out
+    origPye = case OFX.txPayeeInfo . _ofxTxn $ inp of
+      Nothing -> Nothing
+      Just (Left s) -> Just . X.pack $ s
+      Just (Right p) -> Just . X.pack . OFX.peNAME $ p
 
--- | Parses OFX file using Parsec parsers, gets the OFX
--- transactions, and converts them to Copper transactions.
-ofxTextToTransactions
-  :: Account
-  -- ^ Place main transaction into this account.
-  -> GetOffset
-  -- ^ Determines offsetting information
-  -> Cy.Commodity
-  -- ^ All postings have this commodity.
-  -> Text
-  -> Either Error (Seq Transaction)
-ofxTextToTransactions mainAccount getOffset commodity
-  = makeCopperTransactions
-  <=< makeOfxTransactions
-  <=< parseOfxFile
+foreignPair
+  :: OfxIn
+  -> OfxOut
+  -> (Tranche.Postline (), Amount)
+foreignPair inp out = (Tranche.Tranche () [] fields, amt)
   where
-    makeCopperTransactions
-      = fmap Seq.fromList
-      . traverse (ofxTransactionToTransaction mainAccount getOffset commodity)
-    makeOfxTransactions
-      = either (Left . TransactionParseError) Right
-      . OFX.transactions
-    parseOfxFile
-      = either (Left . OFXParseError . show) Right
-      . Parsec.parse OFX.ofxFile ""
-      . X.unpack
-
-ofxTransactionToTransaction
-  :: Account
-  -- ^ Place transaction into this account.
-  -> GetOffset
-  -- ^ Determines offsetting information
-  -> Cy.Commodity
-  -- ^ All postings have this commodity.
-  -> OFX.Transaction
-  -> Either Error Transaction
-ofxTransactionToTransaction mainAccount getOffset commodity txn
-  = Transaction
-  <$> getTopLine (OFX.txDTPOSTED txn) (OFX.txPayeeInfo txn)
-  <*> getPostings mainAccount getOffset commodity
-        (OFX.txFITID txn) (OFX.txTRNAMT txn)
-
-payeeTree :: Maybe (Either String OFX.Payee) -> Either Error Tree
-payeeTree = fmap toTree . maybe (Left NoPayee) Right
-  where
-    toTree = makeTree . either id OFX.peNAME
+    fields = Fields.PostingFields
+      { Fields._number = Nothing
+      , Fields._flag = fmap toFlag . _flag $ out
+      , Fields._account = _foreignAccount out
+      , Fields._fitid = Just . X.pack . OFX.txFITID . _ofxTxn $ inp
+      , Fields._tags = Seq.empty
+      , Fields._uid = Nothing
+      , Fields._trnType = Just . OFX.txTRNTYPE . _ofxTxn $ inp
+      , Fields._origDay = Just . Time.localDay . Time.zonedTimeToLocalTime
+          . OFX.txDTPOSTED . _ofxTxn $ inp
+      , Fields._origTime = Just . Time.localTimeOfDay
+          . Time.zonedTimeToLocalTime . OFX.txDTPOSTED . _ofxTxn $ inp
+      , Fields._origZone = Just . Time.timeZoneMinutes . Time.zonedTimeZone
+          . OFX.txDTPOSTED . _ofxTxn $ inp
+      }
       where
-        makeTree str = fTree sc Nothing
-          where
-            sc = case fString (Seq.fromList str) of
-              Left us -> Scalar'UnquotedString us
-              Right qs -> Scalar'QuotedString qs
+        toFlag Cleared = "C"
+        toFlag Reconciled = "R"
+    amt = Amount.Amount
+      { Amount._commodity = _commodity out
+      , Amount._qty = flipper . _qty $ inp
+      }
+      where
+        flipper | _flipSign out = negate
+                | otherwise = id
 
-getPostings
-  :: Account
-  -> GetOffset
-  -> Cy.Commodity
-  -> String
-  -- ^ FITID
-  -> String
-  -- ^ Transaction amount
-  -> Either Error Postings
-getPostings account getOffset cy fitid amt = undefined
-
-getMainPosting
-  :: Account
-  -- ^ Place main posting into this account
-  -> Cy.Commodity
-  -- ^ Commodity for all postings
-  -> (Pole -> Pole)
-  -- ^ Get pole for the main posting
-  -> String
-  -- ^ FITID
-  -> String
-  -- ^ Transaction amount
-  -> Either Error Posting
-getMainPosting acct cy fPole fitid signedAmt = do
-  let (mainPole, amt) = getMainPole fPole signedAmt
-  trio <- parseAmount mainPole cy amt
-  undefined
-
--- | The bracketed forest for the main posting.
-mainPostingBracketedForest
-  :: Account
-  -> String
-  -- ^ FITID
-  -> BracketedForest'Maybe
-mainPostingBracketedForest acct fitid
-  = BracketedForest'Maybe . Just
-  $ fBracketedForest (fForest treeAcct [treeId])
+offsettingPair
+  :: OfxIn
+  -> OfxOut
+  -> (Tranche.Postline (), Amount)
+offsettingPair inp out = (Tranche.Tranche () [] fields, amt)
   where
-    treeAcct = undefined
-    treeId = undefined
+    fields = Fields.PostingFields
+      { Fields._number = Nothing
+      , Fields._flag = Nothing
+      , Fields._account = _offsettingAccount out
+      , Fields._fitid = Nothing
+      , Fields._tags = Seq.empty
+      , Fields._uid = Nothing
+      , Fields._trnType = Nothing
+      , Fields._origDay = Nothing
+      , Fields._origTime = Nothing
+      , Fields._origZone = Nothing
+      }
+    amt = Amount.Amount
+      { Amount._commodity = _commodity out
+      , Amount._qty = flipper . _qty $ inp
+      }
+      where
+        flipper | not $ _flipSign out = negate
+                | otherwise = id
 
-getMainPole
-  :: (Pole -> Pole)
-  -- ^ When applied to the pole of the input amount, this returns
-  -- the pole for the main posting.
-  -> String
-  -- ^ Input amount string
-  -> (Pole, String)
-  -- ^ Pole for the main posting, and the remaining input string.
-getMainPole getMain inp = case inp of
-  '-':xs -> (getMain negative, xs)
-  _ -> (getMain positive, inp)
-
--- | Parses an amount from a string.  Examines the string for the
--- amount.  If there is a leading minus sign, then the input is
--- negative; otherwise, it is positive.  The 'Pole' returned is the
--- 'Pole' used for the amount.
-parseAmount
-  :: Pole
-  -- ^ Pole for the main posting
-  -> Cy.Commodity
-  -- ^ Use this commodity
-  -> String
-  -- ^ Transaction amount.  Must already be stripped of any leading
-  -- negative sign.
-  -> Either Error Trio
-parseAmount pole cy amt = case parseResult of
-  Left e -> Left (AmountParseError amt e)
-  Right g -> return . Trio'T_DebitCredit_Commodity_NonNeutral
-    $ T_DebitCredit_Commodity_NonNeutral dc space
-    (toCopperCommodity cy) space nn space
-    where
-      dc | pole == debit = DebitCredit'Debit (Debit sLessThan)
-         | otherwise = DebitCredit'Credit (Credit sGreaterThan)
-      nn = NonNeutralRadPer g
-  where
-    parseResult = runParser (fmap a'BrimRadPer earleyGrammar) (X.pack amt)
-
-toCopperCommodity :: Cy.Commodity -> Commodity
-toCopperCommodity cy = case mayUnquoted of
-  Nothing -> Commodity'QuotedCommodity . QuotedCommodity
-    . fQuotedString . X.unpack $ cy
-  Just unq -> Commodity'UnquotedCommodity . UnquotedCommodity $ unq
-  where
-    mayUnquoted = fUnquotedStringNonDigitChar'Seq1
-      . Seq.fromList . X.unpack $ cy
--}
