@@ -7,6 +7,7 @@ import Penny.Copper.Copperize
 import Penny.Copper.PriceParts
 import Penny.Copper.Quasi
 import Penny.Copper.Types
+import Penny.Ents
 import qualified Penny.Fields as Fields
 import qualified Penny.Tree as Tree
 import qualified Penny.Scalar as Scalar
@@ -15,6 +16,7 @@ import Penny.Polar
 import Penny.Rep
 import Penny.SeqUtil
 import qualified Penny.Tranche as Tranche
+import Penny.TransactionBare
 
 import qualified Control.Lens as Lens
 import Control.Monad ((>=>))

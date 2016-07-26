@@ -36,6 +36,15 @@ type NilAnyRadix = Either (NilRadCom Char ()) (NilRadPer Char ())
 type NilOrBrimAnyRadix
   = Either (NilOrBrimRadCom Char ()) (NilOrBrimRadPer Char ())
 
+c'RepAnyRadix'BrimAnyRadix
+  :: Pole
+  -- ^ Use this side
+  -> BrimAnyRadix
+  -> RepAnyRadix
+c'RepAnyRadix'BrimAnyRadix pole b = case b of
+  Left brc -> Left . Extreme $ Polarized brc pole
+  Right brp -> Right . Extreme $ Polarized brp pole
+
 t'NilOrBrimAnyRadix
   :: NilOrBrimAnyRadix
   -> Seq Char

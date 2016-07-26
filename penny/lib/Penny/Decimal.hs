@@ -183,6 +183,13 @@ cmpPositive f ex ey = f (_coefficient ex') (_coefficient ey')
 -- | Decimals whose significand is never zero.
 type DecNonZero = Exponential NonZero
 
+-- | Adds two 'DecPositive', after equalizing their exponents.
+addDecPositive :: DecPositive -> DecPositive -> DecPositive
+addDecPositive x y = Exponential (Pos.add xC yC) e'
+  where
+    (Exponential xC e', Exponential yC _) =
+      equalizeExponentsPositive x y
+
 poleDecNonZero :: Lens.Lens' DecNonZero Pole
 poleDecNonZero = coefficient . NonZero.pole
 

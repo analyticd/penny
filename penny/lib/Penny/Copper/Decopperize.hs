@@ -488,6 +488,9 @@ dBrimRadPer :: BrimRadPer t a -> DecPositive
 dBrimRadPer
   = dBrimUngroupedRadPer . ungroupBrimRadPer
 
+dBrimAnyRadix :: BrimAnyRadix -> DecPositive
+dBrimAnyRadix = either dBrimRadCom dBrimRadPer
+
 dNonNeutral :: NonNeutral t a -> DecPositive
 dNonNeutral (NonNeutralRadCom _ b) = dBrimRadCom b
 dNonNeutral (NonNeutralRadPer b) = dBrimRadPer b

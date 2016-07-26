@@ -26,6 +26,7 @@ import qualified Penny.Amount as A
 import Penny.Arrangement
 import Penny.Balance
 import Penny.Commodity
+import Penny.Copper.Copperize (repDecimal)
 import Penny.Copper.Decopperize
 import Penny.Decimal
 import Penny.Copper.Types (GrpRadCom, GrpRadPer)
@@ -40,8 +41,6 @@ import qualified Control.Lens as Lens
 import qualified Data.Map as M
 import Data.Sequence (Seq)
 import GHC.Generics (Generic)
-import Text.Show.Pretty (PrettyVal)
-import qualified Text.Show.Pretty as Pretty
 
 -- | The payload data of a 'Troika'.
 data Troiload
@@ -56,29 +55,6 @@ data Troiload
   | C DecNonZero
   | E DecNonZero
   deriving (Show, Generic)
-
-instance PrettyVal Troiload where
-  prettyVal x = case x of
-    QC r ar -> Pretty.Con "Penny.Troika.QC" [r', ar']
-      where
-        r' = parseVal r
-        ar' = Pretty.prettyVal ar
-    Q r -> Pretty.Con "Penny.Troika.Q" [parseVal r]
-    SC d -> Pretty.Con "Penny.Troika.SC" [Pretty.prettyVal d]
-    S d -> Pretty.Con "Penny.Troika.S" [Pretty.prettyVal d]
-    UC b p a -> Pretty.Con "Penny.Troika.S"
-      [parseVal b, Pretty.prettyVal p, Pretty.prettyVal a]
-    NC n a -> Pretty.Con "Penny.Troika.NC"
-      [parseVal n, Pretty.prettyVal a]
-    US b p -> Pretty.Con "Penny.Troika.US"
-      [parseVal b, Pretty.prettyVal p]
-    UU n -> Pretty.Con "Penny.Troika.UU" [parseVal n]
-    C c -> Pretty.Con "Penny.Troika.C" [Pretty.prettyVal c]
-    E e -> Pretty.Con "Penny.Troika.E" [Pretty.prettyVal e]
-    where
-      parseVal a = case Pretty.reify a of
-        Nothing -> error "Penny.Troika.prettyVal: parseVal failed"
-        Just x -> x
 
 troiloadPole :: Troiload -> Maybe Pole
 troiloadPole x = case x of
@@ -99,8 +75,6 @@ data Troika = Troika
   { _commodity :: Commodity
   , _troiquant :: Either Troiload Decimal
   } deriving (Show, Generic)
-
-instance PrettyVal Troika
 
 Lens.makeLenses ''Troika
 
@@ -324,3 +298,29 @@ troiloadSide x = case x of
 -- | What side a troika is on.
 troikaSide :: Troika -> Maybe Pole
 troikaSide = either troiloadSide pole'Decimal . _troiquant
+
+-- | Convert a 'Troiload' to a 'Trio'.
+troiloadToTrio :: Commodity -> Troiload -> Trio.Trio
+troiloadToTrio cy tl = case tl of
+  QC rar ar -> Trio.QC rar cy ar
+  Q rar -> Trio.Q rar
+  SC dnz -> Trio.SC (Lens.view poleDecNonZero dnz) cy
+  S dnz -> Trio.S (Lens.view poleDecNonZero dnz)
+  UC brim _ ar -> Trio.UC brim cy ar
+  NC nil ar -> Trio.NC nil cy ar
+  US brim _ -> Trio.US brim
+  UU nil -> Trio.UU nil
+  C _ -> Trio.C cy
+  E _ -> Trio.E
+
+-- | Convert a 'Troika' to a 'Trio.Trio'. A 'Troiload' is converted to
+-- the appropriate 'Trio'.  A 'Decimal' is converted to a 'Trio.QC',
+-- with the commodity on the left and a space betweeen.  The
+-- representation is with a period radix, but with no grouping.
+troikaToTrio :: Troika -> Trio.Trio
+troikaToTrio (Troika cy tq) = case tq of
+  Left tl -> troiloadToTrio cy tl
+  Right dec -> Trio.QC rar cy ar
+    where
+      rar = repDecimal (Right Nothing) dec
+      ar = Arrangement CommodityOnLeft True
