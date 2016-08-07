@@ -45,13 +45,13 @@ import Control.Lens.Cons (uncons)
 import Control.Monad (join)
 import qualified Control.Monad.State as St
 import Data.Sequence
+import Data.Sequence.NonEmpty (NonEmptySeq)
+import qualified Data.Sequence.NonEmpty as NE
 import qualified Data.Foldable as F
 import Data.Monoid
 import qualified Data.Traversable as T
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
-import Pinchot (NonEmpty)
-import qualified Pinchot
 
 filterM
   :: Monad m
@@ -162,7 +162,7 @@ yankSt f = do
 
 data Groups a b = Groups
   { _leaders :: Seq b
-  , _middle :: Seq (NonEmpty a, NonEmpty b)
+  , _middle :: Seq (NonEmptySeq a, NonEmptySeq b)
   , _trailers :: Seq a
   }
 
@@ -181,20 +181,20 @@ groupEithers sq = Groups l m r
     (middle, mayLast) = foldl appendMiddle (empty, Nothing) middleAndTrail
     (m, r) = case mayLast of
       Nothing -> (middle, empty)
-      Just (as, bs) -> case Pinchot.seqToNonEmpty bs of
-        Nothing -> (middle, Pinchot.flatten as)
+      Just (as, bs) -> case NE.seqToNonEmptySeq bs of
+        Nothing -> (middle, NE.nonEmptySeqToSeq as)
         Just bss -> (middle |> (as, bss), empty)
 
     appendMiddle
-      :: (Seq (NonEmpty a, NonEmpty b), Maybe (NonEmpty a, Seq b))
+      :: (Seq (NonEmptySeq a, NonEmptySeq b), Maybe (NonEmptySeq a, Seq b))
       -> Either a b
-      -> (Seq (NonEmpty a, NonEmpty b), Maybe (NonEmpty a, Seq b))
+      -> (Seq (NonEmptySeq a, NonEmptySeq b), Maybe (NonEmptySeq a, Seq b))
     appendMiddle (sq, mayPair) ei = case ei of
       Left a -> case mayPair of
-        Nothing -> (sq, Just (Pinchot.singleton a, empty))
-        Just (as, bs) -> case Pinchot.seqToNonEmpty bs of
+        Nothing -> (sq, Just (NE.singleton a, empty))
+        Just (as, bs) -> case NE.seqToNonEmptySeq bs of
           Nothing -> error "groupEithers: error 1"
-          Just neBs -> (sq |> (as, neBs), Just (Pinchot.singleton a, empty))
+          Just neBs -> (sq |> (as, neBs), Just (NE.singleton a, empty))
       Right b -> case mayPair of
         Nothing -> error "groupEithers: error 2"
         Just (as, bs) -> (sq, Just (as, bs |> b))

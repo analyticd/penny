@@ -4,10 +4,11 @@ import Control.Monad (join)
 import Data.Sequence (Seq, (<|), (|>),
   ViewR(EmptyR, (:>)), viewr)
 import qualified Data.Sequence as Seq
+import Data.Monoid ((<>))
+import Data.Sequence.NonEmpty (NonEmptySeq(NonEmptySeq))
+
 import Penny.Copper.Types
 import Penny.NonEmpty
-import Data.Monoid ((<>))
-import qualified Pinchot
 
 -- # Ungrouping
 
@@ -145,7 +146,7 @@ ungroupBG5RadCom (BG5ZeroRadCom z1 (Zero'Star zs) b6)
 -- ### Nil
 ungroupNilGroupedRadCom :: NilGroupedRadCom t a -> NilUngroupedRadCom t a
 ungroupNilGroupedRadCom (NilGroupedRadCom (Zero'Opt mayZero1) rdx2 z3
-  (Zero'Star zs4) (ZeroGroupRadCom'Plus (Pinchot.NonEmpty grp1 grpsRest)))
+  (Zero'Star zs4) (ZeroGroupRadCom'Plus (NonEmptySeq grp1 grpsRest)))
   = case mayZero1 of
       Nothing -> NURadixRadCom rdx2 z3 (Zero'Star (zs4 <> zeroesFromGroups))
       Just z -> NUZeroRadCom z (RadixZeroesRadCom'Opt (Just
@@ -270,7 +271,7 @@ ungroupBG5RadPer (BG5ZeroRadPer z1 (Zero'Star zs) b6)
 -- ### Nil
 ungroupNilGroupedRadPer :: NilGroupedRadPer t a -> NilUngroupedRadPer t a
 ungroupNilGroupedRadPer (NilGroupedRadPer (Zero'Opt mayZero1) rdx2 z3
-  (Zero'Star zs4) (ZeroGroupRadPer'Plus (Pinchot.NonEmpty grp1 grpsRest)))
+  (Zero'Star zs4) (ZeroGroupRadPer'Plus (NonEmptySeq grp1 grpsRest)))
   = case mayZero1 of
       Nothing -> NURadixRadPer rdx2 z3 (Zero'Star (zs4 <> zeroesFromGroups))
       Just z -> NUZeroRadPer z (RadixZeroesRadPer'Opt (Just

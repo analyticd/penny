@@ -149,8 +149,12 @@ prettyShow = atleast "pretty-show" [1,6]
 templateHaskell :: Package
 templateHaskell = atleast "template-haskell" [2,10]
 
+nonEmptySequence :: Package
+nonEmptySequence = atleast "non-empty-sequence" [0,2]
+
 pennyCopper :: Package
 pennyCopper = exactly "penny-copper" pennyVer
+
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
@@ -208,6 +212,7 @@ libraryDepends =
   , filepath
   , ghcPrim
   , templateHaskell
+  , nonEmptySequence
   , pennyCopper
   ]
 

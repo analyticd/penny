@@ -6,7 +6,7 @@ import Data.Coerce (coerce)
 import Data.Monoid ((<>))
 import Data.Sequence (Seq, (<|))
 import qualified Data.Sequence as Seq
-import qualified Pinchot
+import qualified Data.Sequence.NonEmpty as NE
 
 import Penny.Polar
 import Penny.Copper.Types
@@ -49,7 +49,7 @@ t'NilOrBrimAnyRadix
   :: NilOrBrimAnyRadix
   -> Seq Char
 t'NilOrBrimAnyRadix
-  = Pinchot.flatten
+  = NE.nonEmptySeqToSeq
   . fmap fst
   . either t'NilOrBrimRadCom t'NilOrBrimRadPer
 
@@ -213,7 +213,7 @@ groupers'NilGroupedRadCom
   :: NilGroupedRadCom t a
   -> Seq (GrpRadCom t a)
 groupers'NilGroupedRadCom
-  (NilGroupedRadCom _ _ _ _ (ZeroGroupRadCom'Plus (Pinchot.NonEmpty g1 gs)))
+  (NilGroupedRadCom _ _ _ _ (ZeroGroupRadCom'Plus (NE.NonEmptySeq g1 gs)))
   = addGroup g1 (foldr addGroup Seq.empty gs)
   where
     addGroup g acc = groupers'ZeroGroupRadCom g <> acc
@@ -222,7 +222,7 @@ groupers'NilGroupedRadPer
   :: NilGroupedRadPer t a
   -> Seq (GrpRadPer t a)
 groupers'NilGroupedRadPer
-  (NilGroupedRadPer _ _ _ _ (ZeroGroupRadPer'Plus (Pinchot.NonEmpty g1 gs)))
+  (NilGroupedRadPer _ _ _ _ (ZeroGroupRadPer'Plus (NE.NonEmptySeq g1 gs)))
   = addGroup g1 (foldr addGroup Seq.empty gs)
   where
     addGroup g acc = groupers'ZeroGroupRadPer g <> acc

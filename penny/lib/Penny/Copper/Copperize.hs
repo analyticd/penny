@@ -31,19 +31,20 @@
 -- "Penny.Copper.Copperize" and "Penny.Copper.Freezer".
 module Penny.Copper.Copperize where
 
+import Accuerr (Accuerr(AccFailure, AccSuccess))
 import Control.Applicative ((<|>))
 import qualified Control.Lens as Lens
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Sequence.NonEmpty (NonEmptySeq)
+import qualified Data.Sequence.NonEmpty as NE
 import Data.Text (Text)
 import qualified Data.Text as X
-import Accuerr (Accuerr(AccFailure, AccSuccess))
+import qualified Data.Time as Time
 import qualified Pinchot
-import Pinchot (NonEmpty)
 import Text.Earley (Prod, Grammar)
 import qualified Text.Earley as Earley
-import qualified Data.Time as Time
 
 import Penny.Copper.EarleyGrammar
 import Penny.Copper.Grouping
@@ -372,15 +373,15 @@ cCommentChar c = Lens.preview _CommentChar (c, ())
 -- 'Left' with the bad character.
 cCommentChar'Star
   :: Text
-  -> Accuerr (NonEmpty Char) (CommentChar'Star Char ())
+  -> Accuerr (NonEmptySeq Char) (CommentChar'Star Char ())
 cCommentChar'Star
   = fmap CommentChar'Star . traverse f . Seq.fromList . X.unpack
   where
     f c = case cCommentChar c of
-      Nothing -> AccFailure . Pinchot.singleton $ c
+      Nothing -> AccFailure . NE.singleton $ c
       Just r -> AccSuccess r
 
-cComment :: Text -> Accuerr (NonEmpty Char) (Comment Char ())
+cComment :: Text -> Accuerr (NonEmptySeq Char) (Comment Char ())
 cComment txt
   = Comment
   <$> pure cHash
@@ -752,7 +753,7 @@ cUnquotedStringNonDigitChar'Plus sq = do
   (x, xs) <- Lens.uncons sq
   x' <- cUnquotedStringNonDigitChar x
   xs' <- sequence . fmap cUnquotedStringNonDigitChar $ xs
-  return $ UnquotedStringNonDigitChar'Plus (Pinchot.NonEmpty x' xs')
+  return $ UnquotedStringNonDigitChar'Plus (NE.NonEmptySeq x' xs')
 
 cCommodity :: Seq Char -> Commodity Char ()
 cCommodity sq = case cUnquotedStringNonDigitChar'Plus sq of
@@ -831,7 +832,7 @@ cNilGroupedRadCom lead g1 gs = NilGroupedRadCom mz0 r1 z2 z3 zg4
     z3 = case Pos.prev lead of
       Nothing -> Zero'Star Seq.empty
       Just p -> cZeroes (NN.c'NonNegative'Positive p)
-    zg4 = ZeroGroupRadCom'Plus $ Pinchot.NonEmpty g1 gs
+    zg4 = ZeroGroupRadCom'Plus $ NE.NonEmptySeq g1 gs
 
 -- | Has a leading zero and comma for grouper.
 cNilGroupedRadPer
@@ -848,7 +849,7 @@ cNilGroupedRadPer lead g1 gs = NilGroupedRadPer mz0 r1 z2 z3 zg4
     z3 = case Pos.prev lead of
       Nothing -> Zero'Star Seq.empty
       Just p -> cZeroes (NN.c'NonNegative'Positive p)
-    zg4 = ZeroGroupRadPer'Plus $ Pinchot.NonEmpty g1 gs
+    zg4 = ZeroGroupRadPer'Plus $ NE.NonEmptySeq g1 gs
 
 -- | Has a leading zero.
 cNilUngroupedRadCom

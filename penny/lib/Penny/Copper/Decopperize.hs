@@ -18,7 +18,9 @@ import qualified Data.Text as X
 import qualified Data.Time as Time
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Pinchot (Loc, NonEmpty(_front))
+import Data.Sequence.NonEmpty (NonEmptySeq)
+import qualified Data.Sequence.NonEmpty as NE
+import Pinchot (Loc)
 import qualified Pinchot
 import Prelude hiding (length)
 
@@ -222,7 +224,7 @@ dUnquotedStringNonDigitChar (UnquotedStringNonDigitChar (c, _)) = c
 
 dUnquotedStringNonDigitChar'Plus
   :: UnquotedStringNonDigitChar'Plus t a
-  -> NonEmpty t
+  -> NonEmptySeq t
 dUnquotedStringNonDigitChar'Plus (UnquotedStringNonDigitChar'Plus ne)
   = fmap dUnquotedStringNonDigitChar ne
 
@@ -232,7 +234,7 @@ dUnquotedCommodity
 dUnquotedCommodity (UnquotedCommodity p)
   = X.pack
   . toList
-  . Pinchot.flatten
+  . NE.nonEmptySeqToSeq
   . dUnquotedStringNonDigitChar'Plus
   $ p
 
@@ -396,7 +398,7 @@ dNilGroupedRadCom = Exponential () . e'NilGroupedRadCom
         zeroes1 = let Zero'Star zs = zs1 in length zs
         zeroesRest = addGroup g1 (foldr addGroup NN.zero gs)
           where
-            ZeroGroupRadCom'Plus (Pinchot.NonEmpty g1 gs) = zss
+            ZeroGroupRadCom'Plus (NE.NonEmptySeq g1 gs) = zss
             addGroup (ZeroGroupRadCom _ _zero1 (Zero'Star zeros)) acc
               = NN.one `NN.add` length zeros `NN.add` acc
 
@@ -410,7 +412,7 @@ dNilGroupedRadPer = Exponential () . e'NilGroupedRadPer
         zeroes1 = let Zero'Star zs = zs1 in length zs
         zeroesRest = addGroup g1 (foldr addGroup NN.zero gs)
           where
-            ZeroGroupRadPer'Plus (Pinchot.NonEmpty g1 gs) = zss
+            ZeroGroupRadPer'Plus (NE.NonEmptySeq g1 gs) = zss
             addGroup (ZeroGroupRadPer _ _zero1 (Zero'Star zeros)) acc
               = NN.one `NN.add` length zeros `NN.add` acc
 
@@ -638,32 +640,32 @@ dNextTree (NextTree _ _ _ t) = dTree t
 dTree :: Tree Char Loc -> Tree.Tree
 dTree x = Tree.Tree sc (loc `Lens.cons` children)
   where
-    loc = locToTree . snd . Pinchot._front . t'Tree $ x
+    loc = locToTree . snd . NE._fore . t'Tree $ x
     (sc, children) = case x of
       Tree'ScalarMaybeForest s -> (Just scalar, trees)
         where
           (scalar, trees) = dScalarMaybeForest s
-      Tree'ForestMaybeScalar s -> (mayScalar, Pinchot.flatten trees)
+      Tree'ForestMaybeScalar s -> (mayScalar, NE.nonEmptySeqToSeq trees)
         where
           (trees, mayScalar) = dForestMaybeScalar s
 
 dForestMaybeScalar
   :: ForestMaybeScalar Char Loc
-  -> (NonEmpty Tree.Tree, Maybe Scalar.Scalar)
+  -> (NonEmptySeq Tree.Tree, Maybe Scalar.Scalar)
 dForestMaybeScalar (ForestMaybeScalar bf sc)
   = (dBracketedForest bf, dWhitesScalar'Opt sc)
 
 dBracketedForest
   :: BracketedForest Char Loc
-  -> NonEmpty Tree.Tree
+  -> NonEmptySeq Tree.Tree
 dBracketedForest (BracketedForest _ _ forest _ _)
   = dForest forest
 
 dForest
   :: Forest Char Loc
-  -> NonEmpty Tree.Tree
+  -> NonEmptySeq Tree.Tree
 dForest (Forest t1 ts)
-  = Pinchot.NonEmpty (dTree t1) (dNextTree'Star ts)
+  = NE.NonEmptySeq (dTree t1) (dNextTree'Star ts)
 
 dNextTree'Star
   :: NextTree'Star Char Loc
@@ -682,15 +684,15 @@ dWhitesBracketedForest'Opt
   -> Seq Tree.Tree
 dWhitesBracketedForest'Opt (WhitesBracketedForest'Opt may) = case may of
   Nothing -> Seq.empty
-  Just wbf -> Pinchot.flatten . dWhitesBracketedForest $ wbf
+  Just wbf -> NE.nonEmptySeqToSeq . dWhitesBracketedForest $ wbf
 
 dWhitesBracketedForest
   :: WhitesBracketedForest Char Loc
-  -> NonEmpty Tree.Tree
+  -> NonEmptySeq Tree.Tree
 dWhitesBracketedForest (WhitesBracketedForest _ bf)
   = dBracketedForest bf
 
-dTopLine :: TopLine Char Loc -> NonEmpty Tree.Tree
+dTopLine :: TopLine Char Loc -> NonEmptySeq Tree.Tree
 dTopLine (TopLine f) = dForest f
 
 dDebitCredit :: DebitCredit t a -> Pole
@@ -839,11 +841,11 @@ dPosting
 dPosting x = case x of
   Posting'TrioMaybeForest tmf -> (\(a, b) -> (loc, a, b))
     $ dTrioMaybeForest tmf
-  Posting'BracketedForest bf -> (loc, Trio.E, Pinchot.flatten ts)
+  Posting'BracketedForest bf -> (loc, Trio.E, NE.nonEmptySeqToSeq ts)
     where
       ts = dBracketedForest bf
   where
-    loc = snd . Pinchot._front . t'Posting $ x
+    loc = snd . NE._fore . t'Posting $ x
 
 dNextPosting
   :: NextPosting Char Loc
@@ -857,16 +859,16 @@ dNextPosting'Star (NextPosting'Star x) = fmap dNextPosting x
 
 dPostingList
   :: PostingList Char Loc
-  -> NonEmpty (Loc, Trio.Trio, Seq Tree.Tree)
+  -> NonEmptySeq (Loc, Trio.Trio, Seq Tree.Tree)
 dPostingList (PostingList _ p1 ps)
-  = Pinchot.NonEmpty (dPosting p1) (dNextPosting'Star ps)
+  = NE.NonEmptySeq (dPosting p1) (dNextPosting'Star ps)
 
 dPostingList'Opt
   :: PostingList'Opt Char Loc
   -> Seq (Loc, Trio.Trio, Seq Tree.Tree)
 dPostingList'Opt (PostingList'Opt m) = case m of
   Nothing -> Seq.empty
-  Just l -> Pinchot.flatten . dPostingList $ l
+  Just l -> NE.nonEmptySeqToSeq . dPostingList $ l
 
 dPostings
   :: Postings Char Loc
@@ -888,11 +890,11 @@ dWhitesPostings'Opt (WhitesPostings'Opt m)
 
 dTopLineMaybePostings
   :: TopLineMaybePostings Char Loc
-  -> (Loc, NonEmpty Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+  -> (Loc, NonEmptySeq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
 dTopLineMaybePostings tlp@(TopLineMaybePostings t w)
   = (loc, dTopLine t, trips)
   where
-    loc = snd . _front . t'TopLineMaybePostings $ tlp
+    loc = snd . NE._fore . t'TopLineMaybePostings $ tlp
     trips = case dWhitesPostings'Opt w of
       Nothing -> Seq.empty
       Just (_, t) -> t
@@ -902,7 +904,7 @@ dTransaction
   -> (Loc, Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
 dTransaction x = case x of
   Transaction'TopLineMaybePostings t ->
-    Lens.over Lens._2 Pinchot.flatten $ dTopLineMaybePostings t
+    Lens.over Lens._2 NE.nonEmptySeqToSeq $ dTopLineMaybePostings t
   Transaction'Postings p -> (loc, Seq.empty, trips)
     where
       (loc, trips) = dPostings p
@@ -992,7 +994,7 @@ e'NilGroupedRadCom (NilGroupedRadCom _zMay _rdx _z1 zs1 zss)
     zeroes1 = let Zero'Star zs = zs1 in length zs
     zeroesRest = addGroup g1 (foldr addGroup zero gs)
       where
-        ZeroGroupRadCom'Plus (Pinchot.NonEmpty g1 gs) = zss
+        ZeroGroupRadCom'Plus (NE.NonEmptySeq g1 gs) = zss
         addGroup (ZeroGroupRadCom _ _zero1 (Zero'Star zeros)) acc
           = one `NN.add` length zeros `NN.add` acc
 
@@ -1003,7 +1005,7 @@ e'NilGroupedRadPer (NilGroupedRadPer _zMay _rdx _z1 zs1 zss)
     zeroes1 = let Zero'Star zs = zs1 in length zs
     zeroesRest = addGroup g1 (foldr addGroup zero gs)
       where
-        ZeroGroupRadPer'Plus (Pinchot.NonEmpty g1 gs) = zss
+        ZeroGroupRadPer'Plus (NE.NonEmptySeq g1 gs) = zss
         addGroup (ZeroGroupRadPer _ _zero1 (Zero'Star zeros)) acc
           = one `NN.add` length zeros `NN.add` acc
 
