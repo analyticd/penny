@@ -8,5 +8,6 @@ packages:
 - 'ofx-0.4.4.0/'
 
 extra-deps:
+- pinchot-0.20.0.0
 
-resolver: nightly-2016-07-13
+resolver: nightly-2016-08-06

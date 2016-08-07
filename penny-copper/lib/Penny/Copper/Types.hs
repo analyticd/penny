@@ -10,7 +10,7 @@ import Data.Data (Data)
 import Penny.Copper.Grammar
 
 import Pinchot (syntaxTrees, wrappedInstances,
- bifunctorInstances, semigroupInstances, monoidInstances)
+ bifunctorInstances, semigroupInstances, monoidInstances, prettyInstances)
 
 syntaxTrees [''Eq, ''Ord, ''Show, ''Functor, ''Foldable, ''Traversable,
   ''Data] allRules
@@ -22,3 +22,5 @@ bifunctorInstances allRules
 semigroupInstances allRules
 
 monoidInstances allRules
+
+prettyInstances allRules
