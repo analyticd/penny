@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Penny.Arrangement where
 
@@ -10,17 +11,13 @@ import Text.Show.Pretty (PrettyVal)
 data Orient
   = CommodityOnLeft
   | CommodityOnRight
-  deriving (Eq, Ord, Show, Generic)
-
-instance PrettyVal Orient
+  deriving (Eq, Ord, Show, Generic, PrettyVal)
 
 type SpaceBetween = Bool
 
 data Arrangement = Arrangement
   { _orient :: Orient
   , _spaceBetween :: SpaceBetween
-  } deriving (Eq, Ord, Show, Generic)
-
-instance PrettyVal Arrangement
+  } deriving (Eq, Ord, Show, Generic, PrettyVal)
 
 makeLenses ''Arrangement

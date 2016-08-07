@@ -12,7 +12,6 @@ import Data.Text (Text)
 import Penny.Account
 import Penny.Clatch.Types
 import Penny.Core
-import qualified Penny.Core as Core
 import Penny.Decimal
 import Penny.Polar
 import Penny.SeqUtil

@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DeriveAnyClass #-}
 -- | The 'Core' forms a part of the 'Penny.Clatch.Clatch'.
 module Penny.Core where
 
@@ -22,9 +23,7 @@ data Core = Core
   , _birth :: Serset
   -- ^ How this single posting relates to its sibling postings.
   -- Numbering restarts with every transaction.
-  } deriving (Show, Generic)
-
-instance PrettyVal Core
+  } deriving (Show, Generic, PrettyVal)
 
 Lens.makeLenses ''Core
 

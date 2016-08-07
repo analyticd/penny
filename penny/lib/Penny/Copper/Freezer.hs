@@ -16,7 +16,7 @@ import Penny.Polar
 import Penny.Rep
 import Penny.SeqUtil
 import qualified Penny.Tranche as Tranche
-import Penny.TransactionBare
+import Penny.TransactionBare (TransactionBare(TransactionBare))
 
 import qualified Control.Lens as Lens
 import Control.Monad ((>=>))
@@ -421,32 +421,27 @@ price pp = do
 
 -- # Transactions
 
-data TxnParts = TxnParts
-  { _topLine :: Tranche.TopLine ()
-  , _postings :: Seq (Tranche.Postline (), Amount)
-  }
-
-data Tracompri
-  = Tracompri'Transaction TxnParts
+data Tracompri a
+  = Tracompri'Transaction (TransactionBare a)
   | Tracompri'Comment Text
-  | Tracompri'Price (PriceParts ())
+  | Tracompri'Price (PriceParts a)
 
-data TracompriError
-  = TracompriBadForest TxnParts (NonEmpty ScalarError)
+data TracompriError a
+  = TracompriBadForest (TransactionBare a) (NonEmpty ScalarError)
   | TracompriBadComment Text (NonEmpty Char)
-  | TracompriBadPrice (PriceParts ()) PriceError
+  | TracompriBadPrice (PriceParts a) PriceError
 
 tracompriComment
   :: Text
-  -> Accuerr (NonEmpty TracompriError) (Comment Char ())
+  -> Accuerr (NonEmpty (TracompriError a)) (Comment Char ())
 tracompriComment txt
   = Lens.over Accuerr._AccFailure (Pinchot.singleton . TracompriBadComment txt)
   . comment
   $ txt
 
 tracompriPrice
-  :: PriceParts ()
-  -> Accuerr (NonEmpty TracompriError) (Price Char ())
+  :: PriceParts a
+  -> Accuerr (NonEmpty (TracompriError a)) (Price Char ())
 tracompriPrice p
   = Lens.over Accuerr._AccFailure (Pinchot.singleton . TracompriBadPrice p)
   . Lens.view Accuerr.isoEitherAccuerr
@@ -454,9 +449,9 @@ tracompriPrice p
   $ p
 
 tracompriTopLine
-  :: TxnParts
-  -> Accuerr (NonEmpty TracompriError) (TopLine Char ())
-tracompriTopLine parts@(TxnParts tl _) = case topLine tl of
+  :: TransactionBare a
+  -> Accuerr (NonEmpty (TracompriError a)) (TopLine Char ())
+tracompriTopLine parts@(TransactionBare tl _) = case topLine tl of
   Accuerr.AccFailure errs -> Accuerr.AccFailure . Pinchot.singleton
     $ TracompriBadForest parts errs
   Accuerr.AccSuccess g -> pure g
@@ -468,11 +463,11 @@ combineTracompris fis = WholeFile (WhitesFileItem'Star
   (fmap (WhitesFileItem mempty) fis)) mempty
 
 tracompriPosting
-  :: TxnParts
+  :: TransactionBare a
   -- ^ The entire transaction.  Used only for error messages.
   -> (Tranche.Postline a, Amount)
   -- ^ This posting
-  -> Accuerr (NonEmpty TracompriError) (Posting Char ())
+  -> Accuerr (NonEmpty (TracompriError a)) (Posting Char ())
 tracompriPosting parts (pl, amt) = case postline pl of
   Accuerr.AccFailure errs -> Accuerr.AccFailure . Pinchot.singleton
     $ TracompriBadForest parts errs
@@ -485,14 +480,14 @@ tracompriPosting parts (pl, amt) = case postline pl of
         Just for -> Just (WhitesBracketedForest mempty for)
 
 tracompriPostings
-  :: TxnParts
-  -> Accuerr (NonEmpty TracompriError) (Seq (Posting Char ()))
-tracompriPostings parts@(TxnParts _ pstgs)
+  :: TransactionBare a
+  -> Accuerr (NonEmpty (TracompriError a)) (Seq (Posting Char ()))
+tracompriPostings parts@(TransactionBare _ pstgs)
   = traverse (tracompriPosting parts) pstgs
 
 tracompriTransaction
-  :: TxnParts
-  -> Accuerr (NonEmpty TracompriError) (Transaction Char ())
+  :: TransactionBare a
+  -> Accuerr (NonEmpty (TracompriError a)) (Transaction Char ())
 tracompriTransaction parts
   = f
   <$> tracompriTopLine parts
@@ -513,8 +508,8 @@ tracompriTransaction parts
             mkNext p = NextPosting mempty cSemicolon mempty p
 
 tracompri
-  :: Tracompri
-  -> Accuerr (NonEmpty TracompriError) (FileItem Char ())
+  :: Tracompri a
+  -> Accuerr (NonEmpty (TracompriError a)) (FileItem Char ())
 tracompri x = case x of
   Tracompri'Transaction t -> fmap f (tracompriTransaction t)
     where
@@ -527,7 +522,7 @@ tracompri x = case x of
       f pri = FileItem'Price $ pri
 
 wholeFile
-  :: Seq Tracompri
-  -> Accuerr (NonEmpty TracompriError) (WholeFile Char ())
+  :: Seq (Tracompri a)
+  -> Accuerr (NonEmpty (TracompriError a)) (WholeFile Char ())
 wholeFile = fmap combineTracompris . traverse tracompri
 

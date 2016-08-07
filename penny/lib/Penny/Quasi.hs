@@ -4,7 +4,6 @@ module Penny.Quasi where
 
 import Data.Data (Data)
 import qualified Data.Text as X
-import qualified Data.Time as Time
 import qualified Language.Haskell.TH as T
 import qualified Language.Haskell.TH.Quote as TQ
 
@@ -12,7 +11,6 @@ import Penny.Copper (runParser)
 import Penny.Copper.Decopperize (dDate, dTime, dNilOrBrimRadPer)
 import Penny.Copper.Productions
 import Penny.Copper.EarleyGrammar
-import Penny.Decimal
 
 liftData :: Data a => a -> T.Q T.Exp
 liftData = TQ.dataToExpQ (const Nothing)

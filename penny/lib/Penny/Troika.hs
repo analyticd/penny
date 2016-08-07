@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 -- | "Penny.Trio" hews closely to the possible manifestations of the
 -- quantity, commodity, and arrangement in the ledger file.  The
@@ -41,6 +42,8 @@ import qualified Control.Lens as Lens
 import qualified Data.Map as M
 import Data.Sequence (Seq)
 import GHC.Generics (Generic)
+import Text.Show.Pretty (PrettyVal)
+import qualified Text.Show.Pretty as Pretty
 
 -- | The payload data of a 'Troika'.
 data Troiload
@@ -55,6 +58,26 @@ data Troiload
   | C DecNonZero
   | E DecNonZero
   deriving (Show, Generic)
+
+instance PrettyVal Troiload where
+  prettyVal tl = case tl of
+    QC rar ar -> ct "QC" [reify rar, pretty ar]
+    Q rar -> ct "Q" [reify rar]
+    SC dnz -> ct "SC" [pretty dnz]
+    S dnz -> ct "S" [pretty dnz]
+    UC brim pole ar -> ct "UC" [reify brim, pretty pole, pretty ar]
+    NC nil ar -> ct "NC" [reify nil, pretty ar]
+    US brim pole -> ct "US" [reify brim, pretty pole]
+    UU nil -> ct "UU" [reify nil]
+    C dnz -> ct "C" [pretty dnz]
+    E dnz -> ct "E" [pretty dnz]
+    where
+      -- do not eta reduce pretty - monomorphism restriction
+      pretty v = Pretty.prettyVal v
+      ct v = Pretty.Con ("Penny.Troika." ++ v)
+      reify v = case Pretty.reify v of
+        Nothing -> error $ "Penny.Troika.Troika.prettyVal: reification failed"
+        Just r -> r
 
 troiloadPole :: Troiload -> Maybe Pole
 troiloadPole x = case x of
