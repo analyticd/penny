@@ -9,6 +9,9 @@ import qualified Data.Text as X
 import Data.Time
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
+import qualified Text.Show.Pretty as Pretty
+
+import Penny.Pretty
 
 data Scalar
   = SText Text
@@ -23,7 +26,14 @@ data Scalar
   -- @SLabel "fitid"@ for example.
   deriving (Eq, Ord, Show, Generic)
 
-instance PrettyVal Scalar
+instance PrettyVal Scalar where
+  prettyVal a = case a of
+    SText x -> Pretty.Con "SText" [prettyText x]
+    SDay x -> Pretty.Con "SDay" [prettyDay x]
+    STime x -> Pretty.Con "STime" [prettyTimeOfDay x]
+    SZone x -> Pretty.Con "SZone" [Pretty.prettyVal x]
+    SInteger x -> Pretty.Con "SInteger" [Pretty.prettyVal x]
+    SLabel x -> Pretty.Con "SLabel" [prettyText x]
 
 makePrisms ''Scalar
 

@@ -33,6 +33,7 @@ import Penny.Decimal
 import Penny.Copper.Types (GrpRadCom, GrpRadPer)
 import Penny.NonZero
 import qualified Penny.NonZero as NZ
+import Penny.Pretty
 import Penny.Polar
 import qualified Penny.Positive as Pos
 import Penny.Rep
@@ -74,7 +75,7 @@ instance PrettyVal Troiload where
     where
       -- do not eta reduce pretty - monomorphism restriction
       pretty v = Pretty.prettyVal v
-      ct v = Pretty.Con ("Penny.Troika." ++ v)
+      ct v = Pretty.Con v
       reify v = case Pretty.reify v of
         Nothing -> error $ "Penny.Troika.Troika.prettyVal: reification failed"
         Just r -> r
@@ -98,6 +99,12 @@ data Troika = Troika
   { _commodity :: Commodity
   , _troiquant :: Either Troiload Decimal
   } deriving (Show, Generic)
+
+instance PrettyVal Troika where
+  prettyVal (Troika cy tq) = Pretty.Rec "Troika"
+    [ ("_commodity", prettyText cy)
+    , ("_troiquant", Pretty.prettyVal tq)
+    ]
 
 Lens.makeLenses ''Troika
 

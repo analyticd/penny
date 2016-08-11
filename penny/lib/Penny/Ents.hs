@@ -22,13 +22,13 @@ module Penny.Ents
 
 import Control.Lens ((<|), (|>))
 import Data.Sequence (Seq, viewl, ViewL(EmptyL, (:<)))
+import Data.Sequence.NonEmpty (NonEmptySeq)
+import qualified Data.Sequence.NonEmpty as NE
 import qualified Data.Sequence as S
 import Data.Monoid ((<>))
 import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import qualified Data.Map as M
-import Pinchot (NonEmpty)
-import qualified Pinchot
 
 import Penny.Amount
 import Penny.Arrangement
@@ -137,7 +137,7 @@ entsToBalanced (Ents sq (Imbalance m)) = case M.toList m of
 -- | Creates a 'Balanced'; never fails.  Less flexible than
 -- 'entsToBalanced' but guaranteed not to fail.
 restrictedBalanced
-  :: NonEmpty (BrimAnyRadix, a)
+  :: NonEmptySeq (BrimAnyRadix, a)
   -- ^ List of quantities and metadata.  There must be at least one quantity.
   -> Pole
   -- ^ All given quantities will be on this side.
@@ -153,7 +153,7 @@ restrictedBalanced
   -- is on the opposite side of the quantities given above.  All other
   -- 'Y.Troika' are 'Y.QC'.
 restrictedBalanced ne pole cy ar meta
-  = Balanced ((fmap mkPair $ Pinchot.flatten ne) |> offset)
+  = Balanced ((fmap mkPair $ NE.nonEmptySeqToSeq ne) |> offset)
   where
     mkPair (brim, meta) = (Y.Troika cy . Left $ Y.QC rar ar, meta)
       where
@@ -163,4 +163,4 @@ restrictedBalanced ne pole cy ar meta
         dnz = c'DecNonZero'DecPositive (opposite pole) $
           foldl addDecPositive b1 bs
           where
-            Pinchot.NonEmpty b1 bs = fmap (dBrimAnyRadix . fst) ne
+            NE.NonEmptySeq b1 bs = fmap (dBrimAnyRadix . fst) ne

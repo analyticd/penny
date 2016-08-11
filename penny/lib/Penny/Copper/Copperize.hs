@@ -1328,3 +1328,13 @@ cDateTimeZone date time zone = cForest dateTree
     timeTree = spinster (Scalar'Time time)
     zoneTree = spinster (Scalar'Zone zone)
 
+cDebit :: Debit Char ()
+cDebit = Debit cLessThan
+
+cCredit :: Credit Char ()
+cCredit = Credit cGreaterThan
+
+cDebitCredit :: Pole -> DebitCredit Char ()
+cDebitCredit p
+  | p == debit = DebitCredit'Debit cDebit
+  | otherwise = DebitCredit'Credit cCredit

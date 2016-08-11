@@ -18,6 +18,9 @@ import qualified Data.Time as Time
 import qualified Data.Time.Timelens as Timelens
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
+import qualified Text.Show.Pretty as Pretty
+
+import Penny.Pretty
 
 -- | Fields in the top line.
 data TopLineFields = TopLineFields
@@ -28,7 +31,14 @@ data TopLineFields = TopLineFields
   -- may wish to use one payee name while retaining the institution's
   -- original payee name.  In that case, store the original payee
   -- here, and your payee in '_payee'.
-  } deriving (Show, Generic, PrettyVal)
+  } deriving (Show, Generic)
+
+instance PrettyVal TopLineFields where
+  prettyVal (TopLineFields zt pye orig) = Pretty.Rec "TopLineFields"
+    [ ("_zonedTime", prettyZonedTime zt)
+    , ("_payee", prettyMaybe prettyText pye)
+    , ("_origPayee", prettyMaybe prettyText orig)
+    ]
 
 Lens.makeLenses ''TopLineFields
 
@@ -47,7 +57,21 @@ data PostingFields = PostingFields
   , _origDay :: Maybe Day
   , _origTime :: Maybe TimeOfDay
   , _origZone :: Maybe Int
-  } deriving (Show, Generic, PrettyVal)
+  } deriving (Show, Generic)
+
+instance PrettyVal PostingFields where
+  prettyVal x = Pretty.Rec "PostingFields"
+    [ ("_number", prettyMaybe Pretty.prettyVal . _number $ x)
+    , ("_flag", prettyMaybe prettyText . _flag $ x)
+    , ("_account", prettySeq prettyText . _account $ x)
+    , ("_fitid", prettyMaybe prettyText . _fitid $ x)
+    , ("_tags", prettySeq prettyText . _tags $ x)
+    , ("_uid", prettyMaybe prettyText . _uid $ x)
+    , ("_trnType", prettyMaybe prettyTrnType . _trnType $ x)
+    , ("_origDay", prettyMaybe prettyDay . _origDay $ x)
+    , ("_origTime", prettyMaybe prettyTimeOfDay . _origTime $ x)
+    , ("_origZone", prettyMaybe Pretty.prettyVal . _origZone $ x)
+    ]
 
 -- | 'mempty' is 'Nothing' or 'Seq.empty' as appropriate.  'mappend'
 -- takes the last non-'Nothing' value or the last non-empty 'Seq', as

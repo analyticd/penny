@@ -10,21 +10,6 @@ atleast n v = package n (gtEq v)
 
 -- Packages
 
--- Begin For pretty-show
-
-array :: Package
-array = atleast "array" [0,2]
-
-haskellLexer :: Package
-haskellLexer = atleast "haskell-lexer" [1]
-
-filepath :: Package
-filepath = atleast "filepath" [1,4]
-
-ghcPrim :: Package
-ghcPrim = atleast "ghc-prim" [0,4]
-
--- End for pretty-show
 base :: Package
 base = closedOpen "base" [4,8,0,0] [5]
 
@@ -160,17 +145,9 @@ commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions ["-W", "-threaded"]
   , haskell2010
-  , hsSourceDirs ["lib", "prettyShow"]
+  , hsSourceDirs ["lib"]
   , otherExtensions ["TemplateHaskell"]
   , buildTools [unconstrained "happy"]
-  , otherModules
-      [ "Paths_penny"
-      , "Text.Show.Pretty"
-      , "Text.Show.Html"
-      , "Text.Show.Parser"
-      , "Text.Show.Value"
-      , "Text.Show.PrettyVal"
-      ]
   ]
 
 libraryDepends :: [Package]
@@ -207,10 +184,7 @@ libraryDepends =
   , ofx
   , parsec
   , timelens
-  , array
-  , haskellLexer
-  , filepath
-  , ghcPrim
+  , prettyShow
   , templateHaskell
   , nonEmptySequence
   , pennyCopper

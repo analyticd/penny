@@ -8,21 +8,24 @@
 module Penny.Balance where
 
 import Control.Lens
+import qualified Data.Foldable as F
+import qualified Data.Map as M
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
+import qualified Text.Show.Pretty as Pretty
 
 import Penny.Amount
-import qualified Data.Foldable as F
 import Penny.Decimal
 import Penny.Commodity
-import qualified Data.Map as M
 import Penny.NonZero (c'NonZero'Integer, c'Integer'NonZero)
+import Penny.Pretty
 
 -- | The balance of multiple commodities.
 newtype Balance = Balance (M.Map Commodity Decimal)
   deriving (Show, Generic)
 
-instance PrettyVal Balance
+instance PrettyVal Balance where
+  prettyVal (Balance mp) = prettyMap prettyText Pretty.prettyVal mp
 
 makeWrapped ''Balance
 

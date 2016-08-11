@@ -12,8 +12,10 @@ import qualified Data.Time as Time
 import qualified Control.Lens as Lens
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
+import qualified Text.Show.Pretty as Pretty
 
 import qualified Penny.Fields as F
+import Penny.Pretty
 import Penny.Tree
 
 -- | A 'Tranche' holds either top line fields or posting fields.
@@ -27,7 +29,12 @@ data Tranche b a = Tranche
   -- ^ Field data.
   } deriving (Functor, Foldable, Traversable, Generic)
 
-instance (PrettyVal b, PrettyVal a) => PrettyVal (Tranche b a)
+instance (PrettyVal b, PrettyVal a) => PrettyVal (Tranche b a) where
+  prettyVal (Tranche loc anc flds) = Pretty.Rec "Tranche"
+    [ ("_location", Pretty.prettyVal loc)
+    , ("_ancillary", prettySeq Pretty.prettyVal anc)
+    , ("_fields", Pretty.prettyVal flds)
+    ]
 
 emptyTranche :: b -> Tranche b ()
 emptyTranche = Tranche () Seq.empty

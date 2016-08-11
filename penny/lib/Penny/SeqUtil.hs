@@ -52,6 +52,9 @@ import Data.Monoid
 import qualified Data.Traversable as T
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
+import qualified Text.Show.Pretty as Pretty
+
+import Penny.Pretty
 
 filterM
   :: Monad m
@@ -212,7 +215,12 @@ data Slice a = Slice
   , _onRight :: (Seq a)
   } deriving (Show, Generic)
 
-instance PrettyVal a => PrettyVal (Slice a)
+instance PrettyVal a => PrettyVal (Slice a) where
+  prettyVal (Slice left sl right) = Pretty.Rec "Slice"
+    [ ("_onLeft", prettySeq Pretty.prettyVal left)
+    , ("_onSlice", Pretty.prettyVal sl)
+    , ("_onRight", prettySeq Pretty.prettyVal right)
+    ]
 
 makeLenses ''Slice
 

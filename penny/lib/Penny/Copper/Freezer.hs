@@ -1,12 +1,20 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedLists #-}
+
+-- | The Freezer takes Penny types and converts them to Copper types
+-- for storage in a file.  Related functions, and more commentary, are
+-- in "Penny.Copper.Copperize".
 module Penny.Copper.Freezer where
 
-import Penny.Amount
+import Penny.Amount (Amount(Amount))
+import Penny.Arrangement
+import qualified Penny.Commodity as Commodity
 import Penny.Copper.Copperize
 import Penny.Copper.PriceParts
 import Penny.Copper.Quasi
+import Penny.Copper.Tracompri
 import Penny.Copper.Types
+import Penny.Decimal
 import Penny.Ents
 import qualified Penny.Fields as Fields
 import qualified Penny.Tree as Tree
@@ -17,6 +25,7 @@ import Penny.Rep
 import Penny.SeqUtil
 import qualified Penny.Tranche as Tranche
 import Penny.TransactionBare (TransactionBare(TransactionBare))
+import qualified Penny.Troika as Troika
 
 import qualified Control.Lens as Lens
 import Control.Monad ((>=>))
@@ -30,14 +39,14 @@ import Data.Time (Day, TimeOfDay)
 import qualified Data.Time as Time
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Pinchot (NonEmpty)
-import qualified Pinchot
+import Data.Sequence.NonEmpty (NonEmptySeq)
+import qualified Data.Sequence.NonEmpty as NE
 
 -- # Comments
 
 comment
   :: Text
-  -> Accuerr (NonEmpty Char) (Comment Char ())
+  -> Accuerr (NonEmptySeq Char) (Comment Char ())
 comment = cComment
 
 -- # Scalars
@@ -151,7 +160,7 @@ scalar sc = case sc of
 -- | Trees are not frozen if they have no scalar and have no children.
 tree
   :: Tree.Tree
-  -> Accuerr (NonEmpty ScalarError) (Maybe (Tree Char ()))
+  -> Accuerr (NonEmptySeq ScalarError) (Maybe (Tree Char ()))
 tree (Tree.Tree s cs) = case s of
   Nothing -> case forest cs of
     Accuerr.AccFailure e -> Accuerr.AccFailure e
@@ -164,7 +173,7 @@ tree (Tree.Tree s cs) = case s of
 
   Just sc -> f <$> toAcc (scalar sc) <*> forest cs
     where
-      toAcc = either (Accuerr.AccFailure . Pinchot.singleton) Accuerr.AccSuccess
+      toAcc = either (Accuerr.AccFailure . NE.singleton) Accuerr.AccSuccess
       f scalar mayForest = case mayForest of
         Nothing -> Just . Tree'ScalarMaybeForest
           $ ScalarMaybeForest scalar (WhitesBracketedForest'Opt Nothing)
@@ -180,12 +189,12 @@ tree (Tree.Tree s cs) = case s of
 -- | A forest is not frozen if it is empty.
 forest
   :: Seq Tree.Tree
-  -> Accuerr (NonEmpty ScalarError) (Maybe (Forest Char ()))
+  -> Accuerr (NonEmptySeq ScalarError) (Maybe (Forest Char ()))
 forest ts = f <$> traverse tree ts
   where
-    f sq = case Pinchot.seqToNonEmpty (catMaybes sq) of
+    f sq = case NE.seqToNonEmptySeq (catMaybes sq) of
       Nothing -> Nothing
-      Just (Pinchot.NonEmpty t1' ts') -> Just (Forest t1' next)
+      Just (NE.NonEmptySeq t1' ts') -> Just (Forest t1' next)
         where
           next = NextTree'Star (fmap f ts')
             where
@@ -275,9 +284,9 @@ origZone zn = do
   childTree <- childlessZoneTree zn
   return $ cTree [qLabeled|origZone|] (Just $ cForest childTree Seq.empty)
 
-toAccuerr :: Either e a -> Accuerr (NonEmpty e) a
+toAccuerr :: Either e a -> Accuerr (NonEmptySeq e) a
 toAccuerr e = case e of
-  Left err -> Accuerr.AccFailure (Pinchot.singleton err)
+  Left err -> Accuerr.AccFailure (NE.singleton err)
   Right g -> Accuerr.AccSuccess g
 
 -- | Creates a forest for a 'Time.ZonedTime'.  Always includes time of
@@ -285,7 +294,7 @@ toAccuerr e = case e of
 -- UTC.
 zonedTime
   :: Time.ZonedTime
-  -> Accuerr (NonEmpty ScalarError) (Tree Char (), Tree Char (), Tree Char ())
+  -> Accuerr (NonEmptySeq ScalarError) (Tree Char (), Tree Char (), Tree Char ())
 zonedTime (Time.ZonedTime (Time.LocalTime day tod) (Time.TimeZone mins _ _))
   = (,,) <$> dayTree <*> todTree <*> znTree
   where
@@ -304,7 +313,7 @@ origPayee txt = cTree [qLabeled|origPayee|]
 
 topLine
   :: Tranche.TopLine a
-  -> Accuerr (NonEmpty ScalarError) (TopLine Char ())
+  -> Accuerr (NonEmptySeq ScalarError) (TopLine Char ())
 topLine (Tranche.Tranche _ trees
   (Fields.TopLineFields fZonedTime fPayee fOrigPayee))
   = f <$> fmap catMaybes (traverse tree trees)
@@ -319,18 +328,18 @@ topLine (Tranche.Tranche _ trees
 
 postingFields
   :: Fields.PostingFields
-  -> Accuerr (NonEmpty ScalarError) (Seq (Tree Char ()))
+  -> Accuerr (NonEmptySeq ScalarError) (Seq (Tree Char ()))
 postingFields (Fields.PostingFields fNumber fFlag fAccount fFitId
   fTags fUid fTrnType fOrigDay fOrigTime fOrigZone)
   = f <$> mayAcc (fmap origDay fOrigDay)
       <*> mayAcc (fmap origTime fOrigTime)
       <*> mayAcc (fmap origZone fOrigZone)
   where
-    mayAcc :: Maybe (Either e a) -> Accuerr (NonEmpty e) (Maybe a)
+    mayAcc :: Maybe (Either e a) -> Accuerr (NonEmptySeq e) (Maybe a)
     mayAcc may = case may of
       Nothing -> pure Nothing
       Just ei -> case ei of
-        Left e -> Accuerr.AccFailure (Pinchot.singleton e)
+        Left e -> Accuerr.AccFailure (NE.singleton e)
         Right g -> Accuerr.AccSuccess (Just g)
     f mayDay mayTime mayZone = catMaybes
       [ fmap number fNumber
@@ -347,7 +356,7 @@ postingFields (Fields.PostingFields fNumber fFlag fAccount fFitId
 
 postline
   :: Tranche.Postline a
-  -> Accuerr (NonEmpty ScalarError) (Maybe (BracketedForest Char ()))
+  -> Accuerr (NonEmptySeq ScalarError) (Maybe (BracketedForest Char ()))
 postline (Tranche.Tranche _ trees fields)
   = f <$> postingFields fields <*> traverse tree trees
   where
@@ -356,6 +365,159 @@ postline (Tranche.Tranche _ trees fields)
       where
         g (t1, ts) = cBracketedForest $ cForest t1 ts
 
+-- # Commodity
+commodity
+  :: Commodity.Commodity
+  -> Commodity Char ()
+commodity = cCommodity . Seq.fromList . X.unpack
+
+
+-- # Troiload
+
+
+troiload
+  :: Commodity.Commodity
+  -> Troika.Troiload
+  -> Maybe (Trio Char ())
+troiload cy t = case t of
+
+  Troika.QC (Left (Moderate nilRadCom)) (Arrangement CommodityOnLeft spc)
+    -> Just $ Trio'T_Commodity_Neutral (T_Commodity_Neutral (commodity cy)
+        (spacer spc) neu)
+    where
+      neu = NeuCom cBacktick nilRadCom
+
+  Troika.QC (Left (Moderate nilRadCom)) (Arrangement CommodityOnRight spc)
+    -> Just $ Trio'T_Neutral_Commodity (T_Neutral_Commodity neu
+        (spacer spc) (commodity cy))
+    where
+      neu = NeuCom cBacktick nilRadCom
+
+  Troika.QC (Left (Extreme (Polarized brimRadCom pole)))
+    (Arrangement CommodityOnLeft spc) ->
+    Just $ Trio'T_DebitCredit_Commodity_NonNeutral
+    (T_DebitCredit_Commodity_NonNeutral (cDebitCredit pole) mempty
+      (commodity cy) (spacer spc) brim)
+    where
+      brim = NonNeutralRadCom cBacktick brimRadCom
+
+  Troika.QC (Left (Extreme (Polarized brimRadCom pole)))
+    (Arrangement CommodityOnRight spc) -> Just $
+    Trio'T_DebitCredit_NonNeutral_Commodity
+    (T_DebitCredit_NonNeutral_Commodity (cDebitCredit pole) mempty
+      brim (spacer spc) (commodity cy))
+    where
+      brim = NonNeutralRadCom cBacktick brimRadCom
+
+  Troika.QC (Right (Moderate nilRadPer)) (Arrangement CommodityOnLeft spc)
+    -> Just $ Trio'T_Commodity_Neutral (T_Commodity_Neutral (commodity cy)
+        (spacer spc) neu)
+    where
+      neu = NeuPer nilRadPer
+
+  Troika.QC (Right (Moderate nilRadPer)) (Arrangement CommodityOnRight spc)
+    -> Just $ Trio'T_Neutral_Commodity (T_Neutral_Commodity neu
+        (spacer spc) (commodity cy))
+    where
+      neu = NeuPer nilRadPer
+
+  Troika.QC (Right (Extreme (Polarized brimRadPer pole)))
+    (Arrangement CommodityOnLeft spc) ->
+    Just $ Trio'T_DebitCredit_Commodity_NonNeutral
+    (T_DebitCredit_Commodity_NonNeutral (cDebitCredit pole) mempty
+      (commodity cy) (spacer spc) brim)
+    where
+      brim = NonNeutralRadPer brimRadPer
+
+  Troika.QC (Right (Extreme (Polarized brimRadPer pole)))
+    (Arrangement CommodityOnRight spc) ->
+    Just $ Trio'T_DebitCredit_NonNeutral_Commodity
+    (T_DebitCredit_NonNeutral_Commodity (cDebitCredit pole) mempty
+      brim (spacer spc) (commodity cy))
+    where
+      brim = NonNeutralRadPer brimRadPer
+
+  Troika.Q (Left (Moderate nilRadCom)) -> Just $ Trio'T_Neutral (T_Neutral neu)
+    where
+      neu = NeuCom cBacktick nilRadCom
+
+  Troika.Q (Right (Moderate nilRadPer)) -> Just $ Trio'T_Neutral (T_Neutral neu)
+    where
+      neu = NeuPer nilRadPer
+
+  Troika.Q (Left (Extreme (Polarized brimRadCom pole))) ->
+    Just $ Trio'T_DebitCredit_NonNeutral (T_DebitCredit_NonNeutral
+    (cDebitCredit pole) mempty nn)
+    where
+      nn = NonNeutralRadCom cBacktick brimRadCom
+
+  Troika.Q (Right (Extreme (Polarized brimRadPer pole))) ->
+    Just $ Trio'T_DebitCredit_NonNeutral (T_DebitCredit_NonNeutral
+    (cDebitCredit pole) mempty nn)
+    where
+      nn = NonNeutralRadPer brimRadPer
+
+  Troika.SC dnz -> Just $ Trio'T_DebitCredit_Commodity
+    (T_DebitCredit_Commodity (cDebitCredit pole) mempty (commodity cy))
+    where
+      pole = Lens.view poleDecNonZero dnz
+
+  Troika.S dnz -> Just $ Trio'T_DebitCredit
+    . T_DebitCredit . cDebitCredit .  Lens.view poleDecNonZero $ dnz
+
+  Troika.UC brim _ (Arrangement CommodityOnLeft spc) ->
+    Just $ Trio'T_Commodity_NonNeutral (T_Commodity_NonNeutral (commodity cy)
+    (spacer spc) nn)
+    where
+      nn = case brim of
+        Left brc -> NonNeutralRadCom cBacktick brc
+        Right brp -> NonNeutralRadPer brp
+
+  Troika.UC brim _ (Arrangement CommodityOnRight spc) ->
+    Just $ Trio'T_NonNeutral_Commodity (T_NonNeutral_Commodity nn
+    (spacer spc) (commodity cy))
+    where
+      nn = case brim of
+        Left brc -> NonNeutralRadCom cBacktick brc
+        Right brp -> NonNeutralRadPer brp
+
+  Troika.NC nil (Arrangement CommodityOnLeft spc) ->
+    Just $ Trio'T_Commodity_Neutral (T_Commodity_Neutral (commodity cy)
+    (spacer spc) nar)
+    where
+      nar = case nil of
+        Left nrc -> NeuCom cBacktick nrc
+        Right nrp -> NeuPer nrp
+
+  Troika.NC nil (Arrangement CommodityOnRight spc) ->
+    Just $ Trio'T_Neutral_Commodity (T_Neutral_Commodity nar
+    (spacer spc) (commodity cy))
+    where
+      nar = case nil of
+        Left nrc -> NeuCom cBacktick nrc
+        Right nrp -> NeuPer nrp
+
+  Troika.US brim _ -> Just $ Trio'T_NonNeutral (T_NonNeutral b)
+    where
+      b = case brim of
+        Left brc -> NonNeutralRadCom cBacktick brc
+        Right brp -> NonNeutralRadPer brp
+
+  Troika.UU nar -> Just $ Trio'T_Neutral (T_Neutral n)
+    where
+      n = case nar of
+        Left nrc -> NeuCom cBacktick nrc
+        Right nrp -> NeuPer nrp
+
+  Troika.C _ -> Just $ Trio'T_Commodity (T_Commodity (commodity cy))
+
+  Troika.E _ -> Nothing
+
+
+  where
+    spacer useSpace
+      | useSpace = space
+      | otherwise = mempty
 
 -- # Amounts
 
@@ -384,6 +546,22 @@ amount (Amount cy q) = case splitRepAnyRadix rep of
   where
     rep = repDecimal (Right Nothing) q
     cy' = cCommodity . Seq.fromList . X.unpack $ cy
+
+-- | Succeeds if the 'Troika.Troiquant' is anything other than
+-- 'Troika.E'; otherwise, returns Nothing.
+troiquant
+  :: Commodity.Commodity
+  -> Troika.Troiquant
+  -> Maybe (Trio Char ())
+troiquant cy (Left tl) = troiload cy tl
+troiquant cy (Right dec) = Just $ amount (Amount cy dec)
+
+-- | Succeeds if the 'Troika.Troiquant' is anything other than
+-- 'Troika.E'; otherwise, returns Nothing.
+troika
+  :: Troika.Troika
+  -> Maybe (Trio Char ())
+troika (Troika.Troika cy tq) = troiquant cy tq
 
 -- # Prices
 data PriceError
@@ -421,38 +599,49 @@ price pp = do
 
 -- # Transactions
 
-data Tracompri a
-  = Tracompri'Transaction (TransactionBare a)
-  | Tracompri'Comment Text
-  | Tracompri'Price (PriceParts a)
-
+-- | An error occurred when trying to freeze a single price,
+-- transaction, or comment.
 data TracompriError a
-  = TracompriBadForest (TransactionBare a) (NonEmpty ScalarError)
-  | TracompriBadComment Text (NonEmpty Char)
+  = TracompriBadForest (TransactionBare a) (NonEmptySeq ScalarError)
+  -- ^ Could not freeze one or more trees due to a 'ScalarError'.  As
+  -- many 'ScalarErrors' as possible are accumulated.  The
+  -- 'TransactionBare' is the entire transaction that we were trying
+  -- to freeze.
+  | TracompriEmptyPosting (TransactionBare a)
+  -- ^ When freezing a posting, there must be either a 'Troiload' or a
+  -- forest, as there is no way in the grammar to represent a posting
+  -- that has neither a 'Troiload' nor a forest.  If there is a
+  -- posting with neither, this error is returned.
+  | TracompriBadComment Text (NonEmptySeq Char)
+  -- ^ Could not freeze a comment line due to at least one invalid
+  -- character.  As many invalid characters as possible are
+  -- accumulated.  The 'Text' is the entire invalid comment.
   | TracompriBadPrice (PriceParts a) PriceError
+  -- ^ Could not freeze a price.  The entire 'PriceParts' is here,
+  -- along with the error.
 
 tracompriComment
   :: Text
-  -> Accuerr (NonEmpty (TracompriError a)) (Comment Char ())
+  -> Accuerr (NonEmptySeq (TracompriError a)) (Comment Char ())
 tracompriComment txt
-  = Lens.over Accuerr._AccFailure (Pinchot.singleton . TracompriBadComment txt)
+  = Lens.over Accuerr._AccFailure (NE.singleton . TracompriBadComment txt)
   . comment
   $ txt
 
 tracompriPrice
   :: PriceParts a
-  -> Accuerr (NonEmpty (TracompriError a)) (Price Char ())
+  -> Accuerr (NonEmptySeq (TracompriError a)) (Price Char ())
 tracompriPrice p
-  = Lens.over Accuerr._AccFailure (Pinchot.singleton . TracompriBadPrice p)
+  = Lens.over Accuerr._AccFailure (NE.singleton . TracompriBadPrice p)
   . Lens.view Accuerr.isoEitherAccuerr
   . price
   $ p
 
 tracompriTopLine
   :: TransactionBare a
-  -> Accuerr (NonEmpty (TracompriError a)) (TopLine Char ())
+  -> Accuerr (NonEmptySeq (TracompriError a)) (TopLine Char ())
 tracompriTopLine parts@(TransactionBare tl _) = case topLine tl of
-  Accuerr.AccFailure errs -> Accuerr.AccFailure . Pinchot.singleton
+  Accuerr.AccFailure errs -> Accuerr.AccFailure . NE.singleton
     $ TracompriBadForest parts errs
   Accuerr.AccSuccess g -> pure g
 
@@ -465,29 +654,30 @@ combineTracompris fis = WholeFile (WhitesFileItem'Star
 tracompriPosting
   :: TransactionBare a
   -- ^ The entire transaction.  Used only for error messages.
-  -> (Tranche.Postline a, Amount)
+  -> (Troika.Troika, Tranche.Postline a)
   -- ^ This posting
-  -> Accuerr (NonEmpty (TracompriError a)) (Posting Char ())
-tracompriPosting parts (pl, amt) = case postline pl of
-  Accuerr.AccFailure errs -> Accuerr.AccFailure . Pinchot.singleton
-    $ TracompriBadForest parts errs
-  Accuerr.AccSuccess mayForest -> Accuerr.AccSuccess
-    $ Posting'TrioMaybeForest $ TrioMaybeForest tri mayWhitesBf
-    where
-      tri = amount amt
-      mayWhitesBf = WhitesBracketedForest'Opt $ case mayForest of
-        Nothing -> Nothing
-        Just for -> Just (WhitesBracketedForest mempty for)
+  -> Accuerr (NonEmptySeq (TracompriError a)) (Posting Char ())
+tracompriPosting txn (tk, pl) = case postline pl of
+  Accuerr.AccFailure errs -> Accuerr.AccFailure . NE.singleton
+    $ TracompriBadForest txn errs
+  Accuerr.AccSuccess mayForest -> case troika tk of
+    Nothing -> Accuerr.AccFailure . NE.singleton $ TracompriEmptyPosting txn
+    Just tri -> Accuerr.AccSuccess
+      $ Posting'TrioMaybeForest $ TrioMaybeForest tri mayWhitesBf
+      where
+        mayWhitesBf = WhitesBracketedForest'Opt $ case mayForest of
+          Nothing -> Nothing
+          Just for -> Just (WhitesBracketedForest mempty for)
 
 tracompriPostings
   :: TransactionBare a
-  -> Accuerr (NonEmpty (TracompriError a)) (Seq (Posting Char ()))
+  -> Accuerr (NonEmptySeq (TracompriError a)) (Seq (Posting Char ()))
 tracompriPostings parts@(TransactionBare _ pstgs)
-  = traverse (tracompriPosting parts) pstgs
+  = traverse (tracompriPosting parts) . balancedToSeqEnt $ pstgs
 
 tracompriTransaction
   :: TransactionBare a
-  -> Accuerr (NonEmpty (TracompriError a)) (Transaction Char ())
+  -> Accuerr (NonEmptySeq (TracompriError a)) (Transaction Char ())
 tracompriTransaction parts
   = f
   <$> tracompriTopLine parts
@@ -509,7 +699,7 @@ tracompriTransaction parts
 
 tracompri
   :: Tracompri a
-  -> Accuerr (NonEmpty (TracompriError a)) (FileItem Char ())
+  -> Accuerr (NonEmptySeq (TracompriError a)) (FileItem Char ())
 tracompri x = case x of
   Tracompri'Transaction t -> fmap f (tracompriTransaction t)
     where
@@ -523,6 +713,5 @@ tracompri x = case x of
 
 wholeFile
   :: Seq (Tracompri a)
-  -> Accuerr (NonEmpty (TracompriError a)) (WholeFile Char ())
+  -> Accuerr (NonEmptySeq (TracompriError a)) (WholeFile Char ())
 wholeFile = fmap combineTracompris . traverse tracompri
-
