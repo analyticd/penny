@@ -20,6 +20,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
+import Data.Sums (S3 (S3a, S3b, S3c))
 import Pinchot (Loc)
 import qualified Pinchot
 import Prelude hiding (length)
@@ -40,7 +41,7 @@ import Penny.Positive (Positive)
 import qualified Penny.Positive as Pos
 import Penny.Rep
 import qualified Penny.Scalar as Scalar
-import Penny.SeqUtil (mapMaybe, catMaybes)
+import Penny.SeqUtil (mapMaybe)
 import qualified Penny.Tree as Tree
 import qualified Penny.Trio as Trio
 
@@ -215,6 +216,17 @@ dWhitesZone'Opt :: WhitesZone'Opt t a -> Time.TimeZone
 dWhitesZone'Opt (WhitesZone'Opt m) = case m of
   Nothing -> Time.utc
   Just z -> dWhitesZone z
+
+-- # Comments
+dCommentChar :: CommentChar Char a -> Char
+dCommentChar (CommentChar (c, _)) = c
+
+dCommentChar'Star :: CommentChar'Star Char a -> X.Text
+dCommentChar'Star (CommentChar'Star sq)
+  = X.pack . toList . fmap dCommentChar $ sq
+
+dComment :: Comment Char a -> X.Text
+dComment (Comment _ cs _) = dCommentChar'Star cs
 
 -- # Strings
 dUnquotedStringNonDigitChar
@@ -911,26 +923,26 @@ dTransaction x = case x of
 
 dFileItem
   :: FileItem Char Loc
-  -> Maybe (Either (PriceParts Loc) TxnParts)
+  -> S3 (PriceParts Loc) X.Text TxnParts
 dFileItem x = case x of
-  FileItem'Price p -> Just . Left $ dPrice p
-  FileItem'Transaction t -> Just . Right $ dTransaction t
-  FileItem'Comment _ -> Nothing
+  FileItem'Price p -> S3a $ dPrice p
+  FileItem'Comment com -> S3b . dComment $ com
+  FileItem'Transaction t -> S3c $ dTransaction t
 
 dWhitesFileItem
   :: WhitesFileItem Char Loc
-  -> Maybe (Either (PriceParts Loc) TxnParts)
+  -> S3 (PriceParts Loc) X.Text TxnParts
 dWhitesFileItem (WhitesFileItem _ i) = dFileItem i
 
 dWhitesFileItem'Star
   :: WhitesFileItem'Star Char Loc
-  -> Seq (Either (PriceParts Loc) TxnParts)
+  -> Seq (S3 (PriceParts Loc) X.Text TxnParts)
 dWhitesFileItem'Star (WhitesFileItem'Star sq)
-  = catMaybes . fmap dWhitesFileItem $ sq
+  = fmap dWhitesFileItem sq
 
 dWholeFile
   :: WholeFile Char Loc
-  -> Seq (Either (PriceParts Loc) TxnParts)
+  -> Seq (S3 (PriceParts Loc) X.Text TxnParts)
 dWholeFile (WholeFile x _) = dWhitesFileItem'Star x
 
 dNilOrBrimRadCom
