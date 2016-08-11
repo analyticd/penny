@@ -148,8 +148,6 @@ data ParseConvertProofError
 instance Exception ParseConvertProofError
 
 -- | Parses, converts, and proofs a single file.
---
--- Also, appends the filename tree to each transaction.
 parseConvertProof
   :: (Filename, Text)
   -> Either ParseConvertProofError (Seq Price, Seq (TransactionBare Loc))

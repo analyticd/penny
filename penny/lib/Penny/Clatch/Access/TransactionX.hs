@@ -1,6 +1,6 @@
--- | Providing accessors (lenses and functions) to the 'Transaction'
+-- | Providing accessors (lenses and functions) to the 'TransactionX'
 -- component of a clatch-like type.
-module Penny.Clatch.Access.Transaction where
+module Penny.Clatch.Access.TransactionX where
 
 import Control.Lens (Lens')
 import qualified Control.Lens as Lens
@@ -11,18 +11,18 @@ import Penny.Clatch.Types
 import Penny.Core
 import qualified Penny.Tranche as Tranche
 
--- | Operates on the original 'Transaction'.
+-- | Operates on the original 'TransactionX'.
 --
 -- @
--- 'transaction' :: 'Lens'' ('Sliced' a)    'Transaction'
--- 'transaction' :: 'Lens'' ('Converted' a) 'Transaction'
--- 'transaction' :: 'Lens'' ('Prefilt' a)   'Transaction'
--- 'transaction' :: 'Lens'' ('Sorted' a)    'Transaction'
--- 'transaction' :: 'Lens'' ('Totaled' a)   'Transaction'
--- 'transaction' :: 'Lens'' 'Clatch'        'Transaction'
+-- 'transaction' :: 'Lens'' ('Sliced' a)    'TransactionX'
+-- 'transaction' :: 'Lens'' ('Converted' a) 'TransactionX'
+-- 'transaction' :: 'Lens'' ('Prefilt' a)   'TransactionX'
+-- 'transaction' :: 'Lens'' ('Sorted' a)    'TransactionX'
+-- 'transaction' :: 'Lens'' ('Totaled' a)   'TransactionX'
+-- 'transaction' :: 'Lens'' 'Clatch'        'TransactionX'
 -- @
 
-transaction :: Lens' (Transaction l, a) (Transaction l)
+transaction :: Lens' (TransactionX l, a) (TransactionX l)
 transaction = Lens._1
 
 zonedTime :: Lens' (Sliced l a) Time.ZonedTime

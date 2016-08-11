@@ -78,7 +78,7 @@ vote = Lens.view (core . troika . to make)
       Just (cy, ar, ei) -> History
         $ M.singleton cy (Seq.singleton (ar, ei))
 
-elect :: Foldable f => f (Transaction a) -> History
+elect :: Foldable f => f (TransactionX a) -> History
 elect = F.foldl' f mempty
   where
     f hist = F.foldl' g hist . view postings

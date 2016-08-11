@@ -31,7 +31,7 @@ Lens.makeLenses ''Core
 -- 'Serpack' that indicates how this posting relates to other
 -- postings.
 --
--- The 'Posting' and the 'Transaction' have a similar shape, so they share
+-- The 'Posting' and the 'TransactionX' have a similar shape, so they share
 -- common functions.
 type Posting a = (Serpack, (Postline a, Core))
 
@@ -39,21 +39,25 @@ type Posting a = (Serpack, (Postline a, Core))
 -- and with a 'Serpack' that indicates how this transaction relates to
 -- other transactions.
 --
--- The 'Posting' and the 'Transaction' have a similar shape, so they share
+-- The 'Posting' and the 'TransactionX' have a similar shape, so they share
 -- common functions.
-type Transaction a = (Serpack, (TopLine a, Seq (Posting a)))
+--
+-- Named 'TransactionX' to distinguish it from a
+-- 'Penny.Transaction.Transaction', which does not contain serial
+-- numbers and has an entirely different shape.
+type TransactionX a = (Serpack, (TopLine a, Seq (Posting a)))
 
 -- # Functions on postings and transactions
 
 core :: Lens' (Posting a) Core
 core = Lens._2 . Lens._2
 
-postings :: Lens' (Transaction a) (Seq (Posting a))
+postings :: Lens' (TransactionX a) (Seq (Posting a))
 postings = Lens._2 . Lens._2
 
 -- |
 -- @
--- 'serpack' :: 'Lens'' 'Transaction' 'Serpack'
+-- 'serpack' :: 'Lens'' 'TransactionX' 'Serpack'
 -- 'serpack' :: 'Lens'' 'Posting' 'Serpack'
 -- @
 serpack :: Lens' (Serpack, a) Serpack
@@ -61,7 +65,7 @@ serpack = Lens._1
 
 -- |
 -- @
--- 'tranche' :: 'Lens'' ('Transaction' a) ('TopLine' a)
+-- 'tranche' :: 'Lens'' ('TransactionX' a) ('TopLine' a)
 -- 'tranche' :: 'Lens'' ('Posting' a) ('Postline' a)
 -- @
 tranche :: forall a b c. Lens' (Serpack, (Tranche b a, c)) (Tranche b a)

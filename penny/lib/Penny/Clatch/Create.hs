@@ -25,7 +25,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Traversable as T
 import Data.Functor.Compose
 
-createViewposts :: Transaction l -> Seq (Sliced l ())
+createViewposts :: TransactionX l -> Seq (Sliced l ())
 createViewposts txn = fmap (\vw -> (txn, (vw, ())))
   (allSlices . snd . snd $ txn)
 
@@ -112,7 +112,7 @@ addIndexes
 arrangeTransaction
   :: (((TopLine l, Serset), Serset),
       Seq (((Troika, Postline l, Serset), Serset), Serset))
-  -> Transaction l
+  -> TransactionX l
 arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
   = (Serpack txnLcl txnGlbl, (txnMeta, pstgs))
   where
@@ -122,7 +122,7 @@ arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
 
 addSerials
   :: Seq (Seq (TransactionBare l))
-  -> Seq (Transaction l)
+  -> Seq (TransactionX l)
 addSerials
   = fmap arrangeTransaction
   . addSersets
@@ -144,7 +144,7 @@ clatchesFromTransactions
   -- ^ Sorts 'Prefilt'
   -> (Totaled l () -> Bool)
   -- ^ Filters 'Totaled'
-  -> Seq (Transaction l)
+  -> Seq (TransactionX l)
   -> Seq (Clatch l)
 clatchesFromTransactions converter pConverted sorter pTotaled
   = createClatch pTotaled
