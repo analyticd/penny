@@ -18,7 +18,7 @@ import Penny.Clatch.Types
 import qualified Penny.Clatch.Access.Balance as AB
 import Penny.Clatch.Access.PostFiltset (postFiltset)
 import qualified Penny.Clatch.Access.Posting as AP
-import qualified Penny.Clatch.Access.Transaction as AT
+import qualified Penny.Clatch.Access.TransactionX as AT
 import Penny.Colors
 import Penny.Copper.Copperize
 import Penny.Decimal

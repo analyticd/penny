@@ -28,7 +28,7 @@ import Penny.Price
 import Penny.Scalar
 import Penny.SeqUtil
 import Penny.Tranche
-import Penny.TransactionBare
+import Penny.Transaction
 import Penny.Trio
 import Penny.Tree
 import Penny.Tree.Harvester
@@ -231,12 +231,12 @@ price pp = case makeFromTo (FromCy (_priceFrom pp)) (ToCy (_priceTo pp)) of
 proofItem
   :: Either (PriceParts Loc) TxnParts
   -- ^
-  -> Accuerr (NonEmpty ProofFail) (Either Price (TransactionBare Loc))
+  -> Accuerr (NonEmpty ProofFail) (Either Price (Transaction Loc))
 proofItem x = case x of
   Left p -> case price p of
     Left e -> Accuerr.AccFailure (singleton e)
     Right g -> Accuerr.AccSuccess (Left g)
-  Right (loc, topLine, pstgs) -> fmap Right $ TransactionBare <$> tlf <*> bal
+  Right (loc, topLine, pstgs) -> fmap Right $ Transaction <$> tlf <*> bal
     where
       tlf = case getTopLineFields loc topLine of
         Left e -> Accuerr.AccFailure (singleton e)
@@ -249,5 +249,5 @@ proofItem x = case x of
 proofItems
   :: Seq (Either (PriceParts Loc) TxnParts)
   -- ^
-  -> Accuerr (NonEmpty ProofFail) (Seq (Either Price (TransactionBare Loc)))
+  -> Accuerr (NonEmpty ProofFail) (Seq (Either Price (Transaction Loc)))
 proofItems = traverse proofItem

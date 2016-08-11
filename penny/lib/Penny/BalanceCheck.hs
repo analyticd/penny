@@ -16,7 +16,7 @@ import Test.Tasty.HUnit ((@=?), assertBool, testCase, assertFailure)
 import Penny.Balance
 import Penny.Clatch.Access.Balance
 import Penny.Clatch.Access.Posting
-import Penny.Clatch.Access.Transaction
+import Penny.Clatch.Access.TransactionX
 import Penny.Clatch.Create
 import Penny.Commodity
 import Penny.Core

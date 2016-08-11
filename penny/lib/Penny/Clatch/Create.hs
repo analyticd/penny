@@ -12,7 +12,7 @@ import Penny.Ents (Balanced, balancedToSeqEnt)
 import Penny.SeqUtil
 import Penny.Serial
 import Penny.Tranche (Postline, TopLine)
-import Penny.TransactionBare (TransactionBare(TransactionBare))
+import Penny.Transaction (Transaction(Transaction))
 import Penny.Troika
 
 import Control.Lens hiding (index)
@@ -121,14 +121,14 @@ arrangeTransaction (((txnMeta, txnLcl), txnGlbl), sq)
       = (Serpack pstgLcl pstgGbl, (trees, Core tm pstgIdx))
 
 addSerials
-  :: Seq (Seq (TransactionBare l))
+  :: Seq (Seq (Transaction l))
   -> Seq (TransactionX l)
 addSerials
   = fmap arrangeTransaction
   . addSersets
   . join
   . fmap (addSersets . fmap (second addIndexes))
-  . fmap (fmap (\(TransactionBare tl pstgs) -> (tl, pstgs)))
+  . fmap (fmap (\(Transaction tl pstgs) -> (tl, pstgs)))
 
 
 --
