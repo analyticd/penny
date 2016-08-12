@@ -24,7 +24,7 @@ import Penny.Polar
 import Penny.Rep
 import Penny.SeqUtil
 import qualified Penny.Tranche as Tranche
-import Penny.TransactionBare (TransactionBare(TransactionBare))
+import qualified Penny.Transaction as Txn (Transaction(Transaction))
 import qualified Penny.Troika as Troika
 
 import qualified Control.Lens as Lens
@@ -602,12 +602,12 @@ price pp = do
 -- | An error occurred when trying to freeze a single price,
 -- transaction, or comment.
 data TracompriError a
-  = TracompriBadForest (TransactionBare a) (NonEmptySeq ScalarError)
+  = TracompriBadForest (Txn.Transaction a) (NonEmptySeq ScalarError)
   -- ^ Could not freeze one or more trees due to a 'ScalarError'.  As
   -- many 'ScalarErrors' as possible are accumulated.  The
-  -- 'TransactionBare' is the entire transaction that we were trying
+  -- 'Transaction' is the entire transaction that we were trying
   -- to freeze.
-  | TracompriEmptyPosting (TransactionBare a)
+  | TracompriEmptyPosting (Txn.Transaction a)
   -- ^ When freezing a posting, there must be either a 'Troiload' or a
   -- forest, as there is no way in the grammar to represent a posting
   -- that has neither a 'Troiload' nor a forest.  If there is a
@@ -638,9 +638,9 @@ tracompriPrice p
   $ p
 
 tracompriTopLine
-  :: TransactionBare a
+  :: Txn.Transaction a
   -> Accuerr (NonEmptySeq (TracompriError a)) (TopLine Char ())
-tracompriTopLine parts@(TransactionBare tl _) = case topLine tl of
+tracompriTopLine parts@(Txn.Transaction tl _) = case topLine tl of
   Accuerr.AccFailure errs -> Accuerr.AccFailure . NE.singleton
     $ TracompriBadForest parts errs
   Accuerr.AccSuccess g -> pure g
@@ -652,7 +652,7 @@ combineTracompris fis = WholeFile (WhitesFileItem'Star
   (fmap (WhitesFileItem mempty) fis)) mempty
 
 tracompriPosting
-  :: TransactionBare a
+  :: Txn.Transaction a
   -- ^ The entire transaction.  Used only for error messages.
   -> (Troika.Troika, Tranche.Postline a)
   -- ^ This posting
@@ -670,13 +670,13 @@ tracompriPosting txn (tk, pl) = case postline pl of
           Just for -> Just (WhitesBracketedForest mempty for)
 
 tracompriPostings
-  :: TransactionBare a
+  :: Txn.Transaction a
   -> Accuerr (NonEmptySeq (TracompriError a)) (Seq (Posting Char ()))
-tracompriPostings parts@(TransactionBare _ pstgs)
+tracompriPostings parts@(Txn.Transaction _ pstgs)
   = traverse (tracompriPosting parts) . balancedToSeqEnt $ pstgs
 
 tracompriTransaction
-  :: TransactionBare a
+  :: Txn.Transaction a
   -> Accuerr (NonEmptySeq (TracompriError a)) (Transaction Char ())
 tracompriTransaction parts
   = f
@@ -707,7 +707,7 @@ tracompri x = case x of
   Tracompri'Comment txt -> fmap f (tracompriComment txt)
     where
       f com = FileItem'Comment $ com
-  Tracompri'Price pp -> fmap f (tracompriPrice pp)
+  Tracompri'Price pp -> fmap f (tracompriPrice . priceToPriceParts $ pp)
     where
       f pri = FileItem'Price $ pri
 

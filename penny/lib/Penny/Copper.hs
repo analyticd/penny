@@ -52,11 +52,10 @@ import Penny.Copper.Decopperize
 import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
 import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
+import Penny.Copper.Tracompri
+import Penny.Cursor
 import Penny.NonEmpty
-import Penny.Price
 import Penny.Scalar
-import Penny.SeqUtil
-import Penny.Transaction
 import Penny.Tree
 
 -- | Given an integer position in a text, obtain the Pinchot
@@ -141,25 +140,25 @@ appendFilenameTrees filename = Lens.over setter f
     setter = Lens.mapped . Lens._Right . Lens._1
     f sq = sq `Lens.snoc` (filenameTree filename)
 
-data ParseConvertProofError
-  = ParseConvertProofError Filename (Either ParseError (NonEmpty Proofer.ProofFail))
+data ParseConvertProofError a
+  = ParseConvertProofError Filename
+                           (Either ParseError (NonEmpty (Proofer.ProofFail a)))
   deriving (Typeable, Show)
 
-instance Exception ParseConvertProofError
+instance (Typeable a, Show a) => Exception (ParseConvertProofError a)
 
 -- | Parses, converts, and proofs a single file.
 parseConvertProof
   :: (Filename, Text)
-  -> Either ParseConvertProofError (Seq Price, Seq (Transaction Loc))
+  -> Either (ParseConvertProofError Loc) (Seq (Tracompri Cursor))
 parseConvertProof (filename, txt) = do
   wholeFile <- either (Left . ParseConvertProofError filename . Left) Right
     $ runParser grammar txt
-  let parts = dWholeFile wholeFile
-  items <- case Proofer.proofItems parts of
+  let seqS3 = dWholeFile wholeFile
+  case Proofer.proofItems seqS3 of
     Accuerr.AccFailure e -> Left . ParseConvertProofError filename
       . Right $ e
-    Accuerr.AccSuccess g -> Right g
-  return . partitionEithers $ items
+    Accuerr.AccSuccess g -> Right . fmap (fmap (Cursor filename)) $ g
   where
     grammar = fmap Productions.a'WholeFile EarleyGrammar.earleyGrammar
 

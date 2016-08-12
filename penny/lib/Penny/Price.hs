@@ -27,8 +27,8 @@
 -- these as liabilities instead.
 
 module Penny.Price
-  ( FromCy(..)
-  , ToCy(..)
+  ( FromCy
+  , ToCy
   , FromTo
   , fromCy
   , toCy

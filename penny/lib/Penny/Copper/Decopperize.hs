@@ -21,8 +21,6 @@ import qualified Data.Sequence as Seq
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
 import Data.Sums (S3 (S3a, S3b, S3c))
-import Pinchot (Loc)
-import qualified Pinchot
 import Prelude hiding (length)
 
 import Penny.Arrangement
@@ -539,9 +537,11 @@ dJanus x = case x of
   Janus'CyExch c -> dCyExch c
   Janus'ExchCy c -> dExchCy c
 
-type TxnParts = (Loc, Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+-- | The location, a forest for the top line, and a 'Seq' with a
+-- triple for each posting.
+type TxnParts a = (a, Seq Tree.Tree, Seq (a, Trio.Trio, Seq Tree.Tree))
 
-dPrice :: Price Char Loc -> PriceParts Loc
+dPrice :: Price Char a -> PriceParts a
 dPrice p = PriceParts loc zt from to exch
   where
     loc = Lens.view (Lens.to _r'Price'0'AtSign . Lens._Wrapped' . Lens._2) p
@@ -632,27 +632,12 @@ dWhitesScalar (WhitesScalar _ s) = dScalar s
 dWhitesScalar'Opt :: WhitesScalar'Opt Char a -> Maybe Scalar.Scalar
 dWhitesScalar'Opt (WhitesScalar'Opt m) = fmap dWhitesScalar m
 
-locToTree :: Loc -> Tree.Tree
-locToTree l = Tree.Tree scalarLoc . Seq.fromList $
-  [ intTree "line" (Pinchot._line l)
-  , intTree "column" (Pinchot._col l)
-  , intTree "position" (Pinchot._pos l)
-  ]
-  where
-    scalarLoc = Just $ Scalar.SText "location"
-    intTree txt int = Tree.Tree scalarTxt . Seq.singleton $ treeInt
-      where
-        scalarTxt = Just $ Scalar.SText txt
-        treeInt = Tree.Tree
-          (Just $ Scalar.SInteger (fromIntegral int)) Seq.empty
-
-dNextTree :: NextTree Char Loc -> Tree.Tree
+dNextTree :: NextTree Char a -> Tree.Tree
 dNextTree (NextTree _ _ _ t) = dTree t
 
-dTree :: Tree Char Loc -> Tree.Tree
-dTree x = Tree.Tree sc (loc `Lens.cons` children)
+dTree :: Tree Char a -> Tree.Tree
+dTree x = Tree.Tree sc children
   where
-    loc = locToTree . snd . NE._fore . t'Tree $ x
     (sc, children) = case x of
       Tree'ScalarMaybeForest s -> (Just scalar, trees)
         where
@@ -662,49 +647,49 @@ dTree x = Tree.Tree sc (loc `Lens.cons` children)
           (trees, mayScalar) = dForestMaybeScalar s
 
 dForestMaybeScalar
-  :: ForestMaybeScalar Char Loc
+  :: ForestMaybeScalar Char a
   -> (NonEmptySeq Tree.Tree, Maybe Scalar.Scalar)
 dForestMaybeScalar (ForestMaybeScalar bf sc)
   = (dBracketedForest bf, dWhitesScalar'Opt sc)
 
 dBracketedForest
-  :: BracketedForest Char Loc
+  :: BracketedForest Char a
   -> NonEmptySeq Tree.Tree
 dBracketedForest (BracketedForest _ _ forest _ _)
   = dForest forest
 
 dForest
-  :: Forest Char Loc
+  :: Forest Char a
   -> NonEmptySeq Tree.Tree
 dForest (Forest t1 ts)
   = NE.NonEmptySeq (dTree t1) (dNextTree'Star ts)
 
 dNextTree'Star
-  :: NextTree'Star Char Loc
+  :: NextTree'Star Char a
   -> Seq Tree.Tree
 dNextTree'Star (NextTree'Star sq)
   = fmap dNextTree sq
 
 dScalarMaybeForest
-  :: ScalarMaybeForest Char Loc
+  :: ScalarMaybeForest Char a
   -> (Scalar.Scalar, Seq Tree.Tree)
 dScalarMaybeForest (ScalarMaybeForest sc wbf)
   = (dScalar sc, dWhitesBracketedForest'Opt wbf)
 
 dWhitesBracketedForest'Opt
-  :: WhitesBracketedForest'Opt Char Loc
+  :: WhitesBracketedForest'Opt Char a
   -> Seq Tree.Tree
 dWhitesBracketedForest'Opt (WhitesBracketedForest'Opt may) = case may of
   Nothing -> Seq.empty
   Just wbf -> NE.nonEmptySeqToSeq . dWhitesBracketedForest $ wbf
 
 dWhitesBracketedForest
-  :: WhitesBracketedForest Char Loc
+  :: WhitesBracketedForest Char a
   -> NonEmptySeq Tree.Tree
 dWhitesBracketedForest (WhitesBracketedForest _ bf)
   = dBracketedForest bf
 
-dTopLine :: TopLine Char Loc -> NonEmptySeq Tree.Tree
+dTopLine :: TopLine Char a -> NonEmptySeq Tree.Tree
 dTopLine (TopLine f) = dForest f
 
 dDebitCredit :: DebitCredit t a -> Pole
@@ -842,14 +827,14 @@ dTrio x = case x of
   Trio'T_NonNeutral a -> dT_NonNeutral a
 
 dTrioMaybeForest
-  :: TrioMaybeForest Char Loc
+  :: TrioMaybeForest Char a
   -> (Trio.Trio, Seq Tree.Tree)
 dTrioMaybeForest (TrioMaybeForest t wbf)
   = (dTrio t, dWhitesBracketedForest'Opt wbf)
 
 dPosting
-  :: Posting Char Loc
-  -> (Loc, Trio.Trio, Seq Tree.Tree)
+  :: Posting Char a
+  -> (a, Trio.Trio, Seq Tree.Tree)
 dPosting x = case x of
   Posting'TrioMaybeForest tmf -> (\(a, b) -> (loc, a, b))
     $ dTrioMaybeForest tmf
@@ -860,49 +845,49 @@ dPosting x = case x of
     loc = snd . NE._fore . t'Posting $ x
 
 dNextPosting
-  :: NextPosting Char Loc
-  -> (Loc, Trio.Trio, Seq Tree.Tree)
+  :: NextPosting Char a
+  -> (a, Trio.Trio, Seq Tree.Tree)
 dNextPosting (NextPosting _ _ _ p) = dPosting p
 
 dNextPosting'Star
-  :: NextPosting'Star Char Loc
-  -> Seq (Loc, Trio.Trio, Seq Tree.Tree)
+  :: NextPosting'Star Char a
+  -> Seq (a, Trio.Trio, Seq Tree.Tree)
 dNextPosting'Star (NextPosting'Star x) = fmap dNextPosting x
 
 dPostingList
-  :: PostingList Char Loc
-  -> NonEmptySeq (Loc, Trio.Trio, Seq Tree.Tree)
+  :: PostingList Char a
+  -> NonEmptySeq (a, Trio.Trio, Seq Tree.Tree)
 dPostingList (PostingList _ p1 ps)
   = NE.NonEmptySeq (dPosting p1) (dNextPosting'Star ps)
 
 dPostingList'Opt
-  :: PostingList'Opt Char Loc
-  -> Seq (Loc, Trio.Trio, Seq Tree.Tree)
+  :: PostingList'Opt Char a
+  -> Seq (a, Trio.Trio, Seq Tree.Tree)
 dPostingList'Opt (PostingList'Opt m) = case m of
   Nothing -> Seq.empty
   Just l -> NE.nonEmptySeqToSeq . dPostingList $ l
 
 dPostings
-  :: Postings Char Loc
-  -> (Loc, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+  :: Postings Char a
+  -> (a, Seq (a, Trio.Trio, Seq Tree.Tree))
 dPostings (Postings oc pl _ _) = (loc, dPostingList'Opt pl)
   where
     OpenCurly (_, loc) = oc
 
 dWhitesPostings
-  :: WhitesPostings Char Loc
-  -> (Loc, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+  :: WhitesPostings Char a
+  -> (a, Seq (a, Trio.Trio, Seq Tree.Tree))
 dWhitesPostings (WhitesPostings _ p) = dPostings p
 
 dWhitesPostings'Opt
-  :: WhitesPostings'Opt Char Loc
-  -> Maybe (Loc, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+  :: WhitesPostings'Opt Char a
+  -> Maybe (a, Seq (a, Trio.Trio, Seq Tree.Tree))
 dWhitesPostings'Opt (WhitesPostings'Opt m)
   = fmap dWhitesPostings m
 
 dTopLineMaybePostings
-  :: TopLineMaybePostings Char Loc
-  -> (Loc, NonEmptySeq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+  :: TopLineMaybePostings Char a
+  -> (a, NonEmptySeq Tree.Tree, Seq (a, Trio.Trio, Seq Tree.Tree))
 dTopLineMaybePostings tlp@(TopLineMaybePostings t w)
   = (loc, dTopLine t, trips)
   where
@@ -912,8 +897,8 @@ dTopLineMaybePostings tlp@(TopLineMaybePostings t w)
       Just (_, t) -> t
 
 dTransaction
-  :: Transaction Char Loc
-  -> (Loc, Seq Tree.Tree, Seq (Loc, Trio.Trio, Seq Tree.Tree))
+  :: Transaction Char a
+  -> (a, Seq Tree.Tree, Seq (a, Trio.Trio, Seq Tree.Tree))
 dTransaction x = case x of
   Transaction'TopLineMaybePostings t ->
     Lens.over Lens._2 NE.nonEmptySeqToSeq $ dTopLineMaybePostings t
@@ -922,27 +907,27 @@ dTransaction x = case x of
       (loc, trips) = dPostings p
 
 dFileItem
-  :: FileItem Char Loc
-  -> S3 (PriceParts Loc) X.Text TxnParts
+  :: FileItem Char a
+  -> S3 (PriceParts a) X.Text (TxnParts a)
 dFileItem x = case x of
   FileItem'Price p -> S3a $ dPrice p
   FileItem'Comment com -> S3b . dComment $ com
   FileItem'Transaction t -> S3c $ dTransaction t
 
 dWhitesFileItem
-  :: WhitesFileItem Char Loc
-  -> S3 (PriceParts Loc) X.Text TxnParts
+  :: WhitesFileItem Char a
+  -> S3 (PriceParts a) X.Text (TxnParts a)
 dWhitesFileItem (WhitesFileItem _ i) = dFileItem i
 
 dWhitesFileItem'Star
-  :: WhitesFileItem'Star Char Loc
-  -> Seq (S3 (PriceParts Loc) X.Text TxnParts)
+  :: WhitesFileItem'Star Char a
+  -> Seq (S3 (PriceParts a) X.Text (TxnParts a))
 dWhitesFileItem'Star (WhitesFileItem'Star sq)
   = fmap dWhitesFileItem sq
 
 dWholeFile
-  :: WholeFile Char Loc
-  -> Seq (S3 (PriceParts Loc) X.Text TxnParts)
+  :: WholeFile Char a
+  -> Seq (S3 (PriceParts a) X.Text (TxnParts a))
 dWholeFile (WholeFile x _) = dWhitesFileItem'Star x
 
 dNilOrBrimRadCom

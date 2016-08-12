@@ -71,6 +71,7 @@ data OfxOut = OfxOut
 
 Lens.makeLenses ''OfxOut
 
+{-
 -- | Creates a new transaction ready for "Penny.Copper.Freezer".
 ofxToTxnParts
   :: OfxIn
@@ -153,3 +154,4 @@ offsettingPair inp out = (Tranche.Tranche () [] fields, amt)
         flipper | not $ _flipSign out = negate
                 | otherwise = id
 
+-}

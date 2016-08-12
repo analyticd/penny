@@ -69,3 +69,21 @@ prettyMap fk fv mp = Pretty.Con "Map"
   [ Pretty.List . map mkValue . Map.assocs $ mp ]
   where
     mkValue (k, v) = Pretty.Tuple [fk k, fv v]
+
+prettyTuple2
+  :: (a -> Value)
+  -> (b -> Value)
+  -> (a, b)
+  -> Value
+prettyTuple2 fa fb (a, b) = Pretty.Tuple [fa a, fb b]
+
+prettyTuple3
+  :: (a -> Value)
+  -> (b -> Value)
+  -> (c -> Value)
+  -> (a, b, c)
+  -> Value
+prettyTuple3 fa fb fc (a, b, c) = Pretty.Tuple [fa a, fb b, fc c]
+
+prettyUnit :: () -> Value
+prettyUnit () = Pretty.Con "()" []

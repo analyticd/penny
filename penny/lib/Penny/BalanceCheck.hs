@@ -58,7 +58,7 @@ checkBalance bal = checkBal . foldr lookForBalanceItem ([], bal) . toList
     checkBal (tts, bal) = noMoreBalances bal : tts
 
 checkDay
-  :: Seq (Transaction a)
+  :: Seq (TransactionX a)
   -> Seq Text
   -> (Integer, Int, Int, Seq (Commodity, Integer, Integer))
   -> TestTree
@@ -75,7 +75,7 @@ checkDay txns na (yr, mo, da, sq) = testGroup desc tts
     pdDate = (<= fromGregorian yr mo da)
 
 checkBalances
-  :: Seq (Transaction a)
+  :: Seq (TransactionX a)
   -- ^ All transactions
 
   -> Seq ( Seq Text
@@ -91,7 +91,7 @@ checkBalances txns = testGroup desc . toList . fmap (checkAccount txns)
     desc = "check account balances"
 
 checkAccount
-  :: Seq (Transaction a)
+  :: Seq (TransactionX a)
   -> (Seq Text, Seq (Integer, Int, Int, Seq (Commodity, Integer, Integer)))
   -> TestTree
 checkAccount txns (acct, sq)

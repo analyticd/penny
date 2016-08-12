@@ -9,12 +9,15 @@ import Control.Lens (Lens')
 import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
 import GHC.Generics (Generic)
-import Text.Show.Pretty (PrettyVal)
+import Text.Show.Pretty (PrettyVal, Value)
+import qualified Text.Show.Pretty as Pretty
 
 import Penny.Decimal
 import Penny.Polar
+import Penny.Pretty
 import Penny.Serial
-import Penny.Tranche (Postline, TopLine, Tranche)
+import Penny.Tranche
+  (Postline, TopLine, Tranche, prettyPostline, prettyTopLine)
 import Penny.Troika
 
 -- | The core of every posting.
@@ -35,6 +38,14 @@ Lens.makeLenses ''Core
 -- common functions.
 type Posting a = (Serpack, (Postline a, Core))
 
+prettyPosting
+  :: (a -> Value)
+  -> Posting a
+  -> Value
+prettyPosting f
+  = prettyTuple2 Pretty.prettyVal
+      (prettyTuple2 (prettyPostline f) Pretty.prettyVal)
+
 -- | A list of postings, coupled with metadata in the form of 'Tree'
 -- and with a 'Serpack' that indicates how this transaction relates to
 -- other transactions.
@@ -46,6 +57,14 @@ type Posting a = (Serpack, (Postline a, Core))
 -- 'Penny.Transaction.Transaction', which does not contain serial
 -- numbers and has an entirely different shape.
 type TransactionX a = (Serpack, (TopLine a, Seq (Posting a)))
+
+prettyTransactionX
+  :: (a -> Value)
+  -> TransactionX a
+  -> Value
+prettyTransactionX fa
+  = prettyTuple2 Pretty.prettyVal
+      (prettyTuple2 (prettyTopLine fa) (prettySeq (prettyPosting fa)))
 
 -- # Functions on postings and transactions
 

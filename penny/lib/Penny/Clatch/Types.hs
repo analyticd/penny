@@ -3,8 +3,11 @@ module Penny.Clatch.Types where
 import Penny.Amount
 import Penny.Balance
 import Penny.Core
+import Penny.Pretty
 import Penny.SeqUtil
 import Penny.Serial
+
+import Text.Show.Pretty (Value, prettyVal)
 
 -- | The 'Serset' after all postings have been pre-filtered.
 type PreFiltset = Serset
@@ -47,3 +50,15 @@ type Totaled l a = (TransactionX l, (Slice (Posting l),
 type Clatch l =
   (TransactionX l, (Slice (Posting l), (Maybe Amount, (PreFiltset, (Sortset,
     (Balance, (PostFiltset, ())))))))
+
+prettyClatch
+  :: (l -> Value)
+  -> Clatch l
+  -> Value
+prettyClatch f = prettyTuple2 (prettyTransactionX f)
+  (prettyTuple2 (prettySlice (prettyPosting f))
+  (prettyTuple2 prettyVal -- Maybe Amount
+  (prettyTuple2 prettyVal -- PreFiltset
+  (prettyTuple2 prettyVal -- Sortset
+  (prettyTuple2 prettyVal -- Balance
+  (prettyTuple2 prettyVal prettyUnit))))))

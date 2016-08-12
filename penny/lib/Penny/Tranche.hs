@@ -11,7 +11,7 @@ import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import qualified Control.Lens as Lens
 import GHC.Generics (Generic)
-import Text.Show.Pretty (PrettyVal)
+import Text.Show.Pretty (PrettyVal, Value)
 import qualified Text.Show.Pretty as Pretty
 
 import qualified Penny.Fields as F
@@ -29,12 +29,19 @@ data Tranche b a = Tranche
   -- ^ Field data.
   } deriving (Functor, Foldable, Traversable, Generic)
 
+prettyTranche
+  :: (b -> Value)
+  -> (a -> Value)
+  -> Tranche b a
+  -> Value
+prettyTranche fb fa (Tranche a trees b) = Pretty.Rec "Tranche"
+  [ ("_location", fa a)
+  , ("_ancillary", prettySeq Pretty.prettyVal trees)
+  , ("_fields", fb b)
+  ]
+
 instance (PrettyVal b, PrettyVal a) => PrettyVal (Tranche b a) where
-  prettyVal (Tranche loc anc flds) = Pretty.Rec "Tranche"
-    [ ("_location", Pretty.prettyVal loc)
-    , ("_ancillary", prettySeq Pretty.prettyVal anc)
-    , ("_fields", Pretty.prettyVal flds)
-    ]
+  prettyVal = prettyTranche Pretty.prettyVal Pretty.prettyVal
 
 emptyTranche :: b -> Tranche b ()
 emptyTranche = Tranche () Seq.empty
@@ -42,7 +49,20 @@ emptyTranche = Tranche () Seq.empty
 Lens.makeLenses ''Tranche
 
 type Postline a = Tranche F.PostingFields a
+
+prettyPostline
+  :: (a -> Value)
+  -> Postline a
+  -> Value
+prettyPostline fa = prettyTranche Pretty.prettyVal fa
+
 type TopLine a = Tranche F.TopLineFields a
+
+prettyTopLine
+  :: (a -> Value)
+  -> TopLine a
+  -> Value
+prettyTopLine fa = prettyTranche Pretty.prettyVal fa
 
 emptyTopLine :: ZonedTime -> TopLine ()
 emptyTopLine zt = emptyTranche (F.emptyTopLineFields zt)

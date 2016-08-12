@@ -21,6 +21,7 @@ module Penny.Copper.Proofer where
 import Penny.Commodity
 import Penny.Copper.Decopperize
 import Penny.Copper.PriceParts
+import Penny.Copper.Tracompri
 import Penny.Ents
 import qualified Penny.Fields as F
 import Penny.NonEmpty
@@ -42,11 +43,11 @@ import Data.Maybe (fromMaybe, isNothing)
 import Data.OFX (TrnType)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Sums (S3(S3a, S3b, S3c))
 import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Time as Time
 import Text.Read (readMaybe)
-import Pinchot (Loc)
 
 findDay
   :: Tree
@@ -74,9 +75,10 @@ findOrigPayee t = do
   Lens.preview _SText scalar
 
 getTopLineFields
-  :: Loc
+  :: a
+  -- ^ Location
   -> Seq Tree
-  -> Either ProofFail (F.TopLineFields, Seq Tree)
+  -> Either (ProofFail a) (F.TopLineFields, Seq Tree)
 getTopLineFields loc forest = case mayTlf of
   Nothing -> Left (ProofFail loc UndatedTransaction)
   Just tlf -> Right tlf
@@ -188,17 +190,18 @@ data Reason
   | UndatedTransaction
   deriving Show
 
-data ProofFail = ProofFail
-  { _location :: Loc
+data ProofFail a = ProofFail
+  { _location :: a
   , _reason :: Reason
   } deriving Show
 
 Lens.makeLenses ''ProofFail
 
 addPostingToEnts
-  :: Ents (Postline Loc)
-  -> (Loc, Trio, Seq Tree)
-  -> Either ProofFail (Ents (Postline Loc))
+  :: Ents (Postline a)
+  -> (a, Trio, Seq Tree)
+  -- ^ Location, Trio, forest
+  -> Either (ProofFail a) (Ents (Postline a))
 addPostingToEnts ents (pos, trio, trees)
   = case appendTrio ents trio of
       Left e -> Left (ProofFail pos (FailedToAddTrio e))
@@ -210,8 +213,9 @@ addPostingToEnts ents (pos, trio, trees)
 -- posting fails, returns a single error message.  If balancing
 -- fails, returns a single error message.
 balancedFromPostings
-  :: Seq (Loc, Trio, Seq Tree)
-  -> Either ProofFail (Balanced (Postline Loc))
+  :: Seq (a, Trio, Seq Tree)
+  -- ^ Location, trio, forest
+  -> Either (ProofFail a) (Balanced (Postline a))
 balancedFromPostings sq = case nonEmpty sq of
   Nothing -> return mempty
   Just ne@(NonEmpty (pos, _, _) _) -> case foldM addPostingToEnts mempty ne of
@@ -221,22 +225,24 @@ balancedFromPostings sq = case nonEmpty sq of
       Right g -> return g
 
 price
-  :: PriceParts Loc
+  :: PriceParts a
   -- ^
-  -> Either ProofFail Price
-price pp = case makeFromTo (FromCy (_priceFrom pp)) (ToCy (_priceTo pp)) of
+  -> Either (ProofFail a) (Price a)
+price pp = case makeFromTo (_priceFrom pp) (_priceTo pp) of
   Nothing -> Left (ProofFail (_pricePos pp) (MatchingFromTo (_priceFrom pp)))
-  Just fromTo -> Right (Price (_priceTime pp) fromTo (_priceExch pp))
+  Just fromTo ->
+    Right (Price (_priceTime pp) fromTo (_priceExch pp) (_pricePos pp))
 
 proofItem
-  :: Either (PriceParts Loc) TxnParts
-  -- ^
-  -> Accuerr (NonEmpty ProofFail) (Either Price (Transaction Loc))
-proofItem x = case x of
-  Left p -> case price p of
+  :: S3 (PriceParts a) Text (TxnParts a)
+  -> Accuerr (NonEmpty (ProofFail a)) (Tracompri a)
+proofItem s3 = case s3 of
+  S3a p -> case price p of
     Left e -> Accuerr.AccFailure (singleton e)
-    Right g -> Accuerr.AccSuccess (Left g)
-  Right (loc, topLine, pstgs) -> fmap Right $ Transaction <$> tlf <*> bal
+    Right g -> Accuerr.AccSuccess (Tracompri'Price g)
+  S3b x -> pure (Tracompri'Comment x)
+  S3c (loc, topLine, pstgs) -> fmap Tracompri'Transaction
+    $ Transaction <$> tlf <*> bal
     where
       tlf = case getTopLineFields loc topLine of
         Left e -> Accuerr.AccFailure (singleton e)
@@ -247,7 +253,6 @@ proofItem x = case x of
         Right g -> Accuerr.AccSuccess g
 
 proofItems
-  :: Seq (Either (PriceParts Loc) TxnParts)
-  -- ^
-  -> Accuerr (NonEmpty ProofFail) (Seq (Either Price (Transaction Loc)))
+  :: Seq (S3 (PriceParts a) Text (TxnParts a))
+  -> Accuerr (NonEmpty (ProofFail a)) (Seq (Tracompri a))
 proofItems = traverse proofItem

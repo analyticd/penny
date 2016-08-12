@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Penny.Price.Internal where
 
 import Control.Lens
@@ -8,20 +9,22 @@ import qualified Data.Map as M
 import Data.Time
 import Penny.Decimal
 
-newtype FromCy = FromCy Commodity
-  deriving (Eq, Ord, Show)
-
-newtype ToCy = ToCy Commodity
-  deriving (Eq, Ord, Show)
+type FromCy = Commodity
+type ToCy = Commodity
 
 data FromTo = FromTo
-  { fromCy :: FromCy
-  , toCy :: ToCy
+  { fromCy :: Commodity
+  , toCy :: Commodity
   } deriving (Eq, Ord, Show)
 
-makeFromTo :: FromCy -> ToCy -> Maybe FromTo
-makeFromTo f@(FromCy fr) t@(ToCy to)
-  | fr /= to = Just $ FromTo f t
+makeFromTo
+  :: Commodity
+  -- ^ From this commodity
+  -> Commodity
+  -- ^ To this commodity
+  -> Maybe FromTo
+makeFromTo fr to
+  | fr /= to = Just $ FromTo fr to
   | otherwise = Nothing
 
 convertQty
@@ -37,19 +40,20 @@ newtype PriceDb = PriceDb
   (Map FromCy (Map ToCy (Map UTCTime Decimal)))
   deriving Show
 
-data Price = Price
+data Price a = Price
   { _zonedTime :: ZonedTime
   , _fromTo :: FromTo
   , _exch :: Decimal
-  } deriving Show
+  , _location :: a
+  } deriving (Show, Functor, Foldable, Traversable)
 
 makeLenses ''Price
 
 emptyDb :: PriceDb
 emptyDb = PriceDb M.empty
 
-addPriceToDb :: PriceDb -> Price -> PriceDb
-addPriceToDb (PriceDb db) (Price dt (FromTo fr to) exch)
+addPriceToDb :: PriceDb -> Price a -> PriceDb
+addPriceToDb (PriceDb db) (Price dt (FromTo fr to) exch _)
   = PriceDb . M.alter fToMap fr $ db
   where
     utct = zonedTimeToUTC dt

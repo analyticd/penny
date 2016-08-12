@@ -75,7 +75,7 @@ import Penny.Amount
 import Penny.BalanceReport
 import Penny.Commodity
 import qualified Penny.Clatch.Access.Posting as AP
-import qualified Penny.Clatch.Access.Transaction as AT
+import qualified Penny.Clatch.Access.TransactionX as AT
 import Penny.Clatch.Types
 import Penny.Clatcher (Clatcher, Report)
 import qualified Penny.Clatcher as Clatcher
@@ -91,7 +91,7 @@ import Penny.Quasi
 import qualified Penny.Scheme as Scheme
 import Penny.Serial
 import Penny.Stream
-import Penny.TransactionBare
+import Penny.Transaction
 import Penny.Troika
 
 import Control.Lens (set, view)
@@ -206,7 +206,7 @@ open str = set Clatcher.load
 -- load them repeatedly; then, specify the preloaded items using
 -- 'preload'.
 preload
-  :: (Seq Price, Seq (TransactionBare (Maybe Cursor)))
+  :: (Seq (Price (Maybe Cursor)), Seq (Transaction (Maybe Cursor)))
   -> Clatcher
 preload pair = set Clatcher.load (Seq.singleton (return pair)) mempty
 
@@ -236,7 +236,8 @@ checkbook = columns Columns.checkbook
 clatchDump :: Clatcher
 clatchDump = report rpt
   where
-    rpt _ _ _ clatches = Seq.singleton $ Dump.printReport clatches
+    rpt _ _ _ clatches
+      = Seq.singleton . Dump.printReport $ clatches
 
 -- | Prints the @acctree@ report, which shows every account and its balance.
 acctree :: Clatcher

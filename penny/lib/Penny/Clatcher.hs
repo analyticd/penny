@@ -20,11 +20,13 @@ import Penny.Clatch.Create
 import Penny.Colors
 import Penny.Converter
 import qualified Penny.Copper as Copper
+import Penny.Copper.Tracompri
 import Penny.Cursor
 import Penny.Popularity
 import Penny.Price
+import Penny.SeqUtil
 import Penny.Stream
-import Penny.TransactionBare
+import Penny.Transaction
 
 -- | Describes any errors that may arise in the clatcher.
 data PennyError
@@ -35,10 +37,10 @@ data PennyError
 instance Exception PennyError
 
 type Loader
-  = IO (Seq Price, Seq (TransactionBare (Maybe Cursor)))
+  = IO (Seq (Price (Maybe Cursor)), Seq (Transaction (Maybe Cursor)))
 
 type Report
-  = Seq Price
+  = Seq (Price (Maybe Cursor))
   -> Colors
   -> History
   -> Seq (Clatch (Maybe Cursor))
@@ -49,9 +51,14 @@ loadCopper fn = do
   txt <- XIO.readFile fn
   case Copper.parseConvertProof (X.pack fn, txt) of
     Left err -> throwIO err
-    Right (prices, txns) -> return (prices, fmap (fmap mkCursor) txns)
+    Right tras -> return (prices, txns)
       where
-        mkCursor loc = Just $ Cursor (X.pack fn) loc
+        (prices, txns) = partitionEithers . catMaybes
+          . fmap toEi . fmap (fmap Just) $ tras
+        toEi tra = case tra of
+          Tracompri'Transaction x -> Just (Right x)
+          Tracompri'Price x -> Just (Left x)
+          _ -> Nothing
 
 data Clatcher = Clatcher
   { _converter :: Converter

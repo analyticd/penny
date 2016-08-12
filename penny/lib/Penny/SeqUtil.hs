@@ -33,6 +33,7 @@ module Penny.SeqUtil
   , previousSlice
   , seqFromSlice
   , allSlices
+  , prettySlice
 
   -- ** Slice lenses
   , onLeft
@@ -216,11 +217,17 @@ data Slice a = Slice
   } deriving (Show, Generic)
 
 instance PrettyVal a => PrettyVal (Slice a) where
-  prettyVal (Slice left sl right) = Pretty.Rec "Slice"
-    [ ("_onLeft", prettySeq Pretty.prettyVal left)
-    , ("_onSlice", Pretty.prettyVal sl)
-    , ("_onRight", prettySeq Pretty.prettyVal right)
-    ]
+  prettyVal = prettySlice Pretty.prettyVal
+
+prettySlice
+  :: (a -> Pretty.Value)
+  -> Slice a
+  -> Pretty.Value
+prettySlice f (Slice left sl right) = Pretty.Rec "Slice"
+  [ ("_onLeft", prettySeq f left)
+  , ("_onSlice", f sl)
+  , ("_onRight", prettySeq f right)
+  ]
 
 makeLenses ''Slice
 
