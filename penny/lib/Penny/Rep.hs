@@ -1,17 +1,21 @@
 {-# LANGUAGE TypeFamilies #-}
 -- | Number representations that are not part of the grammar.
+--
+-- To convert these types to 'Penny.Decimal.Decimal' and the like,
+-- functions are available in "Penny.Copper.Decopperize".
 module Penny.Rep where
 
 import qualified Control.Lens as Lens
+import qualified Control.Lens.Extras as Lens (is)
 import Data.Coerce (coerce)
 import Data.Monoid ((<>))
 import Data.Sequence (Seq, (<|))
 import qualified Data.Sequence as Seq
 import qualified Data.Sequence.NonEmpty as NE
 
-import Penny.Polar
 import Penny.Copper.Types
 import Penny.Copper.Terminalizers
+import Penny.Polar
 
 -- | Qty representations with a comma radix that may be either nil
 -- or brim.  Stored along with the side if the number is non-nil.
@@ -30,6 +34,12 @@ oppositeRepAnyRadix :: RepAnyRadix -> RepAnyRadix
 oppositeRepAnyRadix
   = Lens.over Lens._Left oppositeModerated
   . Lens.over Lens._Right oppositeModerated
+
+-- | True if the 'RepAnyRadix' is zero.
+repAnyRadixIsZero :: RepAnyRadix -> Bool
+repAnyRadixIsZero rar
+  = Lens.is (Lens._Left . _Moderate) rar
+  || Lens.is (Lens._Right . _Moderate) rar
 
 -- | A non-neutral representation that does not include a side.
 type BrimAnyRadix = Either (BrimRadCom Char ()) (BrimRadPer Char ())

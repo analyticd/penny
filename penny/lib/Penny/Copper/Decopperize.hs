@@ -1110,29 +1110,21 @@ c'DecPositive'NonNeutral (NonNeutralRadPer b) = c'DecPositive'BrimRadPer b
 
 c'Decimal'RepRadCom :: RepRadCom -> Decimal
 c'Decimal'RepRadCom x = case x of
-  Moderate nrc -> Lens.over coefficient (const 0)
-    . c'DecZero'NilRadCom $ nrc
+  Moderate nrc -> Lens.set coefficient 0 . c'DecZero'NilRadCom $ nrc
   Extreme (Polarized brimRadCom pole) ->
-      Lens.over coefficient (changeSign . Pos.c'Integer'Positive)
+      decNonZeroToDecimal
+      . c'DecNonZero'DecPositive pole
       . c'DecPositive'BrimRadCom
       $ brimRadCom
-      where
-        changeSign
-          | pole == positive = id
-          | otherwise = Prelude.negate
 
 c'Decimal'RepRadPer :: RepRadPer -> Decimal
 c'Decimal'RepRadPer x = case x of
-  Moderate nrc -> Lens.over coefficient (const 0)
-    . c'DecZero'NilRadPer $ nrc
+  Moderate nrc -> Lens.set coefficient 0 . c'DecZero'NilRadPer $ nrc
   Extreme (Polarized brimRadPer pole) ->
-      Lens.over coefficient (changeSign . Pos.c'Integer'Positive)
+      decNonZeroToDecimal
+      . c'DecNonZero'DecPositive pole
       . c'DecPositive'BrimRadPer
       $ brimRadPer
-      where
-        changeSign
-          | pole == positive = id
-          | otherwise = Prelude.negate
 
 c'Decimal'RepAnyRadix :: RepAnyRadix -> Decimal
 c'Decimal'RepAnyRadix = either c'Decimal'RepRadCom c'Decimal'RepRadPer

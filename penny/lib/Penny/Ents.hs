@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 -- | A valid transaction must be balanced--that is, for each
@@ -18,9 +19,11 @@ module Penny.Ents
   , entsToBalanced
   , ImbalancedError(..)
   , restrictedBalanced
+  , twoPostingBalanced
   ) where
 
 import Control.Lens ((<|), (|>))
+import qualified Control.Lens as Lens
 import Data.Sequence (Seq, viewl, ViewL(EmptyL, (:<)))
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
@@ -34,7 +37,7 @@ import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
 import Penny.Commodity
-import Penny.Copper.Decopperize (dBrimAnyRadix)
+import Penny.Copper.Decopperize (dBrimAnyRadix, c'Decimal'RepAnyRadix)
 import Penny.Decimal
 import Penny.Polar
 import Penny.Rep
@@ -169,6 +172,9 @@ restrictedBalanced ne pole cy ar meta
 -- this function creates only transactions that have exactly two
 -- postings.  The advantage of this function over 'restrictedBalanced'
 -- is that the quantity can be zero.
+--
+-- If the 'RepAnyRadix' is not zero, the offsetting posting is a
+-- 'Y.E'.  Otherwise, the offsetting posting is a 'Y.QC'.
 twoPostingBalanced
   :: (RepAnyRadix, a)
   -- ^ Quantity and metadata for main posting
@@ -179,4 +185,14 @@ twoPostingBalanced
   -> a
   -- ^ Metadata for the offsetting posting
   -> Balanced a
-twoPostingBalanced = undefined
+twoPostingBalanced (rar, metaMain) cy ar metaOffset
+  = Balanced [(troikaMain, metaMain), (troikaOffset, metaOffset)]
+  where
+    (troikaMain, troikaOffset) = case decimalToDecNonZero dec of
+      Nothing -> (tMain, tMain)
+      Just dnz -> (tMain, tE)
+        where
+          tE = Y.Troika cy (Y.E (Lens.over poleDecNonZero opposite dnz))
+      where
+        dec = c'Decimal'RepAnyRadix rar
+        tMain = Y.Troika cy (Y.QC rar ar)

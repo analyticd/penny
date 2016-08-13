@@ -223,6 +223,7 @@ c'DecNonZero'DecPositive pm (Exponential sig expt)
       | pm == positive = id
       | otherwise = NonZero.negate
 
+
 -- * Representations
 
 -- Let t = number of trailing significand digits,
