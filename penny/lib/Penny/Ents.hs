@@ -97,23 +97,23 @@ instance Traversable Balanced where
           (<|) <$> T.sequenceA e <*> go xs
 
 appendEnt :: Ents a -> (Amount, a) -> Ents a
-appendEnt (Ents s b) (am@(Amount cy q), e) = Ents (s |> (tm, e))
+appendEnt (Ents s b) (am, e) = Ents (s |> (tm, e))
   (b <> c'Imbalance'Amount am)
   where
-    tm = Y.Troika cy (Right q)
+    tm = Y.c'Troika'Amount am
 
 prependEnt :: (Amount, a) -> Ents a -> Ents a
-prependEnt (am@(Amount cy q), e) (Ents s b) = Ents ((tm, e) <| s)
+prependEnt (am, e) (Ents s b) = Ents ((tm, e) <| s)
   (b <> c'Imbalance'Amount am)
   where
-    tm = Y.Troika cy (Right q)
+    tm = Y.c'Troika'Amount am
 
 appendTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
 appendTrio (Ents sq imb) trio = fmap f $ Y.trioToTroiload imb trio
   where
     f (troiload, cy) = \meta -> Ents (sq |> (tm, meta)) imb'
       where
-        tm = Y.Troika cy (Left troiload)
+        tm = Y.Troika cy troiload
         imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troika tm)
 
 prependTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
@@ -121,7 +121,7 @@ prependTrio (Ents sq imb) trio = fmap f $ Y.trioToTroiload imb trio
   where
     f (troiload, cy) = \meta -> Ents ((tm, meta) <| sq) imb'
       where
-        tm = Y.Troika cy (Left troiload)
+        tm = Y.Troika cy troiload
         imb' = imb <> c'Imbalance'Amount (Y.c'Amount'Troika tm)
 
 
@@ -155,10 +155,10 @@ restrictedBalanced
 restrictedBalanced ne pole cy ar meta
   = Balanced ((fmap mkPair $ NE.nonEmptySeqToSeq ne) |> offset)
   where
-    mkPair (brim, meta) = (Y.Troika cy . Left $ Y.QC rar ar, meta)
+    mkPair (brim, meta) = (Y.Troika cy $ Y.QC rar ar, meta)
       where
         rar = c'RepAnyRadix'BrimAnyRadix pole brim
-    offset = (Y.Troika cy . Left $ Y.E dnz, meta)
+    offset = (Y.Troika cy $ Y.E dnz, meta)
       where
         dnz = c'DecNonZero'DecPositive (opposite pole) $
           foldl addDecPositive b1 bs

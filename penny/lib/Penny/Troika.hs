@@ -93,38 +93,40 @@ troiloadPole x = case x of
   C qnz -> Just . nonZeroSign . _coefficient $ qnz
   E qnz -> Just . nonZeroSign . _coefficient $ qnz
 
-type Troiquant = Either Troiload Decimal
-
 data Troika = Troika
   { _commodity :: Commodity
-  , _troiquant :: Either Troiload Decimal
+  , _troiload :: Troiload
   } deriving (Show, Generic)
 
 instance PrettyVal Troika where
   prettyVal (Troika cy tq) = Pretty.Rec "Troika"
     [ ("_commodity", prettyText cy)
-    , ("_troiquant", Pretty.prettyVal tq)
+    , ("_troiload", Pretty.prettyVal tq)
     ]
 
 Lens.makeLenses ''Troika
 
+-- | Converts an 'A.Amount' to a 'Troika'.  A 'QC' is always created,
+-- with the commodity being on the right with a space between.  The
+-- decimal is always represented with a period radix and no grouping.
 c'Troika'Amount :: A.Amount -> Troika
-c'Troika'Amount (A.Amount cy q) = Troika cy (Right q)
+c'Troika'Amount (A.Amount cy q) = Troika cy (QC rar ar)
+  where
+    ar = Arrangement CommodityOnRight True
+    rar = repDecimal (Right Nothing) q
 
 -- TODO the () type is too specific
 troikaRendering
   :: Troika
   -> Maybe (Commodity, Arrangement,
             Either (Seq (GrpRadCom Char ())) (Seq (GrpRadPer Char ())))
-troikaRendering (Troika cy tq) = case tq of
-  Left tl -> case tl of
-    QC qr ar -> Just (cy, ar, ei)
-      where
-        ei = groupers'RepAnyRadix qr
-    UC rnn _ ar -> Just (cy, ar, ei)
-      where
-        ei = groupers'BrimAnyRadix rnn
-    _ -> Nothing
+troikaRendering (Troika cy tl) = case tl of
+  QC qr ar -> Just (cy, ar, ei)
+    where
+      ei = groupers'RepAnyRadix qr
+  UC rnn _ ar -> Just (cy, ar, ei)
+    where
+      ei = groupers'BrimAnyRadix rnn
   _ -> Nothing
 
 c'Decimal'Troiload :: Troiload -> Decimal
@@ -150,16 +152,14 @@ c'Decimal'Troiload x = case x of
   E qnz -> fmap c'Integer'NonZero qnz
 
 c'Decimal'Troika :: Troika -> Decimal
-c'Decimal'Troika (Troika _ tq) = either c'Decimal'Troiload id tq
+c'Decimal'Troika (Troika _ tq) = c'Decimal'Troiload tq
 
 pole'Troika :: Troika -> Maybe Pole
-pole'Troika (Troika _ ei) = case ei of
-  Left tl -> pole'Decimal . c'Decimal'Troiload $ tl
-  Right dec -> pole'Decimal dec
+pole'Troika (Troika _ tl) = pole'Decimal . c'Decimal'Troiload $ tl
 
 c'Amount'Troika :: Troika -> A.Amount
 c'Amount'Troika (Troika cy ei) = A.Amount cy
-  (either c'Decimal'Troiload id ei)
+  (c'Decimal'Troiload ei)
 
 
 trioToTroiload
@@ -327,7 +327,7 @@ troiloadSide x = case x of
 
 -- | What side a troika is on.
 troikaSide :: Troika -> Maybe Pole
-troikaSide = either troiloadSide pole'Decimal . _troiquant
+troikaSide = troiloadSide . _troiload
 
 -- | Convert a 'Troiload' to a 'Trio'.
 troiloadToTrio :: Commodity -> Troiload -> Trio.Trio
@@ -343,14 +343,6 @@ troiloadToTrio cy tl = case tl of
   C _ -> Trio.C cy
   E _ -> Trio.E
 
--- | Convert a 'Troika' to a 'Trio.Trio'. A 'Troiload' is converted to
--- the appropriate 'Trio'.  A 'Decimal' is converted to a 'Trio.QC',
--- with the commodity on the left and a space betweeen.  The
--- representation is with a period radix, but with no grouping.
+-- | Convert a 'Troika' to a 'Trio.Trio'.
 troikaToTrio :: Troika -> Trio.Trio
-troikaToTrio (Troika cy tq) = case tq of
-  Left tl -> troiloadToTrio cy tl
-  Right dec -> Trio.QC rar cy ar
-    where
-      rar = repDecimal (Right Nothing) dec
-      ar = Arrangement CommodityOnLeft True
+troikaToTrio (Troika cy tl) = troiloadToTrio cy tl

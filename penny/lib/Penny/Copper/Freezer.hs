@@ -549,19 +549,10 @@ amount (Amount cy q) = case splitRepAnyRadix rep of
 
 -- | Succeeds if the 'Troika.Troiquant' is anything other than
 -- 'Troika.E'; otherwise, returns Nothing.
-troiquant
-  :: Commodity.Commodity
-  -> Troika.Troiquant
-  -> Maybe (Trio Char ())
-troiquant cy (Left tl) = troiload cy tl
-troiquant cy (Right dec) = Just $ amount (Amount cy dec)
-
--- | Succeeds if the 'Troika.Troiquant' is anything other than
--- 'Troika.E'; otherwise, returns Nothing.
 troika
   :: Troika.Troika
   -> Maybe (Trio Char ())
-troika (Troika.Troika cy tq) = troiquant cy tq
+troika (Troika.Troika cy tl) = troiload cy tl
 
 -- # Prices
 data PriceError

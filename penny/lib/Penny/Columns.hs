@@ -274,16 +274,13 @@ troimountCells env troimount = TroikaCells side onLeft magWithCy onRight
       | orient == CommodityOnLeft = cyChunk <> magnitude
       | otherwise = magnitude <> cyChunk
       where
-        magnitude = case troimount ^. troiquant of
-          Left troiload -> case troiload of
-            QC q _ -> qtyRepAnyRadixMagnitudeChunk env q
-            Q q -> qtyRepAnyRadixMagnitudeChunk env q
-            UC rnn _ _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
-            US rnn _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
-            _ -> qtyRepAnyRadixMagnitudeChunk env
-              . repDecimal grouper . c'Decimal'Troiload $ troiload
-          Right qty -> qtyRepAnyRadixMagnitudeChunk env
-            . repDecimal grouper $ qty
+        magnitude = case troimount ^. troiload of
+          QC q _ -> qtyRepAnyRadixMagnitudeChunk env q
+          Q q -> qtyRepAnyRadixMagnitudeChunk env q
+          UC rnn _ _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
+          US rnn _ -> brimScalarAnyRadixMagnitudeChunk env side rnn
+          _ -> qtyRepAnyRadixMagnitudeChunk env
+            . repDecimal grouper . c'Decimal'Troiload $ (troimount ^. troiload)
 
 troimountCellsToColumns
   :: Env
@@ -359,7 +356,7 @@ balance f env
   . view _Wrapped
   . f
   where
-    makeTroika (cy, qty) = Troika cy (Right qty)
+    makeTroika (cy, qty) = c'Troika'Amount (Amount cy qty)
 
 
 -- | Creates two columns, one for the forward serial and one for the
