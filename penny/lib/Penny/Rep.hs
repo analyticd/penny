@@ -2,6 +2,7 @@
 -- | Number representations that are not part of the grammar.
 module Penny.Rep where
 
+import qualified Control.Lens as Lens
 import Data.Coerce (coerce)
 import Data.Monoid ((<>))
 import Data.Sequence (Seq, (<|))
@@ -25,6 +26,11 @@ type RepRadPer = Moderated (NilRadPer Char ()) (BrimRadPer Char ())
 -- number is non-nil.
 type RepAnyRadix = Either RepRadCom RepRadPer
 
+oppositeRepAnyRadix :: RepAnyRadix -> RepAnyRadix
+oppositeRepAnyRadix
+  = Lens.over Lens._Left oppositeModerated
+  . Lens.over Lens._Right oppositeModerated
+
 -- | A non-neutral representation that does not include a side.
 type BrimAnyRadix = Either (BrimRadCom Char ()) (BrimRadPer Char ())
 
@@ -44,6 +50,7 @@ c'RepAnyRadix'BrimAnyRadix
 c'RepAnyRadix'BrimAnyRadix pole b = case b of
   Left brc -> Left . Extreme $ Polarized brc pole
   Right brp -> Right . Extreme $ Polarized brp pole
+
 
 t'NilOrBrimAnyRadix
   :: NilOrBrimAnyRadix

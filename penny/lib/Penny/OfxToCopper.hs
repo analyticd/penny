@@ -71,17 +71,6 @@ data OfxOut = OfxOut
 
 Lens.makeLenses ''OfxOut
 
-{-
--- | Creates a new transaction ready for "Penny.Copper.Freezer".
-ofxToTxnParts
-  :: OfxIn
-  -> OfxOut
-  -> TxnParts
-ofxToTxnParts inp out = TxnParts topLine pstgs
-  where
-    topLine = topLineTranche inp out
-    pstgs = [foreignPair inp out, offsettingPair inp out]
-
 topLineTranche
   :: OfxIn
   -> OfxOut
@@ -131,8 +120,8 @@ foreignPair inp out = (Tranche.Tranche () [] fields, amt)
 offsettingPair
   :: OfxIn
   -> OfxOut
-  -> (Tranche.Postline (), Amount)
-offsettingPair inp out = (Tranche.Tranche () [] fields, amt)
+  -> Tranche.Postline ()
+offsettingPair inp out = Tranche.Tranche () [] fields
   where
     fields = Fields.PostingFields
       { Fields._number = Nothing
@@ -146,12 +135,16 @@ offsettingPair inp out = (Tranche.Tranche () [] fields, amt)
       , Fields._origTime = Nothing
       , Fields._origZone = Nothing
       }
-    amt = Amount.Amount
-      { Amount._commodity = _commodity out
-      , Amount._qty = flipper . _qty $ inp
-      }
-      where
-        flipper | not $ _flipSign out = negate
-                | otherwise = id
+
+{-
+-- | Creates a new transaction ready for "Penny.Copper.Freezer".
+ofxToTxnParts
+  :: OfxIn
+  -> OfxOut
+  -> TxnParts
+ofxToTxnParts inp out = TxnParts topLine pstgs
+  where
+    topLine = topLineTranche inp out
+    pstgs = [foreignPair inp out, offsettingPair inp out]
 
 -}

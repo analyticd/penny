@@ -164,3 +164,19 @@ restrictedBalanced ne pole cy ar meta
           foldl addDecPositive b1 bs
           where
             NE.NonEmptySeq b1 bs = fmap (dBrimAnyRadix . fst) ne
+
+-- | Creates a 'Balanced'; never fails.  Unlike 'restrictedBalanced'
+-- this function creates only transactions that have exactly two
+-- postings.  The advantage of this function over 'restrictedBalanced'
+-- is that the quantity can be zero.
+twoPostingBalanced
+  :: (RepAnyRadix, a)
+  -- ^ Quantity and metadata for main posting
+  -> Commodity
+  -- ^ Both postings will have this commodity
+  -> Arrangement
+  -- ^ Both postings will be arranged in this fashion.
+  -> a
+  -- ^ Metadata for the offsetting posting
+  -> Balanced a
+twoPostingBalanced = undefined

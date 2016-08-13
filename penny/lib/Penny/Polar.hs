@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 module Penny.Polar where
 
-import Control.Lens
+import qualified Control.Lens as Lens
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
 
@@ -24,7 +24,10 @@ data Polarized a = Polarized
 
 instance PrettyVal a => PrettyVal (Polarized a)
 
-makeLenses ''Polarized
+Lens.makeLenses ''Polarized
+
+oppositePolarized :: Polarized a -> Polarized a
+oppositePolarized = Lens.over charge opposite
 
 -- | An object that might be polar.
 data Moderated n o
@@ -34,7 +37,10 @@ data Moderated n o
 
 instance (PrettyVal n, PrettyVal o) => PrettyVal (Moderated n o)
 
-makePrisms ''Moderated
+Lens.makePrisms ''Moderated
+
+oppositeModerated :: Moderated n o -> Moderated n o
+oppositeModerated = Lens.over _Extreme oppositePolarized
 
 pole'Moderated :: Moderated n o -> Maybe Pole
 pole'Moderated (Moderate _) = Nothing
