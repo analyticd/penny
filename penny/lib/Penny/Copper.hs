@@ -36,10 +36,14 @@
 -- library would ordinarily need.
 module Penny.Copper where
 
+import Accuerr (Accuerr)
+import qualified Accuerr
 import Control.Exception (Exception)
 import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Sequence.NonEmpty (NonEmptySeq)
+import qualified Data.Sequence.NonEmpty as NE
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Typeable (Typeable)
@@ -52,9 +56,9 @@ import Penny.Copper.Decopperize
 import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
 import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
+import Penny.Copper.Types (WholeFile)
 import Penny.Copper.Tracompri
 import Penny.Cursor
-import Penny.NonEmpty
 import Penny.Scalar
 import Penny.Tree
 
@@ -123,6 +127,24 @@ runParser grammar txt = case results of
     (results, report) = Pinchot.locatedFullParses grammar txt
     info = errorInfo txt report
 
+-- | Parses a particular production from
+-- 'Penny.Copper.Productions.Productions'.
+parseProduction
+  :: (forall r. Productions.Productions r Char Loc
+      -> Earley.Prod r String (Char, Loc) (p Char Loc))
+  -> Text
+  -> Either ParseError (p Char Loc)
+parseProduction getGrammar txt = case results of
+  result:[]
+    | Seq.null (Earley.unconsumed report) -> Right result
+    | otherwise -> Left (ParseError LeftoverInput info)
+  [] -> Left (ParseError AbortedParse info)
+  _ -> error "runParser: grammar is ambiguous."
+  where
+    (results, report) = Pinchot.locatedFullParses grammar txt
+    grammar = fmap getGrammar EarleyGrammar.earleyGrammar
+    info = errorInfo txt report
+
 -- | Creates a 'Tree' holding the filename.
 filenameTree :: Filename -> Tree
 filenameTree name = Tree (Just (SText "filename"))
@@ -140,25 +162,61 @@ appendFilenameTrees filename = Lens.over setter f
     setter = Lens.mapped . Lens._Right . Lens._1
     f sq = sq `Lens.snoc` (filenameTree filename)
 
-data ParseConvertProofError a
-  = ParseConvertProofError Filename
-                           (Either ParseError (NonEmpty (Proofer.ProofFail a)))
-  deriving (Typeable, Show)
+
+data ParseConvertProofError a = ParseConvertProofError
+  { _filenameWithError :: Filename
+  , _parseOrProofFailure
+      :: Either ParseError (NonEmptySeq (Proofer.ProofFail a))
+  } deriving (Typeable, Show)
+
+Lens.makeLenses ''ParseConvertProofError
 
 instance (Typeable a, Show a) => Exception (ParseConvertProofError a)
+
+-- | Takes the result of parsing a production and returns either the
+-- result or a ParseConvertProofError.
+parseResultToError
+  :: Filename
+  -> Either ParseError (p Char Loc)
+  -> Either (ParseConvertProofError a) (p Char Loc)
+parseResultToError filename
+  = either (Left . ParseConvertProofError filename . Left) Right
+
+-- | Takes the result of proofing items and returns either the result
+-- or a ParseConvertProofError.
+proofResultToError
+  :: Filename
+  -> Accuerr (NonEmptySeq (Proofer.ProofFail a)) (Seq (Tracompri Loc))
+  -> Either (ParseConvertProofError a) (Seq (Tracompri Cursor))
+proofResultToError filename ac = case ac of
+  Accuerr.AccFailure e -> Left . ParseConvertProofError filename
+    . Right $ e
+  Accuerr.AccSuccess g -> Right . fmap (fmap (Cursor filename)) $ g
 
 -- | Parses, converts, and proofs a single file.
 parseConvertProof
   :: (Filename, Text)
-  -> Either (ParseConvertProofError Loc) (Seq (Tracompri Cursor))
+  -> Either (ParseConvertProofError Loc)
+            (WholeFile Char Loc, (Seq (Tracompri Cursor)))
 parseConvertProof (filename, txt) = do
-  wholeFile <- either (Left . ParseConvertProofError filename . Left) Right
-    $ runParser grammar txt
-  let seqS3 = dWholeFile wholeFile
-  case Proofer.proofItems seqS3 of
-    Accuerr.AccFailure e -> Left . ParseConvertProofError filename
-      . Right $ e
-    Accuerr.AccSuccess g -> Right . fmap (fmap (Cursor filename)) $ g
-  where
-    grammar = fmap Productions.a'WholeFile EarleyGrammar.earleyGrammar
+  wholeFile <- parseResultToError filename
+    $ parseProduction Productions.a'WholeFile txt
+  res <- proofResultToError filename . Proofer.proofItems . dWholeFile
+            $ wholeFile
+  return (wholeFile, res)
 
+parseConvertProofAccuerr
+  :: (Filename, Text)
+  -> Accuerr (NonEmptySeq (ParseConvertProofError Loc))
+             (WholeFile Char Loc, Seq (Tracompri Cursor))
+parseConvertProofAccuerr
+  = Lens.over Accuerr._AccFailure NE.singleton
+  . Accuerr.eitherToAccuerr
+  . parseConvertProof
+
+-- | Parses, converts, and proofs a series of files.
+parseConvertProofFiles
+  :: Seq (Filename, Text)
+  -> Accuerr (NonEmptySeq (ParseConvertProofError Loc))
+             (Seq (WholeFile Char Loc, Seq (Tracompri Cursor)))
+parseConvertProofFiles = traverse parseConvertProofAccuerr

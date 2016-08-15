@@ -24,7 +24,6 @@ import Penny.Copper.PriceParts
 import Penny.Copper.Tracompri
 import Penny.Ents
 import qualified Penny.Fields as F
-import Penny.NonEmpty
 import Penny.Price
 import Penny.Scalar
 import Penny.SeqUtil
@@ -43,6 +42,8 @@ import Data.Maybe (fromMaybe, isNothing)
 import Data.OFX (TrnType)
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Sequence.NonEmpty (NonEmptySeq)
+import qualified Data.Sequence.NonEmpty as NE
 import Data.Sums (S3(S3a, S3b, S3c))
 import Data.Text (Text)
 import qualified Data.Text as X
@@ -124,12 +125,12 @@ labeledChild lbl prism tree = do
 -- | If this tree has no scalar and all child trees have a 'SText'
 -- scalar, and there is at least one child tree, return those
 -- scalars.
-findAccount :: Tree -> Maybe (NonEmpty Text)
+findAccount :: Tree -> Maybe (NonEmptySeq Text)
 findAccount t = do
   guard . isNothing . _scalar $ t
   scalars <- traverse childlessTree . _children $ t
   texts <- traverse (Lens.preview _SText) scalars
-  nonEmpty texts
+  NE.seqToNonEmptySeq texts
 
 -- | If this tree is labeled @fitid@ and has a single child tree
 -- that is also a childless tree whose scalar is an SText,
@@ -161,21 +162,21 @@ findOrigZone = labeledChild "origZone" _SZone
 -- | If this tree is labeled @tags@ and each child tree is also a
 -- childless tree with a 'SText' scalar, and there is at least
 -- one child tree, return those scalars.
-findTags :: Tree -> Maybe (NonEmpty Text)
+findTags :: Tree -> Maybe (NonEmptySeq Text)
 findTags t = do
   children <- labeledTree "tags" t
   scalars <- traverse childlessTree children
   texts <- traverse (Lens.preview _SText) scalars
-  nonEmpty texts
+  NE.seqToNonEmptySeq texts
 
 getPostingFields :: Seq Tree -> (F.PostingFields, Seq Tree)
 getPostingFields = St.runState k
   where
     k = F.PostingFields <$> yankSt findNumber
       <*> yankSt findFlag
-      <*> fmap (maybe Seq.empty seqFromNonEmpty) (yankSt findAccount)
+      <*> fmap (maybe Seq.empty NE.nonEmptySeqToSeq) (yankSt findAccount)
       <*> yankSt findFitid
-      <*> fmap (maybe Seq.empty seqFromNonEmpty) (yankSt findTags)
+      <*> fmap (maybe Seq.empty NE.nonEmptySeqToSeq) (yankSt findTags)
       <*> yankSt findUid
       <*> yankSt findTrnType
       <*> yankSt findOrigDay
@@ -216,13 +217,14 @@ balancedFromPostings
   :: Seq (a, Trio, Seq Tree)
   -- ^ Location, trio, forest
   -> Either (ProofFail a) (Balanced (Postline a))
-balancedFromPostings sq = case nonEmpty sq of
+balancedFromPostings sq = case NE.seqToNonEmptySeq sq of
   Nothing -> return mempty
-  Just ne@(NonEmpty (pos, _, _) _) -> case foldM addPostingToEnts mempty ne of
-    Left e -> Left e
-    Right g -> case entsToBalanced g of
-      Left e -> Left (ProofFail pos (Imbalanced e))
-      Right g -> return g
+  Just ne@(NE.NonEmptySeq (pos, _, _) _) ->
+    case foldM addPostingToEnts mempty ne of
+      Left e -> Left e
+      Right g -> case entsToBalanced g of
+        Left e -> Left (ProofFail pos (Imbalanced e))
+        Right g -> return g
 
 price
   :: PriceParts a
@@ -235,24 +237,24 @@ price pp = case makeFromTo (_priceFrom pp) (_priceTo pp) of
 
 proofItem
   :: S3 (PriceParts a) Text (TxnParts a)
-  -> Accuerr (NonEmpty (ProofFail a)) (Tracompri a)
+  -> Accuerr (NonEmptySeq (ProofFail a)) (Tracompri a)
 proofItem s3 = case s3 of
   S3a p -> case price p of
-    Left e -> Accuerr.AccFailure (singleton e)
+    Left e -> Accuerr.AccFailure (NE.singleton e)
     Right g -> Accuerr.AccSuccess (Tracompri'Price g)
   S3b x -> pure (Tracompri'Comment x)
   S3c (loc, topLine, pstgs) -> fmap Tracompri'Transaction
     $ Transaction <$> tlf <*> bal
     where
       tlf = case getTopLineFields loc topLine of
-        Left e -> Accuerr.AccFailure (singleton e)
+        Left e -> Accuerr.AccFailure (NE.singleton e)
         Right (fields, aux) -> Accuerr.AccSuccess
           (Tranche loc aux fields)
       bal = case balancedFromPostings pstgs of
-        Left e -> Accuerr.AccFailure (singleton e)
+        Left e -> Accuerr.AccFailure (NE.singleton e)
         Right g -> Accuerr.AccSuccess g
 
 proofItems
   :: Seq (S3 (PriceParts a) Text (TxnParts a))
-  -> Accuerr (NonEmpty (ProofFail a)) (Seq (Tracompri a))
+  -> Accuerr (NonEmptySeq (ProofFail a)) (Seq (Tracompri a))
 proofItems = traverse proofItem

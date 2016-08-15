@@ -5,9 +5,5 @@ flags:
 packages:
 - 'penny/'
 - 'penny-copper/'
-- 'ofx-0.4.4.0/'
 
-extra-deps:
-- pinchot-0.20.0.0
-
-resolver: nightly-2016-08-06
+resolver: nightly-2016-08-13

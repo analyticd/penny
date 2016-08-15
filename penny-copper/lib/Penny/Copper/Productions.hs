@@ -7,4 +7,4 @@ import qualified Penny.Copper.Types as Types
 
 import Pinchot (allRulesRecord)
 
-$(allRulesRecord "Types" [wholeFile, nilOrBrimRadCom, nilOrBrimRadPer])
+$(allRulesRecord "Types" allRules)

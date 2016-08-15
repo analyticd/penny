@@ -120,7 +120,7 @@ accuerr :: Package
 accuerr = atleast "accuerr" [0,2,0,0]
 
 ofx :: Package
-ofx = atleast "ofx" [0,4,4,0]
+ofx = atleast "ofx" [0,4,2,0]
 
 parsec :: Package
 parsec = atleast "parsec" [3,1,9]
@@ -136,6 +136,9 @@ templateHaskell = atleast "template-haskell" [2,10]
 
 nonEmptySequence :: Package
 nonEmptySequence = atleast "non-empty-sequence" [0,2]
+
+optparseApplicative :: Package
+optparseApplicative = atleast "optparse-applicative" [0,12]
 
 pennyCopper :: Package
 pennyCopper = exactly "penny-copper" pennyVer
@@ -187,6 +190,7 @@ libraryDepends =
   , prettyShow
   , templateHaskell
   , nonEmptySequence
+  , optparseApplicative
   , pennyCopper
   ]
 

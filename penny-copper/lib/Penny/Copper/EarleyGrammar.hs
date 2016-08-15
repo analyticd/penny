@@ -10,5 +10,4 @@ import qualified Pinchot
 import qualified Text.Earley as Earley
 
 earleyGrammar :: Earley.Grammar r (Productions.Productions r Char a)
-earleyGrammar = $(Pinchot.earleyProduct "Types" "Productions"
-  [wholeFile, nilOrBrimRadCom, nilOrBrimRadPer])
+earleyGrammar = $(Pinchot.earleyProduct "Types" "Productions" allRules)
