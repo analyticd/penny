@@ -1,9 +1,4 @@
-flags:
-  penny:
-    copper: false
-
 packages:
 - 'penny/'
-- 'penny-copper/'
 
 resolver: nightly-2016-08-13

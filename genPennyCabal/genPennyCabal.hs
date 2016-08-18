@@ -110,11 +110,11 @@ hspec = atleast "hspec" [2,2]
 monoidSubclasses :: Package
 monoidSubclasses = atleast "monoid-subclasses" [0,4,1]
 
-pinchot :: Package
-pinchot = atleast "pinchot" [0,18,2,0]
-
 earley :: Package
 earley = atleast "Earley" [0,10,1,0]
+
+pinchot :: Package
+pinchot = atleast "pinchot" [0,18,2,0]
 
 accuerr :: Package
 accuerr = atleast "accuerr" [0,2,0,0]
@@ -140,17 +140,12 @@ nonEmptySequence = atleast "non-empty-sequence" [0,2]
 optparseApplicative :: Package
 optparseApplicative = atleast "optparse-applicative" [0,12]
 
-pennyCopper :: Package
-pennyCopper = exactly "penny-copper" pennyVer
-
-
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
-  [ ghcOptions ["-W", "-threaded"]
+  [ ghcOptions ["-W"]
   , haskell2010
   , hsSourceDirs ["lib"]
   , otherExtensions ["TemplateHaskell"]
-  , buildTools [unconstrained "happy"]
   ]
 
 libraryDepends :: [Package]
@@ -191,7 +186,6 @@ libraryDepends =
   , templateHaskell
   , nonEmptySequence
   , optparseApplicative
-  , pennyCopper
   ]
 
 testDepends :: [Package]
@@ -213,12 +207,7 @@ props = blank
   , bugReports = "http://www.github.com/massysett/penny/issues"
   , synopsis = "Extensible double-entry accounting system"
   , extraSourceFiles = ["README.md"]
-  , dataFiles =
-    [ "style/jquery.js"
-    , "style/jquery-src.js"
-    , "style/pretty-show.js"
-    , "style/pretty-show.css"
-    ]
+  , dataFiles = []
   , description =
     [ "Penny is a double-entry accounting system."
     , ""
@@ -235,27 +224,12 @@ main :: IO ()
 main = defaultMain $ do
   libMods <- modules "../penny/lib"
   -- testMods <- modules "tests"
-  copper <- makeFlag "copper"
-    FlagOpts { flagDescription = "create copper-parse executable"
-             , flagDefault = False
-             , flagManual = True
-             }
   return
     ( props
     ,   exposedModules libMods
       : buildDepends libraryDepends
       : commonOptions
-    , [ githubHead "massysett" "penny"
-      , executable "copper-parse" $
-          [ mainIs "copper-parse.hs"
-          , condBlock (flag copper)
-              ( otherModules libMods
-              , [ hsSourceDirs ["copper-parse"]
-                , buildDepends libraryDepends
-                ] ++ commonOptions
-              )
-              [ buildable False ]
-          ]
+    , [ githubHead "massysett" "penny" ]
 {-
       , testSuite "penny-properties" $
         exitcodeFields "penny-properties.hs" ++
@@ -266,5 +240,4 @@ main = defaultMain $ do
         , otherModules libMods
         ]
 -}
-      ]
     )
