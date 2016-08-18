@@ -450,8 +450,8 @@ freshPosting
   -> Map Account (Set Text)
   -> Bool
 freshPosting inp out lkp = case Map.lookup acctName lkp of
-  Nothing -> False
-  Just set -> Set.member fitid set
+  Nothing -> True
+  Just set -> not $ Set.member fitid set
   where
     acctName = _foreignAccount out
     fitid = X.pack . OFX.txFITID . _ofxTxn $ inp
