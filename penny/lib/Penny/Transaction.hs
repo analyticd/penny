@@ -18,7 +18,7 @@ import qualified Control.Lens as Lens
 data Transaction a = Transaction
   { _topLine :: TopLine a
   , _postings :: Balanced (Postline a)
-  } deriving (Functor, Foldable, Traversable)
+  } deriving (Show, Functor, Foldable, Traversable)
 
 Lens.makeLenses ''Transaction
 

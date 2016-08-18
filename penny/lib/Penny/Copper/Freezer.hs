@@ -104,6 +104,7 @@ data ScalarError
   | InvalidTime TimeOfDay
   | InvalidZone Int
   | InvalidLabel Text
+  deriving Show
 
 -- | Creates a single Scalar from a Text.  Never fails.
 scalarText :: Text -> Scalar Char ()
@@ -559,6 +560,7 @@ data PriceError
   = BadPriceDay Time.Day
   | BadPriceZone Time.TimeZone
   | BadPriceTime Time.TimeOfDay
+  deriving Show
 
 price
   :: PriceParts a
@@ -610,6 +612,7 @@ data TracompriError a
   | TracompriBadPrice (PriceParts a) PriceError
   -- ^ Could not freeze a price.  The entire 'PriceParts' is here,
   -- along with the error.
+  deriving Show
 
 tracompriComment
   :: Text

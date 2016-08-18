@@ -272,3 +272,11 @@ formatWholeFile
     getFirstFi = r'WholeFile'0'WhitesFileItem'Star
       . Lens._Wrapped' . Lens._Cons . Lens._1
       . r'WhitesFileItem'1'FileItem
+
+-- | Appends two 'WholeFile' together, while adding a single newline
+-- between them.
+appendWholeFileWithSeparator
+  :: WholeFile Char () -> WholeFile Char () -> WholeFile Char ()
+appendWholeFileWithSeparator w1 w2 = w1 `mappend` (blank `mappend` w2)
+  where
+    blank = WholeFile mempty (cWhite'Star 1 cWhite'Newline)

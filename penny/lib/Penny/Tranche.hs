@@ -27,7 +27,7 @@ data Tranche b a = Tranche
   -- not one of the usual fields.
   , _fields :: b
   -- ^ Field data.
-  } deriving (Functor, Foldable, Traversable, Generic)
+  } deriving (Show, Functor, Foldable, Traversable, Generic)
 
 prettyTranche
   :: (b -> Value)

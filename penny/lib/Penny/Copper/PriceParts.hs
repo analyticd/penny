@@ -15,7 +15,7 @@ data PriceParts a = PriceParts
   , _priceFrom :: Commodity
   , _priceTo :: Commodity
   , _priceExch :: Decimal
-  } deriving (Functor, Foldable, Traversable)
+  } deriving (Show, Functor, Foldable, Traversable)
 
 makeLenses ''PriceParts
 
