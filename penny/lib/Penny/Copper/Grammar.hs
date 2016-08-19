@@ -340,7 +340,7 @@ time = record "Time" [hours, colon, minutes, maybeSeconds]
 plusSign = terminal "Plus" $ solo '+'
 minus = terminal "Minus" $ solo '-'
 pluMin = union "PluMin" [plusSign, minus]
-zoneHrsMins = record "ZoneHrsMins" [pluMin, d0'2, d0'3, d0'9, d0'9]
+zoneHrsMins = record "ZoneHrsMins" [pluMin, d0'2, d0'3, d0'5, d0'9]
 backtick = terminal "Backtick" $ solo '`'
 zone = record "Zone" [backtick, zoneHrsMins]
 

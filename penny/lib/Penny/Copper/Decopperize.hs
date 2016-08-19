@@ -198,11 +198,17 @@ dZoneHrsMins :: ZoneHrsMins t a -> Time.TimeZone
 dZoneHrsMins (ZoneHrsMins pm d3 d2 d1 d0) = Time.TimeZone mins False ""
   where
     mins = dPluMin pm . c'Int'Integer . NN.c'Integer'NonNegative
-      $ (dD0'2 d3 `raise` NN.three)
-      `NN.add` (dD0'3 d2 `raise` NN.two)
-      `NN.add` (dD0'9 d1 `raise` NN.one)
-      `NN.add` (dD0'9 d0)
-    raise b p = b `NN.mult` (NN.ten `NN.pow` p)
+      $ hourMinutes `NN.add` minutes
+      where
+        hourMinutes = numberOfHours `NN.mult` sixty
+          where
+            sixty = NN.six `raise` NN.one
+            numberOfHours = (dD0'2 d3 `raise` NN.one)
+              `NN.add` (dD0'3 d2)
+        minutes = (dD0'5 d1 `raise` NN.one)
+          `NN.add` (dD0'9 d0)
+        raise b p = b `NN.mult` (NN.ten `NN.pow` p)
+
 
 dZone :: Zone t a -> Time.TimeZone
 dZone (Zone _ z) = dZoneHrsMins z

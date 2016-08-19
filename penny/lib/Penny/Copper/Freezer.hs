@@ -28,7 +28,6 @@ import qualified Penny.Transaction as Txn (Transaction(Transaction))
 import qualified Penny.Troika as Troika
 
 import qualified Control.Lens as Lens
-import Control.Monad ((>=>))
 import Data.Semigroup (Semigroup((<>)))
 import Accuerr (Accuerr)
 import qualified Accuerr
@@ -79,25 +78,38 @@ integer i = case NZ.c'NonZero'Integer i of
           p = Lens.view NZ.pole nz
       (d1, ds) = positiveDigits . NZ.c'Positive'NonZero $ nz
 
+-- | Takes an integer and returns a two-digit number, up to 23.
+twoDigitUpTo23
+  :: Int
+  -> Maybe (D0'2 Char (), D0'3 Char ())
+twoDigitUpTo23 i = do
+  let (d1Int, d0Int) = i `divMod` 10
+  d1 <- c'D0'2'Int d1Int
+  d0 <- c'D0'3'Int d0Int
+  return (d1, d0)
+
+-- | Takes an integer and returns a two-digit number, up to 59.
+twoDigitUpTo59
+  :: Int
+  -> Maybe (D0'5 Char (), D0'9 Char ())
+twoDigitUpTo59 i = do
+  let (d1Int, d0Int) = i `divMod` 10
+  d1 <- c'D0'5'Int d1Int
+  d0 <- c'D0'9'Int d0Int
+  return (d1, d0)
+
+-- BROKEN
+-- Also check decopperization
 zone
   :: Int
   -> Maybe (Zone Char ())
 zone i = do
   let (pm, i') | i >= 0 = (PluMin'Plus cPlus, i)
                | otherwise = (PluMin'Minus cMinus, negate i)
-  (r, _) <- zoneDigit3 >=> zoneDigit2 >=> zoneDigit1 >=> zoneDigit0
-    $ (\d3 d2 d1 d0 -> Zone cBacktick $ ZoneHrsMins pm d3 d2 d1 d0, i')
-  return r
-  where
-    zoneDigit mk divisor (f, i) =
-      let (d, m) = i `divMod` divisor
-      in case mk d of
-          Nothing -> Nothing
-          Just dig -> Just (f dig, m)
-    zoneDigit3 = zoneDigit c'D0'2'Int 1000
-    zoneDigit2 = zoneDigit c'D0'3'Int 100
-    zoneDigit1 = zoneDigit c'D0'9'Int 10
-    zoneDigit0 = zoneDigit c'D0'9'Int 1
+  let (hrsInt, minsInt) = i' `divMod` 60
+  (d3, d2) <- twoDigitUpTo23 hrsInt
+  (d1, d0) <- twoDigitUpTo59 minsInt
+  return . Zone cBacktick $ ZoneHrsMins pm d3 d2 d1 d0
 
 data ScalarError
   = InvalidDay Day

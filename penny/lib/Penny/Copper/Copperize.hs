@@ -1254,7 +1254,7 @@ cZone
   -- ^ Positive or negative
   -> D0'2 Char ()
   -> D0'3 Char ()
-  -> D0'9 Char ()
+  -> D0'5 Char ()
   -> D0'9 Char ()
   -> Zone Char ()
 cZone p d0 d1 d2 d3 = Zone cBacktick

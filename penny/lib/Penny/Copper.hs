@@ -47,7 +47,6 @@ import qualified Data.Sequence.NonEmpty as NE
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Typeable (Typeable)
-import qualified Accuerr
 import qualified Text.Earley as Earley
 import Pinchot (Loc(Loc))
 import qualified Pinchot
