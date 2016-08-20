@@ -19,6 +19,9 @@ module Penny.SeqUtil
   , yank
   , yankSt
   , Groups(..)
+  , leaders
+  , middle
+  , trailers
   , groupEithers
   , filterM
   , intersperse
@@ -169,6 +172,8 @@ data Groups a b = Groups
   , _middle :: Seq (NonEmptySeq a, NonEmptySeq b)
   , _trailers :: Seq a
   }
+
+makeLenses ''Groups
 
 groupEithers
   :: Seq (Either a b)

@@ -138,13 +138,6 @@ c'D0'1'Int x = case x of
   1 -> Just $ D0'1'One cOne
   _ -> Nothing
 
-c'D0'2'Int :: Integral a => a -> Maybe (D0'2 Char ())
-c'D0'2'Int x = case x of
-  0 -> Just $ D0'2'Zero (Zero ('0', ()))
-  1 -> Just $ D0'2'One (One ('1', ()))
-  2 -> Just $ D0'2'Two (Two ('2', ()))
-  _ -> Nothing
-
 c'D0'3'Int :: Integral a => a -> Maybe (D0'3 Char ())
 c'D0'3'Int x = case x of
   0 -> Just $ D0'3'Zero (Zero ('0', ()))
@@ -345,7 +338,7 @@ cGreaterThan :: GreaterThan Char ()
 cGreaterThan = GreaterThan ('>', ())
 
 cOpenSquare :: OpenSquare Char ()
-cOpenSquare = OpenSquare (']', ())
+cOpenSquare = OpenSquare ('[', ())
 
 cCloseSquare :: CloseSquare Char ()
 cCloseSquare = CloseSquare (']', ())
@@ -1248,20 +1241,6 @@ cTime h (m1, m2) s = Time h cColon (Minutes (N0'59 m1 m2)) s'
       Nothing -> ColonSeconds'Opt Nothing
       Just (s1, s2) -> ColonSeconds'Opt (Just (ColonSeconds cColon
         (Seconds (N0'59 s1 s2))))
-
-cZone
-  :: Pole
-  -- ^ Positive or negative
-  -> D0'2 Char ()
-  -> D0'3 Char ()
-  -> D0'5 Char ()
-  -> D0'9 Char ()
-  -> Zone Char ()
-cZone p d0 d1 d2 d3 = Zone cBacktick
-  (ZoneHrsMins pm d0 d1 d2 d3)
-  where
-    pm | p == positive = PluMin'Plus cPlus
-       | otherwise = PluMin'Minus cMinus
 
 space :: White'Star Char ()
 space = White'Star . Seq.singleton

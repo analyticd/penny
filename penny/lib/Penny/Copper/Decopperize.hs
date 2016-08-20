@@ -94,12 +94,6 @@ dD0'1 x = case x of
   D0'1'Zero _ -> NN.zero
   D0'1'One _ -> NN.one
 
-dD0'2 :: D0'2 t a -> NonNegative
-dD0'2 x = case x of
-  D0'2'Zero _ -> NN.zero
-  D0'2'One _ -> NN.one
-  D0'2'Two _ -> NN.two
-
 dD0'3 :: D0'3 t a -> NonNegative
 dD0'3 x = case x of
   D0'3'Zero _ -> NN.zero
@@ -195,19 +189,15 @@ dPluMin'Opt (PluMin'Opt m) = case m of
   Just a -> dPluMin a
 
 dZoneHrsMins :: ZoneHrsMins t a -> Time.TimeZone
-dZoneHrsMins (ZoneHrsMins pm d3 d2 d1 d0) = Time.TimeZone mins False ""
+dZoneHrsMins (ZoneHrsMins pm hrs mins) = Time.TimeZone totMins False ""
   where
-    mins = dPluMin pm . c'Int'Integer . NN.c'Integer'NonNegative
+    totMins = dPluMin pm . c'Int'Integer . NN.c'Integer'NonNegative
       $ hourMinutes `NN.add` minutes
       where
-        hourMinutes = numberOfHours `NN.mult` sixty
+        hourMinutes = dHours hrs `NN.mult` sixty
           where
-            sixty = NN.six `raise` NN.one
-            numberOfHours = (dD0'2 d3 `raise` NN.one)
-              `NN.add` (dD0'3 d2)
-        minutes = (dD0'5 d1 `raise` NN.one)
-          `NN.add` (dD0'9 d0)
-        raise b p = b `NN.mult` (NN.ten `NN.pow` p)
+            sixty = NN.six `NN.mult` NN.ten
+        minutes = dMinutes mins
 
 
 dZone :: Zone t a -> Time.TimeZone

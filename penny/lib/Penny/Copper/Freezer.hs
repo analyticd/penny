@@ -78,26 +78,6 @@ integer i = case NZ.c'NonZero'Integer i of
           p = Lens.view NZ.pole nz
       (d1, ds) = positiveDigits . NZ.c'Positive'NonZero $ nz
 
--- | Takes an integer and returns a two-digit number, up to 23.
-twoDigitUpTo23
-  :: Int
-  -> Maybe (D0'2 Char (), D0'3 Char ())
-twoDigitUpTo23 i = do
-  let (d1Int, d0Int) = i `divMod` 10
-  d1 <- c'D0'2'Int d1Int
-  d0 <- c'D0'3'Int d0Int
-  return (d1, d0)
-
--- | Takes an integer and returns a two-digit number, up to 59.
-twoDigitUpTo59
-  :: Int
-  -> Maybe (D0'5 Char (), D0'9 Char ())
-twoDigitUpTo59 i = do
-  let (d1Int, d0Int) = i `divMod` 10
-  d1 <- c'D0'5'Int d1Int
-  d0 <- c'D0'9'Int d0Int
-  return (d1, d0)
-
 -- BROKEN
 -- Also check decopperization
 zone
@@ -107,9 +87,9 @@ zone i = do
   let (pm, i') | i >= 0 = (PluMin'Plus cPlus, i)
                | otherwise = (PluMin'Minus cMinus, negate i)
   let (hrsInt, minsInt) = i' `divMod` 60
-  (d3, d2) <- twoDigitUpTo23 hrsInt
-  (d1, d0) <- twoDigitUpTo59 minsInt
-  return . Zone cBacktick $ ZoneHrsMins pm d3 d2 d1 d0
+  hours <- c'Hours'Int hrsInt
+  minutes <- c'Minutes'Int minsInt
+  return . Zone cBacktick $ ZoneHrsMins pm hours minutes
 
 data ScalarError
   = InvalidDay Day
@@ -667,7 +647,9 @@ tracompriPosting txn (tk, pl) = case postline pl of
   Accuerr.AccFailure errs -> Accuerr.AccFailure . NE.singleton
     $ TracompriBadForest txn errs
   Accuerr.AccSuccess mayForest -> case troika tk of
-    Nothing -> Accuerr.AccFailure . NE.singleton $ TracompriEmptyPosting txn
+    Nothing -> case mayForest of
+      Nothing -> Accuerr.AccFailure . NE.singleton $ TracompriEmptyPosting txn
+      Just bf -> Accuerr.AccSuccess . Posting'BracketedForest $ bf
     Just tri -> Accuerr.AccSuccess
       $ Posting'TrioMaybeForest $ TrioMaybeForest tri mayWhitesBf
       where

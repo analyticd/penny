@@ -9,7 +9,7 @@
 -- optional (either with 'opt' or with 'star' or 'plus'.)  In that
 -- case, the whitespace should appear within the optional production
 -- and should appear first.
-module Penny.Copper.Grammar where
+module Penny.Copper.Grammar (allRules) where
 
 import Pinchot (terminal, solo, union, plus, star, pariah, include,
   record, opt, nonTerminal, wrap, Rule)
@@ -43,9 +43,6 @@ d0'8 = union "D0'8"
 
 -- Digit from 0 through 1
 d0'1 = union "D0'1" [zero, one]
-
--- Digit from 0 through 2
-d0'2 = union "D0'2" [zero, one, two]
 
 -- Digit from 0 through 3
 d0'3 = union "D0'3" [zero, one, two, three]
@@ -340,7 +337,7 @@ time = record "Time" [hours, colon, minutes, maybeSeconds]
 plusSign = terminal "Plus" $ solo '+'
 minus = terminal "Minus" $ solo '-'
 pluMin = union "PluMin" [plusSign, minus]
-zoneHrsMins = record "ZoneHrsMins" [pluMin, d0'2, d0'3, d0'5, d0'9]
+zoneHrsMins = record "ZoneHrsMins" [pluMin, hours, minutes]
 backtick = terminal "Backtick" $ solo '`'
 zone = record "Zone" [backtick, zoneHrsMins]
 
