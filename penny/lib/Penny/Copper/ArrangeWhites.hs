@@ -8,7 +8,7 @@
 -- In Copper's grammar, generally whitespace precedes items.
 -- One exception is the comment, which already contains a newline at the end.
 -- Functions in this file add whitespace between items.  This is
--- the job of 'precedeNonCommentWithNewline' and
+-- the job of 'precedeNonCommentWithBlankLine' and
 
 module Penny.Copper.ArrangeWhites where
 
@@ -17,12 +17,10 @@ import Penny.Copper.Optics
 import Penny.Copper.Copperize
 
 import qualified Control.Lens as Lens
-import qualified Control.Lens.Extras as Lens (is)
 import Control.Monad (join)
 import Data.Monoid ((<>))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Sequence ((<|))
 import qualified Data.Sequence.NonEmpty as NE
 import Penny.SeqUtil (Groups)
 import qualified Penny.SeqUtil as SeqUtil
@@ -44,6 +42,17 @@ emptyWhiteStarToNewline = Lens.over Lens._Wrapped' f
     f sq
       | Seq.null sq = Seq.singleton cWhite'Newline
       | otherwise = sq
+
+-- | Adds a preceding newline to a 'White'Star', regardless of its
+-- contents.
+addNewlineToWhiteStar :: White'Star Char () -> White'Star Char ()
+addNewlineToWhiteStar (White'Star sq)
+  = White'Star (cWhite'Newline `Lens.cons` sq)
+
+-- | Adds two newlines to a 'White'Star'.
+insertBlankLine :: White'Star Char () -> White'Star Char ()
+insertBlankLine (White'Star sq)
+  = White'Star (cWhite'Newline `Lens.cons` cWhite'Newline `Lens.cons` sq)
 
 -- | Formats a 'Forest' so that a single space separates each
 -- 'Tree'.
@@ -218,19 +227,13 @@ formatPrice
   . Lens.over r'Price'5'White'Star emptyWhiteStarToSingleSpace
   . Lens.over r'Price'7'White'Star emptyWhiteStarToSingleSpace
 
-formatFileItem :: FileItem Char () -> FileItem Char ()
-formatFileItem
-  = Lens.over _FileItem'Price formatPrice
-  . Lens.over _FileItem'Transaction formatTransaction
-
 -- | Adds a newline to the front of the 'WhitesFileItem', but
 -- only if the 'FileItem' is not a 'Comment'.
--- BROKEN does a lot more than documentation suggests
-precedeNonCommentWithNewline :: WhitesFileItem Char () -> WhitesFileItem Char ()
-precedeNonCommentWithNewline (WhitesFileItem ws it) = case it of
-  FileItem'Price _ -> WhitesFileItem (emptyWhiteStarToNewline ws) (formatFileItem it)
-  FileItem'Transaction _ -> WhitesFileItem (emptyWhiteStarToNewline ws) (formatFileItem it)
-  FileItem'Comment _ -> WhitesFileItem ws (formatFileItem it)
+precedeNonCommentWithBlankLine :: WhitesFileItem Char () -> WhitesFileItem Char ()
+precedeNonCommentWithBlankLine wfi@(WhitesFileItem ws it) = case it of
+  FileItem'Price _ -> WhitesFileItem (insertBlankLine ws) it
+  FileItem'Transaction _ -> WhitesFileItem (insertBlankLine ws) it
+  _ -> wfi
 
 data NonComment t a
   = NonComment'Transaction (White'Star t a, Transaction t a)
@@ -249,8 +252,8 @@ splitFileItem (WhitesFileItem ws fi) = case fi of
 
 groupsToFileItems
   :: SeqUtil.Groups (White'Star t a, Comment t a) (NonComment t a)
-  -> WhitesFileItem'Star t a
-groupsToFileItems groups = WhitesFileItem'Star (g1 <> g2 <> g3)
+  -> Seq (WhitesFileItem t a)
+groupsToFileItems groups = g1 <> g2 <> g3
   where
     g1 = fmap unNonComment . SeqUtil._leaders $ groups
     g2 = join . fmap unPair . SeqUtil._middle $ groups
@@ -322,14 +325,14 @@ addWhitespaceBeforeCommentGroups
   :: Groups (White'Star Char (), Comment Char ()) (NonComment Char ())
   -> Groups (White'Star Char (), Comment Char ()) (NonComment Char ())
 addWhitespaceBeforeCommentGroups
-  = Lens.over middleLeadingWhitespacesIfNotFirst emptyWhiteStarToNewline
-  . Lens.over trailerLeadingWhitespace emptyWhiteStarToNewline
+  = Lens.over middleLeadingWhitespacesIfNotFirst insertBlankLine
+  . Lens.over trailerLeadingWhitespace insertBlankLine
   . addToFirstCommentGroupIfNoLeaders
   where
     addToFirstCommentGroupIfNoLeaders groups
       | Seq.null (SeqUtil._leaders groups) = groups
       | otherwise = Lens.over
-          middleLeadingCommentGroupWhitespaces emptyWhiteStarToNewline groups
+          middleLeadingCommentGroupWhitespaces insertBlankLine groups
 
 -- | Traverses a sequence of 'WhitesFileItem'.  For each comment,
 -- adds a newline to the front, but only if the preceding 'FileItem'
@@ -341,21 +344,16 @@ addWhitespaceBeforeCommentGroups
 -- block of comments, we want to have only a single blank line
 -- preceding that block of comments, but no additional newlines
 -- between each comment line.
-precedeCommentBlocksWithNewline
+--
+-- Does not add whitespace before the first comment block.
+precedeCommentBlocksWithBlankLine
   :: Seq (WhitesFileItem Char ())
   -> Seq (WhitesFileItem Char ())
-precedeCommentBlocksWithNewline sq = case Lens.uncons sq of
-  Nothing -> Seq.empty
-  Just (x, xs) -> case Lens.uncons xs of
-    Nothing -> Seq.singleton x
-    Just (y, ys)
-      | not (isComment x) && isComment y -> x <| preNewline y <|
-          precedeCommentBlocksWithNewline ys
-      | otherwise -> x <| precedeCommentBlocksWithNewline xs
-      where
-        isComment = Lens.is _FileItem'Comment
-          . Lens.view r'WhitesFileItem'1'FileItem
-        preNewline = Lens.over r'WhitesFileItem'0'White'Star emptyWhiteStarToNewline
+precedeCommentBlocksWithBlankLine
+  = groupsToFileItems
+  . addWhitespaceBeforeCommentGroups
+  . SeqUtil.groupEithers
+  . fmap splitFileItem
 
 -- | Gets the 'Seq' of 'WhitesFileItem' that are after the first
 -- 'WhitesFileItem'.
@@ -398,9 +396,11 @@ formatWholeFile
   -> WholeFile Char ()
 formatWholeFile
   = Lens.over (tailWhitesFileItemsInWholeFile . Lens.mapped)
-              precedeNonCommentWithNewline
-  . Lens.over tailWhitesFileItemsInWholeFile precedeCommentBlocksWithNewline
-  . Lens.over firstFileItem formatFileItem
+              precedeNonCommentWithBlankLine
+  . Lens.over (r'WholeFile'0'WhitesFileItem'Star . Lens._Wrapped')
+              precedeCommentBlocksWithBlankLine
+  . Lens.over allTransactions formatTransaction
+  . Lens.over allPrices formatPrice
 
 -- | Appends two 'WholeFile' together, while adding a single newline
 -- between them.
