@@ -7,6 +7,7 @@
 module Penny.Copper.Types where
 
 import Data.Data (Data)
+import Data.Monoid ((<>))
 import Data.Sequence (viewl, ViewL(EmptyL, (:<)), (<|))
 import Penny.Copper.Grammar
 
@@ -27,14 +28,41 @@ monoidInstances allRules
 prettyInstances allRules
 
 instance Monoid (WholeFile t a) where
-  mempty = WholeFile mempty mempty
-  mappend (WholeFile (WhitesFileItem'Star i0) w0)
-          (WholeFile (WhitesFileItem'Star i1) w1)
-          = WholeFile (WhitesFileItem'Star i') w'
+  mempty = WholeFile (FileItemsP'Opt Nothing) mempty
+  mappend (WholeFile (FileItemsP'Opt Nothing) whites0)
+          (WholeFile (FileItemsP'Opt Nothing) whites1)
+          = WholeFile (FileItemsP'Opt Nothing) (whites0 <> whites1)
+
+  mappend
+    (WholeFile (FileItemsP'Opt (Just
+      (FileItemsP leftFiWhites leftItems))) leftWfWhites)
+    (WholeFile (FileItemsP'Opt Nothing) rightWfWhites)
+    = WholeFile (FileItemsP'Opt (Just
+      (FileItemsP leftFiWhites leftItems))) (leftWfWhites <> rightWfWhites)
+
+  mappend
+    (WholeFile (FileItemsP'Opt Nothing) leftWfWhites)
+    (WholeFile (FileItemsP'Opt (Just
+      (FileItemsP rightFiWhites rightItems))) rightWfWhites)
+    = WholeFile (FileItemsP'Opt (Just
+      (FileItemsP (leftWfWhites <> rightFiWhites) rightItems))) rightWfWhites
+
+  mappend
+    (WholeFile (FileItemsP'Opt (Just
+      (FileItemsP leftFiWhites leftItems))) leftWfWhites)
+    (WholeFile (FileItemsP'Opt (Just
+      (FileItemsP rightFiWhites rightItems))) rightWfWhites)
+    = WholeFile (FileItemsP'Opt (Just
+      (FileItemsP fiWhites' fileItems'))) wfWhites'
     where
-      (i', w') = case viewl i1 of
-        EmptyL -> (i0, w0 `mappend` w1)
-        WhitesFileItem wfiWhites fi :< rest ->
-          (i0 `mappend`
-            (WhitesFileItem
-              (w0 `mappend` wfiWhites) fi <| rest), w1)
+      fiWhites' = leftFiWhites
+      fileItems' = FileItems firstItem restItems
+        where
+          FileItems firstItem (FileItemP'Star leftRestItems) = leftItems
+          FileItems firstRightItem (FileItemP'Star rightRestItems) = rightItems
+          restItems = FileItemP'Star (leftRestItems <>
+            (firstRightItemWithWhites <| rightRestItems))
+          firstRightItemWithWhites = FileItemP (leftWfWhites <> rightFiWhites)
+            firstRightItem
+      wfWhites' = rightWfWhites
+

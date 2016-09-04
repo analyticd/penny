@@ -1,4 +1,7 @@
 packages:
 - 'penny/'
 
+extra-deps:
+- pinchot-0.22.0.0
+
 resolver: nightly-2016-08-13

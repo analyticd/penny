@@ -1,4 +1,3 @@
-{-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE OverloadedLists #-}
 
 -- | Grammar for ledger files
@@ -12,7 +11,7 @@
 module Penny.Copper.Grammar (allRules) where
 
 import Pinchot (terminal, solo, union, plus, star, pariah, include,
-  record, opt, nonTerminal, wrap, Rule)
+  record, opt, nonTerminal, wrap, Rule, series)
 import qualified Data.Char as Char
 import Data.Monoid ((<>))
 import Data.Sequence (Seq)
@@ -218,9 +217,9 @@ nilOrBrimRadPer = union "NilOrBrimRadPer" [nilRadPer, brimRadPer]
 -- productions, this one includes optional leading and trailing
 -- whitespace.
 decimalRadCom = record "DecimalRadCom"
-  [ whites, maybePluMin, whites, nilOrBrimRadCom, whites ]
+  [ rWhite'Star, maybePluMin, rWhite'Star, nilOrBrimRadCom, rWhite'Star ]
 decimalRadPer = record "DecimalRadPer"
-  [ whites, maybePluMin, whites, nilOrBrimRadPer, whites ]
+  [ rWhite'Star, maybePluMin, rWhite'Star, nilOrBrimRadPer, rWhite'Star ]
 
 -- # Dates
 hyphen = terminal "Hyphen" (solo '-')
@@ -341,16 +340,22 @@ zoneHrsMins = record "ZoneHrsMins" [pluMin, hours, minutes]
 backtick = terminal "Backtick" $ solo '`'
 zone = record "Zone" [backtick, zoneHrsMins]
 
+whitesZone = record "WhitesZone" [rWhite'Star, zone]
+mayWhitesZone = opt whitesZone
+whitesTime = record "WhitesTime" [rWhite'Star, time]
+timeAndMayZone = record "TimeAndMayZone" [whitesTime, mayWhitesZone]
+mayTimeAndMayZone = opt timeAndMayZone
+dateTimeZone = record "DateTimeZone" [date, mayTimeAndMayZone]
+
 -- Whitespace and quoted strings
 doubleQuote = terminal "DoubleQuote" $ solo '"'
-apostrophe = terminal "Apostrophe" $ solo '\''
 backslash = terminal "Backslash" $ solo '\\'
 space = terminal "Space" $ solo ' '
 tab = terminal "Tab" $ solo '\t'
 white = union "White" [space, tab, newline]
-whites = star white
-whites1 = plus white
-gap = record "Gap" [whites1, backslash]
+rWhite'Star = star white
+rWhite'Plus = plus white
+gap = record "Gap" [rWhite'Plus, backslash]
 escPayload = union "EscPayload" [backslash, newline, doubleQuote, gap]
 nonEscapedChar = terminal "NonEscapedChar" $ include minBound maxBound
   <> pariah '\\' <> pariah '\n' <> pariah '"'
@@ -378,6 +383,8 @@ unquotedString = record "UnquotedString"
 
 unquotedStringNonDigitChars1 = plus unquotedStringNonDigitChar
 
+anyString = union "AnyString" [unquotedString, quotedString]
+
 -- Commodities
 unquotedCommodity = wrap "UnquotedCommodity"
   unquotedStringNonDigitChars1
@@ -385,7 +392,7 @@ quotedCommodity = wrap "QuotedCommodity" quotedString
 commodity = union "Commodity" [unquotedCommodity, quotedCommodity]
 
 -- Labels
-label = record "Label" [apostrophe, unquotedString]
+-- label = record "Label" [apostrophe, unquotedString]
 
 -- NonNeutral
 nonNeutral = nonTerminal "NonNeutral"
@@ -418,17 +425,17 @@ debitCredit = union "DebitCredit" [debit, credit]
 t_DebitCredit = wrap "T_DebitCredit" debitCredit
 
 t_DebitCredit_Commodity = record "T_DebitCredit_Commodity"
-  [ debitCredit, whites, commodity ]
+  [ debitCredit, rWhite'Star, commodity ]
 
 t_DebitCredit_NonNeutral = record "T_DebitCredit_NonNeutral"
-  [ debitCredit, whites, nonNeutral]
+  [ debitCredit, rWhite'Star, nonNeutral]
 
 t_DebitCredit_Commodity_NonNeutral =
   record "T_DebitCredit_Commodity_NonNeutral"
-  [ debitCredit, whites, commodity, whites, nonNeutral]
+  [ debitCredit, rWhite'Star, commodity, rWhite'Star, nonNeutral]
 t_DebitCredit_NonNeutral_Commodity = record
   "T_DebitCredit_NonNeutral_Commodity"
-  [ debitCredit, whites, nonNeutral, whites, commodity]
+  [ debitCredit, rWhite'Star, nonNeutral, rWhite'Star, commodity]
 
 -- If there is no debit or credit present, there may be only a commodity.
 t_Commodity = wrap "T_Commodity" commodity
@@ -437,13 +444,13 @@ t_Commodity = wrap "T_Commodity" commodity
 -- neutral or non-neutral.
 
 t_Commodity_Neutral = record "T_Commodity_Neutral"
-  [ commodity, whites, neutral ]
+  [ commodity, rWhite'Star, neutral ]
 t_Neutral_Commodity = record "T_Neutral_Commodity"
-  [ neutral, whites, commodity ]
+  [ neutral, rWhite'Star, commodity ]
 t_Commodity_NonNeutral = record "T_Commodity_NonNeutral"
-  [ commodity, whites, nonNeutral ]
+  [ commodity, rWhite'Star, nonNeutral ]
 t_NonNeutral_Commodity = record "T_NonNeutral_Commodity"
-  [ nonNeutral, whites, commodity ]
+  [ nonNeutral, rWhite'Star, commodity ]
 
 -- A neutral or non-neutral standing alone is possible.
 t_Neutral = wrap "T_Neutral" neutral
@@ -466,77 +473,133 @@ trio = union "Trio"
     t_Neutral, t_NonNeutral
   ]
 
--- Scalar
+-- There are four types of data fields available:
+-- dateTimeZone
+-- unquotedString
+-- quotedString
+-- wholeAny
 
+-- Labels
+lblOrigPayee = series "LblOrigPayee" "'origPayee'"
+lblNumber = series "LblNumber" "'number'"
+lblFitid = series "LblFitid" "'fitid'"
+lblTags = series "LblTags" "'tags'"
+lblUid = series "LblUid" "'uid'"
+lblOfxTrn = series "LblOfxTrn" "'ofxtrn'"
+lblOrigDate = series "LblOrigDate" "'origDate'"
+
+
+-- Lists
 openSquare = terminal "OpenSquare" $ solo '['
 closeSquare = terminal "CloseSquare" $ solo ']'
-scalar = union "Scalar" [unquotedString, quotedString, date, time,
-  zone, label, wholeAny]
-whitesScalar = record "WhitesScalar" [whites, scalar]
-maybeWhitesScalar = opt whitesScalar
 
--- Trees
-bracketedForest = record "BracketedForest"
-  [ openSquare, whites, forest, whites, closeSquare ]
-whitesBracketedForest = record "WhitesBracketedForest"
-  [whites, bracketedForest]
-maybeWhitesBracketedForest = opt whitesBracketedForest
-nextTree = record "NextTree" [whites, comma, whites, tree]
-nextTrees = star nextTree
-forest = record "Forest"
-  [ tree, nextTrees ]
-scalarMaybeForest = record "ScalarMaybeForest"
-  [scalar, maybeWhitesBracketedForest]
-forestMaybeScalar = record "ForestMaybeScalar"
-  [bracketedForest, maybeWhitesScalar]
-tree = union "Tree" [scalarMaybeForest, forestMaybeScalar]
+rNextListItem = record "NextListItem" [rWhite'Plus, anyString]
+rNextListItem'Star = star rNextListItem
+rListItems = record "ListItems" [rWhite'Star, anyString, rNextListItem'Star]
+rListItems'Opt = opt rListItems
+bracketedList = record "BracketedList"
+  [ openSquare, rListItems'Opt, rWhite'Star, closeSquare ]
 
-topLine = wrap "TopLine" forest
-trioMaybeForest = record "TrioMaybeForest"
-  [trio, maybeWhitesBracketedForest]
-posting = union "Posting" [trioMaybeForest, bracketedForest]
+-- TrnType
+trnCredit = series "TCREDIT" "TCREDIT"
+trnDebit = series "TDEBIT" "TDEBIT"
+trnInt = series "TINT" "TINT"
+trnDiv = series "TDIV" "TDIV"
+trnFee = series "TFEE" "TFEE"
+trnSrvChg = series "TSRVCHG" "TSRVCHG"
+trnDep = series "TDEP" "TDEP"
+trnAtm = series "TATM" "TATM"
+trnPos = series "TPOS" "TPOS"
+trnXfer = series "TXFER" "TXFER"
+trnCheck = series "TCHECK" "TCHECK"
+trnPayment = series "TPAYMENT" "TPAYMENT"
+trnCash = series "TCASH" "TCASH"
+trnDirectDep = series "TDIRECTDEP" "TDIRECTDEP"
+trnDirectDebit = series "TDIRECTDEBIT" "TDIRECTDEBIT"
+trnRepeatPmt = series "TREPEATPMT" "TREPEATPMT"
+trnOther = series "TOTHER" "TOTHER"
 
+ofxTrnData = union "OfxTrnData" [ trnCredit, trnDebit, trnInt, trnDiv,
+  trnFee, trnSrvChg, trnDep, trnAtm, trnPos, trnXfer, trnCheck,
+  trnPayment, trnCash, trnDirectDep, trnDirectDebit, trnRepeatPmt,
+  trnOther ]
+
+-- Fields
+
+openParen = terminal "OpenParen" (solo '(')
+closeParen = terminal "CloseParen" (solo ')')
+
+-- Top line fields
+dateField = wrap "DateField" dateTimeZone
+payee = wrap "Payee" anyString
+origPayee = record "OrigPayee" [rWhite'Star, lblOrigPayee, rWhite'Star, anyString]
+
+-- Posting fields
+number = record "Number" [lblNumber, rWhite'Star, wholeAny]
+flag = record "Flag" [openParen, rWhite'Star, anyString, rWhite'Star, closeParen]
+account = wrap "Account" bracketedList
+fitid = record "Fitid" [lblFitid, rWhite'Star, anyString]
+tags = record "Tags" [lblTags, rWhite'Star, bracketedList]
+uid = record "Uid" [lblUid, rWhite'Star, anyString]
+ofxTrn = record "OfxTrn" [lblOfxTrn, rWhite'Star, ofxTrnData]
+origDay = record "OrigDate" [lblOrigDate, rWhite'Star, dateTimeZone]
+
+postingField = union "PostingField" [number, flag, account, fitid,
+  tags, uid, ofxTrn, origDay]
+
+-- P suffix means "preceded by whitespace"
+
+rOrigPayee'Opt = opt origPayee
+
+rTopLineFields = record "TopLineFields"
+  [dateField, rWhite'Plus, payee, rOrigPayee'Opt]
+
+rPostingFieldP = record "PostingFieldP" [rWhite'Plus, postingField]
+rPostingFieldP'Star = star rPostingFieldP
+rPostingFields = record "PostingFields" [postingField, rPostingFieldP'Star]
+rPostingFieldsP = record "PostingFieldsP" [rWhite'Star, rPostingFields]
+optPostingFieldsP = opt rPostingFieldsP
+trioMaybeFields = record "TrioMaybeFields"
+  [ trio, optPostingFieldsP ]
+posting = union "Posting" [trioMaybeFields, rPostingFields]
+
+semicolon = terminal "Semicolon" $ solo ';'
 openCurly = terminal "OpenCurly" $ solo '{'
 closeCurly = terminal "CloseCurly" $ solo '}'
-semicolon = terminal "Semicolon" $ solo ';'
 
-nextPosting = record "NextPosting" [whites, semicolon, whites, posting]
+nextPosting = record "NextPosting" [rWhite'Star, semicolon, rWhite'Star, posting]
 nextPostings = star nextPosting
-postingList = record "PostingList" [whites, posting, nextPostings]
+postingList = record "PostingList" [rWhite'Star, posting, nextPostings]
 maybePostingList = opt postingList
-
 postings = record "Postings"
-  [openCurly, maybePostingList, whites, closeCurly]
+  [openCurly, maybePostingList, rWhite'Star, closeCurly, newline]
+transaction = record "Transaction"
+  [rTopLineFields, rWhite'Star, postings]
 
-whitesPostings = record "WhitesPostings" [ whites, postings ]
-maybeWhitesPostings = opt whitesPostings
-topLineMaybePostings = record "TopLineMaybePostings" [topLine, maybeWhitesPostings]
-transaction = union "Transaction" [topLineMaybePostings, postings]
-
+-- Prices
 atSign = terminal "AtSign" $ solo '@'
-pluMinNonNeutral = record "PluMinNonNeutral" [pluMin, whites, nonNeutral]
+pluMinNonNeutral = record "PluMinNonNeutral" [pluMin, rWhite'Star, nonNeutral]
 exchNonNeu = union "ExchNonNeu" [pluMinNonNeutral, nonNeutral]
 exch = union "Exch" [exchNonNeu, neutral]
 
-cyExch = record "CyExch" [commodity, whites, exch]
-exchCy = record "ExchCy" [exch, whites, commodity]
+cyExch = record "CyExch" [commodity, rWhite'Star, exch]
+exchCy = record "ExchCy" [exch, rWhite'Star, commodity]
 janus = union "Janus" [cyExch, exchCy]
 
-whitesTime = record "WhitesTime" [whites, time]
-whitesZone = record "WhitesZone" [whites, zone]
-maybeWhitesTime = opt whitesTime
-maybeWhitesZone = opt whitesZone
-
 price = record "Price"
-  [ atSign, whites, date, maybeWhitesTime, maybeWhitesZone,
-    whites, commodity, whites, janus ]
-fileItem = union "FileItem" [price, transaction, comment]
-whitesFileItem = record "WhitesFileItem" [whites, fileItem]
-whitesFileItems = star whitesFileItem
-wholeFile = record "WholeFile" [whitesFileItems, whites]
+  [ atSign, rWhite'Star, dateTimeZone, rWhite'Plus, commodity,
+    rWhite'Plus, janus, newline ]
+
+rFileItem = union "FileItem" [price, transaction, comment]
+rFileItemP = record "FileItemP" [rWhite'Star, rFileItem]
+rFileItemP'Star = star rFileItemP
+rFileItems = record "FileItems" [rFileItem, rFileItemP'Star]
+rFileItemsP = record "FileItemsP" [rWhite'Star, rFileItems]
+rFileItemsP'Opt = opt rFileItemsP
+rWholeFile = record "WholeFile" [rFileItemsP'Opt, rWhite'Star]
 
 -- | All interesting rules in this file are either in this list or are
 -- descendants of the items in this list.
 allRules :: Seq (Rule Char)
-allRules = [ wholeFile, nilOrBrimRadCom, nilOrBrimRadPer,
+allRules = [ rWholeFile, nilOrBrimRadCom, nilOrBrimRadPer,
   decimalRadCom, decimalRadPer ]

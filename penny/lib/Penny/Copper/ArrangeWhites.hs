@@ -25,6 +25,8 @@ import qualified Data.Sequence.NonEmpty as NE
 import Penny.SeqUtil (Groups)
 import qualified Penny.SeqUtil as SeqUtil
 
+{-
+
 -- | Changes an empty 'White'Star' to a single space.  Makes no
 -- change to any other 'White'Star'.
 emptyWhiteStarToSingleSpace :: White'Star Char () -> White'Star Char ()
@@ -409,3 +411,4 @@ appendWholeFileWithSeparator
 appendWholeFileWithSeparator w1 w2 = w1 `mappend` (blank `mappend` w2)
   where
     blank = WholeFile mempty (cWhite'Star 1 cWhite'Newline)
+-}

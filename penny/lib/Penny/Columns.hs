@@ -484,7 +484,7 @@ timeZone :: Stripe
 timeZone = W1 (text $ X.pack . show . view AT.timeZone)
 
 payee :: Stripe
-payee = W1 (maybeCol text (view AT.payee))
+payee = W1 (text (view AT.payee))
 
 number :: Stripe
 number = W1 (maybeCol integer (view AP.number))

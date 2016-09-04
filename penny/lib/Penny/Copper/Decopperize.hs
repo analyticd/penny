@@ -14,6 +14,8 @@ module Penny.Copper.Decopperize where
 import qualified Control.Lens as Lens
 import Data.Foldable (toList)
 import Data.Monoid ((<>))
+import qualified Data.OFX as OFX
+import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Time as Time
 import Data.Sequence (Seq)
@@ -25,6 +27,7 @@ import Prelude hiding (length)
 
 import Penny.Arrangement
 import qualified Penny.Commodity as Commodity
+import qualified Penny.Fields as Fields
 import Penny.Copper.Grouping
 import Penny.Copper.PriceParts
 import Penny.Copper.Terminalizers
@@ -38,9 +41,7 @@ import Penny.Polar
 import Penny.Positive (Positive)
 import qualified Penny.Positive as Pos
 import Penny.Rep
-import qualified Penny.Scalar as Scalar
 import Penny.SeqUtil (mapMaybe)
-import qualified Penny.Tree as Tree
 import qualified Penny.Trio as Trio
 
 novDecsToPositive :: D1'9 t a -> Seq (D0'9 t a) -> Positive
@@ -140,151 +141,6 @@ dN20'23 (N20'23 _ d3) = case NN.c'Positive'NonNegative . dD0'3 $ d3 of
   where
     twenty = Pos.ten `Pos.mult` Pos.two
 
-dHours :: Hours t a -> NonNegative
-dHours (Hours'N0'19 n) = dN0'19 n
-dHours (Hours'N20'23 n) = NN.c'NonNegative'Positive . dN20'23 $ n
-
-dN0'59 :: N0'59 t a -> NonNegative
-dN0'59 (N0'59 d1 d0)
-  = (dD0'5 d1 `NN.mult` NN.ten)
-  `NN.add` (dD0'9 d0)
-
-dMinutes :: Minutes t a -> NonNegative
-dMinutes (Minutes n) = dN0'59 n
-
-dSeconds :: Seconds t a -> NonNegative
-dSeconds (Seconds n) = dN0'59 n
-
-dColonSeconds :: ColonSeconds t a -> NonNegative
-dColonSeconds (ColonSeconds _ s) = dSeconds s
-
-dColonSeconds'Opt :: ColonSeconds'Opt t a -> NonNegative
-dColonSeconds'Opt (ColonSeconds'Opt m) = case m of
-  Nothing -> NN.zero
-  Just c -> dColonSeconds c
-
-dTime :: Time t a -> Time.TimeOfDay
-dTime (Time h _ m cs) = Time.TimeOfDay h' m' s'
-  where
-    h' = conv . dHours $ h
-    m' = conv . dMinutes $ m
-    s' = fromIntegral . conv . dColonSeconds'Opt $ cs
-    conv = c'Int'Integer . NN.c'Integer'NonNegative
-
-dWhitesTime :: WhitesTime t a -> Time.TimeOfDay
-dWhitesTime (WhitesTime _ t) = dTime t
-
-dWhitesTime'Opt :: WhitesTime'Opt t a -> Time.TimeOfDay
-dWhitesTime'Opt (WhitesTime'Opt m) = case m of
-  Nothing -> Time.midnight
-  Just t -> dWhitesTime t
-
-dPluMin :: Num n => PluMin t a -> n -> n
-dPluMin (PluMin'Plus _) = id
-dPluMin (PluMin'Minus _) = negate
-
-dPluMin'Opt :: Num n => PluMin'Opt t a -> n -> n
-dPluMin'Opt (PluMin'Opt m) = case m of
-  Nothing -> id
-  Just a -> dPluMin a
-
-dZoneHrsMins :: ZoneHrsMins t a -> Time.TimeZone
-dZoneHrsMins (ZoneHrsMins pm hrs mins) = Time.TimeZone totMins False ""
-  where
-    totMins = dPluMin pm . c'Int'Integer . NN.c'Integer'NonNegative
-      $ hourMinutes `NN.add` minutes
-      where
-        hourMinutes = dHours hrs `NN.mult` sixty
-          where
-            sixty = NN.six `NN.mult` NN.ten
-        minutes = dMinutes mins
-
-
-dZone :: Zone t a -> Time.TimeZone
-dZone (Zone _ z) = dZoneHrsMins z
-
-dWhitesZone :: WhitesZone t a -> Time.TimeZone
-dWhitesZone (WhitesZone _ z) = dZone z
-
-dWhitesZone'Opt :: WhitesZone'Opt t a -> Time.TimeZone
-dWhitesZone'Opt (WhitesZone'Opt m) = case m of
-  Nothing -> Time.utc
-  Just z -> dWhitesZone z
-
--- # Comments
-dCommentChar :: CommentChar Char a -> Char
-dCommentChar (CommentChar (c, _)) = c
-
-dCommentChar'Star :: CommentChar'Star Char a -> X.Text
-dCommentChar'Star (CommentChar'Star sq)
-  = X.pack . toList . fmap dCommentChar $ sq
-
-dComment :: Comment Char a -> X.Text
-dComment (Comment _ cs _) = dCommentChar'Star cs
-
--- # Strings
-dUnquotedStringNonDigitChar
-  :: UnquotedStringNonDigitChar t a
-  -> t
-dUnquotedStringNonDigitChar (UnquotedStringNonDigitChar (c, _)) = c
-
-dUnquotedStringNonDigitChar'Plus
-  :: UnquotedStringNonDigitChar'Plus t a
-  -> NonEmptySeq t
-dUnquotedStringNonDigitChar'Plus (UnquotedStringNonDigitChar'Plus ne)
-  = fmap dUnquotedStringNonDigitChar ne
-
-dUnquotedCommodity
-  :: UnquotedCommodity Char a
-  -> Commodity.Commodity
-dUnquotedCommodity (UnquotedCommodity p)
-  = X.pack
-  . toList
-  . NE.nonEmptySeqToSeq
-  . dUnquotedStringNonDigitChar'Plus
-  $ p
-
-dNonEscapedChar
-  :: NonEscapedChar t a
-  -> t
-dNonEscapedChar (NonEscapedChar (t, _)) = t
-
-dEscPayload
-  :: EscPayload t a
-  -> Maybe Char
-dEscPayload x = case x of
-  EscPayload'Backslash _ -> Just '\\'
-  EscPayload'Newline _ -> Just '\n'
-  EscPayload'DoubleQuote _ -> Just '"'
-  EscPayload'Gap _ -> Nothing
-
-dEscSeq :: EscSeq t a -> Maybe Char
-dEscSeq (EscSeq _ p) = dEscPayload p
-
-dQuotedChar :: QuotedChar Char a -> Maybe Char
-dQuotedChar x = case x of
-  QuotedChar'NonEscapedChar c -> Just $ dNonEscapedChar c
-  QuotedChar'EscSeq c -> dEscSeq c
-
-dQuotedChar'Star :: QuotedChar'Star Char a -> Seq Char
-dQuotedChar'Star (QuotedChar'Star sq)
-  = mapMaybe dQuotedChar sq
-
-dQuotedString :: QuotedString Char a -> Seq Char
-dQuotedString (QuotedString _ q _) = dQuotedChar'Star q
-
-dQuotedCommodity :: QuotedCommodity Char a -> Commodity.Commodity
-dQuotedCommodity (QuotedCommodity q)
-  = X.pack
-  . toList
-  . dQuotedString
-  $ q
-
-dCommodity :: Commodity Char a -> Commodity.Commodity
-dCommodity x = case x of
-  Commodity'UnquotedCommodity c -> dUnquotedCommodity c
-  Commodity'QuotedCommodity c -> dQuotedCommodity c
-
 -- # Dates
 
 dYear :: Year t a -> Int
@@ -369,6 +225,163 @@ dDate x = case x of
       y = dLeapYear yr
       m = 2
       d = 29
+
+-- # Times
+
+dHours :: Hours t a -> NonNegative
+dHours (Hours'N0'19 n) = dN0'19 n
+dHours (Hours'N20'23 n) = NN.c'NonNegative'Positive . dN20'23 $ n
+
+dN0'59 :: N0'59 t a -> NonNegative
+dN0'59 (N0'59 d1 d0)
+  = (dD0'5 d1 `NN.mult` NN.ten)
+  `NN.add` (dD0'9 d0)
+
+dMinutes :: Minutes t a -> NonNegative
+dMinutes (Minutes n) = dN0'59 n
+
+dSeconds :: Seconds t a -> NonNegative
+dSeconds (Seconds n) = dN0'59 n
+
+dColonSeconds :: ColonSeconds t a -> NonNegative
+dColonSeconds (ColonSeconds _ s) = dSeconds s
+
+dColonSeconds'Opt :: ColonSeconds'Opt t a -> NonNegative
+dColonSeconds'Opt (ColonSeconds'Opt m) = case m of
+  Nothing -> NN.zero
+  Just c -> dColonSeconds c
+
+dTime :: Time t a -> Time.TimeOfDay
+dTime (Time h _ m cs) = Time.TimeOfDay h' m' s'
+  where
+    h' = conv . dHours $ h
+    m' = conv . dMinutes $ m
+    s' = fromIntegral . conv . dColonSeconds'Opt $ cs
+    conv = c'Int'Integer . NN.c'Integer'NonNegative
+
+dWhitesTime :: WhitesTime t a -> Time.TimeOfDay
+dWhitesTime (WhitesTime _ t) = dTime t
+
+dPluMin :: Num n => PluMin t a -> n -> n
+dPluMin (PluMin'Plus _) = id
+dPluMin (PluMin'Minus _) = negate
+
+dPluMin'Opt :: Num n => PluMin'Opt t a -> n -> n
+dPluMin'Opt (PluMin'Opt m) = case m of
+  Nothing -> id
+  Just a -> dPluMin a
+
+dZoneHrsMins :: ZoneHrsMins t a -> Time.TimeZone
+dZoneHrsMins (ZoneHrsMins pm hrs mins) = Time.TimeZone totMins False ""
+  where
+    totMins = dPluMin pm . c'Int'Integer . NN.c'Integer'NonNegative
+      $ hourMinutes `NN.add` minutes
+      where
+        hourMinutes = dHours hrs `NN.mult` sixty
+          where
+            sixty = NN.six `NN.mult` NN.ten
+        minutes = dMinutes mins
+
+
+dZone :: Zone t a -> Time.TimeZone
+dZone (Zone _ z) = dZoneHrsMins z
+
+dWhitesZone :: WhitesZone t a -> Time.TimeZone
+dWhitesZone (WhitesZone _ z) = dZone z
+
+dWhitesZone'Opt :: WhitesZone'Opt t a -> Time.TimeZone
+dWhitesZone'Opt (WhitesZone'Opt m) = case m of
+  Nothing -> Time.utc
+  Just z -> dWhitesZone z
+
+dTimeAndMayZone :: TimeAndMayZone t a -> (Time.TimeOfDay, Time.TimeZone)
+dTimeAndMayZone (TimeAndMayZone wt mwz) =
+  (dWhitesTime wt, dWhitesZone'Opt mwz)
+
+dTimeAndMayZone'Opt :: TimeAndMayZone'Opt t a -> (Time.TimeOfDay, Time.TimeZone)
+dTimeAndMayZone'Opt (TimeAndMayZone'Opt Nothing)
+  = (Time.midnight, Time.utc)
+dTimeAndMayZone'Opt (TimeAndMayZone'Opt (Just tmz))
+  = dTimeAndMayZone tmz
+
+dDateTimeZone :: DateTimeZone t a -> Time.ZonedTime
+dDateTimeZone (DateTimeZone dt tmzOpt) = Time.ZonedTime lt tz
+  where
+    (tod, tz) = dTimeAndMayZone'Opt tmzOpt
+    lt = Time.LocalTime day tod
+      where
+        day = dDate dt
+
+-- # Comments
+dCommentChar :: CommentChar Char a -> Char
+dCommentChar (CommentChar (c, _)) = c
+
+dCommentChar'Star :: CommentChar'Star Char a -> X.Text
+dCommentChar'Star (CommentChar'Star sq)
+  = X.pack . toList . fmap dCommentChar $ sq
+
+dComment :: Comment Char a -> X.Text
+dComment (Comment _ cs _) = dCommentChar'Star cs
+
+-- # Strings
+dUnquotedStringNonDigitChar
+  :: UnquotedStringNonDigitChar t a
+  -> t
+dUnquotedStringNonDigitChar (UnquotedStringNonDigitChar (c, _)) = c
+
+dUnquotedStringNonDigitChar'Plus
+  :: UnquotedStringNonDigitChar'Plus t a
+  -> NonEmptySeq t
+dUnquotedStringNonDigitChar'Plus (UnquotedStringNonDigitChar'Plus ne)
+  = fmap dUnquotedStringNonDigitChar ne
+
+dUnquotedCommodity
+  :: UnquotedCommodity Char a
+  -> Commodity.Commodity
+dUnquotedCommodity (UnquotedCommodity p)
+  = X.pack
+  . toList
+  . NE.nonEmptySeqToSeq
+  . dUnquotedStringNonDigitChar'Plus
+  $ p
+
+dNonEscapedChar
+  :: NonEscapedChar t a
+  -> t
+dNonEscapedChar (NonEscapedChar (t, _)) = t
+
+dEscPayload
+  :: EscPayload t a
+  -> Maybe Char
+dEscPayload x = case x of
+  EscPayload'Backslash _ -> Just '\\'
+  EscPayload'Newline _ -> Just '\n'
+  EscPayload'DoubleQuote _ -> Just '"'
+  EscPayload'Gap _ -> Nothing
+
+dEscSeq :: EscSeq t a -> Maybe Char
+dEscSeq (EscSeq _ p) = dEscPayload p
+
+dQuotedChar :: QuotedChar Char a -> Maybe Char
+dQuotedChar x = case x of
+  QuotedChar'NonEscapedChar c -> Just $ dNonEscapedChar c
+  QuotedChar'EscSeq c -> dEscSeq c
+
+dQuotedChar'Star :: QuotedChar'Star Char a -> Seq Char
+dQuotedChar'Star (QuotedChar'Star sq)
+  = mapMaybe dQuotedChar sq
+
+dQuotedString :: QuotedString Char a -> Text
+dQuotedString (QuotedString _ q _) = X.pack . toList . dQuotedChar'Star $ q
+
+dQuotedCommodity :: QuotedCommodity Char a -> Commodity.Commodity
+dQuotedCommodity (QuotedCommodity q)
+  = dQuotedString q
+
+dCommodity :: Commodity Char a -> Commodity.Commodity
+dCommodity x = case x of
+  Commodity'UnquotedCommodity c -> dUnquotedCommodity c
+  Commodity'QuotedCommodity c -> dQuotedCommodity c
 
 -- # Numbers
 
@@ -533,21 +546,13 @@ dJanus x = case x of
   Janus'CyExch c -> dCyExch c
   Janus'ExchCy c -> dExchCy c
 
--- | The location, a forest for the top line, and a 'Seq' with a
--- triple for each posting.
-type TxnParts a = (a, Seq Tree.Tree, Seq (a, Trio.Trio, Seq Tree.Tree))
-
 dPrice :: Price Char a -> PriceParts a
 dPrice p = PriceParts loc zt from to exch
   where
     loc = Lens.view (Lens.to _r'Price'0'AtSign . Lens._Wrapped' . Lens._2) p
-    zt = Time.ZonedTime lt tz
-    tod = dWhitesTime'Opt . _r'Price'3'WhitesTime'Opt $ p
-    day = dDate . _r'Price'2'Date $ p
-    tz = dWhitesZone'Opt . _r'Price'4'WhitesZone'Opt $ p
-    lt = Time.LocalTime day tod
-    from = dCommodity . _r'Price'6'Commodity $ p
-    (to, exch) = dJanus . _r'Price'8'Janus $ p
+    zt = dDateTimeZone . _r'Price'2'DateTimeZone $ p
+    from = dCommodity . _r'Price'4'Commodity $ p
+    (to, exch) = dJanus . _r'Price'6'Janus $ p
 
 dUnquotedStringNonFirstChar
   :: UnquotedStringNonFirstChar t a
@@ -573,11 +578,10 @@ dUnquotedStringNonFirstChar'Star
 dUnquotedStringNonFirstChar'Star (UnquotedStringNonFirstChar'Star sq)
   = fmap dUnquotedStringNonFirstChar sq
 
-dUnquotedString
-  :: UnquotedString t a
-  -> Seq t
+dUnquotedString :: UnquotedString Char a -> Text
 dUnquotedString (UnquotedString ds c1 cs)
-  = digits ds <> (dUnquotedStringNonDigitChar c1 `Lens.cons`
+  = X.pack . toList
+  $ digits ds <> (dUnquotedStringNonDigitChar c1 `Lens.cons`
       dUnquotedStringNonFirstChar'Star cs)
   where
     digits (D0'9'Star digs) = fmap f digs
@@ -594,6 +598,10 @@ dUnquotedString (UnquotedString ds c1 cs)
           D0'9'Eight (Eight (a, _)) -> a
           D0'9'Nine (Nine (a, _)) -> a
 
+dAnyString :: AnyString Char a -> Text
+dAnyString (AnyString'UnquotedString x) = dUnquotedString x
+dAnyString (AnyString'QuotedString x) = dQuotedString x
+
 dWholeNonZero :: WholeNonZero t a -> NonZero
 dWholeNonZero (WholeNonZero (PluMin'Opt mayPm) d1 (D0'9'Star ds))
   = flip . NZ.c'NonZero'Positive $ novDecsToPositive d1 ds
@@ -609,84 +617,7 @@ dWholeAny x = case x of
   WholeAny'Zero _ -> 0
   WholeAny'WholeNonZero w -> NZ.c'Integer'NonZero . dWholeNonZero $ w
 
-dScalar :: Scalar Char a -> Scalar.Scalar
-dScalar x = case x of
-  Scalar'UnquotedString a -> Scalar.SText . X.pack . toList
-    . dUnquotedString $ a
-  Scalar'QuotedString a -> Scalar.SText . X.pack . toList
-    . dQuotedString $ a
-  Scalar'Date a -> Scalar.SDay . dDate $ a
-  Scalar'Time a -> Scalar.STime . dTime $ a
-  Scalar'Zone a -> Scalar.SZone . Time.timeZoneMinutes . dZone $ a
-  Scalar'WholeAny a -> Scalar.SInteger . dWholeAny $ a
-  Scalar'Label (Label _ us) -> Scalar.SLabel . X.pack . toList
-    . dUnquotedString $ us
-
-dWhitesScalar :: WhitesScalar Char a -> Scalar.Scalar
-dWhitesScalar (WhitesScalar _ s) = dScalar s
-
-dWhitesScalar'Opt :: WhitesScalar'Opt Char a -> Maybe Scalar.Scalar
-dWhitesScalar'Opt (WhitesScalar'Opt m) = fmap dWhitesScalar m
-
-dNextTree :: NextTree Char a -> Tree.Tree
-dNextTree (NextTree _ _ _ t) = dTree t
-
-dTree :: Tree Char a -> Tree.Tree
-dTree x = Tree.Tree sc children
-  where
-    (sc, children) = case x of
-      Tree'ScalarMaybeForest s -> (Just scalar, trees)
-        where
-          (scalar, trees) = dScalarMaybeForest s
-      Tree'ForestMaybeScalar s -> (mayScalar, NE.nonEmptySeqToSeq trees)
-        where
-          (trees, mayScalar) = dForestMaybeScalar s
-
-dForestMaybeScalar
-  :: ForestMaybeScalar Char a
-  -> (NonEmptySeq Tree.Tree, Maybe Scalar.Scalar)
-dForestMaybeScalar (ForestMaybeScalar bf sc)
-  = (dBracketedForest bf, dWhitesScalar'Opt sc)
-
-dBracketedForest
-  :: BracketedForest Char a
-  -> NonEmptySeq Tree.Tree
-dBracketedForest (BracketedForest _ _ forest _ _)
-  = dForest forest
-
-dForest
-  :: Forest Char a
-  -> NonEmptySeq Tree.Tree
-dForest (Forest t1 ts)
-  = NE.NonEmptySeq (dTree t1) (dNextTree'Star ts)
-
-dNextTree'Star
-  :: NextTree'Star Char a
-  -> Seq Tree.Tree
-dNextTree'Star (NextTree'Star sq)
-  = fmap dNextTree sq
-
-dScalarMaybeForest
-  :: ScalarMaybeForest Char a
-  -> (Scalar.Scalar, Seq Tree.Tree)
-dScalarMaybeForest (ScalarMaybeForest sc wbf)
-  = (dScalar sc, dWhitesBracketedForest'Opt wbf)
-
-dWhitesBracketedForest'Opt
-  :: WhitesBracketedForest'Opt Char a
-  -> Seq Tree.Tree
-dWhitesBracketedForest'Opt (WhitesBracketedForest'Opt may) = case may of
-  Nothing -> Seq.empty
-  Just wbf -> NE.nonEmptySeqToSeq . dWhitesBracketedForest $ wbf
-
-dWhitesBracketedForest
-  :: WhitesBracketedForest Char a
-  -> NonEmptySeq Tree.Tree
-dWhitesBracketedForest (WhitesBracketedForest _ bf)
-  = dBracketedForest bf
-
-dTopLine :: TopLine Char a -> NonEmptySeq Tree.Tree
-dTopLine (TopLine f) = dForest f
+-- # Trio
 
 dDebitCredit :: DebitCredit t a -> Pole
 dDebitCredit x = case x of
@@ -822,109 +753,252 @@ dTrio x = case x of
   Trio'T_Neutral a -> dT_Neutral a
   Trio'T_NonNeutral a -> dT_NonNeutral a
 
-dTrioMaybeForest
-  :: TrioMaybeForest Char a
-  -> (Trio.Trio, Seq Tree.Tree)
-dTrioMaybeForest (TrioMaybeForest t wbf)
-  = (dTrio t, dWhitesBracketedForest'Opt wbf)
+-- Lists
+dNextListItem :: NextListItem Char a -> Text
+dNextListItem (NextListItem _ s) = dAnyString s
+
+dNextListItem'Star :: NextListItem'Star Char a -> Seq Text
+dNextListItem'Star (NextListItem'Star sq) = fmap dNextListItem sq
+
+dListItems :: ListItems Char a -> NonEmptySeq Text
+dListItems (ListItems _ s1 ss) = NE.NonEmptySeq (dAnyString s1)
+  (dNextListItem'Star ss)
+
+dListItems'Opt :: ListItems'Opt Char a -> Seq Text
+dListItems'Opt (ListItems'Opt mayList)
+  = maybe Seq.empty (NE.nonEmptySeqToSeq . dListItems) mayList
+
+dBracketedList :: BracketedList Char a -> Seq Text
+dBracketedList (BracketedList _ mayLi _ _) = dListItems'Opt mayLi
+
+-- OFX transaction type
+
+dOfxTrnData :: OfxTrnData t a -> OFX.TrnType
+dOfxTrnData x = case x of
+  OfxTrnData'TCREDIT _ -> OFX.TCREDIT
+  OfxTrnData'TDEBIT _ -> OFX.TDEBIT
+  OfxTrnData'TINT _ -> OFX.TINT
+  OfxTrnData'TDIV _ -> OFX.TDIV
+  OfxTrnData'TFEE _ -> OFX.TFEE
+  OfxTrnData'TSRVCHG _ -> OFX.TSRVCHG
+  OfxTrnData'TDEP _ -> OFX.TDEP
+  OfxTrnData'TATM _ -> OFX.TATM
+  OfxTrnData'TPOS _ -> OFX.TPOS
+  OfxTrnData'TXFER _ -> OFX.TXFER
+  OfxTrnData'TCHECK _ -> OFX.TCHECK
+  OfxTrnData'TPAYMENT _ -> OFX.TPAYMENT
+  OfxTrnData'TCASH _ -> OFX.TCASH
+  OfxTrnData'TDIRECTDEP _ -> OFX.TDIRECTDEP
+  OfxTrnData'TDIRECTDEBIT _ -> OFX.TDIRECTDEBIT
+  OfxTrnData'TREPEATPMT _ -> OFX.TREPEATPMT
+  OfxTrnData'TOTHER _ -> OFX.TOTHER
+
+-- # Fields
+dDateField :: DateField t a -> Time.ZonedTime
+dDateField (DateField dtz) = dDateTimeZone dtz
+
+dPayee :: Payee Char a -> Text
+dPayee (Payee s) = dAnyString s
+
+dOrigPayee :: OrigPayee Char a -> Text
+dOrigPayee (OrigPayee _ _ _ s) = dAnyString s
+
+dOrigPayee'Opt :: OrigPayee'Opt Char a -> Maybe Text
+dOrigPayee'Opt (OrigPayee'Opt may) = fmap dOrigPayee may
+
+dNumber :: Number t a -> Integer
+dNumber (Number _ _ w) = dWholeAny w
+
+dFlag :: Flag Char a -> Text
+dFlag (Flag _ _ s _ _) = dAnyString s
+
+dAccount :: Account Char a -> Seq Text
+dAccount (Account bl) = dBracketedList bl
+
+dFitid :: Fitid Char a -> Text
+dFitid (Fitid _ _ s) = dAnyString s
+
+dTags :: Tags Char a -> Seq Text
+dTags (Tags _ _ bl) = dBracketedList bl
+
+dUid :: Uid Char a -> Text
+dUid (Uid _ _ s) = dAnyString s
+
+dOfxTrn :: OfxTrn t a -> OFX.TrnType
+dOfxTrn (OfxTrn _ _ t) = dOfxTrnData t
+
+dOrigDate :: OrigDate t a -> Time.ZonedTime
+dOrigDate (OrigDate _ _ dtz) = dDateTimeZone dtz
+
+data PostingFieldDesc
+  = DescNumber
+  | DescFlag
+  | DescAccount
+  | DescFitid
+  | DescTags
+  | DescUid
+  | DescOfxTrn
+  | DescOrigDate
+  deriving (Eq, Ord, Show, Enum, Bounded)
+
+dTopLineFields
+  :: TopLineFields Char a
+  -> Fields.TopLineFields
+dTopLineFields (TopLineFields df _ pye opye) = Fields.TopLineFields
+  { Fields._zonedTime = dDateField df
+  , Fields._payee = dPayee pye
+  , Fields._origPayee = dOrigPayee'Opt opye
+  }
+
+data PostingFieldDecop a = PostingFieldDecop
+  { _pfdLocation :: a
+  , _pfdDesc :: PostingFieldDesc
+  , _pdfMaker :: Fields.PostingFields -> Fields.PostingFields
+  }
+
+dPostingField :: PostingField Char a -> PostingFieldDecop a
+dPostingField pf = PostingFieldDecop loc lbl maker
+  where
+    NE.NonEmptySeq (_, loc) _ = t'PostingField pf
+    (lbl, maker) = case pf of
+      PostingField'Number n ->
+        (DescNumber, Lens.set Fields.number (Just $ dNumber n))
+      PostingField'Flag fl ->
+        (DescFlag, Lens.set Fields.flag (Just $ dFlag fl))
+      PostingField'Account ac ->
+        (DescAccount, Lens.set Fields.account (dAccount ac))
+      PostingField'Fitid fi ->
+        (DescFitid, Lens.set Fields.fitid (Just $ dFitid fi))
+      PostingField'Tags ta ->
+        (DescTags, Lens.set Fields.tags (dTags ta))
+      PostingField'Uid ui ->
+        (DescUid, Lens.set Fields.uid (Just $ dUid ui))
+      PostingField'OfxTrn ox ->
+        (DescOfxTrn, Lens.set Fields.trnType (Just $ dOfxTrn ox))
+      PostingField'OrigDate od ->
+        (DescOrigDate, Lens.set Fields.origDate (Just $ dOrigDate od))
+
+dPostingFieldP :: PostingFieldP Char a -> PostingFieldDecop a
+dPostingFieldP (PostingFieldP _ tlf) = dPostingField tlf
+
+dPostingField'Star :: PostingFieldP'Star Char a -> Seq (PostingFieldDecop a)
+dPostingField'Star (PostingFieldP'Star sq)
+  = fmap dPostingFieldP sq
+
+dPostingFields :: PostingFields Char a -> NonEmptySeq (PostingFieldDecop a)
+dPostingFields (PostingFields f1 fs)
+  = NE.NonEmptySeq (dPostingField f1) (dPostingField'Star fs)
+
+dPostingFieldsP :: PostingFieldsP Char a -> NonEmptySeq (PostingFieldDecop a)
+dPostingFieldsP (PostingFieldsP _ pf) = dPostingFields pf
+
+dPostingFieldsP'Opt :: PostingFieldsP'Opt Char a -> Seq (PostingFieldDecop a)
+dPostingFieldsP'Opt (PostingFieldsP'Opt Nothing) = Seq.empty
+dPostingFieldsP'Opt (PostingFieldsP'Opt (Just pf))
+  = NE.nonEmptySeqToSeq . dPostingFieldsP $ pf
+
+dTrioMaybeFields
+  :: TrioMaybeFields Char a
+  -> (a, Trio.Trio, Seq (PostingFieldDecop a))
+dTrioMaybeFields (TrioMaybeFields tri opf)
+  = (loc, dTrio tri, dPostingFieldsP'Opt opf)
+  where
+    NE.NonEmptySeq (_, loc) _ = t'Trio tri
 
 dPosting
   :: Posting Char a
-  -> (a, Trio.Trio, Seq Tree.Tree)
-dPosting x = case x of
-  Posting'TrioMaybeForest tmf -> (\(a, b) -> (loc, a, b))
-    $ dTrioMaybeForest tmf
-  Posting'BracketedForest bf -> (loc, Trio.E, NE.nonEmptySeqToSeq ts)
-    where
-      ts = dBracketedForest bf
+  -> (a, Trio.Trio, Seq (PostingFieldDecop a))
+dPosting (Posting'TrioMaybeFields tmf)
+  = dTrioMaybeFields tmf
+dPosting (Posting'PostingFields pf)
+  = (loc, Trio.E, NE.nonEmptySeqToSeq . dPostingFields $ pf)
   where
-    loc = snd . NE._fore . t'Posting $ x
+    NE.NonEmptySeq (_, loc) _ = t'PostingFields pf
 
 dNextPosting
   :: NextPosting Char a
-  -> (a, Trio.Trio, Seq Tree.Tree)
+  -> (a, Trio.Trio, Seq (PostingFieldDecop a))
 dNextPosting (NextPosting _ _ _ p) = dPosting p
 
 dNextPosting'Star
   :: NextPosting'Star Char a
-  -> Seq (a, Trio.Trio, Seq Tree.Tree)
-dNextPosting'Star (NextPosting'Star x) = fmap dNextPosting x
+  -> Seq (a, Trio.Trio, Seq (PostingFieldDecop a))
+dNextPosting'Star (NextPosting'Star sq)
+  = fmap dNextPosting sq
 
 dPostingList
   :: PostingList Char a
-  -> NonEmptySeq (a, Trio.Trio, Seq Tree.Tree)
+  -> NonEmptySeq (a, Trio.Trio, Seq (PostingFieldDecop a))
 dPostingList (PostingList _ p1 ps)
   = NE.NonEmptySeq (dPosting p1) (dNextPosting'Star ps)
 
 dPostingList'Opt
   :: PostingList'Opt Char a
-  -> Seq (a, Trio.Trio, Seq Tree.Tree)
-dPostingList'Opt (PostingList'Opt m) = case m of
-  Nothing -> Seq.empty
-  Just l -> NE.nonEmptySeqToSeq . dPostingList $ l
+  -> Seq (a, Trio.Trio, Seq (PostingFieldDecop a))
+dPostingList'Opt (PostingList'Opt Nothing) = Seq.empty
+dPostingList'Opt (PostingList'Opt (Just pl))
+  = NE.nonEmptySeqToSeq . dPostingList $ pl
 
 dPostings
   :: Postings Char a
-  -> (a, Seq (a, Trio.Trio, Seq Tree.Tree))
-dPostings (Postings oc pl _ _) = (loc, dPostingList'Opt pl)
-  where
-    OpenCurly (_, loc) = oc
+  -> Seq (a, Trio.Trio, Seq (PostingFieldDecop a))
+dPostings (Postings _ mpl _ _ _) = dPostingList'Opt mpl
 
-dWhitesPostings
-  :: WhitesPostings Char a
-  -> (a, Seq (a, Trio.Trio, Seq Tree.Tree))
-dWhitesPostings (WhitesPostings _ p) = dPostings p
-
-dWhitesPostings'Opt
-  :: WhitesPostings'Opt Char a
-  -> Maybe (a, Seq (a, Trio.Trio, Seq Tree.Tree))
-dWhitesPostings'Opt (WhitesPostings'Opt m)
-  = fmap dWhitesPostings m
-
-dTopLineMaybePostings
-  :: TopLineMaybePostings Char a
-  -> (a, NonEmptySeq Tree.Tree, Seq (a, Trio.Trio, Seq Tree.Tree))
-dTopLineMaybePostings tlp@(TopLineMaybePostings t w)
-  = (loc, dTopLine t, trips)
-  where
-    loc = snd . NE._fore . t'TopLineMaybePostings $ tlp
-    trips = case dWhitesPostings'Opt w of
-      Nothing -> Seq.empty
-      Just (_, t) -> t
+type PostingDecop a = (a, Trio.Trio, Seq (PostingFieldDecop a))
 
 dTransaction
   :: Transaction Char a
-  -> (a, Seq Tree.Tree, Seq (a, Trio.Trio, Seq Tree.Tree))
-dTransaction x = case x of
-  Transaction'TopLineMaybePostings t ->
-    Lens.over Lens._2 NE.nonEmptySeqToSeq $ dTopLineMaybePostings t
-  Transaction'Postings p -> (loc, Seq.empty, trips)
-    where
-      (loc, trips) = dPostings p
+  -> (a, Fields.TopLineFields, Seq (PostingDecop a))
+dTransaction (Transaction tlf _ pstgs)
+  = (loc, dTopLineFields tlf, dPostings pstgs)
+  where
+    NE.NonEmptySeq (_, loc) _ = t'TopLineFields tlf
+
+type TxnParts a = (a, Fields.TopLineFields, Seq (PostingDecop a))
 
 dFileItem
   :: FileItem Char a
-  -> S3 (PriceParts a) X.Text (TxnParts a)
+  -> S3 (PriceParts a) Text (TxnParts a)
 dFileItem x = case x of
   FileItem'Price p -> S3a $ dPrice p
   FileItem'Comment com -> S3b . dComment $ com
   FileItem'Transaction t -> S3c $ dTransaction t
 
-dWhitesFileItem
-  :: WhitesFileItem Char a
+dFileItemP
+  :: FileItemP Char a
   -> S3 (PriceParts a) X.Text (TxnParts a)
-dWhitesFileItem (WhitesFileItem _ i) = dFileItem i
+dFileItemP (FileItemP _ i) = dFileItem i
 
-dWhitesFileItem'Star
-  :: WhitesFileItem'Star Char a
+dFileItemP'Star
+  :: FileItemP'Star Char a
   -> Seq (S3 (PriceParts a) X.Text (TxnParts a))
-dWhitesFileItem'Star (WhitesFileItem'Star sq)
-  = fmap dWhitesFileItem sq
+dFileItemP'Star (FileItemP'Star sq)
+  = fmap dFileItemP sq
+
+dFileItems
+  :: FileItems Char a
+  -> NonEmptySeq (S3 (PriceParts a) X.Text (TxnParts a))
+dFileItems (FileItems i1 is)
+  = NE.NonEmptySeq (dFileItem i1) (dFileItemP'Star is)
+
+dFileItemsP
+  :: FileItemsP Char a
+  -> NonEmptySeq (S3 (PriceParts a) X.Text (TxnParts a))
+dFileItemsP (FileItemsP _ fis) = dFileItems fis
+
+dFileItemsP'Opt
+  :: FileItemsP'Opt Char a
+  -> Seq (S3 (PriceParts a) X.Text (TxnParts a))
+dFileItemsP'Opt (FileItemsP'Opt Nothing) = Seq.empty
+dFileItemsP'Opt (FileItemsP'Opt (Just fi)) =
+  NE.nonEmptySeqToSeq $ dFileItemsP fi
 
 dWholeFile
   :: WholeFile Char a
   -> Seq (S3 (PriceParts a) X.Text (TxnParts a))
-dWholeFile (WholeFile x _) = dWhitesFileItem'Star x
+dWholeFile (WholeFile fio _) = dFileItemsP'Opt fio
+
+-- # Number types that are not in 'WholeFile'
 
 dNilOrBrimRadCom
   :: NilOrBrimRadCom t a

@@ -114,7 +114,7 @@ earley :: Package
 earley = atleast "Earley" [0,10,1,0]
 
 pinchot :: Package
-pinchot = atleast "pinchot" [0,18,2,0]
+pinchot = atleast "pinchot" [0,22,0,0]
 
 accuerr :: Package
 accuerr = atleast "accuerr" [0,2,0,0]

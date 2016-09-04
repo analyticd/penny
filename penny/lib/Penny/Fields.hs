@@ -2,6 +2,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
 
 -- | Standard fields that are available for the top line and for the
 -- posting.  In addition, each top line and posting also has a
@@ -13,7 +15,8 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.OFX (TrnType)
 import Data.Text (Text)
-import Data.Time (ZonedTime, Day, TimeOfDay)
+import qualified Data.Text as X
+import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import qualified Data.Time.Timelens as Timelens
 import GHC.Generics (Generic)
@@ -25,7 +28,7 @@ import Penny.Pretty
 -- | Fields in the top line.
 data TopLineFields = TopLineFields
   { _zonedTime :: ZonedTime
-  , _payee :: Maybe Text
+  , _payee :: Text
   , _origPayee :: Maybe Text
   -- ^ When processing transactions from a financial institution, you
   -- may wish to use one payee name while retaining the institution's
@@ -33,17 +36,17 @@ data TopLineFields = TopLineFields
   -- here, and your payee in '_payee'.
   } deriving (Show, Generic)
 
+emptyTopLineFields :: ZonedTime -> TopLineFields
+emptyTopLineFields zt = TopLineFields zt X.empty Nothing
+
 instance PrettyVal TopLineFields where
   prettyVal (TopLineFields zt pye orig) = Pretty.Rec "TopLineFields"
     [ ("_zonedTime", prettyZonedTime zt)
-    , ("_payee", prettyMaybe prettyText pye)
+    , ("_payee", prettyText pye)
     , ("_origPayee", prettyMaybe prettyText orig)
     ]
 
 Lens.makeLenses ''TopLineFields
-
-emptyTopLineFields :: ZonedTime -> TopLineFields
-emptyTopLineFields zt = TopLineFields zt Nothing Nothing
 
 -- | Fields in the posting.
 data PostingFields = PostingFields
@@ -54,9 +57,7 @@ data PostingFields = PostingFields
   , _tags :: Seq Text
   , _uid :: Maybe Text
   , _trnType :: Maybe TrnType
-  , _origDay :: Maybe Day
-  , _origTime :: Maybe TimeOfDay
-  , _origZone :: Maybe Int
+  , _origDate :: Maybe ZonedTime
   } deriving (Show, Generic)
 
 instance PrettyVal PostingFields where
@@ -68,9 +69,7 @@ instance PrettyVal PostingFields where
     , ("_tags", prettySeq prettyText . _tags $ x)
     , ("_uid", prettyMaybe prettyText . _uid $ x)
     , ("_trnType", prettyMaybe prettyTrnType . _trnType $ x)
-    , ("_origDay", prettyMaybe prettyDay . _origDay $ x)
-    , ("_origTime", prettyMaybe prettyTimeOfDay . _origTime $ x)
-    , ("_origZone", prettyMaybe Pretty.prettyVal . _origZone $ x)
+    , ("_origDate", prettyMaybe prettyZonedTime . _origDate $ x)
     ]
 
 -- | 'mempty' is 'Nothing' or 'Seq.empty' as appropriate.  'mappend'
@@ -78,7 +77,7 @@ instance PrettyVal PostingFields where
 -- appropriate.
 instance Monoid PostingFields where
   mempty = PostingFields Nothing Nothing Seq.empty Nothing
-    Seq.empty Nothing Nothing Nothing Nothing Nothing
+    Seq.empty Nothing Nothing Nothing
   mappend x y = PostingFields
     { _number = last (_number x) (_number y)
     , _flag = last (_flag x) (_flag y)
@@ -87,9 +86,7 @@ instance Monoid PostingFields where
     , _tags = lastSeq (_tags x) (_tags y)
     , _uid = last (_uid x) (_uid y)
     , _trnType = last (_trnType x) (_trnType y)
-    , _origDay = last (_origDay x) (_origDay y)
-    , _origTime = last (_origTime x) (_origTime y)
-    , _origZone = last (_origZone x) (_origZone y)
+    , _origDate = last (_origDate x) (_origDate y)
     }
     where
       last a = maybe a Just
@@ -106,7 +103,8 @@ day = zonedTime . Timelens.zonedTimeToLocalTime
 
 -- | The time of day of a 'TopLineFields'.
 timeOfDay :: Lens.Lens' TopLineFields Time.TimeOfDay
-timeOfDay = zonedTime . Timelens.zonedTimeToLocalTime . Timelens.localTimeOfDay
+timeOfDay = zonedTime .
+  Timelens.zonedTimeToLocalTime . Timelens.localTimeOfDay
 
 timeZone :: Lens.Lens' TopLineFields Time.TimeZone
 timeZone = zonedTime . Timelens.zonedTimeZone

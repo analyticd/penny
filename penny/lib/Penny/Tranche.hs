@@ -5,7 +5,6 @@
 module Penny.Tranche where
 
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import Data.Time (ZonedTime)
 import qualified Data.Time as Time
@@ -15,16 +14,11 @@ import Text.Show.Pretty (PrettyVal, Value)
 import qualified Text.Show.Pretty as Pretty
 
 import qualified Penny.Fields as F
-import Penny.Pretty
-import Penny.Tree
 
 -- | A 'Tranche' holds either top line fields or posting fields.
 data Tranche b a = Tranche
   { _location :: a
   -- ^ Where something is located in a file.
-  , _ancillary :: Seq Tree
-  -- ^ Additional fields that were in the ledger file, but that are
-  -- not one of the usual fields.
   , _fields :: b
   -- ^ Field data.
   } deriving (Show, Functor, Foldable, Traversable, Generic)
@@ -34,9 +28,8 @@ prettyTranche
   -> (a -> Value)
   -> Tranche b a
   -> Value
-prettyTranche fb fa (Tranche a trees b) = Pretty.Rec "Tranche"
+prettyTranche fb fa (Tranche a b) = Pretty.Rec "Tranche"
   [ ("_location", fa a)
-  , ("_ancillary", prettySeq Pretty.prettyVal trees)
   , ("_fields", fb b)
   ]
 
@@ -44,7 +37,7 @@ instance (PrettyVal b, PrettyVal a) => PrettyVal (Tranche b a) where
   prettyVal = prettyTranche Pretty.prettyVal Pretty.prettyVal
 
 emptyTranche :: b -> Tranche b ()
-emptyTranche = Tranche () Seq.empty
+emptyTranche = Tranche ()
 
 Lens.makeLenses ''Tranche
 
@@ -64,7 +57,7 @@ prettyTopLine
   -> Value
 prettyTopLine fa = prettyTranche Pretty.prettyVal fa
 
-emptyTopLine :: ZonedTime -> TopLine ()
+emptyTopLine :: Time.ZonedTime -> TopLine ()
 emptyTopLine zt = emptyTranche (F.emptyTopLineFields zt)
 
 emptyPostline :: Postline ()
@@ -85,7 +78,7 @@ timeZone = fields . F.timeZone
 timeZoneMinutes :: forall a. Lens.Lens' (TopLine a) Int
 timeZoneMinutes = fields . F.timeZoneMinutes
 
-payee :: forall a. Lens.Lens' (TopLine a) (Maybe Text)
+payee :: forall a. Lens.Lens' (TopLine a) Text
 payee = fields . F.payee
 
 origPayee :: forall a. Lens.Lens' (TopLine a) (Maybe Text)

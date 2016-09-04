@@ -6,15 +6,23 @@
 -- takes three steps: parsing, decopperization, and proofing.  This
 -- module performs proofing.
 --
--- Proofing ensures that all transactions are balanced.  Also, the
--- Copper format is loose in the sense that the grammar does not
--- specify the various fields that are found in "Penny.Fields".
--- Proofing uses various conventions to assign different trees to
--- different fields.
+-- Proofing ensures that all transactions are balanced.
 --
 -- Proofing can fail.  If it does, the proofer tries to accumulate
 -- as many error messages as possible, so that the user can fix all
 -- errors at once rather than having to fix one error at a time.
+--
+-- Proofing has two steps.  The first step, called collecting, matches
+-- up the fields in every posting with those that are allowed.
+-- Collecting fails if a posting has duplicate fields.  This step is
+-- necessary because the grammar allows posting fields to be presented
+-- in any order, but does not check for duplicate posting fields.
+-- Collecting is performed for an entire file at once, so all errors
+-- from collecting are presented at once.
+--
+-- The second step, called validation, ensures that each transaction is
+-- balanced.  It also ensures that the from and to commodities in each
+-- price are different.
 
 module Penny.Copper.Proofer where
 
@@ -25,198 +33,119 @@ import Penny.Copper.Tracompri
 import Penny.Ents
 import qualified Penny.Fields as F
 import Penny.Price
-import Penny.Scalar
-import Penny.SeqUtil
 import Penny.Tranche
 import Penny.Transaction
 import Penny.Trio
-import Penny.Tree
-import Penny.Tree.Harvester
 
 import Accuerr (Accuerr)
 import qualified Accuerr
 import qualified Control.Lens as Lens
-import Control.Monad (foldM, guard)
-import qualified Control.Monad.Trans.State as St
-import Data.Maybe (fromMaybe, isNothing)
-import Data.OFX (TrnType)
+import Control.Monad (foldM)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Semigroup ((<>))
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
 import Data.Sums (S3(S3a, S3b, S3c))
 import Data.Text (Text)
-import qualified Data.Text as X
-import qualified Data.Time as Time
-import Text.Read (readMaybe)
 
-findDay
-  :: Tree
-  -> Maybe Time.Day
-findDay x = childlessTree x >>= Lens.preview _SDay
+-- * Errors
 
-findTime :: Tree -> Maybe Time.TimeOfDay
-findTime x = childlessTree x >>= Lens.preview _STime
-
-findZone :: Tree -> Maybe Time.TimeZone
-findZone x = childlessTree x >>= Lens.preview _SZone
-  >>= return . Time.minutesToTimeZone
-
-findPayee :: Tree -> Maybe Text
-findPayee x = childlessTree x >>= Lens.preview _SText
-
--- | If this tree is labeled @fitid@ and has a single child tree
--- that is also a childless tree whose scalar is an SText,
--- return that SText.
-findOrigPayee :: Tree -> Maybe Text
-findOrigPayee t = do
-  children <- labeledTree "origPayee" t
-  child <- isSingleton children
-  scalar <- childlessTree child
-  Lens.preview _SText scalar
-
-getTopLineFields
-  :: a
-  -- ^ Location
-  -> Seq Tree
-  -> Either (ProofFail a) (F.TopLineFields, Seq Tree)
-getTopLineFields loc forest = case mayTlf of
-  Nothing -> Left (ProofFail loc UndatedTransaction)
-  Just tlf -> Right tlf
-  where
-    ((mayPye, mayOrig, mayZt), forest') = St.runState k forest
-    mayTlf = fmap (\zt -> (F.TopLineFields zt mayPye mayOrig, forest')) mayZt
-    k = do
-      mayDay <- yankSt findDay
-      mayTime <- yankSt findTime
-      mayZone <- yankSt findZone
-      mayPayee <- yankSt findPayee
-      mayOrigPayee  <- yankSt findOrigPayee
-      return (mayPayee, mayOrigPayee, getZonedTime mayDay mayTime mayZone)
-    getZonedTime mayDay mayTime mayZone = fmap mkZt mayDay
-      where
-        mkZt day = Time.ZonedTime lt tz
-          where
-            lt = Time.LocalTime day tod
-              where
-                tod = fromMaybe Time.midnight mayTime
-            tz = fromMaybe Time.utc mayZone
-
-findNumber :: Tree -> Maybe Integer
-findNumber x = childlessTree x >>= Lens.preview _SInteger
-
-findFlag :: Tree -> Maybe Text
-findFlag = findPayee
-
--- | Gets a tree that has the particular label and retrieves the
--- scalar that can be fetched with the given prism.
-labeledChild
-  :: Text
-  -- ^ Label for the parent tree
-  -> Lens.Prism' Scalar a
-  -> Tree
-  -> Maybe a
-labeledChild lbl prism tree = do
-  children <- labeledTree lbl tree
-  child <- isSingleton children
-  scalar <- childlessTree child
-  Lens.preview prism scalar
-
--- | If this tree has no scalar and all child trees have a 'SText'
--- scalar, and there is at least one child tree, return those
--- scalars.
-findAccount :: Tree -> Maybe (NonEmptySeq Text)
-findAccount t = do
-  guard . isNothing . _scalar $ t
-  scalars <- traverse childlessTree . _children $ t
-  texts <- traverse (Lens.preview _SText) scalars
-  NE.seqToNonEmptySeq texts
-
--- | If this tree is labeled @fitid@ and has a single child tree
--- that is also a childless tree whose scalar is an SText,
--- return that SText.
-findFitid :: Tree -> Maybe Text
-findFitid = labeledChild "fitid" _SText
-
--- | If this tree is labeled @uid@ and has a single child tree that is
--- also a childless tree whose scalar is an SText, return that SText.
-findUid :: Tree -> Maybe Text
-findUid = labeledChild "uid" _SText
-
--- | Finds a tree labeled @trnType@ that has a single child tree that
--- is also a childless tree whose scalar is an SText and that, in
--- addition, can be 'read' as a 'TrnType'.
-findTrnType :: Tree -> Maybe TrnType
-findTrnType t = labeledChild "trnType" _SText t >>= (readMaybe . X.unpack)
-
--- | Finds a tree labeled @origDay@ with a 'Time.Day'.
-findOrigDay :: Tree -> Maybe Time.Day
-findOrigDay = labeledChild "origDay" _SDay
-
-findOrigTime :: Tree -> Maybe Time.TimeOfDay
-findOrigTime = labeledChild "origTime" _STime
-
-findOrigZone :: Tree -> Maybe Int
-findOrigZone = labeledChild "origZone" _SZone
-
--- | If this tree is labeled @tags@ and each child tree is also a
--- childless tree with a 'SText' scalar, and there is at least
--- one child tree, return those scalars.
-findTags :: Tree -> Maybe (NonEmptySeq Text)
-findTags t = do
-  children <- labeledTree "tags" t
-  scalars <- traverse childlessTree children
-  texts <- traverse (Lens.preview _SText) scalars
-  NE.seqToNonEmptySeq texts
-
-getPostingFields :: Seq Tree -> (F.PostingFields, Seq Tree)
-getPostingFields = St.runState k
-  where
-    k = F.PostingFields <$> yankSt findNumber
-      <*> yankSt findFlag
-      <*> fmap (maybe Seq.empty NE.nonEmptySeqToSeq) (yankSt findAccount)
-      <*> yankSt findFitid
-      <*> fmap (maybe Seq.empty NE.nonEmptySeqToSeq) (yankSt findTags)
-      <*> yankSt findUid
-      <*> yankSt findTrnType
-      <*> yankSt findOrigDay
-      <*> yankSt findOrigTime
-      <*> yankSt findOrigZone
-
-
-data Reason
+data ValidationFailReason
   = FailedToAddTrio TrioError
   | Imbalanced ImbalancedError
   | MatchingFromTo Commodity
-  | UndatedTransaction
   deriving Show
 
-data ProofFail a = ProofFail
+data ProofFail r a = ProofFail
   { _location :: a
-  , _reason :: Reason
+  , _reason :: r
   } deriving Show
 
 Lens.makeLenses ''ProofFail
 
+type CollectionFail = ProofFail PostingFieldDesc
+type ValidationFail = ProofFail ValidationFailReason
+type AccCollection a = Accuerr (NonEmptySeq (CollectionFail a))
+type AccValidation a = Accuerr (NonEmptySeq (ValidationFail a))
+type Proofer a = Either (Either (NonEmptySeq (CollectionFail a))
+                                (NonEmptySeq (ValidationFail a)))
+
+-- * Collection
+
+postingFieldMap
+  :: Foldable f
+  => f (PostingFieldDecop a)
+  -> Map PostingFieldDesc
+         (NonEmptySeq (a, F.PostingFields -> F.PostingFields))
+postingFieldMap = foldl f Map.empty
+  where
+    f acc (PostingFieldDecop loc desc mkr) = Map.alter (Just . g) desc acc
+      where
+        g Nothing = pair
+        g (Just oldPairs) = oldPairs <> pair
+        pair = NE.singleton (loc, mkr)
+
+oneFieldOnly
+  :: (PostingFieldDesc, NonEmptySeq (a, F.PostingFields -> F.PostingFields))
+  -> AccCollection a (F.PostingFields -> F.PostingFields)
+oneFieldOnly (desc, NE.NonEmptySeq (_, f1) fRest)
+  = case NE.seqToNonEmptySeq fRest of
+      Nothing -> Accuerr.AccSuccess f1
+      Just ne -> Accuerr.AccFailure . fmap makeError $ ne
+        where
+          makeError (loc, _) = ProofFail loc desc
+
+
+makePostingFields
+  :: Foldable f
+  => f (PostingFieldDecop a)
+  -> AccCollection a F.PostingFields
+makePostingFields
+  = fmap (foldl (flip ($)) mempty)
+  . traverse oneFieldOnly
+  . Map.assocs
+  . postingFieldMap
+
+collectPostingFields
+  :: PostingDecop a
+  -> AccCollection a (a, Trio, F.PostingFields)
+collectPostingFields (loc, tri, fieldDecops)
+  = fmap f (makePostingFields fieldDecops)
+  where
+    f fields = (loc, tri, fields)
+
+type Collected a = (a, F.TopLineFields, Seq (a, Trio, F.PostingFields))
+
+collectTransactionPostingFields
+  :: S3 a b (TxnParts loc)
+  -> AccCollection loc (S3 a b (Collected loc))
+collectTransactionPostingFields s3 = case s3 of
+  S3a x -> pure (S3a x)
+  S3b x -> pure (S3b x)
+  S3c (loc, tlf, pstgDecops) ->
+    fmap f . traverse collectPostingFields $ pstgDecops
+    where
+      f sq = S3c (loc, tlf, sq)
+
+-- * Validation
+
 addPostingToEnts
   :: Ents (Postline a)
-  -> (a, Trio, Seq Tree)
-  -- ^ Location, Trio, forest
-  -> Either (ProofFail a) (Ents (Postline a))
-addPostingToEnts ents (pos, trio, trees)
+  -> (a, Trio, F.PostingFields)
+  -> Either (ValidationFail a) (Ents (Postline a))
+addPostingToEnts ents (pos, trio, fields)
   = case appendTrio ents trio of
       Left e -> Left (ProofFail pos (FailedToAddTrio e))
-      Right f -> Right $ f (Tranche pos anc fields)
-        where
-          (fields, anc) = getPostingFields trees
+      Right f -> Right $ f (Tranche pos fields)
 
 -- | Creates an 'Balanced' from a sequence of postings.  If any single
 -- posting fails, returns a single error message.  If balancing
 -- fails, returns a single error message.
 balancedFromPostings
-  :: Seq (a, Trio, Seq Tree)
-  -- ^ Location, trio, forest
-  -> Either (ProofFail a) (Balanced (Postline a))
+  :: Seq (a, Trio, F.PostingFields)
+  -> Either (ValidationFail a) (Balanced (Postline a))
 balancedFromPostings sq = case NE.seqToNonEmptySeq sq of
   Nothing -> return mempty
   Just ne@(NE.NonEmptySeq (pos, _, _) _) ->
@@ -226,35 +155,39 @@ balancedFromPostings sq = case NE.seqToNonEmptySeq sq of
         Left e -> Left (ProofFail pos (Imbalanced e))
         Right g -> return g
 
-price
+validatePrice
   :: PriceParts a
   -- ^
-  -> Either (ProofFail a) (Price a)
-price pp = case makeFromTo (_priceFrom pp) (_priceTo pp) of
+  -> Either (ValidationFail a) (Price a)
+validatePrice pp = case makeFromTo (_priceFrom pp) (_priceTo pp) of
   Nothing -> Left (ProofFail (_pricePos pp) (MatchingFromTo (_priceFrom pp)))
   Just fromTo ->
     Right (Price (_priceTime pp) fromTo (_priceExch pp) (_pricePos pp))
 
-proofItem
-  :: S3 (PriceParts a) Text (TxnParts a)
-  -> Accuerr (NonEmptySeq (ProofFail a)) (Tracompri a)
-proofItem s3 = case s3 of
-  S3a p -> case price p of
+validateItem
+  :: S3 (PriceParts a) Text (Collected a)
+  -> AccValidation a (Tracompri a)
+validateItem s3 = case s3 of
+  S3a p -> case validatePrice p of
     Left e -> Accuerr.AccFailure (NE.singleton e)
     Right g -> Accuerr.AccSuccess (Tracompri'Price g)
   S3b x -> pure (Tracompri'Comment x)
-  S3c (loc, topLine, pstgs) -> fmap Tracompri'Transaction
-    $ Transaction <$> tlf <*> bal
-    where
-      tlf = case getTopLineFields loc topLine of
-        Left e -> Accuerr.AccFailure (NE.singleton e)
-        Right (fields, aux) -> Accuerr.AccSuccess
-          (Tranche loc aux fields)
-      bal = case balancedFromPostings pstgs of
-        Left e -> Accuerr.AccFailure (NE.singleton e)
-        Right g -> Accuerr.AccSuccess g
+  S3c (loc, tlf, pstgs) -> case balancedFromPostings pstgs of
+    Left e -> Accuerr.AccFailure (NE.singleton e)
+    Right g -> pure (Tracompri'Transaction (Transaction (Tranche loc tlf) g))
+
+-- * Proofing
 
 proofItems
   :: Seq (S3 (PriceParts a) Text (TxnParts a))
-  -> Accuerr (NonEmptySeq (ProofFail a)) (Seq (Tracompri a))
-proofItems = traverse proofItem
+  -> Proofer a (Seq (Tracompri a))
+proofItems sq = do
+  collected <- collect sq
+  proof collected
+  where
+    collect = Lens.over Lens._Left Left
+      . Accuerr.accuerrToEither
+      . traverse collectTransactionPostingFields
+    proof = Lens.over Lens._Left Right
+      . Accuerr.accuerrToEither
+      . traverse validateItem

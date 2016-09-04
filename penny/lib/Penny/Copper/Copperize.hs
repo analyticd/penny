@@ -355,9 +355,6 @@ cSemicolon = Semicolon (';', ())
 cAtSign :: AtSign Char ()
 cAtSign = AtSign ('@', ())
 
-cApostrophe :: Apostrophe Char ()
-cApostrophe = Apostrophe ('\'', ())
-
 cCommentChar :: Char -> Maybe (CommentChar Char ())
 cCommentChar c = Lens.preview _CommentChar (c, ())
 
@@ -1252,60 +1249,12 @@ newline = White'Star . Seq.singleton . White'Newline $ cNewline
 noSpace :: White'Star Char ()
 noSpace = White'Star Seq.empty
 
-cNextTree :: Tree Char () -> NextTree Char ()
-cNextTree tree = NextTree mempty cComma mempty tree
-
-cNextTree'Star :: Seq (Tree Char ()) -> NextTree'Star Char ()
-cNextTree'Star = NextTree'Star . fmap cNextTree
-
-cForest :: Tree Char () -> Seq (Tree Char ()) -> Forest Char ()
-cForest t1 ts = Forest t1 (cNextTree'Star ts)
-
-cBracketedForest :: Forest Char () -> BracketedForest Char ()
-cBracketedForest f
-  = BracketedForest cOpenSquare mempty f mempty cCloseSquare
-
--- | Constructs a 'Tree' that has a 'Scalar'.
-cTree :: Scalar Char () -> Maybe (Forest Char ()) -> Tree Char ()
-cTree sc mayForest = Tree'ScalarMaybeForest
-  (ScalarMaybeForest sc (WhitesBracketedForest'Opt may))
-  where
-    may = case mayForest of
-      Nothing -> Nothing
-      Just fr -> Just (WhitesBracketedForest mempty (cBracketedForest fr))
-
-spinster :: Scalar Char () -> Tree Char ()
-spinster s = cTree s Nothing
-
--- | Constructs a 'Tree' that has no 'Scalar'.
-orphans
-  :: Tree Char ()
-  -- ^ First child
-  -> Seq (Tree Char ())
-  -- ^ More children
-  -> Tree Char ()
-orphans t1 ts = Tree'ForestMaybeScalar
-  (ForestMaybeScalar (cBracketedForest (cForest t1 ts))
-                     (WhitesScalar'Opt Nothing))
-
 -- | Makes an unquoted scalar if possible; otherwise, makes a quoted
 -- scalar.
-textScalar :: Text -> Scalar Char ()
-textScalar txt = case cString . Seq.fromList . X.unpack $ txt of
-  Left us -> Scalar'UnquotedString us
-  Right qs -> Scalar'QuotedString qs
-
-cDateTimeZone
-  :: Date Char ()
-  -> Time Char ()
-  -> Zone Char ()
-  -> Forest Char ()
-cDateTimeZone date time zone = cForest dateTree
-  . Seq.fromList $ [timeTree, zoneTree]
-  where
-    dateTree = spinster (Scalar'Date date)
-    timeTree = spinster (Scalar'Time time)
-    zoneTree = spinster (Scalar'Zone zone)
+cAnyString :: Text -> AnyString Char ()
+cAnyString txt = case cString . Seq.fromList . X.unpack $ txt of
+  Left us -> AnyString'UnquotedString us
+  Right qs -> AnyString'QuotedString qs
 
 cDebit :: Debit Char ()
 cDebit = Debit cLessThan

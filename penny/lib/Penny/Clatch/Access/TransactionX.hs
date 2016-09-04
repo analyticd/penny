@@ -40,5 +40,5 @@ timeZone = transaction . topLine . Tranche.timeZone
 timeZoneMinutes :: Lens' (Sliced l a) Int
 timeZoneMinutes = transaction . topLine . Tranche.timeZoneMinutes
 
-payee :: Lens' (Sliced l a) (Maybe Text)
+payee :: Lens' (Sliced l a) Text
 payee = transaction . topLine . Tranche.payee
