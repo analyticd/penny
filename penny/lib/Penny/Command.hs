@@ -310,7 +310,7 @@ timeZone = view AT.timeZone
 timeZoneMinutes :: Sliced l a -> Int
 timeZoneMinutes = view AT.timeZoneMinutes
 
-payee :: Sliced l a -> Maybe Text
+payee :: Sliced l a -> Text
 payee = view AT.payee
 
 -- ## Posting fields

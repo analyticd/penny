@@ -336,13 +336,12 @@ time = record "Time" [hours, colon, minutes, maybeSeconds]
 plusSign = terminal "Plus" $ solo '+'
 minus = terminal "Minus" $ solo '-'
 pluMin = union "PluMin" [plusSign, minus]
-zoneHrsMins = record "ZoneHrsMins" [pluMin, hours, minutes]
+zone = record "Zone" [pluMin, hours, colon, minutes]
 backtick = terminal "Backtick" $ solo '`'
-zone = record "Zone" [backtick, zoneHrsMins]
 
 whitesZone = record "WhitesZone" [rWhite'Star, zone]
 mayWhitesZone = opt whitesZone
-whitesTime = record "WhitesTime" [rWhite'Star, time]
+whitesTime = record "WhitesTime" [rWhite'Plus, time]
 timeAndMayZone = record "TimeAndMayZone" [whitesTime, mayWhitesZone]
 mayTimeAndMayZone = opt timeAndMayZone
 dateTimeZone = record "DateTimeZone" [date, mayTimeAndMayZone]

@@ -4,14 +4,6 @@
 -- | Copperize takes other data types, both from Penny and from
 -- other libraries, and turns them into Copper data types.
 --
--- The Earley parsers can already be thought of as copperizers for
--- strings.  Some of the functions in this module rely on that: for
--- instance 'cDay' takes a 'Time.Day', 'show's it, and then parses
--- that string.
---
--- Other functions do not use the parser but instead construct the
--- necessary data types directly.
---
 -- Other copperizing functions are in "Penny.Copper.Freezer".
 -- Originally there were some foggy distinctions between what went
 -- into this module and what went into "Penny.Copper.Freezer", but now
@@ -35,7 +27,9 @@ import Accuerr (Accuerr(AccFailure, AccSuccess))
 import Control.Applicative ((<|>))
 import qualified Control.Lens as Lens
 import Data.Foldable (toList)
-import Data.Sequence (Seq)
+import Data.Maybe (fromJust)
+import qualified Data.OFX as OFX
+import Data.Sequence (Seq, (<|))
 import qualified Data.Sequence as Seq
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
@@ -46,20 +40,27 @@ import qualified Pinchot
 import Text.Earley (Prod, Grammar)
 import qualified Text.Earley as Earley
 
+import qualified Penny.Amount as Amount
+import Penny.Arrangement
+import qualified Penny.Commodity as Commodity
 import Penny.Copper.EarleyGrammar
 import Penny.Copper.Grouping
 import Penny.Copper.Optics
+import Penny.Copper.PriceParts
 import Penny.Copper.Productions
 import Penny.Copper.Terminalizers
 import Penny.Copper.Types
 import Penny.Decimal
+import qualified Penny.Fields as Fields
 import Penny.NonNegative (NonNegative)
 import qualified Penny.NonNegative as NN
+import qualified Penny.NonZero as NZ
 import Penny.Polar
 import Penny.Positive (Positive)
 import qualified Penny.Positive as Pos
 import Penny.Rep
 import Penny.SeqUtil
+import qualified Penny.Troika as Troika
 
 
 cZero :: Zero Char ()
@@ -355,6 +356,12 @@ cSemicolon = Semicolon (';', ())
 cAtSign :: AtSign Char ()
 cAtSign = AtSign ('@', ())
 
+cOpenParen :: OpenParen Char ()
+cOpenParen = OpenParen ('(', ())
+
+cCloseParen :: CloseParen Char ()
+cCloseParen = CloseParen (')', ())
+
 cCommentChar :: Char -> Maybe (CommentChar Char ())
 cCommentChar c = Lens.preview _CommentChar (c, ())
 
@@ -387,9 +394,8 @@ cWhite'Tab = White'Tab cTab
 cWhite'Newline :: White Char ()
 cWhite'Newline = White'Newline cNewline
 
--- | Replicates the given 'White' to return a 'White'Star'.
-cWhite'Star :: Int -> White Char () -> White'Star Char ()
-cWhite'Star i w = White'Star (Seq.replicate i w)
+cWhite'Star :: White'Star Char ()
+cWhite'Star = mempty
 
 cNonNegative :: NonNegative -> Seq (D0'9 Char ())
 cNonNegative = go Seq.empty . NN.c'Integer'NonNegative
@@ -410,33 +416,6 @@ cNonNegative = go Seq.empty . NN.c'Integer'NonNegative
             _ -> error "cNonNegative: error 1"
           res = thisDig `Lens.cons` acc
       in if rem == 0 then res else go res rem
-
--- | Parses a string into a value.  If there are no parsed results,
--- fails.  If there is more than one parsed result, applies 'error',
--- because that indicates an ambiguous grammar (there should be no
--- ambiguous grammars).
-parse
-  :: (forall r. Grammar r (Prod r String (Char, ()) (a Char ())))
-  -> String
-  -> Maybe (a Char ())
-parse grammar str = case results of
-  [] -> Nothing
-  x:[] -> Just x
-  _ -> error $ "parse: ambiguous grammar with string: " ++ str
-  where
-    (results, _) = Earley.fullParses (Earley.parser grammar)
-      . Pinchot.noLocations $ str
-
-cDay :: Time.Day -> Maybe (Date Char ())
-cDay = parse (fmap a'Date earleyGrammar) . show
-
-cTimeOfDay :: Time.TimeOfDay -> Maybe (Time Char ())
-cTimeOfDay = parse (fmap a'Time earleyGrammar) . show
-
-cTimeZone :: Time.TimeZone -> Maybe (Zone Char ())
-cTimeZone = fmap (Zone cBacktick)
-  . parse (fmap a'ZoneHrsMins earleyGrammar)
-  . Time.timeZoneOffsetString
 
 -- Numbers
 
@@ -632,6 +611,19 @@ repDecimal ei d = case ei of
           Just grouped -> Extreme
             (Polarized (BrimRadPer'BrimGroupedRadPer grouped) side)
 
+cInteger
+  :: Integer
+  -> WholeAny Char ()
+cInteger i = case NZ.c'NonZero'Integer i of
+  Nothing -> WholeAny'Zero cZero
+  Just nz -> WholeAny'WholeNonZero (WholeNonZero pm d1 (D0'9'Star ds))
+    where
+      pm | p == negative = PluMin'Opt (Just . PluMin'Minus $ cMinus)
+         | otherwise = PluMin'Opt Nothing
+        where
+          p = Lens.view NZ.pole nz
+      (d1, ds) = positiveDigits . NZ.c'Positive'NonZero $ nz
+
 -- | Provide a simple ungrouped string for a decimal.
 displayDecimalAsQty
   :: Decimal
@@ -745,10 +737,12 @@ cUnquotedStringNonDigitChar'Plus sq = do
   xs' <- sequence . fmap cUnquotedStringNonDigitChar $ xs
   return $ UnquotedStringNonDigitChar'Plus (NE.NonEmptySeq x' xs')
 
-cCommodity :: Seq Char -> Commodity Char ()
-cCommodity sq = case cUnquotedStringNonDigitChar'Plus sq of
+cCommodity :: Commodity.Commodity -> Commodity Char ()
+cCommodity cy = case cUnquotedStringNonDigitChar'Plus sq of
   Nothing -> Commodity'QuotedCommodity (QuotedCommodity (cQuotedString sq))
   Just us -> Commodity'UnquotedCommodity (UnquotedCommodity us)
+  where
+    sq = Seq.fromList . X.unpack $ cy
 
 
 -- | Grouper of thin space
@@ -1216,32 +1210,87 @@ cNov d = Nov cOne cOne cDateSep d
 cDec :: Days31 Char () -> MonthDay Char ()
 cDec d = Dec cOne cTwo cDateSep d
 
+cMonthDay
+  :: Int
+  -- ^ Month
+  -> Int
+  -- ^ Day
+  -> Maybe (MonthDay Char ())
+cMonthDay m d
+  | m == 1 = fmap cJan (c'Days31'Int d)
+  | m == 2 = fmap cFeb (c'Days28'Int d)
+  | m == 3 = fmap cMar (c'Days31'Int d)
+  | m == 4 = fmap cApr (c'Days30'Int d)
+  | m == 5 = fmap cMay (c'Days31'Int d)
+  | m == 6 = fmap cJun (c'Days30'Int d)
+  | m == 7 = fmap cJul (c'Days31'Int d)
+  | m == 8 = fmap cAug (c'Days31'Int d)
+  | m == 9 = fmap cSep (c'Days30'Int d)
+  | m == 10 = fmap cOct (c'Days31'Int d)
+  | m == 11 = fmap cNov (c'Days30'Int d)
+  | m == 12 = fmap cDec (c'Days31'Int d)
+  | otherwise = Nothing
+
 cNonLeapDay
-  :: Year Char ()
-  -> MonthDay Char ()
-  -> NonLeapDay Char ()
-cNonLeapDay y md = NonLeapDay y cDateSep md
+  :: Time.Day
+  -> Maybe (NonLeapDay Char ())
+cNonLeapDay timeDay = do
+  let (yrI, moI, dyI) = Time.toGregorian timeDay
+  yr <- c'Year'Int yrI
+  moDy <- cMonthDay moI dyI
+  return $ NonLeapDay yr cDateSep moDy
 
-cLeapDay :: LeapYear Char () -> LeapDay Char ()
-cLeapDay ly = LeapDay ly cDateSep cZero cTwo cDateSep cTwo cNine
-
-cTime
-  :: Hours Char ()
-  -> (D0'5 Char (), D0'9 Char ())
-  -- ^ Minutes
-  -> Maybe (D0'5 Char (), D0'9 Char ())
-  -- ^ Seconds
-  -> Time Char ()
-cTime h (m1, m2) s = Time h cColon (Minutes (N0'59 m1 m2)) s'
+cLeapDay
+  :: Time.Day
+  -> Maybe (LeapDay Char ())
+cLeapDay timeDay
+  | moI == 2 && dyI == 29 = do
+      ly <- c'LeapYear'Int yrI
+      return $ LeapDay ly cDateSep cZero cTwo cDateSep cTwo cNine
+  | otherwise = Nothing
   where
-    s' = case s of
-      Nothing -> ColonSeconds'Opt Nothing
-      Just (s1, s2) -> ColonSeconds'Opt (Just (ColonSeconds cColon
-        (Seconds (N0'59 s1 s2))))
+    (yrI, moI, dyI) = Time.toGregorian timeDay
+
+cDay
+  :: Time.Day
+  -> Maybe (Date Char ())
+cDay dy = fmap Date'NonLeapDay (cNonLeapDay dy)
+  <|> fmap Date'LeapDay (cLeapDay dy)
+
+cTimeOfDay :: Time.TimeOfDay -> Maybe (Time Char ())
+cTimeOfDay (Time.TimeOfDay hrI miI secPico) = do
+  let secI = round secPico
+  sec <- c'Seconds'Int secI
+  min <- c'Minutes'Int miI
+  hr <- c'Hours'Int hrI
+  return $ Time hr cColon min (ColonSeconds'Opt (Just (ColonSeconds
+    cColon sec)))
+
+cTimeZone :: Time.TimeZone -> Maybe (Zone Char ())
+cTimeZone tz = do
+  let signedMins = Time.timeZoneMinutes tz
+      pm | signedMins < 0 = PluMin'Minus cMinus
+         | otherwise = PluMin'Plus cPlus
+      (hrs, mins) = abs signedMins `divMod` 60
+  copperHours <- c'Hours'Int hrs
+  copperMins <- c'Minutes'Int mins
+  return $ Zone pm copperHours cColon copperMins
+
+cZonedTime :: Time.ZonedTime -> Maybe (DateTimeZone Char ())
+cZonedTime (Time.ZonedTime (Time.LocalTime day tod) tz) = do
+  copperDay <- cDay day
+  copperTime <- cTimeOfDay tod
+  copperZone <- cTimeZone tz
+  return $ DateTimeZone copperDay (TimeAndMayZone'Opt (Just
+    (TimeAndMayZone (WhitesTime cWhite'Plus copperTime)
+      (WhitesZone'Opt (Just (WhitesZone cWhite'Star copperZone))))))
 
 space :: White'Star Char ()
 space = White'Star . Seq.singleton
   $ White'Space cSpace
+
+cWhite'Plus :: White'Plus Char ()
+cWhite'Plus = White'Plus (NE.NonEmptySeq cWhite'Space Seq.empty)
 
 newline :: White'Star Char ()
 newline = White'Star . Seq.singleton . White'Newline $ cNewline
@@ -1266,3 +1315,391 @@ cDebitCredit :: Pole -> DebitCredit Char ()
 cDebitCredit p
   | p == debit = DebitCredit'Debit cDebit
   | otherwise = DebitCredit'Credit cCredit
+
+
+-- | Converts an 'A.Amount' to a 'Troika'.  A 'QC' is always created,
+-- with the commodity being on the right with a space between.  The
+-- decimal is always represented with a period radix and no grouping.
+c'Troika'Amount :: Amount.Amount -> Troika.Troika
+c'Troika'Amount (Amount.Amount cy q) = Troika.Troika cy (Troika.QC rar ar)
+  where
+    ar = Arrangement CommodityOnRight True
+    rar = repDecimal (Right Nothing) q
+
+cTroiload
+  :: Commodity.Commodity
+  -> Troika.Troiload
+  -> Maybe (Trio Char ())
+cTroiload cy t = case t of
+
+  Troika.QC (Left (Moderate nilRadCom)) (Arrangement CommodityOnLeft spc)
+    -> Just $ Trio'T_Commodity_Neutral (T_Commodity_Neutral (cCommodity cy)
+        (spacer spc) neu)
+    where
+      neu = NeuCom cBacktick nilRadCom
+
+  Troika.QC (Left (Moderate nilRadCom)) (Arrangement CommodityOnRight spc)
+    -> Just $ Trio'T_Neutral_Commodity (T_Neutral_Commodity neu
+        (spacer spc) (cCommodity cy))
+    where
+      neu = NeuCom cBacktick nilRadCom
+
+  Troika.QC (Left (Extreme (Polarized brimRadCom pole)))
+    (Arrangement CommodityOnLeft spc) ->
+    Just $ Trio'T_DebitCredit_Commodity_NonNeutral
+    (T_DebitCredit_Commodity_NonNeutral (cDebitCredit pole) mempty
+      (cCommodity cy) (spacer spc) brim)
+    where
+      brim = NonNeutralRadCom cBacktick brimRadCom
+
+  Troika.QC (Left (Extreme (Polarized brimRadCom pole)))
+    (Arrangement CommodityOnRight spc) -> Just $
+    Trio'T_DebitCredit_NonNeutral_Commodity
+    (T_DebitCredit_NonNeutral_Commodity (cDebitCredit pole) mempty
+      brim (spacer spc) (cCommodity cy))
+    where
+      brim = NonNeutralRadCom cBacktick brimRadCom
+
+  Troika.QC (Right (Moderate nilRadPer)) (Arrangement CommodityOnLeft spc)
+    -> Just $ Trio'T_Commodity_Neutral (T_Commodity_Neutral (cCommodity cy)
+        (spacer spc) neu)
+    where
+      neu = NeuPer nilRadPer
+
+  Troika.QC (Right (Moderate nilRadPer)) (Arrangement CommodityOnRight spc)
+    -> Just $ Trio'T_Neutral_Commodity (T_Neutral_Commodity neu
+        (spacer spc) (cCommodity cy))
+    where
+      neu = NeuPer nilRadPer
+
+  Troika.QC (Right (Extreme (Polarized brimRadPer pole)))
+    (Arrangement CommodityOnLeft spc) ->
+    Just $ Trio'T_DebitCredit_Commodity_NonNeutral
+    (T_DebitCredit_Commodity_NonNeutral (cDebitCredit pole) mempty
+      (cCommodity cy) (spacer spc) brim)
+    where
+      brim = NonNeutralRadPer brimRadPer
+
+  Troika.QC (Right (Extreme (Polarized brimRadPer pole)))
+    (Arrangement CommodityOnRight spc) ->
+    Just $ Trio'T_DebitCredit_NonNeutral_Commodity
+    (T_DebitCredit_NonNeutral_Commodity (cDebitCredit pole) mempty
+      brim (spacer spc) (cCommodity cy))
+    where
+      brim = NonNeutralRadPer brimRadPer
+
+  Troika.Q (Left (Moderate nilRadCom)) -> Just $ Trio'T_Neutral (T_Neutral neu)
+    where
+      neu = NeuCom cBacktick nilRadCom
+
+  Troika.Q (Right (Moderate nilRadPer)) -> Just $ Trio'T_Neutral (T_Neutral neu)
+    where
+      neu = NeuPer nilRadPer
+
+  Troika.Q (Left (Extreme (Polarized brimRadCom pole))) ->
+    Just $ Trio'T_DebitCredit_NonNeutral (T_DebitCredit_NonNeutral
+    (cDebitCredit pole) mempty nn)
+    where
+      nn = NonNeutralRadCom cBacktick brimRadCom
+
+  Troika.Q (Right (Extreme (Polarized brimRadPer pole))) ->
+    Just $ Trio'T_DebitCredit_NonNeutral (T_DebitCredit_NonNeutral
+    (cDebitCredit pole) mempty nn)
+    where
+      nn = NonNeutralRadPer brimRadPer
+
+  Troika.SC dnz -> Just $ Trio'T_DebitCredit_Commodity
+    (T_DebitCredit_Commodity (cDebitCredit pole) mempty (cCommodity cy))
+    where
+      pole = Lens.view poleDecNonZero dnz
+
+  Troika.S dnz -> Just $ Trio'T_DebitCredit
+    . T_DebitCredit . cDebitCredit .  Lens.view poleDecNonZero $ dnz
+
+  Troika.UC brim _ (Arrangement CommodityOnLeft spc) ->
+    Just $ Trio'T_Commodity_NonNeutral (T_Commodity_NonNeutral (cCommodity cy)
+    (spacer spc) nn)
+    where
+      nn = case brim of
+        Left brc -> NonNeutralRadCom cBacktick brc
+        Right brp -> NonNeutralRadPer brp
+
+  Troika.UC brim _ (Arrangement CommodityOnRight spc) ->
+    Just $ Trio'T_NonNeutral_Commodity (T_NonNeutral_Commodity nn
+    (spacer spc) (cCommodity cy))
+    where
+      nn = case brim of
+        Left brc -> NonNeutralRadCom cBacktick brc
+        Right brp -> NonNeutralRadPer brp
+
+  Troika.NC nil (Arrangement CommodityOnLeft spc) ->
+    Just $ Trio'T_Commodity_Neutral (T_Commodity_Neutral (cCommodity cy)
+    (spacer spc) nar)
+    where
+      nar = case nil of
+        Left nrc -> NeuCom cBacktick nrc
+        Right nrp -> NeuPer nrp
+
+  Troika.NC nil (Arrangement CommodityOnRight spc) ->
+    Just $ Trio'T_Neutral_Commodity (T_Neutral_Commodity nar
+    (spacer spc) (cCommodity cy))
+    where
+      nar = case nil of
+        Left nrc -> NeuCom cBacktick nrc
+        Right nrp -> NeuPer nrp
+
+  Troika.US brim _ -> Just $ Trio'T_NonNeutral (T_NonNeutral b)
+    where
+      b = case brim of
+        Left brc -> NonNeutralRadCom cBacktick brc
+        Right brp -> NonNeutralRadPer brp
+
+  Troika.UU nar -> Just $ Trio'T_Neutral (T_Neutral n)
+    where
+      n = case nar of
+        Left nrc -> NeuCom cBacktick nrc
+        Right nrp -> NeuPer nrp
+
+  Troika.C _ -> Just $ Trio'T_Commodity (T_Commodity (cCommodity cy))
+
+  Troika.E _ -> Nothing
+
+  where
+    spacer useSpace
+      | useSpace = space
+      | otherwise = mempty
+
+
+-- | Succeeds if the 'Troika.Troiquant' is anything other than
+-- 'Troika.E'; otherwise, returns Nothing.
+cTroika
+  :: Troika.Troika
+  -> Maybe (Trio Char ())
+cTroika (Troika.Troika cy tl) = cTroiload cy tl
+
+-- | Amounts are always frozen as an ungrouped representation with
+-- the commodity on the left with no space between.
+amount
+  :: Amount.Amount
+  -> Trio Char ()
+amount (Amount.Amount cy q) = case splitRepAnyRadix rep of
+  Left nil -> Trio'T_Commodity_Neutral tComNeu
+    where
+      tComNeu = T_Commodity_Neutral cy' mempty neu
+      neu = case nil of
+        Left nilCom -> NeuCom cBacktick nilCom
+        Right nilPer -> NeuPer nilPer
+  Right (brim, pole) -> Trio'T_DebitCredit_Commodity_NonNeutral tDrComNon
+    where
+      tDrComNon = T_DebitCredit_Commodity_NonNeutral drCr mempty cy'
+        mempty nn
+        where
+          drCr | pole == debit = DebitCredit'Debit (Debit cLessThan)
+               | otherwise = DebitCredit'Credit (Credit cGreaterThan)
+          nn = case brim of
+            Left brimCom -> NonNeutralRadCom cBacktick brimCom
+            Right brimPer -> NonNeutralRadPer brimPer
+  where
+    rep = repDecimal (Right Nothing) q
+    cy' = cCommodity cy
+
+-- * Prices
+
+cExch :: Decimal -> Exch Char ()
+cExch dec = case splitRepAnyRadix . repDecimal (Right Nothing) $ dec of
+  Left nil -> Exch'Neutral $ case nil of
+    Left nilCom -> NeuCom cBacktick nilCom
+    Right nilPer -> NeuPer nilPer
+  Right (brim, pole) -> Exch'ExchNonNeu $ ExchNonNeu'PluMinNonNeutral
+    (PluMinNonNeutral pm mempty nonNeu)
+    where
+      pm | pole == negative = PluMin'Minus cMinus
+          | otherwise = PluMin'Plus cPlus
+      nonNeu = case brim of
+        Left brimCom -> NonNeutralRadCom cBacktick brimCom
+        Right brimPer -> NonNeutralRadPer brimPer
+
+cPrice
+  :: PriceParts a
+  -> Maybe (Price Char ())
+cPrice (PriceParts _ zt from to dec) = fmap f (cZonedTime zt)
+  where
+    f dtz = Price cAtSign cWhite'Star dtz cWhite'Plus
+      (cCommodity from) cWhite'Plus jan cNewline
+    jan = Janus'CyExch $ CyExch (cCommodity to) cWhite'Star
+      (cExch dec)
+
+-- Labels
+
+cSeries :: String -> NonEmptySeq (Char, ())
+cSeries = fromJust . NE.seqToNonEmptySeq . Seq.fromList
+  . fmap (\c -> (c, ()))
+
+cLblOrigPayee :: LblOrigPayee Char ()
+cLblOrigPayee = LblOrigPayee $ cSeries "'origPayee'"
+
+cLblNumber :: LblNumber Char ()
+cLblNumber = LblNumber $ cSeries "'number'"
+
+cLblFitid :: LblFitid Char ()
+cLblFitid = LblFitid $ cSeries "'fitid'"
+
+cLblTags :: LblTags Char ()
+cLblTags = LblTags $ cSeries "'tags'"
+
+cLblUid :: LblUid Char ()
+cLblUid = LblUid $ cSeries "'uid'"
+
+cLblOfxTrn :: LblOfxTrn Char ()
+cLblOfxTrn = LblOfxTrn $ cSeries "'ofxtrn'"
+
+cLblOrigDate :: LblOrigDate Char ()
+cLblOrigDate = LblOrigDate $ cSeries "'origDate'"
+
+cNextListItem :: Text -> NextListItem Char ()
+cNextListItem = NextListItem cWhite'Plus . cAnyString
+
+cNextListItem'Star :: Seq Text -> NextListItem'Star Char ()
+cNextListItem'Star = NextListItem'Star . fmap cNextListItem
+
+cListItems :: NonEmptySeq Text -> ListItems Char ()
+cListItems (NE.NonEmptySeq t1 ts) = ListItems cWhite'Star (cAnyString t1)
+  (cNextListItem'Star ts)
+
+cListItems'Opt :: Seq Text -> ListItems'Opt Char ()
+cListItems'Opt = ListItems'Opt . maybe Nothing (Just . cListItems)
+  . NE.seqToNonEmptySeq
+
+cBracketedList :: Seq Text -> BracketedList Char ()
+cBracketedList ts = BracketedList cOpenSquare (cListItems'Opt ts)
+  cWhite'Star cCloseSquare
+
+cTCREDIT :: TCREDIT Char ()
+cTCREDIT = TCREDIT $ cSeries "TCREDIT"
+
+cTDEBIT :: TDEBIT Char ()
+cTDEBIT = TDEBIT $ cSeries "TDEBIT"
+
+cTINT :: TINT Char ()
+cTINT = TINT $ cSeries "TINT"
+
+cTDIV :: TDIV Char ()
+cTDIV = TDIV $ cSeries "TDIV"
+
+cTFEE :: TFEE Char ()
+cTFEE = TFEE $ cSeries "TFEE"
+
+cTSRVCHG :: TSRVCHG Char ()
+cTSRVCHG = TSRVCHG $ cSeries "TSRVCHG"
+
+cTDEP :: TDEP Char ()
+cTDEP = TDEP $ cSeries "TDEP"
+
+cTATM :: TATM Char ()
+cTATM = TATM $ cSeries "TATM"
+
+cTPOS :: TPOS Char ()
+cTPOS = TPOS $ cSeries "TPOS"
+
+cTXFER :: TXFER Char ()
+cTXFER = TXFER $ cSeries "TXFER"
+
+cTCHECK :: TCHECK Char ()
+cTCHECK = TCHECK $ cSeries "TCHECK"
+
+cTPAYMENT :: TPAYMENT Char ()
+cTPAYMENT = TPAYMENT $ cSeries "TPAYMENT"
+
+cTCASH :: TCASH Char ()
+cTCASH = TCASH $ cSeries "TCASH"
+
+cTDIRECTDEP :: TDIRECTDEP Char ()
+cTDIRECTDEP = TDIRECTDEP $ cSeries "TDIRECTDEP"
+
+cTDIRECTDEBIT :: TDIRECTDEBIT Char ()
+cTDIRECTDEBIT = TDIRECTDEBIT $ cSeries "TDIRECTDEBIT"
+
+cTREPEATPMT :: TREPEATPMT Char ()
+cTREPEATPMT = TREPEATPMT $ cSeries "TREPEATPMT"
+
+cTOTHER :: TOTHER Char ()
+cTOTHER = TOTHER $ cSeries "TOTHER"
+
+cTrnType :: OFX.TrnType -> OfxTrnData Char ()
+cTrnType x = case x of
+  OFX.TCREDIT -> OfxTrnData'TCREDIT cTCREDIT
+  OFX.TDEBIT -> OfxTrnData'TDEBIT cTDEBIT
+  OFX.TINT -> OfxTrnData'TINT cTINT
+  OFX.TDIV -> OfxTrnData'TDIV cTDIV
+  OFX.TFEE -> OfxTrnData'TFEE cTFEE
+  OFX.TSRVCHG -> OfxTrnData'TSRVCHG cTSRVCHG
+  OFX.TDEP -> OfxTrnData'TDEP cTDEP
+  OFX.TATM -> OfxTrnData'TATM cTATM
+  OFX.TPOS -> OfxTrnData'TPOS cTPOS
+  OFX.TXFER -> OfxTrnData'TXFER cTXFER
+  OFX.TCHECK -> OfxTrnData'TCHECK cTCHECK
+  OFX.TPAYMENT -> OfxTrnData'TPAYMENT cTPAYMENT
+  OFX.TCASH -> OfxTrnData'TCASH cTCASH
+  OFX.TDIRECTDEP -> OfxTrnData'TDIRECTDEP cTDIRECTDEP
+  OFX.TDIRECTDEBIT -> OfxTrnData'TDIRECTDEBIT cTDIRECTDEBIT
+  OFX.TREPEATPMT -> OfxTrnData'TREPEATPMT cTREPEATPMT
+  OFX.TOTHER -> OfxTrnData'TOTHER cTOTHER
+
+cDateField :: Time.ZonedTime -> Maybe (DateField Char ())
+cDateField = fmap DateField . cZonedTime
+
+cPayee :: Text -> Payee Char ()
+cPayee = Payee . cAnyString
+
+cOrigPayee :: Text -> OrigPayee Char ()
+cOrigPayee txt = OrigPayee cWhite'Star cLblOrigPayee cWhite'Star
+  (cAnyString txt)
+
+cNumber :: Integer -> Number Char ()
+cNumber = Number cLblNumber cWhite'Star . cInteger
+
+cFlag :: Text -> Flag Char ()
+cFlag txt = Flag cOpenParen cWhite'Star (cAnyString txt) cWhite'Star
+  cCloseParen
+
+cAccount :: Seq Text -> Account Char ()
+cAccount = Account . cBracketedList
+
+cFitid :: Text -> Fitid Char ()
+cFitid = Fitid cLblFitid cWhite'Star . cAnyString
+
+cTags :: Seq Text -> Tags Char ()
+cTags = Tags cLblTags cWhite'Star . cBracketedList
+
+cUid :: Text -> Uid Char ()
+cUid = Uid cLblUid cWhite'Star . cAnyString
+
+cOfxTrn :: OFX.TrnType -> OfxTrn Char ()
+cOfxTrn = OfxTrn cLblOfxTrn cWhite'Star . cTrnType
+
+cOrigDate :: Time.ZonedTime -> Maybe (OrigDate Char ())
+cOrigDate zt = OrigDate cLblOrigDate cWhite'Star <$> cZonedTime zt
+
+cPostingFields :: Fields.PostingFields -> Maybe (PostingFields Char ())
+cPostingFields (Fields.PostingFields num fl acct fitid
+  tags uid trnType origDate)
+  = fmap f copperOrigDate
+  where
+    copperOrigDate = case origDate of
+      Nothing -> Just Nothing
+      Just d -> fmap Just $ cOrigDate d
+    f od = PostingFields acctField (PostingFieldP'Star (tagsField
+      `Lens.cons` otherFields))
+      where
+        acctField = PostingField'Account (cAccount acct)
+        tagsField = PostingFieldP cWhite'Plus (PostingField'Tags (cTags tags))
+        otherFields
+          = fmap (PostingFieldP cWhite'Plus)
+          . catMaybes
+          $ fmap (PostingField'Number . cNumber) num
+          <| fmap (PostingField'Flag . cFlag) fl
+          <| fmap (PostingField'Fitid . cFitid) fitid
+          <| fmap (PostingField'Uid . cUid) uid
+          <| fmap (PostingField'OfxTrn . cOfxTrn) trnType
+          <| fmap PostingField'OrigDate od
+          <| Seq.empty

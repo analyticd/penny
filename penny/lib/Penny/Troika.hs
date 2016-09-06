@@ -27,7 +27,6 @@ import qualified Penny.Amount as A
 import Penny.Arrangement
 import Penny.Balance
 import Penny.Commodity
-import Penny.Copper.Copperize (repDecimal)
 import Penny.Copper.Decopperize
 import Penny.Decimal
 import Penny.Copper.Types (GrpRadCom, GrpRadPer)
@@ -105,15 +104,6 @@ instance PrettyVal Troika where
     ]
 
 Lens.makeLenses ''Troika
-
--- | Converts an 'A.Amount' to a 'Troika'.  A 'QC' is always created,
--- with the commodity being on the right with a space between.  The
--- decimal is always represented with a period radix and no grouping.
-c'Troika'Amount :: A.Amount -> Troika
-c'Troika'Amount (A.Amount cy q) = Troika cy (QC rar ar)
-  where
-    ar = Arrangement CommodityOnRight True
-    rar = repDecimal (Right Nothing) q
 
 -- TODO the () type is too specific
 troikaRendering

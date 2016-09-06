@@ -44,6 +44,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
+import Data.Sums (S3(S3a, S3b, S3c))
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Typeable (Typeable)
@@ -58,8 +59,6 @@ import qualified Penny.Copper.Proofer as Proofer
 import Penny.Copper.Types (WholeFile)
 import Penny.Copper.Tracompri
 import Penny.Cursor
-import Penny.Scalar
-import Penny.Tree
 
 -- | Given an integer position in a text, obtain the Pinchot
 -- position.
@@ -144,28 +143,11 @@ parseProduction getGrammar txt = case results of
     grammar = fmap getGrammar EarleyGrammar.earleyGrammar
     info = errorInfo txt report
 
--- | Creates a 'Tree' holding the filename.
-filenameTree :: Filename -> Tree
-filenameTree name = Tree (Just (SText "filename"))
-  [ Tree (Just (SText name)) [] ]
-
--- | Given the results of a parse, append a filename tree to each
--- transaction.
-appendFilenameTrees
-  :: Functor f
-  => Filename
-  -> f (Either a (Seq Tree, b))
-  -> f (Either a (Seq Tree, b))
-appendFilenameTrees filename = Lens.over setter f
-  where
-    setter = Lens.mapped . Lens._Right . Lens._1
-    f sq = sq `Lens.snoc` (filenameTree filename)
-
-
 data ParseConvertProofError a = ParseConvertProofError
   { _filenameWithError :: Filename
   , _parseOrProofFailure
-      :: Either ParseError (NonEmptySeq (Proofer.ProofFail a))
+      :: S3 ParseError (NonEmptySeq (Proofer.CollectionFail a))
+                       (NonEmptySeq (Proofer.ValidationFail a))
   } deriving (Typeable, Show)
 
 Lens.makeLenses ''ParseConvertProofError
@@ -179,43 +161,44 @@ parseResultToError
   -> Either ParseError (p Char Loc)
   -> Either (ParseConvertProofError a) (p Char Loc)
 parseResultToError filename
-  = either (Left . ParseConvertProofError filename . Left) Right
+  = Lens.over Lens._Left (ParseConvertProofError filename . S3a)
+
 
 -- | Takes the result of proofing items and returns either the result
 -- or a ParseConvertProofError.
 proofResultToError
-  :: Filename
-  -> Accuerr (NonEmptySeq (Proofer.ProofFail a)) (Seq (Tracompri Loc))
-  -> Either (ParseConvertProofError a) (Seq (Tracompri Cursor))
-proofResultToError filename ac = case ac of
-  Accuerr.AccFailure e -> Left . ParseConvertProofError filename
-    . Right $ e
-  Accuerr.AccSuccess g -> Right . fmap (fmap (Cursor filename)) $ g
+  :: Traversable t
+  => Filename
+  -> Proofer.Proofer Loc (t (Tracompri Loc))
+  -> Either (ParseConvertProofError Loc) (t (Tracompri Cursor))
+proofResultToError filename proofer = case proofer of
+  Left (Left collectionFails) ->
+    Left (ParseConvertProofError filename (S3b collectionFails))
+  Left (Right validationFails) ->
+    Left (ParseConvertProofError filename (S3c validationFails))
+  Right g -> Right . fmap (fmap (Cursor filename)) $ g
 
 -- | Parses, converts, and proofs a single file.
 parseConvertProof
   :: (Filename, Text)
+  -- ^ Name and data of file
   -> Either (ParseConvertProofError Loc)
-            (WholeFile Char Loc, (Seq (Tracompri Cursor)))
+            (WholeFile Char Loc, Seq (Tracompri Cursor))
 parseConvertProof (filename, txt) = do
   wholeFile <- parseResultToError filename
     $ parseProduction Productions.a'WholeFile txt
   res <- proofResultToError filename . Proofer.proofItems . dWholeFile
-            $ wholeFile
+    $ wholeFile
   return (wholeFile, res)
-
-parseConvertProofAccuerr
-  :: (Filename, Text)
-  -> Accuerr (NonEmptySeq (ParseConvertProofError Loc))
-             (WholeFile Char Loc, Seq (Tracompri Cursor))
-parseConvertProofAccuerr
-  = Lens.over Accuerr._AccFailure NE.singleton
-  . Accuerr.eitherToAccuerr
-  . parseConvertProof
 
 -- | Parses, converts, and proofs a series of files.
 parseConvertProofFiles
-  :: Seq (Filename, Text)
+  :: Traversable t
+  => t (Filename, Text)
   -> Accuerr (NonEmptySeq (ParseConvertProofError Loc))
-             (Seq (WholeFile Char Loc, Seq (Tracompri Cursor)))
-parseConvertProofFiles = traverse parseConvertProofAccuerr
+             (t (WholeFile Char Loc, Seq (Tracompri Cursor)))
+parseConvertProofFiles
+  = traverse
+  $ Lens.over Accuerr._AccFailure NE.singleton
+  . Accuerr.eitherToAccuerr
+  . parseConvertProof

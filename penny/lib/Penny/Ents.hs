@@ -37,6 +37,7 @@ import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
 import Penny.Commodity
+import Penny.Copper.Copperize (c'Troika'Amount)
 import Penny.Copper.Decopperize (dBrimAnyRadix, c'Decimal'RepAnyRadix)
 import Penny.Decimal
 import Penny.Polar
@@ -103,13 +104,13 @@ appendEnt :: Ents a -> (Amount, a) -> Ents a
 appendEnt (Ents s b) (am, e) = Ents (s |> (tm, e))
   (b <> c'Imbalance'Amount am)
   where
-    tm = Y.c'Troika'Amount am
+    tm = c'Troika'Amount am
 
 prependEnt :: (Amount, a) -> Ents a -> Ents a
 prependEnt (am, e) (Ents s b) = Ents ((tm, e) <| s)
   (b <> c'Imbalance'Amount am)
   where
-    tm = Y.c'Troika'Amount am
+    tm = c'Troika'Amount am
 
 appendTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
 appendTrio (Ents sq imb) trio = fmap f $ Y.trioToTroiload imb trio

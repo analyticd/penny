@@ -271,8 +271,8 @@ dPluMin'Opt (PluMin'Opt m) = case m of
   Nothing -> id
   Just a -> dPluMin a
 
-dZoneHrsMins :: ZoneHrsMins t a -> Time.TimeZone
-dZoneHrsMins (ZoneHrsMins pm hrs mins) = Time.TimeZone totMins False ""
+dZone :: Zone t a -> Time.TimeZone
+dZone (Zone pm hrs _ mins) = Time.TimeZone totMins False ""
   where
     totMins = dPluMin pm . c'Int'Integer . NN.c'Integer'NonNegative
       $ hourMinutes `NN.add` minutes
@@ -282,9 +282,6 @@ dZoneHrsMins (ZoneHrsMins pm hrs mins) = Time.TimeZone totMins False ""
             sixty = NN.six `NN.mult` NN.ten
         minutes = dMinutes mins
 
-
-dZone :: Zone t a -> Time.TimeZone
-dZone (Zone _ z) = dZoneHrsMins z
 
 dWhitesZone :: WhitesZone t a -> Time.TimeZone
 dWhitesZone (WhitesZone _ z) = dZone z

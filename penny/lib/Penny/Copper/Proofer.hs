@@ -40,7 +40,7 @@ import Penny.Trio
 import Accuerr (Accuerr)
 import qualified Accuerr
 import qualified Control.Lens as Lens
-import Control.Monad (foldM)
+import Control.Monad (foldM, (<=<))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Semigroup ((<>))
@@ -179,11 +179,10 @@ validateItem s3 = case s3 of
 -- * Proofing
 
 proofItems
-  :: Seq (S3 (PriceParts a) Text (TxnParts a))
-  -> Proofer a (Seq (Tracompri a))
-proofItems sq = do
-  collected <- collect sq
-  proof collected
+  :: Traversable t
+  => t (S3 (PriceParts a) Text (TxnParts a))
+  -> Proofer a (t (Tracompri a))
+proofItems = proof <=< collect
   where
     collect = Lens.over Lens._Left Left
       . Accuerr.accuerrToEither
