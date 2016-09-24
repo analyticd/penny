@@ -18,8 +18,8 @@ import Penny.Copper.Grammar
 import Pinchot (syntaxTrees, wrappedInstances,
  bifunctorInstances, semigroupInstances, monoidInstances, prettyInstances)
 
-syntaxTrees [] allRules -- [''Eq, ''Ord, ''Show, ''Functor, ''Foldable, ''Traversable,
-  -- ''Data] allRules
+syntaxTrees [''Eq, ''Ord, ''Show, ''Functor, ''Foldable, ''Traversable,
+  ''Data] allRules
 
 wrappedInstances allRules
 
