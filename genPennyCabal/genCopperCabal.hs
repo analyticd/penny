@@ -3,11 +3,10 @@ module Main where
 import Cartel
 import Dependencies
 
-pennyVer :: [Word]
-pennyVer = [0,33,0,0]
+copperVer :: [Word]
+copperVer = [0,1,0,0]
 
-pennyCopper :: Package
-pennyCopper = exactly "penny-copper" [0,1,0,0]
+-- Packages
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
@@ -20,42 +19,10 @@ commonOptions =
 libraryDepends :: [Package]
 libraryDepends =
   [ base
-  , text
-  , containers
-  , time
-  , transformers
-  , bifunctors
-  , rainbow
-  , rainbox
-  , semigroups
-  , contravariant
-  , bytestring
-  , turtle
-  , mtl
-  , lens
-  , async
-  , pipes
-  , pipesSafe
-  , pipesCliff
-  , process
-  , anonymousSums
-  , void
-  , pretty
-  , managed
-  , tasty
-  , tastyHunit
-  , monoidSubclasses
   , pinchot
+  , containers
+  , lens
   , earley
-  , accuerr
-  , ofx
-  , parsec
-  , timelens
-  , prettyShow
-  , templateHaskell
-  , nonEmptySequence
-  , optparseApplicative
-  , pennyCopper
   ]
 
 testDepends :: [Package]
@@ -63,8 +30,8 @@ testDepends = [ quickcheck, tasty, tastyQuickcheck, tastyTh, derive ]
 
 props :: Properties
 props = mempty
-  { name = "penny"
-  , version = pennyVer
+  { name = "penny-copper"
+  , version = copperVer
   , cabalVersion = Just (1,14)
   , buildType = Just simple
   , license = Just bsd3
@@ -86,28 +53,19 @@ props = mempty
     , "of the Penny homepage:"
     , ""
     , "<http://www.github.com/massysett/penny>"
+    , ""
+    , "This package contains only the types needed to parse ledger files."
     ]
   , category = "Console, Finance"
   }
 
 main :: IO ()
 main = defaultMain $ do
-  libMods <- modules "../penny/lib"
-  -- testMods <- modules "tests"
+  libMods <- modules "../penny-copper/lib"
   return
     ( props
     ,   exposedModules libMods
       : buildDepends libraryDepends
       : commonOptions
     , [ githubHead "massysett" "penny" ]
-{-
-      , testSuite "penny-properties" $
-        exitcodeFields "penny-properties.hs" ++
-        commonOptions ++
-        [ hsSourceDirs ["properties"]
-        , buildDepends libraryDepends
-        , buildDepends testDepends
-        , otherModules libMods
-        ]
--}
     )
