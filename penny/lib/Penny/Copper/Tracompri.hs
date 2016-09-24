@@ -1,6 +1,9 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE TemplateHaskell #-}
+-- | A sum type for transactions, comments, and prices.
 module Penny.Copper.Tracompri where
 
+import qualified Control.Lens as Lens
 import Data.Text (Text)
 
 import Penny.Price
@@ -14,3 +17,4 @@ data Tracompri a
   | Tracompri'Price (Price a)
   deriving (Functor, Foldable, Traversable)
 
+Lens.makePrisms ''Tracompri

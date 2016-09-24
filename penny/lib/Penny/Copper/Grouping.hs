@@ -1,3 +1,6 @@
+-- | The ledger file grammar has two kinds of numeric values: those
+-- that are grouped, and those that are not.  This module converts
+-- between the two.
 module Penny.Copper.Grouping where
 
 import Control.Monad (join)
@@ -10,9 +13,9 @@ import Data.Sequence.NonEmpty (NonEmptySeq(NonEmptySeq))
 import Penny.Copper.Types
 import Penny.NonEmpty
 
--- # Ungrouping
+-- * Ungrouping
 
--- ## Nil
+-- ** Nil
 ungroupNilRadCom :: NilRadCom t a -> NilUngroupedRadCom t a
 ungroupNilRadCom (NilRadCom'NilUngroupedRadCom x) = x
 ungroupNilRadCom (NilRadCom'NilGroupedRadCom x)
@@ -23,7 +26,7 @@ ungroupNilRadPer (NilRadPer'NilUngroupedRadPer x) = x
 ungroupNilRadPer (NilRadPer'NilGroupedRadPer x)
   = ungroupNilGroupedRadPer x
 
--- ## Brim
+-- ** Brim
 ungroupBrimRadCom :: BrimRadCom t a -> BrimUngroupedRadCom t a
 ungroupBrimRadCom (BrimRadCom'BrimUngroupedRadCom x) = x
 ungroupBrimRadCom (BrimRadCom'BrimGroupedRadCom x)
@@ -35,9 +38,9 @@ ungroupBrimRadPer (BrimRadPer'BrimGroupedRadPer x)
   = ungroupBrimGroupedRadPer x
 
 
--- ## RadCom
+-- ** RadCom
 
--- ### Brim
+-- *** Brim
 
 ungroupBrimGroupedRadCom :: BrimGroupedRadCom t a -> BrimUngroupedRadCom t a
 ungroupBrimGroupedRadCom (BGGreaterThanOneRadCom d1 (D0'9'Star ds2) bg1)
@@ -143,7 +146,7 @@ ungroupBG5RadCom (BG5ZeroRadCom z1 (Zero'Star zs) b6)
     (zeroes, d1, ds) = ungroupBG6RadCom b6
     zeroes' = z1 <| (zs <> zeroes)
 
--- ### Nil
+-- *** Nil
 ungroupNilGroupedRadCom :: NilGroupedRadCom t a -> NilUngroupedRadCom t a
 ungroupNilGroupedRadCom (NilGroupedRadCom (Zero'Opt mayZero1) rdx2 z3
   (Zero'Star zs4) (ZeroGroupRadCom'Plus (NonEmptySeq grp1 grpsRest)))
@@ -158,9 +161,9 @@ ungroupNilGroupedRadCom (NilGroupedRadCom (Zero'Opt mayZero1) rdx2 z3
         zeroesFromGroups = seqFromNonEmpty . join . fmap stripGrouper
           $ allGroups
 
--- ## RadPer
+-- ** RadPer
 
--- ## Brim
+-- ** Brim
 
 ungroupBrimGroupedRadPer :: BrimGroupedRadPer t a -> BrimUngroupedRadPer t a
 ungroupBrimGroupedRadPer (BGGreaterThanOneRadPer d1 (D0'9'Star ds2) bg1)
@@ -268,7 +271,7 @@ ungroupBG5RadPer (BG5ZeroRadPer z1 (Zero'Star zs) b6)
     (zeroes, d1, ds) = ungroupBG6RadPer b6
     zeroes' = z1 <| (zs <> zeroes)
 
--- ### Nil
+-- *** Nil
 ungroupNilGroupedRadPer :: NilGroupedRadPer t a -> NilUngroupedRadPer t a
 ungroupNilGroupedRadPer (NilGroupedRadPer (Zero'Opt mayZero1) rdx2 z3
   (Zero'Star zs4) (ZeroGroupRadPer'Plus (NonEmptySeq grp1 grpsRest)))
@@ -283,13 +286,13 @@ ungroupNilGroupedRadPer (NilGroupedRadPer (Zero'Opt mayZero1) rdx2 z3
         zeroesFromGroups = seqFromNonEmpty . join . fmap stripGrouper
           $ allGroups
 
--- # Grouping
+-- * Grouping
 
 type Group a = (a, a, a)
 data Leftovers a
   = NoneLeft
   | OneLeft a
-  | TwoLeft a a 
+  | TwoLeft a a
 
 -- | Splits a Seq into groups of three, from the right.  Returns the
 -- groups and any leftovers on the left.

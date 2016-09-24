@@ -1,5 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+-- | The components of a price.  Unlike a 'P.Price', no checking has
+-- been performed to ensure that the '_priceFrom' and '_priceTo' are
+-- not the same 'Commodity'.
 module Penny.Copper.PriceParts where
 
 import Control.Lens (makeLenses)

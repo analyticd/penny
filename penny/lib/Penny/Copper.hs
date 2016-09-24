@@ -24,8 +24,8 @@
 -- a number representation that is zero.
 --
 -- The second phase transforms this AST into the data types that are
--- used in the rest of Penny.  This is called the @locator@ and it
--- is in "Penny.Copper.Locator".
+-- used in the rest of Penny.  This is called @decopperization@ and is in
+-- "Penny.Copper.Decopperize".
 --
 -- The third phase performs final error checking.  It ensures that
 -- postings are valid, that transactions are balanced, and that
@@ -40,7 +40,6 @@ import Accuerr (Accuerr)
 import qualified Accuerr
 import Control.Exception (Exception)
 import qualified Control.Lens as Lens
-import Control.Monad ((<=<))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Sequence.NonEmpty (NonEmptySeq)

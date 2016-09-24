@@ -8,6 +8,8 @@
 -- optional (either with 'opt' or with 'star' or 'plus'.)  In that
 -- case, the whitespace should appear within the optional production
 -- and should appear first.
+--
+-- The data types corresponding to the gramamr are in "Penny.Copper.Types".
 module Penny.Copper.Grammar (allRules) where
 
 import Pinchot (terminal, solo, union, plus, star, pariah, include,

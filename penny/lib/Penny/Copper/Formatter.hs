@@ -1,4 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
+
+-- | The functions and values in "Penny.Copper.Copperize" produce
+-- output that is correct, but ugly.  This module formats values
+-- nicely.  Useful for formatting freshly copperized values, and also
+-- for cleaning up ledger files that were written by humans.
 module Penny.Copper.Formatter where
 
 import Penny.Copper.Copperize
