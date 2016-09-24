@@ -301,6 +301,15 @@ sortPostingFields by
     fromPostingFields (PostingFields p1 (PostingFieldP'Star ps))
       = NE.NonEmptySeq p1 (fmap _r'PostingFieldP'1'PostingField ps)
 
+quotedStringIsEmpty :: QuotedString t a -> Bool
+quotedStringIsEmpty (QuotedString _ (QuotedChar'Star sq) _)
+  = Seq.null sq
+
+anyStringIsEmpty :: AnyString t a -> Bool
+anyStringIsEmpty as = case as of
+  AnyString'UnquotedString _ -> False
+  AnyString'QuotedString qs -> quotedStringIsEmpty qs
+
 -- | Sorts posting fields into this order:
 --
 -- 0. number
