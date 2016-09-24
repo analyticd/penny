@@ -490,13 +490,13 @@ number :: Stripe
 number = W1 (maybeCol integer (view AP.number))
 
 flag :: Stripe
-flag = W1 (maybeCol text (view AP.flag))
+flag = W1 (text (view AP.flag))
 
 account :: Stripe
 account = W1 (seqText $ view AP.account)
 
 fitid :: Stripe
-fitid = W1 (maybeCol text (view AP.fitid))
+fitid = W1 (text (view AP.fitid))
 
 tags :: Stripe
 tags = W1 (seqText $ view AP.tags)

@@ -81,25 +81,25 @@ timeZoneMinutes = fields . F.timeZoneMinutes
 payee :: forall a. Lens.Lens' (TopLine a) Text
 payee = fields . F.payee
 
-origPayee :: forall a. Lens.Lens' (TopLine a) (Maybe Text)
+origPayee :: forall a. Lens.Lens' (TopLine a) Text
 origPayee = fields . F.origPayee
 
 number :: forall a. Lens.Lens' (Postline a) (Maybe Integer)
 number = fields . F.number
 
-flag :: forall a . Lens.Lens' (Postline a) (Maybe Text)
+flag :: forall a . Lens.Lens' (Postline a) Text
 flag = fields . F.flag
 
 account :: forall a. Lens.Lens' (Postline a) (Seq Text)
 account = fields . F.account
 
-fitid :: forall a. Lens.Lens' (Postline a) (Maybe Text)
+fitid :: forall a. Lens.Lens' (Postline a) Text
 fitid = fields . F.fitid
 
 tags :: forall a. Lens.Lens' (Postline a) (Seq Text)
 tags = fields . F.tags
 
-uid :: forall a. Lens.Lens' (Postline a) (Maybe Text)
+uid :: forall a. Lens.Lens' (Postline a) Text
 uid = fields . F.uid
 
 reconciled :: Postline a -> Bool

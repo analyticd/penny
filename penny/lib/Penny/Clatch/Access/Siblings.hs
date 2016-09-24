@@ -35,19 +35,19 @@ siblings s = l `mappend` r
 number :: Sliced l a -> Seq (Maybe Integer)
 number = fmap (view (postline . Tranche.number)) . siblings
 
-flag :: Sliced l a -> Seq (Maybe Text)
+flag :: Sliced l a -> Seq Text
 flag = fmap (view (postline . Tranche.flag)) . siblings
 
-account :: Sliced l a -> Seq (Account)
+account :: Sliced l a -> Seq Account
 account = fmap (view (postline. Tranche.account)) . siblings
 
-fitid :: Sliced l a -> Seq (Maybe Text)
+fitid :: Sliced l a -> Seq Text
 fitid = fmap (view (postline . Tranche.fitid)) . siblings
 
 tags :: Sliced l a -> Seq (Seq Text)
 tags = fmap (view (postline . Tranche.tags)) . siblings
 
-uid :: Sliced l a -> Seq (Maybe Text)
+uid :: Sliced l a -> Seq Text
 uid = fmap (view (postline . Tranche.uid)) . siblings
 
 reconciled :: Sliced l a -> Seq Bool

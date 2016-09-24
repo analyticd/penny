@@ -10,8 +10,6 @@ module Penny.Ents
   ( Ents
   , entsToSeqEnt
   , entsToImbalance
-  , appendEnt
-  , prependEnt
   , appendTrio
   , prependTrio
   , Balanced
@@ -33,11 +31,9 @@ import qualified Data.Foldable as F
 import qualified Data.Traversable as T
 import qualified Data.Map as M
 
-import Penny.Amount
 import Penny.Arrangement
 import Penny.Balance
 import Penny.Commodity
-import Penny.Copper.Copperize (c'Troika'Amount)
 import Penny.Copper.Decopperize (dBrimAnyRadix, c'Decimal'RepAnyRadix)
 import Penny.Decimal
 import Penny.Polar
@@ -99,18 +95,6 @@ instance Traversable Balanced where
         EmptyL -> pure S.empty
         e :< xs ->
           (<|) <$> T.sequenceA e <*> go xs
-
-appendEnt :: Ents a -> (Amount, a) -> Ents a
-appendEnt (Ents s b) (am, e) = Ents (s |> (tm, e))
-  (b <> c'Imbalance'Amount am)
-  where
-    tm = c'Troika'Amount am
-
-prependEnt :: (Amount, a) -> Ents a -> Ents a
-prependEnt (am, e) (Ents s b) = Ents ((tm, e) <| s)
-  (b <> c'Imbalance'Amount am)
-  where
-    tm = c'Troika'Amount am
 
 appendTrio :: Ents a -> Trio -> Either TrioError (a -> Ents a)
 appendTrio (Ents sq imb) trio = fmap f $ Y.trioToTroiload imb trio

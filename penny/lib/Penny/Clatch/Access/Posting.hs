@@ -49,19 +49,19 @@ birth = core . Core.birth
 number :: Lens' (Sliced l a) (Maybe Integer)
 number = posting . postline . Tranche.number
 
-flag :: Lens' (Sliced l a) (Maybe Text)
+flag :: Lens' (Sliced l a) Text
 flag = posting . postline . Tranche.flag
 
 account :: Lens' (Sliced l a) Account
 account =  posting . postline . Tranche.account
 
-fitid :: Lens' (Sliced l a) (Maybe Text)
+fitid :: Lens' (Sliced l a) Text
 fitid = posting . postline . Tranche.fitid
 
 tags :: Lens' (Sliced l a) (Seq Text)
 tags = posting . postline . Tranche.tags
 
-uid :: Lens' (Sliced l a) (Maybe Text)
+uid :: Lens' (Sliced l a) Text
 uid = posting . postline . Tranche.uid
 
 reconciled :: Sliced l a -> Bool

@@ -40,6 +40,7 @@ import Accuerr (Accuerr)
 import qualified Accuerr
 import Control.Exception (Exception)
 import qualified Control.Lens as Lens
+import Control.Monad ((<=<))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Sequence.NonEmpty (NonEmptySeq)
@@ -153,6 +154,30 @@ data ParseConvertProofError a = ParseConvertProofError
 Lens.makeLenses ''ParseConvertProofError
 
 instance (Typeable a, Show a) => Exception (ParseConvertProofError a)
+
+parseWholeFile
+  :: Filename
+  -> Text
+  -> Either (ParseConvertProofError Loc) (WholeFile Char Loc)
+parseWholeFile fn
+  = Lens.over Lens._Left (ParseConvertProofError fn . S3a)
+  . parseProduction Productions.a'WholeFile
+
+proofWholeFile
+  :: Filename
+  -> WholeFile Char Loc
+  -> Either (ParseConvertProofError Loc) (Seq (Tracompri Cursor))
+proofWholeFile fn
+  = Lens.over Lens._Left convertError
+  . Lens.over Lens._Right convertSuccess
+  . Proofer.proofItems
+  . dWholeFile
+  where
+    convertError (Left collectionFails) = ParseConvertProofError fn
+      (S3b collectionFails)
+    convertError (Right validationFails) = ParseConvertProofError fn
+      (S3c validationFails)
+    convertSuccess = fmap (fmap (Cursor fn))
 
 -- | Takes the result of parsing a production and returns either the
 -- result or a ParseConvertProofError.

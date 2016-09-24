@@ -24,6 +24,7 @@
 module Penny.Copper.Copperize where
 
 import Accuerr (Accuerr(AccFailure, AccSuccess))
+import qualified Accuerr
 import Control.Applicative ((<|>))
 import qualified Control.Lens as Lens
 import Data.Foldable (toList)
@@ -36,21 +37,18 @@ import qualified Data.Sequence.NonEmpty as NE
 import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Time as Time
-import qualified Pinchot
-import Text.Earley (Prod, Grammar)
-import qualified Text.Earley as Earley
 
 import qualified Penny.Amount as Amount
 import Penny.Arrangement
 import qualified Penny.Commodity as Commodity
-import Penny.Copper.EarleyGrammar
 import Penny.Copper.Grouping
 import Penny.Copper.Optics
 import Penny.Copper.PriceParts
-import Penny.Copper.Productions
 import Penny.Copper.Terminalizers
+import Penny.Copper.Tracompri
 import Penny.Copper.Types
 import Penny.Decimal
+import Penny.Ents
 import qualified Penny.Fields as Fields
 import Penny.NonNegative (NonNegative)
 import qualified Penny.NonNegative as NN
@@ -60,6 +58,8 @@ import Penny.Positive (Positive)
 import qualified Penny.Positive as Pos
 import Penny.Rep
 import Penny.SeqUtil
+import qualified Penny.Tranche as Tranche
+import qualified Penny.Transaction as Txn
 import qualified Penny.Troika as Troika
 
 
@@ -1326,6 +1326,13 @@ c'Troika'Amount (Amount.Amount cy q) = Troika.Troika cy (Troika.QC rar ar)
     ar = Arrangement CommodityOnRight True
     rar = repDecimal (Right Nothing) q
 
+cSpace'Opt :: Bool -> Space'Opt Char ()
+cSpace'Opt False = Space'Opt Nothing
+cSpace'Opt True = Space'Opt (Just cSpace)
+
+cSemanticSpace :: Bool -> SemanticSpace Char ()
+cSemanticSpace = SemanticSpace . cSpace'Opt
+
 cTroiload
   :: Commodity.Commodity
   -> Troika.Troiload
@@ -1334,13 +1341,13 @@ cTroiload cy t = case t of
 
   Troika.QC (Left (Moderate nilRadCom)) (Arrangement CommodityOnLeft spc)
     -> Just $ Trio'T_Commodity_Neutral (T_Commodity_Neutral (cCommodity cy)
-        (spacer spc) neu)
+        (cSemanticSpace spc) neu)
     where
       neu = NeuCom cBacktick nilRadCom
 
   Troika.QC (Left (Moderate nilRadCom)) (Arrangement CommodityOnRight spc)
     -> Just $ Trio'T_Neutral_Commodity (T_Neutral_Commodity neu
-        (spacer spc) (cCommodity cy))
+        (cSemanticSpace spc) (cCommodity cy))
     where
       neu = NeuCom cBacktick nilRadCom
 
@@ -1348,7 +1355,7 @@ cTroiload cy t = case t of
     (Arrangement CommodityOnLeft spc) ->
     Just $ Trio'T_DebitCredit_Commodity_NonNeutral
     (T_DebitCredit_Commodity_NonNeutral (cDebitCredit pole) mempty
-      (cCommodity cy) (spacer spc) brim)
+      (cCommodity cy) (cSemanticSpace spc) brim)
     where
       brim = NonNeutralRadCom cBacktick brimRadCom
 
@@ -1356,19 +1363,19 @@ cTroiload cy t = case t of
     (Arrangement CommodityOnRight spc) -> Just $
     Trio'T_DebitCredit_NonNeutral_Commodity
     (T_DebitCredit_NonNeutral_Commodity (cDebitCredit pole) mempty
-      brim (spacer spc) (cCommodity cy))
+      brim (cSemanticSpace spc) (cCommodity cy))
     where
       brim = NonNeutralRadCom cBacktick brimRadCom
 
   Troika.QC (Right (Moderate nilRadPer)) (Arrangement CommodityOnLeft spc)
     -> Just $ Trio'T_Commodity_Neutral (T_Commodity_Neutral (cCommodity cy)
-        (spacer spc) neu)
+        (cSemanticSpace spc) neu)
     where
       neu = NeuPer nilRadPer
 
   Troika.QC (Right (Moderate nilRadPer)) (Arrangement CommodityOnRight spc)
     -> Just $ Trio'T_Neutral_Commodity (T_Neutral_Commodity neu
-        (spacer spc) (cCommodity cy))
+        (cSemanticSpace spc) (cCommodity cy))
     where
       neu = NeuPer nilRadPer
 
@@ -1376,7 +1383,7 @@ cTroiload cy t = case t of
     (Arrangement CommodityOnLeft spc) ->
     Just $ Trio'T_DebitCredit_Commodity_NonNeutral
     (T_DebitCredit_Commodity_NonNeutral (cDebitCredit pole) mempty
-      (cCommodity cy) (spacer spc) brim)
+      (cCommodity cy) (cSemanticSpace spc) brim)
     where
       brim = NonNeutralRadPer brimRadPer
 
@@ -1384,7 +1391,7 @@ cTroiload cy t = case t of
     (Arrangement CommodityOnRight spc) ->
     Just $ Trio'T_DebitCredit_NonNeutral_Commodity
     (T_DebitCredit_NonNeutral_Commodity (cDebitCredit pole) mempty
-      brim (spacer spc) (cCommodity cy))
+      brim (cSemanticSpace spc) (cCommodity cy))
     where
       brim = NonNeutralRadPer brimRadPer
 
@@ -1418,7 +1425,7 @@ cTroiload cy t = case t of
 
   Troika.UC brim _ (Arrangement CommodityOnLeft spc) ->
     Just $ Trio'T_Commodity_NonNeutral (T_Commodity_NonNeutral (cCommodity cy)
-    (spacer spc) nn)
+    (cSemanticSpace spc) nn)
     where
       nn = case brim of
         Left brc -> NonNeutralRadCom cBacktick brc
@@ -1426,7 +1433,7 @@ cTroiload cy t = case t of
 
   Troika.UC brim _ (Arrangement CommodityOnRight spc) ->
     Just $ Trio'T_NonNeutral_Commodity (T_NonNeutral_Commodity nn
-    (spacer spc) (cCommodity cy))
+    (cSemanticSpace spc) (cCommodity cy))
     where
       nn = case brim of
         Left brc -> NonNeutralRadCom cBacktick brc
@@ -1434,7 +1441,7 @@ cTroiload cy t = case t of
 
   Troika.NC nil (Arrangement CommodityOnLeft spc) ->
     Just $ Trio'T_Commodity_Neutral (T_Commodity_Neutral (cCommodity cy)
-    (spacer spc) nar)
+    (cSemanticSpace spc) nar)
     where
       nar = case nil of
         Left nrc -> NeuCom cBacktick nrc
@@ -1442,7 +1449,7 @@ cTroiload cy t = case t of
 
   Troika.NC nil (Arrangement CommodityOnRight spc) ->
     Just $ Trio'T_Neutral_Commodity (T_Neutral_Commodity nar
-    (spacer spc) (cCommodity cy))
+    (cSemanticSpace spc) (cCommodity cy))
     where
       nar = case nil of
         Left nrc -> NeuCom cBacktick nrc
@@ -1464,12 +1471,6 @@ cTroiload cy t = case t of
 
   Troika.E _ -> Nothing
 
-  where
-    spacer useSpace
-      | useSpace = space
-      | otherwise = mempty
-
-
 -- | Succeeds if the 'Troika.Troiquant' is anything other than
 -- 'Troika.E'; otherwise, returns Nothing.
 cTroika
@@ -1479,20 +1480,20 @@ cTroika (Troika.Troika cy tl) = cTroiload cy tl
 
 -- | Amounts are always frozen as an ungrouped representation with
 -- the commodity on the left with no space between.
-amount
+cAmount
   :: Amount.Amount
   -> Trio Char ()
-amount (Amount.Amount cy q) = case splitRepAnyRadix rep of
+cAmount (Amount.Amount cy q) = case splitRepAnyRadix rep of
   Left nil -> Trio'T_Commodity_Neutral tComNeu
     where
-      tComNeu = T_Commodity_Neutral cy' mempty neu
+      tComNeu = T_Commodity_Neutral cy' (cSemanticSpace False) neu
       neu = case nil of
         Left nilCom -> NeuCom cBacktick nilCom
         Right nilPer -> NeuPer nilPer
   Right (brim, pole) -> Trio'T_DebitCredit_Commodity_NonNeutral tDrComNon
     where
       tDrComNon = T_DebitCredit_Commodity_NonNeutral drCr mempty cy'
-        mempty nn
+        (cSemanticSpace False) nn
         where
           drCr | pole == debit = DebitCredit'Debit (Debit cLessThan)
                | otherwise = DebitCredit'Credit (Credit cGreaterThan)
@@ -1697,9 +1698,128 @@ cPostingFields (Fields.PostingFields num fl acct fitid
           = fmap (PostingFieldP cWhite'Plus)
           . catMaybes
           $ fmap (PostingField'Number . cNumber) num
-          <| fmap (PostingField'Flag . cFlag) fl
-          <| fmap (PostingField'Fitid . cFitid) fitid
-          <| fmap (PostingField'Uid . cUid) uid
+          <| (Just . PostingField'Flag . cFlag) fl
+          <| (Just . PostingField'Fitid . cFitid) fitid
+          <| (Just . PostingField'Uid . cUid) uid
           <| fmap (PostingField'OfxTrn . cOfxTrn) trnType
           <| fmap PostingField'OrigDate od
           <| Seq.empty
+
+cTopLineFields :: Fields.TopLineFields -> Maybe (TopLineFields Char ())
+cTopLineFields (Fields.TopLineFields zt pye origPye)
+  = fmap f (cZonedTime zt)
+  where
+    f dtz = TopLineFields (DateField dtz) cWhite'Plus
+      (cPayee pye) (OrigPayee'Opt . Just . cOrigPayee $ origPye)
+
+cTopLine :: Tranche.TopLine a -> Maybe (TopLineFields Char ())
+cTopLine (Tranche.Tranche _ tlf) = cTopLineFields tlf
+
+-- | Fails if the 'Fields._origDate' field contains a bad date.
+cEnt :: (Troika.Troika, Tranche.Postline a) -> Maybe (Posting Char ())
+cEnt (tka, Tranche.Tranche _ pf) = case cTroika tka of
+  Nothing -> fmap Posting'PostingFields (cPostingFields pf)
+  Just trio -> fmap f (cPostingFields pf)
+    where
+      f = Posting'TrioMaybeFields
+        . TrioMaybeFields trio
+        . PostingFieldsP'Opt
+        . Just
+        . PostingFieldsP mempty
+
+
+spaces :: Int -> White'Star Char ()
+spaces i = White'Star . fmap White'Space . Seq.replicate i
+  $ cSpace
+
+
+-- | An error occurred when trying to freeze a single price,
+-- transaction, or comment.
+data TracompriError a
+  = TracompriBadTime (Txn.Transaction a)
+  -- ^ Could not freeze the transaction because the 'Fields._zonedTime' was bad.
+  | TracompriBadOrigDate (Txn.Transaction a)
+  -- ^ Could not freeze the transaction because the 'Fields._origDate' was bad.
+  | TracompriBadComment Text (NonEmptySeq Char)
+  -- ^ Could not freeze a comment line due to at least one invalid
+  -- character.  As many invalid characters as possible are
+  -- accumulated.  The 'Text' is the entire invalid comment.
+  | TracompriBadPrice (PriceParts a)
+  -- ^ Could not freeze a price because the date was bad.
+  -- The entire 'PriceParts' is here.
+  deriving Show
+
+tracompriComment
+  :: Text
+  -> Accuerr (NonEmptySeq (TracompriError a)) (Comment Char ())
+tracompriComment txt
+  = Lens.over Accuerr._AccFailure (NE.singleton . TracompriBadComment txt)
+  . cComment
+  $ txt
+
+tracompriPrice
+  :: PriceParts a
+  -> Accuerr (NonEmptySeq (TracompriError a)) (Price Char ())
+tracompriPrice p
+  = maybe (Accuerr.AccFailure . NE.singleton . TracompriBadPrice $ p) pure
+  . cPrice
+  $ p
+
+tracompriEnt
+  :: Txn.Transaction a
+  -- ^ Original transaction.  Used only for errors.
+  -> (Troika.Troika, Tranche.Postline a)
+  -> Accuerr (NonEmptySeq (TracompriError a)) (Posting Char ())
+tracompriEnt txn = maybe err pure . cEnt
+  where
+    err = Accuerr.AccFailure . NE.singleton . TracompriBadOrigDate $ txn
+
+tracompriTopLine
+  :: Txn.Transaction a
+  -- ^ Original transaction.  The postings are needed only for errors.
+  -> Accuerr (NonEmptySeq (TracompriError a)) (TopLineFields Char ())
+tracompriTopLine txn@(Txn.Transaction tl _)
+  = maybe err pure . cTopLine $ tl
+  where
+    err = Accuerr.AccFailure . NE.singleton . TracompriBadTime $ txn
+
+tracompriTransaction
+  :: Txn.Transaction a
+  -> Accuerr (NonEmptySeq (TracompriError a)) (Transaction Char ())
+tracompriTransaction txn@(Txn.Transaction _ pstgs)
+  = Transaction
+  <$> tracompriTopLine txn
+  <*> pure mempty
+  <*> fmap mkPstgs (traverse (tracompriEnt txn) (balancedToSeqEnt pstgs))
+  where
+    mkPstgs pstgs' = Postings cOpenCurly mayPl mempty cCloseCurly cNewline
+      where
+        mayPl = PostingList'Opt . maybe Nothing mkPstgList
+          . Lens.uncons $ pstgs'
+          where
+            mkPstgList (p1, ps) = Just . PostingList mempty p1
+              . NextPosting'Star . fmap mkNextPosting $ ps
+              where
+                mkNextPosting = NextPosting mempty cSemicolon mempty
+
+tracompri
+  :: Tracompri a
+  -> Accuerr (NonEmptySeq (TracompriError a)) (FileItem Char ())
+tracompri tra = case tra of
+  Tracompri'Transaction txn -> fmap FileItem'Transaction
+    $ tracompriTransaction txn
+  Tracompri'Comment com -> fmap FileItem'Comment
+    $ tracompriComment com
+  Tracompri'Price pri -> fmap FileItem'Price
+    . tracompriPrice
+    . priceToPriceParts $ pri
+
+tracompriWholeFile
+  :: Seq (Tracompri a)
+  -> Accuerr (NonEmptySeq (TracompriError a)) (WholeFile Char ())
+tracompriWholeFile sq
+  = WholeFile
+  <$> fmap FileItemP'Star (traverse mkFileItemP sq)
+  <*> pure mempty
+  where
+    mkFileItemP = fmap (FileItemP mempty) . tracompri

@@ -42,6 +42,9 @@ module Penny.SeqUtil
   , onLeft
   , onSlice
   , onRight
+
+  -- * Sorting 'NonEmptySeq'
+  , sortNonEmptySeq
   ) where
 
 import Control.Lens.TH
@@ -298,3 +301,14 @@ isSingleton xs = case viewl xs of
   y :< ys -> case viewl ys of
     EmptyL -> Just y
     _ -> Nothing
+
+-- | Stable sort on a 'NonEmptySeq'.
+sortNonEmptySeq
+  :: (a -> a -> Ordering)
+  -> NonEmptySeq a
+  -> NonEmptySeq a
+sortNonEmptySeq by
+  = maybe (error "sortNonEmptySeq: seq is empty") id
+  . NE.seqToNonEmptySeq
+  . sortBy by
+  . NE.nonEmptySeqToSeq

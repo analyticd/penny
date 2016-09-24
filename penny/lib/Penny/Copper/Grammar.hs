@@ -364,6 +364,11 @@ quotedChars = star quotedChar
 quotedString = record "QuotedString"
   [doubleQuote, quotedChars, doubleQuote]
 
+-- Semantic space - unlike rWhite'Star and rWhite'Plus, this space has
+-- semantic meaning.
+rSpace'Opt = opt space
+rSemanticSpace = wrap "SemanticSpace" rSpace'Opt
+
 -- Unquoted strings
 unquotedStringNonDigitChar =
   terminal "UnquotedStringNonDigitChar" $
@@ -431,10 +436,10 @@ t_DebitCredit_NonNeutral = record "T_DebitCredit_NonNeutral"
 
 t_DebitCredit_Commodity_NonNeutral =
   record "T_DebitCredit_Commodity_NonNeutral"
-  [ debitCredit, rWhite'Star, commodity, rWhite'Star, nonNeutral]
+  [ debitCredit, rWhite'Star, commodity, rSemanticSpace, nonNeutral]
 t_DebitCredit_NonNeutral_Commodity = record
   "T_DebitCredit_NonNeutral_Commodity"
-  [ debitCredit, rWhite'Star, nonNeutral, rWhite'Star, commodity]
+  [ debitCredit, rWhite'Star, nonNeutral, rSemanticSpace, commodity]
 
 -- If there is no debit or credit present, there may be only a commodity.
 t_Commodity = wrap "T_Commodity" commodity
@@ -443,13 +448,13 @@ t_Commodity = wrap "T_Commodity" commodity
 -- neutral or non-neutral.
 
 t_Commodity_Neutral = record "T_Commodity_Neutral"
-  [ commodity, rWhite'Star, neutral ]
+  [ commodity, rSemanticSpace, neutral ]
 t_Neutral_Commodity = record "T_Neutral_Commodity"
-  [ neutral, rWhite'Star, commodity ]
+  [ neutral, rSemanticSpace, commodity ]
 t_Commodity_NonNeutral = record "T_Commodity_NonNeutral"
-  [ commodity, rWhite'Star, nonNeutral ]
+  [ commodity, rSemanticSpace, nonNeutral ]
 t_NonNeutral_Commodity = record "T_NonNeutral_Commodity"
-  [ nonNeutral, rWhite'Star, commodity ]
+  [ nonNeutral, rSemanticSpace, commodity ]
 
 -- A neutral or non-neutral standing alone is possible.
 t_Neutral = wrap "T_Neutral" neutral
@@ -592,10 +597,7 @@ price = record "Price"
 rFileItem = union "FileItem" [price, transaction, comment]
 rFileItemP = record "FileItemP" [rWhite'Star, rFileItem]
 rFileItemP'Star = star rFileItemP
-rFileItems = record "FileItems" [rFileItem, rFileItemP'Star]
-rFileItemsP = record "FileItemsP" [rWhite'Star, rFileItems]
-rFileItemsP'Opt = opt rFileItemsP
-rWholeFile = record "WholeFile" [rFileItemsP'Opt, rWhite'Star]
+rWholeFile = record "WholeFile" [rFileItemP'Star, rWhite'Star]
 
 -- | All interesting rules in this file are either in this list or are
 -- descendants of the items in this list.

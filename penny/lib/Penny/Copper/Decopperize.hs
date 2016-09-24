@@ -375,6 +375,13 @@ dQuotedCommodity :: QuotedCommodity Char a -> Commodity.Commodity
 dQuotedCommodity (QuotedCommodity q)
   = dQuotedString q
 
+dSpace'Opt :: Space'Opt t a -> Bool
+dSpace'Opt (Space'Opt Nothing) = False
+dSpace'Opt (Space'Opt (Just _)) = True
+
+dSemanticSpace :: SemanticSpace t a -> Bool
+dSemanticSpace (SemanticSpace a) = dSpace'Opt a
+
 dCommodity :: Commodity Char a -> Commodity.Commodity
 dCommodity x = case x of
   Commodity'UnquotedCommodity c -> dUnquotedCommodity c
@@ -648,7 +655,7 @@ dT_DebitCredit_Commodity_NonNeutral dcnn = Trio.QC repAnyRadix cy arrangement
     T_DebitCredit_Commodity_NonNeutral dc0 _ c2 w3 nn4 = fmap (const ()) dcnn
     cy = dCommodity c2
     p = dDebitCredit dc0
-    isSpace = not . Seq.null . t'White'Star $ w3
+    isSpace = dSemanticSpace w3
     repAnyRadix = case nn4 of
         NonNeutralRadCom _ brimRadCom ->
           Left $ Extreme  (Polarized brimRadCom p)
@@ -664,7 +671,7 @@ dT_DebitCredit_NonNeutral_Commodity dcnn = Trio.QC repAnyRadix cy arrangement
     T_DebitCredit_NonNeutral_Commodity dc0 _ nn2 w3 c4 = fmap (const ()) dcnn
     cy = dCommodity c4
     p = dDebitCredit dc0
-    isSpace = not . Seq.null . t'White'Star $ w3
+    isSpace = dSemanticSpace w3
     repAnyRadix = case nn2 of
         NonNeutralRadCom _ brimRadCom ->
           Left $ Extreme  (Polarized brimRadCom p)
@@ -681,7 +688,7 @@ dT_Commodity_Neutral cn
   where
     T_Commodity_Neutral cy0 w1 n2 = fmap (const ()) cn
     cy = dCommodity cy0
-    isSpace = not . Seq.null . t'White'Star $ w1
+    isSpace = dSemanticSpace w1
     nilAnyRadix = case n2 of
       NeuCom _ nilRadCom -> Left nilRadCom
       NeuPer nilRadPer -> Right nilRadPer
@@ -692,7 +699,7 @@ dT_Neutral_Commodity cn
   where
     T_Neutral_Commodity n0 w1 cy2 = fmap (const ()) cn
     cy = dCommodity cy2
-    isSpace = not . Seq.null . t'White'Star $ w1
+    isSpace = dSemanticSpace w1
     nilAnyRadix = case n0 of
       NeuCom _ nilRadCom -> Left nilRadCom
       NeuPer nilRadPer -> Right nilRadPer
@@ -703,7 +710,7 @@ dT_Commodity_NonNeutral cnn
   where
     T_Commodity_NonNeutral cy0 w1 n2 = fmap (const ()) cnn
     cy = dCommodity cy0
-    isSpace = not . Seq.null . t'White'Star $ w1
+    isSpace = dSemanticSpace w1
     brimScalarAnyRadix = case n2 of
       NonNeutralRadCom _ nilRadCom -> Left nilRadCom
       NonNeutralRadPer nilRadPer -> Right nilRadPer
@@ -714,7 +721,7 @@ dT_NonNeutral_Commodity cnn
   where
     T_NonNeutral_Commodity n0 w1 cy2 = fmap (const ()) cnn
     cy = dCommodity cy2
-    isSpace = not . Seq.null . t'White'Star $ w1
+    isSpace = dSemanticSpace w1
     brimScalarAnyRadix = case n0 of
       NonNeutralRadCom _ nilRadCom -> Left nilRadCom
       NonNeutralRadPer nilRadPer -> Right nilRadPer
@@ -800,8 +807,8 @@ dPayee (Payee s) = dAnyString s
 dOrigPayee :: OrigPayee Char a -> Text
 dOrigPayee (OrigPayee _ _ _ s) = dAnyString s
 
-dOrigPayee'Opt :: OrigPayee'Opt Char a -> Maybe Text
-dOrigPayee'Opt (OrigPayee'Opt may) = fmap dOrigPayee may
+dOrigPayee'Opt :: OrigPayee'Opt Char a -> Text
+dOrigPayee'Opt (OrigPayee'Opt may) = maybe X.empty dOrigPayee may
 
 dNumber :: Number t a -> Integer
 dNumber (Number _ _ w) = dWholeAny w
@@ -861,15 +868,15 @@ dPostingField pf = PostingFieldDecop loc lbl maker
       PostingField'Number n ->
         (DescNumber, Lens.set Fields.number (Just $ dNumber n))
       PostingField'Flag fl ->
-        (DescFlag, Lens.set Fields.flag (Just $ dFlag fl))
+        (DescFlag, Lens.set Fields.flag (dFlag fl))
       PostingField'Account ac ->
         (DescAccount, Lens.set Fields.account (dAccount ac))
       PostingField'Fitid fi ->
-        (DescFitid, Lens.set Fields.fitid (Just $ dFitid fi))
+        (DescFitid, Lens.set Fields.fitid (dFitid fi))
       PostingField'Tags ta ->
         (DescTags, Lens.set Fields.tags (dTags ta))
       PostingField'Uid ui ->
-        (DescUid, Lens.set Fields.uid (Just $ dUid ui))
+        (DescUid, Lens.set Fields.uid (dUid ui))
       PostingField'OfxTrn ox ->
         (DescOfxTrn, Lens.set Fields.trnType (Just $ dOfxTrn ox))
       PostingField'OrigDate od ->
@@ -972,28 +979,10 @@ dFileItemP'Star
 dFileItemP'Star (FileItemP'Star sq)
   = fmap dFileItemP sq
 
-dFileItems
-  :: FileItems Char a
-  -> NonEmptySeq (S3 (PriceParts a) X.Text (TxnParts a))
-dFileItems (FileItems i1 is)
-  = NE.NonEmptySeq (dFileItem i1) (dFileItemP'Star is)
-
-dFileItemsP
-  :: FileItemsP Char a
-  -> NonEmptySeq (S3 (PriceParts a) X.Text (TxnParts a))
-dFileItemsP (FileItemsP _ fis) = dFileItems fis
-
-dFileItemsP'Opt
-  :: FileItemsP'Opt Char a
-  -> Seq (S3 (PriceParts a) X.Text (TxnParts a))
-dFileItemsP'Opt (FileItemsP'Opt Nothing) = Seq.empty
-dFileItemsP'Opt (FileItemsP'Opt (Just fi)) =
-  NE.nonEmptySeqToSeq $ dFileItemsP fi
-
 dWholeFile
   :: WholeFile Char a
   -> Seq (S3 (PriceParts a) X.Text (TxnParts a))
-dWholeFile (WholeFile fio _) = dFileItemsP'Opt fio
+dWholeFile (WholeFile fio _) = dFileItemP'Star fio
 
 -- # Number types that are not in 'WholeFile'
 

@@ -30,8 +30,7 @@ import Penny.Copper
 import Penny.Copper.Copperize
 import Penny.Copper.Decopperize
 import Penny.Copper.EarleyGrammar
-import Penny.Copper.ArrangeWhites
-import Penny.Copper.Freezer
+import Penny.Copper.Formatter
 import Penny.Copper.Productions
 import Penny.Copper.Terminalizers (t'WholeFile)
 import Penny.Copper.Tracompri
@@ -65,7 +64,6 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Text.IO as XIO
-import qualified Data.Time as Time
 import qualified Options.Applicative as A
 import qualified Pinchot
 import qualified System.Environment as Env
@@ -191,7 +189,8 @@ runCommandLineProgram
   -> IO ()
 runCommandLineProgram fOfx modOfxText cmdLine = do
   let readText = XIO.readFile . X.unpack
-  readCopperFiles <- traverse (returnWithArgument readText)
+  readCopperFiles <- fmap (Seq.zip (_copperFiles cmdLine))
+    . traverse readText
     . _copperFiles $ cmdLine
   readOfxFile <- fmap (modOfxText . X.unpack)
     . XIO.readFile . _ofxFile $ cmdLine
@@ -212,8 +211,7 @@ appendResultToFile (newFile, mayOldFile) = case mayOldFile of
   Nothing -> errorFail $ "cannot append new transactions, as no Copper file "
           ++ "was provided on command line."
   Just (fn, oldWholeFile) -> do
-    let appendedFile = appendWholeFileWithSeparator newFile
-          (second (const ()) oldWholeFile)
+    let appendedFile = (second (const ()) oldWholeFile) <> newFile
     XIO.writeFile (X.unpack fn)
       . X.pack
       . toList
@@ -243,41 +241,37 @@ topLineTranche
   :: OfxIn
   -> OfxOut
   -> Tranche.TopLine ()
-topLineTranche inp out = Tranche.Tranche () []
+topLineTranche inp out = Tranche.Tranche ()
   $ Fields.TopLineFields zt pye origPye
   where
     zt = OFX.txDTPOSTED . _ofxTxn $ inp
-    pye = Just . _payee $ out
+    pye = _payee out
     origPye = case OFX.txPayeeInfo . _ofxTxn $ inp of
-      Nothing -> Nothing
-      Just (Left s) -> Just . X.pack $ s
-      Just (Right p) -> Just . X.pack . OFX.peNAME $ p
+      Nothing -> X.empty
+      Just (Left s) -> X.pack s
+      Just (Right p) -> X.pack . OFX.peNAME $ p
 
 -- | Given OFX data, create the foreign posting.
 foreignPair
   :: OfxIn
   -> OfxOut
   -> (Tranche.Postline (), Amount)
-foreignPair inp out = (Tranche.Tranche () [] fields, amt)
+foreignPair inp out = (Tranche.Tranche () fields, amt)
   where
     fields = Fields.PostingFields
       { Fields._number = Nothing
-      , Fields._flag = fmap toFlag . _flag $ out
+      , Fields._flag = toFlag . _flag $ out
       , Fields._account = _foreignAccount out
-      , Fields._fitid = Just . X.pack . OFX.txFITID . _ofxTxn $ inp
+      , Fields._fitid = X.pack . OFX.txFITID . _ofxTxn $ inp
       , Fields._tags = Seq.empty
-      , Fields._uid = Nothing
+      , Fields._uid = X.empty
       , Fields._trnType = Just . OFX.txTRNTYPE . _ofxTxn $ inp
-      , Fields._origDay = Just . Time.localDay . Time.zonedTimeToLocalTime
-          . OFX.txDTPOSTED . _ofxTxn $ inp
-      , Fields._origTime = Just . Time.localTimeOfDay
-          . Time.zonedTimeToLocalTime . OFX.txDTPOSTED . _ofxTxn $ inp
-      , Fields._origZone = Just . Time.timeZoneMinutes . Time.zonedTimeZone
-          . OFX.txDTPOSTED . _ofxTxn $ inp
+      , Fields._origDate = Just . OFX.txDTPOSTED . _ofxTxn $ inp
       }
       where
-        toFlag Cleared = "C"
-        toFlag Reconciled = "R"
+        toFlag Nothing = ""
+        toFlag (Just Cleared) = "C"
+        toFlag (Just Reconciled) = "R"
     amt = Amount.Amount
       { Amount._commodity = _commodity out
       , Amount._qty = flipper . _qty $ inp
@@ -287,25 +281,23 @@ foreignPair inp out = (Tranche.Tranche () [] fields, amt)
                 | otherwise = id
 
 -- | Given the OFX data, create the 'Tranche.Postline' for the
--- offsetting posting.  The offsetting posting does not get amount
+-- offsetting posting.  The offsetting posting does not get an amount
 -- because ultimately we use 'twoPostingBalanced', which does not
 -- require an amount for the offsetting posting.
 offsettingMeta
   :: OfxOut
   -> Tranche.Postline ()
-offsettingMeta out = Tranche.Tranche () [] fields
+offsettingMeta out = Tranche.Tranche () fields
   where
     fields = Fields.PostingFields
       { Fields._number = Nothing
-      , Fields._flag = Nothing
+      , Fields._flag = X.empty
       , Fields._account = _offsettingAccount out
-      , Fields._fitid = Nothing
+      , Fields._fitid = X.empty
       , Fields._tags = Seq.empty
-      , Fields._uid = Nothing
+      , Fields._uid = X.empty
       , Fields._trnType = Nothing
-      , Fields._origDay = Nothing
-      , Fields._origTime = Nothing
-      , Fields._origZone = Nothing
+      , Fields._origDate = Nothing
       }
 
 -- | Given the OFX data, create a 'Transaction'.
@@ -435,9 +427,9 @@ copperizeAndFormat
   :: Seq (Transaction ())
   -> Either (NonEmptySeq (TracompriError ())) (WholeFile Char ())
 copperizeAndFormat
-  = fmap formatWholeFile
-  . Lens.view Accuerr.isoAccuerrEither
-  . wholeFile
+  = fmap (formatWholeFile 4)
+  . Accuerr.accuerrToEither
+  . tracompriWholeFile
   . fmap Tracompri'Transaction
 
 
@@ -459,7 +451,7 @@ freshPosting inp out lkp = case Map.lookup acctName lkp of
 
 -- | Given a sequence of filenames and the text that is within those
 -- files, returns a map.  The keys in this map are all the accounts,
--- and the values are a set of all the fitids.  Also, is the sequence
+-- and the values are a set of all the fitids.  Also, if the sequence
 -- of filenames is non-empty, returns the last filename, and its
 -- corresponding WholeFile.
 getAccountsMap
@@ -479,9 +471,12 @@ parseFilesWithFilenames
   :: Seq (Filename, Text)
   -> Accuerr (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
              (Seq (Filename, WholeFile Char Pinchot.Loc, Seq (Tracompri Cursor)))
-parseFilesWithFilenames
-  = fmap (fmap (\((fn, _), (whole, tras)) -> (fn, whole, tras)))
-  . traverse (returnWithArgument parseConvertProofAccuerr)
+parseFilesWithFilenames sq
+  = Lens.over Accuerr._AccSuccess addFilenames
+  . parseConvertProofFiles
+  $ sq
+  where
+    addFilenames = fmap (\(a, (b, c)) -> (a, b, c)) . Seq.zip (fmap fst sq)
 
 addTracompriToAccountMap
   :: Map Account (Set Text)
@@ -500,25 +495,14 @@ addPostlineToAccountMap
   -> Postline a
   -> Map Account (Set Text)
 addPostlineToAccountMap acctMap postline
-  = case Lens.view Tranche.fitid postline of
-      Nothing -> acctMap
-      Just fitid -> Map.alter f acct acctMap
-        where
-          acct = Lens.view Tranche.account postline
-          f = Just . maybe (Set.singleton fitid) (Set.insert fitid)
+  | X.null fitid = acctMap
+  | otherwise = Map.alter f acct acctMap
+  where
+    fitid = Lens.view Tranche.fitid postline
+    acct = Lens.view Tranche.account postline
+    f = Just . maybe (Set.singleton fitid) (Set.insert fitid)
 
 -- * Utilities
-
--- | Modifies a plain function to one that also returns its original
--- argument.
-returnWithArgument
-  :: Functor f
-  => (a -> f b)
-  -> a
-  -> f (a, b)
-returnWithArgument f a = fmap g (f a)
-  where
-    g b = (a, b)
 
 -- | Prints the error message, then exits.
 errorFail :: String -> IO ()

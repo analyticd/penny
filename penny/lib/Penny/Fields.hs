@@ -13,6 +13,7 @@ module Penny.Fields where
 import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.Semigroup ((<>))
 import Data.OFX (TrnType)
 import Data.Text (Text)
 import qualified Data.Text as X
@@ -29,7 +30,7 @@ import Penny.Pretty
 data TopLineFields = TopLineFields
   { _zonedTime :: ZonedTime
   , _payee :: Text
-  , _origPayee :: Maybe Text
+  , _origPayee :: Text
   -- ^ When processing transactions from a financial institution, you
   -- may wish to use one payee name while retaining the institution's
   -- original payee name.  In that case, store the original payee
@@ -37,13 +38,13 @@ data TopLineFields = TopLineFields
   } deriving (Show, Generic)
 
 emptyTopLineFields :: ZonedTime -> TopLineFields
-emptyTopLineFields zt = TopLineFields zt X.empty Nothing
+emptyTopLineFields zt = TopLineFields zt X.empty X.empty
 
 instance PrettyVal TopLineFields where
   prettyVal (TopLineFields zt pye orig) = Pretty.Rec "TopLineFields"
     [ ("_zonedTime", prettyZonedTime zt)
     , ("_payee", prettyText pye)
-    , ("_origPayee", prettyMaybe prettyText orig)
+    , ("_origPayee", prettyText orig)
     ]
 
 Lens.makeLenses ''TopLineFields
@@ -51,11 +52,11 @@ Lens.makeLenses ''TopLineFields
 -- | Fields in the posting.
 data PostingFields = PostingFields
   { _number :: Maybe Integer
-  , _flag :: Maybe Text
+  , _flag :: Text
   , _account :: Seq Text
-  , _fitid :: Maybe Text
+  , _fitid :: Text
   , _tags :: Seq Text
-  , _uid :: Maybe Text
+  , _uid :: Text
   , _trnType :: Maybe TrnType
   , _origDate :: Maybe ZonedTime
   } deriving (Show, Generic)
@@ -63,11 +64,11 @@ data PostingFields = PostingFields
 instance PrettyVal PostingFields where
   prettyVal x = Pretty.Rec "PostingFields"
     [ ("_number", prettyMaybe Pretty.prettyVal . _number $ x)
-    , ("_flag", prettyMaybe prettyText . _flag $ x)
+    , ("_flag", prettyText . _flag $ x)
     , ("_account", prettySeq prettyText . _account $ x)
-    , ("_fitid", prettyMaybe prettyText . _fitid $ x)
+    , ("_fitid", prettyText . _fitid $ x)
     , ("_tags", prettySeq prettyText . _tags $ x)
-    , ("_uid", prettyMaybe prettyText . _uid $ x)
+    , ("_uid", prettyText . _uid $ x)
     , ("_trnType", prettyMaybe prettyTrnType . _trnType $ x)
     , ("_origDate", prettyMaybe prettyZonedTime . _origDate $ x)
     ]
@@ -76,15 +77,15 @@ instance PrettyVal PostingFields where
 -- takes the last non-'Nothing' value or the last non-empty 'Seq', as
 -- appropriate.
 instance Monoid PostingFields where
-  mempty = PostingFields Nothing Nothing Seq.empty Nothing
-    Seq.empty Nothing Nothing Nothing
+  mempty = PostingFields Nothing X.empty Seq.empty X.empty
+    Seq.empty X.empty Nothing Nothing
   mappend x y = PostingFields
     { _number = last (_number x) (_number y)
-    , _flag = last (_flag x) (_flag y)
+    , _flag = (_flag x) <> (_flag y)
     , _account = lastSeq (_account x) (_account y)
-    , _fitid = last (_fitid x) (_fitid y)
+    , _fitid = (_fitid x) <> (_fitid y)
     , _tags = lastSeq (_tags x) (_tags y)
-    , _uid = last (_uid x) (_uid y)
+    , _uid = (_uid x) <> (_uid y)
     , _trnType = last (_trnType x) (_trnType y)
     , _origDate = last (_origDate x) (_origDate y)
     }
@@ -114,8 +115,8 @@ timeZoneMinutes = timeZone . Timelens.timeZoneMinutes
 
 -- | 'True' if the '_flag' exists and has a value of @R@.
 reconciled :: PostingFields -> Bool
-reconciled = (== "R") . Lens.view (flag . Lens._Just)
+reconciled = (== "R") . Lens.view flag
 
 -- | 'True' if the '_flag' exists and has a value of @C@.
 cleared :: PostingFields -> Bool
-cleared = (== "C") . Lens.view (flag . Lens._Just)
+cleared = (== "C") . Lens.view flag

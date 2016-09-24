@@ -324,13 +324,13 @@ birth = view AP.birth
 number :: Sliced l a -> Maybe Integer
 number = view AP.number
 
-flag :: Sliced l a -> Maybe Text
+flag :: Sliced l a -> Text
 flag = view AP.flag
 
 account :: Sliced l a -> Account
 account = view AP.account
 
-fitid :: Sliced l a -> Maybe Text
+fitid :: Sliced l a -> Text
 fitid = view AP.fitid
 
 tags :: Sliced l a -> Seq Text
