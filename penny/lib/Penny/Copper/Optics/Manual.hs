@@ -8,6 +8,7 @@
 module Penny.Copper.Optics.Manual where
 
 import Penny.Copper.Types
+import Penny.Copper.Optics.Auto
 import Penny.Copper.Grammar
 import Pinchot (rulesToOptics)
 
