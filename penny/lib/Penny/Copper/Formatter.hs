@@ -406,7 +406,7 @@ formatWholeFile i
   . Lens.over (topLineDates . zoneInDateTimeZone) removeUTCZone
   . Lens.over (allOrigDate . zoneInDateTimeZone) removeUTCZone
   . Lens.over (allPostings . postingFieldsInPosting)
-              standardPostingFieldSort
-  . Lens.over (allPostings . postingFieldsInPosting)
               removeEmptyPostingFields
+  . Lens.over (allPostings . postingFieldsInPosting)
+              standardPostingFieldSort
   . Lens.over allOrigPayee removeEmptyOrigPayeeField
