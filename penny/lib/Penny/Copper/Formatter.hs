@@ -276,7 +276,7 @@ filterPostingFields
   -> PostingFields t a
   -> PostingFields t a
 filterPostingFields pd (PostingFields p1 ps) = case Lens.uncons sq' of
-  Nothing -> PostingFields p1 ps
+  Nothing -> PostingFields p1 (PostingFieldP'Star Seq.empty)
   Just (x, xs)
     | pd p1
         -> PostingFields p1 (PostingFieldP'Star sq')
