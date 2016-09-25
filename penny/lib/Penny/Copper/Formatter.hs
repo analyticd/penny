@@ -271,14 +271,14 @@ filterPostingFieldP'Star
 filterPostingFieldP'Star pd = Lens.over Lens._Wrapped'
   $ Seq.filter (Lens.view (r'PostingFieldP'1'PostingField . Lens.to pd))
 
-filterPostingFieldsP
+filterPostingFields
   :: (PostingField t a -> Bool)
   -> PostingFields t a
   -> PostingFields t a
-filterPostingFieldsP pd (PostingFields p1 ps) = case Lens.uncons sq' of
+filterPostingFields pd (PostingFields p1 ps) = case Lens.uncons sq' of
   Nothing -> PostingFields p1 ps
   Just (x, xs)
-    | pd (_r'PostingFieldP'1'PostingField x)
+    | pd p1
         -> PostingFields p1 (PostingFieldP'Star sq')
     | otherwise -> PostingFields (_r'PostingFieldP'1'PostingField x)
         (PostingFieldP'Star xs)
@@ -309,6 +309,34 @@ anyStringIsEmpty :: AnyString t a -> Bool
 anyStringIsEmpty as = case as of
   AnyString'UnquotedString _ -> False
   AnyString'QuotedString qs -> quotedStringIsEmpty qs
+
+bracketedListIsEmpty :: BracketedList t a -> Bool
+bracketedListIsEmpty (BracketedList _ (ListItems'Opt may) _ _) = case may of
+  Nothing -> True
+  Just _ -> False
+
+postingFieldIsEmpty :: PostingField t a -> Bool
+postingFieldIsEmpty field = case field of
+  PostingField'Number _ -> False
+  PostingField'Flag (Flag _ _ str _ _) -> anyStringIsEmpty str
+  PostingField'Account (Account bl) -> bracketedListIsEmpty bl
+  PostingField'Fitid (Fitid _ _ str) -> anyStringIsEmpty str
+  PostingField'Tags (Tags _ _ bl) -> bracketedListIsEmpty bl
+  PostingField'Uid (Uid _ _ str) -> anyStringIsEmpty str
+  PostingField'OfxTrn _ -> False
+  PostingField'OrigDate _ -> False
+
+-- | Removes all posting fields that are empty.
+removeEmptyPostingFields :: PostingFields t a -> PostingFields t a
+removeEmptyPostingFields = filterPostingFields (not . postingFieldIsEmpty)
+
+-- | Removes the @origPayee@ field if it is empty.
+removeEmptyOrigPayeeField :: OrigPayee'Opt t a -> OrigPayee'Opt t a
+removeEmptyOrigPayeeField (OrigPayee'Opt may) = OrigPayee'Opt $ case may of
+  Nothing -> Nothing
+  Just op@(OrigPayee _ _ _ str)
+    | anyStringIsEmpty str -> Nothing
+    | otherwise -> Just op
 
 -- | Sorts posting fields into this order:
 --
@@ -355,6 +383,10 @@ standardPostingFieldSort = sortPostingFields $ comparing $ \c -> case c of
 --
 -- * Sorts posting fields
 --
+-- * Removes empty posting fields.
+--
+-- * Removes the @origPayee@ field if it is empty.
+
 -- This list may grow in the future.
 
 formatWholeFile
@@ -374,4 +406,7 @@ formatWholeFile i
   . Lens.over (topLineDates . zoneInDateTimeZone) removeUTCZone
   . Lens.over (allOrigDate . zoneInDateTimeZone) removeUTCZone
   . Lens.over (allPostings . postingFieldsInPosting)
+              removeEmptyPostingFields
+  . Lens.over (allPostings . postingFieldsInPosting)
               standardPostingFieldSort
+  . Lens.over allOrigPayee removeEmptyOrigPayeeField

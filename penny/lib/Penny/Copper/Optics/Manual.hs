@@ -88,6 +88,13 @@ allOrigDate
   . _PostingField'OrigDate
   . r'OrigDate'2'DateTimeZone
 
+-- | Every @origPayee@.
+allOrigPayee :: Lens.Traversal' (WholeFile t a) (OrigPayee'Opt t a)
+allOrigPayee
+  = allTransactions
+  . r'Transaction'0'TopLineFields
+  . r'TopLineFields'3'OrigPayee'Opt
+
 -- | Maps over every 'Price' in the 'WholeFile'.
 allPrices :: Lens.Traversal' (WholeFile t a) (Price t a)
 allPrices = allFileItems . _FileItem'Price
