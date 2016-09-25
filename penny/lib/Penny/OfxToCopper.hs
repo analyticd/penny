@@ -64,6 +64,7 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Text.IO as XIO
+import Data.Time (ZonedTime)
 import qualified Options.Applicative as A
 import qualified Pinchot
 import qualified System.Environment as Env
@@ -110,6 +111,7 @@ data OfxOut = OfxOut
   -- ^ Commodity.  Used for both the foreign and offsetting posting.
   , _arrangement :: Arrangement
   -- ^ How to arrange the foreign posting.
+  , _zonedTime :: ZonedTime
   } deriving Show
 
 Lens.makeLenses ''OfxOut
@@ -129,6 +131,7 @@ defaultOfxOut ofxIn = OfxOut
   , _offsettingAccount = []
   , _commodity = ""
   , _arrangement = Arrangement CommodityOnRight True
+  , _zonedTime = OFX.txDTPOSTED . _ofxTxn $ ofxIn
   }
 
 -- * Command-line program
@@ -244,7 +247,7 @@ topLineTranche
 topLineTranche inp out = Tranche.Tranche ()
   $ Fields.TopLineFields zt pye origPye
   where
-    zt = OFX.txDTPOSTED . _ofxTxn $ inp
+    zt = _zonedTime out
     pye = _payee out
     origPye = case OFX.txPayeeInfo . _ofxTxn $ inp of
       Nothing -> X.empty
