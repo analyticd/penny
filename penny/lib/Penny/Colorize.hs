@@ -27,6 +27,15 @@ data HowManyColors = HowManyColors
 
 makeLenses ''HowManyColors
 
+noColors :: HowManyColors
+noColors = HowManyColors False False
+
+colors8 :: HowManyColors
+colors8 = HowManyColors True False
+
+colors256 :: HowManyColors
+colors256 = HowManyColors True True
+
 colorizer
   :: HowManyColors
   -> Chunk Text
@@ -60,6 +69,15 @@ data ChooseColors = ChooseColors
   } deriving (Eq, Show, Ord)
 
 makeLenses ''ChooseColors
+
+alwaysNoColors :: ChooseColors
+alwaysNoColors = ChooseColors noColors noColors noColors
+
+autoColors :: ChooseColors
+autoColors = ChooseColors noColors colors8 colors256
+
+maxColors :: ChooseColors
+maxColors = ChooseColors colors256 colors256 colors256
 
 tputColors :: IO (ReifiedLens' ChooseColors HowManyColors)
 tputColors = catch getLens handle

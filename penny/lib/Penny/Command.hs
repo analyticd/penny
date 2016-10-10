@@ -79,6 +79,7 @@ import qualified Penny.Clatch.Access.TransactionX as AT
 import Penny.Clatch.Types
 import Penny.Clatcher (Clatcher, Report)
 import qualified Penny.Clatcher as Clatcher
+import Penny.Colorize
 import Penny.Colors (Colors)
 import qualified Penny.Columns as Columns
 import Penny.Converter
@@ -170,12 +171,12 @@ screen f = set Clatcher.screen f mempty
 
 -- | Determines where your output goes.  When combining multiple
 -- 'Clatcher', every 'output' will be used.
-output :: Stream -> Clatcher
-output s = set Clatcher.output (Seq.singleton s) mempty
+output :: ChooseColors -> Stream -> Clatcher
+output cc s = set Clatcher.output (Seq.singleton (cc, s)) mempty
 
 -- | Sends output to the @less@ program.
 less :: Clatcher
-less = output $ streamToStdin toLess
+less = output autoColors (streamToStdin toLess)
 
 -- | Writes output to the given file.  If you use multiple 'saveAs'
 -- option, all the named files will be written to.
@@ -183,7 +184,7 @@ saveAs
   :: String
   -- ^ Filename to which to send the output.
   -> Clatcher
-saveAs fn = output $ streamToFile False fn
+saveAs fn = output alwaysNoColors (streamToFile False fn)
 
 -- | Choose a color scheme.  If you use multiple 'colors' options, the
 -- color schemes will be combined using '<>'.
