@@ -493,7 +493,7 @@ lblTags = series "LblTags" "'tags'"
 lblUid = series "LblUid" "'uid'"
 lblOfxTrn = series "LblOfxTrn" "'ofxtrn'"
 lblOrigDate = series "LblOrigDate" "'origDate'"
-
+lblMemo = series "LblMemo" "'memo'"
 
 -- Lists
 openSquare = terminal "OpenSquare" $ solo '['
@@ -549,9 +549,10 @@ tags = record "Tags" [lblTags, rWhite'Star, bracketedList]
 uid = record "Uid" [lblUid, rWhite'Star, anyString]
 ofxTrn = record "OfxTrn" [lblOfxTrn, rWhite'Star, ofxTrnData]
 origDay = record "OrigDate" [lblOrigDate, rWhite'Star, dateTimeZone]
+memo = record "Memo" [lblMemo, rWhite'Star, bracketedList]
 
 postingField = union "PostingField" [number, flag, account, fitid,
-  tags, uid, ofxTrn, origDay]
+  tags, uid, ofxTrn, origDay, memo]
 
 -- P suffix means "preceded by whitespace"
 
