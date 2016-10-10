@@ -325,6 +325,7 @@ postingFieldIsEmpty field = case field of
   PostingField'Uid (Uid _ _ str) -> anyStringIsEmpty str
   PostingField'OfxTrn _ -> False
   PostingField'OrigDate _ -> False
+  PostingField'Memo (Memo _ _ bl) -> bracketedListIsEmpty bl
 
 -- | Removes all posting fields that are empty.
 removeEmptyPostingFields :: PostingFields t a -> PostingFields t a
@@ -360,6 +361,7 @@ standardPostingFieldSort = sortPostingFields $ comparing $ \c -> case c of
   PostingField'Uid _ -> 5
   PostingField'OfxTrn _ -> 6
   PostingField'OrigDate _ -> 7
+  PostingField'Memo _ -> 8
 
 -- | Formats an entire file:
 --

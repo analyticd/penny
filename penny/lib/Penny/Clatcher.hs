@@ -17,6 +17,7 @@ import Rainbow (Chunk)
 
 import Penny.Clatch.Types
 import Penny.Clatch.Create
+import Penny.Colorize
 import Penny.Colors
 import Penny.Converter
 import qualified Penny.Copper as Copper
@@ -81,6 +82,9 @@ data Clatcher = Clatcher
   , _colors :: Colors
   -- ^ What colors to use for reports
 
+  , _chooseColors :: ChooseColors
+  -- ^ How to choose how many colors to use
+
   , _report :: Report
   -- ^ What report to print
 
@@ -105,6 +109,8 @@ Lens.makeLenses ''Clatcher
 --
 -- 'mempty' for '_colors'
 --
+-- 'mempty' for '_chooseColors'
+--
 -- 'mempty' '_report'
 --
 -- 'mempty' '_load'
@@ -121,6 +127,8 @@ Lens.makeLenses ''Clatcher
 --
 -- 'mappend' for '_colors'
 --
+-- 'mappend' for '_chooseColors'
+--
 -- returns the results of both '_report'
 --
 -- returns the results of both '_load'
@@ -133,6 +141,7 @@ instance Monoid Clatcher where
     , _screen = const True
     , _output = mempty
     , _colors = mempty
+    , _chooseColors = mempty
     , _report = \_ _ _ _ -> mempty
     , _load = mempty
     }
@@ -144,6 +153,7 @@ instance Monoid Clatcher where
     , _screen = \c -> _screen x c && _screen y c
     , _output = mappend (_output x) (_output y)
     , _colors = mappend (_colors x) (_colors y)
+    , _chooseColors = mappend (_chooseColors x) (_chooseColors y)
     , _report = \a b c d -> mappend (_report x a b c d) (_report y a b c d)
     , _load = mappend (_load x) (_load y)
     }
@@ -163,5 +173,6 @@ runClatcher clatcher = do
   let history = elect clatchTxns
   let chunks = _report clatcher prices (_colors clatcher) history
         clatches
-  runStreams chunks (_output clatcher)
+  converter <- getColorizer (_chooseColors clatcher)
+  sequence_ . fmap ($ chunks) . fmap ($ converter) . _output $ clatcher
   return chunks

@@ -72,9 +72,6 @@ turtle = atLeast "turtle" [1,0,2]
 mtl :: Package
 mtl = atLeast "mtl" [2,2,1]
 
-pipesCliff :: Package
-pipesCliff = atLeast "pipes-cliff" [0,10]
-
 logict :: Package
 logict = atLeast "logict" [0,6]
 

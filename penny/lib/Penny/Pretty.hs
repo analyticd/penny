@@ -60,8 +60,7 @@ prettySeq f = Pretty.Con "Seq" . (:[]) . Pretty.List . toList . fmap f
 
 -- | Prettify a Map.
 prettyMap
-  :: Ord k
-  => (k -> Value)
+  :: (k -> Value)
   -> (v -> Value)
   -> Map.Map k v
   -> Value

@@ -9,8 +9,6 @@ module Penny.Copper.Optics.Manual where
 
 import Penny.Copper.Types
 import Penny.Copper.Optics.Auto
-import Penny.Copper.Grammar
-import Pinchot (rulesToOptics)
 
 import qualified Control.Lens as Lens
 
@@ -221,6 +219,7 @@ sepPostingField f x = case x of
   PostingField'Uid a -> PostingField'Uid <$> r'Uid'1'White'Star f a
   PostingField'OfxTrn a -> PostingField'OfxTrn <$> r'OfxTrn'1'White'Star f a
   PostingField'OrigDate a -> PostingField'OrigDate <$> r'OrigDate'1'White'Star f a
+  PostingField'Memo a -> PostingField'Memo <$> r'Memo'1'White'Star f a
 
 -- | Separators within the 'Trio'.  Does not traverse the 'SemanticSpace's.
 sepTrio :: Lens.Traversal' (Trio t a) (White'Star t a)

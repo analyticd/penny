@@ -36,7 +36,6 @@ libraryDepends =
   , async
   , pipes
   , pipesSafe
-  , pipesCliff
   , process
   , anonymousSums
   , void

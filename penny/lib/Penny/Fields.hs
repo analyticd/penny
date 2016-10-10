@@ -59,6 +59,7 @@ data PostingFields = PostingFields
   , _uid :: Text
   , _trnType :: Maybe TrnType
   , _origDate :: Maybe ZonedTime
+  , _memo :: Seq Text
   } deriving (Show, Generic)
 
 instance PrettyVal PostingFields where
@@ -78,7 +79,7 @@ instance PrettyVal PostingFields where
 -- appropriate.
 instance Monoid PostingFields where
   mempty = PostingFields Nothing X.empty Seq.empty X.empty
-    Seq.empty X.empty Nothing Nothing
+    Seq.empty X.empty Nothing Nothing Seq.empty
   mappend x y = PostingFields
     { _number = last (_number x) (_number y)
     , _flag = (_flag x) <> (_flag y)
@@ -88,6 +89,7 @@ instance Monoid PostingFields where
     , _uid = (_uid x) <> (_uid y)
     , _trnType = last (_trnType x) (_trnType y)
     , _origDate = last (_origDate x) (_origDate y)
+    , _memo = lastSeq (_memo x) (_memo y)
     }
     where
       last a = maybe a Just

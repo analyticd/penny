@@ -175,7 +175,7 @@ output s = set Clatcher.output (Seq.singleton s) mempty
 
 -- | Sends output to the @less@ program.
 less :: Clatcher
-less = output $ stream toLess
+less = output $ streamToStdin toLess
 
 -- | Writes output to the given file.  If you use multiple 'saveAs'
 -- option, all the named files will be written to.
@@ -183,7 +183,7 @@ saveAs
   :: String
   -- ^ Filename to which to send the output.
   -> Clatcher
-saveAs = output . stream . toFile
+saveAs fn = output $ streamToFile False fn
 
 -- | Choose a color scheme.  If you use multiple 'colors' options, the
 -- color schemes will be combined using '<>'.
@@ -250,14 +250,14 @@ acctree = report rpt
 -- * uses 'light'
 -- * sends output to @less@
 lightDefaults :: Clatcher
-lightDefaults = colors Scheme.light <> output (stream toLess)
+lightDefaults = colors Scheme.light <> less
 
 -- | Some sensible defaults for a dark background terminal:
 --
 -- * uses 'dark'
 -- * sends output to @less@
 darkDefaults :: Clatcher
-darkDefaults = colors Scheme.dark <> output (stream toLess)
+darkDefaults = colors Scheme.dark <> less
 
 -- # Running
 

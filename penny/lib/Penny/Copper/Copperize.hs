@@ -1537,6 +1537,9 @@ cLblFitid = LblFitid $ cSeries "'fitid'"
 cLblTags :: LblTags Char ()
 cLblTags = LblTags $ cSeries "'tags'"
 
+cLblMemo :: LblMemo Char ()
+cLblMemo = LblMemo $ cSeries "'memo'"
+
 cLblUid :: LblUid Char ()
 cLblUid = LblUid $ cSeries "'uid'"
 
@@ -1661,6 +1664,9 @@ cFitid = Fitid cLblFitid cWhite'Star . cAnyString
 cTags :: Seq Text -> Tags Char ()
 cTags = Tags cLblTags cWhite'Star . cBracketedList
 
+cMemo :: Seq Text -> Memo Char ()
+cMemo = Memo cLblMemo cWhite'Star . cBracketedList
+
 cUid :: Text -> Uid Char ()
 cUid = Uid cLblUid cWhite'Star . cAnyString
 
@@ -1672,7 +1678,7 @@ cOrigDate zt = OrigDate cLblOrigDate cWhite'Star <$> cZonedTime zt
 
 cPostingFields :: Fields.PostingFields -> Maybe (PostingFields Char ())
 cPostingFields (Fields.PostingFields num fl acct fitid
-  tags uid trnType origDate)
+  tags uid trnType origDate memo)
   = fmap f copperOrigDate
   where
     copperOrigDate = case origDate of
@@ -1692,6 +1698,7 @@ cPostingFields (Fields.PostingFields num fl acct fitid
           <| (Just . PostingField'Uid . cUid) uid
           <| fmap (PostingField'OfxTrn . cOfxTrn) trnType
           <| fmap PostingField'OrigDate od
+          <| (Just . PostingField'Memo . cMemo) memo
           <| Seq.empty
 
 cTopLineFields :: Fields.TopLineFields -> Maybe (TopLineFields Char ())

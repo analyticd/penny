@@ -37,7 +37,6 @@ colorizer (HowManyColors anyC c256)
   | not c256 = toByteStringsColors8
   | otherwise = toByteStringsColors256
 
-
 -- | With 'mempty', both fields are 'True'.  'mappend' runs '&&' on
 -- both fields.
 instance Monoid HowManyColors where
@@ -82,13 +81,10 @@ instance Monoid ChooseColors where
   mappend (ChooseColors x0 x1 x2) (ChooseColors y0 y1 y2)
     = ChooseColors (x0 <> y0) (x1 <> y1) (x2 <> y2)
 
--- | Type holding values that have a certain number of colors.
-data Colorable a = Colorable
-  { _chooseColors :: ChooseColors
-  , _colored :: a
-  } deriving (Functor, Foldable, Traversable)
+getColorizer
+  :: ChooseColors
+  -> IO (Chunk Text -> [ByteString] -> [ByteString])
+getColorizer cc = do
+  reified <- tputColors
+  return $ colorizer (view (runLens reified) cc)
 
-instance Monoid a => Monoid (Colorable a) where
-  mempty = Colorable mempty mempty
-  mappend (Colorable x0 x1) (Colorable y0 y1)
-    = Colorable (x0 <> y0) (x1 <> y1)

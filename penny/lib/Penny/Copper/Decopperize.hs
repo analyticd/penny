@@ -834,6 +834,9 @@ dOfxTrn (OfxTrn _ _ t) = dOfxTrnData t
 dOrigDate :: OrigDate t a -> Time.ZonedTime
 dOrigDate (OrigDate _ _ dtz) = dDateTimeZone dtz
 
+dMemo :: Memo Char a -> Seq Text
+dMemo (Memo _ _ bl) = dBracketedList bl
+
 data PostingFieldDesc
   = DescNumber
   | DescFlag
@@ -843,6 +846,7 @@ data PostingFieldDesc
   | DescUid
   | DescOfxTrn
   | DescOrigDate
+  | DescMemo
   deriving (Eq, Ord, Show, Enum, Bounded)
 
 dTopLineFields
@@ -881,6 +885,8 @@ dPostingField pf = PostingFieldDecop loc lbl maker
         (DescOfxTrn, Lens.set Fields.trnType (Just $ dOfxTrn ox))
       PostingField'OrigDate od ->
         (DescOrigDate, Lens.set Fields.origDate (Just $ dOrigDate od))
+      PostingField'Memo mm ->
+        (DescMemo, Lens.set Fields.memo (dMemo mm))
 
 dPostingFieldP :: PostingFieldP Char a -> PostingFieldDecop a
 dPostingFieldP (PostingFieldP _ tlf) = dPostingField tlf
