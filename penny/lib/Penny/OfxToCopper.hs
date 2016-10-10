@@ -270,6 +270,7 @@ foreignPair inp out = (Tranche.Tranche () fields, amt)
       , Fields._uid = X.empty
       , Fields._trnType = Just . OFX.txTRNTYPE . _ofxTxn $ inp
       , Fields._origDate = Just . OFX.txDTPOSTED . _ofxTxn $ inp
+      , Fields._memo = Seq.empty
       }
       where
         toFlag Nothing = ""

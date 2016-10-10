@@ -1,6 +1,7 @@
 module Main where
 
 import Cartel
+import Common
 import Dependencies
 
 copperVer :: [Word]
@@ -10,7 +11,7 @@ copperVer = [0,1,0,0]
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
-  [ ghcOptions ["-W"]
+  [ ghcOptions warnings
   , haskell2010
   , hsSourceDirs ["lib"]
   , otherExtensions ["TemplateHaskell"]
