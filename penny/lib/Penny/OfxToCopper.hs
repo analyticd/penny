@@ -302,6 +302,7 @@ offsettingMeta out = Tranche.Tranche () fields
       , Fields._uid = X.empty
       , Fields._trnType = Nothing
       , Fields._origDate = Nothing
+      , Fields._memo = Seq.empty
       }
 
 -- | Given the OFX data, create a 'Transaction'.

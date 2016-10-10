@@ -7,10 +7,14 @@ Executable genPennyCabal
   main-is: genPennyCabal.hs
   build-depends: cartel == 0.18.*
                , base ==4.9.*
-  other-modules: Dependencies
+  other-modules:
+      Common
+    , Dependencies
 
 Executable genCopperCabal
   main-is: genCopperCabal.hs
   build-depends: cartel ==0.18.*
                , base ==4.9.*
-  other-modules: Dependencies
+  other-modules:
+      Common
+    , Dependencies
