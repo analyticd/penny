@@ -33,8 +33,6 @@ import Penny.Scalar
 import Penny.SeqUtil (intersperse)
 import Penny.Serial (Serset, Serpack)
 import qualified Penny.Serial as Serial
-import Penny.Tree (Tree)
-import qualified Penny.Tree as Tree
 import Penny.Troika
 
 import Control.Lens
@@ -412,65 +410,6 @@ maybeScalar
 maybeScalar f env clatch = case f clatch of
   Nothing -> text (const "--") env clatch
   Just sc -> scalar (const sc) env clatch
-
--- | Shows the scalar.  Does not show the children; if there are
--- children, a ↓ is shown at the end.
-tree
-  :: (Clatch (Maybe Cursor) -> Tree)
-  -> Env
-  -> Clatch (Maybe Cursor)
-  -> Cell
-tree f env clatch = text (const txt) env clatch
-  where
-    txt = scalarTxt <> childrenTxt
-      where
-        scalarTxt = case Tree._scalar . f $ clatch of
-          Nothing -> "--"
-          Just sc -> case sc of
-            SText txt -> txt
-            SDay dy -> X.pack . show $ dy
-            STime tod -> X.pack . show $ tod
-            SZone i -> X.pack . show . Time.minutesToTimeZone $ i
-            SInteger i -> X.pack . show $ i
-            SLabel txt -> txt
-        childrenTxt
-          | Seq.null . Tree._children . f $ clatch = X.empty
-          | otherwise = "↓"
-
--- | Shows each tree, separated by a •.
-seqTree
-  :: (Clatch (Maybe Cursor) -> Seq Tree)
-  -> Env
-  -> Clatch (Maybe Cursor)
-  -> Cell
-seqTree f env clatch
-  = textCell _nonLinear (view rowBackground env) (view colors env) txt
-  where
-    txt = foldr (<>) mempty
-      . intersperse "•" . fmap treeToTxt
-      . f $ clatch
-      where
-        treeToTxt tree = scalarTxt <> childrenTxt
-          where
-            scalarTxt = case Tree._scalar tree of
-              Nothing -> "--"
-              Just sc -> displayScalar sc
-            childrenTxt
-              | view (Tree.children . to Seq.null) tree = mempty
-              | otherwise = "↓"
-
--- | Shows each Scalar, each separated by a bullet.
-seqScalar
-  :: (Clatch (Maybe Cursor) -> Seq Scalar)
-  -> Env
-  -> Clatch (Maybe Cursor)
-  -> Cell
-seqScalar f env clatch = textCell _nonLinear
-  (view rowBackground env) (view colors env) txt
-  where
-    txt = foldl (<>) mempty
-      . intersperse "•" . fmap displayScalar
-      . f $ clatch
 
 -- # Pre-made columns
 
