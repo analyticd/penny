@@ -29,7 +29,6 @@ import qualified Penny.Commodity as Cy
 import Penny.Copper
 import Penny.Copper.Copperize
 import Penny.Copper.Decopperize
-import Penny.Copper.EarleyGrammar
 import Penny.Copper.Formatter
 import Penny.Copper.Productions
 import Penny.Copper.Terminalizers (t'WholeFile)
@@ -149,12 +148,9 @@ ofxImportProgram
   -- If you do not want to import the transaction, return 'Nothing'.
   -- Transactions whose fitid is a duplicate also will not be
   -- imported.
-  -> (String -> String)
-  -- ^ Modifies the input OFX file.  Useful for fixing the broken
-  -- files that some financial institutions provide.
   -> IO ()
-ofxImportProgram account addlHelp fOfx modOfxText
-  = A.execParser opts >>= runCommandLineProgram fOfx modOfxText
+ofxImportProgram account addlHelp modOfxText
+  = A.execParser opts >>= runCommandLineProgram modOfxText
   where
     opts = A.info (A.helper <*> commandLine)
       ( A.fullDesc
@@ -177,9 +173,14 @@ data CommandLine = CommandLine
 commandLine :: A.Parser CommandLine
 commandLine = CommandLine
   <$> A.argument A.str (A.metavar "OFX FILE")
-  <*> fmap (fmap X.pack . Seq.fromList)
-        (many (A.argument A.str (A.metavar "COPPER FILE")))
-  <*> A.flag False True
+  <*> fmap (fmap X.pack . Seq.fromList) (many copperFile)
+  <*> appendFlag
+  where
+    copperFile = A.strOption (A.long "file"
+        <> A.short 'f'
+        <> A.help "Load existing transactions from this Copper file"
+        <> A.metavar "FILENAME")
+    appendFlag = A.flag False True
       ( A.long "append"
         <> A.short 'a'
         <> A.help "append new transactions to last given Copper file" )
@@ -187,15 +188,13 @@ commandLine = CommandLine
 -- | Given the parsed 'CommandLine', run the command-line program.
 runCommandLineProgram
   :: (OfxIn -> Maybe OfxOut)
-  -> (String -> String)
+  -- ^
   -> CommandLine
+  -- ^
   -> IO ()
-runCommandLineProgram fOfx modOfxText cmdLine = do
-  let readText = XIO.readFile . X.unpack
-  readCopperFiles <- fmap (Seq.zip (_copperFiles cmdLine))
-    . traverse readText
-    . _copperFiles $ cmdLine
-  readOfxFile <- fmap (modOfxText . X.unpack)
+runCommandLineProgram fOfx cmdLine = do
+  readCopperFiles <- readFiles . _copperFiles $ cmdLine
+  readOfxFile <- fmap X.unpack
     . XIO.readFile . _ofxFile $ cmdLine
   case ofxImportWithCopperParse fOfx readCopperFiles readOfxFile of
     Left e -> do
@@ -242,7 +241,9 @@ data OfxToCopperError
 -- | Given OFX data, creates a 'Tranche.TopLine'.
 topLineTranche
   :: OfxIn
+  -- ^
   -> OfxOut
+  -- ^
   -> Tranche.TopLine ()
 topLineTranche inp out = Tranche.Tranche ()
   $ Fields.TopLineFields zt pye origPye
@@ -257,7 +258,9 @@ topLineTranche inp out = Tranche.Tranche ()
 -- | Given OFX data, create the foreign posting.
 foreignPair
   :: OfxIn
+  -- ^
   -> OfxOut
+  -- ^
   -> (Tranche.Postline (), Amount)
 foreignPair inp out = (Tranche.Tranche () fields, amt)
   where
@@ -290,7 +293,9 @@ foreignPair inp out = (Tranche.Tranche () fields, amt)
 -- require an amount for the offsetting posting.
 offsettingMeta
   :: OfxOut
+  -- ^
   -> Tranche.Postline ()
+  -- ^
 offsettingMeta out = Tranche.Tranche () fields
   where
     fields = Fields.PostingFields
@@ -308,7 +313,9 @@ offsettingMeta out = Tranche.Tranche () fields
 -- | Given the OFX data, create a 'Transaction'.
 ofxToTxn
   :: OfxIn
+  -- ^
   -> OfxOut
+  -- ^
   -> Transaction ()
 ofxToTxn ofxIn ofxOut = Transaction tl bal
   where
@@ -383,22 +390,24 @@ importOfxTxns fOfx inp = do
 -- amount cannot be parsed.
 
 mkOfxIn :: OFX.Transaction -> Maybe OfxIn
-mkOfxIn ofxTxn = case runParser parser decTxt of
+mkOfxIn ofxTxn = case parseProduction a'DecimalRadPer decTxt of
   Left _ -> Nothing
   Right copper -> Just ofxIn
     where
       dec = dDecimalRadPer copper
       ofxIn = OfxIn ofxTxn dec
   where
-    parser = fmap a'DecimalRadPer earleyGrammar
     decTxt = X.pack . OFX.txTRNAMT $ ofxTxn
 
 -- | Takes an OfxIn and imports it to Transaction.  Rejects
 -- duplicates.
 importOfx
   :: Map Account (Set Text)
+  -- ^
   -> (OfxIn -> Maybe OfxOut)
+  -- ^
   -> OfxIn
+  -- ^
   -> Maybe OfxOut
 importOfx lkp f inp = do
   out <- f inp
@@ -430,6 +439,7 @@ parseCopperFiles fOrig
 -- text.
 copperizeAndFormat
   :: Seq (Transaction ())
+  -- ^
   -> Either (NonEmptySeq (TracompriError ())) (WholeFile Char ())
 copperizeAndFormat
   = fmap (formatWholeFile 4)
@@ -443,8 +453,11 @@ copperizeAndFormat
 -- | Returns True if this transaction is not a duplicate.
 freshPosting
   :: OfxIn
+  -- ^
   -> OfxOut
+  -- ^
   -> Map Account (Set Text)
+  -- ^
   -> Bool
 freshPosting inp out lkp = case Map.lookup acctName lkp of
   Nothing -> True
@@ -461,8 +474,10 @@ freshPosting inp out lkp = case Map.lookup acctName lkp of
 -- corresponding WholeFile.
 getAccountsMap
   :: Seq (Filename, Text)
+  -- ^
   -> Accuerr (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
              (Map Account (Set Text), Maybe (Filename, WholeFile Char Pinchot.Loc))
+  -- ^
 getAccountsMap = fmap f . parseFilesWithFilenames
   where
     f sq = case Lens.unsnoc sq of
@@ -474,8 +489,10 @@ getAccountsMap = fmap f . parseFilesWithFilenames
 
 parseFilesWithFilenames
   :: Seq (Filename, Text)
+  -- ^
   -> Accuerr (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
              (Seq (Filename, WholeFile Char Pinchot.Loc, Seq (Tracompri Cursor)))
+  -- ^
 parseFilesWithFilenames sq
   = Lens.over Accuerr._AccSuccess addFilenames
   . parseConvertProofFiles
@@ -485,8 +502,11 @@ parseFilesWithFilenames sq
 
 addTracompriToAccountMap
   :: Map Account (Set Text)
+  -- ^
   -> Tracompri a
+  -- ^
   -> Map Account (Set Text)
+  -- ^
 addTracompriToAccountMap oldMap (Tracompri'Transaction txn)
   = foldl addPostlineToAccountMap oldMap
   . fmap snd
@@ -497,8 +517,11 @@ addTracompriToAccountMap oldMap _ = oldMap
 
 addPostlineToAccountMap
   :: Map Account (Set Text)
+  -- ^
   -> Postline a
+  -- ^
   -> Map Account (Set Text)
+  -- ^
 addPostlineToAccountMap acctMap postline
   | X.null fitid = acctMap
   | otherwise = Map.alter f acct acctMap

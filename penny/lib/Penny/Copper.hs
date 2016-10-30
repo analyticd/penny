@@ -47,6 +47,7 @@ import qualified Data.Sequence.NonEmpty as NE
 import Data.Sums (S3(S3a, S3b, S3c))
 import Data.Text (Text)
 import qualified Data.Text as X
+import qualified Data.Text.IO as XIO
 import Data.Typeable (Typeable)
 import qualified Text.Earley as Earley
 import Pinchot (Loc(Loc))
@@ -80,6 +81,7 @@ textPosition int
 -- the empty 'Text'.
 type Filename = Text
 
+-- | Gives additional information when an Earley parse fails.
 data ParseErrorInfo = ParseErrorInfo
   { _failurePosition :: Loc
   , _expected :: [String]
@@ -87,6 +89,8 @@ data ParseErrorInfo = ParseErrorInfo
 
 Lens.makeLenses ''ParseErrorInfo
 
+-- | An Earley parse can fail either because the entire input was not
+-- parsed, or because the parse aborted.
 data ParseFailReason
   = LeftoverInput
   | AbortedParse
@@ -94,6 +98,9 @@ data ParseFailReason
 
 Lens.makePrisms ''ParseFailReason
 
+-- | An Earley parse failure.  Contains the reason for the failure,
+-- and information about where the failure occurred and the expected
+-- productions at the point of failure.
 data ParseError = ParseError
   { _parseFailReason :: ParseFailReason
   , _parseErrorInfo :: ParseErrorInfo
@@ -101,6 +108,7 @@ data ParseError = ParseError
 
 Lens.makeLenses ''ParseError
 
+-- | Creates a 'ParseErrorInfo'.
 errorInfo
   :: Text
   -- ^ Input text
@@ -109,43 +117,32 @@ errorInfo
 errorInfo inp (Earley.Report pos exp _)
   = ParseErrorInfo (textPosition pos inp) exp
 
--- | Given a Pinchot rule, parse a complete string in that language.
-runParser
-  :: (forall r. Earley.Grammar r
-        (Earley.Prod r String (Char, Loc) (p Char Loc)))
-  -> Text
-  -> Either ParseError (p Char Loc)
-runParser grammar txt = case results of
-  result:[]
-    | Seq.null (Earley.unconsumed report) -> Right result
-    | otherwise -> Left (ParseError LeftoverInput info)
-  [] -> Left (ParseError AbortedParse info)
-  _ -> error "runParser: grammar is ambiguous."
-  where
-    (results, report) = Pinchot.locatedFullParses grammar txt
-    info = errorInfo txt report
-
 -- | Parses a particular production from
--- 'Penny.Copper.Productions.Productions'.
+-- 'Penny.Copper.Productions.Productions'.  Applies 'error' if the
+-- grammar is ambiguous.
 parseProduction
   :: (forall r. Productions.Productions r Char Loc
       -> Earley.Prod r String (Char, Loc) (p Char Loc))
+  -- ^ Earley grammar to parse
   -> Text
+  -- ^ Input string
   -> Either ParseError (p Char Loc)
 parseProduction getGrammar txt = case results of
   result:[]
     | Seq.null (Earley.unconsumed report) -> Right result
     | otherwise -> Left (ParseError LeftoverInput info)
   [] -> Left (ParseError AbortedParse info)
-  _ -> error "runParser: grammar is ambiguous."
+  _ -> error "parseProduction: grammar is ambiguous."
   where
     (results, report) = Pinchot.locatedFullParses grammar txt
     grammar = fmap getGrammar EarleyGrammar.earleyGrammar
     info = errorInfo txt report
 
+-- | A parse-convert-proof sequence can fail if parsing, collection,
+-- or validation fails.  (Decopperization never fails.)
 data ParseConvertProofError a = ParseConvertProofError
-  { _filenameWithError :: Filename
-  , _parseOrProofFailure
+  { _pcpFilename :: Filename
+  , _pcpFailure
       :: S3 ParseError (NonEmptySeq (Proofer.CollectionFail a))
                        (NonEmptySeq (Proofer.ValidationFail a))
   } deriving (Typeable, Show)
@@ -156,7 +153,9 @@ instance (Typeable a, Show a) => Exception (ParseConvertProofError a)
 
 parseWholeFile
   :: Filename
+  -- ^
   -> Text
+  -- ^
   -> Either (ParseConvertProofError Loc) (WholeFile Char Loc)
 parseWholeFile fn
   = Lens.over Lens._Left (ParseConvertProofError fn . S3a)
@@ -164,7 +163,9 @@ parseWholeFile fn
 
 proofWholeFile
   :: Filename
+  -- ^
   -> WholeFile Char Loc
+  -- ^
   -> Either (ParseConvertProofError Loc) (Seq (Tracompri Cursor))
 proofWholeFile fn
   = Lens.over Lens._Left convertError
@@ -182,7 +183,9 @@ proofWholeFile fn
 -- result or a ParseConvertProofError.
 parseResultToError
   :: Filename
+  -- ^
   -> Either ParseError (p Char Loc)
+  -- ^
   -> Either (ParseConvertProofError a) (p Char Loc)
 parseResultToError filename
   = Lens.over Lens._Left (ParseConvertProofError filename . S3a)
@@ -193,7 +196,9 @@ parseResultToError filename
 proofResultToError
   :: Traversable t
   => Filename
+  -- ^
   -> Proofer.Proofer Loc (t (Tracompri Loc))
+  -- ^
   -> Either (ParseConvertProofError Loc) (t (Tracompri Cursor))
 proofResultToError filename proofer = case proofer of
   Left (Left collectionFails) ->
@@ -219,10 +224,26 @@ parseConvertProof (filename, txt) = do
 parseConvertProofFiles
   :: Traversable t
   => t (Filename, Text)
+  -- ^ Sequence of filenames to parse, with their accompanying text
   -> Accuerr (NonEmptySeq (ParseConvertProofError Loc))
              (t (WholeFile Char Loc, Seq (Tracompri Cursor)))
+  -- ^ If this fails, there will be at least one
+  -- 'ParseConvertProofError'.  Otherwise, one 'WholeFile' is returned
+  -- for each input pair, along with a 'Seq' of 'Tracompri', one for
+  -- each item in the file.
 parseConvertProofFiles
   = traverse
   $ Lens.over Accuerr._AccFailure NE.singleton
   . Accuerr.eitherToAccuerr
   . parseConvertProof
+
+-- * IO functions
+
+-- | Given a sequence of filenames, read the file contents from disk.
+readFiles
+  :: Seq Filename
+  -> IO (Seq (Filename, Text))
+readFiles filenames
+  = fmap (Seq.zip filenames)
+  . traverse (XIO.readFile . X.unpack)
+  $ filenames

@@ -7,10 +7,9 @@ import qualified Data.Text as X
 import qualified Language.Haskell.TH as T
 import qualified Language.Haskell.TH.Quote as TQ
 
-import Penny.Copper (runParser)
+import Penny.Copper (parseProduction)
 import Penny.Copper.Decopperize (dDate, dTime, dNilOrBrimRadPer)
 import Penny.Copper.Productions
-import Penny.Copper.EarleyGrammar
 
 liftData :: Data a => a -> T.Q T.Exp
 liftData = TQ.dataToExpQ (const Nothing)
@@ -27,7 +26,7 @@ expOnly q = TQ.QuasiQuoter
 -- expression has type 'Time.Day'.
 qDay :: TQ.QuasiQuoter
 qDay = expOnly $ \s ->
-  case runParser (fmap a'Date earleyGrammar) (X.strip . X.pack $ s) of
+  case parseProduction a'Date (X.strip . X.pack $ s) of
     Left _ -> fail $ "invalid date: " ++ s
     Right d -> liftData . dDate $ d
 
@@ -37,7 +36,7 @@ qDay = expOnly $ \s ->
 -- 'Time.TimeOfDay'.
 qTime :: TQ.QuasiQuoter
 qTime = expOnly $ \s ->
-  case runParser (fmap a'Time earleyGrammar) (X.strip . X.pack $ s) of
+  case parseProduction a'Time (X.strip . X.pack $ s) of
     Left _ -> fail $ "invalid time of day: " ++ s
     Right d -> liftData . dTime $ d
 
@@ -47,6 +46,6 @@ qTime = expOnly $ \s ->
 -- period.
 qUnsigned :: TQ.QuasiQuoter
 qUnsigned = expOnly $ \s ->
-  case runParser (fmap a'NilOrBrimRadPer earleyGrammar) (X.strip . X.pack $ s) of
+  case parseProduction a'NilOrBrimRadPer (X.strip . X.pack $ s) of
     Left _ -> fail $ "invalid unsigned number: " ++ s
     Right d -> liftData . dNilOrBrimRadPer $ d
