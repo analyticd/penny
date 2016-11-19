@@ -27,6 +27,7 @@ import qualified Penny.Amount as Amount
 import Penny.Arrangement
 import qualified Penny.Commodity as Cy
 import Penny.Copper
+  (ParseConvertProofError, parseProduction, parseConvertProofFiles)
 import Penny.Copper.Copperize
 import Penny.Copper.Decopperize
 import Penny.Copper.Formatter
@@ -42,13 +43,13 @@ import Penny.SeqUtil
 import Penny.Tranche (Postline)
 import qualified Penny.Tranche as Tranche
 import Penny.Transaction
+import Penny.Unix
 
 import Accuerr (Accuerr)
 import qualified Accuerr
 import Control.Applicative (many)
 import qualified Control.Lens as Lens
-import Control.Monad (join, guard, when)
-import Data.Bifunctor (second)
+import Control.Monad (join, guard)
 import Data.Foldable (toList)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -62,13 +63,9 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Text.IO as XIO
 import Data.Time (ZonedTime)
 import qualified Options.Applicative as A
 import qualified Pinchot
-import qualified System.Environment as Env
-import qualified System.Exit as Exit
-import qualified System.IO as IO
 
 -- * Data types
 
@@ -160,30 +157,23 @@ ofxImportProgram account addlHelp modOfxText
 
 -- | Contains all command-line options.
 data CommandLine = CommandLine
-  { _ofxFile :: String
-  -- ^ This is the OFX file the user wants to read.
-  , _copperFiles :: Seq Filename
+  { _ofxFilenames :: Seq Text
+  -- ^ These are the filenames of the OFX files the user wants to read.
+  , _copperFiles :: Seq Text
   -- ^ These are the Copper files the user wants to read.
-  , _appendResults :: Bool
-  -- ^ If True, the user wants to append the resulting transactions to
-  -- the end of the last file, if possible.
   } deriving Show
 
 -- | An @optparse-applicative@ parser for 'CommandLine'.
 commandLine :: A.Parser CommandLine
 commandLine = CommandLine
-  <$> A.argument A.str (A.metavar "OFX FILE")
+  <$> fmap (Seq.fromList . fmap X.pack)
+        (many (A.argument A.str (A.metavar "OFX FILE")))
   <*> fmap (fmap X.pack . Seq.fromList) (many copperFile)
-  <*> appendFlag
   where
     copperFile = A.strOption (A.long "file"
         <> A.short 'f'
         <> A.help "Load existing transactions from this Copper file"
         <> A.metavar "FILENAME")
-    appendFlag = A.flag False True
-      ( A.long "append"
-        <> A.short 'a'
-        <> A.help "append new transactions to last given Copper file" )
 
 -- | Given the parsed 'CommandLine', run the command-line program.
 runCommandLineProgram
@@ -193,33 +183,14 @@ runCommandLineProgram
   -- ^
   -> IO ()
 runCommandLineProgram fOfx cmdLine = do
-  readCopperFiles <- readFiles . _copperFiles $ cmdLine
-  readOfxFile <- fmap X.unpack
-    . XIO.readFile . _ofxFile $ cmdLine
-  case ofxImportWithCopperParse fOfx readCopperFiles readOfxFile of
-    Left e -> do
-      IO.hPutStrLn IO.stderr . show $ e
-      Exit.exitFailure
-    Right g -> do
-      when (_appendResults cmdLine) $ appendResultToFile g
-      printResult . fst $ g
-      Exit.exitSuccess
-
--- | Appends the given new transactions to an old file.
-appendResultToFile
-  :: (WholeFile Char (), Maybe (Filename, WholeFile Char Pinchot.Loc))
-  -> IO ()
-appendResultToFile (newFile, mayOldFile) = case mayOldFile of
-  Nothing -> errorFail $ "cannot append new transactions, as no Copper file "
-          ++ "was provided on command line."
-  Just (fn, oldWholeFile) -> do
-    let appendedFile = (second (const ()) oldWholeFile) <> newFile
-    XIO.writeFile (X.unpack fn)
-      . X.pack
-      . toList
-      . fmap fst
-      . t'WholeFile
-      $ appendedFile
+  readCopperFiles <- readCommandLineFiles . _copperFiles $ cmdLine
+  readOfxFiles <- fmap (fmap snd)
+    . readCommandLineFiles . _ofxFilenames $ cmdLine
+  let readStrings = NE.nonEmptySeqToSeq . fmap X.unpack $ readOfxFiles
+  result <- errorExit $ ofxImportWithCopperParse fOfx
+    (NE.nonEmptySeqToSeq readCopperFiles)
+    readStrings
+  printResult result
 
 -- | Prints the 'WholeFile' to standard output.
 printResult :: WholeFile Char () -> IO ()
@@ -344,22 +315,20 @@ ofxToTxn ofxIn ofxOut = Transaction tl bal
 ofxImportWithCopperParse
   :: (OfxIn -> Maybe OfxOut)
   -- ^ Examines each OFX transaction
-  -> Seq (Filename, Text)
+  -> Seq (InputFilespec, Text)
   -- ^ Copper files with their names
-  -> String
-  -- ^ OFX input file
-  -> Either OfxToCopperError
-            (WholeFile Char (), Maybe (Filename, WholeFile Char Pinchot.Loc))
+  -> Seq String
+  -- ^ OFX input files
+  -> Either OfxToCopperError (WholeFile Char ())
   -- ^ If successful, returns the formatted new transactions.  Also,
   -- if there is a last Copper file, returns its filename and its
   -- parsed 'WholeFile'.
-ofxImportWithCopperParse fOrig copperFiles ofxFile = do
-  (fNoDupes, mayLastFile) <- Lens.over Lens._Left OTCBadCopperFile
+ofxImportWithCopperParse fOrig copperFiles ofxFiles = do
+  fNoDupes <- Lens.over Lens._Left OTCBadCopperFile
     . parseCopperFiles fOrig $ copperFiles
-  txns <- importOfxTxns fNoDupes ofxFile
-  newWholeFile <- Lens.over Lens._Left OTCCopperizationFailed
+  txns <- fmap join . traverse (importOfxTxns fNoDupes) $ ofxFiles
+  Lens.over Lens._Left OTCCopperizationFailed
     . copperizeAndFormat $ txns
-  return (newWholeFile, mayLastFile)
 
 
 -- * Importing OFX data (without Copper data)
@@ -419,17 +388,17 @@ importOfx lkp f inp = do
 
 -- | Parses existing copper files.  Takes a function that creates new
 -- transactions, and returns a new function that will also reject
--- duplicates.  Also, returns the contents of the last file.
+-- duplicates.
 parseCopperFiles
   :: (OfxIn -> Maybe OfxOut)
   -- ^ Original function
-  -> Seq (Filename, Text)
+  -> Seq (InputFilespec, Text)
   -> Either (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
-            (OfxIn -> Maybe OfxOut, Maybe (Filename, WholeFile Char Pinchot.Loc))
+            (OfxIn -> Maybe OfxOut)
 parseCopperFiles fOrig
   = fmap f . Lens.view Accuerr.isoAccuerrEither . getAccountsMap
   where
-    f (acctMap, mayPair) = (importOfx acctMap fOrig, mayPair)
+    f acctMap = importOfx acctMap fOrig
 
 
 -- * Formatting Copperized data
@@ -473,32 +442,14 @@ freshPosting inp out lkp = case Map.lookup acctName lkp of
 -- of filenames is non-empty, returns the last filename, and its
 -- corresponding WholeFile.
 getAccountsMap
-  :: Seq (Filename, Text)
+  :: Seq (InputFilespec, Text)
   -- ^
   -> Accuerr (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
-             (Map Account (Set Text), Maybe (Filename, WholeFile Char Pinchot.Loc))
+             (Map Account (Set Text))
   -- ^
-getAccountsMap = fmap f . parseFilesWithFilenames
+getAccountsMap = fmap f . parseConvertProofFiles
   where
-    f sq = case Lens.unsnoc sq of
-      Nothing -> (Map.empty, Nothing)
-      Just (_, (fn, whole, _)) -> (acctMap, Just (fn, whole))
-        where
-          acctMap = foldl addTracompriToAccountMap Map.empty
-            . join . fmap (Lens.view Lens._3) $ sq
-
-parseFilesWithFilenames
-  :: Seq (Filename, Text)
-  -- ^
-  -> Accuerr (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
-             (Seq (Filename, WholeFile Char Pinchot.Loc, Seq (Tracompri Cursor)))
-  -- ^
-parseFilesWithFilenames sq
-  = Lens.over Accuerr._AccSuccess addFilenames
-  . parseConvertProofFiles
-  $ sq
-  where
-    addFilenames = fmap (\(a, (b, c)) -> (a, b, c)) . Seq.zip (fmap fst sq)
+    f = foldl addTracompriToAccountMap Map.empty . join
 
 addTracompriToAccountMap
   :: Map Account (Set Text)
@@ -529,12 +480,3 @@ addPostlineToAccountMap acctMap postline
     fitid = Lens.view Tranche.fitid postline
     acct = Lens.view Tranche.account postline
     f = Just . maybe (Set.singleton fitid) (Set.insert fitid)
-
--- * Utilities
-
--- | Prints the error message, then exits.
-errorFail :: String -> IO ()
-errorFail str = do
-  pn <- Env.getProgName
-  IO.hPutStrLn IO.stderr $ pn ++ ": error: " ++ str
-  Exit.exitFailure

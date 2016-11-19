@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 -- | Locations of items.
 
 module Penny.Cursor where
@@ -13,15 +14,19 @@ import qualified Pinchot
 
 import Penny.Pretty
 
-data Cursor = Cursor
-  { _filename :: Text
-  , _loc :: Pinchot.Loc
-  } deriving (Eq, Ord, Show, Generic)
+-- | Indicates where this input file came from.
+data InputFilespec
+  = Stdin
+  | GivenFilename Text
+  deriving (Eq, Show, Ord, Generic)
 
-instance PrettyVal Cursor where
-  prettyVal (Cursor filename loc) = Pretty.Rec "Penny.Cursor.Cursor"
-    [ ("_filename", prettyText filename)
-    , ("_loc", Pretty.prettyVal loc)
-    ]
+instance PrettyVal InputFilespec where
+  prettyVal Stdin = Pretty.Con "Stdin" []
+  prettyVal (GivenFilename txt) = Pretty.Con "GivenFilename" [prettyText txt]
+
+data Cursor = Cursor
+  { _filename :: InputFilespec
+  , _loc :: Pinchot.Loc
+  } deriving (Eq, Ord, Show, Generic, PrettyVal)
 
 Lens.makeLenses ''Cursor

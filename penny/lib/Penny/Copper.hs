@@ -39,6 +39,7 @@ module Penny.Copper where
 import Accuerr (Accuerr)
 import qualified Accuerr
 import Control.Exception (Exception)
+import qualified Control.Exception as Exc
 import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -47,19 +48,21 @@ import qualified Data.Sequence.NonEmpty as NE
 import Data.Sums (S3(S3a, S3b, S3c))
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Text.IO as XIO
 import Data.Typeable (Typeable)
 import qualified Text.Earley as Earley
 import Pinchot (Loc(Loc))
 import qualified Pinchot
 
+import Penny.Copper.Copperize (TracompriError, tracompriWholeFile)
 import Penny.Copper.Decopperize
 import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
+import Penny.Copper.Formatter (formatWholeFile)
 import qualified Penny.Copper.Productions as Productions
 import qualified Penny.Copper.Proofer as Proofer
 import Penny.Copper.Types (WholeFile)
 import Penny.Copper.Tracompri
 import Penny.Cursor
+import Penny.Unix
 
 -- | Given an integer position in a text, obtain the Pinchot
 -- position.
@@ -141,7 +144,7 @@ parseProduction getGrammar txt = case results of
 -- | A parse-convert-proof sequence can fail if parsing, collection,
 -- or validation fails.  (Decopperization never fails.)
 data ParseConvertProofError a = ParseConvertProofError
-  { _pcpFilename :: Filename
+  { _pcpFilename :: InputFilespec
   , _pcpFailure
       :: S3 ParseError (NonEmptySeq (Proofer.CollectionFail a))
                        (NonEmptySeq (Proofer.ValidationFail a))
@@ -152,7 +155,7 @@ Lens.makeLenses ''ParseConvertProofError
 instance (Typeable a, Show a) => Exception (ParseConvertProofError a)
 
 parseWholeFile
-  :: Filename
+  :: InputFilespec
   -- ^
   -> Text
   -- ^
@@ -162,7 +165,7 @@ parseWholeFile fn
   . parseProduction Productions.a'WholeFile
 
 proofWholeFile
-  :: Filename
+  :: InputFilespec
   -- ^
   -> WholeFile Char Loc
   -- ^
@@ -182,7 +185,7 @@ proofWholeFile fn
 -- | Takes the result of parsing a production and returns either the
 -- result or a ParseConvertProofError.
 parseResultToError
-  :: Filename
+  :: InputFilespec
   -- ^
   -> Either ParseError (p Char Loc)
   -- ^
@@ -195,7 +198,7 @@ parseResultToError filename
 -- or a ParseConvertProofError.
 proofResultToError
   :: Traversable t
-  => Filename
+  => InputFilespec
   -- ^
   -> Proofer.Proofer Loc (t (Tracompri Loc))
   -- ^
@@ -209,41 +212,56 @@ proofResultToError filename proofer = case proofer of
 
 -- | Parses, converts, and proofs a single file.
 parseConvertProof
-  :: (Filename, Text)
+  :: (InputFilespec, Text)
   -- ^ Name and data of file
-  -> Either (ParseConvertProofError Loc)
-            (WholeFile Char Loc, Seq (Tracompri Cursor))
+  -> Either (ParseConvertProofError Loc) (Seq (Tracompri Cursor))
 parseConvertProof (filename, txt) = do
   wholeFile <- parseResultToError filename
     $ parseProduction Productions.a'WholeFile txt
-  res <- proofResultToError filename . Proofer.proofItems . dWholeFile
+  proofResultToError filename . Proofer.proofItems . dWholeFile
     $ wholeFile
-  return (wholeFile, res)
 
 -- | Parses, converts, and proofs a series of files.
 parseConvertProofFiles
   :: Traversable t
-  => t (Filename, Text)
+  => t (InputFilespec, Text)
   -- ^ Sequence of filenames to parse, with their accompanying text
   -> Accuerr (NonEmptySeq (ParseConvertProofError Loc))
-             (t (WholeFile Char Loc, Seq (Tracompri Cursor)))
+             (t (Seq (Tracompri Cursor)))
   -- ^ If this fails, there will be at least one
-  -- 'ParseConvertProofError'.  Otherwise, one 'WholeFile' is returned
-  -- for each input pair, along with a 'Seq' of 'Tracompri', one for
-  -- each item in the file.
+  -- 'ParseConvertProofError'.
 parseConvertProofFiles
   = traverse
   $ Lens.over Accuerr._AccFailure NE.singleton
   . Accuerr.eitherToAccuerr
   . parseConvertProof
 
+-- * Formatting Tracompri
+
+-- | Transforms 'Tracompri' into a 'WholeFile', and applies some
+-- simple default formatting.
+copperizeAndFormat
+  :: Seq (Tracompri a)
+  -> Accuerr (NonEmptySeq (TracompriError a)) (WholeFile Char ())
+copperizeAndFormat
+  = fmap (formatWholeFile 4)
+  . tracompriWholeFile
+
 -- * IO functions
 
--- | Given a sequence of filenames, read the file contents from disk.
-readFiles
-  :: Seq Filename
-  -> IO (Seq (Filename, Text))
-readFiles filenames
-  = fmap (Seq.zip filenames)
-  . traverse (XIO.readFile . X.unpack)
-  $ filenames
+newtype ParseConvertProofErrors
+  = ParseConvertProofErrors (NonEmptySeq (ParseConvertProofError Loc))
+  deriving (Typeable, Show)
+
+instance Exception ParseConvertProofErrors
+
+-- | Parses, converts, and proofs a sequence of filenames.  Any errors
+-- are thrown as exceptions.
+parseConvertProofIO
+  :: Seq Text
+  -> IO (NonEmptySeq (Seq (Tracompri Cursor)))
+parseConvertProofIO files = do
+  filesAndTexts <- readCommandLineFiles files
+  case parseConvertProofFiles filesAndTexts of
+    Accuerr.AccFailure errs -> Exc.throwIO (ParseConvertProofErrors errs)
+    Accuerr.AccSuccess g -> return g

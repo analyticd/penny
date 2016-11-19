@@ -50,9 +50,9 @@ type Report
 loadCopper :: String -> Loader
 loadCopper fn = do
   txt <- XIO.readFile fn
-  case Copper.parseConvertProof (X.pack fn, txt) of
+  case Copper.parseConvertProof (GivenFilename $ X.pack fn, txt) of
     Left err -> throwIO err
-    Right (_, tras) -> return (prices, txns)
+    Right tras -> return (prices, txns)
       where
         (prices, txns) = partitionEithers . catMaybes
           . fmap toEi . fmap (fmap Just) $ tras
