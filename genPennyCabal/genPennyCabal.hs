@@ -5,10 +5,10 @@ import Common
 import Dependencies
 
 pennyVer :: [Word]
-pennyVer = [0,33,0,0]
+pennyVer = [0,33,20161119,0]
 
 pennyCopper :: Package
-pennyCopper = exactly "penny-copper" [0,1,0,0]
+pennyCopper = exactly "penny-copper" [0,1,20161119,0]
 
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =

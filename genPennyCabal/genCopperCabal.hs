@@ -5,7 +5,7 @@ import Common
 import Dependencies
 
 copperVer :: [Word]
-copperVer = [0,1,0,0]
+copperVer = [0,1,20161119,0]
 
 -- Packages
 
