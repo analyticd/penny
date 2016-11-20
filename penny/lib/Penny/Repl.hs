@@ -58,9 +58,12 @@ module Penny.Repl
   , light
   , dark
   , report
+  , less
+  , saveAs
 
   -- * Running the clatcher
   , clatcher
+  , presets
 
   -- * Accessing fields
   -- ** Transaction fields
