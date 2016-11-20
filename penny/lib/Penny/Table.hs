@@ -8,7 +8,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes #-}
 
-module Penny.Columns where
+module Penny.Table where
 
 import Penny.Amount
 import Penny.Arrangement
@@ -61,15 +61,15 @@ import Rainbox
 import Rainbow
 import Rainbow.Types (yarn)
 
-data Stripe
+data Column
   = W1 (Env -> Clatch (Maybe Cursor) -> Cell)
   | W2 (Env -> Clatch (Maybe Cursor) -> (Cell, Cell))
   | W3 (Env -> Clatch (Maybe Cursor) -> (Cell, Cell, Cell))
   | W4 (Env -> Clatch (Maybe Cursor) -> (Cell, Cell, Cell, Cell))
 
-type Column = Env -> Clatch (Maybe Cursor) -> Cell
+type Stripe = Env -> Clatch (Maybe Cursor) -> Cell
 
-type Columns = Seq Stripe
+type Columns = Seq Column
 
 background :: Clatch a -> Colors -> Radiant
 background clatch colors
@@ -156,9 +156,9 @@ columns cols _ colors hist clatches
   = columnsReport cols colors hist clatches
 
 maybeCol
-  :: ((Clatch (Maybe Cursor) -> a) -> Column)
+  :: ((Clatch (Maybe Cursor) -> a) -> Stripe)
   -> (Clatch (Maybe Cursor) -> Maybe a)
-  -> Column
+  -> Stripe
 maybeCol getCol getMay = \env clatch -> case getMay clatch of
   Nothing -> textCell _nonLinear (view rowBackground env)
     (view colors env) ""
@@ -166,7 +166,7 @@ maybeCol getCol getMay = \env clatch -> case getMay clatch of
 
 text
   :: (Clatch (Maybe Cursor) -> Text)
-  -> Column
+  -> Stripe
 text f = \env clatch ->
   textCell _nonLinear (view rowBackground env) (view colors env)
             (f clatch)
@@ -174,17 +174,17 @@ text f = \env clatch ->
 
 seqText
   :: (Clatch (Maybe Cursor) -> Seq Text)
-  -> Column
+  -> Stripe
 seqText f = \env clatch ->
   textCell _nonLinear (view rowBackground env) (view colors env)
             (foldl (<>) mempty . intersperse "•" . f $ clatch)
 
-spaces :: Int -> Column
+spaces :: Int -> Stripe
 spaces i = text (const (X.replicate i . X.singleton $ ' '))
 
 bool
   :: (Clatch (Maybe Cursor) -> Bool)
-  -> Column
+  -> Stripe
 bool f = \env clatch ->
   let (char, fg)
         | f clatch = ('T', green)
@@ -200,22 +200,22 @@ bool f = \env clatch ->
 
 integer
   :: (Clatch (Maybe Cursor) -> Integer)
-  -> Column
+  -> Stripe
 integer f = text (X.pack . show . f)
 
 int
   :: (Clatch (Maybe Cursor) -> Int)
-  -> Column
+  -> Stripe
 int f = text (X.pack . show . f)
 
 nonNegative
   :: (Clatch (Maybe Cursor) -> NonNegative)
-  -> Column
+  -> Stripe
 nonNegative f = integer (c'Integer'NonNegative . f)
 
 maybePole
   :: (Clatch (Maybe Cursor) -> Maybe Pole)
-  -> Column
+  -> Stripe
 maybePole f = \env clatch -> sideCell env (f clatch)
 
 -- | Creates two columns: one for the side and one for the magnitude.
@@ -392,7 +392,7 @@ serpack f env clatch = (fileFwd, fileRev, glblFwd, glblRev)
 columnShow
   :: Show a
   => (Clatch (Maybe Cursor) -> a)
-  -> Column
+  -> Stripe
 columnShow f = text (X.pack . show . f)
 
 scalar
@@ -419,54 +419,54 @@ maybeScalar f env clatch = case f clatch of
 
 -- # Pre-made columns
 
-day :: Stripe
+day :: Column
 day = W1 (text $ X.pack . show . view AT.day)
 
-timeOfDay :: Stripe
+timeOfDay :: Column
 timeOfDay = W1 (text $ X.pack . show . view AT.timeOfDay)
 
-timeZone :: Stripe
+timeZone :: Column
 timeZone = W1 (text $ X.pack . show . view AT.timeZone)
 
-payee :: Stripe
+payee :: Column
 payee = W1 (text (view AT.payee))
 
-number :: Stripe
+number :: Column
 number = W1 (maybeCol integer (view AP.number))
 
-flag :: Stripe
+flag :: Column
 flag = W1 (text (view AP.flag))
 
-account :: Stripe
+account :: Column
 account = W1 (seqText $ view AP.account)
 
-fitid :: Stripe
+fitid :: Column
 fitid = W1 (text (view AP.fitid))
 
-tags :: Stripe
+tags :: Column
 tags = W1 (seqText $ view AP.tags)
 
-reconciled :: Stripe
+reconciled :: Column
 reconciled = W1 (text $ getTxt . AP.reconciled)
   where
     getTxt r | r = "R"
              | otherwise = ""
 
-cleared :: Stripe
+cleared :: Column
 cleared = W1 (text $ getTxt . AP.cleared)
   where
     getTxt c | c = "C"
              | otherwise = ""
 
 -- | The 'Troika' for this particular posting.
-entry :: Stripe
+entry :: Column
 entry = W4 (troika $ view AP.troika)
 
 -- | All the 'Troika' for the balance for this particular posting.
-runner :: Stripe
+runner :: Column
 runner = W4 (balance $ view AB.balance)
 
--- | A report with a standard set of 'Stripe':
+-- | A report with a standard set of 'Column':
 --
 -- * 'day'
 -- * 'number'

@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Penny.Columns.Env where
+module Penny.Table.Env where
 
 import Control.Lens (makeLenses)
 
