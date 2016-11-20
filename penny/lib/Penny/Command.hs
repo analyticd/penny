@@ -23,10 +23,10 @@ module Penny.Command
   , saveAs
   , colors
   , report
-  , open
+  -- , open
   , preload
-  , columns
-  , checkbook
+  -- , columns
+  -- , checkbook
   , clatchDump
   , acctree
   , lightDefaults
@@ -80,7 +80,7 @@ import Penny.Clatcher (Clatcher, Report)
 import qualified Penny.Clatcher as Clatcher
 import Penny.Colorize
 import Penny.Colors (Colors)
-import qualified Penny.Columns as Columns
+-- import qualified Penny.Columns as Columns
 import Penny.Converter
 import Penny.Cursor
 import Penny.Decimal
@@ -207,6 +207,7 @@ preload pair = set Clatcher.load (Seq.singleton (return pair)) mempty
 
 -- # Standard reports
 
+{-
 -- | Creates a columns report with the specified 'Columns.Stripe'.
 columns :: Columns.Columns -> Clatcher
 columns cols = report rpt
@@ -225,6 +226,7 @@ columns cols = report rpt
 -- * 'Columns.runner'
 checkbook :: Clatcher
 checkbook = columns Columns.checkbook
+-}
 
 -- | Prints the @dump@ report, which is a pretty printer showing every
 -- aspect of every clatch.

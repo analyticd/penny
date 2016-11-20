@@ -121,13 +121,13 @@ addRowToMap mp = foldl' addColToMap mp . zip [0..] . toList
 
 -- | Creates a table from a 'Columns'.  Deletes any column that is
 -- entirely empty, then intersperses single-space spacer columns.
-columnsReport
+tableReport
   :: Columns
   -> Colors
   -> History
   -> Seq (Clatch (Maybe Cursor))
   -> Seq (Chunk Text)
-columnsReport col clrs hist clatches
+tableReport col clrs hist clatches
   = render
   . tableByColumns
   . intersperse (spacerColumn clrs clatches)
@@ -151,9 +151,9 @@ columnsReport col clrs hist clatches
       . concat . repeat $ [_evenBackground clrs, _oddBackground clrs]
 
 -- | Creates a columns report for use in the 'Penny.Clatcher.Clatcher'.
-columns :: Columns -> Report
-columns cols _ colors hist clatches
-  = columnsReport cols colors hist clatches
+table :: Columns -> Report
+table cols _ colors hist clatches
+  = tableReport cols colors hist clatches
 
 maybeCol
   :: ((Clatch (Maybe Cursor) -> a) -> Stripe)

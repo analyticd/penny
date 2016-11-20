@@ -37,9 +37,10 @@ module Penny.Repl
   , Dump.dump
 
   -- ** Columns
-  , Columns.Stripe
-  , Columns.columns
-  , Columns.checkbook
+  , Table.Column
+  , Table.Columns
+  , Table.checkbook
+  , Table.table
 
   -- * Output
   , output
@@ -59,7 +60,7 @@ import Penny.Clatcher
 import qualified Penny.Clatcher as Clatcher
 import Penny.Colorize
 import Penny.Colors (Colors)
-import qualified Penny.Columns as Columns
+import qualified Penny.Table as Table
 import Penny.Converter
 import Penny.Copper (copopen)
 import Penny.Cursor
