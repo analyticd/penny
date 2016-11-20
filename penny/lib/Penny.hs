@@ -1,1 +1,12 @@
+-- | Currently there is nothing in the main "Penny" module.
+--
+-- Some common places to get started:
+--
+-- For declarations that are useful in a REPL, see "Penny.Repl".
+--
+-- To import OFX files, see "Penny.OfxToCopper".
+--
+-- To mark OFX transactions as cleared, see "Penny.Clearer".
+--
+-- To mark cleared postings as reconciled, see "Penny.Reconciler".
 module Penny where
