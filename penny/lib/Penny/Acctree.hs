@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE FlexibleContexts #-}
-module Penny.BalanceReport where
+module Penny.Acctree where
 
 import Control.Lens (view, (<|))
 import Control.Monad (join)
@@ -21,6 +21,7 @@ import Penny.Cell
 import Penny.Clatch.Types
 import Penny.Clatch.Access.Posting
 import Penny.Clatch.Access.Converted
+import Penny.Clatcher (Report)
 import Penny.Colors
 import Penny.Commodity
 import Penny.Copper.Copperize
@@ -29,12 +30,12 @@ import qualified Penny.Polar as Polar
 import Penny.Popularity
 import Penny.Rep
 
-balanceReport
+acctreeReport
   :: Colors
   -> History
   -> Seq (Clatch l)
   -> Seq (Chunk Text)
-balanceReport clrs hist
+acctreeReport clrs hist
   = render
   . tableByRows
   . formatTable hist clrs
@@ -43,6 +44,11 @@ balanceReport clrs hist
   where
     mkBalanceMap clatch = balanceMap (view account clatch)
       (c'Balance'Amount . best $ clatch)
+
+-- | The 'acctree' report shows a tree of all accounts and their
+-- balances.
+acctree :: Report
+acctree _ colors hist clatches = acctreeReport colors hist clatches
 
 unrollBalanceMap :: Int -> Text -> BalanceMap -> Seq (Int, Text, Balance)
 unrollBalanceMap lvl lbl mp

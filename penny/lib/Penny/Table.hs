@@ -30,7 +30,6 @@ import qualified Penny.Polar as P
 import Penny.Popularity
 import Penny.Qty
 import Penny.Rep
-import Penny.Scalar
 import Penny.SeqUtil (intersperse)
 import Penny.Serial (Serset, Serpack)
 import qualified Penny.Serial as Serial
@@ -43,7 +42,6 @@ import Control.Monad (join)
 import Data.Foldable (foldl', toList)
 import qualified Data.Map as M
 import qualified Data.IntMap as IM
-import qualified Data.Time as Time
 import Data.Monoid
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -394,28 +392,6 @@ columnShow
   => (Clatch (Maybe Cursor) -> a)
   -> Stripe
 columnShow f = text (X.pack . show . f)
-
-scalar
-  :: (Clatch (Maybe Cursor) -> Scalar)
-  -> Env
-  -> Clatch (Maybe Cursor)
-  -> Cell
-scalar f env clatch = case f clatch of
-  SText txt -> text (const txt) env clatch
-  SDay day -> columnShow (const day) env clatch
-  STime tod -> columnShow (const tod) env clatch
-  SZone int -> columnShow (const (Time.minutesToTimeZone int)) env clatch
-  SLabel txt -> text (const txt) env clatch
-  SInteger int -> columnShow (const int) env clatch
-
-maybeScalar
-  :: (Clatch (Maybe Cursor) -> Maybe Scalar)
-  -> Env
-  -> Clatch (Maybe Cursor)
-  -> Cell
-maybeScalar f env clatch = case f clatch of
-  Nothing -> text (const "--") env clatch
-  Just sc -> scalar (const sc) env clatch
 
 -- # Pre-made columns
 
