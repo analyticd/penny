@@ -19,6 +19,7 @@ import qualified Penny.Clatch.Access.Balance as AB
 import Penny.Clatch.Access.PostFiltset (postFiltset)
 import qualified Penny.Clatch.Access.Posting as AP
 import qualified Penny.Clatch.Access.TransactionX as AT
+import Penny.Clatcher (Report)
 import Penny.Colors
 import Penny.Copper.Copperize
 import Penny.Decimal
@@ -121,12 +122,12 @@ addRowToMap mp = foldl' addColToMap mp . zip [0..] . toList
 -- | Creates a table from a 'Columns'.  Deletes any column that is
 -- entirely empty, then intersperses single-space spacer columns.
 columnsReport
-  :: History
+  :: Columns
   -> Colors
-  -> Columns
+  -> History
   -> Seq (Clatch (Maybe Cursor))
   -> Seq (Chunk Text)
-columnsReport hist clrs col clatches
+columnsReport col clrs hist clatches
   = render
   . tableByColumns
   . intersperse (spacerColumn clrs clatches)
@@ -148,6 +149,11 @@ columnsReport hist clrs col clatches
             env = Env bkgd hist clrs
     colorSeq = Seq.fromList . take (Seq.length clatches)
       . concat . repeat $ [_evenBackground clrs, _oddBackground clrs]
+
+-- | Creates a columns report for use in the 'Penny.Clatcher.Clatcher'.
+columns :: Columns -> Report
+columns cols _ colors hist clatches
+  = columnsReport cols colors hist clatches
 
 maybeCol
   :: ((Clatch (Maybe Cursor) -> a) -> Column)

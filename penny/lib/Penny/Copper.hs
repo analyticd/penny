@@ -38,7 +38,7 @@ module Penny.Copper where
 
 import Accuerr (Accuerr)
 import qualified Accuerr
-import Control.Exception (Exception)
+import Control.Exception (Exception, throwIO)
 import qualified Control.Exception as Exc
 import qualified Control.Lens as Lens
 import Data.Sequence (Seq)
@@ -48,11 +48,13 @@ import qualified Data.Sequence.NonEmpty as NE
 import Data.Sums (S3(S3a, S3b, S3c))
 import Data.Text (Text)
 import qualified Data.Text as X
+import qualified Data.Text.IO as XIO
 import Data.Typeable (Typeable)
 import qualified Text.Earley as Earley
 import Pinchot (Loc(Loc))
 import qualified Pinchot
 
+import Penny.Clatcher (Loader)
 import Penny.Copper.Copperize (TracompriError, tracompriWholeFile)
 import Penny.Copper.Decopperize
 import qualified Penny.Copper.EarleyGrammar as EarleyGrammar
@@ -62,6 +64,7 @@ import qualified Penny.Copper.Proofer as Proofer
 import Penny.Copper.Types (WholeFile)
 import Penny.Copper.Tracompri
 import Penny.Cursor
+import Penny.SeqUtil
 import Penny.Unix
 
 -- | Given an integer position in a text, obtain the Pinchot
@@ -265,3 +268,18 @@ parseConvertProofIO files = do
   case parseConvertProofFiles filesAndTexts of
     Accuerr.AccFailure errs -> Exc.throwIO (ParseConvertProofErrors errs)
     Accuerr.AccSuccess g -> return g
+
+-- | Loads a single Copper file.
+copopen :: Text -> Loader
+copopen fn = do
+  txt <- XIO.readFile (X.unpack fn)
+  case parseConvertProof (GivenFilename fn, txt) of
+    Left err -> throwIO err
+    Right tras -> return (prices, txns)
+      where
+        (prices, txns) = partitionEithers . catMaybes
+          . fmap toEi . fmap (fmap Just) $ tras
+        toEi tra = case tra of
+          Tracompri'Transaction x -> Just (Right x)
+          Tracompri'Price x -> Just (Left x)
+          _ -> Nothing

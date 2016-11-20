@@ -5,13 +5,11 @@
 -- | Creates clatches and prints reports.
 module Penny.Clatcher where
 
-import Control.Exception (Exception, throwIO)
+import Control.Exception (Exception)
 import qualified Control.Lens as Lens
 import Control.Monad (join)
 import Data.Sequence (Seq)
 import Data.Text (Text)
-import qualified Data.Text as X
-import qualified Data.Text.IO as XIO
 import Data.Typeable (Typeable)
 import Rainbow (Chunk)
 
@@ -20,12 +18,9 @@ import Penny.Clatch.Create
 import Penny.Colorize
 import Penny.Colors
 import Penny.Converter
-import qualified Penny.Copper as Copper
-import Penny.Copper.Tracompri
 import Penny.Cursor
 import Penny.Popularity
 import Penny.Price
-import Penny.SeqUtil
 import Penny.Stream
 import Penny.Transaction
 
@@ -46,20 +41,6 @@ type Report
   -> History
   -> Seq (Clatch (Maybe Cursor))
   -> Seq (Chunk Text)
-
-loadCopper :: String -> Loader
-loadCopper fn = do
-  txt <- XIO.readFile fn
-  case Copper.parseConvertProof (GivenFilename $ X.pack fn, txt) of
-    Left err -> throwIO err
-    Right tras -> return (prices, txns)
-      where
-        (prices, txns) = partitionEithers . catMaybes
-          . fmap toEi . fmap (fmap Just) $ tras
-        toEi tra = case tra of
-          Tracompri'Transaction x -> Just (Right x)
-          Tracompri'Price x -> Just (Left x)
-          _ -> Nothing
 
 data Clatcher = Clatcher
   { _converter :: Converter
@@ -90,7 +71,74 @@ data Clatcher = Clatcher
 
   }
 
-Lens.makeLenses ''Clatcher
+-- | Converts the amount of each posting from one amount to another.
+-- For example, this can be useful to convert a commodity to its
+-- value in your home currency.
+converter :: Lens.Lens' Clatcher Converter
+converter = Lens.lens _converter (\b l -> b { _converter = l })
+
+-- | The 'sieve' performs pre-filtering.  That is, it filters
+-- 'Converted' after they have been converted using 'convert', but
+-- before they have been sorted.  This can be useful for selecting
+-- only the postings you want to be included in the running balance.
+-- For instance, if you are interested in the running balance in your
+-- checking account, you would pass an appropriate filter for the
+-- 'sieve'.
+--
+-- When combining multiple 'Clatcher' using '<>', every 'sieve' must
+-- be 'True' for a 'Converted' to be included in the running balance
+-- and report.  Therefore, if you want to combine different 'sieve'
+-- predicates using '||', you must do so (using '|||' if you wish) and
+-- pass the resulting single predicate to 'sieve'.
+-- Lens.makeLensesWith (Lens.set Lens.generateSignatures False Lens.lensRules)
+--  ''Clatcher
+sieve :: Lens.Lens' Clatcher (Converted (Maybe Cursor) () -> Bool)
+sieve = Lens.lens _sieve (\b l -> b { _sieve = l })
+
+-- | Sorts the 'Prefilt'.  This is done after pre-filtering but before
+-- post-filtering.  If combining multiple 'Clatcher' using '<>', an
+-- appropriate mulitple-key sort is performed.
+sort
+  :: Lens.Lens' Clatcher
+     (Prefilt (Maybe Cursor) () -> Prefilt (Maybe Cursor) () -> Ordering)
+sort = Lens.lens _sort (\b l -> b { _sort = l })
+
+-- | Controls post-filtering.  This filtering is performed after
+-- sorting and after the running balance is added.  So for example,
+-- you might use 'sieve' to filter for postings that are from your
+-- checking account so that the running balance includes all checking
+-- postings.  In such a case, you would probably also want to use
+-- 'sort' to make sure the postings are in chronological order before
+-- the running balance is computed.  Then, you can use 'screen' to
+-- only see particular postings you are interested in, such as
+-- postings after a certain date or postings to a particular payee.
+--
+-- As with 'sieve', when combining multiple 'Clatcher' using '<>',
+-- every 'screen' must be 'True' for a 'Totaled' to be included in the
+-- report.  Therefore, if you want to combine different 'screen'
+-- predicates using '||', you must do so (using '|||' if you wish) and
+-- pass the resulting single predicate to 'screen'.
+screen :: Lens.Lens' Clatcher (Totaled (Maybe Cursor) () -> Bool)
+screen = Lens.lens _screen (\b l -> b { _screen = l })
+
+
+-- | Determines where your output goes.  When combining multiple
+-- 'Clatcher', every 'output' will be used.
+output :: Lens.Lens' Clatcher (Seq (ChooseColors, Stream))
+output = Lens.lens _output (\b l -> b { _output = l })
+
+-- | Choose a color scheme.
+colors :: Lens.Lens' Clatcher Colors
+colors = Lens.lens _colors (\b l -> b { _colors = l })
+
+-- | Choose which report to run.  If you use multiple 'report'
+-- options, the reports will be shown one after the other.
+report :: Lens.Lens' Clatcher Report
+report = Lens.lens _report (\b l -> b { _report = l })
+
+-- | Sources from which to load transactions and prices.
+load :: Lens.Lens' Clatcher (Seq Loader)
+load = Lens.lens _load (\b l -> b { _load = l })
 
 -- | The 'Monoid' instance uses for 'mempty':
 --

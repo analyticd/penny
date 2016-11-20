@@ -51,9 +51,7 @@ withProcess cp = Exc.bracket acq rel
 -- left as is.  Waits until the created process exits.
 streamToStdin
   :: Process.CreateProcess
-  -> (Chunk Text -> [ByteString] -> [ByteString])
-  -> Seq (Chunk Text)
-  -> IO ()
+  -> Stream
 streamToStdin cp conv sq = runManaged $ do
   let cp' = cp { Process.std_in = Process.CreatePipe }
   (Just inp, _, _, han) <- managed $ withProcess cp'
@@ -75,9 +73,7 @@ streamToFile
   -- ^ If True, append; otherwise, overwrite.
   -> String
   -- ^ Filename
-  -> (Chunk Text -> [ByteString] -> [ByteString])
-  -> Seq (Chunk Text)
-  -> IO ()
+  -> Stream
 streamToFile apnd fn conv sq = runManaged $ do
   h <- managed $ IO.withFile fn (if apnd then IO.AppendMode else IO.WriteMode)
   liftIO . mapM_ (BS.hPut h) . foldr conv [] $ sq

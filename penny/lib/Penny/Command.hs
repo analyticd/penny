@@ -13,7 +13,6 @@ module Penny.Command
   , qUnsigned
 
   -- * Commands
-  , convert
   , sieve
   , sort
   , screen
@@ -198,11 +197,6 @@ report r = set Clatcher.report r mempty
 
 -- # Load
 
--- | Specify a file from which to load transactions and prices.
-open :: String -> Clatcher
-open str = set Clatcher.load
-  (Seq.singleton (Clatcher.loadCopper str)) mempty
-
 -- | You can preload prices and postings so that you do not have to
 -- load them repeatedly; then, specify the preloaded items using
 -- 'preload'.
@@ -218,7 +212,7 @@ columns :: Columns.Columns -> Clatcher
 columns cols = report rpt
   where
     rpt _ colors hist clatches
-      = Columns.columnsReport hist colors cols clatches
+      = Columns.columnsReport cols colors hist clatches
 
 -- | A report with a standard set of 'Columns.Stripe':
 --
