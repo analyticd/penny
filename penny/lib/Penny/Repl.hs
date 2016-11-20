@@ -15,8 +15,16 @@
 
 module Penny.Repl
   (
+
+  -- * Number types
+    Exponential
+  , DecUnsigned
+
+  -- * Commodities
+  , Commodity
+
   -- * Clatcher types
-    Loader
+  , Loader
   , Report
 
   -- * Quasi quoters
@@ -54,6 +62,7 @@ module Penny.Repl
 
   -- * Output
   , output
+  , Colors
   , colors
   , light
   , dark
@@ -75,13 +84,13 @@ module Penny.Repl
   , payee
 
   -- ** Posting fields
-  , entry
   , birth
   , number
   , flag
   , account
   , fitid
   , tags
+  , commodity
   , AP.reconciled
   , AP.cleared
   , AP.side
@@ -92,6 +101,7 @@ module Penny.Repl
   , AP.isZero
 
   -- * Comparison helpers
+  , NonNegative
   , cmpUnsigned
   , (&&&)
   , (|||)
@@ -105,7 +115,6 @@ module Penny.Repl
 
 import Penny.Account
 import Penny.Acctree
-import Penny.Amount
 import Penny.Commodity
 import qualified Penny.Clatch.Access.Posting as AP
 import qualified Penny.Clatch.Access.TransactionX as AT
@@ -117,23 +126,16 @@ import Penny.Colors (Colors)
 import Penny.Table (Column, Columns, checkbook, table)
 import Penny.Converter
 import Penny.Copper (copopen)
-import Penny.Cursor
 import Penny.Decimal
 import qualified Penny.Dump as Dump
 import Penny.NonNegative
-import Penny.Price
 import Penny.Quasi
 import Penny.Scheme
 import Penny.Serial
 import Penny.Stream
-import Penny.Transaction
-import Penny.Troika
 
 import Control.Lens (view, (&), (.~), (^.))
-import Data.Monoid ((<>))
-import Data.Ord (comparing)
 import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 import Data.Text (Text)
 import qualified Data.Time as Time
 
@@ -203,12 +205,12 @@ payee = view AT.payee
 
 -- ## Posting fields
 
-entry :: Sliced l a -> Troika
-entry = view AP.troika
-
+-- | How this single posting relates to its sibling postings; that is,
+-- its \"birth order\".  Numbering restarts with every transaction.
 birth :: Sliced l a -> Serset
 birth = view AP.birth
 
+-- | A number assigned by the user.
 number :: Sliced l a -> Maybe Integer
 number = view AP.number
 
@@ -218,8 +220,14 @@ flag = view AP.flag
 account :: Sliced l a -> Account
 account = view AP.account
 
+-- | Financial institution ID; often provided in OFX files.
 fitid :: Sliced l a -> Text
 fitid = view AP.fitid
 
+-- | List of tags assigned by the user.
 tags :: Sliced l a -> Seq Text
 tags = view AP.tags
+
+-- | The commodity of this posting.
+commodity :: Sliced l a -> Text
+commodity = view AP.commodity

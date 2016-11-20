@@ -22,6 +22,7 @@ import Penny.SeqUtil
 import Penny.Serial
 import qualified Penny.Tranche as Tranche
 import Penny.Troika (Troika)
+import qualified Penny.Troika as Troika
 
 -- | Operates on the 'Posting' in the 'Slice'.
 --
@@ -42,6 +43,9 @@ core = posting . Core.core
 
 troika :: Lens' (Sliced l a) Troika
 troika = core . Core.troika
+
+commodity :: Lens' (Sliced l a) Text
+commodity = troika . Troika.commodity
 
 birth :: Lens' (Sliced l a) Serset
 birth = core . Core.birth
@@ -73,9 +77,16 @@ cleared = Tranche.cleared . view (posting . postline)
 side :: Sliced l a -> Maybe Pole
 side = Core.postingSide . view posting
 
+-- | The quantity of this posting, which may be a debit or a credit.
+--
+-- If you are trying to compare a particular quantity to a posting,
+-- it's easiest to use 'isDebit' or 'isCredit' as appropriate, along
+-- with 'magnitude' and 'cmpUnsigned'.
 qty :: Sliced l a -> Decimal
 qty = Core.postingQty . view posting
 
+-- | The magnitude of the quantity; that is, the quantity without a
+-- sign.
 magnitude :: Sliced l a -> DecUnsigned
 magnitude = postingMagnitude . view posting
 
