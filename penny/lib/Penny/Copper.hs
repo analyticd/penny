@@ -259,12 +259,13 @@ newtype ParseConvertProofErrors
 instance Exception ParseConvertProofErrors
 
 -- | Parses, converts, and proofs a sequence of filenames.  Any errors
--- are thrown as exceptions.
+-- are thrown as exceptions.  If input sequence is empty, reads
+-- standard input.
 parseConvertProofIO
   :: Seq Text
   -> IO (NonEmptySeq (Seq (Tracompri Cursor)))
 parseConvertProofIO files = do
-  filesAndTexts <- readCommandLineFiles files
+  filesAndTexts <- readFileListStdinIfEmpty files
   case parseConvertProofFiles filesAndTexts of
     Accuerr.AccFailure errs -> Exc.throwIO (ParseConvertProofErrors errs)
     Accuerr.AccSuccess g -> return g

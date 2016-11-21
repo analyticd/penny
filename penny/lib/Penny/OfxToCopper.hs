@@ -157,18 +157,18 @@ ofxImportProgram account addlHelp modOfxText
 
 -- | Contains all command-line options.
 data CommandLine = CommandLine
-  { _ofxFilenames :: Seq Text
-  -- ^ These are the filenames of the OFX files the user wants to read.
-  , _copperFiles :: Seq Text
+  { _copperFiles :: Seq Text
   -- ^ These are the Copper files the user wants to read.
+  , _ofxFilenames :: Seq Text
+  -- ^ These are the filenames of the OFX files the user wants to read.
   } deriving Show
 
 -- | An @optparse-applicative@ parser for 'CommandLine'.
 commandLine :: A.Parser CommandLine
 commandLine = CommandLine
-  <$> fmap (Seq.fromList . fmap X.pack)
+  <$> fmap (fmap X.pack . Seq.fromList) (many copperFile)
+  <*> fmap (Seq.fromList . fmap X.pack)
         (many (A.argument A.str (A.metavar "OFX FILE")))
-  <*> fmap (fmap X.pack . Seq.fromList) (many copperFile)
   where
     copperFile = A.strOption (A.long "file"
         <> A.short 'f'
@@ -183,12 +183,11 @@ runCommandLineProgram
   -- ^
   -> IO ()
 runCommandLineProgram fOfx cmdLine = do
-  readCopperFiles <- readCommandLineFiles . _copperFiles $ cmdLine
+  readCopperFiles <- readFileList . _copperFiles $ cmdLine
   readOfxFiles <- fmap (fmap snd)
-    . readCommandLineFiles . _ofxFilenames $ cmdLine
+    . readFileListStdinIfEmpty . _ofxFilenames $ cmdLine
   let readStrings = NE.nonEmptySeqToSeq . fmap X.unpack $ readOfxFiles
-  result <- errorExit $ ofxImportWithCopperParse fOfx
-    (NE.nonEmptySeqToSeq readCopperFiles)
+  result <- errorExit $ ofxImportWithCopperParse fOfx readCopperFiles
     readStrings
   printResult result
 

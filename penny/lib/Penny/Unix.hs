@@ -16,15 +16,24 @@ import Penny.Cursor
 
 -- | Reads a sequence of string filenames into texts.  If there is no
 -- file, or a file is a @-@, reads standard input.
-readCommandLineFiles
+readFileListStdinIfEmpty
   :: Seq Text
   -- ^ Files to read
   -> IO (NonEmptySeq (InputFilespec, Text))
-readCommandLineFiles files = case NE.seqToNonEmptySeq files of
+readFileListStdinIfEmpty files = case NE.seqToNonEmptySeq files of
   Nothing -> do
     x <- XIO.getContents
     return (NE.singleton (Stdin, x))
   Just neFiles -> traverse readCommandLineFile neFiles
+
+-- | Reads a sequence of string filenames into texts.  If a file is
+-- @-@, reads standard input for that file.  Does NOT read standard
+-- input if the input list is empty.
+readFileList
+  :: Seq Text
+  -- ^ Files to read
+  -> IO (Seq (InputFilespec, Text))
+readFileList = traverse readCommandLineFile
 
 readCommandLineFile :: Text -> IO (InputFilespec, Text)
 readCommandLineFile fn

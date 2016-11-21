@@ -55,7 +55,9 @@ streamToStdin
 streamToStdin cp conv sq = runManaged $ do
   let cp' = cp { Process.std_in = Process.CreatePipe }
   (Just inp, _, _, han) <- managed $ withProcess cp'
-  let putChunks = mapM_ (BS.hPut inp) . foldr conv [] $ sq
+  let putChunks = do
+        mapM_ (BS.hPut inp) . foldr conv [] $ sq
+        IO.hClose inp
   _ <- managed $ Async.withAsync putChunks
   _ <- liftIO $ Process.waitForProcess han
   return ()
@@ -64,7 +66,7 @@ streamToStdin cp conv sq = runManaged $ do
 toLess :: Process.CreateProcess
 toLess = (Process.proc "less" ["--RAW-CONTROL-CHARS", "--chop-long-lines"])
   { Process.std_in = Process.CreatePipe
-  , Process.delegate_ctlc = True
+  , Process.delegate_ctlc = False
   }
 
 -- | Creates a stream that accepts input and sends it to a file.
