@@ -15,6 +15,12 @@ data Orient
 
 type SpaceBetween = Bool
 
+space :: SpaceBetween
+space = True
+
+noSpace :: SpaceBetween
+noSpace = False
+
 data Arrangement = Arrangement
   { _orient :: Orient
   , _spaceBetween :: SpaceBetween
