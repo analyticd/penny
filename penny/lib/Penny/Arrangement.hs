@@ -15,15 +15,17 @@ data Orient
 
 type SpaceBetween = Bool
 
-space :: SpaceBetween
-space = True
-
-noSpace :: SpaceBetween
-noSpace = False
-
 data Arrangement = Arrangement
   { _orient :: Orient
   , _spaceBetween :: SpaceBetween
   } deriving (Eq, Ord, Show, Generic, PrettyVal)
 
 makeLenses ''Arrangement
+
+-- | Commodity on left, no space between.
+arrangeDollars :: Arrangement
+arrangeDollars = Arrangement CommodityOnLeft False
+
+-- | Commodity on right, space between; typical for stock shares.
+arrangeShares :: Arrangement
+arrangeShares = Arrangement CommodityOnRight True
