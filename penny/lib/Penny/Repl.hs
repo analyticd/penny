@@ -46,6 +46,7 @@ module Penny.Repl
 
   -- * Sorting
   , sort
+  , comparing
 
   -- * Reports
   -- ** Dump
@@ -111,6 +112,12 @@ module Penny.Repl
   , (.~)
   , (^.)
 
+  -- * Monoid operators
+  , (<>)
+
+  -- * Time
+  , zonedTimeToUTC
+
   ) where
 
 import Penny.Account
@@ -135,8 +142,11 @@ import Penny.Serial
 import Penny.Stream
 
 import Control.Lens (view, (&), (.~), (^.))
+import Data.Monoid ((<>))
+import Data.Ord (comparing)
 import Data.Sequence (Seq)
 import Data.Text (Text)
+import Data.Time (zonedTimeToUTC)
 import qualified Data.Time as Time
 
 -- | Sends output to @less@, using the maximum colors.
@@ -162,11 +172,15 @@ clatcher = fmap (const ()) . Clatcher.runClatcher
 -- * the light color scheme is used
 --
 -- * the checkbook column report is used
+--
+-- * postings are sorted by date and time, after converting the zoned
+-- time to UTC time
 presets :: Clatcher
 presets = mempty
   & output .~ [less]
   & colors .~ light
   & report .~ table checkbook
+  & sort   .~ comparing (zonedTimeToUTC . zonedTime)
 
 -- # Helpers
 

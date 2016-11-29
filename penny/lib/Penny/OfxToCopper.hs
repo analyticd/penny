@@ -64,6 +64,8 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as X
 import Data.Time (ZonedTime)
+import qualified Data.Time as Time
+import qualified Data.Time.Timelens as Timelens
 import qualified Options.Applicative as A
 import qualified Pinchot
 
@@ -129,6 +131,28 @@ defaultOfxOut ofxIn = OfxOut
   , _arrangement = Arrangement CommodityOnRight True
   , _zonedTime = OFX.txDTPOSTED . _ofxTxn $ ofxIn
   }
+
+-- | Converts a local time to UTC time, and then converts it back to a
+-- zoned time where the zone is UTC.  Some financial institutions
+-- report times using various local time zones; this converts them to
+-- UTC.
+toUTC :: Time.ZonedTime -> Time.ZonedTime
+toUTC = Time.utcToZonedTime Time.utc
+  . Time.zonedTimeToUTC
+
+-- | Strips off local times and changes them to midnight.  Some
+-- financial institutions report transactions with a local time (often
+-- it is an arbitrary time).  Use this if you don't care about the
+-- local time.  You might want to first use 'toUTC' to get an accurate
+-- UTC date before stripping off the time.
+toMidnight :: Time.ZonedTime -> Time.ZonedTime
+toMidnight
+  = Lens.set (localTime . Timelens.todHour) 0
+  . Lens.set (localTime . Timelens.todMin) 0
+  . Lens.set (localTime . Timelens.todSec) 0
+  where
+    localTime = Timelens.zonedTimeToLocalTime . Timelens.localTimeOfDay
+
 
 -- * Command-line program
 
