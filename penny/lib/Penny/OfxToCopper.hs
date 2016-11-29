@@ -153,6 +153,18 @@ toMidnight
   where
     localTime = Timelens.zonedTimeToLocalTime . Timelens.localTimeOfDay
 
+-- | Examines the OFX payee information to determine the best test to
+-- use as a simple payee name.  OFX allows for two different kinds of
+-- payee records.  This function examines the OFX and reduces the
+-- payee record to a simple text or, if there is no payee information,
+-- returns an empty Text.
+ofxPayee :: OfxIn -> Text
+ofxPayee ofxIn = case OFX.txPayeeInfo . _ofxTxn $ ofxIn of
+  Nothing -> ""
+  Just (Left str) -> X.pack str
+  Just (Right pye) -> X.pack . OFX.peNAME $ pye
+
+
 
 -- * Command-line program
 

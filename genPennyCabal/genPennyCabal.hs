@@ -5,7 +5,7 @@ import Common
 import Dependencies
 
 pennyVer :: [Word]
-pennyVer = [0,33,20161129,0]
+pennyVer = [0,33,20161129,1]
 
 pennyCopper :: Package
 pennyCopper = exactly "penny-copper" [0,1,20161119,0]
