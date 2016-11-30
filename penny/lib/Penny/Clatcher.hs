@@ -42,19 +42,45 @@ type Report
   -> Seq (Clatch (Maybe Cursor))
   -> Seq (Chunk Text)
 
+-- | Options used when creating the 'Clatch'es, which are postings
+-- combined with other useful information.  Creating 'Clatch'es is a
+-- multi-step process:
+--
+-- 1.  Convert the commodities in each posting; see 'converter'
+--
+-- 2.  Pre-filter the postings to remove those that are not
+-- interesting.  Called pre-filtering because it occurs before sorting
+-- the postings.  In addition, the totals will include every posting
+-- selected by the pre-filter, even if the posting is removed by the
+-- post-filter.  See 'prefilt'.
+--
+-- 3.  Sort the postings; see 'sort'.
+--
+-- 4.  Post-filter the postings.  Post-filtering occurs after sorting
+-- the postings.  The totals will reflect every posting returned by
+-- the pre-filter, even if the posting is not returned by the
+-- post-filter.  See 'postfilt'.
+--
+-- The 'Clatcher' has some other options:
+--
+-- * 'colors' determines what colors to use in reports
+--
+-- * 'report' determines what report to print
+--
+-- * 'load' lists sources from which to load transactions and prices
 data Clatcher = Clatcher
   { _converter :: Converter
   -- ^ Converts the amount of each posting from one amount to another.
   -- For example, this can be useful to convert a commodity to its
   -- value in your home currency.
 
-  , _sieve :: Converted (Maybe Cursor) () -> Bool
+  , _prefilt :: Converted (Maybe Cursor) () -> Bool
   -- ^ Controls pre-filtering
 
   , _sort :: Prefilt (Maybe Cursor) () -> Prefilt (Maybe Cursor) () -> Ordering
   -- ^ Sorts postings; this is done after pre-filtering but before post-filtering.
 
-  , _screen :: Totaled (Maybe Cursor) () -> Bool
+  , _postfilt :: Totaled (Maybe Cursor) () -> Bool
   -- ^ Controls post-filtering
 
   , _output :: Seq (ChooseColors, Stream)
@@ -77,23 +103,15 @@ data Clatcher = Clatcher
 converter :: Lens.Lens' Clatcher Converter
 converter = Lens.lens _converter (\b l -> b { _converter = l })
 
--- | The 'sieve' performs pre-filtering.  That is, it filters
+-- | The 'prefilt' performs pre-filtering.  That is, it filters
 -- 'Converted' after they have been converted using 'convert', but
 -- before they have been sorted.  This can be useful for selecting
 -- only the postings you want to be included in the running balance.
 -- For instance, if you are interested in the running balance in your
 -- checking account, you would pass an appropriate filter for the
--- 'sieve'.
---
--- When combining multiple 'Clatcher' using '<>', every 'sieve' must
--- be 'True' for a 'Converted' to be included in the running balance
--- and report.  Therefore, if you want to combine different 'sieve'
--- predicates using '||', you must do so (using '|||' if you wish) and
--- pass the resulting single predicate to 'sieve'.
--- Lens.makeLensesWith (Lens.set Lens.generateSignatures False Lens.lensRules)
---  ''Clatcher
-sieve :: Lens.Lens' Clatcher (Converted (Maybe Cursor) () -> Bool)
-sieve = Lens.lens _sieve (\b l -> b { _sieve = l })
+-- 'prefilt'.
+prefilt :: Lens.Lens' Clatcher (Converted (Maybe Cursor) () -> Bool)
+prefilt = Lens.lens _prefilt (\b l -> b { _prefilt = l })
 
 -- | Sorts the 'Prefilt'.  This is done after pre-filtering but before
 -- post-filtering.  If combining multiple 'Clatcher' using '<>', an
@@ -105,21 +123,21 @@ sort = Lens.lens _sort (\b l -> b { _sort = l })
 
 -- | Controls post-filtering.  This filtering is performed after
 -- sorting and after the running balance is added.  So for example,
--- you might use 'sieve' to filter for postings that are from your
+-- you might use 'prefilt' to filter for postings that are from your
 -- checking account so that the running balance includes all checking
 -- postings.  In such a case, you would probably also want to use
 -- 'sort' to make sure the postings are in chronological order before
--- the running balance is computed.  Then, you can use 'screen' to
+-- the running balance is computed.  Then, you can use 'postfilt' to
 -- only see particular postings you are interested in, such as
 -- postings after a certain date or postings to a particular payee.
 --
--- As with 'sieve', when combining multiple 'Clatcher' using '<>',
--- every 'screen' must be 'True' for a 'Totaled' to be included in the
--- report.  Therefore, if you want to combine different 'screen'
+-- As with 'prefilt', when combining multiple 'Clatcher' using '<>',
+-- every 'postfilt' must be 'True' for a 'Totaled' to be included in the
+-- report.  Therefore, if you want to combine different 'postfilt'
 -- predicates using '||', you must do so (using '|||' if you wish) and
--- pass the resulting single predicate to 'screen'.
-screen :: Lens.Lens' Clatcher (Totaled (Maybe Cursor) () -> Bool)
-screen = Lens.lens _screen (\b l -> b { _screen = l })
+-- pass the resulting single predicate to 'postfilt'.
+postfilt :: Lens.Lens' Clatcher (Totaled (Maybe Cursor) () -> Bool)
+postfilt = Lens.lens _postfilt (\b l -> b { _postfilt = l })
 
 
 -- | Determines where your output goes.  When combining multiple
@@ -140,50 +158,12 @@ report = Lens.lens _report (\b l -> b { _report = l })
 load :: Lens.Lens' Clatcher (Seq Loader)
 load = Lens.lens _load (\b l -> b { _load = l })
 
--- | The 'Monoid' instance uses for 'mempty':
---
--- 'mempty' for '_converter'
---
--- 'const' 'True' for '_sieve'
---
--- 'mempty' for '_sort'
---
--- 'const' 'True' for '_screen'
---
--- 'mempty' for '_output'
---
--- 'mempty' for '_colors'
---
--- 'mempty' for '_chooseColors'
---
--- 'mempty' '_report'
---
--- 'mempty' '_load'
---
--- 'mappend' uses:
---
--- 'mappend' for '_converter'
---
--- for '_sieve' and '_screen', returns 'True' only if both operands return 'True'
---
--- 'mappend' for '_sort'
---
--- 'mappend' for '_output'
---
--- 'mappend' for '_colors'
---
--- 'mappend' for '_chooseColors'
---
--- returns the results of both '_report'
---
--- returns the results of both '_load'
-
 instance Monoid Clatcher where
   mempty = Clatcher
     { _converter = mempty
-    , _sieve = const True
+    , _prefilt = const True
     , _sort = mempty
-    , _screen = const True
+    , _postfilt = const True
     , _output = mempty
     , _colors = mempty
     , _report = \_ _ _ _ -> mempty
@@ -192,9 +172,9 @@ instance Monoid Clatcher where
 
   mappend x y = Clatcher
     { _converter = mappend (_converter x) (_converter y)
-    , _sieve = \c -> _sieve x c && _sieve y c
+    , _prefilt = \c -> _prefilt x c && _prefilt y c
     , _sort = mappend (_sort x) (_sort y)
-    , _screen = \c -> _screen x c && _screen y c
+    , _postfilt = \c -> _postfilt x c && _postfilt y c
     , _output = mappend (_output x) (_output y)
     , _colors = mappend (_colors x) (_colors y)
     , _report = \a b c d -> mappend (_report x a b c d) (_report y a b c d)
@@ -222,7 +202,7 @@ runClatcher clatcher = do
   let pennyTxns = fmap snd priceTxnPairs
   let clatchTxns = addSerials pennyTxns
   let clatches = clatchesFromTransactions (_converter clatcher)
-        (_sieve clatcher) (_sort clatcher) (_screen clatcher) clatchTxns
+        (_prefilt clatcher) (_sort clatcher) (_postfilt clatcher) clatchTxns
   let history = elect clatchTxns
   let chunks = _report clatcher prices (_colors clatcher) history
         clatches

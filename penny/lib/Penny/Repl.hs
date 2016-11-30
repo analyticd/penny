@@ -41,8 +41,8 @@ module Penny.Repl
   , converter
 
   -- * Filtering
-  , sieve
-  , screen
+  , prefilt
+  , postfilt
 
   -- * Sorting
   , sort
