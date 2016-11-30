@@ -23,7 +23,7 @@ expOnly q = TQ.QuasiQuoter
   }
 
 -- | Quasi quoter for dates.  Enter as YYYY-MM-DD.  The resulting
--- expression has type 'Time.Day'.
+-- expression has type 'Data.Time.Day'.
 qDay :: TQ.QuasiQuoter
 qDay = expOnly $ \s ->
   case parseProduction a'Date (X.strip . X.pack $ s) of
@@ -32,8 +32,8 @@ qDay = expOnly $ \s ->
 
 -- | Quasi quoter for time of day.  Enter as HH:MM:SS, where the
 -- seconds are optional.  The resulting expression has type
--- 'Time.TimeOfDay' The resulting expression has type
--- 'Time.TimeOfDay'.
+-- 'Data.Time.TimeOfDay' The resulting expression has type
+-- 'Data.Time.TimeOfDay'.
 qTime :: TQ.QuasiQuoter
 qTime = expOnly $ \s ->
   case parseProduction a'Time (X.strip . X.pack $ s) of
@@ -41,7 +41,7 @@ qTime = expOnly $ \s ->
     Right d -> liftData . dTime $ d
 
 -- | Quasi quoter for unsigned decimal numbers.  The resulting
--- expression has type 'Exponential' 'NonNegative'.  The string can
+-- expression has type 'Penny.Decimal.DecUnsigned'.  The string can
 -- have grouping characters, but the radix point mus always be a
 -- period.
 qUnsigned :: TQ.QuasiQuoter

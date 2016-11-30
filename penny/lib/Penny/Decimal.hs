@@ -3,7 +3,48 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-module Penny.Decimal where
+module Penny.Decimal
+  ( -- * Decimal number types
+    Exponential(..)
+  , coefficient
+  , power
+  , Decimal
+  , DecUnsigned
+  , DecPositive
+  , DecZero
+  , DecNonZero
+
+  -- * Querying decimal properties
+  , pole'Decimal
+  , poleDecNonZero
+
+  -- * Manipulating exponents
+  -- ** Increase
+  , increaseExponent
+  , increaseExponentUnsigned
+  , increaseExponentPositive
+  -- ** Equalize
+  , equalizeExponents
+  , equalizeExponentsUnsigned
+  , equalizeExponentsPositive
+
+  -- * Comparisons
+  , cmpDecimal
+  , cmpUnsigned
+  , cmpPositive
+
+  -- * Arithmetic
+  , addDecPositive
+
+  -- * Conversions
+  , decNonZeroToDecimal
+  , decimalToDecNonZero
+  , c'DecNonZero'DecPositive
+  , decomposeDecUnsigned
+  , stripDecimalSign
+  , stripNonZeroSign
+  , magnitude
+  ) where
 
 import Data.Data (Data)
 import Control.Lens (makeLenses)
@@ -52,7 +93,20 @@ instance PrettyVal a => PrettyVal (Exponential a)
 
 makeLenses ''Exponential
 
+-- | Decimals that may be any value.
 type Decimal = Exponential Integer
+
+-- | Decimals that are unsigned; they may be zero.
+type DecUnsigned = Exponential NonNegative
+
+-- | Decimals that are positive; they may not be zero.
+type DecPositive = Exponential Positive
+
+-- | Decimals whose significand is always zero.
+type DecZero = Exponential ()
+
+-- | Decimals whose significand is never zero.
+type DecNonZero = Exponential NonZero
 
 pole'Decimal :: Decimal -> Maybe Pole
 pole'Decimal (Exponential c _) = integerPole c
@@ -62,8 +116,8 @@ pole'Decimal (Exponential c _) = integerPole c
 -- @e@, does nothing.
 increaseExponent
   :: NonNegative
-  -> Exponential Integer
-  -> Exponential Integer
+  -> Decimal
+  -> Decimal
 increaseExponent u (Exponential m e) = Exponential m' e'
   where
     (m', e') = case subt u e of
@@ -73,8 +127,8 @@ increaseExponent u (Exponential m e) = Exponential m' e'
 -- | Like 'increaseExponent', but for 'Exponential' 'NonNegative'.
 increaseExponentUnsigned
   :: NonNegative
-  -> Exponential NonNegative
-  -> Exponential NonNegative
+  -> DecUnsigned
+  -> DecUnsigned
 increaseExponentUnsigned u (Exponential m e) = Exponential m' e'
   where
     (m', e') = case subt u e of
@@ -84,8 +138,8 @@ increaseExponentUnsigned u (Exponential m e) = Exponential m' e'
 -- | Like 'increaseExponent', but for 'Exponential' 'Positive'.
 increaseExponentPositive
   :: NonNegative
-  -> Exponential Positive
-  -> Exponential Positive
+  -> DecPositive
+  -> DecPositive
 increaseExponentPositive u (Exponential m e) = Exponential m' e'
   where
     (m', e') = case subt u e of
@@ -109,27 +163,28 @@ increaseExponentPositive u (Exponential m e) = Exponential m' e'
 -- > abs mx' >= abs mx
 -- > abs my' >= abs my
 equalizeExponents
-  :: Exponential Integer
-  -> Exponential Integer
-  -> (Exponential Integer, Exponential Integer)
+  :: Decimal
+  -> Decimal
+  -> (Decimal, Decimal)
 equalizeExponents x@(Exponential _ ex) y@(Exponential _ ey)
   | ex > ey = (x, increaseExponent ex y)
   | otherwise = (increaseExponent ey x, y)
 
+
 -- | Like 'equalizeExponents' but for 'Exponential' 'Unsigned'.
 equalizeExponentsUnsigned
-  :: Exponential NonNegative
-  -> Exponential NonNegative
-  -> (Exponential NonNegative, Exponential NonNegative)
+  :: DecUnsigned
+  -> DecUnsigned
+  -> (DecUnsigned, DecUnsigned)
 equalizeExponentsUnsigned x@(Exponential _ ex) y@(Exponential _ ey)
   | ex > ey = (x, increaseExponentUnsigned ex y)
   | otherwise = (increaseExponentUnsigned ey x, y)
 
 -- | Like 'equalizeExponents' but for 'Exponential' 'Positive'.
 equalizeExponentsPositive
-  :: Exponential Positive
-  -> Exponential Positive
-  -> (Exponential Positive, Exponential Positive)
+  :: DecPositive
+  -> DecPositive
+  -> (DecPositive, DecPositive)
 equalizeExponentsPositive x@(Exponential _ ex) y@(Exponential _ ey)
   | ex > ey = (x, increaseExponentPositive ex y)
   | otherwise = (increaseExponentPositive ey x, y)
@@ -158,7 +213,7 @@ cmpDecimal f ex ey = f (_coefficient ex') (_coefficient ey')
   where
     (ex', ey') = equalizeExponents ex ey
 
--- | Compare the coefficients of two 'Exponential' 'NonNegative',
+-- | Compare the coefficients of two 'DecUnsigned'
 -- after equalizing their exponents.
 cmpUnsigned
   :: (NonNegative -> NonNegative -> a)
@@ -169,19 +224,16 @@ cmpUnsigned f ex ey = f (_coefficient ex') (_coefficient ey')
   where
     (ex', ey') = equalizeExponentsUnsigned ex ey
 
--- | Compare the coefficients of two 'Exponential' 'NonNegative',
+-- | Compare the coefficients of two 'DecPositive'
 -- after equalizing their exponents.
 cmpPositive
   :: (Positive -> Positive -> a)
-  -> Exponential Positive
-  -> Exponential Positive
+  -> DecPositive
+  -> DecPositive
   -> a
 cmpPositive f ex ey = f (_coefficient ex') (_coefficient ey')
   where
     (ex', ey') = equalizeExponentsPositive ex ey
-
--- | Decimals whose significand is never zero.
-type DecNonZero = Exponential NonZero
 
 -- | Adds two 'DecPositive', after equalizing their exponents.
 addDecPositive :: DecPositive -> DecPositive -> DecPositive
@@ -200,15 +252,6 @@ decimalToDecNonZero :: Decimal -> Maybe DecNonZero
 decimalToDecNonZero (Exponential signif expt) = case c'NonZero'Integer signif of
   Nothing -> Nothing
   Just nz -> Just $ Exponential nz expt
-
--- | Decimals that are unsigned; they may be zero.
-type DecUnsigned = Exponential NonNegative
-
--- | Decimals that are positive; they may not be zero.
-type DecPositive = Exponential Positive
-
--- | Decimals whose significand is always zero.
-type DecZero = Exponential ()
 
 -- | Transforms a 'DecPositive' to a 'DecNonZero', while applying the
 -- appropriate sign.
@@ -259,13 +302,6 @@ In that case LR is positive and LZ might be zero or positive.
 
 -}
 
-integerToInt :: Integer -> Int
-integerToInt x
-  | x < fromIntegral (minBound :: Int) = error "integer too small"
-  | x > fromIntegral (maxBound :: Int) = error "integer too large"
-  | otherwise = fromIntegral x
-
-
 decomposeDecUnsigned
   :: DecUnsigned
   -> Either DecZero DecPositive
@@ -285,7 +321,6 @@ stripNonZeroSign
   -> (DecPositive, Pole)
 stripNonZeroSign (Exponential nz ex)
   = (Exponential (c'Positive'NonZero nz) ex, nonZeroSign nz)
-
 
 magnitude :: Decimal -> DecUnsigned
 magnitude = fmap NN.stripSign

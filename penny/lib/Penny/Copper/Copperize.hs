@@ -52,6 +52,13 @@ import qualified Penny.Transaction as Txn
 import qualified Penny.Troika as Troika
 
 
+integerToInt :: Integer -> Int
+integerToInt x
+  | x < fromIntegral (minBound :: Int) = error "integer too small"
+  | x > fromIntegral (maxBound :: Int) = error "integer too large"
+  | otherwise = fromIntegral x
+
+
 cZero :: Zero Char ()
 cZero = Zero ('0', ())
 

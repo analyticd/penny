@@ -28,7 +28,6 @@ import Penny.NonNegative
 import Penny.Polar (Pole)
 import qualified Penny.Polar as P
 import Penny.Popularity
-import Penny.Qty
 import Penny.Rep
 import Penny.SeqUtil (intersperse)
 import Penny.Serial (Serset, Serpack)
@@ -229,13 +228,13 @@ repAnyRadix f env clatch =
 
 -- | Creates two columns: one for the side and one for the magnitude.
 qty
-  :: (Clatch (Maybe Cursor) -> Qty)
+  :: (Clatch (Maybe Cursor) -> Decimal)
   -> Env
   -> Clatch (Maybe Cursor)
   -> (Cell, Cell)
 qty f env clatch =
-  ( sideCell env . pole'Decimal . view _Wrapped . f $ clatch
-  , qtyMagnitudeCell env Nothing . view _Wrapped . f $ clatch
+  ( sideCell env . pole'Decimal . f $ clatch
+  , qtyMagnitudeCell env Nothing . f $ clatch
   )
 
 -- | Each 'Troika' creates four columns.  A single posting might give

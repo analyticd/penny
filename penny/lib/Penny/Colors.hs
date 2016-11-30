@@ -4,7 +4,7 @@ module Penny.Colors where
 
 import Control.Lens (makeLenses)
 import Data.Monoid ((<>))
-import Rainbow (Radiant)
+import Rainbow (Radiant, cyan, magenta, yellow, red, only256, color256)
 
 -- | Load data into this record to make a color scheme that has
 -- different colors for debits and credits, with an alternating
@@ -36,3 +36,29 @@ instance Monoid Colors where
     = Colors (x0 <> y0) (x1 <> y1) (x2 <> y2) (x3 <> y3)
              (x4 <> y4) (x5 <> y5) (x6 <> y6)
 
+
+-- | Colors for use on a terminal with a dark background.
+
+dark :: Colors
+dark = Colors
+  { _debit = cyan
+  , _credit = magenta
+  , _neutral = yellow
+  , _nonLinear = mempty
+  , _notice = red
+  , _oddBackground = mempty
+  , _evenBackground = mempty <> only256 (color256 236)
+  }
+
+-- | Colors for use on a terminal with a light background.
+
+light :: Colors
+light = Colors
+  { _debit = cyan
+  , _credit = magenta
+  , _neutral = yellow
+  , _nonLinear = mempty
+  , _notice = red
+  , _oddBackground = mempty
+  , _evenBackground = mempty <> only256 (color256 255)
+  }

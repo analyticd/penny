@@ -24,6 +24,7 @@ module Penny.Repl
   , Commodity
 
   -- * Clatcher types
+  , Clatcher
   , Loader
   , Report
 
@@ -129,7 +130,7 @@ import Penny.Clatch.Types
 import Penny.Clatcher
 import qualified Penny.Clatcher as Clatcher
 import Penny.Colorize
-import Penny.Colors (Colors)
+import Penny.Colors
 import Penny.Table (Column, Columns, checkbook, table)
 import Penny.Converter
 import Penny.Copper (copopen)
@@ -137,7 +138,6 @@ import Penny.Decimal
 import qualified Penny.Dump as Dump
 import Penny.NonNegative
 import Penny.Quasi
-import Penny.Scheme
 import Penny.Serial
 import Penny.Stream
 
