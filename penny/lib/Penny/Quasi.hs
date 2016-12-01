@@ -6,10 +6,12 @@ import Data.Data (Data)
 import qualified Data.Text as X
 import qualified Language.Haskell.TH as T
 import qualified Language.Haskell.TH.Quote as TQ
+import Text.Read (readMaybe)
 
 import Penny.Copper (parseProduction)
 import Penny.Copper.Decopperize (dDate, dTime, dNilOrBrimRadPer)
 import Penny.Copper.Productions
+import Penny.NonNegative.Internal
 
 liftData :: Data a => a -> T.Q T.Exp
 liftData = TQ.dataToExpQ (const Nothing)
@@ -22,6 +24,16 @@ expOnly q = TQ.QuasiQuoter
   , TQ.quoteDec = undefined
   }
 
+-- | Quasi quoter for non-negative numbers.  The resulting expression
+-- has type 'NonNegative'.
+qNonNeg  :: TQ.QuasiQuoter
+qNonNeg = expOnly $ \s ->
+  case readMaybe s of
+    Nothing -> fail $ "invalid number: " ++ s
+    Just n
+      | n < 0 -> fail $ "number is negative: " ++ s
+      | otherwise -> liftData (NonNegative n)
+
 -- | Quasi quoter for dates.  Enter as YYYY-MM-DD.  The resulting
 -- expression has type 'Data.Time.Day'.
 qDay :: TQ.QuasiQuoter
@@ -32,7 +44,6 @@ qDay = expOnly $ \s ->
 
 -- | Quasi quoter for time of day.  Enter as HH:MM:SS, where the
 -- seconds are optional.  The resulting expression has type
--- 'Data.Time.TimeOfDay' The resulting expression has type
 -- 'Data.Time.TimeOfDay'.
 qTime :: TQ.QuasiQuoter
 qTime = expOnly $ \s ->

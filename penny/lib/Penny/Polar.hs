@@ -7,6 +7,12 @@ import qualified Control.Lens as Lens
 import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
 
+-- | Something is polar if it must occupy one of two poles.  'Pole' is
+-- used in a variety of contexts and arguably 'Bool' would have
+-- performed the task equally well.  Arbitrarily, a 'debit' is
+-- 'North', a 'credit' is 'South', a 'positive' is 'North', and a
+-- 'negative' is 'South'.  This allows a 'Penny.Decimal.Decimal' to
+-- stand in for a debit, credit, or neutral, depending on its 'Pole'.
 data Pole = North | South
   deriving (Eq, Ord, Show, Generic)
 

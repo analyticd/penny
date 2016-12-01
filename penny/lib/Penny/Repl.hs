@@ -20,8 +20,24 @@ module Penny.Repl
     Exponential
   , DecUnsigned
 
-  -- * Commodities
+  -- * Data types
+  , Text
+  , SubAccount
+  , Seq
+  , Account
   , Commodity
+  , Pole
+
+  -- ** Serials
+  , Serset
+  , forward
+  , backward
+
+  -- ** Time and date types
+  , Time.ZonedTime
+  , Time.Day
+  , Time.TimeOfDay
+  , Time.TimeZone
 
   -- * Clatcher types
   , Clatcher
@@ -32,12 +48,14 @@ module Penny.Repl
   , qDay
   , qTime
   , qUnsigned
+  , qNonNeg
 
   -- * Loading files
   , copopen
   , load
 
   -- * Converting commodities
+  , Converter
   , convert
   , converter
 
@@ -137,8 +155,10 @@ import Penny.Copper (copopen)
 import Penny.Decimal
 import qualified Penny.Dump as Dump
 import Penny.NonNegative
+import Penny.Polar
 import Penny.Quasi
-import Penny.Serial
+import Penny.Serial (Serset)
+import qualified Penny.Serial as Serial
 import Penny.Stream
 
 import Control.Lens (view, (&), (.~), (^.))
@@ -245,3 +265,11 @@ tags = view AP.tags
 -- | The commodity of this posting.
 commodity :: Sliced l a -> Text
 commodity = view AP.commodity
+
+-- # Functions to access 'Serset' components.
+
+forward :: Serset -> NonNegative
+forward = view Serial.forward
+
+backward :: Serset -> NonNegative
+backward = view Serial.backward

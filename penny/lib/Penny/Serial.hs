@@ -15,23 +15,19 @@ import Text.Show.Pretty (PrettyVal)
 
 import Penny.NonNegative
 
+-- | Holds ordinal numbers for items in a series.
 data Serset = Serset
   { _forward :: NonNegative
+  -- ^ The item number when all the items are numbered from beginning
+  -- to end.
   , _backward :: NonNegative
+  -- ^ The item number when all the items are numbered from end to
+  -- beginning.
   } deriving (Eq, Ord, Show, Generic)
 
 instance PrettyVal Serset
 
 makeLenses ''Serset
-
-data Sersetted a = Sersetted
-  { _serset :: Serset
-  , _sersetee :: a
-  } deriving Generic
-
-instance PrettyVal a => PrettyVal (Sersetted a)
-
-makeLenses ''Sersetted
 
 data Serpack = Serpack
   { _file :: Serset
@@ -50,14 +46,6 @@ data Serpacked a = Serpacked
 instance PrettyVal a => PrettyVal (Serpacked a)
 
 makeLenses ''Serpacked
-
-assignSersetted :: T.Traversable t => t a -> t (Serset, a)
-assignSersetted t = flip evalState zero $ do
-  withFwd <- T.traverse (\a -> (,) <$> pure a <*> makeForward) t
-  withBak <- T.traverse (\a -> (,) <$> pure a <*> makeBackward) withFwd
-  let f ((b, fwd), bak) = ((Serset fwd bak), b)
-  return . fmap f $ withBak
-
 
 makeForward :: State NonNegative NonNegative
 makeForward = do
