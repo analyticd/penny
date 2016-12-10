@@ -105,6 +105,19 @@ selectGrouper (rcs, rps)
     thinSpace = GrpRadCom'Grouper (Grouper'ThinSpace cThinSpace)
     comma = GrpRadPer'Comma cComma
 
+-- | Given a particular 'Commodity' and a 'History', select the best
+-- grouper to use.
+bestGrouperForCommodity
+  :: History
+  -- ^
+  -> Commodity
+  -- ^
+  -> Either (GrpRadCom Char ()) (GrpRadPer Char ())
+bestGrouperForCommodity hist
+  = selectGrouper
+  . groupers hist
+  . Just
+
 -- | Gets all arrangements from a history.
 arrangements :: History -> Seq Arrangement
 arrangements (History hist)

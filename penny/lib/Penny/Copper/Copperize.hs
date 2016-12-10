@@ -51,13 +51,7 @@ import qualified Penny.Tranche as Tranche
 import qualified Penny.Transaction as Txn
 import qualified Penny.Troika as Troika
 
-
-integerToInt :: Integer -> Int
-integerToInt x
-  | x < fromIntegral (minBound :: Int) = error "integer too small"
-  | x > fromIntegral (maxBound :: Int) = error "integer too large"
-  | otherwise = fromIntegral x
-
+-- * Digits
 
 cZero :: Zero Char ()
 cZero = Zero ('0', ())
@@ -153,7 +147,7 @@ c'D0'5'Int x = case x of
   5 -> Just $ D0'5'Five (Five ('5', ()))
   _ -> Nothing
 
--- # Dates and times
+-- * Dates and times
 
 c'Days28'Int :: Integral a => a -> Maybe (Days28 Char ())
 c'Days28'Int x = d1to9 <|> d10to19 <|> d20to28
@@ -274,6 +268,8 @@ c'Minutes'Int = fmap Minutes . c'N0'59'Int
 c'Seconds'Int :: Integral a => a -> Maybe (Seconds Char ())
 c'Seconds'Int = fmap Seconds . c'N0'59'Int
 
+-- * Miscellaneous symbols
+
 cThinSpace :: ThinSpace Char ()
 cThinSpace = ThinSpace ('\x2009', ())
 
@@ -358,6 +354,8 @@ cOpenParen = OpenParen ('(', ())
 cCloseParen :: CloseParen Char ()
 cCloseParen = CloseParen (')', ())
 
+-- * Comments
+
 cCommentChar :: Char -> Maybe (CommentChar Char ())
 cCommentChar c = Lens.preview _CommentChar (c, ())
 
@@ -381,6 +379,8 @@ cComment txt
   <*> cCommentChar'Star txt
   <*> pure cNewline
 
+-- * Whitespace
+
 cWhite'Space :: White Char ()
 cWhite'Space = White'Space cSpace
 
@@ -392,6 +392,8 @@ cWhite'Newline = White'Newline cNewline
 
 cWhite'Star :: White'Star Char ()
 cWhite'Star = mempty
+
+-- * Non-negatives
 
 cNonNegative :: NonNegative -> Seq (D0'9 Char ())
 cNonNegative = go Seq.empty . NN.c'Integer'NonNegative
@@ -413,7 +415,7 @@ cNonNegative = go Seq.empty . NN.c'Integer'NonNegative
           res = thisDig `Lens.cons` acc
       in if rem == 0 then res else go res rem
 
--- Numbers
+-- * Numbers
 
 -- | Transform a 'Positive' into its component digits.
 positiveDigits
@@ -569,6 +571,25 @@ repUngroupedDecUnsignedRadPer uns = case decomposeDecUnsigned uns of
   Left z -> Left (repUngroupedDecZeroRadPer z)
   Right p -> Right (repUngroupedDecPositiveRadPer p)
 
+-- * Decimals
+
+-- | Represents a decimal as text, using the given radix and grouping.
+decimalText
+  :: Either (Maybe (GrpRadCom Char ())) (Maybe (GrpRadPer Char ()))
+  -- ^ Determines which radix is used.  If you also supply a grouping
+  -- character, 'repDecimal' will try to group the 'Decimal' as well.
+  -- Grouping will fail if the absolute value of the 'Decimal' is less
+  -- than @1000@.  In that case the 'Decimal' will be represented without
+  -- grouping.
+  -> Decimal
+  -> Text
+decimalText ei
+  = X.pack
+  . toList
+  . t'NilOrBrimAnyRadix
+  . c'NilOrBrimAnyRadix'RepAnyRadix
+  . repDecimal ei
+
 repDecimal
   :: Either (Maybe (GrpRadCom Char ())) (Maybe (GrpRadPer Char ()))
   -- ^ Determines which radix is used.  If you also supply a grouping
@@ -635,7 +656,7 @@ displayDecimalAsQty d = (toList (sideChar : ' ' : rest) ++)
       Moderate nu -> t'NilUngroupedRadPer nu
       Extreme (Polarized bu _) -> t'BrimUngroupedRadPer bu
 
--- # Strings
+-- * Strings
 
 cNonEscapedChar :: Char -> Maybe (NonEscapedChar Char ())
 cNonEscapedChar c = Lens.preview _NonEscapedChar (c, ())
@@ -733,6 +754,8 @@ cUnquotedStringNonDigitChar'Plus sq = do
   xs' <- sequence . fmap cUnquotedStringNonDigitChar $ xs
   return $ UnquotedStringNonDigitChar'Plus (NE.NonEmptySeq x' xs')
 
+-- * Commodities
+
 cCommodity :: Commodity.Commodity -> Commodity Char ()
 cCommodity cy = case cUnquotedStringNonDigitChar'Plus sq of
   Nothing -> Commodity'QuotedCommodity (QuotedCommodity (cQuotedString sq))
@@ -740,6 +763,7 @@ cCommodity cy = case cUnquotedStringNonDigitChar'Plus sq of
   where
     sq = Seq.fromList . X.unpack $ cy
 
+-- * Digit grouping
 
 -- | Grouper of thin space
 cGrouper :: Grouper Char ()
@@ -1826,3 +1850,12 @@ tracompriWholeFile sq
   <*> pure mempty
   where
     mkFileItemP = fmap (FileItemP mempty) . tracompri
+
+-- * Utilities
+
+integerToInt :: Integer -> Int
+integerToInt x
+  | x < fromIntegral (minBound :: Int) = error "integer too small"
+  | x > fromIntegral (maxBound :: Int) = error "integer too large"
+  | otherwise = fromIntegral x
+
