@@ -12,14 +12,13 @@ import Penny.Account
 import Penny.Balance
 import Penny.BalanceMap
 import Penny.Balgrid
-import Penny.Clatcher
-import Penny.Clatch.Access.Balance
 import Penny.Clatch.Access.Posting
 import Penny.Colors
 import Penny.Commodity
 import Penny.Copper.Copperize
 import Penny.Decimal
 import Penny.Popularity
+import Penny.Report
 
 -- | Make an account tree report.
 acctree
@@ -36,7 +35,8 @@ acctree cmp _ colors hist clatches
   where
     balMap = foldl' mappend mempty . fmap mkBalMap $ clatches
     mkBalMap clatch = balanceMap (Lens.view account clatch)
-      (Lens.view balance clatch)
+      (Balance $ Map.singleton (Lens.view commodity clatch)
+                               (qty clatch))
 
 
 balanceTreeToBalgrid

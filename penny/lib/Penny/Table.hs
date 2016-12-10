@@ -19,7 +19,6 @@ import qualified Penny.Clatch.Access.Balance as AB
 import Penny.Clatch.Access.PostFiltset (postFiltset)
 import qualified Penny.Clatch.Access.Posting as AP
 import qualified Penny.Clatch.Access.TransactionX as AT
-import Penny.Clatcher (Report)
 import Penny.Colors
 import Penny.Copper.Copperize
 import Penny.Decimal
@@ -29,6 +28,7 @@ import Penny.Polar (Pole)
 import qualified Penny.Polar as P
 import Penny.Popularity
 import Penny.Rep
+import Penny.Report
 import Penny.SeqUtil (intersperse)
 import Penny.Serial (Serset, Serpack)
 import qualified Penny.Serial as Serial

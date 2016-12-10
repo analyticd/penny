@@ -21,6 +21,7 @@ import Penny.Converter
 import Penny.Cursor
 import Penny.Popularity
 import Penny.Price
+import Penny.Report
 import Penny.Stream
 import Penny.Transaction
 
@@ -34,13 +35,6 @@ instance Exception PennyError
 
 type Loader
   = IO (Seq (Price (Maybe Cursor)), Seq (Transaction (Maybe Cursor)))
-
-type Report
-  = Seq (Price (Maybe Cursor))
-  -> Colors
-  -> History
-  -> Seq (Clatch (Maybe Cursor))
-  -> Seq (Chunk Text)
 
 -- | Options used when creating the 'Clatch'es, which are postings
 -- combined with other useful information.  Creating 'Clatch'es is a

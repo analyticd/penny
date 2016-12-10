@@ -161,6 +161,7 @@ import qualified Penny.Dump as Dump
 import Penny.NonNegative
 import Penny.Polar
 import Penny.Quasi
+import Penny.Report
 import Penny.Serial (Serset)
 import qualified Penny.Serial as Serial
 import Penny.Stream

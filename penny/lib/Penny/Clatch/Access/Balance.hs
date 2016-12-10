@@ -6,7 +6,8 @@ module Penny.Clatch.Access.Balance where
 import Control.Lens (Lens', _2, _1)
 import Penny.Balance
 
--- | Operate on the 'Balance'.
+-- | Operate on the 'Balance'.  This is the running balance, not the
+-- balance of a single posting.
 --
 -- @
 -- 'balance' :: 'Lens'' ('Penny.Clatch.Types.Totaled' a) 'Balance'

@@ -9,9 +9,9 @@ import Rainbow (Chunk)
 import qualified Rainbow
 
 import Penny.Clatch.Types
-import Penny.Clatcher (Report)
 import Penny.Cursor
 import Penny.Pretty
+import Penny.Report
 
 printReport
   :: Seq (Clatch (Maybe Cursor))

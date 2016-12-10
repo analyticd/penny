@@ -1,5 +1,6 @@
 module Penny.BalanceMap
-  ( BalanceMap
+  ( -- * BalanceMap
+    BalanceMap
   , topLevelBalance
   , lowerBalances
   , balanceMap
@@ -10,8 +11,23 @@ module Penny.BalanceMap
   , CmpBalanceTree
   , sortBalanceTree
   , byQty
+
+  -- * Sorting - common to 'BalanceTree' and 'StrippedBalTree'
   , bySubAccountCmp
   , bySubAccount
+
+  -- * StrippedBalMap
+  , StrippedBalMap
+  , strippedBalMapTop
+  , strippedBalMapLower
+  , strippedBalMap
+  , StrippedBalTree
+  , strippedBalTreeTop
+  , strippedBalTreeLower
+  , strippedBalMapToStrippedBalTree
+  , CmpStrippedBalTree
+  , sortStrippedBalTree
+  , byStrippedQty
   ) where
 
 import Control.Lens (uncons)
@@ -25,6 +41,7 @@ import Penny.Account
 import Penny.Balance
 import Penny.Commodity
 import Penny.Decimal
+import qualified Penny.NonNegative as NN
 
 -- | Holds the balances for a hierarchical set of accounts.  To create
 -- a 'BalanceMap' from a single 'Balance', use 'balanceMap'; then use
@@ -98,11 +115,94 @@ byQty cy (_, BalanceTree (Balance l) _) (_, BalanceTree (Balance r) _)
 
 -- | Returns a sort function that sorts 'Balance's using the given
 -- function to compare the 'SubAccount's.
+--
+-- @
+-- 'bySubAccountCmp'
+--   :: ('SubAccount' -> 'SubAccount' -> 'Ordering')
+--   -> 'CmpBalanceTree'
+-- 'bySubAccountCmp'
+--   :: ('SubAccount' -> 'SubAccount' -> 'Ordering')
+--   -> 'CmpStrippedBalTree'
+-- @
 bySubAccountCmp
   :: (SubAccount -> SubAccount -> Ordering)
-  -> CmpBalanceTree
-bySubAccountCmp f (l, _) (r, _) = f l r
+  -> (SubAccount, a)
+  -> (SubAccount, b)
+  -> Ordering
+bySubAccountCmp f l r = f (fst l) (fst r)
 
 -- | Returns a sort function that sorts by 'SubAccount' in ascending order.
-bySubAccount :: CmpBalanceTree
+--
+-- @
+-- 'bySubAccount' :: 'CmpBalanceTree'
+-- 'bySubAccount' :: 'CmpStrippedBalTree'
+-- @
+bySubAccount :: (SubAccount, a) -> (SubAccount, b) -> Ordering
 bySubAccount = bySubAccountCmp compare
+
+-- | A 'StrippedBalance' is a balance that can only have a single
+-- polarity (it cannot be a debit or credit; it can be only one or the
+-- other) and that only represents a single commodity.
+type StrippedBal = DecUnsigned
+
+-- | Holds 'StrippedBal' for a hierarchical set of accounts.  To
+-- create a 'StrippedBalMap' from a single 'StrippedBal', use
+-- 'strippedBalMap', then use 'mappend' to aggregate several
+-- 'StrippedBalMap' into one.
+data StrippedBalMap = StrippedBalMap
+  { strippedBalMapTop :: StrippedBal
+  , strippedBalMapLower :: Map SubAccount StrippedBalMap
+  } deriving Show
+
+instance Monoid StrippedBalMap where
+  mempty = StrippedBalMap (Exponential NN.zero NN.zero) M.empty
+  mappend (StrippedBalMap b1 m1) (StrippedBalMap b2 m2)
+    = StrippedBalMap (addDecUnsigned b1 b2) (M.unionWith mappend m1 m2)
+
+strippedBalMap :: Account -> StrippedBal -> StrippedBalMap
+strippedBalMap sq bal = StrippedBalMap bal $ case uncons sq of
+  Nothing -> M.empty
+  Just (a1, as) -> M.singleton a1 (strippedBalMap as bal)
+
+-- | Holds the balances for a hierarchical set of accounts.  Unlike a
+-- 'StrippedBalMap', this can be sorted.
+data StrippedBalTree = StrippedBalTree
+  { strippedBalTreeTop :: StrippedBal
+  , strippedBalTreeLower :: Seq (SubAccount, StrippedBalTree)
+  } deriving Show
+
+-- | Converts a 'StrippedBalMap' to a 'StrippedBalTree'.
+strippedBalMapToStrippedBalTree :: StrippedBalMap -> StrippedBalTree
+strippedBalMapToStrippedBalTree (StrippedBalMap top lower)
+  = StrippedBalTree top
+  . Seq.fromList
+  . fmap (Lens.over Lens._2 strippedBalMapToStrippedBalTree)
+  . M.assocs
+  $ lower
+
+type CmpStrippedBalTree
+  = (SubAccount, StrippedBalTree)
+  -> (SubAccount, StrippedBalTree)
+  -> Ordering
+
+-- | Sorts a 'StrippedBalTree'.  Typically used with 'byStrippedQty',
+-- as in
+--
+-- > sortStrippedBalTree byStrippedQty x
+
+sortStrippedBalTree
+  :: CmpStrippedBalTree
+  -> StrippedBalTree
+  -> StrippedBalTree
+sortStrippedBalTree cmp (StrippedBalTree top lower)
+  = StrippedBalTree top (Seq.sortBy cmp lower)
+
+-- | Returns a sort function that sorts 'StrippedBal's in ascending
+-- order.  To sort in descending order, use 'flip', like
+--
+-- > flip byStrippedQty
+
+byStrippedQty :: CmpStrippedBalTree
+byStrippedQty (_, StrippedBalTree l _) (_, StrippedBalTree r _)
+  = cmpUnsigned compare l r
+
