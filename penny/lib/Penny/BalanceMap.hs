@@ -97,7 +97,11 @@ byCommodity cy (_, BalanceTree (Balance l) _) (_, BalanceTree (Balance r) _)
 
 -- | Returns a sort function that sorts 'Balance's using the given
 -- function to compare the 'SubAccount's.
-bySubAccount
+bySubAccountCmp
   :: (SubAccount -> SubAccount -> Ordering)
   -> CmpBalanceTree
-bySubAccount f (l, _) (r, _) = f l r
+bySubAccountCmp f (l, _) (r, _) = f l r
+
+-- | Returns a sort function that sorts by 'SubAccount' in ascending order.
+bySubAccount :: CmpBalanceTree
+bySubAccount = bySubAccountCmp compare
