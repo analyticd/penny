@@ -10,6 +10,7 @@ module Penny.BalanceMap
   , CmpBalanceTree
   , sortBalanceTree
   , byCommodity
+  , bySubAccountCmp
   , bySubAccount
   ) where
 

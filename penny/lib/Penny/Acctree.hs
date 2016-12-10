@@ -13,7 +13,6 @@ import Penny.Balance
 import Penny.BalanceMap
 import Penny.Balgrid
 import Penny.Clatcher
-import Penny.Clatch
 import Penny.Clatch.Access.Balance
 import Penny.Clatch.Access.Posting
 import Penny.Colors

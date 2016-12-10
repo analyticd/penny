@@ -79,6 +79,9 @@ module Penny.Repl
 
   -- ** Acctree
   , acctree
+  , byCommodity
+  , bySubAccountCmp
+  , bySubAccount
 
   -- * Output
   , output
@@ -140,7 +143,8 @@ module Penny.Repl
   ) where
 
 import Penny.Account
-import Penny.Acctree'
+import Penny.Acctree
+import Penny.BalanceMap
 import Penny.Commodity
 import qualified Penny.Clatch.Access.Posting as AP
 import qualified Penny.Clatch.Access.TransactionX as AT
