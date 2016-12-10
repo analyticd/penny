@@ -9,7 +9,7 @@ module Penny.BalanceMap
   , balanceMapToBalanceTree
   , CmpBalanceTree
   , sortBalanceTree
-  , byCommodity
+  , byQty
   , bySubAccountCmp
   , bySubAccount
   ) where
@@ -66,9 +66,9 @@ type CmpBalanceTree
   -> (SubAccount, BalanceTree)
   -> Ordering
 
--- | Sorts a 'BalanceTree'.  Typically used with 'byCommodity', as in
+-- | Sorts a 'BalanceTree'.  Typically used with 'byQty', as in
 --
--- > 'sortBalanceTree' ('byCommodity' \"$\") balTree
+-- > sortBalanceTree (byQty "$") balTree
 
 sortBalanceTree
   :: CmpBalanceTree
@@ -84,12 +84,12 @@ sortBalanceTree cmp (BalanceTree top lower)
 -- Sorts in ascending order.  To sort in descending order, use 'flip',
 -- like
 --
--- > 'flip' ('byCommodity' \"\$\")
-byCommodity
+-- > flip (byQty "$")
+byQty
   :: Commodity
   -- ^ Sort by this commodity
   -> CmpBalanceTree
-byCommodity cy (_, BalanceTree (Balance l) _) (_, BalanceTree (Balance r) _)
+byQty cy (_, BalanceTree (Balance l) _) (_, BalanceTree (Balance r) _)
   = case (M.lookup cy l, M.lookup cy r) of
       (Nothing, Nothing) -> EQ
       (Just _, Nothing) -> GT

@@ -79,7 +79,7 @@ module Penny.Repl
 
   -- ** Acctree
   , acctree
-  , byCommodity
+  , byQty
   , bySubAccountCmp
   , bySubAccount
 
