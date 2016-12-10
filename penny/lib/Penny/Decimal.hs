@@ -37,6 +37,7 @@ module Penny.Decimal
   , addDecPositive
   , addDecUnsigned
   , divideDecUnsigned
+  , divideDecPositive
 
   -- * Conversions
   , decNonZeroToDecimal
@@ -261,6 +262,14 @@ divideDecUnsigned x y
     (Exponential xC _, Exponential yC _) = equalizeExponentsUnsigned x y
     numerator = NN.c'Integer'NonNegative xC
     denominator = NN.c'Integer'NonNegative yC
+
+-- | Divides 'DecPositive'.
+divideDecPositive :: DecPositive -> DecPositive -> Double
+divideDecPositive x y = fromIntegral numerator / fromIntegral denominator
+  where
+    (Exponential xC _, Exponential yC _) = equalizeExponentsPositive x y
+    numerator = Pos.c'Integer'Positive xC
+    denominator = Pos.c'Integer'Positive yC
 
 poleDecNonZero :: Lens.Lens' DecNonZero Pole
 poleDecNonZero = coefficient . NonZero.pole

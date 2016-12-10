@@ -55,6 +55,7 @@ libraryDepends =
   , templateHaskell
   , nonEmptySequence
   , optparseApplicative
+  , formatting
   , pennyCopper
   ]
 

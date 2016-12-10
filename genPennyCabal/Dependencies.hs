@@ -128,3 +128,6 @@ nonEmptySequence = atLeast "non-empty-sequence" [0,2]
 
 optparseApplicative :: Package
 optparseApplicative = atLeast "optparse-applicative" [0,12]
+
+formatting :: Package
+formatting = atLeast "formatting" [6,2,4]

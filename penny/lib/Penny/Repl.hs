@@ -83,6 +83,11 @@ module Penny.Repl
   , bySubAccountCmp
   , bySubAccount
 
+  -- ** Pctree
+  , pctree
+  , Penny.Polar.debit
+  , Penny.Polar.credit
+
   -- * Output
   , output
   , Colors
@@ -159,6 +164,7 @@ import Penny.Copper (copopen)
 import Penny.Decimal
 import qualified Penny.Dump as Dump
 import Penny.NonNegative
+import Penny.Pctree
 import Penny.Polar
 import Penny.Quasi
 import Penny.Report

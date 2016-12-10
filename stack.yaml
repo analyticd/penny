@@ -2,4 +2,4 @@ packages:
 - penny/
 - penny-copper/
 
-resolver: lts-7.4
+resolver: lts-7.12

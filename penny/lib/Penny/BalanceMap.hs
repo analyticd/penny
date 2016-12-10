@@ -17,10 +17,12 @@ module Penny.BalanceMap
   , bySubAccount
 
   -- * StrippedBalMap
+  , StrippedBal
   , StrippedBalMap
   , strippedBalMapTop
   , strippedBalMapLower
   , strippedBalMap
+  , appendStrippedBalMap
   , StrippedBalTree
   , strippedBalTreeTop
   , strippedBalTreeLower
@@ -41,7 +43,6 @@ import Penny.Account
 import Penny.Balance
 import Penny.Commodity
 import Penny.Decimal
-import qualified Penny.NonNegative as NN
 
 -- | Holds the balances for a hierarchical set of accounts.  To create
 -- a 'BalanceMap' from a single 'Balance', use 'balanceMap'; then use
@@ -143,7 +144,7 @@ bySubAccount = bySubAccountCmp compare
 -- | A 'StrippedBalance' is a balance that can only have a single
 -- polarity (it cannot be a debit or credit; it can be only one or the
 -- other) and that only represents a single commodity.
-type StrippedBal = DecUnsigned
+type StrippedBal = DecPositive
 
 -- | Holds 'StrippedBal' for a hierarchical set of accounts.  To
 -- create a 'StrippedBalMap' from a single 'StrippedBal', use
@@ -154,10 +155,10 @@ data StrippedBalMap = StrippedBalMap
   , strippedBalMapLower :: Map SubAccount StrippedBalMap
   } deriving Show
 
-instance Monoid StrippedBalMap where
-  mempty = StrippedBalMap (Exponential NN.zero NN.zero) M.empty
-  mappend (StrippedBalMap b1 m1) (StrippedBalMap b2 m2)
-    = StrippedBalMap (addDecUnsigned b1 b2) (M.unionWith mappend m1 m2)
+appendStrippedBalMap :: StrippedBalMap -> StrippedBalMap -> StrippedBalMap
+appendStrippedBalMap (StrippedBalMap b1 m1) (StrippedBalMap b2 m2)
+    = StrippedBalMap (addDecPositive b1 b2)
+                     (M.unionWith appendStrippedBalMap m1 m2)
 
 strippedBalMap :: Account -> StrippedBal -> StrippedBalMap
 strippedBalMap sq bal = StrippedBalMap bal $ case uncons sq of
@@ -204,5 +205,5 @@ sortStrippedBalTree cmp (StrippedBalTree top lower)
 
 byStrippedQty :: CmpStrippedBalTree
 byStrippedQty (_, StrippedBalTree l _) (_, StrippedBalTree r _)
-  = cmpUnsigned compare l r
+  = cmpPositive compare l r
 
