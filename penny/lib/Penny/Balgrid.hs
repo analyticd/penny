@@ -12,10 +12,8 @@
 module Penny.Balgrid where
 
 import Control.Lens ((<|), (&))
-import qualified Control.Lens as Lens
 import Control.Monad (join)
 import qualified Control.Monad.Trans.State as St
-import Data.Foldable (toList)
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as X

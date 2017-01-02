@@ -1,4 +1,0 @@
-#!/bin/sh
-
-stack build genPennyCabal:exe:genCopperCabal
-stack exec genCopperCabal > ../penny-copper/penny-copper.cabal

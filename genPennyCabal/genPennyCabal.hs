@@ -7,9 +7,6 @@ import Dependencies
 pennyVer :: [Word]
 pennyVer = [0,33,20161211,0]
 
-pennyCopper :: Package
-pennyCopper = exactly "penny-copper" [0,1,20161119,0]
-
 commonOptions :: HasBuildInfo a => [a]
 commonOptions =
   [ ghcOptions warnings
@@ -56,7 +53,8 @@ libraryDepends =
   , nonEmptySequence
   , optparseApplicative
   , formatting
-  , pennyCopper
+  , pinchot
+  , earley
   ]
 
 testDepends :: [Package]

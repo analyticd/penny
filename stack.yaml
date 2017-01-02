@@ -1,5 +1,0 @@
-packages:
-- penny/
-- penny-copper/
-
-resolver: lts-7.12
