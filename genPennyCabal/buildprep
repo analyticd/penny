@@ -1,4 +1,4 @@
 #!/bin/sh
 
-stack build genPennyCabal:exe:genPennyCabal
+stack build
 stack exec genPennyCabal > ../penny/penny.cabal
