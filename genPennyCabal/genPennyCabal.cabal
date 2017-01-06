@@ -7,7 +7,3 @@ Executable genPennyCabal
   main-is: genPennyCabal.hs
   build-depends: cartel == 0.18.*
                , base ==4.9.*
-  other-modules:
-      Common
-    , Dependencies
-
