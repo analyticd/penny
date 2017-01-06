@@ -10,10 +10,6 @@ import qualified Penny.Copper.Types as Types
 
 import Pinchot.Terminalize (terminalizer)
 
-{-
-$(terminalizers "Types" allRules)
--}
-
 terminalizer "Types" nilOrBrimRadCom
 terminalizer "Types" nilOrBrimRadPer
 terminalizer "Types" postingField

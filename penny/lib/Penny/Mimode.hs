@@ -3,11 +3,7 @@ module Penny.Mimode where
 
 import Data.List (groupBy, sortBy)
 import Data.Ord (comparing)
-import qualified Data.Map.Strict as M
 import qualified Data.Foldable as F
-import Data.Maybe
-import Data.Sequence (Seq)
-import qualified Data.Sequence as Seq
 
 -- | Returns a list of modes, sorted with the biggest modes first.
 modes

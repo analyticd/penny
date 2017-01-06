@@ -27,12 +27,12 @@ import Prelude hiding (length)
 
 import Penny.Arrangement
 import qualified Penny.Commodity as Commodity
-import qualified Penny.Fields as Fields
 import Penny.Copper.Grouping
 import Penny.Copper.PriceParts
 import Penny.Copper.Terminalizers
 import Penny.Copper.Types
 import Penny.Decimal
+import qualified Penny.Fields as Fields
 import Penny.NonNegative (NonNegative, length, zero, one)
 import qualified Penny.NonNegative as NN
 import Penny.NonZero (NonZero, c'Integer'NonZero)
