@@ -11,25 +11,16 @@
 module Penny.Copper.Types where
 
 import qualified Control.Lens as Lens
-import Data.Data (Data)
 import Data.Monoid ((<>))
 import Penny.Copper.Grammar
 
-import Pinchot (syntaxTrees, wrappedInstances,
- bifunctorInstances, semigroupInstances, monoidInstances, prettyInstances)
+import Pinchot (syntaxTrees, wrappedInstances, monoidInstances)
 
-syntaxTrees [''Eq, ''Ord, ''Show, ''Functor, ''Foldable, ''Traversable,
-  ''Data] allRules
-
-wrappedInstances allRules
-
-bifunctorInstances allRules
-
-semigroupInstances allRules
+syntaxTrees [''Show, ''Functor] allRules
 
 monoidInstances allRules
 
-prettyInstances allRules
+wrappedInstances allRules
 
 instance Monoid (WholeFile t a) where
   mempty = WholeFile mempty mempty

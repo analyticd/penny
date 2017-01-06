@@ -10,7 +10,7 @@
 -- and should appear first.
 --
 -- The data types corresponding to the gramamr are in "Penny.Copper.Types".
-module Penny.Copper.Grammar (allRules) where
+module Penny.Copper.Grammar where
 
 import Pinchot (terminal, solo, union, plus, star, pariah, include,
   record, opt, nonTerminal, wrap, Rule, series)

@@ -1,9 +1,39 @@
 -- | The \"mimode\" is a modified statistical mode.
 module Penny.Mimode where
 
+import Data.List (groupBy, sortBy)
+import Data.Ord (comparing)
 import qualified Data.Map.Strict as M
 import qualified Data.Foldable as F
 import Data.Maybe
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
+
+-- | Returns a list of modes, sorted with the biggest modes first.
+modes
+  :: (a -> a -> Ordering)
+  -> [a]
+  -> [(Int, a)]
+modes cmp
+  = sortBy (flip (comparing fst))
+  . map (\ls -> (length ls, head ls))
+  . groupBy getEq
+  . sortBy cmp
+  where
+    getEq x y
+      | cmp x y == EQ = True
+      | otherwise = False
+
+-- | Non-overloaded version of 'mimode'.
+mimodeBy
+  :: F.Foldable f
+  => (a -> a -> Ordering)
+  -> f a
+  -> Maybe a
+mimodeBy cmp = fmap snd . safeHead . modes cmp . F.toList
+  where
+    safeHead (x:_) = Just x
+    safeHead [] = Nothing
 
 -- | Computes the \"mimode\" of a foldable structure.
 --
@@ -17,15 +47,4 @@ mimode
   :: (Ord a, F.Foldable f)
   => f a
   -> Maybe a
-mimode = finish . M.toList . F.foldl' fldr M.empty
-  where
-    fldr mp val = case M.lookup val mp of
-      Nothing -> M.insert val 1 mp
-      Just old -> M.insert val (succ old) mp
-    finish pairs = listToMaybe . map fst . filter isMaxPair $ pairs
-      where
-        isMaxPair (_, v) = v == maxVal
-          where
-            maxVal = maximum . ((0 :: Integer) :) . map snd $ pairs
-
-
+mimode = mimodeBy compare

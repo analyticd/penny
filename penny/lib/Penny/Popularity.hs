@@ -12,6 +12,7 @@ import Penny.Commodity
 import Penny.Copper.Types
   (GrpRadCom(GrpRadCom'Grouper), Grouper(Grouper'ThinSpace),
   GrpRadPer(GrpRadPer'Comma))
+import qualified Penny.Copper.Types as Types
 import Penny.Copper.Copperize
 import Penny.Mimode
 import Penny.Core
@@ -26,7 +27,7 @@ newtype History = History
   (M.Map Commodity
          (Seq (Arrangement, Either (Seq (GrpRadCom Char ()))
                                    (Seq (GrpRadPer Char ())))))
-  deriving (Eq, Ord, Show)
+  deriving Show
 
 instance Monoid History where
   mempty = History M.empty
@@ -48,6 +49,27 @@ arrange (History hist) cy = maybe (Arrangement CommodityOnLeft True)
         getArrangement = mimode . fmap fst
     allCommodities = mimode . fmap fst . mconcat . map F.toList . M.elems
       $ hist
+
+-- | Compares two grpRadCom.
+compareGrpRadCom
+  :: GrpRadCom c a
+  -> GrpRadCom c a
+  -> Ordering
+compareGrpRadCom x y = compare (f x) (f y)
+  where
+    f (Types.GrpRadCom'Period _) = 0
+    f (Types.GrpRadCom'Grouper (Types.Grouper'ThinSpace _)) = 1
+    f (Types.GrpRadCom'Grouper (Types.Grouper'Underscore _)) = 2
+
+compareGrpRadPer
+  :: GrpRadPer c a
+  -> GrpRadPer c a
+  -> Ordering
+compareGrpRadPer x y = compare (f x) (f y)
+  where
+    f (Types.GrpRadPer'Comma _) = 0
+    f (Types.GrpRadPer'Grouper (Types.Grouper'ThinSpace _)) = 1
+    f (Types.GrpRadPer'Grouper (Types.Grouper'Underscore _)) = 2
 
 -- | Gets all groupers for a given commodity, if a commodity is
 -- supplied.  Otherwise, returns all groupers.
@@ -100,8 +122,8 @@ selectGrouper (rcs, rps)
   | Seq.length rps >= Seq.length rcs = Right rp
   | otherwise = Left rc
   where
-    rp = fromMaybe comma . mimode . join $ rps
-    rc = fromMaybe thinSpace . mimode . join $ rcs
+    rp = fromMaybe comma . mimodeBy compareGrpRadPer . join $ rps
+    rc = fromMaybe thinSpace . mimodeBy compareGrpRadCom . join $ rcs
     thinSpace = GrpRadCom'Grouper (Grouper'ThinSpace cThinSpace)
     comma = GrpRadPer'Comma cComma
 

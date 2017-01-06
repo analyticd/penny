@@ -8,6 +8,18 @@ module Penny.Copper.Terminalizers where
 import Penny.Copper.Grammar
 import qualified Penny.Copper.Types as Types
 
-import Pinchot (terminalizers)
+import Pinchot.Terminalize (terminalizer)
 
+{-
 $(terminalizers "Types" allRules)
+-}
+
+terminalizer "Types" nilOrBrimRadCom
+terminalizer "Types" nilOrBrimRadPer
+terminalizer "Types" postingField
+terminalizer "Types" rPostingFields
+terminalizer "Types" trio
+terminalizer "Types" rTopLineFields
+terminalizer "Types" nilUngroupedRadPer
+terminalizer "Types" brimUngroupedRadPer
+terminalizer "Types" rWholeFile
