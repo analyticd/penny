@@ -1,2 +1,2 @@
 #!/bin/sh
-( cd genPennyCabal && ./buildprep-penny )
+( cd genPennyCabal && ./buildprep )
