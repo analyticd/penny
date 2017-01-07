@@ -9,7 +9,6 @@ module Penny.BalanceCheck (checkBalances) where
 import Control.Monad (join)
 import Control.Lens (view, _Wrapped', (&))
 import qualified Control.Lens as Lens
-import Data.ByteString (ByteString)
 import Data.Monoid ((<>))
 import Data.Time (Day)
 import qualified Data.Foldable as Fdbl
@@ -20,7 +19,8 @@ import Data.Sequence.NonEmpty (nonEmptySeqToSeq)
 import Data.Text (Text, pack)
 import Rainbow (Chunk)
 import qualified Rainbow
-import Turtle.Shell (Shell, liftIO)
+import Turtle.Bytes (procs)
+import Turtle.Shell (liftIO)
 import qualified Turtle.Shell as Shell
 
 import Penny.Account
@@ -38,6 +38,7 @@ import Penny.SeqUtil (catMaybes)
 import Penny.Tranche
 import Penny.Transaction
 import Penny.Troika
+import Penny.Unix
 
 -- | Checks the balance of a particular account.
 checkAccount
@@ -180,15 +181,15 @@ loadAndCheckBalances toCheck loads = do
         $ neSeqs
   return (pureCheckBalances txns toCheck)
 
--- | Checks balances.  Returns the result in a Turtle Shell.
+-- | Checks balances.  Sends output to @less@ with 256 colors.
 checkBalances
   :: Seq (Account, Seq (Day, Seq (Commodity, Pole, DecPositive)))
   -- ^ Accounts and balances to check
   -> Seq Text
   -- ^ List of filenames to load
-  -> Shell ByteString
+  -> IO ()
 checkBalances toCheck files = do
   (results, _) <- liftIO $ loadAndCheckBalances toCheck files
   maker <- liftIO Rainbow.byteStringMakerFromEnvironment
   let strings = Rainbow.chunksToByteStrings maker (Fdbl.toList results)
-  Shell.select strings
+  procs "less" lessOpts (Shell.select strings)

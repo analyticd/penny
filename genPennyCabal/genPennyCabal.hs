@@ -3,7 +3,7 @@ module Main where
 import Cartel
 
 pennyVer :: [Word]
-pennyVer = [0,33,20170107,0]
+pennyVer = [0,33,20170107,1]
 
 warnings :: [String]
 warnings =
@@ -83,7 +83,7 @@ async :: Package
 async = atLeast "async" [2,0]
 
 turtle :: Package
-turtle = atLeast "turtle" [1,0,2]
+turtle = atLeast "turtle" [1,3,0]
 
 mtl :: Package
 mtl = atLeast "mtl" [2,2,1]

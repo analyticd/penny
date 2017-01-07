@@ -60,3 +60,7 @@ errorExit :: Show e => Either e a -> IO a
 errorExit ei = case ei of
   Left e -> errorFail . show $ e
   Right g -> return g
+
+-- | Generic options for @less@.
+lessOpts :: [Text]
+lessOpts = ["--RAW-CONTROL-CHARS", "--chop-long-lines"]

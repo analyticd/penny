@@ -89,14 +89,11 @@ module Penny.Repl
   , Penny.Polar.credit
 
   -- * Output
-  , output
   , Colors
   , colors
   , light
   , dark
   , report
-  , less
-  , saveAs
 
   -- * Running the clatcher
   , clatcher
@@ -155,8 +152,6 @@ import qualified Penny.Clatch.Access.Posting as AP
 import qualified Penny.Clatch.Access.TransactionX as AT
 import Penny.Clatch.Types
 import Penny.Clatcher
-import qualified Penny.Clatcher as Clatcher
-import Penny.Colorize
 import Penny.Colors
 import Penny.Table (Column, Columns, checkbook, table)
 import Penny.Converter
@@ -170,31 +165,28 @@ import Penny.Quasi
 import Penny.Report
 import Penny.Serial (Serset)
 import qualified Penny.Serial as Serial
-import Penny.Stream
+import Penny.Unix
 
 import Control.Lens (view, (&), (.~), (^.))
+import Data.Foldable (toList)
 import Data.Monoid ((<>))
 import Data.Ord (comparing)
 import Data.Sequence (Seq)
 import Data.Text (Text)
 import Data.Time (zonedTimeToUTC)
 import qualified Data.Time as Time
+import Turtle.Bytes (procs)
+import Turtle.Shell (select)
+import Rainbow (chunksToByteStrings, toByteStringsColors256)
 
--- | Sends output to @less@, using the maximum colors.
-less :: (ChooseColors, Stream)
-less = (autoColors, streamToStdin toLess)
-
--- | Writes output to the given file.  If you use multiple 'saveAs'
--- option, all the named files will be written to.
-saveAs
-  :: String
-  -- ^ Filename to which to send the output.
-  -> (ChooseColors, Stream)
-saveAs fn = (alwaysNoColors, (streamToFile False fn))
-
--- | Runs the clatcher with the specified settings.
+-- | Runs the clatcher with the specified settings.  Sends output to
+-- @less@ with 256 colors.
 clatcher :: Clatcher -> IO ()
-clatcher = fmap (const ()) . Clatcher.runClatcher
+clatcher cltch = do
+  chks <- runClatcher cltch
+  procs "less" lessOpts
+    (select . chunksToByteStrings toByteStringsColors256
+      . toList $ chks)
 
 -- | A set of reasonable presets:
 --
@@ -208,7 +200,6 @@ clatcher = fmap (const ()) . Clatcher.runClatcher
 -- time to UTC time
 presets :: Clatcher
 presets = mempty
-  & output .~ [less]
   & colors .~ light
   & report .~ table checkbook
   & sort   .~ comparing (zonedTimeToUTC . zonedTime)

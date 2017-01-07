@@ -15,14 +15,12 @@ import Rainbow (Chunk)
 
 import Penny.Clatch.Types
 import Penny.Clatch.Create
-import Penny.Colorize
 import Penny.Colors
 import Penny.Converter
 import Penny.Cursor
 import Penny.Popularity
 import Penny.Price
 import Penny.Report
-import Penny.Stream
 import Penny.Transaction
 
 -- | Describes any errors that may arise in the clatcher.
@@ -76,9 +74,6 @@ data Clatcher = Clatcher
 
   , _postfilt :: Totaled (Maybe Cursor) () -> Bool
   -- ^ Controls post-filtering
-
-  , _output :: Seq (ChooseColors, Stream)
-  -- ^ The destination stream for the report.
 
   , _colors :: Colors
   -- ^ What colors to use for reports
@@ -134,11 +129,6 @@ postfilt :: Lens.Lens' Clatcher (Totaled (Maybe Cursor) () -> Bool)
 postfilt = Lens.lens _postfilt (\b l -> b { _postfilt = l })
 
 
--- | Determines where your output goes.  When combining multiple
--- 'Clatcher', every 'output' will be used.
-output :: Lens.Lens' Clatcher (Seq (ChooseColors, Stream))
-output = Lens.lens _output (\b l -> b { _output = l })
-
 -- | Choose a color scheme.
 colors :: Lens.Lens' Clatcher Colors
 colors = Lens.lens _colors (\b l -> b { _colors = l })
@@ -158,7 +148,6 @@ instance Monoid Clatcher where
     , _prefilt = const True
     , _sort = mempty
     , _postfilt = const True
-    , _output = mempty
     , _colors = mempty
     , _report = \_ _ _ _ -> mempty
     , _load = mempty
@@ -169,21 +158,10 @@ instance Monoid Clatcher where
     , _prefilt = \c -> _prefilt x c && _prefilt y c
     , _sort = mappend (_sort x) (_sort y)
     , _postfilt = \c -> _postfilt x c && _postfilt y c
-    , _output = mappend (_output x) (_output y)
     , _colors = mappend (_colors x) (_colors y)
     , _report = \a b c d -> mappend (_report x a b c d) (_report y a b c d)
     , _load = mappend (_load x) (_load y)
     }
-
--- | Sends output to a 'Stream'.
-sendToStream
-  :: Seq (Chunk Text)
-  -> ChooseColors
-  -> Stream
-  -> IO ()
-sendToStream chunks cc str = do
-  converter <- getColorizer cc
-  str converter chunks
 
 -- | Runs the clatcher, sending output to the streams specified in
 -- '_output'.  Also, returns the report.
@@ -200,5 +178,4 @@ runClatcher clatcher = do
   let history = elect clatchTxns
   let chunks = _report clatcher prices (_colors clatcher) history
         clatches
-  mapM_ (uncurry (sendToStream chunks)) . _output $ clatcher
   return chunks
