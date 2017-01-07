@@ -9,7 +9,7 @@ import qualified Language.Haskell.TH.Quote as TQ
 import Text.Read (readMaybe)
 
 import Penny.Copper (parseProduction)
-import Penny.Copper.Decopperize (dDate, dTime, dNilOrBrimRadPer)
+import Penny.Copper.Decopperize (dDate, dTime, dNilOrBrimRadPer, dBrimRadPer)
 import Penny.Copper.Productions
 import Penny.NonNegative.Internal
 
@@ -60,3 +60,13 @@ qUnsigned = expOnly $ \s ->
   case parseProduction a'NilOrBrimRadPer (X.strip . X.pack $ s) of
     Left _ -> fail $ "invalid unsigned number: " ++ s
     Right d -> liftData . dNilOrBrimRadPer $ d
+
+-- | Quasi quoter for positive decimal numbers.  The resulting
+-- expression has type 'Penny.Decimal.DecPositive'.  The string can
+-- have grouping characters, but the radix point must always be a
+-- period.
+qDecPos :: TQ.QuasiQuoter
+qDecPos = expOnly $ \s ->
+  case parseProduction a'BrimRadPer (X.strip . X.pack $ s) of
+    Left _ -> fail $ "invalid positive number: " ++ s
+    Right d -> liftData . dBrimRadPer $ d
