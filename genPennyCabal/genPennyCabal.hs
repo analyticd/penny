@@ -172,8 +172,6 @@ libraryDepends =
   , void
   , pretty
   , managed
-  , tasty
-  , tastyHunit
   , monoidSubclasses
   , pinchot
   , earley

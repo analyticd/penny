@@ -7,121 +7,37 @@
 module Penny.BalanceCheck (checkBalances) where
 
 import Control.Monad (join)
-import Control.Lens (view, unsnoc, to, _2, _Wrapped', (&))
+import Control.Lens (view, _Wrapped', (&))
+import qualified Control.Lens as Lens
+import Data.ByteString (ByteString)
 import Data.Monoid ((<>))
 import Data.Time (Day)
-import Data.Foldable (toList)
 import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Text (Text, unpack, pack)
+import Data.Sequence.NonEmpty (nonEmptySeqToSeq)
+import Data.Text (Text, pack)
 import Rainbow (Chunk)
 import qualified Rainbow
+import Turtle.Shell (Shell, liftIO)
+import qualified Turtle.Shell as Shell
 
 import Penny.Account
 import Penny.Amount (Amount(Amount))
 import Penny.Balance
 import Penny.Commodity
+import Penny.Copper (parseConvertProofIO)
 import Penny.Copper.Copperize
+import Penny.Copper.Tracompri
 import Penny.Decimal
 import Penny.Ents
 import Penny.Polar
 import Penny.Positive
+import Penny.SeqUtil (catMaybes)
 import Penny.Tranche
 import Penny.Transaction
 import Penny.Troika
-
-{-
-
--- | Given map has no more balances.
-noMoreBalances :: Balance -> TestTree
-noMoreBalances (Balance m) =
-  testCase "no commodities not specified are present"
-  . assertBool "commodities not specified are present"
-  . M.null
-  . M.filter ((/= 0) . _coefficient)
-  $ m
-
--- | Checks the map for the given balance.  Returns a new map with the
--- balance removed, if it was there.
-
-lookForBalanceItem
-  :: (Commodity, Pole, DecPositive)
-  -> ([TestTree], Balance)
-  -> ([TestTree], Balance)
-lookForBalanceItem (cy, tgtPole, tgtPos) (rest, Balance balMap)
-  = (tt : rest, Balance balMap')
-  where
-    (maybeBal, balMap') = M.updateLookupWithKey (\_ _ -> Nothing) cy balMap
-    desc = "a " <> side <> " balance of " <> amt
-        where
-          side | tgtPole == debit = "debit"
-               | otherwise = "credit"
-          amt = decimalText (Right Nothing) . fmap c'Integer'Positive $ tgtPos
-    tt = testCase (unpack ("commodity " <> cy <> " has " <> desc)) test
-    test = case maybeBal of
-      Nothing -> assertFailure "commodity has no balance"
-      Just bal -> case stripDecimalSign bal of
-        Left _ -> assertFailure "balance is zero"
-        Right (balDecPos, balPole)
-          | balPole /= tgtPole -> assertFailure "balance is on wrong side"
-          | cmpPositive (/=) balDecPos tgtPos ->
-              assertFailure "balance is on correct side but has wrong magnitude"
-          | otherwise -> return ()
-
--- | Checks a single balance.
-checkBalance
-  :: Balance
-  -> Seq (Commodity, Pole, DecPositive)
-  -> [TestTree]
-checkBalance bal = checkBal . foldr lookForBalanceItem ([], bal) . toList
-  where
-    checkBal (tts, bal) = noMoreBalances bal : tts
-
-checkDay
-  :: Seq (TransactionX a)
-  -> Seq Text
-  -> (Day, Seq (Commodity, Pole, DecPositive))
-  -> TestTree
-checkDay txns na (dy, sq) = testGroup desc tts
-  where
-    desc = "has these reconciled balances "
-         <> "at the end of " <> show dy
-    tts = checkBalance bal sq
-    bal = maybe mempty (view (_2 . balance)) $ unsnoc clatches
-    clatches = clatchesFromTransactions mempty pdConv mempty (const True) txns
-    pdConv conv = reconciled conv
-      && view (account . to (== na)) conv
-      && view (day . to pdDate) conv
-    pdDate = (<= dy)
-
-checkBalances
-  :: Seq (TransactionX a)
-  -- ^ All transactions
-
-  -> Seq ( Seq Text
-         , Seq (Day, Seq (Commodity, Pole, DecPositive)))
-  -- ^ A sequence.  First in the pair is the account name.  Second in
-  -- the pair is another sequence of tuples @(a, b, c, d)@, where @a@
-  -- is the year, @b@ is the month, @c@ is the day, and @d@ is another
-  -- sequence of tuples @(e, f, g)@, where @e@ is the commodity of the
-  -- balance, @f@ is the coefficient, and @g@ is the exponent.
-  -> TestTree
-checkBalances txns = testGroup desc . toList . fmap (checkAccount txns)
-  where
-    desc = "check account balances"
-
-checkAccount
-  :: Seq (TransactionX a)
-  -- ^ All transactions
-  -> (Seq Text, Seq (Day, Seq (Commodity, Pole, DecPositive)))
-  -> TestTree
-checkAccount txns (acct, sq)
-  = testGroup desc . toList . fmap (checkDay txns acct) $ sq
-  where
-    desc = "account " <> show (toList $ fmap unpack acct)
--}
 
 -- | Checks the balance of a particular account.
 checkAccount
@@ -155,7 +71,7 @@ checkDay pstgs (tgtDay, tgtBals) = (reports, cumulative)
         thisDay =
           [ Rainbow.chunk "  "
           , resultChunk cumulative
-          , Rainbow.chunk (" on day " <> show tgtDay)
+          , Rainbow.chunk (" on day " <> pack (show tgtDay))
           , Rainbow.chunk "\n"
           ]
     cumulative = all snd results
@@ -233,7 +149,7 @@ filterAccount acct txn
         = view account postline == acct
         && reconciled postline
 
-checkBalances
+pureCheckBalances
   :: Seq (Transaction a)
   -- ^ All transactions
   -> Seq (Account, Seq (Day, Seq (Commodity, Pole, DecPositive)))
@@ -241,8 +157,38 @@ checkBalances
   -- ^ Returns a report showing whether each account passed or failed.
   -- Also returns True if all accounts were OK, or False if there were
   -- any failures.
-checkBalances txns acctsAndDays = (reports, cumulative)
+pureCheckBalances txns acctsAndDays = (reports, cumulative)
   where
     results = fmap (checkAccount txns) acctsAndDays
     reports = join . fmap fst $ results
     cumulative = all snd results
+
+-- | Checks balances and gives a visual report.
+loadAndCheckBalances
+  :: Seq (Account, Seq (Day, Seq (Commodity, Pole, DecPositive)))
+  -- ^ Accounts and balances to check
+  -> Seq Text
+  -- ^ List of filenames to load
+  -> IO (Seq (Chunk Text), Bool)
+loadAndCheckBalances toCheck loads = do
+  neSeqs <- parseConvertProofIO loads
+  let txns
+        = catMaybes
+        . fmap (Lens.preview _Tracompri'Transaction)
+        . join
+        . nonEmptySeqToSeq
+        $ neSeqs
+  return (pureCheckBalances txns toCheck)
+
+-- | Checks balances.  Returns the result in a Turtle Shell.
+checkBalances
+  :: Seq (Account, Seq (Day, Seq (Commodity, Pole, DecPositive)))
+  -- ^ Accounts and balances to check
+  -> Seq Text
+  -- ^ List of filenames to load
+  -> Shell ByteString
+checkBalances toCheck files = do
+  (results, _) <- liftIO $ loadAndCheckBalances toCheck files
+  maker <- liftIO Rainbow.byteStringMakerFromEnvironment
+  let strings = Rainbow.chunksToByteStrings maker (Fdbl.toList results)
+  Shell.select strings
