@@ -5,17 +5,15 @@
 module Penny.Clearer where
 
 import qualified Accuerr
-import Control.Applicative (optional)
 import qualified Control.Lens as Lens
 import Data.Foldable (toList)
-import Data.Monoid ((<>))
 import qualified Data.OFX as OFX
 import Data.Sequence (Seq)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Options.Applicative as A
+import qualified Data.Text.IO as XIO
 import Pinchot (Loc)
 
 import Penny.Account
@@ -28,45 +26,24 @@ import Penny.Tranche (fields)
 import Penny.Transaction
 import Penny.Unix
 
--- | The clearer; suitable for use as a command-line program.
 clearer
   :: Account
-  -- ^ Clear postings only if they are in this account
+  -- ^ Clear this account
+  -> Text
+  -- ^ Read this OFX file
+  -> Text
+  -- ^ Read this Copper file
   -> IO ()
-clearer acct = A.execParser opts >>= runCommandLineProgram acct
-  where
-    opts = A.info (A.helper <*> commandLine)
-      ( A.fullDesc
-        <> A.progDesc ("Clear OFX transactions in the "
-            ++ show acct ++ " account."))
-
--- | Contains all command-line options.
-data CommandLine = CommandLine
-  { _ofxFile :: FilePath
-  -- ^ The OFX file the user wants to read.
-  , _copperFile :: Maybe FilePath
-  -- ^ Copper files to read.  If 'Nothing', read standard input.
-  }
-
--- | An @optparse-applicative@ parser.
-commandLine :: A.Parser CommandLine
-commandLine = CommandLine
-  <$> A.argument A.str (A.metavar "OFX FILE")
-  <*> optional (A.argument A.str (A.metavar "Copper file"))
-
--- | Given the parsed 'CommandLine', run the command-line program.
-runCommandLineProgram
-  :: Account
-  -- ^ Clear postings only if they are in this account
-  -> CommandLine
-  -> IO ()
-runCommandLineProgram acct cmdLine = do
-  (_, ofxTxt) <- readCommandLineFile . X.pack . _ofxFile $ cmdLine
-  copperInput <- readMaybeCommandLineFile . fmap X.pack . _copperFile $ cmdLine
-  tracompris <- errorExit $ clearFile acct ofxTxt copperInput
+  -- ^ Clears the Copper file.  Destructively writes, so use a VCS.
+clearer acct cmdLine copperFile = do
+  ofxTxt <- XIO.readFile (X.unpack cmdLine)
+  copperInput <- XIO.readFile (X.unpack copperFile)
+  tracompris <- errorExit $ clearFile acct ofxTxt
+    (GivenFilename copperInput, copperFile)
   formatted <- errorExit . Accuerr.accuerrToEither . copperizeAndFormat
     $ tracompris
-  putStr . toList . fmap fst . t'WholeFile $ formatted
+  let result = X.pack . toList . fmap fst . t'WholeFile $ formatted
+  XIO.writeFile (X.unpack copperFile) result
 
 data ClearerFailure
   = ParseConvertProofFailed (ParseConvertProofError Loc)
