@@ -45,7 +45,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
-import Data.Sums (S3(S3a, S3b, S3c))
+import Sums (S3(S3_1, S3_2, S3_3))
 import Data.Text (Text)
 import qualified Data.Text as X
 import qualified Data.Text.IO as XIO
@@ -164,7 +164,7 @@ parseWholeFile
   -- ^
   -> Either (ParseConvertProofError Loc) (WholeFile Char Loc)
 parseWholeFile fn
-  = Lens.over Lens._Left (ParseConvertProofError fn . S3a)
+  = Lens.over Lens._Left (ParseConvertProofError fn . S3_1)
   . parseProduction Productions.a'WholeFile
 
 proofWholeFile
@@ -180,9 +180,9 @@ proofWholeFile fn
   . dWholeFile
   where
     convertError (Left collectionFails) = ParseConvertProofError fn
-      (S3b collectionFails)
+      (S3_2 collectionFails)
     convertError (Right validationFails) = ParseConvertProofError fn
-      (S3c validationFails)
+      (S3_3 validationFails)
     convertSuccess = fmap (fmap (Cursor fn))
 
 -- | Takes the result of parsing a production and returns either the
@@ -194,7 +194,7 @@ parseResultToError
   -- ^
   -> Either (ParseConvertProofError a) (p Char Loc)
 parseResultToError filename
-  = Lens.over Lens._Left (ParseConvertProofError filename . S3a)
+  = Lens.over Lens._Left (ParseConvertProofError filename . S3_1)
 
 
 -- | Takes the result of proofing items and returns either the result
@@ -208,9 +208,9 @@ proofResultToError
   -> Either (ParseConvertProofError Loc) (t (Tracompri Cursor))
 proofResultToError filename proofer = case proofer of
   Left (Left collectionFails) ->
-    Left (ParseConvertProofError filename (S3b collectionFails))
+    Left (ParseConvertProofError filename (S3_2 collectionFails))
   Left (Right validationFails) ->
-    Left (ParseConvertProofError filename (S3c validationFails))
+    Left (ParseConvertProofError filename (S3_3 validationFails))
   Right g -> Right . fmap (fmap (Cursor filename)) $ g
 
 -- | Parses, converts, and proofs a single file.

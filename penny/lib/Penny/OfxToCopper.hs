@@ -47,13 +47,11 @@ import Penny.Unix
 
 import Accuerr (Accuerr)
 import qualified Accuerr
-import Control.Applicative (many)
 import qualified Control.Lens as Lens
 import Control.Monad (join, guard)
 import Data.Foldable (toList)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Monoid ((<>))
 import qualified Data.OFX as OFX
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
@@ -66,7 +64,6 @@ import qualified Data.Text as X
 import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import qualified Data.Time.Timelens as Timelens
-import qualified Options.Applicative as A
 import qualified Pinchot
 
 -- * Data types
@@ -168,68 +165,28 @@ ofxPayee ofxIn = case OFX.txPayeeInfo . _ofxTxn $ ofxIn of
 
 -- * Command-line program
 
--- | Creates a command-line program that imports OFX, creates
--- transactions, and prints them to standard output, optionally
--- appending them to the last file given on the command line.
-ofxImportProgram
-  :: String
-  -- ^ Describe here what account you are importing from.
-  -> String
-  -- ^ Any additional help text you want goes here.
-  -> (OfxIn -> Maybe OfxOut)
-  -- ^ This function creates the necessary transaction information.
-  -- If you do not want to import the transaction, return 'Nothing'.
-  -- Transactions whose fitid is a duplicate also will not be
-  -- imported.
-  -> IO ()
-ofxImportProgram account addlHelp modOfxText
-  = A.execParser opts >>= runCommandLineProgram modOfxText
-  where
-    opts = A.info (A.helper <*> commandLine)
-      ( A.fullDesc
-        <> A.progDesc ("import OFX transactions for the " ++
-           show account ++ " account.")
-        <> A.footer addlHelp)
-
--- | Contains all command-line options.
-data CommandLine = CommandLine
-  { _copperFiles :: Seq Text
-  -- ^ These are the Copper files the user wants to read.
-  , _ofxFilenames :: Seq Text
-  -- ^ These are the filenames of the OFX files the user wants to read.
-  } deriving Show
-
--- | An @optparse-applicative@ parser for 'CommandLine'.
-commandLine :: A.Parser CommandLine
-commandLine = CommandLine
-  <$> fmap (fmap X.pack . Seq.fromList) (many copperFile)
-  <*> fmap (Seq.fromList . fmap X.pack)
-        (many (A.argument A.str (A.metavar "OFX FILE")))
-  where
-    copperFile = A.strOption (A.long "file"
-        <> A.short 'f'
-        <> A.help "Load existing transactions from this Copper file"
-        <> A.metavar "FILENAME")
-
--- | Given the parsed 'CommandLine', run the command-line program.
-runCommandLineProgram
+-- | Reads OFX and Copper files, and produces a result.  Returns
+-- result; not destructive.
+ofxToCopper
   :: (OfxIn -> Maybe OfxOut)
   -- ^
-  -> CommandLine
-  -- ^
-  -> IO ()
-runCommandLineProgram fOfx cmdLine = do
-  readCopperFiles <- readFileList . _copperFiles $ cmdLine
+  -> Seq Text
+  -- ^ Copper files
+  -> Seq Text
+  -- ^ OFX files
+  -> IO Text
+ofxToCopper fOfx copFiles ofxFiles = do
+  readCopperFiles <- readFileList copFiles
   readOfxFiles <- fmap (fmap snd)
-    . readFileListStdinIfEmpty . _ofxFilenames $ cmdLine
+    . readFileListStdinIfEmpty $ ofxFiles
   let readStrings = NE.nonEmptySeqToSeq . fmap X.unpack $ readOfxFiles
   result <- errorExit $ ofxImportWithCopperParse fOfx readCopperFiles
     readStrings
-  printResult result
+  return $ printResult result
 
 -- | Prints the 'WholeFile' to standard output.
-printResult :: WholeFile Char () -> IO ()
-printResult = putStr . toList . fmap fst . t'WholeFile
+printResult :: WholeFile Char () -> Text
+printResult = X.pack . toList . fmap fst . t'WholeFile
 
 -- * Errors
 

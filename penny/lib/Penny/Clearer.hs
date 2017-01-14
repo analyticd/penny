@@ -30,20 +30,20 @@ clearer
   :: (Account -> Bool)
   -- ^ Clear accounts that match this predicate
   -> Text
-  -- ^ Read this OFX file
-  -> Text
   -- ^ Read this Copper file
+  -> Text
+  -- ^ Read this OFX file
   -> IO ()
   -- ^ Clears the Copper file.  Destructively writes, so use a VCS.
-clearer acct cmdLine copperFile = do
-  ofxTxt <- XIO.readFile (X.unpack cmdLine)
-  copperInput <- XIO.readFile (X.unpack copperFile)
+clearer acct copperFilename ofxFilename = do
+  ofxTxt <- XIO.readFile (X.unpack ofxFilename)
+  copperInput <- XIO.readFile (X.unpack copperFilename)
   tracompris <- errorExit $ clearFile acct ofxTxt
-    (GivenFilename copperFile, copperInput)
+    (GivenFilename copperFilename, copperInput)
   formatted <- errorExit . Accuerr.accuerrToEither . copperizeAndFormat
     $ tracompris
   let result = X.pack . toList . fmap fst . t'WholeFile $ formatted
-  XIO.writeFile (X.unpack copperFile) result
+  XIO.writeFile (X.unpack copperFilename) result
 
 data ClearerFailure
   = ParseConvertProofFailed (ParseConvertProofError Loc)

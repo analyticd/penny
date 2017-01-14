@@ -22,7 +22,7 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
-import Data.Sums (S3 (S3a, S3b, S3c))
+import Sums (S3 (S3_1, S3_2, S3_3))
 import Prelude hiding (length)
 
 import Penny.Arrangement
@@ -970,9 +970,9 @@ dFileItem
   :: FileItem Char a
   -> S3 (PriceParts a) Text (TxnParts a)
 dFileItem x = case x of
-  FileItem'Price p -> S3a $ dPrice p
-  FileItem'Comment com -> S3b . dComment $ com
-  FileItem'Transaction t -> S3c $ dTransaction t
+  FileItem'Price p -> S3_1 $ dPrice p
+  FileItem'Comment com -> S3_2 . dComment $ com
+  FileItem'Transaction t -> S3_3 $ dTransaction t
 
 dFileItemP
   :: FileItemP Char a

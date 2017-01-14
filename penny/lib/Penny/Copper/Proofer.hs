@@ -47,7 +47,7 @@ import Data.Semigroup ((<>))
 import Data.Sequence (Seq)
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
-import Data.Sums (S3(S3a, S3b, S3c))
+import Sums (S3(S3_1, S3_2, S3_3))
 import Data.Text (Text)
 
 -- * Errors
@@ -122,12 +122,12 @@ collectTransactionPostingFields
   :: S3 a b (TxnParts loc)
   -> AccCollection loc (S3 a b (Collected loc))
 collectTransactionPostingFields s3 = case s3 of
-  S3a x -> pure (S3a x)
-  S3b x -> pure (S3b x)
-  S3c (loc, tlf, pstgDecops) ->
+  S3_1 x -> pure (S3_1 x)
+  S3_2 x -> pure (S3_2 x)
+  S3_3 (loc, tlf, pstgDecops) ->
     fmap f . traverse collectPostingFields $ pstgDecops
     where
-      f sq = S3c (loc, tlf, sq)
+      f sq = S3_3 (loc, tlf, sq)
 
 -- * Validation
 
@@ -168,11 +168,11 @@ validateItem
   :: S3 (PriceParts a) Text (Collected a)
   -> AccValidation a (Tracompri a)
 validateItem s3 = case s3 of
-  S3a p -> case validatePrice p of
+  S3_1 p -> case validatePrice p of
     Left e -> Accuerr.AccFailure (NE.singleton e)
     Right g -> Accuerr.AccSuccess (Tracompri'Price g)
-  S3b x -> pure (Tracompri'Comment x)
-  S3c (loc, tlf, pstgs) -> case balancedFromPostings pstgs of
+  S3_2 x -> pure (Tracompri'Comment x)
+  S3_3 (loc, tlf, pstgs) -> case balancedFromPostings pstgs of
     Left e -> Accuerr.AccFailure (NE.singleton e)
     Right g -> pure (Tracompri'Transaction (Transaction (Tranche loc tlf) g))
 
