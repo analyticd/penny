@@ -26,6 +26,7 @@ readFileListStdinIfEmpty files = case NE.seqToNonEmptySeq files of
     return (NE.singleton (Stdin, x))
   Just neFiles -> traverse readCommandLineFile neFiles
 
+
 -- | Reads a sequence of string filenames into texts.  If a file is
 -- @-@, reads standard input for that file.  Does NOT read standard
 -- input if the input list is empty.

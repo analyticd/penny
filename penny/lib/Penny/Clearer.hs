@@ -27,8 +27,8 @@ import Penny.Transaction
 import Penny.Unix
 
 clearer
-  :: Account
-  -- ^ Clear this account
+  :: (Account -> Bool)
+  -- ^ Clear accounts that match this predicate
   -> Text
   -- ^ Read this OFX file
   -> Text
@@ -39,7 +39,7 @@ clearer acct cmdLine copperFile = do
   ofxTxt <- XIO.readFile (X.unpack cmdLine)
   copperInput <- XIO.readFile (X.unpack copperFile)
   tracompris <- errorExit $ clearFile acct ofxTxt
-    (GivenFilename copperInput, copperFile)
+    (GivenFilename copperFile, copperInput)
   formatted <- errorExit . Accuerr.accuerrToEither . copperizeAndFormat
     $ tracompris
   let result = X.pack . toList . fmap fst . t'WholeFile $ formatted
@@ -52,8 +52,8 @@ data ClearerFailure
 
 -- | Given the input OFX file and the input Penny file, create the result.
 clearFile
-  :: Account
-  -- ^ Clear postings only if they are in this account
+  :: (Account -> Bool)
+  -- ^ Clear a posting only if its account matches this predicate
   -> Text
   -- ^ OFX file
   -> (InputFilespec, Text)
@@ -78,8 +78,8 @@ allFitids = foldr g Set.empty
 -- | Given a single posting and a set of all fitid, modify the posting
 -- to Cleared if it currently does not have a flag.
 clearPosting
-  :: Account
-  -- ^ Only clear the posting if it is in this account.
+  :: (Account -> Bool)
+  -- ^ Only clear the posting if its account matches this predicate.
   -> Set Text
   -- ^ All fitid.  Clear the posting only if its fitid is in this set.
   -> PostingFields
@@ -88,7 +88,7 @@ clearPosting acct fitids pf
   | acctMatches && fitIdFound && noCurrentFlag = Lens.set flag "C" pf
   | otherwise = pf
   where
-    acctMatches = Lens.view account pf == acct
+    acctMatches = acct $ Lens.view account pf
     fitIdFound = Set.member (Lens.view fitid pf) fitids
     noCurrentFlag = Lens.view flag pf == ""
 

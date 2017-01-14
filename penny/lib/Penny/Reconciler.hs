@@ -5,13 +5,12 @@
 module Penny.Reconciler where
 
 import qualified Accuerr
-import Control.Applicative (optional)
 import qualified Control.Lens as Lens
 import Data.Foldable (toList)
 import Data.Sequence (Seq)
 import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Options.Applicative as A
+import qualified Data.Text.IO as XIO
 import Pinchot (Loc)
 
 import Penny.Copper
@@ -22,21 +21,21 @@ import Penny.Tranche
 import Penny.Transaction
 import Penny.Unix
 
-data CommandLine = CommandLine { _copperFile :: Maybe FilePath }
-  deriving Show
-
-commandLine :: A.Parser CommandLine
-commandLine = CommandLine
-  <$> optional (A.argument A.str (A.metavar "Copper file"))
-
-runCommandLineProgram :: CommandLine -> IO ()
-runCommandLineProgram cmdLine = do
-  copperInput <- readMaybeCommandLineFile . fmap X.pack
-    . _copperFile $ cmdLine
-  tracompris <- errorExit $ reconcileFile copperInput
+-- | Reconciles a file by changing all postings with a @C@ flag to an
+-- @R@ flag.  Makes changes in place, destructively; use a version
+-- control system.
+reconciler
+  :: FilePath
+  -- ^ Reconcile this file
+  -> IO ()
+reconciler filename = do
+  copperInput <- XIO.readFile filename
+  tracompris <- errorExit $ reconcileFile
+    (GivenFilename $ X.pack filename, copperInput)
   formatted <- errorExit . Accuerr.accuerrToEither . copperizeAndFormat
     $ tracompris
-  putStr . toList . fmap fst . t'WholeFile $ formatted
+  let result = X.pack . toList . fmap fst . t'WholeFile $ formatted
+  XIO.writeFile filename result
 
 data ReconcilerFailure
   = ParseConvertProofFailed (ParseConvertProofError Loc)

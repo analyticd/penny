@@ -182,7 +182,6 @@ libraryDepends =
   , prettyShow
   , templateHaskell
   , nonEmptySequence
-  , optparseApplicative
   , formatting
   , pinchot
   , earley
