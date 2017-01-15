@@ -5,6 +5,7 @@
 module Penny.Clearer where
 
 import qualified Accuerr
+import qualified Control.Exception as Exception
 import qualified Control.Lens as Lens
 import Data.Foldable (toList)
 import qualified Data.OFX as OFX
@@ -26,29 +27,45 @@ import Penny.Tranche (fields)
 import Penny.Transaction
 import Penny.Unix
 
+-- | Clears the given file.  Returns the result as the output from @diff@.
 clearer
   :: (Account -> Bool)
   -- ^ Clear accounts that match this predicate
-  -> Text
+  -> FilePath
   -- ^ Read this Copper file
-  -> Text
+  -> FilePath
   -- ^ Read this OFX file
-  -> IO ()
-  -- ^ Clears the Copper file.  Destructively writes, so use a VCS.
-clearer acct copperFilename ofxFilename = do
-  ofxTxt <- XIO.readFile (X.unpack ofxFilename)
-  copperInput <- XIO.readFile (X.unpack copperFilename)
-  tracompris <- errorExit $ clearFile acct ofxTxt
-    (GivenFilename copperFilename, copperInput)
+  -> IO Text
+  -- ^ Returns the output from @diff@.
+clearer acct copperFilename ofxFilename
+  = diff copperFilename
+  . ioTextToShell
+  $ clearedText acct copperFilename ofxFilename
+
+clearedText
+  :: (Account -> Bool)
+  -- ^ Clear accounts that match this predicate
+  -> FilePath
+  -- ^ Read this Copper file
+  -> FilePath
+  -- ^ Read this OFX file
+  -> IO Text
+  -- ^ Returns the cleared text.
+clearedText acct copperFilename ofxFilename = do
+  ofxTxt <- XIO.readFile ofxFilename
+  copperInput <- XIO.readFile copperFilename
+  tracompris <- either Exception.throwIO return $ clearFile acct ofxTxt
+    (GivenFilename . X.pack $ copperFilename, copperInput)
   formatted <- errorExit . Accuerr.accuerrToEither . copperizeAndFormat
     $ tracompris
-  let result = X.pack . toList . fmap fst . t'WholeFile $ formatted
-  XIO.writeFile (X.unpack copperFilename) result
+  return . X.pack . toList . fmap fst . t'WholeFile $ formatted
 
 data ClearerFailure
   = ParseConvertProofFailed (ParseConvertProofError Loc)
   | OfxImportFailed String
   deriving Show
+
+instance Exception.Exception ClearerFailure
 
 -- | Given the input OFX file and the input Penny file, create the result.
 clearFile

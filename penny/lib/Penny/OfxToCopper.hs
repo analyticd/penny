@@ -47,6 +47,7 @@ import Penny.Unix
 
 import Accuerr (Accuerr)
 import qualified Accuerr
+import qualified Control.Exception as Exception
 import qualified Control.Lens as Lens
 import Control.Monad (join, guard)
 import Data.Foldable (toList)
@@ -170,19 +171,20 @@ ofxPayee ofxIn = case OFX.txPayeeInfo . _ofxTxn $ ofxIn of
 ofxToCopper
   :: (OfxIn -> Maybe OfxOut)
   -- ^
-  -> Seq Text
-  -- ^ Copper files
-  -> Seq Text
-  -- ^ OFX files
+  -> Seq FilePath
+  -- ^ Copper files to read
+  -> Seq FilePath
+  -- ^ OFX files to read
   -> IO Text
 ofxToCopper fOfx copFiles ofxFiles = do
-  readCopperFiles <- readFileList copFiles
+  readCopperFiles <- readFileList . fmap X.pack $ copFiles
   readOfxFiles <- fmap (fmap snd)
-    . readFileListStdinIfEmpty $ ofxFiles
-  let readStrings = NE.nonEmptySeqToSeq . fmap X.unpack $ readOfxFiles
-  result <- errorExit $ ofxImportWithCopperParse fOfx readCopperFiles
-    readStrings
-  return $ printResult result
+    . readFileList . fmap X.pack $ ofxFiles
+  let readStrings = fmap X.unpack readOfxFiles
+  result <- either Exception.throwIO return
+    . ofxImportWithCopperParse fOfx readCopperFiles
+    $ readStrings
+  return . printResult $ result
 
 -- | Prints the 'WholeFile' to standard output.
 printResult :: WholeFile Char () -> Text
@@ -198,6 +200,8 @@ data OfxToCopperError
   | OTCBadCopperFile (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
   | OTCCopperizationFailed (NonEmptySeq (TracompriError ()))
   deriving Show
+
+instance Exception.Exception OfxToCopperError
 
 -- * Creating Penny transactions
 

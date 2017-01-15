@@ -2,6 +2,8 @@
 -- | Functions useful when writing Unix command-line programs.
 module Penny.Unix where
 
+import Control.Monad.IO.Class (MonadIO)
+import Data.Monoid ((<>))
 import Data.Sequence (Seq)
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
@@ -11,6 +13,7 @@ import qualified Data.Text.IO as XIO
 import qualified System.Environment as Env
 import qualified System.Exit as Exit
 import qualified System.IO as IO
+import qualified Turtle
 
 import Penny.Cursor
 
@@ -62,6 +65,71 @@ errorExit ei = case ei of
   Left e -> errorFail . show $ e
   Right g -> return g
 
+
 -- | Generic options for @less@.
 lessOpts :: [Text]
 lessOpts = ["--RAW-CONTROL-CHARS", "--chop-long-lines"]
+
+-- | Runs @less@ in a subprocess with @lessOpts@.  Throws
+-- 'Turtle.ProcFailed' for non-zero exit codes.
+less
+  :: MonadIO io
+  => Turtle.Shell Turtle.Line
+  -> io ()
+less = Turtle.procs "less" lessOpts
+
+-- | Options for @diff@.  Assumes we're using GNU diff.
+diffOpts :: [Text]
+diffOpts = ["--unified"]
+
+-- | Runs GNU diff.  The from file is read from disk.  The to file is
+-- supplied from Haskell via a 'Turtle.Shell' 'Turtle.Line', which is
+-- then supplied to @diff@ on its standard input.
+--
+-- The output is strict 'Text' from @diff@.  diff always returns a
+-- non-zero exit code if the files differ, so the exit code is
+-- discarded.
+diff
+  :: Turtle.MonadIO io
+  => FilePath
+  -- ^ From file
+  -> Turtle.Shell Turtle.Line
+  -- ^ To file
+  -> io Text
+  -- ^ Output from @diff@
+diff from to = fmap snd runProcess
+  where
+    args = diffOpts <> [ X.pack from, "-"]
+    runProcess = Turtle.procStrict "diff" args to
+
+-- | Runs @patch@.  Patches the given file.
+patch
+  :: Turtle.MonadIO io
+  => FilePath
+  -- ^ Patch this file
+  -> Text
+  -- ^ Patch text
+  -> io ()
+patch target = Turtle.procs "patch" patchOpts . textToShell
+  where
+    patchOpts = [ "--silent", X.pack target, "-"]
+
+-- | Colorize the output of @diff@.  The output is sent to @less@.
+-- Assumes @colordiff@ is present.
+colordiff
+  :: Turtle.MonadIO io
+  => Text
+  -- ^ Output from @diff@
+  -> io ()
+colordiff = less . Turtle.inproc "colordiff" [] . textToShell
+
+-- | Converts an 'IO' 'Text' to a 'Turtle.Shell' 'Turtle.Line'.
+ioTextToShell :: IO Text -> Turtle.Shell Turtle.Line
+ioTextToShell io = do
+  text <- Turtle.liftIO io
+  let lines = Turtle.textToLines text
+  Turtle.select lines
+
+-- | Converts a 'Text' to a 'Turtle.Shell' 'Turtle.Line'.
+textToShell :: Text -> Turtle.Shell Turtle.Line
+textToShell = Turtle.select . Turtle.textToLines
