@@ -218,37 +218,38 @@ frontBs = go empty
         Right b -> go (acc |> b) as
         Left a -> (acc, Just (a, as))
 
+
 group
   :: (a, Seq (Either a b))
-  -> Either (NonEmptySeq a)
-            ((NonEmptySeq a, NonEmptySeq b), Maybe (a, Seq (Either a b)))
-  -- ^ Two possibilities.  One is that we pull the rest of the @a@s,
-  -- but that's it and the sequence is done.  Another is that there is
-  -- at least one @b@, in which case we have a group; then the next
-  -- question is whether there is anything in the rest of the
-  -- sequence.
-group (a, eithers) =
-  let (as0, mayBAndRest) = frontAs eithers
-      resultAs = NE.NonEmptySeq a as0
-  in case mayBAndRest of
-      Nothing -> Left resultAs
-      Just (b, eithers') ->
-        let (bs0, mayAAndRest) = frontBs eithers'
-            resultGroup = (resultAs, NE.NonEmptySeq b bs0)
-        in Right (resultGroup, mayAAndRest)
+  -> (NonEmptySeq a, Maybe (NonEmptySeq b, Maybe (a, Seq (Either a b))))
+  -- ^ Always returns the @a@ at the front.  Then, two possibilities.
+  -- One is that there is at least one @b@, in which case we have a
+  -- group.  If there is a group, then there might be remaining
+  -- eithers.  If so, they have a leading @a@.
+group (a, eithers) = (NE.NonEmptySeq a as0, mayResultPair)
+  where
+    (as0, mayBAndRest) = frontAs eithers
+    mayResultPair = fmap f mayBAndRest
+      where
+        f (b, eithers) = (NE.NonEmptySeq b bs0, mayResultPairB)
+          where
+            (bs0, mayResultPairB) = frontBs eithers
 
 groups
   :: (a, Seq (Either a b))
   -> (Seq (NonEmptySeq a, NonEmptySeq b), Seq a)
 groups = go empty
   where
-    go acc a = case group a of
-      Left ne -> (acc, NE.nonEmptySeqToSeq ne)
-      Right (pair, mayRest) ->
-        let allPairs = acc |> pair
-        in case mayRest of
-            Nothing -> (allPairs, empty)
-            Just rest -> go allPairs rest
+    go acc a = case maybeGroup of
+      Nothing -> (acc, NE.nonEmptySeqToSeq as)
+      Just (bs, maybeEithers) -> case maybeEithers of
+        Nothing -> (allPairs, empty)
+        Just eithers -> go allPairs eithers
+        where
+          allPairs = acc |> (as, bs)
+      where
+        (as, maybeGroup) = group a
+
 
 groupEithers
   :: Seq (Either a b)
