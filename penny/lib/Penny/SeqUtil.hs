@@ -19,13 +19,13 @@ module Penny.SeqUtil
   , yank
   , yankSt
   , Groups(..)
+  , concatGroups
   , leaders
   , middle
   , trailers
   , groupEithers
   , filterM
   , intersperse
-  , singleSeq
   , convertHead
   , catMaybes
   , isSingleton
@@ -174,49 +174,92 @@ data Groups a b = Groups
   { _leaders :: Seq b
   , _middle :: Seq (NonEmptySeq a, NonEmptySeq b)
   , _trailers :: Seq a
-  }
+  } deriving (Eq, Show, Generic)
 
 makeLenses ''Groups
+
+concatGroups :: Groups a b -> Seq (Either a b)
+concatGroups (Groups l m r)
+  = fmap Right l
+  <> mids
+  <> fmap Left r
+  where
+    convertPair (a, b)
+      = fmap Left (NE.nonEmptySeqToSeq a)
+      <> fmap Right (NE.nonEmptySeqToSeq b)
+    mids = join . fmap convertPair $ m
+
+-- | Pull all @a@ off the front of the sequence.  Returns all the @a@,
+-- and what remains, which is either nothing at all, or a @b@ and the
+-- rest of the sequence.
+frontAs
+  :: Seq (Either a b)
+  -> (Seq a, Maybe (b, Seq (Either a b)))
+frontAs = go empty
+  where
+    go acc sq = case viewl sq of
+      EmptyL -> (acc, Nothing)
+      a :< as -> case a of
+        Left a -> go (acc |> a) as
+        Right b -> (acc, Just (b, as))
+
+
+-- | Pull all @b@ off the front of the sequence.  Returns all the @b@,
+-- and what remains, which is either nothing at all, or an @a@ and the
+-- rest of the sequence.
+frontBs
+  :: Seq (Either a b)
+  -> (Seq b, Maybe (a, Seq (Either a b)))
+frontBs = go empty
+  where
+    go acc sq = case viewl sq of
+      EmptyL -> (acc, Nothing)
+      a :< as -> case a of
+        Right b -> go (acc |> b) as
+        Left a -> (acc, Just (a, as))
+
+group
+  :: (a, Seq (Either a b))
+  -> Either (NonEmptySeq a)
+            ((NonEmptySeq a, NonEmptySeq b), Maybe (a, Seq (Either a b)))
+  -- ^ Two possibilities.  One is that we pull the rest of the @a@s,
+  -- but that's it and the sequence is done.  Another is that there is
+  -- at least one @b@, in which case we have a group; then the next
+  -- question is whether there is anything in the rest of the
+  -- sequence.
+group (a, eithers) =
+  let (as0, mayBAndRest) = frontAs eithers
+      resultAs = NE.NonEmptySeq a as0
+  in case mayBAndRest of
+      Nothing -> Left resultAs
+      Just (b, eithers') ->
+        let (bs0, mayAAndRest) = frontBs eithers'
+            resultGroup = (resultAs, NE.NonEmptySeq b bs0)
+        in Right (resultGroup, mayAAndRest)
+
+groups
+  :: (a, Seq (Either a b))
+  -> (Seq (NonEmptySeq a, NonEmptySeq b), Seq a)
+groups = go empty
+  where
+    go acc a = case group a of
+      Left ne -> (acc, NE.nonEmptySeqToSeq ne)
+      Right (pair, mayRest) ->
+        let allPairs = acc |> pair
+        in case mayRest of
+            Nothing -> (allPairs, empty)
+            Just rest -> go allPairs rest
 
 groupEithers
   :: Seq (Either a b)
   -> Groups a b
-groupEithers sq = Groups l m r
-  where
-    (l, middleAndTrail) = go empty sq
-      where
-        go acc sq = case viewl sq of
-          EmptyL -> (acc, empty)
-          x :< xs -> case x of
-            Right a -> go (acc |> a) xs
-            Left _ -> (acc, sq)
-    (middle, mayLast) = foldl appendMiddle (empty, Nothing) middleAndTrail
-    (m, r) = case mayLast of
-      Nothing -> (middle, empty)
-      Just (as, bs) -> case NE.seqToNonEmptySeq bs of
-        Nothing -> (middle, NE.nonEmptySeqToSeq as)
-        Just bss -> (middle |> (as, bss), empty)
+groupEithers eithers =
+  let (bs, mayAAndRest) = frontBs eithers
+  in case mayAAndRest of
+      Nothing -> Groups bs empty empty
+      Just aAndRest -> let (gs, as) = groups aAndRest
+        in Groups bs gs as
 
-    appendMiddle
-      :: (Seq (NonEmptySeq a, NonEmptySeq b), Maybe (NonEmptySeq a, Seq b))
-      -> Either a b
-      -> (Seq (NonEmptySeq a, NonEmptySeq b), Maybe (NonEmptySeq a, Seq b))
-    appendMiddle (sq, mayPair) ei = case ei of
-      Left a -> case mayPair of
-        Nothing -> (sq, Just (NE.singleton a, empty))
-        Just (as, bs) -> case NE.seqToNonEmptySeq bs of
-          Nothing -> error "groupEithers: error 1"
-          Just neBs -> (sq |> (as, neBs), Just (NE.singleton a, empty))
-      Right b -> case mayPair of
-        Nothing -> error "groupEithers: error 2"
-        Just (as, bs) -> (sq, Just (as, bs |> b))
-
-singleSeq :: Seq a -> Maybe a
-singleSeq sq = case uncons sq of
-  Nothing -> Nothing
-  Just (x, xs) -> case uncons xs of
-    Nothing -> Just x
-    Just _ -> Nothing
 
 data Slice a = Slice
   { _onLeft :: (Seq a)

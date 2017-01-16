@@ -78,9 +78,6 @@ operational = atLeast "operational" [0,2,3]
 pretty :: Package
 pretty = atLeast "pretty" [1,1,2]
 
-derive :: Package
-derive = atLeast "derive" [2,5,22]
-
 earley :: Package
 earley = atLeast "Earley" [0,10,1,0]
 
@@ -107,6 +104,9 @@ nonEmptySequence = atLeast "non-empty-sequence" [0,2]
 
 formatting :: Package
 formatting = atLeast "formatting" [6,2,4]
+
+genericRandom :: Package
+genericRandom = atLeast "generic-random" [0,3,0,0]
 
 libraryDepends :: [Package]
 libraryDepends =
@@ -138,7 +138,7 @@ libraryDepends =
   ]
 
 testDepends :: [Package]
-testDepends = [ quickcheck, tasty, tastyQuickcheck, tastyTh, derive ]
+testDepends = [ quickcheck, tasty, tastyQuickcheck, tastyTh ]
 
 -- | Creates test executables.  Generally these executables are meant
 -- to be run by humans, rather than being automated.  This can be
@@ -203,6 +203,18 @@ testNames =
   , "testLess"
   ]
 
+-- | The main Tasty test suite.
+tastyTests
+  :: [NonEmptyString]
+  -- ^ Library modules
+  -> Section
+tastyTests mods = testSuite "penny-tasty" $
+    buildDepends (testDepends ++ libraryDepends)
+  : otherModules mods
+  : hsSourceDirs ["tests"]
+  : exitcodeFields "penny-tasty.hs"
+  ++ commonOptions
+
 main :: IO ()
 main = defaultMain $ do
   libMods <- modules "../penny/lib"
@@ -216,6 +228,7 @@ main = defaultMain $ do
     ,   exposedModules libMods
       : buildDepends libraryDepends
       : commonOptions
-    , [ githubHead "massysett" "penny" ]
-      ++ fmap (testExe libMods testFlag) testNames
+    ,  githubHead "massysett" "penny"
+      : tastyTests libMods
+      : fmap (testExe libMods testFlag) testNames
     )
