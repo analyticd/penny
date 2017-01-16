@@ -3,7 +3,6 @@
 module Penny.Unix where
 
 import Control.Monad.IO.Class (MonadIO)
-import Data.Monoid ((<>))
 import Data.Sequence (Seq)
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
@@ -77,51 +76,6 @@ less
   => Turtle.Shell Turtle.Line
   -> io ()
 less = Turtle.procs "less" lessOpts
-
--- | Options for @diff@.  Assumes we're using GNU diff.
-diffOpts :: [Text]
-diffOpts = ["--unified"]
-
--- | Runs GNU diff.  The from file is read from disk.  The to file is
--- supplied from Haskell via a 'Turtle.Shell' 'Turtle.Line', which is
--- then supplied to @diff@ on its standard input.
---
--- The output is strict 'Text' from @diff@.  diff always returns a
--- non-zero exit code if the files differ, so the exit code is
--- discarded.
-diff
-  :: Turtle.MonadIO io
-  => FilePath
-  -- ^ From file
-  -> Turtle.Shell Turtle.Line
-  -- ^ To file
-  -> io Text
-  -- ^ Output from @diff@
-diff from to = fmap snd runProcess
-  where
-    args = diffOpts <> [ X.pack from, "-"]
-    runProcess = Turtle.procStrict "diff" args to
-
--- | Runs @patch@.  Patches the given file.
-patch
-  :: Turtle.MonadIO io
-  => FilePath
-  -- ^ Patch this file
-  -> Text
-  -- ^ Patch text
-  -> io ()
-patch target = Turtle.procs "patch" patchOpts . textToShell
-  where
-    patchOpts = [ "--silent", X.pack target, "-"]
-
--- | Colorize the output of @diff@.  The output is sent to @less@.
--- Assumes @colordiff@ is present.
-colordiff
-  :: Turtle.MonadIO io
-  => Text
-  -- ^ Output from @diff@
-  -> io ()
-colordiff = less . Turtle.inproc "colordiff" [] . textToShell
 
 -- | Converts an 'IO' 'Text' to a 'Turtle.Shell' 'Turtle.Line'.
 ioTextToShell :: IO Text -> Turtle.Shell Turtle.Line

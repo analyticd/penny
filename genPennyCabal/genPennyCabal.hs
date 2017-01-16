@@ -3,7 +3,7 @@ module Main where
 import Cartel
 
 pennyVer :: [Word]
-pennyVer = [0,33,20170115,0]
+pennyVer = [0,33,20170116,0]
 
 warnings :: [String]
 warnings =
@@ -63,36 +63,11 @@ rainbox = atLeast "rainbox" [0,18]
 rainbow :: Package
 rainbow = atLeast "rainbow" [0,26]
 
-semigroups :: Package
-semigroups = atLeast "semigroups" [0,16,1]
-
-contravariant :: Package
-contravariant = atLeast "contravariant" [1,2]
-
-pipes :: Package
-pipes = atLeast "pipes" [4,1,4]
-
-pipesSafe :: Package
-pipesSafe = atLeast "pipes-safe" [2,2]
-
--- | Currently unused
-process :: Package
-process = atLeast "process" [1,2,0,0]
-
-async :: Package
-async = atLeast "async" [2,0]
-
 turtle :: Package
 turtle = atLeast "turtle" [1,3,0]
 
 mtl :: Package
 mtl = atLeast "mtl" [2,2,1]
-
-logict :: Package
-logict = atLeast "logict" [0,6]
-
-void :: Package
-void = atLeast "void" [0,7]
 
 lens :: Package
 lens = atLeast "lens" [4,9]
@@ -106,15 +81,6 @@ pretty = atLeast "pretty" [1,1,2]
 derive :: Package
 derive = atLeast "derive" [2,5,22]
 
-managed :: Package
-managed = atLeast "managed" [1,0]
-
-hspec :: Package
-hspec = atLeast "hspec" [2,2]
-
-monoidSubclasses :: Package
-monoidSubclasses = atLeast "monoid-subclasses" [0,4,1]
-
 earley :: Package
 earley = atLeast "Earley" [0,10,1,0]
 
@@ -127,9 +93,6 @@ accuerr = atLeast "accuerr" [0,2,0,0]
 ofx :: Package
 ofx = atLeast "ofx" [0,4,2,0]
 
-parsec :: Package
-parsec = atLeast "parsec" [3,1,9]
-
 timelens :: Package
 timelens = atLeast "timelens" [0,2]
 
@@ -141,9 +104,6 @@ templateHaskell = atLeast "template-haskell" [2,10]
 
 nonEmptySequence :: Package
 nonEmptySequence = atLeast "non-empty-sequence" [0,2]
-
-optparseApplicative :: Package
-optparseApplicative = atLeast "optparse-applicative" [0,12]
 
 formatting :: Package
 formatting = atLeast "formatting" [6,2,4]
@@ -158,26 +118,16 @@ libraryDepends =
   , bifunctors
   , rainbow
   , rainbox
-  , semigroups
-  , contravariant
   , bytestring
   , turtle
   , mtl
   , lens
-  , async
-  , pipes
-  , pipesSafe
-  , process
   , anonymousSums
-  , void
   , pretty
-  , managed
-  , monoidSubclasses
   , pinchot
   , earley
   , accuerr
   , ofx
-  , parsec
   , timelens
   , prettyShow
   , templateHaskell

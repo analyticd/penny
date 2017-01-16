@@ -26,6 +26,7 @@ import Penny.Fields
 import Penny.Tranche (fields)
 import Penny.Transaction
 import Penny.Unix
+import Penny.Unix.Diff
 
 -- | Clears the given file.  Returns the result as the output from @diff@.
 clearer
@@ -35,12 +36,11 @@ clearer
   -- ^ Read this Copper file
   -> FilePath
   -- ^ Read this OFX file
-  -> IO Text
+  -> IO Patch
   -- ^ Returns the output from @diff@.
 clearer acct copperFilename ofxFilename
-  = diff copperFilename
-  . ioTextToShell
-  $ clearedText acct copperFilename ofxFilename
+  = clearedText acct copperFilename ofxFilename
+  >>= diff copperFilename
 
 clearedText
   :: (Account -> Bool)

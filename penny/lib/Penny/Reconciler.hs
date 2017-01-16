@@ -22,14 +22,14 @@ import Penny.Copper.Tracompri
 import Penny.Cursor
 import Penny.Tranche
 import Penny.Transaction
-import Penny.Unix
+import Penny.Unix.Diff
 
 -- | Reconciles a file by changing all postings with a @C@ flag to an
 -- @R@ flag.  Makes no changes on disk; returns result as the output of @diff@.
 reconciler
   :: FilePath
   -- ^ Reconcile this file
-  -> IO Text
+  -> IO Patch
 reconciler filename = do
   copperInput <- XIO.readFile filename
   tracompris <- either Exception.throwIO return $ reconcileFile
@@ -38,7 +38,7 @@ reconciler filename = do
     . Accuerr.accuerrToEither . copperizeAndFormat
     $ tracompris
   let result = X.pack . toList . fmap fst . t'WholeFile $ formatted
-  diff filename . textToShell $ result
+  diff filename result
 
 data ReconcilerFailure
   = ParseConvertProofFailed (ParseConvertProofError Loc)
