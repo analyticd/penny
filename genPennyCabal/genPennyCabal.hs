@@ -3,7 +3,7 @@ module Main where
 import Cartel
 
 pennyVer :: [Word]
-pennyVer = [0,33,20170116,0]
+pennyVer = [0,33,20170116,1]
 
 warnings :: [String]
 warnings =
