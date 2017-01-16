@@ -243,8 +243,8 @@ c'N0'19'Int x = d10'19 <|> d0'9
       d1 <- c'D0'9'Int (x - 10)
       return (N0'19 (D0'1'Opt (Just (D0'1'One cOne))) d1)
     d0'9 = do
-      d0'9 <- c'D0'9'Int x
-      return $ N0'19 (D0'1'Opt Nothing) d0'9
+      lastDigit <- c'D0'9'Int x
+      return $ N0'19 (D0'1'Opt Nothing) lastDigit
 
 c'N20'23'Int :: Integral a => a -> Maybe (N20'23 Char ())
 c'N20'23'Int x = do
