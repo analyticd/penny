@@ -131,7 +131,7 @@ dD0'1'Opt (D0'1'Opt m) = case m of
 
 dN0'19 :: N0'19 t a -> NonNegative
 dN0'19 (N0'19 d1 d0)
-  = (dD0'1'Opt d1)
+  = ((dD0'1'Opt d1) `NN.mult` NN.ten)
   `NN.add` (dD0'9 d0)
 
 dN20'23 :: N20'23 t a -> Positive

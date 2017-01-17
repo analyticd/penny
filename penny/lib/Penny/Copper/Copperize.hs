@@ -252,8 +252,8 @@ c'N20'23'Int x = do
   return $ N20'23 cTwo d1
 
 c'Hours'Int :: Integral a => a -> Maybe (Hours Char ())
-c'Hours'Int i = Hours'N0'19 <$> c'N0'19'Int i
-    <|> Hours'N20'23 <$> c'N20'23'Int i
+c'Hours'Int i = Hours'N20'23 <$> c'N20'23'Int i
+  <|> Hours'N0'19 <$> c'N0'19'Int i
 
 c'N0'59'Int :: Integral a => a -> Maybe (N0'59 Char ())
 c'N0'59'Int x = do
