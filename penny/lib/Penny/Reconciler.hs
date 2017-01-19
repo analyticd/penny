@@ -35,7 +35,9 @@ reconciler filename = do
   tracompris <- either Exception.throwIO return $ reconcileFile
     (GivenFilename $ X.pack filename, copperInput)
   formatted <- either (Exception.throwIO . CopperizationFailed) return
-    . Accuerr.accuerrToEither . copperizeAndFormat
+    . Lens.over Lens._Left  (\(CopperizationError a) -> a)
+    . Accuerr.accuerrToEither
+    . copperizeAndFormat
     $ tracompris
   let result = X.pack . toList . fmap fst . t'WholeFile $ formatted
   diff filename result

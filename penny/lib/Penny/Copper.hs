@@ -241,13 +241,20 @@ parseConvertProofFiles
 
 -- * Formatting Tracompri
 
+newtype CopperizationError a
+  = CopperizationError (NonEmptySeq (TracompriError a))
+  deriving Show
+
+instance (Show a, Typeable a) => Exception (CopperizationError a)
+
 -- | Transforms 'Tracompri' into a 'WholeFile', and applies some
 -- simple default formatting.
 copperizeAndFormat
   :: Seq (Tracompri a)
-  -> Accuerr (NonEmptySeq (TracompriError a)) (WholeFile Char ())
+  -> Accuerr (CopperizationError a) (WholeFile Char ())
 copperizeAndFormat
   = fmap (formatWholeFile 4)
+  . Lens.over Accuerr._AccFailure CopperizationError
   . tracompriWholeFile
 
 -- * IO functions
@@ -269,6 +276,17 @@ parseConvertProofIO files = do
   case parseConvertProofFiles filesAndTexts of
     Accuerr.AccFailure errs -> Exc.throwIO (ParseConvertProofErrors errs)
     Accuerr.AccSuccess g -> return g
+
+-- | Parses, converts, and proofs a single file.  Does not read from
+-- standard input.
+parseConvertProofSingleIO
+  :: Text
+  -> IO (Seq (Tracompri Cursor))
+parseConvertProofSingleIO fn = do
+  txt <- XIO.readFile (X.unpack fn)
+  case parseConvertProof (GivenFilename fn, txt) of
+    Left e -> throwIO e
+    Right g -> return g
 
 -- | Loads a single Copper file.
 copopen :: Text -> Loader

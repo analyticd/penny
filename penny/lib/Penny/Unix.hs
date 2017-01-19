@@ -3,6 +3,7 @@
 module Penny.Unix where
 
 import Control.Monad.IO.Class (MonadIO)
+import Data.ByteString (ByteString)
 import Data.Sequence (Seq)
 import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
@@ -13,6 +14,7 @@ import qualified System.Environment as Env
 import qualified System.Exit as Exit
 import qualified System.IO as IO
 import qualified Turtle
+import qualified Turtle.Bytes as Bytes
 
 import Penny.Cursor
 
@@ -73,9 +75,9 @@ lessOpts = ["--RAW-CONTROL-CHARS", "--chop-long-lines"]
 -- 'Turtle.ProcFailed' for non-zero exit codes.
 less
   :: MonadIO io
-  => Turtle.Shell Turtle.Line
+  => Turtle.Shell ByteString
   -> io ()
-less = Turtle.procs "less" lessOpts
+less = Bytes.procs "less" lessOpts
 
 -- | Converts an 'IO' 'Text' to a 'Turtle.Shell' 'Turtle.Line'.
 ioTextToShell :: IO Text -> Turtle.Shell Turtle.Line

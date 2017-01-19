@@ -84,6 +84,9 @@ payee = fields . F.payee
 origPayee :: forall a. Lens.Lens' (TopLine a) Text
 origPayee = fields . F.origPayee
 
+origDate :: forall a. Lens.Lens' (Postline a) (Maybe Time.ZonedTime)
+origDate = fields . F.origDate
+
 number :: forall a. Lens.Lens' (Postline a) (Maybe Integer)
 number = fields . F.number
 
