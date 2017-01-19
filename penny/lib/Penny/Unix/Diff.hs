@@ -10,11 +10,18 @@ module Penny.Unix.Diff
   ) where
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BS8
+import Data.Function ((&))
 import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text.IO as XIO
 import qualified Data.Text as X
+import Data.Text.Encoding (encodeUtf8)
+import qualified Rainbow as R
 import qualified Turtle
+import qualified Turtle.Bytes as Bytes
 
 -- | Options for @diff@.  Assumes we're using GNU diff.
 diffOpts :: [Text]
@@ -71,13 +78,47 @@ patch
 patch (Patch _ dest txt)
   = liftIO $ XIO.writeFile dest txt
 
--- | Views a patch using @colordiff@, sending output to @less@.
--- Assumes @colordiff@ is present.
+less
+  :: MonadIO io
+  => Turtle.Shell BS.ByteString
+  -> io ()
+less = Bytes.procs "less" lessOpts
+  where
+    lessOpts = ["--RAW-CONTROL-CHARS", "--chop-long-lines"]
+
+colorizeDiffLine
+  :: Turtle.Line
+  -> [ByteString]
+colorizeDiffLine line
+  = R.chunksToByteStrings R.toByteStringsColors8 [chk, nl]
+  where
+    nl = R.chunk . X.singleton $ '\n'
+    txt = Turtle.lineToText line
+    chk = R.chunk txt & changeColor
+    changeColor = case X.uncons txt of
+      Nothing -> id
+      Just (x, _)
+        | x == '-' -> R.fore R.red
+        | x == '+' -> R.fore R.green
+        | otherwise -> id
+
+runColorDiff
+  :: Text
+  -> Turtle.Shell BS.ByteString
+runColorDiff
+  = Bytes.inproc "colordiff" []
+  . return
+  . encodeUtf8
+
+-- | Colorizes output from @diff@ and sends the output to @less@.
 colordiff
   :: MonadIO io
   => Patch
   -> io ()
-colordiff (Patch txt _ _)
-  = Turtle.procs "less" lessOpts . Turtle.select . Turtle.textToLines $ txt
-  where
-    lessOpts = ["--RAW-CONTROL-CHARS", "--chop-long-lines"]
+colordiff
+  = less
+  . Turtle.select
+  . concat
+  . fmap colorizeDiffLine
+  . Turtle.textToLines
+  . viewDiff
