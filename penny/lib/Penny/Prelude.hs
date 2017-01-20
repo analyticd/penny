@@ -36,6 +36,7 @@ module Penny.Prelude
   , Text
   , pack
   , unpack
+  , Data.Text.Encoding.encodeUtf8
 
   -- * Errors and exceptions
   , Exception
@@ -66,6 +67,8 @@ module Penny.Prelude
   , id
   , Prelude.const
   , Prelude.uncurry
+  , (Category.>>>)
+  , (Category.<<<)
 
   -- * Typeclasses
   , Traversable(traverse)
@@ -143,6 +146,7 @@ module Penny.Prelude
   , Lens.view
   , Lens.Wrapped (_Wrapped')
   , Lens.over
+  , Lens.set
   , Lens._1
   , Lens._2
   , Lens._Left
@@ -159,6 +163,7 @@ import Accuerr (Accuerr(AccSuccess, AccFailure), _AccSuccess, _AccFailure,
   accuerrToEither)
 import qualified Control.Applicative as Applicative
 import Data.ByteString (ByteString)
+import qualified Control.Category as Category
 import Control.Exception (Exception, throwIO)
 import qualified Control.Lens as Lens
 import Control.Monad (join)
@@ -177,6 +182,7 @@ import qualified Data.Set as Set
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text as X
 import qualified Data.Text.IO as XIO
+import qualified Data.Text.Encoding
 import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Filesystem.Path.CurrentOS (FilePath)
