@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 -- | Given an OFX file, change every matching posting that does not
 -- currently have a flag to Cleared.  Results are printed to standard
 -- output.
@@ -7,15 +8,9 @@ module Penny.Clearer where
 import qualified Accuerr
 import qualified Control.Exception as Exception
 import qualified Control.Lens as Lens
-import Data.Foldable (toList)
 import qualified Data.OFX as OFX
-import Data.Sequence (Seq)
-import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Text.IO as XIO
-import Pinchot (Loc)
 
 import Penny.Account
 import Penny.Copper
@@ -23,9 +18,9 @@ import Penny.Copper.Terminalizers (t'WholeFile)
 import Penny.Copper.Tracompri
 import Penny.Cursor
 import Penny.Fields
+import Penny.Prelude
 import Penny.Tranche (fields)
 import Penny.Transaction
-import Penny.Unix
 import Penny.Unix.Diff
 
 -- | Clears the given file.  Returns the result as the output from @diff@.
@@ -52,17 +47,18 @@ clearedText
   -> IO Text
   -- ^ Returns the cleared text.
 clearedText acct copperFilename ofxFilename = do
-  ofxTxt <- XIO.readFile ofxFilename
-  copperInput <- XIO.readFile copperFilename
+  ofxTxt <- readFile ofxFilename
+  copperInput <- readFile copperFilename
   tracompris <- either Exception.throwIO return $ clearFile acct ofxTxt
-    (GivenFilename . X.pack $ copperFilename, copperInput)
-  formatted <- errorExit . Accuerr.accuerrToEither . copperizeAndFormat
+    (Right copperFilename, copperInput)
+  formatted <- either throwIO return
+    . Accuerr.accuerrToEither . copperizeAndFormat
     $ tracompris
   return . X.pack . toList . fmap fst . t'WholeFile $ formatted
 
 data ClearerFailure
   = ParseConvertProofFailed (ParseConvertProofError Loc)
-  | OfxImportFailed String
+  | OfxImportFailed Text
   deriving Show
 
 instance Exception.Exception ClearerFailure
@@ -73,13 +69,13 @@ clearFile
   -- ^ Clear a posting only if its account matches this predicate
   -> Text
   -- ^ OFX file
-  -> (InputFilespec, Text)
+  -> (Either Text FilePath, Text)
   -- ^ Copper file
   -> Either ClearerFailure (Seq (Tracompri Cursor))
 clearFile acct ofxTxt copperInput = do
   tracompris <- Lens.over Lens._Left ParseConvertProofFailed
     . parseConvertProof $ copperInput
-  ofxTxns <- Lens.over Lens._Left OfxImportFailed
+  ofxTxns <- Lens.over Lens._Left (OfxImportFailed . pack)
     . OFX.parseTransactions . X.unpack $ ofxTxt
   let fitids = allFitids ofxTxns
   return (Lens.over traversePostingFields (clearPosting acct fitids) tracompris)

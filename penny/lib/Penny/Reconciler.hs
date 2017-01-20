@@ -1,25 +1,21 @@
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 -- | Given a Copper files, change every Cleared posting to
 -- a Reconciled one.
 
 module Penny.Reconciler where
 
-import qualified Accuerr
 import qualified Control.Exception as Exception
 import qualified Control.Lens as Lens
-import Data.Foldable (toList)
-import Data.Sequence (Seq)
-import Data.Sequence.NonEmpty (NonEmptySeq)
-import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Text.IO as XIO
-import Pinchot (Loc)
 
 import Penny.Copper
 import Penny.Copper.Copperize (TracompriError)
 import Penny.Copper.Terminalizers
 import Penny.Copper.Tracompri
 import Penny.Cursor
+import Penny.Prelude
 import Penny.Tranche
 import Penny.Transaction
 import Penny.Unix.Diff
@@ -31,12 +27,12 @@ reconciler
   -- ^ Reconcile this file
   -> IO Patch
 reconciler filename = do
-  copperInput <- XIO.readFile filename
-  tracompris <- either Exception.throwIO return $ reconcileFile
-    (GivenFilename $ X.pack filename, copperInput)
+  copperInput <- readFile filename
+  tracompris <- either Exception.throwIO return
+    $ reconcileFile (filename, copperInput)
   formatted <- either (Exception.throwIO . CopperizationFailed) return
     . Lens.over Lens._Left  (\(CopperizationError a) -> a)
-    . Accuerr.accuerrToEither
+    . accuerrToEither
     . copperizeAndFormat
     $ tracompris
   let result = X.pack . toList . fmap fst . t'WholeFile $ formatted
@@ -50,11 +46,13 @@ data ReconcilerFailure
 instance Exception.Exception ReconcilerFailure
 
 reconcileFile
-  :: (InputFilespec, Text)
+  :: (FilePath, Text)
   -> Either ReconcilerFailure (Seq (Tracompri Cursor))
 reconcileFile copperInput = do
   tracompris <- Lens.over Lens._Left ParseConvertProofFailed
-    . parseConvertProof $ copperInput
+    . parseConvertProof
+    . Lens.over Lens._1 Right
+    $ copperInput
   return (Lens.over traverseFlags reconcileFlag tracompris)
 
 -- | Marks a flag as @R@ if it is presently @C@.

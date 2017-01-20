@@ -5,6 +5,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+
 -- | Copper - the default Penny parser
 --
 -- Copper runs in three phases.  The first phase transforms a string
@@ -36,23 +38,16 @@
 -- library would ordinarily need.
 module Penny.Copper where
 
-import Accuerr (Accuerr)
 import qualified Accuerr
-import Control.Exception (Exception, throwIO)
 import qualified Control.Exception as Exc
 import qualified Control.Lens as Lens
-import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
-import Sums (S3(S3_1, S3_2, S3_3))
-import Data.Text (Text)
 import qualified Data.Text as X
-import qualified Data.Text.IO as XIO
-import Data.Typeable (Typeable)
 import qualified Text.Earley as Earley
-import Pinchot (Loc(Loc))
 import qualified Pinchot
+import Prelude ((+), (-))
+import qualified Prelude
 
 import Penny.Clatcher (Loader)
 import Penny.Copper.Copperize (TracompriError, tracompriWholeFile)
@@ -64,8 +59,8 @@ import qualified Penny.Copper.Proofer as Proofer
 import Penny.Copper.Types (WholeFile)
 import Penny.Copper.Tracompri
 import Penny.Cursor
+import Penny.Prelude
 import Penny.SeqUtil
-import Penny.Unix
 
 -- | Given an integer position in a text, obtain the Pinchot
 -- position.
@@ -79,8 +74,8 @@ textPosition int
   . X.take int
   where
     add (Loc !lin !col !pos) c
-      | c == '\n' = Loc (lin + 1) 1 (pos + 1)
-      | c == '\t' = Loc lin (col + 8 - ((col - 1) `mod` 8)) (pos + 1)
+      | c == '\n' = Loc (succ lin) 1 (succ pos)
+      | c == '\t' = Loc lin (col + 8 - ((col - 1) `Prelude.mod` 8)) (pos + 1)
       | otherwise = Loc lin (col + 1) (pos + 1)
 
 -- | The name of a file being parsed.  This is optional and can be
@@ -90,7 +85,7 @@ type Filename = Text
 -- | Gives additional information when an Earley parse fails.
 data ParseErrorInfo = ParseErrorInfo
   { _failurePosition :: Loc
-  , _expected :: [String]
+  , _expected :: [Text]
   } deriving (Typeable, Show)
 
 Lens.makeLenses ''ParseErrorInfo
@@ -118,17 +113,17 @@ Lens.makeLenses ''ParseError
 errorInfo
   :: Text
   -- ^ Input text
-  -> Earley.Report String a
+  -> Earley.Report Prelude.String a
   -> ParseErrorInfo
 errorInfo inp (Earley.Report pos exp _)
-  = ParseErrorInfo (textPosition pos inp) exp
+  = ParseErrorInfo (textPosition pos inp) (fmap pack exp)
 
 -- | Parses a particular production from
 -- 'Penny.Copper.Productions.Productions'.  Applies 'error' if the
 -- grammar is ambiguous.
 parseProduction
   :: (forall r. Productions.Productions r Char Loc
-      -> Earley.Prod r String (Char, Loc) (p Char Loc))
+      -> Earley.Prod r Prelude.String (Char, Loc) (p Char Loc))
   -- ^ Earley grammar to parse
   -> Text
   -- ^ Input string
@@ -147,7 +142,7 @@ parseProduction getGrammar txt = case results of
 -- | A parse-convert-proof sequence can fail if parsing, collection,
 -- or validation fails.  (Decopperization never fails.)
 data ParseConvertProofError a = ParseConvertProofError
-  { _pcpFilename :: InputFilespec
+  { _pcpCollection :: Either Text FilePath
   , _pcpFailure
       :: S3 ParseError (NonEmptySeq (Proofer.CollectionFail a))
                        (NonEmptySeq (Proofer.ValidationFail a))
@@ -158,7 +153,7 @@ Lens.makeLenses ''ParseConvertProofError
 instance (Typeable a, Show a) => Exception (ParseConvertProofError a)
 
 parseWholeFile
-  :: InputFilespec
+  :: Either Text FilePath
   -- ^
   -> Text
   -- ^
@@ -168,7 +163,7 @@ parseWholeFile fn
   . parseProduction Productions.a'WholeFile
 
 proofWholeFile
-  :: InputFilespec
+  :: Either Text FilePath
   -- ^
   -> WholeFile Char Loc
   -- ^
@@ -188,7 +183,7 @@ proofWholeFile fn
 -- | Takes the result of parsing a production and returns either the
 -- result or a ParseConvertProofError.
 parseResultToError
-  :: InputFilespec
+  :: Either Text FilePath
   -- ^
   -> Either ParseError (p Char Loc)
   -- ^
@@ -201,7 +196,7 @@ parseResultToError filename
 -- or a ParseConvertProofError.
 proofResultToError
   :: Traversable t
-  => InputFilespec
+  => Either Text FilePath
   -- ^
   -> Proofer.Proofer Loc (t (Tracompri Loc))
   -- ^
@@ -215,7 +210,7 @@ proofResultToError filename proofer = case proofer of
 
 -- | Parses, converts, and proofs a single file.
 parseConvertProof
-  :: (InputFilespec, Text)
+  :: (Either Text FilePath, Text)
   -- ^ Name and data of file
   -> Either (ParseConvertProofError Loc) (Seq (Tracompri Cursor))
 parseConvertProof (filename, txt) = do
@@ -227,7 +222,7 @@ parseConvertProof (filename, txt) = do
 -- | Parses, converts, and proofs a series of files.
 parseConvertProofFiles
   :: Traversable t
-  => t (InputFilespec, Text)
+  => t (Either Text FilePath, Text)
   -- ^ Sequence of filenames to parse, with their accompanying text
   -> Accuerr (NonEmptySeq (ParseConvertProofError Loc))
              (t (Seq (Tracompri Cursor)))
@@ -269,30 +264,31 @@ instance Exception ParseConvertProofErrors
 -- are thrown as exceptions.  If input sequence is empty, reads
 -- standard input.
 parseConvertProofIO
-  :: Seq Text
-  -> IO (NonEmptySeq (Seq (Tracompri Cursor)))
+  :: Seq FilePath
+  -> IO (Seq (Seq (Tracompri Cursor)))
 parseConvertProofIO files = do
-  filesAndTexts <- readFileListStdinIfEmpty files
-  case parseConvertProofFiles filesAndTexts of
+  texts <- traverse readFile files
+  let collAndFiles = zipWith (\fn txt -> (Right fn, txt)) files texts
+  case parseConvertProofFiles collAndFiles of
     Accuerr.AccFailure errs -> Exc.throwIO (ParseConvertProofErrors errs)
     Accuerr.AccSuccess g -> return g
 
 -- | Parses, converts, and proofs a single file.  Does not read from
 -- standard input.
 parseConvertProofSingleIO
-  :: Text
+  :: FilePath
   -> IO (Seq (Tracompri Cursor))
 parseConvertProofSingleIO fn = do
-  txt <- XIO.readFile (X.unpack fn)
-  case parseConvertProof (GivenFilename fn, txt) of
+  txt <- readFile fn
+  case parseConvertProof (Right fn, txt) of
     Left e -> throwIO e
     Right g -> return g
 
 -- | Loads a single Copper file.
-copopen :: Text -> Loader
+copopen :: FilePath -> Loader
 copopen fn = do
-  txt <- XIO.readFile (X.unpack fn)
-  case parseConvertProof (GivenFilename fn, txt) of
+  txt <- readFile fn
+  case parseConvertProof (Right fn, txt) of
     Left err -> throwIO err
     Right tras -> return (prices, txns)
       where

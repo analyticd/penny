@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 module Penny.Unix.Diff
   ( Patch
   , viewDiff
@@ -9,17 +10,12 @@ module Penny.Unix.Diff
   , colordiff
   ) where
 
-import Control.Monad.IO.Class (MonadIO, liftIO)
-import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import Data.Function ((&))
-import Data.Monoid ((<>))
-import Data.Text (Text)
-import qualified Data.Text.IO as XIO
 import qualified Data.Text as X
 import qualified Rainbow as R
 import qualified Turtle
 import qualified Turtle.Bytes as Bytes
+import Penny.Prelude
 
 -- | Options for @diff@.  Assumes we're using GNU diff.
 diffOpts :: [Text]
@@ -40,11 +36,15 @@ runDiff
   -- ^ To file
   -> io Text
   -- ^ Output from @diff@
-runDiff from to = fmap snd runProcess
-  where
-    args = diffOpts <> [ X.pack from, "-"]
-    runProcess = Turtle.procStrict "diff" args
-      (Turtle.select . Turtle.textToLines $ to)
+runDiff from to = do
+  fromFilename <- case filePathToText from of
+    Left e -> fail $ "could not decode file path: " <> unpack e
+    Right g -> return g
+  let args = diffOpts <> [ fromFilename, "-"]
+      runProcess = Turtle.procStrict "diff" args
+        (Turtle.select . Turtle.textToLines $ to)
+  fmap snd runProcess
+
 
 data Patch = Patch
   { viewDiff :: Text
@@ -74,7 +74,7 @@ patch
   => Patch
   -> io ()
 patch (Patch _ dest txt)
-  = liftIO $ XIO.writeFile dest txt
+  = liftIO $ writeFile dest txt
 
 less
   :: MonadIO io
@@ -108,7 +108,7 @@ colordiff
 colordiff
   = less
   . Turtle.select
-  . concat
+  . join
   . fmap colorizeDiffLine
   . Turtle.textToLines
   . viewDiff

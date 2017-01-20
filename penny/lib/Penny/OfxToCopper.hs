@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 -- | Converts an OFX file to Copper transactions.
 --
 -- Typically all you wil need is 'ofxImportProgram' and the types it
@@ -35,34 +36,24 @@ import Penny.Copper.Productions
 import Penny.Copper.Terminalizers (t'WholeFile)
 import Penny.Copper.Tracompri
 import Penny.Copper.Types (WholeFile)
-import Penny.Cursor
 import Penny.Decimal
 import Penny.Ents
 import qualified Penny.Fields as Fields
+import Penny.Prelude
 import Penny.SeqUtil
 import Penny.Tranche (Postline)
 import qualified Penny.Tranche as Tranche
 import Penny.Transaction
-import Penny.Unix
 
-import Accuerr (Accuerr)
 import qualified Accuerr
 import qualified Control.Exception as Exception
 import qualified Control.Lens as Lens
-import Control.Monad (join, guard)
-import Data.Foldable (toList)
-import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.OFX as OFX
-import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Sequence.NonEmpty (NonEmptySeq)
 import qualified Data.Sequence.NonEmpty as NE
-import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Text (Text)
 import qualified Data.Text as X
-import Data.Time (ZonedTime)
 import qualified Data.Time as Time
 import qualified Data.Time.Timelens as Timelens
 import qualified Pinchot
@@ -176,14 +167,14 @@ ofxToCopper
   -> Seq FilePath
   -- ^ OFX files to read
   -> IO Text
-ofxToCopper fOfx copFiles ofxFiles = do
-  readCopperFiles <- readFileList . fmap X.pack $ copFiles
-  readOfxFiles <- fmap (fmap snd)
-    . readFileList . fmap X.pack $ ofxFiles
-  let readStrings = fmap X.unpack readOfxFiles
+ofxToCopper fOfx copFilenames ofxFilenames = do
+  copperTxts <- traverse readFile copFilenames
+  let readCopperFiles = zipWith (\fp txt -> (Right fp, txt))
+        copFilenames copperTxts
+  readOfxFiles <- traverse readFile ofxFilenames
   result <- either Exception.throwIO return
     . ofxImportWithCopperParse fOfx readCopperFiles
-    $ readStrings
+    $ readOfxFiles
   return . printResult $ result
 
 -- | Prints the 'WholeFile' to standard output.
@@ -195,7 +186,7 @@ printResult = X.pack . toList . fmap fst . t'WholeFile
 type Accuseq a = Accuerr (NonEmptySeq a)
 
 data OfxToCopperError
-  = OTCBadOfxFile String
+  = OTCBadOfxFile Text
   | OTCBadOfxAmount (NonEmptySeq OFX.Transaction)
   | OTCBadCopperFile (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
   | OTCCopperizationFailed (NonEmptySeq (TracompriError ()))
@@ -311,9 +302,9 @@ ofxToTxn ofxIn ofxOut = Transaction tl bal
 ofxImportWithCopperParse
   :: (OfxIn -> Maybe OfxOut)
   -- ^ Examines each OFX transaction
-  -> Seq (InputFilespec, Text)
+  -> Seq (Either Text FilePath, Text)
   -- ^ Copper files with their names
-  -> Seq String
+  -> Seq Text
   -- ^ OFX input files
   -> Either OfxToCopperError (WholeFile Char ())
   -- ^ If successful, returns the formatted new transactions.  Also,
@@ -335,12 +326,12 @@ importOfxTxns
   -- ^ Examines each OFX transaction.  This function must do something
   -- about duplicates, as 'importOfxTxns' does nothing special to
   -- handle duplicates.
-  -> String
+  -> Text
   -- ^ OFX input file
   -> Either OfxToCopperError (Seq (Transaction ()))
 importOfxTxns fOfx inp = do
-  ofx <- Lens.over Lens._Left OTCBadOfxFile
-    . OFX.parseTransactions $ inp
+  ofx <- Lens.over Lens._Left (OTCBadOfxFile . pack)
+    . OFX.parseTransactions . unpack $ inp
   let ofxMkr t = case mkOfxIn t of
         Nothing -> Accuerr.AccFailure $ NE.singleton t
         Just r -> Accuerr.AccSuccess r
@@ -388,7 +379,7 @@ importOfx lkp f inp = do
 parseCopperFiles
   :: (OfxIn -> Maybe OfxOut)
   -- ^ Original function
-  -> Seq (InputFilespec, Text)
+  -> Seq (Either Text FilePath, Text)
   -> Either (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
             (OfxIn -> Maybe OfxOut)
 parseCopperFiles fOrig
@@ -438,14 +429,14 @@ freshPosting inp out lkp = case Map.lookup acctName lkp of
 -- of filenames is non-empty, returns the last filename, and its
 -- corresponding WholeFile.
 getAccountsMap
-  :: Seq (InputFilespec, Text)
+  :: Seq (Either Text FilePath, Text)
   -- ^
   -> Accuerr (NonEmptySeq (ParseConvertProofError Pinchot.Loc))
              (Map Account (Set Text))
   -- ^
 getAccountsMap = fmap f . parseConvertProofFiles
   where
-    f = foldl addTracompriToAccountMap Map.empty . join
+    f = foldl' addTracompriToAccountMap Map.empty . join
 
 addTracompriToAccountMap
   :: Map Account (Set Text)
@@ -455,7 +446,7 @@ addTracompriToAccountMap
   -> Map Account (Set Text)
   -- ^
 addTracompriToAccountMap oldMap (Tracompri'Transaction txn)
-  = foldl addPostlineToAccountMap oldMap
+  = foldl' addPostlineToAccountMap oldMap
   . fmap snd
   . balancedToSeqEnt
   . _postings

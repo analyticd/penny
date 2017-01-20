@@ -1,26 +1,18 @@
 {-# LANGUAGE FlexibleContexts, OverloadedStrings #-}
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 -- | Checks the balances of accounts.  Useful to keep your ledgers
 -- consistent with the statements that come from the bank.
 
 module Penny.BalanceCheck (checkBalances) where
 
-import Control.Monad (join)
-import Control.Lens (view, _Wrapped', (&))
 import qualified Control.Lens as Lens
-import Data.Monoid ((<>))
-import Data.Time (Day)
 import qualified Data.Foldable as Fdbl
 import qualified Data.Map as M
-import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
-import Data.Sequence.NonEmpty (nonEmptySeqToSeq)
-import Data.Text (Text, pack)
-import Rainbow (Chunk)
 import qualified Rainbow
-import Turtle.Bytes (procs)
-import Turtle.Shell (liftIO)
+import qualified Turtle.Bytes as Bytes
 import qualified Turtle.Shell as Shell
 
 import Penny.Account
@@ -34,6 +26,7 @@ import Penny.Decimal
 import Penny.Ents
 import Penny.Polar
 import Penny.Positive
+import Penny.Prelude
 import Penny.SeqUtil (catMaybes)
 import Penny.Tranche
 import Penny.Transaction
@@ -168,7 +161,7 @@ pureCheckBalances txns acctsAndDays = (reports, cumulative)
 loadAndCheckBalances
   :: Seq (Account, Seq (Day, Seq (Commodity, Pole, DecPositive)))
   -- ^ Accounts and balances to check
-  -> Seq Text
+  -> Seq FilePath
   -- ^ List of filenames to load
   -> IO (Seq (Chunk Text), Bool)
 loadAndCheckBalances toCheck loads = do
@@ -177,7 +170,6 @@ loadAndCheckBalances toCheck loads = do
         = catMaybes
         . fmap (Lens.preview _Tracompri'Transaction)
         . join
-        . nonEmptySeqToSeq
         $ neSeqs
   return (pureCheckBalances txns toCheck)
 
@@ -185,11 +177,11 @@ loadAndCheckBalances toCheck loads = do
 checkBalances
   :: Seq (Account, Seq (Day, Seq (Commodity, Pole, DecPositive)))
   -- ^ Accounts and balances to check
-  -> Seq Text
+  -> Seq FilePath
   -- ^ List of filenames to load
   -> IO ()
 checkBalances toCheck files = do
   (results, _) <- liftIO $ loadAndCheckBalances toCheck files
   maker <- liftIO Rainbow.byteStringMakerFromEnvironment
   let strings = Rainbow.chunksToByteStrings maker (Fdbl.toList results)
-  procs "less" lessOpts (Shell.select strings)
+  Bytes.procs "less" lessOpts (Shell.select strings)
