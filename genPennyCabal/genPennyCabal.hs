@@ -108,6 +108,9 @@ formatting = atLeast "formatting" [6,2,4]
 genericRandom :: Package
 genericRandom = atLeast "generic-random" [0,3,0,0]
 
+systemFilepath :: Package
+systemFilepath = atLeast "system-filepath" [0,4,13,4]
+
 libraryDepends :: [Package]
 libraryDepends =
   [ base
@@ -126,6 +129,7 @@ libraryDepends =
   , pretty
   , pinchot
   , earley
+  , systemFilepath
   , accuerr
   , ofx
   , timelens
@@ -134,7 +138,6 @@ libraryDepends =
   , nonEmptySequence
   , formatting
   , pinchot
-  , earley
   ]
 
 testDepends :: [Package]

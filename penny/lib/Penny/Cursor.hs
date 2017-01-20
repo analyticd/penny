@@ -1,32 +1,30 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 -- | Locations of items.
 
 module Penny.Cursor where
 
 import qualified Control.Lens as Lens
-import Data.Text (Text)
-import GHC.Generics (Generic)
 import Text.Show.Pretty (PrettyVal)
 import qualified Text.Show.Pretty as Pretty
 import qualified Pinchot
 
 import Penny.Pretty
-
--- | Indicates where this input file came from.
-data InputFilespec
-  = Stdin
-  | GivenFilename Text
-  deriving (Eq, Show, Ord, Generic)
-
-instance PrettyVal InputFilespec where
-  prettyVal Stdin = Pretty.Con "Stdin" []
-  prettyVal (GivenFilename txt) = Pretty.Con "GivenFilename" [prettyText txt]
+import Penny.Prelude
 
 data Cursor = Cursor
-  { _filename :: InputFilespec
+  { _collection :: Either Text FilePath
+  -- ^ Indicates where this item came from; either it is an arbitrary
+  -- 'Text' or a 'FilePath'.
   , _loc :: Pinchot.Loc
-  } deriving (Eq, Ord, Show, Generic, PrettyVal)
+  } deriving (Eq, Ord, Show, Generic)
+
+instance PrettyVal Cursor where
+  prettyVal (Cursor col loc) = Pretty.Rec "Cursor"
+    [ ("_collection", prettyEither prettyText prettyFilePath col)
+    , ("_loc", Pretty.prettyVal loc)
+    ]
 
 Lens.makeLenses ''Cursor

@@ -8,8 +8,14 @@ import qualified Data.OFX as OFX
 import qualified Data.Sequence as Seq
 import qualified Data.Time as Time
 import qualified Data.Text as X
+import Filesystem.Path.CurrentOS (FilePath)
+import Prelude hiding (FilePath)
 import Text.Show.Pretty (Value)
 import qualified Text.Show.Pretty as Pretty
+
+-- | Prettify a FilePath.
+prettyFilePath :: FilePath -> Value
+prettyFilePath = Pretty.String . show
 
 -- | Prettify a ZonedTime.
 prettyZonedTime
@@ -42,6 +48,16 @@ prettyMaybe
   -> Value
 prettyMaybe _ Nothing = Pretty.Con "Nothing" []
 prettyMaybe f (Just a) = Pretty.Con "Just" [f a]
+
+-- | Prettify an Either.
+prettyEither
+  :: (a -> Value)
+  -> (b -> Value)
+  -> Either a b
+  -> Value
+prettyEither fa _ (Left a) = Pretty.Con "Left" [fa a]
+prettyEither _ fb (Right b) = Pretty.Con "Right" [fb b]
+
 
 -- | Prettify a TrnType.
 prettyTrnType
