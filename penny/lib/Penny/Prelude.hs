@@ -13,14 +13,21 @@
 -- This module imports only from non-Penny packages.
 module Penny.Prelude
   ( -- * Comparisons
-    Eq ((==))
-  , Ord (compare, (<=), (<), (>=), (>), max, min)
+    Eq (..)
+  , Ord (..)
+  , Prelude.Ordering(LT, EQ, GT)
 
   -- * Showing
-  , Show (show)
+  , Show (..)
+
+  -- * Tuples
+  , fst
+  , snd
+  , Prelude.curry
+  , Prelude.uncurry
 
   -- * Accuerr
-  , Accuerr (AccSuccess, AccFailure)
+  , Accuerr (..)
   , _AccSuccess
   , _AccFailure
   , accuerrToEither
@@ -42,6 +49,7 @@ module Penny.Prelude
   , Exception
   , throwIO
   , error
+  , Prelude.undefined
 
   -- * Typeable
   , Typeable
@@ -51,14 +59,17 @@ module Penny.Prelude
   , nonEmptySeqToSeq
 
   -- * Locations
-  , Loc(Loc)
+  , Loc(..)
 
   -- * Numeric types
   , Int
-  , Prelude.negate
+  , Prelude.Integer
+  , Prelude.Num(..)
+  , Prelude.Integral(..)
 
   -- * Characters
   , Char
+  , Prelude.String
 
   -- * Functions
   , (.)
@@ -66,30 +77,34 @@ module Penny.Prelude
   , ($)
   , id
   , Prelude.const
-  , Prelude.uncurry
+  , Prelude.flip
   , (Category.>>>)
   , (Category.<<<)
 
   -- * Typeclasses
-  , Traversable(traverse)
-  , Functor(fmap)
+  , Traversable(traverse, sequenceA)
+  , Functor(..)
+  , (Prelude.<$>)
   , Enum(succ, pred)
 
   -- * Foldable
-  , Foldable (toList)
+  , Foldable(..)
+  , Foldable.and
+  , Foldable.or
   , Foldable.any
   , Foldable.all
-  , Foldable.foldr
-  , Foldable.foldl'
 
   -- * Monad
-  , Monad((>>=), (>>), return, fail)
+  , Monad(..)
   , join
   , Monad.guard
+  , Monad.when
+  , (Monad.>=>)
+  , (Monad.<=<)
 
   -- * Applicative
-  , Applicative.Applicative (pure, (<*>), (*>), (<*))
-  , Applicative.Alternative (empty, (<|>), some, many)
+  , Applicative.Applicative (..)
+  , Applicative.Alternative (..)
 
   -- * Sequences
   , Seq
@@ -97,23 +112,23 @@ module Penny.Prelude
   , zipWith
 
   -- * Booleans
-  , Bool(True, False)
+  , Bool(..)
   , (Prelude.&&)
   , (Prelude.||)
   , Prelude.not
   , Prelude.otherwise
 
   -- * Sum types
-  , Either(Left, Right)
+  , Either(..)
   , either
 
   -- * Maybe
-  , Maybe(Nothing, Just)
+  , Maybe(..)
   , maybe
   , Maybe.fromMaybe
 
   -- * Anonymous sums
-  , S3(S3_1, S3_2, S3_3)
+  , S3(..)
   , Sums.Prisms._S3_1, Sums.Prisms._S3_2, Sums.Prisms._S3_3
 
   -- * IO
@@ -129,11 +144,7 @@ module Penny.Prelude
 
   -- * Monoids
   , (<>)
-  , Prelude.Monoid (mempty, mappend)
-
-  -- * Tuples
-  , fst
-  , snd
+  , Prelude.Monoid (..)
 
   -- * Date and time
   , Time.Day
@@ -141,10 +152,13 @@ module Penny.Prelude
 
   -- * Rainbow
   , Rainbow.Chunk
+  , Rainbow.chunk
+  , Rainbow.fore
+  , Rainbow.back
 
   -- * Lens
   , Lens.view
-  , Lens.Wrapped (_Wrapped')
+  , Lens.Wrapped (..)
   , Lens.over
   , Lens.set
   , Lens._1
@@ -159,8 +173,7 @@ module Penny.Prelude
   , Set.Set
   ) where
 
-import Accuerr (Accuerr(AccSuccess, AccFailure), _AccSuccess, _AccFailure,
-  accuerrToEither)
+import Accuerr (Accuerr(..), _AccSuccess, _AccFailure, accuerrToEither)
 import qualified Control.Applicative as Applicative
 import Data.ByteString (ByteString)
 import qualified Control.Category as Category
@@ -187,7 +200,7 @@ import Data.Typeable (Typeable)
 import GHC.Generics (Generic)
 import Filesystem.Path.CurrentOS (FilePath)
 import Filesystem.Path.CurrentOS (toText)
-import Sums (S3(S3_1, S3_2, S3_3))
+import Sums (S3(..))
 import qualified Sums.Prisms
 import Pinchot(Loc(Loc))
 import qualified Rainbow
